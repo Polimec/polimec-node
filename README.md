@@ -5,6 +5,7 @@ It is a concept like the ERC20 Smart Contract mechanism but for issuing Pre-Curr
 
 ## Table of contents <!-- omit in toc -->
 
+- [0. Install](#0-install)
 - [1. How does Polimec work?](#1-how-does-polimec-work)
   - [1.1. Main functionality](#11-main-functionality)
   - [1.2. Proposals](#12-proposals)
@@ -12,6 +13,8 @@ It is a concept like the ERC20 Smart Contract mechanism but for issuing Pre-Curr
     - [1.3.1. Voting](#131-voting)
     - [1.3.2. Payouts](#132-payouts)
 - [2. Further Documentation](#2-further-documentation)
+## 0. Install
+Please run the [init](./scripts/init.sh) script, to set your nightly [RUST](https://www.rust-lang.org/tools/install) version.
 
 ## 1. How does Polimec work?
 
