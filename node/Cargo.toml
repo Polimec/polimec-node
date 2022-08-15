@@ -1,0 +1,81 @@
+[package]
+authors = ['Polimec Team <https://github.com/Polimec>']
+build = 'build.rs'
+description = 'Polimec Node'
+edition = '2018'
+license = 'Unlicense'
+name = 'node-polimec'
+repository = 'https://github.com/polimec/polimec-node'
+version = '0.1.0'
+
+[package.metadata.docs.rs]
+targets = ['x86_64-unknown-linux-gnu']
+
+[[bin]]
+name = 'node-polimec'
+
+[dependencies]
+futures = '0.3.4'
+log = '0.4.8'
+parking_lot = '0.10.0'
+serde_json = '1.0.83'
+structopt = '0.3.8'
+
+# substrate dependencies
+sc-client-api = { git = 'https://github.com/paritytech/substrate', rev = 'b27503591d019b94a0eea7510578dadc5ad3196c' }
+sc-consensus =  { git = 'https://github.com/paritytech/substrate', rev = 'b27503591d019b94a0eea7510578dadc5ad3196c' }
+sc-consensus-aura =  { git = 'https://github.com/paritytech/substrate', rev = 'b27503591d019b94a0eea7510578dadc5ad3196c' }
+sc-finality-grandpa =  { git = 'https://github.com/paritytech/substrate', rev = 'b27503591d019b94a0eea7510578dadc5ad3196c' }
+sc-network =  { git = 'https://github.com/paritytech/substrate', rev = 'b27503591d019b94a0eea7510578dadc5ad3196c' }
+sc-transaction-pool =  { git = 'https://github.com/paritytech/substrate', rev = 'b27503591d019b94a0eea7510578dadc5ad3196c' }
+sp-consensus =  { git = 'https://github.com/paritytech/substrate', rev = 'b27503591d019b94a0eea7510578dadc5ad3196c' }
+sp-consensus-aura =  { git = 'https://github.com/paritytech/substrate', rev = 'b27503591d019b94a0eea7510578dadc5ad3196c' }
+sp-core =  { git = 'https://github.com/paritytech/substrate', rev = 'b27503591d019b94a0eea7510578dadc5ad3196c' }
+sp-finality-grandpa =  { git = 'https://github.com/paritytech/substrate', rev = 'b27503591d019b94a0eea7510578dadc5ad3196c' }
+sp-inherents =  { git = 'https://github.com/paritytech/substrate', rev = 'b27503591d019b94a0eea7510578dadc5ad3196c' }
+sp-runtime =  { git = 'https://github.com/paritytech/substrate', rev = 'b27503591d019b94a0eea7510578dadc5ad3196c' }
+sp-transaction-pool =  { git = 'https://github.com/paritytech/substrate', rev = 'b27503591d019b94a0eea7510578dadc5ad3196c' }
+
+# These dependencies are used for RPCs
+jsonrpc-core = '15.0.0'
+pallet-transaction-payment-rpc = { git = 'https://github.com/paritytech/substrate', rev = 'b27503591d019b94a0eea7510578dadc5ad3196c' }
+sc-basic-authorship = { git = 'https://github.com/paritytech/substrate', rev = 'b27503591d019b94a0eea7510578dadc5ad3196c' }
+sc-keystore =  { git = 'https://github.com/paritytech/substrate', rev = 'b27503591d019b94a0eea7510578dadc5ad3196c' }
+sc-rpc =  { git = 'https://github.com/paritytech/substrate', rev = 'b27503591d019b94a0eea7510578dadc5ad3196c' }
+sc-rpc-api =  { git = 'https://github.com/paritytech/substrate', rev = 'b27503591d019b94a0eea7510578dadc5ad3196c' }
+sp-api =  { git = 'https://github.com/paritytech/substrate', rev = 'b27503591d019b94a0eea7510578dadc5ad3196c' }
+sp-block-builder =  { git = 'https://github.com/paritytech/substrate', rev = 'b27503591d019b94a0eea7510578dadc5ad3196c' }
+sp-blockchain =  { git = 'https://github.com/paritytech/substrate', rev = 'b27503591d019b94a0eea7510578dadc5ad3196c' }
+substrate-frame-rpc-system =  { git = 'https://github.com/paritytech/substrate', rev = 'b27503591d019b94a0eea7510578dadc5ad3196c' }
+
+# These dependencies are used for runtime benchmarking
+frame-benchmarking =  { git = 'https://github.com/paritytech/substrate', rev = 'b27503591d019b94a0eea7510578dadc5ad3196c' }
+frame-benchmarking-cli =  { git = 'https://github.com/paritytech/substrate', rev = 'b27503591d019b94a0eea7510578dadc5ad3196c' }
+
+[dependencies.node-polimec-runtime]
+path = '../runtime'
+version = '0.1'
+
+[dependencies.sc-cli]
+features = ['wasmtime']
+git = 'https://github.com/paritytech/substrate'
+rev = 'b27503591d019b94a0eea7510578dadc5ad3196c'
+
+[dependencies.sc-executor]
+features = ['wasmtime']
+git = 'https://github.com/paritytech/substrate'
+rev = 'b27503591d019b94a0eea7510578dadc5ad3196c'
+
+[dependencies.sc-service]
+features = ['wasmtime']
+git = 'https://github.com/paritytech/substrate'
+rev = 'b27503591d019b94a0eea7510578dadc5ad3196c'
+
+[build-dependencies]
+substrate-build-script-utils = { git = 'https://github.com/paritytech/substrate', rev = 'b27503591d019b94a0eea7510578dadc5ad3196c' }
+
+[features]
+default = []
+runtime-benchmarks = [
+  'node-polimec-runtime/runtime-benchmarks',
+]
