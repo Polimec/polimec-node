@@ -19,7 +19,7 @@ mod register {
 			// The event was deposited
 			assert_eq!(
 				last_event(),
-				Event::MultiMintModule(crate::Event::RegisteredCurrency { 0: [1; 8], 1: 4 })
+				Event::MultiMintModule(crate::Event::RegisteredCurrency([1; 8], 4))
 			);
 		})
 	}
@@ -63,11 +63,11 @@ mod register {
 			// The issuer is the account specified in the register call.
 			assert_eq!(issuer, 42);
 			// The trading is not enabled for the new registered currency
-			assert_eq!(trading_enabled, false);
+			assert!(!trading_enabled);
 			// The event was deposited
 			assert_eq!(
 				last_event(),
-				Event::MultiMintModule(crate::Event::RegisteredCurrency { 0: [1; 8], 1: 42 })
+				Event::MultiMintModule(crate::Event::RegisteredCurrency([1; 8], 42))
 			);
 		})
 	}
@@ -89,7 +89,7 @@ mod mint {
 			// The event was deposited
 			assert_eq!(
 				last_event(),
-				Event::MultiMintModule(crate::Event::MintedCurrency { 0: [42; 8], 1: 7, 2: 100 })
+				Event::MultiMintModule(crate::Event::MintedCurrency([42; 8], 7, 100))
 			);
 		})
 	}
@@ -123,11 +123,11 @@ mod unlock_trading {
 			// The issuer is the account specified in the register call.
 			assert_eq!(issuer, 42);
 			// The trading is not enabled for the new registered currency
-			assert_eq!(trading_enabled, false);
+			assert!(!trading_enabled);
 			// The `RegisteredCurrency` event was deposited
 			assert_eq!(
 				last_event(),
-				Event::MultiMintModule(crate::Event::RegisteredCurrency { 0: [1; 8], 1: 42 })
+				Event::MultiMintModule(crate::Event::RegisteredCurrency([1; 8], 42))
 			);
 
 			assert_ok!(MultiMintModule::unlock_trading(Origin::signed(42), [1; 8]));
@@ -137,11 +137,11 @@ mod unlock_trading {
 			// The issuer is the account specified in the register call.
 			assert_eq!(issuer, 42);
 			// The trading is not enabled for the new registered currency
-			assert_eq!(trading_enabled, true);
+			assert!(trading_enabled);
 			// The `UnlockedTrading` event was deposited
 			assert_eq!(
 				last_event(),
-				Event::MultiMintModule(crate::Event::UnlockedTrading { 0: [1; 8] })
+				Event::MultiMintModule(crate::Event::UnlockedTrading([1; 8]))
 			);
 		})
 	}
@@ -163,11 +163,11 @@ mod lock_trading {
 			// The issuer is the account specified in the register call.
 			assert_eq!(issuer, 42);
 			// The trading is not enabled for the new registered currency
-			assert_eq!(trading_enabled, true);
+			assert!(trading_enabled);
 			// The `UnlockedTrading` event was deposited
 			assert_eq!(
 				last_event(),
-				Event::MultiMintModule(crate::Event::UnlockedTrading { 0: [1; 8] })
+				Event::MultiMintModule(crate::Event::UnlockedTrading([1; 8]))
 			);
 
 			assert_ok!(MultiMintModule::lock_trading(Origin::signed(42), [1; 8]));
@@ -176,11 +176,11 @@ mod lock_trading {
 			// The issuer is the account specified in the register call.
 			assert_eq!(issuer, 42);
 			// The trading is not enabled for the new registered currency
-			assert_eq!(trading_enabled, false);
+			assert!(!trading_enabled);
 			// The `RegisteredCurrency` event was deposited
 			assert_eq!(
 				last_event(),
-				Event::MultiMintModule(crate::Event::LockedTrading { 0: [1; 8] })
+				Event::MultiMintModule(crate::Event::LockedTrading([1; 8]))
 			);
 		})
 	}
