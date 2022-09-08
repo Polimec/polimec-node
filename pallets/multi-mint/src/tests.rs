@@ -113,6 +113,17 @@ mod unlock_trading {
 	use super::*;
 
 	#[test]
+	fn cannot_unlock_unregistered_currency() {
+		new_test_ext().execute_with(|| {
+			// The `currency` indexed by the id `[1; 8]` don't exists
+			assert_noop!(
+				MultiMintModule::unlock_trading(Origin::signed(42), [1; 8]),
+				Error::<Test>::CurrencyNotFound
+			);
+		})
+	}
+
+	#[test]
 	fn unlock_currency() {
 		new_test_ext().execute_with(|| {
 			// Only the `root` account can call the `register` function
@@ -139,16 +150,24 @@ mod unlock_trading {
 			// The trading is not enabled for the new registered currency
 			assert!(trading_enabled);
 			// The `UnlockedTrading` event was deposited
-			assert_eq!(
-				last_event(),
-				Event::MultiMintModule(crate::Event::UnlockedTrading([1; 8]))
-			);
+			assert_eq!(last_event(), Event::MultiMintModule(crate::Event::UnlockedTrading([1; 8])));
 		})
 	}
 }
 
 mod lock_trading {
 	use super::*;
+
+	#[test]
+	fn cannot_lock_unregistered_currency() {
+		new_test_ext().execute_with(|| {
+			// The `currency` indexed by the id `[1; 8]` don't exists
+			assert_noop!(
+				MultiMintModule::unlock_trading(Origin::signed(42), [1; 8]),
+				Error::<Test>::CurrencyNotFound
+			);
+		})
+	}
 
 	#[test]
 	fn lock_currency() {
@@ -165,10 +184,7 @@ mod lock_trading {
 			// The trading is not enabled for the new registered currency
 			assert!(trading_enabled);
 			// The `UnlockedTrading` event was deposited
-			assert_eq!(
-				last_event(),
-				Event::MultiMintModule(crate::Event::UnlockedTrading([1; 8]))
-			);
+			assert_eq!(last_event(), Event::MultiMintModule(crate::Event::UnlockedTrading([1; 8])));
 
 			assert_ok!(MultiMintModule::lock_trading(Origin::signed(42), [1; 8]));
 			// Here `currency_metadata` is the StorageMap in `MultiMintModule`
@@ -178,10 +194,7 @@ mod lock_trading {
 			// The trading is not enabled for the new registered currency
 			assert!(!trading_enabled);
 			// The `RegisteredCurrency` event was deposited
-			assert_eq!(
-				last_event(),
-				Event::MultiMintModule(crate::Event::LockedTrading([1; 8]))
-			);
+			assert_eq!(last_event(), Event::MultiMintModule(crate::Event::LockedTrading([1; 8])));
 		})
 	}
 }
