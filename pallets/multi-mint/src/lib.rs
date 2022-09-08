@@ -110,7 +110,7 @@ pub mod pallet {
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn lock_trading(origin: OriginFor<T>, currency_id: CurrencyIdOf<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			Self::do_lock_trading(&who, &currency_id)
+			Self::change_trading_status(&who, &currency_id, false)
 		}
 
 		/// Unlock currency trading
@@ -121,7 +121,7 @@ pub mod pallet {
 			currency_id: CurrencyIdOf<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			Self::do_unlock_trading(&who, &currency_id)
+			Self::change_trading_status(&who, &currency_id, true)
 		}
 
 		/// Transfer some amount from one account to another.
@@ -176,33 +176,42 @@ pub mod pallet {
 			}
 		}
 
-		pub fn do_lock_trading(
+		pub fn change_trading_status(
 			who: &T::AccountId,
 			currency_id: &CurrencyIdOf<T>,
+			status: bool,
 		) -> Result<(), DispatchError> {
-			if let Some((issuer, _)) = CurrencyMetadata::<T>::get(&currency_id) {
-				ensure!(&issuer == who, Error::<T>::Unauthorized);
-				// TODO: Check if it's better to use a mutate/tryMutate here
-				<CurrencyMetadata<T>>::insert(currency_id, (&issuer, false));
-				Self::deposit_event(Event::<T>::LockedTrading(*currency_id));
-				Ok(())
-			} else {
-				Err(Error::<T>::CurrencyNotFound.into())
-			}
-		}
-
-		pub fn do_unlock_trading(
-			who: &T::AccountId,
-			currency_id: &CurrencyIdOf<T>,
-		) -> Result<(), DispatchError> {
-			if let Some((issuer, _)) = CurrencyMetadata::<T>::get(currency_id) {
-				ensure!(&issuer == who, Error::<T>::Unauthorized);
-				<CurrencyMetadata<T>>::insert(currency_id, (&issuer, true));
-				Self::deposit_event(Event::<T>::UnlockedTrading(*currency_id));
-				Ok(())
-			} else {
-				Err(Error::<T>::CurrencyNotFound.into())
-			}
+			// if let Some((issuer, mut trading)) = CurrencyMetadata::<T>::get(currency_id) {
+			// 	ensure!(&issuer == who, Error::<T>::Unauthorized);
+			// 	//<CurrencyMetadata<T>>::insert(currency_id, (&issuer, status));
+			// 	trading = status;
+			// 	if status {
+			// 		Self::deposit_event(Event::<T>::UnlockedTrading(*currency_id));
+			// 	} else {
+			// 		Self::deposit_event(Event::<T>::LockedTrading(*currency_id));
+			// 	}
+			// 	Ok(())
+			// } else {
+			// 	Err(Error::<T>::CurrencyNotFound.into())
+			// }
+			CurrencyMetadata::<T>::mutate(
+				currency_id,
+				|currency_metadata| -> Result<(), DispatchError> {
+					match currency_metadata {
+						Some((issuer, trading_enabled)) => {
+							ensure!(issuer == who, Error::<T>::Unauthorized);
+							*trading_enabled = status;
+							if status {
+								Self::deposit_event(Event::<T>::UnlockedTrading(*currency_id));
+							} else {
+								Self::deposit_event(Event::<T>::LockedTrading(*currency_id));
+							}
+						},
+						None => return Err(Error::<T>::CurrencyNotFound.into()),
+					}
+					Ok(())
+				},
+			)
 		}
 
 		pub fn do_transfer(
