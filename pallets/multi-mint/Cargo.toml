@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-multi-mint'
-version = "4.0.0-dev"
+version = "0.1.0"
 description = 'FRAME pallet make multicurrencies'
 authors = ['Polimec Team <https://github.com/Polimec>']
 edition = "2021"

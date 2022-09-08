@@ -34,7 +34,7 @@ pub mod pallet {
 
 		type GetNativeCurrencyId: Get<CurrencyIdOf<Self>>;
 
-		// TODO: Add Weight
+		// TODO: Add Weight type
 
 		// Weight information for extrinsics in this pallet.
 		// type WeightInfo: WeightInfo;
