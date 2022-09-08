@@ -1,0 +1,20 @@
+[package]
+authors = ["Polimec Team <https://github.com/Polimec>"]
+description = "Polimec traits"
+edition = "2021"
+license = "Unlicense"
+name = "traits"
+repository = "https://github.com/polimec/polimec-node"
+version = "0.1.0"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+frame-support = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.28" }
+sp-runtime = { version = "6.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.28" }
+
+[features]
+default = ["std"]
+
+std = ["frame-support/std", "sp-runtime/std"]
