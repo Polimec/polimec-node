@@ -1,20 +1,32 @@
 use node_polimec_runtime::{
-	AccountId, GenesisConfig, GetNativeCurrencyId, IssuerCouncilConfig, PoliBalancesConfig, PreCurrencyMintConfig,
-	SessionConfig, Signature, SudoConfig, SystemConfig, WASM_BINARY,
+	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GetNativeCurrencyId, GrandpaConfig,
+	PoliBalancesConfig, Signature, SudoConfig, SystemConfig, WASM_BINARY,
 };
-use sc_service::ChainType;
+use sc_service::{ChainType, Properties};
+use serde_json::map::Map;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
-const SYSTEM_PROPERTIES: &str = r#"{
-    "tokenDecimals": 18,
-    "tokenSymbol": "POLI"
-}"#;
+// The URL for the telemetry server.
+// const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
-/// Specialized `ChainSpec`. This is a specialization of the general Substrate
-/// ChainSpec type.
+fn polimec_properties() -> Properties {
+	let mut properties = Map::new();
+	let mut token_symbol: Vec<String> = vec![];
+	let mut token_decimals: Vec<u32> = vec![];
+
+	token_symbol.push("PLMC".to_string());
+	token_decimals.push(18_u32);
+	properties.insert("tokenSymbol".into(), token_symbol.into());
+	properties.insert("tokenDecimals".into(), token_decimals.into());
+	properties.insert("ss58Format".into(), "42".into());
+
+	properties
+}
+
+/// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig>;
 
 /// Generate a crypto pair from seed.
@@ -35,26 +47,27 @@ where
 }
 
 /// Generate an Aura authority key.
-pub fn authority_keys_from_seed(s: &str) -> (AccountId, AuraId, GrandpaId) {
-	(
-		get_account_id_from_seed::<sr25519::Public>(s),
-		get_from_seed::<AuraId>(s),
-		get_from_seed::<GrandpaId>(s),
-	)
+pub fn authority_keys_from_seed(s: &str) -> (AuraId, GrandpaId) {
+	(get_from_seed::<AuraId>(s), get_from_seed::<GrandpaId>(s))
 }
 
 pub fn development_config() -> Result<ChainSpec, String> {
-	let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm binary not available".to_string())?;
+	let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm not available".to_string())?;
 
 	Ok(ChainSpec::from_genesis(
-		"Development",
-		"dev",
+		// Name
+		"Polimec Development",
+		// ID
+		"polimec-dev",
 		ChainType::Development,
 		move || {
 			testnet_genesis(
 				wasm_binary,
+				// Initial PoA authorities
 				vec![authority_keys_from_seed("Alice")],
+				// Sudo account
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				// Pre-funded accounts
 				vec![
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
 					get_account_id_from_seed::<sr25519::Public>("Bob"),
@@ -64,26 +77,37 @@ pub fn development_config() -> Result<ChainSpec, String> {
 				true,
 			)
 		},
+		// Bootnodes
 		vec![],
+		// Telemetry
+		None,
+		// Protocol ID
 		None,
 		None,
-		Some(serde_json::from_str(SYSTEM_PROPERTIES).map_err(|_| "Could not parse system properties".to_string())?),
+		// Properties
+		Some(polimec_properties()),
+		// Extensions
 		None,
 	))
 }
 
 pub fn local_testnet_config() -> Result<ChainSpec, String> {
-	let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm binary not available".to_string())?;
+	let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm not available".to_string())?;
 
 	Ok(ChainSpec::from_genesis(
-		"Local Testnet",
-		"local_testnet",
+		// Name
+		"Polimec Local Testnet",
+		// ID
+		"polimec-local_testnet",
 		ChainType::Local,
 		move || {
 			testnet_genesis(
 				wasm_binary,
+				// Initial PoA authorities
 				vec![authority_keys_from_seed("Alice"), authority_keys_from_seed("Bob")],
+				// Sudo account
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				// Pre-funded accounts
 				vec![
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
 					get_account_id_from_seed::<sr25519::Public>("Bob"),
@@ -101,10 +125,16 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 				true,
 			)
 		},
+		// Bootnodes
 		vec![],
+		// Telemetry
 		None,
+		// Protocol ID
 		None,
-		Some(serde_json::from_str(SYSTEM_PROPERTIES).map_err(|_| "Could not parse system properties".to_string())?),
+		// Properties
+		None,
+		Some(polimec_properties()),
+		// Extensions
 		None,
 	))
 }
@@ -112,51 +142,37 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 /// Configure initial storage state for FRAME modules.
 fn testnet_genesis(
 	wasm_binary: &[u8],
-	initial_authorities: Vec<(AccountId, AuraId, GrandpaId)>,
+	initial_authorities: Vec<(AuraId, GrandpaId)>,
 	root_key: AccountId,
 	endowed_accounts: Vec<AccountId>,
 	_enable_println: bool,
 ) -> GenesisConfig {
 	GenesisConfig {
-		frame_system: Some(SystemConfig {
+		system: SystemConfig {
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
-			changes_trie_config: Default::default(),
-		}),
-		session: Some(SessionConfig {
-			keys: initial_authorities
-				.iter()
-				.map(|x| {
-					(
-						x.0.clone(),
-						x.0.clone(),
-						node_polimec_runtime::opaque::SessionKeys {
-							aura: x.1.clone(),
-							grandpa: x.2.clone(),
-						},
-					)
-				})
-				.collect::<Vec<_>>(),
-		}),
-		aura: Some(Default::default()),
-		grandpa: Some(Default::default()),
-		sudo: Some(SudoConfig { key: root_key.clone() }),
-		orml_tokens: Some(PoliBalancesConfig {
-			endowed_accounts: endowed_accounts
+		},
+		balances: BalancesConfig {
+			// Configure endowed accounts with initial balance of 1 << 60.
+			balances: endowed_accounts.iter().cloned().map(|k| (k, 1 << 60)).collect(),
+		},
+		aura: AuraConfig {
+			authorities: initial_authorities.iter().map(|x| (x.0.clone())).collect(),
+		},
+		grandpa: GrandpaConfig {
+			authorities: initial_authorities.iter().map(|x| (x.1.clone(), 1)).collect(),
+		},
+		sudo: SudoConfig {
+			// Assign network admin rights.
+			key: Some(root_key),
+		},
+		transaction_payment: Default::default(),
+		poli_balances: PoliBalancesConfig {
+			balances: endowed_accounts
 				.iter()
 				.cloned()
 				.map(|k| (k, GetNativeCurrencyId::get(), 1 << 60))
 				.collect(),
-		}),
-		multi_mint: Some(PreCurrencyMintConfig {
-			pre_currency: vec![(GetNativeCurrencyId::get(), root_key, true)],
-		}),
-		issuer_council: Some(IssuerCouncilConfig {
-			members: initial_authorities
-				.iter()
-				.enumerate()
-				.map(|(i, (account_id, _, _))| (account_id.clone(), account_id.clone(), i.to_ne_bytes()))
-				.collect(),
-		}),
+		},
 	}
 }
