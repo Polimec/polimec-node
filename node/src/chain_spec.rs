@@ -21,7 +21,7 @@ fn polimec_properties() -> Properties {
 	token_decimals.push(18_u32);
 	properties.insert("tokenSymbol".into(), token_symbol.into());
 	properties.insert("tokenDecimals".into(), token_decimals.into());
-	properties.insert("ss58Format".into(), "42".into());
+	properties.insert("ss58Format".into(), "41".into());
 
 	properties
 }
