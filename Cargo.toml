@@ -2,7 +2,8 @@
 members = [
     "node",
     "pallets/multi-mint",
-    'pallets/traits',
+    "pallets/traits",
+    "pallets/proposal",
     "runtime",
 ]
 [profile.release]
