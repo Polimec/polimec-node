@@ -45,7 +45,7 @@ pub use sp_runtime::{Perbill, Permill};
 
 use frame_support::{traits::Contains, PalletId};
 use orml_traits::parameter_type_with_key;
-/// Import the template pallet.
+/// Import the `multi_mint` pallet.
 pub use pallet_multi_mint;
 use sp_runtime::traits::AccountIdConversion;
 
@@ -333,7 +333,7 @@ construct_runtime!(
 		Balances: pallet_balances,
 		TransactionPayment: pallet_transaction_payment,
 		Sudo: pallet_sudo,
-		// Include the custom logic from the pallet-template in the runtime.
+		// Include the custom logic
 		PoliBalances: orml_tokens,
 		PreCurrencyMint: pallet_multi_mint,
 	}
