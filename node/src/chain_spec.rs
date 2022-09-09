@@ -16,11 +16,12 @@ fn polimec_properties() -> Properties {
 	let mut properties = Map::new();
 	let mut token_symbol: Vec<String> = vec![];
 	let mut token_decimals: Vec<u32> = vec![];
-
 	token_symbol.push("PLMC".to_string());
-	token_decimals.push(18_u32);
 	properties.insert("tokenSymbol".into(), token_symbol.into());
+	// TODO: Discuss how many decimals to use
+	token_decimals.push(18_u32);
 	properties.insert("tokenDecimals".into(), token_decimals.into());
+	// Information taken from https://github.com/paritytech/ss58-registry/blob/main/ss58-registry.json
 	properties.insert("ss58Format".into(), "41".into());
 
 	properties
