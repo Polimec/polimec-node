@@ -19,8 +19,8 @@ pub mod pallet {
 
 	type CurrencyIdOf<T> = <T as orml_tokens::Config>::CurrencyId;
 
+	// TODO: Use SCALE compact representation since this type will probably be u64/128 
 	type AmountOf<T> = <T as orml_tokens::Config>::Amount;
-
 	type BalanceOf<T> = <T as orml_tokens::Config>::Balance;
 
 	#[pallet::pallet]
@@ -32,6 +32,7 @@ pub mod pallet {
 	pub trait Config: frame_system::Config + orml_tokens::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
+		#[pallet::constant]
 		type GetNativeCurrencyId: Get<CurrencyIdOf<Self>>;
 
 		// TODO: Add Weight type
@@ -89,6 +90,7 @@ pub mod pallet {
 		/// whereas here it displays PICO because it doesn't know that this is a currency.
 		/// We maybe also want to have CurrencyOf as a type here because we never take currency
 		/// away.
+		/// 
 		// TODO: Add proper weight
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn mint(
@@ -106,6 +108,7 @@ pub mod pallet {
 		}
 
 		/// Lock currency trading
+		/// 
 		// TODO: Add proper weight
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn lock_trading(origin: OriginFor<T>, currency_id: CurrencyIdOf<T>) -> DispatchResult {
@@ -114,6 +117,7 @@ pub mod pallet {
 		}
 
 		/// Unlock currency trading
+		/// 
 		// TODO: Add proper weight
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn unlock_trading(
@@ -125,6 +129,7 @@ pub mod pallet {
 		}
 
 		/// Transfer some amount from one account to another.
+		/// 
 		// TODO: Add proper weight
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn transfer(
@@ -179,29 +184,16 @@ pub mod pallet {
 		pub fn change_trading_status(
 			who: &T::AccountId,
 			currency_id: &CurrencyIdOf<T>,
-			status: bool,
+			trading_status: bool,
 		) -> Result<(), DispatchError> {
-			// if let Some((issuer, mut trading)) = CurrencyMetadata::<T>::get(currency_id) {
-			// 	ensure!(&issuer == who, Error::<T>::Unauthorized);
-			// 	//<CurrencyMetadata<T>>::insert(currency_id, (&issuer, status));
-			// 	trading = status;
-			// 	if status {
-			// 		Self::deposit_event(Event::<T>::UnlockedTrading(*currency_id));
-			// 	} else {
-			// 		Self::deposit_event(Event::<T>::LockedTrading(*currency_id));
-			// 	}
-			// 	Ok(())
-			// } else {
-			// 	Err(Error::<T>::CurrencyNotFound.into())
-			// }
 			CurrencyMetadata::<T>::mutate(
 				currency_id,
 				|currency_metadata| -> Result<(), DispatchError> {
 					match currency_metadata {
 						Some((issuer, trading_enabled)) => {
 							ensure!(issuer == who, Error::<T>::Unauthorized);
-							*trading_enabled = status;
-							if status {
+							*trading_enabled = trading_status;
+							if trading_status {
 								Self::deposit_event(Event::<T>::UnlockedTrading(*currency_id));
 							} else {
 								Self::deposit_event(Event::<T>::LockedTrading(*currency_id));
