@@ -33,7 +33,7 @@ pub mod pallet {
 
 	// TODO: why PartialEq?
 	// More about TypeInfo trait: https://github.com/paritytech/scale-info
-	#[derive(Clone, Encode, Decode, RuntimeDebug, PartialEq, TypeInfo)]
+	#[derive(Clone, Encode, Decode, RuntimeDebug, PartialEq, Eq, TypeInfo)]
 	pub struct Proposal<Call, Meta> {
 		pub call: Box<Call>,
 		pub metadata: Meta,
