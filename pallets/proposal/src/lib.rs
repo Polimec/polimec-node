@@ -14,7 +14,7 @@ mod benchmarking;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use codec::{Decode, Encode};
+	use codec::{alloc::boxed::Box, Decode, Encode};
 	use frame_support::{
 		dispatch::{
 			DispatchResult, DispatchResultWithPostInfo, Dispatchable, GetDispatchInfo,
