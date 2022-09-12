@@ -10,12 +10,12 @@ use frame_system::RawOrigin;
 
 benchmarks! {
 	do_something {
-        // TODO: Prepare the env
+		// TODO: Prepare the env
 		let s in 0 .. 100;
 		let caller: T::AccountId = whitelisted_caller();
 	}: _(RawOrigin::Signed(caller), s)
 	verify {
-        // TODO: call a function/storage in the pallet
+		// TODO: call a function/storage in the pallet
 		assert_eq!(Something::<T>::get(), Some(s));
 	}
 
