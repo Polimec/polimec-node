@@ -4128,6 +4128,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-multi-stake"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-multi-mint",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "traits",
+]
+
+[[package]]
 name = "pallet-proposal"
 version = "0.1.0"
 dependencies = [

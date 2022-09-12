@@ -4,6 +4,7 @@ members = [
     "pallets/multi-mint",
     "pallets/traits",
     "pallets/proposal",
+    "pallets/multi-stake",
     "runtime",
 ]
 [profile.release]
