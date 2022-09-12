@@ -28,6 +28,9 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 
+	/// Simple index type for proposal counting.
+	pub type ProposalIndex = u32;
+
 	// TODO: why PartialEq?
 	// More about TypeInfo trait: https://github.com/paritytech/scale-info
 	#[derive(Clone, Encode, Decode, RuntimeDebug, PartialEq, TypeInfo)]
@@ -57,7 +60,7 @@ pub mod pallet {
 		type ProposalMetadata: Parameter + PartialEq + Default;
 
 		/// Maximum number of proposals allowed to be active in parallel.
-		type MaxProposals: Get<u32>;
+		type MaxProposals: Get<ProposalIndex>;
 
 		/// The outer call dispatch type.
 		type Call: Parameter
@@ -212,7 +215,7 @@ pub mod pallet {
 					active_proposals < T::MaxProposals::get() as usize,
 					Error::<T>::TooManyProposals
 				);
-				// TODO: There is a better way to append a value 
+				// TODO: There is a better way to append a value
 				let _ = <Proposals<T>>::try_append(proposal_hash);
 				let index = Self::proposal_count();
 				// TODO: Use safe math
