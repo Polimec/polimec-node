@@ -4137,6 +4137,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-multi-mint",
+ "pallet-proposal",
  "parity-scale-codec",
  "scale-info",
  "sp-core",

@@ -27,6 +27,8 @@ orml-tokens = { version = "0.4.1-dev", default-features = false, git = "https://
 # Local Dependencies
 pallet-multi-mint = { version = "*", path = "../multi-mint", default-features = false }
 traits = { version = '*', path = '../traits', default-features = false }
+pallet-proposal = { version = "*", path = "../proposal", default-features = false }
+
 
 [dev-dependencies]
 sp-core = { version = "6.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.28" }
