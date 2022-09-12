@@ -163,6 +163,8 @@ pub mod pallet {
 			Ok(proposal)
 		}
 
+		// TODO: Check the `collective` pallet
+		// https://github.com/paritytech/substrate/blob/master/frame/collective/src/lib.rs#L433
 		fn execute(proposal: TraitProposal<T>) -> DispatchResultWithPostInfo {
 			let proposal_len = proposal.using_encoded(|x| x.len());
 
