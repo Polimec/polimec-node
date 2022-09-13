@@ -177,6 +177,8 @@ pub mod pallet {
 		T::AccountId,
 		Blake2_128Concat,
 		CurrencyIdOf<T>,
+		// TODO: Use StakingLedger<T> instead of T::AccountId as map value.
+		//crate::StakingLedger<T>
 		T::AccountId,
 	>;
 
