@@ -17,10 +17,11 @@ mod benchmarking;
 #[frame_support::pallet]
 pub mod pallet {
 	use codec::{Decode, Encode};
-	use frame_support::{pallet_prelude::*, sp_runtime::traits::Saturating};
+	use frame_support::{pallet_prelude::*, parameter_types, sp_runtime::traits::Saturating};
 	use frame_system::pallet_prelude::*;
 	use orml_traits::{arithmetic::Zero, LockIdentifier, MultiCurrency, MultiLockableCurrency};
 	use pallet_proposal::ProposalIndex;
+	use scale_info::TypeInfo;
 
 	pub const STAKING_ID: LockIdentifier = *b"staking ";
 	pub const MAX_UNLOCKING_CHUNKS: usize = 32;
@@ -29,36 +30,32 @@ pub mod pallet {
 
 	type BalanceOf<T> = <T as orml_tokens::Config>::Balance;
 
-	/// Just a Balance/BlockNumber tuple to encode when a chunk of funds will be
-	/// unlocked.
-	#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
-	pub struct UnlockChunk<T: Config + orml_tokens::Config> {
+	/// Just a Balance/BlockNumber tuple to encode when a chunk of funds will be unlocked.
+	#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub struct UnlockChunk<T: Config> {
 		/// Amount of funds to be unlocked.
-		#[codec(compact)]
 		pub value: BalanceOf<T>,
 		/// Block number at which point it'll be unlocked.
-		#[codec(compact)]
+		/// TODO: Check BlockNumber vs Era
 		pub block: T::BlockNumber,
 	}
 
 	/// The ledger of a (bonded) stash.
-	#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
-	pub struct StakingLedger<T: Config + orml_tokens::Config> {
+	#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, MaxEncodedLen)]
+	pub struct StakingLedger<T: Config> {
 		/// The stash account whose balance is actually locked and at stake.
 		pub stash: T::AccountId,
 		/// The currency which is staked
 		pub currency_id: CurrencyIdOf<T>,
 		/// The total amount of the stash's balance that we are currently accounting
 		/// for. It's just `active` plus all the `unlocking` balances.
-		#[codec(compact)]
 		pub total: BalanceOf<T>,
 		/// The total amount of the stash's balance that will be at stake in any
 		/// forthcoming rounds.
-		#[codec(compact)]
 		pub active: BalanceOf<T>,
 		/// Any balance that is becoming free, which may eventually be transferred
 		/// out of the stash.
-		pub unlocking: Vec<UnlockChunk<T>>,
+		pub unlocking: BoundedVec<UnlockChunk<T>, T::MaxUnlockingChunks>,
 	}
 
 	impl<T: Config + orml_tokens::Config> StakingLedger<T> {
@@ -77,7 +74,11 @@ pub mod pallet {
 						false
 					}
 				})
-				.collect();
+				.collect::<Vec<_>>()
+				.try_into()
+				.expect(
+					"filtering items from a bounded vec always leaves length less than bounds. qed",
+				);
 
 			Self {
 				stash: self.stash,
@@ -117,7 +118,6 @@ pub mod pallet {
 	// TODO: Remove `#[pallet::without_storage_info]` and implement MaxEncodedLen for
 	// `StakingLedger`
 	#[pallet::pallet]
-	#[pallet::without_storage_info]
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
@@ -140,8 +140,27 @@ pub mod pallet {
 			BalanceOf<Self>,
 		>;
 
+		#[pallet::constant]
 		type MaxProposals: Get<ProposalIndex>;
+
+		/// The maximum number of `unlocking` chunks a [`StakingLedger`] can have. Effectively
+		/// determines how many unique eras a staker may be unbonding in.
+		#[pallet::constant]
+		type MaxUnlockingChunks: Get<u32>;
 	}
+
+	// The pallet's runtime storage items.
+	// https://docs.substrate.io/main-docs/build/runtime-storage/
+	#[pallet::storage]
+	#[pallet::getter(fn bonded)]
+	pub type Bonded<T: Config> = StorageDoubleMap<
+		_,
+		Twox64Concat,
+		T::AccountId,
+		Blake2_128Concat,
+		CurrencyIdOf<T>,
+		T::AccountId,
+	>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://docs.substrate.io/main-docs/build/events-errors/
