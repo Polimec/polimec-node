@@ -179,7 +179,26 @@ pub mod pallet {
 
 	// Errors inform users that something went wrong.
 	#[pallet::error]
-	pub enum Error<T> {}
+	pub enum Error<T> {
+		/// Not a controller account.
+		NotController,
+		/// Not a stash account.
+		NotStash,
+		/// Stash is already bonded.
+		AlreadyBonded,
+		/// Controller is already paired.
+		AlreadyPaired,
+		/// Slash record index out of bounds.
+		InsufficientValue,
+		/// Can not schedule more unlock chunks.
+		NoMoreChunks,
+		/// Can not rebond without unlocking chunks.
+		NoUnlockChunk,
+		/// Attempting to target a stash that still has funds.
+		FundedTarget,
+		/// Can not bond native currency.
+		IsNativeCurrency,
+	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
 	// These functions materialize as "extrinsics", which are often compared to transactions.
