@@ -4089,6 +4089,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-bonding-payouts"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-multi-mint",
+ "pallet-proposal",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "traits",
+]
+
+[[package]]
 name = "pallet-grandpa"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.28#34a0621761c4a333cb2074ff720f7acbfb92dbb8"

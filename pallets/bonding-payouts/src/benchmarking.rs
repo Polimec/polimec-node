@@ -1,4 +1,4 @@
-//! Benchmarking setup for pallet-multi-mint
+//! Benchmarking setup for pallet-bonding-payouts
 
 use super::*;
 
