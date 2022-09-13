@@ -1,9 +1,13 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::pallet_prelude::DispatchResult;
-/// Edit this file to define custom logic or remove it if it is not needed.
-/// Learn more about FRAME and the core library of Substrate FRAME pallets:
-/// <https://docs.substrate.io/reference/frame-pallets/>
+use codec::{Decode, Encode, HasCompact};
+use frame_support::{
+	pallet_prelude::DispatchResult, sp_runtime::traits::Saturating, BoundedVec, RuntimeDebug,
+	RuntimeDebugNoBound,
+};
+use orml_traits::{arithmetic::Zero, MultiLockableCurrency};
+use scale_info::TypeInfo;
+
 pub use pallet::*;
 
 #[cfg(test)]
@@ -15,117 +19,127 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-use frame_support::traits::Get;
-use orml_traits::MultiLockableCurrency;
+pub(crate) type CurrencyIdOf<T> = <T as orml_tokens::Config>::CurrencyId;
+
+pub(crate) type BalanceOf<T> = <T as orml_tokens::Config>::Balance;
+
+/// Counter for the number of eras that have passed.
+pub type EraIndex = u32;
+
+/// Just a Balance/BlockNumber tuple to encode when a chunk of funds will be unlocked.
+#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
+pub struct UnlockChunk<Balance: HasCompact> {
+	/// Amount of funds to be unlocked.
+	#[codec(compact)]
+	value: Balance,
+	/// Era number at which point it'll be unlocked.
+	#[codec(compact)]
+	era: EraIndex,
+}
+
+/// The ledger of a (bonded) stash.
+#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebugNoBound, TypeInfo)]
+#[scale_info(skip_type_params(T))]
+pub struct StakingLedger<T: Config + orml_tokens::Config> {
+	/// The stash account whose balance is actually locked and at stake.
+	pub stash: T::AccountId,
+	/// The currency which is staked
+	pub currency_id: CurrencyIdOf<T>,
+	/// The total amount of the stash's balance that we are currently accounting for.
+	/// It's just `active` plus all the `unlocking` balances.
+	#[codec(compact)]
+	pub total: BalanceOf<T>,
+	/// The total amount of the stash's balance that will be at stake in any forthcoming
+	/// rounds.
+	#[codec(compact)]
+	pub active: BalanceOf<T>,
+	/// Any balance that is becoming free, which may eventually be transferred out of the stash
+	/// (assuming it doesn't get slashed first). It is assumed that this will be treated as a first
+	/// in, first out queue where the new (higher value) eras get pushed on the back.
+	pub unlocking: BoundedVec<UnlockChunk<BalanceOf<T>>, T::MaxUnlockingChunks>,
+}
+
+impl<T: Config + orml_tokens::Config> StakingLedger<T> {
+	/// Remove entries from `unlocking` that are sufficiently old and reduce the
+	/// total by the sum of their balances.
+	/// Remove entries from `unlocking` that are sufficiently old and reduce the
+	/// total by the sum of their balances.
+	fn consolidate_unlocked(self, current_era: EraIndex) -> Self {
+		let mut total = self.total;
+		let unlocking: BoundedVec<_, _> = self
+			.unlocking
+			.into_iter()
+			.filter(|chunk| {
+				if chunk.era > current_era {
+					true
+				} else {
+					total = total.saturating_sub(chunk.value);
+					false
+				}
+			})
+			.collect::<Vec<_>>()
+			.try_into()
+			.expect(
+				"filtering items from a bounded vec always leaves length less than bounds. qed",
+			);
+
+		Self {
+			stash: self.stash,
+			total,
+			active: self.active,
+			unlocking,
+			currency_id: self.currency_id,
+		}
+	}
+
+	/// Re-bond funds that were scheduled for unlocking.
+	fn rebond(mut self, value: BalanceOf<T>) -> Self {
+		let mut unlocking_balance = BalanceOf::<T>::zero();
+
+		while let Some(last) = self.unlocking.last_mut() {
+			if unlocking_balance + last.value <= value {
+				unlocking_balance += last.value;
+				self.active += last.value;
+				self.unlocking.pop();
+			} else {
+				let diff = value - unlocking_balance;
+
+				unlocking_balance += diff;
+				self.active += diff;
+				last.value -= diff;
+			}
+
+			if unlocking_balance >= value {
+				break
+			}
+		}
+
+		self
+	}
+}
 
 #[frame_support::pallet]
 pub mod pallet {
-	use codec::{Decode, Encode};
+	use crate::{BalanceOf, CurrencyIdOf, EraIndex, StakingLedger, UnlockChunk};
 	use frame_support::{
-		pallet_prelude::*,
-		sp_runtime::traits::{Saturating, StaticLookup},
+		pallet_prelude::*, sp_runtime::traits::StaticLookup, traits::DefensiveSaturating,
 	};
 	use frame_system::pallet_prelude::*;
-	use orml_traits::{arithmetic::Zero, LockIdentifier, MultiCurrency, MultiLockableCurrency};
+	use orml_traits::{
+		arithmetic::{CheckedSub, Zero},
+		LockIdentifier, MultiCurrency, MultiLockableCurrency,
+	};
 	use pallet_proposal::ProposalIndex;
-	use scale_info::TypeInfo;
+	use traits::BondedVote;
 
 	pub const STAKING_ID: LockIdentifier = *b"staking ";
 	pub const MAX_UNLOCKING_CHUNKS: usize = 32;
-
-	pub(crate) type CurrencyIdOf<T> = <T as orml_tokens::Config>::CurrencyId;
-
-	pub(crate) type BalanceOf<T> = <T as orml_tokens::Config>::Balance;
-
-	/// Just a Balance/BlockNumber tuple to encode when a chunk of funds will be unlocked.
-	#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct UnlockChunk<T: Config> {
-		/// Amount of funds to be unlocked.
-		pub value: BalanceOf<T>,
-		/// Block number at which point it'll be unlocked.
-		/// TODO: Check BlockNumber vs Era
-		pub block: T::BlockNumber,
-	}
-
-	/// The ledger of a (bonded) stash.
-	#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, MaxEncodedLen)]
-	pub struct StakingLedger<T: Config> {
-		/// The stash account whose balance is actually locked and at stake.
-		pub stash: T::AccountId,
-		/// The currency which is staked
-		pub currency_id: CurrencyIdOf<T>,
-		/// The total amount of the stash's balance that we are currently accounting
-		/// for. It's just `active` plus all the `unlocking` balances.
-		pub total: BalanceOf<T>,
-		/// The total amount of the stash's balance that will be at stake in any
-		/// forthcoming rounds.
-		pub active: BalanceOf<T>,
-		/// Any balance that is becoming free, which may eventually be transferred
-		/// out of the stash.
-		pub unlocking: BoundedVec<UnlockChunk<T>, T::MaxUnlockingChunks>,
-	}
-
-	impl<T: Config + orml_tokens::Config> StakingLedger<T> {
-		/// Remove entries from `unlocking` that are sufficiently old and reduce the
-		/// total by the sum of their balances.
-		fn consolidate_unlocked(self, current_block: T::BlockNumber) -> Self {
-			let mut total = self.total;
-			let unlocking = self
-				.unlocking
-				.into_iter()
-				.filter(|chunk| {
-					if chunk.block > current_block {
-						true
-					} else {
-						total = total.saturating_sub(chunk.value);
-						false
-					}
-				})
-				.collect::<Vec<_>>()
-				.try_into()
-				.expect(
-					"filtering items from a bounded vec always leaves length less than bounds. qed",
-				);
-
-			Self {
-				stash: self.stash,
-				total,
-				active: self.active,
-				unlocking,
-				currency_id: self.currency_id,
-			}
-		}
-
-		/// Re-bond funds that were scheduled for unlocking.
-		fn rebond(mut self, value: BalanceOf<T>) -> Self {
-			let mut unlocking_balance = BalanceOf::<T>::zero();
-
-			while let Some(last) = self.unlocking.last_mut() {
-				if unlocking_balance + last.value <= value {
-					unlocking_balance += last.value;
-					self.active += last.value;
-					self.unlocking.pop();
-				} else {
-					let diff = value - unlocking_balance;
-
-					unlocking_balance += diff;
-					self.active += diff;
-					last.value -= diff;
-				}
-
-				if unlocking_balance >= value {
-					break
-				}
-			}
-
-			self
-		}
-	}
 
 	// TODO: Remove `#[pallet::without_storage_info]` and implement MaxEncodedLen for
 	// `StakingLedger`
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
+	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
@@ -135,7 +149,7 @@ pub mod pallet {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
 		/// Number of blocks that staked funds must remain bonded for.
-		type BondingDuration: Get<Self::BlockNumber>;
+		type BondingDuration: Get<EraIndex>;
 
 		/// Weight information for extrinsics in this pallet.
 		// TODO: Add Weight after benchmarks
@@ -156,8 +170,14 @@ pub mod pallet {
 		type MaxUnlockingChunks: Get<u32>;
 	}
 
-	// The pallet's runtime storage items.
-	// https://docs.substrate.io/main-docs/build/runtime-storage/
+	/// The current era index.
+	///
+	/// This is the latest planned era, depending on how the Session pallet queues the validator
+	/// set, it might be active or not.
+	#[pallet::storage]
+	#[pallet::getter(fn current_era)]
+	pub type CurrentEra<T> = StorageValue<_, crate::EraIndex>;
+
 	#[pallet::storage]
 	#[pallet::getter(fn bonded)]
 	pub type Bonded<T: Config> = StorageDoubleMap<
@@ -177,9 +197,7 @@ pub mod pallet {
 		T::AccountId,
 		Blake2_128Concat,
 		CurrencyIdOf<T>,
-		// TODO: Use StakingLedger<T> instead of T::AccountId as map value.
-		//crate::StakingLedger<T>
-		T::AccountId,
+		StakingLedger<T>,
 	>;
 
 	// Pallets use events to inform users when important changes are made.
@@ -260,10 +278,9 @@ pub mod pallet {
 
 			let controller = T::Lookup::lookup(controller)?;
 
-			// TODO: Add Ledger Logic
-			// if <Ledger<T>>::contains_key(&controller, &currency_id) {
-			// 	return Err(Error::<T>::AlreadyPaired.into())
-			// }
+			if <Ledger<T>>::contains_key(&controller, &currency_id) {
+				return Err(Error::<T>::AlreadyPaired.into())
+			}
 
 			// TODO: Re-enable once we have minimum balance
 			// reject a bond which is considered to be _dust_.
@@ -291,8 +308,7 @@ pub mod pallet {
 				active: value,
 				unlocking: BoundedVec::default(),
 			};
-			// TODO: Add Ledger Logic
-			// Self::update_ledger(&controller, &item)?;
+			Self::update_ledger(&controller, &item)?;
 
 			Ok(())
 		}
@@ -321,9 +337,8 @@ pub mod pallet {
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn bond_extra(
 			origin: OriginFor<T>,
-			controller: <T::Lookup as StaticLookup>::Source,
 			currency_id: CurrencyIdOf<T>,
-			value: BalanceOf<T>,
+			max_additional: BalanceOf<T>,
 		) -> DispatchResult {
 			let stash = ensure_signed(origin)?;
 			ensure!(currency_id != T::GetNativeCurrencyId::get(), Error::<T>::IsNativeCurrency);
@@ -336,14 +351,13 @@ pub mod pallet {
 					currency_id,
 					&stash,
 				);
-			// TODO: Add Ledger Logic
-			// if let Some(extra) = stash_balance.checked_sub(&ledger.total) {
-			// 	let extra = extra.min(max_additional);
-			// 	ledger.total += extra;
-			// 	ledger.active += extra;
-			// 	Self::deposit_event(Event::Bonded(stash, currency_id, extra));
-			// 	Self::update_ledger(&controller, &ledger)?;
-			// }
+			if let Some(extra) = stash_balance.checked_sub(&ledger.total) {
+				let extra = extra.min(max_additional);
+				ledger.total += extra;
+				ledger.active += extra;
+				Self::deposit_event(Event::Bonded(stash, currency_id, extra));
+				Self::update_ledger(&controller, &ledger)?;
+			}
 
 			Ok(())
 		}
@@ -389,38 +403,46 @@ pub mod pallet {
 			ensure!(currency_id != T::GetNativeCurrencyId::get(), Error::<T>::IsNativeCurrency);
 			let mut ledger =
 				Self::ledger(&controller, &currency_id).ok_or(Error::<T>::NotController)?;
-			// TODO: Add Ledger Logic
-			// ensure!(ledger.unlocking.len() < MAX_UNLOCKING_CHUNKS, Error::<T>::NoMoreChunks,);
+			ensure!(ledger.unlocking.len() < MAX_UNLOCKING_CHUNKS, Error::<T>::NoMoreChunks,);
 
-			// let value = value.min(ledger.active);
-			// let post_info_weight = if !value.is_zero() {
-			// 	ledger.active -= value;
+			let value = value.min(ledger.active);
+			let post_info_weight = if !value.is_zero() {
+				ledger.active -= value;
 
-			// 	// TODO: Re-activate after adding MinimumExistentialDeposit
-			// 	// Avoid there being a dust balance left in the staking system.
-			// 	// if ledger.active < T::Currency::minimum_balance() {
-			// 	//     value += ledger.active;
-			// 	//     ledger.active = Zero::zero();
-			// 	// }
-			// 	let block = Self::calc_unlock_block(<frame_system::Pallet<T>>::block_number());
-			// 	ledger.unlocking.push(UnlockChunk { value, block });
-			// 	Self::update_ledger(&controller, &ledger)?;
-			// 	Self::deposit_event(Event::Unbonded(ledger.stash, currency_id, value));
+				// Note: in case there is no current era it is fine to bond one era more.
+				let era = Self::current_era().unwrap_or(0) + T::BondingDuration::get();
+				if let Some(mut chunk) =
+					ledger.unlocking.last_mut().filter(|chunk| chunk.era == era)
+				{
+					// To keep the chunk count down, we only keep one chunk per era. Since
+					// `unlocking` is a FiFo queue, if a chunk exists for `era` we know that it will
+					// be the last one.
+					chunk.value = chunk.value.defensive_saturating_add(value)
+				} else {
+					ledger
+						.unlocking
+						.try_push(UnlockChunk { value, era })
+						.map_err(|_| Error::<T>::NoMoreChunks)?;
+				};
+				// NOTE: ledger must be updated prior to calling `Self::weight_of`.
+				Self::update_ledger(&controller, &ledger);
+				Self::deposit_event(Event::Unbonded(ledger.stash, currency_id, value));
 
-			// 	// Reduce voting weight
-			// 	// addition is safe due to above check
-			// 	let votes = T::BondedVote::update_amount(
-			// 		&controller,
-			// 		&currency_id,
-			// 		&ledger.active,
-			// 		&(ledger.active + value),
-			// 	);
-			// 	Some(<T as Config>::WeightInfo::unbond(votes))
-			// } else {
-			// 	None
-			// };
+				// Reduce voting weight
+				// addition is safe due to above check
+				let votes = T::BondedVote::update_amount(
+					&controller,
+					&currency_id,
+					&ledger.active,
+					&(ledger.active + value),
+				);
+				// TODO: Add Weight
+				// Some(<T as Config>::WeightInfo::unbond(votes))
+				Some(())
+			} else {
+				None
+			};
 
-			// Ok(post_info_weight.into())
 			Ok(())
 		}
 
@@ -462,40 +484,42 @@ pub mod pallet {
 			ensure!(currency_id != T::GetNativeCurrencyId::get(), Error::<T>::IsNativeCurrency);
 			let mut ledger =
 				Self::ledger(&controller, &currency_id).ok_or(Error::<T>::NotController)?;
-			// let (stash, old_total) = (ledger.stash.clone(), ledger.total);
-			// let current_block = <frame_system::Pallet<T>>::block_number();
-			// ledger = ledger.consolidate_unlocked(current_block);
+			let (stash, old_total) = (ledger.stash.clone(), ledger.total);
+			if let Some(current_era) = Self::current_era() {
+				ledger = ledger.consolidate_unlocked(current_era)
+			}
 
-			// let post_info_weight = if ledger.unlocking.is_empty() && ledger.active.is_zero() {
-			// 	// This account must have called `unbond()` with some value that caused the active
-			// 	// portion to fall below existential deposit + will have no more unlocking chunks
-			// 	// left. We can now safely remove all staking-related information.
-			// 	Self::kill_stash(&stash, &currency_id)?;
-			// 	// remove the lock.
-			// 	<orml_tokens::Pallet<T> as MultiLockableCurrency<T::AccountId>>::remove_lock(
-			// 		STAKING_ID,
-			// 		currency_id,
-			// 		&stash,
-			// 	)?;
-			// 	// This is worst case scenario, so we use the full weight and return None
-			// 	None
-			// } else {
-			// 	// This was the consequence of a partial unbond. just update the ledger and move on.
-			// 	Self::update_ledger(&controller, &ledger)?;
+			let post_info_weight = if ledger.unlocking.is_empty() && ledger.active.is_zero() {
+				// This account must have called `unbond()` with some value that caused the active
+				// portion to fall below existential deposit + will have no more unlocking chunks
+				// left. We can now safely remove all staking-related information.
+				Self::kill_stash(&stash, &currency_id)?;
+				// remove the lock.
+				<orml_tokens::Pallet<T> as MultiLockableCurrency<T::AccountId>>::remove_lock(
+					STAKING_ID,
+					currency_id,
+					&stash,
+				)?;
+				// This is worst case scenario, so we use the full weight and return None
+				None
+			} else {
+				// This was the consequence of a partial unbond. just update the ledger and move on.
+				Self::update_ledger(&controller, &ledger)?;
 
-			// 	// This is only an update, so we use less overall weight.
-			// 	Some(<T as Config>::WeightInfo::withdraw_unbonded_update(
-			// 		ledger.unlocking.len() as u32
-			// 	))
-			// };
+				// // This is only an update, so we use less overall weight.
+				// Some(<T as Config>::WeightInfo::withdraw_unbonded_update(
+				// 	ledger.unlocking.len() as u32
+				// ))
+				Some(())
+			};
 
-			// // `old_total` should never be less than the new total because
-			// // `consolidate_unlocked` strictly subtracts balance.
-			// if ledger.total < old_total {
-			// 	// Already checked that this won't overflow by entry condition.
-			// 	let value = old_total - ledger.total;
-			// 	Self::deposit_event(Event::Withdrawn(stash, currency_id, value));
-			// }
+			// `old_total` should never be less than the new total because
+			// `consolidate_unlocked` strictly subtracts balance.
+			if ledger.total < old_total {
+				// Already checked that this won't overflow by entry condition.
+				let value = old_total - ledger.total;
+				Self::deposit_event(Event::Withdrawn(stash, currency_id, value));
+			}
 
 			// Ok(post_info_weight.into())
 			Ok(())
@@ -591,11 +615,10 @@ pub mod pallet {
 			ensure!(currency_id != T::GetNativeCurrencyId::get(), Error::<T>::IsNativeCurrency);
 			let ledger =
 				Self::ledger(&controller, &currency_id).ok_or(Error::<T>::NotController)?;
-			// TODO: Add Ledger logic
-			// ensure!(!ledger.unlocking.is_empty(), Error::<T>::NoUnlockChunk);
+			ensure!(!ledger.unlocking.is_empty(), Error::<T>::NoUnlockChunk);
 
-			// let ledger = ledger.rebond(value);
-			// Self::update_ledger(&controller, &ledger)?;
+			let ledger = ledger.rebond(value);
+			Self::update_ledger(&controller, &ledger)?;
 			// Ok(Some(<T as Config>::WeightInfo::rebond(ledger.unlocking.len() as u32)).into())
 			Ok(())
 		}
@@ -650,8 +673,7 @@ impl<T: Config> Pallet<T> {
 			&ledger.stash,
 			ledger.total,
 		)?;
-		// TODO: Add Ledger Logic
-		// <Ledger<T>>::insert(controller, ledger.currency_id, ledger);
+		<Ledger<T>>::insert(controller, ledger.currency_id, ledger);
 
 		Ok(())
 	}
@@ -673,14 +695,6 @@ impl<T: Config> Pallet<T> {
 
 		Ok(())
 	}
-
-	/// Calculate the block in which you can `withdraw_unbondend`.
-	fn calc_unlock_block(block: T::BlockNumber) -> T::BlockNumber {
-		let duration = T::BondingDuration::get();
-		// last modulo handles case of block % duration == 0
-		let remaining_era_blocks = (duration - block % duration) % duration;
-		block + remaining_era_blocks + duration
-	}
 }
 
 impl<T: Config> traits::BondedAmount<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>> for Pallet<T> {
@@ -692,14 +706,12 @@ impl<T: Config> traits::BondedAmount<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>
 	///     - Reads: Bonded, Ledger, [Origin Account]
 	/// # </weight>
 	fn get_active(stash: &T::AccountId, currency_id: &CurrencyIdOf<T>) -> Option<BalanceOf<T>> {
-		// TODO: Add Ledger logic
 		if let Some(controller) = Bonded::<T>::get(stash, currency_id) {
-			// if let Some(StakingLedger { active, .. }) = Ledger::<T>::get(controller, currency_id)
-			// { 	Some(active)
-			// } else {
-			// 	None
-			// }
-			None
+			if let Some(StakingLedger { active, .. }) = Ledger::<T>::get(controller, currency_id) {
+				Some(active)
+			} else {
+				None
+			}
 		} else {
 			None
 		}
