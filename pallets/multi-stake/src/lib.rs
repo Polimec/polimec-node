@@ -166,7 +166,16 @@ pub mod pallet {
 	// https://docs.substrate.io/main-docs/build/events-errors/
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
-	pub enum Event<T: Config> {}
+	pub enum Event<T: Config> {
+		Unreserve(T::AccountId, T::CurrencyId, T::Balance, T::BlockNumber),
+		/// An account has bonded this amount. \[stash, amount\]
+		Bonded(T::AccountId, T::CurrencyId, T::Balance),
+		/// An account has unbonded this amount. \[stash, amount\]
+		Unbonded(T::AccountId, T::CurrencyId, T::Balance),
+		/// An account has called `withdraw_unbonded` and removed unbonding
+		/// chunks worth `Balance` from the unlocking queue. \[stash, amount\]
+		Withdrawn(T::AccountId, T::CurrencyId, T::Balance),
+	}
 
 	// Errors inform users that something went wrong.
 	#[pallet::error]
