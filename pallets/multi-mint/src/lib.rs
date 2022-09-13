@@ -19,7 +19,7 @@ pub mod pallet {
 
 	type CurrencyIdOf<T> = <T as orml_tokens::Config>::CurrencyId;
 
-	// TODO: Use SCALE compact representation since this type will probably be u64/128 
+	// TODO: Use SCALE compact representation since this type will probably be u64/128
 	type AmountOf<T> = <T as orml_tokens::Config>::Amount;
 	type BalanceOf<T> = <T as orml_tokens::Config>::Balance;
 
@@ -90,7 +90,6 @@ pub mod pallet {
 		/// whereas here it displays PICO because it doesn't know that this is a currency.
 		/// We maybe also want to have CurrencyOf as a type here because we never take currency
 		/// away.
-		/// 
 		// TODO: Add proper weight
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn mint(
@@ -108,7 +107,6 @@ pub mod pallet {
 		}
 
 		/// Lock currency trading
-		/// 
 		// TODO: Add proper weight
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn lock_trading(origin: OriginFor<T>, currency_id: CurrencyIdOf<T>) -> DispatchResult {
@@ -117,7 +115,6 @@ pub mod pallet {
 		}
 
 		/// Unlock currency trading
-		/// 
 		// TODO: Add proper weight
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn unlock_trading(
@@ -129,7 +126,6 @@ pub mod pallet {
 		}
 
 		/// Transfer some amount from one account to another.
-		/// 
 		// TODO: Add proper weight
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn transfer(
