@@ -4141,11 +4141,15 @@ dependencies = [
  "frame-system",
  "orml-tokens",
  "orml-traits",
+ "pallet-multi-mint",
+ "pallet-proposal",
  "parity-scale-codec",
  "scale-info",
+ "sp-arithmetic",
  "sp-core",
  "sp-io",
  "sp-runtime",
+ "traits",
 ]
 
 [[package]]

@@ -12,6 +12,8 @@ mod tests;
 mod benchmarking;
 
 use codec::{Decode, Encode};
+use orml_traits::arithmetic::Zero;
+use sp_arithmetic::Perbill;
 
 type CurrencyIdOf<T> = <T as orml_tokens::Config>::CurrencyId;
 
@@ -98,6 +100,9 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
+	use crate::{BalanceOf, CurrencyIdOf, IssuerPoints, MajorityCount, MemberCount};
+	use frame_system::WeightInfo;
+
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
@@ -107,9 +112,47 @@ pub mod pallet {
 	/// 2. `Self::Call` for runtime calls
 	/// 3. `pallet_proposal::Call` for runtime calls with restrictions from `pallet_proposal`
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_multi_mint::Config + pallet_proposal::Config {
+	pub trait Config:
+		frame_system::Config + pallet_multi_mint::Config + pallet_proposal::Config
+	{
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+
+		type GetSessionDuration: Get<Self::BlockNumber>;
+		type InitialCouncilPoints: Get<IssuerPoints>;
+		type CouncilRegistrationFee: Get<BalanceOf<Self>>;
+		// Where the registration fee should go to
+		// TODO: Needs to be set by governance
+		type TreasuryAddress: Get<<Self as frame_system::Config>::AccountId>;
+
+		/// The maximum number of members supported by the pallet. Used for weight
+		/// estimation.
+		///
+		/// NOTE:
+		/// + Benchmarks will need to be re-run and weights adjusted if this
+		/// changes. + This pallet assumes that dependents keep to the limit without
+		/// enforcing it.
+		type MaxMembers: Get<MemberCount>;
+
+		/// The time-out for council motions.
+		type MotionDuration: Get<Self::BlockNumber>;
+
+		//
+		type Call: Parameter + From<Call<Self>> + Into<<Self as pallet_proposal::Config>::Call>;
+
+		type ValidatorId: Member + Parameter;
+
+		type MajorityCount: MajorityCount<<Self as pallet_proposal::Config>::Call>;
+
+		type BondedAmount: traits::BondedAmount<
+			<Self as frame_system::Config>::AccountId,
+			CurrencyIdOf<Self>,
+			BalanceOf<Self>,
+		>;
+
+		type PayoutPool: traits::PayoutPool<CurrencyIdOf<Self>, BalanceOf<Self>>;
+
+		type WeightInfo: WeightInfo;
 	}
 
 	// The pallet's runtime storage items.
@@ -181,4 +224,8 @@ pub mod pallet {
 			}
 		}
 	}
+}
+
+pub trait MajorityCount<C> {
+	fn is_majority(call: C, yes_votes: Perbill, no_votes: Perbill) -> bool;
 }
