@@ -178,7 +178,7 @@ pub mod pallet {
 	/// set, it might be active or not.
 	#[pallet::storage]
 	#[pallet::getter(fn current_era)]
-	pub type CurrentEra<T> = StorageValue<_, EraIndex>;
+	pub type CurrentEra<T: Config> = StorageValue<_, EraIndex>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn bonded)]
