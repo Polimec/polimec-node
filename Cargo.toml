@@ -6,6 +6,7 @@ members = [
     "pallets/proposal",
     "pallets/multi-stake",
     "pallets/bonding-payouts",
+    "pallets/issuer-council",
     "runtime",
 ]
 [profile.release]
