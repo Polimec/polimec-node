@@ -13,8 +13,8 @@ mod benchmarking;
 
 use codec::{Decode, Encode};
 use orml_traits::arithmetic::Zero;
-use sp_arithmetic::Perbill;
 use scale_info::TypeInfo;
+use sp_arithmetic::Perbill;
 
 type CurrencyIdOf<T> = <T as orml_tokens::Config>::CurrencyId;
 
@@ -182,7 +182,6 @@ pub mod pallet {
 		/// The time-out for council motions.
 		type MotionDuration: Get<Self::BlockNumber>;
 
-		//
 		type Call: Parameter + From<Call<Self>> + Into<<Self as pallet_proposal::Config>::Call>;
 
 		type ValidatorId: Member + Parameter;
@@ -240,10 +239,15 @@ pub mod pallet {
 	// Errors inform users that something went wrong.
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Error names should be descriptive.
-		NoneValue,
-		/// Errors should have helpful documentation associated with them.
-		StorageOverflow,
+		DuplicateAccountId,
+		CurrencyAlreadyProposed,
+		NotMember,
+		ProposalNotFound,
+		AlreadyMember,
+		MemberLimitReached,
+		ChoiceMissing,
+		VotingDisabled,
+		PayoutPoolUnderflow,
 	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
