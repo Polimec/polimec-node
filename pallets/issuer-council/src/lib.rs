@@ -11,8 +11,8 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-use codec::{Decode, Encode};
-use orml_traits::arithmetic::Zero;
+use codec::{Decode, Encode, HasCompact};
+use frame_support::RuntimeDebug;
 use scale_info::TypeInfo;
 use sp_arithmetic::Perbill;
 
@@ -30,73 +30,72 @@ type AmountOf<T> = <T as orml_tokens::Config>::Amount;
 pub type MemberCount = u32;
 pub type IssuerPoints = u32;
 
-#[derive(Clone, Encode, Decode, Debug)]
-pub struct CouncilMember<T: Config> {
+#[derive(Clone, Encode, Decode, Debug, TypeInfo)]
+pub struct CouncilMember<CurrencyId, AccountId, ValidatorId> {
 	pub points: IssuerPoints,
-	pub currency_id: CurrencyIdOf<T>,
-	pub account_id: T::AccountId,
-	pub validator_id: T::ValidatorId,
+	pub currency_id: CurrencyId,
+	pub account_id: AccountId,
+	pub validator_id: ValidatorId,
 }
 
-#[derive(Clone, Encode, Decode, Debug)]
-pub struct CouncilProposal<T: Config> {
-	pub proposal_hash: T::Hash,
-	pub closing_block: T::BlockNumber,
+#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
+pub struct CouncilProposal<Hash, BlockNumber> {
+	pub proposal_hash: Hash,
+	pub closing_block: BlockNumber,
 }
 
-#[derive(Clone, Encode, Decode, Debug, PartialEq)]
-pub struct Ballot<T: Config> {
-	pub yes_votes: BalanceOf<T>,
-	pub no_votes: BalanceOf<T>,
+#[derive(Clone, Encode, Decode, Debug, PartialEq, Eq, TypeInfo)]
+pub struct Ballot<Balance: HasCompact> {
+	pub yes_votes: Balance,
+	pub no_votes: Balance,
 }
 
-impl<T: Config> Default for Ballot<T> {
+impl<Balance: HasCompact + orml_traits::arithmetic::Zero> Default for Ballot<Balance> {
 	fn default() -> Self {
-		Self { yes_votes: T::Balance::zero(), no_votes: T::Balance::zero() }
+		Self { yes_votes: Balance::zero(), no_votes: Balance::zero() }
 	}
 }
 
-#[derive(Clone, Encode, Decode, Debug, PartialEq)]
-pub struct UserVote<T: Config> {
-	pub amount: BalanceOf<T>,
+#[derive(Clone, Encode, Decode, Debug, PartialEq, Eq, TypeInfo)]
+pub struct UserVote<Balance: HasCompact> {
+	pub amount: Balance,
 	pub approve: bool,
 }
 
-impl<T: Config> Default for UserVote<T> {
+impl<Balance: HasCompact + orml_traits::arithmetic::Zero> Default for UserVote<Balance> {
 	fn default() -> Self {
-		Self { amount: T::Balance::zero(), approve: false }
+		Self { amount: Balance::zero(), approve: false }
 	}
 }
 
-#[derive(Clone, Encode, Decode, Debug, PartialEq)]
+#[derive(Clone, Encode, Decode, Debug, PartialEq, Eq, TypeInfo)]
 pub enum PayoutsEnabled<Balance> {
 	No,
 	Limit(Balance),
 }
 
-#[derive(Clone, Encode, Decode, Debug, PartialEq)]
-pub struct BondingConfig<T: Config> {
-	pub payout: PayoutsEnabled<BalanceOf<T>>,
+#[derive(Clone, Encode, Decode, Debug, PartialEq, Eq, TypeInfo)]
+pub struct BondingConfig<Balance: HasCompact> {
+	pub payout: PayoutsEnabled<Balance>,
 	pub vote: bool,
 }
 
-impl<T: Config> Default for BondingConfig<T> {
+impl<Balance: HasCompact> Default for BondingConfig<Balance> {
 	fn default() -> Self {
 		BondingConfig { payout: PayoutsEnabled::<_>::No, vote: false }
 	}
 }
 
-impl<T: Config> BondingConfig<T> {
-	fn get_payout_limit(&self) -> BalanceOf<T> {
-		if let PayoutsEnabled::Limit(amount) = self.payout {
-			amount
-		} else {
-			T::Balance::zero()
+impl<Balance: HasCompact + Clone + orml_traits::arithmetic::Zero> BondingConfig<Balance> {
+	fn get_payout_limit(&self) -> Balance {
+		match &self.payout {
+			PayoutsEnabled::Limit(amount) => amount.to_owned(),
+			_ => Balance::zero(),
 		}
 	}
 }
 
-#[derive(Clone, Encode, Decode, PartialEq, Debug)]
+#[derive(Clone, Encode, Decode, PartialEq, Debug, Eq, TypeInfo)]
 pub enum SessionStatus {
 	/// there are new validators that need to be announced to the session pallet
 	Outdated,
@@ -139,17 +138,19 @@ pub enum LeftCouncilReason {
 
 #[frame_support::pallet]
 pub mod pallet {
-	use frame_support::pallet_prelude::*;
+	use frame_support::pallet_prelude::{ValueQuery, *};
 	use frame_system::pallet_prelude::*;
 
 	use crate::{
-		BalanceOf, CurrencyIdOf, IssuerPoints, LeftCouncilReason, MajorityCount, MemberCount,
-		Perbill, SlashReason,
+		BalanceOf, Ballot, BondingConfig, CouncilMember, CouncilProposal, CurrencyIdOf,
+		IssuerPoints, LeftCouncilReason, MajorityCount, MemberCount, Perbill, SessionStatus,
+		SlashReason, UserVote,
 	};
 	use frame_system::WeightInfo;
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
+	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
 	/// Uses three types of Call:
@@ -199,13 +200,57 @@ pub mod pallet {
 		type WeightInfo: WeightInfo;
 	}
 
-	// The pallet's runtime storage items.
-	// https://docs.substrate.io/main-docs/build/runtime-storage/
 	#[pallet::storage]
-	#[pallet::getter(fn something)]
-	// Learn more about declaring storage items:
-	// https://docs.substrate.io/main-docs/build/runtime-storage/#declaring-storage-items
-	pub type Something<T> = StorageValue<_, u32>;
+	#[pallet::getter(fn proposals)]
+	pub type CouncilProposals<T: Config> = StorageValue<
+		_,
+		BoundedVec<CouncilProposal<T::Hash, T::BlockNumber>, ConstU32<128>>,
+		ValueQuery,
+	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn session_status)]
+	pub type Status<T: Config> = StorageValue<_, SessionStatus, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn members)]
+	// Members: () -> [member]
+	pub type Members<T: Config> = StorageValue<
+		_,
+		BoundedVec<CouncilMember<CurrencyIdOf<T>, T::AccountId, T::ValidatorId>, ConstU32<128>>,
+		ValueQuery,
+	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn proposal_votes)]
+	// ProposalVotes: applicant, currency -> { yes_votes, no_votes }
+	pub type ProposalVotes<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		T::Hash,
+		Blake2_128Concat,
+		CurrencyIdOf<T>,
+		Ballot<BalanceOf<T>>,
+		ValueQuery,
+	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn user_votes)]
+	// UserVotes: voter, currency -> (staked_balance, approve, applicants)?
+	pub type UserVotes<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		T::Hash,
+		Blake2_128Concat,
+		(T::AccountId, CurrencyIdOf<T>),
+		UserVote<BalanceOf<T>>,
+		OptionQuery,
+	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn currency_config)]
+	pub type CurrencyConfig<T: Config> =
+		StorageMap<_, Blake2_128Concat, CurrencyIdOf<T>, BondingConfig<BalanceOf<T>>, ValueQuery>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://docs.substrate.io/main-docs/build/events-errors/
