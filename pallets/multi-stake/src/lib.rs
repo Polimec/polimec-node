@@ -122,7 +122,9 @@ impl<T: Config + orml_tokens::Config> StakingLedger<T> {
 pub mod pallet {
 	use crate::{BalanceOf, CurrencyIdOf, EraIndex, StakingLedger, UnlockChunk};
 	use frame_support::{
-		pallet_prelude::*, sp_runtime::traits::StaticLookup, traits::DefensiveSaturating,
+		pallet_prelude::{OptionQuery, *},
+		sp_runtime::traits::StaticLookup,
+		traits::DefensiveSaturating,
 	};
 	use frame_system::pallet_prelude::*;
 	use orml_traits::{
@@ -176,7 +178,7 @@ pub mod pallet {
 	/// set, it might be active or not.
 	#[pallet::storage]
 	#[pallet::getter(fn current_era)]
-	pub type CurrentEra<T> = StorageValue<_, crate::EraIndex>;
+	pub type CurrentEra<T> = StorageValue<_, EraIndex>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn bonded)]
@@ -187,6 +189,7 @@ pub mod pallet {
 		Blake2_128Concat,
 		CurrencyIdOf<T>,
 		T::AccountId,
+		OptionQuery,
 	>;
 
 	#[pallet::storage]
@@ -198,6 +201,7 @@ pub mod pallet {
 		Blake2_128Concat,
 		CurrencyIdOf<T>,
 		StakingLedger<T>,
+		OptionQuery,
 	>;
 
 	// Pallets use events to inform users when important changes are made.
@@ -425,7 +429,7 @@ pub mod pallet {
 						.map_err(|_| Error::<T>::NoMoreChunks)?;
 				};
 				// NOTE: ledger must be updated prior to calling `Self::weight_of`.
-				Self::update_ledger(&controller, &ledger);
+				Self::update_ledger(&controller, &ledger)?;
 				Self::deposit_event(Event::Unbonded(ledger.stash, currency_id, value));
 
 				// Reduce voting weight
@@ -436,7 +440,7 @@ pub mod pallet {
 					&ledger.active,
 					&(ledger.active + value),
 				);
-				// TODO: Add Weight
+				// TODO: Add Weights
 				// Some(<T as Config>::WeightInfo::unbond(votes))
 				Some(())
 			} else {
