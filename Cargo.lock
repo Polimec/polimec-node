@@ -4098,6 +4098,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-multi-mint",
+ "pallet-multi-stake",
  "pallet-proposal",
  "parity-scale-codec",
  "scale-info",

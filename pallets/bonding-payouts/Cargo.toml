@@ -27,6 +27,7 @@ orml-traits = { version = "0.4.1-dev", default-features = false, git = "https://
 orml-tokens = { version = "0.4.1-dev", default-features = false, git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.28" }
 
 # Local Dependencies
+pallet-multi-stake = { version = "*", path = "../multi-stake", default-features = false }
 pallet-multi-mint = { version = "*", path = "../multi-mint", default-features = false }
 pallet-proposal = { version = "*", path = "../proposal", default-features = false }
 traits = { version = "*", path = "../traits", default-features = false }
@@ -45,6 +46,7 @@ std = [
     "orml-traits/std",
 	"orml-tokens/std",
     "pallet-multi-mint/std",
+	"pallet-multi-stake/std",
     "traits/std"
 ]
 runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks"]
