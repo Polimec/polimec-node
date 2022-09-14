@@ -458,7 +458,7 @@ pub mod pallet {
 				// Reduce voting weight
 				// addition is safe due to above chec k
 
-				// TODO:
+				// TODO: Add Weights
 				//Some(<T as Config>::WeightInfo::unbond())
 				None
 			} else {
@@ -694,7 +694,7 @@ impl<T: Config> Pallet<T> {
 			Self::update_ledger(&controller, &ledger);
 
 			// This is only an update, so we use less overall weight.
-			// TODO: Add weight
+			// TODO: Add Weights
 			//<T as Config>::WeightInfo::withdraw_unbonded_update(ledger.unlocking.len() as u32)
 			// TODO: Remove the 1 and return the correct weight
 			1
