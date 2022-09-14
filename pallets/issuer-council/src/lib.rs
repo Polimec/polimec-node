@@ -14,6 +14,7 @@ mod benchmarking;
 use codec::{Decode, Encode};
 use orml_traits::arithmetic::Zero;
 use sp_arithmetic::Perbill;
+use scale_info::TypeInfo;
 
 type CurrencyIdOf<T> = <T as orml_tokens::Config>::CurrencyId;
 
@@ -95,12 +96,56 @@ impl<T: Config> BondingConfig<T> {
 	}
 }
 
+#[derive(Clone, Encode, Decode, PartialEq, Debug)]
+pub enum SessionStatus {
+	/// there are new validators that need to be announced to the session pallet
+	Outdated,
+
+	/// All council members should be known to the session pallet as validators
+	UpToDate,
+}
+
+impl Default for SessionStatus {
+	fn default() -> Self {
+		SessionStatus::Outdated
+	}
+}
+
+#[derive(Clone, Copy, Encode, Decode, PartialEq, Eq, Debug, TypeInfo)]
+pub enum SlashReason {
+	Offline,
+	FaultyBlock,
+	InitProposal,
+	MissingVote,
+}
+
+impl SlashReason {
+	fn get_penalty(&self) -> u32 {
+		match self {
+			SlashReason::FaultyBlock => 20,
+			SlashReason::Offline => 5,
+			SlashReason::InitProposal => 10,
+			SlashReason::MissingVote => 10,
+		}
+	}
+}
+
+#[derive(Clone, Copy, Encode, Decode, PartialEq, Eq, Debug, TypeInfo)]
+pub enum LeftCouncilReason {
+	SlashedOut,
+	Expelled,
+	Voluntarily,
+}
+
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
-	use crate::{BalanceOf, CurrencyIdOf, IssuerPoints, MajorityCount, MemberCount};
+	use crate::{
+		BalanceOf, CurrencyIdOf, IssuerPoints, LeftCouncilReason, MajorityCount, MemberCount,
+		Perbill, SlashReason,
+	};
 	use frame_system::WeightInfo;
 
 	#[pallet::pallet]
@@ -168,9 +213,28 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// Event documentation should end with an array that provides descriptive names for event
-		/// parameters. [something, who]
-		SomethingStored(u32, T::AccountId),
+		/// \[member_address\]
+		NewMember(T::AccountId),
+		/// \[applicant_address, proposal_hash\]
+		NewApplicant(T::AccountId, T::Hash),
+		/// \[proposal_hash, yes_votes, no_votes\]
+		ProposalAccepted(T::Hash, Perbill, Perbill),
+
+		/// \[proposal_hash, yes_votes, no_votes\]
+		ProposalRejected(T::Hash, Perbill, Perbill),
+
+		/// \[issuer_address, slash_reason\]
+		Slashed(T::AccountId, SlashReason),
+		LeftCouncil(T::AccountId, LeftCouncilReason),
+		/// A motion for an applicant has been voted on by given account,
+		/// leaving a tally (yes votes and no votes given respectively as
+		/// `Amount`). \[voter, applicant, currency, approved, yes, no\]
+		Voted(T::AccountId, T::Hash, T::CurrencyId, bool, T::Balance, T::Balance),
+
+		/// BondingConfig has been changed for the given currency by the issuer
+		/// \[currency, payout_limit_now, payout_limit_after, voting_now,
+		/// voting_before\]
+		CurrencyConfigChanged(T::CurrencyId, T::Balance, T::Balance, bool, bool),
 	}
 
 	// Errors inform users that something went wrong.
@@ -190,38 +254,8 @@ pub mod pallet {
 		/// An example dispatchable that takes a singles value as a parameter, writes the value to
 		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-		pub fn do_something(origin: OriginFor<T>, something: u32) -> DispatchResult {
-			// Check that the extrinsic was signed and get the signer.
-			// This function will return an error if the extrinsic is not signed.
-			// https://docs.substrate.io/main-docs/build/origins/
-			let who = ensure_signed(origin)?;
-
-			// Update storage.
-			<Something<T>>::put(something);
-
-			// Emit an event.
-			Self::deposit_event(Event::SomethingStored(something, who));
-			// Return a successful DispatchResultWithPostInfo
+		pub fn do_something(_origin: OriginFor<T>, _something: u32) -> DispatchResult {
 			Ok(())
-		}
-
-		/// An example dispatchable that may throw a custom error.
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		pub fn cause_error(origin: OriginFor<T>) -> DispatchResult {
-			let _who = ensure_signed(origin)?;
-
-			// Read a value from storage.
-			match <Something<T>>::get() {
-				// Return an error if the value has not been set.
-				None => return Err(Error::<T>::NoneValue.into()),
-				Some(old) => {
-					// Increment the value read from storage; will error in the event of overflow.
-					let new = old.checked_add(1).ok_or(Error::<T>::StorageOverflow)?;
-					// Update the value in storage with the incremented result.
-					<Something<T>>::put(new);
-					Ok(())
-				},
-			}
 		}
 	}
 }
