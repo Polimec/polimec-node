@@ -142,10 +142,10 @@ pub mod pallet {
 		/// `size_of::<u32>() == 4` to the length.
 		pub fn validate_and_get_proposal(
 			hash: T::Hash,
-			length_bound: u32,
+			_length_bound: u32,
 			weight_bound: Weight,
 		) -> Result<TraitProposal<T>, DispatchError> {
-			let key = ProposalOf::<T>::hashed_key_for(hash);
+			let _key = ProposalOf::<T>::hashed_key_for(hash);
 			// read the length of the proposal storage entry directly
 
 			// TODO: Check the proposal_len
@@ -166,7 +166,7 @@ pub mod pallet {
 		// TODO: Check the `collective` pallet
 		// https://github.com/paritytech/substrate/blob/master/frame/collective/src/lib.rs#L433
 		fn execute(proposal: TraitProposal<T>) -> DispatchResultWithPostInfo {
-			let proposal_len = proposal.using_encoded(|x| x.len());
+			let _proposal_len = proposal.using_encoded(|x| x.len());
 
 			let proposal_hash = T::Hashing::hash_of(&proposal);
 			let result = proposal.call.dispatch(frame_system::RawOrigin::Root.into());
@@ -236,7 +236,7 @@ pub mod pallet {
 		/// weight.
 		pub fn remove_proposal(proposal_hash: T::Hash) -> u32 {
 			// remove proposal and vote
-			ProposalOf::<T>::remove(&proposal_hash);
+			ProposalOf::<T>::remove(proposal_hash);
 
 			let num_proposals = Proposals::<T>::mutate(|proposals| {
 				let orig_length = proposals.len();

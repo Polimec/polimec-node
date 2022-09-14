@@ -167,7 +167,7 @@ pub mod pallet {
 				currency_id != &T::GetNativeCurrencyId::get(),
 				Error::<T>::NativeCurrencyCannotBeChanged
 			);
-			if let Some((issuer, _)) = CurrencyMetadata::<T>::get(&currency_id) {
+			if let Some((issuer, _)) = CurrencyMetadata::<T>::get(currency_id) {
 				ensure!(issuer == who, Error::<T>::Unauthorized);
 				orml_tokens::Pallet::<T>::update_balance(*currency_id, &who, amount)?;
 				Self::deposit_event(Event::<T>::MintedCurrency(*currency_id, who, amount));
@@ -215,7 +215,7 @@ pub mod pallet {
 			ensure!(from != to, Error::<T>::TransferToThemself);
 
 			// Check whether transfer is unlocked
-			match CurrencyMetadata::<T>::get(&currency_id) {
+			match CurrencyMetadata::<T>::get(currency_id) {
 				Some((_, true)) => {
 					<orml_tokens::Pallet<T> as MultiCurrency<T::AccountId>>::transfer(
 						*currency_id,

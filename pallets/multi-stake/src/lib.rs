@@ -276,13 +276,13 @@ pub mod pallet {
 			let stash = ensure_signed(origin)?;
 			ensure!(currency_id != T::GetNativeCurrencyId::get(), Error::<T>::IsNativeCurrency);
 
-			if <Bonded<T>>::contains_key(&stash, &currency_id) {
+			if <Bonded<T>>::contains_key(&stash, currency_id) {
 				return Err(Error::<T>::AlreadyBonded.into())
 			}
 
 			let controller = T::Lookup::lookup(controller)?;
 
-			if <Ledger<T>>::contains_key(&controller, &currency_id) {
+			if <Ledger<T>>::contains_key(&controller, currency_id) {
 				return Err(Error::<T>::AlreadyPaired.into())
 			}
 
@@ -293,7 +293,7 @@ pub mod pallet {
 			// }
 
 			// You're auto-bonded forever, here.
-			<Bonded<T>>::insert(&stash, &currency_id, &controller);
+			<Bonded<T>>::insert(&stash, currency_id, &controller);
 
 			frame_system::Pallet::<T>::inc_consumers(&stash)?;
 
@@ -347,9 +347,9 @@ pub mod pallet {
 			let stash = ensure_signed(origin)?;
 			ensure!(currency_id != T::GetNativeCurrencyId::get(), Error::<T>::IsNativeCurrency);
 
-			let controller = Self::bonded(&stash, &currency_id).ok_or(Error::<T>::NotStash)?;
+			let controller = Self::bonded(&stash, currency_id).ok_or(Error::<T>::NotStash)?;
 			let mut ledger =
-				Self::ledger(&controller, &currency_id).ok_or(Error::<T>::NotController)?;
+				Self::ledger(&controller, currency_id).ok_or(Error::<T>::NotController)?;
 			let stash_balance =
 				<orml_tokens::Pallet<T> as MultiCurrency<T::AccountId>>::free_balance(
 					currency_id,
@@ -406,11 +406,11 @@ pub mod pallet {
 			let controller = ensure_signed(origin)?;
 			ensure!(currency_id != T::GetNativeCurrencyId::get(), Error::<T>::IsNativeCurrency);
 			let mut ledger =
-				Self::ledger(&controller, &currency_id).ok_or(Error::<T>::NotController)?;
+				Self::ledger(&controller, currency_id).ok_or(Error::<T>::NotController)?;
 			ensure!(ledger.unlocking.len() < MAX_UNLOCKING_CHUNKS, Error::<T>::NoMoreChunks,);
 
 			let value = value.min(ledger.active);
-			let post_info_weight = if !value.is_zero() {
+			let _post_info_weight = if !value.is_zero() {
 				ledger.active -= value;
 
 				// Note: in case there is no current era it is fine to bond one era more.
@@ -434,7 +434,7 @@ pub mod pallet {
 
 				// Reduce voting weight
 				// addition is safe due to above check
-				let votes = T::BondedVote::update_amount(
+				let _votes = T::BondedVote::update_amount(
 					&controller,
 					&currency_id,
 					&ledger.active,
@@ -487,13 +487,13 @@ pub mod pallet {
 			let controller = ensure_signed(origin)?;
 			ensure!(currency_id != T::GetNativeCurrencyId::get(), Error::<T>::IsNativeCurrency);
 			let mut ledger =
-				Self::ledger(&controller, &currency_id).ok_or(Error::<T>::NotController)?;
+				Self::ledger(&controller, currency_id).ok_or(Error::<T>::NotController)?;
 			let (stash, old_total) = (ledger.stash.clone(), ledger.total);
 			if let Some(current_era) = Self::current_era() {
 				ledger = ledger.consolidate_unlocked(current_era)
 			}
 
-			let post_info_weight = if ledger.unlocking.is_empty() && ledger.active.is_zero() {
+			let _post_info_weight = if ledger.unlocking.is_empty() && ledger.active.is_zero() {
 				// This account must have called `unbond()` with some value that caused the active
 				// portion to fall below existential deposit + will have no more unlocking chunks
 				// left. We can now safely remove all staking-related information.
@@ -551,15 +551,15 @@ pub mod pallet {
 		) -> DispatchResult {
 			let stash = ensure_signed(origin)?;
 			ensure!(currency_id != T::GetNativeCurrencyId::get(), Error::<T>::IsNativeCurrency);
-			let old_controller = Self::bonded(&stash, &currency_id).ok_or(Error::<T>::NotStash)?;
+			let old_controller = Self::bonded(&stash, currency_id).ok_or(Error::<T>::NotStash)?;
 			let controller = T::Lookup::lookup(controller)?;
-			if <Ledger<T>>::contains_key(&controller, &currency_id) {
+			if <Ledger<T>>::contains_key(&controller, currency_id) {
 				return Err(Error::<T>::AlreadyPaired.into())
 			}
 			if controller != old_controller {
-				<Bonded<T>>::insert(&stash, &currency_id, &controller);
-				if let Some(l) = <Ledger<T>>::take(&old_controller, &currency_id) {
-					<Ledger<T>>::insert(&controller, &currency_id, l);
+				<Bonded<T>>::insert(&stash, currency_id, &controller);
+				if let Some(l) = <Ledger<T>>::take(&old_controller, currency_id) {
+					<Ledger<T>>::insert(&controller, currency_id, l);
 				}
 			}
 			Ok(())
@@ -617,8 +617,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let controller = ensure_signed(origin)?;
 			ensure!(currency_id != T::GetNativeCurrencyId::get(), Error::<T>::IsNativeCurrency);
-			let ledger =
-				Self::ledger(&controller, &currency_id).ok_or(Error::<T>::NotController)?;
+			let ledger = Self::ledger(&controller, currency_id).ok_or(Error::<T>::NotController)?;
 			ensure!(!ledger.unlocking.is_empty(), Error::<T>::NoUnlockChunk);
 
 			let ledger = ledger.rebond(value);

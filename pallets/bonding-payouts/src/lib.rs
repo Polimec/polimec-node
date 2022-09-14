@@ -281,13 +281,13 @@ pub mod pallet {
 			let available_pool_value = PayoutPool::<T>::get(currency_id);
 			ensure!(!available_pool_value.is_zero(), Error::<T>::PayoutPoolEmpty);
 
-			if <Bonded<T>>::contains_key(&stash, &currency_id) {
+			if <Bonded<T>>::contains_key(&stash, currency_id) {
 				return Err(Error::<T>::AlreadyBonded.into())
 			}
 
 			let controller = T::Lookup::lookup(controller)?;
 
-			if <Ledger<T>>::contains_key(&controller, &currency_id) {
+			if <Ledger<T>>::contains_key(&controller, currency_id) {
 				return Err(Error::<T>::AlreadyPaired.into())
 			}
 
@@ -298,7 +298,7 @@ pub mod pallet {
 			// }
 
 			// You're auto-bonded forever, here.
-			<Bonded<T>>::insert(&stash, &currency_id, &controller);
+			<Bonded<T>>::insert(&stash, currency_id, &controller);
 
 			frame_system::Pallet::<T>::inc_consumers(&stash)?;
 
@@ -360,9 +360,9 @@ pub mod pallet {
 			let available_pool_value = PayoutPool::<T>::get(currency_id);
 			ensure!(!available_pool_value.is_zero(), Error::<T>::PayoutPoolEmpty);
 
-			let controller = Self::bonded(&stash, &currency_id).ok_or(Error::<T>::NotStash)?;
+			let controller = Self::bonded(&stash, currency_id).ok_or(Error::<T>::NotStash)?;
 			let mut ledger =
-				Self::ledger(&controller, &currency_id).ok_or(Error::<T>::NotController)?;
+				Self::ledger(&controller, currency_id).ok_or(Error::<T>::NotController)?;
 
 			let stash_balance =
 				<orml_tokens::Pallet<T> as MultiCurrency<T::AccountId>>::free_balance(
@@ -424,7 +424,7 @@ pub mod pallet {
 			let controller = ensure_signed(origin)?;
 			ensure!(currency_id != T::GetNativeCurrencyId::get(), Error::<T>::IsNativeCurrency);
 			let mut ledger =
-				Self::ledger(&controller, &currency_id).ok_or(Error::<T>::NotController)?;
+				Self::ledger(&controller, currency_id).ok_or(Error::<T>::NotController)?;
 			ensure!(ledger.unlocking.len() < MAX_UNLOCKING_CHUNKS, Error::<T>::NoMoreChunks,);
 
 			let value = value.min(ledger.active);
@@ -490,15 +490,15 @@ pub mod pallet {
 		) -> DispatchResult {
 			let stash = ensure_signed(origin)?;
 			ensure!(currency_id != T::GetNativeCurrencyId::get(), Error::<T>::IsNativeCurrency);
-			let old_controller = Self::bonded(&stash, &currency_id).ok_or(Error::<T>::NotStash)?;
+			let old_controller = Self::bonded(&stash, currency_id).ok_or(Error::<T>::NotStash)?;
 			let controller = T::Lookup::lookup(controller)?;
-			if <Ledger<T>>::contains_key(&controller, &currency_id) {
+			if <Ledger<T>>::contains_key(&controller, currency_id) {
 				return Err(Error::<T>::AlreadyPaired.into())
 			}
 			if controller != old_controller {
-				<Bonded<T>>::insert(&stash, &currency_id, &controller);
-				if let Some(l) = <Ledger<T>>::take(&old_controller, &currency_id) {
-					<Ledger<T>>::insert(&controller, &currency_id, l);
+				<Bonded<T>>::insert(&stash, currency_id, &controller);
+				if let Some(l) = <Ledger<T>>::take(&old_controller, currency_id) {
+					<Ledger<T>>::insert(&controller, currency_id, l);
 				}
 			}
 			Ok(())
@@ -524,7 +524,7 @@ pub mod pallet {
 			Self::kill_stash(&stash, &currency_id)?;
 
 			// remove the lock.
-			let _ = <orml_tokens::Pallet<T> as MultiLockableCurrency<T::AccountId>>::remove_lock(
+			<orml_tokens::Pallet<T> as MultiLockableCurrency<T::AccountId>>::remove_lock(
 				PAYOUTS_ID,
 				currency_id,
 				&stash,
@@ -555,8 +555,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let controller = ensure_signed(origin)?;
 			ensure!(currency_id != T::GetNativeCurrencyId::get(), Error::<T>::IsNativeCurrency);
-			let ledger =
-				Self::ledger(&controller, &currency_id).ok_or(Error::<T>::NotController)?;
+			let ledger = Self::ledger(&controller, currency_id).ok_or(Error::<T>::NotController)?;
 			ensure!(!ledger.unlocking.is_empty(), Error::<T>::NoUnlockChunk);
 
 			let ledger = ledger.rebond(value);
@@ -668,8 +667,7 @@ impl<T: Config> Pallet<T> {
 		controller: &T::AccountId,
 		currency_id: &CurrencyIdOf<T>,
 	) -> DispatchResultWithPostInfo {
-		let mut ledger =
-			Self::ledger(&controller, &currency_id).ok_or(Error::<T>::NotController)?;
+		let mut ledger = Self::ledger(controller, currency_id).ok_or(Error::<T>::NotController)?;
 		let current_block = Self::current_era().unwrap_or(0) + T::BondingDuration::get();
 		let (stash, old_total) = (ledger.stash.clone(), ledger.total);
 		ledger = ledger.consolidate_unlocked(current_block);
@@ -679,7 +677,7 @@ impl<T: Config> Pallet<T> {
 			// active portion to fall below existential deposit + will have no more
 			// unlocking chunks left. We can now safely remove all staking-related
 			// information.
-			Self::kill_stash(&stash, &currency_id)?;
+			Self::kill_stash(&stash, currency_id)?;
 			// remove the lock.
 			<orml_tokens::Pallet<T> as MultiLockableCurrency<T::AccountId>>::remove_lock(
 				PAYOUTS_ID,
@@ -691,7 +689,7 @@ impl<T: Config> Pallet<T> {
 		} else {
 			// This was the consequence of a partial unbond. just update the ledger and move
 			// on.
-			Self::update_ledger(&controller, &ledger);
+			Self::update_ledger(controller, &ledger);
 
 			// This is only an update, so we use less overall weight.
 			// TODO: Add Weights
@@ -728,7 +726,7 @@ impl<T: Config> Pallet<T> {
 
 		for (controller, currency_id) in payouts.into_iter() {
 			if let Some(StakingLedger { stash, total, .. }) =
-				<Ledger<T>>::get(&controller, &currency_id)
+				<Ledger<T>>::get(&controller, currency_id)
 			{
 				// get payout_rate
 				if let Some(rate) = <PayoutRate<T>>::get(currency_id) {
@@ -744,7 +742,7 @@ impl<T: Config> Pallet<T> {
 
 					// set new scheduled payout for updated bonded balance
 					if let Some(StakingLedger { total: total_new, .. }) =
-						<Ledger<T>>::get(&controller, &currency_id)
+						<Ledger<T>>::get(&controller, currency_id)
 					{
 						if total_new > T::Balance::zero() {
 							<ScheduledPayouts<T>>::append(
