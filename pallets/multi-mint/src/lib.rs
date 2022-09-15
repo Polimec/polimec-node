@@ -41,6 +41,9 @@ pub mod pallet {
 		// type WeightInfo: WeightInfo;
 	}
 
+	// TODO: Since this storage is used also in other pallets. check best practices to
+	// share the storage.
+	// https://substrate.stackexchange.com/questions/3354/access-storage-map-from-another-pallet-without-trait-pallet-config
 	#[pallet::storage]
 	#[pallet::getter(fn currency_metadata)]
 	pub(super) type CurrencyMetadata<T: Config> =
