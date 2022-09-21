@@ -7,6 +7,7 @@ pub fn last_event() -> Event {
 
 mod register {
 	use super::*;
+	use crate::TradingStatus;
 
 	#[test]
 	fn must_be_root() {
@@ -59,11 +60,11 @@ mod register {
 			assert_ok!(MultiMintModule::register(Origin::root(), 42, [1; 8]));
 
 			// Here `currency_metadata` is the StorageMap in `MultiMintModule`
-			let (issuer, trading_enabled) = MultiMintModule::currency_metadata([1; 8]).unwrap();
+			let currency_info = MultiMintModule::currencies([1; 8]).unwrap();
 			// The issuer is the account specified in the register call.
-			assert_eq!(issuer, 42);
+			assert_eq!(currency_info.issuer, 42);
 			// The trading is not enabled for the new registered currency
-			assert!(!trading_enabled);
+			assert!(currency_info.trading_enabled == TradingStatus::Disabled);
 			// The event was deposited
 			assert_eq!(
 				last_event(),
@@ -82,9 +83,9 @@ mod mint {
 			assert_ok!(MultiMintModule::register(Origin::root(), 7, [42; 8]));
 
 			// Only the `root` account can call the `mint` function
-			assert_noop!(MultiMintModule::mint(Origin::signed(1), 7, [42; 8], 100), BadOrigin);
+			assert_noop!(MultiMintModule::mint(Origin::signed(1), 7, 7, [42; 8], 100), BadOrigin);
 
-			assert_ok!(MultiMintModule::mint(Origin::root(), 7, [42; 8], 100));
+			assert_ok!(MultiMintModule::mint(Origin::root(), 7, 7, [42; 8], 100));
 
 			// The event was deposited
 			assert_eq!(
@@ -111,6 +112,7 @@ mod mint {
 
 mod unlock_trading {
 	use super::*;
+	use crate::TradingStatus;
 
 	#[test]
 	fn cannot_unlock_unregistered_currency() {
@@ -130,11 +132,11 @@ mod unlock_trading {
 			assert_ok!(MultiMintModule::register(Origin::root(), 42, [1; 8]));
 
 			// Here `currency_metadata` is the StorageMap in `MultiMintModule`
-			let (issuer, trading_enabled) = MultiMintModule::currency_metadata([1; 8]).unwrap();
+			let currency_info = MultiMintModule::currencies([1; 8]).unwrap();
 			// The issuer is the account specified in the register call.
-			assert_eq!(issuer, 42);
+			assert_eq!(currency_info.issuer, 42);
 			// The trading is not enabled for the new registered currency
-			assert!(!trading_enabled);
+			assert!(currency_info.trading_enabled == TradingStatus::Disabled);
 			// The `RegisteredCurrency` event was deposited
 			assert_eq!(
 				last_event(),
@@ -142,13 +144,12 @@ mod unlock_trading {
 			);
 
 			assert_ok!(MultiMintModule::unlock_trading(Origin::signed(42), [1; 8]));
-
 			// Here `currency_metadata` is the StorageMap in `MultiMintModule`
-			let (issuer, trading_enabled) = MultiMintModule::currency_metadata([1; 8]).unwrap();
+			let currency_info = MultiMintModule::currencies([1; 8]).unwrap();
 			// The issuer is the account specified in the register call.
-			assert_eq!(issuer, 42);
-			// The trading is not enabled for the new registered currency
-			assert!(trading_enabled);
+			assert_eq!(currency_info.issuer, 42);
+			// Now the currency trading should be enabled
+			assert!(currency_info.trading_enabled == TradingStatus::Enabled);
 			// The `UnlockedTrading` event was deposited
 			assert_eq!(last_event(), Event::MultiMintModule(crate::Event::UnlockedTrading([1; 8])));
 		})
@@ -157,6 +158,7 @@ mod unlock_trading {
 
 mod lock_trading {
 	use super::*;
+	use crate::TradingStatus;
 
 	#[test]
 	fn cannot_lock_unregistered_currency() {
@@ -178,21 +180,21 @@ mod lock_trading {
 			assert_ok!(MultiMintModule::unlock_trading(Origin::signed(42), [1; 8]));
 
 			// Here `currency_metadata` is the StorageMap in `MultiMintModule`
-			let (issuer, trading_enabled) = MultiMintModule::currency_metadata([1; 8]).unwrap();
+			let currency_info = MultiMintModule::currencies([1; 8]).unwrap();
 			// The issuer is the account specified in the register call.
-			assert_eq!(issuer, 42);
-			// The trading is not enabled for the new registered currency
-			assert!(trading_enabled);
+			assert_eq!(currency_info.issuer, 42);
+
+			assert!(currency_info.trading_enabled == TradingStatus::Enabled);
 			// The `UnlockedTrading` event was deposited
 			assert_eq!(last_event(), Event::MultiMintModule(crate::Event::UnlockedTrading([1; 8])));
 
 			assert_ok!(MultiMintModule::lock_trading(Origin::signed(42), [1; 8]));
 			// Here `currency_metadata` is the StorageMap in `MultiMintModule`
-			let (issuer, trading_enabled) = MultiMintModule::currency_metadata([1; 8]).unwrap();
+			let currency_info = MultiMintModule::currencies([1; 8]).unwrap();
 			// The issuer is the account specified in the register call.
-			assert_eq!(issuer, 42);
+			assert_eq!(currency_info.issuer, 42);
 			// The trading is not enabled for the new registered currency
-			assert!(!trading_enabled);
+			assert!(currency_info.trading_enabled == TradingStatus::Disabled);
 			// The `RegisteredCurrency` event was deposited
 			assert_eq!(last_event(), Event::MultiMintModule(crate::Event::LockedTrading([1; 8])));
 		})
@@ -211,7 +213,13 @@ mod transfer {
 			let mint_amount = 100;
 			let _transfer_amount = 50;
 			assert_ok!(MultiMintModule::register(Origin::root(), issuer, currency_id));
-			assert_ok!(MultiMintModule::mint(Origin::root(), issuer, currency_id, mint_amount));
+			assert_ok!(MultiMintModule::mint(
+				Origin::root(),
+				issuer,
+				issuer,
+				currency_id,
+				mint_amount
+			));
 			// TODO: Check https://github.com/open-web3-stack/open-runtime-module-library/blob/master/tokens/src/tests.rs
 			// on how to test the transfer function from ORML
 

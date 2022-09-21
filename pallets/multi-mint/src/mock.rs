@@ -1,7 +1,7 @@
 use crate as pallet_multi_mint;
 use frame_support::{
 	parameter_types,
-	traits::{ConstU16, ConstU64, Contains},
+	traits::{ConstU16, ConstU32, ConstU64, Contains},
 	PalletId,
 };
 use frame_system as system;
@@ -98,6 +98,7 @@ impl orml_tokens::Config for Test {
 impl pallet_multi_mint::Config for Test {
 	type Event = Event;
 	type GetNativeCurrencyId = ();
+	type StringLimit = ConstU32<50>;
 }
 
 // Build genesis storage according to the mock runtime.

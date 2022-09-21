@@ -315,6 +315,7 @@ parameter_types! {
 impl pallet_multi_mint::Config for Runtime {
 	type Event = Event;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
+	type StringLimit = ConstU32<50>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
