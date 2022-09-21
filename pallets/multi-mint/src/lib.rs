@@ -1,5 +1,4 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-
 pub use pallet::*;
 
 #[cfg(test)]
@@ -8,20 +7,18 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+mod types;
+pub use types::*;
+
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
 #[frame_support::pallet]
 pub mod pallet {
+	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	use orml_traits::{currency::MultiCurrencyExtended, MultiCurrency};
-
-	type CurrencyIdOf<T> = <T as orml_tokens::Config>::CurrencyId;
-
-	// TODO: Use SCALE compact representation since this type will probably be u64/128
-	type AmountOf<T> = <T as orml_tokens::Config>::Amount;
-	type BalanceOf<T> = <T as orml_tokens::Config>::Balance;
+	use orml_traits::arithmetic::Zero;
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
@@ -35,6 +32,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type GetNativeCurrencyId: Get<CurrencyIdOf<Self>>;
 
+		/// The maximum length of a name or symbol stored on-chain.
+		#[pallet::constant]
+		type StringLimit: Get<u32>;
+
 		// TODO: Add Weight type
 
 		// Weight information for extrinsics in this pallet.
@@ -45,9 +46,20 @@ pub mod pallet {
 	// share the storage.
 	// https://substrate.stackexchange.com/questions/3354/access-storage-map-from-another-pallet-without-trait-pallet-config
 	#[pallet::storage]
-	#[pallet::getter(fn currency_metadata)]
-	pub(super) type CurrencyMetadata<T: Config> =
-		StorageMap<_, Blake2_128Concat, CurrencyIdOf<T>, (T::AccountId, bool), OptionQuery>;
+	/// Details of currencies.
+	#[pallet::getter(fn currencies)]
+	pub(super) type Currencies<T: Config> =
+		StorageMap<_, Blake2_128Concat, CurrencyIdOf<T>, CurrencyInfo<T::AccountId>>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn currencies_metadata)]
+	/// Metadata of a Currency.
+	pub(super) type Metadata<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		CurrencyIdOf<T>,
+		CurrencyMetadata<BalanceOf<T>, BoundedVec<u8, T::StringLimit>>,
+	>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -86,7 +98,26 @@ pub mod pallet {
 				currency_id != T::GetNativeCurrencyId::get(),
 				Error::<T>::NativeCurrencyCannotBeChanged
 			);
-			Self::do_register_currency(issuer, &currency_id)
+			ensure!(!Currencies::<T>::contains_key(currency_id), Error::<T>::CurrencyAlreadyExists);
+
+			let bounded_name: BoundedVec<u8, T::StringLimit> =
+				b"My Token".to_vec().try_into().expect("asset name is too long");
+			let bounded_symbol: BoundedVec<u8, T::StringLimit> =
+				b"TKN_____".to_vec().try_into().expect("asset symbol is too long");
+
+			let currency_metadata = CurrencyMetadata {
+				deposit: Zero::zero(),
+				name: bounded_name,
+				symbol: bounded_symbol,
+				decimals: 12,
+			};
+			// 	Do not enable trading by default
+			let currency_info = CurrencyInfo::new(issuer.clone(), false, TradingStatus::Disabled);
+			<Currencies<T>>::insert(currency_id, currency_info);
+			<Metadata<T>>::insert(currency_id, currency_metadata);
+			Self::deposit_event(Event::<T>::RegisteredCurrency(currency_id, issuer));
+
+			Ok(())
 		}
 
 		/// NOTE: the amount is in PICO! In the Polkadot apps all currencies are displayed in Units,
@@ -98,6 +129,7 @@ pub mod pallet {
 		pub fn mint(
 			origin: OriginFor<T>,
 			issuer: T::AccountId,
+			target: T::AccountId,
 			currency_id: CurrencyIdOf<T>,
 			amount: AmountOf<T>,
 		) -> DispatchResult {
@@ -106,7 +138,7 @@ pub mod pallet {
 				currency_id != T::GetNativeCurrencyId::get(),
 				Error::<T>::NativeCurrencyCannotBeChanged
 			);
-			Self::do_mint(issuer, &currency_id, amount)
+			Self::do_mint(issuer, target, &currency_id, amount)
 		}
 
 		/// Lock currency trading
@@ -114,7 +146,7 @@ pub mod pallet {
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn lock_trading(origin: OriginFor<T>, currency_id: CurrencyIdOf<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			Self::change_trading_status(&who, &currency_id, false)
+			Self::set_trading_status(who, &currency_id, TradingStatus::Disabled)
 		}
 
 		/// Unlock currency trading
@@ -125,7 +157,7 @@ pub mod pallet {
 			currency_id: CurrencyIdOf<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			Self::change_trading_status(&who, &currency_id, true)
+			Self::set_trading_status(who, &currency_id, TradingStatus::Enabled)
 		}
 
 		/// Transfer some amount from one account to another.
@@ -141,97 +173,90 @@ pub mod pallet {
 			Self::do_transfer(from, to, &currency_id, &amount)
 		}
 	}
+}
 
-	impl<T: Config> Pallet<T> {
-		pub fn do_register_currency(
-			issuer: T::AccountId,
-			currency_id: &CurrencyIdOf<T>,
-		) -> Result<(), DispatchError> {
-			if !<CurrencyMetadata<T>>::contains_key(currency_id) {
-				// do not enable trading by default
-				<CurrencyMetadata<T>>::insert(currency_id, (&issuer, false));
-				Self::deposit_event(Event::<T>::RegisteredCurrency(*currency_id, issuer));
-				Ok(())
-			} else {
-				Err(Error::<T>::CurrencyAlreadyExists.into())
-			}
+use frame_support::{ensure, pallet_prelude::DispatchError, traits::Get, BoundedVec};
+use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+
+impl<T: Config> Pallet<T> {
+	/// NOTE: the amount is in PICO! In the polkadot apps all currencies are
+	/// displayed in Units, whereas here it displays PICO because it doesn't
+	/// know that this is a currency. We maybe also want to have CurrencyOf as a
+	/// type here because we never take currency away.
+	pub fn do_mint(
+		who: T::AccountId,
+		target: T::AccountId,
+		currency_id: &CurrencyIdOf<T>,
+		amount: AmountOf<T>,
+	) -> Result<(), DispatchError> {
+		ensure!(
+			currency_id != &T::GetNativeCurrencyId::get(),
+			Error::<T>::NativeCurrencyCannotBeChanged
+		);
+		if let Some(currency_info) = Currencies::<T>::get(currency_id) {
+			ensure!(currency_info.issuer == who, Error::<T>::Unauthorized);
+			// should increase by `amount`, not set
+			orml_tokens::Pallet::<T>::update_balance(*currency_id, &target, amount)?;
+			Self::deposit_event(Event::<T>::MintedCurrency(*currency_id, target, amount));
+			Ok(())
+		} else {
+			Err(Error::<T>::CurrencyNotFound.into())
 		}
+	}
 
-		/// NOTE: the amount is in PICO! In the polkadot apps all currencies are
-		/// displayed in Units, whereas here it displays PICO because it doesn't
-		/// know that this is a currency. We maybe also want to have CurrencyOf as a
-		/// type here because we never take currency away.
-		pub fn do_mint(
-			who: T::AccountId,
-			currency_id: &CurrencyIdOf<T>,
-			amount: AmountOf<T>,
-		) -> Result<(), DispatchError> {
-			ensure!(
-				currency_id != &T::GetNativeCurrencyId::get(),
-				Error::<T>::NativeCurrencyCannotBeChanged
-			);
-			if let Some((issuer, _)) = CurrencyMetadata::<T>::get(currency_id) {
-				ensure!(issuer == who, Error::<T>::Unauthorized);
-				orml_tokens::Pallet::<T>::update_balance(*currency_id, &who, amount)?;
-				Self::deposit_event(Event::<T>::MintedCurrency(*currency_id, who, amount));
-				Ok(())
-			} else {
-				Err(Error::<T>::CurrencyNotFound.into())
-			}
-		}
-
-		pub fn change_trading_status(
-			who: &T::AccountId,
-			currency_id: &CurrencyIdOf<T>,
-			trading_status: bool,
-		) -> Result<(), DispatchError> {
-			CurrencyMetadata::<T>::mutate(
-				currency_id,
-				|currency_metadata| -> Result<(), DispatchError> {
-					match currency_metadata {
-						Some((issuer, trading_enabled)) => {
-							ensure!(issuer == who, Error::<T>::Unauthorized);
-							*trading_enabled = trading_status;
-							if trading_status {
-								Self::deposit_event(Event::<T>::UnlockedTrading(*currency_id));
-							} else {
-								Self::deposit_event(Event::<T>::LockedTrading(*currency_id));
-							}
-						},
-						None => return Err(Error::<T>::CurrencyNotFound.into()),
+	pub fn set_trading_status(
+		who: T::AccountId,
+		currency_id: &CurrencyIdOf<T>,
+		trading_status: TradingStatus,
+	) -> Result<(), DispatchError> {
+		Currencies::<T>::mutate(currency_id, |currency| -> Result<(), DispatchError> {
+			match currency {
+				Some(currency_info) => {
+					ensure!(currency_info.issuer == who, Error::<T>::Unauthorized);
+					currency_info.trading_enabled = trading_status;
+					match currency_info.trading_enabled {
+						TradingStatus::Enabled =>
+							Self::deposit_event(Event::<T>::UnlockedTrading(*currency_id)),
+						TradingStatus::Disabled =>
+							Self::deposit_event(Event::<T>::LockedTrading(*currency_id)),
 					}
-					Ok(())
 				},
-			)
-		}
-
-		pub fn do_transfer(
-			from: T::AccountId,
-			to: T::AccountId,
-			currency_id: &CurrencyIdOf<T>,
-			amount: &BalanceOf<T>,
-		) -> Result<(), DispatchError> {
-			// Check if the amount is more than 0 before accessing the storage.
-			ensure!(*amount > 0_u8.into(), Error::<T>::AmountTooLow);
-
-			// Check if the from and the to are diffrent accounts.
-			ensure!(from != to, Error::<T>::TransferToThemself);
-
-			// Check whether transfer is unlocked
-			match CurrencyMetadata::<T>::get(currency_id) {
-				Some((_, true)) => {
-					<orml_tokens::Pallet<T> as MultiCurrency<T::AccountId>>::transfer(
-						*currency_id,
-						&from,
-						&to,
-						*amount,
-					)?;
-					Self::deposit_event(Event::<T>::Transferred(*currency_id, from, to, *amount));
-					Ok(())
-				},
-				Some((_, false)) => Err(Error::<T>::TransferLocked.into()),
-				None => Err(Error::<T>::CurrencyNotFound.into()),
+				None => return Err(Error::<T>::CurrencyNotFound.into()),
 			}
+			Ok(())
+		})
+	}
+
+	pub fn do_transfer(
+		from: T::AccountId,
+		to: T::AccountId,
+		currency_id: &CurrencyIdOf<T>,
+		amount: &BalanceOf<T>,
+	) -> Result<(), DispatchError> {
+		// Check if the amount is more than 0 before accessing the storage.
+		ensure!(*amount > 0_u8.into(), Error::<T>::AmountTooLow);
+
+		// Check if the from and the to are diffrent accounts.
+		ensure!(from != to, Error::<T>::TransferToThemself);
+
+		let currency_info = Currencies::<T>::get(currency_id);
+
+		// Check whether the currency exists
+		ensure!(currency_info.is_some(), Error::<T>::CurrencyNotFound);
+
+		// Check whether transfer is unlocked
+		match currency_info.expect("Already checked").transfers_frozen {
+			true => {
+				<orml_tokens::Pallet<T> as MultiCurrency<T::AccountId>>::transfer(
+					*currency_id,
+					&from,
+					&to,
+					*amount,
+				)?;
+				Self::deposit_event(Event::<T>::Transferred(*currency_id, from, to, *amount));
+				Ok(())
+			},
+			false => Err(Error::<T>::TransferLocked.into()),
 		}
 	}
 }
