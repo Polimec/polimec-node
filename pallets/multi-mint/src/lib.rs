@@ -93,6 +93,7 @@ pub mod pallet {
 			issuer: T::AccountId,
 			currency_id: CurrencyIdOf<T>,
 		) -> DispatchResult {
+			// TODO: Ensure that the user is credentialized
 			ensure_root(origin)?;
 			ensure!(
 				currency_id != T::GetNativeCurrencyId::get(),
@@ -100,11 +101,13 @@ pub mod pallet {
 			);
 			ensure!(!Currencies::<T>::contains_key(currency_id), Error::<T>::CurrencyAlreadyExists);
 
+			// TODO: Pass the `name` and the `symbol` as parameter to the `register`
 			let bounded_name: BoundedVec<u8, T::StringLimit> =
 				b"My Token".to_vec().try_into().expect("asset name is too long");
 			let bounded_symbol: BoundedVec<u8, T::StringLimit> =
 				b"TKN_____".to_vec().try_into().expect("asset symbol is too long");
 
+			// TODO: 
 			let currency_metadata = CurrencyMetadata {
 				deposit: Zero::zero(),
 				name: bounded_name,
