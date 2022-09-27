@@ -4089,27 +4089,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-bonding-payouts"
-version = "0.1.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "orml-tokens",
- "orml-traits",
- "pallet-multi-mint",
- "pallet-multi-stake",
- "pallet-proposal",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "traits",
-]
-
-[[package]]
 name = "pallet-grandpa"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.28#34a0621761c4a333cb2074ff720f7acbfb92dbb8"
@@ -4133,66 +4112,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-issuer-council"
-version = "0.1.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "orml-tokens",
- "orml-traits",
- "pallet-multi-mint",
- "pallet-proposal",
- "pallet-session",
- "parity-scale-codec",
- "scale-info",
- "sp-arithmetic",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-staking",
- "traits",
-]
-
-[[package]]
 name = "pallet-multi-mint"
-version = "0.1.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "orml-tokens",
- "orml-traits",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
-]
-
-[[package]]
-name = "pallet-multi-stake"
-version = "0.1.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "orml-tokens",
- "orml-traits",
- "pallet-multi-mint",
- "pallet-proposal",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "traits",
-]
-
-[[package]]
-name = "pallet-proposal"
 version = "0.1.0"
 dependencies = [
  "frame-benchmarking",
@@ -7728,14 +7648,6 @@ dependencies = [
  "tracing-core",
  "tracing-log",
  "tracing-serde",
-]
-
-[[package]]
-name = "traits"
-version = "0.1.0"
-dependencies = [
- "frame-support",
- "sp-runtime",
 ]
 
 [[package]]
