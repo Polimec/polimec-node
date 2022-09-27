@@ -1,26 +1,37 @@
-use crate::{mock::*, Error};
-use frame_support::{assert_noop, assert_ok, error::BadOrigin};
+use crate::{mock::*, CurrencyMetadata, Error, TradingStatus, TransferStatus};
+use frame_support::{assert_noop, assert_ok, error::BadOrigin, traits::ConstU32, BoundedVec};
 
 pub fn last_event() -> Event {
 	frame_system::Pallet::<Test>::events().pop().expect("Event expected").event
 }
 
+pub fn build_currency_metadata() -> CurrencyMetadata<BoundedVec<u8, ConstU32<50>>> {
+	CurrencyMetadata {
+		name: b"My Token".to_vec().try_into().unwrap(),
+		symbol: b"TKN_____".to_vec().try_into().unwrap(),
+		decimals: 12,
+	}
+}
+
+const ALICE: AccountId = 7;
+const BOB: AccountId = 8;
+
+const PLMC: [u8; 8] = [0; 8];
+const TKN: [u8; 8] = [42; 8];
+
 mod register {
 	use super::*;
-	use crate::TradingStatus;
 
 	#[test]
-	fn must_be_root() {
+	fn it_works() {
 		new_test_ext().execute_with(|| {
-			// Only the `root` account can call the `register` function
-			assert_noop!(MultiMintModule::register(Origin::signed(1), 1, [1; 8]), BadOrigin);
-
-			assert_ok!(MultiMintModule::register(Origin::root(), 4, [1; 8]));
+			let currency_metadata = build_currency_metadata();
+			assert_ok!(MultiMintModule::register(Origin::signed(ALICE), TKN, currency_metadata));
 
 			// The event was deposited
 			assert_eq!(
 				last_event(),
-				Event::MultiMintModule(crate::Event::RegisteredCurrency([1; 8], 4))
+				Event::MultiMintModule(crate::Event::RegisteredCurrency(TKN, ALICE))
 			);
 		})
 	}
@@ -28,12 +39,11 @@ mod register {
 	#[test]
 	fn cannot_change_native_currency() {
 		new_test_ext().execute_with(|| {
-			// Only the `root` account can call the `register` function
-			assert_noop!(MultiMintModule::register(Origin::signed(1), 1, [1; 8]), BadOrigin);
+			let currency_metadata = build_currency_metadata();
 
-			// You can't change the `NativeCurrency`, even if you are `root`
+			// You can't change the `NativeCurrency`, even if you are the `issuer`
 			assert_noop!(
-				MultiMintModule::register(Origin::root(), 1, [0; 8]),
+				MultiMintModule::register(Origin::signed(ALICE), PLMC, currency_metadata),
 				Error::<Test>::NativeCurrencyCannotBeChanged
 			);
 		})
@@ -42,12 +52,16 @@ mod register {
 	#[test]
 	fn cannot_register_again() {
 		new_test_ext().execute_with(|| {
-			// Only the `root` account can call the `register` function
-			assert_ok!(MultiMintModule::register(Origin::root(), 1, [1; 8]));
+			let currency_metadata = build_currency_metadata();
+			assert_ok!(MultiMintModule::register(
+				Origin::signed(ALICE),
+				TKN,
+				currency_metadata.clone()
+			));
 
 			// You can't register again the same currency
 			assert_noop!(
-				MultiMintModule::register(Origin::root(), 1, [1; 8]),
+				MultiMintModule::register(Origin::signed(ALICE), TKN, currency_metadata),
 				Error::<Test>::CurrencyAlreadyExists
 			);
 		})
@@ -56,19 +70,23 @@ mod register {
 	#[test]
 	fn metadata_in_storage() {
 		new_test_ext().execute_with(|| {
-			// Only the `root` account can call the `register` function
-			assert_ok!(MultiMintModule::register(Origin::root(), 42, [1; 8]));
+			let currency_metadata = build_currency_metadata();
+			assert_ok!(MultiMintModule::register(
+				Origin::signed(ALICE),
+				TKN,
+				currency_metadata.clone()
+			));
 
 			// Here `currency_metadata` is the StorageMap in `MultiMintModule`
-			let currency_info = MultiMintModule::currencies([1; 8]).unwrap();
+			let currency_info = MultiMintModule::currencies(TKN).unwrap();
 			// The issuer is the account specified in the register call.
-			assert_eq!(currency_info.issuer, 42);
+			assert_eq!(currency_info.issuer, ALICE);
 			// The trading is not enabled for the new registered currency
 			assert!(currency_info.trading_enabled == TradingStatus::Disabled);
 			// The event was deposited
 			assert_eq!(
 				last_event(),
-				Event::MultiMintModule(crate::Event::RegisteredCurrency([1; 8], 42))
+				Event::MultiMintModule(crate::Event::RegisteredCurrency(TKN, ALICE))
 			);
 		})
 	}
@@ -80,17 +98,19 @@ mod mint {
 	#[test]
 	fn must_be_root() {
 		new_test_ext().execute_with(|| {
-			assert_ok!(MultiMintModule::register(Origin::root(), 7, [42; 8]));
+			let currency_metadata = build_currency_metadata();
+			assert_ok!(MultiMintModule::register(
+				Origin::signed(ALICE),
+				TKN,
+				currency_metadata.clone()
+			));
 
-			// Only the `root` account can call the `mint` function
-			assert_noop!(MultiMintModule::mint(Origin::signed(1), 7, 7, [42; 8], 100), BadOrigin);
-
-			assert_ok!(MultiMintModule::mint(Origin::root(), 7, 7, [42; 8], 100));
+			assert_ok!(MultiMintModule::mint(Origin::signed(ALICE), ALICE, TKN, 100));
 
 			// The event was deposited
 			assert_eq!(
 				last_event(),
-				Event::MultiMintModule(crate::Event::MintedCurrency([42; 8], 7, 100))
+				Event::MultiMintModule(crate::Event::MintedCurrency(TKN, 7, 100))
 			);
 		})
 	}
@@ -98,12 +118,9 @@ mod mint {
 	#[test]
 	fn cannot_change_native_currency() {
 		new_test_ext().execute_with(|| {
-			// Only the `root` account can call the `register` function
-			assert_noop!(MultiMintModule::register(Origin::signed(1), 1, [1; 8]), BadOrigin);
-
-			// You can't change the `NativeCurrency`, even if you are `root`
+			// You can't change the `NativeCurrency`
 			assert_noop!(
-				MultiMintModule::register(Origin::root(), 1, [0; 8]),
+				MultiMintModule::mint(Origin::signed(ALICE), ALICE, PLMC, 100),
 				Error::<Test>::NativeCurrencyCannotBeChanged
 			);
 		})
@@ -117,9 +134,9 @@ mod unlock_trading {
 	#[test]
 	fn cannot_unlock_unregistered_currency() {
 		new_test_ext().execute_with(|| {
-			// The `currency` indexed by the id `[1; 8]` don't exists
+			// The `currency` indexed by the id `TKN` don't exists
 			assert_noop!(
-				MultiMintModule::unlock_trading(Origin::signed(42), [1; 8]),
+				MultiMintModule::unlock_trading(Origin::signed(ALICE), TKN),
 				Error::<Test>::CurrencyNotFound
 			);
 		})
@@ -128,30 +145,37 @@ mod unlock_trading {
 	#[test]
 	fn unlock_currency() {
 		new_test_ext().execute_with(|| {
-			// Only the `root` account can call the `register` function
-			assert_ok!(MultiMintModule::register(Origin::root(), 42, [1; 8]));
+			let currency_metadata = build_currency_metadata();
+			assert_ok!(MultiMintModule::register(
+				Origin::signed(ALICE),
+				TKN,
+				currency_metadata.clone()
+			));
 
 			// Here `currency_metadata` is the StorageMap in `MultiMintModule`
-			let currency_info = MultiMintModule::currencies([1; 8]).unwrap();
+			let currency_info = MultiMintModule::currencies(TKN).unwrap();
 			// The issuer is the account specified in the register call.
-			assert_eq!(currency_info.issuer, 42);
+			assert_eq!(currency_info.issuer, ALICE);
 			// The trading is not enabled for the new registered currency
 			assert!(currency_info.trading_enabled == TradingStatus::Disabled);
 			// The `RegisteredCurrency` event was deposited
 			assert_eq!(
 				last_event(),
-				Event::MultiMintModule(crate::Event::RegisteredCurrency([1; 8], 42))
+				Event::MultiMintModule(crate::Event::RegisteredCurrency(TKN, ALICE))
 			);
 
-			assert_ok!(MultiMintModule::unlock_trading(Origin::signed(42), [1; 8]));
+			assert_ok!(MultiMintModule::unlock_trading(Origin::signed(ALICE), TKN));
 			// Here `currency_metadata` is the StorageMap in `MultiMintModule`
-			let currency_info = MultiMintModule::currencies([1; 8]).unwrap();
+			let currency_info = MultiMintModule::currencies(TKN).unwrap();
 			// The issuer is the account specified in the register call.
-			assert_eq!(currency_info.issuer, 42);
+			assert_eq!(currency_info.issuer, ALICE);
 			// Now the currency trading should be enabled
 			assert!(currency_info.trading_enabled == TradingStatus::Enabled);
-			// The `UnlockedTrading` event was deposited
-			assert_eq!(last_event(), Event::MultiMintModule(crate::Event::UnlockedTrading([1; 8])));
+			// The `ChangedTrading` event was deposited
+			assert_eq!(
+				last_event(),
+				Event::MultiMintModule(crate::Event::ChangedTrading(TKN, TradingStatus::Enabled))
+			);
 		})
 	}
 }
@@ -163,9 +187,8 @@ mod lock_trading {
 	#[test]
 	fn cannot_lock_unregistered_currency() {
 		new_test_ext().execute_with(|| {
-			// The `currency` indexed by the id `[1; 8]` don't exists
 			assert_noop!(
-				MultiMintModule::unlock_trading(Origin::signed(42), [1; 8]),
+				MultiMintModule::unlock_trading(Origin::signed(ALICE), PLMC),
 				Error::<Test>::CurrencyNotFound
 			);
 		})
@@ -174,29 +197,39 @@ mod lock_trading {
 	#[test]
 	fn lock_currency() {
 		new_test_ext().execute_with(|| {
-			// Only the `root` account can call the `register` function
-			assert_ok!(MultiMintModule::register(Origin::root(), 42, [1; 8]));
+			let currency_metadata = build_currency_metadata();
+			assert_ok!(MultiMintModule::register(
+				Origin::signed(ALICE),
+				TKN,
+				currency_metadata.clone()
+			));
 
-			assert_ok!(MultiMintModule::unlock_trading(Origin::signed(42), [1; 8]));
+			assert_ok!(MultiMintModule::unlock_trading(Origin::signed(ALICE), TKN));
 
 			// Here `currency_metadata` is the StorageMap in `MultiMintModule`
-			let currency_info = MultiMintModule::currencies([1; 8]).unwrap();
+			let currency_info = MultiMintModule::currencies(TKN).unwrap();
 			// The issuer is the account specified in the register call.
-			assert_eq!(currency_info.issuer, 42);
+			assert_eq!(currency_info.issuer, ALICE);
 
 			assert!(currency_info.trading_enabled == TradingStatus::Enabled);
 			// The `UnlockedTrading` event was deposited
-			assert_eq!(last_event(), Event::MultiMintModule(crate::Event::UnlockedTrading([1; 8])));
+			assert_eq!(
+				last_event(),
+				Event::MultiMintModule(crate::Event::ChangedTrading(TKN, TradingStatus::Enabled))
+			);
 
-			assert_ok!(MultiMintModule::lock_trading(Origin::signed(42), [1; 8]));
+			assert_ok!(MultiMintModule::lock_trading(Origin::signed(ALICE), TKN));
 			// Here `currency_metadata` is the StorageMap in `MultiMintModule`
-			let currency_info = MultiMintModule::currencies([1; 8]).unwrap();
+			let currency_info = MultiMintModule::currencies(TKN).unwrap();
 			// The issuer is the account specified in the register call.
-			assert_eq!(currency_info.issuer, 42);
+			assert_eq!(currency_info.issuer, ALICE);
 			// The trading is not enabled for the new registered currency
 			assert!(currency_info.trading_enabled == TradingStatus::Disabled);
 			// The `RegisteredCurrency` event was deposited
-			assert_eq!(last_event(), Event::MultiMintModule(crate::Event::LockedTrading([1; 8])));
+			assert_eq!(
+				last_event(),
+				Event::MultiMintModule(crate::Event::ChangedTrading(TKN, TradingStatus::Disabled))
+			);
 		})
 	}
 }
@@ -205,29 +238,25 @@ mod transfer {
 	use super::*;
 
 	#[test]
-	fn must_be_root() {
+	fn it_works() {
 		new_test_ext().execute_with(|| {
-			let issuer = 7;
-			let _receiver = 14;
-			let currency_id = [42; 8];
-			let mint_amount = 100;
-			let _transfer_amount = 50;
-			assert_ok!(MultiMintModule::register(Origin::root(), issuer, currency_id));
-			assert_ok!(MultiMintModule::mint(
-				Origin::root(),
-				issuer,
-				issuer,
+			let currency_id = TKN;
+			let currency_metadata = build_currency_metadata();
+			assert_ok!(MultiMintModule::register(
+				Origin::signed(ALICE),
 				currency_id,
-				mint_amount
+				currency_metadata.clone()
 			));
+
+			assert_ok!(MultiMintModule::mint(Origin::signed(ALICE), ALICE, currency_id, 100));
 			// TODO: Check https://github.com/open-web3-stack/open-runtime-module-library/blob/master/tokens/src/tests.rs
 			// on how to test the transfer function from ORML
 
-			// The event was deposited
-			// assert_eq!(
-			// 	last_event(),
-			// 	Event::MultiMintModule(crate::Event::RegisteredCurrency { 0: [1; 8], 1: 4 })
-			// );
+			assert_ok!(MultiMintModule::transfer(Origin::signed(ALICE), currency_id, BOB, 50));
+
+			// TODO: Check ALICE and BOB's Balance
+			// TODO: ALICE = 50
+			// TODO: BOB = 50
 		})
 	}
 }
