@@ -67,10 +67,8 @@ pub mod pallet {
 		MintedCurrency(T::CurrencyId, T::AccountId, T::Amount),
 		BurnedCurrency(T::CurrencyId, T::AccountId, T::Amount),
 		Transferred(T::CurrencyId, T::AccountId, T::AccountId, T::Balance),
-		LockedTrading(T::CurrencyId),
-		UnlockedTrading(T::CurrencyId),
-		LockedTransfers(T::CurrencyId),
-		UnlockedTransfers(T::CurrencyId),
+		ChangedTrading(T::CurrencyId, TradingStatus),
+		ChangedTransfer(T::CurrencyId, TransferStatus),
 		OwnershipChanged(T::CurrencyId, T::AccountId),
 	}
 
@@ -96,7 +94,7 @@ pub mod pallet {
 			currency_metadata: CurrencyMetadata<BoundedVec<u8, T::StringLimit>>,
 		) -> DispatchResult {
 			// TODO: Ensure that the user is credentialized
-			let issuer = ensure_signed(origin)?;
+			let issuer = ensure_signed(origin.clone())?;
 			ensure!(
 				currency_id != T::GetNativeCurrencyId::get(),
 				Error::<T>::NativeCurrencyCannotBeChanged
@@ -270,7 +268,8 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), DispatchError> {
 		Currencies::<T>::try_mutate(currency_id, |maybe_currency| -> Result<(), DispatchError> {
 			maybe_currency.as_mut().ok_or(Error::<T>::CurrencyNotFound)?.trading_enabled =
-				trading_status;
+				trading_status.clone();
+			Self::deposit_event(Event::<T>::ChangedTrading(*currency_id, trading_status));
 			Ok(())
 		})
 	}
@@ -281,7 +280,8 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), DispatchError> {
 		Currencies::<T>::try_mutate(currency_id, |maybe_currency| -> Result<(), DispatchError> {
 			maybe_currency.as_mut().ok_or(Error::<T>::CurrencyNotFound)?.transfers_enabled =
-				transfer_status;
+				transfer_status.clone();
+			Self::deposit_event(Event::<T>::ChangedTransfer(*currency_id, transfer_status));
 			Ok(())
 		})
 	}
@@ -311,7 +311,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	pub fn do_destroy(currency_id: &CurrencyIdOf<T>) -> Result<(), DispatchError> {
+	pub fn do_destroy(_currency_id: &CurrencyIdOf<T>) -> Result<(), DispatchError> {
 		todo!("https://github.com/paritytech/substrate/blob/master/frame/assets/src/functions.rs#L668")
 	}
 
