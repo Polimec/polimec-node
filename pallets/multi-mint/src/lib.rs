@@ -18,7 +18,6 @@ pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	use orml_traits::arithmetic::Zero;
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
@@ -58,7 +57,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		CurrencyIdOf<T>,
-		CurrencyMetadata<BalanceOf<T>, BoundedVec<u8, T::StringLimit>>,
+		CurrencyMetadata<BoundedVec<u8, T::StringLimit>>,
 	>;
 
 	#[pallet::event]
@@ -66,9 +65,12 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		RegisteredCurrency(T::CurrencyId, T::AccountId),
 		MintedCurrency(T::CurrencyId, T::AccountId, T::Amount),
+		BurnedCurrency(T::CurrencyId, T::AccountId, T::Amount),
 		Transferred(T::CurrencyId, T::AccountId, T::AccountId, T::Balance),
 		LockedTrading(T::CurrencyId),
 		UnlockedTrading(T::CurrencyId),
+		LockedTransfers(T::CurrencyId),
+		UnlockedTransfers(T::CurrencyId),
 		OwnershipChanged(T::CurrencyId, T::AccountId),
 	}
 
@@ -90,36 +92,29 @@ pub mod pallet {
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn register(
 			origin: OriginFor<T>,
-			issuer: T::AccountId,
 			currency_id: CurrencyIdOf<T>,
+			currency_metadata: CurrencyMetadata<BoundedVec<u8, T::StringLimit>>,
 		) -> DispatchResult {
 			// TODO: Ensure that the user is credentialized
-			ensure_root(origin)?;
+			let issuer = ensure_signed(origin)?;
 			ensure!(
 				currency_id != T::GetNativeCurrencyId::get(),
 				Error::<T>::NativeCurrencyCannotBeChanged
 			);
 			ensure!(!Currencies::<T>::contains_key(currency_id), Error::<T>::CurrencyAlreadyExists);
 
-			// TODO: Pass the `name` and the `symbol` as parameter to the `register`
-			let bounded_name: BoundedVec<u8, T::StringLimit> =
-				b"My Token".to_vec().try_into().expect("asset name is too long");
-			let bounded_symbol: BoundedVec<u8, T::StringLimit> =
-				b"TKN_____".to_vec().try_into().expect("asset symbol is too long");
-
-			// TODO: 
-			let currency_metadata = CurrencyMetadata {
-				deposit: Zero::zero(),
-				name: bounded_name,
-				symbol: bounded_symbol,
-				decimals: 12,
-			};
 			// 	Do not enable trading by default
-			let currency_info = CurrencyInfo::new(issuer.clone(), false, TradingStatus::Disabled);
+			// The issuer is also the owner by default
+			let currency_info = CurrencyInfo {
+				current_owner: issuer.clone(),
+				issuer: issuer.clone(),
+				transfers_enabled: TransferStatus::Enabled,
+				trading_enabled: TradingStatus::Disabled,
+			};
 			<Currencies<T>>::insert(currency_id, currency_info);
 			<Metadata<T>>::insert(currency_id, currency_metadata);
-			Self::deposit_event(Event::<T>::RegisteredCurrency(currency_id, issuer));
 
+			Self::deposit_event(Event::<T>::RegisteredCurrency(currency_id, issuer));
 			Ok(())
 		}
 
@@ -131,17 +126,37 @@ pub mod pallet {
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn mint(
 			origin: OriginFor<T>,
-			issuer: T::AccountId,
 			target: T::AccountId,
 			currency_id: CurrencyIdOf<T>,
 			amount: AmountOf<T>,
 		) -> DispatchResult {
-			ensure_root(origin)?;
+			// TODO: Ensure that the user is credentialized
+			let issuer = ensure_signed(origin)?;
 			ensure!(
 				currency_id != T::GetNativeCurrencyId::get(),
 				Error::<T>::NativeCurrencyCannotBeChanged
 			);
+			ensure!(amount > 0_u8.into(), Error::<T>::AmountTooLow);
+
 			Self::do_mint(issuer, target, &currency_id, amount)
+		}
+
+		// TODO: Add proper weight
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		pub fn burn(
+			origin: OriginFor<T>,
+			currency_id: CurrencyIdOf<T>,
+			amount: AmountOf<T>,
+		) -> DispatchResult {
+			// TODO: Ensure that the user is credentialized
+			let who = ensure_signed(origin)?;
+			ensure!(
+				currency_id != T::GetNativeCurrencyId::get(),
+				Error::<T>::NativeCurrencyCannotBeChanged
+			);
+			ensure!(amount > 0_u8.into(), Error::<T>::AmountTooLow);
+
+			Self::do_burn(who, &currency_id, amount)
 		}
 
 		/// Lock currency trading
@@ -149,7 +164,10 @@ pub mod pallet {
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn lock_trading(origin: OriginFor<T>, currency_id: CurrencyIdOf<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			Self::set_trading_status(who, &currency_id, TradingStatus::Disabled)
+			let currency = Currencies::<T>::get(currency_id).ok_or(Error::<T>::CurrencyNotFound)?;
+			ensure!(who == currency.issuer, Error::<T>::Unauthorized);
+
+			Self::set_trading_status(&currency_id, TradingStatus::Disabled)
 		}
 
 		/// Unlock currency trading
@@ -160,7 +178,35 @@ pub mod pallet {
 			currency_id: CurrencyIdOf<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			Self::set_trading_status(who, &currency_id, TradingStatus::Enabled)
+			let currency = Currencies::<T>::get(currency_id).ok_or(Error::<T>::CurrencyNotFound)?;
+			ensure!(who == currency.issuer, Error::<T>::Unauthorized);
+
+			Self::set_trading_status(&currency_id, TradingStatus::Enabled)
+		}
+
+		/// Lock currency trading
+		// TODO: Add proper weight
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		pub fn lock_transfer(origin: OriginFor<T>, currency_id: CurrencyIdOf<T>) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			let currency = Currencies::<T>::get(currency_id).ok_or(Error::<T>::CurrencyNotFound)?;
+			ensure!(who == currency.issuer, Error::<T>::Unauthorized);
+
+			Self::set_transfer_status(&currency_id, TransferStatus::Disabled)
+		}
+
+		/// Unlock currency trading
+		// TODO: Add proper weight
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		pub fn unlock_transfer(
+			origin: OriginFor<T>,
+			currency_id: CurrencyIdOf<T>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			let currency = Currencies::<T>::get(currency_id).ok_or(Error::<T>::CurrencyNotFound)?;
+			ensure!(who == currency.issuer, Error::<T>::Unauthorized);
+
+			Self::set_transfer_status(&currency_id, TransferStatus::Enabled)
 		}
 
 		/// Transfer some amount from one account to another.
@@ -173,7 +219,23 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let from = ensure_signed(origin)?;
+			// Check if the amount is more than 0 before accessing the storage.
+			ensure!(amount > 0_u8.into(), Error::<T>::AmountTooLow);
+
+			// Check if the from and the to are diffrent accounts.
+			ensure!(from != to, Error::<T>::TransferToThemself);
+
 			Self::do_transfer(from, to, &currency_id, &amount)
+		}
+
+		// Destroy a registered currency.
+		// TODO: Add proper weight
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		pub fn destroy(origin: OriginFor<T>, currency_id: CurrencyIdOf<T>) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			let currency = Currencies::<T>::get(currency_id).ok_or(Error::<T>::CurrencyNotFound)?;
+			ensure!(who == currency.issuer, Error::<T>::Unauthorized);
+			Self::do_destroy(&currency_id)
 		}
 	}
 }
@@ -192,40 +254,34 @@ impl<T: Config> Pallet<T> {
 		currency_id: &CurrencyIdOf<T>,
 		amount: AmountOf<T>,
 	) -> Result<(), DispatchError> {
-		ensure!(
-			currency_id != &T::GetNativeCurrencyId::get(),
-			Error::<T>::NativeCurrencyCannotBeChanged
-		);
-		if let Some(currency_info) = Currencies::<T>::get(currency_id) {
-			ensure!(currency_info.issuer == who, Error::<T>::Unauthorized);
-			// should increase by `amount`, not set
-			orml_tokens::Pallet::<T>::update_balance(*currency_id, &target, amount)?;
-			Self::deposit_event(Event::<T>::MintedCurrency(*currency_id, target, amount));
-			Ok(())
-		} else {
-			Err(Error::<T>::CurrencyNotFound.into())
-		}
+		let currency_info =
+			Currencies::<T>::get(currency_id).ok_or(Error::<T>::CurrencyNotFound)?;
+		ensure!(currency_info.issuer == who, Error::<T>::Unauthorized);
+
+		orml_tokens::Pallet::<T>::update_balance(*currency_id, &target, amount)?;
+
+		Self::deposit_event(Event::<T>::MintedCurrency(*currency_id, target, amount));
+		Ok(())
 	}
 
 	pub fn set_trading_status(
-		who: T::AccountId,
 		currency_id: &CurrencyIdOf<T>,
 		trading_status: TradingStatus,
 	) -> Result<(), DispatchError> {
-		Currencies::<T>::mutate(currency_id, |currency| -> Result<(), DispatchError> {
-			match currency {
-				Some(currency_info) => {
-					ensure!(currency_info.issuer == who, Error::<T>::Unauthorized);
-					currency_info.trading_enabled = trading_status;
-					match currency_info.trading_enabled {
-						TradingStatus::Enabled =>
-							Self::deposit_event(Event::<T>::UnlockedTrading(*currency_id)),
-						TradingStatus::Disabled =>
-							Self::deposit_event(Event::<T>::LockedTrading(*currency_id)),
-					}
-				},
-				None => return Err(Error::<T>::CurrencyNotFound.into()),
-			}
+		Currencies::<T>::try_mutate(currency_id, |maybe_currency| -> Result<(), DispatchError> {
+			maybe_currency.as_mut().ok_or(Error::<T>::CurrencyNotFound)?.trading_enabled =
+				trading_status;
+			Ok(())
+		})
+	}
+
+	pub fn set_transfer_status(
+		currency_id: &CurrencyIdOf<T>,
+		transfer_status: TransferStatus,
+	) -> Result<(), DispatchError> {
+		Currencies::<T>::try_mutate(currency_id, |maybe_currency| -> Result<(), DispatchError> {
+			maybe_currency.as_mut().ok_or(Error::<T>::CurrencyNotFound)?.transfers_enabled =
+				transfer_status;
 			Ok(())
 		})
 	}
@@ -236,20 +292,12 @@ impl<T: Config> Pallet<T> {
 		currency_id: &CurrencyIdOf<T>,
 		amount: &BalanceOf<T>,
 	) -> Result<(), DispatchError> {
-		// Check if the amount is more than 0 before accessing the storage.
-		ensure!(*amount > 0_u8.into(), Error::<T>::AmountTooLow);
-
-		// Check if the from and the to are diffrent accounts.
-		ensure!(from != to, Error::<T>::TransferToThemself);
-
-		let currency_info = Currencies::<T>::get(currency_id);
-
-		// Check whether the currency exists
-		ensure!(currency_info.is_some(), Error::<T>::CurrencyNotFound);
+		let currency_info =
+			Currencies::<T>::get(currency_id).ok_or(Error::<T>::CurrencyNotFound)?;
 
 		// Check whether transfer is unlocked
-		match currency_info.expect("Already checked").transfers_frozen {
-			true => {
+		match currency_info.transfers_enabled {
+			TransferStatus::Enabled => {
 				<orml_tokens::Pallet<T> as MultiCurrency<T::AccountId>>::transfer(
 					*currency_id,
 					&from,
@@ -259,7 +307,23 @@ impl<T: Config> Pallet<T> {
 				Self::deposit_event(Event::<T>::Transferred(*currency_id, from, to, *amount));
 				Ok(())
 			},
-			false => Err(Error::<T>::TransferLocked.into()),
+			TransferStatus::Disabled => Err(Error::<T>::TransferLocked.into()),
 		}
+	}
+
+	pub fn do_destroy(currency_id: &CurrencyIdOf<T>) -> Result<(), DispatchError> {
+		todo!("https://github.com/paritytech/substrate/blob/master/frame/assets/src/functions.rs#L668")
+	}
+
+	pub fn do_burn(
+		who: T::AccountId,
+		currency_id: &CurrencyIdOf<T>,
+		amount: AmountOf<T>,
+	) -> Result<(), DispatchError> {
+		Currencies::<T>::get(currency_id).ok_or(Error::<T>::CurrencyNotFound)?;
+		orml_tokens::Pallet::<T>::update_balance(*currency_id, &who, -amount)?;
+
+		Self::deposit_event(Event::<T>::BurnedCurrency(*currency_id, who, amount));
+		Ok(())
 	}
 }
