@@ -11,8 +11,12 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+mod types;
+pub use types::*;
+
 #[frame_support::pallet]
 pub mod pallet {
+	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
@@ -23,16 +27,20 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+
+		#[pallet::constant]
+		type NumberOfCurrencies: Get<u32>;
 	}
 
 	#[pallet::storage]
 	#[pallet::getter(fn something)]
-	pub type Something<T> = StorageValue<_, u32>;
+	pub type Projects<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, ProjectMetadata<T::AccountId>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		SomethingStored(u32, T::AccountId),
+		ProjectCreated(T::AccountId),
 	}
 
 	#[pallet::error]
@@ -43,9 +51,27 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-		pub fn do_something(origin: OriginFor<T>, something: u32) -> DispatchResult {
-			Ok(())
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		pub fn create(
+			origin: OriginFor<T>,
+			project_information: ProjectMetadata<T::AccountId>,
+		) -> DispatchResult {
+			// TODO: Ensure that the user is credentialized
+			let issuer = ensure_signed(origin)?;
+
+			Self::do_create(issuer, project_information)
 		}
+	}
+}
+
+use frame_support::pallet_prelude::DispatchError;
+
+impl<T: Config> Pallet<T> {
+	pub fn do_create(
+		who: T::AccountId,
+		_project_information: ProjectMetadata<T::AccountId>,
+	) -> Result<(), DispatchError> {
+		Self::deposit_event(Event::<T>::ProjectCreated(who));
+		Ok(())
 	}
 }

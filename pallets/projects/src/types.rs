@@ -1,42 +1,35 @@
 use frame_support::pallet_prelude::*;
 
-// Types
-pub(super) type CurrencyIdOf<T> = <T as orml_tokens::Config>::CurrencyId;
-pub(super) type AmountOf<T> = <T as orml_tokens::Config>::Amount;
-pub(super) type BalanceOf<T> = <T as orml_tokens::Config>::Balance;
-
-// Structs
-#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct ProjectMetadata<BoundedString> {
-	/// The user friendly name of this asset. Limited in length by `StringLimit`.
-	pub(super) name: BoundedString,
-	/// The ticker symbol for this asset. Limited in length by `StringLimit`.
-	pub(super) symbol: BoundedString,
-	/// The number of decimals this asset uses to represent one unit.
-	pub(super) decimals: u8,
-}
-
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct ProjectInfo<AccountId> {
-	///
-	pub(super) current_owner: AccountId,
-	///
-	pub(super) issuer: AccountId,
-	///
-	pub(super) transfers_enabled: TransferStatus,
-	///
-	pub(super) trading_enabled: TradingStatus,
+pub struct ProjectMetadata<AccountId> {
+	/// The issuer of the  certificate
+	pub issuer_certifcate: Issuer,
+	/// Minimum price per contribution token
+	pub minimum_price: u128,
+	/// Maximum ticket size
+	pub maximum_ticket_size: u32,
+	/// Minimum number of participants for the auction
+	pub minimum_participants_size: u32,
+	/// Total allocation of contribution tokens to be offered on Polimec
+	pub total_allocation_size: u128,
+	/// Smallest denomination
+	pub decimals: u8,
+	/// Funding round thresholds for retail-, professional- and institutional participants
+	pub funding_thresholds: u128,
+	/// Conversion rate of contribution token to mainnet token
+	pub conversion_rate: u32,
+	/// Participation currencies (e.g stablecoins, DOT, KSM)
+	/// TODO: Use something like Vec<CurrencyIdOf<T>>
+	pub participation_currencies: u128,
+	/// Issuer destination accounts for each accepted token (for receiving participations)
+	pub destinations_account: AccountId,
 }
 
 // Enums
+// TODO: Use SCALE fixed indexes
+// TODO: Check
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub enum TransferStatus {
-	Enabled,
-	Disabled,
-}
-
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub enum TradingStatus {
-	Enabled,
-	Disabled,
+pub enum Issuer {
+	Kilt,
+	Other,
 }
