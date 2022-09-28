@@ -2,6 +2,7 @@
 members = [
     "node",
     "pallets/multi-mint",
+    "pallets/projects",
     "runtime",
 ]
 [profile.release]
