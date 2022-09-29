@@ -39,15 +39,16 @@ pub use frame_system::Call as SystemCall;
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::CurrencyAdapter;
+use sp_runtime::traits::AccountIdConversion;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
 
 use frame_support::{traits::Contains, PalletId};
 use orml_traits::parameter_type_with_key;
-/// Import the `multi_mint` pallet.
+pub use pallet_funding;
+/// Import Polimec pallets.
 pub use pallet_multi_mint;
-use sp_runtime::traits::AccountIdConversion;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -318,6 +319,11 @@ impl pallet_multi_mint::Config for Runtime {
 	type StringLimit = ConstU32<50>;
 }
 
+impl pallet_funding::Config for Runtime {
+	type Event = Event;
+	type NumberOfCurrencies = ConstU32<4>;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub struct Runtime
@@ -334,9 +340,11 @@ construct_runtime!(
 		Balances: pallet_balances,
 		TransactionPayment: pallet_transaction_payment,
 		Sudo: pallet_sudo,
+
 		// Include the custom logic
-		PoliBalances: orml_tokens,
-		PreCurrencyMint: pallet_multi_mint,
+		PolimecBalances: orml_tokens,
+		PolimecMultiMint: pallet_multi_mint,
+		PolimecFunding: pallet_funding,
 	}
 );
 

@@ -45,8 +45,7 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		NoneValue,
-		StorageOverflow,
+		MetadataError,
 	}
 
 	#[pallet::call]
@@ -54,12 +53,14 @@ pub mod pallet {
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn create(
 			origin: OriginFor<T>,
-			project_information: ProjectMetadata<T::AccountId>,
+			project_metadata: ProjectMetadata<T::AccountId>,
 		) -> DispatchResult {
 			// TODO: Ensure that the user is credentialized
 			let issuer = ensure_signed(origin)?;
 
-			Self::do_create(issuer, project_information)
+			ensure!(project_metadata.is_valid(), Error::<T>::MetadataError);
+
+			Self::do_create(issuer, project_metadata)
 		}
 	}
 }
@@ -69,7 +70,7 @@ use frame_support::pallet_prelude::DispatchError;
 impl<T: Config> Pallet<T> {
 	pub fn do_create(
 		who: T::AccountId,
-		_project_information: ProjectMetadata<T::AccountId>,
+		_project_metadata: ProjectMetadata<T::AccountId>,
 	) -> Result<(), DispatchError> {
 		Self::deposit_event(Event::<T>::ProjectCreated(who));
 		Ok(())

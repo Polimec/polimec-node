@@ -19,17 +19,35 @@ pub struct ProjectMetadata<AccountId> {
 	/// Conversion rate of contribution token to mainnet token
 	pub conversion_rate: u32,
 	/// Participation currencies (e.g stablecoins, DOT, KSM)
-	/// TODO: Use something like Vec<CurrencyIdOf<T>>
-	pub participation_currencies: u128,
+	/// TODO: Use something like Vec<Currencies>
+	pub participation_currencies: [Option<Currencies>; 4],
 	/// Issuer destination accounts for each accepted token (for receiving participations)
 	pub destinations_account: AccountId,
 }
 
+impl<AccountId> ProjectMetadata<AccountId> {
+	pub fn is_valid(&self) -> bool {
+		self.participation_currencies
+			.iter()
+			.any(|maybe_currency| maybe_currency.is_some())
+	}
+}
+
 // Enums
 // TODO: Use SCALE fixed indexes
-// TODO: Check
+// TODO: Check if it's correct
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub enum Issuer {
 	Kilt,
 	Other,
+}
+
+// TODO: Use SCALE fixed indexes
+/// Native currency: `PLMC = [0; 8]`
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub enum Currencies {
+	DOT,
+	KSM,
+	USDC,
+	USDT,
 }
