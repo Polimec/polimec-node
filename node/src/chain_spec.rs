@@ -1,6 +1,6 @@
 use node_polimec_runtime::{
 	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GetNativeCurrencyId, GrandpaConfig,
-	PoliBalancesConfig, Signature, SudoConfig, SystemConfig, WASM_BINARY,
+	PolimecBalancesConfig, Signature, SudoConfig, SystemConfig, WASM_BINARY,
 };
 use sc_service::{ChainType, Properties};
 use serde_json::map::Map;
@@ -168,7 +168,7 @@ fn testnet_genesis(
 			key: Some(root_key),
 		},
 		transaction_payment: Default::default(),
-		poli_balances: PoliBalancesConfig {
+		polimec_balances: PolimecBalancesConfig {
 			balances: endowed_accounts
 				.iter()
 				.cloned()

@@ -2,7 +2,7 @@
 members = [
     "node",
     "pallets/multi-mint",
-    "pallets/projects",
+    "pallets/funding",
     "runtime",
 ]
 [profile.release]

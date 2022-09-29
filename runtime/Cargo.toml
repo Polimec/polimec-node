@@ -50,6 +50,7 @@ hex-literal = { version = "0.3.4", optional = true }
 
 # Local Dependencies
 pallet-multi-mint = { version = "0.1", default-features = false, path = "../pallets/multi-mint" }
+pallet-funding = { version = "0.1", default-features = false, path = "../pallets/funding" }
 
 # ORML Dependencies
 orml-traits = { version = "0.4.1-dev", default-features = false, git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.28" }
@@ -73,7 +74,6 @@ std = [
 	"pallet-grandpa/std",
 	"pallet-randomness-collective-flip/std",
 	"pallet-sudo/std",
-	"pallet-multi-mint/std",
 	"pallet-timestamp/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
@@ -90,6 +90,9 @@ std = [
 	"sp-version/std",
 	'orml-traits/std',
 	'orml-tokens/std',
+	"pallet-multi-mint/std",
+	"pallet-funding/std"
+
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
