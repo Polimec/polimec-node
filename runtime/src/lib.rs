@@ -322,6 +322,7 @@ impl pallet_multi_mint::Config for Runtime {
 impl pallet_funding::Config for Runtime {
 	type Event = Event;
 	type NumberOfCurrencies = ConstU32<4>;
+	type NumberOfProjects = ConstU32<4>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
