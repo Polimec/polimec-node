@@ -30,12 +30,20 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type NumberOfCurrencies: Get<u32>;
+
+		#[pallet::constant]
+		type NumberOfProjects: Get<u32>;
 	}
 
 	#[pallet::storage]
-	#[pallet::getter(fn something)]
-	pub type Projects<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, ProjectMetadata<T::AccountId>>;
+	#[pallet::getter(fn project_of)]
+	/// Metadata of a Project.
+	pub type ProjectsOf<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		T::AccountId,
+		BoundedVec<ProjectMetadata<T::AccountId>, T::NumberOfProjects>,
+	>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -46,6 +54,9 @@ pub mod pallet {
 	#[pallet::error]
 	pub enum Error<T> {
 		MetadataError,
+		MetadataErrorNotEnoughParticipationCurrencies,
+		MetadaraErrorNotEnoughParticipants,
+		TooManyProjects,
 	}
 
 	#[pallet::call]
@@ -58,20 +69,38 @@ pub mod pallet {
 			// TODO: Ensure that the user is credentialized
 			let issuer = ensure_signed(origin)?;
 
-			ensure!(project_metadata.is_valid(), Error::<T>::MetadataError);
-
-			Self::do_create(issuer, project_metadata)
+			match project_metadata.validity_check() {
+				Ok(()) => Self::do_create(issuer, project_metadata),
+				Err(error) => match error {
+					ValidityError::NotEnoughParticipationCurrencies =>
+						Err(Error::<T>::MetadataErrorNotEnoughParticipationCurrencies.into()),
+					ValidityError::NotEnoughParticipants =>
+						Err(Error::<T>::MetadaraErrorNotEnoughParticipants.into()),
+				},
+			}
 		}
 	}
 }
 
-use frame_support::pallet_prelude::DispatchError;
+use frame_support::{pallet_prelude::DispatchError, BoundedVec};
 
 impl<T: Config> Pallet<T> {
 	pub fn do_create(
 		who: T::AccountId,
-		_project_metadata: ProjectMetadata<T::AccountId>,
+		project_metadata: ProjectMetadata<T::AccountId>,
 	) -> Result<(), DispatchError> {
+		if let Some(mut alredy_existing_projects) = ProjectsOf::<T>::get(&who) {
+			alredy_existing_projects
+				.try_push(project_metadata)
+				.map_err(|_| Error::<T>::TooManyProjects)?;
+			ProjectsOf::<T>::insert(&who, alredy_existing_projects);
+			return Ok(())
+		} else {
+			let mut starter = BoundedVec::with_bounded_capacity(4);
+			// TODO: This `try_push` never fails
+			starter.try_push(project_metadata).map_err(|_| Error::<T>::TooManyProjects)?;
+			ProjectsOf::<T>::insert(&who, starter)
+		}
 		Self::deposit_event(Event::<T>::ProjectCreated(who));
 		Ok(())
 	}
