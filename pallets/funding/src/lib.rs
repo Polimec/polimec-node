@@ -94,12 +94,13 @@ impl<T: Config> Pallet<T> {
 				.try_push(project_metadata)
 				.map_err(|_| Error::<T>::TooManyProjects)?;
 			ProjectsOf::<T>::insert(&who, alredy_existing_projects);
-			return Ok(())
 		} else {
-			let mut starter = BoundedVec::with_bounded_capacity(4);
+			let mut new_projects = BoundedVec::with_bounded_capacity(4);
 			// TODO: This `try_push` never fails
-			starter.try_push(project_metadata).map_err(|_| Error::<T>::TooManyProjects)?;
-			ProjectsOf::<T>::insert(&who, starter)
+			new_projects
+				.try_push(project_metadata)
+				.map_err(|_| Error::<T>::TooManyProjects)?;
+			ProjectsOf::<T>::insert(&who, new_projects)
 		}
 		Self::deposit_event(Event::<T>::ProjectCreated(who));
 		Ok(())
