@@ -33,6 +33,24 @@ pub struct Project<AccountId, BoundedString> {
 	pub destinations_account: AccountId,
 	/// Date/time of funding round start and end
 	pub funding_times: FundingTimes,
+	/// Additional metadata
+	pub project_metadata: ProjectMetadata<BoundedString>
+}
+
+#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct ProjectMetadata<BoundedString> {
+	/// A link to the whitepaper
+	pub whitepaper: BoundedString,
+	/// A link to a team description
+	pub team_description: BoundedString,
+	/// A link to the tokenomics description
+	pub tokenomics: BoundedString,
+	/// Total supply of mainnet tokens
+	pub total_supply: u128,
+	/// A link to the roadmap
+	pub roadmap: BoundedString,
+	/// A link to a decription on how the funds will be used
+	pub usage_of_founds: BoundedString
 }
 
 #[derive(Debug)]
