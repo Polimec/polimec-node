@@ -1,68 +1,111 @@
-use frame_support::{pallet_prelude::*, BoundedVec};
+use frame_support::pallet_prelude::*;
 
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct ProjectMetadata<AccountId> {
+#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct Project<AccountId, BoundedString> {
 	/// The issuer of the  certificate
 	pub issuer_certifcate: Issuer,
-	/// Minimum price per contribution token
-	pub minimum_price: u128,
-	/// Maximum ticket size
-	pub maximum_ticket_size: u32,
-	/// Minimum number of participants for the auction
-	pub minimum_participants_size: u32,
-	/// Total allocation of contribution tokens to be offered on Polimec
+	/// Name of the issuer
+	pub issuer_name: BoundedString,
+	/// Token information
+	pub token_information: CurrencyMetadata<BoundedString>,
+	/// Total allocation of contribution tokens available for the funding round
 	pub total_allocation_size: u128,
-	/// Smallest denomination
-	pub decimals: u8,
-	/// Funding round thresholds for retail-, professional- and institutional participants
-	pub funding_thresholds: u128,
+	/// Minimum price per contribution token
+	/// TODO: This should be a float, can we use it?
+	pub minimum_price: u128,
+	/// Fundraising target amount in USD equivalent
+	pub fundraising_target: u128,
+	/// Maximum and/or minimum ticket size
+	pub ticket_size: TicketSize,
+	/// Maximum and/or minimum number of participants for the auction and community round
+	pub participants_size: ParticipantsSize,
+	/// Funding round thresholds for retail, professional and institutional participants
+	pub funding_thresholds: Thresholds,
 	/// Conversion rate of contribution token to mainnet token
 	pub conversion_rate: u32,
 	/// Participation currencies (e.g stablecoins, DOT, KSM)
 	/// TODO: Use something like BoundedVec<Option<Currencies>, StringLimit>
 	/// e.g. https://github.com/paritytech/substrate/blob/427fd09bcb193c1e79dec85b1e207c718b686c35/frame/uniques/src/types.rs#L110
-	pub participation_currencies: BoundedVec<Option<Currencies>, ConstU32<4>>,
-	/// Issuer destination accounts for each accepted token (for receiving participations)
+	/// For now is easier to handle the case where only just one Currency is accepted
+	pub participation_currencies: Currencies,
+	/// Issuer destination accounts for accepted participation currencies (for receiving
+	/// contributions)
 	pub destinations_account: AccountId,
+	/// Date/time of funding round start and end
+	pub funding_times: FundingTimes,
 }
+
 #[derive(Debug)]
 pub enum ValidityError {
 	NotEnoughParticipationCurrencies,
 	NotEnoughParticipants,
+	PriceTooLow,
 }
 
-impl<AccountId> ProjectMetadata<AccountId> {
+impl<AccountId, BoundedString> Project<AccountId, BoundedString> {
+	// TODO: Perform a REAL validity cehck
 	pub fn validity_check(&self) -> Result<(), ValidityError> {
-		if self.minimum_participants_size == 0 {
-			return Err(ValidityError::NotEnoughParticipants)
+		if self.minimum_price == 0 {
+			return Err(ValidityError::PriceTooLow)
 		}
-		if !self
-			.participation_currencies
-			.iter()
-			.any(|maybe_currency| maybe_currency.is_some())
-		{
-			return Err(ValidityError::NotEnoughParticipationCurrencies)
-		}
-
 		Ok(())
 	}
+}
+
+#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct TicketSize {
+	minimum: Option<u32>,
+	maximum: Option<u32>,
+}
+
+#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct ParticipantsSize {
+	minimum: Option<u32>,
+	maximum: Option<u32>,
+}
+
+#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct Thresholds {
+	retail: u32,
+	professional: u32,
+	institutional: u32,
+}
+
+// TODO: This is just a placeholder
+// TODO: Implement the time logic
+#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct FundingTimes {
+	start: u32,
+	stop: u32,
+}
+
+#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct CurrencyMetadata<BoundedString> {
+	/// The user friendly name of this asset. Limited in length by `StringLimit`.
+	pub name: BoundedString,
+	/// The ticker symbol for this asset. Limited in length by `StringLimit`.
+	pub symbol: BoundedString,
+	/// The number of decimals this asset uses to represent one unit.
+	pub decimals: u8,
 }
 
 // Enums
 // TODO: Use SCALE fixed indexes
 // TODO: Check if it's correct
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub enum Issuer {
+	#[default]
 	Kilt,
 	Other,
 }
 
 // TODO: Use SCALE fixed indexes
 /// Native currency: `PLMC = [0; 8]`
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub enum Currencies {
 	DOT,
 	KSM,
+	#[default]
 	USDC,
 	USDT,
 }
