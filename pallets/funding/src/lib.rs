@@ -29,20 +29,20 @@ pub mod pallet {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
 		#[pallet::constant]
-		type NumberOfCurrencies: Get<u32>;
+		type StringLimit: Get<u32>;
 
 		#[pallet::constant]
 		type NumberOfProjects: Get<u32>;
 	}
 
 	#[pallet::storage]
-	#[pallet::getter(fn project_of)]
+	#[pallet::getter(fn projects_of)]
 	/// Metadata of a Project.
 	pub type ProjectsOf<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
 		T::AccountId,
-		BoundedVec<ProjectMetadata<T::AccountId>, T::NumberOfProjects>,
+		BoundedVec<Project<T::AccountId, BoundedVec<u8, T::StringLimit>>, T::NumberOfProjects>,
 	>;
 
 	#[pallet::event]
@@ -55,7 +55,7 @@ pub mod pallet {
 	pub enum Error<T> {
 		MetadataError,
 		MetadataErrorNotEnoughParticipationCurrencies,
-		MetadaraErrorNotEnoughParticipants,
+		MetadataErrorNotEnoughParticipants,
 		TooManyProjects,
 	}
 
@@ -64,19 +64,20 @@ pub mod pallet {
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn create(
 			origin: OriginFor<T>,
-			project_metadata: ProjectMetadata<T::AccountId>,
+			project: Project<T::AccountId, BoundedVec<u8, T::StringLimit>>,
 		) -> DispatchResult {
 			// TODO: Ensure that the user is credentialized
 			let issuer = ensure_signed(origin)?;
 
-			match project_metadata.validity_check() {
-				Ok(()) => Self::do_create(issuer, project_metadata),
+			match project.validity_check() {
 				Err(error) => match error {
 					ValidityError::NotEnoughParticipationCurrencies =>
 						Err(Error::<T>::MetadataErrorNotEnoughParticipationCurrencies.into()),
 					ValidityError::NotEnoughParticipants =>
-						Err(Error::<T>::MetadaraErrorNotEnoughParticipants.into()),
+						Err(Error::<T>::MetadataErrorNotEnoughParticipants.into()),
+					ValidityError::PriceTooLow => todo!(),
 				},
+				Ok(()) => Self::do_create(issuer, project),
 			}
 		}
 	}
@@ -87,18 +88,19 @@ use frame_support::{pallet_prelude::DispatchError, BoundedVec};
 impl<T: Config> Pallet<T> {
 	pub fn do_create(
 		who: T::AccountId,
-		project_metadata: ProjectMetadata<T::AccountId>,
+		project_info: Project<T::AccountId, BoundedVec<u8, T::StringLimit>>,
 	) -> Result<(), DispatchError> {
 		if let Some(mut alredy_existing_projects) = ProjectsOf::<T>::get(&who) {
 			alredy_existing_projects
-				.try_push(project_metadata)
+				.try_push(project_info)
 				.map_err(|_| Error::<T>::TooManyProjects)?;
 			ProjectsOf::<T>::insert(&who, alredy_existing_projects);
 		} else {
+			// TODO: Replace 4 with the value of T::NumberOfProjects
 			let mut new_projects = BoundedVec::with_bounded_capacity(4);
 			// TODO: This `try_push` never fails
 			new_projects
-				.try_push(project_metadata)
+				.try_push(project_info)
 				.map_err(|_| Error::<T>::TooManyProjects)?;
 			ProjectsOf::<T>::insert(&who, new_projects)
 		}
