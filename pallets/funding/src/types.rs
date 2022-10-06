@@ -34,7 +34,7 @@ pub struct Project<AccountId, BoundedString> {
 	/// Date/time of funding round start and end
 	pub funding_times: FundingTimes,
 	/// Additional metadata
-	pub project_metadata: ProjectMetadata<BoundedString>
+	pub project_metadata: ProjectMetadata<BoundedString>,
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -50,7 +50,7 @@ pub struct ProjectMetadata<BoundedString> {
 	/// A link to the roadmap
 	pub roadmap: BoundedString,
 	/// A link to a decription on how the funds will be used
-	pub usage_of_founds: BoundedString
+	pub usage_of_founds: BoundedString,
 }
 
 #[derive(Debug)]
@@ -58,6 +58,8 @@ pub enum ValidityError {
 	NotEnoughParticipationCurrencies,
 	NotEnoughParticipants,
 	PriceTooLow,
+	TicketSizeError,
+	ParticipantsSizeError,
 }
 
 impl<AccountId, BoundedString> Project<AccountId, BoundedString> {
@@ -66,6 +68,8 @@ impl<AccountId, BoundedString> Project<AccountId, BoundedString> {
 		if self.minimum_price == 0 {
 			return Err(ValidityError::PriceTooLow)
 		}
+		self.ticket_size.is_valid()?;
+		self.participants_size.is_valid()?;
 		Ok(())
 	}
 }
@@ -76,10 +80,44 @@ pub struct TicketSize {
 	maximum: Option<u32>,
 }
 
+impl TicketSize {
+	fn is_valid(&self) -> Result<(), ValidityError> {
+		if self.minimum.is_some() && self.maximum.is_some() {
+			if self.minimum < self.maximum {
+				return Ok(())
+			} else {
+				return Err(ValidityError::TicketSizeError)
+			}
+		}
+		if self.minimum.is_some() || self.maximum.is_some() {
+			return Ok(())
+		}
+
+		Err(ValidityError::TicketSizeError)
+	}
+}
+
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct ParticipantsSize {
 	minimum: Option<u32>,
 	maximum: Option<u32>,
+}
+
+impl ParticipantsSize {
+	fn is_valid(&self) -> Result<(), ValidityError> {
+		if self.minimum.is_some() && self.maximum.is_some() {
+			if self.minimum < self.maximum {
+				return Ok(())
+			} else {
+				return Err(ValidityError::ParticipantsSizeError)
+			}
+		}
+		if self.minimum.is_some() || self.maximum.is_some() {
+			return Ok(())
+		}
+
+		Err(ValidityError::ParticipantsSizeError)
+	}
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]

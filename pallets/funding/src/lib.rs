@@ -78,6 +78,8 @@ pub mod pallet {
 					ValidityError::NotEnoughParticipants =>
 						Err(Error::<T>::MetadataErrorNotEnoughParticipants.into()),
 					ValidityError::PriceTooLow => todo!(),
+					ValidityError::ParticipantsSizeError => todo!(),
+					ValidityError::TicketSizeError => todo!(),
 				},
 				Ok(()) => Self::do_create(issuer, project),
 			}
@@ -101,9 +103,7 @@ impl<T: Config> Pallet<T> {
 			// TODO: Replace 4 with the value of T::NumberOfProjects
 			let mut new_projects = BoundedVec::with_bounded_capacity(4);
 			// TODO: This `try_push` never fails
-			new_projects
-				.try_push(project_info)
-				.map_err(|_| Error::<T>::TooManyProjects)?;
+			new_projects.try_push(project_info).map_err(|_| Error::<T>::TooManyProjects)?;
 			ProjectsOf::<T>::insert(&who, new_projects)
 		}
 		Self::deposit_event(Event::<T>::ProjectCreated(who));
