@@ -54,8 +54,8 @@ impl system::Config for Test {
 
 impl pallet_funding::Config for Test {
 	type Event = Event;
-	type NumberOfCurrencies = ConstU32<4>;
 	type NumberOfProjects = ConstU32<4>;
+	type StringLimit = ConstU32<64>;
 }
 
 // Build genesis storage according to the mock runtime.
