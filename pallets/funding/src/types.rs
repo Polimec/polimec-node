@@ -1,7 +1,7 @@
 use frame_support::pallet_prelude::*;
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct Project<AccountId, BoundedString> {
+pub struct Project<AccountId, BoundedString, BlockNumber> {
 	/// The issuer of the  certificate
 	pub issuer_certifcate: Issuer,
 	/// Name of the issuer
@@ -12,6 +12,7 @@ pub struct Project<AccountId, BoundedString> {
 	pub total_allocation_size: u128,
 	/// Minimum price per contribution token
 	/// TODO: This should be a float, can we use it?
+	/// TODO: Check how to handle that using smallest denomination
 	pub minimum_price: u128,
 	/// Fundraising target amount in USD equivalent
 	pub fundraising_target: u128,
@@ -32,7 +33,7 @@ pub struct Project<AccountId, BoundedString> {
 	/// contributions)
 	pub destinations_account: AccountId,
 	/// Date/time of funding round start and end
-	pub funding_times: FundingTimes,
+	pub funding_times: FundingTimes<BlockNumber>,
 	/// Additional metadata
 	pub project_metadata: ProjectMetadata<BoundedString>,
 }
@@ -55,14 +56,12 @@ pub struct ProjectMetadata<BoundedString> {
 
 #[derive(Debug)]
 pub enum ValidityError {
-	NotEnoughParticipationCurrencies,
-	NotEnoughParticipants,
 	PriceTooLow,
 	TicketSizeError,
 	ParticipantsSizeError,
 }
 
-impl<AccountId, BoundedString> Project<AccountId, BoundedString> {
+impl<AccountId, BoundedString, BlockNumber> Project<AccountId, BoundedString, BlockNumber> {
 	// TODO: Perform a REAL validity cehck
 	pub fn validity_check(&self) -> Result<(), ValidityError> {
 		if self.minimum_price == 0 {
@@ -76,8 +75,8 @@ impl<AccountId, BoundedString> Project<AccountId, BoundedString> {
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct TicketSize {
-	minimum: Option<u32>,
-	maximum: Option<u32>,
+	pub minimum: Option<u32>,
+	pub maximum: Option<u32>,
 }
 
 impl TicketSize {
@@ -99,8 +98,8 @@ impl TicketSize {
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct ParticipantsSize {
-	minimum: Option<u32>,
-	maximum: Option<u32>,
+	pub minimum: Option<u32>,
+	pub maximum: Option<u32>,
 }
 
 impl ParticipantsSize {
@@ -130,9 +129,9 @@ pub struct Thresholds {
 // TODO: This is just a placeholder
 // TODO: Implement the time logic
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct FundingTimes {
-	start: u32,
-	stop: u32,
+pub struct FundingTimes<BlockNumber> {
+	start: BlockNumber,
+	stop: BlockNumber,
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -164,4 +163,11 @@ pub enum Currencies {
 	#[default]
 	USDC,
 	USDT,
+}
+#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub enum EvaluationStatus {
+	#[default]
+	NotYetStarted,
+	Started,
+	Ended,
 }
