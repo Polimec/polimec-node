@@ -321,7 +321,7 @@ impl pallet_multi_mint::Config for Runtime {
 
 impl pallet_funding::Config for Runtime {
 	type Event = Event;
-	type NumberOfProjects = ConstU32<4>;
+	type ProjectId = u32;
 	type StringLimit = ConstU32<64>;
 }
 
