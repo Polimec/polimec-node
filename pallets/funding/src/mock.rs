@@ -12,6 +12,7 @@ use sp_runtime::{
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
+pub type AccountId = u64;
 
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
@@ -36,8 +37,8 @@ impl system::Config for Test {
 	type BlockNumber = u64;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = u64;
-	type Lookup = IdentityLookup<Self::AccountId>;
+	type AccountId = AccountId;
+	type Lookup = IdentityLookup<AccountId>;
 	type Header = Header;
 	type Event = Event;
 	type BlockHashCount = ConstU64<250>;
@@ -54,7 +55,7 @@ impl system::Config for Test {
 
 impl pallet_funding::Config for Test {
 	type Event = Event;
-	type NumberOfProjects = ConstU32<4>;
+	type ProjectId = u32;
 	type StringLimit = ConstU32<64>;
 }
 
