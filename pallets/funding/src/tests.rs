@@ -119,8 +119,8 @@ mod evaluation {
 			};
 
 			assert_ok!(FundingModule::create(Origin::signed(ALICE), project, 1));
-			let (_, evaluation_status) = FundingModule::projects_of(ALICE, 1).unwrap();
-			assert!(evaluation_status == EvaluationStatus::NotYetStarted)
+			let project = FundingModule::evaluations(ALICE, 1);
+			assert!(project.evaluation_status == EvaluationStatus::NotYetStarted)
 		})
 	}
 }
