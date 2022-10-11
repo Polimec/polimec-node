@@ -15,7 +15,7 @@ mod types;
 pub use types::*;
 
 use frame_support::traits::{Get, LockIdentifier, LockableCurrency, WithdrawReasons};
-// use sp_runtime::traits::CheckedAdd;
+use sp_runtime::traits::{CheckedAdd, Zero};
 
 /// The balance type of this pallet.
 pub type BalanceOf<T> = <T as Config>::CurrencyBalance;
@@ -90,8 +90,7 @@ pub mod pallet {
 		T::AccountId,
 		Blake2_128Concat,
 		T::ProjectId,
-		//TODO: Use EvaluationMetadata<T>
-		EvaluationMetadata,
+		EvaluationMetadata<T::BlockNumber, BalanceOf<T>>,
 		ValueQuery,
 	>;
 
@@ -100,8 +99,7 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		ProjectCreated(T::ProjectId, T::AccountId),
 		EvaluationStarted(T::ProjectId, T::AccountId),
-		// FundsBonded(T::ProjectId, T::AccountId, T::AccountId, BalanceOf<T>),
-		FundsBonded(T::ProjectId, T::AccountId, T::AccountId, u64),
+		FundsBonded(T::ProjectId, T::AccountId, T::AccountId, BalanceOf<T>),
 	}
 
 	#[pallet::error]
@@ -169,8 +167,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			project_issuer: T::AccountId,
 			project_id: T::ProjectId,
-			// #[pallet::compact] amount: BalanceOf<T>,
-			amount: u64,
+			#[pallet::compact] amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let from = ensure_signed(origin)?;
 			ensure!(
@@ -186,7 +183,7 @@ pub mod pallet {
 			T::Currency::set_lock(LOCKING_ID, &from, amount.into(), WithdrawReasons::all());
 			Evaluations::<T>::mutate(project_issuer.clone(), project_id, |project| {
 				project.amount_bonded =
-					project.amount_bonded.checked_add(amount).unwrap_or(project.amount_bonded)
+					project.amount_bonded.checked_add(&amount).unwrap_or(project.amount_bonded)
 			});
 			Self::deposit_event(Event::<T>::FundsBonded(project_id, project_issuer, from, amount));
 			Ok(())
@@ -205,11 +202,12 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), DispatchError> {
 		Projects::<T>::insert(who.clone(), project_id, project_info);
 		// When a project is created the evaluation phase doesn't start automatically
+		let current_block_number = <frame_system::Pallet<T>>::block_number();
 		let evaluation_metadata = EvaluationMetadata {
 			evaluation_status: EvaluationStatus::NotYetStarted,
-			// evaluation_period_ends: NOW + T::EvaluationDuration::get(),
-			evaluation_period_ends: 100,
-			amount_bonded: 0,
+			evaluation_period_ends: current_block_number + T::EvaluationDuration::get(),
+			// evaluation_period_ends: 100,
+			amount_bonded: BalanceOf::<T>::zero(),
 		};
 		Evaluations::<T>::insert(who.clone(), project_id, evaluation_metadata);
 		Self::deposit_event(Event::<T>::ProjectCreated(project_id, who));

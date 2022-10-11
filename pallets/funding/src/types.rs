@@ -147,28 +147,12 @@ pub struct CurrencyMetadata<BoundedString> {
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct EvaluationMetadata {
+pub struct EvaluationMetadata<BlockNumber, Balance> {
 	pub evaluation_status: EvaluationStatus,
-	pub evaluation_period_ends: u64,
-	pub amount_bonded: u64,
+	pub evaluation_period_ends: BlockNumber,
+	pub amount_bonded: Balance,
 }
 
-// #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-// pub struct EvaluationMetadata<T: Config> {
-// 	pub evaluation_status: EvaluationStatus,
-// 	pub evaluation_period_ends: T::BlockNumber,
-// 	pub amount_bonded: T::CurrencyBalance,
-// }
-
-// impl<T: Config> Default for EvaluationMetadata<T> {
-// 	fn default() -> Self {
-// 		Self {
-// 			evaluation_status: EvaluationStatus::NotYetStarted,
-// 			evaluation_period_ends: Default::default(),
-// 			amount_bonded: Default::default(),
-// 		}
-// 	}
-// }
 // Enums
 // TODO: Use SCALE fixed indexes
 // TODO: Check if it's correct
