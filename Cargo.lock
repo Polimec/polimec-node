@@ -4097,6 +4097,7 @@ dependencies = [
  "frame-system",
  "orml-tokens",
  "orml-traits",
+ "pallet-balances",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
