@@ -1,6 +1,6 @@
 use node_polimec_runtime::{
 	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GetNativeCurrencyId, GrandpaConfig,
-	PolimecBalancesConfig, Signature, SudoConfig, SystemConfig, WASM_BINARY,
+	PolimecMultiBalancesConfig, Signature, SudoConfig, SystemConfig, WASM_BINARY,
 };
 use sc_service::{ChainType, Properties};
 use serde_json::map::Map;
@@ -153,6 +153,7 @@ fn testnet_genesis(
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
 		},
+		// TODO: Remove "balances" and use only "polimec_multi_balances"
 		balances: BalancesConfig {
 			// Configure endowed accounts with initial balance of 1 << 60.
 			balances: endowed_accounts.iter().cloned().map(|k| (k, 1 << 60)).collect(),
@@ -168,7 +169,7 @@ fn testnet_genesis(
 			key: Some(root_key),
 		},
 		transaction_payment: Default::default(),
-		polimec_balances: PolimecBalancesConfig {
+		polimec_multi_balances: PolimecMultiBalancesConfig {
 			balances: endowed_accounts
 				.iter()
 				.cloned()

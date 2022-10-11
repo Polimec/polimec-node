@@ -319,12 +319,21 @@ impl pallet_multi_mint::Config for Runtime {
 	type StringLimit = ConstU32<50>;
 }
 
+parameter_types! {
+	// TODO: Replace 28 with the real time
+	pub const EvaluationDuration: BlockNumber = 28;
+	// TODO: Replace 7 with the real time
+	pub const AuctionDuration: BlockNumber = 7;
+}
+
 impl pallet_funding::Config for Runtime {
 	type Event = Event;
 	type ProjectId = u32;
 	type StringLimit = ConstU32<64>;
 	type Currency = Balances;
 	type CurrencyBalance = <Self as pallet_balances::Config>::Balance;
+	type EvaluationDuration = EvaluationDuration;
+	type AuctionDuration = AuctionDuration;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -340,12 +349,14 @@ construct_runtime!(
 		Timestamp: pallet_timestamp,
 		Aura: pallet_aura,
 		Grandpa: pallet_grandpa,
+		// TODO: Remove "pallet_balances" and use only "orml_tokens" to handle the on chain balance
+		// of the tokens
 		Balances: pallet_balances,
 		TransactionPayment: pallet_transaction_payment,
 		Sudo: pallet_sudo,
 
 		// Include the custom logic
-		PolimecBalances: orml_tokens,
+		PolimecMultiBalances: orml_tokens,
 		PolimecMultiMint: pallet_multi_mint,
 		PolimecFunding: pallet_funding,
 	}
