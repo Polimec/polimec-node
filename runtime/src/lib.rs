@@ -323,6 +323,8 @@ impl pallet_funding::Config for Runtime {
 	type Event = Event;
 	type ProjectId = u32;
 	type StringLimit = ConstU32<64>;
+	type Currency = Balances;
+	type CurrencyBalance = <Self as pallet_balances::Config>::Balance;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
