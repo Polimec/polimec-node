@@ -36,6 +36,8 @@ pub struct Project<AccountId, BoundedString, BlockNumber> {
 	pub funding_times: FundingTimes<BlockNumber>,
 	/// Additional metadata
 	pub project_metadata: ProjectMetadata<BoundedString>,
+	// TODO: Check if it is better/cleaner to save the evaluation_status inside the project itself.
+	// pub evaluation_status: EvaluationStatus,
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -144,6 +146,29 @@ pub struct CurrencyMetadata<BoundedString> {
 	pub decimals: u8,
 }
 
+#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct EvaluationMetadata {
+	pub evaluation_status: EvaluationStatus,
+	pub evaluation_period_ends: u64,
+	pub amount_bonded: u64,
+}
+
+// #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+// pub struct EvaluationMetadata<T: Config> {
+// 	pub evaluation_status: EvaluationStatus,
+// 	pub evaluation_period_ends: T::BlockNumber,
+// 	pub amount_bonded: T::CurrencyBalance,
+// }
+
+// impl<T: Config> Default for EvaluationMetadata<T> {
+// 	fn default() -> Self {
+// 		Self {
+// 			evaluation_status: EvaluationStatus::NotYetStarted,
+// 			evaluation_period_ends: Default::default(),
+// 			amount_bonded: Default::default(),
+// 		}
+// 	}
+// }
 // Enums
 // TODO: Use SCALE fixed indexes
 // TODO: Check if it's correct
