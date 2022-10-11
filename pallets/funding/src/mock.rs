@@ -16,6 +16,7 @@ type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type AccountId = u64;
 pub type Balance = u128;
+pub type BlockNumber = u64;
 
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
@@ -38,7 +39,7 @@ impl system::Config for Test {
 	type Origin = Origin;
 	type Call = Call;
 	type Index = u64;
-	type BlockNumber = u64;
+	type BlockNumber = BlockNumber;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = AccountId;
@@ -74,8 +75,10 @@ impl pallet_balances::Config for Test {
 }
 
 parameter_types! {
-	pub const EvaluationDuration: u64 = 28;
-	pub const AuctionDuration: u64 = 7;
+	// TODO: Replace 28 with the real time
+	pub const EvaluationDuration: BlockNumber = 28;
+	// TODO: Replace 7 with the real time
+	pub const AuctionDuration: BlockNumber = 7;
 }
 
 impl pallet_funding::Config for Test {
