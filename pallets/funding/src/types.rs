@@ -158,7 +158,7 @@ pub struct CurrencyMetadata<BoundedString> {
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct EvaluationMetadata<BlockNumber, Balance> {
+pub struct EvaluationMetadata<BlockNumber, Balance: MaxEncodedLen> {
 	// The current status in the evaluation phase
 	pub evaluation_status: EvaluationStatus,
 	// When (expressed in block numbers) the evaluation phase ends
@@ -169,7 +169,7 @@ pub struct EvaluationMetadata<BlockNumber, Balance> {
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct AuctionMetadata<BlockNumber, Balance> {
+pub struct AuctionMetadata<BlockNumber, Balance: MaxEncodedLen> {
 	// The current status in the evaluation phase
 	pub auction_status: AuctionStatus,
 	// When (expressed in block numbers) the evaluation phase ends
@@ -180,7 +180,7 @@ pub struct AuctionMetadata<BlockNumber, Balance> {
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct BondingLedger<AccountId, Balance> {
+pub struct BondingLedger<AccountId, Balance: MaxEncodedLen> {
     /// The account whose balance is actually locked and at bond.
     pub stash: AccountId,
     // The amount of PLMC bonded in the project during the evaluation phase
