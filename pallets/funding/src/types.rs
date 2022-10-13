@@ -35,9 +35,16 @@ pub struct Project<AccountId, BoundedString, BlockNumber> {
 	/// Date/time of funding round start and end
 	pub funding_times: FundingTimes<BlockNumber>,
 	/// Additional metadata
-	pub project_metadata: ProjectMetadata<BoundedString>,
-	// TODO: Check if it is better/cleaner to save the evaluation_status inside the project itself.
-	// pub evaluation_status: EvaluationStatus,
+	pub metadata: ProjectMetadata<BoundedString>,
+
+	// TODO: I don't like that `is_frozen` field is passed in input directly from the user, maybe
+	// the current structure of projects (Project + ProjectMetadata) needs to be revised
+	/// Whether the project is frozen, so no `metadata` changes are allowed.
+	pub is_frozen: bool,
+	// TODO: Check if it is better/cleaner to save the evaluation infomration inside the project
+	// itself. pub evaluation_status: EvaluationMetadata<..., ...>,
+	// TODO: Check if it is better/cleaner to save the auction infomration inside the project
+	// itself. pub auctionn_status: AuctionMetadata<..., ...>,
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -49,6 +56,7 @@ pub struct ProjectMetadata<BoundedString> {
 	/// A link to the tokenomics description
 	pub tokenomics: BoundedString,
 	/// Total supply of mainnet tokens
+	// TODO: Maybe this has to become something similar to `pub total_supply: Balance`
 	pub total_supply: u128,
 	/// A link to the roadmap
 	pub roadmap: BoundedString,
@@ -123,9 +131,12 @@ impl ParticipantsSize {
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct Thresholds {
-	retail: u32,
-	professional: u32,
-	institutional: u32,
+	#[codec(compact)]
+	retail: u64,
+	#[codec(compact)]
+	professional: u64,
+	#[codec(compact)]
+	institutional: u64,
 }
 
 // TODO: This is just a placeholder
@@ -148,9 +159,33 @@ pub struct CurrencyMetadata<BoundedString> {
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct EvaluationMetadata<BlockNumber, Balance> {
+	// The current status in the evaluation phase
 	pub evaluation_status: EvaluationStatus,
+	// When (expressed in block numbers) the evaluation phase ends
 	pub evaluation_period_ends: BlockNumber,
+	// The amount of PLMC bonded in the project during the evaluation phase
+    #[codec(compact)]
 	pub amount_bonded: Balance,
+}
+
+#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct AuctionMetadata<BlockNumber, Balance> {
+	// The current status in the evaluation phase
+	pub auction_status: AuctionStatus,
+	// When (expressed in block numbers) the evaluation phase ends
+	pub auction_starting_block: BlockNumber,
+	// The amount of PLMC bonded in the project during the evaluation phase
+    #[codec(compact)]
+	pub amount_bonded: Balance,
+}
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct BondingLedger<AccountId, Balance> {
+    /// The account whose balance is actually locked and at bond.
+    pub stash: AccountId,
+    // The amount of PLMC bonded in the project during the evaluation phase
+    #[codec(compact)]
+    pub amount_bonded: Balance,
 }
 
 // Enums
@@ -175,6 +210,14 @@ pub enum Currencies {
 }
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub enum EvaluationStatus {
+	#[default]
+	NotYetStarted,
+	Started,
+	Ended,
+}
+
+#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub enum AuctionStatus {
 	#[default]
 	NotYetStarted,
 	Started,
