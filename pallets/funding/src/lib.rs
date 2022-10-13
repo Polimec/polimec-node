@@ -14,7 +14,7 @@ mod benchmarking;
 mod types;
 pub use types::*;
 
-use frame_support::traits::{Get, LockIdentifier, LockableCurrency, WithdrawReasons};
+use frame_support::traits::{Currency, Get, LockIdentifier, LockableCurrency, WithdrawReasons};
 use sp_runtime::traits::{CheckedAdd, Zero};
 
 /// The balance type of this pallet.
@@ -67,6 +67,23 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type AuctionDuration: Get<Self::BlockNumber>;
+
+		// Standard collection creation is only allowed if the origin attempting it and the
+		// collection are in this set.
+
+		// TODO: Should be helpful for allowing the calls only by the user in the set of
+		// { Issuer, Retail, Professional, Institutional }
+
+		// type CreateOrigin: EnsureOriginWithArg<
+		//			Self::Origin,
+		//	Self::CollectionId,
+		//	Success = Self::AccountId,
+		//>;
+
+		// type ForceOrigin: EnsureOrigin<Self::Origin>;
+
+		// Weight information for extrinsics in this pallet.
+		// type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::storage]
@@ -83,7 +100,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn evaluations)]
-	/// Information of a Project.
+	/// Evaluation status of a Project.
 	pub type Evaluations<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
@@ -94,11 +111,45 @@ pub mod pallet {
 		ValueQuery,
 	>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn auctions)]
+	/// Information of a Project.
+	pub type Auctions<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		T::AccountId,
+		Blake2_128Concat,
+		T::ProjectId,
+		AuctionMetadata<T::BlockNumber, BalanceOf<T>>,
+		ValueQuery,
+	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn bonds)]
+	/// Information of a Project.
+	pub type Bonds<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		T::AccountId,
+		Blake2_128Concat,
+		T::ProjectId,
+		BondingLedger<T::AccountId, BalanceOf<T>>,
+	>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		ProjectCreated(T::ProjectId, T::AccountId),
+		/// A `project` was created.
+		Created {
+			project: T::ProjectId,
+			issuer: T::AccountId,
+		},
+		/// Some `collection` was frozen.
+		ProjectMetadataEdited(T::ProjectId, T::AccountId),
 		EvaluationStarted(T::ProjectId, T::AccountId),
+		EvaluationEndend(T::ProjectId, T::AccountId),
+		AuctionStarted(T::ProjectId, T::AccountId, T::BlockNumber),
+		AuctionEnded(T::ProjectId, T::AccountId),
 		FundsBonded(T::ProjectId, T::AccountId, T::AccountId, BalanceOf<T>),
 	}
 
@@ -112,6 +163,10 @@ pub mod pallet {
 		EvaluationAlreadyStarted,
 		ContributionToThemself,
 		EvaluationNotStarted,
+		AuctionAlreadyStarted,
+		Frozen,
+		InsufficientBond,
+		InsufficientBalance,
 	}
 
 	#[pallet::call]
@@ -127,6 +182,11 @@ pub mod pallet {
 			// TODO: Ensure that the user is credentialized
 			let issuer = ensure_signed(origin)?;
 
+			ensure!(
+				!Projects::<T>::contains_key(issuer.clone(), project_id),
+				Error::<T>::ProjectIdInUse
+			);
+
 			match project.validity_check() {
 				Err(error) => match error {
 					ValidityError::PriceTooLow => Err(Error::<T>::PriceTooLow.into()),
@@ -134,20 +194,36 @@ pub mod pallet {
 						Err(Error::<T>::ParticipantsSizeError.into()),
 					ValidityError::TicketSizeError => Err(Error::<T>::TicketSizeError.into()),
 				},
-				Ok(()) => {
-					ensure!(
-						!Projects::<T>::contains_key(issuer.clone(), project_id),
-						Error::<T>::ProjectIdInUse
-					);
-					Self::do_create(issuer, project, project_id)
-				},
+				Ok(()) => Self::do_create(issuer, project, project_id),
 			}
 		}
 
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		// Set the evaluation status to EvaluationStatus::Started
-		// TODO: Is it better to create a second StorageMap to store ONLY the projects in the
-		// evaluation phase?
+		pub fn edit_metadata(
+			origin: OriginFor<T>,
+			project_metadata: ProjectMetadata<BoundedVec<u8, T::StringLimit>>,
+			project_id: T::ProjectId,
+		) -> DispatchResult {
+			let issuer = ensure_signed(origin)?;
+			ensure!(
+				Projects::<T>::contains_key(issuer.clone(), project_id),
+				Error::<T>::ProjectNotExists
+			);
+			ensure!(
+				!Projects::<T>::get(issuer.clone(), project_id)
+					.expect("The project exists")
+					.is_frozen,
+				Error::<T>::Frozen
+			);
+			Projects::<T>::mutate(issuer.clone(), project_id, |project| {
+				project.as_mut().unwrap().metadata = project_metadata;
+				Self::deposit_event(Event::<T>::ProjectMetadataEdited(project_id, issuer.clone()));
+			});
+			Ok(())
+		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		/// Set the `evaluation_status` of a project to `EvaluationStatus::Started`
 		pub fn start_evaluation(origin: OriginFor<T>, project_id: T::ProjectId) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 			ensure!(
@@ -180,13 +256,80 @@ pub mod pallet {
 					EvaluationStatus::Started,
 				Error::<T>::EvaluationNotStarted
 			);
-			T::Currency::set_lock(LOCKING_ID, &from, amount.into(), WithdrawReasons::all());
+			ensure!(T::Currency::free_balance(&from) > amount, Error::<T>::InsufficientBalance);
+
+			// Reject a bond which is considered to be _dust_.
+			// ensure!(amount > T::Currency::minimum_balance(), Error::<T>::InsufficientBond);
+
+			T::Currency::set_lock(LOCKING_ID, &from, amount, WithdrawReasons::all());
+			Bonds::<T>::insert(
+				project_issuer.clone(),
+				project_id,
+				BondingLedger { stash: from.clone(), amount_bonded: amount },
+			);
 			Evaluations::<T>::mutate(project_issuer.clone(), project_id, |project| {
 				project.amount_bonded =
 					project.amount_bonded.checked_add(&amount).unwrap_or(project.amount_bonded)
 			});
 			Self::deposit_event(Event::<T>::FundsBonded(project_id, project_issuer, from, amount));
 			Ok(())
+		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		pub fn rebond(
+			_origin: OriginFor<T>,
+			_project_issuer: T::AccountId,
+			_project_id: T::ProjectId,
+			#[pallet::compact] _amount: BalanceOf<T>,
+		) -> DispatchResult {
+			Ok(())
+		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		pub fn start_auction(origin: OriginFor<T>, project_id: T::ProjectId) -> DispatchResult {
+			let issuer = ensure_signed(origin)?;
+			ensure!(
+				Projects::<T>::contains_key(issuer.clone(), project_id),
+				Error::<T>::ProjectNotExists
+			);
+			ensure!(
+				Auctions::<T>::get(issuer.clone(), project_id).auction_status ==
+					AuctionStatus::NotYetStarted,
+				Error::<T>::AuctionAlreadyStarted
+			);
+			Self::do_start_auction(issuer, project_id)
+		}
+	}
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_finalize(now: T::BlockNumber) {
+			// TODO: Check if it's okay to iterate over an unbounded StorageDoubleMap.
+			// I don't think so.
+			for (project_issuer, project_id, mut project) in Evaluations::<T>::iter() {
+				// Stop the evaluation period
+				if project.evaluation_period_ends <= now &&
+					project.evaluation_status == EvaluationStatus::Started
+				{
+					project.evaluation_status = EvaluationStatus::Ended;
+				}
+				// If more than 7 days are passed from the end of the evaluation, start the auction
+				if project.evaluation_period_ends + T::AuctionDuration::get() <= now &&
+					project.evaluation_status == EvaluationStatus::Ended &&
+					todo!("Check if auction is not started yet")
+				{
+					Auctions::<T>::mutate(project_issuer.clone(), project_id, |auction| {
+						auction.auction_status = AuctionStatus::Started;
+						auction.auction_starting_block = now;
+					});
+					Self::deposit_event(Event::<T>::AuctionStarted(
+						project_id,
+						project_issuer,
+						now,
+					));
+					// TODO: Remove the project from "Evaluations" storage
+				}
+			}
 		}
 	}
 }
@@ -201,16 +344,17 @@ impl<T: Config> Pallet<T> {
 		project_id: T::ProjectId,
 	) -> Result<(), DispatchError> {
 		Projects::<T>::insert(who.clone(), project_id, project_info);
-		// When a project is created the evaluation phase doesn't start automatically
 		let current_block_number = <frame_system::Pallet<T>>::block_number();
 		let evaluation_metadata = EvaluationMetadata {
+			// When a project is created the evaluation phase doesn't start automatically
 			evaluation_status: EvaluationStatus::NotYetStarted,
 			evaluation_period_ends: current_block_number + T::EvaluationDuration::get(),
-			// evaluation_period_ends: 100,
 			amount_bonded: BalanceOf::<T>::zero(),
 		};
 		Evaluations::<T>::insert(who.clone(), project_id, evaluation_metadata);
-		Self::deposit_event(Event::<T>::ProjectCreated(project_id, who));
+		// TODO: Maybe rename `project_id` and `who` to project and issuer to use
+		// the field init shorthand syntax
+		Self::deposit_event(Event::<T>::Created { project: project_id, issuer: who });
 		Ok(())
 	}
 
@@ -218,9 +362,33 @@ impl<T: Config> Pallet<T> {
 		who: T::AccountId,
 		project_id: T::ProjectId,
 	) -> Result<(), DispatchError> {
-		Evaluations::<T>::try_mutate(who.clone(), project_id, |project| {
-			project.evaluation_status = EvaluationStatus::Started;
-			Self::deposit_event(Event::<T>::EvaluationStarted(project_id, who));
+		Evaluations::<T>::try_mutate(who.clone(), project_id, |project_metadata| {
+			// TODO: Get an element of `Projects` inside a `try_mutate()` of `Evaluations`, is it
+			// ok?
+			let mut project =
+				Projects::<T>::get(&who, project_id).ok_or(Error::<T>::ProjectNotExists)?;
+			project.is_frozen = true;
+			project_metadata.evaluation_status = EvaluationStatus::Started;
+			Self::deposit_event(Event::<T>::EvaluationStarted(project_id, who.clone()));
+			let auction_metadata = AuctionMetadata {
+				auction_status: AuctionStatus::NotYetStarted,
+				// TODO: Proprely initiliaze every struct field and don't use default
+				..Default::default()
+			};
+			Auctions::<T>::insert(who, project_id, auction_metadata);
+			Ok(())
+		})
+	}
+
+	pub fn do_start_auction(
+		who: T::AccountId,
+		project_id: T::ProjectId,
+	) -> Result<(), DispatchError> {
+		Auctions::<T>::try_mutate(who.clone(), project_id, |project| {
+			let current_block_number = <frame_system::Pallet<T>>::block_number();
+			project.auction_starting_block = current_block_number;
+			project.auction_status = AuctionStatus::Started;
+			Self::deposit_event(Event::<T>::AuctionStarted(project_id, who, current_block_number));
 			Ok(())
 		})
 	}
