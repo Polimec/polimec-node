@@ -5,7 +5,8 @@ pub fn last_event() -> Event {
 	frame_system::Pallet::<Test>::events().pop().expect("Event expected").event
 }
 
-const ALICE: AccountId = 7;
+const ALICE: AccountId = 1;
+const BOB: AccountId = 2;
 
 mod create {
 	use frame_support::assert_noop;
@@ -27,7 +28,10 @@ mod create {
 			assert_ok!(FundingModule::create(Origin::signed(ALICE), project, 1));
 
 			// The event was deposited
-			assert_eq!(last_event(), Event::FundingModule(crate::Event::ProjectCreated(1, ALICE)));
+			assert_eq!(
+				last_event(),
+				Event::FundingModule(crate::Event::Created { project: 1, issuer: ALICE })
+			);
 		})
 	}
 
@@ -120,7 +124,15 @@ mod evaluation {
 
 			assert_ok!(FundingModule::create(Origin::signed(ALICE), project, 1));
 			let project = FundingModule::evaluations(ALICE, 1);
-			assert!(project.evaluation_status == EvaluationStatus::NotYetStarted)
+			assert!(project.evaluation_status == EvaluationStatus::NotYetStarted);
+			assert_noop!(
+				FundingModule::bond(Origin::signed(BOB), ALICE, 1, 128),
+				Error::<Test>::EvaluationNotStarted
+			);
+			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 1));
+			let project = FundingModule::evaluations(ALICE, 1);
+			assert!(project.evaluation_status == EvaluationStatus::Started);
+			assert_ok!(FundingModule::bond(Origin::signed(BOB), ALICE, 1, 128));
 		})
 	}
 }
