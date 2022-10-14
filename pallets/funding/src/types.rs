@@ -1,7 +1,13 @@
 use frame_support::pallet_prelude::*;
+use sp_runtime::traits::Zero;
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct Project<AccountId, BoundedString, BlockNumber> {
+pub struct Project<
+	AccountId,
+	BoundedString,
+	BlockNumber,
+	Balance: MaxEncodedLen + Zero + std::cmp::PartialEq,
+> {
 	/// The issuer of the  certificate
 	pub issuer_certifcate: Issuer,
 	/// Name of the issuer
@@ -9,13 +15,13 @@ pub struct Project<AccountId, BoundedString, BlockNumber> {
 	/// Token information
 	pub token_information: CurrencyMetadata<BoundedString>,
 	/// Total allocation of contribution tokens available for the funding round
-	pub total_allocation_size: u128,
+	pub total_allocation_size: Balance,
 	/// Minimum price per contribution token
 	/// TODO: This should be a float, can we use it?
 	/// TODO: Check how to handle that using smallest denomination
-	pub minimum_price: u128,
+	pub minimum_price: Balance,
 	/// Fundraising target amount in USD equivalent
-	pub fundraising_target: u128,
+	pub fundraising_target: Balance,
 	/// Maximum and/or minimum ticket size
 	pub ticket_size: TicketSize,
 	/// Maximum and/or minimum number of participants for the auction and community round
@@ -36,6 +42,8 @@ pub struct Project<AccountId, BoundedString, BlockNumber> {
 	pub funding_times: FundingTimes<BlockNumber>,
 	/// Additional metadata
 	pub metadata: ProjectMetadata<BoundedString>,
+	/// When the project is created
+	pub created_at: BlockNumber,
 
 	// TODO: I don't like that `is_frozen` field is passed in input directly from the user, maybe
 	// the current structure of projects (Project + ProjectMetadata) needs to be revised
@@ -71,10 +79,16 @@ pub enum ValidityError {
 	ParticipantsSizeError,
 }
 
-impl<AccountId, BoundedString, BlockNumber> Project<AccountId, BoundedString, BlockNumber> {
+impl<
+		AccountId,
+		BoundedString,
+		BlockNumber,
+		Balance: MaxEncodedLen + Zero + std::cmp::PartialEq,
+	> Project<AccountId, BoundedString, BlockNumber, Balance>
+{
 	// TODO: Perform a REAL validity cehck
 	pub fn validity_check(&self) -> Result<(), ValidityError> {
-		if self.minimum_price == 0 {
+		if self.minimum_price == Balance::zero() {
 			return Err(ValidityError::PriceTooLow)
 		}
 		self.ticket_size.is_valid()?;
@@ -164,7 +178,7 @@ pub struct EvaluationMetadata<BlockNumber, Balance: MaxEncodedLen> {
 	// When (expressed in block numbers) the evaluation phase ends
 	pub evaluation_period_ends: BlockNumber,
 	// The amount of PLMC bonded in the project during the evaluation phase
-    #[codec(compact)]
+	#[codec(compact)]
 	pub amount_bonded: Balance,
 }
 
@@ -175,17 +189,17 @@ pub struct AuctionMetadata<BlockNumber, Balance: MaxEncodedLen> {
 	// When (expressed in block numbers) the evaluation phase ends
 	pub auction_starting_block: BlockNumber,
 	// The amount of PLMC bonded in the project during the evaluation phase
-    #[codec(compact)]
+	#[codec(compact)]
 	pub amount_bonded: Balance,
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct BondingLedger<AccountId, Balance: MaxEncodedLen> {
-    /// The account whose balance is actually locked and at bond.
-    pub stash: AccountId,
-    // The amount of PLMC bonded in the project during the evaluation phase
-    #[codec(compact)]
-    pub amount_bonded: Balance,
+	/// The account whose balance is actually locked and at bond.
+	pub stash: AccountId,
+	// The amount of PLMC bonded in the project during the evaluation phase
+	#[codec(compact)]
+	pub amount_bonded: Balance,
 }
 
 // Enums
@@ -199,7 +213,6 @@ pub enum Issuer {
 }
 
 // TODO: Use SCALE fixed indexes
-/// Native currency: `PLMC = [0; 8]`
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub enum Currencies {
 	DOT,
