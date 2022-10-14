@@ -182,7 +182,8 @@ pub mod pallet {
 		EvaluationNotStarted,
 		AuctionAlreadyStarted,
 		Frozen,
-		InsufficientBond,
+		BondTooLow,
+		BondTooHigh,
 		InsufficientBalance,
 		TooSoon,
 	}
@@ -277,16 +278,34 @@ pub mod pallet {
 				Error::<T>::ProjectNotExists
 			);
 			ensure!(from != project_issuer, Error::<T>::ContributionToThemself);
+
+			let project_metadata = Evaluations::<T>::get(project_issuer.clone(), project_id);
+			let project = Projects::<T>::get(project_issuer.clone(), project_id);
 			ensure!(
-				Evaluations::<T>::get(project_issuer.clone(), project_id).evaluation_status ==
-					EvaluationStatus::Started,
+				project_metadata.evaluation_status == EvaluationStatus::Started,
 				Error::<T>::EvaluationNotStarted
 			);
 			ensure!(T::Currency::free_balance(&from) > amount, Error::<T>::InsufficientBalance);
 
-			// Reject a bond which is considered to be _dust_.
-			// TODO!
-			ensure!(amount > T::Currency::minimum_balance(), Error::<T>::InsufficientBond);
+			let minimum_amount = project
+				.as_ref()
+				.expect("Project exists")
+				.ticket_size
+				.minimum
+				// Take the value given by the issuer or use the minimum balance any single account
+				// may have.
+				.unwrap_or_else(T::Currency::minimum_balance);
+
+			let maximum_amount = project
+				.as_ref()
+				.expect("Project exists")
+				.ticket_size
+				.maximum
+				// Take the value given by the issuer or use the total amount of issuance in the
+				// system.
+				.unwrap_or_else(T::Currency::total_issuance);
+			ensure!(amount >= minimum_amount, Error::<T>::BondTooLow);
+			ensure!(amount <= maximum_amount, Error::<T>::BondTooHigh);
 
 			T::Currency::set_lock(LOCKING_ID, &from, amount, WithdrawReasons::all());
 			Bonds::<T>::insert(
@@ -327,15 +346,19 @@ pub mod pallet {
 				Projects::<T>::contains_key(issuer.clone(), project_id),
 				Error::<T>::ProjectNotExists
 			);
+			let evaluation_detail = Evaluations::<T>::get(issuer.clone(), project_id);
+			ensure!(
+				evaluation_detail.evaluation_status == EvaluationStatus::Ended,
+				Error::<T>::EvaluationNotStarted
+			);
 			ensure!(
 				Auctions::<T>::get(issuer.clone(), project_id).auction_status ==
 					AuctionStatus::NotYetStarted,
 				Error::<T>::AuctionAlreadyStarted
 			);
-
 			ensure!(
-				Evaluations::<T>::get(issuer.clone(), project_id).evaluation_period_ends >=
-					<frame_system::Pallet<T>>::block_number(),
+				<frame_system::Pallet<T>>::block_number() >=
+					evaluation_detail.evaluation_period_ends,
 				Error::<T>::TooSoon
 			);
 
@@ -348,17 +371,24 @@ pub mod pallet {
 		fn on_initialize(now: T::BlockNumber) -> Weight {
 			// TODO: Check if it's okay to iterate over an unbounded StorageDoubleMap.
 			// I don't think so.
-			for (project_issuer, project_id, mut project) in Evaluations::<T>::iter() {
+			for (project_issuer, project_id, evaluation_detail) in Evaluations::<T>::iter() {
 				// Stop the evaluation period
-				if project.evaluation_period_ends <= now &&
-					project.evaluation_status == EvaluationStatus::Started
+				if now >= evaluation_detail.evaluation_period_ends &&
+					evaluation_detail.evaluation_status == EvaluationStatus::Started
 				{
-					project.evaluation_status = EvaluationStatus::Ended;
+					Evaluations::<T>::mutate(
+						project_issuer.clone(),
+						project_id,
+						|evaluation_detail| {
+							evaluation_detail.modified_at = now;
+							evaluation_detail.evaluation_status = EvaluationStatus::Ended;
+						},
+					);
 				}
 				// If more than 7 days are passed from the end of the evaluation, start the auction
-				if project.evaluation_period_ends + T::AuctionDuration::get() <= now &&
-					project.evaluation_status == EvaluationStatus::Ended &&
-					todo!("Check if auction is not started yet")
+				if evaluation_detail.evaluation_period_ends + T::AuctionDuration::get() <= now &&
+					evaluation_detail.evaluation_status == EvaluationStatus::Ended
+				// && todo!("Check if auction is not started yet")
 				{
 					Auctions::<T>::mutate(project_issuer.clone(), project_id, |auction| {
 						auction.auction_status = AuctionStatus::Started;
@@ -396,8 +426,8 @@ impl<T: Config> Pallet<T> {
 		let evaluation_metadata = EvaluationMetadata {
 			// When a project is created the evaluation phase doesn't start automatically
 			evaluation_status: EvaluationStatus::NotYetStarted,
-			started_at: current_block_number,
-			evaluation_period_ends: current_block_number + T::EvaluationDuration::get(),
+			modified_at: current_block_number,
+			evaluation_period_ends: current_block_number,
 			amount_bonded: BalanceOf::<T>::zero(),
 		};
 		Evaluations::<T>::insert(who.clone(), project_id, evaluation_metadata);
@@ -414,13 +444,18 @@ impl<T: Config> Pallet<T> {
 		Evaluations::<T>::try_mutate(who.clone(), project_id, |project_metadata| {
 			// TODO: Get an element of `Projects` inside a `try_mutate()` of `Evaluations`, is it
 			// ok?
+			let current_block_number = <frame_system::Pallet<T>>::block_number();
 			let mut project =
 				Projects::<T>::get(&who, project_id).ok_or(Error::<T>::ProjectNotExists)?;
 			project.is_frozen = true;
 			project_metadata.evaluation_status = EvaluationStatus::Started;
+			project_metadata.evaluation_period_ends =
+				current_block_number + T::EvaluationDuration::get();
+			project_metadata.modified_at = current_block_number;
 			Self::deposit_event(Event::<T>::EvaluationStarted { project_id, issuer: who.clone() });
 			let auction_metadata = AuctionMetadata {
 				auction_status: AuctionStatus::NotYetStarted,
+				modified_at: current_block_number,
 				// TODO: Proprely initiliaze every struct field and don't use default
 				..Default::default()
 			};
@@ -436,6 +471,7 @@ impl<T: Config> Pallet<T> {
 		Auctions::<T>::try_mutate(who.clone(), project_id, |project| {
 			let current_block_number = <frame_system::Pallet<T>>::block_number();
 			project.auction_starting_block = current_block_number;
+			project.modified_at = current_block_number;
 			project.auction_status = AuctionStatus::Started;
 			Self::deposit_event(Event::<T>::AuctionStarted {
 				project_id,
