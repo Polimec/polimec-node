@@ -22,10 +22,7 @@ mod creation_phase {
 				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 				..Default::default()
 			};
-
 			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
-
-			// The event was deposited
 			assert_eq!(
 				last_event(),
 				Event::FundingModule(crate::Event::Created { project_id: 0, issuer: ALICE })
@@ -106,7 +103,7 @@ mod creation_phase {
 mod evaluation_phase {
 	use super::*;
 	use crate::{EvaluationStatus, ParticipantsSize, TicketSize};
-	use frame_support::assert_noop;
+	use frame_support::{assert_noop, traits::OnInitialize};
 
 	#[test]
 	fn start_evaluation_works() {
@@ -124,6 +121,30 @@ mod evaluation_phase {
 			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
 			let project = FundingModule::evaluations(ALICE, 0);
 			assert!(project.evaluation_status == EvaluationStatus::Started);
+		})
+	}
+
+	#[test]
+	fn evaluation_stops_after_28_days() {
+		new_test_ext().execute_with(|| {
+			let project = Project {
+				minimum_price: 1,
+				ticket_size: TicketSize { minimum: Some(1), maximum: None },
+				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+				..Default::default()
+			};
+
+			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
+			let ed = FundingModule::evaluations(ALICE, 0);
+			assert!(ed.evaluation_status == EvaluationStatus::NotYetStarted);
+			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
+			let ed = FundingModule::evaluations(ALICE, 0);
+			assert!(ed.evaluation_status == EvaluationStatus::Started);
+			let block_number = System::block_number();
+			System::set_block_number(block_number + 100);
+			FundingModule::on_initialize(System::block_number());
+			let ed = FundingModule::evaluations(ALICE, 0);
+			assert!(ed.evaluation_status == EvaluationStatus::Ended);
 		})
 	}
 
@@ -162,6 +183,49 @@ mod evaluation_phase {
 			assert_noop!(
 				FundingModule::bond(Origin::signed(BOB), ALICE, 0, 1024),
 				Error::<Test>::InsufficientBalance
+			);
+		})
+	}
+}
+
+mod auction_phase {
+	use super::*;
+	use crate::{ParticipantsSize, TicketSize};
+	use frame_support::{assert_noop, traits::OnInitialize};
+
+	#[test]
+	fn start_auction_works() {
+		new_test_ext().execute_with(|| {
+			let project = Project {
+				minimum_price: 1,
+				ticket_size: TicketSize { minimum: Some(1), maximum: None },
+				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+				..Default::default()
+			};
+
+			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
+			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
+			let block_number = System::block_number();
+			System::set_block_number(block_number + 100);
+			FundingModule::on_initialize(System::block_number());
+			assert_ok!(FundingModule::start_auction(Origin::signed(ALICE), 0));
+		})
+	}
+
+	#[test]
+	fn cannot_start_auction_before_evaluation() {
+		new_test_ext().execute_with(|| {
+			let project = Project {
+				minimum_price: 1,
+				ticket_size: TicketSize { minimum: Some(1), maximum: None },
+				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+				..Default::default()
+			};
+
+			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
+			assert_noop!(
+				FundingModule::start_auction(Origin::signed(ALICE), 0),
+				Error::<Test>::EvaluationNotStarted
 			);
 		})
 	}
