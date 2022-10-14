@@ -28,7 +28,7 @@ mod creation_phase {
 			// The event was deposited
 			assert_eq!(
 				last_event(),
-				Event::FundingModule(crate::Event::Created { project: 1, issuer: ALICE })
+				Event::FundingModule(crate::Event::Created { project_id: 1, issuer: ALICE })
 			);
 		})
 	}
