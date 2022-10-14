@@ -68,12 +68,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type AuctionDuration: Get<Self::BlockNumber>;
 
-		// Standard collection creation is only allowed if the origin attempting it and the
-		// collection are in this set.
-
 		// TODO: Should be helpful for allowing the calls only by the user in the set of
 		// { Issuer, Retail, Professional, Institutional }
-
+		// Project creation is only allowed if the origin attempting it and the
+		// collection are in this set.
 		// type CreateOrigin: EnsureOriginWithArg<
 		//			Self::Origin,
 		//	Self::CollectionId,
@@ -100,7 +98,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn evaluations)]
-	/// Evaluation status of a Project.
+	/// Projects in the evaluation phase
 	pub type Evaluations<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
@@ -113,7 +111,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn auctions)]
-	/// Information of a Project.
+	/// Projects in the auction phase
 	pub type Auctions<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
@@ -139,18 +137,30 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// A `project` was created.
-		Created {
-			project: T::ProjectId,
+		/// A `project_id` was created.
+		Created { project_id: T::ProjectId, issuer: T::AccountId },
+		/// The metadata of `project_id` was modified by `issuer`.
+		MetadataEdited { project_id: T::ProjectId, issuer: T::AccountId },
+		/// The evaluation phase of `project_id` was started by `issuer`.
+		EvaluationStarted { project_id: T::ProjectId, issuer: T::AccountId },
+		/// The evaluation phase of `project_id` was ended by `issuer`.
+		EvaluationEndend { project_id: T::ProjectId, issuer: T::AccountId },
+
+		/// The auction round of `project_id` started by `issuer` at block `when`.
+		AuctionStarted { project_id: T::ProjectId, issuer: T::AccountId, when: T::BlockNumber },
+		/// The auction round of `project_id` ended by `issuer` at block `when`.
+		AuctionEnded {
+			project_id: T::ProjectId,
 			issuer: T::AccountId,
+			// when: T::BlockNumber,
 		},
-		/// Some `collection` was frozen.
-		ProjectMetadataEdited(T::ProjectId, T::AccountId),
-		EvaluationStarted(T::ProjectId, T::AccountId),
-		EvaluationEndend(T::ProjectId, T::AccountId),
-		AuctionStarted(T::ProjectId, T::AccountId, T::BlockNumber),
-		AuctionEnded(T::ProjectId, T::AccountId),
-		FundsBonded(T::ProjectId, T::AccountId, T::AccountId, BalanceOf<T>),
+		/// The auction round of `project_id` ended by `issuer` at block `when`.
+		FundsBonded {
+			project_id: T::ProjectId,
+			issuer: T::AccountId,
+			bonder: T::AccountId,
+			amount: BalanceOf<T>,
+		},
 	}
 
 	#[pallet::error]
@@ -217,7 +227,10 @@ pub mod pallet {
 			);
 			Projects::<T>::mutate(issuer.clone(), project_id, |project| {
 				project.as_mut().unwrap().metadata = project_metadata;
-				Self::deposit_event(Event::<T>::ProjectMetadataEdited(project_id, issuer.clone()));
+				Self::deposit_event(Event::<T>::MetadataEdited {
+					project_id,
+					issuer: issuer.clone(),
+				});
 			});
 			Ok(())
 		}
@@ -259,7 +272,7 @@ pub mod pallet {
 			ensure!(T::Currency::free_balance(&from) > amount, Error::<T>::InsufficientBalance);
 
 			// Reject a bond which is considered to be _dust_.
-			// ensure!(amount > T::Currency::minimum_balance(), Error::<T>::InsufficientBond);
+			ensure!(amount > T::Currency::minimum_balance(), Error::<T>::InsufficientBond);
 
 			T::Currency::set_lock(LOCKING_ID, &from, amount, WithdrawReasons::all());
 			Bonds::<T>::insert(
@@ -271,7 +284,12 @@ pub mod pallet {
 				project.amount_bonded =
 					project.amount_bonded.checked_add(&amount).unwrap_or(project.amount_bonded)
 			});
-			Self::deposit_event(Event::<T>::FundsBonded(project_id, project_issuer, from, amount));
+			Self::deposit_event(Event::<T>::FundsBonded {
+				project_id,
+				issuer: project_issuer,
+				bonder: from,
+				amount,
+			});
 			Ok(())
 		}
 
@@ -322,11 +340,11 @@ pub mod pallet {
 						auction.auction_status = AuctionStatus::Started;
 						auction.auction_starting_block = now;
 					});
-					Self::deposit_event(Event::<T>::AuctionStarted(
+					Self::deposit_event(Event::<T>::AuctionStarted {
 						project_id,
-						project_issuer,
-						now,
-					));
+						issuer: project_issuer,
+						when: now,
+					});
 					// TODO: Remove the project from "Evaluations" storage
 				}
 			}
@@ -335,7 +353,6 @@ pub mod pallet {
 }
 
 use frame_support::{pallet_prelude::DispatchError, BoundedVec};
-// use sp_runtime::traits::Zero;
 
 impl<T: Config> Pallet<T> {
 	pub fn do_create(
@@ -352,9 +369,9 @@ impl<T: Config> Pallet<T> {
 			amount_bonded: BalanceOf::<T>::zero(),
 		};
 		Evaluations::<T>::insert(who.clone(), project_id, evaluation_metadata);
-		// TODO: Maybe rename `project_id` and `who` to project and issuer to use
+		// TODO: Maybe rename `who` to `issuer` to use
 		// the field init shorthand syntax
-		Self::deposit_event(Event::<T>::Created { project: project_id, issuer: who });
+		Self::deposit_event(Event::<T>::Created { project_id, issuer: who });
 		Ok(())
 	}
 
@@ -369,7 +386,7 @@ impl<T: Config> Pallet<T> {
 				Projects::<T>::get(&who, project_id).ok_or(Error::<T>::ProjectNotExists)?;
 			project.is_frozen = true;
 			project_metadata.evaluation_status = EvaluationStatus::Started;
-			Self::deposit_event(Event::<T>::EvaluationStarted(project_id, who.clone()));
+			Self::deposit_event(Event::<T>::EvaluationStarted { project_id, issuer: who.clone() });
 			let auction_metadata = AuctionMetadata {
 				auction_status: AuctionStatus::NotYetStarted,
 				// TODO: Proprely initiliaze every struct field and don't use default
@@ -388,7 +405,11 @@ impl<T: Config> Pallet<T> {
 			let current_block_number = <frame_system::Pallet<T>>::block_number();
 			project.auction_starting_block = current_block_number;
 			project.auction_status = AuctionStatus::Started;
-			Self::deposit_event(Event::<T>::AuctionStarted(project_id, who, current_block_number));
+			Self::deposit_event(Event::<T>::AuctionStarted {
+				project_id,
+				issuer: who,
+				when: current_block_number,
+			});
 			Ok(())
 		})
 	}
