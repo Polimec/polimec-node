@@ -8,15 +8,13 @@ pub fn last_event() -> Event {
 const ALICE: AccountId = 1;
 const BOB: AccountId = 2;
 
-mod create {
+mod creation_phase {
+	use super::*;
+	use crate::{ParticipantsSize, TicketSize};
 	use frame_support::assert_noop;
 
-	use crate::{ParticipantsSize, TicketSize};
-
-	use super::*;
-
 	#[test]
-	fn it_works() {
+	fn create_works() {
 		new_test_ext().execute_with(|| {
 			let project = Project {
 				minimum_price: 1,
@@ -105,15 +103,13 @@ mod create {
 	}
 }
 
-mod evaluation {
-
+mod evaluation_phase {
+	use super::*;
+	use crate::{EvaluationStatus, ParticipantsSize, TicketSize};
 	use frame_support::assert_noop;
 
-	use crate::{EvaluationStatus, ParticipantsSize, TicketSize};
-
-	use super::*;
 	#[test]
-	fn it_works() {
+	fn start_evaluation_works() {
 		new_test_ext().execute_with(|| {
 			let project = Project {
 				minimum_price: 1,
@@ -133,6 +129,25 @@ mod evaluation {
 			let project = FundingModule::evaluations(ALICE, 1);
 			assert!(project.evaluation_status == EvaluationStatus::Started);
 			assert_ok!(FundingModule::bond(Origin::signed(BOB), ALICE, 1, 128));
+		})
+	}
+
+	#[test]
+	fn cannot_bond() {
+		new_test_ext().execute_with(|| {
+			let project = Project {
+				minimum_price: 1,
+				ticket_size: TicketSize { minimum: Some(1), maximum: None },
+				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+				..Default::default()
+			};
+			assert_ok!(FundingModule::create(Origin::signed(ALICE), project, 1));
+			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 1));
+
+			assert_noop!(
+				FundingModule::bond(Origin::signed(BOB), ALICE, 1, 1024),
+				Error::<Test>::InsufficientBalance
+			);
 		})
 	}
 }
