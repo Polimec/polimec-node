@@ -23,12 +23,12 @@ mod creation_phase {
 				..Default::default()
 			};
 
-			assert_ok!(FundingModule::create(Origin::signed(ALICE), project, 1));
+			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
 
 			// The event was deposited
 			assert_eq!(
 				last_event(),
-				Event::FundingModule(crate::Event::Created { project_id: 1, issuer: ALICE })
+				Event::FundingModule(crate::Event::Created { project_id: 0, issuer: ALICE })
 			);
 		})
 	}
@@ -44,7 +44,7 @@ mod creation_phase {
 			};
 
 			assert_noop!(
-				FundingModule::create(Origin::signed(ALICE), project, 1),
+				FundingModule::create(Origin::signed(ALICE), project),
 				Error::<Test>::PriceTooLow
 			);
 		})
@@ -61,7 +61,7 @@ mod creation_phase {
 			};
 
 			assert_noop!(
-				FundingModule::create(Origin::signed(ALICE), project, 1),
+				FundingModule::create(Origin::signed(ALICE), project),
 				Error::<Test>::ParticipantsSizeError
 			);
 		})
@@ -78,7 +78,7 @@ mod creation_phase {
 			};
 
 			assert_noop!(
-				FundingModule::create(Origin::signed(ALICE), project, 1),
+				FundingModule::create(Origin::signed(ALICE), project),
 				Error::<Test>::TicketSizeError
 			);
 		})
@@ -96,7 +96,7 @@ mod creation_phase {
 			};
 
 			assert_noop!(
-				FundingModule::create(Origin::signed(ALICE), project, 1),
+				FundingModule::create(Origin::signed(ALICE), project),
 				Error::<Test>::TicketSizeError
 			);
 		})
@@ -118,17 +118,32 @@ mod evaluation_phase {
 				..Default::default()
 			};
 
-			assert_ok!(FundingModule::create(Origin::signed(ALICE), project, 1));
-			let project = FundingModule::evaluations(ALICE, 1);
+			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
+			let project = FundingModule::evaluations(ALICE, 0);
 			assert!(project.evaluation_status == EvaluationStatus::NotYetStarted);
+			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
+			let project = FundingModule::evaluations(ALICE, 0);
+			assert!(project.evaluation_status == EvaluationStatus::Started);
+		})
+	}
+
+	#[test]
+	fn bond_works() {
+		new_test_ext().execute_with(|| {
+			let project = Project {
+				minimum_price: 1,
+				ticket_size: TicketSize { minimum: Some(1), maximum: None },
+				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+				..Default::default()
+			};
+
+			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
 			assert_noop!(
-				FundingModule::bond(Origin::signed(BOB), ALICE, 1, 128),
+				FundingModule::bond(Origin::signed(BOB), ALICE, 0, 128),
 				Error::<Test>::EvaluationNotStarted
 			);
-			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 1));
-			let project = FundingModule::evaluations(ALICE, 1);
-			assert!(project.evaluation_status == EvaluationStatus::Started);
-			assert_ok!(FundingModule::bond(Origin::signed(BOB), ALICE, 1, 128));
+			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
+			assert_ok!(FundingModule::bond(Origin::signed(BOB), ALICE, 0, 128));
 		})
 	}
 
@@ -141,11 +156,11 @@ mod evaluation_phase {
 				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 				..Default::default()
 			};
-			assert_ok!(FundingModule::create(Origin::signed(ALICE), project, 1));
-			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 1));
+			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
+			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
 
 			assert_noop!(
-				FundingModule::bond(Origin::signed(BOB), ALICE, 1, 1024),
+				FundingModule::bond(Origin::signed(BOB), ALICE, 0, 1024),
 				Error::<Test>::InsufficientBalance
 			);
 		})
