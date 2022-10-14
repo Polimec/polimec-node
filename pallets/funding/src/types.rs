@@ -6,7 +6,7 @@ pub struct Project<
 	AccountId,
 	BoundedString,
 	BlockNumber,
-	Balance: MaxEncodedLen + Zero + std::cmp::PartialEq,
+	Balance: MaxEncodedLen + Zero + sp_std::cmp::PartialEq + sp_std::cmp::PartialOrd,
 > {
 	/// The issuer of the  certificate
 	pub issuer_certifcate: Issuer,
@@ -23,7 +23,7 @@ pub struct Project<
 	/// Fundraising target amount in USD equivalent
 	pub fundraising_target: Balance,
 	/// Maximum and/or minimum ticket size
-	pub ticket_size: TicketSize,
+	pub ticket_size: TicketSize<Balance>,
 	/// Maximum and/or minimum number of participants for the auction and community round
 	pub participants_size: ParticipantsSize,
 	/// Funding round thresholds for retail, professional and institutional participants
@@ -83,7 +83,7 @@ impl<
 		AccountId,
 		BoundedString,
 		BlockNumber,
-		Balance: MaxEncodedLen + Zero + std::cmp::PartialEq,
+		Balance: MaxEncodedLen + Zero + sp_std::cmp::PartialEq + sp_std::cmp::PartialOrd,
 	> Project<AccountId, BoundedString, BlockNumber, Balance>
 {
 	// TODO: Perform a REAL validity cehck
@@ -98,12 +98,16 @@ impl<
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct TicketSize {
-	pub minimum: Option<u32>,
-	pub maximum: Option<u32>,
+pub struct TicketSize<
+	Balance: MaxEncodedLen + Zero + sp_std::cmp::PartialEq + sp_std::cmp::PartialOrd,
+> {
+	pub minimum: Option<Balance>,
+	pub maximum: Option<Balance>,
 }
 
-impl TicketSize {
+impl<Balance: MaxEncodedLen + Zero + sp_std::cmp::PartialEq + sp_std::cmp::PartialOrd>
+	TicketSize<Balance>
+{
 	fn is_valid(&self) -> Result<(), ValidityError> {
 		if self.minimum.is_some() && self.maximum.is_some() {
 			if self.minimum < self.maximum {
@@ -176,7 +180,7 @@ pub struct EvaluationMetadata<BlockNumber, Balance: MaxEncodedLen> {
 	/// The current status in the evaluation phase
 	pub evaluation_status: EvaluationStatus,
 	/// When (expressed in block numbers) the evaluation phase started
-	pub started_at: BlockNumber,
+	pub modified_at: BlockNumber,
 	/// When (expressed in block numbers) the evaluation phase ends
 	pub evaluation_period_ends: BlockNumber,
 	/// The amount of PLMC bonded in the project during the evaluation phase
@@ -186,11 +190,13 @@ pub struct EvaluationMetadata<BlockNumber, Balance: MaxEncodedLen> {
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct AuctionMetadata<BlockNumber, Balance: MaxEncodedLen> {
-	// The current status in the evaluation phase
+	// The current status in the auction phase
 	pub auction_status: AuctionStatus,
-	// When (expressed in block numbers) the evaluation phase ends
+	/// When (expressed in block numbers) the auction phase started
+	pub modified_at: BlockNumber,
+	// When (expressed in block numbers) the auction phase ends
 	pub auction_starting_block: BlockNumber,
-	// The amount of PLMC bonded in the project during the evaluation phase
+	// The amount of PLMC bonded in the project during the auction phase
 	#[codec(compact)]
 	pub amount_bonded: Balance,
 }
