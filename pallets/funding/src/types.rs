@@ -179,8 +179,6 @@ pub struct CurrencyMetadata<BoundedString> {
 pub struct EvaluationMetadata<BlockNumber, Balance: MaxEncodedLen> {
 	/// The current status in the evaluation phase
 	pub evaluation_status: EvaluationStatus,
-	/// When (expressed in block numbers) the evaluation phase started
-	pub modified_at: BlockNumber,
 	/// When (expressed in block numbers) the evaluation phase ends
 	pub evaluation_period_ends: BlockNumber,
 	/// The amount of PLMC bonded in the project during the evaluation phase
@@ -193,12 +191,12 @@ pub struct AuctionMetadata<BlockNumber, Balance: MaxEncodedLen> {
 	// The current status in the auction phase
 	pub auction_status: AuctionStatus,
 	/// When (expressed in block numbers) the auction phase started
-	pub modified_at: BlockNumber,
+	pub starting_block: BlockNumber,
 	// When (expressed in block numbers) the auction phase ends
-	pub auction_starting_block: BlockNumber,
+	pub ending_block: BlockNumber,
 	// The amount of PLMC bonded in the project during the auction phase
 	#[codec(compact)]
-	pub amount_bonded: Balance,
+	pub highest_bid: Balance,
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
