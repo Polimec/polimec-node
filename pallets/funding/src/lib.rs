@@ -87,20 +87,33 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn project_ids)]
-	/// Information of a Project.
-	/// OnEmpty this is GetDefault, so 0.
+	/// A global counter for indexing the projects
+	/// OnEmpty in this case is GetDefault, so 0.
 	pub type ProjectId<T: Config> = StorageValue<_, ProjectIdentifier, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn projects)]
-	/// Information of a Project.
+	/// A DoubleMap containing all the the projects that applied for a request for funds
 	pub type Projects<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
 		T::AccountId,
 		Blake2_128Concat,
 		ProjectIdentifier,
-		Project<T::AccountId, BoundedVec<u8, T::StringLimit>, T::BlockNumber, BalanceOf<T>>,
+		Project<T::AccountId, BoundedVec<u8, T::StringLimit>, BalanceOf<T>>,
+	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn projects_info)]
+	/// A DoubleMap containing all the the information for the projects
+	pub type ProjectsInfo<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		T::AccountId,
+		Blake2_128Concat,
+		ProjectIdentifier,
+		ProjectInfo<T::BlockNumber, BalanceOf<T>>,
+		ValueQuery,
 	>;
 
 	#[pallet::storage]
@@ -195,12 +208,7 @@ pub mod pallet {
 		/// Start the "Funding Application" phase
 		pub fn create(
 			origin: OriginFor<T>,
-			project: Project<
-				T::AccountId,
-				BoundedVec<u8, T::StringLimit>,
-				T::BlockNumber,
-				BalanceOf<T>,
-			>,
+			project: Project<T::AccountId, BoundedVec<u8, T::StringLimit>, BalanceOf<T>>,
 		) -> DispatchResult {
 			// TODO: Ensure that the user is credentialized
 			let issuer = ensure_signed(origin)?;
@@ -222,7 +230,8 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		/// Edit the public metadata of a project if "Evaluation phase" is not started yet
+		/// Edit the public metadata of a project if "Evaluation Phase" (or one of the following
+		/// phases) is not yet started
 		pub fn edit_metadata(
 			origin: OriginFor<T>,
 			project_metadata: ProjectMetadata<BoundedVec<u8, T::StringLimit>>,
@@ -234,9 +243,7 @@ pub mod pallet {
 				Error::<T>::ProjectNotExists
 			);
 			ensure!(
-				!Projects::<T>::get(issuer.clone(), project_id)
-					.expect("The project exists")
-					.is_frozen,
+				!ProjectsInfo::<T>::get(issuer.clone(), project_id).is_frozen,
 				Error::<T>::Frozen
 			);
 			Projects::<T>::mutate(issuer.clone(), project_id, |project| {
@@ -373,7 +380,7 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		/// Place a bif to the "Auction Round"
+		/// Place a bid in the "Auction Round"
 		pub fn bid(
 			origin: OriginFor<T>,
 			project_issuer: T::AccountId,
@@ -382,7 +389,7 @@ pub mod pallet {
 			// Add a parameter to specifty the currency to use, should be equal to the currency
 			// specified in `participation_currencies`
 			// TODO: In future participation_currencies will became an array of currencies, so the
-			// currency to use should be in the `participation_currencies` vector/set
+			// currency to use should be IN the `participation_currencies` vector/set
 		) -> DispatchResult {
 			let bidder = ensure_signed(origin)?;
 
@@ -410,6 +417,8 @@ pub mod pallet {
 			// Make sure the bidder can actually perform the bid
 			let free_balance_of = T::Currency::free_balance(&bidder);
 			ensure!(free_balance_of > amount, Error::<T>::InsufficientBalance);
+
+			// Make sure the bid amount is greater than the minimum_price specified by the issuer
 			ensure!(free_balance_of > project.minimum_price, Error::<T>::BondTooLow);
 
 			Ok(())
@@ -418,15 +427,45 @@ pub mod pallet {
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		/// Contribute to the "Community Round"
 		pub fn contribute(
-			_origin: OriginFor<T>,
-			_project_issuer: T::AccountId,
-			_project_id: ProjectIdentifier,
-			#[pallet::compact] _amount: BalanceOf<T>,
+			origin: OriginFor<T>,
+			project_issuer: T::AccountId,
+			project_id: ProjectIdentifier,
+			#[pallet::compact] amount: BalanceOf<T>,
 			// Add a parameter to specifty the currency to use, should be equal to the currency
 			// specified in `participation_currencies`
 			// TODO: In future participation_currencies will became an array of currencies, so the
 			// currency to use should be in the `participation_currencies` vector/set
 		) -> DispatchResult {
+			let contributor = ensure_signed(origin)?;
+
+			// Make sure project exists
+			ensure!(
+				Projects::<T>::contains_key(project_issuer.clone(), project_id),
+				Error::<T>::ProjectNotExists
+			);
+
+			// Make sure the contributor is not the project_issuer
+			ensure!(contributor != project_issuer, Error::<T>::ContributionToThemself);
+
+			let project_metadata = Auctions::<T>::get(project_issuer.clone(), project_id);
+			let project = Projects::<T>::get(project_issuer.clone(), project_id)
+				.expect("Project exists, already checked in previous ensure");
+			let block_number = <frame_system::Pallet<T>>::block_number();
+
+			// Make sure auction is started
+			ensure!(
+				project_metadata.auction_status == AuctionStatus::Started(AuctionPhase::English) &&
+					block_number >= project_metadata.starting_block,
+				Error::<T>::AuctionNotStarted
+			);
+
+			// Make sure the contributor can actually perform the bid
+			let free_balance_of = T::Currency::free_balance(&contributor);
+			ensure!(free_balance_of > amount, Error::<T>::InsufficientBalance);
+
+			// Make sure the bid amount is greater than the minimum_price specified by the issuer
+			ensure!(free_balance_of > project.minimum_price, Error::<T>::BondTooLow);
+
 			Ok(())
 		}
 	}
@@ -476,27 +515,31 @@ use frame_support::{pallet_prelude::DispatchError, BoundedVec};
 
 impl<T: Config> Pallet<T> {
 	pub fn do_create(
-		who: T::AccountId,
-		project_info: Project<
-			T::AccountId,
-			BoundedVec<u8, T::StringLimit>,
-			T::BlockNumber,
-			BalanceOf<T>,
-		>,
+		issuer: T::AccountId,
+		project: Project<T::AccountId, BoundedVec<u8, T::StringLimit>, BalanceOf<T>>,
 		project_id: ProjectIdentifier,
 	) -> Result<(), DispatchError> {
-		Projects::<T>::insert(who.clone(), project_id, project_info);
-		let current_block_number = <frame_system::Pallet<T>>::block_number();
+		Projects::<T>::insert(issuer.clone(), project_id, project);
+
+		let project_info = ProjectInfo {
+			is_frozen: false,
+			final_price: None,
+			created_at: <frame_system::Pallet<T>>::block_number(),
+		};
+		ProjectsInfo::<T>::insert(issuer.clone(), project_id, project_info);
+
+		let evaluation_status = EvaluationStatus::NotYetStarted;
 		let evaluation_metadata = EvaluationMetadata {
-			// When a project is created the evaluation phase doesn't start automatically
-			evaluation_status: EvaluationStatus::NotYetStarted,
-			evaluation_period_ends: current_block_number,
+			evaluation_status,
+			// TODO: I REALLY don't like to initialize this value using the current block number,
+			// probably an Option<T::BlockNumber> should be a better choice, but at the moment it
+			// would complicate the code in many other functions
+			evaluation_period_ends: <frame_system::Pallet<T>>::block_number(),
 			amount_bonded: BalanceOf::<T>::zero(),
 		};
-		Evaluations::<T>::insert(who.clone(), project_id, evaluation_metadata);
-		// TODO: Maybe rename `who` to `issuer` to use
-		// the field init shorthand syntax
-		Self::deposit_event(Event::<T>::Created { project_id, issuer: who });
+		Evaluations::<T>::insert(issuer.clone(), project_id, evaluation_metadata);
+
+		Self::deposit_event(Event::<T>::Created { project_id, issuer });
 		Ok(())
 	}
 
@@ -504,25 +547,21 @@ impl<T: Config> Pallet<T> {
 		who: T::AccountId,
 		project_id: ProjectIdentifier,
 	) -> Result<(), DispatchError> {
-		Evaluations::<T>::try_mutate(who.clone(), project_id, |project_metadata| {
-			// TODO: Get an element of `Projects` inside a `try_mutate()` of `Evaluations`, is it
-			// ok?
+		ProjectsInfo::<T>::mutate(who.clone(), project_id, |project_info| {
+			project_info.is_frozen = true
+		});
+		Evaluations::<T>::mutate(who.clone(), project_id, |project_metadata| {
 			let current_block_number = <frame_system::Pallet<T>>::block_number();
-			let mut project =
-				Projects::<T>::get(&who, project_id).ok_or(Error::<T>::ProjectNotExists)?;
-			project.is_frozen = true;
 			project_metadata.evaluation_status = EvaluationStatus::Started;
 			project_metadata.evaluation_period_ends =
 				current_block_number + T::EvaluationDuration::get();
-			Self::deposit_event(Event::<T>::EvaluationStarted { project_id, issuer: who.clone() });
-			let auction_metadata = AuctionMetadata {
-				auction_status: AuctionStatus::NotYetStarted,
-				// TODO: Proprely initiliaze every struct field and don't use default
-				..Default::default()
-			};
-			Auctions::<T>::insert(who, project_id, auction_metadata);
-			Ok(())
-		})
+		});
+		Self::deposit_event(Event::<T>::EvaluationStarted { project_id, issuer: who.clone() });
+
+		let auction_metadata =
+			AuctionMetadata { auction_status: AuctionStatus::NotYetStarted, ..Default::default() };
+		Auctions::<T>::insert(who, project_id, auction_metadata);
+		Ok(())
 	}
 
 	pub fn do_start_auction(

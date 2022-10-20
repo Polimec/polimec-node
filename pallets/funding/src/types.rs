@@ -5,7 +5,6 @@ use sp_runtime::traits::Zero;
 pub struct Project<
 	AccountId,
 	BoundedString,
-	BlockNumber,
 	Balance: MaxEncodedLen + Zero + sp_std::cmp::PartialEq + sp_std::cmp::PartialOrd,
 > {
 	/// The issuer of the  certificate
@@ -36,22 +35,22 @@ pub struct Project<
 	/// Issuer destination accounts for accepted participation currencies (for receiving
 	/// contributions)
 	pub destinations_account: AccountId,
-	/// Date/time of funding round start and end
-	pub funding_times: FundingTimes<BlockNumber>,
 	/// Additional metadata
+	/// TODO: Maybe we can move this to the ProjectInfo struct
 	pub metadata: ProjectMetadata<BoundedString>,
-	/// When the project is created
-	pub created_at: BlockNumber,
+}
 
-	// TODO: I don't like that `is_frozen` field is passed in input directly from the user, maybe
-	// the current structure of projects (Project + ProjectMetadata) needs to be revised
+#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct ProjectInfo<
+	BlockNumber,
+	Balance: MaxEncodedLen + Zero + sp_std::cmp::PartialEq + sp_std::cmp::PartialOrd,
+> {
 	/// Whether the project is frozen, so no `metadata` changes are allowed.
 	pub is_frozen: bool,
-	// TODO: Check if it is better/cleaner to save the evaluation infomration inside the project
-	// itself. pub evaluation_status: EvaluationMetadata<..., ...>,
-	// TODO: Check if it is better/cleaner to save the auction infomration inside the project
-	// itself. pub auctionn_status: AuctionMetadata<..., ...>,
-	pub final_price: Option<Balance>
+	/// The price decided after the Auction Round
+	pub final_price: Option<Balance>,
+	/// When the project is created
+	pub created_at: BlockNumber,
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -81,9 +80,8 @@ pub enum ValidityError {
 impl<
 		AccountId,
 		BoundedString,
-		BlockNumber,
 		Balance: MaxEncodedLen + Zero + sp_std::cmp::PartialEq + sp_std::cmp::PartialOrd,
-	> Project<AccountId, BoundedString, BlockNumber, Balance>
+	> Project<AccountId, BoundedString, Balance>
 {
 	// TODO: Perform a REAL validity cehck
 	pub fn validity_check(&self) -> Result<(), ValidityError> {
@@ -157,7 +155,6 @@ pub struct Thresholds {
 }
 
 // TODO: This is just a placeholder
-// TODO: Implement the time logic
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct FundingTimes<BlockNumber> {
 	start: BlockNumber,
@@ -254,9 +251,18 @@ pub enum AuctionStatus {
 	Started(AuctionPhase),
 	Ended,
 }
+
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub enum AuctionPhase {
 	#[default]
 	English,
 	Candle,
+}
+
+#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub enum CommunityStatus {
+	#[default]
+	NotYetStarted,
+	Started,
+	Ended,
 }
