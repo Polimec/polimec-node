@@ -18,8 +18,7 @@ fn polimec_properties() -> Properties {
 	let mut token_decimals: Vec<u32> = vec![];
 	token_symbol.push("PLMC".to_string());
 	properties.insert("tokenSymbol".into(), token_symbol.into());
-	// TODO: Discuss how many decimals to use
-	token_decimals.push(18_u32);
+	token_decimals.push(10_u32);
 	properties.insert("tokenDecimals".into(), token_decimals.into());
 	// Information taken from https://github.com/paritytech/ss58-registry/blob/main/ss58-registry.json
 	properties.insert("ss58Format".into(), "41".into());
@@ -72,8 +71,8 @@ pub fn development_config() -> Result<ChainSpec, String> {
 				vec![
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
 					get_account_id_from_seed::<sr25519::Public>("Bob"),
+					get_account_id_from_seed::<sr25519::Public>("Charlie"),
 					get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
 				],
 				true,
 			)
@@ -153,10 +152,10 @@ fn testnet_genesis(
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
 		},
-		// TODO: Remove "balances" and use only "polimec_multi_balances"
+		// TODO: Remove "balances" and use only "polimec_multi_balances" by orml
 		balances: BalancesConfig {
 			// Configure endowed accounts with initial balance of 1 << 60.
-			balances: endowed_accounts.iter().cloned().map(|k| (k, 1 << 60)).collect(),
+			balances: endowed_accounts.iter().cloned().map(|k| (k, 1 << 40)).collect(),
 		},
 		aura: AuraConfig {
 			authorities: initial_authorities.iter().map(|x| (x.0.clone())).collect(),
@@ -173,7 +172,7 @@ fn testnet_genesis(
 			balances: endowed_accounts
 				.iter()
 				.cloned()
-				.map(|k| (k, GetNativeCurrencyId::get(), 1 << 60))
+				.map(|k| (k, GetNativeCurrencyId::get(), 1 << 40))
 				.collect(),
 		},
 	}
