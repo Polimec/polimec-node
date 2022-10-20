@@ -51,6 +51,8 @@ pub struct ProjectInfo<
 	pub final_price: Option<Balance>,
 	/// When the project is created
 	pub created_at: BlockNumber,
+	pub evaluation_status: EvaluationStatus,
+	pub auction_status: AuctionStatus
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -173,8 +175,6 @@ pub struct CurrencyMetadata<BoundedString> {
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct EvaluationMetadata<BlockNumber, Balance: MaxEncodedLen> {
-	/// The current status in the evaluation phase
-	pub evaluation_status: EvaluationStatus,
 	/// When (expressed in block numbers) the evaluation phase ends
 	pub evaluation_period_ends: BlockNumber,
 	/// The amount of PLMC bonded in the project during the evaluation phase
@@ -184,8 +184,6 @@ pub struct EvaluationMetadata<BlockNumber, Balance: MaxEncodedLen> {
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct AuctionMetadata<BlockNumber, Balance: MaxEncodedLen> {
-	// The current status in the auction phase
-	pub auction_status: AuctionStatus,
 	/// When (expressed in block numbers) the auction phase started
 	pub starting_block: BlockNumber,
 	// When (expressed in block numbers) the auction phase ends

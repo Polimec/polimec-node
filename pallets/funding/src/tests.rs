@@ -116,11 +116,11 @@ mod evaluation_phase {
 			};
 
 			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
-			let project = FundingModule::evaluations(ALICE, 0);
-			assert!(project.evaluation_status == EvaluationStatus::NotYetStarted);
+			let project_info = FundingModule::projects_info(ALICE, 0);
+			assert!(project_info.evaluation_status == EvaluationStatus::NotYetStarted);
 			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
-			let project = FundingModule::evaluations(ALICE, 0);
-			assert!(project.evaluation_status == EvaluationStatus::Started);
+			let project_info = FundingModule::projects_info(ALICE, 0);
+			assert!(project_info.evaluation_status == EvaluationStatus::Started);
 		})
 	}
 
@@ -135,15 +135,15 @@ mod evaluation_phase {
 			};
 
 			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
-			let ed = FundingModule::evaluations(ALICE, 0);
+			let ed = FundingModule::projects_info(ALICE, 0);
 			assert!(ed.evaluation_status == EvaluationStatus::NotYetStarted);
 			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
-			let ed = FundingModule::evaluations(ALICE, 0);
+			let ed = FundingModule::projects_info(ALICE, 0);
 			assert!(ed.evaluation_status == EvaluationStatus::Started);
 			let block_number = System::block_number();
 			System::set_block_number(block_number + 100);
 			FundingModule::on_initialize(System::block_number());
-			let ed = FundingModule::evaluations(ALICE, 0);
+			let ed = FundingModule::projects_info(ALICE, 0);
 			assert!(ed.evaluation_status == EvaluationStatus::Ended);
 		})
 	}

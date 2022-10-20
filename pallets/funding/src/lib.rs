@@ -268,7 +268,7 @@ pub mod pallet {
 				Error::<T>::ProjectNotExists
 			);
 			ensure!(
-				Evaluations::<T>::get(issuer.clone(), project_id).evaluation_status ==
+				ProjectsInfo::<T>::get(issuer.clone(), project_id).evaluation_status ==
 					EvaluationStatus::NotYetStarted,
 				Error::<T>::EvaluationAlreadyStarted
 			);
@@ -291,10 +291,10 @@ pub mod pallet {
 			);
 			ensure!(from != project_issuer, Error::<T>::ContributionToThemself);
 
-			let project_metadata = Evaluations::<T>::get(project_issuer.clone(), project_id);
+			let project_info = ProjectsInfo::<T>::get(project_issuer.clone(), project_id);
 			let project = Projects::<T>::get(project_issuer.clone(), project_id);
 			ensure!(
-				project_metadata.evaluation_status == EvaluationStatus::Started,
+				project_info.evaluation_status == EvaluationStatus::Started,
 				Error::<T>::EvaluationNotStarted
 			);
 			ensure!(T::Currency::free_balance(&from) > amount, Error::<T>::InsufficientBalance);
@@ -360,16 +360,16 @@ pub mod pallet {
 				Projects::<T>::contains_key(issuer.clone(), project_id),
 				Error::<T>::ProjectNotExists
 			);
-			let evaluation_detail = Evaluations::<T>::get(issuer.clone(), project_id);
+			let project_info = ProjectsInfo::<T>::get(issuer.clone(), project_id);
 			ensure!(
-				evaluation_detail.evaluation_status == EvaluationStatus::Ended,
+				project_info.evaluation_status == EvaluationStatus::Ended,
 				Error::<T>::EvaluationNotStarted
 			);
 			ensure!(
-				Auctions::<T>::get(issuer.clone(), project_id).auction_status ==
-					AuctionStatus::NotYetStarted,
+				project_info.auction_status == AuctionStatus::NotYetStarted,
 				Error::<T>::AuctionAlreadyStarted
 			);
+			let evaluation_detail = Evaluations::<T>::get(issuer.clone(), project_id);
 			ensure!(
 				<frame_system::Pallet<T>>::block_number() >=
 					evaluation_detail.evaluation_period_ends,
@@ -402,15 +402,14 @@ pub mod pallet {
 			// Make sure the bidder is not the project_issuer
 			ensure!(bidder != project_issuer, Error::<T>::ContributionToThemself);
 
-			let project_metadata = Auctions::<T>::get(project_issuer.clone(), project_id);
+			let project_info = ProjectsInfo::<T>::get(project_issuer.clone(), project_id);
 			let project = Projects::<T>::get(project_issuer.clone(), project_id)
 				.expect("Project exists, already checked in previous ensure");
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			// Make sure auction is started
 			ensure!(
-				project_metadata.auction_status == AuctionStatus::Started(AuctionPhase::English) &&
-					block_number >= project_metadata.starting_block,
+				project_info.auction_status == AuctionStatus::Started(AuctionPhase::English),
 				Error::<T>::AuctionNotStarted
 			);
 
@@ -447,15 +446,14 @@ pub mod pallet {
 			// Make sure the contributor is not the project_issuer
 			ensure!(contributor != project_issuer, Error::<T>::ContributionToThemself);
 
-			let project_metadata = Auctions::<T>::get(project_issuer.clone(), project_id);
+			let project_info = ProjectsInfo::<T>::get(project_issuer.clone(), project_id);
 			let project = Projects::<T>::get(project_issuer.clone(), project_id)
 				.expect("Project exists, already checked in previous ensure");
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			// Make sure auction is started
 			ensure!(
-				project_metadata.auction_status == AuctionStatus::Started(AuctionPhase::English) &&
-					block_number >= project_metadata.starting_block,
+				project_info.auction_status == AuctionStatus::Started(AuctionPhase::English),
 				Error::<T>::AuctionNotStarted
 			);
 
@@ -473,39 +471,39 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(now: T::BlockNumber) -> Weight {
-			// TODO: Check if it's okay to iterate over an unbounded StorageDoubleMap.
-			// I don't think so.
 			for (project_issuer, project_id, evaluation_detail) in Evaluations::<T>::iter() {
 				// Stop the evaluation period
+				let project_info = ProjectsInfo::<T>::get(project_issuer.clone(), project_id);
 				if now >= evaluation_detail.evaluation_period_ends &&
-					evaluation_detail.evaluation_status == EvaluationStatus::Started
+					project_info.evaluation_status == EvaluationStatus::Started
 				{
-					Evaluations::<T>::mutate(
-						project_issuer.clone(),
-						project_id,
-						|evaluation_detail| {
-							evaluation_detail.evaluation_status = EvaluationStatus::Ended;
-						},
-					);
+					ProjectsInfo::<T>::mutate(project_issuer.clone(), project_id, |project_info| {
+						project_info.evaluation_status = EvaluationStatus::Ended;
+					});
 				}
 				// If more than 7 days are passed from the end of the evaluation, start the auction
 				if evaluation_detail.evaluation_period_ends + T::AuctionDuration::get() <= now &&
-					evaluation_detail.evaluation_status == EvaluationStatus::Ended
-				// && todo!("Check if auction is not started yet")
+					project_info.evaluation_status == EvaluationStatus::Ended &&
+					project_info.auction_status == AuctionStatus::NotYetStarted
 				{
 					Auctions::<T>::mutate(project_issuer.clone(), project_id, |auction| {
-						auction.auction_status = AuctionStatus::Started(AuctionPhase::English);
 						auction.starting_block = now;
+					});
+					ProjectsInfo::<T>::mutate(project_issuer.clone(), project_id, |project_info| {
+						project_info.auction_status = AuctionStatus::Started(AuctionPhase::English);
 					});
 					Self::deposit_event(Event::<T>::AuctionStarted {
 						project_id,
-						issuer: project_issuer,
+						issuer: project_issuer.clone(),
 						when: now,
 					});
-					// TODO: Remove the project from "Evaluations" storage
 				}
+				// TODO: CHECK if it's ok to remove a project from the Evaluations storage
+				// this is done in order to mantain stable the number of operations to do in the
+				// hook
+				Evaluations::<T>::remove(project_issuer, project_id);
 			}
-			// TODO: Why zero?
+			// TODO: Check why return 0 as Weight
 			0
 		}
 	}
@@ -525,12 +523,12 @@ impl<T: Config> Pallet<T> {
 			is_frozen: false,
 			final_price: None,
 			created_at: <frame_system::Pallet<T>>::block_number(),
+			evaluation_status: EvaluationStatus::NotYetStarted,
+			auction_status: AuctionStatus::NotYetStarted,
 		};
 		ProjectsInfo::<T>::insert(issuer.clone(), project_id, project_info);
 
-		let evaluation_status = EvaluationStatus::NotYetStarted;
 		let evaluation_metadata = EvaluationMetadata {
-			evaluation_status,
 			// TODO: I REALLY don't like to initialize this value using the current block number,
 			// probably an Option<T::BlockNumber> should be a better choice, but at the moment it
 			// would complicate the code in many other functions
@@ -548,18 +546,17 @@ impl<T: Config> Pallet<T> {
 		project_id: ProjectIdentifier,
 	) -> Result<(), DispatchError> {
 		ProjectsInfo::<T>::mutate(who.clone(), project_id, |project_info| {
-			project_info.is_frozen = true
+			project_info.is_frozen = true;
+			project_info.evaluation_status = EvaluationStatus::Started;
 		});
 		Evaluations::<T>::mutate(who.clone(), project_id, |project_metadata| {
 			let current_block_number = <frame_system::Pallet<T>>::block_number();
-			project_metadata.evaluation_status = EvaluationStatus::Started;
 			project_metadata.evaluation_period_ends =
 				current_block_number + T::EvaluationDuration::get();
 		});
 		Self::deposit_event(Event::<T>::EvaluationStarted { project_id, issuer: who.clone() });
 
-		let auction_metadata =
-			AuctionMetadata { auction_status: AuctionStatus::NotYetStarted, ..Default::default() };
+		let auction_metadata = AuctionMetadata { ..Default::default() };
 		Auctions::<T>::insert(who, project_id, auction_metadata);
 		Ok(())
 	}
@@ -568,16 +565,19 @@ impl<T: Config> Pallet<T> {
 		who: T::AccountId,
 		project_id: ProjectIdentifier,
 	) -> Result<(), DispatchError> {
-		Auctions::<T>::try_mutate(who.clone(), project_id, |project| {
+		ProjectsInfo::<T>::mutate(who.clone(), project_id, |project_info| {
+			project_info.is_frozen = true;
+			project_info.auction_status = AuctionStatus::Started(AuctionPhase::English);
+		});
+		Auctions::<T>::mutate(who.clone(), project_id, |project| {
 			let current_block_number = <frame_system::Pallet<T>>::block_number();
 			project.starting_block = current_block_number;
-			project.auction_status = AuctionStatus::Started(AuctionPhase::English);
 			Self::deposit_event(Event::<T>::AuctionStarted {
 				project_id,
 				issuer: who,
 				when: current_block_number,
 			});
-			Ok(())
-		})
+		});
+		Ok(())
 	}
 }
