@@ -181,6 +181,7 @@ pub mod pallet {
 		ContributionToThemself,
 		EvaluationNotStarted,
 		AuctionAlreadyStarted,
+		AuctionNotStarted,
 		Frozen,
 		BondTooLow,
 		BondTooHigh,
@@ -191,6 +192,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		/// Start the "Funding Application" phase
 		pub fn create(
 			origin: OriginFor<T>,
 			project: Project<
@@ -220,6 +222,7 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		/// Edit the public metadata of a project if "Evaluation phase" is not started yet
 		pub fn edit_metadata(
 			origin: OriginFor<T>,
 			project_metadata: ProjectMetadata<BoundedVec<u8, T::StringLimit>>,
@@ -247,7 +250,7 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		/// Set the `evaluation_status` of a project to `EvaluationStatus::Started`
+		/// Start the "Evaluation Phase"
 		pub fn start_evaluation(
 			origin: OriginFor<T>,
 			project_id: ProjectIdentifier,
@@ -266,8 +269,10 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		/// Evaluators can bond their PLMC to evaluate a Project
 		pub fn bond(
 			origin: OriginFor<T>,
+			// TODO: Use  <T::Lookup as StaticLookup>::Source instead of T::AccountId
 			project_issuer: T::AccountId,
 			project_id: ProjectIdentifier,
 			#[pallet::compact] amount: BalanceOf<T>,
@@ -327,6 +332,7 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		/// Evaluators can bond more of their PLMC to evaluate a Project
 		pub fn rebond(
 			_origin: OriginFor<T>,
 			_project_issuer: T::AccountId,
@@ -337,6 +343,7 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		/// Start the "Auction Round"
 		pub fn start_auction(
 			origin: OriginFor<T>,
 			project_id: ProjectIdentifier,
@@ -364,6 +371,64 @@ pub mod pallet {
 
 			Self::do_start_auction(issuer, project_id)
 		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		/// Place a bif to the "Auction Round"
+		pub fn bid(
+			origin: OriginFor<T>,
+			project_issuer: T::AccountId,
+			project_id: ProjectIdentifier,
+			#[pallet::compact] amount: BalanceOf<T>,
+			// Add a parameter to specifty the currency to use, should be equal to the currency
+			// specified in `participation_currencies`
+			// TODO: In future participation_currencies will became an array of currencies, so the
+			// currency to use should be in the `participation_currencies` vector/set
+		) -> DispatchResult {
+			let bidder = ensure_signed(origin)?;
+
+			// Make sure project exists
+			ensure!(
+				Projects::<T>::contains_key(project_issuer.clone(), project_id),
+				Error::<T>::ProjectNotExists
+			);
+
+			// Make sure the bidder is not the project_issuer
+			ensure!(bidder != project_issuer, Error::<T>::ContributionToThemself);
+
+			let project_metadata = Auctions::<T>::get(project_issuer.clone(), project_id);
+			let project = Projects::<T>::get(project_issuer.clone(), project_id)
+				.expect("Project exists, already checked in previous ensure");
+			let block_number = <frame_system::Pallet<T>>::block_number();
+
+			// Make sure auction is started
+			ensure!(
+				project_metadata.auction_status == AuctionStatus::Started(AuctionPhase::English) &&
+					block_number >= project_metadata.starting_block,
+				Error::<T>::AuctionNotStarted
+			);
+
+			// Make sure the bidder can actually perform the bid
+			let free_balance_of = T::Currency::free_balance(&bidder);
+			ensure!(free_balance_of > amount, Error::<T>::InsufficientBalance);
+			ensure!(free_balance_of > project.minimum_price, Error::<T>::BondTooLow);
+
+			Ok(())
+		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		/// Contribute to the "Community Round"
+		pub fn contribute(
+			_origin: OriginFor<T>,
+			_project_issuer: T::AccountId,
+			_project_id: ProjectIdentifier,
+			#[pallet::compact] _amount: BalanceOf<T>,
+			// Add a parameter to specifty the currency to use, should be equal to the currency
+			// specified in `participation_currencies`
+			// TODO: In future participation_currencies will became an array of currencies, so the
+			// currency to use should be in the `participation_currencies` vector/set
+		) -> DispatchResult {
+			Ok(())
+		}
 	}
 
 	#[pallet::hooks]
@@ -380,7 +445,6 @@ pub mod pallet {
 						project_issuer.clone(),
 						project_id,
 						|evaluation_detail| {
-							evaluation_detail.modified_at = now;
 							evaluation_detail.evaluation_status = EvaluationStatus::Ended;
 						},
 					);
@@ -391,8 +455,8 @@ pub mod pallet {
 				// && todo!("Check if auction is not started yet")
 				{
 					Auctions::<T>::mutate(project_issuer.clone(), project_id, |auction| {
-						auction.auction_status = AuctionStatus::Started;
-						auction.auction_starting_block = now;
+						auction.auction_status = AuctionStatus::Started(AuctionPhase::English);
+						auction.starting_block = now;
 					});
 					Self::deposit_event(Event::<T>::AuctionStarted {
 						project_id,
@@ -426,7 +490,6 @@ impl<T: Config> Pallet<T> {
 		let evaluation_metadata = EvaluationMetadata {
 			// When a project is created the evaluation phase doesn't start automatically
 			evaluation_status: EvaluationStatus::NotYetStarted,
-			modified_at: current_block_number,
 			evaluation_period_ends: current_block_number,
 			amount_bonded: BalanceOf::<T>::zero(),
 		};
@@ -451,11 +514,9 @@ impl<T: Config> Pallet<T> {
 			project_metadata.evaluation_status = EvaluationStatus::Started;
 			project_metadata.evaluation_period_ends =
 				current_block_number + T::EvaluationDuration::get();
-			project_metadata.modified_at = current_block_number;
 			Self::deposit_event(Event::<T>::EvaluationStarted { project_id, issuer: who.clone() });
 			let auction_metadata = AuctionMetadata {
 				auction_status: AuctionStatus::NotYetStarted,
-				modified_at: current_block_number,
 				// TODO: Proprely initiliaze every struct field and don't use default
 				..Default::default()
 			};
@@ -470,9 +531,8 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), DispatchError> {
 		Auctions::<T>::try_mutate(who.clone(), project_id, |project| {
 			let current_block_number = <frame_system::Pallet<T>>::block_number();
-			project.auction_starting_block = current_block_number;
-			project.modified_at = current_block_number;
-			project.auction_status = AuctionStatus::Started;
+			project.starting_block = current_block_number;
+			project.auction_status = AuctionStatus::Started(AuctionPhase::English);
 			Self::deposit_event(Event::<T>::AuctionStarted {
 				project_id,
 				issuer: who,

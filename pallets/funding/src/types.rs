@@ -51,6 +51,7 @@ pub struct Project<
 	// itself. pub evaluation_status: EvaluationMetadata<..., ...>,
 	// TODO: Check if it is better/cleaner to save the auction infomration inside the project
 	// itself. pub auctionn_status: AuctionMetadata<..., ...>,
+	pub final_price: Option<Balance>
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -206,6 +207,19 @@ pub struct BondingLedger<AccountId, Balance: MaxEncodedLen> {
 	pub amount_bonded: Balance,
 }
 
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct BidInfo<AccountId, Balance: MaxEncodedLen, BlockNumber> {
+	///
+	pub bidder: AccountId,
+	///
+	#[codec(compact)]
+	pub amount_bidded: Balance,
+	///
+	pub price: Balance,
+	///
+	pub when: BlockNumber,
+}
+
 // Enums
 // TODO: Use SCALE fixed indexes
 // TODO: Check if it's correct
@@ -237,6 +251,12 @@ pub enum EvaluationStatus {
 pub enum AuctionStatus {
 	#[default]
 	NotYetStarted,
-	Started,
+	Started(AuctionPhase),
 	Ended,
+}
+#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub enum AuctionPhase {
+	#[default]
+	English,
+	Candle,
 }
