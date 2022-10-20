@@ -17,8 +17,6 @@ pub struct Project<
 	/// Total allocation of contribution tokens available for the funding round
 	pub total_allocation_size: Balance,
 	/// Minimum price per contribution token
-	/// TODO: This should be a float, can we use it?
-	/// TODO: Check how to handle that using smallest denomination
 	pub minimum_price: Balance,
 	/// Fundraising target amount in USD equivalent
 	pub fundraising_target: Balance,
