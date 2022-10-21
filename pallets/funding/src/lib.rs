@@ -114,8 +114,10 @@ pub mod pallet {
 	/// TODO: We can add a StorageMap (k: ProjectIdentifier, v: T::AccountId) to
 	/// "reverse lookup" the project issuer so the users doesn't need to specify each time the
 	/// project issuer
-	// #[pallet::storage]
-	// #[pallet::getter(fn projects)]
+	#[pallet::storage]
+	#[pallet::getter(fn project_issuer)]
+	pub type ProjectsIssuers<T: Config> =
+		StorageMap<_, Blake2_128Concat, ProjectIdentifier, T::AccountId>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn projects_info)]
@@ -305,16 +307,12 @@ pub mod pallet {
 		/// Evaluators can bond their PLMC to evaluate a Project
 		pub fn bond(
 			origin: OriginFor<T>,
-			// TODO: Use  <T::Lookup as StaticLookup>::Source instead of T::AccountId
-			project_issuer: T::AccountId,
 			project_id: ProjectIdentifier,
 			#[pallet::compact] amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let from = ensure_signed(origin)?;
-			ensure!(
-				Projects::<T>::contains_key(project_issuer.clone(), project_id),
-				Error::<T>::ProjectNotExists
-			);
+			let project_issuer =
+				ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectNotExists)?;
 			ensure!(from != project_issuer, Error::<T>::ContributionToThemselves);
 
 			let project_info = ProjectsInfo::<T>::get(project_issuer.clone(), project_id);
@@ -368,7 +366,6 @@ pub mod pallet {
 		/// Evaluators can bond more of their PLMC to evaluate a Project
 		pub fn rebond(
 			_origin: OriginFor<T>,
-			_project_issuer: T::AccountId,
 			_project_id: ProjectIdentifier,
 			#[pallet::compact] _amount: BalanceOf<T>,
 		) -> DispatchResult {
@@ -409,7 +406,6 @@ pub mod pallet {
 		/// Place a bid in the "Auction Round"
 		pub fn bid(
 			origin: OriginFor<T>,
-			project_issuer: T::AccountId,
 			project_id: ProjectIdentifier,
 			#[pallet::compact] amount: BalanceOf<T>,
 			// Add a parameter to specify the currency to use, should be equal to the currency
@@ -420,10 +416,8 @@ pub mod pallet {
 			let bidder = ensure_signed(origin)?;
 
 			// Make sure project exists
-			ensure!(
-				Projects::<T>::contains_key(project_issuer.clone(), project_id),
-				Error::<T>::ProjectNotExists
-			);
+			let project_issuer =
+				ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectNotExists)?;
 
 			// Make sure the bidder is not the project_issuer
 			ensure!(bidder != project_issuer, Error::<T>::ContributionToThemselves);
@@ -452,7 +446,6 @@ pub mod pallet {
 		/// Contribute to the "Community Round"
 		pub fn contribute(
 			origin: OriginFor<T>,
-			project_issuer: T::AccountId,
 			project_id: ProjectIdentifier,
 			#[pallet::compact] amount: BalanceOf<T>,
 			// Add a parameter to specify the currency to use, should be equal to the currency
@@ -463,10 +456,8 @@ pub mod pallet {
 			let contributor = ensure_signed(origin)?;
 
 			// Make sure project exists
-			ensure!(
-				Projects::<T>::contains_key(project_issuer.clone(), project_id),
-				Error::<T>::ProjectNotExists
-			);
+			let project_issuer =
+				ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectNotExists)?;
 
 			// Make sure the contributor is not the project_issuer
 			ensure!(contributor != project_issuer, Error::<T>::ContributionToThemselves);
@@ -565,6 +556,7 @@ impl<T: Config> Pallet<T> {
 		project_id: ProjectIdentifier,
 	) -> Result<(), DispatchError> {
 		Projects::<T>::insert(issuer.clone(), project_id, project);
+		ProjectsIssuers::<T>::insert(project_id, issuer.clone());
 
 		let project_info = ProjectInfo {
 			is_frozen: false,

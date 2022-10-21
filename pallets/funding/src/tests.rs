@@ -160,11 +160,11 @@ mod evaluation_phase {
 
 			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
 			assert_noop!(
-				FundingModule::bond(Origin::signed(BOB), ALICE, 0, 128),
+				FundingModule::bond(Origin::signed(BOB), 0, 128),
 				Error::<Test>::EvaluationNotStarted
 			);
 			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
-			assert_ok!(FundingModule::bond(Origin::signed(BOB), ALICE, 0, 128));
+			assert_ok!(FundingModule::bond(Origin::signed(BOB), 0, 128));
 		})
 	}
 
@@ -181,7 +181,7 @@ mod evaluation_phase {
 			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
 
 			assert_noop!(
-				FundingModule::bond(Origin::signed(BOB), ALICE, 0, 1024),
+				FundingModule::bond(Origin::signed(BOB), 0, 1024),
 				Error::<Test>::InsufficientBalance
 			);
 		})
