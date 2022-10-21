@@ -250,8 +250,6 @@ pub mod pallet {
 				},
 				Ok(()) => {
 					let project_id = ProjectId::<T>::get();
-					// TODO: Should we use safe math?
-					ProjectId::<T>::mutate(|n| *n += 1);
 					Self::do_create(issuer, project, project_id)
 				},
 			}
@@ -575,6 +573,8 @@ impl<T: Config> Pallet<T> {
 			amount_bonded: BalanceOf::<T>::zero(),
 		};
 		Evaluations::<T>::insert(issuer.clone(), project_id, evaluation_metadata);
+
+		ProjectId::<T>::mutate(|n| *n += 1);
 
 		Self::deposit_event(Event::<T>::Created { project_id, issuer });
 		Ok(())

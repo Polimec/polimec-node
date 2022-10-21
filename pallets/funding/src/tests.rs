@@ -31,6 +31,28 @@ mod creation_phase {
 	}
 
 	#[test]
+	fn project_id_autoincremenet_works() {
+		new_test_ext().execute_with(|| {
+			let project = Project {
+				minimum_price: 1,
+				ticket_size: TicketSize { minimum: Some(1), maximum: None },
+				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+				..Default::default()
+			};
+			assert_ok!(FundingModule::create(Origin::signed(ALICE), project.clone()));
+			assert_eq!(
+				last_event(),
+				Event::FundingModule(crate::Event::Created { project_id: 0, issuer: ALICE })
+			);
+			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
+			assert_eq!(
+				last_event(),
+				Event::FundingModule(crate::Event::Created { project_id: 1, issuer: ALICE })
+			);
+		})
+	}
+
+	#[test]
 	fn price_too_low() {
 		new_test_ext().execute_with(|| {
 			let project = Project {
