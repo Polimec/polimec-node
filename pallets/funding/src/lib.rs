@@ -167,7 +167,7 @@ pub mod pallet {
 		T::AccountId,
 		Blake2_128Concat,
 		ProjectIdentifier,
-		BondingLedger<T::AccountId, BalanceOf<T>>,
+		BalanceOf<T>,
 	>;
 
 	#[pallet::storage]
@@ -179,7 +179,7 @@ pub mod pallet {
 		T::AccountId,
 		Blake2_128Concat,
 		ProjectIdentifier,
-		BondingLedger<T::AccountId, BalanceOf<T>>,
+		BalanceOf<T>,
 	>;
 
 	#[pallet::event]
@@ -342,11 +342,7 @@ pub mod pallet {
 			ensure!(amount <= maximum_amount, Error::<T>::BondTooHigh);
 
 			T::Currency::set_lock(LOCKING_ID, &from, amount, WithdrawReasons::all());
-			Bonds::<T>::insert(
-				project_issuer.clone(),
-				project_id,
-				BondingLedger { stash: from.clone(), amount_bonded: amount },
-			);
+			Bonds::<T>::insert(from.clone(), project_id, amount);
 			Evaluations::<T>::mutate(project_issuer.clone(), project_id, |project| {
 				project.amount_bonded =
 					project.amount_bonded.checked_add(&amount).unwrap_or(project.amount_bonded)
@@ -487,11 +483,7 @@ pub mod pallet {
 				frame_support::traits::ExistenceRequirement::KeepAlive,
 			)?;
 
-			Contributions::<T>::insert(
-				project_issuer,
-				project_id,
-				BondingLedger { stash: contributor, amount_bonded: amount },
-			);
+			Contributions::<T>::insert(contributor, project_id, amount);
 
 			Ok(())
 		}

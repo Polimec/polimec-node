@@ -7,6 +7,7 @@ pub fn last_event() -> Event {
 
 const ALICE: AccountId = 1;
 const BOB: AccountId = 2;
+const CHARLIE: AccountId = 3;
 
 mod creation_phase {
 	use super::*;
@@ -171,7 +172,7 @@ mod evaluation_phase {
 	}
 
 	#[test]
-	fn bond_works() {
+	fn basic_bond_works() {
 		new_test_ext().execute_with(|| {
 			let project = Project {
 				minimum_price: 1,
@@ -187,6 +188,39 @@ mod evaluation_phase {
 			);
 			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
 			assert_ok!(FundingModule::bond(Origin::signed(BOB), 0, 128));
+		})
+	}
+
+	#[test]
+	fn multiple_bond_works() {
+		new_test_ext().execute_with(|| {
+			let project = Project {
+				minimum_price: 1,
+				ticket_size: TicketSize { minimum: Some(1), maximum: None },
+				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+				..Default::default()
+			};
+
+			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
+			assert_noop!(
+				FundingModule::bond(Origin::signed(BOB), 0, 128),
+				Error::<Test>::EvaluationNotStarted
+			);
+			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
+
+			assert_ok!(FundingModule::bond(Origin::signed(BOB), 0, 128));
+			let evaluation_metadata = FundingModule::evaluations(ALICE, 0);
+			assert_eq!(evaluation_metadata.amount_bonded, 128);
+
+			assert_ok!(FundingModule::bond(Origin::signed(CHARLIE), 0, 128));
+			let evaluation_metadata = FundingModule::evaluations(ALICE, 0);
+			assert_eq!(evaluation_metadata.amount_bonded, 256);
+
+			let bonds = FundingModule::bonds(BOB, 0);
+			assert_eq!(bonds.unwrap(), 128);
+
+			let bonds = FundingModule::bonds(CHARLIE, 0);
+			assert_eq!(bonds.unwrap(), 128);
 		})
 	}
 

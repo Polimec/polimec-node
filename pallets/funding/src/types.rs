@@ -197,15 +197,6 @@ pub struct AuctionMetadata<BlockNumber, Balance: MaxEncodedLen> {
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct BondingLedger<AccountId, Balance: MaxEncodedLen> {
-	/// The account whose balance is actually locked and at bond.
-	pub stash: AccountId,
-	// The amount of PLMC bonded in the project during the evaluation phase
-	#[codec(compact)]
-	pub amount_bonded: Balance,
-}
-
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct BidInfo<AccountId, Balance: MaxEncodedLen, BlockNumber> {
 	///
 	pub bidder: AccountId,
