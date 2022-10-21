@@ -14,8 +14,11 @@ mod benchmarking;
 mod types;
 pub use types::*;
 
-use frame_support::traits::{Currency, Get, LockIdentifier, LockableCurrency, WithdrawReasons};
-use sp_runtime::traits::{CheckedAdd, Zero};
+use frame_support::{
+	traits::{Currency, Get, LockIdentifier, LockableCurrency, WithdrawReasons},
+	PalletId,
+};
+use sp_runtime::traits::{AccountIdConversion, CheckedAdd, Zero};
 
 /// The balance type of this pallet.
 pub type BalanceOf<T> = <T as Config>::CurrencyBalance;
@@ -69,6 +72,11 @@ pub mod pallet {
 		#[pallet::constant]
 		type AuctionDuration: Get<Self::BlockNumber>;
 
+		/// `PalletId` for the funding pallet. An appropriate value could be
+		/// `PalletId(*b"py/cfund")`
+		#[pallet::constant]
+		type PalletId: Get<PalletId>;
+
 		// TODO: Should be helpful for allowing the calls only by the user in the set of
 		// { Issuer, Retail, Professional, Institutional }
 		// Project creation is only allowed if the origin attempting it and the
@@ -81,7 +89,7 @@ pub mod pallet {
 
 		// type ForceOrigin: EnsureOrigin<Self::Origin>;
 
-		// Weight information for extrinsics in this pallet.
+		// Weight information for extrinsic in this pallet.
 		// type WeightInfo: WeightInfo;
 	}
 
@@ -102,6 +110,12 @@ pub mod pallet {
 		ProjectIdentifier,
 		Project<T::AccountId, BoundedVec<u8, T::StringLimit>, BalanceOf<T>>,
 	>;
+
+	/// TODO: We can add a StorageMap (k: ProjectIdentifier, v: T::AccountId) to
+	/// "reverse lookup" the project issuer so the users doesn't need to specify each time the
+	/// project issuer
+	// #[pallet::storage]
+	// #[pallet::getter(fn projects)]
 
 	#[pallet::storage]
 	#[pallet::getter(fn projects_info)]
@@ -144,8 +158,20 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn bonds)]
-	/// Information of a Project.
+	/// Bonds during the Evaluation Phase
 	pub type Bonds<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		T::AccountId,
+		Blake2_128Concat,
+		ProjectIdentifier,
+		BondingLedger<T::AccountId, BalanceOf<T>>,
+	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn contributions)]
+	/// Contribution during the Community Phase
+	pub type Contributions<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
 		T::AccountId,
@@ -164,7 +190,7 @@ pub mod pallet {
 		/// The evaluation phase of `project_id` was started by `issuer`.
 		EvaluationStarted { project_id: ProjectIdentifier, issuer: T::AccountId },
 		/// The evaluation phase of `project_id` was ended by `issuer`.
-		EvaluationEndend { project_id: ProjectIdentifier, issuer: T::AccountId },
+		EvaluationEnded { project_id: ProjectIdentifier, issuer: T::AccountId },
 
 		/// The auction round of `project_id` started by `issuer` at block `when`.
 		AuctionStarted { project_id: ProjectIdentifier, issuer: T::AccountId, when: T::BlockNumber },
@@ -191,7 +217,7 @@ pub mod pallet {
 		ProjectIdInUse,
 		ProjectNotExists,
 		EvaluationAlreadyStarted,
-		ContributionToThemself,
+		ContributionToThemselves,
 		EvaluationNotStarted,
 		AuctionAlreadyStarted,
 		AuctionNotStarted,
@@ -289,7 +315,7 @@ pub mod pallet {
 				Projects::<T>::contains_key(project_issuer.clone(), project_id),
 				Error::<T>::ProjectNotExists
 			);
-			ensure!(from != project_issuer, Error::<T>::ContributionToThemself);
+			ensure!(from != project_issuer, Error::<T>::ContributionToThemselves);
 
 			let project_info = ProjectsInfo::<T>::get(project_issuer.clone(), project_id);
 			let project = Projects::<T>::get(project_issuer.clone(), project_id);
@@ -386,7 +412,7 @@ pub mod pallet {
 			project_issuer: T::AccountId,
 			project_id: ProjectIdentifier,
 			#[pallet::compact] amount: BalanceOf<T>,
-			// Add a parameter to specifty the currency to use, should be equal to the currency
+			// Add a parameter to specify the currency to use, should be equal to the currency
 			// specified in `participation_currencies`
 			// TODO: In future participation_currencies will became an array of currencies, so the
 			// currency to use should be IN the `participation_currencies` vector/set
@@ -400,14 +426,13 @@ pub mod pallet {
 			);
 
 			// Make sure the bidder is not the project_issuer
-			ensure!(bidder != project_issuer, Error::<T>::ContributionToThemself);
+			ensure!(bidder != project_issuer, Error::<T>::ContributionToThemselves);
 
 			let project_info = ProjectsInfo::<T>::get(project_issuer.clone(), project_id);
 			let project = Projects::<T>::get(project_issuer.clone(), project_id)
 				.expect("Project exists, already checked in previous ensure");
-			let block_number = <frame_system::Pallet<T>>::block_number();
 
-			// Make sure auction is started
+			// Make sure Auction Round is started
 			ensure!(
 				project_info.auction_status == AuctionStatus::Started(AuctionPhase::English),
 				Error::<T>::AuctionNotStarted
@@ -430,7 +455,7 @@ pub mod pallet {
 			project_issuer: T::AccountId,
 			project_id: ProjectIdentifier,
 			#[pallet::compact] amount: BalanceOf<T>,
-			// Add a parameter to specifty the currency to use, should be equal to the currency
+			// Add a parameter to specify the currency to use, should be equal to the currency
 			// specified in `participation_currencies`
 			// TODO: In future participation_currencies will became an array of currencies, so the
 			// currency to use should be in the `participation_currencies` vector/set
@@ -444,16 +469,15 @@ pub mod pallet {
 			);
 
 			// Make sure the contributor is not the project_issuer
-			ensure!(contributor != project_issuer, Error::<T>::ContributionToThemself);
+			ensure!(contributor != project_issuer, Error::<T>::ContributionToThemselves);
 
 			let project_info = ProjectsInfo::<T>::get(project_issuer.clone(), project_id);
 			let project = Projects::<T>::get(project_issuer.clone(), project_id)
 				.expect("Project exists, already checked in previous ensure");
-			let block_number = <frame_system::Pallet<T>>::block_number();
 
-			// Make sure auction is started
+			// Make sure Community Round is started
 			ensure!(
-				project_info.auction_status == AuctionStatus::Started(AuctionPhase::English),
+				project_info.auction_status == AuctionStatus::Started(AuctionPhase::Candle),
 				Error::<T>::AuctionNotStarted
 			);
 
@@ -464,6 +488,22 @@ pub mod pallet {
 			// Make sure the bid amount is greater than the minimum_price specified by the issuer
 			ensure!(free_balance_of > project.minimum_price, Error::<T>::BondTooLow);
 
+			let fund_account = Self::fund_account_id(project_id);
+			// TODO: Use the currency chosen by the Issuer
+			T::Currency::transfer(
+				&contributor,
+				&fund_account,
+				amount,
+				// TODO: Take the ExistenceRequirement as parameter
+				frame_support::traits::ExistenceRequirement::KeepAlive,
+			)?;
+
+			Contributions::<T>::insert(
+				project_issuer.clone(),
+				project_id,
+				BondingLedger { stash: contributor.clone(), amount_bonded: amount },
+			);
+
 			Ok(())
 		}
 	}
@@ -471,6 +511,9 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(now: T::BlockNumber) -> Weight {
+			// TODO; Check if we can move any part of the logic into the "on_idle" hook
+			// Maybe we can use that space block to re-order/cleanup the storage
+
 			for (project_issuer, project_id, evaluation_detail) in Evaluations::<T>::iter() {
 				// Stop the evaluation period
 				let project_info = ProjectsInfo::<T>::get(project_issuer.clone(), project_id);
@@ -499,7 +542,7 @@ pub mod pallet {
 					});
 				}
 				// TODO: CHECK if it's ok to remove a project from the Evaluations storage
-				// this is done in order to mantain stable the number of operations to do in the
+				// this is done in order to maintain stable the number of operations to do in the
 				// hook
 				Evaluations::<T>::remove(project_issuer, project_id);
 			}
@@ -512,6 +555,10 @@ pub mod pallet {
 use frame_support::{pallet_prelude::DispatchError, BoundedVec};
 
 impl<T: Config> Pallet<T> {
+	pub fn fund_account_id(index: ProjectIdentifier) -> T::AccountId {
+		T::PalletId::get().into_sub_account_truncating(index)
+	}
+
 	pub fn do_create(
 		issuer: T::AccountId,
 		project: Project<T::AccountId, BoundedVec<u8, T::StringLimit>, BalanceOf<T>>,

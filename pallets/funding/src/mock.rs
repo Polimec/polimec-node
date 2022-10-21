@@ -2,7 +2,7 @@ use crate as pallet_funding;
 use frame_support::{
 	pallet_prelude::ConstU32,
 	parameter_types,
-	traits::{ConstU16, ConstU64},
+	traits::{ConstU16, ConstU64}, PalletId,
 };
 use frame_system as system;
 use sp_core::H256;
@@ -80,6 +80,7 @@ parameter_types! {
 	pub const EvaluationDuration: BlockNumber = 28;
 	// TODO: Replace 7 with the real time
 	pub const AuctionDuration: BlockNumber = 7;
+	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 }
 
 impl pallet_funding::Config for Test {
@@ -89,6 +90,7 @@ impl pallet_funding::Config for Test {
 	type CurrencyBalance = <Self as pallet_balances::Config>::Balance;
 	type EvaluationDuration = EvaluationDuration;
 	type AuctionDuration = AuctionDuration;
+	type PalletId = FundingPalletId;
 }
 
 // Build genesis storage according to the mock runtime.

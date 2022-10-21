@@ -8,7 +8,7 @@ pub struct Project<
 	Balance: MaxEncodedLen + Zero + sp_std::cmp::PartialEq + sp_std::cmp::PartialOrd,
 > {
 	/// The issuer of the  certificate
-	pub issuer_certifcate: Issuer,
+	pub issuer_certificate: Issuer,
 	/// Name of the issuer
 	pub issuer_name: BoundedString,
 	/// Token information
@@ -27,7 +27,7 @@ pub struct Project<
 	pub funding_thresholds: Thresholds,
 	/// Conversion rate of contribution token to mainnet token
 	pub conversion_rate: u32,
-	/// Participation currencies (e.g stablecoins, DOT, KSM)
+	/// Participation currencies (e.g stablecoin, DOT, KSM)
 	/// TODO: Use something like BoundedVec<Option<Currencies>, StringLimit>
 	/// e.g. https://github.com/paritytech/substrate/blob/427fd09bcb193c1e79dec85b1e207c718b686c35/frame/uniques/src/types.rs#L110
 	/// For now is easier to handle the case where only just one Currency is accepted
@@ -42,9 +42,12 @@ pub struct Project<
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct ProjectInfo<
+	// ProjectIdentifier,
 	BlockNumber,
 	Balance: MaxEncodedLen + Zero + sp_std::cmp::PartialEq + sp_std::cmp::PartialOrd,
 > {
+	// TODO: Maybe we can save the ProjectIdentifier here
+	// pub project_id: ProjectIdentifier;
 	/// Whether the project is frozen, so no `metadata` changes are allowed.
 	pub is_frozen: bool,
 	/// The price decided after the Auction Round
@@ -52,7 +55,7 @@ pub struct ProjectInfo<
 	/// When the project is created
 	pub created_at: BlockNumber,
 	pub evaluation_status: EvaluationStatus,
-	pub auction_status: AuctionStatus
+	pub auction_status: AuctionStatus,
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -68,7 +71,7 @@ pub struct ProjectMetadata<BoundedString> {
 	pub total_supply: u128,
 	/// A link to the roadmap
 	pub roadmap: BoundedString,
-	/// A link to a decription on how the funds will be used
+	/// A link to a description on how the funds will be used
 	pub usage_of_founds: BoundedString,
 }
 
@@ -85,7 +88,7 @@ impl<
 		Balance: MaxEncodedLen + Zero + sp_std::cmp::PartialEq + sp_std::cmp::PartialOrd,
 	> Project<AccountId, BoundedString, Balance>
 {
-	// TODO: Perform a REAL validity cehck
+	// TODO: Perform a REAL validity check
 	pub fn validity_check(&self) -> Result<(), ValidityError> {
 		if self.minimum_price == Balance::zero() {
 			return Err(ValidityError::PriceTooLow)
@@ -208,7 +211,7 @@ pub struct BidInfo<AccountId, Balance: MaxEncodedLen, BlockNumber> {
 	pub bidder: AccountId,
 	///
 	#[codec(compact)]
-	pub amount_bidded: Balance,
+	pub amount_bid: Balance,
 	///
 	pub price: Balance,
 	///
