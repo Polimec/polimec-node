@@ -421,7 +421,7 @@ pub mod pallet {
 			ensure!(bidder != project_issuer, Error::<T>::ContributionToThemselves);
 
 			let project_info = ProjectsInfo::<T>::get(project_issuer.clone(), project_id);
-			let project = Projects::<T>::get(project_issuer.clone(), project_id)
+			let project = Projects::<T>::get(project_issuer, project_id)
 				.expect("Project exists, already checked in previous ensure");
 
 			// Make sure Auction Round is started
@@ -488,9 +488,9 @@ pub mod pallet {
 			)?;
 
 			Contributions::<T>::insert(
-				project_issuer.clone(),
+				project_issuer,
 				project_id,
-				BondingLedger { stash: contributor.clone(), amount_bonded: amount },
+				BondingLedger { stash: contributor, amount_bonded: amount },
 			);
 
 			Ok(())
