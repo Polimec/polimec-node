@@ -335,6 +335,7 @@ impl pallet_funding::Config for Runtime {
 	type EvaluationDuration = EvaluationDuration;
 	type AuctionDuration = AuctionDuration;
 	type PalletId = FundingPalletId;
+	type ActiveProjectsLimit = ConstU32<100>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
