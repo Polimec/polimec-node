@@ -77,6 +77,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
 
+		/// The maximum number of "active" (In Evaluation or Funding Round) projects
+		#[pallet::constant]
+		type ActiveProjectsLimit: Get<u32>;
+
 		// TODO: Should be helpful for allowing the calls only by the user in the set of
 		// { Issuer, Retail, Professional, Institutional }
 		// Project creation is only allowed if the origin attempting it and the
@@ -111,16 +115,15 @@ pub mod pallet {
 		Project<T::AccountId, BoundedVec<u8, T::StringLimit>, BalanceOf<T>>,
 	>;
 
-	/// TODO: We can add a StorageMap (k: ProjectIdentifier, v: T::AccountId) to
-	/// "reverse lookup" the project issuer so the users doesn't need to specify each time the
-	/// project issuer
 	#[pallet::storage]
 	#[pallet::getter(fn project_issuer)]
+	/// StorageMap (k: ProjectIdentifier, v: T::AccountId) to "reverse lookup" the project issuer so
+	/// the users doesn't need to specify each time the project issuer
 	pub type ProjectsIssuers<T: Config> =
 		StorageMap<_, Blake2_128Concat, ProjectIdentifier, T::AccountId>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn projects_info)]
+	#[pallet::getter(fn project_info)]
 	/// A DoubleMap containing all the the information for the projects
 	pub type ProjectsInfo<T: Config> = StorageDoubleMap<
 		_,
@@ -131,6 +134,12 @@ pub mod pallet {
 		ProjectInfo<T::BlockNumber, BalanceOf<T>>,
 		ValueQuery,
 	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn projects_active)]
+	/// A BoundedVec to list
+	pub type ProjectsActive<T: Config> =
+		StorageValue<_, BoundedVec<ProjectIdentifier, T::ActiveProjectsLimit>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn evaluations)]
@@ -159,6 +168,18 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
+	#[pallet::getter(fn auctions_info)]
+	pub type AuctionsInfo<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		T::AccountId,
+		Blake2_128Concat,
+		ProjectIdentifier,
+		BidInfo<BalanceOf<T>, T::BlockNumber>,
+		ValueQuery,
+	>;
+
+	#[pallet::storage]
 	#[pallet::getter(fn bonds)]
 	/// Bonds during the Evaluation Phase
 	pub type Bonds<T: Config> = StorageDoubleMap<
@@ -181,6 +202,11 @@ pub mod pallet {
 		ProjectIdentifier,
 		BalanceOf<T>,
 	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn pending_evaluations)]
+	pub type PendingEvaluations<T: Config> =
+		StorageValue<_, BoundedVec<ProjectIdentifier, ConstU32<100>>, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -228,6 +254,7 @@ pub mod pallet {
 		BondTooHigh,
 		InsufficientBalance,
 		TooSoon,
+		TooManyActiveProjects,
 	}
 
 	#[pallet::call]
@@ -398,9 +425,13 @@ pub mod pallet {
 
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		/// Place a bid in the "Auction Round"
+		// TODO: This function currently to simplify uses PLMC as the currency, and not the currency
+		// expressed by the project issuer at the project creation stage. This will have to change
+		// when XCM is implemented.
 		pub fn bid(
 			origin: OriginFor<T>,
 			project_id: ProjectIdentifier,
+			#[pallet::compact] price: BalanceOf<T>,
 			#[pallet::compact] amount: BalanceOf<T>,
 			// Add a parameter to specify the currency to use, should be equal to the currency
 			// specified in `participation_currencies`
@@ -433,6 +464,11 @@ pub mod pallet {
 			// Make sure the bid amount is greater than the minimum_price specified by the issuer
 			ensure!(free_balance_of > project.minimum_price, Error::<T>::BondTooLow);
 
+			let now = <frame_system::Pallet<T>>::block_number();
+			let bid_info = BidInfo { amount_bid: amount, price, when: now };
+
+			AuctionsInfo::<T>::insert(bidder, project_id, bid_info);
+
 			Ok(())
 		}
 
@@ -457,7 +493,7 @@ pub mod pallet {
 			ensure!(contributor != project_issuer, Error::<T>::ContributionToThemselves);
 
 			let project_info = ProjectsInfo::<T>::get(project_issuer.clone(), project_id);
-			let project = Projects::<T>::get(project_issuer.clone(), project_id)
+			let project = Projects::<T>::get(project_issuer, project_id)
 				.expect("Project exists, already checked in previous ensure");
 
 			// Make sure Community Round is started
@@ -498,6 +534,7 @@ pub mod pallet {
 			for (project_issuer, project_id, evaluation_detail) in Evaluations::<T>::iter() {
 				// Stop the evaluation period
 				let project_info = ProjectsInfo::<T>::get(project_issuer.clone(), project_id);
+				// Check if we need to stop the "Evaluation Period"
 				if now >= evaluation_detail.evaluation_period_ends &&
 					project_info.evaluation_status == EvaluationStatus::Started
 				{
@@ -528,6 +565,10 @@ pub mod pallet {
 				Evaluations::<T>::remove(project_issuer, project_id);
 			}
 			// TODO: Check why return 0 as Weight
+			0
+		}
+
+		fn on_idle(_now: T::BlockNumber, _max_weight: Weight) -> Weight {
 			0
 		}
 	}
@@ -585,10 +626,13 @@ impl<T: Config> Pallet<T> {
 			project_metadata.evaluation_period_ends =
 				current_block_number + T::EvaluationDuration::get();
 		});
-		Self::deposit_event(Event::<T>::EvaluationStarted { project_id, issuer: who.clone() });
 
 		let auction_metadata = AuctionMetadata { ..Default::default() };
-		Auctions::<T>::insert(who, project_id, auction_metadata);
+		Auctions::<T>::insert(who.clone(), project_id, auction_metadata);
+
+		ProjectsActive::<T>::try_append(project_id).map_err(|()| Error::<T>::TooManyActiveProjects)?;
+
+		Self::deposit_event(Event::<T>::EvaluationStarted { project_id, issuer: who.clone() });
 		Ok(())
 	}
 

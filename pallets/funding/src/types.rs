@@ -187,19 +187,19 @@ pub struct EvaluationMetadata<BlockNumber, Balance: MaxEncodedLen> {
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct AuctionMetadata<BlockNumber, Balance: MaxEncodedLen> {
-	/// When (expressed in block numbers) the auction phase started
+	/// When (expressed in block numbers) the Auction Round started
 	pub starting_block: BlockNumber,
-	// When (expressed in block numbers) the auction phase ends
-	pub ending_block: BlockNumber,
-	// The amount of PLMC bonded in the project during the auction phase
+	/// When (expressed in block numbers) the English Auction phase ends
+	pub english_ending_block: BlockNumber,
+	/// When (expressed in block numbers) the Candle Auction phase ends
+	pub candle_ending_block: BlockNumber,
+	/// The amount of PLMC bonded in the project during the auction phase
 	#[codec(compact)]
 	pub highest_bid: Balance,
 }
 
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct BidInfo<AccountId, Balance: MaxEncodedLen, BlockNumber> {
-	///
-	pub bidder: AccountId,
+#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct BidInfo<Balance: MaxEncodedLen, BlockNumber> {
 	///
 	#[codec(compact)]
 	pub amount_bid: Balance,

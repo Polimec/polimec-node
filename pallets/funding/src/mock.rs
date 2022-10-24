@@ -2,7 +2,8 @@ use crate as pallet_funding;
 use frame_support::{
 	pallet_prelude::ConstU32,
 	parameter_types,
-	traits::{ConstU16, ConstU64}, PalletId,
+	traits::{ConstU16, ConstU64},
+	PalletId,
 };
 use frame_system as system;
 use sp_core::H256;
@@ -91,6 +92,7 @@ impl pallet_funding::Config for Test {
 	type EvaluationDuration = EvaluationDuration;
 	type AuctionDuration = AuctionDuration;
 	type PalletId = FundingPalletId;
+	type ActiveProjectsLimit = ConstU32<100>;
 }
 
 // Build genesis storage according to the mock runtime.
