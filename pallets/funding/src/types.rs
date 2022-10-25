@@ -159,13 +159,6 @@ pub struct Thresholds {
 	institutional: u64,
 }
 
-// TODO: This is just a placeholder
-#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct FundingTimes<BlockNumber> {
-	start: BlockNumber,
-	stop: BlockNumber,
-}
-
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct CurrencyMetadata<BoundedString> {
 	/// The user friendly name of this asset. Limited in length by `StringLimit`.
@@ -186,16 +179,15 @@ pub struct EvaluationMetadata<BlockNumber, Balance: MaxEncodedLen> {
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct AuctionMetadata<BlockNumber, Balance: MaxEncodedLen> {
+pub struct AuctionMetadata<BlockNumber> {
 	/// When (expressed in block numbers) the Auction Round started
 	pub starting_block: BlockNumber,
 	/// When (expressed in block numbers) the English Auction phase ends
 	pub english_ending_block: BlockNumber,
 	/// When (expressed in block numbers) the Candle Auction phase ends
 	pub candle_ending_block: BlockNumber,
-	/// The amount of PLMC bonded in the project during the auction phase
-	#[codec(compact)]
-	pub highest_bid: Balance,
+	/// When (expressed in block numbers) the Community Round ends
+	pub community_ending_block: BlockNumber,
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -235,7 +227,14 @@ pub enum ProjectStatus {
 	Application,
 	EvaluationRound,
 	EvaluationEnded,
-	AuctionRound,
+	AuctionRound(AuctionPhase),
 	CommunityRound,
 	ReadyToLaunch,
+}
+
+#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub enum AuctionPhase {
+	#[default]
+	English,
+	Candle,
 }

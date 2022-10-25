@@ -70,7 +70,13 @@ pub mod pallet {
 		type EvaluationDuration: Get<Self::BlockNumber>;
 
 		#[pallet::constant]
-		type AuctionDuration: Get<Self::BlockNumber>;
+		type EnglishAuctionDuration: Get<Self::BlockNumber>;
+
+		#[pallet::constant]
+		type CandleAuctionDuration: Get<Self::BlockNumber>;
+
+		#[pallet::constant]
+		type CommunityRoundDuration: Get<Self::BlockNumber>;
 
 		/// `PalletId` for the funding pallet. An appropriate value could be
 		/// `PalletId(*b"py/cfund")`
@@ -163,7 +169,7 @@ pub mod pallet {
 		T::AccountId,
 		Blake2_128Concat,
 		ProjectIdentifier,
-		AuctionMetadata<T::BlockNumber, BalanceOf<T>>,
+		AuctionMetadata<T::BlockNumber>,
 		ValueQuery,
 	>;
 
@@ -392,7 +398,7 @@ pub mod pallet {
 			ensure!(Projects::<T>::contains_key(&issuer, project_id), Error::<T>::ProjectNotExists);
 			let project_info = ProjectsInfo::<T>::get(&issuer, project_id);
 			ensure!(
-				project_info.project_status != ProjectStatus::AuctionRound,
+				project_info.project_status != ProjectStatus::AuctionRound(AuctionPhase::English),
 				Error::<T>::AuctionAlreadyStarted
 			);
 			ensure!(
@@ -439,7 +445,7 @@ pub mod pallet {
 
 			// Make sure Auction Round is started
 			ensure!(
-				project_info.project_status == ProjectStatus::AuctionRound,
+				project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::English),
 				Error::<T>::AuctionNotStarted
 			);
 
@@ -535,29 +541,71 @@ pub mod pallet {
 					// EvaluationEnded -> AuctionRound
 					ProjectStatus::EvaluationEnded => {
 						let evaluation_detail = Evaluations::<T>::get(&project_issuer, project_id);
-						if evaluation_detail.evaluation_period_ends + T::AuctionDuration::get() <=
+						if evaluation_detail.evaluation_period_ends +
+							T::EnglishAuctionDuration::get() <=
 							now
 						{
-							Auctions::<T>::mutate(project_issuer.clone(), project_id, |auction| {
-								auction.starting_block = now;
-							});
-							ProjectsInfo::<T>::mutate(project_issuer, project_id, |project_info| {
-								project_info.project_status = ProjectStatus::AuctionRound;
-							});
-							// TODO: Deposit Event
+							// TODO: Unused error, more tests needed
+							// TODO: Here the start_auction is "free", check the Weight
+							let _ = Self::do_start_auction(&project_issuer, *project_id);
 						}
 					},
-					// CHeck if we need to move to the Community Round
-					// AuctionRound -> CommunityRound
-					ProjectStatus::AuctionRound => todo!(),
+					// Check if we need to move to the Candle Phase of the Auction Round
+					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
+					ProjectStatus::AuctionRound(AuctionPhase::English) => {
+						let auction_detail = Auctions::<T>::get(&project_issuer, project_id);
+						if now >= auction_detail.english_ending_block {
+							ProjectsInfo::<T>::mutate(project_issuer, project_id, |project_info| {
+								project_info.project_status =
+									ProjectStatus::AuctionRound(AuctionPhase::Candle);
+							});
+						}
+					},
+					// Check if we need to move from the Auction Round of the Community Round
+					ProjectStatus::AuctionRound(AuctionPhase::Candle) => {
+						let auction_detail = Auctions::<T>::get(&project_issuer, project_id);
+						if now >= auction_detail.candle_ending_block {
+							// TODO: Select a random block and pick the winner
+							ProjectsInfo::<T>::mutate(
+								project_issuer.clone(),
+								project_id,
+								|project_info| {
+									project_info.project_status = ProjectStatus::CommunityRound;
+									project_info.final_price = Some(
+										Self::calculate_final_price(project_issuer, *project_id)
+											.expect("placeholder_function"),
+									);
+								},
+							);
+						}
+					},
 					// Check if we need to move to the Ready to Launch Round
 					// Remove also the ProjectId from the ProjectsActive Vector
 					// CommunityRound -> ReadyToLaunch
-					ProjectStatus::CommunityRound => todo!(),
+					ProjectStatus::CommunityRound => {
+						let auction_detail = Auctions::<T>::get(&project_issuer, project_id);
+						if now >= auction_detail.community_ending_block {
+							// TODO: Select a random block and pick the winner
+							ProjectsInfo::<T>::mutate(
+								project_issuer.clone(),
+								project_id,
+								|project_info| {
+									project_info.project_status = ProjectStatus::ReadyToLaunch;
+								},
+							);
+							// Project identified by project_id is no longer "active"
+							ProjectsActive::<T>::mutate(|active_projects| {
+								if let Some(pos) =
+									active_projects.iter().position(|x| x == project_id)
+								{
+									active_projects.remove(pos);
+								}
+							});
+						}
+					},
 					_ => (),
 				}
 			}
-			// TODO: Check why return 0 as Weight
 			0
 		}
 
@@ -591,15 +639,6 @@ impl<T: Config> Pallet<T> {
 		ProjectsIssuers::<T>::insert(project_id, issuer);
 		ProjectId::<T>::mutate(|n| *n += 1);
 
-		let evaluation_metadata = EvaluationMetadata {
-			// TODO: I REALLY don't like to initialize this value using the current block number,
-			// probably an Option<T::BlockNumber> should be a better choice, but at the moment it
-			// would complicate the code in many other functions
-			evaluation_period_ends: <frame_system::Pallet<T>>::block_number(),
-			amount_bonded: BalanceOf::<T>::zero(),
-		};
-		Evaluations::<T>::insert(issuer, project_id, evaluation_metadata);
-
 		Self::deposit_event(Event::<T>::Created { project_id, issuer: issuer.clone() });
 		Ok(())
 	}
@@ -608,18 +647,16 @@ impl<T: Config> Pallet<T> {
 		who: &T::AccountId,
 		project_id: ProjectIdentifier,
 	) -> Result<(), DispatchError> {
+		let evaluation_metadata = EvaluationMetadata {
+			evaluation_period_ends: <frame_system::Pallet<T>>::block_number() +
+				T::EvaluationDuration::get(),
+			amount_bonded: BalanceOf::<T>::zero(),
+		};
+		Evaluations::<T>::insert(who, project_id, evaluation_metadata);
 		ProjectsInfo::<T>::mutate(who, project_id, |project_info| {
 			project_info.is_frozen = true;
 			project_info.project_status = ProjectStatus::EvaluationRound;
 		});
-		Evaluations::<T>::mutate(who, project_id, |project_metadata| {
-			let current_block_number = <frame_system::Pallet<T>>::block_number();
-			project_metadata.evaluation_period_ends =
-				current_block_number + T::EvaluationDuration::get();
-		});
-
-		let auction_metadata = AuctionMetadata { ..Default::default() };
-		Auctions::<T>::insert(who, project_id, auction_metadata);
 
 		ProjectsActive::<T>::try_append(project_id)
 			.map_err(|()| Error::<T>::TooManyActiveProjects)?;
@@ -633,18 +670,31 @@ impl<T: Config> Pallet<T> {
 		project_id: ProjectIdentifier,
 	) -> Result<(), DispatchError> {
 		ProjectsInfo::<T>::mutate(who, project_id, |project_info| {
-			project_info.is_frozen = true;
-			project_info.project_status = ProjectStatus::AuctionRound;
+			project_info.project_status = ProjectStatus::AuctionRound(AuctionPhase::English);
 		});
-		Auctions::<T>::mutate(who, project_id, |project| {
-			let current_block_number = <frame_system::Pallet<T>>::block_number();
-			project.starting_block = current_block_number;
-			Self::deposit_event(Event::<T>::AuctionStarted {
-				project_id,
-				issuer: who.clone(),
-				when: current_block_number,
-			});
+		let current_block_number = <frame_system::Pallet<T>>::block_number();
+		let english_ending_block = current_block_number + T::EnglishAuctionDuration::get();
+		let candle_ending_block = english_ending_block + T::CandleAuctionDuration::get();
+		let community_ending_block = candle_ending_block + T::CommunityRoundDuration::get();
+		let auction_metadata = AuctionMetadata {
+			starting_block: current_block_number,
+			english_ending_block,
+			candle_ending_block,
+			community_ending_block
+		};
+		Auctions::<T>::insert(who, project_id, auction_metadata);
+		Self::deposit_event(Event::<T>::AuctionStarted {
+			project_id,
+			issuer: who.clone(),
+			when: current_block_number,
 		});
 		Ok(())
+	}
+
+	pub fn calculate_final_price(
+		_who: T::AccountId,
+		_project_id: ProjectIdentifier,
+	) -> Result<BalanceOf<T>, DispatchError> {
+		Ok(1000_u32.into())
 	}
 }
