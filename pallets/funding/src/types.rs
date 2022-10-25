@@ -54,8 +54,8 @@ pub struct ProjectInfo<
 	pub final_price: Option<Balance>,
 	/// When the project is created
 	pub created_at: BlockNumber,
-	pub evaluation_status: EvaluationStatus,
-	pub auction_status: AuctionStatus,
+	/// The current status of the project
+	pub project_status: ProjectStatus,
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -228,33 +228,14 @@ pub enum Currencies {
 	USDC,
 	USDT,
 }
-#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub enum EvaluationStatus {
-	#[default]
-	NotYetStarted,
-	Started,
-	Ended,
-}
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub enum AuctionStatus {
+pub enum ProjectStatus {
 	#[default]
-	NotYetStarted,
-	Started(AuctionPhase),
-	Ended,
-}
-
-#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub enum AuctionPhase {
-	#[default]
-	English,
-	Candle,
-}
-
-#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub enum CommunityStatus {
-	#[default]
-	NotYetStarted,
-	Started,
-	Ended,
+	Application,
+	EvaluationRound,
+	EvaluationEnded,
+	AuctionRound,
+	CommunityRound,
+	ReadyToLaunch,
 }

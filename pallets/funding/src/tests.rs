@@ -9,7 +9,7 @@ const ALICE: AccountId = 1;
 const BOB: AccountId = 2;
 const CHARLIE: AccountId = 3;
 
-mod creation_phase {
+mod creation_round {
 	use super::*;
 	use crate::{ParticipantsSize, TicketSize};
 	use frame_support::assert_noop;
@@ -123,9 +123,9 @@ mod creation_phase {
 	}
 }
 
-mod evaluation_phase {
+mod evaluation_round {
 	use super::*;
-	use crate::{EvaluationStatus, ParticipantsSize, TicketSize};
+	use crate::{ParticipantsSize, ProjectStatus, TicketSize};
 	use frame_support::{assert_noop, traits::OnInitialize};
 
 	#[test]
@@ -140,10 +140,10 @@ mod evaluation_phase {
 
 			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
 			let project_info = FundingModule::project_info(ALICE, 0);
-			assert!(project_info.evaluation_status == EvaluationStatus::NotYetStarted);
+			assert!(project_info.project_status == ProjectStatus::Application);
 			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
 			let project_info = FundingModule::project_info(ALICE, 0);
-			assert!(project_info.evaluation_status == EvaluationStatus::Started);
+			assert!(project_info.project_status == ProjectStatus::EvaluationRound);
 		})
 	}
 
@@ -159,15 +159,15 @@ mod evaluation_phase {
 
 			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
 			let ed = FundingModule::project_info(ALICE, 0);
-			assert!(ed.evaluation_status == EvaluationStatus::NotYetStarted);
+			assert!(ed.project_status == ProjectStatus::Application);
 			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
 			let ed = FundingModule::project_info(ALICE, 0);
-			assert!(ed.evaluation_status == EvaluationStatus::Started);
+			assert!(ed.project_status == ProjectStatus::EvaluationRound);
 			let block_number = System::block_number();
 			System::set_block_number(block_number + 100);
 			FundingModule::on_initialize(System::block_number());
 			let ed = FundingModule::project_info(ALICE, 0);
-			assert!(ed.evaluation_status == EvaluationStatus::Ended);
+			assert!(ed.project_status == ProjectStatus::EvaluationEnded);
 		})
 	}
 
@@ -244,7 +244,7 @@ mod evaluation_phase {
 	}
 }
 
-mod auction_phase {
+mod auction_round {
 	use super::*;
 	use crate::{ParticipantsSize, TicketSize};
 	use frame_support::{assert_noop, traits::OnInitialize};
@@ -285,4 +285,75 @@ mod auction_phase {
 			);
 		})
 	}
+
+	#[test]
+	fn bid_works() {
+		new_test_ext().execute_with(|| {
+			let project = Project {
+				minimum_price: 1,
+				ticket_size: TicketSize { minimum: Some(1), maximum: None },
+				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+				..Default::default()
+			};
+
+			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
+			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
+			let block_number = System::block_number();
+			System::set_block_number(block_number + 100);
+			FundingModule::on_initialize(System::block_number());
+			assert_ok!(FundingModule::start_auction(Origin::signed(ALICE), 0));
+			assert_ok!(FundingModule::bid(Origin::signed(BOB), 0, 1, 100));
+			let bids = FundingModule::auctions_info(BOB, 0);
+			assert!(bids.amount_bid == 100);
+			assert!(bids.price == 1);
+			assert!(bids.when == block_number + 100);
+		})
+	}
+
+	#[test]
+	fn cannot_bid_before_auction_round() {
+		new_test_ext().execute_with(|| {
+			let project = Project {
+				minimum_price: 1,
+				ticket_size: TicketSize { minimum: Some(1), maximum: None },
+				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+				..Default::default()
+			};
+
+			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
+			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
+			assert_noop!(
+				FundingModule::bid(Origin::signed(BOB), 0, 1, 100),
+				Error::<Test>::AuctionNotStarted
+			);
+		})
+	}
+
+	#[test]
+	fn contribute_does_not_work() {
+		new_test_ext().execute_with(|| {
+			let project = Project {
+				minimum_price: 1,
+				ticket_size: TicketSize { minimum: Some(1), maximum: None },
+				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+				..Default::default()
+			};
+
+			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
+			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
+			let block_number = System::block_number();
+			System::set_block_number(block_number + 100);
+			FundingModule::on_initialize(System::block_number());
+			assert_ok!(FundingModule::start_auction(Origin::signed(ALICE), 0));
+			assert_noop!(
+				FundingModule::contribute(Origin::signed(BOB), 0, 100),
+				Error::<Test>::AuctionNotStarted
+			);
+		})
+	}
+}
+
+mod community_round {
+	#[test]
+	fn contribute_works() {}
 }
