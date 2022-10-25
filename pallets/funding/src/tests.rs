@@ -357,3 +357,51 @@ mod community_round {
 	#[test]
 	fn contribute_works() {}
 }
+
+mod flow {
+	use super::*;
+	use crate::{AuctionPhase, ParticipantsSize, ProjectStatus, TicketSize};
+	use frame_support::{assert_noop, traits::OnInitialize};
+
+	#[test]
+	fn it_works() {
+		new_test_ext().execute_with(|| {
+			let project = Project {
+				minimum_price: 1,
+				ticket_size: TicketSize { minimum: Some(1), maximum: None },
+				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+				..Default::default()
+			};
+
+			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
+			let project_info = FundingModule::project_info(ALICE, 0);
+			assert!(project_info.project_status == ProjectStatus::Application);
+			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
+			let project_info = FundingModule::project_info(ALICE, 0);
+			assert!(project_info.project_status == ProjectStatus::EvaluationRound);
+			let block_number = System::block_number();
+			System::set_block_number(block_number + 28);
+			FundingModule::on_initialize(System::block_number());
+			let project_info = FundingModule::project_info(ALICE, 0);
+			assert!(project_info.project_status == ProjectStatus::EvaluationEnded);
+			assert_ok!(FundingModule::start_auction(Origin::signed(ALICE), 0));
+			let project_info = FundingModule::project_info(ALICE, 0);
+			assert!(
+				project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::English)
+			);
+			assert_ok!(FundingModule::bid(Origin::signed(BOB), 0, 1, 100));
+			let block_number = System::block_number();
+			System::set_block_number(block_number + 10);
+			FundingModule::on_initialize(System::block_number());
+			let project_info = FundingModule::project_info(ALICE, 0);
+			assert!(
+				project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::Candle)
+			);
+			let block_number = System::block_number();
+			System::set_block_number(block_number + 5);
+			FundingModule::on_initialize(System::block_number());
+			let project_info = FundingModule::project_info(ALICE, 0);
+			assert!(project_info.project_status == ProjectStatus::CommunityRound);
+		})
+	}
+}
