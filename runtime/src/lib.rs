@@ -323,7 +323,11 @@ parameter_types! {
 	// TODO: Replace 28 with the real time
 	pub const EvaluationDuration: BlockNumber = 28;
 	// TODO: Replace 7 with the real time
-	pub const AuctionDuration: BlockNumber = 7;
+	pub const EnglishAuctionDuration: BlockNumber = 10;
+	// TODO: Use the correct Candle Duration
+	pub const CandleAuctionDuration: BlockNumber = 5;
+	// TODO:
+	pub const CommunityRoundDuration: BlockNumber = 10;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 }
 
@@ -333,9 +337,11 @@ impl pallet_funding::Config for Runtime {
 	type Currency = Balances;
 	type CurrencyBalance = <Self as pallet_balances::Config>::Balance;
 	type EvaluationDuration = EvaluationDuration;
-	type AuctionDuration = AuctionDuration;
 	type PalletId = FundingPalletId;
 	type ActiveProjectsLimit = ConstU32<100>;
+	type EnglishAuctionDuration = EnglishAuctionDuration;
+	type CandleAuctionDuration = CandleAuctionDuration;
+	type CommunityRoundDuration = CommunityRoundDuration;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
