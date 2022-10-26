@@ -445,7 +445,10 @@ pub mod pallet {
 
 			// Make sure Auction Round is started
 			ensure!(
-				project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::English),
+				match project_info.project_status {
+					ProjectStatus::AuctionRound(_) => true,
+					_ => false,
+				},
 				Error::<T>::AuctionNotStarted
 			);
 
@@ -680,7 +683,7 @@ impl<T: Config> Pallet<T> {
 			starting_block: current_block_number,
 			english_ending_block,
 			candle_ending_block,
-			community_ending_block
+			community_ending_block,
 		};
 		Auctions::<T>::insert(who, project_id, auction_metadata);
 		Self::deposit_event(Event::<T>::AuctionStarted {
