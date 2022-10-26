@@ -458,7 +458,7 @@ pub mod pallet {
 			ensure!(free_balance_of > amount, Error::<T>::InsufficientBalance);
 
 			// Make sure the bid amount is greater than the minimum_price specified by the issuer
-			ensure!(free_balance_of > project.minimum_price, Error::<T>::BondTooLow);
+			ensure!(amount > project.minimum_price, Error::<T>::BondTooLow);
 
 			let now = <frame_system::Pallet<T>>::block_number();
 			let bid_info = BidInfo { amount_bid: amount, price, when: now };
