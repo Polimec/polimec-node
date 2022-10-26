@@ -361,35 +361,46 @@ mod community_round {
 mod flow {
 	use super::*;
 	use crate::{AuctionPhase, ParticipantsSize, ProjectStatus, TicketSize};
-	use frame_support::{assert_noop, traits::OnInitialize};
+	use frame_support::traits::OnInitialize;
 
 	#[test]
 	fn it_works() {
 		new_test_ext().execute_with(|| {
+			// Create a new project
 			let project = Project {
 				minimum_price: 1,
 				ticket_size: TicketSize { minimum: Some(1), maximum: None },
 				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 				..Default::default()
 			};
-
 			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
 			let project_info = FundingModule::project_info(ALICE, 0);
 			assert!(project_info.project_status == ProjectStatus::Application);
+
+			// Start the Evaluation Round
 			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
+			let active_projects = FundingModule::projects_active();
+			assert!(active_projects.len() == 1);
 			let project_info = FundingModule::project_info(ALICE, 0);
 			assert!(project_info.project_status == ProjectStatus::EvaluationRound);
+			assert_ok!(FundingModule::bond(Origin::signed(BOB), 0, 128));
+
+			// Evaluation Round ends automatically
 			let block_number = System::block_number();
 			System::set_block_number(block_number + 28);
 			FundingModule::on_initialize(System::block_number());
 			let project_info = FundingModule::project_info(ALICE, 0);
 			assert!(project_info.project_status == ProjectStatus::EvaluationEnded);
+
+			// Start the Funding Round: 1) English Auction Round
 			assert_ok!(FundingModule::start_auction(Origin::signed(ALICE), 0));
 			let project_info = FundingModule::project_info(ALICE, 0);
 			assert!(
 				project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::English)
 			);
 			assert_ok!(FundingModule::bid(Origin::signed(BOB), 0, 1, 100));
+
+			// Second phase of Funding Round: 2) Candle Auction Round
 			let block_number = System::block_number();
 			System::set_block_number(block_number + 10);
 			FundingModule::on_initialize(System::block_number());
@@ -397,11 +408,26 @@ mod flow {
 			assert!(
 				project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::Candle)
 			);
+			assert_ok!(FundingModule::bid(Origin::signed(CHARLIE), 0, 2, 200));
+
+			// Third phase of Funding Round: 3) Community Round
 			let block_number = System::block_number();
 			System::set_block_number(block_number + 5);
 			FundingModule::on_initialize(System::block_number());
 			let project_info = FundingModule::project_info(ALICE, 0);
 			assert!(project_info.project_status == ProjectStatus::CommunityRound);
+			assert_ok!(FundingModule::contribute(Origin::signed(BOB), 0, 100));
+
+			// Funding Round ends
+			let block_number = System::block_number();
+			System::set_block_number(block_number + 10);
+			FundingModule::on_initialize(System::block_number());
+			let project_info = FundingModule::project_info(ALICE, 0);
+			assert!(project_info.project_status == ProjectStatus::ReadyToLaunch);
+
+			// Project is no longer "active"
+			let active_projects = FundingModule::projects_active();
+			assert!(active_projects.len() == 0);
 		})
 	}
 }
