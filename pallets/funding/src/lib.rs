@@ -253,6 +253,7 @@ pub mod pallet {
 		ProjectNotExists,
 		EvaluationAlreadyStarted,
 		ContributionToThemselves,
+		NotAllowed,
 		EvaluationNotStarted,
 		AuctionAlreadyStarted,
 		AuctionNotStarted,
@@ -486,6 +487,8 @@ pub mod pallet {
 
 			// Make sure the contributor is not the project_issuer
 			ensure!(contributor != project_issuer, Error::<T>::ContributionToThemselves);
+
+			ensure!(!Auctions::<T>::contains_key(&contributor, project_id), Error::<T>::NotAllowed);
 
 			let project_info = ProjectsInfo::<T>::get(&project_issuer, project_id);
 			let project = Projects::<T>::get(&project_issuer, project_id)
