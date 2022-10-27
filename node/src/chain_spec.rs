@@ -175,5 +175,8 @@ fn testnet_genesis(
 				.map(|k| (k, GetNativeCurrencyId::get(), 1 << 40))
 				.collect(),
 		},
+		council: Default::default(),
+		technical_committee: Default::default(),
+		democracy: Default::default(),
 	}
 }
