@@ -270,7 +270,7 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		/// Start the "Funding Application" phase
 		pub fn create(
 			origin: OriginFor<T>,
@@ -293,7 +293,7 @@ pub mod pallet {
 			}
 		}
 
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		/// Edit the public metadata of a project if "Evaluation Phase" (or one of the following
 		/// phases) is not yet started
 		pub fn edit_metadata(
@@ -311,7 +311,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		/// Start the "Evaluation Phase"
 		pub fn start_evaluation(
 			origin: OriginFor<T>,
@@ -327,7 +327,7 @@ pub mod pallet {
 			Self::do_start_evaluation(project_id, &issuer)
 		}
 
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		/// Evaluators can bond their PLMC to evaluate a Project
 		pub fn bond(
 			origin: OriginFor<T>,
@@ -382,7 +382,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		/// Evaluators can bond more of their PLMC to evaluate a Project
 		pub fn rebond(
 			_origin: OriginFor<T>,
@@ -392,7 +392,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		/// Start the "Auction Round"
 		pub fn start_auction(
 			origin: OriginFor<T>,
@@ -419,7 +419,7 @@ pub mod pallet {
 			Self::do_start_auction(project_id, &issuer)
 		}
 
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		/// Place a bid in the "Auction Round"
 		// TODO: This function currently to simplify uses PLMC as the currency, and not the currency
 		// expressed by the project issuer at the project creation stage. This will have to change
@@ -468,7 +468,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		/// Contribute to the "Community Round"
 		pub fn contribute(
 			origin: OriginFor<T>,
@@ -621,11 +621,11 @@ pub mod pallet {
 					_ => (),
 				}
 			}
-			0
+			Weight::from_ref_time(0)
 		}
 
 		fn on_idle(_now: T::BlockNumber, _max_weight: Weight) -> Weight {
-			0
+			Weight::from_ref_time(0)
 		}
 	}
 }

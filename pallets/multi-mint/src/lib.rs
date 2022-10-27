@@ -87,7 +87,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		// TODO: Add proper weight
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		pub fn register(
 			origin: OriginFor<T>,
 			currency_id: CurrencyIdOf<T>,
@@ -121,7 +121,7 @@ pub mod pallet {
 		/// We maybe also want to have CurrencyOf as a type here because we never take currency
 		/// away.
 		// TODO: Add proper weight
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		pub fn mint(
 			origin: OriginFor<T>,
 			target: T::AccountId,
@@ -140,7 +140,7 @@ pub mod pallet {
 		}
 
 		// TODO: Add proper weight
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		pub fn burn(
 			origin: OriginFor<T>,
 			currency_id: CurrencyIdOf<T>,
@@ -159,7 +159,7 @@ pub mod pallet {
 
 		/// Lock currency trading
 		// TODO: Add proper weight
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		pub fn lock_trading(origin: OriginFor<T>, currency_id: CurrencyIdOf<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let currency = Currencies::<T>::get(currency_id).ok_or(Error::<T>::CurrencyNotFound)?;
@@ -170,7 +170,7 @@ pub mod pallet {
 
 		/// Unlock currency trading
 		// TODO: Add proper weight
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		pub fn unlock_trading(
 			origin: OriginFor<T>,
 			currency_id: CurrencyIdOf<T>,
@@ -184,7 +184,7 @@ pub mod pallet {
 
 		/// Lock currency trading
 		// TODO: Add proper weight
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		pub fn lock_transfer(origin: OriginFor<T>, currency_id: CurrencyIdOf<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let currency = Currencies::<T>::get(currency_id).ok_or(Error::<T>::CurrencyNotFound)?;
@@ -195,7 +195,7 @@ pub mod pallet {
 
 		/// Unlock currency trading
 		// TODO: Add proper weight
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		pub fn unlock_transfer(
 			origin: OriginFor<T>,
 			currency_id: CurrencyIdOf<T>,
@@ -209,7 +209,7 @@ pub mod pallet {
 
 		/// Transfer some amount from one account to another.
 		// TODO: Add proper weight
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		pub fn transfer(
 			origin: OriginFor<T>,
 			currency_id: CurrencyIdOf<T>,
@@ -228,7 +228,7 @@ pub mod pallet {
 
 		// Destroy a registered currency.
 		// TODO: Add proper weight
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		pub fn destroy(origin: OriginFor<T>, currency_id: CurrencyIdOf<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let currency = Currencies::<T>::get(currency_id).ok_or(Error::<T>::CurrencyNotFound)?;
