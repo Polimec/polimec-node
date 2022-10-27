@@ -21,8 +21,7 @@ pub struct Project<
 	pub fundraising_target: Balance,
 	/// Maximum and/or minimum ticket size
 	pub ticket_size: TicketSize<Balance>,
-	/// Maximum and/or minimum number of participants for the Auction and C
-	/// ommunity round
+	/// Maximum and/or minimum number of participants for the Auction and Community Round
 	pub participants_size: ParticipantsSize,
 	/// Funding round thresholds for retail, professional and institutional participants
 	pub funding_thresholds: Thresholds,

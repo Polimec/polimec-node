@@ -18,7 +18,7 @@ use frame_support::{
 	traits::{Currency, Get, LockIdentifier, LockableCurrency, WithdrawReasons},
 	PalletId,
 };
-use sp_runtime::traits::{AccountIdConversion, CheckedAdd, Zero};
+use sp_runtime::traits::{AccountIdConversion, CheckedAdd, CheckedDiv, CheckedMul, Zero};
 
 /// The balance type of this pallet.
 pub type BalanceOf<T> = <T as Config>::CurrencyBalance;
@@ -449,10 +449,7 @@ pub mod pallet {
 
 			// Make sure Auction Round is started
 			ensure!(
-				match project_info.project_status {
-					ProjectStatus::AuctionRound(_) => true,
-					_ => false,
-				},
+				matches!(project_info.project_status, ProjectStatus::AuctionRound(_)),
 				Error::<T>::AuctionNotStarted
 			);
 
@@ -575,14 +572,19 @@ pub mod pallet {
 						let auction_detail = Auctions::<T>::get(project_id, &project_issuer);
 						if now >= auction_detail.candle_ending_block {
 							// TODO: Select a random block and pick the winner
+							let project = Projects::<T>::get(project_id, &project_issuer)
+								.expect("meaningful message");
 							ProjectsInfo::<T>::mutate(
 								project_id,
 								project_issuer.clone(),
 								|project_info| {
 									project_info.project_status = ProjectStatus::CommunityRound;
 									project_info.final_price = Some(
-										Self::calculate_final_price(*project_id, &project_issuer)
-											.expect("placeholder_function"),
+										Self::calculate_final_price(
+											*project_id,
+											&project.fundraising_target,
+										)
+										.expect("placeholder_function"),
 									);
 									project_info.auction_round_end = Some(
 										Self::select_random_block(*project_id, &project_issuer)
@@ -707,11 +709,24 @@ impl<T: Config> Pallet<T> {
 
 	pub fn close_auction() {}
 
+	// Maybe we can do this in an "on_idle" hook?
 	pub fn calculate_final_price(
-		_project_id: ProjectIdentifier,
-		_who: &T::AccountId,
+		project_id: ProjectIdentifier,
+		total_allocation_size: &BalanceOf<T>,
 	) -> Result<BalanceOf<T>, DispatchError> {
-		Ok(1000_u32.into())
+		// TODO: Do we need who at this step?
+		let mut fundraising_amount = BalanceOf::<T>::zero();
+		for (who, bid) in AuctionsInfo::<T>::iter_prefix(project_id) {
+			// TODO: Using default, define an overflow strategy
+			let temp_part_amount = bid.amount_bid.checked_mul(&bid.price).unwrap_or_default();
+			// TODO: Using default, define an overflow strategy
+			fundraising_amount =
+				fundraising_amount.checked_add(&bid.amount_bid).unwrap_or_default();
+			// TODO: Check if fundraising_amount is > fundraising_target
+		}
+		let weighted_average_price =
+			fundraising_amount.checked_div(total_allocation_size).unwrap_or_default();
+		Ok(weighted_average_price)
 	}
 
 	pub fn select_random_block(
