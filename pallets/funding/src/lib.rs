@@ -32,10 +32,7 @@ const LOCKING_ID: LockIdentifier = *b"evaluate";
 pub mod pallet {
 
 	use super::*;
-	use frame_support::{
-		pallet_prelude::{ValueQuery, *},
-		traits::Randomness,
-	};
+	use frame_support::{pallet_prelude::ValueQuery, traits::Randomness};
 	use frame_system::pallet_prelude::*;
 
 	#[pallet::pallet]

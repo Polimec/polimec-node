@@ -11,7 +11,7 @@ use pallet_grandpa::{
 };
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata, H256};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, NumberFor, Verify},
@@ -331,6 +331,22 @@ parameter_types! {
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 }
 
+pub static LAST_RANDOM: Option<(H256, u32)> = None;
+
+// TODO: JUST FOR MAKE IT COMPILE
+// TODO: DO NOT USE IN PRODUCTION
+pub struct PastRandomness;
+impl Randomness<H256, BlockNumber> for PastRandomness {
+	fn random(_subject: &[u8]) -> (H256, BlockNumber) {
+		if let Some((output, known_since)) = LAST_RANDOM {
+			(output, known_since)
+		} else {
+			let block_number: BlockNumber = frame_system::Pallet::<Runtime>::block_number();
+			(H256::zero(), block_number)
+		}
+	}
+}
+
 impl pallet_funding::Config for Runtime {
 	type Event = Event;
 	type StringLimit = ConstU32<64>;
@@ -342,6 +358,7 @@ impl pallet_funding::Config for Runtime {
 	type EnglishAuctionDuration = EnglishAuctionDuration;
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityRoundDuration = CommunityRoundDuration;
+	type Randomness = PastRandomness;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
