@@ -5,6 +5,20 @@ pub fn last_event() -> Event {
 	frame_system::Pallet::<Test>::events().pop().expect("Event expected").event
 }
 
+// TODO: Adapt the run_to_block function to Polimec
+
+// pub fn run_to_block(n: BlockNumber) {
+// 	while System::block_number() < n {
+// 		Auctions::on_finalize(System::block_number());
+// 		Balances::on_finalize(System::block_number());
+// 		System::on_finalize(System::block_number());
+// 		System::set_block_number(System::block_number() + 1);
+// 		System::on_initialize(System::block_number());
+// 		Balances::on_initialize(System::block_number());
+// 		Auctions::on_initialize(System::block_number());
+// 	}
+// }
+
 const ALICE: AccountId = 1;
 const BOB: AccountId = 2;
 const CHARLIE: AccountId = 3;
@@ -424,7 +438,7 @@ mod flow {
 			FundingModule::on_initialize(System::block_number());
 			let project_info = FundingModule::project_info(ALICE, 0);
 			assert!(project_info.project_status == ProjectStatus::ReadyToLaunch);
-
+			println!("Random Block {:?}", project_info.auction_round_end);
 			// Project is no longer "active"
 			let active_projects = FundingModule::projects_active();
 			assert!(active_projects.len() == 0);

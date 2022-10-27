@@ -1,8 +1,10 @@
+use core::cell::RefCell;
+
 use crate as pallet_funding;
 use frame_support::{
 	pallet_prelude::ConstU32,
 	parameter_types,
-	traits::{ConstU16, ConstU64},
+	traits::{ConstU16, Randomness},
 	PalletId,
 };
 use frame_system as system;
@@ -33,6 +35,10 @@ frame_support::construct_runtime!(
 	}
 );
 
+parameter_types! {
+	pub const BlockHashCount: u32 = 250;
+}
+
 impl system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = ();
@@ -48,7 +54,7 @@ impl system::Config for Test {
 	type Lookup = IdentityLookup<AccountId>;
 	type Header = Header;
 	type Event = Event;
-	type BlockHashCount = ConstU64<250>;
+	type BlockHashCount = BlockHashCount;
 	type Version = ();
 	type PalletInfo = PalletInfo;
 	type AccountData = pallet_balances::AccountData<Balance>;
@@ -76,6 +82,26 @@ impl pallet_balances::Config for Test {
 	type WeightInfo = ();
 }
 
+thread_local! {
+	pub static LAST_RANDOM: RefCell<Option<(H256,u64)>>  = RefCell::new(None);
+}
+fn set_last_random(output: H256, known_since: u64) {
+	LAST_RANDOM.with(|p| *p.borrow_mut() = Some((output, known_since)))
+}
+pub struct TestPastRandomness;
+impl Randomness<H256, BlockNumber> for TestPastRandomness {
+	fn random(_subject: &[u8]) -> (H256, u64) {
+		LAST_RANDOM.with(|p| {
+			if let Some((output, known_since)) = &*p.borrow() {
+				(*output, *known_since)
+			} else {
+				let block_number: u64 = frame_system::Pallet::<Test>::block_number();
+				(H256::zero(), block_number)
+			}
+		})
+	}
+}
+
 parameter_types! {
 	// TODO: Replace 28 with the real time
 	pub const EvaluationDuration: BlockNumber = 28;
@@ -99,9 +125,11 @@ impl pallet_funding::Config for Test {
 	type PalletId = FundingPalletId;
 	type ActiveProjectsLimit = ConstU32<100>;
 	type CommunityRoundDuration = CommunityRoundDuration;
+	type Randomness = TestPastRandomness;
 }
 
 // Build genesis storage according to the mock runtime.
+// TODO: Add some mocks projects at Genesis to simplify the tests
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 

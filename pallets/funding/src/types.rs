@@ -21,7 +21,8 @@ pub struct Project<
 	pub fundraising_target: Balance,
 	/// Maximum and/or minimum ticket size
 	pub ticket_size: TicketSize<Balance>,
-	/// Maximum and/or minimum number of participants for the auction and community round
+	/// Maximum and/or minimum number of participants for the Auction and C
+	/// ommunity round
 	pub participants_size: ParticipantsSize,
 	/// Funding round thresholds for retail, professional and institutional participants
 	pub funding_thresholds: Thresholds,
@@ -56,6 +57,9 @@ pub struct ProjectInfo<
 	pub created_at: BlockNumber,
 	/// The current status of the project
 	pub project_status: ProjectStatus,
+	/// When the Auction Round ends, None before the random selection, Some(value) after the random
+	/// selection
+	pub auction_round_end: Option<BlockNumber>,
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]

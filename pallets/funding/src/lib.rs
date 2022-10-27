@@ -32,7 +32,10 @@ const LOCKING_ID: LockIdentifier = *b"evaluate";
 pub mod pallet {
 
 	use super::*;
-	use frame_support::pallet_prelude::{ValueQuery, *};
+	use frame_support::{
+		pallet_prelude::{ValueQuery, *},
+		traits::Randomness,
+	};
 	use frame_system::pallet_prelude::*;
 
 	#[pallet::pallet]
@@ -86,6 +89,9 @@ pub mod pallet {
 		/// The maximum number of "active" (In Evaluation or Funding Round) projects
 		#[pallet::constant]
 		type ActiveProjectsLimit: Get<u32>;
+
+		/// Something that provides randomness in the runtime.
+		type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
 
 		// TODO: Should be helpful for allowing the calls only by the user in the set of
 		// { Issuer, Retail, Professional, Institutional }
@@ -578,7 +584,11 @@ pub mod pallet {
 								|project_info| {
 									project_info.project_status = ProjectStatus::CommunityRound;
 									project_info.final_price = Some(
-										Self::calculate_final_price(project_issuer, *project_id)
+										Self::calculate_final_price(&project_issuer, *project_id)
+											.expect("placeholder_function"),
+									);
+									project_info.auction_round_end = Some(
+										Self::select_random_block(&project_issuer, *project_id)
 											.expect("placeholder_function"),
 									);
 								},
@@ -621,7 +631,7 @@ pub mod pallet {
 	}
 }
 
-use frame_support::{pallet_prelude::DispatchError, BoundedVec};
+use frame_support::{pallet_prelude::*, traits::Randomness, BoundedVec};
 
 impl<T: Config> Pallet<T> {
 	pub fn fund_account_id(index: ProjectIdentifier) -> T::AccountId {
@@ -638,6 +648,7 @@ impl<T: Config> Pallet<T> {
 			final_price: None,
 			created_at: <frame_system::Pallet<T>>::block_number(),
 			project_status: ProjectStatus::Application,
+			auction_round_end: None,
 		};
 
 		ProjectsInfo::<T>::insert(issuer, project_id, project_info);
@@ -698,9 +709,19 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn calculate_final_price(
-		_who: T::AccountId,
+		_who: &T::AccountId,
 		_project_id: ProjectIdentifier,
 	) -> Result<BalanceOf<T>, DispatchError> {
 		Ok(1000_u32.into())
+	}
+
+	pub fn select_random_block(
+		_who: &T::AccountId,
+		_project_id: ProjectIdentifier,
+	) -> Result<T::BlockNumber, DispatchError> {
+		let (raw_offset, _known_since) = T::Randomness::random(&b"auction_round"[..]);
+		let raw_offset_block_number = <T::BlockNumber>::decode(&mut raw_offset.as_ref())
+			.expect("secure hashes should always be bigger than the block number; qed");
+		Ok(raw_offset_block_number)
 	}
 }
