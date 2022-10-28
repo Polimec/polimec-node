@@ -15,12 +15,11 @@ mod types;
 pub use types::*;
 
 use frame_support::{
-	debug,
 	traits::{Currency, Get, LockIdentifier, LockableCurrency, WithdrawReasons},
 	PalletId,
 };
 use sp_runtime::traits::{
-	AccountIdConversion, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero,
+	AccountIdConversion, CheckedAdd, Zero,
 };
 
 /// The balance type of this pallet.
@@ -714,8 +713,8 @@ impl<T: Config> Pallet<T> {
 
 	// Maybe we can do this in an "on_idle" hook?
 	pub fn calculate_final_price(
-		project_id: ProjectIdentifier,
-		total_allocation_size: &BalanceOf<T>,
+		_project_id: ProjectIdentifier,
+		_total_allocation_size: &BalanceOf<T>,
 	) -> Result<BalanceOf<T>, DispatchError> {
 		// // TODO: This implementation sucks, just for the MVP
 		// let mut fundraising_amount = BalanceOf::<T>::zero();

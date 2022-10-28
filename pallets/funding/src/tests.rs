@@ -497,7 +497,7 @@ mod flow {
 			assert_ok!(FundingModule::bid(Origin::signed(4), 0, 12, 55));
 
 			let auction_info_3 = FundingModule::auctions_info(0, 3);
-			println!("Bid Info {:?}", auction_info_3);
+			println!("Bid Info {auction_info_3:?}");
 
 			let block_number = System::block_number();
 			System::set_block_number(block_number + 10);

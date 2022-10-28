@@ -1,5 +1,5 @@
-use crate::{mock::*, CurrencyMetadata, Error, TradingStatus, TransferStatus};
-use frame_support::{assert_noop, assert_ok, error::BadOrigin, traits::ConstU32, BoundedVec};
+use crate::{mock::*, CurrencyMetadata, Error, TradingStatus};
+use frame_support::{assert_noop, assert_ok, traits::ConstU32, BoundedVec};
 
 pub fn last_event() -> Event {
 	frame_system::Pallet::<Test>::events().pop().expect("Event expected").event
@@ -74,7 +74,7 @@ mod register {
 			assert_ok!(MultiMintModule::register(
 				Origin::signed(ALICE),
 				TKN,
-				currency_metadata.clone()
+				currency_metadata
 			));
 
 			// Here `currency_metadata` is the StorageMap in `MultiMintModule`
@@ -102,7 +102,7 @@ mod mint {
 			assert_ok!(MultiMintModule::register(
 				Origin::signed(ALICE),
 				TKN,
-				currency_metadata.clone()
+				currency_metadata
 			));
 
 			assert_ok!(MultiMintModule::mint(Origin::signed(ALICE), ALICE, TKN, 100));
@@ -149,7 +149,7 @@ mod unlock_trading {
 			assert_ok!(MultiMintModule::register(
 				Origin::signed(ALICE),
 				TKN,
-				currency_metadata.clone()
+				currency_metadata
 			));
 
 			// Here `currency_metadata` is the StorageMap in `MultiMintModule`
@@ -201,7 +201,7 @@ mod lock_trading {
 			assert_ok!(MultiMintModule::register(
 				Origin::signed(ALICE),
 				TKN,
-				currency_metadata.clone()
+				currency_metadata
 			));
 
 			assert_ok!(MultiMintModule::unlock_trading(Origin::signed(ALICE), TKN));
@@ -245,7 +245,7 @@ mod transfer {
 			assert_ok!(MultiMintModule::register(
 				Origin::signed(ALICE),
 				currency_id,
-				currency_metadata.clone()
+				currency_metadata
 			));
 
 			assert_ok!(MultiMintModule::mint(Origin::signed(ALICE), ALICE, currency_id, 100));

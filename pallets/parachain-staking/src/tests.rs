@@ -2693,7 +2693,7 @@ fn adjust_reward_rates() {
 			let d_rewards_1 = Balances::free_balance(&2)
 				.saturating_sub(90_000_000 * DECIMALS)
 				.saturating_sub(d_rewards_0);
-			assert!(c_rewards_0 > c_rewards_1, "left {:?}, right {:?}", c_rewards_0, c_rewards_1);
+			assert!(c_rewards_0 > c_rewards_1, "left {c_rewards_0:?}, right {c_rewards_1:?}");
 			assert!(d_rewards_0 > d_rewards_1);
 
 			// finish 2nd year
