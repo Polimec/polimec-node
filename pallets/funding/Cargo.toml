@@ -1,7 +1,7 @@
 [package]
-name = 'pallet-multi-mint'
+name = 'pallet-funding'
 version = "0.1.0"
-description = 'FRAME pallet make multicurrencies'
+description = 'FRAME pallet handle funding'
 authors = ['Polimec Team <https://github.com/Polimec>']
 edition = "2021"
 license = "Unlicense"
@@ -21,16 +21,19 @@ frame-support = { version = "4.0.0-dev", default-features = false, git = "https:
 frame-system = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
 orml-traits = { version = "0.4.1-dev", default-features = false, git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29" }
 orml-tokens = { version = "0.4.1-dev", default-features = false, git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29" }
+sp-std = { git = "https://github.com/paritytech/substrate", default-features = false , branch = "polkadot-v0.9.29" }
+sp-runtime = { version = "6.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
 
 [dev-dependencies]
 sp-core = { version = "6.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
 sp-io = { version = "6.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
-sp-runtime = { version = "6.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
+pallet-balances = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
 
 [features]
 default = ["std"]
 std = [
 	"codec/std",
+	"sp-std/std",
 	"frame-benchmarking/std",
 	"frame-support/std",
 	"frame-system/std",

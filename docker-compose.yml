@@ -1,0 +1,17 @@
+version: "3.2"
+
+services:
+  dev:
+    container_name: polimec-node
+    image: paritytech/ci-linux:production
+    working_dir: /var/www/polimec-node
+    ports:
+      - "9944:9944"
+    environment:
+      - CARGO_HOME=/var/www/polimec-node/.cargo
+    volumes:
+      - .:/var/www/polimec-node
+      - type: bind
+        source: ./.local
+        target: /root/.local
+    command: bash -c "cargo build --release && ./target/release/polimec-node --dev --ws-external"
