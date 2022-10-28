@@ -23,7 +23,7 @@
 use crate::service::FullClient;
 
 use node_polimec_runtime as runtime;
-use runtime::{AccountId, Balance, BalancesCall, SystemCall};
+use runtime::{AccountId, Balance, BalancesCall, SystemCall, Signature};
 use sc_cli::Result;
 use sc_client_api::BlockBackend;
 use sp_core::{Encode, Pair};
@@ -100,8 +100,11 @@ impl frame_benchmarking_cli::ExtrinsicBuilder for TransferKeepAliveBuilder {
 		let extrinsic: OpaqueExtrinsic = create_benchmark_extrinsic(
 			self.client.as_ref(),
 			acc,
-			BalancesCall::transfer_keep_alive { dest: self.dest.clone().into(), value: self.value }
-				.into(),
+			BalancesCall::transfer_keep_alive {
+				dest: self.dest.clone().into(),
+				value: self.value,
+			}
+			.into(),
 			nonce,
 		)
 		.into();
@@ -126,7 +129,7 @@ pub fn create_benchmark_extrinsic(
 	let period = runtime::BlockHashCount::get()
 		.checked_next_power_of_two()
 		.map(|c| c / 2)
-		.unwrap_or(2) as u64;
+		.unwrap_or(2);
 	let extra: runtime::SignedExtra = (
 		frame_system::CheckNonZeroSender::<runtime::Runtime>::new(),
 		frame_system::CheckSpecVersion::<runtime::Runtime>::new(),
@@ -136,7 +139,7 @@ pub fn create_benchmark_extrinsic(
 			period,
 			best_block.saturated_into(),
 		)),
-		frame_system::CheckNonce::<runtime::Runtime>::from(nonce),
+		frame_system::CheckNonce::<runtime::Runtime>::from(nonce.into()),
 		frame_system::CheckWeight::<runtime::Runtime>::new(),
 		pallet_transaction_payment::ChargeTransactionPayment::<runtime::Runtime>::from(0),
 	);
@@ -160,7 +163,7 @@ pub fn create_benchmark_extrinsic(
 	runtime::UncheckedExtrinsic::new_signed(
 		call,
 		sp_runtime::AccountId32::from(sender.public()).into(),
-		runtime::Signature::Sr25519(signature),
+		Signature::Sr25519(signature),
 		extra,
 	)
 }
@@ -175,6 +178,6 @@ pub fn inherent_benchmark_data() -> Result<InherentData> {
 
 	timestamp
 		.provide_inherent_data(&mut inherent_data)
-		.map_err(|e| format!("creating inherent data: {:?}", e))?;
+		.map_err(|e| format!("creating inherent data: {e:?}"))?;
 	Ok(inherent_data)
 }
