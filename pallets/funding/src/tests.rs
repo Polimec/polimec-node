@@ -318,8 +318,8 @@ mod auction_round {
 			assert_ok!(FundingModule::start_auction(Origin::signed(ALICE), 0));
 			assert_ok!(FundingModule::bid(Origin::signed(BOB), 0, 1, 100));
 			let bids = FundingModule::auctions_info(0, BOB);
-			assert!(bids.amount_bid == 100);
-			assert!(bids.price == 1);
+			assert!(bids.amount == 100);
+			assert!(bids.market_cap == 1);
 			assert!(bids.when == block_number + 100);
 		})
 	}
@@ -438,10 +438,72 @@ mod flow {
 			FundingModule::on_initialize(System::block_number());
 			let project_info = FundingModule::project_info(0, ALICE);
 			assert!(project_info.project_status == ProjectStatus::ReadyToLaunch);
-			println!("Random Block {:?}", project_info.auction_round_end);
 			// Project is no longer "active"
 			let active_projects = FundingModule::projects_active();
 			assert!(active_projects.len() == 0);
+		})
+	}
+
+	#[test]
+	#[ignore = "Final Price calculation not ready yet"]
+	fn check_final_price() {
+		new_test_ext().execute_with(|| {
+			// Create a new project
+			let project = Project {
+				minimum_price: 1,
+				ticket_size: TicketSize { minimum: Some(1), maximum: None },
+				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+				total_allocation_size: 100000,
+				..Default::default()
+			};
+			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
+			let project_info = FundingModule::project_info(0, ALICE);
+			assert!(project_info.project_status == ProjectStatus::Application);
+
+			// Start the Evaluation Round
+			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
+			let active_projects = FundingModule::projects_active();
+			assert!(active_projects.len() == 1);
+			let project_info = FundingModule::project_info(0, ALICE);
+			assert!(project_info.project_status == ProjectStatus::EvaluationRound);
+			assert_ok!(FundingModule::bond(Origin::signed(BOB), 0, 128));
+
+			// Evaluation Round ends automatically
+			let block_number = System::block_number();
+			System::set_block_number(block_number + 28);
+			FundingModule::on_initialize(System::block_number());
+			let project_info = FundingModule::project_info(0, ALICE);
+			assert!(project_info.project_status == ProjectStatus::EvaluationEnded);
+
+			// Start the Funding Round: 1) English Auction Round
+			assert_ok!(FundingModule::start_auction(Origin::signed(ALICE), 0));
+			let project_info = FundingModule::project_info(0, ALICE);
+			assert!(
+				project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::English)
+			);
+			assert_ok!(FundingModule::bid(Origin::signed(BOB), 0, 19, 17));
+
+			// Second phase of Funding Round: 2) Candle Auction Round
+			let block_number = System::block_number();
+			System::set_block_number(block_number + 10);
+			FundingModule::on_initialize(System::block_number());
+			let project_info = FundingModule::project_info(0, ALICE);
+			assert!(
+				project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::Candle)
+			);
+			assert_ok!(FundingModule::bid(Origin::signed(CHARLIE), 0, 74, 2));
+			assert_ok!(FundingModule::bid(Origin::signed(3), 0, 16, 35));
+			assert_ok!(FundingModule::bid(Origin::signed(4), 0, 15, 20));
+			assert_ok!(FundingModule::bid(Origin::signed(4), 0, 12, 55));
+
+			let auction_info_3 = FundingModule::auctions_info(0, 3);
+			println!("Bid Info {:?}", auction_info_3);
+
+			let block_number = System::block_number();
+			System::set_block_number(block_number + 10);
+			FundingModule::on_initialize(System::block_number());
+			let project_info = FundingModule::project_info(0, ALICE);
+			println!("Final Price {:?}", project_info.final_price);
 		})
 	}
 }

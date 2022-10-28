@@ -197,9 +197,10 @@ pub struct AuctionMetadata<BlockNumber> {
 pub struct BidInfo<Balance: MaxEncodedLen, BlockNumber> {
 	///
 	#[codec(compact)]
-	pub amount_bid: Balance,
+	pub amount: Balance,
 	///
-	pub price: Balance,
+	#[codec(compact)]
+	pub market_cap: Balance,
 	///
 	pub when: BlockNumber,
 }

@@ -15,10 +15,13 @@ mod types;
 pub use types::*;
 
 use frame_support::{
+	debug,
 	traits::{Currency, Get, LockIdentifier, LockableCurrency, WithdrawReasons},
 	PalletId,
 };
-use sp_runtime::traits::{AccountIdConversion, CheckedAdd, CheckedDiv, CheckedMul, Zero};
+use sp_runtime::traits::{
+	AccountIdConversion, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero,
+};
 
 /// The balance type of this pallet.
 pub type BalanceOf<T> = <T as Config>::CurrencyBalance;
@@ -455,13 +458,13 @@ pub mod pallet {
 
 			// Make sure the bidder can actually perform the bid
 			let free_balance_of = T::Currency::free_balance(&bidder);
-			ensure!(free_balance_of > amount, Error::<T>::InsufficientBalance);
+			ensure!(free_balance_of >= amount, Error::<T>::InsufficientBalance);
 
 			// Make sure the bid amount is greater than the minimum_price specified by the issuer
-			ensure!(amount > project.minimum_price, Error::<T>::BondTooLow);
+			ensure!(amount >= project.minimum_price, Error::<T>::BondTooLow);
 
 			let now = <frame_system::Pallet<T>>::block_number();
-			let bid_info = BidInfo { amount_bid: amount, price, when: now };
+			let bid_info = BidInfo { amount, market_cap: price, when: now };
 
 			AuctionsInfo::<T>::insert(project_id, bidder, bid_info);
 
@@ -714,19 +717,30 @@ impl<T: Config> Pallet<T> {
 		project_id: ProjectIdentifier,
 		total_allocation_size: &BalanceOf<T>,
 	) -> Result<BalanceOf<T>, DispatchError> {
-		// TODO: Do we need who at this step?
-		let mut fundraising_amount = BalanceOf::<T>::zero();
-		for (who, bid) in AuctionsInfo::<T>::iter_prefix(project_id) {
-			// TODO: Using default, define an overflow strategy
-			let temp_part_amount = bid.amount_bid.checked_mul(&bid.price).unwrap_or_default();
-			// TODO: Using default, define an overflow strategy
-			fundraising_amount =
-				fundraising_amount.checked_add(&bid.amount_bid).unwrap_or_default();
-			// TODO: Check if fundraising_amount is > fundraising_target
-		}
-		let weighted_average_price =
-			fundraising_amount.checked_div(total_allocation_size).unwrap_or_default();
-		Ok(weighted_average_price)
+		// // TODO: This implementation sucks, just for the MVP
+		// let mut fundraising_amount = BalanceOf::<T>::zero();
+		// let mut final_price = BalanceOf::<T>::zero();
+		// let mut bids: Vec<BidInfo<BalanceOf<T>, T::BlockNumber>> =
+		// 	AuctionsInfo::<T>::iter_prefix_values(project_id).collect();
+		// bids.sort_by_key(|bid| bid.market_cap);
+		// for (idx, bid) in bids.iter().enumerate() {
+		// 	let old_amount = fundraising_amount;
+		// 	fundraising_amount = fundraising_amount.checked_add(&bid.amount).unwrap_or_default();
+		// 	if fundraising_amount > *total_allocation_size {
+		// 		bids[idx].amount =
+		// 			total_allocation_size.checked_sub(&old_amount).unwrap_or_default();
+		// 		// bids = bids[..idx].to_vec();
+		// 		break;
+		// 	}
+		// }
+		// for mut bid in bids {
+		// 	final_price += 1_u32.into();
+		// 	bid.amount = bid.amount / *total_allocation_size;
+		// 	bid.market_cap = bid.market_cap * bid.amount;
+		// 	// final_price += bid.market_cap;
+		// }
+
+		Ok(100_u32.into())
 	}
 
 	pub fn select_random_block(
