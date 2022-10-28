@@ -9,3 +9,6 @@
 # IDE related settings
 .vscode/*
 .fleet/*
+
+# macOS stuff
+.DS_Store
