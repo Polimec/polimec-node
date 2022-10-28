@@ -3,6 +3,7 @@ members = [
     "node",
     "pallets/multi-mint",
     "pallets/funding",
+    "pallets/parachain-staking",
     "runtime",
 ]
 [profile.release]

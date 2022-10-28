@@ -6,17 +6,21 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+use frame_support::{traits::OnUnbalanced, weights::ConstantMultiplier};
 use pallet_grandpa::{
 	fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
 };
 use sp_api::impl_runtime_apis;
-use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+use sp_consensus_aura::{ed25519::AuthorityId as AuraId, SlotDuration};
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata, H256};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, NumberFor, Verify},
+	traits::{
+		AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, NumberFor, OpaqueKeys,
+		Verify,
+	},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, MultiSignature,
+	ApplyExtrinsicResult, FixedPointNumber, MultiSignature,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -28,7 +32,8 @@ use frame_support::traits::{EitherOfDiverse, EqualPrivilegeOnly};
 pub use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
-		ConstU128, ConstU32, ConstU64, ConstU8, KeyOwnerProofSystem, Randomness, StorageInfo,
+		ConstU128, ConstU32, ConstU64, ConstU8, Currency, KeyOwnerProofSystem, Randomness,
+		StorageInfo,
 	},
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -40,11 +45,12 @@ pub use frame_system::Call as SystemCall;
 use frame_system::EnsureRoot;
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
-use pallet_transaction_payment::CurrencyAdapter;
+use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
+pub use parachain_staking::InflationInfo;
 use sp_runtime::traits::AccountIdConversion;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
-pub use sp_runtime::{Perbill, Permill};
+pub use sp_runtime::{Perbill, Permill, Perquintill};
 
 use frame_support::{traits::Contains, PalletId};
 use orml_traits::parameter_type_with_key;
@@ -53,22 +59,39 @@ pub use pallet_funding;
 pub use pallet_multi_mint;
 
 /// An index to a block.
-pub type BlockNumber = u32;
-
-/// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
-pub type Signature = MultiSignature;
+pub type BlockNumber = u64;
 
 /// Some way of identifying an account on the chain. We intentionally make it equivalent
 /// to the public key of our transaction signing scheme.
-pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
+/// Alias to 512-bit hash when used in the context of a transaction signature on
+/// the chain.
+pub type Signature = MultiSignature;
+
+/// Alias to the public key used for this chain, actually a `MultiSigner`. Like
+/// the signature, this also isn't a fixed size when encoded, as different
+/// cryptos have different size public keys.
+pub type AccountPublic = <Signature as Verify>::Signer;
+
+/// Alias to the opaque account ID type for this chain, actually a
+/// `AccountId32`. This is always 32 bytes.
+pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
 
 /// Balance of an account.
 pub type Balance = u128;
 pub type Amount = i128;
 pub type CurrencyId = [u8; 8];
 
+pub type NegativeImbalanceOf<T> = <pallet_balances::Pallet<T> as Currency<
+	<T as frame_system::Config>::AccountId,
+>>::NegativeImbalance;
+
+/// Parameterized slow adjusting fee updated based on
+/// https://w3f-research.readthedocs.io/en/latest/polkadot/Token%20Economics.html#-2.-slow-adjusting-mechanism
+pub type SlowAdjustingFeeUpdate<R> =
+	TargetedFeeAdjustment<R, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
+
 /// Index of a transaction in the chain.
-pub type Index = u32;
+pub type Index = u64;
 
 /// A hash of some data used by the chain.
 pub type Hash = sp_core::H256;
@@ -76,6 +99,7 @@ pub type Hash = sp_core::H256;
 pub const MILLICENTS: Balance = 1_000_000_000;
 pub const CENTS: Balance = 1_000 * MILLICENTS;
 pub const DOLLARS: Balance = 100 * CENTS;
+pub const INITIAL_PERIOD_LENGTH: BlockNumber = BLOCKS_PER_YEAR.saturating_mul(5);
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -126,7 +150,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 /// up by `pallet_aura` to implement `fn slot_duration()`.
 ///
 /// Change this to adjust the block time.
-pub const MILLISECS_PER_BLOCK: u64 = 6000;
+pub const MILLISECS_PER_BLOCK: u64 = 6_000;
 
 // NOTE: Currently it is not possible to change the slot duration after the chain has started.
 //       Attempting to do so will brick block production.
@@ -136,6 +160,21 @@ pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
 pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
 pub const HOURS: BlockNumber = MINUTES * 60;
 pub const DAYS: BlockNumber = HOURS * 24;
+// Julian year as Substrate handles it
+pub const BLOCKS_PER_YEAR: BlockNumber = DAYS * 36525 / 100;
+
+pub const MAX_COLLATOR_STAKE: Balance = 200_000 * PLMC;
+
+/// One PLMC
+pub const PLMC: Balance = 10u128.pow(10);
+
+/// 0.001 PLMC
+pub const MILLI_PLMC: Balance = 10u128.pow(7);
+
+/// 0.000_001 PLMC
+pub const MICRO_PLMC: Balance = 10u128.pow(4);
+
+pub const EXISTENTIAL_DEPOSIT: Balance = 10 * MILLI_PLMC;
 
 /// The version information used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
@@ -156,6 +195,23 @@ parameter_types! {
 	pub const SS58Prefix: u8 = 42;
 }
 
+// Common constants used in all runtimes.
+parameter_types! {
+	/// The portion of the `NORMAL_DISPATCH_RATIO` that we adjust the fees with. Blocks filled less
+	/// than this will decrease the weight and more will increase.
+	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
+	/// The adjustment variable of the runtime. Higher values will cause `TargetBlockFullness` to
+	/// change the fees more rapidly.
+	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
+	/// Minimum amount of the multiplier. This value cannot be too low. A test case should ensure
+	/// that combined with `AdjustmentVariable`, we can recover from the minimum.
+	/// See `multiplier_can_grow_from_zero`.
+	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
+
+	/// Fee split ratio between treasury and block author (order is important).
+	pub const FeeSplitRatio: (u32, u32) = (50, 50);
+}
+
 // Configure FRAME pallets to include in runtime.
 
 impl frame_system::Config for Runtime {
@@ -169,7 +225,8 @@ impl frame_system::Config for Runtime {
 	type AccountId = AccountId;
 	/// The aggregated dispatch type that is available for extrinsics.
 	type Call = Call;
-	/// The lookup mechanism to get account ID from whatever is passed in dispatchers.
+	/// The lookup mechanism to get account ID from whatever is passed in
+	/// dispatchers.
 	type Lookup = AccountIdLookup<AccountId, ()>;
 	/// The index type for storing how many extrinsics an account has signed.
 	type Index = Index;
@@ -185,13 +242,14 @@ impl frame_system::Config for Runtime {
 	type Event = Event;
 	/// The ubiquitous origin type.
 	type Origin = Origin;
-	/// Maximum number of block number to block hash mappings to keep (oldest pruned first).
+	/// Maximum number of block number to block hash mappings to keep (oldest
+	/// pruned first).
 	type BlockHashCount = BlockHashCount;
 	/// The weight of database operations that the runtime can invoke.
 	type DbWeight = RocksDbWeight;
 	/// Version of the runtime.
 	type Version = Version;
-	/// Converts a module to the index of the module in `construct_runtime!`.
+	/// Converts a Pallet to the index of the Pallet in `construct_runtime!`.
 	///
 	/// This type is being generated by `construct_runtime!`.
 	type PalletInfo = PalletInfo;
@@ -203,11 +261,16 @@ impl frame_system::Config for Runtime {
 	type AccountData = pallet_balances::AccountData<Balance>;
 	/// Weight information for the extrinsics of this pallet.
 	type SystemWeightInfo = ();
-	/// This is used as an identifier of the chain. 42 is the generic substrate prefix.
+	/// This is used as an identifier of the chain. 42 is the generic substrate
+	/// prefix.
 	type SS58Prefix = SS58Prefix;
 	/// The set code logic, just the default since we're not a parachain.
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+}
+
+parameter_types! {
+	pub const MaxAuthorities: u32 = MAX_CANDIDATES;
 }
 
 impl pallet_aura::Config for Runtime {
@@ -233,7 +296,7 @@ impl pallet_grandpa::Config for Runtime {
 	type HandleEquivocation = ();
 
 	type WeightInfo = ();
-	type MaxAuthorities = ConstU32<32>;
+	type MaxAuthorities = MaxAuthorities;
 }
 
 impl pallet_timestamp::Config for Runtime {
@@ -244,12 +307,9 @@ impl pallet_timestamp::Config for Runtime {
 	type WeightInfo = ();
 }
 
-/// Existential deposit.
-pub const EXISTENTIAL_DEPOSIT: u128 = 500;
-
 impl pallet_balances::Config for Runtime {
 	type MaxLocks = ConstU32<50>;
-	type MaxReserves = ();
+	type MaxReserves = ConstU32<50>;
 	type ReserveIdentifier = [u8; 8];
 	/// The type for recording an account's balance.
 	type Balance = Balance;
@@ -258,16 +318,42 @@ impl pallet_balances::Config for Runtime {
 	type DustRemoval = ();
 	type ExistentialDeposit = ConstU128<EXISTENTIAL_DEPOSIT>;
 	type AccountStore = System;
-	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = ();
+}
+
+parameter_types! {
+	pub const MaxClaims: u32 = 50;
+	pub const AutoUnlockBound: u32 = 100;
+	pub const UsableBalance: Balance = PLMC;
+	pub const OperationalFeeMultiplier: u8 = 5;
+	pub const TransactionByteFee: Balance = MICRO_PLMC;
+
+}
+
+/// Logic for the author to get a portion of fees.
+pub struct ToAuthor<R>(sp_std::marker::PhantomData<R>);
+
+impl<R> OnUnbalanced<NegativeImbalanceOf<R>> for ToAuthor<R>
+where
+	R: pallet_balances::Config + pallet_authorship::Config,
+	<R as frame_system::Config>::AccountId: From<AccountId>,
+	<R as frame_system::Config>::AccountId: Into<AccountId>,
+	<R as pallet_balances::Config>::Balance: Into<u128>,
+{
+	fn on_nonzero_unbalanced(amount: NegativeImbalanceOf<R>) {
+		if let Some(author) = <pallet_authorship::Pallet<R>>::author() {
+			<pallet_balances::Pallet<R>>::resolve_creating(&author, amount);
+		}
+	}
 }
 
 impl pallet_transaction_payment::Config for Runtime {
 	type Event = Event;
-	type OnChargeTransaction = CurrencyAdapter<Balances, ()>;
-	type OperationalFeeMultiplier = ConstU8<5>;
+	type OnChargeTransaction = CurrencyAdapter<Balances, ToAuthor<Runtime>>;
+	type OperationalFeeMultiplier = OperationalFeeMultiplier;
 	type WeightToFee = IdentityFee<Balance>;
-	type LengthToFee = IdentityFee<Balance>;
-	type FeeMultiplierUpdate = ();
+	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
+	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -428,6 +514,131 @@ impl pallet_democracy::Config for Runtime {
 }
 
 parameter_types! {
+	pub const Period: u32 = 0xFFFF_FFFF;
+	pub const Offset: u32 = 0xFFFF_FFFF;
+}
+
+impl pallet_session::Config for Runtime {
+	type Event = Event;
+	type ValidatorId = AccountId;
+	type ValidatorIdOf = ();
+	type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
+	type NextSessionRotation = ();
+	type SessionManager = ();
+	type SessionHandler = <opaque::SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
+	type Keys = opaque::SessionKeys;
+	type WeightInfo = ();
+}
+
+parameter_types! {
+	pub const UncleGenerations: u32 = 0;
+}
+
+impl pallet_authorship::Config for Runtime {
+	type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
+	type UncleGenerations = UncleGenerations;
+	type FilterUncle = ();
+	type EventHandler = ();
+}
+
+/// Minimum round length is 1 hour (300 * 12 second block times)
+#[cfg(feature = "fast-gov")]
+pub const MIN_BLOCKS_PER_ROUND: BlockNumber = 10;
+#[cfg(not(feature = "fast-gov"))]
+pub const MIN_BLOCKS_PER_ROUND: BlockNumber = HOURS;
+
+#[cfg(feature = "fast-gov")]
+pub const DEFAULT_BLOCKS_PER_ROUND: BlockNumber = 20;
+#[cfg(not(feature = "fast-gov"))]
+pub const DEFAULT_BLOCKS_PER_ROUND: BlockNumber = 2 * HOURS;
+
+#[cfg(feature = "fast-gov")]
+pub const STAKE_DURATION: BlockNumber = 30;
+#[cfg(not(feature = "fast-gov"))]
+pub const STAKE_DURATION: BlockNumber = 7 * DAYS;
+
+#[cfg(feature = "fast-gov")]
+pub const MIN_COLLATORS: u32 = 4;
+#[cfg(not(feature = "fast-gov"))]
+pub const MIN_COLLATORS: u32 = 16;
+
+#[cfg(feature = "fast-gov")]
+pub const MAX_CANDIDATES: u32 = 16;
+#[cfg(not(feature = "fast-gov"))]
+pub const MAX_CANDIDATES: u32 = 75;
+
+pub const MAX_DELEGATORS_PER_COLLATOR: u32 = 35;
+pub const MIN_DELEGATOR_STAKE: Balance = 20 * PLMC;
+
+pub const NETWORK_REWARD_RATE: Perquintill = Perquintill::from_percent(10);
+
+parameter_types! {
+	/// Minimum round length is 1 hour
+	pub const MinBlocksPerRound: BlockNumber = MIN_BLOCKS_PER_ROUND;
+	/// Default length of a round/session is 2 hours
+	pub const DefaultBlocksPerRound: BlockNumber = DEFAULT_BLOCKS_PER_ROUND;
+	/// Unstaked balance can be unlocked after 7 days
+	pub const StakeDuration: BlockNumber = STAKE_DURATION;
+	/// Collator exit requests are delayed by 4 hours (2 rounds/sessions)
+	pub const ExitQueueDelay: u32 = 2;
+	/// Minimum 16 collators selected per round, default at genesis and minimum forever after
+	pub const MinCollators: u32 = MIN_COLLATORS;
+	/// At least 4 candidates which cannot leave the network if there are no other candidates.
+	pub const MinRequiredCollators: u32 = 4;
+	/// We only allow one delegation per round.
+	pub const MaxDelegationsPerRound: u32 = 1;
+	/// Maximum 25 delegators per collator at launch, might be increased later
+	#[derive(Debug, Eq, PartialEq)]
+	pub const MaxDelegatorsPerCollator: u32 = MAX_DELEGATORS_PER_COLLATOR;
+	/// Maximum 1 collator per delegator at launch, will be increased later
+	#[derive(Debug, Eq, PartialEq)]
+	pub const MaxCollatorsPerDelegator: u32 = 1;
+	/// Minimum stake required to be reserved to be a collator is 10_000
+	pub const MinCollatorStake: Balance = 10_000 * PLMC;
+	/// Minimum stake required to be reserved to be a delegator is 1000
+	pub const MinDelegatorStake: Balance = MIN_DELEGATOR_STAKE;
+	/// Maximum number of collator candidates
+	#[derive(Debug, Eq, PartialEq)]
+	pub const MaxCollatorCandidates: u32 = MAX_CANDIDATES;
+	/// Maximum number of concurrent requests to unlock unstaked balance
+	pub const MaxUnstakeRequests: u32 = 10;
+	/// The starting block number for the network rewards
+	pub const NetworkRewardStart: BlockNumber = INITIAL_PERIOD_LENGTH;
+	/// The rate in percent for the network rewards
+	pub const NetworkRewardRate: Perquintill = NETWORK_REWARD_RATE;
+}
+
+impl parachain_staking::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type CurrencyBalance = Balance;
+
+	type MinBlocksPerRound = MinBlocksPerRound;
+	type DefaultBlocksPerRound = DefaultBlocksPerRound;
+	type StakeDuration = StakeDuration;
+	type ExitQueueDelay = ExitQueueDelay;
+	type MinCollators = MinCollators;
+	type MinRequiredCollators = MinRequiredCollators;
+	type MaxDelegationsPerRound = MaxDelegationsPerRound;
+	type MaxDelegatorsPerCollator = MaxDelegatorsPerCollator;
+	type MaxCollatorsPerDelegator = MaxCollatorsPerDelegator;
+	type MinCollatorStake = MinCollatorStake;
+	type MinCollatorCandidateStake = MinCollatorStake;
+	type MaxTopCandidates = MaxCollatorCandidates;
+	type MinDelegation = MinDelegatorStake;
+	type MinDelegatorStake = MinDelegatorStake;
+	type MaxUnstakeRequests = MaxUnstakeRequests;
+	type NetworkRewardRate = NetworkRewardRate;
+	type NetworkRewardStart = NetworkRewardStart;
+
+	type NetworkRewardBeneficiary = ();
+	// type WeightInfo = weights::parachain_staking::WeightInfo<Runtime>;
+	type WeightInfo = ();
+
+	const BLOCKS_PER_YEAR: Self::BlockNumber = BLOCKS_PER_YEAR;
+}
+
+parameter_types! {
 	// FIXME: the default of currency_id can be different than this here. But in OnChargeTransaction we use the default and not this here...
 	pub const GetNativeCurrencyId: CurrencyId = [0; 8];
 }
@@ -439,21 +650,19 @@ impl pallet_multi_mint::Config for Runtime {
 }
 
 parameter_types! {
-	// TODO: Replace 28 with the real time
-	pub const EvaluationDuration: BlockNumber = 28;
-	// TODO: Replace 7 with the real time
-	pub const EnglishAuctionDuration: BlockNumber = 10;
-	// TODO: Use the correct Candle Duration
-	pub const CandleAuctionDuration: BlockNumber = 5;
-	// TODO:
-	pub const CommunityRoundDuration: BlockNumber = 10;
+	pub const EvaluationDuration: BlockNumber = 28 * DAYS;
+	pub const EnglishAuctionDuration: BlockNumber = 5 * DAYS;
+	pub const CandleAuctionDuration: BlockNumber = 12 * HOURS;
+	pub const CommunityRoundDuration: BlockNumber = 5 * DAYS;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 }
 
-pub static LAST_RANDOM: Option<(H256, u32)> = None;
+pub static LAST_RANDOM: Option<(H256, u64)> = None;
 
 // TODO: JUST FOR MAKE IT COMPILE
 // TODO: DO NOT USE IN PRODUCTION
+// TODO: After Cumulus integration we can use the BABE Randomness from the Relay Chain
+// src: https://github.com/paritytech/cumulus/pull/1083
 pub struct PastRandomness;
 impl Randomness<H256, BlockNumber> for PastRandomness {
 	fn random(_subject: &[u8]) -> (H256, BlockNumber) {
@@ -489,21 +698,28 @@ construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system,
+
 		Timestamp: pallet_timestamp,
-		Aura: pallet_aura,
-		Grandpa: pallet_grandpa,
 		// TODO: Remove "pallet_balances" and use only "orml_tokens" to handle the on chain balance
 		// of the tokens
-		Council: pallet_collective::<Instance1>,
-		TechnicalCommittee: pallet_collective::<Instance2>,
-		Scheduler: pallet_scheduler,
-		Democracy: pallet_democracy,
 		Balances: pallet_balances,
+		PolimecMultiBalances: orml_tokens,
 		TransactionPayment: pallet_transaction_payment,
 		Sudo: pallet_sudo,
 
+		Aura: pallet_aura,
+		Grandpa: pallet_grandpa,
+		ParachainStaking: parachain_staking,
+
+		Council: pallet_collective::<Instance1>,
+		TechnicalCommittee: pallet_collective::<Instance2>,
+		Democracy: pallet_democracy,
+
+		Scheduler: pallet_scheduler,
+		Session: pallet_session,
+		Authorship: pallet_authorship,
+
 		// Include the custom logic
-		PolimecMultiBalances: orml_tokens,
 		PolimecMultiMint: pallet_multi_mint,
 		PolimecFunding: pallet_funding,
 	}
@@ -515,6 +731,10 @@ pub type Address = sp_runtime::MultiAddress<AccountId, ()>;
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 /// Block type as expected by this runtime.
 pub type Block = generic::Block<Header, UncheckedExtrinsic>;
+/// A Block signed with a Justification
+pub type SignedBlock = generic::SignedBlock<Block>;
+/// BlockId type as expected by this runtime.
+pub type BlockId = generic::BlockId<Block>;
 /// The SignedExtension to the basic transaction logic.
 pub type SignedExtra = (
 	frame_system::CheckNonZeroSender<Runtime>,
@@ -530,7 +750,9 @@ pub type SignedExtra = (
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
 /// The payload being signed in transactions.
 pub type SignedPayload = generic::SignedPayload<Call, SignedExtra>;
-/// Executive: handles dispatch to the various modules.
+/// Extrinsic type that has already been checked.
+pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
+/// Executive: handles dispatch to the various Pallets.
 pub type Executive = frame_executive::Executive<
 	Runtime,
 	Block,
@@ -612,16 +834,6 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
-		fn slot_duration() -> sp_consensus_aura::SlotDuration {
-			sp_consensus_aura::SlotDuration::from_millis(Aura::slot_duration())
-		}
-
-		fn authorities() -> Vec<AuraId> {
-			Aura::authorities().into_inner()
-		}
-	}
-
 	impl sp_session::SessionKeys<Block> for Runtime {
 		fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
 			opaque::SessionKeys::generate(seed)
@@ -629,18 +841,28 @@ impl_runtime_apis! {
 
 		fn decode_session_keys(
 			encoded: Vec<u8>,
-		) -> Option<Vec<(Vec<u8>, KeyTypeId)>> {
+		) -> Option<Vec<(Vec<u8>, sp_core::crypto::KeyTypeId)>> {
 			opaque::SessionKeys::decode_into_raw_public_keys(&encoded)
 		}
 	}
 
-	impl fg_primitives::GrandpaApi<Block> for Runtime {
-		fn grandpa_authorities() -> GrandpaAuthorityList {
-			Grandpa::grandpa_authorities()
+	impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
+		fn slot_duration() -> SlotDuration {
+			SlotDuration::from_millis(Aura::slot_duration())
 		}
 
+		fn authorities() -> Vec<AuraId> {
+			Aura::authorities().into_inner()
+		}
+	}
+
+	impl fg_primitives::GrandpaApi<Block> for Runtime {
 		fn current_set_id() -> fg_primitives::SetId {
 			Grandpa::current_set_id()
+		}
+
+		fn grandpa_authorities() -> GrandpaAuthorityList {
+			Grandpa::grandpa_authorities()
 		}
 
 		fn submit_report_equivocation_unsigned_extrinsic(
