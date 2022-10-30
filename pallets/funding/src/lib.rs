@@ -18,9 +18,7 @@ use frame_support::{
 	traits::{Currency, Get, LockIdentifier, LockableCurrency, WithdrawReasons},
 	PalletId,
 };
-use sp_runtime::traits::{
-	AccountIdConversion, CheckedAdd, Zero,
-};
+use sp_runtime::traits::{AccountIdConversion, CheckedAdd, Zero};
 
 /// The balance type of this pallet.
 pub type BalanceOf<T> = <T as Config>::CurrencyBalance;

@@ -649,8 +649,8 @@ benchmarks! {
 impl_benchmark_test_suite!(
 	Pallet,
 	crate::mock::ExtBuilder::default()
-		.with_balances(vec![(u64::MAX, 1000 * crate::mock::MILLI_KILT)])
-		.with_collators(vec![(u64::MAX, 1000 * crate::mock::MILLI_KILT)])
+		.with_balances(vec![(u64::MAX, 1000 * crate::mock::MILLI_PLMC)])
+		.with_collators(vec![(u64::MAX, 1000 * crate::mock::MILLI_PLMC)])
 		.build(),
 	crate::mock::Test,
 );

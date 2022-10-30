@@ -1,10 +1,9 @@
-[workspace]
-members = [
-    "node",
-    "pallets/multi-mint",
-    "pallets/funding",
-    "pallets/parachain-staking",
-    "runtime",
-]
 [profile.release]
 panic = "unwind"
+
+[workspace]
+members = [
+	"node",
+	"pallets/*",
+	"runtime",
+]

@@ -71,11 +71,7 @@ mod register {
 	fn metadata_in_storage() {
 		new_test_ext().execute_with(|| {
 			let currency_metadata = build_currency_metadata();
-			assert_ok!(MultiMintModule::register(
-				Origin::signed(ALICE),
-				TKN,
-				currency_metadata
-			));
+			assert_ok!(MultiMintModule::register(Origin::signed(ALICE), TKN, currency_metadata));
 
 			// Here `currency_metadata` is the StorageMap in `MultiMintModule`
 			let currency_info = MultiMintModule::currencies(TKN).unwrap();
@@ -99,11 +95,7 @@ mod mint {
 	fn must_be_root() {
 		new_test_ext().execute_with(|| {
 			let currency_metadata = build_currency_metadata();
-			assert_ok!(MultiMintModule::register(
-				Origin::signed(ALICE),
-				TKN,
-				currency_metadata
-			));
+			assert_ok!(MultiMintModule::register(Origin::signed(ALICE), TKN, currency_metadata));
 
 			assert_ok!(MultiMintModule::mint(Origin::signed(ALICE), ALICE, TKN, 100));
 
@@ -146,11 +138,7 @@ mod unlock_trading {
 	fn unlock_currency() {
 		new_test_ext().execute_with(|| {
 			let currency_metadata = build_currency_metadata();
-			assert_ok!(MultiMintModule::register(
-				Origin::signed(ALICE),
-				TKN,
-				currency_metadata
-			));
+			assert_ok!(MultiMintModule::register(Origin::signed(ALICE), TKN, currency_metadata));
 
 			// Here `currency_metadata` is the StorageMap in `MultiMintModule`
 			let currency_info = MultiMintModule::currencies(TKN).unwrap();
@@ -198,11 +186,7 @@ mod lock_trading {
 	fn lock_currency() {
 		new_test_ext().execute_with(|| {
 			let currency_metadata = build_currency_metadata();
-			assert_ok!(MultiMintModule::register(
-				Origin::signed(ALICE),
-				TKN,
-				currency_metadata
-			));
+			assert_ok!(MultiMintModule::register(Origin::signed(ALICE), TKN, currency_metadata));
 
 			assert_ok!(MultiMintModule::unlock_trading(Origin::signed(ALICE), TKN));
 

@@ -162,7 +162,7 @@ pub mod pallet {
 	use sp_std::{convert::TryInto, fmt::Debug};
 
 	/// Kilt-specific lock for staking rewards.
-	pub(crate) const STAKING_ID: LockIdentifier = *b"kiltpstk";
+	pub(crate) const STAKING_ID: LockIdentifier = *b"plmcpstk";
 
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(7);

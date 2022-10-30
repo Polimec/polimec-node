@@ -1,10 +1,10 @@
-//! Substrate Node Template CLI library.
+//! Polimec Node CLI
+
 #![warn(missing_docs)]
 
 mod chain_spec;
 #[macro_use]
 mod service;
-mod benchmarking;
 mod cli;
 mod command;
 mod rpc;

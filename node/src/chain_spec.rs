@@ -1,65 +1,81 @@
-use node_polimec_runtime::{
-	AccountId, BalancesConfig, GenesisConfig, GetNativeCurrencyId, PolimecMultiBalancesConfig, SessionConfig, Signature, SudoConfig, SystemConfig,
-	WASM_BINARY,
+use cumulus_primitives_core::ParaId;
+use polimec_runtime::{
+	AccountId, AuraId, Balance, InflationInfo, MinCollatorStake, ParachainStakingConfig, Signature,
+	BLOCKS_PER_YEAR, PLMC,
 };
-use sc_service::{ChainType, Properties};
-use serde_json::map::Map;
-use sp_consensus_aura::ed25519::AuthorityId as AuraId;
-use sp_core::{ed25519, sr25519, Pair, Public};
-use sp_finality_grandpa::AuthorityId as GrandpaId;
-use sp_runtime::traits::{IdentifyAccount, Verify};
+use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
+use sc_service::ChainType;
+use serde::{Deserialize, Serialize};
+use sp_core::{sr25519, Pair, Public};
+use sp_runtime::{
+	traits::{IdentifyAccount, Verify},
+	Perquintill,
+};
 
-// The URL for the telemetry server.
-// const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
+/// Specialized `ChainSpec` for the normal parachain runtime.
+pub type ChainSpec = sc_service::GenericChainSpec<polimec_runtime::GenesisConfig, Extensions>;
 
-fn polimec_properties() -> Properties {
-	let mut properties = Map::new();
-	let mut token_symbol: Vec<String> = vec![];
-	let mut token_decimals: Vec<u32> = vec![];
-	token_symbol.push("PLMC".to_string());
-	properties.insert("tokenSymbol".into(), token_symbol.into());
-	token_decimals.push(10_u32);
-	properties.insert("tokenDecimals".into(), token_decimals.into());
-	// Information taken from https://github.com/paritytech/ss58-registry/blob/main/ss58-registry.json
-	properties.insert("ss58Format".into(), "41".into());
+/// The default XCM version to set in genesis config.
+const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
 
-	properties
-}
+pub const MAX_COLLATOR_STAKE: Balance = 200_000 * PLMC;
 
 /// Helper function to generate a crypto pair from seed
-fn get_from_secret<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
-	TPublic::Pair::from_string(seed, None)
-		.unwrap_or_else(|_| panic!("Invalid string '{seed}'"))
+pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
+	TPublic::Pair::from_string(&format!("//{seed}"), None)
+		.expect("static values are valid; qed")
 		.public()
 }
 
-/// Helper function to generate an account ID from seed
-fn get_account_id_from_secret<TPublic: Public>(seed: &str) -> AccountId
-where
-	AccountPublic: From<<TPublic::Pair as Pair>::Public>,
-{
-	AccountPublic::from(get_from_secret::<TPublic>(seed)).into_account()
+/// The extensions for the [`ChainSpec`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ChainSpecGroup, ChainSpecExtension)]
+#[serde(deny_unknown_fields)]
+pub struct Extensions {
+	/// The relay chain of the Parachain.
+	pub relay_chain: String,
+	/// The id of the Parachain.
+	pub para_id: u32,
 }
 
-/// Helper function to generate an authority key for Aura
-fn get_authority_keys_from_secret(seed: &str) -> (AccountId, AuraId, GrandpaId) {
-	(
-		get_account_id_from_secret::<ed25519::Public>(seed),
-		get_from_secret::<AuraId>(seed),
-		get_from_secret::<GrandpaId>(seed),
-	)
+impl Extensions {
+	/// Try to get the extension from the given `ChainSpec`.
+	pub fn try_get(chain_spec: &dyn sc_service::ChainSpec) -> Option<&Self> {
+		sc_chain_spec::get_extension(chain_spec.extensions())
+	}
 }
-
-/// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
-pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig>;
 
 type AccountPublic = <Signature as Verify>::Signer;
 
+/// Generate collator keys from seed.
+///
+/// This function's return type must always match the session keys of the chain in tuple format.
+pub fn get_collator_keys_from_seed(seed: &str) -> AuraId {
+	get_from_seed::<AuraId>(seed)
+}
 
-pub fn development_config() -> Result<ChainSpec, String> {
-	let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm not available".to_string())?;
+/// Helper function to generate an account ID from seed
+pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
+where
+	AccountPublic: From<<TPublic::Pair as Pair>::Public>,
+{
+	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
+}
 
-	Ok(ChainSpec::from_genesis(
+/// Generate the session keys from individual elements.
+///
+/// The input must be a tuple of individual keys (a single arg for now since we have just one key).
+pub fn template_session_keys(keys: AuraId) -> polimec_runtime::SessionKeys {
+	polimec_runtime::SessionKeys { aura: keys }
+}
+
+pub fn development_config() -> ChainSpec {
+	// Give your base currency a unit name and decimal places
+	let mut properties = sc_chain_spec::Properties::new();
+	properties.insert("tokenSymbol".into(), "PLMC".into());
+	properties.insert("tokenDecimals".into(), 10.into());
+	properties.insert("ss58Format".into(), 41.into());
+
+	ChainSpec::from_genesis(
 		// Name
 		"Polimec Development",
 		// ID
@@ -67,38 +83,68 @@ pub fn development_config() -> Result<ChainSpec, String> {
 		ChainType::Development,
 		move || {
 			testnet_genesis(
-				wasm_binary,
-				// Initial PoA authorities
-				vec![get_authority_keys_from_secret("//Alice")],
-				// Sudo account
-				get_account_id_from_secret::<ed25519::Public>("//Alice"),
-				// Pre-funded accounts
+				// initial collators.
 				vec![
-					get_account_id_from_secret::<ed25519::Public>("//Alice"),
-					get_account_id_from_secret::<ed25519::Public>("//Bob"),
-					get_account_id_from_secret::<sr25519::Public>("//Alice"),
-					get_account_id_from_secret::<sr25519::Public>("//Bob"),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Alice"),
+						get_collator_keys_from_seed("Alice"),
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Bob"),
+						get_collator_keys_from_seed("Bob"),
+					),
 				],
+				vec![
+					get_account_id_from_seed::<sr25519::Public>("Alice"),
+					get_account_id_from_seed::<sr25519::Public>("Bob"),
+					get_account_id_from_seed::<sr25519::Public>("Charlie"),
+					get_account_id_from_seed::<sr25519::Public>("Dave"),
+					get_account_id_from_seed::<sr25519::Public>("Eve"),
+					get_account_id_from_seed::<sr25519::Public>("Ferdie"),
+					get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+					get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+					get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
+					get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
+					get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
+					get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+				],
+				2000.into(),
+				vec![
+					(
+						get_account_id_from_seed::<sr25519::Public>("Alice"),
+						None,
+						2 * MinCollatorStake::get(),
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Bob"),
+						None,
+						2 * MinCollatorStake::get(),
+					),
+				],
+				polimec_inflation_config(),
+				MAX_COLLATOR_STAKE,
 			)
 		},
-		// Bootnodes
-		vec![],
-		// Telemetry
-		None,
-		// Protocol ID
+		Vec::new(),
 		None,
 		None,
-		// Properties
-		Some(polimec_properties()),
-		// Extensions
 		None,
-	))
+		None,
+		Extensions {
+			relay_chain: "rococo-local".into(), // You MUST set this to the correct network!
+			para_id: 2000,
+		},
+	)
 }
 
-pub fn local_testnet_config() -> Result<ChainSpec, String> {
-	let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm not available".to_string())?;
+pub fn local_testnet_config() -> ChainSpec {
+	// Give your base currency a unit name and decimal places
+	let mut properties = sc_chain_spec::Properties::new();
+	properties.insert("tokenSymbol".into(), "PLMC".into());
+	properties.insert("tokenDecimals".into(), 10.into());
+	properties.insert("ss58Format".into(), 41.into());
 
-	Ok(ChainSpec::from_genesis(
+	ChainSpec::from_genesis(
 		// Name
 		"Polimec Local Testnet",
 		// ID
@@ -106,84 +152,117 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 		ChainType::Local,
 		move || {
 			testnet_genesis(
-				wasm_binary,
-				// Initial PoA authorities
+				// initial collators.
 				vec![
-					get_authority_keys_from_secret("//Alice"),
-					get_authority_keys_from_secret("//Bob"),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Alice"),
+						get_collator_keys_from_seed("Alice"),
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Bob"),
+						get_collator_keys_from_seed("Bob"),
+					),
 				],
-				// Sudo account
-				get_account_id_from_secret::<ed25519::Public>("//Alice"),
-				// Pre-funded accounts
 				vec![
-					get_account_id_from_secret::<ed25519::Public>("//Alice"),
-					get_account_id_from_secret::<ed25519::Public>("//Bob"),
+					get_account_id_from_seed::<sr25519::Public>("Alice"),
+					get_account_id_from_seed::<sr25519::Public>("Bob"),
+					get_account_id_from_seed::<sr25519::Public>("Charlie"),
+					get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+					get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+					get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
 				],
+				2000.into(),
+				vec![
+					(
+						get_account_id_from_seed::<sr25519::Public>("Alice"),
+						None,
+						2 * MinCollatorStake::get(),
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Bob"),
+						None,
+						2 * MinCollatorStake::get(),
+					),
+				],
+				polimec_inflation_config(),
+				MAX_COLLATOR_STAKE,
 			)
 		},
 		// Bootnodes
-		vec![],
+		Vec::new(),
 		// Telemetry
 		None,
 		// Protocol ID
+		Some("template-local"),
+		// Fork ID
 		None,
 		// Properties
-		None,
-		Some(polimec_properties()),
+		Some(properties),
 		// Extensions
-		None,
-	))
+		Extensions {
+			relay_chain: "rococo-local".into(), // You MUST set this to the correct network!
+			para_id: 2000,
+		},
+	)
 }
 
-/// Configure initial storage state for FRAME modules.
+fn polimec_inflation_config() -> InflationInfo {
+	InflationInfo::new(
+		BLOCKS_PER_YEAR,
+		// max collator staking rate
+		Perquintill::from_percent(40),
+		// collator reward rate
+		Perquintill::from_percent(10),
+		// max delegator staking rate
+		Perquintill::from_percent(10),
+		// delegator reward rate
+		Perquintill::from_percent(8),
+	)
+}
+
 fn testnet_genesis(
-	wasm_binary: &[u8],
-	initial_authorities: Vec<(AccountId, AuraId, GrandpaId)>,
-	root_key: AccountId,
+	invulnerables: Vec<(AccountId, AuraId)>,
 	endowed_accounts: Vec<AccountId>,
-) -> GenesisConfig {
-	GenesisConfig {
-		system: SystemConfig {
-			// Add Wasm runtime to storage.
-			code: wasm_binary.to_vec(),
+	id: ParaId,
+	stakers: Vec<(AccountId, Option<AccountId>, Balance)>,
+	inflation_config: InflationInfo,
+	max_candidate_stake: Balance,
+) -> polimec_runtime::GenesisConfig {
+	polimec_runtime::GenesisConfig {
+		system: polimec_runtime::SystemConfig {
+			code: polimec_runtime::WASM_BINARY
+				.expect("WASM binary was not build, please build it!")
+				.to_vec(),
 		},
-		// TODO: Remove "balances" and use only "polimec_multi_balances" by orml
-		balances: BalancesConfig {
-			// Configure endowed accounts with initial balance of 1 << 60.
-			balances: endowed_accounts.iter().cloned().map(|k| (k, 1 << 40)).collect(),
+		balances: polimec_runtime::BalancesConfig {
+			balances: endowed_accounts.iter().cloned().map(|k| (k, 100_000 * PLMC)).collect(),
 		},
+		parachain_info: polimec_runtime::ParachainInfoConfig { parachain_id: id },
+		parachain_staking: ParachainStakingConfig {
+			stakers,
+			inflation_config,
+			max_candidate_stake,
+		},
+		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
+		// of this.
 		aura: Default::default(),
-		grandpa: Default::default(),
-		sudo: SudoConfig {
-			// Assign network admin rights.
-			key: Some(root_key),
-		},
-		transaction_payment: Default::default(),
-		polimec_multi_balances: PolimecMultiBalancesConfig {
-			balances: endowed_accounts
-				.iter()
-				.cloned()
-				.map(|k| (k, GetNativeCurrencyId::get(), 1 << 40))
-				.collect(),
-		},
-		council: Default::default(),
-		technical_committee: Default::default(),
-		democracy: Default::default(),
-		parachain_staking: Default::default(),
-		session: SessionConfig {
-			keys: initial_authorities
-				.iter()
-				.map(|x| {
+		aura_ext: Default::default(),
+		parachain_system: Default::default(),
+		session: polimec_runtime::SessionConfig {
+			keys: invulnerables
+				.into_iter()
+				.map(|(acc, aura)| {
 					(
-						x.0.clone(),
-						x.0.clone(),
-						node_polimec_runtime::opaque::SessionKeys {
-							aura: x.1.clone(),
-							grandpa: x.2.clone(),
-						},
+						acc.clone(),                 // account id
+						acc,                         // validator id
+						template_session_keys(aura), // session keys
 					)
 				})
-				.collect::<Vec<_>>(),
+				.collect(),
 		},
+		polkadot_xcm: polimec_runtime::PolkadotXcmConfig {
+			safe_xcm_version: Some(SAFE_XCM_VERSION),
+		},
+		polimec_multi_balances: Default::default(),
 	}
 }
