@@ -11,14 +11,17 @@ pub mod xcm_config;
 
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
-	construct_runtime, parameter_types,
+	construct_runtime,
+	pallet_prelude::Get,
+	parameter_types,
 	traits::{
-		ConstU32, Contains, EitherOfDiverse, EqualPrivilegeOnly, Everything, PrivilegeCmp,
-		Randomness,
+		ConstU32, Contains, Currency, EitherOfDiverse, EqualPrivilegeOnly, Everything,
+		OnUnbalanced, PrivilegeCmp, Randomness, Imbalance
 	},
 	weights::{
 		constants::WEIGHT_PER_SECOND, ConstantMultiplier, DispatchClass, Weight,
-		WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
+		WeightToFee as WeightToFeeT, WeightToFeeCoefficient, WeightToFeeCoefficients,
+		WeightToFeePolynomial,
 	},
 	PalletId,
 };
@@ -27,6 +30,8 @@ use frame_system::{
 	EnsureRoot,
 };
 use orml_traits::parameter_type_with_key;
+use pallet_balances::WeightInfo;
+use pallet_transaction_payment::OnChargeTransaction;
 pub use parachain_staking::InflationInfo;
 use smallvec::smallvec;
 use sp_api::impl_runtime_apis;
@@ -71,6 +76,10 @@ pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::Account
 pub type Balance = u128;
 pub type Amount = i128;
 pub type CurrencyId = [u8; 8];
+
+pub type NegativeImbalanceOf<T> = <pallet_balances::Pallet<T> as Currency<
+	<T as frame_system::Config>::AccountId,
+>>::NegativeImbalance;
 
 /// Index of a transaction in the chain.
 pub type Index = u64;
@@ -123,29 +132,61 @@ pub type Executive = frame_executive::Executive<
 	AllPalletsWithSystem,
 >;
 
-/// Handles converting a weight scalar to a fee value, based on the scale and granularity of the
-/// node's balance type.
+/// Handles converting a weight scalar to a fee value, based on the scale and
+/// granularity of the node's balance type.
 ///
 /// This should typically create a mapping between the following ranges:
-///   - `[0, MAXIMUM_BLOCK_WEIGHT]`
-///   - `[Balance::min, Balance::max]`
+///   - [0, MAXIMUM_BLOCK_WEIGHT]
+///   - [Balance::min, Balance::max]
 ///
-/// Yet, it can be used for any other sort of change to weight-fee. Some examples being:
+/// Yet, it can be used for any other sort of change to weight-fee. Some
+/// examples being:
 ///   - Setting it to `0` will essentially disable the weight fee.
 ///   - Setting it to `1` will cause the literal `#[weight = x]` values to be charged.
-pub struct WeightToFee;
-impl WeightToFeePolynomial for WeightToFee {
+pub struct WeightToFee<R>(sp_std::marker::PhantomData<R>);
+impl<R> WeightToFeePolynomial for WeightToFee<R>
+where
+	R: pallet_transaction_payment::Config,
+	R: frame_system::Config,
+	R: pallet_balances::Config,
+	u128: From<
+		<<R as pallet_transaction_payment::Config>::OnChargeTransaction as OnChargeTransaction<
+			R,
+		>>::Balance,
+	>,
+{
 	type Balance = Balance;
 	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
-		// in Rococo, extrinsic base weight (smallest non-zero weight) is mapped to 1 MILLIUNIT:
-		// in our template, we map to 1/10 of that, or 1/10 MILLIUNIT
-		let p = MILLI_PLMC / 10;
-		let q = 100 * Balance::from(ExtrinsicBaseWeight::get().ref_time());
+		// The should be fee
+		let wanted_fee: Balance = 10 * MILLI_PLMC;
+
+		// TODO: transfer_keep_alive is 288 byte long?
+		let tx_len: u64 = 288;
+		let byte_fee: Balance =
+			<R as pallet_transaction_payment::Config>::LengthToFee::weight_to_fee(
+				&Weight::from_ref_time(tx_len),
+			)
+			.into();
+		let base_weight: Weight = <R as frame_system::Config>::BlockWeights::get()
+			.get(DispatchClass::Normal)
+			.base_extrinsic;
+		let base_weight_fee: Balance =
+			<R as pallet_transaction_payment::Config>::LengthToFee::weight_to_fee(&base_weight)
+				.into();
+		let tx_weight_fee: Balance =
+			<R as pallet_transaction_payment::Config>::LengthToFee::weight_to_fee(
+				&<R as pallet_balances::Config>::WeightInfo::transfer_keep_alive(),
+			)
+			.into();
+		let unbalanced_fee: Balance = base_weight_fee.saturating_add(tx_weight_fee);
+
+		let wanted_weight_fee: Balance = wanted_fee.saturating_sub(byte_fee);
+
 		smallvec![WeightToFeeCoefficient {
 			degree: 1,
 			negative: false,
-			coeff_frac: Perbill::from_rational(p % q, q),
-			coeff_integer: p / q,
+			coeff_frac: Perbill::from_rational(wanted_weight_fee % unbalanced_fee, unbalanced_fee),
+			coeff_integer: wanted_weight_fee / unbalanced_fee,
 		}]
 	}
 }
@@ -341,32 +382,87 @@ parameter_types! {
 }
 
 impl pallet_balances::Config for Runtime {
-	type MaxLocks = MaxLocks;
 	/// The type for recording an account's balance.
 	type Balance = Balance;
 	/// The ubiquitous event type.
 	type Event = Event;
-	type DustRemoval = ();
+	type DustRemoval = Treasury;
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
+	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
+}
+
+/// Logic for the author to get a portion of fees.
+pub struct ToAuthor<R>(sp_std::marker::PhantomData<R>);
+
+impl<R> OnUnbalanced<NegativeImbalanceOf<R>> for ToAuthor<R>
+where
+	R: pallet_balances::Config + pallet_authorship::Config,
+	<R as frame_system::Config>::AccountId: From<AccountId>,
+	<R as frame_system::Config>::AccountId: Into<AccountId>,
+	<R as pallet_balances::Config>::Balance: Into<u128>,
+{
+	fn on_nonzero_unbalanced(amount: NegativeImbalanceOf<R>) {
+		if let Some(author) = <pallet_authorship::Pallet<R>>::author() {
+			<pallet_balances::Pallet<R>>::resolve_creating(&author, amount);
+		}
+	}
+}
+
+/// Split two Imbalances between two unbalanced handlers.
+/// The first Imbalance will be split according to the given ratio. The second
+/// Imbalance will be handled by the second beneficiary.
+///
+/// In case of transaction payment, the first Imbalance is the fee and the
+/// second imbalance the tip.
+pub struct SplitFeesByRatio<R, Ratio, Beneficiary1, Beneficiary2>(
+	sp_std::marker::PhantomData<(R, Ratio, Beneficiary1, Beneficiary2)>,
+);
+impl<R, Ratio, Beneficiary1, Beneficiary2> OnUnbalanced<NegativeImbalanceOf<R>>
+	for SplitFeesByRatio<R, Ratio, Beneficiary1, Beneficiary2>
+where
+	R: pallet_balances::Config,
+	Beneficiary1: OnUnbalanced<NegativeImbalanceOf<R>>,
+	Beneficiary2: OnUnbalanced<NegativeImbalanceOf<R>>,
+	Ratio: Get<(u32, u32)>,
+{
+	fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalanceOf<R>>) {
+		let ratio = Ratio::get();
+		if let Some(fees) = fees_then_tips.next() {
+			let mut split = fees.ration(ratio.0, ratio.1);
+			if let Some(tips) = fees_then_tips.next() {
+				// for tips, if any, 100% to author
+				tips.merge_into(&mut split.1);
+			}
+			Beneficiary1::on_unbalanced(split.0);
+			Beneficiary2::on_unbalanced(split.1);
+		}
+	}
 }
 
 parameter_types! {
 	/// Relay Chain `TransactionByteFee` / 10
 	pub const TransactionByteFee: Balance = 10 * MICRO_PLMC;
 	pub const OperationalFeeMultiplier: u8 = 5;
+	pub const FeeSplitRatio: (u32, u32) = (50, 50);
 }
+
+/// Split the fees using a preconfigured Ratio
+pub type FeeSplit<R, B1, B2> = SplitFeesByRatio<R, FeeSplitRatio, B1, B2>;
 
 impl pallet_transaction_payment::Config for Runtime {
 	type Event = Event;
-	type OnChargeTransaction = pallet_transaction_payment::CurrencyAdapter<Balances, ()>;
-	type WeightToFee = WeightToFee;
+	type OnChargeTransaction = pallet_transaction_payment::CurrencyAdapter<
+		Balances,
+		FeeSplit<Runtime, Treasury, ToAuthor<Runtime>>,
+	>;
+	type OperationalFeeMultiplier = OperationalFeeMultiplier;
+	type WeightToFee = WeightToFee<Runtime>;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
-	type OperationalFeeMultiplier = OperationalFeeMultiplier;
 }
 
 parameter_types! {

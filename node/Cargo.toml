@@ -1,7 +1,7 @@
 [package]
 name = "polimec-node"
 version = "0.1.0"
-authors = ["Anonymous"]
+authors = ['Polimec Team <https://github.com/Polimec>']
 description = "A new Cumulus FRAME-based Substrate Node, ready for hacking together a parachain."
 license = "Unlicense"
 homepage = "https://substrate.io"
