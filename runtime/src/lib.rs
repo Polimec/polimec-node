@@ -15,8 +15,8 @@ use frame_support::{
 	pallet_prelude::Get,
 	parameter_types,
 	traits::{
-		ConstU32, Contains, Currency, EitherOfDiverse, EqualPrivilegeOnly, Everything,
-		OnUnbalanced, PrivilegeCmp, Randomness, Imbalance
+		ConstU32, Contains, Currency, EitherOfDiverse, EqualPrivilegeOnly, Everything, Imbalance,
+		OnUnbalanced, Randomness,
 	},
 	weights::{
 		constants::WEIGHT_PER_SECOND, ConstantMultiplier, DispatchClass, Weight,
@@ -47,7 +47,7 @@ use sp_runtime::{
 	ApplyExtrinsicResult, MultiSignature, Perquintill,
 };
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
-use sp_std::{cmp::Ordering, prelude::*};
+use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
