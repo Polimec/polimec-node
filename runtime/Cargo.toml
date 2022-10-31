@@ -39,6 +39,7 @@ pallet-aura = { git = "https://github.com/paritytech/substrate", default-feature
 pallet-authorship = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
 pallet-balances = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
 pallet-collective = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29"}
+pallet-democracy = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29"}
 pallet-scheduler = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29"}
 pallet-session = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
 pallet-sudo = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
@@ -109,6 +110,7 @@ std = [
 	"pallet-authorship/std",
 	"pallet-balances/std",
 	"pallet-collective/std",
+	"pallet-democracy/std",
 	"pallet-scheduler/std",
 	"pallet-session/std",
 	"pallet-sudo/std",

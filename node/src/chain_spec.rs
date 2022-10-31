@@ -271,5 +271,6 @@ fn testnet_genesis(
 		sudo: SudoConfig { key: Some(root_account) },
 		council: Default::default(),
 		technical_committee: Default::default(),
+		democracy: Default::default(),
 	}
 }
