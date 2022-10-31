@@ -662,53 +662,42 @@ impl pallet_treasury::Config for Runtime {
 	type MaxApprovals = MaxApprovals;
 }
 
-// type ScheduleOrigin = EitherOfDiverse<
-// 	EnsureRoot<AccountId>,
-// 	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 2>,
-// >;
+parameter_types! {
+	pub const CouncilMotionDuration: BlockNumber = 5 * DAYS;
+	pub const CouncilMaxProposals: u32 = 100;
+	pub const CouncilMaxMembers: u32 = 100;
+}
 
-// /// Used the compare the privilege of an origin inside the scheduler.
-// pub struct OriginPrivilegeCmp;
+// TODO: VERY BASIC implementation, more work needed
+type CouncilCollective = pallet_collective::Instance1;
+impl pallet_collective::Config<CouncilCollective> for Runtime {
+	type Origin = Origin;
+	type Proposal = Call;
+	type Event = Event;
+	type MotionDuration = CouncilMotionDuration;
+	type MaxProposals = CouncilMaxProposals;
+	type MaxMembers = CouncilMaxMembers;
+	type DefaultVote = pallet_collective::PrimeDefaultVote;
+	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+}
 
-// impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
-// 	fn cmp_privilege(left: &OriginCaller, right: &OriginCaller) -> Option<Ordering> {
-// 		if left == right {
-// 			return Some(Ordering::Equal)
-// 		}
+parameter_types! {
+	pub const TechnicalMotionDuration: BlockNumber = 5 * DAYS;
+	pub const TechnicalMaxProposals: u32 = 100;
+	pub const TechnicalMaxMembers: u32 = 100;
+}
 
-// 		match (left, right) {
-// 			// Root is greater than anything.
-// 			(OriginCaller::system(frame_system::RawOrigin::Root), _) => Some(Ordering::Greater),
-// 			// Check which one has more yes votes.
-// 			(
-// 				OriginCaller::Council(pallet_collective::RawOrigin::Members(l_yes_votes, l_count)),
-// 				OriginCaller::Council(pallet_collective::RawOrigin::Members(r_yes_votes, r_count)),
-// 			) => Some((l_yes_votes * r_count).cmp(&(r_yes_votes * l_count))),
-// 			// For every other origin we don't care, as they are not used for `ScheduleOrigin`.
-// 			_ => None,
-// 		}
-// 	}
-// }
-
-// parameter_types! {
-// 	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) *
-// RuntimeBlockWeights::get().max_block; 	pub const MaxScheduledPerBlock: u32 = 50;
-// 	pub const NoPreimagePostponement: Option<BlockNumber> = Some(10);
-// }
-
-// impl pallet_scheduler::Config for Runtime {
-// 	type Event = Event;
-// 	type Origin = Origin;
-// 	type PalletsOrigin = OriginCaller;
-// 	type Call = Call;
-// 	type MaximumWeight = MaximumSchedulerWeight;
-// 	type ScheduleOrigin = ScheduleOrigin;
-// 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
-// 	type WeightInfo = ();
-// 	type OriginPrivilegeCmp = OriginPrivilegeCmp;
-// 	type PreimageProvider = Preimage;
-// 	type NoPreimagePostponement = NoPreimagePostponement;
-// }
+type TechnicalCollective = pallet_collective::Instance2;
+impl pallet_collective::Config<TechnicalCollective> for Runtime {
+	type Origin = Origin;
+	type Proposal = Call;
+	type Event = Event;
+	type MotionDuration = TechnicalMotionDuration;
+	type MaxProposals = TechnicalMaxProposals;
+	type MaxMembers = TechnicalMaxMembers;
+	type DefaultVote = pallet_collective::PrimeDefaultVote;
+	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+}
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
@@ -746,7 +735,9 @@ construct_runtime!(
 		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 33,
 
 		// Governance
-		Treasury: pallet_treasury = 35,
+		Treasury: pallet_treasury = 40,
+		Council: pallet_collective::<Instance1> = 41,
+		TechnicalCommittee: pallet_collective::<Instance2> = 42,
 
 		// Utilities
 		// Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 50,

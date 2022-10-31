@@ -123,7 +123,7 @@ pub fn development_config() -> ChainSpec {
 				],
 				polimec_inflation_config(),
 				MAX_COLLATOR_STAKE,
-				get_account_id_from_seed::<sr25519::Public>("Charlie")
+				get_account_id_from_seed::<sr25519::Public>("Charlie"),
 			)
 		},
 		Vec::new(),
@@ -187,7 +187,7 @@ pub fn local_testnet_config() -> ChainSpec {
 				],
 				polimec_inflation_config(),
 				MAX_COLLATOR_STAKE,
-				get_account_id_from_seed::<sr25519::Public>("Charlie")
+				get_account_id_from_seed::<sr25519::Public>("Charlie"),
 			)
 		},
 		// Bootnodes
@@ -229,7 +229,7 @@ fn testnet_genesis(
 	stakers: Vec<(AccountId, Option<AccountId>, Balance)>,
 	inflation_config: InflationInfo,
 	max_candidate_stake: Balance,
-	root_account: AccountId
+	root_account: AccountId,
 ) -> polimec_runtime::GenesisConfig {
 	polimec_runtime::GenesisConfig {
 		system: polimec_runtime::SystemConfig {
@@ -269,5 +269,7 @@ fn testnet_genesis(
 		polimec_multi_balances: Default::default(),
 		treasury: Default::default(),
 		sudo: SudoConfig { key: Some(root_account) },
+		council: Default::default(),
+		technical_committee: Default::default(),
 	}
 }
