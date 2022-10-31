@@ -1,7 +1,7 @@
 use cumulus_primitives_core::ParaId;
 use polimec_runtime::{
 	AccountId, AuraId, Balance, InflationInfo, MinCollatorStake, ParachainStakingConfig, Signature,
-	BLOCKS_PER_YEAR, PLMC,
+	SudoConfig, BLOCKS_PER_YEAR, PLMC,
 };
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
@@ -123,6 +123,7 @@ pub fn development_config() -> ChainSpec {
 				],
 				polimec_inflation_config(),
 				MAX_COLLATOR_STAKE,
+				get_account_id_from_seed::<sr25519::Public>("Charlie")
 			)
 		},
 		Vec::new(),
@@ -186,6 +187,7 @@ pub fn local_testnet_config() -> ChainSpec {
 				],
 				polimec_inflation_config(),
 				MAX_COLLATOR_STAKE,
+				get_account_id_from_seed::<sr25519::Public>("Charlie")
 			)
 		},
 		// Bootnodes
@@ -227,6 +229,7 @@ fn testnet_genesis(
 	stakers: Vec<(AccountId, Option<AccountId>, Balance)>,
 	inflation_config: InflationInfo,
 	max_candidate_stake: Balance,
+	root_account: AccountId
 ) -> polimec_runtime::GenesisConfig {
 	polimec_runtime::GenesisConfig {
 		system: polimec_runtime::SystemConfig {
@@ -264,5 +267,7 @@ fn testnet_genesis(
 			safe_xcm_version: Some(SAFE_XCM_VERSION),
 		},
 		polimec_multi_balances: Default::default(),
+		treasury: Default::default(),
+		sudo: SudoConfig { key: Some(root_account) },
 	}
 }

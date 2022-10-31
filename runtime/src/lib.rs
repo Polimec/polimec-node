@@ -10,23 +10,9 @@ mod weights;
 pub mod xcm_config;
 
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
-use orml_traits::parameter_type_with_key;
-use smallvec::smallvec;
-use sp_api::impl_runtime_apis;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata, H256};
-use sp_runtime::{
-	create_runtime_str, generic, impl_opaque_keys,
-	traits::{
-		AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto,
-		IdentifyAccount, OpaqueKeys, Verify,
-	},
-	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, MultiSignature, Perquintill,
-};
-
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{ConstU32, Contains, Everything, Randomness},
+	traits::{ConstU32, Contains, EitherOfDiverse, Everything, PrivilegeCmp, Randomness},
 	weights::{
 		constants::WEIGHT_PER_SECOND, ConstantMultiplier, DispatchClass, Weight,
 		WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
@@ -37,10 +23,23 @@ use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot,
 };
+use orml_traits::parameter_type_with_key;
 pub use parachain_staking::InflationInfo;
+use smallvec::smallvec;
+use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata, H256};
+use sp_runtime::{
+	create_runtime_str, generic, impl_opaque_keys,
+	traits::{
+		AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto,
+		IdentifyAccount, OpaqueKeys, Verify,
+	},
+	transaction_validity::{TransactionSource, TransactionValidity},
+	ApplyExtrinsicResult, MultiSignature, Perquintill,
+};
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
-use sp_std::prelude::*;
+use sp_std::{cmp::Ordering, prelude::*};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
@@ -189,7 +188,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 /// up by `pallet_aura` to implement `fn slot_duration()`.
 ///
 /// Change this to adjust the block time.
-pub const MILLISECS_PER_BLOCK: u64 = 12000;
+pub const MILLISECS_PER_BLOCK: u64 = 6_000;
 
 // NOTE: Currently it is not possible to change the slot duration after the chain has started.
 //       Attempting to do so will brick block production.
@@ -370,6 +369,12 @@ impl pallet_transaction_payment::Config for Runtime {
 parameter_types! {
 	pub const ReservedXcmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT.saturating_div(4);
 	pub const ReservedDmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT.saturating_div(4);
+}
+
+// TODO: On Testnet only
+impl pallet_sudo::Config for Runtime {
+	type Call = Call;
+	type Event = Event;
 }
 
 impl cumulus_pallet_parachain_system::Config for Runtime {
@@ -623,6 +628,88 @@ impl pallet_multi_mint::Config for Runtime {
 	type StringLimit = ConstU32<50>;
 }
 
+#[cfg(feature = "fast-gov")]
+pub const SPEND_PERIOD: BlockNumber = 6 * MINUTES;
+#[cfg(not(feature = "fast-gov"))]
+pub const SPEND_PERIOD: BlockNumber = 6 * DAYS;
+
+parameter_types! {
+	pub const ProposalBond: Permill = Permill::from_percent(5);
+	pub const ProposalBondMinimum: Balance = 20 * PLMC;
+	pub const SpendPeriod: BlockNumber = SPEND_PERIOD;
+	pub const Burn: Permill = Permill::zero();
+	pub const MaxApprovals: u32 = 100;
+	pub const TreasuryPalletId: PalletId = PalletId(*b"politrea");
+}
+
+impl pallet_treasury::Config for Runtime {
+	type PalletId = TreasuryPalletId;
+	type Currency = Balances;
+	// TODO: Use the Council instead of Root!
+	type ApproveOrigin = EnsureRoot<AccountId>;
+	type RejectOrigin = EnsureRoot<AccountId>;
+	type Event = Event;
+	type OnSlash = Treasury;
+	type ProposalBond = ProposalBond;
+	type ProposalBondMinimum = ProposalBondMinimum;
+	type ProposalBondMaximum = ();
+	type SpendPeriod = SpendPeriod;
+	type SpendOrigin = frame_support::traits::NeverEnsureOrigin<Balance>;
+	type Burn = Burn;
+	type BurnDestination = ();
+	type SpendFunds = ();
+	type WeightInfo = ();
+	type MaxApprovals = MaxApprovals;
+}
+
+// type ScheduleOrigin = EitherOfDiverse<
+// 	EnsureRoot<AccountId>,
+// 	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 2>,
+// >;
+
+// /// Used the compare the privilege of an origin inside the scheduler.
+// pub struct OriginPrivilegeCmp;
+
+// impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
+// 	fn cmp_privilege(left: &OriginCaller, right: &OriginCaller) -> Option<Ordering> {
+// 		if left == right {
+// 			return Some(Ordering::Equal)
+// 		}
+
+// 		match (left, right) {
+// 			// Root is greater than anything.
+// 			(OriginCaller::system(frame_system::RawOrigin::Root), _) => Some(Ordering::Greater),
+// 			// Check which one has more yes votes.
+// 			(
+// 				OriginCaller::Council(pallet_collective::RawOrigin::Members(l_yes_votes, l_count)),
+// 				OriginCaller::Council(pallet_collective::RawOrigin::Members(r_yes_votes, r_count)),
+// 			) => Some((l_yes_votes * r_count).cmp(&(r_yes_votes * l_count))),
+// 			// For every other origin we don't care, as they are not used for `ScheduleOrigin`.
+// 			_ => None,
+// 		}
+// 	}
+// }
+
+// parameter_types! {
+// 	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) *
+// RuntimeBlockWeights::get().max_block; 	pub const MaxScheduledPerBlock: u32 = 50;
+// 	pub const NoPreimagePostponement: Option<BlockNumber> = Some(10);
+// }
+
+// impl pallet_scheduler::Config for Runtime {
+// 	type Event = Event;
+// 	type Origin = Origin;
+// 	type PalletsOrigin = OriginCaller;
+// 	type Call = Call;
+// 	type MaximumWeight = MaximumSchedulerWeight;
+// 	type ScheduleOrigin = ScheduleOrigin;
+// 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
+// 	type WeightInfo = ();
+// 	type OriginPrivilegeCmp = OriginPrivilegeCmp;
+// 	type PreimageProvider = Preimage;
+// 	type NoPreimagePostponement = NoPreimagePostponement;
+// }
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -637,6 +724,7 @@ construct_runtime!(
 		} = 1,
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 2,
 		ParachainInfo: parachain_info::{Pallet, Storage, Config} = 3,
+		Sudo: pallet_sudo = 4,
 
 		// Monetary stuff.
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 10,
@@ -657,10 +745,16 @@ construct_runtime!(
 		CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 32,
 		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 33,
 
+		// Governance
+		Treasury: pallet_treasury = 35,
+
+		// Utilities
+		// Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 50,
+
 		// Polimec Core
-		PolimecMultiBalances: orml_tokens = 40,
-		PolimecFunding: pallet_funding::{Pallet, Call, Storage, Event<T>}  = 41,
-		PolimecMultiMint: pallet_multi_mint  = 42,
+		PolimecMultiBalances: orml_tokens = 60,
+		PolimecFunding: pallet_funding::{Pallet, Call, Storage, Event<T>}  = 61,
+		PolimecMultiMint: pallet_multi_mint  = 62,
 	}
 );
 
