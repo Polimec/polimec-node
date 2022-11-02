@@ -19,7 +19,7 @@ hex-literal = "0.3.4"
 jsonrpsee = { version = "0.15.1", features = ["server"] }
 
 # Local
-polimec-runtime = { path = "../runtime" }
+polimec-parachain-runtime = { path = "../../runtimes/testnet" }
 
 # Substrate
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29" }
@@ -85,7 +85,7 @@ substrate-build-script-utils = { git = "https://github.com/paritytech/substrate"
 [features]
 default = []
 runtime-benchmarks = [
-	"polimec-runtime/runtime-benchmarks",
+	"polimec-parachain-runtime/runtime-benchmarks",
 	"polkadot-cli/runtime-benchmarks",
 ]
-try-runtime = ["polimec-runtime/try-runtime"]
+try-runtime = ["polimec-parachain-runtime/try-runtime"]

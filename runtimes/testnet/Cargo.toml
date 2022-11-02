@@ -1,5 +1,5 @@
 [package]
-name = "polimec-runtime"
+name = "polimec-parachain-runtime"
 version = "0.1.0"
 authors = ['Polimec Team <https://github.com/Polimec>']
 description = "A new Cumulus FRAME-based Substrate Runtime, ready for hacking together a parachain."
@@ -23,9 +23,9 @@ serde = { version = "1.0.144", optional = true, features = ["derive"] }
 smallvec = "1.9.0"
 
 # Local
-pallet-funding = { path = "../pallets/funding", default-features = false }
-pallet-multi-mint = { path = "../pallets/multi-mint", default-features = false }
-parachain-staking = { path = "../pallets/parachain-staking", default-features = false }
+pallet-funding = { path = "../../pallets/funding", default-features = false }
+pallet-multi-mint = { path = "../../pallets/multi-mint", default-features = false }
+parachain-staking = { path = "../../pallets/parachain-staking", default-features = false }
 
 # Substrate
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true, branch = "polkadot-v0.9.29" }

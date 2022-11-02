@@ -1,5 +1,5 @@
 use cumulus_primitives_core::ParaId;
-use polimec_runtime::{
+use polimec_parachain_runtime::{
 	AccountId, AuraId, Balance, InflationInfo, MinCollatorStake, ParachainStakingConfig, Signature,
 	SudoConfig, BLOCKS_PER_YEAR, PLMC,
 };
@@ -13,7 +13,7 @@ use sp_runtime::{
 };
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
-pub type ChainSpec = sc_service::GenericChainSpec<polimec_runtime::GenesisConfig, Extensions>;
+pub type ChainSpec = sc_service::GenericChainSpec<polimec_parachain_runtime::GenesisConfig, Extensions>;
 
 /// The default XCM version to set in genesis config.
 const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
@@ -64,8 +64,8 @@ where
 /// Generate the session keys from individual elements.
 ///
 /// The input must be a tuple of individual keys (a single arg for now since we have just one key).
-pub fn template_session_keys(keys: AuraId) -> polimec_runtime::SessionKeys {
-	polimec_runtime::SessionKeys { aura: keys }
+pub fn template_session_keys(keys: AuraId) -> polimec_parachain_runtime::SessionKeys {
+	polimec_parachain_runtime::SessionKeys { aura: keys }
 }
 
 pub fn development_config() -> ChainSpec {
@@ -230,17 +230,17 @@ fn testnet_genesis(
 	inflation_config: InflationInfo,
 	max_candidate_stake: Balance,
 	root_account: AccountId,
-) -> polimec_runtime::GenesisConfig {
-	polimec_runtime::GenesisConfig {
-		system: polimec_runtime::SystemConfig {
-			code: polimec_runtime::WASM_BINARY
+) -> polimec_parachain_runtime::GenesisConfig {
+	polimec_parachain_runtime::GenesisConfig {
+		system: polimec_parachain_runtime::SystemConfig {
+			code: polimec_parachain_runtime::WASM_BINARY
 				.expect("WASM binary was not build, please build it!")
 				.to_vec(),
 		},
-		balances: polimec_runtime::BalancesConfig {
+		balances: polimec_parachain_runtime::BalancesConfig {
 			balances: endowed_accounts.iter().cloned().map(|k| (k, 100_000 * PLMC)).collect(),
 		},
-		parachain_info: polimec_runtime::ParachainInfoConfig { parachain_id: id },
+		parachain_info: polimec_parachain_runtime::ParachainInfoConfig { parachain_id: id },
 		parachain_staking: ParachainStakingConfig {
 			stakers,
 			inflation_config,
@@ -251,7 +251,7 @@ fn testnet_genesis(
 		aura: Default::default(),
 		aura_ext: Default::default(),
 		parachain_system: Default::default(),
-		session: polimec_runtime::SessionConfig {
+		session: polimec_parachain_runtime::SessionConfig {
 			keys: invulnerables
 				.into_iter()
 				.map(|(acc, aura)| {
@@ -263,7 +263,7 @@ fn testnet_genesis(
 				})
 				.collect(),
 		},
-		polkadot_xcm: polimec_runtime::PolkadotXcmConfig {
+		polkadot_xcm: polimec_parachain_runtime::PolkadotXcmConfig {
 			safe_xcm_version: Some(SAFE_XCM_VERSION),
 		},
 		polimec_multi_balances: Default::default(),

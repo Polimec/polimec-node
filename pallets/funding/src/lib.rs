@@ -637,6 +637,7 @@ pub mod pallet {
 }
 
 use frame_support::{pallet_prelude::*, traits::Randomness, BoundedVec};
+use sp_std::vec::Vec;
 
 impl<T: Config> Pallet<T> {
 	pub fn fund_account_id(index: ProjectIdentifier) -> T::AccountId {
