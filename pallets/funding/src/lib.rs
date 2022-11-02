@@ -26,6 +26,7 @@ pub type BalanceOf<T> = <T as Config>::CurrencyBalance;
 /// Identifier for the collection of item.
 pub type ProjectIdentifier = u32;
 
+// TODO: Add multiple locks
 const LOCKING_ID: LockIdentifier = *b"evaluate";
 
 #[frame_support::pallet]
@@ -111,6 +112,12 @@ pub mod pallet {
 	/// A global counter for indexing the projects
 	/// OnEmpty in this case is GetDefault, so 0.
 	pub type ProjectId<T: Config> = StorageValue<_, ProjectIdentifier, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn nonce)]
+	/// A global counter for indexing the projects
+	/// OnEmpty in this case is GetDefault, so 0.
+	pub type Nonce<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn projects)]
@@ -587,8 +594,7 @@ pub mod pallet {
 										.expect("placeholder_function"),
 									);
 									project_info.auction_round_end = Some(
-										Self::select_random_block(*project_id, &project_issuer)
-											.expect("placeholder_function"),
+										now, //Self::select_random_block().expect("placeholder_function"),
 									);
 								},
 							);
@@ -740,13 +746,15 @@ impl<T: Config> Pallet<T> {
 		Ok(100_u32.into())
 	}
 
-	pub fn select_random_block(
-		_project_id: ProjectIdentifier,
-		_who: &T::AccountId,
-	) -> Result<T::BlockNumber, DispatchError> {
-		let (raw_offset, _known_since) = T::Randomness::random(&b"auction_round"[..]);
-		let raw_offset_block_number = <T::BlockNumber>::decode(&mut raw_offset.as_ref())
-			.expect("secure hashes should always be bigger than the block number; qed");
-		Ok(raw_offset_block_number)
+	pub fn select_random_block() -> Result<T::Hash, DispatchError> {
+		let (value, nonce) = Self::get_and_increment_nonce();
+		let (randomValue, _) = T::Randomness::random(&nonce);
+		Ok(randomValue)
+	}
+
+	fn get_and_increment_nonce() -> (u32, Vec<u8>) {
+		let nonce = Nonce::<T>::get();
+		Nonce::<T>::put(nonce.wrapping_add(1));
+		(nonce, nonce.encode())
 	}
 }

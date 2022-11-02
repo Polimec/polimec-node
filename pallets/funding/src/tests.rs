@@ -507,3 +507,26 @@ mod flow {
 		})
 	}
 }
+
+mod random {
+	use super::*;
+	#[test]
+	fn random_is_really_random() {
+		new_test_ext().execute_with(|| {
+			let random = FundingModule::select_random_block();
+			println!("Random {:?}", random);
+			let block_number = System::block_number();
+			System::set_block_number(block_number + 1000);
+			let random = FundingModule::select_random_block();
+			println!("Random {:?}", random);
+			let block_number = System::block_number();
+			System::set_block_number(block_number + 1000);
+			let random = FundingModule::select_random_block();
+			println!("Random {:?}", random);
+			let block_number = System::block_number();
+			System::set_block_number(block_number + 1000);
+			let random = FundingModule::select_random_block();
+			println!("Random {:?}", random);
+		})
+	}
+}

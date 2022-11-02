@@ -1,12 +1,5 @@
-use core::cell::RefCell;
-
 use crate as pallet_funding;
-use frame_support::{
-	pallet_prelude::ConstU32,
-	parameter_types,
-	traits::{ConstU16, Randomness},
-	PalletId,
-};
+use frame_support::{pallet_prelude::ConstU32, parameter_types, traits::ConstU16, PalletId};
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
@@ -30,6 +23,7 @@ frame_support::construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system,
+		RandomnessCollectiveFlip: pallet_randomness_collective_flip,
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		FundingModule: pallet_funding,
 	}
@@ -82,25 +76,7 @@ impl pallet_balances::Config for Test {
 	type WeightInfo = ();
 }
 
-thread_local! {
-	pub static LAST_RANDOM: RefCell<Option<(H256,u64)>>  = RefCell::new(None);
-}
-fn set_last_random(output: H256, known_since: u64) {
-	LAST_RANDOM.with(|p| *p.borrow_mut() = Some((output, known_since)))
-}
-pub struct TestPastRandomness;
-impl Randomness<H256, BlockNumber> for TestPastRandomness {
-	fn random(_subject: &[u8]) -> (H256, u64) {
-		LAST_RANDOM.with(|p| {
-			if let Some((output, known_since)) = &*p.borrow() {
-				(*output, *known_since)
-			} else {
-				let block_number: u64 = frame_system::Pallet::<Test>::block_number();
-				(H256::zero(), block_number)
-			}
-		})
-	}
-}
+impl pallet_randomness_collective_flip::Config for Test {}
 
 parameter_types! {
 	// TODO: Replace 28 with the real time
@@ -125,7 +101,7 @@ impl pallet_funding::Config for Test {
 	type PalletId = FundingPalletId;
 	type ActiveProjectsLimit = ConstU32<100>;
 	type CommunityRoundDuration = CommunityRoundDuration;
-	type Randomness = TestPastRandomness;
+	type Randomness = RandomnessCollectiveFlip;
 }
 
 // Build genesis storage according to the mock runtime.
