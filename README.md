@@ -1,5 +1,8 @@
 # Polimec Parachain  <!-- omit in toc -->
 
+> **Warning**
+> Under HEAVY development
+
 TODO
 
 ## How to run it (Parachain Mode)
