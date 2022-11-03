@@ -1,6 +1,6 @@
 use polimec_standalone_runtime::{
-	AccountId, BalancesConfig, GenesisConfig, GetNativeCurrencyId, PolimecMultiBalancesConfig, SessionConfig, Signature, SudoConfig, SystemConfig,
-	WASM_BINARY,
+	AccountId, BalancesConfig, GenesisConfig, GetNativeCurrencyId, PolimecMultiBalancesConfig,
+	SessionConfig, Signature, SudoConfig, SystemConfig, WASM_BINARY,
 };
 use sc_service::{ChainType, Properties};
 use serde_json::map::Map;
@@ -54,7 +54,6 @@ fn get_authority_keys_from_secret(seed: &str) -> (AccountId, AuraId, GrandpaId) 
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig>;
 
 type AccountPublic = <Signature as Verify>::Signer;
-
 
 pub fn development_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm not available".to_string())?;

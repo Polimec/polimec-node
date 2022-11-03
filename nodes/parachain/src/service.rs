@@ -8,7 +8,9 @@ use jsonrpsee::RpcModule;
 
 use cumulus_client_cli::CollatorOptions;
 // Local Runtime Types
-use polimec_parachain_runtime::{opaque::Block, AccountId, Balance, Hash, Index as Nonce, RuntimeApi};
+use polimec_parachain_runtime::{
+	opaque::Block, AccountId, Balance, Hash, Index as Nonce, RuntimeApi,
+};
 
 // Cumulus Imports
 use cumulus_client_consensus_aura::{AuraConsensus, BuildAuraConsensusParams, SlotProportion};
