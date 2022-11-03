@@ -233,6 +233,7 @@ pub enum ProjectStatus {
 	EvaluationEnded,
 	AuctionRound(AuctionPhase),
 	CommunityRound,
+	FundingEnded,
 	ReadyToLaunch,
 }
 
