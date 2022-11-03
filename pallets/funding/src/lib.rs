@@ -347,30 +347,21 @@ pub mod pallet {
 			ensure!(from != project_issuer, Error::<T>::ContributionToThemselves);
 
 			let project_info = ProjectsInfo::<T>::get(project_id, &project_issuer);
-			let project = Projects::<T>::get(project_id, &project_issuer);
+			let project = Projects::<T>::get(project_id, &project_issuer)
+				.ok_or(Error::<T>::ProjectNotExists)?;
 			ensure!(
 				project_info.project_status == ProjectStatus::EvaluationRound,
 				Error::<T>::EvaluationNotStarted
 			);
 			ensure!(T::Currency::free_balance(&from) > amount, Error::<T>::InsufficientBalance);
 
-			let minimum_amount = project
-				.as_ref()
-				.expect("Project exists")
-				.ticket_size
-				.minimum
-				// Take the value given by the issuer or use the minimum balance any single account
-				// may have.
-				.unwrap_or_else(T::Currency::minimum_balance);
+			// Take the value given by the issuer or use the minimum balance any single account may have.
+			let minimum_amount =
+				project.ticket_size.minimum.unwrap_or_else(T::Currency::minimum_balance);
 
-			let maximum_amount = project
-				.as_ref()
-				.expect("Project exists")
-				.ticket_size
-				.maximum
-				// Take the value given by the issuer or use the total amount of issuance in the
-				// system.
-				.unwrap_or_else(T::Currency::total_issuance);
+			// Take the value given by the issuer or use the total amount of issuance in the system.
+			let maximum_amount =
+				project.ticket_size.maximum.unwrap_or_else(T::Currency::total_issuance);
 			ensure!(amount >= minimum_amount, Error::<T>::BondTooLow);
 			ensure!(amount <= maximum_amount, Error::<T>::BondTooHigh);
 
