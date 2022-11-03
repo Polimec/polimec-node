@@ -7,6 +7,8 @@ TODO
 
 ## How to run it (Parachain Mode)
 
+TODO: Use [polkadot-launch](https://github.com/paritytech/polkadot-launch) (deprecated) or [Zombienet](https://github.com/paritytech/zombienet) or [parachain-launch](https://github.com/open-web3-stack/parachain-launch)
+
 ### Phase 1: Clone and build the relay chain node
 
 ```
