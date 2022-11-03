@@ -427,10 +427,8 @@ pub mod pallet {
 			project_id: ProjectIdentifier,
 			#[pallet::compact] price: BalanceOf<T>,
 			#[pallet::compact] amount: BalanceOf<T>,
-			// Add a parameter to specify the currency to use, should be equal to the currency
+			// TODO: Add a parameter to specify the currency to use, should be equal to the currency
 			// specified in `participation_currencies`
-			// TODO: In future participation_currencies will became an array of currencies, so the
-			// currency to use should be IN the `participation_currencies` vector/set
 		) -> DispatchResult {
 			let bidder = ensure_signed(origin)?;
 
@@ -532,98 +530,39 @@ pub mod pallet {
 					// Check if Evaluation Period is ended, if true, end it
 					// EvaluationRound -> EvaluationEnded
 					ProjectStatus::EvaluationRound => {
-						let evaluation_detail = Evaluations::<T>::get(project_id, &project_issuer);
-						if now >= evaluation_detail.evaluation_period_ends {
-							ProjectsInfo::<T>::mutate(project_id, project_issuer, |project_info| {
-								project_info.project_status = ProjectStatus::EvaluationEnded;
-							});
-							// TODO: Deposit Event
-						}
+						Self::handle_evaluation_end(project_id, &project_issuer, now);
 					},
-					// Check if more than 7 days passed since the end of evaluation, if true, start
-					// the Auction Round
+					// Check if more than 7 days passed since the end of evaluation, if true, start the Auction Round
 					// EvaluationEnded -> AuctionRound
 					ProjectStatus::EvaluationEnded => {
-						let evaluation_detail = Evaluations::<T>::get(project_id, &project_issuer);
-						if evaluation_detail.evaluation_period_ends +
-							T::EnglishAuctionDuration::get() <=
-							now
-						{
-							// TODO: Unused error, more tests needed
-							// TODO: Here the start_auction is "free", check the Weight
-							let _ = Self::do_start_auction(*project_id, &project_issuer);
-						}
+						Self::handle_auction_start(project_id, &project_issuer, now);
 					},
 					// Check if we need to move to the Candle Phase of the Auction Round
 					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
 					ProjectStatus::AuctionRound(AuctionPhase::English) => {
-						let auction_detail = Auctions::<T>::get(project_id, &project_issuer);
-						if now >= auction_detail.english_ending_block {
-							ProjectsInfo::<T>::mutate(project_id, project_issuer, |project_info| {
-								project_info.project_status =
-									ProjectStatus::AuctionRound(AuctionPhase::Candle);
-							});
-						}
+						Self::handle_auction_candle(project_id, &project_issuer, now);
 					},
 					// Check if we need to move from the Auction Round of the Community Round
+					// AuctionRound(AuctionPhase::Candle) -> CommunityRound
 					ProjectStatus::AuctionRound(AuctionPhase::Candle) => {
-						let auction_detail = Auctions::<T>::get(project_id, &project_issuer);
-						if now >= auction_detail.candle_ending_block {
-							// TODO: Select a random block and pick the winner
-							let project = Projects::<T>::get(project_id, &project_issuer)
-								.expect("meaningful message");
-							ProjectsInfo::<T>::mutate(
-								project_id,
-								project_issuer.clone(),
-								|project_info| {
-									project_info.project_status = ProjectStatus::CommunityRound;
-									project_info.final_price = Some(
-										Self::calculate_final_price(
-											*project_id,
-											&project.fundraising_target,
-										)
-										.expect("placeholder_function"),
-									);
-									project_info.auction_round_end = Some(
-										now, //Self::select_random_block().expect("placeholder_function"),
-									);
-								},
-							);
-						}
+						Self::handle_community_start(project_id, &project_issuer, now);
 					},
 					// Check if we need to move to the Ready to Launch Round
 					// Remove also the ProjectId from the ProjectsActive Vector
 					// CommunityRound -> ReadyToLaunch
 					ProjectStatus::CommunityRound => {
-						let auction_detail = Auctions::<T>::get(project_id, &project_issuer);
-						if now >= auction_detail.community_ending_block {
-							// TODO: Select a random block and pick the winner
-							ProjectsInfo::<T>::mutate(
-								project_id,
-								project_issuer.clone(),
-								|project_info| {
-									project_info.project_status = ProjectStatus::ReadyToLaunch;
-								},
-							);
-							// Project identified by project_id is no longer "active"
-							ProjectsActive::<T>::mutate(|active_projects| {
-								if let Some(pos) =
-									active_projects.iter().position(|x| x == project_id)
-								{
-									active_projects.remove(pos);
-								}
-							});
-						}
+						Self::handle_community_end(project_id, &project_issuer, now);
 					},
 					_ => (),
 				}
 			}
+			// TODO: Set a proper weight
 			Weight::from_ref_time(0)
 		}
 
-		fn on_idle(_now: T::BlockNumber, _max_weight: Weight) -> Weight {
-			Weight::from_ref_time(0)
-		}
+		// fn on_idle(_now: T::BlockNumber, _max_weight: Weight) -> Weight {
+		// 	Weight::from_ref_time(0)
+		// }
 	}
 }
 
@@ -707,6 +646,87 @@ impl<T: Config> Pallet<T> {
 
 	pub fn close_auction() {}
 
+	pub fn handle_evaluation_end(
+		project_id: &ProjectIdentifier,
+		project_issuer: &T::AccountId,
+		now: T::BlockNumber,
+	) {
+		let evaluation_detail = Evaluations::<T>::get(project_id, project_issuer);
+		if now >= evaluation_detail.evaluation_period_ends {
+			ProjectsInfo::<T>::mutate(project_id, project_issuer, |project_info| {
+				project_info.project_status = ProjectStatus::EvaluationEnded;
+			});
+			// TODO: Deposit Event
+		}
+	}
+
+	pub fn handle_auction_start(
+		project_id: &ProjectIdentifier,
+		project_issuer: &T::AccountId,
+		now: T::BlockNumber,
+	) {
+		let evaluation_detail = Evaluations::<T>::get(project_id, project_issuer);
+		if evaluation_detail.evaluation_period_ends + T::EnglishAuctionDuration::get() <= now {
+			// TODO: Unused error, more tests needed
+			// TODO: Here the start_auction is "free", check the Weight
+			let _ = Self::do_start_auction(*project_id, project_issuer);
+		}
+	}
+
+	pub fn handle_auction_candle(
+		project_id: &ProjectIdentifier,
+		project_issuer: &T::AccountId,
+		now: T::BlockNumber,
+	) {
+		let auction_detail = Auctions::<T>::get(project_id, project_issuer);
+		if now >= auction_detail.english_ending_block {
+			ProjectsInfo::<T>::mutate(project_id, project_issuer, |project_info| {
+				project_info.project_status = ProjectStatus::AuctionRound(AuctionPhase::Candle);
+			});
+		}
+	}
+
+	pub fn handle_community_start(
+		project_id: &ProjectIdentifier,
+		project_issuer: &T::AccountId,
+		now: T::BlockNumber,
+	) {
+		let auction_detail = Auctions::<T>::get(project_id, project_issuer);
+		if now >= auction_detail.candle_ending_block {
+			let project =
+				Projects::<T>::get(project_id, project_issuer).expect("meaningful message");
+			ProjectsInfo::<T>::mutate(project_id, project_issuer.clone(), |project_info| {
+				project_info.project_status = ProjectStatus::CommunityRound;
+				project_info.final_price = Some(
+					Self::calculate_final_price(*project_id, &project.fundraising_target)
+						.expect("placeholder_function"),
+				);
+				project_info.auction_round_end = Some(
+					now, //Self::select_random_block().expect("placeholder_function"),
+				);
+			});
+		}
+	}
+
+	pub fn handle_community_end(
+		project_id: &ProjectIdentifier,
+		project_issuer: &T::AccountId,
+		now: T::BlockNumber,
+	) {
+		let auction_detail = Auctions::<T>::get(project_id, project_issuer);
+		if now >= auction_detail.community_ending_block {
+			ProjectsInfo::<T>::mutate(project_id, project_issuer.clone(), |project_info| {
+				project_info.project_status = ProjectStatus::ReadyToLaunch;
+			});
+			// Project identified by project_id is no longer "active"
+			ProjectsActive::<T>::mutate(|active_projects| {
+				if let Some(pos) = active_projects.iter().position(|x| x == project_id) {
+					active_projects.remove(pos);
+				}
+			});
+		}
+	}
+
 	// Maybe we can do this in an "on_idle" hook?
 	pub fn calculate_final_price(
 		_project_id: ProjectIdentifier,
@@ -739,9 +759,9 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn select_random_block() -> Result<T::Hash, DispatchError> {
-		let (value, nonce) = Self::get_and_increment_nonce();
-		let (randomValue, _) = T::Randomness::random(&nonce);
-		Ok(randomValue)
+		let (_value, nonce) = Self::get_and_increment_nonce();
+		let (random_value, _) = T::Randomness::random(&nonce);
+		Ok(random_value)
 	}
 
 	fn get_and_increment_nonce() -> (u32, Vec<u8>) {
