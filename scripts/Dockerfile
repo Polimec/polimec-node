@@ -18,7 +18,7 @@ RUN apt-get update && \
 ARG GIT_COMMIT=
 ENV GIT_COMMIT=$GIT_COMMIT
 ARG BUILD_ARGS=build-polimec-release
-ARG PROFILE=production
+ARG PROFILE=release
 
 COPY . .
 
@@ -33,11 +33,11 @@ ARG PROFILE
 
 RUN useradd -m -u 1000 -U -s /bin/sh -d /polimec polimec
 
-COPY --from=builder /app/target/$PROFILE/polimec /usr/local/bin
+COPY --from=builder /app/target/$PROFILE/polimec-parachain-node /usr/local/bin
 
 # checks
-RUN ldd /usr/local/bin/polimec && \
-    /usr/local/bin/polimec --version
+RUN ldd /usr/local/bin/polimec-parachain-node && \
+    /usr/local/bin/polimec-parachain-node --version
 
 # Shrinking
 RUN rm -rf /usr/lib/python* && \
@@ -50,4 +50,4 @@ RUN mkdir /polimec/data
 
 VOLUME ["/polimec/data"]
 
-ENTRYPOINT ["/usr/local/bin/polimec"]
+ENTRYPOINT ["/usr/local/bin/polimec-parachain-node"]
