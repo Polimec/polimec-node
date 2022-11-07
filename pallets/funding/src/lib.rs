@@ -20,6 +20,8 @@ use frame_support::{
 };
 use sp_runtime::traits::{AccountIdConversion, CheckedAdd, CheckedSub, Zero};
 
+use polimec_traits::{MemberRole, PolimecMembers};
+
 /// The balance type of this pallet.
 pub type BalanceOf<T> = <T as Config>::CurrencyBalance;
 
@@ -91,20 +93,10 @@ pub mod pallet {
 		/// Something that provides randomness in the runtime.
 		type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
 
-		// TODO: Should be helpful for allowing the calls only by the user in the set of
-		// { Issuer, Retail, Professional, Institutional }
-		// Project creation is only allowed if the origin attempting it and the
-		// collection are in this set.
-		// type CreateOrigin: EnsureOriginWithArg<
-		//	Self::Origin,
-		//	Self::CollectionId,
-		//	Success = Self::AccountId,
-		//>;
-
-		// type ForceOrigin: EnsureOrigin<Self::Origin>;
-
 		// Weight information for extrinsic in this pallet.
 		// type WeightInfo: WeightInfo;
+
+		type HandleMembers: PolimecMembers<Self::AccountId>;
 	}
 
 	#[pallet::storage]
@@ -273,6 +265,7 @@ pub mod pallet {
 		InsufficientBalance,
 		TooSoon,
 		TooManyActiveProjects,
+		NotAuthorized,
 	}
 
 	#[pallet::call]
@@ -283,8 +276,12 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			project: Project<T::AccountId, BoundedVec<u8, T::StringLimit>, BalanceOf<T>>,
 		) -> DispatchResult {
-			// TODO: Ensure that the user is credentialized
+			
 			let issuer = ensure_signed(origin)?;
+			ensure!(
+				T::HandleMembers::is_in(&issuer, &MemberRole::Issuer),
+				Error::<T>::NotAuthorized
+			);
 
 			match project.validity_check() {
 				Err(error) => match error {
@@ -557,11 +554,8 @@ pub mod pallet {
 				let project_issuer =
 					ProjectsIssuers::<T>::get(project_id).expect("The project issuer is set");
 				let project_info = ProjectsInfo::<T>::get(project_id, &project_issuer);
-				match project_info.project_status {
-					ProjectStatus::FundingEnded => {
-						Self::handle_fuding_end(project_id, &project_issuer, now);
-					},
-					_ => (),
+				if project_info.project_status == ProjectStatus::FundingEnded {
+					Self::handle_fuding_end(project_id, &project_issuer, now);
 				}
 			}
 			Weight::from_ref_time(0)

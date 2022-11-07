@@ -63,6 +63,7 @@ hex-literal = { version = "0.3.4", optional = true }
 # Local Dependencies
 pallet-multi-mint = { version = "0.1", default-features = false, path = "../../pallets/multi-mint" }
 pallet-funding = { version = "0.1", default-features = false, path = "../../pallets/funding" }
+pallet-credentials = { path = "../../pallets/credentials", default-features = false }
 parachain-staking = { version = "1.8.0", default-features = false, path = "../../pallets/parachain-staking" }
 
 # ORML Dependencies

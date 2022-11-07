@@ -677,6 +677,19 @@ impl pallet_funding::Config for Runtime {
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityRoundDuration = CommunityRoundDuration;
 	type Randomness = PastRandomness;
+	type HandleMembers = Credentials;
+}
+
+impl pallet_credentials::Config for Runtime {
+	type Event = Event;
+	type AddOrigin = EnsureRoot<AccountId>;
+	type RemoveOrigin = EnsureRoot<AccountId>;
+	type SwapOrigin = EnsureRoot<AccountId>;
+	type ResetOrigin = EnsureRoot<AccountId>;
+	type PrimeOrigin = EnsureRoot<AccountId>;
+	type MembershipInitialized = ();
+	type MembershipChanged = ();
+	type MaxMembersCount = ConstU32<255>;
 }
 
 parameter_types! {
@@ -925,6 +938,7 @@ construct_runtime!(
 		PolimecMultiBalances: orml_tokens = 60,
 		PolimecFunding: pallet_funding::{Pallet, Call, Storage, Event<T>}  = 61,
 		PolimecMultiMint: pallet_multi_mint  = 62,
+		Credentials: pallet_credentials = 63,
 	}
 );
 

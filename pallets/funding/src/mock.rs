@@ -7,6 +7,7 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage,
 };
+use system::{EnsureRoot, EnsureSigned};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -26,6 +27,7 @@ frame_support::construct_runtime!(
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip,
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		FundingModule: pallet_funding,
+		Credentials: pallet_credentials
 	}
 );
 
@@ -78,6 +80,18 @@ impl pallet_balances::Config for Test {
 
 impl pallet_randomness_collective_flip::Config for Test {}
 
+impl pallet_credentials::Config for Test {
+	type Event = Event;
+	type AddOrigin = EnsureSigned<AccountId>;
+	type RemoveOrigin = EnsureSigned<AccountId>;
+	type SwapOrigin = EnsureSigned<AccountId>;
+	type ResetOrigin = EnsureSigned<AccountId>;
+	type PrimeOrigin = EnsureSigned<AccountId>;
+	type MembershipInitialized = ();
+	type MembershipChanged = ();
+	type MaxMembersCount = ConstU32<255>;
+}
+
 parameter_types! {
 	// TODO: Replace 28 with the real time
 	pub const EvaluationDuration: BlockNumber = 28;
@@ -102,6 +116,7 @@ impl pallet_funding::Config for Test {
 	type ActiveProjectsLimit = ConstU32<100>;
 	type CommunityRoundDuration = CommunityRoundDuration;
 	type Randomness = RandomnessCollectiveFlip;
+	type HandleMembers = Credentials;
 }
 
 // Build genesis storage according to the mock runtime.

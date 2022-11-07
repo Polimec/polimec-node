@@ -5,8 +5,19 @@
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
-
-use frame_support::{traits::OnUnbalanced, weights::ConstantMultiplier};
+pub use frame_support::{
+	construct_runtime, parameter_types,
+	traits::{
+		ConstU128, ConstU32, ConstU64, ConstU8, Contains, Currency, EitherOfDiverse,
+		EqualPrivilegeOnly, KeyOwnerProofSystem, OnUnbalanced, Randomness, StorageInfo,
+	},
+	weights::{
+		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
+		ConstantMultiplier, IdentityFee, Weight,
+	},
+	PalletId, StorageValue,
+};
+pub use frame_system::EnsureSigned;
 use pallet_grandpa::{
 	fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
 };
@@ -27,22 +38,7 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-// A few exports that help ease life for downstream crates.
-use frame_support::traits::{EitherOfDiverse, EqualPrivilegeOnly};
-pub use frame_support::{
-	construct_runtime, parameter_types,
-	traits::{
-		ConstU128, ConstU32, ConstU64, ConstU8, Currency, KeyOwnerProofSystem, Randomness,
-		StorageInfo,
-	},
-	weights::{
-		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-		IdentityFee, Weight,
-	},
-	StorageValue,
-};
-pub use frame_system::Call as SystemCall;
-use frame_system::EnsureRoot;
+pub use frame_system::{Call as SystemCall, EnsureRoot};
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
@@ -52,7 +48,6 @@ use sp_runtime::traits::AccountIdConversion;
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill, Perquintill};
 
-use frame_support::{traits::Contains, PalletId};
 use orml_traits::parameter_type_with_key;
 pub use pallet_funding;
 /// Import Polimec pallets.
@@ -687,6 +682,19 @@ impl pallet_funding::Config for Runtime {
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityRoundDuration = CommunityRoundDuration;
 	type Randomness = PastRandomness;
+	type HandleMembers = Credentials;
+}
+
+impl pallet_credentials::Config for Runtime {
+	type Event = Event;
+	type AddOrigin = EnsureRoot<AccountId>;
+	type RemoveOrigin = EnsureRoot<AccountId>;
+	type SwapOrigin = EnsureRoot<AccountId>;
+	type ResetOrigin = EnsureRoot<AccountId>;
+	type PrimeOrigin = EnsureRoot<AccountId>;
+	type MembershipInitialized = ();
+	type MembershipChanged = ();
+	type MaxMembersCount = ConstU32<255>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -722,6 +730,7 @@ construct_runtime!(
 		// Include the custom logic
 		PolimecMultiMint: pallet_multi_mint,
 		PolimecFunding: pallet_funding,
+		Credentials: pallet_credentials,
 	}
 );
 

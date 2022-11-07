@@ -30,6 +30,7 @@ smallvec = "1.9.0"
 pallet-funding = { path = "../../pallets/funding", default-features = false }
 pallet-multi-mint = { path = "../../pallets/multi-mint", default-features = false }
 parachain-staking = { path = "../../pallets/parachain-staking", default-features = false }
+pallet-credentials = { path = "../../pallets/credentials", default-features = false }
 
 # FRAME
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true, branch = "polkadot-v0.9.29" }
