@@ -15,7 +15,6 @@ derive_more = "0.99.2"
 log = "0.4.17"
 codec = { package = "parity-scale-codec", version = "3.0.0" }
 serde = { version = "1.0.144", features = ["derive"] }
-hex-literal = "0.3.4"
 jsonrpsee = { version = "0.15.1", features = ["server"] }
 
 # Local
@@ -61,14 +60,12 @@ try-runtime-cli = { git = "https://github.com/paritytech/substrate", branch = "p
 
 # Polkadot
 polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.29" }
-polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.29" }
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.29" }
 polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.29" }
 xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.29" }
 
 # Cumulus
 cumulus-client-cli = { git = "https://github.com/paritytech/cumulus.git", branch = "polkadot-v0.9.29" }
-cumulus-client-collator = { git = "https://github.com/paritytech/cumulus.git", branch = "polkadot-v0.9.29" }
 cumulus-client-consensus-aura = { git = "https://github.com/paritytech/cumulus.git", branch = "polkadot-v0.9.29" }
 cumulus-client-consensus-common = { git = "https://github.com/paritytech/cumulus.git", branch = "polkadot-v0.9.29" }
 cumulus-client-network = { git = "https://github.com/paritytech/cumulus.git", branch = "polkadot-v0.9.29" }
