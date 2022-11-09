@@ -60,6 +60,7 @@ pub mod pallet {
 		/// This is used for benchmarking. Re-run the benchmarks if this changes.
 		///
 		/// This is enforced in the code; the membership size can not exceed this limit.
+		#[pallet::constant]
 		type MaxMembersCount: Get<u32>;
 
 		// Weight information for extrinsics in this pallet.
@@ -108,6 +109,81 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
+	#[pallet::genesis_config]
+	pub struct GenesisConfig<T: Config> {
+		pub issuers: Vec<T::AccountId>,
+		pub retails: Vec<T::AccountId>,
+		pub professionals: Vec<T::AccountId>,
+		pub institutionals: Vec<T::AccountId>,
+	}
+
+	#[cfg(feature = "std")]
+	impl<T: Config> Default for GenesisConfig<T> {
+		fn default() -> Self {
+			Self {
+				issuers: Default::default(),
+				retails: Default::default(),
+				professionals: Default::default(),
+				institutionals: Default::default(),
+			}
+		}
+	}
+
+	#[pallet::genesis_build]
+	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+		fn build(&self) {
+			use sp_std::collections::btree_set::BTreeSet;
+
+			assert!(self.issuers.len() as u32 <= T::MaxMembersCount::get());
+			let issuers_set: BTreeSet<_> = self.issuers.iter().collect();
+			assert_eq!(
+				issuers_set.len(),
+				self.issuers.len(),
+				"Issuers cannot contain duplicate accounts."
+			);
+
+			assert!(self.retails.len() as u32 <= T::MaxMembersCount::get());
+			let retails_set: BTreeSet<_> = self.retails.iter().collect();
+			assert_eq!(
+				retails_set.len(),
+				self.retails.len(),
+				"Issuers cannot contain duplicate accounts."
+			);
+
+			assert!(self.professionals.len() as u32 <= T::MaxMembersCount::get());
+			let professionals_set: BTreeSet<_> = self.professionals.iter().collect();
+			assert_eq!(
+				professionals_set.len(),
+				self.professionals.len(),
+				"Issuers cannot contain duplicate accounts."
+			);
+
+			assert!(self.institutionals.len() as u32 <= T::MaxMembersCount::get());
+			let institutionals_set: BTreeSet<_> = self.institutionals.iter().collect();
+			assert_eq!(
+				institutionals_set.len(),
+				self.institutionals.len(),
+				"Issuers cannot contain duplicate accounts."
+			);
+
+			let mut issuers = self.issuers.clone();
+			issuers.sort();
+			Pallet::<T>::initialize_members(&issuers, &MemberRole::Issuer);
+
+			let mut retails = self.retails.clone();
+			retails.sort();
+			Pallet::<T>::initialize_members(&retails, &MemberRole::Retail);
+
+			let mut professionals = self.professionals.clone();
+			professionals.sort();
+			Pallet::<T>::initialize_members(&professionals, &MemberRole::Professional);
+
+			let mut institutionals = self.institutionals.clone();
+			institutionals.sort();
+			Pallet::<T>::initialize_members(&institutionals, &MemberRole::Institutional);
+		}
+	}
+
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Add a member `who` to the set.
@@ -132,11 +208,7 @@ impl<T: Config> Pallet<T> {
 	fn do_add_member(who: &T::AccountId, credential: &Credential) -> Result<(), DispatchError> {
 		let role = credential.role;
 
-		<Members<T>>::try_mutate(role, |members| -> DispatchResult {
-			let pos = members.binary_search(&who).err().ok_or(Error::<T>::AlreadyMember)?;
-			members.try_insert(pos, who.clone()).map_err(|_| Error::<T>::TooManyMembers)?;
-			Ok(())
-		})?;
+		Self::do_add_member_with_role(who, &role)?;
 
 		// T::MembershipChanged::change_members_sorted(&[who], &[], &members[..]);
 
@@ -146,7 +218,7 @@ impl<T: Config> Pallet<T> {
 
 	fn do_add_member_with_role(who: &T::AccountId, role: &MemberRole) -> Result<(), DispatchError> {
 		<Members<T>>::try_mutate(role, |members| -> DispatchResult {
-			let pos = members.binary_search(&who).err().ok_or(Error::<T>::AlreadyMember)?;
+			let pos = members.binary_search(who).err().ok_or(Error::<T>::AlreadyMember)?;
 			members.try_insert(pos, who.clone()).map_err(|_| Error::<T>::TooManyMembers)?;
 			Ok(())
 		})?;
@@ -166,5 +238,14 @@ impl<T: Config> PolimecMembers<T::AccountId> for Pallet<T> {
 
 	fn add_member(who: &T::AccountId, role: &MemberRole) -> Result<(), DispatchError> {
 		Self::do_add_member_with_role(who, role)
+	}
+
+	fn initialize_members(members: &[T::AccountId], role: &MemberRole) {
+		if !members.is_empty() {
+			assert!(<Members<T>>::get(role).is_empty(), "Members are already initialized!");
+			for memmber in members {
+				let _ = Self::do_add_member_with_role(memmber, role);
+			}
+		}
 	}
 }

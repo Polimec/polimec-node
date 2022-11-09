@@ -168,7 +168,7 @@ fn testnet_genesis(
 		council: Default::default(),
 		technical_committee: Default::default(),
 		democracy: Default::default(),
-		parachain_staking: Default::default(),
+		credentials: Default::default(),
 		session: SessionConfig {
 			keys: initial_authorities
 				.iter()

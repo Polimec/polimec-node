@@ -70,12 +70,6 @@ pub fn template_session_keys(keys: AuraId) -> polimec_parachain_runtime::Session
 }
 
 pub fn development_config() -> ChainSpec {
-	// Give your base currency a unit name and decimal places
-	let mut properties = sc_chain_spec::Properties::new();
-	properties.insert("tokenSymbol".into(), "PLMC".into());
-	properties.insert("tokenDecimals".into(), 10.into());
-	properties.insert("ss58Format".into(), 41.into());
-
 	ChainSpec::from_genesis(
 		// Name
 		"Polimec Development",
@@ -196,7 +190,7 @@ pub fn local_testnet_config() -> ChainSpec {
 		// Telemetry
 		None,
 		// Protocol ID
-		Some("template-local"),
+		Some("polimec-local"),
 		// Fork ID
 		None,
 		// Properties
@@ -239,7 +233,11 @@ fn testnet_genesis(
 				.to_vec(),
 		},
 		balances: polimec_parachain_runtime::BalancesConfig {
-			balances: endowed_accounts.iter().cloned().map(|k| (k, 100_000 * PLMC)).collect(),
+			balances: endowed_accounts
+				.iter()
+				.cloned()
+				.map(|acc| (acc, 5 * MinCollatorStake::get()))
+				.collect(),
 		},
 		parachain_info: polimec_parachain_runtime::ParachainInfoConfig { parachain_id: id },
 		parachain_staking: ParachainStakingConfig {
@@ -273,5 +271,6 @@ fn testnet_genesis(
 		council: Default::default(),
 		technical_committee: Default::default(),
 		democracy: Default::default(),
+		credentials: Default::default(),
 	}
 }

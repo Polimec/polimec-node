@@ -27,14 +27,10 @@ mod creation_round {
 	use super::*;
 	use crate::{ParticipantsSize, TicketSize};
 	use frame_support::assert_noop;
-	use polimec_traits::{Credential, MemberRole};
 
 	#[test]
 	fn create_works() {
 		new_test_ext().execute_with(|| {
-			let cred: Credential = Credential { role: MemberRole::Issuer, ..Default::default() };
-			assert_ok!(Credentials::add_member(Origin::signed(ALICE), ALICE, cred));
-			// assert_ok!(Credentials::);
 			let project = Project {
 				minimum_price: 1,
 				ticket_size: TicketSize { minimum: Some(1), maximum: None },
@@ -59,7 +55,7 @@ mod creation_round {
 				..Default::default()
 			};
 			assert_noop!(
-				FundingModule::create(Origin::signed(ALICE), project),
+				FundingModule::create(Origin::signed(BOB), project),
 				Error::<Test>::NotAuthorized
 			);
 		})

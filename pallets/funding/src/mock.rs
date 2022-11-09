@@ -7,7 +7,7 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage,
 };
-use system::{EnsureRoot, EnsureSigned};
+use system::EnsureSigned;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -127,6 +127,12 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	GenesisConfig {
 		balances: BalancesConfig {
 			balances: vec![(1, 512), (2, 512), (3, 512), (4, 512), (5, 512)],
+		},
+		credentials: CredentialsConfig {
+			issuers: vec![1],
+			retails: vec![],
+			professionals: vec![],
+			institutionals: vec![],
 		},
 		..Default::default()
 	}

@@ -64,7 +64,6 @@ hex-literal = { version = "0.3.4", optional = true }
 pallet-multi-mint = { version = "0.1", default-features = false, path = "../../pallets/multi-mint" }
 pallet-funding = { version = "0.1", default-features = false, path = "../../pallets/funding" }
 pallet-credentials = { path = "../../pallets/credentials", default-features = false }
-parachain-staking = { version = "1.8.0", default-features = false, path = "../../pallets/parachain-staking" }
 
 # ORML Dependencies
 orml-traits = { version = "0.4.1-dev", default-features = false, git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29" }
@@ -108,7 +107,6 @@ std = [
 	"pallet-democracy/std",
 	"pallet-collective/std",
 	"pallet-scheduler/std",
-	"parachain-staking/std",
 	"pallet-session/std",
 	"pallet-authorship/std",
 

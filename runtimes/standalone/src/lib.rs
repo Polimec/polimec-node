@@ -42,7 +42,6 @@ pub use frame_system::{Call as SystemCall, EnsureRoot};
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
-pub use parachain_staking::InflationInfo;
 use sp_runtime::traits::AccountIdConversion;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
@@ -568,72 +567,6 @@ pub const MIN_DELEGATOR_STAKE: Balance = 20 * PLMC;
 pub const NETWORK_REWARD_RATE: Perquintill = Perquintill::from_percent(10);
 
 parameter_types! {
-	/// Minimum round length is 1 hour
-	pub const MinBlocksPerRound: BlockNumber = MIN_BLOCKS_PER_ROUND;
-	/// Default length of a round/session is 2 hours
-	pub const DefaultBlocksPerRound: BlockNumber = DEFAULT_BLOCKS_PER_ROUND;
-	/// Unstaked balance can be unlocked after 7 days
-	pub const StakeDuration: BlockNumber = STAKE_DURATION;
-	/// Collator exit requests are delayed by 4 hours (2 rounds/sessions)
-	pub const ExitQueueDelay: u32 = 2;
-	/// Minimum 16 collators selected per round, default at genesis and minimum forever after
-	pub const MinCollators: u32 = MIN_COLLATORS;
-	/// At least 4 candidates which cannot leave the network if there are no other candidates.
-	pub const MinRequiredCollators: u32 = 4;
-	/// We only allow one delegation per round.
-	pub const MaxDelegationsPerRound: u32 = 1;
-	/// Maximum 25 delegators per collator at launch, might be increased later
-	#[derive(Debug, Eq, PartialEq)]
-	pub const MaxDelegatorsPerCollator: u32 = MAX_DELEGATORS_PER_COLLATOR;
-	/// Maximum 1 collator per delegator at launch, will be increased later
-	#[derive(Debug, Eq, PartialEq)]
-	pub const MaxCollatorsPerDelegator: u32 = 1;
-	/// Minimum stake required to be reserved to be a collator is 10_000
-	pub const MinCollatorStake: Balance = 10_000 * PLMC;
-	/// Minimum stake required to be reserved to be a delegator is 1000
-	pub const MinDelegatorStake: Balance = MIN_DELEGATOR_STAKE;
-	/// Maximum number of collator candidates
-	#[derive(Debug, Eq, PartialEq)]
-	pub const MaxCollatorCandidates: u32 = MAX_CANDIDATES;
-	/// Maximum number of concurrent requests to unlock unstaked balance
-	pub const MaxUnstakeRequests: u32 = 10;
-	/// The starting block number for the network rewards
-	pub const NetworkRewardStart: BlockNumber = INITIAL_PERIOD_LENGTH;
-	/// The rate in percent for the network rewards
-	pub const NetworkRewardRate: Perquintill = NETWORK_REWARD_RATE;
-}
-
-impl parachain_staking::Config for Runtime {
-	type Event = Event;
-	type Currency = Balances;
-	type CurrencyBalance = Balance;
-
-	type MinBlocksPerRound = MinBlocksPerRound;
-	type DefaultBlocksPerRound = DefaultBlocksPerRound;
-	type StakeDuration = StakeDuration;
-	type ExitQueueDelay = ExitQueueDelay;
-	type MinCollators = MinCollators;
-	type MinRequiredCollators = MinRequiredCollators;
-	type MaxDelegationsPerRound = MaxDelegationsPerRound;
-	type MaxDelegatorsPerCollator = MaxDelegatorsPerCollator;
-	type MaxCollatorsPerDelegator = MaxCollatorsPerDelegator;
-	type MinCollatorStake = MinCollatorStake;
-	type MinCollatorCandidateStake = MinCollatorStake;
-	type MaxTopCandidates = MaxCollatorCandidates;
-	type MinDelegation = MinDelegatorStake;
-	type MinDelegatorStake = MinDelegatorStake;
-	type MaxUnstakeRequests = MaxUnstakeRequests;
-	type NetworkRewardRate = NetworkRewardRate;
-	type NetworkRewardStart = NetworkRewardStart;
-
-	type NetworkRewardBeneficiary = ();
-	// type WeightInfo = weights::parachain_staking::WeightInfo<Runtime>;
-	type WeightInfo = ();
-
-	const BLOCKS_PER_YEAR: Self::BlockNumber = BLOCKS_PER_YEAR;
-}
-
-parameter_types! {
 	// FIXME: the default of currency_id can be different than this here. But in OnChargeTransaction we use the default and not this here...
 	pub const GetNativeCurrencyId: CurrencyId = [0; 8];
 }
@@ -708,8 +641,6 @@ construct_runtime!(
 		System: frame_system,
 
 		Timestamp: pallet_timestamp,
-		// TODO: Remove "pallet_balances" and use only "orml_tokens" to handle the on chain balance
-		// of the tokens
 		Balances: pallet_balances,
 		PolimecMultiBalances: orml_tokens,
 		TransactionPayment: pallet_transaction_payment,
@@ -717,7 +648,6 @@ construct_runtime!(
 
 		Aura: pallet_aura,
 		Grandpa: pallet_grandpa,
-		ParachainStaking: parachain_staking,
 
 		Council: pallet_collective::<Instance1>,
 		TechnicalCommittee: pallet_collective::<Instance2>,

@@ -117,6 +117,7 @@ std = [
 	"pallet-authorship/std",
 	"pallet-balances/std",
 	"pallet-collective/std",
+	"pallet-credentials/std",
 	"pallet-democracy/std",
 	"pallet-scheduler/std",
 	"pallet-session/std",

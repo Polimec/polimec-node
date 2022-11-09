@@ -14,3 +14,5 @@
 .DS_Store
 genesis-state
 genesis-wasm
+
+*.log
