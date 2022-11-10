@@ -1,6 +1,6 @@
 use crate::{mock::*, Error};
 use frame_support::assert_ok;
-use polimec_traits::{MemberRole, PolimecMembers};
+use polimec_traits::{Credential, MemberRole, PolimecMembers};
 
 pub fn last_event() -> Event {
 	frame_system::Pallet::<Test>::events().pop().expect("Event expected").event
@@ -25,5 +25,14 @@ fn genesis_works() {
 
 		assert!(Credentials::members(MemberRole::Institutional).len() == 1);
 		assert!(Credentials::is_in(&DAVE, &MemberRole::Institutional));
+	})
+}
+
+#[test]
+fn add_works() {
+	new_test_ext().execute_with(|| {
+		let cred = Credential { role: MemberRole::Issuer, ..Default::default() };
+		assert_ok!(Credentials::add_member(Origin::signed(ALICE), BOB, cred));
+		assert_eq!(last_event(), Event::Credentials(crate::Event::MemberAdded));
 	})
 }
