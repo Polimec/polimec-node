@@ -92,3 +92,4 @@ runtime-benchmarks = [
 	"polkadot-cli/runtime-benchmarks",
 ]
 try-runtime = ["polimec-parachain-runtime/try-runtime"]
+fast-gov = []

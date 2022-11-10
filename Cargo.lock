@@ -6355,6 +6355,7 @@ dependencies = [
  "pallet-multi-mint",
  "pallet-multisig",
  "pallet-preimage",
+ "pallet-randomness-collective-flip",
  "pallet-scheduler",
  "pallet-session",
  "pallet-sudo",

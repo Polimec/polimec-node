@@ -56,6 +56,7 @@ pallet-treasury = { git = "https://github.com/paritytech/substrate", default-fea
 pallet-utility = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
 pallet-multisig = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
 pallet-preimage = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
+pallet-randomness-collective-flip = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
 
 # Substrate
 sp-api = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
@@ -135,6 +136,7 @@ std = [
 	"pallet-multisig/std",
 	"pallet-treasury/std",
 	"pallet-preimage/std",
+	"pallet-randomness-collective-flip/std",
 	"parachain-staking/std",
 	"parachain-info/std",
 	"polkadot-parachain/std",
@@ -190,3 +192,4 @@ try-runtime = [
 	"pallet-xcm/try-runtime",
 	"parachain-info/try-runtime",
 ]
+fast-gov = []

@@ -235,7 +235,6 @@ pub mod pallet {
 		AuctionEnded {
 			project_id: ProjectIdentifier,
 			issuer: T::AccountId,
-			// when: T::BlockNumber,
 		},
 		/// The auction round of `project_id` ended by `issuer` at block `when`.
 		FundsBonded {
@@ -301,7 +300,7 @@ pub mod pallet {
 		/// phases) is not yet started
 		pub fn edit_metadata(
 			origin: OriginFor<T>,
-			project_metadata: ProjectMetadata<BoundedVec<u8, T::StringLimit>>,
+			project_metadata: ProjectMetadata<BoundedVec<u8, T::StringLimit>, BalanceOf<T>>,
 			project_id: ProjectIdentifier,
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;

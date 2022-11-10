@@ -16,7 +16,7 @@ use frame_support::{
 	parameter_types,
 	traits::{
 		ConstU32, Contains, Currency, EitherOfDiverse, EqualPrivilegeOnly, Everything, Imbalance,
-		OnUnbalanced, Randomness,
+		OnUnbalanced,
 	},
 	weights::{
 		constants::WEIGHT_PER_SECOND, ConstantMultiplier, DispatchClass, Weight,
@@ -36,7 +36,7 @@ pub use parachain_staking::InflationInfo;
 use smallvec::smallvec;
 use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata, H256};
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
@@ -529,7 +529,7 @@ impl pallet_session::Config for Runtime {
 
 impl pallet_aura::Config for Runtime {
 	type AuthorityId = AuraId;
-	//TODO: handle disabled validators
+	// TODO: handle disabled validators
 	type DisabledValidators = ();
 	type MaxAuthorities = MaxAuthorities;
 }
@@ -639,31 +639,39 @@ impl parachain_staking::Config for Runtime {
 	const BLOCKS_PER_YEAR: Self::BlockNumber = BLOCKS_PER_YEAR;
 }
 
+impl pallet_randomness_collective_flip::Config for Runtime {}
+
+#[cfg(feature = "fast-gov")]
+pub const EVALUATION_DURATION: BlockNumber = 10;
+#[cfg(not(feature = "fast-gov"))]
+pub const EVALUATION_DURATION: BlockNumber = 28 * DAYS;
+
+#[cfg(feature = "fast-gov")]
+pub const ENGLISH_AUCTION_DURATION: BlockNumber = 10;
+#[cfg(not(feature = "fast-gov"))]
+pub const ENGLISH_AUCTION_DURATION: BlockNumber = 5 * DAYS;
+
+#[cfg(feature = "fast-gov")]
+pub const CANDLE_AUCTION_DURATION: BlockNumber = 10;
+#[cfg(not(feature = "fast-gov"))]
+pub const CANDLE_AUCTION_DURATION: BlockNumber = 12 * HOURS;
+
+#[cfg(feature = "fast-gov")]
+pub const COMMUNITY_DURATION: BlockNumber = 10;
+#[cfg(not(feature = "fast-gov"))]
+pub const COMMUNITY_DURATION: BlockNumber = 5 * DAYS;
+
 parameter_types! {
-	pub const EvaluationDuration: BlockNumber = 28 * DAYS;
-	pub const EnglishAuctionDuration: BlockNumber = 5 * DAYS;
-	pub const CandleAuctionDuration: BlockNumber = 12 * HOURS;
-	pub const CommunityRoundDuration: BlockNumber = 5 * DAYS;
+	pub const EvaluationDuration: BlockNumber = EVALUATION_DURATION;
+	pub const EnglishAuctionDuration: BlockNumber = ENGLISH_AUCTION_DURATION;
+	pub const CandleAuctionDuration: BlockNumber = CANDLE_AUCTION_DURATION;
+	pub const CommunityRoundDuration: BlockNumber = COMMUNITY_DURATION;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 }
 
-pub static LAST_RANDOM: Option<(H256, u64)> = None;
-
-// TODO: JUST FOR MAKE IT COMPILE
 // TODO: DO NOT USE IN PRODUCTION
-// TODO: After Cumulus integration we can use the BABE Randomness from the Relay Chain
+// TODO: We can use the BABE Randomness from the Relay Chain
 // src: https://github.com/paritytech/cumulus/pull/1083
-pub struct PastRandomness;
-impl Randomness<H256, BlockNumber> for PastRandomness {
-	fn random(_subject: &[u8]) -> (H256, BlockNumber) {
-		if let Some((output, known_since)) = LAST_RANDOM {
-			(output, known_since)
-		} else {
-			let block_number: BlockNumber = frame_system::Pallet::<Runtime>::block_number();
-			(H256::zero(), block_number)
-		}
-	}
-}
 
 impl pallet_funding::Config for Runtime {
 	type Event = Event;
@@ -676,7 +684,7 @@ impl pallet_funding::Config for Runtime {
 	type EnglishAuctionDuration = EnglishAuctionDuration;
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityRoundDuration = CommunityRoundDuration;
-	type Randomness = PastRandomness;
+	type Randomness = Random;
 	type HandleMembers = Credentials;
 }
 
@@ -935,6 +943,34 @@ impl pallet_preimage::Config for Runtime {
 	type ByteDeposit = PreimageByteDeposit;
 }
 
+parameter_types! {
+	pub const AssetDeposit: Balance = PLMC; // 1 UNIT deposit to create asset
+	pub const ApprovalDeposit: Balance = EXISTENTIAL_DEPOSIT;
+	pub const AssetAccountDeposit: Balance = deposit(1, 16);
+	pub const AssetsStringLimit: u32 = 50;
+	/// Key = 32 bytes, Value = 36 bytes (32+1+1+1+1)
+	// https://github.com/paritytech/substrate/blob/069917b/frame/assets/src/lib.rs#L257L271
+	pub const MetadataDepositBase: Balance = deposit(1, 68);
+	pub const MetadataDepositPerByte: Balance = deposit(0, 1);
+}
+
+impl pallet_assets::Config for Runtime {
+	type Event = Event;
+	type Balance = Balance;
+	type AssetId = u32;
+	type Currency = Balances;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type AssetDeposit = AssetDeposit;
+	type MetadataDepositBase = MetadataDepositBase;
+	type MetadataDepositPerByte = MetadataDepositPerByte;
+	type AssetAccountDeposit = AssetAccountDeposit;
+	type ApprovalDeposit = ApprovalDeposit;
+	type StringLimit = AssetsStringLimit;
+	type Freezer = ();
+	type WeightInfo = ();
+	type Extra = ();
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -953,6 +989,8 @@ construct_runtime!(
 		// Monetary stuff.
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 10,
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage, Event<T>} = 11,
+		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 12,
+
 
 		// Consensus support.
 		// The following order MUST NOT be changed: Aura -> Session -> Staking -> Authorship -> AuraExt
@@ -978,6 +1016,7 @@ construct_runtime!(
 
 		// Utilities
 		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 50,
+		Random: pallet_randomness_collective_flip = 51,
 
 		// Polimec Core
 		PolimecMultiBalances: orml_tokens = 60,
