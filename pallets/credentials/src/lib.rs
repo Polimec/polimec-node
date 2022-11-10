@@ -201,6 +201,22 @@ pub mod pallet {
 			Self::do_add_member(&who, &credential)?;
 			Ok(())
 		}
+
+		/// Remove a member `who` to the set.
+		///
+		/// May only be called from `T::RemoveOrigin`.
+		#[pallet::weight(50_000_000)]
+		pub fn remove_member(
+			origin: OriginFor<T>,
+			who: AccountIdLookupOf<T>,
+			credential: Credential,
+		) -> DispatchResult {
+			T::RemoveOrigin::ensure_origin(origin)?;
+			let who = T::Lookup::lookup(who)?;
+
+			Self::do_remove_member(&who, &credential)?;
+			Ok(())
+		}
 	}
 }
 
@@ -209,8 +225,6 @@ impl<T: Config> Pallet<T> {
 		let role = credential.role;
 
 		Self::do_add_member_with_role(who, &role)?;
-
-		// T::MembershipChanged::change_members_sorted(&[who], &[], &members[..]);
 
 		Self::deposit_event(Event::MemberAdded);
 		Ok(())
@@ -223,9 +237,16 @@ impl<T: Config> Pallet<T> {
 			Ok(())
 		})?;
 
-		// T::MembershipChanged::change_members_sorted(&[who], &[], &members[..]);
-
 		Self::deposit_event(Event::MemberAdded);
+		Ok(())
+	}
+
+	fn do_remove_member(who: &T::AccountId, credential: &Credential) -> Result<(), DispatchError> {
+		let role = credential.role;
+
+		Self::do_add_member_with_role(who, &role)?;
+
+		Self::deposit_event(Event::MemberRemoved);
 		Ok(())
 	}
 }
