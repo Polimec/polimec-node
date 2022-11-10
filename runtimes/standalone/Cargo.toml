@@ -2,12 +2,12 @@
 name = "polimec-standalone-runtime"
 version = "0.1.0"
 description = "A fresh FRAME-based Substrate node, ready for hacking."
-authors = ['Polimec Team <https://github.com/Polimec>']
+authors = ["Polimec Team <https://github.com/Polimec>"]
 homepage = "https://substrate.io/"
 edition = "2021"
 license = "Unlicense"
 publish = false
-repository = 'https://github.com/polimec/polimec-node'
+repository = "https://github.com/polimec/polimec-node"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
@@ -51,7 +51,7 @@ pallet-scheduler = { version = "4.0.0-dev", default-features = false, git = "htt
 pallet-session = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
 pallet-authorship = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
 
-# Used for the node's RPCs
+# Used for the node"s RPCs
 frame-system-rpc-runtime-api = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
 pallet-transaction-payment-rpc-runtime-api = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
 
@@ -64,7 +64,6 @@ hex-literal = { version = "0.3.4", optional = true }
 pallet-multi-mint = { version = "0.1", default-features = false, path = "../../pallets/multi-mint" }
 pallet-funding = { version = "0.1", default-features = false, path = "../../pallets/funding" }
 pallet-credentials = { path = "../../pallets/credentials", default-features = false }
-parachain-staking = { version = "1.8.0", default-features = false, path = "../../pallets/parachain-staking" }
 
 # ORML Dependencies
 orml-traits = { version = "0.4.1-dev", default-features = false, git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29" }
@@ -101,14 +100,14 @@ std = [
 	"sp-std/std",
 	"sp-transaction-pool/std",
 	"sp-version/std",
-	'orml-traits/std',
-	'orml-tokens/std',
+	"orml-traits/std",
+	"orml-tokens/std",
+	"pallet-credentials/std",
 	"pallet-multi-mint/std",
 	"pallet-funding/std",
 	"pallet-democracy/std",
 	"pallet-collective/std",
 	"pallet-scheduler/std",
-	"parachain-staking/std",
 	"pallet-session/std",
 	"pallet-authorship/std",
 

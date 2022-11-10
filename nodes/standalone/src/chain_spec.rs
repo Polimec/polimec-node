@@ -168,7 +168,6 @@ fn testnet_genesis(
 		council: Default::default(),
 		technical_committee: Default::default(),
 		democracy: Default::default(),
-		parachain_staking: Default::default(),
 		credentials: CredentialsConfig {
 			issuers: endowed_accounts.clone(),
 			retails: endowed_accounts.clone(),
