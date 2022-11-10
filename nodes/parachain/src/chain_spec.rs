@@ -152,7 +152,7 @@ pub fn local_testnet_config() -> ChainSpec {
 		"Polimec Testnet",
 		// ID
 		"polimec_testnet",
-		ChainType::Live,
+		ChainType::Local,
 		move || {
 			testnet_genesis(
 				// initial collators.
