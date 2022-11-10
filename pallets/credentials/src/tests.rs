@@ -1,5 +1,5 @@
 use crate::{mock::*, Error};
-use frame_support::assert_ok;
+use frame_support::{assert_noop, assert_ok};
 use polimec_traits::{Credential, MemberRole, PolimecMembers};
 
 pub fn last_event() -> Event {
@@ -34,5 +34,16 @@ fn add_works() {
 		let cred = Credential { role: MemberRole::Issuer, ..Default::default() };
 		assert_ok!(Credentials::add_member(Origin::signed(ALICE), BOB, cred));
 		assert_eq!(last_event(), Event::Credentials(crate::Event::MemberAdded));
+	})
+}
+
+#[test]
+fn cant_add_already_member() {
+	new_test_ext().execute_with(|| {
+		let cred = Credential { role: MemberRole::Issuer, ..Default::default() };
+		assert_noop!(
+			Credentials::add_member(Origin::signed(ALICE), ALICE, cred),
+			Error::<Test>::AlreadyMember
+		);
 	})
 }
