@@ -6354,6 +6354,7 @@ dependencies = [
  "pallet-funding",
  "pallet-multi-mint",
  "pallet-multisig",
+ "pallet-preimage",
  "pallet-scheduler",
  "pallet-session",
  "pallet-sudo",
