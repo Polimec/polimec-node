@@ -276,7 +276,6 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			project: Project<T::AccountId, BoundedVec<u8, T::StringLimit>, BalanceOf<T>>,
 		) -> DispatchResult {
-			
 			let issuer = ensure_signed(origin)?;
 			ensure!(
 				T::HandleMembers::is_in(&issuer, &MemberRole::Issuer),

@@ -129,9 +129,7 @@ pub type Executive = frame_executive::Executive<
 	Block,
 	frame_system::ChainContext<Runtime>,
 	Runtime,
-	// Executes pallet hooks in the order of definition in construct_runtime
 	AllPalletsWithSystem,
-	parachain_staking::migration::StakingPayoutRefactor<Runtime>,
 >;
 
 /// Handles converting a weight scalar to a fee value, based on the scale and
@@ -247,20 +245,17 @@ pub const DAYS: BlockNumber = HOURS * 24;
 pub const BLOCKS_PER_YEAR: BlockNumber = DAYS * 36525 / 100;
 pub const INITIAL_PERIOD_LENGTH: BlockNumber = BLOCKS_PER_YEAR.saturating_mul(5);
 
-/// One PLMC
-pub const PLMC: Balance = 10u128.pow(10);
-/// 0.001 PLMC
-pub const MILLI_PLMC: Balance = 10u128.pow(7);
-
-/// 0.000_001 PLMC
-pub const MICRO_PLMC: Balance = 10u128.pow(4);
+// Unit = the base number of indivisible units for balances
+pub const PLMC: Balance = 1_000_000_000_000;
+pub const MILLI_PLMC: Balance = 1_000_000_000;
+pub const MICRO_PLMC: Balance = 1_000_000;
 
 /// The existential deposit. Set to 1/10 of the Connected Relay Chain.
 pub const EXISTENTIAL_DEPOSIT: Balance = MILLI_PLMC;
 
-/// We assume that ~10% of the block weight is consumed by `on_initialize` handlers. This is
+/// We assume that ~5% of the block weight is consumed by `on_initialize` handlers. This is
 /// used to limit the maximal weight of a single extrinsic.
-const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
+const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(5);
 
 /// We allow `Normal` extrinsics to fill up the block up to 75%, the rest can be used by
 /// `Operational` extrinsics.
@@ -470,15 +465,15 @@ impl pallet_transaction_payment::Config for Runtime {
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
 }
 
+parameter_types! {
+	pub const ReservedXcmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT.saturating_div(4);
+	pub const ReservedDmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT.saturating_div(4);
+}
+
 // TODO: On Testnet only
 impl pallet_sudo::Config for Runtime {
 	type Call = Call;
 	type Event = Event;
-}
-
-parameter_types! {
-	pub const ReservedXcmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT.saturating_div(4);
-	pub const ReservedDmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT.saturating_div(4);
 }
 
 impl cumulus_pallet_parachain_system::Config for Runtime {
@@ -501,11 +496,11 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type Event = Event;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type ChannelInfo = ParachainSystem;
-	type VersionWrapper = PolkadotXcm;
+	type VersionWrapper = ();
 	type ExecuteOverweightOrigin = EnsureRoot<AccountId>;
 	type ControllerOrigin = EnsureRoot<AccountId>;
 	type ControllerOriginConverter = XcmOriginToTransactDispatchOrigin;
-	type WeightInfo = cumulus_pallet_xcmp_queue::weights::SubstrateWeight<Self>;
+	type WeightInfo = ();
 }
 
 impl cumulus_pallet_dmp_queue::Config for Runtime {
@@ -597,6 +592,9 @@ parameter_types! {
 	/// Maximum 25 delegators per collator at launch, might be increased later
 	#[derive(Debug, Eq, PartialEq)]
 	pub const MaxDelegatorsPerCollator: u32 = MAX_DELEGATORS_PER_COLLATOR;
+	/// Maximum 1 collator per delegator at launch, will be increased later
+	#[derive(Debug, Eq, PartialEq)]
+	pub const MaxCollatorsPerDelegator: u32 = 1;
 	/// Minimum stake required to be reserved to be a collator is 10_000
 	pub const MinCollatorStake: Balance = 10_000 * PLMC;
 	/// Minimum stake required to be reserved to be a delegator is 1000
@@ -625,14 +623,17 @@ impl parachain_staking::Config for Runtime {
 	type MinRequiredCollators = MinRequiredCollators;
 	type MaxDelegationsPerRound = MaxDelegationsPerRound;
 	type MaxDelegatorsPerCollator = MaxDelegatorsPerCollator;
+	type MaxCollatorsPerDelegator = MaxCollatorsPerDelegator;
 	type MinCollatorStake = MinCollatorStake;
 	type MinCollatorCandidateStake = MinCollatorStake;
 	type MaxTopCandidates = MaxCollatorCandidates;
+	type MinDelegation = MinDelegatorStake;
 	type MinDelegatorStake = MinDelegatorStake;
 	type MaxUnstakeRequests = MaxUnstakeRequests;
 	type NetworkRewardRate = NetworkRewardRate;
 	type NetworkRewardStart = NetworkRewardStart;
-	type NetworkRewardBeneficiary = Treasury;
+	type NetworkRewardBeneficiary = ();
+	// type NetworkRewardBeneficiary = Treasury;
 	type WeightInfo = ();
 
 	const BLOCKS_PER_YEAR: Self::BlockNumber = BLOCKS_PER_YEAR;

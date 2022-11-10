@@ -1,6 +1,6 @@
 use polimec_standalone_runtime::{
-	AccountId, BalancesConfig, GenesisConfig, GetNativeCurrencyId, PolimecMultiBalancesConfig,
-	SessionConfig, Signature, SudoConfig, SystemConfig, WASM_BINARY,
+	AccountId, BalancesConfig, CredentialsConfig, GenesisConfig, GetNativeCurrencyId,
+	PolimecMultiBalancesConfig, SessionConfig, Signature, SudoConfig, SystemConfig, WASM_BINARY,
 };
 use sc_service::{ChainType, Properties};
 use serde_json::map::Map;
@@ -168,7 +168,13 @@ fn testnet_genesis(
 		council: Default::default(),
 		technical_committee: Default::default(),
 		democracy: Default::default(),
-		credentials: Default::default(),
+		parachain_staking: Default::default(),
+		credentials: CredentialsConfig {
+			issuers: endowed_accounts.clone(),
+			retails: endowed_accounts.clone(),
+			professionals: endowed_accounts.clone(),
+			institutionals: endowed_accounts.clone(),
+		},
 		session: SessionConfig {
 			keys: initial_authorities
 				.iter()

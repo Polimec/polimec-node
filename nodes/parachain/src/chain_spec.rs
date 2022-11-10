@@ -1,7 +1,8 @@
 use cumulus_primitives_core::ParaId;
 use polimec_parachain_runtime::{
-	AccountId, AuraId, Balance, InflationInfo, MinCollatorStake, ParachainStakingConfig, Signature,
-	SudoConfig, BLOCKS_PER_YEAR, PLMC,
+	AccountId, AuraId, Balance, CouncilConfig, CredentialsConfig, InflationInfo, MinCollatorStake,
+	ParachainStakingConfig, SessionConfig, Signature, SudoConfig, TechnicalCommitteeConfig,
+	BLOCKS_PER_YEAR, PLMC,
 };
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
@@ -70,6 +71,12 @@ pub fn template_session_keys(keys: AuraId) -> polimec_parachain_runtime::Session
 }
 
 pub fn development_config() -> ChainSpec {
+	// Give your base currency a unit name and decimal places
+	let mut properties = sc_chain_spec::Properties::new();
+	properties.insert("tokenSymbol".into(), "PLMC".into());
+	properties.insert("tokenDecimals".into(), 10.into());
+	properties.insert("ss58Format".into(), 41.into());
+
 	ChainSpec::from_genesis(
 		// Name
 		"Polimec Development",
@@ -142,10 +149,10 @@ pub fn local_testnet_config() -> ChainSpec {
 
 	ChainSpec::from_genesis(
 		// Name
-		"Polimec Local Testnet",
+		"Polimec Testnet",
 		// ID
-		"polimec-local_testnet",
-		ChainType::Local,
+		"polimec_testnet",
+		ChainType::Live,
 		move || {
 			testnet_genesis(
 				// initial collators.
@@ -233,11 +240,7 @@ fn testnet_genesis(
 				.to_vec(),
 		},
 		balances: polimec_parachain_runtime::BalancesConfig {
-			balances: endowed_accounts
-				.iter()
-				.cloned()
-				.map(|acc| (acc, 5 * MinCollatorStake::get()))
-				.collect(),
+			balances: endowed_accounts.iter().cloned().map(|k| (k, 100_000 * PLMC)).collect(),
 		},
 		parachain_info: polimec_parachain_runtime::ParachainInfoConfig { parachain_id: id },
 		parachain_staking: ParachainStakingConfig {
@@ -250,17 +253,17 @@ fn testnet_genesis(
 		aura: Default::default(),
 		aura_ext: Default::default(),
 		parachain_system: Default::default(),
-		session: polimec_parachain_runtime::SessionConfig {
+		credentials: CredentialsConfig {
+			issuers: endowed_accounts.clone(),
+			retails: endowed_accounts.clone(),
+			professionals: endowed_accounts.clone(),
+			institutionals: endowed_accounts.clone(),
+		},
+		session: SessionConfig {
 			keys: invulnerables
-				.into_iter()
-				.map(|(acc, aura)| {
-					(
-						acc.clone(),                 // account id
-						acc,                         // validator id
-						template_session_keys(aura), // session keys
-					)
-				})
-				.collect(),
+				.iter()
+				.map(|(acc, key)| (acc.clone(), acc.clone(), template_session_keys(key.to_owned())))
+				.collect::<Vec<_>>(),
 		},
 		polkadot_xcm: polimec_parachain_runtime::PolkadotXcmConfig {
 			safe_xcm_version: Some(SAFE_XCM_VERSION),
@@ -268,9 +271,14 @@ fn testnet_genesis(
 		polimec_multi_balances: Default::default(),
 		treasury: Default::default(),
 		sudo: SudoConfig { key: Some(root_account) },
-		council: Default::default(),
-		technical_committee: Default::default(),
+		council: CouncilConfig {
+			members: invulnerables.iter().map(|(acc, _)| acc).cloned().collect(),
+			phantom: Default::default(),
+		},
+		technical_committee: TechnicalCommitteeConfig {
+			members: invulnerables.iter().map(|(acc, _)| acc).cloned().collect(),
+			phantom: Default::default(),
+		},
 		democracy: Default::default(),
-		credentials: Default::default(),
 	}
 }
