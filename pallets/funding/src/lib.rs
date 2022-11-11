@@ -18,7 +18,10 @@ use frame_support::{
 	traits::{Currency, Get, LockIdentifier, LockableCurrency, WithdrawReasons},
 	PalletId,
 };
-use sp_runtime::traits::{AccountIdConversion, CheckedAdd, CheckedSub, Zero};
+use sp_runtime::{
+	traits::{AccountIdConversion, CheckedAdd, CheckedSub, Zero},
+	Perquintill,
+};
 
 use polimec_traits::{MemberRole, PolimecMembers};
 
@@ -232,10 +235,7 @@ pub mod pallet {
 		/// The auction round of `project_id` started by `issuer` at block `when`.
 		AuctionStarted { project_id: ProjectIdentifier, issuer: T::AccountId, when: T::BlockNumber },
 		/// The auction round of `project_id` ended by `issuer` at block `when`.
-		AuctionEnded {
-			project_id: ProjectIdentifier,
-			issuer: T::AccountId,
-		},
+		AuctionEnded { project_id: ProjectIdentifier, issuer: T::AccountId },
 		/// The auction round of `project_id` ended by `issuer` at block `when`.
 		FundsBonded {
 			project_id: ProjectIdentifier,
@@ -622,7 +622,7 @@ impl<T: Config> Pallet<T> {
 		ProjectsInfo::<T>::mutate(project_id, who, |project_info| {
 			project_info.project_status = ProjectStatus::AuctionRound(AuctionPhase::English);
 		});
-		
+
 		let current_block_number = <frame_system::Pallet<T>>::block_number();
 		let english_ending_block = current_block_number + T::EnglishAuctionDuration::get();
 		let candle_ending_block = english_ending_block + T::CandleAuctionDuration::get();
@@ -702,8 +702,12 @@ impl<T: Config> Pallet<T> {
 					Self::calculate_final_price(*project_id, project.fundraising_target)
 						.expect("placeholder_function"),
 				);
-				project_info.auction_round_end =
-					Some(Self::select_random_block().expect("placeholder_function"));
+				project_info.auction_round_end = Some(
+					Self::select_random_block(
+						auction_detail.english_ending_block + 1_u8.into(),
+						auction_detail.candle_ending_block,
+					)
+				);
 			});
 		}
 	}
@@ -757,7 +761,7 @@ impl<T: Config> Pallet<T> {
 		total_allocation_size: <T as Config>::CurrencyBalance,
 	) -> Result<<T as Config>::CurrencyBalance, DispatchError> {
 		let mut fundraising_amount = BalanceOf::<T>::zero();
-		let final_price = BalanceOf::<T>::zero();
+		let mut final_price = BalanceOf::<T>::zero();
 		// TODO: This implementation sucks, just for the MVP
 		for (idx, bid) in bids.iter_mut().enumerate() {
 			let old_amount = fundraising_amount;
@@ -768,20 +772,29 @@ impl<T: Config> Pallet<T> {
 				break
 			}
 		}
-		for _bid in bids {
-			// let temp = BalanceOf::<T>::from_rational(total_allocation_size, bid.amount);
-			// final_price.checked_add(temp * bid.amount)
+		for bid in bids {
+			// TODO: Here is the the bug, averything is shifted of one position AND
+			// the rounding is very strange
+			let temp = Perquintill::from_rational(bid.amount, total_allocation_size);
+			// TODO: Check the default return value
+			// TODO: Use .expect() and provide a meaningful motivation on why this will not never Panic
+			let mul_temp = temp.mul_floor(bid.amount);
+			final_price += final_price.checked_add(&mul_temp).unwrap_or_default();
 		}
 		Ok(final_price)
 	}
 
-	pub fn select_random_block() -> Result<T::BlockNumber, DispatchError> {
-		// TODO: This is just a placeholder
+	pub fn select_random_block(
+		candle_starting_block: T::BlockNumber,
+		candle_ending_block: T::BlockNumber,
+	) -> T::BlockNumber {
 		let nonce = Self::get_and_increment_nonce();
-		let (random_value, _) = T::Randomness::random(&nonce);
+		let (random_value, _known_since) = T::Randomness::random(&nonce);
 		let random_block = <T::BlockNumber>::decode(&mut random_value.as_ref())
 			.expect("secure hashes should always be bigger than the block number; qed");
-		Ok(random_block)
+		let block_range = candle_ending_block - candle_starting_block;
+		let random_end_block = candle_starting_block + (random_block % block_range);
+		random_end_block
 	}
 
 	fn get_and_increment_nonce() -> Vec<u8> {

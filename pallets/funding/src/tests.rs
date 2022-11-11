@@ -542,7 +542,7 @@ mod final_price {
 	fn final_price_check() {
 		new_test_ext().execute_with(|| {
 			const UNIT: u128 = 10_000_000_000;
-			let total_allocation_size = 1000 * UNIT;
+			let total_allocation_size = 101 * UNIT;
 			let mut bids: Vec<BidInfo<u128, u64>> = vec![
 				BidInfo { amount: 17 * UNIT, market_cap: 19 * UNIT, when: 1 },
 				BidInfo { amount: UNIT, market_cap: 74 * UNIT, when: 2 },
@@ -554,36 +554,11 @@ mod final_price {
 				BidInfo { amount: 60 * UNIT, market_cap: 7 * UNIT, when: 8 },
 			];
 			bids.sort_by_key(|bid| Reverse(bid.market_cap));
-			println!("{:#?}", bids);
 			let value = FundingModule::final_price_logic(bids, total_allocation_size);
 			match value {
 				Ok(num) => println!("{}", num),
 				Err(_) => todo!(),
 			}
-		})
-	}
-}
-
-mod random {
-	use super::*;
-	#[test]
-	#[ignore = "Not implemented yet"]
-	fn random_is_really_random() {
-		new_test_ext().execute_with(|| {
-			let random = FundingModule::select_random_block();
-			println!("Random {:?}", random);
-			let block_number = System::block_number();
-			System::set_block_number(block_number + 1000);
-			let random = FundingModule::select_random_block();
-			println!("Random {:?}", random);
-			let block_number = System::block_number();
-			System::set_block_number(block_number + 1000);
-			let random = FundingModule::select_random_block();
-			println!("Random {:?}", random);
-			let block_number = System::block_number();
-			System::set_block_number(block_number + 1000);
-			let random = FundingModule::select_random_block();
-			println!("Random {:?}", random);
 		})
 	}
 }
