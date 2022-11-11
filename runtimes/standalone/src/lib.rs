@@ -5,8 +5,19 @@
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
-
-use frame_support::{traits::OnUnbalanced, weights::ConstantMultiplier};
+pub use frame_support::{
+	construct_runtime, parameter_types,
+	traits::{
+		ConstU128, ConstU32, ConstU64, ConstU8, Contains, Currency, EitherOfDiverse,
+		EqualPrivilegeOnly, KeyOwnerProofSystem, OnUnbalanced, Randomness, StorageInfo,
+	},
+	weights::{
+		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
+		ConstantMultiplier, IdentityFee, Weight,
+	},
+	PalletId, StorageValue,
+};
+pub use frame_system::EnsureSigned;
 use pallet_grandpa::{
 	fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
 };
@@ -27,32 +38,15 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-// A few exports that help ease life for downstream crates.
-use frame_support::traits::{EitherOfDiverse, EqualPrivilegeOnly};
-pub use frame_support::{
-	construct_runtime, parameter_types,
-	traits::{
-		ConstU128, ConstU32, ConstU64, ConstU8, Currency, KeyOwnerProofSystem, Randomness,
-		StorageInfo,
-	},
-	weights::{
-		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-		IdentityFee, Weight,
-	},
-	StorageValue,
-};
-pub use frame_system::Call as SystemCall;
-use frame_system::EnsureRoot;
+pub use frame_system::{Call as SystemCall, EnsureRoot};
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
-pub use parachain_staking::InflationInfo;
 use sp_runtime::traits::AccountIdConversion;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill, Perquintill};
 
-use frame_support::{traits::Contains, PalletId};
 use orml_traits::parameter_type_with_key;
 pub use pallet_funding;
 /// Import Polimec pallets.
@@ -150,7 +144,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 /// up by `pallet_aura` to implement `fn slot_duration()`.
 ///
 /// Change this to adjust the block time.
-pub const MILLISECS_PER_BLOCK: u64 = 6_000;
+pub const MILLISECS_PER_BLOCK: u64 = 12_000;
 
 // NOTE: Currently it is not possible to change the slot duration after the chain has started.
 //       Attempting to do so will brick block production.
@@ -269,10 +263,6 @@ impl frame_system::Config for Runtime {
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
-parameter_types! {
-	pub const MaxAuthorities: u32 = MAX_CANDIDATES;
-}
-
 impl pallet_aura::Config for Runtime {
 	type AuthorityId = AuraId;
 	type DisabledValidators = ();
@@ -296,7 +286,7 @@ impl pallet_grandpa::Config for Runtime {
 	type HandleEquivocation = ();
 
 	type WeightInfo = ();
-	type MaxAuthorities = MaxAuthorities;
+	type MaxAuthorities = ConstU32<32>;
 }
 
 impl pallet_timestamp::Config for Runtime {
@@ -541,103 +531,6 @@ impl pallet_authorship::Config for Runtime {
 	type EventHandler = ();
 }
 
-/// Minimum round length is 1 hour (300 * 12 second block times)
-#[cfg(feature = "fast-gov")]
-pub const MIN_BLOCKS_PER_ROUND: BlockNumber = 10;
-#[cfg(not(feature = "fast-gov"))]
-pub const MIN_BLOCKS_PER_ROUND: BlockNumber = HOURS;
-
-#[cfg(feature = "fast-gov")]
-pub const DEFAULT_BLOCKS_PER_ROUND: BlockNumber = 20;
-#[cfg(not(feature = "fast-gov"))]
-pub const DEFAULT_BLOCKS_PER_ROUND: BlockNumber = 2 * HOURS;
-
-#[cfg(feature = "fast-gov")]
-pub const STAKE_DURATION: BlockNumber = 30;
-#[cfg(not(feature = "fast-gov"))]
-pub const STAKE_DURATION: BlockNumber = 7 * DAYS;
-
-#[cfg(feature = "fast-gov")]
-pub const MIN_COLLATORS: u32 = 4;
-#[cfg(not(feature = "fast-gov"))]
-pub const MIN_COLLATORS: u32 = 16;
-
-#[cfg(feature = "fast-gov")]
-pub const MAX_CANDIDATES: u32 = 16;
-#[cfg(not(feature = "fast-gov"))]
-pub const MAX_CANDIDATES: u32 = 75;
-
-pub const MAX_DELEGATORS_PER_COLLATOR: u32 = 35;
-pub const MIN_DELEGATOR_STAKE: Balance = 20 * PLMC;
-
-pub const NETWORK_REWARD_RATE: Perquintill = Perquintill::from_percent(10);
-
-parameter_types! {
-	/// Minimum round length is 1 hour
-	pub const MinBlocksPerRound: BlockNumber = MIN_BLOCKS_PER_ROUND;
-	/// Default length of a round/session is 2 hours
-	pub const DefaultBlocksPerRound: BlockNumber = DEFAULT_BLOCKS_PER_ROUND;
-	/// Unstaked balance can be unlocked after 7 days
-	pub const StakeDuration: BlockNumber = STAKE_DURATION;
-	/// Collator exit requests are delayed by 4 hours (2 rounds/sessions)
-	pub const ExitQueueDelay: u32 = 2;
-	/// Minimum 16 collators selected per round, default at genesis and minimum forever after
-	pub const MinCollators: u32 = MIN_COLLATORS;
-	/// At least 4 candidates which cannot leave the network if there are no other candidates.
-	pub const MinRequiredCollators: u32 = 4;
-	/// We only allow one delegation per round.
-	pub const MaxDelegationsPerRound: u32 = 1;
-	/// Maximum 25 delegators per collator at launch, might be increased later
-	#[derive(Debug, Eq, PartialEq)]
-	pub const MaxDelegatorsPerCollator: u32 = MAX_DELEGATORS_PER_COLLATOR;
-	/// Maximum 1 collator per delegator at launch, will be increased later
-	#[derive(Debug, Eq, PartialEq)]
-	pub const MaxCollatorsPerDelegator: u32 = 1;
-	/// Minimum stake required to be reserved to be a collator is 10_000
-	pub const MinCollatorStake: Balance = 10_000 * PLMC;
-	/// Minimum stake required to be reserved to be a delegator is 1000
-	pub const MinDelegatorStake: Balance = MIN_DELEGATOR_STAKE;
-	/// Maximum number of collator candidates
-	#[derive(Debug, Eq, PartialEq)]
-	pub const MaxCollatorCandidates: u32 = MAX_CANDIDATES;
-	/// Maximum number of concurrent requests to unlock unstaked balance
-	pub const MaxUnstakeRequests: u32 = 10;
-	/// The starting block number for the network rewards
-	pub const NetworkRewardStart: BlockNumber = INITIAL_PERIOD_LENGTH;
-	/// The rate in percent for the network rewards
-	pub const NetworkRewardRate: Perquintill = NETWORK_REWARD_RATE;
-}
-
-impl parachain_staking::Config for Runtime {
-	type Event = Event;
-	type Currency = Balances;
-	type CurrencyBalance = Balance;
-
-	type MinBlocksPerRound = MinBlocksPerRound;
-	type DefaultBlocksPerRound = DefaultBlocksPerRound;
-	type StakeDuration = StakeDuration;
-	type ExitQueueDelay = ExitQueueDelay;
-	type MinCollators = MinCollators;
-	type MinRequiredCollators = MinRequiredCollators;
-	type MaxDelegationsPerRound = MaxDelegationsPerRound;
-	type MaxDelegatorsPerCollator = MaxDelegatorsPerCollator;
-	type MaxCollatorsPerDelegator = MaxCollatorsPerDelegator;
-	type MinCollatorStake = MinCollatorStake;
-	type MinCollatorCandidateStake = MinCollatorStake;
-	type MaxTopCandidates = MaxCollatorCandidates;
-	type MinDelegation = MinDelegatorStake;
-	type MinDelegatorStake = MinDelegatorStake;
-	type MaxUnstakeRequests = MaxUnstakeRequests;
-	type NetworkRewardRate = NetworkRewardRate;
-	type NetworkRewardStart = NetworkRewardStart;
-
-	type NetworkRewardBeneficiary = ();
-	// type WeightInfo = weights::parachain_staking::WeightInfo<Runtime>;
-	type WeightInfo = ();
-
-	const BLOCKS_PER_YEAR: Self::BlockNumber = BLOCKS_PER_YEAR;
-}
-
 parameter_types! {
 	// FIXME: the default of currency_id can be different than this here. But in OnChargeTransaction we use the default and not this here...
 	pub const GetNativeCurrencyId: CurrencyId = [0; 8];
@@ -687,6 +580,19 @@ impl pallet_funding::Config for Runtime {
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityRoundDuration = CommunityRoundDuration;
 	type Randomness = PastRandomness;
+	type HandleMembers = Credentials;
+}
+
+impl pallet_credentials::Config for Runtime {
+	type Event = Event;
+	type AddOrigin = EnsureRoot<AccountId>;
+	type RemoveOrigin = EnsureRoot<AccountId>;
+	type SwapOrigin = EnsureRoot<AccountId>;
+	type ResetOrigin = EnsureRoot<AccountId>;
+	type PrimeOrigin = EnsureRoot<AccountId>;
+	type MembershipInitialized = ();
+	type MembershipChanged = ();
+	type MaxMembersCount = ConstU32<255>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -700,8 +606,6 @@ construct_runtime!(
 		System: frame_system,
 
 		Timestamp: pallet_timestamp,
-		// TODO: Remove "pallet_balances" and use only "orml_tokens" to handle the on chain balance
-		// of the tokens
 		Balances: pallet_balances,
 		PolimecMultiBalances: orml_tokens,
 		TransactionPayment: pallet_transaction_payment,
@@ -709,7 +613,6 @@ construct_runtime!(
 
 		Aura: pallet_aura,
 		Grandpa: pallet_grandpa,
-		ParachainStaking: parachain_staking,
 
 		Council: pallet_collective::<Instance1>,
 		TechnicalCommittee: pallet_collective::<Instance2>,
@@ -722,6 +625,7 @@ construct_runtime!(
 		// Include the custom logic
 		PolimecMultiMint: pallet_multi_mint,
 		PolimecFunding: pallet_funding,
+		Credentials: pallet_credentials,
 	}
 );
 

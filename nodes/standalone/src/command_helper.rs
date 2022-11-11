@@ -16,14 +16,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! Setup code for [`super::command`] which would otherwise bloat that module.
-//!
-//! Should only be used for benchmarking as it may break in other contexts.
+//! Contains code to setup the command invocations in [`super::command`] which would
+//! otherwise bloat that module.
 
 use crate::service::FullClient;
 
-use node_polimec_runtime as runtime;
-use runtime::{AccountId, Balance, BalancesCall, SystemCall, Signature};
+use polimec_standalone_runtime as runtime;
+use runtime::SystemCall;
 use sc_cli::Result;
 use sc_client_api::BlockBackend;
 use sp_core::{Encode, Pair};
@@ -36,75 +35,24 @@ use std::{sync::Arc, time::Duration};
 /// Generates extrinsics for the `benchmark overhead` command.
 ///
 /// Note: Should only be used for benchmarking.
-pub struct RemarkBuilder {
+pub struct BenchmarkExtrinsicBuilder {
 	client: Arc<FullClient>,
 }
 
-impl RemarkBuilder {
+impl BenchmarkExtrinsicBuilder {
 	/// Creates a new [`Self`] from the given client.
 	pub fn new(client: Arc<FullClient>) -> Self {
 		Self { client }
 	}
 }
 
-impl frame_benchmarking_cli::ExtrinsicBuilder for RemarkBuilder {
-	fn pallet(&self) -> &str {
-		"system"
-	}
-
-	fn extrinsic(&self) -> &str {
-		"remark"
-	}
-
-	fn build(&self, nonce: u32) -> std::result::Result<OpaqueExtrinsic, &'static str> {
+impl frame_benchmarking_cli::ExtrinsicBuilder for BenchmarkExtrinsicBuilder {
+	fn remark(&self, nonce: u32) -> std::result::Result<OpaqueExtrinsic, &'static str> {
 		let acc = Sr25519Keyring::Bob.pair();
 		let extrinsic: OpaqueExtrinsic = create_benchmark_extrinsic(
 			self.client.as_ref(),
 			acc,
 			SystemCall::remark { remark: vec![] }.into(),
-			nonce,
-		)
-		.into();
-
-		Ok(extrinsic)
-	}
-}
-
-/// Generates `Balances::TransferKeepAlive` extrinsics for the benchmarks.
-///
-/// Note: Should only be used for benchmarking.
-pub struct TransferKeepAliveBuilder {
-	client: Arc<FullClient>,
-	dest: AccountId,
-	value: Balance,
-}
-
-impl TransferKeepAliveBuilder {
-	/// Creates a new [`Self`] from the given client.
-	pub fn new(client: Arc<FullClient>, dest: AccountId, value: Balance) -> Self {
-		Self { client, dest, value }
-	}
-}
-
-impl frame_benchmarking_cli::ExtrinsicBuilder for TransferKeepAliveBuilder {
-	fn pallet(&self) -> &str {
-		"balances"
-	}
-
-	fn extrinsic(&self) -> &str {
-		"transfer_keep_alive"
-	}
-
-	fn build(&self, nonce: u32) -> std::result::Result<OpaqueExtrinsic, &'static str> {
-		let acc = Sr25519Keyring::Bob.pair();
-		let extrinsic: OpaqueExtrinsic = create_benchmark_extrinsic(
-			self.client.as_ref(),
-			acc,
-			BalancesCall::transfer_keep_alive {
-				dest: self.dest.clone().into(),
-				value: self.value,
-			}
-			.into(),
 			nonce,
 		)
 		.into();
@@ -129,7 +77,7 @@ pub fn create_benchmark_extrinsic(
 	let period = runtime::BlockHashCount::get()
 		.checked_next_power_of_two()
 		.map(|c| c / 2)
-		.unwrap_or(2);
+		.unwrap_or(2) as u64;
 	let extra: runtime::SignedExtra = (
 		frame_system::CheckNonZeroSender::<runtime::Runtime>::new(),
 		frame_system::CheckSpecVersion::<runtime::Runtime>::new(),
@@ -139,7 +87,7 @@ pub fn create_benchmark_extrinsic(
 			period,
 			best_block.saturated_into(),
 		)),
-		frame_system::CheckNonce::<runtime::Runtime>::from(nonce.into()),
+		frame_system::CheckNonce::<runtime::Runtime>::from(nonce),
 		frame_system::CheckWeight::<runtime::Runtime>::new(),
 		pallet_transaction_payment::ChargeTransactionPayment::<runtime::Runtime>::from(0),
 	);
@@ -161,10 +109,10 @@ pub fn create_benchmark_extrinsic(
 	let signature = raw_payload.using_encoded(|e| sender.sign(e));
 
 	runtime::UncheckedExtrinsic::new_signed(
-		call,
+		call.clone(),
 		sp_runtime::AccountId32::from(sender.public()).into(),
-		Signature::Sr25519(signature),
-		extra,
+		runtime::Signature::Sr25519(signature.clone()),
+		extra.clone(),
 	)
 }
 
@@ -178,6 +126,6 @@ pub fn inherent_benchmark_data() -> Result<InherentData> {
 
 	timestamp
 		.provide_inherent_data(&mut inherent_data)
-		.map_err(|e| format!("creating inherent data: {e:?}"))?;
+		.map_err(|e| format!("creating inherent data: {:?}", e))?;
 	Ok(inherent_data)
 }

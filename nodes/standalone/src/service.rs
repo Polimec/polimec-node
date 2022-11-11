@@ -10,7 +10,7 @@ use sc_telemetry::{Telemetry, TelemetryWorker};
 use sp_consensus_aura::ed25519::AuthorityPair as AuraPair;
 use std::{sync::Arc, time::Duration};
 
-use node_polimec_runtime::{self, opaque::Block, RuntimeApi};
+use polimec_standalone_runtime::{self, opaque::Block, RuntimeApi};
 
 // Our native executor instance.
 pub struct ExecutorDispatch;
@@ -24,11 +24,11 @@ impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
 	type ExtendHostFunctions = ();
 
 	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
-		node_polimec_runtime::api::dispatch(method, data)
+		polimec_standalone_runtime::api::dispatch(method, data)
 	}
 
 	fn native_version() -> sc_executor::NativeVersion {
-		node_polimec_runtime::native_version()
+		polimec_standalone_runtime::native_version()
 	}
 }
 

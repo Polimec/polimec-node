@@ -1,6 +1,6 @@
-use node_polimec_runtime::{
-	AccountId, BalancesConfig, GenesisConfig, GetNativeCurrencyId, PolimecMultiBalancesConfig, SessionConfig, Signature, SudoConfig, SystemConfig,
-	WASM_BINARY,
+use polimec_standalone_runtime::{
+	AccountId, BalancesConfig, CredentialsConfig, GenesisConfig, GetNativeCurrencyId,
+	PolimecMultiBalancesConfig, SessionConfig, Signature, SudoConfig, SystemConfig, WASM_BINARY,
 };
 use sc_service::{ChainType, Properties};
 use serde_json::map::Map;
@@ -54,7 +54,6 @@ fn get_authority_keys_from_secret(seed: &str) -> (AccountId, AuraId, GrandpaId) 
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig>;
 
 type AccountPublic = <Signature as Verify>::Signer;
-
 
 pub fn development_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm not available".to_string())?;
@@ -169,7 +168,12 @@ fn testnet_genesis(
 		council: Default::default(),
 		technical_committee: Default::default(),
 		democracy: Default::default(),
-		parachain_staking: Default::default(),
+		credentials: CredentialsConfig {
+			issuers: endowed_accounts.clone(),
+			retails: endowed_accounts.clone(),
+			professionals: endowed_accounts.clone(),
+			institutionals: endowed_accounts.clone(),
+		},
 		session: SessionConfig {
 			keys: initial_authorities
 				.iter()
@@ -177,7 +181,7 @@ fn testnet_genesis(
 					(
 						x.0.clone(),
 						x.0.clone(),
-						node_polimec_runtime::opaque::SessionKeys {
+						polimec_standalone_runtime::opaque::SessionKeys {
 							aura: x.1.clone(),
 							grandpa: x.2.clone(),
 						},

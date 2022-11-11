@@ -1,5 +1,5 @@
-use crate as pallet_funding;
-use frame_support::{pallet_prelude::ConstU32, parameter_types, traits::ConstU16, PalletId};
+use crate as pallet_credentials;
+use frame_support::{pallet_prelude::ConstU32, parameter_types, traits::ConstU16};
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
@@ -24,10 +24,8 @@ frame_support::construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system,
-		RandomnessCollectiveFlip: pallet_randomness_collective_flip,
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-		FundingModule: pallet_funding,
-		Credentials: pallet_credentials
+		Credentials: pallet_credentials,
 	}
 );
 
@@ -78,8 +76,6 @@ impl pallet_balances::Config for Test {
 	type WeightInfo = ();
 }
 
-impl pallet_randomness_collective_flip::Config for Test {}
-
 impl pallet_credentials::Config for Test {
 	type Event = Event;
 	type AddOrigin = EnsureSigned<AccountId>;
@@ -90,29 +86,6 @@ impl pallet_credentials::Config for Test {
 	type MembershipInitialized = ();
 	type MembershipChanged = ();
 	type MaxMembersCount = ConstU32<255>;
-}
-
-parameter_types! {
-	pub const EvaluationDuration: BlockNumber = 28;
-	pub const EnglishAuctionDuration: BlockNumber = 10;
-	pub const CandleAuctionDuration: BlockNumber = 5;
-	pub const CommunityRoundDuration: BlockNumber = 10;
-	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
-}
-
-impl pallet_funding::Config for Test {
-	type Event = Event;
-	type StringLimit = ConstU32<64>;
-	type Currency = Balances;
-	type CurrencyBalance = <Self as pallet_balances::Config>::Balance;
-	type EvaluationDuration = EvaluationDuration;
-	type EnglishAuctionDuration = EnglishAuctionDuration;
-	type CandleAuctionDuration = CandleAuctionDuration;
-	type PalletId = FundingPalletId;
-	type ActiveProjectsLimit = ConstU32<100>;
-	type CommunityRoundDuration = CommunityRoundDuration;
-	type Randomness = RandomnessCollectiveFlip;
-	type HandleMembers = Credentials;
 }
 
 // Build genesis storage according to the mock runtime.

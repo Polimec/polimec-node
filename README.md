@@ -1,70 +1,98 @@
 # Polimec Parachain  <!-- omit in toc -->
 
-The **Po**lkadot **Li**quidity **Mech**anism (Polimec) is an open-source blockchain system designed to help getting liquidity into Polkadot based projects that are not yet ready to issue transferable currencies on their own technology.
-It is a concept like the ERC20 Smart Contract mechanism but for issuing Pre-Currencies on Polkadot or Kusama as it enables Polkaverse projects to issue transferable pre-coins before the go-live of their Main-Net.
-
-## Table of contents <!-- omit in toc -->
-
-- [0. Install](#0-install)
-- [1. How does Polimec work?](#1-how-does-polimec-work)
-  - [1.1. Main functionality](#11-main-functionality)
-  - [1.2. Proposals](#12-proposals)
-  - [1.3. Bonding](#13-bonding)
-    - [1.3.1. Voting](#131-voting)
-    - [1.3.2. Payouts](#132-payouts)
-- [2. Further Documentation](#2-further-documentation)
-## 0. Install
-Please run the [init](./scripts/init.sh) script, to set your nightly [RUST](https://www.rust-lang.org/tools/install) version.
-
-## 1. How does Polimec work?
-
-Polimec is planned to run as a Parachain in Polkadot.
-It enables users to hold, bond and transfer multiple Currencies directly on the runtime.
-Since **Polimec will not have a native token**, you can do all of these actions with just the particular Pre-Currency you are acting with!
-
-### 1.1. Main functionality
-- Apply to be an Issuer: This requires a registration fee and upon approval, your Pre-Currency is minted on the runtime.
-- Transfer a Pre-Currency: As stated above, you do not need another Currency for transfering.
-- Migrate all Pre-Currency to your Main-Nets Currency once it is ready.
-- Bond a Pre-Currency for Voting: Enables you to take part to vote on referenda like admitting new issuers.
-- Bond a Pre-Currency for Payouts: This enables you to receive payouts. This uses a different lock than the bonding for voting. Thus, you can bond of all your tokens twice. 
-- Vote on Referenda: For each voting-bonded Pre-Currency, you can vote.
-The final weight of your vote for Pre-Currency Y is equal to your share in the overall amount bonded for Y:
-```
-Voting Weight for Pre-Currency Y = your bond / overall bond
-```
-
-### 1.2. Proposals
-
-Proposals are handled very similarily to Polkadot and Kusama with the exception that there *can be more than one public proposal*. Additionally, *each proposal has its own timeline*, e.g. each proposal can immediately be voted on for the `GetSessionDuration` and the votes are automatically tallied in block 
-```
-block_when_proposed + GetSessionDuration.
-```
-
-### 1.3. Bonding
-
-As of now you can bond your tokens twice, once for voting in `pallet-multi-stake` (WIP) and once for receiving payouts in `pallet-bonding-payouts`.
-
-Eventually this *should be handled by the frontend* to not confuse the user. More precisely, the frontend should only display one option for bonding. For unbonding, some smart logic should be used which has not yet been thoroughly thought about.
-
-One could also remove the voting bond completely, as the payouts seemed more important as of December 2020.
-#### 1.3.1. Voting
-
-- Bond a Pre-Currency for Voting: Bonding enables you to take part in referenda (e.g. approval of new Issuer-Applicants).
-- Unbond a Pre-Currency from Voting: Unbond any mount less or equal than your currently bonded one.
-- `UnbondDuration`: the remainder of this era + one more full era
-  - This *prevents attacks* of immediately calling unbond after bonding+voting and receiving back the tokens at the end of the era with the proposal still not having terminated. This could be possible in Polimec because proposals have their own timelines and don't necessarily follow eras as in Polkadot.
-- Have to manually call unlock after unbonding and waiting out the `UnbondDuration` (as in Substrate `staking-pallet`)
-
-#### 1.3.2. Payouts
-
-- Bond a Pre-Currency for Payouts: Bonding enables you receive payouts for this currency if it was enabled by the Issuer and the PayoutPool (most likely the the treasury) is not empty yet.
-- Each pair of (user, currency) bond runs on *its own timeline*, e.g. once a currency is bonded in `block_current`, it will receive payouts in `block_current + BondingDuration` automatically (if the payout pool is not empty). This reduces the chance of multiple payouts happening in the same block. If all users had the same timeline, this could lead to multiple blocks being filled with payouts which are free transactions (no block rewards).
-- Unbond a Pre-Currency from Payouts: Unbond any mount less or equal than your currently bonded one.
-- `UnbondDuration`: the remainder of this era + one more full era
-   - This *prevents attacks* of immediately calling unbond after bonding and receiving back the tokens at the end of the era together with the payout. In other words: There would be no downside (except for transaction fees) to unbond immediately and have all tokens freely available after each user era while still receiving the same amount of payout as users who keep their tokens bonded.
-- Unlocking happens automatically when receiving payouts, no need to call it manually.
-
-## 2. Further Documentation
+> **Warning**
+> Under HEAVY development
 
 TODO
+
+## How to run it (Parachain Mode)
+
+TODO: Use [polkadot-launch](https://github.com/paritytech/polkadot-launch) (deprecated) or [Zombienet](https://github.com/paritytech/zombienet) or [parachain-launch](https://github.com/open-web3-stack/parachain-launch)
+
+### Phase 1: Clone and build the relay chain node
+
+```
+$ git clone --depth 1 --branch release-v0.9.29 https://github.com/paritytech/polkadot.git
+```
+
+```
+$ cd polkadot
+```
+
+```
+$ cargo build --release
+```
+
+### Phase 2: Generate a chain spec
+
+```
+$ ./target/release/polkadot build-spec --chain rococo-local --disable-default-bootnode --raw > rococo-local-cfde.json
+```
+
+### Phase 3: Validators
+Start the first validator using the `alice` account (on terminal T1)
+
+```
+$ ./target/release/polkadot --chain rococo-local-cfde.json --alice --tmp
+```
+
+Start the second validator using the `bob` account (on terminal T2) 
+
+```
+$ ./target/release/polkadot --chain rococo-local-cfde.json --bob --tmp --port 30334
+```
+
+### Phase 4: Prepare the parachain
+
+Export genesis state
+
+```
+$ ./target/release/polimec-parachain-node export-genesis-state > genesis-state
+```
+
+Export genesis wasm
+
+```
+$ ./target/release/polimec-parachain-node export-genesis-wasm > genesis-wasm
+```
+
+### Phase 5: Register the parachain on polkadot.js
+
+TODO
+
+### Phase 6: Collators
+
+Start the first collator using the `alice` account (on terminal T3)
+
+```
+$ ./target/release/polimec-parachain-node --collator --alice --force-authoring --tmp --port 40335 --ws-port 9946 -- --execution wasm --chain ../polkadot/rococo-local-cfde.json --port 30335
+```
+
+Start the second collator using the `bob` account (on terminal T4)
+
+```
+$ ./target/release/polimec-parachain-node --collator --bob --force-authoring --tmp --port 40336 --ws-port 9947 -- --execution wasm --chain ../polkadot/rococo-local-cfde.json --port 30336
+```
+
+Start a parachain full node (on terminal T5)
+
+```
+$ ./target/release/polimec-parachain-node --tmp --port 40337 --ws-port 9948 -- --execution wasm --chain ../polkadot/rococo-local-cfde.json --port 30337
+```
+
+
+## How to run it (Standalone Mode)
+
+```
+$ cargo build --release
+```
+
+```
+$ ./target/release/polimec-standalone-node --dev
+```
+
+or 
+
+```
+$ cargo run --release -- --dev
+```

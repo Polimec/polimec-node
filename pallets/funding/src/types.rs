@@ -7,15 +7,11 @@ pub struct Project<
 	BoundedString,
 	Balance: MaxEncodedLen + Zero + sp_std::cmp::PartialEq + sp_std::cmp::PartialOrd,
 > {
-	/// The issuer of the  certificate
-	pub issuer_certificate: Issuer,
-	/// Name of the issuer
-	pub issuer_name: BoundedString,
-	/// Token information
+	/// Token Metadata
 	pub token_information: CurrencyMetadata<BoundedString>,
-	/// Total allocation of contribution tokens available for the funding round
+	/// Total allocation of Contribution Tokens available for the Funding Round
 	pub total_allocation_size: Balance,
-	/// Minimum price per contribution token
+	/// Minimum price per Contribution Token
 	pub minimum_price: Balance,
 	/// Fundraising target amount in USD equivalent
 	pub fundraising_target: Balance,
@@ -23,7 +19,7 @@ pub struct Project<
 	pub ticket_size: TicketSize<Balance>,
 	/// Maximum and/or minimum number of participants for the Auction and Community Round
 	pub participants_size: ParticipantsSize,
-	/// Funding round thresholds for retail, professional and institutional participants
+	/// Funding round thresholds for Retail, Professional and Institutional participants
 	pub funding_thresholds: Thresholds,
 	/// Conversion rate of contribution token to mainnet token
 	pub conversion_rate: u32,
@@ -37,17 +33,14 @@ pub struct Project<
 	pub destinations_account: AccountId,
 	/// Additional metadata
 	/// TODO: Maybe we can move this to the ProjectInfo struct
-	pub metadata: ProjectMetadata<BoundedString>,
+	pub metadata: ProjectMetadata<BoundedString, Balance>,
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct ProjectInfo<
-	// ProjectIdentifier,
 	BlockNumber,
 	Balance: MaxEncodedLen + Zero + sp_std::cmp::PartialEq + sp_std::cmp::PartialOrd,
 > {
-	// TODO: Maybe we can save the ProjectIdentifier here
-	// pub project_id: ProjectIdentifier;
 	/// Whether the project is frozen, so no `metadata` changes are allowed.
 	pub is_frozen: bool,
 	/// The price decided after the Auction Round
@@ -56,13 +49,15 @@ pub struct ProjectInfo<
 	pub created_at: BlockNumber,
 	/// The current status of the project
 	pub project_status: ProjectStatus,
-	/// When the Auction Round ends, None before the random selection, Some(value) after the random
-	/// selection
+	/// When the Auction Round ends, None before the random selection, Some(value) after the random block selection
 	pub auction_round_end: Option<BlockNumber>,
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct ProjectMetadata<BoundedString> {
+pub struct ProjectMetadata<
+	BoundedString,
+	Balance: MaxEncodedLen + Zero + sp_std::cmp::PartialEq + sp_std::cmp::PartialOrd,
+> {
 	/// A link to the whitepaper
 	pub whitepaper: BoundedString,
 	/// A link to a team description
@@ -70,8 +65,7 @@ pub struct ProjectMetadata<BoundedString> {
 	/// A link to the tokenomics description
 	pub tokenomics: BoundedString,
 	/// Total supply of mainnet tokens
-	// TODO: Maybe this has to become something similar to `pub total_supply: Balance`
-	pub total_supply: u128,
+	pub total_supply: Balance,
 	/// A link to the roadmap
 	pub roadmap: BoundedString,
 	/// A link to a description on how the funds will be used
@@ -205,16 +199,6 @@ pub struct BidInfo<Balance: MaxEncodedLen, BlockNumber> {
 	pub when: BlockNumber,
 }
 
-// Enums
-// TODO: Use SCALE fixed indexes
-// TODO: Check if it's correct
-#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub enum Issuer {
-	#[default]
-	Kilt,
-	Other,
-}
-
 // TODO: Use SCALE fixed indexes
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub enum Currencies {
@@ -233,6 +217,7 @@ pub enum ProjectStatus {
 	EvaluationEnded,
 	AuctionRound(AuctionPhase),
 	CommunityRound,
+	FundingEnded,
 	ReadyToLaunch,
 }
 

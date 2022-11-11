@@ -1,0 +1,19 @@
+# Relaychain Configuration
+relaychain:
+  image: parity/polkadot:v0.9.29 # the docker image to use
+  chain: rococo-local # the chain to use
+  env: # environment variables for all relaychain nodes
+    RUST_LOG: parachain::candidate-backing=trace
+  flags: # additional CLI flags for all relaychain nodes
+    - --rpc-methods=unsafe
+  nodes: # nodes config
+    - name: alice # the node name and session key, this imply `--alice`
+      port: 30333 # default libp2p port number is `30333 + global_node_index`
+      flags: # additional CLI flags for this node
+        - --tmp
+      env:
+        RUST_LOG: babe=debug # environment varitables for this node
+    - name: bob
+      port: 30334
+      flags: # additional CLI flags for this node
+        - --tmp

@@ -18,9 +18,9 @@ use frame_support::{
 	traits::{Currency, Get, LockIdentifier, LockableCurrency, WithdrawReasons},
 	PalletId,
 };
-use sp_runtime::traits::{
-	AccountIdConversion, CheckedAdd, Zero,
-};
+use sp_runtime::traits::{AccountIdConversion, CheckedAdd, CheckedSub, Zero};
+
+use polimec_traits::{MemberRole, PolimecMembers};
 
 /// The balance type of this pallet.
 pub type BalanceOf<T> = <T as Config>::CurrencyBalance;
@@ -28,6 +28,7 @@ pub type BalanceOf<T> = <T as Config>::CurrencyBalance;
 /// Identifier for the collection of item.
 pub type ProjectIdentifier = u32;
 
+// TODO: Add multiple locks
 const LOCKING_ID: LockIdentifier = *b"evaluate";
 
 #[frame_support::pallet]
@@ -92,20 +93,10 @@ pub mod pallet {
 		/// Something that provides randomness in the runtime.
 		type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
 
-		// TODO: Should be helpful for allowing the calls only by the user in the set of
-		// { Issuer, Retail, Professional, Institutional }
-		// Project creation is only allowed if the origin attempting it and the
-		// collection are in this set.
-		// type CreateOrigin: EnsureOriginWithArg<
-		//	Self::Origin,
-		//	Self::CollectionId,
-		//	Success = Self::AccountId,
-		//>;
-
-		// type ForceOrigin: EnsureOrigin<Self::Origin>;
-
 		// Weight information for extrinsic in this pallet.
 		// type WeightInfo: WeightInfo;
+
+		type HandleMembers: PolimecMembers<Self::AccountId>;
 	}
 
 	#[pallet::storage]
@@ -113,6 +104,12 @@ pub mod pallet {
 	/// A global counter for indexing the projects
 	/// OnEmpty in this case is GetDefault, so 0.
 	pub type ProjectId<T: Config> = StorageValue<_, ProjectIdentifier, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn nonce)]
+	/// A global counter for indexing the projects
+	/// OnEmpty in this case is GetDefault, so 0.
+	pub type Nonce<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn projects)]
@@ -238,7 +235,6 @@ pub mod pallet {
 		AuctionEnded {
 			project_id: ProjectIdentifier,
 			issuer: T::AccountId,
-			// when: T::BlockNumber,
 		},
 		/// The auction round of `project_id` ended by `issuer` at block `when`.
 		FundsBonded {
@@ -268,18 +264,24 @@ pub mod pallet {
 		InsufficientBalance,
 		TooSoon,
 		TooManyActiveProjects,
+		NotAuthorized,
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
-		/// Start the "Funding Application" phase
+		/// Start the "Funding Application" round
+		/// Project applies for funding, providing all required information.
 		pub fn create(
 			origin: OriginFor<T>,
 			project: Project<T::AccountId, BoundedVec<u8, T::StringLimit>, BalanceOf<T>>,
 		) -> DispatchResult {
-			// TODO: Ensure that the user is credentialized
 			let issuer = ensure_signed(origin)?;
+
+			ensure!(
+				T::HandleMembers::is_in(&issuer, &MemberRole::Issuer),
+				Error::<T>::NotAuthorized
+			);
 
 			match project.validity_check() {
 				Err(error) => match error {
@@ -296,11 +298,10 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
-		/// Edit the public metadata of a project if "Evaluation Phase" (or one of the following
-		/// phases) is not yet started
+		/// Edit the `project_metadata` of a `project_id` if "Evaluation Round" is not yet started
 		pub fn edit_metadata(
 			origin: OriginFor<T>,
-			project_metadata: ProjectMetadata<BoundedVec<u8, T::StringLimit>>,
+			project_metadata: ProjectMetadata<BoundedVec<u8, T::StringLimit>, BalanceOf<T>>,
 			project_id: ProjectIdentifier,
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
@@ -314,7 +315,7 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
-		/// Start the "Evaluation Phase"
+		/// Start the "Evaluation Round"
 		pub fn start_evaluation(
 			origin: OriginFor<T>,
 			project_id: ProjectIdentifier,
@@ -330,7 +331,7 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
-		/// Evaluators can bond their PLMC to evaluate a Project
+		/// Evaluators can bond `amount` PLMC to evaluate a `project_id` in the "Evaluation Round"
 		pub fn bond(
 			origin: OriginFor<T>,
 			project_id: ProjectIdentifier,
@@ -342,30 +343,21 @@ pub mod pallet {
 			ensure!(from != project_issuer, Error::<T>::ContributionToThemselves);
 
 			let project_info = ProjectsInfo::<T>::get(project_id, &project_issuer);
-			let project = Projects::<T>::get(project_id, &project_issuer);
+			let project = Projects::<T>::get(project_id, &project_issuer)
+				.ok_or(Error::<T>::ProjectNotExists)?;
 			ensure!(
 				project_info.project_status == ProjectStatus::EvaluationRound,
 				Error::<T>::EvaluationNotStarted
 			);
 			ensure!(T::Currency::free_balance(&from) > amount, Error::<T>::InsufficientBalance);
 
-			let minimum_amount = project
-				.as_ref()
-				.expect("Project exists")
-				.ticket_size
-				.minimum
-				// Take the value given by the issuer or use the minimum balance any single account
-				// may have.
-				.unwrap_or_else(T::Currency::minimum_balance);
+			// Take the value given by the issuer or use the minimum balance any single account may have.
+			let minimum_amount =
+				project.ticket_size.minimum.unwrap_or_else(T::Currency::minimum_balance);
 
-			let maximum_amount = project
-				.as_ref()
-				.expect("Project exists")
-				.ticket_size
-				.maximum
-				// Take the value given by the issuer or use the total amount of issuance in the
-				// system.
-				.unwrap_or_else(T::Currency::total_issuance);
+			// Take the value given by the issuer or use the total amount of issuance in the system.
+			let maximum_amount =
+				project.ticket_size.maximum.unwrap_or_else(T::Currency::total_issuance);
 			ensure!(amount >= minimum_amount, Error::<T>::BondTooLow);
 			ensure!(amount <= maximum_amount, Error::<T>::BondTooHigh);
 
@@ -385,7 +377,7 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
-		/// Evaluators can bond more of their PLMC to evaluate a Project
+		/// Evaluators can bond more `amount` PLMC to evaluate a `project_id` in the "Evaluation Round"
 		pub fn rebond(
 			_origin: OriginFor<T>,
 			_project_id: ProjectIdentifier,
@@ -395,7 +387,7 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
-		/// Start the "Auction Round"
+		/// Start the "Funding Round"
 		pub fn start_auction(
 			origin: OriginFor<T>,
 			project_id: ProjectIdentifier,
@@ -411,13 +403,6 @@ pub mod pallet {
 				project_info.project_status == ProjectStatus::EvaluationEnded,
 				Error::<T>::EvaluationNotStarted
 			);
-			let evaluation_detail = Evaluations::<T>::get(project_id, &issuer);
-			ensure!(
-				<frame_system::Pallet<T>>::block_number() >=
-					evaluation_detail.evaluation_period_ends,
-				Error::<T>::TooSoon
-			);
-
 			Self::do_start_auction(project_id, &issuer)
 		}
 
@@ -431,10 +416,8 @@ pub mod pallet {
 			project_id: ProjectIdentifier,
 			#[pallet::compact] price: BalanceOf<T>,
 			#[pallet::compact] amount: BalanceOf<T>,
-			// Add a parameter to specify the currency to use, should be equal to the currency
+			// TODO: Add a parameter to specify the currency to use, should be equal to the currency
 			// specified in `participation_currencies`
-			// TODO: In future participation_currencies will became an array of currencies, so the
-			// currency to use should be IN the `participation_currencies` vector/set
 		) -> DispatchResult {
 			let bidder = ensure_signed(origin)?;
 
@@ -533,106 +516,55 @@ pub mod pallet {
 					ProjectsIssuers::<T>::get(project_id).expect("The project issuer is set");
 				let project_info = ProjectsInfo::<T>::get(project_id, &project_issuer);
 				match project_info.project_status {
-					// Check if Evaluation Period is ended, if true, end it
+					// Check if Evaluation Round have to end, if true, end it
 					// EvaluationRound -> EvaluationEnded
 					ProjectStatus::EvaluationRound => {
-						let evaluation_detail = Evaluations::<T>::get(project_id, &project_issuer);
-						if now >= evaluation_detail.evaluation_period_ends {
-							ProjectsInfo::<T>::mutate(project_id, project_issuer, |project_info| {
-								project_info.project_status = ProjectStatus::EvaluationEnded;
-							});
-							// TODO: Deposit Event
-						}
+						Self::handle_evaluation_end(project_id, &project_issuer, now);
 					},
-					// Check if more than 7 days passed since the end of evaluation, if true, start
-					// the Auction Round
+					// Check if more than 7 days passed since the end of evaluation, if true, start the Funding Round
 					// EvaluationEnded -> AuctionRound
 					ProjectStatus::EvaluationEnded => {
-						let evaluation_detail = Evaluations::<T>::get(project_id, &project_issuer);
-						if evaluation_detail.evaluation_period_ends +
-							T::EnglishAuctionDuration::get() <=
-							now
-						{
-							// TODO: Unused error, more tests needed
-							// TODO: Here the start_auction is "free", check the Weight
-							let _ = Self::do_start_auction(*project_id, &project_issuer);
-						}
+						Self::handle_auction_start(project_id, &project_issuer, now);
 					},
 					// Check if we need to move to the Candle Phase of the Auction Round
 					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
 					ProjectStatus::AuctionRound(AuctionPhase::English) => {
-						let auction_detail = Auctions::<T>::get(project_id, &project_issuer);
-						if now >= auction_detail.english_ending_block {
-							ProjectsInfo::<T>::mutate(project_id, project_issuer, |project_info| {
-								project_info.project_status =
-									ProjectStatus::AuctionRound(AuctionPhase::Candle);
-							});
-						}
+						Self::handle_auction_candle(project_id, &project_issuer, now);
 					},
 					// Check if we need to move from the Auction Round of the Community Round
+					// AuctionRound(AuctionPhase::Candle) -> CommunityRound
 					ProjectStatus::AuctionRound(AuctionPhase::Candle) => {
-						let auction_detail = Auctions::<T>::get(project_id, &project_issuer);
-						if now >= auction_detail.candle_ending_block {
-							// TODO: Select a random block and pick the winner
-							let project = Projects::<T>::get(project_id, &project_issuer)
-								.expect("meaningful message");
-							ProjectsInfo::<T>::mutate(
-								project_id,
-								project_issuer.clone(),
-								|project_info| {
-									project_info.project_status = ProjectStatus::CommunityRound;
-									project_info.final_price = Some(
-										Self::calculate_final_price(
-											*project_id,
-											&project.fundraising_target,
-										)
-										.expect("placeholder_function"),
-									);
-									project_info.auction_round_end = Some(
-										Self::select_random_block(*project_id, &project_issuer)
-											.expect("placeholder_function"),
-									);
-								},
-							);
-						}
+						Self::handle_community_start(project_id, &project_issuer, now);
 					},
-					// Check if we need to move to the Ready to Launch Round
-					// Remove also the ProjectId from the ProjectsActive Vector
-					// CommunityRound -> ReadyToLaunch
+					// Check if we need to end the Fundind Round
+					// CommunityRound -> FundingEnded
 					ProjectStatus::CommunityRound => {
-						let auction_detail = Auctions::<T>::get(project_id, &project_issuer);
-						if now >= auction_detail.community_ending_block {
-							// TODO: Select a random block and pick the winner
-							ProjectsInfo::<T>::mutate(
-								project_id,
-								project_issuer.clone(),
-								|project_info| {
-									project_info.project_status = ProjectStatus::ReadyToLaunch;
-								},
-							);
-							// Project identified by project_id is no longer "active"
-							ProjectsActive::<T>::mutate(|active_projects| {
-								if let Some(pos) =
-									active_projects.iter().position(|x| x == project_id)
-								{
-									active_projects.remove(pos);
-								}
-							});
-						}
+						Self::handle_community_end(project_id, &project_issuer, now);
 					},
 					_ => (),
 				}
 			}
+			// TODO: Set a proper weight
 			Weight::from_ref_time(0)
 		}
 
-		fn on_idle(_now: T::BlockNumber, _max_weight: Weight) -> Weight {
+		/// Cleanup the `active_projects` BoundedVec
+		fn on_idle(now: T::BlockNumber, _max_weight: Weight) -> Weight {
+			for project_id in ProjectsActive::<T>::get().iter() {
+				let project_issuer =
+					ProjectsIssuers::<T>::get(project_id).expect("The project issuer is set");
+				let project_info = ProjectsInfo::<T>::get(project_id, &project_issuer);
+				if project_info.project_status == ProjectStatus::FundingEnded {
+					Self::handle_fuding_end(project_id, &project_issuer, now);
+				}
+			}
 			Weight::from_ref_time(0)
 		}
 	}
 }
 
 use frame_support::{pallet_prelude::*, traits::Randomness, BoundedVec};
+use sp_std::{cmp::Reverse, vec::Vec};
 
 impl<T: Config> Pallet<T> {
 	pub fn fund_account_id(index: ProjectIdentifier) -> T::AccountId {
@@ -690,10 +622,12 @@ impl<T: Config> Pallet<T> {
 		ProjectsInfo::<T>::mutate(project_id, who, |project_info| {
 			project_info.project_status = ProjectStatus::AuctionRound(AuctionPhase::English);
 		});
+		
 		let current_block_number = <frame_system::Pallet<T>>::block_number();
 		let english_ending_block = current_block_number + T::EnglishAuctionDuration::get();
 		let candle_ending_block = english_ending_block + T::CandleAuctionDuration::get();
 		let community_ending_block = candle_ending_block + T::CommunityRoundDuration::get();
+
 		let auction_metadata = AuctionMetadata {
 			starting_block: current_block_number,
 			english_ending_block,
@@ -701,6 +635,7 @@ impl<T: Config> Pallet<T> {
 			community_ending_block,
 		};
 		Auctions::<T>::insert(project_id, who, auction_metadata);
+
 		Self::deposit_event(Event::<T>::AuctionStarted {
 			project_id,
 			issuer: who.clone(),
@@ -709,46 +644,149 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn close_auction() {}
-
-	// Maybe we can do this in an "on_idle" hook?
-	pub fn calculate_final_price(
-		_project_id: ProjectIdentifier,
-		_total_allocation_size: &BalanceOf<T>,
-	) -> Result<BalanceOf<T>, DispatchError> {
-		// // TODO: This implementation sucks, just for the MVP
-		// let mut fundraising_amount = BalanceOf::<T>::zero();
-		// let mut final_price = BalanceOf::<T>::zero();
-		// let mut bids: Vec<BidInfo<BalanceOf<T>, T::BlockNumber>> =
-		// 	AuctionsInfo::<T>::iter_prefix_values(project_id).collect();
-		// bids.sort_by_key(|bid| bid.market_cap);
-		// for (idx, bid) in bids.iter().enumerate() {
-		// 	let old_amount = fundraising_amount;
-		// 	fundraising_amount = fundraising_amount.checked_add(&bid.amount).unwrap_or_default();
-		// 	if fundraising_amount > *total_allocation_size {
-		// 		bids[idx].amount =
-		// 			total_allocation_size.checked_sub(&old_amount).unwrap_or_default();
-		// 		// bids = bids[..idx].to_vec();
-		// 		break;
-		// 	}
-		// }
-		// for mut bid in bids {
-		// 	final_price += 1_u32.into();
-		// 	bid.amount = bid.amount / *total_allocation_size;
-		// 	bid.market_cap = bid.market_cap * bid.amount;
-		// 	// final_price += bid.market_cap;
-		// }
-
-		Ok(100_u32.into())
+	pub fn handle_evaluation_end(
+		project_id: &ProjectIdentifier,
+		project_issuer: &T::AccountId,
+		now: T::BlockNumber,
+	) {
+		let evaluation_detail = Evaluations::<T>::get(project_id, project_issuer);
+		if now >= evaluation_detail.evaluation_period_ends {
+			ProjectsInfo::<T>::mutate(project_id, project_issuer, |project_info| {
+				project_info.project_status = ProjectStatus::EvaluationEnded;
+			});
+			Self::deposit_event(Event::<T>::EvaluationEnded {
+				project_id: *project_id,
+				issuer: project_issuer.clone(),
+			});
+		}
 	}
 
-	pub fn select_random_block(
-		_project_id: ProjectIdentifier,
-		_who: &T::AccountId,
-	) -> Result<T::BlockNumber, DispatchError> {
-		let (raw_offset, _known_since) = T::Randomness::random(&b"auction_round"[..]);
-		let raw_offset_block_number = <T::BlockNumber>::decode(&mut raw_offset.as_ref())
+	pub fn handle_auction_start(
+		project_id: &ProjectIdentifier,
+		project_issuer: &T::AccountId,
+		now: T::BlockNumber,
+	) {
+		let evaluation_detail = Evaluations::<T>::get(project_id, project_issuer);
+		if evaluation_detail.evaluation_period_ends + T::EnglishAuctionDuration::get() <= now {
+			// TODO: Unused error, more tests needed
+			// TODO: Here the start_auction is "free", check the Weight
+			let _ = Self::do_start_auction(*project_id, project_issuer);
+		}
+	}
+
+	pub fn handle_auction_candle(
+		project_id: &ProjectIdentifier,
+		project_issuer: &T::AccountId,
+		now: T::BlockNumber,
+	) {
+		let auction_detail = Auctions::<T>::get(project_id, project_issuer);
+		if now >= auction_detail.english_ending_block {
+			ProjectsInfo::<T>::mutate(project_id, project_issuer, |project_info| {
+				project_info.project_status = ProjectStatus::AuctionRound(AuctionPhase::Candle);
+			});
+		}
+	}
+
+	pub fn handle_community_start(
+		project_id: &ProjectIdentifier,
+		project_issuer: &T::AccountId,
+		now: T::BlockNumber,
+	) {
+		let auction_detail = Auctions::<T>::get(project_id, project_issuer);
+		if now >= auction_detail.candle_ending_block {
+			let project =
+				Projects::<T>::get(project_id, project_issuer).expect("meaningful message");
+			ProjectsInfo::<T>::mutate(project_id, project_issuer.clone(), |project_info| {
+				project_info.project_status = ProjectStatus::CommunityRound;
+				project_info.final_price = Some(
+					Self::calculate_final_price(*project_id, project.fundraising_target)
+						.expect("placeholder_function"),
+				);
+				project_info.auction_round_end =
+					Some(Self::select_random_block().expect("placeholder_function"));
+			});
+		}
+	}
+
+	pub fn handle_community_end(
+		project_id: &ProjectIdentifier,
+		project_issuer: &T::AccountId,
+		now: T::BlockNumber,
+	) {
+		let auction_detail = Auctions::<T>::get(project_id, project_issuer);
+		if now >= auction_detail.community_ending_block {
+			ProjectsInfo::<T>::mutate(project_id, project_issuer.clone(), |project_info| {
+				project_info.project_status = ProjectStatus::FundingEnded;
+			});
+
+			// TODO: Mint the "Contribution Tokens"
+			// TODO: Assign the CTs to the participants of the Funding Round
+		}
+	}
+
+	pub fn handle_fuding_end(
+		project_id: &ProjectIdentifier,
+		project_issuer: &T::AccountId,
+		_now: T::BlockNumber,
+	) {
+		// Project identified by project_id is no longer "active"
+		ProjectsActive::<T>::mutate(|active_projects| {
+			if let Some(pos) = active_projects.iter().position(|x| x == project_id) {
+				active_projects.remove(pos);
+			}
+		});
+
+		ProjectsInfo::<T>::mutate(project_id, project_issuer.clone(), |project_info| {
+			project_info.project_status = ProjectStatus::ReadyToLaunch;
+		});
+	}
+
+	pub fn calculate_final_price(
+		project_id: ProjectIdentifier,
+		total_allocation_size: BalanceOf<T>,
+	) -> Result<BalanceOf<T>, DispatchError> {
+		// TODO: This implementation sucks, just for the MVP
+		let mut bids: Vec<BidInfo<BalanceOf<T>, T::BlockNumber>> =
+			AuctionsInfo::<T>::iter_prefix_values(project_id).collect();
+		bids.sort_by_key(|bid| Reverse(bid.market_cap));
+		Self::final_price_logic(bids, total_allocation_size)
+	}
+
+	pub fn final_price_logic(
+		mut bids: Vec<BidInfo<<T as Config>::CurrencyBalance, T::BlockNumber>>,
+		total_allocation_size: <T as Config>::CurrencyBalance,
+	) -> Result<<T as Config>::CurrencyBalance, DispatchError> {
+		let mut fundraising_amount = BalanceOf::<T>::zero();
+		let final_price = BalanceOf::<T>::zero();
+		// TODO: This implementation sucks, just for the MVP
+		for (idx, bid) in bids.iter_mut().enumerate() {
+			let old_amount = fundraising_amount;
+			fundraising_amount += bid.amount;
+			if fundraising_amount > total_allocation_size {
+				bid.amount = total_allocation_size.checked_sub(&old_amount).unwrap();
+				bids.truncate(idx + 1);
+				break
+			}
+		}
+		for _bid in bids {
+			// let temp = BalanceOf::<T>::from_rational(total_allocation_size, bid.amount);
+			// final_price.checked_add(temp * bid.amount)
+		}
+		Ok(final_price)
+	}
+
+	pub fn select_random_block() -> Result<T::BlockNumber, DispatchError> {
+		// TODO: This is just a placeholder
+		let nonce = Self::get_and_increment_nonce();
+		let (random_value, _) = T::Randomness::random(&nonce);
+		let random_block = <T::BlockNumber>::decode(&mut random_value.as_ref())
 			.expect("secure hashes should always be bigger than the block number; qed");
-		Ok(raw_offset_block_number)
+		Ok(random_block)
+	}
+
+	fn get_and_increment_nonce() -> Vec<u8> {
+		let nonce = Nonce::<T>::get();
+		Nonce::<T>::put(nonce.wrapping_add(1));
+		nonce.encode()
 	}
 }

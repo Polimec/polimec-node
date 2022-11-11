@@ -1,20 +1,24 @@
 [package]
-name = 'node-polimec-runtime'
+name = "polimec-standalone-runtime"
 version = "0.1.0"
 description = "A fresh FRAME-based Substrate node, ready for hacking."
-authors = ['Polimec Team <https://github.com/Polimec>']
+authors = ["Polimec Team <https://github.com/Polimec>"]
 homepage = "https://substrate.io/"
 edition = "2021"
 license = "Unlicense"
 publish = false
-repository = 'https://github.com/polimec/polimec-node'
+repository = "https://github.com/polimec/polimec-node"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.2.1", default-features = false, features = ["derive"] }
-scale-info = { version = "2.2.0", default-features = false, features = ["derive"] }
+codec = { package = "parity-scale-codec", version = "3.2.1", default-features = false, features = [
+	"derive",
+] }
+scale-info = { version = "2.2.0", default-features = false, features = [
+	"derive",
+] }
 
 # Substrate
 sp-api = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
@@ -37,29 +41,29 @@ frame-support = { version = "4.0.0-dev", default-features = false, git = "https:
 pallet-grandpa = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
 pallet-sudo = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
 frame-system = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
-frame-try-runtime = { version = "0.10.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", optional = true , branch = "polkadot-v0.9.29" }
+frame-try-runtime = { version = "0.10.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", optional = true, branch = "polkadot-v0.9.29" }
 pallet-timestamp = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
 pallet-transaction-payment = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
 frame-executive = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
 pallet-democracy = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
 pallet-collective = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
 pallet-scheduler = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
-pallet-session = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29"}
-pallet-authorship = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29"}
+pallet-session = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
+pallet-authorship = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
 
-# Used for the node's RPCs
+# Used for the node"s RPCs
 frame-system-rpc-runtime-api = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
 pallet-transaction-payment-rpc-runtime-api = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29" }
 
 # Used for runtime benchmarking
-frame-benchmarking = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", optional = true , branch = "polkadot-v0.9.29" }
-frame-system-benchmarking = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", optional = true , branch = "polkadot-v0.9.29" }
+frame-benchmarking = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", optional = true, branch = "polkadot-v0.9.29" }
+frame-system-benchmarking = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", optional = true, branch = "polkadot-v0.9.29" }
 hex-literal = { version = "0.3.4", optional = true }
 
 # Local Dependencies
-pallet-multi-mint = { version = "0.1", default-features = false, path = "../pallets/multi-mint" }
-pallet-funding = { version = "0.1", default-features = false, path = "../pallets/funding" }
-parachain-staking = { version = "1.8.0", default-features = false, path = "../pallets/parachain-staking" }
+pallet-multi-mint = { version = "0.1", default-features = false, path = "../../pallets/multi-mint" }
+pallet-funding = { version = "0.1", default-features = false, path = "../../pallets/funding" }
+pallet-credentials = { path = "../../pallets/credentials", default-features = false }
 
 # ORML Dependencies
 orml-traits = { version = "0.4.1-dev", default-features = false, git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29" }
@@ -96,16 +100,16 @@ std = [
 	"sp-std/std",
 	"sp-transaction-pool/std",
 	"sp-version/std",
-	'orml-traits/std',
-	'orml-tokens/std',
+	"orml-traits/std",
+	"orml-tokens/std",
+	"pallet-credentials/std",
 	"pallet-multi-mint/std",
 	"pallet-funding/std",
 	"pallet-democracy/std",
 	"pallet-collective/std",
 	"pallet-scheduler/std",
-	"parachain-staking/std",
 	"pallet-session/std",
-	"pallet-authorship/std"
+	"pallet-authorship/std",
 
 ]
 runtime-benchmarks = [
