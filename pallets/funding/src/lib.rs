@@ -270,12 +270,14 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
-		/// Start the "Funding Application" phase
+		/// Start the "Funding Application" round
+		/// Project applies for funding, providing all required information.
 		pub fn create(
 			origin: OriginFor<T>,
 			project: Project<T::AccountId, BoundedVec<u8, T::StringLimit>, BalanceOf<T>>,
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
+
 			ensure!(
 				T::HandleMembers::is_in(&issuer, &MemberRole::Issuer),
 				Error::<T>::NotAuthorized
@@ -296,8 +298,7 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
-		/// Edit the public metadata of a project if "Evaluation Phase" (or one of the following
-		/// phases) is not yet started
+		/// Edit the `project_metadata` of a `project_id` if "Evaluation Round" is not yet started
 		pub fn edit_metadata(
 			origin: OriginFor<T>,
 			project_metadata: ProjectMetadata<BoundedVec<u8, T::StringLimit>, BalanceOf<T>>,
@@ -314,7 +315,7 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
-		/// Start the "Evaluation Phase"
+		/// Start the "Evaluation Round"
 		pub fn start_evaluation(
 			origin: OriginFor<T>,
 			project_id: ProjectIdentifier,
@@ -330,7 +331,7 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
-		/// Evaluators can bond their PLMC to evaluate a Project
+		/// Evaluators can bond `amount` PLMC to evaluate a `project_id` in the "Evaluation Round"
 		pub fn bond(
 			origin: OriginFor<T>,
 			project_id: ProjectIdentifier,
@@ -376,7 +377,7 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
-		/// Evaluators can bond more of their PLMC to evaluate a Project
+		/// Evaluators can bond more `amount` PLMC to evaluate a `project_id` in the "Evaluation Round"
 		pub fn rebond(
 			_origin: OriginFor<T>,
 			_project_id: ProjectIdentifier,
@@ -386,7 +387,7 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
-		/// Start the "Auction Round"
+		/// Start the "Funding Round"
 		pub fn start_auction(
 			origin: OriginFor<T>,
 			project_id: ProjectIdentifier,
@@ -515,12 +516,12 @@ pub mod pallet {
 					ProjectsIssuers::<T>::get(project_id).expect("The project issuer is set");
 				let project_info = ProjectsInfo::<T>::get(project_id, &project_issuer);
 				match project_info.project_status {
-					// Check if Evaluation Period is ended, if true, end it
+					// Check if Evaluation Round have to end, if true, end it
 					// EvaluationRound -> EvaluationEnded
 					ProjectStatus::EvaluationRound => {
 						Self::handle_evaluation_end(project_id, &project_issuer, now);
 					},
-					// Check if more than 7 days passed since the end of evaluation, if true, start the Auction Round
+					// Check if more than 7 days passed since the end of evaluation, if true, start the Funding Round
 					// EvaluationEnded -> AuctionRound
 					ProjectStatus::EvaluationEnded => {
 						Self::handle_auction_start(project_id, &project_issuer, now);
@@ -547,6 +548,7 @@ pub mod pallet {
 			Weight::from_ref_time(0)
 		}
 
+		/// Cleanup the `active_projects` BoundedVec
 		fn on_idle(now: T::BlockNumber, _max_weight: Weight) -> Weight {
 			for project_id in ProjectsActive::<T>::get().iter() {
 				let project_issuer =
@@ -620,10 +622,12 @@ impl<T: Config> Pallet<T> {
 		ProjectsInfo::<T>::mutate(project_id, who, |project_info| {
 			project_info.project_status = ProjectStatus::AuctionRound(AuctionPhase::English);
 		});
+		
 		let current_block_number = <frame_system::Pallet<T>>::block_number();
 		let english_ending_block = current_block_number + T::EnglishAuctionDuration::get();
 		let candle_ending_block = english_ending_block + T::CandleAuctionDuration::get();
 		let community_ending_block = candle_ending_block + T::CommunityRoundDuration::get();
+
 		let auction_metadata = AuctionMetadata {
 			starting_block: current_block_number,
 			english_ending_block,

@@ -70,6 +70,7 @@ pub mod pallet {
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
+
 	/// Maps member type to members of each type.
 	#[pallet::storage]
 	#[pallet::getter(fn members)]
@@ -252,15 +253,18 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> PolimecMembers<T::AccountId> for Pallet<T> {
+	/// Chech if `who` is in the `role` set
 	fn is_in(who: &T::AccountId, role: &MemberRole) -> bool {
 		let members = <Members<T>>::get(role);
 		members.contains(who)
 	}
 
+	/// Add `who` to the `role` set
 	fn add_member(who: &T::AccountId, role: &MemberRole) -> Result<(), DispatchError> {
 		Self::do_add_member_with_role(who, role)
 	}
 
+	/// Utility function to set `members` during the genesis
 	fn initialize_members(members: &[T::AccountId], role: &MemberRole) {
 		if !members.is_empty() {
 			assert!(<Members<T>>::get(role).is_empty(), "Members are already initialized!");
