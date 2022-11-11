@@ -23,7 +23,7 @@ use pallet_grandpa::{
 };
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::{ed25519::AuthorityId as AuraId, SlotDuration};
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata, H256};
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
@@ -144,7 +144,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 /// up by `pallet_aura` to implement `fn slot_duration()`.
 ///
 /// Change this to adjust the block time.
-pub const MILLISECS_PER_BLOCK: u64 = 12_000;
+pub const MILLISECS_PER_BLOCK: u64 = 6_000;
 
 // NOTE: Currently it is not possible to change the slot duration after the chain has started.
 //       Attempting to do so will brick block production.
@@ -543,29 +543,11 @@ impl pallet_multi_mint::Config for Runtime {
 }
 
 parameter_types! {
-	pub const EvaluationDuration: BlockNumber = 28 * DAYS;
-	pub const EnglishAuctionDuration: BlockNumber = 5 * DAYS;
-	pub const CandleAuctionDuration: BlockNumber = 12 * HOURS;
-	pub const CommunityRoundDuration: BlockNumber = 5 * DAYS;
+	pub const EvaluationDuration: BlockNumber = 28;
+	pub const EnglishAuctionDuration: BlockNumber = 5;
+	pub const CandleAuctionDuration: BlockNumber = 12;
+	pub const CommunityRoundDuration: BlockNumber = 5;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
-}
-
-pub static LAST_RANDOM: Option<(H256, u64)> = None;
-
-// TODO: JUST FOR MAKE IT COMPILE
-// TODO: DO NOT USE IN PRODUCTION
-// TODO: After Cumulus integration we can use the BABE Randomness from the Relay Chain
-// src: https://github.com/paritytech/cumulus/pull/1083
-pub struct PastRandomness;
-impl Randomness<H256, BlockNumber> for PastRandomness {
-	fn random(_subject: &[u8]) -> (H256, BlockNumber) {
-		if let Some((output, known_since)) = LAST_RANDOM {
-			(output, known_since)
-		} else {
-			let block_number: BlockNumber = frame_system::Pallet::<Runtime>::block_number();
-			(H256::zero(), block_number)
-		}
-	}
 }
 
 impl pallet_funding::Config for Runtime {
@@ -579,7 +561,7 @@ impl pallet_funding::Config for Runtime {
 	type EnglishAuctionDuration = EnglishAuctionDuration;
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityRoundDuration = CommunityRoundDuration;
-	type Randomness = PastRandomness;
+	type Randomness = Random;
 	type HandleMembers = Credentials;
 }
 
@@ -594,6 +576,8 @@ impl pallet_credentials::Config for Runtime {
 	type MembershipChanged = ();
 	type MaxMembersCount = ConstU32<255>;
 }
+
+impl pallet_randomness_collective_flip::Config for Runtime {}
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
@@ -621,6 +605,8 @@ construct_runtime!(
 		Scheduler: pallet_scheduler,
 		Session: pallet_session,
 		Authorship: pallet_authorship,
+
+		Random: pallet_randomness_collective_flip,
 
 		// Include the custom logic
 		PolimecMultiMint: pallet_multi_mint,
