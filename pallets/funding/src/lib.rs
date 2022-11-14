@@ -110,7 +110,8 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn nonce)]
-	/// A global counter for indexing the projects
+	/// A global counter used in the randomness generation
+	// TODO: Remove it after using the Randomness from BABE's VRF
 	/// OnEmpty in this case is GetDefault, so 0.
 	pub type Nonce<T: Config> = StorageValue<_, u32, ValueQuery>;
 
@@ -148,13 +149,14 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn projects_active)]
-	/// A BoundedVec to list
+	/// A BoundedVec to list all the "active" Projects
+	/// A Project is active if its status is {EvaluationRound, EvaluationEnded, AuctionRound(AuctionPhase), CommunityRound, FundingEnded}
 	pub type ProjectsActive<T: Config> =
 		StorageValue<_, BoundedVec<ProjectIdentifier, T::ActiveProjectsLimit>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn evaluations)]
-	/// Projects in the evaluation phase
+	/// Projects in the Evaluation Round
 	pub type Evaluations<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
@@ -205,7 +207,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn contributions)]
-	/// Contribution during the Community Phase
+	/// Contributions during the Community Phase
 	pub type Contributions<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
@@ -214,11 +216,6 @@ pub mod pallet {
 		T::AccountId,
 		BalanceOf<T>,
 	>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn pending_evaluations)]
-	pub type PendingEvaluations<T: Config> =
-		StorageValue<_, BoundedVec<ProjectIdentifier, ConstU32<100>>, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -421,6 +418,12 @@ pub mod pallet {
 		) -> DispatchResult {
 			let bidder = ensure_signed(origin)?;
 
+			ensure!(
+				T::HandleMembers::is_in(&bidder, &MemberRole::Professional) ||
+					T::HandleMembers::is_in(&bidder, &MemberRole::Institutional),
+				Error::<T>::NotAuthorized
+			);
+
 			// Make sure project exists
 			let project_issuer =
 				ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectNotExists)?;
@@ -465,6 +468,8 @@ pub mod pallet {
 			// currency to use should be in the `participation_currencies` vector/set
 		) -> DispatchResult {
 			let contributor = ensure_signed(origin)?;
+
+			// TODO: Add the "Retail before, Institutional and Professionals after, if there are still tokens" logic
 
 			// Make sure project exists
 			let project_issuer =
@@ -702,12 +707,10 @@ impl<T: Config> Pallet<T> {
 					Self::calculate_final_price(*project_id, project.fundraising_target)
 						.expect("placeholder_function"),
 				);
-				project_info.auction_round_end = Some(
-					Self::select_random_block(
-						auction_detail.english_ending_block + 1_u8.into(),
-						auction_detail.candle_ending_block,
-					)
-				);
+				project_info.auction_round_end = Some(Self::select_random_block(
+					auction_detail.english_ending_block + 1_u8.into(),
+					auction_detail.candle_ending_block,
+				));
 			});
 		}
 	}

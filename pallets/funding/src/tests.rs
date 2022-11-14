@@ -22,6 +22,7 @@ pub fn last_event() -> Event {
 const ALICE: AccountId = 1;
 const BOB: AccountId = 2;
 const CHARLIE: AccountId = 3;
+const DAVE: AccountId = 3;
 
 mod creation_round {
 	use super::*;
@@ -332,8 +333,8 @@ mod auction_round {
 			System::set_block_number(block_number + 100);
 			FundingModule::on_initialize(System::block_number());
 			assert_ok!(FundingModule::start_auction(Origin::signed(ALICE), 0));
-			assert_ok!(FundingModule::bid(Origin::signed(BOB), 0, 1, 100));
-			let bids = FundingModule::auctions_info(0, BOB);
+			assert_ok!(FundingModule::bid(Origin::signed(CHARLIE), 0, 1, 100));
+			let bids = FundingModule::auctions_info(0, CHARLIE);
 			assert!(bids.amount == 100);
 			assert!(bids.market_cap == 1);
 			assert!(bids.when == block_number + 100);
@@ -353,7 +354,7 @@ mod auction_round {
 			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
 			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
 			assert_noop!(
-				FundingModule::bid(Origin::signed(BOB), 0, 1, 100),
+				FundingModule::bid(Origin::signed(CHARLIE), 0, 1, 100),
 				Error::<Test>::AuctionNotStarted
 			);
 		})
@@ -431,7 +432,7 @@ mod flow {
 			assert!(
 				project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::English)
 			);
-			assert_ok!(FundingModule::bid(Origin::signed(BOB), 0, 1, 100));
+			assert_ok!(FundingModule::bid(Origin::signed(CHARLIE), 0, 1, 100));
 
 			// Second phase of Funding Round: 2) Candle Auction Round
 			let block_number = System::block_number();
@@ -441,7 +442,7 @@ mod flow {
 			assert!(
 				project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::Candle)
 			);
-			assert_ok!(FundingModule::bid(Origin::signed(CHARLIE), 0, 2, 200));
+			assert_ok!(FundingModule::bid(Origin::signed(DAVE), 0, 2, 200));
 
 			// Third phase of Funding Round: 3) Community Round
 			let block_number = System::block_number();
@@ -539,7 +540,7 @@ mod final_price {
 	use super::*;
 	#[test]
 
-	fn final_price_check() {
+	fn check() {
 		new_test_ext().execute_with(|| {
 			const UNIT: u128 = 10_000_000_000;
 			let total_allocation_size = 101 * UNIT;
