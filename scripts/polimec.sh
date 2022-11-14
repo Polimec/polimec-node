@@ -57,7 +57,11 @@ echo "*** Launching Polimec Instance #3 (Full Node)"
     --tmp \
     --port 40337 \
     --ws-port 9948 \
-    --rpc-cors all \
+    --rpc-cors=all \
+    --rpc-external \
+    --ws-external \
+    --pruning archive \
+    --state-cache-size=1 \
     -- \
     --execution wasm \
     --chain ./rococo-local-cfde.json \
