@@ -11,9 +11,9 @@ mod tests;
 mod benchmarking;
 
 use frame_support::{
+	ensure,
 	pallet_prelude::DispatchResult,
-	traits::{ChangeMembers, Get, InitializeMembers},
-	BoundedVec,
+	traits::{ChangeMembers, InitializeMembers},
 };
 use polimec_traits::{Credential, MemberRole, PolimecMembers};
 use sp_runtime::{traits::StaticLookup, DispatchError};
@@ -39,12 +39,15 @@ pub mod pallet {
 		type RemoveOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Required origin for adding and removing a member in a single action.
+		/// TODO: Not used ATM
 		type SwapOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Required origin for resetting membership.
+		/// TODO: Not used ATM
 		type ResetOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Required origin for setting or resetting the prime member.
+		/// TODO: Not used ATM
 		type PrimeOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// The receiver of the signal for when the membership has been initialized. This happens
@@ -54,14 +57,6 @@ pub mod pallet {
 
 		/// The receiver of the signal for when the membership has changed.
 		type MembershipChanged: ChangeMembers<Self::AccountId>;
-
-		/// The maximum number of members that this membership can have.
-		///
-		/// This is used for benchmarking. Re-run the benchmarks if this changes.
-		///
-		/// This is enforced in the code; the membership size can not exceed this limit.
-		#[pallet::constant]
-		type MaxMembersCount: Get<u32>;
 
 		// Weight information for extrinsics in this pallet.
 		// type WeightInfo: WeightInfo;
@@ -74,13 +69,8 @@ pub mod pallet {
 	/// Maps member type to members of each type.
 	#[pallet::storage]
 	#[pallet::getter(fn members)]
-	pub type Members<T: Config> = StorageMap<
-		_,
-		Twox64Concat,
-		MemberRole,
-		BoundedVec<T::AccountId, T::MaxMembersCount>,
-		ValueQuery,
-	>;
+	pub type Members<T: Config> =
+		StorageDoubleMap<_, Twox64Concat, T::AccountId, Twox64Concat, MemberRole, ()>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -135,7 +125,6 @@ pub mod pallet {
 		fn build(&self) {
 			use sp_std::collections::btree_set::BTreeSet;
 
-			assert!(self.issuers.len() as u32 <= T::MaxMembersCount::get());
 			let issuers_set: BTreeSet<_> = self.issuers.iter().collect();
 			assert_eq!(
 				issuers_set.len(),
@@ -143,7 +132,6 @@ pub mod pallet {
 				"Issuers cannot contain duplicate accounts."
 			);
 
-			assert!(self.retails.len() as u32 <= T::MaxMembersCount::get());
 			let retails_set: BTreeSet<_> = self.retails.iter().collect();
 			assert_eq!(
 				retails_set.len(),
@@ -151,7 +139,6 @@ pub mod pallet {
 				"Issuers cannot contain duplicate accounts."
 			);
 
-			assert!(self.professionals.len() as u32 <= T::MaxMembersCount::get());
 			let professionals_set: BTreeSet<_> = self.professionals.iter().collect();
 			assert_eq!(
 				professionals_set.len(),
@@ -159,7 +146,6 @@ pub mod pallet {
 				"Issuers cannot contain duplicate accounts."
 			);
 
-			assert!(self.institutionals.len() as u32 <= T::MaxMembersCount::get());
 			let institutionals_set: BTreeSet<_> = self.institutionals.iter().collect();
 			assert_eq!(
 				institutionals_set.len(),
@@ -167,21 +153,13 @@ pub mod pallet {
 				"Issuers cannot contain duplicate accounts."
 			);
 
-			let mut issuers = self.issuers.clone();
-			issuers.sort();
-			Pallet::<T>::initialize_members(&issuers, &MemberRole::Issuer);
+			Pallet::<T>::initialize_members(&self.issuers, &MemberRole::Issuer);
 
-			let mut retails = self.retails.clone();
-			retails.sort();
-			Pallet::<T>::initialize_members(&retails, &MemberRole::Retail);
+			Pallet::<T>::initialize_members(&self.retails, &MemberRole::Retail);
 
-			let mut professionals = self.professionals.clone();
-			professionals.sort();
-			Pallet::<T>::initialize_members(&professionals, &MemberRole::Professional);
+			Pallet::<T>::initialize_members(&self.professionals, &MemberRole::Professional);
 
-			let mut institutionals = self.institutionals.clone();
-			institutionals.sort();
-			Pallet::<T>::initialize_members(&institutionals, &MemberRole::Institutional);
+			Pallet::<T>::initialize_members(&self.institutionals, &MemberRole::Institutional);
 		}
 	}
 
@@ -223,21 +201,16 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
 	fn do_add_member(who: &T::AccountId, credential: &Credential) -> Result<(), DispatchError> {
+		// TODO: This is a placeholder, we still dont't know the actual structure of a `Credential`
 		let role = credential.role;
+		ensure!(!Self::is_in(who, &role), Error::<T>::AlreadyMember);
 
 		Self::do_add_member_with_role(who, &role)?;
-
-		Self::deposit_event(Event::MemberAdded);
 		Ok(())
 	}
 
 	fn do_add_member_with_role(who: &T::AccountId, role: &MemberRole) -> Result<(), DispatchError> {
-		<Members<T>>::try_mutate(role, |members| -> DispatchResult {
-			let pos = members.binary_search(who).err().ok_or(Error::<T>::AlreadyMember)?;
-			members.try_insert(pos, who.clone()).map_err(|_| Error::<T>::TooManyMembers)?;
-			Ok(())
-		})?;
-
+		Members::<T>::insert(who, role, ());
 		Self::deposit_event(Event::MemberAdded);
 		Ok(())
 	}
@@ -255,8 +228,7 @@ impl<T: Config> Pallet<T> {
 impl<T: Config> PolimecMembers<T::AccountId> for Pallet<T> {
 	/// Chech if `who` is in the `role` set
 	fn is_in(who: &T::AccountId, role: &MemberRole) -> bool {
-		let members = <Members<T>>::get(role);
-		members.contains(who)
+		<Members<T>>::contains_key(who, role)
 	}
 
 	/// Add `who` to the `role` set
@@ -267,9 +239,11 @@ impl<T: Config> PolimecMembers<T::AccountId> for Pallet<T> {
 	/// Utility function to set `members` during the genesis
 	fn initialize_members(members: &[T::AccountId], role: &MemberRole) {
 		if !members.is_empty() {
-			assert!(<Members<T>>::get(role).is_empty(), "Members are already initialized!");
-			for memmber in members {
-				let _ = Self::do_add_member_with_role(memmber, role);
+			for member in members {
+				assert!(!Self::is_in(member, role), "Members are already initialized!");
+			}
+			for member in members {
+				let _ = Self::do_add_member_with_role(member, role);
 			}
 		}
 	}
