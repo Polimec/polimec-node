@@ -1,13 +1,12 @@
 use crate as pallet_credentials;
-use frame_support::{pallet_prelude::ConstU32, parameter_types, traits::ConstU16};
-use frame_system as system;
+use frame_support::{parameter_types, traits::ConstU16};
+use frame_system::EnsureRoot;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage,
 };
-use system::EnsureSigned;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -33,7 +32,7 @@ parameter_types! {
 	pub const BlockHashCount: u32 = 250;
 }
 
-impl system::Config for Test {
+impl frame_system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
@@ -78,14 +77,13 @@ impl pallet_balances::Config for Test {
 
 impl pallet_credentials::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type AddOrigin = EnsureSigned<AccountId>;
-	type RemoveOrigin = EnsureSigned<AccountId>;
-	type SwapOrigin = EnsureSigned<AccountId>;
-	type ResetOrigin = EnsureSigned<AccountId>;
-	type PrimeOrigin = EnsureSigned<AccountId>;
+	type AddOrigin = EnsureRoot<AccountId>;
+	type RemoveOrigin = EnsureRoot<AccountId>;
+	type SwapOrigin = EnsureRoot<AccountId>;
+	type ResetOrigin = EnsureRoot<AccountId>;
+	type PrimeOrigin = EnsureRoot<AccountId>;
 	type MembershipInitialized = ();
 	type MembershipChanged = ();
-	type MaxMembersCount = ConstU32<255>;
 }
 
 // Build genesis storage according to the mock runtime.
