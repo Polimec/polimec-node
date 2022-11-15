@@ -14,12 +14,13 @@ use frame_support::{
 	construct_runtime,
 	pallet_prelude::Get,
 	parameter_types,
+	dispatch::DispatchClass,
 	traits::{
 		ConstU32, Contains, Currency, EitherOfDiverse, EqualPrivilegeOnly, Everything, Imbalance,
 		OnUnbalanced,
 	},
 	weights::{
-		constants::WEIGHT_PER_SECOND, ConstantMultiplier, DispatchClass, Weight,
+		constants::WEIGHT_PER_SECOND, ConstantMultiplier, Weight,
 		WeightToFee as WeightToFeeT, WeightToFeeCoefficient, WeightToFeeCoefficients,
 		WeightToFeePolynomial,
 	},
