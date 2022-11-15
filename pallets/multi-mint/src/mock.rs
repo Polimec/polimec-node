@@ -40,8 +40,8 @@ impl system::Config for Test {
 	type BlockWeights = ();
 	type BlockLength = ();
 	type DbWeight = ();
-	type Origin = Origin;
-	type Call = Call;
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
 	type Index = u64;
 	type BlockNumber = u64;
 	type Hash = H256;
@@ -49,7 +49,7 @@ impl system::Config for Test {
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type Version = ();
 	type PalletInfo = PalletInfo;
@@ -80,7 +80,7 @@ impl Contains<AccountId> for MockDustRemovalWhitelist {
 }
 
 impl orml_tokens::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = CurrencyId;
@@ -93,10 +93,13 @@ impl orml_tokens::Config for Test {
 	type MaxReserves = ();
 	type ReserveIdentifier = ();
 	type DustRemovalWhitelist = MockDustRemovalWhitelist;
+	type OnDeposit = ();
+	type OnSlash = ();
+	type OnTransfer = ();
 }
 
 impl pallet_multi_mint::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type GetNativeCurrencyId = ();
 	type StringLimit = ConstU32<50>;
 }

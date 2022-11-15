@@ -6,7 +6,9 @@ use frame_support::{
 };
 
 /// The various roles that a member can hold.
-#[derive(Default, Copy, Clone, PartialEq, Eq, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Default, Copy, Clone, PartialEq, Eq, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen,
+)]
 pub enum MemberRole {
 	#[default]
 	Issuer,
@@ -15,9 +17,10 @@ pub enum MemberRole {
 	Institutional,
 }
 
-
 /// The various attesters on KILT.
-#[derive(Default, Copy, Clone, PartialEq, Eq, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Default, Copy, Clone, PartialEq, Eq, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen,
+)]
 pub enum Big4 {
 	#[default]
 	Deloitte,
@@ -26,7 +29,9 @@ pub enum Big4 {
 	KPMG,
 }
 
-#[derive(Default, Copy, Clone, PartialEq, Eq, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Default, Copy, Clone, PartialEq, Eq, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen,
+)]
 pub enum Country {
 	#[default]
 	Switzerland,

@@ -30,22 +30,22 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		/// The overarching event type.
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Required origin for adding a member (though can always be Root).
-		type AddOrigin: EnsureOrigin<Self::Origin>;
+		type AddOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Required origin for removing a member (though can always be Root).
-		type RemoveOrigin: EnsureOrigin<Self::Origin>;
+		type RemoveOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Required origin for adding and removing a member in a single action.
-		type SwapOrigin: EnsureOrigin<Self::Origin>;
+		type SwapOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Required origin for resetting membership.
-		type ResetOrigin: EnsureOrigin<Self::Origin>;
+		type ResetOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Required origin for setting or resetting the prime member.
-		type PrimeOrigin: EnsureOrigin<Self::Origin>;
+		type PrimeOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// The receiver of the signal for when the membership has been initialized. This happens
 		/// pre-genesis and will usually be the same as `MembershipChanged`. If you need to do

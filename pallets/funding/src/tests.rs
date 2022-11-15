@@ -1,7 +1,7 @@
 use crate::{mock::*, Error, Project};
 use frame_support::assert_ok;
 
-pub fn last_event() -> Event {
+pub fn last_event() -> RuntimeEvent {
 	frame_system::Pallet::<Test>::events().pop().expect("Event expected").event
 }
 
@@ -38,10 +38,10 @@ mod creation_round {
 				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 				..Default::default()
 			};
-			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
+			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
 			assert_eq!(
 				last_event(),
-				Event::FundingModule(crate::Event::Created { project_id: 0, issuer: ALICE })
+				RuntimeEvent::FundingModule(crate::Event::Created { project_id: 0, issuer: ALICE })
 			);
 		})
 	}
@@ -56,7 +56,7 @@ mod creation_round {
 				..Default::default()
 			};
 			assert_noop!(
-				FundingModule::create(Origin::signed(BOB), project),
+				FundingModule::create(RuntimeOrigin::signed(BOB), project),
 				Error::<Test>::NotAuthorized
 			);
 		})
@@ -71,15 +71,15 @@ mod creation_round {
 				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 				..Default::default()
 			};
-			assert_ok!(FundingModule::create(Origin::signed(ALICE), project.clone()));
+			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project.clone()));
 			assert_eq!(
 				last_event(),
-				Event::FundingModule(crate::Event::Created { project_id: 0, issuer: ALICE })
+				RuntimeEvent::FundingModule(crate::Event::Created { project_id: 0, issuer: ALICE })
 			);
-			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
+			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
 			assert_eq!(
 				last_event(),
-				Event::FundingModule(crate::Event::Created { project_id: 1, issuer: ALICE })
+				RuntimeEvent::FundingModule(crate::Event::Created { project_id: 1, issuer: ALICE })
 			);
 		})
 	}
@@ -95,7 +95,7 @@ mod creation_round {
 			};
 
 			assert_noop!(
-				FundingModule::create(Origin::signed(ALICE), project),
+				FundingModule::create(RuntimeOrigin::signed(ALICE), project),
 				Error::<Test>::PriceTooLow
 			);
 		})
@@ -112,7 +112,7 @@ mod creation_round {
 			};
 
 			assert_noop!(
-				FundingModule::create(Origin::signed(ALICE), project),
+				FundingModule::create(RuntimeOrigin::signed(ALICE), project),
 				Error::<Test>::ParticipantsSizeError
 			);
 		})
@@ -129,7 +129,7 @@ mod creation_round {
 			};
 
 			assert_noop!(
-				FundingModule::create(Origin::signed(ALICE), project),
+				FundingModule::create(RuntimeOrigin::signed(ALICE), project),
 				Error::<Test>::TicketSizeError
 			);
 		})
@@ -147,7 +147,7 @@ mod creation_round {
 			};
 
 			assert_noop!(
-				FundingModule::create(Origin::signed(ALICE), project),
+				FundingModule::create(RuntimeOrigin::signed(ALICE), project),
 				Error::<Test>::TicketSizeError
 			);
 		})
@@ -169,10 +169,10 @@ mod evaluation_round {
 				..Default::default()
 			};
 
-			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
+			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
 			let project_info = FundingModule::project_info(0, ALICE);
 			assert!(project_info.project_status == ProjectStatus::Application);
-			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
+			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 			let project_info = FundingModule::project_info(0, ALICE);
 			assert!(project_info.project_status == ProjectStatus::EvaluationRound);
 		})
@@ -188,10 +188,10 @@ mod evaluation_round {
 				..Default::default()
 			};
 
-			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
+			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
 			let ed = FundingModule::project_info(0, ALICE);
 			assert!(ed.project_status == ProjectStatus::Application);
-			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
+			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 			let ed = FundingModule::project_info(0, ALICE);
 			assert!(ed.project_status == ProjectStatus::EvaluationRound);
 			let block_number = System::block_number();
@@ -212,13 +212,13 @@ mod evaluation_round {
 				..Default::default()
 			};
 
-			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
+			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
 			assert_noop!(
-				FundingModule::bond(Origin::signed(BOB), 0, 128),
+				FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128),
 				Error::<Test>::EvaluationNotStarted
 			);
-			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
-			assert_ok!(FundingModule::bond(Origin::signed(BOB), 0, 128));
+			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
+			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128));
 		})
 	}
 
@@ -232,18 +232,18 @@ mod evaluation_round {
 				..Default::default()
 			};
 
-			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
+			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
 			assert_noop!(
-				FundingModule::bond(Origin::signed(BOB), 0, 128),
+				FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128),
 				Error::<Test>::EvaluationNotStarted
 			);
-			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
+			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 
-			assert_ok!(FundingModule::bond(Origin::signed(BOB), 0, 128));
+			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128));
 			let evaluation_metadata = FundingModule::evaluations(0, ALICE);
 			assert_eq!(evaluation_metadata.amount_bonded, 128);
 
-			assert_ok!(FundingModule::bond(Origin::signed(CHARLIE), 0, 128));
+			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(CHARLIE), 0, 128));
 			let evaluation_metadata = FundingModule::evaluations(0, ALICE);
 			assert_eq!(evaluation_metadata.amount_bonded, 256);
 
@@ -264,11 +264,11 @@ mod evaluation_round {
 				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 				..Default::default()
 			};
-			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
-			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
+			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
+			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 
 			assert_noop!(
-				FundingModule::bond(Origin::signed(BOB), 0, 1024),
+				FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 1024),
 				Error::<Test>::InsufficientBalance
 			);
 		})
@@ -290,12 +290,12 @@ mod auction_round {
 				..Default::default()
 			};
 
-			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
-			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
+			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
+			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 			let block_number = System::block_number();
 			System::set_block_number(block_number + 100);
 			FundingModule::on_initialize(System::block_number());
-			assert_ok!(FundingModule::start_auction(Origin::signed(ALICE), 0));
+			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
 		})
 	}
 
@@ -309,9 +309,9 @@ mod auction_round {
 				..Default::default()
 			};
 
-			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
+			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
 			assert_noop!(
-				FundingModule::start_auction(Origin::signed(ALICE), 0),
+				FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0),
 				Error::<Test>::EvaluationNotStarted
 			);
 		})
@@ -327,13 +327,13 @@ mod auction_round {
 				..Default::default()
 			};
 
-			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
-			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
+			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
+			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 			let block_number = System::block_number();
 			System::set_block_number(block_number + 100);
 			FundingModule::on_initialize(System::block_number());
-			assert_ok!(FundingModule::start_auction(Origin::signed(ALICE), 0));
-			assert_ok!(FundingModule::bid(Origin::signed(CHARLIE), 0, 1, 100));
+			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(CHARLIE), 0, 1, 100));
 			let bids = FundingModule::auctions_info(0, CHARLIE);
 			assert!(bids.amount == 100);
 			assert!(bids.market_cap == 1);
@@ -351,10 +351,10 @@ mod auction_round {
 				..Default::default()
 			};
 
-			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
-			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
+			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
+			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 			assert_noop!(
-				FundingModule::bid(Origin::signed(CHARLIE), 0, 1, 100),
+				FundingModule::bid(RuntimeOrigin::signed(CHARLIE), 0, 1, 100),
 				Error::<Test>::AuctionNotStarted
 			);
 		})
@@ -370,14 +370,14 @@ mod auction_round {
 				..Default::default()
 			};
 
-			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
-			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
+			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
+			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 			let block_number = System::block_number();
 			System::set_block_number(block_number + 100);
 			FundingModule::on_initialize(System::block_number());
-			assert_ok!(FundingModule::start_auction(Origin::signed(ALICE), 0));
+			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
 			assert_noop!(
-				FundingModule::contribute(Origin::signed(BOB), 0, 100),
+				FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 100),
 				Error::<Test>::AuctionNotStarted
 			);
 		})
@@ -407,17 +407,17 @@ mod flow {
 				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 				..Default::default()
 			};
-			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
+			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
 			let project_info = FundingModule::project_info(0, ALICE);
 			assert!(project_info.project_status == ProjectStatus::Application);
 
 			// Start the Evaluation Round
-			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
+			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 			let active_projects = FundingModule::projects_active();
 			assert!(active_projects.len() == 1);
 			let project_info = FundingModule::project_info(0, ALICE);
 			assert!(project_info.project_status == ProjectStatus::EvaluationRound);
-			assert_ok!(FundingModule::bond(Origin::signed(BOB), 0, 128));
+			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128));
 
 			// Evaluation Round ends automatically
 			let block_number = System::block_number();
@@ -427,12 +427,12 @@ mod flow {
 			assert!(project_info.project_status == ProjectStatus::EvaluationEnded);
 
 			// Start the Funding Round: 1) English Auction Round
-			assert_ok!(FundingModule::start_auction(Origin::signed(ALICE), 0));
+			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
 			let project_info = FundingModule::project_info(0, ALICE);
 			assert!(
 				project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::English)
 			);
-			assert_ok!(FundingModule::bid(Origin::signed(CHARLIE), 0, 1, 100));
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(CHARLIE), 0, 1, 100));
 
 			// Second phase of Funding Round: 2) Candle Auction Round
 			let block_number = System::block_number();
@@ -442,7 +442,7 @@ mod flow {
 			assert!(
 				project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::Candle)
 			);
-			assert_ok!(FundingModule::bid(Origin::signed(DAVE), 0, 2, 200));
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(DAVE), 0, 2, 200));
 
 			// Third phase of Funding Round: 3) Community Round
 			let block_number = System::block_number();
@@ -450,7 +450,7 @@ mod flow {
 			FundingModule::on_initialize(System::block_number());
 			let project_info = FundingModule::project_info(0, ALICE);
 			assert!(project_info.project_status == ProjectStatus::CommunityRound);
-			assert_ok!(FundingModule::contribute(Origin::signed(BOB), 0, 100));
+			assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 100));
 
 			// Funding Round ends
 			let block_number = System::block_number();
@@ -481,17 +481,17 @@ mod flow {
 				total_allocation_size: 100000,
 				..Default::default()
 			};
-			assert_ok!(FundingModule::create(Origin::signed(ALICE), project));
+			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
 			let project_info = FundingModule::project_info(0, ALICE);
 			assert!(project_info.project_status == ProjectStatus::Application);
 
 			// Start the Evaluation Round
-			assert_ok!(FundingModule::start_evaluation(Origin::signed(ALICE), 0));
+			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 			let active_projects = FundingModule::projects_active();
 			assert!(active_projects.len() == 1);
 			let project_info = FundingModule::project_info(0, ALICE);
 			assert!(project_info.project_status == ProjectStatus::EvaluationRound);
-			assert_ok!(FundingModule::bond(Origin::signed(BOB), 0, 128));
+			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128));
 
 			// Evaluation Round ends automatically
 			let block_number = System::block_number();
@@ -501,12 +501,12 @@ mod flow {
 			assert!(project_info.project_status == ProjectStatus::EvaluationEnded);
 
 			// Start the Funding Round: 1) English Auction Round
-			assert_ok!(FundingModule::start_auction(Origin::signed(ALICE), 0));
+			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
 			let project_info = FundingModule::project_info(0, ALICE);
 			assert!(
 				project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::English)
 			);
-			assert_ok!(FundingModule::bid(Origin::signed(BOB), 0, 19, 17));
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(BOB), 0, 19, 17));
 
 			// Second phase of Funding Round: 2) Candle Auction Round
 			let block_number = System::block_number();
@@ -516,10 +516,10 @@ mod flow {
 			assert!(
 				project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::Candle)
 			);
-			assert_ok!(FundingModule::bid(Origin::signed(CHARLIE), 0, 74, 2));
-			assert_ok!(FundingModule::bid(Origin::signed(3), 0, 16, 35));
-			assert_ok!(FundingModule::bid(Origin::signed(4), 0, 15, 20));
-			assert_ok!(FundingModule::bid(Origin::signed(4), 0, 12, 55));
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(CHARLIE), 0, 74, 2));
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(3), 0, 16, 35));
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(4), 0, 15, 20));
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(4), 0, 12, 55));
 
 			let auction_info_3 = FundingModule::auctions_info(0, 3);
 			println!("Bid Info {auction_info_3:?}");

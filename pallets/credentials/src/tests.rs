@@ -2,7 +2,7 @@ use crate::{mock::*, Error};
 use frame_support::{assert_noop, assert_ok};
 use polimec_traits::{Credential, MemberRole, PolimecMembers};
 
-pub fn last_event() -> Event {
+pub fn last_event() -> RuntimeEvent {
 	frame_system::Pallet::<Test>::events().pop().expect("Event expected").event
 }
 
@@ -32,8 +32,8 @@ fn genesis_works() {
 fn add_works() {
 	new_test_ext().execute_with(|| {
 		let cred = Credential { role: MemberRole::Issuer, ..Default::default() };
-		assert_ok!(Credentials::add_member(Origin::signed(ALICE), BOB, cred));
-		assert_eq!(last_event(), Event::Credentials(crate::Event::MemberAdded));
+		assert_ok!(Credentials::add_member(RuntimeOrigin::signed(ALICE), BOB, cred));
+		assert_eq!(last_event(), RuntimeEvent::Credentials(crate::Event::MemberAdded));
 	})
 }
 
@@ -42,7 +42,7 @@ fn cant_add_already_member() {
 	new_test_ext().execute_with(|| {
 		let cred = Credential { role: MemberRole::Issuer, ..Default::default() };
 		assert_noop!(
-			Credentials::add_member(Origin::signed(ALICE), ALICE, cred),
+			Credentials::add_member(RuntimeOrigin::signed(ALICE), ALICE, cred),
 			Error::<Test>::AlreadyMember
 		);
 	})

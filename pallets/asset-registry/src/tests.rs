@@ -19,7 +19,7 @@ fn register_reserve_asset_works() {
 		};
 
 		assert_ok!(AssetRegistry::register_reserve_asset(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			LOCAL_ASSET_ID,
 			statemine_asset_multi_location.clone(),
 		));
@@ -34,7 +34,7 @@ fn register_reserve_asset_works() {
 
 		assert_noop!(
 			AssetRegistry::register_reserve_asset(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				LOCAL_ASSET_ID,
 				statemine_asset_multi_location,
 			),
@@ -60,16 +60,14 @@ fn unregister_reserve_asset_works() {
 		};
 
 		assert_ok!(AssetRegistry::register_reserve_asset(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			LOCAL_ASSET_ID,
 			statemine_asset_multi_location.clone(),
 		));
 
-		assert_ok!(AssetRegistry::unregister_reserve_asset(Origin::root(), LOCAL_ASSET_ID));
+		assert_ok!(AssetRegistry::unregister_reserve_asset(RuntimeOrigin::root(), LOCAL_ASSET_ID));
 
 		assert!(AssetRegistry::asset_id_multilocation(LOCAL_ASSET_ID).is_none());
-		assert!(
-			AssetRegistry::asset_multilocation_id(statemine_asset_multi_location.clone()).is_none()
-		);
+		assert!(AssetRegistry::asset_multilocation_id(statemine_asset_multi_location).is_none());
 	});
 }

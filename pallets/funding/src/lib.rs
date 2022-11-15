@@ -47,7 +47,7 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// The maximum length of data stored on-chain.
 		#[pallet::constant]
@@ -796,8 +796,8 @@ impl<T: Config> Pallet<T> {
 		let random_block = <T::BlockNumber>::decode(&mut random_value.as_ref())
 			.expect("secure hashes should always be bigger than the block number; qed");
 		let block_range = candle_ending_block - candle_starting_block;
-		let random_end_block = candle_starting_block + (random_block % block_range);
-		random_end_block
+
+		candle_starting_block + (random_block % block_range)
 	}
 
 	fn get_and_increment_nonce() -> Vec<u8> {
