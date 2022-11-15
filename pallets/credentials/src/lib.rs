@@ -93,8 +93,6 @@ pub mod pallet {
 		AlreadyMember,
 		/// Not a member.
 		NotMember,
-		/// Too many members.
-		TooManyMembers,
 	}
 
 	#[pallet::hooks]
@@ -168,7 +166,8 @@ pub mod pallet {
 		/// Add a member `who` to the set.
 		///
 		/// May only be called from `T::AddOrigin`.
-		#[pallet::weight(50_000_000)]
+		// TODO: Set a proper weight
+		#[pallet::weight(1)]
 		pub fn add_member(
 			origin: OriginFor<T>,
 			who: AccountIdLookupOf<T>,
@@ -181,10 +180,11 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Remove a member `who` to the set.
+		/// Remove a member `who` from the set.
 		///
 		/// May only be called from `T::RemoveOrigin`.
-		#[pallet::weight(50_000_000)]
+		// TODO: Set a proper weight
+		#[pallet::weight(1)]
 		pub fn remove_member(
 			origin: OriginFor<T>,
 			who: AccountIdLookupOf<T>,
@@ -216,10 +216,19 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn do_remove_member(who: &T::AccountId, credential: &Credential) -> Result<(), DispatchError> {
+		// TODO: This is a placeholder, we still dont't know the actual structure of a `Credential`
 		let role = credential.role;
+		ensure!(Self::is_in(who, &role), Error::<T>::NotMember);
 
-		Self::do_add_member_with_role(who, &role)?;
+		Self::do_remove_member_with_role(who, &role)?;
+		Ok(())
+	}
 
+	fn do_remove_member_with_role(
+		who: &T::AccountId,
+		role: &MemberRole,
+	) -> Result<(), DispatchError> {
+		Members::<T>::remove(who, role);
 		Self::deposit_event(Event::MemberRemoved);
 		Ok(())
 	}
@@ -236,7 +245,7 @@ impl<T: Config> PolimecMembers<T::AccountId> for Pallet<T> {
 		Self::do_add_member_with_role(who, role)
 	}
 
-	/// Utility function to set `members` during the genesis
+	/// Utility function to set a vector of `member` during the genesis
 	fn initialize_members(members: &[T::AccountId], role: &MemberRole) {
 		if !members.is_empty() {
 			for member in members {
