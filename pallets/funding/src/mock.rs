@@ -89,7 +89,6 @@ impl pallet_credentials::Config for Test {
 	type PrimeOrigin = EnsureSigned<AccountId>;
 	type MembershipInitialized = ();
 	type MembershipChanged = ();
-	type MaxMembersCount = ConstU32<255>;
 }
 
 parameter_types! {
