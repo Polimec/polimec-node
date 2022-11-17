@@ -1,6 +1,6 @@
 use crate::{mock::*, Error};
-use frame_support::{assert_noop, assert_ok, error::BadOrigin};
-use polimec_traits::{Credential, MemberRole, PolimecMembers};
+use frame_support::{assert_noop, assert_ok, error::BadOrigin, BoundedVec};
+use polimec_traits::{Big4, Country, Credential, MemberRole, PolimecMembers};
 
 pub fn last_event() -> RuntimeEvent {
 	frame_system::Pallet::<Test>::events().pop().expect("Event expected").event
@@ -11,6 +11,16 @@ const BOB: AccountId = 2;
 const CHARLIE: AccountId = 3;
 const DAVE: AccountId = 4;
 const EVE: AccountId = 5;
+
+fn new_test_credential(role: MemberRole) -> Credential {
+	Credential {
+		issuer: Big4::KPMG,
+		role,
+		domicile: BoundedVec::default(),
+		country: Country::Switzerland,
+		date_of_birth: 10,
+	}
+}
 
 #[test]
 fn add_during_genesis_works() {
@@ -32,7 +42,7 @@ fn add_during_genesis_works() {
 #[test]
 fn add_member_works() {
 	new_test_ext().execute_with(|| {
-		let cred = Credential { role: MemberRole::Issuer, ..Default::default() };
+		let cred = new_test_credential(MemberRole::Issuer);
 		assert_ok!(Credentials::add_member(RuntimeOrigin::root(), BOB, cred));
 		assert_eq!(last_event(), RuntimeEvent::Credentials(crate::Event::MemberAdded));
 	})
@@ -41,7 +51,7 @@ fn add_member_works() {
 #[test]
 fn only_root_can_add_member() {
 	new_test_ext().execute_with(|| {
-		let cred = Credential { role: MemberRole::Issuer, ..Default::default() };
+		let cred = new_test_credential(MemberRole::Issuer);
 		assert_noop!(Credentials::add_member(RuntimeOrigin::signed(ALICE), BOB, cred), BadOrigin);
 	})
 }
@@ -49,7 +59,7 @@ fn only_root_can_add_member() {
 #[test]
 fn cant_add_already_member() {
 	new_test_ext().execute_with(|| {
-		let cred = Credential { role: MemberRole::Issuer, ..Default::default() };
+		let cred = new_test_credential(MemberRole::Issuer);
 		assert_noop!(
 			Credentials::add_member(RuntimeOrigin::root(), ALICE, cred),
 			Error::<Test>::AlreadyMember
@@ -60,7 +70,7 @@ fn cant_add_already_member() {
 #[test]
 fn remove_member_works() {
 	new_test_ext().execute_with(|| {
-		let cred = Credential { role: MemberRole::Issuer, ..Default::default() };
+		let cred = new_test_credential(MemberRole::Issuer);
 		assert_ok!(Credentials::remove_member(RuntimeOrigin::root(), ALICE, cred));
 		assert_eq!(last_event(), RuntimeEvent::Credentials(crate::Event::MemberRemoved));
 	})
@@ -69,7 +79,7 @@ fn remove_member_works() {
 #[test]
 fn only_root_can_remove_member() {
 	new_test_ext().execute_with(|| {
-		let cred = Credential { role: MemberRole::Issuer, ..Default::default() };
+		let cred = new_test_credential(MemberRole::Issuer);
 		assert_noop!(
 			Credentials::remove_member(RuntimeOrigin::signed(ALICE), ALICE, cred),
 			BadOrigin
@@ -80,7 +90,7 @@ fn only_root_can_remove_member() {
 #[test]
 fn cant_remove_not_a_member() {
 	new_test_ext().execute_with(|| {
-		let cred = Credential { role: MemberRole::Issuer, ..Default::default() };
+		let cred = new_test_credential(MemberRole::Issuer);
 		assert_noop!(
 			Credentials::remove_member(RuntimeOrigin::root(), EVE, cred),
 			Error::<Test>::NotMember

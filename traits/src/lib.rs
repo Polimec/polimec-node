@@ -6,11 +6,8 @@ use frame_support::{
 };
 
 /// The various roles that a member can hold.
-#[derive(
-	Default, Copy, Clone, PartialEq, Eq, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen,
-)]
+#[derive(Copy, Clone, PartialEq, Eq, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub enum MemberRole {
-	#[default]
 	Issuer,
 	Retail,
 	Professional,
@@ -18,22 +15,16 @@ pub enum MemberRole {
 }
 
 /// The various attesters on KILT.
-#[derive(
-	Default, Copy, Clone, PartialEq, Eq, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen,
-)]
+#[derive(Copy, Clone, PartialEq, Eq, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub enum Big4 {
-	#[default]
 	Deloitte,
 	PwC,
 	EY,
 	KPMG,
 }
 
-#[derive(
-	Default, Copy, Clone, PartialEq, Eq, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen,
-)]
+#[derive(Copy, Clone, PartialEq, Eq, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub enum Country {
-	#[default]
 	Switzerland,
 	UnitedStates,
 }
@@ -42,13 +33,13 @@ pub enum Country {
 type MaxDomicile = frame_support::traits::ConstU32<255>;
 
 /// A basic "credential" representation
-#[derive(Default, Clone, PartialEq, Eq, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[derive(Clone, PartialEq, Eq, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct Credential {
-	// TODO: Use getter instead of pub?
 	pub issuer: Big4,
 	pub role: MemberRole,
 	pub domicile: BoundedVec<u8, MaxDomicile>,
 	pub country: Country,
+	// TODO: Find a way to handle the date of birth
 	pub date_of_birth: u32,
 }
 
