@@ -708,7 +708,6 @@ impl pallet_credentials::Config for Runtime {
 	type PrimeOrigin = EnsureRoot<AccountId>;
 	type MembershipInitialized = ();
 	type MembershipChanged = ();
-	type MaxMembersCount = ConstU32<255>;
 }
 
 parameter_types! {

@@ -576,7 +576,6 @@ impl pallet_credentials::Config for Runtime {
 	type PrimeOrigin = EnsureRoot<AccountId>;
 	type MembershipInitialized = ();
 	type MembershipChanged = ();
-	type MaxMembersCount = ConstU32<255>;
 }
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
