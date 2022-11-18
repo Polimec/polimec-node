@@ -44,7 +44,7 @@ pub struct Credential {
 }
 
 pub trait PolimecMembers<AccountId> {
-	fn is_in(who: &AccountId, role: &MemberRole) -> bool;
-	fn add_member(who: &AccountId, role: &MemberRole) -> Result<(), DispatchError>;
-	fn initialize_members(members: &[AccountId], role: &MemberRole);
+	fn is_in(role: &MemberRole, who: &AccountId) -> bool;
+	fn add_member(role: &MemberRole, who: &AccountId) -> Result<(), DispatchError>;
+	fn initialize_members(role: &MemberRole, members: &[AccountId]);
 }

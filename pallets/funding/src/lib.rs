@@ -276,7 +276,7 @@ pub mod pallet {
 			let issuer = ensure_signed(origin)?;
 
 			ensure!(
-				T::HandleMembers::is_in(&issuer, &MemberRole::Issuer),
+				T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
 				Error::<T>::NotAuthorized
 			);
 
@@ -419,8 +419,8 @@ pub mod pallet {
 			let bidder = ensure_signed(origin)?;
 
 			ensure!(
-				T::HandleMembers::is_in(&bidder, &MemberRole::Professional) ||
-					T::HandleMembers::is_in(&bidder, &MemberRole::Institutional),
+				T::HandleMembers::is_in(&MemberRole::Professional, &bidder,) ||
+					T::HandleMembers::is_in(&MemberRole::Institutional, &bidder),
 				Error::<T>::NotAuthorized
 			);
 
