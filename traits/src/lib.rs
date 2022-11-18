@@ -4,6 +4,7 @@ use frame_support::{
 	pallet_prelude::{Decode, DispatchError, Encode, MaxEncodedLen, TypeInfo},
 	BoundedVec, RuntimeDebug,
 };
+use sp_std::vec::Vec;
 
 /// The various roles that a member can hold.
 #[derive(Copy, Clone, PartialEq, Eq, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
@@ -47,4 +48,5 @@ pub trait PolimecMembers<AccountId> {
 	fn is_in(role: &MemberRole, who: &AccountId) -> bool;
 	fn add_member(role: &MemberRole, who: &AccountId) -> Result<(), DispatchError>;
 	fn initialize_members(role: &MemberRole, members: &[AccountId]);
+	fn get_members_of(role: &MemberRole) -> Vec<AccountId>;
 }

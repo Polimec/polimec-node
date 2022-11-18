@@ -206,7 +206,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn do_add_member_with_role(role: &MemberRole, who: &T::AccountId, ) -> Result<(), DispatchError> {
+	fn do_add_member_with_role(role: &MemberRole, who: &T::AccountId) -> Result<(), DispatchError> {
 		Members::<T>::insert(role, who, ());
 		Self::deposit_event(Event::MemberAdded);
 		Ok(())
@@ -231,19 +231,22 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
+use sp_std::vec::Vec;
+
 impl<T: Config> PolimecMembers<T::AccountId> for Pallet<T> {
+	
 	/// Chech if `who` is in the `role` set
 	fn is_in(role: &MemberRole, who: &T::AccountId) -> bool {
 		<Members<T>>::contains_key(role, who)
 	}
 
 	/// Add `who` to the `role` set
-	fn add_member(role: &MemberRole, who: &T::AccountId, ) -> Result<(), DispatchError> {
+	fn add_member(role: &MemberRole, who: &T::AccountId) -> Result<(), DispatchError> {
 		Self::do_add_member_with_role(role, who)
 	}
 
 	/// Utility function to set a vector of `member` during the genesis
-	fn initialize_members(role: &MemberRole, members: &[T::AccountId], ) {
+	fn initialize_members(role: &MemberRole, members: &[T::AccountId]) {
 		if !members.is_empty() {
 			for member in members {
 				assert!(!Self::is_in(role, member), "Members are already initialized!");
@@ -252,5 +255,9 @@ impl<T: Config> PolimecMembers<T::AccountId> for Pallet<T> {
 				let _ = Self::do_add_member_with_role(role, member);
 			}
 		}
+	}
+
+	fn get_members_of(role: &MemberRole) -> Vec<T::AccountId> {
+		<Members<T>>::iter_key_prefix(role).collect()
 	}
 }

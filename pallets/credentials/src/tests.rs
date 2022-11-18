@@ -97,3 +97,18 @@ fn cant_remove_not_a_member() {
 		);
 	})
 }
+
+#[test]
+fn get_members_of_works() {
+	new_test_ext().execute_with(|| {
+		let issuers = Credentials::get_members_of(&MemberRole::Issuer);
+		assert!(issuers == vec![1]);
+		let cred = new_test_credential(MemberRole::Issuer);
+		let _ = Credentials::add_member(RuntimeOrigin::root(), cred.clone(), BOB);
+		let issuers = Credentials::get_members_of(&MemberRole::Issuer);
+		assert!(issuers == vec![1, 2]);
+		let _ = Credentials::remove_member(RuntimeOrigin::root(), cred, ALICE);
+		let issuers = Credentials::get_members_of(&MemberRole::Issuer);
+		assert!(issuers == vec![2]);
+	})
+}
