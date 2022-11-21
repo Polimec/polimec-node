@@ -98,8 +98,8 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		credentials: CredentialsConfig {
 			issuers: vec![1],
 			retails: vec![2],
-			professionals: vec![3],
-			institutionals: vec![4],
+			professionals: vec![3, 5],
+			institutionals: vec![4, 5],
 		},
 		..Default::default()
 	}
