@@ -1,5 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use core::slice::Iter;
 use frame_support::{
 	pallet_prelude::{Decode, DispatchError, Encode, MaxEncodedLen, TypeInfo},
 	BoundedVec, RuntimeDebug,
@@ -13,6 +14,18 @@ pub enum MemberRole {
 	Retail,
 	Professional,
 	Institutional,
+}
+
+impl MemberRole {
+	pub fn iterator() -> Iter<'static, MemberRole> {
+		static ROLES: [MemberRole; 4] = [
+			MemberRole::Issuer,
+			MemberRole::Retail,
+			MemberRole::Professional,
+			MemberRole::Institutional,
+		];
+		ROLES.iter()
+	}
 }
 
 /// The various attesters on KILT.
@@ -49,4 +62,5 @@ pub trait PolimecMembers<AccountId> {
 	fn add_member(role: &MemberRole, who: &AccountId) -> Result<(), DispatchError>;
 	fn initialize_members(role: &MemberRole, members: &[AccountId]);
 	fn get_members_of(role: &MemberRole) -> Vec<AccountId>;
+	fn get_roles_of(who: &AccountId) -> Vec<&MemberRole>;
 }
