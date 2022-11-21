@@ -231,10 +231,9 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-use sp_std::vec::Vec;
+use sp_std::{vec, vec::Vec};
 
 impl<T: Config> PolimecMembers<T::AccountId> for Pallet<T> {
-	
 	/// Chech if `who` is in the `role` set
 	fn is_in(role: &MemberRole, who: &T::AccountId) -> bool {
 		<Members<T>>::contains_key(role, who)
@@ -259,5 +258,15 @@ impl<T: Config> PolimecMembers<T::AccountId> for Pallet<T> {
 
 	fn get_members_of(role: &MemberRole) -> Vec<T::AccountId> {
 		<Members<T>>::iter_key_prefix(role).collect()
+	}
+
+	fn get_roles_of(who: &T::AccountId) -> Vec<&MemberRole> {
+		let mut user_roles = vec![];
+		for role in MemberRole::iterator() {
+			if let Some(()) = Members::<T>::get(role, who) {
+				user_roles.push(role)
+			}
+		}
+		user_roles
 	}
 }
