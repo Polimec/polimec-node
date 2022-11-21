@@ -213,7 +213,7 @@ pub fn local_testnet_config() -> ChainSpec {
 
 fn polimec_inflation_config() -> InflationInfo {
 	InflationInfo::new(
-		BLOCKS_PER_YEAR,
+		BLOCKS_PER_YEAR.into(),
 		// max collator staking rate
 		Perquintill::from_percent(40),
 		// collator reward rate

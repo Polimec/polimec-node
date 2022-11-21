@@ -1,9 +1,16 @@
-use crate::MILLI_PLMC;
+//! Holds the XCM specific configuration that would otherwise be in lib.rs
+//!
+//! This configuration dictates how the Polimec will communicate with other chains.
+//!
+//! One of the main uses of Polimec will be to be a benefactor of reserve asset transfers
+//! with Statemine as the reserve.
+//! At present no derivative tokens are minted on receipt of a
+//! `ReserveAssetTransferDeposited` message but that will but the intension will be to support this
 
 use super::{
-	AccountId, AssetRegistry, Assets, Balance, Balances, ExtrinsicBaseWeight, Get, ParachainInfo,
-	ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee,
-	XcmpQueue, WEIGHT_PER_SECOND,
+	AccountId, AssetId, AssetRegistry, Assets, Balance, Balances, ExtrinsicBaseWeight, Get,
+	ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
+	WeightToFee, XcmpQueue, WEIGHT_PER_SECOND, MILLI_PLMC
 };
 use core::marker::PhantomData;
 use frame_support::{
@@ -32,7 +39,7 @@ parameter_types! {
 	pub const RelayLocation: MultiLocation = MultiLocation::parent();
 	pub const RelayNetwork: NetworkId = NetworkId::Any;
 	pub AssetsPalletLocation: MultiLocation =
-	PalletInstance(<Assets as PalletInfoAccess>::index() as u8).into();
+		PalletInstance(<Assets as PalletInfoAccess>::index() as u8).into();
 	pub CheckingAccount: AccountId = PolkadotXcm::check_account();
 	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
 	pub Ancestry: MultiLocation = Parachain(ParachainInfo::parachain_id().into()).into();
@@ -49,6 +56,20 @@ pub type LocationToAccountId = (
 	// Straight up local `AccountId32` origins just alias directly to `AccountId`.
 	AccountId32Aliases<RelayNetwork, AccountId>,
 );
+
+/// Means for transacting assets on this chain.
+pub type LocalAssetTransactor = CurrencyAdapter<
+	// Use this currency:
+	Balances,
+	// Use this currency when it is a fungible asset matching the given location or name:
+	IsConcrete<RelayLocation>,
+	// Do a simple punn to convert an AccountId32 MultiLocation into a native chain account ID:
+	LocationToAccountId,
+	// Our chain's account ID type (we can't get away without mentioning it explicitly):
+	AccountId,
+	// We don't track any teleports.
+	(),
+>;
 
 pub type ReservedFungiblesTransactor = FungiblesAdapter<
 	// Use this fungibles implementation:
@@ -90,20 +111,6 @@ pub type LocalFungiblesTransactor = FungiblesAdapter<
 	Nothing,
 	// We don't track any teleports of `Assets`.
 	CheckingAccount,
->;
-
-/// Means for transacting assets on this chain.
-pub type LocalAssetTransactor = CurrencyAdapter<
-	// Use this currency:
-	Balances,
-	// Use this currency when it is a fungible asset matching the given location or name:
-	IsConcrete<RelayLocation>,
-	// Do a simple punn to convert an AccountId32 MultiLocation into a native chain account ID:
-	LocationToAccountId,
-	// Our chain's account ID type (we can't get away without mentioning it explicitly):
-	AccountId,
-	// We don't track any teleports.
-	(),
 >;
 
 /// Means for transacting assets on this chain.
@@ -219,7 +226,7 @@ pub type Barrier = DenyThenTry<
 	),
 >;
 
-// MARK: Reserve
+// MARK: Teleport
 
 pub fn base_tx_fee() -> Balance {
 	MILLI_PLMC / 10
@@ -254,8 +261,8 @@ fn matches_prefix(prefix: &MultiLocation, loc: &MultiLocation) -> bool {
 			.zip(loc.interior().iter())
 			.all(|(prefix_junction, junction)| prefix_junction == junction)
 }
-pub struct ReserveAssetsFrom<T>(PhantomData<T>);
-impl<T: Get<MultiLocation>> FilterAssetLocation for ReserveAssetsFrom<T> {
+pub struct AssetsFrom<T>(PhantomData<T>);
+impl<T: Get<MultiLocation>> FilterAssetLocation for AssetsFrom<T> {
 	fn filter_asset_location(asset: &MultiAsset, origin: &MultiLocation) -> bool {
 		let prefix = T::get();
 		log::trace!(target: "xcm::AssetsFrom", "prefix: {:?}, origin: {:?}", prefix, origin);
@@ -268,7 +275,9 @@ impl<T: Get<MultiLocation>> FilterAssetLocation for ReserveAssetsFrom<T> {
 	}
 }
 
-pub type Reserves = (NativeAsset, ReserveAssetsFrom<StatemineLocation>);
+// MARK: Reserve
+
+pub type Reserves = (NativeAsset, AssetsFrom<StatemineLocation>);
 
 pub struct XcmConfig;
 impl xcm_executor::Config for XcmConfig {
@@ -278,7 +287,7 @@ impl xcm_executor::Config for XcmConfig {
 	type AssetTransactor = AssetTransactors;
 	type OriginConverter = XcmOriginToTransactDispatchOrigin;
 	type IsReserve = Reserves;
-	type IsTeleporter = (); // Teleporting is disabled.
+	type IsTeleporter = AssetsFrom<StatemineLocation>;
 	type LocationInverter = LocationInverter<Ancestry>;
 	type Barrier = Barrier;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
