@@ -15,20 +15,11 @@ pub use pallet_credentials_runtime_api::CredentialsApi as CredentialsRuntimeApi;
 #[rpc(client, server)]
 pub trait CredentialsApi<BlockHash, AccountId> {
 	#[method(name = "credentials_is_in")]
-	fn get_value(&self, at: Option<BlockHash>, role: MemberRole, who: AccountId)
-		-> RpcResult<bool>;
+	fn is_in(&self, at: Option<BlockHash>, role: MemberRole, who: AccountId) -> RpcResult<bool>;
 	#[method(name = "credentials_get_members_of")]
-	fn get_members_of(
-		&self,
-		at: Option<BlockHash>,
-		role: MemberRole,
-	) -> RpcResult<Vec<AccountId>>;
+	fn get_members_of(&self, at: Option<BlockHash>, role: MemberRole) -> RpcResult<Vec<AccountId>>;
 	#[method(name = "credentials_get_roles_of")]
-	fn get_roles_of(
-		&self,
-		at: Option<BlockHash>,
-		who: AccountId,
-	) -> RpcResult<Vec<MemberRole>>;
+	fn get_roles_of(&self, at: Option<BlockHash>, who: AccountId) -> RpcResult<Vec<MemberRole>>;
 }
 
 pub struct Credentials<Client, Block> {
@@ -57,7 +48,7 @@ where
 	Client::Api: CredentialsRuntimeApi<Block, AccountId>,
 	AccountId: Codec,
 {
-	fn get_value(
+	fn is_in(
 		&self,
 		at: Option<<Block>::Hash>,
 		role: MemberRole,
