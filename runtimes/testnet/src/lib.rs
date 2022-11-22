@@ -33,6 +33,7 @@ use orml_traits::parameter_type_with_key;
 
 use pallet_balances::WeightInfo;
 use pallet_transaction_payment::OnChargeTransaction;
+use polimec_traits::{PolimecMembers, MemberRole};
 pub use parachain_staking::InflationInfo;
 use smallvec::smallvec;
 use sp_api::impl_runtime_apis;
@@ -1188,6 +1189,19 @@ impl_runtime_apis! {
 	impl cumulus_primitives_core::CollectCollationInfo<Block> for Runtime {
 		fn collect_collation_info(header: &<Block as BlockT>::Header) -> cumulus_primitives_core::CollationInfo {
 			ParachainSystem::collect_collation_info(header)
+		}
+	}
+
+
+	impl pallet_credentials_runtime_api::CredentialsApi<Block, AccountId> for Runtime {
+		fn is_in(role: MemberRole, who: AccountId) -> bool {
+			Credentials::is_in(&role, &who)
+		}
+		fn get_members_of(role: MemberRole) -> Vec<AccountId> {
+			Credentials::get_members_of(&role)
+		}
+		fn get_roles_of(who: AccountId) -> Vec<MemberRole> {
+			Credentials::get_roles_of(&who)
 		}
 	}
 
