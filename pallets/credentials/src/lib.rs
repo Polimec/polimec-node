@@ -260,11 +260,11 @@ impl<T: Config> PolimecMembers<T::AccountId> for Pallet<T> {
 		<Members<T>>::iter_key_prefix(role).collect()
 	}
 
-	fn get_roles_of(who: &T::AccountId) -> Vec<&MemberRole> {
+	fn get_roles_of(who: &T::AccountId) -> Vec<MemberRole> {
 		let mut user_roles = vec![];
 		for role in MemberRole::iterator() {
 			if let Some(()) = Members::<T>::get(role, who) {
-				user_roles.push(role)
+				user_roles.push(*role)
 			}
 		}
 		user_roles

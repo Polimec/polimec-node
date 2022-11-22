@@ -117,7 +117,7 @@ fn get_members_of_works() {
 fn get_roles_of_works() {
 	new_test_ext().execute_with(|| {
 		let roles = Credentials::get_roles_of(&EVE);
-		let expected_roles = vec![&MemberRole::Professional, &MemberRole::Institutional];
+		let expected_roles = vec![MemberRole::Professional, MemberRole::Institutional];
 		assert!(roles.len() == 2);
 		assert!(roles == expected_roles);
 	})
@@ -127,7 +127,7 @@ fn get_roles_of_works() {
 fn get_roles_of_not_user() {
 	new_test_ext().execute_with(|| {
 		let roles = Credentials::get_roles_of(&6);
-		let expected_roles: Vec<&MemberRole> = vec![];
+		let expected_roles: Vec<MemberRole> = vec![];
 		assert!(roles.is_empty());
 		assert!(roles == expected_roles);
 	})
