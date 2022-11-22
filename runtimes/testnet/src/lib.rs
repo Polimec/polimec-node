@@ -33,8 +33,8 @@ use orml_traits::parameter_type_with_key;
 
 use pallet_balances::WeightInfo;
 use pallet_transaction_payment::OnChargeTransaction;
-use polimec_traits::{PolimecMembers, MemberRole};
 pub use parachain_staking::InflationInfo;
+use polimec_traits::{MemberRole, PolimecMembers};
 use smallvec::smallvec;
 use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;

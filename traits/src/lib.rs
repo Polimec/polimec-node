@@ -5,8 +5,8 @@ use frame_support::{
 	pallet_prelude::{Decode, DispatchError, Encode, MaxEncodedLen, TypeInfo},
 	BoundedVec, RuntimeDebug,
 };
+use serde::{Deserialize, Serialize};
 use sp_std::vec::Vec;
-use serde::{Serialize, Deserialize};
 
 /// The various roles that a member can hold.
 #[derive(
