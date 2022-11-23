@@ -133,7 +133,7 @@ pub fn create_benchmark_extrinsic(
 		frame_system::CheckTxVersion::<runtime::Runtime>::new(),
 		frame_system::CheckGenesis::<runtime::Runtime>::new(),
 		frame_system::CheckEra::<runtime::Runtime>::from(sp_runtime::generic::Era::mortal(
-			period,
+			period.into(),
 			best_block.saturated_into(),
 		)),
 		frame_system::CheckNonce::<runtime::Runtime>::from(nonce.into()),

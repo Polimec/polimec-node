@@ -65,6 +65,8 @@ hex-literal = { version = "0.3.4", optional = true }
 pallet-multi-mint = { version = "0.1", default-features = false, path = "../../pallets/multi-mint" }
 pallet-funding = { version = "0.1", default-features = false, path = "../../pallets/funding" }
 pallet-credentials = { path = "../../pallets/credentials", default-features = false }
+pallet-credentials-runtime-api = { path = "../../pallets/credentials/rpc/runtime-api", default-features = false }
+polimec-traits ={ path = "../../traits", default-features = false}
 
 # ORML Dependencies
 orml-traits = { version = "0.4.1-dev", default-features = false, git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.30" }
@@ -112,6 +114,8 @@ std = [
 	"pallet-session/std",
 	"pallet-authorship/std",
 	"pallet-randomness-collective-flip/std",
+	"polimec-traits/std",
+	"pallet-credentials-runtime-api/std",
 ]
 
 runtime-benchmarks = [
