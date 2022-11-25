@@ -6588,6 +6588,7 @@ dependencies = [
  "pallet-xcm",
  "parachain-info",
  "parachain-staking",
+ "parachains-common",
  "parity-scale-codec",
  "polimec-traits",
  "polkadot-parachain",
