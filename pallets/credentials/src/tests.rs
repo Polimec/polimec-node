@@ -25,17 +25,17 @@ fn new_test_credential(role: MemberRole) -> Credential {
 #[test]
 fn add_during_genesis_works() {
 	new_test_ext().execute_with(|| {
-		assert!(Credentials::members(ALICE, MemberRole::Issuer).is_some());
-		assert!(Credentials::is_in(&ALICE, &MemberRole::Issuer));
+		assert!(Credentials::members(MemberRole::Issuer, ALICE).is_some());
+		assert!(Credentials::is_in(&MemberRole::Issuer, &ALICE));
 
-		assert!(Credentials::members(BOB, MemberRole::Retail).is_some());
-		assert!(Credentials::is_in(&BOB, &MemberRole::Retail));
+		assert!(Credentials::members(MemberRole::Retail, BOB).is_some());
+		assert!(Credentials::is_in(&MemberRole::Retail, &BOB));
 
-		assert!(Credentials::members(CHARLIE, MemberRole::Professional).is_some());
-		assert!(Credentials::is_in(&CHARLIE, &MemberRole::Professional));
+		assert!(Credentials::members(MemberRole::Professional, CHARLIE).is_some());
+		assert!(Credentials::is_in(&MemberRole::Professional, &CHARLIE));
 
-		assert!(Credentials::members(DAVE, MemberRole::Institutional).is_some());
-		assert!(Credentials::is_in(&DAVE, &MemberRole::Institutional));
+		assert!(Credentials::members(MemberRole::Institutional, DAVE).is_some());
+		assert!(Credentials::is_in(&MemberRole::Institutional, &DAVE));
 	})
 }
 
@@ -43,7 +43,7 @@ fn add_during_genesis_works() {
 fn add_member_works() {
 	new_test_ext().execute_with(|| {
 		let cred = new_test_credential(MemberRole::Issuer);
-		assert_ok!(Credentials::add_member(RuntimeOrigin::root(), BOB, cred));
+		assert_ok!(Credentials::add_member(RuntimeOrigin::root(), cred, BOB));
 		assert_eq!(last_event(), RuntimeEvent::Credentials(crate::Event::MemberAdded));
 	})
 }
@@ -52,7 +52,7 @@ fn add_member_works() {
 fn only_root_can_add_member() {
 	new_test_ext().execute_with(|| {
 		let cred = new_test_credential(MemberRole::Issuer);
-		assert_noop!(Credentials::add_member(RuntimeOrigin::signed(ALICE), BOB, cred), BadOrigin);
+		assert_noop!(Credentials::add_member(RuntimeOrigin::signed(ALICE), cred, BOB), BadOrigin);
 	})
 }
 
@@ -61,7 +61,7 @@ fn cant_add_already_member() {
 	new_test_ext().execute_with(|| {
 		let cred = new_test_credential(MemberRole::Issuer);
 		assert_noop!(
-			Credentials::add_member(RuntimeOrigin::root(), ALICE, cred),
+			Credentials::add_member(RuntimeOrigin::root(), cred, ALICE),
 			Error::<Test>::AlreadyMember
 		);
 	})
@@ -71,7 +71,7 @@ fn cant_add_already_member() {
 fn remove_member_works() {
 	new_test_ext().execute_with(|| {
 		let cred = new_test_credential(MemberRole::Issuer);
-		assert_ok!(Credentials::remove_member(RuntimeOrigin::root(), ALICE, cred));
+		assert_ok!(Credentials::remove_member(RuntimeOrigin::root(), cred, ALICE));
 		assert_eq!(last_event(), RuntimeEvent::Credentials(crate::Event::MemberRemoved));
 	})
 }
@@ -81,7 +81,7 @@ fn only_root_can_remove_member() {
 	new_test_ext().execute_with(|| {
 		let cred = new_test_credential(MemberRole::Issuer);
 		assert_noop!(
-			Credentials::remove_member(RuntimeOrigin::signed(ALICE), ALICE, cred),
+			Credentials::remove_member(RuntimeOrigin::signed(ALICE), cred, ALICE),
 			BadOrigin
 		);
 	})
@@ -92,8 +92,43 @@ fn cant_remove_not_a_member() {
 	new_test_ext().execute_with(|| {
 		let cred = new_test_credential(MemberRole::Issuer);
 		assert_noop!(
-			Credentials::remove_member(RuntimeOrigin::root(), EVE, cred),
+			Credentials::remove_member(RuntimeOrigin::root(), cred, EVE),
 			Error::<Test>::NotMember
 		);
+	})
+}
+
+#[test]
+fn get_members_of_works() {
+	new_test_ext().execute_with(|| {
+		let issuers = Credentials::get_members_of(&MemberRole::Issuer);
+		assert!(issuers == vec![1]);
+		let cred = new_test_credential(MemberRole::Issuer);
+		let _ = Credentials::add_member(RuntimeOrigin::root(), cred.clone(), BOB);
+		let issuers = Credentials::get_members_of(&MemberRole::Issuer);
+		assert!(issuers == vec![1, 2]);
+		let _ = Credentials::remove_member(RuntimeOrigin::root(), cred, ALICE);
+		let issuers = Credentials::get_members_of(&MemberRole::Issuer);
+		assert!(issuers == vec![2]);
+	})
+}
+
+#[test]
+fn get_roles_of_works() {
+	new_test_ext().execute_with(|| {
+		let roles = Credentials::get_roles_of(&EVE);
+		let expected_roles = vec![MemberRole::Professional, MemberRole::Institutional];
+		assert!(roles.len() == 2);
+		assert!(roles == expected_roles);
+	})
+}
+
+#[test]
+fn get_roles_of_not_user() {
+	new_test_ext().execute_with(|| {
+		let roles = Credentials::get_roles_of(&6);
+		let expected_roles: Vec<MemberRole> = vec![];
+		assert!(roles.is_empty());
+		assert!(roles == expected_roles);
 	})
 }

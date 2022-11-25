@@ -2,4 +2,11 @@
 panic = "unwind"
 
 [workspace]
-members = ["nodes/*", "pallets/*", "runtimes/*", "traits", "integration-tests"]
+members = [
+    "nodes/*",
+    "pallets/*",
+    "runtimes/*",
+    "traits",
+    "integration-tests",
+    "pallets/credentials/rpc",
+]

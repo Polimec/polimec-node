@@ -70,7 +70,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn members)]
 	pub type Members<T: Config> =
-		StorageDoubleMap<_, Twox64Concat, T::AccountId, Twox64Concat, MemberRole, ()>;
+		StorageDoubleMap<_, Twox64Concat, MemberRole, Twox64Concat, T::AccountId, ()>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -151,13 +151,10 @@ pub mod pallet {
 				"Issuers cannot contain duplicate accounts."
 			);
 
-			Pallet::<T>::initialize_members(&self.issuers, &MemberRole::Issuer);
-
-			Pallet::<T>::initialize_members(&self.retails, &MemberRole::Retail);
-
-			Pallet::<T>::initialize_members(&self.professionals, &MemberRole::Professional);
-
-			Pallet::<T>::initialize_members(&self.institutionals, &MemberRole::Institutional);
+			Pallet::<T>::initialize_members(&MemberRole::Issuer, &self.issuers);
+			Pallet::<T>::initialize_members(&MemberRole::Retail, &self.retails);
+			Pallet::<T>::initialize_members(&MemberRole::Professional, &self.professionals);
+			Pallet::<T>::initialize_members(&MemberRole::Institutional, &self.institutionals);
 		}
 	}
 
@@ -170,8 +167,8 @@ pub mod pallet {
 		#[pallet::weight(1)]
 		pub fn add_member(
 			origin: OriginFor<T>,
-			who: AccountIdLookupOf<T>,
 			credential: Credential,
+			who: AccountIdLookupOf<T>,
 		) -> DispatchResult {
 			T::AddOrigin::ensure_origin(origin)?;
 			let who = T::Lookup::lookup(who)?;
@@ -187,8 +184,8 @@ pub mod pallet {
 		#[pallet::weight(1)]
 		pub fn remove_member(
 			origin: OriginFor<T>,
-			who: AccountIdLookupOf<T>,
 			credential: Credential,
+			who: AccountIdLookupOf<T>,
 		) -> DispatchResult {
 			T::RemoveOrigin::ensure_origin(origin)?;
 			let who = T::Lookup::lookup(who)?;
@@ -203,14 +200,14 @@ impl<T: Config> Pallet<T> {
 	fn do_add_member(who: &T::AccountId, credential: &Credential) -> Result<(), DispatchError> {
 		// TODO: This is a placeholder, we still dont't know the actual structure of a `Credential`
 		let role = credential.role;
-		ensure!(!Self::is_in(who, &role), Error::<T>::AlreadyMember);
+		ensure!(!Self::is_in(&role, who), Error::<T>::AlreadyMember);
 
-		Self::do_add_member_with_role(who, &role)?;
+		Self::do_add_member_with_role(&role, who)?;
 		Ok(())
 	}
 
-	fn do_add_member_with_role(who: &T::AccountId, role: &MemberRole) -> Result<(), DispatchError> {
-		Members::<T>::insert(who, role, ());
+	fn do_add_member_with_role(role: &MemberRole, who: &T::AccountId) -> Result<(), DispatchError> {
+		Members::<T>::insert(role, who, ());
 		Self::deposit_event(Event::MemberAdded);
 		Ok(())
 	}
@@ -218,42 +215,58 @@ impl<T: Config> Pallet<T> {
 	fn do_remove_member(who: &T::AccountId, credential: &Credential) -> Result<(), DispatchError> {
 		// TODO: This is a placeholder, we still dont't know the actual structure of a `Credential`
 		let role = credential.role;
-		ensure!(Self::is_in(who, &role), Error::<T>::NotMember);
+		ensure!(Self::is_in(&role, who), Error::<T>::NotMember);
 
-		Self::do_remove_member_with_role(who, &role)?;
+		Self::do_remove_member_with_role(&role, who)?;
 		Ok(())
 	}
 
 	fn do_remove_member_with_role(
-		who: &T::AccountId,
 		role: &MemberRole,
+		who: &T::AccountId,
 	) -> Result<(), DispatchError> {
-		Members::<T>::remove(who, role);
+		Members::<T>::remove(role, who);
 		Self::deposit_event(Event::MemberRemoved);
 		Ok(())
 	}
 }
 
+use sp_std::{vec, vec::Vec};
+
 impl<T: Config> PolimecMembers<T::AccountId> for Pallet<T> {
 	/// Chech if `who` is in the `role` set
-	fn is_in(who: &T::AccountId, role: &MemberRole) -> bool {
-		<Members<T>>::contains_key(who, role)
+	fn is_in(role: &MemberRole, who: &T::AccountId) -> bool {
+		<Members<T>>::contains_key(role, who)
 	}
 
 	/// Add `who` to the `role` set
-	fn add_member(who: &T::AccountId, role: &MemberRole) -> Result<(), DispatchError> {
-		Self::do_add_member_with_role(who, role)
+	fn add_member(role: &MemberRole, who: &T::AccountId) -> Result<(), DispatchError> {
+		Self::do_add_member_with_role(role, who)
 	}
 
 	/// Utility function to set a vector of `member` during the genesis
-	fn initialize_members(members: &[T::AccountId], role: &MemberRole) {
+	fn initialize_members(role: &MemberRole, members: &[T::AccountId]) {
 		if !members.is_empty() {
 			for member in members {
-				assert!(!Self::is_in(member, role), "Members are already initialized!");
+				assert!(!Self::is_in(role, member), "Members are already initialized!");
 			}
 			for member in members {
-				let _ = Self::do_add_member_with_role(member, role);
+				let _ = Self::do_add_member_with_role(role, member);
 			}
 		}
+	}
+
+	fn get_members_of(role: &MemberRole) -> Vec<T::AccountId> {
+		<Members<T>>::iter_key_prefix(role).collect()
+	}
+
+	fn get_roles_of(who: &T::AccountId) -> Vec<MemberRole> {
+		let mut user_roles = vec![];
+		for role in MemberRole::iterator() {
+			if let Some(()) = Members::<T>::get(role, who) {
+				user_roles.push(*role)
+			}
+		}
+		user_roles
 	}
 }

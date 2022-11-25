@@ -4,8 +4,8 @@ use polimec_standalone_runtime::{
 };
 use sc_service::{ChainType, Properties};
 use serde_json::map::Map;
-use sp_consensus_aura::ed25519::AuthorityId as AuraId;
-use sp_core::{ed25519, sr25519, Pair, Public};
+use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+use sp_core::{sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
@@ -44,7 +44,7 @@ where
 /// Helper function to generate an authority key for Aura
 fn get_authority_keys_from_secret(seed: &str) -> (AccountId, AuraId, GrandpaId) {
 	(
-		get_account_id_from_secret::<ed25519::Public>(seed),
+		get_account_id_from_secret::<sr25519::Public>(seed),
 		get_from_secret::<AuraId>(seed),
 		get_from_secret::<GrandpaId>(seed),
 	)
@@ -70,11 +70,9 @@ pub fn development_config() -> Result<ChainSpec, String> {
 				// Initial PoA authorities
 				vec![get_authority_keys_from_secret("//Alice")],
 				// Sudo account
-				get_account_id_from_secret::<ed25519::Public>("//Alice"),
+				get_account_id_from_secret::<sr25519::Public>("//Alice"),
 				// Pre-funded accounts
 				vec![
-					get_account_id_from_secret::<ed25519::Public>("//Alice"),
-					get_account_id_from_secret::<ed25519::Public>("//Bob"),
 					get_account_id_from_secret::<sr25519::Public>("//Alice"),
 					get_account_id_from_secret::<sr25519::Public>("//Bob"),
 				],
@@ -112,11 +110,11 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 					get_authority_keys_from_secret("//Bob"),
 				],
 				// Sudo account
-				get_account_id_from_secret::<ed25519::Public>("//Alice"),
+				get_account_id_from_secret::<sr25519::Public>("//Alice"),
 				// Pre-funded accounts
 				vec![
-					get_account_id_from_secret::<ed25519::Public>("//Alice"),
-					get_account_id_from_secret::<ed25519::Public>("//Bob"),
+					get_account_id_from_secret::<sr25519::Public>("//Alice"),
+					get_account_id_from_secret::<sr25519::Public>("//Bob"),
 				],
 			)
 		},
