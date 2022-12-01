@@ -12,3 +12,17 @@ launch/
 evm-bench
 evm-tests
 ts-tests
+.git
+.github
+.gitignore
+.gitlab-ci.yml
+.rustfmt.toml
+**/.maintain*
+**/target*
+**/*.rs.bk
+*.iml
+.vscode
+.editorconfig
+docker-compose.yml
+*Dockerfile
+.dockerignore
