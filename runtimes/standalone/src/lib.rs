@@ -316,6 +316,7 @@ impl pallet_funding::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type StringLimit = ConstU32<64>;
 	type Currency = Balances;
+	type BiddingCurrency = Balances;
 	type CurrencyBalance = <Self as pallet_balances::Config>::Balance;
 	type EvaluationDuration = EvaluationDuration;
 	type PalletId = FundingPalletId;
