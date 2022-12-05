@@ -20,7 +20,7 @@ use frame_support::{
 		OnUnbalanced,
 	},
 	weights::{
-		constants::WEIGHT_PER_SECOND, ConstantMultiplier, Weight, WeightToFee as WeightToFeeT,
+		ConstantMultiplier, Weight, WeightToFee as WeightToFeeT,
 		WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 	},
 	PalletId,
@@ -633,14 +633,11 @@ parameter_types! {
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 }
 
-// TODO: DO NOT USE IN PRODUCTION
-// TODO: We can use the BABE Randomness from the Relay Chain
-// src: https://github.com/paritytech/cumulus/pull/1083
-
 impl pallet_funding::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type StringLimit = ConstU32<64>;
 	type Currency = Balances;
+	type BiddingCurrency = Balances;
 	type CurrencyBalance = <Self as pallet_balances::Config>::Balance;
 	type EvaluationDuration = EvaluationDuration;
 	type PalletId = FundingPalletId;
