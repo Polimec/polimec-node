@@ -15,6 +15,7 @@ type Block = frame_system::mocking::MockBlock<Test>;
 pub type AccountId = u64;
 pub type Balance = u128;
 pub type BlockNumber = u64;
+pub const PLMC: u128 = 10_000_000_000_u128;
 
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
@@ -103,6 +104,7 @@ impl pallet_funding::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type StringLimit = ConstU32<64>;
 	type Currency = Balances;
+	type BiddingCurrency = Balances;
 	type CurrencyBalance = <Self as pallet_balances::Config>::Balance;
 	type EvaluationDuration = EvaluationDuration;
 	type EnglishAuctionDuration = EnglishAuctionDuration;
@@ -121,12 +123,18 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 
 	GenesisConfig {
 		balances: BalancesConfig {
-			balances: vec![(1, 512), (2, 512), (3, 512), (4, 512), (5, 512)],
+			balances: vec![
+				(1, 512 * PLMC),
+				(2, 512 * PLMC),
+				(3, 512 * PLMC),
+				(4, 512 * PLMC),
+				(5, 512 * PLMC),
+			],
 		},
 		credentials: CredentialsConfig {
 			issuers: vec![1],
 			retails: vec![2],
-			professionals: vec![3],
+			professionals: vec![2, 3],
 			institutionals: vec![4],
 		},
 		..Default::default()

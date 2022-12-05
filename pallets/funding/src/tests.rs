@@ -135,23 +135,23 @@ mod creation_round {
 		})
 	}
 
-	#[test]
-	#[ignore = "ATM only the first error will be thrown"]
-	fn multiple_field_error() {
-		new_test_ext().execute_with(|| {
-			let project = Project {
-				minimum_price: 0,
-				ticket_size: TicketSize { minimum: None, maximum: None },
-				participants_size: ParticipantsSize { minimum: None, maximum: None },
-				..Default::default()
-			};
+	// #[test]
+	// #[ignore = "ATM only the first error will be thrown"]
+	// fn multiple_field_error() {
+	// 	new_test_ext().execute_with(|| {
+	// 		let project = Project {
+	// 			minimum_price: 0,
+	// 			ticket_size: TicketSize { minimum: None, maximum: None },
+	// 			participants_size: ParticipantsSize { minimum: None, maximum: None },
+	// 			..Default::default()
+	// 		};
 
-			assert_noop!(
-				FundingModule::create(RuntimeOrigin::signed(ALICE), project),
-				Error::<Test>::TicketSizeError
-			);
-		})
-	}
+	// 		assert_noop!(
+	// 			FundingModule::create(RuntimeOrigin::signed(ALICE), project),
+	// 			Error::<Test>::TicketSizeError
+	// 		);
+	// 	})
+	// }
 }
 
 mod evaluation_round {
@@ -268,7 +268,7 @@ mod evaluation_round {
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 
 			assert_noop!(
-				FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 1024),
+				FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 1024 * PLMC),
 				Error::<Test>::InsufficientBalance
 			);
 		})
@@ -333,11 +333,24 @@ mod auction_round {
 			System::set_block_number(block_number + 100);
 			FundingModule::on_initialize(System::block_number());
 			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
-			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(CHARLIE), 0, 1, 100));
-			let bids = FundingModule::auctions_info(0, CHARLIE);
-			assert!(bids.amount == 100);
-			assert!(bids.market_cap == 1);
-			assert!(bids.when == block_number + 100);
+
+			// Get the free_balance of CHARLIE
+			let free_balance = Balances::free_balance(&CHARLIE);
+
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(CHARLIE), 0, 100, 1));
+			let bid = FundingModule::auctions_info(0, CHARLIE);
+			assert!(bid.when == block_number + 100);
+			assert!(bid.market_cap == 1);
+			assert!(bid.price == 100);
+			// Get the free_balance of CHARLIE
+			let free_balance_after_bid = Balances::free_balance(&CHARLIE);
+
+			assert!(free_balance_after_bid == free_balance - 100);
+
+			// Get the reserved_balance of CHARLIE
+			let reserved_balance = Balances::reserved_balance(&CHARLIE);
+			assert!(free_balance_after_bid == free_balance - reserved_balance);
+			assert!(reserved_balance == 100);
 		})
 	}
 
@@ -470,30 +483,26 @@ mod flow {
 	}
 
 	#[test]
-	#[ignore = "Final Price calculation not ready yet"]
 	fn check_final_price() {
 		new_test_ext().execute_with(|| {
-			// Create a new project
+			// Prologue
 			let project = Project {
 				minimum_price: 1,
 				ticket_size: TicketSize { minimum: Some(1), maximum: None },
 				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 				total_allocation_size: 100000,
+				fundraising_target: 101 * PLMC,
 				..Default::default()
 			};
 			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
 			let project_info = FundingModule::project_info(0, ALICE);
 			assert!(project_info.project_status == ProjectStatus::Application);
-
-			// Start the Evaluation Round
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 			let active_projects = FundingModule::projects_active();
 			assert!(active_projects.len() == 1);
 			let project_info = FundingModule::project_info(0, ALICE);
 			assert!(project_info.project_status == ProjectStatus::EvaluationRound);
 			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128));
-
-			// Evaluation Round ends automatically
 			let block_number = System::block_number();
 			System::set_block_number(block_number + 28);
 			FundingModule::on_initialize(System::block_number());
@@ -506,7 +515,7 @@ mod flow {
 			assert!(
 				project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::English)
 			);
-			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(BOB), 0, 19, 17));
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(BOB), 0, 19 * PLMC, 17 * PLMC));
 
 			// Second phase of Funding Round: 2) Candle Auction Round
 			let block_number = System::block_number();
@@ -516,19 +525,16 @@ mod flow {
 			assert!(
 				project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::Candle)
 			);
-			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(CHARLIE), 0, 74, 2));
-			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(3), 0, 16, 35));
-			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(4), 0, 15, 20));
-			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(4), 0, 12, 55));
-
-			let auction_info_3 = FundingModule::auctions_info(0, 3);
-			println!("Bid Info {auction_info_3:?}");
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(CHARLIE), 0, 74 * PLMC, 2 * PLMC));
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(3), 0, 16 * PLMC, 35 * PLMC));
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(4), 0, 15 * PLMC, 20 * PLMC));
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(4), 0, 12 * PLMC, 55 * PLMC));
 
 			let block_number = System::block_number();
 			System::set_block_number(block_number + 10);
 			FundingModule::on_initialize(System::block_number());
 			let project_info = FundingModule::project_info(0, ALICE);
-			println!("Final Price {:?}", project_info.final_price);
+			assert!(project_info.final_price != Some(0));
 		})
 	}
 }
@@ -538,28 +544,28 @@ mod final_price {
 	use sp_std::cmp::Reverse;
 
 	use super::*;
-	#[test]
 
+	#[test]
 	fn check() {
 		new_test_ext().execute_with(|| {
-			const UNIT: u128 = 10_000_000_000;
-			let total_allocation_size = 101 * UNIT;
+			let total_allocation_size = 101 * PLMC;
 			let mut bids: Vec<BidInfo<u128, u64>> = vec![
-				BidInfo { amount: 17 * UNIT, market_cap: 19 * UNIT, when: 1 },
-				BidInfo { amount: UNIT, market_cap: 74 * UNIT, when: 2 },
-				BidInfo { amount: 8 * UNIT, market_cap: 10 * UNIT, when: 3 },
-				BidInfo { amount: 55 * UNIT, market_cap: 12 * UNIT, when: 4 },
-				BidInfo { amount: 20 * UNIT, market_cap: 15 * UNIT, when: 5 },
-				BidInfo { amount: 3 * UNIT, market_cap: 16 * UNIT, when: 6 },
-				BidInfo { amount: 50 * UNIT, market_cap: 12 * UNIT, when: 7 },
-				BidInfo { amount: 60 * UNIT, market_cap: 7 * UNIT, when: 8 },
+				BidInfo::new(10 * PLMC, 10 * PLMC, 1, total_allocation_size),
+				BidInfo::new(12 * PLMC, 55 * PLMC, 2, total_allocation_size),
+				BidInfo::new(15 * PLMC, 20 * PLMC, 3, total_allocation_size),
+				BidInfo::new(16 * PLMC, 35 * PLMC, 4, total_allocation_size),
+				BidInfo::new(19 * PLMC, 17 * PLMC, 5, total_allocation_size),
+				BidInfo::new(1 * PLMC, 28 * PLMC, 6, total_allocation_size),
+				BidInfo::new(5 * PLMC, 10 * PLMC, 7, total_allocation_size),
+				BidInfo::new(74 * PLMC, 1 * PLMC, 8, total_allocation_size),
+				BidInfo::new(3 * PLMC, 23 * PLMC, 9, total_allocation_size),
 			];
 			bids.sort_by_key(|bid| Reverse(bid.market_cap));
 			let value = FundingModule::final_price_logic(bids, total_allocation_size);
-			match value {
-				Ok(num) => println!("{}", num),
-				Err(_) => todo!(),
-			}
+			assert!(value.is_ok());
+			let inner_value = value.unwrap();
+			println!("inner_value: {:#?}", inner_value);
+			// assert!(inner_value == 248019801985);
 		})
 	}
 }
