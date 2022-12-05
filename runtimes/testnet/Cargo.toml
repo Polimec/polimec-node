@@ -20,10 +20,10 @@ codec = { package = "parity-scale-codec", version = "3.2.1", default-features = 
 ] }
 hex-literal = { version = "0.3.4", optional = true }
 log = { version = "0.4.17", default-features = false }
-scale-info = { version = "2.2.0", default-features = false, features = [
+scale-info = { version = "2.3.0", default-features = false, features = [
 	"derive",
 ] }
-serde = { version = "1.0.147", optional = true, features = ["derive"] }
+serde = { version = "1.0.149", optional = true, features = ["derive"] }
 smallvec = "1.10.0"
 
 # Local

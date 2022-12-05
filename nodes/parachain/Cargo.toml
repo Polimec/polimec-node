@@ -10,11 +10,11 @@ edition = "2021"
 build = "build.rs"
 
 [dependencies]
-clap = { version = "3.2.20", features = ["derive"] }
+clap = { version = "3.2.23", features = ["derive"] }
 derive_more = "0.99.17"
 log = "0.4.17"
-codec = { package = "parity-scale-codec", version = "3.0.0" }
-serde = { version = "1.0.147", features = ["derive"] }
+codec = { package = "parity-scale-codec", version = "3.2.1" }
+serde = { version = "1.0.149", features = ["derive"] }
 jsonrpsee = { version = "0.15.1", features = ["server"] }
 
 # Local
