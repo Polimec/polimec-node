@@ -1,12 +1,8 @@
-use frame_support::pallet_prelude::*;
-use sp_runtime::traits::Zero;
+use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
+use sp_arithmetic::Perquintill;
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct Project<
-	AccountId,
-	BoundedString,
-	Balance: MaxEncodedLen + Zero + sp_std::cmp::PartialEq + sp_std::cmp::PartialOrd,
-> {
+pub struct Project<AccountId, BoundedString, Balance: BalanceT> {
 	/// Token Metadata
 	pub token_information: CurrencyMetadata<BoundedString>,
 	/// Total allocation of Contribution Tokens available for the Funding Round
@@ -37,10 +33,7 @@ pub struct Project<
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct ProjectInfo<
-	BlockNumber,
-	Balance: MaxEncodedLen + Zero + sp_std::cmp::PartialEq + sp_std::cmp::PartialOrd,
-> {
+pub struct ProjectInfo<BlockNumber, Balance: BalanceT> {
 	/// Whether the project is frozen, so no `metadata` changes are allowed.
 	pub is_frozen: bool,
 	/// The price decided after the Auction Round
@@ -54,10 +47,7 @@ pub struct ProjectInfo<
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct ProjectMetadata<
-	BoundedString,
-	Balance: MaxEncodedLen + Zero + sp_std::cmp::PartialEq + sp_std::cmp::PartialOrd,
-> {
+pub struct ProjectMetadata<BoundedString, Balance: BalanceT> {
 	/// A link to the whitepaper
 	pub whitepaper: BoundedString,
 	/// A link to a team description
@@ -79,12 +69,7 @@ pub enum ValidityError {
 	ParticipantsSizeError,
 }
 
-impl<
-		AccountId,
-		BoundedString,
-		Balance: MaxEncodedLen + Zero + sp_std::cmp::PartialEq + sp_std::cmp::PartialOrd,
-	> Project<AccountId, BoundedString, Balance>
-{
+impl<AccountId, BoundedString, Balance: BalanceT> Project<AccountId, BoundedString, Balance> {
 	// TODO: Perform a REAL validity check
 	pub fn validity_check(&self) -> Result<(), ValidityError> {
 		if self.minimum_price == Balance::zero() {
@@ -97,16 +82,12 @@ impl<
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct TicketSize<
-	Balance: MaxEncodedLen + Zero + sp_std::cmp::PartialEq + sp_std::cmp::PartialOrd,
-> {
+pub struct TicketSize<Balance: BalanceT> {
 	pub minimum: Option<Balance>,
 	pub maximum: Option<Balance>,
 }
 
-impl<Balance: MaxEncodedLen + Zero + sp_std::cmp::PartialEq + sp_std::cmp::PartialOrd>
-	TicketSize<Balance>
-{
+impl<Balance: BalanceT> TicketSize<Balance> {
 	fn is_valid(&self) -> Result<(), ValidityError> {
 		if self.minimum.is_some() && self.maximum.is_some() {
 			if self.minimum < self.maximum {
@@ -188,15 +169,30 @@ pub struct AuctionMetadata<BlockNumber> {
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct BidInfo<Balance: MaxEncodedLen, BlockNumber> {
-	///
-	#[codec(compact)]
-	pub amount: Balance,
+pub struct BidInfo<Balance: BalanceT, BlockNumber> {
 	///
 	#[codec(compact)]
 	pub market_cap: Balance,
 	///
+	#[codec(compact)]
+	pub price: Balance,
+	///
+	#[codec(compact)]
+	pub ratio: Perquintill,
+	///
 	pub when: BlockNumber,
+}
+
+impl<Balance: BalanceT + From<u64>, BlockNumber> BidInfo<Balance, BlockNumber> {
+	pub fn new(
+		market_cap: Balance,
+		price: Balance,
+		when: BlockNumber,
+		auction_taget: Balance,
+	) -> Self {
+		let ratio = Perquintill::from_rational(price, auction_taget);
+		Self { market_cap, price, ratio, when }
+	}
 }
 
 // TODO: Use SCALE fixed indexes
