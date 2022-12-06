@@ -776,7 +776,7 @@ impl<T: Config> Pallet<T> {
 		}
 		for bid in bids {
 			let weighted_price = bid.ratio.mul_ceil(bid.market_cap);
-			final_price += weighted_price;
+			final_price = final_price.saturating_add(weighted_price);
 		}
 		Ok(final_price)
 	}
