@@ -106,7 +106,6 @@ impl ExtBuilder {
 		pallet_balances::GenesisConfig::<Runtime> {
 			balances: self
 				.balances
-				
 				.into_iter()
 				.map(|(account_id, initial_balance)| (account_id, initial_balance))
 				//.chain(get_all_module_accounts().iter().map(|x| (x.clone(), existential_deposit)))
