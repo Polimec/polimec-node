@@ -15,13 +15,16 @@ mod types;
 pub use types::*;
 
 use frame_support::{
-	traits::{Currency, Get, LockIdentifier, LockableCurrency, WithdrawReasons},
+	pallet_prelude::ValueQuery,
+	traits::{
+		tokens::Balance, Currency, Get, LockIdentifier, LockableCurrency, Randomness,
+		ReservableCurrency, WithdrawReasons,
+	},
 	PalletId,
 };
-use sp_runtime::{
-	traits::{AccountIdConversion, CheckedAdd, CheckedSub, Zero},
-	Perquintill,
-};
+use sp_runtime::traits::AccountIdConversion;
+
+use sp_arithmetic::traits::{CheckedAdd, Saturating, Zero};
 
 use polimec_traits::{MemberRole, PolimecMembers};
 
@@ -38,7 +41,6 @@ const LOCKING_ID: LockIdentifier = *b"evaluate";
 pub mod pallet {
 
 	use super::*;
-	use frame_support::{pallet_prelude::ValueQuery, traits::Randomness};
 	use frame_system::pallet_prelude::*;
 
 	#[pallet::pallet]
@@ -60,17 +62,12 @@ pub mod pallet {
 			Balance = Self::CurrencyBalance,
 		>;
 
+		/// The bidding balance.
+		type BiddingCurrency: ReservableCurrency<Self::AccountId, Balance = Self::CurrencyBalance>;
+
 		/// Just the `Currency::Balance` type; we have this item to allow us to constrain it to
 		/// `From<u64>`.
-		type CurrencyBalance: sp_runtime::traits::AtLeast32BitUnsigned
-			+ codec::FullCodec
-			+ Copy
-			+ MaybeSerializeDeserialize
-			+ sp_std::fmt::Debug
-			+ Default
-			+ From<u64>
-			+ TypeInfo
-			+ MaxEncodedLen;
+		type CurrencyBalance: Balance + From<u64>;
 
 		#[pallet::constant]
 		type EvaluationDuration: Get<Self::BlockNumber>;
@@ -412,7 +409,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			project_id: ProjectIdentifier,
 			#[pallet::compact] price: BalanceOf<T>,
-			#[pallet::compact] amount: BalanceOf<T>,
+			#[pallet::compact] market_cap: BalanceOf<T>,
 			// TODO: Add a parameter to specify the currency to use, should be equal to the currency
 			// specified in `participation_currencies`
 		) -> DispatchResult {
@@ -443,13 +440,15 @@ pub mod pallet {
 
 			// Make sure the bidder can actually perform the bid
 			let free_balance_of = T::Currency::free_balance(&bidder);
-			ensure!(free_balance_of >= amount, Error::<T>::InsufficientBalance);
+			ensure!(free_balance_of >= price, Error::<T>::InsufficientBalance);
 
 			// Make sure the bid amount is greater than the minimum_price specified by the issuer
-			ensure!(amount >= project.minimum_price, Error::<T>::BondTooLow);
+			ensure!(price >= project.minimum_price, Error::<T>::BondTooLow);
 
+			T::BiddingCurrency::reserve(&bidder, price)
+				.map_err(|_| "Bidder can't afford to reserve the amount requested")?;
 			let now = <frame_system::Pallet<T>>::block_number();
-			let bid_info = BidInfo { amount, market_cap: price, when: now };
+			let bid_info = BidInfo::new(market_cap, price, now, project.fundraising_target);
 
 			AuctionsInfo::<T>::insert(project_id, bidder, bid_info);
 
@@ -499,6 +498,7 @@ pub mod pallet {
 
 			let fund_account = Self::fund_account_id(project_id);
 			// TODO: Use the currency chosen by the Issuer
+			// TODO: Check the logic
 			T::Currency::transfer(
 				&contributor,
 				&fund_account,
@@ -568,7 +568,8 @@ pub mod pallet {
 	}
 }
 
-use frame_support::{pallet_prelude::*, traits::Randomness, BoundedVec};
+use frame_support::{pallet_prelude::*, BoundedVec};
+use sp_arithmetic::Perquintill;
 use sp_std::{cmp::Reverse, vec::Vec};
 
 impl<T: Config> Pallet<T> {
@@ -612,7 +613,6 @@ impl<T: Config> Pallet<T> {
 			project_info.is_frozen = true;
 			project_info.project_status = ProjectStatus::EvaluationRound;
 		});
-
 		ProjectsActive::<T>::try_append(project_id)
 			.map_err(|()| Error::<T>::TooManyActiveProjects)?;
 
@@ -752,7 +752,6 @@ impl<T: Config> Pallet<T> {
 		project_id: ProjectIdentifier,
 		total_allocation_size: BalanceOf<T>,
 	) -> Result<BalanceOf<T>, DispatchError> {
-		// TODO: This implementation sucks, just for the MVP
 		let mut bids: Vec<BidInfo<BalanceOf<T>, T::BlockNumber>> =
 			AuctionsInfo::<T>::iter_prefix_values(project_id).collect();
 		bids.sort_by_key(|bid| Reverse(bid.market_cap));
@@ -765,24 +764,19 @@ impl<T: Config> Pallet<T> {
 	) -> Result<<T as Config>::CurrencyBalance, DispatchError> {
 		let mut fundraising_amount = BalanceOf::<T>::zero();
 		let mut final_price = BalanceOf::<T>::zero();
-		// TODO: This implementation sucks, just for the MVP
 		for (idx, bid) in bids.iter_mut().enumerate() {
 			let old_amount = fundraising_amount;
-			fundraising_amount += bid.amount;
+			fundraising_amount += bid.price;
 			if fundraising_amount > total_allocation_size {
-				bid.amount = total_allocation_size.checked_sub(&old_amount).unwrap();
+				bid.price = total_allocation_size.saturating_sub(old_amount);
+				bid.ratio = Perquintill::from_rational(bid.price, total_allocation_size);
 				bids.truncate(idx + 1);
 				break
 			}
 		}
 		for bid in bids {
-			// TODO: Here is the the bug, averything is shifted of one position AND
-			// the rounding is very strange
-			let temp = Perquintill::from_rational(bid.amount, total_allocation_size);
-			// TODO: Check the default return value
-			// TODO: Use .expect() and provide a meaningful motivation on why this will not never Panic
-			let mul_temp = temp.mul_floor(bid.amount);
-			final_price += final_price.checked_add(&mul_temp).unwrap_or_default();
+			let weighted_price = bid.ratio.mul_ceil(bid.market_cap);
+			final_price += weighted_price;
 		}
 		Ok(final_price)
 	}
