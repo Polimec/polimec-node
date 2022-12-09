@@ -175,7 +175,7 @@ pub struct BidInfo<Balance: BalanceT, BlockNumber> {
 	pub market_cap: Balance,
 	///
 	#[codec(compact)]
-	pub price: Balance,
+	pub amount: Balance,
 	///
 	#[codec(compact)]
 	pub ratio: Perquintill,
@@ -186,12 +186,12 @@ pub struct BidInfo<Balance: BalanceT, BlockNumber> {
 impl<Balance: BalanceT + From<u64>, BlockNumber> BidInfo<Balance, BlockNumber> {
 	pub fn new(
 		market_cap: Balance,
-		price: Balance,
+		amount: Balance,
 		when: BlockNumber,
 		auction_taget: Balance,
 	) -> Self {
-		let ratio = Perquintill::from_rational(price, auction_taget);
-		Self { market_cap, price, ratio, when }
+		let ratio = Perquintill::from_rational(amount, auction_taget);
+		Self { market_cap, amount, ratio, when }
 	}
 }
 

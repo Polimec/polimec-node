@@ -766,10 +766,10 @@ impl<T: Config> Pallet<T> {
 		let mut final_price = BalanceOf::<T>::zero();
 		for (idx, bid) in bids.iter_mut().enumerate() {
 			let old_amount = fundraising_amount;
-			fundraising_amount += bid.price;
+			fundraising_amount += bid.amount;
 			if fundraising_amount > total_allocation_size {
-				bid.price = total_allocation_size.saturating_sub(old_amount);
-				bid.ratio = Perquintill::from_rational(bid.price, total_allocation_size);
+				bid.amount = total_allocation_size.saturating_sub(old_amount);
+				bid.ratio = Perquintill::from_rational(bid.amount, total_allocation_size);
 				bids.truncate(idx + 1);
 				break
 			}

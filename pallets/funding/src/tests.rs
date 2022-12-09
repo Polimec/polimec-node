@@ -341,7 +341,7 @@ mod auction_round {
 			let bid = FundingModule::auctions_info(0, CHARLIE);
 			assert!(bid.when == block_number + 100);
 			assert!(bid.market_cap == 1);
-			assert!(bid.price == 100);
+			assert!(bid.amount == 100);
 			// Get the free_balance of CHARLIE
 			let free_balance_after_bid = Balances::free_balance(&CHARLIE);
 
