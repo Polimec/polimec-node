@@ -326,6 +326,7 @@ impl pallet_funding::Config for Runtime {
 	type CommunityRoundDuration = CommunityRoundDuration;
 	type Randomness = Random;
 	type HandleMembers = Credentials;
+	type MaximumBidsPerProject = ConstU32<128>;
 }
 
 impl pallet_credentials::Config for Runtime {
@@ -521,6 +522,35 @@ impl pallet_authorship::Config for Runtime {
 	type EventHandler = ();
 }
 
+pub const fn deposit(items: u32, bytes: u32) -> Balance {
+	items as Balance * 15 * MICRO_PLMC + (bytes as Balance) * 6 * MICRO_PLMC
+}
+
+parameter_types! {
+	// One storage item; key size is 32; value is size 4+4+16+32 bytes = 56 bytes.
+	pub const DepositBase: Balance = deposit(1, 88);
+	// Additional storage item size of 32 bytes.
+	pub const DepositFactor: Balance = deposit(0, 32);
+	pub const MaxSignatories: u16 = 100;
+}
+
+impl pallet_multisig::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
+	type Currency = Balances;
+	type DepositBase = DepositBase;
+	type DepositFactor = DepositFactor;
+	type MaxSignatories = MaxSignatories;
+	type WeightInfo = ();
+}
+
+impl pallet_utility::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
+	type PalletsOrigin = OriginCaller;
+	type WeightInfo = ();
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub struct Runtime
@@ -536,6 +566,8 @@ construct_runtime!(
 		PolimecMultiBalances: orml_tokens,
 		TransactionPayment: pallet_transaction_payment,
 		Sudo: pallet_sudo,
+		Utility: pallet_utility,
+		Multisig: pallet_multisig,
 
 		Aura: pallet_aura,
 		Grandpa: pallet_grandpa,
