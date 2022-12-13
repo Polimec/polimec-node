@@ -1,53 +1,55 @@
-# Stage 1
+# Layer 1
 
-FROM rust:slim as builder
-WORKDIR /app
+FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
+WORKDIR app
 
-RUN rustup default nightly-2022-11-06 && \
-    rustup target add wasm32-unknown-unknown --toolchain nightly-2022-11-06
+# Layer 2
 
-RUN apt-get update && \
-    apt-get install -y \
-     cmake \
-     pkg-config \
-     libssl-dev \
-     git \
-     clang \
-     libclang-dev
-
-ARG GIT_COMMIT=
-ENV GIT_COMMIT=$GIT_COMMIT
-ARG BUILD_ARGS=build-polimec-release
-ARG PROFILE=release
+FROM chef AS planner
 
 COPY . .
 
-RUN make $BUILD_ARGS
+RUN cargo chef prepare --recipe-path recipe.json
 
-# Stage 2
+# Layer 3
 
-FROM phusion/baseimage:jammy-1.0.1
-LABEL maintainer="info@polimec.org"
+FROM docker.io/paritytech/ci-linux:production as builder
+WORKDIR /build
+COPY --from=planner /app/recipe.json recipe.json
+RUN cargo install cargo-chef --locked
+RUN cargo chef cook --release --recipe-path recipe.json
+ARG PROFILE=polimec-standalone-node
+COPY . .
+RUN cargo build --locked --release -p $PROFILE
 
-ARG PROFILE
+# Layer 4
 
-RUN useradd -m -u 1000 -U -s /bin/sh -d /polimec polimec
+FROM docker.io/phusion/baseimage:jammy-1.0.1 as runtime
+LABEL description="Multistage Docker image for Substrate Node Template" \
+  image.type="builder" \
+  image.authors="you@email.com" \
+  image.vendor="Substrate Developer Hub" \
+  image.description="Multistage Docker image for Substrate Node Template" \
+  image.source="https://github.com/substrate-developer-hub/substrate-node-template" \
+  image.documentation="https://github.com/substrate-developer-hub/substrate-node-template"
 
-COPY --from=builder /app/target/$PROFILE/polimec-parachain-node /usr/local/bin
+ARG NODE_TYPE=polimec-standalone-node
 
-# checks
-RUN ldd /usr/local/bin/polimec-parachain-node && \
-    /usr/local/bin/polimec-parachain-node --version
+COPY --from=builder /build/target/release/$NODE_TYPE /usr/local/bin/node-executable
 
-# Shrinking
-RUN rm -rf /usr/lib/python* && \
-    rm -rf /usr/sbin /usr/share/man
+RUN useradd -m -u 1000 -U -s /bin/sh -d /node node && \
+  mkdir -p /node/.local/share/node && \
+  chown -R node:node /node/.local && \
+  ln -s /node/.local/share/node /data && \
+  # unclutter and minimize the attack surface
+  rm -rf /usr/bin /usr/sbin && \
+  # check if executable works in this container
+  /usr/local/bin/node-executable --version
 
-USER polimec
-EXPOSE 30333 9933 9944
+USER node
+EXPOSE 30333 9933 9944 9615
+VOLUME ["/data"]
 
-RUN mkdir /polimec/data
+COPY ./dev-specs /node/dev-specs
 
-VOLUME ["/polimec/data"]
-
-ENTRYPOINT ["/usr/local/bin/polimec-parachain-node"]
+ENTRYPOINT ["/usr/local/bin/node-executable"]
