@@ -1,0 +1,62 @@
+[relaychain]
+default_command = "polkadot"
+default_args = ["-lparachain=debug"]
+chain = "rococo-local"
+
+	[[relaychain.nodes]]
+	name = "alice"
+    args = [ "--alice" ]
+	validator = true
+
+	[[relaychain.nodes]]
+	name = "bob"
+    args = [ "--bob" ]
+	validator = true
+
+	[[relaychain.nodes]]
+	name = "charlie"
+    args = [ "--charlie" ]
+	validator = true
+
+	[[relaychain.nodes]]
+	name = "dave"
+    args = [ "--dave" ]
+	validator = true
+
+[[parachains]]
+id = 1000
+cumulus_based = true
+chain = "statemine-local"
+
+    [parachains.collator]
+    name = "statemine-collator"
+    validator = true
+    command = "polkadot-parachain"
+    args = ["--force-authoring"]
+
+[[parachains]]
+id = 2000
+cumulus_based = true
+
+	[[parachains.collators]]
+	name = "collator1"
+	command = "polimec"
+	args = [ "--alice" ]
+
+	[[parachains.collators]]
+	name = "collator2"
+	command = "polimec"
+	args = [ "--bob" ]
+
+
+[[hrmpChannels]]
+sender = 2000
+recipient = 1000
+maxCapacity = 8
+maxMessageSize = 8192
+
+[[hrmpChannels]]
+sender = 1000
+recipient = 2000
+maxCapacity = 8
+maxMessageSize = 8192
