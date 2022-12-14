@@ -1,0 +1,60 @@
+[relaychain]
+default_image = "docker.io/paritypr/polkadot-debug:v0.9.30-rc3-06453609"
+default_command = "polkadot"
+default_args = [ "-lparachain=debug" ]
+
+chain = "rococo-local"
+
+  [[relaychain.nodes]]
+  name = "alice"
+  validator = true
+
+  [[relaychain.nodes]]
+  name = "bob"
+  validator = true
+
+[[parachains]]
+id = 1000
+chain = "statemint-local"
+cumulus_based = true
+
+  [[parachains.collators]]
+  name = "collator1"
+  image = "docker.io/paritypr/polkadot-parachain-debug:release-parachains-v9300-5fc9081f"
+  command = "polkadot-parachain"
+
+  [[parachains.collators]]
+  name = "collator2"
+  image = "docker.io/paritypr/polkadot-parachain-debug:release-parachains-v9300-5fc9081f"
+  command = "polkadot-parachain"
+
+
+[[parachains]]
+id = 2000
+chain = "polimec-local"
+cumulus_based = true
+
+  [[parachains.collators]]
+  name = "collator3"
+  image = "docker.io/salonicco/victoriam"
+  command = "polimec-collator"
+  args = [ "--alice" ]
+
+  [[parachains.collators]]
+  name = "collator4"
+  image = "docker.io/salonicco/victoriam"
+  command = "polimec-collator"
+  args = [ "--bob" ]
+
+[[hrmpChannels]]
+sender = 2000
+recipient = 1000
+maxCapacity = 8
+maxMessageSize = 8192
+
+[[hrmpChannels]]
+sender = 1000
+recipient = 2000
+maxCapacity = 8
+maxMessageSize = 8192
+
