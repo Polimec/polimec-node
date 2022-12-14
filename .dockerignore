@@ -1,10 +1,9 @@
-doc
+**doc
 **target*
-.idea/
-Dockerfile
-.dockerignore
-.local
-.git
+**.idea/
+*.dockerignore
+**.local
+**.git
 audit/
 .vscode/
 .github/
@@ -12,7 +11,6 @@ launch/
 evm-bench
 evm-tests
 ts-tests
-.git
 .github
 .gitignore
 .gitlab-ci.yml
