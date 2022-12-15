@@ -647,6 +647,7 @@ impl pallet_funding::Config for Runtime {
 	type CommunityRoundDuration = CommunityRoundDuration;
 	type Randomness = Random;
 	type HandleMembers = Credentials;
+	type MaximumBidsPerProject = ConstU32<256>;
 }
 
 impl pallet_credentials::Config for Runtime {

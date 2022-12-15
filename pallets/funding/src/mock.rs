@@ -114,6 +114,8 @@ impl pallet_funding::Config for Test {
 	type CommunityRoundDuration = CommunityRoundDuration;
 	type Randomness = RandomnessCollectiveFlip;
 	type HandleMembers = Credentials;
+	// Low value to simplify the tests
+	type MaximumBidsPerProject = ConstU32<4>;
 }
 
 // Build genesis storage according to the mock runtime.

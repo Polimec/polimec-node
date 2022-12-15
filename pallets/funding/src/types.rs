@@ -42,8 +42,8 @@ pub struct ProjectInfo<BlockNumber, Balance: BalanceT> {
 	pub created_at: BlockNumber,
 	/// The current status of the project
 	pub project_status: ProjectStatus,
-	/// When the Auction Round ends, None before the random selection, Some(value) after the random block selection
-	pub auction_round_end: Option<BlockNumber>,
+	pub evaluation_period_ends: Option<BlockNumber>,
+	pub auction_metadata: Option<AuctionMetadata<BlockNumber>>,
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -148,15 +148,6 @@ pub struct CurrencyMetadata<BoundedString> {
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct EvaluationMetadata<BlockNumber, Balance: MaxEncodedLen> {
-	/// When (expressed in block numbers) the evaluation phase ends
-	pub evaluation_period_ends: BlockNumber,
-	/// The amount of PLMC bonded in the project during the evaluation phase
-	#[codec(compact)]
-	pub amount_bonded: Balance,
-}
-
-#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct AuctionMetadata<BlockNumber> {
 	/// When (expressed in block numbers) the Auction Round started
 	pub starting_block: BlockNumber,
@@ -164,34 +155,55 @@ pub struct AuctionMetadata<BlockNumber> {
 	pub english_ending_block: BlockNumber,
 	/// When (expressed in block numbers) the Candle Auction phase ends
 	pub candle_ending_block: BlockNumber,
+	/// When (expressed in block numbers) the Dutch Auction phase ends
+	pub random_ending_block: Option<BlockNumber>,
 	/// When (expressed in block numbers) the Community Round ends
 	pub community_ending_block: BlockNumber,
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct BidInfo<Balance: BalanceT, BlockNumber> {
-	///
+pub struct BidInfo<Balance: BalanceT, AccountId> {
 	#[codec(compact)]
 	pub market_cap: Balance,
-	///
 	#[codec(compact)]
 	pub amount: Balance,
-	///
 	#[codec(compact)]
 	pub ratio: Perquintill,
-	///
-	pub when: BlockNumber,
+	pub bidder: AccountId,
+	pub funded: bool,
+	pub multiplier: u8,
 }
 
-impl<Balance: BalanceT + From<u64>, BlockNumber> BidInfo<Balance, BlockNumber> {
+impl<Balance: BalanceT + From<u64>, AccountId> BidInfo<Balance, AccountId> {
 	pub fn new(
 		market_cap: Balance,
 		amount: Balance,
-		when: BlockNumber,
 		auction_taget: Balance,
+		bidder: AccountId,
+		multiplier: u8,
 	) -> Self {
 		let ratio = Perquintill::from_rational(amount, auction_taget);
-		Self { market_cap, amount, ratio, when }
+		Self { market_cap, amount, ratio, bidder, funded: false, multiplier }
+	}
+}
+
+impl<Balance: BalanceT + From<u64>, AccountId: sp_std::cmp::Eq> sp_std::cmp::Ord
+	for BidInfo<Balance, AccountId>
+{
+	fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
+		let self_value = self.amount.saturating_mul(self.market_cap);
+		let other_value = other.amount.saturating_mul(other.market_cap);
+		self_value.cmp(&other_value)
+	}
+}
+
+impl<Balance: BalanceT + From<u64>, AccountId: sp_std::cmp::Eq> sp_std::cmp::PartialOrd
+	for BidInfo<Balance, AccountId>
+{
+	fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
+		let self_value = self.amount.saturating_mul(self.market_cap);
+		let other_value = other.amount.saturating_mul(other.market_cap);
+		self_value.partial_cmp(&other_value)
 	}
 }
 
@@ -200,8 +212,8 @@ impl<Balance: BalanceT + From<u64>, BlockNumber> BidInfo<Balance, BlockNumber> {
 pub enum Currencies {
 	DOT,
 	KSM,
-	#[default]
 	USDC,
+	#[default]
 	USDT,
 }
 
