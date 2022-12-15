@@ -546,12 +546,6 @@ pub mod pallet {
 			for project_id in ProjectsActive::<T>::get().iter() {
 				let project_info = ProjectsInfo::<T>::get(project_id);
 				match project_info.project_status {
-					// Check if Evaluation Round have to end, if true, end it
-					// EvaluationRound -> EvaluationEnded
-					ProjectStatus::EvaluationRound => {
-						let evaluation_period_ends = project_info.evaluation_period_ends.unwrap();
-						Self::handle_evaluation_end(project_id, now, evaluation_period_ends);
-					},
 					// Check if we need to start the Funding Round
 					// EvaluationEnded -> AuctionRound
 					ProjectStatus::EvaluationEnded => {
@@ -578,6 +572,24 @@ pub mod pallet {
 							english_ending_block,
 						);
 					},
+					_ => (),
+				}
+			}
+			// TODO: Set a proper weight
+			Weight::from_ref_time(0)
+		}
+
+		/// Cleanup the `active_projects` BoundedVec
+		fn on_finalize(now: T::BlockNumber) {
+			for project_id in ProjectsActive::<T>::get().iter() {
+				let project_info = ProjectsInfo::<T>::get(project_id);
+				match project_info.project_status {
+					// Check if Evaluation Round have to end, if true, end it
+					// EvaluationRound -> EvaluationEnded
+					ProjectStatus::EvaluationRound => {
+						let evaluation_period_ends = project_info.evaluation_period_ends.unwrap();
+						Self::handle_evaluation_end(project_id, now, evaluation_period_ends);
+					},
 					// Check if we need to end the Fundind Round
 					// CommunityRound -> FundingEnded
 					ProjectStatus::CommunityRound => {
@@ -588,8 +600,6 @@ pub mod pallet {
 					_ => (),
 				}
 			}
-			// TODO: Set a proper weight
-			Weight::from_ref_time(0)
 		}
 
 		/// Cleanup the `active_projects` BoundedVec
