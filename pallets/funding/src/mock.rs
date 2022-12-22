@@ -117,6 +117,7 @@ impl pallet_funding::Config for Test {
 	type HandleMembers = Credentials;
 	// Low value to simplify the tests
 	type MaximumBidsPerProject = ConstU32<4>;
+	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 }

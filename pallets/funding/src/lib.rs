@@ -5,6 +5,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use pallet::*;
+pub mod weights;
 
 #[cfg(test)]
 pub mod mock;
@@ -29,8 +30,8 @@ use frame_support::{
 use sp_arithmetic::traits::{Saturating, Zero};
 use sp_runtime::traits::AccountIdConversion;
 use sp_std::ops::AddAssign;
-
 use polimec_traits::{MemberRole, PolimecMembers};
+pub use weights::WeightInfo;
 
 /// The balance type of this pallet.
 pub type BalanceOf<T> = <T as Config>::CurrencyBalance;
@@ -150,8 +151,8 @@ pub mod pallet {
 		/// Something that provides the members of the Polimec
 		type HandleMembers: PolimecMembers<Self::AccountId>;
 
-		// Weight information for extrinsic in this pallet.
-		// type WeightInfo: WeightInfo;
+		/// Weight information for extrinsics in this pallet.
+		type WeightInfo: WeightInfo;
 
 		/// Helper trait for benchmarks.
 		#[cfg(feature = "runtime-benchmarks")]
@@ -298,9 +299,9 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		/// Start the "Funding Application" round
 		/// Project applies for funding, providing all required information.
+		#[pallet::weight(T::WeightInfo::create())]
 		pub fn create(
 			origin: OriginFor<T>,
 			project: Project<T::AccountId, BoundedVec<u8, T::StringLimit>, BalanceOf<T>>,
