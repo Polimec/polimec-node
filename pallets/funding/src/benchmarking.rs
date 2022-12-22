@@ -5,9 +5,7 @@
 use crate::Pallet as PolimecFunding;
 
 use super::*;
-use frame_benchmarking::{
-	account, benchmarks,
-};
+use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin as SystemOrigin;
 
 // fn default_project_id<T: Config>() -> T::ProjectIdentifier {
@@ -18,7 +16,6 @@ use frame_system::RawOrigin as SystemOrigin;
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 	frame_system::Pallet::<T>::assert_last_event(generic_event.into());
 }
-
 
 fn create_default_project<T: Config>() -> (
 	// T::ProjectIdentifier,

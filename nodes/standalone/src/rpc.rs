@@ -38,9 +38,9 @@ where
 	C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
 	C::Api: pallet_credentials_api::CredentialsRuntimeApi<
-	polimec_standalone_runtime::opaque::Block,
-	polimec_standalone_runtime::AccountId,
->,
+		polimec_standalone_runtime::opaque::Block,
+		polimec_standalone_runtime::AccountId,
+	>,
 	C::Api: BlockBuilder<Block>,
 	P: TransactionPool + 'static,
 {

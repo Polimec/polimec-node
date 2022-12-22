@@ -17,7 +17,6 @@ mod tests;
 mod benchmarking;
 
 mod types;
-pub use types::*;
 use codec::HasCompact;
 use frame_support::{
 	pallet_prelude::ValueQuery,
@@ -27,10 +26,11 @@ use frame_support::{
 	},
 	PalletId,
 };
+use polimec_traits::{MemberRole, PolimecMembers};
 use sp_arithmetic::traits::{Saturating, Zero};
 use sp_runtime::traits::AccountIdConversion;
 use sp_std::ops::AddAssign;
-use polimec_traits::{MemberRole, PolimecMembers};
+pub use types::*;
 pub use weights::WeightInfo;
 
 /// The balance type of this pallet.
