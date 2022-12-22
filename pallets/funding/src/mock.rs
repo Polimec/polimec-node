@@ -103,6 +103,7 @@ parameter_types! {
 impl pallet_funding::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type StringLimit = ConstU32<64>;
+	type ProjectIdentifier = u32;
 	type Currency = Balances;
 	type BiddingCurrency = Balances;
 	type CurrencyBalance = <Self as pallet_balances::Config>::Balance;
@@ -116,6 +117,8 @@ impl pallet_funding::Config for Test {
 	type HandleMembers = Credentials;
 	// Low value to simplify the tests
 	type MaximumBidsPerProject = ConstU32<4>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 // Build genesis storage according to the mock runtime.
@@ -134,7 +137,8 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 			],
 		},
 		credentials: CredentialsConfig {
-			issuers: vec![1],
+			// 16558220937623665250 = account::<T::AccountId>("Alice", 1, 1) in becnhmarks
+			issuers: vec![1, 16558220937623665250],
 			retails: vec![2],
 			professionals: vec![2, 3],
 			institutionals: vec![4],
