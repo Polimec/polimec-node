@@ -65,7 +65,7 @@ frame-benchmarking-cli = { version = "4.0.0-dev", git = "https://github.com/pari
 
 # Local Dependencies
 polimec-standalone-runtime = { path = "../../runtimes/standalone" }
-pallet-credentials-api ={ path = "../../pallets/credentials/rpc"}
+pallet-credentials-api = { path = "../../pallets/credentials/rpc" }
 
 # CLI-specific dependencies
 try-runtime-cli = { version = "0.10.0-dev", optional = true, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.30" }
@@ -75,7 +75,11 @@ substrate-build-script-utils = { version = "3.0.0", git = "https://github.com/pa
 
 [features]
 default = []
-runtime-benchmarks = ["polimec-standalone-runtime/runtime-benchmarks"]
+runtime-benchmarks = [
+    "polimec-standalone-runtime/runtime-benchmarks",
+    "frame-benchmarking/runtime-benchmarks",
+    "frame-benchmarking-cli/runtime-benchmarks",
+]
 # Enable features that allow the runtime to be tried and debugged. Name might be subject to change
 # in the near future.
 try-runtime = ["polimec-standalone-runtime/try-runtime", "try-runtime-cli"]
