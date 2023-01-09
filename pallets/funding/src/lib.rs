@@ -1,3 +1,39 @@
+// TODO: Insert License Header
+
+//! # Funding Pallet
+//!
+//! A simple, secure module for handling projects funding.
+//!
+//! ## Overview
+//!
+//! To use it in your runtime, you need to implement the funding [`Config`].
+//!
+//! The supported dispatchable functions are documented in the [`Call`] enum.
+//!
+//! ### Terminology
+//!
+//! ### Goals
+//!
+//! ## Interface
+//!
+//! ### Permissionless Functions
+//!
+//! ### Permissioned Functions
+//!
+//! ### Privileged Functions
+//!
+//!
+//! Please refer to the [`Call`] enum and its associated variants for documentation on each
+//! function.
+//!
+//! ### Public Functions
+//!
+//! * `create` - .
+//! * `edit_metadata` - .
+//!
+//! Please refer to the [`Pallet`] struct for details on publicly available functions.
+//!
+
 // This recursion limit is needed because we have too many benchmarks and benchmarking will fail if
 // we add more without this limit.
 #![recursion_limit = "1024"]
