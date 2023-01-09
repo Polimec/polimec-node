@@ -1,6 +1,6 @@
 use polimec_standalone_runtime::{
-	AccountId, BalancesConfig, CredentialsConfig, GenesisConfig, GetNativeCurrencyId,
-	PolimecMultiBalancesConfig, SessionConfig, Signature, SudoConfig, SystemConfig, WASM_BINARY,
+	AccountId, BalancesConfig, CredentialsConfig, GenesisConfig, SessionConfig, Signature,
+	SudoConfig, SystemConfig, WASM_BINARY,
 };
 use sc_service::{ChainType, Properties};
 use serde_json::map::Map;
@@ -156,13 +156,6 @@ fn testnet_genesis(
 			key: Some(root_key),
 		},
 		transaction_payment: Default::default(),
-		polimec_multi_balances: PolimecMultiBalancesConfig {
-			balances: endowed_accounts
-				.iter()
-				.cloned()
-				.map(|k| (k, GetNativeCurrencyId::get(), 1 << 40))
-				.collect(),
-		},
 		council: Default::default(),
 		technical_committee: Default::default(),
 		democracy: Default::default(),

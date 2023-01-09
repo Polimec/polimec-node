@@ -692,28 +692,11 @@ impl orml_tokens::Config for Runtime {
 	type Amount = Amount;
 	type CurrencyId = CurrencyId;
 	type WeightInfo = ();
-	type OnDust = ();
 	type ExistentialDeposits = ExistentialDeposits;
-	type OnNewTokenAccount = ();
-	type OnKilledTokenAccount = ();
 	type MaxLocks = ();
 	type MaxReserves = ();
 	type ReserveIdentifier = ();
 	type DustRemovalWhitelist = DustRemovalWhitelist;
-	type OnDeposit = ();
-	type OnSlash = ();
-	type OnTransfer = ();
-}
-
-parameter_types! {
-	// FIXME: the default of currency_id can be different than this here. But in OnChargeTransaction we use the default and not this here...
-	pub const GetNativeCurrencyId: CurrencyId = [0; 8];
-}
-
-impl pallet_multi_mint::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type GetNativeCurrencyId = GetNativeCurrencyId;
-	type StringLimit = ConstU32<50>;
 }
 
 #[cfg(feature = "fast-gov")]
@@ -797,8 +780,6 @@ parameter_types! {
 	pub const MaxProposals: u32 = 100;
 	pub const PreimageMaxSize: u32 = 4096 * 1024;
 	pub const PreimageBaseDeposit: Balance = PLMC;
-	pub const PreimageByteDeposit: Balance = MILLI_PLMC;
-
 }
 
 impl pallet_democracy::Config for Runtime {
@@ -842,8 +823,6 @@ impl pallet_democracy::Config for Runtime {
 	// only do it once and it lasts only for the cool-off period.
 	type VetoOrigin = pallet_collective::EnsureMember<AccountId, TechnicalCollective>;
 	type CooloffPeriod = CooloffPeriod;
-	type PreimageByteDeposit = PreimageByteDeposit;
-	type OperationalPreimageOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
 	type Slash = ();
 	type Scheduler = Scheduler;
 	type PalletsOrigin = OriginCaller;
@@ -855,7 +834,6 @@ impl pallet_democracy::Config for Runtime {
 parameter_types! {
 	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * RuntimeBlockWeights::get().max_block;
 	pub const MaxScheduledPerBlock: u32 = 50;
-	pub const NoPreimagePostponement: Option<BlockNumber> = Some(10);
 }
 
 impl pallet_scheduler::Config for Runtime {
@@ -868,8 +846,6 @@ impl pallet_scheduler::Config for Runtime {
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
 	type WeightInfo = ();
 	type OriginPrivilegeCmp = EqualPrivilegeOnly;
-	type PreimageProvider = Preimage;
-	type NoPreimagePostponement = NoPreimagePostponement;
 }
 
 impl pallet_utility::Config for Runtime {
@@ -908,7 +884,6 @@ impl pallet_preimage::Config for Runtime {
 	type ManagerOrigin = EnsureRoot<AccountId>;
 	type MaxSize = PreimageMaxSize;
 	type BaseDeposit = PreimageBaseDeposit;
-	type ByteDeposit = PreimageByteDeposit;
 }
 
 parameter_types! {
@@ -990,7 +965,6 @@ construct_runtime!(
 		// Polimec Core
 		PolimecMultiBalances: orml_tokens = 60,
 		PolimecFunding: pallet_funding::{Pallet, Call, Storage, Event<T>}  = 61,
-		PolimecMultiMint: pallet_multi_mint  = 62,
 		Credentials: pallet_credentials = 63,
 
 		// Among others: Send and receive DMP and XCMP messages.

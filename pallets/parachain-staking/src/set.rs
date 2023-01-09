@@ -1,5 +1,5 @@
 // KILT Blockchain – https://botlabs.org
-// Copyright (C) 2019-2022 BOTLabs GmbH
+// Copyright (C) 2019-2023 BOTLabs GmbH
 
 // The KILT Blockchain is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,8 +16,8 @@
 
 // If you feel like getting in touch with us, you can do so at info@botlabs.org
 
+use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{traits::Get, BoundedVec, DefaultNoBound, RuntimeDebug};
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::{traits::Zero, SaturatedConversion};
 use sp_std::{
@@ -51,7 +51,7 @@ impl<T: Ord + Clone, S: Get<u32>> OrderedSet<T, S> {
 		let mut v = bv.into_inner();
 		v.sort_by(|a, b| b.cmp(a));
 		v.dedup();
-		Self::from_sorted_set(v.try_into().expect("No values were added"))
+		Self::from_sorted_set(v.try_into().map_err(|_| ()).expect("No values were added"))
 	}
 
 	/// Create a set from a `BoundedVec`.
@@ -103,10 +103,11 @@ impl<T: Ord + Clone, S: Get<u32>> OrderedSet<T, S> {
 	/// the lowest rank will be removed and the new element will be added.
 	///
 	/// Returns
-	/// * Ok(Some(old_element)) if the new element was added and an old element had to be removed.
+	/// * Ok(Some(old_element)) if the new element was added and an old element
+	///   had to be removed.
 	/// * Ok(None) if the element was added without removing an element.
-	/// * Err(true) if the set is full and the new element has a lower rank than the lowest element
-	///   in the set.
+	/// * Err(true) if the set is full and the new element has a lower rank than
+	///   the lowest element in the set.
 	/// * Err(false) if the element is already in the set.
 	pub fn try_insert_replace(&mut self, value: T) -> Result<Option<T>, bool> {
 		// the highest allowed index
@@ -147,7 +148,7 @@ impl<T: Ord + Clone, S: Get<u32>> OrderedSet<T, S> {
 			},
 			Err(i) => {
 				// Delegator
-				self.0.try_insert(i, value)?;
+				self.0.try_insert(i, value).map_err(|_| ())?;
 				Ok(None)
 			},
 		}
@@ -187,8 +188,8 @@ impl<T: Ord + Clone, S: Get<u32>> OrderedSet<T, S> {
 				match (v.cmp(value), loc == size) {
 					// prevent to have same items
 					(Ordering::Equal, _) => Some(Ok(i)),
-					// eventually, we want to return this index but we need to keep checking for
-					// Ordering::Equal in case value is still in the set
+					// eventually, we want to return this index but we need to keep checking for Ordering::Equal in case
+					// value is still in the set
 					(Ordering::Less, true) => {
 						// insert after current element
 						loc = i;

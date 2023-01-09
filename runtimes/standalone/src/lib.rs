@@ -6,7 +6,6 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use orml_traits::parameter_type_with_key;
 use pallet_grandpa::{
 	fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
 };
@@ -17,8 +16,8 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
-		AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount,
-		NumberFor, One, OpaqueKeys, Verify,
+		AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, NumberFor, One, OpaqueKeys,
+		Verify,
 	},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature,
@@ -162,8 +161,11 @@ parameter_types! {
 	pub const BlockHashCount: BlockNumber = 2400;
 	pub const Version: RuntimeVersion = VERSION;
 	/// We allow for 2 seconds of compute with a 6 second average block time.
-	pub BlockWeights: frame_system::limits::BlockWeights = frame_system::limits::BlockWeights
-		::with_sensible_defaults(2u64 * WEIGHT_PER_SECOND, NORMAL_DISPATCH_RATIO);
+	pub BlockWeights: frame_system::limits::BlockWeights =
+		frame_system::limits::BlockWeights::with_sensible_defaults(
+			(2u64 * WEIGHT_PER_SECOND).set_proof_size(u64::MAX),
+			NORMAL_DISPATCH_RATIO,
+		);
 	pub BlockLength: frame_system::limits::BlockLength = frame_system::limits::BlockLength
 		::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
 	pub const SS58Prefix: u8 = 42;
@@ -294,17 +296,6 @@ impl pallet_sudo::Config for Runtime {
 }
 
 parameter_types! {
-	// FIXME: the default of currency_id can be different than this here. But in OnChargeTransaction we use the default and not this here...
-	pub const GetNativeCurrencyId: CurrencyId = [0; 8];
-}
-
-impl pallet_multi_mint::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type GetNativeCurrencyId = GetNativeCurrencyId;
-	type StringLimit = ConstU32<50>;
-}
-
-parameter_types! {
 	pub const EvaluationDuration: BlockNumber = 28;
 	pub const EnglishAuctionDuration: BlockNumber = 5;
 	pub const CandleAuctionDuration: BlockNumber = 12;
@@ -343,45 +334,6 @@ impl pallet_credentials::Config for Runtime {
 	type MembershipInitialized = ();
 	type MembershipChanged = ();
 }
-parameter_type_with_key! {
-	pub ExistentialDeposits: |_currency_id: CurrencyId| -> Balance {
-		0
-	};
-}
-
-parameter_types! {
-	pub DustReceiver: PalletId = PalletId(*b"orml/dst");
-}
-
-pub fn get_all_module_accounts() -> Vec<AccountId> {
-	vec![DustReceiver::get().into_account_truncating()]
-}
-
-pub struct DustRemovalWhitelist;
-impl Contains<AccountId> for DustRemovalWhitelist {
-	fn contains(a: &AccountId) -> bool {
-		get_all_module_accounts().contains(a)
-	}
-}
-
-impl orml_tokens::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Balance = Balance;
-	type Amount = Amount;
-	type CurrencyId = CurrencyId;
-	type WeightInfo = ();
-	type OnDust = ();
-	type ExistentialDeposits = ExistentialDeposits;
-	type OnNewTokenAccount = ();
-	type OnKilledTokenAccount = ();
-	type MaxLocks = ();
-	type MaxReserves = ();
-	type ReserveIdentifier = ();
-	type DustRemovalWhitelist = DustRemovalWhitelist;
-	type OnDeposit = ();
-	type OnSlash = ();
-	type OnTransfer = ();
-}
 
 impl pallet_scheduler::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -393,8 +345,7 @@ impl pallet_scheduler::Config for Runtime {
 	type MaxScheduledPerBlock = ();
 	type WeightInfo = ();
 	type OriginPrivilegeCmp = EqualPrivilegeOnly;
-	type PreimageProvider = ();
-	type NoPreimagePostponement = ();
+	type Preimages = ();
 }
 
 parameter_types! {
@@ -443,12 +394,10 @@ parameter_types! {
 	pub const MaxProposals: u32 = 100;
 	pub const PreimageMaxSize: u32 = 4096 * 1024;
 	pub const PreimageBaseDeposit: Balance = DOLLARS;
-	pub const PreimageByteDeposit: Balance = CENTS;
 
 }
 
 impl pallet_democracy::Config for Runtime {
-	type Proposal = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type EnactmentPeriod = EnactmentPeriod;
@@ -488,14 +437,15 @@ impl pallet_democracy::Config for Runtime {
 	// only do it once and it lasts only for the cool-off period.
 	type VetoOrigin = pallet_collective::EnsureMember<AccountId, TechnicalCollective>;
 	type CooloffPeriod = CooloffPeriod;
-	type PreimageByteDeposit = PreimageByteDeposit;
-	type OperationalPreimageOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
 	type Slash = ();
 	type Scheduler = Scheduler;
 	type PalletsOrigin = OriginCaller;
 	type MaxVotes = ConstU32<100>;
 	type WeightInfo = pallet_democracy::weights::SubstrateWeight<Runtime>;
 	type MaxProposals = MaxProposals;
+	type Preimages = ();
+	type MaxDeposits = ();
+	type MaxBlacklisted = ();
 }
 
 parameter_types! {
@@ -567,7 +517,6 @@ construct_runtime!(
 
 		Timestamp: pallet_timestamp,
 		Balances: pallet_balances,
-		PolimecMultiBalances: orml_tokens,
 		TransactionPayment: pallet_transaction_payment,
 		Sudo: pallet_sudo,
 		Utility: pallet_utility,
@@ -576,8 +525,8 @@ construct_runtime!(
 		Aura: pallet_aura,
 		Grandpa: pallet_grandpa,
 
-		Council: pallet_collective::<Instance1>,
-		TechnicalCommittee: pallet_collective::<Instance2>,
+		Council: pallet_collective<Instance1>,
+		TechnicalCommittee: pallet_collective<Instance2>,
 		Democracy: pallet_democracy,
 
 		Scheduler: pallet_scheduler,
@@ -587,7 +536,6 @@ construct_runtime!(
 		Random: pallet_randomness_collective_flip,
 
 		// Include the custom logic
-		PolimecMultiMint: pallet_multi_mint,
 		PolimecFunding: pallet_funding,
 		Credentials: pallet_credentials,
 	}

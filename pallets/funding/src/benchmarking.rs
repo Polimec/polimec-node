@@ -13,7 +13,9 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 	frame_system::Pallet::<T>::assert_last_event(generic_event.into());
 }
 
-fn create_default_project<T: Config>(id: Option<u32>) -> (
+fn create_default_project<T: Config>(
+	id: Option<u32>,
+) -> (
 	T::ProjectIdentifier,
 	T::AccountId,
 	Project<T::AccountId, BoundedVec<u8, T::StringLimit>, BalanceOf<T>>,
@@ -25,7 +27,9 @@ fn create_default_project<T: Config>(id: Option<u32>) -> (
 	(project_id, issuer, project)
 }
 
-fn create_default_minted_project<T: Config>(id: Option<u32>) -> (T::ProjectIdentifier, T::AccountId) {
+fn create_default_minted_project<T: Config>(
+	id: Option<u32>,
+) -> (T::ProjectIdentifier, T::AccountId) {
 	let (project_id, issuer, project) = create_default_project::<T>(id);
 	assert!(
 		PolimecFunding::<T>::create(SystemOrigin::Signed(issuer.clone()).into(), project,).is_ok()
