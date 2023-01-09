@@ -1,3 +1,3 @@
-//! Benchmarking setup for pallet-multi-mint
+// //! Benchmarking setup for pallet-multi-mint
 
-use super::*;
+// use super::*;

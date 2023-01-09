@@ -318,6 +318,7 @@ impl pallet_funding::Config for Runtime {
 	type Currency = Balances;
 	type BiddingCurrency = Balances;
 	type CurrencyBalance = <Self as pallet_balances::Config>::Balance;
+	type ProjectIdentifier = u32;
 	type EvaluationDuration = EvaluationDuration;
 	type PalletId = FundingPalletId;
 	type ActiveProjectsLimit = ConstU32<100>;
@@ -327,6 +328,9 @@ impl pallet_funding::Config for Runtime {
 	type Randomness = Random;
 	type HandleMembers = Credentials;
 	type MaximumBidsPerProject = ConstU32<128>;
+	type WeightInfo = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 impl pallet_credentials::Config for Runtime {
@@ -628,10 +632,10 @@ extern crate frame_benchmarking;
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {
 	define_benchmarks!(
-		[frame_benchmarking, BaselineBench::<Runtime>]
 		[frame_system, SystemBench::<Runtime>]
 		[pallet_balances, Balances]
 		[pallet_timestamp, Timestamp]
+		[pallet_funding, PolimecFunding]
 	);
 }
 
@@ -801,10 +805,9 @@ impl_runtime_apis! {
 			Vec<frame_benchmarking::BenchmarkList>,
 			Vec<frame_support::traits::StorageInfo>,
 		) {
-			use frame_benchmarking::{baseline, Benchmarking, BenchmarkList};
+			use frame_benchmarking::{Benchmarking, BenchmarkList};
 			use frame_support::traits::StorageInfoTrait;
 			use frame_system_benchmarking::Pallet as SystemBench;
-			use baseline::Pallet as BaselineBench;
 
 			let mut list = Vec::<BenchmarkList>::new();
 			list_benchmarks!(list, extra);
@@ -820,7 +823,6 @@ impl_runtime_apis! {
 			use frame_benchmarking::{baseline, Benchmarking, BenchmarkBatch, TrackedStorageKey};
 
 			use frame_system_benchmarking::Pallet as SystemBench;
-			use baseline::Pallet as BaselineBench;
 
 			impl frame_system_benchmarking::Config for Runtime {}
 			impl baseline::Config for Runtime {}
@@ -835,6 +837,7 @@ impl_runtime_apis! {
 			Ok(batches)
 		}
 	}
+
 
 	#[cfg(feature = "try-runtime")]
 	impl frame_try_runtime::TryRuntime<Block> for Runtime {

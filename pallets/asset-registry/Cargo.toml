@@ -57,7 +57,6 @@ std = [
 	"sp-std/std",
 	"pallet-assets/std",
 	"pallet-balances/std",
-	"frame-benchmarking/std",
 	"frame-support/std",
 	"frame-system/std",
 	"scale-info/std",

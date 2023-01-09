@@ -35,7 +35,6 @@ std = [
     "codec/std",
     "sp-std/std",
     "sp-runtime/std",
-    "frame-benchmarking/std",
     "frame-support/std",
     "frame-system/std",
     "scale-info/std",
