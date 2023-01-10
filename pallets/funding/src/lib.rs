@@ -39,6 +39,8 @@
 // This recursion limit is needed because we have too many benchmarks and benchmarking will fail if
 // we add more without this limit.
 #![cfg_attr(feature = "runtime-benchmarks", recursion_limit = "512")]
+// Nightly only feature. It allows us to combine traits into a single trait.
+#![feature(trait_alias)]
 
 pub use pallet::*;
 
@@ -71,12 +73,24 @@ use sp_arithmetic::traits::{Saturating, Zero};
 use sp_runtime::traits::AccountIdConversion;
 use sp_std::ops::AddAssign;
 
-
 /// The balance type of this pallet.
 pub type BalanceOf<T> = <T as Config>::CurrencyBalance;
 
 // TODO: Add multiple locks
 const LOCKING_ID: LockIdentifier = *b"evaluate";
+
+pub trait Identifiable = Member
+	+ Parameter
+	+ Default
+	+ Copy
+	+ HasCompact
+	+ MaybeSerializeDeserialize
+	+ MaxEncodedLen
+	+ AddAssign
+	+ From<u8>
+	+ From<u16>
+	+ From<u32>
+	+ TypeInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -88,62 +102,12 @@ pub mod pallet {
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
-	#[cfg(feature = "runtime-benchmarks")]
-	pub trait BenchmarkHelper<T: Config> {
-		fn create_project_id_parameter(id: u32) -> T::ProjectIdentifier;
-		fn create_dummy_project(
-			destinations_account: T::AccountId,
-		) -> Project<T::AccountId, BoundedVec<u8, T::StringLimit>, BalanceOf<T>>;
-	}
-	#[cfg(feature = "runtime-benchmarks")]
-	impl<T: Config> BenchmarkHelper<T> for () {
-		fn create_project_id_parameter(id: u32) -> T::ProjectIdentifier {
-			id.into()
-		}
-		fn create_dummy_project(
-			destinations_account: T::AccountId,
-		) -> Project<T::AccountId, BoundedVec<u8, T::StringLimit>, BalanceOf<T>> {
-			let project: Project<T::AccountId, BoundedVec<u8, T::StringLimit>, BalanceOf<T>> =
-			// TODO: Create a default project meaingful for the benchmarking
-				Project {
-					minimum_price: 1u8.into(),
-					ticket_size: TicketSize { minimum: Some(1u8.into()), maximum: None },
-					participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-					destinations_account,
-					// ..Default::default() doesn't work: the trait `std::default::Default` is not implemented for `<T as frame_system::Config>::AccountId`
-					conversion_rate: 1u8.into(),
-					funding_thresholds: Default::default(),
-					fundraising_target: Default::default(),
-					metadata: Default::default(),
-					participation_currencies: Default::default(),
-					token_information: Default::default(),
-					total_allocation_size: Default::default(),
-				};
-			project
-		}
-	}
-
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-		/// The maximum length of data stored on-chain.
-		#[pallet::constant]
-		type StringLimit: Get<u32>;
-
 		/// Identifier for the collection of item.
-		type ProjectIdentifier: Member
-			+ Parameter
-			+ Default
-			+ Copy
-			+ HasCompact
-			+ MaybeSerializeDeserialize
-			+ MaxEncodedLen
-			+ AddAssign
-			+ From<u8>
-			+ From<u16>
-			+ From<u32>
-			+ TypeInfo;
+		type ProjectIdentifier: Identifiable;
 
 		/// Just the `Currency::Balance` type; we have this item to allow us to constrain it to
 		/// `From<u64>`.
@@ -153,11 +117,21 @@ pub mod pallet {
 		type Currency: LockableCurrency<
 			Self::AccountId,
 			Moment = Self::BlockNumber,
-			Balance = BalanceOf<Self>
+			Balance = BalanceOf<Self>,
 		>;
 
 		/// The bidding balance.
 		type BiddingCurrency: ReservableCurrency<Self::AccountId, Balance = BalanceOf<Self>>;
+
+		/// Something that provides randomness in the runtime.
+		type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
+
+		/// Something that provides the members of the Polimec
+		type HandleMembers: PolimecMembers<Self::AccountId>;
+
+		/// The maximum length of data stored on-chain.
+		#[pallet::constant]
+		type StringLimit: Get<u32>;
 
 		#[pallet::constant]
 		type EvaluationDuration: Get<Self::BlockNumber>;
@@ -184,18 +158,12 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaximumBidsPerProject: Get<u32>;
 
-		/// Something that provides randomness in the runtime.
-		type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
-
-		/// Something that provides the members of the Polimec
-		type HandleMembers: PolimecMembers<Self::AccountId>;
-
-		/// Weight information for extrinsics in this pallet.
-		type WeightInfo: WeightInfo;
-
 		/// Helper trait for benchmarks.
 		#[cfg(feature = "runtime-benchmarks")]
 		type BenchmarkHelper: BenchmarkHelper<Self>;
+
+		/// Weight information for extrinsics in this pallet.
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::storage]
@@ -207,13 +175,13 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn nonce)]
 	/// A global counter used in the randomness generation
-	// TODO: Remove it after using the Randomness from BABE's VRF
 	/// OnEmpty in this case is GetDefault, so 0.
+	// TODO: Remove it after using the Randomness from BABE's VRF
 	pub type Nonce<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn projects)]
-	/// A DoubleMap containing all the the projects that applied for a request for funds
+	/// A StorageMap containing all the the projects that applied for a request for funds
 	pub type Projects<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
@@ -297,7 +265,7 @@ pub mod pallet {
 		AuctionStarted { project_id: T::ProjectIdentifier, when: T::BlockNumber },
 		/// The auction round of `project_id` ended  at block `when`.
 		AuctionEnded { project_id: T::ProjectIdentifier },
-		///  A `bonder` bonded an `amount` of PLMC for `project_id`.
+		/// A `bonder` bonded an `amount` of PLMC for `project_id`.
 		FundsBonded { project_id: T::ProjectIdentifier, amount: BalanceOf<T> },
 		/// A `bidder` bid an `amount` at `market_cap` for `project_id` with a `multiplier`.
 		Bid {
@@ -374,6 +342,7 @@ pub mod pallet {
 			project_id: T::ProjectIdentifier,
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
+
 			ensure!(ProjectsIssuers::<T>::contains_key(project_id), Error::<T>::ProjectNotExists);
 			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
 			ensure!(!ProjectsInfo::<T>::get(project_id).is_frozen, Error::<T>::Frozen);
@@ -394,6 +363,7 @@ pub mod pallet {
 			project_id: T::ProjectIdentifier,
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
+
 			ensure!(ProjectsIssuers::<T>::contains_key(project_id), Error::<T>::ProjectNotExists);
 			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
 			ensure!(
@@ -411,17 +381,18 @@ pub mod pallet {
 			#[pallet::compact] amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let from = ensure_signed(origin)?;
+
 			let project_issuer =
 				ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectNotExists)?;
 			ensure!(from != project_issuer, Error::<T>::ContributionToThemselves);
 
 			let project_info = ProjectsInfo::<T>::get(project_id);
-			let project = Projects::<T>::get(project_id).ok_or(Error::<T>::ProjectNotExists)?;
 			ensure!(
 				project_info.project_status == ProjectStatus::EvaluationRound,
 				Error::<T>::EvaluationNotStarted
 			);
 			ensure!(T::Currency::free_balance(&from) > amount, Error::<T>::InsufficientBalance);
+			let project = Projects::<T>::get(project_id).ok_or(Error::<T>::ProjectNotExists)?;
 
 			// Take the value given by the issuer or use the minimum balance any single account may have.
 			let minimum_amount =
@@ -434,6 +405,7 @@ pub mod pallet {
 			ensure!(amount <= maximum_amount, Error::<T>::BondTooHigh);
 
 			T::Currency::set_lock(LOCKING_ID, &from, amount, WithdrawReasons::all());
+			// TODO: Unlock the PLMC when it's the right time
 			Bonds::<T>::insert(project_id, &from, amount);
 			Self::deposit_event(Event::<T>::FundsBonded { project_id, amount });
 			Ok(())
@@ -456,14 +428,15 @@ pub mod pallet {
 			project_id: T::ProjectIdentifier,
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
+
 			ensure!(ProjectsIssuers::<T>::contains_key(project_id), Error::<T>::ProjectNotExists);
-			ensure!(
-				ProjectsIssuers::<T>::get(project_id) == Some(issuer.clone()),
-				Error::<T>::NotAllowed
-			);
 			ensure!(
 				T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
 				Error::<T>::NotAuthorized
+			);
+			ensure!(
+				ProjectsIssuers::<T>::get(project_id) == Some(issuer),
+				Error::<T>::NotAllowed
 			);
 			let project_info = ProjectsInfo::<T>::get(project_id);
 			ensure!(
@@ -587,6 +560,7 @@ pub mod pallet {
 			#[pallet::compact] amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let contributor = ensure_signed(origin)?;
+
 			// TODO: Add the "Retail before, Institutional and Professionals after, if there are still tokens" logic
 			ensure!(
 				T::HandleMembers::is_in(&MemberRole::Retail, &contributor),
@@ -708,6 +682,41 @@ pub mod pallet {
 			Weight::from_ref_time(0)
 		}
 	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	pub trait BenchmarkHelper<T: Config> {
+		fn create_project_id_parameter(id: u32) -> T::ProjectIdentifier;
+		fn create_dummy_project(
+			destinations_account: T::AccountId,
+		) -> Project<T::AccountId, BoundedVec<u8, T::StringLimit>, BalanceOf<T>>;
+	}
+	#[cfg(feature = "runtime-benchmarks")]
+	impl<T: Config> BenchmarkHelper<T> for () {
+		fn create_project_id_parameter(id: u32) -> T::ProjectIdentifier {
+			id.into()
+		}
+		fn create_dummy_project(
+			destinations_account: T::AccountId,
+		) -> Project<T::AccountId, BoundedVec<u8, T::StringLimit>, BalanceOf<T>> {
+			let project: Project<T::AccountId, BoundedVec<u8, T::StringLimit>, BalanceOf<T>> =
+			// TODO: Create a default project meaingful for the benchmarking
+				Project {
+					minimum_price: 1u8.into(),
+					ticket_size: TicketSize { minimum: Some(1u8.into()), maximum: None },
+					participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+					destinations_account,
+					// ..Default::default() doesn't work: the trait `std::default::Default` is not implemented for `<T as frame_system::Config>::AccountId`
+					conversion_rate: 1u8.into(),
+					funding_thresholds: Default::default(),
+					fundraising_target: Default::default(),
+					metadata: Default::default(),
+					participation_currencies: Default::default(),
+					token_information: Default::default(),
+					total_allocation_size: Default::default(),
+				};
+			project
+		}
+	}
 }
 
 use frame_support::{pallet_prelude::*, BoundedVec};
@@ -745,6 +754,7 @@ impl<T: Config> Pallet<T> {
 	pub fn do_start_evaluation(project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
 		let evaluation_period_ends =
 			<frame_system::Pallet<T>>::block_number() + T::EvaluationDuration::get();
+			
 		ProjectsInfo::<T>::mutate(project_id, |project_info| {
 			project_info.is_frozen = true;
 			project_info.project_status = ProjectStatus::EvaluationRound;
