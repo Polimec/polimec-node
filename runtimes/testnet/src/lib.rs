@@ -16,7 +16,7 @@ use frame_support::{
 	pallet_prelude::Get,
 	parameter_types,
 	traits::{
-		ConstU32, Contains, Currency, EitherOfDiverse, EqualPrivilegeOnly, Everything, Imbalance,
+		ConstU32, Currency, EitherOfDiverse, EqualPrivilegeOnly, Everything, Imbalance,
 		OnUnbalanced,
 	},
 	weights::{
@@ -29,7 +29,6 @@ use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot,
 };
-use orml_traits::parameter_type_with_key;
 
 use pallet_balances::WeightInfo;
 use pallet_transaction_payment::OnChargeTransaction;
@@ -49,7 +48,7 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
-		AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, OpaqueKeys,
+		AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, OpaqueKeys,
 	},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, Perquintill,
@@ -556,9 +555,6 @@ parameter_types! {
 	/// Maximum 25 delegators per collator at launch, might be increased later
 	#[derive(Debug, Eq, PartialEq)]
 	pub const MaxDelegatorsPerCollator: u32 = MAX_DELEGATORS_PER_COLLATOR;
-	/// Maximum 1 collator per delegator at launch, will be increased later
-	#[derive(Debug, Eq, PartialEq)]
-	pub const MaxCollatorsPerDelegator: u32 = 1;
 	/// Minimum stake required to be reserved to be a collator is 10_000
 	pub const MinCollatorStake: Balance = 10_000 * PLMC;
 	/// Minimum stake required to be reserved to be a delegator is 1000
@@ -587,11 +583,9 @@ impl parachain_staking::Config for Runtime {
 	type MinRequiredCollators = MinRequiredCollators;
 	type MaxDelegationsPerRound = MaxDelegationsPerRound;
 	type MaxDelegatorsPerCollator = MaxDelegatorsPerCollator;
-	type MaxCollatorsPerDelegator = MaxCollatorsPerDelegator;
 	type MinCollatorStake = MinCollatorStake;
 	type MinCollatorCandidateStake = MinCollatorStake;
 	type MaxTopCandidates = MaxCollatorCandidates;
-	type MinDelegation = MinDelegatorStake;
 	type MinDelegatorStake = MinDelegatorStake;
 	type MaxUnstakeRequests = MaxUnstakeRequests;
 	type NetworkRewardRate = NetworkRewardRate;
@@ -663,40 +657,6 @@ impl pallet_credentials::Config for Runtime {
 	type PrimeOrigin = EnsureRoot<AccountId>;
 	type MembershipInitialized = ();
 	type MembershipChanged = ();
-}
-
-parameter_types! {
-	pub DustReceiver: PalletId = PalletId(*b"orml/dst");
-}
-
-pub fn get_all_module_accounts() -> Vec<AccountId> {
-	vec![DustReceiver::get().into_account_truncating()]
-}
-
-pub struct DustRemovalWhitelist;
-impl Contains<AccountId> for DustRemovalWhitelist {
-	fn contains(a: &AccountId) -> bool {
-		get_all_module_accounts().contains(a)
-	}
-}
-
-parameter_type_with_key! {
-	pub ExistentialDeposits: |_currency_id: CurrencyId| -> Balance {
-		MILLI_PLMC
-	};
-}
-
-impl orml_tokens::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Balance = Balance;
-	type Amount = Amount;
-	type CurrencyId = CurrencyId;
-	type WeightInfo = ();
-	type ExistentialDeposits = ExistentialDeposits;
-	type MaxLocks = ();
-	type MaxReserves = ();
-	type ReserveIdentifier = ();
-	type DustRemovalWhitelist = DustRemovalWhitelist;
 }
 
 #[cfg(feature = "fast-gov")]
@@ -783,7 +743,6 @@ parameter_types! {
 }
 
 impl pallet_democracy::Config for Runtime {
-	type Proposal = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type EnactmentPeriod = EnactmentPeriod;
@@ -829,6 +788,9 @@ impl pallet_democracy::Config for Runtime {
 	type MaxVotes = ConstU32<100>;
 	type WeightInfo = pallet_democracy::weights::SubstrateWeight<Runtime>;
 	type MaxProposals = MaxProposals;
+	type Preimages = ();
+	type MaxDeposits = ();
+	type MaxBlacklisted = ();
 }
 
 parameter_types! {
@@ -846,6 +808,7 @@ impl pallet_scheduler::Config for Runtime {
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
 	type WeightInfo = ();
 	type OriginPrivilegeCmp = EqualPrivilegeOnly;
+	type Preimages = ();
 }
 
 impl pallet_utility::Config for Runtime {
@@ -882,8 +845,8 @@ impl pallet_preimage::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type ManagerOrigin = EnsureRoot<AccountId>;
-	type MaxSize = PreimageMaxSize;
 	type BaseDeposit = PreimageBaseDeposit;
+	type ByteDeposit = ();
 }
 
 parameter_types! {
@@ -963,7 +926,6 @@ construct_runtime!(
 		Random: pallet_randomness_collective_flip = 51,
 
 		// Polimec Core
-		PolimecMultiBalances: orml_tokens = 60,
 		PolimecFunding: pallet_funding::{Pallet, Call, Storage, Event<T>}  = 61,
 		Credentials: pallet_credentials = 63,
 
