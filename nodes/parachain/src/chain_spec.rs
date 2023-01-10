@@ -269,7 +269,6 @@ fn testnet_genesis(
 		polkadot_xcm: polimec_parachain_runtime::PolkadotXcmConfig {
 			safe_xcm_version: Some(SAFE_XCM_VERSION),
 		},
-		polimec_multi_balances: Default::default(),
 		treasury: Default::default(),
 		sudo: SudoConfig { key: Some(root_account) },
 		council: CouncilConfig {
