@@ -28,7 +28,6 @@ pub struct Project<AccountId, BoundedString, Balance: BalanceT> {
 	/// contributions)
 	pub destinations_account: AccountId,
 	/// Additional metadata
-	/// TODO: Maybe we can move this to the ProjectInfo struct
 	pub metadata: ProjectMetadata<BoundedString, Balance>,
 }
 

@@ -34,14 +34,19 @@
 //! Please refer to the [`Pallet`] struct for details on publicly available functions.
 //!
 
-// This recursion limit is needed because we have too many benchmarks and benchmarking will fail if
-// we add more without this limit.
-#![recursion_limit = "1024"]
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
+// This recursion limit is needed because we have too many benchmarks and benchmarking will fail if
+// we add more without this limit.
+#![cfg_attr(feature = "runtime-benchmarks", recursion_limit = "512")]
 
 pub use pallet::*;
+
+pub mod types;
+pub use types::*;
+
 pub mod weights;
+pub use weights::WeightInfo;
 
 #[cfg(test)]
 pub mod mock;
@@ -52,7 +57,6 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-mod types;
 use codec::HasCompact;
 use frame_support::{
 	pallet_prelude::ValueQuery,
@@ -66,8 +70,7 @@ use polimec_traits::{MemberRole, PolimecMembers};
 use sp_arithmetic::traits::{Saturating, Zero};
 use sp_runtime::traits::AccountIdConversion;
 use sp_std::ops::AddAssign;
-pub use types::*;
-pub use weights::WeightInfo;
+
 
 /// The balance type of this pallet.
 pub type BalanceOf<T> = <T as Config>::CurrencyBalance;
@@ -150,11 +153,11 @@ pub mod pallet {
 		type Currency: LockableCurrency<
 			Self::AccountId,
 			Moment = Self::BlockNumber,
-			Balance = Self::CurrencyBalance,
+			Balance = BalanceOf<Self>
 		>;
 
 		/// The bidding balance.
-		type BiddingCurrency: ReservableCurrency<Self::AccountId, Balance = Self::CurrencyBalance>;
+		type BiddingCurrency: ReservableCurrency<Self::AccountId, Balance = BalanceOf<Self>>;
 
 		#[pallet::constant]
 		type EvaluationDuration: Get<Self::BlockNumber>;
@@ -344,10 +347,10 @@ pub mod pallet {
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 
-			// ensure!(
-			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
-			// 	Error::<T>::NotAuthorized
-			// );
+			ensure!(
+				T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
+				Error::<T>::NotAuthorized
+			);
 
 			match project.validity_check() {
 				Err(error) => match error {
