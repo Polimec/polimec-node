@@ -434,10 +434,7 @@ pub mod pallet {
 				T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
 				Error::<T>::NotAuthorized
 			);
-			ensure!(
-				ProjectsIssuers::<T>::get(project_id) == Some(issuer),
-				Error::<T>::NotAllowed
-			);
+			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
 			let project_info = ProjectsInfo::<T>::get(project_id);
 			ensure!(
 				project_info.project_status == ProjectStatus::EvaluationEnded,
@@ -754,14 +751,15 @@ impl<T: Config> Pallet<T> {
 	pub fn do_start_evaluation(project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
 		let evaluation_period_ends =
 			<frame_system::Pallet<T>>::block_number() + T::EvaluationDuration::get();
-			
+
+		ProjectsActive::<T>::try_append(project_id)
+			.map_err(|()| Error::<T>::TooManyActiveProjects)?;
+
 		ProjectsInfo::<T>::mutate(project_id, |project_info| {
 			project_info.is_frozen = true;
 			project_info.project_status = ProjectStatus::EvaluationRound;
 			project_info.evaluation_period_ends = Some(evaluation_period_ends);
 		});
-		ProjectsActive::<T>::try_append(project_id)
-			.map_err(|()| Error::<T>::TooManyActiveProjects)?;
 
 		Self::deposit_event(Event::<T>::EvaluationStarted { project_id });
 		Ok(())
