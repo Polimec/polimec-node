@@ -1,85 +1,35 @@
-# Polimec Parachain  <!-- omit in toc -->
+# Polimec Parachain <!-- omit in toc -->
 
-> **Warning**
-> Under HEAVY development
-
-TODO
+> **Warning** Under HEAVY development
 
 ## How to run it (Parachain Mode)
 
-TODO: Use [polkadot-launch](https://github.com/paritytech/polkadot-launch) (deprecated) or [Zombienet](https://github.com/paritytech/zombienet) or [parachain-launch](https://github.com/open-web3-stack/parachain-launch)
+### Requirements
 
-### Phase 1: Clone and build the relay chain node
+- [Rust](https://rustup.rs/)
+- [Zombienet](https://github.com/paritytech/zombienet), install guide
+  [here](https://paritytech.github.io/zombienet/install.html)
 
-```
-$ git clone --depth 1 --branch release-v0.9.29 https://github.com/paritytech/polkadot.git
-```
+### Step 1: Compile the relay chain and add it to $PATH
 
-```
-$ cd polkadot
-```
+- Clone the [Polkadot Repository](https://github.com/paritytech/polkadot)
+- Compile it using `cargo b -r -p polkadot`
+- Add the binary to your $PATH, e.g.
+  `cp target/release/polkadot ~/.local/bin/polkadot`
 
-```
-$ cargo build --release
-```
+### Step 2: Compile Polimec and add it to $PATH
 
-### Phase 2: Generate a chain spec
+- Clone this repository
+- Compile it using `cargo b -r -p polimec-parachain-node`
+- Add the binary to your $PATH, e.g.
+  `cp target/release/polimec-parachain-node ~/.local/bin/polimec`
 
-```
-$ ./target/release/polkadot build-spec --chain rococo-local --disable-default-bootnode --raw > rococo-local-cfde.json
-```
+### Step 3: Run the network using Zombienet
 
-### Phase 3: Validators
-Start the first validator using the `alice` account (on terminal T1)
+- Use the `zombienet` command to run the network, e.g.
+  `zombienet spawn scripts/local_parachain.toml -p native`
 
-```
-$ ./target/release/polkadot --chain rococo-local-cfde.json --alice --tmp
-```
-
-Start the second validator using the `bob` account (on terminal T2) 
-
-```
-$ ./target/release/polkadot --chain rococo-local-cfde.json --bob --tmp --port 30334
-```
-
-### Phase 4: Prepare the parachain
-
-Export genesis state
-
-```
-$ ./target/release/polimec-parachain-node export-genesis-state > genesis-state
-```
-
-Export genesis wasm
-
-```
-$ ./target/release/polimec-parachain-node export-genesis-wasm > genesis-wasm
-```
-
-### Phase 5: Register the parachain on polkadot.js
-
-TODO
-
-### Phase 6: Collators
-
-Start the first collator using the `alice` account (on terminal T3)
-
-```
-$ ./target/release/polimec-parachain-node --collator --alice --force-authoring --tmp --port 40335 --ws-port 9946 -- --execution wasm --chain ../polkadot/rococo-local-cfde.json --port 30335
-```
-
-Start the second collator using the `bob` account (on terminal T4)
-
-```
-$ ./target/release/polimec-parachain-node --collator --bob --force-authoring --tmp --port 40336 --ws-port 9947 -- --execution wasm --chain ../polkadot/rococo-local-cfde.json --port 30336
-```
-
-Start a parachain full node (on terminal T5)
-
-```
-$ ./target/release/polimec-parachain-node --tmp --port 40337 --ws-port 9948 -- --execution wasm --chain ../polkadot/rococo-local-cfde.json --port 30337
-```
-
+### TODO: Provide a Docker/Kubernetes deployment option
 
 ## How to run it (Standalone Mode)
 
@@ -91,7 +41,7 @@ $ cargo build --release
 $ ./target/release/polimec-standalone-node --dev
 ```
 
-or 
+or
 
 ```
 $ cargo run --release -- --dev
