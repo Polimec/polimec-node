@@ -2,7 +2,7 @@ use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
 use sp_arithmetic::Perquintill;
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct Project<AccountId, BoundedString, Balance: BalanceT> {
+pub struct Project<AccountId, BoundedString, Balance: BalanceT, Hash> {
 	/// Token Metadata
 	pub token_information: CurrencyMetadata<BoundedString>,
 	/// Total allocation of Contribution Tokens available for the Funding Round
@@ -28,7 +28,7 @@ pub struct Project<AccountId, BoundedString, Balance: BalanceT> {
 	/// contributions)
 	pub destinations_account: AccountId,
 	/// Additional metadata
-	pub metadata: ProjectMetadata<BoundedString, Balance>,
+	pub metadata: Hash,
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -45,22 +45,6 @@ pub struct ProjectInfo<BlockNumber, Balance: BalanceT> {
 	pub auction_metadata: Option<AuctionMetadata<BlockNumber>>,
 }
 
-#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct ProjectMetadata<BoundedString, Balance: BalanceT> {
-	/// A link to the whitepaper
-	pub whitepaper: BoundedString,
-	/// A link to a team description
-	pub team_description: BoundedString,
-	/// A link to the tokenomics description
-	pub tokenomics: BoundedString,
-	/// Total supply of mainnet tokens
-	pub total_supply: Balance,
-	/// A link to the roadmap
-	pub roadmap: BoundedString,
-	/// A link to a description on how the funds will be used
-	pub usage_of_founds: BoundedString,
-}
-
 #[derive(Debug)]
 pub enum ValidityError {
 	PriceTooLow,
@@ -68,7 +52,9 @@ pub enum ValidityError {
 	ParticipantsSizeError,
 }
 
-impl<AccountId, BoundedString, Balance: BalanceT> Project<AccountId, BoundedString, Balance> {
+impl<AccountId, BoundedString, Balance: BalanceT, Hash>
+	Project<AccountId, BoundedString, Balance, Hash>
+{
 	// TODO: Perform a REAL validity check
 	pub fn validity_check(&self) -> Result<(), ValidityError> {
 		if self.minimum_price == Balance::zero() {
