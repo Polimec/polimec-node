@@ -70,11 +70,18 @@ use frame_support::{
 };
 use polimec_traits::{MemberRole, PolimecMembers};
 use sp_arithmetic::traits::{Saturating, Zero};
-use sp_runtime::traits::AccountIdConversion;
+use sp_runtime::traits::{AccountIdConversion, Hash};
 use sp_std::ops::AddAssign;
 
 /// The balance type of this pallet.
 pub type BalanceOf<T> = <T as Config>::CurrencyBalance;
+
+pub type ProjectOf<T> = Project<
+	<T as frame_system::Config>::AccountId,
+	BoundedVec<u8, <T as Config>::StringLimit>,
+	BalanceOf<T>,
+	<T as frame_system::Config>::Hash,
+>;
 
 // TODO: Add multiple locks
 const LOCKING_ID: LockIdentifier = *b"evaluate";
@@ -180,14 +187,15 @@ pub mod pallet {
 	pub type Nonce<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	#[pallet::storage]
+	#[pallet::getter(fn images)]
+	/// A StorageMap containing all the images uploaded by the users
+	pub type Images<T: Config> = StorageMap<_, Blake2_128Concat, T::Hash, T::AccountId>;
+
+	#[pallet::storage]
 	#[pallet::getter(fn projects)]
 	/// A StorageMap containing all the the projects that applied for a request for funds
-	pub type Projects<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		T::ProjectIdentifier,
-		Project<T::AccountId, BoundedVec<u8, T::StringLimit>, BalanceOf<T>>,
-	>;
+	pub type Projects<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, ProjectOf<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn project_issuer)]
@@ -254,19 +262,35 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A `project_id` was created.
-		Created { project_id: T::ProjectIdentifier },
+		Created {
+			project_id: T::ProjectIdentifier,
+		},
 		/// The metadata of `project_id` was modified.
-		MetadataEdited { project_id: T::ProjectIdentifier },
+		MetadataEdited {
+			project_id: T::ProjectIdentifier,
+		},
 		/// The evaluation phase of `project_id` was started.
-		EvaluationStarted { project_id: T::ProjectIdentifier },
+		EvaluationStarted {
+			project_id: T::ProjectIdentifier,
+		},
 		/// The evaluation phase of `project_id` was ended.
-		EvaluationEnded { project_id: T::ProjectIdentifier },
+		EvaluationEnded {
+			project_id: T::ProjectIdentifier,
+		},
 		/// The auction round of `project_id` started at block `when`.
-		AuctionStarted { project_id: T::ProjectIdentifier, when: T::BlockNumber },
+		AuctionStarted {
+			project_id: T::ProjectIdentifier,
+			when: T::BlockNumber,
+		},
 		/// The auction round of `project_id` ended  at block `when`.
-		AuctionEnded { project_id: T::ProjectIdentifier },
+		AuctionEnded {
+			project_id: T::ProjectIdentifier,
+		},
 		/// A `bonder` bonded an `amount` of PLMC for `project_id`.
-		FundsBonded { project_id: T::ProjectIdentifier, amount: BalanceOf<T> },
+		FundsBonded {
+			project_id: T::ProjectIdentifier,
+			amount: BalanceOf<T>,
+		},
 		/// A `bidder` bid an `amount` at `market_cap` for `project_id` with a `multiplier`.
 		Bid {
 			project_id: T::ProjectIdentifier,
@@ -281,6 +305,9 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 			market_cap: BalanceOf<T>,
 			multiplier: u8,
+		},
+		Noted {
+			hash: T::Hash,
 		},
 	}
 
@@ -306,19 +333,34 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Start the "Funding Application" round
-		/// Project applies for funding, providing all required information.
-		#[pallet::weight(T::WeightInfo::create())]
-		pub fn create(
-			origin: OriginFor<T>,
-			project: Project<T::AccountId, BoundedVec<u8, T::StringLimit>, BalanceOf<T>>,
-		) -> DispatchResult {
+		/// Validate a preimage on-chain and store the image.
+		///
+		/// If the preimage was previously requested, no fees or deposits are taken for providing
+		/// the preimage. Otherwise, a deposit is taken proportional to the size of the preimage.
+		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
+		pub fn note_image(origin: OriginFor<T>, bytes: Vec<u8>) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 
 			ensure!(
 				T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
 				Error::<T>::NotAuthorized
 			);
+
+			Self::note_bytes(bytes.into(), &issuer)?;
+
+			Ok(())
+		}
+		/// Start the "Funding Application" round
+		/// Project applies for funding, providing all required information.
+		#[pallet::weight(T::WeightInfo::create())]
+		pub fn create(origin: OriginFor<T>, project: ProjectOf<T>) -> DispatchResult {
+			let issuer = ensure_signed(origin)?;
+
+			ensure!(
+				T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
+				Error::<T>::NotAuthorized
+			);
+			ensure!(Images::<T>::contains_key(project.metadata), Error::<T>::ProjectNotExists);
 
 			match project.validity_check() {
 				Err(error) => match error {
@@ -338,7 +380,7 @@ pub mod pallet {
 		/// Edit the `project_metadata` of a `project_id` if "Evaluation Round" is not yet started
 		pub fn edit_metadata(
 			origin: OriginFor<T>,
-			project_metadata: ProjectMetadata<BoundedVec<u8, T::StringLimit>, BalanceOf<T>>,
+			project_metadata_hash: T::Hash,
 			project_id: T::ProjectIdentifier,
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
@@ -346,10 +388,11 @@ pub mod pallet {
 			ensure!(ProjectsIssuers::<T>::contains_key(project_id), Error::<T>::ProjectNotExists);
 			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
 			ensure!(!ProjectsInfo::<T>::get(project_id).is_frozen, Error::<T>::Frozen);
+			ensure!(Images::<T>::contains_key(project_metadata_hash), Error::<T>::ProjectNotExists);
 
 			Projects::<T>::try_mutate(project_id, |maybe_project| -> DispatchResult {
 				let project = maybe_project.as_mut().ok_or(Error::<T>::ProjectNotExists)?;
-				project.metadata = project_metadata;
+				project.metadata = project_metadata_hash;
 				Self::deposit_event(Event::MetadataEdited { project_id });
 				Ok(())
 			})?;
@@ -685,8 +728,10 @@ pub mod pallet {
 		fn create_project_id_parameter(id: u32) -> T::ProjectIdentifier;
 		fn create_dummy_project(
 			destinations_account: T::AccountId,
-		) -> Project<T::AccountId, BoundedVec<u8, T::StringLimit>, BalanceOf<T>>;
+			metadata_hash: T::Hash,
+		) -> ProjectOf<T>;
 	}
+
 	#[cfg(feature = "runtime-benchmarks")]
 	impl<T: Config> BenchmarkHelper<T> for () {
 		fn create_project_id_parameter(id: u32) -> T::ProjectIdentifier {
@@ -694,19 +739,20 @@ pub mod pallet {
 		}
 		fn create_dummy_project(
 			destinations_account: T::AccountId,
-		) -> Project<T::AccountId, BoundedVec<u8, T::StringLimit>, BalanceOf<T>> {
-			let project: Project<T::AccountId, BoundedVec<u8, T::StringLimit>, BalanceOf<T>> =
+			metadata_hash: T::Hash,
+		) -> ProjectOf<T> {
+			let project: ProjectOf<T> =
 			// TODO: Create a default project meaingful for the benchmarking
 				Project {
 					minimum_price: 1u8.into(),
 					ticket_size: TicketSize { minimum: Some(1u8.into()), maximum: None },
 					participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 					destinations_account,
+					metadata: metadata_hash,
 					// ..Default::default() doesn't work: the trait `std::default::Default` is not implemented for `<T as frame_system::Config>::AccountId`
 					conversion_rate: 1u8.into(),
 					funding_thresholds: Default::default(),
 					fundraising_target: Default::default(),
-					metadata: Default::default(),
 					participation_currencies: Default::default(),
 					token_information: Default::default(),
 					total_allocation_size: Default::default(),
@@ -718,17 +764,32 @@ pub mod pallet {
 
 use frame_support::{pallet_prelude::*, BoundedVec};
 use sp_arithmetic::Perquintill;
-use sp_std::{cmp::Reverse, vec::Vec};
+use sp_std::{borrow::Cow, cmp::Reverse, vec::Vec};
 
 impl<T: Config> Pallet<T> {
 	pub fn fund_account_id(index: T::ProjectIdentifier) -> T::AccountId {
 		T::PalletId::get().into_sub_account_truncating(index)
 	}
 
+	/// Store an image on chain.
+	///
+	/// TODO: We verify that the preimage is within the bounds of what the pallet supports.
+	fn note_bytes(preimage: Cow<[u8]>, issuer: &T::AccountId) -> Result<(), DispatchError> {
+		// TODO: Validate and check if the preimage is a valid JSON conforming with our needs
+		// TODO: Check if we can use serde/serde_json in a no_std environment
+
+		let hash = T::Hashing::hash(&preimage);
+		Images::<T>::insert(hash, issuer);
+
+		Self::deposit_event(Event::Noted { hash });
+
+		Ok(())
+	}
+
 	pub fn do_create(
 		project_id: T::ProjectIdentifier,
 		issuer: &T::AccountId,
-		project: Project<T::AccountId, BoundedVec<u8, T::StringLimit>, BalanceOf<T>>,
+		project: ProjectOf<T>,
 	) -> Result<(), DispatchError> {
 		let project_info = ProjectInfo {
 			is_frozen: false,
