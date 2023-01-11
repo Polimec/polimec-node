@@ -1,8 +1,6 @@
-use crate::{mock::*, Error, Project, Weight};
-use frame_support::{
-	assert_noop, assert_ok,
-	traits::{OnFinalize, OnIdle, OnInitialize},
-};
+use super::*;
+use crate::{mock::*, Error, ParticipantsSize, Project, TicketSize, Weight};
+use frame_support::{assert_noop, assert_ok};
 
 pub fn last_event() -> RuntimeEvent {
 	frame_system::Pallet::<Test>::events().pop().expect("Event expected").event
@@ -27,20 +25,72 @@ const BOB: AccountId = 2;
 const CHARLIE: AccountId = 3;
 const DAVE: AccountId = 3;
 
+fn store_and_return_metadata_hash() -> sp_core::H256 {
+	let metadata = r#"
+	{
+		"whitepaper":"ipfs_url",
+		"team_description":"ipfs_url",
+		"tokenomics":"ipfs_url",
+		"roadmap":"ipfs_url",
+		"usage_of_founds":"ipfs_url"
+	}
+	"#;
+	let _ = FundingModule::note_image(RuntimeOrigin::signed(ALICE), metadata.into());
+	hashed(metadata)
+}
+
+fn create_project() -> Project<u64, BoundedVec<u8, ConstU32<64>>, u128, sp_core::H256> {
+	let metadata_hash = store_and_return_metadata_hash();
+	Project {
+		minimum_price: 1_u128,
+		ticket_size: TicketSize { minimum: Some(1), maximum: None },
+		participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+		metadata: metadata_hash,
+		..Default::default()
+	}
+}
+
+fn create_on_chain_project() {
+	let metadata_hash = store_and_return_metadata_hash();
+	let _ = FundingModule::create(
+		RuntimeOrigin::signed(ALICE),
+		Project {
+			minimum_price: 1_u128,
+			ticket_size: TicketSize { minimum: Some(1), maximum: None },
+			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+			metadata: metadata_hash,
+			..Default::default()
+		},
+	);
+}
+
 mod creation_round {
 	use super::*;
 	use crate::{ParticipantsSize, TicketSize};
-	use frame_support::assert_noop;
+	use frame_support::{assert_noop, assert_ok};
+
+	#[test]
+	fn preimage_works() {
+		new_test_ext().execute_with(|| {
+			let metadata = r#"
+			{
+				"whitepaper":"ipfs_url",
+				"team_description":"ipfs_url",
+				"tokenomics":"ipfs_url",
+				"roadmap":"ipfs_url",
+				"usage_of_founds":"ipfs_url"
+			}
+			"#;
+			assert_ok!(FundingModule::note_image(RuntimeOrigin::signed(ALICE), metadata.into()));
+			let expected_hash = hashed(metadata);
+			assert_eq!(ALICE, FundingModule::images(expected_hash).unwrap())
+		})
+	}
 
 	#[test]
 	fn create_works() {
 		new_test_ext().execute_with(|| {
-			let project = Project {
-				minimum_price: 1,
-				ticket_size: TicketSize { minimum: Some(1), maximum: None },
-				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-				..Default::default()
-			};
+			let project = create_project();
 			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
 			assert_eq!(
 				last_event(),
@@ -52,12 +102,7 @@ mod creation_round {
 	#[test]
 	fn only_issuer_can_create() {
 		new_test_ext().execute_with(|| {
-			let project = Project {
-				minimum_price: 1,
-				ticket_size: TicketSize { minimum: Some(1), maximum: None },
-				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-				..Default::default()
-			};
+			let project = create_project();
 			assert_noop!(
 				FundingModule::create(RuntimeOrigin::signed(BOB), project),
 				Error::<Test>::NotAuthorized
@@ -68,18 +113,8 @@ mod creation_round {
 	#[test]
 	fn project_id_autoincremenet_works() {
 		new_test_ext().execute_with(|| {
-			let project = Project {
-				minimum_price: 1,
-				ticket_size: TicketSize { minimum: Some(1), maximum: None },
-				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-				..Default::default()
-			};
-			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project.clone()));
-			assert_eq!(
-				last_event(),
-				RuntimeEvent::FundingModule(crate::Event::Created { project_id: 0 })
-			);
-			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
+			create_on_chain_project();
+			create_on_chain_project();
 			assert_eq!(
 				last_event(),
 				RuntimeEvent::FundingModule(crate::Event::Created { project_id: 1 })
@@ -90,10 +125,12 @@ mod creation_round {
 	#[test]
 	fn price_too_low() {
 		new_test_ext().execute_with(|| {
+			let metadata_hash = store_and_return_metadata_hash();
 			let project = Project {
 				minimum_price: 0,
 				ticket_size: TicketSize { minimum: Some(1), maximum: None },
 				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+				metadata: metadata_hash,
 				..Default::default()
 			};
 
@@ -107,10 +144,12 @@ mod creation_round {
 	#[test]
 	fn participants_size_error() {
 		new_test_ext().execute_with(|| {
+			let metadata_hash = store_and_return_metadata_hash();
 			let project = Project {
 				minimum_price: 1,
 				ticket_size: TicketSize { minimum: Some(1), maximum: None },
 				participants_size: ParticipantsSize { minimum: None, maximum: None },
+				metadata: metadata_hash,
 				..Default::default()
 			};
 
@@ -124,10 +163,12 @@ mod creation_round {
 	#[test]
 	fn ticket_size_error() {
 		new_test_ext().execute_with(|| {
+			let metadata_hash = store_and_return_metadata_hash();
 			let project = Project {
 				minimum_price: 1,
 				ticket_size: TicketSize { minimum: None, maximum: None },
 				participants_size: ParticipantsSize { minimum: Some(1), maximum: None },
+				metadata: metadata_hash,
 				..Default::default()
 			};
 
@@ -159,19 +200,11 @@ mod creation_round {
 
 mod evaluation_round {
 	use super::*;
-	use crate::{ParticipantsSize, ProjectStatus, TicketSize};
 
 	#[test]
 	fn start_evaluation_works() {
 		new_test_ext().execute_with(|| {
-			let project = Project {
-				minimum_price: 1,
-				ticket_size: TicketSize { minimum: Some(1), maximum: None },
-				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-				..Default::default()
-			};
-
-			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
+			create_on_chain_project();
 			let project_info = FundingModule::project_info(0);
 			assert!(project_info.project_status == ProjectStatus::Application);
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
@@ -183,14 +216,7 @@ mod evaluation_round {
 	#[test]
 	fn evaluation_stops_after_28_days() {
 		new_test_ext().execute_with(|| {
-			let project = Project {
-				minimum_price: 1,
-				ticket_size: TicketSize { minimum: Some(1), maximum: None },
-				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-				..Default::default()
-			};
-
-			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
+			create_on_chain_project();
 			let ed = FundingModule::project_info(0);
 			assert!(ed.project_status == ProjectStatus::Application);
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
@@ -206,14 +232,7 @@ mod evaluation_round {
 	#[test]
 	fn basic_bond_works() {
 		new_test_ext().execute_with(|| {
-			let project = Project {
-				minimum_price: 1,
-				ticket_size: TicketSize { minimum: Some(1), maximum: None },
-				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-				..Default::default()
-			};
-
-			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
+			create_on_chain_project();
 			assert_noop!(
 				FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128),
 				Error::<Test>::EvaluationNotStarted
@@ -226,20 +245,12 @@ mod evaluation_round {
 	#[test]
 	fn multiple_bond_works() {
 		new_test_ext().execute_with(|| {
-			let project = Project {
-				minimum_price: 1,
-				ticket_size: TicketSize { minimum: Some(1), maximum: None },
-				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-				..Default::default()
-			};
-
-			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
+			create_on_chain_project();
 			assert_noop!(
 				FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128),
 				Error::<Test>::EvaluationNotStarted
 			);
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
-
 			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128));
 			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(CHARLIE), 0, 128));
 
@@ -254,13 +265,7 @@ mod evaluation_round {
 	#[test]
 	fn cannot_bond() {
 		new_test_ext().execute_with(|| {
-			let project = Project {
-				minimum_price: 1,
-				ticket_size: TicketSize { minimum: Some(1), maximum: None },
-				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-				..Default::default()
-			};
-			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
+			create_on_chain_project();
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 
 			assert_noop!(
@@ -273,20 +278,12 @@ mod evaluation_round {
 
 mod auction_round {
 	use super::*;
-	use crate::{ParticipantsSize, TicketSize};
-	use frame_support::assert_noop;
 
 	#[test]
 	fn start_auction_works() {
 		new_test_ext().execute_with(|| {
-			let project = Project {
-				minimum_price: 1,
-				ticket_size: TicketSize { minimum: Some(1), maximum: None },
-				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-				..Default::default()
-			};
+			create_on_chain_project();
 
-			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 			let block_number = System::block_number();
 			run_to_block(block_number + 29);
@@ -297,14 +294,7 @@ mod auction_round {
 	#[test]
 	fn cannot_start_auction_before_evaluation() {
 		new_test_ext().execute_with(|| {
-			let project = Project {
-				minimum_price: 1,
-				ticket_size: TicketSize { minimum: Some(1), maximum: None },
-				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-				..Default::default()
-			};
-
-			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
+			create_on_chain_project();
 			assert_noop!(
 				FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0),
 				Error::<Test>::EvaluationNotStarted
@@ -315,14 +305,7 @@ mod auction_round {
 	#[test]
 	fn bid_works() {
 		new_test_ext().execute_with(|| {
-			let project = Project {
-				minimum_price: 1,
-				ticket_size: TicketSize { minimum: Some(1), maximum: None },
-				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-				..Default::default()
-			};
-
-			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
+			create_on_chain_project();
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 			let block_number = System::block_number();
 			run_to_block(block_number + 29);
@@ -350,14 +333,7 @@ mod auction_round {
 	#[test]
 	fn cannot_bid_before_auction_round() {
 		new_test_ext().execute_with(|| {
-			let project = Project {
-				minimum_price: 1,
-				ticket_size: TicketSize { minimum: Some(1), maximum: None },
-				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-				..Default::default()
-			};
-
-			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
+			create_on_chain_project();
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 			assert_noop!(
 				FundingModule::bid(RuntimeOrigin::signed(CHARLIE), 0, 1, 100, None),
@@ -369,14 +345,7 @@ mod auction_round {
 	#[test]
 	fn contribute_does_not_work() {
 		new_test_ext().execute_with(|| {
-			let project = Project {
-				minimum_price: 1,
-				ticket_size: TicketSize { minimum: Some(1), maximum: None },
-				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-				..Default::default()
-			};
-
-			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
+			create_on_chain_project();
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 			let block_number = System::block_number();
 			run_to_block(block_number + 29);
@@ -402,13 +371,7 @@ mod flow {
 	fn it_works() {
 		new_test_ext().execute_with(|| {
 			// Create a new project
-			let project = Project {
-				minimum_price: 1,
-				ticket_size: TicketSize { minimum: Some(1), maximum: None },
-				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-				..Default::default()
-			};
-			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
+			create_on_chain_project();
 			let project_info = FundingModule::project_info(0);
 			assert!(project_info.project_status == ProjectStatus::Application);
 
@@ -465,12 +428,14 @@ mod flow {
 	fn check_final_price() {
 		new_test_ext().execute_with(|| {
 			// Prologue
+			let metadata_hash = store_and_return_metadata_hash();
 			let project = Project {
 				minimum_price: 1,
 				ticket_size: TicketSize { minimum: Some(1), maximum: None },
 				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 				total_allocation_size: 100000,
 				fundraising_target: 101 * PLMC,
+				metadata: metadata_hash,
 				..Default::default()
 			};
 			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
@@ -530,12 +495,14 @@ mod flow {
 	fn bids_overflow() {
 		new_test_ext().execute_with(|| {
 			// Prologue
+			let metadata_hash = store_and_return_metadata_hash();
 			let project = Project {
 				minimum_price: 1,
 				ticket_size: TicketSize { minimum: Some(1), maximum: None },
 				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 				total_allocation_size: 100000,
 				fundraising_target: 101 * PLMC,
+				metadata: metadata_hash,
 				..Default::default()
 			};
 			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
@@ -564,34 +531,3 @@ mod flow {
 		})
 	}
 }
-
-// mod final_price {
-// 	use crate::BidInfo;
-// 	use sp_std::cmp::Reverse;
-
-// 	use super::*;
-
-// 	#[test]
-// 	fn check() {
-// 		new_test_ext().execute_with(|| {
-// 			let total_allocation_size = 101 * PLMC;
-// 			let mut bids: Vec<BidInfo<u128, u64>> = vec![
-// 				BidInfo::new(10 * PLMC, 10 * PLMC, 1, total_allocation_size),
-// 				BidInfo::new(12 * PLMC, 55 * PLMC, 2, total_allocation_size),
-// 				BidInfo::new(15 * PLMC, 20 * PLMC, 3, total_allocation_size),
-// 				BidInfo::new(16 * PLMC, 35 * PLMC, 4, total_allocation_size),
-// 				BidInfo::new(19 * PLMC, 17 * PLMC, 5, total_allocation_size),
-// 				BidInfo::new(1 * PLMC, 28 * PLMC, 6, total_allocation_size),
-// 				BidInfo::new(5 * PLMC, 10 * PLMC, 7, total_allocation_size),
-// 				BidInfo::new(74 * PLMC, 1 * PLMC, 8, total_allocation_size),
-// 				BidInfo::new(3 * PLMC, 23 * PLMC, 9, total_allocation_size),
-// 			];
-// 			bids.sort_by_key(|bid| Reverse(bid.market_cap));
-// 			let value = FundingModule::final_price_logic(bids, total_allocation_size);
-// 			assert!(value.is_ok());
-// 			let inner_value = value.unwrap();
-// 			println!("inner_value: {:#?}", inner_value);
-// 			// assert!(inner_value == 248019801985);
-// 		})
-// 	}
-// }
