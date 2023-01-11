@@ -1,3 +1,5 @@
+use super::*;
+
 use crate as pallet_funding;
 use frame_support::{pallet_prelude::ConstU32, parameter_types, traits::ConstU16, PalletId};
 use frame_system as system;
@@ -153,4 +155,8 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	// In order to emit events the block number must be more than 0
 	ext.execute_with(|| System::set_block_number(1));
 	ext
+}
+
+pub fn hashed(data: impl AsRef<[u8]>) -> H256 {
+	BlakeTwo256::hash(data.as_ref())
 }
