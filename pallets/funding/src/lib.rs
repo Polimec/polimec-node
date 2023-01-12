@@ -939,7 +939,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn handle_community_end(
-		project_id: &T::ProjectIdentifier,
+		project_id: T::ProjectIdentifier,
 		now: T::BlockNumber,
 		community_ending_block: T::BlockNumber,
 	) {
@@ -947,10 +947,24 @@ impl<T: Config> Pallet<T> {
 			ProjectsInfo::<T>::mutate(project_id, |project_info| {
 				project_info.project_status = ProjectStatus::FundingEnded;
 			});
+		};
 
-			// TODO: Mint the "Contribution Tokens"
-			// TODO: Assign the CTs to the participants of the Funding Round
-		}
+		let issuer =
+			ProjectsIssuers::<T>::get(project_id).expect("The issuer exists, already tested.");
+		let project = Projects::<T>::get(project_id).expect("The project exists, already tested.");
+		let token_information = project.token_information;
+		let id: AssetIdOf<T> = project_id.into();
+
+		// TODO: Unused result
+		let _ = T::Assets::create(id, issuer.clone(), false, 1_u32.into());
+		// TODO: Unused result
+		let _ = T::Assets::set(
+			id,
+			&issuer,
+			token_information.name.into(),
+			token_information.symbol.into(),
+			token_information.decimals,
+		);
 	}
 
 	pub fn handle_fuding_end(project_id: &T::ProjectIdentifier, _now: T::BlockNumber) {
