@@ -180,7 +180,7 @@ pub mod pallet {
 		#[pallet::constant]
 		type ActiveProjectsLimit: Get<u32>;
 
-		/// The maximum number of bids per block
+		/// The maximum number of bids per project
 		#[pallet::constant]
 		type MaximumBidsPerProject: Get<u32>;
 
@@ -201,7 +201,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn nonce)]
 	/// A global counter used in the randomness generation
-	/// OnEmpty in this case is GetDefault, so 0.
+
 	// TODO: Remove it after using the Randomness from BABE's VRF
 	pub type Nonce<T: Config> = StorageValue<_, u32, ValueQuery>;
 
@@ -353,9 +353,6 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Validate a preimage on-chain and store the image.
-		///
-		/// If the preimage was previously requested, no fees or deposits are taken for providing
-		/// the preimage. Otherwise, a deposit is taken proportional to the size of the preimage.
 		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		pub fn note_image(origin: OriginFor<T>, bytes: Vec<u8>) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
@@ -400,7 +397,7 @@ pub mod pallet {
 		pub fn edit_metadata(
 			origin: OriginFor<T>,
 			project_metadata_hash: T::Hash,
-			project_id: T::ProjectIdentifier,
+			#[pallet::compact] project_id: T::ProjectIdentifier,
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 
@@ -422,7 +419,7 @@ pub mod pallet {
 		/// Start the "Evaluation Round" of a `project_id`
 		pub fn start_evaluation(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			#[pallet::compact] project_id: T::ProjectIdentifier,
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 
@@ -439,7 +436,7 @@ pub mod pallet {
 		/// Evaluators can bond `amount` PLMC to evaluate a `project_id` in the "Evaluation Round"
 		pub fn bond(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			#[pallet::compact] project_id: T::ProjectIdentifier,
 			#[pallet::compact] amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let from = ensure_signed(origin)?;
@@ -477,7 +474,7 @@ pub mod pallet {
 		/// Evaluators can bond more `amount` PLMC to evaluate a `project_id` in the "Evaluation Round"
 		pub fn rebond(
 			_origin: OriginFor<T>,
-			_project_id: T::ProjectIdentifier,
+			#[pallet::compact] _project_id: T::ProjectIdentifier,
 			#[pallet::compact] _amount: BalanceOf<T>,
 		) -> DispatchResult {
 			Ok(())
@@ -487,7 +484,7 @@ pub mod pallet {
 		/// Start the "Funding Round" of a `project_id`
 		pub fn start_auction(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			#[pallet::compact] project_id: T::ProjectIdentifier,
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 
@@ -509,7 +506,7 @@ pub mod pallet {
 		/// Place a bid in the "Auction Round"
 		pub fn bid(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			#[pallet::compact] project_id: T::ProjectIdentifier,
 			#[pallet::compact] price: BalanceOf<T>,
 			#[pallet::compact] market_cap: BalanceOf<T>,
 			multiplier: Option<u8>,
@@ -615,7 +612,7 @@ pub mod pallet {
 		/// Contribute to the "Community Round"
 		pub fn contribute(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			#[pallet::compact] project_id: T::ProjectIdentifier,
 			#[pallet::compact] amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let contributor = ensure_signed(origin)?;
@@ -669,7 +666,7 @@ pub mod pallet {
 		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		pub fn claim_contribution_tokens(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			#[pallet::compact] project_id: T::ProjectIdentifier,
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 
