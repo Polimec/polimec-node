@@ -686,6 +686,9 @@ pub mod pallet {
 				project_info.project_status == ProjectStatus::FundingEnded,
 				Error::<T>::EvaluationNotStarted
 			);
+
+			// TODO: Add logic to check if the `issuer` can actually claim the tokens
+
 			Self::do_claim_contribution_tokens(project_id, issuer)
 		}
 	}
@@ -1062,5 +1065,26 @@ impl<T: Config> Pallet<T> {
 		let nonce = Nonce::<T>::get();
 		Nonce::<T>::put(nonce.wrapping_add(1));
 		nonce.encode()
+	}
+
+	fn do_claim_contribution_tokens(
+		project_id: T::ProjectIdentifier,
+		claimer: T::AccountId,
+	) -> Result<(), DispatchError> {
+		let amount = Self::calculate_claimable_tokens(project_id, &claimer);
+		let id: AssetIdOf<T> = project_id.into();
+		T::Assets::mint_into(id, &claimer, amount)?;
+		Ok(())
+	}
+
+	fn calculate_claimable_tokens(
+		project_id: T::ProjectIdentifier,
+		_claimer: &T::AccountId,
+	) -> AssetBalanceOf<T> {
+		let _project = Projects::<T>::get(project_id).expect("The project exists, already tested.");
+		let _project_info = ProjectsInfo::<T>::get(project_id);
+
+		// TODO: Compute the right amount of tokens to claim
+		AssetBalanceOf::<T>::from(0_u32)
 	}
 }
