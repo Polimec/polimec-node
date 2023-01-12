@@ -674,20 +674,26 @@ pub mod pallet {
 					// Check if we need to start the Funding Round
 					// EvaluationEnded -> AuctionRound
 					ProjectStatus::EvaluationEnded => {
-						let evaluation_period_ends = project_info.evaluation_period_ends.unwrap();
+						let evaluation_period_ends = project_info
+							.evaluation_period_ends
+							.expect("In EvaluationEnded there always exist evaluation_period_ends");
 						Self::handle_auction_start(project_id, now, evaluation_period_ends);
 					},
 					// Check if we need to move to the Candle Phase of the Auction Round
 					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
 					ProjectStatus::AuctionRound(AuctionPhase::English) => {
-						let english_ending_block =
-							project_info.auction_metadata.unwrap().english_ending_block;
+						let english_ending_block = project_info
+							.auction_metadata
+							.expect("In AuctionRound there always exist auction_metadata")
+							.english_ending_block;
 						Self::handle_auction_candle(project_id, now, english_ending_block);
 					},
 					// Check if we need to move from the Auction Round of the Community Round
 					// AuctionRound(AuctionPhase::Candle) -> CommunityRound
 					ProjectStatus::AuctionRound(AuctionPhase::Candle) => {
-						let auction_metadata = project_info.auction_metadata.unwrap();
+						let auction_metadata = project_info
+							.auction_metadata
+							.expect("In AuctionRound there always exist auction_metadata");
 						let candle_ending_block = auction_metadata.candle_ending_block;
 						let english_ending_block = auction_metadata.english_ending_block;
 						Self::handle_community_start(
@@ -712,15 +718,19 @@ pub mod pallet {
 					// Check if Evaluation Round have to end, if true, end it
 					// EvaluationRound -> EvaluationEnded
 					ProjectStatus::EvaluationRound => {
-						let evaluation_period_ends = project_info.evaluation_period_ends.unwrap();
+						let evaluation_period_ends = project_info
+							.evaluation_period_ends
+							.expect("In EvaluationRound there always exist evaluation_period_ends");
 						Self::handle_evaluation_end(project_id, now, evaluation_period_ends);
 					},
 					// Check if we need to end the Fundind Round
 					// CommunityRound -> FundingEnded
 					ProjectStatus::CommunityRound => {
-						let community_ending_block =
-							project_info.auction_metadata.unwrap().community_ending_block;
-						Self::handle_community_end(project_id, now, community_ending_block);
+						let community_ending_block = project_info
+							.auction_metadata
+							.expect("In CommunityRound there always exist auction_metadata")
+							.community_ending_block;
+						Self::handle_community_end(*project_id, now, community_ending_block);
 					},
 					_ => (),
 				}
