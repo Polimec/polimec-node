@@ -63,8 +63,14 @@ use codec::HasCompact;
 use frame_support::{
 	pallet_prelude::ValueQuery,
 	traits::{
-		tokens::Balance, Currency, Get, LockIdentifier, LockableCurrency, Randomness,
-		ReservableCurrency, WithdrawReasons,
+		tokens::{
+			fungibles::{
+				metadata::Mutate as MetadataMutate, Create, Inspect, InspectMetadata, Mutate,
+			},
+			Balance,
+		},
+		Currency, Get, LockIdentifier, LockableCurrency, Randomness, ReservableCurrency,
+		WithdrawReasons,
 	},
 	PalletId,
 };
@@ -82,6 +88,12 @@ pub type ProjectOf<T> = Project<
 	BalanceOf<T>,
 	<T as frame_system::Config>::Hash,
 >;
+
+type AssetIdOf<T> =
+	<<T as Config>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
+
+type AssetBalanceOf<T> =
+	<<T as Config>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::Balance;
 
 // TODO: Add multiple locks
 const LOCKING_ID: LockIdentifier = *b"evaluate";
@@ -114,7 +126,7 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Identifier for the collection of item.
-		type ProjectIdentifier: Identifiable;
+		type ProjectIdentifier: Identifiable + From<AssetIdOf<Self>> + Into<AssetIdOf<Self>>;
 
 		/// Just the `Currency::Balance` type; we have this item to allow us to constrain it to
 		/// `From<u64>`.
@@ -135,6 +147,13 @@ pub mod pallet {
 
 		/// Something that provides the members of the Polimec
 		type HandleMembers: PolimecMembers<Self::AccountId>;
+
+		/// Something that provides the ability to create, mint and burn fungible assets.
+		type Assets: Create<Self::AccountId>
+			+ Inspect<Self::AccountId>
+			+ Mutate<Self::AccountId>
+			+ MetadataMutate<Self::AccountId>
+			+ InspectMetadata<Self::AccountId>;
 
 		/// The maximum length of data stored on-chain.
 		#[pallet::constant]
