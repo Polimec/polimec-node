@@ -106,8 +106,6 @@ pub trait Identifiable = Member
 	+ MaybeSerializeDeserialize
 	+ MaxEncodedLen
 	+ AddAssign
-	+ From<u8>
-	+ From<u16>
 	+ From<u32>
 	+ TypeInfo;
 
