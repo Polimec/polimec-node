@@ -830,7 +830,7 @@ impl<T: Config> Pallet<T> {
 		Projects::<T>::insert(project_id, project);
 		ProjectsInfo::<T>::insert(project_id, project_info);
 		ProjectsIssuers::<T>::insert(project_id, issuer);
-		ProjectId::<T>::mutate(|n| *n += 1_u8.into());
+		ProjectId::<T>::mutate(|n| *n += 1_u32.into());
 
 		Self::deposit_event(Event::<T>::Created { project_id });
 		Ok(())
