@@ -89,9 +89,11 @@ pub type ProjectOf<T> = Project<
 	<T as frame_system::Config>::Hash,
 >;
 
+/// Contribution Token identifier
 type AssetIdOf<T> =
 	<<T as Config>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
 
+/// Contribution Token balance
 type AssetBalanceOf<T> =
 	<<T as Config>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::Balance;
 
@@ -662,6 +664,29 @@ pub mod pallet {
 			Contributions::<T>::insert(project_id, contributor, amount);
 
 			Ok(())
+		}
+
+		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
+		pub fn claim_contribution_tokens(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+		) -> DispatchResult {
+			let issuer = ensure_signed(origin)?;
+
+			ensure!(ProjectsIssuers::<T>::contains_key(project_id), Error::<T>::ProjectNotExists);
+
+			// TODO: Check the right credential status
+			// ensure!(
+			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
+			// 	Error::<T>::NotAuthorized
+			// );
+
+			let project_info = ProjectsInfo::<T>::get(project_id);
+			ensure!(
+				project_info.project_status == ProjectStatus::FundingEnded,
+				Error::<T>::EvaluationNotStarted
+			);
+			Self::do_claim_contribution_tokens(project_id, issuer)
 		}
 	}
 
