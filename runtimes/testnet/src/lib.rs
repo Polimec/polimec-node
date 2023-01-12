@@ -820,6 +820,10 @@ pub const fn deposit(items: u32, bytes: u32) -> Balance {
 	items as Balance * 15 * MICRO_PLMC + (bytes as Balance) * 6 * MICRO_PLMC
 }
 
+pub const fn free_deposit() -> Balance {
+	0 * MICRO_PLMC
+}
+
 parameter_types! {
 	// One storage item; key size is 32; value is size 4+4+16+32 bytes = 56 bytes.
 	pub const DepositBase: Balance = deposit(1, 88);
@@ -854,8 +858,8 @@ parameter_types! {
 	pub const AssetsStringLimit: u32 = 50;
 	/// Key = 32 bytes, Value = 36 bytes (32+1+1+1+1)
 	// https://github.com/paritytech/substrate/blob/069917b/frame/assets/src/lib.rs#L257L271
-	pub const MetadataDepositBase: Balance = deposit(1, 68);
-	pub const MetadataDepositPerByte: Balance = deposit(0, 1);
+	pub const MetadataDepositBase: Balance = free_deposit();
+	pub const MetadataDepositPerByte: Balance = free_deposit();
 }
 
 impl pallet_assets::Config for Runtime {
