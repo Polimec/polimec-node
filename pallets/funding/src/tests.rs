@@ -553,3 +553,65 @@ mod flow {
 		})
 	}
 }
+
+mod unit_tests {
+	use super::*;
+
+	const PLMC_DECIMALS: u8 = 10;
+	const ASSET_DECIMALS: u8 = 12;
+
+	const fn unit(decimals: u32) -> BalanceOf<Test> {
+		10u128.pow(decimals)
+	}
+
+	#[test]
+	fn calculate_claimable_tokens_works() {
+		new_test_ext().execute_with(|| {
+			let contribution_amount: BalanceOf<Test> = 1000 * unit(PLMC_DECIMALS as u32);
+			let final_price: BalanceOf<Test> = 10 * unit(PLMC_DECIMALS as u32);
+			let expected_amount: AssetBalanceOf<Test> = 100 * unit(ASSET_DECIMALS as u32);
+
+			let amount = Pallet::<Test>::calculate_claimable_tokens(
+				contribution_amount,
+				final_price,
+				ASSET_DECIMALS,
+			);
+
+			assert_eq!(amount, expected_amount);
+		})
+	}
+
+	#[test]
+	fn calculate_claimable_tokens_works_with_float() {
+		new_test_ext().execute_with(|| {
+			let contribution_amount: BalanceOf<Test> = 11 * unit(PLMC_DECIMALS as u32);
+			let final_price: BalanceOf<Test> = 4 * unit(PLMC_DECIMALS as u32);
+			let expected_amount: AssetBalanceOf<Test> = 275 * unit((ASSET_DECIMALS - 2) as u32);
+
+			let amount = Pallet::<Test>::calculate_claimable_tokens(
+				contribution_amount,
+				final_price,
+				ASSET_DECIMALS,
+			);
+
+			assert_eq!(amount, expected_amount);
+		})
+	}
+
+	#[test]
+	fn calculate_claimable_tokens_works_with_small_amount() {
+		new_test_ext().execute_with(|| {
+			let contribution_amount: BalanceOf<Test> = 1 * unit(PLMC_DECIMALS as u32);
+			let final_price: BalanceOf<Test> = 2 * unit(PLMC_DECIMALS as u32);
+			let expected_amount: AssetBalanceOf<Test> = 5 * unit((ASSET_DECIMALS - 1) as u32);
+
+			let amount = Pallet::<Test>::calculate_claimable_tokens(
+				contribution_amount,
+				final_price,
+				ASSET_DECIMALS,
+			);
+
+			assert_eq!(amount, expected_amount);
+		})
+	}
+}

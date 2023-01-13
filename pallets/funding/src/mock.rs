@@ -102,7 +102,7 @@ impl pallet_credentials::Config for Test {
 
 impl pallet_assets::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type Balance = u64;
+	type Balance = Balance;
 	type AssetId = Identifier;
 	type Currency = Balances;
 	type ForceOrigin = frame_system::EnsureRoot<u64>;
@@ -133,7 +133,7 @@ impl pallet_funding::Config for Test {
 	type Currency = Balances;
 	type BiddingCurrency = Balances;
 	type Assets = Assets;
-	type CurrencyBalance = <Self as pallet_balances::Config>::Balance;
+	type CurrencyBalance = Balance;
 	type EvaluationDuration = EvaluationDuration;
 	type EnglishAuctionDuration = EnglishAuctionDuration;
 	type CandleAuctionDuration = CandleAuctionDuration;
