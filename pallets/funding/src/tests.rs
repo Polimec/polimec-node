@@ -376,6 +376,42 @@ mod community_round {
 		})
 	}
 }
+
+mod claim_contribution_tokens {
+	use super::*;
+
+	#[test]
+	fn it_works() {
+		new_test_ext().execute_with(|| {
+			create_on_chain_project();
+			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
+			run_to_block(System::block_number() + 29);
+			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
+			run_to_block(System::block_number() + 15);
+			assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 100));
+			run_to_block(System::block_number() + 11);
+			assert_ok!(FundingModule::claim_contribution_tokens(RuntimeOrigin::signed(BOB), 0));
+		})
+	}
+
+	#[test]
+	fn cannot_claim_multiple_times() {
+		new_test_ext().execute_with(|| {
+			create_on_chain_project();
+			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
+			run_to_block(System::block_number() + 29);
+			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
+			run_to_block(System::block_number() + 15);
+			assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 100));
+			run_to_block(System::block_number() + 11);
+			assert_ok!(FundingModule::claim_contribution_tokens(RuntimeOrigin::signed(BOB), 0));
+			run_to_block(System::block_number() + 1);
+			assert_noop!(
+				FundingModule::claim_contribution_tokens(RuntimeOrigin::signed(BOB), 0),
+				Error::<Test>::AlreadyClaimed
+			);
+		})
+	}
 }
 
 mod flow {
