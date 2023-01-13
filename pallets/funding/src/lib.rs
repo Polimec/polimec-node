@@ -75,7 +75,10 @@ use frame_support::{
 };
 use polimec_traits::{MemberRole, PolimecMembers};
 use sp_arithmetic::traits::{Saturating, Zero};
-use sp_runtime::traits::{AccountIdConversion, Hash};
+use sp_runtime::{
+	traits::{AccountIdConversion, Hash},
+	FixedPointNumber, FixedPointOperand, FixedU128, Perbill,
+};
 use sp_std::ops::AddAssign;
 
 /// The balance type of this pallet.
@@ -1048,7 +1051,7 @@ impl<T: Config> Pallet<T> {
 			fundraising_amount += bid.amount;
 			if fundraising_amount > total_allocation_size {
 				bid.amount = total_allocation_size.saturating_sub(old_amount);
-				bid.ratio = Perquintill::from_rational(bid.amount, total_allocation_size);
+				bid.ratio = Perbill::from_rational(bid.amount, total_allocation_size);
 				bids.truncate(idx + 1);
 				// TODO: refund the rest of the amount to the bidders
 				// TODO: Maybe in an on_idle hook ?

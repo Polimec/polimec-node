@@ -1,5 +1,5 @@
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
-use sp_arithmetic::Perquintill;
+use sp_arithmetic::Perbill;
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct Project<AccountId, BoundedString, Balance: BalanceT, Hash> {
@@ -153,7 +153,7 @@ pub struct BidInfo<Balance: BalanceT, AccountId> {
 	#[codec(compact)]
 	pub amount: Balance,
 	#[codec(compact)]
-	pub ratio: Perquintill,
+	pub ratio: Perbill,
 	pub bidder: AccountId,
 	pub funded: bool,
 	pub multiplier: u8,
@@ -167,7 +167,7 @@ impl<Balance: BalanceT + From<u64>, AccountId> BidInfo<Balance, AccountId> {
 		bidder: AccountId,
 		multiplier: u8,
 	) -> Self {
-		let ratio = Perquintill::from_rational(amount, auction_taget);
+		let ratio = Perbill::from_rational(amount, auction_taget);
 		Self { market_cap, amount, ratio, bidder, funded: false, multiplier }
 	}
 }
