@@ -81,23 +81,16 @@ use sp_runtime::{
 };
 use sp_std::ops::AddAssign;
 
-/// The balance type of this pallet.
-pub type BalanceOf<T> = <T as Config>::CurrencyBalance;
-
 pub type ProjectOf<T> = Project<
 	<T as frame_system::Config>::AccountId,
 	BoundedVec<u8, <T as Config>::StringLimit>,
 	BalanceOf<T>,
 	<T as frame_system::Config>::Hash,
 >;
-
-/// Contribution Token identifier
-type AssetIdOf<T> =
-	<<T as Config>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
-
-/// Contribution Token balance
-type AssetBalanceOf<T> =
-	<<T as Config>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::Balance;
+/// The balance type of this pallet.
+type BalanceOf<T> = <T as Config>::CurrencyBalance;
+type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
+type AssetBalanceOf<T> = <T as Config>::CurrencyBalance;
 
 // TODO: Add multiple locks
 const LOCKING_ID: LockIdentifier = *b"evaluate";
@@ -125,8 +118,8 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-		/// Global identifier for the projects.
-		type ProjectIdentifier: Identifiable + From<AssetIdOf<Self>> + Into<AssetIdOf<Self>>;
+		/// Identifier for the collection of item.
+		type ProjectIdentifier: Identifiable;
 
 		/// Wrapper around `Self::ProjectIdentifier` to use in dispatchable call signatures. Allows the use
 		/// of compact encoding in instances of the pallet, which will prevent breaking changes
@@ -144,7 +137,7 @@ pub mod pallet {
 
 		/// Just the `Currency::Balance` type; we have this item to allow us to constrain it to
 		/// `From<u64>`.
-		type CurrencyBalance: Balance + From<u64>;
+		type CurrencyBalance: Balance + From<u64> + Into<AssetBalanceOf<Self>> + FixedPointOperand;
 
 		/// The bonding balance.
 		type Currency: LockableCurrency<
@@ -163,8 +156,11 @@ pub mod pallet {
 		type HandleMembers: PolimecMembers<Self::AccountId>;
 
 		/// Something that provides the ability to create, mint and burn fungible assets.
-		type Assets: Create<Self::AccountId>
-			+ Inspect<Self::AccountId>
+		type Assets: Create<
+				Self::AccountId,
+				AssetId = Self::ProjectIdentifier,
+				Balance = Self::CurrencyBalance,
+			> + Inspect<Self::AccountId>
 			+ Mutate<Self::AccountId>
 			+ MetadataMutate<Self::AccountId>
 			+ InspectMetadata<Self::AccountId>;
@@ -999,13 +995,12 @@ impl<T: Config> Pallet<T> {
 			ProjectsIssuers::<T>::get(project_id).expect("The issuer exists, already tested.");
 		let project = Projects::<T>::get(project_id).expect("The project exists, already tested.");
 		let token_information = project.token_information;
-		let id: AssetIdOf<T> = project_id.into();
 
 		// TODO: Unused result
-		let _ = T::Assets::create(id, issuer.clone(), false, 1_u32.into());
+		let _ = T::Assets::create(project_id, issuer.clone(), false, 1_u32.into());
 		// TODO: Unused result
 		let _ = T::Assets::set(
-			id,
+			project_id,
 			&issuer,
 			token_information.name.into(),
 			token_information.symbol.into(),
