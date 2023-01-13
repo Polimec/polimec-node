@@ -664,7 +664,7 @@ pub mod pallet {
 			// Make sure the bid amount is greater than the minimum_price specified by the issuer
 			ensure!(free_balance_of > project.minimum_price, Error::<T>::BondTooLow);
 
-			let fund_account = Self::fund_account_id(project_id);
+			let fund_account = T::fund_account_id(project_id);
 			// TODO: Use USDT on Statemine (via XCM) instead of PLMC
 			// TODO: Check the logic
 			T::Currency::transfer(
@@ -686,7 +686,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdParameter,
 		) -> DispatchResult {
-			let issuer = ensure_signed(origin)?;
+			let claimer = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
 			ensure!(ProjectsIssuers::<T>::contains_key(project_id), Error::<T>::ProjectNotExists);
@@ -697,15 +697,37 @@ pub mod pallet {
 			// 	Error::<T>::NotAuthorized
 			// );
 
+			let project = Projects::<T>::get(project_id).ok_or(Error::<T>::ProjectNotExists)?;
 			let project_info = ProjectsInfo::<T>::get(project_id);
 			ensure!(
-				project_info.project_status == ProjectStatus::FundingEnded,
+				project_info.project_status == ProjectStatus::ReadyToLaunch,
 				Error::<T>::EvaluationNotStarted
 			);
+			let final_price = project_info
+				.final_price
+				.expect("The final price is set, already checked in previous ensure");
 
-			// TODO: Add logic to check if the `issuer` can actually claim the tokens
+			Contributions::<T>::try_mutate(
+				project_id,
+				claimer.clone(),
+				|maybe_contribution| -> DispatchResult {
+					let mut contribution =
+						maybe_contribution.as_mut().ok_or(Error::<T>::ProjectNotExists)?;
+					ensure!(contribution.can_claim, Error::<T>::AlreadyClaimed);
+					let token_decimals = project.token_information.decimals;
+					Self::do_claim_contribution_tokens(
+						project_id,
+						claimer,
+						contribution.amount,
+						final_price,
+						token_decimals,
+					)?;
+					contribution.can_claim = false;
+					Ok(())
+				},
+			)?;
 
-			Self::do_claim_contribution_tokens(project_id, issuer)
+			Ok(())
 		}
 	}
 
@@ -833,15 +855,22 @@ pub mod pallet {
 	}
 }
 
+pub trait ConfigHelper: Config {
+	fn fund_account_id(index: Self::ProjectIdentifier) -> AccountIdOf<Self>;
+	// fn net_amount_numerator() -> BalanceOf<Self>;
+}
+
+impl<T: Config> ConfigHelper for T {
+	#[inline(always)]
+	fn fund_account_id(index: T::ProjectIdentifier) -> AccountIdOf<Self> {
+		Self::PalletId::get().into_sub_account_truncating(index)
+	}
+}
+
 use frame_support::{pallet_prelude::*, BoundedVec};
-use sp_arithmetic::Perquintill;
 use sp_std::{borrow::Cow, cmp::Reverse, vec::Vec};
 
 impl<T: Config> Pallet<T> {
-	pub fn fund_account_id(index: T::ProjectIdentifier) -> T::AccountId {
-		T::PalletId::get().into_sub_account_truncating(index)
-	}
-
 	/// Store an image on chain.
 	///
 	/// TODO: We verify that the preimage is within the bounds of what the pallet supports.
@@ -1085,21 +1114,25 @@ impl<T: Config> Pallet<T> {
 	fn do_claim_contribution_tokens(
 		project_id: T::ProjectIdentifier,
 		claimer: T::AccountId,
+		final_price: BalanceOf<T>,
+		contribution_amount: BalanceOf<T>,
+		token_decimals: u8,
 	) -> Result<(), DispatchError> {
-		let amount = Self::calculate_claimable_tokens(project_id, &claimer);
-		let id: AssetIdOf<T> = project_id.into();
-		T::Assets::mint_into(id, &claimer, amount)?;
+		let amount =
+			Self::calculate_claimable_tokens(contribution_amount, final_price, token_decimals);
+		T::Assets::mint_into(project_id, &claimer, amount)?;
 		Ok(())
 	}
 
+	// This functiion is kept separate from the `do_claim_contribution_tokens` for easier testing
 	fn calculate_claimable_tokens(
-		project_id: T::ProjectIdentifier,
-		_claimer: &T::AccountId,
-	) -> AssetBalanceOf<T> {
-		let _project = Projects::<T>::get(project_id).expect("The project exists, already tested.");
-		let _project_info = ProjectsInfo::<T>::get(project_id);
-
-		// TODO: Compute the right amount of tokens to claim
-		AssetBalanceOf::<T>::from(0_u32)
+		contribution_amount: BalanceOf<T>,
+		final_price: BalanceOf<T>,
+		token_decimals: u8,
+	) -> BalanceOf<T> {
+		let decimals = 10_u64.saturating_pow(token_decimals.into());
+		let unit: BalanceOf<T> = BalanceOf::<T>::from(decimals);
+		FixedU128::saturating_from_rational(contribution_amount, final_price)
+			.saturating_mul_int(unit)
 	}
 }
