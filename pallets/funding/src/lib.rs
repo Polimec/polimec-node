@@ -284,7 +284,7 @@ pub mod pallet {
 		T::ProjectIdentifier,
 		Blake2_128Concat,
 		T::AccountId,
-		BalanceOf<T>,
+		ContributionInfo<BalanceOf<T>>,
 	>;
 
 	#[pallet::event]
@@ -358,6 +358,7 @@ pub mod pallet {
 		InsufficientBalance,
 		TooManyActiveProjects,
 		NotAuthorized,
+		AlreadyClaimed,
 	}
 
 	#[pallet::call]
@@ -674,7 +675,8 @@ pub mod pallet {
 				frame_support::traits::ExistenceRequirement::KeepAlive,
 			)?;
 
-			Contributions::<T>::insert(project_id, contributor, amount);
+			let contribution = ContributionInfo { amount, can_claim: true };
+			Contributions::<T>::insert(project_id, contributor, contribution);
 
 			Ok(())
 		}

@@ -192,6 +192,13 @@ impl<Balance: BalanceT + From<u64>, AccountId: sp_std::cmp::Eq> sp_std::cmp::Par
 	}
 }
 
+#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct ContributionInfo<Balance: BalanceT> {
+	#[codec(compact)]
+	pub amount: Balance,
+	pub can_claim: bool,
+}
+
 // TODO: Use SCALE fixed indexes
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub enum Currencies {
