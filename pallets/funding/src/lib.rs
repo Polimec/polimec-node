@@ -675,6 +675,7 @@ pub mod pallet {
 				frame_support::traits::ExistenceRequirement::KeepAlive,
 			)?;
 
+			// TODO: Handle the case where the contributor already contributed
 			let contribution = ContributionInfo { amount, can_claim: true };
 			Contributions::<T>::insert(project_id, contributor, contribution);
 

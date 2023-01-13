@@ -362,8 +362,20 @@ mod auction_round {
 }
 
 mod community_round {
+	use super::*;
+
 	#[test]
-	fn contribute_works() {}
+	fn contribute_works() {
+		new_test_ext().execute_with(|| {
+			create_on_chain_project();
+			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
+			run_to_block(System::block_number() + 29);
+			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
+			run_to_block(System::block_number() + 15);
+			assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 100));
+		})
+	}
+}
 }
 
 mod flow {
