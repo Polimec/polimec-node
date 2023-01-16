@@ -180,5 +180,6 @@ fn testnet_genesis(
 				})
 				.collect::<Vec<_>>(),
 		},
+		..Default::default()
 	}
 }

@@ -630,7 +630,9 @@ impl pallet_funding::Config for Runtime {
 	type StringLimit = ConstU32<64>;
 	type Currency = Balances;
 	type ProjectIdentifier = u32;
+	type ProjectIdParameter = codec::Compact<u32>;
 	type BiddingCurrency = Balances;
+	type Assets = Assets;
 	type CurrencyBalance = <Self as pallet_balances::Config>::Balance;
 	type EvaluationDuration = EvaluationDuration;
 	type PalletId = FundingPalletId;
