@@ -129,6 +129,7 @@ impl pallet_funding::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type StringLimit = ConstU32<64>;
 	type ProjectIdentifier = Identifier;
+	type ProjectIdParameter = Identifier;
 	type Currency = Balances;
 	type BiddingCurrency = Balances;
 	type Assets = Assets;
