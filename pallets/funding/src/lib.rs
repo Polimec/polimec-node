@@ -59,12 +59,17 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-use codec::HasCompact;
 use frame_support::{
 	pallet_prelude::ValueQuery,
 	traits::{
-		tokens::Balance, Currency, Get, LockIdentifier, LockableCurrency, Randomness,
-		ReservableCurrency, WithdrawReasons,
+		tokens::{
+			fungibles::{
+				metadata::Mutate as MetadataMutate, Create, Inspect, InspectMetadata, Mutate,
+			},
+			Balance,
+		},
+		Currency, Get, LockIdentifier, LockableCurrency, Randomness, ReservableCurrency,
+		WithdrawReasons,
 	},
 	PalletId,
 };
@@ -83,21 +88,25 @@ pub type ProjectOf<T> = Project<
 	<T as frame_system::Config>::Hash,
 >;
 
+/// Contribution Token identifier
+type AssetIdOf<T> =
+	<<T as Config>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
+
+/// Contribution Token balance
+type AssetBalanceOf<T> =
+	<<T as Config>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::Balance;
+
 // TODO: Add multiple locks
 const LOCKING_ID: LockIdentifier = *b"evaluate";
 
 pub trait Identifiable = Member
 	+ Parameter
-	+ Default
 	+ Copy
-	+ HasCompact
-	+ MaybeSerializeDeserialize
 	+ MaxEncodedLen
+	+ Default
 	+ AddAssign
-	+ From<u8>
-	+ From<u16>
-	+ From<u32>
-	+ TypeInfo;
+	+ From<u32>;
+	// TODO: + MaybeSerializeDeserialize: Maybe needed for JSON serialization @ Genesis: https://github.com/paritytech/substrate/issues/12738#issuecomment-1320921201 
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -113,8 +122,22 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-		/// Identifier for the collection of item.
-		type ProjectIdentifier: Identifiable;
+		/// Global identifier for the projects.
+		type ProjectIdentifier: Identifiable + From<AssetIdOf<Self>> + Into<AssetIdOf<Self>>;
+
+		/// Wrapper around `Self::ProjectIdentifier` to use in dispatchable call signatures. Allows the use
+		/// of compact encoding in instances of the pallet, which will prevent breaking changes
+		/// resulting from the removal of `HasCompact` from `Self::ProjectIdentifier`.
+		///
+		/// This type includes the `From<Self::ProjectIdentifier>` bound, since tightly coupled pallets may
+		/// want to convert an `ProjectIdentifier` into a parameter for calling dispatchable functions
+		/// directly.
+		type ProjectIdParameter: Parameter
+			+ Copy
+			+ From<Self::ProjectIdentifier>
+			+ Into<Self::ProjectIdentifier>
+			+ From<u32>
+			+ MaxEncodedLen;
 
 		/// Just the `Currency::Balance` type; we have this item to allow us to constrain it to
 		/// `From<u64>`.
@@ -135,6 +158,13 @@ pub mod pallet {
 
 		/// Something that provides the members of the Polimec
 		type HandleMembers: PolimecMembers<Self::AccountId>;
+
+		/// Something that provides the ability to create, mint and burn fungible assets.
+		type Assets: Create<Self::AccountId>
+			+ Inspect<Self::AccountId>
+			+ Mutate<Self::AccountId>
+			+ MetadataMutate<Self::AccountId>
+			+ InspectMetadata<Self::AccountId>;
 
 		/// The maximum length of data stored on-chain.
 		#[pallet::constant]
@@ -161,7 +191,7 @@ pub mod pallet {
 		#[pallet::constant]
 		type ActiveProjectsLimit: Get<u32>;
 
-		/// The maximum number of bids per block
+		/// The maximum number of bids per project
 		#[pallet::constant]
 		type MaximumBidsPerProject: Get<u32>;
 
@@ -182,7 +212,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn nonce)]
 	/// A global counter used in the randomness generation
-	/// OnEmpty in this case is GetDefault, so 0.
+
 	// TODO: Remove it after using the Randomness from BABE's VRF
 	pub type Nonce<T: Config> = StorageValue<_, u32, ValueQuery>;
 
@@ -334,9 +364,6 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Validate a preimage on-chain and store the image.
-		///
-		/// If the preimage was previously requested, no fees or deposits are taken for providing
-		/// the preimage. Otherwise, a deposit is taken proportional to the size of the preimage.
 		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		pub fn note_image(origin: OriginFor<T>, bytes: Vec<u8>) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
@@ -381,9 +408,10 @@ pub mod pallet {
 		pub fn edit_metadata(
 			origin: OriginFor<T>,
 			project_metadata_hash: T::Hash,
-			project_id: T::ProjectIdentifier,
+			project_id: T::ProjectIdParameter,
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
+			let project_id = project_id.into();
 
 			ensure!(ProjectsIssuers::<T>::contains_key(project_id), Error::<T>::ProjectNotExists);
 			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
@@ -403,9 +431,10 @@ pub mod pallet {
 		/// Start the "Evaluation Round" of a `project_id`
 		pub fn start_evaluation(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			project_id: T::ProjectIdParameter,
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
+			let project_id = project_id.into();
 
 			ensure!(ProjectsIssuers::<T>::contains_key(project_id), Error::<T>::ProjectNotExists);
 			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
@@ -420,10 +449,11 @@ pub mod pallet {
 		/// Evaluators can bond `amount` PLMC to evaluate a `project_id` in the "Evaluation Round"
 		pub fn bond(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			project_id: T::ProjectIdParameter,
 			#[pallet::compact] amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let from = ensure_signed(origin)?;
+			let project_id = project_id.into();
 
 			let project_issuer =
 				ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectNotExists)?;
@@ -468,9 +498,10 @@ pub mod pallet {
 		/// Start the "Funding Round" of a `project_id`
 		pub fn start_auction(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			project_id: T::ProjectIdParameter,
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
+			let project_id = project_id.into();
 
 			ensure!(ProjectsIssuers::<T>::contains_key(project_id), Error::<T>::ProjectNotExists);
 			ensure!(
@@ -490,7 +521,7 @@ pub mod pallet {
 		/// Place a bid in the "Auction Round"
 		pub fn bid(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			project_id: T::ProjectIdParameter,
 			#[pallet::compact] price: BalanceOf<T>,
 			#[pallet::compact] market_cap: BalanceOf<T>,
 			multiplier: Option<u8>,
@@ -498,6 +529,7 @@ pub mod pallet {
 			// specified in `participation_currencies`
 		) -> DispatchResult {
 			let bidder = ensure_signed(origin)?;
+			let project_id = project_id.into();
 
 			ensure!(
 				T::HandleMembers::is_in(&MemberRole::Professional, &bidder) ||
@@ -596,10 +628,11 @@ pub mod pallet {
 		/// Contribute to the "Community Round"
 		pub fn contribute(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			project_id: T::ProjectIdParameter,
 			#[pallet::compact] amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let contributor = ensure_signed(origin)?;
+			let project_id = project_id.into();
 
 			// TODO: Add the "Retail before, Institutional and Professionals after, if there are still tokens" logic
 			ensure!(
@@ -646,6 +679,33 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
+		pub fn claim_contribution_tokens(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdParameter,
+		) -> DispatchResult {
+			let issuer = ensure_signed(origin)?;
+			let project_id = project_id.into();
+
+			ensure!(ProjectsIssuers::<T>::contains_key(project_id), Error::<T>::ProjectNotExists);
+
+			// TODO: Check the right credential status
+			// ensure!(
+			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
+			// 	Error::<T>::NotAuthorized
+			// );
+
+			let project_info = ProjectsInfo::<T>::get(project_id);
+			ensure!(
+				project_info.project_status == ProjectStatus::FundingEnded,
+				Error::<T>::EvaluationNotStarted
+			);
+
+			// TODO: Add logic to check if the `issuer` can actually claim the tokens
+
+			Self::do_claim_contribution_tokens(project_id, issuer)
+		}
 	}
 
 	#[pallet::hooks]
@@ -657,20 +717,26 @@ pub mod pallet {
 					// Check if we need to start the Funding Round
 					// EvaluationEnded -> AuctionRound
 					ProjectStatus::EvaluationEnded => {
-						let evaluation_period_ends = project_info.evaluation_period_ends.unwrap();
+						let evaluation_period_ends = project_info
+							.evaluation_period_ends
+							.expect("In EvaluationEnded there always exist evaluation_period_ends");
 						Self::handle_auction_start(project_id, now, evaluation_period_ends);
 					},
 					// Check if we need to move to the Candle Phase of the Auction Round
 					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
 					ProjectStatus::AuctionRound(AuctionPhase::English) => {
-						let english_ending_block =
-							project_info.auction_metadata.unwrap().english_ending_block;
+						let english_ending_block = project_info
+							.auction_metadata
+							.expect("In AuctionRound there always exist auction_metadata")
+							.english_ending_block;
 						Self::handle_auction_candle(project_id, now, english_ending_block);
 					},
 					// Check if we need to move from the Auction Round of the Community Round
 					// AuctionRound(AuctionPhase::Candle) -> CommunityRound
 					ProjectStatus::AuctionRound(AuctionPhase::Candle) => {
-						let auction_metadata = project_info.auction_metadata.unwrap();
+						let auction_metadata = project_info
+							.auction_metadata
+							.expect("In AuctionRound there always exist auction_metadata");
 						let candle_ending_block = auction_metadata.candle_ending_block;
 						let english_ending_block = auction_metadata.english_ending_block;
 						Self::handle_community_start(
@@ -695,15 +761,19 @@ pub mod pallet {
 					// Check if Evaluation Round have to end, if true, end it
 					// EvaluationRound -> EvaluationEnded
 					ProjectStatus::EvaluationRound => {
-						let evaluation_period_ends = project_info.evaluation_period_ends.unwrap();
+						let evaluation_period_ends = project_info
+							.evaluation_period_ends
+							.expect("In EvaluationRound there always exist evaluation_period_ends");
 						Self::handle_evaluation_end(project_id, now, evaluation_period_ends);
 					},
 					// Check if we need to end the Fundind Round
 					// CommunityRound -> FundingEnded
 					ProjectStatus::CommunityRound => {
-						let community_ending_block =
-							project_info.auction_metadata.unwrap().community_ending_block;
-						Self::handle_community_end(project_id, now, community_ending_block);
+						let community_ending_block = project_info
+							.auction_metadata
+							.expect("In CommunityRound there always exist auction_metadata")
+							.community_ending_block;
+						Self::handle_community_end(*project_id, now, community_ending_block);
 					},
 					_ => (),
 				}
@@ -725,7 +795,7 @@ pub mod pallet {
 
 	#[cfg(feature = "runtime-benchmarks")]
 	pub trait BenchmarkHelper<T: Config> {
-		fn create_project_id_parameter(id: u32) -> T::ProjectIdentifier;
+		fn create_project_id_parameter(id: u32) -> T::ProjectIdParameter;
 		fn create_dummy_project(
 			destinations_account: T::AccountId,
 			metadata_hash: T::Hash,
@@ -734,7 +804,7 @@ pub mod pallet {
 
 	#[cfg(feature = "runtime-benchmarks")]
 	impl<T: Config> BenchmarkHelper<T> for () {
-		fn create_project_id_parameter(id: u32) -> T::ProjectIdentifier {
+		fn create_project_id_parameter(id: u32) -> T::ProjectIdParameter {
 			id.into()
 		}
 		fn create_dummy_project(
@@ -803,7 +873,7 @@ impl<T: Config> Pallet<T> {
 		Projects::<T>::insert(project_id, project);
 		ProjectsInfo::<T>::insert(project_id, project_info);
 		ProjectsIssuers::<T>::insert(project_id, issuer);
-		ProjectId::<T>::mutate(|n| *n += 1_u8.into());
+		ProjectId::<T>::mutate(|n| *n += 1_u32.into());
 
 		Self::deposit_event(Event::<T>::Created { project_id });
 		Ok(())
@@ -912,7 +982,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn handle_community_end(
-		project_id: &T::ProjectIdentifier,
+		project_id: T::ProjectIdentifier,
 		now: T::BlockNumber,
 		community_ending_block: T::BlockNumber,
 	) {
@@ -920,10 +990,24 @@ impl<T: Config> Pallet<T> {
 			ProjectsInfo::<T>::mutate(project_id, |project_info| {
 				project_info.project_status = ProjectStatus::FundingEnded;
 			});
+		};
 
-			// TODO: Mint the "Contribution Tokens"
-			// TODO: Assign the CTs to the participants of the Funding Round
-		}
+		let issuer =
+			ProjectsIssuers::<T>::get(project_id).expect("The issuer exists, already tested.");
+		let project = Projects::<T>::get(project_id).expect("The project exists, already tested.");
+		let token_information = project.token_information;
+		let id: AssetIdOf<T> = project_id.into();
+
+		// TODO: Unused result
+		let _ = T::Assets::create(id, issuer.clone(), false, 1_u32.into());
+		// TODO: Unused result
+		let _ = T::Assets::set(
+			id,
+			&issuer,
+			token_information.name.into(),
+			token_information.symbol.into(),
+			token_information.decimals,
+		);
 	}
 
 	pub fn handle_fuding_end(project_id: &T::ProjectIdentifier, _now: T::BlockNumber) {
@@ -996,5 +1080,26 @@ impl<T: Config> Pallet<T> {
 		let nonce = Nonce::<T>::get();
 		Nonce::<T>::put(nonce.wrapping_add(1));
 		nonce.encode()
+	}
+
+	fn do_claim_contribution_tokens(
+		project_id: T::ProjectIdentifier,
+		claimer: T::AccountId,
+	) -> Result<(), DispatchError> {
+		let amount = Self::calculate_claimable_tokens(project_id, &claimer);
+		let id: AssetIdOf<T> = project_id.into();
+		T::Assets::mint_into(id, &claimer, amount)?;
+		Ok(())
+	}
+
+	fn calculate_claimable_tokens(
+		project_id: T::ProjectIdentifier,
+		_claimer: &T::AccountId,
+	) -> AssetBalanceOf<T> {
+		let _project = Projects::<T>::get(project_id).expect("The project exists, already tested.");
+		let _project_info = ProjectsInfo::<T>::get(project_id);
+
+		// TODO: Compute the right amount of tokens to claim
+		AssetBalanceOf::<T>::from(0_u32)
 	}
 }

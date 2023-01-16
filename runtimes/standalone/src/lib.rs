@@ -295,6 +295,42 @@ impl pallet_sudo::Config for Runtime {
 	type RuntimeCall = RuntimeCall;
 }
 
+pub const fn deposit(items: u32, bytes: u32) -> Balance {
+	items as Balance * 15 * MICRO_PLMC + (bytes as Balance) * 6 * MICRO_PLMC
+}
+
+pub const fn free_deposit() -> Balance {
+	0 * MICRO_PLMC
+}
+
+parameter_types! {
+	pub const AssetDeposit: Balance = PLMC; // 1 UNIT deposit to create asset
+	pub const ApprovalDeposit: Balance = EXISTENTIAL_DEPOSIT;
+	pub const AssetAccountDeposit: Balance = deposit(1, 16);
+	pub const AssetsStringLimit: u32 = 50;
+	/// Key = 32 bytes, Value = 36 bytes (32+1+1+1+1)
+	// https://github.com/paritytech/substrate/blob/069917b/frame/assets/src/lib.rs#L257L271
+	pub const MetadataDepositBase: Balance = free_deposit();
+	pub const MetadataDepositPerByte: Balance = free_deposit();
+}
+
+impl pallet_assets::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type AssetId = u32;
+	type Currency = Balances;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type AssetDeposit = AssetDeposit;
+	type MetadataDepositBase = MetadataDepositBase;
+	type MetadataDepositPerByte = MetadataDepositPerByte;
+	type ApprovalDeposit = ApprovalDeposit;
+	type StringLimit = AssetsStringLimit;
+	type Freezer = ();
+	type Extra = ();
+	type WeightInfo = ();
+	type AssetAccountDeposit = AssetAccountDeposit;
+}
+
 parameter_types! {
 	pub const EvaluationDuration: BlockNumber = 28;
 	pub const EnglishAuctionDuration: BlockNumber = 5;
@@ -307,9 +343,11 @@ impl pallet_funding::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type StringLimit = ConstU32<64>;
 	type Currency = Balances;
-	type BiddingCurrency = Balances;
-	type CurrencyBalance = <Self as pallet_balances::Config>::Balance;
 	type ProjectIdentifier = u32;
+	type ProjectIdParameter = codec::Compact<u32>;
+	type BiddingCurrency = Balances;
+	type Assets = Assets;
+	type CurrencyBalance = <Self as pallet_balances::Config>::Balance;
 	type EvaluationDuration = EvaluationDuration;
 	type PalletId = FundingPalletId;
 	type ActiveProjectsLimit = ConstU32<100>;
@@ -318,7 +356,7 @@ impl pallet_funding::Config for Runtime {
 	type CommunityRoundDuration = CommunityRoundDuration;
 	type Randomness = Random;
 	type HandleMembers = Credentials;
-	type MaximumBidsPerProject = ConstU32<128>;
+	type MaximumBidsPerProject = ConstU32<256>;
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
@@ -476,10 +514,6 @@ impl pallet_authorship::Config for Runtime {
 	type EventHandler = ();
 }
 
-pub const fn deposit(items: u32, bytes: u32) -> Balance {
-	items as Balance * 15 * MICRO_PLMC + (bytes as Balance) * 6 * MICRO_PLMC
-}
-
 parameter_types! {
 	// One storage item; key size is 32; value is size 4+4+16+32 bytes = 56 bytes.
 	pub const DepositBase: Balance = deposit(1, 88);
@@ -521,6 +555,7 @@ construct_runtime!(
 		Sudo: pallet_sudo,
 		Utility: pallet_utility,
 		Multisig: pallet_multisig,
+		Assets: pallet_assets,
 
 		Aura: pallet_aura,
 		Grandpa: pallet_grandpa,

@@ -1,7 +1,11 @@
 use super::*;
 
 use crate as pallet_funding;
-use frame_support::{pallet_prelude::ConstU32, parameter_types, traits::ConstU16, PalletId};
+use frame_support::{
+	parameter_types,
+	traits::{ConstU128, ConstU16, ConstU32},
+	PalletId,
+};
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
@@ -17,6 +21,7 @@ type Block = frame_system::mocking::MockBlock<Test>;
 pub type AccountId = u64;
 pub type Balance = u128;
 pub type BlockNumber = u64;
+pub type Identifier = u32;
 pub const PLMC: u128 = 10_000_000_000_u128;
 
 // Configure a mock runtime to test the pallet.
@@ -28,6 +33,7 @@ frame_support::construct_runtime!(
 	{
 		System: frame_system,
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip,
+		Assets: pallet_assets,
 		Balances: pallet_balances,
 		FundingModule: pallet_funding,
 		Credentials: pallet_credentials
@@ -94,6 +100,23 @@ impl pallet_credentials::Config for Test {
 	type MembershipChanged = ();
 }
 
+impl pallet_assets::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = u64;
+	type AssetId = Identifier;
+	type Currency = Balances;
+	type ForceOrigin = frame_system::EnsureRoot<u64>;
+	type AssetDeposit = ConstU128<1>;
+	type AssetAccountDeposit = ConstU128<10>;
+	type MetadataDepositBase = ConstU128<1>;
+	type MetadataDepositPerByte = ConstU128<1>;
+	type ApprovalDeposit = ConstU128<1>;
+	type StringLimit = ConstU32<50>;
+	type Freezer = ();
+	type WeightInfo = ();
+	type Extra = ();
+}
+
 parameter_types! {
 	pub const EvaluationDuration: BlockNumber = 28;
 	pub const EnglishAuctionDuration: BlockNumber = 10;
@@ -105,9 +128,11 @@ parameter_types! {
 impl pallet_funding::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type StringLimit = ConstU32<64>;
-	type ProjectIdentifier = u32;
+	type ProjectIdentifier = Identifier;
+	type ProjectIdParameter = Identifier;
 	type Currency = Balances;
 	type BiddingCurrency = Balances;
+	type Assets = Assets;
 	type CurrencyBalance = <Self as pallet_balances::Config>::Balance;
 	type EvaluationDuration = EvaluationDuration;
 	type EnglishAuctionDuration = EnglishAuctionDuration;

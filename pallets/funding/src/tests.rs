@@ -1,5 +1,5 @@
 use super::*;
-use crate::{mock::*, Error, ParticipantsSize, Project, TicketSize, Weight};
+use crate::{mock::*, CurrencyMetadata, Error, ParticipantsSize, Project, TicketSize, Weight};
 use frame_support::{assert_noop, assert_ok};
 
 pub fn last_event() -> RuntimeEvent {
@@ -52,12 +52,19 @@ fn create_project() -> Project<u64, BoundedVec<u8, ConstU32<64>>, u128, sp_core:
 
 fn create_on_chain_project() {
 	let metadata_hash = store_and_return_metadata_hash();
+	let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
+	let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
 	let _ = FundingModule::create(
 		RuntimeOrigin::signed(ALICE),
 		Project {
 			minimum_price: 1_u128,
 			ticket_size: TicketSize { minimum: Some(1), maximum: None },
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+			token_information: CurrencyMetadata {
+				name: bounded_name,
+				symbol: bounded_symbol,
+				decimals: 10,
+			},
 			metadata: metadata_hash,
 			..Default::default()
 		},
@@ -222,8 +229,7 @@ mod evaluation_round {
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 			let ed = FundingModule::project_info(0);
 			assert!(ed.project_status == ProjectStatus::EvaluationRound);
-			let block_number = System::block_number();
-			run_to_block(block_number + 29);
+			run_to_block(System::block_number() + 29);
 			let ed = FundingModule::project_info(0);
 			assert!(ed.project_status == ProjectStatus::EvaluationEnded);
 		})
@@ -285,8 +291,7 @@ mod auction_round {
 			create_on_chain_project();
 
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
-			let block_number = System::block_number();
-			run_to_block(block_number + 29);
+			run_to_block(System::block_number() + 29);
 			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
 		})
 	}
@@ -307,8 +312,7 @@ mod auction_round {
 		new_test_ext().execute_with(|| {
 			create_on_chain_project();
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
-			let block_number = System::block_number();
-			run_to_block(block_number + 29);
+			run_to_block(System::block_number() + 29);
 			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
 
 			let free_balance = Balances::free_balance(&CHARLIE);
@@ -317,7 +321,7 @@ mod auction_round {
 			let bids = FundingModule::auctions_info(0);
 			assert!(bids
 				.iter()
-				.any(|(when, bid)| *when == block_number + 29 &&
+				.any(|(when, bid)| *when == System::block_number() &&
 					bid.amount == 100 && bid.market_cap == 1));
 			let free_balance_after_bid = Balances::free_balance(&CHARLIE);
 
@@ -347,8 +351,7 @@ mod auction_round {
 		new_test_ext().execute_with(|| {
 			create_on_chain_project();
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
-			let block_number = System::block_number();
-			run_to_block(block_number + 29);
+			run_to_block(System::block_number() + 29);
 			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
 			assert_noop!(
 				FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 100),
@@ -384,8 +387,7 @@ mod flow {
 			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128));
 
 			// Evaluation Round ends automatically
-			let block_number = System::block_number();
-			run_to_block(block_number + 29);
+			run_to_block(System::block_number() + 29);
 			let project_info = FundingModule::project_info(0);
 			assert!(project_info.project_status == ProjectStatus::EvaluationEnded);
 
@@ -398,8 +400,7 @@ mod flow {
 			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(CHARLIE), 0, 1, 100, None));
 
 			// Second phase of Funding Round: 2) Candle Auction Round
-			let block_number = System::block_number();
-			run_to_block(block_number + 10);
+			run_to_block(System::block_number() + 10);
 			let project_info = FundingModule::project_info(0);
 			assert!(
 				project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::Candle)
@@ -407,20 +408,34 @@ mod flow {
 			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(DAVE), 0, 2, 200, None));
 
 			// Third phase of Funding Round: 3) Community Round
-			let block_number = System::block_number();
-			run_to_block(block_number + 5);
+			run_to_block(System::block_number() + 5);
 			let project_info = FundingModule::project_info(0);
 			assert!(project_info.project_status == ProjectStatus::CommunityRound);
 			assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 100));
 
 			// Funding Round ends
-			let block_number = System::block_number();
-			run_to_block(block_number + 11);
+			run_to_block(System::block_number() + 11);
 			let project_info = FundingModule::project_info(0);
 			assert!(project_info.project_status == ProjectStatus::ReadyToLaunch);
 			// Project is no longer "active"
 			let active_projects = FundingModule::projects_active();
 			assert!(active_projects.len() == 0);
+
+			// TODO: There exists certanly a better/easier way to test the pallet_asset functionalties
+
+			// Naive way to check if the Contribution Token is actually created
+			// TODO: Replace with `asset_exists` given by the `Inspect` trait when the codebase is updated to >= v0.9.35
+			assert!(Assets::force_create(RuntimeOrigin::root(), 0, 1, true, 1).is_err());
+			// Check if the the metadata are set correctly
+			let metadata_name =
+				<pallet_assets::Pallet<mock::Test> as InspectMetadata<AccountId>>::name(&0);
+			assert_eq!(metadata_name, b"Contribution Token TEST".to_vec());
+			let metadata_symbol =
+				<pallet_assets::Pallet<mock::Test> as InspectMetadata<AccountId>>::symbol(&0);
+			assert_eq!(metadata_symbol, b"CTEST".to_vec());
+			let metadata_decimals =
+				<pallet_assets::Pallet<mock::Test> as InspectMetadata<AccountId>>::decimals(&0);
+			assert_eq!(metadata_decimals, 10);
 		})
 	}
 
@@ -447,8 +462,7 @@ mod flow {
 			let project_info = FundingModule::project_info(0);
 			assert!(project_info.project_status == ProjectStatus::EvaluationRound);
 			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128));
-			let block_number = System::block_number();
-			run_to_block(block_number + 29);
+			run_to_block(System::block_number() + 29);
 			let project_info = FundingModule::project_info(0);
 			assert!(project_info.project_status == ProjectStatus::EvaluationEnded);
 
@@ -467,8 +481,7 @@ mod flow {
 			));
 
 			// Second phase of Funding Round: 2) Candle Auction Round
-			let block_number = System::block_number();
-			run_to_block(block_number + 10);
+			run_to_block(System::block_number() + 10);
 			let project_info = FundingModule::project_info(0);
 			assert!(
 				project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::Candle)
@@ -484,8 +497,7 @@ mod flow {
 			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(4), 0, 15 * PLMC, 20 * PLMC, None));
 			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(4), 0, 12 * PLMC, 55 * PLMC, None));
 
-			let block_number = System::block_number();
-			run_to_block(block_number + 10);
+			run_to_block(System::block_number() + 10);
 			let project_info = FundingModule::project_info(0);
 			assert!(project_info.final_price != Some(0));
 		})
@@ -507,12 +519,10 @@ mod flow {
 			};
 			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
-			let block_number = System::block_number();
-			run_to_block(block_number + 29);
+			run_to_block(System::block_number() + 29);
 			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
 			// Second phase of Funding Round: 2) Candle Auction Round
-			let block_number = System::block_number();
-			run_to_block(block_number + 10);
+			run_to_block(System::block_number() + 10);
 			let project_info = FundingModule::project_info(0);
 			assert!(
 				project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::Candle)

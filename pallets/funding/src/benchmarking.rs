@@ -33,7 +33,7 @@ fn get_events<T: Config>() -> frame_benchmarking::Vec<<T as frame_system::Config
 
 fn create_default_project<T: Config>(
 	id: Option<u32>,
-) -> (T::ProjectIdentifier, T::AccountId, ProjectOf<T>) {
+) -> (T::ProjectIdParameter, T::AccountId, ProjectOf<T>) {
 	let issuer: T::AccountId = account::<T::AccountId>("Alice", 1, 1);
 	let project_id_parameter = id.unwrap_or(0);
 	let project_id = T::BenchmarkHelper::create_project_id_parameter(project_id_parameter);
@@ -44,7 +44,7 @@ fn create_default_project<T: Config>(
 
 fn create_default_minted_project<T: Config>(
 	id: Option<u32>,
-) -> (T::ProjectIdentifier, T::AccountId) {
+) -> (T::ProjectIdParameter, T::AccountId) {
 	let (project_id, issuer, project) = create_default_project::<T>(id);
 	assert!(
 		PolimecFunding::<T>::create(SystemOrigin::Signed(issuer.clone()).into(), project,).is_ok()
@@ -76,7 +76,7 @@ benchmarks! {
 	verify {
 		// assert_last_event::<T>(Event::ProjectCreated(0).into());
 		let project_id = T::BenchmarkHelper::create_project_id_parameter(1);
-		let project_info = PolimecFunding::<T>::project_info(project_id);
+		let project_info = PolimecFunding::<T>::project_info(project_id.into());
 		assert_eq!(project_info.project_status, ProjectStatus::Application);
 	}
 
@@ -108,7 +108,7 @@ benchmarks! {
 		let p = T::ActiveProjectsLimit::get();
 		for i in 0 .. p {
 			let project_id = T::BenchmarkHelper::create_project_id_parameter(i);
-			let project_info = PolimecFunding::<T>::project_info(project_id);
+			let project_info = PolimecFunding::<T>::project_info(project_id.into());
 			assert_eq!(project_info.project_status, ProjectStatus::EvaluationEnded);
 		}
 
