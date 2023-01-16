@@ -59,7 +59,6 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-use codec::HasCompact;
 use frame_support::{
 	pallet_prelude::ValueQuery,
 	traits::{
@@ -102,14 +101,12 @@ const LOCKING_ID: LockIdentifier = *b"evaluate";
 
 pub trait Identifiable = Member
 	+ Parameter
-	+ Default
 	+ Copy
-	+ HasCompact
-	+ MaybeSerializeDeserialize
 	+ MaxEncodedLen
+	+ Default
 	+ AddAssign
-	+ From<u32>
-	+ TypeInfo;
+	+ From<u32>;
+	// TODO: + MaybeSerializeDeserialize: Maybe needed for JSON serialization @ Genesis: https://github.com/paritytech/substrate/issues/12738#issuecomment-1320921201 
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -125,8 +122,22 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-		/// Identifier for the collection of item.
+		/// Global identifier for the projects.
 		type ProjectIdentifier: Identifiable + From<AssetIdOf<Self>> + Into<AssetIdOf<Self>>;
+
+		/// Wrapper around `Self::ProjectIdentifier` to use in dispatchable call signatures. Allows the use
+		/// of compact encoding in instances of the pallet, which will prevent breaking changes
+		/// resulting from the removal of `HasCompact` from `Self::ProjectIdentifier`.
+		///
+		/// This type includes the `From<Self::ProjectIdentifier>` bound, since tightly coupled pallets may
+		/// want to convert an `ProjectIdentifier` into a parameter for calling dispatchable functions
+		/// directly.
+		type ProjectIdParameter: Parameter
+			+ Copy
+			+ From<Self::ProjectIdentifier>
+			+ Into<Self::ProjectIdentifier>
+			+ From<u32>
+			+ MaxEncodedLen;
 
 		/// Just the `Currency::Balance` type; we have this item to allow us to constrain it to
 		/// `From<u64>`.
@@ -397,9 +408,10 @@ pub mod pallet {
 		pub fn edit_metadata(
 			origin: OriginFor<T>,
 			project_metadata_hash: T::Hash,
-			#[pallet::compact] project_id: T::ProjectIdentifier,
+			project_id: T::ProjectIdParameter,
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
+			let project_id = project_id.into();
 
 			ensure!(ProjectsIssuers::<T>::contains_key(project_id), Error::<T>::ProjectNotExists);
 			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
@@ -419,9 +431,10 @@ pub mod pallet {
 		/// Start the "Evaluation Round" of a `project_id`
 		pub fn start_evaluation(
 			origin: OriginFor<T>,
-			#[pallet::compact] project_id: T::ProjectIdentifier,
+			project_id: T::ProjectIdParameter,
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
+			let project_id = project_id.into();
 
 			ensure!(ProjectsIssuers::<T>::contains_key(project_id), Error::<T>::ProjectNotExists);
 			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
@@ -436,10 +449,11 @@ pub mod pallet {
 		/// Evaluators can bond `amount` PLMC to evaluate a `project_id` in the "Evaluation Round"
 		pub fn bond(
 			origin: OriginFor<T>,
-			#[pallet::compact] project_id: T::ProjectIdentifier,
+			project_id: T::ProjectIdParameter,
 			#[pallet::compact] amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let from = ensure_signed(origin)?;
+			let project_id = project_id.into();
 
 			let project_issuer =
 				ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectNotExists)?;
@@ -474,7 +488,7 @@ pub mod pallet {
 		/// Evaluators can bond more `amount` PLMC to evaluate a `project_id` in the "Evaluation Round"
 		pub fn rebond(
 			_origin: OriginFor<T>,
-			#[pallet::compact] _project_id: T::ProjectIdentifier,
+			_project_id: T::ProjectIdentifier,
 			#[pallet::compact] _amount: BalanceOf<T>,
 		) -> DispatchResult {
 			Ok(())
@@ -484,9 +498,10 @@ pub mod pallet {
 		/// Start the "Funding Round" of a `project_id`
 		pub fn start_auction(
 			origin: OriginFor<T>,
-			#[pallet::compact] project_id: T::ProjectIdentifier,
+			project_id: T::ProjectIdParameter,
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
+			let project_id = project_id.into();
 
 			ensure!(ProjectsIssuers::<T>::contains_key(project_id), Error::<T>::ProjectNotExists);
 			ensure!(
@@ -506,7 +521,7 @@ pub mod pallet {
 		/// Place a bid in the "Auction Round"
 		pub fn bid(
 			origin: OriginFor<T>,
-			#[pallet::compact] project_id: T::ProjectIdentifier,
+			project_id: T::ProjectIdParameter,
 			#[pallet::compact] price: BalanceOf<T>,
 			#[pallet::compact] market_cap: BalanceOf<T>,
 			multiplier: Option<u8>,
@@ -514,6 +529,7 @@ pub mod pallet {
 			// specified in `participation_currencies`
 		) -> DispatchResult {
 			let bidder = ensure_signed(origin)?;
+			let project_id = project_id.into();
 
 			ensure!(
 				T::HandleMembers::is_in(&MemberRole::Professional, &bidder) ||
@@ -612,10 +628,11 @@ pub mod pallet {
 		/// Contribute to the "Community Round"
 		pub fn contribute(
 			origin: OriginFor<T>,
-			#[pallet::compact] project_id: T::ProjectIdentifier,
+			project_id: T::ProjectIdParameter,
 			#[pallet::compact] amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let contributor = ensure_signed(origin)?;
+			let project_id = project_id.into();
 
 			// TODO: Add the "Retail before, Institutional and Professionals after, if there are still tokens" logic
 			ensure!(
@@ -666,9 +683,10 @@ pub mod pallet {
 		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		pub fn claim_contribution_tokens(
 			origin: OriginFor<T>,
-			#[pallet::compact] project_id: T::ProjectIdentifier,
+			project_id: T::ProjectIdParameter,
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
+			let project_id = project_id.into();
 
 			ensure!(ProjectsIssuers::<T>::contains_key(project_id), Error::<T>::ProjectNotExists);
 
@@ -777,7 +795,7 @@ pub mod pallet {
 
 	#[cfg(feature = "runtime-benchmarks")]
 	pub trait BenchmarkHelper<T: Config> {
-		fn create_project_id_parameter(id: u32) -> T::ProjectIdentifier;
+		fn create_project_id_parameter(id: u32) -> T::ProjectIdParameter;
 		fn create_dummy_project(
 			destinations_account: T::AccountId,
 			metadata_hash: T::Hash,
@@ -786,7 +804,7 @@ pub mod pallet {
 
 	#[cfg(feature = "runtime-benchmarks")]
 	impl<T: Config> BenchmarkHelper<T> for () {
-		fn create_project_id_parameter(id: u32) -> T::ProjectIdentifier {
+		fn create_project_id_parameter(id: u32) -> T::ProjectIdParameter {
 			id.into()
 		}
 		fn create_dummy_project(
