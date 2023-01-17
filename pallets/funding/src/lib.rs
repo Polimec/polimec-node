@@ -64,7 +64,7 @@ use frame_support::{
 	traits::{
 		tokens::{
 			fungibles::{
-				metadata::Mutate as MetadataMutate, Create, Inspect, InspectMetadata, Mutate,
+				metadata::Mutate as MetadataMutate, Create, InspectMetadata, Mutate,
 			},
 			Balance,
 		},
@@ -159,7 +159,7 @@ pub mod pallet {
 				Self::AccountId,
 				AssetId = Self::ProjectIdentifier,
 				Balance = Self::CurrencyBalance,
-			> + Inspect<Self::AccountId>
+			>
 			+ Mutate<Self::AccountId>
 			+ MetadataMutate<Self::AccountId>
 			+ InspectMetadata<Self::AccountId>;
