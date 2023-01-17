@@ -375,6 +375,22 @@ mod community_round {
 			assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 100));
 		})
 	}
+
+	#[test]
+	fn contribute_multiple_times_works() {
+		new_test_ext().execute_with(|| {
+			create_on_chain_project();
+			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
+			run_to_block(System::block_number() + 29);
+			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
+			run_to_block(System::block_number() + 15);
+			assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 100));
+			assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 200));
+			let contribution_info = FundingModule::contributions(0, BOB).unwrap();
+			assert_eq!(contribution_info.amount, 300);
+			assert_eq!(contribution_info.can_claim, true);
+		})
+	}
 }
 
 mod claim_contribution_tokens {
@@ -620,7 +636,7 @@ mod unit_tests {
 	#[test]
 	fn calculate_claimable_tokens_works_with_float() {
 		new_test_ext().execute_with(|| {
-			let contribution_amount: BalanceOf<Test> = 11 * unit(PLMC_DECIMALS );
+			let contribution_amount: BalanceOf<Test> = 11 * unit(PLMC_DECIMALS);
 			let final_price: BalanceOf<Test> = 4 * unit(PLMC_DECIMALS);
 			let expected_amount: BalanceOf<Test> = 275 * unit(ASSET_DECIMALS - 2);
 
