@@ -596,16 +596,16 @@ mod unit_tests {
 	const PLMC_DECIMALS: u8 = 10;
 	const ASSET_DECIMALS: u8 = 12;
 
-	const fn unit(decimals: u32) -> BalanceOf<Test> {
-		10u128.pow(decimals)
+	const fn unit(decimals: u8) -> BalanceOf<Test> {
+		10u128.pow(decimals as u32)
 	}
 
 	#[test]
 	fn calculate_claimable_tokens_works() {
 		new_test_ext().execute_with(|| {
-			let contribution_amount: BalanceOf<Test> = 1000 * unit(PLMC_DECIMALS as u32);
-			let final_price: BalanceOf<Test> = 10 * unit(PLMC_DECIMALS as u32);
-			let expected_amount: BalanceOf<Test> = 100 * unit(ASSET_DECIMALS as u32);
+			let contribution_amount: BalanceOf<Test> = 1000 * unit(PLMC_DECIMALS);
+			let final_price: BalanceOf<Test> = 10 * unit(PLMC_DECIMALS);
+			let expected_amount: BalanceOf<Test> = 100 * unit(ASSET_DECIMALS);
 
 			let amount = Pallet::<Test>::calculate_claimable_tokens(
 				contribution_amount,
@@ -620,9 +620,9 @@ mod unit_tests {
 	#[test]
 	fn calculate_claimable_tokens_works_with_float() {
 		new_test_ext().execute_with(|| {
-			let contribution_amount: BalanceOf<Test> = 11 * unit(PLMC_DECIMALS as u32);
-			let final_price: BalanceOf<Test> = 4 * unit(PLMC_DECIMALS as u32);
-			let expected_amount: BalanceOf<Test> = 275 * unit((ASSET_DECIMALS - 2) as u32);
+			let contribution_amount: BalanceOf<Test> = 11 * unit(PLMC_DECIMALS );
+			let final_price: BalanceOf<Test> = 4 * unit(PLMC_DECIMALS);
+			let expected_amount: BalanceOf<Test> = 275 * unit(ASSET_DECIMALS - 2);
 
 			let amount = Pallet::<Test>::calculate_claimable_tokens(
 				contribution_amount,
@@ -637,9 +637,9 @@ mod unit_tests {
 	#[test]
 	fn calculate_claimable_tokens_works_with_small_amount() {
 		new_test_ext().execute_with(|| {
-			let contribution_amount: BalanceOf<Test> = 1 * unit(PLMC_DECIMALS as u32);
-			let final_price: BalanceOf<Test> = 2 * unit(PLMC_DECIMALS as u32);
-			let expected_amount: BalanceOf<Test> = 5 * unit((ASSET_DECIMALS - 1) as u32);
+			let contribution_amount: BalanceOf<Test> = 1 * unit(PLMC_DECIMALS);
+			let final_price: BalanceOf<Test> = 2 * unit(PLMC_DECIMALS);
+			let expected_amount: BalanceOf<Test> = 5 * unit(ASSET_DECIMALS - 1);
 
 			let amount = Pallet::<Test>::calculate_claimable_tokens(
 				contribution_amount,
