@@ -857,7 +857,6 @@ pub mod pallet {
 
 pub trait ConfigHelper: Config {
 	fn fund_account_id(index: Self::ProjectIdentifier) -> AccountIdOf<Self>;
-	// fn net_amount_numerator() -> BalanceOf<Self>;
 }
 
 impl<T: Config> ConfigHelper for T {
