@@ -90,7 +90,6 @@ pub type ProjectOf<T> = Project<
 /// The balance type of this pallet.
 type BalanceOf<T> = <T as Config>::CurrencyBalance;
 type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
-type AssetBalanceOf<T> = <T as Config>::CurrencyBalance;
 
 // TODO: Add multiple locks
 const LOCKING_ID: LockIdentifier = *b"evaluate";
@@ -137,7 +136,7 @@ pub mod pallet {
 
 		/// Just the `Currency::Balance` type; we have this item to allow us to constrain it to
 		/// `From<u64>`.
-		type CurrencyBalance: Balance + From<u64> + Into<AssetBalanceOf<Self>> + FixedPointOperand;
+		type CurrencyBalance: Balance + From<u64> + FixedPointOperand;
 
 		/// The bonding balance.
 		type Currency: LockableCurrency<
