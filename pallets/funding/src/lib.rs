@@ -63,9 +63,7 @@ use frame_support::{
 	pallet_prelude::ValueQuery,
 	traits::{
 		tokens::{
-			fungibles::{
-				metadata::Mutate as MetadataMutate, Create, InspectMetadata, Mutate,
-			},
+			fungibles::{metadata::Mutate as MetadataMutate, Create, InspectMetadata, Mutate},
 			Balance,
 		},
 		Currency, Get, LockIdentifier, LockableCurrency, Randomness, ReservableCurrency,
@@ -94,14 +92,9 @@ type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 // TODO: Add multiple locks
 const LOCKING_ID: LockIdentifier = *b"evaluate";
 
-pub trait Identifiable = Member
-	+ Parameter
-	+ Copy
-	+ MaxEncodedLen
-	+ Default
-	+ AddAssign
-	+ From<u32>;
-	// TODO: + MaybeSerializeDeserialize: Maybe needed for JSON serialization @ Genesis: https://github.com/paritytech/substrate/issues/12738#issuecomment-1320921201 
+pub trait Identifiable =
+	Member + Parameter + Copy + MaxEncodedLen + Default + AddAssign + From<u32>;
+// TODO: + MaybeSerializeDeserialize: Maybe needed for JSON serialization @ Genesis: https://github.com/paritytech/substrate/issues/12738#issuecomment-1320921201
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -159,8 +152,7 @@ pub mod pallet {
 				Self::AccountId,
 				AssetId = Self::ProjectIdentifier,
 				Balance = Self::CurrencyBalance,
-			>
-			+ Mutate<Self::AccountId>
+			> + Mutate<Self::AccountId>
 			+ MetadataMutate<Self::AccountId>
 			+ InspectMetadata<Self::AccountId>;
 
@@ -358,6 +350,7 @@ pub mod pallet {
 		TooManyActiveProjects,
 		NotAuthorized,
 		AlreadyClaimed,
+		CannotClaimYet,
 	}
 
 	#[pallet::call]
@@ -674,9 +667,15 @@ pub mod pallet {
 				frame_support::traits::ExistenceRequirement::KeepAlive,
 			)?;
 
-			// TODO: Handle the case where the contributor already contributed
-			let contribution = ContributionInfo { amount, can_claim: true };
-			Contributions::<T>::insert(project_id, contributor, contribution);
+			Contributions::<T>::get(project_id, &contributor)
+				.map(|mut contribution| {
+					contribution.amount += amount;
+					Contributions::<T>::insert(project_id, &contributor, contribution)
+				})
+				.unwrap_or_else(|| {
+					let contribution = ContributionInfo { amount, can_claim: true };
+					Contributions::<T>::insert(project_id, &contributor, contribution)
+				});
 
 			Ok(())
 		}
@@ -701,7 +700,7 @@ pub mod pallet {
 			let project_info = ProjectsInfo::<T>::get(project_id);
 			ensure!(
 				project_info.project_status == ProjectStatus::ReadyToLaunch,
-				Error::<T>::EvaluationNotStarted
+				Error::<T>::CannotClaimYet
 			);
 			let final_price = project_info
 				.final_price
