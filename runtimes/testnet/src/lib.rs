@@ -209,9 +209,9 @@ pub const BLOCKS_PER_YEAR: BlockNumber = DAYS * 36525 / 100;
 pub const INITIAL_PERIOD_LENGTH: BlockNumber = BLOCKS_PER_YEAR.saturating_mul(5);
 
 // Unit = the base number of indivisible units for balances
-pub const PLMC: Balance = 1_000_000_000_000;
-pub const MILLI_PLMC: Balance = 1_000_000_000;
-pub const MICRO_PLMC: Balance = 1_000_000;
+pub const PLMC: Balance = 1_000_000_000_0;
+pub const MILLI_PLMC: Balance = 1_000_000_0;
+pub const MICRO_PLMC: Balance = 1_000;
 
 /// The existential deposit. Set to 1/10 of the Connected Relay Chain.
 pub const EXISTENTIAL_DEPOSIT: Balance = MILLI_PLMC;
@@ -785,10 +785,10 @@ impl pallet_democracy::Config for Runtime {
 	type Slash = ();
 	type Scheduler = Scheduler;
 	type PalletsOrigin = OriginCaller;
-	type MaxVotes = ConstU32<100>;
+	type MaxVotes = ConstU32<128>;
 	type WeightInfo = pallet_democracy::weights::SubstrateWeight<Runtime>;
 	type MaxProposals = MaxProposals;
-	type Preimages = ();
+	type Preimages = Preimage;
 	type MaxDeposits = ();
 	type MaxBlacklisted = ();
 }
@@ -808,7 +808,7 @@ impl pallet_scheduler::Config for Runtime {
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
 	type WeightInfo = ();
 	type OriginPrivilegeCmp = EqualPrivilegeOnly;
-	type Preimages = ();
+	type Preimages = Preimage;
 }
 
 impl pallet_utility::Config for Runtime {

@@ -151,7 +151,7 @@ pub fn local_testnet_config() -> ChainSpec {
 		// Name
 		"Polimec Testnet",
 		// ID
-		"polimec_testnet",
+		"polimec-testnet",
 		ChainType::Local,
 		move || {
 			testnet_genesis(
