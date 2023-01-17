@@ -197,7 +197,7 @@ pub mod pallet {
 	#[pallet::getter(fn project_ids)]
 	/// A global counter for indexing the projects
 	/// OnEmpty in this case is GetDefault, so 0.
-	pub type ProjectId<T: Config> = StorageValue<_, T::ProjectIdentifier, ValueQuery>;
+	pub type NextProjectId<T: Config> = StorageValue<_, T::ProjectIdentifier, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn nonce)]
@@ -389,7 +389,7 @@ pub mod pallet {
 					ValidityError::TicketSizeError => Err(Error::<T>::TicketSizeError.into()),
 				},
 				Ok(()) => {
-					let project_id = ProjectId::<T>::get();
+					let project_id = NextProjectId::<T>::get();
 					Self::do_create(project_id, &issuer, project)
 				},
 			}
@@ -901,7 +901,7 @@ impl<T: Config> Pallet<T> {
 		Projects::<T>::insert(project_id, project);
 		ProjectsInfo::<T>::insert(project_id, project_info);
 		ProjectsIssuers::<T>::insert(project_id, issuer);
-		ProjectId::<T>::mutate(|n| *n += 1_u32.into());
+		NextProjectId::<T>::mutate(|n| *n += 1_u32.into());
 
 		Self::deposit_event(Event::<T>::Created { project_id });
 		Ok(())
