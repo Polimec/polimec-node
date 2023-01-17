@@ -681,6 +681,7 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
+		// TODO: Manage the fact that the CTs may not be claimed by those entitled
 		pub fn claim_contribution_tokens(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdParameter,
