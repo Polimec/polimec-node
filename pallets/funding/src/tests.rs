@@ -1,7 +1,30 @@
-use super::*;
-use crate::{mock::*, CurrencyMetadata, Error, ParticipantsSize, Project, TicketSize, Weight};
-use frame_support::{assert_noop, assert_ok};
+// Polimec Blockchain – https://www.polimec.org/
+// Copyright (C) Polimec 2022. All rights reserved.
 
+// The Polimec Blockchain is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// The Polimec Blockchain is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// If you feel like getting in touch with us, you can do so at info@polimec.org
+
+//! Tests for Funding pallet.
+
+use super::*;
+use crate::{mock::*, CurrencyMetadata, Error, ParticipantsSize, Project, TicketSize};
+use frame_support::{
+	assert_noop, assert_ok,
+	traits::{ConstU32, Hooks},
+	weights::Weight,
+};
 const ALICE: AccountId = 1;
 const BOB: AccountId = 2;
 const CHARLIE: AccountId = 3;
