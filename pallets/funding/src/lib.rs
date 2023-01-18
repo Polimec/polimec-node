@@ -88,6 +88,11 @@ pub type ProjectOf<T> = Project<
 /// The balance type of this pallet.
 type BalanceOf<T> = <T as Config>::CurrencyBalance;
 type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
+type BidInfoOf<T> = BidInfo<
+	BalanceOf<T>,
+	<T as frame_system::Config>::AccountId,
+	<T as frame_system::Config>::BlockNumber,
+>;
 
 // TODO: Add multiple locks
 const LOCKING_ID: LockIdentifier = *b"evaluate";
@@ -202,7 +207,6 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn nonce)]
 	/// A global counter used in the randomness generation
-
 	// TODO: Remove it after using the Randomness from BABE's VRF
 	pub type Nonce<T: Config> = StorageValue<_, u32, ValueQuery>;
 
@@ -249,8 +253,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		T::ProjectIdentifier,
-		// TODO: Create a new type for the tuple
-		BoundedVec<(T::BlockNumber, BidInfo<BalanceOf<T>, T::AccountId>), T::MaximumBidsPerProject>,
+		BoundedVec<BidInfoOf<T>, T::MaximumBidsPerProject>,
 		ValueQuery,
 	>;
 
@@ -407,8 +410,8 @@ pub mod pallet {
 
 			ensure!(ProjectsIssuers::<T>::contains_key(project_id), Error::<T>::ProjectNotExists);
 			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
-			ensure!(!ProjectsInfo::<T>::get(project_id).is_frozen, Error::<T>::Frozen);
 			ensure!(Images::<T>::contains_key(project_metadata_hash), Error::<T>::ProjectNotExists);
+			ensure!(!ProjectsInfo::<T>::get(project_id).is_frozen, Error::<T>::Frozen);
 
 			Projects::<T>::try_mutate(project_id, |maybe_project| -> DispatchResult {
 				let project = maybe_project.as_mut().ok_or(Error::<T>::ProjectNotExists)?;
@@ -559,16 +562,17 @@ pub mod pallet {
 				market_cap,
 				price,
 				project.fundraising_target,
+				now,
 				bidder.clone(),
 				multiplier,
 			);
-			let new_bid = (now, bid.clone());
 
-			match AuctionsInfo::<T>::try_append(project_id, &new_bid) {
+			match AuctionsInfo::<T>::try_append(project_id, &bid) {
 				Ok(_) => {
 					// Reserve the new bid
 					T::BiddingCurrency::reserve(&bidder, price)?;
 					// TODO: Send an XCM message to Statemine to transfer amount * multiplier USDT to the PalletId Account
+					// Alternative TODO: The user should have the specified currency (e.g: USDT) already on Polimec
 					Self::deposit_event(Event::<T>::Bid {
 						project_id,
 						amount: price,
@@ -582,10 +586,10 @@ pub mod pallet {
 					let mut bids = AuctionsInfo::<T>::get(project_id);
 
 					// Get the lowest bid and its index
-					let (index, (_, lowest_bid)) = bids
+					let (index, lowest_bid) = bids
 							.iter()
 							.enumerate()
-							.min_by_key(|&(_, bid)| bid)
+							.min()
 							.expect("This code runs only if the vector is full, so there is always a minimum; qed");
 					// Make sure the bid is greater than the last bid
 					if bid > *lowest_bid {
@@ -596,7 +600,7 @@ pub mod pallet {
 						// Remove the lowest bid from the AuctionsInfo
 						bids.remove(index);
 						// Add the new bid to the AuctionsInfo, this should never fail since we just removed an element
-						bids.try_push(new_bid)
+						bids.try_push(bid)
 							.expect("We removed an element, so there is always space");
 						AuctionsInfo::<T>::set(project_id, bids);
 						// TODO: Send an XCM message to Statemine to transfer amount * multiplier USDT to the PalletId Account
@@ -703,9 +707,8 @@ pub mod pallet {
 				project_info.project_status == ProjectStatus::ReadyToLaunch,
 				Error::<T>::CannotClaimYet
 			);
-			let final_price = project_info
-				.final_price
-				.expect("The final price is set, already checked in previous ensure");
+			// TODO: Set a reasonable default value
+			let final_price = project_info.final_price.unwrap_or(1_000_000_000_0_u64.into());
 
 			Contributions::<T>::try_mutate(
 				project_id,
@@ -875,7 +878,7 @@ impl<T: Config> Pallet<T> {
 	/// TODO: We verify that the preimage is within the bounds of what the pallet supports.
 	fn note_bytes(preimage: Cow<[u8]>, issuer: &T::AccountId) -> Result<(), DispatchError> {
 		// TODO: Validate and check if the preimage is a valid JSON conforming with our needs
-		// TODO: Check if we can use serde/serde_json in a no_std environment
+		// TODO: Check if we can use serde in a no_std environment
 
 		let hash = T::Hashing::hash(&preimage);
 		Images::<T>::insert(hash, issuer);
@@ -1061,30 +1064,30 @@ impl<T: Config> Pallet<T> {
 		// TODO: Maybe add a new storage like "FinalBids(project_id) -> Vec<(BlockNumber, BidInfo)>"
 		// Or maybe we can just modify the "AuctionsInfo" storage if we are sure that we will not need the discarded bids
 		let mut bids = AuctionsInfo::<T>::get(project_id);
-		bids.retain(|(block, _)| block <= &end_block);
+		bids.retain(|bid| bid.when <= end_block);
 		// TODO: Unreserve the funds of the bids that were made after the end of the candle
 
 		// Sort the bids by market cap
 		// If we store the bids in a sorted way we can avoid this step
 
-		bids.sort_by_key(|(_, bid)| Reverse(bid.market_cap));
+		bids.sort_by_key(|bid| Reverse(bid.market_cap));
 		// Calculate the final price
 		let mut fundraising_amount = BalanceOf::<T>::zero();
 		let mut final_price = BalanceOf::<T>::zero();
-		for (idx, (_, bid)) in bids.iter_mut().enumerate() {
+		for (idx, bid) in bids.iter_mut().enumerate() {
 			let old_amount = fundraising_amount;
 			fundraising_amount += bid.amount;
 			if fundraising_amount > total_allocation_size {
 				bid.amount = total_allocation_size.saturating_sub(old_amount);
 				bid.ratio = Perbill::from_rational(bid.amount, total_allocation_size);
 				bids.truncate(idx + 1);
-				// TODO: refund the rest of the amount to the bidders
+				// Important TODO: Refund the rest of the amount to the bidders
 				// TODO: Maybe in an on_idle hook ?
 				break
 			}
 		}
 
-		for (_, bid) in bids {
+		for bid in bids {
 			let weighted_price = bid.ratio.mul_ceil(bid.market_cap);
 			final_price = final_price.saturating_add(weighted_price);
 		}
