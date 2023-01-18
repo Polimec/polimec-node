@@ -68,6 +68,11 @@ benchmarks! {
 		let issuer: T::AccountId = account::<T::AccountId>("Alice", 1, 1);
 	}: _(SystemOrigin::Signed(issuer), METADATA.into())
 	verify {
+		let issuer: T::AccountId = account::<T::AccountId>("Alice", 1, 1);
+		let hash = T::Hashing::hash(METADATA.as_bytes());
+		// Let it panic if the image is not found
+		let image_issuer = PolimecFunding::<T>::images(hash).unwrap();
+		assert_eq!(issuer, image_issuer);
 	}
 
 	create {
@@ -85,7 +90,6 @@ benchmarks! {
 	}: _(SystemOrigin::Signed(issuer), project_id)
 
 	on_finalize {
-		/* code to set the initial state */
 		let p = T::ActiveProjectsLimit::get();
 		// Create 100 projects
 		for i in 0 .. p {
@@ -94,17 +98,12 @@ benchmarks! {
 				PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.clone()).into(), project_id).is_ok()
 			);
 		}
-		let block_number = System::<T>::block_number();
-		// Move at the end of the evaluation period
-		System::<T>::set_block_number(block_number + 29_u32.into());
-		let block_number = System::<T>::block_number();
+		// Move at the end of the Evaluation Round
+		System::<T>::set_block_number(System::<T>::block_number() + 29_u32.into());
 	} : {
-		 /* code to test the function benchmarked */
-		PolimecFunding::<T>::on_finalize(block_number);
+		PolimecFunding::<T>::on_finalize(System::<T>::block_number());
 	}
-
 	verify {
-		/* optional verification */
 		let p = T::ActiveProjectsLimit::get();
 		for i in 0 .. p {
 			let project_id = T::BenchmarkHelper::create_project_id_parameter(i);
@@ -113,6 +112,11 @@ benchmarks! {
 		}
 
 	}
+
+	// claim_contribution_tokens {
+	// }: _(SystemOrigin::Signed(issuer), project_id)
+	// verify {
+	// }
 
 	impl_benchmark_test_suite!(PolimecFunding, crate::mock::new_test_ext(), crate::mock::Test);
 }
