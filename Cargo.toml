@@ -1,12 +1,73 @@
 [profile.release]
+# Substrate runtime requires unwinding.
 panic = "unwind"
 
+[profile.production]
+inherits = "release"
+# Sacrifice compile speed for execution speed by using optimization flags:
+# https://doc.rust-lang.org/rustc/linker-plugin-lto.html
+lto = "fat"
+# https://doc.rust-lang.org/rustc/codegen-options/index.html#codegen-units
+codegen-units = 1
+
 [workspace]
-members = [
-    "nodes/*",
-    "pallets/*",
-    "runtimes/*",
-    "traits",
-    "integration-tests",
-    "pallets/credentials/rpc",
-]
+members = ["nodes/*", "pallets/*", "runtimes/*", "traits", "integration-tests"]
+
+[workspace.package]
+authors = ['Polimec Foundation <info@polimec.org>']
+documentation = "https://wiki.polimec.org/"
+edition = "2021"
+homepage = "https://www.polimec.org/"
+license-file = "LICENSE"
+readme = "README.md"
+repository = "https://github.com/Polimec/polimec-node"
+version = "0.1.0"
+
+[workspace.dependencies]
+# Build deps
+substrate-wasm-builder = {git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.32"}
+
+# Internal pallets (with default disabled)
+parachain-staking = { path = "pallets/parachain-staking", default-features = false }
+pallet-credentials = { path = "pallets/credentials", default-features = false }
+pallet-funding = { path = "pallets/funding", default-features = false }
+pallet-asset-registry = { path = "pallets/asset-registry", default-features = false }
+
+# Internal support (with default disabled)
+polimec-traits = { path = "traits", default-features = false }
+xcm-primitives = { path = "primitives/xcm", default-features = false }
+
+# Internal runtime API (with default disabled)
+pallet-credentials-runtime-api = { path = "pallets/credentials/rpc/runtime-api", default-features = false }
+
+# External (without extra features and with default disabled if necessary)
+codec = { package = "parity-scale-codec", version = "3.2.1", default-features = false }
+scale-info = { version = "2.3.1", default-features = false }
+jsonrpsee = { version = "0.15.1", default-features = false }
+hex-literal = "0.3.4"
+serde = "1.0.152" 
+smallvec = "1.10.0"
+log = "0.4.17"
+
+# Substrate (with default disabled)
+frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }
+frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }
+frame-executive = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }
+frame-support = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }
+frame-system = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }
+frame-system-rpc-runtime-api = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32"}
+frame-try-runtime = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32"}
+sp-api = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }
+sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }
+sp-arithmetic = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }
+sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }
+sp-io = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }
+sp-blockchain = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }
+pallet-balances = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }
+pallet-randomness-collective-flip = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }
+pallet-assets = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }
+
+# Benchmarking (with default disabled) 
+cumulus-pallet-session-benchmarking = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "polkadot-v0.9.32" }
+frame-system-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }

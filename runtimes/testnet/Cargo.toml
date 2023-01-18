@@ -1,41 +1,38 @@
 [package]
 name = "polimec-parachain-runtime"
-version = "0.1.0"
-authors = ['Polimec Team <https://github.com/Polimec>']
-description = "A new Cumulus FRAME-based Substrate Runtime, ready for hacking together a parachain."
-license = "Unlicense"
-homepage = "https://substrate.io"
-repository = "https://github.com/paritytech/cumulus/"
-edition = "2021"
-
-[package.metadata.docs.rs]
-targets = ["x86_64-unknown-linux-gnu"]
+description = "Parachain runtime for Polimec Mainnet on Polkadot."
+authors.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+readme.workspace = true
+repository.workspace = true
+version.workspace = true
 
 [build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.32" }
+substrate-wasm-builder.workspace = true
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.2.1", default-features = false, features = [
+codec = { package = "parity-scale-codec", workspace = true, features = [
 	"derive",
 ] }
-hex-literal = { version = "0.3.4", optional = true }
-log = { version = "0.4.17", default-features = false }
-scale-info = { version = "2.3.1", default-features = false, features = [
-	"derive",
-] }
-serde = { version = "1.0.152", optional = true, features = ["derive"] }
-smallvec = "1.10.0"
+log = { workspace = true, default-features = false }
+scale-info = { workspace = true, features = ["derive"] }
+hex-literal = { workspace = true, optional = true }
+serde = { workspace = true, optional = true, features = ["derive"] }
+smallvec.workspace = true
 
-# Local
-pallet-funding = { path = "../../pallets/funding", default-features = false }
-parachain-staking = { path = "../../pallets/parachain-staking", default-features = false }
-pallet-credentials = { path = "../../pallets/credentials", default-features = false }
-pallet-asset-registry = { path = "../../pallets/asset-registry", default-features = false }
-pallet-credentials-runtime-api = { path = "../../pallets/credentials/rpc/runtime-api", default-features = false }
-polimec-traits = { path = "../../traits", default-features = false }
+# Polimec specific
+pallet-funding.workspace = true
+parachain-staking.workspace = true
+pallet-credentials.workspace = true
+pallet-asset-registry.workspace = true
+pallet-credentials-runtime-api.workspace = true
+polimec-traits.workspace = true
 
 # Primitives
-xcm-primitives = { path = "../../primitives/xcm", default-features = false }
+xcm-primitives.workspace = true
 
 # FRAME
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true, branch = "polkadot-v0.9.32" }
