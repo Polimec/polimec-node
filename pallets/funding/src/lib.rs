@@ -609,8 +609,8 @@ pub mod pallet {
 							.enumerate()
 							.min()
 							.expect("This code runs only if the vector is full, so there is always a minimum; qed");
-					// Make sure the bid is greater than the last bid
-					if bid > *lowest_bid {
+					// Make sure the new bid is greater than the lowest bid
+					if &bid > lowest_bid {
 						// Reserve the new bid
 						T::BiddingCurrency::reserve(&bidder, price)?;
 						// Unreserve the lowest bid
@@ -755,6 +755,7 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(now: T::BlockNumber) -> Weight {
+			// TODO: Critical: Found a way to perform less iterations on the storage
 			for project_id in ProjectsActive::<T>::get().iter() {
 				let project_info = ProjectsInfo::<T>::get(project_id);
 				match project_info.project_status {
@@ -790,18 +791,6 @@ pub mod pallet {
 							english_ending_block,
 						);
 					},
-					_ => (),
-				}
-			}
-			// TODO: Set a proper weight
-			Weight::from_ref_time(0)
-		}
-
-		/// Cleanup the `active_projects` BoundedVec
-		fn on_finalize(now: T::BlockNumber) {
-			for project_id in ProjectsActive::<T>::get().iter() {
-				let project_info = ProjectsInfo::<T>::get(project_id);
-				match project_info.project_status {
 					// Check if Evaluation Round have to end, if true, end it
 					// EvaluationRound -> EvaluationEnded
 					ProjectStatus::EvaluationRound => {
@@ -822,6 +811,8 @@ pub mod pallet {
 					_ => (),
 				}
 			}
+			// TODO: Set a proper weight
+			Weight::from_ref_time(0)
 		}
 
 		/// Cleanup the `active_projects` BoundedVec
@@ -840,9 +831,7 @@ pub mod pallet {
 	#[cfg(feature = "runtime-benchmarks")]
 	pub trait BenchmarkHelper<T: Config> {
 		fn create_project_id_parameter(id: u32) -> T::ProjectIdParameter;
-		fn create_dummy_project(
-			metadata_hash: T::Hash,
-		) -> ProjectOf<T>;
+		fn create_dummy_project(metadata_hash: T::Hash) -> ProjectOf<T>;
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
@@ -850,15 +839,13 @@ pub mod pallet {
 		fn create_project_id_parameter(id: u32) -> T::ProjectIdParameter {
 			id.into()
 		}
-		fn create_dummy_project(
-			metadata_hash: T::Hash,
-		) -> ProjectOf<T> {
+		fn create_dummy_project(metadata_hash: T::Hash) -> ProjectOf<T> {
 			let project: ProjectOf<T> = Project {
 				minimum_price: 1u8.into(),
 				ticket_size: TicketSize { minimum: Some(1u8.into()), maximum: None },
 				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 				metadata: metadata_hash,
-				..Default::default() 
+				..Default::default()
 			};
 			project
 		}

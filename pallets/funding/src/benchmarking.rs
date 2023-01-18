@@ -109,7 +109,7 @@ benchmarks! {
 		let (project_id, issuer) = create_default_minted_project::<T>(None);
 	}: _(SystemOrigin::Signed(issuer), project_id)
 
-	on_finalize {
+	on_initialize {
 		let p = T::ActiveProjectsLimit::get();
 		// Create 100 projects
 		for i in 0 .. p {
@@ -121,7 +121,7 @@ benchmarks! {
 		// Move at the end of the Evaluation Round
 		System::<T>::set_block_number(System::<T>::block_number() + 29_u32.into());
 	} : {
-		PolimecFunding::<T>::on_finalize(System::<T>::block_number());
+		PolimecFunding::<T>::on_initialize(System::<T>::block_number());
 	}
 	verify {
 		let p = T::ActiveProjectsLimit::get();
