@@ -22,7 +22,7 @@ use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
 use sp_arithmetic::Perbill;
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct Project<AccountId, BoundedString, Balance: BalanceT, Hash> {
+pub struct Project<BoundedString, Balance: BalanceT, Hash> {
 	/// Token Metadata
 	pub token_information: CurrencyMetadata<BoundedString>,
 	/// Total allocation of Contribution Tokens available for the Funding Round
@@ -40,13 +40,10 @@ pub struct Project<AccountId, BoundedString, Balance: BalanceT, Hash> {
 	/// Conversion rate of contribution token to mainnet token
 	pub conversion_rate: u32,
 	/// Participation currencies (e.g stablecoin, DOT, KSM)
-	/// TODO: Use something like BoundedVec<Option<Currencies>, StringLimit>
+	/// TODO: Use something like BoundedVec<Option<Currencies>, CurrenciesLimit>
 	/// e.g. https://github.com/paritytech/substrate/blob/427fd09bcb193c1e79dec85b1e207c718b686c35/frame/uniques/src/types.rs#L110
 	/// For now is easier to handle the case where only just one Currency is accepted
 	pub participation_currencies: Currencies,
-	/// Issuer destination accounts for accepted participation currencies (for receiving
-	/// contributions)
-	pub destinations_account: AccountId,
 	/// Additional metadata
 	pub metadata: Hash,
 }
@@ -72,8 +69,8 @@ pub enum ValidityError {
 	ParticipantsSizeError,
 }
 
-impl<AccountId, BoundedString, Balance: BalanceT, Hash>
-	Project<AccountId, BoundedString, Balance, Hash>
+impl<BoundedString, Balance: BalanceT, Hash>
+	Project<BoundedString, Balance, Hash>
 {
 	// TODO: Perform a REAL validity check
 	pub fn validity_check(&self) -> Result<(), ValidityError> {

@@ -26,6 +26,7 @@ use crate::Pallet as PolimecFunding;
 use super::*;
 use frame_benchmarking::{account, benchmarks};
 use frame_system::{Pallet as System, RawOrigin as SystemOrigin};
+use frame_support::traits::Hooks;
 
 const METADATA: &str = r#"
 {
@@ -57,7 +58,7 @@ fn create_default_project<T: Config>(
 	let project_id_parameter = id.unwrap_or(0);
 	let project_id = T::BenchmarkHelper::create_project_id_parameter(project_id_parameter);
 	let metadata_hash = store_and_return_metadata_hash::<T>();
-	let project = T::BenchmarkHelper::create_dummy_project(issuer.clone(), metadata_hash);
+	let project = T::BenchmarkHelper::create_dummy_project(metadata_hash);
 	(project_id, issuer, project)
 }
 

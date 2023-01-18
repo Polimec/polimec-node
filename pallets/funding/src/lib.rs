@@ -102,7 +102,6 @@ use sp_std::ops::AddAssign;
 type BalanceOf<T> = <T as Config>::CurrencyBalance;
 type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 type ProjectOf<T> = Project<
-	<T as frame_system::Config>::AccountId,
 	BoundedVec<u8, <T as Config>::StringLimit>,
 	BalanceOf<T>,
 	<T as frame_system::Config>::Hash,
@@ -842,7 +841,6 @@ pub mod pallet {
 	pub trait BenchmarkHelper<T: Config> {
 		fn create_project_id_parameter(id: u32) -> T::ProjectIdParameter;
 		fn create_dummy_project(
-			destinations_account: T::AccountId,
 			metadata_hash: T::Hash,
 		) -> ProjectOf<T>;
 	}
@@ -853,22 +851,14 @@ pub mod pallet {
 			id.into()
 		}
 		fn create_dummy_project(
-			destinations_account: T::AccountId,
 			metadata_hash: T::Hash,
 		) -> ProjectOf<T> {
 			let project: ProjectOf<T> = Project {
 				minimum_price: 1u8.into(),
 				ticket_size: TicketSize { minimum: Some(1u8.into()), maximum: None },
 				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-				destinations_account,
 				metadata: metadata_hash,
-				// ..Default::default() doesn't work: the trait `std::default::Default` is not implemented for `<T as frame_system::Config>::AccountId`
-				conversion_rate: 1u8.into(),
-				funding_thresholds: Default::default(),
-				fundraising_target: Default::default(),
-				participation_currencies: Default::default(),
-				token_information: Default::default(),
-				total_allocation_size: Default::default(),
+				..Default::default() 
 			};
 			project
 		}

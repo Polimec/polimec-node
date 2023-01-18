@@ -68,7 +68,7 @@ fn store_and_return_metadata_hash() -> sp_core::H256 {
 	hashed(metadata)
 }
 
-fn create_project() -> Project<u64, BoundedVec<u8, ConstU32<64>>, u128, sp_core::H256> {
+fn create_project() -> Project<BoundedVec<u8, ConstU32<64>>, u128, sp_core::H256> {
 	let metadata_hash = store_and_return_metadata_hash();
 	Project {
 		minimum_price: 1_u128,
