@@ -147,33 +147,37 @@ pub struct AuctionMetadata<BlockNumber> {
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct BidInfo<Balance: BalanceT, AccountId> {
+pub struct BidInfo<Balance: BalanceT, AccountId, BlockNumber> {
 	#[codec(compact)]
 	pub market_cap: Balance,
 	#[codec(compact)]
 	pub amount: Balance,
 	#[codec(compact)]
 	pub ratio: Perbill,
+	pub when: BlockNumber,
 	pub bidder: AccountId,
 	pub funded: bool,
 	pub multiplier: u8,
 }
 
-impl<Balance: BalanceT + From<u64>, AccountId> BidInfo<Balance, AccountId> {
+impl<Balance: BalanceT + From<u64>, AccountId, BlockNumber>
+	BidInfo<Balance, AccountId, BlockNumber>
+{
 	pub fn new(
 		market_cap: Balance,
 		amount: Balance,
 		auction_taget: Balance,
+		when: BlockNumber,
 		bidder: AccountId,
 		multiplier: u8,
 	) -> Self {
 		let ratio = Perbill::from_rational(amount, auction_taget);
-		Self { market_cap, amount, ratio, bidder, funded: false, multiplier }
+		Self { market_cap, amount, ratio, when, bidder, funded: false, multiplier }
 	}
 }
 
-impl<Balance: BalanceT + From<u64>, AccountId: sp_std::cmp::Eq> sp_std::cmp::Ord
-	for BidInfo<Balance, AccountId>
+impl<Balance: BalanceT + From<u64>, AccountId: sp_std::cmp::Eq, BlockNumber: sp_std::cmp::Eq>
+	sp_std::cmp::Ord for BidInfo<Balance, AccountId, BlockNumber>
 {
 	fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
 		let self_value = self.amount.saturating_mul(self.market_cap);
@@ -182,13 +186,11 @@ impl<Balance: BalanceT + From<u64>, AccountId: sp_std::cmp::Eq> sp_std::cmp::Ord
 	}
 }
 
-impl<Balance: BalanceT + From<u64>, AccountId: sp_std::cmp::Eq> sp_std::cmp::PartialOrd
-	for BidInfo<Balance, AccountId>
+impl<Balance: BalanceT + From<u64>, AccountId: sp_std::cmp::Eq, BlockNumber: sp_std::cmp::Eq>
+	sp_std::cmp::PartialOrd for BidInfo<Balance, AccountId, BlockNumber>
 {
 	fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
-		let self_value = self.amount.saturating_mul(self.market_cap);
-		let other_value = other.amount.saturating_mul(other.market_cap);
-		self_value.partial_cmp(&other_value)
+		Some(self.cmp(&other))
 	}
 }
 

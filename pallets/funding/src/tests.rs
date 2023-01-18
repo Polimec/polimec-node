@@ -327,7 +327,7 @@ mod auction_round {
 			let bids = FundingModule::auctions_info(0);
 			assert!(bids
 				.iter()
-				.any(|(when, bid)| *when == System::block_number() &&
+				.any(|bid| bid.when == System::block_number() &&
 					bid.amount == 100 && bid.market_cap == 1));
 			let free_balance_after_bid = Balances::free_balance(&CHARLIE);
 
@@ -505,11 +505,11 @@ mod flow {
 			let active_projects = FundingModule::projects_active();
 			assert!(active_projects.len() == 0);
 
-			// TODO: There exists certanly a better/easier way to test the pallet_asset functionalties
-
 			// Naive way to check if the Contribution Token is actually created
 			// TODO: Replace with `asset_exists` given by the `Inspect` trait when the codebase is updated to >= v0.9.35
 			assert!(Assets::force_create(RuntimeOrigin::root(), 0, 1, true, 1).is_err());
+
+			// TODO: There exists certanly a better/easier way to test the pallet_asset functionalties
 			// Check if the the metadata are set correctly
 			let metadata_name =
 				<pallet_assets::Pallet<mock::Test> as InspectMetadata<AccountId>>::name(&0);
@@ -618,10 +618,10 @@ mod flow {
 			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(4), 0, 10 * PLMC, 7 * PLMC, None));
 			let bids = FundingModule::auctions_info(0);
 			assert!(bids.len() == 4);
-			assert!(bids[0].1.amount == 2 * PLMC);
-			assert!(bids[1].1.amount == 4 * PLMC);
-			assert!(bids[2].1.amount == 6 * PLMC);
-			assert!(bids[3].1.amount == 10 * PLMC);
+			assert!(bids[0].amount == 2 * PLMC);
+			assert!(bids[1].amount == 4 * PLMC);
+			assert!(bids[2].amount == 6 * PLMC);
+			assert!(bids[3].amount == 10 * PLMC);
 		})
 	}
 }
