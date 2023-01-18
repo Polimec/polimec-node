@@ -69,9 +69,7 @@ pub enum ValidityError {
 	ParticipantsSizeError,
 }
 
-impl<BoundedString, Balance: BalanceT, Hash>
-	Project<BoundedString, Balance, Hash>
-{
+impl<BoundedString, Balance: BalanceT, Hash> Project<BoundedString, Balance, Hash> {
 	// TODO: Perform a REAL validity check
 	pub fn validity_check(&self) -> Result<(), ValidityError> {
 		if self.minimum_price == Balance::zero() {
@@ -114,18 +112,21 @@ pub struct ParticipantsSize {
 
 impl ParticipantsSize {
 	fn is_valid(&self) -> Result<(), ValidityError> {
-		if self.minimum.is_some() && self.maximum.is_some() {
-			if self.minimum < self.maximum {
-				return Ok(())
-			} else {
-				return Err(ValidityError::ParticipantsSizeError)
-			}
+		match (self.minimum, self.maximum) {
+			(Some(min), Some(max)) =>
+				if min < max && min > 0 && max > 0 {
+					return Ok(())
+				} else {
+					return Err(ValidityError::ParticipantsSizeError)
+				},
+			(Some(elem), None) | (None, Some(elem)) =>
+				if elem > 0 {
+					return Ok(())
+				} else {
+					return Err(ValidityError::ParticipantsSizeError)
+				},
+			(None, None) => return Err(ValidityError::ParticipantsSizeError),
 		}
-		if self.minimum.is_some() || self.maximum.is_some() {
-			return Ok(())
-		}
-
-		Err(ValidityError::ParticipantsSizeError)
 	}
 }
 
