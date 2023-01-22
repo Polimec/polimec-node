@@ -10,7 +10,7 @@ use sp_blockchain::HeaderBackend;
 use sp_runtime::generic::BlockId;
 use std::{marker::PhantomData, sync::Arc};
 
-pub use pallet_credentials_runtime_api::CredentialsApi as CredentialsRuntimeApi;
+pub use polimec_runtime_api_credentials::CredentialsApi as CredentialsRuntimeApi;
 
 #[rpc(client, server)]
 pub trait CredentialsApi<BlockHash, AccountId> {

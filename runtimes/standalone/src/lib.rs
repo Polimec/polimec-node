@@ -770,7 +770,7 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl pallet_credentials_runtime_api::CredentialsApi<Block, AccountId> for Runtime {
+	impl polimec_runtime_api_credentials::CredentialsApi<Block, AccountId> for Runtime {
 		fn is_in(role: MemberRole, who: AccountId) -> bool {
 			Credentials::is_in(&role, &who)
 		}
