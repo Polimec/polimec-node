@@ -130,7 +130,9 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
+	/// The module configuration trait.
 	pub trait Config: frame_system::Config {
+		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Global identifier for the projects.
@@ -378,6 +380,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Validate a preimage on-chain and store the image.
 		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
+		// TODO: Use BounmdedVec instead of Vec
 		pub fn note_image(origin: OriginFor<T>, bytes: Vec<u8>) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 
@@ -416,8 +419,8 @@ pub mod pallet {
 			}
 		}
 
-		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		/// Edit the `project_metadata` of a `project_id` if "Evaluation Round" is not yet started
+		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		pub fn edit_metadata(
 			origin: OriginFor<T>,
 			project_metadata_hash: T::Hash,
@@ -440,8 +443,8 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		/// Start the "Evaluation Round" of a `project_id`
+		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		pub fn start_evaluation(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdParameter,
@@ -458,8 +461,8 @@ pub mod pallet {
 			Self::do_start_evaluation(project_id)
 		}
 
-		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		/// Evaluators can bond `amount` PLMC to evaluate a `project_id` in the "Evaluation Round"
+		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		pub fn bond(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdParameter,
@@ -507,8 +510,8 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		/// Start the "Funding Round" of a `project_id`
+		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		pub fn start_auction(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdParameter,
@@ -529,9 +532,8 @@ pub mod pallet {
 			);
 			Self::do_start_auction(project_id)
 		}
-
-		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		/// Place a bid in the "Auction Round"
+		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		pub fn bid(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdParameter,
@@ -584,6 +586,11 @@ pub mod pallet {
 				bidder.clone(),
 				multiplier,
 			);
+
+			// TODO: If it's better to save te bids ordered, we can use smt like this
+			// let mut bids = AuctionsInfo::<T>::get(project_id);
+			// let index = bids.partition_point(|x| x < &bid);
+			// bids.try_insert(index, bid);
 
 			match AuctionsInfo::<T>::try_append(project_id, &bid) {
 				Ok(_) => {
