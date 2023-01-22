@@ -22,12 +22,20 @@ use crate::{
 #[cfg(feature = "try-runtime")]
 use sc_service::TaskManager;
 
-fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
+fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
+	log::info!("Load spec id: {}", id);
+
 	Ok(match id {
-		"dev" => Box::new(chain_spec::development_config()),
-		"template-rococo" => Box::new(chain_spec::local_testnet_config()),
-		"" | "local" => Box::new(chain_spec::local_testnet_config()),
-		path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
+		"shell-dev" => Box::new(chain_spec::shell::get_local_shell_chain_spec()),
+		"shell" => Box::new(chain_spec::shell::get_live_shell_chain_spec()),
+		"testnet-dev" => Box::new(chain_spec::testnet::get_chain_spec_dev()?),
+		"testnet" => Box::new(chain_spec::testnet::get_chain_spec()?),
+		// Default to shell-dev
+		"" | "local" => Box::new(chain_spec::shell::get_local_shell_chain_spec()),
+		// TODO: This only works for the shell chain, not for the testnet
+		path => Box::new(chain_spec::shell::ShellChainSpec::from_json_file(
+			std::path::PathBuf::from(path),
+		)?),
 	})
 }
 
@@ -55,7 +63,7 @@ impl SubstrateCli for Cli {
 	}
 
 	fn support_url() -> String {
-		"https://github.com/paritytech/cumulus/issues/new".into()
+		"https://github.com/Polimec/polimec-node/issues/new".into()
 	}
 
 	fn copyright_start_year() -> i32 {
@@ -95,7 +103,7 @@ impl SubstrateCli for RelayChainCli {
 	}
 
 	fn support_url() -> String {
-		"https://github.com/paritytech/cumulus/issues/new".into()
+		"https://github.com/Polimec/polimec-node/issues/new".into()
 	}
 
 	fn copyright_start_year() -> i32 {
