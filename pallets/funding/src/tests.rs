@@ -278,7 +278,7 @@ mod evaluation_round {
 	}
 
 	#[test]
-	fn multiple_bond_works() {
+	fn multiple_users_can_bond() {
 		new_test_ext().execute_with(|| {
 			create_on_chain_project();
 			assert_noop!(
@@ -307,6 +307,24 @@ mod evaluation_round {
 				FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 1024 * PLMC),
 				Error::<Test>::InsufficientBalance
 			);
+		})
+	}
+
+	#[test]
+	fn multiple_bond_works() {
+		new_test_ext().execute_with(|| {
+			create_on_chain_project();
+			assert_noop!(
+				FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128),
+				Error::<Test>::EvaluationNotStarted
+			);
+			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
+			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128));
+			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128));
+			let bonds = FundingModule::bonds(0, BOB);
+			assert_eq!(bonds.unwrap(), 256);
+			let locked_amount = Balances::locks(&BOB).iter().next().unwrap().amount;
+			assert_eq!(locked_amount, 256);
 		})
 	}
 }

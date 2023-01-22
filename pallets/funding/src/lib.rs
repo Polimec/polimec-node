@@ -93,11 +93,10 @@ use frame_support::{
 use polimec_traits::{MemberRole, PolimecMembers};
 use sp_arithmetic::traits::{Saturating, Zero};
 use sp_runtime::{
-	traits::{AccountIdConversion, Hash},
+	traits::{AccountIdConversion, CheckedAdd, Hash},
 	FixedPointNumber, FixedPointOperand, FixedU128, Perbill,
 };
-use sp_std::ops::AddAssign;
-
+use sp_std::{ops::AddAssign, prelude::*};
 /// The balance type of this pallet.
 type BalanceOf<T> = <T as Config>::CurrencyBalance;
 type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
@@ -493,21 +492,25 @@ pub mod pallet {
 			ensure!(amount >= minimum_amount, Error::<T>::BondTooLow);
 			ensure!(amount <= maximum_amount, Error::<T>::BondTooHigh);
 
-			T::Currency::set_lock(LOCKING_ID, &from, amount, WithdrawReasons::all());
 			// TODO: Unlock the PLMC when it's the right time
-			Bonds::<T>::insert(project_id, &from, amount);
-			Self::deposit_event(Event::<T>::FundsBonded { project_id, amount });
-			Ok(())
-		}
+			// Check if the user has already bonded
+			Bonds::<T>::try_mutate(project_id, &from, |maybe_bond| {
+				match maybe_bond {
+					Some(bond) => {
+						// If the user has already bonded, add the new amount to the old one
+						let new_bond = bond.checked_add(&amount).unwrap();
+						*maybe_bond = Some(new_bond);
+						T::Currency::set_lock(LOCKING_ID, &from, new_bond, WithdrawReasons::all());
 
-		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
-		/// Evaluators can bond more `amount` PLMC to evaluate a `project_id` in the "Evaluation Round"
-		pub fn rebond(
-			_origin: OriginFor<T>,
-			_project_id: T::ProjectIdentifier,
-			#[pallet::compact] _amount: BalanceOf<T>,
-		) -> DispatchResult {
-			Ok(())
+					},
+					None => {
+						// If the user has not bonded yet, create a new bond
+						*maybe_bond = Some(amount);
+						T::Currency::set_lock(LOCKING_ID, &from, amount, WithdrawReasons::all());
+					},
+				}
+				Ok(())
+			})
 		}
 
 		/// Start the "Funding Round" of a `project_id`
