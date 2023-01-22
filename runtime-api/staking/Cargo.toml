@@ -2,24 +2,20 @@
 version = "0.1.0"
 authors = ["KILT <info@kilt.io>"]
 edition = "2021"
-# license = "Unlicense"
-# publish = false
 repository = 'https://github.com/polimec/polimec-node'
 name = "kilt-runtime-api-staking"
 description = "Runtime APIs for dealing with parachain staking."
 
 [dependencies]
 # External dependencies
-codec = { package = "parity-scale-codec", version = "3.2.1", default-features = false, features = [
+codec = { package = "parity-scale-codec", workspace = true, features = [
   "derive",
 ] }
-scale-info = { version = "2.3.1", default-features = false, features = [
-  "derive",
-] }
+scale-info = { workspace = true, features = ["derive"] }
 
 # Substrate dependencies
-sp-api = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }
-sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }
+sp-api.workspace = true
+sp-runtime.workspace = true
 
 
 [features]
