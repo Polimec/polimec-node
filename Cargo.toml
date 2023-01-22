@@ -104,6 +104,7 @@ pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", 
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }
 pallet-treasury = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }
 pallet-utility = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }
+pallet-membership = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }
 pallet-multisig = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }
 pallet-preimage = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }
 pallet-grandpa = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }
@@ -158,6 +159,7 @@ sc-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v
 sc-executor = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.32" }
 sc-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.32" }
 sp-consensus = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.32" }
+sp-serializer = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.32" }
 sp-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.32" }
 sp-keyring = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.32" }
 sc-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.32" }
@@ -182,5 +184,7 @@ cumulus-pallet-session-benchmarking = { git = "https://github.com/paritytech/cum
 frame-system-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }
 
 # Runtimes
+runtime-common = { path = "runtimes/common" }
 polimec-parachain-runtime = { path = "runtimes/testnet" }
 polimec-standalone-runtime = { path = "runtimes/standalone" }
+polimec-shell-runtime = { path = "runtimes/shell" }
