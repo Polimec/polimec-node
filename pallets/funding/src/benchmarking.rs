@@ -25,8 +25,8 @@ use crate::Pallet as PolimecFunding;
 
 use super::*;
 use frame_benchmarking::{account, benchmarks};
-use frame_system::{Pallet as System, RawOrigin as SystemOrigin};
 use frame_support::traits::Hooks;
+use frame_system::{Pallet as System, RawOrigin as SystemOrigin};
 
 const METADATA: &str = r#"
 {

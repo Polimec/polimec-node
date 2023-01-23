@@ -118,7 +118,7 @@ pub trait Identifiable =
 	Member + Parameter + Copy + MaxEncodedLen + Default + AddAssign + From<u32>;
 // TODO: + MaybeSerializeDeserialize: Maybe needed for JSON serialization @ Genesis: https://github.com/paritytech/substrate/issues/12738#issuecomment-1320921201
 
-#[frame_support::pallet]
+#[frame_support::pallet(dev_mode)]
 pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
@@ -501,7 +501,6 @@ pub mod pallet {
 						let new_bond = bond.checked_add(&amount).unwrap();
 						*maybe_bond = Some(new_bond);
 						T::Currency::set_lock(LOCKING_ID, &from, new_bond, WithdrawReasons::all());
-
 					},
 					None => {
 						// If the user has not bonded yet, create a new bond
