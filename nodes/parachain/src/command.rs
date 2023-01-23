@@ -27,9 +27,10 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 		"shell-rococo-local" => Box::new(chain_spec::shell::get_local_shell_chain_spec()),
 		"shell-polkadot" => Box::new(chain_spec::shell::get_live_shell_chain_spec()),
 		"polimec-rococo-local" => Box::new(chain_spec::testnet::get_chain_spec_dev()?),
-		// TODO: Find the best way to generate chainspecs
-		"polimec" => Box::new(chain_spec::testnet::get_chain_spec()?),
+		"polimec-polkadot" => Box::new(chain_spec::testnet::get_prod_chain_spec()?),
+		"polimec-polkadot-local" => Box::new(chain_spec::testnet::get_local_prod_chain_spec()?),
 		"" | "local" => Box::new(chain_spec::testnet::get_chain_spec_dev()?),
+		// TODO: Find the best way to generate chainspecs
 		// TODO: Check Cumulus repo to see how to better handle this
 		// Default to polimec-rococo
 		path => Box::new(chain_spec::testnet::ChainSpec::from_json_file(

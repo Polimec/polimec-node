@@ -106,10 +106,78 @@ pub fn get_chain_spec_dev() -> Result<ChainSpec, String> {
 	))
 }
 
-pub fn get_chain_spec() -> Result<ChainSpec, String> {
+pub fn get_prod_chain_spec() -> Result<ChainSpec, String> {
 	let properties = get_properties("PLMC", 10, 41);
 	let wasm = WASM_BINARY.ok_or("No WASM")?;
 	let id: ParaId = 2105.into();
+
+	Ok(ChainSpec::from_genesis(
+		"Polimec",
+		"polimec-prod",
+		ChainType::Live,
+		move || {
+			testnet_genesis(
+				wasm,
+				vec![
+					(
+						get_account_id_from_seed::<sr25519::Public>("Alice"),
+						None,
+						2 * MinCollatorStake::get(),
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Bob"),
+						None,
+						2 * MinCollatorStake::get(),
+					),
+				],
+				polimec_inflation_config(),
+				MAX_COLLATOR_STAKE,
+				vec![
+					(
+						get_account_id_from_seed::<sr25519::Public>("Alice"),
+						get_from_seed::<AuthorityId>("Alice"),
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Bob"),
+						get_from_seed::<AuthorityId>("Bob"),
+					),
+				],
+				vec![
+					(get_account_id_from_seed::<sr25519::Public>("Alice"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Bob"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Charlie"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Dave"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Eve"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Ferdie"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Alice//stash"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Bob//stash"), 10000000 * PLMC),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
+						10000000 * PLMC,
+					),
+					(get_account_id_from_seed::<sr25519::Public>("Dave//stash"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Eve//stash"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"), 10000000 * PLMC),
+				],
+				id,
+			)
+		},
+		vec![],
+		Some(
+			TelemetryEndpoints::new(vec![(TELEMETRY_URL.to_string(), 0)])
+				.expect("Polimec telemetry url is valid; qed"),
+		),
+		Some("polimec"),
+		None,
+		Some(properties),
+		Extensions { relay_chain: "polkadot".into(), para_id: id.into() },
+	))
+}
+
+pub fn get_local_prod_chain_spec() -> Result<ChainSpec, String> {
+	let properties = get_properties("PLMC", 10, 41);
+	let wasm = WASM_BINARY.ok_or("No WASM")?;
+	let id: ParaId = 2000.into();
 
 	Ok(ChainSpec::from_genesis(
 		"Polimec",
