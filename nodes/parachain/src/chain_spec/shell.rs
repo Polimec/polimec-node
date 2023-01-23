@@ -18,13 +18,10 @@
 
 //! Polimec Shell chain specification
 
-use std::str::FromStr;
-
 use crate::chain_spec::Extensions;
 use cumulus_primitives_core::ParaId;
 use polimec_shell_runtime as shell_runtime;
 use sc_service::ChainType;
-use sp_runtime::AccountId32;
 
 /// Specialized `ChainSpec` for the shell parachain runtime.
 pub type ShellChainSpec = sc_service::GenericChainSpec<shell_runtime::GenesisConfig, Extensions>;
@@ -60,9 +57,6 @@ pub fn get_live_shell_chain_spec() -> ShellChainSpec {
 }
 
 fn shell_testnet_genesis(parachain_id: ParaId) -> shell_runtime::GenesisConfig {
-	// TODO: Testnet only
-	let root_account_id: AccountId32 = AccountId32::from_str("5EqARmrTXYvc3PQ7EGhu8LLhWcZpPPFj8x8ni4VMe2NH43cg").expect("This is a valid account; qed");
-	
 	shell_runtime::GenesisConfig {
 		system: shell_runtime::SystemConfig {
 			code: shell_runtime::WASM_BINARY
@@ -71,6 +65,5 @@ fn shell_testnet_genesis(parachain_id: ParaId) -> shell_runtime::GenesisConfig {
 		},
 		parachain_info: shell_runtime::ParachainInfoConfig { parachain_id },
 		parachain_system: Default::default(),
-		sudo: shell_runtime::SudoConfig { key: Some(root_account_id) },
 	}
 }

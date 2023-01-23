@@ -19,21 +19,20 @@ use crate::{
 	cli::{Cli, RelayChainCli, Subcommand},
 	service::{new_partial, ParachainNativeExecutor},
 };
-#[cfg(feature = "try-runtime")]
-use sc_service::TaskManager;
 
-fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
+fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 	log::info!("Load spec id: {}", id);
 
 	Ok(match id {
-		"shell-dev" => Box::new(chain_spec::shell::get_local_shell_chain_spec()),
-		"shell" => Box::new(chain_spec::shell::get_live_shell_chain_spec()),
-		"testnet-dev" => Box::new(chain_spec::testnet::get_chain_spec_dev()?),
-		"testnet" => Box::new(chain_spec::testnet::get_chain_spec()?),
-		// Default to shell-dev
-		"" | "local" => Box::new(chain_spec::shell::get_local_shell_chain_spec()),
-		// TODO: This only works for the shell chain, not for the testnet
-		path => Box::new(chain_spec::shell::ShellChainSpec::from_json_file(
+		"shell-rococo-local" => Box::new(chain_spec::shell::get_local_shell_chain_spec()),
+		"shell-polkadot" => Box::new(chain_spec::shell::get_live_shell_chain_spec()),
+		"polimec-rococo-local" => Box::new(chain_spec::testnet::get_chain_spec_dev()?),
+		// TODO: Find the best way to generate chainspecs
+		"polimec" => Box::new(chain_spec::testnet::get_chain_spec()?),
+		"" | "local" => Box::new(chain_spec::testnet::get_chain_spec_dev()?),
+		// TODO: Check Cumulus repo to see how to better handle this
+		// Default to polimec-rococo
+		path => Box::new(chain_spec::testnet::ChainSpec::from_json_file(
 			std::path::PathBuf::from(path),
 		)?),
 	})
@@ -227,7 +226,6 @@ pub fn run() -> Result<()> {
 					let partials = new_partial(&config)?;
 					let db = partials.backend.expose_db();
 					let storage = partials.backend.expose_storage();
-
 					cmd.run(config, partials.client.clone(), db, storage)
 				}),
 				BenchmarkCmd::Machine(cmd) =>
@@ -240,22 +238,28 @@ pub fn run() -> Result<()> {
 		},
 		#[cfg(feature = "try-runtime")]
 		Some(Subcommand::TryRuntime(cmd)) => {
-			if cfg!(feature = "try-runtime") {
-				let runner = cli.create_runner(cmd)?;
+			let runner = cli.create_runner(cmd)?;
 
-				// grab the task manager.
-				let registry = &runner.config().prometheus_config.as_ref().map(|cfg| &cfg.registry);
-				let task_manager =
-					TaskManager::new(runner.config().tokio_handle.clone(), *registry)
-						.map_err(|e| format!("Error: {:?}", e))?;
+			use sc_executor::{sp_wasm_interface::ExtendedHostFunctions, NativeExecutionDispatch};
+			type HostFunctionsOf<E> = ExtendedHostFunctions<
+				sp_io::SubstrateHostFunctions,
+				<E as NativeExecutionDispatch>::ExtendHostFunctions,
+			>;
 
-				runner.async_run(|config| {
-					Ok((cmd.run::<Block, ParachainNativeExecutor>(config), task_manager))
-				})
-			} else {
-				Err("Try-runtime must be enabled by `--features try-runtime`.".into())
-			}
+			// grab the task manager.
+			let registry = &runner.config().prometheus_config.as_ref().map(|cfg| &cfg.registry);
+			let task_manager =
+				sc_service::TaskManager::new(runner.config().tokio_handle.clone(), *registry)
+					.map_err(|e| format!("Error: {:?}", e))?;
+
+			runner.async_run(|_| {
+				Ok((cmd.run::<Block, HostFunctionsOf<ParachainNativeExecutor>>(), task_manager))
+			})
 		},
+		#[cfg(not(feature = "try-runtime"))]
+		Some(Subcommand::TryRuntime) => Err("Try-runtime was not enabled when building the node. \
+			You can enable it with `--features try-runtime`."
+			.into()),
 		None => {
 			let runner = cli.create_runner(&cli.run.normalize())?;
 			let collator_options = cli.run.collator_options();
@@ -299,7 +303,7 @@ pub fn run() -> Result<()> {
 				info!("Parachain genesis state: {}", genesis_state);
 				info!("Is collating: {}", if config.role.is_authority() { "yes" } else { "no" });
 
-				if collator_options.relay_chain_rpc_url.is_some() && cli.relay_chain_args.len() > 0 {
+				if !collator_options.relay_chain_rpc_urls.is_empty() && cli.relay_chain_args.len() > 0 {
 					warn!("Detected relay chain node arguments together with --relay-chain-rpc-url. This command starts a minimal Polkadot node that only uses a network-related subset of all relay chain CLI options.");
 				}
 

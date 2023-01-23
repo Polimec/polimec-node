@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use constants::{AVERAGE_ON_INITIALIZE_RATIO, MAXIMUM_BLOCK_WEIGHT, NORMAL_DISPATCH_RATIO};
@@ -24,7 +23,9 @@ pub use sp_consensus_aura::sr25519::AuthorityId;
 
 pub use opaque::*;
 
-pub use frame_support::weights::constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
+pub use frame_support::weights::constants::{
+	BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight,
+};
 use frame_support::{
 	dispatch::DispatchClass,
 	parameter_types,
@@ -41,9 +42,6 @@ use sp_std::marker::PhantomData;
 
 pub mod constants;
 pub mod fees;
-
-#[cfg(feature = "runtime-benchmarks")]
-pub mod benchmarks;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't
 /// need to know the specifics of the runtime. They can then be made to be
@@ -102,8 +100,9 @@ pub type DigestItem = generic::DigestItem;
 /// A Kilt DID subject identifier.
 pub type DidIdentifier = AccountId;
 
-pub type NegativeImbalanceOf<T> =
-	<pallet_balances::Pallet<T> as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
+pub type NegativeImbalanceOf<T> = <pallet_balances::Pallet<T> as Currency<
+	<T as frame_system::Config>::AccountId,
+>>::NegativeImbalance;
 
 // Common constants used in all runtimes.
 parameter_types! {
@@ -153,8 +152,13 @@ pub type FeeSplit<R, B1, B2> = SplitFeesByRatio<R, FeeSplitRatio, B1, B2>;
 
 /// Parameterized slow adjusting fee updated based on
 /// https://w3f-research.readthedocs.io/en/latest/polkadot/Token%20Economics.html#-2.-slow-adjusting-mechanism
-pub type SlowAdjustingFeeUpdate<R> =
-	TargetedFeeAdjustment<R, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier, MaximumMultiplier>;
+pub type SlowAdjustingFeeUpdate<R> = TargetedFeeAdjustment<
+	R,
+	TargetBlockFullness,
+	AdjustmentVariable,
+	MinimumMultiplier,
+	MaximumMultiplier,
+>;
 
 pub struct Tippers<R, I>(PhantomData<R>, PhantomData<I>);
 impl<R, I: 'static> ContainsLengthBound for Tippers<R, I>
@@ -181,11 +185,12 @@ where
 
 	#[cfg(feature = "runtime-benchmarks")]
 	fn add(who: &R::AccountId) {
-		pallet_membership::Members::<R, I>::mutate(|members| match members.binary_search_by(|m| m.cmp(who)) {
-			Ok(_) => (),
-			Err(pos) => members
-				.try_insert(pos, who.clone())
-				.expect("Should not fail to add members"),
+		pallet_membership::Members::<R, I>::mutate(|members| {
+			match members.binary_search_by(|m| m.cmp(who)) {
+				Ok(_) => (),
+				Err(pos) =>
+					members.try_insert(pos, who.clone()).expect("Should not fail to add members"),
+			}
 		})
 	}
 }

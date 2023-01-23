@@ -38,6 +38,9 @@ sp-runtime.workspace = true
 sp-std.workspace = true
 pallet-membership.workspace = true
 
+# Cumulus dependencies
+cumulus-primitives-core.workspace = true
+
 # Polkadot dependencies
 polkadot-parachain.workspace = true
 xcm.workspace = true
@@ -58,6 +61,7 @@ std = [
     "codec/std",
     "frame-support/std",
     "frame-system/std",
+    "cumulus-primitives-core/std",
     "pallet-authorship/std",
     "pallet-balances/std",
     "pallet-transaction-payment/std",

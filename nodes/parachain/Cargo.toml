@@ -18,7 +18,9 @@ serde = { workspace = true, features = ["derive"] }
 jsonrpsee = { workspace = true, features = ["server"] }
 
 # Local
+runtime-common.workspace = true
 polimec-parachain-runtime.workspace = true
+polimec-shell-runtime.workspace = true
 pallet-credentials-api.workspace = true
 
 # Substrate

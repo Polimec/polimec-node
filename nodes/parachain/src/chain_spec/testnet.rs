@@ -25,9 +25,9 @@ use runtime_common::{
 };
 
 use polimec_parachain_runtime::{
-	AccountId, Balance, BalancesConfig, CouncilConfig, CredentialsConfig,
-	GenesisConfig, InflationInfo, ParachainStakingConfig, SessionConfig, SudoConfig,
-	TechnicalCommitteeConfig, WASM_BINARY, SystemConfig, PolkadotXcmConfig, SessionKeys, ParachainInfoConfig,
+	AccountId, Balance, BalancesConfig, CouncilConfig, CredentialsConfig, GenesisConfig,
+	InflationInfo, ParachainInfoConfig, ParachainStakingConfig, PolkadotXcmConfig, SessionConfig,
+	SessionKeys, SudoConfig, SystemConfig, TechnicalCommitteeConfig, WASM_BINARY,
 };
 use sc_service::ChainType;
 use sc_telemetry::TelemetryEndpoints;
@@ -48,7 +48,7 @@ pub fn get_chain_spec_dev() -> Result<ChainSpec, String> {
 
 	Ok(ChainSpec::from_genesis(
 		"Polimec Develop",
-		"polimec_dev",
+		"polimec-dev",
 		ChainType::Local,
 		move || {
 			testnet_genesis(
@@ -202,9 +202,7 @@ fn testnet_genesis(
 	let accounts = endowed_accounts.iter().map(|(account, _)| account.clone()).collect::<Vec<_>>();
 
 	GenesisConfig {
-		system: SystemConfig {
-			code: wasm_binary.to_vec(),
-		},
+		system: SystemConfig { code: wasm_binary.to_vec() },
 		balances: BalancesConfig { balances: endowed_accounts.clone() },
 		parachain_info: ParachainInfoConfig { parachain_id: id },
 		parachain_staking: ParachainStakingConfig {
@@ -226,18 +224,10 @@ fn testnet_genesis(
 		session: SessionConfig {
 			keys: initial_authorities
 				.iter()
-				.map(|(acc, key)| {
-					(
-						acc.clone(),
-						acc.clone(),
-						SessionKeys { aura: key.clone() },
-					)
-				})
+				.map(|(acc, key)| (acc.clone(), acc.clone(), SessionKeys { aura: key.clone() }))
 				.collect::<Vec<_>>(),
 		},
-		polkadot_xcm: PolkadotXcmConfig {
-			safe_xcm_version: Some(SAFE_XCM_VERSION),
-		},
+		polkadot_xcm: PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION) },
 		treasury: Default::default(),
 		sudo: SudoConfig { key: Some(accounts.first().expect("").to_owned()) },
 		council: CouncilConfig {
