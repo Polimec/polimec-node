@@ -570,8 +570,8 @@ construct_runtime!(
 		Aura: pallet_aura,
 		Grandpa: pallet_grandpa,
 
-		Council: pallet_collective<Instance1>,
-		TechnicalCommittee: pallet_collective<Instance2>,
+		Council: pallet_collective::<Instance1>,
+		TechnicalCommittee: pallet_collective::<Instance2>,
 		Democracy: pallet_democracy,
 
 		Scheduler: pallet_scheduler,

@@ -127,6 +127,7 @@ runtime-benchmarks = [
 	"pallet-grandpa/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
+	"pallet-assets/runtime-benchmarks",
 	"pallet-collective/runtime-benchmarks",
 	"pallet-credentials/runtime-benchmarks",
 	"pallet-democracy/runtime-benchmarks",

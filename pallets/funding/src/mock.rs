@@ -21,6 +21,7 @@
 use super::*;
 use crate as pallet_funding;
 
+use frame_support::traits::AsEnsureOriginWithArg;
 use frame_support::{
 	parameter_types,
 	traits::{ConstU128, ConstU16, ConstU32},
@@ -135,6 +136,12 @@ impl pallet_assets::Config for Test {
 	type Freezer = ();
 	type WeightInfo = ();
 	type Extra = ();
+	type AssetIdParameter = Identifier;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
+	// type CallbackHandle = ();
+	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 parameter_types! {
