@@ -80,9 +80,7 @@ use frame_support::{
 	pallet_prelude::ValueQuery,
 	traits::{
 		tokens::{
-			fungibles::{
-				metadata::Mutate as MetadataMutate, Create, Inspect, InspectMetadata, Mutate,
-			},
+			fungibles::{metadata::Mutate as MetadataMutate, Create, InspectMetadata, Mutate},
 			Balance,
 		},
 		Currency, Get, LockIdentifier, LockableCurrency, Randomness, ReservableCurrency,
@@ -92,11 +90,11 @@ use frame_support::{
 };
 use polimec_traits::{MemberRole, PolimecMembers};
 use sp_arithmetic::traits::{Saturating, Zero};
-use sp_runtime::traits::{AccountIdConversion, Hash};
+use sp_runtime::{
+	traits::{AccountIdConversion, Hash},
+	FixedPointNumber, FixedPointOperand, FixedU128, Perbill,
+};
 use sp_std::ops::AddAssign;
-
-/// The balance type of this pallet.
-pub type BalanceOf<T> = <T as Config>::CurrencyBalance;
 
 pub type ProjectOf<T> = Project<
 	<T as frame_system::Config>::AccountId,
@@ -104,26 +102,16 @@ pub type ProjectOf<T> = Project<
 	BalanceOf<T>,
 	<T as frame_system::Config>::Hash,
 >;
-
-/// Contribution Token identifier
-type AssetIdOf<T> =
-	<<T as Config>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
-
-/// Contribution Token balance
-type AssetBalanceOf<T> =
-	<<T as Config>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::Balance;
+/// The balance type of this pallet.
+type BalanceOf<T> = <T as Config>::CurrencyBalance;
+type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 
 // TODO: Add multiple locks
 const LOCKING_ID: LockIdentifier = *b"evaluate";
 
-pub trait Identifiable = Member
-	+ Parameter
-	+ Copy
-	+ MaxEncodedLen
-	+ Default
-	+ AddAssign
-	+ From<u32>;
-	// TODO: + MaybeSerializeDeserialize: Maybe needed for JSON serialization @ Genesis: https://github.com/paritytech/substrate/issues/12738#issuecomment-1320921201 
+pub trait Identifiable =
+	Member + Parameter + Copy + MaxEncodedLen + Default + AddAssign + From<u32>;
+// TODO: + MaybeSerializeDeserialize: Maybe needed for JSON serialization @ Genesis: https://github.com/paritytech/substrate/issues/12738#issuecomment-1320921201
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -140,7 +128,7 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Global identifier for the projects.
-		type ProjectIdentifier: Identifiable + From<AssetIdOf<Self>> + Into<AssetIdOf<Self>>;
+		type ProjectIdentifier: Identifiable;
 
 		/// Wrapper around `Self::ProjectIdentifier` to use in dispatchable call signatures. Allows the use
 		/// of compact encoding in instances of the pallet, which will prevent breaking changes
@@ -158,7 +146,7 @@ pub mod pallet {
 
 		/// Just the `Currency::Balance` type; we have this item to allow us to constrain it to
 		/// `From<u64>`.
-		type CurrencyBalance: Balance + From<u64>;
+		type CurrencyBalance: Balance + From<u64> + FixedPointOperand;
 
 		/// The bonding balance.
 		type Currency: LockableCurrency<
@@ -177,9 +165,11 @@ pub mod pallet {
 		type HandleMembers: PolimecMembers<Self::AccountId>;
 
 		/// Something that provides the ability to create, mint and burn fungible assets.
-		type Assets: Create<Self::AccountId>
-			+ Inspect<Self::AccountId>
-			+ Mutate<Self::AccountId>
+		type Assets: Create<
+				Self::AccountId,
+				AssetId = Self::ProjectIdentifier,
+				Balance = Self::CurrencyBalance,
+			> + Mutate<Self::AccountId>
 			+ MetadataMutate<Self::AccountId>
 			+ InspectMetadata<Self::AccountId>;
 
@@ -224,7 +214,7 @@ pub mod pallet {
 	#[pallet::getter(fn project_ids)]
 	/// A global counter for indexing the projects
 	/// OnEmpty in this case is GetDefault, so 0.
-	pub type ProjectId<T: Config> = StorageValue<_, T::ProjectIdentifier, ValueQuery>;
+	pub type NextProjectId<T: Config> = StorageValue<_, T::ProjectIdentifier, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn nonce)]
@@ -302,7 +292,7 @@ pub mod pallet {
 		T::ProjectIdentifier,
 		Blake2_128Concat,
 		T::AccountId,
-		BalanceOf<T>,
+		ContributionInfo<BalanceOf<T>>,
 	>;
 
 	#[pallet::event]
@@ -376,6 +366,8 @@ pub mod pallet {
 		InsufficientBalance,
 		TooManyActiveProjects,
 		NotAuthorized,
+		AlreadyClaimed,
+		CannotClaimYet,
 	}
 
 	#[pallet::call]
@@ -414,7 +406,7 @@ pub mod pallet {
 					ValidityError::TicketSizeError => Err(Error::<T>::TicketSizeError.into()),
 				},
 				Ok(()) => {
-					let project_id = ProjectId::<T>::get();
+					let project_id = NextProjectId::<T>::get();
 					Self::do_create(project_id, &issuer, project)
 				},
 			}
@@ -681,7 +673,7 @@ pub mod pallet {
 			// Make sure the bid amount is greater than the minimum_price specified by the issuer
 			ensure!(free_balance_of > project.minimum_price, Error::<T>::BondTooLow);
 
-			let fund_account = Self::fund_account_id(project_id);
+			let fund_account = T::fund_account_id(project_id);
 			// TODO: Use USDT on Statemine (via XCM) instead of PLMC
 			// TODO: Check the logic
 			T::Currency::transfer(
@@ -692,17 +684,26 @@ pub mod pallet {
 				frame_support::traits::ExistenceRequirement::KeepAlive,
 			)?;
 
-			Contributions::<T>::insert(project_id, contributor, amount);
+			Contributions::<T>::get(project_id, &contributor)
+				.map(|mut contribution| {
+					contribution.amount += amount;
+					Contributions::<T>::insert(project_id, &contributor, contribution)
+				})
+				.unwrap_or_else(|| {
+					let contribution = ContributionInfo { amount, can_claim: true };
+					Contributions::<T>::insert(project_id, &contributor, contribution)
+				});
 
 			Ok(())
 		}
 
 		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
+		// TODO: Manage the fact that the CTs may not be claimed by those entitled
 		pub fn claim_contribution_tokens(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdParameter,
 		) -> DispatchResult {
-			let issuer = ensure_signed(origin)?;
+			let claimer = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
 			ensure!(ProjectsIssuers::<T>::contains_key(project_id), Error::<T>::ProjectNotExists);
@@ -713,15 +714,37 @@ pub mod pallet {
 			// 	Error::<T>::NotAuthorized
 			// );
 
+			let project = Projects::<T>::get(project_id).ok_or(Error::<T>::ProjectNotExists)?;
 			let project_info = ProjectsInfo::<T>::get(project_id);
 			ensure!(
-				project_info.project_status == ProjectStatus::FundingEnded,
-				Error::<T>::EvaluationNotStarted
+				project_info.project_status == ProjectStatus::ReadyToLaunch,
+				Error::<T>::CannotClaimYet
 			);
+			let final_price = project_info
+				.final_price
+				.expect("The final price is set, already checked in previous ensure");
 
-			// TODO: Add logic to check if the `issuer` can actually claim the tokens
+			Contributions::<T>::try_mutate(
+				project_id,
+				claimer.clone(),
+				|maybe_contribution| -> DispatchResult {
+					let mut contribution =
+						maybe_contribution.as_mut().ok_or(Error::<T>::ProjectNotExists)?;
+					ensure!(contribution.can_claim, Error::<T>::AlreadyClaimed);
+					let token_decimals = project.token_information.decimals;
+					Self::do_claim_contribution_tokens(
+						project_id,
+						claimer,
+						contribution.amount,
+						final_price,
+						token_decimals,
+					)?;
+					contribution.can_claim = false;
+					Ok(())
+				},
+			)?;
 
-			Self::do_claim_contribution_tokens(project_id, issuer)
+			Ok(())
 		}
 	}
 
@@ -849,15 +872,21 @@ pub mod pallet {
 	}
 }
 
+pub trait ConfigHelper: Config {
+	fn fund_account_id(index: Self::ProjectIdentifier) -> AccountIdOf<Self>;
+}
+
+impl<T: Config> ConfigHelper for T {
+	#[inline(always)]
+	fn fund_account_id(index: T::ProjectIdentifier) -> AccountIdOf<Self> {
+		Self::PalletId::get().into_sub_account_truncating(index)
+	}
+}
+
 use frame_support::{pallet_prelude::*, BoundedVec};
-use sp_arithmetic::Perquintill;
 use sp_std::{borrow::Cow, cmp::Reverse, vec::Vec};
 
 impl<T: Config> Pallet<T> {
-	pub fn fund_account_id(index: T::ProjectIdentifier) -> T::AccountId {
-		T::PalletId::get().into_sub_account_truncating(index)
-	}
-
 	/// Store an image on chain.
 	///
 	/// TODO: We verify that the preimage is within the bounds of what the pallet supports.
@@ -890,7 +919,7 @@ impl<T: Config> Pallet<T> {
 		Projects::<T>::insert(project_id, project);
 		ProjectsInfo::<T>::insert(project_id, project_info);
 		ProjectsIssuers::<T>::insert(project_id, issuer);
-		ProjectId::<T>::mutate(|n| *n += 1_u32.into());
+		NextProjectId::<T>::mutate(|n| *n += 1_u32.into());
 
 		Self::deposit_event(Event::<T>::Created { project_id });
 		Ok(())
@@ -1013,13 +1042,12 @@ impl<T: Config> Pallet<T> {
 			ProjectsIssuers::<T>::get(project_id).expect("The issuer exists, already tested.");
 		let project = Projects::<T>::get(project_id).expect("The project exists, already tested.");
 		let token_information = project.token_information;
-		let id: AssetIdOf<T> = project_id.into();
 
 		// TODO: Unused result
-		let _ = T::Assets::create(id, issuer.clone(), false, 1_u32.into());
+		let _ = T::Assets::create(project_id, issuer.clone(), false, 1_u32.into());
 		// TODO: Unused result
 		let _ = T::Assets::set(
-			id,
+			project_id,
 			&issuer,
 			token_information.name.into(),
 			token_information.symbol.into(),
@@ -1065,7 +1093,7 @@ impl<T: Config> Pallet<T> {
 			fundraising_amount += bid.amount;
 			if fundraising_amount > total_allocation_size {
 				bid.amount = total_allocation_size.saturating_sub(old_amount);
-				bid.ratio = Perquintill::from_rational(bid.amount, total_allocation_size);
+				bid.ratio = Perbill::from_rational(bid.amount, total_allocation_size);
 				bids.truncate(idx + 1);
 				// TODO: refund the rest of the amount to the bidders
 				// TODO: Maybe in an on_idle hook ?
@@ -1102,21 +1130,25 @@ impl<T: Config> Pallet<T> {
 	fn do_claim_contribution_tokens(
 		project_id: T::ProjectIdentifier,
 		claimer: T::AccountId,
+		final_price: BalanceOf<T>,
+		contribution_amount: BalanceOf<T>,
+		token_decimals: u8,
 	) -> Result<(), DispatchError> {
-		let amount = Self::calculate_claimable_tokens(project_id, &claimer);
-		let id: AssetIdOf<T> = project_id.into();
-		T::Assets::mint_into(id, &claimer, amount)?;
+		let amount =
+			Self::calculate_claimable_tokens(contribution_amount, final_price, token_decimals);
+		T::Assets::mint_into(project_id, &claimer, amount)?;
 		Ok(())
 	}
 
+	// This functiion is kept separate from the `do_claim_contribution_tokens` for easier testing
 	fn calculate_claimable_tokens(
-		project_id: T::ProjectIdentifier,
-		_claimer: &T::AccountId,
-	) -> AssetBalanceOf<T> {
-		let _project = Projects::<T>::get(project_id).expect("The project exists, already tested.");
-		let _project_info = ProjectsInfo::<T>::get(project_id);
-
-		// TODO: Compute the right amount of tokens to claim
-		AssetBalanceOf::<T>::from(0_u32)
+		contribution_amount: BalanceOf<T>,
+		final_price: BalanceOf<T>,
+		token_decimals: u8,
+	) -> BalanceOf<T> {
+		let decimals = 10_u64.saturating_pow(token_decimals.into());
+		let unit: BalanceOf<T> = BalanceOf::<T>::from(decimals);
+		FixedU128::saturating_from_rational(contribution_amount, final_price)
+			.saturating_mul_int(unit)
 	}
 }

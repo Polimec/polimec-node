@@ -2,11 +2,22 @@ use super::*;
 use crate::{mock::*, CurrencyMetadata, Error, ParticipantsSize, Project, TicketSize, Weight};
 use frame_support::{assert_noop, assert_ok};
 
-pub fn last_event() -> RuntimeEvent {
+const ALICE: AccountId = 1;
+const BOB: AccountId = 2;
+const CHARLIE: AccountId = 3;
+const DAVE: AccountId = 3;
+const PLMC_DECIMALS: u8 = 10;
+const ASSET_DECIMALS: u8 = 12;
+
+const fn unit(decimals: u8) -> BalanceOf<Test> {
+	10u128.pow(decimals as u32)
+}
+
+fn last_event() -> RuntimeEvent {
 	frame_system::Pallet::<Test>::events().pop().expect("Event expected").event
 }
 
-pub fn run_to_block(n: BlockNumber) {
+fn run_to_block(n: BlockNumber) {
 	while System::block_number() < n {
 		FundingModule::on_finalize(System::block_number());
 		Balances::on_finalize(System::block_number());
@@ -19,11 +30,6 @@ pub fn run_to_block(n: BlockNumber) {
 		FundingModule::on_idle(System::block_number(), Weight::from_ref_time(10000000));
 	}
 }
-
-const ALICE: AccountId = 1;
-const BOB: AccountId = 2;
-const CHARLIE: AccountId = 3;
-const DAVE: AccountId = 3;
 
 fn store_and_return_metadata_hash() -> sp_core::H256 {
 	let metadata = r#"
@@ -63,7 +69,7 @@ fn create_on_chain_project() {
 			token_information: CurrencyMetadata {
 				name: bounded_name,
 				symbol: bounded_symbol,
-				decimals: 10,
+				decimals: ASSET_DECIMALS,
 			},
 			metadata: metadata_hash,
 			..Default::default()
@@ -362,8 +368,86 @@ mod auction_round {
 }
 
 mod community_round {
+	use super::*;
+
 	#[test]
-	fn contribute_works() {}
+	fn contribute_works() {
+		new_test_ext().execute_with(|| {
+			create_on_chain_project();
+			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
+			run_to_block(System::block_number() + 29);
+			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
+			run_to_block(System::block_number() + 15);
+			assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 100));
+		})
+	}
+
+	#[test]
+	fn contribute_multiple_times_works() {
+		new_test_ext().execute_with(|| {
+			create_on_chain_project();
+			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
+			run_to_block(System::block_number() + 29);
+			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
+			run_to_block(System::block_number() + 15);
+			assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 100));
+			assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 200));
+			let contribution_info = FundingModule::contributions(0, BOB).unwrap();
+			assert_eq!(contribution_info.amount, 300);
+			assert_eq!(contribution_info.can_claim, true);
+		})
+	}
+}
+
+mod claim_contribution_tokens {
+	use super::*;
+
+	#[test]
+	fn it_works() {
+		new_test_ext().execute_with(|| {
+			create_on_chain_project();
+			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
+			run_to_block(System::block_number() + 29);
+			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
+			assert_ok!(FundingModule::bid(
+				RuntimeOrigin::signed(BOB),
+				0,
+				1 * unit(PLMC_DECIMALS),
+				1 * unit(PLMC_DECIMALS),
+				None
+			));
+			run_to_block(System::block_number() + 15);
+			let proj_info = FundingModule::project_info(0);
+			assert_eq!(proj_info.final_price, Some(1 * unit(PLMC_DECIMALS)));
+			assert_ok!(FundingModule::contribute(
+				RuntimeOrigin::signed(BOB),
+				0,
+				1 * unit(PLMC_DECIMALS)
+			));
+			run_to_block(System::block_number() + 11);
+			assert_ok!(FundingModule::claim_contribution_tokens(RuntimeOrigin::signed(BOB), 0));
+			assert_eq!(Assets::balance(0, BOB), 1 * unit(ASSET_DECIMALS));
+		})
+	}
+
+	#[test]
+	fn cannot_claim_multiple_times() {
+		new_test_ext().execute_with(|| {
+			create_on_chain_project();
+			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
+			run_to_block(System::block_number() + 29);
+			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
+			run_to_block(System::block_number() + 15);
+			assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 100));
+			run_to_block(System::block_number() + 11);
+			assert_ok!(FundingModule::claim_contribution_tokens(RuntimeOrigin::signed(BOB), 0));
+			run_to_block(System::block_number() + 1);
+			assert_noop!(
+				FundingModule::claim_contribution_tokens(RuntimeOrigin::signed(BOB), 0),
+				Error::<Test>::AlreadyClaimed
+			);
+		})
+	}
 }
 
 mod flow {
@@ -435,7 +519,7 @@ mod flow {
 			assert_eq!(metadata_symbol, b"CTEST".to_vec());
 			let metadata_decimals =
 				<pallet_assets::Pallet<mock::Test> as InspectMetadata<AccountId>>::decimals(&0);
-			assert_eq!(metadata_decimals, 10);
+			assert_eq!(metadata_decimals, ASSET_DECIMALS);
 		})
 	}
 
@@ -538,6 +622,61 @@ mod flow {
 			assert!(bids[1].1.amount == 4 * PLMC);
 			assert!(bids[2].1.amount == 6 * PLMC);
 			assert!(bids[3].1.amount == 10 * PLMC);
+		})
+	}
+}
+
+mod unit_tests {
+	use super::*;
+
+	#[test]
+	fn calculate_claimable_tokens_works() {
+		new_test_ext().execute_with(|| {
+			let contribution_amount: BalanceOf<Test> = 1000 * unit(PLMC_DECIMALS);
+			let final_price: BalanceOf<Test> = 10 * unit(PLMC_DECIMALS);
+			let expected_amount: BalanceOf<Test> = 100 * unit(ASSET_DECIMALS);
+
+			let amount = Pallet::<Test>::calculate_claimable_tokens(
+				contribution_amount,
+				final_price,
+				ASSET_DECIMALS,
+			);
+
+			assert_eq!(amount, expected_amount);
+		})
+	}
+
+	#[test]
+	fn calculate_claimable_tokens_works_with_float() {
+		new_test_ext().execute_with(|| {
+			let contribution_amount: BalanceOf<Test> = 11 * unit(PLMC_DECIMALS);
+			let final_price: BalanceOf<Test> = 4 * unit(PLMC_DECIMALS);
+			let expected_amount: BalanceOf<Test> = 275 * unit(ASSET_DECIMALS - 2);
+
+			let amount = Pallet::<Test>::calculate_claimable_tokens(
+				contribution_amount,
+				final_price,
+				ASSET_DECIMALS,
+			);
+
+			assert_eq!(amount, expected_amount);
+		})
+	}
+
+	#[test]
+	fn calculate_claimable_tokens_works_with_small_amount() {
+		new_test_ext().execute_with(|| {
+			let contribution_amount: BalanceOf<Test> = 1 * unit(PLMC_DECIMALS);
+			let final_price: BalanceOf<Test> = 2 * unit(PLMC_DECIMALS);
+			let expected_amount: BalanceOf<Test> = 5 * unit(ASSET_DECIMALS - 1);
+
+			let amount = Pallet::<Test>::calculate_claimable_tokens(
+				contribution_amount,
+				final_price,
+				ASSET_DECIMALS,
+			);
+
+			assert_eq!(amount, expected_amount);
 		})
 	}
 }
