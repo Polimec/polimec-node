@@ -571,10 +571,6 @@ pub mod pallet {
 				Error::<T>::AuctionNotStarted
 			);
 
-			// Make sure the bidder can actually perform the bid
-			let free_balance_of = T::Currency::free_balance(&bidder);
-			ensure!(free_balance_of >= price, Error::<T>::InsufficientBalance);
-
 			// Make sure the bid amount is greater than the minimum_price specified by the issuer
 			ensure!(price >= project.minimum_price, Error::<T>::BondTooLow);
 
@@ -680,12 +676,9 @@ pub mod pallet {
 				Error::<T>::AuctionNotStarted
 			);
 
-			// Make sure the contributor can actually perform the bid
-			let free_balance_of = T::Currency::free_balance(&contributor);
-			ensure!(free_balance_of > amount, Error::<T>::InsufficientBalance);
 
 			// Make sure the bid amount is greater than the minimum_price specified by the issuer
-			ensure!(free_balance_of > project.minimum_price, Error::<T>::BondTooLow);
+			ensure!(amount > project.minimum_price, Error::<T>::BondTooLow);
 
 			let fund_account = T::fund_account_id(project_id);
 			// TODO: Use USDT on Statemine (via XCM) instead of PLMC
