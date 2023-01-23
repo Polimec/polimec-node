@@ -1,37 +1,35 @@
 [package]
 name = 'polimec-traits'
-version = "0.1.0"
-description = 'FRAME pallet handle credentials'
-authors = ['Polimec Team <https://github.com/Polimec>']
-edition = "2021"
-license = "Unlicense"
-publish = false
-repository = 'https://github.com/polimec/polimec-node'
-
-[package.metadata.docs.rs]
-targets = ["x86_64-unknown-linux-gnu"]
+description = 'Common traits for Polimec pallets'
+authors.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+readme.workspace = true
+repository.workspace = true
+version.workspace = true
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.2.1", default-features = false, features = [
+codec = { package = "parity-scale-codec", workspace = true, features = [
     "derive",
 ] }
-scale-info = { version = "2.3.1", default-features = false, features = [
-    "derive",
-] }
-serde = { version = "1.0.152", features = ["derive"], default-features = false }
-frame-benchmarking = { version = "4.0.0-dev", default-features = false, optional = true, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-frame-support = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-frame-system = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.32" }
-sp-runtime = {  default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
+scale-info = { workspace = true, features = ["derive"] }
+serde = { workspace = true, features = ["derive"], default-features = false }
+frame-benchmarking = { workspace = true, optional = true }
+frame-support.workspace = true
+frame-system.workspace = true
+sp-std.workspace = true
+sp-runtime.workspace = true
 
 [dev-dependencies]
-sp-core = {  default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-sp-io = {  default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
+sp-core.workspace = true
+sp-io.workspace = true
 
 [features]
 default = ["std"]
 std = [
+    "frame-benchmarking?/std",
     "codec/std",
     "sp-std/std",
     "sp-runtime/std",

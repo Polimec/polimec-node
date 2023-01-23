@@ -1,8 +1,28 @@
+// Polimec Blockchain – https://www.polimec.org/
+// Copyright (C) Polimec 2022. All rights reserved.
+
+// The Polimec Blockchain is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// The Polimec Blockchain is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// If you feel like getting in touch with us, you can do so at info@polimec.org
+
+//! Types for Funding pallet.
+
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
 use sp_arithmetic::Perbill;
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct Project<AccountId, BoundedString, Balance: BalanceT, Hash> {
+pub struct Project<BoundedString, Balance: BalanceT, Hash> {
 	/// Token Metadata
 	pub token_information: CurrencyMetadata<BoundedString>,
 	/// Total allocation of Contribution Tokens available for the Funding Round
@@ -20,13 +40,10 @@ pub struct Project<AccountId, BoundedString, Balance: BalanceT, Hash> {
 	/// Conversion rate of contribution token to mainnet token
 	pub conversion_rate: u32,
 	/// Participation currencies (e.g stablecoin, DOT, KSM)
-	/// TODO: Use something like BoundedVec<Option<Currencies>, StringLimit>
+	/// TODO: Use something like BoundedVec<Option<Currencies>, CurrenciesLimit>
 	/// e.g. https://github.com/paritytech/substrate/blob/427fd09bcb193c1e79dec85b1e207c718b686c35/frame/uniques/src/types.rs#L110
 	/// For now is easier to handle the case where only just one Currency is accepted
 	pub participation_currencies: Currencies,
-	/// Issuer destination accounts for accepted participation currencies (for receiving
-	/// contributions)
-	pub destinations_account: AccountId,
 	/// Additional metadata
 	pub metadata: Hash,
 }
@@ -52,9 +69,7 @@ pub enum ValidityError {
 	ParticipantsSizeError,
 }
 
-impl<AccountId, BoundedString, Balance: BalanceT, Hash>
-	Project<AccountId, BoundedString, Balance, Hash>
-{
+impl<BoundedString, Balance: BalanceT, Hash> Project<BoundedString, Balance, Hash> {
 	// TODO: Perform a REAL validity check
 	pub fn validity_check(&self) -> Result<(), ValidityError> {
 		if self.minimum_price == Balance::zero() {
@@ -97,18 +112,21 @@ pub struct ParticipantsSize {
 
 impl ParticipantsSize {
 	fn is_valid(&self) -> Result<(), ValidityError> {
-		if self.minimum.is_some() && self.maximum.is_some() {
-			if self.minimum < self.maximum {
-				return Ok(())
-			} else {
-				return Err(ValidityError::ParticipantsSizeError)
-			}
+		match (self.minimum, self.maximum) {
+			(Some(min), Some(max)) =>
+				if min < max && min > 0 && max > 0 {
+					return Ok(())
+				} else {
+					return Err(ValidityError::ParticipantsSizeError)
+				},
+			(Some(elem), None) | (None, Some(elem)) =>
+				if elem > 0 {
+					return Ok(())
+				} else {
+					return Err(ValidityError::ParticipantsSizeError)
+				},
+			(None, None) => return Err(ValidityError::ParticipantsSizeError),
 		}
-		if self.minimum.is_some() || self.maximum.is_some() {
-			return Ok(())
-		}
-
-		Err(ValidityError::ParticipantsSizeError)
 	}
 }
 
@@ -147,33 +165,37 @@ pub struct AuctionMetadata<BlockNumber> {
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct BidInfo<Balance: BalanceT, AccountId> {
+pub struct BidInfo<Balance: BalanceT, AccountId, BlockNumber> {
 	#[codec(compact)]
 	pub market_cap: Balance,
 	#[codec(compact)]
 	pub amount: Balance,
 	#[codec(compact)]
 	pub ratio: Perbill,
+	pub when: BlockNumber,
 	pub bidder: AccountId,
 	pub funded: bool,
 	pub multiplier: u8,
 }
 
-impl<Balance: BalanceT + From<u64>, AccountId> BidInfo<Balance, AccountId> {
+impl<Balance: BalanceT + From<u64>, AccountId, BlockNumber>
+	BidInfo<Balance, AccountId, BlockNumber>
+{
 	pub fn new(
 		market_cap: Balance,
 		amount: Balance,
 		auction_taget: Balance,
+		when: BlockNumber,
 		bidder: AccountId,
 		multiplier: u8,
 	) -> Self {
 		let ratio = Perbill::from_rational(amount, auction_taget);
-		Self { market_cap, amount, ratio, bidder, funded: false, multiplier }
+		Self { market_cap, amount, ratio, when, bidder, funded: false, multiplier }
 	}
 }
 
-impl<Balance: BalanceT + From<u64>, AccountId: sp_std::cmp::Eq> sp_std::cmp::Ord
-	for BidInfo<Balance, AccountId>
+impl<Balance: BalanceT + From<u64>, AccountId: sp_std::cmp::Eq, BlockNumber: sp_std::cmp::Eq>
+	sp_std::cmp::Ord for BidInfo<Balance, AccountId, BlockNumber>
 {
 	fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
 		let self_value = self.amount.saturating_mul(self.market_cap);
@@ -182,13 +204,11 @@ impl<Balance: BalanceT + From<u64>, AccountId: sp_std::cmp::Eq> sp_std::cmp::Ord
 	}
 }
 
-impl<Balance: BalanceT + From<u64>, AccountId: sp_std::cmp::Eq> sp_std::cmp::PartialOrd
-	for BidInfo<Balance, AccountId>
+impl<Balance: BalanceT + From<u64>, AccountId: sp_std::cmp::Eq, BlockNumber: sp_std::cmp::Eq>
+	sp_std::cmp::PartialOrd for BidInfo<Balance, AccountId, BlockNumber>
 {
 	fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
-		let self_value = self.amount.saturating_mul(self.market_cap);
-		let other_value = other.amount.saturating_mul(other.market_cap);
-		self_value.partial_cmp(&other_value)
+		Some(self.cmp(&other))
 	}
 }
 

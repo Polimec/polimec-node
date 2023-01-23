@@ -1,4 +1,23 @@
-//! Benchmarking setup for pallet-funding
+// Polimec Blockchain – https://www.polimec.org/
+// Copyright (C) Polimec 2022. All rights reserved.
+
+// The Polimec Blockchain is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// The Polimec Blockchain is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// If you feel like getting in touch with us, you can do so at info@polimec.org
+
+//! Benchmarking setup for Funding pallet
+
 #![cfg(feature = "runtime-benchmarks")]
 
 #[allow(unused)]
@@ -6,6 +25,7 @@ use crate::Pallet as PolimecFunding;
 
 use super::*;
 use frame_benchmarking::{account, benchmarks};
+use frame_support::traits::Hooks;
 use frame_system::{Pallet as System, RawOrigin as SystemOrigin};
 
 const METADATA: &str = r#"
@@ -38,7 +58,7 @@ fn create_default_project<T: Config>(
 	let project_id_parameter = id.unwrap_or(0);
 	let project_id = T::BenchmarkHelper::create_project_id_parameter(project_id_parameter);
 	let metadata_hash = store_and_return_metadata_hash::<T>();
-	let project = T::BenchmarkHelper::create_dummy_project(issuer.clone(), metadata_hash);
+	let project = T::BenchmarkHelper::create_dummy_project(metadata_hash);
 	(project_id, issuer, project)
 }
 
@@ -68,6 +88,11 @@ benchmarks! {
 		let issuer: T::AccountId = account::<T::AccountId>("Alice", 1, 1);
 	}: _(SystemOrigin::Signed(issuer), METADATA.into())
 	verify {
+		let issuer: T::AccountId = account::<T::AccountId>("Alice", 1, 1);
+		let hash = T::Hashing::hash(METADATA.as_bytes());
+		// Let it panic if the image is not found
+		let image_issuer = PolimecFunding::<T>::images(hash).unwrap();
+		assert_eq!(issuer, image_issuer);
 	}
 
 	create {
@@ -84,8 +109,7 @@ benchmarks! {
 		let (project_id, issuer) = create_default_minted_project::<T>(None);
 	}: _(SystemOrigin::Signed(issuer), project_id)
 
-	on_finalize {
-		/* code to set the initial state */
+	on_initialize {
 		let p = T::ActiveProjectsLimit::get();
 		// Create 100 projects
 		for i in 0 .. p {
@@ -94,17 +118,12 @@ benchmarks! {
 				PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.clone()).into(), project_id).is_ok()
 			);
 		}
-		let block_number = System::<T>::block_number();
-		// Move at the end of the evaluation period
-		System::<T>::set_block_number(block_number + 29_u32.into());
-		let block_number = System::<T>::block_number();
+		// Move at the end of the Evaluation Round
+		System::<T>::set_block_number(System::<T>::block_number() + 29_u32.into());
 	} : {
-		 /* code to test the function benchmarked */
-		PolimecFunding::<T>::on_finalize(block_number);
+		PolimecFunding::<T>::on_initialize(System::<T>::block_number());
 	}
-
 	verify {
-		/* optional verification */
 		let p = T::ActiveProjectsLimit::get();
 		for i in 0 .. p {
 			let project_id = T::BenchmarkHelper::create_project_id_parameter(i);
@@ -113,6 +132,11 @@ benchmarks! {
 		}
 
 	}
+
+	// claim_contribution_tokens {
+	// }: _(SystemOrigin::Signed(issuer), project_id)
+	// verify {
+	// }
 
 	impl_benchmark_test_suite!(PolimecFunding, crate::mock::new_test_ext(), crate::mock::Test);
 }

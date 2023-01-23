@@ -1,0 +1,14 @@
+[relaychain]
+default_command = "polkadot"
+default_args = ["-lparachain=debug"]
+chain = "polkadot-local"
+
+	[[relaychain.nodes]]
+	name = "alice"
+    args = [ "--alice" ]
+	validator = true
+
+	[[relaychain.nodes]]
+	name = "bob"
+    args = [ "--bob" ]
+	validator = true

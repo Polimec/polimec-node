@@ -3,7 +3,6 @@ use polimec_standalone_runtime::{
 	SudoConfig, SystemConfig, WASM_BINARY,
 };
 use sc_service::{ChainType, Properties};
-use serde_json::map::Map;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
@@ -13,15 +12,11 @@ use sp_runtime::traits::{IdentifyAccount, Verify};
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
 fn polimec_properties() -> Properties {
-	let mut properties = Map::new();
-	let mut token_symbol: Vec<String> = vec![];
-	let mut token_decimals: Vec<u32> = vec![];
-	token_symbol.push("PLMC".to_string());
-	properties.insert("tokenSymbol".into(), token_symbol.into());
-	token_decimals.push(10_u32);
-	properties.insert("tokenDecimals".into(), token_decimals.into());
+	let mut properties = sc_chain_spec::Properties::new();
+	properties.insert("tokenSymbol".into(), "PLMC".into());
+	properties.insert("tokenDecimals".into(), 10.into());
 	// Information taken from https://github.com/paritytech/ss58-registry/blob/main/ss58-registry.json
-	properties.insert("ss58Format".into(), "41".into());
+	properties.insert("ss58Format".into(), 41.into());
 
 	properties
 }

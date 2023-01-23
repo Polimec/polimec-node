@@ -1,7 +1,30 @@
-use super::*;
-use crate::{mock::*, CurrencyMetadata, Error, ParticipantsSize, Project, TicketSize, Weight};
-use frame_support::{assert_noop, assert_ok};
+// Polimec Blockchain – https://www.polimec.org/
+// Copyright (C) Polimec 2022. All rights reserved.
 
+// The Polimec Blockchain is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// The Polimec Blockchain is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// If you feel like getting in touch with us, you can do so at info@polimec.org
+
+//! Tests for Funding pallet.
+
+use super::*;
+use crate::{mock::*, CurrencyMetadata, Error, ParticipantsSize, Project, TicketSize};
+use frame_support::{
+	assert_noop, assert_ok,
+	traits::{ConstU32, Hooks},
+	weights::Weight,
+};
 const ALICE: AccountId = 1;
 const BOB: AccountId = 2;
 const CHARLIE: AccountId = 3;
@@ -45,7 +68,7 @@ fn store_and_return_metadata_hash() -> sp_core::H256 {
 	hashed(metadata)
 }
 
-fn create_project() -> Project<u64, BoundedVec<u8, ConstU32<64>>, u128, sp_core::H256> {
+fn create_project() -> Project<BoundedVec<u8, ConstU32<64>>, u128, sp_core::H256> {
 	let metadata_hash = store_and_return_metadata_hash();
 	Project {
 		minimum_price: 1_u128,
@@ -255,7 +278,7 @@ mod evaluation_round {
 	}
 
 	#[test]
-	fn multiple_bond_works() {
+	fn multiple_users_can_bond() {
 		new_test_ext().execute_with(|| {
 			create_on_chain_project();
 			assert_noop!(
@@ -284,6 +307,24 @@ mod evaluation_round {
 				FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 1024 * PLMC),
 				Error::<Test>::InsufficientBalance
 			);
+		})
+	}
+
+	#[test]
+	fn multiple_bond_works() {
+		new_test_ext().execute_with(|| {
+			create_on_chain_project();
+			assert_noop!(
+				FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128),
+				Error::<Test>::EvaluationNotStarted
+			);
+			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
+			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128));
+			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128));
+			let bonds = FundingModule::bonds(0, BOB);
+			assert_eq!(bonds.unwrap(), 256);
+			let locked_amount = Balances::locks(&BOB).iter().next().unwrap().amount;
+			assert_eq!(locked_amount, 256);
 		})
 	}
 }
@@ -327,7 +368,7 @@ mod auction_round {
 			let bids = FundingModule::auctions_info(0);
 			assert!(bids
 				.iter()
-				.any(|(when, bid)| *when == System::block_number() &&
+				.any(|bid| bid.when == System::block_number() &&
 					bid.amount == 100 && bid.market_cap == 1));
 			let free_balance_after_bid = Balances::free_balance(&CHARLIE);
 
@@ -505,11 +546,11 @@ mod flow {
 			let active_projects = FundingModule::projects_active();
 			assert!(active_projects.len() == 0);
 
-			// TODO: There exists certanly a better/easier way to test the pallet_asset functionalties
-
 			// Naive way to check if the Contribution Token is actually created
 			// TODO: Replace with `asset_exists` given by the `Inspect` trait when the codebase is updated to >= v0.9.35
 			assert!(Assets::force_create(RuntimeOrigin::root(), 0, 1, true, 1).is_err());
+
+			// TODO: There exists certanly a better/easier way to test the pallet_asset functionalties
 			// Check if the the metadata are set correctly
 			let metadata_name =
 				<pallet_assets::Pallet<mock::Test> as InspectMetadata<AccountId>>::name(&0);
@@ -618,10 +659,10 @@ mod flow {
 			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(4), 0, 10 * PLMC, 7 * PLMC, None));
 			let bids = FundingModule::auctions_info(0);
 			assert!(bids.len() == 4);
-			assert!(bids[0].1.amount == 2 * PLMC);
-			assert!(bids[1].1.amount == 4 * PLMC);
-			assert!(bids[2].1.amount == 6 * PLMC);
-			assert!(bids[3].1.amount == 10 * PLMC);
+			assert!(bids[0].amount == 2 * PLMC);
+			assert!(bids[1].amount == 4 * PLMC);
+			assert!(bids[2].amount == 6 * PLMC);
+			assert!(bids[3].amount == 10 * PLMC);
 		})
 	}
 }

@@ -1,77 +1,66 @@
 [package]
 name = "polimec-standalone-node"
-version = "0.1.0"
 description = 'Polimec Node'
-authors = ['Polimec Team <https://github.com/Polimec>']
-# TODO: Replace Homepage
-homepage = "https://substrate.io/"
-edition = "2021"
-license = "Unlicense"
-publish = false
-repository = 'https://github.com/polimec/polimec-node'
-build = "build.rs"
-default-run = "polimec-standalone-node"
-
-[package.metadata.docs.rs]
-targets = ["x86_64-unknown-linux-gnu"]
+authors.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+readme.workspace = true
+repository.workspace = true
+version.workspace = true
 
 [dependencies]
-clap = { version = "4.0.32", features = ["derive"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-
-sc-cli = { version = "0.10.0-dev", git = "https://github.com/paritytech/substrate.git", features = [
-    "wasmtime",
-], branch = "polkadot-v0.9.32" }
-sp-core = {  git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-sc-executor = { version = "0.10.0-dev", git = "https://github.com/paritytech/substrate.git", features = [
-    "wasmtime",
-], branch = "polkadot-v0.9.32" }
-sc-service = { version = "0.10.0-dev", git = "https://github.com/paritytech/substrate.git", features = [
-    "wasmtime",
-], branch = "polkadot-v0.9.32" }
-sc-telemetry = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-sc-keystore = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-sc-transaction-pool = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-sc-transaction-pool-api = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-sc-consensus-aura = { version = "0.10.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-sp-consensus-aura = { version = "0.10.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-sp-consensus = { version = "0.10.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-sc-consensus = { version = "0.10.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-sc-finality-grandpa = { version = "0.10.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-sp-finality-grandpa = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-sc-client-api = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-sp-runtime = {  git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-sp-timestamp = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-sp-inherents = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-sp-keyring = {  git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-frame-system = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-pallet-transaction-payment = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
+clap = { workspace = true, features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
+futures.workspace = true
+sc-cli = { workspace = true }
+sp-core.workspace = true
+sc-executor = { workspace = true }
+sc-service = { workspace = true }
+sc-telemetry.workspace = true
+sc-keystore.workspace = true
+sc-transaction-pool.workspace = true
+sc-transaction-pool-api.workspace = true
+sc-consensus-aura.workspace = true
+sp-consensus-aura.workspace = true
+sp-consensus.workspace = true
+sc-consensus.workspace = true
+sc-finality-grandpa.workspace = true
+sp-finality-grandpa.workspace = true
+sc-client-api.workspace = true
+sp-runtime.workspace = true
+sp-timestamp.workspace = true
+sp-inherents.workspace = true
+sp-keyring.workspace = true
+frame-system.workspace = true
+pallet-transaction-payment.workspace = true
+sc-chain-spec.workspace = true
 
 # These dependencies are used for the node's RPCs
-jsonrpsee = { version = "0.15.1", features = ["server"] }
-sc-rpc = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-sp-api = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-sc-rpc-api = { version = "0.10.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-sp-blockchain = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-sp-block-builder = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-sc-basic-authorship = { version = "0.10.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-substrate-frame-rpc-system = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-pallet-transaction-payment-rpc = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
+jsonrpsee = { workspace = true, features = ["server"] }
+sc-rpc.workspace = true
+sp-api.workspace = true
+sc-rpc-api.workspace = true
+sp-blockchain.workspace = true
+sp-block-builder.workspace = true
+sc-basic-authorship.workspace = true
+substrate-frame-rpc-system.workspace = true
+pallet-transaction-payment-rpc.workspace = true
 
 # These dependencies are used for runtime benchmarking
-frame-benchmarking = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
-frame-benchmarking-cli = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
+frame-benchmarking.workspace = true
+frame-benchmarking-cli.workspace = true
 
 # Local Dependencies
-polimec-standalone-runtime = { path = "../../runtimes/standalone" }
-pallet-credentials-api = { path = "../../pallets/credentials/rpc" }
+polimec-standalone-runtime.workspace = true
+pallet-credentials-api.workspace = true
 
 # CLI-specific dependencies
-try-runtime-cli = { version = "0.10.0-dev", optional = true, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
+try-runtime-cli = { workspace = true, optional = true }
 
 [build-dependencies]
-substrate-build-script-utils = { version = "3.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
+substrate-build-script-utils.workspace = true
 
 [features]
 default = []

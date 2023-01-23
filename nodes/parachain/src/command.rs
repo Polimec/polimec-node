@@ -10,10 +10,7 @@ use sc_cli::{
 	ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams,
 	NetworkParams, Result, RuntimeVersion, SharedParams, SubstrateCli,
 };
-use sc_service::{
-	config::{BasePath, PrometheusConfig},
-	TaskManager,
-};
+use sc_service::config::{BasePath, PrometheusConfig};
 use sp_core::hexdisplay::HexDisplay;
 use sp_runtime::traits::{AccountIdConversion, Block as BlockT};
 
@@ -24,11 +21,21 @@ use crate::{
 };
 
 fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
+	log::info!("Load spec id: {}", id);
+
 	Ok(match id {
-		"dev" => Box::new(chain_spec::development_config()),
-		"template-rococo" => Box::new(chain_spec::local_testnet_config()),
-		"" | "local" => Box::new(chain_spec::local_testnet_config()),
-		path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
+		"shell-rococo-local" => Box::new(chain_spec::shell::get_local_shell_chain_spec()),
+		"shell-polkadot" => Box::new(chain_spec::shell::get_live_shell_chain_spec()),
+		"polimec-rococo-local" => Box::new(chain_spec::testnet::get_chain_spec_dev()?),
+		"polimec-polkadot" => Box::new(chain_spec::testnet::get_prod_chain_spec()?),
+		"polimec-polkadot-local" => Box::new(chain_spec::testnet::get_local_prod_chain_spec()?),
+		"" | "local" => Box::new(chain_spec::testnet::get_chain_spec_dev()?),
+		// TODO: Find the best way to generate chainspecs
+		// TODO: Check Cumulus repo to see how to better handle this
+		// Default to polimec-rococo
+		path => Box::new(chain_spec::testnet::ChainSpec::from_json_file(
+			std::path::PathBuf::from(path),
+		)?),
 	})
 }
 
@@ -56,7 +63,7 @@ impl SubstrateCli for Cli {
 	}
 
 	fn support_url() -> String {
-		"https://github.com/paritytech/cumulus/issues/new".into()
+		"https://github.com/Polimec/polimec-node/issues/new".into()
 	}
 
 	fn copyright_start_year() -> i32 {
@@ -96,7 +103,7 @@ impl SubstrateCli for RelayChainCli {
 	}
 
 	fn support_url() -> String {
-		"https://github.com/paritytech/cumulus/issues/new".into()
+		"https://github.com/Polimec/polimec-node/issues/new".into()
 	}
 
 	fn copyright_start_year() -> i32 {
@@ -220,7 +227,6 @@ pub fn run() -> Result<()> {
 					let partials = new_partial(&config)?;
 					let db = partials.backend.expose_db();
 					let storage = partials.backend.expose_storage();
-
 					cmd.run(config, partials.client.clone(), db, storage)
 				}),
 				BenchmarkCmd::Machine(cmd) =>
@@ -231,23 +237,30 @@ pub fn run() -> Result<()> {
 				_ => Err("Benchmarking sub-command unsupported".into()),
 			}
 		},
+		#[cfg(feature = "try-runtime")]
 		Some(Subcommand::TryRuntime(cmd)) => {
-			if cfg!(feature = "try-runtime") {
-				let runner = cli.create_runner(cmd)?;
+			let runner = cli.create_runner(cmd)?;
 
-				// grab the task manager.
-				let registry = &runner.config().prometheus_config.as_ref().map(|cfg| &cfg.registry);
-				let task_manager =
-					TaskManager::new(runner.config().tokio_handle.clone(), *registry)
-						.map_err(|e| format!("Error: {:?}", e))?;
+			use sc_executor::{sp_wasm_interface::ExtendedHostFunctions, NativeExecutionDispatch};
+			type HostFunctionsOf<E> = ExtendedHostFunctions<
+				sp_io::SubstrateHostFunctions,
+				<E as NativeExecutionDispatch>::ExtendHostFunctions,
+			>;
 
-				runner.async_run(|config| {
-					Ok((cmd.run::<Block, ParachainNativeExecutor>(config), task_manager))
-				})
-			} else {
-				Err("Try-runtime must be enabled by `--features try-runtime`.".into())
-			}
+			// grab the task manager.
+			let registry = &runner.config().prometheus_config.as_ref().map(|cfg| &cfg.registry);
+			let task_manager =
+				sc_service::TaskManager::new(runner.config().tokio_handle.clone(), *registry)
+					.map_err(|e| format!("Error: {:?}", e))?;
+
+			runner.async_run(|_| {
+				Ok((cmd.run::<Block, HostFunctionsOf<ParachainNativeExecutor>>(), task_manager))
+			})
 		},
+		#[cfg(not(feature = "try-runtime"))]
+		Some(Subcommand::TryRuntime) => Err("Try-runtime was not enabled when building the node. \
+			You can enable it with `--features try-runtime`."
+			.into()),
 		None => {
 			let runner = cli.create_runner(&cli.run.normalize())?;
 			let collator_options = cli.run.collator_options();
@@ -291,7 +304,7 @@ pub fn run() -> Result<()> {
 				info!("Parachain genesis state: {}", genesis_state);
 				info!("Is collating: {}", if config.role.is_authority() { "yes" } else { "no" });
 
-				if collator_options.relay_chain_rpc_url.is_some() && cli.relay_chain_args.len() > 0 {
+				if !collator_options.relay_chain_rpc_urls.is_empty() && cli.relay_chain_args.len() > 0 {
 					warn!("Detected relay chain node arguments together with --relay-chain-rpc-url. This command starts a minimal Polkadot node that only uses a network-related subset of all relay chain CLI options.");
 				}
 

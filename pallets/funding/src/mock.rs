@@ -1,6 +1,27 @@
-use super::*;
+// Polimec Blockchain – https://www.polimec.org/
+// Copyright (C) Polimec 2022. All rights reserved.
 
+// The Polimec Blockchain is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// The Polimec Blockchain is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// If you feel like getting in touch with us, you can do so at info@polimec.org
+
+//! Test environment for Funding pallet.
+
+use super::*;
 use crate as pallet_funding;
+
+use frame_support::traits::AsEnsureOriginWithArg;
 use frame_support::{
 	parameter_types,
 	traits::{ConstU128, ConstU16, ConstU32},
@@ -115,6 +136,12 @@ impl pallet_assets::Config for Test {
 	type Freezer = ();
 	type WeightInfo = ();
 	type Extra = ();
+	type AssetIdParameter = Identifier;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
+	// type CallbackHandle = ();
+	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 parameter_types! {

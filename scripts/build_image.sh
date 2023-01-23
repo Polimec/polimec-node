@@ -4,10 +4,10 @@
 # Usage: ./build_image.sh <version> <path to Dockerfile/Containerfile> <package>
 # Example: ./build_image.sh latest ./Containerfile polimec-standalone-node
 
-# Check if version is passed
+# Check if tag is passed
 if [ -z "$1" ]
 then
-    echo "Please pass version as first argument"
+    echo "Please pass tag as first argument"
     echo "Example: ./build_image.sh latest ../Containerfile polimec-standalone-node"
     exit 1
 fi

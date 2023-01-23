@@ -1,3 +1,19 @@
+// Polimec Blockchain – https://www.polimec.org/
+// Copyright (C) Polimec 2022. All rights reserved.
+
+// The Polimec Blockchain is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// The Polimec Blockchain is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
@@ -16,8 +32,8 @@ use frame_support::{
 	pallet_prelude::Get,
 	parameter_types,
 	traits::{
-		ConstU32, Currency, EitherOfDiverse, EqualPrivilegeOnly, Everything, Imbalance,
-		OnUnbalanced,
+		AsEnsureOriginWithArg, ConstU32, Currency, EitherOfDiverse, EqualPrivilegeOnly, Everything,
+		Imbalance, OnUnbalanced,
 	},
 	weights::{
 		ConstantMultiplier, Weight, WeightToFee as WeightToFeeT, WeightToFeeCoefficient,
@@ -27,7 +43,7 @@ use frame_support::{
 };
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
-	EnsureRoot,
+	EnsureRoot, EnsureSigned,
 };
 
 use pallet_balances::WeightInfo;
@@ -247,6 +263,8 @@ parameter_types! {
 				MAXIMUM_BLOCK_WEIGHT - NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT
 			);
 		})
+		// TODO: Check if we need to increase the `AVERAGE_ON_INITIALIZE_RATIO` since
+		// we heavily rely on the `on_initialize` hook.
 		.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
 		.build_or_panic();
 	pub const SS58Prefix: u16 = 41;
@@ -440,7 +458,7 @@ impl pallet_sudo::Config for Runtime {
 impl cumulus_pallet_parachain_system::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type OnSystemEvent = ();
-	type SelfParaId = parachain_info::Pallet<Runtime>;
+	type SelfParaId = ParachainInfo;
 	type DmpMessageHandler = DmpQueue;
 	type ReservedDmpWeight = ReservedDmpWeight;
 	type OutboundXcmpMessageSource = XcmpQueue;
@@ -730,6 +748,7 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
 }
 
+// TODO: Set normal values and "fast-gov" values
 parameter_types! {
 	pub const LaunchPeriod: BlockNumber = 2 * MINUTES;
 	pub const VotingPeriod: BlockNumber = 2 * MINUTES;
@@ -868,7 +887,9 @@ impl pallet_assets::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type AssetId = AssetId;
+	type AssetIdParameter = codec::Compact<AssetId>;
 	type Currency = Balances;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type AssetDeposit = AssetDeposit;
 	type MetadataDepositBase = MetadataDepositBase;
@@ -878,7 +899,11 @@ impl pallet_assets::Config for Runtime {
 	type Freezer = ();
 	type Extra = ();
 	type WeightInfo = ();
+	// type CallbackHandle = ();
 	type AssetAccountDeposit = AssetAccountDeposit;
+	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 impl pallet_asset_registry::Config for Runtime {
@@ -1088,7 +1113,7 @@ impl_runtime_apis! {
 	}
 
 
-	impl pallet_credentials_runtime_api::CredentialsApi<Block, AccountId> for Runtime {
+	impl polimec_runtime_api_credentials::CredentialsApi<Block, AccountId> for Runtime {
 		fn is_in(role: MemberRole, who: AccountId) -> bool {
 			Credentials::is_in(&role, &who)
 		}
