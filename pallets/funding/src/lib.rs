@@ -683,6 +683,7 @@ pub mod pallet {
 			let fund_account = T::fund_account_id(project_id);
 			// TODO: Use USDT on Statemine (via XCM) instead of PLMC
 			// TODO: Check the logic
+			// TODOL Check if we need to use T::Currency::resolve_creating(...)
 			T::Currency::transfer(
 				&contributor,
 				&fund_account,
@@ -693,7 +694,7 @@ pub mod pallet {
 
 			Contributions::<T>::get(project_id, &contributor)
 				.map(|mut contribution| {
-					contribution.amount += amount;
+					contribution.amount.saturating_accrue(amount);
 					Contributions::<T>::insert(project_id, &contributor, contribution)
 				})
 				.unwrap_or_else(|| {
