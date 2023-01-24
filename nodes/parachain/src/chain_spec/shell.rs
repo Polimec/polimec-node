@@ -31,13 +31,13 @@ pub fn get_local_shell_chain_spec() -> ShellChainSpec {
 		"Shell Local Testnet",
 		"shell_local_testnet",
 		ChainType::Local,
-		move || shell_testnet_genesis(2105.into()),
+		move || shell_testnet_genesis(2000.into()),
 		Vec::new(),
 		None,
 		Some("polimec"),
 		None,
 		None,
-		Extensions { relay_chain: "rococo-local".into(), para_id: 2105 },
+		Extensions { relay_chain: "rococo-local".into(), para_id: 2000 },
 	)
 }
 
