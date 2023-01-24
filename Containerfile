@@ -31,6 +31,6 @@ USER polimec-collator
 EXPOSE 30333 9933 9944 9615
 VOLUME ["/data"]
 
-COPY ./dev-specs /node/dev-specs
+COPY ./chain-specs /node/chain-specs
 
 ENTRYPOINT ["/usr/local/bin/polimec-collator"]
