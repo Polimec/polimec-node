@@ -55,10 +55,7 @@
 // This recursion limit is needed because we have too many benchmarks and benchmarking will fail if
 // we add more without this limit.
 #![cfg_attr(feature = "runtime-benchmarks", recursion_limit = "512")]
-// Nightly only feature. It allows us to combine traits into a single trait.
-#![feature(trait_alias)]
 
-use codec::MaxEncodedLen;
 pub use pallet::*;
 
 pub mod types;
@@ -114,10 +111,6 @@ type BidInfoOf<T> = BidInfo<
 // TODO: Add multiple locks
 const LOCKING_ID: LockIdentifier = *b"evaluate";
 
-pub trait Identifiable =
-	Member + Parameter + Copy + MaxEncodedLen + Default + AddAssign + From<u32>;
-// TODO: + MaybeSerializeDeserialize: Maybe needed for JSON serialization @ Genesis: https://github.com/paritytech/substrate/issues/12738#issuecomment-1320921201
-
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
 	use super::*;
@@ -135,7 +128,8 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Global identifier for the projects.
-		type ProjectIdentifier: Identifiable;
+		type ProjectIdentifier: Parameter + Copy + Default + One + Saturating;
+		// TODO: + MaybeSerializeDeserialize: Maybe needed for JSON serialization @ Genesis: https://github.com/paritytech/substrate/issues/12738#issuecomment-1320921201
 
 		/// Wrapper around `Self::ProjectIdentifier` to use in dispatchable call signatures. Allows the use
 		/// of compact encoding in instances of the pallet, which will prevent breaking changes
@@ -145,10 +139,9 @@ pub mod pallet {
 		/// want to convert an `ProjectIdentifier` into a parameter for calling dispatchable functions
 		/// directly.
 		type ProjectIdParameter: Parameter
-			+ Copy
 			+ From<Self::ProjectIdentifier>
 			+ Into<Self::ProjectIdentifier>
-			+ From<u32>
+			+ From<u32> // Used in benchmarks
 			+ MaxEncodedLen;
 
 		/// Just the `Currency::Balance` type; we have this item to allow us to constrain it to
