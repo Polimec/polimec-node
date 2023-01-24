@@ -36,5 +36,5 @@ then
 fi
 
 # Build Docker Image
-podman build -t "docker.io/polimec/$3:$1" -f $2 --build-arg PACKAGE=$3 ..
+docker build -t "docker.io/polimec/$3:$1" -f $2 --build-arg PACKAGE=$3 ..
 exit 0
