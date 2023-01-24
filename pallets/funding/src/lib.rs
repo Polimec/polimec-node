@@ -178,6 +178,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type StringLimit: Get<u32>;
 
+		/// The maximum size of a preimage allowed, expressed in bytes.
+		#[pallet::constant]
+		type PreImageLimit: Get<u32>;
+
 		#[pallet::constant]
 		type EvaluationDuration: Get<Self::BlockNumber>;
 
@@ -374,7 +378,10 @@ pub mod pallet {
 		/// Validate a preimage on-chain and store the image.
 		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
 		// TODO: Use BounmdedVec instead of Vec
-		pub fn note_image(origin: OriginFor<T>, bytes: Vec<u8>) -> DispatchResult {
+		pub fn note_image(
+			origin: OriginFor<T>,
+			bytes: BoundedVec<u8, T::PreImageLimit>,
+		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 
 			ensure!(
@@ -382,7 +389,7 @@ pub mod pallet {
 				Error::<T>::NotAuthorized
 			);
 
-			Self::note_bytes(bytes.into(), &issuer)?;
+			Self::note_bytes(bytes, &issuer)?;
 
 			Ok(())
 		}
@@ -670,7 +677,6 @@ pub mod pallet {
 				Error::<T>::AuctionNotStarted
 			);
 
-
 			// Make sure the bid amount is greater than the minimum_price specified by the issuer
 			ensure!(amount > project.minimum_price, Error::<T>::BondTooLow);
 
@@ -723,7 +729,7 @@ pub mod pallet {
 				Error::<T>::CannotClaimYet
 			);
 			// TODO: Set a reasonable default value
-			let final_price = project_info.final_price.unwrap_or(1_000_000_000_0_u64.into());
+			let final_price = project_info.final_price.unwrap_or(10_000_000_000_u64.into());
 
 			Contributions::<T>::try_mutate(
 				project_id,

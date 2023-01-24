@@ -21,13 +21,16 @@
 use super::*;
 
 use frame_support::{pallet_prelude::DispatchError, traits::Get};
-use sp_std::{borrow::Cow, cmp::Reverse, prelude::*};
+use sp_std::{cmp::Reverse, prelude::*};
 
 impl<T: Config> Pallet<T> {
 	/// Store an image on chain.
 	///
 	/// TODO: We verify that the preimage is within the bounds of what the pallet supports.
-	pub fn note_bytes(preimage: Cow<[u8]>, issuer: &T::AccountId) -> Result<(), DispatchError> {
+	pub fn note_bytes(
+		preimage: BoundedVec<u8, T::PreImageLimit>,
+		issuer: &T::AccountId,
+	) -> Result<(), DispatchError> {
 		// TODO: Validate and check if the preimage is a valid JSON conforming with our needs
 		// TODO: Check if we can use serde in a no_std environment
 
