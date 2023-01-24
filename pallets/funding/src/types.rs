@@ -115,17 +115,17 @@ impl ParticipantsSize {
 		match (self.minimum, self.maximum) {
 			(Some(min), Some(max)) =>
 				if min < max && min > 0 && max > 0 {
-					return Ok(())
+					Ok(())
 				} else {
-					return Err(ValidityError::ParticipantsSizeError)
+					Err(ValidityError::ParticipantsSizeError)
 				},
 			(Some(elem), None) | (None, Some(elem)) =>
 				if elem > 0 {
-					return Ok(())
+					Ok(())
 				} else {
-					return Err(ValidityError::ParticipantsSizeError)
+					Err(ValidityError::ParticipantsSizeError)
 				},
-			(None, None) => return Err(ValidityError::ParticipantsSizeError),
+			(None, None) => Err(ValidityError::ParticipantsSizeError),
 		}
 	}
 }
@@ -208,7 +208,7 @@ impl<Balance: BalanceT + From<u64>, AccountId: sp_std::cmp::Eq, BlockNumber: sp_
 	sp_std::cmp::PartialOrd for BidInfo<Balance, AccountId, BlockNumber>
 {
 	fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
-		Some(self.cmp(&other))
+		Some(self.cmp(other))
 	}
 }
 

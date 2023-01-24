@@ -21,10 +21,9 @@
 use super::*;
 use crate as pallet_funding;
 
-use frame_support::traits::AsEnsureOriginWithArg;
 use frame_support::{
 	parameter_types,
-	traits::{ConstU128, ConstU16, ConstU32},
+	traits::{AsEnsureOriginWithArg, ConstU128, ConstU16, ConstU32},
 	PalletId,
 };
 use frame_system as system;
@@ -169,6 +168,7 @@ impl pallet_funding::Config for Test {
 	type CommunityRoundDuration = CommunityRoundDuration;
 	type Randomness = RandomnessCollectiveFlip;
 	type HandleMembers = Credentials;
+	type PreImageLimit = ConstU32<1024>;
 	// Low value to simplify the tests
 	type MaximumBidsPerProject = ConstU32<4>;
 	type WeightInfo = ();

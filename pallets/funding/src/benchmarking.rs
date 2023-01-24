@@ -38,6 +38,10 @@ const METADATA: &str = r#"
 }
 "#;
 
+fn metadata_as_vec() -> Vec<u8> {
+	METADATA.as_bytes().to_vec()
+}
+
 #[allow(unused)]
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 	frame_system::Pallet::<T>::assert_last_event(generic_event.into());
@@ -74,19 +78,20 @@ fn create_default_minted_project<T: Config>(
 
 fn store_and_return_metadata_hash<T: Config>() -> T::Hash {
 	let issuer: T::AccountId = account::<T::AccountId>("Alice", 1, 1);
-	assert!(PolimecFunding::<T>::note_image(
-		SystemOrigin::Signed(issuer.clone()).into(),
-		METADATA.into(),
-	)
-	.is_ok());
+	let bounded_metadata = BoundedVec::try_from(metadata_as_vec()).unwrap();
+	assert!(
+		PolimecFunding::<T>::note_image(SystemOrigin::Signed(issuer).into(), bounded_metadata,)
+			.is_ok()
+	);
 	// TODO: Get the hash from the Noted event
 	T::Hashing::hash(METADATA.as_bytes())
 }
 
 benchmarks! {
 	note_image {
+		let bounded_metadata = BoundedVec::try_from(metadata_as_vec()).unwrap();
 		let issuer: T::AccountId = account::<T::AccountId>("Alice", 1, 1);
-	}: _(SystemOrigin::Signed(issuer), METADATA.into())
+	}: _(SystemOrigin::Signed(issuer), bounded_metadata)
 	verify {
 		let issuer: T::AccountId = account::<T::AccountId>("Alice", 1, 1);
 		let hash = T::Hashing::hash(METADATA.as_bytes());

@@ -64,7 +64,10 @@ fn store_and_return_metadata_hash() -> sp_core::H256 {
 		"usage_of_founds":"ipfs_url"
 	}
 	"#;
-	let _ = FundingModule::note_image(RuntimeOrigin::signed(ALICE), metadata.into());
+	let metadata_vec = metadata.as_bytes().to_vec();
+	let metadata_bounded = BoundedVec::try_from(metadata_vec)
+		.expect("len() == 150 bytes, so it is safe to unwrap since the limit is 1024.");
+	let _ = FundingModule::note_image(RuntimeOrigin::signed(ALICE), metadata_bounded);
 	hashed(metadata)
 }
 
@@ -117,7 +120,8 @@ mod creation_round {
 				"usage_of_founds":"ipfs_url"
 			}
 			"#;
-			assert_ok!(FundingModule::note_image(RuntimeOrigin::signed(ALICE), metadata.into()));
+			let bounded_metadata = BoundedVec::try_from(metadata.as_bytes().to_vec()).unwrap();
+			assert_ok!(FundingModule::note_image(RuntimeOrigin::signed(ALICE), bounded_metadata));
 			let expected_hash = hashed(metadata);
 			assert_eq!(ALICE, FundingModule::images(expected_hash).unwrap())
 		})
