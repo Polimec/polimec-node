@@ -27,7 +27,7 @@ use runtime_common::{
 use polimec_parachain_runtime::{
 	AccountId, Balance, BalancesConfig, CouncilConfig, CredentialsConfig, GenesisConfig,
 	InflationInfo, ParachainInfoConfig, ParachainStakingConfig, PolkadotXcmConfig, SessionConfig,
-	SessionKeys, SudoConfig, SystemConfig, TechnicalCommitteeConfig, WASM_BINARY,
+	SessionKeys, SudoConfig, SystemConfig, TechnicalCommitteeConfig,VestingConfig ,WASM_BINARY,
 };
 use sc_service::ChainType;
 use sc_telemetry::TelemetryEndpoints;
@@ -307,5 +307,12 @@ fn testnet_genesis(
 			phantom: Default::default(),
 		},
 		democracy: Default::default(),
+		vesting: VestingConfig {
+			vesting: initial_authorities
+				.iter()
+				.cloned()
+				.map(|(who, _)| (who, 0u32, 0, 0))
+				.collect(),
+		},
 	}
 }

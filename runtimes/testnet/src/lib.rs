@@ -661,6 +661,7 @@ impl pallet_funding::Config for Runtime {
 	type Randomness = Random;
 	type HandleMembers = Credentials;
 	type MaximumBidsPerProject = ConstU32<256>;
+	type PreImageLimit = ConstU32<1024>;
 	type WeightInfo = weights::pallet_funding::WeightInfo<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
@@ -899,7 +900,7 @@ impl pallet_assets::Config for Runtime {
 	type Freezer = ();
 	type Extra = ();
 	type WeightInfo = ();
-	// type CallbackHandle = ();
+	type CallbackHandle = ();
 	type AssetAccountDeposit = AssetAccountDeposit;
 	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
 	#[cfg(feature = "runtime-benchmarks")]
@@ -911,6 +912,18 @@ impl pallet_asset_registry::Config for Runtime {
 	type ReserveAssetModifierOrigin = frame_system::EnsureRoot<Self::AccountId>;
 	type Assets = Assets;
 	type WeightInfo = ();
+}
+
+impl pallet_vesting::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type BlockNumberToBalance = ConvertInto;
+	type MinVestedTransfer = runtime_common::constants::MinVestedTransfer;
+	type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
+	type UnvestedFundsAllowedWithdrawReasons = runtime_common::constants::UnvestedFundsAllowedWithdrawReasons;
+	// `VestingInfo` encode length is 36bytes. 28 schedules gets encoded as 1009 bytes, which is the
+	// highest number of schedules that encodes less than 2^10.
+	const MAX_VESTING_SCHEDULES: u32 = 28;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -933,6 +946,7 @@ construct_runtime!(
 		AssetTxPayment: pallet_asset_tx_payment::{Pallet, Storage, Event<T>} = 12,
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 13,
 		AssetRegistry: pallet_asset_registry::{Pallet, Call, Storage, Event<T>} = 14,
+		Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 15,
 
 		// Consensus support.
 		// The following order MUST NOT be changed: Aura -> Session -> Staking -> Authorship -> AuraExt

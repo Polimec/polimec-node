@@ -17,7 +17,7 @@ use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
 		AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, NumberFor, One, OpaqueKeys,
-		Verify,
+		Verify, ConvertInto
 	},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature,
@@ -108,8 +108,8 @@ pub mod opaque {
 // https://docs.substrate.io/main-docs/build/upgrade#runtime-versioning
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("node-template"),
-	impl_name: create_runtime_str!("node-template"),
+	spec_name: create_runtime_str!("polimec-standalone"),
+	impl_name: create_runtime_str!("polimec-standalone"),
 	authoring_version: 1,
 	// The version of the runtime specification. A full node will not attempt to use its native
 	//   runtime in substitute for the on-chain Wasm runtime unless all of `spec_name`,
@@ -334,7 +334,7 @@ impl pallet_assets::Config for Runtime {
 	type Freezer = ();
 	type Extra = ();
 	type WeightInfo = ();
-	// type CallbackHandle = ();
+	type CallbackHandle = ();
 	type AssetAccountDeposit = AssetAccountDeposit;
 	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
 	#[cfg(feature = "runtime-benchmarks")]
@@ -366,6 +366,7 @@ impl pallet_funding::Config for Runtime {
 	type CommunityRoundDuration = CommunityRoundDuration;
 	type Randomness = Random;
 	type HandleMembers = Credentials;
+	type PreImageLimit = ConstU32<1024>;
 	type MaximumBidsPerProject = ConstU32<256>;
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
@@ -549,6 +550,18 @@ impl pallet_utility::Config for Runtime {
 	type WeightInfo = ();
 }
 
+impl pallet_vesting::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type BlockNumberToBalance = ConvertInto;
+	type MinVestedTransfer = runtime_common::constants::MinVestedTransfer;
+	type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
+	type UnvestedFundsAllowedWithdrawReasons = runtime_common::constants::UnvestedFundsAllowedWithdrawReasons;
+	// `VestingInfo` encode length is 36bytes. 28 schedules gets encoded as 1009 bytes, which is the
+	// highest number of schedules that encodes less than 2^10.
+	const MAX_VESTING_SCHEDULES: u32 = 28;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub struct Runtime
@@ -566,6 +579,7 @@ construct_runtime!(
 		Utility: pallet_utility,
 		Multisig: pallet_multisig,
 		Assets: pallet_assets,
+		Vesting: pallet_vesting,
 
 		Aura: pallet_aura,
 		Grandpa: pallet_grandpa,

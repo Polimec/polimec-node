@@ -16,7 +16,7 @@
 
 use frame_support::{
 	parameter_types,
-	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
+	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight}, traits::WithdrawReasons,
 };
 use sp_runtime::{Perbill, Percent, Perquintill};
 
@@ -117,6 +117,8 @@ parameter_types! {
 	pub const IndicesDeposit: Balance = deposit(1, MAX_INDICES_BYTE_LENGTH);
 	/// CType Pallet. Per byte fee for a ctype.
 	pub const CtypeFee: Balance = MILLI_PLMC;
+	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
+		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
 }
 
 pub mod attestation {
