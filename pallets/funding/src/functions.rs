@@ -56,7 +56,7 @@ impl<T: Config> Pallet<T> {
 		Projects::<T>::insert(project_id, project);
 		ProjectsInfo::<T>::insert(project_id, project_info);
 		ProjectsIssuers::<T>::insert(project_id, issuer);
-		NextProjectId::<T>::mutate(|n| *n += 1_u32.into());
+		NextProjectId::<T>::mutate(|n| n.saturating_inc());
 
 		Self::deposit_event(Event::<T>::Created { project_id });
 		Ok(())

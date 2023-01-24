@@ -75,8 +75,9 @@ mod benchmarking;
 
 mod functions;
 
+use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{
-	pallet_prelude::{Member, ValueQuery},
+	pallet_prelude::ValueQuery,
 	traits::{
 		tokens::{
 			fungibles::{metadata::Mutate as MetadataMutate, Create, InspectMetadata, Mutate},
@@ -88,12 +89,12 @@ use frame_support::{
 	BoundedVec, PalletId, Parameter,
 };
 use polimec_traits::{MemberRole, PolimecMembers};
-use sp_arithmetic::traits::{Saturating, Zero};
+use sp_arithmetic::traits::{One, Saturating, Zero};
 use sp_runtime::{
 	traits::{AccountIdConversion, CheckedAdd, Hash},
 	FixedPointNumber, FixedPointOperand, FixedU128, Perbill,
 };
-use sp_std::{ops::AddAssign, prelude::*};
+
 /// The balance type of this pallet.
 type BalanceOf<T> = <T as Config>::CurrencyBalance;
 type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
