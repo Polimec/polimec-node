@@ -33,3 +33,8 @@ statemint-runtime.workspace = true
 
 # Local
 polimec-parachain-runtime.workspace = true
+
+[features]
+runtime-benchmarks = [
+	"statemint-runtime/runtime-benchmarks",
+]
