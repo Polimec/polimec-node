@@ -55,7 +55,7 @@ kilt-runtime-api-staking = { path = "runtime-api/staking", default-features = fa
 
 # External (without extra features and with default disabled if necessary)
 codec = { package = "parity-scale-codec", version = "3.2.2", default-features = false }
-clap = { version = "4.1.1" }
+clap = { version = "4.1.4" }
 futures = { version = "0.3.25", features = ["thread-pool"]}
 scale-info = { version = "2.3.1", default-features = false }
 jsonrpsee = { version = "0.16.2", features = ["server"] }
