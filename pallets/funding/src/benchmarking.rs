@@ -38,7 +38,7 @@ const METADATA: &str = r#"
 }
 "#;
 
-fn metadata_as_vec() -> Vec<u8> {
+fn metadata_as_vec() -> frame_benchmarking::Vec<u8> {
 	METADATA.as_bytes().to_vec()
 }
 
@@ -52,7 +52,7 @@ fn get_events<T: Config>() -> frame_benchmarking::Vec<<T as frame_system::Config
 	frame_system::Pallet::<T>::events()
 		.into_iter()
 		.map(|r| r.event)
-		.collect::<Vec<_>>()
+		.collect::<frame_benchmarking::Vec<_>>()
 }
 
 fn create_default_project<T: Config>(

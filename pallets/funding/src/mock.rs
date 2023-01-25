@@ -137,7 +137,7 @@ impl pallet_assets::Config for Test {
 	type Extra = ();
 	type AssetIdParameter = Identifier;
 	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
-	// type CallbackHandle = ();
+	type CallbackHandle = ();
 	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();

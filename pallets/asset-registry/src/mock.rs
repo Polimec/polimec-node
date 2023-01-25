@@ -1,7 +1,6 @@
 use crate as pallet_asset_registry;
-use frame_support::traits::{ConstU16, ConstU64, GenesisBuild};
+use frame_support::traits::{AsEnsureOriginWithArg, ConstU16, ConstU64, GenesisBuild};
 use frame_system as system;
-use frame_support::traits::AsEnsureOriginWithArg;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -94,7 +93,7 @@ impl pallet_assets::Config for Test {
 	type Extra = ();
 	type AssetIdParameter = u32;
 	type CreateOrigin = AsEnsureOriginWithArg<frame_system::EnsureSigned<u64>>;
-	// type CallbackHandle = ();
+	type CallbackHandle = ();
 	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
