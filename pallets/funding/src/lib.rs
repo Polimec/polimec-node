@@ -377,7 +377,6 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Validate a preimage on-chain and store the image.
 		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
-		// TODO: Use BounmdedVec instead of Vec
 		pub fn note_image(
 			origin: OriginFor<T>,
 			bytes: BoundedVec<u8, T::PreImageLimit>,

@@ -1,6 +1,0 @@
-doc
-**/target
-.git
-.github
-.vscode
-.dockerignore

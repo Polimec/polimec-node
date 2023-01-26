@@ -8,7 +8,7 @@ RUN cargo build --locked --release
 # This is the 2nd stage: a very small image where we copy the Polkadot binary."
 FROM docker.io/library/ubuntu:20.04
 ARG PACKAGE
-COPY --from=builder /polimec/target/release/$PACKAGE /usr/local/bin
+COPY --from=builder /polimec/target/release/$PACKAGE /usr/local/bin/polimec
 
 RUN useradd -m -u 1000 -U -s /bin/sh -d /polimec polimec && \
 	mkdir -p /data /polimec/.local/share && \

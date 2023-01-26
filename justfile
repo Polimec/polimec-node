@@ -10,8 +10,11 @@ build-testnet-runtime:
 build-standalone-runtime:
 	cargo build --release -p polimec-standalone-runtime
 
-build-node:
+build-parachain-node:
 	cargo build --release -p polimec-parachain-node
+
+build-standalone-node:
+	cargo build --release -p polimec-standalone-node
 
 build-base-srtool:
 	srtool build --root -p polimec-base-runtime --runtime-dir runtimes/base
