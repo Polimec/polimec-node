@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Build Docker Image from Dockerfile/Containerfile
-# Usage: ./build_image.sh <version> <path to Dockerfile/Containerfile> <package>
+# Build Container Image from Containerfile
+# Usage: ./build_image.sh <version> <path to Containerfile/Dockerfile> <package>
 # Example: ./build_image.sh latest ./Containerfile polimec-standalone-node
 
 # Check if tag is passed
@@ -36,5 +36,5 @@ then
 fi
 
 # Build Docker Image
-docker build -t "docker.io/polimec/$3:$1" -f $2 --build-arg PACKAGE=$3 ..
+podman build -t "docker.io/polimec/$3:$1" -f $2 --build-arg PACKAGE=$3 ..
 exit 0

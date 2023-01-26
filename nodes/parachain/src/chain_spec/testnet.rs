@@ -19,9 +19,8 @@
 //! Polimec Testnet chain specification
 
 use cumulus_primitives_core::ParaId;
-use runtime_common::{
-	constants::{polimec_inflation_config, staking::MinCollatorStake, MAX_COLLATOR_STAKE, PLMC},
-	AuthorityId,
+use polimec_parachain_runtime::{
+	polimec_inflation_config, AuraId as AuthorityId, MinCollatorStake, MAX_COLLATOR_STAKE, PLMC,
 };
 
 use polimec_parachain_runtime::{
@@ -48,7 +47,7 @@ pub fn get_chain_spec_dev() -> Result<ChainSpec, String> {
 
 	Ok(ChainSpec::from_genesis(
 		"Polimec Develop",
-		"polimec-dev",
+		"polimec",
 		ChainType::Local,
 		move || {
 			testnet_genesis(
@@ -113,7 +112,7 @@ pub fn get_prod_chain_spec() -> Result<ChainSpec, String> {
 
 	Ok(ChainSpec::from_genesis(
 		"Polimec",
-		"polimec-prod",
+		"polimec",
 		ChainType::Live,
 		move || {
 			testnet_genesis(
@@ -181,7 +180,7 @@ pub fn get_local_prod_chain_spec() -> Result<ChainSpec, String> {
 
 	Ok(ChainSpec::from_genesis(
 		"Polimec",
-		"polimec-prod",
+		"polimec",
 		ChainType::Live,
 		move || {
 			testnet_genesis(

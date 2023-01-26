@@ -24,3 +24,6 @@ build-standalone-srtool:
 
 test-runtime-features:
 	cargo test --features runtime-benchmarks -- --nocapture
+
+docker-build-standalone:
+	./scripts/build_image.sh latest ./Containerfile polimec-standalone-node
