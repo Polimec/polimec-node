@@ -25,9 +25,10 @@ use serde::{Deserialize, Serialize};
 use sp_core::{Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
-pub mod shell;
+pub mod base;
 pub mod testnet;
 
+// TODO: Set a proper TELEMETRY_URL
 const TELEMETRY_URL: &str = "wss://tbd";
 const DEFAULT_PARA_ID: ParaId = LOWEST_PUBLIC_ID;
 
