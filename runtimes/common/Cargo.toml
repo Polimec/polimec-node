@@ -46,6 +46,7 @@ polkadot-parachain.workspace = true
 xcm.workspace = true
 xcm-builder.workspace = true
 xcm-executor.workspace = true
+parachains-common.workspace = true
 
 [features]
 default = ["std"]
@@ -77,5 +78,6 @@ std = [
     "xcm-builder/std",
     "xcm-executor/std",
     "xcm/std",
+    "parachains-common/std"
 ]
 try-runtime = ["frame-support/try-runtime"]

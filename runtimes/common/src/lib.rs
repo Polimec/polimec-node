@@ -33,6 +33,7 @@ use frame_support::{
 };
 use frame_system::limits;
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
+use parachains_common::{Balance, BlockNumber};
 use sp_runtime::{
 	generic,
 	traits::{Bounded, IdentifyAccount, Verify},
@@ -42,6 +43,7 @@ use sp_std::marker::PhantomData;
 
 pub mod constants;
 pub mod fees;
+pub mod xcm_config;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't
 /// need to know the specifics of the runtime. They can then be made to be
@@ -60,9 +62,6 @@ pub mod opaque {
 	/// Opaque block identifier type.
 	pub type BlockId = generic::BlockId<Block>;
 }
-
-/// An index to a block.
-pub type BlockNumber = u64;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on
 /// the chain.
@@ -84,8 +83,6 @@ pub type AccountIndex = u32;
 /// Identifier for a chain. 32-bit should be plenty.
 pub type ChainId = u32;
 
-/// Balance of an account.
-pub type Balance = u128;
 pub type Amount = i128;
 
 /// Index of a transaction in the chain.
@@ -120,10 +117,10 @@ parameter_types! {
 	/// The maximum amount of the multiplier.
 	pub MaximumMultiplier: Multiplier = Bounded::max_value();
 	/// Maximum length of block. Up to 5MB.
-	pub BlockLength: limits::BlockLength =
+	pub RuntimeBlockLength: limits::BlockLength =
 		limits::BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
 	/// Block weights base values and limits.
-	pub BlockWeights: limits::BlockWeights = limits::BlockWeights::builder()
+	pub RuntimeBlockWeights: limits::BlockWeights = limits::BlockWeights::builder()
 		.base_block(BlockExecutionWeight::get())
 		.for_class(DispatchClass::all(), |weights| {
 			weights.base_extrinsic = ExtrinsicBaseWeight::get();

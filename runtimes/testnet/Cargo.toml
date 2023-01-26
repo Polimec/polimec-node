@@ -17,7 +17,7 @@ substrate-wasm-builder.workspace = true
 codec = { package = "parity-scale-codec", workspace = true, features = [
 	"derive",
 ] }
-log = { workspace = true, default-features = false }
+log = { workspace = true }
 scale-info = { workspace = true, features = ["derive"] }
 hex-literal = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["derive"] }
@@ -36,13 +36,13 @@ runtime-common.workspace = true
 xcm-primitives.workspace = true
 
 # FRAME
-frame-benchmarking = { workspace = true, optional = true}
+frame-benchmarking = { workspace = true, optional = true }
 frame-executive.workspace = true
 frame-support.workspace = true
 frame-system.workspace = true
-frame-system-benchmarking = { workspace= true, optional = true}
+frame-system-benchmarking = { workspace = true, optional = true }
 frame-system-rpc-runtime-api.workspace = true
-frame-try-runtime = { workspace = true, optional = true}
+frame-try-runtime = { workspace = true, optional = true }
 pallet-assets.workspace = true
 pallet-asset-tx-payment.workspace = true
 pallet-aura.workspace = true

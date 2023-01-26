@@ -28,27 +28,18 @@ pub mod xcm_config;
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime,
-	dispatch::DispatchClass,
 	pallet_prelude::Get,
 	parameter_types,
 	traits::{
 		AsEnsureOriginWithArg, ConstU32, Currency, EitherOfDiverse, EqualPrivilegeOnly, Everything,
 		Imbalance, OnUnbalanced,
 	},
-	weights::{
-		ConstantMultiplier, Weight, WeightToFee as WeightToFeeT, WeightToFeeCoefficient,
-		WeightToFeeCoefficients, WeightToFeePolynomial,
-	},
+	weights::{ConstantMultiplier, Weight},
 	PalletId,
 };
 use frame_system::{
-	limits::{BlockLength, BlockWeights},
 	EnsureRoot, EnsureSigned,
 };
-
-use pallet_balances::WeightInfo;
-use pallet_transaction_payment::OnChargeTransaction;
-pub use parachain_staking::InflationInfo;
 
 pub use parachains_common::{
 	impls::{AssetsToBlockAuthor, DealWithFees},
@@ -58,7 +49,16 @@ pub use parachains_common::{
 };
 
 use polimec_traits::{MemberRole, PolimecMembers};
-use smallvec::smallvec;
+use runtime_common::constants::staking::*;
+pub use runtime_common::{
+	constants::{
+		governance::*, polimec_inflation_config, preimage::PreimageBaseDeposit,
+		treasury::INITIAL_PERIOD_LENGTH, InflationInfo, BLOCKS_PER_YEAR, EXISTENTIAL_DEPOSIT,
+		MAX_COLLATOR_STAKE, MICRO_PLMC, PLMC,
+	},
+	fees::WeightToFee,
+	RuntimeBlockWeights, RuntimeBlockLength,
+};
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
@@ -80,13 +80,10 @@ pub use sp_runtime::BuildStorage;
 // Polkadot imports
 use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
 
-use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
+use weights::{RocksDbWeight};
 
 // XCM Imports
-use xcm::latest::prelude::BodyId;
 use xcm_executor::XcmExecutor;
-
-pub type Amount = i128;
 
 pub type CurrencyId = [u8; 8];
 
@@ -135,65 +132,6 @@ pub type Executive = frame_executive::Executive<
 	AllPalletsWithSystem,
 >;
 
-/// Handles converting a weight scalar to a fee value, based on the scale and
-/// granularity of the node's balance type.
-///
-/// This should typically create a mapping between the following ranges:
-///   - [0, MAXIMUM_BLOCK_WEIGHT]
-///   - [Balance::min, Balance::max]
-///
-/// Yet, it can be used for any other sort of change to weight-fee. Some
-/// examples being:
-///   - Setting it to `0` will essentially disable the weight fee.
-///   - Setting it to `1` will cause the literal `#[weight = x]` values to be charged.
-pub struct WeightToFee<R>(sp_std::marker::PhantomData<R>);
-impl<R> WeightToFeePolynomial for WeightToFee<R>
-where
-	R: pallet_transaction_payment::Config,
-	R: frame_system::Config,
-	R: pallet_balances::Config,
-	u128: From<
-		<<R as pallet_transaction_payment::Config>::OnChargeTransaction as OnChargeTransaction<
-			R,
-		>>::Balance,
-	>,
-{
-	type Balance = Balance;
-	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
-		// The should be fee
-		let wanted_fee: Balance = 10 * MILLI_PLMC;
-
-		// TODO: transfer_keep_alive is 288 byte long?
-		let tx_len: u64 = 288;
-		let byte_fee: Balance =
-			<R as pallet_transaction_payment::Config>::LengthToFee::weight_to_fee(
-				&Weight::from_ref_time(tx_len),
-			)
-			.into();
-		let base_weight: Weight = <R as frame_system::Config>::BlockWeights::get()
-			.get(DispatchClass::Normal)
-			.base_extrinsic;
-		let base_weight_fee: Balance =
-			<R as pallet_transaction_payment::Config>::LengthToFee::weight_to_fee(&base_weight)
-				.into();
-		let tx_weight_fee: Balance =
-			<R as pallet_transaction_payment::Config>::LengthToFee::weight_to_fee(
-				&<R as pallet_balances::Config>::WeightInfo::transfer_keep_alive(),
-			)
-			.into();
-		let unbalanced_fee: Balance = base_weight_fee.saturating_add(tx_weight_fee);
-
-		let wanted_weight_fee: Balance = wanted_fee.saturating_sub(byte_fee);
-
-		smallvec![WeightToFeeCoefficient {
-			degree: 1,
-			negative: false,
-			coeff_frac: Perbill::from_rational(wanted_weight_fee % unbalanced_fee, unbalanced_fee),
-			coeff_integer: wanted_weight_fee / unbalanced_fee,
-		}]
-	}
-}
-
 impl_opaque_keys! {
 	pub struct SessionKeys {
 		pub aura: Aura,
@@ -202,35 +140,15 @@ impl_opaque_keys! {
 
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("polimec-node"),
-	impl_name: create_runtime_str!("polimec-node"),
+	spec_name: create_runtime_str!("polimec-mainnet"),
+	impl_name: create_runtime_str!("polimec-mainnet"),
 	authoring_version: 1,
-	spec_version: 1,
+	spec_version: 2,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
 	state_version: 1,
 };
-
-/// This determines the average expected block time that we are targeting.
-/// Blocks will be produced at a minimum duration defined by `SLOT_DURATION`.
-/// `SLOT_DURATION` is picked up by `pallet_timestamp` which is in turn picked
-/// up by `pallet_aura` to implement `fn slot_duration()`.
-///
-/// Change this to adjust the block time.
-pub const MILLISECS_PER_BLOCK: u64 = 12_000;
-
-// Time is measured by number of blocks.
-pub const BLOCKS_PER_YEAR: BlockNumber = DAYS * 36525 / 100;
-pub const INITIAL_PERIOD_LENGTH: BlockNumber = BLOCKS_PER_YEAR.saturating_mul(5);
-
-// Unit = the base number of indivisible units for balances
-pub const PLMC: Balance = 1_000_000_000_0;
-pub const MILLI_PLMC: Balance = 1_000_000_0;
-pub const MICRO_PLMC: Balance = 1_000;
-
-/// The existential deposit. Set to 1/10 of the Connected Relay Chain.
-pub const EXISTENTIAL_DEPOSIT: Balance = MILLI_PLMC;
 
 /// The version information used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
@@ -240,45 +158,22 @@ pub fn native_version() -> NativeVersion {
 
 parameter_types! {
 	pub const Version: RuntimeVersion = VERSION;
-
-	// This part is copied from Substrate's `bin/node/runtime/src/lib.rs`.
-	//  The `RuntimeBlockLength` and `RuntimeBlockWeights` exist here because the
-	// `DeletionWeightLimit` and `DeletionQueueDepth` depend on those to parameterize
-	// the lazy contract deletion.
-	pub RuntimeBlockLength: BlockLength =
-		BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
-	pub RuntimeBlockWeights: BlockWeights = BlockWeights::builder()
-		.base_block(BlockExecutionWeight::get())
-		.for_class(DispatchClass::all(), |weights| {
-			weights.base_extrinsic = ExtrinsicBaseWeight::get();
-		})
-		.for_class(DispatchClass::Normal, |weights| {
-			weights.max_total = Some(NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT);
-		})
-		.for_class(DispatchClass::Operational, |weights| {
-			weights.max_total = Some(MAXIMUM_BLOCK_WEIGHT);
-			// Operational transactions have some extra reserved space, so that they
-			// are included even if block reached `MAXIMUM_BLOCK_WEIGHT`.
-			weights.reserved = Some(
-				MAXIMUM_BLOCK_WEIGHT - NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT
-			);
-		})
-		// TODO: Check if we need to increase the `AVERAGE_ON_INITIALIZE_RATIO` since
-		// we heavily rely on the `on_initialize` hook.
-		.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
-		.build_or_panic();
-	pub const SS58Prefix: u16 = 41;
+	pub const SS58Prefix: u8 = 41;
 }
 
 // Configure FRAME pallets to include in runtime.
 
 impl frame_system::Config for Runtime {
-	/// The identifier used to distinguish between accounts.
-	type AccountId = AccountId;
+	/// The basic call filter to use in dispatchable.
+	type BaseCallFilter = Everything;
+	/// Block & extrinsics weights: base values and limits.
+	type BlockWeights = RuntimeBlockWeights;
+	/// The maximum length of a block (in bytes).
+	type BlockLength = RuntimeBlockLength;
+	/// The ubiquitous origin type.
+	type RuntimeOrigin = RuntimeOrigin;
 	/// The aggregated dispatch type that is available for extrinsics.
 	type RuntimeCall = RuntimeCall;
-	/// The lookup mechanism to get account ID from whatever is passed in dispatchers.
-	type Lookup = AccountIdLookup<AccountId, ()>;
 	/// The index type for storing how many extrinsics an account has signed.
 	type Index = Index;
 	/// The index type for blocks.
@@ -287,14 +182,18 @@ impl frame_system::Config for Runtime {
 	type Hash = Hash;
 	/// The hashing algorithm used.
 	type Hashing = BlakeTwo256;
+	/// The identifier used to distinguish between accounts.
+	type AccountId = AccountId;
+	/// The lookup mechanism to get account ID from whatever is passed in dispatchers.
+	type Lookup = AccountIdLookup<AccountId, ()>;
 	/// The header type.
-	type Header = generic::Header<BlockNumber, BlakeTwo256>;
+	type Header = runtime_common::Header;
 	/// The ubiquitous event type.
 	type RuntimeEvent = RuntimeEvent;
-	/// The ubiquitous origin type.
-	type RuntimeOrigin = RuntimeOrigin;
 	/// Maximum number of block number to block hash mappings to keep (oldest pruned first).
 	type BlockHashCount = BlockHashCount;
+	/// The weight of database operations that the runtime can invoke.
+	type DbWeight = RocksDbWeight;
 	/// Runtime version.
 	type Version = Version;
 	/// Converts a module to an index of this module in the runtime.
@@ -305,16 +204,9 @@ impl frame_system::Config for Runtime {
 	type OnNewAccount = ();
 	/// What to do if an account is fully reaped from the system.
 	type OnKilledAccount = ();
-	/// The weight of database operations that the runtime can invoke.
-	type DbWeight = RocksDbWeight;
-	/// The basic call filter to use in dispatchable.
-	type BaseCallFilter = Everything;
 	/// Weight information for the extrinsics of this pallet.
+	/// weights::frame_system::WeightInfo<Runtime>;
 	type SystemWeightInfo = ();
-	/// Block & extrinsics weights: base values and limits.
-	type BlockWeights = RuntimeBlockWeights;
-	/// The maximum length of a block (in bytes).
-	type BlockLength = RuntimeBlockLength;
 	/// This is used as an identifier of the chain. 42 is the generic substrate prefix.
 	type SS58Prefix = SS58Prefix;
 	/// The action to take on a Runtime Upgrade
@@ -514,46 +406,6 @@ impl pallet_aura::Config for Runtime {
 }
 
 parameter_types! {
-	pub const PotId: PalletId = PalletId(*b"PotStake");
-	pub const MaxCandidates: u32 = 1000;
-	pub const MinCandidates: u32 = 5;
-	pub const SessionLength: BlockNumber = 6 * HOURS;
-	pub const MaxInvulnerables: u32 = 100;
-	pub const ExecutiveBody: BodyId = BodyId::Executive;
-}
-
-/// Minimum round length is 1 hour (300 * 12 second block times)
-#[cfg(feature = "fast-gov")]
-pub const MIN_BLOCKS_PER_ROUND: BlockNumber = 10;
-#[cfg(not(feature = "fast-gov"))]
-pub const MIN_BLOCKS_PER_ROUND: BlockNumber = HOURS;
-
-#[cfg(feature = "fast-gov")]
-pub const DEFAULT_BLOCKS_PER_ROUND: BlockNumber = 20;
-#[cfg(not(feature = "fast-gov"))]
-pub const DEFAULT_BLOCKS_PER_ROUND: BlockNumber = 2 * HOURS;
-
-#[cfg(feature = "fast-gov")]
-pub const STAKE_DURATION: BlockNumber = 30;
-#[cfg(not(feature = "fast-gov"))]
-pub const STAKE_DURATION: BlockNumber = 7 * DAYS;
-
-#[cfg(feature = "fast-gov")]
-pub const MIN_COLLATORS: u32 = 4;
-#[cfg(not(feature = "fast-gov"))]
-pub const MIN_COLLATORS: u32 = 16;
-
-#[cfg(feature = "fast-gov")]
-pub const MAX_CANDIDATES: u32 = 16;
-#[cfg(not(feature = "fast-gov"))]
-pub const MAX_CANDIDATES: u32 = 75;
-
-pub const MAX_DELEGATORS_PER_COLLATOR: u32 = 35;
-pub const MIN_DELEGATOR_STAKE: Balance = 20 * PLMC;
-
-pub const NETWORK_REWARD_RATE: Perquintill = Perquintill::from_percent(10);
-
-parameter_types! {
 	/// Minimum round length is 1 hour
 	pub const MinBlocksPerRound: BlockNumber = MIN_BLOCKS_PER_ROUND;
 	/// Default length of a round/session is 2 hours
@@ -590,7 +442,6 @@ impl parachain_staking::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type CurrencyBalance = Balance;
-
 	type MinBlocksPerRound = MinBlocksPerRound;
 	type DefaultBlocksPerRound = DefaultBlocksPerRound;
 	type StakeDuration = StakeDuration;
@@ -606,8 +457,7 @@ impl parachain_staking::Config for Runtime {
 	type MaxUnstakeRequests = MaxUnstakeRequests;
 	type NetworkRewardRate = NetworkRewardRate;
 	type NetworkRewardStart = NetworkRewardStart;
-	type NetworkRewardBeneficiary = ();
-	// type NetworkRewardBeneficiary = Treasury;
+	type NetworkRewardBeneficiary = Treasury;
 	type WeightInfo = ();
 
 	const BLOCKS_PER_YEAR: Self::BlockNumber = BLOCKS_PER_YEAR;
@@ -747,19 +597,6 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type MaxMembers = TechnicalMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
-}
-
-// TODO: Set normal values and "fast-gov" values
-parameter_types! {
-	pub const LaunchPeriod: BlockNumber = 2 * MINUTES;
-	pub const VotingPeriod: BlockNumber = 2 * MINUTES;
-	pub const FastTrackVotingPeriod: BlockNumber = 3 * 24 * 60 * MINUTES;
-	pub const MinimumDeposit: Balance = 2 * MILLI_PLMC;
-	pub const EnactmentPeriod: BlockNumber = MINUTES;
-	pub const CooloffPeriod: BlockNumber = 2 * MINUTES;
-	pub const MaxProposals: u32 = 100;
-	pub const PreimageMaxSize: u32 = 4096 * 1024;
-	pub const PreimageBaseDeposit: Balance = PLMC;
 }
 
 impl pallet_democracy::Config for Runtime {
@@ -920,7 +757,8 @@ impl pallet_vesting::Config for Runtime {
 	type BlockNumberToBalance = ConvertInto;
 	type MinVestedTransfer = runtime_common::constants::MinVestedTransfer;
 	type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
-	type UnvestedFundsAllowedWithdrawReasons = runtime_common::constants::UnvestedFundsAllowedWithdrawReasons;
+	type UnvestedFundsAllowedWithdrawReasons =
+		runtime_common::constants::UnvestedFundsAllowedWithdrawReasons;
 	// `VestingInfo` encode length is 36bytes. 28 schedules gets encoded as 1009 bytes, which is the
 	// highest number of schedules that encodes less than 2^10.
 	const MAX_VESTING_SCHEDULES: u32 = 28;
@@ -995,7 +833,7 @@ mod benches {
 	define_benchmarks!(
 		[frame_system, SystemBench::<Runtime>]
 		[pallet_balances, Balances]
-		// [pallet_session, SessionBench::<Runtime>]
+		[pallet_session, SessionBench::<Runtime>]
 		[pallet_timestamp, Timestamp]
 		[cumulus_pallet_xcmp_queue, XcmpQueue]
 		[pallet_funding, PolimecFunding]
@@ -1169,6 +1007,7 @@ impl_runtime_apis! {
 			use frame_benchmarking::{Benchmarking, BenchmarkList};
 			use frame_support::traits::StorageInfoTrait;
 			use frame_system_benchmarking::Pallet as SystemBench;
+			use cumulus_pallet_session_benchmarking::Pallet as SessionBench;
 
 			let mut list = Vec::<BenchmarkList>::new();
 			list_benchmarks!(list, extra);
@@ -1184,6 +1023,9 @@ impl_runtime_apis! {
 
 			use frame_system_benchmarking::Pallet as SystemBench;
 			impl frame_system_benchmarking::Config for Runtime {}
+
+			use cumulus_pallet_session_benchmarking::Pallet as SessionBench;
+			impl cumulus_pallet_session_benchmarking::Config for Runtime {}
 
 			let whitelist: Vec<TrackedStorageKey> = vec![
 				// Block Number

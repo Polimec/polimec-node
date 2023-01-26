@@ -16,11 +16,12 @@
 
 use frame_support::{
 	parameter_types,
-	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight}, traits::WithdrawReasons,
+	traits::WithdrawReasons,
+	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
 };
 use sp_runtime::{Perbill, Percent, Perquintill};
 
-use parachain_staking::InflationInfo;
+pub use parachain_staking::InflationInfo;
 
 use crate::{Balance, BlockNumber};
 
@@ -83,7 +84,7 @@ pub const INFLATION_CONFIG: (Perquintill, Perquintill, Perquintill, Perquintill)
 /// Inflation configuration which is used at genesis
 pub fn polimec_inflation_config() -> InflationInfo {
 	InflationInfo::new(
-		BLOCKS_PER_YEAR,
+		BLOCKS_PER_YEAR.into(),
 		// max collator staking rate
 		Perquintill::from_percent(40),
 		// collator reward rate
@@ -119,19 +120,6 @@ parameter_types! {
 	pub const CtypeFee: Balance = MILLI_PLMC;
 	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
 		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
-}
-
-pub mod attestation {
-	use super::*;
-
-	/// The size is checked in the runtime by a test.
-	pub const MAX_ATTESTATION_BYTE_LENGTH: u32 = 179;
-	pub const ATTESTATION_DEPOSIT: Balance = deposit(2, MAX_ATTESTATION_BYTE_LENGTH);
-
-	parameter_types! {
-		pub const MaxDelegatedAttestations: u32 = 1000;
-		pub const AttestationDeposit: Balance = ATTESTATION_DEPOSIT;
-	}
 }
 
 pub mod delegation {
@@ -286,6 +274,7 @@ pub mod governance {
 		pub const MinimumDeposit: Balance = MIN_DEPOSIT;
 		pub const EnactmentPeriod: BlockNumber = ENACTMENT_PERIOD;
 		pub const CooloffPeriod: BlockNumber = COOLOFF_PERIOD;
+		pub const MaxProposals: u32 = 100;
 		// Council Pallet
 		pub const CouncilMotionDuration: BlockNumber = COUNCIL_MOTION_DURATION;
 		pub const CouncilMaxProposals: u32 = 100;
@@ -294,66 +283,6 @@ pub mod governance {
 		pub const TechnicalMotionDuration: BlockNumber = TECHNICAL_MOTION_DURATION;
 		pub const TechnicalMaxProposals: u32 = 100;
 		pub const TechnicalMaxMembers: u32 = 100;
-	}
-}
-
-pub mod did {
-	use super::*;
-
-	/// The size is checked in the runtime by a test.
-	pub const MAX_DID_BYTE_LENGTH: u32 = 9918;
-
-	pub const DID_DEPOSIT: Balance =
-		deposit(2 + MAX_NUMBER_OF_SERVICES_PER_DID, MAX_DID_BYTE_LENGTH);
-	pub const DID_FEE: Balance = 50 * MILLI_PLMC;
-	pub const MAX_KEY_AGREEMENT_KEYS: u32 = 10;
-	pub const MAX_URL_LENGTH: u32 = 200;
-	// This has been reduced from the previous 100, but it might still need
-	// fine-tuning depending on our needs.
-	pub const MAX_PUBLIC_KEYS_PER_DID: u32 = 20;
-	// At most the max number of keys - 1 for authentication
-	pub const MAX_TOTAL_KEY_AGREEMENT_KEYS: u32 = MAX_PUBLIC_KEYS_PER_DID - 1;
-	pub const MAX_ENDPOINT_URLS_COUNT: u32 = 3;
-	pub const MAX_BLOCKS_TX_VALIDITY: BlockNumber = HOURS;
-
-	pub const MAX_NUMBER_OF_SERVICES_PER_DID: u32 = 25;
-	pub const MAX_SERVICE_ID_LENGTH: u32 = 50;
-	pub const MAX_SERVICE_TYPE_LENGTH: u32 = 50;
-	pub const MAX_NUMBER_OF_TYPES_PER_SERVICE: u32 = 1;
-	pub const MAX_SERVICE_URL_LENGTH: u32 = 200;
-	pub const MAX_NUMBER_OF_URLS_PER_SERVICE: u32 = 1;
-
-	parameter_types! {
-		pub const MaxNewKeyAgreementKeys: u32 = MAX_KEY_AGREEMENT_KEYS;
-		#[derive(Debug, Clone, Eq, PartialEq)]
-		pub const MaxUrlLength: u32 = MAX_URL_LENGTH;
-		pub const MaxPublicKeysPerDid: u32 = MAX_PUBLIC_KEYS_PER_DID;
-		#[derive(Debug, Clone, Eq, PartialEq)]
-		pub const MaxTotalKeyAgreementKeys: u32 = MAX_TOTAL_KEY_AGREEMENT_KEYS;
-		#[derive(Debug, Clone, Eq, PartialEq)]
-		pub const MaxEndpointUrlsCount: u32 = MAX_ENDPOINT_URLS_COUNT;
-		// Standalone block time is half the duration of a parachain block.
-		pub const MaxBlocksTxValidity: BlockNumber = MAX_BLOCKS_TX_VALIDITY;
-		pub const DidDeposit: Balance = DID_DEPOSIT;
-		pub const DidFee: Balance = DID_FEE;
-		pub const MaxNumberOfServicesPerDid: u32 = MAX_NUMBER_OF_SERVICES_PER_DID;
-		pub const MaxServiceIdLength: u32 = MAX_SERVICE_ID_LENGTH;
-		pub const MaxServiceTypeLength: u32 = MAX_SERVICE_TYPE_LENGTH;
-		pub const MaxServiceUrlLength: u32 = MAX_SERVICE_URL_LENGTH;
-		pub const MaxNumberOfTypesPerService: u32 = MAX_NUMBER_OF_TYPES_PER_SERVICE;
-		pub const MaxNumberOfUrlsPerService: u32 = MAX_NUMBER_OF_URLS_PER_SERVICE;
-	}
-}
-
-pub mod did_lookup {
-	use super::*;
-
-	/// The size is checked in the runtime by a test.
-	pub const MAX_CONNECTION_BYTE_LENGTH: u32 = 80;
-	pub const DID_CONNECTION_DEPOSIT: Balance = deposit(1, MAX_CONNECTION_BYTE_LENGTH);
-
-	parameter_types! {
-		pub const DidLookupDeposit: Balance = DID_CONNECTION_DEPOSIT;
 	}
 }
 
@@ -383,23 +312,6 @@ pub mod proxy {
 		pub const AnnouncementDepositBase: Balance = deposit(1, 8);
 		pub const AnnouncementDepositFactor: Balance = deposit(0, 66);
 		pub const MaxPending: u16 = 10;
-	}
-}
-
-pub mod web3_names {
-	use super::*;
-
-	pub const MIN_LENGTH: u32 = 3;
-	pub const MAX_LENGTH: u32 = 32;
-
-	/// The size is checked in the runtime by a test.
-	pub const MAX_NAME_BYTE_LENGTH: u32 = 121;
-	pub const DEPOSIT: Balance = deposit(2, MAX_NAME_BYTE_LENGTH);
-
-	parameter_types! {
-		pub const Web3NameDeposit: Balance = DEPOSIT;
-		pub const MinNameLength: u32 = MIN_LENGTH;
-		pub const MaxNameLength: u32 = MAX_LENGTH;
 	}
 }
 
@@ -440,6 +352,6 @@ mod tests {
 	#[allow(clippy::assertions_on_constants)]
 	#[test]
 	fn blocks_per_year_saturation() {
-		assert!(BLOCKS_PER_YEAR < u64::MAX);
+		assert!(BLOCKS_PER_YEAR < u32::MAX);
 	}
 }
