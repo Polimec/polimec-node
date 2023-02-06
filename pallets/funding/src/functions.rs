@@ -178,6 +178,7 @@ impl<T: Config> Pallet<T> {
 			});
 		};
 
+		// TODO: Check if make sense to set the admin as T::fund_account_id(project_id)
 		let issuer =
 			ProjectsIssuers::<T>::get(project_id).expect("The issuer exists, already tested.");
 		let project = Projects::<T>::get(project_id).expect("The project exists, already tested.");

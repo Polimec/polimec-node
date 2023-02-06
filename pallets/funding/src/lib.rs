@@ -142,7 +142,7 @@ pub mod pallet {
 		type ProjectIdParameter: Parameter
 			+ From<Self::ProjectIdentifier>
 			+ Into<Self::ProjectIdentifier>
-			+ From<u32> // Used in benchmarks
+			+ From<u32> // TODO: Used only in benchmarks, is there a way to bound this trait under #[cfg(feature = "runtime-benchmarks")]?
 			+ MaxEncodedLen;
 
 		/// Just the `Currency::Balance` type; we have this item to allow us to constrain it to

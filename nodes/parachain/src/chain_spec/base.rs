@@ -106,7 +106,7 @@ pub fn get_live_base_chain_spec() -> Result<ChainSpec, String> {
 	let wasm = base_runtime::WASM_BINARY.ok_or("No WASM")?;
 
 	// TODO: Update this after reserving a ParaId
-	let id: u32 = 2000;
+	let id: u32 = 2105;
 
 	Ok(ChainSpec::from_genesis(
 		"Polimec Base",
@@ -145,19 +145,6 @@ pub fn get_live_base_chain_spec() -> Result<ChainSpec, String> {
 				vec![
 					(get_account_id_from_seed::<sr25519::Public>("Alice"), 10000000 * PLMC),
 					(get_account_id_from_seed::<sr25519::Public>("Bob"), 10000000 * PLMC),
-					(get_account_id_from_seed::<sr25519::Public>("Charlie"), 10000000 * PLMC),
-					(get_account_id_from_seed::<sr25519::Public>("Dave"), 10000000 * PLMC),
-					(get_account_id_from_seed::<sr25519::Public>("Eve"), 10000000 * PLMC),
-					(get_account_id_from_seed::<sr25519::Public>("Ferdie"), 10000000 * PLMC),
-					(get_account_id_from_seed::<sr25519::Public>("Alice//stash"), 10000000 * PLMC),
-					(get_account_id_from_seed::<sr25519::Public>("Bob//stash"), 10000000 * PLMC),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
-						10000000 * PLMC,
-					),
-					(get_account_id_from_seed::<sr25519::Public>("Dave//stash"), 10000000 * PLMC),
-					(get_account_id_from_seed::<sr25519::Public>("Eve//stash"), 10000000 * PLMC),
-					(get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"), 10000000 * PLMC),
 				],
 				id.into(),
 			)
