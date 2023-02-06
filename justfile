@@ -28,5 +28,29 @@ build-standalone-srtool:
 test-runtime-features:
 	cargo test --features runtime-benchmarks -- --nocapture
 
+benchmark-runtime-funding:
+	cargo run --features runtime-benchmarks --release -p polimec-standalone-node benchmark pallet \
+		--chain=dev \
+		--steps=50 \
+		--repeat=20 \
+		--pallet=pallet_funding \
+		--extrinsic '*' \
+		--execution=wasm \
+		--wasm-execution=compiled \
+		--heap-pages=4096 \
+		--output=runtimes/testnet/src/weights/pallet_funding.rs
+
+benchmark-pallet-funding:
+	cargo run --features runtime-benchmarks --release -p polimec-standalone-node benchmark pallet \
+		--chain=dev \
+		--steps=50 \
+		--repeat=20 \
+		--pallet=pallet_funding \
+		--extrinsic '*' \
+		--execution=wasm \
+		--heap-pages=4096 \
+		--output=pallets/funding/src/weights.rs \
+		--template=./.maintain/frame-weight-template.hbs
+
 docker-build-standalone:
 	./scripts/build_image.sh latest ./Containerfile polimec-standalone-node
