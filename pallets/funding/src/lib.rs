@@ -64,6 +64,8 @@ pub use types::*;
 pub mod weights;
 pub use weights::WeightInfo;
 
+mod functions;
+
 #[cfg(test)]
 pub mod mock;
 
@@ -73,7 +75,8 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-mod functions;
+#[allow(unused_imports)]
+use polimec_traits::{MemberRole, PolimecMembers};
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{
@@ -88,7 +91,6 @@ use frame_support::{
 	},
 	BoundedVec, PalletId, Parameter,
 };
-use polimec_traits::{MemberRole, PolimecMembers};
 use sp_arithmetic::traits::{One, Saturating, Zero};
 use sp_runtime::{
 	traits::{AccountIdConversion, CheckedAdd, Hash},
@@ -142,7 +144,8 @@ pub mod pallet {
 		type ProjectIdParameter: Parameter
 			+ From<Self::ProjectIdentifier>
 			+ Into<Self::ProjectIdentifier>
-			+ From<u32> // TODO: Used only in benchmarks, is there a way to bound this trait under #[cfg(feature = "runtime-benchmarks")]?
+			+ From<u32>
+			// TODO: Used only in benchmarks, is there a way to bound this trait under #[cfg(feature = "runtime-benchmarks")]?
 			+ MaxEncodedLen;
 
 		/// Just the `Currency::Balance` type; we have this item to allow us to constrain it to
@@ -162,7 +165,7 @@ pub mod pallet {
 		/// Something that provides randomness in the runtime.
 		type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
 
-		/// Something that provides the members of the Polimec
+		/// Something that provides the members of Polimec
 		type HandleMembers: PolimecMembers<Self::AccountId>;
 
 		/// Something that provides the ability to create, mint and burn fungible assets.
@@ -182,15 +185,19 @@ pub mod pallet {
 		#[pallet::constant]
 		type PreImageLimit: Get<u32>;
 
+		/// The length (expressed in number of blocks) of the evaluation period.
 		#[pallet::constant]
 		type EvaluationDuration: Get<Self::BlockNumber>;
 
+		/// The length (expressed in number of blocks) of the Auction Round, English period.
 		#[pallet::constant]
 		type EnglishAuctionDuration: Get<Self::BlockNumber>;
 
+		/// The length (expressed in number of blocks) of the Auction Round, Candle period.
 		#[pallet::constant]
 		type CandleAuctionDuration: Get<Self::BlockNumber>;
 
+		/// The length (expressed in number of blocks) of the Community Round.
 		#[pallet::constant]
 		type CommunityRoundDuration: Get<Self::BlockNumber>;
 
@@ -240,14 +247,13 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn project_issuer)]
-	/// StorageMap (k: ProjectIdentifier, v: T::AccountId) to "reverse lookup" the project issuer so
-	/// the users doesn't need to specify each time the project issuer
+	/// StorageMap to "reverse lookup" the project issuer
 	pub type ProjectsIssuers<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, T::AccountId>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn project_info)]
-	/// StorageMap(k1: ProjectIdentifier, v:ProjectInfo) containing all the the information for the projects
+	/// StorageMap containing all the the information for the projects
 	pub type ProjectsInfo<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
@@ -265,7 +271,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn auctions_info)]
-	/// Save the bids for each project and when they were made
+	/// StorageMap containing the bids for each project
 	pub type AuctionsInfo<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
@@ -276,7 +282,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn bonds)]
-	/// StorageDoubleMap (k1: ProjectIdentifier, k2: T::AccountId, v: BalanceOf<T>) to store the bonds for each project during the Evaluation Round
+	/// StorageDoubleMap to store the bonds for each project during the Evaluation Round
 	pub type Bonds<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
@@ -371,22 +377,23 @@ pub mod pallet {
 		NotAuthorized,
 		AlreadyClaimed,
 		CannotClaimYet,
+		NoImageFound,
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Validate a preimage on-chain and store the image.
-		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(T::WeightInfo::note_image())]
 		pub fn note_image(
 			origin: OriginFor<T>,
 			bytes: BoundedVec<u8, T::PreImageLimit>,
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 
-			ensure!(
-				T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
-				Error::<T>::NotAuthorized
-			);
+			// ensure!(
+			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
+			// 	Error::<T>::NotAuthorized
+			// );
 
 			Self::note_bytes(bytes, &issuer)?;
 
@@ -398,11 +405,11 @@ pub mod pallet {
 		pub fn create(origin: OriginFor<T>, project: ProjectOf<T>) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 
-			ensure!(
-				T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
-				Error::<T>::NotAuthorized
-			);
-			ensure!(Images::<T>::contains_key(project.metadata), Error::<T>::ProjectNotExists);
+			// ensure!(
+			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
+			// 	Error::<T>::NotAuthorized
+			// );
+			ensure!(Images::<T>::contains_key(project.metadata), Error::<T>::NoImageFound);
 
 			match project.validity_check() {
 				Err(error) => match error {
@@ -419,18 +426,17 @@ pub mod pallet {
 		}
 
 		/// Edit the `project_metadata` of a `project_id` if "Evaluation Round" is not yet started
-		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(T::WeightInfo::edit_metadata())]
 		pub fn edit_metadata(
 			origin: OriginFor<T>,
-			project_metadata_hash: T::Hash,
 			project_id: T::ProjectIdParameter,
+			project_metadata_hash: T::Hash,
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
-			ensure!(ProjectsIssuers::<T>::contains_key(project_id), Error::<T>::ProjectNotExists);
 			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
-			ensure!(Images::<T>::contains_key(project_metadata_hash), Error::<T>::ProjectNotExists);
+			ensure!(Images::<T>::contains_key(project_metadata_hash), Error::<T>::NoImageFound);
 			ensure!(!ProjectsInfo::<T>::get(project_id).is_frozen, Error::<T>::Frozen);
 
 			Projects::<T>::try_mutate(project_id, |maybe_project| -> DispatchResult {
@@ -443,7 +449,7 @@ pub mod pallet {
 		}
 
 		/// Start the "Evaluation Round" of a `project_id`
-		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(T::WeightInfo::start_evaluation())]
 		pub fn start_evaluation(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdParameter,
@@ -451,7 +457,6 @@ pub mod pallet {
 			let issuer = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
-			ensure!(ProjectsIssuers::<T>::contains_key(project_id), Error::<T>::ProjectNotExists);
 			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
 			ensure!(
 				ProjectsInfo::<T>::get(project_id).project_status == ProjectStatus::Application,
@@ -461,7 +466,7 @@ pub mod pallet {
 		}
 
 		/// Evaluators can bond `amount` PLMC to evaluate a `project_id` in the "Evaluation Round"
-		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(T::WeightInfo::bond())]
 		pub fn bond(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdParameter,
@@ -479,7 +484,9 @@ pub mod pallet {
 				project_info.project_status == ProjectStatus::EvaluationRound,
 				Error::<T>::EvaluationNotStarted
 			);
+			// TODO: Should I check the free balance here or is already done in the Currency::set_lock?
 			ensure!(T::Currency::free_balance(&from) > amount, Error::<T>::InsufficientBalance);
+
 			let project = Projects::<T>::get(project_id).ok_or(Error::<T>::ProjectNotExists)?;
 
 			// Take the value given by the issuer or use the minimum balance any single account may have.
@@ -513,7 +520,7 @@ pub mod pallet {
 		}
 
 		/// Start the "Funding Round" of a `project_id`
-		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(T::WeightInfo::start_auction())]
 		pub fn start_auction(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdParameter,
@@ -522,10 +529,10 @@ pub mod pallet {
 			let project_id = project_id.into();
 
 			ensure!(ProjectsIssuers::<T>::contains_key(project_id), Error::<T>::ProjectNotExists);
-			ensure!(
-				T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
-				Error::<T>::NotAuthorized
-			);
+			// ensure!(
+			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
+			// 	Error::<T>::NotAuthorized
+			// );
 			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
 			let project_info = ProjectsInfo::<T>::get(project_id);
 			ensure!(
@@ -535,7 +542,7 @@ pub mod pallet {
 			Self::do_start_auction(project_id)
 		}
 		/// Place a bid in the "Auction Round"
-		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(T::WeightInfo::bid())]
 		pub fn bid(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdParameter,
@@ -548,11 +555,11 @@ pub mod pallet {
 			let bidder = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
-			ensure!(
-				T::HandleMembers::is_in(&MemberRole::Professional, &bidder) ||
-					T::HandleMembers::is_in(&MemberRole::Institutional, &bidder),
-				Error::<T>::NotAuthorized
-			);
+			// ensure!(
+			// 	T::HandleMembers::is_in(&MemberRole::Professional, &bidder) ||
+			// 		T::HandleMembers::is_in(&MemberRole::Institutional, &bidder),
+			// 	Error::<T>::NotAuthorized
+			// );
 
 			// Make sure project exists
 			let project_issuer =
@@ -643,7 +650,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(T::WeightInfo::contribute())]
 		/// Contribute to the "Community Round"
 		pub fn contribute(
 			origin: OriginFor<T>,
@@ -654,10 +661,10 @@ pub mod pallet {
 			let project_id = project_id.into();
 
 			// TODO: Add the "Retail before, Institutional and Professionals after, if there are still tokens" logic
-			ensure!(
-				T::HandleMembers::is_in(&MemberRole::Retail, &contributor),
-				Error::<T>::NotAuthorized
-			);
+			// ensure!(
+			// 	T::HandleMembers::is_in(&MemberRole::Retail, &contributor),
+			// 	Error::<T>::NotAuthorized
+			// );
 
 			// Make sure project exists
 			let project_issuer =
@@ -704,7 +711,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(Weight::from_ref_time(10_000) + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(T::WeightInfo::claim_contribution_tokens())]
 		// TODO: Manage the fact that the CTs may not be claimed by those entitled
 		pub fn claim_contribution_tokens(
 			origin: OriginFor<T>,
@@ -712,8 +719,6 @@ pub mod pallet {
 		) -> DispatchResult {
 			let claimer = ensure_signed(origin)?;
 			let project_id = project_id.into();
-
-			ensure!(ProjectsIssuers::<T>::contains_key(project_id), Error::<T>::ProjectNotExists);
 
 			// TODO: Check the right credential status
 			// ensure!(
@@ -728,6 +733,7 @@ pub mod pallet {
 				Error::<T>::CannotClaimYet
 			);
 			// TODO: Set a reasonable default value
+			// TODO: Check the flow of the final_price if the final price discovery durign the Auction Round fails
 			let final_price = project_info.final_price.unwrap_or(10_000_000_000_u64.into());
 
 			Contributions::<T>::try_mutate(
