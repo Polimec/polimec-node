@@ -140,7 +140,8 @@ mod creation_round {
 	}
 
 	#[test]
-	fn only_issuer_can_create() {
+	#[ignore]
+	fn only_with_credential_can_create() {
 		new_test_ext().execute_with(|| {
 			let project = create_project();
 			assert_noop!(

@@ -342,9 +342,9 @@ impl pallet_assets::Config for Runtime {
 }
 
 parameter_types! {
-	pub const EvaluationDuration: BlockNumber = 20;
-	pub const EnglishAuctionDuration: BlockNumber = 5;
-	pub const CandleAuctionDuration: BlockNumber = 10;
+	pub const EvaluationDuration: BlockNumber = 28;
+	pub const EnglishAuctionDuration: BlockNumber = 10;
+	pub const CandleAuctionDuration: BlockNumber = 5;
 	pub const CommunityRoundDuration: BlockNumber = 10;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 }

@@ -87,6 +87,21 @@ fn store_and_return_metadata_hash<T: Config>() -> T::Hash {
 	T::Hashing::hash(METADATA.as_bytes())
 }
 
+pub fn run_to_block<T: Config>(n: T::BlockNumber) {
+	let max_weight = T::BlockWeights::get().max_block;
+	while frame_system::Pallet::<T>::block_number() < n {
+		crate::Pallet::<T>::on_finalize(frame_system::Pallet::<T>::block_number());
+		frame_system::Pallet::<T>::on_finalize(frame_system::Pallet::<T>::block_number());
+		crate::Pallet::<T>::on_idle(frame_system::Pallet::<T>::block_number(), max_weight);
+		frame_system::Pallet::<T>::set_block_number(
+			frame_system::Pallet::<T>::block_number() + One::one(),
+		);
+		frame_system::Pallet::<T>::on_initialize(frame_system::Pallet::<T>::block_number());
+		crate::Pallet::<T>::on_initialize(frame_system::Pallet::<T>::block_number());
+		crate::Pallet::<T>::on_idle(frame_system::Pallet::<T>::block_number(), max_weight);
+	}
+}
+
 benchmarks! {
 	note_image {
 		let bounded_metadata = BoundedVec::try_from(metadata_as_vec()).unwrap();
@@ -114,6 +129,69 @@ benchmarks! {
 		let (project_id, issuer) = create_default_minted_project::<T>(None);
 	}: _(SystemOrigin::Signed(issuer), project_id)
 
+	bond {
+		let (project_id, issuer) = create_default_minted_project::<T>(None);
+		let evaluator: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
+		let _ = PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.clone()).into(), project_id.clone());
+		T::Currency::make_free_balance_be(&evaluator,  20_000_000_000_u64.into());
+	}: _(SystemOrigin::Signed(evaluator), project_id, 10_000_000_000_u64.into())
+
+	edit_metadata {
+		let (project_id, issuer) = create_default_minted_project::<T>(None);
+		let bounded_metadata = BoundedVec::try_from(metadata_as_vec()).unwrap();
+		assert!(
+			PolimecFunding::<T>::note_image(SystemOrigin::Signed(issuer.clone()).into(), bounded_metadata).is_ok()
+		);
+		let hash = T::Hashing::hash(METADATA.as_bytes());
+	}: _(SystemOrigin::Signed(issuer), project_id, hash)
+
+	start_auction {
+		let (project_id, issuer) = create_default_minted_project::<T>(None);
+		assert!(
+			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.clone()).into(), project_id.clone()).is_ok()
+		);
+		// Move at the end of the Evaluation Round
+		run_to_block::<T>(System::<T>::block_number() + 30_u32.into());
+	}: _(SystemOrigin::Signed(issuer), project_id)
+
+	bid {
+		let (project_id, issuer) = create_default_minted_project::<T>(None);
+		assert!(
+			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.clone()).into(), project_id.clone()).is_ok()
+		);
+		// Move in the middle of the Auction Round
+		run_to_block::<T>(System::<T>::block_number() + 40_u32.into());
+		let bidder: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
+		T::Currency::make_free_balance_be(&bidder,  20_000_000_000_u64.into());
+	}: _(SystemOrigin::Signed(bidder), project_id, 1_000_000_000_u64.into(), 2_000_000_000_u64.into(), None)
+
+	contribute {
+		let (project_id, issuer) = create_default_minted_project::<T>(None);
+		assert!(
+			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.clone()).into(), project_id.clone()).is_ok()
+		);
+		// Move in the middle of the Community Round
+		run_to_block::<T>(System::<T>::block_number() + 55_u32.into());
+		let contributor: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
+		T::Currency::make_free_balance_be(&contributor,  20_000_000_000_u64.into());
+	}: _(SystemOrigin::Signed(contributor), project_id, 2_000_000_000_u64.into())
+
+	claim_contribution_tokens {
+		let (project_id, issuer) = create_default_minted_project::<T>(None);
+		assert!(
+			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.clone()).into(), project_id.clone()).is_ok()
+		);
+		// Move in the middle of the Community Round
+		run_to_block::<T>(System::<T>::block_number() + 55_u32.into());
+		let claimer: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
+		T::Currency::make_free_balance_be(&claimer,  20_000_000_000_u64.into());
+		assert!(
+			PolimecFunding::<T>::contribute(SystemOrigin::Signed(claimer.clone()).into(), project_id.clone(),  2_000_000_000_u64.into()).is_ok()
+		);
+		// Move at the end of the Community Round
+		run_to_block::<T>(System::<T>::block_number() + 20_u32.into());
+	}: _(SystemOrigin::Signed(claimer), project_id)
+
 	on_initialize {
 		let p = T::ActiveProjectsLimit::get();
 		// Create 100 projects
@@ -137,11 +215,6 @@ benchmarks! {
 		}
 
 	}
-
-	// claim_contribution_tokens {
-	// }: _(SystemOrigin::Signed(issuer), project_id)
-	// verify {
-	// }
 
 	impl_benchmark_test_suite!(PolimecFunding, crate::mock::new_test_ext(), crate::mock::Test);
 }

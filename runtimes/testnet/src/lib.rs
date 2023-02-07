@@ -37,9 +37,7 @@ use frame_support::{
 	weights::{ConstantMultiplier, Weight},
 	PalletId,
 };
-use frame_system::{
-	EnsureRoot, EnsureSigned,
-};
+use frame_system::{EnsureRoot, EnsureSigned};
 
 pub use parachains_common::{
 	impls::{AssetsToBlockAuthor, DealWithFees},
@@ -57,7 +55,7 @@ pub use runtime_common::{
 		MAX_COLLATOR_STAKE, MICRO_PLMC, PLMC,
 	},
 	fees::WeightToFee,
-	RuntimeBlockWeights, RuntimeBlockLength,
+	RuntimeBlockLength, RuntimeBlockWeights,
 };
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
@@ -80,7 +78,7 @@ pub use sp_runtime::BuildStorage;
 // Polkadot imports
 use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
 
-use weights::{RocksDbWeight};
+use weights::RocksDbWeight;
 
 // XCM Imports
 use xcm_executor::XcmExecutor;
