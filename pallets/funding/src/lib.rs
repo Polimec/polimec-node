@@ -28,17 +28,20 @@
 //!
 //! ## Interface
 //!
-//! ### Privileged Functions, callable only by credentialized users
+//! ### Permissioned Functions, callable only by credentialized users
 //!
-//! * `note_image` : 
-//! * `create` :
-//! * `edit_metadata` :
-//! * `start_evaluation` :
-//! * `bond` :
-//! * `start_auction` :
-//! * `bid` :
-//! * `contribute` :
-//! * `claim_contribution_tokens` :
+//! * `note_image` : Save on-chin the Hash of the project metadata.
+//! * `create` : Create a new project.
+//! * `bond` : Bond PLMC to a project.
+//! * `bid` : Perform a bid during the Auction Round.
+//! * `contribute` : Contribute to a project during the Community Round.
+//! * `claim_contribution_tokens` : Claim the Contribution Tokens if you contributed to a project during the Funding Round.
+//! 
+//! ### Priviliged Functions, callable only by the project's Issuer
+//! 
+//! * `edit_metadata` : Submit a new Hash of the project metadata.
+//! * `start_evaluation` : Start the Evaluation Round of a project.
+//! * `start_auction` : Start the Funding Round of a project.
 //! 
 
 // Ensure we're `no_std` when compiling for Wasm.
@@ -363,25 +366,42 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
+		// The price provided in the `create` call is too low
 		PriceTooLow,
+		// The participation size provided in the `create` call is too low
 		ParticipantsSizeError,
+		// The ticket size provided in the `create` call is too low
 		TicketSizeError,
+		// The specified project does not exist
 		ProjectNotExists,
+		// The Evaluation Round of the project has already started
 		EvaluationAlreadyStarted,
+		// The issuer cannot contribute to their own project during the Funding Round
 		ContributionToThemselves,
+		// Only the issuer can start the Evaluation Round
 		NotAllowed,
-		EvaluationNotStarted,
-		AuctionAlreadyStarted,
-		AuctionNotStarted,
-		Frozen,
-		BondTooLow,
-		BondTooHigh,
-		InsufficientBalance,
-		TooManyActiveProjects,
-		NotAuthorized,
-		AlreadyClaimed,
-		CannotClaimYet,
+		// The Metadata Hash of the project was not found
 		NoImageFound,
+		// The Evaluation Round of the project has not started yet
+		EvaluationNotStarted,
+		// The Auction Round of the project has already started
+		AuctionAlreadyStarted,
+		// The Auction Round of the project has not started yet
+		AuctionNotStarted,
+		// You cannot edit the metadata of a project that already passed the Evaluation Round
+		Frozen,
+		// The bid is too low
+		BidTooLow,
+		// The user has not enough balance to perform the action
+		InsufficientBalance,
+		// There are too many active projects
+		TooManyActiveProjects,
+		// TODO: Check after the itroduction of the cross-chain identity pallet by KILT
+		NotAuthorized,
+		// Contribution Tokens are already claimed
+		AlreadyClaimed,
+		// The Funding Round of the project has not ended yet
+		CannotClaimYet,
 	}
 
 	#[pallet::call]
@@ -593,7 +613,7 @@ pub mod pallet {
 			);
 
 			// Make sure the bid amount is greater than the minimum_price specified by the issuer
-			ensure!(price >= project.minimum_price, Error::<T>::BondTooLow);
+			ensure!(price >= project.minimum_price, Error::<T>::BidTooLow);
 
 			let now = <frame_system::Pallet<T>>::block_number();
 			let multiplier = multiplier.unwrap_or(1);
@@ -646,7 +666,7 @@ pub mod pallet {
 						});
 					} else {
 						// New bid is lower than the lowest bid, return Error
-						Err(Error::<T>::BondTooLow)?
+						Err(Error::<T>::BidTooLow)?
 					}
 				},
 			};
@@ -689,7 +709,7 @@ pub mod pallet {
 			);
 
 			// Make sure the bid amount is greater than the minimum_price specified by the issuer
-			ensure!(amount > project.minimum_price, Error::<T>::BondTooLow);
+			ensure!(amount > project.minimum_price, Error::<T>::BidTooLow);
 
 			let fund_account = Self::fund_account_id(project_id);
 			// TODO: Use USDC on Statemint/e (via XCM) instead of PLMC
