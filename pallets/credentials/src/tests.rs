@@ -1,6 +1,6 @@
 use crate::{mock::*, Error};
 use frame_support::{assert_noop, assert_ok, error::BadOrigin, BoundedVec};
-use polimec_traits::{Big4, Country, Credential, MemberRole, PolimecMembers};
+use polimec_traits::{Issuers, Country, Credential, MemberRole, PolimecMembers};
 
 pub fn last_event() -> RuntimeEvent {
 	frame_system::Pallet::<Test>::events().pop().expect("Event expected").event
@@ -14,7 +14,7 @@ const EVE: AccountId = 5;
 
 fn new_test_credential(role: MemberRole) -> Credential {
 	Credential {
-		issuer: Big4::KPMG,
+		issuer: Issuers::IssuerOne,
 		role,
 		domicile: BoundedVec::default(),
 		country: Country::Switzerland,

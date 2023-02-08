@@ -43,11 +43,11 @@ impl MemberRole {
 
 /// The various attesters on KILT.
 #[derive(Copy, Clone, PartialEq, Eq, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
-pub enum Big4 {
-	Deloitte,
-	PwC,
-	EY,
-	KPMG,
+pub enum Issuers {
+	IssuerOne,
+	IssuerTwo,
+	IssuerThree,
+	IssuerFour,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
@@ -62,7 +62,7 @@ type MaxDomicile = frame_support::traits::ConstU32<255>;
 /// A basic "credential" representation
 #[derive(Clone, PartialEq, Eq, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct Credential {
-	pub issuer: Big4,
+	pub issuer: Issuers,
 	pub role: MemberRole,
 	pub domicile: BoundedVec<u8, MaxDomicile>,
 	pub country: Country,
