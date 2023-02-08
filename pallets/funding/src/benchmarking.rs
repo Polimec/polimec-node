@@ -132,7 +132,7 @@ benchmarks! {
 	bond {
 		let (project_id, issuer) = create_default_minted_project::<T>(None);
 		let evaluator: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
-		let _ = PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.clone()).into(), project_id.clone());
+		let _ = PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer).into(), project_id.clone());
 		T::Currency::make_free_balance_be(&evaluator,  20_000_000_000_u64.into());
 	}: _(SystemOrigin::Signed(evaluator), project_id, 10_000_000_000_u64.into())
 
@@ -157,18 +157,18 @@ benchmarks! {
 	bid {
 		let (project_id, issuer) = create_default_minted_project::<T>(None);
 		assert!(
-			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.clone()).into(), project_id.clone()).is_ok()
+			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer).into(), project_id.clone()).is_ok()
 		);
 		// Move in the middle of the Auction Round
 		run_to_block::<T>(System::<T>::block_number() + 40_u32.into());
 		let bidder: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
-		T::Currency::make_free_balance_be(&bidder,  20_000_000_000_u64.into());
-	}: _(SystemOrigin::Signed(bidder), project_id, 1_000_000_000_u64.into(), 2_000_000_000_u64.into(), None)
+		T::Currency::make_free_balance_be(&bidder, 2_000_000_000_000_u64.into());
+	}: _(SystemOrigin::Signed(bidder), project_id, 100u64.into(), 2_000_000_000_u64.into(), None)
 
 	contribute {
 		let (project_id, issuer) = create_default_minted_project::<T>(None);
 		assert!(
-			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.clone()).into(), project_id.clone()).is_ok()
+			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer).into(), project_id.clone()).is_ok()
 		);
 		// Move in the middle of the Community Round
 		run_to_block::<T>(System::<T>::block_number() + 55_u32.into());
@@ -179,7 +179,7 @@ benchmarks! {
 	claim_contribution_tokens {
 		let (project_id, issuer) = create_default_minted_project::<T>(None);
 		assert!(
-			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.clone()).into(), project_id.clone()).is_ok()
+			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer).into(), project_id.clone()).is_ok()
 		);
 		// Move in the middle of the Community Round
 		run_to_block::<T>(System::<T>::block_number() + 55_u32.into());
