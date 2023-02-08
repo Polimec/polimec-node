@@ -20,7 +20,7 @@ build-base-srtool:
 	srtool build --root -p polimec-base-runtime --runtime-dir runtimes/base
 
 build-testnet-srtool:
-	srtool build --root -p polimec-testnet-runtime --runtime-dir runtimes/testnet
+	srtool build --root -p polimec-parachain-runtime --runtime-dir runtimes/testnet
 
 build-standalone-srtool:
 	srtool build --root -p polimec-standalone-runtime --runtime-dir runtimes/standalone

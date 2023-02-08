@@ -70,3 +70,21 @@ You can use [srtool](https://github.com/paritytech/srtool) to compile the runtim
  BLAKE2_256       : 0xe0b45ff9c7afaff573df61f5424f392ca1bb1e397d091424f5bf7b5b16fde16b
  Wasm             : runtimes/testnet//target/srtool/production/wbuild/polimec-parachain-runtime/polimec_parachain_runtime.compact.compressed.wasm
 ```
+
++ A collection of useful scripts are available in the `scripts` folder, there is also a `justfile` to launch the scripts using [just](https://github.com/casey/just), e.g. `$ just build-parachain-node`
+```
+Available recipes:
+    benchmark-pallet-funding
+    benchmark-runtime-funding
+    build-all
+    build-base-runtime
+    build-base-srtool
+    build-parachain-node
+    build-standalone-node
+    build-standalone-runtime
+    build-standalone-srtool
+    build-testnet-runtime
+    build-testnet-srtool
+    docker-build-standalone
+    test-runtime-features
+```
