@@ -30,6 +30,7 @@ pub struct Project<BoundedString, Balance: BalanceT, Hash> {
 	/// Minimum price per Contribution Token
 	pub minimum_price: Balance,
 	/// Fundraising target amount in USD equivalent
+	/// TODO: Check if we can remove this field, since it can be calculated from total_allocation_size * minimum_price
 	pub fundraising_target: Balance,
 	/// Maximum and/or minimum ticket size
 	pub ticket_size: TicketSize<Balance>,
@@ -60,6 +61,8 @@ pub struct ProjectInfo<BlockNumber, Balance: BalanceT> {
 	pub project_status: ProjectStatus,
 	pub evaluation_period_ends: Option<BlockNumber>,
 	pub auction_metadata: Option<AuctionMetadata<BlockNumber>>,
+	/// Fundraising target amount in USD equivalent
+	pub fundraising_target: Balance,
 }
 
 #[derive(Debug)]
@@ -133,11 +136,11 @@ impl ParticipantsSize {
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct Thresholds {
 	#[codec(compact)]
-	retail: u64,
+	retail: u8,
 	#[codec(compact)]
-	professional: u64,
+	professional: u8,
 	#[codec(compact)]
-	institutional: u64,
+	institutional: u8,
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -167,30 +170,34 @@ pub struct AuctionMetadata<BlockNumber> {
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct BidInfo<Balance: BalanceT, AccountId, BlockNumber> {
 	#[codec(compact)]
-	pub market_cap: Balance,
-	#[codec(compact)]
 	pub amount: Balance,
 	#[codec(compact)]
+	pub price: Balance,
+	#[codec(compact)]
 	pub ratio: Perbill,
+	#[codec(compact)]
+	pub market_cap: Balance,
 	pub when: BlockNumber,
 	pub bidder: AccountId,
 	pub funded: bool,
 	pub multiplier: u8,
+	pub status: BidStatus<Balance>,
 }
 
 impl<Balance: BalanceT + From<u64>, AccountId, BlockNumber>
 	BidInfo<Balance, AccountId, BlockNumber>
 {
 	pub fn new(
-		market_cap: Balance,
 		amount: Balance,
+		price: Balance,
 		auction_taget: Balance,
 		when: BlockNumber,
 		bidder: AccountId,
 		multiplier: u8,
 	) -> Self {
 		let ratio = Perbill::from_rational(amount, auction_taget);
-		Self { market_cap, amount, ratio, when, bidder, funded: false, multiplier }
+		let market_cap = amount.saturating_mul(price);
+		Self { amount, price, ratio, market_cap, when, bidder, funded: false, multiplier, status: BidStatus::YetUnknown }
 	}
 }
 
@@ -198,9 +205,7 @@ impl<Balance: BalanceT + From<u64>, AccountId: sp_std::cmp::Eq, BlockNumber: sp_
 	sp_std::cmp::Ord for BidInfo<Balance, AccountId, BlockNumber>
 {
 	fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
-		let self_value = self.amount.saturating_mul(self.market_cap);
-		let other_value = other.amount.saturating_mul(other.market_cap);
-		self_value.cmp(&other_value)
+		self.market_cap.cmp(&other.market_cap)
 	}
 }
 
@@ -235,6 +240,7 @@ pub enum ProjectStatus {
 	Application,
 	EvaluationRound,
 	EvaluationEnded,
+	EvaluationFailed,
 	AuctionRound(AuctionPhase),
 	CommunityRound,
 	FundingEnded,
@@ -246,4 +252,13 @@ pub enum AuctionPhase {
 	#[default]
 	English,
 	Candle,
+}
+
+#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub enum BidStatus<T: BalanceT> {
+	#[default]
+	YetUnknown,
+	Valid,
+	NotValid(T),
+	Unreserved
 }

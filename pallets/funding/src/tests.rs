@@ -28,7 +28,7 @@ use frame_support::{
 const ALICE: AccountId = 1;
 const BOB: AccountId = 2;
 const CHARLIE: AccountId = 3;
-const DAVE: AccountId = 3;
+const DAVE: AccountId = 4;
 const PLMC_DECIMALS: u8 = 10;
 const ASSET_DECIMALS: u8 = 12;
 
@@ -309,7 +309,7 @@ mod evaluation_round {
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 
 			assert_noop!(
-				FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 1024 * PLMC),
+				FundingModule::bond(RuntimeOrigin::signed(BOB), 0, u128::MAX),
 				Error::<Test>::InsufficientBalance
 			);
 		})
@@ -371,10 +371,9 @@ mod auction_round {
 
 			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(CHARLIE), 0, 100, 1, None));
 			let bids = FundingModule::auctions_info(0);
-			assert!(bids
-				.iter()
-				.any(|bid| bid.when == System::block_number() &&
-					bid.amount == 100 && bid.market_cap == 1));
+			assert!(bids.iter().any(|bid| bid.when == System::block_number() &&
+				bid.amount == 100 &&
+				bid.price == 1));
 			let free_balance_after_bid = Balances::free_balance(&CHARLIE);
 
 			assert!(free_balance_after_bid == free_balance - 100);
@@ -425,6 +424,18 @@ mod community_round {
 			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
 			run_to_block(System::block_number() + 15);
 			assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 100));
+			
+			// Check that the contribution is stored
+			let contribution_info = FundingModule::contributions(0, BOB).unwrap();
+			assert_eq!(contribution_info.amount, 100);
+
+			// Check that the funds are in the project's account Balance
+			let project_account = Pallet::<Test>::fund_account_id(0);
+			let project_balance = Balances::free_balance(&project_account);
+			assert_eq!(project_balance, 100);
+
+
+
 		})
 	}
 
@@ -440,7 +451,7 @@ mod community_round {
 			assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 200));
 			let contribution_info = FundingModule::contributions(0, BOB).unwrap();
 			assert_eq!(contribution_info.amount, 300);
-			assert_eq!(contribution_info.can_claim, true);
+			assert!(contribution_info.can_claim);
 		})
 	}
 }
@@ -458,17 +469,17 @@ mod claim_contribution_tokens {
 			assert_ok!(FundingModule::bid(
 				RuntimeOrigin::signed(BOB),
 				0,
-				1 * unit(PLMC_DECIMALS),
-				1 * unit(PLMC_DECIMALS),
+				100_000,
+				1 * PLMC,
 				None
 			));
 			run_to_block(System::block_number() + 15);
 			let proj_info = FundingModule::project_info(0);
-			assert_eq!(proj_info.final_price, Some(1 * unit(PLMC_DECIMALS)));
+			assert_eq!(proj_info.final_price, Some(1 * PLMC));
 			assert_ok!(FundingModule::contribute(
 				RuntimeOrigin::signed(BOB),
 				0,
-				1 * unit(PLMC_DECIMALS)
+				1 * PLMC
 			));
 			run_to_block(System::block_number() + 11);
 			assert_ok!(FundingModule::claim_contribution_tokens(RuntimeOrigin::signed(BOB), 0));
@@ -591,7 +602,7 @@ mod flow {
 			assert!(active_projects.len() == 1);
 			let project_info = FundingModule::project_info(0);
 			assert!(project_info.project_status == ProjectStatus::EvaluationRound);
-			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128));
+			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 20 * PLMC));
 			run_to_block(System::block_number() + 29);
 			let project_info = FundingModule::project_info(0);
 			assert!(project_info.project_status == ProjectStatus::EvaluationEnded);
@@ -602,13 +613,7 @@ mod flow {
 			assert!(
 				project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::English)
 			);
-			assert_ok!(FundingModule::bid(
-				RuntimeOrigin::signed(BOB),
-				0,
-				19 * PLMC,
-				17 * PLMC,
-				None
-			));
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(BOB), 0, 10_000, 15 * PLMC, None));
 
 			// Second phase of Funding Round: 2) Candle Auction Round
 			run_to_block(System::block_number() + 10);
@@ -619,13 +624,12 @@ mod flow {
 			assert_ok!(FundingModule::bid(
 				RuntimeOrigin::signed(CHARLIE),
 				0,
-				74 * PLMC,
-				2 * PLMC,
+				20_000,
+				20 * PLMC,
 				None
 			));
-			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(3), 0, 16 * PLMC, 35 * PLMC, None));
-			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(4), 0, 15 * PLMC, 20 * PLMC, None));
-			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(4), 0, 12 * PLMC, 55 * PLMC, None));
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(DAVE), 0, 20_000, 10 * PLMC, None));
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(5), 0, 20_000, 8 * PLMC, None));
 
 			run_to_block(System::block_number() + 10);
 			let project_info = FundingModule::project_info(0);
@@ -649,25 +653,20 @@ mod flow {
 			};
 			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
+			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 20 * PLMC));
 			run_to_block(System::block_number() + 29);
 			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
-			// Second phase of Funding Round: 2) Candle Auction Round
-			run_to_block(System::block_number() + 10);
-			let project_info = FundingModule::project_info(0);
-			assert!(
-				project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::Candle)
-			);
-			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(CHARLIE), 0, PLMC, 2 * PLMC, None));
-			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(3), 0, 2 * PLMC, 3 * PLMC, None));
-			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(4), 0, 4 * PLMC, 5 * PLMC, None));
-			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(4), 0, 6 * PLMC, 7 * PLMC, None));
-			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(4), 0, 10 * PLMC, 7 * PLMC, None));
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(BOB), 0, 10_000, 2 * PLMC, None));
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(CHARLIE), 0, 13_000, 3 * PLMC, None));
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(DAVE), 0, 15_000, 5 * PLMC, None));
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(5), 0, 1_000, 7 * PLMC, None));
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(5), 0, 20_000, 8 * PLMC, None));
 			let bids = FundingModule::auctions_info(0);
-			assert!(bids.len() == 4);
-			assert!(bids[0].amount == 2 * PLMC);
-			assert!(bids[1].amount == 4 * PLMC);
-			assert!(bids[2].amount == 6 * PLMC);
-			assert!(bids[3].amount == 10 * PLMC);
+			assert_eq!(bids.len(), 4);
+			assert_eq!(bids[0].market_cap, 10_000 * 2 * PLMC);
+			assert_eq!(bids[1].market_cap, 13_000 * 3 * PLMC);
+			assert_eq!(bids[2].market_cap, 15_000 * 5 * PLMC);
+			assert_eq!(bids[3].market_cap, 20_000 * 8 * PLMC);
 		})
 	}
 }

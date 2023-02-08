@@ -21,12 +21,19 @@
 use super::*;
 
 use frame_support::{pallet_prelude::DispatchError, traits::Get};
+use sp_runtime::Percent;
 use sp_std::{cmp::Reverse, prelude::*};
 
 impl<T: Config> Pallet<T> {
-	/// Store an image on chain.
+	/// The account ID of the project pot.
 	///
-	/// TODO: We verify that the preimage is within the bounds of what the pallet supports.
+	/// This actually does computation. If you need to keep using it, then make sure you cache the
+	/// value and only call this once.
+	#[inline(always)]
+	pub fn fund_account_id(index: T::ProjectIdentifier) -> T::AccountId {
+		T::PalletId::get().into_sub_account_truncating(index)
+	}
+	/// Store an image on chain.
 	pub fn note_bytes(
 		preimage: BoundedVec<u8, T::PreImageLimit>,
 		issuer: &T::AccountId,
@@ -47,6 +54,7 @@ impl<T: Config> Pallet<T> {
 		issuer: &T::AccountId,
 		project: ProjectOf<T>,
 	) -> Result<(), DispatchError> {
+		let fundraising_target = project.total_allocation_size * project.minimum_price;
 		let project_info = ProjectInfo {
 			is_frozen: false,
 			final_price: None,
@@ -54,6 +62,7 @@ impl<T: Config> Pallet<T> {
 			project_status: ProjectStatus::Application,
 			evaluation_period_ends: None,
 			auction_metadata: None,
+			fundraising_target,
 		};
 
 		Projects::<T>::insert(project_id, project);
@@ -108,12 +117,35 @@ impl<T: Config> Pallet<T> {
 		project_id: &T::ProjectIdentifier,
 		now: T::BlockNumber,
 		evaluation_period_ends: T::BlockNumber,
+		fundraising_target: BalanceOf<T>,
 	) {
 		if now >= evaluation_period_ends {
-			ProjectsInfo::<T>::mutate(project_id, |project_info| {
-				project_info.project_status = ProjectStatus::EvaluationEnded;
-			});
-			Self::deposit_event(Event::<T>::EvaluationEnded { project_id: *project_id });
+			let initial_balance: BalanceOf<T> = Zero::zero();
+			let total_amount_bonded = Bonds::<T>::iter_prefix_values(project_id)
+				.fold(initial_balance, |acc, bond| acc.saturating_add(bond));
+			// Check if the total amount bonded is greater than the 10% of the fundraising target
+			// TODO: 10% is hardcoded, check if we want to configure it a runtime as explained here:
+			// https://substrate.stackexchange.com/questions/2784/how-to-get-a-percent-portion-of-a-balance
+			// TODO: Check if it's safe to use * here
+			let evaluation_target = Percent::from_percent(10) * fundraising_target;
+			let is_funded = total_amount_bonded >= evaluation_target;
+			if is_funded {
+				ProjectsInfo::<T>::mutate(project_id, |project_info| {
+					project_info.project_status = ProjectStatus::EvaluationEnded;
+				});
+				Self::deposit_event(Event::<T>::EvaluationEnded { project_id: *project_id });
+			// TODO: Unlock the bonds and clean the storage
+			} else {
+				ProjectsInfo::<T>::mutate(project_id, |project_info| {
+					project_info.project_status = ProjectStatus::EvaluationFailed;
+				});
+				Self::deposit_event(Event::<T>::EvaluationFailed { project_id: *project_id });
+				// TODO: Unlock the bonds and clean the storage
+				// TODO: Remove the project from the active projects
+				ProjectsActive::<T>::mutate(|projects| {
+					projects.retain(|id| id != project_id);
+				});
+			}
 		}
 	}
 
@@ -185,6 +217,7 @@ impl<T: Config> Pallet<T> {
 		let token_information = project.token_information;
 
 		// TODO: Unused result
+		// Create the "Contribution Token" as an asset using the pallet_assets and set its metadata
 		let _ = T::Assets::create(project_id, issuer.clone(), false, 1_u32.into());
 		// TODO: Unused result
 		let _ = T::Assets::set(
@@ -215,35 +248,35 @@ impl<T: Config> Pallet<T> {
 		end_block: T::BlockNumber,
 	) -> Result<BalanceOf<T>, DispatchError> {
 		// Get all the bids that were made before the end of the candle
-		// TODO: Here we are not saving the modified bids, we should do it
-		// TODO: Maybe add a new storage like "FinalBids(project_id) -> Vec<(BlockNumber, BidInfo)>"
-		// Or maybe we can just modify the "AuctionsInfo" storage if we are sure that we will not need the discarded bids
+		// TODO: Update the `status` field of every `Bid` to BeforeCandle or AfterCandle if `bid.when > end_block`
 		let mut bids = AuctionsInfo::<T>::get(project_id);
 		bids.retain(|bid| bid.when <= end_block);
 		// TODO: Unreserve the funds of the bids that were made after the end of the candle
+		// TODO: We can do this inside the "on_idle" hook, and change the `status` of the `Bid` to "Unreserved"
 
-		// Sort the bids by market cap
+		// TODO: Sort the bids by market cap
 		// If we store the bids in a sorted way we can avoid this step
-
 		bids.sort_by_key(|bid| Reverse(bid.market_cap));
+
 		// Calculate the final price
 		let mut fundraising_amount = BalanceOf::<T>::zero();
-		let mut final_price = BalanceOf::<T>::zero();
 		for (idx, bid) in bids.iter_mut().enumerate() {
 			let old_amount = fundraising_amount;
-			fundraising_amount += bid.amount;
+			fundraising_amount = fundraising_amount.saturating_add(bid.amount);
 			if fundraising_amount > total_allocation_size {
 				bid.amount = total_allocation_size.saturating_sub(old_amount);
 				bid.ratio = Perbill::from_rational(bid.amount, total_allocation_size);
+				bid.status = BidStatus::NotValid(bid.amount.saturating_sub(old_amount));
 				bids.truncate(idx + 1);
-				// Important TODO: Refund the rest of the amount to the bidders
-				// TODO: Maybe in an on_idle hook ?
+				// Important TODO: Refund the rest of the amount to the bidder in the "on_idle" hook
 				break
 			}
 		}
 
+		// TODO: Test more cases
+		let mut final_price = BalanceOf::<T>::zero();
 		for bid in bids {
-			let weighted_price = bid.ratio.mul_ceil(bid.market_cap);
+			let weighted_price = bid.ratio.mul_ceil(bid.price);
 			final_price = final_price.saturating_add(weighted_price);
 		}
 		Ok(final_price)
@@ -268,6 +301,7 @@ impl<T: Config> Pallet<T> {
 		nonce.encode()
 	}
 
+	/// People that contributed to the project during the Funding Rounf can claim their Contribution Tokens
 	pub fn do_claim_contribution_tokens(
 		project_id: T::ProjectIdentifier,
 		claimer: T::AccountId,
@@ -287,6 +321,8 @@ impl<T: Config> Pallet<T> {
 		final_price: BalanceOf<T>,
 		token_decimals: u8,
 	) -> BalanceOf<T> {
+		// TODO: Remove the concept of decimals from the pallet
+		// TODO: Check how to not use the FixedU128 type
 		let decimals = 10_u64.saturating_pow(token_decimals.into());
 		let unit: BalanceOf<T> = BalanceOf::<T>::from(decimals);
 		FixedU128::saturating_from_rational(contribution_amount, final_price)

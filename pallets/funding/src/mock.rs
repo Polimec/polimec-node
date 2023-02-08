@@ -184,11 +184,11 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	GenesisConfig {
 		balances: BalancesConfig {
 			balances: vec![
-				(1, 512 * PLMC),
-				(2, 512 * PLMC),
-				(3, 512 * PLMC),
-				(4, 512 * PLMC),
-				(5, 512 * PLMC),
+				(1, 512 * 1_000_000 * PLMC),
+				(2, 512 * 1_000_000 * PLMC),
+				(3, 512 * 1_000_000 * PLMC),
+				(4, 512 * 1_000_000 * PLMC),
+				(5, 512 * 1_000_000 * PLMC),
 			],
 		},
 		credentials: CredentialsConfig {

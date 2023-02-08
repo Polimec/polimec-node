@@ -26,29 +26,20 @@
 //!
 //! The supported dispatchable functions are documented in the [`Call`] enum.
 //!
-//! ### Terminology
-//!
-//! ### Goals
-//!
 //! ## Interface
 //!
-//! ### Permissionless Functions
+//! ### Privileged Functions, callable only by credentialized users
 //!
-//! ### Permissioned Functions
-//!
-//! ### Privileged Functions
-//!
-//!
-//! Please refer to the [`Call`] enum and its associated variants for documentation on each
-//! function.
-//!
-//! ### Public Functions
-//!
-//! * `create` - .
-//! * `edit_metadata` - .
-//!
-//! Please refer to the [`Pallet`] struct for details on publicly available functions.
-//!
+//! * `note_image` : 
+//! * `create` :
+//! * `edit_metadata` :
+//! * `start_evaluation` :
+//! * `bond` :
+//! * `start_auction` :
+//! * `bid` :
+//! * `contribute` :
+//! * `claim_contribution_tokens` :
+//! 
 
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -93,18 +84,21 @@ use frame_support::{
 };
 use sp_arithmetic::traits::{One, Saturating, Zero};
 use sp_runtime::{
-	traits::{AccountIdConversion, CheckedAdd, Hash},
+	traits::{AccountIdConversion, Hash},
 	FixedPointNumber, FixedPointOperand, FixedU128, Perbill,
 };
 
 /// The balance type of this pallet.
 type BalanceOf<T> = <T as Config>::CurrencyBalance;
-type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
+
+/// The project type of this pallet.
 type ProjectOf<T> = Project<
 	BoundedVec<u8, <T as Config>::StringLimit>,
 	BalanceOf<T>,
 	<T as frame_system::Config>::Hash,
 >;
+
+/// The bid type of this pallet.
 type BidInfoOf<T> = BidInfo<
 	BalanceOf<T>,
 	<T as frame_system::Config>::AccountId,
@@ -112,8 +106,12 @@ type BidInfoOf<T> = BidInfo<
 >;
 
 // TODO: Add multiple locks
+// TODO: Review the use of locks after:
+// + https://github.com/paritytech/substrate/issues/12918
+// + https://github.com/paritytech/substrate/pull/12951
 const LOCKING_ID: LockIdentifier = *b"evaluate";
 
+// TODO: Remove `dev_mode` attribute when extrinsics API are stable
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
 	use super::*;
@@ -144,12 +142,11 @@ pub mod pallet {
 		type ProjectIdParameter: Parameter
 			+ From<Self::ProjectIdentifier>
 			+ Into<Self::ProjectIdentifier>
-			+ From<u32>
 			// TODO: Used only in benchmarks, is there a way to bound this trait under #[cfg(feature = "runtime-benchmarks")]?
+			+ From<u32>
 			+ MaxEncodedLen;
 
-		/// Just the `Currency::Balance` type; we have this item to allow us to constrain it to
-		/// `From<u64>`.
+		/// Just the `Currency::Balance` type; we have this item to allow us to constrain it to `From<u64>`.
 		type CurrencyBalance: Balance + From<u64> + FixedPointOperand;
 
 		/// The bonding balance.
@@ -231,12 +228,14 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn nonce)]
 	/// A global counter used in the randomness generation
-	// TODO: Remove it after using the Randomness from BABE's VRF
+	// TODO: Remove it after using the Randomness from BABE's VRF: https://github.com/PureStake/moonbeam/issues/1391
+	// TODO: Or use the randomness from Moonbeam.
 	pub type Nonce<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn images)]
-	/// A StorageMap containing all the images uploaded by the users
+	/// A StorageMap containing all the images of the project metadata uploaded by the users.
+	/// TODO: The metadata should be stored on IPFS/offchain database, and the hash of the metadata should be stored here.
 	pub type Images<T: Config> = StorageMap<_, Blake2_128Concat, T::Hash, T::AccountId>;
 
 	#[pallet::storage]
@@ -315,12 +314,16 @@ pub mod pallet {
 		MetadataEdited {
 			project_id: T::ProjectIdentifier,
 		},
-		/// The evaluation phase of `project_id` was started.
+		/// The evaluation phase of `project_id` started.
 		EvaluationStarted {
 			project_id: T::ProjectIdentifier,
 		},
-		/// The evaluation phase of `project_id` was ended.
+		/// The evaluation phase of `project_id` ended successfully.
 		EvaluationEnded {
+			project_id: T::ProjectIdentifier,
+		},
+		/// The evaluation phase of `project_id` ended without reaching the minimum threshold.
+		EvaluationFailed {
 			project_id: T::ProjectIdentifier,
 		},
 		/// The auction round of `project_id` started at block `when`.
@@ -341,7 +344,7 @@ pub mod pallet {
 		Bid {
 			project_id: T::ProjectIdentifier,
 			amount: BalanceOf<T>,
-			market_cap: BalanceOf<T>,
+			price: BalanceOf<T>,
 			multiplier: u8,
 		},
 		/// A bid  made by a `bidder` of `amount` at `market_cap` for `project_id` with a `multiplier` is returned.
@@ -349,9 +352,10 @@ pub mod pallet {
 			project_id: T::ProjectIdentifier,
 			bidder: T::AccountId,
 			amount: BalanceOf<T>,
-			market_cap: BalanceOf<T>,
+			price: BalanceOf<T>,
 			multiplier: u8,
 		},
+		/// 
 		Noted {
 			hash: T::Hash,
 		},
@@ -390,14 +394,13 @@ pub mod pallet {
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 
+			// TODO: Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
 			// ensure!(
 			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
 			// 	Error::<T>::NotAuthorized
 			// );
 
-			Self::note_bytes(bytes, &issuer)?;
-
-			Ok(())
+			Self::note_bytes(bytes, &issuer)
 		}
 		/// Start the "Funding Application" round
 		/// Project applies for funding, providing all required information.
@@ -405,10 +408,12 @@ pub mod pallet {
 		pub fn create(origin: OriginFor<T>, project: ProjectOf<T>) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 
+			// TODO: Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
 			// ensure!(
 			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
 			// 	Error::<T>::NotAuthorized
 			// );
+
 			ensure!(Images::<T>::contains_key(project.metadata), Error::<T>::NoImageFound);
 
 			match project.validity_check() {
@@ -435,6 +440,12 @@ pub mod pallet {
 			let issuer = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
+			// TODO: Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
+			// ensure!(
+			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
+			// 	Error::<T>::NotAuthorized
+			// );
+			
 			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
 			ensure!(Images::<T>::contains_key(project_metadata_hash), Error::<T>::NoImageFound);
 			ensure!(!ProjectsInfo::<T>::get(project_id).is_frozen, Error::<T>::Frozen);
@@ -457,6 +468,12 @@ pub mod pallet {
 			let issuer = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
+			// TODO: Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
+			// ensure!(
+			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
+			// 	Error::<T>::NotAuthorized
+			// );
+
 			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
 			ensure!(
 				ProjectsInfo::<T>::get(project_id).project_status == ProjectStatus::Application,
@@ -475,6 +492,12 @@ pub mod pallet {
 			let from = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
+			// TODO: Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
+			// ensure!(
+			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
+			// 	Error::<T>::NotAuthorized
+			// );
+
 			let project_issuer =
 				ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectNotExists)?;
 			ensure!(from != project_issuer, Error::<T>::ContributionToThemselves);
@@ -487,25 +510,13 @@ pub mod pallet {
 			// TODO: Should I check the free balance here or is already done in the Currency::set_lock?
 			ensure!(T::Currency::free_balance(&from) > amount, Error::<T>::InsufficientBalance);
 
-			let project = Projects::<T>::get(project_id).ok_or(Error::<T>::ProjectNotExists)?;
-
-			// Take the value given by the issuer or use the minimum balance any single account may have.
-			let minimum_amount =
-				project.ticket_size.minimum.unwrap_or_else(T::Currency::minimum_balance);
-
-			// Take the value given by the issuer or use the total amount of issuance in the system.
-			let maximum_amount =
-				project.ticket_size.maximum.unwrap_or_else(T::Currency::total_issuance);
-			ensure!(amount >= minimum_amount, Error::<T>::BondTooLow);
-			ensure!(amount <= maximum_amount, Error::<T>::BondTooHigh);
-
 			// TODO: Unlock the PLMC when it's the right time
 			// Check if the user has already bonded
 			Bonds::<T>::try_mutate(project_id, &from, |maybe_bond| {
 				match maybe_bond {
 					Some(bond) => {
 						// If the user has already bonded, add the new amount to the old one
-						let new_bond = bond.checked_add(&amount).unwrap();
+						let new_bond = bond.saturating_add(amount);
 						*maybe_bond = Some(new_bond);
 						T::Currency::set_lock(LOCKING_ID, &from, new_bond, WithdrawReasons::all());
 					},
@@ -528,11 +539,14 @@ pub mod pallet {
 			let issuer = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
-			ensure!(ProjectsIssuers::<T>::contains_key(project_id), Error::<T>::ProjectNotExists);
+
+			// TODO: Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
 			// ensure!(
 			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
 			// 	Error::<T>::NotAuthorized
 			// );
+
+			ensure!(ProjectsIssuers::<T>::contains_key(project_id), Error::<T>::ProjectNotExists);
 			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
 			let project_info = ProjectsInfo::<T>::get(project_id);
 			ensure!(
@@ -546,8 +560,8 @@ pub mod pallet {
 		pub fn bid(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdParameter,
+			#[pallet::compact] amount: BalanceOf<T>,
 			#[pallet::compact] price: BalanceOf<T>,
-			#[pallet::compact] market_cap: BalanceOf<T>,
 			multiplier: Option<u8>,
 			// TODO: Add a parameter to specify the currency to use, should be equal to the currency
 			// specified in `participation_currencies`
@@ -555,9 +569,9 @@ pub mod pallet {
 			let bidder = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
+			// TODO: Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
 			// ensure!(
-			// 	T::HandleMembers::is_in(&MemberRole::Professional, &bidder) ||
-			// 		T::HandleMembers::is_in(&MemberRole::Institutional, &bidder),
+			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
 			// 	Error::<T>::NotAuthorized
 			// );
 
@@ -584,7 +598,7 @@ pub mod pallet {
 			let now = <frame_system::Pallet<T>>::block_number();
 			let multiplier = multiplier.unwrap_or(1);
 			let bid = BidInfo::new(
-				market_cap,
+				amount,
 				price,
 				project.fundraising_target,
 				now,
@@ -592,41 +606,31 @@ pub mod pallet {
 				multiplier,
 			);
 
-			// TODO: If it's better to save te bids ordered, we can use smt like this
-			// let mut bids = AuctionsInfo::<T>::get(project_id);
-			// let index = bids.partition_point(|x| x < &bid);
-			// bids.try_insert(index, bid);
-
 			match AuctionsInfo::<T>::try_append(project_id, &bid) {
 				Ok(_) => {
 					// Reserve the new bid
-					T::BiddingCurrency::reserve(&bidder, price)?;
-					// TODO: Send an XCM message to Statemine to transfer amount * multiplier USDT to the PalletId Account
-					// Alternative TODO: The user should have the specified currency (e.g: USDT) already on Polimec
-					Self::deposit_event(Event::<T>::Bid {
-						project_id,
-						amount: price,
-						market_cap,
-						multiplier,
-					});
+					T::BiddingCurrency::reserve(&bidder, bid.market_cap)?;
+					// TODO: Send an XCM message to Statemint/e to transfer a `bid.market_cap` amount of USDC (or the Currency specified by the issuer) to the PalletId Account
+					// Alternative TODO: The user should have the specified currency (e.g: USDC) already on Polimec
+					Self::deposit_event(Event::<T>::Bid { project_id, amount, price, multiplier });
 				},
 				Err(_) => {
 					// TODO: Check the best strategy to handle the case where the vector is full
-					// Maybe it-s better to keep the vector sorted so we always know the lowest bid
+					// Maybe it's better to keep the vector sorted so we always know the lowest bid
 					let mut bids = AuctionsInfo::<T>::get(project_id);
 
 					// Get the lowest bid and its index
 					let (index, lowest_bid) = bids
-							.iter()
-							.enumerate()
-							.min()
-							.expect("This code runs only if the vector is full, so there is always a minimum; qed");
+						.iter()
+						.enumerate()
+						.min_by_key(|(_, bid)| bid.market_cap)
+						.expect("AuctionInfo is not empty, so there is always a lowest bid");
 					// Make sure the new bid is greater than the lowest bid
 					if &bid > lowest_bid {
 						// Reserve the new bid
-						T::BiddingCurrency::reserve(&bidder, price)?;
+						T::BiddingCurrency::reserve(&bidder, bid.market_cap)?;
 						// Unreserve the lowest bid
-						T::BiddingCurrency::unreserve(&lowest_bid.bidder, lowest_bid.amount);
+						T::BiddingCurrency::unreserve(&lowest_bid.bidder, lowest_bid.market_cap);
 						// Remove the lowest bid from the AuctionsInfo
 						bids.remove(index);
 						// Add the new bid to the AuctionsInfo, this should never fail since we just removed an element
@@ -636,8 +640,8 @@ pub mod pallet {
 						// TODO: Send an XCM message to Statemine to transfer amount * multiplier USDT to the PalletId Account
 						Self::deposit_event(Event::<T>::Bid {
 							project_id,
-							amount: price,
-							market_cap,
+							amount,
+							price,
 							multiplier,
 						});
 					} else {
@@ -661,6 +665,7 @@ pub mod pallet {
 			let project_id = project_id.into();
 
 			// TODO: Add the "Retail before, Institutional and Professionals after, if there are still tokens" logic
+			// TODO: Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
 			// ensure!(
 			// 	T::HandleMembers::is_in(&MemberRole::Retail, &contributor),
 			// 	Error::<T>::NotAuthorized
@@ -686,8 +691,8 @@ pub mod pallet {
 			// Make sure the bid amount is greater than the minimum_price specified by the issuer
 			ensure!(amount > project.minimum_price, Error::<T>::BondTooLow);
 
-			let fund_account = T::fund_account_id(project_id);
-			// TODO: Use USDT on Statemine (via XCM) instead of PLMC
+			let fund_account = Self::fund_account_id(project_id);
+			// TODO: Use USDC on Statemint/e (via XCM) instead of PLMC
 			// TODO: Check the logic
 			// TODOL Check if we need to use T::Currency::resolve_creating(...)
 			T::Currency::transfer(
@@ -732,10 +737,11 @@ pub mod pallet {
 				project_info.project_status == ProjectStatus::ReadyToLaunch,
 				Error::<T>::CannotClaimYet
 			);
-			// TODO: Set a reasonable default value
 			// TODO: Check the flow of the final_price if the final price discovery durign the Auction Round fails
-			let final_price = project_info.final_price.unwrap_or(10_000_000_000_u64.into());
+			let final_price = project_info.final_price.expect("Final price is set after the Funding Round");
 
+			// Important TODO: For now only the participants of the Community Round can claim their tokens
+			// Important TODO: Obviously also the participants of the Auction Round should be able to claim their tokens
 			Contributions::<T>::try_mutate(
 				project_id,
 				claimer.clone(),
@@ -773,7 +779,13 @@ pub mod pallet {
 						let evaluation_period_ends = project_info
 							.evaluation_period_ends
 							.expect("In EvaluationRound there always exist evaluation_period_ends");
-						Self::handle_evaluation_end(project_id, now, evaluation_period_ends);
+						let fundraising_target = project_info.fundraising_target;
+						Self::handle_evaluation_end(
+							project_id,
+							now,
+							evaluation_period_ends,
+							fundraising_target,
+						);
 					},
 					// Check if we need to start the Funding Round
 					// EvaluationEnded -> AuctionRound
@@ -857,16 +869,5 @@ pub mod pallet {
 			};
 			project
 		}
-	}
-}
-
-pub trait ConfigHelper: Config {
-	fn fund_account_id(index: Self::ProjectIdentifier) -> AccountIdOf<Self>;
-}
-
-impl<T: Config> ConfigHelper for T {
-	#[inline(always)]
-	fn fund_account_id(index: T::ProjectIdentifier) -> AccountIdOf<Self> {
-		Self::PalletId::get().into_sub_account_truncating(index)
 	}
 }
