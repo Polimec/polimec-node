@@ -36,13 +36,13 @@
 //! * `bid` : Perform a bid during the Auction Round.
 //! * `contribute` : Contribute to a project during the Community Round.
 //! * `claim_contribution_tokens` : Claim the Contribution Tokens if you contributed to a project during the Funding Round.
-//! 
+//!
 //! ### Priviliged Functions, callable only by the project's Issuer
-//! 
+//!
 //! * `edit_metadata` : Submit a new Hash of the project metadata.
 //! * `start_evaluation` : Start the Evaluation Round of a project.
 //! * `start_auction` : Start the Funding Round of a project.
-//! 
+//!
 
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -310,45 +310,27 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A `project_id` was created.
-		Created {
-			project_id: T::ProjectIdentifier,
-		},
+		Created { project_id: T::ProjectIdentifier },
 		/// The metadata of `project_id` was modified.
-		MetadataEdited {
-			project_id: T::ProjectIdentifier,
-		},
+		MetadataEdited { project_id: T::ProjectIdentifier },
 		/// The evaluation phase of `project_id` started.
-		EvaluationStarted {
-			project_id: T::ProjectIdentifier,
-		},
+		EvaluationStarted { project_id: T::ProjectIdentifier },
 		/// The evaluation phase of `project_id` ended successfully.
-		EvaluationEnded {
-			project_id: T::ProjectIdentifier,
-		},
+		EvaluationEnded { project_id: T::ProjectIdentifier },
 		/// The evaluation phase of `project_id` ended without reaching the minimum threshold.
-		EvaluationFailed {
-			project_id: T::ProjectIdentifier,
-		},
+		EvaluationFailed { project_id: T::ProjectIdentifier },
 		/// The auction round of `project_id` started at block `when`.
-		AuctionStarted {
-			project_id: T::ProjectIdentifier,
-			when: T::BlockNumber,
-		},
+		AuctionStarted { project_id: T::ProjectIdentifier, when: T::BlockNumber },
 		/// The auction round of `project_id` ended  at block `when`.
-		AuctionEnded {
-			project_id: T::ProjectIdentifier,
-		},
+		AuctionEnded { project_id: T::ProjectIdentifier },
 		/// A `bonder` bonded an `amount` of PLMC for `project_id`.
-		FundsBonded {
-			project_id: T::ProjectIdentifier,
-			amount: BalanceOf<T>,
-		},
+		FundsBonded { project_id: T::ProjectIdentifier, amount: BalanceOf<T> },
 		/// A `bidder` bid an `amount` at `market_cap` for `project_id` with a `multiplier`.
 		Bid {
 			project_id: T::ProjectIdentifier,
 			amount: BalanceOf<T>,
 			price: BalanceOf<T>,
-			multiplier: u8,
+			multiplier: BalanceOf<T>,
 		},
 		/// A bid  made by a `bidder` of `amount` at `market_cap` for `project_id` with a `multiplier` is returned.
 		BidReturned {
@@ -358,10 +340,8 @@ pub mod pallet {
 			price: BalanceOf<T>,
 			multiplier: u8,
 		},
-		/// 
-		Noted {
-			hash: T::Hash,
-		},
+		///
+		Noted { hash: T::Hash },
 	}
 
 	#[pallet::error]
@@ -465,7 +445,7 @@ pub mod pallet {
 			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
 			// 	Error::<T>::NotAuthorized
 			// );
-			
+
 			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
 			ensure!(Images::<T>::contains_key(project_metadata_hash), Error::<T>::NoImageFound);
 			ensure!(!ProjectsInfo::<T>::get(project_id).is_frozen, Error::<T>::Frozen);
@@ -559,7 +539,6 @@ pub mod pallet {
 			let issuer = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
-
 			// TODO: Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
 			// ensure!(
 			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
@@ -582,7 +561,7 @@ pub mod pallet {
 			project_id: T::ProjectIdParameter,
 			#[pallet::compact] amount: BalanceOf<T>,
 			#[pallet::compact] price: BalanceOf<T>,
-			multiplier: Option<u8>,
+			multiplier: Option<BalanceOf<T>>,
 			// TODO: Add a parameter to specify the currency to use, should be equal to the currency
 			// specified in `participation_currencies`
 		) -> DispatchResult {
@@ -614,62 +593,102 @@ pub mod pallet {
 
 			// Make sure the bid amount is greater than the minimum_price specified by the issuer
 			ensure!(price >= project.minimum_price, Error::<T>::BidTooLow);
+			let ticket_size = amount.saturating_mul(price);
+			let project_ticket_size = project.ticket_size;
+
+			if let Some(minimum_ticket_size) = project_ticket_size.minimum {
+				// Make sure the bid amount is greater than the minimum specified by the issuer
+				ensure!(ticket_size >= minimum_ticket_size, Error::<T>::BidTooLow);
+			};
+
+			if let Some(maximum_ticket_size) = project_ticket_size.maximum {
+				// Make sure the bid amount is less than the maximum specified by the issuer
+				ensure!(ticket_size <= maximum_ticket_size, Error::<T>::BidTooLow);
+			};
 
 			let now = <frame_system::Pallet<T>>::block_number();
-			let multiplier = multiplier.unwrap_or(1);
+			let multiplier = multiplier.unwrap_or(BalanceOf::<T>::one());
 			let bid = BidInfo::new(
 				amount,
 				price,
-				project.fundraising_target,
 				now,
 				bidder.clone(),
 				multiplier,
 			);
 
-			match AuctionsInfo::<T>::try_append(project_id, &bid) {
+			let mut bids = AuctionsInfo::<T>::get(project_id);
+
+			match bids.try_push(bid.clone()) {
 				Ok(_) => {
 					// Reserve the new bid
-					T::BiddingCurrency::reserve(&bidder, bid.market_cap)?;
+					T::BiddingCurrency::reserve(&bidder, bid.ticket_size)?;
 					// TODO: Send an XCM message to Statemint/e to transfer a `bid.market_cap` amount of USDC (or the Currency specified by the issuer) to the PalletId Account
 					// Alternative TODO: The user should have the specified currency (e.g: USDC) already on Polimec
 					Self::deposit_event(Event::<T>::Bid { project_id, amount, price, multiplier });
+					bids.sort();
+					AuctionsInfo::<T>::set(project_id, bids);
 				},
 				Err(_) => {
-					// TODO: Check the best strategy to handle the case where the vector is full
-					// Maybe it's better to keep the vector sorted so we always know the lowest bid
-					let mut bids = AuctionsInfo::<T>::get(project_id);
-
-					// Get the lowest bid and its index
-					let (index, lowest_bid) = bids
-						.iter()
-						.enumerate()
-						.min_by_key(|(_, bid)| bid.market_cap)
-						.expect("AuctionInfo is not empty, so there is always a lowest bid");
-					// Make sure the new bid is greater than the lowest bid
-					if &bid > lowest_bid {
-						// Reserve the new bid
-						T::BiddingCurrency::reserve(&bidder, bid.market_cap)?;
-						// Unreserve the lowest bid
-						T::BiddingCurrency::unreserve(&lowest_bid.bidder, lowest_bid.market_cap);
-						// Remove the lowest bid from the AuctionsInfo
-						bids.remove(index);
-						// Add the new bid to the AuctionsInfo, this should never fail since we just removed an element
-						bids.try_push(bid)
-							.expect("We removed an element, so there is always space");
-						AuctionsInfo::<T>::set(project_id, bids);
-						// TODO: Send an XCM message to Statemine to transfer amount * multiplier USDT to the PalletId Account
-						Self::deposit_event(Event::<T>::Bid {
-							project_id,
-							amount,
-							price,
-							multiplier,
-						});
-					} else {
-						// New bid is lower than the lowest bid, return Error
-						Err(Error::<T>::BidTooLow)?
-					}
+					let lowest_bid = bids.swap_remove(0);
+					ensure!(bid > lowest_bid, Error::<T>::BidTooLow);
+					T::BiddingCurrency::reserve(&bidder, bid.ticket_size)?;
+					// Unreserve the lowest bid
+					T::BiddingCurrency::unreserve(&lowest_bid.bidder, lowest_bid.ticket_size);
+					// Add the new bid to the AuctionsInfo, this should never fail since we just removed an element
+					bids.try_push(bid).expect("We removed an element, so there is always space");
+					bids.sort();
+					AuctionsInfo::<T>::set(project_id, bids);
+					// TODO: Send an XCM message to Statemine to transfer amount * multiplier USDT to the PalletId Account
+					Self::deposit_event(Event::<T>::Bid { project_id, amount, price, multiplier });
 				},
 			};
+
+			// AuctionsInfo::<T>::put(project_id, bids);
+
+			// match AuctionsInfo::<T>::try_append(project_id, &bid) {
+			// 	Ok(_) => {
+			// 		// Reserve the new bid
+			// 		T::BiddingCurrency::reserve(&bidder, bid.market_cap)?;
+			// 		// TODO: Send an XCM message to Statemint/e to transfer a `bid.market_cap` amount of USDC (or the Currency specified by the issuer) to the PalletId Account
+			// 		// Alternative TODO: The user should have the specified currency (e.g: USDC) already on Polimec
+			// 		Self::deposit_event(Event::<T>::Bid { project_id, amount, price, multiplier });
+			// 	},
+			// 	Err(_) => {
+			// 		// TODO: Check the best strategy to handle the case where the vector is full
+			// 		// Maybe it's better to keep the vector sorted so we always know the lowest bid
+			// 		let mut bids = AuctionsInfo::<T>::get(project_id);
+
+			// 		// Get the lowest bid and its index
+			// 		let (index, lowest_bid) = bids
+			// 			.iter()
+			// 			.enumerate()
+			// 			.min_by_key(|(_, bid)| bid.market_cap)
+			// 			.expect("AuctionInfo is not empty, so there is always a lowest bid");
+			// 		// Make sure the new bid is greater than the lowest bid
+			// 		if &bid > lowest_bid {
+			// 			// Reserve the new bid
+			// 			T::BiddingCurrency::reserve(&bidder, bid.market_cap)?;
+			// 			// Unreserve the lowest bid
+			// 			T::BiddingCurrency::unreserve(&lowest_bid.bidder, lowest_bid.market_cap);
+			// 			// Remove the lowest bid from the AuctionsInfo
+			// 			bids.remove(index);
+			// 			// Add the new bid to the AuctionsInfo, this should never fail since we just removed an element
+			// 			bids.try_push(bid)
+			// 				.expect("We removed an element, so there is always space");
+			// 			AuctionsInfo::<T>::set(project_id, bids);
+			// 			// TODO: Send an XCM message to Statemine to transfer amount * multiplier USDT to the PalletId Account
+			// 			Self::deposit_event(Event::<T>::Bid {
+			// 				project_id,
+			// 				amount,
+			// 				price,
+			// 				multiplier,
+			// 			});
+			// 		} else {
+			// 			// New bid is lower than the lowest bid, return Error
+			// 			Err(Error::<T>::BidTooLow)?
+			// 		}
+			// 	},
+			// };
 
 			Ok(())
 		}
@@ -751,14 +770,14 @@ pub mod pallet {
 			// 	Error::<T>::NotAuthorized
 			// );
 
-			let project = Projects::<T>::get(project_id).ok_or(Error::<T>::ProjectNotExists)?;
 			let project_info = ProjectsInfo::<T>::get(project_id);
 			ensure!(
 				project_info.project_status == ProjectStatus::ReadyToLaunch,
 				Error::<T>::CannotClaimYet
 			);
 			// TODO: Check the flow of the final_price if the final price discovery durign the Auction Round fails
-			let final_price = project_info.final_price.expect("Final price is set after the Funding Round");
+			let weighted_average_price =
+				project_info.weighted_average_price.expect("Final price is set after the Funding Round");
 
 			// Important TODO: For now only the participants of the Community Round can claim their tokens
 			// Important TODO: Obviously also the participants of the Auction Round should be able to claim their tokens
@@ -769,13 +788,11 @@ pub mod pallet {
 					let mut contribution =
 						maybe_contribution.as_mut().ok_or(Error::<T>::ProjectNotExists)?;
 					ensure!(contribution.can_claim, Error::<T>::AlreadyClaimed);
-					let token_decimals = project.token_information.decimals;
 					Self::do_claim_contribution_tokens(
 						project_id,
 						claimer,
 						contribution.amount,
-						final_price,
-						token_decimals,
+						weighted_average_price,
 					)?;
 					contribution.can_claim = false;
 					Ok(())

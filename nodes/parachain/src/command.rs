@@ -29,7 +29,7 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 		"polimec-rococo-local" => Box::new(chain_spec::testnet::get_chain_spec_dev()?),
 		"polimec-polkadot" => Box::new(chain_spec::testnet::get_prod_chain_spec()?),
 		"polimec-polkadot-local" => Box::new(chain_spec::testnet::get_local_prod_chain_spec()?),
-		"" | "local" => Box::new(chain_spec::base::get_local_base_chain_spec()?),
+		"dev" | "" | "local" => Box::new(chain_spec::testnet::get_chain_spec_dev()?),
 		// TODO: Find the best way to generate chainspecs
 		// TODO: Check Cumulus repo to see how to better handle this
 		// Default to polimec-rococo

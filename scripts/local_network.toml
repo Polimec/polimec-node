@@ -5,23 +5,15 @@ chain = "rococo-local"
 
 	[[relaychain.nodes]]
 	name = "alice"
-    args = [ "--alice" ]
-	validator = true
 
 	[[relaychain.nodes]]
 	name = "bob"
-    args = [ "--bob" ]
-	validator = true
 
 	[[relaychain.nodes]]
 	name = "charlie"
-    args = [ "--charlie" ]
-	validator = true
 
 	[[relaychain.nodes]]
 	name = "dave"
-    args = [ "--dave" ]
-	validator = true
 
 [[parachains]]
 id = 1000
@@ -41,7 +33,6 @@ cumulus_based = true
 	[[parachains.collators]]
 	name = "collator1"
 	command = "polimec"
-	args = [ "--alice" ]
 
 
 [[hrmpChannels]]
