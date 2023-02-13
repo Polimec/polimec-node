@@ -54,3 +54,6 @@ benchmark-pallet-funding:
 
 docker-build-standalone:
 	./scripts/build_image.sh latest ./Containerfile polimec-standalone-node
+
+run-node:
+	cargo run --release -p polimec-standalone-node -- --dev
