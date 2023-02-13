@@ -21,8 +21,8 @@
 use super::*;
 
 use frame_support::{pallet_prelude::DispatchError, traits::Get};
-use sp_runtime::{Percent, traits::CheckedDiv};
-use sp_std::{cmp::Reverse, prelude::*};
+use sp_runtime::Percent;
+use sp_std::prelude::*;
 
 impl<T: Config> Pallet<T> {
 	/// The account ID of the project pot.
@@ -191,8 +191,12 @@ impl<T: Config> Pallet<T> {
 				project_info.project_status = ProjectStatus::CommunityRound;
 				auction_metadata.random_ending_block = Some(end_block);
 				project_info.weighted_average_price = Some(
-					Self::calculate_weighted_average_price(*project_id, project_info.fundraising_target, end_block)
-						.expect("placeholder_function"),
+					Self::calculate_weighted_average_price(
+						*project_id,
+						project_info.fundraising_target,
+						end_block,
+					)
+					.expect("placeholder_function"),
 				);
 			});
 		}
@@ -247,21 +251,17 @@ impl<T: Config> Pallet<T> {
 		end_block: T::BlockNumber,
 	) -> Result<BalanceOf<T>, DispatchError> {
 		// Get all the bids that were made before the end of the candle
-		// TODO: Update the `status` field of every `Bid` to BeforeCandle or AfterCandle if `bid.when > end_block`
+		// FIXME: Update the `status` field of every `Bid` to BeforeCandle or AfterCandle if `bid.when > end_block`
 		let mut bids = AuctionsInfo::<T>::get(project_id);
 		bids.retain(|bid| bid.when <= end_block);
 		// TODO: Unreserve the funds of the bids that were made after the end of the candle
 		// TODO: We can do this inside the "on_idle" hook, and change the `status` of the `Bid` to "Unreserved"
 
-		// TODO: Sort the bids by market cap
-		// If we store the bids in a sorted way we can avoid this step
-		bids.sort_by_key(|bid| Reverse(bid.price));
-
 		// Calculate the final price
 		let mut fundraising_amount = BalanceOf::<T>::zero();
 		for (idx, bid) in bids.iter_mut().enumerate() {
 			let old_amount = fundraising_amount;
-			fundraising_amount = fundraising_amount.saturating_add(bid.amount);
+			fundraising_amount.saturating_accrue(bid.amount);
 			if fundraising_amount > total_allocation_size {
 				bid.amount = total_allocation_size.saturating_sub(old_amount);
 				bid.ratio = Some(Perbill::from_rational(bid.amount, total_allocation_size));
@@ -278,7 +278,7 @@ impl<T: Config> Pallet<T> {
 			let ratio = Perbill::from_rational(bid.amount, fundraising_amount);
 			bid.ratio = Some(ratio);
 			let weighted_price = ratio.mul_ceil(bid.price);
-			weighted_average_price = weighted_average_price.saturating_add(weighted_price);
+			weighted_average_price.saturating_accrue(weighted_price);
 		}
 		// AuctionsInfo::<T>::set(project_id, bids);
 		Ok(weighted_average_price)
@@ -303,25 +303,27 @@ impl<T: Config> Pallet<T> {
 		nonce.encode()
 	}
 
-	/// People that contributed to the project during the Funding Rounf can claim their Contribution Tokens
+	/// People that contributed to the project during the Funding Round can claim their Contribution Tokens
 	pub fn do_claim_contribution_tokens(
 		project_id: T::ProjectIdentifier,
 		claimer: T::AccountId,
-		weighted_average_price: BalanceOf<T>,
 		contribution_amount: BalanceOf<T>,
+		weighted_average_price: BalanceOf<T>,
 	) -> Result<(), DispatchError> {
-		let amount =
+		let fixed_amount =
 			Self::calculate_claimable_tokens(contribution_amount, weighted_average_price);
+		// FIXME: This is a hack to convert the FixedU128 to BalanceOf<T>, it doesnt work for all cases
+		let amount = fixed_amount.saturating_mul_int(BalanceOf::<T>::one());
 		T::Assets::mint_into(project_id, &claimer, amount)?;
 		Ok(())
 	}
 
-	// This functiion is kept separate from the `do_claim_contribution_tokens` for easier testing
+	// This functiion is kept separate from the `do_claim_contribution_tokens` for easier testing the logic
+	#[inline(always)]
 	pub fn calculate_claimable_tokens(
 		contribution_amount: BalanceOf<T>,
 		weighted_average_price: BalanceOf<T>,
-	) -> BalanceOf<T> {
+	) -> FixedU128 {
 		FixedU128::saturating_from_rational(contribution_amount, weighted_average_price)
-			.saturating_mul_int(BalanceOf::<T>::one())
 	}
 }

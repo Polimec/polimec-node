@@ -31,11 +31,11 @@ const BOB: AccountId = 2;
 const CHARLIE: AccountId = 3;
 const DAVE: AccountId = 4;
 
-const ASSET: u8 = 12;
+const ASSET_DECIMALS: u8 = 12;
 
-const fn unit(decimals: u8) -> BalanceOf<Test> {
-	10u128.pow(decimals as u32)
-}
+// const fn unit(decimals: u8) -> BalanceOf<Test> {
+// 	10u128.pow(decimals as u32)
+// }
 
 const METADATA: &str = r#"
 {
@@ -85,7 +85,7 @@ fn create_project() -> Project<BoundedVec<u8, ConstU32<64>>, u128, sp_core::H256
 		token_information: CurrencyMetadata {
 			name: bounded_name,
 			symbol: bounded_symbol,
-			decimals: ASSET,
+			decimals: ASSET_DECIMALS,
 		},
 		..Default::default()
 	}
@@ -204,23 +204,23 @@ mod creation_round {
 		})
 	}
 
-	// #[test]
-	// #[ignore = "ATM only the first error will be thrown"]
-	// fn multiple_field_error() {
-	// 	new_test_ext().execute_with(|| {
-	// 		let project = Project {
-	// 			minimum_price: 0,
-	// 			ticket_size: TicketSize { minimum: None, maximum: None },
-	// 			participants_size: ParticipantsSize { minimum: None, maximum: None },
-	// 			..Default::default()
-	// 		};
+	#[test]
+	#[ignore = "ATM only the first error will be thrown"]
+	fn multiple_field_error() {
+		new_test_ext().execute_with(|| {
+			let project = Project {
+				minimum_price: 0,
+				ticket_size: TicketSize { minimum: None, maximum: None },
+				participants_size: ParticipantsSize { minimum: None, maximum: None },
+				..Default::default()
+			};
 
-	// 		assert_noop!(
-	// 			FundingModule::create(RuntimeOrigin::signed(ALICE), project),
-	// 			Error::<Test>::TicketSizeError
-	// 		);
-	// 	})
-	// }
+			assert_noop!(
+				FundingModule::create(RuntimeOrigin::signed(ALICE), project),
+				Error::<Test>::TicketSizeError
+			);
+		})
+	}
 }
 
 mod evaluation_round {
@@ -471,8 +471,8 @@ mod claim_contribution_tokens {
 		assert_ok!(FundingModule::bid(RuntimeOrigin::signed(CHARLIE), 0, 100, 1 * PLMC, None));
 		run_to_block(System::block_number() + 15);
 		let project_info = FundingModule::project_info(0);
-		assert_eq!(project_info.weighted_average_price, Some(10000000000));
-		assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 1 * PLMC));
+		assert_eq!(project_info.weighted_average_price, Some(PLMC));
+		assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 99 * PLMC));
 		run_to_block(System::block_number() + 11);
 	}
 
@@ -481,7 +481,7 @@ mod claim_contribution_tokens {
 		new_test_ext().execute_with(|| {
 			setup_envirnoment();
 			assert_ok!(FundingModule::claim_contribution_tokens(RuntimeOrigin::signed(BOB), 0));
-			assert_eq!(Assets::balance(0, BOB), 1000000000000);
+			assert_eq!(Assets::balance(0, BOB), 99);
 		})
 	}
 
@@ -490,7 +490,6 @@ mod claim_contribution_tokens {
 		new_test_ext().execute_with(|| {
 			setup_envirnoment();
 			assert_ok!(FundingModule::claim_contribution_tokens(RuntimeOrigin::signed(BOB), 0));
-			run_to_block(System::block_number() + 1);
 			assert_noop!(
 				FundingModule::claim_contribution_tokens(RuntimeOrigin::signed(BOB), 0),
 				Error::<Test>::AlreadyClaimed
@@ -544,7 +543,7 @@ mod flow {
 			run_to_block(System::block_number() + 5);
 			let project_info = FundingModule::project_info(0);
 			assert!(project_info.project_status == ProjectStatus::CommunityRound);
-			assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 100));
+			assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 200));
 
 			// Funding Round ends
 			run_to_block(System::block_number() + 11);
@@ -563,7 +562,11 @@ mod flow {
 			let metadata_symbol = Assets::symbol(&0);
 			assert_eq!(metadata_symbol, b"CTEST".to_vec());
 			let metadata_decimals = Assets::decimals(&0);
-			assert_eq!(metadata_decimals, ASSET);
+			assert_eq!(metadata_decimals, ASSET_DECIMALS);
+
+			// Check if the Contribution Token is minted correctly
+			assert_ok!(FundingModule::claim_contribution_tokens(RuntimeOrigin::signed(BOB), 0));
+			assert_eq!(Assets::balance(0, BOB), 1);
 		})
 	}
 
@@ -643,6 +646,7 @@ mod flow {
 			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 20 * PLMC));
 			run_to_block(System::block_number() + 29);
 			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
+			// Perform 5 bids, T::MaxBidsPerProject = 4 in the mock runtime
 			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(BOB), 0, 10_000, 2 * PLMC, None));
 			assert_ok!(FundingModule::bid(
 				RuntimeOrigin::signed(CHARLIE),
@@ -656,10 +660,10 @@ mod flow {
 			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(5), 0, 20_000, 8 * PLMC, None));
 			let bids = FundingModule::auctions_info(0);
 			assert_eq!(bids.len(), 4);
-			assert_eq!(bids[0].ticket_size, 13_000 * 3 * PLMC);
-			assert_eq!(bids[1].ticket_size, 15_000 * 5 * PLMC);
-			assert_eq!(bids[2].ticket_size, 1_000 * 7 * PLMC);
-			assert_eq!(bids[3].ticket_size, 20_000 * 8 * PLMC);
+			assert_eq!(bids[0].ticket_size, 20_000 * 8 * PLMC);
+			assert_eq!(bids[1].ticket_size, 1_000 * 7 * PLMC);
+			assert_eq!(bids[2].ticket_size, 15_000 * 5 * PLMC);
+			assert_eq!(bids[3].ticket_size, 13_000 * 3 * PLMC);
 		})
 	}
 }
@@ -671,11 +675,13 @@ mod unit_tests {
 	fn calculate_claimable_tokens_works() {
 		new_test_ext().execute_with(|| {
 			let contribution_amount: BalanceOf<Test> = 1000 * PLMC;
-			let final_price: BalanceOf<Test> = 10 * PLMC;
-			let expected_amount: BalanceOf<Test> = 100;
+			let weighted_average_price: BalanceOf<Test> = 10 * PLMC;
+			let expected_amount: FixedU128 = FixedU128::from(100);
 
-			let amount =
-				Pallet::<Test>::calculate_claimable_tokens(contribution_amount, final_price);
+			let amount = Pallet::<Test>::calculate_claimable_tokens(
+				contribution_amount,
+				weighted_average_price,
+			);
 
 			assert_eq!(amount, expected_amount);
 		})
@@ -685,11 +691,13 @@ mod unit_tests {
 	fn calculate_claimable_tokens_works_with_float() {
 		new_test_ext().execute_with(|| {
 			let contribution_amount: BalanceOf<Test> = 11 * PLMC;
-			let final_price: BalanceOf<Test> = 4 * PLMC;
-			let expected_amount: BalanceOf<Test> = 275 * unit(ASSET - 1);
+			let weighted_average_price: BalanceOf<Test> = 4 * PLMC;
+			let expected_amount: FixedU128 = FixedU128::from_float(2.75);
 
-			let amount =
-				Pallet::<Test>::calculate_claimable_tokens(contribution_amount, final_price);
+			let amount = Pallet::<Test>::calculate_claimable_tokens(
+				contribution_amount,
+				weighted_average_price,
+			);
 
 			assert_eq!(amount, expected_amount);
 		})
@@ -699,11 +707,13 @@ mod unit_tests {
 	fn calculate_claimable_tokens_works_with_small_amount() {
 		new_test_ext().execute_with(|| {
 			let contribution_amount: BalanceOf<Test> = 1 * PLMC;
-			let final_price: BalanceOf<Test> = 2 * PLMC;
-			let expected_amount: BalanceOf<Test> =  5 * unit(ASSET - 1);
+			let weighted_average_price: BalanceOf<Test> = 2 * PLMC;
+			let expected_amount: FixedU128 = FixedU128::from_float(0.5);
 
-			let amount =
-				Pallet::<Test>::calculate_claimable_tokens(contribution_amount, final_price);
+			let amount = Pallet::<Test>::calculate_claimable_tokens(
+				contribution_amount,
+				weighted_average_price,
+			);
 
 			assert_eq!(amount, expected_amount);
 		})

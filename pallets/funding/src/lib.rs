@@ -90,6 +90,7 @@ use sp_runtime::{
 	traits::{AccountIdConversion, Hash},
 	FixedPointNumber, FixedPointOperand, FixedU128, Perbill,
 };
+use sp_std::cmp::Reverse;
 
 /// The balance type of this pallet.
 type BalanceOf<T> = <T as Config>::CurrencyBalance;
@@ -608,13 +609,7 @@ pub mod pallet {
 
 			let now = <frame_system::Pallet<T>>::block_number();
 			let multiplier = multiplier.unwrap_or(BalanceOf::<T>::one());
-			let bid = BidInfo::new(
-				amount,
-				price,
-				now,
-				bidder.clone(),
-				multiplier,
-			);
+			let bid = BidInfo::new(amount, price, now, bidder.clone(), multiplier);
 
 			let mut bids = AuctionsInfo::<T>::get(project_id);
 
@@ -624,72 +619,27 @@ pub mod pallet {
 					T::BiddingCurrency::reserve(&bidder, bid.ticket_size)?;
 					// TODO: Send an XCM message to Statemint/e to transfer a `bid.market_cap` amount of USDC (or the Currency specified by the issuer) to the PalletId Account
 					// Alternative TODO: The user should have the specified currency (e.g: USDC) already on Polimec
-					Self::deposit_event(Event::<T>::Bid { project_id, amount, price, multiplier });
-					bids.sort();
+					bids.sort_by_key(|bid| Reverse(bid.price));
 					AuctionsInfo::<T>::set(project_id, bids);
+					Self::deposit_event(Event::<T>::Bid { project_id, amount, price, multiplier });
 				},
 				Err(_) => {
-					let lowest_bid = bids.swap_remove(0);
+					// Since the bids are sorted by price, and in this branch the Vec is full, the last element is the lowest bid
+					let lowest_bid_index: usize =
+						(T::MaximumBidsPerProject::get() - 1).try_into().unwrap();
+					let lowest_bid = bids.swap_remove(lowest_bid_index);
 					ensure!(bid > lowest_bid, Error::<T>::BidTooLow);
 					T::BiddingCurrency::reserve(&bidder, bid.ticket_size)?;
 					// Unreserve the lowest bid
 					T::BiddingCurrency::unreserve(&lowest_bid.bidder, lowest_bid.ticket_size);
 					// Add the new bid to the AuctionsInfo, this should never fail since we just removed an element
 					bids.try_push(bid).expect("We removed an element, so there is always space");
-					bids.sort();
+					bids.sort_by_key(|bid| Reverse(bid.price));
 					AuctionsInfo::<T>::set(project_id, bids);
 					// TODO: Send an XCM message to Statemine to transfer amount * multiplier USDT to the PalletId Account
 					Self::deposit_event(Event::<T>::Bid { project_id, amount, price, multiplier });
 				},
 			};
-
-			// AuctionsInfo::<T>::put(project_id, bids);
-
-			// match AuctionsInfo::<T>::try_append(project_id, &bid) {
-			// 	Ok(_) => {
-			// 		// Reserve the new bid
-			// 		T::BiddingCurrency::reserve(&bidder, bid.market_cap)?;
-			// 		// TODO: Send an XCM message to Statemint/e to transfer a `bid.market_cap` amount of USDC (or the Currency specified by the issuer) to the PalletId Account
-			// 		// Alternative TODO: The user should have the specified currency (e.g: USDC) already on Polimec
-			// 		Self::deposit_event(Event::<T>::Bid { project_id, amount, price, multiplier });
-			// 	},
-			// 	Err(_) => {
-			// 		// TODO: Check the best strategy to handle the case where the vector is full
-			// 		// Maybe it's better to keep the vector sorted so we always know the lowest bid
-			// 		let mut bids = AuctionsInfo::<T>::get(project_id);
-
-			// 		// Get the lowest bid and its index
-			// 		let (index, lowest_bid) = bids
-			// 			.iter()
-			// 			.enumerate()
-			// 			.min_by_key(|(_, bid)| bid.market_cap)
-			// 			.expect("AuctionInfo is not empty, so there is always a lowest bid");
-			// 		// Make sure the new bid is greater than the lowest bid
-			// 		if &bid > lowest_bid {
-			// 			// Reserve the new bid
-			// 			T::BiddingCurrency::reserve(&bidder, bid.market_cap)?;
-			// 			// Unreserve the lowest bid
-			// 			T::BiddingCurrency::unreserve(&lowest_bid.bidder, lowest_bid.market_cap);
-			// 			// Remove the lowest bid from the AuctionsInfo
-			// 			bids.remove(index);
-			// 			// Add the new bid to the AuctionsInfo, this should never fail since we just removed an element
-			// 			bids.try_push(bid)
-			// 				.expect("We removed an element, so there is always space");
-			// 			AuctionsInfo::<T>::set(project_id, bids);
-			// 			// TODO: Send an XCM message to Statemine to transfer amount * multiplier USDT to the PalletId Account
-			// 			Self::deposit_event(Event::<T>::Bid {
-			// 				project_id,
-			// 				amount,
-			// 				price,
-			// 				multiplier,
-			// 			});
-			// 		} else {
-			// 			// New bid is lower than the lowest bid, return Error
-			// 			Err(Error::<T>::BidTooLow)?
-			// 		}
-			// 	},
-			// };
-
 			Ok(())
 		}
 
@@ -704,6 +654,7 @@ pub mod pallet {
 			let project_id = project_id.into();
 
 			// TODO: Add the "Retail before, Institutional and Professionals after, if there are still tokens" logic
+
 			// TODO: Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
 			// ensure!(
 			// 	T::HandleMembers::is_in(&MemberRole::Retail, &contributor),
@@ -718,8 +669,6 @@ pub mod pallet {
 			ensure!(contributor != project_issuer, Error::<T>::ContributionToThemselves);
 
 			let project_info = ProjectsInfo::<T>::get(project_id);
-			let project = Projects::<T>::get(project_id)
-				.expect("Project exists, already checked in previous ensure");
 
 			// Make sure Community Round is started
 			ensure!(
@@ -728,17 +677,23 @@ pub mod pallet {
 			);
 
 			// Make sure the bid amount is greater than the minimum_price specified by the issuer
-			ensure!(amount > project.minimum_price, Error::<T>::BidTooLow);
+			ensure!(
+				amount >=
+					project_info
+						.weighted_average_price
+						.expect("This value exists in Community Round"),
+				Error::<T>::BidTooLow
+			);
 
 			let fund_account = Self::fund_account_id(project_id);
 			// TODO: Use USDC on Statemint/e (via XCM) instead of PLMC
 			// TODO: Check the logic
-			// TODOL Check if we need to use T::Currency::resolve_creating(...)
+			// TODO: Check if we need to use T::Currency::resolve_creating(...)
 			T::Currency::transfer(
 				&contributor,
 				&fund_account,
 				amount,
-				// TODO: Take the ExistenceRequirement as parameter
+				// TODO: Take the ExistenceRequirement as parameter (?)
 				frame_support::traits::ExistenceRequirement::KeepAlive,
 			)?;
 
@@ -776,8 +731,9 @@ pub mod pallet {
 				Error::<T>::CannotClaimYet
 			);
 			// TODO: Check the flow of the final_price if the final price discovery durign the Auction Round fails
-			let weighted_average_price =
-				project_info.weighted_average_price.expect("Final price is set after the Funding Round");
+			let weighted_average_price = project_info
+				.weighted_average_price
+				.expect("Final price is set after the Funding Round");
 
 			// Important TODO: For now only the participants of the Community Round can claim their tokens
 			// Important TODO: Obviously also the participants of the Auction Round should be able to claim their tokens

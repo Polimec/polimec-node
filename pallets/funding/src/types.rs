@@ -175,14 +175,13 @@ pub struct BidInfo<Balance: BalanceT, AccountId, BlockNumber> {
 	pub ratio: Option<Perbill>,
 	pub when: BlockNumber,
 	pub bidder: AccountId,
+	// TODO: Not used yet, but will be used to check if the bid is funded after XCM is implemented
 	pub funded: bool,
 	pub multiplier: Balance,
 	pub status: BidStatus<Balance>,
 }
 
-impl<Balance: BalanceT + From<u64>, AccountId, BlockNumber>
-	BidInfo<Balance, AccountId, BlockNumber>
-{
+impl<Balance: BalanceT, AccountId, BlockNumber> BidInfo<Balance, AccountId, BlockNumber> {
 	pub fn new(
 		amount: Balance,
 		price: Balance,
@@ -191,19 +190,29 @@ impl<Balance: BalanceT + From<u64>, AccountId, BlockNumber>
 		multiplier: Balance,
 	) -> Self {
 		let ticket_size = amount.saturating_mul(price);
-		Self { amount, price, ticket_size, ratio: None, when, bidder, funded: false, multiplier, status: BidStatus::YetUnknown }
+		Self {
+			amount,
+			price,
+			ticket_size,
+			ratio: None,
+			when,
+			bidder,
+			funded: false,
+			multiplier,
+			status: BidStatus::YetUnknown,
+		}
 	}
 }
 
-impl<Balance: BalanceT + From<u64>, AccountId: sp_std::cmp::Eq, BlockNumber: sp_std::cmp::Eq>
-	sp_std::cmp::Ord for BidInfo<Balance, AccountId, BlockNumber>
+impl<Balance: BalanceT, AccountId: sp_std::cmp::Eq, BlockNumber: sp_std::cmp::Eq> sp_std::cmp::Ord
+	for BidInfo<Balance, AccountId, BlockNumber>
 {
 	fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
 		self.price.cmp(&other.price)
 	}
 }
 
-impl<Balance: BalanceT + From<u64>, AccountId: sp_std::cmp::Eq, BlockNumber: sp_std::cmp::Eq>
+impl<Balance: BalanceT, AccountId: sp_std::cmp::Eq, BlockNumber: sp_std::cmp::Eq>
 	sp_std::cmp::PartialOrd for BidInfo<Balance, AccountId, BlockNumber>
 {
 	fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
@@ -223,8 +232,8 @@ pub struct ContributionInfo<Balance: BalanceT> {
 pub enum Currencies {
 	DOT,
 	KSM,
-	USDC,
 	#[default]
+	USDC,
 	USDT,
 }
 
@@ -249,10 +258,10 @@ pub enum AuctionPhase {
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub enum BidStatus<T: BalanceT> {
+pub enum BidStatus<Balance: BalanceT> {
 	#[default]
 	YetUnknown,
 	Valid,
-	NotValid(T),
-	Unreserved
+	NotValid(Balance),
+	Unreserved,
 }
