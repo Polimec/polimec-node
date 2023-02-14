@@ -74,17 +74,22 @@ You can use [srtool](https://github.com/paritytech/srtool) to compile the runtim
 + A collection of useful scripts are available in the `scripts` folder, there is also a `justfile` to launch the scripts using [just](https://github.com/casey/just), e.g. `$ just build-parachain-node`
 ```
 Available recipes:
-    benchmark-pallet-funding
-    benchmark-runtime-funding
-    build-all
-    build-base-runtime
-    build-base-srtool
-    build-parachain-node
-    build-standalone-node
-    build-standalone-runtime
-    build-standalone-srtool
-    build-testnet-runtime
-    build-testnet-srtool
-    docker-build-standalone
-    test-runtime-features
+    benchmark-pallet-funding              # Benchmark the "Base" Runtime
+    benchmark-runtime-funding             # Benchmark the "Base" Runtime
+    build-all                             # Build everything
+    build-base-runtime                    # Build the "Base" Runtime
+    build-base-srtool                     # Build the "Base" Runtime using srtool
+    build-parachain-node                  # Build the "Parachain" Node
+    build-standalone-node                 # Build the "Standalone" Node
+    build-standalone-runtime              # Build the "Standalone" Runtime
+    build-standalone-srtool               # Build the "Standalone" Runtime using srtool
+    build-testnet-runtime                 # Build the "Testnet" Runtime
+    build-testnet-srtool                  # Build the "Testnet" Runtime using srtool
+    create-chainspec-base                 # Create the "Base" Runtime Chainspec
+    default                               # Help information
+    docker-build-collator tag="latest"    # Build the "Parachain" Node Docker Image
+    docker-build-standalone tag="latest"  # Build the "Standalone" Node Docker Image
+    run-node                              # Run the "Standalone" node in --dev mode
+    test-runtime-features                 # Test the runtimes features
+    zombienet-default                     # Use zombienet to spawn rococo + polimec testnet
 ```
