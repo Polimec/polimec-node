@@ -29,9 +29,6 @@ pub struct Project<BoundedString, Balance: BalanceT, Hash> {
 	pub total_allocation_size: Balance,
 	/// Minimum price per Contribution Token
 	pub minimum_price: Balance,
-	/// Fundraising target amount in USD equivalent
-	/// TODO: Check if we can remove this field, since it can be calculated from total_allocation_size * minimum_price
-	pub fundraising_target: Balance,
 	/// Maximum and/or minimum ticket size
 	pub ticket_size: TicketSize<Balance>,
 	/// Maximum and/or minimum number of participants for the Auction and Community Round
@@ -54,7 +51,7 @@ pub struct ProjectInfo<BlockNumber, Balance: BalanceT> {
 	/// Whether the project is frozen, so no `metadata` changes are allowed.
 	pub is_frozen: bool,
 	/// The price decided after the Auction Round
-	pub final_price: Option<Balance>,
+	pub weighted_average_price: Option<Balance>,
 	/// When the project is created
 	pub created_at: BlockNumber,
 	/// The current status of the project
@@ -174,42 +171,48 @@ pub struct BidInfo<Balance: BalanceT, AccountId, BlockNumber> {
 	#[codec(compact)]
 	pub price: Balance,
 	#[codec(compact)]
-	pub ratio: Perbill,
-	#[codec(compact)]
-	pub market_cap: Balance,
+	pub ticket_size: Balance,
+	pub ratio: Option<Perbill>,
 	pub when: BlockNumber,
 	pub bidder: AccountId,
+	// TODO: Not used yet, but will be used to check if the bid is funded after XCM is implemented
 	pub funded: bool,
-	pub multiplier: u8,
+	pub multiplier: Balance,
 	pub status: BidStatus<Balance>,
 }
 
-impl<Balance: BalanceT + From<u64>, AccountId, BlockNumber>
-	BidInfo<Balance, AccountId, BlockNumber>
-{
+impl<Balance: BalanceT, AccountId, BlockNumber> BidInfo<Balance, AccountId, BlockNumber> {
 	pub fn new(
 		amount: Balance,
 		price: Balance,
-		auction_taget: Balance,
 		when: BlockNumber,
 		bidder: AccountId,
-		multiplier: u8,
+		multiplier: Balance,
 	) -> Self {
-		let ratio = Perbill::from_rational(amount, auction_taget);
-		let market_cap = amount.saturating_mul(price);
-		Self { amount, price, ratio, market_cap, when, bidder, funded: false, multiplier, status: BidStatus::YetUnknown }
+		let ticket_size = amount.saturating_mul(price);
+		Self {
+			amount,
+			price,
+			ticket_size,
+			ratio: None,
+			when,
+			bidder,
+			funded: false,
+			multiplier,
+			status: BidStatus::YetUnknown,
+		}
 	}
 }
 
-impl<Balance: BalanceT + From<u64>, AccountId: sp_std::cmp::Eq, BlockNumber: sp_std::cmp::Eq>
-	sp_std::cmp::Ord for BidInfo<Balance, AccountId, BlockNumber>
+impl<Balance: BalanceT, AccountId: sp_std::cmp::Eq, BlockNumber: sp_std::cmp::Eq> sp_std::cmp::Ord
+	for BidInfo<Balance, AccountId, BlockNumber>
 {
 	fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
-		self.market_cap.cmp(&other.market_cap)
+		self.price.cmp(&other.price)
 	}
 }
 
-impl<Balance: BalanceT + From<u64>, AccountId: sp_std::cmp::Eq, BlockNumber: sp_std::cmp::Eq>
+impl<Balance: BalanceT, AccountId: sp_std::cmp::Eq, BlockNumber: sp_std::cmp::Eq>
 	sp_std::cmp::PartialOrd for BidInfo<Balance, AccountId, BlockNumber>
 {
 	fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
@@ -229,8 +232,8 @@ pub struct ContributionInfo<Balance: BalanceT> {
 pub enum Currencies {
 	DOT,
 	KSM,
-	USDC,
 	#[default]
+	USDC,
 	USDT,
 }
 
@@ -255,10 +258,10 @@ pub enum AuctionPhase {
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub enum BidStatus<T: BalanceT> {
+pub enum BidStatus<Balance: BalanceT> {
 	#[default]
 	YetUnknown,
 	Valid,
-	NotValid(T),
-	Unreserved
+	NotValid(Balance),
+	Unreserved,
 }

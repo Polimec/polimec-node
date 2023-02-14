@@ -189,10 +189,13 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 				(3, 512 * 1_000_000 * PLMC),
 				(4, 512 * 1_000_000 * PLMC),
 				(5, 512 * 1_000_000 * PLMC),
+				// 16558220937623665250 = account::<T::AccountId>("Alice", 1, 1) in becnhmarks
+				(16558220937623665250, 512 * 1_000_000 * PLMC),
+				// 18011431366525807836 = account::<T::AccountId>("Bob", 1, 1) in becnhmarks
+				// (18011431366525807836, 512 * 1_000_000 * PLMC)
 			],
 		},
 		credentials: CredentialsConfig {
-			// 16558220937623665250 = account::<T::AccountId>("Alice", 1, 1) in becnhmarks
 			issuers: vec![1, 16558220937623665250],
 			retails: vec![2],
 			professionals: vec![2, 3],

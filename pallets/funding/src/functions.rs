@@ -22,7 +22,7 @@ use super::*;
 
 use frame_support::{pallet_prelude::DispatchError, traits::Get};
 use sp_runtime::Percent;
-use sp_std::{cmp::Reverse, prelude::*};
+use sp_std::prelude::*;
 
 impl<T: Config> Pallet<T> {
 	/// The account ID of the project pot.
@@ -57,7 +57,7 @@ impl<T: Config> Pallet<T> {
 		let fundraising_target = project.total_allocation_size * project.minimum_price;
 		let project_info = ProjectInfo {
 			is_frozen: false,
-			final_price: None,
+			weighted_average_price: None,
 			created_at: <frame_system::Pallet<T>>::block_number(),
 			project_status: ProjectStatus::Application,
 			evaluation_period_ends: None,
@@ -127,8 +127,8 @@ impl<T: Config> Pallet<T> {
 			// TODO: 10% is hardcoded, check if we want to configure it a runtime as explained here:
 			// https://substrate.stackexchange.com/questions/2784/how-to-get-a-percent-portion-of-a-balance
 			// TODO: Check if it's safe to use * here
-			let evaluation_target = Percent::from_percent(10) * fundraising_target;
-			let is_funded = total_amount_bonded >= evaluation_target;
+			let evaluation_target = Percent::from_percent(9) * fundraising_target;
+			let is_funded = total_amount_bonded > evaluation_target;
 			if is_funded {
 				ProjectsInfo::<T>::mutate(project_id, |project_info| {
 					project_info.project_status = ProjectStatus::EvaluationEnded;
@@ -181,7 +181,6 @@ impl<T: Config> Pallet<T> {
 	) {
 		if now >= candle_ending_block {
 			// TODO: Move fundraising_target to AuctionMetadata
-			let project = Projects::<T>::get(project_id).expect("Project must exist");
 			ProjectsInfo::<T>::mutate(project_id, |project_info| {
 				let mut auction_metadata =
 					project_info.auction_metadata.as_mut().expect("Auction must exist");
@@ -191,9 +190,13 @@ impl<T: Config> Pallet<T> {
 				);
 				project_info.project_status = ProjectStatus::CommunityRound;
 				auction_metadata.random_ending_block = Some(end_block);
-				project_info.final_price = Some(
-					Self::calculate_final_price(*project_id, project.fundraising_target, end_block)
-						.expect("placeholder_function"),
+				project_info.weighted_average_price = Some(
+					Self::calculate_weighted_average_price(
+						*project_id,
+						project_info.fundraising_target,
+						end_block,
+					)
+					.expect("placeholder_function"),
 				);
 			});
 		}
@@ -242,30 +245,26 @@ impl<T: Config> Pallet<T> {
 		});
 	}
 
-	pub fn calculate_final_price(
+	pub fn calculate_weighted_average_price(
 		project_id: T::ProjectIdentifier,
 		total_allocation_size: BalanceOf<T>,
 		end_block: T::BlockNumber,
 	) -> Result<BalanceOf<T>, DispatchError> {
 		// Get all the bids that were made before the end of the candle
-		// TODO: Update the `status` field of every `Bid` to BeforeCandle or AfterCandle if `bid.when > end_block`
+		// FIXME: Update the `status` field of every `Bid` to BeforeCandle or AfterCandle if `bid.when > end_block`
 		let mut bids = AuctionsInfo::<T>::get(project_id);
 		bids.retain(|bid| bid.when <= end_block);
 		// TODO: Unreserve the funds of the bids that were made after the end of the candle
 		// TODO: We can do this inside the "on_idle" hook, and change the `status` of the `Bid` to "Unreserved"
 
-		// TODO: Sort the bids by market cap
-		// If we store the bids in a sorted way we can avoid this step
-		bids.sort_by_key(|bid| Reverse(bid.market_cap));
-
 		// Calculate the final price
 		let mut fundraising_amount = BalanceOf::<T>::zero();
 		for (idx, bid) in bids.iter_mut().enumerate() {
 			let old_amount = fundraising_amount;
-			fundraising_amount = fundraising_amount.saturating_add(bid.amount);
+			fundraising_amount.saturating_accrue(bid.amount);
 			if fundraising_amount > total_allocation_size {
 				bid.amount = total_allocation_size.saturating_sub(old_amount);
-				bid.ratio = Perbill::from_rational(bid.amount, total_allocation_size);
+				bid.ratio = Some(Perbill::from_rational(bid.amount, total_allocation_size));
 				bid.status = BidStatus::NotValid(bid.amount.saturating_sub(old_amount));
 				bids.truncate(idx + 1);
 				// Important TODO: Refund the rest of the amount to the bidder in the "on_idle" hook
@@ -274,12 +273,15 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// TODO: Test more cases
-		let mut final_price = BalanceOf::<T>::zero();
-		for bid in bids {
-			let weighted_price = bid.ratio.mul_ceil(bid.price);
-			final_price = final_price.saturating_add(weighted_price);
+		let mut weighted_average_price = BalanceOf::<T>::zero();
+		for mut bid in bids {
+			let ratio = Perbill::from_rational(bid.amount, fundraising_amount);
+			bid.ratio = Some(ratio);
+			let weighted_price = ratio.mul_ceil(bid.price);
+			weighted_average_price.saturating_accrue(weighted_price);
 		}
-		Ok(final_price)
+		// AuctionsInfo::<T>::set(project_id, bids);
+		Ok(weighted_average_price)
 	}
 
 	pub fn select_random_block(
@@ -301,31 +303,28 @@ impl<T: Config> Pallet<T> {
 		nonce.encode()
 	}
 
-	/// People that contributed to the project during the Funding Rounf can claim their Contribution Tokens
+	/// People that contributed to the project during the Funding Round can claim their Contribution Tokens
 	pub fn do_claim_contribution_tokens(
 		project_id: T::ProjectIdentifier,
 		claimer: T::AccountId,
-		final_price: BalanceOf<T>,
 		contribution_amount: BalanceOf<T>,
-		token_decimals: u8,
+		weighted_average_price: BalanceOf<T>,
 	) -> Result<(), DispatchError> {
-		let amount =
-			Self::calculate_claimable_tokens(contribution_amount, final_price, token_decimals);
+		let fixed_amount =
+			Self::calculate_claimable_tokens(contribution_amount, weighted_average_price);
+		// FIXME: This is a hack to convert the FixedU128 to BalanceOf<T>, it doesnt work
+		// FIXME: The pallet_assets::mint_into function expects a BalanceOf<T>, we need to convert the FixedU128 to BalanceOf<T> keeping the precision
+		let amount = fixed_amount.saturating_mul_int(BalanceOf::<T>::one());
 		T::Assets::mint_into(project_id, &claimer, amount)?;
 		Ok(())
 	}
 
-	// This functiion is kept separate from the `do_claim_contribution_tokens` for easier testing
+	// This functiion is kept separate from the `do_claim_contribution_tokens` for easier testing the logic
+	#[inline(always)]
 	pub fn calculate_claimable_tokens(
 		contribution_amount: BalanceOf<T>,
-		final_price: BalanceOf<T>,
-		token_decimals: u8,
-	) -> BalanceOf<T> {
-		// TODO: Remove the concept of decimals from the pallet
-		// TODO: Check how to not use the FixedU128 type
-		let decimals = 10_u64.saturating_pow(token_decimals.into());
-		let unit: BalanceOf<T> = BalanceOf::<T>::from(decimals);
-		FixedU128::saturating_from_rational(contribution_amount, final_price)
-			.saturating_mul_int(unit)
+		weighted_average_price: BalanceOf<T>,
+	) -> FixedU128 {
+		FixedU128::saturating_from_rational(contribution_amount, weighted_average_price)
 	}
 }

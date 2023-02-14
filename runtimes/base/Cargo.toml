@@ -14,7 +14,7 @@ version.workspace = true
 substrate-wasm-builder.workspace = true
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = [
+codec = { package = "parity-scale-codec", version = "3.3.0", default-features = false, features = [
 	"derive",
 ] }
 hex-literal = { version = "0.3.4", optional = true }

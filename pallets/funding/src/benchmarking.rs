@@ -132,8 +132,8 @@ benchmarks! {
 	bond {
 		let (project_id, issuer) = create_default_minted_project::<T>(None);
 		let evaluator: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
+		T::Currency::make_free_balance_be(&evaluator, 2_000_000_000_000_u64.into());
 		let _ = PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer).into(), project_id.clone());
-		T::Currency::make_free_balance_be(&evaluator,  20_000_000_000_u64.into());
 	}: _(SystemOrigin::Signed(evaluator), project_id, 10_000_000_000_u64.into())
 
 	edit_metadata {
@@ -150,6 +150,11 @@ benchmarks! {
 		assert!(
 			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.clone()).into(), project_id.clone()).is_ok()
 		);
+		let evaluator: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
+		T::Currency::make_free_balance_be(&evaluator, 2_000_000_000_000_u64.into());
+		assert!(
+			PolimecFunding::<T>::bond(SystemOrigin::Signed(evaluator).into(), project_id.clone(), 10_000_000_000_u64.into()).is_ok()
+		);
 		// Move at the end of the Evaluation Round
 		run_to_block::<T>(System::<T>::block_number() + 30_u32.into());
 	}: _(SystemOrigin::Signed(issuer), project_id)
@@ -158,6 +163,11 @@ benchmarks! {
 		let (project_id, issuer) = create_default_minted_project::<T>(None);
 		assert!(
 			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer).into(), project_id.clone()).is_ok()
+		);
+		let evaluator: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
+		T::Currency::make_free_balance_be(&evaluator, 2_000_000_000_000_u64.into());
+		assert!(
+			PolimecFunding::<T>::bond(SystemOrigin::Signed(evaluator).into(), project_id.clone(), 10_000_000_000_u64.into()).is_ok()
 		);
 		// Move in the middle of the Auction Round
 		run_to_block::<T>(System::<T>::block_number() + 40_u32.into());
@@ -170,6 +180,11 @@ benchmarks! {
 		assert!(
 			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer).into(), project_id.clone()).is_ok()
 		);
+		let evaluator: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
+		T::Currency::make_free_balance_be(&evaluator, 2_000_000_000_000_u64.into());
+		assert!(
+			PolimecFunding::<T>::bond(SystemOrigin::Signed(evaluator).into(), project_id.clone(), 10_000_000_000_u64.into()).is_ok()
+		);
 		// Move in the middle of the Community Round
 		run_to_block::<T>(System::<T>::block_number() + 55_u32.into());
 		let contributor: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
@@ -181,10 +196,21 @@ benchmarks! {
 		assert!(
 			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer).into(), project_id.clone()).is_ok()
 		);
+		let evaluator: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
+		T::Currency::make_free_balance_be(&evaluator, 20_000_000_000_000_u64.into());
+		assert!(
+			PolimecFunding::<T>::bond(SystemOrigin::Signed(evaluator).into(), project_id.clone(), 10_000_000_000_u64.into()).is_ok()
+		);
+		// Move in the middle of the Auction Round
+		run_to_block::<T>(System::<T>::block_number() + 40_u32.into());
+		let bidder: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
+		assert!(
+			PolimecFunding::<T>::bid(SystemOrigin::Signed(bidder).into(), project_id.clone(), 100u64.into(), 2_000_000_000_u64.into(), None).is_ok()
+		);
+
 		// Move in the middle of the Community Round
-		run_to_block::<T>(System::<T>::block_number() + 55_u32.into());
+		run_to_block::<T>(System::<T>::block_number() + 15_u32.into());
 		let claimer: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
-		T::Currency::make_free_balance_be(&claimer,  20_000_000_000_u64.into());
 		assert!(
 			PolimecFunding::<T>::contribute(SystemOrigin::Signed(claimer.clone()).into(), project_id.clone(),  2_000_000_000_u64.into()).is_ok()
 		);
@@ -194,15 +220,21 @@ benchmarks! {
 
 	on_initialize {
 		let p = T::ActiveProjectsLimit::get();
+		let evaluator: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
+		T::Currency::make_free_balance_be(&evaluator, 2_000_000_000_000_u64.into());
 		// Create 100 projects
 		for i in 0 .. p {
 			let (project_id, issuer) = create_default_minted_project::<T>(Some(i));
 			assert!(
-				PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.clone()).into(), project_id).is_ok()
+				PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.clone()).into(), project_id.clone()).is_ok()
+			);
+			assert!(
+				PolimecFunding::<T>::bond(SystemOrigin::Signed(evaluator.clone()).into(), project_id, 1_000_u64.into()).is_ok()
 			);
 		}
 		// Move at the end of the Evaluation Round
 		System::<T>::set_block_number(System::<T>::block_number() + 29_u32.into());
+		// TODO: Benchmark the hook when computing the Funding Round results
 	} : {
 		PolimecFunding::<T>::on_initialize(System::<T>::block_number());
 	}
@@ -213,7 +245,6 @@ benchmarks! {
 			let project_info = PolimecFunding::<T>::project_info(project_id.into());
 			assert_eq!(project_info.project_status, ProjectStatus::EvaluationEnded);
 		}
-
 	}
 
 	impl_benchmark_test_suite!(PolimecFunding, crate::mock::new_test_ext(), crate::mock::Test);
