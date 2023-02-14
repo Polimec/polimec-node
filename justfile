@@ -83,3 +83,7 @@ run-node:
 # Create the "Base" Runtime Chainspec
 create-chainspec-base:
 	./scripts/create_base_chain_spec.sh ./runtimes/base/target/srtool/release/wbuild/polimec-base-runtime/polimec_base_runtime.compact.compressed.wasm 2105
+
+# Use zombienet to spawn rococo + polimec testnet
+zombienet-default:
+	zombienet spawn scripts/local_parachain.toml -p native
