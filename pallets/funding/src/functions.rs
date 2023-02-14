@@ -312,7 +312,8 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), DispatchError> {
 		let fixed_amount =
 			Self::calculate_claimable_tokens(contribution_amount, weighted_average_price);
-		// FIXME: This is a hack to convert the FixedU128 to BalanceOf<T>, it doesnt work for all cases
+		// FIXME: This is a hack to convert the FixedU128 to BalanceOf<T>, it doesnt work
+		// FIXME: The pallet_assets::mint_into function expects a BalanceOf<T>, we need to convert the FixedU128 to BalanceOf<T> keeping the precision
 		let amount = fixed_amount.saturating_mul_int(BalanceOf::<T>::one());
 		T::Assets::mint_into(project_id, &claimer, amount)?;
 		Ok(())

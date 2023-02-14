@@ -355,16 +355,18 @@ pub mod pallet {
 		TicketSizeError,
 		// The specified project does not exist
 		ProjectNotExists,
+		// The Evaluation Round of the project has not started yet
+		EvaluationNotStarted,
 		// The Evaluation Round of the project has already started
 		EvaluationAlreadyStarted,
+		// The Evaluation Round of the project has ended without reaching the minimum threshold
+		EvaluationFailed,
 		// The issuer cannot contribute to their own project during the Funding Round
 		ContributionToThemselves,
 		// Only the issuer can start the Evaluation Round
 		NotAllowed,
 		// The Metadata Hash of the project was not found
 		NoImageFound,
-		// The Evaluation Round of the project has not started yet
-		EvaluationNotStarted,
 		// The Auction Round of the project has already started
 		AuctionAlreadyStarted,
 		// The Auction Round of the project has not started yet
@@ -550,11 +552,16 @@ pub mod pallet {
 			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
 			let project_info = ProjectsInfo::<T>::get(project_id);
 			ensure!(
+				project_info.project_status != ProjectStatus::EvaluationFailed,
+				Error::<T>::EvaluationFailed
+			);
+			ensure!(
 				project_info.project_status == ProjectStatus::EvaluationEnded,
 				Error::<T>::EvaluationNotStarted
 			);
 			Self::do_start_auction(project_id)
 		}
+
 		/// Place a bid in the "Auction Round"
 		#[pallet::weight(T::WeightInfo::bid())]
 		pub fn bid(
@@ -854,6 +861,7 @@ pub mod pallet {
 		}
 		fn create_dummy_project(metadata_hash: T::Hash) -> ProjectOf<T> {
 			let project: ProjectOf<T> = Project {
+				total_allocation_size: 1000_u64.into(),
 				minimum_price: 1u8.into(),
 				ticket_size: TicketSize { minimum: Some(1u8.into()), maximum: None },
 				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },

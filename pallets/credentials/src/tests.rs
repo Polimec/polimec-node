@@ -1,6 +1,6 @@
 use crate::{mock::*, Error};
 use frame_support::{assert_noop, assert_ok, error::BadOrigin, BoundedVec};
-use polimec_traits::{Issuers, Country, Credential, MemberRole, PolimecMembers};
+use polimec_traits::{Country, Credential, Issuers, MemberRole, PolimecMembers};
 
 pub fn last_event() -> RuntimeEvent {
 	frame_system::Pallet::<Test>::events().pop().expect("Event expected").event
