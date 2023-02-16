@@ -11,8 +11,8 @@ build-base-runtime:
 	cargo build --release -p polimec-base-runtime
 
 # Build the "Testnet" Runtime
-build-testnet-runtime:
-	cargo build --release -p polimec-testnet-runtime
+build-parachain-runtime:
+	cargo build --release -p polimec-parachain-runtime
 
 # Build the "Standalone" Runtime
 build-standalone-runtime:
@@ -31,7 +31,7 @@ build-base-srtool:
 	srtool build --root -p polimec-base-runtime --runtime-dir runtimes/base
 
 # Build the "Testnet" Runtime using srtool
-build-testnet-srtool:
+build-parachain-srtool:
 	srtool build --root -p polimec-parachain-runtime --runtime-dir runtimes/testnet
 
 # Build the "Standalone" Runtime using srtool
