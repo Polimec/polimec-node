@@ -471,12 +471,12 @@ pub const EVALUATION_DURATION: BlockNumber = 28 * DAYS;
 #[cfg(feature = "fast-gov")]
 pub const ENGLISH_AUCTION_DURATION: BlockNumber = 10;
 #[cfg(not(feature = "fast-gov"))]
-pub const ENGLISH_AUCTION_DURATION: BlockNumber = 5 * DAYS;
+pub const ENGLISH_AUCTION_DURATION: BlockNumber = 2 * DAYS;
 
 #[cfg(feature = "fast-gov")]
 pub const CANDLE_AUCTION_DURATION: BlockNumber = 10;
 #[cfg(not(feature = "fast-gov"))]
-pub const CANDLE_AUCTION_DURATION: BlockNumber = 12 * HOURS;
+pub const CANDLE_AUCTION_DURATION: BlockNumber = 3 * DAYS;
 
 #[cfg(feature = "fast-gov")]
 pub const COMMUNITY_DURATION: BlockNumber = 10;
