@@ -2,6 +2,8 @@ name: Check Set-Up & Build
 
 # Controls when the action will run.
 on:
+  pull_request:
+    branches: [ master ]
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -55,16 +57,19 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
-      - name: Check Build Trappist Runtime
+      - name: Check Build Parachain Runtime
         run: |
-          SKIP_WASM_BUILD=1 cargo check --release --features with-trappist-runtime
-      - name: Check Build Stout Runtime
+          SKIP_WASM_BUILD=1 cargo check --release -p polimec-parachain-runtime
+
+      - name: Check Build Standalone Runtime
         run: |
-          SKIP_WASM_BUILD=1 cargo check --release --no-default-features --features with-stout-runtime
-      - name: Check Build for Benchmarking Trappist Runtime
-        run: >
-          pushd node &&
-          cargo check --features=runtime-benchmarks,with-trappist-runtime --release
-      - name: Check Build for Benchmarking stout Runtime
-        run: >
-          pushd node &&
+          SKIP_WASM_BUILD=1 cargo check --release -p polimec-standalone-runtime
+
+      # - name: Check Build for Benchmarking Trappist Runtime
+      #   run: >
+      #     pushd node &&
+      #     cargo check --features=runtime-benchmarks,with-trappist-runtime --release
+
+      # - name: Check Build for Benchmarking stout Runtime
+      #   run: >
+      #     pushd node &&

@@ -564,6 +564,7 @@ impl pallet_vesting::Config for Runtime {
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
+#[rustfmt::skip]
 construct_runtime!(
 	pub struct Runtime
 	where

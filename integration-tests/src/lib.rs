@@ -146,7 +146,7 @@ pub fn relay_ext() -> sp_io::TestExternalities {
 pub type PolkadotRelayChainPalletXcm = pallet_xcm::Pallet<relay_chain::Runtime>;
 pub type ParachainPalletXcm = pallet_xcm::Pallet<parachain::Runtime>;
 
-// FIXME: Update to XCM v3 when Polkadot v0.9.38 is ready 
+// FIXME: Update to XCM v3 when Polkadot v0.9.38 is ready
 #[cfg(test)]
 mod tests {
 	use super::*;
