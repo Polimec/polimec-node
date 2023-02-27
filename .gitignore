@@ -16,3 +16,4 @@ genesis-state
 genesis-wasm
 
 *.log
+fly.toml

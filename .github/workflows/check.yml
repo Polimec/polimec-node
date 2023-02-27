@@ -10,24 +10,61 @@ jobs:
   check:
     # The type of runner that the job will run on
     runs-on: ubuntu-22.04
+    env:
+      NIGHTLY: nightly-2023-02-26 # Fix version to prevent cache misses with nightly changes
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-    - uses: actions/checkout@v3
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
 
-    - name: Set-Up
-      run: sudo apt install -y git clang curl libssl-dev llvm libudev-dev protobuf-compiler
+      - name: Set-Up
+        run: sudo apt update && sudo apt install -y git clang curl libssl-dev llvm libudev-dev cmake protobuf-compiler
 
-    - name: Install Rustup
-      run: |
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        source ~/.cargo/env
-        rustup default stable
-        rustup update nightly
-        rustup update stable
-        rustup target add wasm32-unknown-unknown --toolchain nightly
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
 
-    - name: Check Build
-      run: |
-        SKIP_WASM_BUILD=1 cargo check --release
+      - name: Install Nightly
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ env.NIGHTLY }}
+          override: true
+          target: wasm32-unknown-unknown
+          components: rustfmt
+
+      # Fail fast: check formatting first as it doesn't require compilation
+      - name: Check formatting
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all --check
+
+      - name: Cache Build artefacts
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Check Build Trappist Runtime
+        run: |
+          SKIP_WASM_BUILD=1 cargo check --release --features with-trappist-runtime
+      - name: Check Build Stout Runtime
+        run: |
+          SKIP_WASM_BUILD=1 cargo check --release --no-default-features --features with-stout-runtime
+      - name: Check Build for Benchmarking Trappist Runtime
+        run: >
+          pushd node &&
+          cargo check --features=runtime-benchmarks,with-trappist-runtime --release
+      - name: Check Build for Benchmarking stout Runtime
+        run: >
+          pushd node &&
