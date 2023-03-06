@@ -20,8 +20,8 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::traits::{Currency, Get};
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{AtLeast32BitUnsigned, CheckedSub, Saturating, Zero},
 	RuntimeDebug,
+	traits::{AtLeast32BitUnsigned, CheckedSub, Saturating, Zero},
 };
 use sp_staking::SessionIndex;
 use sp_std::{
@@ -30,7 +30,7 @@ use sp_std::{
 	ops::{Add, Sub},
 };
 
-use crate::{set::OrderedSet, Config};
+use crate::{Config, set::OrderedSet};
 
 /// A struct represented an amount of staked funds.
 ///

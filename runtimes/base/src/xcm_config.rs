@@ -14,22 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use super::{
-	AccountId, Balances, ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall,
-	RuntimeEvent, RuntimeOrigin, Treasury, WeightToFee, XcmpQueue,
-};
-
 use frame_support::{parameter_types, traits::Nothing};
 use pallet_xcm::XcmPassthrough;
 use xcm::latest::prelude::*;
 use xcm_builder::{
-	EnsureXcmOrigin, FixedWeightBounds, LocationInverter, RelayChainAsNative,
+	EnsureXcmOrigin, FixedWeightBounds, RelayChainAsNative,
 	SiblingParachainAsNative, SignedAccountId32AsNative, SignedToAccountId32, UsingComponents,
 };
 use xcm_executor::XcmExecutor;
 
 use runtime_common::xcm_config::{
 	HereLocation, LocalAssetTransactor, MaxInstructions, UnitWeightCost, XcmBarrier,
+};
+
+use super::{
+	AccountId, Balances, ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall,
+	RuntimeEvent, RuntimeOrigin, Treasury, WeightToFee, XcmpQueue,
 };
 
 parameter_types! {

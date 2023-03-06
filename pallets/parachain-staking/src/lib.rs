@@ -115,6 +115,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
+use frame_support::pallet;
+
+pub use crate::{default_weights::WeightInfo, pallet::*};
+
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 pub mod default_weights;
@@ -130,34 +134,28 @@ mod inflation;
 mod set;
 mod types;
 
-use frame_support::pallet;
-
-pub use crate::{default_weights::WeightInfo, pallet::*};
-
 #[pallet]
 pub mod pallet {
-	use super::*;
-	pub use crate::inflation::{InflationInfo, RewardRate, StakingInfo};
-
 	use frame_support::{
 		assert_ok,
+		BoundedVec,
 		pallet_prelude::*,
 		storage::bounded_btree_map::BoundedBTreeMap,
 		traits::{
-			Currency, EstimateNextSessionRotation, Get, Imbalance, LockIdentifier,
-			LockableCurrency, OnUnbalanced, ReservableCurrency, StorageVersion, WithdrawReasons,
+			Currency, EstimateNextSessionRotation, Get, Imbalance, LockableCurrency,
+			LockIdentifier, OnUnbalanced, ReservableCurrency, StorageVersion, WithdrawReasons,
 		},
-		BoundedVec,
 	};
 	use frame_system::pallet_prelude::*;
 	use pallet_balances::{BalanceLock, Locks};
 	use pallet_session::ShouldEndSession;
 	use scale_info::TypeInfo;
 	use sp_runtime::{
-		traits::{Convert, One, SaturatedConversion, Saturating, StaticLookup, Zero},
-		Permill, Perquintill,
+		Permill,
+		Perquintill, traits::{Convert, One, SaturatedConversion, Saturating, StaticLookup, Zero},
 	};
 	use sp_staking::SessionIndex;
+	use sp_std::{convert::TryInto, fmt::Debug};
 	use sp_std::prelude::*;
 
 	use crate::{
@@ -167,7 +165,9 @@ pub mod pallet {
 			NegativeImbalanceOf, RoundInfo, Stake, StakeOf, TotalStake,
 		},
 	};
-	use sp_std::{convert::TryInto, fmt::Debug};
+	pub use crate::inflation::{InflationInfo, RewardRate, StakingInfo};
+
+	use super::*;
 
 	/// Kilt-specific lock for staking rewards.
 	pub(crate) const STAKING_ID: LockIdentifier = *b"kiltpstk";
@@ -177,7 +177,7 @@ pub mod pallet {
 
 	/// Pallet for parachain staking.
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
+	#[pallet::generate_store(pub (super) trait Store)]
 	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(PhantomData<T>);
 
@@ -2539,10 +2539,6 @@ pub mod pallet {
 				T::DbWeight::get().reads_writes(2, 1),
 				DispatchClass::Mandatory,
 			);
-		}
-
-		fn note_uncle(_author: T::AccountId, _age: T::BlockNumber) {
-			// we too are not caring.
 		}
 	}
 

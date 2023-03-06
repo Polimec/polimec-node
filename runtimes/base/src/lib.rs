@@ -18,63 +18,62 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
 
+#[cfg(feature = "runtime-benchmarks")]
+#[macro_use]
+extern crate frame_benchmarking;
+
+use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
+use frame_support::{
+	construct_runtime,
+	dispatch::DispatchClass,
+	PalletId,
+	parameter_types,
+	traits::{ConstU32, ConstU64, Everything},
+	weights::{ConstantMultiplier, Weight},
+};
+use frame_system::{
+	EnsureRoot,
+	limits::{BlockLength, BlockWeights},
+};
+// Polkadot imports
+use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
+use sp_api::impl_runtime_apis;
+pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_runtime::{
+	ApplyExtrinsicResult, create_runtime_str, generic,
+	impl_opaque_keys,
+	MultiSignature,
+	traits::{
+		AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, IdentifyAccount, OpaqueKeys,
+		Verify,
+	}, transaction_validity::{TransactionSource, TransactionValidity},
+};
+pub use sp_runtime::{MultiAddress, Perbill, Permill};
+#[cfg(any(feature = "std", test))]
+pub use sp_runtime::BuildStorage;
+use sp_std::prelude::*;
+#[cfg(feature = "std")]
+use sp_version::NativeVersion;
+use sp_version::RuntimeVersion;
+// XCM Imports
+use xcm::latest::prelude::BodyId;
+use xcm_executor::XcmExecutor;
+
+use runtime_common::{
+	fees::{ToAuthor, WeightToFee},
+	FeeSplit,
+};
+pub use runtime_common::constants::*;
+use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
+use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
+
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 mod weights;
 pub mod xcm_config;
-
-use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
-use sp_api::impl_runtime_apis;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
-use sp_runtime::{
-	create_runtime_str, generic, impl_opaque_keys,
-	traits::{
-		AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, IdentifyAccount, OpaqueKeys,
-		Verify,
-	},
-	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, MultiSignature,
-};
-
-use sp_std::prelude::*;
-#[cfg(feature = "std")]
-use sp_version::NativeVersion;
-use sp_version::RuntimeVersion;
-
-use frame_support::{
-	construct_runtime,
-	dispatch::DispatchClass,
-	parameter_types,
-	traits::{ConstU32, ConstU64, Everything},
-	weights::{ConstantMultiplier, Weight},
-	PalletId,
-};
-use frame_system::{
-	limits::{BlockLength, BlockWeights},
-	EnsureRoot,
-};
-pub use runtime_common::constants::*;
-use runtime_common::{
-	fees::{ToAuthor, WeightToFee},
-	FeeSplit,
-};
-pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-pub use sp_runtime::{MultiAddress, Perbill, Permill};
-use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
-
-#[cfg(any(feature = "std", test))]
-pub use sp_runtime::BuildStorage;
-
-// Polkadot imports
-use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
-
-use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
-
-// XCM Imports
-use xcm::latest::prelude::BodyId;
-use xcm_executor::XcmExecutor;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -143,10 +142,11 @@ pub type Executive = frame_executive::Executive<
 /// of data like extrinsics, allowing for them to continue syncing the network through upgrades
 /// to even the core data structures.
 pub mod opaque {
-	use super::*;
 	use sp_runtime::{generic, traits::BlakeTwo256};
-
 	pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
+
+	use super::*;
+
 	/// Opaque block header type.
 	pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 	/// Opaque block type.
@@ -473,7 +473,7 @@ construct_runtime!(
 		Aura: pallet_aura = 23,
 		Session: pallet_session = 22,
 		ParachainStaking: parachain_staking = 21,
-		Authorship: pallet_authorship::{Pallet, Call, Storage} = 20,
+		Authorship: pallet_authorship::{Pallet, Storage} = 20,
 		AuraExt: cumulus_pallet_aura_ext = 24,
 
 		// XCM helpers.
@@ -483,10 +483,6 @@ construct_runtime!(
 		DmpQueue: cumulus_pallet_dmp_queue = 33,
 	}
 );
-
-#[cfg(feature = "runtime-benchmarks")]
-#[macro_use]
-extern crate frame_benchmarking;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {

@@ -17,15 +17,14 @@
 // If you feel like getting in touch with us, you can do so at info@botlabs.org
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::{traits::Get, BoundedVec, DefaultNoBound, RuntimeDebug};
+use frame_support::{BoundedVec, DefaultNoBound, RuntimeDebug, traits::Get};
 use scale_info::TypeInfo;
-use sp_runtime::{traits::Zero, SaturatedConversion};
+use sp_runtime::{SaturatedConversion, traits::Zero};
 use sp_std::{
 	cmp::Ordering,
 	convert::TryInto,
 	ops::{Index, Range, RangeFull},
 };
-
 #[cfg(feature = "std")]
 use sp_std::prelude::*;
 
@@ -279,9 +278,10 @@ impl<T: Ord + Clone, S: Get<u32>> From<OrderedSet<T, S>> for BoundedVec<T, S> {
 
 #[cfg(test)]
 mod tests {
-	use crate::{mock::Test, types::StakeOf};
 	use frame_support::parameter_types;
 	use sp_runtime::RuntimeDebug;
+
+	use crate::{mock::Test, types::StakeOf};
 
 	use super::*;
 

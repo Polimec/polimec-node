@@ -19,8 +19,6 @@
 
 #![allow(clippy::from_over_into)]
 
-use super::*;
-use crate::{self as stake, types::NegativeImbalanceOf};
 use frame_support::{
 	assert_ok, construct_runtime, parameter_types,
 	traits::{Currency, GenesisBuild, OnFinalize, OnInitialize, OnUnbalanced},
@@ -30,11 +28,15 @@ use sp_consensus_aura::sr25519::AuthorityId;
 use sp_core::H256;
 use sp_runtime::{
 	impl_opaque_keys,
-	testing::{Header, UintAuthorityId},
-	traits::{BlakeTwo256, ConvertInto, IdentityLookup, OpaqueKeys},
-	Perbill, Perquintill,
+	Perbill,
+	Perquintill,
+	testing::{Header, UintAuthorityId}, traits::{BlakeTwo256, ConvertInto, IdentityLookup, OpaqueKeys},
 };
 use sp_std::fmt::Debug;
+
+use crate::{self as stake, types::NegativeImbalanceOf};
+
+use super::*;
 
 pub(crate) type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 pub(crate) type Block = frame_system::mocking::MockBlock<Test>;
@@ -60,7 +62,7 @@ construct_runtime!(
 		Aura: pallet_aura::{Pallet, Storage},
 		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
 		StakePallet: stake::{Pallet, Call, Storage, Config<T>, Event<T>},
-		Authorship: pallet_authorship::{Pallet, Call, Storage, Inherent},
+		Authorship: pallet_authorship::{Pallet, Storage},
 	}
 );
 
@@ -121,8 +123,6 @@ impl pallet_aura::Config for Test {
 
 impl pallet_authorship::Config for Test {
 	type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
-	type UncleGenerations = ();
-	type FilterUncle = ();
 	type EventHandler = Pallet<Test>;
 }
 

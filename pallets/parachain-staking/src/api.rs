@@ -16,14 +16,15 @@
 
 // If you feel like getting in touch with us, you can do so at info@botlabs.org
 
-use crate::{
-	types::BalanceOf, BlocksAuthored, BlocksRewarded, CandidatePool, Config, DelegatorState,
-	InflationConfig, Pallet, Rewards, TotalCollatorStake,
-};
 use frame_support::traits::Currency;
 use sp_runtime::{
-	traits::{Saturating, Zero},
 	Perquintill,
+	traits::{Saturating, Zero},
+};
+
+use crate::{
+	BlocksAuthored, BlocksRewarded, CandidatePool, Config, DelegatorState, InflationConfig,
+	Pallet, Rewards, TotalCollatorStake, types::BalanceOf,
 };
 
 impl<T: Config> Pallet<T> {
