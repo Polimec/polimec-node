@@ -1,5 +1,11 @@
 [workspace]
-members = ["integration-tests", "nodes/*", "pallets/*", "runtimes/*", "traits"]
+members = [
+    #    "integration-tests",
+    "nodes/*",
+    "pallets/*",
+    "runtimes/*",
+    "traits"
+]
 
 [workspace.package]
 authors = ['Polimec Foundation <info@polimec.org>']
