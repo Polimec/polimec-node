@@ -18,70 +18,69 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
 
-// Make the WASM binary available.
-#[cfg(feature = "std")]
-include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
-
-mod weights;
-pub mod xcm_config;
+#[cfg(feature = "runtime-benchmarks")]
+#[macro_use]
+extern crate frame_benchmarking;
 
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime,
 	pallet_prelude::Get,
+	PalletId,
 	parameter_types,
 	traits::{
 		AsEnsureOriginWithArg, ConstU32, Currency, EitherOfDiverse, EqualPrivilegeOnly, Everything,
 		Imbalance, OnUnbalanced,
 	},
 	weights::{ConstantMultiplier, Weight},
-	PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned};
-
 pub use parachains_common::{
-	impls::{AssetsToBlockAuthor, DealWithFees},
-	opaque, AccountId, AssetId, AuraId, Balance, BlockNumber, Hash, Header, Index, Signature,
-	AVERAGE_ON_INITIALIZE_RATIO, DAYS, HOURS, MAXIMUM_BLOCK_WEIGHT, MINUTES, NORMAL_DISPATCH_RATIO,
+	AccountId,
+	AssetIdForTrustBackedAssets, AuraId, AVERAGE_ON_INITIALIZE_RATIO, Balance, BlockNumber, DAYS, Hash, Header, HOURS, impls::{AssetsToBlockAuthor, DealWithFees},
+	Index, MAXIMUM_BLOCK_WEIGHT, MINUTES, NORMAL_DISPATCH_RATIO, opaque, Signature,
 	SLOT_DURATION,
 };
-
-use polimec_traits::{MemberRole, PolimecMembers};
-use runtime_common::constants::staking::*;
-pub use runtime_common::{
-	constants::{
-		governance::*, polimec_inflation_config, preimage::PreimageBaseDeposit,
-		treasury::INITIAL_PERIOD_LENGTH, InflationInfo, BLOCKS_PER_YEAR, EXISTENTIAL_DEPOSIT,
-		MAX_COLLATOR_STAKE, MICRO_PLMC, PLMC,
-	},
-	fees::WeightToFee,
-	RuntimeBlockLength, RuntimeBlockWeights,
-};
+// Polkadot imports
+use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
-	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, OpaqueKeys},
-	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, Perquintill,
+	ApplyExtrinsicResult, create_runtime_str, generic,
+	impl_opaque_keys,
+	Perquintill,
+	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, OpaqueKeys}, transaction_validity::{TransactionSource, TransactionValidity},
 };
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
+#[cfg(any(feature = "std", test))]
+pub use sp_runtime::BuildStorage;
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
-use xcm_config::XcmConfig;
-
-#[cfg(any(feature = "std", test))]
-pub use sp_runtime::BuildStorage;
-
-// Polkadot imports
-use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
-
-use weights::RocksDbWeight;
-
 // XCM Imports
 use xcm_executor::XcmExecutor;
+
+use polimec_traits::{MemberRole, PolimecMembers};
+pub use runtime_common::{
+	constants::{
+		BLOCKS_PER_YEAR, EXISTENTIAL_DEPOSIT, governance::*,
+		InflationInfo, MAX_COLLATOR_STAKE, MICRO_PLMC, PLMC,
+		polimec_inflation_config, preimage::PreimageBaseDeposit, treasury::INITIAL_PERIOD_LENGTH,
+	},
+	fees::WeightToFee,
+	RuntimeBlockLength, RuntimeBlockWeights,
+};
+use runtime_common::constants::staking::*;
+use weights::RocksDbWeight;
+use xcm_config::XcmConfig;
+
+// Make the WASM binary available.
+#[cfg(feature = "std")]
+include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
+
+mod weights;
+pub mod xcm_config;
 
 pub type CurrencyId = [u8; 8];
 
@@ -230,8 +229,6 @@ parameter_types! {
 
 impl pallet_authorship::Config for Runtime {
 	type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
-	type UncleGenerations = UncleGenerations;
-	type FilterUncle = ();
 	type EventHandler = ParachainStaking;
 }
 
@@ -790,7 +787,7 @@ construct_runtime!(
 		Aura: pallet_aura = 23,
 		Session: pallet_session = 22,
 		ParachainStaking: parachain_staking = 21,
-		Authorship: pallet_authorship::{Pallet, Call, Storage} = 20,
+		Authorship: pallet_authorship::{Pallet, Storage} = 20,
 		AuraExt: cumulus_pallet_aura_ext = 24,
 
 		// Governance
@@ -821,10 +818,6 @@ construct_runtime!(
 		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 85,
 	}
 );
-
-#[cfg(feature = "runtime-benchmarks")]
-#[macro_use]
-extern crate frame_benchmarking;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {

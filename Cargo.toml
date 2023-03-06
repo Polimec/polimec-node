@@ -136,8 +136,8 @@ cumulus-primitives-timestamp = { git = "https://github.com/paritytech/cumulus", 
 cumulus-primitives-utility = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "polkadot-v0.9.38" }
 pallet-collator-selection = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "polkadot-v0.9.38" }
 parachain-info = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "polkadot-v0.9.38" }
-parachains-common = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.38", default-features = false }
-statemint-runtime = { git = 'https://github.com/paritytech/cumulus.git', branch = 'polkadot-v0.9.38' }
+parachains-common = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "polkadot-v0.9.38" }
+statemint-runtime = { git = 'https://github.com/paritytech/cumulus.git', default-features = false, branch = 'polkadot-v0.9.38' }
 
 # Client-only (with default enabled)
 cumulus-client-cli = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.38" }
