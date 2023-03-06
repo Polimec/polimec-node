@@ -32,10 +32,10 @@ polimec-runtime-api-credentials.workspace = true
 polimec-traits.workspace = true
 runtime-common.workspace = true
 
-## Primitives
+# Primitives
 xcm-primitives.workspace = true
-#
-## FRAME
+
+# FRAME
 frame-benchmarking = { workspace = true, optional = true }
 frame-executive.workspace = true
 frame-support.workspace = true
@@ -76,8 +76,8 @@ sp-session.workspace = true
 sp-std.workspace = true
 sp-transaction-pool.workspace = true
 sp-version.workspace = true
-#
-## Polkadot
+
+# Polkadot
 pallet-xcm.workspace = true
 polkadot-parachain.workspace = true
 polkadot-runtime-common.workspace = true
@@ -85,8 +85,8 @@ xcm.workspace = true
 xcm-builder.workspace = true
 xcm-executor.workspace = true
 parachains-common.workspace = true
-#
-## Cumulus
+
+# Cumulus
 cumulus-pallet-aura-ext.workspace = true
 cumulus-pallet-dmp-queue.workspace = true
 cumulus-pallet-parachain-system.workspace = true
@@ -99,7 +99,7 @@ cumulus-primitives-utility.workspace = true
 parachain-info.workspace = true
 polkadot-primitives.workspace = true
 
-#
+
 [features]
 default = ["std"]
 fast-gov = ["runtime-common/fast-gov"]
@@ -173,7 +173,7 @@ std = [
 	"pallet-assets/try-runtime",
 	"pallet-asset-tx-payment/try-runtime",
 ]
-#
+
 runtime-benchmarks = [
 	"hex-literal",
 	"frame-benchmarking/runtime-benchmarks",
