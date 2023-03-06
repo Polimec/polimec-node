@@ -21,29 +21,29 @@
 use std::{convert::TryInto, iter};
 
 use frame_support::{
-	assert_noop, assert_ok, BoundedVec,
-	storage::bounded_btree_map::BoundedBTreeMap, traits::EstimateNextSessionRotation,
+    assert_noop, assert_ok, storage::bounded_btree_map::BoundedBTreeMap,
+    traits::EstimateNextSessionRotation, BoundedVec,
 };
 use pallet_authorship::EventHandler;
 use pallet_balances::{BalanceLock, Error as BalancesError, Reasons};
 use pallet_session::{SessionManager, ShouldEndSession};
-use sp_runtime::{Perbill, Permill, Perquintill, SaturatedConversion, traits::Zero};
+use sp_runtime::{traits::Zero, Perbill, Permill, Perquintill, SaturatedConversion};
 
 use kilt_runtime_api_staking::StakingRates;
 
 use crate::{
-	CandidatePool,
-	Config,
-	Error,
-	Event, Event as StakeEvent, InflationInfo, mock::{
-		AccountId, almost_equal, Balance, Balances, BlockNumber, BLOCKS_PER_ROUND, DECIMALS,
-		events, ExtBuilder, last_event, roll_to, roll_to_claim_rewards, RuntimeOrigin, Session, StakePallet,
-		System, Test, TREASURY_ACC,
-	}, RewardRate, set::OrderedSet, STAKING_ID,
-	StakingInfo, types::{
-		BalanceOf, Candidate, CandidateStatus, DelegationCounter, Delegator, RoundInfo, Stake,
-		StakeOf, TotalStake,
-	},
+    mock::{
+        almost_equal, events, last_event, roll_to, roll_to_claim_rewards, AccountId, Balance,
+        Balances, BlockNumber, ExtBuilder, RuntimeOrigin, Session, StakePallet, System, Test,
+        BLOCKS_PER_ROUND, DECIMALS, TREASURY_ACC,
+    },
+    set::OrderedSet,
+    types::{
+        BalanceOf, Candidate, CandidateStatus, DelegationCounter, Delegator, RoundInfo, Stake,
+        StakeOf, TotalStake,
+    },
+    CandidatePool, Config, Error, Event, Event as StakeEvent, InflationInfo, RewardRate,
+    StakingInfo, STAKING_ID,
 };
 
 #[test]

@@ -26,8 +26,8 @@ use core::marker::PhantomData;
 use frame_support::{
 	match_types, parameter_types,
 	traits::{
-		ConstU32,
-		Contains, ContainsPair, Everything, fungibles::{self, Balanced, CreditOf}, Get, Nothing,
+		fungibles::{self, Balanced, CreditOf},
+		ConstU32, Contains, ContainsPair, Everything, Get, Nothing,
 	},
 	weights::Weight,
 };
@@ -284,8 +284,13 @@ impl xcm_executor::Config for XcmConfig {
 	type UniversalLocation = UniversalLocation;
 	type Barrier = Barrier;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
-	type Trader =
-	UsingComponents<WeightToFee<Runtime>, RelayLocation, AccountId, Balances, ToAuthor<Runtime>>;
+	type Trader = UsingComponents<
+		WeightToFee<Runtime>,
+		RelayLocation,
+		AccountId,
+		Balances,
+		ToAuthor<Runtime>,
+	>;
 	type ResponseHandler = PolkadotXcm;
 	type AssetTrap = PolkadotXcm;
 	type AssetClaims = PolkadotXcm;

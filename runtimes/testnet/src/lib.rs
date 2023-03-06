@@ -26,34 +26,33 @@ use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime,
 	pallet_prelude::Get,
-	PalletId,
 	parameter_types,
 	traits::{
 		AsEnsureOriginWithArg, ConstU32, Currency, EitherOfDiverse, EqualPrivilegeOnly, Everything,
 		Imbalance, OnUnbalanced,
 	},
 	weights::{ConstantMultiplier, Weight},
+	PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned};
 pub use parachains_common::{
-	AccountId,
-	AssetIdForTrustBackedAssets as AssetId, AuraId, AVERAGE_ON_INITIALIZE_RATIO, Balance, BlockNumber, DAYS, Hash, Header, HOURS, impls::DealWithFees,
-	Index, MAXIMUM_BLOCK_WEIGHT, MINUTES, NORMAL_DISPATCH_RATIO, opaque, Signature,
-	SLOT_DURATION,
+	impls::DealWithFees, opaque, AccountId, AssetIdForTrustBackedAssets as AssetId, AuraId,
+	Balance, BlockNumber, Hash, Header, Index, Signature, AVERAGE_ON_INITIALIZE_RATIO, DAYS, HOURS,
+	MAXIMUM_BLOCK_WEIGHT, MINUTES, NORMAL_DISPATCH_RATIO, SLOT_DURATION,
 };
 // Polkadot imports
 use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
-use sp_runtime::{
-	ApplyExtrinsicResult, create_runtime_str, generic,
-	impl_opaque_keys,
-	Perquintill,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, OpaqueKeys}, transaction_validity::{TransactionSource, TransactionValidity},
-};
-pub use sp_runtime::{MultiAddress, Perbill, Permill};
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
+use sp_runtime::{
+	create_runtime_str, generic, impl_opaque_keys,
+	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, OpaqueKeys},
+	transaction_validity::{TransactionSource, TransactionValidity},
+	ApplyExtrinsicResult, Perquintill,
+};
+pub use sp_runtime::{MultiAddress, Perbill, Permill};
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -62,16 +61,16 @@ use sp_version::RuntimeVersion;
 use xcm_executor::XcmExecutor;
 
 use polimec_traits::{MemberRole, PolimecMembers};
+use runtime_common::constants::staking::*;
 pub use runtime_common::{
 	constants::{
-		BLOCKS_PER_YEAR, EXISTENTIAL_DEPOSIT, governance::*,
-		InflationInfo, MAX_COLLATOR_STAKE, MICRO_PLMC, PLMC,
-		polimec_inflation_config, preimage::PreimageBaseDeposit, treasury::INITIAL_PERIOD_LENGTH,
+		governance::*, polimec_inflation_config, preimage::PreimageBaseDeposit,
+		treasury::INITIAL_PERIOD_LENGTH, InflationInfo, BLOCKS_PER_YEAR, EXISTENTIAL_DEPOSIT,
+		MAX_COLLATOR_STAKE, MICRO_PLMC, PLMC,
 	},
 	fees::WeightToFee,
 	RuntimeBlockLength, RuntimeBlockWeights,
 };
-use runtime_common::constants::staking::*;
 use weights::RocksDbWeight;
 use xcm_config::XcmConfig;
 

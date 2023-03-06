@@ -26,28 +26,31 @@ use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime,
 	dispatch::DispatchClass,
-	PalletId,
 	parameter_types,
 	traits::{ConstU32, ConstU64, Everything},
 	weights::{ConstantMultiplier, Weight},
+	PalletId,
 };
-use frame_system::{EnsureRoot, limits::{BlockLength, BlockWeights}};
+use frame_system::{
+	limits::{BlockLength, BlockWeights},
+	EnsureRoot,
+};
 use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
 use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+#[cfg(any(feature = "std", test))]
+pub use sp_runtime::BuildStorage;
 use sp_runtime::{
-	ApplyExtrinsicResult, create_runtime_str, generic,
-	impl_opaque_keys,
-	MultiSignature,
+	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
 		AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, IdentifyAccount, OpaqueKeys,
 		Verify,
-	}, transaction_validity::{TransactionSource, TransactionValidity},
+	},
+	transaction_validity::{TransactionSource, TransactionValidity},
+	ApplyExtrinsicResult, MultiSignature,
 };
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
-#[cfg(any(feature = "std", test))]
-pub use sp_runtime::BuildStorage;
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -56,11 +59,11 @@ use sp_version::RuntimeVersion;
 use xcm::latest::prelude::BodyId;
 use xcm_executor::XcmExecutor;
 
+pub use runtime_common::constants::*;
 use runtime_common::{
 	fees::{ToAuthor, WeightToFee},
 	FeeSplit,
 };
-pub use runtime_common::constants::*;
 use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
 
@@ -138,8 +141,8 @@ pub type Executive = frame_executive::Executive<
 /// of data like extrinsics, allowing for them to continue syncing the network through upgrades
 /// to even the core data structures.
 pub mod opaque {
-	use sp_runtime::{generic, traits::BlakeTwo256};
 	pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
+	use sp_runtime::{generic, traits::BlakeTwo256};
 
 	use super::*;
 

@@ -21,7 +21,7 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
-use sp_runtime::{Perquintill, RuntimeDebug, traits::Saturating};
+use sp_runtime::{traits::Saturating, Perquintill, RuntimeDebug};
 
 use crate::{pallet::Config, types::BalanceOf};
 
@@ -157,7 +157,7 @@ impl InflationInfo {
 mod tests {
 	use sp_runtime::Perbill;
 
-	use crate::mock::{almost_equal, DECIMALS, ExtBuilder, MAX_COLLATOR_STAKE, Test};
+    use crate::mock::{almost_equal, ExtBuilder, Test, DECIMALS, MAX_COLLATOR_STAKE};
 
 	use super::*;
 

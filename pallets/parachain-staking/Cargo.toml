@@ -1,18 +1,9 @@
 [package]
-uthors = ["KILT <info@kilt.io>"]
+Authors = ["KILT <info@kilt.io>"]
 description = "Parachain parachain-staking pallet for collator delegation and selection as well as reward distribution"
 edition = "2021"
-authors.workspace = true
-documentation.workspace = true
-edition.workspace = true
-homepage.workspace = true
-license-file.workspace = true
-readme.workspace = true
-repository.workspace = true
-version.workspace = true
 name = "parachain-staking"
 version = "1.9.0-dev"
-description = "Parachain parachain-staking pallet for collator delegation and selection as well as reward distribution"
 
 [dev-dependencies]
 pallet-aura = {workspace = true, features = ["std"]}

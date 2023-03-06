@@ -18,13 +18,13 @@
 
 use frame_support::traits::Currency;
 use sp_runtime::{
-	Perquintill,
 	traits::{Saturating, Zero},
+	Perquintill,
 };
 
 use crate::{
-	BlocksAuthored, BlocksRewarded, CandidatePool, Config, DelegatorState, InflationConfig,
-	Pallet, Rewards, TotalCollatorStake, types::BalanceOf,
+	types::BalanceOf, BlocksAuthored, BlocksRewarded, CandidatePool, Config, DelegatorState,
+	InflationConfig, Pallet, Rewards, TotalCollatorStake,
 };
 
 impl<T: Config> Pallet<T> {

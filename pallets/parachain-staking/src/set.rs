@@ -17,20 +17,20 @@
 // If you feel like getting in touch with us, you can do so at info@botlabs.org
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::{BoundedVec, DefaultNoBound, RuntimeDebug, traits::Get};
+use frame_support::{traits::Get, BoundedVec, DefaultNoBound, RuntimeDebug};
 use scale_info::TypeInfo;
-use sp_runtime::{SaturatedConversion, traits::Zero};
-use sp_std::{
-	cmp::Ordering,
-	convert::TryInto,
-	ops::{Index, Range, RangeFull},
-};
+use sp_runtime::{traits::Zero, SaturatedConversion};
 #[cfg(feature = "std")]
 use sp_std::prelude::*;
+use sp_std::{
+    cmp::Ordering,
+    convert::TryInto,
+    ops::{Index, Range, RangeFull},
+};
 
 /// An ordered set backed by `BoundedVec`.
 #[derive(
-	PartialEq, Eq, Encode, Decode, DefaultNoBound, Clone, TypeInfo, MaxEncodedLen, RuntimeDebug,
+PartialEq, Eq, Encode, Decode, DefaultNoBound, Clone, TypeInfo, MaxEncodedLen, RuntimeDebug,
 )]
 #[scale_info(skip_type_params(S))]
 #[codec(mel_bound(T: MaxEncodedLen))]
