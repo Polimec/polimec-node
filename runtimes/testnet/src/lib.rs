@@ -37,7 +37,7 @@ use frame_support::{
 use frame_system::{EnsureRoot, EnsureSigned};
 pub use parachains_common::{
 	AccountId,
-	AssetIdForTrustBackedAssets, AuraId, AVERAGE_ON_INITIALIZE_RATIO, Balance, BlockNumber, DAYS, Hash, Header, HOURS, impls::{AssetsToBlockAuthor, DealWithFees},
+	AssetIdForTrustBackedAssets as AssetId, AuraId, AVERAGE_ON_INITIALIZE_RATIO, Balance, BlockNumber, DAYS, Hash, Header, HOURS, impls::DealWithFees,
 	Index, MAXIMUM_BLOCK_WEIGHT, MINUTES, NORMAL_DISPATCH_RATIO, opaque, Signature,
 	SLOT_DURATION,
 };
@@ -327,7 +327,7 @@ impl pallet_asset_tx_payment::Config for Runtime {
 	type Fungibles = Assets;
 	type OnChargeAssetTransaction = pallet_asset_tx_payment::FungiblesAdapter<
 		pallet_assets::BalanceToAssetBalance<Balances, Runtime, ConvertInto>,
-		AssetsToBlockAuthor<Runtime>,
+		xcm_config::AssetsToBlockAuthor<Runtime>,
 	>;
 }
 
