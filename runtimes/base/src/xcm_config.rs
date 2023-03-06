@@ -50,7 +50,7 @@ use xcm_builder::{
 use xcm_executor::{traits::JustTry, XcmExecutor};
 
 use super::{
-	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Assets, Balance, Balances,
+	AccountId, AllPalletsWithSystem, Balance, Balances,
 	ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
 	WeightToFee, XcmpQueue,
 };
@@ -88,30 +88,30 @@ pub type CurrencyTransactor = CurrencyAdapter<
 	(),
 >;
 
-/// Means for transacting assets besides the native currency on this chain.
-pub type FungiblesTransactor = FungiblesAdapter<
-	// Use this fungibles implementation:
-	Assets,
-	// Use this currency when it is a fungible asset matching the given location or name:
-	ConvertedConcreteId<
-		AssetIdPalletAssets,
-		Balance,
-		AsPrefixedGeneralIndex<CommonGoodAssetsPalletLocation, AssetIdPalletAssets, JustTry>,
-		JustTry,
-	>,
-	// Convert an XCM MultiLocation into a local account id:
-	LocationToAccountId,
-	// Our chain's account ID type (we can't get away without mentioning it explicitly):
-	AccountId,
-	// We only want to allow teleports of known assets. We use non-zero issuance as an indication
-	// that this asset is known.
-	LocalMint<NonZeroIssuance<AccountId, Assets>>,
-	// The account to use for tracking teleports.
-	CheckingAccount,
->;
+// /// Means for transacting assets besides the native currency on this chain.
+// pub type FungiblesTransactor = FungiblesAdapter<
+// 	// Use this fungibles implementation:
+// 	Assets,
+// 	// Use this currency when it is a fungible asset matching the given location or name:
+// 	ConvertedConcreteId<
+// 		AssetIdPalletAssets,
+// 		Balance,
+// 		AsPrefixedGeneralIndex<CommonGoodAssetsPalletLocation, AssetIdPalletAssets, JustTry>,
+// 		JustTry,
+// 	>,
+// 	// Convert an XCM MultiLocation into a local account id:
+// 	LocationToAccountId,
+// 	// Our chain's account ID type (we can't get away without mentioning it explicitly):
+// 	AccountId,
+// 	// We only want to allow teleports of known assets. We use non-zero issuance as an indication
+// 	// that this asset is known.
+// 	LocalMint<NonZeroIssuance<AccountId, Assets>>,
+// 	// The account to use for tracking teleports.
+// 	CheckingAccount,
+// >;
 
 /// Means for transacting assets on this chain.
-pub type AssetTransactors = (CurrencyTransactor, FungiblesTransactor);
+pub type AssetTransactors = (CurrencyTransactor);
 
 /// This is the type we use to convert an (incoming) XCM origin into a local `Origin` instance,
 /// ready for dispatching a transaction with Xcm's `Transact`. There is an `OriginKind` which can
@@ -285,7 +285,7 @@ impl xcm_executor::Config for XcmConfig {
 	type Barrier = Barrier;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
 	type Trader =
-	UsingComponents<WeightToFee, RelayLocation, AccountId, Balances, ToAuthor<Runtime>>;
+	UsingComponents<WeightToFee<Runtime>, RelayLocation, AccountId, Balances, ToAuthor<Runtime>>;
 	type ResponseHandler = PolkadotXcm;
 	type AssetTrap = PolkadotXcm;
 	type AssetClaims = PolkadotXcm;
