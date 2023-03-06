@@ -40,17 +40,17 @@ use sp_runtime::traits::Zero;
 use xcm::latest::prelude::*;
 use xcm_builder::{
 	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses,
-	AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom, AsPrefixedGeneralIndex,
-	ConvertedConcreteId, CurrencyAdapter, EnsureXcmOrigin, FixedWeightBounds, FungiblesAdapter,
-	IsConcrete, LocalMint, NativeAsset, ParentIsPreset, RelayChainAsNative,
+	AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
+	CurrencyAdapter, EnsureXcmOrigin, FixedWeightBounds,
+	IsConcrete, NativeAsset, ParentIsPreset, RelayChainAsNative,
 	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
 	SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, UsingComponents,
 	WithComputedOrigin,
 };
-use xcm_executor::{traits::JustTry, XcmExecutor};
+use xcm_executor::{XcmExecutor};
 
 use super::{
-	AccountId, AllPalletsWithSystem, Balance, Balances,
+	AccountId, AllPalletsWithSystem, Balances,
 	ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
 	WeightToFee, XcmpQueue,
 };
@@ -111,7 +111,7 @@ pub type CurrencyTransactor = CurrencyAdapter<
 // >;
 
 /// Means for transacting assets on this chain.
-pub type AssetTransactors = (CurrencyTransactor);
+pub type AssetTransactors = CurrencyTransactor;
 
 /// This is the type we use to convert an (incoming) XCM origin into a local `Origin` instance,
 /// ready for dispatching a transaction with Xcm's `Transact`. There is an `OriginKind` which can

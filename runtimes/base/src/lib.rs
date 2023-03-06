@@ -31,9 +31,7 @@ use frame_support::{
 	traits::{ConstU32, ConstU64, Everything},
 	weights::{ConstantMultiplier, Weight},
 };
-use frame_support::traits::AsEnsureOriginWithArg;
-use frame_system::{EnsureRoot, EnsureSigned, limits::{BlockLength, BlockWeights}};
-// Polkadot imports
+use frame_system::{EnsureRoot, limits::{BlockLength, BlockWeights}};
 use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
 use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
