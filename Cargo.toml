@@ -71,7 +71,7 @@ smallvec = "1.10.0"
 log = "0.4.17"
 
 # Emulations
-xcm-emulator = { git = "https://github.com/shaunxw/xcm-simulator", default-feautres = false, ref = "754f3b90ecc65af735a6c9a2e1792c5253926ff6" }
+xcm-emulator = { git = "https://github.com/shaunxw/xcm-simulator", default-features = false, ref = "754f3b90ecc65af735a6c9a2e1792c5253926ff6" }
 
 # Substrate (with default disabled)
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.38" }

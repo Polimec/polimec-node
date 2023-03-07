@@ -5,9 +5,34 @@ use sp_runtime::traits::AccountIdConversion;
 use xcm_emulator::{decl_test_network, decl_test_parachain, decl_test_relay_chain, polkadot_primitives};
 use polimec_parachain_runtime as polimec_runtime;
 
-const POLIMEC_ID: ParaId = ParaId(1);
-const STATEMINT_ID: ParaId = ParaId(2);
-const PENPAL_ID: ParaId = ParaId(3);
+const POLIMEC_ID: u32 = 1;
+const STATEMINT_ID: u32 = 2;
+const PENPAL_ID: u32 = 3;
+
+struct Parachains;
+
+impl Parachains {
+	fn polimec_id() -> ParaId {
+		ParaId::new(POLIMEC_ID)
+	}
+	fn polimec_account() -> AccountId32 {
+		Self::polimec_id().into_account_truncating()
+	}
+
+	fn statemint_id() -> ParaId {
+		ParaId::new(STATEMINT_ID)
+	}
+	fn statemint_account() -> AccountId32 {
+		Self::statemint_id().into_account_truncating()
+	}
+
+	fn penpal_id() -> ParaId {
+		ParaId::new(PENPAL_ID)
+	}
+	fn penpal_account() -> AccountId32 {
+		Self::penpal_id().into_account_truncating()
+	}
+}
 
 decl_test_relay_chain! {
 	pub struct PolkadotNet {
@@ -50,10 +75,11 @@ decl_test_parachain! {
 decl_test_network! {
 	pub struct Network {
 		relay_chain = PolkadotNet,
+		// ensure this reflects the ones defined in the const ids
 		parachains = vec![
-			(PARA_IDS.polimec, PolimecNet),
-			(PARA_IDS.statemint, StatemintNet),
-			(PARA_IDS.penpal, PenpalNet),
+			(1, PolimecNet),
+			(2, StatemintNet),
+			(3, PenpalNet),
 		],
 	}
 }
@@ -111,7 +137,7 @@ pub fn polkadot_ext() -> sp_io::TestExternalities {
 	pallet_balances::GenesisConfig::<Runtime> {
 		balances: vec![
 			(ALICE, INITIAL_BALANCE),
-			(PolimecNet),
+			(Parachains::polimec_account(), INITIAL_BALANCE),
 		],
 	}
 		.assimilate_storage(&mut t)
@@ -203,43 +229,68 @@ pub fn penpal_ext(para_id: u32) -> sp_io::TestExternalities {
 	ext
 }
 
+/// Shortcuts to reduce boilerplate on runtime types
+pub mod shortcuts {
+	use super::*;
+
+	pub type PolkadotRuntime = polkadot_runtime::Runtime;
+	pub type PolimecRuntime = polimec_runtime::Runtime;
+	pub type StatemintRuntime = statemint_runtime::Runtime;
+	pub type PenpalRuntime = penpal_runtime::Runtime;
+
+	pub type PolkadotXcmPallet = polkadot_runtime::XcmPallet;
+	pub type PolimecXcmPallet = polimec_runtime::PolkadotXcm;
+	pub type StatemintXcmPallet = statemint_runtime::PolkadotXcm;
+	pub type PenpalXcmPallet = penpal_runtime::PolkadotXcm;
+
+	pub type PolkadotBalances = pallet_balances::Pallet<PolkadotRuntime>;
+	pub type PolimecBalances = pallet_balances::Pallet<PolimecRuntime>;
+	pub type StatemintBalances = pallet_balances::Pallet<StatemintRuntime>;
+	pub type PenpalBalances = pallet_balances::Pallet<PenpalRuntime>;
+
+	pub type PolkadotOrigin = polkadot_runtime::RuntimeOrigin;
+	pub type PolimecOrigin = polimec_runtime::RuntimeOrigin;
+	pub type StatemintOrigin = statemint_runtime::RuntimeOrigin;
+	pub type PenpalOrigin = penpal_runtime::RuntimeOrigin;
+
+	pub type PolkadotCall = polkadot_runtime::RuntimeCall;
+	pub type PolimecCall = polimec_runtime::RuntimeCall;
+	pub type StatemintCall = statemint_runtime::RuntimeCall;
+	pub type PenpalCall = penpal_runtime::RuntimeCall;
+
+	pub type PolkadotAccountId = polkadot_primitives::AccountId;
+	pub type PolimecAccountId = polkadot_primitives::AccountId;
+	pub type StatemintAccountId = polkadot_primitives::AccountId;
+	pub type PenpalAccountId = polkadot_primitives::AccountId;
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use codec::Encode;
+	use shortcuts::*;
 
+	use codec::Encode;
 	use cumulus_primitives_core::ParaId;
 	use frame_support::{assert_ok, traits::Currency};
 	use sp_runtime::traits::AccountIdConversion;
 	use xcm::{v3::prelude::*, VersionedMultiLocation, VersionedXcm};
 	use xcm_emulator::TestExt;
 
-	type PolkadotRuntime = polkadot_runtime::Runtime;
-	type PolimecRuntime = polimec_runtime::Runtime;
-	type StatemintRuntime = statemint_runtime::Runtime;
-	type PenpalRuntime = penpal_runtime::Runtime;
-
-	type PolkadotXcmPallet = polkadot_runtime::XcmPallet;
-	type PolimecXcmPallet = polimec_runtime::PolkadotXcm;
-	type StatemintXcmPallet = statemint_runtime::PolkadotXcm;
-	type PenpalXcmPallet = penpal_runtime::PolkadotXcm;
-
-
 	#[test]
 	fn dmp() {
 		Network::reset();
 
-		let remark = polimec_runtime::RuntimeCall::System(frame_system::Call::<PolimecRuntime>::remark_with_event {
+		let remark = PolimecCall::System(frame_system::Call::<PolimecRuntime>::remark_with_event {
 			remark: "Hello from Polkadot!".as_bytes().to_vec(),
 		});
 		PolkadotNet::execute_with(|| {
 			assert_ok!(PolkadotXcmPallet::force_default_xcm_version(
-				polkadot_runtime::RuntimeOrigin::root(),
+				PolkadotOrigin::root(),
 				Some(3)
 			));
 			assert_ok!(PolkadotXcmPallet::send_xcm(
 				Here,
-				Parachain(1),
+				Parachain(POLIMEC_ID),
 				Xcm(vec![Transact {
 					origin_kind: OriginKind::SovereignAccount,
 					require_weight_at_most: Weight::from_parts(INITIAL_BALANCE as u64, 1024 * 1024),
@@ -266,22 +317,23 @@ mod tests {
 
 		PolkadotNet::execute_with(|| {
 			assert_ok!(PolkadotXcmPallet::force_default_xcm_version(
-				polkadot_runtime::RuntimeOrigin::root(),
+				PolkadotOrigin::root(),
 				Some(3)
 			));
-			let _ = polkadot_runtime::Balances::deposit_creating(
-				&ParaId::from(1).into_account_truncating(),
+			let _ = PolkadotBalances::deposit_creating(
+				&Parachains::polimec_account(),
 				1_000_000_000_000,
 			);
 		});
 
 		let remark =
-			polkadot_runtime::RuntimeCall::System(frame_system::Call::<polkadot_runtime::Runtime>::remark_with_event {
+			PolkadotCall::System(frame_system::Call::<PolkadotRuntime>::remark_with_event {
 				remark: "Hello from Polimec!".as_bytes().to_vec(),
 			});
+
 		PolimecNet::execute_with(|| {
 			assert_ok!(PolimecXcmPallet::force_default_xcm_version(
-				polimec_runtime::RuntimeOrigin::root(),
+				PolimecOrigin::root(),
 				Some(3)
 			));
 			assert_ok!(PolimecXcmPallet::send_xcm(
@@ -303,16 +355,15 @@ mod tests {
 
 		PolkadotNet::execute_with(|| {
 			use polkadot_runtime::{RuntimeEvent, System};
-			// TODO: https://github.com/paritytech/polkadot/pull/6824
-			// assert!(System::events().iter().any(|r| matches!(
-			// 	r.event,
-			// 	RuntimeEvent::System(frame_system::Event::Remarked { sender: _, hash: _ })
-			// )));
-			assert!(System::events().iter().any(|r| matches!(
+
+			let events = System::events();
+			events.iter().for_each(|r| println!(">>> {:?}", r.event));
+
+			assert!(events.iter().any(|r| matches!(
 				r.event,
 				RuntimeEvent::Ump(polkadot_runtime_parachains::ump::Event::ExecutedUpward(
 					_,
-					Outcome::Incomplete(_, XcmError::NoPermission)
+					Outcome::Error(XcmError::Barrier)
 				))
 			)));
 		});
