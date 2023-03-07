@@ -1,13 +1,20 @@
 [package]
-name = "xcm-simulator-example"
-version = "0.1.0"
-authors = ["Parity Technologies <admin@parity.io>"]
-description = "Examples of xcm-simulator usage."
-edition = "2021"
+name = "integration-tests"
+authors.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+readme.workspace = true
+repository.workspace = true
+version.workspace = true
+
+[build-dependencies]
+substrate-wasm-builder.workspace = true
 
 [dependencies]
 codec = { package = "parity-scale-codec", workspace = true, features = [
-	"derive",
+    "derive",
 ] }
 scale-info = { workspace = true, features = ["derive"] }
 
@@ -28,16 +35,43 @@ polkadot-core-primitives.workspace = true
 polkadot-runtime-parachains.workspace = true
 polkadot-parachain.workspace = true
 
+cumulus-primitives-core.workspace = true
 
 parachain-info.workspace = true
 
 # Runtimes
-polkadot-runtime = true
+polkadot-runtime.workspace = true
 statemint-runtime.workspace = true
 polimec-parachain-runtime.workspace = true
 penpal-runtime.workspace = true
 
+
 [features]
+default = ["std"]
+
+std = [
+    "frame-system/std",
+    "frame-support/std",
+    "pallet-balances/std",
+    "sp-std/std",
+    "sp-core/std",
+    "sp-runtime/std",
+    "sp-runtime/std",
+    "sp-io/std",
+    "xcm/std",
+    "xcm-builder/std",
+    "xcm-executor/std",
+    "pallet-xcm/std",
+    "polkadot-core-primitives/std",
+    "polkadot-runtime-parachains/std",
+    "polkadot-parachain/std",
+    "parachain-info/std",
+    "polkadot-runtime/std",
+    "statemint-runtime/std",
+    "polimec-parachain-runtime/std",
+    "penpal-runtime/std"
+]
+
 runtime-benchmarks = [
-	"statemint-runtime/runtime-benchmarks",
+    "statemint-runtime/runtime-benchmarks",
 ]

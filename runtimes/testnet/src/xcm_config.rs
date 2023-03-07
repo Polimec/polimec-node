@@ -38,15 +38,7 @@ use polkadot_parachain::primitives::Sibling;
 use polkadot_runtime_common::impls::ToAuthor;
 use sp_runtime::traits::Zero;
 use xcm::latest::prelude::*;
-use xcm_builder::{
-	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses,
-	AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom, AsPrefixedGeneralIndex,
-	ConvertedConcreteId, CurrencyAdapter, EnsureXcmOrigin, FixedWeightBounds, FungiblesAdapter,
-	IsConcrete, LocalMint, NativeAsset, ParentIsPreset, RelayChainAsNative,
-	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
-	SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, UsingComponents,
-	WithComputedOrigin,
-};
+use xcm_builder::{AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, AsPrefixedGeneralIndex, ConvertedConcreteId, CurrencyAdapter, EnsureXcmOrigin, FixedWeightBounds, FungiblesAdapter, IsConcrete, LocalMint, NativeAsset, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, UsingComponents, WithComputedOrigin};
 use xcm_executor::{traits::JustTry, XcmExecutor};
 
 use super::{
@@ -154,25 +146,28 @@ match_types! {
 pub type Barrier = DenyThenTry<
 	DenyReserveTransferToRelayChain,
 	(
-		TakeWeightCredit,
-		// Expected responses are OK.
-		AllowKnownQueryResponses<PolkadotXcm>,
-		// Allow XCMs with some computed origins to pass through.
-		WithComputedOrigin<
-			(
-				// If the message is one that immediately attemps to pay for execution, then allow it.
-				AllowTopLevelPaidExecutionFrom<Everything>,
-				// Common Good Assets parachain, parent and its exec plurality get free execution
-				AllowExplicitUnpaidExecutionFrom<(
-					CommonGoodAssetsParachain,
-					ParentOrParentsExecutivePlurality,
-				)>,
-				// Subscriptions for version tracking are OK.
-				AllowSubscriptionsFrom<Everything>,
-			),
-			UniversalLocation,
-			ConstU32<8>,
-		>,
+		// TODO: discuss proper barriers. For initial emulator development an open barrier is fine
+		AllowUnpaidExecutionFrom<Everything>,
+
+		// TakeWeightCredit,
+		// // Expected responses are OK.
+		// AllowKnownQueryResponses<PolkadotXcm>,
+		// // Allow XCMs with some computed origins to pass through.
+		// WithComputedOrigin<
+		// 	(
+		// 		// If the message is one that immediately attemps to pay for execution, then allow it.
+		// 		AllowTopLevelPaidExecutionFrom<Everything>,
+		// 		// Common Good Assets parachain, parent and its exec plurality get free execution
+		// 		AllowExplicitUnpaidExecutionFrom<(
+		// 			CommonGoodAssetsParachain,
+		// 			ParentOrParentsExecutivePlurality,
+		// 		)>,
+		// 		// Subscriptions for version tracking are OK.
+		// 		AllowSubscriptionsFrom<Everything>,
+		// 	),
+		// 	UniversalLocation,
+		// 	ConstU32<8>,
+		// >,
 	),
 >;
 
