@@ -20,7 +20,7 @@ sp-runtime.workspace = true
 sp-io.workspace = true
 
 xcm.workspace = true
-xcm-simulator.workspace = true
+xcm-emulator.workspace = true
 xcm-executor.workspace = true
 xcm-builder.workspace = true
 pallet-xcm.workspace = true
@@ -28,11 +28,14 @@ polkadot-core-primitives.workspace = true
 polkadot-runtime-parachains.workspace = true
 polkadot-parachain.workspace = true
 
-parachain-info.workspace = true
-statemint-runtime.workspace = true
 
-# Local
+parachain-info.workspace = true
+
+# Runtimes
+polkadot-runtime = true
+statemint-runtime.workspace = true
 polimec-parachain-runtime.workspace = true
+penpal-runtime.workspace = true
 
 [features]
 runtime-benchmarks = [

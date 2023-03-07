@@ -38,8 +38,6 @@ frame-system-rpc-runtime-api.workspace = true
 frame-try-runtime = { workspace = true, optional = true }
 pallet-aura.workspace = true
 pallet-authorship.workspace = true
-pallet-asset-tx-payment.workspace = true
-pallet-assets.workspace = true
 pallet-balances.workspace = true
 pallet-session.workspace = true
 pallet-treasury.workspace = true
