@@ -192,5 +192,6 @@ fn base_testnet_genesis(
 		treasury: Default::default(),
 		polkadot_xcm: PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION) },
 		sudo: SudoConfig { key: Some(accounts.first().expect("").to_owned()) },
+		transaction_payment: Default::default(),
 	}
 }

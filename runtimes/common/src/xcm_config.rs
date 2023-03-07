@@ -15,12 +15,13 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use core::marker::PhantomData;
+
 use frame_support::{log, match_types, parameter_types};
 use polkadot_parachain::primitives::Sibling;
-use xcm::latest::prelude::*;
+use xcm::{latest::prelude::*, v3::Weight};
 use xcm_builder::{
-	AccountId32Aliases, AllowUnpaidExecutionFrom, CurrencyAdapter, IsConcrete, ParentIsPreset,
-	SiblingParachainConvertsVia,
+    AccountId32Aliases, AllowUnpaidExecutionFrom, CurrencyAdapter, IsConcrete, ParentIsPreset,
+    SiblingParachainConvertsVia,
 };
 use xcm_executor::traits::ShouldExecute;
 
@@ -52,9 +53,9 @@ where
 {
 	fn should_execute<Call>(
 		origin: &MultiLocation,
-		message: &mut Xcm<Call>,
-		max_weight: u64,
-		weight_credit: &mut u64,
+		message: &mut [Instruction<Call>],
+		max_weight: Weight,
+		weight_credit: &mut Weight,
 	) -> Result<(), ()> {
 		Deny::should_execute(origin, message, max_weight, weight_credit)?;
 		Allow::should_execute(origin, message, max_weight, weight_credit)
@@ -82,11 +83,11 @@ pub struct DenyReserveTransferToRelayChain;
 impl ShouldExecute for DenyReserveTransferToRelayChain {
 	fn should_execute<Call>(
 		origin: &MultiLocation,
-		message: &mut Xcm<Call>,
-		_max_weight: u64,
-		_weight_credit: &mut u64,
+		message: &mut [Instruction<Call>],
+		_max_weight: Weight,
+		_weight_credit: &mut Weight,
 	) -> Result<(), ()> {
-		if message.0.iter().any(|inst| {
+		if message.iter().any(|inst| {
 			matches!(
 				inst,
 				InitiateReserveWithdraw {
@@ -104,7 +105,7 @@ impl ShouldExecute for DenyReserveTransferToRelayChain {
 
 		// Allow reserve transfers to arrive from relay chain
 		if matches!(origin, MultiLocation { parents: 1, interior: Here }) &&
-			message.0.iter().any(|inst| matches!(inst, ReserveAssetDeposited { .. }))
+			message.iter().any(|inst| matches!(inst, ReserveAssetDeposited { .. }))
 		{
 			log::warn!(
 				target: "xcm::barriers",

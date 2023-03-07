@@ -18,7 +18,6 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 //! Benchmarking
-use crate::{types::RoundInfo, *};
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite, Zero};
 use frame_support::{
 	assert_ok,
@@ -27,10 +26,12 @@ use frame_support::{
 use frame_system::{Pallet as System, RawOrigin};
 use pallet_session::Pallet as Session;
 use sp_runtime::{
-	traits::{One, SaturatedConversion, StaticLookup},
-	Perquintill,
+    traits::{One, SaturatedConversion, StaticLookup},
+    Perquintill,
 };
 use sp_std::{convert::TryInto, vec::Vec};
+
+use crate::{types::RoundInfo, *};
 
 const COLLATOR_ACCOUNT_SEED: u32 = 0;
 const DELEGATOR_ACCOUNT_SEED: u32 = 1;

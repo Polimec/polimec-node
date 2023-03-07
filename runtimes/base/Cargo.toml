@@ -76,12 +76,15 @@ cumulus-primitives-core.workspace = true
 cumulus-primitives-timestamp.workspace = true
 cumulus-primitives-utility.workspace = true
 parachain-info.workspace = true
+parachains-common.workspace = true
+polkadot-primitives.workspace = true
 
 
 [features]
 default = ["std"]
 fast-gov = ["runtime-common/fast-gov"]
 std = [
+	"polkadot-primitives/std",
 	"frame-benchmarking?/std",
 	"codec/std",
 	"log/std",

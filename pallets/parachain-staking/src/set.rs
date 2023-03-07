@@ -20,18 +20,17 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{traits::Get, BoundedVec, DefaultNoBound, RuntimeDebug};
 use scale_info::TypeInfo;
 use sp_runtime::{traits::Zero, SaturatedConversion};
-use sp_std::{
-	cmp::Ordering,
-	convert::TryInto,
-	ops::{Index, Range, RangeFull},
-};
-
 #[cfg(feature = "std")]
 use sp_std::prelude::*;
+use sp_std::{
+    cmp::Ordering,
+    convert::TryInto,
+    ops::{Index, Range, RangeFull},
+};
 
 /// An ordered set backed by `BoundedVec`.
 #[derive(
-	PartialEq, Eq, Encode, Decode, DefaultNoBound, Clone, TypeInfo, MaxEncodedLen, RuntimeDebug,
+PartialEq, Eq, Encode, Decode, DefaultNoBound, Clone, TypeInfo, MaxEncodedLen, RuntimeDebug,
 )]
 #[scale_info(skip_type_params(S))]
 #[codec(mel_bound(T: MaxEncodedLen))]
@@ -279,9 +278,10 @@ impl<T: Ord + Clone, S: Get<u32>> From<OrderedSet<T, S>> for BoundedVec<T, S> {
 
 #[cfg(test)]
 mod tests {
-	use crate::{mock::Test, types::StakeOf};
 	use frame_support::parameter_types;
 	use sp_runtime::RuntimeDebug;
+
+	use crate::{mock::Test, types::StakeOf};
 
 	use super::*;
 
