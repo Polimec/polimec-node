@@ -272,6 +272,7 @@ mod tests {
 	use codec::Encode;
 	use cumulus_primitives_core::ParaId;
 	use frame_support::{assert_ok, traits::Currency};
+	use pallet_xcm::pallet;
 	use sp_runtime::traits::AccountIdConversion;
 	use xcm::{v3::prelude::*, VersionedMultiLocation, VersionedXcm};
 	use xcm_emulator::TestExt;
@@ -326,9 +327,10 @@ mod tests {
 			);
 		});
 
-		let remark =
-			PolkadotCall::System(frame_system::Call::<PolkadotRuntime>::remark_with_event {
-				remark: "Hello from Polimec!".as_bytes().to_vec(),
+		let burn_transfer =
+			PolkadotCall::Balances(pallet_balances::Call::<PolkadotRuntime>::transfer {
+				dest: PolkadotAccountId::from([0u8; 32]).into(),
+				value: 1_000,
 			});
 
 		PolimecNet::execute_with(|| {
@@ -336,18 +338,24 @@ mod tests {
 				PolimecOrigin::root(),
 				Some(3)
 			));
+
+			let parent_asset: MultiAsset = (MultiLocation::here(), INITIAL_BALANCE / 2).into();
+
 			assert_ok!(PolimecXcmPallet::send_xcm(
 				Here,
 				Parent,
 				Xcm(vec![
-					UnpaidExecution {
+					WithdrawAsset (
+						vec![parent_asset.clone()].into()
+					),
+					BuyExecution {
+						fees: parent_asset,
 						weight_limit: Unlimited,
-						check_origin: None,
 					},
 					Transact {
 						origin_kind: OriginKind::SovereignAccount,
 						require_weight_at_most: Weight::from_parts(INITIAL_BALANCE as u64, 1024 * 1024),
-						call: remark.encode().into(),
+						call: burn_transfer.encode().into(),
 					}
 				]),
 			));
@@ -363,41 +371,41 @@ mod tests {
 				r.event,
 				RuntimeEvent::Ump(polkadot_runtime_parachains::ump::Event::ExecutedUpward(
 					_,
-					Outcome::Error(XcmError::Barrier)
+					Outcome::Complete(_),
 				))
 			)));
 		});
 	}
-//
-// 	#[test]
-// 	fn xcmp() {
-// 		Network::reset();
-//
-// 		let remark = yayoi::RuntimeCall::System(frame_system::Call::<yayoi::Runtime>::remark_with_event {
-// 			remark: "Hello from Pumpkin!".as_bytes().to_vec(),
-// 		});
-// 		YayoiPumpkin::execute_with(|| {
-// 			assert_ok!(yayoi::PolkadotXcm::send_xcm(
-// 				Here,
-// 				MultiLocation::new(1, X1(Parachain(2))),
-// 				Xcm(vec![Transact {
-// 					origin_kind: OriginKind::SovereignAccount,
-// 					require_weight_at_most: 20_000_000.into(),
-// 					call: remark.encode().into(),
-// 				}]),
-// 			));
-// 		});
-//
-// 		YayoiMushroom::execute_with(|| {
-// 			use yayoi::{RuntimeEvent, System};
-// 			System::events().iter().for_each(|r| println!(">>> {:?}", r.event));
-//
-// 			assert!(System::events().iter().any(|r| matches!(
-// 				r.event,
-// 				RuntimeEvent::System(frame_system::Event::Remarked { sender: _, hash: _ })
-// 			)));
-// 		});
-// 	}
+
+	// #[test]
+	// fn xcmp() {
+	// 	Network::reset();
+	//
+	// 	let remark = yayoi::RuntimeCall::System(frame_system::Call::<yayoi::Runtime>::remark_with_event {
+	// 		remark: "Hello from Pumpkin!".as_bytes().to_vec(),
+	// 	});
+	// 	YayoiPumpkin::execute_with(|| {
+	// 		assert_ok!(yayoi::PolkadotXcm::send_xcm(
+	// 			Here,
+	// 			MultiLocation::new(1, X1(Parachain(2))),
+	// 			Xcm(vec![Transact {
+	// 				origin_kind: OriginKind::SovereignAccount,
+	// 				require_weight_at_most: 20_000_000.into(),
+	// 				call: remark.encode().into(),
+	// 			}]),
+	// 		));
+	// 	});
+	//
+	// 	YayoiMushroom::execute_with(|| {
+	// 		use yayoi::{RuntimeEvent, System};
+	// 		System::events().iter().for_each(|r| println!(">>> {:?}", r.event));
+	//
+	// 		assert!(System::events().iter().any(|r| matches!(
+	// 			r.event,
+	// 			RuntimeEvent::System(frame_system::Event::Remarked { sender: _, hash: _ })
+	// 		)));
+	// 	});
+	// }
 //
 // 	#[test]
 // 	fn xcmp_through_a_parachain() {
