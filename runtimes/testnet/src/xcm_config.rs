@@ -146,28 +146,27 @@ match_types! {
 pub type Barrier = DenyThenTry<
 	DenyReserveTransferToRelayChain,
 	(
-		// TODO: discuss proper barriers. For initial emulator development an open barrier is fine
-		AllowUnpaidExecutionFrom<Everything>,
+		// AllowUnpaidExecutionFrom<Everything>,
 
-		// TakeWeightCredit,
-		// // Expected responses are OK.
-		// AllowKnownQueryResponses<PolkadotXcm>,
-		// // Allow XCMs with some computed origins to pass through.
-		// WithComputedOrigin<
-		// 	(
-		// 		// If the message is one that immediately attemps to pay for execution, then allow it.
-		// 		AllowTopLevelPaidExecutionFrom<Everything>,
-		// 		// Common Good Assets parachain, parent and its exec plurality get free execution
-		// 		AllowExplicitUnpaidExecutionFrom<(
-		// 			CommonGoodAssetsParachain,
-		// 			ParentOrParentsExecutivePlurality,
-		// 		)>,
-		// 		// Subscriptions for version tracking are OK.
-		// 		AllowSubscriptionsFrom<Everything>,
-		// 	),
-		// 	UniversalLocation,
-		// 	ConstU32<8>,
-		// >,
+		TakeWeightCredit,
+		// Expected responses are OK.
+		AllowKnownQueryResponses<PolkadotXcm>,
+		// Allow XCMs with some computed origins to pass through.
+		WithComputedOrigin<
+			(
+				// If the message is one that immediately attemps to pay for execution, then allow it.
+				AllowTopLevelPaidExecutionFrom<Everything>,
+				// Common Good Assets parachain, parent and its exec plurality get free execution
+				AllowExplicitUnpaidExecutionFrom<(
+					CommonGoodAssetsParachain,
+					ParentOrParentsExecutivePlurality,
+				)>,
+				// Subscriptions for version tracking are OK.
+				AllowSubscriptionsFrom<Everything>,
+			),
+			UniversalLocation,
+			ConstU32<8>,
+		>,
 	),
 >;
 

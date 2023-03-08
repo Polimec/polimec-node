@@ -4,6 +4,7 @@ use sp_runtime::AccountId32;
 use sp_runtime::traits::AccountIdConversion;
 use xcm_emulator::{decl_test_network, decl_test_parachain, decl_test_relay_chain, polkadot_primitives};
 use polimec_parachain_runtime as polimec_runtime;
+use crate::shortcuts::PolkadotOrigin;
 
 const POLIMEC_ID: u32 = 1;
 const STATEMINT_ID: u32 = 2;
@@ -169,7 +170,10 @@ pub fn polimec_ext(para_id: u32) -> sp_io::TestExternalities {
 		.unwrap();
 
 	pallet_balances::GenesisConfig::<Runtime> {
-		balances: vec![(ALICE, INITIAL_BALANCE)],
+		balances: vec![
+			(ALICE, INITIAL_BALANCE),
+
+		],
 	}
 		.assimilate_storage(&mut t)
 		.unwrap();
@@ -284,6 +288,8 @@ mod tests {
 		let remark = PolimecCall::System(frame_system::Call::<PolimecRuntime>::remark_with_event {
 			remark: "Hello from Polkadot!".as_bytes().to_vec(),
 		});
+		let here_asset: MultiAsset = (MultiLocation::here(), INITIAL_BALANCE / 2).into();
+
 		PolkadotNet::execute_with(|| {
 			assert_ok!(PolkadotXcmPallet::force_default_xcm_version(
 				PolkadotOrigin::root(),
@@ -292,7 +298,8 @@ mod tests {
 			assert_ok!(PolkadotXcmPallet::send_xcm(
 				Here,
 				Parachain(POLIMEC_ID),
-				Xcm(vec![Transact {
+				Xcm(vec![
+				Transact {
 					origin_kind: OriginKind::SovereignAccount,
 					require_weight_at_most: Weight::from_parts(INITIAL_BALANCE as u64, 1024 * 1024),
 					call: remark.encode().into(),
@@ -333,23 +340,24 @@ mod tests {
 				value: 1_000,
 			});
 
+		let here_asset: MultiAsset = (MultiLocation::here(), INITIAL_BALANCE / 2).into();
+
+
 		PolimecNet::execute_with(|| {
 			assert_ok!(PolimecXcmPallet::force_default_xcm_version(
 				PolimecOrigin::root(),
 				Some(3)
 			));
 
-			let parent_asset: MultiAsset = (MultiLocation::here(), INITIAL_BALANCE / 2).into();
-
 			assert_ok!(PolimecXcmPallet::send_xcm(
 				Here,
 				Parent,
 				Xcm(vec![
 					WithdrawAsset (
-						vec![parent_asset.clone()].into()
+						vec![here_asset.clone()].into()
 					),
 					BuyExecution {
-						fees: parent_asset,
+						fees: here_asset.clone(),
 						weight_limit: Unlimited,
 					},
 					Transact {
