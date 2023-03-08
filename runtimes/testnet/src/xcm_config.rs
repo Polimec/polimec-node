@@ -146,8 +146,6 @@ match_types! {
 pub type Barrier = DenyThenTry<
 	DenyReserveTransferToRelayChain,
 	(
-		// AllowUnpaidExecutionFrom<Everything>,
-
 		TakeWeightCredit,
 		// Expected responses are OK.
 		AllowKnownQueryResponses<PolkadotXcm>,

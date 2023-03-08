@@ -299,11 +299,16 @@ mod tests {
 				Here,
 				Parachain(POLIMEC_ID),
 				Xcm(vec![
-				Transact {
-					origin_kind: OriginKind::SovereignAccount,
-					require_weight_at_most: Weight::from_parts(INITIAL_BALANCE as u64, 1024 * 1024),
-					call: remark.encode().into(),
-				}]),
+					UnpaidExecution {
+						weight_limit: WeightLimit::Unlimited,
+						check_origin: None
+					},
+					Transact {
+						origin_kind: OriginKind::SovereignAccount,
+						require_weight_at_most: Weight::from_parts(INITIAL_BALANCE as u64, 1024 * 1024),
+						call: remark.encode().into(),
+					}
+				]),
 			));
 		});
 
