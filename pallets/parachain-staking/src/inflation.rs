@@ -157,7 +157,7 @@ impl InflationInfo {
 mod tests {
 	use sp_runtime::Perbill;
 
-    use crate::mock::{almost_equal, ExtBuilder, Test, DECIMALS, MAX_COLLATOR_STAKE};
+	use crate::mock::{almost_equal, ExtBuilder, Test, DECIMALS, MAX_COLLATOR_STAKE};
 
 	use super::*;
 

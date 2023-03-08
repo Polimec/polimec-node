@@ -26,8 +26,8 @@ use frame_support::{
 use frame_system::{Pallet as System, RawOrigin};
 use pallet_session::Pallet as Session;
 use sp_runtime::{
-    traits::{One, SaturatedConversion, StaticLookup},
-    Perquintill,
+	traits::{One, SaturatedConversion, StaticLookup},
+	Perquintill,
 };
 use sp_std::{convert::TryInto, vec::Vec};
 
