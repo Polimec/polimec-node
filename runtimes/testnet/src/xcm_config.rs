@@ -133,6 +133,8 @@ impl Convert<MultiLocation, AssetIdPalletAssets> for NativeToFungible {
 	}
 }
 
+// We need the matcher to return either `AssetNotFound` or `Unimplemented` so that the tuple impl of
+// TransactAsset will move on to the next struct.
 pub struct NonBlockingConvertedConcreteId<AssetId, Balance, ConvertAssetId, ConvertOther>(
 	PhantomData<(AssetId, Balance, ConvertAssetId, ConvertOther)>,
 );
