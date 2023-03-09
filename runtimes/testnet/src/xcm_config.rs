@@ -26,13 +26,13 @@ use core::marker::PhantomData;
 use frame_support::{match_types, parameter_types, traits::{
 	fungibles::{self, Balanced, CreditOf},
 	ConstU32, Contains, ContainsPair, Everything, Get, Nothing,
-}, tt_true, weights::Weight};
+}, weights::Weight};
 use pallet_asset_tx_payment::HandleCredit;
 use pallet_xcm::XcmPassthrough;
 use parachains_common::xcm_config::{DenyReserveTransferToRelayChain, DenyThenTry};
 use polkadot_parachain::primitives::Sibling;
 use polkadot_runtime_common::impls::ToAuthor;
-use sp_runtime::traits::Zero;
+use sp_runtime::traits::{Zero};
 use xcm::latest::prelude::*;
 use xcm_builder::{
 	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses,
@@ -44,6 +44,8 @@ use xcm_builder::{
 	UsingComponents, WithComputedOrigin,
 };
 use xcm_executor::{traits::JustTry, XcmExecutor};
+use xcm_executor::traits::{Convert, Error, MatchesFungibles};
+use crate::AssetsPalletId;
 
 use super::{
 	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Assets, Balance, Balances,
@@ -86,7 +88,7 @@ pub type CurrencyTransactor = CurrencyAdapter<
 >;
 
 /// Means for transacting assets besides the native currency on this chain.
-pub type FungiblesTransactor = FungiblesAdapter<
+pub type StatemintFungiblesTransactor = FungiblesAdapter<
 	// Use this fungibles implementation:
 	Assets,
 	// Use this currency when it is a fungible asset matching the given location or name:
@@ -107,8 +109,74 @@ pub type FungiblesTransactor = FungiblesAdapter<
 	CheckingAccount,
 >;
 
+// asset id "0" is reserved for relay chain native token in the pallet assets
+pub struct NativeToFungible;
+impl Convert<MultiLocation, AssetIdPalletAssets> for NativeToFungible {
+	fn convert(asset: MultiLocation) -> Result<AssetIdPalletAssets, MultiLocation> {
+		match asset {
+			MultiLocation {
+				parents: 1,
+				interior: Here
+			} => Ok(AssetIdPalletAssets::from(0u32)),
+			_ => Err(asset)
+		}
+	}
+	fn reverse(value: AssetIdPalletAssets) -> Result<MultiLocation, AssetIdPalletAssets> {
+		if value == AssetIdPalletAssets::from(0u32) {
+			Ok(MultiLocation {
+				parents: 1,
+				interior: Here
+			})
+		} else {
+			Err(value)
+		}
+	}
+}
+
+pub struct NonBlockingConvertedConcreteId<AssetId, Balance, ConvertAssetId, ConvertOther>(
+	PhantomData<(AssetId, Balance, ConvertAssetId, ConvertOther)>,
+);
+impl<
+	AssetId: Clone,
+	Balance: Clone,
+	ConvertAssetId: Convert<MultiLocation, AssetId>,
+	ConvertBalance: Convert<u128, Balance>,
+> MatchesFungibles<AssetId, Balance>
+for NonBlockingConvertedConcreteId<AssetId, Balance, ConvertAssetId, ConvertBalance>
+{
+	fn matches_fungibles(a: &MultiAsset) -> Result<(AssetId, Balance), Error> {
+		ConvertedConcreteId::<
+			AssetId,
+			Balance,
+			ConvertAssetId,
+			ConvertBalance,
+		>::matches_fungibles(a).map_err(|_| Error::AssetNotFound)
+	}
+}
+
+pub type StatemintDotTransactor = FungiblesAdapter<
+	// Use this fungibles implementation:
+	Assets,
+	// Use this currency when it is a fungible asset matching the given location or name:
+	NonBlockingConvertedConcreteId<
+		AssetIdPalletAssets,
+		Balance,
+		NativeToFungible,
+		JustTry,
+	>,
+	// Convert an XCM MultiLocation into a local account id:
+	LocationToAccountId,
+	// Our chain's account ID type (we can't get away without mentioning it explicitly):
+	AccountId,
+	// We only want to allow teleports of known assets. We use non-zero issuance as an indication
+	// that this asset is known.
+	LocalMint<NonZeroIssuance<AccountId, Assets>>,
+	// The account to use for tracking teleports.
+	CheckingAccount,
+>;
+
 /// Means for transacting assets on this chain.
-pub type AssetTransactors = (CurrencyTransactor, FungiblesTransactor);
+pub type AssetTransactors = (CurrencyTransactor, StatemintDotTransactor, StatemintFungiblesTransactor);
 
 /// This is the type we use to convert an (incoming) XCM origin into a local `Origin` instance,
 /// ready for dispatching a transaction with Xcm's `Transact`. There is an `OriginKind` which can

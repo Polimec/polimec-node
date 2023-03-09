@@ -31,6 +31,7 @@ xcm-emulator.workspace = true
 xcm-executor.workspace = true
 xcm-builder.workspace = true
 pallet-xcm.workspace = true
+pallet-assets.workspace = true
 polkadot-core-primitives.workspace = true
 polkadot-runtime-parachains.workspace = true
 polkadot-parachain.workspace = true
@@ -51,6 +52,7 @@ penpal-runtime.workspace = true
 default = ["std"]
 
 std = [
+    "pallet-assets/std",
     "frame-system/std",
     "frame-support/std",
     "pallet-balances/std",

@@ -1,10 +1,7 @@
 use crate::shortcuts::PolkadotOrigin;
 use codec::Encode;
-use frame_support::{
-	assert_ok,
-	pallet_prelude::Weight,
-	traits::{Currency, GenesisBuild},
-};
+use frame_support::{assert_ok, pallet_prelude::Weight, PalletId, traits::{Currency, GenesisBuild}};
+use frame_support::traits::PalletInfo;
 use polimec_parachain_runtime as polimec_runtime;
 use polkadot_parachain::primitives::{Id as ParaId, Sibling as SiblingId};
 use shortcuts::*;
@@ -15,8 +12,9 @@ use xcm_emulator::{
 	polkadot_primitives, TestExt,
 };
 
-struct ParachainAccounts;
+const RELAY_ASSET_ID: u32 = 0;
 
+struct ParachainAccounts;
 impl ParachainAccounts {
 	fn polimec_child_account() -> RuntimeAccountId32 {
 		ParaId::new(polimec_id()).into_account_truncating()
@@ -211,6 +209,20 @@ pub fn polimec_ext(para_id: u32) -> sp_io::TestExternalities {
 	.assimilate_storage(&mut t)
 	.unwrap();
 
+	pallet_assets::GenesisConfig::<Runtime> {
+		assets: vec![
+			(RELAY_ASSET_ID, polimec_runtime::AssetsPalletId::get().into_account_truncating(), true, INITIAL_BALANCE)
+		],
+		metadata: vec![
+			(RELAY_ASSET_ID, "Local DOT".as_bytes().to_vec(), "DOT".as_bytes().to_vec(), 12)
+		],
+		accounts: vec![
+			(RELAY_ASSET_ID, ALICE, INITIAL_BALANCE),
+		],
+	}
+	.assimilate_storage(&mut t)
+	.unwrap();
+
 	let mut ext = sp_io::TestExternalities::new(t);
 	ext.execute_with(|| System::set_block_number(1));
 	ext
@@ -303,6 +315,11 @@ pub mod shortcuts {
 	pub type PolimecBalances = pallet_balances::Pallet<PolimecRuntime>;
 	pub type StatemintBalances = pallet_balances::Pallet<StatemintRuntime>;
 	pub type PenpalBalances = pallet_balances::Pallet<PenpalRuntime>;
+
+	pub type PolkadotAssets = pallet_assets::Pallet<PolkadotRuntime>;
+	pub type PolimecAssets = pallet_assets::Pallet<PolimecRuntime>;
+	pub type StatemintAssets = pallet_assets::Pallet<StatemintRuntime>;
+	pub type PenpalAssets = pallet_assets::Pallet<PenpalRuntime>;
 
 	pub type PolkadotOrigin = polkadot_runtime::RuntimeOrigin;
 	pub type PolimecOrigin = polimec_runtime::RuntimeOrigin;
@@ -466,7 +483,7 @@ mod reserve_backed_transfers {
 	#[test]
 	fn reserve_to_para() {
 		Network::reset();
-		let dot: MultiAsset = (MultiLocation::parent(), 100_000).into();
+		let dot: MultiAsset = (MultiLocation::parent(), INITIAL_BALANCE/2).into();
 
 		StatemintNet::execute_with(|| {
 			// let transfer_xcm: Xcm<StatemintCall> = Xcm(vec![
