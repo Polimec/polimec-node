@@ -1,38 +1,42 @@
 use crate::shortcuts::PolkadotOrigin;
-use polkadot_parachain::primitives::{Id as ParaId, Sibling as SiblingId};
-use frame_support::{pallet_prelude::Weight, traits::GenesisBuild};
-use polimec_parachain_runtime as polimec_runtime;
-use sp_runtime::{traits::AccountIdConversion, AccountId32};
-use xcm_emulator::{
-	decl_test_network, decl_test_parachain, decl_test_relay_chain, polkadot_primitives,
+use codec::Encode;
+use frame_support::{
+	assert_ok,
+	pallet_prelude::Weight,
+	traits::{Currency, GenesisBuild},
 };
-
-const POLIMEC_ID: u32 = 1;
-const STATEMINT_ID: u32 = 2;
-const PENPAL_ID: u32 = 3;
+use polimec_parachain_runtime as polimec_runtime;
+use polkadot_parachain::primitives::{Id as ParaId, Sibling as SiblingId};
+use shortcuts::*;
+use sp_runtime::{traits::AccountIdConversion, AccountId32 as RuntimeAccountId32};
+use xcm::{v3::prelude::*, VersionedMultiLocation, VersionedXcm, VersionedMultiAssets};
+use xcm_emulator::{
+	cumulus_pallet_xcmp_queue, decl_test_network, decl_test_parachain, decl_test_relay_chain,
+	polkadot_primitives, TestExt,
+};
 
 struct ParachainAccounts;
 
 impl ParachainAccounts {
-	fn polimec_child_account() -> AccountId32 {
-		ParaId::new(POLIMEC_ID).into_account_truncating()
+	fn polimec_child_account() -> RuntimeAccountId32 {
+		ParaId::new(polimec_id()).into_account_truncating()
 	}
-	fn polimec_sibling_account() -> AccountId32 {
-		SiblingId::from(POLIMEC_ID).into_account_truncating()
-	}
-
-	fn statemint_child_account() -> AccountId32 {
-		ParaId::from(STATEMINT_ID).into_account_truncating()
-	}
-	fn statemint_sibling_account() -> AccountId32 {
-		SiblingId::from(STATEMINT_ID).into_account_truncating()
+	fn polimec_sibling_account() -> RuntimeAccountId32 {
+		SiblingId::from(polimec_id()).into_account_truncating()
 	}
 
-	fn penpal_child_account() -> AccountId32 {
-		ParaId::from(PENPAL_ID).into_account_truncating()
+	fn statemint_child_account() -> RuntimeAccountId32 {
+		ParaId::from(statemint_id()).into_account_truncating()
 	}
-	fn penpal_sibling_account() -> AccountId32 {
-		SiblingId::from(PENPAL_ID).into_account_truncating()
+	fn statemint_sibling_account() -> RuntimeAccountId32 {
+		SiblingId::from(statemint_id()).into_account_truncating()
+	}
+
+	fn penpal_child_account() -> RuntimeAccountId32 {
+		ParaId::from(penpal_id()).into_account_truncating()
+	}
+	fn penpal_sibling_account() -> RuntimeAccountId32 {
+		SiblingId::from(penpal_id()).into_account_truncating()
 	}
 }
 
@@ -50,7 +54,7 @@ decl_test_parachain! {
 		RuntimeOrigin = polimec_runtime::RuntimeOrigin,
 		XcmpMessageHandler = polimec_runtime::XcmpQueue,
 		DmpMessageHandler = polimec_runtime::DmpQueue,
-		new_ext = polimec_ext(POLIMEC_ID),
+		new_ext = polimec_ext(polimec_id()),
 	}
 }
 
@@ -60,7 +64,7 @@ decl_test_parachain! {
 		RuntimeOrigin = statemint_runtime::RuntimeOrigin,
 		XcmpMessageHandler = statemint_runtime::XcmpQueue,
 		DmpMessageHandler = statemint_runtime::DmpQueue,
-		new_ext = statemint_ext(STATEMINT_ID),
+		new_ext = statemint_ext(statemint_id()),
 	}
 }
 
@@ -70,23 +74,34 @@ decl_test_parachain! {
 		RuntimeOrigin = penpal_runtime::RuntimeOrigin,
 		XcmpMessageHandler = penpal_runtime::XcmpQueue,
 		DmpMessageHandler = penpal_runtime::DmpQueue,
-		new_ext = penpal_ext(PENPAL_ID),
+		new_ext = penpal_ext(penpal_id()),
 	}
 }
+
 
 decl_test_network! {
 	pub struct Network {
 		relay_chain = PolkadotNet,
 		// ensure this reflects the ones defined in the const ids
 		parachains = vec![
-			(1, PolimecNet),
-			(2, StatemintNet),
-			(3, PenpalNet),
+			(2000u32, PolimecNet),
+			(1000u32, StatemintNet),
+			(3000u32, PenpalNet),
 		],
 	}
 }
+// make sure the index reflects the definition order in network macro
+fn polimec_id() -> u32 {
+	_para_ids()[0]
+}
+fn statemint_id() -> u32 {
+	_para_ids()[1]
+}
+fn penpal_id() -> u32 {
+	_para_ids()[2]
+}
 
-pub const ALICE: AccountId32 = AccountId32::new([0u8; 32]);
+pub const ALICE: RuntimeAccountId32 = RuntimeAccountId32::new([0u8; 32]);
 pub const INITIAL_BALANCE: u128 = 1_000_000_000_000;
 
 fn default_parachains_host_configuration(
@@ -306,17 +321,8 @@ pub mod shortcuts {
 }
 
 #[cfg(test)]
-mod tests {
+mod network_tests {
 	use super::*;
-	use shortcuts::*;
-
-	use codec::Encode;
-	use cumulus_primitives_core::ParaId;
-	use frame_support::{assert_ok, traits::Currency};
-	use pallet_xcm::pallet;
-	use sp_runtime::traits::AccountIdConversion;
-	use xcm::{v3::prelude::*, VersionedMultiLocation, VersionedXcm};
-	use xcm_emulator::{cumulus_pallet_xcmp_queue, TestExt};
 
 	#[test]
 	fn dmp() {
@@ -330,7 +336,7 @@ mod tests {
 		PolkadotNet::execute_with(|| {
 			assert_ok!(PolkadotXcmPallet::send_xcm(
 				Here,
-				Parachain(POLIMEC_ID),
+				Parachain(polimec_id()),
 				Xcm(vec![
 					UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
 					Transact {
@@ -421,7 +427,7 @@ mod tests {
 		PenpalNet::execute_with(|| {
 			assert_ok!(PenpalXcmPallet::send_xcm(
 				Here,
-				MultiLocation::new(1, X1(Parachain(POLIMEC_ID))),
+				MultiLocation::new(1, X1(Parachain(polimec_id()))),
 				Xcm(vec![
 					WithdrawAsset(vec![here_asset.clone()].into()),
 					BuyExecution { fees: here_asset.clone(), weight_limit: Unlimited },
@@ -438,8 +444,8 @@ mod tests {
 		});
 
 		PolimecNet::execute_with(|| {
-			
-			let penpal_balance = PolimecBalances::free_balance(ParachainAccounts::penpal_sibling_account());
+			let penpal_balance =
+				PolimecBalances::free_balance(ParachainAccounts::penpal_sibling_account());
 			let penpal_acc = ParachainAccounts::penpal_sibling_account();
 			use polimec_runtime::{RuntimeEvent, System};
 			let events = System::events();
@@ -447,141 +453,197 @@ mod tests {
 
 			assert!(events.iter().any(|r| matches!(
 				r.event,
-				RuntimeEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Success{..})
+				RuntimeEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Success { .. })
 			)));
 		});
 	}
-	//
-	// 	#[test]
-	// 	fn xcmp_through_a_parachain() {
-	// 		use yayoi::{PolkadotXcm, Runtime, RuntimeCall};
-	//
-	// 		Network::reset();
-	//
-	// 		// The message goes through: Pumpkin --> Mushroom --> Octopus
-	// 		let remark = RuntimeCall::System(frame_system::Call::<Runtime>::remark_with_event {
-	// 			remark: "Hello from Pumpkin!".as_bytes().to_vec(),
-	// 		});
-	// 		let send_xcm_to_octopus = RuntimeCall::PolkadotXcm(pallet_xcm::Call::<Runtime>::send {
-	// 			dest: Box::new(VersionedMultiLocation::V3(MultiLocation::new(1, X1(Parachain(3))))),
-	// 			message: Box::new(VersionedXcm::V3(Xcm(vec![Transact {
-	// 				origin_kind: OriginKind::SovereignAccount,
-	// 				require_weight_at_most: 10_000_000.into(),
-	// 				call: remark.encode().into(),
-	// 			}]))),
-	// 		});
-	// 		YayoiPumpkin::execute_with(|| {
-	// 			assert_ok!(PolkadotXcm::send_xcm(
-	// 				Here,
-	// 				MultiLocation::new(1, X1(Parachain(2))),
-	// 				Xcm(vec![Transact {
-	// 					origin_kind: OriginKind::SovereignAccount,
-	// 					// TODO: fix in 0.9.40, https://github.com/paritytech/polkadot/pull/6787
-	// 					// require_weight_at_most: 100_000_000.into(),
-	// 					require_weight_at_most: 200_000_000.into(),
-	// 					call: send_xcm_to_octopus.encode().into(),
-	// 				}]),
-	// 			));
-	// 		});
-	//
-	// 		YayoiMushroom::execute_with(|| {
-	// 			use yayoi::{RuntimeEvent, System};
-	// 			System::events().iter().for_each(|r| println!(">>> {:?}", r.event));
-	//
-	// 			assert!(System::events()
-	// 				.iter()
-	// 				.any(|r| matches!(r.event, RuntimeEvent::PolkadotXcm(pallet_xcm::Event::Sent(_, _, _)))));
-	// 		});
-	//
-	// 		YayoiOctopus::execute_with(|| {
-	// 			use yayoi::{RuntimeEvent, System};
-	// 			// execution would fail, but good enough to check if the message is received
-	// 			System::events().iter().for_each(|r| println!(">>> {:?}", r.event));
-	//
-	// 			assert!(System::events().iter().any(|r| matches!(
-	// 				r.event,
-	// 				RuntimeEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Fail { .. })
-	// 			)));
-	// 		});
-	// 	}
-	//
-	// 	#[test]
-	// 	fn deduplicate_dmp() {
-	// 		Network::reset();
-	// 		KusamaNet::execute_with(|| {
-	// 			assert_ok!(polkadot_runtime::XcmPallet::force_default_xcm_version(
-	// 				polkadot_runtime::RuntimeOrigin::root(),
-	// 				Some(3)
-	// 			));
-	// 		});
-	//
-	// 		kusama_send_rmrk("Kusama", 2);
-	// 		parachain_receive_and_reset_events(true);
-	//
-	// 		// a different dmp message in same relay-parent-block allow execution.
-	// 		kusama_send_rmrk("Polkadot", 1);
-	// 		parachain_receive_and_reset_events(true);
-	//
-	// 		// same dmp message with same relay-parent-block wouldn't execution
-	// 		kusama_send_rmrk("Kusama", 1);
-	// 		parachain_receive_and_reset_events(false);
-	//
-	// 		// different relay-parent-block allow dmp message execution
-	// 		KusamaNet::execute_with(|| polkadot_runtime::System::set_block_number(2));
-	//
-	// 		kusama_send_rmrk("Kusama", 1);
-	// 		parachain_receive_and_reset_events(true);
-	//
-	// 		// reset can send same dmp message again
-	// 		Network::reset();
-	// 		KusamaNet::execute_with(|| {
-	// 			assert_ok!(polkadot_runtime::XcmPallet::force_default_xcm_version(
-	// 				polkadot_runtime::RuntimeOrigin::root(),
-	// 				Some(3)
-	// 			));
-	// 		});
-	//
-	// 		kusama_send_rmrk("Kusama", 1);
-	// 		parachain_receive_and_reset_events(true);
-	// 	}
-	//
-	// 	fn kusama_send_rmrk(msg: &str, count: u32) {
-	// 		let remark = yayoi::RuntimeCall::System(frame_system::Call::<yayoi::Runtime>::remark_with_event {
-	// 			remark: msg.as_bytes().to_vec(),
-	// 		});
-	// 		KusamaNet::execute_with(|| {
-	// 			for _ in 0..count {
-	// 				assert_ok!(polkadot_runtime::XcmPallet::send_xcm(
-	// 					Here,
-	// 					Parachain(1),
-	// 					Xcm(vec![Transact {
-	// 						origin_kind: OriginKind::SovereignAccount,
-	// 						require_weight_at_most: Weight::from_parts(INITIAL_BALANCE as u64, 1024 * 1024),
-	// 						call: remark.encode().into(),
-	// 					}]),
-	// 				));
-	// 			}
-	// 		});
-	// 	}
-	//
-	// 	fn parachain_receive_and_reset_events(received: bool) {
-	// 		YayoiPumpkin::execute_with(|| {
-	// 			use yayoi::{RuntimeEvent, System};
-	// 			System::events().iter().for_each(|r| println!(">>> {:?}", r.event));
-	//
-	// 			if received {
-	// 				assert!(System::events().iter().any(|r| matches!(
-	// 					r.event,
-	// 					RuntimeEvent::System(frame_system::Event::Remarked { sender: _, hash: _ })
-	// 				)));
-	//
-	// 				System::reset_events();
-	// 			} else {
-	// 				assert!(System::events().iter().all(|r| !matches!(
-	// 					r.event,
-	// 					RuntimeEvent::System(frame_system::Event::Remarked { sender: _, hash: _ })
-	// 				)));
-	// 			}
-	// 		});
-	// 	}
 }
+
+#[cfg(test)]
+mod reserve_backed_transfers {
+	use super::*;
+
+	#[test]
+	fn reserve_to_para() {
+		Network::reset();
+		let dot: MultiAsset = (MultiLocation::parent(), 100_000).into();
+
+		StatemintNet::execute_with(|| {
+			// let transfer_xcm: Xcm<StatemintCall> = Xcm(vec![
+			// 	WithdrawAsset(vec![dot.clone()].into()),
+			// 	BuyExecution { fees: dot.clone(), weight_limit: Unlimited },
+			// 	DepositReserveAsset {
+			// 		assets: vec![dot].into(),
+			// 		dest: MultiLocation::new(1, X1(Parachain(polimec_id()))),
+			// 		xcm: Xcm::<()>(vec![DepositAsset {
+			// 			assets: All.into(),
+			// 			beneficiary: MultiLocation::from(AccountId32 {
+			// 				network: None,
+			// 				id: ALICE.into(),
+			// 			}),
+			// 		}]),
+			// 	},
+			// ]);
+
+			let extrinsic_result = StatemintXcmPallet::limited_reserve_transfer_assets(
+				StatemintOrigin::signed(ALICE),
+				Box::new(VersionedMultiLocation::V3(MultiLocation::new(1, X1(Parachain(polimec_id()))))),
+				Box::new(VersionedMultiLocation::V3(MultiLocation::from(AccountId32 {
+					network: None,
+					id: ALICE.into(),
+				}))),
+				Box::new(VersionedMultiAssets::V3(vec![dot.clone()].into())),
+				0,
+				Limited(Weight::from_parts(10_000_000_000,3_000_000)),
+			);
+
+			let x = 10;
+
+
+		});
+
+		PolimecNet::execute_with(|| {
+			use polimec_runtime::{RuntimeEvent, System};
+			let events = System::events();
+			events.iter().for_each(|r| println!(">>> {:?}", r.event));
+
+			assert!(events.iter().any(|r| matches!(
+				r.event,
+				RuntimeEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Success { .. })
+			)));
+		});
+	}
+}
+//
+// 	#[test]
+// 	fn xcmp_through_a_parachain() {
+// 		use yayoi::{PolkadotXcm, Runtime, RuntimeCall};
+//
+// 		Network::reset();
+//
+// 		// The message goes through: Pumpkin --> Mushroom --> Octopus
+// 		let remark = RuntimeCall::System(frame_system::Call::<Runtime>::remark_with_event {
+// 			remark: "Hello from Pumpkin!".as_bytes().to_vec(),
+// 		});
+// 		let send_xcm_to_octopus = RuntimeCall::PolkadotXcm(pallet_xcm::Call::<Runtime>::send {
+// 			dest: Box::new(VersionedMultiLocation::V3(MultiLocation::new(1, X1(Parachain(3))))),
+// 			message: Box::new(VersionedXcm::V3(Xcm(vec![Transact {
+// 				origin_kind: OriginKind::SovereignAccount,
+// 				require_weight_at_most: 10_000_000.into(),
+// 				call: remark.encode().into(),
+// 			}]))),
+// 		});
+// 		YayoiPumpkin::execute_with(|| {
+// 			assert_ok!(PolkadotXcm::send_xcm(
+// 				Here,
+// 				MultiLocation::new(1, X1(Parachain(2))),
+// 				Xcm(vec![Transact {
+// 					origin_kind: OriginKind::SovereignAccount,
+// 					// TODO: fix in 0.9.40, https://github.com/paritytech/polkadot/pull/6787
+// 					// require_weight_at_most: 100_000_000.into(),
+// 					require_weight_at_most: 200_000_000.into(),
+// 					call: send_xcm_to_octopus.encode().into(),
+// 				}]),
+// 			));
+// 		});
+//
+// 		YayoiMushroom::execute_with(|| {
+// 			use yayoi::{RuntimeEvent, System};
+// 			System::events().iter().for_each(|r| println!(">>> {:?}", r.event));
+//
+// 			assert!(System::events()
+// 				.iter()
+// 				.any(|r| matches!(r.event, RuntimeEvent::PolkadotXcm(pallet_xcm::Event::Sent(_, _, _)))));
+// 		});
+//
+// 		YayoiOctopus::execute_with(|| {
+// 			use yayoi::{RuntimeEvent, System};
+// 			// execution would fail, but good enough to check if the message is received
+// 			System::events().iter().for_each(|r| println!(">>> {:?}", r.event));
+//
+// 			assert!(System::events().iter().any(|r| matches!(
+// 				r.event,
+// 				RuntimeEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Fail { .. })
+// 			)));
+// 		});
+// 	}
+//
+// 	#[test]
+// 	fn deduplicate_dmp() {
+// 		Network::reset();
+// 		KusamaNet::execute_with(|| {
+// 			assert_ok!(polkadot_runtime::XcmPallet::force_default_xcm_version(
+// 				polkadot_runtime::RuntimeOrigin::root(),
+// 				Some(3)
+// 			));
+// 		});
+//
+// 		kusama_send_rmrk("Kusama", 2);
+// 		parachain_receive_and_reset_events(true);
+//
+// 		// a different dmp message in same relay-parent-block allow execution.
+// 		kusama_send_rmrk("Polkadot", 1);
+// 		parachain_receive_and_reset_events(true);
+//
+// 		// same dmp message with same relay-parent-block wouldn't execution
+// 		kusama_send_rmrk("Kusama", 1);
+// 		parachain_receive_and_reset_events(false);
+//
+// 		// different relay-parent-block allow dmp message execution
+// 		KusamaNet::execute_with(|| polkadot_runtime::System::set_block_number(2));
+//
+// 		kusama_send_rmrk("Kusama", 1);
+// 		parachain_receive_and_reset_events(true);
+//
+// 		// reset can send same dmp message again
+// 		Network::reset();
+// 		KusamaNet::execute_with(|| {
+// 			assert_ok!(polkadot_runtime::XcmPallet::force_default_xcm_version(
+// 				polkadot_runtime::RuntimeOrigin::root(),
+// 				Some(3)
+// 			));
+// 		});
+//
+// 		kusama_send_rmrk("Kusama", 1);
+// 		parachain_receive_and_reset_events(true);
+// 	}
+//
+// 	fn kusama_send_rmrk(msg: &str, count: u32) {
+// 		let remark = yayoi::RuntimeCall::System(frame_system::Call::<yayoi::Runtime>::remark_with_event {
+// 			remark: msg.as_bytes().to_vec(),
+// 		});
+// 		KusamaNet::execute_with(|| {
+// 			for _ in 0..count {
+// 				assert_ok!(polkadot_runtime::XcmPallet::send_xcm(
+// 					Here,
+// 					Parachain(1),
+// 					Xcm(vec![Transact {
+// 						origin_kind: OriginKind::SovereignAccount,
+// 						require_weight_at_most: Weight::from_parts(INITIAL_BALANCE as u64, 1024 * 1024),
+// 						call: remark.encode().into(),
+// 					}]),
+// 				));
+// 			}
+// 		});
+// 	}
+//
+// 	fn parachain_receive_and_reset_events(received: bool) {
+// 		YayoiPumpkin::execute_with(|| {
+// 			use yayoi::{RuntimeEvent, System};
+// 			System::events().iter().for_each(|r| println!(">>> {:?}", r.event));
+//
+// 			if received {
+// 				assert!(System::events().iter().any(|r| matches!(
+// 					r.event,
+// 					RuntimeEvent::System(frame_system::Event::Remarked { sender: _, hash: _ })
+// 				)));
+//
+// 				System::reset_events();
+// 			} else {
+// 				assert!(System::events().iter().all(|r| !matches!(
+// 					r.event,
+// 					RuntimeEvent::System(frame_system::Event::Remarked { sender: _, hash: _ })
+// 				)));
+// 			}
+// 		});
+// 	}

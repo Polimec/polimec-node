@@ -23,14 +23,10 @@
 //! ReserveAssetTransferDeposited message but that will but the intension will be to support this soon.
 use core::marker::PhantomData;
 
-use frame_support::{
-	match_types, parameter_types,
-	traits::{
-		fungibles::{self, Balanced, CreditOf},
-		ConstU32, Contains, ContainsPair, Everything, Get, Nothing,
-	},
-	weights::Weight,
-};
+use frame_support::{match_types, parameter_types, traits::{
+	fungibles::{self, Balanced, CreditOf},
+	ConstU32, Contains, ContainsPair, Everything, Get, Nothing,
+}, tt_true, weights::Weight};
 use pallet_asset_tx_payment::HandleCredit;
 use pallet_xcm::XcmPassthrough;
 use parachains_common::xcm_config::{DenyReserveTransferToRelayChain, DenyThenTry};
@@ -183,6 +179,33 @@ pub type AccountIdOf<R> = <R as frame_system::Config>::AccountId;
 /// Asset filter that allows all assets from a certain location.
 pub struct AssetsFrom<T>(PhantomData<T>);
 
+pub struct StatemintAssets;
+impl ContainsPair<MultiAsset, MultiLocation> for StatemintAssets {
+	fn contains(asset: &MultiAsset, origin: &MultiLocation) -> bool {
+		// location must be the statemint parachain
+		let loc = MultiLocation::new(1, X1(Parachain(1000)));
+		// asset must be either a fungible asset from `pallet_assets` or the native token of the relay chain
+		&loc == origin && match asset {
+			MultiAsset {
+				id: Concrete(MultiLocation {
+					parents: 0,
+					interior: X2(PalletInstance(50), GeneralIndex(_)),
+				}),
+				..
+			} => true,
+			MultiAsset {
+				id: Concrete(MultiLocation {
+					parents: 1,
+					interior: Here,
+				}),
+				..
+			} => true,
+
+			_ => false
+		}
+	}
+}
+
 impl<T: Get<MultiLocation>> ContainsPair<MultiAsset, MultiLocation> for AssetsFrom<T> {
 	fn contains(asset: &MultiAsset, origin: &MultiLocation) -> bool {
 		let loc = T::get();
@@ -269,7 +292,7 @@ parameter_types! {
 	pub CheckingAccount: AccountId = PolkadotXcm::check_account();
 }
 
-pub type Reserves = (NativeAsset, AssetsFrom<CommonGoodAssetsLocation>);
+pub type Reserves = (NativeAsset, StatemintAssets);
 
 pub struct XcmConfig;
 
@@ -279,19 +302,17 @@ impl xcm_executor::Config for XcmConfig {
 	// How to withdraw and deposit an asset.
 	type AssetTransactor = AssetTransactors;
 	type OriginConverter = XcmOriginToTransactDispatchOrigin;
-	type IsReserve = MultiNativeAsset;
+	type IsReserve = Reserves;
 	// TODO: maybe needed to be replaced by Reserves
 	type IsTeleporter = NativeAsset;
 	type UniversalLocation = UniversalLocation;
 	type Barrier = Barrier;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
-	type Trader = UsingComponents<
-		WeightToFee<Runtime>,
-		HereLocation,
-		AccountId,
-		Balances,
-		ToAuthor<Runtime>,
-	>;
+	type Trader = (
+		// TODO: weight to fee has to be carefully considered. For now use default
+		UsingComponents<WeightToFee<Runtime>, HereLocation, AccountId, Balances, ToAuthor<Runtime>>,
+		UsingComponents<WeightToFee<Runtime>, RelayLocation, AccountId, Balances, ToAuthor<Runtime>>,
+	);
 	type ResponseHandler = PolkadotXcm;
 	type AssetTrap = PolkadotXcm;
 	type AssetClaims = PolkadotXcm;
