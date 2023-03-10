@@ -23,16 +23,21 @@
 //! ReserveAssetTransferDeposited message but that will but the intension will be to support this soon.
 use core::marker::PhantomData;
 
-use frame_support::{match_types, parameter_types, traits::{
-	fungibles::{self, Balanced, CreditOf},
-	ConstU32, Contains, ContainsPair, Everything, Get, Nothing,
-}, weights::Weight};
+use crate::AssetsPalletId;
+use frame_support::{
+	match_types, parameter_types,
+	traits::{
+		fungibles::{self, Balanced, CreditOf},
+		ConstU32, Contains, ContainsPair, Everything, Get, Nothing,
+	},
+	weights::Weight,
+};
 use pallet_asset_tx_payment::HandleCredit;
 use pallet_xcm::XcmPassthrough;
 use parachains_common::xcm_config::{DenyReserveTransferToRelayChain, DenyThenTry};
 use polkadot_parachain::primitives::Sibling;
 use polkadot_runtime_common::impls::ToAuthor;
-use sp_runtime::traits::{Zero};
+use sp_runtime::traits::Zero;
 use xcm::latest::prelude::*;
 use xcm_builder::{
 	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses,
@@ -43,9 +48,10 @@ use xcm_builder::{
 	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit,
 	UsingComponents, WithComputedOrigin,
 };
-use xcm_executor::{traits::JustTry, XcmExecutor};
-use xcm_executor::traits::{Convert, Error, MatchesFungibles};
-use crate::AssetsPalletId;
+use xcm_executor::{
+	traits::{Convert, Error, JustTry, MatchesFungibles},
+	XcmExecutor,
+};
 
 use super::{
 	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Assets, Balance, Balances,
@@ -114,19 +120,13 @@ pub struct NativeToFungible;
 impl Convert<MultiLocation, AssetIdPalletAssets> for NativeToFungible {
 	fn convert(asset: MultiLocation) -> Result<AssetIdPalletAssets, MultiLocation> {
 		match asset {
-			MultiLocation {
-				parents: 1,
-				interior: Here
-			} => Ok(AssetIdPalletAssets::from(0u32)),
-			_ => Err(asset)
+			MultiLocation { parents: 1, interior: Here } => Ok(AssetIdPalletAssets::from(0u32)),
+			_ => Err(asset),
 		}
 	}
 	fn reverse(value: AssetIdPalletAssets) -> Result<MultiLocation, AssetIdPalletAssets> {
 		if value == AssetIdPalletAssets::from(0u32) {
-			Ok(MultiLocation {
-				parents: 1,
-				interior: Here
-			})
+			Ok(MultiLocation { parents: 1, interior: Here })
 		} else {
 			Err(value)
 		}
@@ -139,20 +139,18 @@ pub struct NonBlockingConvertedConcreteId<AssetId, Balance, ConvertAssetId, Conv
 	PhantomData<(AssetId, Balance, ConvertAssetId, ConvertOther)>,
 );
 impl<
-	AssetId: Clone,
-	Balance: Clone,
-	ConvertAssetId: Convert<MultiLocation, AssetId>,
-	ConvertBalance: Convert<u128, Balance>,
-> MatchesFungibles<AssetId, Balance>
-for NonBlockingConvertedConcreteId<AssetId, Balance, ConvertAssetId, ConvertBalance>
+		AssetId: Clone,
+		Balance: Clone,
+		ConvertAssetId: Convert<MultiLocation, AssetId>,
+		ConvertBalance: Convert<u128, Balance>,
+	> MatchesFungibles<AssetId, Balance>
+	for NonBlockingConvertedConcreteId<AssetId, Balance, ConvertAssetId, ConvertBalance>
 {
 	fn matches_fungibles(a: &MultiAsset) -> Result<(AssetId, Balance), Error> {
-		ConvertedConcreteId::<
-			AssetId,
-			Balance,
-			ConvertAssetId,
-			ConvertBalance,
-		>::matches_fungibles(a).map_err(|_| Error::AssetNotFound)
+		ConvertedConcreteId::<AssetId, Balance, ConvertAssetId, ConvertBalance>::matches_fungibles(
+			a,
+		)
+		.map_err(|_| Error::AssetNotFound)
 	}
 }
 
@@ -160,12 +158,7 @@ pub type StatemintDotTransactor = FungiblesAdapter<
 	// Use this fungibles implementation:
 	Assets,
 	// Use this currency when it is a fungible asset matching the given location or name:
-	NonBlockingConvertedConcreteId<
-		AssetIdPalletAssets,
-		Balance,
-		NativeToFungible,
-		JustTry,
-	>,
+	NonBlockingConvertedConcreteId<AssetIdPalletAssets, Balance, NativeToFungible, JustTry>,
 	// Convert an XCM MultiLocation into a local account id:
 	LocationToAccountId,
 	// Our chain's account ID type (we can't get away without mentioning it explicitly):
@@ -178,7 +171,8 @@ pub type StatemintDotTransactor = FungiblesAdapter<
 >;
 
 /// Means for transacting assets on this chain.
-pub type AssetTransactors = (CurrencyTransactor, StatemintDotTransactor, StatemintFungiblesTransactor);
+pub type AssetTransactors =
+	(CurrencyTransactor, StatemintDotTransactor, StatemintFungiblesTransactor);
 
 /// This is the type we use to convert an (incoming) XCM origin into a local `Origin` instance,
 /// ready for dispatching a transaction with Xcm's `Transact`. There is an `OriginKind` which can
@@ -255,24 +249,22 @@ impl ContainsPair<MultiAsset, MultiLocation> for StatemintAssets {
 		// location must be the statemint parachain
 		let loc = MultiLocation::new(1, X1(Parachain(1000)));
 		// asset must be either a fungible asset from `pallet_assets` or the native token of the relay chain
-		&loc == origin && match asset {
-			MultiAsset {
-				id: Concrete(MultiLocation {
-					parents: 0,
-					interior: X2(PalletInstance(50), GeneralIndex(_)),
-				}),
-				..
-			} => true,
-			MultiAsset {
-				id: Concrete(MultiLocation {
-					parents: 1,
-					interior: Here,
-				}),
-				..
-			} => true,
+		&loc == origin &&
+			match asset {
+				MultiAsset {
+					id:
+						Concrete(MultiLocation {
+							parents: 0,
+							interior: X2(PalletInstance(50), GeneralIndex(_)),
+						}),
+					..
+				} => true,
+				MultiAsset {
+					id: Concrete(MultiLocation { parents: 1, interior: Here }), ..
+				} => true,
 
-			_ => false
-		}
+				_ => false,
+			}
 	}
 }
 
@@ -381,7 +373,13 @@ impl xcm_executor::Config for XcmConfig {
 	type Trader = (
 		// TODO: weight to fee has to be carefully considered. For now use default
 		UsingComponents<WeightToFee<Runtime>, HereLocation, AccountId, Balances, ToAuthor<Runtime>>,
-		UsingComponents<WeightToFee<Runtime>, RelayLocation, AccountId, Balances, ToAuthor<Runtime>>,
+		UsingComponents<
+			WeightToFee<Runtime>,
+			RelayLocation,
+			AccountId,
+			Balances,
+			ToAuthor<Runtime>,
+		>,
 	);
 	type ResponseHandler = PolkadotXcm;
 	type AssetTrap = PolkadotXcm;
@@ -415,6 +413,20 @@ parameter_types! {
 	pub ReachableDest: Option<MultiLocation> = Some(Parent.into());
 }
 
+// TODO: for now we assume all fungible assets are controlled by statemint. Later we will want to have one instance for statemint backed, and one for local backed
+// struct TransferBackToStatemint;
+// impl Contains<(MultiLocation, Xcm<RuntimeCall>)> for TransferBackToStatemint {
+// 	fn contains(t: &(MultiLocation, Xcm<RuntimeCall>)) -> bool {
+// 		match t {
+// 			(CommonGoodAssetsLocation::get(), Xcm::<RuntimeCall>(vec![
+// 				xcm::v3::Instruction::WithdrawAsset()
+// 			])) => true,
+// 			_ => false
+// 		}
+// 	}
+// }
+// type XcmExecuteFilter = (,);
+
 impl pallet_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
@@ -422,7 +434,7 @@ impl pallet_xcm::Config for Runtime {
 	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type XcmRouter = XcmRouter;
 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
-	type XcmExecuteFilter = Nothing;
+	type XcmExecuteFilter = Everything;
 	// ^ Disable dispatchable execute on the XCM pallet.
 	// Needs to be `Everything` for local testing.
 	type XcmExecutor = XcmExecutor<XcmConfig>;

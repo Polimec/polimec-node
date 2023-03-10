@@ -1,12 +1,16 @@
 use crate::shortcuts::PolkadotOrigin;
 use codec::Encode;
-use frame_support::{assert_ok, pallet_prelude::Weight, PalletId, traits::{Currency, GenesisBuild}};
-use frame_support::traits::PalletInfo;
+use frame_support::{
+	assert_ok,
+	pallet_prelude::Weight,
+	traits::{Currency, GenesisBuild, PalletInfo},
+	PalletId,
+};
 use polimec_parachain_runtime as polimec_runtime;
 use polkadot_parachain::primitives::{Id as ParaId, Sibling as SiblingId};
 use shortcuts::*;
 use sp_runtime::{traits::AccountIdConversion, AccountId32 as RuntimeAccountId32};
-use xcm::{v3::prelude::*, VersionedMultiLocation, VersionedXcm, VersionedMultiAssets};
+use xcm::{v3::prelude::*, VersionedMultiAssets, VersionedMultiLocation, VersionedXcm};
 use xcm_emulator::{
 	cumulus_pallet_xcmp_queue, decl_test_network, decl_test_parachain, decl_test_relay_chain,
 	polkadot_primitives, TestExt,
@@ -75,7 +79,6 @@ decl_test_parachain! {
 		new_ext = penpal_ext(penpal_id()),
 	}
 }
-
 
 decl_test_network! {
 	pub struct Network {
@@ -210,15 +213,19 @@ pub fn polimec_ext(para_id: u32) -> sp_io::TestExternalities {
 	.unwrap();
 
 	pallet_assets::GenesisConfig::<Runtime> {
-		assets: vec![
-			(RELAY_ASSET_ID, polimec_runtime::AssetsPalletId::get().into_account_truncating(), true, INITIAL_BALANCE)
-		],
-		metadata: vec![
-			(RELAY_ASSET_ID, "Local DOT".as_bytes().to_vec(), "DOT".as_bytes().to_vec(), 12)
-		],
-		accounts: vec![
-			(RELAY_ASSET_ID, ALICE, INITIAL_BALANCE),
-		],
+		assets: vec![(
+			RELAY_ASSET_ID,
+			polimec_runtime::AssetsPalletId::get().into_account_truncating(),
+			true,
+			INITIAL_BALANCE,
+		)],
+		metadata: vec![(
+			RELAY_ASSET_ID,
+			"Local DOT".as_bytes().to_vec(),
+			"DOT".as_bytes().to_vec(),
+			12,
+		)],
+		accounts: vec![(RELAY_ASSET_ID, ALICE, INITIAL_BALANCE)],
 	}
 	.assimilate_storage(&mut t)
 	.unwrap();
@@ -478,45 +485,31 @@ mod network_tests {
 
 #[cfg(test)]
 mod reserve_backed_transfers {
+	use frame_support::traits::fungibles::Inspect;
 	use super::*;
 
 	#[test]
 	fn reserve_to_para() {
 		Network::reset();
-		let dot: MultiAsset = (MultiLocation::parent(), INITIAL_BALANCE/2).into();
+		let dot: MultiAsset = (MultiLocation::parent(), INITIAL_BALANCE / 2).into();
 
 		StatemintNet::execute_with(|| {
-			// let transfer_xcm: Xcm<StatemintCall> = Xcm(vec![
-			// 	WithdrawAsset(vec![dot.clone()].into()),
-			// 	BuyExecution { fees: dot.clone(), weight_limit: Unlimited },
-			// 	DepositReserveAsset {
-			// 		assets: vec![dot].into(),
-			// 		dest: MultiLocation::new(1, X1(Parachain(polimec_id()))),
-			// 		xcm: Xcm::<()>(vec![DepositAsset {
-			// 			assets: All.into(),
-			// 			beneficiary: MultiLocation::from(AccountId32 {
-			// 				network: None,
-			// 				id: ALICE.into(),
-			// 			}),
-			// 		}]),
-			// 	},
-			// ]);
-
 			let extrinsic_result = StatemintXcmPallet::limited_reserve_transfer_assets(
 				StatemintOrigin::signed(ALICE),
-				Box::new(VersionedMultiLocation::V3(MultiLocation::new(1, X1(Parachain(polimec_id()))))),
+				Box::new(VersionedMultiLocation::V3(MultiLocation::new(
+					1,
+					X1(Parachain(polimec_id())),
+				))),
 				Box::new(VersionedMultiLocation::V3(MultiLocation::from(AccountId32 {
 					network: None,
 					id: ALICE.into(),
 				}))),
 				Box::new(VersionedMultiAssets::V3(vec![dot.clone()].into())),
 				0,
-				Limited(Weight::from_parts(10_000_000_000,3_000_000)),
+				Limited(Weight::from_parts(10_000_000_000, 3_000_000)),
 			);
 
 			let x = 10;
-
-
 		});
 
 		PolimecNet::execute_with(|| {
@@ -529,6 +522,108 @@ mod reserve_backed_transfers {
 				RuntimeEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Success { .. })
 			)));
 		});
+	}
+
+	#[test]
+	fn para_to_reserve() {
+		Network::reset();
+		let dot: MultiAsset = (MultiLocation::parent(), INITIAL_BALANCE / 2).into();
+
+		// fund ALICE with reserve backed DOT
+		reserve_to_para();
+
+		// check Polimec's pre transfer balances and issuance
+		let (
+			polimec_prev_alice_dot_balance,
+			polimec_prev_alice_plmc_balance,
+			polimec_prev_dot_issuance,
+			polimec_prev_plmc_issuance
+		) = PolimecNet::execute_with(|| {
+			(
+				PolimecAssets::balance(RELAY_ASSET_ID, ALICE),
+				PolimecBalances::free_balance(ALICE),
+				PolimecAssets::total_issuance(RELAY_ASSET_ID),
+				PolimecBalances::total_issuance()
+			)
+		});
+
+		// check Statemint's pre transfer balances and issuance
+		let (
+			statemint_prev_alice_dot_balance,
+			statemint_prev_dot_issuance,
+		) = StatemintNet::execute_with(|| {
+			(
+				StatemintBalances::free_balance(ALICE),
+				StatemintBalances::total_issuance()
+			)
+		});
+
+		let transfer_xcm: Xcm<PolimecCall> = Xcm(vec![
+			WithdrawAsset(vec![dot.clone()].into()),
+			BuyExecution { fees: dot.clone(), weight_limit: Unlimited },
+			InitiateReserveWithdraw {
+				assets: All.into(),
+				reserve: MultiLocation::new(1, X1(Parachain(statemint_id()))),
+				xcm: Xcm(vec![
+				BuyExecution { fees: dot.clone(), weight_limit: Unlimited },
+				DepositAsset {
+					assets: All.into(),
+					beneficiary: MultiLocation::new(
+						0,
+						AccountId32 { network: None, id: ALICE.into() },
+					),
+				}]),
+			},
+		]);
+
+		PolimecNet::execute_with(|| {
+			assert_ok!(PolimecXcmPallet::execute(
+				PolimecOrigin::signed(ALICE),
+				Box::new(VersionedXcm::V3(transfer_xcm)),
+				Weight::from_parts(10_000_000_000, 3_000_000),
+			));
+		});
+
+		StatemintNet::execute_with(|| {
+			use statemint_runtime::{RuntimeEvent, System};
+			let events = System::events();
+			events.iter().for_each(|r| println!(">>> {:?}", r.event));
+
+			assert!(events.iter().any(|r| matches!(
+				r.event,
+				RuntimeEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Success { .. })
+			)));
+		});
+
+		// check Polimec's post transfer balances and issuance
+		let (
+			polimec_post_alice_dot_balance,
+			polimec_post_alice_plmc_balance,
+			polimec_post_dot_issuance,
+			polimec_post_plmc_issuance
+		) = PolimecNet::execute_with(|| {
+			(
+				PolimecAssets::balance(RELAY_ASSET_ID, ALICE),
+				PolimecBalances::free_balance(ALICE),
+				PolimecAssets::total_issuance(RELAY_ASSET_ID),
+				PolimecBalances::total_issuance()
+			)
+		});
+
+		// check Statemint's post transfer balances and issuance
+		let (
+			statemint_post_alice_dot_balance,
+			statemint_post_dot_issuance,
+		) = StatemintNet::execute_with(|| {
+			(
+				StatemintBalances::free_balance(ALICE),
+				StatemintBalances::total_issuance()
+			)
+		});
+
+		let breakpoint = "here";
+
+
 	}
 }
 //
