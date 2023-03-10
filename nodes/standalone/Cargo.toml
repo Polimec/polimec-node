@@ -65,10 +65,16 @@ substrate-build-script-utils.workspace = true
 [features]
 default = []
 runtime-benchmarks = [
-    "polimec-standalone-runtime/runtime-benchmarks",
-    "frame-benchmarking/runtime-benchmarks",
-    "frame-benchmarking-cli/runtime-benchmarks",
+  "frame-benchmarking/runtime-benchmarks",
+  "frame-benchmarking-cli/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
+  "polimec-standalone-runtime/runtime-benchmarks",
+  "sc-service/runtime-benchmarks",
+  "sp-runtime/runtime-benchmarks",
 ]
-# Enable features that allow the runtime to be tried and debugged. Name might be subject to change
-# in the near future.
-try-runtime = ["polimec-standalone-runtime/try-runtime", "try-runtime-cli"]
+try-runtime = [
+  "frame-system/try-runtime",
+  "polimec-standalone-runtime/try-runtime",
+  "pallet-transaction-payment/try-runtime",
+  "try-runtime-cli",
+]
