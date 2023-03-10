@@ -494,6 +494,7 @@ mod reserve_backed_transfers {
 	#[test]
 	fn reserve_to_para() {
 		Network::reset();
+		// asset to transfer
 		let dot: MultiAsset = (MultiLocation::parent(), RESERVE_TRANSFER_AMOUNT).into();
 
 		// check Polimec's pre transfer balances and issuance
@@ -522,6 +523,7 @@ mod reserve_backed_transfers {
 			)
 		});
 
+		// do the transfer
 		StatemintNet::execute_with(|| {
 			let extrinsic_result = StatemintXcmPallet::limited_reserve_transfer_assets(
 				StatemintOrigin::signed(ALICE),
@@ -541,6 +543,7 @@ mod reserve_backed_transfers {
 			let x = 10;
 		});
 
+		// check the transfer was not blocked by our our xcm config
 		PolimecNet::execute_with(|| {
 			use polimec_runtime::{RuntimeEvent, System};
 			let events = System::events();
@@ -614,6 +617,7 @@ mod reserve_backed_transfers {
 	#[test]
 	fn para_to_reserve() {
 		Network::reset();
+		// asset to transfer
 		let dot: MultiAsset = (MultiLocation::parent(), RESERVE_TRANSFER_AMOUNT).into();
 
 		// fund ALICE with reserve backed DOT
@@ -645,6 +649,7 @@ mod reserve_backed_transfers {
 			)
 		});
 
+		// construct the XCM to transfer from Polimec to Statemint's reserve
 		let transfer_xcm: Xcm<PolimecCall> = Xcm(vec![
 			WithdrawAsset(vec![dot.clone()].into()),
 			BuyExecution { fees: dot.clone(), weight_limit: Unlimited },
@@ -663,6 +668,7 @@ mod reserve_backed_transfers {
 			},
 		]);
 
+		// do the transfer
 		PolimecNet::execute_with(|| {
 			assert_ok!(PolimecXcmPallet::execute(
 				PolimecOrigin::signed(ALICE),
@@ -671,6 +677,8 @@ mod reserve_backed_transfers {
 			));
 		});
 
+
+		// check that the xcm was not blocked
 		StatemintNet::execute_with(|| {
 			use statemint_runtime::{RuntimeEvent, System};
 			let events = System::events();
