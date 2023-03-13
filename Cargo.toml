@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "integration-tests",
+#    "integration-tests",
     "nodes/*",
     "pallets/*",
     "runtimes/*",

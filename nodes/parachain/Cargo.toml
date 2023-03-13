@@ -82,9 +82,23 @@ substrate-build-script-utils.workspace = true
 [features]
 default = []
 runtime-benchmarks = [
-	# "try-runtime-cli/try-runtime",
-	"polimec-parachain-runtime/runtime-benchmarks",
-	"polkadot-cli/runtime-benchmarks",
+  "frame-benchmarking/runtime-benchmarks",
+  "frame-benchmarking-cli/runtime-benchmarks",
+  "polkadot-cli/runtime-benchmarks",
+  "polkadot-primitives/runtime-benchmarks",
+  "polkadot-service/runtime-benchmarks",
+  "sc-service/runtime-benchmarks",
+  "polimec-parachain-runtime/runtime-benchmarks",
+  "polimec-base-runtime/runtime-benchmarks",
+  "sp-runtime/runtime-benchmarks"
 ]
-try-runtime = ["polimec-parachain-runtime/try-runtime"]
-fast-gov = []
+try-runtime = [
+  "polkadot-cli/try-runtime",
+  "polkadot-service/try-runtime",
+  "polimec-parachain-runtime/try-runtime",
+  "polimec-base-runtime/try-runtime",
+  "try-runtime-cli",
+]
+fast-gov = [
+  "polimec-parachain-runtime/fast-gov",
+]
