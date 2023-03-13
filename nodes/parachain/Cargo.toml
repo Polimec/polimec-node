@@ -99,4 +99,6 @@ try-runtime = [
   "polimec-base-runtime/try-runtime",
   "try-runtime-cli",
 ]
-fast-gov = []
+fast-gov = [
+  "polimec-parachain-runtime/fast-gov",
+]
