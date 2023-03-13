@@ -6773,8 +6773,6 @@ dependencies = [
  "frame-try-runtime",
  "hex-literal",
  "log",
- "pallet-asset-tx-payment",
- "pallet-assets",
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
@@ -12235,6 +12233,7 @@ source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38#18
 dependencies = [
  "clap",
  "frame-remote-externalities",
+ "frame-try-runtime",
  "hex",
  "log",
  "parity-scale-codec",
