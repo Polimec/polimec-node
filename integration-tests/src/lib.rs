@@ -18,8 +18,10 @@ use xcm_emulator::{
 
 const RELAY_ASSET_ID: u32 = 0;
 const RESERVE_TRANSFER_AMOUNT: u128 = 10_0_000_000_000; //10 UNITS when 10 decimals
+pub const INITIAL_BALANCE: u128 = 100_0_000_000_000;
+pub const ALICE: RuntimeAccountId32 = RuntimeAccountId32::new([0u8; 32]);
 const MAX_XCM_WEIGHT: Weight = Weight::from_parts(1_000_000_000_000, 3_000_000);
-const MAX_XCM_FEE: u128 = 0_3_000_000_000; // 0.3 UNITS when 10 decimals
+const MAX_XCM_FEE: u128 = 3_000_000_000; // 0.3 UNITS when 10 decimals
 
 decl_test_relay_chain! {
 	pub struct PolkadotNet {
@@ -104,9 +106,6 @@ impl ParachainAccounts {
 		SiblingId::from(penpal_id()).into_account_truncating()
 	}
 }
-
-pub const ALICE: RuntimeAccountId32 = RuntimeAccountId32::new([0u8; 32]);
-pub const INITIAL_BALANCE: u128 = 1_000_000_000_000;
 
 fn default_parachains_host_configuration(
 ) -> polkadot_runtime_parachains::configuration::HostConfiguration<
@@ -745,19 +744,19 @@ mod reserve_backed_transfers {
 
 		let transfer_xcm: Xcm<PolimecCall> = Xcm(vec![
 			WithdrawAsset(vec![dot.clone()].into()),
-			BuyExecution { fees: execution_dot.clone(), weight_limit: Unlimited },
+			BuyExecution { fees: execution_dot.clone(), weight_limit: Limited(MAX_XCM_WEIGHT)},
 			InitiateReserveWithdraw {
 				assets: All.into(),
 				reserve: MultiLocation::new(1, X1(Parachain(statemint_id()))),
 				xcm: Xcm::<()>(vec![
-					BuyExecution { fees: execution_dot.clone(), weight_limit: Unlimited },
+					BuyExecution { fees: execution_dot.clone(), weight_limit: Limited(MAX_XCM_WEIGHT) },
 					DepositReserveAsset {
 						assets: All.into(),
 						dest: MultiLocation::new(1, X1(Parachain(penpal_id()))),
 						xcm: Xcm::<()>(vec![
 							BuyExecution {
 								fees: execution_dot.clone(),
-								weight_limit: Unlimited,
+								weight_limit: Limited(MAX_XCM_WEIGHT),
 							},
 							DepositAsset {
 								assets: All.into(),
@@ -771,7 +770,7 @@ mod reserve_backed_transfers {
 		]);
 
 		// fund ALICE with reserve backed DOT on Polimec
-		reserve_to_polimec();
+		// reserve_to_polimec();
 
 		// check Polimec's pre transfer balances and issuance
 		let (
@@ -805,8 +804,8 @@ mod reserve_backed_transfers {
 			penpal_prev_dot_issuance,
 		) = PenpalNet::execute_with(|| {
 			(
-				PenpalAssets::balance(RELAY_ASSET_ID, ALICE),
-				PenpalAssets::total_issuance(RELAY_ASSET_ID),
+				PenpalBalances::free_balance(ALICE),
+				PenpalBalances::total_issuance(),
 			)
 		});
 
@@ -814,7 +813,7 @@ mod reserve_backed_transfers {
 		PolimecNet::execute_with(|| {
 			assert_ok!(PolimecXcmPallet::execute(
 				PolimecOrigin::signed(ALICE),
-				Box::new(VersionedXcm::V3(transfer_xcm.clone())),
+				Box::new(VersionedXcm::V3(transfer_xcm)),
 				MAX_XCM_WEIGHT
 			));
 		});
@@ -869,188 +868,57 @@ mod reserve_backed_transfers {
 			)
 		});
 
-		let penpal_net_dot_issuance = penpal_post_dot_issuance - penpal_prev_dot_issuance;
-		let penpal_net_alice_dot_balance = penpal_post_alice_dot_balance - penpal_prev_alice_dot_balance;
-
+		let penpal_delta_dot_issuance = penpal_post_dot_issuance - penpal_prev_dot_issuance;
+		let penpal_delta_alice_dot_balance = penpal_post_alice_dot_balance - penpal_prev_alice_dot_balance;
+		
+		let polimec_delta_dot_issuance = polimec_prev_dot_issuance - polimec_post_dot_issuance;
+		let polimec_delta_alice_dot_balance = polimec_prev_alice_dot_balance - polimec_post_alice_dot_balance;
+		let polimec_delta_plmc_issuance = polimec_prev_plmc_issuance - polimec_post_plmc_issuance;
+		let polimec_delta_alice_plmc_balance = polimec_prev_alice_plmc_balance - polimec_post_alice_plmc_balance;
+		
+		let statemint_delta_dot_issuance = statemint_prev_dot_issuance - statemint_post_dot_issuance;
+		let statemint_delta_alice_dot_balance = statemint_prev_alice_dot_balance - statemint_post_alice_dot_balance;
+		
 		assert!(
-			penpal_net_alice_dot_balance > RESERVE_TRANSFER_AMOUNT - MAX_XCM_FEE * 3,
-			"Expected funds area not received by Alice on Penpal"
+			penpal_delta_alice_dot_balance > RESERVE_TRANSFER_AMOUNT - MAX_XCM_FEE * 3 &&
+				penpal_delta_alice_dot_balance < RESERVE_TRANSFER_AMOUNT,
+			"Expected funds are not received by Alice on Penpal"
 		);
 
 		assert_eq!(
-			penpal_net_dot_issuance,
-			penpal_net_alice_dot_balance,
+			penpal_delta_dot_issuance,
+			penpal_delta_alice_dot_balance,
 			"Expected Penpal's DOT issuance to increase by the same amount as Alice's DOT balance"
 		);
 
-		assert!(
-			polimec_prev_alice_dot_balance >= RESERVE_TRANSFER_AMOUNT - polimec_runtime::WeightToFee::<PolimecRuntime>::weight_to_fee(&MAX_XCM_WEIGHT),
-			"Polimec's ALICE DOT balance should start with at least the transfer amount minus the max allowed fees"
+		assert_eq!(
+			polimec_delta_alice_dot_balance, RESERVE_TRANSFER_AMOUNT,
+			"Polimec ALICE DOT balance should change by the transfer amount"
 		);
 
 		assert_eq!(
-			polimec_post_alice_dot_balance, 0,
-			"Polimec's ALICE DOT balance should be 0 after transfer to Statemint"
+			polimec_delta_dot_issuance, RESERVE_TRANSFER_AMOUNT,
+			"Polimec DOT issuance should change by the transfer amount"
 		);
-
-		assert_eq!(polimec_prev_alice_plmc_balance, polimec_post_alice_plmc_balance, "Polimec's ALICE PLMC balance should not change, since the execute function is called directly, and the xcm execution is paid in DOT");
 
 		assert_eq!(
-			polimec_post_dot_issuance, 0,
-			"Polimec's DOT issuance should be 0 after transfer back to Statemint"
+			statemint_delta_alice_dot_balance, 0,
+			"Statemint ALICE DOT balance should not have changed"
 		);
 
-		assert_eq!(polimec_prev_plmc_issuance, polimec_post_plmc_issuance, "Polimec's PLMC issuance should not change, since all xcm token transfer are done in DOT, and no fees are burnt since no extrinsics are dispatched");
-
-		assert!(
-			statemint_post_alice_dot_balance  >= statemint_prev_alice_dot_balance + RESERVE_TRANSFER_AMOUNT - statemint_runtime::constants::fee::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT),
-			"Statemint's ALICE DOT balance should increase by at least the transfer amount minus the max allowed fees"
+		assert_eq!(
+			statemint_delta_dot_issuance, 0,
+			"Statemint DOT issuance should not have changed"
 		);
 
-		assert!(
-			statemint_post_dot_issuance <= statemint_prev_dot_issuance &&
-				statemint_post_dot_issuance >= statemint_prev_dot_issuance - statemint_runtime::constants::fee::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT),
-			"Statemint's DOT issuance should not change, since it acts as a reserve for that asset (except for fees which are burnt)"
+		assert_eq!(
+			polimec_delta_alice_plmc_balance, 0,
+			"Polimec ALICE PLMC balance should not have changed"
 		);
 
-		assert!(
-			statemint_post_alice_dot_balance <=
-				statemint_prev_alice_dot_balance + RESERVE_TRANSFER_AMOUNT,
-			"Statemint's ALICE DOT balance should not increase by more than the transfer amount"
+		assert_eq!(
+			polimec_delta_plmc_issuance, 0,
+			"Polimec PLMC issuance should not have changed"
 		);
 	}
 }
-
-//
-// 	#[test]
-// 	fn xcmp_through_a_parachain() {
-// 		use yayoi::{PolkadotXcm, Runtime, RuntimeCall};
-//
-// 		Network::reset();
-//
-// 		// The message goes through: Pumpkin --> Mushroom --> Octopus
-// 		let remark = RuntimeCall::System(frame_system::Call::<Runtime>::remark_with_event {
-// 			remark: "Hello from Pumpkin!".as_bytes().to_vec(),
-// 		});
-// 		let send_xcm_to_octopus = RuntimeCall::PolkadotXcm(pallet_xcm::Call::<Runtime>::send {
-// 			dest: Box::new(VersionedMultiLocation::V3(MultiLocation::new(1, X1(Parachain(3))))),
-// 			message: Box::new(VersionedXcm::V3(Xcm(vec![Transact {
-// 				origin_kind: OriginKind::SovereignAccount,
-// 				require_weight_at_most: 10_000_000.into(),
-// 				call: remark.encode().into(),
-// 			}]))),
-// 		});
-// 		YayoiPumpkin::execute_with(|| {
-// 			assert_ok!(PolkadotXcm::send_xcm(
-// 				Here,
-// 				MultiLocation::new(1, X1(Parachain(2))),
-// 				Xcm(vec![Transact {
-// 					origin_kind: OriginKind::SovereignAccount,
-// 					// TODO: fix in 0.9.40, https://github.com/paritytech/polkadot/pull/6787
-// 					// require_weight_at_most: 100_000_000.into(),
-// 					require_weight_at_most: 200_000_000.into(),
-// 					call: send_xcm_to_octopus.encode().into(),
-// 				}]),
-// 			));
-// 		});
-//
-// 		YayoiMushroom::execute_with(|| {
-// 			use yayoi::{RuntimeEvent, System};
-// 			System::events().iter().for_each(|r| println!(">>> {:?}", r.event));
-//
-// 			assert!(System::events()
-// 				.iter()
-// 				.any(|r| matches!(r.event, RuntimeEvent::PolkadotXcm(pallet_xcm::Event::Sent(_, _, _)))));
-// 		});
-//
-// 		YayoiOctopus::execute_with(|| {
-// 			use yayoi::{RuntimeEvent, System};
-// 			// execution would fail, but good enough to check if the message is received
-// 			System::events().iter().for_each(|r| println!(">>> {:?}", r.event));
-//
-// 			assert!(System::events().iter().any(|r| matches!(
-// 				r.event,
-// 				RuntimeEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Fail { .. })
-// 			)));
-// 		});
-// 	}
-//
-// 	#[test]
-// 	fn deduplicate_dmp() {
-// 		Network::reset();
-// 		KusamaNet::execute_with(|| {
-// 			assert_ok!(polkadot_runtime::XcmPallet::force_default_xcm_version(
-// 				polkadot_runtime::RuntimeOrigin::root(),
-// 				Some(3)
-// 			));
-// 		});
-//
-// 		kusama_send_rmrk("Kusama", 2);
-// 		parachain_receive_and_reset_events(true);
-//
-// 		// a different dmp message in same relay-parent-block allow execution.
-// 		kusama_send_rmrk("Polkadot", 1);
-// 		parachain_receive_and_reset_events(true);
-//
-// 		// same dmp message with same relay-parent-block wouldn't execution
-// 		kusama_send_rmrk("Kusama", 1);
-// 		parachain_receive_and_reset_events(false);
-//
-// 		// different relay-parent-block allow dmp message execution
-// 		KusamaNet::execute_with(|| polkadot_runtime::System::set_block_number(2));
-//
-// 		kusama_send_rmrk("Kusama", 1);
-// 		parachain_receive_and_reset_events(true);
-//
-// 		// reset can send same dmp message again
-// 		Network::reset();
-// 		KusamaNet::execute_with(|| {
-// 			assert_ok!(polkadot_runtime::XcmPallet::force_default_xcm_version(
-// 				polkadot_runtime::RuntimeOrigin::root(),
-// 				Some(3)
-// 			));
-// 		});
-//
-// 		kusama_send_rmrk("Kusama", 1);
-// 		parachain_receive_and_reset_events(true);
-// 	}
-//
-// 	fn kusama_send_rmrk(msg: &str, count: u32) {
-// 		let remark = yayoi::RuntimeCall::System(frame_system::Call::<yayoi::Runtime>::remark_with_event {
-// 			remark: msg.as_bytes().to_vec(),
-// 		});
-// 		KusamaNet::execute_with(|| {
-// 			for _ in 0..count {
-// 				assert_ok!(polkadot_runtime::XcmPallet::send_xcm(
-// 					Here,
-// 					Parachain(1),
-// 					Xcm(vec![Transact {
-// 						origin_kind: OriginKind::SovereignAccount,
-// 						require_weight_at_most: Weight::from_parts(INITIAL_BALANCE as u64, 1024 * 1024),
-// 						call: remark.encode().into(),
-// 					}]),
-// 				));
-// 			}
-// 		});
-// 	}
-//
-// 	fn parachain_receive_and_reset_events(received: bool) {
-// 		YayoiPumpkin::execute_with(|| {
-// 			use yayoi::{RuntimeEvent, System};
-// 			System::events().iter().for_each(|r| println!(">>> {:?}", r.event));
-//
-// 			if received {
-// 				assert!(System::events().iter().any(|r| matches!(
-// 					r.event,
-// 					RuntimeEvent::System(frame_system::Event::Remarked { sender: _, hash: _ })
-// 				)));
-//
-// 				System::reset_events();
-// 			} else {
-// 				assert!(System::events().iter().all(|r| !matches!(
-// 					r.event,
-// 					RuntimeEvent::System(frame_system::Event::Remarked { sender: _, hash: _ })
-// 				)));
-// 			}
-// 		});
-// 	}
