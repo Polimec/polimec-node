@@ -17,8 +17,9 @@ use xcm_emulator::{
 };
 
 const RELAY_ASSET_ID: u32 = 0;
-const RESERVE_TRANSFER_AMOUNT: u128 = 100_000_000_000;
+const RESERVE_TRANSFER_AMOUNT: u128 = 10_0_000_000_000; //10 UNITS when 10 decimals
 const MAX_XCM_WEIGHT: Weight = Weight::from_parts(1_000_000_000_000, 3_000_000);
+const MAX_XCM_FEE: u128 = 0_3_000_000_000; // 0.3 UNITS when 10 decimals
 
 decl_test_relay_chain! {
 	pub struct PolkadotNet {
@@ -103,7 +104,6 @@ impl ParachainAccounts {
 		SiblingId::from(penpal_id()).into_account_truncating()
 	}
 }
-
 
 pub const ALICE: RuntimeAccountId32 = RuntimeAccountId32::new([0u8; 32]);
 pub const INITIAL_BALANCE: u128 = 1_000_000_000_000;
@@ -488,9 +488,8 @@ mod network_tests {
 
 #[cfg(test)]
 mod reserve_backed_transfers {
-	use frame_support::traits::fungibles::Inspect;
-	use frame_support::weights::WeightToFee;
 	use super::*;
+	use frame_support::{traits::fungibles::Inspect, weights::WeightToFee};
 
 	#[test]
 	fn reserve_to_polimec() {
@@ -503,26 +502,21 @@ mod reserve_backed_transfers {
 			polimec_prev_alice_dot_balance,
 			polimec_prev_alice_plmc_balance,
 			polimec_prev_dot_issuance,
-			polimec_prev_plmc_issuance
+			polimec_prev_plmc_issuance,
 		) = PolimecNet::execute_with(|| {
 			(
 				PolimecAssets::balance(RELAY_ASSET_ID, ALICE),
 				PolimecBalances::free_balance(ALICE),
 				PolimecAssets::total_issuance(RELAY_ASSET_ID),
-				PolimecBalances::total_issuance()
+				PolimecBalances::total_issuance(),
 			)
 		});
 
 		// check Statemint's pre transfer balances and issuance
-		let (
-			statemint_prev_alice_dot_balance,
-			statemint_prev_dot_issuance,
-		) = StatemintNet::execute_with(|| {
-			(
-				StatemintBalances::free_balance(ALICE),
-				StatemintBalances::total_issuance()
-			)
-		});
+		let (statemint_prev_alice_dot_balance, statemint_prev_dot_issuance) =
+			StatemintNet::execute_with(|| {
+				(StatemintBalances::free_balance(ALICE), StatemintBalances::total_issuance())
+			});
 
 		// do the transfer
 		StatemintNet::execute_with(|| {
@@ -561,26 +555,23 @@ mod reserve_backed_transfers {
 			polimec_post_alice_dot_balance,
 			polimec_post_alice_plmc_balance,
 			polimec_post_dot_issuance,
-			polimec_post_plmc_issuance
+			polimec_post_plmc_issuance,
 		) = PolimecNet::execute_with(|| {
+			polimec_runtime::System::reset_events();
 			(
 				PolimecAssets::balance(RELAY_ASSET_ID, ALICE),
 				PolimecBalances::free_balance(ALICE),
 				PolimecAssets::total_issuance(RELAY_ASSET_ID),
-				PolimecBalances::total_issuance()
+				PolimecBalances::total_issuance(),
 			)
 		});
 
 		// check Statemint's post transfer balances and issuance
-		let (
-			statemint_post_alice_dot_balance,
-			statemint_post_dot_issuance,
-		) = StatemintNet::execute_with(|| {
-			(
-				StatemintBalances::free_balance(ALICE),
-				StatemintBalances::total_issuance()
-			)
-		});
+		let (statemint_post_alice_dot_balance, statemint_post_dot_issuance) =
+			StatemintNet::execute_with(|| {
+				statemint_runtime::System::reset_events();
+				(StatemintBalances::free_balance(ALICE), StatemintBalances::total_issuance())
+			});
 
 		assert!(
 			polimec_post_alice_dot_balance >= polimec_prev_alice_dot_balance + RESERVE_TRANSFER_AMOUNT - polimec_runtime::WeightToFee::<PolimecRuntime>::weight_to_fee(&MAX_XCM_WEIGHT) &&
@@ -594,23 +585,24 @@ mod reserve_backed_transfers {
 			"Polimec DOT issuance should have increased by at least the transfer amount minus the XCM execution fee"
 		);
 
-		assert!(
-			statemint_post_alice_dot_balance == statemint_prev_alice_dot_balance - RESERVE_TRANSFER_AMOUNT,
+		assert_eq!(
+			statemint_post_alice_dot_balance,
+			statemint_prev_alice_dot_balance - RESERVE_TRANSFER_AMOUNT,
 			"Statemint ALICE DOT balance should have decreased by the transfer amount"
 		);
 
-		assert!(
-			statemint_post_dot_issuance == statemint_prev_dot_issuance,
+		assert_eq!(
+			statemint_post_dot_issuance, statemint_prev_dot_issuance,
 			"Statemint DOT issuance should not have changed"
 		);
 
-		assert!(
-			polimec_post_alice_plmc_balance == polimec_prev_alice_plmc_balance,
+		assert_eq!(
+			polimec_post_alice_plmc_balance, polimec_prev_alice_plmc_balance,
 			"Polimec ALICE PLMC balance should not have changed"
 		);
 
-		assert!(
-			polimec_post_plmc_issuance == polimec_prev_plmc_issuance,
+		assert_eq!(
+			polimec_post_plmc_issuance, polimec_prev_plmc_issuance,
 			"Polimec PLMC issuance should not have changed"
 		);
 	}
@@ -629,26 +621,21 @@ mod reserve_backed_transfers {
 			polimec_prev_alice_dot_balance,
 			polimec_prev_alice_plmc_balance,
 			polimec_prev_dot_issuance,
-			polimec_prev_plmc_issuance
+			polimec_prev_plmc_issuance,
 		) = PolimecNet::execute_with(|| {
 			(
 				PolimecAssets::balance(RELAY_ASSET_ID, ALICE),
 				PolimecBalances::free_balance(ALICE),
 				PolimecAssets::total_issuance(RELAY_ASSET_ID),
-				PolimecBalances::total_issuance()
+				PolimecBalances::total_issuance(),
 			)
 		});
 
 		// check Statemint's pre transfer balances and issuance
-		let (
-			statemint_prev_alice_dot_balance,
-			statemint_prev_dot_issuance,
-		) = StatemintNet::execute_with(|| {
-			(
-				StatemintBalances::free_balance(ALICE),
-				StatemintBalances::total_issuance()
-			)
-		});
+		let (statemint_prev_alice_dot_balance, statemint_prev_dot_issuance) =
+			StatemintNet::execute_with(|| {
+				(StatemintBalances::free_balance(ALICE), StatemintBalances::total_issuance())
+			});
 
 		// construct the XCM to transfer from Polimec to Statemint's reserve
 		let transfer_xcm: Xcm<PolimecCall> = Xcm(vec![
@@ -658,14 +645,15 @@ mod reserve_backed_transfers {
 				assets: All.into(),
 				reserve: MultiLocation::new(1, X1(Parachain(statemint_id()))),
 				xcm: Xcm(vec![
-				BuyExecution { fees: dot.clone(), weight_limit: Unlimited },
-				DepositAsset {
-					assets: All.into(),
-					beneficiary: MultiLocation::new(
-						0,
-						AccountId32 { network: None, id: ALICE.into() },
-					),
-				}]),
+					BuyExecution { fees: dot.clone(), weight_limit: Unlimited },
+					DepositAsset {
+						assets: All.into(),
+						beneficiary: MultiLocation::new(
+							0,
+							AccountId32 { network: None, id: ALICE.into() },
+						),
+					},
+				]),
 			},
 		]);
 
@@ -677,7 +665,6 @@ mod reserve_backed_transfers {
 				MAX_XCM_WEIGHT,
 			));
 		});
-
 
 		// check that the xcm was not blocked
 		StatemintNet::execute_with(|| {
@@ -696,51 +683,40 @@ mod reserve_backed_transfers {
 			polimec_post_alice_dot_balance,
 			polimec_post_alice_plmc_balance,
 			polimec_post_dot_issuance,
-			polimec_post_plmc_issuance
+			polimec_post_plmc_issuance,
 		) = PolimecNet::execute_with(|| {
 			(
 				PolimecAssets::balance(RELAY_ASSET_ID, ALICE),
 				PolimecBalances::free_balance(ALICE),
 				PolimecAssets::total_issuance(RELAY_ASSET_ID),
-				PolimecBalances::total_issuance()
+				PolimecBalances::total_issuance(),
 			)
 		});
 
 		// check Statemint's post transfer balances and issuance
-		let (
-			statemint_post_alice_dot_balance,
-			statemint_post_dot_issuance,
-		) = StatemintNet::execute_with(|| {
-			(
-				StatemintBalances::free_balance(ALICE),
-				StatemintBalances::total_issuance()
-			)
-		});
+		let (statemint_post_alice_dot_balance, statemint_post_dot_issuance) =
+			StatemintNet::execute_with(|| {
+				(StatemintBalances::free_balance(ALICE), StatemintBalances::total_issuance())
+			});
 
 		assert!(
 			polimec_prev_alice_dot_balance >= RESERVE_TRANSFER_AMOUNT - polimec_runtime::WeightToFee::<PolimecRuntime>::weight_to_fee(&MAX_XCM_WEIGHT),
 			"Polimec's ALICE DOT balance should start with at least the transfer amount minus the max allowed fees"
 		);
 
-		assert!(
-			polimec_post_alice_dot_balance == 0,
+		assert_eq!(
+			polimec_post_alice_dot_balance, 0,
 			"Polimec's ALICE DOT balance should be 0 after transfer to Statemint"
 		);
 
-		assert!(
-			polimec_prev_alice_plmc_balance == polimec_post_alice_plmc_balance,
-			"Polimec's ALICE PLMC balance should not change, since the execute function is called directly, and the xcm execution is paid in DOT"
-		);
+		assert_eq!(polimec_prev_alice_plmc_balance, polimec_post_alice_plmc_balance, "Polimec's ALICE PLMC balance should not change, since the execute function is called directly, and the xcm execution is paid in DOT");
 
-		assert!(
-			polimec_post_dot_issuance == 0,
+		assert_eq!(
+			polimec_post_dot_issuance, 0,
 			"Polimec's DOT issuance should be 0 after transfer back to Statemint"
 		);
 
-		assert!(
-			polimec_prev_plmc_issuance == polimec_post_plmc_issuance,
-			"Polimec's PLMC issuance should not change, since all xcm token transfer are done in DOT, and no fees are burnt since no extrinsics are dispatched"
-		);
+		assert_eq!(polimec_prev_plmc_issuance, polimec_post_plmc_issuance, "Polimec's PLMC issuance should not change, since all xcm token transfer are done in DOT, and no fees are burnt since no extrinsics are dispatched");
 
 		assert!(
 			statemint_post_alice_dot_balance  >= statemint_prev_alice_dot_balance + RESERVE_TRANSFER_AMOUNT - statemint_runtime::constants::fee::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT),
@@ -754,41 +730,47 @@ mod reserve_backed_transfers {
 		);
 
 		assert!(
-			statemint_post_alice_dot_balance <= statemint_prev_alice_dot_balance + RESERVE_TRANSFER_AMOUNT,
+			statemint_post_alice_dot_balance <=
+				statemint_prev_alice_dot_balance + RESERVE_TRANSFER_AMOUNT,
 			"Statemint's ALICE DOT balance should not increase by more than the transfer amount"
 		);
 	}
 
 	#[test]
-	fn polimec_to_para() {
+	fn polimec_to_penpal() {
 		Network::reset();
 
 		let dot: MultiAsset = (MultiLocation::parent(), RESERVE_TRANSFER_AMOUNT).into();
+		let execution_dot: MultiAsset = (MultiLocation::parent(), MAX_XCM_FEE).into();
 
-		let transfer_xcm: Xcm<()> = Xcm(vec![
+		let transfer_xcm: Xcm<PolimecCall> = Xcm(vec![
 			WithdrawAsset(vec![dot.clone()].into()),
-			BuyExecution { fees: dot.clone(), weight_limit: Unlimited },
+			BuyExecution { fees: execution_dot.clone(), weight_limit: Unlimited },
 			InitiateReserveWithdraw {
 				assets: All.into(),
 				reserve: MultiLocation::new(1, X1(Parachain(statemint_id()))),
 				xcm: Xcm::<()>(vec![
-					BuyExecution { fees: dot.clone(), weight_limit: Unlimited },
-					TransferReserveAsset {
-						assets: vec![dot.clone()].into(),
-						dest: MultiLocation::new(1, X1(Parachain(polimec_id()))),
+					BuyExecution { fees: execution_dot.clone(), weight_limit: Unlimited },
+					DepositReserveAsset {
+						assets: All.into(),
+						dest: MultiLocation::new(1, X1(Parachain(penpal_id()))),
 						xcm: Xcm::<()>(vec![
 							BuyExecution {
-								fees: vec![dot.clone()].into(),
+								fees: execution_dot.clone(),
 								weight_limit: Unlimited,
 							},
-							DepositAsset { assets: All.into(), beneficiary: X1(AccountId32 { network: None, id: ALICE.into() }).into() }
+							DepositAsset {
+								assets: All.into(),
+								beneficiary: X1(AccountId32 { network: None, id: ALICE.into() })
+									.into(),
+							},
 						]),
-					}
+					},
 				]),
-			}
+			},
 		]);
 
-		// fund ALICE with reserve backed DOT
+		// fund ALICE with reserve backed DOT on Polimec
 		reserve_to_polimec();
 
 		// check Polimec's pre transfer balances and issuance
@@ -796,20 +778,148 @@ mod reserve_backed_transfers {
 			polimec_prev_alice_dot_balance,
 			polimec_prev_alice_plmc_balance,
 			polimec_prev_dot_issuance,
-			polimec_prev_plmc_issuance
+			polimec_prev_plmc_issuance,
 		) = PolimecNet::execute_with(|| {
 			(
 				PolimecAssets::balance(RELAY_ASSET_ID, ALICE),
 				PolimecBalances::free_balance(ALICE),
 				PolimecAssets::total_issuance(RELAY_ASSET_ID),
-				PolimecBalances::total_issuance()
+				PolimecBalances::total_issuance(),
 			)
 		});
+
+		// check Statemint's pre transfer balances and issuance
+		let (
+			statemint_prev_alice_dot_balance,
+			statemint_prev_dot_issuance
+		) = StatemintNet::execute_with(|| {
+			(
+				StatemintBalances::free_balance(ALICE),
+				StatemintBalances::total_issuance()
+			)
+		});
+
+		// check Penpal's pre transfer balances and issuance
+		let (
+			penpal_prev_alice_dot_balance,
+			penpal_prev_dot_issuance,
+		) = PenpalNet::execute_with(|| {
+			(
+				PenpalAssets::balance(RELAY_ASSET_ID, ALICE),
+				PenpalAssets::total_issuance(RELAY_ASSET_ID),
+			)
+		});
+
+		// send the XCM message
+		PolimecNet::execute_with(|| {
+			assert_ok!(PolimecXcmPallet::execute(
+				PolimecOrigin::signed(ALICE),
+				Box::new(VersionedXcm::V3(transfer_xcm.clone())),
+				MAX_XCM_WEIGHT
+			));
+		});
+
+		StatemintNet::execute_with(||{
+			use statemint_runtime::{System};
+			let events = System::events();
+
+			let x = 10;
+		});
+
+		PenpalNet::execute_with(||{
+			use penpal_runtime::{System};
+			let events = System::events();
+			let x = 10;
+		});
+
+		// check Polimec's pre transfer balances and issuance
+		let (
+			polimec_post_alice_dot_balance,
+			polimec_post_alice_plmc_balance,
+			polimec_post_dot_issuance,
+			polimec_post_plmc_issuance,
+		) = PolimecNet::execute_with(|| {
+			(
+				PolimecAssets::balance(RELAY_ASSET_ID, ALICE),
+				PolimecBalances::free_balance(ALICE),
+				PolimecAssets::total_issuance(RELAY_ASSET_ID),
+				PolimecBalances::total_issuance(),
+			)
+		});
+
+		// check Statemint's pre transfer balances and issuance
+		let (
+			statemint_post_alice_dot_balance,
+			statemint_post_dot_issuance
+		) = StatemintNet::execute_with(|| {
+			(
+				StatemintBalances::free_balance(ALICE),
+				StatemintBalances::total_issuance()
+			)
+		});
+
+		// check Penpal's pre transfer balances and issuance
+		let (
+			penpal_post_alice_dot_balance,
+			penpal_post_dot_issuance,
+		) = PenpalNet::execute_with(|| {
+			(
+				PenpalBalances::free_balance(ALICE),
+				PenpalBalances::total_issuance(),
+			)
+		});
+
+		let penpal_net_dot_issuance = penpal_post_dot_issuance - penpal_prev_dot_issuance;
+		let penpal_net_alice_dot_balance = penpal_post_alice_dot_balance - penpal_prev_alice_dot_balance;
+
+		assert!(
+			penpal_net_alice_dot_balance > RESERVE_TRANSFER_AMOUNT - MAX_XCM_FEE * 3,
+			"Expected funds area not received by Alice on Penpal"
+		);
+
+		assert_eq!(
+			penpal_net_dot_issuance,
+			penpal_net_alice_dot_balance,
+			"Expected Penpal's DOT issuance to increase by the same amount as Alice's DOT balance"
+		);
+
+		assert!(
+			polimec_prev_alice_dot_balance >= RESERVE_TRANSFER_AMOUNT - polimec_runtime::WeightToFee::<PolimecRuntime>::weight_to_fee(&MAX_XCM_WEIGHT),
+			"Polimec's ALICE DOT balance should start with at least the transfer amount minus the max allowed fees"
+		);
+
+		assert_eq!(
+			polimec_post_alice_dot_balance, 0,
+			"Polimec's ALICE DOT balance should be 0 after transfer to Statemint"
+		);
+
+		assert_eq!(polimec_prev_alice_plmc_balance, polimec_post_alice_plmc_balance, "Polimec's ALICE PLMC balance should not change, since the execute function is called directly, and the xcm execution is paid in DOT");
+
+		assert_eq!(
+			polimec_post_dot_issuance, 0,
+			"Polimec's DOT issuance should be 0 after transfer back to Statemint"
+		);
+
+		assert_eq!(polimec_prev_plmc_issuance, polimec_post_plmc_issuance, "Polimec's PLMC issuance should not change, since all xcm token transfer are done in DOT, and no fees are burnt since no extrinsics are dispatched");
+
+		assert!(
+			statemint_post_alice_dot_balance  >= statemint_prev_alice_dot_balance + RESERVE_TRANSFER_AMOUNT - statemint_runtime::constants::fee::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT),
+			"Statemint's ALICE DOT balance should increase by at least the transfer amount minus the max allowed fees"
+		);
+
+		assert!(
+			statemint_post_dot_issuance <= statemint_prev_dot_issuance &&
+				statemint_post_dot_issuance >= statemint_prev_dot_issuance - statemint_runtime::constants::fee::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT),
+			"Statemint's DOT issuance should not change, since it acts as a reserve for that asset (except for fees which are burnt)"
+		);
+
+		assert!(
+			statemint_post_alice_dot_balance <=
+				statemint_prev_alice_dot_balance + RESERVE_TRANSFER_AMOUNT,
+			"Statemint's ALICE DOT balance should not increase by more than the transfer amount"
+		);
 	}
-
-
 }
-
 
 //
 // 	#[test]
