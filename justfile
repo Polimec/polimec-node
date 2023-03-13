@@ -69,7 +69,7 @@ benchmark-pallet-funding:
 		--template=./.maintain/frame-weight-template.hbs
 
 benchmarks-test:
-	cargo run --features runtime-benchmarks -p polimec-parachain-node benchmark pallet --pallet="*" --extrinsic="*"
+	cargo run --features runtime-benchmarks,fast-gov -p polimec-parachain-node benchmark pallet --pallet="*" --extrinsic="*"
 
 # Build the "Standalone" Node Docker Image
 docker-build-standalone tag = "latest":
