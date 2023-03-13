@@ -20,30 +20,6 @@ const RELAY_ASSET_ID: u32 = 0;
 const RESERVE_TRANSFER_AMOUNT: u128 = 100_000_000_000;
 const MAX_XCM_WEIGHT: Weight = Weight::from_parts(1_000_000_000_000, 3_000_000);
 
-struct ParachainAccounts;
-impl ParachainAccounts {
-	fn polimec_child_account() -> RuntimeAccountId32 {
-		ParaId::new(polimec_id()).into_account_truncating()
-	}
-	fn polimec_sibling_account() -> RuntimeAccountId32 {
-		SiblingId::from(polimec_id()).into_account_truncating()
-	}
-
-	fn statemint_child_account() -> RuntimeAccountId32 {
-		ParaId::from(statemint_id()).into_account_truncating()
-	}
-	fn statemint_sibling_account() -> RuntimeAccountId32 {
-		SiblingId::from(statemint_id()).into_account_truncating()
-	}
-
-	fn penpal_child_account() -> RuntimeAccountId32 {
-		ParaId::from(penpal_id()).into_account_truncating()
-	}
-	fn penpal_sibling_account() -> RuntimeAccountId32 {
-		SiblingId::from(penpal_id()).into_account_truncating()
-	}
-}
-
 decl_test_relay_chain! {
 	pub struct PolkadotNet {
 		Runtime = polkadot_runtime::Runtime,
@@ -93,6 +69,7 @@ decl_test_network! {
 		],
 	}
 }
+
 // make sure the index reflects the definition order in network macro
 fn polimec_id() -> u32 {
 	_para_ids()[0]
@@ -103,6 +80,30 @@ fn statemint_id() -> u32 {
 fn penpal_id() -> u32 {
 	_para_ids()[2]
 }
+struct ParachainAccounts;
+impl ParachainAccounts {
+	fn polimec_child_account() -> RuntimeAccountId32 {
+		ParaId::new(polimec_id()).into_account_truncating()
+	}
+	fn polimec_sibling_account() -> RuntimeAccountId32 {
+		SiblingId::from(polimec_id()).into_account_truncating()
+	}
+
+	fn statemint_child_account() -> RuntimeAccountId32 {
+		ParaId::from(statemint_id()).into_account_truncating()
+	}
+	fn statemint_sibling_account() -> RuntimeAccountId32 {
+		SiblingId::from(statemint_id()).into_account_truncating()
+	}
+
+	fn penpal_child_account() -> RuntimeAccountId32 {
+		ParaId::from(penpal_id()).into_account_truncating()
+	}
+	fn penpal_sibling_account() -> RuntimeAccountId32 {
+		SiblingId::from(penpal_id()).into_account_truncating()
+	}
+}
+
 
 pub const ALICE: RuntimeAccountId32 = RuntimeAccountId32::new([0u8; 32]);
 pub const INITIAL_BALANCE: u128 = 1_000_000_000_000;
@@ -492,7 +493,7 @@ mod reserve_backed_transfers {
 	use super::*;
 
 	#[test]
-	fn reserve_to_para() {
+	fn reserve_to_polimec() {
 		Network::reset();
 		// asset to transfer
 		let dot: MultiAsset = (MultiLocation::parent(), RESERVE_TRANSFER_AMOUNT).into();
@@ -615,13 +616,13 @@ mod reserve_backed_transfers {
 	}
 
 	#[test]
-	fn para_to_reserve() {
+	fn polimec_to_reserve() {
 		Network::reset();
 		// asset to transfer
 		let dot: MultiAsset = (MultiLocation::parent(), RESERVE_TRANSFER_AMOUNT).into();
 
 		// fund ALICE with reserve backed DOT
-		reserve_to_para();
+		reserve_to_polimec();
 
 		// check Polimec's pre transfer balances and issuance
 		let (
@@ -757,7 +758,59 @@ mod reserve_backed_transfers {
 			"Statemint's ALICE DOT balance should not increase by more than the transfer amount"
 		);
 	}
+
+	#[test]
+	fn polimec_to_para() {
+		Network::reset();
+
+		let dot: MultiAsset = (MultiLocation::parent(), RESERVE_TRANSFER_AMOUNT).into();
+
+		let transfer_xcm: Xcm<()> = Xcm(vec![
+			WithdrawAsset(vec![dot.clone()].into()),
+			BuyExecution { fees: dot.clone(), weight_limit: Unlimited },
+			InitiateReserveWithdraw {
+				assets: All.into(),
+				reserve: MultiLocation::new(1, X1(Parachain(statemint_id()))),
+				xcm: Xcm::<()>(vec![
+					BuyExecution { fees: dot.clone(), weight_limit: Unlimited },
+					TransferReserveAsset {
+						assets: vec![dot.clone()].into(),
+						dest: MultiLocation::new(1, X1(Parachain(polimec_id()))),
+						xcm: Xcm::<()>(vec![
+							BuyExecution {
+								fees: vec![dot.clone()].into(),
+								weight_limit: Unlimited,
+							},
+							DepositAsset { assets: All.into(), beneficiary: X1(AccountId32 { network: None, id: ALICE.into() }).into() }
+						]),
+					}
+				]),
+			}
+		]);
+
+		// fund ALICE with reserve backed DOT
+		reserve_to_polimec();
+
+		// check Polimec's pre transfer balances and issuance
+		let (
+			polimec_prev_alice_dot_balance,
+			polimec_prev_alice_plmc_balance,
+			polimec_prev_dot_issuance,
+			polimec_prev_plmc_issuance
+		) = PolimecNet::execute_with(|| {
+			(
+				PolimecAssets::balance(RELAY_ASSET_ID, ALICE),
+				PolimecBalances::free_balance(ALICE),
+				PolimecAssets::total_issuance(RELAY_ASSET_ID),
+				PolimecBalances::total_issuance()
+			)
+		});
+	}
+
+
 }
+
+
 //
 // 	#[test]
 // 	fn xcmp_through_a_parachain() {
