@@ -1,10 +1,8 @@
-use crate::shortcuts::PolkadotOrigin;
 use codec::Encode;
 use frame_support::{
 	assert_ok,
 	pallet_prelude::Weight,
-	traits::{Currency, GenesisBuild, PalletInfo},
-	PalletId,
+	traits::{GenesisBuild},
 };
 use polimec_parachain_runtime as polimec_runtime;
 use polkadot_parachain::primitives::{Id as ParaId, Sibling as SiblingId};
@@ -360,7 +358,6 @@ mod network_tests {
 		let remark = PolimecCall::System(frame_system::Call::<PolimecRuntime>::remark_with_event {
 			remark: "Hello from Polkadot!".as_bytes().to_vec(),
 		});
-		let here_asset: MultiAsset = (MultiLocation::here(), INITIAL_BALANCE / 2).into();
 
 		PolkadotNet::execute_with(|| {
 			assert_ok!(PolkadotXcmPallet::send_xcm(
@@ -383,7 +380,7 @@ mod network_tests {
 		PolimecNet::execute_with(|| {
 			use polimec_runtime::{RuntimeEvent, System};
 			let events = System::events();
-			assert!(System::events().iter().any(|r| matches!(
+			assert!(events.iter().any(|r| matches!(
 				r.event,
 				RuntimeEvent::System(frame_system::Event::Remarked { sender: _, hash: _ })
 			)));
@@ -512,7 +509,7 @@ mod reserve_backed_transfers {
 
 		// do the transfer
 		StatemintNet::execute_with(|| {
-			let extrinsic_result = StatemintXcmPallet::limited_reserve_transfer_assets(
+			assert_ok!(StatemintXcmPallet::limited_reserve_transfer_assets(
 				StatemintOrigin::signed(ALICE),
 				Box::new(VersionedMultiLocation::V3(MultiLocation::new(
 					1,
@@ -525,9 +522,7 @@ mod reserve_backed_transfers {
 				Box::new(VersionedMultiAssets::V3(vec![dot.clone()].into())),
 				0,
 				Limited(MAX_XCM_WEIGHT),
-			);
-
-			let x = 10;
+			));
 		});
 
 		// check the transfer was not blocked by our our xcm config
@@ -592,14 +587,12 @@ mod reserve_backed_transfers {
 		);
 
 		assert!(
-			statemint_delta_polimec_dot_balance >= 0 &&
-				statemint_delta_polimec_dot_balance <= statemint_runtime::constants::fee::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT),
+			statemint_delta_polimec_dot_balance <= statemint_runtime::constants::fee::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT),
 			"Polimec's sovereign account on Statemint's balance of DOT should not change, (except for fees which are burnt)"
 		);
 
 		assert!(
-			statemint_delta_dot_issuance >= 0 &&
-				statemint_delta_dot_issuance <= statemint_runtime::constants::fee::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT),
+			statemint_delta_dot_issuance <= statemint_runtime::constants::fee::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT),
 			"Statemint's DOT issuance should not change, since it acts as a reserve for that asset (except for fees which are burnt)"
 		);
 
@@ -710,6 +703,8 @@ mod reserve_backed_transfers {
 		let polimec_delta_plmc_issuance = polimec_prev_plmc_issuance - polimec_post_plmc_issuance;
 		let polimec_delta_alice_dot_balance =
 			polimec_prev_alice_dot_balance - polimec_post_alice_dot_balance;
+		let polimec_delta_alice_plmc_balance = polimec_prev_alice_plmc_balance
+			- polimec_post_alice_plmc_balance;
 
 		let statemint_delta_dot_issuance =
 			statemint_prev_dot_issuance - statemint_post_dot_issuance;
@@ -727,6 +722,7 @@ mod reserve_backed_transfers {
 		);
 
 		assert_eq!(polimec_delta_plmc_issuance, 0, "Polimec's PLMC issuance should not change, since all xcm token transfer are done in DOT, and no fees are burnt since no extrinsics are dispatched");
+		assert_eq!(polimec_delta_alice_plmc_balance, 0, "Polimec's Alice PLMC should not change");
 
 		assert!(
 			statemint_delta_alice_dot_balance  >= RESERVE_TRANSFER_AMOUNT - statemint_runtime::constants::fee::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT) &&
@@ -735,8 +731,7 @@ mod reserve_backed_transfers {
 		);
 
 		assert!(
-			statemint_delta_dot_issuance >= 0 &&
-				statemint_delta_dot_issuance <= statemint_runtime::constants::fee::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT),
+			statemint_delta_dot_issuance <= statemint_runtime::constants::fee::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT),
 			"Statemint's DOT issuance should not change, since it acts as a reserve for that asset (except for fees which are burnt)"
 		);
 	}
@@ -768,7 +763,7 @@ mod reserve_backed_transfers {
 
 		// do the transfer
 		StatemintNet::execute_with(|| {
-			let extrinsic_result = StatemintXcmPallet::limited_reserve_transfer_assets(
+			assert_ok!(StatemintXcmPallet::limited_reserve_transfer_assets(
 				StatemintOrigin::signed(ALICE),
 				Box::new(VersionedMultiLocation::V3(MultiLocation::new(
 					1,
@@ -781,9 +776,7 @@ mod reserve_backed_transfers {
 				Box::new(VersionedMultiAssets::V3(vec![dot.clone()].into())),
 				0,
 				Limited(MAX_XCM_WEIGHT),
-			);
-
-			let x = 10;
+			));
 		});
 
 		// check the transfer was not blocked by our our xcm config
@@ -843,9 +836,13 @@ mod reserve_backed_transfers {
 		);
 
 		assert!(
-			statemint_delta_dot_issuance >= 0 &&
-				statemint_delta_dot_issuance <= statemint_runtime::constants::fee::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT),
+			statemint_delta_dot_issuance <= statemint_runtime::constants::fee::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT),
 			"Statemint's DOT issuance should not change, since it acts as a reserve for that asset (except for fees which are burnt)"
+		);
+
+		assert!(
+			statemint_delta_penpal_dot_balance <= statemint_runtime::constants::fee::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT),
+			"Penpal's sovereign account on Statemint's balance of DOT should not change, (except for fees which are burnt)"
 		);
 	}
 	
@@ -960,8 +957,7 @@ mod reserve_backed_transfers {
 		);
 
 		assert!(
-			statemint_delta_dot_issuance >= 0 &&
-				statemint_delta_dot_issuance <= statemint_runtime::constants::fee::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT),
+			statemint_delta_dot_issuance <= statemint_runtime::constants::fee::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT),
 			"Statemint's DOT issuance should not change, since it acts as a reserve for that asset (except for fees which are burnt)"
 		);
 	}
@@ -1121,10 +1117,15 @@ mod reserve_backed_transfers {
 		);
 
 		assert!(
-			statemint_delta_dot_issuance >= 0 &&
-				statemint_delta_dot_issuance <= statemint_runtime::constants::fee::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT),
+			statemint_delta_dot_issuance <= statemint_runtime::constants::fee::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT),
 			"Statemint's DOT issuance should not change, since it acts as a reserve for that asset (except for fees which are burnt)"
 		);
+
+		assert_eq!(
+			statemint_delta_alice_dot_balance, 0,
+			"ALICE account on Statemint should not have changed"
+		);
+
 		assert_eq!(
 			polimec_delta_alice_plmc_balance, 0,
 			"Polimec ALICE PLMC balance should not have changed"
@@ -1289,10 +1290,15 @@ mod reserve_backed_transfers {
 		);
 
 		assert!(
-			statemint_delta_dot_issuance >= 0 &&
-				statemint_delta_dot_issuance <= statemint_runtime::constants::fee::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT),
+			statemint_delta_dot_issuance <= statemint_runtime::constants::fee::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT),
 			"Statemint's DOT issuance should not change, since it acts as a reserve for that asset (except for fees which are burnt)"
 		);
+
+		assert_eq!(
+			statemint_delta_alice_dot_balance, 0,
+			"ALICE account on Statemint should not have changed"
+		);
+
 		assert_eq!(
 			polimec_delta_alice_plmc_balance, 0,
 			"Polimec ALICE PLMC balance should not have changed"

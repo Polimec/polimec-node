@@ -23,7 +23,6 @@
 //! ReserveAssetTransferDeposited message but that will but the intension will be to support this soon.
 use core::marker::PhantomData;
 
-use crate::AssetsPalletId;
 use frame_support::{
 	match_types, parameter_types,
 	traits::{
@@ -41,7 +40,7 @@ use sp_runtime::traits::Zero;
 use xcm::latest::prelude::*;
 use xcm_builder::{
 	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses,
-	AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom,
+	AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
 	AsPrefixedGeneralIndex, ConvertedConcreteId, CurrencyAdapter, EnsureXcmOrigin,
 	FixedRateOfFungible, FixedWeightBounds, FungiblesAdapter, IsConcrete, LocalMint, NativeAsset,
 	ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
