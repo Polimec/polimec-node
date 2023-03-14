@@ -461,7 +461,7 @@ impl parachain_staking::Config for Runtime {
 impl pallet_randomness_collective_flip::Config for Runtime {}
 
 #[cfg(feature = "fast-gov")]
-pub const EVALUATION_DURATION: BlockNumber = 10;
+pub const EVALUATION_DURATION: BlockNumber = 28;
 #[cfg(not(feature = "fast-gov"))]
 pub const EVALUATION_DURATION: BlockNumber = 28 * DAYS;
 
@@ -471,7 +471,7 @@ pub const ENGLISH_AUCTION_DURATION: BlockNumber = 10;
 pub const ENGLISH_AUCTION_DURATION: BlockNumber = 2 * DAYS;
 
 #[cfg(feature = "fast-gov")]
-pub const CANDLE_AUCTION_DURATION: BlockNumber = 10;
+pub const CANDLE_AUCTION_DURATION: BlockNumber = 5;
 #[cfg(not(feature = "fast-gov"))]
 pub const CANDLE_AUCTION_DURATION: BlockNumber = 3 * DAYS;
 
