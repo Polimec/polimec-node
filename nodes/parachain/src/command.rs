@@ -96,7 +96,9 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 		"polimec-polkadot-local" => Box::new(chain_spec::testnet::get_local_prod_chain_spec()?),
 		// -- Fallback (generic chainspec)
 		"" => {
-			log::warn!("No ChainSpec.id specified, so using default one, based on polimec-rococo-local");
+			log::warn!(
+				"No ChainSpec.id specified, so using default one, based on polimec-rococo-local"
+			);
 			Box::new(chain_spec::testnet::get_chain_spec_dev()?)
 		},
 		// A custom chainspec path
