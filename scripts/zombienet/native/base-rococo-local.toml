@@ -1,0 +1,31 @@
+[settings]
+timeout = 1000
+provider = "native"
+
+[relaychain]
+default_command = "polkadot"
+chain = "rococo-local"
+
+	[[relaychain.nodes]]
+	name = "alice"
+
+	[[relaychain.nodes]]
+	name = "bob"
+
+	[[relaychain.nodes]]
+	name = "charlie"
+
+	[[relaychain.nodes]]
+	name = "dave"
+
+[[parachains]]
+id = 2000
+chain = "base-rococo-local"
+
+	[[parachains.collators]]
+	name = "collator1"
+	command = "polimec"
+
+	[[parachains.collators]]
+	name = "collator2"
+	command = "polimec"

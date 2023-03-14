@@ -1,14 +1,19 @@
+[settings]
+timeout = 1000
+provider = "native"
+
 [relaychain]
 default_command = "polkadot"
-default_args = ["-lparachain=debug"]
 chain = "rococo-local"
 
 	[[relaychain.nodes]]
 	name = "alice"
-    args = [ "--alice" ]
-	validator = true
 
 	[[relaychain.nodes]]
 	name = "bob"
-    args = [ "--bob" ]
-	validator = true
+
+	[[relaychain.nodes]]
+	name = "charlie"
+
+	[[relaychain.nodes]]
+	name = "dave"
