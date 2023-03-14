@@ -43,8 +43,8 @@ use xcm_builder::{
 	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses,
 	AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom,
 	AsPrefixedGeneralIndex, ConvertedConcreteId, CurrencyAdapter, EnsureXcmOrigin,
-	FixedWeightBounds, FungiblesAdapter, IsConcrete, LocalMint, NativeAsset, ParentIsPreset,
-	RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
+	FixedRateOfFungible, FixedWeightBounds, FungiblesAdapter, IsConcrete, LocalMint, NativeAsset,
+	ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
 	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit,
 	UsingComponents, WithComputedOrigin,
 };
@@ -59,12 +59,17 @@ use super::{
 	WeightToFee, XcmpQueue,
 };
 
+const DOT_ASSET_ID: AssetId = Concrete(RelayLocation::get());
+const DOT_PER_SECOND_EXECUTION: u128 = 0_0_000_001_000; // 0.0000001 DOT per second of execution time
+const DOT_PER_MB_PROOF: u128 = 0_0_000_001_000; // 0.0000001 DOT per Megabyte of proof size
+
 parameter_types! {
 	pub const RelayLocation: MultiLocation = MultiLocation::parent();
 	pub const RelayNetwork: Option<NetworkId> = None;
 	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
 	pub UniversalLocation: InteriorMultiLocation = X1(Parachain(ParachainInfo::parachain_id().into()));
 	pub const HereLocation: MultiLocation = MultiLocation::here();
+	pub const DotTraderParams: (AssetId, u128, u128) = (DOT_ASSET_ID, DOT_PER_SECOND_EXECUTION, DOT_PER_MB_PROOF);
 }
 
 /// Type for specifying how a `MultiLocation` can be converted into an `AccountId`. This is used
@@ -372,13 +377,7 @@ impl xcm_executor::Config for XcmConfig {
 	type Trader = (
 		// TODO: weight to fee has to be carefully considered. For now use default
 		UsingComponents<WeightToFee<Runtime>, HereLocation, AccountId, Balances, ToAuthor<Runtime>>,
-		UsingComponents<
-			WeightToFee<Runtime>,
-			RelayLocation,
-			AccountId,
-			Balances,
-			ToAuthor<Runtime>,
-		>,
+		FixedRateOfFungible<DotTraderParams, ()>,
 	);
 	type ResponseHandler = PolkadotXcm;
 	type AssetTrap = PolkadotXcm;
@@ -411,20 +410,6 @@ pub type XcmRouter = (
 parameter_types! {
 	pub ReachableDest: Option<MultiLocation> = Some(Parent.into());
 }
-
-// TODO: for now we assume all fungible assets are controlled by statemint. Later we will want to have one instance for statemint backed, and one for local backed
-// struct TransferBackToStatemint;
-// impl Contains<(MultiLocation, Xcm<RuntimeCall>)> for TransferBackToStatemint {
-// 	fn contains(t: &(MultiLocation, Xcm<RuntimeCall>)) -> bool {
-// 		match t {
-// 			(CommonGoodAssetsLocation::get(), Xcm::<RuntimeCall>(vec![
-// 				xcm::v3::Instruction::WithdrawAsset()
-// 			])) => true,
-// 			_ => false
-// 		}
-// 	}
-// }
-// type XcmExecuteFilter = (,);
 
 impl pallet_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;

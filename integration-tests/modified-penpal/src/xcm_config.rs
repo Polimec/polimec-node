@@ -272,10 +272,10 @@ impl ContainsPair<MultiAsset, MultiLocation> for StatemintAssets {
 			match asset {
 				MultiAsset {
 					id:
-					Concrete(MultiLocation {
-								 parents: 0,
-								 interior: X2(PalletInstance(50), GeneralIndex(_)),
-							 }),
+						Concrete(MultiLocation {
+							parents: 0,
+							interior: X2(PalletInstance(50), GeneralIndex(_)),
+						}),
 					..
 				} => true,
 				MultiAsset {
@@ -340,7 +340,7 @@ impl pallet_xcm::Config for Runtime {
 	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type XcmRouter = XcmRouter;
 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
-	type XcmExecuteFilter = Nothing;
+	type XcmExecuteFilter = Everything;
 	// ^ Disable dispatchable execute on the XCM pallet.
 	// Needs to be `Everything` for local testing.
 	type XcmExecutor = XcmExecutor<XcmConfig>;
