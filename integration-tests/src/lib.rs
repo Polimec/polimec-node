@@ -66,7 +66,6 @@ decl_test_parachain! {
 decl_test_network! {
 	pub struct Network {
 		relay_chain = PolkadotNet,
-		// ensure this reflects the ones defined in the const ids
 		parachains = vec![
 			(2000u32, PolimecNet),
 			(1000u32, StatemintNet),
@@ -384,8 +383,6 @@ mod network_tests {
 		PolimecNet::execute_with(|| {
 			use polimec_runtime::{RuntimeEvent, System};
 			let events = System::events();
-			events.iter().for_each(|r| println!(">>> {:?}", r.event));
-
 			assert!(System::events().iter().any(|r| matches!(
 				r.event,
 				RuntimeEvent::System(frame_system::Event::Remarked { sender: _, hash: _ })
@@ -428,10 +425,7 @@ mod network_tests {
 
 		PolkadotNet::execute_with(|| {
 			use polkadot_runtime::{RuntimeEvent, System};
-
 			let events = System::events();
-			events.iter().for_each(|r| println!(">>> {:?}", r.event));
-
 			assert!(events.iter().any(|r| matches!(
 				r.event,
 				RuntimeEvent::Ump(polkadot_runtime_parachains::ump::Event::ExecutedUpward(
@@ -474,13 +468,8 @@ mod network_tests {
 		});
 
 		PolimecNet::execute_with(|| {
-			let penpal_balance =
-				PolimecBalances::free_balance(ParachainAccounts::penpal_sibling_account());
-			let penpal_acc = ParachainAccounts::penpal_sibling_account();
 			use polimec_runtime::{RuntimeEvent, System};
 			let events = System::events();
-			events.iter().for_each(|r| println!(">>> {:?}", r.event));
-
 			assert!(events.iter().any(|r| matches!(
 				r.event,
 				RuntimeEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Success { .. })
@@ -545,8 +534,6 @@ mod reserve_backed_transfers {
 		PolimecNet::execute_with(|| {
 			use polimec_runtime::{RuntimeEvent, System};
 			let events = System::events();
-			events.iter().for_each(|r| println!(">>> {:?}", r.event));
-
 			assert!(events.iter().any(|r| matches!(
 				r.event,
 				RuntimeEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Success { .. })
@@ -632,10 +619,8 @@ mod reserve_backed_transfers {
 		Network::reset();
 		// asset to transfer
 		let dot: MultiAsset = (MultiLocation::parent(), RESERVE_TRANSFER_AMOUNT).into();
+		// execution fee
 		let execution_dot: MultiAsset = (MultiLocation::parent(), MAX_XCM_FEE).into();
-
-		// fund ALICE with reserve backed DOT
-		// reserve_to_polimec();
 
 		// check Polimec's pre transfer balances and issuance
 		let (
@@ -660,7 +645,6 @@ mod reserve_backed_transfers {
 
 		// construct the XCM to transfer from Polimec to Statemint's reserve
 		let transfer_xcm: Xcm<PolimecCall> = Xcm(vec![
-			// DescendOrigin(X1(AccountId32 { network: None, id: ALICE.into()})),
 			WithdrawAsset(vec![dot.clone()].into()),
 			BuyExecution { fees: execution_dot.clone(), weight_limit: Limited(MAX_XCM_WEIGHT) },
 			InitiateReserveWithdraw {
@@ -695,8 +679,6 @@ mod reserve_backed_transfers {
 		StatemintNet::execute_with(|| {
 			use statemint_runtime::{RuntimeEvent, System};
 			let events = System::events();
-			events.iter().for_each(|r| println!(">>> {:?}", r.event));
-
 			assert!(events.iter().any(|r| matches!(
 				r.event,
 				RuntimeEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Success { .. })
@@ -767,8 +749,8 @@ mod reserve_backed_transfers {
 
 		// check Penpal's pre transfer balances and issuance
 		let (penpal_prev_alice_dot_balance, penpal_prev_dot_issuance) =
-			PolimecNet::execute_with(|| {
-				(PolimecBalances::free_balance(ALICE), PolimecBalances::total_issuance())
+			PenpalNet::execute_with(|| {
+				(PenpalBalances::free_balance(ALICE), PenpalBalances::total_issuance())
 			});
 
 		// check Statemint's pre transfer balances and issuance
@@ -808,8 +790,6 @@ mod reserve_backed_transfers {
 		PenpalNet::execute_with(|| {
 			use penpal_runtime::{RuntimeEvent, System};
 			let events = System::events();
-			events.iter().for_each(|r| println!(">>> {:?}", r.event));
-
 			assert!(events.iter().any(|r| matches!(
 				r.event,
 				RuntimeEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Success { .. })
@@ -844,8 +824,6 @@ mod reserve_backed_transfers {
 		let statemint_delta_penpal_dot_balance = statemint_post_penpal_dot_balance - statemint_prev_penpal_dot_balance;
 		let statemint_delta_dot_issuance = statemint_prev_dot_issuance - statemint_post_dot_issuance;
 
-		let used_weight = 655521000_u128;
-		let max_w = penpal_runtime::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT);
 		assert!(
 			penpal_delta_alice_dot_balance >= RESERVE_TRANSFER_AMOUNT - penpal_runtime::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT) &&
 				penpal_delta_alice_dot_balance <= RESERVE_TRANSFER_AMOUNT,
@@ -876,6 +854,7 @@ mod reserve_backed_transfers {
 		Network::reset();
 		// asset to transfer
 		let dot: MultiAsset = (MultiLocation::parent(), RESERVE_TRANSFER_AMOUNT).into();
+		// execution fee
 		let execution_dot: MultiAsset = (MultiLocation::parent(), MAX_XCM_FEE).into();
 
 		// check Penpal's pre transfer balances and issuance
@@ -931,8 +910,6 @@ mod reserve_backed_transfers {
 		StatemintNet::execute_with(|| {
 			use statemint_runtime::{RuntimeEvent, System};
 			let events = System::events();
-			events.iter().for_each(|r| println!(">>> {:?}", r.event));
-
 			assert!(events.iter().any(|r| matches!(
 				r.event,
 				RuntimeEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Success { .. })
@@ -1063,16 +1040,21 @@ mod reserve_backed_transfers {
 		});
 
 		StatemintNet::execute_with(|| {
-			use statemint_runtime::System;
+			use statemint_runtime::{System, RuntimeEvent};
 			let events = System::events();
-
-			let x = 10;
+			assert!(events.iter().any(|r| matches!(
+				r.event,
+				RuntimeEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Success { .. })
+			)));
 		});
 
 		PenpalNet::execute_with(|| {
-			use penpal_runtime::System;
+			use penpal_runtime::{RuntimeEvent, System};
 			let events = System::events();
-			let x = 10;
+			assert!(events.iter().any(|r| matches!(
+				r.event,
+				RuntimeEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Success { .. })
+			)));
 		});
 
 		// check Polimec's pre transfer balances and issuance
@@ -1225,16 +1207,21 @@ mod reserve_backed_transfers {
 		});
 
 		StatemintNet::execute_with(|| {
-			use statemint_runtime::System;
+			use statemint_runtime::{System, RuntimeEvent};
 			let events = System::events();
-
-			let x = 10;
+			assert!(events.iter().any(|r| matches!(
+				r.event,
+				RuntimeEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Success { .. })
+			)));
 		});
 
-		PenpalNet::execute_with(|| {
-			use penpal_runtime::System;
+		PolimecNet::execute_with(|| {
+			use polimec_runtime::{System, RuntimeEvent};
 			let events = System::events();
-			let x = 10;
+			assert!(events.iter().any(|r| matches!(
+				r.event,
+				RuntimeEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Success { .. })
+			)));
 		});
 
 		// check Polimec's pre transfer balances and issuance
