@@ -17,9 +17,9 @@ chain = "rococo-local"
 id = 1000
 chain = "statemine-local"
 
-    [[parachains.collators]]
-    name = "statemine-collator"
-    command = "polkadot-parachain"
+	[[parachains.collators]]
+	name = "statemine-collator"
+	command = "polkadot-parachain"
 
 [[parachains]]
 id = 2000
@@ -27,4 +27,3 @@ id = 2000
 	[[parachains.collators]]
 	name = "collator1"
 	command = "polimec"
-
