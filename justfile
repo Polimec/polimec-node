@@ -71,13 +71,9 @@ benchmark-pallet-funding:
 benchmarks-test:
 	cargo run --features runtime-benchmarks,fast-gov -p polimec-parachain-node benchmark pallet --pallet="*" --extrinsic="*"
 
-# Build the "Standalone" Node Docker Image
-docker-build-standalone tag = "latest":
-	./scripts/build_image.sh {{tag}} ./Dockerfile polimec-standalone-node
-
-# Build the "Parachain" Node Docker Image
-docker-build-collator tag = "latest":
-	./scripts/build_image.sh {{tag}} ./Dockerfile polimec-parachain-node
+# Build the Node Docker Image
+docker-build tag = "latest" package= "polimec-parachain-node":
+	./scripts/build_image.sh {{tag}} ./Dockerfile {{package}}
 
 # Run the "Standalone" node in --dev mode
 run-node:
