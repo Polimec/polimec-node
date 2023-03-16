@@ -1,0 +1,49 @@
+[settings]
+timeout = 1000
+provider = "native"
+
+[relaychain]
+default_command = "polkadot"
+chain = "rococo-local"
+
+    [[relaychain.nodes]]
+    name = "alice"
+
+    [[relaychain.nodes]]
+    name = "bob"
+
+    [[relaychain.nodes]]
+    name = "charlie"
+
+    [[relaychain.nodes]]
+    name = "dave"
+
+    [[relaychain.nodes]]
+    name = "eve"
+
+    [[relaychain.nodes]]
+    name = "ferdie"
+
+
+[[parachains]]
+id = 1000
+chain = "statemint-local"
+
+	[[parachains.collators]]
+	name = "statemint-collator"
+	command = "polkadot-parachain"
+
+[[parachains]]
+id = 2000
+
+	[[parachains.collators]]
+	name = "polimec-collator"
+	command = "polimec-parachain-node"
+
+[[parachains]]
+id = 3000
+
+	[[parachains.collators]]
+	name = "penpal-collator"
+	command = "parachain-template-node"
+

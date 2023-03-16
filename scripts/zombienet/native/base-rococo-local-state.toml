@@ -19,4 +19,4 @@ genesis_wasm_path = "./scripts/zombienet/native/genesis/base-wasm-rococo-local"
 
 	[[parachains.collators]]
 	name = "polimec-collator"
-	command = "polimec"
+	command = "polimec-parachain-node"

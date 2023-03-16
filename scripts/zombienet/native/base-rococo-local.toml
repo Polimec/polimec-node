@@ -24,8 +24,8 @@ chain = "base-rococo-local"
 
 	[[parachains.collators]]
 	name = "collator1"
-	command = "polimec"
+	command = "polimec-parachain-node"
 
 	[[parachains.collators]]
 	name = "collator2"
-	command = "polimec"
+	command = "polimec-parachain-node"
