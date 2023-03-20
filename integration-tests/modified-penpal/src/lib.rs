@@ -19,6 +19,10 @@
 //! nodes running to support this or you will get the not scheduled on a core error message.)
 //!
 //! The penpal runtime's primary use is as a partner when testing statemine/t with reserve asset transfers.
+
+//! This is Polimec's modified version of the penpal runtime. It primarily changes the following:
+//! - xcm execute filter set to everything
+//! - adds statemint as a trusted reserve
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
