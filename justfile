@@ -42,7 +42,7 @@ build-standalone-srtool:
 test-runtime-features:
 	cargo test --features runtime-benchmarks
 
-# Benchmark the "Base" Runtime
+# Benchmark the "Testnet" Runtime
 benchmark-runtime-funding:
 	cargo run --features runtime-benchmarks --release -p polimec-standalone-node benchmark pallet \
 		--chain=dev \
@@ -55,7 +55,7 @@ benchmark-runtime-funding:
 		--heap-pages=4096 \
 		--output=runtimes/testnet/src/weights/pallet_funding.rs
 
-# Benchmark the "Base" Runtime
+# Benchmark the "Testnet" Runtime
 benchmark-pallet-funding:
 	cargo run --features runtime-benchmarks --release -p polimec-standalone-node benchmark pallet \
 		--chain=dev \
