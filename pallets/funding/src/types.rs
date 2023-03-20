@@ -19,7 +19,6 @@
 //! Types for Funding pallet.
 
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
-use sp_arithmetic::Perbill;
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct Project<BoundedString, Balance: BalanceT, Hash> {
@@ -172,7 +171,8 @@ pub struct BidInfo<Balance: BalanceT, AccountId, BlockNumber> {
 	pub price: Balance,
 	#[codec(compact)]
 	pub ticket_size: Balance,
-	pub ratio: Option<Perbill>,
+	// Removed due to only being used in the price calculation, and it's not really needed there
+	// pub ratio: Option<Perbill>,
 	pub when: BlockNumber,
 	pub bidder: AccountId,
 	// TODO: Not used yet, but will be used to check if the bid is funded after XCM is implemented
@@ -194,7 +194,7 @@ impl<Balance: BalanceT, AccountId, BlockNumber> BidInfo<Balance, AccountId, Bloc
 			amount,
 			price,
 			ticket_size,
-			ratio: None,
+			// ratio: None,
 			when,
 			bidder,
 			funded: false,
@@ -259,9 +259,21 @@ pub enum AuctionPhase {
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub enum BidStatus<Balance: BalanceT> {
+	/// The bid is not yet accepted or rejected
 	#[default]
 	YetUnknown,
-	Valid,
-	NotValid(Balance),
-	Unreserved,
+	/// The bid is accepted
+	Accepted,
+	/// The bid is rejected, and the reason is provided
+	Rejected(RejectionReason),
+	/// The bid is partially accepted. The amount accepted and reason for rejection are provided
+	PartiallyAccepted(Balance, RejectionReason),
+}
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub enum RejectionReason {
+	/// The bid was submitted after the candle auction ended
+	AfterCandleEnd,
+	/// The bid was accepted but too many tokens were requested. A partial amount was accepted
+	NoTokensLeft,
 }

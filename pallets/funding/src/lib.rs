@@ -88,7 +88,7 @@ use frame_support::{
 use sp_arithmetic::traits::{One, Saturating, Zero};
 use sp_runtime::{
 	traits::{AccountIdConversion, Hash},
-	FixedPointNumber, FixedPointOperand, FixedU128, Perbill,
+	FixedPointNumber, FixedPointOperand, FixedU128,
 };
 use sp_std::cmp::Reverse;
 
@@ -262,7 +262,6 @@ pub mod pallet {
 		Blake2_128Concat,
 		T::ProjectIdentifier,
 		ProjectInfo<T::BlockNumber, BalanceOf<T>>,
-		ValueQuery,
 	>;
 
 	#[pallet::storage]
@@ -347,44 +346,72 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		// The price provided in the `create` call is too low
+		/// The price provided in the `create` call is too low
 		PriceTooLow,
-		// The participation size provided in the `create` call is too low
+		/// The participation size provided in the `create` call is too low
 		ParticipantsSizeError,
-		// The ticket size provided in the `create` call is too low
+		/// The ticket size provided in the `create` call is too low
 		TicketSizeError,
-		// The specified project does not exist
-		ProjectNotExists,
-		// The Evaluation Round of the project has not started yet
+		/// The specified project does not exist
+		ProjectNotFound,
+		/// The Evaluation Round of the project has not started yet
 		EvaluationNotStarted,
-		// The Evaluation Round of the project has already started
+		/// The Evaluation Round of the project has already started
 		EvaluationAlreadyStarted,
-		// The Evaluation Round of the project has ended without reaching the minimum threshold
+		/// The Evaluation Round of the project has ended without reaching the minimum threshold
 		EvaluationFailed,
-		// The issuer cannot contribute to their own project during the Funding Round
+		/// The issuer cannot contribute to their own project during the Funding Round
 		ContributionToThemselves,
-		// Only the issuer can start the Evaluation Round
+		/// Only the issuer can start the Evaluation Round
 		NotAllowed,
-		// The Metadata Hash of the project was not found
+		/// The Metadata Hash of the project was not found
 		NoImageFound,
-		// The Auction Round of the project has already started
+		/// The Auction Round of the project has already started
 		AuctionAlreadyStarted,
-		// The Auction Round of the project has not started yet
+		/// The Auction Round of the project has not started yet
 		AuctionNotStarted,
-		// You cannot edit the metadata of a project that already passed the Evaluation Round
+		/// You cannot edit the metadata of a project that already passed the Evaluation Round
 		Frozen,
-		// The bid is too low
+		/// The bid is too low
 		BidTooLow,
-		// The user has not enough balance to perform the action
+		/// The user has not enough balance to perform the action
 		InsufficientBalance,
-		// There are too many active projects
+		/// There are too many active projects
 		TooManyActiveProjects,
-		// TODO: Check after the itroduction of the cross-chain identity pallet by KILT
+		// TODO: Check after the introduction of the cross-chain identity pallet by KILT
 		NotAuthorized,
-		// Contribution Tokens are already claimed
+		/// Contribution Tokens are already claimed
 		AlreadyClaimed,
-		// The Funding Round of the project has not ended yet
+		/// The Funding Round of the project has not ended yet
 		CannotClaimYet,
+		/// No bids were made for the project at the time of the auction close
+		NoBidsFound,
+		/// Tried to freeze the project to start the Evaluation Round, but the project is already frozen
+		ProjectAlreadyFrozen,
+		/// Tried to move the project from Application to Evaluation round, but the project is not in Application
+		ProjectNotInApplicationRound,
+		/// Tried to move the project from Evaluation to EvaluationEnded round, but the project is not in Evaluation
+		ProjectNotInEvaluationRound,
+		/// Tried to move the project from Evaluation to Auction round, but the project is not in EvaluationEnded
+		ProjectNotInEvaluationEndedRound,
+		/// Tried to move the project to CandleAuction round, but it was not in EnglishAuction before
+		ProjectNotInEnglishAuctionRound,
+		/// Tried to move the project to CommunityRound round, but it was not in CandleAuction before
+		ProjectNotInCandleAuctionRound,
+		/// Tried to move the project to CandleAuction round, but its too early for that
+		TooEarlyForCandleAuctionStart,
+		/// Tried to move the project to CommunityRound round, but its too early for that
+		TooEarlyForCommunityRoundStart,
+		/// Tried to access auction metadata, but it was not correctly initialized.
+		AuctionMetadataNotFound,
+		/// Ending block for the candle auction is not set
+		EndingBlockNotSet,
+		/// Tried to move to project to FundingEnded round, but its too early for that
+		TooEarlyForFundingEnd,
+		/// The specified issuer does not exist
+		ProjectIssuerNotFound,
+		/// The specified project info does not exist
+		ProjectInfoNotFound,
 	}
 
 	#[pallet::call]
@@ -451,10 +478,15 @@ pub mod pallet {
 
 			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
 			ensure!(Images::<T>::contains_key(project_metadata_hash), Error::<T>::NoImageFound);
-			ensure!(!ProjectsInfo::<T>::get(project_id).is_frozen, Error::<T>::Frozen);
+			ensure!(
+				!ProjectsInfo::<T>::get(project_id)
+					.ok_or(Error::<T>::ProjectInfoNotFound)?
+					.is_frozen,
+				Error::<T>::Frozen
+			);
 
 			Projects::<T>::try_mutate(project_id, |maybe_project| -> DispatchResult {
-				let project = maybe_project.as_mut().ok_or(Error::<T>::ProjectNotExists)?;
+				let project = maybe_project.as_mut().ok_or(Error::<T>::ProjectIssuerNotFound)?;
 				project.metadata = project_metadata_hash;
 				Self::deposit_event(Event::MetadataEdited { project_id });
 				Ok(())
@@ -479,7 +511,9 @@ pub mod pallet {
 
 			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
 			ensure!(
-				ProjectsInfo::<T>::get(project_id).project_status == ProjectStatus::Application,
+				ProjectsInfo::<T>::get(project_id)
+					.ok_or(Error::<T>::ProjectInfoNotFound)?
+					.project_status == ProjectStatus::Application,
 				Error::<T>::EvaluationAlreadyStarted
 			);
 			Self::do_start_evaluation(project_id)
@@ -502,10 +536,11 @@ pub mod pallet {
 			// );
 
 			let project_issuer =
-				ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectNotExists)?;
+				ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectIssuerNotFound)?;
 			ensure!(from != project_issuer, Error::<T>::ContributionToThemselves);
 
-			let project_info = ProjectsInfo::<T>::get(project_id);
+			let project_info =
+				ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 			ensure!(
 				project_info.project_status == ProjectStatus::EvaluationRound,
 				Error::<T>::EvaluationNotStarted
@@ -548,9 +583,13 @@ pub mod pallet {
 			// 	Error::<T>::NotAuthorized
 			// );
 
-			ensure!(ProjectsIssuers::<T>::contains_key(project_id), Error::<T>::ProjectNotExists);
+			ensure!(
+				ProjectsIssuers::<T>::contains_key(project_id),
+				Error::<T>::ProjectIssuerNotFound
+			);
 			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
-			let project_info = ProjectsInfo::<T>::get(project_id);
+			let project_info =
+				ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 			ensure!(
 				project_info.project_status != ProjectStatus::EvaluationFailed,
 				Error::<T>::EvaluationFailed
@@ -584,12 +623,13 @@ pub mod pallet {
 
 			// Make sure project exists
 			let project_issuer =
-				ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectNotExists)?;
+				ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectIssuerNotFound)?;
 
 			// Make sure the bidder is not the project_issuer
 			ensure!(bidder != project_issuer, Error::<T>::ContributionToThemselves);
 
-			let project_info = ProjectsInfo::<T>::get(project_id);
+			let project_info =
+				ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 			let project = Projects::<T>::get(project_id)
 				.expect("Project exists, already checked in previous ensure");
 
@@ -670,12 +710,13 @@ pub mod pallet {
 
 			// Make sure project exists
 			let project_issuer =
-				ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectNotExists)?;
+				ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectIssuerNotFound)?;
 
 			// Make sure the contributor is not the project_issuer
 			ensure!(contributor != project_issuer, Error::<T>::ContributionToThemselves);
 
-			let project_info = ProjectsInfo::<T>::get(project_id);
+			let project_info =
+				ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 
 			// Make sure Community Round is started
 			ensure!(
@@ -732,7 +773,8 @@ pub mod pallet {
 			// 	Error::<T>::NotAuthorized
 			// );
 
-			let project_info = ProjectsInfo::<T>::get(project_id);
+			let project_info =
+				ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 			ensure!(
 				project_info.project_status == ProjectStatus::ReadyToLaunch,
 				Error::<T>::CannotClaimYet
@@ -749,7 +791,7 @@ pub mod pallet {
 				claimer.clone(),
 				|maybe_contribution| -> DispatchResult {
 					let mut contribution =
-						maybe_contribution.as_mut().ok_or(Error::<T>::ProjectNotExists)?;
+						maybe_contribution.as_mut().ok_or(Error::<T>::ProjectIssuerNotFound)?;
 					ensure!(contribution.can_claim, Error::<T>::AlreadyClaimed);
 					Self::do_claim_contribution_tokens(
 						project_id,
@@ -771,7 +813,10 @@ pub mod pallet {
 		fn on_initialize(now: T::BlockNumber) -> Weight {
 			// TODO: Critical: Found a way to perform less iterations on the storage
 			for project_id in ProjectsActive::<T>::get().iter() {
-				let project_info = ProjectsInfo::<T>::get(project_id);
+				// TODO: fix this unwrap
+				let project_info = ProjectsInfo::<T>::get(project_id)
+					.ok_or(Error::<T>::ProjectInfoNotFound)
+					.unwrap();
 				match project_info.project_status {
 					// Check if Evaluation Round have to end, if true, end it
 					// EvaluationRound -> EvaluationEnded
@@ -780,12 +825,14 @@ pub mod pallet {
 							.evaluation_period_ends
 							.expect("In EvaluationRound there always exist evaluation_period_ends");
 						let fundraising_target = project_info.fundraising_target;
+						// TODO: handle this unwrap
 						Self::handle_evaluation_end(
 							project_id,
 							now,
 							evaluation_period_ends,
 							fundraising_target,
-						);
+						)
+						.unwrap();
 					},
 					// Check if we need to start the Funding Round
 					// EvaluationEnded -> AuctionRound
@@ -802,7 +849,8 @@ pub mod pallet {
 							.auction_metadata
 							.expect("In AuctionRound there always exist auction_metadata")
 							.english_ending_block;
-						Self::handle_auction_candle(project_id, now, english_ending_block);
+						// TODO: handle this unwrap
+						Self::handle_auction_candle(project_id, now, english_ending_block).unwrap();
 					},
 					// Check if we need to move from the Auction Round of the Community Round
 					// AuctionRound(AuctionPhase::Candle) -> CommunityRound
@@ -812,12 +860,14 @@ pub mod pallet {
 							.expect("In AuctionRound there always exist auction_metadata");
 						let candle_ending_block = auction_metadata.candle_ending_block;
 						let english_ending_block = auction_metadata.english_ending_block;
+						// TODO: handle this unwrap
 						Self::handle_community_start(
 							project_id,
 							now,
 							candle_ending_block,
 							english_ending_block,
-						);
+						)
+						.unwrap();
 					},
 					// Check if we need to end the Fundind Round
 					// CommunityRound -> FundingEnded
@@ -826,7 +876,9 @@ pub mod pallet {
 							.auction_metadata
 							.expect("In CommunityRound there always exist auction_metadata")
 							.community_ending_block;
-						Self::handle_community_end(*project_id, now, community_ending_block);
+						// TODO: handle this unwrap
+						Self::handle_community_end(*project_id, now, community_ending_block)
+							.unwrap();
 					},
 					_ => (),
 				}
@@ -838,9 +890,13 @@ pub mod pallet {
 		/// Cleanup the `active_projects` BoundedVec
 		fn on_idle(now: T::BlockNumber, _max_weight: Weight) -> Weight {
 			for project_id in ProjectsActive::<T>::get().iter() {
-				let project_info = ProjectsInfo::<T>::get(project_id);
+				// TODO: fix this unwrap
+				let project_info = ProjectsInfo::<T>::get(project_id)
+					.ok_or(Error::<T>::ProjectInfoNotFound)
+					.unwrap();
 				if project_info.project_status == ProjectStatus::FundingEnded {
-					Self::handle_fuding_end(project_id, now);
+					// TODO: handle this unwrap
+					Self::handle_fuding_end(project_id, now).unwrap();
 				}
 			}
 			// TODO: Set a proper weight

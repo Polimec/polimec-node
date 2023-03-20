@@ -1,0 +1,545 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="CMakePresetLoader">{
+  &quot;useNewFormat&quot;: true
+}</component>
+  <component name="CMakeSettings">
+    <configurations>
+      <configuration PROFILE_NAME="Debug" ENABLED="true" CONFIG_NAME="Debug" />
+    </configurations>
+  </component>
+  <component name="CargoProjects">
+    <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="af4a392c-d8af-4ddf-b836-c328911f347f" name="Changes" comment="chore: squash">
+      <change beforePath="$PROJECT_DIR$/pallets/funding/src/functions.rs" beforeDir="false" afterPath="$PROJECT_DIR$/pallets/funding/src/functions.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pallets/funding/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/pallets/funding/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pallets/funding/src/types.rs" beforeDir="false" afterPath="$PROJECT_DIR$/pallets/funding/src/types.rs" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ClangdSettings">
+    <option name="formatViaClangd" value="false" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="main" />
+      </map>
+    </option>
+    <option name="RESET_MODE" value="MIXED" />
+  </component>
+  <component name="GitRewordedCommitMessages">
+    <option name="commitMessagesMapping">
+      <RewordedCommitMessageMapping>
+        <option name="originalMessage" value="wip" />
+        <option name="rewordedMessage" value="feat: better weighted auction price calculation&#10;&#10;&#10;wip" />
+      </RewordedCommitMessageMapping>
+    </option>
+    <option name="currentCommit" value="1" />
+    <option name="onto" value="4031bca0156a060604a19f54be04f11e8cfdaf1d" />
+  </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$USER_HOME$/.cargo/git/checkouts/cumulus-59522f43471fa161/3275e27/parachains/runtimes/assets/statemint/src/xcm_config.rs" root0="SKIP_INSPECTION" />
+    <setting file="file://$USER_HOME$/.cargo/git/checkouts/polkadot-4038f27d5e4ea2e8/8deef13/runtime/polkadot/src/xcm_config.rs" root0="SKIP_INSPECTION" />
+    <setting file="file://$USER_HOME$/.cargo/git/checkouts/polkadot-4038f27d5e4ea2e8/8deef13/xcm/pallet-xcm/src/lib.rs" root0="SKIP_INSPECTION" />
+    <setting file="file://$USER_HOME$/.cargo/git/checkouts/polkadot-4038f27d5e4ea2e8/8deef13/xcm/xcm-executor/src/lib.rs" root0="SKIP_INSPECTION" />
+  </component>
+  <component name="MacroExpansionManager">
+    <option name="directoryName" value="madf12i2" />
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
+  <component name="ProjectId" id="2MjgQJpnTecyXXD9166jgT3stDO" />
+  <component name="ProjectViewState">
+    <option name="autoscrollFromSource" value="true" />
+    <option name="autoscrollToSource" value="true" />
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+    <option name="showMembers" value="true" />
+    <option name="showVisibilityIcons" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Git.Branch.Popup.ShowAllRemotes&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;cf.first.check.clang-format&quot;: &quot;false&quot;,
+    &quot;cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/juani/Desktop/polimec/feat__better_weighted_auction_price_calculation.patch&quot;,
+    &quot;org.rust.cargo.project.model.PROJECT_DISCOVERY&quot;: &quot;true&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
+    &quot;vcs.patch.path&quot;: &quot;/home/juani/Desktop/polimec&quot;
+  }
+}</component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/scripts/zombienet/native" />
+      <recent name="$PROJECT_DIR$/demo/spec-generator-node" />
+      <recent name="$PROJECT_DIR$/demo/spec-generator-node/src" />
+      <recent name="$PROJECT_DIR$/demo/chain_specs" />
+      <recent name="$PROJECT_DIR$/integration-tests" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/demo/spec-generator-node/src" />
+      <recent name="$PROJECT_DIR$/demo" />
+      <recent name="$PROJECT_DIR$/scripts/zombienet/native/genesis" />
+    </key>
+  </component>
+  <component name="RunAnythingCache">
+    <option name="myCommands">
+      <command value="cargo fmt" />
+      <command value="cargo check" />
+    </option>
+  </component>
+  <component name="RunManager" selected="Cargo.check">
+    <configuration name="Test reserve_backed_transfers::penpal_to_polimec" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package integration-tests --lib reserve_backed_transfers::penpal_to_polimec -- --exact" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Test reserve_backed_transfers::penpal_to_reserve" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package integration-tests --lib reserve_backed_transfers::penpal_to_reserve -- --exact" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Test reserve_backed_transfers::polimec_to_penpal" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package integration-tests --lib reserve_backed_transfers::polimec_to_penpal -- --exact" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Test reserve_backed_transfers::reserve_to_polimec" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package integration-tests --lib reserve_backed_transfers::reserve_to_polimec -- --exact" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="check" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="check" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Cargo.check" />
+        <item itemvalue="Cargo.check" />
+        <item itemvalue="Cargo.check" />
+        <item itemvalue="Cargo.check" />
+        <item itemvalue="Cargo.check" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="RustProjectSettings">
+    <option name="runExternalLinterOnTheFly" value="true" />
+    <option name="toolchainHomeDirectory" value="$USER_HOME$/.cargo/bin" />
+    <option name="version" value="2" />
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="af4a392c-d8af-4ddf-b836-c328911f347f" name="Changes" comment="" />
+      <created>1678286387942</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1678286387942</updated>
+      <workItem from="1678286388954" duration="729000" />
+      <workItem from="1678287123022" duration="6794000" />
+      <workItem from="1678361877453" duration="1510000" />
+      <workItem from="1678363391392" duration="22150000" />
+      <workItem from="1678449419568" duration="820000" />
+      <workItem from="1678450666577" duration="4998000" />
+      <workItem from="1678455954047" duration="1731000" />
+      <workItem from="1678457691177" duration="3910000" />
+      <workItem from="1678697315683" duration="22342000" />
+      <workItem from="1678788386779" duration="12048000" />
+      <workItem from="1678807010049" duration="9945000" />
+      <workItem from="1678874756359" duration="3473000" />
+      <workItem from="1678878961103" duration="3604000" />
+      <workItem from="1678883333788" duration="10585000" />
+      <workItem from="1678955335816" duration="7123000" />
+      <workItem from="1678963813867" duration="2607000" />
+      <workItem from="1678973826586" duration="5987000" />
+      <workItem from="1678985390819" duration="2137000" />
+      <workItem from="1679058414514" duration="10993000" />
+      <workItem from="1679309244162" duration="8949000" />
+      <workItem from="1679320122711" duration="9070000" />
+      <workItem from="1679389474368" duration="8642000" />
+    </task>
+    <task id="LOCAL-00001" summary="feat: dmp successful without open barrier">
+      <created>1678287706385</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1678287706385</updated>
+    </task>
+    <task id="LOCAL-00002" summary="wip">
+      <created>1678371601682</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1678371601683</updated>
+    </task>
+    <task id="LOCAL-00003" summary="feat: reserve backed transfer of DOT from statemint to polimec">
+      <created>1678395174435</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1678395174435</updated>
+    </task>
+    <task id="LOCAL-00004" summary="feat: reserve backed transfer of DOT from polimec to statemint working (with open barrier!; it needs to be changed to a sensible one)">
+      <created>1678457330080</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1678457330080</updated>
+    </task>
+    <task id="LOCAL-00005" summary="feat: assertions on balances and issuance of tokens">
+      <created>1678467406248</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1678467406248</updated>
+    </task>
+    <task id="LOCAL-00006" summary="wip">
+      <created>1678702942211</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1678702942211</updated>
+    </task>
+    <task id="LOCAL-00007" summary="chore: remove emulator from workspace">
+      <created>1678703890034</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1678703890034</updated>
+    </task>
+    <task id="LOCAL-00008" summary="wip">
+      <created>1678713916251</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1678713916251</updated>
+    </task>
+    <task id="LOCAL-00009" summary="wip: all of alice's DOT on polimec is being drained...">
+      <created>1678728626448</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1678728626448</updated>
+    </task>
+    <task id="LOCAL-00010" summary="feat: all pairs of reserve backed transfers implemented between polimec - statemint - penpal, with their respective assertions and xcm configurations">
+      <created>1678810900740</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1678810900740</updated>
+    </task>
+    <task id="LOCAL-00011" summary="chore: fix event checks">
+      <created>1678815816443</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1678815816443</updated>
+    </task>
+    <task id="LOCAL-00012" summary="chore: clean up code">
+      <created>1678817801092</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1678817801092</updated>
+    </task>
+    <task id="LOCAL-00013" summary="feat: add demo file">
+      <created>1679309420126</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1679309420126</updated>
+    </task>
+    <task id="LOCAL-00014" summary="chore: comments on modified penpal and testnet execute filter">
+      <created>1679309998701</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1679309998701</updated>
+    </task>
+    <task id="LOCAL-00015" summary="feat: add licence to .hbs">
+      <created>1679310921288</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1679310921288</updated>
+    </task>
+    <task id="LOCAL-00016" summary="feat: just file comment changed, weights updated">
+      <created>1679313179570</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1679313179570</updated>
+    </task>
+    <task id="LOCAL-00017" summary="wip">
+      <created>1679316839589</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1679316839589</updated>
+    </task>
+    <task id="LOCAL-00018" summary="chore: typo on Cargo.toml">
+      <created>1679316891353</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1679316891353</updated>
+    </task>
+    <task id="LOCAL-00019" summary="wip">
+      <created>1679318331261</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1679318331261</updated>
+    </task>
+    <task id="LOCAL-00020" summary="wip">
+      <created>1679333981463</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1679333981463</updated>
+    </task>
+    <task id="LOCAL-00021" summary="feat: better weighted auction price calculation">
+      <created>1679391579644</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1679391579644</updated>
+    </task>
+    <task id="LOCAL-00022" summary="feat: better weighted auction price calculation">
+      <created>1679392114979</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1679392114979</updated>
+    </task>
+    <task id="LOCAL-00023" summary="chore: squash">
+      <created>1679392654738</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1679392654738</updated>
+    </task>
+    <option name="localTasksCounter" value="24" />
+    <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State>
+              <option name="COLUMN_ID_WIDTH">
+                <map>
+                  <entry key="Table.Default.Author.ColumnIdWidth" value="115" />
+                  <entry key="Table.Default.Date.ColumnIdWidth" value="103" />
+                  <entry key="Table.Space.CommitStatus.ColumnIdWidth" value="102" />
+                </map>
+              </option>
+            </State>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <option name="CHECK_NEW_TODO" value="false" />
+    <MESSAGE value="feat: dmp successful without open barrier" />
+    <MESSAGE value="feat: reserve backed transfer of DOT from statemint to polimec" />
+    <MESSAGE value="feat: reserve backed transfer of DOT from polimec to statemint working (with open barrier!; it needs to be changed to a sensible one)" />
+    <MESSAGE value="feat: assertions on balances and issuance of tokens" />
+    <MESSAGE value="chore: remove emulator from workspace" />
+    <MESSAGE value="wip: all of alice's DOT on polimec is being drained..." />
+    <MESSAGE value="feat: all pairs of reserve backed transfers implemented between polimec - statemint - penpal, with their respective assertions and xcm configurations" />
+    <MESSAGE value="chore: fix event checks" />
+    <MESSAGE value="chore: clean up code" />
+    <MESSAGE value="feat: add demo file" />
+    <MESSAGE value="chore: comments on modified penpal and testnet execute filter" />
+    <MESSAGE value="feat: add licence to .hbs" />
+    <MESSAGE value="feat: just file comment changed, weights updated" />
+    <MESSAGE value="chore: typo on Cargo.toml" />
+    <MESSAGE value="wip" />
+    <MESSAGE value="feat: better weighted auction price calculation" />
+    <MESSAGE value="chore: squash" />
+    <option name="LAST_COMMIT_MESSAGE" value="chore: squash" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$USER_HOME$/.cargo/git/checkouts/polkadot-4038f27d5e4ea2e8/8deef13/xcm/xcm-builder/src/location_conversion.rs</url>
+          <line>91</line>
+          <option name="timeStamp" value="8" />
+        </line-breakpoint>
+        <line-breakpoint type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$USER_HOME$/.cargo/git/checkouts/polkadot-4038f27d5e4ea2e8/8deef13/xcm/xcm-builder/src/location_conversion.rs</url>
+          <line>99</line>
+          <option name="timeStamp" value="10" />
+        </line-breakpoint>
+        <line-breakpoint type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$USER_HOME$/.cargo/git/checkouts/polkadot-4038f27d5e4ea2e8/8deef13/xcm/xcm-builder/src/currency_adapter.rs</url>
+          <line>210</line>
+          <option name="timeStamp" value="11" />
+        </line-breakpoint>
+        <line-breakpoint type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$USER_HOME$/.cargo/git/checkouts/polkadot-4038f27d5e4ea2e8/8deef13/xcm/xcm-builder/src/currency_adapter.rs</url>
+          <line>213</line>
+          <option name="timeStamp" value="12" />
+        </line-breakpoint>
+        <line-breakpoint type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$USER_HOME$/.cargo/git/checkouts/polkadot-4038f27d5e4ea2e8/8deef13/xcm/xcm-builder/src/currency_adapter.rs</url>
+          <line>212</line>
+          <option name="timeStamp" value="13" />
+        </line-breakpoint>
+        <line-breakpoint type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$USER_HOME$/.cargo/git/checkouts/cumulus-59522f43471fa161/3275e27/pallets/xcmp-queue/src/lib.rs</url>
+          <line>1162</line>
+          <option name="timeStamp" value="21" />
+        </line-breakpoint>
+        <line-breakpoint type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$USER_HOME$/.cargo/git/checkouts/polkadot-4038f27d5e4ea2e8/8deef13/xcm/pallet-xcm/src/lib.rs</url>
+          <line>763</line>
+          <option name="timeStamp" value="26" />
+        </line-breakpoint>
+        <line-breakpoint type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$USER_HOME$/.cargo/git/checkouts/polkadot-4038f27d5e4ea2e8/8deef13/xcm/xcm-builder/src/origin_conversion.rs</url>
+          <line>253</line>
+          <option name="timeStamp" value="28" />
+        </line-breakpoint>
+        <line-breakpoint type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$USER_HOME$/.cargo/git/checkouts/polkadot-4038f27d5e4ea2e8/8deef13/xcm/xcm-builder/src/asset_conversion.rs</url>
+          <line>73</line>
+          <option name="timeStamp" value="31" />
+        </line-breakpoint>
+        <line-breakpoint type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/runtimes/testnet/src/xcm_config.rs</url>
+          <line>165</line>
+          <option name="timeStamp" value="33" />
+        </line-breakpoint>
+        <line-breakpoint type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$USER_HOME$/.cargo/git/checkouts/polkadot-4038f27d5e4ea2e8/8deef13/xcm/xcm-builder/src/fungibles_adapter.rs</url>
+          <line>278</line>
+          <option name="timeStamp" value="34" />
+        </line-breakpoint>
+        <line-breakpoint type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$USER_HOME$/.cargo/git/checkouts/polkadot-4038f27d5e4ea2e8/8deef13/xcm/xcm-builder/src/currency_adapter.rs</url>
+          <line>196</line>
+          <option name="timeStamp" value="36" />
+        </line-breakpoint>
+        <line-breakpoint type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/runtimes/testnet/src/xcm_config.rs</url>
+          <line>169</line>
+          <option name="timeStamp" value="37" />
+        </line-breakpoint>
+        <line-breakpoint type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$USER_HOME$/.cargo/git/checkouts/polkadot-4038f27d5e4ea2e8/8deef13/xcm/xcm-executor/src/assets.rs</url>
+          <line>311</line>
+          <option name="timeStamp" value="54" />
+        </line-breakpoint>
+        <line-breakpoint type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$USER_HOME$/.cargo/git/checkouts/polkadot-4038f27d5e4ea2e8/8deef13/xcm/xcm-executor/src/assets.rs</url>
+          <line>167</line>
+          <option name="timeStamp" value="55" />
+        </line-breakpoint>
+        <line-breakpoint type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$USER_HOME$/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/collections/btree/map/entry.rs</url>
+          <line>263</line>
+          <option name="timeStamp" value="56" />
+        </line-breakpoint>
+        <line-breakpoint type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$USER_HOME$/.cargo/git/checkouts/polkadot-4038f27d5e4ea2e8/8deef13/xcm/xcm-executor/src/assets.rs</url>
+          <line>275</line>
+          <option name="timeStamp" value="57" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/integration-tests/src/lib.rs</url>
+          <line>1215</line>
+          <option name="timeStamp" value="79" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/integration-tests/src/lib.rs</url>
+          <line>1040</line>
+          <option name="timeStamp" value="82" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
+  </component>
+  <component name="XSLT-Support.FileAssociations.UIState">
+    <expand />
+    <select />
+  </component>
+</project>
