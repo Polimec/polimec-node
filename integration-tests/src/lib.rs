@@ -1,9 +1,5 @@
 use codec::Encode;
-use frame_support::{
-	assert_ok,
-	pallet_prelude::Weight,
-	traits::{GenesisBuild},
-};
+use frame_support::{assert_ok, pallet_prelude::Weight, traits::GenesisBuild};
 use polimec_parachain_runtime as polimec_runtime;
 use polkadot_parachain::primitives::{Id as ParaId, Sibling as SiblingId};
 use shortcuts::*;
@@ -502,10 +498,17 @@ mod reserve_backed_transfers {
 		});
 
 		// check Statemint's pre transfer balances and issuance
-		let (statemint_prev_alice_dot_balance, statemint_prev_polimec_dot_balance, statemint_prev_dot_issuance) =
-			StatemintNet::execute_with(|| {
-				(StatemintBalances::free_balance(ALICE), StatemintBalances::free_balance(ParachainAccounts::polimec_child_account()), StatemintBalances::total_issuance())
-			});
+		let (
+			statemint_prev_alice_dot_balance,
+			statemint_prev_polimec_dot_balance,
+			statemint_prev_dot_issuance,
+		) = StatemintNet::execute_with(|| {
+			(
+				StatemintBalances::free_balance(ALICE),
+				StatemintBalances::free_balance(ParachainAccounts::polimec_child_account()),
+				StatemintBalances::total_issuance(),
+			)
+		});
 
 		// do the transfer
 		StatemintNet::execute_with(|| {
@@ -552,21 +555,32 @@ mod reserve_backed_transfers {
 		});
 
 		// check Statemint's post transfer balances and issuance
-		let (statemint_post_alice_dot_balance, statemint_post_polimec_dot_balance, statemint_post_dot_issuance) =
-			StatemintNet::execute_with(|| {
-				statemint_runtime::System::reset_events();
-				(StatemintBalances::free_balance(ALICE), StatemintBalances::free_balance(ParachainAccounts::polimec_child_account()), StatemintBalances::total_issuance())
-			});
+		let (
+			statemint_post_alice_dot_balance,
+			statemint_post_polimec_dot_balance,
+			statemint_post_dot_issuance,
+		) = StatemintNet::execute_with(|| {
+			statemint_runtime::System::reset_events();
+			(
+				StatemintBalances::free_balance(ALICE),
+				StatemintBalances::free_balance(ParachainAccounts::polimec_child_account()),
+				StatemintBalances::total_issuance(),
+			)
+		});
 
-		let polimec_delta_alice_dot_balance = polimec_post_alice_dot_balance - polimec_prev_alice_dot_balance;
+		let polimec_delta_alice_dot_balance =
+			polimec_post_alice_dot_balance - polimec_prev_alice_dot_balance;
 		let polimec_delta_dot_issuance = polimec_post_dot_issuance - polimec_prev_dot_issuance;
-		let polimec_delta_alice_plmc_balance = polimec_post_alice_plmc_balance - polimec_prev_alice_plmc_balance;
+		let polimec_delta_alice_plmc_balance =
+			polimec_post_alice_plmc_balance - polimec_prev_alice_plmc_balance;
 		let polimec_delta_plmc_issuance = polimec_post_plmc_issuance - polimec_prev_plmc_issuance;
 
-		let statemint_delta_alice_dot_balance = statemint_prev_alice_dot_balance - statemint_post_alice_dot_balance;
-		let statemint_delta_polimec_dot_balance = statemint_post_polimec_dot_balance - statemint_prev_polimec_dot_balance;
-		let statemint_delta_dot_issuance = statemint_prev_dot_issuance - statemint_post_dot_issuance;
-
+		let statemint_delta_alice_dot_balance =
+			statemint_prev_alice_dot_balance - statemint_post_alice_dot_balance;
+		let statemint_delta_polimec_dot_balance =
+			statemint_post_polimec_dot_balance - statemint_prev_polimec_dot_balance;
+		let statemint_delta_dot_issuance =
+			statemint_prev_dot_issuance - statemint_post_dot_issuance;
 
 		assert!(
 			polimec_delta_alice_dot_balance >= RESERVE_TRANSFER_AMOUNT - polimec_runtime::WeightToFee::<PolimecRuntime>::weight_to_fee(&MAX_XCM_WEIGHT) &&
@@ -581,8 +595,7 @@ mod reserve_backed_transfers {
 		);
 
 		assert_eq!(
-			statemint_delta_alice_dot_balance,
-			RESERVE_TRANSFER_AMOUNT,
+			statemint_delta_alice_dot_balance, RESERVE_TRANSFER_AMOUNT,
 			"Statemint ALICE DOT balance should have decreased by the transfer amount"
 		);
 
@@ -601,10 +614,7 @@ mod reserve_backed_transfers {
 			"Polimec ALICE PLMC balance should not have changed"
 		);
 
-		assert_eq!(
-			polimec_delta_plmc_issuance, 0,
-			"Polimec PLMC issuance should not have changed"
-		);
+		assert_eq!(polimec_delta_plmc_issuance, 0, "Polimec PLMC issuance should not have changed");
 	}
 
 	#[test]
@@ -703,8 +713,8 @@ mod reserve_backed_transfers {
 		let polimec_delta_plmc_issuance = polimec_prev_plmc_issuance - polimec_post_plmc_issuance;
 		let polimec_delta_alice_dot_balance =
 			polimec_prev_alice_dot_balance - polimec_post_alice_dot_balance;
-		let polimec_delta_alice_plmc_balance = polimec_prev_alice_plmc_balance
-			- polimec_post_alice_plmc_balance;
+		let polimec_delta_alice_plmc_balance =
+			polimec_prev_alice_plmc_balance - polimec_post_alice_plmc_balance;
 
 		let statemint_delta_dot_issuance =
 			statemint_prev_dot_issuance - statemint_post_dot_issuance;
@@ -810,12 +820,16 @@ mod reserve_backed_transfers {
 			)
 		});
 
-		let penpal_delta_alice_dot_balance = penpal_post_alice_dot_balance - penpal_prev_alice_dot_balance;
+		let penpal_delta_alice_dot_balance =
+			penpal_post_alice_dot_balance - penpal_prev_alice_dot_balance;
 		let penpal_delta_dot_issuance = penpal_post_dot_issuance - penpal_prev_dot_issuance;
 
-		let statemint_delta_alice_dot_balance = statemint_prev_alice_dot_balance - statemint_post_alice_dot_balance;
-		let statemint_delta_penpal_dot_balance = statemint_post_penpal_dot_balance - statemint_prev_penpal_dot_balance;
-		let statemint_delta_dot_issuance = statemint_prev_dot_issuance - statemint_post_dot_issuance;
+		let statemint_delta_alice_dot_balance =
+			statemint_prev_alice_dot_balance - statemint_post_alice_dot_balance;
+		let statemint_delta_penpal_dot_balance =
+			statemint_post_penpal_dot_balance - statemint_prev_penpal_dot_balance;
+		let statemint_delta_dot_issuance =
+			statemint_prev_dot_issuance - statemint_post_dot_issuance;
 
 		assert!(
 			penpal_delta_alice_dot_balance >= RESERVE_TRANSFER_AMOUNT - penpal_runtime::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT) &&
@@ -830,8 +844,7 @@ mod reserve_backed_transfers {
 		);
 
 		assert_eq!(
-			statemint_delta_alice_dot_balance,
-			RESERVE_TRANSFER_AMOUNT,
+			statemint_delta_alice_dot_balance, RESERVE_TRANSFER_AMOUNT,
 			"Statemint ALICE DOT balance should have decreased by the transfer amount"
 		);
 
@@ -845,7 +858,7 @@ mod reserve_backed_transfers {
 			"Penpal's sovereign account on Statemint's balance of DOT should not change, (except for fees which are burnt)"
 		);
 	}
-	
+
 	#[test]
 	fn penpal_to_reserve() {
 		Network::reset();
@@ -855,15 +868,10 @@ mod reserve_backed_transfers {
 		let execution_dot: MultiAsset = (MultiLocation::parent(), MAX_XCM_FEE).into();
 
 		// check Penpal's pre transfer balances and issuance
-		let (
-			penpal_prev_alice_dot_balance,
-			penpal_prev_dot_issuance,
-		) = PenpalNet::execute_with(|| {
-			(
-				PenpalBalances::free_balance(ALICE),
-				PenpalBalances::total_issuance(),
-			)
-		});
+		let (penpal_prev_alice_dot_balance, penpal_prev_dot_issuance) =
+			PenpalNet::execute_with(|| {
+				(PenpalBalances::free_balance(ALICE), PenpalBalances::total_issuance())
+			});
 
 		// check Statemint's pre transfer balances and issuance
 		let (statemint_prev_alice_dot_balance, statemint_prev_dot_issuance) =
@@ -914,15 +922,10 @@ mod reserve_backed_transfers {
 		});
 
 		// check Penpal's post transfer balances and issuance
-		let (
-			penpal_post_alice_dot_balance,
-			penpal_post_dot_issuance,
-		) = PenpalNet::execute_with(|| {
-			(
-				PenpalBalances::free_balance(ALICE),
-				PenpalBalances::total_issuance(),
-			)
-		});
+		let (penpal_post_alice_dot_balance, penpal_post_dot_issuance) =
+			PenpalNet::execute_with(|| {
+				(PenpalBalances::free_balance(ALICE), PenpalBalances::total_issuance())
+			});
 
 		// check Statemint's post transfer balances and issuance
 		let (statemint_post_alice_dot_balance, statemint_post_dot_issuance) =
@@ -949,7 +952,6 @@ mod reserve_backed_transfers {
 			"Penpal's DOT issuance should decrease by transfer amount due to burn"
 		);
 
-
 		assert!(
 			statemint_delta_alice_dot_balance  >= RESERVE_TRANSFER_AMOUNT - statemint_runtime::constants::fee::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT) &&
 				statemint_delta_alice_dot_balance <= RESERVE_TRANSFER_AMOUNT,
@@ -961,7 +963,7 @@ mod reserve_backed_transfers {
 			"Statemint's DOT issuance should not change, since it acts as a reserve for that asset (except for fees which are burnt)"
 		);
 	}
-	
+
 	#[test]
 	fn polimec_to_penpal() {
 		Network::reset();
@@ -1036,7 +1038,7 @@ mod reserve_backed_transfers {
 		});
 
 		StatemintNet::execute_with(|| {
-			use statemint_runtime::{System, RuntimeEvent};
+			use statemint_runtime::{RuntimeEvent, System};
 			let events = System::events();
 			assert!(events.iter().any(|r| matches!(
 				r.event,
@@ -1088,7 +1090,8 @@ mod reserve_backed_transfers {
 		let polimec_delta_alice_dot_balance =
 			polimec_prev_alice_dot_balance - polimec_post_alice_dot_balance;
 		let polimec_delta_plmc_issuance = polimec_prev_plmc_issuance - polimec_post_plmc_issuance;
-		let polimec_delta_alice_plmc_balance = polimec_prev_alice_plmc_balance - polimec_post_alice_plmc_balance;
+		let polimec_delta_alice_plmc_balance =
+			polimec_prev_alice_plmc_balance - polimec_post_alice_plmc_balance;
 
 		let statemint_delta_dot_issuance =
 			statemint_prev_dot_issuance - statemint_post_dot_issuance;
@@ -1208,7 +1211,7 @@ mod reserve_backed_transfers {
 		});
 
 		StatemintNet::execute_with(|| {
-			use statemint_runtime::{System, RuntimeEvent};
+			use statemint_runtime::{RuntimeEvent, System};
 			let events = System::events();
 			assert!(events.iter().any(|r| matches!(
 				r.event,
@@ -1217,7 +1220,7 @@ mod reserve_backed_transfers {
 		});
 
 		PolimecNet::execute_with(|| {
-			use polimec_runtime::{System, RuntimeEvent};
+			use polimec_runtime::{RuntimeEvent, System};
 			let events = System::events();
 			assert!(events.iter().any(|r| matches!(
 				r.event,
