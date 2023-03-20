@@ -1,18 +1,18 @@
-// Polimec Blockchain – https://www.polimec.org/
-// Copyright (C) Polimec 2022. All rights reserved.
+// Copyright 2019-2022 Parity Technologies (UK) Ltd.
+// This file is part of Cumulus.
 
-// The Polimec Blockchain is free software: you can redistribute it and/or modify
+// Cumulus is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// The Polimec Blockchain is distributed in the hope that it will be useful,
+// Cumulus is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// along with Cumulus.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Holds the XCM specific configuration that would otherwise be in lib.rs
 //!
@@ -21,8 +21,12 @@
 //! One of the main uses of the penpal chain will be to be a benefactor of reserve asset transfers
 //! with statemine as the reserve. At present no derivative tokens are minted on receipt of a
 //! ReserveAssetTransferDeposited message but that will but the intension will be to support this soon.
+use super::{
+	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Assets, Balance, Balances,
+	ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
+	WeightToFee, XcmpQueue,
+};
 use core::marker::PhantomData;
-
 use frame_support::{
 	match_types, parameter_types,
 	traits::{
@@ -40,35 +44,20 @@ use sp_runtime::traits::Zero;
 use xcm::latest::prelude::*;
 use xcm_builder::{
 	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses,
-	AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
-	AsPrefixedGeneralIndex, ConvertedConcreteId, CurrencyAdapter, EnsureXcmOrigin,
-	FixedRateOfFungible, FixedWeightBounds, FungiblesAdapter, IsConcrete, LocalMint, NativeAsset,
-	ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
-	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit,
-	UsingComponents, WithComputedOrigin,
+	AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom, AsPrefixedGeneralIndex,
+	ConvertedConcreteId, CurrencyAdapter, EnsureXcmOrigin, FixedWeightBounds, FungiblesAdapter,
+	IsConcrete, LocalMint, NativeAsset, ParentIsPreset, RelayChainAsNative,
+	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
+	SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, UsingComponents,
+	WithComputedOrigin,
 };
-use xcm_executor::{
-	traits::{Convert, Error, JustTry, MatchesFungibles},
-	XcmExecutor,
-};
-
-use super::{
-	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Assets, Balance, Balances,
-	ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
-	WeightToFee, XcmpQueue,
-};
-
-const DOT_ASSET_ID: AssetId = Concrete(RelayLocation::get());
-const DOT_PER_SECOND_EXECUTION: u128 = 0_0_000_001_000; // 0.0000001 DOT per second of execution time
-const DOT_PER_MB_PROOF: u128 = 0_0_000_001_000; // 0.0000001 DOT per Megabyte of proof size
+use xcm_executor::{traits::JustTry, XcmExecutor};
 
 parameter_types! {
 	pub const RelayLocation: MultiLocation = MultiLocation::parent();
 	pub const RelayNetwork: Option<NetworkId> = None;
 	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
 	pub UniversalLocation: InteriorMultiLocation = X1(Parachain(ParachainInfo::parachain_id().into()));
-	pub const HereLocation: MultiLocation = MultiLocation::here();
-	pub const DotTraderParams: (AssetId, u128, u128) = (DOT_ASSET_ID, DOT_PER_SECOND_EXECUTION, DOT_PER_MB_PROOF);
 }
 
 /// Type for specifying how a `MultiLocation` can be converted into an `AccountId`. This is used
@@ -88,7 +77,7 @@ pub type CurrencyTransactor = CurrencyAdapter<
 	// Use this currency:
 	Balances,
 	// Use this currency when it is a fungible asset matching the given location or name:
-	IsConcrete<HereLocation>,
+	IsConcrete<RelayLocation>,
 	// Do a simple punn to convert an AccountId32 MultiLocation into a native chain account ID:
 	LocationToAccountId,
 	// Our chain's account ID type (we can't get away without mentioning it explicitly):
@@ -98,7 +87,7 @@ pub type CurrencyTransactor = CurrencyAdapter<
 >;
 
 /// Means for transacting assets besides the native currency on this chain.
-pub type StatemintFungiblesTransactor = FungiblesAdapter<
+pub type FungiblesTransactor = FungiblesAdapter<
 	// Use this fungibles implementation:
 	Assets,
 	// Use this currency when it is a fungible asset matching the given location or name:
@@ -119,64 +108,8 @@ pub type StatemintFungiblesTransactor = FungiblesAdapter<
 	CheckingAccount,
 >;
 
-// asset id "0" is reserved for relay chain native token in the pallet assets
-pub struct NativeToFungible;
-impl Convert<MultiLocation, AssetIdPalletAssets> for NativeToFungible {
-	fn convert(asset: MultiLocation) -> Result<AssetIdPalletAssets, MultiLocation> {
-		match asset {
-			MultiLocation { parents: 1, interior: Here } => Ok(AssetIdPalletAssets::from(0u32)),
-			_ => Err(asset),
-		}
-	}
-	fn reverse(value: AssetIdPalletAssets) -> Result<MultiLocation, AssetIdPalletAssets> {
-		if value == AssetIdPalletAssets::from(0u32) {
-			Ok(MultiLocation { parents: 1, interior: Here })
-		} else {
-			Err(value)
-		}
-	}
-}
-
-// We need the matcher to return either `AssetNotFound` or `Unimplemented` so that the tuple impl of
-// TransactAsset will move on to the next struct.
-pub struct NonBlockingConvertedConcreteId<AssetId, Balance, ConvertAssetId, ConvertOther>(
-	PhantomData<(AssetId, Balance, ConvertAssetId, ConvertOther)>,
-);
-impl<
-		AssetId: Clone,
-		Balance: Clone,
-		ConvertAssetId: Convert<MultiLocation, AssetId>,
-		ConvertBalance: Convert<u128, Balance>,
-	> MatchesFungibles<AssetId, Balance>
-	for NonBlockingConvertedConcreteId<AssetId, Balance, ConvertAssetId, ConvertBalance>
-{
-	fn matches_fungibles(a: &MultiAsset) -> Result<(AssetId, Balance), Error> {
-		ConvertedConcreteId::<AssetId, Balance, ConvertAssetId, ConvertBalance>::matches_fungibles(
-			a,
-		)
-		.map_err(|_| Error::AssetNotFound)
-	}
-}
-
-pub type StatemintDotTransactor = FungiblesAdapter<
-	// Use this fungibles implementation:
-	Assets,
-	// Use this currency when it is a fungible asset matching the given location or name:
-	NonBlockingConvertedConcreteId<AssetIdPalletAssets, Balance, NativeToFungible, JustTry>,
-	// Convert an XCM MultiLocation into a local account id:
-	LocationToAccountId,
-	// Our chain's account ID type (we can't get away without mentioning it explicitly):
-	AccountId,
-	// We only want to allow teleports of known assets. We use non-zero issuance as an indication
-	// that this asset is known.
-	LocalMint<NonZeroIssuance<AccountId, Assets>>,
-	// The account to use for tracking teleports.
-	CheckingAccount,
->;
-
 /// Means for transacting assets on this chain.
-pub type AssetTransactors =
-	(CurrencyTransactor, StatemintDotTransactor, StatemintFungiblesTransactor);
+pub type AssetTransactors = (CurrencyTransactor, FungiblesTransactor);
 
 /// This is the type we use to convert an (incoming) XCM origin into a local `Origin` instance,
 /// ready for dispatching a transaction with Xcm's `Transact`. There is an `OriginKind` which can
@@ -246,32 +179,6 @@ pub type AccountIdOf<R> = <R as frame_system::Config>::AccountId;
 
 /// Asset filter that allows all assets from a certain location.
 pub struct AssetsFrom<T>(PhantomData<T>);
-
-pub struct StatemintAssets;
-impl ContainsPair<MultiAsset, MultiLocation> for StatemintAssets {
-	fn contains(asset: &MultiAsset, origin: &MultiLocation) -> bool {
-		// location must be the statemint parachain
-		let loc = MultiLocation::new(1, X1(Parachain(1000)));
-		// asset must be either a fungible asset from `pallet_assets` or the native token of the relay chain
-		&loc == origin &&
-			match asset {
-				MultiAsset {
-					id:
-						Concrete(MultiLocation {
-							parents: 0,
-							interior: X2(PalletInstance(50), GeneralIndex(_)),
-						}),
-					..
-				} => true,
-				MultiAsset {
-					id: Concrete(MultiLocation { parents: 1, interior: Here }), ..
-				} => true,
-
-				_ => false,
-			}
-	}
-}
-
 impl<T: Get<MultiLocation>> ContainsPair<MultiAsset, MultiLocation> for AssetsFrom<T> {
 	fn contains(asset: &MultiAsset, origin: &MultiLocation) -> bool {
 		let loc = T::get();
@@ -283,7 +190,6 @@ impl<T: Get<MultiLocation>> ContainsPair<MultiAsset, MultiLocation> for AssetsFr
 
 /// Allow checking in assets that have issuance > 0.
 pub struct NonZeroIssuance<AccountId, Assets>(PhantomData<(AccountId, Assets)>);
-
 impl<AccountId, Assets> Contains<<Assets as fungibles::Inspect<AccountId>>::AssetId>
 	for NonZeroIssuance<AccountId, Assets>
 where
@@ -297,7 +203,6 @@ where
 /// A `HandleCredit` implementation that naively transfers the fees to the block author.
 /// Will drop and burn the assets in case the transfer fails.
 pub struct AssetsToBlockAuthor<R>(PhantomData<R>);
-
 impl<R> HandleCredit<AccountIdOf<R>, pallet_assets::Pallet<R>> for AssetsToBlockAuthor<R>
 where
 	R: pallet_authorship::Config + pallet_assets::Config,
@@ -337,7 +242,6 @@ impl Reserve for MultiAsset {
 /// A `FilterAssetLocation` implementation. Filters multi native assets whose
 /// reserve is same with `origin`.
 pub struct MultiNativeAsset;
-
 impl ContainsPair<MultiAsset, MultiLocation> for MultiNativeAsset {
 	fn contains(asset: &MultiAsset, origin: &MultiLocation) -> bool {
 		if let Some(ref reserve) = asset.reserve() {
@@ -358,10 +262,34 @@ parameter_types! {
 	pub CheckingAccount: AccountId = PolkadotXcm::check_account();
 }
 
+pub struct StatemintAssets;
+impl ContainsPair<MultiAsset, MultiLocation> for StatemintAssets {
+	fn contains(asset: &MultiAsset, origin: &MultiLocation) -> bool {
+		// location must be the statemint parachain
+		let loc = MultiLocation::new(1, X1(Parachain(1000)));
+		// asset must be either a fungible asset from `pallet_assets` or the native token of the relay chain
+		&loc == origin &&
+			match asset {
+				MultiAsset {
+					id:
+						Concrete(MultiLocation {
+							parents: 0,
+							interior: X2(PalletInstance(50), GeneralIndex(_)),
+						}),
+					..
+				} => true,
+				MultiAsset {
+					id: Concrete(MultiLocation { parents: 1, interior: Here }), ..
+				} => true,
+
+				_ => false,
+			}
+	}
+}
+
 pub type Reserves = (NativeAsset, StatemintAssets);
 
 pub struct XcmConfig;
-
 impl xcm_executor::Config for XcmConfig {
 	type RuntimeCall = RuntimeCall;
 	type XcmSender = XcmRouter;
@@ -373,11 +301,8 @@ impl xcm_executor::Config for XcmConfig {
 	type UniversalLocation = UniversalLocation;
 	type Barrier = Barrier;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
-	type Trader = (
-		// TODO: weight to fee has to be carefully considered. For now use default
-		UsingComponents<WeightToFee<Runtime>, HereLocation, AccountId, Balances, ToAuthor<Runtime>>,
-		FixedRateOfFungible<DotTraderParams, ()>,
-	);
+	type Trader =
+		UsingComponents<WeightToFee, RelayLocation, AccountId, Balances, ToAuthor<Runtime>>;
 	type ResponseHandler = PolkadotXcm;
 	type AssetTrap = PolkadotXcm;
 	type AssetClaims = PolkadotXcm;
@@ -412,12 +337,9 @@ parameter_types! {
 
 impl pallet_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-	type CurrencyMatcher = ();
 	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type XcmRouter = XcmRouter;
 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
-	// TODO: change back to `Nothing` once we add the xcm functionalities into a pallet
 	type XcmExecuteFilter = Everything;
 	// ^ Disable dispatchable execute on the XCM pallet.
 	// Needs to be `Everything` for local testing.
@@ -426,12 +348,14 @@ impl pallet_xcm::Config for Runtime {
 	type XcmReserveTransferFilter = Everything;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
 	type UniversalLocation = UniversalLocation;
-
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
+
 	const VERSION_DISCOVERY_QUEUE_SIZE: u32 = 100;
 	// ^ Override for AdvertisedXcmVersion default
 	type AdvertisedXcmVersion = pallet_xcm::CurrentXcmVersion;
+	type Currency = Balances;
+	type CurrencyMatcher = ();
 	type TrustedLockers = ();
 	type SovereignAccountOf = LocationToAccountId;
 	type MaxLockers = ConstU32<8>;

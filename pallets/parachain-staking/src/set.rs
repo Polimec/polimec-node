@@ -23,14 +23,14 @@ use sp_runtime::{traits::Zero, SaturatedConversion};
 #[cfg(feature = "std")]
 use sp_std::prelude::*;
 use sp_std::{
-    cmp::Ordering,
-    convert::TryInto,
-    ops::{Index, Range, RangeFull},
+	cmp::Ordering,
+	convert::TryInto,
+	ops::{Index, Range, RangeFull},
 };
 
 /// An ordered set backed by `BoundedVec`.
 #[derive(
-PartialEq, Eq, Encode, Decode, DefaultNoBound, Clone, TypeInfo, MaxEncodedLen, RuntimeDebug,
+	PartialEq, Eq, Encode, Decode, DefaultNoBound, Clone, TypeInfo, MaxEncodedLen, RuntimeDebug,
 )]
 #[scale_info(skip_type_params(S))]
 #[codec(mel_bound(T: MaxEncodedLen))]

@@ -137,34 +137,34 @@ mod types;
 #[pallet]
 pub mod pallet {
 	use frame_support::{
-        assert_ok,
-        pallet_prelude::*,
-        storage::bounded_btree_map::BoundedBTreeMap,
-        traits::{
-            Currency, EstimateNextSessionRotation, Get, Imbalance, LockIdentifier,
-            LockableCurrency, OnUnbalanced, ReservableCurrency, StorageVersion, WithdrawReasons,
-        },
-        BoundedVec,
-    };
+		assert_ok,
+		pallet_prelude::*,
+		storage::bounded_btree_map::BoundedBTreeMap,
+		traits::{
+			Currency, EstimateNextSessionRotation, Get, Imbalance, LockIdentifier,
+			LockableCurrency, OnUnbalanced, ReservableCurrency, StorageVersion, WithdrawReasons,
+		},
+		BoundedVec,
+	};
 	use frame_system::pallet_prelude::*;
 	use pallet_balances::{BalanceLock, Locks};
 	use pallet_session::ShouldEndSession;
 	use scale_info::TypeInfo;
 	use sp_runtime::{
-        traits::{Convert, One, SaturatedConversion, Saturating, StaticLookup, Zero},
-        Permill, Perquintill,
-    };
-    use sp_staking::SessionIndex;
-    use sp_std::{convert::TryInto, fmt::Debug, prelude::*};
+		traits::{Convert, One, SaturatedConversion, Saturating, StaticLookup, Zero},
+		Permill, Perquintill,
+	};
+	use sp_staking::SessionIndex;
+	use sp_std::{convert::TryInto, fmt::Debug, prelude::*};
 
-    pub use crate::inflation::{InflationInfo, RewardRate, StakingInfo};
-    use crate::{
-        set::OrderedSet,
-        types::{
-            BalanceOf, Candidate, CandidateOf, CandidateStatus, DelegationCounter, Delegator,
-            NegativeImbalanceOf, RoundInfo, Stake, StakeOf, TotalStake,
-        },
-    };
+	pub use crate::inflation::{InflationInfo, RewardRate, StakingInfo};
+	use crate::{
+		set::OrderedSet,
+		types::{
+			BalanceOf, Candidate, CandidateOf, CandidateStatus, DelegationCounter, Delegator,
+			NegativeImbalanceOf, RoundInfo, Stake, StakeOf, TotalStake,
+		},
+	};
 
 	use super::*;
 

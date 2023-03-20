@@ -1,10 +1,10 @@
 [workspace]
 members = [
-#    "integration-tests",
     "nodes/*",
     "pallets/*",
     "runtimes/*",
-    "traits"
+    "traits",
+    "integration-tests"
 ]
 
 [workspace.package]
@@ -71,7 +71,7 @@ smallvec = "1.10.0"
 log = "0.4.17"
 
 # Emulations
-xcm-emulator = { git = "https://github.com/shaunxw/xcm-simulator", default-feautres = false, ref = "754f3b90ecc65af735a6c9a2e1792c5253926ff6" }
+xcm-emulator = { git = "https://github.com/shaunxw/xcm-simulator", default-features = false, rev = "754f3b90ecc65af735a6c9a2e1792c5253926ff6" }
 
 # Substrate (with default disabled)
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.38" }
@@ -133,6 +133,8 @@ xcm-executor = { git = "https://github.com/paritytech/polkadot", default-feature
 xcm-simulator = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.38" }
 polkadot-runtime-common = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.38" }
 polkadot-runtime = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.38" }
+polkadot-primitives = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.38" }
+
 
 # Cumulus (with default disabled)
 cumulus-pallet-aura-ext = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "polkadot-v0.9.38" }
@@ -147,9 +149,7 @@ cumulus-primitives-utility = { git = "https://github.com/paritytech/cumulus", de
 pallet-collator-selection = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "polkadot-v0.9.38" }
 parachain-info = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "polkadot-v0.9.38" }
 parachains-common = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "polkadot-v0.9.38" }
-penpal-runtime = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.38" }
-statemint-runtime = { git = 'https://github.com/paritytech/cumulus.git', default-features = false, branch = 'polkadot-v0.9.38' }
-polkadot-primitives = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.38" }
+statemint-runtime = { git = 'https://github.com/paritytech/cumulus', default-features = false, branch = 'polkadot-v0.9.38' }
 
 # Client-only (with default enabled)
 cumulus-client-cli = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.38" }
@@ -201,4 +201,5 @@ frame-system-benchmarking = { git = "https://github.com/paritytech/substrate", d
 polimec-parachain-runtime = { path = "runtimes/testnet" }
 polimec-standalone-runtime = { path = "runtimes/standalone" }
 polimec-base-runtime = { path = "runtimes/base" }
+penpal-runtime = { path = "integration-tests/modified-penpal" }
 
