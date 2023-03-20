@@ -4,7 +4,7 @@ name: Check Set-Up & Build
 on:
   pull_request:
     branches: [ main ]
-    types: [ready_for_review]
+    types: [ready_for_review, labeled]
   label:
     types: [created, deleted]
   # Allows you to run this workflow manually from the Actions tab
