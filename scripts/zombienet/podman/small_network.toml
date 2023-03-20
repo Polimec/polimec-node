@@ -1,8 +1,9 @@
-[relaychain]
-default_image = "docker.io/paritypr/polkadot-debug:master"
-default_command = "polkadot"
-default_args = [ "-lparachain=debug" ]
+[settings]
+provider = "podman"
 
+[relaychain]
+default_image = "docker.io/parity/polkadot:v0.9.38"
+default_command = "polkadot"
 chain = "rococo-local"
 
   [[relaychain.nodes]]
@@ -18,5 +19,5 @@ id = 100
 
   [parachains.collator]
   name = "collator01"
-  image = "docker.io/paritypr/colander:master"
-  command = "adder-collator"
+  image = "docker.io/parity/polkadot-parachain:0.9.380"
+  command = "polkadot-parachain"

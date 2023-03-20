@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::net::SocketAddr;
+use std::{net::SocketAddr, path::PathBuf};
 
 use codec::Encode;
 use cumulus_client_cli::generate_genesis_block;
@@ -36,6 +36,53 @@ use crate::{
 	service::{new_partial, ParachainNativeExecutor},
 };
 
+/// Helper enum that is used for better distinction of different parachain/runtime configuration
+/// (it is based/calculated on ChainSpec's ID attribute)
+#[derive(Debug, PartialEq, Default)]
+enum Runtime {
+	#[default]
+	Testnet,
+	Base,
+}
+
+trait RuntimeResolver {
+	fn runtime(&self) -> Runtime;
+}
+
+impl RuntimeResolver for dyn ChainSpec {
+	fn runtime(&self) -> Runtime {
+		runtime(self.id())
+	}
+}
+
+/// Implementation, that can resolve [`Runtime`] from any json configuration file
+impl RuntimeResolver for PathBuf {
+	fn runtime(&self) -> Runtime {
+		#[derive(Debug, serde::Deserialize)]
+		struct EmptyChainSpecWithId {
+			id: String,
+		}
+
+		let file = std::fs::File::open(self).expect("Failed to open file");
+		let reader = std::io::BufReader::new(file);
+		let chain_spec: EmptyChainSpecWithId = sp_serializer::from_reader(reader)
+			.expect("Failed to read 'json' file with ChainSpec configuration");
+		runtime(&chain_spec.id)
+	}
+}
+
+fn runtime(id: &str) -> Runtime {
+	let id = id.replace("_", "-");
+	if id.contains("base") {
+		Runtime::Base
+	} else if id.contains("polimec") {
+		Runtime::Testnet
+	} else {
+		log::warn!("No specific runtime was recognized for ChainSpec's id: '{}', so Runtime::default() will be used", id);
+		Runtime::default()
+	}
+}
+
 fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 	log::info!("Load spec id: {}", id);
 
@@ -47,12 +94,22 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 		"polimec-rococo-local" => Box::new(chain_spec::testnet::get_chain_spec_dev()?),
 		"polimec-polkadot" => Box::new(chain_spec::testnet::get_prod_chain_spec()?),
 		"polimec-polkadot-local" => Box::new(chain_spec::testnet::get_local_prod_chain_spec()?),
-		"dev" | "" | "local" => Box::new(chain_spec::testnet::get_chain_spec_dev()?),
-		// TODO: Find the best way to generate chainspecs
-		// TODO: Check Cumulus repo to see how to better handle this
-		path => Box::new(chain_spec::testnet::ChainSpec::from_json_file(
-			std::path::PathBuf::from(path),
-		)?),
+		// -- Fallback (generic chainspec)
+		"" => {
+			log::warn!(
+				"No ChainSpec.id specified, so using default one, based on polimec-rococo-local"
+			);
+			Box::new(chain_spec::testnet::get_chain_spec_dev()?)
+		},
+		// A custom chainspec path
+		path => {
+			let path: PathBuf = path.into();
+			log::info!("Got path: {}", path.display());
+			match path.runtime() {
+				Runtime::Testnet => Box::new(chain_spec::testnet::ChainSpec::from_json_file(path)?),
+				Runtime::Base => Box::new(chain_spec::base::ChainSpec::from_json_file(path)?),
+			}
+		},
 	})
 }
 
