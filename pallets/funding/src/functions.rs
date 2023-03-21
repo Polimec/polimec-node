@@ -101,8 +101,8 @@ impl<T: Config> Pallet<T> {
 	pub fn do_start_auction(project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
 		let current_block_number = <frame_system::Pallet<T>>::block_number();
 		let english_ending_block = current_block_number + T::EnglishAuctionDuration::get();
-		let candle_ending_block = english_ending_block.clone() + T::CandleAuctionDuration::get();
-		let community_ending_block = candle_ending_block.clone() + T::CommunityRoundDuration::get();
+		let candle_ending_block = english_ending_block + T::CandleAuctionDuration::get();
+		let community_ending_block = candle_ending_block + T::CommunityRoundDuration::get();
 
 		let auction_metadata = AuctionMetadata {
 			starting_block: current_block_number,
@@ -134,7 +134,7 @@ impl<T: Config> Pallet<T> {
 		evaluation_period_ends: T::BlockNumber,
 		fundraising_target: BalanceOf<T>,
 	) -> Result<(), DispatchError> {
-		if now >= evaluation_period_ends {
+		if now > evaluation_period_ends {
 			let initial_balance: BalanceOf<T> = Zero::zero();
 			let total_amount_bonded = Bonds::<T>::iter_prefix_values(project_id)
 				.fold(initial_balance, |acc, bond| acc.saturating_add(bond));
@@ -174,11 +174,18 @@ impl<T: Config> Pallet<T> {
 		project_id: &T::ProjectIdentifier,
 		now: T::BlockNumber,
 		evaluation_period_ends: T::BlockNumber,
-	) {
-		if evaluation_period_ends + T::EnglishAuctionDuration::get() <= now {
+	) -> Result<(), DispatchError>{
+		let project_info = ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		ensure!(
+			project_info.project_status == ProjectStatus::EvaluationEnded,
+			Error::<T>::ProjectNotInEvaluationEndedRound
+		);
+		if evaluation_period_ends <= now {
 			// TODO: Unused error, more tests needed
 			// TODO: Here the start_auction is "free", check the Weight
-			let _ = Self::do_start_auction(*project_id);
+			Self::do_start_auction(*project_id)
+		} else {
+			Ok(())
 		}
 	}
 

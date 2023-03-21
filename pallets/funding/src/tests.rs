@@ -51,7 +51,8 @@ fn last_event() -> RuntimeEvent {
 }
 
 fn run_to_block(n: BlockNumber) {
-	while System::block_number() < n {
+	let mut current_block = System::block_number();
+	while current_block < n {
 		FundingModule::on_finalize(System::block_number());
 		Balances::on_finalize(System::block_number());
 		FundingModule::on_idle(System::block_number(), Weight::from_ref_time(10000000));
@@ -61,6 +62,7 @@ fn run_to_block(n: BlockNumber) {
 		FundingModule::on_initialize(System::block_number());
 		Balances::on_initialize(System::block_number());
 		FundingModule::on_idle(System::block_number(), Weight::from_ref_time(10000000));
+		current_block = System::block_number();
 	}
 }
 
@@ -341,7 +343,7 @@ mod auction_round {
 		create_on_chain_project();
 		assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 		assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 10_000));
-		run_to_block(System::block_number() + 29);
+		run_to_block(System::block_number() + <Test as Config>::EvaluationDuration::get() + 1);
 		let project_info = FundingModule::project_info(0).unwrap();
 		assert_eq!(project_info.project_status, ProjectStatus::EvaluationEnded);
 	}
@@ -464,12 +466,12 @@ mod claim_contribution_tokens {
 		create_on_chain_project();
 		assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 		assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 10_000));
-		run_to_block(System::block_number() + 29);
+		run_to_block(System::block_number() + <Test as Config>::EvaluationDuration::get() + 1);
 		let project_info = FundingModule::project_info(0).unwrap();
 		assert_eq!(project_info.project_status, ProjectStatus::EvaluationEnded);
 		assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
 		assert_ok!(FundingModule::bid(RuntimeOrigin::signed(CHARLIE), 0, 100, 1 * PLMC, None));
-		run_to_block(System::block_number() + 15);
+		run_to_block(System::block_number() + <Test as Config>::EnglishAuctionDuration::get() + <Test as Config>::CandleAuctionDuration::get() + 1);
 		let project_info = FundingModule::project_info(0).unwrap();
 		assert_eq!(project_info.weighted_average_price, Some(PLMC));
 		assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 99 * PLMC));
