@@ -34,18 +34,14 @@ build-base-srtool:
 build-parachain-srtool:
 	srtool build --root -p polimec-parachain-runtime --runtime-dir runtimes/testnet
 
-# Build the "Standalone" Runtime using srtool
-build-standalone-srtool:
-	srtool build --root -p polimec-standalone-runtime --runtime-dir runtimes/standalone
-
 # Test the runtimes features
 test-runtime-features:
 	cargo test --features runtime-benchmarks
 
 # Benchmark the "Testnet" Runtime
 benchmark-runtime-funding:
-	cargo run --features runtime-benchmarks --release -p polimec-standalone-node benchmark pallet \
-		--chain=dev \
+	cargo run --features runtime-benchmarks,fast-gov --release -p polimec-parachain-node benchmark pallet \
+		--chain=polimec-rococo-local \
 		--steps=50 \
 		--repeat=20 \
 		--pallet=pallet_funding \
@@ -57,8 +53,8 @@ benchmark-runtime-funding:
 
 # Benchmark the "Testnet" Runtime
 benchmark-pallet-funding:
-	cargo run --features runtime-benchmarks --release -p polimec-standalone-node benchmark pallet \
-		--chain=dev \
+	cargo run --features runtime-benchmarks,fast-gov --release -p polimec-parachain-node benchmark pallet \
+		--chain=polimec-rococo-local \
 		--steps=50 \
 		--repeat=20 \
 		--pallet=pallet_funding \
@@ -69,7 +65,10 @@ benchmark-pallet-funding:
 		--template=./.maintain/frame-weight-template.hbs
 
 benchmarks-test:
-	cargo run --features runtime-benchmarks,fast-gov -p polimec-parachain-node benchmark pallet --pallet="*" --extrinsic="*"
+	cargo run --features runtime-benchmarks,fast-gov -p polimec-parachain-node benchmark pallet \
+		--chain=polimec-rococo-local \
+		--pallet="*" \
+		--extrinsic="*"
 
 # Build the Node Docker Image
 docker-build tag = "latest" package= "polimec-parachain-node":

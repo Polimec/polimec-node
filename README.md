@@ -13,7 +13,7 @@
 ### Step 1: Compile the relay chain and add it to $PATH
 
 - Clone the [Polkadot Repository](https://github.com/paritytech/polkadot)
-- Checkout the `release-v0.9.37` branch
+- Checkout the `release-v0.9.38` branch
 - Compile it using `cargo b -r -p polkadot`
 - Add the binary to your $PATH, e.g.
   `cp target/release/polkadot ~/.local/bin/polkadot`
@@ -46,7 +46,8 @@ or
 $ cargo run --release -- --dev
 ```
 
-You can use [srtool](https://github.com/paritytech/srtool) to compile the runtime and generate the WASM blob.
+You can use [srtool](https://github.com/paritytech/srtool) to compile the
+runtime and generate the WASM blob.
 
 ```
 == Compact
@@ -71,25 +72,27 @@ You can use [srtool](https://github.com/paritytech/srtool) to compile the runtim
  Wasm             : runtimes/testnet//target/srtool/production/wbuild/polimec-parachain-runtime/polimec_parachain_runtime.compact.compressed.wasm
 ```
 
-+ A collection of useful scripts are available in the `scripts` folder, there is also a `justfile` to launch the scripts using [just](https://github.com/casey/just), e.g. `$ just build-parachain-node`
+- A collection of useful scripts are available in the `scripts` folder, there is
+  also a `justfile` to launch the scripts using
+  [just](https://github.com/casey/just), e.g. `$ just build-parachain-node`
+
 ```
 Available recipes:
-    benchmark-pallet-funding              # Benchmark the "Base" Runtime
-    benchmark-runtime-funding             # Benchmark the "Base" Runtime
-    build-all                             # Build everything
-    build-base-runtime                    # Build the "Base" Runtime
-    build-base-srtool                     # Build the "Base" Runtime using srtool
-    build-parachain-node                  # Build the "Parachain" Node
-    build-standalone-node                 # Build the "Standalone" Node
-    build-standalone-runtime              # Build the "Standalone" Runtime
-    build-standalone-srtool               # Build the "Standalone" Runtime using srtool
-    build-testnet-runtime                 # Build the "Testnet" Runtime
-    build-testnet-srtool                  # Build the "Testnet" Runtime using srtool
-    create-chainspec-base                 # Create the "Base" Runtime Chainspec
-    default                               # Help information
-    docker-build-collator tag="latest"    # Build the "Parachain" Node Docker Image
-    docker-build-standalone tag="latest"  # Build the "Standalone" Node Docker Image
-    run-node                              # Run the "Standalone" node in --dev mode
-    test-runtime-features                 # Test the runtimes features
-    zombienet-default                     # Use zombienet to spawn rococo + polimec testnet
+  benchmark-pallet-funding  # Benchmark the "Testnet" Runtime
+  benchmark-runtime-funding # Benchmark the "Testnet" Runtime
+  benchmarks-test
+  build-all                 # Build everything
+  build-base-runtime        # Build the "Base" Runtime
+  build-base-srtool         # Build the "Base" Runtime using srtool
+  build-parachain-node      # Build the "Parachain" Node
+  build-parachain-runtime   # Build the "Testnet" Runtime
+  build-parachain-srtool    # Build the "Testnet" Runtime using srtool
+  build-standalone-node     # Build the "Standalone" Node
+  build-standalone-runtime  # Build the "Standalone" Runtime
+  create-chainspec-base     # Create the "Base" Runtime Chainspec
+  default                   # Help information
+  docker-build tag="latest" package="polimec-parachain-node" # Build the Node Docker Image
+  run-node                  # Run the "Standalone" node in --dev mode
+  test-runtime-features     # Test the runtimes features
+  zombienet path_to_file="scripts/zombienet/native/base-rococo-local.toml" # Use zombienet to spawn rococo + polimec testnet
 ```
