@@ -3,22 +3,20 @@
   <component name="AutoImportSettings">
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
-  <component name="CMakePresetLoader">{
-  &quot;useNewFormat&quot;: true
-}</component>
+  <component name="CMakePresetLoader"><![CDATA[{
+  "useNewFormat": true
+}]]></component>
   <component name="CMakeSettings">
-    <configurations>
-      <configuration PROFILE_NAME="Debug" ENABLED="true" CONFIG_NAME="Debug" />
-    </configurations>
+    <configurations />
   </component>
   <component name="CargoProjects">
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="af4a392c-d8af-4ddf-b836-c328911f347f" name="Changes" comment="chore: squash">
+    <list default="true" id="af4a392c-d8af-4ddf-b836-c328911f347f" name="Changes" comment="chore: .idea to gitignore">
       <change beforePath="$PROJECT_DIR$/pallets/funding/src/functions.rs" beforeDir="false" afterPath="$PROJECT_DIR$/pallets/funding/src/functions.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pallets/funding/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/pallets/funding/src/lib.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pallets/funding/src/types.rs" beforeDir="false" afterPath="$PROJECT_DIR$/pallets/funding/src/types.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pallets/funding/src/tests.rs" beforeDir="false" afterPath="$PROJECT_DIR$/pallets/funding/src/tests.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -36,16 +34,6 @@
     </option>
     <option name="RESET_MODE" value="MIXED" />
   </component>
-  <component name="GitRewordedCommitMessages">
-    <option name="commitMessagesMapping">
-      <RewordedCommitMessageMapping>
-        <option name="originalMessage" value="wip" />
-        <option name="rewordedMessage" value="feat: better weighted auction price calculation&#10;&#10;&#10;wip" />
-      </RewordedCommitMessageMapping>
-    </option>
-    <option name="currentCommit" value="1" />
-    <option name="onto" value="4031bca0156a060604a19f54be04f11e8cfdaf1d" />
-  </component>
   <component name="HighlightingSettingsPerFile">
     <setting file="file://$USER_HOME$/.cargo/git/checkouts/cumulus-59522f43471fa161/3275e27/parachains/runtimes/assets/statemint/src/xcm_config.rs" root0="SKIP_INSPECTION" />
     <setting file="file://$USER_HOME$/.cargo/git/checkouts/polkadot-4038f27d5e4ea2e8/8deef13/runtime/polkadot/src/xcm_config.rs" root0="SKIP_INSPECTION" />
@@ -55,10 +43,6 @@
   <component name="MacroExpansionManager">
     <option name="directoryName" value="madf12i2" />
   </component>
-  <component name="MarkdownSettingsMigration">
-    <option name="stateVersion" value="1" />
-  </component>
-  <component name="ProjectId" id="2MjgQJpnTecyXXD9166jgT3stDO" />
   <component name="ProjectViewState">
     <option name="autoscrollFromSource" value="true" />
     <option name="autoscrollToSource" value="true" />
@@ -67,43 +51,28 @@
     <option name="showMembers" value="true" />
     <option name="showVisibilityIcons" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Git.Branch.Popup.ShowAllRemotes&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.cidr.known.project.marker&quot;: &quot;true&quot;,
-    &quot;cf.first.check.clang-format&quot;: &quot;false&quot;,
-    &quot;cidr.known.project.marker&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/home/juani/Desktop/polimec/feat__better_weighted_auction_price_calculation.patch&quot;,
-    &quot;org.rust.cargo.project.model.PROJECT_DISCOVERY&quot;: &quot;true&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
-    &quot;vcs.patch.path&quot;: &quot;/home/juani/Desktop/polimec&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Git.Branch.Popup.ShowAllRemotes": "true",
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.cidr.known.project.marker": "true",
+    "cf.first.check.clang-format": "false",
+    "cidr.known.project.marker": "true",
+    "last_opened_file_path": "/home/juani/Desktop/polimec/polimec-node/Cargo.toml",
+    "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
+    "settings.editor.selected.configurable": "language.rust.cargo.check",
+    "vcs.patch.path": "/home/juani/Desktop/polimec"
   }
-}</component>
-  <component name="RecentsManager">
-    <key name="CopyFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$/scripts/zombienet/native" />
-      <recent name="$PROJECT_DIR$/demo/spec-generator-node" />
-      <recent name="$PROJECT_DIR$/demo/spec-generator-node/src" />
-      <recent name="$PROJECT_DIR$/demo/chain_specs" />
-      <recent name="$PROJECT_DIR$/integration-tests" />
-    </key>
-    <key name="MoveFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$/demo/spec-generator-node/src" />
-      <recent name="$PROJECT_DIR$/demo" />
-      <recent name="$PROJECT_DIR$/scripts/zombienet/native/genesis" />
-    </key>
-  </component>
+}]]></component>
   <component name="RunAnythingCache">
     <option name="myCommands">
-      <command value="cargo fmt" />
       <command value="cargo check" />
     </option>
   </component>
-  <component name="RunManager" selected="Cargo.check">
-    <configuration name="Test reserve_backed_transfers::penpal_to_polimec" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package integration-tests --lib reserve_backed_transfers::penpal_to_polimec -- --exact" />
+  <component name="RunManager" selected="Cargo.test">
+    <configuration name="Test tests::community_round::contribute_works" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package pallet-funding --lib tests::community_round::contribute_works -- --exact" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <option name="emulateTerminal" value="true" />
       <option name="channel" value="DEFAULT" />
@@ -119,8 +88,8 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Test reserve_backed_transfers::penpal_to_reserve" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package integration-tests --lib reserve_backed_transfers::penpal_to_reserve -- --exact" />
+    <configuration name="Test tests::flow::check_weighted_average_price" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package pallet-funding --lib tests::flow::check_weighted_average_price -- --exact" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <option name="emulateTerminal" value="true" />
       <option name="channel" value="DEFAULT" />
@@ -136,25 +105,8 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Test reserve_backed_transfers::polimec_to_penpal" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package integration-tests --lib reserve_backed_transfers::polimec_to_penpal -- --exact" />
-      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
-      <option name="emulateTerminal" value="true" />
-      <option name="channel" value="DEFAULT" />
-      <option name="requiredFeatures" value="true" />
-      <option name="allFeatures" value="false" />
-      <option name="withSudo" value="false" />
-      <option name="buildTarget" value="REMOTE" />
-      <option name="backtrace" value="SHORT" />
-      <envs />
-      <option name="isRedirectInput" value="false" />
-      <option name="redirectInputPath" value="" />
-      <method v="2">
-        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
-      </method>
-    </configuration>
-    <configuration name="Test reserve_backed_transfers::reserve_to_polimec" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package integration-tests --lib reserve_backed_transfers::reserve_to_polimec -- --exact" />
+    <configuration name="Test tests::flow::it_works" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package pallet-funding --lib tests::flow::it_works -- --exact" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <option name="emulateTerminal" value="true" />
       <option name="channel" value="DEFAULT" />
@@ -187,22 +139,40 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
+    <configuration name="test" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Cargo.test" />
         <item itemvalue="Cargo.check" />
-        <item itemvalue="Cargo.check" />
-        <item itemvalue="Cargo.check" />
-        <item itemvalue="Cargo.check" />
-        <item itemvalue="Cargo.check" />
+        <item itemvalue="Cargo.Test tests::flow::check_weighted_average_price" />
+        <item itemvalue="Cargo.Test tests::flow::it_works" />
+        <item itemvalue="Cargo.Test tests::community_round::contribute_works" />
       </list>
     </recent_temporary>
   </component>
   <component name="RustProjectSettings">
+    <option name="externalLinter" value="Clippy" />
+    <option name="externalLinterArguments" value="--all-features --tests" />
     <option name="runExternalLinterOnTheFly" value="true" />
     <option name="toolchainHomeDirectory" value="$USER_HOME$/.cargo/bin" />
     <option name="version" value="2" />
   </component>
-  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
       <changelist id="af4a392c-d8af-4ddf-b836-c328911f347f" name="Changes" comment="" />
@@ -231,7 +201,7 @@
       <workItem from="1679058414514" duration="10993000" />
       <workItem from="1679309244162" duration="8949000" />
       <workItem from="1679320122711" duration="9070000" />
-      <workItem from="1679389474368" duration="8642000" />
+      <workItem from="1679389474368" duration="22551000" />
     </task>
     <task id="LOCAL-00001" summary="feat: dmp successful without open barrier">
       <created>1678287706385</created>
@@ -394,7 +364,42 @@
       <option name="project" value="LOCAL" />
       <updated>1679392654738</updated>
     </task>
-    <option name="localTasksCounter" value="24" />
+    <task id="LOCAL-00024" summary="feat: storage changes and error returns applied">
+      <created>1679398309115</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1679398309115</updated>
+    </task>
+    <task id="LOCAL-00025" summary="chore:  run cargo fmt">
+      <created>1679398387157</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1679398387157</updated>
+    </task>
+    <task id="LOCAL-00026" summary="chore: tests fixed">
+      <created>1679402362637</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1679402362637</updated>
+    </task>
+    <task id="LOCAL-00027" summary="wip">
+      <created>1679410986279</created>
+      <option name="number" value="00027" />
+      <option name="presentableId" value="LOCAL-00027" />
+      <option name="project" value="LOCAL" />
+      <updated>1679410986279</updated>
+    </task>
+    <task id="LOCAL-00028" summary="chore: .idea to gitignore">
+      <created>1679411020591</created>
+      <option name="number" value="00028" />
+      <option name="presentableId" value="LOCAL-00028" />
+      <option name="project" value="LOCAL" />
+      <updated>1679411020591</updated>
+    </task>
+    <option name="localTasksCounter" value="29" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -432,10 +437,14 @@
     <MESSAGE value="feat: add licence to .hbs" />
     <MESSAGE value="feat: just file comment changed, weights updated" />
     <MESSAGE value="chore: typo on Cargo.toml" />
-    <MESSAGE value="wip" />
     <MESSAGE value="feat: better weighted auction price calculation" />
     <MESSAGE value="chore: squash" />
-    <option name="LAST_COMMIT_MESSAGE" value="chore: squash" />
+    <MESSAGE value="feat: storage changes and error returns applied" />
+    <MESSAGE value="chore:  run cargo fmt" />
+    <MESSAGE value="chore: tests fixed" />
+    <MESSAGE value="wip" />
+    <MESSAGE value="chore: .idea to gitignore" />
+    <option name="LAST_COMMIT_MESSAGE" value="chore: .idea to gitignore" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -527,13 +536,108 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
           <url>file://$PROJECT_DIR$/integration-tests/src/lib.rs</url>
-          <line>1215</line>
+          <line>1218</line>
           <option name="timeStamp" value="79" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
           <url>file://$PROJECT_DIR$/integration-tests/src/lib.rs</url>
-          <line>1040</line>
+          <line>1042</line>
           <option name="timeStamp" value="82" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/pallets/funding/src/tests.rs</url>
+          <line>494</line>
+          <option name="timeStamp" value="84" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/pallets/funding/src/tests.rs</url>
+          <line>469</line>
+          <option name="timeStamp" value="85" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/pallets/funding/src/tests.rs</url>
+          <line>479</line>
+          <option name="timeStamp" value="87" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/pallets/funding/src/tests.rs</url>
+          <line>372</line>
+          <option name="timeStamp" value="92" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/pallets/funding/src/tests.rs</url>
+          <line>473</line>
+          <option name="timeStamp" value="99" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/pallets/funding/src/tests.rs</url>
+          <line>486</line>
+          <option name="timeStamp" value="110" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/pallets/funding/src/tests.rs</url>
+          <line>455</line>
+          <option name="timeStamp" value="111" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/pallets/funding/src/tests.rs</url>
+          <line>432</line>
+          <option name="timeStamp" value="112" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/pallets/funding/src/tests.rs</url>
+          <line>520</line>
+          <option name="timeStamp" value="113" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/pallets/funding/src/tests.rs</url>
+          <line>544</line>
+          <option name="timeStamp" value="114" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/pallets/funding/src/tests.rs</url>
+          <line>575</line>
+          <option name="timeStamp" value="115" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/pallets/funding/src/lib.rs</url>
+          <line>766</line>
+          <option name="timeStamp" value="116" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/pallets/funding/src/functions.rs</url>
+          <line>408</line>
+          <option name="timeStamp" value="118" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/pallets/funding/src/lib.rs</url>
+          <line>795</line>
+          <option name="timeStamp" value="119" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/pallets/funding/src/functions.rs</url>
+          <line>314</line>
+          <option name="timeStamp" value="120" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/pallets/funding/src/functions.rs</url>
+          <line>371</line>
+          <option name="timeStamp" value="123" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/pallets/funding/src/functions.rs</url>
+          <line>379</line>
+          <option name="timeStamp" value="124" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/pallets/funding/src/functions.rs</url>
+          <line>367</line>
+          <option name="timeStamp" value="125" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/pallets/funding/src/tests.rs</url>
+          <line>584</line>
+          <option name="timeStamp" value="126" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

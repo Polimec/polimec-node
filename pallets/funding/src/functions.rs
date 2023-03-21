@@ -21,6 +21,7 @@
 use super::*;
 
 use frame_support::{ensure, pallet_prelude::DispatchError, traits::Get};
+use sp_arithmetic::Perbill;
 use sp_runtime::Percent;
 use sp_std::prelude::*;
 
@@ -174,8 +175,9 @@ impl<T: Config> Pallet<T> {
 		project_id: &T::ProjectIdentifier,
 		now: T::BlockNumber,
 		evaluation_period_ends: T::BlockNumber,
-	) -> Result<(), DispatchError>{
-		let project_info = ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+	) -> Result<(), DispatchError> {
+		let project_info =
+			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		ensure!(
 			project_info.project_status == ProjectStatus::EvaluationEnded,
 			Error::<T>::ProjectNotInEvaluationEndedRound
@@ -234,8 +236,12 @@ impl<T: Config> Pallet<T> {
 			Self::select_random_block(english_ending_block + 1_u8.into(), candle_ending_block);
 		project_info.project_status = ProjectStatus::CommunityRound;
 		auction_metadata.random_ending_block = Some(end_block);
-		project_info.weighted_average_price =
-			Some(Self::calculate_weighted_average_price(*project_id)?);
+
+		project_info.weighted_average_price = Some(Self::calculate_weighted_average_price(
+			*project_id,
+			end_block,
+			project_info.fundraising_target,
+		)?);
 
 		ProjectsInfo::<T>::insert(project_id, project_info);
 		Ok(())
@@ -253,6 +259,7 @@ impl<T: Config> Pallet<T> {
 		let mut project_info =
 			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		project_info.project_status = ProjectStatus::FundingEnded;
+		ProjectsInfo::<T>::insert(project_id, project_info);
 
 		// TODO: Check if make sense to set the admin as T::fund_account_id(project_id)
 		let issuer =
@@ -298,17 +305,12 @@ impl<T: Config> Pallet<T> {
 	///
 	/// * `project_id` - Id used to retrieve the project information from storage
 	/// * `end_block` - Block where the candle auction ended, which will make bids after it invalid
+	/// * `fundraising_target` - Amount of tokens that the project wants to raise
 	pub fn calculate_weighted_average_price(
 		project_id: T::ProjectIdentifier,
+		end_block: T::BlockNumber,
+		fundraising_target: BalanceOf<T>,
 	) -> Result<BalanceOf<T>, DispatchError> {
-		// get the project information
-		let project_info =
-			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		let end_block = project_info
-			.auction_metadata
-			.ok_or(Error::<T>::AuctionMetadataNotFound)?
-			.random_ending_block
-			.ok_or(Error::<T>::EndingBlockNotSet)?;
 		// Get all the bids that were made before the end of the candle
 		let mut bids = AuctionsInfo::<T>::get(project_id);
 		// temp variable to store the sum of the bids
@@ -319,28 +321,31 @@ impl<T: Config> Pallet<T> {
 		// sort bids by price
 		bids.sort();
 		// accept only bids that were made before `end_block` i.e end of candle auction
-		let bids = bids.into_iter().map(|mut bid| {
-			if bid.when > end_block {
-				bid.status = BidStatus::Rejected(RejectionReason::AfterCandleEnd);
-				// TODO: Unlock funds. We can do this inside the "on_idle" hook, and change the `status` of the `Bid` to "Unreserved"
-				return bid
-			}
-			let buyable_amount = project_info.fundraising_target.saturating_sub(bid_amount_sum);
-			if buyable_amount == 0_u32.into() {
-				bid.status = BidStatus::Rejected(RejectionReason::NoTokensLeft);
-			} else if bid.amount <= buyable_amount {
-				bid_amount_sum.saturating_accrue(bid.amount);
-				bid_value_sum.saturating_accrue(bid.amount * bid.price);
-				bid.status = BidStatus::Accepted;
-			} else {
-				bid_amount_sum.saturating_accrue(buyable_amount);
-				bid_value_sum.saturating_accrue(buyable_amount * bid.price);
-				bid.status =
-					BidStatus::PartiallyAccepted(buyable_amount, RejectionReason::NoTokensLeft)
-				// TODO: Refund remaining amount
-			}
-			bid
-		});
+		let bids = bids
+			.into_iter()
+			.map(|mut bid| {
+				if bid.when > end_block {
+					bid.status = BidStatus::Rejected(RejectionReason::AfterCandleEnd);
+					// TODO: Unlock funds. We can do this inside the "on_idle" hook, and change the `status` of the `Bid` to "Unreserved"
+					return bid
+				}
+				let buyable_amount = fundraising_target.saturating_sub(bid_amount_sum);
+				if buyable_amount == 0_u32.into() {
+					bid.status = BidStatus::Rejected(RejectionReason::NoTokensLeft);
+				} else if bid.amount <= buyable_amount {
+					bid_amount_sum.saturating_accrue(bid.amount);
+					bid_value_sum.saturating_accrue(bid.amount * bid.price);
+					bid.status = BidStatus::Accepted;
+				} else {
+					bid_amount_sum.saturating_accrue(buyable_amount);
+					bid_value_sum.saturating_accrue(buyable_amount * bid.price);
+					bid.status =
+						BidStatus::PartiallyAccepted(buyable_amount, RejectionReason::NoTokensLeft)
+					// TODO: Refund remaining amount
+				}
+				bid
+			})
+			.collect::<Vec<BidInfoOf<T>>>();
 
 		// Calculate the weighted price of the token for the next funding rounds, using winning bids.
 		// for example: if there are 3 winning bids,
@@ -362,12 +367,12 @@ impl<T: Config> Pallet<T> {
 		// 3 + 10.6 + 2.6 = 16.2
 		let weighted_token_price = bids
 			// TODO: collecting due to previous mut borrow, find a way to not collect and borrow bid on filter_map
-			.collect::<Vec<BidInfoOf<T>>>()
 			.into_iter()
 			.filter_map(|bid| match bid.status {
-				BidStatus::Accepted => Some(((bid.amount * bid.price) / bid_value_sum) * bid.price),
+				BidStatus::Accepted =>
+					Some(Perbill::from_rational(bid.amount * bid.price, bid_value_sum) * bid.price),
 				BidStatus::PartiallyAccepted(amount, _) =>
-					Some(((amount * bid.price) / bid_value_sum) * bid.price),
+					Some(Perbill::from_rational(amount * bid.price, bid_value_sum) * bid.price),
 				_ => None,
 			})
 			.reduce(|a, b| a.saturating_add(b))

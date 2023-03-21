@@ -841,7 +841,9 @@ pub mod pallet {
 							.evaluation_period_ends
 							.expect("In EvaluationEnded there always exist evaluation_period_ends");
 						if now >= evaluation_period_ends {
-							Self::handle_auction_start(project_id, now, evaluation_period_ends);
+							// TODO: handle this unwrap
+							Self::handle_auction_start(project_id, now, evaluation_period_ends)
+								.unwrap();
 						}
 					},
 					// Check if we need to move to the Candle Phase of the Auction Round
@@ -853,7 +855,8 @@ pub mod pallet {
 							.english_ending_block;
 						// TODO: handle this unwrap
 						if now > english_ending_block {
-							Self::handle_auction_candle(project_id, now, english_ending_block).unwrap();
+							Self::handle_auction_candle(project_id, now, english_ending_block)
+								.unwrap();
 						}
 					},
 					// Check if we need to move from the Auction Round of the Community Round
@@ -883,8 +886,10 @@ pub mod pallet {
 							.expect("In CommunityRound there always exist auction_metadata")
 							.community_ending_block;
 						// TODO: handle this unwrap
-						Self::handle_community_end(*project_id, now, community_ending_block)
-							.unwrap();
+						if now > community_ending_block {
+							Self::handle_community_end(*project_id, now, community_ending_block)
+								.unwrap();
+						}
 					},
 					_ => (),
 				}
