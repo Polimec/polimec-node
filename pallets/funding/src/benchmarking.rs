@@ -121,7 +121,7 @@ benchmarks! {
 	verify {
 		// assert_last_event::<T>(Event::ProjectCreated(0).into());
 		let project_id = T::BenchmarkHelper::create_project_id_parameter(1);
-		let project_info = PolimecFunding::<T>::project_info(project_id.into());
+		let project_info = PolimecFunding::<T>::project_info(project_id.into()).unwrap();
 		assert_eq!(project_info.project_status, ProjectStatus::Application);
 	}
 
@@ -242,7 +242,7 @@ benchmarks! {
 		let p = T::ActiveProjectsLimit::get();
 		for i in 0 .. p {
 			let project_id = T::BenchmarkHelper::create_project_id_parameter(i);
-			let project_info = PolimecFunding::<T>::project_info(project_id.into());
+			let project_info = PolimecFunding::<T>::project_info(project_id.into()).unwrap();
 			assert_eq!(project_info.project_status, ProjectStatus::EvaluationEnded);
 		}
 	}
