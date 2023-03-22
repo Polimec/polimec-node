@@ -83,7 +83,7 @@ fn store_and_return_metadata_hash<T: Config>() -> T::Hash {
 		PolimecFunding::<T>::note_image(SystemOrigin::Signed(issuer).into(), bounded_metadata,)
 			.is_ok()
 	);
-	// TODO: Get the hash from the Noted event
+	// TODO: PLMC-140. Get the hash from the Noted event
 	T::Hashing::hash(METADATA.as_bytes())
 }
 
@@ -234,7 +234,7 @@ benchmarks! {
 		}
 		// Move at the end of the Evaluation Round
 		System::<T>::set_block_number(System::<T>::block_number() + 29_u32.into());
-		// TODO: Benchmark the hook when computing the Funding Round results
+		// TODO: PLMC-139. Benchmark the hook when computing the Funding Round results
 	} : {
 		PolimecFunding::<T>::on_initialize(System::<T>::block_number());
 	}

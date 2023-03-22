@@ -39,8 +39,8 @@ impl<T: Config> Pallet<T> {
 		preimage: BoundedVec<u8, T::PreImageLimit>,
 		issuer: &T::AccountId,
 	) -> Result<(), DispatchError> {
-		// TODO: Validate and check if the preimage is a valid JSON conforming with our needs
-		// TODO: Check if we can use serde in a no_std environment
+		// TODO: PLMC-141. Validate and check if the preimage is a valid JSON conforming with our needs.
+		// 	also check if we can use serde in a no_std environment
 
 		let hash = T::Hashing::hash(&preimage);
 		Images::<T>::insert(hash, issuer);
@@ -140,9 +140,9 @@ impl<T: Config> Pallet<T> {
 			let total_amount_bonded = Bonds::<T>::iter_prefix_values(project_id)
 				.fold(initial_balance, |acc, bond| acc.saturating_add(bond));
 			// Check if the total amount bonded is greater than the 10% of the fundraising target
-			// TODO: 10% is hardcoded, check if we want to configure it a runtime as explained here:
-			// https://substrate.stackexchange.com/questions/2784/how-to-get-a-percent-portion-of-a-balance
-			// TODO: Check if it's safe to use * here
+			// TODO: PLMC-142. 10% is hardcoded, check if we want to configure it a runtime as explained here:
+			// 	https://substrate.stackexchange.com/questions/2784/how-to-get-a-percent-portion-of-a-balance:
+			// TODO: PLMC-143. Check if it's safe to use * here
 			let evaluation_target = Percent::from_percent(9) * fundraising_target;
 			let is_funded = total_amount_bonded > evaluation_target;
 			let mut project_info =
@@ -154,12 +154,11 @@ impl<T: Config> Pallet<T> {
 			if is_funded {
 				project_info.project_status = ProjectStatus::EvaluationEnded;
 				Self::deposit_event(Event::<T>::EvaluationEnded { project_id: *project_id });
-			// TODO: Unlock the bonds and clean the storage
+			// TODO: PLMC-144. Unlock the bonds and clean the storage
 			} else {
 				project_info.project_status = ProjectStatus::EvaluationFailed;
 				Self::deposit_event(Event::<T>::EvaluationFailed { project_id: *project_id });
-				// TODO: Unlock the bonds and clean the storage
-				// TODO: Remove the project from the active projects
+				// TODO: PLMC-144. Unlock the bonds and clean the storage
 				ProjectsActive::<T>::mutate(|projects| {
 					projects.retain(|id| id != project_id);
 				});
@@ -183,8 +182,8 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::ProjectNotInEvaluationEndedRound
 		);
 		if evaluation_period_ends <= now {
-			// TODO: Unused error, more tests needed
-			// TODO: Here the start_auction is "free", check the Weight
+		// TODO: PLMC-145. Unused error, more tests needed
+		// 	Here the start_auction is "free", check the Weight
 			Self::do_start_auction(*project_id)
 		} else {
 			Ok(())
@@ -221,7 +220,7 @@ impl<T: Config> Pallet<T> {
 			Err(Error::<T>::TooEarlyForCommunityRoundStart)?
 		}
 
-		// TODO: Move fundraising_target to AuctionMetadata
+		// TODO: PLMC-148 Move fundraising_target to AuctionMetadata
 		let mut project_info =
 			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		ensure!(
@@ -261,16 +260,16 @@ impl<T: Config> Pallet<T> {
 		project_info.project_status = ProjectStatus::FundingEnded;
 		ProjectsInfo::<T>::insert(project_id, project_info);
 
-		// TODO: Check if make sense to set the admin as T::fund_account_id(project_id)
+		// TODO: PLMC-149 Check if make sense to set the admin as T::fund_account_id(project_id)
 		let issuer =
 			ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectIssuerNotFound)?;
 		let project = Projects::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let token_information = project.token_information;
 
-		// TODO: Unused result
+		// TODO: PLMC-149 Unused result
 		// Create the "Contribution Token" as an asset using the pallet_assets and set its metadata
 		let _ = T::Assets::create(project_id, issuer.clone(), false, 1_u32.into());
-		// TODO: Unused result
+		// TODO: PLMC-149 Unused result
 		let _ = T::Assets::set(
 			project_id,
 			&issuer,
@@ -326,7 +325,7 @@ impl<T: Config> Pallet<T> {
 			.map(|mut bid| {
 				if bid.when > end_block {
 					bid.status = BidStatus::Rejected(RejectionReason::AfterCandleEnd);
-					// TODO: Unlock funds. We can do this inside the "on_idle" hook, and change the `status` of the `Bid` to "Unreserved"
+					// TODO: PLMC-147. Unlock funds. We can do this inside the "on_idle" hook, and change the `status` of the `Bid` to "Unreserved"
 					return bid
 				}
 				let buyable_amount = fundraising_target.saturating_sub(bid_amount_sum);
@@ -341,7 +340,7 @@ impl<T: Config> Pallet<T> {
 					bid_value_sum.saturating_accrue(buyable_amount * bid.price);
 					bid.status =
 						BidStatus::PartiallyAccepted(buyable_amount, RejectionReason::NoTokensLeft)
-					// TODO: Refund remaining amount
+					// TODO: PLMC-147. Refund remaining amount
 				}
 				bid
 			})
@@ -366,7 +365,7 @@ impl<T: Config> Pallet<T> {
 		// lastly, sum all the weighted prices to get the final weighted price for the next funding round
 		// 3 + 10.6 + 2.6 = 16.2
 		let weighted_token_price = bids
-			// TODO: collecting due to previous mut borrow, find a way to not collect and borrow bid on filter_map
+			// TODO: PLMC-150. collecting due to previous mut borrow, find a way to not collect and borrow bid on filter_map
 			.into_iter()
 			.filter_map(|bid| match bid.status {
 				BidStatus::Accepted =>

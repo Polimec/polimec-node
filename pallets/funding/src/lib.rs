@@ -109,13 +109,13 @@ type BidInfoOf<T> = BidInfo<
 	<T as frame_system::Config>::BlockNumber,
 >;
 
-// TODO: Add multiple locks
-// TODO: Review the use of locks after:
-// + https://github.com/paritytech/substrate/issues/12918
-// + https://github.com/paritytech/substrate/pull/12951
+// TODO: PLMC-151. Add multiple locks
+// 	Review the use of locks after:
+// 	- https://github.com/paritytech/substrate/issues/12918
+// 	- https://github.com/paritytech/substrate/pull/12951
 const LOCKING_ID: LockIdentifier = *b"evaluate";
 
-// TODO: Remove `dev_mode` attribute when extrinsics API are stable
+// TODO: PLMC-152. Remove `dev_mode` attribute when extrinsics API are stable
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
 	use super::*;
@@ -134,7 +134,7 @@ pub mod pallet {
 
 		/// Global identifier for the projects.
 		type ProjectIdentifier: Parameter + Copy + Default + One + Saturating;
-		// TODO: + MaybeSerializeDeserialize: Maybe needed for JSON serialization @ Genesis: https://github.com/paritytech/substrate/issues/12738#issuecomment-1320921201
+		// TODO: PLMC-153 + MaybeSerializeDeserialize: Maybe needed for JSON serialization @ Genesis: https://github.com/paritytech/substrate/issues/12738#issuecomment-1320921201
 
 		/// Wrapper around `Self::ProjectIdentifier` to use in dispatchable call signatures. Allows the use
 		/// of compact encoding in instances of the pallet, which will prevent breaking changes
@@ -146,7 +146,7 @@ pub mod pallet {
 		type ProjectIdParameter: Parameter
 			+ From<Self::ProjectIdentifier>
 			+ Into<Self::ProjectIdentifier>
-			// TODO: Used only in benchmarks, is there a way to bound this trait under #[cfg(feature = "runtime-benchmarks")]?
+			// TODO: PLMC-154 Used only in benchmarks, is there a way to bound this trait under #[cfg(feature = "runtime-benchmarks")]?
 			+ From<u32>
 			+ MaxEncodedLen;
 
@@ -232,14 +232,14 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn nonce)]
 	/// A global counter used in the randomness generation
-	// TODO: Remove it after using the Randomness from BABE's VRF: https://github.com/PureStake/moonbeam/issues/1391
-	// TODO: Or use the randomness from Moonbeam.
+	// TODO: PLMC-155. Remove it after using the Randomness from BABE's VRF: https://github.com/PureStake/moonbeam/issues/1391
+	// 	Or use the randomness from Moonbeam.
 	pub type Nonce<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn images)]
 	/// A StorageMap containing all the images of the project metadata uploaded by the users.
-	/// TODO: The metadata should be stored on IPFS/offchain database, and the hash of the metadata should be stored here.
+	/// TODO: PLMC-156. The metadata should be stored on IPFS/offchain database, and the hash of the metadata should be stored here.
 	pub type Images<T: Config> = StorageMap<_, Blake2_128Concat, T::Hash, T::AccountId>;
 
 	#[pallet::storage]
@@ -378,7 +378,7 @@ pub mod pallet {
 		InsufficientBalance,
 		/// There are too many active projects
 		TooManyActiveProjects,
-		// TODO: Check after the introduction of the cross-chain identity pallet by KILT
+		// TODO: PLMC-133 Check after the introduction of the cross-chain identity pallet by KILT
 		NotAuthorized,
 		/// Contribution Tokens are already claimed
 		AlreadyClaimed,
@@ -424,7 +424,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 
-			// TODO: Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
+			// TODO: PLMC-133 Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
 			// ensure!(
 			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
 			// 	Error::<T>::NotAuthorized
@@ -438,7 +438,7 @@ pub mod pallet {
 		pub fn create(origin: OriginFor<T>, project: ProjectOf<T>) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 
-			// TODO: Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
+			// TODO: PLMC-133 Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
 			// ensure!(
 			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
 			// 	Error::<T>::NotAuthorized
@@ -470,7 +470,7 @@ pub mod pallet {
 			let issuer = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
-			// TODO: Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
+			// TODO: PLMC-133. Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
 			// ensure!(
 			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
 			// 	Error::<T>::NotAuthorized
@@ -503,7 +503,7 @@ pub mod pallet {
 			let issuer = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
-			// TODO: Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
+			// TODO: PLMC-133. Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
 			// ensure!(
 			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
 			// 	Error::<T>::NotAuthorized
@@ -529,7 +529,7 @@ pub mod pallet {
 			let from = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
-			// TODO: Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
+			// TODO: PLMC-133. Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
 			// ensure!(
 			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
 			// 	Error::<T>::NotAuthorized
@@ -545,10 +545,10 @@ pub mod pallet {
 				project_info.project_status == ProjectStatus::EvaluationRound,
 				Error::<T>::EvaluationNotStarted
 			);
-			// TODO: Should I check the free balance here or is already done in the Currency::set_lock?
+			// TODO: PLMC-157. Should I check the free balance here or is already done in the Currency::set_lock?
 			ensure!(T::Currency::free_balance(&from) > amount, Error::<T>::InsufficientBalance);
 
-			// TODO: Unlock the PLMC when it's the right time
+			// TODO: PLMC-144. Unlock the PLMC when it's the right time
 			// Check if the user has already bonded
 			Bonds::<T>::try_mutate(project_id, &from, |maybe_bond| {
 				match maybe_bond {
@@ -577,7 +577,7 @@ pub mod pallet {
 			let issuer = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
-			// TODO: Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
+			// TODO: PLMC-133. Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
 			// ensure!(
 			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
 			// 	Error::<T>::NotAuthorized
@@ -609,13 +609,13 @@ pub mod pallet {
 			#[pallet::compact] amount: BalanceOf<T>,
 			#[pallet::compact] price: BalanceOf<T>,
 			multiplier: Option<BalanceOf<T>>,
-			// TODO: Add a parameter to specify the currency to use, should be equal to the currency
+			// TODO: PLMC-158 Add a parameter to specify the currency to use, should be equal to the currency
 			// specified in `participation_currencies`
 		) -> DispatchResult {
 			let bidder = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
-			// TODO: Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
+			// TODO: PLMC-133. Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
 			// ensure!(
 			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
 			// 	Error::<T>::NotAuthorized
@@ -664,8 +664,8 @@ pub mod pallet {
 				Ok(_) => {
 					// Reserve the new bid
 					T::BiddingCurrency::reserve(&bidder, bid.ticket_size)?;
-					// TODO: Send an XCM message to Statemint/e to transfer a `bid.market_cap` amount of USDC (or the Currency specified by the issuer) to the PalletId Account
-					// Alternative TODO: The user should have the specified currency (e.g: USDC) already on Polimec
+					// TODO: PLMC-159. Send an XCM message to Statemint/e to transfer a `bid.market_cap` amount of USDC (or the Currency specified by the issuer) to the PalletId Account
+					// Alternative TODO: PLMC-159. The user should have the specified currency (e.g: USDC) already on Polimec
 					bids.sort_by_key(|bid| Reverse(bid.price));
 					AuctionsInfo::<T>::set(project_id, bids);
 					Self::deposit_event(Event::<T>::Bid { project_id, amount, price, multiplier });
@@ -683,7 +683,7 @@ pub mod pallet {
 					bids.try_push(bid).expect("We removed an element, so there is always space");
 					bids.sort_by_key(|bid| Reverse(bid.price));
 					AuctionsInfo::<T>::set(project_id, bids);
-					// TODO: Send an XCM message to Statemine to transfer amount * multiplier USDT to the PalletId Account
+					// TODO: PLMC-159. Send an XCM message to Statemine to transfer amount * multiplier USDT to the PalletId Account
 					Self::deposit_event(Event::<T>::Bid { project_id, amount, price, multiplier });
 				},
 			};
@@ -700,9 +700,9 @@ pub mod pallet {
 			let contributor = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
-			// TODO: Add the "Retail before, Institutional and Professionals after, if there are still tokens" logic
+			// TODO: PLMC-103? Add the "Retail before, Institutional and Professionals after, if there are still tokens" logic
 
-			// TODO: Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
+			// TODO: PLMC-133. Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
 			// ensure!(
 			// 	T::HandleMembers::is_in(&MemberRole::Retail, &contributor),
 			// 	Error::<T>::NotAuthorized
@@ -734,14 +734,14 @@ pub mod pallet {
 			);
 
 			let fund_account = Self::fund_account_id(project_id);
-			// TODO: Use USDC on Statemint/e (via XCM) instead of PLMC
-			// TODO: Check the logic
-			// TODO: Check if we need to use T::Currency::resolve_creating(...)
+			// TODO: PLMC-159. Use USDC on Statemint/e (via XCM) instead of PLMC
+			// TODO: PLMC-157. Check the logic
+			// TODO: PLMC-157. Check if we need to use T::Currency::resolve_creating(...)
 			T::Currency::transfer(
 				&contributor,
 				&fund_account,
 				amount,
-				// TODO: Take the ExistenceRequirement as parameter (?)
+				// TODO: PLMC-157. Take the ExistenceRequirement as parameter (?)
 				frame_support::traits::ExistenceRequirement::KeepAlive,
 			)?;
 
@@ -759,7 +759,7 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(T::WeightInfo::claim_contribution_tokens())]
-		// TODO: Manage the fact that the CTs may not be claimed by those entitled
+		// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
 		pub fn claim_contribution_tokens(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdParameter,
@@ -767,7 +767,7 @@ pub mod pallet {
 			let claimer = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
-			// TODO: Check the right credential status
+			// TODO: PLMC-133. Check the right credential status
 			// ensure!(
 			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
 			// 	Error::<T>::NotAuthorized
@@ -779,13 +779,13 @@ pub mod pallet {
 				project_info.project_status == ProjectStatus::ReadyToLaunch,
 				Error::<T>::CannotClaimYet
 			);
-			// TODO: Check the flow of the final_price if the final price discovery durign the Auction Round fails
+			// TODO: PLMC-160. Check the flow of the final_price if the final price discovery during the Auction Round fails
 			let weighted_average_price = project_info
 				.weighted_average_price
 				.expect("Final price is set after the Funding Round");
 
-			// Important TODO: For now only the participants of the Community Round can claim their tokens
-			// Important TODO: Obviously also the participants of the Auction Round should be able to claim their tokens
+			// TODO: PLMC-147. For now only the participants of the Community Round can claim their tokens
+			// 	Obviously also the participants of the Auction Round should be able to claim their tokens
 			Contributions::<T>::try_mutate(
 				project_id,
 				claimer.clone(),
@@ -811,9 +811,9 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(now: T::BlockNumber) -> Weight {
-			// TODO: Critical: Found a way to perform less iterations on the storage
+			// TODO: PLMC-121 Critical: Find a way to perform less iterations on the storage
 			for project_id in ProjectsActive::<T>::get().iter() {
-				// TODO: fix this unwrap
+				// TODO: PLMC-121. fix this unwrap
 				let project_info = ProjectsInfo::<T>::get(project_id)
 					.ok_or(Error::<T>::ProjectInfoNotFound)
 					.unwrap();
@@ -841,7 +841,7 @@ pub mod pallet {
 							.evaluation_period_ends
 							.expect("In EvaluationEnded there always exist evaluation_period_ends");
 						if now >= evaluation_period_ends {
-							// TODO: handle this unwrap
+							// TODO: PLMC-121. handle this unwrap
 							Self::handle_auction_start(project_id, now, evaluation_period_ends)
 								.unwrap();
 						}
@@ -853,7 +853,7 @@ pub mod pallet {
 							.auction_metadata
 							.expect("In AuctionRound there always exist auction_metadata")
 							.english_ending_block;
-						// TODO: handle this unwrap
+						// TODO: PLMC-121. handle this unwrap
 						if now > english_ending_block {
 							Self::handle_auction_candle(project_id, now, english_ending_block)
 								.unwrap();
@@ -867,7 +867,7 @@ pub mod pallet {
 							.expect("In AuctionRound there always exist auction_metadata");
 						let candle_ending_block = auction_metadata.candle_ending_block;
 						let english_ending_block = auction_metadata.english_ending_block;
-						// TODO: handle this unwrap
+						// TODO: PLMC-121. handle this unwrap
 						if now > candle_ending_block {
 							Self::handle_community_start(
 								project_id,
@@ -885,7 +885,7 @@ pub mod pallet {
 							.auction_metadata
 							.expect("In CommunityRound there always exist auction_metadata")
 							.community_ending_block;
-						// TODO: handle this unwrap
+						// TODO: PLMC-121. handle this unwrap
 						if now > community_ending_block {
 							Self::handle_community_end(*project_id, now, community_ending_block)
 								.unwrap();
@@ -894,23 +894,23 @@ pub mod pallet {
 					_ => (),
 				}
 			}
-			// TODO: Set a proper weight
+			// TODO: PLMC-127. Set a proper weight
 			Weight::from_ref_time(0)
 		}
 
 		/// Cleanup the `active_projects` BoundedVec
 		fn on_idle(now: T::BlockNumber, _max_weight: Weight) -> Weight {
 			for project_id in ProjectsActive::<T>::get().iter() {
-				// TODO: fix this unwrap
+				// TODO: PLMC-121. fix this unwrap
 				let project_info = ProjectsInfo::<T>::get(project_id)
 					.ok_or(Error::<T>::ProjectInfoNotFound)
 					.unwrap();
 				if project_info.project_status == ProjectStatus::FundingEnded {
-					// TODO: handle this unwrap
+					// TODO: PLMC-121. handle this unwrap
 					Self::handle_fuding_end(project_id, now).unwrap();
 				}
 			}
-			// TODO: Set a proper weight
+			// TODO: PLMC-127. Set a proper weight
 			Weight::from_ref_time(0)
 		}
 	}
