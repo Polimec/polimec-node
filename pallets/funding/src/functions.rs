@@ -183,7 +183,7 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::ProjectNotInEvaluationEndedRound
 		);
 		if evaluation_period_ends <= now {
-		// 	TODO: PLMC-145. Here the start_auction is "free", check the Weight
+			// 	TODO: PLMC-145. Here the start_auction is "free", check the Weight
 			Self::do_start_auction(*project_id)
 		} else {
 			Ok(())
