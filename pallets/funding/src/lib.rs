@@ -733,7 +733,6 @@ pub mod pallet {
 				Error::<T>::BidTooLow
 			);
 
-
 			let fund_account = Self::fund_account_id(project_id);
 			// TODO: PLMC-159. Use USDC on Statemint/e (via XCM) instead of PLMC
 			// TODO: PLMC-157. Check the logic

@@ -55,6 +55,8 @@ impl<T: Config> Pallet<T> {
 		issuer: &T::AccountId,
 		project: ProjectOf<T>,
 	) -> Result<(), DispatchError> {
+		// TODO: Probably the issuers don't want to sell all of their tokens. Is there some logic for this?
+		// 	also even if an issuer wants to sell all their tokens, they could target a lower amount than that to consider it a success
 		let fundraising_target = project.total_allocation_size * project.minimum_price;
 		let project_info = ProjectInfo {
 			is_frozen: false,
