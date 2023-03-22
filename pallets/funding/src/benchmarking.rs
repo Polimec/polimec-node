@@ -25,8 +25,11 @@ use crate::Pallet as PolimecFunding;
 
 use super::*;
 use frame_benchmarking::{account, benchmarks};
-use frame_support::traits::Hooks;
 use frame_system::{Pallet as System, RawOrigin as SystemOrigin};
+use frame_support::{
+	assert_ok,
+	traits::Hooks,
+};
 
 const METADATA: &str = r#"
 {
@@ -245,6 +248,60 @@ benchmarks! {
 			let project_info = PolimecFunding::<T>::project_info(project_id.into()).unwrap();
 			assert_eq!(project_info.project_status, ProjectStatus::EvaluationEnded);
 		}
+	}
+
+	calculate_weighted_price {
+		let (project_id, issuer) = create_default_minted_project::<T>(None);
+		assert!(
+			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.clone()).into(), project_id.clone()).is_ok()
+		);
+		let evaluator: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
+		T::Currency::make_free_balance_be(&evaluator, 500_000__0_000_000_000_u64.into()); // 100k tokens
+
+		// minimum value is a million tokens. 10% of that needs to be bonded
+		assert!(
+			PolimecFunding::<T>::bond(SystemOrigin::Signed(evaluator).into(), project_id.clone(), 100_000__0_000_000_000_u64.into()).is_ok()
+		);
+		let bidder_1: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
+		T::Currency::make_free_balance_be(&bidder_1, 500_000__0_000_000_000_u64.into()); // 100k tokens
+
+		let bidder_2: T::AccountId = account::<T::AccountId>("Charlie", 1, 1);
+		T::Currency::make_free_balance_be(&bidder_2, 500_000__0_000_000_000_u64.into()); // 100k tokens
+
+		let bidder_3: T::AccountId = account::<T::AccountId>("Dave", 1, 1);
+		T::Currency::make_free_balance_be(&bidder_3, 500_000__0_000_000_000_u64.into()); // 100k tokens
+
+		// Move to the Auction Round
+		run_to_block::<T>(System::<T>::block_number() + <T as Config>::EvaluationDuration::get() + 1_u32.into());
+		assert_ok!(PolimecFunding::<T>::start_auction(SystemOrigin::Signed(issuer).into(), project_id.clone()));
+
+
+		let mut project_info = <pallet::Pallet<T> as Store>::ProjectsInfo::get(project_id.clone().into()).unwrap();
+		let fundraising_target = project_info.fundraising_target;
+
+
+		assert!(
+			PolimecFunding::<T>::bid(SystemOrigin::Signed(bidder_1).into(), project_id.clone(), 10_000u64.into(), 15__0_000_000_000_u64.into(), None).is_ok()
+		);
+		assert!(
+			PolimecFunding::<T>::bid(SystemOrigin::Signed(bidder_2).into(), project_id.clone(), 20_000u64.into(), 20__0_000_000_000_u64.into(), None).is_ok()
+		);
+		assert!(
+			PolimecFunding::<T>::bid(SystemOrigin::Signed(bidder_3).into(), project_id.clone(), 20_000u64.into(), 10__0_000_000_000_u64.into(), None).is_ok()
+		);
+
+		run_to_block::<T>(System::<T>::block_number() + <T as Config>::EnglishAuctionDuration::get() + 5_u32.into());
+
+		let random_ending_point =  System::<T>::block_number() - 2_u32.into();
+
+		let mut weighted_average_price = 0u32.into();
+
+	}: {
+		weighted_average_price = crate::Pallet::<T>::calculate_weighted_average_price(project_id.into(), random_ending_point, fundraising_target).unwrap();
+	}
+	verify {
+		// TODO: PLMC-147 test locking and unlocking of funds
+		assert_eq!(weighted_average_price, 16__3_333_333_200_u64.into());
 	}
 
 	impl_benchmark_test_suite!(PolimecFunding, crate::mock::new_test_ext(), crate::mock::Test);

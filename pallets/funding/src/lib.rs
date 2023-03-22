@@ -928,8 +928,8 @@ pub mod pallet {
 		}
 		fn create_dummy_project(metadata_hash: T::Hash) -> ProjectOf<T> {
 			let project: ProjectOf<T> = Project {
-				total_allocation_size: 1000_u64.into(),
-				minimum_price: 1u8.into(),
+				total_allocation_size: 1_000_000u64.into(),
+				minimum_price: 1__0_000_000_000_u64.into(),
 				ticket_size: TicketSize { minimum: Some(1u8.into()), maximum: None },
 				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 				metadata: metadata_hash,

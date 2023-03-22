@@ -65,7 +65,7 @@ impl<T: Config> Pallet<T> {
 			auction_metadata: None,
 			fundraising_target,
 		};
-
+		// 10000000000000000_0_000_000_000
 		Projects::<T>::insert(project_id, project);
 		ProjectsInfo::<T>::insert(project_id, project_info);
 		ProjectsIssuers::<T>::insert(project_id, issuer);
@@ -145,6 +145,7 @@ impl<T: Config> Pallet<T> {
 			// TODO: PLMC-143. Check if it's safe to use * here
 			let evaluation_target = Percent::from_percent(9) * fundraising_target;
 			let is_funded = total_amount_bonded > evaluation_target;
+			// 900_000_000_000_000_0_000_000_000
 			let mut project_info =
 				ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 			ensure!(
