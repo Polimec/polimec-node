@@ -813,7 +813,7 @@ pub mod pallet {
 		fn on_initialize(now: T::BlockNumber) -> Weight {
 			// TODO: PLMC-121 Critical: Find a way to perform less iterations on the storage
 			for project_id in ProjectsActive::<T>::get().iter() {
-				// TODO: PLMC-121. fix this unwrap
+				// FIXME: PLMC-121. fix this unwrap
 				let project_info = ProjectsInfo::<T>::get(project_id)
 					.ok_or(Error::<T>::ProjectInfoNotFound)
 					.unwrap();
@@ -825,7 +825,7 @@ pub mod pallet {
 							.evaluation_period_ends
 							.expect("In EvaluationRound there always exist evaluation_period_ends");
 						let fundraising_target = project_info.fundraising_target;
-						// TODO: handle this unwrap
+						// FIXME: handle this unwrap
 						Self::handle_evaluation_end(
 							project_id,
 							now,
@@ -841,7 +841,7 @@ pub mod pallet {
 							.evaluation_period_ends
 							.expect("In EvaluationEnded there always exist evaluation_period_ends");
 						if now >= evaluation_period_ends {
-							// TODO: PLMC-121. handle this unwrap
+							// FIXME: PLMC-121. handle this unwrap
 							Self::handle_auction_start(project_id, now, evaluation_period_ends)
 								.unwrap();
 						}
@@ -853,7 +853,7 @@ pub mod pallet {
 							.auction_metadata
 							.expect("In AuctionRound there always exist auction_metadata")
 							.english_ending_block;
-						// TODO: PLMC-121. handle this unwrap
+						// FIXME: PLMC-121. handle this unwrap
 						if now > english_ending_block {
 							Self::handle_auction_candle(project_id, now, english_ending_block)
 								.unwrap();
@@ -867,7 +867,7 @@ pub mod pallet {
 							.expect("In AuctionRound there always exist auction_metadata");
 						let candle_ending_block = auction_metadata.candle_ending_block;
 						let english_ending_block = auction_metadata.english_ending_block;
-						// TODO: PLMC-121. handle this unwrap
+						// FIXME: PLMC-121. handle this unwrap
 						if now > candle_ending_block {
 							Self::handle_community_start(
 								project_id,
@@ -885,7 +885,7 @@ pub mod pallet {
 							.auction_metadata
 							.expect("In CommunityRound there always exist auction_metadata")
 							.community_ending_block;
-						// TODO: PLMC-121. handle this unwrap
+						// FIXME: PLMC-121. handle this unwrap
 						if now > community_ending_block {
 							Self::handle_community_end(*project_id, now, community_ending_block)
 								.unwrap();
@@ -901,7 +901,7 @@ pub mod pallet {
 		/// Cleanup the `active_projects` BoundedVec
 		fn on_idle(now: T::BlockNumber, _max_weight: Weight) -> Weight {
 			for project_id in ProjectsActive::<T>::get().iter() {
-				// TODO: PLMC-121. fix this unwrap
+				// FIXME: PLMC-121. fix this unwrap
 				let project_info = ProjectsInfo::<T>::get(project_id)
 					.ok_or(Error::<T>::ProjectInfoNotFound)
 					.unwrap();
