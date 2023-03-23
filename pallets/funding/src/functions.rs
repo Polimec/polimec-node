@@ -310,7 +310,7 @@ impl<T: Config> Pallet<T> {
 	pub fn calculate_weighted_average_price(
 		project_id: T::ProjectIdentifier,
 		end_block: T::BlockNumber,
-		fundraising_target: BalanceOf<T>,
+		total_allocation_size: BalanceOf<T>,
 	) -> Result<BalanceOf<T>, DispatchError> {
 		// Get all the bids that were made before the end of the candle
 		let mut bids = AuctionsInfo::<T>::get(project_id);
@@ -330,7 +330,7 @@ impl<T: Config> Pallet<T> {
 					// TODO: PLMC-147. Unlock funds. We can do this inside the "on_idle" hook, and change the `status` of the `Bid` to "Unreserved"
 					return bid
 				}
-				let buyable_amount = fundraising_target.saturating_sub(bid_amount_sum);
+				let buyable_amount = total_allocation_size.saturating_sub(bid_amount_sum);
 				if buyable_amount == 0_u32.into() {
 					bid.status = BidStatus::Rejected(RejectionReason::NoTokensLeft);
 				} else if bid.amount <= buyable_amount {
