@@ -121,6 +121,7 @@ pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
+	use local_macros::*;
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
@@ -209,7 +210,7 @@ pub mod pallet {
 
 		/// The maximum number of "active" (In Evaluation or Funding Round) projects
 		#[pallet::constant]
-		type ActiveProjectsLimit: Get<u32>;
+		type MaxProjectsToUpdatePerBlock: Get<u32>;
 
 		/// The maximum number of bids per project
 		#[pallet::constant]
@@ -265,11 +266,16 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn projects_active)]
-	/// A BoundedVec to list all the "active" Projects
-	/// A Project is active if its status is {EvaluationRound, EvaluationEnded, AuctionRound(AuctionPhase), CommunityRound, FundingEnded}
-	pub type ProjectsActive<T: Config> =
-		StorageValue<_, BoundedVec<T::ProjectIdentifier, T::ActiveProjectsLimit>, ValueQuery>;
+	#[pallet::getter(fn projects_to_update)]
+	/// A map for in which block to update which active projects.
+	/// A Project is in need of an update at some point, if its status is {EvaluationRound, EvaluationEnded, AuctionRound(AuctionPhase), CommunityRound, FundingEnded}
+	pub type ProjectsToUpdate<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		T::BlockNumber,
+		BoundedVec<T::ProjectIdentifier, T::MaxProjectsToUpdatePerBlock>,
+		ValueQuery,
+	>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn auctions_info)]
@@ -342,6 +348,8 @@ pub mod pallet {
 		},
 		///
 		Noted { hash: T::Hash },
+		/// Something was not properly initialized. Most likely due to dev error manually calling do_* functions or updating storage
+		InitializationError{ project_id: T::ProjectIdentifier },
 	}
 
 	#[pallet::error]
@@ -412,6 +420,8 @@ pub mod pallet {
 		ProjectIssuerNotFound,
 		/// The specified project info does not exist
 		ProjectInfoNotFound,
+		/// The Project was not correctly created. Most likely due to dev error manually calling do_* functions or updating storage
+		ProjectNotCorrectlyCreated,
 	}
 
 	#[pallet::call]
@@ -432,6 +442,7 @@ pub mod pallet {
 
 			Self::note_bytes(bytes, &issuer)
 		}
+
 		/// Start the "Funding Application" round
 		/// Project applies for funding, providing all required information.
 		#[pallet::weight(T::WeightInfo::create())]
@@ -808,58 +819,60 @@ pub mod pallet {
 		}
 	}
 
+
+
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(now: T::BlockNumber) -> Weight {
-			// TODO: PLMC-121 Critical: Find a way to perform less iterations on the storage
-			for project_id in ProjectsActive::<T>::get().iter() {
-				// FIXME: PLMC-121. fix this unwrap
-				let project_info = ProjectsInfo::<T>::get(project_id)
-					.ok_or(Error::<T>::ProjectInfoNotFound)
-					.unwrap();
+			let skip = true;
+			// Get the projects that need to be updated on this block and update them
+			for project_id in ProjectsToUpdate::<T>::take(now) {
+				let maybe_project_info = ProjectsInfo::<T>::get(project_id.clone());
+				let project_info = unwrap_option_or_skip!(maybe_project_info, Event::<T>::InitializationError { project_id });
+
 				match project_info.project_status {
-					// Check if Evaluation Round have to end, if true, end it
 					// EvaluationRound -> EvaluationEnded
 					ProjectStatus::EvaluationRound => {
 						let evaluation_period_ends = project_info
 							.evaluation_period_ends
 							.expect("In EvaluationRound there always exist evaluation_period_ends");
 						let fundraising_target = project_info.fundraising_target;
-						// FIXME: handle this unwrap
-						Self::handle_evaluation_end(
-							project_id,
-							now,
-							evaluation_period_ends,
-							fundraising_target,
-						)
-						.unwrap();
+						unwrap_result_or_skip!(
+							Self::handle_evaluation_end(
+								&project_id,
+								now,
+								evaluation_period_ends,
+								fundraising_target,
+							),
+							Event::<T>::InitializationError { project_id }
+						);
 					},
-					// Check if we need to start the Funding Round
 					// EvaluationEnded -> AuctionRound
 					ProjectStatus::EvaluationEnded => {
 						let evaluation_period_ends = project_info
 							.evaluation_period_ends
 							.expect("In EvaluationEnded there always exist evaluation_period_ends");
 						if now >= evaluation_period_ends {
-							// FIXME: PLMC-121. handle this unwrap
-							Self::handle_auction_start(project_id, now, evaluation_period_ends)
-								.unwrap();
+							unwrap_result_or_skip!(
+								Self::handle_auction_start(&project_id, now, evaluation_period_ends),
+								Event::<T>::InitializationError { project_id }
+							);
+
 						}
 					},
-					// Check if we need to move to the Candle Phase of the Auction Round
 					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
 					ProjectStatus::AuctionRound(AuctionPhase::English) => {
 						let english_ending_block = project_info
 							.auction_metadata
 							.expect("In AuctionRound there always exist auction_metadata")
 							.english_ending_block;
-						// FIXME: PLMC-121. handle this unwrap
 						if now > english_ending_block {
-							Self::handle_auction_candle(project_id, now, english_ending_block)
-								.unwrap();
+							unwrap_result_or_skip!(
+								Self::handle_auction_candle(&project_id, now, english_ending_block),
+								Event::<T>::InitializationError { project_id }
+							);
 						}
 					},
-					// Check if we need to move from the Auction Round of the Community Round
 					// AuctionRound(AuctionPhase::Candle) -> CommunityRound
 					ProjectStatus::AuctionRound(AuctionPhase::Candle) => {
 						let auction_metadata = project_info
@@ -867,28 +880,29 @@ pub mod pallet {
 							.expect("In AuctionRound there always exist auction_metadata");
 						let candle_ending_block = auction_metadata.candle_ending_block;
 						let english_ending_block = auction_metadata.english_ending_block;
-						// FIXME: PLMC-121. handle this unwrap
 						if now > candle_ending_block {
-							Self::handle_community_start(
-								project_id,
-								now,
-								candle_ending_block,
-								english_ending_block,
-							)
-							.unwrap();
+							unwrap_result_or_skip!(
+								Self::handle_community_start(
+									&project_id,
+									now,
+									candle_ending_block,
+									english_ending_block,
+								),
+								Event::<T>::InitializationError { project_id }
+							);
 						}
 					},
-					// Check if we need to end the Fundind Round
 					// CommunityRound -> FundingEnded
 					ProjectStatus::CommunityRound => {
 						let community_ending_block = project_info
 							.auction_metadata
 							.expect("In CommunityRound there always exist auction_metadata")
 							.community_ending_block;
-						// FIXME: PLMC-121. handle this unwrap
 						if now > community_ending_block {
-							Self::handle_community_end(*project_id, now, community_ending_block)
-								.unwrap();
+							unwrap_result_or_skip!(
+								Self::handle_community_end(&project_id, now, community_ending_block),
+								Event::<T>::InitializationError { project_id }
+							);
 						}
 					},
 					_ => (),
@@ -900,17 +914,14 @@ pub mod pallet {
 
 		/// Cleanup the `active_projects` BoundedVec
 		fn on_idle(now: T::BlockNumber, _max_weight: Weight) -> Weight {
-			for project_id in ProjectsActive::<T>::get().iter() {
-				// FIXME: PLMC-121. fix this unwrap
-				let project_info = ProjectsInfo::<T>::get(project_id)
-					.ok_or(Error::<T>::ProjectInfoNotFound)
-					.unwrap();
-				if project_info.project_status == ProjectStatus::FundingEnded {
-					// TODO: PLMC-121. handle this unwrap
-					Self::handle_fuding_end(project_id, now).unwrap();
-				}
-			}
-			// TODO: PLMC-127. Set a proper weight
+			// for project_id in ProjectsToUpdate::<T>::get(now) {
+			// 	let maybe_project_info = ProjectsInfo::<T>::get(project_id);
+			// 	let project_info = unwrap_option_or_skip!(maybe_project_info, Event::<T>::InitializationError { project_id });
+			// 	if project_info.project_status == ProjectStatus::FundingEnded {
+			// 		unwrap_result_or_skip!(Self::handle_funding_end(&project_id, now), Event::<T>::InitializationError { project_id });
+			// 	}
+			// }
+			// // TODO: PLMC-127. Set a proper weightK
 			Weight::from_ref_time(0)
 		}
 	}
@@ -939,3 +950,34 @@ pub mod pallet {
 		}
 	}
 }
+
+pub mod local_macros {
+	// used to unwrap storage values that can be None in places where an error cannot be returned,
+	// but an event should be emitted, and optionally a skip to the next iteration of a loop
+	macro_rules! unwrap_option_or_skip {
+		($option:expr, $event:expr) => {
+			match $option {
+				Some(val) => val,
+				None => {
+					Self::deposit_event($event);
+					continue;
+				}
+			}
+		};
+	}
+	pub(crate) use unwrap_option_or_skip;
+
+	macro_rules! unwrap_result_or_skip {
+		($option:expr, $event:expr) => {
+			match $option {
+				Ok(val) => val,
+				Err(_) => {
+					Self::deposit_event($event);
+					continue;
+				}
+			}
+		};
+	}
+	pub(crate) use unwrap_result_or_skip;
+}
+

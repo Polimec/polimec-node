@@ -24,6 +24,7 @@ use frame_support::{ensure, pallet_prelude::DispatchError, traits::Get};
 use sp_arithmetic::Perbill;
 use sp_runtime::Percent;
 use sp_std::prelude::*;
+use crate::ProjectStatus::EvaluationRound;
 
 impl<T: Config> Pallet<T> {
 	/// The account ID of the project pot.
@@ -67,7 +68,6 @@ impl<T: Config> Pallet<T> {
 			auction_metadata: None,
 			fundraising_target,
 		};
-		// 10000000000000000_0_000_000_000
 		Projects::<T>::insert(project_id, project);
 		ProjectsInfo::<T>::insert(project_id, project_info);
 		ProjectsIssuers::<T>::insert(project_id, issuer);
@@ -78,21 +78,27 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_start_evaluation(project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
-		let evaluation_period_ends =
-			<frame_system::Pallet<T>>::block_number() + T::EvaluationDuration::get();
+		let mut evaluation_period_ends =
+			<frame_system::Pallet<T>>::block_number() + T::EvaluationDuration::get() + 1u32.into();
 
-		ProjectsActive::<T>::try_append(project_id)
-			.map_err(|()| Error::<T>::TooManyActiveProjects)?;
+		// Try to get the project into the earliest possible block to update.
+		// There is a limit for how many projects can update each block, so we need to make sure we don't exceed that limit
+		loop {
+			if let Ok(()) = ProjectsToUpdate::<T>::try_append(evaluation_period_ends, project_id) {
+				break;
+			} else {
+				evaluation_period_ends += 1u32.into();
+			}
+		}
 
-		let maybe_project_info = ProjectsInfo::<T>::get(project_id);
-		let mut project_info = maybe_project_info.ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let mut project_info = ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		ensure!(!project_info.is_frozen, Error::<T>::ProjectAlreadyFrozen);
 		ensure!(
 			project_info.project_status == ProjectStatus::Application,
 			Error::<T>::ProjectNotInApplicationRound
 		);
 		project_info.is_frozen = true;
-		project_info.project_status = ProjectStatus::EvaluationRound;
+		project_info.project_status = EvaluationRound;
 		project_info.evaluation_period_ends = Some(evaluation_period_ends);
 
 		ProjectsInfo::<T>::insert(project_id, project_info);
@@ -162,7 +168,7 @@ impl<T: Config> Pallet<T> {
 				project_info.project_status = ProjectStatus::EvaluationFailed;
 				Self::deposit_event(Event::<T>::EvaluationFailed { project_id: *project_id });
 				// TODO: PLMC-144. Unlock the bonds and clean the storage
-				ProjectsActive::<T>::mutate(|projects| {
+				ProjectsToUpdate::<T>::mutate(|projects| {
 					projects.retain(|id| id != project_id);
 				});
 			}
@@ -249,7 +255,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn handle_community_end(
-		project_id: T::ProjectIdentifier,
+		project_id: &T::ProjectIdentifier,
 		now: T::BlockNumber,
 		community_ending_block: T::BlockNumber,
 	) -> Result<(), DispatchError> {
@@ -270,10 +276,10 @@ impl<T: Config> Pallet<T> {
 
 		// TODO: PLMC-149 Unused result
 		// Create the "Contribution Token" as an asset using the pallet_assets and set its metadata
-		let _ = T::Assets::create(project_id, issuer.clone(), false, 1_u32.into());
+		let _ = T::Assets::create(project_id.clone(), issuer.clone(), false, 1_u32.into());
 		// TODO: PLMC-149 Unused result
 		let _ = T::Assets::set(
-			project_id,
+			project_id.clone(),
 			&issuer,
 			token_information.name.into(),
 			token_information.symbol.into(),
@@ -282,12 +288,12 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn handle_fuding_end(
+	pub fn handle_funding_end(
 		project_id: &T::ProjectIdentifier,
 		_now: T::BlockNumber,
 	) -> Result<(), DispatchError> {
 		// Project identified by project_id is no longer "active"
-		ProjectsActive::<T>::mutate(|active_projects| {
+		ProjectsToUpdate::<T>::mutate(|active_projects| {
 			if let Some(pos) = active_projects.iter().position(|x| x == project_id) {
 				active_projects.remove(pos);
 			}
