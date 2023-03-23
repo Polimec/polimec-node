@@ -20,7 +20,8 @@
 
 use super::*;
 
-use frame_support::{pallet_prelude::DispatchError, traits::Get};
+use frame_support::{ensure, pallet_prelude::DispatchError, traits::Get};
+use sp_arithmetic::Perbill;
 use sp_runtime::Percent;
 use sp_std::prelude::*;
 
@@ -38,8 +39,8 @@ impl<T: Config> Pallet<T> {
 		preimage: BoundedVec<u8, T::PreImageLimit>,
 		issuer: &T::AccountId,
 	) -> Result<(), DispatchError> {
-		// TODO: Validate and check if the preimage is a valid JSON conforming with our needs
-		// TODO: Check if we can use serde in a no_std environment
+		// TODO: PLMC-141. Validate and check if the preimage is a valid JSON conforming with our needs.
+		// 	also check if we can use serde in a no_std environment
 
 		let hash = T::Hashing::hash(&preimage);
 		Images::<T>::insert(hash, issuer);
@@ -54,6 +55,8 @@ impl<T: Config> Pallet<T> {
 		issuer: &T::AccountId,
 		project: ProjectOf<T>,
 	) -> Result<(), DispatchError> {
+		// TODO: Probably the issuers don't want to sell all of their tokens. Is there some logic for this?
+		// 	also even if an issuer wants to sell all their tokens, they could target a lower amount than that to consider it a success
 		let fundraising_target = project.total_allocation_size * project.minimum_price;
 		let project_info = ProjectInfo {
 			is_frozen: false,
@@ -64,7 +67,7 @@ impl<T: Config> Pallet<T> {
 			auction_metadata: None,
 			fundraising_target,
 		};
-
+		// 10000000000000000_0_000_000_000
 		Projects::<T>::insert(project_id, project);
 		ProjectsInfo::<T>::insert(project_id, project_info);
 		ProjectsIssuers::<T>::insert(project_id, issuer);
@@ -81,11 +84,18 @@ impl<T: Config> Pallet<T> {
 		ProjectsActive::<T>::try_append(project_id)
 			.map_err(|()| Error::<T>::TooManyActiveProjects)?;
 
-		ProjectsInfo::<T>::mutate(project_id, |project_info| {
-			project_info.is_frozen = true;
-			project_info.project_status = ProjectStatus::EvaluationRound;
-			project_info.evaluation_period_ends = Some(evaluation_period_ends);
-		});
+		let maybe_project_info = ProjectsInfo::<T>::get(project_id);
+		let mut project_info = maybe_project_info.ok_or(Error::<T>::ProjectInfoNotFound)?;
+		ensure!(!project_info.is_frozen, Error::<T>::ProjectAlreadyFrozen);
+		ensure!(
+			project_info.project_status == ProjectStatus::Application,
+			Error::<T>::ProjectNotInApplicationRound
+		);
+		project_info.is_frozen = true;
+		project_info.project_status = ProjectStatus::EvaluationRound;
+		project_info.evaluation_period_ends = Some(evaluation_period_ends);
+
+		ProjectsInfo::<T>::insert(project_id, project_info);
 
 		Self::deposit_event(Event::<T>::EvaluationStarted { project_id });
 		Ok(())
@@ -104,10 +114,18 @@ impl<T: Config> Pallet<T> {
 			community_ending_block,
 			random_ending_block: None,
 		};
-		ProjectsInfo::<T>::mutate(project_id, |project_info| {
-			project_info.project_status = ProjectStatus::AuctionRound(AuctionPhase::English);
-			project_info.auction_metadata = Some(auction_metadata);
-		});
+
+		let mut project_info =
+			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		ensure!(
+			project_info.project_status == ProjectStatus::EvaluationEnded,
+			Error::<T>::ProjectNotInEvaluationRound
+		);
+
+		project_info.project_status = ProjectStatus::AuctionRound(AuctionPhase::English);
+		project_info.auction_metadata = Some(auction_metadata);
+
+		ProjectsInfo::<T>::insert(project_id, project_info);
 
 		Self::deposit_event(Event::<T>::AuctionStarted { project_id, when: current_block_number });
 		Ok(())
@@ -118,46 +136,59 @@ impl<T: Config> Pallet<T> {
 		now: T::BlockNumber,
 		evaluation_period_ends: T::BlockNumber,
 		fundraising_target: BalanceOf<T>,
-	) {
-		if now >= evaluation_period_ends {
+	) -> Result<(), DispatchError> {
+		if now > evaluation_period_ends {
 			let initial_balance: BalanceOf<T> = Zero::zero();
 			let total_amount_bonded = Bonds::<T>::iter_prefix_values(project_id)
 				.fold(initial_balance, |acc, bond| acc.saturating_add(bond));
 			// Check if the total amount bonded is greater than the 10% of the fundraising target
-			// TODO: 10% is hardcoded, check if we want to configure it a runtime as explained here:
-			// https://substrate.stackexchange.com/questions/2784/how-to-get-a-percent-portion-of-a-balance
-			// TODO: Check if it's safe to use * here
+			// TODO: PLMC-142. 10% is hardcoded, check if we want to configure it a runtime as explained here:
+			// 	https://substrate.stackexchange.com/questions/2784/how-to-get-a-percent-portion-of-a-balance:
+			// TODO: PLMC-143. Check if it's safe to use * here
 			let evaluation_target = Percent::from_percent(9) * fundraising_target;
 			let is_funded = total_amount_bonded > evaluation_target;
+			// 900_000_000_000_000_0_000_000_000
+			let mut project_info =
+				ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+			ensure!(
+				project_info.project_status == ProjectStatus::EvaluationRound,
+				Error::<T>::ProjectNotInEvaluationRound
+			);
 			if is_funded {
-				ProjectsInfo::<T>::mutate(project_id, |project_info| {
-					project_info.project_status = ProjectStatus::EvaluationEnded;
-				});
+				project_info.project_status = ProjectStatus::EvaluationEnded;
 				Self::deposit_event(Event::<T>::EvaluationEnded { project_id: *project_id });
-			// TODO: Unlock the bonds and clean the storage
+			// TODO: PLMC-144. Unlock the bonds and clean the storage
 			} else {
-				ProjectsInfo::<T>::mutate(project_id, |project_info| {
-					project_info.project_status = ProjectStatus::EvaluationFailed;
-				});
+				project_info.project_status = ProjectStatus::EvaluationFailed;
 				Self::deposit_event(Event::<T>::EvaluationFailed { project_id: *project_id });
-				// TODO: Unlock the bonds and clean the storage
-				// TODO: Remove the project from the active projects
+				// TODO: PLMC-144. Unlock the bonds and clean the storage
 				ProjectsActive::<T>::mutate(|projects| {
 					projects.retain(|id| id != project_id);
 				});
 			}
+
+			ProjectsInfo::<T>::insert(project_id, project_info);
 		}
+
+		Ok(())
 	}
 
 	pub fn handle_auction_start(
 		project_id: &T::ProjectIdentifier,
 		now: T::BlockNumber,
 		evaluation_period_ends: T::BlockNumber,
-	) {
-		if evaluation_period_ends + T::EnglishAuctionDuration::get() <= now {
-			// TODO: Unused error, more tests needed
-			// TODO: Here the start_auction is "free", check the Weight
-			let _ = Self::do_start_auction(*project_id);
+	) -> Result<(), DispatchError> {
+		let project_info =
+			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		ensure!(
+			project_info.project_status == ProjectStatus::EvaluationEnded,
+			Error::<T>::ProjectNotInEvaluationEndedRound
+		);
+		if evaluation_period_ends <= now {
+			// 	TODO: PLMC-145. Here the start_auction is "free", check the Weight
+			Self::do_start_auction(*project_id)
+		} else {
+			Ok(())
 		}
 	}
 
@@ -165,11 +196,19 @@ impl<T: Config> Pallet<T> {
 		project_id: &T::ProjectIdentifier,
 		now: T::BlockNumber,
 		english_ending_block: T::BlockNumber,
-	) {
+	) -> Result<(), DispatchError> {
+		let mut project_info =
+			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		ensure!(
+			project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::English),
+			Error::<T>::ProjectNotInEnglishAuctionRound
+		);
 		if now >= english_ending_block {
-			ProjectsInfo::<T>::mutate(project_id, |project_info| {
-				project_info.project_status = ProjectStatus::AuctionRound(AuctionPhase::Candle);
-			});
+			project_info.project_status = ProjectStatus::AuctionRound(AuctionPhase::Candle);
+			ProjectsInfo::<T>::insert(project_id, project_info);
+			Ok(())
+		} else {
+			Err(Error::<T>::TooEarlyForCandleAuctionStart)?
 		}
 	}
 
@@ -178,51 +217,61 @@ impl<T: Config> Pallet<T> {
 		now: T::BlockNumber,
 		candle_ending_block: T::BlockNumber,
 		english_ending_block: T::BlockNumber,
-	) {
-		if now >= candle_ending_block {
-			// TODO: Move fundraising_target to AuctionMetadata
-			ProjectsInfo::<T>::mutate(project_id, |project_info| {
-				let mut auction_metadata =
-					project_info.auction_metadata.as_mut().expect("Auction must exist");
-				let end_block = Self::select_random_block(
-					english_ending_block + 1_u8.into(),
-					candle_ending_block,
-				);
-				project_info.project_status = ProjectStatus::CommunityRound;
-				auction_metadata.random_ending_block = Some(end_block);
-				project_info.weighted_average_price = Some(
-					Self::calculate_weighted_average_price(
-						*project_id,
-						project_info.fundraising_target,
-						end_block,
-					)
-					.expect("placeholder_function"),
-				);
-			});
+	) -> Result<(), DispatchError> {
+		if now <= candle_ending_block {
+			Err(Error::<T>::TooEarlyForCommunityRoundStart)?
 		}
+
+		// TODO: PLMC-148 Move fundraising_target to AuctionMetadata
+		let mut project_info =
+			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		ensure!(
+			project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::Candle),
+			Error::<T>::ProjectNotInCandleAuctionRound
+		);
+		let mut auction_metadata = project_info
+			.auction_metadata
+			.as_mut()
+			.ok_or(Error::<T>::AuctionMetadataNotFound)?;
+		let end_block =
+			Self::select_random_block(english_ending_block + 1_u8.into(), candle_ending_block);
+		project_info.project_status = ProjectStatus::CommunityRound;
+		auction_metadata.random_ending_block = Some(end_block);
+
+		project_info.weighted_average_price = Some(Self::calculate_weighted_average_price(
+			*project_id,
+			end_block,
+			project_info.fundraising_target,
+		)?);
+
+		ProjectsInfo::<T>::insert(project_id, project_info);
+		Ok(())
 	}
 
 	pub fn handle_community_end(
 		project_id: T::ProjectIdentifier,
 		now: T::BlockNumber,
 		community_ending_block: T::BlockNumber,
-	) {
-		if now >= community_ending_block {
-			ProjectsInfo::<T>::mutate(project_id, |project_info| {
-				project_info.project_status = ProjectStatus::FundingEnded;
-			});
+	) -> Result<(), DispatchError> {
+		if now <= community_ending_block {
+			Err(Error::<T>::TooEarlyForFundingEnd)?
 		};
 
-		// TODO: Check if make sense to set the admin as T::fund_account_id(project_id)
+		let mut project_info =
+			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		project_info.project_status = ProjectStatus::FundingEnded;
+		ProjectsInfo::<T>::insert(project_id, project_info);
+
+		// TODO: PLMC-149 Check if make sense to set the admin as T::fund_account_id(project_id)
 		let issuer =
-			ProjectsIssuers::<T>::get(project_id).expect("The issuer exists, already tested.");
-		let project = Projects::<T>::get(project_id).expect("The project exists, already tested.");
+			ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectIssuerNotFound)?;
+		let project = Projects::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let token_information = project.token_information;
 
-		// TODO: Unused result
+		// TODO: PLMC-149 Unused result
 		// Create the "Contribution Token" as an asset using the pallet_assets and set its metadata
 		let _ = T::Assets::create(project_id, issuer.clone(), false, 1_u32.into());
-		// TODO: Unused result
+		// TODO: PLMC-149 Unused result
 		let _ = T::Assets::set(
 			project_id,
 			&issuer,
@@ -230,9 +279,13 @@ impl<T: Config> Pallet<T> {
 			token_information.symbol.into(),
 			token_information.decimals,
 		);
+		Ok(())
 	}
 
-	pub fn handle_fuding_end(project_id: &T::ProjectIdentifier, _now: T::BlockNumber) {
+	pub fn handle_fuding_end(
+		project_id: &T::ProjectIdentifier,
+		_now: T::BlockNumber,
+	) -> Result<(), DispatchError> {
 		// Project identified by project_id is no longer "active"
 		ProjectsActive::<T>::mutate(|active_projects| {
 			if let Some(pos) = active_projects.iter().position(|x| x == project_id) {
@@ -240,48 +293,93 @@ impl<T: Config> Pallet<T> {
 			}
 		});
 
-		ProjectsInfo::<T>::mutate(project_id, |project_info| {
-			project_info.project_status = ProjectStatus::ReadyToLaunch;
-		});
+		let mut project_info =
+			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		project_info.project_status = ProjectStatus::ReadyToLaunch;
+		ProjectsInfo::<T>::insert(project_id, project_info);
+		Ok(())
 	}
 
+	/// Calculates the price of contribution tokens for the Community and Remainder Rounds
+	///
+	/// # Arguments
+	///
+	/// * `project_id` - Id used to retrieve the project information from storage
+	/// * `end_block` - Block where the candle auction ended, which will make bids after it invalid
+	/// * `fundraising_target` - Amount of tokens that the project wants to raise
 	pub fn calculate_weighted_average_price(
 		project_id: T::ProjectIdentifier,
-		total_allocation_size: BalanceOf<T>,
 		end_block: T::BlockNumber,
+		total_allocation_size: BalanceOf<T>,
 	) -> Result<BalanceOf<T>, DispatchError> {
 		// Get all the bids that were made before the end of the candle
-		// FIXME: Update the `status` field of every `Bid` to BeforeCandle or AfterCandle if `bid.when > end_block`
 		let mut bids = AuctionsInfo::<T>::get(project_id);
-		bids.retain(|bid| bid.when <= end_block);
-		// TODO: Unreserve the funds of the bids that were made after the end of the candle
-		// TODO: We can do this inside the "on_idle" hook, and change the `status` of the `Bid` to "Unreserved"
+		// temp variable to store the sum of the bids
+		let mut bid_amount_sum = BalanceOf::<T>::zero();
+		// temp variable to store the total value of the bids (i.e price * amount)
+		let mut bid_value_sum = BalanceOf::<T>::zero();
 
-		// Calculate the final price
-		let mut fundraising_amount = BalanceOf::<T>::zero();
-		for (idx, bid) in bids.iter_mut().enumerate() {
-			let old_amount = fundraising_amount;
-			fundraising_amount.saturating_accrue(bid.amount);
-			if fundraising_amount > total_allocation_size {
-				bid.amount = total_allocation_size.saturating_sub(old_amount);
-				bid.ratio = Some(Perbill::from_rational(bid.amount, total_allocation_size));
-				bid.status = BidStatus::NotValid(bid.amount.saturating_sub(old_amount));
-				bids.truncate(idx + 1);
-				// Important TODO: Refund the rest of the amount to the bidder in the "on_idle" hook
-				break
-			}
-		}
+		// sort bids by price
+		bids.sort();
+		// accept only bids that were made before `end_block` i.e end of candle auction
+		let bids = bids
+			.into_iter()
+			.map(|mut bid| {
+				if bid.when > end_block {
+					bid.status = BidStatus::Rejected(RejectionReason::AfterCandleEnd);
+					// TODO: PLMC-147. Unlock funds. We can do this inside the "on_idle" hook, and change the `status` of the `Bid` to "Unreserved"
+					return bid
+				}
+				let buyable_amount = total_allocation_size.saturating_sub(bid_amount_sum);
+				if buyable_amount == 0_u32.into() {
+					bid.status = BidStatus::Rejected(RejectionReason::NoTokensLeft);
+				} else if bid.amount <= buyable_amount {
+					bid_amount_sum.saturating_accrue(bid.amount);
+					bid_value_sum.saturating_accrue(bid.amount * bid.price);
+					bid.status = BidStatus::Accepted;
+				} else {
+					bid_amount_sum.saturating_accrue(buyable_amount);
+					bid_value_sum.saturating_accrue(buyable_amount * bid.price);
+					bid.status =
+						BidStatus::PartiallyAccepted(buyable_amount, RejectionReason::NoTokensLeft)
+					// TODO: PLMC-147. Refund remaining amount
+				}
+				bid
+			})
+			.collect::<Vec<BidInfoOf<T>>>();
 
-		// TODO: Test more cases
-		let mut weighted_average_price = BalanceOf::<T>::zero();
-		for mut bid in bids {
-			let ratio = Perbill::from_rational(bid.amount, fundraising_amount);
-			bid.ratio = Some(ratio);
-			let weighted_price = ratio.mul_ceil(bid.price);
-			weighted_average_price.saturating_accrue(weighted_price);
-		}
-		// AuctionsInfo::<T>::set(project_id, bids);
-		Ok(weighted_average_price)
+		// Calculate the weighted price of the token for the next funding rounds, using winning bids.
+		// for example: if there are 3 winning bids,
+		// A: 10K tokens @ USD15 per token = 150K USD value
+		// B: 20K tokens @ USD20 per token = 400K USD value
+		// C: 20K tokens @ USD10 per token = 200K USD value,
+
+		// then the weight for each bid is:
+		// A: 150K / (150K + 400K + 200K) = 0.20
+		// B: 400K / (150K + 400K + 200K) = 0.53
+		// C: 200K / (150K + 400K + 200K) = 0.26
+
+		// then multiply each weight by the price of the token to get the weighted price per bid
+		// A: 0.20 * 15 = 3
+		// B: 0.53 * 20 = 10.6
+		// C: 0.26 * 10 = 2.6
+
+		// lastly, sum all the weighted prices to get the final weighted price for the next funding round
+		// 3 + 10.6 + 2.6 = 16.2
+		let weighted_token_price = bids
+			// TODO: PLMC-150. collecting due to previous mut borrow, find a way to not collect and borrow bid on filter_map
+			.into_iter()
+			.filter_map(|bid| match bid.status {
+				BidStatus::Accepted =>
+					Some(Perbill::from_rational(bid.amount * bid.price, bid_value_sum) * bid.price),
+				BidStatus::PartiallyAccepted(amount, _) =>
+					Some(Perbill::from_rational(amount * bid.price, bid_value_sum) * bid.price),
+				_ => None,
+			})
+			.reduce(|a, b| a.saturating_add(b))
+			.ok_or(Error::<T>::NoBidsFound)?;
+
+		Ok(weighted_token_price)
 	}
 
 	pub fn select_random_block(

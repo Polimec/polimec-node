@@ -19,7 +19,6 @@
 //! Types for Funding pallet.
 
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
-use sp_arithmetic::Perbill;
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct Project<BoundedString, Balance: BalanceT, Hash> {
@@ -38,7 +37,7 @@ pub struct Project<BoundedString, Balance: BalanceT, Hash> {
 	/// Conversion rate of contribution token to mainnet token
 	pub conversion_rate: u32,
 	/// Participation currencies (e.g stablecoin, DOT, KSM)
-	/// TODO: Use something like BoundedVec<Option<Currencies>, CurrenciesLimit>
+	/// TODO: PLMC-158. Use something like BoundedVec<Option<Currencies>, CurrenciesLimit>
 	/// e.g. https://github.com/paritytech/substrate/blob/427fd09bcb193c1e79dec85b1e207c718b686c35/frame/uniques/src/types.rs#L110
 	/// For now is easier to handle the case where only just one Currency is accepted
 	pub participation_currencies: Currencies,
@@ -70,7 +69,7 @@ pub enum ValidityError {
 }
 
 impl<BoundedString, Balance: BalanceT, Hash> Project<BoundedString, Balance, Hash> {
-	// TODO: Perform a REAL validity check
+	// TODO: PLMC-162. Perform a REAL validity check
 	pub fn validity_check(&self) -> Result<(), ValidityError> {
 		if self.minimum_price == Balance::zero() {
 			return Err(ValidityError::PriceTooLow)
@@ -172,10 +171,11 @@ pub struct BidInfo<Balance: BalanceT, AccountId, BlockNumber> {
 	pub price: Balance,
 	#[codec(compact)]
 	pub ticket_size: Balance,
-	pub ratio: Option<Perbill>,
+	// Removed due to only being used in the price calculation, and it's not really needed there
+	// pub ratio: Option<Perbill>,
 	pub when: BlockNumber,
 	pub bidder: AccountId,
-	// TODO: Not used yet, but will be used to check if the bid is funded after XCM is implemented
+	// TODO: PLMC-159. Not used yet, but will be used to check if the bid is funded after XCM is implemented
 	pub funded: bool,
 	pub multiplier: Balance,
 	pub status: BidStatus<Balance>,
@@ -194,7 +194,7 @@ impl<Balance: BalanceT, AccountId, BlockNumber> BidInfo<Balance, AccountId, Bloc
 			amount,
 			price,
 			ticket_size,
-			ratio: None,
+			// ratio: None,
 			when,
 			bidder,
 			funded: false,
@@ -227,7 +227,7 @@ pub struct ContributionInfo<Balance: BalanceT> {
 	pub can_claim: bool,
 }
 
-// TODO: Use SCALE fixed indexes
+// TODO: PLMC-157. Use SCALE fixed indexes
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub enum Currencies {
 	DOT,
@@ -259,9 +259,21 @@ pub enum AuctionPhase {
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub enum BidStatus<Balance: BalanceT> {
+	/// The bid is not yet accepted or rejected
 	#[default]
 	YetUnknown,
-	Valid,
-	NotValid(Balance),
-	Unreserved,
+	/// The bid is accepted
+	Accepted,
+	/// The bid is rejected, and the reason is provided
+	Rejected(RejectionReason),
+	/// The bid is partially accepted. The amount accepted and reason for rejection are provided
+	PartiallyAccepted(Balance, RejectionReason),
+}
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub enum RejectionReason {
+	/// The bid was submitted after the candle auction ended
+	AfterCandleEnd,
+	/// The bid was accepted but too many tokens were requested. A partial amount was accepted
+	NoTokensLeft,
 }
