@@ -579,39 +579,6 @@ pub mod pallet {
 			})
 		}
 
-		/// Start the "Funding Round" of a `project_id`
-		#[pallet::weight(T::WeightInfo::start_auction())]
-		pub fn start_auction(
-			origin: OriginFor<T>,
-			project_id: T::ProjectIdParameter,
-		) -> DispatchResult {
-			let issuer = ensure_signed(origin)?;
-			let project_id = project_id.into();
-
-			// TODO: PLMC-133. Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
-			// ensure!(
-			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
-			// 	Error::<T>::NotAuthorized
-			// );
-
-			ensure!(
-				ProjectsIssuers::<T>::contains_key(project_id),
-				Error::<T>::ProjectIssuerNotFound
-			);
-			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
-			let project_info =
-				ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-			ensure!(
-				project_info.project_status != ProjectStatus::EvaluationFailed,
-				Error::<T>::EvaluationFailed
-			);
-			ensure!(
-				project_info.project_status == ProjectStatus::EvaluationEnded,
-				Error::<T>::EvaluationNotStarted
-			);
-			Self::do_start_auction(project_id)
-		}
-
 		/// Place a bid in the "Auction Round"
 		#[pallet::weight(T::WeightInfo::bid())]
 		pub fn bid(
@@ -824,7 +791,6 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(now: T::BlockNumber) -> Weight {
-			let skip = true;
 			// Get the projects that need to be updated on this block and update them
 			for project_id in ProjectsToUpdate::<T>::take(now) {
 				let maybe_project_info = ProjectsInfo::<T>::get(project_id.clone());
@@ -833,9 +799,10 @@ pub mod pallet {
 				match project_info.project_status {
 					// EvaluationRound -> EvaluationEnded
 					ProjectStatus::EvaluationRound => {
-						let evaluation_period_ends = project_info
-							.evaluation_period_ends
-							.expect("In EvaluationRound there always exist evaluation_period_ends");
+						let evaluation_period_ends = unwrap_option_or_skip!(
+							project_info.evaluation_period_ends,
+							Event::<T>::InitializationError { project_id }
+						);
 						let fundraising_target = project_info.fundraising_target;
 						unwrap_result_or_skip!(
 							Self::handle_evaluation_end(
@@ -849,9 +816,10 @@ pub mod pallet {
 					},
 					// EvaluationEnded -> AuctionRound
 					ProjectStatus::EvaluationEnded => {
-						let evaluation_period_ends = project_info
-							.evaluation_period_ends
-							.expect("In EvaluationEnded there always exist evaluation_period_ends");
+						let evaluation_period_ends = unwrap_option_or_skip!(
+							project_info.evaluation_period_ends,
+							Event::<T>::InitializationError { project_id }
+						);
 						if now >= evaluation_period_ends {
 							unwrap_result_or_skip!(
 								Self::handle_auction_start(&project_id, now, evaluation_period_ends),
@@ -862,10 +830,11 @@ pub mod pallet {
 					},
 					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
 					ProjectStatus::AuctionRound(AuctionPhase::English) => {
-						let english_ending_block = project_info
-							.auction_metadata
-							.expect("In AuctionRound there always exist auction_metadata")
-							.english_ending_block;
+						let english_ending_block = unwrap_option_or_skip!(
+							project_info.auction_metadata,
+							Event::<T>::InitializationError { project_id }
+						).english_ending_block;
+
 						if now > english_ending_block {
 							unwrap_result_or_skip!(
 								Self::handle_auction_candle(&project_id, now, english_ending_block),

@@ -965,7 +965,7 @@ mod reserve_backed_transfers {
 	}
 
 	#[test]
-	fn polimec_to_penpal() {
+	fn polimec_to_penpal() {Vec
 		Network::reset();
 
 		let dot: MultiAsset = (MultiLocation::parent(), RESERVE_TRANSFER_AMOUNT).into();

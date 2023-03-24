@@ -51,6 +51,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	// called by user extrinsic
 	pub fn do_create(
 		project_id: T::ProjectIdentifier,
 		issuer: &T::AccountId,
@@ -77,19 +78,33 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Adds a project to the ProjectsToUpdate storage, so it can be updated at some later point in time.
+	///
+	/// * `block_number` - the minimum block number at which the project should be updated.
+	/// * `project_id` - the id of the project to be updated.
+	pub fn add_to_update_store(
+		block_number: &mut T::BlockNumber,
+		project_id: &T::ProjectIdentifier,
+	) -> Result<(), DispatchError> {
+		// Try to get the project into the earliest possible block to update.
+		// There is a limit for how many projects can update each block, so we need to make sure we don't exceed that limit
+		loop {
+			if let Ok(()) = ProjectsToUpdate::<T>::try_append(*block_number, project_id) {
+				break;
+			} else {
+				*block_number += 1u32.into();
+			}
+		}
+		Ok(())
+
+	}
+
+	// called by user extrinsic
 	pub fn do_start_evaluation(project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
 		let mut evaluation_period_ends =
 			<frame_system::Pallet<T>>::block_number() + T::EvaluationDuration::get() + 1u32.into();
 
-		// Try to get the project into the earliest possible block to update.
-		// There is a limit for how many projects can update each block, so we need to make sure we don't exceed that limit
-		loop {
-			if let Ok(()) = ProjectsToUpdate::<T>::try_append(evaluation_period_ends, project_id) {
-				break;
-			} else {
-				evaluation_period_ends += 1u32.into();
-			}
-		}
+		Self::add_to_update_store(&mut evaluation_period_ends, &project_id).expect("Always return Ok; qed");
 
 		let mut project_info = ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		ensure!(!project_info.is_frozen, Error::<T>::ProjectAlreadyFrozen);
@@ -107,36 +122,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn do_start_auction(project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
-		let current_block_number = <frame_system::Pallet<T>>::block_number();
-		let english_ending_block = current_block_number + T::EnglishAuctionDuration::get();
-		let candle_ending_block = english_ending_block + T::CandleAuctionDuration::get();
-		let community_ending_block = candle_ending_block + T::CommunityRoundDuration::get();
-
-		let auction_metadata = AuctionMetadata {
-			starting_block: current_block_number,
-			english_ending_block,
-			candle_ending_block,
-			community_ending_block,
-			random_ending_block: None,
-		};
-
-		let mut project_info =
-			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		ensure!(
-			project_info.project_status == ProjectStatus::EvaluationEnded,
-			Error::<T>::ProjectNotInEvaluationRound
-		);
-
-		project_info.project_status = ProjectStatus::AuctionRound(AuctionPhase::English);
-		project_info.auction_metadata = Some(auction_metadata);
-
-		ProjectsInfo::<T>::insert(project_id, project_info);
-
-		Self::deposit_event(Event::<T>::AuctionStarted { project_id, when: current_block_number });
-		Ok(())
-	}
-
+	// called automatically by on_initialize
 	pub fn handle_evaluation_end(
 		project_id: &T::ProjectIdentifier,
 		now: T::BlockNumber,
@@ -179,23 +165,36 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn handle_auction_start(
-		project_id: &T::ProjectIdentifier,
-		now: T::BlockNumber,
-		evaluation_period_ends: T::BlockNumber,
-	) -> Result<(), DispatchError> {
-		let project_info =
+	pub fn handle_auction_start(project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
+		let current_block_number = <frame_system::Pallet<T>>::block_number();
+		let mut english_ending_block = current_block_number + T::EnglishAuctionDuration::get();
+		let candle_ending_block = english_ending_block + T::CandleAuctionDuration::get();
+		let community_ending_block = candle_ending_block + T::CommunityRoundDuration::get();
+
+		Self::add_to_update_store(&mut english_ending_block, &project_id).expect("Always return Ok; qed");
+
+		let auction_metadata = AuctionMetadata {
+			starting_block: current_block_number,
+			english_ending_block,
+			candle_ending_block,
+			community_ending_block,
+			random_ending_block: None,
+		};
+
+		let mut project_info =
 			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		ensure!(
 			project_info.project_status == ProjectStatus::EvaluationEnded,
-			Error::<T>::ProjectNotInEvaluationEndedRound
+			Error::<T>::ProjectNotInEvaluationRound
 		);
-		if evaluation_period_ends <= now {
-			// 	TODO: PLMC-145. Here the start_auction is "free", check the Weight
-			Self::do_start_auction(*project_id)
-		} else {
-			Ok(())
-		}
+
+		project_info.project_status = ProjectStatus::AuctionRound(AuctionPhase::English);
+		project_info.auction_metadata = Some(auction_metadata);
+
+		ProjectsInfo::<T>::insert(project_id, project_info);
+
+		Self::deposit_event(Event::<T>::AuctionStarted { project_id, when: current_block_number });
+		Ok(())
 	}
 
 	pub fn handle_auction_candle(
