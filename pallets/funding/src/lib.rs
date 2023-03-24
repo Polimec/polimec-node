@@ -266,7 +266,7 @@ pub mod pallet {
 		Blake2_128Concat,
 		T::ProjectIdentifier,
 		ProjectInfo<T::BlockNumber, BalanceOf<T>>,
-	>;
+	>;K
 
 	#[pallet::storage]
 	#[pallet::getter(fn projects_to_update)]
@@ -821,7 +821,6 @@ pub mod pallet {
 							),
 							project_id
 						);
-
 					},
 
 					// EvaluationEnded -> AuctionRound(AuctionPhase::English)
@@ -829,19 +828,12 @@ pub mod pallet {
 
 					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
 					ProjectStatus::AuctionRound(AuctionPhase::English) => {
-						let english_auction_end_block = unwrap_option_or_skip!(
-							project_info.phase_transition_points.english_auction_end_block,
-							project_id
+						unwrap_result_or_skip!(
+							Self::do_english_auction_end()
 						);
-
-						true_or_skip!(
-							now >= english_auction_end_block,
-							Event::<T>::TransitionError { project_id, error: Error::<T>::EnglishAuctionPeriodNotEnded.into() }
+						unwrap_result_or_skip!(
+							Self::do_candle_auction_start()
 						);
-
-
-
-
 					},
 
 					// AuctionRound(AuctionPhase::Candle) -> CommunityRound

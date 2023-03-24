@@ -171,9 +171,6 @@ pub struct PhaseTransitionPoints<BlockNumber> {
 
 	pub remainder_start_block: Option<BlockNumber>,
 	pub remainder_end_block: Option<BlockNumber>,
-
-	pub payouts_start_block: Option<BlockNumber>,
-	pub payouts_end_block: Option<BlockNumber>,
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]

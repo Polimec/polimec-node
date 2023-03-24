@@ -228,7 +228,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn do_auction_candle_start(
+	pub fn do_candle_auction_start(
 		project_id: &T::ProjectIdentifier,
 		now: T::BlockNumber,
 		english_ending_block: T::BlockNumber,
@@ -249,11 +249,11 @@ impl<T: Config> Pallet<T> {
 	}
 
 	// Reserved for some future functionality
-	pub fn do_auction_candle_end (project_id: &T::ProjectIdentifier) -> Result<(), DispatchError> {
+	pub fn do_candle_auction_end (project_id: &T::ProjectIdentifier) -> Result<(), DispatchError> {
 		Ok(())
 	}
 
-	pub fn handle_community_start(
+	pub fn do_community_funding_start(
 		project_id: &T::ProjectIdentifier,
 		now: T::BlockNumber,
 		candle_ending_block: T::BlockNumber,
@@ -289,7 +289,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn handle_community_end(
+	pub fn do_community_funding_end(
 		project_id: &T::ProjectIdentifier,
 		now: T::BlockNumber,
 		community_ending_block: T::BlockNumber,
@@ -323,7 +323,14 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn handle_funding_end(
+	pub fn do_remainder_funding_start(
+		project_id: &T::ProjectIdentifier,
+	) -> Result<(), DispatchError> {
+		Ok(())
+	}
+
+
+	pub fn do_remainder_funding_end(
 		project_id: &T::ProjectIdentifier,
 		_now: T::BlockNumber,
 	) -> Result<(), DispatchError> {
