@@ -266,7 +266,7 @@ pub mod pallet {
 		Blake2_128Concat,
 		T::ProjectIdentifier,
 		ProjectInfo<T::BlockNumber, BalanceOf<T>>,
-	>;K
+	>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn projects_to_update)]
