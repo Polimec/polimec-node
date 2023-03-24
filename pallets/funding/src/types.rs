@@ -51,12 +51,10 @@ pub struct ProjectInfo<BlockNumber, Balance: BalanceT> {
 	pub is_frozen: bool,
 	/// The price decided after the Auction Round
 	pub weighted_average_price: Option<Balance>,
-	/// When the project is created
-	pub created_at: BlockNumber,
 	/// The current status of the project
 	pub project_status: ProjectStatus,
-	pub evaluation_period_ends: Option<BlockNumber>,
-	pub auction_metadata: Option<AuctionMetadata<BlockNumber>>,
+	/// When the different project phases start and end
+	pub phase_transition_points: PhaseTransitionPoints<BlockNumber>,
 	/// Fundraising target amount in USD equivalent
 	pub fundraising_target: Balance,
 }
@@ -150,17 +148,32 @@ pub struct CurrencyMetadata<BoundedString> {
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct AuctionMetadata<BlockNumber> {
-	/// When (expressed in block numbers) the Auction Round started
-	pub starting_block: BlockNumber,
-	/// When (expressed in block numbers) the English Auction phase ends
-	pub english_ending_block: BlockNumber,
-	/// When (expressed in block numbers) the Candle Auction phase ends
-	pub candle_ending_block: BlockNumber,
-	/// When (expressed in block numbers) the Dutch Auction phase ends
+pub struct PhaseTransitionPoints<BlockNumber> {
+	pub application_start_block: BlockNumber,
+	pub application_end_block: Option<BlockNumber>,
+
+	pub evaluation_start_block: Option<BlockNumber>,
+	pub evaluation_end_block: Option<BlockNumber>,
+
+	pub auction_initialize_period_start_block: Option<BlockNumber>,
+	pub auction_initialize_period_end_block: Option<BlockNumber>,
+
+	pub english_auction_start_block: Option<BlockNumber>,
+	pub english_auction_end_block: Option<BlockNumber>,
+
+	pub candle_auction_start_block: Option<BlockNumber>,
+	pub candle_auction_end_block: Option<BlockNumber>,
+
 	pub random_ending_block: Option<BlockNumber>,
-	/// When (expressed in block numbers) the Community Round ends
-	pub community_ending_block: BlockNumber,
+
+	pub community_start_block: Option<BlockNumber>,
+	pub community_end_block: Option<BlockNumber>,
+
+	pub remainder_start_block: Option<BlockNumber>,
+	pub remainder_end_block: Option<BlockNumber>,
+
+	pub payouts_start_block: Option<BlockNumber>,
+	pub payouts_end_block: Option<BlockNumber>,
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]

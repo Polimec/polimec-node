@@ -191,6 +191,9 @@ pub mod pallet {
 		#[pallet::constant]
 		type EvaluationDuration: Get<Self::BlockNumber>;
 
+		#[pallet::constant]
+		type AuctionCooldownDuration: Get<Self::BlockNumber>;
+
 		/// The length (expressed in number of blocks) of the Auction Round, English period.
 		#[pallet::constant]
 		type EnglishAuctionDuration: Get<Self::BlockNumber>;
@@ -325,6 +328,8 @@ pub mod pallet {
 		EvaluationEnded { project_id: T::ProjectIdentifier },
 		/// The evaluation phase of `project_id` ended without reaching the minimum threshold.
 		EvaluationFailed { project_id: T::ProjectIdentifier },
+		/// The period an issuer has, to start the auction phase of the project.
+		AuctionInitializePeriod { project_id: T::ProjectIdentifier, start_block: T::BlockNumber, end_block: T::BlockNumber },
 		/// The auction round of `project_id` started at block `when`.
 		AuctionStarted { project_id: T::ProjectIdentifier, when: T::BlockNumber },
 		/// The auction round of `project_id` ended  at block `when`.
@@ -349,7 +354,7 @@ pub mod pallet {
 		///
 		Noted { hash: T::Hash },
 		/// Something was not properly initialized. Most likely due to dev error manually calling do_* functions or updating storage
-		InitializationError{ project_id: T::ProjectIdentifier },
+		TransitionError { project_id: T::ProjectIdentifier, error: DispatchError },
 	}
 
 	#[pallet::error]
@@ -422,6 +427,16 @@ pub mod pallet {
 		ProjectInfoNotFound,
 		/// The Project was not correctly created. Most likely due to dev error manually calling do_* functions or updating storage
 		ProjectNotCorrectlyCreated,
+		/// Tried to start an auction before the initialization period
+		AuctionInitializationPeriodNotStarted,
+		/// Tried to start an auction after the initialization period
+		AuctionInitializationPeriodAlreadyEnded,
+		/// Tried to finish an evaluation before its target end block
+		EvaluationPeriodNotEnded,
+		/// Tried to finish the english auction before its target end block
+		EnglishAuctionPeriodNotEnded,
+		/// Tried to access field that is not set
+		FieldIsNone,
 	}
 
 	#[pallet::call]
@@ -794,54 +809,41 @@ pub mod pallet {
 			// Get the projects that need to be updated on this block and update them
 			for project_id in ProjectsToUpdate::<T>::take(now) {
 				let maybe_project_info = ProjectsInfo::<T>::get(project_id.clone());
-				let project_info = unwrap_option_or_skip!(maybe_project_info, Event::<T>::InitializationError { project_id });
+				let mut project_info = unwrap_option_or_skip!(maybe_project_info, project_id);
 
 				match project_info.project_status {
 					// EvaluationRound -> EvaluationEnded
 					ProjectStatus::EvaluationRound => {
-						let evaluation_period_ends = unwrap_option_or_skip!(
-							project_info.evaluation_period_ends,
-							Event::<T>::InitializationError { project_id }
-						);
-						let fundraising_target = project_info.fundraising_target;
 						unwrap_result_or_skip!(
-							Self::handle_evaluation_end(
+							Self::do_evaluation_end(
 								&project_id,
 								now,
-								evaluation_period_ends,
-								fundraising_target,
 							),
-							Event::<T>::InitializationError { project_id }
+							project_id
 						);
-					},
-					// EvaluationEnded -> AuctionRound
-					ProjectStatus::EvaluationEnded => {
-						let evaluation_period_ends = unwrap_option_or_skip!(
-							project_info.evaluation_period_ends,
-							Event::<T>::InitializationError { project_id }
-						);
-						if now >= evaluation_period_ends {
-							unwrap_result_or_skip!(
-								Self::handle_auction_start(&project_id, now, evaluation_period_ends),
-								Event::<T>::InitializationError { project_id }
-							);
 
-						}
 					},
+
+					// EvaluationEnded -> AuctionRound(AuctionPhase::English)
+					// Handled by user extrinsic
+
 					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
 					ProjectStatus::AuctionRound(AuctionPhase::English) => {
-						let english_ending_block = unwrap_option_or_skip!(
-							project_info.auction_metadata,
-							Event::<T>::InitializationError { project_id }
-						).english_ending_block;
+						let english_auction_end_block = unwrap_option_or_skip!(
+							project_info.phase_transition_points.english_auction_end_block,
+							project_id
+						);
 
-						if now > english_ending_block {
-							unwrap_result_or_skip!(
-								Self::handle_auction_candle(&project_id, now, english_ending_block),
-								Event::<T>::InitializationError { project_id }
-							);
-						}
+						true_or_skip!(
+							now >= english_auction_end_block,
+							Event::<T>::TransitionError { project_id, error: Error::<T>::EnglishAuctionPeriodNotEnded.into() }
+						);
+
+
+
+
 					},
+
 					// AuctionRound(AuctionPhase::Candle) -> CommunityRound
 					ProjectStatus::AuctionRound(AuctionPhase::Candle) => {
 						let auction_metadata = project_info
@@ -857,7 +859,7 @@ pub mod pallet {
 									candle_ending_block,
 									english_ending_block,
 								),
-								Event::<T>::InitializationError { project_id }
+								Event::<T>::TransitionError { project_id }
 							);
 						}
 					},
@@ -870,7 +872,7 @@ pub mod pallet {
 						if now > community_ending_block {
 							unwrap_result_or_skip!(
 								Self::handle_community_end(&project_id, now, community_ending_block),
-								Event::<T>::InitializationError { project_id }
+								Event::<T>::TransitionError { project_id }
 							);
 						}
 					},
@@ -924,11 +926,11 @@ pub mod local_macros {
 	// used to unwrap storage values that can be None in places where an error cannot be returned,
 	// but an event should be emitted, and optionally a skip to the next iteration of a loop
 	macro_rules! unwrap_option_or_skip {
-		($option:expr, $event:expr) => {
+		($option:expr, $project_id:expr) => {
 			match $option {
 				Some(val) => val,
 				None => {
-					Self::deposit_event($event);
+					Self::deposit_event(Event::<T>::TransitionError { project_id: $project_id, error: Error::<T>::FieldIsNone.into() });
 					continue;
 				}
 			}
@@ -937,16 +939,26 @@ pub mod local_macros {
 	pub(crate) use unwrap_option_or_skip;
 
 	macro_rules! unwrap_result_or_skip {
-		($option:expr, $event:expr) => {
+		($option:expr, $project_id:expr) => {
 			match $option {
 				Ok(val) => val,
-				Err(_) => {
-					Self::deposit_event($event);
+				Err(err) => {
+					Self::deposit_event(Event::<T>::TransitionError { project_id: $project_id, error: err });
 					continue;
 				}
 			}
 		};
 	}
 	pub(crate) use unwrap_result_or_skip;
+
+	macro_rules! true_or_skip {
+		($bool:expr, $event:expr) => {
+			if $bool {
+				Self::deposit_event($event);
+				continue;
+			}
+		};
+	}
+	pub(crate) use true_or_skip;
 }
 
