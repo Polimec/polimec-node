@@ -829,32 +829,21 @@ pub mod pallet {
 					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
 					ProjectStatus::AuctionRound(AuctionPhase::English) => {
 						unwrap_result_or_skip!(
-							Self::do_english_auction_end()
-						);
-						unwrap_result_or_skip!(
-							Self::do_candle_auction_start()
+							Self::do_candle_auction(&project_id),
+							project_id
 						);
 					},
 
 					// AuctionRound(AuctionPhase::Candle) -> CommunityRound
 					ProjectStatus::AuctionRound(AuctionPhase::Candle) => {
-						let auction_metadata = project_info
-							.auction_metadata
-							.expect("In AuctionRound there always exist auction_metadata");
-						let candle_ending_block = auction_metadata.candle_ending_block;
-						let english_ending_block = auction_metadata.english_ending_block;
-						if now > candle_ending_block {
-							unwrap_result_or_skip!(
-								Self::handle_community_start(
-									&project_id,
-									now,
-									candle_ending_block,
-									english_ending_block,
-								),
-								Event::<T>::TransitionError { project_id }
-							);
-						}
+						unwrap_result_or_skip!(
+							Self::do_community_funding(
+								&project_id,
+							),
+							project_id
+						);
 					},
+
 					// CommunityRound -> FundingEnded
 					ProjectStatus::CommunityRound => {
 						let community_ending_block = project_info
