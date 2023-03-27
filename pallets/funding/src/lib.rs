@@ -204,7 +204,11 @@ pub mod pallet {
 
 		/// The length (expressed in number of blocks) of the Community Round.
 		#[pallet::constant]
-		type CommunityRoundDuration: Get<Self::BlockNumber>;
+		type CommunityFundingDuration: Get<Self::BlockNumber>;
+
+		/// The length (expressed in number of blocks) of the Funding Round.
+		#[pallet::constant]
+		type RemainderFundingDuration: Get<Self::BlockNumber>;
 
 		/// `PalletId` for the funding pallet. An appropriate value could be
 		/// `PalletId(*b"py/cfund")`
@@ -415,34 +419,38 @@ pub mod pallet {
 		ProjectNotInCommunityRound,
 		/// Tried to move the project to FundingEndedRound, but it was not in RemainderRound before
 		ProjectNotInRemainderRound,
+		/// Tried to start an auction before the initialization period
+		TooEarlyForEnglishAuctionStart,
+		/// Tried to start an auction after the initialization period
+		TooLateForEnglishAuctionStart,
 		/// Tried to move the project to CandleAuctionRound, but its too early for that
 		TooEarlyForCandleAuctionStart,
 		/// Tried to move the project to CommunityRound, but its too early for that
 		TooEarlyForCommunityRoundStart,
 		/// Tried to move the project to RemainderRound, but its too early for that
 		TooEarlyForRemainderRoundStart,
+		/// Tried to move to project to FundingEnded round, but its too early for that
+		TooEarlyForFundingEnd,
 		/// Tried to access auction metadata, but it was not correctly initialized.
 		AuctionMetadataNotFound,
 		/// Ending block for the candle auction is not set
 		EndingBlockNotSet,
-		/// Tried to move to project to FundingEnded round, but its too early for that
-		TooEarlyForFundingEnd,
 		/// The specified issuer does not exist
 		ProjectIssuerNotFound,
 		/// The specified project info does not exist
 		ProjectInfoNotFound,
 		/// The Project was not correctly created. Most likely due to dev error manually calling do_* functions or updating storage
 		ProjectNotCorrectlyCreated,
-		/// Tried to start an auction before the initialization period
-		AuctionInitializationPeriodNotYetStarted,
-		/// Tried to start an auction after the initialization period
-		AuctionInitializationPeriodAlreadyEnded,
 		/// Tried to finish an evaluation before its target end block
 		EvaluationPeriodNotEnded,
 		/// Tried to finish the english auction before its target end block
 		EnglishAuctionPeriodNotEnded,
 		/// Tried to access field that is not set
 		FieldIsNone,
+		/// Tried to create the contribution token after the remaining round but it failed
+		AssetCreationFailed,
+		/// Tried to update the metadata of the contribution token but it failed
+		AssetMetadataUpdateFailed,
 	}
 
 	#[pallet::call]
@@ -542,13 +550,8 @@ pub mod pallet {
 			// );
 
 			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
-			ensure!(
-				ProjectsInfo::<T>::get(project_id)
-					.ok_or(Error::<T>::ProjectInfoNotFound)?
-					.project_status == ProjectStatus::Application,
-				Error::<T>::EvaluationAlreadyStarted
-			);
-			Self::do_start_evaluation(project_id)
+
+			Self::do_evaluation_start(project_id)
 		}
 
 		/// Evaluators can bond `amount` PLMC to evaluate a `project_id` in the "Evaluation Round"
@@ -821,18 +824,15 @@ pub mod pallet {
 					// Application -> EvaluationRound
 					// Handled by user extrinsic
 
-					// EvaluationRound -> EvaluationEnded
+					// EvaluationRound -> AuctionInitializePeriod | EvaluationFailed
 					ProjectStatus::EvaluationRound => {
 						unwrap_result_or_skip!(
-							Self::do_evaluation_end(
-								&project_id,
-								now,
-							),
+							Self::do_evaluation_end(&project_id),
 							project_id
 						);
 					},
 
-					// EvaluationEnded -> AuctionRound(AuctionPhase::English)
+					// AuctionInitializePeriod -> AuctionRound(AuctionPhase::English)
 					// Handled by user extrinsic
 
 					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
@@ -846,9 +846,7 @@ pub mod pallet {
 					// AuctionRound(AuctionPhase::Candle) -> CommunityRound
 					ProjectStatus::AuctionRound(AuctionPhase::Candle) => {
 						unwrap_result_or_skip!(
-							Self::do_community_funding(
-								&project_id,
-							),
+							Self::do_community_funding(&project_id),
 							project_id
 						);
 					},
@@ -862,8 +860,15 @@ pub mod pallet {
 					},
 
 					// RemainderRound -> FundingEnded
+					ProjectStatus::FundingEnded => {
+						unwrap_result_or_skip!(
+							Self::do_end_funding(&project_id),
+							project_id
+						)
+					},
 
 					// FundingEnded -> ReadyToLaunch
+					// Handled by user extrinsic
 
 					_ => (),
 				}

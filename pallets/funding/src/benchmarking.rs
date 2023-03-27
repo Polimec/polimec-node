@@ -327,7 +327,7 @@ benchmarks! {
 		PolimecFunding::<T>::contribute(SystemOrigin::Signed(contributor.clone()).into(), project_id.clone(), 2_000__0_000_000_000_u64.into()).unwrap();
 
 		// Move to the end of the funding round
-		run_to_block::<T>(System::<T>::block_number() + <T as Config>::CommunityRoundDuration::get() + 1u32.into());
+		run_to_block::<T>(System::<T>::block_number() + <T as Config>::CommunityFundingDuration::get() + 1u32.into());
 
 	}: _(SystemOrigin::Signed(contributor.clone()), project_id.clone())
 	verify {

@@ -165,7 +165,7 @@ impl pallet_funding::Config for Test {
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type PalletId = FundingPalletId;
 	type ActiveProjectsLimit = ConstU32<100>;
-	type CommunityRoundDuration = CommunityRoundDuration;
+	type CommunityFundingDuration = CommunityRoundDuration;
 	type Randomness = RandomnessCollectiveFlip;
 	type HandleMembers = Credentials;
 	type PreImageLimit = ConstU32<1024>;

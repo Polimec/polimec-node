@@ -492,7 +492,7 @@ mod claim_contribution_tokens {
 		assert_eq!(project_info.weighted_average_price, Some(PLMC));
 		assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 99 * PLMC));
 
-		run_to_block(System::block_number() + <Test as Config>::CommunityRoundDuration::get() + 1);
+		run_to_block(System::block_number() + <Test as Config>::CommunityFundingDuration::get() + 1);
 		let project_info = FundingModule::project_info(0).unwrap();
 		assert_eq!(project_info.project_status, ProjectStatus::ReadyToLaunch);
 	}
@@ -574,7 +574,7 @@ mod flow {
 
 			// Funding Round ends
 			run_to_block(
-				System::block_number() + <Test as Config>::CommunityRoundDuration::get() + 1,
+				System::block_number() + <Test as Config>::CommunityFundingDuration::get() + 1,
 			);
 			let project_info = FundingModule::project_info(0).unwrap();
 			assert_eq!(project_info.project_status, ProjectStatus::ReadyToLaunch);

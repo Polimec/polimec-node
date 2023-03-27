@@ -88,9 +88,6 @@ impl<T: Config> Pallet<T> {
 
 				remainder_start_block: None,
 				remainder_end_block: None,
-
-				payouts_start_block: None,
-				payouts_end_block: None,
 			},
 		};
 		// validity checks need to be done before function is called
@@ -162,9 +159,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	// Called automatically by on_initialize
-	pub fn do_evaluation_end(
-		project_id: &T::ProjectIdentifier,
-	) -> Result<(), DispatchError> {
+	pub fn do_evaluation_end(project_id: &T::ProjectIdentifier) -> Result<(), DispatchError> {
 		// Get variables
 		let mut project_info =
 			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
@@ -208,8 +203,6 @@ impl<T: Config> Pallet<T> {
 			Self::deposit_event(Event::<T>::AuctionInitializePeriod { project_id: *project_id, start_block: auction_initialize_period_start_block, end_block: auction_initialize_period_end_block });
 			// TODO: PLMC-144. Unlock the bonds and clean the storage
 
-			// Add to update store
-
 		// Unsuccessful path
 		} else {
 			// Update project info
@@ -241,167 +234,172 @@ impl<T: Config> Pallet<T> {
 			.ok_or(Error::<T>::FieldIsNone)?;
 
 		// Do checks
-		ensure!(now >= auction_initialize_period_start_block, Error::<T>::AuctionInitializationPeriodNotYetStarted);
-		ensure!(now <= auction_initialize_period_end_block, Error::<T>::AuctionInitializationPeriodAlreadyEnded);
+		ensure!(now >= auction_initialize_period_start_block, Error::<T>::TooEarlyForEnglishAuctionStart);
+		ensure!(now <= auction_initialize_period_end_block, Error::<T>::TooLateForEnglishAuctionStart);
 		ensure!(project_info.project_status == ProjectStatus::AuctionInitializePeriod, Error::<T>::ProjectNotInAuctionInitializePeriodRound);
 
 		// Calculate transition points
 		let english_start_block = now + 1u32.into();
 		let english_end_block = now + T::EnglishAuctionDuration::get();
 
-		project_info.phase_transition_points.english_auction_start_block = Some(now);
-		Self::add_to_update_store(english_ending_block, &project_id).expect("Always return Ok; qed");
-
+		// Update project info
+		project_info.phase_transition_points.english_auction_start_block = Some(english_start_block);
+		project_info.phase_transition_points.english_auction_end_block = Some(english_end_block);
 		project_info.project_status = ProjectStatus::AuctionRound(AuctionPhase::English);
-
 		ProjectsInfo::<T>::insert(project_id, project_info);
 
+		// Add to update store
+		Self::add_to_update_store(english_end_block + 1u32.into(), &project_id).expect("Always return Ok; qed");
+
+		// Emit events
 		Self::deposit_event(Event::<T>::AuctionStarted { project_id, when: now });
 		Ok(())
 	}
 
 	// called automatically by on_initialize
-	pub fn do_candle_auction(
-		project_id: &T::ProjectIdentifier,
-	) -> Result<(), DispatchError> {
+	pub fn do_candle_auction(project_id: &T::ProjectIdentifier) -> Result<(), DispatchError> {
+		// Get variables
 		let mut project_info =
 			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		ensure!(
-			project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::English),
-			Error::<T>::ProjectNotInEnglishAuctionRound
-		);
-
 		let now = <frame_system::Pallet<T>>::block_number();
-		let english_ending_block = project_info.phase_transition_points.english_auction_end_block.ok_or(Error::<T>::FieldIsNone)?;
-		if now <= english_ending_block {
-			Err(Error::<T>::TooEarlyForCandleAuctionStart)?
-		}
+		let english_end_block = project_info.phase_transition_points.english_auction_end_block
+			.ok_or(Error::<T>::FieldIsNone)?;
 
+		// Do checks
+		ensure!(now > english_end_block, Error::<T>::TooEarlyForCandleAuctionStart);
+		ensure!(project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::English), Error::<T>::ProjectNotInEnglishAuctionRound);
+
+		// Calculate transition points
+		let candle_start_block = now + 1u32.into();
+		let candle_end_block = now + T::CandleAuctionDuration::get();
+
+		// Update project info
+		project_info.phase_transition_points.candle_auction_start_block = Some(candle_start_block);
+		project_info.phase_transition_points.candle_auction_end_block = Some(candle_end_block);
 		project_info.project_status = ProjectStatus::AuctionRound(AuctionPhase::Candle);
 		ProjectsInfo::<T>::insert(project_id, project_info);
 
-		Self::add_to_update_store(&mut english_ending_block, &project_id).expect("Always return Ok; qed");
+		// Add to update store
+		Self::add_to_update_store(candle_end_block + 1u32.into(), &project_id).expect("Always returns Ok; qed");
 
 		Ok(())
 	}
 
-	pub fn do_community_funding(
-		project_id: &T::ProjectIdentifier,
-	) -> Result<(), DispatchError> {
+	// called automatically by on_initialize
+	pub fn do_community_funding(project_id: &T::ProjectIdentifier) -> Result<(), DispatchError> {
+		// Get variables
 		let mut project_info =
 			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		ensure!(
-			project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::Candle),
-			Error::<T>::ProjectNotInCandleAuctionRound
-		);
-
 		let now = <frame_system::Pallet<T>>::block_number();
 		let auction_candle_start_block = project_info.phase_transition_points.english_auction_end_block.ok_or(Error::<T>::FieldIsNone)?;
 		let auction_candle_end_block = project_info.phase_transition_points.candle_auction_end_block.ok_or(Error::<T>::FieldIsNone)?;
-		if now <= auction_candle_end_block {
-			Err(Error::<T>::TooEarlyForCommunityRoundStart)?
-		}
 
-		// FIXME: delete line below with its corresponding issue if this is merged
-		// TODO: PLMC-148 Move fundraising_target to AuctionMetadata
+		// Do checks
+		ensure!(now > auction_candle_end_block, Error::<T>::TooEarlyForCommunityRoundStart);
+		ensure!(project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::Candle), Error::<T>::ProjectNotInCandleAuctionRound);
 
+		// Calculate transition points
 		let end_block =
 			Self::select_random_block(auction_candle_start_block, auction_candle_end_block);
+		let community_start_block = now + 1u32.into();
+		let community_end_block = now + T::CommunityFundingDuration::get();
 
-		project_info.project_status = ProjectStatus::CommunityRound;
+		// Update project info
 		project_info.phase_transition_points.random_ending_block = Some(end_block);
-
+		project_info.phase_transition_points.community_start_block = Some(community_start_block);
+		project_info.phase_transition_points.community_end_block = Some(community_end_block);
+		project_info.project_status = ProjectStatus::CommunityRound;
 		project_info.weighted_average_price = Some(Self::calculate_weighted_average_price(
 			*project_id,
 			end_block,
 			project_info.fundraising_target,
 		)?);
-
-		project_info.phase_transition_points.community_start_block = Some(now + 1u32.into());
-
 		ProjectsInfo::<T>::insert(project_id, project_info);
+
+		// Add to update store
+		Self::add_to_update_store(community_end_block + 1u32.into(), &project_id).expect("Always returns Ok; qed");
+
 		Ok(())
 	}
 
-	pub fn do_remainder_funding(
-		project_id: &T::ProjectIdentifier,
-	) -> Result<(), DispatchError> {
+	// called automatically by on_initialize
+	pub fn do_remainder_funding(project_id: &T::ProjectIdentifier) -> Result<(), DispatchError> {
+		// Get variables
 		let mut project_info =
 			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		ensure!(
-			project_info.project_status == ProjectStatus::CommunityRound,
-			Error::<T>::ProjectNotInCommunityRound
-		);
-
 		let now = <frame_system::Pallet<T>>::block_number();
-		let community_start_block = project_info.phase_transition_points.community_start_block.ok_or(Error::<T>::FieldIsNone)?;
 		let community_end_block = project_info.phase_transition_points.community_end_block.ok_or(Error::<T>::FieldIsNone)?;
-		if now <= community_end_block {
-			Err(Error::<T>::TooEarlyForRemainderRoundStart)?
-		}
 
+		// Do checks
+		ensure!(now > community_end_block, Error::<T>::TooEarlyForRemainderRoundStart);
+		ensure!(project_info.project_status == ProjectStatus::CommunityRound, Error::<T>::ProjectNotInCommunityRound);
+
+		// Calculate transition points
+		let remainder_start_block = now + 1u32.into();
+		let remainder_end_block = now + T::RemainderFundingDuration::get();
+
+		// Update project info
+		project_info.phase_transition_points.remainder_start_block = Some(remainder_start_block);
+		project_info.phase_transition_points.remainder_end_block = Some(remainder_end_block);
 		project_info.project_status = ProjectStatus::RemainderRound;
-		project_info.phase_transition_points.remainder_start_block = Some(now + 1u32.into());
+		ProjectsInfo::<T>::insert(project_id, project_info);
+
+		// Add to update store
+		Self::add_to_update_store(remainder_end_block + 1u32.into(), &project_id).expect("Always returns Ok; qed");
 
 		Ok(())
 
 	}
 
-	pub fn do_end_funding(
-		project_id: &T::ProjectIdentifier,
-	) -> Result<(), DispatchError> {
+	// called automatically by on_initialize
+	pub fn do_end_funding(project_id: &T::ProjectIdentifier) -> Result<(), DispatchError> {
+		// Get variables
 		let mut project_info =
 			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		ensure!(
-			project_info.project_status == ProjectStatus::RemainderRound,
-			Error::<T>::ProjectNotInRemainderRound
-		);
-
 		let now = <frame_system::Pallet<T>>::block_number();
-		let remainder_start_block = project_info.phase_transition_points.community_start_block.ok_or(Error::<T>::FieldIsNone)?;
-		let remainder_end_block = project_info.phase_transition_points.community_end_block.ok_or(Error::<T>::FieldIsNone)?;
-		if now <= remainder_end_block {
-			Err(Error::<T>::TooEarlyForRemainderRoundStart)?
-		}
-
-		project_info.project_status = ProjectStatus::FundingEnded;
-		ProjectsInfo::<T>::insert(project_id, project_info);
-
+		let remainder_end_block = project_info.phase_transition_points.remainder_end_block.ok_or(Error::<T>::FieldIsNone)?;
 		// TODO: PLMC-149 Check if make sense to set the admin as T::fund_account_id(project_id)
 		let issuer =
 			ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectIssuerNotFound)?;
 		let project = Projects::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let token_information = project.token_information;
 
-		// TODO: PLMC-149 Unused result
+		// Do checks
+		ensure!(now > remainder_end_block, Error::<T>::TooEarlyForFundingEnd);
+		ensure!(project_info.project_status == ProjectStatus::RemainderRound, Error::<T>::ProjectNotInRemainderRound);
+
+
+		// Update project info
+		project_info.project_status = ProjectStatus::FundingEnded;
+		ProjectsInfo::<T>::insert(project_id, project_info);
+
 		// Create the "Contribution Token" as an asset using the pallet_assets and set its metadata
-		let _ = T::Assets::create(project_id.clone(), issuer.clone(), false, 1_u32.into());
-		// TODO: PLMC-149 Unused result
-		let _ = T::Assets::set(
+		T::Assets::create(project_id.clone(), issuer.clone(), false, 1_u32.into()).map_err(|_|Error::<T>::AssetCreationFailed)?;
+		// Update the CT metadata
+		T::Assets::set(
 			project_id.clone(),
 			&issuer,
 			token_information.name.into(),
 			token_information.symbol.into(),
 			token_information.decimals,
-		);
+		).map_err(|_|Error::<T>::AssetMetadataUpdateFailed)?;
+
 		Ok(())
 	}
 
+	// called manually by user extrinsic
 	pub fn do_ready_to_launch(
 		project_id: &T::ProjectIdentifier,
 		_now: T::BlockNumber,
 	) -> Result<(), DispatchError> {
-		// Project identified by project_id is no longer "active"
-		ProjectsToUpdate::<T>::mutate(|active_projects| {
-			if let Some(pos) = active_projects.iter().position(|x| x == project_id) {
-				active_projects.remove(pos);
-			}
-		});
-
+		// Get variables
 		let mut project_info =
 			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+
+		// Update project Info
 		project_info.project_status = ProjectStatus::ReadyToLaunch;
 		ProjectsInfo::<T>::insert(project_id, project_info);
+
 		Ok(())
 	}
 
