@@ -192,7 +192,7 @@ pub mod pallet {
 		type EvaluationDuration: Get<Self::BlockNumber>;
 
 		#[pallet::constant]
-		type AuctionCooldownDuration: Get<Self::BlockNumber>;
+		type AuctionInitializePeriodDuration: Get<Self::BlockNumber>;
 
 		/// The length (expressed in number of blocks) of the Auction Round, English period.
 		#[pallet::constant]
@@ -324,8 +324,6 @@ pub mod pallet {
 		MetadataEdited { project_id: T::ProjectIdentifier },
 		/// The evaluation phase of `project_id` started.
 		EvaluationStarted { project_id: T::ProjectIdentifier },
-		/// The evaluation phase of `project_id` ended successfully.
-		EvaluationEnded { project_id: T::ProjectIdentifier },
 		/// The evaluation phase of `project_id` ended without reaching the minimum threshold.
 		EvaluationFailed { project_id: T::ProjectIdentifier },
 		/// The period an issuer has, to start the auction phase of the project.
@@ -401,20 +399,28 @@ pub mod pallet {
 		NoBidsFound,
 		/// Tried to freeze the project to start the Evaluation Round, but the project is already frozen
 		ProjectAlreadyFrozen,
-		/// Tried to move the project from Application to Evaluation round, but the project is not in Application
+		/// Tried to move the project from Application to Evaluation round, but the project is not in ApplicationRound
 		ProjectNotInApplicationRound,
-		/// Tried to move the project from Evaluation to EvaluationEnded round, but the project is not in Evaluation
+		/// Tried to move the project from Evaluation to EvaluationEnded round, but the project is not in EvaluationRound
 		ProjectNotInEvaluationRound,
-		/// Tried to move the project from Evaluation to Auction round, but the project is not in EvaluationEnded
+		/// Tried to move the project from Evaluation to Auction round, but the project is not in EvaluationEndedRound
 		ProjectNotInEvaluationEndedRound,
-		/// Tried to move the project to CandleAuction round, but it was not in EnglishAuction before
+		/// Tried to move the project from AuctionInitializePeriod to EnglishAuctionRound, but the project is not in AuctionInitializePeriodRound
+		ProjectNotInAuctionInitializePeriodRound,
+		/// Tried to move the project to CandleAuction, but it was not in EnglishAuctionRound before
 		ProjectNotInEnglishAuctionRound,
-		/// Tried to move the project to CommunityRound round, but it was not in CandleAuction before
+		/// Tried to move the project to CommunityRound, but it was not in CandleAuctionRound before
 		ProjectNotInCandleAuctionRound,
-		/// Tried to move the project to CandleAuction round, but its too early for that
+		/// Tried to move the project to RemainderRound, but it was not in CommunityRound before
+		ProjectNotInCommunityRound,
+		/// Tried to move the project to FundingEndedRound, but it was not in RemainderRound before
+		ProjectNotInRemainderRound,
+		/// Tried to move the project to CandleAuctionRound, but its too early for that
 		TooEarlyForCandleAuctionStart,
-		/// Tried to move the project to CommunityRound round, but its too early for that
+		/// Tried to move the project to CommunityRound, but its too early for that
 		TooEarlyForCommunityRoundStart,
+		/// Tried to move the project to RemainderRound, but its too early for that
+		TooEarlyForRemainderRoundStart,
 		/// Tried to access auction metadata, but it was not correctly initialized.
 		AuctionMetadataNotFound,
 		/// Ending block for the candle auction is not set
@@ -428,7 +434,7 @@ pub mod pallet {
 		/// The Project was not correctly created. Most likely due to dev error manually calling do_* functions or updating storage
 		ProjectNotCorrectlyCreated,
 		/// Tried to start an auction before the initialization period
-		AuctionInitializationPeriodNotStarted,
+		AuctionInitializationPeriodNotYetStarted,
 		/// Tried to start an auction after the initialization period
 		AuctionInitializationPeriodAlreadyEnded,
 		/// Tried to finish an evaluation before its target end block
@@ -812,6 +818,9 @@ pub mod pallet {
 				let mut project_info = unwrap_option_or_skip!(maybe_project_info, project_id);
 
 				match project_info.project_status {
+					// Application -> EvaluationRound
+					// Handled by user extrinsic
+
 					// EvaluationRound -> EvaluationEnded
 					ProjectStatus::EvaluationRound => {
 						unwrap_result_or_skip!(
@@ -844,19 +853,18 @@ pub mod pallet {
 						);
 					},
 
-					// CommunityRound -> FundingEnded
+					// CommunityRound -> RemainderRound
 					ProjectStatus::CommunityRound => {
-						let community_ending_block = project_info
-							.auction_metadata
-							.expect("In CommunityRound there always exist auction_metadata")
-							.community_ending_block;
-						if now > community_ending_block {
-							unwrap_result_or_skip!(
-								Self::handle_community_end(&project_id, now, community_ending_block),
-								Event::<T>::TransitionError { project_id }
-							);
-						}
+						unwrap_result_or_skip!(
+							Self::do_remainder_funding(&project_id),
+							project_id
+						)
 					},
+
+					// RemainderRound -> FundingEnded
+
+					// FundingEnded -> ReadyToLaunch
+
 					_ => (),
 				}
 			}

@@ -370,7 +370,7 @@ benchmarks! {
 		for i in 0 .. p {
 			let project_id = T::BenchmarkHelper::create_project_id_parameter(i);
 			let project_info = PolimecFunding::<T>::project_info(project_id.into()).unwrap();
-			assert_eq!(project_info.project_status, ProjectStatus::EvaluationEnded);
+			assert_eq!(project_info.project_status, ProjectStatus::AuctionInitializePeriod);
 		}
 	}
 

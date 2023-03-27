@@ -252,7 +252,7 @@ pub enum ProjectStatus {
 	#[default]
 	Application,
 	EvaluationRound,
-	EvaluationEnded,
+	AuctionInitializePeriod,
 	EvaluationFailed,
 	AuctionRound(AuctionPhase),
 	CommunityRound,
