@@ -150,7 +150,7 @@ impl<T: Config> Pallet<T> {
 		ProjectsInfo::<T>::insert(project_id, project_info);
 
 		// Add to update store
-		Self::add_to_update_store(evaluation_end_block, &project_id).expect("Always returns Ok; qed");
+		Self::add_to_update_store(evaluation_end_block + 1u32.into(), &project_id).expect("Always returns Ok; qed");
 
 		// Emit events
 		Self::deposit_event(Event::<T>::EvaluationStarted { project_id });
@@ -229,9 +229,9 @@ impl<T: Config> Pallet<T> {
 			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let auction_initialize_period_start_block = project_info.phase_transition_points.auction_initialize_period_start_block
-			.ok_or(Error::<T>::FieldIsNone)?;
+			.ok_or(Error::<T>::EvaluationPeriodNotEnded)?;
 		let auction_initialize_period_end_block = project_info.phase_transition_points.auction_initialize_period_end_block
-			.ok_or(Error::<T>::FieldIsNone)?;
+			.ok_or(Error::<T>::EvaluationPeriodNotEnded)?;
 
 		// Do checks
 		ensure!(now >= auction_initialize_period_start_block, Error::<T>::TooEarlyForEnglishAuctionStart);

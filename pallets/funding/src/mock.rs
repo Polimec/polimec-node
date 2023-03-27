@@ -145,9 +145,11 @@ impl pallet_assets::Config for Test {
 
 parameter_types! {
 	pub const EvaluationDuration: BlockNumber = 28;
+	pub const AuctionInitializePeriodDuration: BlockNumber = 10;
 	pub const EnglishAuctionDuration: BlockNumber = 10;
 	pub const CandleAuctionDuration: BlockNumber = 5;
 	pub const CommunityRoundDuration: BlockNumber = 10;
+	pub const RemainderFundingDuration: BlockNumber = 10;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 }
 
@@ -161,10 +163,12 @@ impl pallet_funding::Config for Test {
 	type Assets = Assets;
 	type CurrencyBalance = Balance;
 	type EvaluationDuration = EvaluationDuration;
+	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type EnglishAuctionDuration = EnglishAuctionDuration;
 	type CandleAuctionDuration = CandleAuctionDuration;
+	type RemainderFundingDuration = RemainderFundingDuration;
 	type PalletId = FundingPalletId;
-	type ActiveProjectsLimit = ConstU32<100>;
+	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
 	type CommunityFundingDuration = CommunityRoundDuration;
 	type Randomness = RandomnessCollectiveFlip;
 	type HandleMembers = Credentials;

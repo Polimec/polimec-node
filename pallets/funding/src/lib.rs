@@ -554,6 +554,26 @@ pub mod pallet {
 			Self::do_evaluation_start(project_id)
 		}
 
+		/// Start the "Evaluation Round" of a `project_id`
+		#[pallet::weight(T::WeightInfo::start_auction())]
+		pub fn start_auction(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdParameter,
+		) -> DispatchResult {
+			let issuer = ensure_signed(origin)?;
+			let project_id = project_id.into();
+
+			// TODO: PLMC-133. Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
+			// ensure!(
+			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
+			// 	Error::<T>::NotAuthorized
+			// );
+
+			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
+
+			Self::do_english_auction(project_id)
+		}
+
 		/// Evaluators can bond `amount` PLMC to evaluate a `project_id` in the "Evaluation Round"
 		#[pallet::weight(T::WeightInfo::bond())]
 		pub fn bond(
@@ -778,7 +798,7 @@ pub mod pallet {
 			let project_info =
 				ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 			ensure!(
-				project_info.project_status == ProjectStatus::ReadyToLaunch,
+				project_info.project_status == ProjectStatus::FundingEnded,
 				Error::<T>::CannotClaimYet
 			);
 			// TODO: PLMC-160. Check the flow of the final_price if the final price discovery during the Auction Round fails
@@ -860,7 +880,7 @@ pub mod pallet {
 					},
 
 					// RemainderRound -> FundingEnded
-					ProjectStatus::FundingEnded => {
+					ProjectStatus::RemainderRound => {
 						unwrap_result_or_skip!(
 							Self::do_end_funding(&project_id),
 							project_id
@@ -944,15 +964,5 @@ pub mod local_macros {
 		};
 	}
 	pub(crate) use unwrap_result_or_skip;
-
-	macro_rules! true_or_skip {
-		($bool:expr, $event:expr) => {
-			if $bool {
-				Self::deposit_event($event);
-				continue;
-			}
-		};
-	}
-	pub(crate) use true_or_skip;
 }
 
