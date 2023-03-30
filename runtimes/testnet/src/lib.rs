@@ -470,7 +470,6 @@ pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 7;
 #[cfg(not(feature = "fast-gov"))]
 pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 7 * DAYS;
 
-
 #[cfg(feature = "fast-gov")]
 pub const ENGLISH_AUCTION_DURATION: BlockNumber = 10;
 #[cfg(not(feature = "fast-gov"))]

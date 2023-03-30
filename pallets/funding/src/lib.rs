@@ -331,7 +331,11 @@ pub mod pallet {
 		/// The evaluation phase of `project_id` ended without reaching the minimum threshold.
 		EvaluationFailed { project_id: T::ProjectIdentifier },
 		/// The period an issuer has, to start the auction phase of the project.
-		AuctionInitializePeriod { project_id: T::ProjectIdentifier, start_block: T::BlockNumber, end_block: T::BlockNumber },
+		AuctionInitializePeriod {
+			project_id: T::ProjectIdentifier,
+			start_block: T::BlockNumber,
+			end_block: T::BlockNumber,
+		},
 		/// The auction round of `project_id` started at block `when`.
 		AuctionStarted { project_id: T::ProjectIdentifier, when: T::BlockNumber },
 		/// The auction round of `project_id` ended  at block `when`.
@@ -830,8 +834,6 @@ pub mod pallet {
 		}
 	}
 
-
-
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(now: T::BlockNumber) -> Weight {
@@ -846,10 +848,7 @@ pub mod pallet {
 
 					// EvaluationRound -> AuctionInitializePeriod | EvaluationFailed
 					ProjectStatus::EvaluationRound => {
-						unwrap_result_or_skip!(
-							Self::do_evaluation_end(&project_id),
-							project_id
-						);
+						unwrap_result_or_skip!(Self::do_evaluation_end(&project_id), project_id);
 					},
 
 					// AuctionInitializePeriod -> AuctionRound(AuctionPhase::English)
@@ -857,39 +856,26 @@ pub mod pallet {
 
 					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
 					ProjectStatus::AuctionRound(AuctionPhase::English) => {
-						unwrap_result_or_skip!(
-							Self::do_candle_auction(&project_id),
-							project_id
-						);
+						unwrap_result_or_skip!(Self::do_candle_auction(&project_id), project_id);
 					},
 
 					// AuctionRound(AuctionPhase::Candle) -> CommunityRound
 					ProjectStatus::AuctionRound(AuctionPhase::Candle) => {
-						unwrap_result_or_skip!(
-							Self::do_community_funding(&project_id),
-							project_id
-						);
+						unwrap_result_or_skip!(Self::do_community_funding(&project_id), project_id);
 					},
 
 					// CommunityRound -> RemainderRound
 					ProjectStatus::CommunityRound => {
-						unwrap_result_or_skip!(
-							Self::do_remainder_funding(&project_id),
-							project_id
-						)
+						unwrap_result_or_skip!(Self::do_remainder_funding(&project_id), project_id)
 					},
 
 					// RemainderRound -> FundingEnded
 					ProjectStatus::RemainderRound => {
-						unwrap_result_or_skip!(
-							Self::do_end_funding(&project_id),
-							project_id
-						)
+						unwrap_result_or_skip!(Self::do_end_funding(&project_id), project_id)
 					},
 
 					// FundingEnded -> ReadyToLaunch
 					// Handled by user extrinsic
-
 					_ => (),
 				}
 			}
@@ -944,9 +930,12 @@ pub mod local_macros {
 			match $option {
 				Some(val) => val,
 				None => {
-					Self::deposit_event(Event::<T>::TransitionError { project_id: $project_id, error: Error::<T>::FieldIsNone.into() });
-					continue;
-				}
+					Self::deposit_event(Event::<T>::TransitionError {
+						project_id: $project_id,
+						error: Error::<T>::FieldIsNone.into(),
+					});
+					continue
+				},
 			}
 		};
 	}
@@ -957,12 +946,14 @@ pub mod local_macros {
 			match $option {
 				Ok(val) => val,
 				Err(err) => {
-					Self::deposit_event(Event::<T>::TransitionError { project_id: $project_id, error: err });
-					continue;
-				}
+					Self::deposit_event(Event::<T>::TransitionError {
+						project_id: $project_id,
+						error: err,
+					});
+					continue
+				},
 			}
 		};
 	}
 	pub(crate) use unwrap_result_or_skip;
 }
-

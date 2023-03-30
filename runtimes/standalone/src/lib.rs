@@ -396,7 +396,6 @@ impl pallet_funding::Config for Runtime {
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
-
 }
 
 impl pallet_credentials::Config for Runtime {

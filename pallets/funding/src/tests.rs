@@ -498,14 +498,17 @@ mod claim_contribution_tokens {
 		assert_eq!(project_info.weighted_average_price, Some(PLMC));
 		assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 99 * PLMC));
 
-		run_to_block(System::block_number() + <Test as Config>::CommunityFundingDuration::get() + 1);
+		run_to_block(
+			System::block_number() + <Test as Config>::CommunityFundingDuration::get() + 1,
+		);
 		let project_info = FundingModule::project_info(0).unwrap();
 		assert_eq!(project_info.project_status, ProjectStatus::RemainderRound);
 
-		run_to_block(System::block_number() + <Test as Config>::RemainderFundingDuration::get() + 1);
+		run_to_block(
+			System::block_number() + <Test as Config>::RemainderFundingDuration::get() + 1,
+		);
 		let project_info = FundingModule::project_info(0).unwrap();
 		assert_eq!(project_info.project_status, ProjectStatus::FundingEnded);
-
 	}
 
 	#[test]
@@ -544,7 +547,8 @@ mod flow {
 
 			// Start the Evaluation Round
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
-			let active_projects = ProjectsToUpdate::<Test>::iter_values().flatten().collect::<Vec<_>>();
+			let active_projects =
+				ProjectsToUpdate::<Test>::iter_values().flatten().collect::<Vec<_>>();
 			assert_eq!(active_projects.len(), 1);
 			let project_info = FundingModule::project_info(0).unwrap();
 			assert_eq!(project_info.project_status, ProjectStatus::EvaluationRound);
@@ -633,7 +637,8 @@ mod flow {
 
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 
-			let active_projects = ProjectsToUpdate::<Test>::iter_values().flatten().collect::<Vec<_>>();
+			let active_projects =
+				ProjectsToUpdate::<Test>::iter_values().flatten().collect::<Vec<_>>();
 			assert_eq!(active_projects.len(), 1);
 
 			let project_info = FundingModule::project_info(0).unwrap();
