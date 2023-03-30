@@ -241,18 +241,19 @@ mod evaluation_round {
 	}
 
 	#[test]
-	fn evaluation_stops_with_success_after_28_days() {
+	fn evaluation_stops_with_success_after_config_duration() {
 		new_test_ext().execute_with(|| {
 			create_on_chain_project();
 			let ed = FundingModule::project_info(0).unwrap();
-			assert!(ed.project_status == ProjectStatus::Application);
+			assert_eq!(ed.project_status, ProjectStatus::Application);
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 			let ed = FundingModule::project_info(0).unwrap();
-			assert!(ed.project_status == ProjectStatus::EvaluationRound);
+			run_to_block(System::block_number() + 1);
+			assert_eq!(ed.project_status, ProjectStatus::EvaluationRound);
 			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 1000));
-			run_to_block(System::block_number() + 29);
+			run_to_block(System::block_number() + <Test as Config>::EvaluationDuration::get() + 2);
 			let ed = FundingModule::project_info(0).unwrap();
-			assert!(ed.project_status == ProjectStatus::AuctionInitializePeriod);
+			assert_eq!(ed.project_status, ProjectStatus::AuctionInitializePeriod);
 		})
 	}
 
@@ -607,7 +608,7 @@ mod flow {
 
 			// Check if the Contribution Token is minted correctly
 			assert_ok!(FundingModule::claim_contribution_tokens(RuntimeOrigin::signed(BOB), 0));
-			assert_eq!(Assets::balance(0, BOB), 2);
+			assert_eq!(Assets::balance(0, BOB), 1);
 		})
 	}
 

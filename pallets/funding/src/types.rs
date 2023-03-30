@@ -147,30 +147,75 @@ pub struct CurrencyMetadata<BoundedString> {
 	pub decimals: u8,
 }
 
+// #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+// pub struct PhaseTransitionPoints<BlockNumber> {
+// 	pub application_start_block: BlockNumber,
+// 	pub application_end_block: Option<BlockNumber>,
+//
+// 	pub evaluation_start_block: Option<BlockNumber>,
+// 	pub evaluation_end_block: Option<BlockNumber>,
+//
+// 	pub auction_initialize_period_start_block: Option<BlockNumber>,
+// 	pub auction_initialize_period_end_block: Option<BlockNumber>,
+//
+// 	pub english_auction_start_block: Option<BlockNumber>,
+// 	pub english_auction_end_block: Option<BlockNumber>,
+//
+// 	pub candle_auction_start_block: Option<BlockNumber>,
+// 	pub candle_auction_end_block: Option<BlockNumber>,
+//
+// 	pub random_ending_block: Option<BlockNumber>,
+//
+// 	pub community_start_block: Option<BlockNumber>,
+// 	pub community_end_block: Option<BlockNumber>,
+//
+// 	pub remainder_start_block: Option<BlockNumber>,
+// 	pub remainder_end_block: Option<BlockNumber>,
+// }
+
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct PhaseTransitionPoints<BlockNumber> {
-	pub application_start_block: BlockNumber,
-	pub application_end_block: Option<BlockNumber>,
+	pub application: BlockNumberPair<BlockNumber>,
+	pub evaluation: BlockNumberPair<BlockNumber>,
+	pub auction_initialize_period: BlockNumberPair<BlockNumber>,
+	pub english_auction: BlockNumberPair<BlockNumber>,
+	pub random_candle_ending: Option<BlockNumber>,
+	pub candle_auction: BlockNumberPair<BlockNumber>,
+	pub community: BlockNumberPair<BlockNumber>,
+	pub remainder: BlockNumberPair<BlockNumber>,
+}
 
-	pub evaluation_start_block: Option<BlockNumber>,
-	pub evaluation_end_block: Option<BlockNumber>,
+#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct BlockNumberPair<BlockNumber> {
+	start: Option<BlockNumber>,
+	end: Option<BlockNumber>,
+}
 
-	pub auction_initialize_period_start_block: Option<BlockNumber>,
-	pub auction_initialize_period_end_block: Option<BlockNumber>,
+impl<BlockNumber: Copy> BlockNumberPair<BlockNumber> {
+	pub fn new(start: Option<BlockNumber>, end: Option<BlockNumber>) -> Self {
+		Self { start, end }
+	}
+	pub fn start(&self) -> Option<BlockNumber> {
+		self.start
+	}
 
-	pub english_auction_start_block: Option<BlockNumber>,
-	pub english_auction_end_block: Option<BlockNumber>,
+	pub fn end(&self) -> Option<BlockNumber> {
+		self.end
+	}
 
-	pub candle_auction_start_block: Option<BlockNumber>,
-	pub candle_auction_end_block: Option<BlockNumber>,
+	pub fn update(&mut self, start: Option<BlockNumber>, end: Option<BlockNumber>) {
+		let new_state = match (start, end) {
+			(Some(start), None) => (Some(start), self.end),
+			(None, Some(end)) => (self.start, Some(end)),
+			(Some(start), Some(end)) => (Some(start), Some(end)),
+			(None, None) => (self.start, self.end)
+		};
+		(self.start, self.end) = (new_state.0, new_state.1);
+	}
 
-	pub random_ending_block: Option<BlockNumber>,
-
-	pub community_start_block: Option<BlockNumber>,
-	pub community_end_block: Option<BlockNumber>,
-
-	pub remainder_start_block: Option<BlockNumber>,
-	pub remainder_end_block: Option<BlockNumber>,
+	pub fn force_update(&mut self, start: Option<BlockNumber>, end: Option<BlockNumber>) -> Self {
+		Self {start, end}
+	}
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]

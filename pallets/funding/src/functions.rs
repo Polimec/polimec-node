@@ -65,31 +65,42 @@ impl<T: Config> Pallet<T> {
 			weighted_average_price: None,
 			fundraising_target,
 			project_status: ProjectStatus::Application,
+			// phase_transition_points: PhaseTransitionPoints {
+			// 	application_start_block: <frame_system::Pallet<T>>::block_number(),
+			// 	application_end_block: None,
+			//
+			// 	evaluation_start_block: None,
+			// 	evaluation_end_block: None,
+			//
+			// 	auction_initialize_period_start_block: None,
+			// 	auction_initialize_period_end_block: None,
+			//
+			// 	english_auction_start_block: None,
+			// 	english_auction_end_block: None,
+			//
+			// 	candle_auction_start_block: None,
+			// 	candle_auction_end_block: None,
+			//
+			// 	random_ending_block: None,
+			//
+			// 	community_start_block: None,
+			// 	community_end_block: None,
+			//
+			// 	remainder_start_block: None,
+			// 	remainder_end_block: None,
+			// },
 			phase_transition_points: PhaseTransitionPoints {
-				application_start_block: <frame_system::Pallet<T>>::block_number(),
-				application_end_block: None,
-
-				evaluation_start_block: None,
-				evaluation_end_block: None,
-
-				auction_initialize_period_start_block: None,
-				auction_initialize_period_end_block: None,
-
-				english_auction_start_block: None,
-				english_auction_end_block: None,
-
-				candle_auction_start_block: None,
-				candle_auction_end_block: None,
-
-				random_ending_block: None,
-
-				community_start_block: None,
-				community_end_block: None,
-
-				remainder_start_block: None,
-				remainder_end_block: None,
+				application: BlockNumberPair::new(Some(<frame_system::Pallet<T>>::block_number()), None),
+				evaluation: BlockNumberPair::new(None, None),
+				auction_initialize_period: BlockNumberPair::new(None, None),
+				english_auction: BlockNumberPair::new(None, None),
+				random_candle_ending: None,
+				candle_auction: BlockNumberPair::new(None, None),
+				community: BlockNumberPair::new(None, None),
+				remainder: BlockNumberPair::new(None, None),
 			},
 		};
+
 		// validity checks need to be done before function is called
 		Projects::<T>::insert(project_id, project);
 		ProjectsInfo::<T>::insert(project_id, project_info);
@@ -142,9 +153,8 @@ impl<T: Config> Pallet<T> {
 		// Update project info
 		// TODO: Should we make it possible to end an application, and schedule for a later point the evaluation?
 		// 	Or should we just make it so that the evaluation starts immediately after the application ends?
-		project_info.phase_transition_points.application_end_block = Some(now);
-		project_info.phase_transition_points.evaluation_start_block = Some(now + 1u32.into());
-		project_info.phase_transition_points.evaluation_end_block = Some(evaluation_end_block);
+		project_info.phase_transition_points.application.update(None, Some(now));
+		project_info.phase_transition_points.evaluation.update(Some(now + 1u32.into()), Some(evaluation_end_block));
 		project_info.is_frozen = true;
 		project_info.project_status = EvaluationRound;
 		ProjectsInfo::<T>::insert(project_id, project_info);
@@ -164,7 +174,7 @@ impl<T: Config> Pallet<T> {
 		let mut project_info =
 			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
-		let evaluation_end_block = project_info.phase_transition_points.evaluation_end_block
+		let evaluation_end_block = project_info.phase_transition_points.evaluation.end()
 			.ok_or(Error::<T>::FieldIsNone)?;
 		let fundraising_target = project_info.fundraising_target;
 
@@ -194,8 +204,10 @@ impl<T: Config> Pallet<T> {
 			let mut auction_initialize_period_end_block = auction_initialize_period_start_block + T::AuctionInitializePeriodDuration::get();
 
 			// Update project info
-			project_info.phase_transition_points.auction_initialize_period_start_block = Some(auction_initialize_period_start_block);
-			project_info.phase_transition_points.auction_initialize_period_end_block = Some(auction_initialize_period_end_block);
+			project_info.phase_transition_points.auction_initialize_period.update(
+				Some(auction_initialize_period_start_block),
+				Some(auction_initialize_period_end_block)
+			);
 			project_info.project_status = ProjectStatus::AuctionInitializePeriod;
 			ProjectsInfo::<T>::insert(project_id, project_info);
 
@@ -228,9 +240,9 @@ impl<T: Config> Pallet<T> {
 		let mut project_info =
 			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
-		let auction_initialize_period_start_block = project_info.phase_transition_points.auction_initialize_period_start_block
+		let auction_initialize_period_start_block = project_info.phase_transition_points.auction_initialize_period.start()
 			.ok_or(Error::<T>::EvaluationPeriodNotEnded)?;
-		let auction_initialize_period_end_block = project_info.phase_transition_points.auction_initialize_period_end_block
+		let auction_initialize_period_end_block = project_info.phase_transition_points.auction_initialize_period.end()
 			.ok_or(Error::<T>::EvaluationPeriodNotEnded)?;
 
 		// Do checks
@@ -243,8 +255,10 @@ impl<T: Config> Pallet<T> {
 		let english_end_block = now + T::EnglishAuctionDuration::get();
 
 		// Update project info
-		project_info.phase_transition_points.english_auction_start_block = Some(english_start_block);
-		project_info.phase_transition_points.english_auction_end_block = Some(english_end_block);
+		project_info.phase_transition_points.english_auction.update(
+			Some(english_start_block),
+			Some(english_end_block)
+		);
 		project_info.project_status = ProjectStatus::AuctionRound(AuctionPhase::English);
 		ProjectsInfo::<T>::insert(project_id, project_info);
 
@@ -262,7 +276,7 @@ impl<T: Config> Pallet<T> {
 		let mut project_info =
 			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
-		let english_end_block = project_info.phase_transition_points.english_auction_end_block
+		let english_end_block = project_info.phase_transition_points.english_auction.end()
 			.ok_or(Error::<T>::FieldIsNone)?;
 
 		// Do checks
@@ -274,8 +288,10 @@ impl<T: Config> Pallet<T> {
 		let candle_end_block = now + T::CandleAuctionDuration::get();
 
 		// Update project info
-		project_info.phase_transition_points.candle_auction_start_block = Some(candle_start_block);
-		project_info.phase_transition_points.candle_auction_end_block = Some(candle_end_block);
+		project_info.phase_transition_points.candle_auction.update(
+			Some(candle_start_block),
+			Some(candle_end_block)
+		);
 		project_info.project_status = ProjectStatus::AuctionRound(AuctionPhase::Candle);
 		ProjectsInfo::<T>::insert(project_id, project_info);
 
@@ -291,8 +307,8 @@ impl<T: Config> Pallet<T> {
 		let mut project_info =
 			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
-		let auction_candle_start_block = project_info.phase_transition_points.english_auction_end_block.ok_or(Error::<T>::FieldIsNone)?;
-		let auction_candle_end_block = project_info.phase_transition_points.candle_auction_end_block.ok_or(Error::<T>::FieldIsNone)?;
+		let auction_candle_start_block = project_info.phase_transition_points.candle_auction.start().ok_or(Error::<T>::FieldIsNone)?;
+		let auction_candle_end_block = project_info.phase_transition_points.candle_auction.end().ok_or(Error::<T>::FieldIsNone)?;
 
 		// Do checks
 		ensure!(now > auction_candle_end_block, Error::<T>::TooEarlyForCommunityRoundStart);
@@ -305,9 +321,11 @@ impl<T: Config> Pallet<T> {
 		let community_end_block = now + T::CommunityFundingDuration::get();
 
 		// Update project info
-		project_info.phase_transition_points.random_ending_block = Some(end_block);
-		project_info.phase_transition_points.community_start_block = Some(community_start_block);
-		project_info.phase_transition_points.community_end_block = Some(community_end_block);
+		project_info.phase_transition_points.random_candle_ending = Some(end_block);
+		project_info.phase_transition_points.community.update(
+			Some(community_start_block),
+			Some(community_end_block)
+		);
 		project_info.project_status = ProjectStatus::CommunityRound;
 		project_info.weighted_average_price = Some(Self::calculate_weighted_average_price(
 			*project_id,
@@ -328,7 +346,7 @@ impl<T: Config> Pallet<T> {
 		let mut project_info =
 			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
-		let community_end_block = project_info.phase_transition_points.community_end_block.ok_or(Error::<T>::FieldIsNone)?;
+		let community_end_block = project_info.phase_transition_points.community.end().ok_or(Error::<T>::FieldIsNone)?;
 
 		// Do checks
 		ensure!(now > community_end_block, Error::<T>::TooEarlyForRemainderRoundStart);
@@ -339,8 +357,10 @@ impl<T: Config> Pallet<T> {
 		let remainder_end_block = now + T::RemainderFundingDuration::get();
 
 		// Update project info
-		project_info.phase_transition_points.remainder_start_block = Some(remainder_start_block);
-		project_info.phase_transition_points.remainder_end_block = Some(remainder_end_block);
+		project_info.phase_transition_points.remainder.update(
+			Some(remainder_start_block),
+			Some(remainder_end_block)
+		);
 		project_info.project_status = ProjectStatus::RemainderRound;
 		ProjectsInfo::<T>::insert(project_id, project_info);
 
@@ -357,7 +377,7 @@ impl<T: Config> Pallet<T> {
 		let mut project_info =
 			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
-		let remainder_end_block = project_info.phase_transition_points.remainder_end_block.ok_or(Error::<T>::FieldIsNone)?;
+		let remainder_end_block = project_info.phase_transition_points.remainder.end().ok_or(Error::<T>::FieldIsNone)?;
 		// TODO: PLMC-149 Check if make sense to set the admin as T::fund_account_id(project_id)
 		let issuer =
 			ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectIssuerNotFound)?;
