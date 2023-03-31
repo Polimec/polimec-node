@@ -323,10 +323,15 @@ impl pallet_transaction_payment::Config for Runtime {
 
 impl pallet_asset_tx_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type Fungibles = Assets;
+	type Fungibles = StatemintAssets;
 	type OnChargeAssetTransaction = pallet_asset_tx_payment::FungiblesAdapter<
-		pallet_assets::BalanceToAssetBalance<Balances, Runtime, ConvertInto>,
-		xcm_config::AssetsToBlockAuthor<Runtime>,
+		pallet_assets::BalanceToAssetBalance<
+			Balances,
+			Runtime,
+			ConvertInto,
+			StatemintAssetsInstance,
+		>,
+		xcm_config::AssetsToBlockAuthor<Runtime, StatemintAssetsInstance>,
 	>;
 }
 
@@ -509,7 +514,7 @@ impl pallet_funding::Config for Runtime {
 	type BiddingCurrency = Balances;
 	type Randomness = Random;
 	type HandleMembers = Credentials;
-	type Assets = Assets;
+	type Assets = LocalAssets;
 	type StringLimit = ConstU32<64>;
 	type PreImageLimit = ConstU32<1024>;
 	type EvaluationDuration = EvaluationDuration;
@@ -733,7 +738,33 @@ parameter_types! {
 	pub const AssetsPalletId: PalletId = PalletId(*b"assetsid");
 }
 
-impl pallet_assets::Config for Runtime {
+pub type LocalAssetsInstance = pallet_assets::Instance1;
+pub type StatemintAssetsInstance = pallet_assets::Instance2;
+
+impl pallet_assets::Config<LocalAssetsInstance> for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
+	type AssetId = AssetId;
+	type AssetIdParameter = codec::Compact<AssetId>;
+	type Currency = Balances;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type AssetDeposit = AssetDeposit;
+	type AssetAccountDeposit = AssetAccountDeposit;
+	type MetadataDepositBase = MetadataDepositBase;
+	type MetadataDepositPerByte = MetadataDepositPerByte;
+	type ApprovalDeposit = ApprovalDeposit;
+	type StringLimit = AssetsStringLimit;
+	type Freezer = ();
+	type Extra = ();
+	type CallbackHandle = ();
+	type WeightInfo = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
+}
+
+impl pallet_assets::Config<StatemintAssetsInstance> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
@@ -759,7 +790,7 @@ impl pallet_assets::Config for Runtime {
 impl pallet_asset_registry::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type ReserveAssetModifierOrigin = frame_system::EnsureRoot<Self::AccountId>;
-	type Assets = Assets;
+	type Assets = StatemintAssets;
 	type WeightInfo = ();
 }
 
@@ -794,9 +825,10 @@ construct_runtime!(
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 10,
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage, Event<T>} = 11,
 		AssetTxPayment: pallet_asset_tx_payment::{Pallet, Storage, Event<T>} = 12,
-		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 13,
-		AssetRegistry: pallet_asset_registry::{Pallet, Call, Storage, Event<T>} = 14,
-		Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 15,
+		LocalAssets: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>} = 13,
+		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>} = 14,
+		AssetRegistry: pallet_asset_registry::{Pallet, Call, Storage, Event<T>} = 15,
+		Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 16,
 
 		// Consensus support.
 		// The following order MUST NOT be changed: Aura -> Session -> Staking -> Authorship -> AuraExt

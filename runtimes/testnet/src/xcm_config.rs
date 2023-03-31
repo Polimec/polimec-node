@@ -53,9 +53,9 @@ use xcm_executor::{
 };
 
 use super::{
-	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Assets, Balance, Balances,
+	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances,
 	ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
-	WeightToFee, XcmpQueue,
+	StatemintAssets, WeightToFee, XcmpQueue,
 };
 
 const DOT_ASSET_ID: AssetId = Concrete(RelayLocation::get());
@@ -100,7 +100,7 @@ pub type CurrencyTransactor = CurrencyAdapter<
 /// Means for transacting assets besides the native currency on this chain.
 pub type StatemintFungiblesTransactor = FungiblesAdapter<
 	// Use this fungibles implementation:
-	Assets,
+	StatemintAssets,
 	// Use this currency when it is a fungible asset matching the given location or name:
 	ConvertedConcreteId<
 		AssetIdPalletAssets,
@@ -114,7 +114,7 @@ pub type StatemintFungiblesTransactor = FungiblesAdapter<
 	AccountId,
 	// We only want to allow teleports of known assets. We use non-zero issuance as an indication
 	// that this asset is known.
-	LocalMint<NonZeroIssuance<AccountId, Assets>>,
+	LocalMint<NonZeroIssuance<AccountId, StatemintAssets>>,
 	// The account to use for tracking teleports.
 	CheckingAccount,
 >;
@@ -160,7 +160,7 @@ impl<
 
 pub type StatemintDotTransactor = FungiblesAdapter<
 	// Use this fungibles implementation:
-	Assets,
+	StatemintAssets,
 	// Use this currency when it is a fungible asset matching the given location or name:
 	NonBlockingConvertedConcreteId<AssetIdPalletAssets, Balance, NativeToFungible, JustTry>,
 	// Convert an XCM MultiLocation into a local account id:
@@ -169,7 +169,7 @@ pub type StatemintDotTransactor = FungiblesAdapter<
 	AccountId,
 	// We only want to allow teleports of known assets. We use non-zero issuance as an indication
 	// that this asset is known.
-	LocalMint<NonZeroIssuance<AccountId, Assets>>,
+	LocalMint<NonZeroIssuance<AccountId, StatemintAssets>>,
 	// The account to use for tracking teleports.
 	CheckingAccount,
 >;
@@ -247,8 +247,8 @@ pub type AccountIdOf<R> = <R as frame_system::Config>::AccountId;
 /// Asset filter that allows all assets from a certain location.
 pub struct AssetsFrom<T>(PhantomData<T>);
 
-pub struct StatemintAssets;
-impl ContainsPair<MultiAsset, MultiLocation> for StatemintAssets {
+pub struct StatemintAssetsFilter;
+impl ContainsPair<MultiAsset, MultiLocation> for StatemintAssetsFilter {
 	fn contains(asset: &MultiAsset, origin: &MultiLocation) -> bool {
 		// location must be the statemint parachain
 		let loc = MultiLocation::new(1, X1(Parachain(1000)));
@@ -296,17 +296,17 @@ where
 
 /// A `HandleCredit` implementation that naively transfers the fees to the block author.
 /// Will drop and burn the assets in case the transfer fails.
-pub struct AssetsToBlockAuthor<R>(PhantomData<R>);
-
-impl<R> HandleCredit<AccountIdOf<R>, pallet_assets::Pallet<R>> for AssetsToBlockAuthor<R>
+pub struct AssetsToBlockAuthor<R, I>(PhantomData<(R, I)>);
+impl<R, I> HandleCredit<AccountIdOf<R>, pallet_assets::Pallet<R, I>> for AssetsToBlockAuthor<R, I>
 where
-	R: pallet_authorship::Config + pallet_assets::Config,
+	I: 'static,
+	R: pallet_authorship::Config + pallet_assets::Config<I>,
 	AccountIdOf<R>: From<polkadot_primitives::AccountId> + Into<polkadot_primitives::AccountId>,
 {
-	fn handle_credit(credit: CreditOf<AccountIdOf<R>, pallet_assets::Pallet<R>>) {
+	fn handle_credit(credit: CreditOf<AccountIdOf<R>, pallet_assets::Pallet<R, I>>) {
 		if let Some(author) = pallet_authorship::Pallet::<R>::author() {
 			// In case of error: Will drop the result triggering the `OnDrop` of the imbalance.
-			let _ = pallet_assets::Pallet::<R>::resolve(&author, credit);
+			let _ = pallet_assets::Pallet::<R, I>::resolve(&author, credit);
 		}
 	}
 }
@@ -358,7 +358,7 @@ parameter_types! {
 	pub CheckingAccount: AccountId = PolkadotXcm::check_account();
 }
 
-pub type Reserves = (NativeAsset, StatemintAssets);
+pub type Reserves = (NativeAsset, StatemintAssetsFilter);
 
 pub struct XcmConfig;
 
