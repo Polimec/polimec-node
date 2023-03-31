@@ -341,7 +341,14 @@ pub mod pallet {
 		/// The auction round of `project_id` ended  at block `when`.
 		AuctionEnded { project_id: T::ProjectIdentifier },
 		/// A `bonder` bonded an `amount` of PLMC for `project_id`.
-		FundsBonded { project_id: T::ProjectIdentifier, amount: BalanceOf<T> },
+		FundsBonded { project_id: T::ProjectIdentifier, amount: BalanceOf<T>, bonder: T::AccountId },
+		/// Someone released the bond of a `bonder` for `project_id`, because the Evaluation round failed.
+		BondReleased{
+			project_id: T::ProjectIdentifier,
+			amount: BalanceOf<T>,
+			bonder: T::AccountId,
+			releaser: T::AccountId
+		},
 		/// A `bidder` bid an `amount` at `market_cap` for `project_id` with a `multiplier`.
 		Bid {
 			project_id: T::ProjectIdentifier,
@@ -455,6 +462,10 @@ pub mod pallet {
 		AssetCreationFailed,
 		/// Tried to update the metadata of the contribution token but it failed
 		AssetMetadataUpdateFailed,
+		/// Tried to do an operation assuming the evaluation failed, when in fact it did not
+		EvaluationNotFailed,
+		/// Tried to unbond PLMC after unsuccessful evaluation, but specified bond does not exist.
+		BondNotFound,
 	}
 
 	#[pallet::call]
@@ -623,9 +634,34 @@ pub mod pallet {
 						T::Currency::set_lock(LOCKING_ID, &from, amount, WithdrawReasons::all());
 					},
 				}
+				Self::deposit_event(Event::<T>::FundsBonded { project_id, amount, bonder: from.clone() });
 				Ok(())
 			})
 		}
+
+		/// Release the bonded PLMC for an evaluator if the project assigned to it is in the EvaluationFailed phase
+		// #[pallet::weight(T::WeightInfo::release_bond_for())]
+		pub fn release_bond_for(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdParameter,
+			bonder: T::AccountId,
+		) -> DispatchResult {
+			let releaser = ensure_signed(origin)?;
+			let project_id = project_id.into();
+			let project_info =
+				ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+			ensure!(project_info.project_status == ProjectStatus::EvaluationFailed, Error::<T>::EvaluationNotFailed);
+			let amount = Bonds::<T>::get(project_id, &bonder)
+				.ok_or(Error::<T>::BondNotFound)?;
+			T::Currency::remove_lock(LOCKING_ID, &bonder);
+			Bonds::<T>::remove(project_id, &bonder);
+
+			Self::deposit_event(Event::<T>::BondReleased{ project_id, amount, bonder, releaser });
+
+			// TODO: PLMC-133. Replace this when this PR is merged:
+			Ok(())
+		}
+
 
 		/// Place a bid in the "Auction Round"
 		#[pallet::weight(T::WeightInfo::bid())]
