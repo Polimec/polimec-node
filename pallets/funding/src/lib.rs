@@ -343,11 +343,11 @@ pub mod pallet {
 		/// A `bonder` bonded an `amount` of PLMC for `project_id`.
 		FundsBonded { project_id: T::ProjectIdentifier, amount: BalanceOf<T>, bonder: T::AccountId },
 		/// Someone released the bond of a `bonder` for `project_id`, because the Evaluation round failed.
-		BondReleased{
+		BondReleased {
 			project_id: T::ProjectIdentifier,
 			amount: BalanceOf<T>,
 			bonder: T::AccountId,
-			releaser: T::AccountId
+			releaser: T::AccountId,
 		},
 		/// A `bidder` bid an `amount` at `market_cap` for `project_id` with a `multiplier`.
 		Bid {
@@ -634,7 +634,11 @@ pub mod pallet {
 						T::Currency::set_lock(LOCKING_ID, &from, amount, WithdrawReasons::all());
 					},
 				}
-				Self::deposit_event(Event::<T>::FundsBonded { project_id, amount, bonder: from.clone() });
+				Self::deposit_event(Event::<T>::FundsBonded {
+					project_id,
+					amount,
+					bonder: from.clone(),
+				});
 				Ok(())
 			})
 		}
@@ -650,18 +654,19 @@ pub mod pallet {
 			let project_id = project_id.into();
 			let project_info =
 				ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-			ensure!(project_info.project_status == ProjectStatus::EvaluationFailed, Error::<T>::EvaluationNotFailed);
-			let amount = Bonds::<T>::get(project_id, &bonder)
-				.ok_or(Error::<T>::BondNotFound)?;
+			ensure!(
+				project_info.project_status == ProjectStatus::EvaluationFailed,
+				Error::<T>::EvaluationNotFailed
+			);
+			let amount = Bonds::<T>::get(project_id, &bonder).ok_or(Error::<T>::BondNotFound)?;
 			T::Currency::remove_lock(LOCKING_ID, &bonder);
 			Bonds::<T>::remove(project_id, &bonder);
 
-			Self::deposit_event(Event::<T>::BondReleased{ project_id, amount, bonder, releaser });
+			Self::deposit_event(Event::<T>::BondReleased { project_id, amount, bonder, releaser });
 
 			// TODO: PLMC-133. Replace this when this PR is merged:
 			Ok(())
 		}
-
 
 		/// Place a bid in the "Auction Round"
 		#[pallet::weight(T::WeightInfo::bid())]

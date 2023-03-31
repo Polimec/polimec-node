@@ -258,17 +258,27 @@ mod evaluation_round {
 	}
 
 	#[test]
-	fn evaluation_stops_with_failure_after_28_days() {
+	fn evaluation_stops_with_failure_after_config_period() {
 		new_test_ext().execute_with(|| {
 			create_on_chain_project();
 			let ed = FundingModule::project_info(0).unwrap();
-			assert!(ed.project_status == ProjectStatus::Application);
+			assert_eq!(ed.project_status, ProjectStatus::Application);
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 			let ed = FundingModule::project_info(0).unwrap();
-			assert!(ed.project_status == ProjectStatus::EvaluationRound);
-			run_to_block(System::block_number() + 29);
+			assert_eq!(ed.project_status, ProjectStatus::EvaluationRound);
+			run_to_block(System::block_number() + 1);
+			let pre_bond_bob_free_balance = Balances::usable_balance(&BOB);
+			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 50));
+			run_to_block(System::block_number() + 1);
+			let post_bond_bob_free_balance = Balances::usable_balance(&BOB);
+			assert_eq!(pre_bond_bob_free_balance - post_bond_bob_free_balance, 50);
+			run_to_block(System::block_number() + <Test as Config>::EvaluationDuration::get() + 2);
 			let ed = FundingModule::project_info(0).unwrap();
-			assert!(ed.project_status == ProjectStatus::EvaluationFailed);
+			assert_eq!(ed.project_status, ProjectStatus::EvaluationFailed);
+			assert_ok!(FundingModule::release_bond_for(RuntimeOrigin::signed(BOB), 0, BOB));
+			run_to_block(System::block_number() + 1);
+			let post_release_bob_free_balance = Balances::usable_balance(&BOB);
+			assert_eq!(post_release_bob_free_balance - post_bond_bob_free_balance, 50);
 		})
 	}
 
