@@ -211,7 +211,7 @@ pub fn polimec_ext(para_id: u32) -> sp_io::TestExternalities {
 	.assimilate_storage(&mut t)
 	.unwrap();
 
-	pallet_assets::GenesisConfig::<Runtime> {
+	pallet_assets::GenesisConfig::<Runtime, polimec_runtime::StatemintAssetsInstance> {
 		assets: vec![(
 			RELAY_ASSET_ID,
 			polimec_runtime::AssetsPalletId::get().into_account_truncating(),
@@ -323,7 +323,7 @@ pub mod shortcuts {
 	pub type PenpalBalances = pallet_balances::Pallet<PenpalRuntime>;
 
 	pub type PolkadotAssets = pallet_assets::Pallet<PolkadotRuntime>;
-	pub type PolimecAssets = pallet_assets::Pallet<PolimecRuntime>;
+	pub type PolimecAssets = pallet_assets::Pallet<PolimecRuntime, polimec_runtime::StatemintAssetsInstance>;
 	pub type StatemintAssets = pallet_assets::Pallet<StatemintRuntime>;
 	pub type PenpalAssets = pallet_assets::Pallet<PenpalRuntime>;
 

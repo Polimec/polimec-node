@@ -840,7 +840,7 @@ pub mod pallet {
 			// Get the projects that need to be updated on this block and update them
 			for project_id in ProjectsToUpdate::<T>::take(now) {
 				let maybe_project_info = ProjectsInfo::<T>::get(project_id.clone());
-				let mut project_info = unwrap_option_or_skip!(maybe_project_info, project_id);
+				let project_info = unwrap_option_or_skip!(maybe_project_info, project_id);
 
 				match project_info.project_status {
 					// Application -> EvaluationRound

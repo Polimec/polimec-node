@@ -55,7 +55,7 @@ use xcm_executor::{
 use super::{
 	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances,
 	ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
-	WeightToFee, XcmpQueue, StatemintAssets, LocalAssets,
+	WeightToFee, XcmpQueue, StatemintAssets,
 };
 
 const DOT_ASSET_ID: AssetId = Concrete(RelayLocation::get());
