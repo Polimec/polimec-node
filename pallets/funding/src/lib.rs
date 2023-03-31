@@ -121,6 +121,7 @@ pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
+	use local_macros::*;
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
@@ -190,6 +191,9 @@ pub mod pallet {
 		#[pallet::constant]
 		type EvaluationDuration: Get<Self::BlockNumber>;
 
+		#[pallet::constant]
+		type AuctionInitializePeriodDuration: Get<Self::BlockNumber>;
+
 		/// The length (expressed in number of blocks) of the Auction Round, English period.
 		#[pallet::constant]
 		type EnglishAuctionDuration: Get<Self::BlockNumber>;
@@ -200,7 +204,11 @@ pub mod pallet {
 
 		/// The length (expressed in number of blocks) of the Community Round.
 		#[pallet::constant]
-		type CommunityRoundDuration: Get<Self::BlockNumber>;
+		type CommunityFundingDuration: Get<Self::BlockNumber>;
+
+		/// The length (expressed in number of blocks) of the Funding Round.
+		#[pallet::constant]
+		type RemainderFundingDuration: Get<Self::BlockNumber>;
 
 		/// `PalletId` for the funding pallet. An appropriate value could be
 		/// `PalletId(*b"py/cfund")`
@@ -209,7 +217,7 @@ pub mod pallet {
 
 		/// The maximum number of "active" (In Evaluation or Funding Round) projects
 		#[pallet::constant]
-		type ActiveProjectsLimit: Get<u32>;
+		type MaxProjectsToUpdatePerBlock: Get<u32>;
 
 		/// The maximum number of bids per project
 		#[pallet::constant]
@@ -265,11 +273,16 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn projects_active)]
-	/// A BoundedVec to list all the "active" Projects
-	/// A Project is active if its status is {EvaluationRound, EvaluationEnded, AuctionRound(AuctionPhase), CommunityRound, FundingEnded}
-	pub type ProjectsActive<T: Config> =
-		StorageValue<_, BoundedVec<T::ProjectIdentifier, T::ActiveProjectsLimit>, ValueQuery>;
+	#[pallet::getter(fn projects_to_update)]
+	/// A map for in which block to update which active projects.
+	/// A Project is in need of an update at some point, if its status is {EvaluationRound, EvaluationEnded, AuctionRound(AuctionPhase), CommunityRound, FundingEnded}
+	pub type ProjectsToUpdate<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		T::BlockNumber,
+		BoundedVec<T::ProjectIdentifier, T::MaxProjectsToUpdatePerBlock>,
+		ValueQuery,
+	>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn auctions_info)]
@@ -315,10 +328,14 @@ pub mod pallet {
 		MetadataEdited { project_id: T::ProjectIdentifier },
 		/// The evaluation phase of `project_id` started.
 		EvaluationStarted { project_id: T::ProjectIdentifier },
-		/// The evaluation phase of `project_id` ended successfully.
-		EvaluationEnded { project_id: T::ProjectIdentifier },
 		/// The evaluation phase of `project_id` ended without reaching the minimum threshold.
 		EvaluationFailed { project_id: T::ProjectIdentifier },
+		/// The period an issuer has, to start the auction phase of the project.
+		AuctionInitializePeriod {
+			project_id: T::ProjectIdentifier,
+			start_block: T::BlockNumber,
+			end_block: T::BlockNumber,
+		},
 		/// The auction round of `project_id` started at block `when`.
 		AuctionStarted { project_id: T::ProjectIdentifier, when: T::BlockNumber },
 		/// The auction round of `project_id` ended  at block `when`.
@@ -342,6 +359,8 @@ pub mod pallet {
 		},
 		///
 		Noted { hash: T::Hash },
+		/// Something was not properly initialized. Most likely due to dev error manually calling do_* functions or updating storage
+		TransitionError { project_id: T::ProjectIdentifier, error: DispatchError },
 	}
 
 	#[pallet::error]
@@ -388,30 +407,54 @@ pub mod pallet {
 		NoBidsFound,
 		/// Tried to freeze the project to start the Evaluation Round, but the project is already frozen
 		ProjectAlreadyFrozen,
-		/// Tried to move the project from Application to Evaluation round, but the project is not in Application
+		/// Tried to move the project from Application to Evaluation round, but the project is not in ApplicationRound
 		ProjectNotInApplicationRound,
-		/// Tried to move the project from Evaluation to EvaluationEnded round, but the project is not in Evaluation
+		/// Tried to move the project from Evaluation to EvaluationEnded round, but the project is not in EvaluationRound
 		ProjectNotInEvaluationRound,
-		/// Tried to move the project from Evaluation to Auction round, but the project is not in EvaluationEnded
+		/// Tried to move the project from Evaluation to Auction round, but the project is not in EvaluationEndedRound
 		ProjectNotInEvaluationEndedRound,
-		/// Tried to move the project to CandleAuction round, but it was not in EnglishAuction before
+		/// Tried to move the project from AuctionInitializePeriod to EnglishAuctionRound, but the project is not in AuctionInitializePeriodRound
+		ProjectNotInAuctionInitializePeriodRound,
+		/// Tried to move the project to CandleAuction, but it was not in EnglishAuctionRound before
 		ProjectNotInEnglishAuctionRound,
-		/// Tried to move the project to CommunityRound round, but it was not in CandleAuction before
+		/// Tried to move the project to CommunityRound, but it was not in CandleAuctionRound before
 		ProjectNotInCandleAuctionRound,
-		/// Tried to move the project to CandleAuction round, but its too early for that
+		/// Tried to move the project to RemainderRound, but it was not in CommunityRound before
+		ProjectNotInCommunityRound,
+		/// Tried to move the project to FundingEndedRound, but it was not in RemainderRound before
+		ProjectNotInRemainderRound,
+		/// Tried to start an auction before the initialization period
+		TooEarlyForEnglishAuctionStart,
+		/// Tried to start an auction after the initialization period
+		TooLateForEnglishAuctionStart,
+		/// Tried to move the project to CandleAuctionRound, but its too early for that
 		TooEarlyForCandleAuctionStart,
-		/// Tried to move the project to CommunityRound round, but its too early for that
+		/// Tried to move the project to CommunityRound, but its too early for that
 		TooEarlyForCommunityRoundStart,
+		/// Tried to move the project to RemainderRound, but its too early for that
+		TooEarlyForRemainderRoundStart,
+		/// Tried to move to project to FundingEnded round, but its too early for that
+		TooEarlyForFundingEnd,
 		/// Tried to access auction metadata, but it was not correctly initialized.
 		AuctionMetadataNotFound,
 		/// Ending block for the candle auction is not set
 		EndingBlockNotSet,
-		/// Tried to move to project to FundingEnded round, but its too early for that
-		TooEarlyForFundingEnd,
 		/// The specified issuer does not exist
 		ProjectIssuerNotFound,
 		/// The specified project info does not exist
 		ProjectInfoNotFound,
+		/// The Project was not correctly created. Most likely due to dev error manually calling do_* functions or updating storage
+		ProjectNotCorrectlyCreated,
+		/// Tried to finish an evaluation before its target end block
+		EvaluationPeriodNotEnded,
+		/// Tried to finish the english auction before its target end block
+		EnglishAuctionPeriodNotEnded,
+		/// Tried to access field that is not set
+		FieldIsNone,
+		/// Tried to create the contribution token after the remaining round but it failed
+		AssetCreationFailed,
+		/// Tried to update the metadata of the contribution token but it failed
+		AssetMetadataUpdateFailed,
 	}
 
 	#[pallet::call]
@@ -432,6 +475,7 @@ pub mod pallet {
 
 			Self::note_bytes(bytes, &issuer)
 		}
+
 		/// Start the "Funding Application" round
 		/// Project applies for funding, providing all required information.
 		#[pallet::weight(T::WeightInfo::create())]
@@ -510,13 +554,28 @@ pub mod pallet {
 			// );
 
 			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
-			ensure!(
-				ProjectsInfo::<T>::get(project_id)
-					.ok_or(Error::<T>::ProjectInfoNotFound)?
-					.project_status == ProjectStatus::Application,
-				Error::<T>::EvaluationAlreadyStarted
-			);
-			Self::do_start_evaluation(project_id)
+
+			Self::do_evaluation_start(project_id)
+		}
+
+		/// Start the "Evaluation Round" of a `project_id`
+		#[pallet::weight(T::WeightInfo::start_auction())]
+		pub fn start_auction(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdParameter,
+		) -> DispatchResult {
+			let issuer = ensure_signed(origin)?;
+			let project_id = project_id.into();
+
+			// TODO: PLMC-133. Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
+			// ensure!(
+			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
+			// 	Error::<T>::NotAuthorized
+			// );
+
+			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
+
+			Self::do_english_auction(project_id)
 		}
 
 		/// Evaluators can bond `amount` PLMC to evaluate a `project_id` in the "Evaluation Round"
@@ -566,39 +625,6 @@ pub mod pallet {
 				}
 				Ok(())
 			})
-		}
-
-		/// Start the "Funding Round" of a `project_id`
-		#[pallet::weight(T::WeightInfo::start_auction())]
-		pub fn start_auction(
-			origin: OriginFor<T>,
-			project_id: T::ProjectIdParameter,
-		) -> DispatchResult {
-			let issuer = ensure_signed(origin)?;
-			let project_id = project_id.into();
-
-			// TODO: PLMC-133. Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
-			// ensure!(
-			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
-			// 	Error::<T>::NotAuthorized
-			// );
-
-			ensure!(
-				ProjectsIssuers::<T>::contains_key(project_id),
-				Error::<T>::ProjectIssuerNotFound
-			);
-			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
-			let project_info =
-				ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-			ensure!(
-				project_info.project_status != ProjectStatus::EvaluationFailed,
-				Error::<T>::EvaluationFailed
-			);
-			ensure!(
-				project_info.project_status == ProjectStatus::EvaluationEnded,
-				Error::<T>::EvaluationNotStarted
-			);
-			Self::do_start_auction(project_id)
 		}
 
 		/// Place a bid in the "Auction Round"
@@ -776,7 +802,7 @@ pub mod pallet {
 			let project_info =
 				ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 			ensure!(
-				project_info.project_status == ProjectStatus::ReadyToLaunch,
+				project_info.project_status == ProjectStatus::FundingEnded,
 				Error::<T>::CannotClaimYet
 			);
 			// TODO: PLMC-160. Check the flow of the final_price if the final price discovery during the Auction Round fails
@@ -811,86 +837,45 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(now: T::BlockNumber) -> Weight {
-			// TODO: PLMC-121 Critical: Find a way to perform less iterations on the storage
-			for project_id in ProjectsActive::<T>::get().iter() {
-				// FIXME: PLMC-121. fix this unwrap
-				let project_info = ProjectsInfo::<T>::get(project_id)
-					.ok_or(Error::<T>::ProjectInfoNotFound)
-					.unwrap();
+			// Get the projects that need to be updated on this block and update them
+			for project_id in ProjectsToUpdate::<T>::take(now) {
+				let maybe_project_info = ProjectsInfo::<T>::get(project_id.clone());
+				let mut project_info = unwrap_option_or_skip!(maybe_project_info, project_id);
+
 				match project_info.project_status {
-					// Check if Evaluation Round have to end, if true, end it
-					// EvaluationRound -> EvaluationEnded
+					// Application -> EvaluationRound
+					// Handled by user extrinsic
+
+					// EvaluationRound -> AuctionInitializePeriod | EvaluationFailed
 					ProjectStatus::EvaluationRound => {
-						let evaluation_period_ends = project_info
-							.evaluation_period_ends
-							.expect("In EvaluationRound there always exist evaluation_period_ends");
-						let fundraising_target = project_info.fundraising_target;
-						// FIXME: handle this unwrap
-						Self::handle_evaluation_end(
-							project_id,
-							now,
-							evaluation_period_ends,
-							fundraising_target,
-						)
-						.unwrap();
+						unwrap_result_or_skip!(Self::do_evaluation_end(&project_id), project_id);
 					},
-					// Check if we need to start the Funding Round
-					// EvaluationEnded -> AuctionRound
-					ProjectStatus::EvaluationEnded => {
-						let evaluation_period_ends = project_info
-							.evaluation_period_ends
-							.expect("In EvaluationEnded there always exist evaluation_period_ends");
-						if now >= evaluation_period_ends {
-							// FIXME: PLMC-121. handle this unwrap
-							Self::handle_auction_start(project_id, now, evaluation_period_ends)
-								.unwrap();
-						}
-					},
-					// Check if we need to move to the Candle Phase of the Auction Round
+
+					// AuctionInitializePeriod -> AuctionRound(AuctionPhase::English)
+					// Handled by user extrinsic
+
 					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
 					ProjectStatus::AuctionRound(AuctionPhase::English) => {
-						let english_ending_block = project_info
-							.auction_metadata
-							.expect("In AuctionRound there always exist auction_metadata")
-							.english_ending_block;
-						// FIXME: PLMC-121. handle this unwrap
-						if now > english_ending_block {
-							Self::handle_auction_candle(project_id, now, english_ending_block)
-								.unwrap();
-						}
+						unwrap_result_or_skip!(Self::do_candle_auction(&project_id), project_id);
 					},
-					// Check if we need to move from the Auction Round of the Community Round
+
 					// AuctionRound(AuctionPhase::Candle) -> CommunityRound
 					ProjectStatus::AuctionRound(AuctionPhase::Candle) => {
-						let auction_metadata = project_info
-							.auction_metadata
-							.expect("In AuctionRound there always exist auction_metadata");
-						let candle_ending_block = auction_metadata.candle_ending_block;
-						let english_ending_block = auction_metadata.english_ending_block;
-						// FIXME: PLMC-121. handle this unwrap
-						if now > candle_ending_block {
-							Self::handle_community_start(
-								project_id,
-								now,
-								candle_ending_block,
-								english_ending_block,
-							)
-							.unwrap();
-						}
+						unwrap_result_or_skip!(Self::do_community_funding(&project_id), project_id);
 					},
-					// Check if we need to end the Fundind Round
-					// CommunityRound -> FundingEnded
+
+					// CommunityRound -> RemainderRound
 					ProjectStatus::CommunityRound => {
-						let community_ending_block = project_info
-							.auction_metadata
-							.expect("In CommunityRound there always exist auction_metadata")
-							.community_ending_block;
-						// FIXME: PLMC-121. handle this unwrap
-						if now > community_ending_block {
-							Self::handle_community_end(*project_id, now, community_ending_block)
-								.unwrap();
-						}
+						unwrap_result_or_skip!(Self::do_remainder_funding(&project_id), project_id)
 					},
+
+					// RemainderRound -> FundingEnded
+					ProjectStatus::RemainderRound => {
+						unwrap_result_or_skip!(Self::do_end_funding(&project_id), project_id)
+					},
+
+					// FundingEnded -> ReadyToLaunch
+					// Handled by user extrinsic
 					_ => (),
 				}
 			}
@@ -900,17 +885,14 @@ pub mod pallet {
 
 		/// Cleanup the `active_projects` BoundedVec
 		fn on_idle(now: T::BlockNumber, _max_weight: Weight) -> Weight {
-			for project_id in ProjectsActive::<T>::get().iter() {
-				// FIXME: PLMC-121. fix this unwrap
-				let project_info = ProjectsInfo::<T>::get(project_id)
-					.ok_or(Error::<T>::ProjectInfoNotFound)
-					.unwrap();
-				if project_info.project_status == ProjectStatus::FundingEnded {
-					// TODO: PLMC-121. handle this unwrap
-					Self::handle_fuding_end(project_id, now).unwrap();
-				}
-			}
-			// TODO: PLMC-127. Set a proper weight
+			// for project_id in ProjectsToUpdate::<T>::get(now) {
+			// 	let maybe_project_info = ProjectsInfo::<T>::get(project_id);
+			// 	let project_info = unwrap_option_or_skip!(maybe_project_info, Event::<T>::InitializationError { project_id });
+			// 	if project_info.project_status == ProjectStatus::FundingEnded {
+			// 		unwrap_result_or_skip!(Self::handle_funding_end(&project_id, now), Event::<T>::InitializationError { project_id });
+			// 	}
+			// }
+			// // TODO: PLMC-127. Set a proper weightK
 			Weight::from_ref_time(0)
 		}
 	}
@@ -938,4 +920,40 @@ pub mod pallet {
 			project
 		}
 	}
+}
+
+pub mod local_macros {
+	// used to unwrap storage values that can be None in places where an error cannot be returned,
+	// but an event should be emitted, and optionally a skip to the next iteration of a loop
+	macro_rules! unwrap_option_or_skip {
+		($option:expr, $project_id:expr) => {
+			match $option {
+				Some(val) => val,
+				None => {
+					Self::deposit_event(Event::<T>::TransitionError {
+						project_id: $project_id,
+						error: Error::<T>::FieldIsNone.into(),
+					});
+					continue
+				},
+			}
+		};
+	}
+	pub(crate) use unwrap_option_or_skip;
+
+	macro_rules! unwrap_result_or_skip {
+		($option:expr, $project_id:expr) => {
+			match $option {
+				Ok(val) => val,
+				Err(err) => {
+					Self::deposit_event(Event::<T>::TransitionError {
+						project_id: $project_id,
+						error: err,
+					});
+					continue
+				},
+			}
+		};
+	}
+	pub(crate) use unwrap_result_or_skip;
 }

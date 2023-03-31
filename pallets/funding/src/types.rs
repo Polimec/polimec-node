@@ -51,12 +51,10 @@ pub struct ProjectInfo<BlockNumber, Balance: BalanceT> {
 	pub is_frozen: bool,
 	/// The price decided after the Auction Round
 	pub weighted_average_price: Option<Balance>,
-	/// When the project is created
-	pub created_at: BlockNumber,
 	/// The current status of the project
 	pub project_status: ProjectStatus,
-	pub evaluation_period_ends: Option<BlockNumber>,
-	pub auction_metadata: Option<AuctionMetadata<BlockNumber>>,
+	/// When the different project phases start and end
+	pub phase_transition_points: PhaseTransitionPoints<BlockNumber>,
 	/// Fundraising target amount in USD equivalent
 	pub fundraising_target: Balance,
 }
@@ -150,17 +148,48 @@ pub struct CurrencyMetadata<BoundedString> {
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct AuctionMetadata<BlockNumber> {
-	/// When (expressed in block numbers) the Auction Round started
-	pub starting_block: BlockNumber,
-	/// When (expressed in block numbers) the English Auction phase ends
-	pub english_ending_block: BlockNumber,
-	/// When (expressed in block numbers) the Candle Auction phase ends
-	pub candle_ending_block: BlockNumber,
-	/// When (expressed in block numbers) the Dutch Auction phase ends
-	pub random_ending_block: Option<BlockNumber>,
-	/// When (expressed in block numbers) the Community Round ends
-	pub community_ending_block: BlockNumber,
+pub struct PhaseTransitionPoints<BlockNumber> {
+	pub application: BlockNumberPair<BlockNumber>,
+	pub evaluation: BlockNumberPair<BlockNumber>,
+	pub auction_initialize_period: BlockNumberPair<BlockNumber>,
+	pub english_auction: BlockNumberPair<BlockNumber>,
+	pub random_candle_ending: Option<BlockNumber>,
+	pub candle_auction: BlockNumberPair<BlockNumber>,
+	pub community: BlockNumberPair<BlockNumber>,
+	pub remainder: BlockNumberPair<BlockNumber>,
+}
+
+#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct BlockNumberPair<BlockNumber> {
+	start: Option<BlockNumber>,
+	end: Option<BlockNumber>,
+}
+
+impl<BlockNumber: Copy> BlockNumberPair<BlockNumber> {
+	pub fn new(start: Option<BlockNumber>, end: Option<BlockNumber>) -> Self {
+		Self { start, end }
+	}
+	pub fn start(&self) -> Option<BlockNumber> {
+		self.start
+	}
+
+	pub fn end(&self) -> Option<BlockNumber> {
+		self.end
+	}
+
+	pub fn update(&mut self, start: Option<BlockNumber>, end: Option<BlockNumber>) {
+		let new_state = match (start, end) {
+			(Some(start), None) => (Some(start), self.end),
+			(None, Some(end)) => (self.start, Some(end)),
+			(Some(start), Some(end)) => (Some(start), Some(end)),
+			(None, None) => (self.start, self.end),
+		};
+		(self.start, self.end) = (new_state.0, new_state.1);
+	}
+
+	pub fn force_update(&mut self, start: Option<BlockNumber>, end: Option<BlockNumber>) -> Self {
+		Self { start, end }
+	}
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -242,10 +271,11 @@ pub enum ProjectStatus {
 	#[default]
 	Application,
 	EvaluationRound,
-	EvaluationEnded,
+	AuctionInitializePeriod,
 	EvaluationFailed,
 	AuctionRound(AuctionPhase),
 	CommunityRound,
+	RemainderRound,
 	FundingEnded,
 	ReadyToLaunch,
 }

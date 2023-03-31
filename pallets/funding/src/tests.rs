@@ -241,18 +241,19 @@ mod evaluation_round {
 	}
 
 	#[test]
-	fn evaluation_stops_with_success_after_28_days() {
+	fn evaluation_stops_with_success_after_config_duration() {
 		new_test_ext().execute_with(|| {
 			create_on_chain_project();
 			let ed = FundingModule::project_info(0).unwrap();
-			assert!(ed.project_status == ProjectStatus::Application);
+			assert_eq!(ed.project_status, ProjectStatus::Application);
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 			let ed = FundingModule::project_info(0).unwrap();
-			assert!(ed.project_status == ProjectStatus::EvaluationRound);
+			run_to_block(System::block_number() + 1);
+			assert_eq!(ed.project_status, ProjectStatus::EvaluationRound);
 			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 1000));
-			run_to_block(System::block_number() + 29);
+			run_to_block(System::block_number() + <Test as Config>::EvaluationDuration::get() + 2);
 			let ed = FundingModule::project_info(0).unwrap();
-			assert!(ed.project_status == ProjectStatus::EvaluationEnded);
+			assert_eq!(ed.project_status, ProjectStatus::AuctionInitializePeriod);
 		})
 	}
 
@@ -339,19 +340,19 @@ mod evaluation_round {
 mod auction_round {
 	use super::*;
 
-	fn setup_envirnoment() {
+	fn setup_environment() {
 		create_on_chain_project();
 		assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 		assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 10_000));
-		run_to_block(System::block_number() + <Test as Config>::EvaluationDuration::get() + 1);
+		run_to_block(System::block_number() + <Test as Config>::EvaluationDuration::get() + 2);
 		let project_info = FundingModule::project_info(0).unwrap();
-		assert_eq!(project_info.project_status, ProjectStatus::EvaluationEnded);
+		assert_eq!(project_info.project_status, ProjectStatus::AuctionInitializePeriod);
 	}
 
 	#[test]
 	fn start_auction_works() {
 		new_test_ext().execute_with(|| {
-			setup_envirnoment();
+			setup_environment();
 			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
 		})
 	}
@@ -362,7 +363,7 @@ mod auction_round {
 			create_on_chain_project();
 			assert_noop!(
 				FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0),
-				Error::<Test>::EvaluationNotStarted
+				Error::<Test>::EvaluationPeriodNotEnded
 			);
 		})
 	}
@@ -370,7 +371,7 @@ mod auction_round {
 	#[test]
 	fn bid_works() {
 		new_test_ext().execute_with(|| {
-			setup_envirnoment();
+			setup_environment();
 			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
 			let free_balance = Balances::free_balance(&CHARLIE);
 			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(CHARLIE), 0, 100, 1, None));
@@ -404,7 +405,7 @@ mod auction_round {
 	#[test]
 	fn contribute_does_not_work() {
 		new_test_ext().execute_with(|| {
-			setup_envirnoment();
+			setup_environment();
 			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
 			assert_noop!(
 				FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 100),
@@ -422,10 +423,12 @@ mod community_round {
 		assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 		assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 10_000));
 
-		run_to_block(System::block_number() + <Test as Config>::EvaluationDuration::get() + 1);
+		run_to_block(System::block_number() + <Test as Config>::EvaluationDuration::get() + 2);
 		let project_info = FundingModule::project_info(0).unwrap();
-		assert_eq!(project_info.project_status, ProjectStatus::EvaluationEnded);
+		assert_eq!(project_info.project_status, ProjectStatus::AuctionInitializePeriod);
 		assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
+		run_to_block(System::block_number() + 1);
+
 		assert_ok!(FundingModule::bid(RuntimeOrigin::signed(CHARLIE), 0, 100, 1, None));
 
 		run_to_block(
@@ -471,15 +474,18 @@ mod community_round {
 mod claim_contribution_tokens {
 	use super::*;
 
-	fn setup_envirnoment() {
+	fn setup_environment() {
 		create_on_chain_project();
 		assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 		assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 10_000));
 
-		run_to_block(System::block_number() + <Test as Config>::EvaluationDuration::get() + 1);
+		run_to_block(System::block_number() + <Test as Config>::EvaluationDuration::get() + 2);
 		let project_info = FundingModule::project_info(0).unwrap();
-		assert_eq!(project_info.project_status, ProjectStatus::EvaluationEnded);
+		assert_eq!(project_info.project_status, ProjectStatus::AuctionInitializePeriod);
 		assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
+
+		run_to_block(System::block_number() + 1);
+
 		assert_ok!(FundingModule::bid(RuntimeOrigin::signed(CHARLIE), 0, 100, 1 * PLMC, None));
 
 		run_to_block(
@@ -492,15 +498,23 @@ mod claim_contribution_tokens {
 		assert_eq!(project_info.weighted_average_price, Some(PLMC));
 		assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 99 * PLMC));
 
-		run_to_block(System::block_number() + <Test as Config>::CommunityRoundDuration::get() + 1);
+		run_to_block(
+			System::block_number() + <Test as Config>::CommunityFundingDuration::get() + 1,
+		);
 		let project_info = FundingModule::project_info(0).unwrap();
-		assert_eq!(project_info.project_status, ProjectStatus::ReadyToLaunch);
+		assert_eq!(project_info.project_status, ProjectStatus::RemainderRound);
+
+		run_to_block(
+			System::block_number() + <Test as Config>::RemainderFundingDuration::get() + 1,
+		);
+		let project_info = FundingModule::project_info(0).unwrap();
+		assert_eq!(project_info.project_status, ProjectStatus::FundingEnded);
 	}
 
 	#[test]
 	fn it_works() {
 		new_test_ext().execute_with(|| {
-			setup_envirnoment();
+			setup_environment();
 			assert_ok!(FundingModule::claim_contribution_tokens(RuntimeOrigin::signed(BOB), 0));
 			assert_eq!(Assets::balance(0, BOB), 99);
 		})
@@ -509,7 +523,7 @@ mod claim_contribution_tokens {
 	#[test]
 	fn cannot_claim_multiple_times() {
 		new_test_ext().execute_with(|| {
-			setup_envirnoment();
+			setup_environment();
 			assert_ok!(FundingModule::claim_contribution_tokens(RuntimeOrigin::signed(BOB), 0));
 			assert_noop!(
 				FundingModule::claim_contribution_tokens(RuntimeOrigin::signed(BOB), 0),
@@ -533,16 +547,17 @@ mod flow {
 
 			// Start the Evaluation Round
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
-			let active_projects = FundingModule::projects_active();
+			let active_projects =
+				ProjectsToUpdate::<Test>::iter_values().flatten().collect::<Vec<_>>();
 			assert_eq!(active_projects.len(), 1);
 			let project_info = FundingModule::project_info(0).unwrap();
 			assert_eq!(project_info.project_status, ProjectStatus::EvaluationRound);
 			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128));
 
 			// Evaluation Round ends automatically
-			run_to_block(System::block_number() + <Test as Config>::EvaluationDuration::get() + 1);
+			run_to_block(System::block_number() + <Test as Config>::EvaluationDuration::get() + 2);
 			let project_info = FundingModule::project_info(0).unwrap();
-			assert_eq!(project_info.project_status, ProjectStatus::EvaluationEnded);
+			assert_eq!(project_info.project_status, ProjectStatus::AuctionInitializePeriod);
 
 			// Start the Funding Round: 1) English Auction Round
 			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
@@ -551,6 +566,7 @@ mod flow {
 				project_info.project_status,
 				ProjectStatus::AuctionRound(AuctionPhase::English)
 			);
+			run_to_block(System::block_number() + 1);
 			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(CHARLIE), 0, 1, 100, None));
 
 			// Second phase of Funding Round: 2) Candle Auction Round
@@ -572,16 +588,17 @@ mod flow {
 			assert_eq!(project_info.project_status, ProjectStatus::CommunityRound);
 			assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 200));
 
-			// Funding Round ends
+			// Fourth phase of Funding Round: 4) Remainder Round
 			run_to_block(
-				System::block_number() + <Test as Config>::CommunityRoundDuration::get() + 1,
+				System::block_number() + <Test as Config>::CommunityFundingDuration::get() + 1,
 			);
 			let project_info = FundingModule::project_info(0).unwrap();
-			assert_eq!(project_info.project_status, ProjectStatus::ReadyToLaunch);
-			// Project is no longer "active"
-			let active_projects = FundingModule::projects_active();
-			assert_eq!(active_projects.len(), 0);
+			assert_eq!(project_info.project_status, ProjectStatus::RemainderRound);
 
+			// Funding ended, claim contribution tokens
+			run_to_block(
+				System::block_number() + <Test as Config>::RemainderFundingDuration::get() + 1,
+			);
 			// Check if the Contribution Token is actually created
 			assert!(Assets::asset_exists(0));
 
@@ -614,17 +631,25 @@ mod flow {
 			};
 
 			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
+
 			let project_info = FundingModule::project_info(0).unwrap();
 			assert_eq!(project_info.project_status, ProjectStatus::Application);
+
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
-			let active_projects = FundingModule::projects_active();
+
+			let active_projects =
+				ProjectsToUpdate::<Test>::iter_values().flatten().collect::<Vec<_>>();
 			assert_eq!(active_projects.len(), 1);
+
 			let project_info = FundingModule::project_info(0).unwrap();
 			assert_eq!(project_info.project_status, ProjectStatus::EvaluationRound);
+
 			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 20 * PLMC));
-			run_to_block(System::block_number() + <Test as Config>::EvaluationDuration::get() + 1);
+
+			run_to_block(System::block_number() + <Test as Config>::EvaluationDuration::get() + 2);
+
 			let project_info = FundingModule::project_info(0).unwrap();
-			assert_eq!(project_info.project_status, ProjectStatus::EvaluationEnded);
+			assert_eq!(project_info.project_status, ProjectStatus::AuctionInitializePeriod);
 
 			// Start the Funding Round: 1) English Auction Round
 			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
@@ -680,7 +705,7 @@ mod flow {
 			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 20 * PLMC));
-			run_to_block(System::block_number() + 29);
+			run_to_block(System::block_number() + <Test as Config>::EvaluationDuration::get() + 2);
 			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
 			// Perform 5 bids, T::MaxBidsPerProject = 4 in the mock runtime
 			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(BOB), 0, 10_000, 2 * PLMC, None));

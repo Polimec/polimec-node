@@ -466,6 +466,11 @@ pub const EVALUATION_DURATION: BlockNumber = 28;
 pub const EVALUATION_DURATION: BlockNumber = 28 * DAYS;
 
 #[cfg(feature = "fast-gov")]
+pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 7;
+#[cfg(not(feature = "fast-gov"))]
+pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 7 * DAYS;
+
+#[cfg(feature = "fast-gov")]
 pub const ENGLISH_AUCTION_DURATION: BlockNumber = 10;
 #[cfg(not(feature = "fast-gov"))]
 pub const ENGLISH_AUCTION_DURATION: BlockNumber = 2 * DAYS;
@@ -476,40 +481,50 @@ pub const CANDLE_AUCTION_DURATION: BlockNumber = 5;
 pub const CANDLE_AUCTION_DURATION: BlockNumber = 3 * DAYS;
 
 #[cfg(feature = "fast-gov")]
-pub const COMMUNITY_DURATION: BlockNumber = 10;
+pub const COMMUNITY_FUNDING_DURATION: BlockNumber = 10;
 #[cfg(not(feature = "fast-gov"))]
-pub const COMMUNITY_DURATION: BlockNumber = 5 * DAYS;
+pub const COMMUNITY_FUNDING_DURATION: BlockNumber = 5 * DAYS;
+
+#[cfg(feature = "fast-gov")]
+pub const REMAINDER_FUNDING_DURATION: BlockNumber = 10;
+#[cfg(not(feature = "fast-gov"))]
+pub const REMAINDER_FUNDING_DURATION: BlockNumber = 1 * DAYS;
 
 parameter_types! {
 	pub const EvaluationDuration: BlockNumber = EVALUATION_DURATION;
+	pub const AuctionInitializePeriodDuration: BlockNumber = AUCTION_INITIALIZE_PERIOD_DURATION;
 	pub const EnglishAuctionDuration: BlockNumber = ENGLISH_AUCTION_DURATION;
 	pub const CandleAuctionDuration: BlockNumber = CANDLE_AUCTION_DURATION;
-	pub const CommunityRoundDuration: BlockNumber = COMMUNITY_DURATION;
+	pub const CommunityFundingDuration: BlockNumber = COMMUNITY_FUNDING_DURATION;
+	pub const RemainderFundingDuration: BlockNumber = REMAINDER_FUNDING_DURATION;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 }
 
 impl pallet_funding::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type StringLimit = ConstU32<64>;
-	type Currency = Balances;
 	type ProjectIdentifier = u32;
 	type ProjectIdParameter = codec::Compact<u32>;
-	type BiddingCurrency = Balances;
-	type Assets = Assets;
 	type CurrencyBalance = <Self as pallet_balances::Config>::Balance;
-	type EvaluationDuration = EvaluationDuration;
-	type PalletId = FundingPalletId;
-	type ActiveProjectsLimit = ConstU32<100>;
-	type EnglishAuctionDuration = EnglishAuctionDuration;
-	type CandleAuctionDuration = CandleAuctionDuration;
-	type CommunityRoundDuration = CommunityRoundDuration;
+	type Currency = Balances;
+	type BiddingCurrency = Balances;
 	type Randomness = Random;
 	type HandleMembers = Credentials;
-	type MaximumBidsPerProject = ConstU32<256>;
+	type Assets = Assets;
+	type StringLimit = ConstU32<64>;
 	type PreImageLimit = ConstU32<1024>;
-	type WeightInfo = weights::pallet_funding::WeightInfo<Runtime>;
+	type EvaluationDuration = EvaluationDuration;
+	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
+	type EnglishAuctionDuration = EnglishAuctionDuration;
+	type CandleAuctionDuration = CandleAuctionDuration;
+	type CommunityFundingDuration = CommunityFundingDuration;
+	type RemainderFundingDuration = RemainderFundingDuration;
+	type PalletId = FundingPalletId;
+	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
+	type MaximumBidsPerProject = ConstU32<256>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+
+	type WeightInfo = weights::pallet_funding::WeightInfo<Runtime>;
 }
 
 impl pallet_credentials::Config for Runtime {
@@ -538,7 +553,6 @@ parameter_types! {
 }
 
 impl pallet_treasury::Config for Runtime {
-	type PalletId = TreasuryPalletId;
 	type Currency = Balances;
 	// TODO: Use the Council instead of Root!
 	type ApproveOrigin = EnsureRoot<AccountId>;
@@ -549,12 +563,13 @@ impl pallet_treasury::Config for Runtime {
 	type ProposalBondMinimum = ProposalBondMinimum;
 	type ProposalBondMaximum = ();
 	type SpendPeriod = SpendPeriod;
-	type SpendOrigin = frame_support::traits::NeverEnsureOrigin<Balance>;
 	type Burn = Burn;
+	type PalletId = TreasuryPalletId;
 	type BurnDestination = ();
-	type SpendFunds = ();
 	type WeightInfo = ();
+	type SpendFunds = ();
 	type MaxApprovals = MaxApprovals;
+	type SpendOrigin = frame_support::traits::NeverEnsureOrigin<Balance>;
 }
 
 parameter_types! {
@@ -595,13 +610,24 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 }
 
 impl pallet_democracy::Config for Runtime {
+	type WeightInfo = pallet_democracy::weights::SubstrateWeight<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
+	type Scheduler = Scheduler;
+	type Preimages = Preimage;
 	type Currency = Balances;
 	type EnactmentPeriod = EnactmentPeriod;
 	type LaunchPeriod = LaunchPeriod;
 	type VotingPeriod = VotingPeriod;
-	type VoteLockingPeriod = EnactmentPeriod; // Same as EnactmentPeriod
+	type VoteLockingPeriod = EnactmentPeriod;
+	// Same as EnactmentPeriod
 	type MinimumDeposit = MinimumDeposit;
+	type InstantAllowed = frame_support::traits::ConstBool<true>;
+	type FastTrackVotingPeriod = FastTrackVotingPeriod;
+	type CooloffPeriod = CooloffPeriod;
+	type MaxVotes = ConstU32<128>;
+	type MaxProposals = MaxProposals;
+	type MaxDeposits = ();
+	type MaxBlacklisted = ();
 	/// A straight majority of the council can decide what their next motion is.
 	type ExternalOrigin =
 		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 2>;
@@ -618,31 +644,21 @@ impl pallet_democracy::Config for Runtime {
 		pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 2, 3>;
 	type InstantOrigin =
 		pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 1>;
-	type InstantAllowed = frame_support::traits::ConstBool<true>;
-	type FastTrackVotingPeriod = FastTrackVotingPeriod;
 	// To cancel a proposal which has been passed, 2/3 of the council must agree to it.
 	type CancellationOrigin =
 		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 2, 3>;
+	type BlacklistOrigin = EnsureRoot<AccountId>;
 	// To cancel a proposal before it has been passed, the technical committee must be unanimous or
 	// Root must agree.
 	type CancelProposalOrigin = EitherOfDiverse<
 		EnsureRoot<AccountId>,
 		pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 1>,
 	>;
-	type BlacklistOrigin = EnsureRoot<AccountId>;
 	// Any single technical committee member may veto a coming council proposal, however they can
 	// only do it once and it lasts only for the cool-off period.
 	type VetoOrigin = pallet_collective::EnsureMember<AccountId, TechnicalCollective>;
-	type CooloffPeriod = CooloffPeriod;
-	type Slash = ();
-	type Scheduler = Scheduler;
 	type PalletsOrigin = OriginCaller;
-	type MaxVotes = ConstU32<128>;
-	type WeightInfo = pallet_democracy::weights::SubstrateWeight<Runtime>;
-	type MaxProposals = MaxProposals;
-	type Preimages = Preimage;
-	type MaxDeposits = ();
-	type MaxBlacklisted = ();
+	type Slash = ();
 }
 
 parameter_types! {
@@ -657,9 +673,9 @@ impl pallet_scheduler::Config for Runtime {
 	type RuntimeCall = RuntimeCall;
 	type MaximumWeight = MaximumSchedulerWeight;
 	type ScheduleOrigin = EnsureRoot<AccountId>;
+	type OriginPrivilegeCmp = EqualPrivilegeOnly;
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
 	type WeightInfo = ();
-	type OriginPrivilegeCmp = EqualPrivilegeOnly;
 	type Preimages = Preimage;
 }
 
@@ -697,8 +713,8 @@ impl pallet_multisig::Config for Runtime {
 }
 
 impl pallet_preimage::Config for Runtime {
-	type WeightInfo = ();
 	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
 	type Currency = Balances;
 	type ManagerOrigin = EnsureRoot<AccountId>;
 	type BaseDeposit = PreimageBaseDeposit;
@@ -720,22 +736,22 @@ parameter_types! {
 impl pallet_assets::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
+	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
 	type AssetId = AssetId;
 	type AssetIdParameter = codec::Compact<AssetId>;
 	type Currency = Balances;
 	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type AssetDeposit = AssetDeposit;
+	type AssetAccountDeposit = AssetAccountDeposit;
 	type MetadataDepositBase = MetadataDepositBase;
 	type MetadataDepositPerByte = MetadataDepositPerByte;
 	type ApprovalDeposit = ApprovalDeposit;
 	type StringLimit = AssetsStringLimit;
 	type Freezer = ();
 	type Extra = ();
-	type WeightInfo = ();
 	type CallbackHandle = ();
-	type AssetAccountDeposit = AssetAccountDeposit;
-	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
+	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 }

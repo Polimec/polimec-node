@@ -169,7 +169,7 @@ benchmarks! {
 		);
 
 		// Move to a block valid for starting the Auction Round
-		run_to_block::<T>(System::<T>::block_number() + <T as Config>::EvaluationDuration::get() + 1_u32.into());
+		run_to_block::<T>(System::<T>::block_number() + <T as Config>::EvaluationDuration::get() + 2_u32.into());
 
 	}: _(SystemOrigin::Signed(issuer), project_id)
 
@@ -191,7 +191,7 @@ benchmarks! {
 		);
 
 		// Move to a block valid for starting the Auction Round
-		run_to_block::<T>(System::<T>::block_number() + <T as Config>::EvaluationDuration::get() + 1_u32.into());
+		run_to_block::<T>(System::<T>::block_number() + <T as Config>::EvaluationDuration::get() + 2_u32.into());
 
 		// fund bid accounts
 		let bidder_1: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
@@ -240,7 +240,7 @@ benchmarks! {
 		);
 
 		// Move to a block valid for starting the Auction Round
-		run_to_block::<T>(System::<T>::block_number() + <T as Config>::EvaluationDuration::get() + 1_u32.into());
+		run_to_block::<T>(System::<T>::block_number() + <T as Config>::EvaluationDuration::get() + 2_u32.into());
 
 		// fund bid accounts
 		let bidder_1: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
@@ -254,6 +254,9 @@ benchmarks! {
 
 		// Start the Auction round
 		assert_ok!(PolimecFunding::<T>::start_auction(SystemOrigin::Signed(issuer).into(), project_id.clone()));
+
+		run_to_block::<T>(System::<T>::block_number() + 1u32.into());
+
 		// Place bids
 		assert!(
 			PolimecFunding::<T>::bid(SystemOrigin::Signed(bidder_1).into(), project_id.clone(), 10_000u64.into(), 15__0_000_000_000_u64.into(), None).is_ok()
@@ -291,7 +294,7 @@ benchmarks! {
 		);
 
 		// Move to a block valid for starting the Auction Round
-		run_to_block::<T>(System::<T>::block_number() + <T as Config>::EvaluationDuration::get() + 1_u32.into());
+		run_to_block::<T>(System::<T>::block_number() + <T as Config>::EvaluationDuration::get() + 2_u32.into());
 
 		// fund bid accounts
 		let bidder_1: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
@@ -317,17 +320,19 @@ benchmarks! {
 		);
 
 		// Move past the Auction limit block
-		run_to_block::<T>(System::<T>::block_number() + <T as Config>::EnglishAuctionDuration::get() + <T as Config>::CandleAuctionDuration::get() + 1u32.into());
+		run_to_block::<T>(System::<T>::block_number() + <T as Config>::EnglishAuctionDuration::get() + <T as Config>::CandleAuctionDuration::get() + 2u32.into());
 
 		// Create contributor account
 		let contributor: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
 		T::Currency::make_free_balance_be(&contributor,  500_000__0_000_000_000_u64.into());
 
+		run_to_block::<T>(System::<T>::block_number() + 1u32.into());
+
 		// Contribute 2000 USD
 		PolimecFunding::<T>::contribute(SystemOrigin::Signed(contributor.clone()).into(), project_id.clone(), 2_000__0_000_000_000_u64.into()).unwrap();
 
 		// Move to the end of the funding round
-		run_to_block::<T>(System::<T>::block_number() + <T as Config>::CommunityRoundDuration::get() + 1u32.into());
+		run_to_block::<T>(System::<T>::block_number() + <T as Config>::CommunityFundingDuration::get() + <T as Config>::RemainderFundingDuration::get() + 1u32.into());
 
 	}: _(SystemOrigin::Signed(contributor.clone()), project_id.clone())
 	verify {
@@ -336,7 +341,7 @@ benchmarks! {
 	}
 
 	on_initialize_evaluation_end {
-		let p = T::ActiveProjectsLimit::get();
+		let p = T::MaxProjectsToUpdatePerBlock::get();
 		let evaluator: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
 		T::Currency::make_free_balance_be(&evaluator, 1_000_000_000__0_000_000_000_u64.into());
 		// Create 100 projects
@@ -366,11 +371,11 @@ benchmarks! {
 		PolimecFunding::<T>::on_initialize(System::<T>::block_number());
 	}
 	verify {
-		let p = T::ActiveProjectsLimit::get();
+		let p = T::MaxProjectsToUpdatePerBlock::get();
 		for i in 0 .. p {
 			let project_id = T::BenchmarkHelper::create_project_id_parameter(i);
 			let project_info = PolimecFunding::<T>::project_info(project_id.into()).unwrap();
-			assert_eq!(project_info.project_status, ProjectStatus::EvaluationEnded);
+			assert_eq!(project_info.project_status, ProjectStatus::AuctionInitializePeriod);
 		}
 	}
 
@@ -396,7 +401,7 @@ benchmarks! {
 		T::Currency::make_free_balance_be(&bidder_3, 500_000__0_000_000_000_u64.into()); // 100k tokens
 
 		// Move to the Auction Round
-		run_to_block::<T>(System::<T>::block_number() + <T as Config>::EvaluationDuration::get() + 1_u32.into());
+		run_to_block::<T>(System::<T>::block_number() + <T as Config>::EvaluationDuration::get() + 2_u32.into());
 		assert_ok!(PolimecFunding::<T>::start_auction(SystemOrigin::Signed(issuer).into(), project_id.clone()));
 
 		let project_info = <pallet::Pallet<T> as Store>::ProjectsInfo::get(project_id.clone().into()).unwrap();
