@@ -55,7 +55,7 @@ use xcm_executor::{
 use super::{
 	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances,
 	ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
-	WeightToFee, XcmpQueue, StatemintAssets,
+	StatemintAssets, WeightToFee, XcmpQueue,
 };
 
 const DOT_ASSET_ID: AssetId = Concrete(RelayLocation::get());
@@ -298,10 +298,10 @@ where
 /// Will drop and burn the assets in case the transfer fails.
 pub struct AssetsToBlockAuthor<R, I>(PhantomData<(R, I)>);
 impl<R, I> HandleCredit<AccountIdOf<R>, pallet_assets::Pallet<R, I>> for AssetsToBlockAuthor<R, I>
-	where
-		I: 'static,
-		R: pallet_authorship::Config + pallet_assets::Config<I>,
-		AccountIdOf<R>: From<polkadot_primitives::AccountId> + Into<polkadot_primitives::AccountId>,
+where
+	I: 'static,
+	R: pallet_authorship::Config + pallet_assets::Config<I>,
+	AccountIdOf<R>: From<polkadot_primitives::AccountId> + Into<polkadot_primitives::AccountId>,
 {
 	fn handle_credit(credit: CreditOf<AccountIdOf<R>, pallet_assets::Pallet<R, I>>) {
 		if let Some(author) = pallet_authorship::Pallet::<R>::author() {

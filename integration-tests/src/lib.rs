@@ -323,7 +323,8 @@ pub mod shortcuts {
 	pub type PenpalBalances = pallet_balances::Pallet<PenpalRuntime>;
 
 	pub type PolkadotAssets = pallet_assets::Pallet<PolkadotRuntime>;
-	pub type PolimecAssets = pallet_assets::Pallet<PolimecRuntime, polimec_runtime::StatemintAssetsInstance>;
+	pub type PolimecAssets =
+		pallet_assets::Pallet<PolimecRuntime, polimec_runtime::StatemintAssetsInstance>;
 	pub type StatemintAssets = pallet_assets::Pallet<StatemintRuntime>;
 	pub type PenpalAssets = pallet_assets::Pallet<PenpalRuntime>;
 

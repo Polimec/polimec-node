@@ -325,7 +325,12 @@ impl pallet_asset_tx_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Fungibles = StatemintAssets;
 	type OnChargeAssetTransaction = pallet_asset_tx_payment::FungiblesAdapter<
-		pallet_assets::BalanceToAssetBalance<Balances, Runtime, ConvertInto, StatemintAssetsInstance>,
+		pallet_assets::BalanceToAssetBalance<
+			Balances,
+			Runtime,
+			ConvertInto,
+			StatemintAssetsInstance,
+		>,
 		xcm_config::AssetsToBlockAuthor<Runtime, StatemintAssetsInstance>,
 	>;
 }
