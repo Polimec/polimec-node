@@ -147,32 +147,6 @@ pub struct CurrencyMetadata<BoundedString> {
 	pub decimals: u8,
 }
 
-// #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-// pub struct PhaseTransitionPoints<BlockNumber> {
-// 	pub application_start_block: BlockNumber,
-// 	pub application_end_block: Option<BlockNumber>,
-//
-// 	pub evaluation_start_block: Option<BlockNumber>,
-// 	pub evaluation_end_block: Option<BlockNumber>,
-//
-// 	pub auction_initialize_period_start_block: Option<BlockNumber>,
-// 	pub auction_initialize_period_end_block: Option<BlockNumber>,
-//
-// 	pub english_auction_start_block: Option<BlockNumber>,
-// 	pub english_auction_end_block: Option<BlockNumber>,
-//
-// 	pub candle_auction_start_block: Option<BlockNumber>,
-// 	pub candle_auction_end_block: Option<BlockNumber>,
-//
-// 	pub random_ending_block: Option<BlockNumber>,
-//
-// 	pub community_start_block: Option<BlockNumber>,
-// 	pub community_end_block: Option<BlockNumber>,
-//
-// 	pub remainder_start_block: Option<BlockNumber>,
-// 	pub remainder_end_block: Option<BlockNumber>,
-// }
-
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct PhaseTransitionPoints<BlockNumber> {
 	pub application: BlockNumberPair<BlockNumber>,

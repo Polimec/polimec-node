@@ -65,30 +65,6 @@ impl<T: Config> Pallet<T> {
 			weighted_average_price: None,
 			fundraising_target,
 			project_status: ProjectStatus::Application,
-			// phase_transition_points: PhaseTransitionPoints {
-			// 	application_start_block: <frame_system::Pallet<T>>::block_number(),
-			// 	application_end_block: None,
-			//
-			// 	evaluation_start_block: None,
-			// 	evaluation_end_block: None,
-			//
-			// 	auction_initialize_period_start_block: None,
-			// 	auction_initialize_period_end_block: None,
-			//
-			// 	english_auction_start_block: None,
-			// 	english_auction_end_block: None,
-			//
-			// 	candle_auction_start_block: None,
-			// 	candle_auction_end_block: None,
-			//
-			// 	random_ending_block: None,
-			//
-			// 	community_start_block: None,
-			// 	community_end_block: None,
-			//
-			// 	remainder_start_block: None,
-			// 	remainder_end_block: None,
-			// },
 			phase_transition_points: PhaseTransitionPoints {
 				application: BlockNumberPair::new(
 					Some(<frame_system::Pallet<T>>::block_number()),
@@ -125,12 +101,8 @@ impl<T: Config> Pallet<T> {
 		// Try to get the project into the earliest possible block to update.
 		// There is a limit for how many projects can update each block, so we need to make sure we don't exceed that limit
 		let mut block_number = block_number;
-		loop {
-			if let Ok(()) = ProjectsToUpdate::<T>::try_append(block_number, project_id) {
-				break
-			} else {
-				block_number += 1u32.into();
-			}
+		while ProjectsToUpdate::<T>::try_append(block_number, project_id).is_err() {
+			block_number += 1u32.into();
 		}
 		Ok(())
 	}
@@ -150,7 +122,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(!project_info.is_frozen, Error::<T>::ProjectAlreadyFrozen);
 
 		// Calculate transition points
-		let mut evaluation_end_block = now + T::EvaluationDuration::get();
+		let evaluation_end_block = now + T::EvaluationDuration::get();
 
 		// Update project info
 		// TODO: Should we make it possible to end an application, and schedule for a later point the evaluation?
@@ -209,8 +181,8 @@ impl<T: Config> Pallet<T> {
 		// Successful path
 		if is_funded {
 			// Calculate transition points
-			let mut auction_initialize_period_start_block = now + 1u32.into();
-			let mut auction_initialize_period_end_block =
+			let auction_initialize_period_start_block = now + 1u32.into();
+			let auction_initialize_period_end_block =
 				auction_initialize_period_start_block + T::AuctionInitializePeriodDuration::get();
 
 			// Update project info
