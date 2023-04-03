@@ -195,4 +195,8 @@ impl<T: frame_system::Config> pallet_funding::WeightInfo for WeightInfo<T> {
 			.saturating_add(T::DbWeight::get().reads(301))
 			.saturating_add(T::DbWeight::get().writes(100))
 	}
+
+	fn failed_evaluation_unbond_for() -> Weight {
+		Weight::from_ref_time(1_000_000)
+	}
 }

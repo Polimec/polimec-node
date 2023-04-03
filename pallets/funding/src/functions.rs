@@ -576,7 +576,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	// This functiion is kept separate from the `do_claim_contribution_tokens` for easier testing the logic
+	// This function is kept separate from the `do_claim_contribution_tokens` for easier testing the logic
 	#[inline(always)]
 	pub fn calculate_claimable_tokens(
 		contribution_amount: BalanceOf<T>,
@@ -584,4 +584,33 @@ impl<T: Config> Pallet<T> {
 	) -> FixedU128 {
 		FixedU128::saturating_from_rational(contribution_amount, weighted_average_price)
 	}
+
+	pub fn do_failed_evaluation_unbond_for(project_id: T::ProjectIdParameter, bonder: T::AccountId, releaser: T::AccountId) -> Result<(), DispatchError> {
+		let project_id = project_id.into();
+		let project_info =
+			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		ensure!(
+			project_info.project_status == ProjectStatus::EvaluationFailed,
+			Error::<T>::EvaluationNotFailed
+		);
+		let amount = Bonds::<T>::get(project_id, &bonder).ok_or(Error::<T>::BondNotFound)?;
+		T::Currency::remove_lock(LOCKING_ID, &bonder);
+		Bonds::<T>::remove(project_id, &bonder);
+		Self::deposit_event(Event::<T>::BondReleased { project_id, amount, bonder, releaser });
+
+		Ok(())
+	}
 }
+
+// struct Lock<T: Config> {
+// 	lock_type: LockType,
+// 	bonder: T::AccountId,
+// 	amount: BalanceOf<T>,
+// 
+// }
+// 
+// enum LockType {
+// 	EvaluationBond,
+// 	AuctionBond,
+// 	
+// }

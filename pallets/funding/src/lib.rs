@@ -91,6 +91,7 @@ use sp_runtime::{
 	FixedPointNumber, FixedPointOperand, FixedU128,
 };
 use sp_std::cmp::Reverse;
+use sp_std::prelude::*;
 
 /// The balance type of this pallet.
 type BalanceOf<T> = <T as Config>::CurrencyBalance;
@@ -644,28 +645,14 @@ pub mod pallet {
 		}
 
 		/// Release the bonded PLMC for an evaluator if the project assigned to it is in the EvaluationFailed phase
-		// #[pallet::weight(T::WeightInfo::release_bond_for())]
-		pub fn release_bond_for(
+		#[pallet::weight(T::WeightInfo::failed_evaluation_unbond_for())]
+		pub fn failed_evaluation_unbond_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdParameter,
 			bonder: T::AccountId,
 		) -> DispatchResult {
 			let releaser = ensure_signed(origin)?;
-			let project_id = project_id.into();
-			let project_info =
-				ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-			ensure!(
-				project_info.project_status == ProjectStatus::EvaluationFailed,
-				Error::<T>::EvaluationNotFailed
-			);
-			let amount = Bonds::<T>::get(project_id, &bonder).ok_or(Error::<T>::BondNotFound)?;
-			T::Currency::remove_lock(LOCKING_ID, &bonder);
-			Bonds::<T>::remove(project_id, &bonder);
-
-			Self::deposit_event(Event::<T>::BondReleased { project_id, amount, bonder, releaser });
-
-			// TODO: PLMC-133. Replace this when this PR is merged:
-			Ok(())
+			Self::do_failed_evaluation_unbond_for(project_id, bonder, releaser)
 		}
 
 		/// Place a bid in the "Auction Round"
@@ -926,13 +913,41 @@ pub mod pallet {
 
 		/// Cleanup the `active_projects` BoundedVec
 		fn on_idle(now: T::BlockNumber, _max_weight: Weight) -> Weight {
-			// for project_id in ProjectsToUpdate::<T>::get(now) {
-			// 	let maybe_project_info = ProjectsInfo::<T>::get(project_id);
-			// 	let project_info = unwrap_option_or_skip!(maybe_project_info, Event::<T>::InitializationError { project_id });
-			// 	if project_info.project_status == ProjectStatus::FundingEnded {
-			// 		unwrap_result_or_skip!(Self::handle_funding_end(&project_id, now), Event::<T>::InitializationError { project_id });
-			// 	}
-			// }
+			// get all projects that have failed the evaluation round
+			let failed_projects = ProjectsInfo::<T>::iter()
+				.filter(|(_, project_info)| project_info.project_status == ProjectStatus::EvaluationFailed)
+				.map(|(project_id, _)| project_id)
+				.collect::<Vec<_>>();
+
+			let pallet_account: T::AccountId = <T as Config>::PalletId::get().into_account_truncating();
+
+			let mut remaining_weight = _max_weight.clone();
+
+			failed_projects
+				.into_iter()
+				.map(|project_id| {
+					Bonds::<T>::iter_prefix(project_id).map(|(bonder, _)| (project_id, bonder)).collect::<Vec<_>>()
+				})
+				.flatten()
+				// keep unbonding until all weight given to on_idle is consumed
+				.take_while(|_|{
+					if let Some(new_weight) = remaining_weight.checked_sub(&T::WeightInfo::failed_evaluation_unbond_for()) {
+						remaining_weight = new_weight;
+						true
+					} else {
+						false
+					}
+				})
+				.map(|(project_id, bonder)|
+					Self::do_failed_evaluation_unbond_for(
+						project_id.into(),
+						bonder,
+						pallet_account.clone()
+					)
+				)
+				.for_each(|result| assert!(result.is_ok()));
+
+
 			// // TODO: PLMC-127. Set a proper weightK
 			Weight::from_ref_time(0)
 		}

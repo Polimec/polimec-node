@@ -58,6 +58,7 @@ pub trait WeightInfo {
 	fn contribute() -> Weight;
 	fn claim_contribution_tokens() -> Weight;
 	fn on_initialize() -> Weight;
+	fn failed_evaluation_unbond_for() -> Weight;
 }
 
 /// Weights for pallet_funding using the Substrate node and recommended hardware.
@@ -196,6 +197,10 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(301))
 			.saturating_add(T::DbWeight::get().writes(100))
 	}
+
+	fn failed_evaluation_unbond_for() -> Weight {
+		Weight::from_ref_time(1_000_000)
+	}
 }
 
 // For backwards compatibility and tests
@@ -332,5 +337,9 @@ impl WeightInfo for () {
 		Weight::from_ref_time(1_252_446_000)
 			.saturating_add(RocksDbWeight::get().reads(301))
 			.saturating_add(RocksDbWeight::get().writes(100))
+	}
+
+	fn failed_evaluation_unbond_for() -> Weight {
+		Weight::from_ref_time(1_000_000)
 	}
 }

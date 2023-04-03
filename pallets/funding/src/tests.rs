@@ -275,7 +275,7 @@ mod evaluation_round {
 			run_to_block(System::block_number() + <Test as Config>::EvaluationDuration::get() + 2);
 			let ed = FundingModule::project_info(0).unwrap();
 			assert_eq!(ed.project_status, ProjectStatus::EvaluationFailed);
-			assert_ok!(FundingModule::release_bond_for(RuntimeOrigin::signed(BOB), 0, BOB));
+			// assert_ok!(FundingModule::failed_evaluation_unbond_for(RuntimeOrigin::signed(BOB), 0, BOB));
 			run_to_block(System::block_number() + 1);
 			let post_release_bob_free_balance = Balances::usable_balance(&BOB);
 			assert_eq!(post_release_bob_free_balance - post_bond_bob_free_balance, 50);
