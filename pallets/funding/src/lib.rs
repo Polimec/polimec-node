@@ -90,8 +90,7 @@ use sp_runtime::{
 	traits::{AccountIdConversion, Hash},
 	FixedPointNumber, FixedPointOperand, FixedU128,
 };
-use sp_std::cmp::Reverse;
-use sp_std::prelude::*;
+use sp_std::{cmp::Reverse, prelude::*};
 
 /// The balance type of this pallet.
 type BalanceOf<T> = <T as Config>::CurrencyBalance;
@@ -915,38 +914,44 @@ pub mod pallet {
 		fn on_idle(now: T::BlockNumber, _max_weight: Weight) -> Weight {
 			// get all projects that have failed the evaluation round
 			let failed_projects = ProjectsInfo::<T>::iter()
-				.filter(|(_, project_info)| project_info.project_status == ProjectStatus::EvaluationFailed)
+				.filter(|(_, project_info)| {
+					project_info.project_status == ProjectStatus::EvaluationFailed
+				})
 				.map(|(project_id, _)| project_id)
 				.collect::<Vec<_>>();
 
-			let pallet_account: T::AccountId = <T as Config>::PalletId::get().into_account_truncating();
+			let pallet_account: T::AccountId =
+				<T as Config>::PalletId::get().into_account_truncating();
 
 			let mut remaining_weight = _max_weight.clone();
 
 			failed_projects
 				.into_iter()
 				.map(|project_id| {
-					Bonds::<T>::iter_prefix(project_id).map(|(bonder, _)| (project_id, bonder)).collect::<Vec<_>>()
+					Bonds::<T>::iter_prefix(project_id)
+						.map(|(bonder, _)| (project_id, bonder))
+						.collect::<Vec<_>>()
 				})
 				.flatten()
 				// keep unbonding until all weight given to on_idle is consumed
-				.take_while(|_|{
-					if let Some(new_weight) = remaining_weight.checked_sub(&T::WeightInfo::failed_evaluation_unbond_for()) {
+				.take_while(|_| {
+					if let Some(new_weight) =
+						remaining_weight.checked_sub(&T::WeightInfo::failed_evaluation_unbond_for())
+					{
 						remaining_weight = new_weight;
 						true
 					} else {
 						false
 					}
 				})
-				.map(|(project_id, bonder)|
+				.map(|(project_id, bonder)| {
 					Self::do_failed_evaluation_unbond_for(
 						project_id.into(),
 						bonder,
-						pallet_account.clone()
+						pallet_account.clone(),
 					)
-				)
+				})
 				.for_each(|result| assert!(result.is_ok()));
-
 
 			// // TODO: PLMC-127. Set a proper weightK
 			Weight::from_ref_time(0)

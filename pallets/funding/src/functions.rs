@@ -585,7 +585,11 @@ impl<T: Config> Pallet<T> {
 		FixedU128::saturating_from_rational(contribution_amount, weighted_average_price)
 	}
 
-	pub fn do_failed_evaluation_unbond_for(project_id: T::ProjectIdParameter, bonder: T::AccountId, releaser: T::AccountId) -> Result<(), DispatchError> {
+	pub fn do_failed_evaluation_unbond_for(
+		project_id: T::ProjectIdParameter,
+		bonder: T::AccountId,
+		releaser: T::AccountId,
+	) -> Result<(), DispatchError> {
 		let project_id = project_id.into();
 		let project_info =
 			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
@@ -606,11 +610,11 @@ impl<T: Config> Pallet<T> {
 // 	lock_type: LockType,
 // 	bonder: T::AccountId,
 // 	amount: BalanceOf<T>,
-// 
+//
 // }
-// 
+//
 // enum LockType {
 // 	EvaluationBond,
 // 	AuctionBond,
-// 	
+//
 // }
