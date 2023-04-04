@@ -308,21 +308,32 @@ pub enum RejectionReason {
 	NoTokensLeft,
 }
 
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
+/// Enum used to identify PLMC named reserves
+#[derive(
+	Clone,
+	Encode,
+	Decode,
+	Eq,
+	PartialEq,
+	RuntimeDebug,
+	TypeInfo,
+	MaxEncodedLen,
+	Copy,
+	Ord,
+	PartialOrd,
+)]
 pub enum BondType {
 	Evaluation,
 	Participation,
 	LongTermHolderBonus,
 	Staking,
-	Governance
+	Governance,
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct Bond<BondType, ProjectId, AccountId, Balance, BlockNumber> {
-	pub bond_type: BondType,
+pub struct EvaluationBond<ProjectId, AccountId, Balance, BlockNumber> {
 	pub project: ProjectId,
 	pub account: AccountId,
 	pub amount: Balance,
 	pub when: BlockNumber,
 }
-

@@ -168,9 +168,8 @@ impl<T: Config> Pallet<T> {
 
 		// Check which logic path to follow
 		let initial_balance: BalanceOf<T> = Zero::zero();
-		let total_amount_bonded = ProjectBonds::<T>::get(BondType::Evaluation, project_id).ok_or(Error::<T>::BondNotFound)?
-			.into_iter()
-			.fold(initial_balance, |acc, bond| acc.saturating_add(bond.amount));
+		let total_amount_bonded = EvaluationBonds::<T>::iter_prefix(project_id)
+			.fold(initial_balance, |acc, (_, bond)| acc.saturating_add(bond.amount));
 
 		// Check if the total amount bonded is greater than the 10% of the fundraising target
 		// TODO: PLMC-142. 10% is hardcoded, check if we want to configure it a runtime as explained here:
@@ -587,25 +586,28 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_failed_evaluation_unbond_for(
-		bond: Bond<BondType, T::ProjectIdentifier, T::AccountId, T::CurrencyBalance, T::BlockNumber>,
+		bond: EvaluationBond<
+			T::ProjectIdentifier,
+			T::AccountId,
+			T::CurrencyBalance,
+			T::BlockNumber,
+		>,
 		releaser: T::AccountId,
 	) -> Result<(), DispatchError> {
 		let project_info =
-			ProjectsInfo::<T>::get(bond.project).ok_or(Error::<T>::ProjectInfoNotFound)?;
+			ProjectsInfo::<T>::get(bond.project.clone()).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		ensure!(
 			project_info.project_status == ProjectStatus::EvaluationFailed,
 			Error::<T>::EvaluationNotFailed
 		);
-		T::Currency::unreserve_named(&bond.bond_type, &bond.account, bond.amount);
-		ProjectBonds::<T>::remove(bond.bond_type.clone(), bond.project.clone());
-		UserBonds::<T>::remove(bond.account.clone(), bond.bond_type.clone());
+		T::Currency::unreserve_named(&BondType::Evaluation, &bond.account, bond.amount.clone());
+		EvaluationBonds::<T>::remove(bond.project.clone(), bond.account.clone());
 
 		Self::deposit_event(Event::<T>::BondReleased {
 			project_id: bond.project,
 			amount: bond.amount,
 			bonder: bond.account,
-			releaser
-
+			releaser,
 		});
 
 		Ok(())

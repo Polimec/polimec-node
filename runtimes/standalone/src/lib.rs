@@ -41,6 +41,7 @@ use frame_support::traits::AsEnsureOriginWithArg;
 use frame_system::EnsureSigned;
 pub use frame_system::{Call as SystemCall, EnsureRoot};
 pub use pallet_balances::Call as BalancesCall;
+use pallet_funding::BondType;
 use pallet_grandpa::{
 	fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
 };
@@ -65,7 +66,6 @@ use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
-use pallet_funding::BondType;
 
 use polimec_traits::{MemberRole, PolimecMembers};
 

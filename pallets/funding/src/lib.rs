@@ -80,8 +80,8 @@ use frame_support::{
 			fungibles::{metadata::Mutate as MetadataMutate, Create, InspectMetadata, Mutate},
 			Balance,
 		},
-		Currency as CurrencyT, Get, LockIdentifier, LockableCurrency, Randomness, ReservableCurrency, NamedReservableCurrency,
-		WithdrawReasons,
+		Currency as CurrencyT, Get, LockIdentifier, NamedReservableCurrency, Randomness,
+		ReservableCurrency,
 	},
 	BoundedVec, PalletId, Parameter,
 };
@@ -120,7 +120,6 @@ const LOCKING_ID: LockIdentifier = *b"evaluate";
 pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
-	use frame_support::traits::fungibles::{Transfer};
 	use frame_system::pallet_prelude::*;
 	use local_macros::*;
 
@@ -298,40 +297,15 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn project_bonds)]
+	#[pallet::getter(fn evaluation_bonds)]
 	/// Keep track of the bonds made to each project
-	pub type ProjectBonds<T: Config> = StorageDoubleMap<
+	pub type EvaluationBonds<T: Config> = StorageDoubleMap<
 		_,
-		Blake2_128Concat,
-		BondType,
 		Blake2_128Concat,
 		T::ProjectIdentifier,
-		Vec<
-			Bond<
-				BondType,
-				T::ProjectIdentifier,
-				T::AccountId,
-				BalanceOf<T>,
-				T::BlockNumber>
-		>,
-	>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn user_bonds)]
-	/// Keep track of the bonds made by each user
-	pub type UserBonds<T: Config> = StorageDoubleMap<
-		_,
 		Blake2_128Concat,
 		T::AccountId,
-		Blake2_128Concat,
-		BondType,
-		Bond<
-			BondType,
-			T::ProjectIdentifier,
-			T::AccountId,
-			BalanceOf<T>,
-			T::BlockNumber
-		>
+		EvaluationBond<T::ProjectIdentifier, T::AccountId, BalanceOf<T>, T::BlockNumber>,
 	>;
 
 	#[pallet::storage]
@@ -395,6 +369,8 @@ pub mod pallet {
 		Noted { hash: T::Hash },
 		/// Something was not properly initialized. Most likely due to dev error manually calling do_* functions or updating storage
 		TransitionError { project_id: T::ProjectIdentifier, error: DispatchError },
+		/// Something terribly wrong happened where the bond could not be unbonded. Most likely a programming error
+		FailedEvaluationUnbondFailed { error: DispatchError },
 	}
 
 	#[pallet::error]
@@ -646,23 +622,26 @@ pub mod pallet {
 			ensure!(T::Currency::free_balance(&from) > amount, Error::<T>::InsufficientBalance);
 
 			// TODO: PLMC-144. Unlock the PLMC when it's the right time
-			UserBonds::<T>::try_mutate(from.clone(), BondType::Evaluation, |maybe_bond| {
+			EvaluationBonds::<T>::try_mutate(project_id, from.clone(), |maybe_bond| {
 				match maybe_bond {
 					Some(bond) => {
 						// If the user has already bonded, add the new amount to the old one
 						bond.amount += amount;
-						T::Currency::reserve_named(&BondType::Evaluation, &from, amount).map_err(|_| Error::<T>::InsufficientBalance)?;
+						T::Currency::reserve_named(&BondType::Evaluation, &from, amount)
+							.map_err(|_| Error::<T>::InsufficientBalance)?;
 					},
 					None => {
 						// If the user has not bonded yet, create a new bond
-						*maybe_bond = Some(Bond {
-							bond_type: BondType::Evaluation,
+						*maybe_bond = Some(EvaluationBond {
 							project: project_id,
 							account: from.clone(),
 							amount,
 							when: <frame_system::Pallet<T>>::block_number(),
 						});
-						T::Currency::reserve_named(&BondType::Evaluation, &from, amount).map_err(|_| Error::<T>::InsufficientBalance)?;
+
+						// Reserve the required PLMC
+						T::Currency::reserve_named(&BondType::Evaluation, &from, amount)
+							.map_err(|_| Error::<T>::InsufficientBalance)?;
 					},
 				}
 				Self::deposit_event(Event::<T>::FundsBonded {
@@ -672,6 +651,8 @@ pub mod pallet {
 				});
 				Result::<(), Error<T>>::Ok(())
 			});
+
+			let test = EvaluationBonds::<T>::iter_prefix(project_id).collect::<Vec<_>>();
 			Ok(())
 		}
 
@@ -683,7 +664,7 @@ pub mod pallet {
 			bonder: T::AccountId,
 		) -> DispatchResult {
 			let releaser = ensure_signed(origin)?;
-			let bond = UserBonds::<T>::get(&bonder, BondType::Evaluation)
+			let bond = EvaluationBonds::<T>::get(project_id.into(), bonder)
 				.ok_or(Error::<T>::BondNotFound)?;
 			Self::do_failed_evaluation_unbond_for(bond, releaser)
 		}
@@ -950,19 +931,20 @@ pub mod pallet {
 				<T as Config>::PalletId::get().into_account_truncating();
 
 			let mut remaining_weight = max_weight.clone();
-
-			let unbond_results = ProjectBonds::<T>::iter_prefix(BondType::Evaluation)
-				// get all the bonds for projects with a failed evaluation phase
-				.filter_map(|(project_id, bonds)| {
-					let project_info = ProjectsInfo::<T>::get(project_id)?;
-					if project_info.project_status == ProjectStatus::EvaluationFailed {
-						Some(project_id, bonds)
+			let unbond_results = ProjectsInfo::<T>::iter()
+				.filter_map(|(project_id, info)| {
+					if let ProjectStatus::EvaluationFailed = info.project_status {
+						Some(project_id)
 					} else {
 						None
 					}
 				})
-				.flatten()
-				// keep unbonding until all weight given to on_idle is consumed
+				.flat_map(|project_id| {
+					// get all the bonds for projects with a failed evaluation phase
+					EvaluationBonds::<T>::iter_prefix(project_id)
+						.map(|(bonder, bond)| bond)
+						.collect::<Vec<_>>()
+				})
 				.take_while(|_| {
 					if let Some(new_weight) =
 						remaining_weight.checked_sub(&T::WeightInfo::failed_evaluation_unbond_for())
@@ -973,20 +955,16 @@ pub mod pallet {
 						false
 					}
 				})
-				.map(|project_id, bond| {
-					(
-						Self::do_failed_evaluation_unbond_for(
-							bond,
-							pallet_account.clone()
-						),
-						project_id
-					)
-				});
-				for (result, project_id) in unbond_results {
-					unwrap_result_or_skip!(result, project_id)
-				}
+				.map(|bond| Self::do_failed_evaluation_unbond_for(bond, pallet_account.clone()))
+				.collect::<Vec<_>>();
 
-			// TODO: PLMC-127. Set a proper weightK
+			for result in unbond_results {
+				if let Err(e) = result {
+					Self::deposit_event(Event::<T>::FailedEvaluationUnbondFailed { error: e });
+				}
+			}
+
+			// // TODO: PLMC-127. Set a proper weightK
 			max_weight.saturating_sub(remaining_weight)
 		}
 	}

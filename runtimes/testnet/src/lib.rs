@@ -58,8 +58,8 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 // XCM Imports
-use xcm_executor::XcmExecutor;
 use pallet_funding::BondType;
+use xcm_executor::XcmExecutor;
 
 use polimec_traits::{MemberRole, PolimecMembers};
 use runtime_common::constants::staking::*;
@@ -241,9 +241,9 @@ parameter_types! {
 impl pallet_balances::Config for Runtime {
 	/// The type for recording an account's balance.
 	type Balance = Balance;
+	type DustRemoval = Treasury;
 	/// The ubiquitous event type.
 	type RuntimeEvent = RuntimeEvent;
-	type DustRemoval = Treasury;
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
