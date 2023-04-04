@@ -25,6 +25,7 @@ use frame_support::{ensure, pallet_prelude::DispatchError, traits::Get};
 use sp_arithmetic::Perbill;
 use sp_runtime::Percent;
 use sp_std::prelude::*;
+use crate::mock::BlockNumber;
 
 impl<T: Config> Pallet<T> {
 	/// The account ID of the project pot.
@@ -455,6 +456,62 @@ impl<T: Config> Pallet<T> {
 		// Update project Info
 		project_info.project_status = ProjectStatus::ReadyToLaunch;
 		ProjectsInfo::<T>::insert(project_id, project_info);
+
+		Ok(())
+	}
+
+	pub fn multiplier_to_vesting_period(_caller: T::AccountId, _multiplier: u32) -> VestingPeriod<BlockNumber> {
+		let start = parachains_common::DAYS * 7;
+		VestingPeriod {
+			start: start.into(),
+			end: start.into(),
+			step: 0u32.into(),
+			last_withdrawal: 0u32.into(),
+		}
+	}
+
+	pub fn bond_bidding(
+		caller: T::AccountId,
+		project_id: T::ProjectIdentifier,
+		amount: BalanceOf<T>,
+	) -> Result<(), DispatchError>{
+		let now = <frame_system::Pallet<T>>::block_number();
+		let project_info =
+			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound).unwrap();
+
+		if let Some(bidding_end_block) = project_info.phase_transition_points.candle_auction.end() {
+			ensure!(now < bidding_end_block, Error::<T>::TooLateForBidBonding);
+		}
+
+		BiddingBonds::<T>::try_mutate(project_id, caller.clone(), |maybe_bond| {
+			match maybe_bond {
+				Some(bond) => {
+					// If the user has already bonded, add the new amount to the old one
+					bond.amount += amount;
+					T::Currency::reserve_named(&BondType::Contributing, &caller, amount)
+						.map_err(|_| Error::<T>::InsufficientBalance)?;
+				},
+				None => {
+					// If the user has not bonded yet, create a new bond
+					*maybe_bond = Some(BiddingBond {
+						project: project_id,
+						account: caller.clone(),
+						amount,
+						when: <frame_system::Pallet<T>>::block_number(),
+					});
+
+					// Reserve the required PLMC
+					T::Currency::reserve_named(&BondType::Contributing, &caller, amount)
+						.map_err(|_| Error::<T>::InsufficientBalance)?;
+				},
+			}
+			Self::deposit_event(Event::<T>::FundsBonded {
+				project_id,
+				amount,
+				bonder: caller.clone(),
+			});
+			Result::<(), Error<T>>::Ok(())
+		})?;
 
 		Ok(())
 	}

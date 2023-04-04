@@ -85,13 +85,13 @@ use frame_support::{
 	},
 	BoundedVec, PalletId, Parameter,
 };
+use parachains_common::Block;
 use sp_arithmetic::traits::{One, Saturating, Zero};
 use sp_runtime::{
-	traits::{AccountIdConversion, Hash},
+	traits::{AccountIdConversion, Hash, CheckedDiv},
 	FixedPointNumber, FixedPointOperand, FixedU128,
 };
 use sp_std::{cmp::Reverse, prelude::*};
-
 /// The balance type of this pallet.
 type BalanceOf<T> = <T as Config>::CurrencyBalance;
 
@@ -107,6 +107,7 @@ type BidInfoOf<T> = BidInfo<
 	BalanceOf<T>,
 	<T as frame_system::Config>::AccountId,
 	<T as frame_system::Config>::BlockNumber,
+	VestingPeriod<<T as frame_system::Config>::BlockNumber>
 >;
 
 // TODO: PLMC-151. Add multiple locks
@@ -309,6 +310,30 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
+	#[pallet::getter(fn bidding_bonds)]
+	/// Keep track of the bonds made to each project
+	pub type BiddingBonds<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		T::ProjectIdentifier,
+		Blake2_128Concat,
+		T::AccountId,
+		BiddingBond<T::ProjectIdentifier, T::AccountId, BalanceOf<T>, T::BlockNumber>,
+	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn contributing_bonds)]
+	/// Keep track of the bonds made to each project
+	pub type ContributingBonds<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		T::ProjectIdentifier,
+		Blake2_128Concat,
+		T::AccountId,
+		Vec<ContributingBond<T::ProjectIdentifier, T::AccountId, BalanceOf<T>, T::BlockNumber>>,
+	>;
+
+	#[pallet::storage]
 	#[pallet::getter(fn contributions)]
 	/// Contributions made during the Community Round
 	pub type Contributions<T: Config> = StorageDoubleMap<
@@ -469,6 +494,10 @@ pub mod pallet {
 		EvaluationNotFailed,
 		/// Tried to unbond PLMC after unsuccessful evaluation, but specified bond does not exist.
 		BondNotFound,
+		/// Checked math failed
+		BadMath,
+		/// Tried to bond PLMC for bidding, but that phase has already ended
+		TooLateForBidBonding
 	}
 
 	#[pallet::call]
@@ -618,8 +647,6 @@ pub mod pallet {
 				project_info.project_status == ProjectStatus::EvaluationRound,
 				Error::<T>::EvaluationNotStarted
 			);
-			// TODO: PLMC-157. Should I check the free balance here or is already done in the Currency::set_lock?
-			ensure!(T::Currency::free_balance(&from) > amount, Error::<T>::InsufficientBalance);
 
 			// TODO: PLMC-144. Unlock the PLMC when it's the right time
 			EvaluationBonds::<T>::try_mutate(project_id, from.clone(), |maybe_bond| {
@@ -650,9 +677,8 @@ pub mod pallet {
 					bonder: from.clone(),
 				});
 				Result::<(), Error<T>>::Ok(())
-			});
+			})?;
 
-			let test = EvaluationBonds::<T>::iter_prefix(project_id).collect::<Vec<_>>();
 			Ok(())
 		}
 
@@ -676,7 +702,7 @@ pub mod pallet {
 			project_id: T::ProjectIdParameter,
 			#[pallet::compact] amount: BalanceOf<T>,
 			#[pallet::compact] price: BalanceOf<T>,
-			multiplier: Option<BalanceOf<T>>,
+			multiplier: Option<u32>,
 			// TODO: PLMC-158 Add a parameter to specify the currency to use, should be equal to the currency
 			// specified in `participation_currencies`
 		) -> DispatchResult {
@@ -723,8 +749,16 @@ pub mod pallet {
 			};
 
 			let now = <frame_system::Pallet<T>>::block_number();
-			let multiplier = multiplier.unwrap_or(BalanceOf::<T>::one());
-			let bid = BidInfo::new(amount, price, now, bidder.clone(), multiplier);
+			let multiplier = multiplier.unwrap_or(1_u32);
+			let mut required_plmc_bond = amount.checked_div(&multiplier.into()).ok_or(Error::<T>::BadMath)?;
+			let vesting_period = Self::multiplier_to_vesting_period(bidder, multiplier);
+			let bid = BidInfo::new(amount, price, now, bidder.clone(), vesting_period);
+			// Check that required PLMC is already bonded
+			if let Some(bond) = BiddingBonds::<T>::get(project_id.clone(), bidder.clone()) {
+				required_plmc_bond.saturating_sub(bond.amount);
+			}
+
+			Self::bond_bidding(bidder.clone(), project_id.clone(), required_plmc_bond)?;
 
 			let mut bids = AuctionsInfo::<T>::get(project_id);
 

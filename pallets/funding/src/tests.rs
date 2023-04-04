@@ -341,8 +341,8 @@ mod evaluation_round {
 			assert_ok!(FundingModule::bond_evaluation(RuntimeOrigin::signed(BOB), 0, 128));
 			let bonds = Balances::reserved_balance_named(&BondType::Evaluation, &BOB);
 			assert_eq!(bonds, 256);
-			let locked_amount = Balances::locks(&BOB).iter().next().unwrap().amount;
-			assert_eq!(locked_amount, 256);
+			let reserved_amount = Balances::reserved_balance_named(&BondType::Evaluation, &BOB);
+			assert_eq!(reserved_amount, 256);
 		})
 	}
 }

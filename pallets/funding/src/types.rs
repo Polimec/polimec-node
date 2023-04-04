@@ -193,7 +193,7 @@ impl<BlockNumber: Copy> BlockNumberPair<BlockNumber> {
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct BidInfo<Balance: BalanceT, AccountId, BlockNumber> {
+pub struct BidInfo<Balance: BalanceT, AccountId, BlockNumber, VestingPeriod> {
 	#[codec(compact)]
 	pub amount: Balance,
 	#[codec(compact)]
@@ -206,17 +206,17 @@ pub struct BidInfo<Balance: BalanceT, AccountId, BlockNumber> {
 	pub bidder: AccountId,
 	// TODO: PLMC-159. Not used yet, but will be used to check if the bid is funded after XCM is implemented
 	pub funded: bool,
-	pub multiplier: Balance,
+	pub vesting_period: VestingPeriod,
 	pub status: BidStatus<Balance>,
 }
 
-impl<Balance: BalanceT, AccountId, BlockNumber> BidInfo<Balance, AccountId, BlockNumber> {
+impl<Balance: BalanceT, AccountId, BlockNumber, VestingPeriod> BidInfo<Balance, AccountId, BlockNumber, VestingPeriod> {
 	pub fn new(
 		amount: Balance,
 		price: Balance,
 		when: BlockNumber,
 		bidder: AccountId,
-		multiplier: Balance,
+		vesting_period: VestingPeriod,
 	) -> Self {
 		let ticket_size = amount.saturating_mul(price);
 		Self {
@@ -227,22 +227,22 @@ impl<Balance: BalanceT, AccountId, BlockNumber> BidInfo<Balance, AccountId, Bloc
 			when,
 			bidder,
 			funded: false,
-			multiplier,
+			vesting_period,
 			status: BidStatus::YetUnknown,
 		}
 	}
 }
 
-impl<Balance: BalanceT, AccountId: sp_std::cmp::Eq, BlockNumber: sp_std::cmp::Eq> sp_std::cmp::Ord
-	for BidInfo<Balance, AccountId, BlockNumber>
+impl<Balance: BalanceT, AccountId: sp_std::cmp::Eq, BlockNumber: sp_std::cmp::Eq, VestingPeriod: sp_std::cmp::Eq> sp_std::cmp::Ord
+	for BidInfo<Balance, AccountId, BlockNumber, VestingPeriod>
 {
 	fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
 		self.price.cmp(&other.price)
 	}
 }
 
-impl<Balance: BalanceT, AccountId: sp_std::cmp::Eq, BlockNumber: sp_std::cmp::Eq>
-	sp_std::cmp::PartialOrd for BidInfo<Balance, AccountId, BlockNumber>
+impl<Balance: BalanceT, AccountId: sp_std::cmp::Eq, BlockNumber: sp_std::cmp::Eq, VestingPeriod: sp_std::cmp::Eq>
+	sp_std::cmp::PartialOrd for BidInfo<Balance, AccountId, BlockNumber, VestingPeriod>
 {
 	fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
 		Some(self.cmp(other))
@@ -324,7 +324,8 @@ pub enum RejectionReason {
 )]
 pub enum BondType {
 	Evaluation,
-	Participation,
+	Bidding,
+	Contributing,
 	LongTermHolderBonus,
 	Staking,
 	Governance,
@@ -336,4 +337,38 @@ pub struct EvaluationBond<ProjectId, AccountId, Balance, BlockNumber> {
 	pub account: AccountId,
 	pub amount: Balance,
 	pub when: BlockNumber,
+}
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct BiddingBond<ProjectId, AccountId, Balance, BlockNumber> {
+	pub project: ProjectId,
+	pub account: AccountId,
+	pub amount: Balance,
+	pub when: BlockNumber,
+}
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct ContributingBond<ProjectId, AccountId, Balance, BlockNumber> {
+	pub project: ProjectId,
+	pub account: AccountId,
+	pub amount: Balance,
+	pub when: BlockNumber,
+}
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct VestingPeriod<BlockNumber> {
+	// number of blocks after project ends, when vesting starts
+	pub start: BlockNumber,
+	// number of blocks after project ends, when vesting ends
+	pub end: BlockNumber,
+	// number of blocks between each withdrawal
+	pub step: BlockNumber,
+	// absolute block number of last withdrawal
+	pub last_withdrawal: BlockNumber,
+}
+
+impl<BlockNumber> VestingPeriod<BlockNumber> {
+	pub fn next_withdrawal(&self) -> BlockNumber {
+		self.last_withdrawal + self.step
+	}
 }
