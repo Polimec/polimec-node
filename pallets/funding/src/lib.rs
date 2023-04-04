@@ -37,7 +37,7 @@
 //! * `contribute` : Contribute to a project during the Community Round.
 //! * `claim_contribution_tokens` : Claim the Contribution Tokens if you contributed to a project during the Funding Round.
 //!
-//! ### Priviliged Functions, callable only by the project's Issuer
+//! ### Privileged Functions, callable only by the project's Issuer
 //!
 //! * `edit_metadata` : Submit a new Hash of the project metadata.
 //! * `start_evaluation` : Start the Evaluation Round of a project.
@@ -56,7 +56,6 @@ pub mod types;
 pub use types::*;
 
 pub mod weights;
-pub use weights::WeightInfo;
 
 mod functions;
 
@@ -72,6 +71,7 @@ mod benchmarking;
 #[allow(unused_imports)]
 use polimec_traits::{MemberRole, PolimecMembers};
 
+pub use crate::weights::WeightInfo;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{
 	pallet_prelude::ValueQuery,
@@ -80,7 +80,7 @@ use frame_support::{
 			fungibles::{metadata::Mutate as MetadataMutate, Create, InspectMetadata, Mutate},
 			Balance,
 		},
-		Currency, Get, LockIdentifier, LockableCurrency, Randomness, ReservableCurrency,
+		Currency as CurrencyT, Get, LockIdentifier, LockableCurrency, Randomness, ReservableCurrency,
 		WithdrawReasons,
 	},
 	BoundedVec, PalletId, Parameter,
@@ -911,28 +911,30 @@ pub mod pallet {
 		}
 
 		/// Cleanup the `active_projects` BoundedVec
-		fn on_idle(now: T::BlockNumber, _max_weight: Weight) -> Weight {
+		fn on_idle(_now: T::BlockNumber, max_weight: Weight) -> Weight {
 			// get all projects that have failed the evaluation round
 			let failed_projects = ProjectsInfo::<T>::iter()
-				.filter(|(_, project_info)| {
-					project_info.project_status == ProjectStatus::EvaluationFailed
+				.filter_map(|(project_id, project_info)| {
+					if project_info.project_status == ProjectStatus::EvaluationFailed {
+						Some(project_id)
+					} else {
+						None
+					}
 				})
-				.map(|(project_id, _)| project_id)
 				.collect::<Vec<_>>();
 
 			let pallet_account: T::AccountId =
 				<T as Config>::PalletId::get().into_account_truncating();
 
-			let mut remaining_weight = _max_weight.clone();
+			let mut remaining_weight = max_weight.clone();
 
 			failed_projects
 				.into_iter()
-				.map(|project_id| {
+				.flat_map(|project_id| {
 					Bonds::<T>::iter_prefix(project_id)
 						.map(|(bonder, _)| (project_id, bonder))
 						.collect::<Vec<_>>()
 				})
-				.flatten()
 				// keep unbonding until all weight given to on_idle is consumed
 				.take_while(|_| {
 					if let Some(new_weight) =
