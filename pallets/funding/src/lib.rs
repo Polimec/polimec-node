@@ -928,7 +928,7 @@ pub mod pallet {
 
 			let mut remaining_weight = max_weight.clone();
 
-			failed_projects
+			let unbond_results = failed_projects
 				.into_iter()
 				.flat_map(|project_id| {
 					Bonds::<T>::iter_prefix(project_id)
@@ -947,13 +947,18 @@ pub mod pallet {
 					}
 				})
 				.map(|(project_id, bonder)| {
-					Self::do_failed_evaluation_unbond_for(
-						project_id.into(),
-						bonder,
-						pallet_account.clone(),
+					(
+						Self::do_failed_evaluation_unbond_for(
+							project_id.into(),
+							bonder,
+							pallet_account.clone(),
+						),
+						project_id
 					)
-				})
-				.for_each(|result| assert!(result.is_ok()));
+				});
+				for (result, project_id) in unbond_results {
+					unwrap_result_or_skip!(result, project_id)
+				}
 
 			// // TODO: PLMC-127. Set a proper weightK
 			Weight::from_ref_time(0)
