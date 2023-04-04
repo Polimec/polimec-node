@@ -59,6 +59,7 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 // XCM Imports
 use xcm_executor::XcmExecutor;
+use pallet_funding::BondType;
 
 use polimec_traits::{MemberRole, PolimecMembers};
 use runtime_common::constants::staking::*;
@@ -248,7 +249,7 @@ impl pallet_balances::Config for Runtime {
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
-	type ReserveIdentifier = [u8; 8];
+	type ReserveIdentifier = BondType;
 }
 
 /// Logic for the author to get a portion of fees.

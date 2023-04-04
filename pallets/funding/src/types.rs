@@ -307,3 +307,22 @@ pub enum RejectionReason {
 	/// The bid was accepted but too many tokens were requested. A partial amount was accepted
 	NoTokensLeft,
 }
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
+pub enum BondType {
+	Evaluation,
+	Participation,
+	LongTermHolderBonus,
+	Staking,
+	Governance
+}
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct Bond<BondType, ProjectId, AccountId, Balance, BlockNumber> {
+	pub bond_type: BondType,
+	pub project: ProjectId,
+	pub account: AccountId,
+	pub amount: Balance,
+	pub when: BlockNumber,
+}
+

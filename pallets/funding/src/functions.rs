@@ -168,8 +168,9 @@ impl<T: Config> Pallet<T> {
 
 		// Check which logic path to follow
 		let initial_balance: BalanceOf<T> = Zero::zero();
-		let total_amount_bonded = Bonds::<T>::iter_prefix_values(project_id)
-			.fold(initial_balance, |acc, bond| acc.saturating_add(bond));
+		let total_amount_bonded = ProjectBonds::<T>::get(BondType::Evaluation, project_id).ok_or(Error::<T>::BondNotFound)?
+			.into_iter()
+			.fold(initial_balance, |acc, bond| acc.saturating_add(bond.amount));
 
 		// Check if the total amount bonded is greater than the 10% of the fundraising target
 		// TODO: PLMC-142. 10% is hardcoded, check if we want to configure it a runtime as explained here:
@@ -586,35 +587,27 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_failed_evaluation_unbond_for(
-		project_id: T::ProjectIdParameter,
-		bonder: T::AccountId,
+		bond: Bond<BondType, T::ProjectIdentifier, T::AccountId, T::CurrencyBalance, T::BlockNumber>,
 		releaser: T::AccountId,
 	) -> Result<(), DispatchError> {
-		let project_id = project_id.into();
 		let project_info =
-			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+			ProjectsInfo::<T>::get(bond.project).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		ensure!(
 			project_info.project_status == ProjectStatus::EvaluationFailed,
 			Error::<T>::EvaluationNotFailed
 		);
-		let amount = Bonds::<T>::get(project_id, &bonder).ok_or(Error::<T>::BondNotFound)?;
-		T::Currency::remove_lock(LOCKING_ID, &bonder);
-		Bonds::<T>::remove(project_id, &bonder);
-		Self::deposit_event(Event::<T>::BondReleased { project_id, amount, bonder, releaser });
+		T::Currency::unreserve_named(&bond.bond_type, &bond.account, bond.amount);
+		ProjectBonds::<T>::remove(bond.bond_type.clone(), bond.project.clone());
+		UserBonds::<T>::remove(bond.account.clone(), bond.bond_type.clone());
+
+		Self::deposit_event(Event::<T>::BondReleased {
+			project_id: bond.project,
+			amount: bond.amount,
+			bonder: bond.account,
+			releaser
+
+		});
 
 		Ok(())
 	}
 }
-
-// struct Lock<T: Config> {
-// 	lock_type: LockType,
-// 	bonder: T::AccountId,
-// 	amount: BalanceOf<T>,
-//
-// }
-//
-// enum LockType {
-// 	EvaluationBond,
-// 	AuctionBond,
-//
-// }

@@ -80,8 +80,8 @@ use frame_support::{
 			fungibles::{metadata::Mutate as MetadataMutate, Create, InspectMetadata, Mutate},
 			Balance,
 		},
-		Currency as CurrencyT, Get, LockIdentifier, LockableCurrency, Randomness,
-		ReservableCurrency, WithdrawReasons,
+		Currency as CurrencyT, Get, LockIdentifier, LockableCurrency, Randomness, ReservableCurrency, NamedReservableCurrency,
+		WithdrawReasons,
 	},
 	BoundedVec, PalletId, Parameter,
 };
@@ -120,6 +120,7 @@ const LOCKING_ID: LockIdentifier = *b"evaluate";
 pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
+	use frame_support::traits::fungibles::{Transfer};
 	use frame_system::pallet_prelude::*;
 	use local_macros::*;
 
@@ -155,13 +156,14 @@ pub mod pallet {
 		type CurrencyBalance: Balance + From<u64> + FixedPointOperand;
 
 		/// The bonding balance.
-		type Currency: LockableCurrency<
+		type Currency: NamedReservableCurrency<
 			Self::AccountId,
-			Moment = Self::BlockNumber,
 			Balance = BalanceOf<Self>,
+			ReserveIdentifier = BondType,
 		>;
 
 		/// The bidding balance.
+		// type BiddingCurrency: Transfer<Self::AccountId>;
 		type BiddingCurrency: ReservableCurrency<Self::AccountId, Balance = BalanceOf<Self>>;
 
 		/// Something that provides randomness in the runtime.
@@ -296,15 +298,40 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn bonds)]
-	/// StorageDoubleMap to store the bonds for each project during the Evaluation Round
-	pub type Bonds<T: Config> = StorageDoubleMap<
+	#[pallet::getter(fn project_bonds)]
+	/// Keep track of the bonds made to each project
+	pub type ProjectBonds<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
+		BondType,
+		Blake2_128Concat,
 		T::ProjectIdentifier,
+		Vec<
+			Bond<
+				BondType,
+				T::ProjectIdentifier,
+				T::AccountId,
+				BalanceOf<T>,
+				T::BlockNumber>
+		>,
+	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn user_bonds)]
+	/// Keep track of the bonds made by each user
+	pub type UserBonds<T: Config> = StorageDoubleMap<
+		_,
 		Blake2_128Concat,
 		T::AccountId,
-		BalanceOf<T>,
+		Blake2_128Concat,
+		BondType,
+		Bond<
+			BondType,
+			T::ProjectIdentifier,
+			T::AccountId,
+			BalanceOf<T>,
+			T::BlockNumber
+		>
 	>;
 
 	#[pallet::storage]
@@ -591,7 +618,7 @@ pub mod pallet {
 
 		/// Evaluators can bond `amount` PLMC to evaluate a `project_id` in the "Evaluation Round"
 		#[pallet::weight(T::WeightInfo::bond())]
-		pub fn bond(
+		pub fn bond_evaluation(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdParameter,
 			#[pallet::compact] amount: BalanceOf<T>,
@@ -619,19 +646,23 @@ pub mod pallet {
 			ensure!(T::Currency::free_balance(&from) > amount, Error::<T>::InsufficientBalance);
 
 			// TODO: PLMC-144. Unlock the PLMC when it's the right time
-			// Check if the user has already bonded
-			Bonds::<T>::try_mutate(project_id, &from, |maybe_bond| {
+			UserBonds::<T>::try_mutate(from.clone(), BondType::Evaluation, |maybe_bond| {
 				match maybe_bond {
 					Some(bond) => {
 						// If the user has already bonded, add the new amount to the old one
-						let new_bond = bond.saturating_add(amount);
-						*maybe_bond = Some(new_bond);
-						T::Currency::set_lock(LOCKING_ID, &from, new_bond, WithdrawReasons::all());
+						bond.amount += amount;
+						T::Currency::reserve_named(&BondType::Evaluation, &from, amount).map_err(|_| Error::<T>::InsufficientBalance)?;
 					},
 					None => {
 						// If the user has not bonded yet, create a new bond
-						*maybe_bond = Some(amount);
-						T::Currency::set_lock(LOCKING_ID, &from, amount, WithdrawReasons::all());
+						*maybe_bond = Some(Bond {
+							bond_type: BondType::Evaluation,
+							project: project_id,
+							account: from.clone(),
+							amount,
+							when: <frame_system::Pallet<T>>::block_number(),
+						});
+						T::Currency::reserve_named(&BondType::Evaluation, &from, amount).map_err(|_| Error::<T>::InsufficientBalance)?;
 					},
 				}
 				Self::deposit_event(Event::<T>::FundsBonded {
@@ -639,8 +670,9 @@ pub mod pallet {
 					amount,
 					bonder: from.clone(),
 				});
-				Ok(())
-			})
+				Result::<(), Error<T>>::Ok(())
+			});
+			Ok(())
 		}
 
 		/// Release the bonded PLMC for an evaluator if the project assigned to it is in the EvaluationFailed phase
@@ -651,7 +683,9 @@ pub mod pallet {
 			bonder: T::AccountId,
 		) -> DispatchResult {
 			let releaser = ensure_signed(origin)?;
-			Self::do_failed_evaluation_unbond_for(project_id, bonder, releaser)
+			let bond = UserBonds::<T>::get(&bonder, BondType::Evaluation)
+				.ok_or(Error::<T>::BondNotFound)?;
+			Self::do_failed_evaluation_unbond_for(bond, releaser)
 		}
 
 		/// Place a bid in the "Auction Round"
@@ -912,29 +946,22 @@ pub mod pallet {
 
 		/// Cleanup the `active_projects` BoundedVec
 		fn on_idle(_now: T::BlockNumber, max_weight: Weight) -> Weight {
-			// get all projects that have failed the evaluation round
-			let failed_projects = ProjectsInfo::<T>::iter()
-				.filter_map(|(project_id, project_info)| {
+			let pallet_account: T::AccountId =
+				<T as Config>::PalletId::get().into_account_truncating();
+
+			let mut remaining_weight = max_weight.clone();
+
+			let unbond_results = ProjectBonds::<T>::iter_prefix(BondType::Evaluation)
+				// get all the bonds for projects with a failed evaluation phase
+				.filter_map(|(project_id, bonds)| {
+					let project_info = ProjectsInfo::<T>::get(project_id)?;
 					if project_info.project_status == ProjectStatus::EvaluationFailed {
-						Some(project_id)
+						Some(project_id, bonds)
 					} else {
 						None
 					}
 				})
-				.collect::<Vec<_>>();
-
-			let pallet_account: T::AccountId =
-				<T as Config>::PalletId::get().into_account_truncating();
-
-			let mut remaining_weight = max_weight;
-
-			let unbond_results = failed_projects
-				.into_iter()
-				.flat_map(|project_id| {
-					Bonds::<T>::iter_prefix(project_id)
-						.map(|(bonder, _)| (project_id, bonder))
-						.collect::<Vec<_>>()
-				})
+				.flatten()
 				// keep unbonding until all weight given to on_idle is consumed
 				.take_while(|_| {
 					if let Some(new_weight) =
@@ -946,22 +973,21 @@ pub mod pallet {
 						false
 					}
 				})
-				.map(|(project_id, bonder)| {
+				.map(|project_id, bond| {
 					(
 						Self::do_failed_evaluation_unbond_for(
-							project_id.into(),
-							bonder,
-							pallet_account.clone(),
+							bond,
+							pallet_account.clone()
 						),
-						project_id,
+						project_id
 					)
 				});
-			for (result, project_id) in unbond_results {
-				unwrap_result_or_skip!(result, project_id)
-			}
+				for (result, project_id) in unbond_results {
+					unwrap_result_or_skip!(result, project_id)
+				}
 
-			// // TODO: PLMC-127. Set a proper weightK
-			Weight::from_ref_time(0)
+			// TODO: PLMC-127. Set a proper weightK
+			max_weight.saturating_sub(remaining_weight)
 		}
 	}
 

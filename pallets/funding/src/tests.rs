@@ -250,7 +250,7 @@ mod evaluation_round {
 			let ed = FundingModule::project_info(0).unwrap();
 			run_to_block(System::block_number() + 1);
 			assert_eq!(ed.project_status, ProjectStatus::EvaluationRound);
-			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 1000));
+			assert_ok!(FundingModule::bond_evaluation(RuntimeOrigin::signed(BOB), 0, 1000));
 			run_to_block(System::block_number() + <Test as Config>::EvaluationDuration::get() + 2);
 			let ed = FundingModule::project_info(0).unwrap();
 			assert_eq!(ed.project_status, ProjectStatus::AuctionInitializePeriod);
@@ -268,7 +268,7 @@ mod evaluation_round {
 			assert_eq!(ed.project_status, ProjectStatus::EvaluationRound);
 			run_to_block(System::block_number() + 1);
 			let pre_bond_bob_free_balance = Balances::usable_balance(&BOB);
-			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 50));
+			assert_ok!(FundingModule::bond_evaluation(RuntimeOrigin::signed(BOB), 0, 50));
 			run_to_block(System::block_number() + 1);
 			let post_bond_bob_free_balance = Balances::usable_balance(&BOB);
 			assert_eq!(pre_bond_bob_free_balance - post_bond_bob_free_balance, 50);
@@ -287,11 +287,11 @@ mod evaluation_round {
 		new_test_ext().execute_with(|| {
 			create_on_chain_project();
 			assert_noop!(
-				FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128),
+				FundingModule::bond_evaluation(RuntimeOrigin::signed(BOB), 0, 128),
 				Error::<Test>::EvaluationNotStarted
 			);
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
-			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128));
+			assert_ok!(FundingModule::bond_evaluation(RuntimeOrigin::signed(BOB), 0, 128));
 		})
 	}
 
@@ -300,18 +300,18 @@ mod evaluation_round {
 		new_test_ext().execute_with(|| {
 			create_on_chain_project();
 			assert_noop!(
-				FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128),
+				FundingModule::bond_evaluation(RuntimeOrigin::signed(BOB), 0, 128),
 				Error::<Test>::EvaluationNotStarted
 			);
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
-			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128));
-			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(CHARLIE), 0, 128));
+			assert_ok!(FundingModule::bond_evaluation(RuntimeOrigin::signed(BOB), 0, 128));
+			assert_ok!(FundingModule::bond_evaluation(RuntimeOrigin::signed(CHARLIE), 0, 128));
 
-			let bonds = FundingModule::bonds(0, BOB);
-			assert_eq!(bonds.unwrap(), 128);
+			let bonds = Balances::reserved_balance_named(&BondType::Evaluation, &BOB);
+			assert_eq!(bonds, 128);
 
-			let bonds = FundingModule::bonds(0, CHARLIE);
-			assert_eq!(bonds.unwrap(), 128);
+			let bonds = Balances::reserved_balance_named(&BondType::Evaluation, &CHARLIE);
+			assert_eq!(bonds, 128);
 		})
 	}
 
@@ -322,7 +322,7 @@ mod evaluation_round {
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 
 			assert_noop!(
-				FundingModule::bond(RuntimeOrigin::signed(BOB), 0, u128::MAX),
+				FundingModule::bond_evaluation(RuntimeOrigin::signed(BOB), 0, u128::MAX),
 				Error::<Test>::InsufficientBalance
 			);
 		})
@@ -333,14 +333,14 @@ mod evaluation_round {
 		new_test_ext().execute_with(|| {
 			create_on_chain_project();
 			assert_noop!(
-				FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128),
+				FundingModule::bond_evaluation(RuntimeOrigin::signed(BOB), 0, 128),
 				Error::<Test>::EvaluationNotStarted
 			);
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
-			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128));
-			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128));
-			let bonds = FundingModule::bonds(0, BOB);
-			assert_eq!(bonds.unwrap(), 256);
+			assert_ok!(FundingModule::bond_evaluation(RuntimeOrigin::signed(BOB), 0, 128));
+			assert_ok!(FundingModule::bond_evaluation(RuntimeOrigin::signed(BOB), 0, 128));
+			let bonds = Balances::reserved_balance_named(&BondType::Evaluation, &BOB);
+			assert_eq!(bonds, 256);
 			let locked_amount = Balances::locks(&BOB).iter().next().unwrap().amount;
 			assert_eq!(locked_amount, 256);
 		})
@@ -353,7 +353,7 @@ mod auction_round {
 	fn setup_environment() {
 		create_on_chain_project();
 		assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
-		assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 10_000));
+		assert_ok!(FundingModule::bond_evaluation(RuntimeOrigin::signed(BOB), 0, 10_000));
 		run_to_block(System::block_number() + <Test as Config>::EvaluationDuration::get() + 2);
 		let project_info = FundingModule::project_info(0).unwrap();
 		assert_eq!(project_info.project_status, ProjectStatus::AuctionInitializePeriod);
@@ -431,7 +431,7 @@ mod community_round {
 	fn setup_envirnoment() {
 		create_on_chain_project();
 		assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
-		assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 10_000));
+		assert_ok!(FundingModule::bond_evaluation(RuntimeOrigin::signed(BOB), 0, 10_000));
 
 		run_to_block(System::block_number() + <Test as Config>::EvaluationDuration::get() + 2);
 		let project_info = FundingModule::project_info(0).unwrap();
@@ -487,7 +487,7 @@ mod claim_contribution_tokens {
 	fn setup_environment() {
 		create_on_chain_project();
 		assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
-		assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 10_000));
+		assert_ok!(FundingModule::bond_evaluation(RuntimeOrigin::signed(BOB), 0, 10_000));
 
 		run_to_block(System::block_number() + <Test as Config>::EvaluationDuration::get() + 2);
 		let project_info = FundingModule::project_info(0).unwrap();
@@ -562,7 +562,7 @@ mod flow {
 			assert_eq!(active_projects.len(), 1);
 			let project_info = FundingModule::project_info(0).unwrap();
 			assert_eq!(project_info.project_status, ProjectStatus::EvaluationRound);
-			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 128));
+			assert_ok!(FundingModule::bond_evaluation(RuntimeOrigin::signed(BOB), 0, 128));
 
 			// Evaluation Round ends automatically
 			run_to_block(System::block_number() + <Test as Config>::EvaluationDuration::get() + 2);
@@ -654,7 +654,7 @@ mod flow {
 			let project_info = FundingModule::project_info(0).unwrap();
 			assert_eq!(project_info.project_status, ProjectStatus::EvaluationRound);
 
-			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 20 * PLMC));
+			assert_ok!(FundingModule::bond_evaluation(RuntimeOrigin::signed(BOB), 0, 20 * PLMC));
 
 			run_to_block(System::block_number() + <Test as Config>::EvaluationDuration::get() + 2);
 
@@ -714,7 +714,7 @@ mod flow {
 			};
 			assert_ok!(FundingModule::create(RuntimeOrigin::signed(ALICE), project));
 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
-			assert_ok!(FundingModule::bond(RuntimeOrigin::signed(BOB), 0, 20 * PLMC));
+			assert_ok!(FundingModule::bond_evaluation(RuntimeOrigin::signed(BOB), 0, 20 * PLMC));
 			run_to_block(System::block_number() + <Test as Config>::EvaluationDuration::get() + 2);
 			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
 			// Perform 5 bids, T::MaxBidsPerProject = 4 in the mock runtime

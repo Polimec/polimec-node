@@ -165,7 +165,7 @@ benchmarks! {
 		T::Currency::make_free_balance_be(&evaluator, 500_000__0_000_000_000_u64.into()); // 500k tokens
 		// Bond minimum amount (currently 10% of 1MM tokens)
 		assert!(
-			PolimecFunding::<T>::bond(SystemOrigin::Signed(evaluator).into(), project_id.clone(), 100_000__0_000_000_000_u64.into()).is_ok()
+			PolimecFunding::<T>::bond_evaluation(SystemOrigin::Signed(evaluator).into(), project_id.clone(), 100_000__0_000_000_000_u64.into()).is_ok()
 		);
 
 		// Move to a block valid for starting the Auction Round
@@ -187,7 +187,7 @@ benchmarks! {
 		T::Currency::make_free_balance_be(&evaluator, 500_000__0_000_000_000_u64.into()); // 500k tokens
 		// Bond minimum amount (currently 10% of 1MM tokens)
 		assert!(
-			PolimecFunding::<T>::bond(SystemOrigin::Signed(evaluator).into(), project_id.clone(), 100_000__0_000_000_000_u64.into()).is_ok()
+			PolimecFunding::<T>::bond_evaluation(SystemOrigin::Signed(evaluator).into(), project_id.clone(), 100_000__0_000_000_000_u64.into()).is_ok()
 		);
 
 		// Move to a block valid for starting the Auction Round
@@ -236,7 +236,7 @@ benchmarks! {
 		let evaluator: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
 		T::Currency::make_free_balance_be(&evaluator, 500_000__0_000_000_000_u64.into());
 		assert!(
-			PolimecFunding::<T>::bond(SystemOrigin::Signed(evaluator).into(), project_id.clone(), 100_000__0_000_000_000_u64.into()).is_ok()
+			PolimecFunding::<T>::bond_evaluation(SystemOrigin::Signed(evaluator).into(), project_id.clone(), 100_000__0_000_000_000_u64.into()).is_ok()
 		);
 
 		// Move to a block valid for starting the Auction Round
@@ -290,7 +290,7 @@ benchmarks! {
 		let evaluator: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
 		T::Currency::make_free_balance_be(&evaluator, 500_000__0_000_000_000_u64.into()); // 500k tokens
 		assert!(
-			PolimecFunding::<T>::bond(SystemOrigin::Signed(evaluator).into(), project_id.clone(), 100_000__0_000_000_000_u64.into()).is_ok()
+			PolimecFunding::<T>::bond_evaluation(SystemOrigin::Signed(evaluator).into(), project_id.clone(), 100_000__0_000_000_000_u64.into()).is_ok()
 		);
 
 		// Move to a block valid for starting the Auction Round
@@ -351,7 +351,7 @@ benchmarks! {
 				PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.clone()).into(), project_id.clone()).is_ok()
 			);
 			assert!(
-				PolimecFunding::<T>::bond(SystemOrigin::Signed(evaluator.clone()).into(), project_id, 100_000__0_000_000_000_u64.into()).is_ok()
+				PolimecFunding::<T>::bond_evaluation(SystemOrigin::Signed(evaluator.clone()).into(), project_id, 100_000__0_000_000_000_u64.into()).is_ok()
 			);
 		}
 		// Move to one block before it is valid to end the evaluation round
@@ -389,7 +389,7 @@ benchmarks! {
 
 		// minimum value is a million tokens. 10% of that needs to be bonded
 		assert!(
-			PolimecFunding::<T>::bond(SystemOrigin::Signed(evaluator).into(), project_id.clone(), 100_000__0_000_000_000_u64.into()).is_ok()
+			PolimecFunding::<T>::bond_evaluation(SystemOrigin::Signed(evaluator).into(), project_id.clone(), 100_000__0_000_000_000_u64.into()).is_ok()
 		);
 		let bidder_1: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
 		T::Currency::make_free_balance_be(&bidder_1, 500_000__0_000_000_000_u64.into()); // 100k tokens

@@ -65,6 +65,7 @@ use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
+use pallet_funding::BondType;
 
 use polimec_traits::{MemberRole, PolimecMembers};
 
@@ -290,7 +291,7 @@ pub const EXISTENTIAL_DEPOSIT: u128 = 500;
 impl pallet_balances::Config for Runtime {
 	type MaxLocks = ConstU32<50>;
 	type MaxReserves = ();
-	type ReserveIdentifier = [u8; 8];
+	type ReserveIdentifier = BondType;
 	/// The type for recording an account's balance.
 	type Balance = Balance;
 	/// The ubiquitous event type.
