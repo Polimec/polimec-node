@@ -40,6 +40,7 @@ debug-assertions = true
 overflow-checks = true
 
 [workspace.dependencies]
+
 # Build deps
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
 
@@ -54,6 +55,10 @@ pallet-asset-registry = { path = "pallets/asset-registry", default-features = fa
 runtime-common = { path = "runtimes/common", default-features = false }
 polimec-traits = { path = "traits", default-features = false }
 xcm-primitives = { path = "primitives/xcm", default-features = false }
+
+# External support (with default disabled)
+dip-support = { git="https://github.com/KILTprotocol/kilt-node", default-features = false, branch="aa/dip-take-2" }
+kilt-support = { git="https://github.com/KILTprotocol/kilt-node", default-features = false, branch="aa/dip-take-2" }
 
 # Internal runtime API (with default disabled)
 polimec-runtime-api-credentials = { path = "runtime-api/credentials", default-features = false }

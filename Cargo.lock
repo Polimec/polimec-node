@@ -2104,6 +2104,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "dip-support"
+version = "1.11.0-dev"
+source = "git+https://github.com/KILTprotocol/kilt-node?branch=aa/dip-take-2#4d8f14d46af5fc40a164471809dee81cc87c6a99"
+dependencies = [
+ "frame-support",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-std",
+]
+
+[[package]]
 name = "directories"
 version = "4.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3824,6 +3835,21 @@ dependencies = [
  "scale-info",
  "sp-api",
  "sp-runtime",
+]
+
+[[package]]
+name = "kilt-support"
+version = "1.11.0-dev"
+source = "git+https://github.com/KILTprotocol/kilt-node?branch=aa/dip-take-2#4d8f14d46af5fc40a164471809dee81cc87c6a99"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
@@ -5702,6 +5728,20 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-dip-receiver"
+version = "0.1.0"
+dependencies = [
+ "cumulus-pallet-xcm",
+ "dip-support",
+ "frame-support",
+ "frame-system",
+ "kilt-support",
+ "parity-scale-codec",
+ "scale-info",
  "sp-std",
 ]
 
