@@ -88,7 +88,7 @@ use frame_support::{
 use parachains_common::Block;
 use sp_arithmetic::traits::{One, Saturating, Zero};
 use sp_runtime::{
-	traits::{AccountIdConversion, Hash, CheckedDiv},
+	traits::{AccountIdConversion, CheckedDiv, Hash},
 	FixedPointNumber, FixedPointOperand, FixedU128,
 };
 use sp_std::{cmp::Reverse, prelude::*};
@@ -755,10 +755,20 @@ pub mod pallet {
 
 			let now = <frame_system::Pallet<T>>::block_number();
 			let multiplier = multiplier.unwrap_or(1_u32);
-			let mut required_plmc_bond = amount.checked_div(&multiplier.into()).ok_or(Error::<T>::BadMath)?;
+			let mut required_plmc_bond =
+				amount.checked_div(&multiplier.into()).ok_or(Error::<T>::BadMath)?;
 			let mut bonded_plmc;
-			let (plmc_vesting_period, ct_vesting_period) = Self::calculate_vesting_periods(bidder.clone(), multiplier, amount.clone());
-			let bid = BidInfo::new(project_id.clone(), amount, price, now, bidder.clone(), plmc_vesting_period, ct_vesting_period);
+			let (plmc_vesting_period, ct_vesting_period) =
+				Self::calculate_vesting_periods(bidder.clone(), multiplier, amount.clone());
+			let bid = BidInfo::new(
+				project_id.clone(),
+				amount,
+				price,
+				now,
+				bidder.clone(),
+				plmc_vesting_period,
+				ct_vesting_period,
+			);
 
 			// Check how much PLMC is already bonded for this project
 			if let Some(bond) = BiddingBonds::<T>::get(project_id.clone(), bidder.clone()) {
@@ -767,7 +777,8 @@ pub mod pallet {
 				bonded_plmc = Zero::zero();
 			}
 
-			let mut user_bids = AuctionsInfo::<T>::get(project_id, bidder.clone()).unwrap_or_default();
+			let mut user_bids =
+				AuctionsInfo::<T>::get(project_id, bidder.clone()).unwrap_or_default();
 
 			// Check how much of the bonded PLMC is already in use by a bid
 			for bid in user_bids.iter() {
@@ -797,7 +808,9 @@ pub mod pallet {
 					// Unreserve the lowest bid
 					T::BiddingCurrency::unreserve(&lowest_bid.bidder, lowest_bid.ticket_size);
 					// Add the new bid to the AuctionsInfo, this should never fail since we just removed an element
-					user_bids.try_push(bid).expect("We removed an element, so there is always space");
+					user_bids
+						.try_push(bid)
+						.expect("We removed an element, so there is always space");
 					user_bids.sort_by_key(|bid| Reverse(bid.price));
 					AuctionsInfo::<T>::set(project_id, bidder.clone(), Some(user_bids));
 					// TODO: PLMC-159. Send an XCM message to Statemine to transfer amount * multiplier USDT to the PalletId Account

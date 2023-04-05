@@ -22,8 +22,7 @@ use super::*;
 
 use crate::ProjectStatus::EvaluationRound;
 use frame_support::{ensure, pallet_prelude::DispatchError, traits::Get};
-use sp_arithmetic::Perbill;
-use sp_arithmetic::traits::Zero;
+use sp_arithmetic::{traits::Zero, Perbill};
 use sp_runtime::Percent;
 use sp_std::prelude::*;
 
@@ -460,7 +459,11 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn calculate_vesting_periods(_caller: T::AccountId, _multiplier: u32, ct_amount: BalanceOf<T>) -> (Vesting<T::BlockNumber, BalanceOf<T>>, Vesting<T::BlockNumber, BalanceOf<T>>) {
+	pub fn calculate_vesting_periods(
+		_caller: T::AccountId,
+		_multiplier: u32,
+		ct_amount: BalanceOf<T>,
+	) -> (Vesting<T::BlockNumber, BalanceOf<T>>, Vesting<T::BlockNumber, BalanceOf<T>>) {
 		let plmc_start: T::BlockNumber = 0u32.into();
 		let ct_start: T::BlockNumber = (parachains_common::DAYS * 7).into();
 		// TODO: Calculate real vesting periods based on multiplier and caller type
@@ -479,7 +482,7 @@ impl<T: Config> Pallet<T> {
 				end: ct_start.into(),
 				step: 0u32.into(),
 				next_withdrawal: 0u32.into(),
-			}
+			},
 		)
 	}
 
@@ -487,10 +490,11 @@ impl<T: Config> Pallet<T> {
 		caller: T::AccountId,
 		project_id: T::ProjectIdentifier,
 		amount: BalanceOf<T>,
-	) -> Result<(), DispatchError>{
+	) -> Result<(), DispatchError> {
 		let now = <frame_system::Pallet<T>>::block_number();
-		let project_info =
-			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound).unwrap();
+		let project_info = ProjectsInfo::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectInfoNotFound)
+			.unwrap();
 
 		if let Some(bidding_end_block) = project_info.phase_transition_points.candle_auction.end() {
 			ensure!(now < bidding_end_block, Error::<T>::TooLateForBidBonding);
@@ -683,15 +687,13 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn do_vested_bid_plmc_unbond_for(
-		bid: BidInfoOf<T>,
-	) -> Result<(), DispatchError> {
+	pub fn do_vested_bid_plmc_unbond_for(bid: BidInfoOf<T>) -> Result<(), DispatchError> {
 		let now = <frame_system::Pallet<T>>::block_number();
 		let mut plmc_vesting = bid.plmc_vesting_period;
 
 		// check that it is not too early to withdraw the next amount
 		if plmc_vesting.next_withdrawal > now {
-			return Err(Error::<T>::NextVestingWithdrawalNotReached.into());
+			return Err(Error::<T>::NextVestingWithdrawalNotReached.into())
 		}
 
 		// Calculate withdrawal amounts and next available withdrawal block
@@ -728,7 +730,7 @@ impl<T: Config> Pallet<T> {
 
 		// check that it is not too early to withdraw the next amount
 		if ct_vesting.next_withdrawal > now {
-			return Err(Error::<T>::NextVestingWithdrawalNotReached.into());
+			return Err(Error::<T>::NextVestingWithdrawalNotReached.into())
 		}
 
 		// Calculate withdrawal amounts and next available withdrawal block

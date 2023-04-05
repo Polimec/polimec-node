@@ -46,8 +46,6 @@ const METADATA: &str = r#"
 	"usage_of_founds":"ipfs_url"
 }"#;
 
-type FundingPallet<T> = crate::Pallet<T>;
-
 fn last_event() -> RuntimeEvent {
 	frame_system::Pallet::<Test>::events().pop().expect("Event expected").event
 }
@@ -343,8 +341,8 @@ mod evaluation_round {
 			assert_ok!(FundingModule::bond_evaluation(RuntimeOrigin::signed(BOB), 0, 128));
 			let bonds = Balances::reserved_balance_named(&BondType::Evaluation, &BOB);
 			assert_eq!(bonds, 256);
-			let reserved_amount = Balances::reserved_balance_named(&BondType::Evaluation, &BOB);
-			assert_eq!(reserved_amount, 256);
+			let locked_amount = Balances::locks(&BOB).iter().next().unwrap().amount;
+			assert_eq!(locked_amount, 256);
 		})
 	}
 }
@@ -387,19 +385,18 @@ mod auction_round {
 			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
 			let free_balance = Balances::free_balance(&CHARLIE);
 			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(CHARLIE), 0, 100, 1, None));
-			let bids = crate::AuctionsInfo::<Test>::iter_prefix(0).flat_map(|(_, bid)| bid).collect::<Vec<_>>();
+			let bids = FundingModule::auctions_info(0);
 			assert!(bids.iter().any(|bid| bid.when == System::block_number() &&
 				bid.amount == 100 &&
 				bid.price == 1));
 			let free_balance_after_bid = Balances::free_balance(&CHARLIE);
 
-			// Right now the plmc bond and the bidding currency are the same asset, and the multiplier is 1.
-			assert_eq!(free_balance_after_bid, free_balance - 200);
+			assert!(free_balance_after_bid == free_balance - 100);
 
 			// Get the reserved_balance of CHARLIE
 			let reserved_balance = Balances::reserved_balance(&CHARLIE);
-			assert_eq!(free_balance_after_bid, free_balance - reserved_balance);
-			assert_eq!(reserved_balance, 200);
+			assert!(free_balance_after_bid == free_balance - reserved_balance);
+			assert!(reserved_balance == 100);
 		})
 	}
 
@@ -431,7 +428,7 @@ mod auction_round {
 mod community_round {
 	use super::*;
 
-	fn setup_environment() {
+	fn setup_envirnoment() {
 		create_on_chain_project();
 		assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
 		assert_ok!(FundingModule::bond_evaluation(RuntimeOrigin::signed(BOB), 0, 10_000));
@@ -457,7 +454,7 @@ mod community_round {
 	#[test]
 	fn contribute_works() {
 		new_test_ext().execute_with(|| {
-			setup_environment();
+			setup_envirnoment();
 			assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 100));
 
 			// Check that the contribution is stored
@@ -474,7 +471,7 @@ mod community_round {
 	#[test]
 	fn contribute_multiple_times_works() {
 		new_test_ext().execute_with(|| {
-			setup_environment();
+			setup_envirnoment();
 			assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 100));
 			assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 200));
 			let contribution_info = FundingModule::contributions(0, BOB).unwrap();
@@ -722,11 +719,17 @@ mod flow {
 			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
 			// Perform 5 bids, T::MaxBidsPerProject = 4 in the mock runtime
 			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(BOB), 0, 10_000, 2 * PLMC, None));
-			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(BOB), 0, 13_000, 3 * PLMC, None));
-			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(BOB), 0, 15_000, 5 * PLMC, None));
-			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(BOB), 0, 1_000, 7 * PLMC, None));
-			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(BOB), 0, 20_000, 8 * PLMC, None));
-			let bids = crate::AuctionsInfo::<Test>::get(0, BOB).unwrap();
+			assert_ok!(FundingModule::bid(
+				RuntimeOrigin::signed(CHARLIE),
+				0,
+				13_000,
+				3 * PLMC,
+				None
+			));
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(DAVE), 0, 15_000, 5 * PLMC, None));
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(5), 0, 1_000, 7 * PLMC, None));
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(5), 0, 20_000, 8 * PLMC, None));
+			let bids = FundingModule::auctions_info(0);
 			assert_eq!(bids.len(), 4);
 			assert_eq!(bids[0].ticket_size, 20_000 * 8 * PLMC);
 			assert_eq!(bids[1].ticket_size, 1_000 * 7 * PLMC);

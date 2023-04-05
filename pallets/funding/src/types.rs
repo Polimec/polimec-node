@@ -215,7 +215,9 @@ pub struct BidInfo<ProjectId, Balance: BalanceT, AccountId, BlockNumber, PlmcVes
 	pub status: BidStatus<Balance>,
 }
 
-impl<ProjectId, Balance: BalanceT, AccountId, BlockNumber, PlmcVesting, CTVesting> BidInfo<ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting> {
+impl<ProjectId, Balance: BalanceT, AccountId, BlockNumber, PlmcVesting, CTVesting>
+	BidInfo<ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
+{
 	pub fn new(
 		project: ProjectId,
 		amount: Balance,
@@ -242,16 +244,29 @@ impl<ProjectId, Balance: BalanceT, AccountId, BlockNumber, PlmcVesting, CTVestin
 	}
 }
 
-impl<ProjectId: Eq, Balance: BalanceT, AccountId: Eq, BlockNumber: Eq, PlmcVesting: Eq, CTVesting: Eq> sp_std::cmp::Ord
-	for BidInfo<ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
+impl<
+		ProjectId: Eq,
+		Balance: BalanceT,
+		AccountId: Eq,
+		BlockNumber: Eq,
+		PlmcVesting: Eq,
+		CTVesting: Eq,
+	> sp_std::cmp::Ord for BidInfo<ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
 {
 	fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
 		self.price.cmp(&other.price)
 	}
 }
 
-impl<ProjectId: Eq, Balance: BalanceT, AccountId: Eq, BlockNumber: Eq, PlmcVesting: Eq, CTVesting: Eq>
-	sp_std::cmp::PartialOrd for BidInfo<ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
+impl<
+		ProjectId: Eq,
+		Balance: BalanceT,
+		AccountId: Eq,
+		BlockNumber: Eq,
+		PlmcVesting: Eq,
+		CTVesting: Eq,
+	> sp_std::cmp::PartialOrd
+	for BidInfo<ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
 {
 	fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
 		Some(self.cmp(other))
@@ -378,7 +393,9 @@ pub struct Vesting<BlockNumber: Copy, Balance> {
 	pub next_withdrawal: BlockNumber,
 }
 
-impl<BlockNumber: Saturating + Copy + CheckedDiv, Balance: Saturating + CheckedDiv + Copy> Vesting<BlockNumber, Balance> {
+impl<BlockNumber: Saturating + Copy + CheckedDiv, Balance: Saturating + CheckedDiv + Copy>
+	Vesting<BlockNumber, Balance>
+{
 	pub fn calculate_next_withdrawal(&self) -> (BlockNumber, Option<Balance>) {
 		(
 			self.next_withdrawal.saturating_add(self.step),
