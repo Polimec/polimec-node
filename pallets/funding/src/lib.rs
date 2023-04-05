@@ -37,7 +37,7 @@
 //! * `contribute` : Contribute to a project during the Community Round.
 //! * `claim_contribution_tokens` : Claim the Contribution Tokens if you contributed to a project during the Funding Round.
 //!
-//! ### Priviliged Functions, callable only by the project's Issuer
+//! ### Privileged Functions, callable only by the project's Issuer
 //!
 //! * `edit_metadata` : Submit a new Hash of the project metadata.
 //! * `start_evaluation` : Start the Evaluation Round of a project.
@@ -56,7 +56,6 @@ pub mod types;
 pub use types::*;
 
 pub mod weights;
-pub use weights::WeightInfo;
 
 mod functions;
 
@@ -72,6 +71,7 @@ mod benchmarking;
 #[allow(unused_imports)]
 use polimec_traits::{MemberRole, PolimecMembers};
 
+pub use crate::weights::WeightInfo;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{
 	pallet_prelude::ValueQuery,
@@ -80,8 +80,8 @@ use frame_support::{
 			fungibles::{metadata::Mutate as MetadataMutate, Create, InspectMetadata, Mutate},
 			Balance,
 		},
-		Currency, Get, LockIdentifier, LockableCurrency, Randomness, ReservableCurrency,
-		WithdrawReasons,
+		Currency as CurrencyT, Get, LockIdentifier, LockableCurrency, Randomness,
+		ReservableCurrency, WithdrawReasons,
 	},
 	BoundedVec, PalletId, Parameter,
 };
@@ -90,7 +90,7 @@ use sp_runtime::{
 	traits::{AccountIdConversion, Hash},
 	FixedPointNumber, FixedPointOperand, FixedU128,
 };
-use sp_std::cmp::Reverse;
+use sp_std::{cmp::Reverse, prelude::*};
 
 /// The balance type of this pallet.
 type BalanceOf<T> = <T as Config>::CurrencyBalance;
@@ -341,7 +341,14 @@ pub mod pallet {
 		/// The auction round of `project_id` ended  at block `when`.
 		AuctionEnded { project_id: T::ProjectIdentifier },
 		/// A `bonder` bonded an `amount` of PLMC for `project_id`.
-		FundsBonded { project_id: T::ProjectIdentifier, amount: BalanceOf<T> },
+		FundsBonded { project_id: T::ProjectIdentifier, amount: BalanceOf<T>, bonder: T::AccountId },
+		/// Someone released the bond of a `bonder` for `project_id`, because the Evaluation round failed.
+		BondReleased {
+			project_id: T::ProjectIdentifier,
+			amount: BalanceOf<T>,
+			bonder: T::AccountId,
+			releaser: T::AccountId,
+		},
 		/// A `bidder` bid an `amount` at `market_cap` for `project_id` with a `multiplier`.
 		Bid {
 			project_id: T::ProjectIdentifier,
@@ -455,6 +462,10 @@ pub mod pallet {
 		AssetCreationFailed,
 		/// Tried to update the metadata of the contribution token but it failed
 		AssetMetadataUpdateFailed,
+		/// Tried to do an operation assuming the evaluation failed, when in fact it did not
+		EvaluationNotFailed,
+		/// Tried to unbond PLMC after unsuccessful evaluation, but specified bond does not exist.
+		BondNotFound,
 	}
 
 	#[pallet::call]
@@ -623,8 +634,24 @@ pub mod pallet {
 						T::Currency::set_lock(LOCKING_ID, &from, amount, WithdrawReasons::all());
 					},
 				}
+				Self::deposit_event(Event::<T>::FundsBonded {
+					project_id,
+					amount,
+					bonder: from.clone(),
+				});
 				Ok(())
 			})
+		}
+
+		/// Release the bonded PLMC for an evaluator if the project assigned to it is in the EvaluationFailed phase
+		#[pallet::weight(T::WeightInfo::failed_evaluation_unbond_for())]
+		pub fn failed_evaluation_unbond_for(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdParameter,
+			bonder: T::AccountId,
+		) -> DispatchResult {
+			let releaser = ensure_signed(origin)?;
+			Self::do_failed_evaluation_unbond_for(project_id, bonder, releaser)
 		}
 
 		/// Place a bid in the "Auction Round"
@@ -884,14 +911,55 @@ pub mod pallet {
 		}
 
 		/// Cleanup the `active_projects` BoundedVec
-		fn on_idle(now: T::BlockNumber, _max_weight: Weight) -> Weight {
-			// for project_id in ProjectsToUpdate::<T>::get(now) {
-			// 	let maybe_project_info = ProjectsInfo::<T>::get(project_id);
-			// 	let project_info = unwrap_option_or_skip!(maybe_project_info, Event::<T>::InitializationError { project_id });
-			// 	if project_info.project_status == ProjectStatus::FundingEnded {
-			// 		unwrap_result_or_skip!(Self::handle_funding_end(&project_id, now), Event::<T>::InitializationError { project_id });
-			// 	}
-			// }
+		fn on_idle(_now: T::BlockNumber, max_weight: Weight) -> Weight {
+			// get all projects that have failed the evaluation round
+			let failed_projects = ProjectsInfo::<T>::iter()
+				.filter_map(|(project_id, project_info)| {
+					if project_info.project_status == ProjectStatus::EvaluationFailed {
+						Some(project_id)
+					} else {
+						None
+					}
+				})
+				.collect::<Vec<_>>();
+
+			let pallet_account: T::AccountId =
+				<T as Config>::PalletId::get().into_account_truncating();
+
+			let mut remaining_weight = max_weight;
+
+			let unbond_results = failed_projects
+				.into_iter()
+				.flat_map(|project_id| {
+					Bonds::<T>::iter_prefix(project_id)
+						.map(|(bonder, _)| (project_id, bonder))
+						.collect::<Vec<_>>()
+				})
+				// keep unbonding until all weight given to on_idle is consumed
+				.take_while(|_| {
+					if let Some(new_weight) =
+						remaining_weight.checked_sub(&T::WeightInfo::failed_evaluation_unbond_for())
+					{
+						remaining_weight = new_weight;
+						true
+					} else {
+						false
+					}
+				})
+				.map(|(project_id, bonder)| {
+					(
+						Self::do_failed_evaluation_unbond_for(
+							project_id.into(),
+							bonder,
+							pallet_account.clone(),
+						),
+						project_id,
+					)
+				});
+			for (result, project_id) in unbond_results {
+				unwrap_result_or_skip!(result, project_id)
+			}
+
 			// // TODO: PLMC-127. Set a proper weightK
 			Weight::from_ref_time(0)
 		}
