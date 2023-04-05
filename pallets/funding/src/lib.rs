@@ -920,13 +920,13 @@ pub mod pallet {
 					} else {
 						None
 					}
-				})
+				})K
 				.collect::<Vec<_>>();
 
 			let pallet_account: T::AccountId =
 				<T as Config>::PalletId::get().into_account_truncating();
 
-			let mut remaining_weight = max_weight.clone();
+			let mut remaining_weight = max_weight;
 
 			let unbond_results = failed_projects
 				.into_iter()
