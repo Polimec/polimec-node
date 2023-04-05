@@ -23,9 +23,9 @@ use super::*;
 use crate::ProjectStatus::EvaluationRound;
 use frame_support::{ensure, pallet_prelude::DispatchError, traits::Get};
 use sp_arithmetic::Perbill;
+use sp_arithmetic::traits::Zero;
 use sp_runtime::Percent;
 use sp_std::prelude::*;
-use crate::mock::BlockNumber;
 
 impl<T: Config> Pallet<T> {
 	/// The account ID of the project pot.
@@ -168,7 +168,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(now > evaluation_end_block, Error::<T>::EvaluationPeriodNotEnded);
 
 		// Check which logic path to follow
-		let initial_balance: BalanceOf<T> = Zero::zero();
+		let initial_balance: BalanceOf<T> = 0u32.into();
 		let total_amount_bonded = EvaluationBonds::<T>::iter_prefix(project_id)
 			.fold(initial_balance, |acc, (_, bond)| acc.saturating_add(bond.amount));
 
@@ -460,14 +460,27 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn multiplier_to_vesting_period(_caller: T::AccountId, _multiplier: u32) -> VestingPeriod<BlockNumber> {
-		let start = parachains_common::DAYS * 7;
-		VestingPeriod {
-			start: start.into(),
-			end: start.into(),
-			step: 0u32.into(),
-			last_withdrawal: 0u32.into(),
-		}
+	pub fn calculate_vesting_periods(_caller: T::AccountId, _multiplier: u32, ct_amount: BalanceOf<T>) -> (Vesting<T::BlockNumber, BalanceOf<T>>, Vesting<T::BlockNumber, BalanceOf<T>>) {
+		let plmc_start: T::BlockNumber = 0u32.into();
+		let ct_start: T::BlockNumber = (parachains_common::DAYS * 7).into();
+		// TODO: Calculate real vesting periods based on multiplier and caller type
+		let plmc_amount = ct_amount;
+		(
+			Vesting {
+				amount: plmc_amount,
+				start: plmc_start.into(),
+				end: plmc_start.into(),
+				step: 0u32.into(),
+				next_withdrawal: 0u32.into(),
+			},
+			Vesting {
+				amount: ct_amount,
+				start: ct_start.into(),
+				end: ct_start.into(),
+				step: 0u32.into(),
+				next_withdrawal: 0u32.into(),
+			}
+		)
 	}
 
 	pub fn bond_bidding(
@@ -488,7 +501,7 @@ impl<T: Config> Pallet<T> {
 				Some(bond) => {
 					// If the user has already bonded, add the new amount to the old one
 					bond.amount += amount;
-					T::Currency::reserve_named(&BondType::Contributing, &caller, amount)
+					T::Currency::reserve_named(&BondType::Bidding, &caller, amount)
 						.map_err(|_| Error::<T>::InsufficientBalance)?;
 				},
 				None => {
@@ -501,7 +514,7 @@ impl<T: Config> Pallet<T> {
 					});
 
 					// Reserve the required PLMC
-					T::Currency::reserve_named(&BondType::Contributing, &caller, amount)
+					T::Currency::reserve_named(&BondType::Bidding, &caller, amount)
 						.map_err(|_| Error::<T>::InsufficientBalance)?;
 				},
 			}
@@ -529,7 +542,7 @@ impl<T: Config> Pallet<T> {
 		total_allocation_size: BalanceOf<T>,
 	) -> Result<BalanceOf<T>, DispatchError> {
 		// Get all the bids that were made before the end of the candle
-		let mut bids = AuctionsInfo::<T>::get(project_id);
+		let mut bids = AuctionsInfo::<T>::iter_values().flatten().collect::<Vec<_>>();
 		// temp variable to store the sum of the bids
 		let mut bid_amount_sum = BalanceOf::<T>::zero();
 		// temp variable to store the total value of the bids (i.e price * amount)
@@ -666,6 +679,72 @@ impl<T: Config> Pallet<T> {
 			bonder: bond.account,
 			releaser,
 		});
+
+		Ok(())
+	}
+
+	pub fn do_vested_bid_plmc_unbond_for(
+		bid: BidInfoOf<T>,
+	) -> Result<(), DispatchError> {
+		let now = <frame_system::Pallet<T>>::block_number();
+		let mut plmc_vesting = bid.plmc_vesting_period;
+
+		// check that it is not too early to withdraw the next amount
+		if plmc_vesting.next_withdrawal > now {
+			return Err(Error::<T>::NextVestingWithdrawalNotReached.into());
+		}
+
+		// Calculate withdrawal amounts and next available withdrawal block
+		let mut unbond_amount: BalanceOf<T> = 0u32.into();
+		let mut next_withdrawal_block = plmc_vesting.next_withdrawal;
+
+		while next_withdrawal_block <= now {
+			let (block, amount) = plmc_vesting.calculate_next_withdrawal();
+
+			unbond_amount.saturating_add(amount.ok_or(Error::<T>::FieldIsNone)?);
+			next_withdrawal_block = block;
+		}
+		plmc_vesting.next_withdrawal = next_withdrawal_block;
+
+		// TODO: check that the full amount was unreserved
+		// Unlock the fonds for the user
+		T::Currency::unreserve_named(&BondType::Bidding, &bid.bidder, unbond_amount);
+
+		// Update the BiddingBonds map with the reduced amount for that project-user
+		let prev_bond = BiddingBonds::<T>::get(bid.project.clone(), bid.bidder.clone())
+			.ok_or(Error::<T>::FieldIsNone)?;
+		let mut new_bond = prev_bond;
+		new_bond.amount = new_bond.amount.saturating_sub(unbond_amount);
+		BiddingBonds::<T>::insert(bid.project.clone(), bid.bidder.clone(), new_bond);
+
+		Ok(())
+	}
+
+	pub fn do_vested_bid_contribution_token_mint_for(
+		bid: BidInfoOf<T>,
+	) -> Result<(), DispatchError> {
+		let now = <frame_system::Pallet<T>>::block_number();
+		let mut ct_vesting = bid.ct_vesting_period;
+
+		// check that it is not too early to withdraw the next amount
+		if ct_vesting.next_withdrawal > now {
+			return Err(Error::<T>::NextVestingWithdrawalNotReached.into());
+		}
+
+		// Calculate withdrawal amounts and next available withdrawal block
+		let mut mint_amount: BalanceOf<T> = 0u32.into();
+		let mut next_withdrawal_block = ct_vesting.next_withdrawal;
+
+		while next_withdrawal_block <= now {
+			let (block, amount) = ct_vesting.calculate_next_withdrawal();
+			mint_amount.saturating_add(amount.ok_or(Error::<T>::FieldIsNone)?);
+			next_withdrawal_block = block;
+		}
+		ct_vesting.next_withdrawal = next_withdrawal_block;
+
+		// TODO: Should we mint here, or should the full mint happen to the treasury and then do transfers from there?
+		// Mint the funds for the user
+		T::Assets::mint_into(bid.project, &bid.bidder, mint_amount)?;
 
 		Ok(())
 	}

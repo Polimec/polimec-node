@@ -19,6 +19,9 @@
 //! Types for Funding pallet.
 
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
+use sp_arithmetic::traits::{SaturatedConversion, Saturating};
+use sp_runtime::traits::CheckedDiv;
+use sp_std::cmp::Eq;
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct Project<BoundedString, Balance: BalanceT, Hash> {
@@ -193,7 +196,8 @@ impl<BlockNumber: Copy> BlockNumberPair<BlockNumber> {
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct BidInfo<Balance: BalanceT, AccountId, BlockNumber, VestingPeriod> {
+pub struct BidInfo<ProjectId, Balance: BalanceT, AccountId, BlockNumber, PlmcVesting, CTVesting> {
+	pub project: ProjectId,
 	#[codec(compact)]
 	pub amount: Balance,
 	#[codec(compact)]
@@ -206,20 +210,24 @@ pub struct BidInfo<Balance: BalanceT, AccountId, BlockNumber, VestingPeriod> {
 	pub bidder: AccountId,
 	// TODO: PLMC-159. Not used yet, but will be used to check if the bid is funded after XCM is implemented
 	pub funded: bool,
-	pub vesting_period: VestingPeriod,
+	pub plmc_vesting_period: PlmcVesting,
+	pub ct_vesting_period: CTVesting,
 	pub status: BidStatus<Balance>,
 }
 
-impl<Balance: BalanceT, AccountId, BlockNumber, VestingPeriod> BidInfo<Balance, AccountId, BlockNumber, VestingPeriod> {
+impl<ProjectId, Balance: BalanceT, AccountId, BlockNumber, PlmcVesting, CTVesting> BidInfo<ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting> {
 	pub fn new(
+		project: ProjectId,
 		amount: Balance,
 		price: Balance,
 		when: BlockNumber,
 		bidder: AccountId,
-		vesting_period: VestingPeriod,
+		plmc_vesting_period: PlmcVesting,
+		ct_vesting_period: CTVesting,
 	) -> Self {
 		let ticket_size = amount.saturating_mul(price);
 		Self {
+			project,
 			amount,
 			price,
 			ticket_size,
@@ -227,22 +235,23 @@ impl<Balance: BalanceT, AccountId, BlockNumber, VestingPeriod> BidInfo<Balance, 
 			when,
 			bidder,
 			funded: false,
-			vesting_period,
+			plmc_vesting_period,
+			ct_vesting_period,
 			status: BidStatus::YetUnknown,
 		}
 	}
 }
 
-impl<Balance: BalanceT, AccountId: sp_std::cmp::Eq, BlockNumber: sp_std::cmp::Eq, VestingPeriod: sp_std::cmp::Eq> sp_std::cmp::Ord
-	for BidInfo<Balance, AccountId, BlockNumber, VestingPeriod>
+impl<ProjectId: Eq, Balance: BalanceT, AccountId: Eq, BlockNumber: Eq, PlmcVesting: Eq, CTVesting: Eq> sp_std::cmp::Ord
+	for BidInfo<ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
 {
 	fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
 		self.price.cmp(&other.price)
 	}
 }
 
-impl<Balance: BalanceT, AccountId: sp_std::cmp::Eq, BlockNumber: sp_std::cmp::Eq, VestingPeriod: sp_std::cmp::Eq>
-	sp_std::cmp::PartialOrd for BidInfo<Balance, AccountId, BlockNumber, VestingPeriod>
+impl<ProjectId: Eq, Balance: BalanceT, AccountId: Eq, BlockNumber: Eq, PlmcVesting: Eq, CTVesting: Eq>
+	sp_std::cmp::PartialOrd for BidInfo<ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
 {
 	fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
 		Some(self.cmp(other))
@@ -356,19 +365,26 @@ pub struct ContributingBond<ProjectId, AccountId, Balance, BlockNumber> {
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct VestingPeriod<BlockNumber> {
+pub struct Vesting<BlockNumber: Copy, Balance> {
+	// Amount of tokens to be vested
+	pub amount: Balance,
 	// number of blocks after project ends, when vesting starts
 	pub start: BlockNumber,
 	// number of blocks after project ends, when vesting ends
 	pub end: BlockNumber,
 	// number of blocks between each withdrawal
 	pub step: BlockNumber,
-	// absolute block number of last withdrawal
-	pub last_withdrawal: BlockNumber,
+	// absolute block number of next block where withdrawal is possible
+	pub next_withdrawal: BlockNumber,
 }
 
-impl<BlockNumber> VestingPeriod<BlockNumber> {
-	pub fn next_withdrawal(&self) -> BlockNumber {
-		self.last_withdrawal + self.step
+impl<BlockNumber: Saturating + Copy + CheckedDiv, Balance: Saturating + CheckedDiv + Copy> Vesting<BlockNumber, Balance> {
+	pub fn calculate_next_withdrawal(&self) -> (BlockNumber, Option<Balance>) {
+		(
+			self.next_withdrawal.saturating_add(self.step),
+			// TODO: do correct math here
+			// self.amount.checked_div(self.end.saturating_sub(self.start).checked_div(self.step))
+			Some(self.amount),
+		)
 	}
 }

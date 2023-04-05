@@ -526,7 +526,7 @@ impl pallet_funding::Config for Runtime {
 	type RemainderFundingDuration = RemainderFundingDuration;
 	type PalletId = FundingPalletId;
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
-	type MaximumBidsPerProject = ConstU32<256>;
+	type MaximumBidsPerUser = ConstU32<256>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 

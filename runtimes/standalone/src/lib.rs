@@ -393,7 +393,7 @@ impl pallet_funding::Config for Runtime {
 	type Randomness = Random;
 	type HandleMembers = Credentials;
 	type PreImageLimit = ConstU32<1024>;
-	type MaximumBidsPerProject = ConstU32<256>;
+	type MaximumBidsPerUser = ConstU32<256>;
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();

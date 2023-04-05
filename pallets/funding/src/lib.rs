@@ -104,10 +104,12 @@ type ProjectOf<T> = Project<
 
 /// The bid type of this pallet.
 type BidInfoOf<T> = BidInfo<
+	<T as Config>::ProjectIdentifier,
 	BalanceOf<T>,
 	<T as frame_system::Config>::AccountId,
 	<T as frame_system::Config>::BlockNumber,
-	VestingPeriod<<T as frame_system::Config>::BlockNumber>
+	Vesting<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>,
+	Vesting<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>,
 >;
 
 // TODO: PLMC-151. Add multiple locks
@@ -221,9 +223,9 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxProjectsToUpdatePerBlock: Get<u32>;
 
-		/// The maximum number of bids per project
+		/// The maximum number of bids per user
 		#[pallet::constant]
-		type MaximumBidsPerProject: Get<u32>;
+		type MaximumBidsPerUser: Get<u32>;
 
 		/// Helper trait for benchmarks.
 		#[cfg(feature = "runtime-benchmarks")]
@@ -289,12 +291,13 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn auctions_info)]
 	/// StorageMap containing the bids for each project
-	pub type AuctionsInfo<T: Config> = StorageMap<
+	pub type AuctionsInfo<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
 		T::ProjectIdentifier,
-		BoundedVec<BidInfoOf<T>, T::MaximumBidsPerProject>,
-		ValueQuery,
+		Blake2_128Concat,
+		T::AccountId,
+		BoundedVec<BidInfoOf<T>, T::MaximumBidsPerUser>,
 	>;
 
 	#[pallet::storage]
@@ -380,7 +383,7 @@ pub mod pallet {
 			project_id: T::ProjectIdentifier,
 			amount: BalanceOf<T>,
 			price: BalanceOf<T>,
-			multiplier: BalanceOf<T>,
+			multiplier: u32,
 		},
 		/// A bid  made by a `bidder` of `amount` at `market_cap` for `project_id` with a `multiplier` is returned.
 		BidReturned {
@@ -497,7 +500,9 @@ pub mod pallet {
 		/// Checked math failed
 		BadMath,
 		/// Tried to bond PLMC for bidding, but that phase has already ended
-		TooLateForBidBonding
+		TooLateForBidBonding,
+		/// Tried to withdraw funds that were vesting, but it was too early
+		NextVestingWithdrawalNotReached,
 	}
 
 	#[pallet::call]
@@ -751,40 +756,50 @@ pub mod pallet {
 			let now = <frame_system::Pallet<T>>::block_number();
 			let multiplier = multiplier.unwrap_or(1_u32);
 			let mut required_plmc_bond = amount.checked_div(&multiplier.into()).ok_or(Error::<T>::BadMath)?;
-			let vesting_period = Self::multiplier_to_vesting_period(bidder, multiplier);
-			let bid = BidInfo::new(amount, price, now, bidder.clone(), vesting_period);
-			// Check that required PLMC is already bonded
+			let mut bonded_plmc;
+			let (plmc_vesting_period, ct_vesting_period) = Self::calculate_vesting_periods(bidder.clone(), multiplier, amount.clone());
+			let bid = BidInfo::new(project_id.clone(), amount, price, now, bidder.clone(), plmc_vesting_period, ct_vesting_period);
+
+			// Check how much PLMC is already bonded for this project
 			if let Some(bond) = BiddingBonds::<T>::get(project_id.clone(), bidder.clone()) {
-				required_plmc_bond.saturating_sub(bond.amount);
+				bonded_plmc = bond.amount;
+			} else {
+				bonded_plmc = Zero::zero();
 			}
 
+			let mut user_bids = AuctionsInfo::<T>::get(project_id, bidder.clone()).unwrap_or_default();
+
+			// Check how much of the bonded PLMC is already in use by a bid
+			for bid in user_bids.iter() {
+				bonded_plmc.saturating_sub(bid.plmc_vesting_period.amount);
+			}
+			required_plmc_bond.saturating_sub(bonded_plmc);
+			// Try bonding the required PLMC for this bid
 			Self::bond_bidding(bidder.clone(), project_id.clone(), required_plmc_bond)?;
 
-			let mut bids = AuctionsInfo::<T>::get(project_id);
-
-			match bids.try_push(bid.clone()) {
+			match user_bids.try_push(bid.clone()) {
 				Ok(_) => {
 					// Reserve the new bid
 					T::BiddingCurrency::reserve(&bidder, bid.ticket_size)?;
 					// TODO: PLMC-159. Send an XCM message to Statemint/e to transfer a `bid.market_cap` amount of USDC (or the Currency specified by the issuer) to the PalletId Account
 					// Alternative TODO: PLMC-159. The user should have the specified currency (e.g: USDC) already on Polimec
-					bids.sort_by_key(|bid| Reverse(bid.price));
-					AuctionsInfo::<T>::set(project_id, bids);
+					user_bids.sort_by_key(|bid| Reverse(bid.price));
+					AuctionsInfo::<T>::set(project_id, bidder.clone(), Some(user_bids));
 					Self::deposit_event(Event::<T>::Bid { project_id, amount, price, multiplier });
 				},
 				Err(_) => {
 					// Since the bids are sorted by price, and in this branch the Vec is full, the last element is the lowest bid
 					let lowest_bid_index: usize =
-						(T::MaximumBidsPerProject::get() - 1).try_into().unwrap();
-					let lowest_bid = bids.swap_remove(lowest_bid_index);
+						(T::MaximumBidsPerUser::get() - 1).try_into().unwrap();
+					let lowest_bid = user_bids.swap_remove(lowest_bid_index);
 					ensure!(bid > lowest_bid, Error::<T>::BidTooLow);
 					T::BiddingCurrency::reserve(&bidder, bid.ticket_size)?;
 					// Unreserve the lowest bid
 					T::BiddingCurrency::unreserve(&lowest_bid.bidder, lowest_bid.ticket_size);
 					// Add the new bid to the AuctionsInfo, this should never fail since we just removed an element
-					bids.try_push(bid).expect("We removed an element, so there is always space");
-					bids.sort_by_key(|bid| Reverse(bid.price));
-					AuctionsInfo::<T>::set(project_id, bids);
+					user_bids.try_push(bid).expect("We removed an element, so there is always space");
+					user_bids.sort_by_key(|bid| Reverse(bid.price));
+					AuctionsInfo::<T>::set(project_id, bidder.clone(), Some(user_bids));
 					// TODO: PLMC-159. Send an XCM message to Statemine to transfer amount * multiplier USDT to the PalletId Account
 					Self::deposit_event(Event::<T>::Bid { project_id, amount, price, multiplier });
 				},
