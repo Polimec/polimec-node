@@ -609,10 +609,7 @@ impl<T: Config> Pallet<T> {
 	///
 	/// # Next step
 	/// WIP
-	pub fn do_ready_to_launch(
-		project_id: &T::ProjectIdentifier,
-		_now: T::BlockNumber,
-	) -> Result<(), DispatchError> {
+	pub fn do_ready_to_launch(project_id: &T::ProjectIdentifier) -> Result<(), DispatchError> {
 		// * Get variables *
 		let mut project_info =
 			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
