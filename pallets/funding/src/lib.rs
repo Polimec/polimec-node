@@ -32,7 +32,8 @@
 //!
 //! * `note_image` : Save on-chin the Hash of the project metadata.
 //! * `create` : Create a new project.
-//! * `bond` : Bond PLMC to a project.
+//! * `bond_evaluation` : Bond PLMC on a project's evaluation round.
+//! * `failed_evaluation_unbond_for` : Unbond the PLMC bonded on a project's evaluation round for any user, if the project failed the evaluation.
 //! * `bid` : Perform a bid during the Auction Round.
 //! * `contribute` : Contribute to a project during the Community Round.
 //! * `claim_contribution_tokens` : Claim the Contribution Tokens if you contributed to a project during the Funding Round.
@@ -366,7 +367,8 @@ pub mod pallet {
 			end_block: T::BlockNumber,
 		},
 		/// The auction round of `project_id` started at block `when`.
-		AuctionStarted { project_id: T::ProjectIdentifier, when: T::BlockNumber },
+		EnglishAuctionStarted { project_id: T::ProjectIdentifier, when: T::BlockNumber },
+		CandleAuctionStarted { project_id: T::ProjectIdentifier, when: T::BlockNumber },
 		/// The auction round of `project_id` ended  at block `when`.
 		AuctionEnded { project_id: T::ProjectIdentifier },
 		/// A `bonder` bonded an `amount` of PLMC for `project_id`.
@@ -393,7 +395,9 @@ pub mod pallet {
 			price: BalanceOf<T>,
 			multiplier: u8,
 		},
-		///
+		CommunityFundingStarted { project_id: T::ProjectIdentifier },
+		RemainderFundingStarted { project_id: T::ProjectIdentifier },
+		FundingEnded { project_id: T::ProjectIdentifier },
 		Noted { hash: T::Hash },
 		/// Something was not properly initialized. Most likely due to dev error manually calling do_* functions or updating storage
 		TransitionError { project_id: T::ProjectIdentifier, error: DispatchError },
@@ -455,12 +459,14 @@ pub mod pallet {
 		ProjectNotInAuctionInitializePeriodRound,
 		/// Tried to move the project to CandleAuction, but it was not in EnglishAuctionRound before
 		ProjectNotInEnglishAuctionRound,
-		/// Tried to move the project to CommunityRound, but it was not in CandleAuctionRound before
+		/// Tried to move the project to Community round, but it was not in CandleAuctionRound before
 		ProjectNotInCandleAuctionRound,
 		/// Tried to move the project to RemainderRound, but it was not in CommunityRound before
 		ProjectNotInCommunityRound,
 		/// Tried to move the project to FundingEndedRound, but it was not in RemainderRound before
 		ProjectNotInRemainderRound,
+		/// Tried to move the project to ReadyToLaunch round, but it was not in FundingEnded round before
+		ProjectNotInFundingEndedRound,
 		/// Tried to start an auction before the initialization period
 		TooEarlyForEnglishAuctionStart,
 		/// Tried to start an auction after the initialization period
@@ -536,20 +542,7 @@ pub mod pallet {
 			// 	Error::<T>::NotAuthorized
 			// );
 
-			ensure!(Images::<T>::contains_key(project.metadata), Error::<T>::NoImageFound);
-
-			match project.validity_check() {
-				Err(error) => match error {
-					ValidityError::PriceTooLow => Err(Error::<T>::PriceTooLow.into()),
-					ValidityError::ParticipantsSizeError =>
-						Err(Error::<T>::ParticipantsSizeError.into()),
-					ValidityError::TicketSizeError => Err(Error::<T>::TicketSizeError.into()),
-				},
-				Ok(()) => {
-					let project_id = NextProjectId::<T>::get();
-					Self::do_create(project_id, &issuer, project)
-				},
-			}
+			Self::do_create(issuer, project)
 		}
 
 		/// Edit the `project_metadata` of a `project_id` if "Evaluation Round" is not yet started
@@ -635,56 +628,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let from = ensure_signed(origin)?;
 			let project_id = project_id.into();
-
-			// TODO: PLMC-133. Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
-			// ensure!(
-			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
-			// 	Error::<T>::NotAuthorized
-			// );
-
-			let project_issuer =
-				ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectIssuerNotFound)?;
-			ensure!(from != project_issuer, Error::<T>::ContributionToThemselves);
-
-			let project_info =
-				ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-			ensure!(
-				project_info.project_status == ProjectStatus::EvaluationRound,
-				Error::<T>::EvaluationNotStarted
-			);
-
-			// TODO: PLMC-144. Unlock the PLMC when it's the right time
-			EvaluationBonds::<T>::try_mutate(project_id, from.clone(), |maybe_bond| {
-				match maybe_bond {
-					Some(bond) => {
-						// If the user has already bonded, add the new amount to the old one
-						bond.amount += amount;
-						T::Currency::reserve_named(&BondType::Evaluation, &from, amount)
-							.map_err(|_| Error::<T>::InsufficientBalance)?;
-					},
-					None => {
-						// If the user has not bonded yet, create a new bond
-						*maybe_bond = Some(EvaluationBond {
-							project: project_id,
-							account: from.clone(),
-							amount,
-							when: <frame_system::Pallet<T>>::block_number(),
-						});
-
-						// Reserve the required PLMC
-						T::Currency::reserve_named(&BondType::Evaluation, &from, amount)
-							.map_err(|_| Error::<T>::InsufficientBalance)?;
-					},
-				}
-				Self::deposit_event(Event::<T>::FundsBonded {
-					project_id,
-					amount,
-					bonder: from.clone(),
-				});
-				Result::<(), Error<T>>::Ok(())
-			})?;
-
-			Ok(())
+			Self::do_evaluation_bond(from, project_id, amount)
 		}
 
 		/// Release the bonded PLMC for an evaluator if the project assigned to it is in the EvaluationFailed phase
@@ -719,105 +663,7 @@ pub mod pallet {
 			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
 			// 	Error::<T>::NotAuthorized
 			// );
-
-			// Make sure project exists
-			let project_issuer =
-				ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectIssuerNotFound)?;
-
-			// Make sure the bidder is not the project_issuer
-			ensure!(bidder != project_issuer, Error::<T>::ContributionToThemselves);
-
-			let project_info =
-				ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-			let project = Projects::<T>::get(project_id)
-				.expect("Project exists, already checked in previous ensure");
-
-			// Make sure Auction Round is started
-			ensure!(
-				matches!(project_info.project_status, ProjectStatus::AuctionRound(_)),
-				Error::<T>::AuctionNotStarted
-			);
-
-			// Make sure the bid amount is greater than the minimum_price specified by the issuer
-			ensure!(price >= project.minimum_price, Error::<T>::BidTooLow);
-			let ticket_size = amount.saturating_mul(price);
-			let project_ticket_size = project.ticket_size;
-
-			if let Some(minimum_ticket_size) = project_ticket_size.minimum {
-				// Make sure the bid amount is greater than the minimum specified by the issuer
-				ensure!(ticket_size >= minimum_ticket_size, Error::<T>::BidTooLow);
-			};
-
-			if let Some(maximum_ticket_size) = project_ticket_size.maximum {
-				// Make sure the bid amount is less than the maximum specified by the issuer
-				ensure!(ticket_size <= maximum_ticket_size, Error::<T>::BidTooLow);
-			};
-
-			let now = <frame_system::Pallet<T>>::block_number();
-			let multiplier = multiplier.unwrap_or(1_u32);
-			let mut required_plmc_bond =
-				amount.checked_div(&multiplier.into()).ok_or(Error::<T>::BadMath)?;
-			let mut bonded_plmc;
-			let (plmc_vesting_period, ct_vesting_period) =
-				Self::calculate_vesting_periods(bidder.clone(), multiplier, amount.clone());
-			let bid = BidInfo::new(
-				project_id.clone(),
-				amount,
-				price,
-				now,
-				bidder.clone(),
-				plmc_vesting_period,
-				ct_vesting_period,
-			);
-
-			// Check how much PLMC is already bonded for this project
-			if let Some(bond) = BiddingBonds::<T>::get(project_id.clone(), bidder.clone()) {
-				bonded_plmc = bond.amount;
-			} else {
-				bonded_plmc = Zero::zero();
-			}
-
-			let mut user_bids =
-				AuctionsInfo::<T>::get(project_id, bidder.clone()).unwrap_or_default();
-
-			// Check how much of the bonded PLMC is already in use by a bid
-			for bid in user_bids.iter() {
-				bonded_plmc.saturating_sub(bid.plmc_vesting_period.amount);
-			}
-			required_plmc_bond.saturating_sub(bonded_plmc);
-			// Try bonding the required PLMC for this bid
-			Self::bond_bidding(bidder.clone(), project_id.clone(), required_plmc_bond)?;
-
-			match user_bids.try_push(bid.clone()) {
-				Ok(_) => {
-					// Reserve the new bid
-					T::BiddingCurrency::reserve(&bidder, bid.ticket_size)?;
-					// TODO: PLMC-159. Send an XCM message to Statemint/e to transfer a `bid.market_cap` amount of USDC (or the Currency specified by the issuer) to the PalletId Account
-					// Alternative TODO: PLMC-159. The user should have the specified currency (e.g: USDC) already on Polimec
-					user_bids.sort_by_key(|bid| Reverse(bid.price));
-					AuctionsInfo::<T>::set(project_id, bidder.clone(), Some(user_bids));
-					Self::deposit_event(Event::<T>::Bid { project_id, amount, price, multiplier });
-				},
-				Err(_) => {
-					// Since the bids are sorted by price, and in this branch the Vec is full, the last element is the lowest bid
-					let lowest_bid_index: usize =
-						(T::MaximumBidsPerUser::get() - 1).try_into().unwrap();
-					let lowest_bid = user_bids.swap_remove(lowest_bid_index);
-					ensure!(bid > lowest_bid, Error::<T>::BidTooLow);
-					T::BiddingCurrency::reserve(&bidder, bid.ticket_size)?;
-					// Unreserve the lowest bid
-					T::BiddingCurrency::unreserve(&lowest_bid.bidder, lowest_bid.ticket_size);
-					// Add the new bid to the AuctionsInfo, this should never fail since we just removed an element
-					user_bids
-						.try_push(bid)
-						.expect("We removed an element, so there is always space");
-					user_bids.sort_by_key(|bid| Reverse(bid.price));
-					AuctionsInfo::<T>::set(project_id, bidder.clone(), Some(user_bids));
-					// TODO: PLMC-159. Send an XCM message to Statemine to transfer amount * multiplier USDT to the PalletId Account
-					Self::deposit_event(Event::<T>::Bid { project_id, amount, price, multiplier });
-				},
-			};
-			Ok(())
+			Self::do_bid(bidder, project_id, amount, price, multiplier)
 		}
 
 		#[pallet::weight(T::WeightInfo::contribute())]
@@ -952,7 +798,7 @@ pub mod pallet {
 
 					// EvaluationRound -> AuctionInitializePeriod | EvaluationFailed
 					ProjectStatus::EvaluationRound => {
-						unwrap_result_or_skip!(Self::do_evaluation_end(&project_id), project_id);
+						unwrap_result_or_skip!(Self::do_evaluation_end(project_id), project_id);
 					},
 
 					// AuctionInitializePeriod -> AuctionRound(AuctionPhase::English)
@@ -960,22 +806,22 @@ pub mod pallet {
 
 					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
 					ProjectStatus::AuctionRound(AuctionPhase::English) => {
-						unwrap_result_or_skip!(Self::do_candle_auction(&project_id), project_id);
+						unwrap_result_or_skip!(Self::do_candle_auction(project_id), project_id);
 					},
 
 					// AuctionRound(AuctionPhase::Candle) -> CommunityRound
 					ProjectStatus::AuctionRound(AuctionPhase::Candle) => {
-						unwrap_result_or_skip!(Self::do_community_funding(&project_id), project_id);
+						unwrap_result_or_skip!(Self::do_community_funding(project_id), project_id);
 					},
 
 					// CommunityRound -> RemainderRound
 					ProjectStatus::CommunityRound => {
-						unwrap_result_or_skip!(Self::do_remainder_funding(&project_id), project_id)
+						unwrap_result_or_skip!(Self::do_remainder_funding(project_id), project_id)
 					},
 
 					// RemainderRound -> FundingEnded
 					ProjectStatus::RemainderRound => {
-						unwrap_result_or_skip!(Self::do_end_funding(&project_id), project_id)
+						unwrap_result_or_skip!(Self::do_end_funding(project_id), project_id)
 					},
 
 					// FundingEnded -> ReadyToLaunch
