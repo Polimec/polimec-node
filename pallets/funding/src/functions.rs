@@ -48,10 +48,7 @@ impl<T: Config> Pallet<T> {
 	/// # Next step
 	/// The issuer will call an extrinsic to start the evaluation round of the project.
 	/// `do_evaluation_start` will be executed.
-	pub fn do_create(
-		issuer: T::AccountId,
-		project: ProjectOf<T>,
-	) -> Result<(), DispatchError> {
+	pub fn do_create(issuer: T::AccountId, project: ProjectOf<T>) -> Result<(), DispatchError> {
 		// TODO: Probably the issuers don't want to sell all of their tokens. Is there some logic for this?
 		// 	also even if an issuer wants to sell all their tokens, they could target a lower amount than that to consider it a success
 		// * Get variables *
@@ -186,7 +183,7 @@ impl<T: Config> Pallet<T> {
 	/// * Bonding achieved - The issuer calls an extrinsic within the set period to initialize the
 	/// auction round. `do_english_auction` is called
 	///
-	/// * Bonding failed - `on_idle` at some point checks for failed evaluation projects, and 
+	/// * Bonding failed - `on_idle` at some point checks for failed evaluation projects, and
 	/// unbonds the evaluators funds.
 	pub fn do_evaluation_end(project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
 		// * Get variables *
@@ -235,11 +232,11 @@ impl<T: Config> Pallet<T> {
 
 			// * Emit events *
 			Self::deposit_event(Event::<T>::AuctionInitializePeriod {
-				project_id: project_id,
+				project_id,
 				start_block: auction_initialize_period_start_block,
 				end_block: auction_initialize_period_end_block,
 			});
-			// TODO: PLMC-144. Unlock the bonds and clean the storage
+		// TODO: PLMC-144. Unlock the bonds and clean the storage
 
 		// Unsuccessful path
 		} else {
@@ -251,7 +248,7 @@ impl<T: Config> Pallet<T> {
 				.expect("Always returns Ok; qed");
 
 			// * Emit events *
-			Self::deposit_event(Event::<T>::EvaluationFailed { project_id: project_id });
+			Self::deposit_event(Event::<T>::EvaluationFailed { project_id });
 			// TODO: PLMC-144. Unlock the bonds and clean the storage
 		}
 
@@ -259,26 +256,26 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Called by user extrinsic
-	/// Starts the auction round for a project. From the next block forward, any professional or 
-	/// institutional user can set bids for a token_amount/token_price pair. 
+	/// Starts the auction round for a project. From the next block forward, any professional or
+	/// institutional user can set bids for a token_amount/token_price pair.
 	/// Any bids from this point until the candle_auction starts, will be considered as valid.
-	/// 
+	///
 	/// # Arguments
 	/// * `project_id` - The project identifier
-	/// 
+	///
 	/// # Storage access
 	/// * `ProjectsInfo` - Get the project information, and check if the project is in the correct
 	/// round, and the current block is between the defined start and end blocks of the initialize period.
 	/// Update the project information with the new round status and transition points in case of success.
-	/// 
+	///
 	/// # Success Path
 	/// The validity checks pass, and the project is transitioned to the English Auction round.
 	/// The project is scheduled to be transitioned automatically by `on_initialize` at the end of the
 	/// english auction round.
-	/// 
+	///
 	/// # Next step
 	/// Professional and Institutional users set bids for the project using the `bid` extrinsic.
-	/// Later on, `on_initialize` transitions the project into the candle auction round, by calling 
+	/// Later on, `on_initialize` transitions the project into the candle auction round, by calling
 	/// `do_candle_auction`.
 	pub fn do_english_auction(project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
 		// * Get variables *
@@ -309,7 +306,7 @@ impl<T: Config> Pallet<T> {
 			project_info.project_status == ProjectStatus::AuctionInitializePeriod,
 			Error::<T>::ProjectNotInAuctionInitializePeriodRound
 		);
-		
+
 		// * Calculate new variables *
 		let english_start_block = now + 1u32.into();
 		let english_end_block = now + T::EnglishAuctionDuration::get();
@@ -327,7 +324,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Emit events *
 		Self::deposit_event(Event::<T>::EnglishAuctionStarted { project_id, when: now });
-		
+
 		Ok(())
 	}
 
@@ -371,7 +368,7 @@ impl<T: Config> Pallet<T> {
 			project_info.project_status == ProjectStatus::AuctionRound(AuctionPhase::English),
 			Error::<T>::ProjectNotInEnglishAuctionRound
 		);
-		
+
 		// * Calculate new variables *
 		let candle_start_block = now + 1u32.into();
 		let candle_end_block = now + T::CandleAuctionDuration::get();
@@ -386,7 +383,7 @@ impl<T: Config> Pallet<T> {
 		// Schedule for automatic check by on_initialize. Success depending on enough funding reached
 		Self::add_to_update_store(candle_end_block + 1u32.into(), &project_id)
 			.expect("Always returns Ok; qed");
-		
+
 		// * Emit events *
 		Self::deposit_event(Event::<T>::CandleAuctionStarted { project_id, when: now });
 
@@ -588,7 +585,7 @@ impl<T: Config> Pallet<T> {
 			token_information.symbol.into(),
 			token_information.decimals,
 		)
-			.map_err(|_| Error::<T>::AssetMetadataUpdateFailed)?;
+		.map_err(|_| Error::<T>::AssetMetadataUpdateFailed)?;
 
 		// * Emit events *
 		Self::deposit_event(Event::FundingEnded { project_id: project_id.clone() });
@@ -636,8 +633,11 @@ impl<T: Config> Pallet<T> {
 
 // User interaction functions
 impl<T: Config> Pallet<T> {
-	pub fn do_evaluation_bond(evaluator: T::AccountId, project_id: T::ProjectIdentifier, amount: BalanceOf<T>) -> Result<(), DispatchError> {
-
+	pub fn do_evaluation_bond(
+		evaluator: T::AccountId,
+		project_id: T::ProjectIdentifier,
+		amount: BalanceOf<T>,
+	) -> Result<(), DispatchError> {
 		// TODO: PLMC-133. Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
 		// ensure!(
 		// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
@@ -651,9 +651,9 @@ impl<T: Config> Pallet<T> {
 		let project_info =
 			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		ensure!(
-				project_info.project_status == ProjectStatus::EvaluationRound,
-				Error::<T>::EvaluationNotStarted
-			);
+			project_info.project_status == ProjectStatus::EvaluationRound,
+			Error::<T>::EvaluationNotStarted
+		);
 
 		// TODO: PLMC-144. Unlock the PLMC when it's the right time
 		EvaluationBonds::<T>::try_mutate(project_id, evaluator.clone(), |maybe_bond| {
@@ -693,7 +693,7 @@ impl<T: Config> Pallet<T> {
 		project_id: T::ProjectIdentifier,
 		amount: BalanceOf<T>,
 		price: BalanceOf<T>,
-		multiplier: Option<u32>
+		multiplier: Option<u32>,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_info =
@@ -708,9 +708,9 @@ impl<T: Config> Pallet<T> {
 		// * Do checks *
 		ensure!(bidder != project_issuer, Error::<T>::ContributionToThemselves);
 		ensure!(
-				matches!(project_info.project_status, ProjectStatus::AuctionRound(_)),
-				Error::<T>::AuctionNotStarted
-			);
+			matches!(project_info.project_status, ProjectStatus::AuctionRound(_)),
+			Error::<T>::AuctionNotStarted
+		);
 		ensure!(price >= project.minimum_price, Error::<T>::BidTooLow);
 		if let Some(minimum_ticket_size) = project.ticket_size.minimum {
 			// Make sure the bid amount is greater than the minimum specified by the issuer
@@ -742,8 +742,7 @@ impl<T: Config> Pallet<T> {
 		} else {
 			bonded_plmc = Zero::zero();
 		}
-		let mut user_bids =
-			AuctionsInfo::<T>::get(project_id, bidder.clone()).unwrap_or_default();
+		let mut user_bids = AuctionsInfo::<T>::get(project_id, bidder.clone()).unwrap_or_default();
 		// Check how much of the project-bonded PLMC is already in use by a bid
 		for bid in user_bids.iter() {
 			bonded_plmc.saturating_sub(bid.plmc_vesting_period.amount);
@@ -766,8 +765,9 @@ impl<T: Config> Pallet<T> {
 			},
 			Err(_) => {
 				// Since the bids are sorted by price, and in this branch the Vec is full, the last element is the lowest bid
-				let lowest_bid_index: usize =
-					(T::MaximumBidsPerUser::get() - 1).try_into().map_err(|_|Error::<T>::BadMath)?;
+				let lowest_bid_index: usize = (T::MaximumBidsPerUser::get() - 1)
+					.try_into()
+					.map_err(|_| Error::<T>::BadMath)?;
 				let lowest_bid = user_bids.swap_remove(lowest_bid_index);
 				ensure!(bid > lowest_bid, Error::<T>::BidTooLow);
 				// Unreserve the lowest bid first
@@ -962,8 +962,6 @@ impl<T: Config> Pallet<T> {
 
 		Ok(())
 	}
-	
-
 
 	/// Adds a project to the ProjectsToUpdate storage, so it can be updated at some later point in time.
 	///
@@ -981,9 +979,6 @@ impl<T: Config> Pallet<T> {
 		}
 		Ok(())
 	}
-
-
-
 
 	pub fn calculate_vesting_periods(
 		_caller: T::AccountId,
@@ -1011,8 +1006,6 @@ impl<T: Config> Pallet<T> {
 			},
 		)
 	}
-
-
 
 	/// Calculates the price of contribution tokens for the Community and Remainder Rounds
 	///
@@ -1117,7 +1110,6 @@ impl<T: Config> Pallet<T> {
 
 	/// People that contributed to the project during the Funding Round can claim their Contribution Tokens
 
-
 	// This function is kept separate from the `do_claim_contribution_tokens` for easier testing the logic
 	#[inline(always)]
 	pub fn calculate_claimable_tokens(
@@ -1126,6 +1118,4 @@ impl<T: Config> Pallet<T> {
 	) -> FixedU128 {
 		FixedU128::saturating_from_rational(contribution_amount, weighted_average_price)
 	}
-
-
 }

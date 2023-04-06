@@ -353,13 +353,21 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A `project_id` was created.
-		Created { project_id: T::ProjectIdentifier },
+		Created {
+			project_id: T::ProjectIdentifier,
+		},
 		/// The metadata of `project_id` was modified.
-		MetadataEdited { project_id: T::ProjectIdentifier },
+		MetadataEdited {
+			project_id: T::ProjectIdentifier,
+		},
 		/// The evaluation phase of `project_id` started.
-		EvaluationStarted { project_id: T::ProjectIdentifier },
+		EvaluationStarted {
+			project_id: T::ProjectIdentifier,
+		},
 		/// The evaluation phase of `project_id` ended without reaching the minimum threshold.
-		EvaluationFailed { project_id: T::ProjectIdentifier },
+		EvaluationFailed {
+			project_id: T::ProjectIdentifier,
+		},
 		/// The period an issuer has, to start the auction phase of the project.
 		AuctionInitializePeriod {
 			project_id: T::ProjectIdentifier,
@@ -367,12 +375,24 @@ pub mod pallet {
 			end_block: T::BlockNumber,
 		},
 		/// The auction round of `project_id` started at block `when`.
-		EnglishAuctionStarted { project_id: T::ProjectIdentifier, when: T::BlockNumber },
-		CandleAuctionStarted { project_id: T::ProjectIdentifier, when: T::BlockNumber },
+		EnglishAuctionStarted {
+			project_id: T::ProjectIdentifier,
+			when: T::BlockNumber,
+		},
+		CandleAuctionStarted {
+			project_id: T::ProjectIdentifier,
+			when: T::BlockNumber,
+		},
 		/// The auction round of `project_id` ended  at block `when`.
-		AuctionEnded { project_id: T::ProjectIdentifier },
+		AuctionEnded {
+			project_id: T::ProjectIdentifier,
+		},
 		/// A `bonder` bonded an `amount` of PLMC for `project_id`.
-		FundsBonded { project_id: T::ProjectIdentifier, amount: BalanceOf<T>, bonder: T::AccountId },
+		FundsBonded {
+			project_id: T::ProjectIdentifier,
+			amount: BalanceOf<T>,
+			bonder: T::AccountId,
+		},
 		/// Someone released the bond of a `bonder` for `project_id`, because the Evaluation round failed.
 		BondReleased {
 			project_id: T::ProjectIdentifier,
@@ -395,14 +415,27 @@ pub mod pallet {
 			price: BalanceOf<T>,
 			multiplier: u8,
 		},
-		CommunityFundingStarted { project_id: T::ProjectIdentifier },
-		RemainderFundingStarted { project_id: T::ProjectIdentifier },
-		FundingEnded { project_id: T::ProjectIdentifier },
-		Noted { hash: T::Hash },
+		CommunityFundingStarted {
+			project_id: T::ProjectIdentifier,
+		},
+		RemainderFundingStarted {
+			project_id: T::ProjectIdentifier,
+		},
+		FundingEnded {
+			project_id: T::ProjectIdentifier,
+		},
+		Noted {
+			hash: T::Hash,
+		},
 		/// Something was not properly initialized. Most likely due to dev error manually calling do_* functions or updating storage
-		TransitionError { project_id: T::ProjectIdentifier, error: DispatchError },
+		TransitionError {
+			project_id: T::ProjectIdentifier,
+			error: DispatchError,
+		},
 		/// Something terribly wrong happened where the bond could not be unbonded. Most likely a programming error
-		FailedEvaluationUnbondFailed { error: DispatchError },
+		FailedEvaluationUnbondFailed {
+			error: DispatchError,
+		},
 	}
 
 	#[pallet::error]
