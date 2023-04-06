@@ -542,6 +542,8 @@ pub mod pallet {
 		TooLateForBidBonding,
 		/// Tried to withdraw funds that were vesting, but it was too early
 		NextVestingWithdrawalNotReached,
+		/// Tried to retrieve a bid but it does not exist
+		BidNotFound
 	}
 
 	#[pallet::call]
@@ -560,7 +562,7 @@ pub mod pallet {
 			// 	Error::<T>::NotAuthorized
 			// );
 
-			Self::note_bytes(bytes, &issuer)
+			Self::do_note_bytes(bytes, &issuer)
 		}
 
 		/// Start the "Funding Application" round
@@ -588,28 +590,7 @@ pub mod pallet {
 			let issuer = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
-			// TODO: PLMC-133. Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
-			// ensure!(
-			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
-			// 	Error::<T>::NotAuthorized
-			// );
-
-			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
-			ensure!(Images::<T>::contains_key(project_metadata_hash), Error::<T>::NoImageFound);
-			ensure!(
-				!ProjectsInfo::<T>::get(project_id)
-					.ok_or(Error::<T>::ProjectInfoNotFound)?
-					.is_frozen,
-				Error::<T>::Frozen
-			);
-
-			Projects::<T>::try_mutate(project_id, |maybe_project| -> DispatchResult {
-				let project = maybe_project.as_mut().ok_or(Error::<T>::ProjectIssuerNotFound)?;
-				project.metadata = project_metadata_hash;
-				Self::deposit_event(Event::MetadataEdited { project_id });
-				Ok(())
-			})?;
-			Ok(())
+			Self::do_edit_metadata(issuer, project_id, project_metadata_hash)
 		}
 
 		/// Start the "Evaluation Round" of a `project_id`
@@ -699,8 +680,8 @@ pub mod pallet {
 			Self::do_bid(bidder, project_id, amount, price, multiplier)
 		}
 
-		#[pallet::weight(T::WeightInfo::contribute())]
 		/// Contribute to the "Community Round"
+		#[pallet::weight(T::WeightInfo::contribute())]
 		pub fn contribute(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdParameter,
@@ -709,62 +690,7 @@ pub mod pallet {
 			let contributor = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
-			// TODO: PLMC-103? Add the "Retail before, Institutional and Professionals after, if there are still tokens" logic
-
-			// TODO: PLMC-133. Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
-			// ensure!(
-			// 	T::HandleMembers::is_in(&MemberRole::Retail, &contributor),
-			// 	Error::<T>::NotAuthorized
-			// );
-
-			// Make sure project exists
-			let project_issuer =
-				ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectIssuerNotFound)?;
-
-			// Make sure the contributor is not the project_issuer
-			ensure!(contributor != project_issuer, Error::<T>::ContributionToThemselves);
-
-			let project_info =
-				ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-
-			// Make sure Community Round is started
-			ensure!(
-				project_info.project_status == ProjectStatus::CommunityRound,
-				Error::<T>::AuctionNotStarted
-			);
-
-			// Make sure the bid amount is greater than the minimum_price specified by the issuer
-			ensure!(
-				amount >=
-					project_info
-						.weighted_average_price
-						.expect("This value exists in Community Round"),
-				Error::<T>::BidTooLow
-			);
-
-			let fund_account = Self::fund_account_id(project_id);
-			// TODO: PLMC-159. Use USDC on Statemint/e (via XCM) instead of PLMC
-			// TODO: PLMC-157. Check the logic
-			// TODO: PLMC-157. Check if we need to use T::Currency::resolve_creating(...)
-			T::Currency::transfer(
-				&contributor,
-				&fund_account,
-				amount,
-				// TODO: PLMC-157. Take the ExistenceRequirement as parameter (?)
-				frame_support::traits::ExistenceRequirement::KeepAlive,
-			)?;
-
-			Contributions::<T>::get(project_id, &contributor)
-				.map(|mut contribution| {
-					contribution.amount.saturating_accrue(amount);
-					Contributions::<T>::insert(project_id, &contributor, contribution)
-				})
-				.unwrap_or_else(|| {
-					let contribution = ContributionInfo { amount, can_claim: true };
-					Contributions::<T>::insert(project_id, &contributor, contribution)
-				});
-
-			Ok(())
+			Self::do_contribute(contributor, project_id, amount)
 		}
 
 		#[pallet::weight(T::WeightInfo::claim_contribution_tokens())]
@@ -776,44 +702,7 @@ pub mod pallet {
 			let claimer = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
-			// TODO: PLMC-133. Check the right credential status
-			// ensure!(
-			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
-			// 	Error::<T>::NotAuthorized
-			// );
-
-			let project_info =
-				ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-			ensure!(
-				project_info.project_status == ProjectStatus::FundingEnded,
-				Error::<T>::CannotClaimYet
-			);
-			// TODO: PLMC-160. Check the flow of the final_price if the final price discovery during the Auction Round fails
-			let weighted_average_price = project_info
-				.weighted_average_price
-				.expect("Final price is set after the Funding Round");
-
-			// TODO: PLMC-147. For now only the participants of the Community Round can claim their tokens
-			// 	Obviously also the participants of the Auction Round should be able to claim their tokens
-			Contributions::<T>::try_mutate(
-				project_id,
-				claimer.clone(),
-				|maybe_contribution| -> DispatchResult {
-					let mut contribution =
-						maybe_contribution.as_mut().ok_or(Error::<T>::ProjectIssuerNotFound)?;
-					ensure!(contribution.can_claim, Error::<T>::AlreadyClaimed);
-					Self::do_claim_contribution_tokens(
-						project_id,
-						claimer,
-						contribution.amount,
-						weighted_average_price,
-					)?;
-					contribution.can_claim = false;
-					Ok(())
-				},
-			)?;
-
-			Ok(())
+			Self::do_vested_contribution_token_contribution_mint_for(claimer, project_id)
 		}
 	}
 
