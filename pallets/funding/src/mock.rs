@@ -175,6 +175,7 @@ impl pallet_funding::Config for Test {
 	type PreImageLimit = ConstU32<1024>;
 	// Low value to simplify the tests
 	type MaximumBidsPerUser = ConstU32<4>;
+	type MaxContributionsPerUser = ConstU32<4>;
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();

@@ -341,8 +341,8 @@ mod evaluation_round {
 			assert_ok!(FundingModule::bond_evaluation(RuntimeOrigin::signed(BOB), 0, 128));
 			let bonds = Balances::reserved_balance_named(&BondType::Evaluation, &BOB);
 			assert_eq!(bonds, 256);
-			let locked_amount = Balances::locks(&BOB).iter().next().unwrap().amount;
-			assert_eq!(locked_amount, 256);
+			let reserved_amount = Balances::reserved_balance_named(&BondType::Evaluation, &BOB);
+			assert_eq!(reserved_amount, 256);
 		})
 	}
 }
@@ -385,18 +385,17 @@ mod auction_round {
 			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
 			let free_balance = Balances::free_balance(&CHARLIE);
 			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(CHARLIE), 0, 100, 1, None));
-			let bids = FundingModule::auctions_info(0);
-			assert!(bids.iter().any(|bid| bid.when == System::block_number() &&
-				bid.amount == 100 &&
+			let bids = FundingModule::auctions_info(0, CHARLIE).unwrap();
+			assert!(bids.iter().any(|bid| bid.amount == 100 &&
 				bid.price == 1));
 			let free_balance_after_bid = Balances::free_balance(&CHARLIE);
 
-			assert!(free_balance_after_bid == free_balance - 100);
+			// PLMC and bidding currency is both the same right now, so 100 for bond and 100 for bid
+			assert_eq!(free_balance_after_bid, free_balance - 200);
 
 			// Get the reserved_balance of CHARLIE
 			let reserved_balance = Balances::reserved_balance(&CHARLIE);
-			assert!(free_balance_after_bid == free_balance - reserved_balance);
-			assert!(reserved_balance == 100);
+			assert_eq!(free_balance_after_bid, free_balance - reserved_balance);
 		})
 	}
 
@@ -459,7 +458,7 @@ mod community_round {
 
 			// Check that the contribution is stored
 			let contribution_info = FundingModule::contributions(0, BOB).unwrap();
-			assert_eq!(contribution_info.amount, 100);
+			assert_eq!(contribution_info[0].contribution_amount, 100);
 
 			// Check that the funds are in the project's account Balance
 			let project_account = Pallet::<Test>::fund_account_id(0);
@@ -474,9 +473,9 @@ mod community_round {
 			setup_envirnoment();
 			assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 100));
 			assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(BOB), 0, 200));
-			let contribution_info = FundingModule::contributions(0, BOB).unwrap();
-			assert_eq!(contribution_info.amount, 300);
-			assert!(contribution_info.can_claim);
+			let contributions_info = FundingModule::contributions(0, BOB).unwrap();
+			let contributions_total_amount = contributions_info.iter().fold(0, |acc, contribution| acc + contribution.contribution_amount);
+			assert_eq!(contributions_total_amount, 300);
 		})
 	}
 }
@@ -530,17 +529,18 @@ mod claim_contribution_tokens {
 		})
 	}
 
-	#[test]
-	fn cannot_claim_multiple_times() {
-		new_test_ext().execute_with(|| {
-			setup_environment();
-			assert_ok!(FundingModule::claim_contribution_tokens(RuntimeOrigin::signed(BOB), 0));
-			assert_noop!(
-				FundingModule::claim_contribution_tokens(RuntimeOrigin::signed(BOB), 0),
-				Error::<Test>::AlreadyClaimed
-			);
-		})
-	}
+	// TODO: You can now that we added vesting. We should test claiming after vesting ended, and before the next vesting period
+	// #[test]
+	// fn cannot_claim_multiple_times() {
+	// 	new_test_ext().execute_with(|| {
+	// 		setup_environment();
+	// 		assert_ok!(FundingModule::claim_contribution_tokens(RuntimeOrigin::signed(BOB), 0));
+	// 		assert_noop!(
+	// 			FundingModule::claim_contribution_tokens(RuntimeOrigin::signed(BOB), 0),
+	// 			Error::<Test>::AlreadyClaimed
+	// 		);
+	// 	})
+	// }
 }
 
 mod flow {
@@ -718,18 +718,18 @@ mod flow {
 			run_to_block(System::block_number() + <Test as Config>::EvaluationDuration::get() + 2);
 			assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(ALICE), 0));
 			// Perform 5 bids, T::MaxBidsPerProject = 4 in the mock runtime
-			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(BOB), 0, 10_000, 2 * PLMC, None));
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(DAVE), 0, 10_000, 2 * PLMC, None));
 			assert_ok!(FundingModule::bid(
-				RuntimeOrigin::signed(CHARLIE),
+				RuntimeOrigin::signed(DAVE),
 				0,
 				13_000,
 				3 * PLMC,
 				None
 			));
 			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(DAVE), 0, 15_000, 5 * PLMC, None));
-			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(5), 0, 1_000, 7 * PLMC, None));
-			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(5), 0, 20_000, 8 * PLMC, None));
-			let bids = FundingModule::auctions_info(0);
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(DAVE), 0, 1_000, 7 * PLMC, None));
+			assert_ok!(FundingModule::bid(RuntimeOrigin::signed(DAVE), 0, 20_000, 8 * PLMC, None));
+			let bids = FundingModule::auctions_info(0, DAVE).unwrap();
 			assert_eq!(bids.len(), 4);
 			assert_eq!(bids[0].ticket_size, 20_000 * 8 * PLMC);
 			assert_eq!(bids[1].ticket_size, 1_000 * 7 * PLMC);

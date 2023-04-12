@@ -380,7 +380,7 @@ pub struct ContributingBond<ProjectId, AccountId, Balance> {
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub struct Vesting<BlockNumber: Copy, Balance> {
-	// Amount of tokens to be vested
+	// Amount of tokens vested
 	pub amount: Balance,
 	// number of blocks after project ends, when vesting starts
 	pub start: BlockNumber,
@@ -392,15 +392,19 @@ pub struct Vesting<BlockNumber: Copy, Balance> {
 	pub next_withdrawal: BlockNumber,
 }
 
-impl<BlockNumber: Saturating + Copy + CheckedDiv, Balance: Saturating + CheckedDiv + Copy>
+impl<BlockNumber: Saturating + Copy + CheckedDiv, Balance: Saturating + CheckedDiv + Copy + From<u32> + Eq + sp_std::ops::SubAssign>
 	Vesting<BlockNumber, Balance>
 {
-	pub fn calculate_next_withdrawal(&self) -> (BlockNumber, Option<Balance>) {
-		(
-			self.next_withdrawal.saturating_add(self.step),
-			// TODO: do correct math here
-			// self.amount.checked_div(self.end.saturating_sub(self.start).checked_div(self.step))
-			Some(self.amount),
-		)
+	pub fn calculate_next_withdrawal(&mut self) -> Result<Balance, ()> {
+		return if self.amount == 0u32.into() {
+			Err(())
+		} else {
+			let next_withdrawal = self.next_withdrawal.saturating_add(self.step);
+			let withdraw_amount = self.amount;
+			self.next_withdrawal = next_withdrawal;
+			self.amount -= withdraw_amount;
+			Ok(withdraw_amount)
+		}
+
 	}
 }

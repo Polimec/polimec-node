@@ -1083,13 +1083,13 @@ impl<T: Config> Pallet<T> {
 
 			// * Calculate variables *
 			let mut unbond_amount: BalanceOf<T> = 0u32.into();
-			let mut next_withdrawal_block = plmc_vesting.next_withdrawal;
-			while next_withdrawal_block <= now {
-				let (block, amount) = plmc_vesting.calculate_next_withdrawal();
-				unbond_amount.saturating_add(amount.ok_or(Error::<T>::FieldIsNone)?);
-				next_withdrawal_block = block;
+			// update vesting period until the next withdrawal is in the future
+			while let Ok(amount) = plmc_vesting.calculate_next_withdrawal() {
+				unbond_amount = unbond_amount.saturating_add(amount);
+				if plmc_vesting.next_withdrawal > now {
+					break
+				}
 			}
-			plmc_vesting.next_withdrawal = next_withdrawal_block;
 			bid.plmc_vesting_period = plmc_vesting;
 
 			// * Update storage *
@@ -1134,7 +1134,6 @@ impl<T: Config> Pallet<T> {
 		for mut bid in bids {
 			let mut ct_vesting = bid.ct_vesting_period;
 			let mut mint_amount: BalanceOf<T> = 0u32.into();
-			let mut next_withdrawal_block = ct_vesting.next_withdrawal;
 
 			// * Validity checks *
 			// check that it is not too early to withdraw the next amount
@@ -1143,13 +1142,13 @@ impl<T: Config> Pallet<T> {
 			}
 
 			// * Calculate variables *
-			// Calculate withdrawal amounts and next available withdrawal block
-			while next_withdrawal_block <= now {
-				let (block, amount) = ct_vesting.calculate_next_withdrawal();
-				mint_amount.saturating_add(amount.ok_or(Error::<T>::FieldIsNone)?);
-				next_withdrawal_block = block;
+			// Update vesting period until the next withdrawal is in the future
+			while let Ok(amount) = ct_vesting.calculate_next_withdrawal() {
+				mint_amount = mint_amount.saturating_add(amount);
+				if ct_vesting.next_withdrawal > now {
+					break
+				}
 			}
-			ct_vesting.next_withdrawal = next_withdrawal_block;
 			bid.ct_vesting_period = ct_vesting;
 
 			// * Update storage *
@@ -1201,7 +1200,6 @@ impl<T: Config> Pallet<T> {
 		for mut contribution in contributions {
 			let mut ct_vesting = contribution.ct_vesting;
 			let mut mint_amount: BalanceOf<T> = 0u32.into();
-			let mut next_withdrawal_block = ct_vesting.next_withdrawal;
 
 			// * Validity checks *
 			// check that it is not too early to withdraw the next amount
@@ -1210,13 +1208,13 @@ impl<T: Config> Pallet<T> {
 			}
 
 			// * Calculate variables *
-			// Calculate withdrawal amounts and next available withdrawal block
-			while next_withdrawal_block <= now {
-				let (block, amount) = ct_vesting.calculate_next_withdrawal();
-				mint_amount.saturating_add(amount.ok_or(Error::<T>::FieldIsNone)?);
-				next_withdrawal_block = block;
+			// Update vesting period until the next withdrawal is in the future
+			while let Ok(amount) = ct_vesting.calculate_next_withdrawal() {
+				mint_amount = mint_amount.saturating_add(amount);
+				if ct_vesting.next_withdrawal > now {
+					break
+				}
 			}
-			ct_vesting.next_withdrawal = next_withdrawal_block;
 			contribution.ct_vesting = ct_vesting;
 
 			// * Update storage *
