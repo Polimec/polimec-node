@@ -527,6 +527,7 @@ impl pallet_funding::Config for Runtime {
 	type PalletId = FundingPalletId;
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
 	type MaximumBidsPerUser = ConstU32<256>;
+	type MaxContributionsPerUser = ConstU32<256>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 

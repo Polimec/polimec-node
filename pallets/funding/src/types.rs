@@ -274,10 +274,10 @@ impl<
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct ContributionInfo<Balance: BalanceT> {
-	#[codec(compact)]
-	pub amount: Balance,
-	pub can_claim: bool,
+pub struct ContributionInfo<Balance, PLMCVesting, CTVesting> {
+	pub contribution_amount: Balance,
+	pub plmc_vesting: PLMCVesting,
+	pub ct_vesting: CTVesting,
 }
 
 // TODO: PLMC-157. Use SCALE fixed indexes
@@ -372,11 +372,10 @@ pub struct BiddingBond<ProjectId, AccountId, Balance, BlockNumber> {
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct ContributingBond<ProjectId, AccountId, Balance, BlockNumber> {
+pub struct ContributingBond<ProjectId, AccountId, Balance> {
 	pub project: ProjectId,
 	pub account: AccountId,
 	pub amount: Balance,
-	pub when: BlockNumber,
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]

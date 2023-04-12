@@ -113,6 +113,13 @@ type BidInfoOf<T> = BidInfo<
 	Vesting<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>,
 >;
 
+type ContributionInfoOf<T> = ContributionInfo<
+	BalanceOf<T>,
+	Vesting<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>,
+	Vesting<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>,
+>;
+
+
 // TODO: PLMC-151. Add multiple locks
 // 	Review the use of locks after:
 // 	- https://github.com/paritytech/substrate/issues/12918
@@ -228,6 +235,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaximumBidsPerUser: Get<u32>;
 
+		/// The maximum number of bids per user
+		#[pallet::constant]
+		type MaxContributionsPerUser: Get<u32>;
+
 		/// Helper trait for benchmarks.
 		#[cfg(feature = "runtime-benchmarks")]
 		type BenchmarkHelper: BenchmarkHelper<Self>;
@@ -334,7 +345,7 @@ pub mod pallet {
 		T::ProjectIdentifier,
 		Blake2_128Concat,
 		T::AccountId,
-		Vec<ContributingBond<T::ProjectIdentifier, T::AccountId, BalanceOf<T>, T::BlockNumber>>,
+		ContributingBond<T::ProjectIdentifier, T::AccountId, BalanceOf<T>>,
 	>;
 
 	#[pallet::storage]
@@ -346,7 +357,10 @@ pub mod pallet {
 		T::ProjectIdentifier,
 		Blake2_128Concat,
 		T::AccountId,
-		ContributionInfo<BalanceOf<T>>,
+		BoundedVec<
+			ContributionInfoOf<T>,
+			T::MaxContributionsPerUser
+		>,
 	>;
 
 	#[pallet::event]
@@ -406,6 +420,12 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 			price: BalanceOf<T>,
 			multiplier: u32,
+		},
+		Contribution {
+			project_id: T::ProjectIdentifier,
+			contributor: T::AccountId,
+			amount: BalanceOf<T>,
+			multiplier: u32
 		},
 		/// A bid  made by a `bidder` of `amount` at `market_cap` for `project_id` with a `multiplier` is returned.
 		BidReturned {
@@ -543,7 +563,15 @@ pub mod pallet {
 		/// Tried to withdraw funds that were vesting, but it was too early
 		NextVestingWithdrawalNotReached,
 		/// Tried to retrieve a bid but it does not exist
-		BidNotFound
+		BidNotFound,
+		/// Tried to append a new bid to storage but too many bids were already made
+		TooManyBids,
+		/// Tried to append a new contribution to storage but too many were made for that user
+		TooManyContributions,
+		/// Tried to bond PLMC for contributing in the community or remainder round, but remainder round ended already
+		TooLateForContributingBonding,
+		/// Tried to contribute but its too low to be accepted
+		ContributionTooLow
 	}
 
 	#[pallet::call]
@@ -690,7 +718,7 @@ pub mod pallet {
 			let contributor = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
-			Self::do_contribute(contributor, project_id, amount)
+			Self::do_contribute(contributor, project_id, amount, None)
 		}
 
 		#[pallet::weight(T::WeightInfo::claim_contribution_tokens())]

@@ -944,7 +944,7 @@ impl<T: Config> Pallet<T> {
 	/// enough to buy at least 1 token
 	/// * `Contributions` - Update storage with the new contribution
 	/// * `T::Currency` - Update the balance of the contributor and the project pot
-	pub fn do_contribute(contributor: T::AccountId, project_id: T::ProjectIdentifier, amount: BalanceOf<T>) -> Result<(), DispatchError> {
+	pub fn do_contribute(contributor: T::AccountId, project_id: T::ProjectIdentifier, amount: BalanceOf<T>, multiplier: Option<u32>) -> Result<(), DispatchError> {
 		// TODO: PLMC-103? Add the "Retail before, Institutional and Professionals after, if there are still tokens" logic
 
 		// * Get variables *
@@ -952,6 +952,7 @@ impl<T: Config> Pallet<T> {
 			ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectIssuerNotFound)?;
 		let project_info =
 			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let multiplier = multiplier.unwrap_or(1u32);
 
 		// * Validity checks *
 		ensure!(contributor != project_issuer, Error::<T>::ContributionToThemselves);
@@ -973,12 +974,75 @@ impl<T: Config> Pallet<T> {
 		// );
 
 		// * Calculate variables *
+		let weighted_average_price = project_info
+			.weighted_average_price
+			.ok_or(Error::<T>::FieldIsNone)?;
 		let fund_account = Self::fund_account_id(project_id);
 		// TODO: PLMC-159. Use USDC on Statemint/e (via XCM) instead of PLMC
 		// TODO: PLMC-157. Check the logic
 		// TODO: PLMC-157. Check if we need to use T::Currency::resolve_creating(...)
+		let mut required_plmc_bond =
+			amount.checked_div(&multiplier.into()).ok_or(Error::<T>::BadMath)?;
+		let ct_amount = amount.checked_div(&weighted_average_price).ok_or(Error::<T>::BadMath)?;
+		let mut bonded_plmc;
+		let (plmc_vesting, ct_vesting) =
+			Self::calculate_vesting_periods(contributor.clone(), multiplier, ct_amount);
+		let contribution = ContributionInfo {
+			contribution_amount: amount.clone(),
+			plmc_vesting,
+			ct_vesting,
+		};
+		// Check how much PLMC is already bonded for this project
+		if let Some(bond) = ContributingBonds::<T>::get(project_id.clone(), contributor.clone()) {
+			bonded_plmc = bond.amount;
+		} else {
+			bonded_plmc = Zero::zero();
+		}
+		let mut user_contributions = Contributions::<T>::get(project_id, contributor.clone()).unwrap_or_default();
+		// Check how much of the project-bonded PLMC is already in use by a contribution
+		for contribution in user_contributions.iter() {
+			bonded_plmc.saturating_sub(contribution.plmc_vesting.amount);
+		}
+		required_plmc_bond.saturating_sub(bonded_plmc);
 
 		// * Update storage *
+		// Try bonding the required PLMC for this contribution
+		Self::bond_contributing(contributor.clone(), project_id.clone(), required_plmc_bond)?;
+
+		// Try adding the new contribution to the system
+		match user_contributions.try_push(contribution.clone()) {
+			Ok(_) => {
+				// TODO: PLMC-159. Send an XCM message to Statemint/e to transfer a `bid.market_cap` amount of USDC (or the Currency specified by the issuer) to the PalletId Account
+				// Alternative TODO: PLMC-159. The user should have the specified currency (e.g: USDC) already on Polimec
+				user_contributions.sort_by_key(|contribution| Reverse(contribution.plmc_vesting.amount));
+				Contributions::<T>::set(project_id, contributor.clone(), Some(user_contributions));
+			},
+			Err(_) => {
+				// The contributions are sorted by highest PLMC bond. If the contribution vector for the user is full, we drop the lowest/last item
+				let lowest_contribution_index: usize = (T::MaxContributionsPerUser::get() - 1)
+					.try_into()
+					.map_err(|_| Error::<T>::BadMath)?;
+				let lowest_contribution = user_contributions.swap_remove(lowest_contribution_index);
+				ensure!(contribution.plmc_vesting.amount > lowest_contribution.plmc_vesting.amount, Error::<T>::ContributionTooLow);
+				// Return contribution funds
+				T::Currency::transfer(
+					&fund_account,
+					&contributor,
+					lowest_contribution.contribution_amount,
+					// TODO: PLMC-157. Take the ExistenceRequirement as parameter (?)
+					frame_support::traits::ExistenceRequirement::KeepAlive,
+				)?;
+				// Add the new bid to the AuctionsInfo, this should never fail since we just removed an element
+				user_contributions
+					.try_push(contribution)
+					.expect("We removed an element, so there is always space");
+				user_contributions.sort_by_key(|contribution| Reverse(contribution.plmc_vesting.amount));
+				Contributions::<T>::set(project_id, contributor.clone(), Some(user_contributions));
+				// TODO: PLMC-159. Send an XCM message to Statemine to transfer amount * multiplier USDT to the PalletId Account
+			},
+		};
+
+		// Transfer funds from contributor to fund account
 		T::Currency::transfer(
 			&contributor,
 			&fund_account,
@@ -986,17 +1050,9 @@ impl<T: Config> Pallet<T> {
 			// TODO: PLMC-157. Take the ExistenceRequirement as parameter (?)
 			frame_support::traits::ExistenceRequirement::KeepAlive,
 		)?;
-		Contributions::<T>::get(project_id, &contributor)
-			.map(|mut contribution| {
-				contribution.amount.saturating_accrue(amount);
-				Contributions::<T>::insert(project_id, &contributor, contribution)
-			})
-			.unwrap_or_else(|| {
-				let contribution = ContributionInfo { amount, can_claim: true };
-				Contributions::<T>::insert(project_id, &contributor, contribution)
-			});
 
 		// * Emit events *
+		Self::deposit_event(Event::<T>::Contribution { project_id, contributor: contributor.clone(), amount, multiplier });
 
 		Ok(())
 	}
@@ -1014,6 +1070,8 @@ impl<T: Config> Pallet<T> {
 		// * Get variables *
 		let bids = AuctionsInfo::<T>::get(project_id, &bidder).ok_or(Error::<T>::BidNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
+		let mut new_bids = vec![];
+		// let mut new_bids: BoundedVec<BidInfoOf<T>, T::MaximumBidsPerUser> = vec![].into();
 		for mut bid in bids {
 			let mut plmc_vesting = bid.plmc_vesting_period;
 
@@ -1037,8 +1095,8 @@ impl<T: Config> Pallet<T> {
 			// * Update storage *
 			// TODO: check that the full amount was unreserved
 			T::Currency::unreserve_named(&BondType::Bidding, &bid.bidder, unbond_amount);
-			// Update the Bid struct with the new plmc vesting period struct
-			AuctionsInfo::<T>::insert(project_id, &bid.bidder, bid.clone());
+			// Update the new vector that will go in AuctionInfo with the updated vesting period struct
+			new_bids.push(bid.clone());
 			// Update the BiddingBonds map with the reduced amount for that project-user
 			let mut bond = BiddingBonds::<T>::get(bid.project.clone(), bid.bidder.clone())
 				.ok_or(Error::<T>::FieldIsNone)?;
@@ -1047,8 +1105,13 @@ impl<T: Config> Pallet<T> {
 			BiddingBonds::<T>::insert(bid.project.clone(), bid.bidder.clone(), bond);
 
 			// * Emit events *
-
 		}
+
+		// Should never return error since we are using the same amount of bids that were there before.
+		let new_bids: BoundedVec<BidInfoOf<T>, T::MaximumBidsPerUser> = new_bids.try_into().map_err(|_| Error::<T>::TooManyBids)?;
+
+		// Update the AuctionInfo with the new bids vector
+		AuctionsInfo::<T>::insert(project_id, &bidder, new_bids);
 
 		Ok(())
 	}
@@ -1066,6 +1129,7 @@ impl<T: Config> Pallet<T> {
 	pub fn do_vested_contribution_token_bid_mint_for(bidder: T::AccountId, project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
 		// * Get variables *
 		let bids = AuctionsInfo::<T>::get(project_id, &bidder).ok_or(Error::<T>::BidNotFound)?;
+		let mut new_bids = vec![];
 		let now = <frame_system::Pallet<T>>::block_number();
 		for mut bid in bids {
 			let mut ct_vesting = bid.ct_vesting_period;
@@ -1092,12 +1156,12 @@ impl<T: Config> Pallet<T> {
 			// TODO: Should we mint here, or should the full mint happen to the treasury and then do transfers from there?
 			// Mint the funds for the user
 			T::Assets::mint_into(bid.project, &bid.bidder, mint_amount)?;
-			// Update the bid struct with the new vesting period struct
-			AuctionsInfo::<T>::insert(project_id, &bid.bidder, bid.clone());
-
+			new_bids.push(bid);
 			// * Emit events *
-
 		}
+		// Update the bids with the new vesting period struct
+		let new_bids: BoundedVec<BidInfoOf<T>, T::MaximumBidsPerUser> = new_bids.try_into().map_err(|_| Error::<T>::TooManyBids)?;
+		AuctionsInfo::<T>::insert(project_id, &bidder, new_bids);
 
 
 		Ok(())
@@ -1106,13 +1170,21 @@ impl<T: Config> Pallet<T> {
 	// TODO: implement vesting on contributions
 	/// Mint contribution tokens after a step in the vesting period for a contribution.
 	///
+	/// # Arguments
+	/// * claimer: The account who made the contribution
+	/// * project_id: The project the contribution was made for
+	///
+	/// # Storage access
+	///
 	pub fn do_vested_contribution_token_contribution_mint_for(claimer: T::AccountId, project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
 		// * Get variables *
-		let project_info =
-			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		let weighted_average_price = project_info
-			.weighted_average_price
-			.expect("Final price is set after the Funding Round");
+		let project_info = ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+		let contributions = Contributions::<T>::get(project_id, &claimer).ok_or(Error::<T>::BidNotFound)?;
+		let now = <frame_system::Pallet<T>>::block_number();
+		// let weighted_average_price = project_info
+		// 	.weighted_average_price
+		// 	.expect("Final price is set after the Funding Round");
+		let mut updated_contributions = vec![];
 
 		// * Validity checks *
 		// TODO: PLMC-133. Check the right credential status
@@ -1126,30 +1198,41 @@ impl<T: Config> Pallet<T> {
 			);
 		// TODO: PLMC-160. Check the flow of the final_price if the final price discovery during the Auction Round fails
 
-		// * Calculate variables *
+		for mut contribution in contributions {
+			let mut ct_vesting = contribution.ct_vesting;
+			let mut mint_amount: BalanceOf<T> = 0u32.into();
+			let mut next_withdrawal_block = ct_vesting.next_withdrawal;
+
+			// * Validity checks *
+			// check that it is not too early to withdraw the next amount
+			if ct_vesting.next_withdrawal > now {
+				continue
+			}
+
+			// * Calculate variables *
+			// Calculate withdrawal amounts and next available withdrawal block
+			while next_withdrawal_block <= now {
+				let (block, amount) = ct_vesting.calculate_next_withdrawal();
+				mint_amount.saturating_add(amount.ok_or(Error::<T>::FieldIsNone)?);
+				next_withdrawal_block = block;
+			}
+			ct_vesting.next_withdrawal = next_withdrawal_block;
+			contribution.ct_vesting = ct_vesting;
+
+			// * Update storage *
+			// TODO: Should we mint here, or should the full mint happen to the treasury and then do transfers from there?
+			// Mint the funds for the user
+			T::Assets::mint_into(project_id, &claimer, mint_amount)?;
+			updated_contributions.push(contribution);
+			// * Emit events *
+		}
 
 		// * Update storage *
 		// TODO: PLMC-147. For now only the participants of the Community Round can claim their tokens
 		// 	Obviously also the participants of the Auction Round should be able to claim their tokens
-		Contributions::<T>::try_mutate(
-			project_id,
-			claimer.clone(),
-			|maybe_contribution| -> DispatchResult {
-				let mut contribution =
-					maybe_contribution.as_mut().ok_or(Error::<T>::ProjectIssuerNotFound)?;
-				ensure!(contribution.can_claim, Error::<T>::AlreadyClaimed);
-				Self::do_claim_contribution_tokens(
-					project_id,
-					claimer,
-					contribution.amount,
-					weighted_average_price,
-				)?;
-				contribution.can_claim = false;
-				Ok(())
-			},
-		)?;
-
-		// * Emit events *
+		// In theory this should never fail, since we insert the same number of contributions as before
+		let updated_contributions: BoundedVec<ContributionInfoOf<T>, T::MaxContributionsPerUser> = updated_contributions.try_into().map_err(|_| Error::<T>::TooManyContributions)?;
+		Contributions::<T>::insert(project_id, &claimer, updated_contributions);
 
 		Ok(())
 	}
@@ -1199,6 +1282,52 @@ impl<T: Config> Pallet<T> {
 
 					// Reserve the required PLMC
 					T::Currency::reserve_named(&BondType::Bidding, &caller, amount)
+						.map_err(|_| Error::<T>::InsufficientBalance)?;
+				},
+			}
+			Self::deposit_event(Event::<T>::FundsBonded {
+				project_id,
+				amount,
+				bonder: caller.clone(),
+			});
+			Result::<(), Error<T>>::Ok(())
+		})?;
+
+		Ok(())
+	}
+
+	pub fn bond_contributing(
+		caller: T::AccountId,
+		project_id: T::ProjectIdentifier,
+		amount: BalanceOf<T>,
+	) -> Result<(), DispatchError> {
+		let now = <frame_system::Pallet<T>>::block_number();
+		let project_info = ProjectsInfo::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectInfoNotFound)
+			.unwrap();
+
+		if let Some(remainder_end_block) = project_info.phase_transition_points.remainder.end() {
+			ensure!(now < remainder_end_block, Error::<T>::TooLateForContributingBonding);
+		}
+
+		ContributingBonds::<T>::try_mutate(project_id, caller.clone(), |maybe_bond| {
+			match maybe_bond {
+				Some(bond) => {
+					// If the user has already bonded, add the new amount to the old one
+					bond.amount += amount;
+					T::Currency::reserve_named(&BondType::Contributing, &caller, amount)
+						.map_err(|_| Error::<T>::InsufficientBalance)?;
+				},
+				None => {
+					// If the user has not bonded yet, create a new bond
+					*maybe_bond = Some(ContributingBond {
+						project: project_id,
+						account: caller.clone(),
+						amount,
+					});
+
+					// Reserve the required PLMC
+					T::Currency::reserve_named(&BondType::Contributing, &caller, amount)
 						.map_err(|_| Error::<T>::InsufficientBalance)?;
 				},
 			}
