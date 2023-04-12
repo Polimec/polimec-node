@@ -456,6 +456,13 @@ pub mod pallet {
 		FailedEvaluationUnbondFailed {
 			error: DispatchError,
 		},
+		ContributionTokenMinted {
+			caller: T::AccountId,
+			project_id: T::ProjectIdentifier,
+			contributor: T::AccountId,
+			amount: BalanceOf<T>,
+		}
+
 	}
 
 	#[pallet::error]
@@ -721,16 +728,52 @@ pub mod pallet {
 			Self::do_contribute(contributor, project_id, amount, None)
 		}
 
-		#[pallet::weight(T::WeightInfo::claim_contribution_tokens())]
 		// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
-		pub fn claim_contribution_tokens(
+		pub fn vested_plmc_bid_unbond_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdParameter,
+			bidder: T::AccountId,
 		) -> DispatchResult {
 			let claimer = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
-			Self::do_vested_contribution_token_contribution_mint_for(claimer, project_id)
+			Self::do_vested_plmc_bid_unbond_for(claimer, project_id, bidder)
+		}
+
+		// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
+		pub fn vested_contribution_token_bid_mint_for(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdParameter,
+			bidder: T::AccountId,
+		) -> DispatchResult {
+			let claimer = ensure_signed(origin)?;
+			let project_id = project_id.into();
+
+			Self::do_vested_contribution_token_bid_mint_for(claimer, project_id, bidder)
+		}
+
+		// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
+		pub fn vested_plmc_purchase_unbond_for(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdParameter,
+			purchaser: T::AccountId,
+		) -> DispatchResult {
+			let claimer = ensure_signed(origin)?;
+			let project_id = project_id.into();
+
+			Self::do_vested_contribution_token_purchase_mint_for(claimer, project_id, purchaser)
+		}
+
+		// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
+		pub fn vested_contribution_token_purchase_mint_for(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdParameter,
+			purchaser: T::AccountId,
+		) -> DispatchResult {
+			let claimer = ensure_signed(origin)?;
+			let project_id = project_id.into();
+
+			Self::do_vested_contribution_token_purchase_mint_for(claimer, project_id, purchaser)
 		}
 	}
 

@@ -698,10 +698,12 @@ impl<T: Config> Pallet<T> {
 			project.metadata = project_metadata_hash;
 			Self::deposit_event(Event::MetadataEdited { project_id });
 			Ok(())
-		})
+		});
 
 		// * Emit events *
+		Self::deposit_event(Event::MetadataEdited { project_id });
 
+		Ok(())
 	}
 
 	/// Bond PLMC for a project in the evaluation stage
@@ -774,7 +776,11 @@ impl<T: Config> Pallet<T> {
 		})?;
 
 		// * Emit events *
-
+		Self::deposit_event(Event::<T>::FundsBonded {
+			project_id,
+			amount,
+			bonder: evaluator,
+		});
 		Ok(())
 	}
 
@@ -796,15 +802,23 @@ impl<T: Config> Pallet<T> {
 		>,
 		releaser: T::AccountId,
 	) -> Result<(), DispatchError> {
+		// * Get variables *
 		let project_info =
 			ProjectsInfo::<T>::get(bond.project.clone()).ok_or(Error::<T>::ProjectInfoNotFound)?;
+
+		// * Validity checks *
 		ensure!(
 			project_info.project_status == ProjectStatus::EvaluationFailed,
 			Error::<T>::EvaluationNotFailed
 		);
+
+		// * Calculate new variables *
+
+		// * Update Storage *
 		T::Currency::unreserve_named(&BondType::Evaluation, &bond.account, bond.amount.clone());
 		EvaluationBonds::<T>::remove(bond.project.clone(), bond.account.clone());
 
+		// * Emit events *
 		Self::deposit_event(Event::<T>::BondReleased {
 			project_id: bond.project,
 			amount: bond.amount,
@@ -927,6 +941,7 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// * Emit events *
+		Self::deposit_event(Event::<T>::Bid { project_id, amount, price, multiplier });
 
 		Ok(())
 	}
@@ -1066,12 +1081,12 @@ impl<T: Config> Pallet<T> {
 	/// * `AuctionsInfo` - Check if its time to unbond some plmc based on the bid vesting period, and update the bid after unbonding.
 	/// * `BiddingBonds` - Update the bid with the new vesting period struct, reflecting this withdrawal
 	/// * `T::Currency` - Unreserve the unbonded amount
-	pub fn do_vested_plmc_bid_unbond_for(bidder: T::AccountId, project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
+	pub fn do_vested_plmc_bid_unbond_for(releaser: T::AccountId, project_id: T::ProjectIdentifier, bidder: T::AccountId, ) -> Result<(), DispatchError> {
 		// * Get variables *
 		let bids = AuctionsInfo::<T>::get(project_id, &bidder).ok_or(Error::<T>::BidNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let mut new_bids = vec![];
-		// let mut new_bids: BoundedVec<BidInfoOf<T>, T::MaximumBidsPerUser> = vec![].into();
+
 		for mut bid in bids {
 			let mut plmc_vesting = bid.plmc_vesting_period;
 
@@ -1105,6 +1120,12 @@ impl<T: Config> Pallet<T> {
 			BiddingBonds::<T>::insert(bid.project.clone(), bid.bidder.clone(), bond);
 
 			// * Emit events *
+			Self::deposit_event(Event::<T>::BondReleased {
+				project_id: bid.project,
+				amount: unbond_amount,
+				bonder: bid.bidder,
+				releaser: releaser.clone()
+			});
 		}
 
 		// Should never return error since we are using the same amount of bids that were there before.
@@ -1126,7 +1147,7 @@ impl<T: Config> Pallet<T> {
 	///
 	/// * `AuctionsInfo` - Check if its time to mint some tokens based on the bid vesting period, and update the bid after minting.
 	/// * `T::Assets` - Mint the tokens to the bidder
-	pub fn do_vested_contribution_token_bid_mint_for(bidder: T::AccountId, project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
+	pub fn do_vested_contribution_token_bid_mint_for(releaser: T::AccountId, project_id: T::ProjectIdentifier, bidder: T::AccountId) -> Result<(), DispatchError> {
 		// * Get variables *
 		let bids = AuctionsInfo::<T>::get(project_id, &bidder).ok_or(Error::<T>::BidNotFound)?;
 		let mut new_bids = vec![];
@@ -1156,7 +1177,14 @@ impl<T: Config> Pallet<T> {
 			// Mint the funds for the user
 			T::Assets::mint_into(bid.project, &bid.bidder, mint_amount)?;
 			new_bids.push(bid);
+
 			// * Emit events *
+			Self::deposit_event(Event::<T>::ContributionTokenMinted {
+				caller: releaser.clone(),
+				project_id,
+				contributor: bidder.clone(),
+				amount: mint_amount,
+			})
 		}
 		// Update the bids with the new vesting period struct
 		let new_bids: BoundedVec<BidInfoOf<T>, T::MaximumBidsPerUser> = new_bids.try_into().map_err(|_| Error::<T>::TooManyBids)?;
@@ -1166,7 +1194,79 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	// TODO: implement vesting on contributions
+	/// Unbond some plmc from a successful bid, after a step in the vesting period has passed.
+	///
+	/// # Arguments
+	/// * bid: The bid to unbond from
+	///
+	/// # Storage access
+	/// * `AuctionsInfo` - Check if its time to unbond some plmc based on the bid vesting period, and update the bid after unbonding.
+	/// * `BiddingBonds` - Update the bid with the new vesting period struct, reflecting this withdrawal
+	/// * `T::Currency` - Unreserve the unbonded amount
+	pub fn do_vested_plmc_purchase_unbond_for(releaser: T::AccountId, project_id: T::ProjectIdentifier, claimer: T::AccountId, ) -> Result<(), DispatchError> {
+		// * Get variables *
+		let project_info = ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+		let contributions = Contributions::<T>::get(project_id, &claimer).ok_or(Error::<T>::BidNotFound)?;
+		let now = <frame_system::Pallet<T>>::block_number();
+		let mut updated_contributions = vec![];
+
+		// * Validity checks *
+		// TODO: PLMC-133. Check the right credential status
+		// ensure!(
+		// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
+		// 	Error::<T>::NotAuthorized
+		// );
+		ensure!(
+				project_info.project_status == ProjectStatus::FundingEnded,
+				Error::<T>::CannotClaimYet
+			);
+		// TODO: PLMC-160. Check the flow of the final_price if the final price discovery during the Auction Round fails
+
+		for mut contribution in contributions {
+			let mut plmc_vesting = contribution.plmc_vesting;
+			let mut unbond_amount: BalanceOf<T> = 0u32.into();
+
+			// * Validity checks *
+			// check that it is not too early to withdraw the next amount
+			if plmc_vesting.next_withdrawal > now {
+				continue
+			}
+
+			// * Calculate variables *
+			// Update vesting period until the next withdrawal is in the future
+			while let Ok(amount) = plmc_vesting.calculate_next_withdrawal() {
+				unbond_amount = unbond_amount.saturating_add(amount);
+				if plmc_vesting.next_withdrawal > now {
+					break
+				}
+			}
+			contribution.plmc_vesting = plmc_vesting;
+
+			// * Update storage *
+			// TODO: Should we mint here, or should the full mint happen to the treasury and then do transfers from there?
+			// Unreserve the funds for the user
+			T::Currency::unreserve_named(&BondType::Contributing, &claimer, unbond_amount);
+			updated_contributions.push(contribution);
+
+			// * Emit events *
+			Self::deposit_event(Event::BondReleased {
+				project_id,
+				amount: unbond_amount,
+				bonder: claimer.clone(),
+				releaser: releaser.clone(),
+			})
+		}
+
+		// * Update storage *
+		// TODO: PLMC-147. For now only the participants of the Community Round can claim their tokens
+		// 	Obviously also the participants of the Auction Round should be able to claim their tokens
+		// In theory this should never fail, since we insert the same number of contributions as before
+		let updated_contributions: BoundedVec<ContributionInfoOf<T>, T::MaxContributionsPerUser> = updated_contributions.try_into().map_err(|_| Error::<T>::TooManyContributions)?;
+		Contributions::<T>::insert(project_id, &claimer, updated_contributions);
+
+		Ok(())
+	}
+
 	/// Mint contribution tokens after a step in the vesting period for a contribution.
 	///
 	/// # Arguments
@@ -1177,14 +1277,11 @@ impl<T: Config> Pallet<T> {
 	/// * `ProjectsInfo` - Check that the funding period ended
 	/// * `Contributions` - Check if its time to mint some tokens based on the contributions vesting periods, and update the contribution after minting.
 	/// * `T::Assets` - Mint the tokens to the claimer
-	pub fn do_vested_contribution_token_contribution_mint_for(claimer: T::AccountId, project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
+	pub fn do_vested_contribution_token_purchase_mint_for(releaser: T::AccountId, project_id: T::ProjectIdentifier, claimer: T::AccountId, ) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_info = ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let contributions = Contributions::<T>::get(project_id, &claimer).ok_or(Error::<T>::BidNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
-		// let weighted_average_price = project_info
-		// 	.weighted_average_price
-		// 	.expect("Final price is set after the Funding Round");
 		let mut updated_contributions = vec![];
 
 		// * Validity checks *
@@ -1224,7 +1321,14 @@ impl<T: Config> Pallet<T> {
 			// Mint the funds for the user
 			T::Assets::mint_into(project_id, &claimer, mint_amount)?;
 			updated_contributions.push(contribution);
+
 			// * Emit events *
+			Self::deposit_event(Event::ContributionTokenMinted {
+				caller: releaser.clone(),
+				project_id,
+				contributor: claimer.clone(),
+				amount: mint_amount,
+			})
 		}
 
 		// * Update storage *

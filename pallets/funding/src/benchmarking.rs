@@ -277,7 +277,7 @@ benchmarks! {
 
 	}: _(SystemOrigin::Signed(contributor), project_id, 2_000__0_000_000_000_u64.into())
 
-	claim_contribution_tokens {
+	vested_contribution_token_purchase_mint_for {
 		// Create and register a project
 		let (project_id, issuer) = create_default_minted_project::<T>(None);
 
@@ -334,7 +334,7 @@ benchmarks! {
 		// Move to the end of the funding round
 		run_to_block::<T>(System::<T>::block_number() + <T as Config>::CommunityFundingDuration::get() + <T as Config>::RemainderFundingDuration::get() + 1u32.into());
 
-	}: _(SystemOrigin::Signed(contributor.clone()), project_id.clone())
+	}: _(SystemOrigin::Signed(contributor.clone()), project_id.clone(), contributor.clone())
 	verify {
 		let transfered_ct_to_contributor = T::Assets::balance(project_id.clone().into(), &contributor);
 		assert_eq!(transfered_ct_to_contributor, 122_u64.into());

@@ -480,7 +480,7 @@ mod community_round {
 	}
 }
 
-mod claim_contribution_tokens {
+mod vested_contribution_token_purchase_mint_for {
 	use super::*;
 
 	fn setup_environment() {
@@ -524,7 +524,7 @@ mod claim_contribution_tokens {
 	fn it_works() {
 		new_test_ext().execute_with(|| {
 			setup_environment();
-			assert_ok!(FundingModule::claim_contribution_tokens(RuntimeOrigin::signed(BOB), 0));
+			assert_ok!(FundingModule::vested_contribution_token_purchase_mint_for(RuntimeOrigin::signed(BOB), 0, BOB));
 			assert_eq!(Assets::balance(0, BOB), 99);
 		})
 	}
@@ -534,9 +534,9 @@ mod claim_contribution_tokens {
 	// fn cannot_claim_multiple_times() {
 	// 	new_test_ext().execute_with(|| {
 	// 		setup_environment();
-	// 		assert_ok!(FundingModule::claim_contribution_tokens(RuntimeOrigin::signed(BOB), 0));
+	// 		assert_ok!(FundingModule::vested_contribution_token_purchase_mint_for(RuntimeOrigin::signed(BOB), 0));
 	// 		assert_noop!(
-	// 			FundingModule::claim_contribution_tokens(RuntimeOrigin::signed(BOB), 0),
+	// 			FundingModule::vested_contribution_token_purchase_mint_for(RuntimeOrigin::signed(BOB), 0),
 	// 			Error::<Test>::AlreadyClaimed
 	// 		);
 	// 	})
@@ -621,7 +621,7 @@ mod flow {
 			assert_eq!(metadata_decimals, ASSET_DECIMALS);
 
 			// Check if the Contribution Token is minted correctly
-			assert_ok!(FundingModule::claim_contribution_tokens(RuntimeOrigin::signed(BOB), 0));
+			assert_ok!(FundingModule::vested_contribution_token_purchase_mint_for(RuntimeOrigin::signed(BOB), 0, BOB));
 			assert_eq!(Assets::balance(0, BOB), 1);
 		})
 	}
