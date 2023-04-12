@@ -1125,7 +1125,7 @@ impl<T: Config> Pallet<T> {
 	/// # Storage access
 	///
 	/// * `AuctionsInfo` - Check if its time to mint some tokens based on the bid vesting period, and update the bid after minting.
-	/// * `T::Currency` - Mint the tokens to the bidder
+	/// * `T::Assets` - Mint the tokens to the bidder
 	pub fn do_vested_contribution_token_bid_mint_for(bidder: T::AccountId, project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
 		// * Get variables *
 		let bids = AuctionsInfo::<T>::get(project_id, &bidder).ok_or(Error::<T>::BidNotFound)?;
@@ -1174,7 +1174,9 @@ impl<T: Config> Pallet<T> {
 	/// * project_id: The project the contribution was made for
 	///
 	/// # Storage access
-	///
+	/// * `ProjectsInfo` - Check that the funding period ended
+	/// * `Contributions` - Check if its time to mint some tokens based on the contributions vesting periods, and update the contribution after minting.
+	/// * `T::Assets` - Mint the tokens to the claimer
 	pub fn do_vested_contribution_token_contribution_mint_for(claimer: T::AccountId, project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_info = ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
@@ -1357,15 +1359,17 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Based on an amount in usd, a desired multiplier, and the type of investor the caller is,
+	/// calculate the amount and vesting periods of bonded PLMC and reward CT tokens.
 	pub fn calculate_vesting_periods(
 		_caller: T::AccountId,
 		_multiplier: u32,
-		ct_amount: BalanceOf<T>,
+		usd_amount: BalanceOf<T>,
 	) -> (Vesting<T::BlockNumber, BalanceOf<T>>, Vesting<T::BlockNumber, BalanceOf<T>>) {
 		let plmc_start: T::BlockNumber = 0u32.into();
 		let ct_start: T::BlockNumber = (parachains_common::DAYS * 7).into();
 		// TODO: Calculate real vesting periods based on multiplier and caller type
-		let plmc_amount = ct_amount;
+		let plmc_amount = usd_amount;
 		(
 			Vesting {
 				amount: plmc_amount,
@@ -1375,7 +1379,7 @@ impl<T: Config> Pallet<T> {
 				next_withdrawal: 0u32.into(),
 			},
 			Vesting {
-				amount: ct_amount,
+				amount: usd_amount,
 				start: ct_start.into(),
 				end: ct_start.into(),
 				step: 0u32.into(),
@@ -1385,12 +1389,6 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Calculates the price of contribution tokens for the Community and Remainder Rounds
-	///
-	/// # Arguments
-	///
-	/// * `project_id` - Id used to retrieve the project information from storage
-	/// * `end_block` - Block where the candle auction ended, which will make bids after it invalid
-	/// * `fundraising_target` - Amount of tokens that the project wants to raise
 	pub fn calculate_weighted_average_price(
 		project_id: T::ProjectIdentifier,
 		end_block: T::BlockNumber,

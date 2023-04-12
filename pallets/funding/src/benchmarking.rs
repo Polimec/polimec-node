@@ -135,7 +135,7 @@ benchmarks! {
 		let (project_id, issuer) = create_default_minted_project::<T>(None);
 	}: _(SystemOrigin::Signed(issuer), project_id)
 
-	bond {
+	bond_evaluation {
 		let (project_id, issuer) = create_default_minted_project::<T>(None);
 		let evaluator: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
 		T::Currency::make_free_balance_be(&evaluator, 2_000_000_000_000_u64.into());
@@ -193,16 +193,16 @@ benchmarks! {
 		// Move to a block valid for starting the Auction Round
 		run_to_block::<T>(System::<T>::block_number() + <T as Config>::EvaluationDuration::get() + 2_u32.into());
 
-		// fund bid accounts
+		// Fund bid accounts
 		let bidder_1: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
 		T::Currency::make_free_balance_be(&bidder_1, 500_000__0_000_000_000_u64.into()); // 500k tokens
 
 		// Start the Auction round
 		assert_ok!(PolimecFunding::<T>::start_auction(SystemOrigin::Signed(issuer).into(), project_id.clone()));
 
-	}: _(SystemOrigin::Signed(bidder_1), project_id.clone(), 10_000_u64.into(), 15__0_000_000_000_u64.into(), None)
+	}: _(SystemOrigin::Signed(bidder_1.clone()), project_id.clone(), 10_000_u64.into(), 15__0_000_000_000_u64.into(), None)
 	verify {
-		let project_auctions = <pallet::Pallet<T> as Store>::AuctionsInfo::get(project_id.clone().into());
+		let project_auctions = <pallet::Pallet<T> as Store>::AuctionsInfo::get(project_id.clone().into(), bidder_1.clone()).unwrap();
 		assert_eq!(project_auctions.len(), 1);
 		assert_eq!(project_auctions[0].amount, 10_000_u64.into());
 		assert_eq!(project_auctions[0].price, 15__0_000_000_000_u64.into());
