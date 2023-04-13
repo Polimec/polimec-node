@@ -35,8 +35,8 @@ use sp_runtime::{
 };
 use system::EnsureSigned;
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
-type Block = frame_system::mocking::MockBlock<Test>;
+type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<TestRuntime>;
+type Block = frame_system::mocking::MockBlock<TestRuntime>;
 
 pub type AccountId = u64;
 pub type Balance = u128;
@@ -46,7 +46,7 @@ pub const PLMC: u128 = 10_000_000_000_u128;
 
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
-	pub enum Test where
+	pub enum TestRuntime where
 		Block = Block,
 		NodeBlock = Block,
 		UncheckedExtrinsic = UncheckedExtrinsic,
@@ -64,7 +64,7 @@ parameter_types! {
 	pub const BlockHashCount: u32 = 250;
 }
 
-impl system::Config for Test {
+impl system::Config for TestRuntime {
 	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
@@ -95,7 +95,7 @@ parameter_types! {
 	pub static ExistentialDeposit: Balance = 1;
 }
 
-impl pallet_balances::Config for Test {
+impl pallet_balances::Config for TestRuntime {
 	type MaxLocks = frame_support::traits::ConstU32<1024>;
 	type MaxReserves = frame_support::traits::ConstU32<1024>;
 	type ReserveIdentifier = BondType;
@@ -107,9 +107,9 @@ impl pallet_balances::Config for Test {
 	type WeightInfo = ();
 }
 
-impl pallet_randomness_collective_flip::Config for Test {}
+impl pallet_randomness_collective_flip::Config for TestRuntime {}
 
-impl pallet_credentials::Config for Test {
+impl pallet_credentials::Config for TestRuntime {
 	type RuntimeEvent = RuntimeEvent;
 	type AddOrigin = EnsureSigned<AccountId>;
 	type RemoveOrigin = EnsureSigned<AccountId>;
@@ -120,7 +120,7 @@ impl pallet_credentials::Config for Test {
 	type MembershipChanged = ();
 }
 
-impl pallet_assets::Config for Test {
+impl pallet_assets::Config for TestRuntime {
 	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type AssetId = Identifier;
@@ -153,7 +153,7 @@ parameter_types! {
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 }
 
-impl pallet_funding::Config for Test {
+impl pallet_funding::Config for TestRuntime {
 	type RuntimeEvent = RuntimeEvent;
 	type StringLimit = ConstU32<64>;
 	type ProjectIdentifier = Identifier;
@@ -184,7 +184,7 @@ impl pallet_funding::Config for Test {
 // Build genesis storage according to the mock runtime.
 // TODO: PLMC-161. Add some mocks projects at Genesis to simplify the tests
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+	let mut t = frame_system::GenesisConfig::default().build_storage::<TestRuntime>().unwrap();
 
 	GenesisConfig {
 		balances: BalancesConfig {

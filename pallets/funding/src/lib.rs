@@ -103,6 +103,8 @@ type ProjectOf<T> = Project<
 	<T as frame_system::Config>::Hash,
 >;
 
+type ProjectInfoOf<T> = ProjectInfo<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>;
+
 /// The bid type of this pallet.
 type BidInfoOf<T> = BidInfo<
 	<T as Config>::ProjectIdentifier,
@@ -285,7 +287,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		T::ProjectIdentifier,
-		ProjectInfo<T::BlockNumber, BalanceOf<T>>,
+		ProjectInfoOf<T>,
 	>;
 
 	#[pallet::storage]
@@ -486,7 +488,7 @@ pub mod pallet {
 		/// Only the issuer can start the Evaluation Round
 		NotAllowed,
 		/// The Metadata Hash of the project was not found
-		NoImageFound,
+		MetadataNotProvided,
 		/// The Auction Round of the project has already started
 		AuctionAlreadyStarted,
 		/// The Auction Round of the project has not started yet
@@ -541,6 +543,8 @@ pub mod pallet {
 		TooEarlyForFundingEnd,
 		/// Tried to access auction metadata, but it was not correctly initialized.
 		AuctionMetadataNotFound,
+		/// Checks for other projects not copying metadata of others
+		MetadataAlreadyExists,
 		/// Ending block for the candle auction is not set
 		EndingBlockNotSet,
 		/// The specified issuer does not exist
@@ -583,23 +587,6 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Validate a preimage on-chain and store the image.
-		#[pallet::weight(T::WeightInfo::note_image())]
-		pub fn note_image(
-			origin: OriginFor<T>,
-			bytes: BoundedVec<u8, T::PreImageLimit>,
-		) -> DispatchResult {
-			let issuer = ensure_signed(origin)?;
-
-			// TODO: PLMC-133 Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
-			// ensure!(
-			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
-			// 	Error::<T>::NotAuthorized
-			// );
-
-			Self::do_note_bytes(bytes, &issuer)
-		}
-
 		/// Start the "Funding Application" round
 		/// Project applies for funding, providing all required information.
 		#[pallet::weight(T::WeightInfo::create())]

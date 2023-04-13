@@ -55,8 +55,15 @@ impl<T: Config> Pallet<T> {
 		let fundraising_target = project.total_allocation_size * project.minimum_price;
 		let project_id = NextProjectId::<T>::get();
 
+		if let Some(metadata) = project.metadata {
+			ensure!(
+				!Images::<T>::contains_key(metadata),
+				Error::<T>::MetadataAlreadyExists
+			);
+			Images::<T>::insert(metadata, issuer.clone());
+		}
+
 		// * Validity checks *
-		ensure!(Images::<T>::contains_key(project.metadata), Error::<T>::NoImageFound);
 		if let Err(error) = project.validity_check() {
 			return match error {
 				ValidityError::PriceTooLow => Err(Error::<T>::PriceTooLow.into()),
@@ -120,6 +127,7 @@ impl<T: Config> Pallet<T> {
 		// * Get variables *
 		let mut project_info =
 			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let project = Projects::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 
 		// * Validity checks *
@@ -128,6 +136,7 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::ProjectNotInApplicationRound
 		);
 		ensure!(!project_info.is_frozen, Error::<T>::ProjectAlreadyFrozen);
+		ensure!(project.metadata.is_some(), Error::<T>::MetadataNotProvided);
 
 		// * Calculate new variables *
 		let evaluation_end_block = now + T::EvaluationDuration::get();
@@ -630,36 +639,6 @@ impl<T: Config> Pallet<T> {
 
 // Extrinsic functions (except round transitions)
 impl<T: Config> Pallet<T> {
-	/// Store an image's hash on chain, to be retrievable with IPFS
-	///
-	/// # Arguments
-	/// * `preimage` - The image bytes
-	/// * `issuer` - The project issuer account
-	///
-	/// # Storage access
-	/// * `Images` - Insert the hash of the image as key and issuer as value
-	pub fn do_note_bytes(
-		preimage: BoundedVec<u8, T::PreImageLimit>,
-		issuer: &T::AccountId,
-	) -> Result<(), DispatchError> {
-		// * Get Variables *
-
-		// * Validity checks *
-		// TODO: PLMC-141. Validate and check if the preimage is a valid JSON conforming with our needs.
-		// 	also check if we can use serde in a no_std environment
-
-		// * Calculate new variables *
-		let hash = T::Hashing::hash(&preimage);
-
-		// * Update Storage *
-		Images::<T>::insert(hash, issuer);
-
-		// * Emit events *
-		Self::deposit_event(Event::Noted { hash });
-
-		Ok(())
-	}
-
 	/// Change the metadata of a project to the hash of the image that was previously stored with the `note_bytes` extrinsic
 	///
 	/// # Arguments
@@ -674,16 +653,14 @@ impl<T: Config> Pallet<T> {
 	/// * `Projects` - Update the metadata hash
 	pub fn do_edit_metadata(issuer: T::AccountId, project_id: T::ProjectIdentifier, project_metadata_hash: T::Hash) -> Result<(), DispatchError> {
 		// * Get variables *
+		let mut project = Projects::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+		let project_info = ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 
 		// * Validity checks *
 		ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
-		ensure!(Images::<T>::contains_key(project_metadata_hash), Error::<T>::NoImageFound);
-		ensure!(
-				!ProjectsInfo::<T>::get(project_id)
-					.ok_or(Error::<T>::ProjectInfoNotFound)?
-					.is_frozen,
-				Error::<T>::Frozen
-			);
+		ensure!(project_info.is_frozen, Error::<T>::Frozen);
+		ensure!(!Images::<T>::contains_key(project_metadata_hash), Error::<T>::MetadataAlreadyExists);
+
 		// TODO: PLMC-133. Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
 		// ensure!(
 		// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
@@ -693,12 +670,8 @@ impl<T: Config> Pallet<T> {
 		// * Calculate new variables *
 
 		// * Update Storage *
-		Projects::<T>::try_mutate(project_id, |maybe_project| -> DispatchResult {
-			let project = maybe_project.as_mut().ok_or(Error::<T>::ProjectIssuerNotFound)?;
-			project.metadata = project_metadata_hash;
-			Self::deposit_event(Event::MetadataEdited { project_id });
-			Ok(())
-		});
+		project.metadata = Some(project_metadata_hash);
+		Projects::<T>::insert(project_id, project);
 
 		// * Emit events *
 		Self::deposit_event(Event::MetadataEdited { project_id });

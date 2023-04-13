@@ -432,5 +432,5 @@ benchmarks! {
 		assert_eq!(weighted_average_price, 16__3_333_333_200_u64.into());
 	}
 
-	impl_benchmark_test_suite!(PolimecFunding, crate::mock::new_test_ext(), crate::mock::Test);
+	impl_benchmark_test_suite!(PolimecFunding, crate::mock::new_test_ext(), crate::mock::TestRuntime);
 }
