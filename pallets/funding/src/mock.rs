@@ -27,6 +27,7 @@ use frame_support::{
 	PalletId,
 };
 use frame_system as system;
+use parachains_common::DAYS;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -144,12 +145,12 @@ impl pallet_assets::Config for TestRuntime {
 }
 
 parameter_types! {
-	pub const EvaluationDuration: BlockNumber = 28;
-	pub const AuctionInitializePeriodDuration: BlockNumber = 10;
-	pub const EnglishAuctionDuration: BlockNumber = 10;
-	pub const CandleAuctionDuration: BlockNumber = 5;
-	pub const CommunityRoundDuration: BlockNumber = 10;
-	pub const RemainderFundingDuration: BlockNumber = 10;
+	pub const EvaluationDuration: BlockNumber = (28 * DAYS) as BlockNumber;
+	pub const AuctionInitializePeriodDuration: BlockNumber = (7 * DAYS) as BlockNumber;
+	pub const EnglishAuctionDuration: BlockNumber = (2 * DAYS) as BlockNumber;
+	pub const CandleAuctionDuration: BlockNumber = (3 * DAYS) as BlockNumber;
+	pub const CommunityRoundDuration: BlockNumber = (5 * DAYS) as BlockNumber;
+	pub const RemainderFundingDuration: BlockNumber = (1 * DAYS) as BlockNumber;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 }
 
@@ -187,19 +188,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::default().build_storage::<TestRuntime>().unwrap();
 
 	GenesisConfig {
-		balances: BalancesConfig {
-			balances: vec![
-				(1, 512 * 1_000_000 * PLMC),
-				(2, 512 * 1_000_000 * PLMC),
-				(3, 512 * 1_000_000 * PLMC),
-				(4, 512 * 1_000_000 * PLMC),
-				(5, 512 * 1_000_000 * PLMC),
-				// 16558220937623665250 = account::<T::AccountId>("Alice", 1, 1) in becnhmarks
-				(16558220937623665250, 512 * 1_000_000 * PLMC),
-				// 18011431366525807836 = account::<T::AccountId>("Bob", 1, 1) in becnhmarks
-				// (18011431366525807836, 512 * 1_000_000 * PLMC)
-			],
-		},
+		balances: BalancesConfig { balances: vec![] },
 		credentials: CredentialsConfig {
 			issuers: vec![1, 16558220937623665250],
 			retails: vec![2],

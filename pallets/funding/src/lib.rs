@@ -121,7 +121,6 @@ type ContributionInfoOf<T> = ContributionInfo<
 	Vesting<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>,
 >;
 
-
 // TODO: PLMC-151. Add multiple locks
 // 	Review the use of locks after:
 // 	- https://github.com/paritytech/substrate/issues/12918
@@ -283,12 +282,8 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn project_info)]
 	/// StorageMap containing all the the information for the projects
-	pub type ProjectsInfo<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		T::ProjectIdentifier,
-		ProjectInfoOf<T>,
-	>;
+	pub type ProjectsInfo<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, ProjectInfoOf<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn projects_to_update)]
@@ -359,10 +354,7 @@ pub mod pallet {
 		T::ProjectIdentifier,
 		Blake2_128Concat,
 		T::AccountId,
-		BoundedVec<
-			ContributionInfoOf<T>,
-			T::MaxContributionsPerUser
-		>,
+		BoundedVec<ContributionInfoOf<T>, T::MaxContributionsPerUser>,
 	>;
 
 	#[pallet::event]
@@ -427,7 +419,7 @@ pub mod pallet {
 			project_id: T::ProjectIdentifier,
 			contributor: T::AccountId,
 			amount: BalanceOf<T>,
-			multiplier: u32
+			multiplier: u32,
 		},
 		/// A bid  made by a `bidder` of `amount` at `market_cap` for `project_id` with a `multiplier` is returned.
 		BidReturned {
@@ -463,8 +455,7 @@ pub mod pallet {
 			project_id: T::ProjectIdentifier,
 			contributor: T::AccountId,
 			amount: BalanceOf<T>,
-		}
-
+		},
 	}
 
 	#[pallet::error]
@@ -582,7 +573,7 @@ pub mod pallet {
 		/// Tried to bond PLMC for contributing in the community or remainder round, but remainder round ended already
 		TooLateForContributingBonding,
 		/// Tried to contribute but its too low to be accepted
-		ContributionTooLow
+		ContributionTooLow,
 	}
 
 	#[pallet::call]

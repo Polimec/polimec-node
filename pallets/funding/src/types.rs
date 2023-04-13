@@ -392,8 +392,10 @@ pub struct Vesting<BlockNumber: Copy, Balance> {
 	pub next_withdrawal: BlockNumber,
 }
 
-impl<BlockNumber: Saturating + Copy + CheckedDiv, Balance: Saturating + CheckedDiv + Copy + From<u32> + Eq + sp_std::ops::SubAssign>
-	Vesting<BlockNumber, Balance>
+impl<
+		BlockNumber: Saturating + Copy + CheckedDiv,
+		Balance: Saturating + CheckedDiv + Copy + From<u32> + Eq + sp_std::ops::SubAssign,
+	> Vesting<BlockNumber, Balance>
 {
 	pub fn calculate_next_withdrawal(&mut self) -> Result<Balance, ()> {
 		return if self.amount == 0u32.into() {
@@ -405,6 +407,5 @@ impl<BlockNumber: Saturating + Copy + CheckedDiv, Balance: Saturating + CheckedD
 			self.amount -= withdraw_amount;
 			Ok(withdraw_amount)
 		}
-
 	}
 }

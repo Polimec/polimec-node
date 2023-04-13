@@ -56,10 +56,7 @@ impl<T: Config> Pallet<T> {
 		let project_id = NextProjectId::<T>::get();
 
 		if let Some(metadata) = project.metadata {
-			ensure!(
-				!Images::<T>::contains_key(metadata),
-				Error::<T>::MetadataAlreadyExists
-			);
+			ensure!(!Images::<T>::contains_key(metadata), Error::<T>::MetadataAlreadyExists);
 			Images::<T>::insert(metadata, issuer.clone());
 		}
 
@@ -651,15 +648,23 @@ impl<T: Config> Pallet<T> {
 	/// * `Images` - Check that the image exists
 	/// * `ProjectsInfo` - Check that the project is not frozen
 	/// * `Projects` - Update the metadata hash
-	pub fn do_edit_metadata(issuer: T::AccountId, project_id: T::ProjectIdentifier, project_metadata_hash: T::Hash) -> Result<(), DispatchError> {
+	pub fn do_edit_metadata(
+		issuer: T::AccountId,
+		project_id: T::ProjectIdentifier,
+		project_metadata_hash: T::Hash,
+	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let mut project = Projects::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let project_info = ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let project_info =
+			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 
 		// * Validity checks *
 		ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
 		ensure!(project_info.is_frozen, Error::<T>::Frozen);
-		ensure!(!Images::<T>::contains_key(project_metadata_hash), Error::<T>::MetadataAlreadyExists);
+		ensure!(
+			!Images::<T>::contains_key(project_metadata_hash),
+			Error::<T>::MetadataAlreadyExists
+		);
 
 		// TODO: PLMC-133. Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
 		// ensure!(
@@ -749,11 +754,7 @@ impl<T: Config> Pallet<T> {
 		})?;
 
 		// * Emit events *
-		Self::deposit_event(Event::<T>::FundsBonded {
-			project_id,
-			amount,
-			bonder: evaluator,
-		});
+		Self::deposit_event(Event::<T>::FundsBonded { project_id, amount, bonder: evaluator });
 		Ok(())
 	}
 
@@ -932,7 +933,12 @@ impl<T: Config> Pallet<T> {
 	/// enough to buy at least 1 token
 	/// * `Contributions` - Update storage with the new contribution
 	/// * `T::Currency` - Update the balance of the contributor and the project pot
-	pub fn do_contribute(contributor: T::AccountId, project_id: T::ProjectIdentifier, amount: BalanceOf<T>, multiplier: Option<u32>) -> Result<(), DispatchError> {
+	pub fn do_contribute(
+		contributor: T::AccountId,
+		project_id: T::ProjectIdentifier,
+		amount: BalanceOf<T>,
+		multiplier: Option<u32>,
+	) -> Result<(), DispatchError> {
 		// TODO: PLMC-103? Add the "Retail before, Institutional and Professionals after, if there are still tokens" logic
 
 		// * Get variables *
@@ -962,9 +968,8 @@ impl<T: Config> Pallet<T> {
 		// );
 
 		// * Calculate variables *
-		let weighted_average_price = project_info
-			.weighted_average_price
-			.ok_or(Error::<T>::FieldIsNone)?;
+		let weighted_average_price =
+			project_info.weighted_average_price.ok_or(Error::<T>::FieldIsNone)?;
 		let fund_account = Self::fund_account_id(project_id);
 		// TODO: PLMC-159. Use USDC on Statemint/e (via XCM) instead of PLMC
 		// TODO: PLMC-157. Check the logic
@@ -975,18 +980,16 @@ impl<T: Config> Pallet<T> {
 		let mut bonded_plmc;
 		let (plmc_vesting, ct_vesting) =
 			Self::calculate_vesting_periods(contributor.clone(), multiplier, ct_amount);
-		let contribution = ContributionInfo {
-			contribution_amount: amount.clone(),
-			plmc_vesting,
-			ct_vesting,
-		};
+		let contribution =
+			ContributionInfo { contribution_amount: amount.clone(), plmc_vesting, ct_vesting };
 		// Check how much PLMC is already bonded for this project
 		if let Some(bond) = ContributingBonds::<T>::get(project_id.clone(), contributor.clone()) {
 			bonded_plmc = bond.amount;
 		} else {
 			bonded_plmc = Zero::zero();
 		}
-		let mut user_contributions = Contributions::<T>::get(project_id, contributor.clone()).unwrap_or_default();
+		let mut user_contributions =
+			Contributions::<T>::get(project_id, contributor.clone()).unwrap_or_default();
 		// Check how much of the project-bonded PLMC is already in use by a contribution
 		for contribution in user_contributions.iter() {
 			bonded_plmc.saturating_sub(contribution.plmc_vesting.amount);
@@ -1002,7 +1005,8 @@ impl<T: Config> Pallet<T> {
 			Ok(_) => {
 				// TODO: PLMC-159. Send an XCM message to Statemint/e to transfer a `bid.market_cap` amount of USDC (or the Currency specified by the issuer) to the PalletId Account
 				// Alternative TODO: PLMC-159. The user should have the specified currency (e.g: USDC) already on Polimec
-				user_contributions.sort_by_key(|contribution| Reverse(contribution.plmc_vesting.amount));
+				user_contributions
+					.sort_by_key(|contribution| Reverse(contribution.plmc_vesting.amount));
 				Contributions::<T>::set(project_id, contributor.clone(), Some(user_contributions));
 			},
 			Err(_) => {
@@ -1011,7 +1015,10 @@ impl<T: Config> Pallet<T> {
 					.try_into()
 					.map_err(|_| Error::<T>::BadMath)?;
 				let lowest_contribution = user_contributions.swap_remove(lowest_contribution_index);
-				ensure!(contribution.plmc_vesting.amount > lowest_contribution.plmc_vesting.amount, Error::<T>::ContributionTooLow);
+				ensure!(
+					contribution.plmc_vesting.amount > lowest_contribution.plmc_vesting.amount,
+					Error::<T>::ContributionTooLow
+				);
 				// Return contribution funds
 				T::Currency::transfer(
 					&fund_account,
@@ -1024,7 +1031,8 @@ impl<T: Config> Pallet<T> {
 				user_contributions
 					.try_push(contribution)
 					.expect("We removed an element, so there is always space");
-				user_contributions.sort_by_key(|contribution| Reverse(contribution.plmc_vesting.amount));
+				user_contributions
+					.sort_by_key(|contribution| Reverse(contribution.plmc_vesting.amount));
 				Contributions::<T>::set(project_id, contributor.clone(), Some(user_contributions));
 				// TODO: PLMC-159. Send an XCM message to Statemine to transfer amount * multiplier USDT to the PalletId Account
 			},
@@ -1040,7 +1048,12 @@ impl<T: Config> Pallet<T> {
 		)?;
 
 		// * Emit events *
-		Self::deposit_event(Event::<T>::Contribution { project_id, contributor: contributor.clone(), amount, multiplier });
+		Self::deposit_event(Event::<T>::Contribution {
+			project_id,
+			contributor: contributor.clone(),
+			amount,
+			multiplier,
+		});
 
 		Ok(())
 	}
@@ -1054,7 +1067,11 @@ impl<T: Config> Pallet<T> {
 	/// * `AuctionsInfo` - Check if its time to unbond some plmc based on the bid vesting period, and update the bid after unbonding.
 	/// * `BiddingBonds` - Update the bid with the new vesting period struct, reflecting this withdrawal
 	/// * `T::Currency` - Unreserve the unbonded amount
-	pub fn do_vested_plmc_bid_unbond_for(releaser: T::AccountId, project_id: T::ProjectIdentifier, bidder: T::AccountId, ) -> Result<(), DispatchError> {
+	pub fn do_vested_plmc_bid_unbond_for(
+		releaser: T::AccountId,
+		project_id: T::ProjectIdentifier,
+		bidder: T::AccountId,
+	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let bids = AuctionsInfo::<T>::get(project_id, &bidder).ok_or(Error::<T>::BidNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
@@ -1097,12 +1114,13 @@ impl<T: Config> Pallet<T> {
 				project_id: bid.project,
 				amount: unbond_amount,
 				bonder: bid.bidder,
-				releaser: releaser.clone()
+				releaser: releaser.clone(),
 			});
 		}
 
 		// Should never return error since we are using the same amount of bids that were there before.
-		let new_bids: BoundedVec<BidInfoOf<T>, T::MaximumBidsPerUser> = new_bids.try_into().map_err(|_| Error::<T>::TooManyBids)?;
+		let new_bids: BoundedVec<BidInfoOf<T>, T::MaximumBidsPerUser> =
+			new_bids.try_into().map_err(|_| Error::<T>::TooManyBids)?;
 
 		// Update the AuctionInfo with the new bids vector
 		AuctionsInfo::<T>::insert(project_id, &bidder, new_bids);
@@ -1120,7 +1138,11 @@ impl<T: Config> Pallet<T> {
 	///
 	/// * `AuctionsInfo` - Check if its time to mint some tokens based on the bid vesting period, and update the bid after minting.
 	/// * `T::Assets` - Mint the tokens to the bidder
-	pub fn do_vested_contribution_token_bid_mint_for(releaser: T::AccountId, project_id: T::ProjectIdentifier, bidder: T::AccountId) -> Result<(), DispatchError> {
+	pub fn do_vested_contribution_token_bid_mint_for(
+		releaser: T::AccountId,
+		project_id: T::ProjectIdentifier,
+		bidder: T::AccountId,
+	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let bids = AuctionsInfo::<T>::get(project_id, &bidder).ok_or(Error::<T>::BidNotFound)?;
 		let mut new_bids = vec![];
@@ -1160,9 +1182,9 @@ impl<T: Config> Pallet<T> {
 			})
 		}
 		// Update the bids with the new vesting period struct
-		let new_bids: BoundedVec<BidInfoOf<T>, T::MaximumBidsPerUser> = new_bids.try_into().map_err(|_| Error::<T>::TooManyBids)?;
+		let new_bids: BoundedVec<BidInfoOf<T>, T::MaximumBidsPerUser> =
+			new_bids.try_into().map_err(|_| Error::<T>::TooManyBids)?;
 		AuctionsInfo::<T>::insert(project_id, &bidder, new_bids);
-
 
 		Ok(())
 	}
@@ -1176,10 +1198,15 @@ impl<T: Config> Pallet<T> {
 	/// * `AuctionsInfo` - Check if its time to unbond some plmc based on the bid vesting period, and update the bid after unbonding.
 	/// * `BiddingBonds` - Update the bid with the new vesting period struct, reflecting this withdrawal
 	/// * `T::Currency` - Unreserve the unbonded amount
-	pub fn do_vested_plmc_purchase_unbond_for(releaser: T::AccountId, project_id: T::ProjectIdentifier, claimer: T::AccountId, ) -> Result<(), DispatchError> {
+	pub fn do_vested_plmc_purchase_unbond_for(
+		releaser: T::AccountId,
+		project_id: T::ProjectIdentifier,
+		claimer: T::AccountId,
+	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_info = ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let contributions = Contributions::<T>::get(project_id, &claimer).ok_or(Error::<T>::BidNotFound)?;
+		let contributions =
+			Contributions::<T>::get(project_id, &claimer).ok_or(Error::<T>::BidNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let mut updated_contributions = vec![];
 
@@ -1190,9 +1217,9 @@ impl<T: Config> Pallet<T> {
 		// 	Error::<T>::NotAuthorized
 		// );
 		ensure!(
-				project_info.project_status == ProjectStatus::FundingEnded,
-				Error::<T>::CannotClaimYet
-			);
+			project_info.project_status == ProjectStatus::FundingEnded,
+			Error::<T>::CannotClaimYet
+		);
 		// TODO: PLMC-160. Check the flow of the final_price if the final price discovery during the Auction Round fails
 
 		for mut contribution in contributions {
@@ -1234,7 +1261,8 @@ impl<T: Config> Pallet<T> {
 		// TODO: PLMC-147. For now only the participants of the Community Round can claim their tokens
 		// 	Obviously also the participants of the Auction Round should be able to claim their tokens
 		// In theory this should never fail, since we insert the same number of contributions as before
-		let updated_contributions: BoundedVec<ContributionInfoOf<T>, T::MaxContributionsPerUser> = updated_contributions.try_into().map_err(|_| Error::<T>::TooManyContributions)?;
+		let updated_contributions: BoundedVec<ContributionInfoOf<T>, T::MaxContributionsPerUser> =
+			updated_contributions.try_into().map_err(|_| Error::<T>::TooManyContributions)?;
 		Contributions::<T>::insert(project_id, &claimer, updated_contributions);
 
 		Ok(())
@@ -1250,10 +1278,15 @@ impl<T: Config> Pallet<T> {
 	/// * `ProjectsInfo` - Check that the funding period ended
 	/// * `Contributions` - Check if its time to mint some tokens based on the contributions vesting periods, and update the contribution after minting.
 	/// * `T::Assets` - Mint the tokens to the claimer
-	pub fn do_vested_contribution_token_purchase_mint_for(releaser: T::AccountId, project_id: T::ProjectIdentifier, claimer: T::AccountId, ) -> Result<(), DispatchError> {
+	pub fn do_vested_contribution_token_purchase_mint_for(
+		releaser: T::AccountId,
+		project_id: T::ProjectIdentifier,
+		claimer: T::AccountId,
+	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_info = ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let contributions = Contributions::<T>::get(project_id, &claimer).ok_or(Error::<T>::BidNotFound)?;
+		let contributions =
+			Contributions::<T>::get(project_id, &claimer).ok_or(Error::<T>::BidNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let mut updated_contributions = vec![];
 
@@ -1264,9 +1297,9 @@ impl<T: Config> Pallet<T> {
 		// 	Error::<T>::NotAuthorized
 		// );
 		ensure!(
-				project_info.project_status == ProjectStatus::FundingEnded,
-				Error::<T>::CannotClaimYet
-			);
+			project_info.project_status == ProjectStatus::FundingEnded,
+			Error::<T>::CannotClaimYet
+		);
 		// TODO: PLMC-160. Check the flow of the final_price if the final price discovery during the Auction Round fails
 
 		for mut contribution in contributions {
@@ -1308,7 +1341,8 @@ impl<T: Config> Pallet<T> {
 		// TODO: PLMC-147. For now only the participants of the Community Round can claim their tokens
 		// 	Obviously also the participants of the Auction Round should be able to claim their tokens
 		// In theory this should never fail, since we insert the same number of contributions as before
-		let updated_contributions: BoundedVec<ContributionInfoOf<T>, T::MaxContributionsPerUser> = updated_contributions.try_into().map_err(|_| Error::<T>::TooManyContributions)?;
+		let updated_contributions: BoundedVec<ContributionInfoOf<T>, T::MaxContributionsPerUser> =
+			updated_contributions.try_into().map_err(|_| Error::<T>::TooManyContributions)?;
 		Contributions::<T>::insert(project_id, &claimer, updated_contributions);
 
 		Ok(())
