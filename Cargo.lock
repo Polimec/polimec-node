@@ -5791,6 +5791,8 @@ dependencies = [
  "parachains-common",
  "parity-scale-codec",
  "polimec-traits",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
  "scale-info",
  "sp-arithmetic",
  "sp-core",

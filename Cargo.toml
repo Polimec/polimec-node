@@ -40,6 +40,10 @@ debug-assertions = true
 overflow-checks = true
 
 [workspace.dependencies]
+# Testing
+rand_chacha = "0.3.1"
+rand = "0.8.5"
+
 # Build deps
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
 

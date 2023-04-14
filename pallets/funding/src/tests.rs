@@ -18,17 +18,20 @@
 
 //! Tests for Funding pallet.
 
+use defaults::*;
+use rand::prelude::*;
+use rand_chacha::ChaCha8Rng;
 use super::*;
 use crate::{
 	mock::*,
 	CurrencyMetadata, Error, ParticipantsSize, Project, TicketSize,
+	mock::FundingModule
 };
 use frame_support::{
 	assert_noop, assert_ok,
 	traits::{tokens::fungibles::Inspect, ConstU32, Get, Hooks},
 	weights::Weight,
 };
-use sp_core::parameter_types;
 use sp_io::TestExternalities;
 use sp_runtime::DispatchError;
 use std::cell::{RefCell, RefMut};
@@ -36,17 +39,18 @@ use frame_support::traits::{OnFinalize, OnInitialize};
 
 type ProjectIdOf<T> = <T as Config>::ProjectIdentifier;
 type UserToBalance = Vec<(mock::AccountId, BalanceOf<TestRuntime>)>;
+// User -> token_amount, price_per_token, multiplier
+type UserToBid = Vec<(AccountId, (BalanceOf<TestRuntime>, BalanceOf<TestRuntime>, Option<u32>))>;
 
 const ALICE: AccountId = 1;
 const BOB: AccountId = 2;
 const CHARLIE: AccountId = 3;
 const DAVE: AccountId = 4;
+const EVE: AccountId = 5;
+const FERDIE: AccountId = 6;
+const GINA: AccountId = 7;
 
 const ASSET_DECIMALS: u8 = 12;
-
-// const fn unit(decimals: u8) -> BalanceOf<Test> {
-// 	10u128.pow(decimals as u32)
-// }
 
 const METADATA: &str = r#"
 {
@@ -64,71 +68,33 @@ fn last_event() -> RuntimeEvent {
 		.event
 }
 
-// fn run_to_block(n: BlockNumber) {
-// 	let mut current_block = System::block_number();
-// 	while current_block < n {
-// 		FundingModule::on_finalize(System::block_number());
-// 		Balances::on_finalize(System::block_number());
-// 		FundingModule::on_idle(System::block_number(), Weight::from_ref_time(10000000));
-// 		System::on_finalize(System::block_number());
-// 		System::set_block_number(System::block_number() + 1);
-// 		System::on_initialize(System::block_number());
-// 		FundingModule::on_initialize(System::block_number());
-// 		Balances::on_initialize(System::block_number());
-// 		FundingModule::on_idle(System::block_number(), Weight::from_ref_time(10000000));
-// 		current_block = System::block_number();
-// 	}
-// }
+/// Remove accounts from fundings_1 that are not in fundings_2
+fn remove_missing_accounts_from_fundings(fundings_1: UserToBalance, fundings_2: UserToBalance) -> UserToBalance {
+	let mut fundings_1 = fundings_1;
+	let mut fundings_2 = fundings_2;
+	fundings_1.retain(|(account, _)| {
+		fundings_2.iter().find_map(|(account_2, _)| {
+			if account == account_2 {
+				Some(())
+			} else {
+				None
+			}
+		}).is_some()
 
-fn default_project() -> Project<BoundedVec<u8, ConstU32<64>>, u128, sp_core::H256> {
-	let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
-	let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
-	Project {
-		total_allocation_size: 1000,
-		minimum_price: 1_u128,
-		ticket_size: TicketSize { minimum: Some(1), maximum: None },
-		participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-		metadata: Some(hashed(METADATA)),
-		token_information: CurrencyMetadata {
-			name: bounded_name,
-			symbol: bounded_symbol,
-			decimals: ASSET_DECIMALS,
-		},
-		..Default::default()
-	}
-}
-
-fn default_fundings() -> UserToBalance {
-	vec![
-		(ALICE, 20_000 * PLMC),
-		(BOB, 10_000 * PLMC),
-		(CHARLIE, 15_000 * PLMC),
-		(DAVE, 30_000 * PLMC),
-	]
-}
-
-fn default_evaluation_bonds() -> UserToBalance {
-	vec![
-		(BOB, 400 * PLMC),
-		(CHARLIE, 600 * PLMC),
-		(DAVE, 1000 * PLMC),
-	]
-}
-
-fn create_on_chain_project() {
-	let project = default_project();
-	let _ = FundingModule::create(RuntimeOrigin::signed(ALICE), project);
+	});
+	fundings_1
 }
 
 trait TestInstance {}
 trait ProjectInstance {
+	fn get_test_environment(&self) -> &TestEnvironment;
+	fn get_creator(&self) -> AccountId;
 	fn get_project_id(&self) -> ProjectIdOf<TestRuntime>;
 	fn get_project_info(&self) -> ProjectInfoOf<TestRuntime> {
 		self.get_test_environment().ext_env.borrow_mut().execute_with(|| {
 			FundingModule::project_info(self.get_project_id()).expect("Project info should exist")
 		})
 	}
-	fn get_test_environment(&self) -> &TestEnvironment;
 	fn do_project_assertions(
 		&self,
 		project_assertions: impl Fn(ProjectIdOf<TestRuntime>, RefMut<TestExternalities>) -> (),
@@ -141,12 +107,13 @@ trait ProjectInstance {
 
 // Initial instance of a test
 #[derive(Debug)]
-struct TestEnvironment {
+pub struct TestEnvironment {
 	ext_env: RefCell<sp_io::TestExternalities>,
+	nonce: RefCell<u64>,
 }
 impl TestEnvironment {
 	fn new() -> Self {
-		Self { ext_env: RefCell::new(new_test_ext()) }
+		Self { ext_env: RefCell::new(new_test_ext()), nonce: RefCell::new(0u64) }
 	}
 	fn create_project(
 		&self,
@@ -172,7 +139,29 @@ impl TestEnvironment {
 				.clone()
 		});
 
-		Ok(CreatedProject { test_env: self, project_id })
+		Ok(CreatedProject { test_env: self, creator, project_id })
+	}
+	fn get_free_fundings(&self) -> UserToBalance {
+		self.ext_env.borrow_mut().execute_with(|| {
+			let mut fundings = UserToBalance::new();
+			let user_keys: Vec<AccountId> = frame_system::Account::<TestRuntime>::iter_keys().collect();
+			for user in user_keys {
+				let funding = Balances::free_balance(&user);
+				fundings.push((user, funding));
+			}
+			fundings
+		})
+	}
+	fn get_reserved_fundings(&self, reserve_type: BondType) -> UserToBalance {
+		self.ext_env.borrow_mut().execute_with(|| {
+			let mut fundings = UserToBalance::new();
+			let user_keys: Vec<AccountId> = frame_system::Account::<TestRuntime>::iter_keys().collect();
+			for user in user_keys {
+				let funding = Balances::reserved_balance_named(&reserve_type, &user);
+				fundings.push((user, funding));
+			}
+			fundings
+		})
 	}
 	fn fund_accounts(&self, fundings: UserToBalance) {
 		self.ext_env.borrow_mut().execute_with(|| {
@@ -216,49 +205,73 @@ impl TestEnvironment {
 	}
 }
 
-#[derive(Debug)]
-struct CreatedProject<'a> {
+#[derive(Debug, Clone)]
+pub struct CreatedProject<'a> {
 	test_env: &'a TestEnvironment,
+	creator: AccountId,
 	project_id: ProjectIdOf<TestRuntime>,
 }
 impl<'a> ProjectInstance for CreatedProject<'a> {
-	fn get_project_id(&self) -> ProjectIdOf<TestRuntime> {
-		self.project_id.clone()
-	}
-
 	fn get_test_environment(&self) -> &TestEnvironment {
 		self.test_env
+	}
+	fn get_creator(&self) -> AccountId {
+		self.creator.clone()
+	}
+	fn get_project_id(&self) -> ProjectIdOf<TestRuntime> {
+		self.project_id.clone()
 	}
 }
 impl<'a> CreatedProject<'a> {
+	fn new_default(test_env: &'a TestEnvironment) -> Self {
+		test_env.fund_accounts(default_fundings());
+		let creator = default_fundings()[0].0;
+		let project = test_env.create_project(creator, default_project(test_env.nonce.borrow().clone())).unwrap();
+		project.do_project_assertions(default_creation_assertions);
+		*test_env.nonce.borrow_mut() += 1;
+		project
+	}
+
+	// Move to next project phase
 	fn start_evaluation(
-		&self,
+		self,
 		caller: mock::AccountId,
-	) -> Result<EvaluatingProject, DispatchError> {
-		let project_id = self.get_project_id();
-		let test_env = self.get_test_environment();
-		test_env.ext_env.borrow_mut().execute_with(|| {
-			FundingModule::start_evaluation(RuntimeOrigin::signed(caller), project_id)
+	) -> Result<EvaluatingProject<'a>, DispatchError> {
+		self.test_env.ext_env.borrow_mut().execute_with(|| {
+			FundingModule::start_evaluation(RuntimeOrigin::signed(caller), self.project_id)
 		})?;
 
-		Ok(EvaluatingProject { test_env, project_id })
+		Ok(EvaluatingProject { test_env: self.test_env, creator: self.creator, project_id: self.project_id })
 	}
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct EvaluatingProject<'a> {
 	test_env: &'a TestEnvironment,
+	creator: AccountId,
 	project_id: ProjectIdOf<TestRuntime>,
 }
 impl<'a> ProjectInstance for EvaluatingProject<'a> {
-	fn get_project_id(&self) -> ProjectIdOf<TestRuntime> {
-		self.project_id.clone()
-	}
 	fn get_test_environment(&self) -> &TestEnvironment {
 		self.test_env
 	}
+	fn get_creator(&self) -> AccountId {
+		self.creator.clone()
+	}
+	fn get_project_id(&self) -> ProjectIdOf<TestRuntime> {
+		self.project_id.clone()
+	}
 }
 impl<'a> EvaluatingProject<'a> {
+	fn new_default(test_env: &'a TestEnvironment) -> Self {
+		let created_project = CreatedProject::new_default(test_env);
+		let creator = created_project.get_creator();
+		let evaluating_project = created_project.start_evaluation(creator).unwrap();
+		test_env.advance_time(1 as BlockNumber);
+		evaluating_project.do_project_assertions(default_evaluation_start_assertions);
+		evaluating_project
+	}
+
 	fn bond_for_users(
 		&self,
 		bonds: UserToBalance,
@@ -271,152 +284,146 @@ impl<'a> EvaluatingProject<'a> {
 		}
 		Ok(())
 	}
+
+	fn start_auction(self, caller: AccountId) -> Result<AuctioningProject<'a>, DispatchError> {
+		self.test_env.ext_env.borrow_mut().execute_with(|| {
+			FundingModule::start_auction(RuntimeOrigin::signed(caller), self.project_id)?;
+			Ok(AuctioningProject { test_env: self.test_env, creator: self.creator, project_id: self.project_id })
+		})
+	}
 }
 
-#[cfg(test)]
-mod creation_round_success {
+#[derive(Debug)]
+struct AuctioningProject<'a> {
+	test_env: &'a TestEnvironment,
+	creator: AccountId,
+	project_id: ProjectIdOf<TestRuntime>,
+}
+impl<'a> ProjectInstance for AuctioningProject<'a> {
+	fn get_test_environment(&self) -> &TestEnvironment {
+		self.test_env
+	}
+	fn get_creator(&self) -> AccountId {
+		self.creator.clone()
+	}
+	fn get_project_id(&self) -> ProjectIdOf<TestRuntime> {
+		self.project_id.clone()
+	}
+}
+
+impl<'a> AuctioningProject<'a> {
+	fn new_default(test_env: &'a TestEnvironment) -> Self {
+		let evaluating_project = EvaluatingProject::new_default(test_env);
+
+		// Do Evaluation bonding
+		evaluating_project.bond_for_users(default_evaluation_bonds()).expect("Bonding should work");
+
+		// Check that enough funds are reserved
+		test_env.do_reserved_funds_assertions(
+			default_evaluation_bonds(),
+			BondType::Evaluation
+		);
+
+		// Check that free funds were reduced
+		let mut free_funds = default_fundings();
+		// Remove accounts that didnt bond from free_funds
+		free_funds = remove_missing_accounts_from_fundings(free_funds, default_evaluation_bonds());
+		free_funds = free_funds.iter().zip(default_evaluation_bonds().iter())
+			.map(|(original, bonded)| {
+				assert_eq!(original.0, bonded.0, "User should be the same");
+				(original.0, original.1 - bonded.1)
+			}).collect::<UserToBalance>();
+		test_env.do_free_funds_assertions(free_funds.clone());
+
+		let evaluation_end = evaluating_project.get_project_info().phase_transition_points.evaluation.end().expect("Evaluation end point should exist");
+		test_env.advance_time(evaluation_end - test_env.current_block() + 1);
+		evaluating_project.do_project_assertions(default_evaluation_end_assertions);
+
+		let auctioning_project = evaluating_project.start_auction(evaluating_project.creator).unwrap();
+		auctioning_project.do_project_assertions(default_auction_start_assertions);
+
+		auctioning_project
+	}
+
+	fn bid_for_users(
+		&self,
+		bids: UserToBid,
+	) -> Result<(), DispatchError> {
+		let project_id = self.get_project_id();
+		for (account, (token_amount, price_per_token, multiplier)) in bids {
+			self.test_env.ext_env.borrow_mut().execute_with(|| {
+				FundingModule::bid(RuntimeOrigin::signed(account), project_id, token_amount, price_per_token, multiplier)
+			})?;
+		}
+		Ok(())
+	}
+}
+
+mod defaults {
 	use super::*;
+
+	pub fn default_project(nonce: u64) -> Project<BoundedVec<u8, ConstU32<64>>, u128, sp_core::H256> {
+		let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
+		let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
+		let mut metadata_hash = hashed(METADATA);
+		let mut rng = ChaCha8Rng::seed_from_u64(nonce);
+		metadata_hash.randomize_using(&mut rng);
+		Project {
+			total_allocation_size: 1_000_000,
+			minimum_price: 1 * PLMC,
+			ticket_size: TicketSize { minimum: Some(1), maximum: None },
+			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+			funding_thresholds: Default::default(),
+			conversion_rate: 0,
+			participation_currencies: Default::default(),
+			metadata: Some(metadata_hash),
+			token_information: CurrencyMetadata {
+				name: bounded_name,
+				symbol: bounded_symbol,
+				decimals: ASSET_DECIMALS,
+			},
+		}
+	}
+
+	pub fn default_fundings() -> UserToBalance {
+		vec![
+			(ALICE, 20_000 * PLMC),
+			(BOB, 500_000 * PLMC),
+			(CHARLIE, 300_000 * PLMC),
+			(DAVE, 30_000 * PLMC),
+			(EVE, 35_000 * PLMC),
+			(FERDIE, 60_000 * PLMC),
+			(GINA, 100_000 * PLMC),
+		]
+	}
+
+	pub fn default_evaluation_bonds() -> UserToBalance {
+		// currently the default project needs 100_000 PLMC to be successful in the evaluation round
+		// we assume we will use this bond twice
+		vec![
+			(EVE, 20_000 * PLMC),
+			(FERDIE, 30_000 * PLMC),
+			(GINA, 60_000 * PLMC),
+		]
+	}
+
+	pub fn default_auction_bids() -> UserToBid {
+		vec![
+			(BOB, (3*PLMC, 50_000,Some(1))),
+			(CHARLIE, (5*PLMC, 15_000,Some(1)))
+		]
+	}
 
 	pub fn default_creation_assertions(
 		project_id: ProjectIdOf<TestRuntime>,
 		mut test_ext: RefMut<TestExternalities>,
 	) {
 		test_ext.execute_with(|| {
-			let project = FundingModule::projects(project_id).expect("Project should exist");
 			let project_info =
 				FundingModule::project_info(project_id).expect("Project info should exist");
-			let default_project = default_project();
-			assert_eq!(project, default_project);
 			assert_eq!(project_info.project_status, ProjectStatus::Application);
 		});
 	}
-
-	pub fn do_create_works() -> (TestEnvironment, CreatedProject) {
-		// Create test environment
-		let mut test_env = TestEnvironment::new();
-		// Fund accounts
-		test_env.fund_accounts(default_fundings());
-		// Create project
-		let project = test_env.create_project(ALICE, default_project()).unwrap();
-		// Check for correctness
-		project.do_project_assertions(default_creation_assertions);
-
-		(test_env, project)
-	}
-
-	#[test]
-	fn create_works() {
-		do_create_works();
-	}
-
-	#[test]
-	fn project_id_autoincrement_works() {
-		let mut test_env = TestEnvironment::new();
-		test_env.fund_accounts(default_fundings());
-		let project_1 = test_env.create_project(ALICE, default_project()).unwrap();
-
-		let mut project_2_info = default_project();
-		project_2_info.metadata = Some(hashed("metadata2"));
-
-		let mut project_3_info = default_project();
-		project_3_info.metadata = Some(hashed("metadata3"));
-
-		let project_2 = test_env.create_project(ALICE, project_2_info).unwrap();
-		let project_3 = test_env.create_project(ALICE, project_3_info).unwrap();
-
-		assert_eq!(project_1.project_id, 0);
-		assert_eq!(project_2.project_id, 1);
-		assert_eq!(project_3.project_id, 2);
-	}
-}
-
-#[cfg(test)]
-mod creation_round_failure {
-	use super::*;
-
-	#[test]
-	#[ignore]
-	fn only_with_credential_can_create() {
-		new_test_ext().execute_with(|| {
-			let project = default_project();
-			assert_noop!(
-				FundingModule::create(RuntimeOrigin::signed(BOB), project),
-				Error::<TestRuntime>::NotAuthorized
-			);
-		})
-	}
-
-	#[test]
-	fn price_too_low() {
-		let wrong_project: ProjectOf<TestRuntime> = Project {
-			minimum_price: 0,
-			ticket_size: TicketSize { minimum: Some(1), maximum: None },
-			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-			metadata: Some(hashed(METADATA)),
-			..Default::default()
-		};
-
-		let test_env = TestEnvironment::new();
-		test_env.fund_accounts(default_fundings());
-
-		let project_err = test_env.create_project(ALICE, wrong_project).unwrap_err();
-		assert_eq!(project_err, Error::<TestRuntime>::PriceTooLow.into(),);
-	}
-
-	#[test]
-	fn participants_size_error() {
-		let wrong_project: ProjectOf<TestRuntime> = Project {
-			minimum_price: 1,
-			ticket_size: TicketSize { minimum: Some(1), maximum: None },
-			participants_size: ParticipantsSize { minimum: None, maximum: None },
-			metadata: Some(hashed(METADATA)),
-			..Default::default()
-		};
-
-		let test_env = TestEnvironment::new();
-		test_env.fund_accounts(default_fundings());
-
-		let project_err = test_env.create_project(ALICE, wrong_project).unwrap_err();
-		assert_eq!(project_err, Error::<TestRuntime>::ParticipantsSizeError.into(),);
-	}
-
-	#[test]
-	fn ticket_size_error() {
-		let wrong_project: ProjectOf<TestRuntime> = Project {
-			minimum_price: 1,
-			ticket_size: TicketSize { minimum: None, maximum: None },
-			participants_size: ParticipantsSize { minimum: Some(1), maximum: None },
-			metadata: Some(hashed(METADATA)),
-			..Default::default()
-		};
-
-		let test_env = TestEnvironment::new();
-		test_env.fund_accounts(default_fundings());
-
-		let project_err = test_env.create_project(ALICE, wrong_project).unwrap_err();
-		assert_eq!(project_err, Error::<TestRuntime>::TicketSizeError.into());
-	}
-
-	#[test]
-	#[ignore = "ATM only the first error will be thrown"]
-	fn multiple_field_error() {
-		let wrong_project: ProjectOf<TestRuntime> = Project {
-			minimum_price: 0,
-			ticket_size: TicketSize { minimum: None, maximum: None },
-			participants_size: ParticipantsSize { minimum: None, maximum: None },
-			..Default::default()
-		};
-		let test_env = TestEnvironment::new();
-		test_env.fund_accounts(default_fundings());
-		let project_err = test_env.create_project(ALICE, wrong_project).unwrap_err();
-		assert_eq!(project_err, Error::<TestRuntime>::TicketSizeError.into());
-	}
-}
-
-#[cfg(test)]
-mod evaluation_round_success {
-	use parachains_common::DAYS;
-	use super::{creation_round_success::do_create_works, *};
 
 	pub fn default_evaluation_start_assertions(
 		project_id: ProjectIdOf<TestRuntime>,
@@ -440,103 +447,239 @@ mod evaluation_round_success {
 		});
 	}
 
-	pub fn do_evaluation_works() {
-		let (test_env, project) = do_create_works();
+	pub fn default_auction_start_assertions(
+		project_id: ProjectIdOf<TestRuntime>,
+		mut test_ext: RefMut<TestExternalities>,
+	) {
+		test_ext.execute_with(|| {
+			let project_info =
+				FundingModule::project_info(project_id).expect("Project info should exist");
+			assert_eq!(project_info.project_status, ProjectStatus::AuctionRound(AuctionPhase::English));
+		});
+	}
+}
 
-		// Start evaluation round
-		let project = project.start_evaluation(creator).unwrap();
-		// Check that project correctly transitioned round
-		test_env.advance_time(1 as BlockNumber);
-		project.do_project_assertions(default_evaluation_start_assertions);
-		// Do Evaluation bonding
-		project.bond_for_users(default_evaluation_bonds()).expect("Bonding should work");
-		// Check that enough funds are reserved
-		test_env.do_reserved_funds_assertions(
-			default_evaluation_bonds(),
-			BondType::Evaluation
-		);
-		// Check that free funds were reduced
-		let free_funds = default_fundings().iter().zip(default_evaluation_bonds().iter())
-			.map(|(original, bonded)| {
-				assert_eq!(original.0, bonded.0, "User should be the same");
-				(original.0, original.1 - bonded.1)
-			}).collect::<UserToBalance>();
-		test_env.do_free_funds_assertions(free_funds);
+#[cfg(test)]
+mod creation_round_success {
+	use super::*;
 
-		// Repeat same bonding, 3 Days in the future
-		test_env.advance_time((DAYS * 3) as BlockNumber);
-		project.bond_for_users(default_evaluation_bonds()).expect("Bonding should work");
-		let reserved_funds = default_evaluation_bonds().iter().zip(default_evaluation_bonds().iter())
-			.map(|first_bonding, second_bonding| {
-				assert_eq!(original.0, bonded.0, "User should be the same");
-				(first_bonding.0, first_bonding.1 + second_bonding.1)
-			}).collect::<UserToBalance>();
-		test_env.do_reserved_funds_assertions(
-			reserved_funds,
-			BondType::Evaluation
-		);
-		let free_funds = free_funds.iter().zip(default_evaluation_bonds().iter())
-			.map(|(original, bonded)| {
-				assert_eq!(original.0, bonded.0, "User should be the same");
-				(original.0, original.1 - bonded.1)
-			}).collect::<UserToBalance>();
-		test_env.do_free_funds_assertions(free_funds);
-
-
-		let evaluation_end = project_info.phase_transition_points.evaluation.end().expect("Evaluation end point should exist");
-		test_env.advance_time(evaluation_end - test_env.current_block() + 1);
-		project.do_project_assertions(default_evaluation_end_assertions);
+	#[test]
+	fn create_works() {
+		let mut test_env = TestEnvironment::new();
+		let project = CreatedProject::new_default(&test_env);
 	}
 
 	#[test]
-	fn evaluation_works() {
-		do_evaluation_works()
+	fn project_id_autoincrement_works() {
+		let mut test_env = TestEnvironment::new();
+
+		let project_1 = CreatedProject::new_default(&test_env);
+		let project_2 = CreatedProject::new_default(&test_env);
+		let project_3 = CreatedProject::new_default(&test_env);
+
+		assert_eq!(project_1.project_id, 0);
+		assert_eq!(project_2.project_id, 1);
+		assert_eq!(project_3.project_id, 2);
 	}
 }
-//
+
 // #[cfg(test)]
-// mod evaluation_round_failure {
-// 	#[test]
-// 	fn evaluation_stops_with_failure_after_config_period() {
-// 			create_on_chain_project();
-// 			let ed = FundingModule::project_info(0).unwrap();
-// 			assert_eq!(ed.project_status, ProjectStatus::Application);
-// 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
-// 			let ed = FundingModule::project_info(0).unwrap();
-// 			assert_eq!(ed.project_status, ProjectStatus::EvaluationRound);
-// 			run_to_block(System::block_number() + 1);
-// 			let pre_bond_bob_free_balance = Balances::usable_balance(&BOB);
-// 			assert_ok!(FundingModule::bond_evaluation(RuntimeOrigin::signed(BOB), 0, 50));
-// 			run_to_block(System::block_number() + 1);
-// 			let post_bond_bob_free_balance = Balances::usable_balance(&BOB);
-// 			assert_eq!(pre_bond_bob_free_balance - post_bond_bob_free_balance, 50);
-// 			run_to_block(System::block_number() + <TestRuntime as Config>::EvaluationDuration::get() + 2);
-// 			let ed = FundingModule::project_info(0).unwrap();
-// 			assert_eq!(ed.project_status, ProjectStatus::EvaluationFailed);
-// 			// assert_ok!(FundingModule::failed_evaluation_unbond_for(RuntimeOrigin::signed(BOB), 0, BOB));
-// 			run_to_block(System::block_number() + 1);
-// 			let post_release_bob_free_balance = Balances::usable_balance(&BOB);
-// 			assert_eq!(post_release_bob_free_balance - post_bond_bob_free_balance, 50);
-// 	}
+// mod creation_round_failure {
+// 	use super::*;
 //
 // 	#[test]
-// 	fn cannot_bond() {
+// 	#[ignore]
+// 	fn only_with_credential_can_create() {
 // 		new_test_ext().execute_with(|| {
-// 			create_on_chain_project();
-// 			assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(ALICE), 0));
-//
+// 			let project = default_project();
 // 			assert_noop!(
-// 				FundingModule::bond_evaluation(RuntimeOrigin::signed(BOB), 0, u128::MAX),
-// 				Error::<TestRuntime>::InsufficientBalance
+// 				FundingModule::create(RuntimeOrigin::signed(BOB), project),
+// 				Error::<TestRuntime>::NotAuthorized
 // 			);
 // 		})
 // 	}
 //
+// 	#[test]
+// 	fn price_too_low() {
+// 		let wrong_project: ProjectOf<TestRuntime> = Project {
+// 			minimum_price: 0,
+// 			ticket_size: TicketSize { minimum: Some(1), maximum: None },
+// 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+// 			metadata: Some(hashed(METADATA)),
+// 			..Default::default()
+// 		};
+//
+// 		let test_env = TestEnvironment::new();
+// 		test_env.fund_accounts(default_fundings());
+//
+// 		let project_err = test_env.create_project(ALICE, wrong_project).unwrap_err();
+// 		assert_eq!(project_err, Error::<TestRuntime>::PriceTooLow.into(),);
+// 	}
+//
+// 	#[test]
+// 	fn participants_size_error() {
+// 		let wrong_project: ProjectOf<TestRuntime> = Project {
+// 			minimum_price: 1,
+// 			ticket_size: TicketSize { minimum: Some(1), maximum: None },
+// 			participants_size: ParticipantsSize { minimum: None, maximum: None },
+// 			metadata: Some(hashed(METADATA)),
+// 			..Default::default()
+// 		};
+//
+// 		let test_env = TestEnvironment::new();
+// 		test_env.fund_accounts(default_fundings());
+//
+// 		let project_err = test_env.create_project(ALICE, wrong_project).unwrap_err();
+// 		assert_eq!(project_err, Error::<TestRuntime>::ParticipantsSizeError.into(),);
+// 	}
+//
+// 	#[test]
+// 	fn ticket_size_error() {
+// 		let wrong_project: ProjectOf<TestRuntime> = Project {
+// 			minimum_price: 1,
+// 			ticket_size: TicketSize { minimum: None, maximum: None },
+// 			participants_size: ParticipantsSize { minimum: Some(1), maximum: None },
+// 			metadata: Some(hashed(METADATA)),
+// 			..Default::default()
+// 		};
+//
+// 		let test_env = TestEnvironment::new();
+// 		test_env.fund_accounts(default_fundings());
+//
+// 		let project_err = test_env.create_project(ALICE, wrong_project).unwrap_err();
+// 		assert_eq!(project_err, Error::<TestRuntime>::TicketSizeError.into());
+// 	}
+//
+// 	#[test]
+// 	#[ignore = "ATM only the first error will be thrown"]
+// 	fn multiple_field_error() {
+// 		let wrong_project: ProjectOf<TestRuntime> = Project {
+// 			minimum_price: 0,
+// 			ticket_size: TicketSize { minimum: None, maximum: None },
+// 			participants_size: ParticipantsSize { minimum: None, maximum: None },
+// 			..Default::default()
+// 		};
+// 		let test_env = TestEnvironment::new();
+// 		test_env.fund_accounts(default_fundings());
+// 		let project_err = test_env.create_project(ALICE, wrong_project).unwrap_err();
+// 		assert_eq!(project_err, Error::<TestRuntime>::TicketSizeError.into());
+// 	}
 // }
-
-
-// mod auction_round {
+//
+// #[cfg(test)]
+// mod evaluation_round_success {
+// 	use parachains_common::DAYS;
+// 	use super::{creation_round_success::do_create_works, *};
+//
+// 	pub fn do_evaluation_works(test_env: &TestEnvironment) -> EvaluatingProject{
+// 		let mut created_project = do_create_works(test_env);
+//
+//
+// 	}
+//
+// 	#[test]
+// 	fn evaluation_works() {
+// 		let mut test_env = TestEnvironment::new();
+// 		do_evaluation_works(&mut test_env);
+// 	}
+// }
+//
+// #[cfg(test)]
+// mod evaluation_round_failure {
 // 	use super::*;
+// 	use super::creation_round_success::{ do_create_works };
+// 	use super::evaluation_round_success::{ default_evaluation_start_assertions };
+//
+// 	#[test]
+// 	fn not_enough_bonds() {
+// 		let mut test_env = TestEnvironment::new();
+// 		let project = do_create_works(&test_env);
+//
+// 		// Start evaluation round
+// 		let project = project.start_evaluation(project.get_creator()).unwrap();
+//
+// 		// Check that project correctly transitioned round
+// 		test_env.advance_time(1 as BlockNumber);
+// 		project.do_project_assertions(default_evaluation_start_assertions);
+//
+// 		// Partially bond for evaluation
+// 		project.bond_for_users(default_evaluation_bonds()).expect("Bonding should work");
+//
+// 		// Check that enough funds are reserved
+// 		test_env.do_reserved_funds_assertions(
+// 			default_evaluation_bonds(),
+// 			BondType::Evaluation
+// 		);
+//
+// 		// Check that free funds were reduced
+// 		let mut free_funds = default_fundings();
+// 		// Remove accounts that didnt bond from free_funds
+// 		free_funds = remove_missing_accounts_from_fundings(free_funds, default_evaluation_bonds());
+// 		free_funds = free_funds.iter().zip(default_evaluation_bonds().iter())
+// 			.map(|(original, bonded)| {
+// 				assert_eq!(original.0, bonded.0, "User should be the same");
+// 				(original.0, original.1 - bonded.1)
+// 			}).collect::<UserToBalance>();
+// 		test_env.do_free_funds_assertions(free_funds.clone());
+//
+//
+// 		let evaluation_end = project.get_project_info().phase_transition_points.evaluation.end().expect("Evaluation end point should exist");
+// 		test_env.advance_time(evaluation_end - test_env.current_block() + 1);
+// 		let project_info = project.get_project_info();
+// 		assert_eq!(project_info.project_status, ProjectStatus::EvaluationFailed);
+// 	}
+//
+// 	#[test]
+// 	fn insufficient_balance_bonding() {
+// 		let mut test_env = TestEnvironment::new();
+// 		let project = do_create_works(&test_env);
+//
+// 		// Start evaluation round
+// 		let project = project.start_evaluation(project.get_creator()).unwrap();
+//
+// 		// Check that project correctly transitioned round
+// 		test_env.advance_time(1 as BlockNumber);
+// 		project.do_project_assertions(default_evaluation_start_assertions);
+//
+// 		// Try to bond twice as much as the second user of default_fundings has
+// 		let mut user_funding = default_fundings()[1];
+// 		user_funding.1 *= 2;
+//
+// 		let dispatch_error = project.bond_for_users(vec![user_funding]).unwrap_err();
+// 		assert_eq!(dispatch_error, Error::<TestRuntime>::InsufficientBalance.into())
+// 	}
+//
+// }
+//
+// #[cfg(test)]
+// mod auction_round_success {
+// 	use super::*;
+// 	use super::evaluation_round_success::do_evaluation_works;
+//
+// 	fn do_auction_works(test_env: &TestEnvironment) {
+// 		let project = do_evaluation_works(test_env);
+//
+// 		// Start auction round
+// 		let project = project.start_auction(project.get_creator()).unwrap();
+//
+// 		// Check that project correctly transitioned round
+// 		test_env.advance_time(1 as BlockNumber);
+// 		project.do_project_assertions(default_auction_start_assertions);
+//
+// 		// Get current free fundings
+// 		let free_fundings = test_env.get_free_fundings();
+//
+// 		// Bid on english auction
+// 		let mut bids = default_auction_bids();
+// 		project.bid_for_users(bids).expect("Bidding should work");
+// 	}
+//
+// 	#[test]
+// 	fn auction_works() {
+// 		let mut test_env = TestEnvironment::new();
+// 		do_auction_works(&test_env);
+// 	}
+// }
 //
 // 	fn setup_environment() {
 // 		create_on_chain_project();
@@ -611,7 +754,7 @@ mod evaluation_round_success {
 // 		})
 // 	}
 // }
-//
+
 // mod community_round {
 // 	use super::*;
 //
