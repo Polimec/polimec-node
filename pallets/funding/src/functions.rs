@@ -851,9 +851,6 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// * Calculate new variables *
-		let mut required_plmc_bond =
-			amount.checked_div(&multiplier.into()).ok_or(Error::<T>::BadMath)?;
-		let mut bonded_plmc;
 		let (plmc_vesting_period, ct_vesting_period) =
 			Self::calculate_vesting_periods(bidder.clone(), multiplier, amount.clone());
 		let bid = BidInfo::new(
@@ -865,6 +862,10 @@ impl<T: Config> Pallet<T> {
 			plmc_vesting_period,
 			ct_vesting_period,
 		);
+		let mut required_plmc_bond =
+			bid.ticket_size.checked_div(&multiplier.into()).ok_or(Error::<T>::BadMath)?;
+		let mut bonded_plmc;
+
 		// Check how much PLMC is already bonded for this project
 		if let Some(bond) = BiddingBonds::<T>::get(project_id.clone(), bidder.clone()) {
 			bonded_plmc = bond.amount;
@@ -959,7 +960,7 @@ impl<T: Config> Pallet<T> {
 				project_info
 					.weighted_average_price
 					.expect("This value exists in Community Round"),
-			Error::<T>::BidTooLow
+			Error::<T>::BuyAmountTooLow
 		);
 		// TODO: PLMC-133. Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
 		// ensure!(

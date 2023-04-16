@@ -574,6 +574,8 @@ pub mod pallet {
 		TooLateForContributingBonding,
 		/// Tried to contribute but its too low to be accepted
 		ContributionTooLow,
+		/// Cannot buy the minimum amount of tokens possible with the amount specified to contribute
+		BuyAmountTooLow
 	}
 
 	#[pallet::call]
@@ -804,7 +806,6 @@ pub mod pallet {
 			Weight::from_ref_time(0)
 		}
 
-		/// Cleanup the `active_projects` BoundedVec
 		fn on_idle(_now: T::BlockNumber, max_weight: Weight) -> Weight {
 			let pallet_account: T::AccountId =
 				<T as Config>::PalletId::get().into_account_truncating();
