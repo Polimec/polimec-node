@@ -26,7 +26,7 @@ use crate::{
 use defaults::*;
 use frame_support::{
 	assert_noop, assert_ok,
-	traits::{tokens::fungibles::Inspect, ConstU32, Get, Hooks, OnFinalize, OnInitialize},
+	traits::{tokens::fungibles::Inspect, ConstU32, Get, Hooks, OnFinalize, OnInitialize, OnIdle},
 	weights::Weight,
 };
 use rand::prelude::*;
@@ -178,7 +178,8 @@ impl TestEnvironment {
 	fn advance_time(&self, amount: BlockNumber) {
 		self.ext_env.borrow_mut().execute_with(|| {
 			for _block in 0..amount {
-				<AllPalletsWithSystem as OnFinalize<u64>>::on_finalize(System::block_number());
+				<AllPalletsWithoutSystem as OnFinalize<u64>>::on_finalize(System::block_number());
+				<AllPalletsWithoutSystem as OnIdle<u64>>::on_idle(System::block_number(), ());
 				System::set_block_number(System::block_number() + 1);
 				<AllPalletsWithSystem as OnInitialize<u64>>::on_initialize(System::block_number());
 			}
@@ -591,10 +592,8 @@ mod defaults {
 			(BUYER_2, 30_000 * PLMC),
 		]
 
-		// 28_000_0_000_000_000 REAL
-		// 30_000_0_000_000_000 PREV
-		// 01_000_0_000_000_000 BUY
-		// 01_000_0_000_000_000 BONDED
+		// 35_000_0_000_000_000
+		// 25_000_0_000_000_000
 	}
 
 	pub fn default_evaluation_bonds() -> UserToBalance {
@@ -999,6 +998,9 @@ mod evaluation_round_failure {
 		test_env.advance_time(evaluation_end - test_env.current_block() + 2);
 		let project_info = evaluating_project.get_project_info();
 		assert_eq!(project_info.project_status, ProjectStatus::EvaluationFailed);
+		// Check that on_idle has unlocked the failed bonds
+		test_env.advance_time(10);
+		test_env.do_free_funds_assertions(default_fundings());
 	}
 
 	#[test]
