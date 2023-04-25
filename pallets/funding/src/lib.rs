@@ -751,7 +751,7 @@ pub mod pallet {
 			let claimer = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
-			Self::do_vested_contribution_token_purchase_mint_for(claimer, project_id, purchaser)
+			Self::do_vested_plmc_purchase_unbond_for(claimer, project_id, purchaser)
 		}
 
 		// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled

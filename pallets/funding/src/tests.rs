@@ -1319,18 +1319,31 @@ mod purchased_vesting {
 		});
 	}
 
-	// TODO: You can now that we added vesting. We should test claiming after vesting ended, and before the next vesting period
-	// #[test]
-	// fn cannot_claim_multiple_times() {
-	// 	new_test_ext().execute_with(|| {
-	// 		setup_environment();
-	// 		assert_ok!(FundingModule::vested_contribution_token_purchase_mint_for(RuntimeOrigin::signed(BOB), 0));
-	// 		assert_noop!(
-	// 			FundingModule::vested_contribution_token_purchase_mint_for(RuntimeOrigin::signed(BOB), 0),
-	// 			Error::<Test>::AlreadyClaimed
-	// 		);
-	// 	})
-	// }
+	#[test]
+	fn plmc_unbonded() {
+		let mut test_env = TestEnvironment::new();
+		let finished_project = FinishedProject::new_default(&test_env);
+		let project_id = finished_project.project_id;
+		let buyers = default_community_buys();
+		let price = finished_project
+			.get_project_info()
+			.weighted_average_price
+			.expect("CT price should exist at this point");
+		test_env.ext_env.borrow_mut().execute_with(|| {
+			for (buyer, token_amount) in buyers {
+				let theoretical_bonded_plmc = (token_amount * price);
+				let actual_bonded_plmc = Balances::reserved_balance_named(&BondType::Contributing, &buyer);
+				assert_eq!(theoretical_bonded_plmc, actual_bonded_plmc);
+				assert_ok!(FundingModule::vested_plmc_purchase_unbond_for(
+					RuntimeOrigin::signed(buyer),
+					project_id,
+					buyer
+				));
+				let actual_bonded_plmc = Balances::reserved_balance_named(&BondType::Contributing, &buyer);
+				assert_eq!(actual_bonded_plmc, 0u32.into());
+			}
+		});
+	}
 }
 
 mod bids_vesting {
@@ -1355,6 +1368,30 @@ mod bids_vesting {
 				let desired_balance = FundingModule::add_decimals_to_number(amount, decimals);
 
 				assert_eq!(minted_balance, desired_balance);
+			}
+		});
+	}
+
+	#[test]
+	fn plmc_unbonded() {
+		let mut test_env = TestEnvironment::new();
+		let finished_project = FinishedProject::new_default(&test_env);
+		let project_id = finished_project.project_id;
+		let bidders = default_auction_bids();
+		let project = finished_project.get_project();
+		let decimals = project.token_information.decimals;
+		test_env.ext_env.borrow_mut().execute_with(|| {
+			for (bidder, (amount, price, multiplier)) in bidders {
+				let theoretical_bonded_plmc = (amount * price) / multiplier.unwrap();
+				let actual_bonded_plmc = Balances::reserved_balance_named(&BondType::Bidding, &bidder);
+				assert_eq!(theoretical_bonded_plmc, actual_bonded_plmc);
+				assert_ok!(FundingModule::vested_plmc_bid_unbond_for(
+					RuntimeOrigin::signed(bidder),
+					project_id,
+					bidder
+				));
+				let actual_bonded_plmc = Balances::reserved_balance_named(&BondType::Bidding, &bidder);
+				assert_eq!(actual_bonded_plmc, 0u32.into());
 			}
 		});
 	}
