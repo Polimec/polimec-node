@@ -290,7 +290,7 @@ pub const EXISTENTIAL_DEPOSIT: u128 = 500;
 
 impl pallet_balances::Config for Runtime {
 	type MaxLocks = ConstU32<50>;
-	type MaxReserves = ();
+	type MaxReserves = ConstU32<50>;
 	type ReserveIdentifier = BondType;
 	/// The type for recording an account's balance.
 	type Balance = Balance;
@@ -378,6 +378,7 @@ impl pallet_funding::Config for Runtime {
 	type Currency = Balances;
 	type ProjectIdentifier = u32;
 	type ProjectIdParameter = codec::Compact<u32>;
+	type BidId = u128;
 	type BiddingCurrency = Balances;
 	type Assets = Assets;
 	type CurrencyBalance = <Self as pallet_balances::Config>::Balance;

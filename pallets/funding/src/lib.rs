@@ -107,6 +107,7 @@ type ProjectInfoOf<T> = ProjectInfo<<T as frame_system::Config>::BlockNumber, Ba
 
 /// The bid type of this pallet.
 type BidInfoOf<T> = BidInfo<
+	<T as Config>::BidId,
 	<T as Config>::ProjectIdentifier,
 	BalanceOf<T>,
 	<T as frame_system::Config>::AccountId,
@@ -176,6 +177,8 @@ pub mod pallet {
 		/// The bidding balance.
 		// type BiddingCurrency: Transfer<Self::AccountId>;
 		type BiddingCurrency: ReservableCurrency<Self::AccountId, Balance = BalanceOf<Self>>;
+
+		type BidId: Parameter + Copy + Saturating + One + Default;
 
 		/// Something that provides randomness in the runtime.
 		type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
@@ -253,6 +256,12 @@ pub mod pallet {
 	/// A global counter for indexing the projects
 	/// OnEmpty in this case is GetDefault, so 0.
 	pub type NextProjectId<T: Config> = StorageValue<_, T::ProjectIdentifier, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn next_bid_id)]
+	/// A global counter for indexing the projects
+	/// OnEmpty in this case is GetDefault, so 0.
+	pub type NextBidId<T: Config> = StorageValue<_, T::BidId, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn nonce)]
@@ -413,13 +422,13 @@ pub mod pallet {
 			project_id: T::ProjectIdentifier,
 			amount: BalanceOf<T>,
 			price: BalanceOf<T>,
-			multiplier: u32,
+			multiplier: BalanceOf<T>,
 		},
 		Contribution {
 			project_id: T::ProjectIdentifier,
 			contributor: T::AccountId,
 			amount: BalanceOf<T>,
-			multiplier: u32,
+			multiplier: BalanceOf<T>,
 		},
 		/// A bid  made by a `bidder` of `amount` at `market_cap` for `project_id` with a `multiplier` is returned.
 		BidReturned {
@@ -460,6 +469,7 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
+		ImpossibleState,
 		/// The price provided in the `create` call is too low
 		PriceTooLow,
 		/// The participation size provided in the `create` call is too low
@@ -575,7 +585,7 @@ pub mod pallet {
 		/// Tried to contribute but its too low to be accepted
 		ContributionTooLow,
 		/// Cannot buy the minimum amount of tokens possible with the amount specified to contribute
-		BuyAmountTooLow
+		BuyAmountTooLow,
 	}
 
 	#[pallet::call]
@@ -680,7 +690,7 @@ pub mod pallet {
 			project_id: T::ProjectIdParameter,
 			#[pallet::compact] amount: BalanceOf<T>,
 			#[pallet::compact] price: BalanceOf<T>,
-			multiplier: Option<u32>,
+			multiplier: Option<BalanceOf<T>>,
 			// TODO: PLMC-158 Add a parameter to specify the currency to use, should be equal to the currency
 			// specified in `participation_currencies`
 		) -> DispatchResult {

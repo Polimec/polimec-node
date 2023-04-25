@@ -512,6 +512,7 @@ impl pallet_funding::Config for Runtime {
 	type ProjectIdParameter = codec::Compact<u32>;
 	type CurrencyBalance = <Self as pallet_balances::Config>::Balance;
 	type Currency = Balances;
+	type BidId = u128;
 	type BiddingCurrency = Balances;
 	type Randomness = Random;
 	type HandleMembers = Credentials;

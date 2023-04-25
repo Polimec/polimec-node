@@ -160,6 +160,7 @@ impl pallet_funding::Config for TestRuntime {
 	type ProjectIdentifier = Identifier;
 	type ProjectIdParameter = Identifier;
 	type Currency = Balances;
+	type BidId = u128;
 	type BiddingCurrency = Balances;
 	type Assets = Assets;
 	type CurrencyBalance = Balance;

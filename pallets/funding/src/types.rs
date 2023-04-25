@@ -196,7 +196,8 @@ impl<BlockNumber: Copy> BlockNumberPair<BlockNumber> {
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct BidInfo<ProjectId, Balance: BalanceT, AccountId, BlockNumber, PlmcVesting, CTVesting> {
+pub struct BidInfo<BidId, ProjectId, Balance: BalanceT, AccountId, BlockNumber, PlmcVesting, CTVesting> {
+	pub bid_id: BidId,
 	pub project: ProjectId,
 	#[codec(compact)]
 	pub amount: Balance,
@@ -215,10 +216,11 @@ pub struct BidInfo<ProjectId, Balance: BalanceT, AccountId, BlockNumber, PlmcVes
 	pub status: BidStatus<Balance>,
 }
 
-impl<ProjectId, Balance: BalanceT, AccountId, BlockNumber, PlmcVesting, CTVesting>
-	BidInfo<ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
+impl<BidId, ProjectId, Balance: BalanceT, AccountId, BlockNumber, PlmcVesting, CTVesting>
+	BidInfo<BidId, ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
 {
 	pub fn new(
+		bid_id: BidId,
 		project: ProjectId,
 		amount: Balance,
 		price: Balance,
@@ -229,6 +231,7 @@ impl<ProjectId, Balance: BalanceT, AccountId, BlockNumber, PlmcVesting, CTVestin
 	) -> Self {
 		let ticket_size = amount.saturating_mul(price);
 		Self {
+			bid_id,
 			project,
 			amount,
 			price,
@@ -245,13 +248,14 @@ impl<ProjectId, Balance: BalanceT, AccountId, BlockNumber, PlmcVesting, CTVestin
 }
 
 impl<
+		BidId: Eq,
 		ProjectId: Eq,
 		Balance: BalanceT,
 		AccountId: Eq,
 		BlockNumber: Eq,
 		PlmcVesting: Eq,
 		CTVesting: Eq,
-	> sp_std::cmp::Ord for BidInfo<ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
+	> sp_std::cmp::Ord for BidInfo<BidId, ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
 {
 	fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
 		self.price.cmp(&other.price)
@@ -259,6 +263,7 @@ impl<
 }
 
 impl<
+		BidId: Eq,
 		ProjectId: Eq,
 		Balance: BalanceT,
 		AccountId: Eq,
@@ -266,7 +271,7 @@ impl<
 		PlmcVesting: Eq,
 		CTVesting: Eq,
 	> sp_std::cmp::PartialOrd
-	for BidInfo<ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
+	for BidInfo<BidId, ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
 {
 	fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
 		Some(self.cmp(other))
@@ -275,6 +280,7 @@ impl<
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct ContributionInfo<Balance, PLMCVesting, CTVesting> {
+	// Tokens you paid in exchange for CTs
 	pub contribution_amount: Balance,
 	pub plmc_vesting: PLMCVesting,
 	pub ct_vesting: CTVesting,
