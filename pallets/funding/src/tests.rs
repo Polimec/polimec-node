@@ -645,14 +645,14 @@ mod defaults {
 
 	pub fn default_community_buys() -> UserToBalance {
 
-		vec![(BUYER_1, (1000 * PLMC)), (BUYER_2, (6000 * PLMC))]
+		vec![(BUYER_1, 10), (BUYER_2, 20)]
 	}
 
-	pub fn default_community_funding_plmc_bondings() -> UserToBalance {
-		// for now multiplier is always 1, and since plmc and bidding currency are the same,
-		// we can just use the same values
-		vec![(BUYER_1, (1000 * PLMC)), (BUYER_2, (6000 * PLMC))]
-	}
+	// pub fn default_community_funding_plmc_bondings() -> UserToBalance {
+	// 	// for now multiplier is always 1, and since plmc and bidding currency are the same,
+	// 	// we can just use the same values
+	// 	vec![(BUYER_1, (100 * PLMC)), (BUYER_2, (6000 * PLMC))]
+	// }
 
 	pub fn default_creation_assertions(
 		project_id: ProjectIdOf<TestRuntime>,
@@ -790,9 +790,19 @@ mod defaults {
 		project_id: ProjectIdOf<TestRuntime>,
 		test_env: &TestEnvironment,
 	) {
+		let token_price = test_env.ext_env.borrow_mut().execute_with(|| {
+			let project_info =
+				FundingModule::project_info(project_id).expect("Project info should exist");
+			project_info.weighted_average_price.expect("Token price should exist")
+		});
+		let expected_plmc_bondings = default_community_buys().iter().map(|(account, amount)| {
+			let plmc_amount = amount * token_price ;
+			(*account, plmc_amount)
+		}).collect::<UserToBalance>();
+
 		// Check that enough PLMC is bonded
 		test_env.do_reserved_funds_assertions(
-			default_community_funding_plmc_bondings(),
+			expected_plmc_bondings.clone(),
 			BondType::Contributing,
 		);
 
@@ -803,7 +813,7 @@ mod defaults {
 		// Subtract the amount spent on the buys from the free funds
 		free_funds = free_funds
 			.iter()
-			.zip(default_community_buys().iter())
+			.zip(expected_plmc_bondings.clone().iter())
 			.map(|(original, bonded)| {
 				assert_eq!(original.0, bonded.0, "User should be the same");
 				(original.0, original.1 - bonded.1)
@@ -812,7 +822,7 @@ mod defaults {
 		// Subtract the amount reserved for the PLMC bonding, since we use the same pallet for now
 		free_funds = free_funds
 			.iter()
-			.zip(default_community_buys().iter())
+			.zip(expected_plmc_bondings.iter())
 			.map(|(original, bonded)| {
 				assert_eq!(original.0, bonded.0, "User should be the same");
 				(original.0, original.1 - bonded.1)
