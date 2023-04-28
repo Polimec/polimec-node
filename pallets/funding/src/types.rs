@@ -413,7 +413,7 @@ impl<
 	> Vesting<BlockNumber, Balance>
 {
 	pub fn calculate_next_withdrawal(&mut self) -> Result<Balance, ()> {
-		return if self.amount == 0u32.into() {
+		if self.amount == 0u32.into() {
 			Err(())
 		} else {
 			let next_withdrawal = self.next_withdrawal.saturating_add(self.step);

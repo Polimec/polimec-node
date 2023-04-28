@@ -766,7 +766,7 @@ pub mod pallet {
 		fn on_initialize(now: T::BlockNumber) -> Weight {
 			// Get the projects that need to be updated on this block and update them
 			for project_id in ProjectsToUpdate::<T>::take(now) {
-				let maybe_project_info = ProjectsInfo::<T>::get(project_id.clone());
+				let maybe_project_info = ProjectsInfo::<T>::get(project_id);
 				let project_info = unwrap_option_or_skip!(maybe_project_info, project_id);
 
 				match project_info.project_status {
@@ -814,7 +814,7 @@ pub mod pallet {
 			let pallet_account: T::AccountId =
 				<T as Config>::PalletId::get().into_account_truncating();
 
-			let mut remaining_weight = max_weight.clone();
+			let mut remaining_weight = max_weight;
 			let unbond_results = ProjectsInfo::<T>::iter()
 				.filter_map(|(project_id, info)| {
 					if let ProjectStatus::EvaluationFailed = info.project_status {
