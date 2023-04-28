@@ -81,18 +81,19 @@ use frame_support::{
 			fungibles::{metadata::Mutate as MetadataMutate, Create, InspectMetadata, Mutate},
 			Balance,
 		},
-		Currency as CurrencyT, Get, LockIdentifier, NamedReservableCurrency, Randomness,
+		Currency as CurrencyT, Get, NamedReservableCurrency, Randomness,
 		ReservableCurrency,
 	},
 	BoundedVec, PalletId, Parameter,
 };
-use parachains_common::Block;
-use sp_arithmetic::traits::{One, Saturating, Zero};
+
+use sp_arithmetic::traits::{One, Saturating};
+
 use sp_runtime::{
-	traits::{AccountIdConversion, CheckedDiv, Hash},
+	traits::{AccountIdConversion, CheckedDiv},
 	FixedPointNumber, FixedPointOperand, FixedU128,
 };
-use sp_std::{cmp::Reverse, prelude::*};
+use sp_std::prelude::*;
 /// The balance type of this pallet.
 type BalanceOf<T> = <T as Config>::CurrencyBalance;
 
@@ -121,12 +122,6 @@ type ContributionInfoOf<T> = ContributionInfo<
 	Vesting<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>,
 	Vesting<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>,
 >;
-
-// TODO: PLMC-151. Add multiple locks
-// 	Review the use of locks after:
-// 	- https://github.com/paritytech/substrate/issues/12918
-// 	- https://github.com/paritytech/substrate/pull/12951
-const LOCKING_ID: LockIdentifier = *b"evaluate";
 
 // TODO: PLMC-152. Remove `dev_mode` attribute when extrinsics API are stable
 #[frame_support::pallet(dev_mode)]
@@ -832,7 +827,7 @@ pub mod pallet {
 				.flat_map(|project_id| {
 					// get all the bonds for projects with a failed evaluation phase
 					EvaluationBonds::<T>::iter_prefix(project_id)
-						.map(|(bonder, bond)| bond)
+						.map(|(_bonder, bond)| bond)
 						.collect::<Vec<_>>()
 				})
 				.take_while(|_| {

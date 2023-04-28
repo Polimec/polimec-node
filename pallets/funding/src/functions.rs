@@ -23,7 +23,7 @@ use super::*;
 use crate::ProjectStatus::EvaluationRound;
 use frame_support::{ensure, pallet_prelude::DispatchError, traits::Get};
 use sp_arithmetic::{traits::Zero, Perbill};
-use sp_runtime::{DispatchResult, Percent};
+use sp_runtime::Percent;
 use sp_std::prelude::*;
 
 // Round transition functions
@@ -64,10 +64,11 @@ impl<T: Config> Pallet<T> {
 		if let Err(error) = project.validity_check() {
 			return match error {
 				ValidityError::PriceTooLow => Err(Error::<T>::PriceTooLow.into()),
-				ValidityError::ParticipantsSizeError =>
-					Err(Error::<T>::ParticipantsSizeError.into()),
+				ValidityError::ParticipantsSizeError => {
+					Err(Error::<T>::ParticipantsSizeError.into())
+				},
 				ValidityError::TicketSizeError => Err(Error::<T>::TicketSizeError.into()),
-			}
+			};
 		}
 
 		// * Calculate new variables *
@@ -855,7 +856,7 @@ impl<T: Config> Pallet<T> {
 		let (plmc_vesting_period, ct_vesting_period) =
 			Self::calculate_vesting_periods(bidder.clone(), multiplier, amount, price, decimals);
 		let bid_id = Self::next_bid_id();
-		let mut required_plmc_bond = plmc_vesting_period.amount.clone();
+		let required_plmc_bond = plmc_vesting_period.amount.clone();
 		let bid = BidInfo::new(
 			bid_id,
 			project_id.clone(),
@@ -867,7 +868,7 @@ impl<T: Config> Pallet<T> {
 			ct_vesting_period,
 		);
 
-		let mut bonded_plmc;
+		let bonded_plmc;
 		// Check how much PLMC is already bonded for this project
 		if let Some(bond) = BiddingBonds::<T>::get(project_id.clone(), bidder.clone()) {
 			bonded_plmc = bond.amount;
@@ -945,25 +946,25 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), DispatchError> {
 		// TODO: PLMC-103? Add the "Retail before, Institutional and Professionals after, if there are still tokens" logic
 
-		// * Get variables *
-		let project = Projects::<T>::get(project_id.clone()).ok_or(Error::<T>::ProjectNotFound)?;
+		// * Validity checks *
 		let project_issuer =
 			ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectIssuerNotFound)?;
+		ensure!(contributor != project_issuer, Error::<T>::ContributionToThemselves);
 		let project_info =
 			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		ensure!(
+			project_info.project_status == ProjectStatus::CommunityRound,
+			Error::<T>::AuctionNotStarted
+		);
+
+		// * Get variables *
+		let project = Projects::<T>::get(project_id.clone()).ok_or(Error::<T>::ProjectNotFound)?;
 		let multiplier = multiplier.unwrap_or(One::one());
 		let token_price = project_info
 			.weighted_average_price
 			.expect("This value exists in Community Round");
 		let ticket_size = token_amount.saturating_mul(token_price);
 		let decimals = project.token_information.decimals;
-
-		// * Validity checks *
-		ensure!(contributor != project_issuer, Error::<T>::ContributionToThemselves);
-		ensure!(
-			project_info.project_status == ProjectStatus::CommunityRound,
-			Error::<T>::AuctionNotStarted
-		);
 
 		// TODO: PLMC-133. Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
 		// ensure!(
@@ -977,10 +978,15 @@ impl<T: Config> Pallet<T> {
 		// TODO: PLMC-157. Check the logic
 		// TODO: PLMC-157. Check if we need to use T::Currency::resolve_creating(...)
 
-		let mut bonded_plmc;
-		let (plmc_vesting, ct_vesting) =
-			Self::calculate_vesting_periods(contributor.clone(), multiplier, token_amount, token_price, decimals);
-		let mut required_plmc_bond = plmc_vesting.amount;
+		let bonded_plmc;
+		let (plmc_vesting, ct_vesting) = Self::calculate_vesting_periods(
+			contributor.clone(),
+			multiplier,
+			token_amount,
+			token_price,
+			decimals,
+		);
+		let required_plmc_bond = plmc_vesting.amount;
 		let contribution =
 			ContributionInfo { contribution_amount: ticket_size.clone(), plmc_vesting, ct_vesting };
 		// Check how much PLMC is already bonded for this project
@@ -1084,7 +1090,7 @@ impl<T: Config> Pallet<T> {
 			// * Validity checks *
 			// check that it is not too early to withdraw the next amount
 			if plmc_vesting.next_withdrawal > now {
-				continue
+				continue;
 			}
 
 			// * Calculate variables *
@@ -1093,7 +1099,7 @@ impl<T: Config> Pallet<T> {
 			while let Ok(amount) = plmc_vesting.calculate_next_withdrawal() {
 				unbond_amount = unbond_amount.saturating_add(amount);
 				if plmc_vesting.next_withdrawal > now {
-					break
+					break;
 				}
 			}
 			bid.plmc_vesting_period = plmc_vesting;
@@ -1155,7 +1161,7 @@ impl<T: Config> Pallet<T> {
 			// * Validity checks *
 			// check that it is not too early to withdraw the next amount
 			if ct_vesting.next_withdrawal > now {
-				continue
+				continue;
 			}
 
 			// * Calculate variables *
@@ -1163,7 +1169,7 @@ impl<T: Config> Pallet<T> {
 			while let Ok(amount) = ct_vesting.calculate_next_withdrawal() {
 				mint_amount = mint_amount.saturating_add(amount);
 				if ct_vesting.next_withdrawal > now {
-					break
+					break;
 				}
 			}
 			bid.ct_vesting_period = ct_vesting;
@@ -1230,7 +1236,7 @@ impl<T: Config> Pallet<T> {
 			// * Validity checks *
 			// check that it is not too early to withdraw the next amount
 			if plmc_vesting.next_withdrawal > now {
-				continue
+				continue;
 			}
 
 			// * Calculate variables *
@@ -1238,7 +1244,7 @@ impl<T: Config> Pallet<T> {
 			while let Ok(amount) = plmc_vesting.calculate_next_withdrawal() {
 				unbond_amount = unbond_amount.saturating_add(amount);
 				if plmc_vesting.next_withdrawal > now {
-					break
+					break;
 				}
 			}
 			contribution.plmc_vesting = plmc_vesting;
@@ -1310,7 +1316,7 @@ impl<T: Config> Pallet<T> {
 			// * Validity checks *
 			// check that it is not too early to withdraw the next amount
 			if ct_vesting.next_withdrawal > now {
-				continue
+				continue;
 			}
 
 			// * Calculate variables *
@@ -1318,7 +1324,7 @@ impl<T: Config> Pallet<T> {
 			while let Ok(amount) = ct_vesting.calculate_next_withdrawal() {
 				mint_amount = mint_amount.saturating_add(amount);
 				if ct_vesting.next_withdrawal > now {
-					break
+					break;
 				}
 			}
 			contribution.ct_vesting = ct_vesting;
@@ -1478,7 +1484,7 @@ impl<T: Config> Pallet<T> {
 		multiplier: BalanceOf<T>,
 		token_amount: BalanceOf<T>,
 		token_price: BalanceOf<T>,
-		decimals: u8
+		decimals: u8,
 	) -> (Vesting<T::BlockNumber, BalanceOf<T>>, Vesting<T::BlockNumber, BalanceOf<T>>) {
 		let plmc_start: T::BlockNumber = 0u32.into();
 		let ct_start: T::BlockNumber = (parachains_common::DAYS * 7).into();
@@ -1527,7 +1533,7 @@ impl<T: Config> Pallet<T> {
 				if bid.when > end_block {
 					bid.status = BidStatus::Rejected(RejectionReason::AfterCandleEnd);
 					// TODO: PLMC-147. Unlock funds. We can do this inside the "on_idle" hook, and change the `status` of the `Bid` to "Unreserved"
-					return bid
+					return bid;
 				}
 				let buyable_amount = total_allocation_size.saturating_sub(bid_amount_sum);
 				if buyable_amount == 0_u32.into() {
@@ -1550,13 +1556,20 @@ impl<T: Config> Pallet<T> {
 
 		// Update the bid in the storage
 		for bid in bids.iter() {
-			AuctionsInfo::<T>::mutate(project_id, bid.bidder.clone(), |maybe_bids| -> Result<(), DispatchError> {
-				let mut bids = maybe_bids.clone().ok_or(Error::<T>::ImpossibleState)?;
-				let bid_index = bids.iter().position(|b| b.bid_id == bid.bid_id).ok_or(Error::<T>::ImpossibleState)?;
-				bids[bid_index] = bid.clone();
-				*maybe_bids = Some(bids);
-				Ok(())
-			})?;
+			AuctionsInfo::<T>::mutate(
+				project_id,
+				bid.bidder.clone(),
+				|maybe_bids| -> Result<(), DispatchError> {
+					let mut bids = maybe_bids.clone().ok_or(Error::<T>::ImpossibleState)?;
+					let bid_index = bids
+						.iter()
+						.position(|b| b.bid_id == bid.bid_id)
+						.ok_or(Error::<T>::ImpossibleState)?;
+					bids[bid_index] = bid.clone();
+					*maybe_bids = Some(bids);
+					Ok(())
+				},
+			)?;
 		}
 
 		// Calculate the weighted price of the token for the next funding rounds, using winning bids.
@@ -1581,10 +1594,12 @@ impl<T: Config> Pallet<T> {
 			// TODO: PLMC-150. collecting due to previous mut borrow, find a way to not collect and borrow bid on filter_map
 			.into_iter()
 			.filter_map(|bid| match bid.status {
-				BidStatus::Accepted =>
-					Some(Perbill::from_rational(bid.amount * bid.price, bid_value_sum) * bid.price),
-				BidStatus::PartiallyAccepted(amount, _) =>
-					Some(Perbill::from_rational(amount * bid.price, bid_value_sum) * bid.price),
+				BidStatus::Accepted => {
+					Some(Perbill::from_rational(bid.amount * bid.price, bid_value_sum) * bid.price)
+				},
+				BidStatus::PartiallyAccepted(amount, _) => {
+					Some(Perbill::from_rational(amount * bid.price, bid_value_sum) * bid.price)
+				},
 				_ => None,
 			})
 			.reduce(|a, b| a.saturating_add(b))
