@@ -700,7 +700,7 @@ pub mod pallet {
 			Self::do_bid(bidder, project_id, amount, price, multiplier)
 		}
 
-		/// Contribute to the "Community Round"
+		/// Contribute in the "Community Round"
 		#[pallet::weight(T::WeightInfo::contribute())]
 		pub fn contribute(
 			origin: OriginFor<T>,
