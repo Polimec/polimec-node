@@ -81,8 +81,7 @@ use frame_support::{
 			fungibles::{metadata::Mutate as MetadataMutate, Create, InspectMetadata, Mutate},
 			Balance,
 		},
-		Currency as CurrencyT, Get, NamedReservableCurrency, Randomness,
-		ReservableCurrency,
+		Currency as CurrencyT, Get, NamedReservableCurrency, Randomness, ReservableCurrency,
 	},
 	BoundedVec, PalletId, Parameter,
 };

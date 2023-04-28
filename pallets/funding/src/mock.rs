@@ -144,7 +144,7 @@ impl pallet_assets::Config for TestRuntime {
 	type BenchmarkHelper = ();
 }
 
-// REMARK: In the production configuration we use DAYS instead of HOURS. 
+// REMARK: In the production configuration we use DAYS instead of HOURS.
 parameter_types! {
 	pub const EvaluationDuration: BlockNumber = (28 * HOURS) as BlockNumber;
 	pub const AuctionInitializePeriodDuration: BlockNumber = (7 * HOURS) as BlockNumber;
