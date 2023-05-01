@@ -6412,19 +6412,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-credentials-api"
-version = "0.1.0"
-dependencies = [
- "jsonrpsee",
- "parity-scale-codec",
- "polimec-runtime-api-credentials",
- "polimec-traits",
- "sp-api 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
- "sp-blockchain 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
- "sp-runtime 7.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
-]
-
-[[package]]
 name = "pallet-democracy"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39#8c4b84520cee2d7de53cc33cb67605ce4efefba8"
@@ -6449,6 +6436,7 @@ source = "git+https://github.com/KILTprotocol/kilt-node?branch=aa/dip#779acdc288
 dependencies = [
  "base58",
  "blake2",
+ "frame-benchmarking 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
  "frame-support 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
  "frame-system 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
  "hex",
@@ -6457,6 +6445,7 @@ dependencies = [
  "log",
  "parity-scale-codec",
  "scale-info",
+ "serde",
  "sha3",
  "sp-core 7.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
  "sp-io 7.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
@@ -7939,7 +7928,6 @@ dependencies = [
  "frame-benchmarking-cli",
  "jsonrpsee",
  "log",
- "pallet-credentials-api",
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
  "polimec-base-runtime",
@@ -8016,6 +8004,7 @@ dependencies = [
  "pallet-collective",
  "pallet-credentials",
  "pallet-democracy",
+ "pallet-did-lookup",
  "pallet-dip-consumer",
  "pallet-funding",
  "pallet-insecure-randomness-collective-flip",
@@ -8035,7 +8024,6 @@ dependencies = [
  "parachain-staking",
  "parachains-common",
  "parity-scale-codec",
- "polimec-runtime-api-credentials",
  "polimec-traits",
  "polkadot-parachain 0.9.39-1",
  "polkadot-primitives 0.9.39-1",
@@ -8064,18 +8052,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "polimec-runtime-api-credentials"
-version = "0.1.0"
-dependencies = [
- "parity-scale-codec",
- "polimec-traits",
- "scale-info",
- "sp-api 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
- "sp-runtime 7.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
- "sp-std 5.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
-]
-
-[[package]]
 name = "polimec-standalone-node"
 version = "0.1.0"
 dependencies = [
@@ -8085,7 +8061,6 @@ dependencies = [
  "frame-system 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
  "futures",
  "jsonrpsee",
- "pallet-credentials-api",
  "pallet-transaction-payment 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
  "pallet-transaction-payment-rpc",
  "polimec-standalone-runtime",
@@ -8154,7 +8129,6 @@ dependencies = [
  "pallet-utility",
  "pallet-vesting 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
  "parity-scale-codec",
- "polimec-runtime-api-credentials",
  "polimec-traits",
  "runtime-common",
  "scale-info",

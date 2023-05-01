@@ -41,7 +41,6 @@ substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", bran
 # Internal pallets (with default disabled)
 parachain-staking = { path = "pallets/parachain-staking", default-features = false }
 pallet-credentials = { path = "pallets/credentials", default-features = false }
-pallet-credentials-api = { path = "pallets/credentials/rpc", default-features = false }
 pallet-funding = { path = "pallets/funding", default-features = false }
 pallet-asset-registry = { path = "pallets/asset-registry", default-features = false }
 pallet-dip-consumer = { path = "pallets/pallet-dip-consumer", default-features = false }
@@ -58,7 +57,6 @@ kilt-support = { git = "https://github.com/KILTprotocol/kilt-node", default-feat
 did = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
 pallet-did-lookup = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
 # Internal runtime API (with default disabled)
-polimec-runtime-api-credentials = { path = "runtime-api/credentials", default-features = false }
 kilt-runtime-api-staking = { path = "runtime-api/staking", default-features = false }
 
 # External (without extra features and with default disabled if necessary)

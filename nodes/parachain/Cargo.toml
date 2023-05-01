@@ -20,7 +20,6 @@ jsonrpsee = { workspace = true, features = ["server"] }
 # Local
 polimec-parachain-runtime.workspace = true
 polimec-base-runtime.workspace = true
-pallet-credentials-api.workspace = true
 
 # Substrate
 frame-benchmarking.workspace = true

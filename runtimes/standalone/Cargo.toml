@@ -67,7 +67,6 @@ hex-literal = { workspace = true, optional = true }
 # Local Dependencies
 pallet-funding.workspace = true
 pallet-credentials.workspace = true
-polimec-runtime-api-credentials.workspace = true
 polimec-traits.workspace = true
 runtime-common.workspace = true
 
@@ -117,7 +116,6 @@ std = [
 	"pallet-authorship/std",
 	"pallet-insecure-randomness-collective-flip/std",
 	"polimec-traits/std",
-	"polimec-runtime-api-credentials/std",
 	"pallet-vesting/std",
 	"runtime-common/std"
 ]
