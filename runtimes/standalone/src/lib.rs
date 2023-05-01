@@ -66,8 +66,6 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-use polimec_traits::{MemberRole, PolimecMembers};
-
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
@@ -86,8 +84,6 @@ pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::Account
 pub type Balance = u128;
 ///
 pub type Amount = i128;
-///
-pub type CurrencyId = [u8; 8];
 /// Index of a transaction in the chain.
 pub type Index = u32;
 
@@ -248,7 +244,7 @@ impl frame_system::Config for Runtime {
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
-impl pallet_randomness_collective_flip::Config for Runtime {}
+impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
 
 impl pallet_aura::Config for Runtime {
 	type AuthorityId = AuraId;
@@ -438,6 +434,7 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type MaxMembers = CouncilMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+	type SetMembersOrigin = EnsureRoot<AccountId>;
 }
 
 parameter_types! {
@@ -456,6 +453,7 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type MaxMembers = TechnicalMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+	type SetMembersOrigin = EnsureRoot<AccountId>;
 }
 
 parameter_types! {
@@ -520,6 +518,7 @@ impl pallet_democracy::Config for Runtime {
 	type Preimages = ();
 	type MaxDeposits = ();
 	type MaxBlacklisted = ();
+	type SubmitOrigin = EnsureSigned<AccountId>;
 }
 
 parameter_types! {
@@ -617,7 +616,7 @@ construct_runtime!(
 		Session: pallet_session,
 		Authorship: pallet_authorship,
 
-		Random: pallet_randomness_collective_flip,
+		Random: pallet_insecure_randomness_collective_flip,
 
 		// Include the custom logic
 		PolimecFunding: pallet_funding,
@@ -824,18 +823,6 @@ impl_runtime_apis! {
 		}
 		fn query_length_to_fee(length: u32) -> Balance {
 			TransactionPayment::length_to_fee(length)
-		}
-	}
-
-	impl polimec_runtime_api_credentials::CredentialsApi<Block, AccountId> for Runtime {
-		fn is_in(role: MemberRole, who: AccountId) -> bool {
-			Credentials::is_in(&role, &who)
-		}
-		fn get_members_of(role: MemberRole) -> Vec<AccountId> {
-			Credentials::get_members_of(&role)
-		}
-		fn get_roles_of(who: AccountId) -> Vec<MemberRole> {
-			Credentials::get_roles_of(&who)
 		}
 	}
 

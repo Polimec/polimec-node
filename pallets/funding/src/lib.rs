@@ -80,8 +80,8 @@ use frame_support::{
 			fungibles::{metadata::Mutate as MetadataMutate, Create, InspectMetadata, Mutate},
 			Balance,
 		},
-		Currency as CurrencyT, Get, LockIdentifier, LockableCurrency, Randomness, ReservableCurrency,
-		WithdrawReasons,
+		Currency as CurrencyT, Get, LockIdentifier, LockableCurrency, Randomness,
+		ReservableCurrency, WithdrawReasons,
 	},
 	BoundedVec, PalletId, Parameter,
 };
@@ -953,12 +953,12 @@ pub mod pallet {
 							bonder,
 							pallet_account.clone(),
 						),
-						project_id
+						project_id,
 					)
 				});
-				for (result, project_id) in unbond_results {
-					unwrap_result_or_skip!(result, project_id)
-				}
+			for (result, project_id) in unbond_results {
+				unwrap_result_or_skip!(result, project_id)
+			}
 
 			// // TODO: PLMC-127. Set a proper weightK
 			Weight::from_ref_time(0)
