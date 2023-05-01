@@ -16,8 +16,8 @@
 
 // If you feel like getting in touch with us, you can do so at info@botlabs.org
 
-use frame_support::{traits::EnsureOrigin, RuntimeDebug};
 use codec::{Decode, Encode, MaxEncodedLen};
+use frame_support::{traits::EnsureOrigin, RuntimeDebug};
 use scale_info::TypeInfo;
 use sp_std::marker::PhantomData;
 
@@ -28,7 +28,9 @@ pub struct DipOrigin<Identifier, AccountId, Details> {
 	pub details: Details,
 }
 
-pub struct EnsureDipOrigin<Identifier, AccountId, Details>(PhantomData<(Identifier, AccountId, Details)>);
+pub struct EnsureDipOrigin<Identifier, AccountId, Details>(
+	PhantomData<(Identifier, AccountId, Details)>,
+);
 
 #[cfg(not(feature = "runtime-benchmarks"))]
 impl<OuterOrigin, Identifier, AccountId, Details> EnsureOrigin<OuterOrigin>

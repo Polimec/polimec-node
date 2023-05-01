@@ -1,6 +1,6 @@
+use codec::{Decode, Encode};
 use did::{did_details::DidPublicKeyDetails, DidVerificationKeyRelationship};
 use frame_support::RuntimeDebug;
-use codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use sp_std::vec::Vec;
 

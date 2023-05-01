@@ -6,7 +6,12 @@ use runtime_common::dip::{
 };
 use sp_std::vec::Vec;
 
-use crate::{BlockNumber, DidIdentifier, Hash, Hasher, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin};
+use crate::{
+	AccountId, BlakeTwo256, BlockNumber, Hash, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
+};
+
+pub type DidIdentifier = AccountId;
+pub type Hasher = BlakeTwo256;
 
 impl pallet_dip_consumer::Config for Runtime {
 	type BlindedValue = Vec<Vec<u8>>;
@@ -20,12 +25,17 @@ impl pallet_dip_consumer::Config for Runtime {
 	type RuntimeOrigin = RuntimeOrigin;
 }
 
-fn derive_verification_key_relationship(call: &RuntimeCall) -> Option<DidVerificationKeyRelationship> {
+fn derive_verification_key_relationship(
+	call: &RuntimeCall,
+) -> Option<DidVerificationKeyRelationship> {
 	match call {
 		RuntimeCall::DidLookup { .. } => Some(DidVerificationKeyRelationship::Authentication),
-		RuntimeCall::Utility(pallet_utility::Call::batch { calls }) => single_key_relationship(calls).ok(),
-		RuntimeCall::Utility(pallet_utility::Call::batch_all { calls }) => single_key_relationship(calls).ok(),
-		RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) => single_key_relationship(calls).ok(),
+		RuntimeCall::Utility(pallet_utility::Call::batch { calls }) =>
+			single_key_relationship(calls).ok(),
+		RuntimeCall::Utility(pallet_utility::Call::batch_all { calls }) =>
+			single_key_relationship(calls).ok(),
+		RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) =>
+			single_key_relationship(calls).ok(),
 		_ => None,
 	}
 }
@@ -34,18 +44,18 @@ fn derive_verification_key_relationship(call: &RuntimeCall) -> Option<DidVerific
 // did::DeriveDidCallAuthorizationVerificationKeyRelationship for RuntimeCall`
 // in Spiritnet/Peregrine runtime.
 fn single_key_relationship(calls: &[RuntimeCall]) -> Result<DidVerificationKeyRelationship, ()> {
-	let first_call_relationship = calls.get(0).and_then(derive_verification_key_relationship).ok_or(())?;
-	calls
-		.iter()
-		.skip(1)
-		.map(derive_verification_key_relationship)
-		.try_fold(first_call_relationship, |acc, next| {
+	let first_call_relationship =
+		calls.get(0).and_then(derive_verification_key_relationship).ok_or(())?;
+	calls.iter().skip(1).map(derive_verification_key_relationship).try_fold(
+		first_call_relationship,
+		|acc, next| {
 			if next == Some(acc) {
 				Ok(acc)
 			} else {
 				Err(())
 			}
-		})
+		},
+	)
 }
 
 pub struct DipCallFilter;
@@ -84,7 +94,8 @@ mod dip_call_origin_filter_tests {
 		let system_call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
 		assert_err!(single_key_relationship(&[system_call]), ());
 		// Can't call empty batch with a DID key
-		let empty_batch_call = RuntimeCall::Utility(pallet_utility::Call::batch_all { calls: vec![] });
+		let empty_batch_call =
+			RuntimeCall::Utility(pallet_utility::Call::batch_all { calls: vec![] });
 		assert_err!(single_key_relationship(&[empty_batch_call]), ());
 		// Can call batch with a DipLookup with an authentication key
 		let did_lookup_batch_call = RuntimeCall::Utility(pallet_utility::Call::batch_all {

@@ -33,7 +33,9 @@ pub trait IdentityProofVerifier {
 }
 
 // Always returns success.
-pub struct SuccessfulProofVerifier<ProofDigest, Leaf, BlindedValue>(PhantomData<(ProofDigest, Leaf, BlindedValue)>);
+pub struct SuccessfulProofVerifier<ProofDigest, Leaf, BlindedValue>(
+	PhantomData<(ProofDigest, Leaf, BlindedValue)>,
+);
 impl<ProofDigest, Leaf, BlindedValue> IdentityProofVerifier
 	for SuccessfulProofVerifier<ProofDigest, Leaf, BlindedValue>
 {
