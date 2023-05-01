@@ -5,7 +5,7 @@ documentation.workspace = true
 edition.workspace = true
 homepage.workspace = true
 license-file.workspace = true
-name = "pallet-dip-receiver"
+name = "pallet-dip-consumer"
 readme.workspace = true
 repository.workspace = true
 version.workspace = true
@@ -14,28 +14,30 @@ version.workspace = true
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-codec = {package = "parity-scale-codec", workspace = true, features = ["derive"]}
 cumulus-pallet-xcm.workspace = true
 dip-support.workspace = true
 frame-support.workspace = true
 frame-system.workspace = true
 kilt-support.workspace = true
-scale-info = {workspace = true, features = ["derive"]}
+codec = { package = "parity-scale-codec", workspace = true, features = [
+	"derive",
+] }
+scale-info = { workspace = true, features = ["derive"] }
 sp-std.workspace = true
 
 [features]
 default = ["std"]
 std = [
-  "codec/std",
   "cumulus-pallet-xcm/std",
   "dip-support/std",
   "frame-support/std",
   "frame-system/std",
   "kilt-support/std",
+  "codec/std",
   "scale-info/std",
   "sp-std/std",
 ]
 runtime-benchmarks = [
   "frame-support/runtime-benchmarks",
-  "frame-system/runtime-benchmarks"
+  "frame-system/runtime-benchmarks",
 ]
