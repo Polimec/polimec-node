@@ -40,7 +40,6 @@ pub struct Project<BoundedString, Balance: BalanceT, Hash> {
 	/// Conversion rate of contribution token to mainnet token
 	pub conversion_rate: u32,
 	/// Participation currencies (e.g stablecoin, DOT, KSM)
-	/// TODO: PLMC-158. Use something like BoundedVec<Option<Currencies>, CurrenciesLimit>
 	/// e.g. https://github.com/paritytech/substrate/blob/427fd09bcb193c1e79dec85b1e207c718b686c35/frame/uniques/src/types.rs#L110
 	/// For now is easier to handle the case where only just one Currency is accepted
 	pub participation_currencies: Currencies,

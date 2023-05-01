@@ -16,34 +16,6 @@
 
 // If you feel like getting in touch with us, you can do so at info@polimec.org
 
-//! # Funding Pallet
-//!
-//! A simple, secure module for handling projects funding.
-//!
-//! ## Overview
-//!
-//! To use it in your runtime, you need to implement the funding [`Config`].
-//!
-//! The supported dispatchable functions are documented in the [`Call`] enum.
-//!
-//! ## Interface
-//!
-//! ### Permissioned Functions, callable only by credentialized users
-//!
-//! * `note_image` : Save on-chin the Hash of the project metadata.
-//! * `create` : Create a new project.
-//! * `bond_evaluation` : Bond PLMC on a project's evaluation round.
-//! * `failed_evaluation_unbond_for` : Unbond the PLMC bonded on a project's evaluation round for any user, if the project failed the evaluation.
-//! * `bid` : Perform a bid during the Auction Round.
-//! * `contribute` : Contribute to a project during the Community Round.
-//! * `claim_contribution_tokens` : Claim the Contribution Tokens if you contributed to a project during the Funding Round.
-//!
-//! ### Privileged Functions, callable only by the project's Issuer
-//!
-//! * `edit_metadata` : Submit a new Hash of the project metadata.
-//! * `start_evaluation` : Start the Evaluation Round of a project.
-//! * `start_auction` : Start the Funding Round of a project.
-//!
 
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
