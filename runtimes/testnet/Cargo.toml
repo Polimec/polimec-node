@@ -32,6 +32,10 @@ polimec-runtime-api-credentials.workspace = true
 polimec-traits.workspace = true
 runtime-common.workspace = true
 
+# KILT specific
+pallet-dip-consumer.workspace = true
+did.workspace = true
+
 # Primitives
 xcm-primitives.workspace = true
 
@@ -60,7 +64,7 @@ pallet-treasury.workspace = true
 pallet-utility.workspace = true
 pallet-multisig.workspace = true
 pallet-preimage.workspace = true
-pallet-randomness-collective-flip.workspace = true
+pallet-insecure-randomness-collective-flip.workspace = true
 pallet-vesting.workspace = true
 
 # Substrate
@@ -147,7 +151,7 @@ std = [
 	"pallet-treasury/std",
 	"pallet-vesting/std",
 	"pallet-preimage/std",
-	"pallet-randomness-collective-flip/std",
+	"pallet-insecure-randomness-collective-flip/std",
 	"parachains-common/std",
 	"parachain-staking/std",
 	"parachain-info/std",

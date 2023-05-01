@@ -73,13 +73,17 @@ pub use runtime_common::{
 };
 use weights::RocksDbWeight;
 use xcm_config::XcmConfig;
+use pallet_dip_consumer::{DipOrigin, EnsureDipOrigin};
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 mod weights;
-pub mod xcm_config;
+mod dip;
+mod xcm_config;
+pub use crate::{dip::*, xcm_config::*};
+
 
 pub type CurrencyId = [u8; 8];
 

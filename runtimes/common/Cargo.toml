@@ -24,6 +24,10 @@ smallvec.workspace = true
 
 # Internal dependencies
 parachain-staking.workspace = true
+did.workspace = true
+dip-support.workspace = true
+pallet-did-lookup = { workspace = true, optional = true }
+pallet-dip-consumer.workspace = true
 
 # Substrate dependencies
 frame-support.workspace = true
@@ -34,6 +38,7 @@ pallet-transaction-payment.workspace = true
 sp-consensus-aura.workspace = true
 sp-core.workspace = true
 sp-io.workspace = true
+sp-trie.workspace = true
 sp-runtime.workspace = true
 sp-std.workspace = true
 pallet-membership.workspace = true
@@ -78,6 +83,6 @@ std = [
     "xcm-builder/std",
     "xcm-executor/std",
     "xcm/std",
-    "parachains-common/std"
+    "parachains-common/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

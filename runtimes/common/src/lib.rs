@@ -44,6 +44,7 @@ use sp_std::marker::PhantomData;
 pub mod constants;
 pub mod fees;
 pub mod xcm_config;
+pub mod dip;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't
 /// need to know the specifics of the runtime. They can then be made to be

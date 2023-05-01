@@ -48,7 +48,7 @@ pallet-collective.workspace = true
 pallet-scheduler.workspace = true
 pallet-session.workspace = true
 pallet-authorship.workspace = true
-pallet-randomness-collective-flip.workspace = true
+pallet-insecure-randomness-collective-flip.workspace = true
 pallet-treasury.workspace = true
 pallet-utility.workspace = true
 pallet-multisig.workspace = true
@@ -115,7 +115,7 @@ std = [
 	"pallet-scheduler/std",
 	"pallet-session/std",
 	"pallet-authorship/std",
-	"pallet-randomness-collective-flip/std",
+	"pallet-insecure-randomness-collective-flip/std",
 	"polimec-traits/std",
 	"polimec-runtime-api-credentials/std",
 	"pallet-vesting/std",
@@ -159,7 +159,7 @@ try-runtime = [
 	"pallet-credentials/try-runtime",
 	"pallet-democracy/try-runtime",
 	"pallet-funding/try-runtime",
-	"pallet-randomness-collective-flip/try-runtime",
+	"pallet-insecure-randomness-collective-flip/try-runtime",
 	"pallet-scheduler/try-runtime",
 	"pallet-session/try-runtime",
 	"polimec-traits/try-runtime",
