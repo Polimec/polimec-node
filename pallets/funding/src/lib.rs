@@ -81,18 +81,18 @@ use frame_support::{
 			fungibles::{metadata::Mutate as MetadataMutate, Create, InspectMetadata, Mutate},
 			Balance,
 		},
-		Currency as CurrencyT, Get, LockIdentifier, NamedReservableCurrency, Randomness,
-		ReservableCurrency,
+		Currency as CurrencyT, Get, NamedReservableCurrency, Randomness, ReservableCurrency,
 	},
 	BoundedVec, PalletId, Parameter,
 };
-use parachains_common::Block;
-use sp_arithmetic::traits::{One, Saturating, Zero};
+
+use sp_arithmetic::traits::{One, Saturating};
+
 use sp_runtime::{
-	traits::{AccountIdConversion, CheckedDiv, Hash},
+	traits::{AccountIdConversion, CheckedDiv},
 	FixedPointNumber, FixedPointOperand, FixedU128,
 };
-use sp_std::{cmp::Reverse, prelude::*};
+use sp_std::prelude::*;
 /// The balance type of this pallet.
 type BalanceOf<T> = <T as Config>::CurrencyBalance;
 
@@ -121,12 +121,6 @@ type ContributionInfoOf<T> = ContributionInfo<
 	Vesting<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>,
 	Vesting<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>,
 >;
-
-// TODO: PLMC-151. Add multiple locks
-// 	Review the use of locks after:
-// 	- https://github.com/paritytech/substrate/issues/12918
-// 	- https://github.com/paritytech/substrate/pull/12951
-const LOCKING_ID: LockIdentifier = *b"evaluate";
 
 // TODO: PLMC-152. Remove `dev_mode` attribute when extrinsics API are stable
 #[frame_support::pallet(dev_mode)]
@@ -705,7 +699,7 @@ pub mod pallet {
 			Self::do_bid(bidder, project_id, amount, price, multiplier)
 		}
 
-		/// Contribute to the "Community Round"
+		/// Contribute in the "Community Round"
 		#[pallet::weight(T::WeightInfo::contribute())]
 		pub fn contribute(
 			origin: OriginFor<T>,
@@ -772,7 +766,7 @@ pub mod pallet {
 		fn on_initialize(now: T::BlockNumber) -> Weight {
 			// Get the projects that need to be updated on this block and update them
 			for project_id in ProjectsToUpdate::<T>::take(now) {
-				let maybe_project_info = ProjectsInfo::<T>::get(project_id.clone());
+				let maybe_project_info = ProjectsInfo::<T>::get(project_id);
 				let project_info = unwrap_option_or_skip!(maybe_project_info, project_id);
 
 				match project_info.project_status {
@@ -820,7 +814,7 @@ pub mod pallet {
 			let pallet_account: T::AccountId =
 				<T as Config>::PalletId::get().into_account_truncating();
 
-			let mut remaining_weight = max_weight.clone();
+			let mut remaining_weight = max_weight;
 			let unbond_results = ProjectsInfo::<T>::iter()
 				.filter_map(|(project_id, info)| {
 					if let ProjectStatus::EvaluationFailed = info.project_status {
@@ -832,7 +826,7 @@ pub mod pallet {
 				.flat_map(|project_id| {
 					// get all the bonds for projects with a failed evaluation phase
 					EvaluationBonds::<T>::iter_prefix(project_id)
-						.map(|(bonder, bond)| bond)
+						.map(|(_bonder, bond)| bond)
 						.collect::<Vec<_>>()
 				})
 				.take_while(|_| {

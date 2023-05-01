@@ -35,8 +35,6 @@ pallet-balances.workspace = true
 pallet-randomness-collective-flip.workspace = true
 pallet-assets.workspace = true
 pallet-credentials.workspace = true
-rand_chacha.workspace = true
-rand.workspace = true
 
 [features]
 default = ["std"]

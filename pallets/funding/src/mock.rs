@@ -27,7 +27,7 @@ use frame_support::{
 	PalletId,
 };
 use frame_system as system;
-use parachains_common::DAYS;
+use parachains_common::HOURS;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -144,13 +144,14 @@ impl pallet_assets::Config for TestRuntime {
 	type BenchmarkHelper = ();
 }
 
+// REMARK: In the production configuration we use DAYS instead of HOURS.
 parameter_types! {
-	pub const EvaluationDuration: BlockNumber = (28 * DAYS) as BlockNumber;
-	pub const AuctionInitializePeriodDuration: BlockNumber = (7 * DAYS) as BlockNumber;
-	pub const EnglishAuctionDuration: BlockNumber = (2 * DAYS) as BlockNumber;
-	pub const CandleAuctionDuration: BlockNumber = (3 * DAYS) as BlockNumber;
-	pub const CommunityRoundDuration: BlockNumber = (5 * DAYS) as BlockNumber;
-	pub const RemainderFundingDuration: BlockNumber = (1 * DAYS) as BlockNumber;
+	pub const EvaluationDuration: BlockNumber = (28 * HOURS) as BlockNumber;
+	pub const AuctionInitializePeriodDuration: BlockNumber = (7 * HOURS) as BlockNumber;
+	pub const EnglishAuctionDuration: BlockNumber = (2 * HOURS) as BlockNumber;
+	pub const CandleAuctionDuration: BlockNumber = (3 * HOURS) as BlockNumber;
+	pub const CommunityRoundDuration: BlockNumber = (5 * HOURS) as BlockNumber;
+	pub const RemainderFundingDuration: BlockNumber = (1 * HOURS) as BlockNumber;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 }
 
@@ -208,5 +209,5 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 }
 
 pub fn hashed(data: impl AsRef<[u8]>) -> H256 {
-	BlakeTwo256::hash(data.as_ref())
+	<BlakeTwo256 as sp_runtime::traits::Hash>::hash(data.as_ref())
 }

@@ -19,7 +19,7 @@
 //! Types for Funding pallet.
 
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
-use sp_arithmetic::traits::{SaturatedConversion, Saturating};
+use sp_arithmetic::traits::Saturating;
 use sp_runtime::traits::CheckedDiv;
 use sp_std::cmp::Eq;
 
@@ -196,7 +196,15 @@ impl<BlockNumber: Copy> BlockNumberPair<BlockNumber> {
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct BidInfo<BidId, ProjectId, Balance: BalanceT, AccountId, BlockNumber, PlmcVesting, CTVesting> {
+pub struct BidInfo<
+	BidId,
+	ProjectId,
+	Balance: BalanceT,
+	AccountId,
+	BlockNumber,
+	PlmcVesting,
+	CTVesting,
+> {
 	pub bid_id: BidId,
 	pub project: ProjectId,
 	#[codec(compact)]
@@ -255,7 +263,8 @@ impl<
 		BlockNumber: Eq,
 		PlmcVesting: Eq,
 		CTVesting: Eq,
-	> sp_std::cmp::Ord for BidInfo<BidId, ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
+	> sp_std::cmp::Ord
+	for BidInfo<BidId, ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
 {
 	fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
 		self.price.cmp(&other.price)
@@ -404,7 +413,7 @@ impl<
 	> Vesting<BlockNumber, Balance>
 {
 	pub fn calculate_next_withdrawal(&mut self) -> Result<Balance, ()> {
-		return if self.amount == 0u32.into() {
+		if self.amount == 0u32.into() {
 			Err(())
 		} else {
 			let next_withdrawal = self.next_withdrawal.saturating_add(self.step);
