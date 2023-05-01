@@ -943,25 +943,24 @@ impl<T: Config> Pallet<T> {
 		token_amount: BalanceOf<T>,
 		multiplier: Option<BalanceOf<T>>,
 	) -> Result<(), DispatchError> {
-		// * Validity checks *
+		// * Get variables *
 		let project_issuer =
 			ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectIssuerNotFound)?;
-		ensure!(contributor != project_issuer, Error::<T>::ContributionToThemselves);
 		let project_info =
 			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let project = Projects::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+		let multiplier = multiplier.unwrap_or(One::one());
+		let weighted_average_price =
+			project_info.weighted_average_price.ok_or(Error::<T>::AuctionNotStarted)?;
+		let ticket_size = token_amount.saturating_mul(weighted_average_price);
+		let decimals = project.token_information.decimals;
+
+		// * Validity checks *
+		ensure!(contributor != project_issuer, Error::<T>::ContributionToThemselves);
 		ensure!(
 			project_info.project_status == ProjectStatus::CommunityRound,
 			Error::<T>::AuctionNotStarted
 		);
-
-		// * Get variables *
-		let project = Projects::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let multiplier = multiplier.unwrap_or(One::one());
-		let weighted_average_price = project_info
-			.weighted_average_price
-			.expect("This value exists in Community Round");
-		let ticket_size = token_amount.saturating_mul(weighted_average_price);
-		let decimals = project.token_information.decimals;
 
 		// TODO: PLMC-133. Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
 		// ensure!(
