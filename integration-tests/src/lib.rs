@@ -3,17 +3,26 @@ use frame_support::{assert_ok, pallet_prelude::Weight, traits::GenesisBuild};
 use polimec_parachain_runtime as polimec_runtime;
 use polkadot_parachain::primitives::{Id as ParaId, Sibling as SiblingId};
 use shortcuts::*;
+use sp_core::{ecdsa, ed25519, sr25519, Pair};
 use sp_runtime::{traits::AccountIdConversion, AccountId32 as RuntimeAccountId32};
 use xcm::{v3::prelude::*, VersionedMultiAssets, VersionedMultiLocation, VersionedXcm};
 use xcm_emulator::{
 	cumulus_pallet_xcmp_queue, decl_test_network, decl_test_parachain, decl_test_relay_chain,
 	polkadot_primitives, TestExt,
 };
+// DIP Dependencies
+use did::did_details::{DidDetails, DidEncryptionKey, DidVerificationKey};
+use dip_provider_runtime_template::DidIdentifier;
+use dip_provider_runtime_template::DipProvider;
+use dip_support::latest::Proof;
+use kilt_support::deposit::Deposit;
+use pallet_did_lookup::linkable_account::LinkableAccountId;
 
 const RELAY_ASSET_ID: u32 = 0;
 const RESERVE_TRANSFER_AMOUNT: u128 = 10_0_000_000_000; //10 UNITS when 10 decimals
 pub const INITIAL_BALANCE: u128 = 100_0_000_000_000;
 pub const ALICE: RuntimeAccountId32 = RuntimeAccountId32::new([0u8; 32]);
+pub const DISPATCHER_ACCOUNT: RuntimeAccountId32 = RuntimeAccountId32::new([90u8; 32]);
 
 // TODO: What is a good value for this? Should we define a different limit for each test?
 const MAX_XCM_WEIGHT: Weight = Weight::from_parts(100_000_000_000, 3_000_000);
@@ -57,6 +66,16 @@ decl_test_parachain! {
 	}
 }
 
+decl_test_parachain! {
+	pub struct ProviderParachain {
+		Runtime = dip_provider_runtime_template::Runtime,
+		RuntimeOrigin = dip_provider_runtime_template::RuntimeOrigin,
+		XcmpMessageHandler = dip_provider_runtime_template::XcmpQueue,
+		DmpMessageHandler = dip_provider_runtime_template::DmpQueue,
+		new_ext = provider_ext(provider_id()),
+	}
+}
+
 decl_test_network! {
 	pub struct Network {
 		relay_chain = PolkadotNet,
@@ -64,6 +83,7 @@ decl_test_network! {
 			(2000u32, PolimecNet),
 			(1000u32, StatemintNet),
 			(3000u32, PenpalNet),
+			(2001u32, ProviderParachain),
 		],
 	}
 }
@@ -77,6 +97,9 @@ fn statemint_id() -> u32 {
 }
 fn penpal_id() -> u32 {
 	_para_ids()[2]
+}
+fn provider_id() -> u32 {
+	_para_ids()[3]
 }
 
 // Helper functions to calculate chain accounts
@@ -101,6 +124,9 @@ impl ParachainAccounts {
 	}
 	fn penpal_sibling_account() -> RuntimeAccountId32 {
 		SiblingId::from(penpal_id()).into_account_truncating()
+	}
+	fn provider_sibling_account() -> RuntimeAccountId32 {
+		SiblingId::from(provider_id()).into_account_truncating()
 	}
 }
 
@@ -204,8 +230,10 @@ pub fn polimec_ext(para_id: u32) -> sp_io::TestExternalities {
 	pallet_balances::GenesisConfig::<Runtime> {
 		balances: vec![
 			(ALICE, INITIAL_BALANCE),
+			(DISPATCHER_ACCOUNT, INITIAL_BALANCE),
 			(ParachainAccounts::penpal_sibling_account(), INITIAL_BALANCE),
 			(ParachainAccounts::statemint_sibling_account(), INITIAL_BALANCE),
+			(ParachainAccounts::provider_sibling_account(), INITIAL_BALANCE),
 		],
 	}
 	.assimilate_storage(&mut t)
@@ -303,6 +331,54 @@ pub fn penpal_ext(para_id: u32) -> sp_io::TestExternalities {
 	ext
 }
 
+pub fn provider_ext(para_id: u32) -> sp_io::TestExternalities {
+	use dip_provider_runtime_template::{Runtime, System};
+
+	let mut t = frame_system::GenesisConfig::default().build_storage::<Runtime>().unwrap();
+
+	let parachain_info_config = parachain_info::GenesisConfig { parachain_id: para_id.into() };
+	<parachain_info::GenesisConfig as GenesisBuild<Runtime, _>>::assimilate_storage(
+		&parachain_info_config,
+		&mut t,
+	)
+	.unwrap();
+
+	let mut ext = sp_io::TestExternalities::new(t);
+	let did: DidIdentifier = did_auth_key().public().into();
+	let details = generate_did_details();
+	ext.execute_with(|| {
+		did::pallet::Did::<Runtime>::insert(&did, details);
+		System::set_block_number(1);
+	});
+	ext
+}
+
+pub(crate) fn did_auth_key() -> ed25519::Pair {
+	ed25519::Pair::from_seed(&[200u8; 32])
+}
+
+fn generate_did_details() -> DidDetails<dip_provider_runtime_template::Runtime> {
+	let auth_key: DidVerificationKey = did_auth_key().public().into();
+	let att_key: DidVerificationKey = sr25519::Pair::from_seed(&[100u8; 32]).public().into();
+	let del_key: DidVerificationKey = ecdsa::Pair::from_seed(&[101u8; 32]).public().into();
+
+	let mut details = DidDetails::new(
+		auth_key,
+		0u32,
+		Deposit {
+			amount: 1u64.into(),
+			owner: dip_provider_runtime_template::AccountId::new([1u8; 32]),
+		},
+	)
+	.unwrap();
+	details.update_attestation_key(att_key, 0u32).unwrap();
+	details.update_delegation_key(del_key, 0u32).unwrap();
+	details
+		.add_key_agreement_key(DidEncryptionKey::X25519([100u8; 32]), 0u32)
+		.unwrap();
+	details
+}
+
 /// Shortcuts to reduce boilerplate on runtime types
 pub mod shortcuts {
 	use super::*;
@@ -311,6 +387,7 @@ pub mod shortcuts {
 	pub type PolimecRuntime = polimec_runtime::Runtime;
 	pub type StatemintRuntime = statemint_runtime::Runtime;
 	pub type PenpalRuntime = penpal_runtime::Runtime;
+	pub type ProviderRuntime = dip_provider_runtime_template::Runtime;
 
 	pub type PolkadotXcmPallet = polkadot_runtime::XcmPallet;
 	pub type PolimecXcmPallet = polimec_runtime::PolkadotXcm;
@@ -342,6 +419,7 @@ pub mod shortcuts {
 	pub type PolimecAccountId = polkadot_primitives::AccountId;
 	pub type StatemintAccountId = polkadot_primitives::AccountId;
 	pub type PenpalAccountId = polkadot_primitives::AccountId;
+	pub type ProviderAccountId = polkadot_primitives::AccountId;
 }
 
 #[cfg(test)]
@@ -1100,8 +1178,8 @@ mod reserve_backed_transfers {
 			statemint_prev_alice_dot_balance - statemint_post_alice_dot_balance;
 
 		assert!(
-			penpal_delta_alice_dot_balance > RESERVE_TRANSFER_AMOUNT - MAX_XCM_FEE * 3 &&
-				penpal_delta_alice_dot_balance < RESERVE_TRANSFER_AMOUNT,
+			penpal_delta_alice_dot_balance > RESERVE_TRANSFER_AMOUNT - MAX_XCM_FEE * 3
+				&& penpal_delta_alice_dot_balance < RESERVE_TRANSFER_AMOUNT,
 			"Expected funds are not received by Alice on Penpal"
 		);
 
@@ -1273,8 +1351,8 @@ mod reserve_backed_transfers {
 			statemint_prev_alice_dot_balance - statemint_post_alice_dot_balance;
 
 		assert!(
-			polimec_delta_alice_dot_balance > RESERVE_TRANSFER_AMOUNT - MAX_XCM_FEE * 3 &&
-				polimec_delta_alice_dot_balance < RESERVE_TRANSFER_AMOUNT,
+			polimec_delta_alice_dot_balance > RESERVE_TRANSFER_AMOUNT - MAX_XCM_FEE * 3
+				&& polimec_delta_alice_dot_balance < RESERVE_TRANSFER_AMOUNT,
 			"Expected funds are not received by Alice on Polimec"
 		);
 
@@ -1309,5 +1387,74 @@ mod reserve_backed_transfers {
 		);
 
 		assert_eq!(polimec_delta_plmc_issuance, 0, "Polimec PLMC issuance should not have changed");
+	}
+
+	#[test]
+	fn commit_identity() {
+		Network::reset();
+
+		let did: DidIdentifier = did_auth_key().public().into();
+
+		// 1. Send identity proof from DIP provider to DIP consumer.
+		ProviderParachain::execute_with(|| {
+			use frame_system::RawOrigin;
+
+			assert_ok!(DipProvider::commit_identity(
+				RawOrigin::Signed(ProviderAccountId::from([0u8; 32])).into(),
+				did.clone(),
+				Box::new(ParentThen(X1(Parachain(polimec_id()))).into()),
+				Box::new((Here, 1_000_000_000).into()),
+				Weight::from_ref_time(4_000),
+			));
+		});
+		// 2. Verify that the proof has made it to the DIP consumer.
+		PolimecNet::execute_with(|| {
+			use polimec_parachain_runtime::{RuntimeEvent, System};
+			// 2.1 Verify that there was no XCM error.
+			// assert!(!System::events().iter().any(|r| matches!(
+			// 	r.event,
+			// 	RuntimeEvent::XcmpQueue(XcmpEvent::Fail {
+			// 		error: _,
+			// 		message_hash: _,
+			// 		weight: _
+			// 	})
+			// )));
+			// 2.2 Verify the proof digest was stored correctly.
+			assert!(polimec_parachain_runtime::DipConsumer::identity_proofs(&did).is_some());
+		});
+		// 3. Call an extrinsic on the consumer chain with a valid proof
+		let did_details = ProviderParachain::execute_with(|| {
+			use did::Did;
+			Did::get(&did).expect("DID details should be stored on the provider chain.")
+		});
+		// 3.1 Generate a proof
+		let CompleteMerkleProof { proof, .. } =
+			DidMerkleRootGenerator::<ProviderRuntime>::generate_proof(
+				&did_details,
+				[did_details.authentication_key].iter(),
+			)
+			.expect("Proof generation should not fail");
+		// 3.2 Call the `dispatch_as` extrinsic on the consumer chain with the generated
+		// proof
+		PolimecNet::execute_with(|| {
+			use frame_system::RawOrigin;
+			use polimec_parachain_runtime::DidLookup;
+			use polimec_parachain_runtime::DipConsumer;
+			use polimec_parachain_runtime::RuntimeCall;
+
+			assert_ok!(DipConsumer::dispatch_as(
+				RawOrigin::Signed(DISPATCHER_ACCOUNT).into(),
+				did.clone(),
+				Proof { blinded: proof.blinded, revealed: proof.revealed }.into(),
+				Box::new(RuntimeCall::DidLookup(
+					pallet_did_lookup::Call::<PolimecRuntime>::associate_sender {}
+				)),
+			));
+			// Verify the account -> DID link exists and contains the right information
+			let linked_did =
+				DidLookup::connected_dids::<LinkableAccountId>(DISPATCHER_ACCOUNT.into())
+					.map(|link| link.did);
+			assert_eq!(linked_did, Some(did));
+		});
 	}
 }

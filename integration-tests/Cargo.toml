@@ -47,7 +47,10 @@ statemint-runtime.workspace = true
 polimec-parachain-runtime.workspace = true
 penpal-runtime.workspace = true
 dip-provider-runtime-template = { workspace = true, features = ["std"] }
-
+did = { workspace = true, features = ["std"] }
+kilt-support = { workspace = true, features = ["std"] }
+pallet-did-lookup = { workspace = true, features = ["std"] }
+dip-support = { workspace = true, features = ["std"] }
 
 [features]
 default = ["std"]
