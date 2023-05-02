@@ -56,6 +56,7 @@ dip-support = { git = "https://github.com/KILTprotocol/kilt-node", default-featu
 kilt-support = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
 did = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
 pallet-did-lookup = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
+
 # Internal runtime API (with default disabled)
 kilt-runtime-api-staking = { path = "runtime-api/staking", default-features = false }
 
@@ -73,7 +74,8 @@ smallvec = "1.10.0"
 log = "0.4.17"
 
 # Emulations
-xcm-emulator = { git = "https://github.com/shaunxw/xcm-simulator", default-features = false, rev = "754f3b90ecc65af735a6c9a2e1792c5253926ff6" }
+xcm-emulator = { git = "https://github.com/shaunxw/xcm-simulator", default-features = false, rev = "aa13dce47596e150806dfc3af99096dae6ffc65e" }
+dip-provider-runtime-template = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
 
 # Substrate (with default disabled)
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.39" }

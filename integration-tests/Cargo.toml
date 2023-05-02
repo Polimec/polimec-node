@@ -46,6 +46,7 @@ polkadot-runtime.workspace = true
 statemint-runtime.workspace = true
 polimec-parachain-runtime.workspace = true
 penpal-runtime.workspace = true
+dip-provider-runtime-template = { workspace = true, features = ["std"] }
 
 
 [features]
