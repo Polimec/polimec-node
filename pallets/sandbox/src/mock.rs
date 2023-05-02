@@ -14,14 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// If you feel like getting in touch with us, you can do so at info@polimec.org
-
-//! Test environment for Funding pallet.
-
-use super::*;
-use crate as pallet_funding;
-
-
 
 use frame_support::{
 	parameter_types,
@@ -37,8 +29,11 @@ use sp_runtime::{
 	BuildStorage,
 };
 use system::EnsureSigned;
+
+
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<TestRuntime>;
 type Block = frame_system::mocking::MockBlock<TestRuntime>;
+
 
 pub type AccountId = u64;
 pub type Balance = u128;
@@ -59,8 +54,11 @@ frame_support::construct_runtime!(
 		Balances: pallet_balances,
 		FundingModule: pallet_funding,
 		Credentials: pallet_credentials,
+		Sandbox: crate,
 	}
 );
+
+impl crate::Config for TestRuntime {}
 
 parameter_types! {
 	pub const BlockHashCount: u32 = 250;
@@ -100,7 +98,7 @@ parameter_types! {
 impl pallet_balances::Config for TestRuntime {
 	type MaxLocks = frame_support::traits::ConstU32<1024>;
 	type MaxReserves = frame_support::traits::ConstU32<1024>;
-	type ReserveIdentifier = BondType;
+	type ReserveIdentifier = pallet_funding::BondType;
 	type Balance = Balance;
 	type RuntimeEvent = RuntimeEvent;
 	type DustRemoval = ();

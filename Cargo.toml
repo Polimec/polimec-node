@@ -52,7 +52,9 @@ parachain-staking = { path = "pallets/parachain-staking", default-features = fal
 pallet-credentials = { path = "pallets/credentials", default-features = false }
 pallet-credentials-api = { path = "pallets/credentials/rpc", default-features = false }
 pallet-funding = { path = "pallets/funding", default-features = false }
+pallet-sandbox = { path = "pallets/sandbox", default-features = false }
 pallet-asset-registry = { path = "pallets/asset-registry", default-features = false }
+
 
 # Internal support (with default disabled)
 runtime-common = { path = "runtimes/common", default-features = false }

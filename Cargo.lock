@@ -6206,6 +6206,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-sandbox"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-assets",
+ "pallet-balances",
+ "pallet-credentials",
+ "pallet-funding",
+ "pallet-randomness-collective-flip",
+ "parachains-common",
+ "parity-scale-codec",
+ "polimec-traits",
+ "scale-info",
+ "serde",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-scheduler"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38#bcff60a227d455d95b4712b6cb356ce56b1ff672"

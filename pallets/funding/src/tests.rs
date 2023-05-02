@@ -113,11 +113,11 @@ trait ProjectInstance {
 // Initial instance of a test
 #[derive(Debug)]
 pub struct TestEnvironment {
-	ext_env: RefCell<sp_io::TestExternalities>,
-	nonce: RefCell<u64>,
+	pub ext_env: RefCell<sp_io::TestExternalities>,
+	pub nonce: RefCell<u64>,
 }
 impl TestEnvironment {
-	fn new() -> Self {
+	pub fn new() -> Self {
 		Self { ext_env: RefCell::new(new_test_ext()), nonce: RefCell::new(0u64) }
 	}
 	fn create_project(
@@ -407,7 +407,7 @@ impl<'a> AuctioningProject<'a> {
 }
 
 #[derive(Debug)]
-struct CommunityFundingProject<'a> {
+pub struct CommunityFundingProject<'a> {
 	test_env: &'a TestEnvironment,
 	creator: AccountId,
 	project_id: ProjectIdOf<TestRuntime>,
@@ -424,7 +424,7 @@ impl<'a> ProjectInstance for CommunityFundingProject<'a> {
 	}
 }
 impl<'a> CommunityFundingProject<'a> {
-	fn new_default(test_env: &'a TestEnvironment) -> Self {
+	pub fn new_default(test_env: &'a TestEnvironment) -> Self {
 		let auctioning_project = AuctioningProject::new_default(test_env);
 
 		// Do Auction bidding
@@ -1410,5 +1410,15 @@ mod bids_vesting {
 				assert_eq!(actual_bonded_plmc, 0u32.into());
 			}
 		});
+	}
+}
+
+#[cfg(test)]
+mod sandbox {
+	use super::*;
+
+	#[test]
+	fn template() {
+
 	}
 }
