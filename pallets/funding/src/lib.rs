@@ -62,42 +62,40 @@
 //! ## Interface
 //! All users who wish to participate need to have a valid credential, given to them on the KILT parachain, by a KYC/AML provider.
 //! ### Extrinsics
-//! * `create` : Creates a new project.
-//! * `edit_metadata` : Submit a new Hash of the project metadata.
-//! * `start_evaluation` : Start the Evaluation round of a project.
-//! * `start_auction` : Start the English Auction round of a project.
-//! * `bond_evaluation` : Bond PLMC on a project in the evaluation stage. A sort of "bet" that you think the project will be funded
-//! * `failed_evaluation_unbond_for` : Unbond the PLMC bonded on a project's evaluation round for any user, if the project failed the evaluation.
-//! * `bid` : Perform a bid during the English or Candle Auction Round.
-//! * `contribute` : Buy contribution tokens if a project during the Community or Remainder round
-//! * `vested_plmc_bid_unbond_for` : Unbond the PLMC bonded on a project's English or Candle Auction Round for any user, based on their vesting schedule.
-//! * `vested_plmc_purchase_unbond_for` : Unbond the PLMC bonded on a project's Community or Remainder Round for any user, based on their vesting schedule.
-//! * `vested_contribution_token_bid_mint_for` : Mint the contribution tokens for a user who participated in the English or Candle Auction Round, based on their vesting schedule.
-//! * `vested_contribution_token_purchase_mint_for` : Mint the contribution tokens for a user who participated in the Community or Remainder Round, based on their vesting schedule.
+//! * [`create`](Pallet::create) : Creates a new project.
+//! * [`edit_metadata`](Pallet::edit_metadata) : Submit a new Hash of the project metadata.
+//! * [`start_evaluation`](Pallet::start_evaluation) : Start the Evaluation round of a project.
+//! * [`start_auction`](Pallet::start_auction) : Start the English Auction round of a project.
+//! * [`bond_evaluation`](Pallet::bond_evaluation) : Bond PLMC on a project in the evaluation stage. A sort of "bet" that you think the project will be funded
+//! * [`failed_evaluation_unbond_for`](Pallet::failed_evaluation_unbond_for) : Unbond the PLMC bonded on a project's evaluation round for any user, if the project failed the evaluation.
+//! * [`bid`](Pallet::bid) : Perform a bid during the English or Candle Auction Round.
+//! * [`contribute`](Pallet::contribute) : Buy contribution tokens if a project during the Community or Remainder round
+//! * [`vested_plmc_bid_unbond_for`](Pallet::vested_plmc_bid_unbond_for) : Unbond the PLMC bonded on a project's English or Candle Auction Round for any user, based on their vesting schedule.
+//! * [`vested_plmc_purchase_unbond_for`](Pallet::vested_plmc_purchase_unbond_for) : Unbond the PLMC bonded on a project's Community or Remainder Round for any user, based on their vesting schedule.
+//! * [`vested_contribution_token_bid_mint_for`](Pallet::vested_contribution_token_bid_mint_for) : Mint the contribution tokens for a user who participated in the English or Candle Auction Round, based on their vesting schedule.
+//! * [`vested_contribution_token_purchase_mint_for`](Pallet::vested_contribution_token_purchase_mint_for) : Mint the contribution tokens for a user who participated in the Community or Remainder Round, based on their vesting schedule.
 //!
 //! ### Storage Items
-//! * `NextProjectId` : Increasing counter to get the next id to assign to a project.
-//! * `NextBidId`: Increasing counter to get the next id to assign to a bid.
-//! * `Nonce`: Increasing counter to be used in random number generation.
-//! * `Images`: Map of the hash of some metadata to the user who owns it. Avoids storing the same image twice, and keeps track of ownership for a future project data access due to regulatory compliance.
-//! * `Projects`: Map of the assigned id, to the main information of a project.
-//! * `ProjectsIssuers`: Map of a project id, to its issuer account.
-//! * `ProjectsInfo`: Map of a project id, to some additional information required for ensuring correctness of the protocol.
-//! * `ProjectsToUpdate`: Map of a block number, to a vector of project ids. Used to keep track of projects that need to be updated in on_initialize.
-//! * `AuctionsInfo`: Double map linking a project-user to the bids they made.
-//! * `EvaluationBonds`: Double map linking a project-user to the PLMC they bonded in the evaluation round.
-//! * `BiddingBonds`: Double map linking a project-user to the PLMC they bonded in the English or Candle Auction round.
-//! * `ContributingBonds`: Double map linking a project-user to the PLMC they bonded in the Community or Remainder round.
-//! * `Contributions`: Double map linking a project-user to the contribution tokens they bought in the Community or Remainder round.
+//! * [`NextProjectId`] : Increasing counter to get the next id to assign to a project.
+//! * [`NextBidId`]: Increasing counter to get the next id to assign to a bid.
+//! * [`Nonce`]: Increasing counter to be used in random number generation.
+//! * [`Images`]: Map of the hash of some metadata to the user who owns it. Avoids storing the same image twice, and keeps track of ownership for a future project data access due to regulatory compliance.
+//! * [`Projects`]: Map of the assigned id, to the main information of a project.
+//! * [`ProjectsIssuers`]: Map of a project id, to its issuer account.
+//! * [`ProjectsInfo`]: Map of a project id, to some additional information required for ensuring correctness of the protocol.
+//! * [`ProjectsToUpdate`]: Map of a block number, to a vector of project ids. Used to keep track of projects that need to be updated in on_initialize.
+//! * [`AuctionsInfo`]: Double map linking a project-user to the bids they made.
+//! * [`EvaluationBonds`]: Double map linking a project-user to the PLMC they bonded in the evaluation round.
+//! * [`BiddingBonds`]: Double map linking a project-user to the PLMC they bonded in the English or Candle Auction round.
+//! * [`ContributingBonds`]: Double map linking a project-user to the PLMC they bonded in the Community or Remainder round.
+//! * [`Contributions`]: Double map linking a project-user to the contribution tokens they bought in the Community or Remainder round.
 //!
 //! ## Usage
 //! You can circumvent the extrinsics by calling the do_* functions that they call directly.
 //! This is useful if you need to make use of this pallet's functionalities in a pallet of your own, and you don't want to pay the transaction fees twice.
 //! ### Example: A retail user buying tokens for a project in the community round
-//! ```rust
+//! ```
 //! pub use pallet::*;
-//!
-//! use pallet_funding::{self as funding};
 //!
 //! #[frame_support::pallet(dev_mode)]
 //! pub mod pallet {
@@ -109,7 +107,7 @@
 //! 	pub struct Pallet<T>(_);
 //!
 //! 	#[pallet::config]
-//! 	pub trait Config: frame_system::Config + funding::Config {}
+//! 	pub trait Config: frame_system::Config + pallet_funding::Config {}
 //!
 //! 	#[pallet::call]
 //! 	impl<T: Config> Pallet<T> {
@@ -117,17 +115,17 @@
 //! 		#[pallet::weight(0)]
 //! 		pub fn buy_if_popular(
 //! 			origin: OriginFor<T>,
-//! 			project_id: <T as funding::Config>::ProjectIdParameter,
-//! 			amount: <T as funding::Config>::CurrencyBalance
+//! 			project_id: <T as pallet_funding::Config>::ProjectIdParameter,
+//! 			amount: <T as pallet_funding::Config>::CurrencyBalance
 //! 		) -> DispatchResult {
 //! 			let retail_user = ensure_signed(origin)?;
-//! 			let project_id: <T as funding::Config>::ProjectIdentifier = project_id.into();
+//! 			let project_id: <T as pallet_funding::Config>::ProjectIdentifier = project_id.into();
 //! 			// Check project is in the community round
-//! 			let project_info = funding::Pallet::<T>::project_info(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-//! 			ensure!(project_info.project_status == funding::ProjectStatus::CommunityRound, "Project is not in the community round");
+//! 			let project_info = pallet_funding::Pallet::<T>::project_info(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+//! 			ensure!(project_info.project_status == pallet_funding::ProjectStatus::CommunityRound, "Project is not in the community round");
 //!
 //! 			// Calculate how much funding was done already
-//! 			let project_contributions: <T as funding::Config>::CurrencyBalance = funding::Contributions::<T>::iter_prefix_values(project_id)
+//! 			let project_contributions: <T as pallet_funding::Config>::CurrencyBalance = pallet_funding::Contributions::<T>::iter_prefix_values(project_id)
 //! 				.flatten()
 //! 				.fold(
 //! 					0u64.into(),
@@ -139,7 +137,7 @@
 //! 			ensure!(project_contributions >= 500_000_0_000_000_000u64.into(), "Project did not achieve at least 500k USDT funding");
 //!
 //! 			// Buy tokens with the default multiplier
-//! 			<funding::Pallet<T>>::do_contribute(retail_user, project_id, amount, None)?;
+//! 			<pallet_funding::Pallet<T>>::do_contribute(retail_user, project_id, amount, None)?;
 //!
 //! 			Ok(())
 //! 		}
@@ -907,7 +905,8 @@ pub mod pallet {
 
 					// FundingEnded -> ReadyToLaunch
 					// Handled by user extrinsic
-					_ => (),
+
+					_ => {}
 				}
 			}
 			// TODO: PLMC-127. Set a proper weight
@@ -919,7 +918,10 @@ pub mod pallet {
 				<T as Config>::PalletId::get().into_account_truncating();
 
 			let mut remaining_weight = max_weight;
+
+			// Unbond the plmc from failed evaluation projects
 			let unbond_results = ProjectsInfo::<T>::iter()
+				// Retrieve failed evaluation projects
 				.filter_map(|(project_id, info)| {
 					if let ProjectStatus::EvaluationFailed = info.project_status {
 						Some(project_id)
@@ -927,12 +929,14 @@ pub mod pallet {
 						None
 					}
 				})
+				// Get a flat list of bonds
 				.flat_map(|project_id| {
 					// get all the bonds for projects with a failed evaluation phase
 					EvaluationBonds::<T>::iter_prefix(project_id)
 						.map(|(_bonder, bond)| bond)
 						.collect::<Vec<_>>()
 				})
+				// Retrieve as many as possible for the given weight
 				.take_while(|_| {
 					if let Some(new_weight) =
 						remaining_weight.checked_sub(&T::WeightInfo::failed_evaluation_unbond_for())
@@ -943,16 +947,18 @@ pub mod pallet {
 						false
 					}
 				})
+				// Unbond the plmc
 				.map(|bond| Self::do_failed_evaluation_unbond_for(bond, pallet_account.clone()))
 				.collect::<Vec<_>>();
 
+			// Make sure no unbonding failed
 			for result in unbond_results {
 				if let Err(e) = result {
 					Self::deposit_event(Event::<T>::FailedEvaluationUnbondFailed { error: e });
 				}
 			}
 
-			// // TODO: PLMC-127. Set a proper weightK
+			// // TODO: PLMC-127. Set a proper weight
 			max_weight.saturating_sub(remaining_weight)
 		}
 	}
@@ -983,8 +989,8 @@ pub mod pallet {
 }
 
 pub mod local_macros {
-	// used to unwrap storage values that can be None in places where an error cannot be returned,
-	// but an event should be emitted, and optionally a skip to the next iteration of a loop
+	/// used to unwrap storage values that can be None in places where an error cannot be returned,
+	/// but an event should be emitted, and skip to the next iteration of a loop
 	macro_rules! unwrap_option_or_skip {
 		($option:expr, $project_id:expr) => {
 			match $option {
@@ -1001,6 +1007,8 @@ pub mod local_macros {
 	}
 	pub(crate) use unwrap_option_or_skip;
 
+	/// used to unwrap storage values that can be Err in places where an error cannot be returned,
+	/// but an event should be emitted, and skip to the next iteration of a loop
 	macro_rules! unwrap_result_or_skip {
 		($option:expr, $project_id:expr) => {
 			match $option {
