@@ -21,8 +21,6 @@
 use super::*;
 use crate as pallet_funding;
 
-
-
 use frame_support::{
 	parameter_types,
 	traits::{AsEnsureOriginWithArg, ConstU128, ConstU16, ConstU32},

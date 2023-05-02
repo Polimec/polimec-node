@@ -40,23 +40,24 @@
 //!
 //! Basic flow of a project's lifecycle:
 //!
+//!
 //! | Step                      | Description                                                                                                                                                                                                                                                                                                                                                                                                 | Resulting Project State                                             |
 //! |---------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------|
 //! | Creation                  | Issuer creates a project with the [`create()`](Pallet::create) extrinsic.                                                                                                                                                                                                                                                                                                                                   | [`Application`](ProjectStatus::Application)                         |
 //! | Evaluation Start          | Issuer starts the evaluation round with the [`start_evaluation()`](Pallet::start_evaluation) extrinsic.                                                                                                                                                                                                                                                                                                     | [`EvaluationRound`](ProjectStatus::EvaluationRound)                 |
 //! | Evaluation Submissions    | Evaluators assess the project information, and if they think it is good enough to get funding, they bond Polimec's native token PLMC with [`bond_evaluation()`](Pallet::bond_evaluation)                                                                                                                                                                                                                    | [`EvaluationRound`](ProjectStatus::EvaluationRound)                 |
-//! | Evaluation End            | Evaluation round ends automatically after the [`Config::EvaluationDuration`]() has passed. This is achieved by the [`on_initialize()`](Pallet::on_initialize) function.                                                                                                                                                                                                                                     | [`AuctionInitializePeriod`](ProjectStatus::AuctionInitializePeriod) |
-//! | Auction Start             | Issuer starts the auction round within the [`Config::AuctionInitializePeriodDuration`](), by calling the extrinsic [`start_auction()`](Pallet::start_auction)                                                                                                                                                                                                                                               | [`AuctionRound(English)`](ProjectStatus::AuctionRound)              |
+//! | Evaluation End            | Evaluation round ends automatically after the [`Config::EvaluationDuration`] has passed. This is achieved by the [`on_initialize()`](Pallet::on_initialize) function.                                                                                                                                                                                                                                       | [`AuctionInitializePeriod`](ProjectStatus::AuctionInitializePeriod) |
+//! | Auction Start             | Issuer starts the auction round within the [`Config::AuctionInitializePeriodDuration`], by calling the extrinsic [`start_auction()`](Pallet::start_auction)                                                                                                                                                                                                                                                 | [`AuctionRound(English)`](ProjectStatus::AuctionRound)              |
 //! | Bid Submissions           | Institutional and Professional users can place bids with [`bid()`](Pallet::bid) by choosing their desired token price, amount, and multiplier (for vesting). Their bids are guaranteed to be considered                                                                                                                                                                                                     | [`AuctionRound(English)`](ProjectStatus::AuctionRound)              |                                                                                                                                                                                                                |                                                                     |
-//! | Candle Auction Transition | After the [`Config::EnglishAuctionDuration`]() has passed, the auction goes into candle mode thanks to [`on_initialize()`](Pallet::on_initialize)                                                                                                                                                                                                                                                           | [`AuctionRound(Candle)`](ProjectStatus::AuctionRound)               |
+//! | Candle Auction Transition | After the [`Config::EnglishAuctionDuration`] has passed, the auction goes into candle mode thanks to [`on_initialize()`](Pallet::on_initialize)                                                                                                                                                                                                                                                             | [`AuctionRound(Candle)`](ProjectStatus::AuctionRound)               |
 //! | Bid Submissions           | Institutional and Professional users can continue bidding, but this time their bids will only be considered, if they managed to fall before the random ending block calculated at the end of the auction.                                                                                                                                                                                                   | [`AuctionRound(Candle)`](ProjectStatus::AuctionRound)               |
-//! | Community Funding Start   | After the [`Config::CandleAuctionDuration`]() has passed, the auction automatically. A final token price for the next rounds is calculated based on the accepted bids.                                                                                                                                                                                                                                      | [`CommunityRound`](ProjectStatus::CommunityRound)                   |
+//! | Community Funding Start   | After the [`Config::CandleAuctionDuration`] has passed, the auction automatically. A final token price for the next rounds is calculated based on the accepted bids.                                                                                                                                                                                                                                        | [`CommunityRound`](ProjectStatus::CommunityRound)                   |
 //! | Funding Submissions       | Retail investors can call the [`contribute()`](Pallet::contribute) extrinsic to buy tokens at the set price.                                                                                                                                                                                                                                                                                                | [`CommunityRound`](ProjectStatus::CommunityRound)                   |
-//! | Remainder Funding Start   | After the [`Config::CommunityFundingDuration`]() has passed, the project is now open to token purchases from any user type                                                                                                                                                                                                                                                                                  | [`RemainderRound`](ProjectStatus::RemainderRound)                   |
-//! | Funding End               | If all tokens were sold, or after the [`Config::RemainderFundingDuration`]() has passed, the project automatically ends, and it is calculated if it reached its desired funding or not.                                                                                                                                                                                                                     | [`FundingEnded`](ProjectStatus::FundingEnded)                       |
+//! | Remainder Funding Start   | After the [`Config::CommunityFundingDuration`] has passed, the project is now open to token purchases from any user type                                                                                                                                                                                                                                                                                    | [`RemainderRound`](ProjectStatus::RemainderRound)                   |
+//! | Funding End               | If all tokens were sold, or after the [`Config::RemainderFundingDuration`] has passed, the project automatically ends, and it is calculated if it reached its desired funding or not.                                                                                                                                                                                                                       | [`FundingEnded`](ProjectStatus::FundingEnded)                       |
 //! | Evaluator Rewards         | If the funding was successful, evaluators can claim their contribution token rewards with the [`TBD`]() extrinsic. If it failed, evaluators can either call the [`failed_evaluation_unbond_for()`](Pallet::failed_evaluation_unbond_for) extrinsic, or wait for the [`on_idle()`](Pallet::on_initialize) function, to return their funds                                                                    | [`FundingEnded`](ProjectStatus::FundingEnded)                       |
 //! | Bidder Rewards            | If the funding was successful, bidders will call [`vested_contribution_token_bid_mint_for()`](Pallet::vested_contribution_token_bid_mint_for) to mint the contribution tokens they are owed, and [`vested_plmc_bid_unbond_for()`](Pallet::vested_plmc_bid_unbond_for) to unbond their PLMC, based on their current vesting schedule.                                                                        | [`FundingEnded`](ProjectStatus::FundingEnded)                       |
-//! | Buyer Rewards             | If the funding was successful, users who bought tokens on the Community or Remainder round, can call [`vested_contribution_token_purchase_mint_for()`](Pallet::vested_contribution_token_purchase_mint_for) to mint the contribution tokens they are owed, and [`vested_plmc_purchase_unbond_for()`](Pallet::vested_plmc_purchase_unbond_for) to unbond their PLMC, based on their current vesting schedule | [`FundingEnded`](ProjectStatus::FundingEnded)                       |                                                                   |
+//! | Buyer Rewards             | If the funding was successful, users who bought tokens on the Community or Remainder round, can call [`vested_contribution_token_purchase_mint_for()`](Pallet::vested_contribution_token_purchase_mint_for) to mint the contribution tokens they are owed, and [`vested_plmc_purchase_unbond_for()`](Pallet::vested_plmc_purchase_unbond_for) to unbond their PLMC, based on their current vesting schedule | [`FundingEnded`](ProjectStatus::FundingEnded)                       |
 //!
 //! ## Interface
 //! All users who wish to participate need to have a valid credential, given to them on the KILT parachain, by a KYC/AML provider.
@@ -95,12 +96,6 @@
 //! ### Example: A retail user buying tokens for a project in the community round
 //! ```rust
 //! pub use pallet::*;
-//!
-//! #[cfg(test)]
-//! mod tests;
-//!
-//! #[cfg(test)]
-//! mod mock;
 //!
 //! use pallet_funding::{self as funding};
 //!
@@ -179,8 +174,6 @@
 //! _* They can call contribute only if the project is on the remainder round._
 //!
 
-
-
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 // This recursion limit is needed because we have too many benchmarks and benchmarking will fail if
@@ -229,10 +222,9 @@ use sp_runtime::{
 	FixedPointNumber, FixedPointOperand, FixedU128,
 };
 use sp_std::prelude::*;
-/// The balance type of this pallet.
+
 type BalanceOf<T> = <T as Config>::CurrencyBalance;
 
-/// The project type of this pallet.
 type ProjectOf<T> = Project<
 	BoundedVec<u8, <T as Config>::StringLimit>,
 	BalanceOf<T>,
@@ -241,7 +233,6 @@ type ProjectOf<T> = Project<
 
 type ProjectInfoOf<T> = ProjectInfo<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>;
 
-/// The bid type of this pallet.
 type BidInfoOf<T> = BidInfo<
 	<T as Config>::BidId,
 	<T as Config>::ProjectIdentifier,
@@ -271,9 +262,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	/// The module configuration trait.
 	pub trait Config: frame_system::Config {
-		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Global identifier for the projects.
@@ -305,9 +294,9 @@ pub mod pallet {
 		>;
 
 		/// The bidding balance.
-		// type BiddingCurrency: Transfer<Self::AccountId>;
 		type BiddingCurrency: ReservableCurrency<Self::AccountId, Balance = BalanceOf<Self>>;
 
+		/// Unique identifier for any bid in the system.
 		type BidId: Parameter + Copy + Saturating + One + Default;
 
 		/// Something that provides randomness in the runtime.
@@ -337,6 +326,7 @@ pub mod pallet {
 		#[pallet::constant]
 		type EvaluationDuration: Get<Self::BlockNumber>;
 
+		/// The time window (expressed in number of blocks) that an issuer has to start the auction round.
 		#[pallet::constant]
 		type AuctionInitializePeriodDuration: Get<Self::BlockNumber>;
 
@@ -352,7 +342,7 @@ pub mod pallet {
 		#[pallet::constant]
 		type CommunityFundingDuration: Get<Self::BlockNumber>;
 
-		/// The length (expressed in number of blocks) of the Funding Round.
+		/// The length (expressed in number of blocks) of the Remainder Round.
 		#[pallet::constant]
 		type RemainderFundingDuration: Get<Self::BlockNumber>;
 
@@ -361,15 +351,15 @@ pub mod pallet {
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
 
-		/// The maximum number of "active" (In Evaluation or Funding Round) projects
+		/// How many projects should we update in on_initialize each block
 		#[pallet::constant]
 		type MaxProjectsToUpdatePerBlock: Get<u32>;
 
-		/// The maximum number of bids per user
+		/// The maximum number of bids per user per project
 		#[pallet::constant]
 		type MaximumBidsPerUser: Get<u32>;
 
-		/// The maximum number of bids per user
+		/// The maximum number of bids per user per project
 		#[pallet::constant]
 		type MaxContributionsPerUser: Get<u32>;
 
@@ -389,7 +379,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn next_bid_id)]
-	/// A global counter for indexing the projects
+	/// A global counter for indexing the bids
 	/// OnEmpty in this case is GetDefault, so 0.
 	pub type NextBidId<T: Config> = StorageValue<_, T::BidId, ValueQuery>;
 
@@ -402,32 +392,31 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn images)]
-	/// A StorageMap containing all the images of the project metadata uploaded by the users.
+	/// A StorageMap containing all the hashes of the project metadata uploaded by the users.
 	/// TODO: PLMC-156. The metadata should be stored on IPFS/offchain database, and the hash of the metadata should be stored here.
 	pub type Images<T: Config> = StorageMap<_, Blake2_128Concat, T::Hash, T::AccountId>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn projects)]
-	/// A StorageMap containing all the the projects that applied for a request for funds
+	/// A StorageMap containing the primary project information of projects
 	pub type Projects<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, ProjectOf<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn project_issuer)]
-	/// StorageMap to "reverse lookup" the project issuer
+	/// StorageMap to get the issuer of a project
 	pub type ProjectsIssuers<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, T::AccountId>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn project_info)]
-	/// StorageMap containing all the the information for the projects
+	/// StorageMap containing additional information for the projects, relevant for correctness of the protocol
 	pub type ProjectsInfo<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, ProjectInfoOf<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn projects_to_update)]
-	/// A map for in which block to update which active projects.
-	/// A Project is in need of an update at some point, if its status is {EvaluationRound, EvaluationEnded, AuctionRound(AuctionPhase), CommunityRound, FundingEnded}
+	/// A map to know in which block to update which active projects using on_initialize.
 	pub type ProjectsToUpdate<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
@@ -438,7 +427,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn auctions_info)]
-	/// StorageMap containing the bids for each project
+	/// StorageMap containing the bids for each project and user
 	pub type AuctionsInfo<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
@@ -450,7 +439,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn evaluation_bonds)]
-	/// Keep track of the bonds made to each project
+	/// Keep track of the PLMC bonds made to each project by each evaluator
 	pub type EvaluationBonds<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
@@ -462,7 +451,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn bidding_bonds)]
-	/// Keep track of the bonds made to each project
+	/// Keep track of the PLMC bonds made to each project by each bidder
 	pub type BiddingBonds<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
@@ -474,7 +463,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn contributing_bonds)]
-	/// Keep track of the bonds made to each project
+	/// Keep track of the PLMC bonds made to each project by each contributor
 	pub type ContributingBonds<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
@@ -486,7 +475,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn contributions)]
-	/// Contributions made during the Community Round
+	/// Contributions made during the Community and Remainder round. i.e token buys
 	pub type Contributions<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
@@ -499,38 +488,39 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// A `project_id` was created.
+		/// A project was created.
 		Created {
 			project_id: T::ProjectIdentifier,
 		},
-		/// The metadata of `project_id` was modified.
+		/// The metadata of a project was modified.
 		MetadataEdited {
 			project_id: T::ProjectIdentifier,
 		},
-		/// The evaluation phase of `project_id` started.
+		/// The evaluation phase of a project started.
 		EvaluationStarted {
 			project_id: T::ProjectIdentifier,
 		},
-		/// The evaluation phase of `project_id` ended without reaching the minimum threshold.
+		/// The evaluation phase of a project ended without reaching the minimum threshold of evaluation bonds.
 		EvaluationFailed {
 			project_id: T::ProjectIdentifier,
 		},
-		/// The period an issuer has, to start the auction phase of the project.
+		/// The period an issuer has to start the auction phase of the project.
 		AuctionInitializePeriod {
 			project_id: T::ProjectIdentifier,
 			start_block: T::BlockNumber,
 			end_block: T::BlockNumber,
 		},
-		/// The auction round of `project_id` started at block `when`.
+		/// The auction round of a project started.
 		EnglishAuctionStarted {
 			project_id: T::ProjectIdentifier,
 			when: T::BlockNumber,
 		},
+		/// The candle auction part of the auction started for a project
 		CandleAuctionStarted {
 			project_id: T::ProjectIdentifier,
 			when: T::BlockNumber,
 		},
-		/// The auction round of `project_id` ended  at block `when`.
+		/// The auction round of a project ended.
 		AuctionEnded {
 			project_id: T::ProjectIdentifier,
 		},
@@ -540,45 +530,38 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 			bonder: T::AccountId,
 		},
-		/// Someone released the bond of a `bonder` for `project_id`, because the Evaluation round failed.
+		/// Someone paid for the release of a user's PLMC bond for a project.
 		BondReleased {
 			project_id: T::ProjectIdentifier,
 			amount: BalanceOf<T>,
 			bonder: T::AccountId,
 			releaser: T::AccountId,
 		},
-		/// A `bidder` bid an `amount` at `market_cap` for `project_id` with a `multiplier`.
+		/// A bid was made for a project
 		Bid {
 			project_id: T::ProjectIdentifier,
 			amount: BalanceOf<T>,
 			price: BalanceOf<T>,
 			multiplier: BalanceOf<T>,
 		},
+		/// A contribution was made for a project. i.e token purchase
 		Contribution {
 			project_id: T::ProjectIdentifier,
 			contributor: T::AccountId,
 			amount: BalanceOf<T>,
 			multiplier: BalanceOf<T>,
 		},
-		/// A bid  made by a `bidder` of `amount` at `market_cap` for `project_id` with a `multiplier` is returned.
-		BidReturned {
-			project_id: T::ProjectIdentifier,
-			bidder: T::AccountId,
-			amount: BalanceOf<T>,
-			price: BalanceOf<T>,
-			multiplier: u8,
-		},
+		/// A project is now in its community funding round
 		CommunityFundingStarted {
 			project_id: T::ProjectIdentifier,
 		},
+		/// A project is now in the remainder funding round
 		RemainderFundingStarted {
 			project_id: T::ProjectIdentifier,
 		},
+		/// A project has now finished funding
 		FundingEnded {
 			project_id: T::ProjectIdentifier,
-		},
-		Noted {
-			hash: T::Hash,
 		},
 		/// Something was not properly initialized. Most likely due to dev error manually calling do_* functions or updating storage
 		TransitionError {
@@ -589,6 +572,7 @@ pub mod pallet {
 		FailedEvaluationUnbondFailed {
 			error: DispatchError,
 		},
+		/// Contribution tokens were minted to a user
 		ContributionTokenMinted {
 			caller: T::AccountId,
 			project_id: T::ProjectIdentifier,
@@ -599,6 +583,7 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
+		/// Something in storage has a state which should never be possible at this point. Programming error
 		ImpossibleState,
 		/// The price provided in the `create` call is too low
 		PriceTooLow,
@@ -610,8 +595,6 @@ pub mod pallet {
 		ProjectNotFound,
 		/// The Evaluation Round of the project has not started yet
 		EvaluationNotStarted,
-		/// The Evaluation Round of the project has already started
-		EvaluationAlreadyStarted,
 		/// The Evaluation Round of the project has ended without reaching the minimum threshold
 		EvaluationFailed,
 		/// The issuer cannot contribute to their own project during the Funding Round
@@ -620,8 +603,6 @@ pub mod pallet {
 		NotAllowed,
 		/// The Metadata Hash of the project was not found
 		MetadataNotProvided,
-		/// The Auction Round of the project has already started
-		AuctionAlreadyStarted,
 		/// The Auction Round of the project has not started yet
 		AuctionNotStarted,
 		/// You cannot edit the metadata of a project that already passed the Evaluation Round
@@ -630,12 +611,8 @@ pub mod pallet {
 		BidTooLow,
 		/// The user has not enough balance to perform the action
 		InsufficientBalance,
-		/// There are too many active projects
-		TooManyActiveProjects,
 		// TODO: PLMC-133 Check after the introduction of the cross-chain identity pallet by KILT
 		NotAuthorized,
-		/// Contribution Tokens are already claimed
-		AlreadyClaimed,
 		/// The Funding Round of the project has not ended yet
 		CannotClaimYet,
 		/// No bids were made for the project at the time of the auction close
@@ -646,8 +623,6 @@ pub mod pallet {
 		ProjectNotInApplicationRound,
 		/// Tried to move the project from Evaluation to EvaluationEnded round, but the project is not in EvaluationRound
 		ProjectNotInEvaluationRound,
-		/// Tried to move the project from Evaluation to Auction round, but the project is not in EvaluationEndedRound
-		ProjectNotInEvaluationEndedRound,
 		/// Tried to move the project from AuctionInitializePeriod to EnglishAuctionRound, but the project is not in AuctionInitializePeriodRound
 		ProjectNotInAuctionInitializePeriodRound,
 		/// Tried to move the project to CandleAuction, but it was not in EnglishAuctionRound before
@@ -672,22 +647,14 @@ pub mod pallet {
 		TooEarlyForRemainderRoundStart,
 		/// Tried to move to project to FundingEnded round, but its too early for that
 		TooEarlyForFundingEnd,
-		/// Tried to access auction metadata, but it was not correctly initialized.
-		AuctionMetadataNotFound,
 		/// Checks for other projects not copying metadata of others
 		MetadataAlreadyExists,
-		/// Ending block for the candle auction is not set
-		EndingBlockNotSet,
 		/// The specified issuer does not exist
 		ProjectIssuerNotFound,
 		/// The specified project info does not exist
 		ProjectInfoNotFound,
-		/// The Project was not correctly created. Most likely due to dev error manually calling do_* functions or updating storage
-		ProjectNotCorrectlyCreated,
 		/// Tried to finish an evaluation before its target end block
 		EvaluationPeriodNotEnded,
-		/// Tried to finish the english auction before its target end block
-		EnglishAuctionPeriodNotEnded,
 		/// Tried to access field that is not set
 		FieldIsNone,
 		/// Tried to create the contribution token after the remaining round but it failed
@@ -702,8 +669,6 @@ pub mod pallet {
 		BadMath,
 		/// Tried to bond PLMC for bidding, but that phase has already ended
 		TooLateForBidBonding,
-		/// Tried to withdraw funds that were vesting, but it was too early
-		NextVestingWithdrawalNotReached,
 		/// Tried to retrieve a bid but it does not exist
 		BidNotFound,
 		/// Tried to append a new bid to storage but too many bids were already made
@@ -714,14 +679,11 @@ pub mod pallet {
 		TooLateForContributingBonding,
 		/// Tried to contribute but its too low to be accepted
 		ContributionTooLow,
-		/// Cannot buy the minimum amount of tokens possible with the amount specified to contribute
-		BuyAmountTooLow,
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Start the "Funding Application" round
-		/// Project applies for funding, providing all required information.
+		/// Creates a project and assigns it to the `issuer` account.
 		#[pallet::weight(T::WeightInfo::create())]
 		pub fn create(origin: OriginFor<T>, project: ProjectOf<T>) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
@@ -735,7 +697,7 @@ pub mod pallet {
 			Self::do_create(issuer, project)
 		}
 
-		/// Edit the `project_metadata` of a `project_id` if "Evaluation Round" is not yet started
+		/// Change the metadata hash of a project
 		#[pallet::weight(T::WeightInfo::edit_metadata())]
 		pub fn edit_metadata(
 			origin: OriginFor<T>,
@@ -748,7 +710,7 @@ pub mod pallet {
 			Self::do_edit_metadata(issuer, project_id, project_metadata_hash)
 		}
 
-		/// Start the "Evaluation Round" of a `project_id`
+		/// Starts the evaluation round of a project. It needs to be called by the project issuer.
 		#[pallet::weight(T::WeightInfo::start_evaluation())]
 		pub fn start_evaluation(
 			origin: OriginFor<T>,
@@ -768,7 +730,9 @@ pub mod pallet {
 			Self::do_evaluation_start(project_id)
 		}
 
-		/// Start the "Evaluation Round" of a `project_id`
+		/// Starts the auction round for a project. From the next block forward, any professional or
+		/// institutional user can set bids for a token_amount/token_price pair.
+		/// Any bids from this point until the candle_auction starts, will be considered as valid.
 		#[pallet::weight(T::WeightInfo::start_auction())]
 		pub fn start_auction(
 			origin: OriginFor<T>,
@@ -788,7 +752,7 @@ pub mod pallet {
 			Self::do_english_auction(project_id)
 		}
 
-		/// Evaluators can bond `amount` PLMC to evaluate a `project_id` in the "Evaluation Round"
+		/// Bond PLMC for a project in the evaluation stage
 		#[pallet::weight(T::WeightInfo::bond())]
 		pub fn bond_evaluation(
 			origin: OriginFor<T>,
@@ -813,7 +777,7 @@ pub mod pallet {
 			Self::do_failed_evaluation_unbond_for(bond, releaser)
 		}
 
-		/// Place a bid in the "Auction Round"
+		/// Bid for a project in the Auction round
 		#[pallet::weight(T::WeightInfo::bid())]
 		pub fn bid(
 			origin: OriginFor<T>,
@@ -835,7 +799,7 @@ pub mod pallet {
 			Self::do_bid(bidder, project_id, amount, price, multiplier)
 		}
 
-		/// Contribute in the "Community Round"
+		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
 		#[pallet::weight(T::WeightInfo::contribute())]
 		pub fn contribute(
 			origin: OriginFor<T>,
@@ -848,12 +812,13 @@ pub mod pallet {
 			Self::do_contribute(contributor, project_id, amount, None)
 		}
 
-		// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
+		/// Unbond some plmc from a contribution, after a step in the vesting period has passed.
 		pub fn vested_plmc_bid_unbond_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdParameter,
 			bidder: T::AccountId,
 		) -> DispatchResult {
+			// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
 			let claimer = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
@@ -861,6 +826,7 @@ pub mod pallet {
 		}
 
 		// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
+		/// Mint contribution tokens after a step in the vesting period for a successful bid.
 		pub fn vested_contribution_token_bid_mint_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdParameter,
@@ -873,6 +839,7 @@ pub mod pallet {
 		}
 
 		// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
+		/// Unbond some plmc from a contribution, after a step in the vesting period has passed.
 		pub fn vested_plmc_purchase_unbond_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdParameter,
@@ -885,6 +852,7 @@ pub mod pallet {
 		}
 
 		// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
+		/// Mint contribution tokens after a step in the vesting period for a contribution.
 		pub fn vested_contribution_token_purchase_mint_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdParameter,

@@ -636,7 +636,7 @@ impl<T: Config> Pallet<T> {
 
 // Extrinsic functions (except round transitions)
 impl<T: Config> Pallet<T> {
-	/// Change the metadata of a project to the hash of the image that was previously stored with the `note_bytes` extrinsic
+	/// Change the metadata hash of a project
 	///
 	/// # Arguments
 	/// * `issuer` - The project issuer account
@@ -1190,7 +1190,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	/// Unbond some plmc from a successful bid, after a step in the vesting period has passed.
+	/// Unbond some plmc from a contribution, after a step in the vesting period has passed.
 	///
 	/// # Arguments
 	/// * bid: The bid to unbond from

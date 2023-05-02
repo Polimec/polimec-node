@@ -1,12 +1,12 @@
-use frame_support::{assert_err, assert_noop, assert_ok};
-use frame_support::dispatch::Weight;
-use frame_support::traits::{OnFinalize, OnIdle, OnInitialize};
-use sp_core::bounded::BoundedVec;
-use sp_core::ConstU32;
-use sp_runtime::BuildStorage;
-use pallet_funding::{CurrencyMetadata, ParticipantsSize, Project, TicketSize};
 use crate::mock::*;
-
+use frame_support::{
+	assert_err, assert_noop, assert_ok,
+	dispatch::Weight,
+	traits::{OnFinalize, OnIdle, OnInitialize},
+};
+use pallet_funding::{CurrencyMetadata, ParticipantsSize, Project, TicketSize};
+use sp_core::{bounded::BoundedVec, ConstU32};
+use sp_runtime::BuildStorage;
 
 #[test]
 fn test_buy_if_popular() {
@@ -17,20 +17,18 @@ fn test_buy_if_popular() {
 		let contributor = 4;
 
 		let project = default_project(0);
-		assert_ok!(FundingModule::create(
-			RuntimeOrigin::signed(creator),
-			project.clone(),
-		));
+		assert_ok!(FundingModule::create(RuntimeOrigin::signed(creator), project.clone(),));
 		assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(creator), 0));
-		assert_ok!(FundingModule::bond_evaluation(RuntimeOrigin::signed(evaluator), 0, 120_000 * PLMC));
+		assert_ok!(FundingModule::bond_evaluation(
+			RuntimeOrigin::signed(evaluator),
+			0,
+			120_000 * PLMC
+		));
 
 		// advance time
 		for _block in 0..<TestRuntime as pallet_funding::Config>::EvaluationDuration::get() + 10 {
 			<AllPalletsWithoutSystem as OnFinalize<u64>>::on_finalize(System::block_number());
-			<AllPalletsWithoutSystem as OnIdle<u64>>::on_idle(
-				System::block_number(),
-				Weight::MAX,
-			);
+			<AllPalletsWithoutSystem as OnIdle<u64>>::on_idle(System::block_number(), Weight::MAX);
 			System::set_block_number(System::block_number() + 1);
 			<AllPalletsWithSystem as OnInitialize<u64>>::on_initialize(System::block_number());
 		}
@@ -40,24 +38,20 @@ fn test_buy_if_popular() {
 		// advance time
 		for _block in 0..2 {
 			<AllPalletsWithoutSystem as OnFinalize<u64>>::on_finalize(System::block_number());
-			<AllPalletsWithoutSystem as OnIdle<u64>>::on_idle(
-				System::block_number(),
-				Weight::MAX,
-			);
+			<AllPalletsWithoutSystem as OnIdle<u64>>::on_idle(System::block_number(), Weight::MAX);
 			System::set_block_number(System::block_number() + 1);
 			<AllPalletsWithSystem as OnInitialize<u64>>::on_initialize(System::block_number());
 		}
 
 		assert_ok!(FundingModule::bid(RuntimeOrigin::signed(bidder), 0, 1000, 100 * PLMC, None));
 
-
 		// advance time
-		for _block in 0..(<TestRuntime as pallet_funding::Config>::EnglishAuctionDuration::get() + <TestRuntime as pallet_funding::Config>::CandleAuctionDuration::get() + 5) {
+		for _block in 0..(<TestRuntime as pallet_funding::Config>::EnglishAuctionDuration::get() +
+			<TestRuntime as pallet_funding::Config>::CandleAuctionDuration::get() +
+			5)
+		{
 			<AllPalletsWithoutSystem as OnFinalize<u64>>::on_finalize(System::block_number());
-			<AllPalletsWithoutSystem as OnIdle<u64>>::on_idle(
-				System::block_number(),
-				Weight::MAX,
-			);
+			<AllPalletsWithoutSystem as OnIdle<u64>>::on_idle(System::block_number(), Weight::MAX);
 			System::set_block_number(System::block_number() + 1);
 			<AllPalletsWithSystem as OnInitialize<u64>>::on_initialize(System::block_number());
 		}
@@ -69,7 +63,6 @@ fn test_buy_if_popular() {
 		assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(contributor), 0, 10000));
 
 		assert_ok!(Sandbox::buy_if_popular(RuntimeOrigin::signed(4), 0, 1000));
-
 	});
 }
 
@@ -83,13 +76,8 @@ const METADATA: &str = r#"
 	"usage_of_founds":"ipfs_url"
 }"#;
 
-
-
-pub fn default_project(
-	nonce: u64,
-) -> Project<BoundedVec<u8, ConstU32<64>>, u128, sp_core::H256> {
-	let bounded_name =
-		BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
+pub fn default_project(nonce: u64) -> Project<BoundedVec<u8, ConstU32<64>>, u128, sp_core::H256> {
+	let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
 	let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
 	let metadata_hash = hashed(format!("{}-{}", METADATA, nonce));
 	Project {
@@ -113,12 +101,14 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::default().build_storage::<TestRuntime>().unwrap();
 
 	GenesisConfig {
-		balances: BalancesConfig { balances: vec![
-			(1, 1_000_000 * PLMC),
-			(2, 1_000_000 * PLMC),
-			(3, 1_000_000 * PLMC),
-			(4, 10_000_000 * PLMC),
-		] },
+		balances: BalancesConfig {
+			balances: vec![
+				(1, 1_000_000 * PLMC),
+				(2, 1_000_000 * PLMC),
+				(3, 1_000_000 * PLMC),
+				(4, 10_000_000 * PLMC),
+			],
+		},
 		credentials: CredentialsConfig {
 			issuers: vec![1, 16558220937623665250],
 			retails: vec![2],
@@ -127,12 +117,11 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		},
 		..Default::default()
 	}
-		.assimilate_storage(&mut t)
-		.unwrap();
+	.assimilate_storage(&mut t)
+	.unwrap();
 
 	let mut ext = sp_io::TestExternalities::new(t);
 	// In order to emit events the block number must be more than 0
 	ext.execute_with(|| System::set_block_number(1));
 	ext
 }
-

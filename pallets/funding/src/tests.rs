@@ -1418,7 +1418,5 @@ mod sandbox {
 	use super::*;
 
 	#[test]
-	fn template() {
-
-	}
+	fn template() {}
 }
