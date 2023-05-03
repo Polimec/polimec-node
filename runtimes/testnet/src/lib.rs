@@ -496,6 +496,11 @@ pub const REMAINDER_FUNDING_DURATION: BlockNumber = 10;
 #[cfg(not(feature = "fast-gov"))]
 pub const REMAINDER_FUNDING_DURATION: BlockNumber = 1 * DAYS;
 
+#[cfg(feature = "fast-gov")]
+pub const CONTRIBUTION_VESTING_DURATION: BlockNumber = 365;
+#[cfg(not(feature = "fast-gov"))]
+pub const CONTRIBUTION_VESTING_DURATION: BlockNumber = 365 * DAYS;
+
 parameter_types! {
 	pub const EvaluationDuration: BlockNumber = EVALUATION_DURATION;
 	pub const AuctionInitializePeriodDuration: BlockNumber = AUCTION_INITIALIZE_PERIOD_DURATION;
@@ -503,6 +508,7 @@ parameter_types! {
 	pub const CandleAuctionDuration: BlockNumber = CANDLE_AUCTION_DURATION;
 	pub const CommunityFundingDuration: BlockNumber = COMMUNITY_FUNDING_DURATION;
 	pub const RemainderFundingDuration: BlockNumber = REMAINDER_FUNDING_DURATION;
+	pub const ContributionVestingDuration: BlockNumber = CONTRIBUTION_VESTING_DURATION;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 }
 
@@ -529,6 +535,7 @@ impl pallet_funding::Config for Runtime {
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
 	type MaximumBidsPerUser = ConstU32<256>;
 	type MaxContributionsPerUser = ConstU32<256>;
+	type ContributionVesting = ContributionVestingDuration;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 

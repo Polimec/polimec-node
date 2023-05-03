@@ -369,6 +369,7 @@ parameter_types! {
 	pub const CandleAuctionDuration: BlockNumber = 5;
 	pub const CommunityRoundDuration: BlockNumber = 10;
 	pub const RemainderFundingDuration: BlockNumber = 10;
+	pub const ContributionVestingDuration: BlockNumber = 100;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 }
 
@@ -390,13 +391,13 @@ impl pallet_funding::Config for Runtime {
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityFundingDuration = CommunityRoundDuration;
 	type RemainderFundingDuration = RemainderFundingDuration;
-
 	type Randomness = Random;
 	type HandleMembers = Credentials;
 	type PreImageLimit = ConstU32<1024>;
 	type MaximumBidsPerUser = ConstU32<256>;
 	type MaxContributionsPerUser = ConstU32<64>;
 	type WeightInfo = ();
+	type ContributionVesting = ContributionVestingDuration;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 }
