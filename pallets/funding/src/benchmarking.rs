@@ -24,7 +24,7 @@
 use crate::Pallet as PolimecFunding;
 
 type PolimecSystem<T> = frame_system::Pallet<T>;
-type PolimecRuntimeEvent<T> = <T as frame_system::Config>::RuntimeEvent;
+// type PolimecRuntimeEvent<T> = <T as frame_system::Config>::RuntimeEvent;
 
 use super::*;
 use frame_benchmarking::{account, benchmarks};
@@ -54,10 +54,6 @@ const EDIT_METADATA: &str = r#"
 	"usage_of_founds":"new_ipfs_url"
 }
 "#;
-
-fn metadata_as_vec() -> frame_benchmarking::Vec<u8> {
-	METADATA.as_bytes().to_vec()
-}
 
 #[allow(unused)]
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
@@ -125,7 +121,6 @@ benchmarks! {
 		let (project_id, issuer) = create_default_minted_project::<T>(None);
 		let hash = T::Hashing::hash_of(&EDIT_METADATA);
 		let project_info = PolimecFunding::<T>::project_info(project_id.clone().into()).unwrap();
-		println!("project_info: {:?}", project_info);
 	}: _(SystemOrigin::Signed(issuer), project_id, hash)
 	verify {
 		let project_id = T::BenchmarkHelper::create_project_id_parameter(0);
