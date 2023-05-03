@@ -390,6 +390,7 @@ impl xcm_executor::Config for XcmConfig {
 	type MessageExporter = ();
 	type UniversalAliases = Nothing;
 	type CallDispatcher = RuntimeCall;
+	// TODO: Restrict this to a subset of allowed `RuntimeCall`.
 	type SafeCallFilter = Everything;
 }
 

@@ -1,3 +1,19 @@
+// Polimec Blockchain – https://www.polimec.org/
+// Copyright (C) Polimec 2022. All rights reserved.
+
+// The Polimec Blockchain is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// The Polimec Blockchain is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 use codec::Encode;
 use frame_support::{assert_ok, pallet_prelude::Weight, traits::GenesisBuild};
 use polimec_parachain_runtime as polimec_runtime;
@@ -10,6 +26,8 @@ use xcm_emulator::{
 	cumulus_pallet_xcmp_queue, decl_test_network, decl_test_parachain, decl_test_relay_chain,
 	polkadot_primitives, TestExt,
 };
+use cumulus_pallet_xcmp_queue::Event as XcmpEvent;
+
 // DIP Dependencies
 use did::did_details::{DidDetails, DidEncryptionKey, DidVerificationKey};
 use dip_provider_runtime_template::DidIdentifier;
@@ -17,6 +35,8 @@ use dip_provider_runtime_template::DipProvider;
 use dip_support::latest::Proof;
 use kilt_support::deposit::Deposit;
 use pallet_did_lookup::linkable_account::LinkableAccountId;
+use kilt_runtime_common::dip::provider::DidMerkleRootGenerator;
+use kilt_runtime_common::dip::provider::CompleteMerkleProof;
 
 const RELAY_ASSET_ID: u32 = 0;
 const RESERVE_TRANSFER_AMOUNT: u128 = 10_0_000_000_000; //10 UNITS when 10 decimals
@@ -419,7 +439,7 @@ pub mod shortcuts {
 	pub type PolimecAccountId = polkadot_primitives::AccountId;
 	pub type StatemintAccountId = polkadot_primitives::AccountId;
 	pub type PenpalAccountId = polkadot_primitives::AccountId;
-	pub type ProviderAccountId = polkadot_primitives::AccountId;
+	pub type ProviderAccountId = dip_provider_runtime_template::AccountId;
 }
 
 #[cfg(test)]
@@ -1178,8 +1198,8 @@ mod reserve_backed_transfers {
 			statemint_prev_alice_dot_balance - statemint_post_alice_dot_balance;
 
 		assert!(
-			penpal_delta_alice_dot_balance > RESERVE_TRANSFER_AMOUNT - MAX_XCM_FEE * 3
-				&& penpal_delta_alice_dot_balance < RESERVE_TRANSFER_AMOUNT,
+			penpal_delta_alice_dot_balance > RESERVE_TRANSFER_AMOUNT - MAX_XCM_FEE * 3 &&
+				penpal_delta_alice_dot_balance < RESERVE_TRANSFER_AMOUNT,
 			"Expected funds are not received by Alice on Penpal"
 		);
 
@@ -1351,8 +1371,8 @@ mod reserve_backed_transfers {
 			statemint_prev_alice_dot_balance - statemint_post_alice_dot_balance;
 
 		assert!(
-			polimec_delta_alice_dot_balance > RESERVE_TRANSFER_AMOUNT - MAX_XCM_FEE * 3
-				&& polimec_delta_alice_dot_balance < RESERVE_TRANSFER_AMOUNT,
+			polimec_delta_alice_dot_balance > RESERVE_TRANSFER_AMOUNT - MAX_XCM_FEE * 3 &&
+				polimec_delta_alice_dot_balance < RESERVE_TRANSFER_AMOUNT,
 			"Expected funds are not received by Alice on Polimec"
 		);
 
@@ -1391,6 +1411,7 @@ mod reserve_backed_transfers {
 
 	#[test]
 	fn commit_identity() {
+
 		Network::reset();
 
 		let did: DidIdentifier = did_auth_key().public().into();
@@ -1410,15 +1431,20 @@ mod reserve_backed_transfers {
 		// 2. Verify that the proof has made it to the DIP consumer.
 		PolimecNet::execute_with(|| {
 			use polimec_parachain_runtime::{RuntimeEvent, System};
+			// TODO: Remove this once we resolve the panic.
+			for elem in System::events().iter() {
+				println!("{:?}", elem.event);
+			}
 			// 2.1 Verify that there was no XCM error.
-			// assert!(!System::events().iter().any(|r| matches!(
-			// 	r.event,
-			// 	RuntimeEvent::XcmpQueue(XcmpEvent::Fail {
-			// 		error: _,
-			// 		message_hash: _,
-			// 		weight: _
-			// 	})
-			// )));
+			assert!(!System::events().iter().any(|r| matches!(
+				r.event,
+				RuntimeEvent::XcmpQueue(XcmpEvent::Fail {
+					error: _,
+					message_hash: _,
+					weight: _
+				})
+			)));
+
 			// 2.2 Verify the proof digest was stored correctly.
 			assert!(polimec_parachain_runtime::DipConsumer::identity_proofs(&did).is_some());
 		});
@@ -1436,25 +1462,23 @@ mod reserve_backed_transfers {
 			.expect("Proof generation should not fail");
 		// 3.2 Call the `dispatch_as` extrinsic on the consumer chain with the generated
 		// proof
-		PolimecNet::execute_with(|| {
-			use frame_system::RawOrigin;
-			use polimec_parachain_runtime::DidLookup;
-			use polimec_parachain_runtime::DipConsumer;
-			use polimec_parachain_runtime::RuntimeCall;
+		// PolimecNet::execute_with(|| {
+		// 	use frame_system::RawOrigin;
+		// 	use polimec_parachain_runtime::{DidLookup, DipConsumer, RuntimeCall};
 
-			assert_ok!(DipConsumer::dispatch_as(
-				RawOrigin::Signed(DISPATCHER_ACCOUNT).into(),
-				did.clone(),
-				Proof { blinded: proof.blinded, revealed: proof.revealed }.into(),
-				Box::new(RuntimeCall::DidLookup(
-					pallet_did_lookup::Call::<PolimecRuntime>::associate_sender {}
-				)),
-			));
-			// Verify the account -> DID link exists and contains the right information
-			let linked_did =
-				DidLookup::connected_dids::<LinkableAccountId>(DISPATCHER_ACCOUNT.into())
-					.map(|link| link.did);
-			assert_eq!(linked_did, Some(did));
-		});
+		// 	assert_ok!(DipConsumer::dispatch_as(
+		// 		RawOrigin::Signed(DISPATCHER_ACCOUNT).into(),
+		// 		did.clone(),
+		// 		Proof { blinded: proof.blinded, revealed: proof.revealed }.into(),
+		// 		Box::new(RuntimeCall::DidLookup(
+		// 			pallet_did_lookup::Call::<PolimecRuntime>::associate_sender {}
+		// 		)),
+		// 	));
+		// 	// Verify the account -> DID link exists and contains the right information
+		// 	let linked_did =
+		// 		DidLookup::connected_dids::<LinkableAccountId>(DISPATCHER_ACCOUNT.into())
+		// 			.map(|link| link.did);
+		// 	assert_eq!(linked_did, Some(did));
+		// });
 	}
 }

@@ -28,6 +28,7 @@ did.workspace = true
 dip-support.workspace = true
 pallet-did-lookup = { workspace = true, optional = true }
 pallet-dip-consumer.workspace = true
+pallet-dip-provider.workspace = true
 
 # Substrate dependencies
 frame-support.workspace = true
@@ -52,6 +53,9 @@ xcm.workspace = true
 xcm-builder.workspace = true
 xcm-executor.workspace = true
 parachains-common.workspace = true
+
+# DIP Provider dependencies
+kilt-runtime-common.workspace = true
 
 [features]
 default = ["std"]
@@ -84,5 +88,7 @@ std = [
     "xcm-executor/std",
     "xcm/std",
     "parachains-common/std",
+    "kilt-runtime-common/std",
+    "dip-support/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

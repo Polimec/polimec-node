@@ -1,12 +1,28 @@
-use codec::Encode;
+// Polimec Blockchain – https://www.polimec.org/
+// Copyright (C) Polimec 2022. All rights reserved.
+
+// The Polimec Blockchain is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// The Polimec Blockchain is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 use did::did_details::DidPublicKeyDetails;
 use dip_support::{v1, VersionedIdentityProof};
 use frame_support::RuntimeDebug;
 use pallet_dip_consumer::traits::IdentityProofVerifier;
+use codec::Encode;
 use sp_std::{collections::btree_map::BTreeMap, marker::PhantomData, vec::Vec};
 use sp_trie::{verify_trie_proof, LayoutV1};
 
-use crate::dip::{KeyDetailsKey, KeyDetailsValue, KeyReferenceKey, KeyRelationship, ProofLeaf};
+use crate::dip::{provider, KeyDetailsKey, KeyDetailsValue, KeyReferenceKey, KeyRelationship, ProofLeaf};
 
 // TODO: Avoid repetition of the same key if it appears multiple times, e.g., by
 // having a vector of `KeyRelationship` instead.
@@ -15,9 +31,6 @@ pub struct ProofEntry<BlockNumber> {
 	pub key: DidPublicKeyDetails<BlockNumber>,
 	pub relationship: KeyRelationship,
 }
-
-// REMARK: From the `dip-provider`
-pub type BlindedValue = Vec<u8>;
 
 // Contains the list of revealed public keys after a given merkle proof has been
 // correctly verified.
@@ -30,18 +43,15 @@ impl<BlockNumber> From<Vec<ProofEntry<BlockNumber>>> for VerificationResult<Bloc
 	}
 }
 
-pub struct DidMerkleProofVerifier<KeyId, BlockNumber, Hasher>(
-	PhantomData<(KeyId, BlockNumber, Hasher)>,
-);
+pub struct DidMerkleProofVerifier<KeyId, BlockNumber, Hasher>(PhantomData<(KeyId, BlockNumber, Hasher)>);
 
-impl<KeyId, BlockNumber, Hasher> IdentityProofVerifier
-	for DidMerkleProofVerifier<KeyId, BlockNumber, Hasher>
+impl<KeyId, BlockNumber, Hasher> IdentityProofVerifier for DidMerkleProofVerifier<KeyId, BlockNumber, Hasher>
 where
 	KeyId: Encode + Clone + Ord,
 	BlockNumber: Encode + Clone + Ord,
 	Hasher: sp_core::Hasher,
 {
-	type BlindedValue = Vec<BlindedValue>;
+	type BlindedValue = Vec<provider::BlindedValue>;
 	// TODO: Proper error handling
 	type Error = ();
 	type ProofDigest = <Hasher as sp_core::Hasher>::Out;
@@ -61,8 +71,7 @@ where
 			.iter()
 			.map(|leaf| (leaf.encoded_key(), Some(leaf.encoded_value())))
 			.collect::<Vec<(Vec<u8>, Option<Vec<u8>>)>>();
-		verify_trie_proof::<LayoutV1<Hasher>, _, _, _>(&digest, &proof.blinded, &proof_leaves)
-			.map_err(|_| ())?;
+		verify_trie_proof::<LayoutV1<Hasher>, _, _, _>(&digest, &proof.blinded, &proof_leaves).map_err(|_| ())?;
 
 		// At this point, we know the proof is valid. We just need to map the revealed
 		// leaves to something the consumer can easily operate on.
@@ -74,9 +83,7 @@ where
 			.clone()
 			.into_iter()
 			.filter_map(|leaf| {
-				if let ProofLeaf::KeyDetails(KeyDetailsKey(key_id), KeyDetailsValue(key_details)) =
-					leaf
-				{
+				if let ProofLeaf::KeyDetails(KeyDetailsKey(key_id), KeyDetailsValue(key_details)) = leaf {
 					Some((key_id, key_details))
 				} else {
 					None
@@ -90,13 +97,15 @@ where
 			.revealed
 			.into_iter()
 			.filter_map(|leaf| {
-				if let ProofLeaf::KeyReference(KeyReferenceKey(key_id, key_relationship), _) = leaf
-				{
+				if let ProofLeaf::KeyReference(KeyReferenceKey(key_id, key_relationship), _) = leaf {
 					// TODO: Better error handling.
 					let key_details = public_keys
 						.get(&key_id)
 						.expect("Key ID should be present in the map of revealed public keys.");
-					Some(ProofEntry { key: key_details.clone(), relationship: key_relationship })
+					Some(ProofEntry {
+						key: key_details.clone(),
+						relationship: key_relationship,
+					})
 				} else {
 					None
 				}
