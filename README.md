@@ -48,6 +48,7 @@ $ cargo run --release -- --dev
 
 You can use [srtool](https://github.com/paritytech/srtool) to compile the
 runtime and generate the WASM blob.
+> TODO: Rust 1.69.0 broke `srtool` and `polkadot-v0.9.39` - we need to wait `polkadot-v0.9.42`. [src](https://github.com/paritytech/srtool/issues/62)
 
 ```
 == Compact
