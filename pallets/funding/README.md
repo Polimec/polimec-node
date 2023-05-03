@@ -9,7 +9,7 @@ para-{chain/thread} is deployed on mainnet.
 
 > **Warning** 👷 Work in progress 🏗️
 > 
-> Expect major changes between PRs
+> **Warning** Expect major changes between PRs
 
 ## Overview
 
