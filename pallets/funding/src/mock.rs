@@ -35,8 +35,8 @@ use sp_runtime::{
 };
 use system::EnsureSigned;
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
-type Block = frame_system::mocking::MockBlock<Test>;
+type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<TestRuntime>;
+type Block = frame_system::mocking::MockBlock<TestRuntime>;
 
 pub type AccountId = u64;
 pub type Balance = u128;
@@ -46,7 +46,7 @@ pub const PLMC: u128 = 10_000_000_000_u128;
 
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
-	pub enum Test where
+	pub enum TestRuntime where
 		Block = Block,
 		NodeBlock = Block,
 		UncheckedExtrinsic = UncheckedExtrinsic,
@@ -64,7 +64,7 @@ parameter_types! {
 	pub const BlockHashCount: u32 = 250;
 }
 
-impl system::Config for Test {
+impl system::Config for TestRuntime {
 	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
@@ -95,10 +95,10 @@ parameter_types! {
 	pub static ExistentialDeposit: Balance = 1;
 }
 
-impl pallet_balances::Config for Test {
+impl pallet_balances::Config for TestRuntime {
 	type MaxLocks = frame_support::traits::ConstU32<1024>;
-	type MaxReserves = ();
-	type ReserveIdentifier = [u8; 8];
+	type MaxReserves = frame_support::traits::ConstU32<1024>;
+	type ReserveIdentifier = BondType;
 	type Balance = Balance;
 	type RuntimeEvent = RuntimeEvent;
 	type DustRemoval = ();
@@ -107,9 +107,9 @@ impl pallet_balances::Config for Test {
 	type WeightInfo = ();
 }
 
-impl pallet_randomness_collective_flip::Config for Test {}
+impl pallet_randomness_collective_flip::Config for TestRuntime {}
 
-impl pallet_credentials::Config for Test {
+impl pallet_credentials::Config for TestRuntime {
 	type RuntimeEvent = RuntimeEvent;
 	type AddOrigin = EnsureSigned<AccountId>;
 	type RemoveOrigin = EnsureSigned<AccountId>;
@@ -120,7 +120,7 @@ impl pallet_credentials::Config for Test {
 	type MembershipChanged = ();
 }
 
-impl pallet_assets::Config for Test {
+impl pallet_assets::Config for TestRuntime {
 	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type AssetId = Identifier;
@@ -143,22 +143,26 @@ impl pallet_assets::Config for Test {
 	type BenchmarkHelper = ();
 }
 
+pub const HOURS: BlockNumber = 300u64;
+
+// REMARK: In the production configuration we use DAYS instead of HOURS.
 parameter_types! {
-	pub const EvaluationDuration: BlockNumber = 28;
-	pub const AuctionInitializePeriodDuration: BlockNumber = 10;
-	pub const EnglishAuctionDuration: BlockNumber = 10;
-	pub const CandleAuctionDuration: BlockNumber = 5;
-	pub const CommunityRoundDuration: BlockNumber = 10;
-	pub const RemainderFundingDuration: BlockNumber = 10;
+	pub const EvaluationDuration: BlockNumber = (28 * HOURS) as BlockNumber;
+	pub const AuctionInitializePeriodDuration: BlockNumber = (7 * HOURS) as BlockNumber;
+	pub const EnglishAuctionDuration: BlockNumber = (2 * HOURS) as BlockNumber;
+	pub const CandleAuctionDuration: BlockNumber = (3 * HOURS) as BlockNumber;
+	pub const CommunityRoundDuration: BlockNumber = (5 * HOURS) as BlockNumber;
+	pub const RemainderFundingDuration: BlockNumber = (1 * HOURS) as BlockNumber;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 }
 
-impl pallet_funding::Config for Test {
+impl pallet_funding::Config for TestRuntime {
 	type RuntimeEvent = RuntimeEvent;
 	type StringLimit = ConstU32<64>;
 	type ProjectIdentifier = Identifier;
 	type ProjectIdParameter = Identifier;
 	type Currency = Balances;
+	type BidId = u128;
 	type BiddingCurrency = Balances;
 	type Assets = Assets;
 	type CurrencyBalance = Balance;
@@ -174,7 +178,9 @@ impl pallet_funding::Config for Test {
 	type HandleMembers = Credentials;
 	type PreImageLimit = ConstU32<1024>;
 	// Low value to simplify the tests
-	type MaximumBidsPerProject = ConstU32<4>;
+	type MaximumBidsPerUser = ConstU32<4>;
+	type MaxContributionsPerUser = ConstU32<4>;
+	type ContributionVesting = ConstU32<4>;
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
@@ -183,22 +189,10 @@ impl pallet_funding::Config for Test {
 // Build genesis storage according to the mock runtime.
 // TODO: PLMC-161. Add some mocks projects at Genesis to simplify the tests
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+	let mut t = frame_system::GenesisConfig::default().build_storage::<TestRuntime>().unwrap();
 
 	GenesisConfig {
-		balances: BalancesConfig {
-			balances: vec![
-				(1, 512 * 1_000_000 * PLMC),
-				(2, 512 * 1_000_000 * PLMC),
-				(3, 512 * 1_000_000 * PLMC),
-				(4, 512 * 1_000_000 * PLMC),
-				(5, 512 * 1_000_000 * PLMC),
-				// 16558220937623665250 = account::<T::AccountId>("Alice", 1, 1) in becnhmarks
-				(16558220937623665250, 512 * 1_000_000 * PLMC),
-				// 18011431366525807836 = account::<T::AccountId>("Bob", 1, 1) in becnhmarks
-				// (18011431366525807836, 512 * 1_000_000 * PLMC)
-			],
-		},
+		balances: BalancesConfig { balances: vec![] },
 		credentials: CredentialsConfig {
 			issuers: vec![1, 16558220937623665250],
 			retails: vec![2],
@@ -217,5 +211,5 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 }
 
 pub fn hashed(data: impl AsRef<[u8]>) -> H256 {
-	BlakeTwo256::hash(data.as_ref())
+	<BlakeTwo256 as sp_runtime::traits::Hash>::hash(data.as_ref())
 }

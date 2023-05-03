@@ -58,6 +58,7 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 // XCM Imports
+use pallet_funding::BondType;
 use xcm_executor::XcmExecutor;
 
 use polimec_traits::{MemberRole, PolimecMembers};
@@ -240,15 +241,15 @@ parameter_types! {
 impl pallet_balances::Config for Runtime {
 	/// The type for recording an account's balance.
 	type Balance = Balance;
+	type DustRemoval = Treasury;
 	/// The ubiquitous event type.
 	type RuntimeEvent = RuntimeEvent;
-	type DustRemoval = Treasury;
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
-	type ReserveIdentifier = [u8; 8];
+	type ReserveIdentifier = BondType;
 }
 
 /// Logic for the author to get a portion of fees.
@@ -495,6 +496,11 @@ pub const REMAINDER_FUNDING_DURATION: BlockNumber = 10;
 #[cfg(not(feature = "fast-gov"))]
 pub const REMAINDER_FUNDING_DURATION: BlockNumber = 1 * DAYS;
 
+#[cfg(feature = "fast-gov")]
+pub const CONTRIBUTION_VESTING_DURATION: BlockNumber = 365;
+#[cfg(not(feature = "fast-gov"))]
+pub const CONTRIBUTION_VESTING_DURATION: BlockNumber = 365 * DAYS;
+
 parameter_types! {
 	pub const EvaluationDuration: BlockNumber = EVALUATION_DURATION;
 	pub const AuctionInitializePeriodDuration: BlockNumber = AUCTION_INITIALIZE_PERIOD_DURATION;
@@ -502,6 +508,7 @@ parameter_types! {
 	pub const CandleAuctionDuration: BlockNumber = CANDLE_AUCTION_DURATION;
 	pub const CommunityFundingDuration: BlockNumber = COMMUNITY_FUNDING_DURATION;
 	pub const RemainderFundingDuration: BlockNumber = REMAINDER_FUNDING_DURATION;
+	pub const ContributionVestingDuration: BlockNumber = CONTRIBUTION_VESTING_DURATION;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 }
 
@@ -511,6 +518,7 @@ impl pallet_funding::Config for Runtime {
 	type ProjectIdParameter = codec::Compact<u32>;
 	type CurrencyBalance = <Self as pallet_balances::Config>::Balance;
 	type Currency = Balances;
+	type BidId = u128;
 	type BiddingCurrency = Balances;
 	type Randomness = Random;
 	type HandleMembers = Credentials;
@@ -525,7 +533,9 @@ impl pallet_funding::Config for Runtime {
 	type RemainderFundingDuration = RemainderFundingDuration;
 	type PalletId = FundingPalletId;
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
-	type MaximumBidsPerProject = ConstU32<256>;
+	type MaximumBidsPerUser = ConstU32<256>;
+	type MaxContributionsPerUser = ConstU32<256>;
+	type ContributionVesting = ContributionVestingDuration;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 

@@ -41,6 +41,7 @@ use frame_support::traits::AsEnsureOriginWithArg;
 use frame_system::EnsureSigned;
 pub use frame_system::{Call as SystemCall, EnsureRoot};
 pub use pallet_balances::Call as BalancesCall;
+use pallet_funding::BondType;
 use pallet_grandpa::{
 	fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
 };
@@ -289,8 +290,8 @@ pub const EXISTENTIAL_DEPOSIT: u128 = 500;
 
 impl pallet_balances::Config for Runtime {
 	type MaxLocks = ConstU32<50>;
-	type MaxReserves = ();
-	type ReserveIdentifier = [u8; 8];
+	type MaxReserves = ConstU32<50>;
+	type ReserveIdentifier = BondType;
 	/// The type for recording an account's balance.
 	type Balance = Balance;
 	/// The ubiquitous event type.
@@ -368,6 +369,7 @@ parameter_types! {
 	pub const CandleAuctionDuration: BlockNumber = 5;
 	pub const CommunityRoundDuration: BlockNumber = 10;
 	pub const RemainderFundingDuration: BlockNumber = 10;
+	pub const ContributionVestingDuration: BlockNumber = 100;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 }
 
@@ -377,6 +379,7 @@ impl pallet_funding::Config for Runtime {
 	type Currency = Balances;
 	type ProjectIdentifier = u32;
 	type ProjectIdParameter = codec::Compact<u32>;
+	type BidId = u128;
 	type BiddingCurrency = Balances;
 	type Assets = Assets;
 	type CurrencyBalance = <Self as pallet_balances::Config>::Balance;
@@ -388,12 +391,13 @@ impl pallet_funding::Config for Runtime {
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityFundingDuration = CommunityRoundDuration;
 	type RemainderFundingDuration = RemainderFundingDuration;
-
 	type Randomness = Random;
 	type HandleMembers = Credentials;
 	type PreImageLimit = ConstU32<1024>;
-	type MaximumBidsPerProject = ConstU32<256>;
+	type MaximumBidsPerUser = ConstU32<256>;
+	type MaxContributionsPerUser = ConstU32<64>;
 	type WeightInfo = ();
+	type ContributionVesting = ContributionVestingDuration;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 }
