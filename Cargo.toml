@@ -56,7 +56,6 @@ dip-support = { git = "https://github.com/KILTprotocol/kilt-node", default-featu
 kilt-support = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
 did = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
 pallet-did-lookup = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
-kilt-runtime-common = { package = "runtime-common", git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
 pallet-dip-provider= { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
 # Internal runtime API (with default disabled)
 kilt-runtime-api-staking = { path = "runtime-api/staking", default-features = false }

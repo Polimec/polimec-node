@@ -54,9 +54,6 @@ xcm-builder.workspace = true
 xcm-executor.workspace = true
 parachains-common.workspace = true
 
-# DIP Provider dependencies
-kilt-runtime-common.workspace = true
-
 [features]
 default = ["std"]
 fast-gov = []
@@ -88,7 +85,6 @@ std = [
     "xcm-executor/std",
     "xcm/std",
     "parachains-common/std",
-    "kilt-runtime-common/std",
     "dip-support/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

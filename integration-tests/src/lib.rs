@@ -35,8 +35,8 @@ use dip_provider_runtime_template::DipProvider;
 use dip_support::latest::Proof;
 use kilt_support::deposit::Deposit;
 use pallet_did_lookup::linkable_account::LinkableAccountId;
-use kilt_runtime_common::dip::provider::DidMerkleRootGenerator;
-use kilt_runtime_common::dip::provider::CompleteMerkleProof;
+use runtime_common::dip::provider::DidMerkleRootGenerator;
+use runtime_common::dip::provider::CompleteMerkleProof;
 
 const RELAY_ASSET_ID: u32 = 0;
 const RESERVE_TRANSFER_AMOUNT: u128 = 10_0_000_000_000; //10 UNITS when 10 decimals
@@ -1462,23 +1462,23 @@ mod reserve_backed_transfers {
 			.expect("Proof generation should not fail");
 		// 3.2 Call the `dispatch_as` extrinsic on the consumer chain with the generated
 		// proof
-		// PolimecNet::execute_with(|| {
-		// 	use frame_system::RawOrigin;
-		// 	use polimec_parachain_runtime::{DidLookup, DipConsumer, RuntimeCall};
+		PolimecNet::execute_with(|| {
+			use frame_system::RawOrigin;
+			use polimec_parachain_runtime::{DidLookup, DipConsumer, RuntimeCall};
 
-		// 	assert_ok!(DipConsumer::dispatch_as(
-		// 		RawOrigin::Signed(DISPATCHER_ACCOUNT).into(),
-		// 		did.clone(),
-		// 		Proof { blinded: proof.blinded, revealed: proof.revealed }.into(),
-		// 		Box::new(RuntimeCall::DidLookup(
-		// 			pallet_did_lookup::Call::<PolimecRuntime>::associate_sender {}
-		// 		)),
-		// 	));
-		// 	// Verify the account -> DID link exists and contains the right information
-		// 	let linked_did =
-		// 		DidLookup::connected_dids::<LinkableAccountId>(DISPATCHER_ACCOUNT.into())
-		// 			.map(|link| link.did);
-		// 	assert_eq!(linked_did, Some(did));
-		// });
+			assert_ok!(DipConsumer::dispatch_as(
+				RawOrigin::Signed(DISPATCHER_ACCOUNT).into(),
+				did.clone(),
+				Proof { blinded: proof.blinded, revealed: proof.revealed }.into(),
+				Box::new(RuntimeCall::DidLookup(
+					pallet_did_lookup::Call::<PolimecRuntime>::associate_sender {}
+				)),
+			));
+			// Verify the account -> DID link exists and contains the right information
+			let linked_did =
+				DidLookup::connected_dids::<LinkableAccountId>(DISPATCHER_ACCOUNT.into())
+					.map(|link| link.did);
+			assert_eq!(linked_did, Some(did));
+		});
 	}
 }
