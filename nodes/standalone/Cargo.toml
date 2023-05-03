@@ -54,7 +54,6 @@ frame-benchmarking-cli.workspace = true
 
 # Local Dependencies
 polimec-standalone-runtime.workspace = true
-pallet-credentials-api.workspace = true
 
 # CLI-specific dependencies
 try-runtime-cli = { workspace = true, optional = true }

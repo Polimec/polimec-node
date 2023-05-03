@@ -306,6 +306,7 @@ fn testnet_genesis(
 			phantom: Default::default(),
 		},
 		democracy: Default::default(),
+		did_lookup: Default::default(),
 		vesting: VestingConfig {
 			vesting: initial_authorities
 				.iter()

@@ -28,9 +28,13 @@ pallet-funding.workspace = true
 parachain-staking.workspace = true
 pallet-credentials.workspace = true
 pallet-asset-registry.workspace = true
-polimec-runtime-api-credentials.workspace = true
 polimec-traits.workspace = true
 runtime-common.workspace = true
+
+# KILT specific
+pallet-dip-consumer.workspace = true
+did.workspace = true
+pallet-did-lookup.workspace = true
 
 # Primitives
 xcm-primitives.workspace = true
@@ -60,7 +64,7 @@ pallet-treasury.workspace = true
 pallet-utility.workspace = true
 pallet-multisig.workspace = true
 pallet-preimage.workspace = true
-pallet-randomness-collective-flip.workspace = true
+pallet-insecure-randomness-collective-flip.workspace = true
 pallet-vesting.workspace = true
 
 # Substrate
@@ -139,7 +143,6 @@ std = [
 	"pallet-timestamp/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
-	"polimec-runtime-api-credentials/std",
 	"pallet-xcm/std",
 	"pallet-funding/std",
 	"pallet-utility/std",
@@ -147,7 +150,7 @@ std = [
 	"pallet-treasury/std",
 	"pallet-vesting/std",
 	"pallet-preimage/std",
-	"pallet-randomness-collective-flip/std",
+	"pallet-insecure-randomness-collective-flip/std",
 	"parachains-common/std",
 	"parachain-staking/std",
 	"parachain-info/std",
@@ -170,8 +173,8 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
-	"pallet-assets/try-runtime",
-	"pallet-asset-tx-payment/try-runtime",
+	"pallet-dip-consumer/std",
+	"pallet-did-lookup/std",
 ]
 
 runtime-benchmarks = [
@@ -192,7 +195,7 @@ runtime-benchmarks = [
 	"pallet-vesting/runtime-benchmarks",
 	"runtime-common/runtime-benchmarks",
 	"pallet-assets/runtime-benchmarks",
-	"pallet-collective/runtime-benchmarks"
+	"pallet-collective/runtime-benchmarks",
 ]
 #
 try-runtime = [

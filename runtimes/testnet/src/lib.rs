@@ -61,7 +61,7 @@ use sp_version::RuntimeVersion;
 use pallet_funding::BondType;
 use xcm_executor::XcmExecutor;
 
-use polimec_traits::{MemberRole, PolimecMembers};
+use pallet_dip_consumer::{DipOrigin, EnsureDipOrigin};
 use runtime_common::constants::staking::*;
 pub use runtime_common::{
 	constants::{
@@ -79,10 +79,10 @@ use xcm_config::XcmConfig;
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+mod dip;
 mod weights;
-pub mod xcm_config;
-
-pub type CurrencyId = [u8; 8];
+mod xcm_config;
+pub use crate::{dip::*, xcm_config::*};
 
 pub type NegativeImbalanceOf<T> = <pallet_balances::Pallet<T> as Currency<
 	<T as frame_system::Config>::AccountId,
@@ -464,7 +464,7 @@ impl parachain_staking::Config for Runtime {
 	const BLOCKS_PER_YEAR: Self::BlockNumber = BLOCKS_PER_YEAR;
 }
 
-impl pallet_randomness_collective_flip::Config for Runtime {}
+impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
 
 #[cfg(feature = "fast-gov")]
 pub const EVALUATION_DURATION: BlockNumber = 28;
@@ -604,6 +604,7 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type MaxMembers = CouncilMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+	type SetMembersOrigin = EnsureRoot<AccountId>;
 }
 
 parameter_types! {
@@ -622,6 +623,7 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type MaxMembers = TechnicalMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+	type SetMembersOrigin = EnsureRoot<AccountId>;
 }
 
 impl pallet_democracy::Config for Runtime {
@@ -674,6 +676,7 @@ impl pallet_democracy::Config for Runtime {
 	type VetoOrigin = pallet_collective::EnsureMember<AccountId, TechnicalCollective>;
 	type PalletsOrigin = OriginCaller;
 	type Slash = ();
+	type SubmitOrigin = EnsureSigned<AccountId>;
 }
 
 parameter_types! {
@@ -816,6 +819,20 @@ impl pallet_vesting::Config for Runtime {
 	// highest number of schedules that encodes less than 2^10.
 	const MAX_VESTING_SCHEDULES: u32 = 28;
 }
+parameter_types! {
+	// TODO: Set a proper value for this.
+	pub const DipDepositPerByte: Balance = free_deposit();
+}
+
+impl pallet_did_lookup::Config for Runtime {
+	type Currency = Balances;
+	type Deposit = DipDepositPerByte;
+	type DidIdentifier = DidIdentifier;
+	type EnsureOrigin = EnsureDipOrigin<DidIdentifier, AccountId, ()>;
+	type OriginSuccess = DipOrigin<DidIdentifier, AccountId, ()>;
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+}
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
@@ -858,11 +875,13 @@ construct_runtime!(
 
 		// Utilities
 		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 50,
-		Random: pallet_randomness_collective_flip = 51,
+		Random: pallet_insecure_randomness_collective_flip = 51,
 
 		// Polimec Core
 		PolimecFunding: pallet_funding::{Pallet, Call, Storage, Event<T>}  = 61,
 		Credentials: pallet_credentials = 63,
+		DipConsumer: pallet_dip_consumer = 64,
+		DidLookup: pallet_did_lookup = 65,
 
 		// Among others: Send and receive DMP and XCMP messages.
 		ParachainSystem: cumulus_pallet_parachain_system = 80,
@@ -1028,19 +1047,6 @@ impl_runtime_apis! {
 	impl cumulus_primitives_core::CollectCollationInfo<Block> for Runtime {
 		fn collect_collation_info(header: &<Block as BlockT>::Header) -> cumulus_primitives_core::CollationInfo {
 			ParachainSystem::collect_collation_info(header)
-		}
-	}
-
-
-	impl polimec_runtime_api_credentials::CredentialsApi<Block, AccountId> for Runtime {
-		fn is_in(role: MemberRole, who: AccountId) -> bool {
-			Credentials::is_in(&role, &who)
-		}
-		fn get_members_of(role: MemberRole) -> Vec<AccountId> {
-			Credentials::get_members_of(&role)
-		}
-		fn get_roles_of(who: AccountId) -> Vec<MemberRole> {
-			Credentials::get_roles_of(&who)
 		}
 	}
 

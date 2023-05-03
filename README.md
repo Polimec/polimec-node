@@ -13,7 +13,7 @@
 ### Step 1: Compile the relay chain and add it to $PATH
 
 - Clone the [Polkadot Repository](https://github.com/paritytech/polkadot)
-- Checkout the `release-v0.9.38` branch
+- Checkout the `release-v0.9.39` branch
 - Compile it using `cargo b -r -p polkadot`
 - Add the binary to your $PATH, e.g.
   `cp target/release/polkadot ~/.local/bin/polkadot`
@@ -48,6 +48,7 @@ $ cargo run --release -- --dev
 
 You can use [srtool](https://github.com/paritytech/srtool) to compile the
 runtime and generate the WASM blob.
+> TODO: Rust 1.69.0 broke `srtool` and `polkadot-v0.9.39` - we need to wait `polkadot-v0.9.42`. [src](https://github.com/paritytech/srtool/issues/62)
 
 ```
 == Compact
