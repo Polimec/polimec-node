@@ -19,6 +19,9 @@
 //! Types for Funding pallet.
 
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
+use sp_arithmetic::traits::Saturating;
+use sp_runtime::traits::CheckedDiv;
+use sp_std::cmp::Eq;
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct Project<BoundedString, Balance: BalanceT, Hash> {
@@ -42,7 +45,7 @@ pub struct Project<BoundedString, Balance: BalanceT, Hash> {
 	/// For now is easier to handle the case where only just one Currency is accepted
 	pub participation_currencies: Currencies,
 	/// Additional metadata
-	pub metadata: Hash,
+	pub metadata: Option<Hash>,
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -193,7 +196,17 @@ impl<BlockNumber: Copy> BlockNumberPair<BlockNumber> {
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct BidInfo<Balance: BalanceT, AccountId, BlockNumber> {
+pub struct BidInfo<
+	BidId,
+	ProjectId,
+	Balance: BalanceT,
+	AccountId,
+	BlockNumber,
+	PlmcVesting,
+	CTVesting,
+> {
+	pub bid_id: BidId,
+	pub project: ProjectId,
 	#[codec(compact)]
 	pub amount: Balance,
 	#[codec(compact)]
@@ -206,20 +219,28 @@ pub struct BidInfo<Balance: BalanceT, AccountId, BlockNumber> {
 	pub bidder: AccountId,
 	// TODO: PLMC-159. Not used yet, but will be used to check if the bid is funded after XCM is implemented
 	pub funded: bool,
-	pub multiplier: Balance,
+	pub plmc_vesting_period: PlmcVesting,
+	pub ct_vesting_period: CTVesting,
 	pub status: BidStatus<Balance>,
 }
 
-impl<Balance: BalanceT, AccountId, BlockNumber> BidInfo<Balance, AccountId, BlockNumber> {
+impl<BidId, ProjectId, Balance: BalanceT, AccountId, BlockNumber, PlmcVesting, CTVesting>
+	BidInfo<BidId, ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
+{
 	pub fn new(
+		bid_id: BidId,
+		project: ProjectId,
 		amount: Balance,
 		price: Balance,
 		when: BlockNumber,
 		bidder: AccountId,
-		multiplier: Balance,
+		plmc_vesting_period: PlmcVesting,
+		ct_vesting_period: CTVesting,
 	) -> Self {
 		let ticket_size = amount.saturating_mul(price);
 		Self {
+			bid_id,
+			project,
 			amount,
 			price,
 			ticket_size,
@@ -227,22 +248,39 @@ impl<Balance: BalanceT, AccountId, BlockNumber> BidInfo<Balance, AccountId, Bloc
 			when,
 			bidder,
 			funded: false,
-			multiplier,
+			plmc_vesting_period,
+			ct_vesting_period,
 			status: BidStatus::YetUnknown,
 		}
 	}
 }
 
-impl<Balance: BalanceT, AccountId: sp_std::cmp::Eq, BlockNumber: sp_std::cmp::Eq> sp_std::cmp::Ord
-	for BidInfo<Balance, AccountId, BlockNumber>
+impl<
+		BidId: Eq,
+		ProjectId: Eq,
+		Balance: BalanceT,
+		AccountId: Eq,
+		BlockNumber: Eq,
+		PlmcVesting: Eq,
+		CTVesting: Eq,
+	> sp_std::cmp::Ord
+	for BidInfo<BidId, ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
 {
 	fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
 		self.price.cmp(&other.price)
 	}
 }
 
-impl<Balance: BalanceT, AccountId: sp_std::cmp::Eq, BlockNumber: sp_std::cmp::Eq>
-	sp_std::cmp::PartialOrd for BidInfo<Balance, AccountId, BlockNumber>
+impl<
+		BidId: Eq,
+		ProjectId: Eq,
+		Balance: BalanceT,
+		AccountId: Eq,
+		BlockNumber: Eq,
+		PlmcVesting: Eq,
+		CTVesting: Eq,
+	> sp_std::cmp::PartialOrd
+	for BidInfo<BidId, ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
 {
 	fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
 		Some(self.cmp(other))
@@ -250,10 +288,11 @@ impl<Balance: BalanceT, AccountId: sp_std::cmp::Eq, BlockNumber: sp_std::cmp::Eq
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct ContributionInfo<Balance: BalanceT> {
-	#[codec(compact)]
-	pub amount: Balance,
-	pub can_claim: bool,
+pub struct ContributionInfo<Balance, PLMCVesting, CTVesting> {
+	// Tokens you paid in exchange for CTs
+	pub contribution_amount: Balance,
+	pub plmc_vesting: PLMCVesting,
+	pub ct_vesting: CTVesting,
 }
 
 // TODO: PLMC-157. Use SCALE fixed indexes
@@ -306,4 +345,82 @@ pub enum RejectionReason {
 	AfterCandleEnd,
 	/// The bid was accepted but too many tokens were requested. A partial amount was accepted
 	NoTokensLeft,
+}
+
+/// Enum used to identify PLMC named reserves
+#[derive(
+	Clone,
+	Encode,
+	Decode,
+	Eq,
+	PartialEq,
+	RuntimeDebug,
+	TypeInfo,
+	MaxEncodedLen,
+	Copy,
+	Ord,
+	PartialOrd,
+)]
+pub enum BondType {
+	Evaluation,
+	Bidding,
+	Contributing,
+	LongTermHolderBonus,
+	Staking,
+	Governance,
+}
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct EvaluationBond<ProjectId, AccountId, Balance, BlockNumber> {
+	pub project: ProjectId,
+	pub account: AccountId,
+	pub amount: Balance,
+	pub when: BlockNumber,
+}
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct BiddingBond<ProjectId, AccountId, Balance, BlockNumber> {
+	pub project: ProjectId,
+	pub account: AccountId,
+	pub amount: Balance,
+	pub when: BlockNumber,
+}
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct ContributingBond<ProjectId, AccountId, Balance> {
+	pub project: ProjectId,
+	pub account: AccountId,
+	pub amount: Balance,
+}
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct Vesting<BlockNumber: Copy, Balance> {
+	// Amount of tokens vested
+	pub amount: Balance,
+	// number of blocks after project ends, when vesting starts
+	pub start: BlockNumber,
+	// number of blocks after project ends, when vesting ends
+	pub end: BlockNumber,
+	// number of blocks between each withdrawal
+	pub step: BlockNumber,
+	// absolute block number of next block where withdrawal is possible
+	pub next_withdrawal: BlockNumber,
+}
+
+impl<
+		BlockNumber: Saturating + Copy + CheckedDiv,
+		Balance: Saturating + CheckedDiv + Copy + From<u32> + Eq + sp_std::ops::SubAssign,
+	> Vesting<BlockNumber, Balance>
+{
+	pub fn calculate_next_withdrawal(&mut self) -> Result<Balance, ()> {
+		if self.amount == 0u32.into() {
+			Err(())
+		} else {
+			let next_withdrawal = self.next_withdrawal.saturating_add(self.step);
+			let withdraw_amount = self.amount;
+			self.next_withdrawal = next_withdrawal;
+			self.amount -= withdraw_amount;
+			Ok(withdraw_amount)
+		}
+	}
 }
