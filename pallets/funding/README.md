@@ -8,6 +8,7 @@ tokens can be redeemed for a project's native tokens, after their
 para-{chain/thread} is deployed on mainnet.
 
 > **Warning** 👷 Work in progress 🏗️
+> 
 > Expect major changes between PRs
 
 ## Overview
