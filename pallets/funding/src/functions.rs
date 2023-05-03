@@ -660,7 +660,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
-		ensure!(project_info.is_frozen, Error::<T>::Frozen);
+		ensure!(!project_info.is_frozen, Error::<T>::Frozen);
 		ensure!(
 			!Images::<T>::contains_key(project_metadata_hash),
 			Error::<T>::MetadataAlreadyExists
@@ -1480,7 +1480,7 @@ impl<T: Config> Pallet<T> {
 		decimals: u8,
 	) -> (Vesting<T::BlockNumber, BalanceOf<T>>, Vesting<T::BlockNumber, BalanceOf<T>>) {
 		let plmc_start: T::BlockNumber = 0u32.into();
-		let ct_start: T::BlockNumber = (parachains_common::DAYS * 7).into();
+		let ct_start: T::BlockNumber = (T::MaxProjectsToUpdatePerBlock::get() * 7).into();
 		// TODO: Calculate real vesting periods based on multiplier and caller type
 		// FIXME: if divide fails, we probably dont want to assume the multiplier is one
 		let ticket_size = token_amount.saturating_mul(token_price);

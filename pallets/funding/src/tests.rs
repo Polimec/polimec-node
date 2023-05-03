@@ -1260,7 +1260,7 @@ mod auction_round_failure {
 #[cfg(test)]
 mod community_round_success {
 	use super::*;
-	use parachains_common::HOURS;
+	pub const HOURS: BlockNumber = 300u64;
 
 	#[test]
 	fn community_round_works() {

@@ -27,7 +27,6 @@ use frame_support::{
 	PalletId,
 };
 use frame_system as system;
-use parachains_common::HOURS;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -144,6 +143,8 @@ impl pallet_assets::Config for TestRuntime {
 	type BenchmarkHelper = ();
 }
 
+pub const HOURS: BlockNumber = 300u64;
+
 // REMARK: In the production configuration we use DAYS instead of HOURS.
 parameter_types! {
 	pub const EvaluationDuration: BlockNumber = (28 * HOURS) as BlockNumber;
@@ -179,6 +180,7 @@ impl pallet_funding::Config for TestRuntime {
 	// Low value to simplify the tests
 	type MaximumBidsPerUser = ConstU32<4>;
 	type MaxContributionsPerUser = ConstU32<4>;
+	type ContributionVesting = ConstU32<4>;
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();

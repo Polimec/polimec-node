@@ -237,6 +237,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxContributionsPerUser: Get<u32>;
 
+		/// The maximum number of bids per user
+		#[pallet::constant]
+		type ContributionVesting: Get<u32>;
+
 		/// Helper trait for benchmarks.
 		#[cfg(feature = "runtime-benchmarks")]
 		type BenchmarkHelper: BenchmarkHelper<Self>;
@@ -870,7 +874,7 @@ pub mod pallet {
 				minimum_price: 1__0_000_000_000_u64.into(),
 				ticket_size: TicketSize { minimum: Some(1u8.into()), maximum: None },
 				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-				metadata: metadata_hash,
+				metadata: Some(metadata_hash),
 				..Default::default()
 			};
 			project
