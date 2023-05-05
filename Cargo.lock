@@ -6462,7 +6462,7 @@ dependencies = [
  "pallet-balances",
  "pallet-credentials",
  "pallet-funding",
- "pallet-randomness-collective-flip",
+ "pallet-insecure-randomness-collective-flip",
  "parachains-common",
  "parity-scale-codec",
  "polimec-traits",

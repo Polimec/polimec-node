@@ -175,6 +175,7 @@ impl pallet_funding::Config for TestRuntime {
 	// Low value to simplify the tests
 	type MaximumBidsPerUser = ConstU32<4>;
 	type MaxContributionsPerUser = ConstU32<4>;
+	type ContributionVesting = ConstU32<4>;
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
