@@ -487,21 +487,13 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A project was created.
-		Created {
-			project_id: T::ProjectIdentifier,
-		},
+		Created { project_id: T::ProjectIdentifier },
 		/// The metadata of a project was modified.
-		MetadataEdited {
-			project_id: T::ProjectIdentifier,
-		},
+		MetadataEdited { project_id: T::ProjectIdentifier },
 		/// The evaluation phase of a project started.
-		EvaluationStarted {
-			project_id: T::ProjectIdentifier,
-		},
+		EvaluationStarted { project_id: T::ProjectIdentifier },
 		/// The evaluation phase of a project ended without reaching the minimum threshold of evaluation bonds.
-		EvaluationFailed {
-			project_id: T::ProjectIdentifier,
-		},
+		EvaluationFailed { project_id: T::ProjectIdentifier },
 		/// The period an issuer has to start the auction phase of the project.
 		AuctionInitializePeriod {
 			project_id: T::ProjectIdentifier,
@@ -509,25 +501,13 @@ pub mod pallet {
 			end_block: T::BlockNumber,
 		},
 		/// The auction round of a project started.
-		EnglishAuctionStarted {
-			project_id: T::ProjectIdentifier,
-			when: T::BlockNumber,
-		},
+		EnglishAuctionStarted { project_id: T::ProjectIdentifier, when: T::BlockNumber },
 		/// The candle auction part of the auction started for a project
-		CandleAuctionStarted {
-			project_id: T::ProjectIdentifier,
-			when: T::BlockNumber,
-		},
+		CandleAuctionStarted { project_id: T::ProjectIdentifier, when: T::BlockNumber },
 		/// The auction round of a project ended.
-		AuctionEnded {
-			project_id: T::ProjectIdentifier,
-		},
+		AuctionEnded { project_id: T::ProjectIdentifier },
 		/// A `bonder` bonded an `amount` of PLMC for `project_id`.
-		FundsBonded {
-			project_id: T::ProjectIdentifier,
-			amount: BalanceOf<T>,
-			bonder: T::AccountId,
-		},
+		FundsBonded { project_id: T::ProjectIdentifier, amount: BalanceOf<T>, bonder: T::AccountId },
 		/// Someone paid for the release of a user's PLMC bond for a project.
 		BondReleased {
 			project_id: T::ProjectIdentifier,
@@ -550,26 +530,15 @@ pub mod pallet {
 			multiplier: BalanceOf<T>,
 		},
 		/// A project is now in its community funding round
-		CommunityFundingStarted {
-			project_id: T::ProjectIdentifier,
-		},
+		CommunityFundingStarted { project_id: T::ProjectIdentifier },
 		/// A project is now in the remainder funding round
-		RemainderFundingStarted {
-			project_id: T::ProjectIdentifier,
-		},
+		RemainderFundingStarted { project_id: T::ProjectIdentifier },
 		/// A project has now finished funding
-		FundingEnded {
-			project_id: T::ProjectIdentifier,
-		},
+		FundingEnded { project_id: T::ProjectIdentifier },
 		/// Something was not properly initialized. Most likely due to dev error manually calling do_* functions or updating storage
-		TransitionError {
-			project_id: T::ProjectIdentifier,
-			error: DispatchError,
-		},
+		TransitionError { project_id: T::ProjectIdentifier, error: DispatchError },
 		/// Something terribly wrong happened where the bond could not be unbonded. Most likely a programming error
-		FailedEvaluationUnbondFailed {
-			error: DispatchError,
-		},
+		FailedEvaluationUnbondFailed { error: DispatchError },
 		/// Contribution tokens were minted to a user
 		ContributionTokenMinted {
 			caller: T::AccountId,
@@ -905,8 +874,7 @@ pub mod pallet {
 
 					// FundingEnded -> ReadyToLaunch
 					// Handled by user extrinsic
-
-					_ => {}
+					_ => {},
 				}
 			}
 			// TODO: PLMC-127. Set a proper weight

@@ -122,7 +122,6 @@ impl<T: Config> Pallet<T> {
 	/// Users will pond PLMC for this project, and when the time comes, the project will be transitioned
 	/// to the next round by `on_initialize` using [`do_evaluation_end`](Self::do_evaluation_end)
 	pub fn do_evaluation_start(project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
-
 		// * Get variables *
 		let mut project_info =
 			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
@@ -139,10 +138,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Calculate new variables *
 		let evaluation_end_block = now + T::EvaluationDuration::get();
-		project_info
-			.phase_transition_points
-			.application
-			.update(None, Some(now));
+		project_info.phase_transition_points.application.update(None, Some(now));
 		project_info
 			.phase_transition_points
 			.evaluation
