@@ -46,7 +46,7 @@ frame_support::construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system,
-		RandomnessCollectiveFlip: pallet_randomness_collective_flip,
+		RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip,
 		Assets: pallet_assets,
 		Balances: pallet_balances,
 		FundingModule: pallet_funding,
@@ -104,7 +104,7 @@ impl pallet_balances::Config for TestRuntime {
 	type WeightInfo = ();
 }
 
-impl pallet_randomness_collective_flip::Config for TestRuntime {}
+impl pallet_insecure_randomness_collective_flip::Config for TestRuntime {}
 
 impl pallet_credentials::Config for TestRuntime {
 	type RuntimeEvent = RuntimeEvent;
