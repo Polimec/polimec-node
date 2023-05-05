@@ -20,7 +20,6 @@
 
 use super::*;
 
-use crate::ProjectStatus::EvaluationRound;
 use frame_support::{ensure, pallet_prelude::DispatchError, traits::Get};
 use sp_arithmetic::{traits::Zero, Perbill};
 use sp_runtime::Percent;
@@ -36,10 +35,10 @@ impl<T: Config> Pallet<T> {
 	/// * `project` - The project struct containing all the necessary information.
 	///
 	/// # Storage access
-	/// * `Projects` - Inserting the main project information. 1 to 1 with the `project` argument.
-	/// * `ProjectsInfo` - Inserting the project information. constructed from the `project` argument.
-	/// * `ProjectsIssuers` - Inserting the issuer of the project. Mapping of the two parameters `project_id` and `issuer`.
-	/// * `NextProjectId` - Getting the next usable id, and updating it for the next project.
+	/// * [`Projects`] - Inserting the main project information. 1 to 1 with the `project` argument.
+	/// * [`ProjectsInfo`] - Inserting the project information. constructed from the `project` argument.
+	/// * [`ProjectsIssuers`] - Inserting the issuer of the project. Mapping of the two parameters `project_id` and `issuer`.
+	/// * [`NextProjectId`] - Getting the next usable id, and updating it for the next project.
 	///
 	/// # Success path
 	/// The `project` argument is valid. A ProjectInfo struct is constructed, and the storage is updated
@@ -47,7 +46,7 @@ impl<T: Config> Pallet<T> {
 	///
 	/// # Next step
 	/// The issuer will call an extrinsic to start the evaluation round of the project.
-	/// `do_evaluation_start` will be executed.
+	/// [`do_evaluation_start`](Self::do_evaluation_start) will be executed.
 	pub fn do_create(issuer: T::AccountId, project: ProjectOf<T>) -> Result<(), DispatchError> {
 		// TODO: Probably the issuers don't want to sell all of their tokens. Is there some logic for this?
 		// 	also even if an issuer wants to sell all their tokens, they could target a lower amount than that to consider it a success
@@ -55,12 +54,11 @@ impl<T: Config> Pallet<T> {
 		let fundraising_target = project.total_allocation_size * project.minimum_price;
 		let project_id = NextProjectId::<T>::get();
 
+		// * Validity checks *
 		if let Some(metadata) = project.metadata {
 			ensure!(!Images::<T>::contains_key(metadata), Error::<T>::MetadataAlreadyExists);
-			Images::<T>::insert(metadata, issuer.clone());
 		}
 
-		// * Validity checks *
 		if let Err(error) = project.validity_check() {
 			return match error {
 				ValidityError::PriceTooLow => Err(Error::<T>::PriceTooLow.into()),
@@ -92,10 +90,13 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// * Update storage *
-		Projects::<T>::insert(project_id, project);
+		Projects::<T>::insert(project_id, project.clone());
 		ProjectsInfo::<T>::insert(project_id, project_info);
-		ProjectsIssuers::<T>::insert(project_id, issuer);
+		ProjectsIssuers::<T>::insert(project_id, issuer.clone());
 		NextProjectId::<T>::mutate(|n| n.saturating_inc());
+		if let Some(metadata) = project.metadata {
+			Images::<T>::insert(metadata, issuer);
+		}
 
 		// * Emit events *
 		Self::deposit_event(Event::<T>::Created { project_id });
@@ -110,8 +111,8 @@ impl<T: Config> Pallet<T> {
 	/// * `project_id` - The id of the project to start the evaluation round for.
 	///
 	/// # Storage access
-	/// * `ProjectsInfo` - Checking and updating the round status, transition points and freezing the project.
-	/// * `ProjectsToUpdate` - Scheduling the project for automatic transition by on_initialize later on.
+	/// * [`ProjectsInfo`] - Checking and updating the round status, transition points and freezing the project.
+	/// * [`ProjectsToUpdate`] - Scheduling the project for automatic transition by on_initialize later on.
 	///
 	/// # Success path
 	/// The project information is found, its round status was in Application round, and It's not yet frozen.
@@ -119,7 +120,7 @@ impl<T: Config> Pallet<T> {
 	///
 	/// # Next step
 	/// Users will pond PLMC for this project, and when the time comes, the project will be transitioned
-	/// to the next round by `on_initialize` using `do_evaluation_end`
+	/// to the next round by `on_initialize` using [`do_evaluation_end`](Self::do_evaluation_end)
 	pub fn do_evaluation_start(project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
 		// * Get variables *
 		let mut project_info =
@@ -137,17 +138,17 @@ impl<T: Config> Pallet<T> {
 
 		// * Calculate new variables *
 		let evaluation_end_block = now + T::EvaluationDuration::get();
-
-		// * Update storage *
-		// TODO: Should we make it possible to end an application, and schedule for a later point the evaluation?
-		// 	Or should we just make it so that the evaluation starts immediately after the application ends?
 		project_info.phase_transition_points.application.update(None, Some(now));
 		project_info
 			.phase_transition_points
 			.evaluation
 			.update(Some(now + 1u32.into()), Some(evaluation_end_block));
 		project_info.is_frozen = true;
-		project_info.project_status = EvaluationRound;
+		project_info.project_status = ProjectStatus::EvaluationRound;
+
+		// * Update storage *
+		// TODO: Should we make it possible to end an application, and schedule for a later point the evaluation?
+		// 	Or should we just make it so that the evaluation starts immediately after the application ends?
 		ProjectsInfo::<T>::insert(project_id, project_info);
 		Self::add_to_update_store(evaluation_end_block + 1u32.into(), &project_id)
 			.expect("Always returns Ok; qed");
@@ -166,28 +167,23 @@ impl<T: Config> Pallet<T> {
 	/// * `project_id` - The id of the project to end the evaluation round for.
 	///
 	/// # Storage access
-	/// * `ProjectsInfo` - Checking the round status and transition points for validity, and updating
+	/// * [`ProjectsInfo`] - Checking the round status and transition points for validity, and updating
 	/// the round status and transition points in case of success or failure of the evaluation.
-	/// * `EvaluationBonds` - Checking that the threshold for PLMC bonded was reached, to decide
+	/// * [`EvaluationBonds`] - Checking that the threshold for PLMC bonded was reached, to decide
 	/// whether the project failed or succeeded.
 	///
-	/// # Success path
-	/// The project information is found, its round status was in Evaluation round,
-	/// the current block is after the defined end block of the evaluation round.
-	///
-	/// 2 Possible paths.
-	///
-	/// * Project achieves its evaluation goal - 10% of the target funding was reached through bonding,
-	/// so the project is transitioned to the `AuctionInitializePeriod` round. The project information
+	/// # Possible paths
+	/// * Project achieves its evaluation goal. >=10% of the target funding was reached through bonding,
+	/// so the project is transitioned to the [`AuctionInitializePeriod`](ProjectStatus::AuctionInitializePeriod) round. The project information
 	/// is updated with the new transition points and round status.
 	///
-	/// * Project doesn't reach the evaluation goal - less than 10% of the target funding was reached
+	/// * Project doesn't reach the evaluation goal - <10% of the target funding was reached
 	/// through bonding, so the project is transitioned to the `EvaluationFailed` round. The project
 	/// information is updated with the new rounds status and it is scheduled for automatic unbonding.
 	///
 	/// # Next step
 	/// * Bonding achieved - The issuer calls an extrinsic within the set period to initialize the
-	/// auction round. `do_english_auction` is called
+	/// auction round. `auction` is called
 	///
 	/// * Bonding failed - `on_idle` at some point checks for failed evaluation projects, and
 	/// unbonds the evaluators funds.
@@ -205,7 +201,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			project_info.project_status == EvaluationRound,
+			project_info.project_status == ProjectStatus::EvaluationRound,
 			Error::<T>::ProjectNotInEvaluationRound
 		);
 		ensure!(now > evaluation_end_block, Error::<T>::EvaluationPeriodNotEnded);
@@ -270,7 +266,7 @@ impl<T: Config> Pallet<T> {
 	/// * `project_id` - The project identifier
 	///
 	/// # Storage access
-	/// * `ProjectsInfo` - Get the project information, and check if the project is in the correct
+	/// * [`ProjectsInfo`] - Get the project information, and check if the project is in the correct
 	/// round, and the current block is between the defined start and end blocks of the initialize period.
 	/// Update the project information with the new round status and transition points in case of success.
 	///
@@ -280,9 +276,9 @@ impl<T: Config> Pallet<T> {
 	/// english auction round.
 	///
 	/// # Next step
-	/// Professional and Institutional users set bids for the project using the `bid` extrinsic.
+	/// Professional and Institutional users set bids for the project using the [`bid`](Self::bid) extrinsic.
 	/// Later on, `on_initialize` transitions the project into the candle auction round, by calling
-	/// `do_candle_auction`.
+	/// [`do_candle_auction`](Self::do_candle_auction).
 	pub fn do_english_auction(project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
 		// * Get variables *
 		let mut project_info =
@@ -343,7 +339,7 @@ impl<T: Config> Pallet<T> {
 	/// * `project_id` - The project identifier
 	///
 	/// # Storage access
-	/// * `ProjectsInfo` - Get the project information, and check if the project is in the correct
+	/// * [`ProjectsInfo`] - Get the project information, and check if the project is in the correct
 	/// round, and the current block after the english auction end period.
 	/// Update the project information with the new round status and transition points in case of success.
 	///
@@ -356,7 +352,7 @@ impl<T: Config> Pallet<T> {
 	/// Professional and Institutional users set bids for the project using the `bid` extrinsic,
 	/// but now their bids are not guaranteed.
 	/// Later on, `on_initialize` ends the candle auction round and starts the community round,
-	/// by calling `do_community_funding`.
+	/// by calling [`do_community_funding`](Self::do_community_funding).
 	pub fn do_candle_auction(project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
 		// * Get variables *
 		let mut project_info =
@@ -398,14 +394,14 @@ impl<T: Config> Pallet<T> {
 
 	/// Called automatically by on_initialize
 	/// Starts the community round for a project.
-	/// Retail users now buy tokens instead of bid on them. The price of the tokens are calculated
-	/// based on the available bids, using the function `calculate_weighted_average_price`.
+	/// Retail users now buy tokens instead of bidding on them. The price of the tokens are calculated
+	/// based on the available bids, using the function [`calculate_weighted_average_price`](Self::calculate_weighted_average_price).
 	///
 	/// # Arguments
 	/// * `project_id` - The project identifier
 	///
 	/// # Storage access
-	/// * `ProjectsInfo` - Get the project information, and check if the project is in the correct
+	/// * [`ProjectsInfo`] - Get the project information, and check if the project is in the correct
 	/// round, and the current block is after the candle auction end period.
 	/// Update the project information with the new round status and transition points in case of success.
 	///
@@ -416,7 +412,7 @@ impl<T: Config> Pallet<T> {
 	///
 	/// # Next step
 	/// Retail users buy tokens at the price set on the auction round.
-	/// Later on, `on_initialize` ends the community round by calling `do_remainder_funding` and
+	/// Later on, `on_initialize` ends the community round by calling [`do_remainder_funding`](Self::do_remainder_funding) and
 	/// starts the remainder round, where anyone can buy at that price point.
 	pub fn do_community_funding(project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
 		// * Get variables *
@@ -477,7 +473,7 @@ impl<T: Config> Pallet<T> {
 	/// * `project_id` - The project identifier
 	///
 	/// # Storage access
-	/// * `ProjectsInfo` - Get the project information, and check if the project is in the correct
+	/// * [`ProjectsInfo`] - Get the project information, and check if the project is in the correct
 	/// round, the current block is after the community funding end period, and there are still tokens left to sell.
 	/// Update the project information with the new round status and transition points in case of success.
 	///
@@ -489,7 +485,7 @@ impl<T: Config> Pallet<T> {
 	/// # Next step
 	/// Any users can now buy tokens at the price set on the auction round.
 	/// Later on, `on_initialize` ends the remainder round, and finalizes the project funding, by calling
-	/// `do_end_funding`
+	/// [`do_end_funding`](Self::do_end_funding).
 	pub fn do_remainder_funding(project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
 		// * Get variables *
 		let mut project_info =
@@ -536,7 +532,7 @@ impl<T: Config> Pallet<T> {
 	/// * `project_id` - The project identifier
 	///
 	/// # Storage access
-	/// * `ProjectsInfo` - Get the project information, and check if the project is in the correct
+	/// * [`ProjectsInfo`] - Get the project information, and check if the project is in the correct
 	/// round, the current block is after the remainder funding end period.
 	/// Update the project information with the new round status.
 	///
@@ -550,8 +546,15 @@ impl<T: Config> Pallet<T> {
 	/// * Project doesn't achieve its funding target - the project info is set to an unsuccessful funding state.
 	///
 	/// # Next step
-	/// If successful, users can claim their contribution tokens and bonded plmc when the time is right.
-	/// If unsuccessful, users can claim their bonded plmc and unlock their reserved bidding currency immediately
+	/// If **successful**, bidders can claim:
+	///	* Contribution tokens with [`vested_contribution_token_bid_mint_for`](Self::vested_contribution_token_bid_mint_for)
+	/// * Bonded plmc with [`vested_plmc_bid_unbond_for`](Self::vested_plmc_bid_unbond_for)
+	///
+	/// And contributors can claim:
+	/// * Contribution tokens with [`vested_contribution_token_purchase_mint_for`](Self::vested_contribution_token_purchase_mint_for)
+	/// * Bonded plmc with [`vested_plmc_purchase_unbond_for`](Self::vested_plmc_purchase_unbond_for)
+	///
+	/// If **unsuccessful**, users every user should have their PLMC vesting unbonded.
 	pub fn do_end_funding(project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
 		// * Get variables *
 		let mut project_info =
@@ -606,7 +609,7 @@ impl<T: Config> Pallet<T> {
 	/// * `project_id` - The project identifier
 	///
 	/// # Storage access
-	/// * `ProjectsInfo` - Check that the funding round ended, and update the status to ReadyToLaunch
+	/// * [`ProjectsInfo`] - Check that the funding round ended, and update the status to ReadyToLaunch
 	///
 	/// # Success Path
 	/// For now it will always succeed as long as the project exists. This functions is a WIP.
@@ -636,7 +639,7 @@ impl<T: Config> Pallet<T> {
 
 // Extrinsic functions (except round transitions)
 impl<T: Config> Pallet<T> {
-	/// Change the metadata of a project to the hash of the image that was previously stored with the `note_bytes` extrinsic
+	/// Change the metadata hash of a project
 	///
 	/// # Arguments
 	/// * `issuer` - The project issuer account
@@ -644,10 +647,10 @@ impl<T: Config> Pallet<T> {
 	/// * `project_metadata_hash` - The hash of the image that contains the metadata
 	///
 	/// # Storage access
-	/// * `ProjectsIssuers` - Check that the issuer is the owner of the project
-	/// * `Images` - Check that the image exists
-	/// * `ProjectsInfo` - Check that the project is not frozen
-	/// * `Projects` - Update the metadata hash
+	/// * [`ProjectsIssuers`] - Check that the issuer is the owner of the project
+	/// * [`Images`] - Check that the image exists
+	/// * [`ProjectsInfo`] - Check that the project is not frozen
+	/// * [`Projects`] - Update the metadata hash
 	pub fn do_edit_metadata(
 		issuer: T::AccountId,
 		project_id: T::ProjectIdentifier,
@@ -692,9 +695,9 @@ impl<T: Config> Pallet<T> {
 	/// * `amount` - The amount of PLMC to bond
 	///
 	/// # Storage access
-	/// * `ProjectsIssuers` - Check that the evaluator is not the project issuer
-	/// * `ProjectsInfo` - Check that the project is in the evaluation stage
-	/// * `EvaluationBonds` - Update the storage with the evaluators bond, by either increasing an existing
+	/// * [`ProjectsIssuers`] - Check that the evaluator is not the project issuer
+	/// * [`ProjectsInfo`] - Check that the project is in the evaluation stage
+	/// * [`EvaluationBonds`] - Update the storage with the evaluators bond, by either increasing an existing
 	/// one, or appending a new bond
 	pub fn do_evaluation_bond(
 		evaluator: T::AccountId,
@@ -765,8 +768,8 @@ impl<T: Config> Pallet<T> {
 	/// * `releaser` - The account that is releasing the funds, which will be shown in the event emitted
 	///
 	/// # Storage access
-	/// * `ProjectsInfo` - Check that the project is in the evaluation failed stage
-	/// * `EvaluationBonds` - Remove the bond from storage
+	/// * [`ProjectsInfo`] - Check that the project is in the evaluation failed stage
+	/// * [`EvaluationBonds`] - Remove the bond from storage
 	pub fn do_failed_evaluation_unbond_for(
 		bond: EvaluationBond<
 			T::ProjectIdentifier,
@@ -813,10 +816,10 @@ impl<T: Config> Pallet<T> {
 	/// * `multiplier` - Used for calculating how much PLMC needs to be bonded to spend this much money (in USD)
 	///
 	/// # Storage access
-	/// * `ProjectsIssuers` - Check that the bidder is not the project issuer
-	/// * `ProjectsInfo` - Check that the project is in the bidding stage
-	/// * `BiddingBonds` - Update the storage with the bidder's PLMC bond for that bid
-	/// * `AuctionsInfo` - Check previous bids by that user, and update the storage with the new bid
+	/// * [`ProjectsIssuers`] - Check that the bidder is not the project issuer
+	/// * [`ProjectsInfo`] - Check that the project is in the bidding stage
+	/// * [`BiddingBonds`] - Update the storage with the bidder's PLMC bond for that bid
+	/// * [`AuctionsInfo`] - Check previous bids by that user, and update the storage with the new bid
 	pub fn do_bid(
 		bidder: T::AccountId,
 		project_id: T::ProjectIdentifier,
@@ -932,11 +935,11 @@ impl<T: Config> Pallet<T> {
 	/// * amount: The amount of contribution tokens to buy
 	///
 	/// # Storage access
-	/// * `ProjectsIssuers` - Check that the issuer is not a contributor
-	/// * `ProjectsInfo` - Check that the project is in the Community Round, and the amount is big
+	/// * [`ProjectsIssuers`] - Check that the issuer is not a contributor
+	/// * [`ProjectsInfo`] - Check that the project is in the Community Round, and the amount is big
 	/// enough to buy at least 1 token
-	/// * `Contributions` - Update storage with the new contribution
-	/// * `T::Currency` - Update the balance of the contributor and the project pot
+	/// * [`Contributions`] - Update storage with the new contribution
+	/// * [`T::Currency`] - Update the balance of the contributor and the project pot
 	pub fn do_contribute(
 		contributor: T::AccountId,
 		project_id: T::ProjectIdentifier,
@@ -1064,9 +1067,9 @@ impl<T: Config> Pallet<T> {
 	/// * bid: The bid to unbond from
 	///
 	/// # Storage access
-	/// * `AuctionsInfo` - Check if its time to unbond some plmc based on the bid vesting period, and update the bid after unbonding.
-	/// * `BiddingBonds` - Update the bid with the new vesting period struct, reflecting this withdrawal
-	/// * `T::Currency` - Unreserve the unbonded amount
+	/// * [`AuctionsInfo`] - Check if its time to unbond some plmc based on the bid vesting period, and update the bid after unbonding.
+	/// * [`BiddingBonds`] - Update the bid with the new vesting period struct, reflecting this withdrawal
+	/// * [`T::Currency`] - Unreserve the unbonded amount
 	pub fn do_vested_plmc_bid_unbond_for(
 		releaser: T::AccountId,
 		project_id: T::ProjectIdentifier,
@@ -1189,15 +1192,15 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	/// Unbond some plmc from a successful bid, after a step in the vesting period has passed.
+	/// Unbond some plmc from a contribution, after a step in the vesting period has passed.
 	///
 	/// # Arguments
 	/// * bid: The bid to unbond from
 	///
 	/// # Storage access
-	/// * `AuctionsInfo` - Check if its time to unbond some plmc based on the bid vesting period, and update the bid after unbonding.
-	/// * `BiddingBonds` - Update the bid with the new vesting period struct, reflecting this withdrawal
-	/// * `T::Currency` - Unreserve the unbonded amount
+	/// * [`AuctionsInfo`] - Check if its time to unbond some plmc based on the bid vesting period, and update the bid after unbonding.
+	/// * [`BiddingBonds`] - Update the bid with the new vesting period struct, reflecting this withdrawal
+	/// * [`T::Currency`] - Unreserve the unbonded amount
 	pub fn do_vested_plmc_purchase_unbond_for(
 		releaser: T::AccountId,
 		project_id: T::ProjectIdentifier,
@@ -1275,9 +1278,9 @@ impl<T: Config> Pallet<T> {
 	/// * project_id: The project the contribution was made for
 	///
 	/// # Storage access
-	/// * `ProjectsInfo` - Check that the funding period ended
-	/// * `Contributions` - Check if its time to mint some tokens based on the contributions vesting periods, and update the contribution after minting.
-	/// * `T::Assets` - Mint the tokens to the claimer
+	/// * [`ProjectsInfo`] - Check that the funding period ended
+	/// * [`Contributions`] - Check if its time to mint some tokens based on the contributions vesting periods, and update the contribution after minting.
+	/// * [`T::Assets`] - Mint the tokens to the claimer
 	pub fn do_vested_contribution_token_purchase_mint_for(
 		releaser: T::AccountId,
 		project_id: T::ProjectIdentifier,

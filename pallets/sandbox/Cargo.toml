@@ -1,0 +1,66 @@
+[package]
+name = "pallet-sandbox"
+authors = ["Anonymous"]
+description = "FRAME pallet to test new features"
+version = "0.1.0"
+license = "Unlicense"
+homepage = "https://substrate.io"
+repository = "https://github.com/paritytech/substrate/"
+edition = "2021"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "3.0.0", features = ["derive"], default-features = false }
+scale-info = { version = "2.2.0", default-features = false, features = ["derive"] }
+
+# Local dependencies
+
+# Substrate dependencies
+frame-support.workspace = true
+frame-system.workspace = true
+sp-std.workspace = true
+sp-runtime.workspace = true
+sp-arithmetic.workspace = true
+polimec-traits.workspace = true
+parachains-common.workspace = true
+pallet-funding.workspace = true
+
+# Benchmarking dependencies
+frame-benchmarking = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde = { version = "1.0.132" }
+
+# Substrate
+sp-core.workspace = true
+sp-io.workspace = true
+sp-runtime.workspace = true
+pallet-balances.workspace = true
+pallet-insecure-randomness-collective-flip.workspace = true
+pallet-assets.workspace = true
+pallet-credentials.workspace = true
+
+
+[features]
+default = ["std"]
+runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks"]
+std = [
+	"codec/std",
+	"scale-info/std",
+	"pallet-funding/std",
+	"frame-support/std",
+	"frame-system/std",
+	"sp-runtime/std",
+	"sp-core/std",
+	"sp-io/std",
+	"sp-runtime/std",
+	"pallet-assets/std",
+	"pallet-balances/std",
+	"pallet-credentials/std",
+	"polimec-traits/std",
+	"frame-benchmarking?/std",
+	"parachains-common/std",
+]
+try-runtime = [ "frame-support/try-runtime" ]

@@ -42,8 +42,10 @@ substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", bran
 parachain-staking = { path = "pallets/parachain-staking", default-features = false }
 pallet-credentials = { path = "pallets/credentials", default-features = false }
 pallet-funding = { path = "pallets/funding", default-features = false }
+pallet-sandbox = { path = "pallets/sandbox", default-features = false }
 pallet-asset-registry = { path = "pallets/asset-registry", default-features = false }
 pallet-dip-consumer = { path = "pallets/pallet-dip-consumer", default-features = false }
+
 
 
 # Internal support (with default disabled)

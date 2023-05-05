@@ -14,19 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// If you feel like getting in touch with us, you can do so at info@polimec.org
-
-//! Test environment for Funding pallet.
-
-use super::*;
-use crate as pallet_funding;
-
 use frame_support::{
 	parameter_types,
 	traits::{AsEnsureOriginWithArg, ConstU128, ConstU16, ConstU32},
 	PalletId,
 };
 use frame_system as system;
+use parachains_common::HOURS;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -34,6 +28,7 @@ use sp_runtime::{
 	BuildStorage,
 };
 use system::EnsureSigned;
+
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<TestRuntime>;
 type Block = frame_system::mocking::MockBlock<TestRuntime>;
 
@@ -56,8 +51,11 @@ frame_support::construct_runtime!(
 		Balances: pallet_balances,
 		FundingModule: pallet_funding,
 		Credentials: pallet_credentials,
+		Sandbox: crate,
 	}
 );
+
+impl crate::Config for TestRuntime {}
 
 parameter_types! {
 	pub const BlockHashCount: u32 = 250;
@@ -97,7 +95,7 @@ parameter_types! {
 impl pallet_balances::Config for TestRuntime {
 	type MaxLocks = frame_support::traits::ConstU32<1024>;
 	type MaxReserves = frame_support::traits::ConstU32<1024>;
-	type ReserveIdentifier = BondType;
+	type ReserveIdentifier = pallet_funding::BondType;
 	type Balance = Balance;
 	type RuntimeEvent = RuntimeEvent;
 	type DustRemoval = ();
@@ -142,8 +140,6 @@ impl pallet_assets::Config for TestRuntime {
 	type BenchmarkHelper = ();
 }
 
-pub const HOURS: BlockNumber = 300u64;
-
 // REMARK: In the production configuration we use DAYS instead of HOURS.
 parameter_types! {
 	pub const EvaluationDuration: BlockNumber = (28 * HOURS) as BlockNumber;
@@ -179,7 +175,6 @@ impl pallet_funding::Config for TestRuntime {
 	// Low value to simplify the tests
 	type MaximumBidsPerUser = ConstU32<4>;
 	type MaxContributionsPerUser = ConstU32<4>;
-	type ContributionVesting = ConstU32<4>;
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
