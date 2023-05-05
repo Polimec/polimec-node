@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use codec::Encode;
+use cumulus_pallet_xcmp_queue::Event as XcmpEvent;
 use frame_support::{assert_ok, pallet_prelude::Weight, traits::GenesisBuild};
 use polimec_parachain_runtime as polimec_runtime;
 use polkadot_parachain::primitives::{Id as ParaId, Sibling as SiblingId};
@@ -26,17 +27,14 @@ use xcm_emulator::{
 	cumulus_pallet_xcmp_queue, decl_test_network, decl_test_parachain, decl_test_relay_chain,
 	polkadot_primitives, TestExt,
 };
-use cumulus_pallet_xcmp_queue::Event as XcmpEvent;
 
 // DIP Dependencies
 use did::did_details::{DidDetails, DidEncryptionKey, DidVerificationKey};
-use dip_provider_runtime_template::DidIdentifier;
-use dip_provider_runtime_template::DipProvider;
+use dip_provider_runtime_template::{DidIdentifier, DipProvider};
 use dip_support::latest::Proof;
 use kilt_support::deposit::Deposit;
 use pallet_did_lookup::linkable_account::LinkableAccountId;
-use runtime_common::dip::provider::DidMerkleRootGenerator;
-use runtime_common::dip::provider::CompleteMerkleProof;
+use runtime_common::dip::provider::{CompleteMerkleProof, DidMerkleRootGenerator};
 
 const RELAY_ASSET_ID: u32 = 0;
 const RESERVE_TRANSFER_AMOUNT: u128 = 10_0_000_000_000; //10 UNITS when 10 decimals
@@ -1411,7 +1409,6 @@ mod reserve_backed_transfers {
 
 	#[test]
 	fn commit_identity() {
-
 		Network::reset();
 
 		let did: DidIdentifier = did_auth_key().public().into();
@@ -1438,11 +1435,7 @@ mod reserve_backed_transfers {
 			// 2.1 Verify that there was no XCM error.
 			assert!(!System::events().iter().any(|r| matches!(
 				r.event,
-				RuntimeEvent::XcmpQueue(XcmpEvent::Fail {
-					error: _,
-					message_hash: _,
-					weight: _
-				})
+				RuntimeEvent::XcmpQueue(XcmpEvent::Fail { error: _, message_hash: _, weight: _ })
 			)));
 
 			// 2.2 Verify the proof digest was stored correctly.
