@@ -1429,7 +1429,8 @@ mod reserve_backed_transfers {
 		PolimecNet::execute_with(|| {
 			use polimec_parachain_runtime::{RuntimeEvent, System};
 			// TODO: Remove this once we resolve the panic.
-			for elem in System::events().iter() {
+			let events = System::events();
+			for elem in events {
 				println!("{:?}", elem.event);
 			}
 			// 2.1 Verify that there was no XCM error.

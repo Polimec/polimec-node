@@ -873,15 +873,15 @@ construct_runtime!(
 		TechnicalCommittee: pallet_collective::<Instance2> = 43,
 		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 44,
 
-		// Utilities
-		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 50,
-		Random: pallet_insecure_randomness_collective_flip = 51,
-
 		// Polimec Core
-		PolimecFunding: pallet_funding::{Pallet, Call, Storage, Event<T>}  = 61,
-		Credentials: pallet_credentials = 63,
-		DipConsumer: pallet_dip_consumer = 64,
-		DidLookup: pallet_did_lookup = 65,
+		DipConsumer: pallet_dip_consumer = 50,
+		DidLookup: pallet_did_lookup = 51,
+		PolimecFunding: pallet_funding::{Pallet, Call, Storage, Event<T>}  = 52,
+		Credentials: pallet_credentials = 53,
+
+		// Utilities
+		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 61,
+		Random: pallet_insecure_randomness_collective_flip = 62,
 
 		// Among others: Send and receive DMP and XCMP messages.
 		ParachainSystem: cumulus_pallet_parachain_system = 80,
