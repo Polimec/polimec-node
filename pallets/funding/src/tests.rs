@@ -861,6 +861,19 @@ mod creation_round_success {
 	use super::*;
 
 	#[test]
+	fn basic_plmc_transfer_works() {
+		let test_env = TestEnvironment::new();
+		test_env.fund_accounts(default_fundings());
+		test_env.ext_env.borrow_mut().execute_with(||{
+			assert_ok!(Balances::transfer(
+				RuntimeOrigin::signed(EVALUATOR_1),
+				EVALUATOR_2,
+				1 * PLMC
+			));
+		});
+	}
+
+	#[test]
 	fn create_works() {
 		let test_env = TestEnvironment::new();
 		let _project = CreatedProject::new_default(&test_env);
