@@ -1316,6 +1316,12 @@ mod community_round_success {
 	#[test]
 	fn community_round_works() {
 		let test_env = TestEnvironment::new();
+		let _community_funding_project = CommunityFundingProject::new_default(&test_env);
+	}
+
+	#[test]
+	fn remainder_round_works() {
+		let test_env = TestEnvironment::new();
 		let _remainder_funding_project = RemainderFundingProject::new_default(&test_env);
 	}
 
