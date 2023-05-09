@@ -1353,7 +1353,9 @@ mod community_round_success {
 }
 
 #[cfg(test)]
-mod community_round_failure {}
+mod community_round_failure {
+	// TODO: Maybe here we can test what happens if we sell all the CTs in the community round
+}
 
 #[cfg(test)]
 mod purchased_vesting {
