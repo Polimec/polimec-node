@@ -715,7 +715,7 @@ mod defaults {
 				.into_iter()
 				.zip(default_auction_bids_bidding_currency_reserved().into_iter())
 			{
-				let bidding_currency_reserve = mock::Balances::reserved_balance(account);
+				let bidding_currency_reserve = Balances::reserved_balance(account);
 				// Since for now bids use the same pallet as PLMC, the only reserve amount should be the plmc
 				assert_eq!(
 					bidding_currency_reserve,
