@@ -702,7 +702,7 @@ mod defaults {
 	}
 
 	pub fn default_auction_end_assertions(
-		_project_id: ProjectIdOf<TestRuntime>,
+		project_id: ProjectIdOf<TestRuntime>,
 		test_env: &TestEnvironment,
 	) {
 		// Check that enough PLMC is bonded
@@ -782,6 +782,18 @@ mod defaults {
 				token_price,
 				default_token_average_price(),
 				"Weighted average token price is incorrect"
+			);
+		});
+
+		// Check status of bids
+		test_env.ext_env.borrow_mut().execute_with(|| {
+			let project_bids = crate::pallet::AuctionsInfo::<TestRuntime>::iter_prefix(project_id).collect::<Vec<_>>();
+			let project_info = FundingModule::project_info(project_id).unwrap();
+			assert!(matches!(project_info.weighted_average_price, Some(_)), "Weighted average price should exist");
+			assert!(
+				project_bids.into_iter().find(|(_bidder, bids)| {
+					! bids.iter().all(|bid| bid.status == BidStatus::Accepted)
+				}).is_none()
 			);
 		});
 	}
