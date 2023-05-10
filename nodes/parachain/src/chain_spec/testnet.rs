@@ -272,11 +272,7 @@ fn testnet_genesis(
 		system: SystemConfig { code: wasm_binary.to_vec() },
 		balances: BalancesConfig { balances: endowed_accounts.clone() },
 		parachain_info: ParachainInfoConfig { parachain_id: id },
-		parachain_staking: ParachainStakingConfig {
-			stakers,
-			inflation_config,
-			max_candidate_stake,
-		},
+		parachain_staking: Default::default(),
 		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
 		// of this.
 		aura: Default::default(),
@@ -308,11 +304,7 @@ fn testnet_genesis(
 		democracy: Default::default(),
 		did_lookup: Default::default(),
 		vesting: VestingConfig {
-			vesting: initial_authorities
-				.iter()
-				.cloned()
-				.map(|(who, _)| (who, 0u32, 0, 0))
-				.collect(),
-		},
+			vesting: vec![],
+		}
 	}
 }

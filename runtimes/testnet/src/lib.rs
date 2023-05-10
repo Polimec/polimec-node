@@ -233,9 +233,10 @@ impl pallet_authorship::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: Balance = EXISTENTIAL_DEPOSIT;
 	pub const MaxLocks: u32 = 50;
 	pub const MaxReserves: u32 = 50;
+	pub const ExistentialDeposit: Balance = EXISTENTIAL_DEPOSIT;
+
 }
 
 impl pallet_balances::Config for Runtime {
