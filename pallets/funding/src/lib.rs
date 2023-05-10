@@ -650,6 +650,8 @@ pub mod pallet {
 		TooLateForContributingBonding,
 		/// Tried to contribute but its too low to be accepted
 		ContributionTooLow,
+		/// Tried to delete a project from the update store but it is not there to begin with.
+		ProjectNotInUpdateStore,
 	}
 
 	#[pallet::call]
@@ -720,7 +722,13 @@ pub mod pallet {
 
 			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
 
-			Self::do_english_auction(project_id)
+			let result = Self::do_english_auction(project_id);
+			if result.is_ok() {
+				// Remove scheduled automatic transition
+
+			}
+			result
+
 		}
 
 		/// Bond PLMC for a project in the evaluation stage
@@ -854,7 +862,10 @@ pub mod pallet {
 					},
 
 					// AuctionInitializePeriod -> AuctionRound(AuctionPhase::English)
-					// Handled by user extrinsic
+					// Only if it wasn't first handled by user extrinsic
+					ProjectStatus::AuctionInitializePeriod => {
+						unwrap_result_or_skip!(Self::do_english_auction(project_id), project_id);
+					},
 
 					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
 					ProjectStatus::AuctionRound(AuctionPhase::English) => {

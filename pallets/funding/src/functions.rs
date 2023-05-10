@@ -21,6 +21,7 @@
 use super::*;
 
 use frame_support::{ensure, pallet_prelude::DispatchError, traits::Get};
+use frame_support::storage::generator::StorageMap;
 use sp_arithmetic::{traits::Zero, Perbill};
 use sp_runtime::Percent;
 use sp_std::prelude::*;
@@ -231,6 +232,8 @@ impl<T: Config> Pallet<T> {
 			);
 			project_info.project_status = ProjectStatus::AuctionInitializePeriod;
 			ProjectsInfo::<T>::insert(project_id, project_info);
+			Self::add_to_update_store(auction_initialize_period_end_block + 1u32.into(), &project_id)
+				.expect("Always returns Ok; qed");
 
 			// * Emit events *
 			Self::deposit_event(Event::<T>::AuctionInitializePeriod {
@@ -1457,9 +1460,6 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Adds a project to the ProjectsToUpdate storage, so it can be updated at some later point in time.
-	///
-	/// * `block_number` - the minimum block number at which the project should be updated.
-	/// * `project_id` - the id of the project to be updated.
 	pub fn add_to_update_store(
 		block_number: T::BlockNumber,
 		project_id: &T::ProjectIdentifier,
@@ -1472,6 +1472,28 @@ impl<T: Config> Pallet<T> {
 		}
 		Ok(())
 	}
+
+	pub fn remove_from_update_store(project_id: &T::ProjectIdentifier, lookup_start: Option<T::BlockNumber>) -> Result<(), DispatchError> {
+		let starting_key;
+		if let Some(block) = lookup_start {
+			starting_key = block - 1u32.into();
+		} else {
+			starting_key =  <frame_system::Pallet<T>>::block_number();
+		}
+		let starting_raw_key = ProjectsToUpdate::<T>::storage_map_final_key(starting_key);
+		let (block_position, project_index) = ProjectsToUpdate::<T>::iter_from(starting_raw_key)
+			.find_map(|(block, project_vec)| {
+				let project_index = project_vec.iter().position(|id| id == project_id)?;
+				Some((block, project_index))
+			}).ok_or(Error::<T>::ProjectNotInUpdateStore)?;
+
+		ProjectsToUpdate::<T>::mutate(block_position, |project_vec| {
+			project_vec.remove(project_index);
+		});
+
+		Ok(())
+	}
+
 
 	/// Based on the amount of tokens and price to buy, a desired multiplier, and the type of investor the caller is,
 	/// calculate the amount and vesting periods of bonded PLMC and reward CT tokens.

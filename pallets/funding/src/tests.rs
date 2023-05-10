@@ -857,6 +857,32 @@ mod defaults {
 }
 
 #[cfg(test)]
+mod helper_functions {
+	use super::*;
+	#[test]
+	fn remove_from_update_store_works() {
+		let mut test_env = TestEnvironment::new();
+		let now = test_env.current_block();
+		test_env.ext_env.borrow_mut().execute_with(|| {
+			let project_id: <TestRuntime as crate::Config>::ProjectIdParameter = 42u32.into();
+			FundingModule::add_to_update_store(now + 10u64, &42u32).unwrap();
+			FundingModule::add_to_update_store(now + 20u64, &69u32).unwrap();
+			FundingModule::add_to_update_store(now + 5u64, &404u32).unwrap();
+		});
+		test_env.advance_time(2u64);
+		test_env.ext_env.borrow_mut().execute_with(|| {
+			let stored = crate::ProjectsToUpdate::<TestRuntime>::iter_values().collect::<Vec<_>>();
+			assert_eq!(stored.len(), 3, "There should be 3 blocks scheduled for updating");
+
+			FundingModule::remove_from_update_store(&69u32, Some(20u64)).unwrap();
+
+			let stored = crate::ProjectsToUpdate::<TestRuntime>::iter_values().collect::<Vec<_>>();
+			assert_eq!(stored[2], vec![], "Vector should be empty for that block after deletion");
+		});
+	}
+}
+
+#[cfg(test)]
 mod creation_round_success {
 	use super::*;
 
@@ -1311,6 +1337,7 @@ mod community_round_success {
 #[cfg(test)]
 mod community_round_failure {}
 
+#[cfg(test)]
 mod purchased_vesting {
 	use super::*;
 
@@ -1373,6 +1400,7 @@ mod purchased_vesting {
 	}
 }
 
+#[cfg(test)]
 mod bids_vesting {
 	use super::*;
 
