@@ -231,8 +231,11 @@ impl<T: Config> Pallet<T> {
 			);
 			project_info.project_status = ProjectStatus::AuctionInitializePeriod;
 			ProjectsInfo::<T>::insert(project_id, project_info);
-			Self::add_to_update_store(auction_initialize_period_end_block + 1u32.into(), &project_id)
-				.expect("Always returns Ok; qed");
+			Self::add_to_update_store(
+				auction_initialize_period_end_block + 1u32.into(),
+				&project_id,
+			)
+			.expect("Always returns Ok; qed");
 
 			// * Emit events *
 			Self::deposit_event(Event::<T>::AuctionInitializePeriod {
@@ -1474,12 +1477,15 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn remove_from_update_store(project_id: &T::ProjectIdentifier) -> Result<(), DispatchError> {
+	pub fn remove_from_update_store(
+		project_id: &T::ProjectIdentifier,
+	) -> Result<(), DispatchError> {
 		let (block_position, project_index) = ProjectsToUpdate::<T>::iter()
 			.find_map(|(block, project_vec)| {
 				let project_index = project_vec.iter().position(|id| id == project_id)?;
 				Some((block, project_index))
-			}).ok_or(Error::<T>::ProjectNotInUpdateStore)?;
+			})
+			.ok_or(Error::<T>::ProjectNotInUpdateStore)?;
 
 		ProjectsToUpdate::<T>::mutate(block_position, |project_vec| {
 			project_vec.remove(project_index);
@@ -1487,7 +1493,6 @@ impl<T: Config> Pallet<T> {
 
 		Ok(())
 	}
-
 
 	/// Based on the amount of tokens and price to buy, a desired multiplier, and the type of investor the caller is,
 	/// calculate the amount and vesting periods of bonded PLMC and reward CT tokens.
