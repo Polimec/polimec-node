@@ -874,7 +874,7 @@ mod helper_functions {
 			let stored = crate::ProjectsToUpdate::<TestRuntime>::iter_values().collect::<Vec<_>>();
 			assert_eq!(stored.len(), 3, "There should be 3 blocks scheduled for updating");
 
-			FundingModule::remove_from_update_store(&69u32, Some(20u64)).unwrap();
+			FundingModule::remove_from_update_store(&69u32).unwrap();
 
 			let stored = crate::ProjectsToUpdate::<TestRuntime>::iter_values().collect::<Vec<_>>();
 			assert_eq!(stored[2], vec![], "Vector should be empty for that block after deletion");
@@ -1004,6 +1004,7 @@ mod creation_round_failure {
 
 #[cfg(test)]
 mod evaluation_round_success {
+	use crate::AuctionPhase::English;
 	use super::*;
 
 	#[test]
@@ -1016,6 +1017,19 @@ mod evaluation_round_success {
 	fn evaluation_end_works() {
 		let test_env = TestEnvironment::new();
 		let _auctioning_project = AuctioningProject::new_default(&test_env);
+	}
+
+	#[test]
+	fn automatic_transition_works() {
+		let test_env = TestEnvironment::new();
+		let evaluating_project = EvaluatingProject::new_default(&test_env);
+		let auctioning_project = AuctioningProject::new_default(&test_env);
+		evaluating_project.bond_for_users(default_evaluation_bonds()).unwrap();
+		let project_info = evaluating_project.get_project_info();
+		test_env.advance_time(project_info.phase_transition_points.evaluation.end().unwrap() + 1u64);
+		let end_block = evaluating_project.get_project_info().phase_transition_points.auction_initialize_period.end().unwrap();
+		test_env.advance_time( end_block - test_env.current_block() + 1);
+		assert_eq!(evaluating_project.get_project_info().project_status, ProjectStatus::AuctionRound(English));
 	}
 }
 

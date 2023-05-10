@@ -304,10 +304,6 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::TooEarlyForEnglishAuctionStart
 		);
 		ensure!(
-			now <= auction_initialize_period_end_block,
-			Error::<T>::TooLateForEnglishAuctionStart
-		);
-		ensure!(
 			project_info.project_status == ProjectStatus::AuctionInitializePeriod,
 			Error::<T>::ProjectNotInAuctionInitializePeriodRound
 		);
@@ -323,6 +319,12 @@ impl<T: Config> Pallet<T> {
 			.update(Some(english_start_block), Some(english_end_block));
 		project_info.project_status = ProjectStatus::AuctionRound(AuctionPhase::English);
 		ProjectsInfo::<T>::insert(project_id, project_info);
+
+		// If this function was called inside the period, then it was called by the extrinsic and we need to
+		// remove the scheduled automatic transition
+		if now <= auction_initialize_period_end_block {
+			Self::remove_from_update_store(&project_id)?;
+		}
 		// Schedule for automatic transition to candle auction round
 		Self::add_to_update_store(english_end_block + 1u32.into(), &project_id)
 			.expect("Always return Ok; qed");
@@ -1473,15 +1475,8 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn remove_from_update_store(project_id: &T::ProjectIdentifier, lookup_start: Option<T::BlockNumber>) -> Result<(), DispatchError> {
-		let starting_key;
-		if let Some(block) = lookup_start {
-			starting_key = block - 1u32.into();
-		} else {
-			starting_key =  <frame_system::Pallet<T>>::block_number();
-		}
-		let starting_raw_key = ProjectsToUpdate::<T>::storage_map_final_key(starting_key);
-		let (block_position, project_index) = ProjectsToUpdate::<T>::iter_from(starting_raw_key)
+	pub fn remove_from_update_store(project_id: &T::ProjectIdentifier) -> Result<(), DispatchError> {
+		let (block_position, project_index) = ProjectsToUpdate::<T>::iter()
 			.find_map(|(block, project_vec)| {
 				let project_index = project_vec.iter().position(|id| id == project_id)?;
 				Some((block, project_index))

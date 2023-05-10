@@ -722,13 +722,7 @@ pub mod pallet {
 
 			ensure!(ProjectsIssuers::<T>::get(project_id) == Some(issuer), Error::<T>::NotAllowed);
 
-			let result = Self::do_english_auction(project_id);
-			if result.is_ok() {
-				// Remove scheduled automatic transition
-
-			}
-			result
-
+			Self::do_english_auction(project_id)
 		}
 
 		/// Bond PLMC for a project in the evaluation stage
