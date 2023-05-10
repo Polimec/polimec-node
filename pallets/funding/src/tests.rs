@@ -861,10 +861,9 @@ mod helper_functions {
 	use super::*;
 	#[test]
 	fn remove_from_update_store_works() {
-		let mut test_env = TestEnvironment::new();
+		let test_env = TestEnvironment::new();
 		let now = test_env.current_block();
 		test_env.ext_env.borrow_mut().execute_with(|| {
-			let project_id: <TestRuntime as crate::Config>::ProjectIdParameter = 42u32.into();
 			FundingModule::add_to_update_store(now + 10u64, &42u32).unwrap();
 			FundingModule::add_to_update_store(now + 20u64, &69u32).unwrap();
 			FundingModule::add_to_update_store(now + 5u64, &404u32).unwrap();
@@ -1023,7 +1022,6 @@ mod evaluation_round_success {
 	fn automatic_transition_works() {
 		let test_env = TestEnvironment::new();
 		let evaluating_project = EvaluatingProject::new_default(&test_env);
-		let auctioning_project = AuctioningProject::new_default(&test_env);
 		evaluating_project.bond_for_users(default_evaluation_bonds()).unwrap();
 		let project_info = evaluating_project.get_project_info();
 		test_env.advance_time(project_info.phase_transition_points.evaluation.end().unwrap() + 1u64);
@@ -1466,12 +1464,4 @@ mod bids_vesting {
 			}
 		});
 	}
-}
-
-#[cfg(test)]
-mod sandbox {
-	use super::*;
-
-	#[test]
-	fn template() {}
 }

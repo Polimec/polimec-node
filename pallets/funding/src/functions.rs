@@ -21,7 +21,6 @@
 use super::*;
 
 use frame_support::{ensure, pallet_prelude::DispatchError, traits::Get};
-use frame_support::storage::generator::StorageMap;
 use sp_arithmetic::{traits::Zero, Perbill};
 use sp_runtime::Percent;
 use sp_std::prelude::*;
