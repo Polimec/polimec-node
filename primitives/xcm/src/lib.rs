@@ -57,9 +57,9 @@ impl<
 	fn matches_fungibles(a: &MultiAsset) -> Result<(AssetId, Balance), MatchError> {
 		let (amount, id) = match (&a.fun, &a.id) {
 			(Fungible(ref amount), Concrete(ref id)) => (amount, id),
-			_ => return Err(MatchError::AssetNotFound),
+			_ => return Err(MatchError::AssetNotHandled),
 		};
-		let what = ConvertAssetId::convert_ref(id).map_err(|_| MatchError::AssetNotFound)?;
+		let what = ConvertAssetId::convert_ref(id).map_err(|_| MatchError::AssetNotHandled)?;
 		let amount = ConvertBalance::convert_ref(amount)
 			.map_err(|_| MatchError::AmountToBalanceConversionFailed)?;
 		Ok((what, amount))
