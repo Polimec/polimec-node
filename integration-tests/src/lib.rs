@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use parity_scale_codec::Encode;
 use cumulus_pallet_xcmp_queue::Event as XcmpEvent;
 use frame_support::{assert_ok, pallet_prelude::Weight, traits::GenesisBuild};
+use parity_scale_codec::Encode;
 use polimec_parachain_runtime as polimec_runtime;
 use polkadot_parachain::primitives::{Id as ParaId, Sibling as SiblingId};
 use shortcuts::*;
@@ -1196,8 +1196,8 @@ mod reserve_backed_transfers {
 			statemint_prev_alice_dot_balance - statemint_post_alice_dot_balance;
 
 		assert!(
-			penpal_delta_alice_dot_balance > RESERVE_TRANSFER_AMOUNT - MAX_XCM_FEE * 3 &&
-				penpal_delta_alice_dot_balance < RESERVE_TRANSFER_AMOUNT,
+			penpal_delta_alice_dot_balance > RESERVE_TRANSFER_AMOUNT - MAX_XCM_FEE * 3
+				&& penpal_delta_alice_dot_balance < RESERVE_TRANSFER_AMOUNT,
 			"Expected funds are not received by Alice on Penpal"
 		);
 
@@ -1369,8 +1369,8 @@ mod reserve_backed_transfers {
 			statemint_prev_alice_dot_balance - statemint_post_alice_dot_balance;
 
 		assert!(
-			polimec_delta_alice_dot_balance > RESERVE_TRANSFER_AMOUNT - MAX_XCM_FEE * 3 &&
-				polimec_delta_alice_dot_balance < RESERVE_TRANSFER_AMOUNT,
+			polimec_delta_alice_dot_balance > RESERVE_TRANSFER_AMOUNT - MAX_XCM_FEE * 3
+				&& polimec_delta_alice_dot_balance < RESERVE_TRANSFER_AMOUNT,
 			"Expected funds are not received by Alice on Polimec"
 		);
 

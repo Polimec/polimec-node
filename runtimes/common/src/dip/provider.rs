@@ -16,11 +16,11 @@
 
 // If you feel like getting in touch with us, you can do so at info@botlabs.org
 
-use parity_scale_codec::{Decode, Encode};
 use did::{did_details::DidDetails, DidVerificationKeyRelationship, KeyIdOf};
 use dip_support::latest::Proof;
 use frame_support::RuntimeDebug;
 use pallet_dip_provider::traits::{IdentityProofGenerator, IdentityProvider};
+use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use sp_std::{borrow::ToOwned, collections::btree_set::BTreeSet, marker::PhantomData, vec::Vec};
 use sp_trie::{generate_trie_proof, LayoutV1, MemoryDB, TrieDBMutBuilder, TrieHash, TrieMut};

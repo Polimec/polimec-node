@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use parity_scale_codec::Encode;
 use did::{
 	did_details::{DidCreationDetails, DidEncryptionKey},
 	DidVerificationKeyRelationship, KeyIdOf,
@@ -29,6 +28,7 @@ use frame_system::{
 	EnsureSigned, RawOrigin,
 };
 use pallet_dip_consumer::traits::IdentityProofVerifier;
+use parity_scale_codec::Encode;
 use sp_core::{ecdsa, ed25519, sr25519, ConstU16, ConstU32, ConstU64, Hasher, Pair};
 use sp_io::TestExternalities;
 use sp_runtime::{

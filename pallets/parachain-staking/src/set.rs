@@ -16,8 +16,8 @@
 
 // If you feel like getting in touch with us, you can do so at info@botlabs.org
 
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{traits::Get, BoundedVec, DefaultNoBound, RuntimeDebug};
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::{traits::Zero, SaturatedConversion};
 #[cfg(feature = "std")]
@@ -112,7 +112,7 @@ impl<T: Ord + Clone, S: Get<u32>> OrderedSet<T, S> {
 		// the highest allowed index
 		let highest_index: usize = S::get().saturating_sub(1).saturated_into();
 		if S::get().is_zero() {
-			return Err(true)
+			return Err(true);
 		}
 		match self.try_insert(value.clone()) {
 			Err(loc) if loc <= highest_index => {
