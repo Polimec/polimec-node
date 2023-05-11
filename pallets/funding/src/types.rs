@@ -29,6 +29,8 @@ pub struct Project<BoundedString, Balance: BalanceT, Hash> {
 	pub token_information: CurrencyMetadata<BoundedString>,
 	/// Total allocation of Contribution Tokens available for the Funding Round
 	pub total_allocation_size: Balance,
+	/// The amount of Contribution Tokens that have not yet been sold
+	pub remaining_contribution_tokens: Balance,
 	/// Minimum price per Contribution Token
 	pub minimum_price: Balance,
 	/// Maximum and/or minimum ticket size

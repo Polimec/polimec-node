@@ -939,7 +939,8 @@ impl<T: Config> Pallet<T> {
 	/// # Arguments
 	/// * contributor: The account that is buying the tokens
 	/// * project_id: The identifier of the project
-	/// * amount: The amount of contribution tokens to buy
+	/// * token_amount: The amount of contribution tokens to buy
+	/// * multiplier: Decides how much PLMC bonding is required for buying that amount of tokens
 	///
 	/// # Storage access
 	/// * [`ProjectsIssuers`] - Check that the issuer is not a contributor
@@ -956,6 +957,7 @@ impl<T: Config> Pallet<T> {
 		// * Get variables *
 		let project_issuer =
 			ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectIssuerNotFound)?;
+		let project = Projects::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let project_info =
 			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let project = Projects::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
@@ -979,6 +981,11 @@ impl<T: Config> Pallet<T> {
 		// );
 
 		// * Calculate variables *
+		let buyable_tokens = if project.remaining_contribution_tokens > token_amount {
+			token_amount
+		} else {
+			project.remaining_contribution_tokens
+		};
 		let fund_account = Self::fund_account_id(project_id);
 		// TODO: PLMC-159. Use USDC on Statemint/e (via XCM) instead of PLMC
 		// TODO: PLMC-157. Check the logic
@@ -987,7 +994,7 @@ impl<T: Config> Pallet<T> {
 		let (plmc_vesting, ct_vesting) = Self::calculate_vesting_periods(
 			contributor.clone(),
 			multiplier,
-			token_amount,
+			buyable_tokens,
 			weighted_average_price,
 			decimals,
 		);
@@ -1037,10 +1044,21 @@ impl<T: Config> Pallet<T> {
 					lowest_contribution.contribution_amount,
 					frame_support::traits::ExistenceRequirement::KeepAlive,
 				)?;
+
+				// Unlock the bonded PLMC for that returned contribution
+				T::Currency::unreserve_named(&BondType::Contributing, contributor.clone(), lowest_contribution.plmc_vesting.amount);
+
+				// Update the ContributingBonds storage
+				ContributingBonds::<T>::mutate(project_id, contributor.clone(), |maybe_bond| {
+					if let Some(bond) = maybe_bond {
+						bond.amount = bond.amount.saturating_sub(lowest_contribution.plmc_vesting.amount);
+					}
+				});
+
 				// Add the new bid to the AuctionsInfo, this should never fail since we just removed an element
 				user_contributions
 					.try_push(contribution)
-					.expect("We removed an element, so there is always space");
+					.expect("We removed an element, so there is always space; qed");
 				user_contributions
 					.sort_by_key(|contribution| Reverse(contribution.plmc_vesting.amount));
 				Contributions::<T>::set(project_id, contributor.clone(), Some(user_contributions));
@@ -1056,6 +1074,9 @@ impl<T: Config> Pallet<T> {
 			// TODO: PLMC-157. Take the ExistenceRequirement as parameter (?)
 			frame_support::traits::ExistenceRequirement::KeepAlive,
 		)?;
+
+		// Update project with reduced available CTs
+
 
 		// * Emit events *
 		Self::deposit_event(Event::<T>::Contribution {
@@ -1570,6 +1591,17 @@ impl<T: Config> Pallet<T> {
 				bid
 			})
 			.collect::<Vec<BidInfoOf<T>>>();
+
+		// Update the project storage
+		Projects::<T>::mutate(
+			project_id.clone(),
+			|maybe_project| -> Result<(), DispatchError> {
+				let mut project = maybe_project.clone().ok_or(Error::<T>::ProjectNotFound)?;
+				project.remaining_contribution_tokens = bids_amount_sum;
+				*maybe_project = Some(project);
+				Ok(())
+			},
+		)?;
 
 		// Update the bid in the storage
 		for bid in bids.iter() {

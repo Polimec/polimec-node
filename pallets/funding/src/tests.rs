@@ -1376,6 +1376,18 @@ mod community_round_success {
 			.buy_for_users(vec![(BOB, 4)])
 			.expect("The Buyer should be able to buy multiple times");
 	}
+
+	#[test]
+	fn contribution_is_returned_on_limit_reached() {
+		let test_env = TestEnvironment::new();
+		let project = CommunityFundingProject::new_default(&test_env);
+		let range = 0..<TestRuntime as crate::Config>::MaxContributionsPerUser::get();
+		let mut contributions: UserToBalance = range.map(|_| (BUYER_2, 1)).collect();
+		// Reach the limit of contributions for a user-project
+		project.buy_for_users(contributions.clone()).unwrap();
+		// TODO: wait until multiplier is added to the contribute extrinsic, so a contribution can have different PLMC bondings, and so an old contribution can be drop once the limit is reached
+		assert!(false);
+	}
 }
 
 #[cfg(test)]
