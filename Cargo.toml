@@ -1,6 +1,6 @@
 [workspace]
 # members = ["nodes/*", "pallets/*", "runtimes/*", "traits", "integration-tests"]
-members = ["nodes/*", "pallets/*", "runtimes/*", "traits"]
+members = ["nodes/*", "pallets/*", "runtimes/*", "traits", "primitives/*"]
 
 [workspace.package]
 authors = ['Polimec Foundation <info@polimec.org>']
@@ -48,18 +48,18 @@ pallet-asset-registry = { path = "pallets/asset-registry", default-features = fa
 pallet-dip-consumer = { path = "pallets/pallet-dip-consumer", default-features = false }
 
 
-
 # Internal support (with default disabled)
 runtime-common = { path = "runtimes/common", default-features = false }
 polimec-traits = { path = "traits", default-features = false }
 xcm-primitives = { path = "primitives/xcm", default-features = false }
+dip-support = { path = "primitives/dip-support", default-features = false }
 
 # External support (with default disabled)
-dip-support = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
 kilt-support = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
 did = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
 pallet-did-lookup = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
 pallet-dip-provider= { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
+
 # Internal runtime API (with default disabled)
 kilt-runtime-api-staking = { path = "runtime-api/staking", default-features = false }
 

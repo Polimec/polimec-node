@@ -1404,6 +1404,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "ctype"
+version = "1.11.0-dev"
+source = "git+https://github.com/KILTprotocol/kilt-node?branch=aa/dip#779acdc2883ea155424e8a31686d51bd656ddc07"
+dependencies = [
+ "frame-benchmarking 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
+ "frame-support 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
+ "frame-system 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
+ "kilt-support",
+ "log",
+ "pallet-balances 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core 7.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
+ "sp-io 7.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
+ "sp-keystore 0.13.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
+ "sp-runtime 7.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
+ "sp-std 5.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
+]
+
+[[package]]
 name = "cumulus-client-cli"
 version = "0.1.0"
 source = "git+https://github.com/paritytech/cumulus?branch=polkadot-v0.9.42#f603a61ff370fc33740c9373833c3c6ba1486846"
@@ -2160,14 +2180,17 @@ name = "did"
 version = "1.11.0-dev"
 source = "git+https://github.com/KILTprotocol/kilt-node?branch=aa/dip#779acdc2883ea155424e8a31686d51bd656ddc07"
 dependencies = [
+ "ctype",
  "frame-support 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
  "frame-system 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
  "kilt-support",
  "log",
+ "pallet-balances 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
  "parity-scale-codec",
  "scale-info",
  "sp-core 7.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
  "sp-io 7.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
+ "sp-keystore 0.13.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
  "sp-runtime 7.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
  "sp-std 5.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
 ]
@@ -2206,6 +2229,15 @@ dependencies = [
  "const-oid",
  "crypto-common",
  "subtle",
+]
+
+[[package]]
+name = "dip-support"
+version = "0.1.0"
+dependencies = [
+ "frame-support 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
+ "parity-scale-codec",
+ "scale-info",
 ]
 
 [[package]]
@@ -4146,6 +4178,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "kilt-dip-support"
+version = "0.1.0"
+dependencies = [
+ "did",
+ "frame-support 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
+ "frame-system 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
+ "pallet-dip-consumer",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core 7.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
+ "sp-runtime 7.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
+ "sp-std 5.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
+ "sp-trie 7.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
+]
+
+[[package]]
 name = "kilt-runtime-api-staking"
 version = "0.1.0"
 dependencies = [
@@ -4191,7 +4239,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-babe",
  "pallet-bags-list",
- "pallet-balances",
+ "pallet-balances 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "pallet-bounties",
  "pallet-child-bounties",
  "pallet-collective",
@@ -5700,7 +5748,7 @@ dependencies = [
  "frame-support 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "frame-system 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "pallet-assets",
- "pallet-balances",
+ "pallet-balances 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "pallet-xcm",
  "parachain-info",
  "parachains-common",
@@ -5833,7 +5881,7 @@ dependencies = [
  "frame-support 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "frame-system 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "log",
- "pallet-balances",
+ "pallet-balances 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "parity-scale-codec",
  "scale-info",
  "sp-core 7.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
@@ -5841,6 +5889,21 @@ dependencies = [
  "sp-runtime 7.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "sp-std 5.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "sp-tracing 6.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
+]
+
+[[package]]
+name = "pallet-balances"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39#8c4b84520cee2d7de53cc33cb67605ce4efefba8"
+dependencies = [
+ "frame-benchmarking 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
+ "frame-support 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
+ "frame-system 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-runtime 7.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
+ "sp-std 5.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
 ]
 
 [[package]]
@@ -5998,7 +6061,7 @@ dependencies = [
  "frame-benchmarking 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "frame-support 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "frame-system 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
- "pallet-balances",
+ "pallet-balances 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "parity-scale-codec",
  "polimec-traits",
  "scale-info",
@@ -6055,7 +6118,7 @@ name = "pallet-dip-consumer"
 version = "0.1.0"
 dependencies = [
  "cumulus-pallet-xcm",
- "dip-support",
+ "dip-support 0.1.0",
  "frame-support 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "frame-system 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "kilt-support",
@@ -6069,7 +6132,7 @@ name = "pallet-dip-provider"
 version = "1.11.0-dev"
 source = "git+https://github.com/KILTprotocol/kilt-node?branch=aa/dip#779acdc2883ea155424e8a31686d51bd656ddc07"
 dependencies = [
- "dip-support",
+ "dip-support 1.11.0-dev",
  "frame-support 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
  "frame-system 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
  "parity-scale-codec",
@@ -6158,7 +6221,7 @@ dependencies = [
  "frame-support 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "frame-system 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "pallet-assets",
- "pallet-balances",
+ "pallet-balances 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "pallet-credentials",
  "pallet-insecure-randomness-collective-flip",
  "parity-scale-codec",
@@ -6383,7 +6446,7 @@ dependencies = [
  "frame-support 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "frame-system 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "log",
- "pallet-balances",
+ "pallet-balances 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "parity-scale-codec",
  "scale-info",
  "serde",
@@ -6403,7 +6466,7 @@ dependencies = [
  "frame-system 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "log",
  "pallet-babe",
- "pallet-balances",
+ "pallet-balances 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "pallet-grandpa",
  "pallet-im-online",
  "pallet-offences",
@@ -6508,7 +6571,7 @@ dependencies = [
  "frame-support 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "frame-system 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "pallet-assets",
- "pallet-balances",
+ "pallet-balances 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "pallet-credentials",
  "pallet-funding",
  "pallet-insecure-randomness-collective-flip",
@@ -6765,7 +6828,7 @@ dependencies = [
  "frame-support 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "frame-system 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "impl-trait-for-tuples",
- "pallet-balances",
+ "pallet-balances 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "parity-scale-codec",
  "scale-info",
  "serde",
@@ -6882,7 +6945,7 @@ dependencies = [
  "log",
  "pallet-aura",
  "pallet-authorship",
- "pallet-balances",
+ "pallet-balances 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "pallet-session",
  "pallet-timestamp",
  "parity-scale-codec",
@@ -6907,7 +6970,7 @@ dependencies = [
  "pallet-asset-tx-payment",
  "pallet-assets",
  "pallet-authorship",
- "pallet-balances",
+ "pallet-balances 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "pallet-collator-selection",
  "parity-scale-codec",
  "polkadot-primitives",
@@ -7244,7 +7307,7 @@ dependencies = [
  "log",
  "pallet-aura",
  "pallet-authorship",
- "pallet-balances",
+ "pallet-balances 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "pallet-session",
  "pallet-sudo",
  "pallet-timestamp",
@@ -7370,7 +7433,7 @@ dependencies = [
  "pallet-assets",
  "pallet-aura",
  "pallet-authorship",
- "pallet-balances",
+ "pallet-balances 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "pallet-collective",
  "pallet-credentials",
  "pallet-democracy",
@@ -7479,7 +7542,7 @@ dependencies = [
  "pallet-assets",
  "pallet-aura",
  "pallet-authorship",
- "pallet-balances",
+ "pallet-balances 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "pallet-collective",
  "pallet-credentials",
  "pallet-democracy",
@@ -8369,7 +8432,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-babe",
  "pallet-bags-list",
- "pallet-balances",
+ "pallet-balances 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "pallet-bounties",
  "pallet-child-bounties",
  "pallet-collective",
@@ -8458,7 +8521,7 @@ dependencies = [
  "log",
  "pallet-authorship",
  "pallet-babe",
- "pallet-balances",
+ "pallet-balances 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "pallet-election-provider-multi-phase",
  "pallet-fast-unstake",
  "pallet-session",
@@ -8530,7 +8593,7 @@ dependencies = [
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
- "pallet-balances",
+ "pallet-balances 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "pallet-session",
  "pallet-staking",
  "pallet-timestamp",
@@ -9376,7 +9439,7 @@ dependencies = [
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
- "pallet-balances",
+ "pallet-balances 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "pallet-beefy",
  "pallet-beefy-mmr",
  "pallet-bounties",
@@ -9525,12 +9588,12 @@ version = "0.1.0"
 dependencies = [
  "cumulus-primitives-core",
  "did",
- "dip-support",
+ "dip-support 0.1.0",
  "frame-support 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "frame-system 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "log",
  "pallet-authorship",
- "pallet-balances",
+ "pallet-balances 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "pallet-did-lookup",
  "pallet-dip-consumer",
  "pallet-dip-provider",
@@ -11900,6 +11963,7 @@ dependencies = [
  "parity-scale-codec",
  "parking_lot 0.12.1",
  "schnorrkel",
+ "serde",
  "sp-core 7.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
  "sp-externalities 0.13.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39)",
  "thiserror",
@@ -14241,7 +14305,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-babe",
  "pallet-bags-list",
- "pallet-balances",
+ "pallet-balances 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.42)",
  "pallet-collective",
  "pallet-democracy",
  "pallet-election-provider-multi-phase",
