@@ -205,7 +205,7 @@ use frame_support::{
 	pallet_prelude::ValueQuery,
 	traits::{
 		tokens::{
-			fungibles::{metadata::Mutate as MetadataMutate, Create, InspectMetadata, Mutate},
+			fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate},
 			Balance,
 		},
 		Currency as CurrencyT, Get, NamedReservableCurrency, Randomness, ReservableCurrency,
@@ -256,7 +256,6 @@ pub mod pallet {
 	use local_macros::*;
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
@@ -309,8 +308,8 @@ pub mod pallet {
 				AssetId = Self::ProjectIdentifier,
 				Balance = Self::CurrencyBalance,
 			> + Mutate<Self::AccountId>
-			+ MetadataMutate<Self::AccountId>
-			+ InspectMetadata<Self::AccountId>;
+			+ MetadataMutate<Self::AccountId>;
+			// + InspectMetadata<Self::AccountId>;
 
 		/// The maximum length of data stored on-chain.
 		#[pallet::constant]
