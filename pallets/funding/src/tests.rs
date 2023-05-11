@@ -702,7 +702,7 @@ mod defaults {
 	}
 
 	pub fn default_auction_end_assertions(
-		_project_id: ProjectIdOf<TestRuntime>,
+		project_id: ProjectIdOf<TestRuntime>,
 		test_env: &TestEnvironment,
 	) {
 		// Check that enough PLMC is bonded
@@ -715,7 +715,7 @@ mod defaults {
 				.into_iter()
 				.zip(default_auction_bids_bidding_currency_reserved().into_iter())
 			{
-				let bidding_currency_reserve = mock::Balances::reserved_balance(account);
+				let bidding_currency_reserve = Balances::reserved_balance(account);
 				// Since for now bids use the same pallet as PLMC, the only reserve amount should be the plmc
 				assert_eq!(
 					bidding_currency_reserve,
@@ -783,6 +783,23 @@ mod defaults {
 				default_token_average_price(),
 				"Weighted average token price is incorrect"
 			);
+		});
+
+		// Check status of bids
+		test_env.ext_env.borrow_mut().execute_with(|| {
+			let project_bids = crate::pallet::AuctionsInfo::<TestRuntime>::iter_prefix(project_id)
+				.collect::<Vec<_>>();
+			let project_info = FundingModule::project_info(project_id).unwrap();
+			assert!(
+				matches!(project_info.weighted_average_price, Some(_)),
+				"Weighted average price should exist"
+			);
+			assert!(project_bids
+				.into_iter()
+				.find(|(_bidder, bids)| {
+					!bids.iter().all(|bid| bid.status == BidStatus::Accepted)
+				})
+				.is_none());
 		});
 	}
 
@@ -1325,6 +1342,12 @@ mod community_round_success {
 	#[test]
 	fn community_round_works() {
 		let test_env = TestEnvironment::new();
+		let _community_funding_project = CommunityFundingProject::new_default(&test_env);
+	}
+
+	#[test]
+	fn remainder_round_works() {
+		let test_env = TestEnvironment::new();
 		let _remainder_funding_project = RemainderFundingProject::new_default(&test_env);
 	}
 
@@ -1356,7 +1379,9 @@ mod community_round_success {
 }
 
 #[cfg(test)]
-mod community_round_failure {}
+mod community_round_failure {
+	// TODO: Maybe here we can test what happens if we sell all the CTs in the community round
+}
 
 #[cfg(test)]
 mod purchased_vesting {
