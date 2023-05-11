@@ -88,6 +88,8 @@ impl<T: Config> Pallet<T> {
 				remainder: BlockNumberPair::new(None, None),
 			},
 		};
+		let mut project = project;
+		project.remaining_contribution_tokens = project.total_allocation_size;
 
 		// * Update storage *
 		Projects::<T>::insert(project_id, project.clone());
@@ -1046,7 +1048,7 @@ impl<T: Config> Pallet<T> {
 				)?;
 
 				// Unlock the bonded PLMC for that returned contribution
-				T::Currency::unreserve_named(&BondType::Contributing, contributor.clone(), lowest_contribution.plmc_vesting.amount);
+				T::Currency::unreserve_named(&BondType::Contributing, &contributor.clone(), lowest_contribution.plmc_vesting.amount);
 
 				// Update the ContributingBonds storage
 				ContributingBonds::<T>::mutate(project_id, contributor.clone(), |maybe_bond| {
@@ -1076,7 +1078,12 @@ impl<T: Config> Pallet<T> {
 		)?;
 
 		// Update project with reduced available CTs
-
+		Projects::<T>::mutate(project_id, |project| {
+			if let Some(project) = project {
+				project.remaining_contribution_tokens =
+					project.remaining_contribution_tokens.saturating_sub(buyable_tokens);
+			}
+		});
 
 		// * Emit events *
 		Self::deposit_event(Event::<T>::Contribution {
@@ -1597,7 +1604,7 @@ impl<T: Config> Pallet<T> {
 			project_id.clone(),
 			|maybe_project| -> Result<(), DispatchError> {
 				let mut project = maybe_project.clone().ok_or(Error::<T>::ProjectNotFound)?;
-				project.remaining_contribution_tokens = bids_amount_sum;
+				project.remaining_contribution_tokens = project.remaining_contribution_tokens.saturating_sub(bid_amount_sum);
 				*maybe_project = Some(project);
 				Ok(())
 			},
