@@ -33,6 +33,8 @@ fn test_buy_if_popular() {
 			<AllPalletsWithSystem as OnInitialize<u64>>::on_initialize(System::block_number());
 		}
 
+		let store = pallet_funding::ProjectsToUpdate::<TestRuntime>::iter().collect::<Vec<_>>();
+
 		assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(creator), 0));
 
 		// advance time

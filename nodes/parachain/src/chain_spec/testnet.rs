@@ -303,8 +303,6 @@ fn testnet_genesis(
 		},
 		democracy: Default::default(),
 		did_lookup: Default::default(),
-		vesting: VestingConfig {
-			vesting: vec![],
-		}
+		vesting: VestingConfig { vesting: vec![] },
 	}
 }

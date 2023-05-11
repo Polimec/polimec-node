@@ -857,6 +857,31 @@ mod defaults {
 }
 
 #[cfg(test)]
+mod helper_functions {
+	use super::*;
+	#[test]
+	fn remove_from_update_store_works() {
+		let test_env = TestEnvironment::new();
+		let now = test_env.current_block();
+		test_env.ext_env.borrow_mut().execute_with(|| {
+			FundingModule::add_to_update_store(now + 10u64, &42u32).unwrap();
+			FundingModule::add_to_update_store(now + 20u64, &69u32).unwrap();
+			FundingModule::add_to_update_store(now + 5u64, &404u32).unwrap();
+		});
+		test_env.advance_time(2u64);
+		test_env.ext_env.borrow_mut().execute_with(|| {
+			let stored = crate::ProjectsToUpdate::<TestRuntime>::iter_values().collect::<Vec<_>>();
+			assert_eq!(stored.len(), 3, "There should be 3 blocks scheduled for updating");
+
+			FundingModule::remove_from_update_store(&69u32).unwrap();
+
+			let stored = crate::ProjectsToUpdate::<TestRuntime>::iter_values().collect::<Vec<_>>();
+			assert_eq!(stored[2], vec![], "Vector should be empty for that block after deletion");
+		});
+	}
+}
+
+#[cfg(test)]
 mod creation_round_success {
 	use super::*;
 
@@ -864,7 +889,7 @@ mod creation_round_success {
 	fn basic_plmc_transfer_works() {
 		let test_env = TestEnvironment::new();
 		test_env.fund_accounts(default_fundings());
-		test_env.ext_env.borrow_mut().execute_with(||{
+		test_env.ext_env.borrow_mut().execute_with(|| {
 			assert_ok!(Balances::transfer(
 				RuntimeOrigin::signed(EVALUATOR_1),
 				EVALUATOR_2,
@@ -979,6 +1004,7 @@ mod creation_round_failure {
 #[cfg(test)]
 mod evaluation_round_success {
 	use super::*;
+	use crate::AuctionPhase::English;
 
 	#[test]
 	fn evaluation_start_works() {
@@ -990,6 +1016,27 @@ mod evaluation_round_success {
 	fn evaluation_end_works() {
 		let test_env = TestEnvironment::new();
 		let _auctioning_project = AuctioningProject::new_default(&test_env);
+	}
+
+	#[test]
+	fn automatic_transition_works() {
+		let test_env = TestEnvironment::new();
+		let evaluating_project = EvaluatingProject::new_default(&test_env);
+		evaluating_project.bond_for_users(default_evaluation_bonds()).unwrap();
+		let project_info = evaluating_project.get_project_info();
+		test_env
+			.advance_time(project_info.phase_transition_points.evaluation.end().unwrap() + 1u64);
+		let end_block = evaluating_project
+			.get_project_info()
+			.phase_transition_points
+			.auction_initialize_period
+			.end()
+			.unwrap();
+		test_env.advance_time(end_block - test_env.current_block() + 1);
+		assert_eq!(
+			evaluating_project.get_project_info().project_status,
+			ProjectStatus::AuctionRound(English)
+		);
 	}
 }
 
@@ -1311,6 +1358,7 @@ mod community_round_success {
 #[cfg(test)]
 mod community_round_failure {}
 
+#[cfg(test)]
 mod purchased_vesting {
 	use super::*;
 
@@ -1373,6 +1421,7 @@ mod purchased_vesting {
 	}
 }
 
+#[cfg(test)]
 mod bids_vesting {
 	use super::*;
 
@@ -1424,12 +1473,4 @@ mod bids_vesting {
 			}
 		});
 	}
-}
-
-#[cfg(test)]
-mod sandbox {
-	use super::*;
-
-	#[test]
-	fn template() {}
 }

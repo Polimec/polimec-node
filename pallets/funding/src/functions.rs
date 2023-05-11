@@ -231,6 +231,11 @@ impl<T: Config> Pallet<T> {
 			);
 			project_info.project_status = ProjectStatus::AuctionInitializePeriod;
 			ProjectsInfo::<T>::insert(project_id, project_info);
+			Self::add_to_update_store(
+				auction_initialize_period_end_block + 1u32.into(),
+				&project_id,
+			)
+			.expect("Always returns Ok; qed");
 
 			// * Emit events *
 			Self::deposit_event(Event::<T>::AuctionInitializePeriod {
@@ -301,10 +306,6 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::TooEarlyForEnglishAuctionStart
 		);
 		ensure!(
-			now <= auction_initialize_period_end_block,
-			Error::<T>::TooLateForEnglishAuctionStart
-		);
-		ensure!(
 			project_info.project_status == ProjectStatus::AuctionInitializePeriod,
 			Error::<T>::ProjectNotInAuctionInitializePeriodRound
 		);
@@ -320,6 +321,12 @@ impl<T: Config> Pallet<T> {
 			.update(Some(english_start_block), Some(english_end_block));
 		project_info.project_status = ProjectStatus::AuctionRound(AuctionPhase::English);
 		ProjectsInfo::<T>::insert(project_id, project_info);
+
+		// If this function was called inside the period, then it was called by the extrinsic and we need to
+		// remove the scheduled automatic transition
+		if now <= auction_initialize_period_end_block {
+			Self::remove_from_update_store(&project_id)?;
+		}
 		// Schedule for automatic transition to candle auction round
 		Self::add_to_update_store(english_end_block + 1u32.into(), &project_id)
 			.expect("Always return Ok; qed");
@@ -1457,9 +1464,6 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Adds a project to the ProjectsToUpdate storage, so it can be updated at some later point in time.
-	///
-	/// * `block_number` - the minimum block number at which the project should be updated.
-	/// * `project_id` - the id of the project to be updated.
 	pub fn add_to_update_store(
 		block_number: T::BlockNumber,
 		project_id: &T::ProjectIdentifier,
@@ -1470,6 +1474,23 @@ impl<T: Config> Pallet<T> {
 		while ProjectsToUpdate::<T>::try_append(block_number, project_id).is_err() {
 			block_number += 1u32.into();
 		}
+		Ok(())
+	}
+
+	pub fn remove_from_update_store(
+		project_id: &T::ProjectIdentifier,
+	) -> Result<(), DispatchError> {
+		let (block_position, project_index) = ProjectsToUpdate::<T>::iter()
+			.find_map(|(block, project_vec)| {
+				let project_index = project_vec.iter().position(|id| id == project_id)?;
+				Some((block, project_index))
+			})
+			.ok_or(Error::<T>::ProjectNotInUpdateStore)?;
+
+		ProjectsToUpdate::<T>::mutate(block_position, |project_vec| {
+			project_vec.remove(project_index);
+		});
+
 		Ok(())
 	}
 
