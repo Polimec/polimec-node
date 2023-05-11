@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use codec::Encode;
+use parity_scale_codec::Encode;
 use did::did_details::DidPublicKeyDetails;
 use dip_support::{v1, VersionedIdentityProof};
 use frame_support::RuntimeDebug;

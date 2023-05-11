@@ -16,7 +16,7 @@
 
 // If you feel like getting in touch with us, you can do so at info@botlabs.org
 
-use codec::{Decode, Encode};
+use parity_scale_codec::{Decode, Encode};
 use did::{did_details::DidDetails, DidVerificationKeyRelationship, KeyIdOf};
 use dip_support::latest::Proof;
 use frame_support::RuntimeDebug;

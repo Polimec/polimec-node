@@ -11,7 +11,7 @@ repository.workspace = true
 version.workspace = true
 
 [dependencies]
-codec = { package = "parity-scale-codec", workspace = true, features = [
+parity-scale-codec = {  workspace = true, features = [
     "derive",
 ] }
 scale-info = { workspace = true, features = ["derive"] }
@@ -30,7 +30,7 @@ sp-io.workspace = true
 default = ["std"]
 std = [
     "frame-benchmarking?/std",
-    "codec/std",
+    "parity-scale-codec/std",
     "sp-std/std",
     "sp-runtime/std",
     "frame-support/std",

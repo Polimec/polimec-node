@@ -11,7 +11,7 @@ repository.workspace = true
 version.workspace = true
 
 [dependencies]
-codec = { package = "parity-scale-codec", workspace = true, features = [
+parity-scale-codec = { workspace = true, features = [
 	"derive",
 ] }
 scale-info = { workspace = true, features = ["derive"] }
@@ -38,7 +38,7 @@ pallet-credentials.workspace = true
 [features]
 default = ["std"]
 std = [
-	"codec/std",
+	"parity-scale-codec/std",
 	"scale-info/std",
 	"sp-std/std",
 	"sp-runtime/std",

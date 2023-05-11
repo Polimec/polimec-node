@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use codec::Encode;
+use parity_scale_codec::Encode;
 use cumulus_pallet_xcmp_queue::Event as XcmpEvent;
 use frame_support::{assert_ok, pallet_prelude::Weight, traits::GenesisBuild};
 use polimec_parachain_runtime as polimec_runtime;

@@ -200,7 +200,7 @@ mod benchmarking;
 use polimec_traits::{MemberRole, PolimecMembers};
 
 pub use crate::weights::WeightInfo;
-use codec::{Decode, Encode, MaxEncodedLen};
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{
 	pallet_prelude::ValueQuery,
 	traits::{
