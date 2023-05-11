@@ -113,6 +113,10 @@ impl pallet_balances::Config for Test {
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
 	type WeightInfo = ();
+	type HoldIdentifier = [u8; 8];
+	type FreezeIdentifier = [u8; 8];
+	type MaxHolds = frame_support::traits::ConstU32<8>;
+	type MaxFreezes = frame_support::traits::ConstU32<8>;
 }
 
 impl pallet_aura::Config for Test {
