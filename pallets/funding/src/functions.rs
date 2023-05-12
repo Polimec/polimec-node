@@ -500,25 +500,14 @@ impl<T: Config> Pallet<T> {
 			.community
 			.end()
 			.ok_or(Error::<T>::FieldIsNone)?;
-		let remaining_cts = project.remaining_contribution_tokens;
 
 		// * Validity checks *
-		ensure!(now > community_end_block || remaining_cts == 0u32.into(), Error::<T>::TooEarlyForRemainderRoundStart);
+		ensure!(now > community_end_block, Error::<T>::TooEarlyForRemainderRoundStart);
 		ensure!(
 			project_info.project_status == ProjectStatus::CommunityRound,
 			Error::<T>::ProjectNotInCommunityRound
 		);
 
-		// 2 paths: either the project is sold out and funding ends, or the time is up and remainder round starts
-		// CTs sold out
-		if remaining_cts == 0u32.into() {
-
-
-
-		// Time is up for community round. Start remainder round.
-		} else {
-
-		}
 		// * Calculate new variables *
 		let remainder_start_block = now + 1u32.into();
 		let remainder_end_block = now + T::RemainderFundingDuration::get();
@@ -531,7 +520,7 @@ impl<T: Config> Pallet<T> {
 		project_info.project_status = ProjectStatus::RemainderRound;
 		ProjectsInfo::<T>::insert(project_id, project_info);
 		// Schedule for automatic transition by `on_initialize`
-		Self::add_to_update_store(remainder_end_block + 1u32.into(), (&project_id, UpdateType::RemainderFundingStart));
+		Self::add_to_update_store(remainder_end_block + 1u32.into(), (&project_id, UpdateType::FundingEnd));
 
 		// * Emit events *
 		Self::deposit_event(Event::<T>::RemainderFundingStarted { project_id });
