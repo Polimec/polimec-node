@@ -425,3 +425,28 @@ impl<
 		}
 	}
 }
+
+/// Tells on_initialize what to do with the project
+#[derive(
+	Clone,
+	Encode,
+	Decode,
+	Eq,
+	PartialEq,
+	RuntimeDebug,
+	TypeInfo,
+	MaxEncodedLen,
+	Copy,
+	Ord,
+	PartialOrd,
+)]
+pub enum UpdateType {
+	EvaluationEnd,
+	EnglishAuctionStart,
+	CandleAuctionStart,
+	CommunityFundingStart,
+	RemainderFundingStart,
+	FundingEnd
+
+
+}

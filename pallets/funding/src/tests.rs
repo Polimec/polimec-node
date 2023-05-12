@@ -958,15 +958,16 @@ mod defaults {
 
 #[cfg(test)]
 mod helper_functions {
+	use crate::UpdateType::{CommunityFundingStart, RemainderFundingStart};
 	use super::*;
 	#[test]
 	fn remove_from_update_store_works() {
 		let test_env = TestEnvironment::new();
 		let now = test_env.current_block();
 		test_env.ext_env.borrow_mut().execute_with(|| {
-			FundingModule::add_to_update_store(now + 10u64, &42u32).unwrap();
-			FundingModule::add_to_update_store(now + 20u64, &69u32).unwrap();
-			FundingModule::add_to_update_store(now + 5u64, &404u32).unwrap();
+			FundingModule::add_to_update_store(now + 10u64, (&42u32, CommunityFundingStart));
+			FundingModule::add_to_update_store(now + 20u64, (&69u32, RemainderFundingStart));
+			FundingModule::add_to_update_store(now + 5u64, (&404u32, RemainderFundingStart));
 		});
 		test_env.advance_time(2u64);
 		test_env.ext_env.borrow_mut().execute_with(|| {
@@ -1458,6 +1459,41 @@ mod community_round_success {
 		community_funding_project
 			.buy_for_retail_users(vec![(BOB, 4)])
 			.expect("The Buyer should be able to buy multiple times");
+	}
+
+	#[test]
+	/// A retail user purchases the **exact** amount of tokens remaining for the community round,
+	/// which makes the project transition into the project ended state.
+	fn community_round_ends_on_all_ct_sold_exact() {
+		let test_env = TestEnvironment::new();
+		let community_funding_project = CommunityFundingProject::new_default(&test_env);
+		const BOB: AccountId = 808;
+
+		let remaining_ct = community_funding_project.get_project().remaining_contribution_tokens;
+		let ct_price = community_funding_project.get_project_info().weighted_average_price.expect("CT Price should exist");
+
+		// Necessary funds to buy remaining CTs, plus some extra for keeping it account alive
+		let buyers: UserToBalance = vec![(BOB, remaining_ct * ct_price), (BOB, 50 * PLMC)];
+		// Fund for buy and PLMC bond
+		test_env.fund_accounts(buyers.clone());
+		// Fund for PLMC bond
+		test_env.fund_accounts(buyers.clone());
+		// Buy remaining CTs
+		community_funding_project
+			.buy_for_retail_users(vec![(BOB, remaining_ct)])
+			.expect("The Buyer should be able to buy the exact amount of remaining CTs");
+
+		// Check remaining CTs is 0
+		assert_eq!(
+			community_funding_project.get_project().remaining_contribution_tokens,
+			0
+		);
+
+		// Check project is in FundingEnded state
+		assert_eq!(
+			community_funding_project.get_project_info().project_status,
+			ProjectStatus::FundingEnded
+		);
 	}
 
 	#[test]

@@ -423,7 +423,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		T::BlockNumber,
-		BoundedVec<T::ProjectIdentifier, T::MaxProjectsToUpdatePerBlock>,
+		BoundedVec<(T::ProjectIdentifier, UpdateType), T::MaxProjectsToUpdatePerBlock>,
 		ValueQuery,
 	>;
 
@@ -842,48 +842,39 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(now: T::BlockNumber) -> Weight {
 			// Get the projects that need to be updated on this block and update them
-			for project_id in ProjectsToUpdate::<T>::take(now) {
-				let maybe_project_info = ProjectsInfo::<T>::get(project_id);
-				let project_info = unwrap_option_or_skip!(maybe_project_info, project_id);
+			for (project_id, update_type) in ProjectsToUpdate::<T>::take(now) {
 
-				match project_info.project_status {
-					// Application -> EvaluationRound
-					// Handled by user extrinsic
-
+				match update_type {
 					// EvaluationRound -> AuctionInitializePeriod | EvaluationFailed
-					ProjectStatus::EvaluationRound => {
+					UpdateType::EvaluationEnd => {
 						unwrap_result_or_skip!(Self::do_evaluation_end(project_id), project_id);
 					},
 
 					// AuctionInitializePeriod -> AuctionRound(AuctionPhase::English)
 					// Only if it wasn't first handled by user extrinsic
-					ProjectStatus::AuctionInitializePeriod => {
+					UpdateType::EnglishAuctionStart => {
 						unwrap_result_or_skip!(Self::do_english_auction(project_id), project_id);
 					},
 
 					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
-					ProjectStatus::AuctionRound(AuctionPhase::English) => {
+					UpdateType::CandleAuctionStart => {
 						unwrap_result_or_skip!(Self::do_candle_auction(project_id), project_id);
 					},
 
 					// AuctionRound(AuctionPhase::Candle) -> CommunityRound
-					ProjectStatus::AuctionRound(AuctionPhase::Candle) => {
+					UpdateType::CommunityFundingStart => {
 						unwrap_result_or_skip!(Self::do_community_funding(project_id), project_id);
 					},
 
 					// CommunityRound -> RemainderRound
-					ProjectStatus::CommunityRound => {
+					UpdateType::RemainderFundingStart => {
 						unwrap_result_or_skip!(Self::do_remainder_funding(project_id), project_id)
 					},
 
-					// RemainderRound -> FundingEnded
-					ProjectStatus::RemainderRound => {
+					// CommunityRound || RemainderRound -> FundingEnded
+					UpdateType::FundingEnd => {
 						unwrap_result_or_skip!(Self::do_end_funding(project_id), project_id)
 					},
-
-					// FundingEnded -> ReadyToLaunch
-					// Handled by user extrinsic
-					_ => {},
 				}
 			}
 			// TODO: PLMC-127. Set a proper weight
