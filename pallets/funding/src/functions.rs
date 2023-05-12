@@ -62,10 +62,11 @@ impl<T: Config> Pallet<T> {
 		if let Err(error) = project.validity_check() {
 			return match error {
 				ValidityError::PriceTooLow => Err(Error::<T>::PriceTooLow.into()),
-				ValidityError::ParticipantsSizeError =>
-					Err(Error::<T>::ParticipantsSizeError.into()),
+				ValidityError::ParticipantsSizeError => {
+					Err(Error::<T>::ParticipantsSizeError.into())
+				},
 				ValidityError::TicketSizeError => Err(Error::<T>::TicketSizeError.into()),
-			}
+			};
 		}
 
 		// * Calculate new variables *
@@ -152,7 +153,10 @@ impl<T: Config> Pallet<T> {
 		// TODO: Should we make it possible to end an application, and schedule for a later point the evaluation?
 		// 	Or should we just make it so that the evaluation starts immediately after the application ends?
 		ProjectsInfo::<T>::insert(project_id, project_info);
-		Self::add_to_update_store(evaluation_end_block + 1u32.into(), (&project_id, UpdateType::EvaluationEnd));
+		Self::add_to_update_store(
+			evaluation_end_block + 1u32.into(),
+			(&project_id, UpdateType::EvaluationEnd),
+		);
 
 		// * Emit events *
 		Self::deposit_event(Event::<T>::EvaluationStarted { project_id });
@@ -234,7 +238,7 @@ impl<T: Config> Pallet<T> {
 			ProjectsInfo::<T>::insert(project_id, project_info);
 			Self::add_to_update_store(
 				auction_initialize_period_end_block + 1u32.into(),
-				(&project_id, UpdateType::EnglishAuctionStart)
+				(&project_id, UpdateType::EnglishAuctionStart),
 			);
 
 			// * Emit events *
@@ -327,7 +331,10 @@ impl<T: Config> Pallet<T> {
 			Self::remove_from_update_store(&project_id)?;
 		}
 		// Schedule for automatic transition to candle auction round
-		Self::add_to_update_store(english_end_block + 1u32.into(), (&project_id, UpdateType::CandleAuctionStart));
+		Self::add_to_update_store(
+			english_end_block + 1u32.into(),
+			(&project_id, UpdateType::CandleAuctionStart),
+		);
 
 		// * Emit events *
 		Self::deposit_event(Event::<T>::EnglishAuctionStarted { project_id, when: now });
@@ -388,7 +395,10 @@ impl<T: Config> Pallet<T> {
 		project_info.project_status = ProjectStatus::AuctionRound(AuctionPhase::Candle);
 		ProjectsInfo::<T>::insert(project_id, project_info);
 		// Schedule for automatic check by on_initialize. Success depending on enough funding reached
-		Self::add_to_update_store(candle_end_block + 1u32.into(), (&project_id, UpdateType::CommunityFundingStart));
+		Self::add_to_update_store(
+			candle_end_block + 1u32.into(),
+			(&project_id, UpdateType::CommunityFundingStart),
+		);
 
 		// * Emit events *
 		Self::deposit_event(Event::<T>::CandleAuctionStarted { project_id, when: now });
@@ -461,7 +471,10 @@ impl<T: Config> Pallet<T> {
 		)?);
 		ProjectsInfo::<T>::insert(project_id, project_info);
 		// Schedule for automatic transition by `on_initialize`
-		Self::add_to_update_store(community_end_block + 1u32.into(), (&project_id, UpdateType::RemainderFundingStart));
+		Self::add_to_update_store(
+			community_end_block + 1u32.into(),
+			(&project_id, UpdateType::RemainderFundingStart),
+		);
 
 		// * Emit events *
 		Self::deposit_event(Event::<T>::CommunityFundingStarted { project_id });
@@ -520,7 +533,10 @@ impl<T: Config> Pallet<T> {
 		project_info.project_status = ProjectStatus::RemainderRound;
 		ProjectsInfo::<T>::insert(project_id, project_info);
 		// Schedule for automatic transition by `on_initialize`
-		Self::add_to_update_store(remainder_end_block + 1u32.into(), (&project_id, UpdateType::FundingEnd));
+		Self::add_to_update_store(
+			remainder_end_block + 1u32.into(),
+			(&project_id, UpdateType::FundingEnd),
+		);
 
 		// * Emit events *
 		Self::deposit_event(Event::<T>::RemainderFundingStarted { project_id });
@@ -569,10 +585,7 @@ impl<T: Config> Pallet<T> {
 		let project = Projects::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let token_information = project.token_information;
 		let remaining_cts = project.remaining_contribution_tokens;
-		let remainder_end_block = project_info
-			.phase_transition_points
-			.remainder
-			.end();
+		let remainder_end_block = project_info.phase_transition_points.remainder.end();
 
 		// * Validity checks *
 		if let Some(end_block) = remainder_end_block {
@@ -963,11 +976,11 @@ impl<T: Config> Pallet<T> {
 		let decimals = project.token_information.decimals;
 		let fund_account = Self::fund_account_id(project_id);
 
-
 		// * Validity checks *
 		ensure!(contributor != project_issuer, Error::<T>::ContributionToThemselves);
 		ensure!(
-			project_info.project_status == ProjectStatus::CommunityRound || project_info.project_status == ProjectStatus::RemainderRound,
+			project_info.project_status == ProjectStatus::CommunityRound
+				|| project_info.project_status == ProjectStatus::RemainderRound,
 			Error::<T>::AuctionNotStarted
 		);
 
@@ -995,8 +1008,11 @@ impl<T: Config> Pallet<T> {
 			weighted_average_price,
 			decimals,
 		);
-		let contribution =
-			ContributionInfo { contribution_amount: ticket_size, plmc_vesting: plmc_vesting.clone(), ct_vesting };
+		let contribution = ContributionInfo {
+			contribution_amount: ticket_size,
+			plmc_vesting: plmc_vesting.clone(),
+			ct_vesting,
+		};
 
 		// Calculate how much plmc is required to be bonded for this contribution,
 		// based on existing unused PLMC bonds for the project
@@ -1011,9 +1027,9 @@ impl<T: Config> Pallet<T> {
 		}
 		required_plmc_bond.saturating_sub(bonded_plmc);
 
-		let remaining_cts_after_purchase = project.remaining_contribution_tokens.saturating_sub(buyable_tokens);
+		let remaining_cts_after_purchase =
+			project.remaining_contribution_tokens.saturating_sub(buyable_tokens);
 		let now = <frame_system::Pallet<T>>::block_number();
-
 
 		// * Update storage *
 		// Try bonding the required PLMC for this contribution
@@ -1047,12 +1063,17 @@ impl<T: Config> Pallet<T> {
 				)?;
 
 				// Unlock the bonded PLMC for that returned contribution
-				T::Currency::unreserve_named(&BondType::Contributing, &contributor.clone(), lowest_contribution.plmc_vesting.amount);
+				T::Currency::unreserve_named(
+					&BondType::Contributing,
+					&contributor.clone(),
+					lowest_contribution.plmc_vesting.amount,
+				);
 
 				// Update the ContributingBonds storage
 				ContributingBonds::<T>::mutate(project_id, contributor.clone(), |maybe_bond| {
 					if let Some(bond) = maybe_bond {
-						bond.amount = bond.amount.saturating_sub(lowest_contribution.plmc_vesting.amount);
+						bond.amount =
+							bond.amount.saturating_sub(lowest_contribution.plmc_vesting.amount);
 					}
 				});
 
@@ -1124,7 +1145,7 @@ impl<T: Config> Pallet<T> {
 			// * Validity checks *
 			// check that it is not too early to withdraw the next amount
 			if plmc_vesting.next_withdrawal > now {
-				continue
+				continue;
 			}
 
 			// * Calculate variables *
@@ -1133,7 +1154,7 @@ impl<T: Config> Pallet<T> {
 			while let Ok(amount) = plmc_vesting.calculate_next_withdrawal() {
 				unbond_amount = unbond_amount.saturating_add(amount);
 				if plmc_vesting.next_withdrawal > now {
-					break
+					break;
 				}
 			}
 			bid.plmc_vesting_period = plmc_vesting;
@@ -1195,7 +1216,7 @@ impl<T: Config> Pallet<T> {
 			// * Validity checks *
 			// check that it is not too early to withdraw the next amount
 			if ct_vesting.next_withdrawal > now {
-				continue
+				continue;
 			}
 
 			// * Calculate variables *
@@ -1203,7 +1224,7 @@ impl<T: Config> Pallet<T> {
 			while let Ok(amount) = ct_vesting.calculate_next_withdrawal() {
 				mint_amount = mint_amount.saturating_add(amount);
 				if ct_vesting.next_withdrawal > now {
-					break
+					break;
 				}
 			}
 			bid.ct_vesting_period = ct_vesting;
@@ -1270,7 +1291,7 @@ impl<T: Config> Pallet<T> {
 			// * Validity checks *
 			// check that it is not too early to withdraw the next amount
 			if plmc_vesting.next_withdrawal > now {
-				continue
+				continue;
 			}
 
 			// * Calculate variables *
@@ -1278,7 +1299,7 @@ impl<T: Config> Pallet<T> {
 			while let Ok(amount) = plmc_vesting.calculate_next_withdrawal() {
 				unbond_amount = unbond_amount.saturating_add(amount);
 				if plmc_vesting.next_withdrawal > now {
-					break
+					break;
 				}
 			}
 			contribution.plmc_vesting = plmc_vesting;
@@ -1350,7 +1371,7 @@ impl<T: Config> Pallet<T> {
 			// * Validity checks *
 			// check that it is not too early to withdraw the next amount
 			if ct_vesting.next_withdrawal > now {
-				continue
+				continue;
 			}
 
 			// * Calculate variables *
@@ -1358,7 +1379,7 @@ impl<T: Config> Pallet<T> {
 			while let Ok(amount) = ct_vesting.calculate_next_withdrawal() {
 				mint_amount = mint_amount.saturating_add(amount);
 				if ct_vesting.next_withdrawal > now {
-					break
+					break;
 				}
 			}
 			contribution.ct_vesting = ct_vesting;
@@ -1498,7 +1519,7 @@ impl<T: Config> Pallet<T> {
 	pub fn add_to_update_store(
 		block_number: T::BlockNumber,
 		store: (&T::ProjectIdentifier, UpdateType),
-	)  {
+	) {
 		// Try to get the project into the earliest possible block to update.
 		// There is a limit for how many projects can update each block, so we need to make sure we don't exceed that limit
 		let mut block_number = block_number;
@@ -1513,7 +1534,8 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), DispatchError> {
 		let (block_position, project_index) = ProjectsToUpdate::<T>::iter()
 			.find_map(|(block, project_vec)| {
-				let project_index = project_vec.iter().position(|(id, _update_type)| id == project_id)?;
+				let project_index =
+					project_vec.iter().position(|(id, _update_type)| id == project_id)?;
 				Some((block, project_index))
 			})
 			.ok_or(Error::<T>::ProjectNotInUpdateStore)?;
@@ -1581,7 +1603,7 @@ impl<T: Config> Pallet<T> {
 				if bid.when > end_block {
 					bid.status = BidStatus::Rejected(RejectionReason::AfterCandleEnd);
 					// TODO: PLMC-147. Unlock funds. We can do this inside the "on_idle" hook, and change the `status` of the `Bid` to "Unreserved"
-					return bid
+					return bid;
 				}
 				let buyable_amount = total_allocation_size.saturating_sub(bid_amount_sum);
 				if buyable_amount == 0_u32.into() {
@@ -1603,15 +1625,13 @@ impl<T: Config> Pallet<T> {
 			.collect::<Vec<BidInfoOf<T>>>();
 
 		// Update the project storage
-		Projects::<T>::mutate(
-			project_id.clone(),
-			|maybe_project| -> Result<(), DispatchError> {
-				let mut project = maybe_project.clone().ok_or(Error::<T>::ProjectNotFound)?;
-				project.remaining_contribution_tokens = project.remaining_contribution_tokens.saturating_sub(bid_amount_sum);
-				*maybe_project = Some(project);
-				Ok(())
-			},
-		)?;
+		Projects::<T>::mutate(project_id.clone(), |maybe_project| -> Result<(), DispatchError> {
+			let mut project = maybe_project.clone().ok_or(Error::<T>::ProjectNotFound)?;
+			project.remaining_contribution_tokens =
+				project.remaining_contribution_tokens.saturating_sub(bid_amount_sum);
+			*maybe_project = Some(project);
+			Ok(())
+		})?;
 
 		// Update the bid in the storage
 		for bid in bids.iter() {
@@ -1653,10 +1673,12 @@ impl<T: Config> Pallet<T> {
 			// TODO: PLMC-150. collecting due to previous mut borrow, find a way to not collect and borrow bid on filter_map
 			.into_iter()
 			.filter_map(|bid| match bid.status {
-				BidStatus::Accepted =>
-					Some(Perbill::from_rational(bid.amount * bid.price, bid_value_sum) * bid.price),
-				BidStatus::PartiallyAccepted(amount, _) =>
-					Some(Perbill::from_rational(amount * bid.price, bid_value_sum) * bid.price),
+				BidStatus::Accepted => {
+					Some(Perbill::from_rational(bid.amount * bid.price, bid_value_sum) * bid.price)
+				},
+				BidStatus::PartiallyAccepted(amount, _) => {
+					Some(Perbill::from_rational(amount * bid.price, bid_value_sum) * bid.price)
+				},
 				_ => None,
 			})
 			.reduce(|a, b| a.saturating_add(b))

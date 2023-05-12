@@ -30,12 +30,15 @@ fn derive_verification_key_relationship(
 ) -> Option<DidVerificationKeyRelationship> {
 	match call {
 		RuntimeCall::DidLookup { .. } => Some(DidVerificationKeyRelationship::Authentication),
-		RuntimeCall::Utility(pallet_utility::Call::batch { calls }) =>
-			single_key_relationship(calls).ok(),
-		RuntimeCall::Utility(pallet_utility::Call::batch_all { calls }) =>
-			single_key_relationship(calls).ok(),
-		RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) =>
-			single_key_relationship(calls).ok(),
+		RuntimeCall::Utility(pallet_utility::Call::batch { calls }) => {
+			single_key_relationship(calls).ok()
+		},
+		RuntimeCall::Utility(pallet_utility::Call::batch_all { calls }) => {
+			single_key_relationship(calls).ok()
+		},
+		RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) => {
+			single_key_relationship(calls).ok()
+		},
 		_ => None,
 	}
 }

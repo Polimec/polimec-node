@@ -999,8 +999,8 @@ pub mod pallet {
 			ensure!(stake >= T::MinCollatorCandidateStake::get(), Error::<T>::ValStakeBelowMin);
 			ensure!(stake <= MaxCollatorCandidateStake::<T>::get(), Error::<T>::ValStakeAboveMax);
 			ensure!(
-				Unstaking::<T>::get(&sender).len().saturated_into::<u32>() <
-					T::MaxUnstakeRequests::get(),
+				Unstaking::<T>::get(&sender).len().saturated_into::<u32>()
+					< T::MaxUnstakeRequests::get(),
 				Error::<T>::CannotJoinBeforeUnlocking
 			);
 
@@ -1371,8 +1371,8 @@ pub mod pallet {
 			// cannot be a collator candidate and delegator with same AccountId
 			ensure!(Self::is_active_candidate(&acc).is_none(), Error::<T>::CandidateExists);
 			ensure!(
-				Unstaking::<T>::get(&acc).len().saturated_into::<u32>() <
-					T::MaxUnstakeRequests::get(),
+				Unstaking::<T>::get(&acc).len().saturated_into::<u32>()
+					< T::MaxUnstakeRequests::get(),
 				Error::<T>::CannotJoinBeforeUnlocking
 			);
 			// cannot delegate if number of delegations in this round exceeds
@@ -2214,7 +2214,7 @@ pub mod pallet {
 				unstaking_len = unstaking.len().saturated_into();
 				for (block_number, locked_balance) in unstaking.clone() {
 					if amt_consuming_unstaking.is_zero() {
-						break
+						break;
 					} else if locked_balance > amt_consuming_unstaking {
 						// amount is only reducible by locked_balance - amt_consuming_unstaking
 						let delta = locked_balance.saturating_sub(amt_consuming_unstaking);
@@ -2316,8 +2316,8 @@ pub mod pallet {
 				.into_iter()
 				.enumerate()
 				.find_map(|(i, id)| {
-					if <T as pallet_session::Config>::ValidatorIdOf::convert(collator.clone()) ==
-						Some(id)
+					if <T as pallet_session::Config>::ValidatorIdOf::convert(collator.clone())
+						== Some(id)
 					{
 						Some(i)
 					} else {
@@ -2423,9 +2423,9 @@ pub mod pallet {
 		/// NetworkRewardRate`
 		fn issue_network_reward() -> NegativeImbalanceOf<T> {
 			// Multiplication with Perquintill cannot overflow
-			let max_col_rewards = InflationConfig::<T>::get().collator.reward_rate.per_block *
-				MaxCollatorCandidateStake::<T>::get() *
-				MaxSelectedCandidates::<T>::get().into();
+			let max_col_rewards = InflationConfig::<T>::get().collator.reward_rate.per_block
+				* MaxCollatorCandidateStake::<T>::get()
+				* MaxSelectedCandidates::<T>::get().into();
 			let network_reward = T::NetworkRewardRate::get() * max_col_rewards;
 
 			T::Currency::issue(network_reward)

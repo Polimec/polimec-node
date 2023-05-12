@@ -135,8 +135,9 @@ impl TestEnvironment {
 			frame_system::Pallet::<TestRuntime>::events()
 				.iter()
 				.filter_map(|event| match event.event {
-					RuntimeEvent::FundingModule(crate::Event::Created { project_id }) =>
-						Some(project_id),
+					RuntimeEvent::FundingModule(crate::Event::Created { project_id }) => {
+						Some(project_id)
+					},
 					_ => None,
 				})
 				.last()
@@ -560,7 +561,9 @@ impl<'a> ProjectInstance for FinishedProject<'a> {
 impl<'a> FinishedProject<'a> {
 	fn new_default(test_env: &'a TestEnvironment) -> Self {
 		let remainder_funding_project = RemainderFundingProject::new_default(test_env);
-		remainder_funding_project.buy_for_any_user(default_remainder_buys()).expect("Buying should work");
+		remainder_funding_project
+			.buy_for_any_user(default_remainder_buys())
+			.expect("Buying should work");
 
 		// End project funding by moving block to after the end of remainder round
 		let finished_project = remainder_funding_project.finish_project();
@@ -805,9 +808,7 @@ mod defaults {
 			let project = FundingModule::projects(project_id).expect("Project should exist");
 			let bought_tokens: u128 = default_auction_bids()
 				.iter()
-				.map(|(_account, (amount, _price, _multiplier))| {
-					amount
-				})
+				.map(|(_account, (amount, _price, _multiplier))| amount)
 				.sum();
 			assert_eq!(
 				project.remaining_contribution_tokens,
@@ -885,23 +886,18 @@ mod defaults {
 			let project = FundingModule::projects(project_id).expect("Project should exist");
 			let auction_bought_tokens: u128 = default_auction_bids()
 				.iter()
-				.map(|(_account, (amount, _price, _multiplier))| {
-					amount
-				})
+				.map(|(_account, (amount, _price, _multiplier))| amount)
 				.sum();
-			let community_bought_tokens: u128 = default_community_buys()
-				.iter()
-				.map(|(_account, amount)| {
-					amount
-				})
-				.sum();
+			let community_bought_tokens: u128 =
+				default_community_buys().iter().map(|(_account, amount)| amount).sum();
 			assert_eq!(
 				project.remaining_contribution_tokens,
-				default_project(0).total_allocation_size - auction_bought_tokens - community_bought_tokens,
+				default_project(0).total_allocation_size
+					- auction_bought_tokens
+					- community_bought_tokens,
 				"Remaining CTs are incorrect"
 			);
 		});
-
 	}
 
 	pub fn default_remainder_funding_start_assertions(
@@ -931,25 +927,18 @@ mod defaults {
 			let project = FundingModule::projects(project_id).expect("Project should exist");
 			let auction_bought_tokens: u128 = default_auction_bids()
 				.iter()
-				.map(|(_account, (amount, _price, _multiplier))| {
-					amount
-				})
+				.map(|(_account, (amount, _price, _multiplier))| amount)
 				.sum();
-			let community_bought_tokens: u128 = default_community_buys()
-				.iter()
-				.map(|(_account, amount)| {
-					amount
-				})
-				.sum();
-			let remainder_bought_tokens: u128 = default_remainder_buys()
-				.iter()
-				.map(|(_account, amount)| {
-					amount
-				})
-				.sum();
+			let community_bought_tokens: u128 =
+				default_community_buys().iter().map(|(_account, amount)| amount).sum();
+			let remainder_bought_tokens: u128 =
+				default_remainder_buys().iter().map(|(_account, amount)| amount).sum();
 			assert_eq!(
 				project.remaining_contribution_tokens,
-				default_project(0).total_allocation_size - auction_bought_tokens - community_bought_tokens - remainder_bought_tokens,
+				default_project(0).total_allocation_size
+					- auction_bought_tokens
+					- community_bought_tokens
+					- remainder_bought_tokens,
 				"Remaining CTs are incorrect"
 			);
 		});
@@ -958,8 +947,8 @@ mod defaults {
 
 #[cfg(test)]
 mod helper_functions {
-	use crate::UpdateType::{CommunityFundingStart, RemainderFundingStart};
 	use super::*;
+	use crate::UpdateType::{CommunityFundingStart, RemainderFundingStart};
 	#[test]
 	fn remove_from_update_store_works() {
 		let test_env = TestEnvironment::new();
@@ -1468,7 +1457,10 @@ mod community_round_success {
 		const BOB: AccountId = 808;
 
 		let remaining_ct = community_funding_project.get_project().remaining_contribution_tokens;
-		let ct_price = community_funding_project.get_project_info().weighted_average_price.expect("CT Price should exist");
+		let ct_price = community_funding_project
+			.get_project_info()
+			.weighted_average_price
+			.expect("CT Price should exist");
 
 		// Necessary funds to buy remaining CTs, plus some extra for keeping it account alive
 		let buyers: UserToBalance = vec![(BOB, remaining_ct * ct_price), (BOB, 50 * PLMC)];
@@ -1482,10 +1474,7 @@ mod community_round_success {
 			.expect("The Buyer should be able to buy the exact amount of remaining CTs");
 		test_env.advance_time(2u64);
 		// Check remaining CTs is 0
-		assert_eq!(
-			community_funding_project.get_project().remaining_contribution_tokens,
-			0
-		);
+		assert_eq!(community_funding_project.get_project().remaining_contribution_tokens, 0);
 
 		// Check project is in FundingEnded state
 		assert_eq!(
@@ -1493,9 +1482,7 @@ mod community_round_success {
 			ProjectStatus::FundingEnded
 		);
 
-		test_env.do_free_funds_assertions(vec![
-			(BOB, (50 * PLMC)*2)
-		]);
+		test_env.do_free_funds_assertions(vec![(BOB, (50 * PLMC) * 2)]);
 	}
 
 	#[test]
@@ -1504,8 +1491,12 @@ mod community_round_success {
 		let community_funding_project = CommunityFundingProject::new_default(&test_env);
 		const BOB: AccountId = 808;
 
-		let remaining_ct = community_funding_project.get_project().remaining_contribution_tokens + 40; // Overbuy
-		let ct_price = community_funding_project.get_project_info().weighted_average_price.expect("CT Price should exist");
+		let remaining_ct =
+			community_funding_project.get_project().remaining_contribution_tokens + 40; // Overbuy
+		let ct_price = community_funding_project
+			.get_project_info()
+			.weighted_average_price
+			.expect("CT Price should exist");
 
 		// Necessary funds to buy remaining CTs, plus some extra for keeping it account alive
 		let buyers: UserToBalance = vec![(BOB, remaining_ct * ct_price), (BOB, 50 * PLMC)];
@@ -1520,10 +1511,7 @@ mod community_round_success {
 		test_env.advance_time(2u64);
 
 		// Check remaining CTs is 0
-		assert_eq!(
-			community_funding_project.get_project().remaining_contribution_tokens,
-			0
-		);
+		assert_eq!(community_funding_project.get_project().remaining_contribution_tokens, 0);
 
 		// Check project is in FundingEnded state
 		assert_eq!(
@@ -1531,9 +1519,7 @@ mod community_round_success {
 			ProjectStatus::FundingEnded
 		);
 
-		test_env.do_free_funds_assertions(vec![
-			(BOB, (40 * ct_price)*2 + (50 * PLMC)*2)
-		]);
+		test_env.do_free_funds_assertions(vec![(BOB, (40 * ct_price) * 2 + (50 * PLMC) * 2)]);
 	}
 
 	#[test]

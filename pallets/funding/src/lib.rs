@@ -843,7 +843,6 @@ pub mod pallet {
 		fn on_initialize(now: T::BlockNumber) -> Weight {
 			// Get the projects that need to be updated on this block and update them
 			for (project_id, update_type) in ProjectsToUpdate::<T>::take(now) {
-
 				match update_type {
 					// EvaluationRound -> AuctionInitializePeriod | EvaluationFailed
 					UpdateType::EvaluationEnd => {
@@ -968,7 +967,7 @@ pub mod local_macros {
 						project_id: $project_id,
 						error: Error::<T>::FieldIsNone.into(),
 					});
-					continue
+					continue;
 				},
 			}
 		};
@@ -986,7 +985,7 @@ pub mod local_macros {
 						project_id: $project_id,
 						error: err,
 					});
-					continue
+					continue;
 				},
 			}
 		};
