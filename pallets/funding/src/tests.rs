@@ -445,7 +445,7 @@ impl<'a> CommunityFundingProject<'a> {
 		community_funding_project
 	}
 
-	fn buy_for_users(&self, buys: UserToBalance) -> Result<(), DispatchError> {
+	fn buy_for_retail_users(&self, buys: UserToBalance) -> Result<(), DispatchError> {
 		let project_id = self.get_project_id();
 		for (account, ct_amount) in buys {
 			self.test_env.ext_env.borrow_mut().execute_with(|| {
@@ -491,12 +491,22 @@ impl<'a> ProjectInstance for RemainderFundingProject<'a> {
 	}
 }
 impl<'a> RemainderFundingProject<'a> {
+	fn buy_for_any_user(&self, buys: UserToBalance) -> Result<(), DispatchError> {
+		let project_id = self.get_project_id();
+		for (account, ct_amount) in buys {
+			self.test_env.ext_env.borrow_mut().execute_with(|| {
+				FundingModule::contribute(RuntimeOrigin::signed(account), project_id, ct_amount)
+			})?;
+		}
+		Ok(())
+	}
+
 	fn new_default(test_env: &'a TestEnvironment) -> Self {
 		let community_funding_project = CommunityFundingProject::new_default(test_env);
 
 		// Do community buying
 		community_funding_project
-			.buy_for_users(default_community_buys())
+			.buy_for_retail_users(default_community_buys())
 			.expect("Community buying should work");
 
 		// Check our buys were properly interpreted
@@ -550,6 +560,7 @@ impl<'a> ProjectInstance for FinishedProject<'a> {
 impl<'a> FinishedProject<'a> {
 	fn new_default(test_env: &'a TestEnvironment) -> Self {
 		let remainder_funding_project = RemainderFundingProject::new_default(test_env);
+		remainder_funding_project.buy_for_any_user(default_remainder_buys()).expect("Buying should work");
 
 		// End project funding by moving block to after the end of remainder round
 		let finished_project = remainder_funding_project.finish_project();
@@ -647,6 +658,10 @@ mod defaults {
 
 	pub fn default_community_buys() -> UserToBalance {
 		vec![(BUYER_1, 10), (BUYER_2, 20)]
+	}
+
+	pub fn default_remainder_buys() -> UserToBalance {
+		vec![(EVALUATOR_2, 6), (BIDDER_1, 4)]
 	}
 
 	// pub fn default_community_funding_plmc_bondings() -> UserToBalance {
@@ -904,10 +919,39 @@ mod defaults {
 		project_id: ProjectIdOf<TestRuntime>,
 		test_env: &TestEnvironment,
 	) {
+		// Check that project status is correct
 		test_env.ext_env.borrow_mut().execute_with(|| {
 			let project_info =
 				FundingModule::project_info(project_id).expect("Project info should exist");
 			assert_eq!(project_info.project_status, ProjectStatus::FundingEnded);
+		});
+
+		// Check that remaining CTs are updated
+		test_env.ext_env.borrow_mut().execute_with(|| {
+			let project = FundingModule::projects(project_id).expect("Project should exist");
+			let auction_bought_tokens: u128 = default_auction_bids()
+				.iter()
+				.map(|(_account, (amount, _price, _multiplier))| {
+					amount
+				})
+				.sum();
+			let community_bought_tokens: u128 = default_community_buys()
+				.iter()
+				.map(|(_account, amount)| {
+					amount
+				})
+				.sum();
+			let remainder_bought_tokens: u128 = default_remainder_buys()
+				.iter()
+				.map(|(_account, amount)| {
+					amount
+				})
+				.sum();
+			assert_eq!(
+				project.remaining_contribution_tokens,
+				default_project(0).total_allocation_size - auction_bought_tokens - community_bought_tokens - remainder_bought_tokens,
+				"Remaining CTs are incorrect"
+			);
 		});
 	}
 }
@@ -1408,11 +1452,11 @@ mod community_round_success {
 
 		// TODO: Set a reasonable amount of Contribution Tokens that the user wants to buy
 		community_funding_project
-			.buy_for_users(vec![(BOB, 3)])
+			.buy_for_retail_users(vec![(BOB, 3)])
 			.expect("The Buyer should be able to buy multiple times");
 		test_env.advance_time((1 * HOURS) as BlockNumber);
 		community_funding_project
-			.buy_for_users(vec![(BOB, 4)])
+			.buy_for_retail_users(vec![(BOB, 4)])
 			.expect("The Buyer should be able to buy multiple times");
 	}
 
@@ -1424,7 +1468,7 @@ mod community_round_success {
 		let range = 0..<TestRuntime as crate::Config>::MaxContributionsPerUser::get();
 		let mut contributions: UserToBalance = range.map(|_| (BUYER_2, 1)).collect();
 		// Reach the limit of contributions for a user-project
-		project.buy_for_users(contributions.clone()).unwrap();
+		project.buy_for_retail_users(contributions.clone()).unwrap();
 		// TODO: wait until multiplier is added to the contribute extrinsic, so a contribution can have different PLMC bondings, and so an old contribution can be drop once the limit is reached
 		assert!(false);
 	}

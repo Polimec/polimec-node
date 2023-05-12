@@ -972,7 +972,7 @@ impl<T: Config> Pallet<T> {
 		// * Validity checks *
 		ensure!(contributor != project_issuer, Error::<T>::ContributionToThemselves);
 		ensure!(
-			project_info.project_status == ProjectStatus::CommunityRound,
+			project_info.project_status == ProjectStatus::CommunityRound || project_info.project_status == ProjectStatus::RemainderRound,
 			Error::<T>::AuctionNotStarted
 		);
 
