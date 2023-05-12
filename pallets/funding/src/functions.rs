@@ -563,23 +563,23 @@ impl<T: Config> Pallet<T> {
 		let mut project_info =
 			ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
-		let remainder_end_block = project_info
-			.phase_transition_points
-			.remainder
-			.end()
-			.ok_or(Error::<T>::FieldIsNone)?;
 		// TODO: PLMC-149 Check if make sense to set the admin as T::fund_account_id(project_id)
 		let issuer =
 			ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectIssuerNotFound)?;
 		let project = Projects::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let token_information = project.token_information;
+		let remaining_cts = project.remaining_contribution_tokens;
+		let remainder_end_block = project_info
+			.phase_transition_points
+			.remainder
+			.end();
 
 		// * Validity checks *
-		ensure!(now > remainder_end_block, Error::<T>::TooEarlyForFundingEnd);
-		ensure!(
-			project_info.project_status == ProjectStatus::RemainderRound,
-			Error::<T>::ProjectNotInRemainderRound
-		);
+		if let Some(end_block) = remainder_end_block {
+			ensure!(now > end_block, Error::<T>::TooEarlyForFundingEnd);
+		} else {
+			ensure!(remaining_cts == 0u32.into(), Error::<T>::TooEarlyForFundingEnd);
+		}
 
 		// * Calculate new variables *
 		project_info.project_status = ProjectStatus::FundingEnded;
@@ -1083,7 +1083,9 @@ impl<T: Config> Pallet<T> {
 		});
 
 		// If no CTs remain, end the funding phase
-		Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::FundingEnd));
+		if remaining_cts_after_purchase == 0u32.into() {
+			Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::FundingEnd));
+		}
 
 		// * Emit events *
 		Self::deposit_event(Event::<T>::Contribution {

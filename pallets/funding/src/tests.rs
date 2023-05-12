@@ -1482,7 +1482,7 @@ mod community_round_success {
 		community_funding_project
 			.buy_for_retail_users(vec![(BOB, remaining_ct)])
 			.expect("The Buyer should be able to buy the exact amount of remaining CTs");
-
+		test_env.advance_time(2u64);
 		// Check remaining CTs is 0
 		assert_eq!(
 			community_funding_project.get_project().remaining_contribution_tokens,
