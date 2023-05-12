@@ -960,7 +960,6 @@ impl<T: Config> Pallet<T> {
 		let multiplier = multiplier.unwrap_or(One::one());
 		let weighted_average_price =
 			project_info.weighted_average_price.ok_or(Error::<T>::AuctionNotStarted)?;
-		let ticket_size = token_amount.saturating_mul(weighted_average_price);
 		let decimals = project.token_information.decimals;
 		let fund_account = Self::fund_account_id(project_id);
 
@@ -984,6 +983,8 @@ impl<T: Config> Pallet<T> {
 		} else {
 			project.remaining_contribution_tokens
 		};
+		let ticket_size = buyable_tokens.saturating_mul(weighted_average_price);
+
 		// TODO: PLMC-159. Use USDC on Statemint/e (via XCM) instead of PLMC
 		// TODO: PLMC-157. Check the logic
 		// TODO: PLMC-157. Check if we need to use T::Currency::resolve_creating(...)
