@@ -39,6 +39,8 @@ jobs:
           SKIP_WASM_BUILD=1 cargo check --release -p polimec-parachain-runtime
 
   test:
+    # This job runs only if `check` is successful
+    needs: check 
     # The type of runner that the job will run on
     runs-on: ubuntu-22.04
     # Steps represent a sequence of tasks that will be executed as part of the job
