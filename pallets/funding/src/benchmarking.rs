@@ -387,7 +387,7 @@ benchmarks! {
 		run_to_block::<T>(System::<T>::block_number() + <T as Config>::EvaluationDuration::get() + 2_u32.into());
 		assert_ok!(PolimecFunding::<T>::start_auction(SystemOrigin::Signed(issuer).into(), project_id.clone()));
 
-		let project_info = <pallet::Pallet<T> as Store>::ProjectsInfo::get(project_id.clone().into()).unwrap();
+		let project_info = <pallet::Pallet<T> as Store>::ProjectsDetails::get(project_id.clone().into()).unwrap();
 		let fundraising_target = project_info.fundraising_target;
 
 		assert_ok!(
@@ -404,12 +404,12 @@ benchmarks! {
 
 		let random_ending_point =  System::<T>::block_number() - 2_u32.into();
 
-		let mut weighted_average_price = 0u32.into();
-
 	}: {
-		weighted_average_price = crate::Pallet::<T>::calculate_weighted_average_price(project_id.into(), random_ending_point, fundraising_target).unwrap();
+		crate::Pallet::<T>::calculate_weighted_average_price(project_id.clone().into(), random_ending_point, fundraising_target).unwrap();
 	}
 	verify {
+		let project_info = <pallet::Pallet<T> as Store>::ProjectsDetails::get(project_id.clone().into()).unwrap();
+		let weighted_average_price = project_info.weighted_average_price.unwrap();
 		assert_eq!(weighted_average_price, 15__5_882_352_800_u64.into());
 	}
 
