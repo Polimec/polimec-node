@@ -599,7 +599,7 @@ mod defaults {
 			funding_thresholds: Default::default(),
 			conversion_rate: 0,
 			participation_currencies: Default::default(),
-			metadata: Some(metadata_hash),
+			offchain_information_hash: Some(metadata_hash),
 			token_information: CurrencyMetadata {
 				name: bounded_name,
 				symbol: bounded_symbol,
@@ -1004,7 +1004,7 @@ mod creation_round_failure {
 				minimum: Some(2),
 				maximum: None,
 			},
-			metadata: Some(hashed(METADATA)),
+			offchain_information_hash: Some(hashed(METADATA)),
 			..Default::default()
 		};
 
@@ -1027,7 +1027,7 @@ mod creation_round_failure {
 				minimum: None,
 				maximum: None,
 			},
-			metadata: Some(hashed(METADATA)),
+			offchain_information_hash: Some(hashed(METADATA)),
 			..Default::default()
 		};
 
@@ -1050,7 +1050,7 @@ mod creation_round_failure {
 				minimum: Some(1),
 				maximum: None,
 			},
-			metadata: Some(hashed(METADATA)),
+			offchain_information_hash: Some(hashed(METADATA)),
 			..Default::default()
 		};
 

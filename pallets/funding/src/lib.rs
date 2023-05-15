@@ -935,7 +935,7 @@ pub mod pallet {
 					minimum: Some(2),
 					maximum: None,
 				},
-				metadata: Some(metadata_hash),
+				offchain_information_hash: Some(metadata_hash),
 				..Default::default()
 			};
 			project

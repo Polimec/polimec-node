@@ -55,7 +55,7 @@ impl<T: Config> Pallet<T> {
 		let project_id = NextProjectId::<T>::get();
 
 		// * Validity checks *
-		if let Some(metadata) = project.metadata {
+		if let Some(metadata) = project.offchain_information_hash {
 			ensure!(!Images::<T>::contains_key(metadata), Error::<T>::MetadataAlreadyExists);
 		}
 
@@ -92,7 +92,7 @@ impl<T: Config> Pallet<T> {
 		ProjectsDetails::<T>::insert(project_id, project_info);
 		ProjectsIssuers::<T>::insert(project_id, issuer.clone());
 		NextProjectId::<T>::mutate(|n| n.saturating_inc());
-		if let Some(metadata) = project.metadata {
+		if let Some(metadata) = project.offchain_information_hash {
 			Images::<T>::insert(metadata, issuer);
 		}
 
@@ -131,7 +131,7 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::ProjectNotInApplicationRound
 		);
 		ensure!(!project_info.is_frozen, Error::<T>::ProjectAlreadyFrozen);
-		ensure!(project.metadata.is_some(), Error::<T>::MetadataNotProvided);
+		ensure!(project.offchain_information_hash.is_some(), Error::<T>::MetadataNotProvided);
 
 		// * Calculate new variables *
 		let evaluation_end_block = now + T::EvaluationDuration::get();
@@ -680,7 +680,7 @@ impl<T: Config> Pallet<T> {
 		// * Calculate new variables *
 
 		// * Update Storage *
-		project.metadata = Some(project_metadata_hash);
+		project.offchain_information_hash = Some(project_metadata_hash);
 		ProjectsMetadata::<T>::insert(project_id, project);
 
 		// * Emit events *

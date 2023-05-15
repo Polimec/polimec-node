@@ -88,7 +88,7 @@ pub fn default_project(nonce: u64) -> ProjectMetadata<BoundedVec<u8, ConstU32<64
 		funding_thresholds: Default::default(),
 		conversion_rate: 0,
 		participation_currencies: Default::default(),
-		metadata: Some(metadata_hash),
+		offchain_information_hash: Some(metadata_hash),
 		token_information: CurrencyMetadata {
 			name: bounded_name,
 			symbol: bounded_symbol,

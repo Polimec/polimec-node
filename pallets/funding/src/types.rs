@@ -44,7 +44,7 @@ pub struct ProjectMetadata<BoundedString, Balance: BalanceT, Hash> {
 	/// For now is easier to handle the case where only just one Currency is accepted
 	pub participation_currencies: Currencies,
 	/// Additional metadata
-	pub metadata: Option<Hash>,
+	pub offchain_information_hash: Option<Hash>,
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
