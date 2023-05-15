@@ -14,7 +14,7 @@ version.workspace = true
 substrate-wasm-builder.workspace = true
 
 [dependencies]
-codec = { package = "parity-scale-codec", workspace = true, features = [
+parity-scale-codec = {  workspace = true, features = [
 	"derive",
 ] }
 log = { workspace = true }
@@ -112,7 +112,7 @@ std = [
 	"pallet-assets/std",
 	"polkadot-primitives/std",
 	"frame-benchmarking?/std",
-	"codec/std",
+	"parity-scale-codec/std",
 	"log/std",
 	"scale-info/std",
 	"serde",

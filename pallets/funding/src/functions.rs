@@ -62,10 +62,11 @@ impl<T: Config> Pallet<T> {
 		if let Err(error) = project.validity_check() {
 			return match error {
 				ValidityError::PriceTooLow => Err(Error::<T>::PriceTooLow.into()),
-				ValidityError::ParticipantsSizeError =>
-					Err(Error::<T>::ParticipantsSizeError.into()),
+				ValidityError::ParticipantsSizeError => {
+					Err(Error::<T>::ParticipantsSizeError.into())
+				},
 				ValidityError::TicketSizeError => Err(Error::<T>::TicketSizeError.into()),
-			}
+			};
 		}
 
 		// * Calculate new variables *
@@ -1093,7 +1094,7 @@ impl<T: Config> Pallet<T> {
 			// * Validity checks *
 			// check that it is not too early to withdraw the next amount
 			if plmc_vesting.next_withdrawal > now {
-				continue
+				continue;
 			}
 
 			// * Calculate variables *
@@ -1102,7 +1103,7 @@ impl<T: Config> Pallet<T> {
 			while let Ok(amount) = plmc_vesting.calculate_next_withdrawal() {
 				unbond_amount = unbond_amount.saturating_add(amount);
 				if plmc_vesting.next_withdrawal > now {
-					break
+					break;
 				}
 			}
 			bid.plmc_vesting_period = plmc_vesting;
@@ -1164,7 +1165,7 @@ impl<T: Config> Pallet<T> {
 			// * Validity checks *
 			// check that it is not too early to withdraw the next amount
 			if ct_vesting.next_withdrawal > now {
-				continue
+				continue;
 			}
 
 			// * Calculate variables *
@@ -1172,7 +1173,7 @@ impl<T: Config> Pallet<T> {
 			while let Ok(amount) = ct_vesting.calculate_next_withdrawal() {
 				mint_amount = mint_amount.saturating_add(amount);
 				if ct_vesting.next_withdrawal > now {
-					break
+					break;
 				}
 			}
 			bid.ct_vesting_period = ct_vesting;
@@ -1239,7 +1240,7 @@ impl<T: Config> Pallet<T> {
 			// * Validity checks *
 			// check that it is not too early to withdraw the next amount
 			if plmc_vesting.next_withdrawal > now {
-				continue
+				continue;
 			}
 
 			// * Calculate variables *
@@ -1247,7 +1248,7 @@ impl<T: Config> Pallet<T> {
 			while let Ok(amount) = plmc_vesting.calculate_next_withdrawal() {
 				unbond_amount = unbond_amount.saturating_add(amount);
 				if plmc_vesting.next_withdrawal > now {
-					break
+					break;
 				}
 			}
 			contribution.plmc_vesting = plmc_vesting;
@@ -1319,7 +1320,7 @@ impl<T: Config> Pallet<T> {
 			// * Validity checks *
 			// check that it is not too early to withdraw the next amount
 			if ct_vesting.next_withdrawal > now {
-				continue
+				continue;
 			}
 
 			// * Calculate variables *
@@ -1327,7 +1328,7 @@ impl<T: Config> Pallet<T> {
 			while let Ok(amount) = ct_vesting.calculate_next_withdrawal() {
 				mint_amount = mint_amount.saturating_add(amount);
 				if ct_vesting.next_withdrawal > now {
-					break
+					break;
 				}
 			}
 			contribution.ct_vesting = ct_vesting;
@@ -1550,7 +1551,7 @@ impl<T: Config> Pallet<T> {
 				if bid.when > end_block {
 					bid.status = BidStatus::Rejected(RejectionReason::AfterCandleEnd);
 					// TODO: PLMC-147. Unlock funds. We can do this inside the "on_idle" hook, and change the `status` of the `Bid` to "Unreserved"
-					return bid
+					return bid;
 				}
 				let buyable_amount = total_allocation_size.saturating_sub(bid_amount_sum);
 				if buyable_amount == 0_u32.into() {
@@ -1611,10 +1612,12 @@ impl<T: Config> Pallet<T> {
 			// TODO: PLMC-150. collecting due to previous mut borrow, find a way to not collect and borrow bid on filter_map
 			.into_iter()
 			.filter_map(|bid| match bid.status {
-				BidStatus::Accepted =>
-					Some(Perbill::from_rational(bid.amount * bid.price, bid_value_sum) * bid.price),
-				BidStatus::PartiallyAccepted(amount, _) =>
-					Some(Perbill::from_rational(amount * bid.price, bid_value_sum) * bid.price),
+				BidStatus::Accepted => {
+					Some(Perbill::from_rational(bid.amount * bid.price, bid_value_sum) * bid.price)
+				},
+				BidStatus::PartiallyAccepted(amount, _) => {
+					Some(Perbill::from_rational(amount * bid.price, bid_value_sum) * bid.price)
+				},
 				_ => None,
 			})
 			.reduce(|a, b| a.saturating_add(b))

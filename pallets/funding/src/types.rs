@@ -72,7 +72,7 @@ impl<BoundedString, Balance: BalanceT, Hash> Project<BoundedString, Balance, Has
 	// TODO: PLMC-162. Perform a REAL validity check
 	pub fn validity_check(&self) -> Result<(), ValidityError> {
 		if self.minimum_price == Balance::zero() {
-			return Err(ValidityError::PriceTooLow)
+			return Err(ValidityError::PriceTooLow);
 		}
 		self.ticket_size.is_valid()?;
 		self.participants_size.is_valid()?;
@@ -90,13 +90,13 @@ impl<Balance: BalanceT> TicketSize<Balance> {
 	fn is_valid(&self) -> Result<(), ValidityError> {
 		if self.minimum.is_some() && self.maximum.is_some() {
 			if self.minimum < self.maximum {
-				return Ok(())
+				return Ok(());
 			} else {
-				return Err(ValidityError::TicketSizeError)
+				return Err(ValidityError::TicketSizeError);
 			}
 		}
 		if self.minimum.is_some() || self.maximum.is_some() {
-			return Ok(())
+			return Ok(());
 		}
 
 		Err(ValidityError::TicketSizeError)
@@ -112,18 +112,20 @@ pub struct ParticipantsSize {
 impl ParticipantsSize {
 	fn is_valid(&self) -> Result<(), ValidityError> {
 		match (self.minimum, self.maximum) {
-			(Some(min), Some(max)) =>
+			(Some(min), Some(max)) => {
 				if min < max && min > 0 && max > 0 {
 					Ok(())
 				} else {
 					Err(ValidityError::ParticipantsSizeError)
-				},
-			(Some(elem), None) | (None, Some(elem)) =>
+				}
+			},
+			(Some(elem), None) | (None, Some(elem)) => {
 				if elem > 0 {
 					Ok(())
 				} else {
 					Err(ValidityError::ParticipantsSizeError)
-				},
+				}
+			},
 			(None, None) => Err(ValidityError::ParticipantsSizeError),
 		}
 	}

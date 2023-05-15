@@ -200,7 +200,6 @@ mod benchmarking;
 use polimec_traits::{MemberRole, PolimecMembers};
 
 pub use crate::weights::WeightInfo;
-use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{
 	pallet_prelude::ValueQuery,
 	traits::{
@@ -212,6 +211,7 @@ use frame_support::{
 	},
 	BoundedVec, PalletId, Parameter,
 };
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 
 use sp_arithmetic::traits::{One, Saturating};
 
@@ -977,7 +977,7 @@ pub mod local_macros {
 						project_id: $project_id,
 						error: Error::<T>::FieldIsNone.into(),
 					});
-					continue
+					continue;
 				},
 			}
 		};
@@ -995,7 +995,7 @@ pub mod local_macros {
 						project_id: $project_id,
 						error: err,
 					});
-					continue
+					continue;
 				},
 			}
 		};

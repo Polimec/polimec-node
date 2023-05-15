@@ -48,9 +48,9 @@ fn test_buy_if_popular() {
 		assert_ok!(FundingModule::bid(RuntimeOrigin::signed(bidder), 0, 1000, 100 * PLMC, None));
 
 		// advance time
-		for _block in 0..(<TestRuntime as pallet_funding::Config>::EnglishAuctionDuration::get() +
-			<TestRuntime as pallet_funding::Config>::CandleAuctionDuration::get() +
-			5)
+		for _block in 0..(<TestRuntime as pallet_funding::Config>::EnglishAuctionDuration::get()
+			+ <TestRuntime as pallet_funding::Config>::CandleAuctionDuration::get()
+			+ 5)
 		{
 			<AllPalletsWithoutSystem as OnFinalize<u64>>::on_finalize(System::block_number());
 			<AllPalletsWithoutSystem as OnIdle<u64>>::on_idle(System::block_number(), Weight::MAX);

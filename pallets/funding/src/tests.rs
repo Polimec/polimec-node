@@ -135,8 +135,9 @@ impl TestEnvironment {
 			frame_system::Pallet::<TestRuntime>::events()
 				.iter()
 				.filter_map(|event| match event.event {
-					RuntimeEvent::FundingModule(crate::Event::Created { project_id }) =>
-						Some(project_id),
+					RuntimeEvent::FundingModule(crate::Event::Created { project_id }) => {
+						Some(project_id)
+					},
 					_ => None,
 				})
 				.last()

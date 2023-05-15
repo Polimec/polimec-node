@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use codec::Encode;
 use did::did_details::DidPublicKeyDetails;
 use dip_support::{v1, VersionedIdentityProof};
 use frame_support::RuntimeDebug;
 use pallet_dip_consumer::traits::IdentityProofVerifier;
+use parity_scale_codec::Encode;
 use sp_std::{collections::btree_map::BTreeMap, marker::PhantomData, vec::Vec};
 use sp_trie::{verify_trie_proof, LayoutV1};
 

@@ -339,7 +339,7 @@ impl pallet_assets::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type AssetId = u32;
-	type AssetIdParameter = codec::Compact<u32>;
+	type AssetIdParameter = parity_scale_codec::Compact<u32>;
 	type Currency = Balances;
 	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
 	type ForceOrigin = EnsureRoot<AccountId>;
@@ -374,7 +374,7 @@ impl pallet_funding::Config for Runtime {
 	type StringLimit = ConstU32<64>;
 	type Currency = Balances;
 	type ProjectIdentifier = u32;
-	type ProjectIdParameter = codec::Compact<u32>;
+	type ProjectIdParameter = parity_scale_codec::Compact<u32>;
 	type BidId = u128;
 	type BiddingCurrency = Balances;
 	type Assets = Assets;
