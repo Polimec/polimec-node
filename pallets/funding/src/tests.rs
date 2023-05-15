@@ -585,7 +585,6 @@ mod defaults {
 		let metadata_hash = hashed(format!("{}-{}", METADATA, nonce));
 		Project {
 			total_allocation_size: 1_000_000,
-			remaining_contribution_tokens: 1_000_000,
 			minimum_price: 1 * PLMC,
 			ticket_size: TicketSize {
 				minimum: Some(1),
@@ -787,7 +786,7 @@ mod defaults {
 			);
 
 			// Check that remaining CTs are updated
-			let project = FundingModule::projects(project_id).expect("Project should exist");
+			let project = FundingModule::project_info(project_id).expect("Project should exist");
 			let bought_tokens: u128 = default_auction_bids()
 				.iter()
 				.map(|(_account, (amount, _price, _multiplier))| amount)
@@ -857,7 +856,7 @@ mod defaults {
 
 		// Check that remaining CTs are updated
 		test_env.ext_env.borrow_mut().execute_with(|| {
-			let project = FundingModule::projects(project_id).expect("Project should exist");
+			let project = FundingModule::project_info(project_id).expect("Project should exist");
 			let auction_bought_tokens: u128 = default_auction_bids()
 				.iter()
 				.map(|(_account, (amount, _price, _multiplier))| amount)
@@ -889,7 +888,7 @@ mod defaults {
 
 		// Check that remaining CTs are updated
 		test_env.ext_env.borrow_mut().execute_with(|| {
-			let project = FundingModule::projects(project_id).expect("Project should exist");
+			let project = FundingModule::project_info(project_id).expect("Project should exist");
 			let auction_bought_tokens: u128 = default_auction_bids()
 				.iter()
 				.map(|(_account, (amount, _price, _multiplier))| amount)
@@ -1441,7 +1440,7 @@ mod community_round_success {
 		let community_funding_project = CommunityFundingProject::new_default(&test_env);
 		const BOB: AccountId = 808;
 
-		let remaining_ct = community_funding_project.get_project().remaining_contribution_tokens;
+		let remaining_ct = community_funding_project.get_project_info().remaining_contribution_tokens;
 		let ct_price = community_funding_project
 			.get_project_info()
 			.weighted_average_price
@@ -1459,7 +1458,7 @@ mod community_round_success {
 			.expect("The Buyer should be able to buy the exact amount of remaining CTs");
 		test_env.advance_time(2u64);
 		// Check remaining CTs is 0
-		assert_eq!(community_funding_project.get_project().remaining_contribution_tokens, 0);
+		assert_eq!(community_funding_project.get_project_info().remaining_contribution_tokens, 0);
 
 		// Check project is in FundingEnded state
 		assert_eq!(
@@ -1476,7 +1475,7 @@ mod community_round_success {
 		let community_funding_project = CommunityFundingProject::new_default(&test_env);
 		const BOB: AccountId = 808;
 
-		let remaining_ct = community_funding_project.get_project().remaining_contribution_tokens + 40; // Overbuy
+		let remaining_ct = community_funding_project.get_project_info().remaining_contribution_tokens + 40; // Overbuy
 		let ct_price = community_funding_project
 			.get_project_info()
 			.weighted_average_price
@@ -1495,7 +1494,7 @@ mod community_round_success {
 		test_env.advance_time(2u64);
 
 		// Check remaining CTs is 0
-		assert_eq!(community_funding_project.get_project().remaining_contribution_tokens, 0);
+		assert_eq!(community_funding_project.get_project_info().remaining_contribution_tokens, 0);
 
 		// Check project is in FundingEnded state
 		assert_eq!(

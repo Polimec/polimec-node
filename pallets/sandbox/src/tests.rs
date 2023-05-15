@@ -84,7 +84,6 @@ pub fn default_project(nonce: u64) -> Project<BoundedVec<u8, ConstU32<64>>, u128
 	let metadata_hash = hashed(format!("{}-{}", METADATA, nonce));
 	Project {
 		total_allocation_size: 1_000_000,
-		remaining_contribution_tokens: 1_000_000,
 		minimum_price: 1 * PLMC,
 		ticket_size: TicketSize { minimum: Some(1), maximum: None },
 		participants_size: ParticipantsSize { minimum: Some(2), maximum: None },

@@ -83,9 +83,9 @@ impl<T: Config> Pallet<T> {
 				community: BlockNumberPair::new(None, None),
 				remainder: BlockNumberPair::new(None, None),
 			},
+			remaining_contribution_tokens: project.total_allocation_size
+
 		};
-		let mut project = project;
-		project.remaining_contribution_tokens = project.total_allocation_size;
 
 		// * Update storage *
 		Projects::<T>::insert(project_id, project.clone());
@@ -450,17 +450,19 @@ impl<T: Config> Pallet<T> {
 		let community_end_block = now + T::CommunityFundingDuration::get();
 
 		// * Update Storage *
+		Self::calculate_weighted_average_price(
+			project_id,
+			end_block,
+			project_info.fundraising_target,
+		)?;
+		// Get info again after updating it with new price.
+		let mut project_info = ProjectsInfo::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		project_info.phase_transition_points.random_candle_ending = Some(end_block);
 		project_info
 			.phase_transition_points
 			.community
 			.update(Some(community_start_block), Some(community_end_block));
 		project_info.project_status = ProjectStatus::CommunityRound;
-		project_info.weighted_average_price = Some(Self::calculate_weighted_average_price(
-			project_id,
-			end_block,
-			project_info.fundraising_target,
-		)?);
 		ProjectsInfo::<T>::insert(project_id, project_info);
 		// Schedule for automatic transition by `on_initialize`
 		Self::add_to_update_store(
@@ -570,7 +572,7 @@ impl<T: Config> Pallet<T> {
 		let issuer = ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectIssuerNotFound)?;
 		let project = Projects::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let token_information = project.token_information;
-		let remaining_cts = project.remaining_contribution_tokens;
+		let remaining_cts = project_info.remaining_contribution_tokens;
 		let remainder_end_block = project_info.phase_transition_points.remainder.end();
 
 		// * Validity checks *
@@ -977,10 +979,10 @@ impl<T: Config> Pallet<T> {
 		// );
 
 		// * Calculate variables *
-		let buyable_tokens = if project.remaining_contribution_tokens > token_amount {
+		let buyable_tokens = if project_info.remaining_contribution_tokens > token_amount {
 			token_amount
 		} else {
-			project.remaining_contribution_tokens
+			project_info.remaining_contribution_tokens
 		};
 		let ticket_size = buyable_tokens.saturating_mul(weighted_average_price);
 
@@ -1012,7 +1014,7 @@ impl<T: Config> Pallet<T> {
 		}
 		required_plmc_bond.saturating_sub(bonded_plmc);
 
-		let remaining_cts_after_purchase = project.remaining_contribution_tokens.saturating_sub(buyable_tokens);
+		let remaining_cts_after_purchase = project_info.remaining_contribution_tokens.saturating_sub(buyable_tokens);
 		let now = <frame_system::Pallet<T>>::block_number();
 
 		// * Update storage *
@@ -1079,8 +1081,8 @@ impl<T: Config> Pallet<T> {
 		)?;
 
 		// Update project with reduced available CTs
-		Projects::<T>::mutate(project_id, |project| {
-			if let Some(project) = project {
+		ProjectsInfo::<T>::mutate(project_id, |maybe_project| {
+			if let Some(project) = maybe_project {
 				project.remaining_contribution_tokens = remaining_cts_after_purchase
 			}
 		});
@@ -1548,7 +1550,7 @@ impl<T: Config> Pallet<T> {
 	/// Calculates the price of contribution tokens for the Community and Remainder Rounds
 	pub fn calculate_weighted_average_price(
 		project_id: T::ProjectIdentifier, end_block: T::BlockNumber, total_allocation_size: BalanceOf<T>,
-	) -> Result<BalanceOf<T>, DispatchError> {
+	) -> Result<(), DispatchError> {
 		// Get all the bids that were made before the end of the candle
 		let mut bids = AuctionsInfo::<T>::iter_values().flatten().collect::<Vec<_>>();
 		// temp variable to store the sum of the bids
@@ -1584,15 +1586,6 @@ impl<T: Config> Pallet<T> {
 				bid
 			})
 			.collect::<Vec<BidInfoOf<T>>>();
-
-		// Update the project storage
-		Projects::<T>::mutate(project_id.clone(), |maybe_project| -> Result<(), DispatchError> {
-			let mut project = maybe_project.clone().ok_or(Error::<T>::ProjectNotFound)?;
-			project.remaining_contribution_tokens =
-				project.remaining_contribution_tokens.saturating_sub(bid_amount_sum);
-			*maybe_project = Some(project);
-			Ok(())
-		})?;
 
 		// Update the bid in the storage
 		for bid in bids.iter() {
@@ -1645,7 +1638,18 @@ impl<T: Config> Pallet<T> {
 			.reduce(|a, b| a.saturating_add(b))
 			.ok_or(Error::<T>::NoBidsFound)?;
 
-		Ok(weighted_token_price)
+		// Update storage
+		ProjectsInfo::<T>::mutate(project_id, |maybe_info| -> Result<(), DispatchError> {
+			if let Some(info) = maybe_info {
+				info.weighted_average_price = Some(weighted_token_price);
+				info.remaining_contribution_tokens = info.remaining_contribution_tokens.saturating_sub(bid_amount_sum);
+				Ok(())
+			} else {
+				Err(Error::<T>::ProjectNotFound.into())
+			}
+		})?;
+
+		Ok(())
 	}
 
 	pub fn select_random_block(
