@@ -23,8 +23,8 @@ use log::{info, warn};
 use parity_scale_codec::Encode;
 use polimec_parachain_runtime::Block;
 use sc_cli::{
-	ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams,
-	NetworkParams, Result, RuntimeVersion, SharedParams, SubstrateCli,
+	ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams, NetworkParams, Result,
+	RuntimeVersion, SharedParams, SubstrateCli,
 };
 use sc_service::config::{BasePath, PrometheusConfig};
 use sp_core::hexdisplay::HexDisplay;
@@ -65,8 +65,8 @@ impl RuntimeResolver for PathBuf {
 
 		let file = std::fs::File::open(self).expect("Failed to open file");
 		let reader = std::io::BufReader::new(file);
-		let chain_spec: EmptyChainSpecWithId = sp_serializer::from_reader(reader)
-			.expect("Failed to read 'json' file with ChainSpec configuration");
+		let chain_spec: EmptyChainSpecWithId =
+			sp_serializer::from_reader(reader).expect("Failed to read 'json' file with ChainSpec configuration");
 		runtime(&chain_spec.id)
 	}
 }
@@ -78,7 +78,10 @@ fn runtime(id: &str) -> Runtime {
 	} else if id.contains("polimec") {
 		Runtime::Testnet
 	} else {
-		log::warn!("No specific runtime was recognized for ChainSpec's id: '{}', so Runtime::default() will be used", id);
+		log::warn!(
+			"No specific runtime was recognized for ChainSpec's id: '{}', so Runtime::default() will be used",
+			id
+		);
 		Runtime::default()
 	}
 }
@@ -96,11 +99,9 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 		"polimec-polkadot-local" => Box::new(chain_spec::testnet::get_local_prod_chain_spec()?),
 		// -- Fallback (generic chainspec)
 		"" => {
-			log::warn!(
-				"No ChainSpec.id specified, so using default one, based on polimec-rococo-local"
-			);
+			log::warn!("No ChainSpec.id specified, so using default one, based on polimec-rococo-local");
 			Box::new(chain_spec::testnet::get_chain_spec_dev()?)
-		},
+		}
 		// A custom chainspec path
 		path => {
 			let path: PathBuf = path.into();
@@ -109,7 +110,7 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 				Runtime::Testnet => Box::new(chain_spec::testnet::ChainSpec::from_json_file(path)?),
 				Runtime::Base => Box::new(chain_spec::base::ChainSpec::from_json_file(path)?),
 			}
-		},
+		}
 	})
 }
 
@@ -212,51 +213,46 @@ pub fn run() -> Result<()> {
 		Some(Subcommand::BuildSpec(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| cmd.run(config.chain_spec, config.network))
-		},
+		}
 		Some(Subcommand::CheckBlock(cmd)) => {
 			construct_async_run!(|components, cli, cmd, config| {
 				Ok(cmd.run(components.client, components.import_queue))
 			})
-		},
+		}
 		Some(Subcommand::ExportBlocks(cmd)) => {
-			construct_async_run!(|components, cli, cmd, config| {
-				Ok(cmd.run(components.client, config.database))
-			})
-		},
+			construct_async_run!(|components, cli, cmd, config| { Ok(cmd.run(components.client, config.database)) })
+		}
 		Some(Subcommand::ExportState(cmd)) => {
-			construct_async_run!(|components, cli, cmd, config| {
-				Ok(cmd.run(components.client, config.chain_spec))
-			})
-		},
+			construct_async_run!(|components, cli, cmd, config| { Ok(cmd.run(components.client, config.chain_spec)) })
+		}
 		Some(Subcommand::ImportBlocks(cmd)) => {
 			construct_async_run!(|components, cli, cmd, config| {
 				Ok(cmd.run(components.client, components.import_queue))
 			})
-		},
+		}
 		Some(Subcommand::Revert(cmd)) => {
 			construct_async_run!(|components, cli, cmd, config| {
 				Ok(cmd.run(components.client, components.backend, None))
 			})
-		},
+		}
 		Some(Subcommand::PurgeChain(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 
 			runner.sync_run(|config| {
 				let polkadot_cli = RelayChainCli::new(
 					&config,
-					[RelayChainCli::executable_name()].iter().chain(cli.relay_chain_args.iter()),
+					[RelayChainCli::executable_name()]
+						.iter()
+						.chain(cli.relay_chain_args.iter()),
 				);
 
-				let polkadot_config = SubstrateCli::create_configuration(
-					&polkadot_cli,
-					&polkadot_cli,
-					config.tokio_handle.clone(),
-				)
-				.map_err(|err| format!("Relay chain argument error: {}", err))?;
+				let polkadot_config =
+					SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, config.tokio_handle.clone())
+						.map_err(|err| format!("Relay chain argument error: {}", err))?;
 
 				cmd.run(config, polkadot_config)
 			})
-		},
+		}
 		Some(Subcommand::ExportGenesisState(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|_config| {
@@ -264,14 +260,14 @@ pub fn run() -> Result<()> {
 				let state_version = Cli::native_runtime_version(&spec).state_version();
 				cmd.run::<Block>(&*spec, state_version)
 			})
-		},
+		}
 		Some(Subcommand::ExportGenesisWasm(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|_config| {
 				let spec = cli.load_spec(&cmd.shared_params.chain.clone().unwrap_or_default())?;
 				cmd.run(&*spec)
 			})
-		},
+		}
 		Some(Subcommand::Benchmark(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			// Switch on the concrete benchmark sub-command-
@@ -284,7 +280,7 @@ pub fn run() -> Result<()> {
 					You can enable it with `--features runtime-benchmarks`."
 							.into())
 					}
-				},
+				}
 				BenchmarkCmd::Block(cmd) => runner.sync_run(|config| {
 					let partials = new_partial(&config)?;
 					cmd.run(partials.client)
@@ -297,7 +293,7 @@ pub fn run() -> Result<()> {
 							.into(),
 					)
 					.into())
-				},
+				}
 				#[cfg(feature = "runtime-benchmarks")]
 				BenchmarkCmd::Storage(cmd) => runner.sync_run(|config| {
 					let partials = new_partial(&config)?;
@@ -307,13 +303,13 @@ pub fn run() -> Result<()> {
 				}),
 				BenchmarkCmd::Machine(cmd) => {
 					runner.sync_run(|config| cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone()))
-				},
+				}
 				// NOTE: this allows the Client to leniently implement
 				// new benchmark commands without requiring a companion MR.
 				#[allow(unreachable_patterns)]
 				_ => Err("Benchmarking sub-command unsupported".into()),
 			}
-		},
+		}
 		#[cfg(feature = "try-runtime")]
 		Some(Subcommand::TryRuntime(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
@@ -326,14 +322,16 @@ pub fn run() -> Result<()> {
 
 			// grab the task manager.
 			let registry = &runner.config().prometheus_config.as_ref().map(|cfg| &cfg.registry);
-			let task_manager =
-				sc_service::TaskManager::new(runner.config().tokio_handle.clone(), *registry)
-					.map_err(|e| format!("Error: {:?}", e))?;
+			let task_manager = sc_service::TaskManager::new(runner.config().tokio_handle.clone(), *registry)
+				.map_err(|e| format!("Error: {:?}", e))?;
 
 			runner.async_run(|_| {
-				Ok((cmd.run::<Block, HostFunctionsOf<ParachainNativeExecutor>>(), task_manager))
+				Ok((
+					cmd.run::<Block, HostFunctionsOf<ParachainNativeExecutor>>(),
+					task_manager,
+				))
 			})
-		},
+		}
 		#[cfg(not(feature = "try-runtime"))]
 		Some(Subcommand::TryRuntime) => Err("Try-runtime was not enabled when building the node. \
 			You can enable it with `--features try-runtime`."
@@ -396,7 +394,7 @@ pub fn run() -> Result<()> {
 				.map(|r| r.0)
 				.map_err(Into::into)
 			})
-		},
+		}
 	}
 }
 
@@ -455,19 +453,13 @@ impl CliConfiguration<Self> for RelayChainCli {
 	}
 
 	fn prometheus_config(
-		&self,
-		default_listen_port: u16,
-		chain_spec: &Box<dyn ChainSpec>,
+		&self, default_listen_port: u16, chain_spec: &Box<dyn ChainSpec>,
 	) -> Result<Option<PrometheusConfig>> {
 		self.base.base.prometheus_config(default_listen_port, chain_spec)
 	}
 
 	fn init<F>(
-		&self,
-		_support_url: &String,
-		_impl_version: &String,
-		_logger_hook: F,
-		_config: &sc_service::Configuration,
+		&self, _support_url: &String, _impl_version: &String, _logger_hook: F, _config: &sc_service::Configuration,
 	) -> Result<()>
 	where
 		F: FnOnce(&mut sc_cli::LoggerBuilder, &sc_service::Configuration),
@@ -478,7 +470,11 @@ impl CliConfiguration<Self> for RelayChainCli {
 	fn chain_id(&self, is_dev: bool) -> Result<String> {
 		let chain_id = self.base.base.chain_id(is_dev)?;
 
-		Ok(if chain_id.is_empty() { self.chain_id.clone().unwrap_or_default() } else { chain_id })
+		Ok(if chain_id.is_empty() {
+			self.chain_id.clone().unwrap_or_default()
+		} else {
+			chain_id
+		})
 	}
 
 	fn role(&self, is_dev: bool) -> Result<sc_service::Role> {
@@ -525,10 +521,7 @@ impl CliConfiguration<Self> for RelayChainCli {
 		self.base.base.announce_block()
 	}
 
-	fn telemetry_endpoints(
-		&self,
-		chain_spec: &Box<dyn ChainSpec>,
-	) -> Result<Option<sc_telemetry::TelemetryEndpoints>> {
+	fn telemetry_endpoints(&self, chain_spec: &Box<dyn ChainSpec>) -> Result<Option<sc_telemetry::TelemetryEndpoints>> {
 		self.base.base.telemetry_endpoints(chain_spec)
 	}
 

@@ -27,15 +27,12 @@ pub trait IdentityProofVerifier {
 	type VerificationResult;
 
 	fn verify_proof_against_digest(
-		proof: VersionedIdentityProof<Self::BlindedValue, Self::ProofLeaf>,
-		digest: Self::ProofDigest,
+		proof: VersionedIdentityProof<Self::BlindedValue, Self::ProofLeaf>, digest: Self::ProofDigest,
 	) -> Result<Self::VerificationResult, Self::Error>;
 }
 
 // Always returns success.
-pub struct SuccessfulProofVerifier<ProofDigest, Leaf, BlindedValue>(
-	PhantomData<(ProofDigest, Leaf, BlindedValue)>,
-);
+pub struct SuccessfulProofVerifier<ProofDigest, Leaf, BlindedValue>(PhantomData<(ProofDigest, Leaf, BlindedValue)>);
 impl<ProofDigest, Leaf, BlindedValue> IdentityProofVerifier
 	for SuccessfulProofVerifier<ProofDigest, Leaf, BlindedValue>
 {
@@ -46,8 +43,7 @@ impl<ProofDigest, Leaf, BlindedValue> IdentityProofVerifier
 	type VerificationResult = ();
 
 	fn verify_proof_against_digest(
-		_proof: VersionedIdentityProof<Self::BlindedValue, Self::ProofLeaf>,
-		_digest: Self::ProofDigest,
+		_proof: VersionedIdentityProof<Self::BlindedValue, Self::ProofLeaf>, _digest: Self::ProofDigest,
 	) -> Result<Self::VerificationResult, Self::Error> {
 		Ok(())
 	}

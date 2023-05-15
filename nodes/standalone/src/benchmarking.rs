@@ -115,10 +115,7 @@ impl frame_benchmarking_cli::ExtrinsicBuilder for TransferKeepAliveBuilder {
 ///
 /// Note: Should only be used for benchmarking.
 pub fn create_benchmark_extrinsic(
-	client: &FullClient,
-	sender: sp_core::sr25519::Pair,
-	call: runtime::RuntimeCall,
-	nonce: u32,
+	client: &FullClient, sender: sp_core::sr25519::Pair, call: runtime::RuntimeCall, nonce: u32,
 ) -> runtime::UncheckedExtrinsic {
 	let genesis_hash = client.block_hash(0).ok().flatten().expect("Genesis block exists; qed");
 	let best_hash = client.chain_info().best_hash;

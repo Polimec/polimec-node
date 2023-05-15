@@ -34,9 +34,7 @@ pub use weights::*;
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
 	use super::*;
-	use frame_support::{
-		pallet_prelude::*, sp_runtime::traits::Zero, traits::tokens::fungibles::Inspect,
-	};
+	use frame_support::{pallet_prelude::*, sp_runtime::traits::Zero, traits::tokens::fungibles::Inspect};
 	use frame_system::pallet_prelude::*;
 
 	use xcm::latest::{
@@ -48,8 +46,7 @@ pub mod pallet {
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
-	type AssetIdOf<T> =
-		<<T as Config>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
+	type AssetIdOf<T> = <<T as Config>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -61,19 +58,23 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn asset_id_multilocation)]
-	pub type AssetIdMultiLocation<T: Config> =
-		StorageMap<_, Blake2_128Concat, AssetIdOf<T>, MultiLocation>;
+	pub type AssetIdMultiLocation<T: Config> = StorageMap<_, Blake2_128Concat, AssetIdOf<T>, MultiLocation>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn asset_multilocation_id)]
-	pub type AssetMultiLocationId<T: Config> =
-		StorageMap<_, Blake2_128Concat, MultiLocation, AssetIdOf<T>>;
+	pub type AssetMultiLocationId<T: Config> = StorageMap<_, Blake2_128Concat, MultiLocation, AssetIdOf<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		ReserveAssetRegistered { asset_id: AssetIdOf<T>, asset_multi_location: MultiLocation },
-		ReserveAssetUnregistered { asset_id: AssetIdOf<T>, asset_multi_location: MultiLocation },
+		ReserveAssetRegistered {
+			asset_id: AssetIdOf<T>,
+			asset_multi_location: MultiLocation,
+		},
+		ReserveAssetUnregistered {
+			asset_id: AssetIdOf<T>,
+			asset_multi_location: MultiLocation,
+		},
 	}
 
 	#[pallet::error]
@@ -92,9 +93,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::register_reserve_asset())]
 		pub fn register_reserve_asset(
-			origin: OriginFor<T>,
-			asset_id: AssetIdOf<T>,
-			asset_multi_location: MultiLocation,
+			origin: OriginFor<T>, asset_id: AssetIdOf<T>, asset_multi_location: MultiLocation,
 		) -> DispatchResult {
 			T::ReserveAssetModifierOrigin::ensure_origin(origin)?;
 
@@ -123,16 +122,16 @@ pub mod pallet {
 			AssetIdMultiLocation::<T>::insert(asset_id, &asset_multi_location);
 			AssetMultiLocationId::<T>::insert(&asset_multi_location, asset_id);
 
-			Self::deposit_event(Event::ReserveAssetRegistered { asset_id, asset_multi_location });
+			Self::deposit_event(Event::ReserveAssetRegistered {
+				asset_id,
+				asset_multi_location,
+			});
 
 			Ok(())
 		}
 
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::unregister_reserve_asset())]
-		pub fn unregister_reserve_asset(
-			origin: OriginFor<T>,
-			asset_id: AssetIdOf<T>,
-		) -> DispatchResult {
+		pub fn unregister_reserve_asset(origin: OriginFor<T>, asset_id: AssetIdOf<T>) -> DispatchResult {
 			T::ReserveAssetModifierOrigin::ensure_origin(origin)?;
 
 			// verify asset is registered
@@ -143,7 +142,10 @@ pub mod pallet {
 			AssetIdMultiLocation::<T>::remove(asset_id);
 			AssetMultiLocationId::<T>::remove(&asset_multi_location);
 
-			Self::deposit_event(Event::ReserveAssetUnregistered { asset_id, asset_multi_location });
+			Self::deposit_event(Event::ReserveAssetUnregistered {
+				asset_id,
+				asset_multi_location,
+			});
 			Ok(())
 		}
 	}

@@ -18,8 +18,7 @@ use frame_support::{
 	dispatch::DispatchClass,
 	traits::{Currency, Get, Imbalance, OnUnbalanced},
 	weights::{
-		Weight, WeightToFee as WeightToFeeT, WeightToFeeCoefficient, WeightToFeeCoefficients,
-		WeightToFeePolynomial,
+		Weight, WeightToFee as WeightToFeeT, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 	},
 };
 use pallet_balances::WeightInfo;
@@ -95,11 +94,7 @@ where
 	R: pallet_transaction_payment::Config,
 	R: frame_system::Config,
 	R: pallet_balances::Config,
-	u128: From<
-		<<R as pallet_transaction_payment::Config>::OnChargeTransaction as OnChargeTransaction<
-			R,
-		>>::Balance,
-	>,
+	u128: From<<<R as pallet_transaction_payment::Config>::OnChargeTransaction as OnChargeTransaction<R>>::Balance>,
 {
 	type Balance = Balance;
 	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
@@ -109,21 +104,17 @@ where
 		// TODO: transfer_keep_alive is 288 byte long?
 		let tx_len: u64 = 288;
 		let byte_fee: Balance =
-			<R as pallet_transaction_payment::Config>::LengthToFee::weight_to_fee(
-				&Weight::from_ref_time(tx_len),
-			)
-			.into();
+			<R as pallet_transaction_payment::Config>::LengthToFee::weight_to_fee(&Weight::from_ref_time(tx_len))
+				.into();
 		let base_weight: Weight = <R as frame_system::Config>::BlockWeights::get()
 			.get(DispatchClass::Normal)
 			.base_extrinsic;
 		let base_weight_fee: Balance =
-			<R as pallet_transaction_payment::Config>::LengthToFee::weight_to_fee(&base_weight)
-				.into();
-		let tx_weight_fee: Balance =
-			<R as pallet_transaction_payment::Config>::LengthToFee::weight_to_fee(
-				&<R as pallet_balances::Config>::WeightInfo::transfer_keep_alive(),
-			)
-			.into();
+			<R as pallet_transaction_payment::Config>::LengthToFee::weight_to_fee(&base_weight).into();
+		let tx_weight_fee: Balance = <R as pallet_transaction_payment::Config>::LengthToFee::weight_to_fee(
+			&<R as pallet_balances::Config>::WeightInfo::transfer_keep_alive(),
+		)
+		.into();
 		let unbalanced_fee: Balance = base_weight_fee.saturating_add(tx_weight_fee);
 
 		let wanted_weight_fee: Balance = wanted_fee.saturating_sub(byte_fee);
@@ -141,8 +132,8 @@ where
 mod tests {
 	use super::*;
 	use crate::{
-		AccountId, BlockExecutionWeight, ExtrinsicBaseWeight, AVERAGE_ON_INITIALIZE_RATIO,
-		MAXIMUM_BLOCK_WEIGHT, NORMAL_DISPATCH_RATIO,
+		AccountId, BlockExecutionWeight, ExtrinsicBaseWeight, AVERAGE_ON_INITIALIZE_RATIO, MAXIMUM_BLOCK_WEIGHT,
+		NORMAL_DISPATCH_RATIO,
 	};
 	use frame_support::{dispatch::DispatchClass, parameter_types, traits::FindAuthor};
 	use frame_system::limits;
@@ -279,9 +270,7 @@ mod tests {
 			assert_eq!(Balances::free_balance(TREASURY_ACC), 0);
 			assert_eq!(Balances::free_balance(AUTHOR_ACC), 0);
 
-			SplitFeesByRatio::<Test, Ratio, ToBeneficiary, ToAuthor<Test>>::on_unbalanceds(
-				vec![fee, tip].into_iter(),
-			);
+			SplitFeesByRatio::<Test, Ratio, ToBeneficiary, ToAuthor<Test>>::on_unbalanceds(vec![fee, tip].into_iter());
 
 			assert_eq!(Balances::free_balance(TREASURY_ACC), 5);
 			assert_eq!(Balances::free_balance(AUTHOR_ACC), 25);

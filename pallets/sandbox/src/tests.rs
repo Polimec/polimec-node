@@ -45,7 +45,13 @@ fn test_buy_if_popular() {
 			<AllPalletsWithSystem as OnInitialize<u64>>::on_initialize(System::block_number());
 		}
 
-		assert_ok!(FundingModule::bid(RuntimeOrigin::signed(bidder), 0, 1000, 100 * PLMC, None));
+		assert_ok!(FundingModule::bid(
+			RuntimeOrigin::signed(bidder),
+			0,
+			1000,
+			100 * PLMC,
+			None
+		));
 
 		// advance time
 		for _block in 0..(<TestRuntime as pallet_funding::Config>::EnglishAuctionDuration::get()
@@ -85,8 +91,14 @@ pub fn default_project(nonce: u64) -> Project<BoundedVec<u8, ConstU32<64>>, u128
 	Project {
 		total_allocation_size: 1_000_000,
 		minimum_price: 1 * PLMC,
-		ticket_size: TicketSize { minimum: Some(1), maximum: None },
-		participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+		ticket_size: TicketSize {
+			minimum: Some(1),
+			maximum: None,
+		},
+		participants_size: ParticipantsSize {
+			minimum: Some(2),
+			maximum: None,
+		},
 		funding_thresholds: Default::default(),
 		conversion_rate: 0,
 		participation_currencies: Default::default(),
@@ -100,7 +112,9 @@ pub fn default_project(nonce: u64) -> Project<BoundedVec<u8, ConstU32<64>>, u128
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = frame_system::GenesisConfig::default().build_storage::<TestRuntime>().unwrap();
+	let mut t = frame_system::GenesisConfig::default()
+		.build_storage::<TestRuntime>()
+		.unwrap();
 
 	GenesisConfig {
 		balances: BalancesConfig {

@@ -25,19 +25,7 @@ use serde::{Deserialize, Serialize};
 use sp_std::vec::Vec;
 
 /// The various roles that a member can hold.
-#[derive(
-	Copy,
-	Clone,
-	PartialEq,
-	Eq,
-	RuntimeDebug,
-	Encode,
-	Decode,
-	TypeInfo,
-	MaxEncodedLen,
-	Serialize,
-	Deserialize,
-)]
+#[derive(Copy, Clone, PartialEq, Eq, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen, Serialize, Deserialize)]
 pub enum MemberRole {
 	Issuer,
 	Retail,

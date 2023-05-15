@@ -68,9 +68,7 @@ fn get_events<T: Config>() -> frame_benchmarking::Vec<<T as frame_system::Config
 		.collect::<frame_benchmarking::Vec<_>>()
 }
 
-fn create_default_project<T: Config>(
-	id: Option<u32>,
-) -> (T::ProjectIdParameter, T::AccountId, ProjectOf<T>) {
+fn create_default_project<T: Config>(id: Option<u32>) -> (T::ProjectIdParameter, T::AccountId, ProjectOf<T>) {
 	let issuer: T::AccountId = account::<T::AccountId>("Alice", 1, 1);
 	let project_id_parameter = id.unwrap_or(0);
 	let project_id = T::BenchmarkHelper::create_project_id_parameter(project_id_parameter);
@@ -79,13 +77,9 @@ fn create_default_project<T: Config>(
 	(project_id, issuer, project)
 }
 
-fn create_default_minted_project<T: Config>(
-	id: Option<u32>,
-) -> (T::ProjectIdParameter, T::AccountId) {
+fn create_default_minted_project<T: Config>(id: Option<u32>) -> (T::ProjectIdParameter, T::AccountId) {
 	let (project_id, issuer, project) = create_default_project::<T>(id);
-	assert!(
-		PolimecFunding::<T>::create(SystemOrigin::Signed(issuer.clone()).into(), project).is_ok()
-	);
+	assert!(PolimecFunding::<T>::create(SystemOrigin::Signed(issuer.clone()).into(), project).is_ok());
 	(project_id, issuer)
 }
 
@@ -95,9 +89,7 @@ pub fn run_to_block<T: Config>(n: T::BlockNumber) {
 		crate::Pallet::<T>::on_finalize(frame_system::Pallet::<T>::block_number());
 		frame_system::Pallet::<T>::on_finalize(frame_system::Pallet::<T>::block_number());
 		crate::Pallet::<T>::on_idle(frame_system::Pallet::<T>::block_number(), max_weight);
-		frame_system::Pallet::<T>::set_block_number(
-			frame_system::Pallet::<T>::block_number() + One::one(),
-		);
+		frame_system::Pallet::<T>::set_block_number(frame_system::Pallet::<T>::block_number() + One::one());
 		frame_system::Pallet::<T>::on_initialize(frame_system::Pallet::<T>::block_number());
 		crate::Pallet::<T>::on_initialize(frame_system::Pallet::<T>::block_number());
 		crate::Pallet::<T>::on_idle(frame_system::Pallet::<T>::block_number(), max_weight);
