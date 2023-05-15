@@ -816,7 +816,7 @@ impl<T: Config> Pallet<T> {
 	/// * [`AuctionsInfo`] - Check previous bids by that user, and update the storage with the new bid
 	pub fn do_bid(
 		bidder: T::AccountId, project_id: T::ProjectIdentifier, amount: BalanceOf<T>, price: BalanceOf<T>,
-		multiplier: Option<BalanceOf<T>>,
+		multiplier: Option<MultiplierOf<T>>,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_info = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
@@ -824,7 +824,7 @@ impl<T: Config> Pallet<T> {
 		let project = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let project_ticket_size = amount.saturating_mul(price);
 		let now = <frame_system::Pallet<T>>::block_number();
-		let multiplier = multiplier.unwrap_or(One::one());
+		let multiplier = multiplier.unwrap_or(1u64.into());
 		let decimals = project.token_information.decimals;
 
 		// * Validity checks *
@@ -947,13 +947,13 @@ impl<T: Config> Pallet<T> {
 	/// * [`T::Currency`] - Update the balance of the contributor and the project pot
 	pub fn do_contribute(
 		contributor: T::AccountId, project_id: T::ProjectIdentifier, token_amount: BalanceOf<T>,
-		multiplier: Option<BalanceOf<T>>,
+		multiplier: Option<MultiplierOf<T>>,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_issuer = ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectIssuerNotFound)?;
 		let project_info = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let project = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let multiplier = multiplier.unwrap_or(One::one());
+		let multiplier = multiplier.unwrap_or(1u64.into());
 		let weighted_average_price = project_info
 			.weighted_average_price
 			.ok_or(Error::<T>::AuctionNotStarted)?;
@@ -1514,7 +1514,7 @@ impl<T: Config> Pallet<T> {
 	/// Based on the amount of tokens and price to buy, a desired multiplier, and the type of investor the caller is,
 	/// calculate the amount and vesting periods of bonded PLMC and reward CT tokens.
 	pub fn calculate_vesting_periods(
-		_caller: T::AccountId, multiplier: BalanceOf<T>, token_amount: BalanceOf<T>, token_price: BalanceOf<T>,
+		_caller: T::AccountId, multiplier: MultiplierOf<T>, token_amount: BalanceOf<T>, token_price: BalanceOf<T>,
 		decimals: u8,
 	) -> (
 		Vesting<T::BlockNumber, BalanceOf<T>>,

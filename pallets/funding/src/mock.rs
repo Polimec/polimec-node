@@ -183,6 +183,7 @@ impl pallet_funding::Config for TestRuntime {
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+	type Multiplier = u64;
 }
 
 // Build genesis storage according to the mock runtime.

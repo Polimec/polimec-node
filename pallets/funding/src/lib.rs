@@ -228,6 +228,8 @@ type ProjectMetadataOf<T> =
 
 type ProjectDetailsOf<T> = ProjectDetails<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>;
 
+type MultiplierOf<T> = <T as crate::Config>::Multiplier;
+
 type BidInfoOf<T> = BidInfo<
 	<T as Config>::BidId,
 	<T as Config>::ProjectIdentifier,
@@ -277,6 +279,9 @@ pub mod pallet {
 			// TODO: PLMC-154 Used only in benchmarks, is there a way to bound this trait under #[cfg(feature = "runtime-benchmarks")]?
 			+ From<u32>
 			+ MaxEncodedLen;
+
+		/// Multiplier that decides how much PLMC needs to be bonded for a token buy/bid
+		type Multiplier: Parameter + From<u64>;
 
 		/// Just the `Currency::Balance` type; we have this item to allow us to constrain it to `From<u64>`.
 		type CurrencyBalance: Balance + From<u64> + FixedPointOperand;
@@ -769,11 +774,12 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::contribute())]
 		pub fn contribute(
 			origin: OriginFor<T>, project_id: T::ProjectIdParameter, #[pallet::compact] amount: BalanceOf<T>,
+			multiplier: Option<MultiplierOf<T>>,
 		) -> DispatchResult {
 			let contributor = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
-			Self::do_contribute(contributor, project_id, amount, None)
+			Self::do_contribute(contributor, project_id, amount, multiplier)
 		}
 
 		/// Unbond some plmc from a contribution, after a step in the vesting period has passed.
