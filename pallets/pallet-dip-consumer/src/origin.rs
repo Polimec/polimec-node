@@ -28,7 +28,9 @@ pub struct DipOrigin<Identifier, AccountId, Details> {
 	pub details: Details,
 }
 
-pub struct EnsureDipOrigin<Identifier, AccountId, Details>(PhantomData<(Identifier, AccountId, Details)>);
+pub struct EnsureDipOrigin<Identifier, AccountId, Details>(
+	PhantomData<(Identifier, AccountId, Details)>,
+);
 
 #[cfg(not(feature = "runtime-benchmarks"))]
 impl<OuterOrigin, Identifier, AccountId, Details> EnsureOrigin<OuterOrigin>

@@ -24,9 +24,9 @@ use polimec_parachain_runtime::{
 };
 
 use polimec_parachain_runtime::{
-	AccountId, Balance, BalancesConfig, CouncilConfig, CredentialsConfig, GenesisConfig, InflationInfo,
-	ParachainInfoConfig, ParachainStakingConfig, PolkadotXcmConfig, SessionConfig, SessionKeys, SudoConfig,
-	SystemConfig, TechnicalCommitteeConfig, VestingConfig, WASM_BINARY,
+	AccountId, Balance, BalancesConfig, CouncilConfig, CredentialsConfig, GenesisConfig,
+	InflationInfo, ParachainInfoConfig, ParachainStakingConfig, PolkadotXcmConfig, SessionConfig,
+	SessionKeys, SudoConfig, SystemConfig, TechnicalCommitteeConfig, VestingConfig, WASM_BINARY,
 };
 use sc_service::ChainType;
 use sc_telemetry::TelemetryEndpoints;
@@ -83,30 +83,15 @@ pub fn get_chain_spec_dev() -> Result<ChainSpec, String> {
 					(get_account_id_from_seed::<sr25519::Public>("Dave"), 10000000 * PLMC),
 					(get_account_id_from_seed::<sr25519::Public>("Eve"), 10000000 * PLMC),
 					(get_account_id_from_seed::<sr25519::Public>("Ferdie"), 10000000 * PLMC),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-						10000000 * PLMC,
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-						10000000 * PLMC,
-					),
+					(get_account_id_from_seed::<sr25519::Public>("Alice//stash"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Bob//stash"), 10000000 * PLMC),
 					(
 						get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
 						10000000 * PLMC,
 					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
-						10000000 * PLMC,
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
-						10000000 * PLMC,
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
-						10000000 * PLMC,
-					),
+					(get_account_id_from_seed::<sr25519::Public>("Dave//stash"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Eve//stash"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"), 10000000 * PLMC),
 				],
 				DEFAULT_PARA_ID,
 			)
@@ -116,10 +101,7 @@ pub fn get_chain_spec_dev() -> Result<ChainSpec, String> {
 		None,
 		None,
 		Some(properties),
-		Extensions {
-			relay_chain: "rococo-local".into(),
-			para_id: DEFAULT_PARA_ID.into(),
-		},
+		Extensions { relay_chain: "rococo-local".into(), para_id: DEFAULT_PARA_ID.into() },
 	))
 }
 
@@ -166,45 +148,28 @@ pub fn get_prod_chain_spec() -> Result<ChainSpec, String> {
 					(get_account_id_from_seed::<sr25519::Public>("Dave"), 10000000 * PLMC),
 					(get_account_id_from_seed::<sr25519::Public>("Eve"), 10000000 * PLMC),
 					(get_account_id_from_seed::<sr25519::Public>("Ferdie"), 10000000 * PLMC),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-						10000000 * PLMC,
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-						10000000 * PLMC,
-					),
+					(get_account_id_from_seed::<sr25519::Public>("Alice//stash"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Bob//stash"), 10000000 * PLMC),
 					(
 						get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
 						10000000 * PLMC,
 					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
-						10000000 * PLMC,
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
-						10000000 * PLMC,
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
-						10000000 * PLMC,
-					),
+					(get_account_id_from_seed::<sr25519::Public>("Dave//stash"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Eve//stash"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"), 10000000 * PLMC),
 				],
 				id,
 			)
 		},
 		vec![],
 		Some(
-			TelemetryEndpoints::new(vec![(TELEMETRY_URL.to_string(), 0)]).expect("Polimec telemetry url is valid; qed"),
+			TelemetryEndpoints::new(vec![(TELEMETRY_URL.to_string(), 0)])
+				.expect("Polimec telemetry url is valid; qed"),
 		),
 		Some("polimec"),
 		None,
 		Some(properties),
-		Extensions {
-			relay_chain: "polkadot".into(),
-			para_id: id.into(),
-		},
+		Extensions { relay_chain: "polkadot".into(), para_id: id.into() },
 	))
 }
 
@@ -251,53 +216,40 @@ pub fn get_local_prod_chain_spec() -> Result<ChainSpec, String> {
 					(get_account_id_from_seed::<sr25519::Public>("Dave"), 10000000 * PLMC),
 					(get_account_id_from_seed::<sr25519::Public>("Eve"), 10000000 * PLMC),
 					(get_account_id_from_seed::<sr25519::Public>("Ferdie"), 10000000 * PLMC),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-						10000000 * PLMC,
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-						10000000 * PLMC,
-					),
+					(get_account_id_from_seed::<sr25519::Public>("Alice//stash"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Bob//stash"), 10000000 * PLMC),
 					(
 						get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
 						10000000 * PLMC,
 					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
-						10000000 * PLMC,
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
-						10000000 * PLMC,
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
-						10000000 * PLMC,
-					),
+					(get_account_id_from_seed::<sr25519::Public>("Dave//stash"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Eve//stash"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"), 10000000 * PLMC),
 				],
 				id,
 			)
 		},
 		vec![],
 		Some(
-			TelemetryEndpoints::new(vec![(TELEMETRY_URL.to_string(), 0)]).expect("Polimec telemetry url is valid; qed"),
+			TelemetryEndpoints::new(vec![(TELEMETRY_URL.to_string(), 0)])
+				.expect("Polimec telemetry url is valid; qed"),
 		),
 		Some("polimec"),
 		None,
 		Some(properties),
-		Extensions {
-			relay_chain: "rococo-local".into(),
-			para_id: id.into(),
-		},
+		Extensions { relay_chain: "rococo-local".into(), para_id: id.into() },
 	))
 }
 
 #[allow(clippy::too_many_arguments)]
 fn testnet_genesis(
-	wasm_binary: &[u8], stakers: Vec<(AccountId, Option<AccountId>, Balance)>, inflation_config: InflationInfo,
-	max_candidate_stake: Balance, initial_authorities: Vec<(AccountId, AuthorityId)>,
-	endowed_accounts: Vec<(AccountId, Balance)>, id: ParaId,
+	wasm_binary: &[u8],
+	stakers: Vec<(AccountId, Option<AccountId>, Balance)>,
+	inflation_config: InflationInfo,
+	max_candidate_stake: Balance,
+	initial_authorities: Vec<(AccountId, AuthorityId)>,
+	endowed_accounts: Vec<(AccountId, Balance)>,
+	id: ParaId,
 ) -> GenesisConfig {
 	// type VestingPeriod = BlockNumber;
 	// type LockingPeriod = BlockNumber;
@@ -314,18 +266,11 @@ fn testnet_genesis(
 	// 	serde_json::from_slice(owned_accounts_json)
 	// 		.expect("The file botlabs_accounts.json exists and is valid; qed");
 
-	let accounts = endowed_accounts
-		.iter()
-		.map(|(account, _)| account.clone())
-		.collect::<Vec<_>>();
+	let accounts = endowed_accounts.iter().map(|(account, _)| account.clone()).collect::<Vec<_>>();
 
 	GenesisConfig {
-		system: SystemConfig {
-			code: wasm_binary.to_vec(),
-		},
-		balances: BalancesConfig {
-			balances: endowed_accounts.clone(),
-		},
+		system: SystemConfig { code: wasm_binary.to_vec() },
+		balances: BalancesConfig { balances: endowed_accounts.clone() },
 		parachain_info: ParachainInfoConfig { parachain_id: id },
 		parachain_staking: Default::default(),
 		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
@@ -345,13 +290,9 @@ fn testnet_genesis(
 				.map(|(acc, key)| (acc.clone(), acc.clone(), SessionKeys { aura: key.clone() }))
 				.collect::<Vec<_>>(),
 		},
-		polkadot_xcm: PolkadotXcmConfig {
-			safe_xcm_version: Some(SAFE_XCM_VERSION),
-		},
+		polkadot_xcm: PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION) },
 		treasury: Default::default(),
-		sudo: SudoConfig {
-			key: Some(accounts.first().expect("").to_owned()),
-		},
+		sudo: SudoConfig { key: Some(accounts.first().expect("").to_owned()) },
 		council: CouncilConfig {
 			members: initial_authorities.iter().map(|(acc, _)| acc).cloned().collect(),
 			phantom: Default::default(),
