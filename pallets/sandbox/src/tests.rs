@@ -43,12 +43,18 @@ fn test_buy_if_popular() {
 			<AllPalletsWithSystem as OnInitialize<u64>>::on_initialize(System::block_number());
 		}
 
-		assert_ok!(FundingModule::bid(RuntimeOrigin::signed(bidder), 0, 1000, 100 * PLMC, None));
+		assert_ok!(FundingModule::bid(
+			RuntimeOrigin::signed(bidder),
+			0,
+			1000,
+			100 * PLMC,
+			None
+		));
 
 		// advance time
-		for _block in 0..(<TestRuntime as pallet_funding::Config>::EnglishAuctionDuration::get() +
-			<TestRuntime as pallet_funding::Config>::CandleAuctionDuration::get() +
-			5)
+		for _block in 0..(<TestRuntime as pallet_funding::Config>::EnglishAuctionDuration::get()
+			+ <TestRuntime as pallet_funding::Config>::CandleAuctionDuration::get()
+			+ 5)
 		{
 			<AllPalletsWithoutSystem as OnFinalize<u64>>::on_finalize(System::block_number());
 			<AllPalletsWithoutSystem as OnIdle<u64>>::on_idle(System::block_number(), Weight::MAX);
@@ -83,8 +89,14 @@ pub fn default_project(nonce: u64) -> ProjectMetadata<BoundedVec<u8, ConstU32<64
 	ProjectMetadata {
 		total_allocation_size: 1_000_000,
 		minimum_price: 1 * PLMC,
-		ticket_size: TicketSize { minimum: Some(1), maximum: None },
-		participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+		ticket_size: TicketSize {
+			minimum: Some(1),
+			maximum: None,
+		},
+		participants_size: ParticipantsSize {
+			minimum: Some(2),
+			maximum: None,
+		},
 		funding_thresholds: Default::default(),
 		conversion_rate: 0,
 		participation_currencies: Default::default(),
@@ -98,7 +110,9 @@ pub fn default_project(nonce: u64) -> ProjectMetadata<BoundedVec<u8, ConstU32<64
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = frame_system::GenesisConfig::default().build_storage::<TestRuntime>().unwrap();
+	let mut t = frame_system::GenesisConfig::default()
+		.build_storage::<TestRuntime>()
+		.unwrap();
 
 	GenesisConfig {
 		balances: BalancesConfig {

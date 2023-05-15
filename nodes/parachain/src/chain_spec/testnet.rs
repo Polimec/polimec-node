@@ -25,8 +25,8 @@ use polimec_parachain_runtime::{
 
 use polimec_parachain_runtime::{
 	AccountId, Balance, BalancesConfig, CouncilConfig, CredentialsConfig, GenesisConfig, InflationInfo,
-	ParachainInfoConfig, PolkadotXcmConfig, SessionConfig, SessionKeys, SudoConfig,
-	SystemConfig, TechnicalCommitteeConfig, VestingConfig, WASM_BINARY,
+	ParachainInfoConfig, PolkadotXcmConfig, SessionConfig, SessionKeys, SudoConfig, SystemConfig,
+	TechnicalCommitteeConfig, VestingConfig, WASM_BINARY,
 };
 use sc_service::ChainType;
 use sc_telemetry::TelemetryEndpoints;

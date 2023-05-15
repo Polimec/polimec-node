@@ -83,8 +83,7 @@ impl<T: Config> Pallet<T> {
 				community: BlockNumberPair::new(None, None),
 				remainder: BlockNumberPair::new(None, None),
 			},
-			remaining_contribution_tokens: project.total_allocation_size
-
+			remaining_contribution_tokens: project.total_allocation_size,
 		};
 
 		// * Update storage *
@@ -131,7 +130,10 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::ProjectNotInApplicationRound
 		);
 		ensure!(!project_info.is_frozen, Error::<T>::ProjectAlreadyFrozen);
-		ensure!(project.offchain_information_hash.is_some(), Error::<T>::MetadataNotProvided);
+		ensure!(
+			project.offchain_information_hash.is_some(),
+			Error::<T>::MetadataNotProvided
+		);
 
 		// * Calculate new variables *
 		let evaluation_end_block = now + T::EvaluationDuration::get();
@@ -450,11 +452,7 @@ impl<T: Config> Pallet<T> {
 		let community_end_block = now + T::CommunityFundingDuration::get();
 
 		// * Update Storage *
-		Self::calculate_weighted_average_price(
-			project_id,
-			end_block,
-			project_info.fundraising_target,
-		)?;
+		Self::calculate_weighted_average_price(project_id, end_block, project_info.fundraising_target)?;
 		// Get info again after updating it with new price.
 		let mut project_info = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		project_info.phase_transition_points.random_candle_ending = Some(end_block);
@@ -1012,7 +1010,9 @@ impl<T: Config> Pallet<T> {
 		}
 		required_plmc_bond.saturating_sub(bonded_plmc);
 
-		let remaining_cts_after_purchase = project_info.remaining_contribution_tokens.saturating_sub(buyable_tokens);
+		let remaining_cts_after_purchase = project_info
+			.remaining_contribution_tokens
+			.saturating_sub(buyable_tokens);
 		let now = <frame_system::Pallet<T>>::block_number();
 
 		// * Update storage *

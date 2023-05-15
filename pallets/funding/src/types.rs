@@ -61,7 +61,6 @@ pub struct ProjectDetails<BlockNumber, Balance: BalanceT> {
 	pub fundraising_target: Balance,
 	/// The amount of Contribution Tokens that have not yet been sold
 	pub remaining_contribution_tokens: Balance,
-
 }
 
 #[derive(Debug)]

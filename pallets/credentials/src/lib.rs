@@ -86,8 +86,7 @@ pub mod pallet {
 	/// Maps member type to members of each type.
 	#[pallet::storage]
 	#[pallet::getter(fn members)]
-	pub type Members<T: Config> =
-		StorageDoubleMap<_, Twox64Concat, MemberRole, Twox64Concat, T::AccountId, ()>;
+	pub type Members<T: Config> = StorageDoubleMap<_, Twox64Concat, MemberRole, Twox64Concat, T::AccountId, ()>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -182,11 +181,7 @@ pub mod pallet {
 		/// May only be called from `T::AddOrigin`.
 		// TODO: Set a proper weight
 		#[pallet::weight(1)]
-		pub fn add_member(
-			origin: OriginFor<T>,
-			credential: Credential,
-			who: AccountIdLookupOf<T>,
-		) -> DispatchResult {
+		pub fn add_member(origin: OriginFor<T>, credential: Credential, who: AccountIdLookupOf<T>) -> DispatchResult {
 			T::AddOrigin::ensure_origin(origin)?;
 			let who = T::Lookup::lookup(who)?;
 
@@ -200,9 +195,7 @@ pub mod pallet {
 		// TODO: Set a proper weight
 		#[pallet::weight(1)]
 		pub fn remove_member(
-			origin: OriginFor<T>,
-			credential: Credential,
-			who: AccountIdLookupOf<T>,
+			origin: OriginFor<T>, credential: Credential, who: AccountIdLookupOf<T>,
 		) -> DispatchResult {
 			T::RemoveOrigin::ensure_origin(origin)?;
 			let who = T::Lookup::lookup(who)?;
@@ -238,10 +231,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn do_remove_member_with_role(
-		role: &MemberRole,
-		who: &T::AccountId,
-	) -> Result<(), DispatchError> {
+	fn do_remove_member_with_role(role: &MemberRole, who: &T::AccountId) -> Result<(), DispatchError> {
 		Members::<T>::remove(role, who);
 		Self::deposit_event(Event::MemberRemoved);
 		Ok(())
