@@ -52,10 +52,7 @@ where
 	Allow: ShouldExecute,
 {
 	fn should_execute<Call>(
-		origin: &MultiLocation,
-		message: &mut [Instruction<Call>],
-		max_weight: Weight,
-		weight_credit: &mut Weight,
+		origin: &MultiLocation, message: &mut [Instruction<Call>], max_weight: Weight, weight_credit: &mut Weight,
 	) -> Result<(), ()> {
 		Deny::should_execute(origin, message, max_weight, weight_credit)?;
 		Allow::should_execute(origin, message, max_weight, weight_credit)
@@ -82,30 +79,43 @@ pub type XcmBarrier = DenyThenTry<
 pub struct DenyReserveTransferToRelayChain;
 impl ShouldExecute for DenyReserveTransferToRelayChain {
 	fn should_execute<Call>(
-		origin: &MultiLocation,
-		message: &mut [Instruction<Call>],
-		_max_weight: Weight,
-		_weight_credit: &mut Weight,
+		origin: &MultiLocation, message: &mut [Instruction<Call>], _max_weight: Weight, _weight_credit: &mut Weight,
 	) -> Result<(), ()> {
 		if message.iter().any(|inst| {
 			matches!(
 				inst,
 				InitiateReserveWithdraw {
-					reserve: MultiLocation { parents: 1, interior: Here },
+					reserve: MultiLocation {
+						parents: 1,
+						interior: Here
+					},
 					..
-				} | DepositReserveAsset { dest: MultiLocation { parents: 1, interior: Here }, .. } |
-					TransferReserveAsset {
-						dest: MultiLocation { parents: 1, interior: Here },
-						..
-					}
+				} | DepositReserveAsset {
+					dest: MultiLocation {
+						parents: 1,
+						interior: Here
+					},
+					..
+				} | TransferReserveAsset {
+					dest: MultiLocation {
+						parents: 1,
+						interior: Here
+					},
+					..
+				}
 			)
 		}) {
-			return Err(()) // Deny
+			return Err(()); // Deny
 		}
 
 		// Allow reserve transfers to arrive from relay chain
-		if matches!(origin, MultiLocation { parents: 1, interior: Here }) &&
-			message.iter().any(|inst| matches!(inst, ReserveAssetDeposited { .. }))
+		if matches!(
+			origin,
+			MultiLocation {
+				parents: 1,
+				interior: Here
+			}
+		) && message.iter().any(|inst| matches!(inst, ReserveAssetDeposited { .. }))
 		{
 			log::warn!(
 				target: "xcm::barriers",

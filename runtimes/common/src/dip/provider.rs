@@ -25,14 +25,11 @@ use scale_info::TypeInfo;
 use sp_std::{borrow::ToOwned, collections::btree_set::BTreeSet, marker::PhantomData, vec::Vec};
 use sp_trie::{generate_trie_proof, LayoutV1, MemoryDB, TrieDBMutBuilder, TrieHash, TrieMut};
 
-use crate::dip::{
-	KeyDetailsKey, KeyDetailsValue, KeyReferenceKey, KeyReferenceValue, KeyRelationship, ProofLeaf,
-};
+use crate::dip::{KeyDetailsKey, KeyDetailsValue, KeyReferenceKey, KeyReferenceValue, KeyRelationship, ProofLeaf};
 
 pub type BlindedValue = Vec<u8>;
 
-pub type DidMerkleProof<T> =
-	Proof<Vec<BlindedValue>, ProofLeaf<KeyIdOf<T>, <T as frame_system::Config>::BlockNumber>>;
+pub type DidMerkleProof<T> = Proof<Vec<BlindedValue>, ProofLeaf<KeyIdOf<T>, <T as frame_system::Config>::BlockNumber>>;
 
 #[derive(Encode, Decode, RuntimeDebug, PartialEq, Eq, TypeInfo)]
 pub struct CompleteMerkleProof<Root, Proof> {
@@ -57,10 +54,7 @@ where
 	// A valid proof will contain a leaf with the key details for each reference
 	// leaf, with multiple reference leaves potentially referring to the same
 	// details leaf, as we already do with out `DidDetails` type.
-	fn calculate_root_with_db(
-		identity: &DidDetails<T>,
-		db: &mut MemoryDB<T::Hashing>,
-	) -> Result<T::Hash, ()> {
+	fn calculate_root_with_db(identity: &DidDetails<T>, db: &mut MemoryDB<T::Hashing>) -> Result<T::Hash, ()> {
 		let mut trie = TrieHash::<LayoutV1<T::Hashing>>::default();
 		let mut trie_builder = TrieDBMutBuilder::<LayoutV1<T::Hashing>>::new(db, &mut trie).build();
 
@@ -88,10 +82,7 @@ where
 		// Delegation key, if present
 		if let Some(del_key_id) = identity.delegation_key {
 			let del_leaf = ProofLeaf::<_, T::BlockNumber>::KeyReference(
-				KeyReferenceKey(
-					del_key_id,
-					DidVerificationKeyRelationship::CapabilityDelegation.into(),
-				),
+				KeyReferenceKey(del_key_id, DidVerificationKeyRelationship::CapabilityDelegation.into()),
 				KeyReferenceValue,
 			);
 			trie_builder
@@ -99,23 +90,25 @@ where
 				.map_err(|_| ())?;
 		};
 		// Key agreement keys
-		identity.key_agreement_keys.iter().try_for_each(|id| -> Result<(), ()> {
-			let enc_leaf = ProofLeaf::<_, T::BlockNumber>::KeyReference(
-				KeyReferenceKey(*id, KeyRelationship::Encryption),
-				KeyReferenceValue,
-			);
-			trie_builder
-				.insert(enc_leaf.encoded_key().as_slice(), enc_leaf.encoded_value().as_slice())
-				.map_err(|_| ())?;
-			Ok(())
-		})?;
+		identity
+			.key_agreement_keys
+			.iter()
+			.try_for_each(|id| -> Result<(), ()> {
+				let enc_leaf = ProofLeaf::<_, T::BlockNumber>::KeyReference(
+					KeyReferenceKey(*id, KeyRelationship::Encryption),
+					KeyReferenceValue,
+				);
+				trie_builder
+					.insert(enc_leaf.encoded_key().as_slice(), enc_leaf.encoded_value().as_slice())
+					.map_err(|_| ())?;
+				Ok(())
+			})?;
 		// Public keys
 		identity
 			.public_keys
 			.iter()
 			.try_for_each(|(id, key_details)| -> Result<(), ()> {
-				let key_leaf =
-					ProofLeaf::KeyDetails(KeyDetailsKey(*id), KeyDetailsValue(key_details.clone()));
+				let key_leaf = ProofLeaf::KeyDetails(KeyDetailsKey(*id), KeyDetailsValue(key_details.clone()));
 				trie_builder
 					.insert(key_leaf.encoded_key().as_slice(), key_leaf.encoded_value().as_slice())
 					.map_err(|_| ())?;
@@ -132,8 +125,7 @@ where
 	// IDs.
 	#[allow(clippy::result_unit_err)]
 	pub fn generate_proof<'a, K>(
-		identity: &DidDetails<T>,
-		mut key_ids: K,
+		identity: &DidDetails<T>, mut key_ids: K,
 	) -> Result<CompleteMerkleProof<T::Hash, DidMerkleProof<T>>, ()>
 	where
 		K: Iterator<Item = &'a KeyIdOf<T>>,
@@ -148,28 +140,19 @@ where
 				// Adds a key reference leaf for each relationship the key ID is part of.
 				if *key_id == identity.authentication_key {
 					set.insert(ProofLeaf::KeyReference(
-						KeyReferenceKey(
-							*key_id,
-							DidVerificationKeyRelationship::Authentication.into(),
-						),
+						KeyReferenceKey(*key_id, DidVerificationKeyRelationship::Authentication.into()),
 						KeyReferenceValue,
 					));
 				}
 				if Some(*key_id) == identity.attestation_key {
 					set.insert(ProofLeaf::KeyReference(
-						KeyReferenceKey(
-							*key_id,
-							DidVerificationKeyRelationship::AssertionMethod.into(),
-						),
+						KeyReferenceKey(*key_id, DidVerificationKeyRelationship::AssertionMethod.into()),
 						KeyReferenceValue,
 					));
 				}
 				if Some(*key_id) == identity.delegation_key {
 					set.insert(ProofLeaf::KeyReference(
-						KeyReferenceKey(
-							*key_id,
-							DidVerificationKeyRelationship::CapabilityDelegation.into(),
-						),
+						KeyReferenceKey(*key_id, DidVerificationKeyRelationship::CapabilityDelegation.into()),
 						KeyReferenceValue,
 					));
 				}
@@ -182,18 +165,15 @@ where
 				// Then adds the actual key details to the merkle proof.
 				// If the same key is specified twice, the old key is simply replaced with a new
 				// key of the same value.
-				let key_details_leaf = ProofLeaf::KeyDetails(
-					KeyDetailsKey(*key_id),
-					KeyDetailsValue(key_details.clone()),
-				);
+				let key_details_leaf =
+					ProofLeaf::KeyDetails(KeyDetailsKey(*key_id), KeyDetailsValue(key_details.clone()));
 				if !set.contains(&key_details_leaf) {
 					set.insert(key_details_leaf);
 				}
 				Ok(set)
 			})?;
 		let encoded_keys: Vec<Vec<u8>> = leaves.iter().map(|l| l.encoded_key()).collect();
-		let proof = generate_trie_proof::<LayoutV1<T::Hashing>, _, _, _>(&db, root, &encoded_keys)
-			.map_err(|_| ())?;
+		let proof = generate_trie_proof::<LayoutV1<T::Hashing>, _, _, _>(&db, root, &encoded_keys).map_err(|_| ())?;
 		Ok(CompleteMerkleProof {
 			root,
 			proof: DidMerkleProof::<T> {
@@ -212,10 +192,7 @@ where
 	type Error = ();
 	type Output = T::Hash;
 
-	fn generate_commitment(
-		_identifier: &T::DidIdentifier,
-		identity: &DidDetails<T>,
-	) -> Result<T::Hash, Self::Error> {
+	fn generate_commitment(_identifier: &T::DidIdentifier, identity: &DidDetails<T>) -> Result<T::Hash, Self::Error> {
 		let mut db = MemoryDB::default();
 		Self::calculate_root_with_db(identity, &mut db)
 	}
@@ -231,8 +208,10 @@ where
 	type Error = ();
 
 	fn retrieve(identifier: &T::DidIdentifier) -> Result<Option<(DidDetails<T>, ())>, Self::Error> {
-		match (did::Pallet::<T>::get_did(identifier), did::Pallet::<T>::get_deleted_did(identifier))
-		{
+		match (
+			did::Pallet::<T>::get_did(identifier),
+			did::Pallet::<T>::get_deleted_did(identifier),
+		) {
 			(Some(details), _) => Ok(Some((details, ()))),
 			(_, Some(_)) => Ok(None),
 			_ => Err(()),
