@@ -20,7 +20,9 @@ use sp_std::{borrow::Borrow, marker::PhantomData};
 use xcm::latest::{AssetId::Concrete, Fungibility::Fungible, MultiAsset, MultiLocation};
 use xcm_executor::traits::{Convert, Error as MatchError, MatchesFungibles};
 
-pub struct AsAssetMultiLocation<AssetId, AssetIdInfoGetter>(PhantomData<(AssetId, AssetIdInfoGetter)>);
+pub struct AsAssetMultiLocation<AssetId, AssetIdInfoGetter>(
+	PhantomData<(AssetId, AssetIdInfoGetter)>,
+);
 impl<AssetId, AssetIdInfoGetter> xcm_executor::traits::Convert<MultiLocation, AssetId>
 	for AsAssetMultiLocation<AssetId, AssetIdInfoGetter>
 where
@@ -49,7 +51,8 @@ impl<
 		Balance: Clone,
 		ConvertAssetId: Convert<MultiLocation, AssetId>,
 		ConvertBalance: Convert<u128, Balance>,
-	> MatchesFungibles<AssetId, Balance> for ConvertedRegisteredAssetId<AssetId, Balance, ConvertAssetId, ConvertBalance>
+	> MatchesFungibles<AssetId, Balance>
+	for ConvertedRegisteredAssetId<AssetId, Balance, ConvertAssetId, ConvertBalance>
 {
 	fn matches_fungibles(a: &MultiAsset) -> Result<(AssetId, Balance), MatchError> {
 		let (amount, id) = match (&a.fun, &a.id) {
@@ -57,7 +60,8 @@ impl<
 			_ => return Err(MatchError::AssetNotFound),
 		};
 		let what = ConvertAssetId::convert_ref(id).map_err(|_| MatchError::AssetNotFound)?;
-		let amount = ConvertBalance::convert_ref(amount).map_err(|_| MatchError::AmountToBalanceConversionFailed)?;
+		let amount = ConvertBalance::convert_ref(amount)
+			.map_err(|_| MatchError::AmountToBalanceConversionFailed)?;
 		Ok((what, amount))
 	}
 }

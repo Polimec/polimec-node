@@ -21,7 +21,8 @@ use did::{
 };
 use dip_support::latest::Proof;
 use frame_support::{
-	assert_err, assert_ok, construct_runtime, parameter_types, traits::Everything, weights::constants::RocksDbWeight,
+	assert_err, assert_ok, construct_runtime, parameter_types, traits::Everything,
+	weights::constants::RocksDbWeight,
 };
 use frame_system::{
 	mocking::{MockBlock, MockUncheckedExtrinsic},
@@ -151,9 +152,7 @@ impl did::Config for TestRuntime {
 
 fn base_ext() -> TestExternalities {
 	TestExternalities::new(
-		frame_system::GenesisConfig::default()
-			.build_storage::<TestRuntime>()
-			.unwrap(),
+		frame_system::GenesisConfig::default().build_storage::<TestRuntime>().unwrap(),
 	)
 }
 
@@ -184,11 +183,12 @@ fn minimal_did_merkle_proof() {
 		let did_details = Did::get_did(&did).expect("DID should be present");
 
 		// 1. Create the DID merkle proof revealing only the authentication key
-		let CompleteMerkleProof { root, proof } = DidMerkleRootGenerator::<TestRuntime>::generate_proof(
-			&did_details,
-			[did_details.authentication_key].iter(),
-		)
-		.expect("Merkle proof generation should not fail.");
+		let CompleteMerkleProof { root, proof } =
+			DidMerkleRootGenerator::<TestRuntime>::generate_proof(
+				&did_details,
+				[did_details.authentication_key].iter(),
+			)
+			.expect("Merkle proof generation should not fail.");
 		println!("{:?} - {:?} - {:?} bytes", root, proof, proof.encoded_size());
 		// Verify the generated merkle proof
 		assert_ok!(
@@ -252,11 +252,12 @@ fn complete_did_merkle_proof() {
 		let did_details = Did::get_did(&did).expect("DID should be present");
 
 		// 1. Create the DID merkle proof revealing only the authentication key
-		let CompleteMerkleProof { root, proof } = DidMerkleRootGenerator::<TestRuntime>::generate_proof(
-			&did_details,
-			[did_details.authentication_key].iter(),
-		)
-		.expect("Merkle proof generation should not fail.");
+		let CompleteMerkleProof { root, proof } =
+			DidMerkleRootGenerator::<TestRuntime>::generate_proof(
+				&did_details,
+				[did_details.authentication_key].iter(),
+			)
+			.expect("Merkle proof generation should not fail.");
 		// Verify the generated merkle proof
 		assert_ok!(
 			DidMerkleProofVerifier::<KeyIdOf<TestRuntime>, BlockNumber, Hashing>::verify_proof_against_digest(
@@ -266,17 +267,18 @@ fn complete_did_merkle_proof() {
 		);
 
 		// 2. Create the DID merkle proof revealing all the keys
-		let CompleteMerkleProof { root, proof } = DidMerkleRootGenerator::<TestRuntime>::generate_proof(
-			&did_details,
-			[
-				did_details.authentication_key,
-				did_details.attestation_key.unwrap(),
-				did_details.delegation_key.unwrap(),
-			]
-			.iter()
-			.chain(did_details.key_agreement_keys.iter()),
-		)
-		.expect("Merkle proof generation should not fail.");
+		let CompleteMerkleProof { root, proof } =
+			DidMerkleRootGenerator::<TestRuntime>::generate_proof(
+				&did_details,
+				[
+					did_details.authentication_key,
+					did_details.attestation_key.unwrap(),
+					did_details.delegation_key.unwrap(),
+				]
+				.iter()
+				.chain(did_details.key_agreement_keys.iter()),
+			)
+			.expect("Merkle proof generation should not fail.");
 		// Verify the generated merkle proof
 		assert_ok!(
 			DidMerkleProofVerifier::<KeyIdOf<TestRuntime>, BlockNumber, Hashing>::verify_proof_against_digest(
@@ -287,11 +289,12 @@ fn complete_did_merkle_proof() {
 
 		// 2. Create the DID merkle proof revealing only the key reference and not the
 		// key ID
-		let CompleteMerkleProof { root, proof } = DidMerkleRootGenerator::<TestRuntime>::generate_proof(
-			&did_details,
-			[did_details.authentication_key].iter(),
-		)
-		.expect("Merkle proof generation should not fail.");
+		let CompleteMerkleProof { root, proof } =
+			DidMerkleRootGenerator::<TestRuntime>::generate_proof(
+				&did_details,
+				[did_details.authentication_key].iter(),
+			)
+			.expect("Merkle proof generation should not fail.");
 		let reference_only_authentication_leaf: Vec<_> = proof
 			.revealed
 			.into_iter()

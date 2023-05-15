@@ -15,8 +15,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use polimec_standalone_runtime::{
-	AccountId, BalancesConfig, CredentialsConfig, GenesisConfig, SessionConfig, Signature, SudoConfig, SystemConfig,
-	WASM_BINARY,
+	AccountId, BalancesConfig, CredentialsConfig, GenesisConfig, SessionConfig, Signature,
+	SudoConfig, SystemConfig, WASM_BINARY,
 };
 use sc_service::{ChainType, Properties};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -153,7 +153,9 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 
 /// Configure initial storage state for FRAME modules.
 fn testnet_genesis(
-	wasm_binary: &[u8], initial_authorities: Vec<(AccountId, AuraId, GrandpaId)>, root_key: AccountId,
+	wasm_binary: &[u8],
+	initial_authorities: Vec<(AccountId, AuraId, GrandpaId)>,
+	root_key: AccountId,
 	endowed_accounts: Vec<AccountId>,
 ) -> GenesisConfig {
 	GenesisConfig {

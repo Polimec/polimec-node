@@ -22,7 +22,9 @@ use pallet_dip_consumer::traits::IdentityProofVerifier;
 use sp_std::{collections::btree_map::BTreeMap, marker::PhantomData, vec::Vec};
 use sp_trie::{verify_trie_proof, LayoutV1};
 
-use crate::dip::{provider, KeyDetailsKey, KeyDetailsValue, KeyReferenceKey, KeyRelationship, ProofLeaf};
+use crate::dip::{
+	provider, KeyDetailsKey, KeyDetailsValue, KeyReferenceKey, KeyRelationship, ProofLeaf,
+};
 
 // TODO: Avoid repetition of the same key if it appears multiple times, e.g., by
 // having a vector of `KeyRelationship` instead.
@@ -43,9 +45,12 @@ impl<BlockNumber> From<Vec<ProofEntry<BlockNumber>>> for VerificationResult<Bloc
 	}
 }
 
-pub struct DidMerkleProofVerifier<KeyId, BlockNumber, Hasher>(PhantomData<(KeyId, BlockNumber, Hasher)>);
+pub struct DidMerkleProofVerifier<KeyId, BlockNumber, Hasher>(
+	PhantomData<(KeyId, BlockNumber, Hasher)>,
+);
 
-impl<KeyId, BlockNumber, Hasher> IdentityProofVerifier for DidMerkleProofVerifier<KeyId, BlockNumber, Hasher>
+impl<KeyId, BlockNumber, Hasher> IdentityProofVerifier
+	for DidMerkleProofVerifier<KeyId, BlockNumber, Hasher>
 where
 	KeyId: Encode + Clone + Ord,
 	BlockNumber: Encode + Clone + Ord,
@@ -59,7 +64,8 @@ where
 	type VerificationResult = VerificationResult<BlockNumber>;
 
 	fn verify_proof_against_digest(
-		proof: VersionedIdentityProof<Self::BlindedValue, Self::ProofLeaf>, digest: Self::ProofDigest,
+		proof: VersionedIdentityProof<Self::BlindedValue, Self::ProofLeaf>,
+		digest: Self::ProofDigest,
 	) -> Result<Self::VerificationResult, Self::Error> {
 		let proof: v1::Proof<_, _> = proof.try_into()?;
 		// TODO: more efficient by removing cloning and/or collecting.
@@ -70,7 +76,8 @@ where
 			.iter()
 			.map(|leaf| (leaf.encoded_key(), Some(leaf.encoded_value())))
 			.collect::<Vec<(Vec<u8>, Option<Vec<u8>>)>>();
-		verify_trie_proof::<LayoutV1<Hasher>, _, _, _>(&digest, &proof.blinded, &proof_leaves).map_err(|_| ())?;
+		verify_trie_proof::<LayoutV1<Hasher>, _, _, _>(&digest, &proof.blinded, &proof_leaves)
+			.map_err(|_| ())?;
 
 		// At this point, we know the proof is valid. We just need to map the revealed
 		// leaves to something the consumer can easily operate on.
@@ -82,7 +89,9 @@ where
 			.clone()
 			.into_iter()
 			.filter_map(|leaf| {
-				if let ProofLeaf::KeyDetails(KeyDetailsKey(key_id), KeyDetailsValue(key_details)) = leaf {
+				if let ProofLeaf::KeyDetails(KeyDetailsKey(key_id), KeyDetailsValue(key_details)) =
+					leaf
+				{
 					Some((key_id, key_details))
 				} else {
 					None
@@ -96,15 +105,13 @@ where
 			.revealed
 			.into_iter()
 			.filter_map(|leaf| {
-				if let ProofLeaf::KeyReference(KeyReferenceKey(key_id, key_relationship), _) = leaf {
+				if let ProofLeaf::KeyReference(KeyReferenceKey(key_id, key_relationship), _) = leaf
+				{
 					// TODO: Better error handling.
 					let key_details = public_keys
 						.get(&key_id)
 						.expect("Key ID should be present in the map of revealed public keys.");
-					Some(ProofEntry {
-						key: key_details.clone(),
-						relationship: key_relationship,
-					})
+					Some(ProofEntry { key: key_details.clone(), relationship: key_relationship })
 				} else {
 					None
 				}

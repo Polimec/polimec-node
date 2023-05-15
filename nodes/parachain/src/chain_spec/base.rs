@@ -26,9 +26,9 @@ use sp_core::sr25519;
 
 use crate::chain_spec::{get_account_id_from_seed, get_from_seed, get_properties, DEFAULT_PARA_ID};
 use base_runtime::{
-	polimec_inflation_config, staking::MinCollatorStake, AccountId, AuraId as AuthorityId, Balance, BalancesConfig,
-	GenesisConfig, InflationInfo, ParachainInfoConfig, ParachainStakingConfig, PolkadotXcmConfig, SessionConfig,
-	SudoConfig, SystemConfig, MAX_COLLATOR_STAKE, PLMC,
+	polimec_inflation_config, staking::MinCollatorStake, AccountId, AuraId as AuthorityId, Balance,
+	BalancesConfig, GenesisConfig, InflationInfo, ParachainInfoConfig, ParachainStakingConfig,
+	PolkadotXcmConfig, SessionConfig, SudoConfig, SystemConfig, MAX_COLLATOR_STAKE, PLMC,
 };
 
 /// The default XCM version to set in genesis config.
@@ -79,30 +79,15 @@ pub fn get_local_base_chain_spec() -> Result<ChainSpec, String> {
 					(get_account_id_from_seed::<sr25519::Public>("Dave"), 10000000 * PLMC),
 					(get_account_id_from_seed::<sr25519::Public>("Eve"), 10000000 * PLMC),
 					(get_account_id_from_seed::<sr25519::Public>("Ferdie"), 10000000 * PLMC),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-						10000000 * PLMC,
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-						10000000 * PLMC,
-					),
+					(get_account_id_from_seed::<sr25519::Public>("Alice//stash"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Bob//stash"), 10000000 * PLMC),
 					(
 						get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
 						10000000 * PLMC,
 					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
-						10000000 * PLMC,
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
-						10000000 * PLMC,
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
-						10000000 * PLMC,
-					),
+					(get_account_id_from_seed::<sr25519::Public>("Dave//stash"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Eve//stash"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"), 10000000 * PLMC),
 				],
 				DEFAULT_PARA_ID,
 			)
@@ -112,10 +97,7 @@ pub fn get_local_base_chain_spec() -> Result<ChainSpec, String> {
 		Some("polimec"),
 		None,
 		Some(properties),
-		Extensions {
-			relay_chain: "rococo_local_testnet".into(),
-			para_id: DEFAULT_PARA_ID.into(),
-		},
+		Extensions { relay_chain: "rococo_local_testnet".into(), para_id: DEFAULT_PARA_ID.into() },
 	))
 }
 
@@ -172,30 +154,24 @@ pub fn get_live_base_chain_spec() -> Result<ChainSpec, String> {
 		Some("polimec"),
 		None,
 		Some(properties),
-		Extensions {
-			relay_chain: "polkadot".into(),
-			para_id: id,
-		},
+		Extensions { relay_chain: "polkadot".into(), para_id: id },
 	))
 }
 
 fn base_testnet_genesis(
-	wasm_binary: &[u8], stakers: Vec<(AccountId, Option<AccountId>, Balance)>, inflation_config: InflationInfo,
-	max_candidate_stake: Balance, initial_authorities: Vec<(AccountId, AuthorityId)>,
-	endowed_accounts: Vec<(AccountId, Balance)>, id: ParaId,
+	wasm_binary: &[u8],
+	stakers: Vec<(AccountId, Option<AccountId>, Balance)>,
+	inflation_config: InflationInfo,
+	max_candidate_stake: Balance,
+	initial_authorities: Vec<(AccountId, AuthorityId)>,
+	endowed_accounts: Vec<(AccountId, Balance)>,
+	id: ParaId,
 ) -> GenesisConfig {
-	let accounts = endowed_accounts
-		.iter()
-		.map(|(account, _)| account.clone())
-		.collect::<Vec<_>>();
+	let accounts = endowed_accounts.iter().map(|(account, _)| account.clone()).collect::<Vec<_>>();
 
 	GenesisConfig {
-		system: SystemConfig {
-			code: wasm_binary.to_vec(),
-		},
-		balances: BalancesConfig {
-			balances: endowed_accounts.clone(),
-		},
+		system: SystemConfig { code: wasm_binary.to_vec() },
+		balances: BalancesConfig { balances: endowed_accounts.clone() },
 		parachain_info: ParachainInfoConfig { parachain_id: id },
 		parachain_staking: ParachainStakingConfig {
 			stakers,
@@ -209,21 +185,13 @@ fn base_testnet_genesis(
 			keys: initial_authorities
 				.iter()
 				.map(|(acc, key)| {
-					(
-						acc.clone(),
-						acc.clone(),
-						base_runtime::SessionKeys { aura: key.clone() },
-					)
+					(acc.clone(), acc.clone(), base_runtime::SessionKeys { aura: key.clone() })
 				})
 				.collect::<Vec<_>>(),
 		},
 		treasury: Default::default(),
-		polkadot_xcm: PolkadotXcmConfig {
-			safe_xcm_version: Some(SAFE_XCM_VERSION),
-		},
-		sudo: SudoConfig {
-			key: Some(accounts.first().expect("").to_owned()),
-		},
+		polkadot_xcm: PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION) },
+		sudo: SudoConfig { key: Some(accounts.first().expect("").to_owned()) },
 		transaction_payment: Default::default(),
 	}
 }
