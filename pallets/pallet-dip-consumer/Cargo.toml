@@ -19,7 +19,7 @@ dip-support.workspace = true
 frame-support.workspace = true
 frame-system.workspace = true
 kilt-support.workspace = true
-codec = { package = "parity-scale-codec", workspace = true, features = [
+parity-scale-codec = {workspace = true, features = [
 	"derive",
 ] }
 scale-info = { workspace = true, features = ["derive"] }
