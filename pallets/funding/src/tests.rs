@@ -21,7 +21,7 @@
 use super::*;
 use crate::{
 	mock::{FundingModule, *},
-	CurrencyMetadata, Error, ParticipantsSize, Project, TicketSize,
+	CurrencyMetadata, Error, ParticipantsSize, ProjectMetadata, TicketSize,
 };
 use defaults::*;
 use frame_support::{
@@ -91,13 +91,13 @@ trait ProjectInstance {
 	fn get_test_environment(&self) -> &TestEnvironment;
 	fn get_creator(&self) -> AccountId;
 	fn get_project_id(&self) -> ProjectIdOf<TestRuntime>;
-	fn get_project(&self) -> ProjectOf<TestRuntime> {
+	fn get_project(&self) -> ProjectMetadataOf<TestRuntime> {
 		self.get_test_environment()
 			.ext_env
 			.borrow_mut()
 			.execute_with(|| FundingModule::projects(self.get_project_id()).expect("Project info should exist"))
 	}
-	fn get_project_info(&self) -> ProjectInfoOf<TestRuntime> {
+	fn get_project_info(&self) -> ProjectDetailsOf<TestRuntime> {
 		self.get_test_environment()
 			.ext_env
 			.borrow_mut()
@@ -124,7 +124,7 @@ impl TestEnvironment {
 		}
 	}
 	fn create_project(
-		&self, creator: mock::AccountId, project: ProjectOf<TestRuntime>,
+		&self, creator: mock::AccountId, project: ProjectMetadataOf<TestRuntime>,
 	) -> Result<CreatedProject, DispatchError> {
 		// Create project in the externalities environment of this struct instance
 		self.ext_env
@@ -151,6 +151,7 @@ impl TestEnvironment {
 		})
 	}
 	/// Returns the *free* fundings of the Users.
+	#[allow(dead_code)]
 	fn get_free_fundings(&self) -> UserToBalance {
 		self.ext_env.borrow_mut().execute_with(|| {
 			let mut fundings = UserToBalance::new();
@@ -163,6 +164,7 @@ impl TestEnvironment {
 		})
 	}
 	/// Returns the *reserved* fundings of the Users.
+	#[allow(dead_code)]
 	fn get_reserved_fundings(&self, reserve_type: BondType) -> UserToBalance {
 		self.ext_env.borrow_mut().execute_with(|| {
 			let mut fundings = UserToBalance::new();
@@ -579,11 +581,11 @@ impl<'a> FinishedProject<'a> {
 mod defaults {
 	use super::*;
 
-	pub fn default_project(nonce: u64) -> Project<BoundedVec<u8, ConstU32<64>>, u128, sp_core::H256> {
+	pub fn default_project(nonce: u64) -> ProjectMetadata<BoundedVec<u8, ConstU32<64>>, u128, sp_core::H256> {
 		let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
 		let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
 		let metadata_hash = hashed(format!("{}-{}", METADATA, nonce));
-		Project {
+		ProjectMetadata {
 			total_allocation_size: 1_000_000,
 			minimum_price: 1 * PLMC,
 			ticket_size: TicketSize {
@@ -710,7 +712,7 @@ mod defaults {
 		});
 	}
 
-	pub fn default_auction_end_assertions(project_id: ProjectIdOf<TestRuntime>, test_env: &TestEnvironment) {
+	pub fn default_auction_end_assertions(_project_id: ProjectIdOf<TestRuntime>, test_env: &TestEnvironment) {
 		// Check that enough PLMC is bonded
 		test_env.do_reserved_funds_assertions(default_auction_bids_plmc_bondings(), BondType::Bidding);
 
@@ -992,7 +994,7 @@ mod creation_round_failure {
 
 	#[test]
 	fn price_too_low() {
-		let wrong_project: ProjectOf<TestRuntime> = Project {
+		let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
 			minimum_price: 0,
 			ticket_size: TicketSize {
 				minimum: Some(1),
@@ -1015,7 +1017,7 @@ mod creation_round_failure {
 
 	#[test]
 	fn participants_size_error() {
-		let wrong_project: ProjectOf<TestRuntime> = Project {
+		let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
 			minimum_price: 1,
 			ticket_size: TicketSize {
 				minimum: Some(1),
@@ -1038,7 +1040,7 @@ mod creation_round_failure {
 
 	#[test]
 	fn ticket_size_error() {
-		let wrong_project: ProjectOf<TestRuntime> = Project {
+		let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
 			minimum_price: 1,
 			ticket_size: TicketSize {
 				minimum: None,
@@ -1062,7 +1064,7 @@ mod creation_round_failure {
 	#[test]
 	#[ignore = "ATM only the first error will be thrown"]
 	fn multiple_field_error() {
-		let wrong_project: ProjectOf<TestRuntime> = Project {
+		let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
 			minimum_price: 0,
 			ticket_size: TicketSize {
 				minimum: None,
@@ -1511,7 +1513,7 @@ mod community_round_success {
 		let test_env = TestEnvironment::new();
 		let project = CommunityFundingProject::new_default(&test_env);
 		let range = 0..<TestRuntime as crate::Config>::MaxContributionsPerUser::get();
-		let mut contributions: UserToBalance = range.map(|_| (BUYER_2, 1)).collect();
+		let contributions: UserToBalance = range.map(|_| (BUYER_2, 1)).collect();
 		// Reach the limit of contributions for a user-project
 		project.buy_for_retail_users(contributions.clone()).unwrap();
 		// TODO: wait until multiplier is added to the contribute extrinsic, so a contribution can have different PLMC bondings, and so an old contribution can be drop once the limit is reached

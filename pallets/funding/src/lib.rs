@@ -80,9 +80,9 @@
 //! * [`NextBidId`]: Increasing counter to get the next id to assign to a bid.
 //! * [`Nonce`]: Increasing counter to be used in random number generation.
 //! * [`Images`]: Map of the hash of some metadata to the user who owns it. Avoids storing the same image twice, and keeps track of ownership for a future project data access due to regulatory compliance.
-//! * [`Projects`]: Map of the assigned id, to the main information of a project.
+//! * [`ProjectsMetadata`]: Map of the assigned id, to the main information of a project.
 //! * [`ProjectsIssuers`]: Map of a project id, to its issuer account.
-//! * [`ProjectsInfo`]: Map of a project id, to some additional information required for ensuring correctness of the protocol.
+//! * [`ProjectsDetails`]: Map of a project id, to some additional information required for ensuring correctness of the protocol.
 //! * [`ProjectsToUpdate`]: Map of a block number, to a vector of project ids. Used to keep track of projects that need to be updated in on_initialize.
 //! * [`AuctionsInfo`]: Double map linking a project-user to the bids they made.
 //! * [`EvaluationBonds`]: Double map linking a project-user to the PLMC they bonded in the evaluation round.
@@ -223,10 +223,10 @@ use sp_std::prelude::*;
 
 type BalanceOf<T> = <T as Config>::CurrencyBalance;
 
-type ProjectOf<T> =
-	Project<BoundedVec<u8, <T as Config>::StringLimit>, BalanceOf<T>, <T as frame_system::Config>::Hash>;
+type ProjectMetadataOf<T> =
+	ProjectMetadata<BoundedVec<u8, <T as Config>::StringLimit>, BalanceOf<T>, <T as frame_system::Config>::Hash>;
 
-type ProjectInfoOf<T> = ProjectInfo<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>;
+type ProjectDetailsOf<T> = ProjectDetails<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>;
 
 type BidInfoOf<T> = BidInfo<
 	<T as Config>::BidId,
@@ -391,7 +391,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn projects)]
 	/// A StorageMap containing the primary project information of projects
-	pub type Projects<T: Config> = StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, ProjectOf<T>>;
+	pub type ProjectsMetadata<T: Config> = StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, ProjectMetadataOf<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn project_issuer)]
@@ -401,7 +401,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn project_info)]
 	/// StorageMap containing additional information for the projects, relevant for correctness of the protocol
-	pub type ProjectsInfo<T: Config> = StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, ProjectInfoOf<T>>;
+	pub type ProjectsDetails<T: Config> = StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, ProjectDetailsOf<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn projects_to_update)]
@@ -658,7 +658,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Creates a project and assigns it to the `issuer` account.
 		#[pallet::weight(T::WeightInfo::create())]
-		pub fn create(origin: OriginFor<T>, project: ProjectOf<T>) -> DispatchResult {
+		pub fn create(origin: OriginFor<T>, project: ProjectMetadataOf<T>) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 
 			// TODO: PLMC-133 Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
@@ -869,7 +869,7 @@ pub mod pallet {
 			let mut remaining_weight = max_weight;
 
 			// Unbond the plmc from failed evaluation projects
-			let unbond_results = ProjectsInfo::<T>::iter()
+			let unbond_results = ProjectsDetails::<T>::iter()
 				// Retrieve failed evaluation projects
 				.filter_map(|(project_id, info)| {
 					if let ProjectStatus::EvaluationFailed = info.project_status {
@@ -915,7 +915,7 @@ pub mod pallet {
 	#[cfg(feature = "runtime-benchmarks")]
 	pub trait BenchmarkHelper<T: Config> {
 		fn create_project_id_parameter(id: u32) -> T::ProjectIdParameter;
-		fn create_dummy_project(metadata_hash: T::Hash) -> ProjectOf<T>;
+		fn create_dummy_project(metadata_hash: T::Hash) -> ProjectMetadataOf<T>;
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
@@ -923,8 +923,8 @@ pub mod pallet {
 		fn create_project_id_parameter(id: u32) -> T::ProjectIdParameter {
 			id.into()
 		}
-		fn create_dummy_project(metadata_hash: T::Hash) -> ProjectOf<T> {
-			let project: ProjectOf<T> = Project {
+		fn create_dummy_project(metadata_hash: T::Hash) -> ProjectMetadataOf<T> {
+			let project: ProjectMetadataOf<T> = ProjectMetadata {
 				total_allocation_size: 1_000_000u64.into(),
 				minimum_price: 1__0_000_000_000_u64.into(),
 				ticket_size: TicketSize {
@@ -946,6 +946,7 @@ pub mod pallet {
 pub mod local_macros {
 	/// used to unwrap storage values that can be None in places where an error cannot be returned,
 	/// but an event should be emitted, and skip to the next iteration of a loop
+	#[allow(unused_macros)]
 	macro_rules! unwrap_option_or_skip {
 		($option:expr, $project_id:expr) => {
 			match $option {
@@ -960,7 +961,6 @@ pub mod local_macros {
 			}
 		};
 	}
-	pub(crate) use unwrap_option_or_skip;
 
 	/// used to unwrap storage values that can be Err in places where an error cannot be returned,
 	/// but an event should be emitted, and skip to the next iteration of a loop

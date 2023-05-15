@@ -1,10 +1,10 @@
 use crate::mock::*;
 use frame_support::{
-	assert_err, assert_noop, assert_ok,
+	assert_ok,
 	dispatch::Weight,
 	traits::{OnFinalize, OnIdle, OnInitialize},
 };
-use pallet_funding::{CurrencyMetadata, ParticipantsSize, Project, TicketSize};
+use pallet_funding::{CurrencyMetadata, ParticipantsSize, ProjectMetadata, TicketSize};
 use sp_core::{bounded::BoundedVec, ConstU32};
 use sp_runtime::BuildStorage;
 
@@ -32,8 +32,6 @@ fn test_buy_if_popular() {
 			System::set_block_number(System::block_number() + 1);
 			<AllPalletsWithSystem as OnInitialize<u64>>::on_initialize(System::block_number());
 		}
-
-		let store = pallet_funding::ProjectsToUpdate::<TestRuntime>::iter().collect::<Vec<_>>();
 
 		assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(creator), 0));
 
@@ -78,11 +76,11 @@ const METADATA: &str = r#"
 	"usage_of_founds":"ipfs_url"
 }"#;
 
-pub fn default_project(nonce: u64) -> Project<BoundedVec<u8, ConstU32<64>>, u128, sp_core::H256> {
+pub fn default_project(nonce: u64) -> ProjectMetadata<BoundedVec<u8, ConstU32<64>>, u128, sp_core::H256> {
 	let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
 	let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
 	let metadata_hash = hashed(format!("{}-{}", METADATA, nonce));
-	Project {
+	ProjectMetadata {
 		total_allocation_size: 1_000_000,
 		minimum_price: 1 * PLMC,
 		ticket_size: TicketSize { minimum: Some(1), maximum: None },

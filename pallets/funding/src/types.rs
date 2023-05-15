@@ -24,7 +24,7 @@ use sp_runtime::traits::CheckedDiv;
 use sp_std::cmp::Eq;
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct Project<BoundedString, Balance: BalanceT, Hash> {
+pub struct ProjectMetadata<BoundedString, Balance: BalanceT, Hash> {
 	/// Token Metadata
 	pub token_information: CurrencyMetadata<BoundedString>,
 	/// Total allocation of Contribution Tokens available for the Funding Round
@@ -48,7 +48,7 @@ pub struct Project<BoundedString, Balance: BalanceT, Hash> {
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct ProjectInfo<BlockNumber, Balance: BalanceT> {
+pub struct ProjectDetails<BlockNumber, Balance: BalanceT> {
 	/// Whether the project is frozen, so no `metadata` changes are allowed.
 	pub is_frozen: bool,
 	/// The price decided after the Auction Round
@@ -71,7 +71,7 @@ pub enum ValidityError {
 	ParticipantsSizeError,
 }
 
-impl<BoundedString, Balance: BalanceT, Hash> Project<BoundedString, Balance, Hash> {
+impl<BoundedString, Balance: BalanceT, Hash> ProjectMetadata<BoundedString, Balance, Hash> {
 	// TODO: PLMC-162. Perform a REAL validity check
 	pub fn validity_check(&self) -> Result<(), ValidityError> {
 		if self.minimum_price == Balance::zero() {
