@@ -21,7 +21,7 @@
 use super::*;
 use crate::{
 	mock::{FundingModule, *},
-	CurrencyMetadata, Error, ParticipantsSize, Project, TicketSize,
+	CurrencyMetadata, Error, ParticipantsSize, ProjectMetadata, TicketSize,
 };
 use defaults::*;
 use frame_support::{
@@ -38,7 +38,11 @@ type UserToBalance = Vec<(mock::AccountId, BalanceOf<TestRuntime>)>;
 // User -> token_amount, price_per_token, multiplier
 type UserToBid = Vec<(
 	AccountId,
-	(BalanceOf<TestRuntime>, BalanceOf<TestRuntime>, Option<BalanceOf<TestRuntime>>),
+	(
+		BalanceOf<TestRuntime>,
+		BalanceOf<TestRuntime>,
+		Option<BalanceOf<TestRuntime>>,
+	),
 )>;
 
 const ISSUER: AccountId = 1;
@@ -70,10 +74,7 @@ const METADATA: &str = r#"
 // }
 
 /// Remove accounts from fundings_1 that are not in fundings_2
-fn remove_missing_accounts_from_fundings(
-	fundings_1: UserToBalance,
-	fundings_2: UserToBalance,
-) -> UserToBalance {
+fn remove_missing_accounts_from_fundings(fundings_1: UserToBalance, fundings_2: UserToBalance) -> UserToBalance {
 	let mut fundings_1 = fundings_1;
 	let fundings_2 = fundings_2;
 	fundings_1.retain(|(account, _)| {
@@ -90,20 +91,19 @@ trait ProjectInstance {
 	fn get_test_environment(&self) -> &TestEnvironment;
 	fn get_creator(&self) -> AccountId;
 	fn get_project_id(&self) -> ProjectIdOf<TestRuntime>;
-	fn get_project(&self) -> ProjectOf<TestRuntime> {
-		self.get_test_environment().ext_env.borrow_mut().execute_with(|| {
-			FundingModule::projects(self.get_project_id()).expect("Project info should exist")
-		})
+	fn get_project(&self) -> ProjectMetadataOf<TestRuntime> {
+		self.get_test_environment()
+			.ext_env
+			.borrow_mut()
+			.execute_with(|| FundingModule::projects(self.get_project_id()).expect("Project info should exist"))
 	}
-	fn get_project_info(&self) -> ProjectInfoOf<TestRuntime> {
-		self.get_test_environment().ext_env.borrow_mut().execute_with(|| {
-			FundingModule::project_info(self.get_project_id()).expect("Project info should exist")
-		})
+	fn get_project_info(&self) -> ProjectDetailsOf<TestRuntime> {
+		self.get_test_environment()
+			.ext_env
+			.borrow_mut()
+			.execute_with(|| FundingModule::project_info(self.get_project_id()).expect("Project info should exist"))
 	}
-	fn do_project_assertions(
-		&self,
-		project_assertions: impl Fn(ProjectIdOf<TestRuntime>, &TestEnvironment) -> (),
-	) {
+	fn do_project_assertions(&self, project_assertions: impl Fn(ProjectIdOf<TestRuntime>, &TestEnvironment) -> ()) {
 		let project_id = self.get_project_id();
 		let test_env = self.get_test_environment();
 		project_assertions(project_id, test_env);
@@ -118,12 +118,13 @@ pub struct TestEnvironment {
 }
 impl TestEnvironment {
 	pub fn new() -> Self {
-		Self { ext_env: RefCell::new(new_test_ext()), nonce: RefCell::new(0u64) }
+		Self {
+			ext_env: RefCell::new(new_test_ext()),
+			nonce: RefCell::new(0u64),
+		}
 	}
 	fn create_project(
-		&self,
-		creator: mock::AccountId,
-		project: ProjectOf<TestRuntime>,
+		&self, creator: mock::AccountId, project: ProjectMetadataOf<TestRuntime>,
 	) -> Result<CreatedProject, DispatchError> {
 		// Create project in the externalities environment of this struct instance
 		self.ext_env
@@ -135,9 +136,7 @@ impl TestEnvironment {
 			frame_system::Pallet::<TestRuntime>::events()
 				.iter()
 				.filter_map(|event| match event.event {
-					RuntimeEvent::FundingModule(crate::Event::Created { project_id }) => {
-						Some(project_id)
-					},
+					RuntimeEvent::FundingModule(crate::Event::Created { project_id }) => Some(project_id),
 					_ => None,
 				})
 				.last()
@@ -145,14 +144,18 @@ impl TestEnvironment {
 				.clone()
 		});
 
-		Ok(CreatedProject { test_env: self, creator, project_id })
+		Ok(CreatedProject {
+			test_env: self,
+			creator,
+			project_id,
+		})
 	}
 	/// Returns the *free* fundings of the Users.
+	#[allow(dead_code)]
 	fn get_free_fundings(&self) -> UserToBalance {
 		self.ext_env.borrow_mut().execute_with(|| {
 			let mut fundings = UserToBalance::new();
-			let user_keys: Vec<AccountId> =
-				frame_system::Account::<TestRuntime>::iter_keys().collect();
+			let user_keys: Vec<AccountId> = frame_system::Account::<TestRuntime>::iter_keys().collect();
 			for user in user_keys {
 				let funding = Balances::free_balance(&user);
 				fundings.push((user, funding));
@@ -161,11 +164,11 @@ impl TestEnvironment {
 		})
 	}
 	/// Returns the *reserved* fundings of the Users.
+	#[allow(dead_code)]
 	fn get_reserved_fundings(&self, reserve_type: BondType) -> UserToBalance {
 		self.ext_env.borrow_mut().execute_with(|| {
 			let mut fundings = UserToBalance::new();
-			let user_keys: Vec<AccountId> =
-				frame_system::Account::<TestRuntime>::iter_keys().collect();
+			let user_keys: Vec<AccountId> = frame_system::Account::<TestRuntime>::iter_keys().collect();
 			for user in user_keys {
 				let funding = Balances::reserved_balance_named(&reserve_type, &user);
 				fundings.push((user, funding));
@@ -187,10 +190,7 @@ impl TestEnvironment {
 		self.ext_env.borrow_mut().execute_with(|| {
 			for _block in 0..amount {
 				<AllPalletsWithoutSystem as OnFinalize<u64>>::on_finalize(System::block_number());
-				<AllPalletsWithoutSystem as OnIdle<u64>>::on_idle(
-					System::block_number(),
-					Weight::MAX,
-				);
+				<AllPalletsWithoutSystem as OnIdle<u64>>::on_idle(System::block_number(), Weight::MAX);
 				System::set_block_number(System::block_number() + 1);
 				<AllPalletsWithSystem as OnInitialize<u64>>::on_initialize(System::block_number());
 			}
@@ -244,13 +244,11 @@ impl<'a> CreatedProject<'a> {
 	}
 
 	// Move to next project phase
-	fn start_evaluation(
-		self,
-		caller: mock::AccountId,
-	) -> Result<EvaluatingProject<'a>, DispatchError> {
-		self.test_env.ext_env.borrow_mut().execute_with(|| {
-			FundingModule::start_evaluation(RuntimeOrigin::signed(caller), self.project_id)
-		})?;
+	fn start_evaluation(self, caller: mock::AccountId) -> Result<EvaluatingProject<'a>, DispatchError> {
+		self.test_env
+			.ext_env
+			.borrow_mut()
+			.execute_with(|| FundingModule::start_evaluation(RuntimeOrigin::signed(caller), self.project_id))?;
 
 		Ok(EvaluatingProject {
 			test_env: self.test_env,
@@ -290,9 +288,10 @@ impl<'a> EvaluatingProject<'a> {
 	fn bond_for_users(&self, bonds: UserToBalance) -> Result<(), DispatchError> {
 		let project_id = self.get_project_id();
 		for (account, amount) in bonds {
-			self.test_env.ext_env.borrow_mut().execute_with(|| {
-				FundingModule::bond_evaluation(RuntimeOrigin::signed(account), project_id, amount)
-			})?;
+			self.test_env
+				.ext_env
+				.borrow_mut()
+				.execute_with(|| FundingModule::bond_evaluation(RuntimeOrigin::signed(account), project_id, amount))?;
 		}
 		Ok(())
 	}
@@ -390,14 +389,16 @@ impl<'a> AuctioningProject<'a> {
 			.english_auction
 			.end()
 			.expect("English end point should exist");
-		self.test_env.advance_time(english_end - self.test_env.current_block() + 1);
+		self.test_env
+			.advance_time(english_end - self.test_env.current_block() + 1);
 		let candle_end = self
 			.get_project_info()
 			.phase_transition_points
 			.candle_auction
 			.end()
 			.expect("Candle end point should exist");
-		self.test_env.advance_time(candle_end - self.test_env.current_block() + 1);
+		self.test_env
+			.advance_time(candle_end - self.test_env.current_block() + 1);
 		assert_eq!(self.get_project_info().project_status, ProjectStatus::CommunityRound);
 		CommunityFundingProject {
 			test_env: self.test_env,
@@ -446,12 +447,13 @@ impl<'a> CommunityFundingProject<'a> {
 		community_funding_project
 	}
 
-	fn buy_for_users(&self, buys: UserToBalance) -> Result<(), DispatchError> {
+	fn buy_for_retail_users(&self, buys: UserToBalance) -> Result<(), DispatchError> {
 		let project_id = self.get_project_id();
 		for (account, ct_amount) in buys {
-			self.test_env.ext_env.borrow_mut().execute_with(|| {
-				FundingModule::contribute(RuntimeOrigin::signed(account), project_id, ct_amount)
-			})?;
+			self.test_env
+				.ext_env
+				.borrow_mut()
+				.execute_with(|| FundingModule::contribute(RuntimeOrigin::signed(account), project_id, ct_amount))?;
 		}
 		Ok(())
 	}
@@ -492,12 +494,23 @@ impl<'a> ProjectInstance for RemainderFundingProject<'a> {
 	}
 }
 impl<'a> RemainderFundingProject<'a> {
+	fn buy_for_any_user(&self, buys: UserToBalance) -> Result<(), DispatchError> {
+		let project_id = self.get_project_id();
+		for (account, ct_amount) in buys {
+			self.test_env
+				.ext_env
+				.borrow_mut()
+				.execute_with(|| FundingModule::contribute(RuntimeOrigin::signed(account), project_id, ct_amount))?;
+		}
+		Ok(())
+	}
+
 	fn new_default(test_env: &'a TestEnvironment) -> Self {
 		let community_funding_project = CommunityFundingProject::new_default(test_env);
 
 		// Do community buying
 		community_funding_project
-			.buy_for_users(default_community_buys())
+			.buy_for_retail_users(default_community_buys())
 			.expect("Community buying should work");
 
 		// Check our buys were properly interpreted
@@ -551,6 +564,9 @@ impl<'a> ProjectInstance for FinishedProject<'a> {
 impl<'a> FinishedProject<'a> {
 	fn new_default(test_env: &'a TestEnvironment) -> Self {
 		let remainder_funding_project = RemainderFundingProject::new_default(test_env);
+		remainder_funding_project
+			.buy_for_any_user(default_remainder_buys())
+			.expect("Buying should work");
 
 		// End project funding by moving block to after the end of remainder round
 		let finished_project = remainder_funding_project.finish_project();
@@ -565,22 +581,25 @@ impl<'a> FinishedProject<'a> {
 mod defaults {
 	use super::*;
 
-	pub fn default_project(
-		nonce: u64,
-	) -> Project<BoundedVec<u8, ConstU32<64>>, u128, sp_core::H256> {
-		let bounded_name =
-			BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
+	pub fn default_project(nonce: u64) -> ProjectMetadata<BoundedVec<u8, ConstU32<64>>, u128, sp_core::H256> {
+		let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
 		let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
 		let metadata_hash = hashed(format!("{}-{}", METADATA, nonce));
-		Project {
+		ProjectMetadata {
 			total_allocation_size: 1_000_000,
 			minimum_price: 1 * PLMC,
-			ticket_size: TicketSize { minimum: Some(1), maximum: None },
-			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+			ticket_size: TicketSize {
+				minimum: Some(1),
+				maximum: None,
+			},
+			participants_size: ParticipantsSize {
+				minimum: Some(2),
+				maximum: None,
+			},
 			funding_thresholds: Default::default(),
 			conversion_rate: 0,
 			participation_currencies: Default::default(),
-			metadata: Some(metadata_hash),
+			offchain_information_hash: Some(metadata_hash),
 			token_information: CurrencyMetadata {
 				name: bounded_name,
 				symbol: bounded_symbol,
@@ -624,7 +643,10 @@ mod defaults {
 
 	pub fn default_auction_bids() -> UserToBid {
 		// This should reflect the bidding currency, which currently is just PLMC
-		vec![(BIDDER_1, (300, 500 * PLMC, Some(1))), (BIDDER_2, (500, 150 * PLMC, Some(1)))]
+		vec![
+			(BIDDER_1, (300, 500 * PLMC, Some(1))),
+			(BIDDER_2, (500, 150 * PLMC, Some(1))),
+		]
 	}
 
 	pub fn default_token_average_price() -> BalanceOf<TestRuntime> {
@@ -649,52 +671,40 @@ mod defaults {
 		vec![(BUYER_1, 10), (BUYER_2, 20)]
 	}
 
+	pub fn default_remainder_buys() -> UserToBalance {
+		vec![(EVALUATOR_2, 6), (BIDDER_1, 4)]
+	}
+
 	// pub fn default_community_funding_plmc_bondings() -> UserToBalance {
 	// 	// for now multiplier is always 1, and since plmc and bidding currency are the same,
 	// 	// we can just use the same values
 	// 	vec![(BUYER_1, (100 * PLMC)), (BUYER_2, (6000 * PLMC))]
 	// }
 
-	pub fn default_creation_assertions(
-		project_id: ProjectIdOf<TestRuntime>,
-		test_env: &TestEnvironment,
-	) {
+	pub fn default_creation_assertions(project_id: ProjectIdOf<TestRuntime>, test_env: &TestEnvironment) {
 		test_env.ext_env.borrow_mut().execute_with(|| {
-			let project_info =
-				FundingModule::project_info(project_id).expect("Project info should exist");
+			let project_info = FundingModule::project_info(project_id).expect("Project info should exist");
 			assert_eq!(project_info.project_status, ProjectStatus::Application);
 		});
 	}
 
-	pub fn default_evaluation_start_assertions(
-		project_id: ProjectIdOf<TestRuntime>,
-		test_env: &TestEnvironment,
-	) {
+	pub fn default_evaluation_start_assertions(project_id: ProjectIdOf<TestRuntime>, test_env: &TestEnvironment) {
 		test_env.ext_env.borrow_mut().execute_with(|| {
-			let project_info =
-				FundingModule::project_info(project_id).expect("Project info should exist");
+			let project_info = FundingModule::project_info(project_id).expect("Project info should exist");
 			assert_eq!(project_info.project_status, ProjectStatus::EvaluationRound);
 		});
 	}
 
-	pub fn default_evaluation_end_assertions(
-		project_id: ProjectIdOf<TestRuntime>,
-		test_env: &TestEnvironment,
-	) {
+	pub fn default_evaluation_end_assertions(project_id: ProjectIdOf<TestRuntime>, test_env: &TestEnvironment) {
 		test_env.ext_env.borrow_mut().execute_with(|| {
-			let project_info =
-				FundingModule::project_info(project_id).expect("Project info should exist");
+			let project_info = FundingModule::project_info(project_id).expect("Project info should exist");
 			assert_eq!(project_info.project_status, ProjectStatus::AuctionInitializePeriod);
 		});
 	}
 
-	pub fn default_auction_start_assertions(
-		project_id: ProjectIdOf<TestRuntime>,
-		test_env: &TestEnvironment,
-	) {
+	pub fn default_auction_start_assertions(project_id: ProjectIdOf<TestRuntime>, test_env: &TestEnvironment) {
 		test_env.ext_env.borrow_mut().execute_with(|| {
-			let project_info =
-				FundingModule::project_info(project_id).expect("Project info should exist");
+			let project_info = FundingModule::project_info(project_id).expect("Project info should exist");
 			assert_eq!(
 				project_info.project_status,
 				ProjectStatus::AuctionRound(AuctionPhase::English)
@@ -702,13 +712,9 @@ mod defaults {
 		});
 	}
 
-	pub fn default_auction_end_assertions(
-		project_id: ProjectIdOf<TestRuntime>,
-		test_env: &TestEnvironment,
-	) {
+	pub fn default_auction_end_assertions(_project_id: ProjectIdOf<TestRuntime>, test_env: &TestEnvironment) {
 		// Check that enough PLMC is bonded
-		test_env
-			.do_reserved_funds_assertions(default_auction_bids_plmc_bondings(), BondType::Bidding);
+		test_env.do_reserved_funds_assertions(default_auction_bids_plmc_bondings(), BondType::Bidding);
 
 		// Check that the bidding currency is reserved
 		test_env.ext_env.borrow_mut().execute_with(|| {
@@ -729,8 +735,7 @@ mod defaults {
 		// Check that free funds were reduced
 		let mut free_funds = default_fundings();
 		// Remove accounts that didnt bond from free_funds
-		free_funds =
-			remove_missing_accounts_from_fundings(free_funds, default_auction_bids_plmc_bondings());
+		free_funds = remove_missing_accounts_from_fundings(free_funds, default_auction_bids_plmc_bondings());
 		// Subtract plmc bonded bidding funds
 		free_funds = free_funds
 			.iter()
@@ -754,8 +759,7 @@ mod defaults {
 	}
 
 	pub fn default_community_funding_start_assertions(
-		project_id: ProjectIdOf<TestRuntime>,
-		test_env: &TestEnvironment,
+		project_id: ProjectIdOf<TestRuntime>, test_env: &TestEnvironment,
 	) {
 		// Bids that reserved bidding currency, should have that drained from their account on community round, and transfered to the pallet account
 		test_env.ext_env.borrow_mut().execute_with(|| {
@@ -768,28 +772,37 @@ mod defaults {
 		});
 
 		// PLMC should still be reserved, since its only a bond
-		test_env
-			.do_reserved_funds_assertions(default_auction_bids_plmc_bondings(), BondType::Bidding);
+		test_env.do_reserved_funds_assertions(default_auction_bids_plmc_bondings(), BondType::Bidding);
 
+		// Check for correct project information
 		test_env.ext_env.borrow_mut().execute_with(|| {
-			let project_info =
-				FundingModule::project_info(project_id).expect("Project info should exist");
+			let project_info = FundingModule::project_info(project_id).expect("Project info should exist");
 			assert_eq!(project_info.project_status, ProjectStatus::CommunityRound);
 
 			// Check correct weighted_average_price
-			let token_price =
-				project_info.weighted_average_price.expect("Token price should exist");
+			let token_price = project_info.weighted_average_price.expect("Token price should exist");
 			assert_eq!(
 				token_price,
 				default_token_average_price(),
 				"Weighted average token price is incorrect"
 			);
+
+			// Check that remaining CTs are updated
+			let project = FundingModule::project_info(project_id).expect("Project should exist");
+			let bought_tokens: u128 = default_auction_bids()
+				.iter()
+				.map(|(_account, (amount, _price, _multiplier))| amount)
+				.sum();
+			assert_eq!(
+				project.remaining_contribution_tokens,
+				default_project(0).total_allocation_size - bought_tokens,
+				"Remaining CTs are incorrect"
+			);
 		});
 
 		// Check status of bids
 		test_env.ext_env.borrow_mut().execute_with(|| {
-			let project_bids = crate::pallet::AuctionsInfo::<TestRuntime>::iter_prefix(project_id)
-				.collect::<Vec<_>>();
+			let project_bids = crate::pallet::AuctionsInfo::<TestRuntime>::iter_prefix(project_id).collect::<Vec<_>>();
 			let project_info = FundingModule::project_info(project_id).unwrap();
 			assert!(
 				matches!(project_info.weighted_average_price, Some(_)),
@@ -797,20 +810,14 @@ mod defaults {
 			);
 			assert!(project_bids
 				.into_iter()
-				.find(|(_bidder, bids)| {
-					!bids.iter().all(|bid| bid.status == BidStatus::Accepted)
-				})
+				.find(|(_bidder, bids)| { !bids.iter().all(|bid| bid.status == BidStatus::Accepted) })
 				.is_none());
 		});
 	}
 
-	pub fn default_community_funding_end_assertions(
-		project_id: ProjectIdOf<TestRuntime>,
-		test_env: &TestEnvironment,
-	) {
+	pub fn default_community_funding_end_assertions(project_id: ProjectIdOf<TestRuntime>, test_env: &TestEnvironment) {
 		let token_price = test_env.ext_env.borrow_mut().execute_with(|| {
-			let project_info =
-				FundingModule::project_info(project_id).expect("Project info should exist");
+			let project_info = FundingModule::project_info(project_id).expect("Project info should exist");
 			project_info.weighted_average_price.expect("Token price should exist")
 		});
 		let expected_plmc_bondings = default_community_buys()
@@ -822,8 +829,7 @@ mod defaults {
 			.collect::<UserToBalance>();
 
 		// Check that enough PLMC is bonded
-		test_env
-			.do_reserved_funds_assertions(expected_plmc_bondings.clone(), BondType::Contributing);
+		test_env.do_reserved_funds_assertions(expected_plmc_bondings.clone(), BondType::Contributing);
 
 		// Check that free funds were reduced
 		let mut free_funds = default_fundings();
@@ -849,27 +855,56 @@ mod defaults {
 			.collect::<UserToBalance>();
 
 		test_env.do_free_funds_assertions(free_funds.clone());
+
+		// Check that remaining CTs are updated
+		test_env.ext_env.borrow_mut().execute_with(|| {
+			let project = FundingModule::project_info(project_id).expect("Project should exist");
+			let auction_bought_tokens: u128 = default_auction_bids()
+				.iter()
+				.map(|(_account, (amount, _price, _multiplier))| amount)
+				.sum();
+			let community_bought_tokens: u128 = default_community_buys().iter().map(|(_account, amount)| amount).sum();
+			assert_eq!(
+				project.remaining_contribution_tokens,
+				default_project(0).total_allocation_size - auction_bought_tokens - community_bought_tokens,
+				"Remaining CTs are incorrect"
+			);
+		});
 	}
 
 	pub fn default_remainder_funding_start_assertions(
-		project_id: ProjectIdOf<TestRuntime>,
-		test_env: &TestEnvironment,
+		project_id: ProjectIdOf<TestRuntime>, test_env: &TestEnvironment,
 	) {
 		test_env.ext_env.borrow_mut().execute_with(|| {
-			let project_info =
-				FundingModule::project_info(project_id).expect("Project info should exist");
+			let project_info = FundingModule::project_info(project_id).expect("Project info should exist");
 			assert_eq!(project_info.project_status, ProjectStatus::RemainderRound);
 		});
 	}
 
-	pub fn default_project_end_assertions(
-		project_id: ProjectIdOf<TestRuntime>,
-		test_env: &TestEnvironment,
-	) {
+	pub fn default_project_end_assertions(project_id: ProjectIdOf<TestRuntime>, test_env: &TestEnvironment) {
+		// Check that project status is correct
 		test_env.ext_env.borrow_mut().execute_with(|| {
-			let project_info =
-				FundingModule::project_info(project_id).expect("Project info should exist");
+			let project_info = FundingModule::project_info(project_id).expect("Project info should exist");
 			assert_eq!(project_info.project_status, ProjectStatus::FundingEnded);
+		});
+
+		// Check that remaining CTs are updated
+		test_env.ext_env.borrow_mut().execute_with(|| {
+			let project = FundingModule::project_info(project_id).expect("Project should exist");
+			let auction_bought_tokens: u128 = default_auction_bids()
+				.iter()
+				.map(|(_account, (amount, _price, _multiplier))| amount)
+				.sum();
+			let community_bought_tokens: u128 = default_community_buys().iter().map(|(_account, amount)| amount).sum();
+			let remainder_bought_tokens: u128 = default_remainder_buys().iter().map(|(_account, amount)| amount).sum();
+			assert_eq!(
+				project.remaining_contribution_tokens,
+				default_project(0).total_allocation_size
+					- auction_bought_tokens
+					- community_bought_tokens
+					- remainder_bought_tokens,
+				"Remaining CTs are incorrect"
+			);
 		});
 	}
 }
@@ -877,14 +912,15 @@ mod defaults {
 #[cfg(test)]
 mod helper_functions {
 	use super::*;
+	use crate::UpdateType::{CommunityFundingStart, RemainderFundingStart};
 	#[test]
 	fn remove_from_update_store_works() {
 		let test_env = TestEnvironment::new();
 		let now = test_env.current_block();
 		test_env.ext_env.borrow_mut().execute_with(|| {
-			FundingModule::add_to_update_store(now + 10u64, &42u32).unwrap();
-			FundingModule::add_to_update_store(now + 20u64, &69u32).unwrap();
-			FundingModule::add_to_update_store(now + 5u64, &404u32).unwrap();
+			FundingModule::add_to_update_store(now + 10u64, (&42u32, CommunityFundingStart));
+			FundingModule::add_to_update_store(now + 20u64, (&69u32, RemainderFundingStart));
+			FundingModule::add_to_update_store(now + 5u64, (&404u32, RemainderFundingStart));
 		});
 		test_env.advance_time(2u64);
 		test_env.ext_env.borrow_mut().execute_with(|| {
@@ -894,7 +930,11 @@ mod helper_functions {
 			FundingModule::remove_from_update_store(&69u32).unwrap();
 
 			let stored = crate::ProjectsToUpdate::<TestRuntime>::iter_values().collect::<Vec<_>>();
-			assert_eq!(stored[2], vec![], "Vector should be empty for that block after deletion");
+			assert_eq!(
+				stored[2],
+				vec![],
+				"Vector should be empty for that block after deletion"
+			);
 		});
 	}
 }
@@ -954,11 +994,17 @@ mod creation_round_failure {
 
 	#[test]
 	fn price_too_low() {
-		let wrong_project: ProjectOf<TestRuntime> = Project {
+		let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
 			minimum_price: 0,
-			ticket_size: TicketSize { minimum: Some(1), maximum: None },
-			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-			metadata: Some(hashed(METADATA)),
+			ticket_size: TicketSize {
+				minimum: Some(1),
+				maximum: None,
+			},
+			participants_size: ParticipantsSize {
+				minimum: Some(2),
+				maximum: None,
+			},
+			offchain_information_hash: Some(hashed(METADATA)),
 			..Default::default()
 		};
 
@@ -971,11 +1017,17 @@ mod creation_round_failure {
 
 	#[test]
 	fn participants_size_error() {
-		let wrong_project: ProjectOf<TestRuntime> = Project {
+		let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
 			minimum_price: 1,
-			ticket_size: TicketSize { minimum: Some(1), maximum: None },
-			participants_size: ParticipantsSize { minimum: None, maximum: None },
-			metadata: Some(hashed(METADATA)),
+			ticket_size: TicketSize {
+				minimum: Some(1),
+				maximum: None,
+			},
+			participants_size: ParticipantsSize {
+				minimum: None,
+				maximum: None,
+			},
+			offchain_information_hash: Some(hashed(METADATA)),
 			..Default::default()
 		};
 
@@ -988,11 +1040,17 @@ mod creation_round_failure {
 
 	#[test]
 	fn ticket_size_error() {
-		let wrong_project: ProjectOf<TestRuntime> = Project {
+		let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
 			minimum_price: 1,
-			ticket_size: TicketSize { minimum: None, maximum: None },
-			participants_size: ParticipantsSize { minimum: Some(1), maximum: None },
-			metadata: Some(hashed(METADATA)),
+			ticket_size: TicketSize {
+				minimum: None,
+				maximum: None,
+			},
+			participants_size: ParticipantsSize {
+				minimum: Some(1),
+				maximum: None,
+			},
+			offchain_information_hash: Some(hashed(METADATA)),
 			..Default::default()
 		};
 
@@ -1006,10 +1064,16 @@ mod creation_round_failure {
 	#[test]
 	#[ignore = "ATM only the first error will be thrown"]
 	fn multiple_field_error() {
-		let wrong_project: ProjectOf<TestRuntime> = Project {
+		let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
 			minimum_price: 0,
-			ticket_size: TicketSize { minimum: None, maximum: None },
-			participants_size: ParticipantsSize { minimum: None, maximum: None },
+			ticket_size: TicketSize {
+				minimum: None,
+				maximum: None,
+			},
+			participants_size: ParticipantsSize {
+				minimum: None,
+				maximum: None,
+			},
 			..Default::default()
 		};
 		let test_env = TestEnvironment::new();
@@ -1042,8 +1106,7 @@ mod evaluation_round_success {
 		let evaluating_project = EvaluatingProject::new_default(&test_env);
 		evaluating_project.bond_for_users(default_evaluation_bonds()).unwrap();
 		let project_info = evaluating_project.get_project_info();
-		test_env
-			.advance_time(project_info.phase_transition_points.evaluation.end().unwrap() + 1u64);
+		test_env.advance_time(project_info.phase_transition_points.evaluation.end().unwrap() + 1u64);
 		let end_block = evaluating_project
 			.get_project_info()
 			.phase_transition_points
@@ -1073,15 +1136,13 @@ mod evaluation_round_failure {
 			.expect("Bonding should work");
 
 		// Check that enough funds are reserved
-		test_env
-			.do_reserved_funds_assertions(default_failing_evaluation_bonds(), BondType::Evaluation);
+		test_env.do_reserved_funds_assertions(default_failing_evaluation_bonds(), BondType::Evaluation);
 
 		// Check that free funds were reduced
 		let mut free_funds = default_fundings();
 
 		// Remove accounts that didnt bond from free_funds
-		free_funds =
-			remove_missing_accounts_from_fundings(free_funds, default_failing_evaluation_bonds());
+		free_funds = remove_missing_accounts_from_fundings(free_funds, default_failing_evaluation_bonds());
 		free_funds = free_funds
 			.iter()
 			.zip(default_failing_evaluation_bonds().iter())
@@ -1158,8 +1219,7 @@ mod auction_round_success {
 		// do one candle bid for each block until the end of candle auction with a new user
 		let mut bidding_account = 1000;
 		let bid_info = default_auction_bids()[0].1;
-		let necessary_funding =
-			(bid_info.0 * bid_info.1) + (bid_info.0 * bid_info.1 * bid_info.2.unwrap() as u128);
+		let necessary_funding = (bid_info.0 * bid_info.1) + (bid_info.0 * bid_info.1 * bid_info.2.unwrap() as u128);
 		let mut bids_made: UserToBid = vec![];
 		let starting_bid_block = test_env.current_block();
 		assert_eq!(test_env.current_block(), starting_bid_block);
@@ -1201,8 +1261,7 @@ mod auction_round_success {
 		for (bidder, (_amount, _price, _multiplier)) in included_bids {
 			test_env.ext_env.borrow_mut().execute_with(|| {
 				let pid = auctioning_project.project_id;
-				let stored_bid =
-					FundingModule::auctions_info(pid, bidder).expect("Bid should exist");
+				let stored_bid = FundingModule::auctions_info(pid, bidder).expect("Bid should exist");
 				assert!(
 					matches!(
 						stored_bid[0],
@@ -1224,8 +1283,7 @@ mod auction_round_success {
 		for (bidder, (_amount, _price, _multiplier)) in excluded_bids {
 			test_env.ext_env.borrow_mut().execute_with(|| {
 				let pid = auctioning_project.project_id;
-				let stored_bid =
-					FundingModule::auctions_info(pid, bidder).expect("Bid should exist");
+				let stored_bid = FundingModule::auctions_info(pid, bidder).expect("Bid should exist");
 				assert!(
 					matches!(
 						stored_bid[0],
@@ -1370,12 +1428,111 @@ mod community_round_success {
 
 		// TODO: Set a reasonable amount of Contribution Tokens that the user wants to buy
 		community_funding_project
-			.buy_for_users(vec![(BOB, 3)])
+			.buy_for_retail_users(vec![(BOB, 3)])
 			.expect("The Buyer should be able to buy multiple times");
 		test_env.advance_time((1 * HOURS) as BlockNumber);
 		community_funding_project
-			.buy_for_users(vec![(BOB, 4)])
+			.buy_for_retail_users(vec![(BOB, 4)])
 			.expect("The Buyer should be able to buy multiple times");
+	}
+
+	#[test]
+	fn community_round_ends_on_all_ct_sold_exact() {
+		let test_env = TestEnvironment::new();
+		let community_funding_project = CommunityFundingProject::new_default(&test_env);
+		const BOB: AccountId = 808;
+
+		let remaining_ct = community_funding_project
+			.get_project_info()
+			.remaining_contribution_tokens;
+		let ct_price = community_funding_project
+			.get_project_info()
+			.weighted_average_price
+			.expect("CT Price should exist");
+
+		// Necessary funds to buy remaining CTs, plus some extra for keeping it account alive
+		let buyers: UserToBalance = vec![(BOB, remaining_ct * ct_price), (BOB, 50 * PLMC)];
+		// Fund for buy and PLMC bond
+		test_env.fund_accounts(buyers.clone());
+		// Fund for PLMC bond
+		test_env.fund_accounts(buyers.clone());
+		// Buy remaining CTs
+		community_funding_project
+			.buy_for_retail_users(vec![(BOB, remaining_ct)])
+			.expect("The Buyer should be able to buy the exact amount of remaining CTs");
+		test_env.advance_time(2u64);
+		// Check remaining CTs is 0
+		assert_eq!(
+			community_funding_project
+				.get_project_info()
+				.remaining_contribution_tokens,
+			0
+		);
+
+		// Check project is in FundingEnded state
+		assert_eq!(
+			community_funding_project.get_project_info().project_status,
+			ProjectStatus::FundingEnded
+		);
+
+		test_env.do_free_funds_assertions(vec![(BOB, (50 * PLMC) * 2)]);
+	}
+
+	#[test]
+	fn community_round_ends_on_all_ct_sold_overbuy() {
+		let test_env = TestEnvironment::new();
+		let community_funding_project = CommunityFundingProject::new_default(&test_env);
+		const BOB: AccountId = 808;
+
+		let remaining_ct = community_funding_project
+			.get_project_info()
+			.remaining_contribution_tokens
+			+ 40; // Overbuy
+		let ct_price = community_funding_project
+			.get_project_info()
+			.weighted_average_price
+			.expect("CT Price should exist");
+
+		// Necessary funds to buy remaining CTs, plus some extra for keeping it account alive
+		let buyers: UserToBalance = vec![(BOB, remaining_ct * ct_price), (BOB, 50 * PLMC)];
+		// Fund for buy and PLMC bond
+		test_env.fund_accounts(buyers.clone());
+		// Fund for PLMC bond
+		test_env.fund_accounts(buyers.clone());
+		// Buy remaining CTs
+		community_funding_project
+			.buy_for_retail_users(vec![(BOB, remaining_ct)])
+			.expect("The Buyer should be able to buy the exact amount of remaining CTs");
+		test_env.advance_time(2u64);
+
+		// Check remaining CTs is 0
+		assert_eq!(
+			community_funding_project
+				.get_project_info()
+				.remaining_contribution_tokens,
+			0
+		);
+
+		// Check project is in FundingEnded state
+		assert_eq!(
+			community_funding_project.get_project_info().project_status,
+			ProjectStatus::FundingEnded
+		);
+
+		test_env.do_free_funds_assertions(vec![(BOB, (40 * ct_price) * 2 + (50 * PLMC) * 2)]);
+	}
+
+	#[test]
+	#[ignore]
+	fn contribution_is_returned_on_limit_reached() {
+		let test_env = TestEnvironment::new();
+		let project = CommunityFundingProject::new_default(&test_env);
+		let range = 0..<TestRuntime as crate::Config>::MaxContributionsPerUser::get();
+		let contributions: UserToBalance = range.map(|_| (BUYER_2, 1)).collect();
+		// Reach the limit of contributions for a user-project
+		project.buy_for_retail_users(contributions.clone()).unwrap();
+		// TODO: wait until multiplier is added to the contribute extrinsic, so a contribution can have different PLMC bondings, and so an old contribution can be drop once the limit is reached
+		assert!(false);
 	}
 }
 
@@ -1431,16 +1588,14 @@ mod purchased_vesting {
 		test_env.ext_env.borrow_mut().execute_with(|| {
 			for (buyer, token_amount) in buyers {
 				let theoretical_bonded_plmc = token_amount * price;
-				let actual_bonded_plmc =
-					Balances::reserved_balance_named(&BondType::Contributing, &buyer);
+				let actual_bonded_plmc = Balances::reserved_balance_named(&BondType::Contributing, &buyer);
 				assert_eq!(theoretical_bonded_plmc, actual_bonded_plmc);
 				assert_ok!(FundingModule::vested_plmc_purchase_unbond_for(
 					RuntimeOrigin::signed(buyer),
 					project_id,
 					buyer
 				));
-				let actual_bonded_plmc =
-					Balances::reserved_balance_named(&BondType::Contributing, &buyer);
+				let actual_bonded_plmc = Balances::reserved_balance_named(&BondType::Contributing, &buyer);
 				assert_eq!(actual_bonded_plmc, 0u32.into());
 			}
 		});
@@ -1485,16 +1640,14 @@ mod bids_vesting {
 		test_env.ext_env.borrow_mut().execute_with(|| {
 			for (bidder, (amount, price, multiplier)) in bidders {
 				let theoretical_bonded_plmc = (amount * price) / multiplier.unwrap();
-				let actual_bonded_plmc =
-					Balances::reserved_balance_named(&BondType::Bidding, &bidder);
+				let actual_bonded_plmc = Balances::reserved_balance_named(&BondType::Bidding, &bidder);
 				assert_eq!(theoretical_bonded_plmc, actual_bonded_plmc);
 				assert_ok!(FundingModule::vested_plmc_bid_unbond_for(
 					RuntimeOrigin::signed(bidder),
 					project_id,
 					bidder
 				));
-				let actual_bonded_plmc =
-					Balances::reserved_balance_named(&BondType::Bidding, &bidder);
+				let actual_bonded_plmc = Balances::reserved_balance_named(&BondType::Bidding, &bidder);
 				assert_eq!(actual_bonded_plmc, 0u32.into());
 			}
 		});

@@ -188,7 +188,9 @@ impl pallet_funding::Config for TestRuntime {
 // Build genesis storage according to the mock runtime.
 // TODO: PLMC-161. Add some mocks projects at Genesis to simplify the tests
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = frame_system::GenesisConfig::default().build_storage::<TestRuntime>().unwrap();
+	let mut t = frame_system::GenesisConfig::default()
+		.build_storage::<TestRuntime>()
+		.unwrap();
 
 	GenesisConfig {
 		balances: BalancesConfig { balances: vec![] },

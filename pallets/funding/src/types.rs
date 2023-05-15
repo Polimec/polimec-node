@@ -24,7 +24,7 @@ use sp_runtime::traits::CheckedDiv;
 use sp_std::cmp::Eq;
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct Project<BoundedString, Balance: BalanceT, Hash> {
+pub struct ProjectMetadata<BoundedString, Balance: BalanceT, Hash> {
 	/// Token Metadata
 	pub token_information: CurrencyMetadata<BoundedString>,
 	/// Total allocation of Contribution Tokens available for the Funding Round
@@ -44,11 +44,11 @@ pub struct Project<BoundedString, Balance: BalanceT, Hash> {
 	/// For now is easier to handle the case where only just one Currency is accepted
 	pub participation_currencies: Currencies,
 	/// Additional metadata
-	pub metadata: Option<Hash>,
+	pub offchain_information_hash: Option<Hash>,
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct ProjectInfo<BlockNumber, Balance: BalanceT> {
+pub struct ProjectDetails<BlockNumber, Balance: BalanceT> {
 	/// Whether the project is frozen, so no `metadata` changes are allowed.
 	pub is_frozen: bool,
 	/// The price decided after the Auction Round
@@ -59,6 +59,8 @@ pub struct ProjectInfo<BlockNumber, Balance: BalanceT> {
 	pub phase_transition_points: PhaseTransitionPoints<BlockNumber>,
 	/// Fundraising target amount in USD equivalent
 	pub fundraising_target: Balance,
+	/// The amount of Contribution Tokens that have not yet been sold
+	pub remaining_contribution_tokens: Balance,
 }
 
 #[derive(Debug)]
@@ -68,7 +70,7 @@ pub enum ValidityError {
 	ParticipantsSizeError,
 }
 
-impl<BoundedString, Balance: BalanceT, Hash> Project<BoundedString, Balance, Hash> {
+impl<BoundedString, Balance: BalanceT, Hash> ProjectMetadata<BoundedString, Balance, Hash> {
 	// TODO: PLMC-162. Perform a REAL validity check
 	pub fn validity_check(&self) -> Result<(), ValidityError> {
 		if self.minimum_price == Balance::zero() {
@@ -118,14 +120,14 @@ impl ParticipantsSize {
 				} else {
 					Err(ValidityError::ParticipantsSizeError)
 				}
-			},
+			}
 			(Some(elem), None) | (None, Some(elem)) => {
 				if elem > 0 {
 					Ok(())
 				} else {
 					Err(ValidityError::ParticipantsSizeError)
 				}
-			},
+			}
 			(None, None) => Err(ValidityError::ParticipantsSizeError),
 		}
 	}
@@ -197,15 +199,7 @@ impl<BlockNumber: Copy> BlockNumberPair<BlockNumber> {
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct BidInfo<
-	BidId,
-	ProjectId,
-	Balance: BalanceT,
-	AccountId,
-	BlockNumber,
-	PlmcVesting,
-	CTVesting,
-> {
+pub struct BidInfo<BidId, ProjectId, Balance: BalanceT, AccountId, BlockNumber, PlmcVesting, CTVesting> {
 	pub bid_id: BidId,
 	pub project: ProjectId,
 	#[codec(compact)]
@@ -229,14 +223,8 @@ impl<BidId, ProjectId, Balance: BalanceT, AccountId, BlockNumber, PlmcVesting, C
 	BidInfo<BidId, ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
 {
 	pub fn new(
-		bid_id: BidId,
-		project: ProjectId,
-		amount: Balance,
-		price: Balance,
-		when: BlockNumber,
-		bidder: AccountId,
-		plmc_vesting_period: PlmcVesting,
-		ct_vesting_period: CTVesting,
+		bid_id: BidId, project: ProjectId, amount: Balance, price: Balance, when: BlockNumber, bidder: AccountId,
+		plmc_vesting_period: PlmcVesting, ct_vesting_period: CTVesting,
 	) -> Self {
 		let ticket_size = amount.saturating_mul(price);
 		Self {
@@ -256,32 +244,16 @@ impl<BidId, ProjectId, Balance: BalanceT, AccountId, BlockNumber, PlmcVesting, C
 	}
 }
 
-impl<
-		BidId: Eq,
-		ProjectId: Eq,
-		Balance: BalanceT,
-		AccountId: Eq,
-		BlockNumber: Eq,
-		PlmcVesting: Eq,
-		CTVesting: Eq,
-	> sp_std::cmp::Ord
-	for BidInfo<BidId, ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
+impl<BidId: Eq, ProjectId: Eq, Balance: BalanceT, AccountId: Eq, BlockNumber: Eq, PlmcVesting: Eq, CTVesting: Eq>
+	sp_std::cmp::Ord for BidInfo<BidId, ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
 {
 	fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
 		self.price.cmp(&other.price)
 	}
 }
 
-impl<
-		BidId: Eq,
-		ProjectId: Eq,
-		Balance: BalanceT,
-		AccountId: Eq,
-		BlockNumber: Eq,
-		PlmcVesting: Eq,
-		CTVesting: Eq,
-	> sp_std::cmp::PartialOrd
-	for BidInfo<BidId, ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
+impl<BidId: Eq, ProjectId: Eq, Balance: BalanceT, AccountId: Eq, BlockNumber: Eq, PlmcVesting: Eq, CTVesting: Eq>
+	sp_std::cmp::PartialOrd for BidInfo<BidId, ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
 {
 	fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
 		Some(self.cmp(other))
@@ -349,19 +321,7 @@ pub enum RejectionReason {
 }
 
 /// Enum used to identify PLMC named reserves
-#[derive(
-	Clone,
-	Encode,
-	Decode,
-	Eq,
-	PartialEq,
-	RuntimeDebug,
-	TypeInfo,
-	MaxEncodedLen,
-	Copy,
-	Ord,
-	PartialOrd,
-)]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
 pub enum BondType {
 	Evaluation,
 	Bidding,
@@ -424,4 +384,15 @@ impl<
 			Ok(withdraw_amount)
 		}
 	}
+}
+
+/// Tells on_initialize what to do with the project
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
+pub enum UpdateType {
+	EvaluationEnd,
+	EnglishAuctionStart,
+	CandleAuctionStart,
+	CommunityFundingStart,
+	RemainderFundingStart,
+	FundingEnd,
 }
