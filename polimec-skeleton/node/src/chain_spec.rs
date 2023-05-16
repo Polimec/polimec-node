@@ -63,8 +63,8 @@ pub fn template_session_keys(keys: AuraId) -> parachain_template_runtime::Sessio
 pub fn development_config() -> ChainSpec {
 	// Give your base currency a unit name and decimal places
 	let mut properties = sc_chain_spec::Properties::new();
-	properties.insert("tokenSymbol".into(), "UNIT".into());
-	properties.insert("tokenDecimals".into(), 12.into());
+	properties.insert("tokenSymbol".into(), "PLMC".into());
+	properties.insert("tokenDecimals".into(), 10.into());
 	properties.insert("ss58Format".into(), 42.into());
 
 	ChainSpec::from_genesis(
@@ -110,7 +110,7 @@ pub fn development_config() -> ChainSpec {
 		None,
 		Extensions {
 			relay_chain: "rococo-local".into(), // You MUST set this to the correct network!
-			para_id: 1000,
+			para_id: 2000,
 		},
 	)
 }
@@ -118,8 +118,8 @@ pub fn development_config() -> ChainSpec {
 pub fn local_testnet_config() -> ChainSpec {
 	// Give your base currency a unit name and decimal places
 	let mut properties = sc_chain_spec::Properties::new();
-	properties.insert("tokenSymbol".into(), "UNIT".into());
-	properties.insert("tokenDecimals".into(), 12.into());
+	properties.insert("tokenSymbol".into(), "PLMC".into());
+	properties.insert("tokenDecimals".into(), 10.into());
 	properties.insert("ss58Format".into(), 42.into());
 
 	ChainSpec::from_genesis(
@@ -171,7 +171,7 @@ pub fn local_testnet_config() -> ChainSpec {
 		// Extensions
 		Extensions {
 			relay_chain: "rococo-local".into(), // You MUST set this to the correct network!
-			para_id: 1000,
+			para_id: 2000,
 		},
 	)
 }
@@ -215,5 +215,6 @@ fn testnet_genesis(
 			safe_xcm_version: Some(SAFE_XCM_VERSION),
 		},
 		transaction_payment: Default::default(),
+		credentials: Default::default(),
 	}
 }
