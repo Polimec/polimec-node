@@ -127,7 +127,7 @@ benchmarks! {
 	bond_evaluation {
 		let (project_id, issuer) = create_default_minted_project::<T>(None);
 		let evaluator: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
-		T::Currency::make_free_balance_be(&evaluator, 2_000_000_000_000_u64.into());
+		T::NativeCurrency::make_free_balance_be(&evaluator, 2_000_000_000_000_u64.into());
 		let _ = PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer).into(), project_id.clone());
 	}: _(SystemOrigin::Signed(evaluator), project_id, 10_000_000_000_u64.into())
 
@@ -142,7 +142,7 @@ benchmarks! {
 
 		// Create evaluator account
 		let evaluator: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
-		T::Currency::make_free_balance_be(&evaluator, 500_000__0_000_000_000_u64.into()); // 500k tokens
+		T::NativeCurrency::make_free_balance_be(&evaluator, 500_000__0_000_000_000_u64.into()); // 500k tokens
 		// Bond minimum amount (currently 10% of 1MM tokens)
 		assert!(
 			PolimecFunding::<T>::bond_evaluation(SystemOrigin::Signed(evaluator).into(), project_id.clone(), 100_000__0_000_000_000_u64.into()).is_ok()
@@ -164,7 +164,7 @@ benchmarks! {
 
 		// Create evaluator account
 		let evaluator: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
-		T::Currency::make_free_balance_be(&evaluator, 500_000__0_000_000_000_u64.into()); // 500k tokens
+		T::NativeCurrency::make_free_balance_be(&evaluator, 500_000__0_000_000_000_u64.into()); // 500k tokens
 		// Bond minimum amount (currently 10% of 1MM tokens)
 		assert!(
 			PolimecFunding::<T>::bond_evaluation(SystemOrigin::Signed(evaluator).into(), project_id.clone(), 100_000__0_000_000_000_u64.into()).is_ok()
@@ -175,7 +175,7 @@ benchmarks! {
 
 		// Fund bid accounts
 		let bidder_1: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
-		T::Currency::make_free_balance_be(&bidder_1, 500_000__0_000_000_000_u64.into()); // 500k tokens
+		T::NativeCurrency::make_free_balance_be(&bidder_1, 500_000__0_000_000_000_u64.into()); // 500k tokens
 
 		// Start the Auction round
 		assert_ok!(PolimecFunding::<T>::start_auction(SystemOrigin::Signed(issuer).into(), project_id.clone()));
@@ -214,7 +214,7 @@ benchmarks! {
 
 		// have an evaluator bond the minimum amount to proceed to the auction round
 		let evaluator: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
-		T::Currency::make_free_balance_be(&evaluator, 500_000__0_000_000_000_u64.into());
+		T::NativeCurrency::make_free_balance_be(&evaluator, 500_000__0_000_000_000_u64.into());
 		assert!(
 			PolimecFunding::<T>::bond_evaluation(SystemOrigin::Signed(evaluator).into(), project_id.clone(), 100_000__0_000_000_000_u64.into()).is_ok()
 		);
@@ -224,13 +224,13 @@ benchmarks! {
 
 		// fund bid accounts
 		let bidder_1: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
-		T::Currency::make_free_balance_be(&bidder_1, 500_000__0_000_000_000_u64.into()); // 500k tokens
+		T::NativeCurrency::make_free_balance_be(&bidder_1, 500_000__0_000_000_000_u64.into()); // 500k tokens
 
 		let bidder_2: T::AccountId = account::<T::AccountId>("Charlie", 1, 1);
-		T::Currency::make_free_balance_be(&bidder_2, 500_000__0_000_000_000_u64.into()); // 500k tokens
+		T::NativeCurrency::make_free_balance_be(&bidder_2, 500_000__0_000_000_000_u64.into()); // 500k tokens
 
 		let bidder_3: T::AccountId = account::<T::AccountId>("Dave", 1, 1);
-		T::Currency::make_free_balance_be(&bidder_3, 500_000__0_000_000_000_u64.into()); // 500k tokens
+		T::NativeCurrency::make_free_balance_be(&bidder_3, 500_000__0_000_000_000_u64.into()); // 500k tokens
 
 		// Start the Auction round
 		assert_ok!(PolimecFunding::<T>::start_auction(SystemOrigin::Signed(issuer).into(), project_id.clone()));
@@ -255,7 +255,7 @@ benchmarks! {
 
 		// Create contributor account
 		let contributor: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
-		T::Currency::make_free_balance_be(&contributor,  500_000__0_000_000_000_u64.into());
+		T::NativeCurrency::make_free_balance_be(&contributor,  500_000__0_000_000_000_u64.into());
 
 	}: _(SystemOrigin::Signed(contributor), project_id, 1000_u64.into())
 
@@ -270,7 +270,7 @@ benchmarks! {
 
 		// Have an evaluator bond the minimum amount to proceed to the auction round
 		let evaluator: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
-		T::Currency::make_free_balance_be(&evaluator, 500_000__0_000_000_000_u64.into()); // 500k tokens
+		T::NativeCurrency::make_free_balance_be(&evaluator, 500_000__0_000_000_000_u64.into()); // 500k tokens
 		assert!(
 			PolimecFunding::<T>::bond_evaluation(SystemOrigin::Signed(evaluator).into(), project_id.clone(), 100_000__0_000_000_000_u64.into()).is_ok()
 		);
@@ -280,13 +280,13 @@ benchmarks! {
 
 		// fund bid accounts
 		let bidder_1: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
-		T::Currency::make_free_balance_be(&bidder_1, 500_000__0_000_000_000_u64.into()); // 500k tokens
+		T::NativeCurrency::make_free_balance_be(&bidder_1, 500_000__0_000_000_000_u64.into()); // 500k tokens
 
 		let bidder_2: T::AccountId = account::<T::AccountId>("Charlie", 1, 1);
-		T::Currency::make_free_balance_be(&bidder_2, 500_000__0_000_000_000_u64.into()); // 500k tokens
+		T::NativeCurrency::make_free_balance_be(&bidder_2, 500_000__0_000_000_000_u64.into()); // 500k tokens
 
 		let bidder_3: T::AccountId = account::<T::AccountId>("Dave", 1, 1);
-		T::Currency::make_free_balance_be(&bidder_3, 500_000__0_000_000_000_u64.into()); // 500k tokens
+		T::NativeCurrency::make_free_balance_be(&bidder_3, 500_000__0_000_000_000_u64.into()); // 500k tokens
 
 		// Start the Auction round
 		assert_ok!(PolimecFunding::<T>::start_auction(SystemOrigin::Signed(issuer.clone()).into(), project_id.clone()));
@@ -306,7 +306,7 @@ benchmarks! {
 
 		// Create contributor account
 		let contributor: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
-		T::Currency::make_free_balance_be(&contributor,  500_000__0_000_000_000_u64.into());
+		T::NativeCurrency::make_free_balance_be(&contributor,  500_000__0_000_000_000_u64.into());
 
 		run_to_block::<T>(System::<T>::block_number() + 1u32.into());
 
@@ -319,14 +319,14 @@ benchmarks! {
 
 	}: _(SystemOrigin::Signed(contributor.clone()), project_id.clone(), contributor.clone())
 	verify {
-		let transfered_ct_to_contributor = T::Assets::balance(project_id.clone().into(), &contributor);
+		let transfered_ct_to_contributor = T::ContributionTokenCurrency::balance(project_id.clone().into(), &contributor);
 		assert_eq!(transfered_ct_to_contributor, 2000_u64.into());
 	}
 
 	// on_initialize_evaluation_end {
 	// 	let p = T::MaxProjectsToUpdatePerBlock::get();
 	// 	let evaluator: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
-	// 	T::Currency::make_free_balance_be(&evaluator, 1_000_000_000__0_000_000_000_u64.into());
+	// 	T::NativeCurrency::make_free_balance_be(&evaluator, 1_000_000_000__0_000_000_000_u64.into());
 	// 	// Create 100 projects
 	// 	for i in 0 .. p {
 	// 		let (project_id, issuer) = create_default_minted_project::<T>(Some(i));
@@ -368,20 +368,20 @@ benchmarks! {
 			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.clone()).into(), project_id.clone()).is_ok()
 		);
 		let evaluator: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
-		T::Currency::make_free_balance_be(&evaluator, 500_000__0_000_000_000_u64.into()); // 100k tokens
+		T::NativeCurrency::make_free_balance_be(&evaluator, 500_000__0_000_000_000_u64.into()); // 100k tokens
 
 		// minimum value is a million tokens. 10% of that needs to be bonded
 		assert!(
 			PolimecFunding::<T>::bond_evaluation(SystemOrigin::Signed(evaluator).into(), project_id.clone(), 100_000__0_000_000_000_u64.into()).is_ok()
 		);
 		let bidder_1: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
-		T::Currency::make_free_balance_be(&bidder_1, 500_000__0_000_000_000_u64.into()); // 100k tokens
+		T::NativeCurrency::make_free_balance_be(&bidder_1, 500_000__0_000_000_000_u64.into()); // 100k tokens
 
 		let bidder_2: T::AccountId = account::<T::AccountId>("Charlie", 1, 1);
-		T::Currency::make_free_balance_be(&bidder_2, 500_000__0_000_000_000_u64.into()); // 100k tokens
+		T::NativeCurrency::make_free_balance_be(&bidder_2, 500_000__0_000_000_000_u64.into()); // 100k tokens
 
 		let bidder_3: T::AccountId = account::<T::AccountId>("Dave", 1, 1);
-		T::Currency::make_free_balance_be(&bidder_3, 500_000__0_000_000_000_u64.into()); // 100k tokens
+		T::NativeCurrency::make_free_balance_be(&bidder_3, 500_000__0_000_000_000_u64.into()); // 100k tokens
 
 		// Move to the Auction Round
 		run_to_block::<T>(System::<T>::block_number() + <T as Config>::EvaluationDuration::get() + 2_u32.into());

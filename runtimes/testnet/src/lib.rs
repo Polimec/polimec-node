@@ -58,7 +58,7 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 // XCM Imports
-use pallet_funding::BondType;
+use pallet_funding::{BondType, Multiplier as FundingMultiplier};
 use xcm_executor::XcmExecutor;
 
 use pallet_dip_consumer::{DipOrigin, EnsureDipOrigin};
@@ -505,13 +505,14 @@ impl pallet_funding::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type ProjectIdentifier = u32;
 	type ProjectIdParameter = parity_scale_codec::Compact<u32>;
-	type CurrencyBalance = <Self as pallet_balances::Config>::Balance;
-	type Currency = Balances;
+	type Multiplier = FundingMultiplier<Runtime>;
+	type Balance = Balance;
+	type NativeCurrency = Balances;
+	type FundingCurrency = Balances;
+	type ContributionTokenCurrency = LocalAssets;
 	type BidId = u128;
-	type BiddingCurrency = Balances;
 	type Randomness = Random;
 	type HandleMembers = Credentials;
-	type Assets = LocalAssets;
 	type StringLimit = ConstU32<64>;
 	type PreImageLimit = ConstU32<1024>;
 	type EvaluationDuration = EvaluationDuration;
@@ -523,11 +524,11 @@ impl pallet_funding::Config for Runtime {
 	type PalletId = FundingPalletId;
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
 	type MaximumBidsPerUser = ConstU32<256>;
+
 	type MaxContributionsPerUser = ConstU32<256>;
 	type ContributionVesting = ContributionVestingDuration;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
-
 	type WeightInfo = weights::pallet_funding::WeightInfo<Runtime>;
 }
 

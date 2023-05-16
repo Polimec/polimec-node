@@ -177,7 +177,7 @@ benchmarks! {
 		let candidates = setup_collator_candidates::<T>(n, None);
 		for (i, c) in candidates.iter().enumerate() {
 			fill_delegators::<T>(m, c.clone(), i.saturated_into::<u32>());
-			Rewards::<T>::insert(c, T::CurrencyBalance::one());
+			Rewards::<T>::insert(c, T::Balance::one());
 		}
 
 		let inflation = InflationInfo::new(

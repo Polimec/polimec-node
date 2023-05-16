@@ -18,6 +18,8 @@
 
 //! Types for Funding pallet.
 
+use crate::traits::BondingRequirementCalculation;
+use crate::BalanceOf;
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
 use sp_arithmetic::traits::Saturating;
 use sp_runtime::traits::CheckedDiv;
@@ -29,8 +31,6 @@ pub struct ProjectMetadata<BoundedString, Balance: BalanceT, Hash> {
 	pub token_information: CurrencyMetadata<BoundedString>,
 	/// Total allocation of Contribution Tokens available for the Funding Round
 	pub total_allocation_size: Balance,
-	/// The amount of Contribution Tokens that have not yet been sold
-	pub remaining_contribution_tokens: Balance,
 	/// Minimum price per Contribution Token
 	pub minimum_price: Balance,
 	/// Maximum and/or minimum ticket size
@@ -398,3 +398,18 @@ pub enum UpdateType {
 	RemainderFundingStart,
 	FundingEnd,
 }
+
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
+pub struct Multiplier<T: crate::Config>(T::Balance);
+impl<T: crate::Config> BondingRequirementCalculation<T> for Multiplier<T> {
+	fn calculate_bonding_requirement(&self, ticket_size: BalanceOf<T>) -> Result<BalanceOf<T>, ()> {
+		ticket_size.checked_div(&ticket_size).ok_or(())
+	}
+}
+impl<T: crate::Config> Default for Multiplier<T> {
+	fn default() -> Self {
+		Self(1u32.into())
+	}
+}
+
