@@ -10,6 +10,7 @@ mod weights;
 pub mod xcm_config;
 
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
+use pallet_funding::BondType;
 use smallvec::smallvec;
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
@@ -104,20 +105,17 @@ pub type SignedExtra = (
 );
 
 /// Unchecked extrinsic type as expected by this runtime.
-pub type UncheckedExtrinsic =
-	generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
+pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
 
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra>;
 
 /// Executive: handles dispatch to the various modules.
-pub type Executive = frame_executive::Executive<
-	Runtime,
-	Block,
-	frame_system::ChainContext<Runtime>,
-	Runtime,
-	AllPalletsWithSystem,
->;
+pub type Executive =
+	frame_executive::Executive<Runtime, Block, frame_system::ChainContext<Runtime>, Runtime, AllPalletsWithSystem>;
+
+use frame_support::traits::AsEnsureOriginWithArg;
+use frame_system::EnsureSigned;
 
 /// Handles converting a weight scalar to a fee value, based on the scale and granularity of the
 /// node's balance type.
@@ -135,7 +133,7 @@ impl WeightToFeePolynomial for WeightToFee {
 	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
 		// in Rococo, extrinsic base weight (smallest non-zero weight) is mapped to 1 MILLIUNIT:
 		// in our template, we map to 1/10 of that, or 1/10 MILLIUNIT
-		let p = MILLIUNIT / 10;
+		let p = MILLI_PLMC / 10;
 		let q = 100 * Balance::from(ExtrinsicBaseWeight::get().ref_time());
 		smallvec![WeightToFeeCoefficient {
 			degree: 1,
@@ -198,14 +196,6 @@ pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
 pub const HOURS: BlockNumber = MINUTES * 60;
 pub const DAYS: BlockNumber = HOURS * 24;
 
-// Unit = the base number of indivisible units for balances
-pub const UNIT: Balance = 1_000_000_000_000;
-pub const MILLIUNIT: Balance = 1_000_000_000;
-pub const MICROUNIT: Balance = 1_000_000;
-
-/// The existential deposit. Set to 1/10 of the Connected Relay Chain.
-pub const EXISTENTIAL_DEPOSIT: Balance = MILLIUNIT;
-
 /// We assume that ~5% of the block weight is consumed by `on_initialize` handlers. This is
 /// used to limit the maximal weight of a single extrinsic.
 const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(5);
@@ -223,7 +213,10 @@ const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_parts(
 /// The version information used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
 pub fn native_version() -> NativeVersion {
-	NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
+	NativeVersion {
+		runtime_version: VERSION,
+		can_author_with: Default::default(),
+	}
 }
 
 parameter_types! {
@@ -322,30 +315,32 @@ impl pallet_authorship::Config for Runtime {
 }
 
 parameter_types! {
+	pub const MaxLocks: u32 = 50;
+	pub const MaxReserves: u32 = 50;
 	pub const ExistentialDeposit: Balance = EXISTENTIAL_DEPOSIT;
 }
 
 impl pallet_balances::Config for Runtime {
-	type MaxLocks = ConstU32<50>;
 	/// The type for recording an account's balance.
 	type Balance = Balance;
+	type DustRemoval = ();
 	/// The ubiquitous event type.
 	type RuntimeEvent = RuntimeEvent;
-	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
-	type MaxReserves = ConstU32<50>;
-	type ReserveIdentifier = [u8; 8];
-	type HoldIdentifier = ();
-	type FreezeIdentifier = ();
-	type MaxHolds = ConstU32<0>;
-	type MaxFreezes = ConstU32<0>;
+	type MaxLocks = MaxLocks;
+	type MaxReserves = MaxReserves;
+	type ReserveIdentifier = BondType;
+	type HoldIdentifier = BondType;
+	type FreezeIdentifier = BondType;
+	type MaxHolds = MaxLocks;
+	type MaxFreezes = MaxReserves;
 }
 
 parameter_types! {
 	/// Relay Chain `TransactionByteFee` / 10
-	pub const TransactionByteFee: Balance = 10 * MICROUNIT;
+	pub const TransactionByteFee: Balance = 10 * MICRO_PLMC;
 }
 
 impl pallet_transaction_payment::Config for Runtime {
@@ -432,10 +427,8 @@ parameter_types! {
 }
 
 /// We allow root and the StakingAdmin to execute privileged collator selection operations.
-pub type CollatorSelectionUpdateOrigin = EitherOfDiverse<
-	EnsureRoot<AccountId>,
-	EnsureXcm<IsVoiceOfBody<RelayLocation, StakingAdminBodyId>>,
->;
+pub type CollatorSelectionUpdateOrigin =
+	EitherOfDiverse<EnsureRoot<AccountId>, EnsureXcm<IsVoiceOfBody<RelayLocation, StakingAdminBodyId>>>;
 
 impl pallet_collator_selection::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -453,6 +446,175 @@ impl pallet_collator_selection::Config for Runtime {
 	type WeightInfo = ();
 }
 
+/// One PLMC
+pub const PLMC: Balance = 10u128.pow(10);
+
+/// 0.001 PLMC
+pub const MILLI_PLMC: Balance = 10u128.pow(7);
+
+/// 0.000_001 PLMC
+pub const MICRO_PLMC: Balance = 10u128.pow(4);
+
+pub const EXISTENTIAL_DEPOSIT: Balance = 10 * MILLI_PLMC;
+
+pub const fn deposit(items: u32, bytes: u32) -> Balance {
+	items as Balance * 15 * MICRO_PLMC + (bytes as Balance) * 6 * MICRO_PLMC
+}
+
+pub const fn free_deposit() -> Balance {
+	0 * MICRO_PLMC
+}
+
+parameter_types! {
+	pub const AssetDeposit: Balance = PLMC; // 1 UNIT deposit to create asset
+	pub const ApprovalDeposit: Balance = EXISTENTIAL_DEPOSIT;
+	pub const AssetAccountDeposit: Balance = deposit(1, 16);
+	pub const AssetsStringLimit: u32 = 50;
+	/// Key = 32 bytes, Value = 36 bytes (32+1+1+1+1)
+	// https://github.com/paritytech/substrate/blob/069917b/frame/assets/src/lib.rs#L257L271
+	pub const MetadataDepositBase: Balance = free_deposit();
+	pub const MetadataDepositPerByte: Balance = free_deposit();
+	pub const AssetsPalletId: PalletId = PalletId(*b"assetsid");
+}
+
+pub type LocalAssetsInstance = pallet_assets::Instance1;
+pub type StatemintAssetsInstance = pallet_assets::Instance2;
+
+pub type AssetId = u32;
+
+impl pallet_assets::Config<LocalAssetsInstance> for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
+	type AssetId = AssetId;
+	type AssetIdParameter = parity_scale_codec::Compact<AssetId>;
+	type Currency = Balances;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type AssetDeposit = AssetDeposit;
+	type AssetAccountDeposit = AssetAccountDeposit;
+	type MetadataDepositBase = MetadataDepositBase;
+	type MetadataDepositPerByte = MetadataDepositPerByte;
+	type ApprovalDeposit = ApprovalDeposit;
+	type StringLimit = AssetsStringLimit;
+	type Freezer = ();
+	type Extra = ();
+	type CallbackHandle = ();
+	type WeightInfo = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
+}
+
+impl pallet_assets::Config<StatemintAssetsInstance> for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
+	type AssetId = AssetId;
+	type AssetIdParameter = parity_scale_codec::Compact<AssetId>;
+	type Currency = Balances;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type AssetDeposit = AssetDeposit;
+	type AssetAccountDeposit = AssetAccountDeposit;
+	type MetadataDepositBase = MetadataDepositBase;
+	type MetadataDepositPerByte = MetadataDepositPerByte;
+	type ApprovalDeposit = ApprovalDeposit;
+	type StringLimit = AssetsStringLimit;
+	type Freezer = ();
+	type Extra = ();
+	type CallbackHandle = ();
+	type WeightInfo = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
+}
+
+impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
+
+#[cfg(feature = "fast-gov")]
+pub const EVALUATION_DURATION: BlockNumber = 28;
+#[cfg(not(feature = "fast-gov"))]
+pub const EVALUATION_DURATION: BlockNumber = 28 * DAYS;
+
+#[cfg(feature = "fast-gov")]
+pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 7;
+#[cfg(not(feature = "fast-gov"))]
+pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 7 * DAYS;
+
+#[cfg(feature = "fast-gov")]
+pub const ENGLISH_AUCTION_DURATION: BlockNumber = 10;
+#[cfg(not(feature = "fast-gov"))]
+pub const ENGLISH_AUCTION_DURATION: BlockNumber = 2 * DAYS;
+
+#[cfg(feature = "fast-gov")]
+pub const CANDLE_AUCTION_DURATION: BlockNumber = 5;
+#[cfg(not(feature = "fast-gov"))]
+pub const CANDLE_AUCTION_DURATION: BlockNumber = 3 * DAYS;
+
+#[cfg(feature = "fast-gov")]
+pub const COMMUNITY_FUNDING_DURATION: BlockNumber = 10;
+#[cfg(not(feature = "fast-gov"))]
+pub const COMMUNITY_FUNDING_DURATION: BlockNumber = 5 * DAYS;
+
+#[cfg(feature = "fast-gov")]
+pub const REMAINDER_FUNDING_DURATION: BlockNumber = 10;
+#[cfg(not(feature = "fast-gov"))]
+pub const REMAINDER_FUNDING_DURATION: BlockNumber = 1 * DAYS;
+
+#[cfg(feature = "fast-gov")]
+pub const CONTRIBUTION_VESTING_DURATION: BlockNumber = 365;
+#[cfg(not(feature = "fast-gov"))]
+pub const CONTRIBUTION_VESTING_DURATION: BlockNumber = 365 * DAYS;
+
+parameter_types! {
+	pub const EvaluationDuration: BlockNumber = EVALUATION_DURATION;
+	pub const AuctionInitializePeriodDuration: BlockNumber = AUCTION_INITIALIZE_PERIOD_DURATION;
+	pub const EnglishAuctionDuration: BlockNumber = ENGLISH_AUCTION_DURATION;
+	pub const CandleAuctionDuration: BlockNumber = CANDLE_AUCTION_DURATION;
+	pub const CommunityFundingDuration: BlockNumber = COMMUNITY_FUNDING_DURATION;
+	pub const RemainderFundingDuration: BlockNumber = REMAINDER_FUNDING_DURATION;
+	pub const ContributionVestingDuration: BlockNumber = CONTRIBUTION_VESTING_DURATION;
+	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
+}
+
+impl pallet_funding::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type ProjectIdentifier = u32;
+	type ProjectIdParameter = parity_scale_codec::Compact<u32>;
+	type CurrencyBalance = <Self as pallet_balances::Config>::Balance;
+	type Currency = Balances;
+	type BidId = u128;
+	type BiddingCurrency = Balances;
+	type Randomness = Random;
+	type HandleMembers = Credentials;
+	type Assets = LocalAssets;
+	type StringLimit = ConstU32<64>;
+	type PreImageLimit = ConstU32<1024>;
+	type EvaluationDuration = EvaluationDuration;
+	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
+	type EnglishAuctionDuration = EnglishAuctionDuration;
+	type CandleAuctionDuration = CandleAuctionDuration;
+	type CommunityFundingDuration = CommunityFundingDuration;
+	type RemainderFundingDuration = RemainderFundingDuration;
+	type PalletId = FundingPalletId;
+	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
+	type MaximumBidsPerUser = ConstU32<256>;
+	type MaxContributionsPerUser = ConstU32<256>;
+	type ContributionVesting = ContributionVestingDuration;
+	type WeightInfo = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
+}
+
+impl pallet_credentials::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type AddOrigin = EnsureRoot<AccountId>;
+	type RemoveOrigin = EnsureRoot<AccountId>;
+	type SwapOrigin = EnsureRoot<AccountId>;
+	type ResetOrigin = EnsureRoot<AccountId>;
+	type PrimeOrigin = EnsureRoot<AccountId>;
+	type MembershipInitialized = ();
+	type MembershipChanged = ();
+}
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
@@ -470,6 +632,8 @@ construct_runtime!(
 		// Monetary stuff.
 		Balances: pallet_balances = 10,
 		TransactionPayment: pallet_transaction_payment = 11,
+		LocalAssets: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>} = 13,
+		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>} = 14,
 
 		// Collator support. The order of these 4 are important and shall not change.
 		Authorship: pallet_authorship = 20,
@@ -484,7 +648,10 @@ construct_runtime!(
 		CumulusXcm: cumulus_pallet_xcm = 32,
 		DmpQueue: cumulus_pallet_dmp_queue = 33,
 
-		// Template
+		// Polimec
+		Random: pallet_insecure_randomness_collective_flip = 40,
+		Funding: pallet_funding = 41,
+		Credentials: pallet_credentials = 42,
 	}
 );
 
@@ -709,20 +876,18 @@ struct CheckInherents;
 
 impl cumulus_pallet_parachain_system::CheckInherents<Block> for CheckInherents {
 	fn check_inherents(
-		block: &Block,
-		relay_state_proof: &cumulus_pallet_parachain_system::RelayChainStateProof,
+		block: &Block, relay_state_proof: &cumulus_pallet_parachain_system::RelayChainStateProof,
 	) -> sp_inherents::CheckInherentsResult {
 		let relay_chain_slot = relay_state_proof
 			.read_slot()
 			.expect("Could not read the relay chain slot from the proof");
 
-		let inherent_data =
-			cumulus_primitives_timestamp::InherentDataProvider::from_relay_chain_slot_and_duration(
-				relay_chain_slot,
-				sp_std::time::Duration::from_secs(6),
-			)
-			.create_inherent_data()
-			.expect("Could not create the timestamp inherent data");
+		let inherent_data = cumulus_primitives_timestamp::InherentDataProvider::from_relay_chain_slot_and_duration(
+			relay_chain_slot,
+			sp_std::time::Duration::from_secs(6),
+		)
+		.create_inherent_data()
+		.expect("Could not create the timestamp inherent data");
 
 		inherent_data.check_extrinsics(block)
 	}
