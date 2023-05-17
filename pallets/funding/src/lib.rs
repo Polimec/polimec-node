@@ -116,7 +116,7 @@
 //! 		pub fn buy_if_popular(
 //! 			origin: OriginFor<T>,
 //! 			project_id: <T as pallet_funding::Config>::ProjectIdParameter,
-//! 			amount: <T as pallet_funding::Config>::CurrencyBalance
+//! 			amount: <T as pallet_funding::Config>::Balance
 //! 		) -> DispatchResult {
 //! 			let retail_user = ensure_signed(origin)?;
 //! 			let project_id: <T as pallet_funding::Config>::ProjectIdentifier = project_id.into();
@@ -125,7 +125,7 @@
 //! 			ensure!(project_info.project_status == pallet_funding::ProjectStatus::CommunityRound, "Project is not in the community round");
 //!
 //! 			// Calculate how much funding was done already
-//! 			let project_contributions: <T as pallet_funding::Config>::CurrencyBalance = pallet_funding::Contributions::<T>::iter_prefix_values(project_id)
+//! 			let project_contributions: <T as pallet_funding::Config>::Balance = pallet_funding::Contributions::<T>::iter_prefix_values(project_id)
 //! 				.flatten()
 //! 				.fold(
 //! 					0u64.into(),

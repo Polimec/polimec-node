@@ -404,7 +404,7 @@ pub enum UpdateType {
 pub struct Multiplier<T: crate::Config>(T::Balance);
 impl<T: crate::Config> BondingRequirementCalculation<T> for Multiplier<T> {
 	fn calculate_bonding_requirement(&self, ticket_size: BalanceOf<T>) -> Result<BalanceOf<T>, ()> {
-		ticket_size.checked_div(&ticket_size).ok_or(())
+		ticket_size.checked_div(&self.0).ok_or(())
 	}
 }
 impl<T: crate::Config> Default for Multiplier<T> {

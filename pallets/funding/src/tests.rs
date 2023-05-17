@@ -1455,13 +1455,13 @@ mod community_round_success {
 	#[test]
 	fn community_round_ends_on_all_ct_sold_exact() {
 		let test_env = TestEnvironment::new();
-		test_env.ext_env.borrow_mut().execute_with(||{
-			let bob_balance = <TestRuntime as crate::Config>::NativeCurrency::reserved_balance(&1337189812);
-			let stop = "here";
-		});
+		let alice: AccountId = 6969420u64;
 		let community_funding_project = CommunityFundingProject::new_default(&test_env);
 		const BOB: AccountId = 808;
-
+		test_env.ext_env.borrow_mut().execute_with(||{
+			let bob_balance = <TestRuntime as crate::Config>::NativeCurrency::reserved_balance(&BOB);
+			let stop = "here";
+		});
 		let remaining_ct = community_funding_project
 			.get_project_info()
 			.remaining_contribution_tokens;
@@ -1473,7 +1473,7 @@ mod community_round_success {
 		// Necessary funds to buy remaining CTs, plus some extra for keeping it account alive
 		let buyers: UserToBalance = vec![(BOB, remaining_ct * ct_price), (BOB, 50 * PLMC)];
 
-
+		//383_026_666_2_836_400_000
 		// Fund for buy and PLMC bond
 		test_env.fund_accounts(buyers.clone());
 		// Fund for PLMC bond
