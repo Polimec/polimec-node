@@ -401,7 +401,7 @@ pub enum UpdateType {
 
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
-pub struct Multiplier<T: crate::Config>(T::Balance);
+pub struct Multiplier<T: crate::Config>(pub T::Balance);
 impl<T: crate::Config> BondingRequirementCalculation<T> for Multiplier<T> {
 	fn calculate_bonding_requirement(&self, ticket_size: BalanceOf<T>) -> Result<BalanceOf<T>, ()> {
 		ticket_size.checked_div(&self.0).ok_or(())
