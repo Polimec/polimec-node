@@ -1222,8 +1222,12 @@ mod auction_round_success {
 		let necessary_funding = (bid_info.0 * bid_info.1) + (bid_info.0 * bid_info.1 * bid_info.2.unwrap() as u128);
 		let mut bids_made: UserToBid = vec![];
 		let starting_bid_block = test_env.current_block();
-		assert_eq!(test_env.current_block(), starting_bid_block);
-		let blocks_to_bid = test_env.current_block()..candle_end_block;
+		let blocks_to_bid = starting_bid_block..candle_end_block;
+
+		// Reserved funds do not count toward existential deposit anymore
+		let existential_deposit = ExistentialDeposit::get();
+		test_env.fund_accounts(vec![(bidding_account, existential_deposit)]);
+
 		for _block in blocks_to_bid {
 			assert_eq!(
 				auctioning_project.get_project_info().project_status,
@@ -1231,6 +1235,7 @@ mod auction_round_success {
 			);
 			test_env.fund_accounts(vec![(bidding_account, necessary_funding)]);
 			let bids: UserToBid = vec![(bidding_account, bid_info)];
+
 			auctioning_project
 				.bid_for_users(bids.clone())
 				.expect("Candle Bidding should not fail");
