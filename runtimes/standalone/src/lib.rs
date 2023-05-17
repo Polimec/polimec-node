@@ -39,7 +39,7 @@ use frame_support::traits::AsEnsureOriginWithArg;
 use frame_system::EnsureSigned;
 pub use frame_system::{Call as SystemCall, EnsureRoot};
 pub use pallet_balances::Call as BalancesCall;
-use pallet_funding::BondType;
+use pallet_funding::{BondType, Multiplier as FundingMultiplier};
 use pallet_grandpa::{fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{ConstFeeMultiplier, CurrencyAdapter, Multiplier};
@@ -366,31 +366,32 @@ parameter_types! {
 
 impl pallet_funding::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type StringLimit = ConstU32<64>;
-	type Currency = Balances;
 	type ProjectIdentifier = u32;
 	type ProjectIdParameter = parity_scale_codec::Compact<u32>;
+	type Multiplier = FundingMultiplier<Runtime>;
+	type Balance = Balance;
+	type NativeCurrency = Balances;
+	type FundingCurrency = Balances;
+	type ContributionTokenCurrency = Assets;
 	type BidId = u128;
-	type BiddingCurrency = Balances;
-	type Assets = Assets;
-	type CurrencyBalance = <Self as pallet_balances::Config>::Balance;
-	type PalletId = FundingPalletId;
-	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
+	type Randomness = Random;
+	type HandleMembers = Credentials;
+	type StringLimit = ConstU32<64>;
+	type PreImageLimit = ConstU32<1024>;
 	type EvaluationDuration = EvaluationDuration;
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type EnglishAuctionDuration = EnglishAuctionDuration;
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityFundingDuration = CommunityRoundDuration;
 	type RemainderFundingDuration = RemainderFundingDuration;
-	type Randomness = Random;
-	type HandleMembers = Credentials;
-	type PreImageLimit = ConstU32<1024>;
+	type PalletId = FundingPalletId;
+	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
 	type MaximumBidsPerUser = ConstU32<256>;
 	type MaxContributionsPerUser = ConstU32<64>;
-	type WeightInfo = ();
 	type ContributionVesting = ContributionVestingDuration;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+	type WeightInfo = ();
 }
 
 impl pallet_credentials::Config for Runtime {

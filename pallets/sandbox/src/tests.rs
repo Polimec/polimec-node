@@ -62,11 +62,21 @@ fn test_buy_if_popular() {
 			<AllPalletsWithSystem as OnInitialize<u64>>::on_initialize(System::block_number());
 		}
 
-		assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(contributor), 0, 1));
+		assert_ok!(FundingModule::contribute(
+			RuntimeOrigin::signed(contributor),
+			0,
+			1,
+			None
+		));
 
 		assert!(Sandbox::buy_if_popular(RuntimeOrigin::signed(4), 0, 1000).is_err());
 
-		assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(contributor), 0, 10000));
+		assert_ok!(FundingModule::contribute(
+			RuntimeOrigin::signed(contributor),
+			0,
+			10000,
+			None
+		));
 
 		assert_ok!(Sandbox::buy_if_popular(RuntimeOrigin::signed(4), 0, 1000));
 	});

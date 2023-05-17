@@ -28,7 +28,7 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn buy_if_popular(
 			origin: OriginFor<T>, project_id: <T as funding::Config>::ProjectIdParameter,
-			amount: <T as funding::Config>::CurrencyBalance,
+			amount: <T as funding::Config>::Balance,
 		) -> DispatchResult {
 			let retail_user = ensure_signed(origin)?;
 			let project_id: <T as funding::Config>::ProjectIdentifier = project_id.into();
@@ -40,7 +40,7 @@ pub mod pallet {
 			);
 
 			// Calculate how much funding was done already
-			let project_contributions: <T as funding::Config>::CurrencyBalance =
+			let project_contributions: <T as funding::Config>::Balance =
 				funding::Contributions::<T>::iter_prefix_values(project_id)
 					.flatten()
 					.fold(0u64.into(), |total_tokens_bought, contribution| {
