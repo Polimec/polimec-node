@@ -947,6 +947,7 @@ impl<T: Config> Pallet<T> {
 		let project_issuer = ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectIssuerNotFound)?;
 		let project_info = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let project = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+		// Default should normally be multiplier of 1
 		let multiplier = multiplier.unwrap_or_default();
 		let weighted_average_price = project_info
 			.weighted_average_price
