@@ -1,0 +1,8 @@
+edition = "2021"
+fn_params_layout = "Compressed"
+use_field_init_shorthand = true
+max_width = 120
+use_small_heuristics = "Default" # This modifies `fn_call_width`, `attr_fn_like_width`, `struct_lit_width`, `struct_variant_width`, `array_width`, `chain_width`, `single_line_if_else_max_width` according to the value of `max_width`
+use_try_shorthand = true
+newline_style = "Unix"
+hard_tabs = true
