@@ -216,10 +216,7 @@ use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 
 use sp_arithmetic::traits::{One, Saturating};
 
-use sp_runtime::{
-	traits::{AccountIdConversion},
-	FixedPointNumber, FixedPointOperand, FixedU128,
-};
+use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
 use sp_std::prelude::*;
 
 type BalanceOf<T> = <T as Config>::Balance;

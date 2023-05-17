@@ -985,7 +985,8 @@ impl<T: Config> Pallet<T> {
 			buyable_tokens,
 			weighted_average_price,
 			decimals,
-		).map_err(|_|Error::<T>::BadMath)?;
+		)
+		.map_err(|_| Error::<T>::BadMath)?;
 		let contribution = ContributionInfo {
 			contribution_amount: ticket_size,
 			plmc_vesting: plmc_vesting.clone(),

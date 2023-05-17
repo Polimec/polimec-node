@@ -399,7 +399,6 @@ pub enum UpdateType {
 	FundingEnd,
 }
 
-
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
 pub struct Multiplier<T: crate::Config>(pub T::Balance);
 impl<T: crate::Config> BondingRequirementCalculation<T> for Multiplier<T> {
@@ -412,4 +411,3 @@ impl<T: crate::Config> Default for Multiplier<T> {
 		Self(1u32.into())
 	}
 }
-

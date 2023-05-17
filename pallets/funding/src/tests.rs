@@ -451,10 +451,9 @@ impl<'a> CommunityFundingProject<'a> {
 	fn buy_for_retail_users(&self, buys: UserToContribution) -> Result<(), DispatchError> {
 		let project_id = self.get_project_id();
 		for (account, (ct_amount, multiplier)) in buys {
-			self.test_env
-				.ext_env
-				.borrow_mut()
-				.execute_with(|| FundingModule::contribute(RuntimeOrigin::signed(account), project_id, ct_amount, multiplier))?;
+			self.test_env.ext_env.borrow_mut().execute_with(|| {
+				FundingModule::contribute(RuntimeOrigin::signed(account), project_id, ct_amount, multiplier)
+			})?;
 		}
 		Ok(())
 	}
@@ -498,10 +497,9 @@ impl<'a> RemainderFundingProject<'a> {
 	fn buy_for_any_user(&self, buys: UserToContribution) -> Result<(), DispatchError> {
 		let project_id = self.get_project_id();
 		for (account, (ct_amount, multiplier)) in buys {
-			self.test_env
-				.ext_env
-				.borrow_mut()
-				.execute_with(|| FundingModule::contribute(RuntimeOrigin::signed(account), project_id, ct_amount, multiplier))?;
+			self.test_env.ext_env.borrow_mut().execute_with(|| {
+				FundingModule::contribute(RuntimeOrigin::signed(account), project_id, ct_amount, multiplier)
+			})?;
 		}
 		Ok(())
 	}
@@ -580,8 +578,8 @@ impl<'a> FinishedProject<'a> {
 }
 
 mod defaults {
-	use crate::traits::BondingRequirementCalculation;
 	use super::*;
+	use crate::traits::BondingRequirementCalculation;
 
 	pub fn default_project(nonce: u64) -> ProjectMetadata<BoundedVec<u8, ConstU32<64>>, u128, sp_core::H256> {
 		let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
@@ -645,10 +643,7 @@ mod defaults {
 
 	pub fn default_auction_bids() -> UserToBid {
 		// This should reflect the bidding currency, which currently is just PLMC
-		vec![
-			(BIDDER_1, (300, 500 * PLMC, None)),
-			(BIDDER_2, (500, 150 * PLMC, None)),
-		]
+		vec![(BIDDER_1, (300, 500 * PLMC, None)), (BIDDER_2, (500, 150 * PLMC, None))]
 	}
 
 	pub fn default_token_average_price() -> BalanceOf<TestRuntime> {
@@ -659,7 +654,13 @@ mod defaults {
 		default_auction_bids()
 			.into_iter()
 			.map(|(user, (amount, price, mult))| {
-				(user, (mult.unwrap_or_default().calculate_bonding_requirement(amount * price).unwrap()))
+				(
+					user,
+					(mult
+						.unwrap_or_default()
+						.calculate_bonding_requirement(amount * price)
+						.unwrap()),
+				)
 			})
 			.collect()
 	}
@@ -675,7 +676,13 @@ mod defaults {
 		default_community_buys()
 			.into_iter()
 			.map(|(user, (amount, multiplier))| {
-				(user, (multiplier.unwrap_or_default().calculate_bonding_requirement(amount * price).unwrap()))
+				(
+					user,
+					(multiplier
+						.unwrap_or_default()
+						.calculate_bonding_requirement(amount * price)
+						.unwrap()),
+				)
 			})
 			.collect()
 	}
@@ -878,7 +885,10 @@ mod defaults {
 				.iter()
 				.map(|(_account, (amount, _price, _multiplier))| amount)
 				.sum();
-			let community_bought_tokens: u128 = default_community_buys().iter().map(|(_account, (amount, _multiplier))| amount).sum();
+			let community_bought_tokens: u128 = default_community_buys()
+				.iter()
+				.map(|(_account, (amount, _multiplier))| amount)
+				.sum();
 			assert_eq!(
 				project.remaining_contribution_tokens,
 				default_project(0).total_allocation_size - auction_bought_tokens - community_bought_tokens,
@@ -910,8 +920,14 @@ mod defaults {
 				.iter()
 				.map(|(_account, (amount, _price, _multiplier))| amount)
 				.sum();
-			let community_bought_tokens: u128 = default_community_buys().iter().map(|(_account, (amount, _multiplier))| amount).sum();
-			let remainder_bought_tokens: u128 = default_remainder_buys().iter().map(|(_account, (amount, _multiplier))| amount).sum();
+			let community_bought_tokens: u128 = default_community_buys()
+				.iter()
+				.map(|(_account, (amount, _multiplier))| amount)
+				.sum();
+			let remainder_bought_tokens: u128 = default_remainder_buys()
+				.iter()
+				.map(|(_account, (amount, _multiplier))| amount)
+				.sum();
 			assert_eq!(
 				project.remaining_contribution_tokens,
 				default_project(0).total_allocation_size
@@ -1198,8 +1214,8 @@ mod evaluation_round_failure {
 
 #[cfg(test)]
 mod auction_round_success {
-	use crate::traits::BondingRequirementCalculation;
 	use super::*;
+	use crate::traits::BondingRequirementCalculation;
 
 	#[test]
 	fn auction_works() {
@@ -1235,7 +1251,12 @@ mod auction_round_success {
 		// do one candle bid for each block until the end of candle auction with a new user
 		let mut bidding_account = 1000;
 		let bid_info = default_auction_bids()[0].1;
-		let necessary_funding = (bid_info.0 * bid_info.1) + (bid_info.2.unwrap_or_default().calculate_bonding_requirement(bid_info.0 * bid_info.1).unwrap());
+		let necessary_funding = (bid_info.0 * bid_info.1)
+			+ (bid_info
+				.2
+				.unwrap_or_default()
+				.calculate_bonding_requirement(bid_info.0 * bid_info.1)
+				.unwrap());
 		let mut bids_made: UserToBid = vec![];
 		let starting_bid_block = test_env.current_block();
 		assert_eq!(test_env.current_block(), starting_bid_block);
@@ -1411,8 +1432,8 @@ mod auction_round_failure {
 
 #[cfg(test)]
 mod community_round_success {
-	use crate::traits::BondingRequirementCalculation;
 	use super::*;
+	use crate::traits::BondingRequirementCalculation;
 	pub const HOURS: BlockNumber = 300u64;
 
 	#[test]
@@ -1459,7 +1480,7 @@ mod community_round_success {
 		let alice: AccountId = 6969420u64;
 		let community_funding_project = CommunityFundingProject::new_default(&test_env);
 		const BOB: AccountId = 808;
-		test_env.ext_env.borrow_mut().execute_with(||{
+		test_env.ext_env.borrow_mut().execute_with(|| {
 			let bob_balance = <TestRuntime as crate::Config>::NativeCurrency::reserved_balance(&BOB);
 			let stop = "here";
 		});
@@ -1480,7 +1501,7 @@ mod community_round_success {
 		// Fund for PLMC bond
 		test_env.fund_accounts(buyers.clone());
 
-		test_env.ext_env.borrow_mut().execute_with(||{
+		test_env.ext_env.borrow_mut().execute_with(|| {
 			let bob_balance = <TestRuntime as crate::Config>::NativeCurrency::free_balance(&BOB);
 			let stop = "here";
 		});
@@ -1555,9 +1576,10 @@ mod community_round_success {
 	fn contribution_is_returned_on_limit_reached_same_mult_diff_ct() {
 		let test_env = TestEnvironment::new();
 		let project = CommunityFundingProject::new_default(&test_env);
-		let buyer_2_initial_balance = test_env.ext_env.borrow_mut().execute_with(||{
-			<TestRuntime as crate::Config>::NativeCurrency::free_balance(&BUYER_2)
-		});
+		let buyer_2_initial_balance = test_env
+			.ext_env
+			.borrow_mut()
+			.execute_with(|| <TestRuntime as crate::Config>::NativeCurrency::free_balance(&BUYER_2));
 		let project_details = project.get_project_info();
 
 		// Create a contribution that will reach the limit of contributions for a user-project
@@ -1568,49 +1590,68 @@ mod community_round_success {
 
 		// Calculate currencies being transferred and bonded
 		let contribution_ticket_size = token_amount * project_details.weighted_average_price.unwrap();
-		let plmc_bond = multiplier.unwrap_or_default().calculate_bonding_requirement(contribution_ticket_size).unwrap();
+		let plmc_bond = multiplier
+			.unwrap_or_default()
+			.calculate_bonding_requirement(contribution_ticket_size)
+			.unwrap();
 
 		// Reach the limit of contributions for a user-project
 		project.buy_for_retail_users(contributions.clone()).unwrap();
 
 		// Check that the right amount of PLMC is bonded, and funding currency is transferred
-		let buyer_2_post_buy_balance = test_env.ext_env.borrow_mut().execute_with(||{
-			<TestRuntime as crate::Config>::NativeCurrency::free_balance(&BUYER_2)
-		});
-		assert_eq!(buyer_2_post_buy_balance, buyer_2_initial_balance - (contribution_ticket_size + plmc_bond) * contributions.len() as u128);
-		let plmc_bond_stored = test_env.ext_env.borrow_mut().execute_with(||{
-			crate::ContributingBonds::<TestRuntime>::get(project.project_id, BUYER_2).unwrap()
-		});
+		let buyer_2_post_buy_balance = test_env
+			.ext_env
+			.borrow_mut()
+			.execute_with(|| <TestRuntime as crate::Config>::NativeCurrency::free_balance(&BUYER_2));
+		assert_eq!(
+			buyer_2_post_buy_balance,
+			buyer_2_initial_balance - (contribution_ticket_size + plmc_bond) * contributions.len() as u128
+		);
+		let plmc_bond_stored = test_env
+			.ext_env
+			.borrow_mut()
+			.execute_with(|| crate::ContributingBonds::<TestRuntime>::get(project.project_id, BUYER_2).unwrap());
 		assert_eq!(plmc_bond_stored.amount, plmc_bond * contributions.len() as u128);
-
 
 		// Make a new contribution with a PLMC bond bigger than the lowest bond already in store for that account
 		let new_multiplier: Option<MultiplierOf<TestRuntime>> = None;
 		let new_token_amount: BalanceOf<TestRuntime> = 2;
 		let new_contribution: UserToContribution = vec![(BUYER_2, (new_token_amount, new_multiplier))];
 		let new_ticket_size = new_token_amount * project_details.weighted_average_price.unwrap();
-		let new_plmc_bond = new_multiplier.unwrap_or_default().calculate_bonding_requirement(new_ticket_size).unwrap();
+		let new_plmc_bond = new_multiplier
+			.unwrap_or_default()
+			.calculate_bonding_requirement(new_ticket_size)
+			.unwrap();
 
 		project.buy_for_retail_users(new_contribution.clone()).unwrap();
 
 		// Check that the previous contribution returned the reserved PLMC and the transferred funding currency
-		let buyer_2_post_return_balance = test_env.ext_env.borrow_mut().execute_with(||{
-			<TestRuntime as crate::Config>::NativeCurrency::free_balance(&BUYER_2)
-		});
-		assert_eq!(buyer_2_post_return_balance, buyer_2_post_buy_balance + (contribution_ticket_size + plmc_bond) - (new_ticket_size + new_plmc_bond));
-		let new_plmc_bond_stored = test_env.ext_env.borrow_mut().execute_with(||{
-			crate::ContributingBonds::<TestRuntime>::get(project.project_id, BUYER_2).unwrap()
-		});
-		assert_eq!(new_plmc_bond_stored.amount, plmc_bond_stored.amount - plmc_bond + new_plmc_bond);
+		let buyer_2_post_return_balance = test_env
+			.ext_env
+			.borrow_mut()
+			.execute_with(|| <TestRuntime as crate::Config>::NativeCurrency::free_balance(&BUYER_2));
+		assert_eq!(
+			buyer_2_post_return_balance,
+			buyer_2_post_buy_balance + (contribution_ticket_size + plmc_bond) - (new_ticket_size + new_plmc_bond)
+		);
+		let new_plmc_bond_stored = test_env
+			.ext_env
+			.borrow_mut()
+			.execute_with(|| crate::ContributingBonds::<TestRuntime>::get(project.project_id, BUYER_2).unwrap());
+		assert_eq!(
+			new_plmc_bond_stored.amount,
+			plmc_bond_stored.amount - plmc_bond + new_plmc_bond
+		);
 	}
 
 	#[test]
 	fn contribution_is_returned_on_limit_reached_diff_mult_same_ct() {
 		let test_env = TestEnvironment::new();
 		let project = CommunityFundingProject::new_default(&test_env);
-		let buyer_2_initial_balance = test_env.ext_env.borrow_mut().execute_with(||{
-			<TestRuntime as crate::Config>::NativeCurrency::free_balance(&BUYER_2)
-		});
+		let buyer_2_initial_balance = test_env
+			.ext_env
+			.borrow_mut()
+			.execute_with(|| <TestRuntime as crate::Config>::NativeCurrency::free_balance(&BUYER_2));
 		let project_details = project.get_project_info();
 
 		// Create a contribution that will reach the limit of contributions for a user-project
@@ -1621,40 +1662,58 @@ mod community_round_success {
 
 		// Calculate currencies being transferred and bonded
 		let contribution_ticket_size = token_amount * project_details.weighted_average_price.unwrap();
-		let plmc_bond = multiplier.unwrap_or_default().calculate_bonding_requirement(contribution_ticket_size).unwrap();
+		let plmc_bond = multiplier
+			.unwrap_or_default()
+			.calculate_bonding_requirement(contribution_ticket_size)
+			.unwrap();
 
 		// Reach the limit of contributions for a user-project
 		project.buy_for_retail_users(contributions.clone()).unwrap();
 
 		// Check that the right amount of PLMC is bonded, and funding currency is transferred
-		let buyer_2_post_buy_balance = test_env.ext_env.borrow_mut().execute_with(||{
-			<TestRuntime as crate::Config>::NativeCurrency::free_balance(&BUYER_2)
-		});
-		assert_eq!(buyer_2_post_buy_balance, buyer_2_initial_balance - (contribution_ticket_size + plmc_bond) * contributions.len() as u128);
-		let plmc_bond_stored = test_env.ext_env.borrow_mut().execute_with(||{
-			crate::ContributingBonds::<TestRuntime>::get(project.project_id, BUYER_2).unwrap()
-		});
+		let buyer_2_post_buy_balance = test_env
+			.ext_env
+			.borrow_mut()
+			.execute_with(|| <TestRuntime as crate::Config>::NativeCurrency::free_balance(&BUYER_2));
+		assert_eq!(
+			buyer_2_post_buy_balance,
+			buyer_2_initial_balance - (contribution_ticket_size + plmc_bond) * contributions.len() as u128
+		);
+		let plmc_bond_stored = test_env
+			.ext_env
+			.borrow_mut()
+			.execute_with(|| crate::ContributingBonds::<TestRuntime>::get(project.project_id, BUYER_2).unwrap());
 		assert_eq!(plmc_bond_stored.amount, plmc_bond * contributions.len() as u128);
-
 
 		// Make a new contribution with a PLMC bond bigger than the lowest bond already in store for that account
 		let new_multiplier: Option<MultiplierOf<TestRuntime>> = Some(Multiplier(1));
 		let new_token_amount: BalanceOf<TestRuntime> = 1;
 		let new_contribution: UserToContribution = vec![(BUYER_2, (new_token_amount, new_multiplier))];
 		let new_ticket_size = new_token_amount * project_details.weighted_average_price.unwrap();
-		let new_plmc_bond = new_multiplier.unwrap_or_default().calculate_bonding_requirement(new_ticket_size).unwrap();
+		let new_plmc_bond = new_multiplier
+			.unwrap_or_default()
+			.calculate_bonding_requirement(new_ticket_size)
+			.unwrap();
 
 		project.buy_for_retail_users(new_contribution.clone()).unwrap();
 
 		// Check that the previous contribution returned the reserved PLMC and the transferred funding currency
-		let buyer_2_post_return_balance = test_env.ext_env.borrow_mut().execute_with(||{
-			<TestRuntime as crate::Config>::NativeCurrency::free_balance(&BUYER_2)
-		});
-		assert_eq!(buyer_2_post_return_balance, buyer_2_post_buy_balance + (contribution_ticket_size + plmc_bond) - (new_ticket_size + new_plmc_bond));
-		let new_plmc_bond_stored = test_env.ext_env.borrow_mut().execute_with(||{
-			crate::ContributingBonds::<TestRuntime>::get(project.project_id, BUYER_2).unwrap()
-		});
-		assert_eq!(new_plmc_bond_stored.amount, plmc_bond_stored.amount - plmc_bond + new_plmc_bond);
+		let buyer_2_post_return_balance = test_env
+			.ext_env
+			.borrow_mut()
+			.execute_with(|| <TestRuntime as crate::Config>::NativeCurrency::free_balance(&BUYER_2));
+		assert_eq!(
+			buyer_2_post_return_balance,
+			buyer_2_post_buy_balance + (contribution_ticket_size + plmc_bond) - (new_ticket_size + new_plmc_bond)
+		);
+		let new_plmc_bond_stored = test_env
+			.ext_env
+			.borrow_mut()
+			.execute_with(|| crate::ContributingBonds::<TestRuntime>::get(project.project_id, BUYER_2).unwrap());
+		assert_eq!(
+			new_plmc_bond_stored.amount,
+			plmc_bond_stored.amount - plmc_bond + new_plmc_bond
+		);
 	}
 }
 
@@ -1665,8 +1724,8 @@ mod community_round_failure {
 
 #[cfg(test)]
 mod purchased_vesting {
-	use crate::traits::BondingRequirementCalculation;
 	use super::*;
+	use crate::traits::BondingRequirementCalculation;
 
 	#[test]
 	fn contribution_token_mints() {
@@ -1707,7 +1766,10 @@ mod purchased_vesting {
 			.expect("CT price should exist at this point");
 		test_env.ext_env.borrow_mut().execute_with(|| {
 			for (buyer, (token_amount, multiplier)) in default_community_buys() {
-				let theoretical_bonded_plmc = multiplier.unwrap_or_default().calculate_bonding_requirement(token_amount * price).unwrap();
+				let theoretical_bonded_plmc = multiplier
+					.unwrap_or_default()
+					.calculate_bonding_requirement(token_amount * price)
+					.unwrap();
 				let actual_bonded_plmc = Balances::reserved_balance_named(&BondType::Contributing, &buyer);
 				assert_eq!(theoretical_bonded_plmc, actual_bonded_plmc);
 				assert_ok!(FundingModule::vested_plmc_purchase_unbond_for(
@@ -1724,8 +1786,8 @@ mod purchased_vesting {
 
 #[cfg(test)]
 mod bids_vesting {
-	use crate::traits::BondingRequirementCalculation;
 	use super::*;
+	use crate::traits::BondingRequirementCalculation;
 
 	#[test]
 	fn contribution_token_mints() {
@@ -1760,7 +1822,10 @@ mod bids_vesting {
 		let _decimals = project.token_information.decimals;
 		test_env.ext_env.borrow_mut().execute_with(|| {
 			for (bidder, (amount, price, multiplier)) in bidders {
-				let theoretical_bonded_plmc = multiplier.unwrap_or_default().calculate_bonding_requirement(amount * price).unwrap();
+				let theoretical_bonded_plmc = multiplier
+					.unwrap_or_default()
+					.calculate_bonding_requirement(amount * price)
+					.unwrap();
 				let actual_bonded_plmc = Balances::reserved_balance_named(&BondType::Bidding, &bidder);
 				assert_eq!(theoretical_bonded_plmc, actual_bonded_plmc);
 				assert_ok!(FundingModule::vested_plmc_bid_unbond_for(
