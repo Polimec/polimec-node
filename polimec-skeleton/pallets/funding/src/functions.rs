@@ -21,18 +21,18 @@
 use super::*;
 
 use crate::traits::BondingRequirementCalculation;
+use frame_support::traits::tokens::{Precision, Preservation};
 use frame_support::{
 	ensure,
 	pallet_prelude::DispatchError,
 	traits::{
-		Get,
-		fungible::*,
+		fungible::{Mutate as FungibleMutate, MutateHold as FungibleMutateHold},
 		fungibles::{
-			Create,
-			metadata::{Mutate as MetadataMutate}
+			metadata::Mutate as MetadataMutate, Create, Mutate as FungiblesMutate, MutateHold as FungiblesMutateHold,
 		},
-	}};
-use frame_support::traits::tokens::Precision;
+		Get,
+	},
+};
 
 use sp_arithmetic::{traits::Zero, Perbill};
 use sp_runtime::Percent;
@@ -856,6 +856,7 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// * Calculate new variables *
+		let holding_account = Self::fund_account_id(project_id);
 		let (plmc_vesting_period, ct_vesting_period) =
 			Self::calculate_vesting_periods(bidder.clone(), multiplier.clone(), amount, price, decimals)
 				.map_err(|_| Error::<T>::BadMath)?;
@@ -893,7 +894,13 @@ impl<T: Config> Pallet<T> {
 		match user_bids.try_push(bid.clone()) {
 			Ok(_) => {
 				// Reserve the new bid
-				T::FundingCurrency::hold(&bidder, bid.ticket_size)?;
+				T::FundingCurrency::transfer(
+					USDT_STATEMINT_ID,
+					&bidder,
+					&holding_account,
+					bid.ticket_size,
+					Preservation::Preserve,
+				)?;
 				// TODO: PLMC-159. Send an XCM message to Statemint/e to transfer a `bid.market_cap` amount of USDC (or the Currency specified by the issuer) to the PalletId Account
 				// Alternative TODO: PLMC-159. The user should have the specified currency (e.g: USDC) already on Polimec
 				user_bids.sort_by_key(|bid| Reverse(bid.price));
@@ -913,9 +920,21 @@ impl<T: Config> Pallet<T> {
 				let lowest_bid = user_bids.swap_remove(lowest_bid_index);
 				ensure!(bid > lowest_bid, Error::<T>::BidTooLow);
 				// Unreserve the lowest bid first
-				T::FundingCurrency::unreserve(&lowest_bid.bidder, lowest_bid.ticket_size);
+				T::FundingCurrency::transfer(
+					USDT_STATEMINT_ID,
+					&holding_account,
+					&lowest_bid.bidder,
+					lowest_bid.ticket_size,
+					Preservation::Preserve,
+				)?;
 				// Reserve the new bid
-				T::FundingCurrency::reserve(&bidder, bid.ticket_size)?;
+				T::FundingCurrency::transfer(
+					USDT_STATEMINT_ID,
+					&bidder,
+					&holding_account,
+					bid.ticket_size,
+					Preservation::Preserve,
+				)?;
 				// Add the new bid to the AuctionsInfo, this should never fail since we just removed an element
 				user_bids
 					.try_push(bid)
@@ -1024,14 +1043,14 @@ impl<T: Config> Pallet<T> {
 		let now = <frame_system::Pallet<T>>::block_number();
 
 		// * Update storage *
-		// Try bonding the required PLMC for this contribution
-		Self::bond_contributing(contributor.clone(), project_id, required_plmc_bond)?;
 
 		// Try adding the new contribution to the system
 		match user_contributions.try_push(contribution.clone()) {
 			Ok(_) => {
 				// TODO: PLMC-159. Send an XCM message to Statemint/e to transfer a `bid.market_cap` amount of USDC (or the Currency specified by the issuer) to the PalletId Account
 				// Alternative TODO: PLMC-159. The user should have the specified currency (e.g: USDC) already on Polimec
+				// Try bonding the required PLMC for this contribution
+				Self::bond_contributing(contributor.clone(), project_id, required_plmc_bond)?;
 				user_contributions.sort_by_key(|contribution| Reverse(contribution.plmc_vesting.amount));
 				Contributions::<T>::set(project_id, contributor.clone(), Some(user_contributions));
 			}
@@ -1045,20 +1064,24 @@ impl<T: Config> Pallet<T> {
 					contribution.plmc_vesting.amount > lowest_contribution.plmc_vesting.amount,
 					Error::<T>::ContributionTooLow
 				);
+				// Try bonding the required PLMC for this contribution
+				Self::bond_contributing(contributor.clone(), project_id, required_plmc_bond)?;
 				// Return contribution funds
-				T::NativeCurrency::transfer(
+				T::FundingCurrency::transfer(
+					USDT_STATEMINT_ID,
 					&fund_account,
 					&contributor,
 					lowest_contribution.contribution_amount,
-					frame_support::traits::ExistenceRequirement::KeepAlive,
+					Preservation::Preserve,
 				)?;
 
 				// Unlock the bonded PLMC for that returned contribution
-				T::NativeCurrency::unreserve_named(
+				T::NativeCurrency::release(
 					&BondType::Contributing,
 					&contributor.clone(),
 					lowest_contribution.plmc_vesting.amount,
-				);
+					Precision::Exact,
+				)?;
 
 				// Update the ContributingBonds storage
 				ContributingBonds::<T>::mutate(project_id, contributor.clone(), |maybe_bond| {
@@ -1078,12 +1101,13 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// Transfer funds from contributor to fund account
-		T::NativeCurrency::transfer(
+		T::FundingCurrency::transfer(
+			USDT_STATEMINT_ID,
 			&contributor,
 			&fund_account,
 			ticket_size,
 			// TODO: PLMC-157. Take the ExistenceRequirement as parameter (?)
-			frame_support::traits::ExistenceRequirement::KeepAlive,
+			Preservation::Preserve,
 		)?;
 
 		// Update project with reduced available CTs
@@ -1148,7 +1172,7 @@ impl<T: Config> Pallet<T> {
 
 			// * Update storage *
 			// TODO: check that the full amount was unreserved
-			T::NativeCurrency::unreserve_named(&BondType::Bidding, &bid.bidder, unbond_amount);
+			T::NativeCurrency::release(&BondType::Bidding, &bid.bidder, unbond_amount, Precision::Exact)?;
 			// Update the new vector that will go in AuctionInfo with the updated vesting period struct
 			new_bids.push(bid.clone());
 			// Update the BiddingBonds map with the reduced amount for that project-user
@@ -1288,7 +1312,7 @@ impl<T: Config> Pallet<T> {
 			// * Update storage *
 			// TODO: Should we mint here, or should the full mint happen to the treasury and then do transfers from there?
 			// Unreserve the funds for the user
-			T::NativeCurrency::unreserve_named(&BondType::Contributing, &claimer, unbond_amount);
+			T::NativeCurrency::release(&BondType::Contributing, &claimer, unbond_amount, Precision::Exact)?;
 			updated_contributions.push(contribution);
 
 			// * Emit events *
@@ -1421,7 +1445,7 @@ impl<T: Config> Pallet<T> {
 				Some(bond) => {
 					// If the user has already bonded, add the new amount to the old one
 					bond.amount += amount;
-					T::NativeCurrency::reserve_named(&BondType::Bidding, &caller, amount)
+					T::NativeCurrency::hold(&BondType::Bidding, &caller, amount)
 						.map_err(|_| Error::<T>::InsufficientBalance)?;
 				}
 				None => {
@@ -1434,7 +1458,7 @@ impl<T: Config> Pallet<T> {
 					});
 
 					// Reserve the required PLMC
-					T::NativeCurrency::reserve_named(&BondType::Bidding, &caller, amount)
+					T::NativeCurrency::hold(&BondType::Bidding, &caller, amount)
 						.map_err(|_| Error::<T>::InsufficientBalance)?;
 				}
 			}
@@ -1466,7 +1490,7 @@ impl<T: Config> Pallet<T> {
 				Some(bond) => {
 					// If the user has already bonded, add the new amount to the old one
 					bond.amount += amount;
-					T::NativeCurrency::reserve_named(&BondType::Contributing, &caller, amount)
+					T::NativeCurrency::release(&BondType::Contributing, &caller, amount, Precision::Exact)
 						.map_err(|_| Error::<T>::InsufficientBalance)?;
 				}
 				None => {
@@ -1478,7 +1502,7 @@ impl<T: Config> Pallet<T> {
 					});
 
 					// Reserve the required PLMC
-					T::NativeCurrency::reserve_named(&BondType::Contributing, &caller, amount)
+					T::NativeCurrency::hold(&BondType::Contributing, &caller, amount)
 						.map_err(|_| Error::<T>::InsufficientBalance)?;
 				}
 			}

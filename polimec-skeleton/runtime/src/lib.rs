@@ -22,7 +22,7 @@ use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot, EnsureSigned,
 };
-use pallet_funding::{BondType, types::Multiplier as FundingMultiplier};
+use pallet_funding::{types::Multiplier as FundingMultiplier, BondType};
 use pallet_xcm::{EnsureXcm, IsVoiceOfBody};
 use smallvec::smallvec;
 use sp_api::impl_runtime_apis;
@@ -557,37 +557,36 @@ parameter_types! {
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 }
 
-impl pallet_funding::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type ProjectIdentifier = u32;
-	type ProjectIdParameter = parity_scale_codec::Compact<u32>;
-	type Multiplier = FundingMultiplier<Runtime>;
-	type Balance = Balance;
-	type NativeCurrency = Balances;
-	type FundingCurrency = Balances;
-	type ContributionTokenCurrency = LocalAssets;
-	type BidId = u128;
-	type Randomness = Random;
-	type HandleMembers = Credentials;
-	type StringLimit = ConstU32<64>;
-	type PreImageLimit = ConstU32<1024>;
-	type EvaluationDuration = EvaluationDuration;
-	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
-	type EnglishAuctionDuration = EnglishAuctionDuration;
-	type CandleAuctionDuration = CandleAuctionDuration;
-	type CommunityFundingDuration = CommunityFundingDuration;
-	type RemainderFundingDuration = RemainderFundingDuration;
-	type PalletId = FundingPalletId;
-	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
-	type MaximumBidsPerUser = ConstU32<256>;
-
-	type MaxContributionsPerUser = ConstU32<256>;
-	type ContributionVesting = ContributionVestingDuration;
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
-	type WeightInfo = ();
-}
-
+// impl pallet_funding::Config for Runtime {
+// 	type RuntimeEvent = RuntimeEvent;
+// 	type ProjectIdentifier = u32;
+// 	type ProjectIdParameter = parity_scale_codec::Compact<u32>;
+// 	type Multiplier = FundingMultiplier<Runtime>;
+// 	type Balance = Balance;
+// 	type NativeCurrency = Balances;
+// 	type FundingCurrency = StatemintAssets;
+// 	type ContributionTokenCurrency = LocalAssets;
+// 	type BidId = u128;
+// 	type Randomness = Random;
+// 	type HandleMembers = Credentials;
+// 	type StringLimit = ConstU32<64>;
+// 	type PreImageLimit = ConstU32<1024>;
+// 	type EvaluationDuration = EvaluationDuration;
+// 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
+// 	type EnglishAuctionDuration = EnglishAuctionDuration;
+// 	type CandleAuctionDuration = CandleAuctionDuration;
+// 	type CommunityFundingDuration = CommunityFundingDuration;
+// 	type RemainderFundingDuration = RemainderFundingDuration;
+// 	type PalletId = FundingPalletId;
+// 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
+// 	type MaximumBidsPerUser = ConstU32<256>;
+//
+// 	type MaxContributionsPerUser = ConstU32<256>;
+// 	type ContributionVesting = ContributionVestingDuration;
+// 	#[cfg(feature = "runtime-benchmarks")]
+// 	type BenchmarkHelper = ();
+// 	type WeightInfo = ();
+// }
 
 impl pallet_credentials::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -634,7 +633,7 @@ construct_runtime!(
 
 		// Polimec
 		Random: pallet_insecure_randomness_collective_flip = 40,
-		Funding: pallet_funding = 41,
+		// Funding: pallet_funding = 41,
 		Credentials: pallet_credentials = 42,
 	}
 );

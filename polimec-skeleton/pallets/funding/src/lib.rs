@@ -204,12 +204,8 @@ pub use crate::weights::WeightInfo;
 use frame_support::{
 	pallet_prelude::ValueQuery,
 	traits::{
-		tokens::{
-			fungible,
-			fungibles,
-			Balance,
-		},
-		Currency as CurrencyT, Get, NamedReservableCurrency, Randomness, ReservableCurrency,
+		tokens::{fungible, fungibles, Balance},
+		Get, Randomness,
 	},
 	BoundedVec, PalletId, Parameter,
 };
@@ -235,14 +231,12 @@ type BidInfoOf<T> = BidInfo<
 	<T as frame_system::Config>::AccountId,
 	BlockNumberOf<T>,
 	VestingOf<T>,
-	VestingOf<T>
+	VestingOf<T>,
 >;
 
-type ContributionInfoOf<T> = ContributionInfo<
-	BalanceOf<T>,
-	VestingOf<T>,
-	VestingOf<T>,
->;
+type ContributionInfoOf<T> = ContributionInfo<BalanceOf<T>, VestingOf<T>, VestingOf<T>>;
+
+pub const USDT_STATEMINT_ID: u32 = 1984u32;
 
 // TODO: PLMC-152. Remove `dev_mode` attribute when extrinsics API are stable
 #[frame_support::pallet(dev_mode)]
@@ -289,26 +283,23 @@ pub mod pallet {
 		/// The chains native currency
 		type NativeCurrency: fungible::InspectHold<Self::AccountId, Balance = BalanceOf<Self>>
 			+ fungible::MutateHold<Self::AccountId, Balance = BalanceOf<Self>, Reason = BondType>
-			+ fungible::BalancedHold<Self::AccountId, Balance = BalanceOf<Self>>;
+			+ fungible::BalancedHold<Self::AccountId, Balance = BalanceOf<Self>>
+			+ fungible::Mutate<Self::AccountId, Balance = BalanceOf<Self>>;
 
 		/// The currency used for funding projects in bids and contributions
 		// type FundingCurrency: ReservableCurrency<Self::AccountId, Balance = BalanceOf<Self>>;
-		type FundingCurrency: fungibles::InspectHold<Self::AccountId, Balance = BalanceOf<Self>>
-		+ fungibles::MutateHold<Self::AccountId, Balance = BalanceOf<Self>>
-		+ fungibles::BalancedHold<Self::AccountId, Balance = BalanceOf<Self>>
-		+ fungibles::InspectEnumerable<Self::AccountId, Balance = BalanceOf<Self>>
-		+ fungibles::metadata::Inspect<Self::AccountId>
-		+ fungibles::metadata::Mutate<Self::AccountId>;
+		type FundingCurrency: fungibles::InspectEnumerable<Self::AccountId, Balance = BalanceOf<Self>, AssetId = u32>
+			+ fungibles::metadata::Inspect<Self::AccountId, AssetId = u32>
+			+ fungibles::metadata::Mutate<Self::AccountId, AssetId = u32>
+			+ fungibles::Mutate<Self::AccountId, Balance = BalanceOf<Self>>;
 
 		/// The currency used for minting contribution tokens as fungible assets (i.e pallet-assets)
 		type ContributionTokenCurrency: fungibles::Create<Self::AccountId, AssetId = Self::ProjectIdentifier, Balance = BalanceOf<Self>>
-		+ fungibles::Destroy<Self::AccountId, AssetId = Self::ProjectIdentifier, Balance = BalanceOf<Self>>
-		+ fungibles::InspectHold<Self::AccountId, Balance = BalanceOf<Self>>
-		+ fungibles::MutateHold<Self::AccountId, Balance = BalanceOf<Self>>
-		+ fungibles::BalancedHold<Self::AccountId, Balance = BalanceOf<Self>>
-		+ fungibles::InspectEnumerable<Self::AccountId, Balance = BalanceOf<Self>>
-		+ fungibles::metadata::Inspect<Self::AccountId>
-		+ fungibles::metadata::Mutate<Self::AccountId>;
+			+ fungibles::Destroy<Self::AccountId, AssetId = Self::ProjectIdentifier, Balance = BalanceOf<Self>>
+			+ fungibles::InspectEnumerable<Self::AccountId, Balance = BalanceOf<Self>>
+			+ fungibles::metadata::Inspect<Self::AccountId>
+			+ fungibles::metadata::Mutate<Self::AccountId>
+			+ fungibles::Mutate<Self::AccountId, Balance = BalanceOf<Self>>;
 
 		/// Unique identifier for any bid in the system.
 		type BidId: Parameter + Copy + Saturating + One + Default;

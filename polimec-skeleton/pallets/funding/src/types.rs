@@ -322,7 +322,7 @@ pub enum RejectionReason {
 	NoTokensLeft,
 }
 
-/// Enum used to identify PLMC named reserves
+/// Enum used to identify PLMC holds
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
 pub enum BondType {
 	Evaluation,
@@ -331,6 +331,12 @@ pub enum BondType {
 	LongTermHolderBonus,
 	Staking,
 	Governance,
+}
+
+/// Enum used to identify funding currency holds
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
+pub enum FundingHoldType {
+	Bidding,
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]

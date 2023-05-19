@@ -27,6 +27,7 @@ use frame_support::{
 	PalletId,
 };
 use frame_system as system;
+use frame_system::EnsureRoot;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -41,7 +42,11 @@ pub type AccountId = u64;
 pub type Balance = u128;
 pub type BlockNumber = u64;
 pub type Identifier = u32;
+
 pub const PLMC: u128 = 10_000_000_000_u128;
+pub const MILLI_PLMC: Balance = 10u128.pow(7);
+pub const MICRO_PLMC: Balance = 10u128.pow(4);
+pub const EXISTENTIAL_DEPOSIT: Balance = 10 * MILLI_PLMC;
 
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
@@ -52,13 +57,82 @@ frame_support::construct_runtime!(
 	{
 		System: frame_system,
 		RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip,
-		Assets: pallet_assets,
 		Balances: pallet_balances,
 		FundingModule: pallet_funding,
 		Credentials: pallet_credentials,
+		LocalAssets: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>},
+		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>},
 	}
 );
 
+pub type LocalAssetsInstance = pallet_assets::Instance1;
+pub type StatemintAssetsInstance = pallet_assets::Instance2;
+
+pub type AssetId = u32;
+pub const fn deposit(items: u32, bytes: u32) -> Balance {
+	items as Balance * 15 * MICRO_PLMC + (bytes as Balance) * 6 * MICRO_PLMC
+}
+
+pub const fn free_deposit() -> Balance {
+	0 * MICRO_PLMC
+}
+parameter_types! {
+	pub const AssetDeposit: Balance = PLMC; // 1 UNIT deposit to create asset
+	pub const AssetAccountDeposit: Balance = deposit(1, 16);
+	pub const AssetsStringLimit: u32 = 50;
+	/// Key = 32 bytes, Value = 36 bytes (32+1+1+1+1)
+	// https://github.com/paritytech/substrate/blob/069917b/frame/assets/src/lib.rs#L257L271
+	pub const MetadataDepositBase: Balance = free_deposit();
+	pub const MetadataDepositPerByte: Balance = free_deposit();
+	pub const AssetsPalletId: PalletId = PalletId(*b"assetsid");
+	pub const ApprovalDeposit: Balance = EXISTENTIAL_DEPOSIT;
+
+}
+impl pallet_assets::Config<LocalAssetsInstance> for TestRuntime {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
+	type AssetId = AssetId;
+	type AssetIdParameter = parity_scale_codec::Compact<AssetId>;
+	type Currency = Balances;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type AssetDeposit = AssetDeposit;
+	type AssetAccountDeposit = AssetAccountDeposit;
+	type MetadataDepositBase = MetadataDepositBase;
+	type MetadataDepositPerByte = MetadataDepositPerByte;
+	type ApprovalDeposit = ApprovalDeposit;
+	type StringLimit = AssetsStringLimit;
+	type Freezer = ();
+	type Extra = ();
+	type CallbackHandle = ();
+	type WeightInfo = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
+}
+
+impl pallet_assets::Config<StatemintAssetsInstance> for TestRuntime {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
+	type AssetId = AssetId;
+	type AssetIdParameter = parity_scale_codec::Compact<AssetId>;
+	type Currency = Balances;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type AssetDeposit = AssetDeposit;
+	type AssetAccountDeposit = AssetAccountDeposit;
+	type MetadataDepositBase = MetadataDepositBase;
+	type MetadataDepositPerByte = MetadataDepositPerByte;
+	type ApprovalDeposit = ApprovalDeposit;
+	type StringLimit = AssetsStringLimit;
+	type Freezer = ();
+	type Extra = ();
+	type CallbackHandle = ();
+	type WeightInfo = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
+}
 parameter_types! {
 	pub const BlockHashCount: u32 = 250;
 }
@@ -91,19 +165,22 @@ impl system::Config for TestRuntime {
 }
 
 parameter_types! {
-	pub static ExistentialDeposit: Balance = 1;
+	pub const ExistentialDeposit: Balance = EXISTENTIAL_DEPOSIT;
 }
-
 impl pallet_balances::Config for TestRuntime {
-	type MaxLocks = frame_support::traits::ConstU32<1024>;
-	type MaxReserves = frame_support::traits::ConstU32<1024>;
-	type ReserveIdentifier = BondType;
-	type Balance = Balance;
 	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+	type Balance = Balance;
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
-	type WeightInfo = ();
+	type ReserveIdentifier = BondType;
+	type HoldIdentifier = BondType;
+	type FreezeIdentifier = ();
+	type MaxLocks = frame_support::traits::ConstU32<1024>;
+	type MaxReserves = frame_support::traits::ConstU32<1024>;
+	type MaxHolds = ConstU32<1024>;
+	type MaxFreezes = ();
 }
 
 impl pallet_insecure_randomness_collective_flip::Config for TestRuntime {}
@@ -117,29 +194,6 @@ impl pallet_credentials::Config for TestRuntime {
 	type PrimeOrigin = EnsureSigned<AccountId>;
 	type MembershipInitialized = ();
 	type MembershipChanged = ();
-}
-
-impl pallet_assets::Config for TestRuntime {
-	type RuntimeEvent = RuntimeEvent;
-	type Balance = Balance;
-	type AssetId = Identifier;
-	type Currency = Balances;
-	type ForceOrigin = frame_system::EnsureRoot<u64>;
-	type AssetDeposit = ConstU128<1>;
-	type AssetAccountDeposit = ConstU128<10>;
-	type MetadataDepositBase = ConstU128<1>;
-	type MetadataDepositPerByte = ConstU128<1>;
-	type ApprovalDeposit = ConstU128<1>;
-	type StringLimit = ConstU32<50>;
-	type Freezer = ();
-	type WeightInfo = ();
-	type Extra = ();
-	type AssetIdParameter = Identifier;
-	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
-	type CallbackHandle = ();
-	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
 }
 
 pub const HOURS: BlockNumber = 300u64;
@@ -157,33 +211,33 @@ parameter_types! {
 
 impl pallet_funding::Config for TestRuntime {
 	type RuntimeEvent = RuntimeEvent;
-	type StringLimit = ConstU32<64>;
 	type ProjectIdentifier = Identifier;
 	type ProjectIdParameter = Identifier;
+	type Multiplier = Multiplier<TestRuntime>;
+	type Balance = Balance;
+	type NativeCurrency = Balances;
+	type FundingCurrency = StatemintAssets;
+	type ContributionTokenCurrency = LocalAssets;
 	type BidId = u128;
-	type ContributionTokenCurrency = Assets;
+	type Randomness = RandomnessCollectiveFlip;
+	type HandleMembers = Credentials;
+	type StringLimit = ConstU32<64>;
+	type PreImageLimit = ConstU32<1024>;
 	type EvaluationDuration = EvaluationDuration;
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type EnglishAuctionDuration = EnglishAuctionDuration;
 	type CandleAuctionDuration = CandleAuctionDuration;
+	type CommunityFundingDuration = CommunityRoundDuration;
 	type RemainderFundingDuration = RemainderFundingDuration;
 	type PalletId = FundingPalletId;
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
-	type CommunityFundingDuration = CommunityRoundDuration;
-	type Randomness = RandomnessCollectiveFlip;
-	type HandleMembers = Credentials;
-	type PreImageLimit = ConstU32<1024>;
 	// Low value to simplify the tests
 	type MaximumBidsPerUser = ConstU32<4>;
 	type MaxContributionsPerUser = ConstU32<4>;
 	type ContributionVesting = ConstU32<4>;
-	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
-	type Multiplier = types::Multiplier<TestRuntime>;
-	type Balance = Balance;
-	type NativeCurrency = Balances;
-	type FundingCurrency = Balances;
+	type WeightInfo = ();
 }
 
 // Build genesis storage according to the mock runtime.
@@ -194,12 +248,21 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		.unwrap();
 
 	GenesisConfig {
-		balances: BalancesConfig { balances: vec![] },
+		balances: BalancesConfig { balances: vec![
+			(<TestRuntime as Config>::PalletId::get().into_account_truncating(), <TestRuntime as pallet_balances::Config>::ExistentialDeposit::get())
+		] },
 		credentials: CredentialsConfig {
 			issuers: vec![1, 16558220937623665250],
 			retails: vec![2],
 			professionals: vec![2, 3],
 			institutionals: vec![4],
+		},
+		statemint_assets: StatemintAssetsConfig {
+			assets: vec![
+				(USDT_STATEMINT_ID, <TestRuntime as Config>::PalletId::get().into_account_truncating(), false, 1_0_000_000_000),
+			],
+			metadata: vec![],
+			accounts: vec![]
 		},
 		..Default::default()
 	}
