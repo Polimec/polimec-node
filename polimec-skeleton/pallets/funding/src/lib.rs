@@ -116,7 +116,7 @@
 //! 		pub fn buy_if_popular(
 //! 			origin: OriginFor<T>,
 //! 			project_id: <T as pallet_funding::Config>::ProjectIdParameter,
-//! 			amount: <T as pallet_funding::Config>::CurrencyBalance
+//! 			amount: <T as pallet_funding::Config>::Balance
 //! 		) -> DispatchResult {
 //! 			let retail_user = ensure_signed(origin)?;
 //! 			let project_id: <T as pallet_funding::Config>::ProjectIdentifier = project_id.into();
@@ -125,7 +125,7 @@
 //! 			ensure!(project_info.project_status == pallet_funding::ProjectStatus::CommunityRound, "Project is not in the community round");
 //!
 //! 			// Calculate how much funding was done already
-//! 			let project_contributions: <T as pallet_funding::Config>::CurrencyBalance = pallet_funding::Contributions::<T>::iter_prefix_values(project_id)
+//! 			let project_contributions: <T as pallet_funding::Config>::Balance = pallet_funding::Contributions::<T>::iter_prefix_values(project_id)
 //! 				.flatten()
 //! 				.fold(
 //! 					0u64.into(),
@@ -195,13 +195,18 @@ pub mod tests;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
+pub mod traits;
+
+#[allow(unused_imports)]
+use polimec_traits::{MemberRole, PolimecMembers};
 
 pub use crate::weights::WeightInfo;
 use frame_support::{
 	pallet_prelude::ValueQuery,
 	traits::{
 		tokens::{
-			fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate},
+			fungible,
+			fungibles,
 			Balance,
 		},
 		Currency as CurrencyT, Get, NamedReservableCurrency, Randomness, ReservableCurrency,
@@ -209,48 +214,48 @@ use frame_support::{
 	BoundedVec, PalletId, Parameter,
 };
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
-use polimec_traits::PolimecMembers;
 
 use sp_arithmetic::traits::{One, Saturating};
 
-use sp_runtime::{
-	traits::{AccountIdConversion, CheckedDiv},
-	FixedPointNumber, FixedPointOperand, FixedU128,
-};
+use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
 use sp_std::prelude::*;
 
-type BalanceOf<T> = <T as Config>::CurrencyBalance;
-
+type BalanceOf<T> = <T as Config>::Balance;
 type ProjectMetadataOf<T> =
 	ProjectMetadata<BoundedVec<u8, <T as Config>::StringLimit>, BalanceOf<T>, <T as frame_system::Config>::Hash>;
-
 type ProjectDetailsOf<T> = ProjectDetails<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>;
+type MultiplierOf<T> = <T as Config>::Multiplier;
+type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
+type VestingOf<T> = Vesting<BlockNumberOf<T>, BalanceOf<T>>;
 
 type BidInfoOf<T> = BidInfo<
 	<T as Config>::BidId,
 	<T as Config>::ProjectIdentifier,
 	BalanceOf<T>,
 	<T as frame_system::Config>::AccountId,
-	<T as frame_system::Config>::BlockNumber,
-	Vesting<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>,
-	Vesting<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>,
+	BlockNumberOf<T>,
+	VestingOf<T>,
+	VestingOf<T>
 >;
 
 type ContributionInfoOf<T> = ContributionInfo<
 	BalanceOf<T>,
-	Vesting<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>,
-	Vesting<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>,
+	VestingOf<T>,
+	VestingOf<T>,
 >;
 
 // TODO: PLMC-152. Remove `dev_mode` attribute when extrinsics API are stable
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
 	use super::*;
+	use crate::traits::BondingRequirementCalculation;
 	use frame_support::pallet_prelude::*;
+	use frame_support::traits::fungible::InspectHold;
 	use frame_system::pallet_prelude::*;
 	use local_macros::*;
 
 	#[pallet::pallet]
+	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
@@ -275,14 +280,35 @@ pub mod pallet {
 			+ From<u32>
 			+ MaxEncodedLen;
 
-		/// Just the `Currency::Balance` type; we have this item to allow us to constrain it to `From<u64>`.
-		type CurrencyBalance: Balance + From<u64> + FixedPointOperand;
+		/// Multiplier that decides how much PLMC needs to be bonded for a token buy/bid
+		type Multiplier: Parameter + BondingRequirementCalculation<Self> + Default;
 
-		/// The bonding balance.
-		type Currency: NamedReservableCurrency<Self::AccountId, Balance = BalanceOf<Self>, ReserveIdentifier = BondType>;
+		/// The inner balance type we will use for all of our outer currency types. (e.g native, funding, CTs)
+		type Balance: Balance + From<u64> + FixedPointOperand;
 
-		/// The bidding balance.
-		type BiddingCurrency: ReservableCurrency<Self::AccountId, Balance = BalanceOf<Self>>;
+		/// The chains native currency
+		type NativeCurrency: fungible::InspectHold<Self::AccountId, Balance = BalanceOf<Self>>
+			+ fungible::MutateHold<Self::AccountId, Balance = BalanceOf<Self>, Reason = BondType>
+			+ fungible::BalancedHold<Self::AccountId, Balance = BalanceOf<Self>>;
+
+		/// The currency used for funding projects in bids and contributions
+		// type FundingCurrency: ReservableCurrency<Self::AccountId, Balance = BalanceOf<Self>>;
+		type FundingCurrency: fungibles::InspectHold<Self::AccountId, Balance = BalanceOf<Self>>
+		+ fungibles::MutateHold<Self::AccountId, Balance = BalanceOf<Self>>
+		+ fungibles::BalancedHold<Self::AccountId, Balance = BalanceOf<Self>>
+		+ fungibles::InspectEnumerable<Self::AccountId, Balance = BalanceOf<Self>>
+		+ fungibles::metadata::Inspect<Self::AccountId>
+		+ fungibles::metadata::Mutate<Self::AccountId>;
+
+		/// The currency used for minting contribution tokens as fungible assets (i.e pallet-assets)
+		type ContributionTokenCurrency: fungibles::Create<Self::AccountId, AssetId = Self::ProjectIdentifier, Balance = BalanceOf<Self>>
+		+ fungibles::Destroy<Self::AccountId, AssetId = Self::ProjectIdentifier, Balance = BalanceOf<Self>>
+		+ fungibles::InspectHold<Self::AccountId, Balance = BalanceOf<Self>>
+		+ fungibles::MutateHold<Self::AccountId, Balance = BalanceOf<Self>>
+		+ fungibles::BalancedHold<Self::AccountId, Balance = BalanceOf<Self>>
+		+ fungibles::InspectEnumerable<Self::AccountId, Balance = BalanceOf<Self>>
+		+ fungibles::metadata::Inspect<Self::AccountId>
+		+ fungibles::metadata::Mutate<Self::AccountId>;
 
 		/// Unique identifier for any bid in the system.
 		type BidId: Parameter + Copy + Saturating + One + Default;
@@ -292,12 +318,6 @@ pub mod pallet {
 
 		/// Something that provides the members of Polimec
 		type HandleMembers: PolimecMembers<Self::AccountId>;
-
-		/// Something that provides the ability to create, mint and burn fungible assets.
-		type Assets: Create<Self::AccountId, AssetId = Self::ProjectIdentifier, Balance = Self::CurrencyBalance>
-			+ Mutate<Self::AccountId>
-			+ MetadataMutate<Self::AccountId>;
-		// + InspectMetadata<Self::AccountId>;
 
 		/// The maximum length of data stored on-chain.
 		#[pallet::constant]
@@ -518,14 +538,14 @@ pub mod pallet {
 			project_id: T::ProjectIdentifier,
 			amount: BalanceOf<T>,
 			price: BalanceOf<T>,
-			multiplier: BalanceOf<T>,
+			multiplier: MultiplierOf<T>,
 		},
 		/// A contribution was made for a project. i.e token purchase
 		Contribution {
 			project_id: T::ProjectIdentifier,
 			contributor: T::AccountId,
 			amount: BalanceOf<T>,
-			multiplier: BalanceOf<T>,
+			multiplier: MultiplierOf<T>,
 		},
 		/// A project is now in its community funding round
 		CommunityFundingStarted { project_id: T::ProjectIdentifier },
@@ -747,7 +767,7 @@ pub mod pallet {
 			project_id: T::ProjectIdParameter,
 			#[pallet::compact] amount: BalanceOf<T>,
 			#[pallet::compact] price: BalanceOf<T>,
-			multiplier: Option<BalanceOf<T>>,
+			multiplier: Option<T::Multiplier>,
 			// TODO: PLMC-158 Add a parameter to specify the currency to use, should be equal to the currency
 			// specified in `participation_currencies`
 		) -> DispatchResult {
@@ -766,11 +786,12 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::contribute())]
 		pub fn contribute(
 			origin: OriginFor<T>, project_id: T::ProjectIdParameter, #[pallet::compact] amount: BalanceOf<T>,
+			multiplier: Option<MultiplierOf<T>>,
 		) -> DispatchResult {
 			let contributor = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
-			Self::do_contribute(contributor, project_id, amount, None)
+			Self::do_contribute(contributor, project_id, amount, multiplier)
 		}
 
 		/// Unbond some plmc from a contribution, after a step in the vesting period has passed.

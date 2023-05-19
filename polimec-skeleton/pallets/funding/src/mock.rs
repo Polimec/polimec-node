@@ -104,10 +104,6 @@ impl pallet_balances::Config for TestRuntime {
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
 	type WeightInfo = ();
-	type HoldIdentifier = BondType;
-	type FreezeIdentifier = BondType;
-	type MaxFreezes = frame_support::traits::ConstU32<1024>;
-	type MaxHolds = frame_support::traits::ConstU32<1024>;
 }
 
 impl pallet_insecure_randomness_collective_flip::Config for TestRuntime {}
@@ -164,11 +160,8 @@ impl pallet_funding::Config for TestRuntime {
 	type StringLimit = ConstU32<64>;
 	type ProjectIdentifier = Identifier;
 	type ProjectIdParameter = Identifier;
-	type Currency = Balances;
 	type BidId = u128;
-	type BiddingCurrency = Balances;
-	type Assets = Assets;
-	type CurrencyBalance = Balance;
+	type ContributionTokenCurrency = Assets;
 	type EvaluationDuration = EvaluationDuration;
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type EnglishAuctionDuration = EnglishAuctionDuration;
@@ -187,6 +180,10 @@ impl pallet_funding::Config for TestRuntime {
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+	type Multiplier = types::Multiplier<TestRuntime>;
+	type Balance = Balance;
+	type NativeCurrency = Balances;
+	type FundingCurrency = Balances;
 }
 
 // Build genesis storage according to the mock runtime.

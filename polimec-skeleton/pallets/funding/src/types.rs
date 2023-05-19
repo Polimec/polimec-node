@@ -18,6 +18,8 @@
 
 //! Types for Funding pallet.
 
+use crate::traits::BondingRequirementCalculation;
+use crate::BalanceOf;
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
 use sp_arithmetic::traits::Saturating;
 use sp_runtime::traits::CheckedDiv;
@@ -395,4 +397,17 @@ pub enum UpdateType {
 	CommunityFundingStart,
 	RemainderFundingStart,
 	FundingEnd,
+}
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
+pub struct Multiplier<T: crate::Config>(pub T::Balance);
+impl<T: crate::Config> BondingRequirementCalculation<T> for Multiplier<T> {
+	fn calculate_bonding_requirement(&self, ticket_size: BalanceOf<T>) -> Result<BalanceOf<T>, ()> {
+		ticket_size.checked_div(&self.0).ok_or(())
+	}
+}
+impl<T: crate::Config> Default for Multiplier<T> {
+	fn default() -> Self {
+		Self(1u32.into())
+	}
 }

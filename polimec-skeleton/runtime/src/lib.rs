@@ -22,7 +22,7 @@ use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot, EnsureSigned,
 };
-use pallet_funding::BondType;
+use pallet_funding::{BondType, types::Multiplier as FundingMultiplier};
 use pallet_xcm::{EnsureXcm, IsVoiceOfBody};
 use smallvec::smallvec;
 use sp_api::impl_runtime_apis;
@@ -561,13 +561,14 @@ impl pallet_funding::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type ProjectIdentifier = u32;
 	type ProjectIdParameter = parity_scale_codec::Compact<u32>;
-	type CurrencyBalance = <Self as pallet_balances::Config>::Balance;
-	type Currency = Balances;
+	type Multiplier = FundingMultiplier<Runtime>;
+	type Balance = Balance;
+	type NativeCurrency = Balances;
+	type FundingCurrency = Balances;
+	type ContributionTokenCurrency = LocalAssets;
 	type BidId = u128;
-	type BiddingCurrency = Balances;
 	type Randomness = Random;
 	type HandleMembers = Credentials;
-	type Assets = LocalAssets;
 	type StringLimit = ConstU32<64>;
 	type PreImageLimit = ConstU32<1024>;
 	type EvaluationDuration = EvaluationDuration;
@@ -579,12 +580,14 @@ impl pallet_funding::Config for Runtime {
 	type PalletId = FundingPalletId;
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
 	type MaximumBidsPerUser = ConstU32<256>;
+
 	type MaxContributionsPerUser = ConstU32<256>;
 	type ContributionVesting = ContributionVestingDuration;
-	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+	type WeightInfo = ();
 }
+
 
 impl pallet_credentials::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
