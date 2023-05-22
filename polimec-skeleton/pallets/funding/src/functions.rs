@@ -899,7 +899,7 @@ impl<T: Config> Pallet<T> {
 					&bidder,
 					&holding_account,
 					bid.ticket_size,
-					Preservation::Preserve,
+					Preservation::Expendable,
 				)?;
 				// TODO: PLMC-159. Send an XCM message to Statemint/e to transfer a `bid.market_cap` amount of USDC (or the Currency specified by the issuer) to the PalletId Account
 				// Alternative TODO: PLMC-159. The user should have the specified currency (e.g: USDC) already on Polimec
@@ -925,7 +925,7 @@ impl<T: Config> Pallet<T> {
 					&holding_account,
 					&lowest_bid.bidder,
 					lowest_bid.ticket_size,
-					Preservation::Preserve,
+					Preservation::Expendable,
 				)?;
 				// Reserve the new bid
 				T::FundingCurrency::transfer(
@@ -933,7 +933,7 @@ impl<T: Config> Pallet<T> {
 					&bidder,
 					&holding_account,
 					bid.ticket_size,
-					Preservation::Preserve,
+					Preservation::Expendable,
 				)?;
 				// Add the new bid to the AuctionsInfo, this should never fail since we just removed an element
 				user_bids
@@ -1072,7 +1072,7 @@ impl<T: Config> Pallet<T> {
 					&fund_account,
 					&contributor,
 					lowest_contribution.contribution_amount,
-					Preservation::Preserve,
+					Preservation::Expendable,
 				)?;
 
 				// Unlock the bonded PLMC for that returned contribution
@@ -1107,7 +1107,7 @@ impl<T: Config> Pallet<T> {
 			&fund_account,
 			ticket_size,
 			// TODO: PLMC-157. Take the ExistenceRequirement as parameter (?)
-			Preservation::Preserve,
+			Preservation::Expendable,
 		)?;
 
 		// Update project with reduced available CTs

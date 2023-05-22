@@ -248,9 +248,12 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		.unwrap();
 
 	GenesisConfig {
-		balances: BalancesConfig { balances: vec![
-			(<TestRuntime as Config>::PalletId::get().into_account_truncating(), <TestRuntime as pallet_balances::Config>::ExistentialDeposit::get())
-		] },
+		balances: BalancesConfig {
+			balances: vec![(
+				<TestRuntime as Config>::PalletId::get().into_account_truncating(),
+				<TestRuntime as pallet_balances::Config>::ExistentialDeposit::get(),
+			)],
+		},
 		credentials: CredentialsConfig {
 			issuers: vec![1, 16558220937623665250],
 			retails: vec![2],
@@ -258,11 +261,14 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 			institutionals: vec![4],
 		},
 		statemint_assets: StatemintAssetsConfig {
-			assets: vec![
-				(USDT_STATEMINT_ID, <TestRuntime as Config>::PalletId::get().into_account_truncating(), false, 1_0_000_000_000),
-			],
+			assets: vec![(
+				USDT_STATEMINT_ID,
+				<TestRuntime as Config>::PalletId::get().into_account_truncating(),
+				false,
+				10,
+			)],
 			metadata: vec![],
-			accounts: vec![]
+			accounts: vec![],
 		},
 		..Default::default()
 	}

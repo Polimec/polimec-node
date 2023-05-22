@@ -19,11 +19,12 @@
 //! Tests for Funding pallet.
 
 use super::*;
+use helper_functions::*;
+use defaults::*;
 use crate::{
 	mock::{FundingModule, *},
 	CurrencyMetadata, Error, ParticipantsSize, ProjectMetadata, TicketSize,
 };
-use defaults::*;
 use frame_support::{
 	assert_noop, assert_ok,
 	traits::{
@@ -217,7 +218,7 @@ impl TestEnvironment {
 			}
 		});
 	}
-	fn do_free_funds_assertions(&self, correct_funds: UserToBalance) {
+	fn do_free_plmc_assertions(&self, correct_funds: UserToBalance) {
 		for (user, balance) in correct_funds {
 			self.ext_env.borrow_mut().execute_with(|| {
 				let free = Balances::free_balance(user);
@@ -225,11 +226,44 @@ impl TestEnvironment {
 			});
 		}
 	}
-	fn do_reserved_funds_assertions(&self, correct_funds: UserToBalance, reserve_type: BondType) {
+	fn do_reserved_plmc_assertions(&self, correct_funds: UserToBalance, reserve_type: BondType) {
 		for (user, balance) in correct_funds {
 			self.ext_env.borrow_mut().execute_with(|| {
 				let reserved = Balances::balance_on_hold(&reserve_type, &user);
 				assert_eq!(reserved, balance);
+			});
+		}
+	}
+	fn do_free_statemint_asset_assertions(&self, correct_funds: UserToStatemintAsset) {
+		for (user, expected_amount, token_id) in correct_funds {
+			self.ext_env.borrow_mut().execute_with(|| {
+				let real_amount = <TestRuntime as Config>::FundingCurrency::balance(token_id, &user);
+				assert_eq!(
+					expected_amount, real_amount,
+					"Wrong statemint asset balance expected for user {}",
+					user
+				);
+			});
+		}
+	}
+	fn do_bid_transferred_statemint_asset_assertions(
+		&self, correct_funds: UserToStatemintAsset, project_id: ProjectIdOf<TestRuntime>,
+	) {
+		let project_account = FundingModule::fund_account_id(project_id.clone());
+		for (user, expected_amount, token_id) in correct_funds {
+			self.ext_env.borrow_mut().execute_with(|| {
+				// total amount of contributions for this user for this project stored in the mapping
+				let contribution_total: <TestRuntime as Config>::Balance =
+					AuctionsInfo::<TestRuntime>::get(project_id, user.clone())
+						.unwrap()
+						.iter()
+						.map(|c| c.amount * c.price)
+						.sum();
+				assert_eq!(
+					contribution_total, expected_amount,
+					"Wrong statemint asset balance expected for user {}",
+					user
+				);
 			});
 		}
 	}
@@ -358,7 +392,7 @@ impl<'a> AuctioningProject<'a> {
 			.expect("Bonding should work");
 
 		// Check that enough funds are reserved
-		test_env.do_reserved_funds_assertions(default_evaluation_bonds(), BondType::Evaluation);
+		test_env.do_reserved_plmc_assertions(default_evaluation_bonds(), BondType::Evaluation);
 
 		// Check that free funds were reduced
 		let mut free_funds = default_plmc_balances();
@@ -372,7 +406,7 @@ impl<'a> AuctioningProject<'a> {
 				(original.0, original.1 - bonded.1)
 			})
 			.collect::<UserToBalance>();
-		test_env.do_free_funds_assertions(free_funds.clone());
+		test_env.do_free_plmc_assertions(free_funds.clone());
 		let evaluation_end = evaluating_project
 			.get_project_info()
 			.phase_transition_points
@@ -458,7 +492,18 @@ impl<'a> CommunityFundingProject<'a> {
 
 		// Check our auction was properly interpreted
 		test_env.advance_time(1);
-		auctioning_project.do_project_assertions(default_auction_end_assertions);
+		let previous_balances = (
+			default_plmc_balances()[4..6].to_vec(),
+			default_statemint_assets()[4..6].to_vec(),
+		);
+		let updated_balances = (
+			default_post_auction_plmc_balances(),
+			default_post_auction_statemint_asset_balances(),
+		);
+
+		auctioning_project.do_project_assertions(|pid, env| {
+			bid_assertions(pid, env, previous_balances.clone(), default_auction_bids(), updated_balances.clone())
+		});
 
 		// Start community funding by moving block to after the end of candle round
 		let community_funding_project = auctioning_project.start_community_funding();
@@ -673,8 +718,25 @@ mod defaults {
 	}
 
 	pub fn default_auction_bids() -> UserToBid {
-		// This should reflect the bidding currency, which currently is just PLMC
-		vec![(BIDDER_1, (300, 500 * USDT_UNIT, None)), (BIDDER_2, (500, 150 * USDT_UNIT, None))]
+		// This should reflect the bidding currency, which currently is USDT
+		vec![
+			(BIDDER_1, (300, 500 * USDT_UNIT, None)),
+			(BIDDER_2, (500, 150 * USDT_UNIT, None)),
+		]
+	}
+
+	pub fn default_post_auction_plmc_balances() -> UserToBalance {
+		vec![
+			(BIDDER_1, 350_000 * PLMC),
+			(BIDDER_2, 225_000 * PLMC),
+		]
+	}
+
+	pub fn default_post_auction_statemint_asset_balances() -> UserToStatemintAsset {
+		vec![
+			(BIDDER_1, 350_000 * USDT_UNIT, USDT_STATEMINT_ID),
+			(BIDDER_2, 225_000 * USDT_UNIT, USDT_STATEMINT_ID),
+		]
 	}
 
 	pub fn default_token_average_price() -> BalanceOf<TestRuntime> {
@@ -682,25 +744,14 @@ mod defaults {
 	}
 
 	pub fn default_auction_bids_plmc_bondings() -> UserToBalance {
-		default_auction_bids()
-			.into_iter()
-			.map(|(user, (amount, price, mult))| {
-				(
-					user,
-					(mult
-						.unwrap_or_default()
-						.calculate_bonding_requirement(amount * price)
-						.unwrap()),
-				)
-			})
-			.collect()
+		vec![(BIDDER_1, 300 * 500 * USDT_UNIT), (BIDDER_2, 500 * 150 * USDT_UNIT)]
 	}
 
-	pub fn default_auction_bids_currency_reserved() -> UserToBalance {
-		default_auction_bids()
-			.into_iter()
-			.map(|(user, (amount, price, _mult))| (user, (amount * price)))
-			.collect()
+	pub fn default_auction_bids_funding_contributed() -> UserToStatemintAsset {
+		vec![
+			(BIDDER_1, 300 * 500 * USDT_UNIT, USDT_STATEMINT_ID),
+			(BIDDER_2, 500 * 150 * USDT_UNIT, USDT_STATEMINT_ID),
+		]
 	}
 
 	pub fn default_community_plmc_bondings(price: BalanceOf<TestRuntime>) -> UserToBalance {
@@ -770,51 +821,7 @@ mod defaults {
 		});
 	}
 
-	pub fn default_auction_end_assertions(_project_id: ProjectIdOf<TestRuntime>, test_env: &TestEnvironment) {
-		// Check that enough PLMC is bonded
-		test_env.do_reserved_funds_assertions(default_auction_bids_plmc_bondings(), BondType::Bidding);
 
-		// Check that the bidding currency is reserved
-		test_env.ext_env.borrow_mut().execute_with(|| {
-			for ((account, plmc_amount), (_, bid_amount)) in default_auction_bids_plmc_bondings()
-				.into_iter()
-				.zip(default_auction_bids_currency_reserved().into_iter())
-			{
-				let bidding_currency_reserve = Balances::reserved_balance(account);
-				// Since for now bids use the same pallet as PLMC, the only reserve amount should be the plmc
-				assert_eq!(
-					bidding_currency_reserve,
-					plmc_amount + bid_amount,
-					"Bidding currency reserve should be drained"
-				);
-			}
-		});
-
-		// Check that free funds were reduced
-		let mut free_funds = default_plmc_balances();
-		// Remove accounts that didnt bond from free_funds
-		free_funds = remove_missing_accounts_from_fundings(free_funds, default_auction_bids_plmc_bondings());
-		// Subtract plmc bonded bidding funds
-		free_funds = free_funds
-			.iter()
-			.zip(default_auction_bids_plmc_bondings().iter())
-			.map(|(original, bonded)| {
-				assert_eq!(original.0, bonded.0, "User should be the same");
-				(original.0, original.1 - bonded.1)
-			})
-			.collect::<UserToBalance>();
-		// Subtract bidding currency reserve
-		free_funds = free_funds
-			.iter()
-			.zip(default_auction_bids_currency_reserved().iter())
-			.map(|(original, bonded)| {
-				assert_eq!(original.0, bonded.0, "User should be the same");
-				(original.0, original.1 - bonded.1)
-			})
-			.collect::<UserToBalance>();
-
-		test_env.do_free_funds_assertions(free_funds.clone());
-	}
 
 	pub fn default_community_funding_start_assertions(
 		project_id: ProjectIdOf<TestRuntime>, test_env: &TestEnvironment,
@@ -830,7 +837,7 @@ mod defaults {
 		});
 
 		// PLMC should still be reserved, since its only a bond
-		test_env.do_reserved_funds_assertions(default_auction_bids_plmc_bondings(), BondType::Bidding);
+		test_env.do_reserved_plmc_assertions(default_auction_bids_plmc_bondings(), BondType::Bidding);
 
 		// Check for correct project information
 		test_env.ext_env.borrow_mut().execute_with(|| {
@@ -882,7 +889,7 @@ mod defaults {
 		let expected_plmc_bondings = default_community_plmc_bondings(token_price);
 		let expected_buys = default_community_buys_currency_reserved(token_price);
 		// Check that enough PLMC is bonded
-		test_env.do_reserved_funds_assertions(expected_plmc_bondings.clone(), BondType::Contributing);
+		test_env.do_reserved_plmc_assertions(expected_plmc_bondings.clone(), BondType::Contributing);
 
 		// Check that free funds were reduced
 		let mut free_funds = default_plmc_balances();
@@ -907,7 +914,7 @@ mod defaults {
 			})
 			.collect::<UserToBalance>();
 		// Check that free funds are correct
-		test_env.do_free_funds_assertions(free_funds.clone());
+		test_env.do_free_plmc_assertions(free_funds.clone());
 
 		// Check that remaining CTs are updated
 		test_env.ext_env.borrow_mut().execute_with(|| {
@@ -971,33 +978,45 @@ mod defaults {
 	}
 }
 
-#[cfg(test)]
-mod helper_functions {
+pub mod helper_functions {
 	use super::*;
-	use crate::UpdateType::{CommunityFundingStart, RemainderFundingStart};
-	#[test]
-	fn remove_from_update_store_works() {
-		let test_env = TestEnvironment::new();
-		let now = test_env.current_block();
-		test_env.ext_env.borrow_mut().execute_with(|| {
-			FundingModule::add_to_update_store(now + 10u64, (&42u32, CommunityFundingStart));
-			FundingModule::add_to_update_store(now + 20u64, (&69u32, RemainderFundingStart));
-			FundingModule::add_to_update_store(now + 5u64, (&404u32, RemainderFundingStart));
-		});
-		test_env.advance_time(2u64);
-		test_env.ext_env.borrow_mut().execute_with(|| {
-			let stored = crate::ProjectsToUpdate::<TestRuntime>::iter_values().collect::<Vec<_>>();
-			assert_eq!(stored.len(), 3, "There should be 3 blocks scheduled for updating");
 
-			FundingModule::remove_from_update_store(&69u32).unwrap();
+	pub fn bid_assertions(
+		project_id: ProjectIdOf<TestRuntime>, test_env: &TestEnvironment,
+		previous_balances: (UserToBalance, UserToStatemintAsset), bids: UserToBid,
+		updated_balances: (UserToBalance, UserToStatemintAsset),
+	) {
+		// Calculate how much PLMC should be bonded
+		let expected_plmc_bondings = updated_balances
+			.0
+			.clone()
+			.into_iter()
+			.zip(previous_balances.0.clone().into_iter())
+			.map(|((post_user, post_plmc), (pre_user, pre_plmc))| {
+				assert_eq!(
+					post_user, pre_user,
+					"Balances iterators should contain the users in the same order"
+				);
+				(post_user, pre_plmc - post_plmc)
+			})
+			.collect::<Vec<_>>();
 
-			let stored = crate::ProjectsToUpdate::<TestRuntime>::iter_values().collect::<Vec<_>>();
-			assert_eq!(
-				stored[2],
-				vec![],
-				"Vector should be empty for that block after deletion"
-			);
-		});
+		// Calculate how much each user contributed based on the bids
+		let expected_contributions = bids.into_iter().map(|(user, bid)|{
+			(user, bid.0 * bid.1, USDT_STATEMINT_ID)
+		}).collect::<Vec<_>>();
+
+		// Check that enough PLMC is bonded
+		test_env.do_reserved_plmc_assertions(expected_plmc_bondings, BondType::Bidding);
+
+		// Check that the bidding currency is reserved
+		test_env.do_bid_transferred_statemint_asset_assertions(expected_contributions, project_id);
+
+		// Check that PLMC funds were reduced
+		test_env.do_free_plmc_assertions(updated_balances.0);
+
+		// Check that statemint asset funds were reduced
+		test_env.do_free_statemint_asset_assertions(updated_balances.1);
 	}
 }
 
@@ -1198,7 +1217,7 @@ mod evaluation_round_failure {
 			.expect("Bonding should work");
 
 		// Check that enough funds are reserved
-		test_env.do_reserved_funds_assertions(default_failing_evaluation_bonds(), BondType::Evaluation);
+		test_env.do_reserved_plmc_assertions(default_failing_evaluation_bonds(), BondType::Evaluation);
 
 		// Check that free funds were reduced
 		let mut free_funds = default_plmc_balances();
@@ -1213,7 +1232,7 @@ mod evaluation_round_failure {
 				(original.0, original.1 - bonded.1)
 			})
 			.collect::<UserToBalance>();
-		test_env.do_free_funds_assertions(free_funds.clone());
+		test_env.do_free_plmc_assertions(free_funds.clone());
 
 		let evaluation_end = evaluating_project
 			.get_project_info()
@@ -1226,7 +1245,7 @@ mod evaluation_round_failure {
 		assert_eq!(project_info.project_status, ProjectStatus::EvaluationFailed);
 		// Check that on_idle has unlocked the failed bonds
 		test_env.advance_time(10);
-		test_env.do_free_funds_assertions(default_plmc_balances());
+		test_env.do_free_plmc_assertions(default_plmc_balances());
 	}
 
 	#[test]
@@ -1279,31 +1298,40 @@ mod auction_round_success {
 			.end()
 			.expect("Candle auction end point should exist");
 
-		// do one candle bid for each block until the end of candle auction with a new user
+		// Do one candle bid for each block until the end of candle auction with a new user
 		let mut bidding_account = 1000;
+		// Imitate the first default bid
 		let bid_info = default_auction_bids()[0].1;
-		let necessary_funding = (bid_info.0 * bid_info.1)
-			+ (bid_info
-				.2
-				.unwrap_or_default()
-				.calculate_bonding_requirement(bid_info.0 * bid_info.1)
-				.unwrap());
+		// Calculate necessary PLMC from the multiplier
+		let plmc_necessary_funding = 100 * PLMC + bid_info
+			.2
+			.unwrap_or_default()
+			.calculate_bonding_requirement(bid_info.0 * bid_info.1)
+			.unwrap();
+		let statemint_asset_necessary_funding = bid_info.0 * bid_info.1;
+
 		let mut bids_made: UserToBid = vec![];
 		let starting_bid_block = test_env.current_block();
-		assert_eq!(test_env.current_block(), starting_bid_block);
 		let blocks_to_bid = test_env.current_block()..candle_end_block;
+
 		for _block in blocks_to_bid {
+			// Check we are still in candle auction
 			assert_eq!(
 				auctioning_project.get_project_info().project_status,
 				ProjectStatus::AuctionRound(AuctionPhase::Candle)
 			);
-			test_env.mint_plmc_to(vec![(bidding_account, necessary_funding)]);
+			// Fund account with necessary assets
+			test_env.mint_plmc_to(vec![(bidding_account, plmc_necessary_funding)]);
+			test_env.mint_statemint_asset_to(vec![(bidding_account, statemint_asset_necessary_funding, USDT_STATEMINT_ID)]);
+			// Make the bid
 			let bids: UserToBid = vec![(bidding_account, bid_info)];
 			auctioning_project
 				.bid_for_users(bids.clone())
 				.expect("Candle Bidding should not fail");
+
 			bids_made.push(bids[0]);
 			bidding_account += 1;
+
 			test_env.advance_time(1);
 		}
 		test_env.advance_time(candle_end_block - test_env.current_block() + 1);
@@ -1556,7 +1584,7 @@ mod community_round_success {
 			ProjectStatus::FundingEnded
 		);
 
-		test_env.do_free_funds_assertions(vec![(BOB, (50 * PLMC) * 2)]);
+		test_env.do_free_plmc_assertions(vec![(BOB, (50 * PLMC) * 2)]);
 	}
 
 	#[test]
@@ -1600,7 +1628,7 @@ mod community_round_success {
 			ProjectStatus::FundingEnded
 		);
 
-		test_env.do_free_funds_assertions(vec![(BOB, (40 * ct_price) * 2 + (50 * PLMC) * 2)]);
+		test_env.do_free_plmc_assertions(vec![(BOB, (40 * ct_price) * 2 + (50 * PLMC) * 2)]);
 	}
 
 	#[test]
@@ -1868,5 +1896,66 @@ mod bids_vesting {
 				assert_eq!(actual_bonded_plmc, 0u32.into());
 			}
 		});
+	}
+}
+
+#[cfg(test)]
+mod misc_features {
+	use frame_support::traits::tokens::Preservation;
+	use super::*;
+	use crate::UpdateType::{CommunityFundingStart, RemainderFundingStart};
+
+	#[test]
+	fn remove_from_update_store_works() {
+		let test_env = TestEnvironment::new();
+		let now = test_env.current_block();
+		test_env.ext_env.borrow_mut().execute_with(|| {
+			FundingModule::add_to_update_store(now + 10u64, (&42u32, CommunityFundingStart));
+			FundingModule::add_to_update_store(now + 20u64, (&69u32, RemainderFundingStart));
+			FundingModule::add_to_update_store(now + 5u64, (&404u32, RemainderFundingStart));
+		});
+		test_env.advance_time(2u64);
+		test_env.ext_env.borrow_mut().execute_with(|| {
+			let stored = crate::ProjectsToUpdate::<TestRuntime>::iter_values().collect::<Vec<_>>();
+			assert_eq!(stored.len(), 3, "There should be 3 blocks scheduled for updating");
+
+			FundingModule::remove_from_update_store(&69u32).unwrap();
+
+			let stored = crate::ProjectsToUpdate::<TestRuntime>::iter_values().collect::<Vec<_>>();
+			assert_eq!(
+				stored[2],
+				vec![],
+				"Vector should be empty for that block after deletion"
+			);
+		});
+	}
+
+	#[test]
+	fn account_survives_with_drained_usdt() {
+		let test_env = TestEnvironment::new();
+		let acc = 4444u64;
+		let recv = 1;
+		test_env.mint_plmc_to(vec![
+			(acc, <TestRuntime as pallet_balances::Config>::ExistentialDeposit::get()),
+			(recv, <TestRuntime as pallet_balances::Config>::ExistentialDeposit::get())
+		]);
+		test_env.mint_statemint_asset_to(vec![(acc, 10 * USDT_UNIT + 1, USDT_STATEMINT_ID)]);
+		test_env.ext_env.borrow_mut().execute_with(|| {
+			// StatemintAssets::transfer(RuntimeOrigin::signed(acc),USDT_STATEMINT_ID.into(), recv.into(), 10 * USDT_UNIT).unwrap();
+			assert_ok!(<StatemintAssets as fungibles::Mutate<AccountId>>::transfer(
+				USDT_STATEMINT_ID.into(),
+				&acc.into(),
+				&recv.into(),
+				10 * USDT_UNIT,
+				Preservation::Expendable
+			));
+		});
+		let p_funds = test_env.get_free_fundings();
+		test_env.ext_env.borrow_mut().execute_with(||{
+			let usr_balance = StatemintAssets::maybe_balance(USDT_STATEMINT_ID.into(), &acc.into());
+			let stop = "here";
+
+		});
+
 	}
 }
