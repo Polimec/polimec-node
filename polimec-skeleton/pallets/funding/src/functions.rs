@@ -1490,7 +1490,7 @@ impl<T: Config> Pallet<T> {
 				Some(bond) => {
 					// If the user has already bonded, add the new amount to the old one
 					bond.amount += amount;
-					T::NativeCurrency::release(&BondType::Contributing, &caller, amount, Precision::Exact)
+					T::NativeCurrency::hold(&BondType::Contributing, &caller, amount)
 						.map_err(|_| Error::<T>::InsufficientBalance)?;
 				}
 				None => {

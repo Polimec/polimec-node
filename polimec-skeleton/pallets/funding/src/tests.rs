@@ -19,12 +19,11 @@
 //! Tests for Funding pallet.
 
 use super::*;
-use helper_functions::*;
-use defaults::*;
 use crate::{
 	mock::{FundingModule, *},
 	CurrencyMetadata, Error, ParticipantsSize, ProjectMetadata, TicketSize,
 };
+use defaults::*;
 use frame_support::{
 	assert_noop, assert_ok,
 	traits::{
@@ -34,6 +33,7 @@ use frame_support::{
 	},
 	weights::Weight,
 };
+use helper_functions::*;
 
 use sp_runtime::DispatchError;
 use std::cell::RefCell;
@@ -79,6 +79,7 @@ const METADATA: &str = r#"
 	"roadmap":"ipfs_url",
 	"usage_of_founds":"ipfs_url"
 }"#;
+const ISSUING_FEE: u128 = 0;
 
 // REMARK: Uncomment if we want to test the events.
 // fn last_event() -> RuntimeEvent {
@@ -166,16 +167,29 @@ impl TestEnvironment {
 		})
 	}
 	/// Returns the *free* fundings of the Users.
-	#[allow(dead_code)]
-	fn get_free_fundings(&self) -> UserToBalance {
+	fn get_free_plmc_balances(&self) -> UserToBalance {
 		self.ext_env.borrow_mut().execute_with(|| {
-			let mut fundings = UserToBalance::new();
+			let mut balances = UserToBalance::new();
 			let user_keys: Vec<AccountId> = frame_system::Account::<TestRuntime>::iter_keys().collect();
 			for user in user_keys {
 				let funding = Balances::free_balance(&user);
-				fundings.push((user, funding));
+				balances.push((user, funding));
 			}
-			fundings
+			balances.sort_by(|a, b| a.0.cmp(&b.0));
+			balances
+		})
+	}
+
+	fn get_free_statemint_asset_balances(&self, asset_id: AssetId) -> UserToStatemintAsset {
+		self.ext_env.borrow_mut().execute_with(|| {
+			let user_keys: Vec<AccountId> = frame_system::Account::<TestRuntime>::iter_keys().collect();
+			let mut balances: UserToStatemintAsset = UserToStatemintAsset::new();
+			for user in user_keys {
+				let asset_balance = StatemintAssets::balance(asset_id, &user);
+				balances.push((user, asset_balance, asset_id.clone()));
+			}
+			balances.sort_by(|a, b| a.0.cmp(&b.0));
+			balances
 		})
 	}
 	/// Returns the *reserved* fundings of the Users.
@@ -249,7 +263,6 @@ impl TestEnvironment {
 	fn do_bid_transferred_statemint_asset_assertions(
 		&self, correct_funds: UserToStatemintAsset, project_id: ProjectIdOf<TestRuntime>,
 	) {
-		let project_account = FundingModule::fund_account_id(project_id.clone());
 		for (user, expected_amount, token_id) in correct_funds {
 			self.ext_env.borrow_mut().execute_with(|| {
 				// total amount of contributions for this user for this project stored in the mapping
@@ -258,6 +271,26 @@ impl TestEnvironment {
 						.unwrap()
 						.iter()
 						.map(|c| c.amount * c.price)
+						.sum();
+				assert_eq!(
+					contribution_total, expected_amount,
+					"Wrong statemint asset balance expected for user {}",
+					user
+				);
+			});
+		}
+	}
+	fn do_contribution_transferred_statemint_asset_assertions(
+		&self, correct_funds: UserToStatemintAsset, project_id: ProjectIdOf<TestRuntime>,
+	) {
+		for (user, expected_amount, token_id) in correct_funds {
+			self.ext_env.borrow_mut().execute_with(|| {
+				// total amount of contributions for this user for this project stored in the mapping
+				let contribution_total: <TestRuntime as Config>::Balance =
+					Contributions::<TestRuntime>::get(project_id, user.clone())
+						.unwrap()
+						.iter()
+						.map(|c| c.contribution_amount)
 						.sum();
 				assert_eq!(
 					contribution_total, expected_amount,
@@ -485,6 +518,10 @@ impl<'a> CommunityFundingProject<'a> {
 	pub fn new_default(test_env: &'a TestEnvironment) -> Self {
 		let auctioning_project = AuctioningProject::new_default(test_env);
 
+		let plmc_balances = test_env.get_free_plmc_balances();
+		let statemint_asset_balances = test_env.get_free_statemint_asset_balances(USDT_STATEMINT_ID);
+		let actual_previous_balances = (plmc_balances, statemint_asset_balances);
+
 		// Do Auction bidding
 		auctioning_project
 			.bid_for_users(default_auction_bids())
@@ -492,17 +529,19 @@ impl<'a> CommunityFundingProject<'a> {
 
 		// Check our auction was properly interpreted
 		test_env.advance_time(1);
-		let previous_balances = (
-			default_plmc_balances()[4..6].to_vec(),
-			default_statemint_assets()[4..6].to_vec(),
-		);
-		let updated_balances = (
+
+		let expected_updated_balances = (
 			default_post_auction_plmc_balances(),
 			default_post_auction_statemint_asset_balances(),
 		);
 
 		auctioning_project.do_project_assertions(|pid, env| {
-			bid_assertions(pid, env, previous_balances.clone(), default_auction_bids(), updated_balances.clone())
+			bid_assertions(
+				pid,
+				env,
+				actual_previous_balances.clone(),
+				expected_updated_balances.clone(),
+			)
 		});
 
 		// Start community funding by moving block to after the end of candle round
@@ -572,6 +611,9 @@ impl<'a> RemainderFundingProject<'a> {
 
 	fn new_default(test_env: &'a TestEnvironment) -> Self {
 		let community_funding_project = CommunityFundingProject::new_default(test_env);
+		let plmc_balances = test_env.get_free_plmc_balances();
+		let statemint_asset_balances = test_env.get_free_statemint_asset_balances(USDT_STATEMINT_ID);
+		let actual_previous_balances = (plmc_balances, statemint_asset_balances);
 
 		// Do community buying
 		community_funding_project
@@ -580,7 +622,18 @@ impl<'a> RemainderFundingProject<'a> {
 
 		// Check our buys were properly interpreted
 		test_env.advance_time(1);
-		community_funding_project.do_project_assertions(default_community_funding_end_assertions);
+
+		let expected_updated_balances = (
+			default_post_contribution_plmc_balances(),
+			default_post_contribution_statemint_asset_balances(),
+		);
+
+		community_funding_project.do_project_assertions(|project_id, test_env| buy_assertions(
+			project_id,
+			test_env,
+			actual_previous_balances.clone(),
+			expected_updated_balances.clone(),
+		));
 
 		// Start remainder funding by moving block to after the end of community round
 		let remainder_funding_project = community_funding_project.start_remainder_funding();
@@ -726,17 +779,45 @@ mod defaults {
 	}
 
 	pub fn default_post_auction_plmc_balances() -> UserToBalance {
-		vec![
-			(BIDDER_1, 350_000 * PLMC),
-			(BIDDER_2, 225_000 * PLMC),
-		]
+		let mut balances = default_plmc_balances();
+		// ISSUER
+		balances[0].1 -= ISSUING_FEE;
+		// EVALUATORS
+		balances[1].1 -= default_evaluation_bonds()[0].1;
+		balances[2].1 -= default_evaluation_bonds()[1].1;
+		balances[3].1 -= default_evaluation_bonds()[2].1;
+		// BIDDERS
+		balances[4].1 -= default_auction_bids()[0]
+			.1
+			 .2
+			.unwrap_or_default()
+			.calculate_bonding_requirement(default_auction_bids()[0].1 .0 * default_auction_bids()[0].1 .1)
+			.unwrap();
+		balances[5].1 -= default_auction_bids()[1]
+			.1
+			 .2
+			.unwrap_or_default()
+			.calculate_bonding_requirement(default_auction_bids()[1].1 .0 * default_auction_bids()[1].1 .1)
+			.unwrap();
+		// BUYERS
+		// unchanged
+
+		balances
 	}
 
 	pub fn default_post_auction_statemint_asset_balances() -> UserToStatemintAsset {
-		vec![
-			(BIDDER_1, 350_000 * USDT_UNIT, USDT_STATEMINT_ID),
-			(BIDDER_2, 225_000 * USDT_UNIT, USDT_STATEMINT_ID),
-		]
+		let mut balances = default_statemint_assets();
+		// ISSUER
+		// unchanged
+		// EVALUATORS
+		// unchanged
+		// BIDDERS
+		balances[4].1 -= default_auction_bids()[0].1 .0 * default_auction_bids()[0].1 .1;
+		balances[5].1 -= default_auction_bids()[1].1 .0 * default_auction_bids()[1].1 .1;
+		// BUYERS
+		// unchanged
+
+		balances
 	}
 
 	pub fn default_token_average_price() -> BalanceOf<TestRuntime> {
@@ -767,6 +848,46 @@ mod defaults {
 				)
 			})
 			.collect()
+	}
+
+	pub fn default_post_contribution_plmc_balances() -> UserToBalance {
+		let mut balances = default_post_auction_plmc_balances();
+		// ISSUER
+		// unchanged
+		// EVALUATORS
+		// unchanged
+		// BIDDERS
+		// unchanged
+		// BUYERS
+		balances[6].1 -= default_community_buys()[0]
+			.1
+			 .1
+			.unwrap_or_default()
+			.calculate_bonding_requirement(default_community_buys()[0].1 .0 * default_token_average_price())
+			.unwrap();
+		balances[7].1 -= default_community_buys()[1]
+			.1
+			 .1
+			.unwrap_or_default()
+			.calculate_bonding_requirement(default_community_buys()[1].1 .0 * default_token_average_price())
+			.unwrap();
+
+		balances
+	}
+
+	pub fn default_post_contribution_statemint_asset_balances() -> UserToStatemintAsset {
+		let mut balances = default_post_auction_statemint_asset_balances();
+		// ISSUER
+		// unchanged
+		// EVALUATORS
+		// unchanged
+		// BIDDERS
+		// unchanged
+		// BUYERS
+		balances[6].1 -= default_community_buys()[0].1 .0 * default_token_average_price();
+		balances[7].1 -= default_community_buys()[1].1 .0 * default_token_average_price();
+
+		balances
 	}
 
 	pub fn default_community_buys_currency_reserved(price: BalanceOf<TestRuntime>) -> UserToBalance {
@@ -820,8 +941,6 @@ mod defaults {
 			);
 		});
 	}
-
-
 
 	pub fn default_community_funding_start_assertions(
 		project_id: ProjectIdOf<TestRuntime>, test_env: &TestEnvironment,
@@ -981,17 +1100,21 @@ mod defaults {
 pub mod helper_functions {
 	use super::*;
 
+	pub fn get_ed() -> BalanceOf<TestRuntime> {
+		<TestRuntime as pallet_balances::Config>::ExistentialDeposit::get()
+	}
+
 	pub fn bid_assertions(
 		project_id: ProjectIdOf<TestRuntime>, test_env: &TestEnvironment,
-		previous_balances: (UserToBalance, UserToStatemintAsset), bids: UserToBid,
-		updated_balances: (UserToBalance, UserToStatemintAsset),
+		actual_previous_balances: (UserToBalance, UserToStatemintAsset),
+		expected_updated_balances: (UserToBalance, UserToStatemintAsset),
 	) {
 		// Calculate how much PLMC should be bonded
-		let expected_plmc_bondings = updated_balances
+		let expected_plmc_bondings = expected_updated_balances
 			.0
 			.clone()
 			.into_iter()
-			.zip(previous_balances.0.clone().into_iter())
+			.zip(actual_previous_balances.0.clone().into_iter())
 			.map(|((post_user, post_plmc), (pre_user, pre_plmc))| {
 				assert_eq!(
 					post_user, pre_user,
@@ -1002,21 +1125,89 @@ pub mod helper_functions {
 			.collect::<Vec<_>>();
 
 		// Calculate how much each user contributed based on the bids
-		let expected_contributions = bids.into_iter().map(|(user, bid)|{
-			(user, bid.0 * bid.1, USDT_STATEMINT_ID)
-		}).collect::<Vec<_>>();
+		let expected_statemint_asset_transfers: UserToStatemintAsset = expected_updated_balances
+			.1
+			.clone()
+			.into_iter()
+			.zip(actual_previous_balances.1.clone().into_iter())
+			.filter_map(
+				|((post_user, post_buys, post_asset_id), (pre_user, pre_buys, pre_asset_id))| {
+					assert_eq!(
+						post_user, pre_user,
+						"Balances iterators should contain the users in the same order"
+					);
+					assert_eq!(post_asset_id, pre_asset_id, "Same asset ID expected");
+					if pre_buys - post_buys > 0 {
+						Some((post_user, pre_buys - post_buys, post_asset_id))
+					} else {
+						None
+					}
+				},
+			)
+			.collect();
 
 		// Check that enough PLMC is bonded
 		test_env.do_reserved_plmc_assertions(expected_plmc_bondings, BondType::Bidding);
 
 		// Check that the bidding currency is reserved
-		test_env.do_bid_transferred_statemint_asset_assertions(expected_contributions, project_id);
+		test_env.do_bid_transferred_statemint_asset_assertions(expected_statemint_asset_transfers, project_id);
 
 		// Check that PLMC funds were reduced
-		test_env.do_free_plmc_assertions(updated_balances.0);
+		test_env.do_free_plmc_assertions(expected_updated_balances.0);
 
 		// Check that statemint asset funds were reduced
-		test_env.do_free_statemint_asset_assertions(updated_balances.1);
+		test_env.do_free_statemint_asset_assertions(expected_updated_balances.1);
+	}
+
+	pub fn buy_assertions(
+		project_id: ProjectIdOf<TestRuntime>, test_env: &TestEnvironment,
+		actual_previous_balances: (UserToBalance, UserToStatemintAsset),
+		expected_updated_balances: (UserToBalance, UserToStatemintAsset),
+	) {
+		// Calculate how much PLMC should be bonded
+		let expected_plmc_bondings = expected_updated_balances
+			.0
+			.clone()
+			.into_iter()
+			.zip(actual_previous_balances.0.clone().into_iter())
+			.map(|((post_user, post_plmc), (pre_user, pre_plmc))| {
+				assert_eq!(
+					post_user, pre_user,
+					"Balances iterators should contain the users in the same order"
+				);
+				(post_user, pre_plmc - post_plmc)
+			})
+			.collect::<Vec<_>>();
+
+		let expected_buys: UserToStatemintAsset = expected_updated_balances
+			.1
+			.clone()
+			.into_iter()
+			.zip(actual_previous_balances.1.clone().into_iter())
+			.filter_map(
+				|((post_user, post_buys, post_asset_id), (pre_user, pre_buys, pre_asset_id))| {
+					assert_eq!(
+						post_user, pre_user,
+						"Balances iterators should contain the users in the same order"
+					);
+					assert_eq!(post_asset_id, pre_asset_id, "Same asset ID expected");
+					if pre_buys - post_buys > 0 {
+						Some((post_user, pre_buys - post_buys, post_asset_id))
+					} else {
+						None
+					}
+				},
+			)
+			.collect();
+
+		// Check that enough PLMC is bonded
+		test_env.do_reserved_plmc_assertions(expected_plmc_bondings, BondType::Contributing);
+		// Check that the bidding currency is reserved
+		test_env.do_contribution_transferred_statemint_asset_assertions(expected_buys, project_id);
+		// Check that PLMC funds were reduced
+		test_env.do_free_plmc_assertions(expected_updated_balances.0);
+		// Check that statemint asset funds were reduced
+		test_env.do_free_statemint_asset_assertions(expected_updated_balances.1);
 	}
 }
 
@@ -1303,11 +1494,12 @@ mod auction_round_success {
 		// Imitate the first default bid
 		let bid_info = default_auction_bids()[0].1;
 		// Calculate necessary PLMC from the multiplier
-		let plmc_necessary_funding = 100 * PLMC + bid_info
-			.2
-			.unwrap_or_default()
-			.calculate_bonding_requirement(bid_info.0 * bid_info.1)
-			.unwrap();
+		let plmc_necessary_funding = 100 * PLMC
+			+ bid_info
+				.2
+				.unwrap_or_default()
+				.calculate_bonding_requirement(bid_info.0 * bid_info.1)
+				.unwrap();
 		let statemint_asset_necessary_funding = bid_info.0 * bid_info.1;
 
 		let mut bids_made: UserToBid = vec![];
@@ -1322,7 +1514,11 @@ mod auction_round_success {
 			);
 			// Fund account with necessary assets
 			test_env.mint_plmc_to(vec![(bidding_account, plmc_necessary_funding)]);
-			test_env.mint_statemint_asset_to(vec![(bidding_account, statemint_asset_necessary_funding, USDT_STATEMINT_ID)]);
+			test_env.mint_statemint_asset_to(vec![(
+				bidding_account,
+				statemint_asset_necessary_funding,
+				USDT_STATEMINT_ID,
+			)]);
 			// Make the bid
 			let bids: UserToBid = vec![(bidding_account, bid_info)];
 			auctioning_project
@@ -1461,20 +1657,24 @@ mod auction_round_failure {
 			(DAVE, (20_000, 8 * PLMC, None)),
 		];
 
-		let mut fundings: UserToBalance = bids
+		let mut plmc_fundings: UserToBalance = bids
 			.iter()
 			.map(|(user, (amount, price, _))| (*user, *amount * *price))
 			.collect::<Vec<_>>();
 		// Existential deposit on DAVE
-		fundings.push((DAVE, 100 * PLMC));
+		plmc_fundings.push((DAVE, 100 * PLMC));
 
-		let _free_balance = fundings.iter().fold(0, |acc, (_, balance)| acc + balance);
-
-		// Fund enough for all bids
-		test_env.mint_plmc_to(fundings.clone());
+		let statemint_asset_fundings: UserToStatemintAsset = plmc_fundings
+			.clone()
+			.into_iter()
+			.map(|(user, amount)| (user, amount, USDT_STATEMINT_ID))
+			.collect();
 
 		// Fund enough for all PLMC bonds for the bids (multiplier of 1)
-		test_env.mint_plmc_to(fundings.clone());
+		test_env.mint_plmc_to(plmc_fundings.clone());
+
+		// Fund enough for all bids
+		test_env.mint_statemint_asset_to(statemint_asset_fundings.clone());
 
 		auctioning_project.bid_for_users(bids).expect("Bids should pass");
 
@@ -1493,6 +1693,7 @@ mod auction_round_failure {
 mod community_round_success {
 	use super::*;
 	use crate::traits::BondingRequirementCalculation;
+	use sp_io::storage::get;
 	pub const HOURS: BlockNumber = 300u64;
 
 	#[test]
@@ -1502,47 +1703,53 @@ mod community_round_success {
 	}
 
 	#[test]
-	fn remainder_round_works() {
-		let test_env = TestEnvironment::new();
-		let _remainder_funding_project = RemainderFundingProject::new_default(&test_env);
-	}
-
-	#[test]
 	fn contribute_multiple_times_works() {
 		let test_env = TestEnvironment::new();
 		let community_funding_project = CommunityFundingProject::new_default(&test_env);
 		const BOB: AccountId = 42;
-		let buyers_1: UserToBalance = vec![(BOB, 3_000 * PLMC), (BOB, 3_000 * PLMC)];
-		let buyers_2: UserToBalance = vec![(BOB, 40_000 * PLMC), (BOB, 13_550 * PLMC)];
-		// Fund for buy
-		test_env.mint_plmc_to(buyers_1.clone());
+		let token_price = community_funding_project
+			.get_project_info()
+			.weighted_average_price
+			.unwrap();
+		let plmc_funding: UserToBalance = vec![(BOB, 3 * token_price), (BOB, 4 * token_price), (BOB, get_ed() * 10)];
+		let statemint_funding: UserToStatemintAsset = plmc_funding
+			.clone()
+			.into_iter()
+			.map(|(user, amount)| (user, amount, USDT_STATEMINT_ID))
+			.collect();
+
 		// Fund for PLMC bond
-		test_env.mint_plmc_to(buyers_1.clone());
+		test_env.mint_plmc_to(plmc_funding);
 		// Fund for buy
-		test_env.mint_plmc_to(buyers_2.clone());
-		// Fund for PLMC bond
-		test_env.mint_plmc_to(buyers_2.clone());
+		test_env.mint_statemint_asset_to(statemint_funding);
 
 		// TODO: Set a reasonable amount of Contribution Tokens that the user wants to buy
 		community_funding_project
 			.buy_for_retail_users(vec![(BOB, (3, None))])
 			.expect("The Buyer should be able to buy multiple times");
 		test_env.advance_time((1 * HOURS) as BlockNumber);
+
 		community_funding_project
 			.buy_for_retail_users(vec![(BOB, (4, None))])
 			.expect("The Buyer should be able to buy multiple times");
+
+		test_env.ext_env.borrow_mut().execute_with(|| {
+			let bob_contributions: BalanceOf<TestRuntime> =
+				Contributions::<TestRuntime>::get(community_funding_project.project_id, BOB)
+					.unwrap()
+					.iter()
+					.map(|c| c.contribution_amount)
+					.sum();
+			assert_eq!(bob_contributions, 7 * token_price);
+		});
 	}
 
 	#[test]
 	fn community_round_ends_on_all_ct_sold_exact() {
 		let test_env = TestEnvironment::new();
-		let alice: AccountId = 6969420u64;
 		let community_funding_project = CommunityFundingProject::new_default(&test_env);
 		const BOB: AccountId = 808;
-		test_env.ext_env.borrow_mut().execute_with(|| {
-			let bob_balance = <TestRuntime as crate::Config>::NativeCurrency::reserved_balance(&BOB);
-			let stop = "here";
-		});
+
 		let remaining_ct = community_funding_project
 			.get_project_info()
 			.remaining_contribution_tokens;
@@ -1551,14 +1758,17 @@ mod community_round_success {
 			.weighted_average_price
 			.expect("CT Price should exist");
 
-		// Necessary funds to buy remaining CTs, plus some extra for keeping it account alive
-		let buyers: UserToBalance = vec![(BOB, remaining_ct * ct_price), (BOB, 50 * PLMC)];
+		let plmc_fundings: UserToBalance = vec![(BOB, remaining_ct * ct_price), (BOB, get_ed())];
+		let statemint_asset_fundings: UserToStatemintAsset = plmc_fundings
+			.clone()
+			.into_iter()
+			.map(|(user, amount)| (user, amount, USDT_STATEMINT_ID))
+			.collect();
 
-		//383_026_666_2_836_400_000
 		// Fund for buy and PLMC bond
-		test_env.mint_plmc_to(buyers.clone());
+		test_env.mint_plmc_to(plmc_fundings.clone());
 		// Fund for PLMC bond
-		test_env.mint_plmc_to(buyers.clone());
+		test_env.mint_statemint_asset_to(statemint_asset_fundings.clone());
 
 		test_env.ext_env.borrow_mut().execute_with(|| {
 			let bob_balance = <TestRuntime as crate::Config>::NativeCurrency::free_balance(&BOB);
@@ -1584,7 +1794,13 @@ mod community_round_success {
 			ProjectStatus::FundingEnded
 		);
 
-		test_env.do_free_plmc_assertions(vec![(BOB, (50 * PLMC) * 2)]);
+		test_env.do_free_plmc_assertions(vec![plmc_fundings[1]]);
+		test_env.do_free_statemint_asset_assertions(vec![statemint_asset_fundings[1]]);
+		test_env.do_reserved_plmc_assertions(vec![plmc_fundings[0]], BondType::Contributing);
+		test_env.do_contribution_transferred_statemint_asset_assertions(
+			vec![statemint_asset_fundings[0]],
+			community_funding_project.get_project_id(),
+		);
 	}
 
 	#[test]
@@ -1603,11 +1819,18 @@ mod community_round_success {
 			.expect("CT Price should exist");
 
 		// Necessary funds to buy remaining CTs, plus some extra for keeping it account alive
-		let buyers: UserToBalance = vec![(BOB, remaining_ct * ct_price), (BOB, 50 * PLMC)];
+		let plmc_fundings: UserToBalance = vec![(BOB, remaining_ct * ct_price), (BOB, get_ed())];
+		let statemint_asset_fundings: UserToStatemintAsset = plmc_fundings
+			.clone()
+			.into_iter()
+			.map(|(user, amount)| (user, amount, USDT_STATEMINT_ID))
+			.collect();
+
 		// Fund for buy and PLMC bond
-		test_env.mint_plmc_to(buyers.clone());
+		test_env.mint_plmc_to(plmc_fundings.clone());
 		// Fund for PLMC bond
-		test_env.mint_plmc_to(buyers.clone());
+		test_env.mint_statemint_asset_to(statemint_asset_fundings.clone());
+
 		// Buy remaining CTs
 		community_funding_project
 			.buy_for_retail_users(vec![(BOB, (remaining_ct, None))])
@@ -1628,23 +1851,27 @@ mod community_round_success {
 			ProjectStatus::FundingEnded
 		);
 
-		test_env.do_free_plmc_assertions(vec![(BOB, (40 * ct_price) * 2 + (50 * PLMC) * 2)]);
+		test_env.do_free_plmc_assertions(vec![(BOB, (40 * ct_price) + get_ed())]);
 	}
 
 	#[test]
 	fn contribution_is_returned_on_limit_reached_same_mult_diff_ct() {
 		let test_env = TestEnvironment::new();
 		let project = CommunityFundingProject::new_default(&test_env);
-		let buyer_2_initial_balance = test_env
+		let buyer_2_initial_plmc_balance = test_env
 			.ext_env
 			.borrow_mut()
-			.execute_with(|| <TestRuntime as crate::Config>::NativeCurrency::free_balance(&BUYER_2));
+			.execute_with(|| <TestRuntime as Config>::NativeCurrency::free_balance(&BUYER_2));
+		let buyer_2_initial_statemint_asset_balance = test_env
+			.ext_env
+			.borrow_mut()
+			.execute_with(|| <TestRuntime as Config>::FundingCurrency::balance(USDT_STATEMINT_ID, &BUYER_2));
 		let project_details = project.get_project_info();
 
-		// Create a contribution that will reach the limit of contributions for a user-project
+		// Create a contribution vector that will reach the limit of contributions for a user-project
 		let multiplier: Option<MultiplierOf<TestRuntime>> = None;
 		let token_amount: BalanceOf<TestRuntime> = 1;
-		let range = 0..<TestRuntime as crate::Config>::MaxContributionsPerUser::get();
+		let range = 0..<TestRuntime as Config>::MaxContributionsPerUser::get();
 		let contributions: UserToContribution = range.map(|_| (BUYER_2, (token_amount, multiplier))).collect();
 
 		// Calculate currencies being transferred and bonded
@@ -1658,19 +1885,41 @@ mod community_round_success {
 		project.buy_for_retail_users(contributions.clone()).unwrap();
 
 		// Check that the right amount of PLMC is bonded, and funding currency is transferred
-		let buyer_2_post_buy_balance = test_env
+		let buyer_2_post_buy_plmc_balance = test_env
 			.ext_env
 			.borrow_mut()
-			.execute_with(|| <TestRuntime as crate::Config>::NativeCurrency::free_balance(&BUYER_2));
+			.execute_with(|| <TestRuntime as Config>::NativeCurrency::free_balance(&BUYER_2));
+		let buyer_2_post_buy_statemint_asset_balance = test_env
+			.ext_env
+			.borrow_mut()
+			.execute_with(|| <TestRuntime as Config>::FundingCurrency::balance(USDT_STATEMINT_ID, &BUYER_2));
+
 		assert_eq!(
-			buyer_2_post_buy_balance,
-			buyer_2_initial_balance - (contribution_ticket_size + plmc_bond) * contributions.len() as u128
+			buyer_2_post_buy_plmc_balance,
+			buyer_2_initial_plmc_balance - plmc_bond * contributions.len() as u128
 		);
+		assert_eq!(
+			buyer_2_post_buy_statemint_asset_balance,
+			buyer_2_initial_statemint_asset_balance - contribution_ticket_size * contributions.len() as u128
+		);
+
 		let plmc_bond_stored = test_env
 			.ext_env
 			.borrow_mut()
-			.execute_with(|| crate::ContributingBonds::<TestRuntime>::get(project.project_id, BUYER_2).unwrap());
+			.execute_with(|| ContributingBonds::<TestRuntime>::get(project.project_id, BUYER_2.clone()).unwrap());
+		let statemint_asset_contributions_stored = test_env.ext_env.borrow_mut().execute_with(|| {
+			Contributions::<TestRuntime>::get(project.project_id, BUYER_2)
+				.unwrap()
+				.iter()
+				.map(|c| c.contribution_amount)
+				.sum::<BalanceOf<TestRuntime>>()
+		});
+
 		assert_eq!(plmc_bond_stored.amount, plmc_bond * contributions.len() as u128);
+		assert_eq!(
+			statemint_asset_contributions_stored,
+			contribution_ticket_size * contributions.len() as u128
+		);
 
 		// Make a new contribution with a PLMC bond bigger than the lowest bond already in store for that account
 		let new_multiplier: Option<MultiplierOf<TestRuntime>> = None;
@@ -1685,21 +1934,43 @@ mod community_round_success {
 		project.buy_for_retail_users(new_contribution.clone()).unwrap();
 
 		// Check that the previous contribution returned the reserved PLMC and the transferred funding currency
-		let buyer_2_post_return_balance = test_env
+		let buyer_2_post_return_plmc_balance = test_env
 			.ext_env
 			.borrow_mut()
-			.execute_with(|| <TestRuntime as crate::Config>::NativeCurrency::free_balance(&BUYER_2));
+			.execute_with(|| <TestRuntime as Config>::NativeCurrency::free_balance(&BUYER_2));
+		let buyer_2_post_return_statemint_asset_balance = test_env
+			.ext_env
+			.borrow_mut()
+			.execute_with(|| <TestRuntime as Config>::FundingCurrency::balance(USDT_STATEMINT_ID, &BUYER_2));
+
 		assert_eq!(
-			buyer_2_post_return_balance,
-			buyer_2_post_buy_balance + (contribution_ticket_size + plmc_bond) - (new_ticket_size + new_plmc_bond)
+			buyer_2_post_return_plmc_balance,
+			buyer_2_post_buy_plmc_balance + plmc_bond - new_plmc_bond
 		);
+		assert_eq!(
+			buyer_2_post_return_statemint_asset_balance,
+			buyer_2_post_buy_statemint_asset_balance + contribution_ticket_size - new_ticket_size
+		);
+
 		let new_plmc_bond_stored = test_env
 			.ext_env
 			.borrow_mut()
 			.execute_with(|| crate::ContributingBonds::<TestRuntime>::get(project.project_id, BUYER_2).unwrap());
+		let new_statemint_asset_contributions_stored = test_env.ext_env.borrow_mut().execute_with(|| {
+			Contributions::<TestRuntime>::get(project.project_id, BUYER_2)
+				.unwrap()
+				.iter()
+				.map(|c| c.contribution_amount)
+				.sum::<BalanceOf<TestRuntime>>()
+		});
+
 		assert_eq!(
 			new_plmc_bond_stored.amount,
 			plmc_bond_stored.amount - plmc_bond + new_plmc_bond
+		);
+		assert_eq!(
+			new_statemint_asset_contributions_stored,
+			statemint_asset_contributions_stored - contribution_ticket_size + new_ticket_size
 		);
 	}
 
@@ -1707,16 +1978,20 @@ mod community_round_success {
 	fn contribution_is_returned_on_limit_reached_diff_mult_same_ct() {
 		let test_env = TestEnvironment::new();
 		let project = CommunityFundingProject::new_default(&test_env);
-		let buyer_2_initial_balance = test_env
+		let buyer_2_initial_plmc_balance = test_env
 			.ext_env
 			.borrow_mut()
-			.execute_with(|| <TestRuntime as crate::Config>::NativeCurrency::free_balance(&BUYER_2));
+			.execute_with(|| <TestRuntime as Config>::NativeCurrency::free_balance(&BUYER_2));
+		let buyer_2_initial_statemint_asset_balance = test_env
+			.ext_env
+			.borrow_mut()
+			.execute_with(|| <TestRuntime as Config>::FundingCurrency::balance(USDT_STATEMINT_ID, &BUYER_2));
 		let project_details = project.get_project_info();
 
 		// Create a contribution that will reach the limit of contributions for a user-project
 		let multiplier: Option<MultiplierOf<TestRuntime>> = Some(Multiplier(2));
 		let token_amount: BalanceOf<TestRuntime> = 1;
-		let range = 0..<TestRuntime as crate::Config>::MaxContributionsPerUser::get();
+		let range = 0..<TestRuntime as Config>::MaxContributionsPerUser::get();
 		let contributions: UserToContribution = range.map(|_| (BUYER_2, (token_amount, multiplier))).collect();
 
 		// Calculate currencies being transferred and bonded
@@ -1730,19 +2005,41 @@ mod community_round_success {
 		project.buy_for_retail_users(contributions.clone()).unwrap();
 
 		// Check that the right amount of PLMC is bonded, and funding currency is transferred
-		let buyer_2_post_buy_balance = test_env
+		let buyer_2_post_buy_plmc_balance = test_env
 			.ext_env
 			.borrow_mut()
-			.execute_with(|| <TestRuntime as crate::Config>::NativeCurrency::free_balance(&BUYER_2));
+			.execute_with(|| <TestRuntime as Config>::NativeCurrency::free_balance(&BUYER_2));
+		let buyer_2_post_buy_statemint_asset_balance = test_env
+			.ext_env
+			.borrow_mut()
+			.execute_with(|| <TestRuntime as Config>::FundingCurrency::balance(USDT_STATEMINT_ID, &BUYER_2));
+
 		assert_eq!(
-			buyer_2_post_buy_balance,
-			buyer_2_initial_balance - (contribution_ticket_size + plmc_bond) * contributions.len() as u128
+			buyer_2_post_buy_plmc_balance,
+			buyer_2_initial_plmc_balance - plmc_bond * contributions.len() as u128
 		);
+		assert_eq!(
+			buyer_2_post_buy_statemint_asset_balance,
+			buyer_2_initial_statemint_asset_balance - contribution_ticket_size * contributions.len() as u128
+		);
+
 		let plmc_bond_stored = test_env
 			.ext_env
 			.borrow_mut()
-			.execute_with(|| crate::ContributingBonds::<TestRuntime>::get(project.project_id, BUYER_2).unwrap());
+			.execute_with(|| ContributingBonds::<TestRuntime>::get(project.project_id, BUYER_2.clone()).unwrap());
+		let statemint_asset_contributions_stored = test_env.ext_env.borrow_mut().execute_with(|| {
+			Contributions::<TestRuntime>::get(project.project_id, BUYER_2)
+				.unwrap()
+				.iter()
+				.map(|c| c.contribution_amount)
+				.sum::<BalanceOf<TestRuntime>>()
+		});
+
 		assert_eq!(plmc_bond_stored.amount, plmc_bond * contributions.len() as u128);
+		assert_eq!(
+			statemint_asset_contributions_stored,
+			contribution_ticket_size * contributions.len() as u128
+		);
 
 		// Make a new contribution with a PLMC bond bigger than the lowest bond already in store for that account
 		let new_multiplier: Option<MultiplierOf<TestRuntime>> = Some(Multiplier(1));
@@ -1757,21 +2054,43 @@ mod community_round_success {
 		project.buy_for_retail_users(new_contribution.clone()).unwrap();
 
 		// Check that the previous contribution returned the reserved PLMC and the transferred funding currency
-		let buyer_2_post_return_balance = test_env
+		let buyer_2_post_return_plmc_balance = test_env
 			.ext_env
 			.borrow_mut()
-			.execute_with(|| <TestRuntime as crate::Config>::NativeCurrency::free_balance(&BUYER_2));
+			.execute_with(|| <TestRuntime as Config>::NativeCurrency::free_balance(&BUYER_2));
+		let buyer_2_post_return_statemint_asset_balance = test_env
+			.ext_env
+			.borrow_mut()
+			.execute_with(|| <TestRuntime as Config>::FundingCurrency::balance(USDT_STATEMINT_ID, &BUYER_2));
+
 		assert_eq!(
-			buyer_2_post_return_balance,
-			buyer_2_post_buy_balance + (contribution_ticket_size + plmc_bond) - (new_ticket_size + new_plmc_bond)
+			buyer_2_post_return_plmc_balance,
+			buyer_2_post_buy_plmc_balance + plmc_bond - new_plmc_bond
 		);
+		assert_eq!(
+			buyer_2_post_return_statemint_asset_balance,
+			buyer_2_post_buy_statemint_asset_balance + contribution_ticket_size - new_ticket_size
+		);
+
 		let new_plmc_bond_stored = test_env
 			.ext_env
 			.borrow_mut()
 			.execute_with(|| crate::ContributingBonds::<TestRuntime>::get(project.project_id, BUYER_2).unwrap());
+		let new_statemint_asset_contributions_stored = test_env.ext_env.borrow_mut().execute_with(|| {
+			Contributions::<TestRuntime>::get(project.project_id, BUYER_2)
+				.unwrap()
+				.iter()
+				.map(|c| c.contribution_amount)
+				.sum::<BalanceOf<TestRuntime>>()
+		});
+
 		assert_eq!(
 			new_plmc_bond_stored.amount,
 			plmc_bond_stored.amount - plmc_bond + new_plmc_bond
+		);
+		assert_eq!(
+			new_statemint_asset_contributions_stored,
+			statemint_asset_contributions_stored - contribution_ticket_size + new_ticket_size
 		);
 	}
 }
@@ -1780,6 +2099,18 @@ mod community_round_success {
 mod community_round_failure {
 	// TODO: Maybe here we can test what happens if we sell all the CTs in the community round
 }
+
+#[cfg(test)]
+mod remainder_round_success {
+	use super::*;
+
+	#[test]
+	fn remainder_round_works() {
+		let test_env = TestEnvironment::new();
+		let _remainder_funding_project = RemainderFundingProject::new_default(&test_env);
+	}
+}
+
 
 #[cfg(test)]
 mod purchased_vesting {
@@ -1901,9 +2232,9 @@ mod bids_vesting {
 
 #[cfg(test)]
 mod misc_features {
-	use frame_support::traits::tokens::Preservation;
 	use super::*;
 	use crate::UpdateType::{CommunityFundingStart, RemainderFundingStart};
+	use frame_support::traits::tokens::Preservation;
 
 	#[test]
 	fn remove_from_update_store_works() {
@@ -1937,7 +2268,10 @@ mod misc_features {
 		let recv = 1;
 		test_env.mint_plmc_to(vec![
 			(acc, <TestRuntime as pallet_balances::Config>::ExistentialDeposit::get()),
-			(recv, <TestRuntime as pallet_balances::Config>::ExistentialDeposit::get())
+			(
+				recv,
+				<TestRuntime as pallet_balances::Config>::ExistentialDeposit::get(),
+			),
 		]);
 		test_env.mint_statemint_asset_to(vec![(acc, 10 * USDT_UNIT + 1, USDT_STATEMINT_ID)]);
 		test_env.ext_env.borrow_mut().execute_with(|| {
@@ -1950,12 +2284,10 @@ mod misc_features {
 				Preservation::Expendable
 			));
 		});
-		let p_funds = test_env.get_free_fundings();
-		test_env.ext_env.borrow_mut().execute_with(||{
+		let p_funds = test_env.get_free_plmc_balances();
+		test_env.ext_env.borrow_mut().execute_with(|| {
 			let usr_balance = StatemintAssets::maybe_balance(USDT_STATEMINT_ID.into(), &acc.into());
 			let stop = "here";
-
 		});
-
 	}
 }
