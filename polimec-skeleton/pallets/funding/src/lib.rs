@@ -121,7 +121,7 @@
 //! 			let retail_user = ensure_signed(origin)?;
 //! 			let project_id: <T as pallet_funding::Config>::ProjectIdentifier = project_id.into();
 //! 			// Check project is in the community round
-//! 			let project_info = pallet_funding::Pallet::<T>::project_info(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+//! 			let project_info = pallet_funding::Pallet::<T>::project_details(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 //! 			ensure!(project_info.project_status == pallet_funding::ProjectStatus::CommunityRound, "Project is not in the community round");
 //!
 //! 			// Calculate how much funding was done already
@@ -244,12 +244,10 @@ pub mod pallet {
 	use super::*;
 	use crate::traits::BondingRequirementCalculation;
 	use frame_support::pallet_prelude::*;
-	use frame_support::traits::fungible::InspectHold;
 	use frame_system::pallet_prelude::*;
 	use local_macros::*;
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
@@ -397,7 +395,7 @@ pub mod pallet {
 	pub type Images<T: Config> = StorageMap<_, Blake2_128Concat, T::Hash, T::AccountId>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn projects)]
+	#[pallet::getter(fn projects_metadata)]
 	/// A StorageMap containing the primary project information of projects
 	pub type ProjectsMetadata<T: Config> = StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, ProjectMetadataOf<T>>;
 
@@ -407,7 +405,7 @@ pub mod pallet {
 	pub type ProjectsIssuers<T: Config> = StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, T::AccountId>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn project_info)]
+	#[pallet::getter(fn project_details)]
 	/// StorageMap containing additional information for the projects, relevant for correctness of the protocol
 	pub type ProjectsDetails<T: Config> = StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, ProjectDetailsOf<T>>;
 
@@ -869,7 +867,7 @@ pub mod pallet {
 				}
 			}
 			// TODO: PLMC-127. Set a proper weight
-			Weight::from_ref_time(0)
+			Weight::from_parts(0, 0)
 		}
 
 		fn on_idle(_now: T::BlockNumber, max_weight: Weight) -> Weight {

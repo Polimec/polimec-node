@@ -68,7 +68,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Proof Skipped: PolimecFunding Images (max_values: None, max_size: None, mode: Measured)
 	fn note_image() -> Weight {
 		// Minimum execution time: 5_745 nanoseconds.
-		Weight::from_ref_time(6_034_000)
+		Weight::from_parts(6_034_000, 0)
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
 	// Storage: PolimecFunding Images (r:1 w:0)
@@ -83,7 +83,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
 	fn create() -> Weight {
 		// Minimum execution time: 14_395 nanoseconds.
-		Weight::from_ref_time(28_149_000)
+		Weight::from_parts(28_149_000, 0)
 			.saturating_add(T::DbWeight::get().reads(2))
 			.saturating_add(T::DbWeight::get().writes(4))
 	}
@@ -95,7 +95,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Proof Skipped: PolimecFunding ProjectsActive (max_values: Some(1), max_size: None, mode: Measured)
 	fn start_evaluation() -> Weight {
 		// Minimum execution time: 12_277 nanoseconds.
-		Weight::from_ref_time(12_639_000)
+		Weight::from_parts(12_639_000, 0)
 			.saturating_add(T::DbWeight::get().reads(3))
 			.saturating_add(T::DbWeight::get().writes(2))
 	}
@@ -111,7 +111,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Proof: Balances Locks (max_values: None, max_size: Some(1299), added: 3774, mode: MaxEncodedLen)
 	fn bond() -> Weight {
 		// Minimum execution time: 18_883 nanoseconds.
-		Weight::from_ref_time(19_151_000)
+		Weight::from_parts(19_151_000, 0)
 			.saturating_add(T::DbWeight::get().reads(5))
 			.saturating_add(T::DbWeight::get().writes(3))
 	}
@@ -125,7 +125,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Proof Skipped: PolimecFunding Projects (max_values: None, max_size: None, mode: Measured)
 	fn edit_metadata() -> Weight {
 		// Minimum execution time: 14_164 nanoseconds.
-		Weight::from_ref_time(14_544_000)
+		Weight::from_parts(14_544_000, 0)
 			.saturating_add(T::DbWeight::get().reads(4))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
@@ -135,7 +135,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
 	fn start_auction() -> Weight {
 		// Minimum execution time: 13_108 nanoseconds.
-		Weight::from_ref_time(13_664_000)
+		Weight::from_parts(13_664_000, 0)
 			.saturating_add(T::DbWeight::get().reads(2))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
@@ -151,7 +151,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	fn bid() -> Weight {
 		// Minimum execution time: 24_193 nanoseconds.
-		Weight::from_ref_time(25_166_000)
+		Weight::from_parts(25_166_000, 0)
 			.saturating_add(T::DbWeight::get().reads(5))
 			.saturating_add(T::DbWeight::get().writes(2))
 	}
@@ -165,7 +165,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Proof Skipped: PolimecFunding Contributions (max_values: None, max_size: None, mode: Measured)
 	fn contribute() -> Weight {
 		// Minimum execution time: 29_483 nanoseconds.
-		Weight::from_ref_time(30_106_000)
+		Weight::from_parts(30_106_000, 0)
 			.saturating_add(T::DbWeight::get().reads(5))
 			.saturating_add(T::DbWeight::get().writes(3))
 	}
@@ -181,7 +181,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	fn claim_contribution_tokens() -> Weight {
 		// Minimum execution time: 25_531 nanoseconds.
-		Weight::from_ref_time(26_669_000)
+		Weight::from_parts(26_669_000, 0)
 			.saturating_add(T::DbWeight::get().reads(5))
 			.saturating_add(T::DbWeight::get().writes(4))
 	}
@@ -193,13 +193,13 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Proof Skipped: PolimecFunding Bonds (max_values: None, max_size: None, mode: Measured)
 	fn on_initialize() -> Weight {
 		// Minimum execution time: 1_236_855 nanoseconds.
-		Weight::from_ref_time(1_252_446_000)
+		Weight::from_parts(1_252_446_000, 0)
 			.saturating_add(T::DbWeight::get().reads(301))
 			.saturating_add(T::DbWeight::get().writes(100))
 	}
 
 	fn failed_evaluation_unbond_for() -> Weight {
-		Weight::from_ref_time(1_000_000)
+		Weight::from_parts(1_000_000, 0)
 	}
 }
 
@@ -209,7 +209,7 @@ impl WeightInfo for () {
 	// Proof Skipped: PolimecFunding Images (max_values: None, max_size: None, mode: Measured)
 	fn note_image() -> Weight {
 		// Minimum execution time: 5_745 nanoseconds.
-		Weight::from_ref_time(6_034_000)
+		Weight::from_parts(6_034_000, 0)
 			.saturating_add(RocksDbWeight::get().writes(1))
 	}
 	// Storage: PolimecFunding Images (r:1 w:0)
@@ -224,7 +224,7 @@ impl WeightInfo for () {
 	// Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
 	fn create() -> Weight {
 		// Minimum execution time: 14_395 nanoseconds.
-		Weight::from_ref_time(28_149_000)
+		Weight::from_parts(28_149_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(2))
 			.saturating_add(RocksDbWeight::get().writes(4))
 	}
@@ -236,7 +236,7 @@ impl WeightInfo for () {
 	// Proof Skipped: PolimecFunding ProjectsActive (max_values: Some(1), max_size: None, mode: Measured)
 	fn start_evaluation() -> Weight {
 		// Minimum execution time: 12_277 nanoseconds.
-		Weight::from_ref_time(12_639_000)
+		Weight::from_parts(12_639_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(3))
 			.saturating_add(RocksDbWeight::get().writes(2))
 	}
@@ -252,7 +252,7 @@ impl WeightInfo for () {
 	// Proof: Balances Locks (max_values: None, max_size: Some(1299), added: 3774, mode: MaxEncodedLen)
 	fn bond() -> Weight {
 		// Minimum execution time: 18_883 nanoseconds.
-		Weight::from_ref_time(19_151_000)
+		Weight::from_parts(19_151_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(5))
 			.saturating_add(RocksDbWeight::get().writes(3))
 	}
@@ -266,7 +266,7 @@ impl WeightInfo for () {
 	// Proof Skipped: PolimecFunding Projects (max_values: None, max_size: None, mode: Measured)
 	fn edit_metadata() -> Weight {
 		// Minimum execution time: 14_164 nanoseconds.
-		Weight::from_ref_time(14_544_000)
+		Weight::from_parts(14_544_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(4))
 			.saturating_add(RocksDbWeight::get().writes(1))
 	}
@@ -276,7 +276,7 @@ impl WeightInfo for () {
 	// Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
 	fn start_auction() -> Weight {
 		// Minimum execution time: 13_108 nanoseconds.
-		Weight::from_ref_time(13_664_000)
+		Weight::from_parts(13_664_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(2))
 			.saturating_add(RocksDbWeight::get().writes(1))
 	}
@@ -292,7 +292,7 @@ impl WeightInfo for () {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	fn bid() -> Weight {
 		// Minimum execution time: 24_193 nanoseconds.
-		Weight::from_ref_time(25_166_000)
+		Weight::from_parts(25_166_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(5))
 			.saturating_add(RocksDbWeight::get().writes(2))
 	}
@@ -306,7 +306,7 @@ impl WeightInfo for () {
 	// Proof Skipped: PolimecFunding Contributions (max_values: None, max_size: None, mode: Measured)
 	fn contribute() -> Weight {
 		// Minimum execution time: 29_483 nanoseconds.
-		Weight::from_ref_time(30_106_000)
+		Weight::from_parts(30_106_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(5))
 			.saturating_add(RocksDbWeight::get().writes(3))
 	}
@@ -322,7 +322,7 @@ impl WeightInfo for () {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	fn claim_contribution_tokens() -> Weight {
 		// Minimum execution time: 25_531 nanoseconds.
-		Weight::from_ref_time(26_669_000)
+		Weight::from_parts(26_669_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(5))
 			.saturating_add(RocksDbWeight::get().writes(4))
 	}
@@ -334,12 +334,12 @@ impl WeightInfo for () {
 	// Proof Skipped: PolimecFunding Bonds (max_values: None, max_size: None, mode: Measured)
 	fn on_initialize() -> Weight {
 		// Minimum execution time: 1_236_855 nanoseconds.
-		Weight::from_ref_time(1_252_446_000)
+		Weight::from_parts(1_252_446_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(301))
 			.saturating_add(RocksDbWeight::get().writes(100))
 	}
 
 	fn failed_evaluation_unbond_for() -> Weight {
-		Weight::from_ref_time(1_000_000)
+		Weight::from_parts(1_000_000, 0)
 	}
 }

@@ -26,10 +26,8 @@ use frame_support::{
 	ensure,
 	pallet_prelude::DispatchError,
 	traits::{
-		fungible::{Mutate as FungibleMutate, MutateHold as FungibleMutateHold},
-		fungibles::{
-			metadata::Mutate as MetadataMutate, Create, Mutate as FungiblesMutate, MutateHold as FungiblesMutateHold,
-		},
+		fungible::MutateHold as FungibleMutateHold,
+		fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate as FungiblesMutate},
 		Get,
 	},
 };

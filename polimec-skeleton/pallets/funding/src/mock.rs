@@ -23,7 +23,7 @@ use crate as pallet_funding;
 
 use frame_support::{
 	parameter_types,
-	traits::{AsEnsureOriginWithArg, ConstU128, ConstU16, ConstU32},
+	traits::{AsEnsureOriginWithArg, ConstU16, ConstU32},
 	PalletId,
 };
 use frame_system as system;
