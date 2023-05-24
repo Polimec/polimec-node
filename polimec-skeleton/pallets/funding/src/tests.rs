@@ -1140,7 +1140,7 @@ pub mod helper_functions {
 	}
 
 	pub fn bids_to_statemint_assets_spent(bids: UserToBid) -> UserToStatemintAsset {
-		let mut output = UserToStatemintAsset::new();
+		let output = UserToStatemintAsset::new();
 		bids.into_iter().fold(output, |mut acc, (user, bid)| {
 			let amount_spent = bid.0 * bid.1;
 			acc.push((user, amount_spent, USDT_STATEMINT_ID));

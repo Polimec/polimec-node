@@ -22,15 +22,15 @@
 
 #[allow(unused)]
 use crate::Pallet as PolimecFunding;
+use super::USDT_STATEMINT_ID;
 
 type PolimecSystem<T> = frame_system::Pallet<T>;
-// type PolimecRuntimeEvent<T> = <T as frame_system::Config>::RuntimeEvent;
 
 use super::*;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::{
 	assert_ok,
-	traits::{fungibles::Inspect, fungible::Mutate, Hooks},
+	traits::{fungibles::{Inspect, Mutate as FungiblesMutate}, fungible::Mutate, Hooks},
 };
 use frame_system::{Pallet as System, RawOrigin as SystemOrigin};
 use sp_runtime::traits::Hash;
@@ -176,6 +176,7 @@ benchmarks! {
 		// Fund bid accounts
 		let bidder_1: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
 		T::NativeCurrency::set_balance(&bidder_1, 500_000__0_000_000_000_u64.into()); // 500k tokens
+		T::FundingCurrency::set_balance(USDT_STATEMINT_ID, &bidder_1, 500_000__0_000_000_000_u64.into()); // 500k tokens
 
 		// Start the Auction round
 		assert_ok!(PolimecFunding::<T>::start_auction(SystemOrigin::Signed(issuer).into(), project_id.clone()));
@@ -199,7 +200,6 @@ benchmarks! {
 				expected_event
 			)
 		}));
-		let stop = "here";
 	}
 
 
@@ -225,12 +225,15 @@ benchmarks! {
 		// fund bid accounts
 		let bidder_1: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
 		T::NativeCurrency::set_balance(&bidder_1, 500_000__0_000_000_000_u64.into()); // 500k tokens
+		T::FundingCurrency::set_balance(USDT_STATEMINT_ID, &bidder_1, 500_000__0_000_000_000_u64.into()); // 500k tokens
 
 		let bidder_2: T::AccountId = account::<T::AccountId>("Charlie", 1, 1);
 		T::NativeCurrency::set_balance(&bidder_2, 500_000__0_000_000_000_u64.into()); // 500k tokens
+		T::FundingCurrency::set_balance(USDT_STATEMINT_ID, &bidder_2, 500_000__0_000_000_000_u64.into()); // 500k tokens
 
 		let bidder_3: T::AccountId = account::<T::AccountId>("Dave", 1, 1);
 		T::NativeCurrency::set_balance(&bidder_3, 500_000__0_000_000_000_u64.into()); // 500k tokens
+		T::FundingCurrency::set_balance(USDT_STATEMINT_ID, &bidder_3, 500_000__0_000_000_000_u64.into()); // 500k tokens
 
 		// Start the Auction round
 		assert_ok!(PolimecFunding::<T>::start_auction(SystemOrigin::Signed(issuer).into(), project_id.clone()));
@@ -256,6 +259,7 @@ benchmarks! {
 		// Create contributor account
 		let contributor: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
 		T::NativeCurrency::set_balance(&contributor,  500_000__0_000_000_000_u64.into());
+		T::FundingCurrency::set_balance(USDT_STATEMINT_ID, &contributor,  500_000__0_000_000_000_u64.into());
 
 	}: _(SystemOrigin::Signed(contributor), project_id, 1000_u64.into(), Default::default())
 
@@ -281,12 +285,15 @@ benchmarks! {
 		// fund bid accounts
 		let bidder_1: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
 		T::NativeCurrency::set_balance(&bidder_1, 500_000__0_000_000_000_u64.into()); // 500k tokens
+		T::FundingCurrency::set_balance(USDT_STATEMINT_ID, &bidder_1, 500_000__0_000_000_000_u64.into()); // 500k tokens
 
 		let bidder_2: T::AccountId = account::<T::AccountId>("Charlie", 1, 1);
 		T::NativeCurrency::set_balance(&bidder_2, 500_000__0_000_000_000_u64.into()); // 500k tokens
+		T::FundingCurrency::set_balance(USDT_STATEMINT_ID, &bidder_2, 500_000__0_000_000_000_u64.into()); // 500k tokens
 
 		let bidder_3: T::AccountId = account::<T::AccountId>("Dave", 1, 1);
 		T::NativeCurrency::set_balance(&bidder_3, 500_000__0_000_000_000_u64.into()); // 500k tokens
+		T::FundingCurrency::set_balance(USDT_STATEMINT_ID, &bidder_3, 500_000__0_000_000_000_u64.into()); // 500k tokens
 
 		// Start the Auction round
 		assert_ok!(PolimecFunding::<T>::start_auction(SystemOrigin::Signed(issuer.clone()).into(), project_id.clone()));
@@ -307,6 +314,7 @@ benchmarks! {
 		// Create contributor account
 		let contributor: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
 		T::NativeCurrency::set_balance(&contributor,  500_000__0_000_000_000_u64.into());
+		T::FundingCurrency::set_balance(USDT_STATEMINT_ID, &contributor,  500_000__0_000_000_000_u64.into());
 
 		run_to_block::<T>(System::<T>::block_number() + 1u32.into());
 
@@ -323,45 +331,6 @@ benchmarks! {
 		assert_eq!(transfered_ct_to_contributor, 2000_u64.into());
 	}
 
-	// on_initialize_evaluation_end {
-	// 	let p = T::MaxProjectsToUpdatePerBlock::get();
-	// 	let evaluator: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
-	// 	T::NativeCurrency::set_balance(&evaluator, 1_000_000_000__0_000_000_000_u64.into());
-	// 	// Create 100 projects
-	// 	for i in 0 .. p {
-	// 		let (project_id, issuer) = create_default_minted_project::<T>(Some(i));
-	// 		assert!(
-	// 			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.clone()).into(), project_id.clone()).is_ok()
-	// 		);
-	// 		assert!(
-	// 			PolimecFunding::<T>::bond_evaluation(SystemOrigin::Signed(evaluator.clone()).into(), project_id, 100_000__0_000_000_000_u64.into()).is_ok()
-	// 		);
-	// 	}
-	// 	// Move to one block before it is valid to end the evaluation round
-	// 	run_to_block::<T>(System::<T>::block_number() + T::EvaluationDuration::get());
-	// 	// Finalize the current block
-	// 	crate::Pallet::<T>::on_finalize(System::<T>::block_number());
-	// 	System::<T>::on_finalize(System::<T>::block_number());
-	// 	let max_weight = T::BlockWeights::get().max_block;
-	// 	crate::Pallet::<T>::on_idle(System::<T>::block_number(), max_weight);
-	// 	System::<T>::set_block_number(
-	// 		System::<T>::block_number() + 1u32.into(),
-	// 	);
-	// 	System::<T>::on_initialize(System::<T>::block_number());
-
-	// 	// TODO: PLMC-139. Benchmark the hook when computing the Funding Round results
-	// } : {
-	// 	PolimecFunding::<T>::on_initialize(System::<T>::block_number());
-	// }
-	// verify {
-	// 	let p = T::MaxProjectsToUpdatePerBlock::get();
-	// 	for i in 0 .. p {
-	// 		let project_id = T::BenchmarkHelper::create_project_id_parameter(i);
-	// 		let project_details = PolimecFunding::<T>::project_details(project_id.into()).unwrap();
-	// 		assert_eq!(project_details.project_status, ProjectStatus::AuctionInitializePeriod);
-	// 	}
-	// }
-
 	calculate_weighted_price {
 		let (project_id, issuer) = create_default_minted_project::<T>(None);
 		assert!(
@@ -376,12 +345,15 @@ benchmarks! {
 		);
 		let bidder_1: T::AccountId = account::<T::AccountId>("Bob", 1, 1);
 		T::NativeCurrency::set_balance(&bidder_1, 500_000__0_000_000_000_u64.into()); // 100k tokens
+		T::FundingCurrency::set_balance(USDT_STATEMINT_ID, &bidder_1, 500_000__0_000_000_000_u64.into()); // 100k tokens
 
 		let bidder_2: T::AccountId = account::<T::AccountId>("Charlie", 1, 1);
 		T::NativeCurrency::set_balance(&bidder_2, 500_000__0_000_000_000_u64.into()); // 100k tokens
+		T::FundingCurrency::set_balance(USDT_STATEMINT_ID, &bidder_2, 500_000__0_000_000_000_u64.into()); // 100k tokens
 
 		let bidder_3: T::AccountId = account::<T::AccountId>("Dave", 1, 1);
 		T::NativeCurrency::set_balance(&bidder_3, 500_000__0_000_000_000_u64.into()); // 100k tokens
+		T::FundingCurrency::set_balance(USDT_STATEMINT_ID, &bidder_3, 500_000__0_000_000_000_u64.into()); // 100k tokens
 
 		// Move to the Auction Round
 		run_to_block::<T>(System::<T>::block_number() + <T as Config>::EvaluationDuration::get() + 2_u32.into());
