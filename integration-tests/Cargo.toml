@@ -52,6 +52,8 @@ kilt-support = { workspace = true, features = ["std"] }
 pallet-did-lookup = { workspace = true, features = ["std"] }
 dip-support = { workspace = true, features = ["std"] }
 runtime-common = { workspace = true, features = ["std"] }
+kilt-dip-support = { workspace = true, features = ["std"] }
+kilt-runtime-common = { workspace = true, features = ["std"] }
 
 [features]
 default = ["std"]
