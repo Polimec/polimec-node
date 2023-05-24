@@ -122,7 +122,8 @@ impl BidInfoFilterOf<TestRuntime> {
 			return false;
 		}
 
-		if self.plmc_vesting_period.is_some() && self.plmc_vesting_period.as_ref().unwrap() != &bid.plmc_vesting_period {
+		if self.plmc_vesting_period.is_some() && self.plmc_vesting_period.as_ref().unwrap() != &bid.plmc_vesting_period
+		{
 			return false;
 		}
 
@@ -166,11 +167,11 @@ const USDT_UNIT: u128 = 10_000_000_000_u128;
 
 const METADATA: &str = r#"
 {
-	"whitepaper":"ipfs_url",
-	"team_description":"ipfs_url",
-	"tokenomics":"ipfs_url",
-	"roadmap":"ipfs_url",
-	"usage_of_founds":"ipfs_url"
+    "whitepaper":"ipfs_url",
+    "team_description":"ipfs_url",
+    "tokenomics":"ipfs_url",
+    "roadmap":"ipfs_url",
+    "usage_of_founds":"ipfs_url"
 }"#;
 const ISSUING_FEE: u128 = 0;
 
@@ -206,9 +207,10 @@ trait ProjectInstance {
 		})
 	}
 	fn get_project_details(&self) -> ProjectDetailsOf<TestRuntime> {
-		self.get_test_environment().ext_env.borrow_mut().execute_with(|| {
-			FundingModule::project_details(self.get_project_id()).expect("Project info should exist")
-		})
+		self.get_test_environment()
+			.ext_env
+			.borrow_mut()
+			.execute_with(|| FundingModule::project_details(self.get_project_id()).expect("Project info should exist"))
 	}
 	fn do_project_assertions(&self, project_assertions: impl Fn(ProjectIdOf<TestRuntime>, &TestEnvironment) -> ()) {
 		let project_id = self.get_project_id();
@@ -579,10 +581,7 @@ impl<'a> AuctioningProject<'a> {
 			.expect("Candle end point should exist");
 		self.test_env
 			.advance_time(candle_end - self.test_env.current_block() + 1);
-		assert_eq!(
-			self.get_project_details().project_status,
-			ProjectStatus::CommunityRound
-		);
+		assert_eq!(self.get_project_details().project_status, ProjectStatus::CommunityRound);
 		CommunityFundingProject {
 			test_env: self.test_env,
 			creator: self.creator,
@@ -647,12 +646,10 @@ impl<'a> CommunityFundingProject<'a> {
 			.sum::<u128>();
 		let bid_expectations = default_auction_bids()
 			.iter()
-			.map(|(_account, (amount, price, _multiplier))| {
-				BidInfoFilter {
-					amount: Some(*amount),
-					price: Some(*price),
-					..Default::default()
-				}
+			.map(|(_account, (amount, price, _multiplier))| BidInfoFilter {
+				amount: Some(*amount),
+				price: Some(*price),
+				..Default::default()
 			})
 			.collect::<Vec<_>>();
 		// Check the community funding round started correctly
@@ -684,10 +681,7 @@ impl<'a> CommunityFundingProject<'a> {
 			.expect("Community funding end point should exist");
 		self.test_env
 			.advance_time(community_funding_end - self.test_env.current_block() + 1);
-		assert_eq!(
-			self.get_project_details().project_status,
-			ProjectStatus::RemainderRound
-		);
+		assert_eq!(self.get_project_details().project_status, ProjectStatus::RemainderRound);
 		RemainderFundingProject {
 			test_env: self.test_env,
 			creator: self.creator,
@@ -730,7 +724,10 @@ impl<'a> RemainderFundingProject<'a> {
 		let plmc_balances = test_env.get_free_plmc_balances();
 		let statemint_asset_balances = test_env.get_free_statemint_asset_balances(USDT_STATEMINT_ID);
 		let actual_previous_balances = (plmc_balances, statemint_asset_balances);
-		let cts_bought = default_community_buys().iter().map(|(_, (ct_amount, _))| ct_amount).sum::<u128>();
+		let cts_bought = default_community_buys()
+			.iter()
+			.map(|(_, (ct_amount, _))| ct_amount)
+			.sum::<u128>();
 		let expected_remaining_cts = project_details.remaining_contribution_tokens - cts_bought;
 		// Do community buying
 		community_funding_project
@@ -751,7 +748,7 @@ impl<'a> RemainderFundingProject<'a> {
 				test_env,
 				actual_previous_balances.clone(),
 				expected_updated_balances.clone(),
-				expected_remaining_cts
+				expected_remaining_cts,
 			)
 		});
 
@@ -773,10 +770,7 @@ impl<'a> RemainderFundingProject<'a> {
 			.expect("Remainder funding end point should exist");
 		self.test_env
 			.advance_time(remainder_funding_end - self.test_env.current_block() + 1);
-		assert_eq!(
-			self.get_project_details().project_status,
-			ProjectStatus::FundingEnded
-		);
+		assert_eq!(self.get_project_details().project_status, ProjectStatus::FundingEnded);
 		FinishedProject {
 			test_env: self.test_env,
 			creator: self.creator,
@@ -947,10 +941,6 @@ mod defaults {
 		383_3_333_329_500
 	}
 
-	pub fn default_auction_bids_plmc_bondings() -> UserToBalance {
-		vec![(BIDDER_1, 300 * 500 * USDT_UNIT), (BIDDER_2, 500 * 150 * USDT_UNIT)]
-	}
-
 	pub fn default_post_contribution_plmc_balances() -> UserToBalance {
 		let mut balances = default_post_auction_plmc_balances();
 		// ISSUER
@@ -989,13 +979,6 @@ mod defaults {
 		balances[7].1 -= default_community_buys()[1].1 .0 * default_token_average_price();
 
 		balances
-	}
-
-	pub fn default_community_buys_currency_reserved(price: BalanceOf<TestRuntime>) -> UserToBalance {
-		default_community_buys()
-			.into_iter()
-			.map(|(user, (amount, _multiplier))| (user, (amount * price)))
-			.collect()
 	}
 
 	pub fn default_community_buys() -> UserToContribution {
@@ -1207,8 +1190,7 @@ pub mod helper_functions {
 		project_id: ProjectIdOf<TestRuntime>, test_env: &TestEnvironment,
 		actual_previous_balances: (UserToBalance, UserToStatemintAsset),
 		expected_updated_balances: (UserToBalance, UserToStatemintAsset),
-		expected_remaining_cts: BalanceOf<TestRuntime>
-
+		expected_remaining_cts: BalanceOf<TestRuntime>,
 	) {
 		// Calculate how much PLMC should be bonded
 		let expected_plmc_bondings = expected_updated_balances
@@ -1259,8 +1241,7 @@ pub mod helper_functions {
 		test_env.ext_env.borrow_mut().execute_with(|| {
 			let project_details = FundingModule::project_details(project_id).expect("Project should exist");
 			assert_eq!(
-				project_details.remaining_contribution_tokens,
-				expected_remaining_cts,
+				project_details.remaining_contribution_tokens, expected_remaining_cts,
 				"Remaining CTs are incorrect"
 			);
 		});

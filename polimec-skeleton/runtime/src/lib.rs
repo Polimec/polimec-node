@@ -22,7 +22,7 @@ use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot, EnsureSigned,
 };
-use pallet_funding::{types::Multiplier as FundingMultiplier, BondType};
+use pallet_funding::BondType;
 use pallet_xcm::{EnsureXcm, IsVoiceOfBody};
 use smallvec::smallvec;
 use sp_api::impl_runtime_apis;
@@ -443,7 +443,7 @@ pub const fn deposit(items: u32, bytes: u32) -> Balance {
 }
 
 pub const fn free_deposit() -> Balance {
-	0 * MICRO_PLMC
+	0
 }
 
 parameter_types! {

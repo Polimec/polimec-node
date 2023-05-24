@@ -20,9 +20,9 @@
 
 #![cfg(feature = "runtime-benchmarks")]
 
+use super::USDT_STATEMINT_ID;
 #[allow(unused)]
 use crate::Pallet as PolimecFunding;
-use super::USDT_STATEMINT_ID;
 
 type PolimecSystem<T> = frame_system::Pallet<T>;
 
@@ -30,28 +30,32 @@ use super::*;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::{
 	assert_ok,
-	traits::{fungibles::{Inspect, Mutate as FungiblesMutate}, fungible::Mutate, Hooks},
+	traits::{
+		fungible::Mutate,
+		fungibles::{Inspect, Mutate as FungiblesMutate},
+		Hooks,
+	},
 };
 use frame_system::{Pallet as System, RawOrigin as SystemOrigin};
 use sp_runtime::traits::Hash;
 
 const METADATA: &str = r#"
 {
-	"whitepaper":"ipfs_url",
-	"team_description":"ipfs_url",
-	"tokenomics":"ipfs_url",
-	"roadmap":"ipfs_url",
-	"usage_of_founds":"ipfs_url"
+    "whitepaper":"ipfs_url",
+    "team_description":"ipfs_url",
+    "tokenomics":"ipfs_url",
+    "roadmap":"ipfs_url",
+    "usage_of_founds":"ipfs_url"
 }
 "#;
 
 const EDIT_METADATA: &str = r#"
 {
-	"whitepaper":"new_ipfs_url",
-	"team_description":"new_ipfs_url",
-	"tokenomics":"new_ipfs_url",
-	"roadmap":"new_ipfs_url",
-	"usage_of_founds":"new_ipfs_url"
+    "whitepaper":"new_ipfs_url",
+    "team_description":"new_ipfs_url",
+    "tokenomics":"new_ipfs_url",
+    "roadmap":"new_ipfs_url",
+    "usage_of_founds":"new_ipfs_url"
 }
 "#;
 

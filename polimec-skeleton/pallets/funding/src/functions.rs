@@ -152,7 +152,7 @@ impl<T: Config> Pallet<T> {
 		project_info
 			.phase_transition_points
 			.evaluation
-			.update(Some(now + 1u32.into()), Some(evaluation_end_block.clone()));
+			.update(Some(now + 1u32.into()), Some(evaluation_end_block));
 		project_info.is_frozen = true;
 		project_info.project_status = ProjectStatus::EvaluationRound;
 
@@ -1655,19 +1655,19 @@ impl<T: Config> Pallet<T> {
 		// lastly, sum all the weighted prices to get the final weighted price for the next funding round
 		// 3 + 10.6 + 2.6 = 16.2
 		let weighted_token_price = bids
-			// TODO: PLMC-150. collecting due to previous mut borrow, find a way to not collect and borrow bid on filter_map
-			.into_iter()
-			.filter_map(|bid| match bid.status {
-				BidStatus::Accepted => {
-					Some(Perbill::from_rational(bid.amount * bid.price, bid_value_sum) * bid.price)
-				},
-				BidStatus::PartiallyAccepted(amount, _) => {
-					Some(Perbill::from_rational(amount * bid.price, bid_value_sum) * bid.price)
-				},
-				_ => None,
-			})
-			.reduce(|a, b| a.saturating_add(b))
-			.ok_or(Error::<T>::NoBidsFound)?;
+            // TODO: PLMC-150. collecting due to previous mut borrow, find a way to not collect and borrow bid on filter_map
+            .into_iter()
+            .filter_map(|bid| match bid.status {
+                BidStatus::Accepted => {
+                    Some(Perbill::from_rational(bid.amount * bid.price, bid_value_sum) * bid.price)
+                },
+                BidStatus::PartiallyAccepted(amount, _) => {
+                    Some(Perbill::from_rational(amount * bid.price, bid_value_sum) * bid.price)
+                },
+                _ => None,
+            })
+            .reduce(|a, b| a.saturating_add(b))
+            .ok_or(Error::<T>::NoBidsFound)?;
 
 		// Update storage
 		ProjectsDetails::<T>::mutate(project_id, |maybe_info| -> Result<(), DispatchError> {
