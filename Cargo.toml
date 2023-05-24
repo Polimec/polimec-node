@@ -44,9 +44,6 @@ pallet-credentials = { path = "pallets/credentials", default-features = false }
 pallet-funding = { path = "pallets/funding", default-features = false }
 pallet-sandbox = { path = "pallets/sandbox", default-features = false }
 pallet-asset-registry = { path = "pallets/asset-registry", default-features = false }
-pallet-dip-consumer = { path = "pallets/pallet-dip-consumer", default-features = false }
-
-
 
 # Internal support (with default disabled)
 runtime-common = { path = "runtimes/common", default-features = false }
@@ -56,9 +53,11 @@ xcm-primitives = { path = "primitives/xcm", default-features = false }
 # External support (with default disabled)
 dip-support = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
 kilt-support = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
+kilt-dip-support = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
 did = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
 pallet-did-lookup = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
-pallet-dip-provider= { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
+pallet-dip-provider = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
+pallet-dip-consumer = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
 # Internal runtime API (with default disabled)
 kilt-runtime-api-staking = { path = "runtime-api/staking", default-features = false }
 
@@ -78,6 +77,7 @@ log = "0.4.17"
 # Emulations
 xcm-emulator = { git = "https://github.com/shaunxw/xcm-simulator", default-features = false, rev = "aa13dce47596e150806dfc3af99096dae6ffc65e" }
 dip-provider-runtime-template = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
+kilt-runtime-common = { package = "runtime-common", default-features = false, git = "https://github.com/KILTprotocol/kilt-node", branch = "aa/dip" }
 
 # Substrate (with default disabled)
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.39" }

@@ -40,7 +40,6 @@ use sp_runtime::{
 use sp_std::marker::PhantomData;
 
 pub mod constants;
-pub mod dip;
 pub mod fees;
 pub mod xcm_config;
 
