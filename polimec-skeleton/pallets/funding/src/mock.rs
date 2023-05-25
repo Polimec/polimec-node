@@ -225,7 +225,7 @@ impl pallet_funding::Config for TestRuntime {
 	type FundingCurrency = StatemintAssets;
 	type ContributionTokenCurrency = LocalAssets;
 	type PriceProvider = ConstPriceProvider<AssetId, Balance, PriceMap>;
-	type BidId = u128;
+	type StorageItemId = u128;
 	type Randomness = RandomnessCollectiveFlip;
 	type HandleMembers = Credentials;
 	type StringLimit = ConstU32<64>;

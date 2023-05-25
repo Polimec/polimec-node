@@ -349,7 +349,8 @@ pub enum FundingHoldType {
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct EvaluationBond<ProjectId, AccountId, Balance, BlockNumber> {
+pub struct EvaluationBond<StorageItemId, ProjectId, AccountId, Balance, BlockNumber> {
+	pub id: StorageItemId,
 	pub project: ProjectId,
 	pub account: AccountId,
 	pub amount: Balance,

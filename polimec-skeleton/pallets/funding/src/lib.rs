@@ -226,7 +226,7 @@ pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 pub type VestingOf<T> = Vesting<BlockNumberOf<T>, BalanceOf<T>>;
 
 pub type BidInfoOf<T> = BidInfo<
-	<T as Config>::BidId,
+	<T as Config>::StorageItemId,
 	<T as Config>::ProjectIdentifier,
 	BalanceOf<T>,
 	<T as frame_system::Config>::AccountId,
@@ -301,7 +301,7 @@ pub mod pallet {
 		type PriceProvider: ProvideStatemintPrice<u32, BalanceOf<Self>>;
 
 		/// Unique identifier for any bid in the system.
-		type BidId: Parameter + Copy + Saturating + One + Default;
+		type StorageItemId: Parameter + Copy + Saturating + One + Default;
 
 		/// Something that provides randomness in the runtime.
 		type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
@@ -380,7 +380,13 @@ pub mod pallet {
 	#[pallet::getter(fn next_bid_id)]
 	/// A global counter for indexing the bids
 	/// OnEmpty in this case is GetDefault, so 0.
-	pub type NextBidId<T: Config> = StorageValue<_, T::BidId, ValueQuery>;
+	pub type NextBidId<T: Config> = StorageValue<_, T::StorageItemId, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn next_evaluation_id)]
+	/// A global counter for indexing the bids
+	/// OnEmpty in this case is GetDefault, so 0.
+	pub type NextEvaluationId<T: Config> = StorageValue<_, T::StorageItemId, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn nonce)]
@@ -442,7 +448,7 @@ pub mod pallet {
 		T::ProjectIdentifier,
 		Blake2_128Concat,
 		T::AccountId,
-		EvaluationBond<T::ProjectIdentifier, T::AccountId, BalanceOf<T>, T::BlockNumber>,
+		EvaluationBond<T::StorageItemId, T::ProjectIdentifier, T::AccountId, BalanceOf<T>, T::BlockNumber>,
 	>;
 
 	#[pallet::storage]

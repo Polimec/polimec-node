@@ -76,7 +76,7 @@ pub struct BidInfoFilter<BidId, ProjectId, Balance: BalanceT, AccountId, BlockNu
 	pub status: Option<BidStatus<Balance>>,
 }
 type BidInfoFilterOf<T> = BidInfoFilter<
-	<T as Config>::BidId,
+	<T as Config>::StorageItemId,
 	<T as Config>::ProjectIdentifier,
 	BalanceOf<T>,
 	<T as frame_system::Config>::AccountId,

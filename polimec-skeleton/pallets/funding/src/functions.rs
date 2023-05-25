@@ -712,11 +712,12 @@ impl<T: Config> Pallet<T> {
 	/// * [`EvaluationBonds`] - Update the storage with the evaluators bond, by either increasing an existing
 	/// one, or appending a new bond
 	pub fn do_evaluation_bond(
-		evaluator: T::AccountId, project_id: T::ProjectIdentifier, amount: BalanceOf<T>,
+		evaluator: T::AccountId, project_id: T::ProjectIdentifier, plmc_amount: BalanceOf<T>,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_issuer = ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectIssuerNotFound)?;
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let eval_id = NextEvaluationId::<T>::get();
 
 		// * Validity checks *
 		// TODO: PLMC-133. Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
@@ -730,7 +731,6 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::EvaluationNotStarted
 		);
 
-		// * Calculate new variables *
 
 		// * Update Storage *
 		// TODO: PLMC-144. Unlock the PLMC when it's the right time
@@ -738,36 +738,39 @@ impl<T: Config> Pallet<T> {
 			match maybe_bond {
 				Some(bond) => {
 					// If the user has already bonded, add the new amount to the old one
-					bond.amount += amount;
-					T::NativeCurrency::hold(&BondType::Evaluation, &evaluator, amount)
+					bond.amount += plmc_amount;
+					T::NativeCurrency::hold(&BondType::Evaluation, &evaluator, plmc_amount)
 						.map_err(|_| Error::<T>::InsufficientBalance)?;
 				}
 				None => {
 					// If the user has not bonded yet, create a new bond
 					*maybe_bond = Some(EvaluationBond {
+						id: eval_id,
 						project: project_id,
 						account: evaluator.clone(),
-						amount,
+						amount: plmc_amount,
 						when: <frame_system::Pallet<T>>::block_number(),
 					});
 
 					// Reserve the required PLMC
-					T::NativeCurrency::hold(&BondType::Evaluation, &evaluator, amount)
+					T::NativeCurrency::hold(&BondType::Evaluation, &evaluator, plmc_amount)
 						.map_err(|_| Error::<T>::InsufficientBalance)?;
 				}
 			}
 			Self::deposit_event(Event::<T>::FundsBonded {
 				project_id,
-				amount,
+				amount: plmc_amount,
 				bonder: evaluator.clone(),
 			});
 			Result::<(), Error<T>>::Ok(())
 		})?;
 
+		NextEvaluationId::<T>::set(eval_id.saturating_add(One::one()));
+
 		// * Emit events *
 		Self::deposit_event(Event::<T>::FundsBonded {
 			project_id,
-			amount,
+			amount: plmc_amount,
 			bonder: evaluator,
 		});
 		Ok(())
@@ -783,7 +786,7 @@ impl<T: Config> Pallet<T> {
 	/// * [`ProjectsDetails`] - Check that the project is in the evaluation failed stage
 	/// * [`EvaluationBonds`] - Remove the bond from storage
 	pub fn do_failed_evaluation_unbond_for(
-		bond: EvaluationBond<T::ProjectIdentifier, T::AccountId, T::Balance, T::BlockNumber>, releaser: T::AccountId,
+		bond: EvaluationBond<T::StorageItemId, T::ProjectIdentifier, T::AccountId, T::Balance, T::BlockNumber>, releaser: T::AccountId,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(bond.project).ok_or(Error::<T>::ProjectInfoNotFound)?;
