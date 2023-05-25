@@ -20,6 +20,7 @@
 
 use super::*;
 use crate as pallet_funding;
+use sp_std::collections::btree_map::BTreeMap;
 
 use frame_support::{
 	parameter_types,
@@ -76,11 +77,11 @@ pub const fn deposit(items: u32, bytes: u32) -> Balance {
 pub const fn free_deposit() -> Balance {
 	0 * MICRO_PLMC
 }
+
 parameter_types! {
 	pub const AssetDeposit: Balance = PLMC; // 1 UNIT deposit to create asset
 	pub const AssetAccountDeposit: Balance = deposit(1, 16);
 	pub const AssetsStringLimit: u32 = 50;
-	/// Key = 32 bytes, Value = 36 bytes (32+1+1+1+1)
 	// https://github.com/paritytech/substrate/blob/069917b/frame/assets/src/lib.rs#L257L271
 	pub const MetadataDepositBase: Balance = free_deposit();
 	pub const MetadataDepositPerByte: Balance = free_deposit();
@@ -91,7 +92,7 @@ parameter_types! {
 impl pallet_assets::Config<LocalAssetsInstance> for TestRuntime {
 	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
-	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
+	type RemoveItemsLimit = ConstU32<1000>;
 	type AssetId = AssetId;
 	type AssetIdParameter = parity_scale_codec::Compact<AssetId>;
 	type Currency = Balances;
@@ -114,7 +115,7 @@ impl pallet_assets::Config<LocalAssetsInstance> for TestRuntime {
 impl pallet_assets::Config<StatemintAssetsInstance> for TestRuntime {
 	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
-	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
+	type RemoveItemsLimit = ConstU32<1000>;
 	type AssetId = AssetId;
 	type AssetIdParameter = parity_scale_codec::Compact<AssetId>;
 	type Currency = Balances;
@@ -207,6 +208,11 @@ parameter_types! {
 	pub const CommunityRoundDuration: BlockNumber = (5 * HOURS) as BlockNumber;
 	pub const RemainderFundingDuration: BlockNumber = (1 * HOURS) as BlockNumber;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
+	pub PriceMap: BTreeMap<AssetId, Balance> = BTreeMap::from_iter(vec![
+		(0u32, 69_0_000_000_00), // DOT - 69 USD
+		(420u32, 0_9_700_000_000u128), // USDC - 0.97 USD
+		(1984u32, 0_9_500_000_000u128), // USDT - 0.95U SD
+	]);
 }
 
 impl pallet_funding::Config for TestRuntime {
@@ -218,6 +224,7 @@ impl pallet_funding::Config for TestRuntime {
 	type NativeCurrency = Balances;
 	type FundingCurrency = StatemintAssets;
 	type ContributionTokenCurrency = LocalAssets;
+	type PriceProvider = ConstPriceProvider<AssetId, Balance, PriceMap>;
 	type BidId = u128;
 	type Randomness = RandomnessCollectiveFlip;
 	type HandleMembers = Credentials;
@@ -262,7 +269,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		},
 		statemint_assets: StatemintAssetsConfig {
 			assets: vec![(
-				USDT_STATEMINT_ID,
+				AcceptedFundingAsset::USDT.to_statemint_id(),
 				<TestRuntime as Config>::PalletId::get().into_account_truncating(),
 				false,
 				10,

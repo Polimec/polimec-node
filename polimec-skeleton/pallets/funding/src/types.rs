@@ -18,12 +18,13 @@
 
 //! Types for Funding pallet.
 
-use crate::traits::BondingRequirementCalculation;
+use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice};
 use crate::BalanceOf;
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
 use sp_arithmetic::traits::Saturating;
 use sp_runtime::traits::CheckedDiv;
 use sp_std::cmp::Eq;
+use sp_std::collections::btree_map::*;
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct ProjectMetadata<BoundedString, Balance: BalanceT, Hash> {
@@ -44,7 +45,7 @@ pub struct ProjectMetadata<BoundedString, Balance: BalanceT, Hash> {
 	/// Participation currencies (e.g stablecoin, DOT, KSM)
 	/// e.g. https://github.com/paritytech/substrate/blob/427fd09bcb193c1e79dec85b1e207c718b686c35/frame/uniques/src/types.rs#L110
 	/// For now is easier to handle the case where only just one Currency is accepted
-	pub participation_currencies: Currencies,
+	pub participation_currencies: AcceptedFundingAsset,
 	/// Additional metadata
 	pub offchain_information_hash: Option<Hash>,
 }
@@ -271,13 +272,21 @@ pub struct ContributionInfo<Balance, PLMCVesting, CTVesting> {
 }
 
 // TODO: PLMC-157. Use SCALE fixed indexes
-#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub enum Currencies {
-	DOT,
-	KSM,
+#[derive(Default, Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub enum AcceptedFundingAsset {
 	#[default]
-	USDC,
 	USDT,
+	USDC,
+	DOT
+}
+impl AcceptedFundingAsset {
+	pub fn to_statemint_id(&self) -> u32 {
+		match self {
+			AcceptedFundingAsset::USDT => 1984,
+			AcceptedFundingAsset::DOT => 0,
+			AcceptedFundingAsset::USDC => 420,
+		}
+	}
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -417,3 +426,19 @@ impl<T: crate::Config> Default for Multiplier<T> {
 		Self(1u32.into())
 	}
 }
+impl<T: crate::Config> From<u32> for Multiplier<T> {
+	fn from(x: u32) -> Self {
+		Self(x.into())
+	}
+}
+
+pub struct ConstPriceProvider<AssetId, Price, Mapping>(PhantomData<(AssetId, Price, Mapping)>);
+impl<AssetId: Ord, Price: From<u32> + Clone, Mapping: Get<BTreeMap<AssetId, Price>>>
+	ProvideStatemintPrice<AssetId, Price> for ConstPriceProvider<AssetId, Price, Mapping>
+{
+	fn get_price(asset_id: AssetId) -> Option<Price> {
+		Mapping::get().get(&asset_id).cloned()
+	}
+}
+
+
