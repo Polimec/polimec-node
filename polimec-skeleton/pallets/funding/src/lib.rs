@@ -219,7 +219,7 @@ use sp_std::prelude::*;
 
 pub type BalanceOf<T> = <T as Config>::Balance;
 pub type ProjectMetadataOf<T> =
-	ProjectMetadata<BoundedVec<u8, <T as Config>::StringLimit>, BalanceOf<T>, <T as frame_system::Config>::Hash>;
+	ProjectMetadata<BoundedVec<u8, <T as Config>::StringLimit>, BalanceOf<T>, <T as Config>::Price, <T as frame_system::Config>::Hash>;
 pub type ProjectDetailsOf<T> = ProjectDetails<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>;
 pub type MultiplierOf<T> = <T as Config>::Multiplier;
 pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
@@ -229,13 +229,17 @@ pub type BidInfoOf<T> = BidInfo<
 	<T as Config>::StorageItemId,
 	<T as Config>::ProjectIdentifier,
 	BalanceOf<T>,
+	<T as Config>::Price,
 	<T as frame_system::Config>::AccountId,
 	BlockNumberOf<T>,
 	VestingOf<T>,
 	VestingOf<T>,
 >;
+pub type AssetIdOf<T> = <<T as Config>::FundingCurrency as fungibles::Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
 
 type ContributionInfoOf<T> = ContributionInfo<BalanceOf<T>, VestingOf<T>, VestingOf<T>>;
+
+const PLMC_STATEMINT_ID: u32 = 2069;
 
 // TODO: PLMC-152. Remove `dev_mode` attribute when extrinsics API are stable
 #[frame_support::pallet(dev_mode)]
@@ -276,6 +280,9 @@ pub mod pallet {
 
 		/// The inner balance type we will use for all of our outer currency types. (e.g native, funding, CTs)
 		type Balance: Balance + From<u64> + FixedPointOperand;
+		
+		/// Represents the value of something in USD
+		type Price: FixedPointNumber + Parameter;
 
 		/// The chains native currency
 		type NativeCurrency: fungible::InspectHold<Self::AccountId, Balance = BalanceOf<Self>>
@@ -298,7 +305,7 @@ pub mod pallet {
 			+ fungibles::metadata::Mutate<Self::AccountId>
 			+ fungibles::Mutate<Self::AccountId, Balance = BalanceOf<Self>>;
 
-		type PriceProvider: ProvideStatemintPrice<u32, BalanceOf<Self>>;
+		type PriceProvider: ProvideStatemintPrice<AssetId = u32, Price = Self::Price>;
 
 		/// Unique identifier for any bid in the system.
 		type StorageItemId: Parameter + Copy + Saturating + One + Default;
@@ -533,7 +540,7 @@ pub mod pallet {
 		Bid {
 			project_id: T::ProjectIdentifier,
 			amount: BalanceOf<T>,
-			price: BalanceOf<T>,
+			price: T::Price,
 			multiplier: MultiplierOf<T>,
 		},
 		/// A contribution was made for a project. i.e token purchase
@@ -666,7 +673,9 @@ pub mod pallet {
 		/// Tried to delete a project from the update store but it is not there to begin with.
 		ProjectNotInUpdateStore,
 		/// The provided asset is not accepted by the project issuer
-		FundingAssetNotAccepted
+		FundingAssetNotAccepted,
+		/// Could not get the price in USD for PLMC
+		PLMCPriceNotAvailable
 	}
 
 	#[pallet::call]
@@ -995,3 +1004,5 @@ pub mod local_macros {
 	}
 	pub(crate) use unwrap_result_or_skip;
 }
+
+

@@ -2284,4 +2284,19 @@ mod misc_features {
 			);
 		});
 	}
+
+	#[test]
+	fn sandbox() {
+		// let plmc_price_in_usd = 8_5_000_000_000u128;
+		// let token_amount= FixedU128::from_float(12.5);
+		// let ticket_size: u128 = token_amount.checked_mul_int(plmc_price_in_usd).unwrap();
+		//
+		// let ticket_size = 250_0_000_000_000u128;
+		// let rate = FixedU128::from_float(8.5f64);
+		// let inv_rate = rate.reciprocal().unwrap();
+		// let amount = inv_rate.checked_mul_int(ticket_size).unwrap();
+		// let a = FixedU128::from
+		// let x = "x";
+		// 29_4_117_647_058
+	}
 }

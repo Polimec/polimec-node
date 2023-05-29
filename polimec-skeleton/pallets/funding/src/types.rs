@@ -19,21 +19,23 @@
 //! Types for Funding pallet.
 
 use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice};
-use crate::BalanceOf;
+use crate::{BalanceOf, Error};
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
+use parity_scale_codec::FullCodec;
+use sp_arithmetic::{FixedPointNumber, FixedPointOperand};
 use sp_arithmetic::traits::Saturating;
 use sp_runtime::traits::CheckedDiv;
 use sp_std::cmp::Eq;
 use sp_std::collections::btree_map::*;
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct ProjectMetadata<BoundedString, Balance: BalanceT, Hash> {
+pub struct ProjectMetadata<BoundedString, Balance: BalanceT, Price: FixedPointNumber, Hash> {
 	/// Token Metadata
 	pub token_information: CurrencyMetadata<BoundedString>,
 	/// Total allocation of Contribution Tokens available for the Funding Round
 	pub total_allocation_size: Balance,
 	/// Minimum price per Contribution Token
-	pub minimum_price: Balance,
+	pub minimum_price: Price,
 	/// Maximum and/or minimum ticket size
 	pub ticket_size: TicketSize<Balance>,
 	/// Maximum and/or minimum number of participants for the Auction and Community Round
@@ -73,10 +75,10 @@ pub enum ValidityError {
 	ParticipantsSizeError,
 }
 
-impl<BoundedString, Balance: BalanceT, Hash> ProjectMetadata<BoundedString, Balance, Hash> {
+impl<BoundedString, Balance: BalanceT, Price: FixedPointNumber, Hash> ProjectMetadata<BoundedString, Balance, Price, Hash> {
 	// TODO: PLMC-162. Perform a REAL validity check
 	pub fn validity_check(&self) -> Result<(), ValidityError> {
-		if self.minimum_price == Balance::zero() {
+		if self.minimum_price == Price::zero() {
 			return Err(ValidityError::PriceTooLow);
 		}
 		self.ticket_size.is_valid()?;
@@ -202,13 +204,12 @@ impl<BlockNumber: Copy> BlockNumberPair<BlockNumber> {
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct BidInfo<BidId, ProjectId, Balance: BalanceT, AccountId, BlockNumber, PlmcVesting, CTVesting> {
+pub struct BidInfo<BidId, ProjectId, Balance: BalanceT, Price: FixedPointNumber, AccountId, BlockNumber, PlmcVesting, CTVesting> {
 	pub bid_id: BidId,
 	pub project: ProjectId,
 	#[codec(compact)]
 	pub amount: Balance,
-	#[codec(compact)]
-	pub price: Balance,
+	pub price: Price,
 	#[codec(compact)]
 	pub ticket_size: Balance,
 	// Removed due to only being used in the price calculation, and it's not really needed there
@@ -222,41 +223,40 @@ pub struct BidInfo<BidId, ProjectId, Balance: BalanceT, AccountId, BlockNumber, 
 	pub status: BidStatus<Balance>,
 }
 
-impl<BidId, ProjectId, Balance: BalanceT, AccountId, BlockNumber, PlmcVesting, CTVesting>
-	BidInfo<BidId, ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
+impl<BidId, ProjectId, Balance: BalanceT + FixedPointOperand, Price: FixedPointNumber, AccountId, BlockNumber, PlmcVesting, CTVesting>
+	BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, PlmcVesting, CTVesting>
 {
 	pub fn new(
-		bid_id: BidId, project: ProjectId, amount: Balance, price: Balance, when: BlockNumber, bidder: AccountId,
+		bid_id: BidId, project: ProjectId, amount: Balance, price: Price, when: BlockNumber, bidder: AccountId,
 		plmc_vesting_period: PlmcVesting, ct_vesting_period: CTVesting,
-	) -> Self {
-		let ticket_size = amount.saturating_mul(price);
-		Self {
+	) -> Result<Self, ()> {
+		let ticket_size = price.checked_mul_int(amount).ok_or(())?;
+		Ok(Self {
 			bid_id,
 			project,
 			amount,
 			price,
 			ticket_size,
-			// ratio: None,
 			when,
 			bidder,
 			funded: false,
 			plmc_vesting_period,
 			ct_vesting_period,
 			status: BidStatus::YetUnknown,
-		}
+		})
 	}
 }
 
-impl<BidId: Eq, ProjectId: Eq, Balance: BalanceT, AccountId: Eq, BlockNumber: Eq, PlmcVesting: Eq, CTVesting: Eq>
-	sp_std::cmp::Ord for BidInfo<BidId, ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
+impl<BidId: Eq, ProjectId: Eq, Balance: BalanceT,  Price: FixedPointNumber, AccountId: Eq, BlockNumber: Eq, PlmcVesting: Eq, CTVesting: Eq>
+	Ord for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, PlmcVesting, CTVesting>
 {
 	fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
 		self.price.cmp(&other.price)
 	}
 }
 
-impl<BidId: Eq, ProjectId: Eq, Balance: BalanceT, AccountId: Eq, BlockNumber: Eq, PlmcVesting: Eq, CTVesting: Eq>
-	sp_std::cmp::PartialOrd for BidInfo<BidId, ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
+impl<BidId: Eq, ProjectId: Eq, Balance: BalanceT, Price: FixedPointNumber, AccountId: Eq, BlockNumber: Eq, PlmcVesting: Eq, CTVesting: Eq>
+	PartialOrd for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, PlmcVesting, CTVesting>
 {
 	fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
 		Some(self.cmp(other))
@@ -329,6 +329,8 @@ pub enum RejectionReason {
 	AfterCandleEnd,
 	/// The bid was accepted but too many tokens were requested. A partial amount was accepted
 	NoTokensLeft,
+	/// Error in calculating ticket_size for partially funded request
+	BadMath
 }
 
 /// Enum used to identify PLMC holds
@@ -434,9 +436,12 @@ impl<T: crate::Config> From<u32> for Multiplier<T> {
 }
 
 pub struct ConstPriceProvider<AssetId, Price, Mapping>(PhantomData<(AssetId, Price, Mapping)>);
-impl<AssetId: Ord, Price: From<u32> + Clone, Mapping: Get<BTreeMap<AssetId, Price>>>
-	ProvideStatemintPrice<AssetId, Price> for ConstPriceProvider<AssetId, Price, Mapping>
+impl<AssetId: Ord, Price: FixedPointNumber + Clone, Mapping: Get<BTreeMap<AssetId, Price>>>
+	ProvideStatemintPrice for ConstPriceProvider<AssetId, Price, Mapping>
 {
+	type AssetId = AssetId;
+	type Price = Price;
+
 	fn get_price(asset_id: AssetId) -> Option<Price> {
 		Mapping::get().get(&asset_id).cloned()
 	}

@@ -20,7 +20,7 @@
 
 use super::*;
 
-use crate::traits::BondingRequirementCalculation;
+use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice};
 use frame_support::traits::tokens::{Precision, Preservation};
 use frame_support::{
 	ensure,
@@ -62,7 +62,6 @@ impl<T: Config> Pallet<T> {
 		// TODO: Probably the issuers don't want to sell all of their tokens. Is there some logic for this?
 		// 	also even if an issuer wants to sell all their tokens, they could target a lower amount than that to consider it a success
 		// * Get variables *
-		let fundraising_target = project.total_allocation_size * project.minimum_price;
 		let project_id = NextProjectId::<T>::get();
 
 		// * Validity checks *
@@ -79,6 +78,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// * Calculate new variables *
+		let fundraising_target = project.minimum_price.checked_mul_int(project.total_allocation_size).ok_or(Error::<T>::BadMath)?;
 		let project_details = ProjectDetails {
 			is_frozen: false,
 			weighted_average_price: None,
@@ -820,7 +820,7 @@ impl<T: Config> Pallet<T> {
 	/// * `bidder` - The account that is bidding
 	/// * `project_id` - The project to bid for
 	/// * `amount` - The amount of tokens that the bidder wants to buy
-	/// * `price` - The price per token that the bidder is willing to pay for
+	/// * `price` - The price in USD per token that the bidder is willing to pay for
 	/// * `multiplier` - Used for calculating how much PLMC needs to be bonded to spend this much money (in USD)
 	///
 	/// # Storage access
@@ -829,17 +829,16 @@ impl<T: Config> Pallet<T> {
 	/// * [`BiddingBonds`] - Update the storage with the bidder's PLMC bond for that bid
 	/// * [`AuctionsInfo`] - Check previous bids by that user, and update the storage with the new bid
 	pub fn do_bid(
-		bidder: T::AccountId, project_id: T::ProjectIdentifier, amount: BalanceOf<T>, price: BalanceOf<T>,
+		bidder: T::AccountId, project_id: T::ProjectIdentifier, ct_amount: BalanceOf<T>, price: T::Price,
 		multiplier: Option<MultiplierOf<T>>, asset: AcceptedFundingAsset
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let project_issuer = ProjectsIssuers::<T>::get(project_id).ok_or(Error::<T>::ProjectIssuerNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let project_ticket_size = amount.saturating_mul(price);
+		let ticket_size = price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let multiplier = multiplier.unwrap_or_default();
-		let decimals = project_metadata.token_information.decimals;
 
 		// * Validity checks *
 		ensure!(bidder != project_issuer, Error::<T>::ContributionToThemselves);
@@ -851,31 +850,31 @@ impl<T: Config> Pallet<T> {
 		// ensure!(asset == project.funding_asset);
 		if let Some(minimum_ticket_size) = project_metadata.ticket_size.minimum {
 			// Make sure the bid amount is greater than the minimum specified by the issuer
-			ensure!(project_ticket_size >= minimum_ticket_size, Error::<T>::BidTooLow);
+			ensure!(ticket_size >= minimum_ticket_size, Error::<T>::BidTooLow);
 		};
 		if let Some(maximum_ticket_size) = project_metadata.ticket_size.maximum {
 			// Make sure the bid amount is less than the maximum specified by the issuer
-			ensure!(project_ticket_size <= maximum_ticket_size, Error::<T>::BidTooLow);
+			ensure!(ticket_size <= maximum_ticket_size, Error::<T>::BidTooLow);
 		};
 		ensure!(asset == project_metadata.participation_currencies, Error::<T>::FundingAssetNotAccepted);
 
 		// * Calculate new variables *
 		let holding_account = Self::fund_account_id(project_id);
 		let (plmc_vesting_period, ct_vesting_period) =
-			Self::calculate_vesting_periods(bidder.clone(), multiplier.clone(), amount, price, decimals)
+			Self::calculate_vesting_periods(bidder.clone(), multiplier.clone(), ct_amount, price)
 				.map_err(|_| Error::<T>::BadMath)?;
 		let bid_id = Self::next_bid_id();
 		let required_plmc_bond = plmc_vesting_period.amount;
 		let bid = BidInfo::new(
 			bid_id,
 			project_id,
-			amount,
+			ct_amount,
 			price,
 			now,
 			bidder.clone(),
 			plmc_vesting_period,
 			ct_vesting_period,
-		);
+		).map_err(|_| Error::<T>::BadMath)?;
 		let asset_id = asset.to_statemint_id();
 
 		let bonded_plmc;
@@ -912,7 +911,7 @@ impl<T: Config> Pallet<T> {
 				AuctionsInfo::<T>::set(project_id, bidder, Some(user_bids));
 				Self::deposit_event(Event::<T>::Bid {
 					project_id,
-					amount,
+					amount: ct_amount,
 					price,
 					multiplier,
 				});
@@ -949,7 +948,7 @@ impl<T: Config> Pallet<T> {
 				// TODO: PLMC-159. Send an XCM message to Statemine to transfer amount * multiplier USDT to the PalletId Account
 				Self::deposit_event(Event::<T>::Bid {
 					project_id,
-					amount,
+					amount: ct_amount,
 					price,
 					multiplier,
 				});
@@ -1023,7 +1022,6 @@ impl<T: Config> Pallet<T> {
 			multiplier.clone(),
 			buyable_tokens,
 			weighted_average_price,
-			decimals,
 		)
 		.map_err(|_| Error::<T>::BadMath)?;
 		let contribution = ContributionInfo {
@@ -1553,22 +1551,22 @@ impl<T: Config> Pallet<T> {
 	/// Based on the amount of tokens and price to buy, a desired multiplier, and the type of investor the caller is,
 	/// calculate the amount and vesting periods of bonded PLMC and reward CT tokens.
 	pub fn calculate_vesting_periods(
-		_caller: T::AccountId, multiplier: MultiplierOf<T>, token_amount: BalanceOf<T>, token_price: BalanceOf<T>,
-		decimals: u8,
+		_caller: T::AccountId, multiplier: MultiplierOf<T>, token_amount: BalanceOf<T>, token_price: T::Price
 	) -> Result<
 		(
 			Vesting<T::BlockNumber, BalanceOf<T>>,
 			Vesting<T::BlockNumber, BalanceOf<T>>,
 		),
-		(),
+		DispatchError,
 	> {
 		let plmc_start: T::BlockNumber = 0u32.into();
 		let ct_start: T::BlockNumber = (T::MaxProjectsToUpdatePerBlock::get() * 7).into();
 		// TODO: Calculate real vesting periods based on multiplier and caller type
 		// FIXME: if divide fails, we probably dont want to assume the multiplier is one
-		let ticket_size = token_amount.saturating_mul(token_price);
-		let plmc_bonding_amount = multiplier.calculate_bonding_requirement(ticket_size)?;
-		let with_decimals_token_amount = Self::add_decimals_to_number(token_amount, decimals);
+		let ticket_size = token_price.checked_mul_int(token_amount).ok_or(Error::<T>::BadMath)?;
+		let usd_bonding_amount = multiplier.calculate_bonding_requirement(ticket_size).map_err(|_|Error::<T>::BadMath)?;
+		let plmc_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
+		let plmc_bonding_amount = plmc_price.reciprocal().ok_or(Error::<T>::BadMath)?.checked_mul_int(usd_bonding_amount).ok_or(Error::<T>::BadMath)?;
 		Ok((
 			Vesting {
 				amount: plmc_bonding_amount,
@@ -1578,7 +1576,7 @@ impl<T: Config> Pallet<T> {
 				next_withdrawal: 0u32.into(),
 			},
 			Vesting {
-				amount: with_decimals_token_amount,
+				amount: token_amount,
 				start: ct_start,
 				end: ct_start,
 				step: 0u32.into(),
@@ -1587,16 +1585,16 @@ impl<T: Config> Pallet<T> {
 		))
 	}
 
-	/// Calculates the price of contribution tokens for the Community and Remainder Rounds
+	/// Calculates the price (in USD) of contribution tokens for the Community and Remainder Rounds
 	pub fn calculate_weighted_average_price(
 		project_id: T::ProjectIdentifier, end_block: T::BlockNumber, total_allocation_size: BalanceOf<T>,
 	) -> Result<(), DispatchError> {
 		// Get all the bids that were made before the end of the candle
 		let mut bids = AuctionsInfo::<T>::iter_values().flatten().collect::<Vec<_>>();
 		// temp variable to store the sum of the bids
-		let mut bid_amount_sum = BalanceOf::<T>::zero();
+		let mut bid_token_amount_sum = BalanceOf::<T>::zero();
 		// temp variable to store the total value of the bids (i.e price * amount)
-		let mut bid_value_sum = BalanceOf::<T>::zero();
+		let mut bid_usd_value_sum = BalanceOf::<T>::zero();
 
 		// sort bids by price
 		bids.sort();
@@ -1609,17 +1607,24 @@ impl<T: Config> Pallet<T> {
 					// TODO: PLMC-147. Unlock funds. We can do this inside the "on_idle" hook, and change the `status` of the `Bid` to "Unreserved"
 					return bid;
 				}
-				let buyable_amount = total_allocation_size.saturating_sub(bid_amount_sum);
+				let buyable_amount = total_allocation_size.saturating_sub(bid_token_amount_sum);
 				if buyable_amount == 0_u32.into() {
 					bid.status = BidStatus::Rejected(RejectionReason::NoTokensLeft);
 				} else if bid.amount <= buyable_amount {
-					bid_amount_sum.saturating_accrue(bid.amount);
-					bid_value_sum.saturating_accrue(bid.amount * bid.price);
+					bid_token_amount_sum.saturating_accrue(bid.amount);
+					bid_usd_value_sum.saturating_accrue(bid.ticket_size);
 					bid.status = BidStatus::Accepted;
 				} else {
-					bid_amount_sum.saturating_accrue(buyable_amount);
-					bid_value_sum.saturating_accrue(buyable_amount * bid.price);
-					bid.status = BidStatus::PartiallyAccepted(buyable_amount, RejectionReason::NoTokensLeft)
+					let maybe_ticket_size = bid.price.checked_mul_int(buyable_amount);
+					if let Some(ticket_size) = maybe_ticket_size {
+						bid_usd_value_sum.saturating_accrue(ticket_size);
+						bid_token_amount_sum.saturating_accrue(buyable_amount);
+						bid.status = BidStatus::PartiallyAccepted(buyable_amount, RejectionReason::NoTokensLeft)
+					} else {
+						bid.status = BidStatus::Rejected(RejectionReason::BadMath);
+						return bid;
+					}
+
 					// TODO: PLMC-147. Refund remaining amount
 				}
 
@@ -1668,10 +1673,11 @@ impl<T: Config> Pallet<T> {
             .into_iter()
             .filter_map(|bid| match bid.status {
                 BidStatus::Accepted => {
-                    Some(Perbill::from_rational(bid.amount * bid.price, bid_value_sum) * bid.price)
+					let bid_weight = Perbill::from_rational(bid.ticket_size, bid_usd_value_sum);
+                    Some(Perbill::from_rational(bid.ticket_size, bid_usd_value_sum) * bid.price)
                 },
                 BidStatus::PartiallyAccepted(amount, _) => {
-                    Some(Perbill::from_rational(amount * bid.price, bid_value_sum) * bid.price)
+                    Some(Perbill::from_rational(amount * bid.price, bid_usd_value_sum) * bid.price)
                 },
                 _ => None,
             })
@@ -1682,7 +1688,7 @@ impl<T: Config> Pallet<T> {
 		ProjectsDetails::<T>::mutate(project_id, |maybe_info| -> Result<(), DispatchError> {
 			if let Some(info) = maybe_info {
 				info.weighted_average_price = Some(weighted_token_price);
-				info.remaining_contribution_tokens = info.remaining_contribution_tokens.saturating_sub(bid_amount_sum);
+				info.remaining_contribution_tokens = info.remaining_contribution_tokens.saturating_sub(bid_token_amount_sum);
 				Ok(())
 			} else {
 				Err(Error::<T>::ProjectNotFound.into())
