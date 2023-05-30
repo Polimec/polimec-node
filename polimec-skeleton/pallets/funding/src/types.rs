@@ -19,11 +19,10 @@
 //! Types for Funding pallet.
 
 use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice};
-use crate::{BalanceOf, Error};
+use crate::BalanceOf;
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
-use parity_scale_codec::FullCodec;
-use sp_arithmetic::{FixedPointNumber, FixedPointOperand};
 use sp_arithmetic::traits::Saturating;
+use sp_arithmetic::{FixedPointNumber, FixedPointOperand};
 use sp_runtime::traits::CheckedDiv;
 use sp_std::cmp::Eq;
 use sp_std::collections::btree_map::*;
@@ -53,11 +52,11 @@ pub struct ProjectMetadata<BoundedString, Balance: BalanceT, Price: FixedPointNu
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct ProjectDetails<BlockNumber, Balance: BalanceT> {
+pub struct ProjectDetails<BlockNumber, Price: FixedPointNumber, Balance: BalanceT> {
 	/// Whether the project is frozen, so no `metadata` changes are allowed.
 	pub is_frozen: bool,
-	/// The price decided after the Auction Round
-	pub weighted_average_price: Option<Balance>,
+	/// The price in USD per token decided after the Auction Round
+	pub weighted_average_price: Option<Price>,
 	/// The current status of the project
 	pub project_status: ProjectStatus,
 	/// When the different project phases start and end
@@ -75,7 +74,9 @@ pub enum ValidityError {
 	ParticipantsSizeError,
 }
 
-impl<BoundedString, Balance: BalanceT, Price: FixedPointNumber, Hash> ProjectMetadata<BoundedString, Balance, Price, Hash> {
+impl<BoundedString, Balance: BalanceT, Price: FixedPointNumber, Hash>
+	ProjectMetadata<BoundedString, Balance, Price, Hash>
+{
 	// TODO: PLMC-162. Perform a REAL validity check
 	pub fn validity_check(&self) -> Result<(), ValidityError> {
 		if self.minimum_price == Price::zero() {
@@ -204,59 +205,90 @@ impl<BlockNumber: Copy> BlockNumberPair<BlockNumber> {
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct BidInfo<BidId, ProjectId, Balance: BalanceT, Price: FixedPointNumber, AccountId, BlockNumber, PlmcVesting, CTVesting> {
+pub struct BidInfo<
+	BidId,
+	ProjectId,
+	Balance: BalanceT,
+	Price: FixedPointNumber,
+	AccountId,
+	BlockNumber,
+	PlmcVesting,
+	CTVesting,
+> {
 	pub bid_id: BidId,
-	pub project: ProjectId,
-	#[codec(compact)]
-	pub amount: Balance,
-	pub price: Price,
-	#[codec(compact)]
-	pub ticket_size: Balance,
-	// Removed due to only being used in the price calculation, and it's not really needed there
-	// pub ratio: Option<Perbill>,
 	pub when: BlockNumber,
+	pub status: BidStatus<Balance>,
+	pub project: ProjectId,
 	pub bidder: AccountId,
+	#[codec(compact)]
+	pub ct_amount: Balance,
+	pub ct_usd_price: Price,
 	// TODO: PLMC-159. Not used yet, but will be used to check if the bid is funded after XCM is implemented
 	pub funded: bool,
 	pub plmc_vesting_period: PlmcVesting,
 	pub ct_vesting_period: CTVesting,
-	pub status: BidStatus<Balance>,
+	pub funding_asset: AcceptedFundingAsset,
+	pub funding_asset_amount: Balance,
 }
 
-impl<BidId, ProjectId, Balance: BalanceT + FixedPointOperand, Price: FixedPointNumber, AccountId, BlockNumber, PlmcVesting, CTVesting>
-	BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, PlmcVesting, CTVesting>
+impl<
+		BidId,
+		ProjectId,
+		Balance: BalanceT + FixedPointOperand,
+		Price: FixedPointNumber,
+		AccountId,
+		BlockNumber,
+		PlmcVesting,
+		CTVesting,
+	> BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, PlmcVesting, CTVesting>
 {
 	pub fn new(
-		bid_id: BidId, project: ProjectId, amount: Balance, price: Price, when: BlockNumber, bidder: AccountId,
-		plmc_vesting_period: PlmcVesting, ct_vesting_period: CTVesting,
+		bid_id: BidId, when: BlockNumber, project: ProjectId, bidder: AccountId, ct_amount: Balance, ct_usd_price: Price,
+		plmc_vesting_period: PlmcVesting, ct_vesting_period: CTVesting, funding_asset: AcceptedFundingAsset, funding_asset_amount: Balance,
 	) -> Result<Self, ()> {
-		let ticket_size = price.checked_mul_int(amount).ok_or(())?;
 		Ok(Self {
 			bid_id,
-			project,
-			amount,
-			price,
-			ticket_size,
 			when,
+			status: BidStatus::YetUnknown,
+			project,
 			bidder,
+			ct_amount,
+			ct_usd_price,
 			funded: false,
 			plmc_vesting_period,
 			ct_vesting_period,
-			status: BidStatus::YetUnknown,
+			funding_asset,
+			funding_asset_amount,
 		})
 	}
 }
 
-impl<BidId: Eq, ProjectId: Eq, Balance: BalanceT,  Price: FixedPointNumber, AccountId: Eq, BlockNumber: Eq, PlmcVesting: Eq, CTVesting: Eq>
-	Ord for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, PlmcVesting, CTVesting>
+impl<
+		BidId: Eq,
+		ProjectId: Eq,
+		Balance: BalanceT,
+		Price: FixedPointNumber,
+		AccountId: Eq,
+		BlockNumber: Eq,
+		PlmcVesting: Eq,
+		CTVesting: Eq,
+	> Ord for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, PlmcVesting, CTVesting>
 {
 	fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
-		self.price.cmp(&other.price)
+		self.ct_usd_price.cmp(&other.ct_usd_price)
 	}
 }
 
-impl<BidId: Eq, ProjectId: Eq, Balance: BalanceT, Price: FixedPointNumber, AccountId: Eq, BlockNumber: Eq, PlmcVesting: Eq, CTVesting: Eq>
-	PartialOrd for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, PlmcVesting, CTVesting>
+impl<
+		BidId: Eq,
+		ProjectId: Eq,
+		Balance: BalanceT,
+		Price: FixedPointNumber,
+		AccountId: Eq,
+		BlockNumber: Eq,
+		PlmcVesting: Eq,
+		CTVesting: Eq,
+	> PartialOrd for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, PlmcVesting, CTVesting>
 {
 	fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
 		Some(self.cmp(other))
@@ -277,7 +309,7 @@ pub enum AcceptedFundingAsset {
 	#[default]
 	USDT,
 	USDC,
-	DOT
+	DOT,
 }
 impl AcceptedFundingAsset {
 	pub fn to_statemint_id(&self) -> u32 {
@@ -330,7 +362,7 @@ pub enum RejectionReason {
 	/// The bid was accepted but too many tokens were requested. A partial amount was accepted
 	NoTokensLeft,
 	/// Error in calculating ticket_size for partially funded request
-	BadMath
+	BadMath,
 }
 
 /// Enum used to identify PLMC holds
@@ -436,8 +468,8 @@ impl<T: crate::Config> From<u32> for Multiplier<T> {
 }
 
 pub struct ConstPriceProvider<AssetId, Price, Mapping>(PhantomData<(AssetId, Price, Mapping)>);
-impl<AssetId: Ord, Price: FixedPointNumber + Clone, Mapping: Get<BTreeMap<AssetId, Price>>>
-	ProvideStatemintPrice for ConstPriceProvider<AssetId, Price, Mapping>
+impl<AssetId: Ord, Price: FixedPointNumber + Clone, Mapping: Get<BTreeMap<AssetId, Price>>> ProvideStatemintPrice
+	for ConstPriceProvider<AssetId, Price, Mapping>
 {
 	type AssetId = AssetId;
 	type Price = Price;
@@ -446,5 +478,3 @@ impl<AssetId: Ord, Price: FixedPointNumber + Clone, Mapping: Get<BTreeMap<AssetI
 		Mapping::get().get(&asset_id).cloned()
 	}
 }
-
-

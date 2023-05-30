@@ -209,10 +209,10 @@ parameter_types! {
 	pub const RemainderFundingDuration: BlockNumber = (1 * HOURS) as BlockNumber;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 	pub PriceMap: BTreeMap<AssetId, FixedU128> = BTreeMap::from_iter(vec![
-		(0u32, FixedU128::from_float(69f64)), // DOT - 69 USD
-		(420u32, FixedU128::from_float(9.7)), // USDC - 0.97 USD
-		(1984u32, FixedU128::from_float(0.95)), // USDT - 0.95 USD
-		(2069u32, FixedU128::from_float(10f64)), // PLMC - 10 USD
+		(0u32, FixedU128::from_float(69f64)), // DOT
+		(420u32, FixedU128::from_float(0.97f64)), // USDC
+		(1984u32, FixedU128::from_float(0.95f64)), // USDT
+		(2069u32, FixedU128::from_float(8.4f64)), // PLMC
 	]);
 }
 
@@ -222,6 +222,7 @@ impl pallet_funding::Config for TestRuntime {
 	type ProjectIdParameter = Identifier;
 	type Multiplier = Multiplier<TestRuntime>;
 	type Balance = Balance;
+	type Price = FixedU128;
 	type NativeCurrency = Balances;
 	type FundingCurrency = StatemintAssets;
 	type ContributionTokenCurrency = LocalAssets;

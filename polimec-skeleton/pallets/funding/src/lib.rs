@@ -218,9 +218,14 @@ use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperan
 use sp_std::prelude::*;
 
 pub type BalanceOf<T> = <T as Config>::Balance;
-pub type ProjectMetadataOf<T> =
-	ProjectMetadata<BoundedVec<u8, <T as Config>::StringLimit>, BalanceOf<T>, <T as Config>::Price, <T as frame_system::Config>::Hash>;
-pub type ProjectDetailsOf<T> = ProjectDetails<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>;
+pub type PriceOf<T> = <T as Config>::Price;
+pub type ProjectMetadataOf<T> = ProjectMetadata<
+	BoundedVec<u8, <T as Config>::StringLimit>,
+	BalanceOf<T>,
+	<T as Config>::Price,
+	<T as frame_system::Config>::Hash,
+>;
+pub type ProjectDetailsOf<T> = ProjectDetails<<T as frame_system::Config>::BlockNumber, PriceOf<T>, BalanceOf<T>>;
 pub type MultiplierOf<T> = <T as Config>::Multiplier;
 pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 pub type VestingOf<T> = Vesting<BlockNumberOf<T>, BalanceOf<T>>;
@@ -235,7 +240,8 @@ pub type BidInfoOf<T> = BidInfo<
 	VestingOf<T>,
 	VestingOf<T>,
 >;
-pub type AssetIdOf<T> = <<T as Config>::FundingCurrency as fungibles::Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
+pub type AssetIdOf<T> =
+	<<T as Config>::FundingCurrency as fungibles::Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
 
 type ContributionInfoOf<T> = ContributionInfo<BalanceOf<T>, VestingOf<T>, VestingOf<T>>;
 
@@ -280,7 +286,7 @@ pub mod pallet {
 
 		/// The inner balance type we will use for all of our outer currency types. (e.g native, funding, CTs)
 		type Balance: Balance + From<u64> + FixedPointOperand;
-		
+
 		/// Represents the value of something in USD
 		type Price: FixedPointNumber + Parameter;
 
@@ -675,7 +681,9 @@ pub mod pallet {
 		/// The provided asset is not accepted by the project issuer
 		FundingAssetNotAccepted,
 		/// Could not get the price in USD for PLMC
-		PLMCPriceNotAvailable
+		PLMCPriceNotAvailable,
+		/// Could not get the price in USD for the provided asset
+		PriceNotFound
 	}
 
 	#[pallet::call]
@@ -770,12 +778,8 @@ pub mod pallet {
 		/// Bid for a project in the Auction round
 		#[pallet::weight(T::WeightInfo::bid())]
 		pub fn bid(
-			origin: OriginFor<T>,
-			project_id: T::ProjectIdParameter,
-			#[pallet::compact] amount: BalanceOf<T>,
-			#[pallet::compact] price: BalanceOf<T>,
-			multiplier: Option<T::Multiplier>,
-			asset: AcceptedFundingAsset
+			origin: OriginFor<T>, project_id: T::ProjectIdParameter, #[pallet::compact] amount: BalanceOf<T>,
+			price: PriceOf<T>, multiplier: Option<T::Multiplier>, asset: AcceptedFundingAsset,
 		) -> DispatchResult {
 			let bidder = ensure_signed(origin)?;
 			let project_id = project_id.into();
@@ -792,7 +796,7 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::contribute())]
 		pub fn contribute(
 			origin: OriginFor<T>, project_id: T::ProjectIdParameter, #[pallet::compact] amount: BalanceOf<T>,
-			multiplier: Option<MultiplierOf<T>>, asset: AcceptedFundingAsset
+			multiplier: Option<MultiplierOf<T>>, asset: AcceptedFundingAsset,
 		) -> DispatchResult {
 			let contributor = ensure_signed(origin)?;
 			let project_id = project_id.into();
@@ -1004,5 +1008,3 @@ pub mod local_macros {
 	}
 	pub(crate) use unwrap_result_or_skip;
 }
-
-
