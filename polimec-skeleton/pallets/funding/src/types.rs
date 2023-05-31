@@ -243,8 +243,9 @@ impl<
 	> BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, PlmcVesting, CTVesting>
 {
 	pub fn new(
-		bid_id: BidId, when: BlockNumber, project: ProjectId, bidder: AccountId, ct_amount: Balance, ct_usd_price: Price,
-		plmc_vesting_period: PlmcVesting, ct_vesting_period: CTVesting, funding_asset: AcceptedFundingAsset, funding_asset_amount: Balance,
+		bid_id: BidId, when: BlockNumber, project: ProjectId, bidder: AccountId, ct_amount: Balance,
+		ct_usd_price: Price, plmc_vesting_period: PlmcVesting, ct_vesting_period: CTVesting,
+		funding_asset: AcceptedFundingAsset, funding_asset_amount: Balance,
 	) -> Result<Self, ()> {
 		Ok(Self {
 			bid_id,
@@ -298,7 +299,9 @@ impl<
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct ContributionInfo<Balance, PLMCVesting, CTVesting> {
 	// Tokens you paid in exchange for CTs
-	pub contribution_amount: Balance,
+	pub usd_contribution_amount: Balance,
+	pub funding_asset: AcceptedFundingAsset,
+	pub funding_asset_amount: Balance,
 	pub plmc_vesting: PLMCVesting,
 	pub ct_vesting: CTVesting,
 }
@@ -387,7 +390,8 @@ pub struct EvaluationBond<StorageItemId, ProjectId, AccountId, Balance, BlockNum
 	pub id: StorageItemId,
 	pub project: ProjectId,
 	pub account: AccountId,
-	pub amount: Balance,
+	pub plmc_amount: Balance,
+	pub usd_amount: Balance,
 	pub when: BlockNumber,
 }
 

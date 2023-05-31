@@ -116,7 +116,7 @@
 //! 		#[pallet::weight(0)]
 //! 		pub fn buy_if_popular(
 //! 			origin: OriginFor<T>,
-//! 			project_id: <T as pallet_funding::Config>::ProjectIdParameter,
+//! 			project_id: <T as pallet_funding::Config>::ProjectIdentifier,
 //! 			amount: <T as pallet_funding::Config>::Balance
 //! 		) -> DispatchResult {
 //! 			let retail_user = ensure_signed(origin)?;
@@ -267,20 +267,6 @@ pub mod pallet {
 		type ProjectIdentifier: Parameter + Copy + Default + One + Saturating;
 		// TODO: PLMC-153 + MaybeSerializeDeserialize: Maybe needed for JSON serialization @ Genesis: https://github.com/paritytech/substrate/issues/12738#issuecomment-1320921201
 
-		/// Wrapper around `Self::ProjectIdentifier` to use in dispatchable call signatures. Allows the use
-		/// of compact encoding in instances of the pallet, which will prevent breaking changes
-		/// resulting from the removal of `HasCompact` from `Self::ProjectIdentifier`.
-		///
-		/// This type includes the `From<Self::ProjectIdentifier>` bound, since tightly coupled pallets may
-		/// want to convert an `ProjectIdentifier` into a parameter for calling dispatchable functions
-		/// directly.
-		type ProjectIdParameter: Parameter
-			+ From<Self::ProjectIdentifier>
-			+ Into<Self::ProjectIdentifier>
-			// TODO: PLMC-154 Used only in benchmarks, is there a way to bound this trait under #[cfg(feature = "runtime-benchmarks")]?
-			+ From<u32>
-			+ MaxEncodedLen;
-
 		/// Multiplier that decides how much PLMC needs to be bonded for a token buy/bid
 		type Multiplier: Parameter + BondingRequirementCalculation<Self> + Default + From<u32>;
 
@@ -362,6 +348,9 @@ pub mod pallet {
 		/// How many projects should we update in on_initialize each block
 		#[pallet::constant]
 		type MaxProjectsToUpdatePerBlock: Get<u32>;
+
+		/// How many distinct evaluations per user per project
+		type MaxEvaluationsPerUser: Get<u32>;
 
 		/// The maximum number of bids per user per project
 		#[pallet::constant]
@@ -461,7 +450,8 @@ pub mod pallet {
 		T::ProjectIdentifier,
 		Blake2_128Concat,
 		T::AccountId,
-		EvaluationBond<T::StorageItemId, T::ProjectIdentifier, T::AccountId, BalanceOf<T>, T::BlockNumber>,
+		BoundedVec<EvaluationBond<T::StorageItemId, T::ProjectIdentifier, T::AccountId, BalanceOf<T>, T::BlockNumber>, T::MaxEvaluationsPerUser>,
+		ValueQuery,
 	>;
 
 	#[pallet::storage]
@@ -683,7 +673,9 @@ pub mod pallet {
 		/// Could not get the price in USD for PLMC
 		PLMCPriceNotAvailable,
 		/// Could not get the price in USD for the provided asset
-		PriceNotFound
+		PriceNotFound,
+		/// User made too many evaluations, and the last one is not big enough to replace an old one.
+		EvaluationBondTooLow
 	}
 
 	#[pallet::call]
@@ -705,7 +697,7 @@ pub mod pallet {
 		/// Change the metadata hash of a project
 		#[pallet::weight(T::WeightInfo::edit_metadata())]
 		pub fn edit_metadata(
-			origin: OriginFor<T>, project_id: T::ProjectIdParameter, project_metadata_hash: T::Hash,
+			origin: OriginFor<T>, project_id: T::ProjectIdentifier, project_metadata_hash: T::Hash,
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 			let project_id = project_id.into();
@@ -715,7 +707,7 @@ pub mod pallet {
 
 		/// Starts the evaluation round of a project. It needs to be called by the project issuer.
 		#[pallet::weight(T::WeightInfo::start_evaluation())]
-		pub fn start_evaluation(origin: OriginFor<T>, project_id: T::ProjectIdParameter) -> DispatchResult {
+		pub fn start_evaluation(origin: OriginFor<T>, project_id: T::ProjectIdentifier) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
@@ -737,7 +729,7 @@ pub mod pallet {
 		/// institutional user can set bids for a token_amount/token_price pair.
 		/// Any bids from this point until the candle_auction starts, will be considered as valid.
 		#[pallet::weight(T::WeightInfo::start_auction())]
-		pub fn start_auction(origin: OriginFor<T>, project_id: T::ProjectIdParameter) -> DispatchResult {
+		pub fn start_auction(origin: OriginFor<T>, project_id: T::ProjectIdentifier) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
@@ -758,7 +750,7 @@ pub mod pallet {
 		/// Bond PLMC for a project in the evaluation stage
 		#[pallet::weight(T::WeightInfo::bond())]
 		pub fn bond_evaluation(
-			origin: OriginFor<T>, project_id: T::ProjectIdParameter, #[pallet::compact] amount: BalanceOf<T>,
+			origin: OriginFor<T>, project_id: T::ProjectIdentifier, #[pallet::compact] amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let from = ensure_signed(origin)?;
 			let project_id = project_id.into();
@@ -768,17 +760,16 @@ pub mod pallet {
 		/// Release the bonded PLMC for an evaluator if the project assigned to it is in the EvaluationFailed phase
 		#[pallet::weight(T::WeightInfo::failed_evaluation_unbond_for())]
 		pub fn failed_evaluation_unbond_for(
-			origin: OriginFor<T>, project_id: T::ProjectIdParameter, bonder: T::AccountId,
+			origin: OriginFor<T>, bond_id: T::StorageItemId, project_id: T::ProjectIdentifier, evaluator: T::AccountId,
 		) -> DispatchResult {
 			let releaser = ensure_signed(origin)?;
-			let bond = EvaluationBonds::<T>::get(project_id.into(), bonder).ok_or(Error::<T>::BondNotFound)?;
-			Self::do_failed_evaluation_unbond_for(bond, releaser)
+			Self::do_failed_evaluation_unbond_for(bond_id, project_id.into(), evaluator, releaser)
 		}
 
 		/// Bid for a project in the Auction round
 		#[pallet::weight(T::WeightInfo::bid())]
 		pub fn bid(
-			origin: OriginFor<T>, project_id: T::ProjectIdParameter, #[pallet::compact] amount: BalanceOf<T>,
+			origin: OriginFor<T>, project_id: T::ProjectIdentifier, #[pallet::compact] amount: BalanceOf<T>,
 			price: PriceOf<T>, multiplier: Option<T::Multiplier>, asset: AcceptedFundingAsset,
 		) -> DispatchResult {
 			let bidder = ensure_signed(origin)?;
@@ -795,7 +786,7 @@ pub mod pallet {
 		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
 		#[pallet::weight(T::WeightInfo::contribute())]
 		pub fn contribute(
-			origin: OriginFor<T>, project_id: T::ProjectIdParameter, #[pallet::compact] amount: BalanceOf<T>,
+			origin: OriginFor<T>, project_id: T::ProjectIdentifier, #[pallet::compact] amount: BalanceOf<T>,
 			multiplier: Option<MultiplierOf<T>>, asset: AcceptedFundingAsset,
 		) -> DispatchResult {
 			let contributor = ensure_signed(origin)?;
@@ -806,7 +797,7 @@ pub mod pallet {
 
 		/// Unbond some plmc from a contribution, after a step in the vesting period has passed.
 		pub fn vested_plmc_bid_unbond_for(
-			origin: OriginFor<T>, project_id: T::ProjectIdParameter, bidder: T::AccountId,
+			origin: OriginFor<T>, project_id: T::ProjectIdentifier, bidder: T::AccountId,
 		) -> DispatchResult {
 			// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
 			let claimer = ensure_signed(origin)?;
@@ -818,7 +809,7 @@ pub mod pallet {
 		// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
 		/// Mint contribution tokens after a step in the vesting period for a successful bid.
 		pub fn vested_contribution_token_bid_mint_for(
-			origin: OriginFor<T>, project_id: T::ProjectIdParameter, bidder: T::AccountId,
+			origin: OriginFor<T>, project_id: T::ProjectIdentifier, bidder: T::AccountId,
 		) -> DispatchResult {
 			let claimer = ensure_signed(origin)?;
 			let project_id = project_id.into();
@@ -829,7 +820,7 @@ pub mod pallet {
 		// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
 		/// Unbond some plmc from a contribution, after a step in the vesting period has passed.
 		pub fn vested_plmc_purchase_unbond_for(
-			origin: OriginFor<T>, project_id: T::ProjectIdParameter, purchaser: T::AccountId,
+			origin: OriginFor<T>, project_id: T::ProjectIdentifier, purchaser: T::AccountId,
 		) -> DispatchResult {
 			let claimer = ensure_signed(origin)?;
 			let project_id = project_id.into();
@@ -840,7 +831,7 @@ pub mod pallet {
 		// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
 		/// Mint contribution tokens after a step in the vesting period for a contribution.
 		pub fn vested_contribution_token_purchase_mint_for(
-			origin: OriginFor<T>, project_id: T::ProjectIdParameter, purchaser: T::AccountId,
+			origin: OriginFor<T>, project_id: T::ProjectIdentifier, purchaser: T::AccountId,
 		) -> DispatchResult {
 			let claimer = ensure_signed(origin)?;
 			let project_id = project_id.into();
@@ -910,11 +901,11 @@ pub mod pallet {
                 .flat_map(|project_id| {
                     // get all the bonds for projects with a failed evaluation phase
                     EvaluationBonds::<T>::iter_prefix(project_id)
-                        .map(|(_bonder, bond)| bond)
+                        .flat_map(|(_bonder, bonds)| bonds)
                         .collect::<Vec<_>>()
                 })
                 // Retrieve as many as possible for the given weight
-                .take_while(|_| {
+                .take_while(|bond| {
                     if let Some(new_weight) =
                         remaining_weight.checked_sub(&T::WeightInfo::failed_evaluation_unbond_for())
                     {
@@ -925,7 +916,9 @@ pub mod pallet {
                     }
                 })
                 // Unbond the plmc
-                .map(|bond| Self::do_failed_evaluation_unbond_for(bond, pallet_account.clone()))
+                .map(|bond|
+					Self::do_failed_evaluation_unbond_for(
+						bond.id, bond.project, bond.account, pallet_account.clone()))
                 .collect::<Vec<_>>();
 
 			// Make sure no unbonding failed
@@ -942,13 +935,13 @@ pub mod pallet {
 
 	#[cfg(feature = "runtime-benchmarks")]
 	pub trait BenchmarkHelper<T: Config> {
-		fn create_project_id_parameter(id: u32) -> T::ProjectIdParameter;
+		fn create_project_id_parameter(id: u32) -> T::ProjectIdentifier;
 		fn create_dummy_project(metadata_hash: T::Hash) -> ProjectMetadataOf<T>;
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
 	impl<T: Config> BenchmarkHelper<T> for () {
-		fn create_project_id_parameter(id: u32) -> T::ProjectIdParameter {
+		fn create_project_id_parameter(id: u32) -> T::ProjectIdentifier {
 			id.into()
 		}
 		fn create_dummy_project(metadata_hash: T::Hash) -> ProjectMetadataOf<T> {
