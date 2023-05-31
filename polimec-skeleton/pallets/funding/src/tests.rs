@@ -39,6 +39,7 @@ use helper_functions::*;
 use frame_system::Account;
 use sp_runtime::DispatchError;
 use std::cell::RefCell;
+use crate::traits::ProvideStatemintPrice;
 
 type ProjectIdOf<T> = <T as Config>::ProjectIdentifier;
 type UserToPLMCBalance = Vec<(AccountId, BalanceOf<TestRuntime>)>;
@@ -402,6 +403,14 @@ impl TestEnvironment {
 			});
 		}
 	}
+
+	fn do_total_plmc_assertions(&self, total_supply: BalanceOf<TestRuntime>) {
+		self.ext_env.borrow_mut().execute_with(|| {
+			let total = Balances::total_issuance();
+			assert_eq!(total, total_supply);
+		});
+	}
+
 	fn do_free_statemint_asset_assertions(&self, correct_funds: UserToStatemintAsset) {
 		for (user, expected_amount, token_id) in correct_funds {
 			self.ext_env.borrow_mut().execute_with(|| {
@@ -621,23 +630,34 @@ impl<'a> AuctioningProject<'a> {
 			.end()
 			.expect("Evaluation end point should exist");
 		test_env.advance_time(evaluation_end - test_env.current_block() + 2);
-		evaluating_project.do_project_assertions(default_evaluation_end_assertions);
+		evaluation_end_assertions(&evaluating_project);
 
 		let auctioning_project = evaluating_project.start_auction(creator).unwrap();
 		auctioning_project.do_project_assertions(default_auction_start_assertions);
 
 		auctioning_project
 	}
-	
+
 	fn new_with(
 		test_env: &'a TestEnvironment,
 		project: ProjectMetadataOf<TestRuntime>,
 		issuer: <TestRuntime as frame_system::Config>::AccountId,
-		evaluations: UserToPLMCBalance
-	) {
+		evaluations: UserToUSDBalance
+	) -> Self {
 		let evaluating_project = EvaluatingProject::new_with(test_env, project, issuer);
-		let plmc_deposits = evaluations.map(|(user, plmc_amount))
-		test_env.mint_plmc_to(evaluations)
+		let plmc_price = <TestRuntime as Config>::PriceProvider::get_price(PLMC_STATEMINT_ID).unwrap();
+		let plmc_deposits = evaluations.map(|(user, usd_amount)| {
+			let plmc_amount = plmc_price
+				.reciprocal()
+				.unwrap()
+				.checked_mul_int(usd_amount)
+				.unwrap();
+			(user, plmc_amount + get_ed())
+		}).collect::<Vec<_>>();
+
+		test_env.mint_plmc_to(plmc_deposits);
+		evaluating_project.bond_for_users(evaluations).expect("Evaluation Bonding should work");
+		evaluation_end_assertions()
 	}
 
 	fn bid_for_users(&self, bids: TestBids) -> Result<(), DispatchError> {
@@ -744,6 +764,18 @@ impl<'a> CommunityFundingProject<'a> {
 		});
 
 		community_funding_project
+	}
+
+	fn new_with(
+		test_env: &'a TestEnvironment,
+		project: ProjectMetadataOf<TestRuntime>,
+		issuer: <TestRuntime as frame_system::Config>::AccountId,
+		evaluations: UserToUSDBalance,
+		bids: TestBids
+	) {
+		let auctioning_project = AuctioningProject::new_with(test_env, project, issuer, evaluations);
+
+
 	}
 
 	fn buy_for_retail_users(&self, contributions: TestContributions) -> Result<(), DispatchError> {
@@ -1035,11 +1067,20 @@ mod defaults {
 		assert_eq!(project_details.project_status, ProjectStatus::EvaluationRound);
 	}
 
-	pub fn default_evaluation_end_assertions(project_id: ProjectIdOf<TestRuntime>, test_env: &TestEnvironment) {
-		test_env.ext_env.borrow_mut().execute_with(|| {
-			let project_details = FundingModule::project_details(project_id).expect("Project info should exist");
-			assert_eq!(project_details.project_status, ProjectStatus::AuctionInitializePeriod);
-		});
+	pub fn evaluation_end_assertions(
+		evaluating_project: &EvaluatingProject,
+		expected_free_plmc_balances: UserToPLMCBalance,
+		expected_reserved_plmc_balances: UserToPLMCBalance,
+		total_plmc_supply: BalanceOf<TestRuntime>
+	) {
+		let project_details = evaluating_project.get_project_details();
+		let test_env = evaluating_project.test_env;
+		assert_eq!(project_details.project_status, ProjectStatus::AuctionInitializePeriod);
+		test_env.do_free_plmc_assertions(expected_free_plmc_balances);
+		test_env.do_reserved_plmc_assertions(expected_reserved_plmc_balances);
+		test_env.do_total_plmc_assertions(total_plmc_supply);
+
+
 	}
 
 	pub fn default_auction_start_assertions(project_id: ProjectIdOf<TestRuntime>, test_env: &TestEnvironment) {
