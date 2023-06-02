@@ -522,7 +522,7 @@ impl<'a> CreatedProject<'a> {
 		let expected_details = ProjectDetailsOf::<TestRuntime> {
 			is_frozen: false,
 			weighted_average_price: None,
-			project_status: ProjectStatus::Application,
+			status: ProjectStatus::Application,
 			phase_transition_points: PhaseTransitionPoints {
 				application: BlockNumberPair {
 					start: Some(creation_start_block),
@@ -547,10 +547,7 @@ impl<'a> CreatedProject<'a> {
 			.borrow_mut()
 			.execute_with(|| FundingModule::start_evaluation(RuntimeOrigin::signed(caller), self.project_id))?;
 
-		assert_eq!(
-			self.get_project_details().project_status,
-			ProjectStatus::EvaluationRound
-		);
+		assert_eq!(self.get_project_details().status, ProjectStatus::EvaluationRound);
 
 		Ok(EvaluatingProject {
 			test_env: self.test_env,
@@ -601,7 +598,7 @@ impl<'a> EvaluatingProject<'a> {
 	) {
 		let project_details = self.get_project_details();
 		let test_env = self.test_env;
-		assert_eq!(project_details.project_status, ProjectStatus::AuctionInitializePeriod);
+		assert_eq!(project_details.status, ProjectStatus::AuctionInitializePeriod);
 		test_env.do_free_plmc_assertions(expected_free_plmc_balances);
 		test_env.do_reserved_plmc_assertions(expected_reserved_plmc_balances, BondType::Evaluation);
 		test_env.do_total_plmc_assertions(total_plmc_supply);
@@ -623,7 +620,7 @@ impl<'a> EvaluatingProject<'a> {
 			FundingModule::start_auction(RuntimeOrigin::signed(caller), self.project_id)?;
 			let project_details = ProjectsDetails::<TestRuntime>::get(self.get_project_id()).unwrap();
 			assert_eq!(
-				project_details.project_status,
+				project_details.status,
 				ProjectStatus::AuctionRound(AuctionPhase::English)
 			);
 
@@ -1124,7 +1121,7 @@ mod defaults {
 	pub fn default_creation_assertions(project_id: ProjectIdOf<TestRuntime>, test_env: &TestEnvironment) {
 		test_env.ext_env.borrow_mut().execute_with(|| {
 			let project_details = FundingModule::project_details(project_id).expect("Project info should exist");
-			assert_eq!(project_details.project_status, ProjectStatus::Application);
+			assert_eq!(project_details.status, ProjectStatus::Application);
 		});
 	}
 
@@ -1137,7 +1134,7 @@ mod defaults {
 			let project_details = FundingModule::project_details(project_id).expect("Project info should exist");
 
 			// Round transition happened
-			assert_eq!(project_details.project_status, ProjectStatus::CommunityRound);
+			assert_eq!(project_details.status, ProjectStatus::CommunityRound);
 
 			// Bids are finalized
 			let project_bids = Bids::<TestRuntime>::iter_prefix(project_id).collect::<Vec<_>>();
@@ -1165,7 +1162,7 @@ mod defaults {
 	) {
 		test_env.ext_env.borrow_mut().execute_with(|| {
 			let project_details = FundingModule::project_details(project_id).expect("Project info should exist");
-			assert_eq!(project_details.project_status, ProjectStatus::RemainderRound);
+			assert_eq!(project_details.status, ProjectStatus::RemainderRound);
 		});
 	}
 
@@ -1173,7 +1170,7 @@ mod defaults {
 		// Check that project status is correct
 		test_env.ext_env.borrow_mut().execute_with(|| {
 			let project_details = FundingModule::project_details(project_id).expect("Project info should exist");
-			assert_eq!(project_details.project_status, ProjectStatus::FundingEnded);
+			assert_eq!(project_details.status, ProjectStatus::FundingEnded);
 		});
 
 		// Check that remaining CTs are updated
@@ -1528,7 +1525,7 @@ mod evaluation_round_failure {
 		test_env.advance_time(evaluation_end - now);
 
 		assert_eq!(
-			evaluating_project.get_project_details().project_status,
+			evaluating_project.get_project_details().status,
 			ProjectStatus::EvaluationFailed
 		);
 

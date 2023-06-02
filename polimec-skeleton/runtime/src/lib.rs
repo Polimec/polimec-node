@@ -22,18 +22,13 @@ use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot, EnsureSigned,
 };
-use pallet_funding::BondType;
+use pallet_funding::BondTypeOf;
 use pallet_xcm::{EnsureXcm, IsVoiceOfBody};
 use smallvec::smallvec;
 use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
-use sp_runtime::{
-	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT},
-	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult,
-};
+use sp_runtime::{create_runtime_str, generic, impl_opaque_keys, traits::{AccountIdLookup, BlakeTwo256, Block as BlockT}, transaction_validity::{TransactionSource, TransactionValidity}, ApplyExtrinsicResult, FixedU128};
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
 use xcm_config::{RelayLocation, XcmConfig, XcmOriginToTransactDispatchOrigin};
 
@@ -59,7 +54,8 @@ pub use parachains_common::Signature;
 
 /// Some way of identifying an account on the chain. We intentionally make it equivalent
 /// to the public key of our transaction signing scheme.
-pub use parachains_common::AccountId;
+pub use sp_runtime::AccountId32 as AccountId;
+// type AccountId = [u8; 32];
 
 /// Balance of an account.
 pub use parachains_common::Balance;
@@ -312,9 +308,9 @@ impl pallet_balances::Config for Runtime {
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
-	type ReserveIdentifier = BondType;
-	type HoldIdentifier = BondType;
-	type FreezeIdentifier = BondType;
+	type ReserveIdentifier = ();
+	type HoldIdentifier = ();
+	type FreezeIdentifier = ();
 	type MaxHolds = MaxLocks;
 	type MaxFreezes = MaxReserves;
 }
@@ -546,27 +542,29 @@ pub const CONTRIBUTION_VESTING_DURATION: BlockNumber = 365;
 #[cfg(not(feature = "fast-gov"))]
 pub const CONTRIBUTION_VESTING_DURATION: BlockNumber = 365 * DAYS;
 
-parameter_types! {
-	pub const EvaluationDuration: BlockNumber = EVALUATION_DURATION;
-	pub const AuctionInitializePeriodDuration: BlockNumber = AUCTION_INITIALIZE_PERIOD_DURATION;
-	pub const EnglishAuctionDuration: BlockNumber = ENGLISH_AUCTION_DURATION;
-	pub const CandleAuctionDuration: BlockNumber = CANDLE_AUCTION_DURATION;
-	pub const CommunityFundingDuration: BlockNumber = COMMUNITY_FUNDING_DURATION;
-	pub const RemainderFundingDuration: BlockNumber = REMAINDER_FUNDING_DURATION;
-	pub const ContributionVestingDuration: BlockNumber = CONTRIBUTION_VESTING_DURATION;
-	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
-}
+// parameter_types! {
+// 	pub const EvaluationDuration: BlockNumber = EVALUATION_DURATION;
+// 	pub const AuctionInitializePeriodDuration: BlockNumber = AUCTION_INITIALIZE_PERIOD_DURATION;
+// 	pub const EnglishAuctionDuration: BlockNumber = ENGLISH_AUCTION_DURATION;
+// 	pub const CandleAuctionDuration: BlockNumber = CANDLE_AUCTION_DURATION;
+// 	pub const CommunityFundingDuration: BlockNumber = COMMUNITY_FUNDING_DURATION;
+// 	pub const RemainderFundingDuration: BlockNumber = REMAINDER_FUNDING_DURATION;
+// 	pub const ContributionVestingDuration: BlockNumber = CONTRIBUTION_VESTING_DURATION;
+// 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
+// }
 
 // impl pallet_funding::Config for Runtime {
+// 	type AccountId = AccountId;
 // 	type RuntimeEvent = RuntimeEvent;
 // 	type ProjectIdentifier = u32;
-// 	type ProjectIdParameter = parity_scale_codec::Compact<u32>;
-// 	type Multiplier = FundingMultiplier<Runtime>;
+// 	type Multiplier = pallet_funding::types::Multiplier<Self>;
 // 	type Balance = Balance;
+// 	type Price = FixedU128;
 // 	type NativeCurrency = Balances;
 // 	type FundingCurrency = StatemintAssets;
 // 	type ContributionTokenCurrency = LocalAssets;
-// 	type BidId = u128;
+// 	type PriceProvider = pallet_funding::types::ConstPriceProvider<>;
+// 	type StorageItemId = ();
 // 	type Randomness = Random;
 // 	type HandleMembers = Credentials;
 // 	type StringLimit = ConstU32<64>;
@@ -579,7 +577,8 @@ parameter_types! {
 // 	type RemainderFundingDuration = RemainderFundingDuration;
 // 	type PalletId = FundingPalletId;
 // 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
-// 	type MaximumBidsPerUser = ConstU32<256>;
+// 	type MaxEvaluationsPerUser = ();
+// 	type MaxBidsPerUser = ConstU32<256>;
 //
 // 	type MaxContributionsPerUser = ConstU32<256>;
 // 	type ContributionVesting = ContributionVestingDuration;
