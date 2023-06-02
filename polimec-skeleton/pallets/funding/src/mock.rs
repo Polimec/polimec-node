@@ -219,7 +219,6 @@ parameter_types! {
 impl pallet_funding::Config for TestRuntime {
 	type RuntimeEvent = RuntimeEvent;
 	type ProjectIdentifier = Identifier;
-	type ProjectIdParameter = Identifier;
 	type Multiplier = Multiplier<TestRuntime>;
 	type Balance = Balance;
 	type Price = FixedU128;
@@ -240,6 +239,7 @@ impl pallet_funding::Config for TestRuntime {
 	type RemainderFundingDuration = RemainderFundingDuration;
 	type PalletId = FundingPalletId;
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
+	type MaxEvaluationsPerUser = ConstU32<4>;
 	// Low value to simplify the tests
 	type MaximumBidsPerUser = ConstU32<4>;
 	type MaxContributionsPerUser = ConstU32<4>;

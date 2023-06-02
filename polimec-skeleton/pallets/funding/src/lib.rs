@@ -84,8 +84,8 @@
 //! * [`ProjectsIssuers`]: Map of a project id, to its issuer account.
 //! * [`ProjectsDetails`]: Map of a project id, to some additional information required for ensuring correctness of the protocol.
 //! * [`ProjectsToUpdate`]: Map of a block number, to a vector of project ids. Used to keep track of projects that need to be updated in on_initialize.
-//! * [`AuctionsInfo`]: Double map linking a project-user to the bids they made.
-//! * [`EvaluationBonds`]: Double map linking a project-user to the PLMC they bonded in the evaluation round.
+//! * [`Bids`]: Double map linking a project-user to the bids they made.
+//! * [`Evaluations`]: Double map linking a project-user to the PLMC they bonded in the evaluation round.
 //! * [`BiddingBonds`]: Double map linking a project-user to the PLMC they bonded in the English or Candle Auction round.
 //! * [`ContributingBonds`]: Double map linking a project-user to the PLMC they bonded in the Community or Remainder round.
 //! * [`Contributions`]: Double map linking a project-user to the contribution tokens they bought in the Community or Remainder round.
@@ -218,6 +218,7 @@ use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperan
 use sp_std::prelude::*;
 
 pub type BalanceOf<T> = <T as Config>::Balance;
+pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 pub type PriceOf<T> = <T as Config>::Price;
 pub type ProjectMetadataOf<T> = ProjectMetadata<
 	BoundedVec<u8, <T as Config>::StringLimit>,
@@ -244,6 +245,14 @@ pub type AssetIdOf<T> =
 	<<T as Config>::FundingCurrency as fungibles::Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
 
 type ContributionInfoOf<T> = ContributionInfo<BalanceOf<T>, VestingOf<T>, VestingOf<T>>;
+
+type BondOf<T> = Bond<
+	<T as Config>::StorageItemId,
+	<T as Config>::ProjectIdentifier,
+	AccountIdOf<T>,
+	BalanceOf<T>,
+	BlockNumberOf<T>,
+>;
 
 const PLMC_STATEMINT_ID: u32 = 2069;
 
@@ -354,7 +363,7 @@ pub mod pallet {
 
 		/// The maximum number of bids per user per project
 		#[pallet::constant]
-		type MaximumBidsPerUser: Get<u32>;
+		type MaxBidsPerUser: Get<u32>;
 
 		/// The maximum number of bids per user per project
 		#[pallet::constant]
@@ -388,7 +397,7 @@ pub mod pallet {
 	#[pallet::getter(fn next_evaluation_id)]
 	/// A global counter for indexing the bids
 	/// OnEmpty in this case is GetDefault, so 0.
-	pub type NextEvaluationId<T: Config> = StorageValue<_, T::StorageItemId, ValueQuery>;
+	pub type NextBondId<T: Config> = StorageValue<_, T::StorageItemId, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn nonce)]
@@ -430,52 +439,32 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn auctions_info)]
-	/// StorageMap containing the bids for each project and user
-	pub type AuctionsInfo<T: Config> = StorageDoubleMap<
-		_,
-		Blake2_128Concat,
-		T::ProjectIdentifier,
-		Blake2_128Concat,
-		T::AccountId,
-		BoundedVec<BidInfoOf<T>, T::MaximumBidsPerUser>,
-	>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn evaluation_bonds)]
+	#[pallet::getter(fn evaluations)]
 	/// Keep track of the PLMC bonds made to each project by each evaluator
-	pub type EvaluationBonds<T: Config> = StorageDoubleMap<
+	pub type Evaluations<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
 		T::ProjectIdentifier,
 		Blake2_128Concat,
 		T::AccountId,
-		BoundedVec<EvaluationBond<T::StorageItemId, T::ProjectIdentifier, T::AccountId, BalanceOf<T>, T::BlockNumber>, T::MaxEvaluationsPerUser>,
+		BoundedVec<
+			Bond<T::StorageItemId, T::ProjectIdentifier, T::AccountId, BalanceOf<T>, T::BlockNumber>,
+			T::MaxEvaluationsPerUser,
+		>,
 		ValueQuery,
 	>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn bidding_bonds)]
-	/// Keep track of the PLMC bonds made to each project by each bidder
-	pub type BiddingBonds<T: Config> = StorageDoubleMap<
+	#[pallet::getter(fn bids)]
+	/// StorageMap containing the bids for each project and user
+	pub type Bids<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
 		T::ProjectIdentifier,
 		Blake2_128Concat,
 		T::AccountId,
-		BiddingBond<T::ProjectIdentifier, T::AccountId, BalanceOf<T>, T::BlockNumber>,
-	>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn contributing_bonds)]
-	/// Keep track of the PLMC bonds made to each project by each contributor
-	pub type ContributingBonds<T: Config> = StorageDoubleMap<
-		_,
-		Blake2_128Concat,
-		T::ProjectIdentifier,
-		Blake2_128Concat,
-		T::AccountId,
-		ContributingBond<T::ProjectIdentifier, T::AccountId, BalanceOf<T>>,
+		BoundedVec<BidInfoOf<T>, T::MaxBidsPerUser>,
+		ValueQuery
 	>;
 
 	#[pallet::storage]
@@ -488,7 +477,44 @@ pub mod pallet {
 		Blake2_128Concat,
 		T::AccountId,
 		BoundedVec<ContributionInfoOf<T>, T::MaxContributionsPerUser>,
+		ValueQuery
 	>;
+
+
+
+	#[pallet::storage]
+	#[pallet::getter(fn bidding_bonds)]
+	/// Keep track of the PLMC bonds made to each project by each bidder
+	pub type BiddingBonds<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		T::ProjectIdentifier,
+		Blake2_128Concat,
+		T::AccountId,
+		BoundedVec<
+			Bond<T::StorageItemId, T::ProjectIdentifier, T::AccountId, BalanceOf<T>, T::BlockNumber>,
+			T::MaxBidsPerUser,
+		>,
+		ValueQuery,
+	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn contributing_bonds)]
+	/// Keep track of the PLMC bonds made to each project by each contributor
+	pub type ContributingBonds<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		T::ProjectIdentifier,
+		Blake2_128Concat,
+		T::AccountId,
+		BoundedVec<
+			Bond<T::StorageItemId, T::ProjectIdentifier, T::AccountId, BalanceOf<T>, T::BlockNumber>,
+			T::MaxContributionsPerUser,
+		>,
+		ValueQuery,
+	>;
+
+
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -675,7 +701,7 @@ pub mod pallet {
 		/// Could not get the price in USD for the provided asset
 		PriceNotFound,
 		/// User made too many evaluations, and the last one is not big enough to replace an old one.
-		EvaluationBondTooLow
+		EvaluationBondTooLow,
 	}
 
 	#[pallet::call]
@@ -900,7 +926,7 @@ pub mod pallet {
                 // Get a flat list of bonds
                 .flat_map(|project_id| {
                     // get all the bonds for projects with a failed evaluation phase
-                    EvaluationBonds::<T>::iter_prefix(project_id)
+                    Evaluations::<T>::iter_prefix(project_id)
                         .flat_map(|(_bonder, bonds)| bonds)
                         .collect::<Vec<_>>()
                 })

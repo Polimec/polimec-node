@@ -173,8 +173,8 @@ pub struct PhaseTransitionPoints<BlockNumber> {
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct BlockNumberPair<BlockNumber> {
-	start: Option<BlockNumber>,
-	end: Option<BlockNumber>,
+	pub start: Option<BlockNumber>,
+	pub end: Option<BlockNumber>,
 }
 
 impl<BlockNumber: Copy> BlockNumberPair<BlockNumber> {
@@ -386,28 +386,13 @@ pub enum FundingHoldType {
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct EvaluationBond<StorageItemId, ProjectId, AccountId, Balance, BlockNumber> {
+pub struct Bond<StorageItemId, ProjectId, AccountId, Balance, BlockNumber> {
 	pub id: StorageItemId,
 	pub project: ProjectId,
 	pub account: AccountId,
 	pub plmc_amount: Balance,
-	pub usd_amount: Balance,
+	pub bond_type: BondType,
 	pub when: BlockNumber,
-}
-
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct BiddingBond<ProjectId, AccountId, Balance, BlockNumber> {
-	pub project: ProjectId,
-	pub account: AccountId,
-	pub amount: Balance,
-	pub when: BlockNumber,
-}
-
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct ContributingBond<ProjectId, AccountId, Balance> {
-	pub project: ProjectId,
-	pub account: AccountId,
-	pub amount: Balance,
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]

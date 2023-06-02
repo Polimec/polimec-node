@@ -187,7 +187,7 @@ benchmarks! {
 
 	}: _(SystemOrigin::Signed(bidder_1.clone()), project_id.clone(), 10_000_u64.into(), 15__0_000_000_000_u64.into(), None)
 	verify {
-		let project_auctions = AuctionsInfo::<T>::get(project_id.clone().into(), bidder_1.clone()).unwrap();
+		let project_auctions = Bids::<T>::get(project_id.clone().into(), bidder_1.clone()).unwrap();
 		assert_eq!(project_auctions.len(), 1);
 		assert_eq!(project_auctions[0].ct_amount, 10_000_u64.into());
 		assert_eq!(project_auctions[0].ct_usd_price, 15__0_000_000_000_u64.into());
