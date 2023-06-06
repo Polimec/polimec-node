@@ -952,7 +952,9 @@ impl<T: Config> Pallet<T> {
 				let lowest_bid = existing_bids.swap_remove(lowest_bid_index);
 
 				ensure!(new_bid > lowest_bid, Error::<T>::BidTooLow);
-				existing_bids.try_push(new_bid).map_err(|_| Error::<T>::ImpossibleState)?;
+				existing_bids
+					.try_push(new_bid)
+					.map_err(|_| Error::<T>::ImpossibleState)?;
 				T::NativeCurrency::release(
 					&BondType::Bid(project_id),
 					&lowest_bid.bidder,
@@ -1547,7 +1549,7 @@ impl<T: Config> Pallet<T> {
 		project_id: T::ProjectIdentifier, end_block: T::BlockNumber, total_allocation_size: BalanceOf<T>,
 	) -> Result<(), DispatchError> {
 		// Get all the bids that were made before the end of the candle
-		let mut bids = Bids::<T>::iter_values().flatten().collect::<Vec<_>>();
+		let mut bids = Bids::<T>::iter_prefix(project_id).flat_map(|(bidder, bids)| bids).collect::<Vec<_>>();
 		// temp variable to store the sum of the bids
 		let mut bid_token_amount_sum = BalanceOf::<T>::zero();
 		// temp variable to store the total value of the bids (i.e price * amount)
