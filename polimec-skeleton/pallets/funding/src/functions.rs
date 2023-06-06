@@ -952,7 +952,7 @@ impl<T: Config> Pallet<T> {
 				let lowest_bid = existing_bids.swap_remove(lowest_bid_index);
 
 				ensure!(new_bid > lowest_bid, Error::<T>::BidTooLow);
-
+				existing_bids.try_push(new_bid).map_err(|_| Error::<T>::ImpossibleState)?;
 				T::NativeCurrency::release(
 					&BondType::Bid(project_id),
 					&lowest_bid.bidder,
@@ -980,7 +980,7 @@ impl<T: Config> Pallet<T> {
 			}
 		};
 
-		existing_bids.sort();
+		existing_bids.sort_by(|a, b| b.cmp(a));
 
 		Bids::<T>::set(project_id, bidder, existing_bids);
 		NextBidId::<T>::set(bid_id.saturating_add(One::one()));

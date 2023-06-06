@@ -1551,243 +1551,263 @@ mod auction_round_success {
 			bids
 		);
 	}
+
+	#[test]
+	fn only_candle_bids_before_random_block_get_included() {
+		let test_env = TestEnvironment::new();
+		let issuer = ISSUER;
+		let project = default_project(test_env.get_new_nonce(), issuer);
+		let evaluations = default_evaluations();
+		let auctioning_project = AuctioningProject::new_with(
+			&test_env,
+			project,
+			issuer,
+			evaluations,
+		);
+		let english_end_block = auctioning_project
+			.get_project_details()
+			.phase_transition_points
+			.english_auction
+			.end()
+			.expect("Auction start point should exist");
+		// The block following the end of the english auction, is used to transition the project into candle auction.
+		// We move past that transition, into the start of the candle auction.
+		test_env.advance_time(english_end_block - test_env.current_block() + 1);
+		assert_eq!(
+			auctioning_project.get_project_details().status,
+			ProjectStatus::AuctionRound(AuctionPhase::Candle)
+		);
+
+		let candle_end_block = auctioning_project
+			.get_project_details()
+			.phase_transition_points
+			.candle_auction
+			.end()
+			.expect("Candle auction end point should exist");
+
+		let mut bidding_account = 1000;
+		// Imitate the first default bid
+		let bid_info = default_bids()[0];
+		let plmc_necessary_funding = calculate_auction_plmc_spent(vec![bid_info.clone()])[0].1;
+		let statemint_asset_necessary_funding = calculate_auction_funding_asset_spent(vec![bid_info.clone()])[0].1;
+
+		let mut bids_made: TestBids = vec![];
+		let starting_bid_block = test_env.current_block();
+		let blocks_to_bid = test_env.current_block()..candle_end_block;
+
+		// Do one candle bid for each block until the end of candle auction with a new user
+		for _block in blocks_to_bid {
+			assert_eq!(
+				auctioning_project.get_project_details().status,
+				ProjectStatus::AuctionRound(AuctionPhase::Candle)
+			);
+			test_env.mint_plmc_to(vec![(bidding_account, get_ed())]);
+			test_env.mint_plmc_to(vec![(bidding_account, plmc_necessary_funding)]);
+			test_env.mint_statemint_asset_to(vec![(
+				bidding_account,
+				statemint_asset_necessary_funding,
+				bid_info.asset.to_statemint_id(),
+			)]);
+			let bids: TestBids = vec![TestBid::new(
+				bidding_account,
+				bid_info.amount,
+				bid_info.price,
+				bid_info.multiplier,
+				bid_info.asset,
+			)];
+			let balances = test_env.get_all_free_plmc_balances();
+			let sb = test_env.get_all_free_statemint_asset_balances(AcceptedFundingAsset::USDT.to_statemint_id());
+			auctioning_project
+				.bid_for_users(bids.clone())
+				.expect("Candle Bidding should not fail");
+
+			bids_made.push(bids[0]);
+			bidding_account += 1;
+
+			test_env.advance_time(1);
+		}
+		test_env.advance_time(candle_end_block - test_env.current_block() + 1);
+
+		let random_end = auctioning_project
+			.get_project_details()
+			.phase_transition_points
+			.random_candle_ending
+			.expect("Random auction end point should exist");
+
+		let split = (random_end - starting_bid_block + 1) as usize;
+		let excluded_bids = bids_made.split_off(split);
+		let included_bids = bids_made;
+		let _weighted_price = auctioning_project
+			.get_project_details()
+			.weighted_average_price
+			.expect("Weighted price should exist");
+
+		for bid in included_bids {
+			let pid = auctioning_project.get_project_id();
+			let stored_bids = auctioning_project.in_ext(|| FundingModule::bids(pid, bid.bidder));
+			let desired_bid = BidInfoFilter {
+				project: Some(pid),
+				bidder: Some(bid.bidder),
+				ct_amount: Some(bid.amount),
+				ct_usd_price: Some(bid.price),
+				status: Some(BidStatus::Accepted),
+				..Default::default()
+			};
+
+			assert!(
+				stored_bids.iter().any(|bid| desired_bid.matches_bid(&bid)),
+				"Stored bid does not match the given filter"
+			)
+		}
+
+		for bid in excluded_bids {
+			let pid = auctioning_project.get_project_id();
+			let stored_bids = auctioning_project.in_ext(|| FundingModule::bids(pid, bid.bidder));
+			let desired_bid = BidInfoFilter {
+				project: Some(pid),
+				bidder: Some(bid.bidder),
+				ct_amount: Some(bid.amount),
+				ct_usd_price: Some(bid.price),
+				status: Some(BidStatus::Rejected(RejectionReason::AfterCandleEnd)),
+				..Default::default()
+			};
+			assert!(
+				stored_bids.iter().any(|bid| desired_bid.matches_bid(&bid)),
+				"Stored bid does not match the given filter"
+			);
+		}
+	}
 }
-//
-// 	#[test]
-// 	fn only_candle_bids_before_random_block_get_included() {
-// 		let test_env = TestEnvironment::new();
-// 		let auctioning_project = AuctioningProject::new_default(&test_env);
-// 		let english_end_block = auctioning_project
-// 			.get_project_details()
-// 			.phase_transition_points
-// 			.english_auction
-// 			.end()
-// 			.expect("Auction start point should exist");
-// 		// The block following the end of the english auction, is used to transition the project into candle auction.
-// 		// We move past that transition, into the start of the candle auction.
-// 		test_env.advance_time(english_end_block - test_env.current_block() + 1);
-// 		assert_eq!(
-// 			auctioning_project.get_project_details().project_status,
-// 			ProjectStatus::AuctionRound(AuctionPhase::Candle)
-// 		);
-//
-// 		let candle_end_block = auctioning_project
-// 			.get_project_details()
-// 			.phase_transition_points
-// 			.candle_auction
-// 			.end()
-// 			.expect("Candle auction end point should exist");
-//
-// 		// Do one candle bid for each block until the end of candle auction with a new user
-// 		let mut bidding_account = 1000;
-// 		// Imitate the first default bid
-// 		let bid_info = default_auction_bids()[0];
-// 		// Calculate necessary PLMC from the multiplier
-// 		let plmc_necessary_funding = calculate_auction_plmc_spent(vec![bid_info.clone()])[0].1;
-// 		let statemint_asset_necessary_funding = calculate_auction_funding_asset_spent(vec![bid_info.clone()])[0].1;
-//
-// 		let mut bids_made: TestBids = vec![];
-// 		let starting_bid_block = test_env.current_block();
-// 		let blocks_to_bid = test_env.current_block()..candle_end_block;
-//
-// 		for _block in blocks_to_bid {
-// 			// Check we are still in candle auction
-// 			assert_eq!(
-// 				auctioning_project.get_project_details().project_status,
-// 				ProjectStatus::AuctionRound(AuctionPhase::Candle)
-// 			);
-// 			// Fund account with necessary assets
-// 			test_env.mint_plmc_to(vec![(bidding_account, get_ed())]);
-// 			test_env.mint_plmc_to(vec![(bidding_account, plmc_necessary_funding)]);
-// 			test_env.mint_statemint_asset_to(vec![(
-// 				bidding_account,
-// 				statemint_asset_necessary_funding,
-// 				bid_info.asset.to_statemint_id(),
-// 			)]);
-// 			// Make the bid
-// 			let bids: TestBids = vec![TestBid::new(
-// 				bidding_account,
-// 				bid_info.amount,
-// 				bid_info.price,
-// 				bid_info.multiplier,
-// 				bid_info.asset,
-// 			)];
-// 			let balances = test_env.get_all_free_plmc_balances();
-// 			let sb = test_env.get_all_free_statemint_asset_balances(AcceptedFundingAsset::USDT.to_statemint_id());
-// 			auctioning_project
-// 				.bid_for_users(bids.clone())
-// 				.expect("Candle Bidding should not fail");
-//
-// 			bids_made.push(bids[0]);
-// 			bidding_account += 1;
-//
-// 			test_env.advance_time(1);
-// 		}
-// 		test_env.advance_time(candle_end_block - test_env.current_block() + 1);
-//
-// 		let random_end = auctioning_project
-// 			.get_project_details()
-// 			.phase_transition_points
-// 			.random_candle_ending
-// 			.expect("Random auction end point should exist");
-//
-// 		let split = (random_end - starting_bid_block + 1) as usize;
-// 		let excluded_bids = bids_made.split_off(split);
-// 		let included_bids = bids_made;
-// 		let _weighted_price = auctioning_project
-// 			.get_project_details()
-// 			.weighted_average_price
-// 			.expect("Weighted price should exist");
-//
-// 		for bid in included_bids {
-// 			test_env.ext_env.borrow_mut().execute_with(|| {
-// 				let pid = auctioning_project.project_id;
-// 				let stored_bids = FundingModule::auctions_info(pid, bid.bidder).expect("Bid should exist");
-// 				let desired_bid = BidInfoFilter {
-// 					project: Some(pid),
-// 					bidder: Some(bid.bidder),
-// 					ct_amount: Some(bid.amount),
-// 					ct_usd_price: Some(bid.price),
-// 					status: Some(BidStatus::Accepted),
-// 					..Default::default()
-// 				};
-//
-// 				assert!(
-// 					stored_bids.iter().any(|bid| desired_bid.matches_bid(&bid)),
-// 					"Stored bid does not match the given filter"
-// 				)
-// 			});
-// 		}
-//
-// 		for bid in excluded_bids {
-// 			test_env.ext_env.borrow_mut().execute_with(|| {
-// 				let pid = auctioning_project.project_id;
-// 				let stored_bids = FundingModule::auctions_info(pid, bid.bidder).expect("Bid should exist");
-// 				let desired_bid = BidInfoFilter {
-// 					project: Some(pid),
-// 					bidder: Some(bid.bidder),
-// 					ct_amount: Some(bid.amount),
-// 					ct_usd_price: Some(bid.price),
-// 					status: Some(BidStatus::Rejected(RejectionReason::AfterCandleEnd)),
-// 					..Default::default()
-// 				};
-// 				assert!(
-// 					stored_bids.iter().any(|bid| desired_bid.matches_bid(&bid)),
-// 					"Stored bid does not match the given filter"
-// 				);
-// 			});
-// 		}
-// 	}
-// }
-//
-// #[cfg(test)]
-// mod auction_round_failure {
-// 	use super::*;
-//
-// 	#[test]
-// 	fn cannot_start_auction_before_evaluation_finishes() {
-// 		let test_env = TestEnvironment::new();
-// 		let evaluating_project = EvaluatingProject::new_default(&test_env);
-// 		let project_id = evaluating_project.project_id;
-// 		let creator = evaluating_project.creator;
-// 		test_env.ext_env.borrow_mut().execute_with(|| {
-// 			assert_noop!(
-// 				FundingModule::start_auction(RuntimeOrigin::signed(creator), project_id),
-// 				Error::<TestRuntime>::EvaluationPeriodNotEnded
-// 			);
-// 		});
-// 	}
-//
-// 	#[test]
-// 	fn cannot_bid_before_auction_round() {
-// 		let test_env = TestEnvironment::new();
-// 		let evaluating_project = EvaluatingProject::new_default(&test_env);
-// 		let _project_id = evaluating_project.project_id;
-// 		test_env.ext_env.borrow_mut().execute_with(|| {
-// 			assert_noop!(
-// 				FundingModule::bid(
-// 					RuntimeOrigin::signed(BIDDER_2),
-// 					0,
-// 					1,
-// 					100u128.into(),
-// 					None,
-// 					AcceptedFundingAsset::USDT
-// 				),
-// 				Error::<TestRuntime>::AuctionNotStarted
-// 			);
-// 		});
-// 	}
-//
-// 	#[test]
-// 	fn contribute_does_not_work() {
-// 		let test_env = TestEnvironment::new();
-// 		let evaluating_project = EvaluatingProject::new_default(&test_env);
-// 		let project_id = evaluating_project.project_id;
-// 		test_env.ext_env.borrow_mut().execute_with(|| {
-// 			assert_noop!(
-// 				FundingModule::contribute(
-// 					RuntimeOrigin::signed(BIDDER_1),
-// 					project_id,
-// 					100,
-// 					None,
-// 					AcceptedFundingAsset::USDT
-// 				),
-// 				Error::<TestRuntime>::AuctionNotStarted
-// 			);
-// 		});
-// 	}
-//
-// 	#[test]
-// 	fn bids_overflow() {
-// 		let test_env = TestEnvironment::new();
-// 		let auctioning_project = AuctioningProject::new_default(&test_env);
-// 		let project_id = auctioning_project.project_id;
-// 		const DAVE: AccountId = 42;
-// 		let bids: TestBids = vec![
-// 			TestBid::new(DAVE, 10_000 * USDT_UNIT, 2u128.into(), None, AcceptedFundingAsset::USDT),
-// 			TestBid::new(DAVE, 13_000 * USDT_UNIT, 3u128.into(), None, AcceptedFundingAsset::USDT),
-// 			TestBid::new(DAVE, 15_000 * USDT_UNIT, 5u128.into(), None, AcceptedFundingAsset::USDT),
-// 			TestBid::new(DAVE, 1_000 * USDT_UNIT, 7u128.into(), None, AcceptedFundingAsset::USDT),
-// 			TestBid::new(DAVE, 20_000 * USDT_UNIT, 8u128.into(), None, AcceptedFundingAsset::USDT),
-// 		];
-//
-// 		let mut plmc_fundings: UserToPLMCBalance = calculate_auction_plmc_spent(bids.clone());
-// 		// Existential deposit on DAVE
-// 		plmc_fundings.push((DAVE, get_ed()));
-//
-// 		let statemint_asset_fundings: UserToStatemintAsset = calculate_auction_funding_asset_spent(bids.clone());
-//
-// 		// Fund enough for all PLMC bonds for the bids (multiplier of 1)
-// 		test_env.mint_plmc_to(plmc_fundings);
-//
-// 		// Fund enough for all bids
-// 		test_env.mint_statemint_asset_to(statemint_asset_fundings);
-//
-// 		auctioning_project.bid_for_users(bids).expect("Bids should pass");
-//
-// 		test_env.ext_env.borrow_mut().execute_with(|| {
-// 			let stored_bids = FundingModule::auctions_info(project_id, DAVE).unwrap();
-// 			assert_eq!(stored_bids.len(), 4);
-// 			assert_eq!(stored_bids[0].ct_usd_price, 8u128.into());
-// 			assert_eq!(stored_bids[1].ct_usd_price, 7u128.into());
-// 			assert_eq!(stored_bids[2].ct_usd_price, 5u128.into());
-// 			assert_eq!(stored_bids[3].ct_usd_price, 3u128.into());
-// 		});
-// 	}
-//
-// 	#[test]
-// 	fn bid_with_asset_not_accepted() {
-// 		let test_env = TestEnvironment::new();
-// 		let auctioning_project = AuctioningProject::new_default(&test_env);
-// 		let mul_2 = MultiplierOf::<TestRuntime>::from(2u32);
-// 		let bids = vec![
-// 			TestBid::new(BIDDER_1, 10_000, 2u128.into(), None, AcceptedFundingAsset::USDC),
-// 			TestBid::new(BIDDER_2, 13_000, 3u128.into(), Some(mul_2), AcceptedFundingAsset::USDC),
-// 		];
-// 		let outcome = auctioning_project.bid_for_users(bids);
-// 		frame_support::assert_err!(outcome, Error::<TestRuntime>::FundingAssetNotAccepted);
-// 	}
-// }
+
+#[cfg(test)]
+mod auction_round_failure {
+	use super::*;
+
+	#[test]
+	fn cannot_start_auction_before_evaluation_finishes() {
+		let test_env = TestEnvironment::new();
+		let evaluating_project = EvaluatingProject::new_with(
+			&test_env,
+			default_project(0, ISSUER),
+			ISSUER
+		);
+		let project_id = evaluating_project.project_id;
+		test_env.ext_env.borrow_mut().execute_with(|| {
+			assert_noop!(
+				FundingModule::start_auction(RuntimeOrigin::signed(ISSUER), project_id),
+				Error::<TestRuntime>::EvaluationPeriodNotEnded
+			);
+		});
+	}
+
+	#[test]
+	fn cannot_bid_before_auction_round() {
+		let test_env = TestEnvironment::new();
+		let evaluating_project = EvaluatingProject::new_with(
+			&test_env,
+			default_project(0, ISSUER),
+			ISSUER
+		);
+		let _project_id = evaluating_project.project_id;
+		test_env.ext_env.borrow_mut().execute_with(|| {
+			assert_noop!(
+				FundingModule::bid(
+					RuntimeOrigin::signed(BIDDER_2),
+					0,
+					1,
+					100u128.into(),
+					None,
+					AcceptedFundingAsset::USDT
+				),
+				Error::<TestRuntime>::AuctionNotStarted
+			);
+		});
+	}
+
+	#[test]
+	fn contribute_does_not_work() {
+		let test_env = TestEnvironment::new();
+		let evaluating_project = EvaluatingProject::new_with(
+			&test_env,
+			default_project(0, ISSUER),
+			ISSUER
+		);
+		let project_id = evaluating_project.project_id;
+		test_env.ext_env.borrow_mut().execute_with(|| {
+			assert_noop!(
+				FundingModule::contribute(
+					RuntimeOrigin::signed(BIDDER_1),
+					project_id,
+					100,
+					None,
+					AcceptedFundingAsset::USDT
+				),
+				Error::<TestRuntime>::AuctionNotStarted
+			);
+		});
+	}
+
+	#[test]
+	fn bids_overflow() {
+		let test_env = TestEnvironment::new();
+		let auctioning_project = AuctioningProject::new_with(
+			&test_env,
+			default_project(0, ISSUER),
+			ISSUER,
+			default_evaluations()
+		);
+		let project_id = auctioning_project.project_id;
+		const DAVE: AccountId = 42;
+		let bids: TestBids = vec![
+			TestBid::new(DAVE, 10_000 * USDT_UNIT, 2u128.into(), None, AcceptedFundingAsset::USDT), // 20k
+			TestBid::new(DAVE, 12_000 * USDT_UNIT, 8u128.into(), None, AcceptedFundingAsset::USDT), // 96k
+			TestBid::new(DAVE, 15_000 * USDT_UNIT, 5u128.into(), None, AcceptedFundingAsset::USDT), // 75k
+			TestBid::new(DAVE, 1_000 * USDT_UNIT, 7u128.into(), None, AcceptedFundingAsset::USDT), // 7k
+			TestBid::new(DAVE, 20_000 * USDT_UNIT, 5u128.into(), None, AcceptedFundingAsset::USDT), // 100k
+		];
+
+		let mut plmc_fundings: UserToPLMCBalance = calculate_auction_plmc_spent(bids.clone());
+		// Existential deposit on DAVE
+		plmc_fundings.push((DAVE, get_ed()));
+
+		let statemint_asset_fundings: UserToStatemintAsset = calculate_auction_funding_asset_spent(bids.clone());
+
+		// Fund enough for all PLMC bonds for the bids (multiplier of 1)
+		test_env.mint_plmc_to(plmc_fundings);
+
+		// Fund enough for all bids
+		test_env.mint_statemint_asset_to(statemint_asset_fundings);
+
+		auctioning_project.bid_for_users(bids).expect("Bids should pass");
+
+		test_env.ext_env.borrow_mut().execute_with(|| {
+			let stored_bids = FundingModule::bids(project_id, DAVE);
+			assert_eq!(stored_bids.len(), 4);
+			assert_eq!(stored_bids[0].ct_usd_price, 5u128.into());
+			assert_eq!(stored_bids[1].ct_usd_price, 8u128.into());
+			assert_eq!(stored_bids[2].ct_usd_price, 5u128.into());
+			assert_eq!(stored_bids[3].ct_usd_price, 2u128.into());
+		});
+	}
+
+	#[test]
+	fn bid_with_asset_not_accepted() {
+		let test_env = TestEnvironment::new();
+		let auctioning_project = AuctioningProject::new_with(
+			&test_env,
+			default_project(0, ISSUER),
+			ISSUER,
+			default_evaluations()
+		);
+		let mul_2 = MultiplierOf::<TestRuntime>::from(2u32);
+		let bids = vec![
+			TestBid::new(BIDDER_1, 10_000, 2u128.into(), None, AcceptedFundingAsset::USDC),
+			TestBid::new(BIDDER_2, 13_000, 3u128.into(), Some(mul_2), AcceptedFundingAsset::USDC),
+		];
+		let outcome = auctioning_project.bid_for_users(bids);
+		frame_support::assert_err!(outcome, Error::<TestRuntime>::FundingAssetNotAccepted);
+	}
+}
 
 // #[cfg(test)]
 // mod community_round_success {
