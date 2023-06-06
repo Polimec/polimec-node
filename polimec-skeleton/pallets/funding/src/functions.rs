@@ -231,9 +231,7 @@ impl<T: Config> Pallet<T> {
 		let initial_balance: BalanceOf<T> = 0u32.into();
 		let total_amount_bonded =
 			Evaluations::<T>::iter_prefix(project_id).fold(initial_balance, |total, (evaluator, bonds)| {
-				let user_total_plmc_bond = bonds
-					.iter()
-					.fold(total, |acc, bond| acc.saturating_add(bond.plmc_bond));
+				let user_total_plmc_bond = bonds.iter().fold(total, |acc, bond| acc.saturating_add(bond.plmc_bond));
 				total.saturating_add(user_total_plmc_bond)
 			});
 		// TODO: PLMC-142. 10% is hardcoded, check if we want to configure it a runtime as explained here:
@@ -694,10 +692,7 @@ impl<T: Config> Pallet<T> {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 
 		// * Validity checks *
-		ensure!(
-			project_metadata.issuer == issuer,
-			Error::<T>::NotAllowed
-		);
+		ensure!(project_metadata.issuer == issuer, Error::<T>::NotAllowed);
 		ensure!(!project_details.is_frozen, Error::<T>::Frozen);
 		ensure!(
 			!Images::<T>::contains_key(project_metadata_hash),
@@ -1121,7 +1116,8 @@ impl<T: Config> Pallet<T> {
 					.try_into()
 					.map_err(|_| Error::<T>::BadMath)?;
 				let lowest_contribution = existing_contributions.swap_remove(lowest_contribution_index);
-				remaining_cts_after_purchase = remaining_cts_after_purchase.saturating_add(lowest_contribution.ct_amount);
+				remaining_cts_after_purchase =
+					remaining_cts_after_purchase.saturating_add(lowest_contribution.ct_amount);
 
 				ensure!(
 					new_contribution.plmc_bond > lowest_contribution.plmc_bond,
@@ -1356,7 +1352,12 @@ impl<T: Config> Pallet<T> {
 			// * Update storage *
 			// TODO: Should we mint here, or should the full mint happen to the treasury and then do transfers from there?
 			// Unreserve the funds for the user
-			T::NativeCurrency::release(&BondType::Contribution(project_id), &claimer, unbond_amount, Precision::Exact)?;
+			T::NativeCurrency::release(
+				&BondType::Contribution(project_id),
+				&claimer,
+				unbond_amount,
+				Precision::Exact,
+			)?;
 			updated_contributions.push(contribution);
 
 			// * Emit events *
@@ -1596,18 +1597,15 @@ impl<T: Config> Pallet<T> {
 
 		// Update the bid in the storage
 		for bid in bids.iter() {
-			Bids::<T>::mutate(
-				project_id,
-				bid.bidder,
-				|bids| -> Result<(), DispatchError> {
-					let bid_index = bids.clone()
-						.into_iter()
-						.position(|b| b.id == bid.id)
-						.ok_or(Error::<T>::ImpossibleState)?;
-					bids[bid_index] = bid.clone();
-					Ok(())
-				},
-			)?;
+			Bids::<T>::mutate(project_id, bid.bidder, |bids| -> Result<(), DispatchError> {
+				let bid_index = bids
+					.clone()
+					.into_iter()
+					.position(|b| b.id == bid.id)
+					.ok_or(Error::<T>::ImpossibleState)?;
+				bids[bid_index] = bid.clone();
+				Ok(())
+			})?;
 		}
 
 		// Calculate the weighted price of the token for the next funding rounds, using winning bids.

@@ -175,8 +175,8 @@ impl pallet_balances::Config for TestRuntime {
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
-	type ReserveIdentifier = BondType;
-	type HoldIdentifier = BondType;
+	type ReserveIdentifier = BondType<u32>;
+	type HoldIdentifier = BondType<u32>;
 	type FreezeIdentifier = ();
 	type MaxLocks = frame_support::traits::ConstU32<1024>;
 	type MaxReserves = frame_support::traits::ConstU32<1024>;
@@ -217,6 +217,7 @@ parameter_types! {
 }
 
 impl pallet_funding::Config for TestRuntime {
+	type AccountId = AccountId;
 	type RuntimeEvent = RuntimeEvent;
 	type ProjectIdentifier = Identifier;
 	type Multiplier = Multiplier<TestRuntime>;
@@ -241,7 +242,7 @@ impl pallet_funding::Config for TestRuntime {
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
 	type MaxEvaluationsPerUser = ConstU32<4>;
 	// Low value to simplify the tests
-	type MaximumBidsPerUser = ConstU32<4>;
+	type MaxBidsPerUser = ConstU32<4>;
 	type MaxContributionsPerUser = ConstU32<4>;
 	type ContributionVesting = ConstU32<4>;
 	#[cfg(feature = "runtime-benchmarks")]

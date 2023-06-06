@@ -122,8 +122,8 @@
 //! 			let retail_user = ensure_signed(origin)?;
 //! 			let project_id: <T as pallet_funding::Config>::ProjectIdentifier = project_id.into();
 //! 			// Check project is in the community round
-//! 			let project_info = pallet_funding::Pallet::<T>::project_details(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-//! 			ensure!(project_info.project_status == pallet_funding::ProjectStatus::CommunityRound, "Project is not in the community round");
+//! 			let project_details = pallet_funding::Pallet::<T>::project_details(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+//! 			ensure!(project_details.status == pallet_funding::ProjectStatus::CommunityRound, "Project is not in the community round");
 //!
 //! 			// Calculate how much funding was done already
 //! 			let project_contributions: <T as pallet_funding::Config>::Balance = pallet_funding::Contributions::<T>::iter_prefix_values(project_id)
@@ -131,14 +131,14 @@
 //! 				.fold(
 //! 					0u64.into(),
 //! 					|total_tokens_bought, contribution| {
-//! 						total_tokens_bought + contribution.contribution_amount
+//! 						total_tokens_bought + contribution.usd_contribution_amount
 //! 					}
 //! 				);
 //!
 //! 			ensure!(project_contributions >= 500_000_0_000_000_000u64.into(), "Project did not achieve at least 500k USDT funding");
 //!
 //! 			// Buy tokens with the default multiplier
-//! 			<pallet_funding::Pallet<T>>::do_contribute(retail_user, project_id, amount, None, AcceptedFundingAsset::USDT)?;
+//! 			<pallet_funding::Pallet<T>>::do_contribute(retail_user.into(), project_id, amount, None, AcceptedFundingAsset::USDT)?;
 //!
 //! 			Ok(())
 //! 		}
@@ -265,12 +265,13 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type AccountId: IsType<<Self as frame_system::Config>::AccountId> + Parameter
-		+ Member
-		+ MaybeSerializeDeserialize
-		+ Ord
-		+ MaxEncodedLen
-		+ Copy;
+		type AccountId: IsType<<Self as frame_system::Config>::AccountId>
+			+ Parameter
+			+ Member
+			+ MaybeSerializeDeserialize
+			+ Ord
+			+ MaxEncodedLen
+			+ Copy;
 
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
