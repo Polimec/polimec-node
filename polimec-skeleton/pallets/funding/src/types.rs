@@ -75,11 +75,9 @@ pub mod config_types {
 
 pub mod storage_types {
 	use super::*;
-	use crate::ProjectIdOf;
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct ProjectMetadata<AccountId, BoundedString, Balance: BalanceT, Price: FixedPointNumber, Hash> {
-		pub issuer: AccountId,
+	pub struct ProjectMetadata<BoundedString, Balance: BalanceT, Price: FixedPointNumber, Hash> {
 		/// Token Metadata
 		pub token_information: CurrencyMetadata<BoundedString>,
 		/// Total allocation of Contribution Tokens available for the Funding Round
@@ -101,8 +99,8 @@ pub mod storage_types {
 		/// Additional metadata
 		pub offchain_information_hash: Option<Hash>,
 	}
-	impl<AccountId, BoundedString, Balance: BalanceT, Price: FixedPointNumber, Hash>
-		ProjectMetadata<AccountId, BoundedString, Balance, Price, Hash>
+	impl<BoundedString, Balance: BalanceT, Price: FixedPointNumber, Hash>
+		ProjectMetadata<BoundedString, Balance, Price, Hash>
 	{
 		// TODO: PLMC-162. Perform a REAL validity check
 		pub fn validity_check(&self) -> Result<(), ValidityError> {
@@ -115,8 +113,9 @@ pub mod storage_types {
 		}
 	}
 
-	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct ProjectDetails<BlockNumber, Price: FixedPointNumber, Balance: BalanceT> {
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub struct ProjectDetails<AccountId, BlockNumber, Price: FixedPointNumber, Balance: BalanceT> {
+		pub issuer: AccountId,
 		/// Whether the project is frozen, so no `metadata` changes are allowed.
 		pub is_frozen: bool,
 		/// The price in USD per token decided after the Auction Round
@@ -142,7 +141,7 @@ pub mod storage_types {
 		FundingEnd,
 	}
 
-	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Ord, PartialOrd)]
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Ord, PartialOrd)]
 	pub struct EvaluationInfo<Id, ProjectId, AccountId, Balance, BlockNumber> {
 		pub id: Id,
 		pub project_id: ProjectId,

@@ -27,6 +27,8 @@ type PolimecSystem<T> = frame_system::Pallet<T>;
 
 use super::*;
 use frame_benchmarking::{account, benchmarks};
+use frame_support::dispatch::RawOrigin;
+use frame_support::traits::OriginTrait;
 use frame_support::{
 	assert_ok,
 	traits::{
@@ -35,8 +37,6 @@ use frame_support::{
 		Hooks,
 	},
 };
-use frame_support::dispatch::RawOrigin;
-use frame_support::traits::OriginTrait;
 use frame_system::{Pallet as System, RawOrigin as SystemOrigin};
 use sp_runtime::traits::Hash;
 
@@ -78,14 +78,13 @@ fn create_default_project<T: Config>(id: Option<u32>) -> (T::ProjectIdentifier, 
 	let project_id_parameter = id.unwrap_or(0);
 	let project_id = T::BenchmarkHelper::create_project_id_parameter(project_id_parameter);
 	let metadata_hash = T::Hashing::hash_of(&METADATA);
-	let project = T::BenchmarkHelper::create_dummy_project(metadata_hash, issuer);
+	let project = T::BenchmarkHelper::create_dummy_project(metadata_hash);
 	(project_id, issuer, project)
 }
 
 fn create_default_minted_project<T: Config>(id: Option<u32>) -> (T::ProjectIdentifier, AccountIdOf<T>) {
 	let (project_id, issuer, project) = create_default_project::<T>(id);
-	let sys_issuer: <T as frame_system::Config>::AccountId = issuer.into();
-	assert!(PolimecFunding::<T>::create(RawOrigin::Signed(sys_issuer).into(), project).is_ok());
+	assert!(PolimecFunding::<T>::create(RawOrigin::Signed(issuer.clone()).into(), project).is_ok());
 	(project_id, issuer)
 }
 
@@ -109,7 +108,7 @@ pub fn usdt_id() -> u32 {
 benchmarks! {
 	create {
 		let (_, issuer, project) = create_default_project::<T>(None);
-	}: _(SystemOrigin::Signed(issuer.into()), project)
+	}: _(SystemOrigin::Signed(issuer.clone()), project)
 	verify {
 		let project_id = T::BenchmarkHelper::create_project_id_parameter(0);
 		let project_details = PolimecFunding::<T>::project_details(project_id).unwrap();
@@ -121,7 +120,7 @@ benchmarks! {
 		let (project_id, issuer) = create_default_minted_project::<T>(None);
 		let hash = T::Hashing::hash_of(&EDIT_METADATA);
 		let project_details = PolimecFunding::<T>::project_details(project_id).unwrap();
-	}: _(SystemOrigin::Signed(issuer.into()), project_id, hash)
+	}: _(SystemOrigin::Signed(issuer.clone()), project_id, hash)
 	verify {
 		let project_id = T::BenchmarkHelper::create_project_id_parameter(0);
 		let project_details = PolimecFunding::<T>::project_details(project_id).unwrap();
@@ -130,13 +129,13 @@ benchmarks! {
 
 	start_evaluation {
 		let (project_id, issuer) = create_default_minted_project::<T>(None);
-	}: _(SystemOrigin::Signed(issuer.into()), project_id)
+	}: _(SystemOrigin::Signed(issuer.clone()), project_id)
 
 	bond_evaluation {
 		let (project_id, issuer) = create_default_minted_project::<T>(None);
 		let evaluator: AccountIdOf<T> = account::<AccountIdOf<T>>("Bob", 1, 1);
 		T::NativeCurrency::set_balance(&evaluator, 2_000_000_000_000_u64.into());
-		let _ = PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.into()).into(), project_id.clone());
+		let _ = PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.clone()).into(), project_id.clone());
 	}: _(SystemOrigin::Signed(evaluator.into()), project_id, 10_000_000_000_u64.into())
 
 	start_auction {
@@ -145,7 +144,7 @@ benchmarks! {
 
 		// Start the evaluation round
 		assert!(
-			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.into()).into(), project_id.clone()).is_ok()
+			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.clone()).into(), project_id.clone()).is_ok()
 		);
 
 		// Create evaluator account
@@ -159,7 +158,7 @@ benchmarks! {
 		// Move to a block valid for starting the Auction Round
 		run_to_block::<T>(System::<T>::block_number() + <T as Config>::EvaluationDuration::get() + 2_u32.into());
 
-	}: _(SystemOrigin::Signed(issuer.into()), project_id)
+	}: _(SystemOrigin::Signed(issuer.clone()), project_id)
 
 	bid {
 		// Create and register a project
@@ -167,7 +166,7 @@ benchmarks! {
 
 		// Start the evaluation round
 		assert!(
-			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.into()).into(), project_id).is_ok()
+			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.clone()).into(), project_id).is_ok()
 		);
 
 		// Create evaluator account
@@ -187,9 +186,9 @@ benchmarks! {
 		T::FundingCurrency::set_balance(usdt_id(), &bidder_1, 500_000__0_000_000_000_u64.into()); // 500k tokens
 
 		// Start the Auction round
-		assert_ok!(PolimecFunding::<T>::start_auction(SystemOrigin::Signed(issuer.into()).into(), project_id));
+		assert_ok!(PolimecFunding::<T>::start_auction(SystemOrigin::Signed(issuer.clone()).into(), project_id));
 
-	}: _(SystemOrigin::Signed(bidder_1.into()), project_id, 10_000_u64.into(), T::Price::saturating_from_integer(15), None, AcceptedFundingAsset::USDT)
+	}: _(SystemOrigin::Signed(bidder_1.clone()), project_id, 10_000_u64.into(), T::Price::saturating_from_integer(15), None, AcceptedFundingAsset::USDT)
 	verify {
 		let project_auctions = Bids::<T>::get(project_id, bidder_1);
 		assert_eq!(project_auctions.len(), 1);
@@ -217,7 +216,7 @@ benchmarks! {
 
 		// Start the evaluation round
 		assert!(
-			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.into()).into(), project_id).is_ok()
+			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.clone()).into(), project_id).is_ok()
 		);
 
 		// have an evaluator bond the minimum amount to proceed to the auction round
@@ -244,7 +243,7 @@ benchmarks! {
 		T::FundingCurrency::set_balance(usdt_id(), &bidder_3, 500_000__0_000_000_000_u64.into()); // 500k tokens
 
 		// Start the Auction round
-		assert_ok!(PolimecFunding::<T>::start_auction(SystemOrigin::Signed(issuer.into()).into(), project_id));
+		assert_ok!(PolimecFunding::<T>::start_auction(SystemOrigin::Signed(issuer.clone()).into(), project_id));
 
 		run_to_block::<T>(System::<T>::block_number() + 1u32.into());
 
@@ -269,7 +268,7 @@ benchmarks! {
 		T::NativeCurrency::set_balance(&contributor,  500_000__0_000_000_000_u64.into());
 		T::FundingCurrency::set_balance(usdt_id(), &contributor,  500_000__0_000_000_000_u64.into());
 
-	}: _(SystemOrigin::Signed(contributor.into()), project_id, 1000_0_000_000_000u64.into(), None, AcceptedFundingAsset::USDT)
+	}: _(SystemOrigin::Signed(contributor.clone()), project_id, 1000_0_000_000_000u64.into(), None, AcceptedFundingAsset::USDT)
 
 	vested_contribution_token_purchase_mint_for {
 		// Create and register a project
@@ -277,7 +276,7 @@ benchmarks! {
 
 		// Start the evaluation round
 		assert!(
-			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.into()).into(), project_id).is_ok()
+			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.clone()).into(), project_id).is_ok()
 		);
 
 		// Have an evaluator bond the minimum amount to proceed to the auction round
@@ -304,7 +303,7 @@ benchmarks! {
 		T::FundingCurrency::set_balance(usdt_id(), &bidder_3, 500_000__0_000_000_000_u64.into()); // 500k tokens
 
 		// Start the Auction round
-		assert_ok!(PolimecFunding::<T>::start_auction(SystemOrigin::Signed(issuer.into()).into(), project_id));
+		assert_ok!(PolimecFunding::<T>::start_auction(SystemOrigin::Signed(issuer.clone()).into(), project_id));
 		// Place bids
 		assert_ok!(
 			PolimecFunding::<T>::bid(SystemOrigin::Signed(bidder_1.into()).into(), project_id, 100_0_000_000_000u64.into(), T::Price::saturating_from_integer(15), None, AcceptedFundingAsset::USDT)
@@ -328,12 +327,12 @@ benchmarks! {
 
 		// The contributor wants to buy 2000 CT
 		assert_ok!(
-			PolimecFunding::<T>::contribute(SystemOrigin::Signed(contributor.into()).into(), project_id, 2000_0_000_000_000u64.into(), None, AcceptedFundingAsset::USDT)
+			PolimecFunding::<T>::contribute(SystemOrigin::Signed(contributor.clone()).into(), project_id, 2000_0_000_000_000u64.into(), None, AcceptedFundingAsset::USDT)
 		);
 		// Move to the end of the funding round
 		run_to_block::<T>(System::<T>::block_number() + <T as Config>::CommunityFundingDuration::get() + <T as Config>::RemainderFundingDuration::get() + 1u32.into());
 
-	}: _(SystemOrigin::Signed(contributor.into()), project_id, contributor)
+	}: _(SystemOrigin::Signed(contributor.clone()), project_id, contributor.clone())
 	verify {
 		let transfered_ct_to_contributor = T::ContributionTokenCurrency::balance(project_id, &contributor);
 		assert_eq!(transfered_ct_to_contributor, 2000_0_000_000_000u64.into());
@@ -342,7 +341,7 @@ benchmarks! {
 	calculate_weighted_price {
 		let (project_id, issuer) = create_default_minted_project::<T>(None);
 		assert!(
-			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.into()).into(), project_id).is_ok()
+			PolimecFunding::<T>::start_evaluation(SystemOrigin::Signed(issuer.clone()).into(), project_id).is_ok()
 		);
 		let evaluator: AccountIdOf<T> = account::<AccountIdOf<T>>("Bob", 1, 1);
 		T::NativeCurrency::set_balance(&evaluator, 500_000__0_000_000_000_u64.into()); // 100k tokens
@@ -365,7 +364,7 @@ benchmarks! {
 
 		// Move to the Auction Round
 		run_to_block::<T>(System::<T>::block_number() + <T as Config>::EvaluationDuration::get() + 2_u32.into());
-		assert_ok!(PolimecFunding::<T>::start_auction(SystemOrigin::Signed(issuer.into()).into(), project_id));
+		assert_ok!(PolimecFunding::<T>::start_auction(SystemOrigin::Signed(issuer.clone()).into(), project_id));
 
 		let project_details = ProjectsDetails::<T>::get(project_id).unwrap();
 		let fundraising_target = project_details.fundraising_target;

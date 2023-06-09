@@ -218,7 +218,6 @@ parameter_types! {
 }
 
 impl pallet_funding::Config for TestRuntime {
-	type CopyAccountId = AccountId;
 	type RuntimeEvent = RuntimeEvent;
 	type ProjectIdentifier = Identifier;
 	type Multiplier = Multiplier<TestRuntime>;

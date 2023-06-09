@@ -210,14 +210,14 @@ use frame_support::{
 	},
 	BoundedVec, PalletId, Parameter,
 };
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use parity_scale_codec::{Decode, Encode};
 
 use sp_arithmetic::traits::{One, Saturating};
 
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
 use sp_std::prelude::*;
 
-pub type AccountIdOf<T> = <T as Config>::CopyAccountId;
+pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 pub type ProjectIdOf<T> = <T as Config>::ProjectIdentifier;
 pub type MultiplierOf<T> = <T as Config>::Multiplier;
@@ -229,9 +229,8 @@ pub type HashOf<T> = <T as frame_system::Config>::Hash;
 pub type AssetIdOf<T> =
 	<<T as Config>::FundingCurrency as fungibles::Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
 
-pub type ProjectMetadataOf<T> =
-	ProjectMetadata<AccountIdOf<T>, BoundedVec<u8, StringLimitOf<T>>, BalanceOf<T>, PriceOf<T>, HashOf<T>>;
-pub type ProjectDetailsOf<T> = ProjectDetails<BlockNumberOf<T>, PriceOf<T>, BalanceOf<T>>;
+pub type ProjectMetadataOf<T> = ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, BalanceOf<T>, PriceOf<T>, HashOf<T>>;
+pub type ProjectDetailsOf<T> = ProjectDetails<AccountIdOf<T>, BlockNumberOf<T>, PriceOf<T>, BalanceOf<T>>;
 pub type VestingOf<T> = Vesting<BlockNumberOf<T>, BalanceOf<T>>;
 pub type EvaluationInfoOf<T> =
 	EvaluationInfo<StorageItemIdOf<T>, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, BlockNumberOf<T>>;
@@ -265,15 +264,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type CopyAccountId: IsType<<Self as frame_system::Config>::AccountId>
-			+ Parameter
-			+ Member
-			+ MaybeSerializeDeserialize
-			+ Ord
-			+ MaxEncodedLen
-			+ Default
-			+ Copy;
-
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Global identifier for the projects.
@@ -704,7 +694,7 @@ pub mod pallet {
 			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
 			// 	Error::<T>::NotAuthorized
 			// );
-			Self::do_evaluation_start(project_id)
+			Self::do_evaluation_start(issuer.into(), project_id)
 		}
 
 		/// Starts the auction round for a project. From the next block forward, any professional or
@@ -720,7 +710,7 @@ pub mod pallet {
 			// 	Error::<T>::NotAuthorized
 			// );
 
-			Self::do_english_auction(project_id)
+			Self::do_english_auction(issuer.into(), project_id)
 		}
 
 		/// Bond PLMC for a project in the evaluation stage
@@ -825,7 +815,10 @@ pub mod pallet {
 					// AuctionInitializePeriod -> AuctionRound(AuctionPhase::English)
 					// Only if it wasn't first handled by user extrinsic
 					UpdateType::EnglishAuctionStart => {
-						unwrap_result_or_skip!(Self::do_english_auction(project_id), project_id);
+						unwrap_result_or_skip!(
+							Self::do_english_auction(T::PalletId::get().into_account_truncating(), project_id),
+							project_id
+						);
 					}
 
 					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
@@ -876,7 +869,7 @@ pub mod pallet {
                         .collect::<Vec<_>>()
                 })
                 // Retrieve as many as possible for the given weight
-                .take_while(|bond| {
+                .take_while(|_bond| {
                     if let Some(new_weight) =
                         remaining_weight.checked_sub(&T::WeightInfo::failed_evaluation_unbond_for())
                     {
@@ -907,7 +900,7 @@ pub mod pallet {
 	#[cfg(feature = "runtime-benchmarks")]
 	pub trait BenchmarkHelper<T: Config> {
 		fn create_project_id_parameter(id: u32) -> T::ProjectIdentifier;
-		fn create_dummy_project(metadata_hash: T::Hash, issuer: AccountIdOf<T>) -> ProjectMetadataOf<T>;
+		fn create_dummy_project(metadata_hash: T::Hash) -> ProjectMetadataOf<T>;
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
@@ -915,9 +908,8 @@ pub mod pallet {
 		fn create_project_id_parameter(id: u32) -> T::ProjectIdentifier {
 			id.into()
 		}
-		fn create_dummy_project(metadata_hash: T::Hash, issuer: AccountIdOf<T>) -> ProjectMetadataOf<T> {
+		fn create_dummy_project(metadata_hash: T::Hash) -> ProjectMetadataOf<T> {
 			let project: ProjectMetadataOf<T> = ProjectMetadata {
-				issuer,
 				total_allocation_size: 1_000_000_0_000_000_000u64.into(),
 				minimum_price: PriceOf::<T>::saturating_from_integer(1),
 				ticket_size: TicketSize {
