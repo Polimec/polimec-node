@@ -86,8 +86,6 @@
 //! * [`ProjectsToUpdate`]: Map of a block number, to a vector of project ids. Used to keep track of projects that need to be updated in on_initialize.
 //! * [`Bids`]: Double map linking a project-user to the bids they made.
 //! * [`Evaluations`]: Double map linking a project-user to the PLMC they bonded in the evaluation round.
-//! * [`BiddingBonds`]: Double map linking a project-user to the PLMC they bonded in the English or Candle Auction round.
-//! * [`ContributingBonds`]: Double map linking a project-user to the PLMC they bonded in the Community or Remainder round.
 //! * [`Contributions`]: Double map linking a project-user to the contribution tokens they bought in the Community or Remainder round.
 //!
 //! ## Usage
@@ -671,7 +669,7 @@ pub mod pallet {
 			// 	Error::<T>::NotAuthorized
 			// );
 
-			Self::do_create(issuer.into(), project)
+			Self::do_create(issuer, project)
 		}
 
 		/// Change the metadata hash of a project
@@ -681,7 +679,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 
-			Self::do_edit_metadata(issuer.into(), project_id, project_metadata_hash)
+			Self::do_edit_metadata(issuer, project_id, project_metadata_hash)
 		}
 
 		/// Starts the evaluation round of a project. It needs to be called by the project issuer.
@@ -694,7 +692,7 @@ pub mod pallet {
 			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
 			// 	Error::<T>::NotAuthorized
 			// );
-			Self::do_evaluation_start(issuer.into(), project_id)
+			Self::do_evaluation_start(issuer, project_id)
 		}
 
 		/// Starts the auction round for a project. From the next block forward, any professional or
@@ -710,7 +708,7 @@ pub mod pallet {
 			// 	Error::<T>::NotAuthorized
 			// );
 
-			Self::do_english_auction(issuer.into(), project_id)
+			Self::do_english_auction(issuer, project_id)
 		}
 
 		/// Bond PLMC for a project in the evaluation stage
@@ -719,7 +717,7 @@ pub mod pallet {
 			origin: OriginFor<T>, project_id: T::ProjectIdentifier, #[pallet::compact] amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let evaluator = ensure_signed(origin)?;
-			Self::do_evaluation(evaluator.into(), project_id, amount)
+			Self::do_evaluation(evaluator, project_id, amount)
 		}
 
 		/// Release the bonded PLMC for an evaluator if the project assigned to it is in the EvaluationFailed phase
@@ -729,7 +727,7 @@ pub mod pallet {
 			evaluator: AccountIdOf<T>,
 		) -> DispatchResult {
 			let releaser = ensure_signed(origin)?;
-			Self::do_failed_evaluation_unbond_for(bond_id, project_id, evaluator, releaser.into())
+			Self::do_failed_evaluation_unbond_for(bond_id, project_id, evaluator, releaser)
 		}
 
 		/// Bid for a project in the Auction round
@@ -745,7 +743,7 @@ pub mod pallet {
 			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
 			// 	Error::<T>::NotAuthorized
 			// );
-			Self::do_bid(bidder.into(), project_id, amount, price, multiplier, asset)
+			Self::do_bid(bidder, project_id, amount, price, multiplier, asset)
 		}
 
 		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
@@ -755,9 +753,8 @@ pub mod pallet {
 			multiplier: Option<MultiplierOf<T>>, asset: AcceptedFundingAsset,
 		) -> DispatchResult {
 			let contributor = ensure_signed(origin)?;
-			let project_id = project_id.into();
 
-			Self::do_contribute(contributor.into(), project_id, amount, multiplier, asset)
+			Self::do_contribute(contributor, project_id, amount, multiplier, asset)
 		}
 
 		/// Unbond some plmc from a contribution, after a step in the vesting period has passed.
@@ -767,7 +764,7 @@ pub mod pallet {
 			// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
 			let releaser = ensure_signed(origin)?;
 
-			Self::do_vested_plmc_bid_unbond_for(releaser.into(), project_id, bidder)
+			Self::do_vested_plmc_bid_unbond_for(releaser, project_id, bidder)
 		}
 
 		// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
@@ -777,7 +774,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let releaser = ensure_signed(origin)?;
 
-			Self::do_vested_contribution_token_bid_mint_for(releaser.into(), project_id, bidder)
+			Self::do_vested_contribution_token_bid_mint_for(releaser, project_id, bidder)
 		}
 
 		// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
@@ -787,7 +784,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let releaser = ensure_signed(origin)?;
 
-			Self::do_vested_plmc_purchase_unbond_for(releaser.into(), project_id, purchaser)
+			Self::do_vested_plmc_purchase_unbond_for(releaser, project_id, purchaser)
 		}
 
 		// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
@@ -797,7 +794,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let releaser = ensure_signed(origin)?;
 
-			Self::do_vested_contribution_token_purchase_mint_for(releaser.into(), project_id, purchaser)
+			Self::do_vested_contribution_token_purchase_mint_for(releaser, project_id, purchaser)
 		}
 	}
 
