@@ -39,6 +39,7 @@ use system::EnsureSigned;
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<TestRuntime>;
 type Block = frame_system::mocking::MockBlock<TestRuntime>;
 
+// pub type AccountId = u64;
 pub type AccountId = u64;
 pub type Balance = u128;
 pub type BlockNumber = u64;
@@ -217,7 +218,7 @@ parameter_types! {
 }
 
 impl pallet_funding::Config for TestRuntime {
-	type AccountId = AccountId;
+	type CopyAccountId = AccountId;
 	type RuntimeEvent = RuntimeEvent;
 	type ProjectIdentifier = Identifier;
 	type Multiplier = Multiplier<TestRuntime>;

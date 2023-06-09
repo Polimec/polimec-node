@@ -791,6 +791,11 @@ impl<T: Config> Pallet<T> {
 
 				T::NativeCurrency::hold(&BondType::Evaluation(project_id), &evaluator, plmc_bond)
 					.map_err(|_| Error::<T>::InsufficientBalance)?;
+
+				// This should never fail since we just removed an element from the vector
+				existing_evaluations
+					.try_push(new_evaluation)
+					.map_err(|_| Error::<T>::ImpossibleState)?;
 			}
 		};
 
@@ -952,9 +957,7 @@ impl<T: Config> Pallet<T> {
 				let lowest_bid = existing_bids.swap_remove(lowest_bid_index);
 
 				ensure!(new_bid > lowest_bid, Error::<T>::BidTooLow);
-				existing_bids
-					.try_push(new_bid)
-					.map_err(|_| Error::<T>::ImpossibleState)?;
+
 				T::NativeCurrency::release(
 					&BondType::Bid(project_id),
 					&lowest_bid.bidder,
@@ -979,6 +982,11 @@ impl<T: Config> Pallet<T> {
 					required_funding_asset_transfer,
 					Preservation::Expendable,
 				)?;
+
+				// This should never fail, since we just removed an element from the Vec
+				existing_bids
+					.try_push(new_bid)
+					.map_err(|_| Error::<T>::ImpossibleState)?;
 			}
 		};
 
@@ -1126,6 +1134,9 @@ impl<T: Config> Pallet<T> {
 					Error::<T>::ContributionTooLow
 				);
 
+				// _528_589_814
+				// 1_585_769_442
+				//
 				T::NativeCurrency::release(
 					&BondType::Contribution(project_id),
 					&lowest_contribution.contributor,
@@ -1151,6 +1162,11 @@ impl<T: Config> Pallet<T> {
 					required_funding_asset_transfer,
 					Preservation::Expendable,
 				)?;
+
+				// This should never fail, since we just removed an item from the vector
+				existing_contributions
+					.try_push(new_contribution)
+					.map_err(|_| Error::<T>::ImpossibleState)?;
 			}
 		}
 
@@ -1549,7 +1565,9 @@ impl<T: Config> Pallet<T> {
 		project_id: T::ProjectIdentifier, end_block: T::BlockNumber, total_allocation_size: BalanceOf<T>,
 	) -> Result<(), DispatchError> {
 		// Get all the bids that were made before the end of the candle
-		let mut bids = Bids::<T>::iter_prefix(project_id).flat_map(|(bidder, bids)| bids).collect::<Vec<_>>();
+		let mut bids = Bids::<T>::iter_prefix(project_id)
+			.flat_map(|(bidder, bids)| bids)
+			.collect::<Vec<_>>();
 		// temp variable to store the sum of the bids
 		let mut bid_token_amount_sum = BalanceOf::<T>::zero();
 		// temp variable to store the total value of the bids (i.e price * amount)
@@ -1570,7 +1588,7 @@ impl<T: Config> Pallet<T> {
 				if buyable_amount == 0_u32.into() {
 					bid.status = BidStatus::Rejected(RejectionReason::NoTokensLeft);
 				} else if bid.ct_amount <= buyable_amount {
-					let maybe_ticket_size = bid.ct_usd_price.checked_mul_int(buyable_amount);
+					let maybe_ticket_size = bid.ct_usd_price.checked_mul_int(bid.ct_amount);
 					if let Some(ticket_size) = maybe_ticket_size {
 						bid_token_amount_sum.saturating_accrue(bid.ct_amount);
 						bid_usd_value_sum.saturating_accrue(ticket_size);
@@ -1579,6 +1597,7 @@ impl<T: Config> Pallet<T> {
 						bid.status = BidStatus::Rejected(RejectionReason::BadMath);
 						return bid;
 					}
+
 				} else {
 					let maybe_ticket_size = bid.ct_usd_price.checked_mul_int(buyable_amount);
 					if let Some(ticket_size) = maybe_ticket_size {
@@ -1618,16 +1637,16 @@ impl<T: Config> Pallet<T> {
 
 		// then the weight for each bid is:
 		// A: 150K / (150K + 400K + 200K) = 0.20
-		// B: 400K / (150K + 400K + 200K) = 0.53
-		// C: 200K / (150K + 400K + 200K) = 0.26
+		// B: 400K / (150K + 400K + 200K) = 0.533...
+		// C: 200K / (150K + 400K + 200K) = 0.266...
 
 		// then multiply each weight by the price of the token to get the weighted price per bid
 		// A: 0.20 * 15 = 3
-		// B: 0.53 * 20 = 10.6
-		// C: 0.26 * 10 = 2.6
+		// B: 0.533... * 20 = 10.666...
+		// C: 0.266... * 10 = 2.666...
 
 		// lastly, sum all the weighted prices to get the final weighted price for the next funding round
-		// 3 + 10.6 + 2.6 = 16.2
+		// 3 + 10.6 + 2.6 = 16.333...
 		let weighted_token_price = bids
             // TODO: PLMC-150. collecting due to previous mut borrow, find a way to not collect and borrow bid on filter_map
             .into_iter()
@@ -1636,7 +1655,9 @@ impl<T: Config> Pallet<T> {
 					let bid_weight = <T::Price as FixedPointNumber>::saturating_from_rational(
 						bid.ct_usd_price.saturating_mul_int(bid.ct_amount), bid_usd_value_sum
 					);
-                    Some(bid.ct_usd_price.saturating_mul(bid_weight))
+					let weighted_price = bid.ct_usd_price * bid_weight;
+					let unit = weighted_price.checked_mul_int(100_0_000_000_000u128).unwrap();
+                    Some(weighted_price)
                 },
 
                 BidStatus::PartiallyAccepted(amount, _) => {

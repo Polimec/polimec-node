@@ -217,7 +217,7 @@ use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
 use sp_std::prelude::*;
 
-pub type AccountIdOf<T> = <T as Config>::AccountId;
+pub type AccountIdOf<T> = <T as Config>::CopyAccountId;
 pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 pub type ProjectIdOf<T> = <T as Config>::ProjectIdentifier;
 pub type MultiplierOf<T> = <T as Config>::Multiplier;
@@ -265,18 +265,19 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type AccountId: IsType<<Self as frame_system::Config>::AccountId>
+		type CopyAccountId: IsType<<Self as frame_system::Config>::AccountId>
 			+ Parameter
 			+ Member
 			+ MaybeSerializeDeserialize
 			+ Ord
 			+ MaxEncodedLen
+			+ Default
 			+ Copy;
 
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Global identifier for the projects.
-		type ProjectIdentifier: Parameter + Copy + Default + One + Saturating;
+		type ProjectIdentifier: Parameter + Copy + Default + One + Saturating + From<u32>;
 		// TODO: PLMC-153 + MaybeSerializeDeserialize: Maybe needed for JSON serialization @ Genesis: https://github.com/paritytech/substrate/issues/12738#issuecomment-1320921201
 
 		/// Multiplier that decides how much PLMC needs to be bonded for a token buy/bid
@@ -906,7 +907,7 @@ pub mod pallet {
 	#[cfg(feature = "runtime-benchmarks")]
 	pub trait BenchmarkHelper<T: Config> {
 		fn create_project_id_parameter(id: u32) -> T::ProjectIdentifier;
-		fn create_dummy_project(metadata_hash: T::Hash) -> ProjectMetadataOf<T>;
+		fn create_dummy_project(metadata_hash: T::Hash, issuer: AccountIdOf<T>) -> ProjectMetadataOf<T>;
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
@@ -914,10 +915,11 @@ pub mod pallet {
 		fn create_project_id_parameter(id: u32) -> T::ProjectIdentifier {
 			id.into()
 		}
-		fn create_dummy_project(metadata_hash: T::Hash) -> ProjectMetadataOf<T> {
+		fn create_dummy_project(metadata_hash: T::Hash, issuer: AccountIdOf<T>) -> ProjectMetadataOf<T> {
 			let project: ProjectMetadataOf<T> = ProjectMetadata {
-				total_allocation_size: 1_000_000u64.into(),
-				minimum_price: 1__0_000_000_000_u64.into(),
+				issuer,
+				total_allocation_size: 1_000_000_0_000_000_000u64.into(),
+				minimum_price: PriceOf::<T>::saturating_from_integer(1),
 				ticket_size: TicketSize {
 					minimum: Some(1u8.into()),
 					maximum: None,

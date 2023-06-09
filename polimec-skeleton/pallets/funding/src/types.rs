@@ -447,3 +447,6 @@ pub mod inner_types {
 		}
 	}
 }
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
+pub struct MyAccountId([u8; 32]);
