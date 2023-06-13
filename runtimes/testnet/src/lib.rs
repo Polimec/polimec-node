@@ -61,6 +61,7 @@ use sp_version::RuntimeVersion;
 use pallet_funding::{BondType, Multiplier as FundingMultiplier};
 use xcm_executor::XcmExecutor;
 
+use kilt_dip_support::merkle::VerificationResult;
 use pallet_dip_consumer::{DipOrigin, EnsureDipOrigin};
 use runtime_common::constants::staking::*;
 pub use runtime_common::{
@@ -69,7 +70,7 @@ pub use runtime_common::{
 		InflationInfo, BLOCKS_PER_YEAR, EXISTENTIAL_DEPOSIT, MAX_COLLATOR_STAKE, MICRO_PLMC, PLMC,
 	},
 	fees::WeightToFee,
-	RuntimeBlockLength, RuntimeBlockWeights,
+	DidIdentifier, RuntimeBlockLength, RuntimeBlockWeights,
 };
 use weights::RocksDbWeight;
 use xcm_config::XcmConfig;
@@ -802,17 +803,13 @@ impl pallet_vesting::Config for Runtime {
 	// highest number of schedules that encodes less than 2^10.
 	const MAX_VESTING_SCHEDULES: u32 = 28;
 }
-parameter_types! {
-	// TODO: Set a proper value for this.
-	pub const DipDepositPerByte: Balance = free_deposit();
-}
 
 impl pallet_did_lookup::Config for Runtime {
 	type Currency = Balances;
-	type Deposit = DipDepositPerByte;
+	type Deposit = DepositBase;
 	type DidIdentifier = DidIdentifier;
-	type EnsureOrigin = EnsureDipOrigin<DidIdentifier, AccountId, ()>;
-	type OriginSuccess = DipOrigin<DidIdentifier, AccountId, ()>;
+	type EnsureOrigin = EnsureDipOrigin<DidIdentifier, AccountId, VerificationResult<BlockNumber, 10>>;
+	type OriginSuccess = DipOrigin<DidIdentifier, AccountId, VerificationResult<BlockNumber, 10>>;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }

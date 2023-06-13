@@ -35,6 +35,7 @@ runtime-common.workspace = true
 pallet-dip-consumer.workspace = true
 did.workspace = true
 pallet-did-lookup.workspace = true
+kilt-dip-support.workspace = true
 
 # Primitives
 xcm-primitives.workspace = true
@@ -173,6 +174,7 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
+	"did/std",
 	"pallet-dip-consumer/std",
 	"pallet-did-lookup/std",
 ]

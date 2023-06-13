@@ -28,13 +28,10 @@ use xcm_emulator::{
 	TestExt,
 };
 
-// DIP Dependencies
+// DIP
 use did::did_details::{DidDetails, DidEncryptionKey, DidVerificationKey};
-use dip_provider_runtime_template::{DidIdentifier, DipProvider};
-use dip_support::latest::Proof;
+use dip_provider_runtime_template::DidIdentifier;
 use kilt_support::deposit::Deposit;
-use pallet_did_lookup::linkable_account::LinkableAccountId;
-use runtime_common::dip::provider::{CompleteMerkleProof, DidMerkleRootGenerator};
 
 const RELAY_ASSET_ID: u32 = 0;
 const RESERVE_TRANSFER_AMOUNT: u128 = 10_0_000_000_000; //10 UNITS when 10 decimals
@@ -1409,17 +1406,36 @@ mod reserve_backed_transfers {
 			"Polimec PLMC issuance should not have changed"
 		);
 	}
+}
+
+#[cfg(test)]
+mod dip {
+	use super::*;
+	use did::{Did, DidSignature};
+	use dip_provider_runtime_template::DipProvider;
+	use pallet_did_lookup::linkable_account::LinkableAccountId;
+	use polimec_runtime::DipConsumer;
 
 	#[test]
 	fn commit_identity() {
 		Network::reset();
+		use frame_system::RawOrigin;
+		use kilt_dip_support::{
+			did::{MerkleEntriesAndDidSignature, TimeBoundDidSignature},
+			merkle::MerkleProof,
+		};
+		use kilt_runtime_common::dip::merkle::CompleteMerkleProof;
+		use kilt_runtime_common::dip::merkle::DidMerkleRootGenerator;
+		use polimec_parachain_runtime::{
+			BlockNumber, DidLookup, Runtime as ConsumerRuntime, RuntimeCall as ConsumerRuntimeCall, RuntimeEvent,
+			System,
+		};
+		use sp_runtime::traits::Zero;
 
 		let did: DidIdentifier = did_auth_key().public().into();
 
 		// 1. Send identity proof from DIP provider to DIP consumer.
 		ProviderParachain::execute_with(|| {
-			use frame_system::RawOrigin;
-
 			assert_ok!(DipProvider::commit_identity(
 				RawOrigin::Signed(ProviderAccountId::from([0u8; 32])).into(),
 				did.clone(),
@@ -1430,12 +1446,6 @@ mod reserve_backed_transfers {
 		});
 		// 2. Verify that the proof has made it to the DIP consumer.
 		PolimecNet::execute_with(|| {
-			use polimec_parachain_runtime::{RuntimeEvent, System};
-			// TODO: Remove this once we resolve the panic.
-			let events = System::events();
-			for elem in events {
-				println!("{:?}", elem.event);
-			}
 			// 2.1 Verify that there was no XCM error.
 			assert!(!System::events().iter().any(|r| matches!(
 				r.event,
@@ -1445,43 +1455,51 @@ mod reserve_backed_transfers {
 					weight: _
 				})
 			)));
-
 			// 2.2 Verify the proof digest was stored correctly.
-			assert!(polimec_parachain_runtime::DipConsumer::identity_proofs(&did).is_some());
+			assert!(DipConsumer::identity_proofs(&did).is_some());
 		});
-		// 3. Call an extrinsic on the consumer chain with a valid proof
+		// 3. Call an extrinsic on the consumer chain with a valid proof and signature
 		let did_details = ProviderParachain::execute_with(|| {
-			use did::Did;
 			Did::get(&did).expect("DID details should be stored on the provider chain.")
 		});
+		let call = ConsumerRuntimeCall::DidLookup(pallet_did_lookup::Call::<ConsumerRuntime>::associate_sender {});
 		// 3.1 Generate a proof
 		let CompleteMerkleProof { proof, .. } = DidMerkleRootGenerator::<ProviderRuntime>::generate_proof(
 			&did_details,
 			[did_details.authentication_key].iter(),
 		)
 		.expect("Proof generation should not fail");
-		// 3.2 Call the `dispatch_as` extrinsic on the consumer chain with the generated
+		// 3.2 Generate a DID signature
+		let genesis_hash =
+			PolimecNet::execute_with(|| frame_system::Pallet::<ConsumerRuntime>::block_hash(BlockNumber::zero()));
+		let system_block = PolimecNet::execute_with(frame_system::Pallet::<ConsumerRuntime>::block_number);
+		let payload = (call.clone(), 0u128, DISPATCHER_ACCOUNT, system_block, genesis_hash);
+		let signature: DidSignature = did_auth_key().sign(&payload.encode()).into();
+		// 3.3 Call the `dispatch_as` extrinsic on the consumer chain with the generated
 		// proof
 		PolimecNet::execute_with(|| {
-			use frame_system::RawOrigin;
-			use polimec_parachain_runtime::{DidLookup, DipConsumer, RuntimeCall};
-
 			assert_ok!(DipConsumer::dispatch_as(
 				RawOrigin::Signed(DISPATCHER_ACCOUNT).into(),
 				did.clone(),
-				Proof {
-					blinded: proof.blinded,
-					revealed: proof.revealed
-				}
-				.into(),
-				Box::new(RuntimeCall::DidLookup(
-					pallet_did_lookup::Call::<PolimecRuntime>::associate_sender {}
-				)),
+				MerkleEntriesAndDidSignature {
+					merkle_entries: MerkleProof {
+						blinded: proof.blinded,
+						revealed: proof.revealed,
+					},
+					did_signature: TimeBoundDidSignature {
+						signature,
+						block_number: system_block
+					}
+				},
+				Box::new(call),
 			));
 			// Verify the account -> DID link exists and contains the right information
 			let linked_did =
 				DidLookup::connected_dids::<LinkableAccountId>(DISPATCHER_ACCOUNT.into()).map(|link| link.did);
-			assert_eq!(linked_did, Some(did));
+			assert_eq!(linked_did, Some(did.clone()));
+			// Verify that the details of the DID subject have been bumped
+			let details = DipConsumer::identity_proofs(&did).map(|entry| entry.details);
+			assert_eq!(details, Some(1u128));
 		});
 	}
 }
