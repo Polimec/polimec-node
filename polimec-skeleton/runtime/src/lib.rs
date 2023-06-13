@@ -22,7 +22,6 @@ use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot, EnsureSigned,
 };
-use pallet_funding::BondType;
 use pallet_xcm::{EnsureXcm, IsVoiceOfBody};
 use smallvec::smallvec;
 use sp_api::impl_runtime_apis;
@@ -32,9 +31,10 @@ use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult,
+	ApplyExtrinsicResult, FixedU128,
 };
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
+use sp_std::collections::btree_map::BTreeMap;
 use xcm_config::{RelayLocation, XcmConfig, XcmOriginToTransactDispatchOrigin};
 
 // Polkadot imports
@@ -57,10 +57,6 @@ pub use sp_runtime::BuildStorage;
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub use parachains_common::Signature;
 
-/// Some way of identifying an account on the chain. We intentionally make it equivalent
-/// to the public key of our transaction signing scheme.
-pub use parachains_common::AccountId;
-
 /// Balance of an account.
 pub use parachains_common::Balance;
 
@@ -70,11 +66,13 @@ pub use parachains_common::Index;
 /// A hash of some data used by the chain.
 pub use parachains_common::Hash;
 
+pub use parachains_common::AccountId as PolimecAccountId;
+
 /// An index to a block.
 pub use parachains_common::BlockNumber;
 
 /// The address format for describing accounts.
-pub type Address = MultiAddress<AccountId, ()>;
+pub type Address = MultiAddress<PolimecAccountId, ()>;
 
 /// Block header type as expected by this runtime.
 // pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
@@ -106,7 +104,7 @@ pub type SignedExtra = (
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
 
 /// Extrinsic type that has already been checked.
-pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra>;
+pub type CheckedExtrinsic = generic::CheckedExtrinsic<PolimecAccountId, RuntimeCall, SignedExtra>;
 
 /// Executive: handles dispatch to the various modules.
 pub type Executive =
@@ -234,11 +232,11 @@ parameter_types! {
 
 impl frame_system::Config for Runtime {
 	/// The identifier used to distinguish between accounts.
-	type AccountId = AccountId;
+	type AccountId = PolimecAccountId;
 	/// The aggregated dispatch type that is available for extrinsics.
 	type RuntimeCall = RuntimeCall;
 	/// The lookup mechanism to get account ID from whatever is passed in dispatchers.
-	type Lookup = AccountIdLookup<AccountId, ()>;
+	type Lookup = AccountIdLookup<PolimecAccountId, ()>;
 	/// The index type for storing how many extrinsics an account has signed.
 	type Index = Index;
 	/// The index type for blocks.
@@ -312,9 +310,9 @@ impl pallet_balances::Config for Runtime {
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
-	type ReserveIdentifier = BondType;
-	type HoldIdentifier = BondType;
-	type FreezeIdentifier = BondType;
+	type ReserveIdentifier = ();
+	type HoldIdentifier = BondTypeOf<Runtime>;
+	type FreezeIdentifier = ();
 	type MaxHolds = MaxLocks;
 	type MaxFreezes = MaxReserves;
 }
@@ -359,8 +357,8 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type ChannelInfo = ParachainSystem;
 	type VersionWrapper = ();
-	type ExecuteOverweightOrigin = EnsureRoot<AccountId>;
-	type ControllerOrigin = EnsureRoot<AccountId>;
+	type ExecuteOverweightOrigin = EnsureRoot<PolimecAccountId>;
+	type ControllerOrigin = EnsureRoot<PolimecAccountId>;
 	type ControllerOriginConverter = XcmOriginToTransactDispatchOrigin;
 	type WeightInfo = ();
 	type PriceForSiblingDelivery = ();
@@ -369,7 +367,7 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 impl cumulus_pallet_dmp_queue::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
-	type ExecuteOverweightOrigin = EnsureRoot<AccountId>;
+	type ExecuteOverweightOrigin = EnsureRoot<PolimecAccountId>;
 }
 
 parameter_types! {
@@ -409,7 +407,7 @@ parameter_types! {
 
 /// We allow root and the StakingAdmin to execute privileged collator selection operations.
 pub type CollatorSelectionUpdateOrigin =
-	EitherOfDiverse<EnsureRoot<AccountId>, EnsureXcm<IsVoiceOfBody<RelayLocation, StakingAdminBodyId>>>;
+	EitherOfDiverse<EnsureRoot<PolimecAccountId>, EnsureXcm<IsVoiceOfBody<RelayLocation, StakingAdminBodyId>>>;
 
 impl pallet_collator_selection::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -443,7 +441,7 @@ pub const fn deposit(items: u32, bytes: u32) -> Balance {
 }
 
 pub const fn free_deposit() -> Balance {
-	0 * MICRO_PLMC
+	0
 }
 
 parameter_types! {
@@ -461,6 +459,7 @@ parameter_types! {
 pub type LocalAssetsInstance = pallet_assets::Instance1;
 pub type StatemintAssetsInstance = pallet_assets::Instance2;
 
+use pallet_funding::BondTypeOf;
 pub use parachains_common::AssetIdForTrustBackedAssets as AssetId;
 
 impl pallet_assets::Config<LocalAssetsInstance> for Runtime {
@@ -470,8 +469,8 @@ impl pallet_assets::Config<LocalAssetsInstance> for Runtime {
 	type AssetId = AssetId;
 	type AssetIdParameter = parity_scale_codec::Compact<AssetId>;
 	type Currency = Balances;
-	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
-	type ForceOrigin = EnsureRoot<AccountId>;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<PolimecAccountId>>;
+	type ForceOrigin = EnsureRoot<PolimecAccountId>;
 	type AssetDeposit = AssetDeposit;
 	type AssetAccountDeposit = AssetAccountDeposit;
 	type MetadataDepositBase = MetadataDepositBase;
@@ -493,8 +492,8 @@ impl pallet_assets::Config<StatemintAssetsInstance> for Runtime {
 	type AssetId = AssetId;
 	type AssetIdParameter = parity_scale_codec::Compact<AssetId>;
 	type Currency = Balances;
-	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
-	type ForceOrigin = EnsureRoot<AccountId>;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<PolimecAccountId>>;
+	type ForceOrigin = EnsureRoot<PolimecAccountId>;
 	type AssetDeposit = AssetDeposit;
 	type AssetAccountDeposit = AssetAccountDeposit;
 	type MetadataDepositBase = MetadataDepositBase;
@@ -555,19 +554,27 @@ parameter_types! {
 	pub const RemainderFundingDuration: BlockNumber = REMAINDER_FUNDING_DURATION;
 	pub const ContributionVestingDuration: BlockNumber = CONTRIBUTION_VESTING_DURATION;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
+	pub PriceMap: BTreeMap<AssetId, FixedU128> = BTreeMap::from_iter(vec![
+		(0u32, FixedU128::from_rational(69, 1)), // DOT
+		(420u32, FixedU128::from_rational(97, 100)), // USDC
+		(1984u32, FixedU128::from_rational(95, 100)), // USDT
+		(2069u32, FixedU128::from_rational(840, 100)), // PLMC
+	]);
 }
 
 impl pallet_funding::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type ProjectIdentifier = u32;
-	type ProjectIdParameter = parity_scale_codec::Compact<u32>;
-	type CurrencyBalance = <Self as pallet_balances::Config>::Balance;
-	type Currency = Balances;
-	type BidId = u128;
-	type BiddingCurrency = Balances;
+	type Multiplier = pallet_funding::types::Multiplier<Self>;
+	type Balance = Balance;
+	type Price = FixedU128;
+	type NativeCurrency = Balances;
+	type FundingCurrency = StatemintAssets;
+	type ContributionTokenCurrency = LocalAssets;
+	type PriceProvider = pallet_funding::types::ConstPriceProvider<AssetId, FixedU128, PriceMap>;
+	type StorageItemId = u128;
 	type Randomness = Random;
 	type HandleMembers = Credentials;
-	type Assets = LocalAssets;
 	type StringLimit = ConstU32<64>;
 	type PreImageLimit = ConstU32<1024>;
 	type EvaluationDuration = EvaluationDuration;
@@ -578,21 +585,23 @@ impl pallet_funding::Config for Runtime {
 	type RemainderFundingDuration = RemainderFundingDuration;
 	type PalletId = FundingPalletId;
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
-	type MaximumBidsPerUser = ConstU32<256>;
+	type MaxEvaluationsPerUser = ();
+	type MaxBidsPerUser = ConstU32<256>;
+
 	type MaxContributionsPerUser = ConstU32<256>;
 	type ContributionVesting = ContributionVestingDuration;
-	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+	type WeightInfo = ();
 }
 
 impl pallet_credentials::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type AddOrigin = EnsureRoot<AccountId>;
-	type RemoveOrigin = EnsureRoot<AccountId>;
-	type SwapOrigin = EnsureRoot<AccountId>;
-	type ResetOrigin = EnsureRoot<AccountId>;
-	type PrimeOrigin = EnsureRoot<AccountId>;
+	type AddOrigin = EnsureRoot<PolimecAccountId>;
+	type RemoveOrigin = EnsureRoot<PolimecAccountId>;
+	type SwapOrigin = EnsureRoot<PolimecAccountId>;
+	type ResetOrigin = EnsureRoot<PolimecAccountId>;
+	type PrimeOrigin = EnsureRoot<PolimecAccountId>;
 	type MembershipInitialized = ();
 	type MembershipChanged = ();
 }
@@ -736,8 +745,8 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index> for Runtime {
-		fn account_nonce(account: AccountId) -> Index {
+	impl frame_system_rpc_runtime_api::AccountNonceApi<Block, PolimecAccountId, Index> for Runtime {
+		fn account_nonce(account: PolimecAccountId) -> Index {
 			System::account_nonce(account)
 		}
 	}
@@ -832,7 +841,7 @@ impl_runtime_apis! {
 		fn dispatch_benchmark(
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
-			use frame_benchmarking::{Benchmarking, BenchmarkBatch, TrackedStorageKey};
+			use frame_benchmarking::{Benchmarking, BenchmarkBatch};
 
 			use frame_system_benchmarking::Pallet as SystemBench;
 			impl frame_system_benchmarking::Config for Runtime {}

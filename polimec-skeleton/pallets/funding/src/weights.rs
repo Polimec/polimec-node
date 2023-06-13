@@ -48,298 +48,298 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_funding.
 pub trait WeightInfo {
-	fn note_image() -> Weight;
-	fn create() -> Weight;
-	fn start_evaluation() -> Weight;
-	fn bond() -> Weight;
-	fn edit_metadata() -> Weight;
-	fn start_auction() -> Weight;
-	fn bid() -> Weight;
-	fn contribute() -> Weight;
-	fn claim_contribution_tokens() -> Weight;
-	fn on_initialize() -> Weight;
-	fn failed_evaluation_unbond_for() -> Weight;
+    fn note_image() -> Weight;
+    fn create() -> Weight;
+    fn start_evaluation() -> Weight;
+    fn bond() -> Weight;
+    fn edit_metadata() -> Weight;
+    fn start_auction() -> Weight;
+    fn bid() -> Weight;
+    fn contribute() -> Weight;
+    fn claim_contribution_tokens() -> Weight;
+    fn on_initialize() -> Weight;
+    fn failed_evaluation_unbond_for() -> Weight;
 }
 
 /// Weights for pallet_funding using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-	// Storage: PolimecFunding Images (r:0 w:1)
-	// Proof Skipped: PolimecFunding Images (max_values: None, max_size: None, mode: Measured)
-	fn note_image() -> Weight {
-		// Minimum execution time: 5_745 nanoseconds.
-		Weight::from_ref_time(6_034_000)
-			.saturating_add(T::DbWeight::get().writes(1))
-	}
-	// Storage: PolimecFunding Images (r:1 w:0)
-	// Proof Skipped: PolimecFunding Images (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding NextProjectId (r:1 w:1)
-	// Proof Skipped: PolimecFunding NextProjectId (max_values: Some(1), max_size: None, mode: Measured)
-	// Storage: PolimecFunding Projects (r:0 w:1)
-	// Proof Skipped: PolimecFunding Projects (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding ProjectsInfo (r:0 w:1)
-	// Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding ProjectsIssuers (r:0 w:1)
-	// Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
-	fn create() -> Weight {
-		// Minimum execution time: 14_395 nanoseconds.
-		Weight::from_ref_time(28_149_000)
-			.saturating_add(T::DbWeight::get().reads(2))
-			.saturating_add(T::DbWeight::get().writes(4))
-	}
-	// Storage: PolimecFunding ProjectsIssuers (r:1 w:0)
-	// Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding ProjectsInfo (r:1 w:1)
-	// Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding ProjectsActive (r:1 w:1)
-	// Proof Skipped: PolimecFunding ProjectsActive (max_values: Some(1), max_size: None, mode: Measured)
-	fn start_evaluation() -> Weight {
-		// Minimum execution time: 12_277 nanoseconds.
-		Weight::from_ref_time(12_639_000)
-			.saturating_add(T::DbWeight::get().reads(3))
-			.saturating_add(T::DbWeight::get().writes(2))
-	}
-	// Storage: PolimecFunding ProjectsIssuers (r:1 w:0)
-	// Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding ProjectsInfo (r:1 w:0)
-	// Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
-	// Storage: System Account (r:1 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: PolimecFunding Bonds (r:1 w:1)
-	// Proof Skipped: PolimecFunding Bonds (max_values: None, max_size: None, mode: Measured)
-	// Storage: Balances Locks (r:1 w:1)
-	// Proof: Balances Locks (max_values: None, max_size: Some(1299), added: 3774, mode: MaxEncodedLen)
-	fn bond() -> Weight {
-		// Minimum execution time: 18_883 nanoseconds.
-		Weight::from_ref_time(19_151_000)
-			.saturating_add(T::DbWeight::get().reads(5))
-			.saturating_add(T::DbWeight::get().writes(3))
-	}
-	// Storage: PolimecFunding ProjectsIssuers (r:1 w:0)
-	// Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding Images (r:1 w:0)
-	// Proof Skipped: PolimecFunding Images (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding ProjectsInfo (r:1 w:0)
-	// Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding Projects (r:1 w:1)
-	// Proof Skipped: PolimecFunding Projects (max_values: None, max_size: None, mode: Measured)
-	fn edit_metadata() -> Weight {
-		// Minimum execution time: 14_164 nanoseconds.
-		Weight::from_ref_time(14_544_000)
-			.saturating_add(T::DbWeight::get().reads(4))
-			.saturating_add(T::DbWeight::get().writes(1))
-	}
-	// Storage: PolimecFunding ProjectsIssuers (r:1 w:0)
-	// Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding ProjectsInfo (r:1 w:1)
-	// Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
-	fn start_auction() -> Weight {
-		// Minimum execution time: 13_108 nanoseconds.
-		Weight::from_ref_time(13_664_000)
-			.saturating_add(T::DbWeight::get().reads(2))
-			.saturating_add(T::DbWeight::get().writes(1))
-	}
-	// Storage: PolimecFunding ProjectsIssuers (r:1 w:0)
-	// Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding ProjectsInfo (r:1 w:0)
-	// Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding Projects (r:1 w:0)
-	// Proof Skipped: PolimecFunding Projects (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding AuctionsInfo (r:1 w:1)
-	// Proof Skipped: PolimecFunding AuctionsInfo (max_values: None, max_size: None, mode: Measured)
-	// Storage: System Account (r:1 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	fn bid() -> Weight {
-		// Minimum execution time: 24_193 nanoseconds.
-		Weight::from_ref_time(25_166_000)
-			.saturating_add(T::DbWeight::get().reads(5))
-			.saturating_add(T::DbWeight::get().writes(2))
-	}
-	// Storage: PolimecFunding ProjectsIssuers (r:1 w:0)
-	// Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding ProjectsInfo (r:1 w:0)
-	// Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
-	// Storage: System Account (r:2 w:2)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: PolimecFunding Contributions (r:1 w:1)
-	// Proof Skipped: PolimecFunding Contributions (max_values: None, max_size: None, mode: Measured)
-	fn contribute() -> Weight {
-		// Minimum execution time: 29_483 nanoseconds.
-		Weight::from_ref_time(30_106_000)
-			.saturating_add(T::DbWeight::get().reads(5))
-			.saturating_add(T::DbWeight::get().writes(3))
-	}
-	// Storage: PolimecFunding ProjectsInfo (r:1 w:0)
-	// Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding Contributions (r:1 w:1)
-	// Proof Skipped: PolimecFunding Contributions (max_values: None, max_size: None, mode: Measured)
-	// Storage: Assets Asset (r:1 w:1)
-	// Proof: Assets Asset (max_values: None, max_size: Some(210), added: 2685, mode: MaxEncodedLen)
-	// Storage: Assets Account (r:1 w:1)
-	// Proof: Assets Account (max_values: None, max_size: Some(102), added: 2577, mode: MaxEncodedLen)
-	// Storage: System Account (r:1 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	fn claim_contribution_tokens() -> Weight {
-		// Minimum execution time: 25_531 nanoseconds.
-		Weight::from_ref_time(26_669_000)
-			.saturating_add(T::DbWeight::get().reads(5))
-			.saturating_add(T::DbWeight::get().writes(4))
-	}
-	// Storage: PolimecFunding ProjectsActive (r:1 w:0)
-	// Proof Skipped: PolimecFunding ProjectsActive (max_values: Some(1), max_size: None, mode: Measured)
-	// Storage: PolimecFunding ProjectsInfo (r:100 w:100)
-	// Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding Bonds (r:200 w:0)
-	// Proof Skipped: PolimecFunding Bonds (max_values: None, max_size: None, mode: Measured)
-	fn on_initialize() -> Weight {
-		// Minimum execution time: 1_236_855 nanoseconds.
-		Weight::from_ref_time(1_252_446_000)
-			.saturating_add(T::DbWeight::get().reads(301))
-			.saturating_add(T::DbWeight::get().writes(100))
-	}
+    // Storage: PolimecFunding Images (r:0 w:1)
+    // Proof Skipped: PolimecFunding Images (max_values: None, max_size: None, mode: Measured)
+    fn note_image() -> Weight {
+        // Minimum execution time: 5_745 nanoseconds.
+        Weight::from_parts(6_034_000, 0)
+            .saturating_add(T::DbWeight::get().writes(1))
+    }
+    // Storage: PolimecFunding Images (r:1 w:0)
+    // Proof Skipped: PolimecFunding Images (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding NextProjectId (r:1 w:1)
+    // Proof Skipped: PolimecFunding NextProjectId (max_values: Some(1), max_size: None, mode: Measured)
+    // Storage: PolimecFunding Projects (r:0 w:1)
+    // Proof Skipped: PolimecFunding Projects (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding ProjectsInfo (r:0 w:1)
+    // Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding ProjectsIssuers (r:0 w:1)
+    // Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
+    fn create() -> Weight {
+        // Minimum execution time: 14_395 nanoseconds.
+        Weight::from_parts(28_149_000, 0)
+            .saturating_add(T::DbWeight::get().reads(2))
+            .saturating_add(T::DbWeight::get().writes(4))
+    }
+    // Storage: PolimecFunding ProjectsIssuers (r:1 w:0)
+    // Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding ProjectsInfo (r:1 w:1)
+    // Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding ProjectsActive (r:1 w:1)
+    // Proof Skipped: PolimecFunding ProjectsActive (max_values: Some(1), max_size: None, mode: Measured)
+    fn start_evaluation() -> Weight {
+        // Minimum execution time: 12_277 nanoseconds.
+        Weight::from_parts(12_639_000, 0)
+            .saturating_add(T::DbWeight::get().reads(3))
+            .saturating_add(T::DbWeight::get().writes(2))
+    }
+    // Storage: PolimecFunding ProjectsIssuers (r:1 w:0)
+    // Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding ProjectsInfo (r:1 w:0)
+    // Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
+    // Storage: System Account (r:1 w:1)
+    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+    // Storage: PolimecFunding Bonds (r:1 w:1)
+    // Proof Skipped: PolimecFunding Bonds (max_values: None, max_size: None, mode: Measured)
+    // Storage: Balances Locks (r:1 w:1)
+    // Proof: Balances Locks (max_values: None, max_size: Some(1299), added: 3774, mode: MaxEncodedLen)
+    fn bond() -> Weight {
+        // Minimum execution time: 18_883 nanoseconds.
+        Weight::from_parts(19_151_000, 0)
+            .saturating_add(T::DbWeight::get().reads(5))
+            .saturating_add(T::DbWeight::get().writes(3))
+    }
+    // Storage: PolimecFunding ProjectsIssuers (r:1 w:0)
+    // Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding Images (r:1 w:0)
+    // Proof Skipped: PolimecFunding Images (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding ProjectsInfo (r:1 w:0)
+    // Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding Projects (r:1 w:1)
+    // Proof Skipped: PolimecFunding Projects (max_values: None, max_size: None, mode: Measured)
+    fn edit_metadata() -> Weight {
+        // Minimum execution time: 14_164 nanoseconds.
+        Weight::from_parts(14_544_000, 0)
+            .saturating_add(T::DbWeight::get().reads(4))
+            .saturating_add(T::DbWeight::get().writes(1))
+    }
+    // Storage: PolimecFunding ProjectsIssuers (r:1 w:0)
+    // Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding ProjectsInfo (r:1 w:1)
+    // Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
+    fn start_auction() -> Weight {
+        // Minimum execution time: 13_108 nanoseconds.
+        Weight::from_parts(13_664_000, 0)
+            .saturating_add(T::DbWeight::get().reads(2))
+            .saturating_add(T::DbWeight::get().writes(1))
+    }
+    // Storage: PolimecFunding ProjectsIssuers (r:1 w:0)
+    // Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding ProjectsInfo (r:1 w:0)
+    // Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding Projects (r:1 w:0)
+    // Proof Skipped: PolimecFunding Projects (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding AuctionsInfo (r:1 w:1)
+    // Proof Skipped: PolimecFunding AuctionsInfo (max_values: None, max_size: None, mode: Measured)
+    // Storage: System Account (r:1 w:1)
+    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+    fn bid() -> Weight {
+        // Minimum execution time: 24_193 nanoseconds.
+        Weight::from_parts(25_166_000, 0)
+            .saturating_add(T::DbWeight::get().reads(5))
+            .saturating_add(T::DbWeight::get().writes(2))
+    }
+    // Storage: PolimecFunding ProjectsIssuers (r:1 w:0)
+    // Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding ProjectsInfo (r:1 w:0)
+    // Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
+    // Storage: System Account (r:2 w:2)
+    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+    // Storage: PolimecFunding Contributions (r:1 w:1)
+    // Proof Skipped: PolimecFunding Contributions (max_values: None, max_size: None, mode: Measured)
+    fn contribute() -> Weight {
+        // Minimum execution time: 29_483 nanoseconds.
+        Weight::from_parts(30_106_000, 0)
+            .saturating_add(T::DbWeight::get().reads(5))
+            .saturating_add(T::DbWeight::get().writes(3))
+    }
+    // Storage: PolimecFunding ProjectsInfo (r:1 w:0)
+    // Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding Contributions (r:1 w:1)
+    // Proof Skipped: PolimecFunding Contributions (max_values: None, max_size: None, mode: Measured)
+    // Storage: Assets Asset (r:1 w:1)
+    // Proof: Assets Asset (max_values: None, max_size: Some(210), added: 2685, mode: MaxEncodedLen)
+    // Storage: Assets Account (r:1 w:1)
+    // Proof: Assets Account (max_values: None, max_size: Some(102), added: 2577, mode: MaxEncodedLen)
+    // Storage: System Account (r:1 w:1)
+    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+    fn claim_contribution_tokens() -> Weight {
+        // Minimum execution time: 25_531 nanoseconds.
+        Weight::from_parts(26_669_000, 0)
+            .saturating_add(T::DbWeight::get().reads(5))
+            .saturating_add(T::DbWeight::get().writes(4))
+    }
+    // Storage: PolimecFunding ProjectsActive (r:1 w:0)
+    // Proof Skipped: PolimecFunding ProjectsActive (max_values: Some(1), max_size: None, mode: Measured)
+    // Storage: PolimecFunding ProjectsInfo (r:100 w:100)
+    // Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding Bonds (r:200 w:0)
+    // Proof Skipped: PolimecFunding Bonds (max_values: None, max_size: None, mode: Measured)
+    fn on_initialize() -> Weight {
+        // Minimum execution time: 1_236_855 nanoseconds.
+        Weight::from_parts(1_252_446_000, 0)
+            .saturating_add(T::DbWeight::get().reads(301))
+            .saturating_add(T::DbWeight::get().writes(100))
+    }
 
-	fn failed_evaluation_unbond_for() -> Weight {
-		Weight::from_ref_time(1_000_000)
-	}
+    fn failed_evaluation_unbond_for() -> Weight {
+        Weight::from_parts(1_000_000, 0)
+    }
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
-	// Storage: PolimecFunding Images (r:0 w:1)
-	// Proof Skipped: PolimecFunding Images (max_values: None, max_size: None, mode: Measured)
-	fn note_image() -> Weight {
-		// Minimum execution time: 5_745 nanoseconds.
-		Weight::from_ref_time(6_034_000)
-			.saturating_add(RocksDbWeight::get().writes(1))
-	}
-	// Storage: PolimecFunding Images (r:1 w:0)
-	// Proof Skipped: PolimecFunding Images (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding NextProjectId (r:1 w:1)
-	// Proof Skipped: PolimecFunding NextProjectId (max_values: Some(1), max_size: None, mode: Measured)
-	// Storage: PolimecFunding Projects (r:0 w:1)
-	// Proof Skipped: PolimecFunding Projects (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding ProjectsInfo (r:0 w:1)
-	// Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding ProjectsIssuers (r:0 w:1)
-	// Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
-	fn create() -> Weight {
-		// Minimum execution time: 14_395 nanoseconds.
-		Weight::from_ref_time(28_149_000)
-			.saturating_add(RocksDbWeight::get().reads(2))
-			.saturating_add(RocksDbWeight::get().writes(4))
-	}
-	// Storage: PolimecFunding ProjectsIssuers (r:1 w:0)
-	// Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding ProjectsInfo (r:1 w:1)
-	// Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding ProjectsActive (r:1 w:1)
-	// Proof Skipped: PolimecFunding ProjectsActive (max_values: Some(1), max_size: None, mode: Measured)
-	fn start_evaluation() -> Weight {
-		// Minimum execution time: 12_277 nanoseconds.
-		Weight::from_ref_time(12_639_000)
-			.saturating_add(RocksDbWeight::get().reads(3))
-			.saturating_add(RocksDbWeight::get().writes(2))
-	}
-	// Storage: PolimecFunding ProjectsIssuers (r:1 w:0)
-	// Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding ProjectsInfo (r:1 w:0)
-	// Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
-	// Storage: System Account (r:1 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: PolimecFunding Bonds (r:1 w:1)
-	// Proof Skipped: PolimecFunding Bonds (max_values: None, max_size: None, mode: Measured)
-	// Storage: Balances Locks (r:1 w:1)
-	// Proof: Balances Locks (max_values: None, max_size: Some(1299), added: 3774, mode: MaxEncodedLen)
-	fn bond() -> Weight {
-		// Minimum execution time: 18_883 nanoseconds.
-		Weight::from_ref_time(19_151_000)
-			.saturating_add(RocksDbWeight::get().reads(5))
-			.saturating_add(RocksDbWeight::get().writes(3))
-	}
-	// Storage: PolimecFunding ProjectsIssuers (r:1 w:0)
-	// Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding Images (r:1 w:0)
-	// Proof Skipped: PolimecFunding Images (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding ProjectsInfo (r:1 w:0)
-	// Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding Projects (r:1 w:1)
-	// Proof Skipped: PolimecFunding Projects (max_values: None, max_size: None, mode: Measured)
-	fn edit_metadata() -> Weight {
-		// Minimum execution time: 14_164 nanoseconds.
-		Weight::from_ref_time(14_544_000)
-			.saturating_add(RocksDbWeight::get().reads(4))
-			.saturating_add(RocksDbWeight::get().writes(1))
-	}
-	// Storage: PolimecFunding ProjectsIssuers (r:1 w:0)
-	// Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding ProjectsInfo (r:1 w:1)
-	// Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
-	fn start_auction() -> Weight {
-		// Minimum execution time: 13_108 nanoseconds.
-		Weight::from_ref_time(13_664_000)
-			.saturating_add(RocksDbWeight::get().reads(2))
-			.saturating_add(RocksDbWeight::get().writes(1))
-	}
-	// Storage: PolimecFunding ProjectsIssuers (r:1 w:0)
-	// Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding ProjectsInfo (r:1 w:0)
-	// Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding Projects (r:1 w:0)
-	// Proof Skipped: PolimecFunding Projects (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding AuctionsInfo (r:1 w:1)
-	// Proof Skipped: PolimecFunding AuctionsInfo (max_values: None, max_size: None, mode: Measured)
-	// Storage: System Account (r:1 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	fn bid() -> Weight {
-		// Minimum execution time: 24_193 nanoseconds.
-		Weight::from_ref_time(25_166_000)
-			.saturating_add(RocksDbWeight::get().reads(5))
-			.saturating_add(RocksDbWeight::get().writes(2))
-	}
-	// Storage: PolimecFunding ProjectsIssuers (r:1 w:0)
-	// Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding ProjectsInfo (r:1 w:0)
-	// Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
-	// Storage: System Account (r:2 w:2)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: PolimecFunding Contributions (r:1 w:1)
-	// Proof Skipped: PolimecFunding Contributions (max_values: None, max_size: None, mode: Measured)
-	fn contribute() -> Weight {
-		// Minimum execution time: 29_483 nanoseconds.
-		Weight::from_ref_time(30_106_000)
-			.saturating_add(RocksDbWeight::get().reads(5))
-			.saturating_add(RocksDbWeight::get().writes(3))
-	}
-	// Storage: PolimecFunding ProjectsInfo (r:1 w:0)
-	// Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding Contributions (r:1 w:1)
-	// Proof Skipped: PolimecFunding Contributions (max_values: None, max_size: None, mode: Measured)
-	// Storage: Assets Asset (r:1 w:1)
-	// Proof: Assets Asset (max_values: None, max_size: Some(210), added: 2685, mode: MaxEncodedLen)
-	// Storage: Assets Account (r:1 w:1)
-	// Proof: Assets Account (max_values: None, max_size: Some(102), added: 2577, mode: MaxEncodedLen)
-	// Storage: System Account (r:1 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	fn claim_contribution_tokens() -> Weight {
-		// Minimum execution time: 25_531 nanoseconds.
-		Weight::from_ref_time(26_669_000)
-			.saturating_add(RocksDbWeight::get().reads(5))
-			.saturating_add(RocksDbWeight::get().writes(4))
-	}
-	// Storage: PolimecFunding ProjectsActive (r:1 w:0)
-	// Proof Skipped: PolimecFunding ProjectsActive (max_values: Some(1), max_size: None, mode: Measured)
-	// Storage: PolimecFunding ProjectsInfo (r:100 w:100)
-	// Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
-	// Storage: PolimecFunding Bonds (r:200 w:0)
-	// Proof Skipped: PolimecFunding Bonds (max_values: None, max_size: None, mode: Measured)
-	fn on_initialize() -> Weight {
-		// Minimum execution time: 1_236_855 nanoseconds.
-		Weight::from_ref_time(1_252_446_000)
-			.saturating_add(RocksDbWeight::get().reads(301))
-			.saturating_add(RocksDbWeight::get().writes(100))
-	}
+    // Storage: PolimecFunding Images (r:0 w:1)
+    // Proof Skipped: PolimecFunding Images (max_values: None, max_size: None, mode: Measured)
+    fn note_image() -> Weight {
+        // Minimum execution time: 5_745 nanoseconds.
+        Weight::from_parts(6_034_000, 0)
+            .saturating_add(RocksDbWeight::get().writes(1))
+    }
+    // Storage: PolimecFunding Images (r:1 w:0)
+    // Proof Skipped: PolimecFunding Images (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding NextProjectId (r:1 w:1)
+    // Proof Skipped: PolimecFunding NextProjectId (max_values: Some(1), max_size: None, mode: Measured)
+    // Storage: PolimecFunding Projects (r:0 w:1)
+    // Proof Skipped: PolimecFunding Projects (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding ProjectsInfo (r:0 w:1)
+    // Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding ProjectsIssuers (r:0 w:1)
+    // Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
+    fn create() -> Weight {
+        // Minimum execution time: 14_395 nanoseconds.
+        Weight::from_parts(28_149_000, 0)
+            .saturating_add(RocksDbWeight::get().reads(2))
+            .saturating_add(RocksDbWeight::get().writes(4))
+    }
+    // Storage: PolimecFunding ProjectsIssuers (r:1 w:0)
+    // Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding ProjectsInfo (r:1 w:1)
+    // Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding ProjectsActive (r:1 w:1)
+    // Proof Skipped: PolimecFunding ProjectsActive (max_values: Some(1), max_size: None, mode: Measured)
+    fn start_evaluation() -> Weight {
+        // Minimum execution time: 12_277 nanoseconds.
+        Weight::from_parts(12_639_000, 0)
+            .saturating_add(RocksDbWeight::get().reads(3))
+            .saturating_add(RocksDbWeight::get().writes(2))
+    }
+    // Storage: PolimecFunding ProjectsIssuers (r:1 w:0)
+    // Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding ProjectsInfo (r:1 w:0)
+    // Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
+    // Storage: System Account (r:1 w:1)
+    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+    // Storage: PolimecFunding Bonds (r:1 w:1)
+    // Proof Skipped: PolimecFunding Bonds (max_values: None, max_size: None, mode: Measured)
+    // Storage: Balances Locks (r:1 w:1)
+    // Proof: Balances Locks (max_values: None, max_size: Some(1299), added: 3774, mode: MaxEncodedLen)
+    fn bond() -> Weight {
+        // Minimum execution time: 18_883 nanoseconds.
+        Weight::from_parts(19_151_000, 0)
+            .saturating_add(RocksDbWeight::get().reads(5))
+            .saturating_add(RocksDbWeight::get().writes(3))
+    }
+    // Storage: PolimecFunding ProjectsIssuers (r:1 w:0)
+    // Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding Images (r:1 w:0)
+    // Proof Skipped: PolimecFunding Images (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding ProjectsInfo (r:1 w:0)
+    // Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding Projects (r:1 w:1)
+    // Proof Skipped: PolimecFunding Projects (max_values: None, max_size: None, mode: Measured)
+    fn edit_metadata() -> Weight {
+        // Minimum execution time: 14_164 nanoseconds.
+        Weight::from_parts(14_544_000, 0)
+            .saturating_add(RocksDbWeight::get().reads(4))
+            .saturating_add(RocksDbWeight::get().writes(1))
+    }
+    // Storage: PolimecFunding ProjectsIssuers (r:1 w:0)
+    // Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding ProjectsInfo (r:1 w:1)
+    // Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
+    fn start_auction() -> Weight {
+        // Minimum execution time: 13_108 nanoseconds.
+        Weight::from_parts(13_664_000, 0)
+            .saturating_add(RocksDbWeight::get().reads(2))
+            .saturating_add(RocksDbWeight::get().writes(1))
+    }
+    // Storage: PolimecFunding ProjectsIssuers (r:1 w:0)
+    // Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding ProjectsInfo (r:1 w:0)
+    // Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding Projects (r:1 w:0)
+    // Proof Skipped: PolimecFunding Projects (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding AuctionsInfo (r:1 w:1)
+    // Proof Skipped: PolimecFunding AuctionsInfo (max_values: None, max_size: None, mode: Measured)
+    // Storage: System Account (r:1 w:1)
+    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+    fn bid() -> Weight {
+        // Minimum execution time: 24_193 nanoseconds.
+        Weight::from_parts(25_166_000, 0)
+            .saturating_add(RocksDbWeight::get().reads(5))
+            .saturating_add(RocksDbWeight::get().writes(2))
+    }
+    // Storage: PolimecFunding ProjectsIssuers (r:1 w:0)
+    // Proof Skipped: PolimecFunding ProjectsIssuers (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding ProjectsInfo (r:1 w:0)
+    // Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
+    // Storage: System Account (r:2 w:2)
+    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+    // Storage: PolimecFunding Contributions (r:1 w:1)
+    // Proof Skipped: PolimecFunding Contributions (max_values: None, max_size: None, mode: Measured)
+    fn contribute() -> Weight {
+        // Minimum execution time: 29_483 nanoseconds.
+        Weight::from_parts(30_106_000, 0)
+            .saturating_add(RocksDbWeight::get().reads(5))
+            .saturating_add(RocksDbWeight::get().writes(3))
+    }
+    // Storage: PolimecFunding ProjectsInfo (r:1 w:0)
+    // Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding Contributions (r:1 w:1)
+    // Proof Skipped: PolimecFunding Contributions (max_values: None, max_size: None, mode: Measured)
+    // Storage: Assets Asset (r:1 w:1)
+    // Proof: Assets Asset (max_values: None, max_size: Some(210), added: 2685, mode: MaxEncodedLen)
+    // Storage: Assets Account (r:1 w:1)
+    // Proof: Assets Account (max_values: None, max_size: Some(102), added: 2577, mode: MaxEncodedLen)
+    // Storage: System Account (r:1 w:1)
+    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+    fn claim_contribution_tokens() -> Weight {
+        // Minimum execution time: 25_531 nanoseconds.
+        Weight::from_parts(26_669_000, 0)
+            .saturating_add(RocksDbWeight::get().reads(5))
+            .saturating_add(RocksDbWeight::get().writes(4))
+    }
+    // Storage: PolimecFunding ProjectsActive (r:1 w:0)
+    // Proof Skipped: PolimecFunding ProjectsActive (max_values: Some(1), max_size: None, mode: Measured)
+    // Storage: PolimecFunding ProjectsInfo (r:100 w:100)
+    // Proof Skipped: PolimecFunding ProjectsInfo (max_values: None, max_size: None, mode: Measured)
+    // Storage: PolimecFunding Bonds (r:200 w:0)
+    // Proof Skipped: PolimecFunding Bonds (max_values: None, max_size: None, mode: Measured)
+    fn on_initialize() -> Weight {
+        // Minimum execution time: 1_236_855 nanoseconds.
+        Weight::from_parts(1_252_446_000, 0)
+            .saturating_add(RocksDbWeight::get().reads(301))
+            .saturating_add(RocksDbWeight::get().writes(100))
+    }
 
-	fn failed_evaluation_unbond_for() -> Weight {
-		Weight::from_ref_time(1_000_000)
-	}
+    fn failed_evaluation_unbond_for() -> Weight {
+        Weight::from_parts(1_000_000, 0)
+    }
 }
