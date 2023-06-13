@@ -202,7 +202,7 @@ const USDT_STATEMINT_ID: AssetId = 1984u32;
 const USDT_UNIT: u128 = 10_000_000_000_u128;
 
 pub const US_DOLLAR: u128 = 1_0_000_000_000;
-pub const US_CENT: u128 = 0_1_000_000_000;
+pub const US_CENT: u128 = 0_0_100_000_000;
 
 const METADATA: &str = r#"
 {
@@ -1106,7 +1106,7 @@ mod defaults {
 		]
 	}
 
-	pub fn default_evaluations() -> UserToPLMCBalance {
+	pub fn default_evaluations() -> UserToUSDBalance {
 		vec![
 			(EVALUATOR_1, 50_000 * PLMC),
 			(EVALUATOR_2, 25_000 * PLMC),
@@ -1743,6 +1743,74 @@ mod auction_round_success {
 				stored_bids.iter().any(|bid| desired_bid.matches_bid(&bid)),
 				"Stored bid does not match the given filter"
 			);
+		}
+	}
+
+	#[test]
+	fn pallet_can_start_auction_automatically() {
+		let test_env = TestEnvironment::new();
+		let project = EvaluatingProject::new_with(
+			&test_env,
+			default_project(0),
+			ISSUER,
+		);
+		let evaluations = default_evaluations();
+		let required_plmc = calculate_evaluation_plmc_spent(evaluations.clone());
+		let ed_plmc: UserToPLMCBalance = evaluations.clone().into_iter().map(|(account, amount)| (account, get_ed())).collect();
+		test_env.mint_plmc_to(required_plmc);
+		test_env.mint_plmc_to(ed_plmc);
+		project.bond_for_users(evaluations).unwrap();
+		test_env.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1);
+		assert_eq!(project.get_project_details().status, ProjectStatus::AuctionInitializePeriod);
+		test_env.advance_time(<TestRuntime as Config>::AuctionInitializePeriodDuration::get() + 2);
+		assert_eq!(project.get_project_details().status, ProjectStatus::AuctionRound(AuctionPhase::English));
+	}
+
+	#[test]
+	fn issuer_can_start_auction_manually() {
+		let test_env = TestEnvironment::new();
+		let project = EvaluatingProject::new_with(
+			&test_env,
+			default_project(0),
+			ISSUER,
+		);
+		let evaluations = default_evaluations();
+		let required_plmc = calculate_evaluation_plmc_spent(evaluations.clone());
+		let ed_plmc: UserToPLMCBalance = evaluations.clone().into_iter().map(|(account, amount)| (account, get_ed())).collect();
+		test_env.mint_plmc_to(required_plmc);
+		test_env.mint_plmc_to(ed_plmc);
+		project.bond_for_users(evaluations).unwrap();
+		test_env.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1);
+		assert_eq!(project.get_project_details().status, ProjectStatus::AuctionInitializePeriod);
+		test_env.advance_time(1);
+
+		test_env.in_ext(|| FundingModule::start_auction(RuntimeOrigin::signed(ISSUER), project.get_project_id())).unwrap();
+		assert_eq!(project.get_project_details().status, ProjectStatus::AuctionRound(AuctionPhase::English));
+	}
+
+	#[test]
+	fn stranger_cannot_start_auction_manually() {
+		let test_env = TestEnvironment::new();
+		let project = EvaluatingProject::new_with(
+			&test_env,
+			default_project(0),
+			ISSUER,
+		);
+		let evaluations = default_evaluations();
+		let required_plmc = calculate_evaluation_plmc_spent(evaluations.clone());
+		let ed_plmc: UserToPLMCBalance = evaluations.clone().into_iter().map(|(account, amount)| (account, get_ed())).collect();
+		test_env.mint_plmc_to(required_plmc);
+		test_env.mint_plmc_to(ed_plmc);
+		project.bond_for_users(evaluations).unwrap();
+		test_env.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1);
+		assert_eq!(project.get_project_details().status, ProjectStatus::AuctionInitializePeriod);
+		test_env.advance_time(1);
+
+		for account in 6000..6010 {
+			test_env.in_ext(||  {
+				let response = FundingModule::start_auction(RuntimeOrigin::signed(account), project.get_project_id());
+				assert_noop!(response, Error::<TestRuntime>::NotAllowed);
+			});
 		}
 	}
 }

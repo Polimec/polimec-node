@@ -333,7 +333,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			project_details.issuer == caller || project_details.issuer == T::PalletId::get().into_account_truncating(),
+			caller == project_details.issuer || caller == T::PalletId::get().into_account_truncating(),
 			Error::<T>::NotAllowed
 		);
 		ensure!(
@@ -720,12 +720,11 @@ impl<T: Config> Pallet<T> {
 
 		Ok(())
 	}
-
+	// Note: usd_amount needs to have the same amount of decimals as PLMC,, so when multiplied by the plmc-usd price, it gives us the PLMC amount with the decimals we wanted.
 	pub fn do_evaluation(
 		evaluator: AccountIdOf<T>, project_id: T::ProjectIdentifier, usd_amount: BalanceOf<T>,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
-		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let evaluation_id = Self::next_evaluation_id();
@@ -742,14 +741,6 @@ impl<T: Config> Pallet<T> {
 			project_details.status == ProjectStatus::EvaluationRound,
 			Error::<T>::EvaluationNotStarted
 		);
-		if let Some(minimum_ticket_size) = project_metadata.ticket_size.minimum {
-			// Make sure the bid amount is greater than the minimum specified by the issuer
-			ensure!(usd_amount >= minimum_ticket_size, Error::<T>::EvaluationBondTooLow);
-		};
-		if let Some(maximum_ticket_size) = project_metadata.ticket_size.maximum {
-			// Make sure the bid amount is less than the maximum specified by the issuer
-			ensure!(usd_amount <= maximum_ticket_size, Error::<T>::EvaluationBondTooHigh);
-		};
 
 		// * Calculate new variables *
 		let plmc_bond = plmc_usd_price
