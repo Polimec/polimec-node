@@ -244,7 +244,7 @@ pub type BidInfoOf<T> = BidInfo<
 >;
 pub type ContributionInfoOf<T> =
 	ContributionInfo<StorageItemIdOf<T>, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, VestingOf<T>, VestingOf<T>>;
-pub type BondTypeOf<T> = BondType<ProjectIdOf<T>>;
+pub type BondTypeOf<T> = LockType<ProjectIdOf<T>>;
 
 const PLMC_STATEMINT_ID: u32 = 2069;
 

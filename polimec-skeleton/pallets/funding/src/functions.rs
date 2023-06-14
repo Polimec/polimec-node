@@ -763,7 +763,7 @@ impl<T: Config> Pallet<T> {
 
 		match existing_evaluations.try_push(new_evaluation.clone()) {
 			Ok(_) => {
-				T::NativeCurrency::hold(&BondType::Evaluation(project_id), &evaluator, plmc_bond)
+				T::NativeCurrency::hold(&LockType::Evaluation(project_id), &evaluator, plmc_bond)
 					.map_err(|_| Error::<T>::InsufficientBalance)?;
 			}
 			Err(_) => {
@@ -777,14 +777,14 @@ impl<T: Config> Pallet<T> {
 					Error::<T>::EvaluationBondTooLow
 				);
 				T::NativeCurrency::release(
-					&BondType::Evaluation(project_id),
+					&LockType::Evaluation(project_id),
 					&lowest_evaluation.evaluator,
 					lowest_evaluation.plmc_bond,
 					Precision::Exact,
 				)
 				.map_err(|_| Error::<T>::InsufficientBalance)?;
 
-				T::NativeCurrency::hold(&BondType::Evaluation(project_id), &evaluator, plmc_bond)
+				T::NativeCurrency::hold(&LockType::Evaluation(project_id), &evaluator, plmc_bond)
 					.map_err(|_| Error::<T>::InsufficientBalance)?;
 
 				// This should never fail since we just removed an element from the vector
@@ -832,7 +832,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Update Storage *
 		T::NativeCurrency::release(
-			&BondType::Evaluation(project_id),
+			&LockType::Evaluation(project_id),
 			&evaluation.evaluator.clone(),
 			evaluation.plmc_bond,
 			Precision::Exact,
@@ -934,7 +934,7 @@ impl<T: Config> Pallet<T> {
 		// * Update storage *
 		match existing_bids.try_push(new_bid.clone()) {
 			Ok(_) => {
-				T::NativeCurrency::hold(&BondType::Bid(project_id), &bidder, required_plmc_bond)
+				T::NativeCurrency::hold(&LockType::Participation(project_id), &bidder, required_plmc_bond)
 					.map_err(|_| Error::<T>::InsufficientBalance)?;
 
 				T::FundingCurrency::transfer(
@@ -957,13 +957,13 @@ impl<T: Config> Pallet<T> {
 				ensure!(new_bid.clone() > lowest_bid, Error::<T>::BidTooLow);
 
 				T::NativeCurrency::release(
-					&BondType::Bid(project_id),
+					&LockType::Participation(project_id),
 					&lowest_bid.bidder.clone(),
 					lowest_bid.plmc_bond,
 					Precision::Exact,
 				)?;
 
-				T::NativeCurrency::hold(&BondType::Bid(project_id), &bidder, required_plmc_bond)
+				T::NativeCurrency::hold(&LockType::Participation(project_id), &bidder, required_plmc_bond)
 					.map_err(|_| Error::<T>::InsufficientBalance)?;
 
 				T::FundingCurrency::transfer(
@@ -1107,7 +1107,7 @@ impl<T: Config> Pallet<T> {
 		// Try adding the new contribution to the system
 		match existing_contributions.try_push(new_contribution.clone()) {
 			Ok(_) => {
-				T::NativeCurrency::hold(&BondType::Contribution(project_id), &contributor, required_plmc_bond)
+				T::NativeCurrency::hold(&LockType::Participation(project_id), &contributor, required_plmc_bond)
 					.map_err(|_| Error::<T>::InsufficientBalance)?;
 
 				T::FundingCurrency::transfer(
@@ -1136,13 +1136,13 @@ impl<T: Config> Pallet<T> {
 				// 1_585_769_442
 				//
 				T::NativeCurrency::release(
-					&BondType::Contribution(project_id),
+					&LockType::Participation(project_id),
 					&lowest_contribution.contributor,
 					lowest_contribution.plmc_bond,
 					Precision::Exact,
 				)?;
 
-				T::NativeCurrency::hold(&BondType::Contribution(project_id), &contributor, required_plmc_bond)
+				T::NativeCurrency::hold(&LockType::Participation(project_id), &contributor, required_plmc_bond)
 					.map_err(|_| Error::<T>::InsufficientBalance)?;
 
 				T::FundingCurrency::transfer(
@@ -1234,7 +1234,7 @@ impl<T: Config> Pallet<T> {
 
 			// * Update storage *
 			// TODO: check that the full amount was unreserved
-			T::NativeCurrency::release(&BondType::Bid(project_id), &bid.bidder, unbond_amount, Precision::Exact)?;
+			T::NativeCurrency::release(&LockType::Participation(project_id), &bid.bidder, unbond_amount, Precision::Exact)?;
 			new_bids.push(bid.clone());
 
 			// * Emit events *
@@ -1369,7 +1369,7 @@ impl<T: Config> Pallet<T> {
 			// TODO: Should we mint here, or should the full mint happen to the treasury and then do transfers from there?
 			// Unreserve the funds for the user
 			T::NativeCurrency::release(
-				&BondType::Contribution(project_id),
+				&LockType::Participation(project_id),
 				&claimer,
 				unbond_amount,
 				Precision::Exact,

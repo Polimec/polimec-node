@@ -176,8 +176,8 @@ impl pallet_balances::Config for TestRuntime {
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
-	type ReserveIdentifier = BondType<u32>;
-	type HoldIdentifier = BondType<u32>;
+	type ReserveIdentifier = LockType<u32>;
+	type HoldIdentifier = LockType<u32>;
 	type FreezeIdentifier = ();
 	type MaxLocks = frame_support::traits::ConstU32<1024>;
 	type MaxReserves = frame_support::traits::ConstU32<1024>;

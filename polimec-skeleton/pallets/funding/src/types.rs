@@ -54,10 +54,9 @@ pub mod config_types {
 
 	/// Enum used to identify PLMC holds
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
-	pub enum BondType<ProjectId> {
+	pub enum LockType<ProjectId> {
 		Evaluation(ProjectId),
-		Bid(ProjectId),
-		Contribution(ProjectId),
+		Participation(ProjectId),
 	}
 
 	pub struct ConstPriceProvider<AssetId, Price, Mapping>(PhantomData<(AssetId, Price, Mapping)>);

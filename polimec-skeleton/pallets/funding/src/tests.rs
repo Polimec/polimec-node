@@ -347,7 +347,7 @@ impl TestEnvironment {
 			.execute_with(|| <TestRuntime as pallet_funding::Config>::NativeCurrency::total_issuance())
 	}
 	fn do_reserved_plmc_assertions(
-		&self, correct_funds: UserToPLMCBalance, reserve_type: BondType<ProjectIdOf<TestRuntime>>,
+		&self, correct_funds: UserToPLMCBalance, reserve_type: LockType<ProjectIdOf<TestRuntime>>,
 	) {
 		for (user, balance) in correct_funds {
 			self.ext_env.borrow_mut().execute_with(|| {
@@ -357,7 +357,7 @@ impl TestEnvironment {
 		}
 	}
 	#[allow(dead_code)]
-	fn get_reserved_fundings(&self, reserve_type: BondType<ProjectIdOf<TestRuntime>>) -> UserToPLMCBalance {
+	fn get_reserved_fundings(&self, reserve_type: LockType<ProjectIdOf<TestRuntime>>) -> UserToPLMCBalance {
 		self.ext_env.borrow_mut().execute_with(|| {
 			let mut fundings = UserToPLMCBalance::new();
 			let user_keys: Vec<AccountId> = frame_system::Account::<TestRuntime>::iter_keys().collect();
@@ -571,7 +571,7 @@ impl<'a> EvaluatingProject<'a> {
 		test_env.do_free_plmc_assertions(expected_free_plmc_balances);
 		test_env.do_reserved_plmc_assertions(
 			expected_reserved_plmc_balances,
-			BondType::Evaluation(self.get_project_id()),
+			LockType::Evaluation(self.get_project_id()),
 		);
 		test_env.do_total_plmc_assertions(total_plmc_supply);
 	}
@@ -783,7 +783,7 @@ impl<'a> CommunityFundingProject<'a> {
 
 		auctioning_project.bid_for_users(bids).expect("Bidding should work");
 
-		test_env.do_reserved_plmc_assertions(plmc_bid_deposits, BondType::Bid(project_id));
+		test_env.do_reserved_plmc_assertions(plmc_bid_deposits, LockType::Participation(project_id));
 		test_env.do_bid_transferred_statemint_asset_assertions(funding_asset_deposits, project_id);
 		test_env.do_free_plmc_assertions(expected_free_plmc_balances);
 		test_env.do_free_statemint_asset_assertions(prev_funding_asset_balances);
@@ -934,7 +934,7 @@ impl<'a> RemainderFundingProject<'a> {
 			.buy_for_retail_users(contributions.clone())
 			.expect("Contributing should work");
 
-		test_env.do_reserved_plmc_assertions(plmc_contribution_deposits, BondType::Contribution(project_id));
+		test_env.do_reserved_plmc_assertions(plmc_contribution_deposits, LockType::Participation(project_id));
 		test_env.do_contribution_transferred_statemint_asset_assertions(funding_asset_deposits, project_id);
 		test_env.do_free_plmc_assertions(expected_free_plmc_balances);
 		test_env.do_free_statemint_asset_assertions(prev_funding_asset_balances);
@@ -1009,7 +1009,10 @@ impl<'a> FinishedProject<'a> {
 		let prev_plmc_balances = test_env.get_free_plmc_balances_for(contributors.clone());
 		let prev_funding_asset_balances =
 			test_env.get_free_statemint_asset_balances_for(asset_id, contributors.clone());
-		let plmc_contribution_deposits = calculate_contributed_plmc_spent(remainder_contributions.clone(), ct_price);
+		let plmc_bid_deposits = calculate_auction_plmc_spent(bids.clone());
+		let plmc_community_contribution_deposits = calculate_contributed_plmc_spent(community_contributions.clone(), ct_price);
+		let plmc_remainder_contribution_deposits = calculate_contributed_plmc_spent(remainder_contributions.clone(), ct_price);
+		let total_plmc_participation_locked = merge_mappings_by_user(vec![plmc_bid_deposits, plmc_community_contribution_deposits, plmc_remainder_contribution_deposits.clone()]);
 		let plmc_existential_deposits: UserToPLMCBalance = contributors
 			.iter()
 			.map(|acc| (acc.clone(), get_ed()))
@@ -1018,7 +1021,7 @@ impl<'a> FinishedProject<'a> {
 			calculate_contributed_funding_asset_spent(remainder_contributions.clone(), ct_price);
 
 		let contributor_balances = sum_balance_mappings(vec![
-			plmc_contribution_deposits.clone(),
+			plmc_remainder_contribution_deposits.clone(),
 			plmc_existential_deposits.clone(),
 		]);
 
@@ -1028,7 +1031,7 @@ impl<'a> FinishedProject<'a> {
 		let prev_supply = test_env.get_plmc_total_supply();
 		let post_supply = prev_supply + contributor_balances;
 
-		test_env.mint_plmc_to(plmc_contribution_deposits.clone());
+		test_env.mint_plmc_to(plmc_remainder_contribution_deposits.clone());
 		test_env.mint_plmc_to(plmc_existential_deposits.clone());
 		test_env.mint_statemint_asset_to(funding_asset_deposits.clone());
 
@@ -1036,7 +1039,7 @@ impl<'a> FinishedProject<'a> {
 			.buy_for_any_user(remainder_contributions.clone())
 			.expect("Remainder Contributing should work");
 
-		test_env.do_reserved_plmc_assertions(plmc_contribution_deposits, BondType::Contribution(project_id));
+		test_env.do_reserved_plmc_assertions(total_plmc_participation_locked, LockType::Participation(project_id));
 		test_env.do_contribution_transferred_statemint_asset_assertions(funding_asset_deposits, project_id);
 		test_env.do_free_plmc_assertions(expected_free_plmc_balances);
 		test_env.do_free_statemint_asset_assertions(prev_funding_asset_balances);
@@ -1229,17 +1232,49 @@ pub mod helper_functions {
 		output
 	}
 
-	pub fn merge_mappings_by_user<I: std::ops::Add<Output = I>>(
+	/// add all the user -> I maps together, and add the I's of the ones with the same user.
+	pub fn merge_mappings_by_user<I: std::ops::Add<Output = I> + Ord + Copy>(
 		mut mappings: Vec<Vec<(AccountIdOf<TestRuntime>, I)>>,
 	) -> Vec<(AccountIdOf<TestRuntime>, I)> {
 		let mut output = mappings.swap_remove(0);
-		for map in mappings {
-			output = zip(output, map)
-				.map(|(a, b)| {
-					assert_eq!(a.0, b.0, "Bad order for users");
-					(a.0, a.1 + b.1)
-				})
-				.collect();
+		output.sort_by_key(|k| k.0);
+		for mut map in mappings {
+			map.sort_by_key(|k| k.0);
+			let old_output = output.clone();
+			output = Vec::new();
+			let mut i = 0;
+			let mut j = 0;
+			while true {
+				let old_tup  = old_output.get(i);
+				let new_tup = map.get(j);
+
+				match (old_tup, new_tup) {
+					(None, None) => break,
+					(Some(_), None) => {
+						output.extend_from_slice(&old_output[i..]);
+						break
+					},
+					(None, Some(_)) => {
+						output.extend_from_slice(&map[j..]);
+						break
+
+					}
+					(Some((acc_i, val_i)), Some((acc_j, val_j))) => {
+						if acc_i == acc_j {
+							output.push((acc_i.clone(), val_i.clone() + val_j.clone()));
+							i += 1;
+							j += 1;
+						} else if acc_i < acc_j {
+							output.push(old_output[i]);
+							i += 1;
+						} else {
+							output.push(map[j]);
+							j += 1;
+						}
+					}
+				}
+			}
+
 		}
 		output
 	}
@@ -1499,7 +1534,7 @@ mod evaluation_round_failure {
 			.expect("Bonding should work");
 
 		test_env.do_free_plmc_assertions(plmc_existential_deposits);
-		test_env.do_reserved_plmc_assertions(plmc_eval_deposits, BondType::Evaluation(project_id));
+		test_env.do_reserved_plmc_assertions(plmc_eval_deposits, LockType::Evaluation(project_id));
 
 		test_env.advance_time(evaluation_end - now + 1);
 
@@ -2094,7 +2129,7 @@ mod community_round_success {
 
 		test_env.do_free_plmc_assertions(vec![plmc_fundings[1].clone()]);
 		test_env.do_free_statemint_asset_assertions(vec![(BOB, 0u128, AcceptedFundingAsset::USDT.to_statemint_id())]);
-		test_env.do_reserved_plmc_assertions(vec![plmc_fundings[0].clone()], BondType::Contribution(project_id));
+		test_env.do_reserved_plmc_assertions(vec![plmc_fundings[0].clone()], LockType::Participation(project_id));
 		test_env.do_contribution_transferred_statemint_asset_assertions(
 			statemint_asset_fundings,
 			community_funding_project.get_project_id(),
@@ -2172,7 +2207,7 @@ mod community_round_success {
 			remaining_statemint_assets,
 			AcceptedFundingAsset::USDT.to_statemint_id(),
 		)]);
-		test_env.do_reserved_plmc_assertions(vec![(BOB, reserved_plmc)], BondType::Contribution(project_id));
+		test_env.do_reserved_plmc_assertions(vec![(BOB, reserved_plmc)], LockType::Participation(project_id));
 		test_env.do_contribution_transferred_statemint_asset_assertions(
 			vec![(
 				BOB,
@@ -2228,7 +2263,7 @@ mod community_round_success {
 		assert_eq!(contributor_post_buy_statemint_asset_balance, 0);
 
 		let plmc_bond_stored = project.in_ext(|| {
-			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&BondType::Contribution(project_id), &CONTRIBUTOR)
+			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&LockType::Participation(project_id), &CONTRIBUTOR)
 		});
 		let statemint_asset_contributions_stored = project.in_ext(|| {
 			Contributions::<TestRuntime>::get(project.project_id, CONTRIBUTOR)
@@ -2275,7 +2310,7 @@ mod community_round_success {
 		);
 
 		let new_plmc_bond_stored = project.in_ext(|| {
-			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&BondType::Contribution(project_id), &CONTRIBUTOR)
+			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&LockType::Participation(project_id), &CONTRIBUTOR)
 		});
 		let new_statemint_asset_contributions_stored = project.in_ext(|| {
 			Contributions::<TestRuntime>::get(project.project_id, CONTRIBUTOR)
@@ -2341,7 +2376,7 @@ mod community_round_success {
 		assert_eq!(contributor_post_buy_statemint_asset_balance, 0);
 
 		let plmc_bond_stored = project.in_ext(|| {
-			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&BondType::Contribution(project_id), &CONTRIBUTOR)
+			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&LockType::Participation(project_id), &CONTRIBUTOR)
 		});
 		let statemint_asset_contributions_stored = project.in_ext(|| {
 			Contributions::<TestRuntime>::get(project.project_id, CONTRIBUTOR)
@@ -2388,7 +2423,7 @@ mod community_round_success {
 		);
 
 		let new_plmc_bond_stored = project.in_ext(|| {
-			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&BondType::Contribution(project_id), &CONTRIBUTOR)
+			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&LockType::Participation(project_id), &CONTRIBUTOR)
 		});
 		let new_statemint_asset_contributions_stored = project.in_ext(|| {
 			Contributions::<TestRuntime>::get(project.project_id, CONTRIBUTOR)
@@ -2490,7 +2525,7 @@ mod purchased_vesting {
 		for contribution in community_contributions {
 			let actual_bonded_plmc = test_env.in_ext(|| {
 				<TestRuntime as Config>::NativeCurrency::balance_on_hold(
-					&BondType::Contribution(project_id),
+					&LockType::Participation(project_id),
 					&contribution.contributor,
 				)
 			});
@@ -2509,7 +2544,7 @@ mod purchased_vesting {
 			});
 			let actual_bonded_plmc = test_env.in_ext(|| {
 				<TestRuntime as Config>::NativeCurrency::balance_on_hold(
-					&BondType::Contribution(project_id),
+					&LockType::Participation(project_id),
 					&contribution.contributor,
 				)
 			});
@@ -2561,6 +2596,8 @@ mod bids_vesting {
 	fn plmc_unbonded() {
 		let test_env = TestEnvironment::new();
 		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = default_remainder_buys();
 		let finished_project = FinishedProject::new_with(
 			&test_env,
 			default_project(test_env.get_new_nonce()),
@@ -2571,25 +2608,23 @@ mod bids_vesting {
 			default_remainder_buys(),
 		);
 		let project_id = finished_project.project_id;
+		let ct_price = finished_project.get_project_details().weighted_average_price.unwrap();
 
-		for bid in bids {
-			let prev_balance = test_env.in_ext(|| <TestRuntime as Config>::NativeCurrency::free_balance(&bid.bidder));
-			let bonded_plmc = test_env.in_ext(|| {
-				<TestRuntime as Config>::NativeCurrency::balance_on_hold(&BondType::Bid(project_id), &bid.bidder)
-			});
-			let desired_bond = calculate_auction_plmc_spent(vec![bid.clone()]);
-			assert_eq!(bonded_plmc, sum_balance_mappings(vec![desired_bond.clone()]));
+		let plmc_bid_deposits = calculate_auction_plmc_spent(bids.clone());
+		let plmc_community_contribution_deposits = calculate_contributed_plmc_spent(community_contributions.clone(), ct_price);
+		let plmc_remainder_contribution_deposits = calculate_contributed_plmc_spent(remainder_contributions.clone(), ct_price);
+		let total_plmc_participation_locked = merge_mappings_by_user(vec![plmc_bid_deposits.clone(), plmc_community_contribution_deposits, plmc_remainder_contribution_deposits.clone()]);
 
+		test_env.do_reserved_plmc_assertions(total_plmc_participation_locked.clone(), LockType::Participation(project_id));
+
+		for (bidder, deposit) in plmc_bid_deposits {
+			let bidder_participation_locked = total_plmc_participation_locked.clone().into_iter().find(|(acc, _)| acc.clone() == bidder.clone()).unwrap().1;
 			let result = test_env.in_ext(|| {
-				FundingModule::vested_plmc_bid_unbond_for(RuntimeOrigin::signed(bid.bidder), project_id, bid.bidder)
+				FundingModule::vested_plmc_bid_unbond_for(RuntimeOrigin::signed(bidder.clone()), project_id, bidder)
 			});
 			assert_ok!(result);
-			let new_balance = test_env.in_ext(|| <TestRuntime as Config>::NativeCurrency::free_balance(bid.bidder));
-			assert_eq!(new_balance, prev_balance + sum_balance_mappings(vec![desired_bond]));
-			let bonded_plmc = test_env.in_ext(|| {
-				<TestRuntime as Config>::NativeCurrency::balance_on_hold(&BondType::Bid(project_id), &bid.bidder)
-			});
-			assert_eq!(bonded_plmc, 0u32.into());
+
+			test_env.do_reserved_plmc_assertions(vec![(bidder, bidder_participation_locked - deposit)], LockType::Participation(project_id));
 		}
 	}
 }
