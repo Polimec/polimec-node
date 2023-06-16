@@ -31,6 +31,7 @@ use frame_support::{
 		Get,
 	},
 };
+use frame_support::traits::fungible::InspectHold;
 
 use sp_arithmetic::traits::Zero;
 use sp_runtime::Percent;
@@ -874,6 +875,7 @@ impl<T: Config> Pallet<T> {
 		let now = <frame_system::Pallet<T>>::block_number();
 		let bid_id = Self::next_bid_id();
 		let mut existing_bids = Bids::<T>::get(project_id, bidder.clone());
+		let evaluation_bonded = <T as Config>::NativeCurrency::balance_on_hold(&LockType::Evaluation(project_id), &bidder);
 
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
 		let funding_asset_usd_price =
@@ -934,6 +936,12 @@ impl<T: Config> Pallet<T> {
 		// * Update storage *
 		match existing_bids.try_push(new_bid.clone()) {
 			Ok(_) => {
+				let new_bond_to_lock  = required_plmc_bond.saturating_sub(evaluation_bonded);
+				let evaluation_bonded_to_change_lock = required_plmc_bond.saturating_sub(new_bond_to_lock);
+
+				T::NativeCurrency::release(&LockType::Evaluation(project_id), &bidder, evaluation_bonded_to_change_lock, Precision::Exact)
+					.map_err(|_| Error::<T>::ImpossibleState)?; // should be impossible to fail
+
 				T::NativeCurrency::hold(&LockType::Participation(project_id), &bidder, required_plmc_bond)
 					.map_err(|_| Error::<T>::InsufficientBalance)?;
 

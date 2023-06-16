@@ -1608,6 +1608,31 @@ mod auction_round_success {
 	}
 
 	#[test]
+	fn evaluation_bond_counts_towards_bid() {
+		let test_env = TestEnvironment::new();
+		let issuer = ISSUER;
+		let project = default_project(test_env.get_new_nonce());
+		let mut evaluations = default_evaluations();
+		let evaluator_bidder = 69;
+		let evaluation_amount = 420 * US_DOLLAR;
+		let evaluator_bid = TestBid::new(evaluator_bidder, 600 * ASSET_UNIT, 15.into(), None, AcceptedFundingAsset::USDT);
+		evaluations.push((evaluator_bidder, evaluation_amount));
+
+		let bidding_project =
+			AuctioningProject::new_with(&test_env, project, issuer, evaluations);
+
+		let already_bonded_plmc = calculate_evaluation_plmc_spent(vec![(evaluator_bidder, evaluation_amount)])[0].1;
+		let necessary_plmc_for_bid = calculate_auction_plmc_spent(vec![evaluator_bid])[0].1;
+		let necessary_usdt_for_bid = calculate_auction_funding_asset_spent(vec![evaluator_bid]);
+
+		test_env.mint_plmc_to(vec![(evaluator_bidder, necessary_plmc_for_bid - already_bonded_plmc)]);
+		test_env.mint_statemint_asset_to(necessary_usdt_for_bid);
+
+		bidding_project.bid_for_users(vec![evaluator_bid]).unwrap();
+
+	}
+
+	#[test]
 	fn price_calculation() {
 		// Calculate the weighted price of the token for the next funding rounds, using winning bids.
 		// for example: if there are 3 winning bids,
@@ -2645,12 +2670,12 @@ mod misc_features {
 		});
 		test_env.advance_time(2u64);
 		test_env.ext_env.borrow_mut().execute_with(|| {
-			let stored = crate::ProjectsToUpdate::<TestRuntime>::iter_values().collect::<Vec<_>>();
+			let stored = ProjectsToUpdate::<TestRuntime>::iter_values().collect::<Vec<_>>();
 			assert_eq!(stored.len(), 3, "There should be 3 blocks scheduled for updating");
 
 			FundingModule::remove_from_update_store(&69u32).unwrap();
 
-			let stored = crate::ProjectsToUpdate::<TestRuntime>::iter_values().collect::<Vec<_>>();
+			let stored = ProjectsToUpdate::<TestRuntime>::iter_values().collect::<Vec<_>>();
 			assert_eq!(
 				stored[2],
 				vec![],
