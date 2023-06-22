@@ -274,7 +274,7 @@ pub mod pallet {
 		/// The inner balance type we will use for all of our outer currency types. (e.g native, funding, CTs)
 		type Balance: Balance + From<u64> + FixedPointOperand;
 
-		/// Represents the value of something in USD
+		/// Represents the value of something in USDf
 		type Price: FixedPointNumber + Parameter + Copy;
 
 		/// The chains native currency
@@ -717,7 +717,7 @@ pub mod pallet {
 			origin: OriginFor<T>, project_id: T::ProjectIdentifier, #[pallet::compact] amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let evaluator = ensure_signed(origin)?;
-			Self::do_evaluation(evaluator, project_id, amount)
+			Self::do_evaluate(evaluator, project_id, amount)
 		}
 
 		/// Release the bonded PLMC for an evaluator if the project assigned to it is in the EvaluationFailed phase

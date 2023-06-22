@@ -722,7 +722,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 	// Note: usd_amount needs to have the same amount of decimals as PLMC,, so when multiplied by the plmc-usd price, it gives us the PLMC amount with the decimals we wanted.
-	pub fn do_evaluation(
+	pub fn do_evaluate(
 		evaluator: AccountIdOf<T>, project_id: T::ProjectIdentifier, usd_amount: BalanceOf<T>,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
@@ -940,7 +940,7 @@ impl<T: Config> Pallet<T> {
 				let evaluation_bonded_to_change_lock = required_plmc_bond.saturating_sub(new_bond_to_lock);
 
 				T::NativeCurrency::release(&LockType::Evaluation(project_id), &bidder, evaluation_bonded_to_change_lock, Precision::Exact)
-					.map_err(|_| Error::<T>::ImpossibleState)?; // should be impossible to fail
+					.map_err(|_| Error::<T>::ImpossibleState)?;
 
 				T::NativeCurrency::hold(&LockType::Participation(project_id), &bidder, required_plmc_bond)
 					.map_err(|_| Error::<T>::InsufficientBalance)?;
@@ -964,12 +964,21 @@ impl<T: Config> Pallet<T> {
 
 				ensure!(new_bid.clone() > lowest_bid, Error::<T>::BidTooLow);
 
-				T::NativeCurrency::release(
+
+				let unlocked_bond = T::NativeCurrency::release(
 					&LockType::Participation(project_id),
 					&lowest_bid.bidder.clone(),
 					lowest_bid.plmc_bond,
 					Precision::Exact,
 				)?;
+
+				let new_required_plmc_bond = required_plmc_bond.saturating_sub(unlocked_bond);
+
+				let new_bond_to_lock  = new_required_plmc_bond.saturating_sub(evaluation_bonded);
+				let evaluation_bonded_to_change_lock = new_required_plmc_bond.saturating_sub(new_bond_to_lock);
+
+				T::NativeCurrency::release(&LockType::Evaluation(project_id), &bidder, evaluation_bonded_to_change_lock, Precision::Exact)
+					.map_err(|_| Error::<T>::ImpossibleState)?;
 
 				T::NativeCurrency::hold(&LockType::Participation(project_id), &bidder, required_plmc_bond)
 					.map_err(|_| Error::<T>::InsufficientBalance)?;
@@ -1035,6 +1044,7 @@ impl<T: Config> Pallet<T> {
 		let now = <frame_system::Pallet<T>>::block_number();
 		let contribution_id = Self::next_contribution_id();
 		let mut existing_contributions = Contributions::<T>::get(project_id, contributor.clone());
+		let evaluation_bonded = <T as Config>::NativeCurrency::balance_on_hold(&LockType::Evaluation(project_id), &contributor);
 
 		let ct_usd_price = project_details
 			.weighted_average_price
@@ -1115,6 +1125,12 @@ impl<T: Config> Pallet<T> {
 		// Try adding the new contribution to the system
 		match existing_contributions.try_push(new_contribution.clone()) {
 			Ok(_) => {
+				let new_bond_to_lock  = required_plmc_bond.saturating_sub(evaluation_bonded);
+				let evaluation_bonded_to_change_lock = required_plmc_bond.saturating_sub(new_bond_to_lock);
+
+				T::NativeCurrency::release(&LockType::Evaluation(project_id), &contributor, evaluation_bonded_to_change_lock, Precision::Exact)
+					.map_err(|_| Error::<T>::ImpossibleState)?;
+
 				T::NativeCurrency::hold(&LockType::Participation(project_id), &contributor, required_plmc_bond)
 					.map_err(|_| Error::<T>::InsufficientBalance)?;
 
@@ -1140,15 +1156,20 @@ impl<T: Config> Pallet<T> {
 					Error::<T>::ContributionTooLow
 				);
 
-				// _528_589_814
-				// 1_585_769_442
-				//
-				T::NativeCurrency::release(
+				let unlocked_bond = T::NativeCurrency::release(
 					&LockType::Participation(project_id),
 					&lowest_contribution.contributor,
 					lowest_contribution.plmc_bond,
 					Precision::Exact,
 				)?;
+
+				let new_required_plmc_bond = required_plmc_bond.saturating_sub(unlocked_bond);
+
+				let new_bond_to_lock  = new_required_plmc_bond.saturating_sub(evaluation_bonded);
+				let evaluation_bonded_to_change_lock = new_required_plmc_bond.saturating_sub(new_bond_to_lock);
+
+				T::NativeCurrency::release(&LockType::Evaluation(project_id), &contributor, evaluation_bonded_to_change_lock, Precision::Exact)
+					.map_err(|_| Error::<T>::ImpossibleState)?;
 
 				T::NativeCurrency::hold(&LockType::Participation(project_id), &contributor, required_plmc_bond)
 					.map_err(|_| Error::<T>::InsufficientBalance)?;
