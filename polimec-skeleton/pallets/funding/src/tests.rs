@@ -197,7 +197,7 @@ const BUYER_1: AccountId = 7;
 const BUYER_2: AccountId = 8;
 
 const ASSET_DECIMALS: u8 = 10;
-const ASSET_UNIT: u128 = 10u128.pow(ASSET_DECIMALS as u32);
+const ASSET_UNIT: u128 = 10_u128.pow(ASSET_DECIMALS as u32);
 
 const USDT_STATEMINT_ID: AssetId = 1984u32;
 const USDT_UNIT: u128 = 10_000_000_000_u128;
@@ -1145,14 +1145,14 @@ mod defaults {
 			TestBid::new(
 				BIDDER_1,
 				3000 * ASSET_UNIT,
-				50u128.into(),
+				50_u128.into(),
 				None,
 				AcceptedFundingAsset::USDT,
 			),
 			TestBid::new(
 				BIDDER_2,
 				5000 * ASSET_UNIT,
-				15u128.into(),
+				15_u128.into(),
 				None,
 				AcceptedFundingAsset::USDT,
 			),
@@ -1504,7 +1504,7 @@ mod creation_round_failure {
 	#[test]
 	fn price_too_low() {
 		let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
-			minimum_price: 0u128.into(),
+			minimum_price: 0_u128.into(),
 			ticket_size: TicketSize {
 				minimum: Some(1),
 				maximum: None,
@@ -1526,7 +1526,7 @@ mod creation_round_failure {
 	#[test]
 	fn participants_size_error() {
 		let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
-			minimum_price: 1u128.into(),
+			minimum_price: 1_u128.into(),
 			ticket_size: TicketSize {
 				minimum: Some(1),
 				maximum: None,
@@ -1549,7 +1549,7 @@ mod creation_round_failure {
 	#[test]
 	fn ticket_size_error() {
 		let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
-			minimum_price: 1u128.into(),
+			minimum_price: 1_u128.into(),
 			ticket_size: TicketSize {
 				minimum: None,
 				maximum: None,
@@ -1573,7 +1573,7 @@ mod creation_round_failure {
 	#[ignore = "ATM only the first error will be thrown"]
 	fn multiple_field_error() {
 		let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
-			minimum_price: 0u128.into(),
+			minimum_price: 0_u128.into(),
 			ticket_size: TicketSize {
 				minimum: None,
 				maximum: None,
@@ -1819,8 +1819,8 @@ mod auction_round_success {
 		});
 		let post_fill_evaluation_bond = bid_necessary_plmc[0].1 - FUNDED_DELTA_PLMC;
 		assert!(
-			evaluation_bond < post_fill_evaluation_bond + 10u128
-				|| evaluation_bond > post_fill_evaluation_bond - 10u128
+			evaluation_bond < post_fill_evaluation_bond + 10_u128
+				|| evaluation_bond > post_fill_evaluation_bond - 10_u128
 		);
 
 		bidding_project.bid_for_users(vec![evaluator_bid]).unwrap();
@@ -1882,10 +1882,10 @@ mod auction_round_success {
 			.weighted_average_price
 			.unwrap();
 
-		let price_in_10_decimals = token_price.checked_mul_int(1_0_000_000_000u128).unwrap();
-		let price_in_12_decimals = token_price.checked_mul_int(1_000_000_000_000u128).unwrap();
-		assert_eq!(price_in_10_decimals, 16_3_333_333_333u128);
-		assert_eq!(price_in_12_decimals, 16_333_333_333_333u128);
+		let price_in_10_decimals = token_price.checked_mul_int(1_0_000_000_000_u128).unwrap();
+		let price_in_12_decimals = token_price.checked_mul_int(1_000_000_000_000_u128).unwrap();
+		assert_eq!(price_in_10_decimals, 16_3_333_333_333_u128);
+		assert_eq!(price_in_12_decimals, 16_333_333_333_333_u128);
 	}
 
 	#[test]
@@ -2103,7 +2103,7 @@ mod auction_round_success {
 		bids.push(TestBid::new(
 			evaluator,
 			150 * ASSET_UNIT,
-			21u128.into(),
+			21_u128.into(),
 			None,
 			AcceptedFundingAsset::USDT,
 		));
@@ -2140,7 +2140,7 @@ mod auction_round_failure {
 					RuntimeOrigin::signed(BIDDER_2),
 					0,
 					1,
-					100u128.into(),
+					100_u128.into(),
 					None,
 					AcceptedFundingAsset::USDT
 				),
@@ -2176,11 +2176,11 @@ mod auction_round_failure {
 		let project_id = auctioning_project.project_id;
 		const DAVE: AccountId = 42;
 		let bids: TestBids = vec![
-			TestBid::new(DAVE, 10_000 * USDT_UNIT, 2u128.into(), None, AcceptedFundingAsset::USDT), // 20k
-			TestBid::new(DAVE, 12_000 * USDT_UNIT, 8u128.into(), None, AcceptedFundingAsset::USDT), // 96k
-			TestBid::new(DAVE, 15_000 * USDT_UNIT, 5u128.into(), None, AcceptedFundingAsset::USDT), // 75k
-			TestBid::new(DAVE, 1_000 * USDT_UNIT, 7u128.into(), None, AcceptedFundingAsset::USDT),  // 7k
-			TestBid::new(DAVE, 20_000 * USDT_UNIT, 5u128.into(), None, AcceptedFundingAsset::USDT), // 100k
+			TestBid::new(DAVE, 10_000 * USDT_UNIT, 2_u128.into(), None, AcceptedFundingAsset::USDT), // 20k
+			TestBid::new(DAVE, 12_000 * USDT_UNIT, 8_u128.into(), None, AcceptedFundingAsset::USDT), // 96k
+			TestBid::new(DAVE, 15_000 * USDT_UNIT, 5_u128.into(), None, AcceptedFundingAsset::USDT), // 75k
+			TestBid::new(DAVE, 1_000 * USDT_UNIT, 7_u128.into(), None, AcceptedFundingAsset::USDT),  // 7k
+			TestBid::new(DAVE, 20_000 * USDT_UNIT, 5_u128.into(), None, AcceptedFundingAsset::USDT), // 100k
 		];
 
 		let mut plmc_fundings: UserToPLMCBalance = calculate_auction_plmc_spent(bids.clone());
@@ -2200,10 +2200,10 @@ mod auction_round_failure {
 		test_env.ext_env.borrow_mut().execute_with(|| {
 			let stored_bids = FundingModule::bids(project_id, DAVE);
 			assert_eq!(stored_bids.len(), 4);
-			assert_eq!(stored_bids[0].ct_usd_price, 5u128.into());
-			assert_eq!(stored_bids[1].ct_usd_price, 8u128.into());
-			assert_eq!(stored_bids[2].ct_usd_price, 5u128.into());
-			assert_eq!(stored_bids[3].ct_usd_price, 2u128.into());
+			assert_eq!(stored_bids[0].ct_usd_price, 5_u128.into());
+			assert_eq!(stored_bids[1].ct_usd_price, 8_u128.into());
+			assert_eq!(stored_bids[2].ct_usd_price, 5_u128.into());
+			assert_eq!(stored_bids[3].ct_usd_price, 2_u128.into());
 		});
 	}
 
@@ -2214,8 +2214,8 @@ mod auction_round_failure {
 			AuctioningProject::new_with(&test_env, default_project(0), ISSUER, default_evaluations());
 		let mul_2 = MultiplierOf::<TestRuntime>::from(2u32);
 		let bids = vec![
-			TestBid::new(BIDDER_1, 10_000, 2u128.into(), None, AcceptedFundingAsset::USDC),
-			TestBid::new(BIDDER_2, 13_000, 3u128.into(), Some(mul_2), AcceptedFundingAsset::USDC),
+			TestBid::new(BIDDER_1, 10_000, 2_u128.into(), None, AcceptedFundingAsset::USDC),
+			TestBid::new(BIDDER_2, 13_000, 3_u128.into(), Some(mul_2), AcceptedFundingAsset::USDC),
 		];
 		let outcome = auctioning_project.bid_for_users(bids);
 		frame_support::assert_err!(outcome, Error::<TestRuntime>::FundingAssetNotAccepted);
@@ -2390,7 +2390,7 @@ mod community_round_success {
 		);
 
 		test_env.do_free_plmc_assertions(vec![plmc_fundings[1].clone()]);
-		test_env.do_free_statemint_asset_assertions(vec![(BOB, 0u128, AcceptedFundingAsset::USDT.to_statemint_id())]);
+		test_env.do_free_statemint_asset_assertions(vec![(BOB, 0_u128, AcceptedFundingAsset::USDT.to_statemint_id())]);
 		test_env.do_reserved_plmc_assertions(vec![plmc_fundings[0].clone()], LockType::Participation(project_id));
 		test_env.do_contribution_transferred_statemint_asset_assertions(
 			statemint_asset_fundings,
@@ -2456,12 +2456,12 @@ mod community_round_success {
 		);
 
 		let reserved_plmc = plmc_fundings.swap_remove(0).1;
-		let remaining_plmc: Balance = plmc_fundings.iter().fold(0u128, |acc, (_, amount)| acc + amount);
+		let remaining_plmc: Balance = plmc_fundings.iter().fold(0_u128, |acc, (_, amount)| acc + amount);
 
 		let actual_funding_transferred = statemint_asset_fundings.swap_remove(0).1;
 		let remaining_statemint_assets: Balance = statemint_asset_fundings
 			.iter()
-			.fold(0u128, |acc, (_, amount, _)| acc + amount);
+			.fold(0_u128, |acc, (_, amount, _)| acc + amount);
 
 		test_env.do_free_plmc_assertions(vec![(BOB, remaining_plmc)]);
 		test_env.do_free_statemint_asset_assertions(vec![(
@@ -2805,8 +2805,8 @@ mod community_round_success {
 		});
 		let post_fill_evaluation_bond = overflow_necessary_plmc[0].1 - FUNDED_DELTA_PLMC;
 		assert!(
-			evaluation_bond < post_fill_evaluation_bond + 10u128
-				|| evaluation_bond > post_fill_evaluation_bond - 10u128
+			evaluation_bond < post_fill_evaluation_bond + 10_u128
+				|| evaluation_bond > post_fill_evaluation_bond - 10_u128
 		);
 
 		community_funding_project
@@ -2946,8 +2946,8 @@ mod remainder_round_success {
 		});
 		let post_fill_evaluation_bond = overflow_necessary_plmc[0].1 - FUNDED_DELTA_PLMC;
 		assert!(
-			evaluation_bond < post_fill_evaluation_bond + 10u128
-				|| evaluation_bond > post_fill_evaluation_bond - 10u128
+			evaluation_bond < post_fill_evaluation_bond + 10_u128
+				|| evaluation_bond > post_fill_evaluation_bond - 10_u128
 		);
 
 		remainder_funding_project
@@ -3034,7 +3034,7 @@ mod purchased_vesting {
 		let contributors_plmc_spent: UserToPLMCBalance = generic_map_merge_reduce(
 			vec![community_contributions.clone(), remainder_contributions.clone()],
 			|m| m.contributor.clone(),
-			0u128,
+			0_u128,
 			|contribution, total_plmc_spent| {
 				let new_plmc = calculate_contributed_plmc_spent(vec![contribution.clone()], token_price)[0].1;
 				total_plmc_spent.checked_add(new_plmc).unwrap()
@@ -3168,6 +3168,188 @@ mod bids_vesting {
 }
 
 #[cfg(test)]
+mod test_helper_functions {
+	use super::*;
+
+	#[test]
+	fn calculate_evaluation_plmc_spent() {
+		const EVALUATOR_1: AccountIdOf<TestRuntime> = 1u64;
+		const USD_AMOUNT_1: u128 = 150_000_0_000_000_000_u128;
+		const EXPECTED_PLMC_AMOUNT_1: u128 = 17_857_1_428_571_428_u128;
+
+		const EVALUATOR_2: AccountIdOf<TestRuntime> = 2u64;
+		const USD_AMOUNT_2: u128 = 50_000_0_000_000_000_u128;
+		const EXPECTED_PLMC_AMOUNT_2: u128 = 5_952_3_809_523_809_u128;
+
+		const EVALUATOR_3: AccountIdOf<TestRuntime> = 3u64;
+		const USD_AMOUNT_3: u128 = 75_000_0_000_000_000_u128;
+		const EXPECTED_PLMC_AMOUNT_3: u128 = 8_928_5_714_285_714_u128;
+
+		const EVALUATOR_4: AccountIdOf<TestRuntime> = 4u64;
+		const USD_AMOUNT_4: u128 = 100_0_000_000_000_u128;
+		const EXPECTED_PLMC_AMOUNT_4: u128 = 11_9_047_619_047_u128;
+
+		const EVALUATOR_5: AccountIdOf<TestRuntime> = 5u64;
+		const USD_AMOUNT_5: u128 = 123_7_000_000_000_u128;
+		const EXPECTED_PLMC_AMOUNT_5: u128 = 14_7_261_904_761_u128;
+
+		const PLMC_PRICE: f64 = 8.4f64;
+
+		assert_eq!(
+			<TestRuntime as Config>::PriceProvider::get_price(PLMC_STATEMINT_ID.into()).unwrap(),
+			PriceOf::<TestRuntime>::from_float(PLMC_PRICE)
+		);
+
+		let evaluations = vec![
+			(EVALUATOR_1, USD_AMOUNT_1),
+			(EVALUATOR_2, USD_AMOUNT_2),
+			(EVALUATOR_3, USD_AMOUNT_3),
+			(EVALUATOR_4, USD_AMOUNT_4),
+			(EVALUATOR_5, USD_AMOUNT_5),
+		];
+
+		let expected_plmc_spent = vec![
+			(EVALUATOR_1, EXPECTED_PLMC_AMOUNT_1),
+			(EVALUATOR_2, EXPECTED_PLMC_AMOUNT_2),
+			(EVALUATOR_3, EXPECTED_PLMC_AMOUNT_3),
+			(EVALUATOR_4, EXPECTED_PLMC_AMOUNT_4),
+			(EVALUATOR_5, EXPECTED_PLMC_AMOUNT_5),
+		];
+
+		let result = super::helper_functions::calculate_evaluation_plmc_spent(evaluations);
+		assert_eq!(result, expected_plmc_spent);
+	}
+
+	#[test]
+	fn calculate_auction_plmc_spent() {
+		const BIDDER_1: AccountIdOf<TestRuntime> = 1u64;
+		const TOKEN_AMOUNT_1: u128 = 120_0_000_000_000_u128;
+		const PRICE_PER_TOKEN_1: f64 = 0.3f64;
+		const MULTIPLIER_1: u32 = 1u32;
+		const TICKET_SIZE_USD_1: u128 = 36_0_000_000_000_u128;
+		const EXPECTED_PLMC_AMOUNT_1: u128 = 4_2_857_142_857_u128;
+
+		const BIDDER_2: AccountIdOf<TestRuntime> = 2u64;
+		const TOKEN_AMOUNT_2: u128 = 5023_0_000_000_000_u128;
+		const PRICE_PER_TOKEN_2: f64 = 13f64;
+		const MULTIPLIER_2: u32 = 2u32;
+		const TICKET_SIZE_USD_2: u128 = 65_299_0_000_000_000_u128;
+		const EXPECTED_PLMC_AMOUNT_2: u128 = 3_886_8_452_380_952_u128;
+
+		const BIDDER_3: AccountIdOf<TestRuntime> = 3u64;
+		const TOKEN_AMOUNT_3: u128 = 20_000_0_000_000_000_u128;
+		const PRICE_PER_TOKEN_3: f64 = 20f64;
+		const MULTIPLIER_3: u32 = 17u32;
+		const TICKET_SIZE_USD_3: u128 = 400_000_0_000_000_000_u128;
+		const EXPECTED_PLMC_AMOUNT_3: u128 = 2_801_1_204_481_792_u128;
+
+		const BIDDER_4: AccountIdOf<TestRuntime> = 4u64;
+		const TOKEN_AMOUNT_4: u128 = 1_000_000_0_000_000_000_u128;
+		const PRICE_PER_TOKEN_4: f64 = 5.52f64;
+		const MULTIPLIER_4: u32 = 25u32;
+		const TICKET_SIZE_4: u128 = 5_520_000_0_000_000_000_u128;
+		const EXPECTED_PLMC_AMOUNT_4: u128 = 26_285_7_142_857_142_u128;
+
+		const BIDDER_5: AccountIdOf<TestRuntime> = 5u64;
+		const TOKEN_AMOUNT_5: u128 = 0_1_233_000_000_u128;
+		const PRICE_PER_TOKEN_5: f64 = 11.34f64;
+		const MULTIPLIER_5: u32 = 10u32;
+		const TICKET_SIZE_5: u128 = 1_3_982_220_000_u128;
+		// TODO: Is this due to rounding errors?
+		// Should be in reality 0.0166455, but we get 0.0166454999. i.e error of 0.0000000001 PLMC
+		const EXPECTED_PLMC_AMOUNT_5: u128 = 0_0_166_454_999_u128;
+
+		const PLMC_PRICE: f64 = 8.4f64;
+
+		assert_eq!(
+			<TestRuntime as Config>::PriceProvider::get_price(PLMC_STATEMINT_ID.into()).unwrap(),
+			PriceOf::<TestRuntime>::from_float(PLMC_PRICE)
+		);
+
+		let bids = vec![
+			TestBid::new(BIDDER_1, TOKEN_AMOUNT_1, PriceOf::<TestRuntime>::from_float(PRICE_PER_TOKEN_1), Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_1)), AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_2, TOKEN_AMOUNT_2, PriceOf::<TestRuntime>::from_float(PRICE_PER_TOKEN_2), Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_2)), AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_3, TOKEN_AMOUNT_3, PriceOf::<TestRuntime>::from_float(PRICE_PER_TOKEN_3), Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_3)), AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_4, TOKEN_AMOUNT_4, PriceOf::<TestRuntime>::from_float(PRICE_PER_TOKEN_4), Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_4)), AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_5, TOKEN_AMOUNT_5, PriceOf::<TestRuntime>::from_float(PRICE_PER_TOKEN_5), Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_5)), AcceptedFundingAsset::USDT),
+		];
+
+		let expected_plmc_spent = vec![
+			(BIDDER_1, EXPECTED_PLMC_AMOUNT_1),
+			(BIDDER_2, EXPECTED_PLMC_AMOUNT_2),
+			(BIDDER_3, EXPECTED_PLMC_AMOUNT_3),
+			(BIDDER_4, EXPECTED_PLMC_AMOUNT_4),
+			(BIDDER_5, EXPECTED_PLMC_AMOUNT_5),
+		];
+
+		let result = super::helper_functions::calculate_auction_plmc_spent(bids);
+		assert_eq!(result, expected_plmc_spent);
+	}
+	
+	#[test]
+	fn calculate_contributed_plmc_spent() {
+		const PLMC_PRICE: f64 = 8.4f64;
+		const CT_PRICE: f64 = 16.32f64;
+
+		const CONTRIBUTOR_1: AccountIdOf<TestRuntime> = 1u64;
+		const TOKEN_AMOUNT_1: u128 = 120_0_000_000_000_u128;
+		const MULTIPLIER_1: u32 = 1u32;
+		const TICKET_SIZE_USD_1: u128 = 1_958_4_000_000_000_u128;
+		const EXPECTED_PLMC_AMOUNT_1: u128 = 233_1_428_571_428_u128;
+
+		const CONTRIBUTOR_2: AccountIdOf<TestRuntime> = 2u64;
+		const TOKEN_AMOUNT_2: u128 = 5023_0_000_000_000_u128;
+		const MULTIPLIER_2: u32 = 2u32;
+		const TICKET_SIZE_USD_2: u128 = 81_975_3_600_000_000_u128;
+		const EXPECTED_PLMC_AMOUNT_2: u128 = 4_879_4_857_142_857_u128;
+
+		const CONTRIBUTOR_3: AccountIdOf<TestRuntime> = 3u64;
+		const TOKEN_AMOUNT_3: u128 = 20_000_0_000_000_000_u128;
+		const MULTIPLIER_3: u32 = 17u32;
+		const TICKET_SIZE_USD_3: u128 = 326_400_0_000_000_000_u128;
+		const EXPECTED_PLMC_AMOUNT_3: u128 = 2_285_7_142_857_142_u128;
+
+		const CONTRIBUTOR_4: AccountIdOf<TestRuntime> = 4u64;
+		const TOKEN_AMOUNT_4: u128 = 1_000_000_0_000_000_000_u128;
+		const MULTIPLIER_4: u32 = 25u32;
+		const TICKET_SIZE_4: u128 = 16_320_000_0_000_000_000_u128;
+		const EXPECTED_PLMC_AMOUNT_4: u128 = 77_714_2_857_142_857_u128;
+
+		const CONTRIBUTOR_5: AccountIdOf<TestRuntime> = 5u64;
+		const TOKEN_AMOUNT_5: u128 = 0_1_233_000_000_u128;
+		const MULTIPLIER_5: u32 = 10u32;
+		const TICKET_SIZE_5: u128 = 2_0_122_562_000_u128;
+		const EXPECTED_PLMC_AMOUNT_5: u128 = 0_0_239_554_285_u128;
+
+
+
+		assert_eq!(
+			<TestRuntime as Config>::PriceProvider::get_price(PLMC_STATEMINT_ID.into()).unwrap(),
+			PriceOf::<TestRuntime>::from_float(PLMC_PRICE)
+		);
+
+		let contributions = vec![
+			TestContribution::new(CONTRIBUTOR_1, TOKEN_AMOUNT_1, Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_1)), AcceptedFundingAsset::USDT),
+			TestContribution::new(CONTRIBUTOR_2, TOKEN_AMOUNT_2, Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_2)), AcceptedFundingAsset::USDT),
+			TestContribution::new(CONTRIBUTOR_3, TOKEN_AMOUNT_3, Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_3)), AcceptedFundingAsset::USDT),
+			TestContribution::new(CONTRIBUTOR_4, TOKEN_AMOUNT_4, Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_4)), AcceptedFundingAsset::USDT),
+			TestContribution::new(CONTRIBUTOR_5, TOKEN_AMOUNT_5, Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_5)), AcceptedFundingAsset::USDT),
+		];
+
+		let expected_plmc_spent = vec![
+			(CONTRIBUTOR_1, EXPECTED_PLMC_AMOUNT_1),
+			(CONTRIBUTOR_2, EXPECTED_PLMC_AMOUNT_2),
+			(CONTRIBUTOR_3, EXPECTED_PLMC_AMOUNT_3),
+			(CONTRIBUTOR_4, EXPECTED_PLMC_AMOUNT_4),
+			(CONTRIBUTOR_5, EXPECTED_PLMC_AMOUNT_5),
+		];
+
+		let result = super::helper_functions::calculate_contributed_plmc_spent(contributions, PriceOf::<TestRuntime>::from_float(CT_PRICE));
+		assert_eq!(result, expected_plmc_spent);
+	}
+}
+
+#[cfg(test)]
 mod misc_features {
 	use super::*;
 	use crate::UpdateType::{CommunityFundingStart, RemainderFundingStart};
@@ -3199,11 +3381,11 @@ mod misc_features {
 
 	#[test]
 	fn sandbox() {
-		// let plmc_price_in_usd = 8_5_000_000_000u128;
+		// let plmc_price_in_usd = 8_5_000_000_000_u128;
 		// let token_amount= FixedU128::from_float(12.5);
 		// let ticket_size: u128 = token_amount.checked_mul_int(plmc_price_in_usd).unwrap();
 		//
-		// let ticket_size = 250_0_000_000_000u128;
+		// let ticket_size = 250_0_000_000_000_u128;
 		// let rate = FixedU128::from_float(8.5f64);
 		// let inv_rate = rate.reciprocal().unwrap();
 		// let amount = inv_rate.checked_mul_int(ticket_size).unwrap();
