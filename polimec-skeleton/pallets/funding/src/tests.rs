@@ -741,7 +741,7 @@ impl<'a> CommunityFundingProject<'a> {
 		test_env: &'a TestEnvironment, project_metadata: ProjectMetadataOf<TestRuntime>,
 		issuer: <TestRuntime as frame_system::Config>::AccountId, evaluations: UserToUSDBalance, bids: TestBids,
 	) -> Self {
-		let auctioning_project = AuctioningProject::new_with(test_env, project_metadata, issuer, evaluations);
+		let auctioning_project = AuctioningProject::new_with(test_env, project_metadata, issuer, evaluations.clone());
 
 		let project_id = auctioning_project.get_project_id();
 		let bidders = bids
@@ -751,11 +751,14 @@ impl<'a> CommunityFundingProject<'a> {
 		let asset_id = bids[0].asset.to_statemint_id();
 		let prev_plmc_balances = test_env.get_free_plmc_balances_for(bidders.clone());
 		let prev_funding_asset_balances = test_env.get_free_statemint_asset_balances_for(asset_id, bidders);
+		let plmc_evaluation_deposits: UserToPLMCBalance = calculate_evaluation_plmc_spent(evaluations.clone());
 		let plmc_bid_deposits: UserToPLMCBalance = calculate_auction_plmc_spent(bids.clone());
+		let necessary_plmc_mint = merge_subtract_mappings_by_user(plmc_bid_deposits.clone(), vec![plmc_evaluation_deposits]);
+		let total_plmc_participation_locked = plmc_bid_deposits;
 		let plmc_existential_deposits: UserToPLMCBalance = bids.iter().map(|bid| (bid.bidder, get_ed())).collect::<_>();
 		let funding_asset_deposits = calculate_auction_funding_asset_spent(bids.clone());
 
-		let bidder_balances = sum_balance_mappings(vec![plmc_bid_deposits.clone(), plmc_existential_deposits.clone()]);
+		let bidder_balances = sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
 
 		let expected_free_plmc_balances =
 			merge_add_mappings_by_user(vec![prev_plmc_balances.clone(), plmc_existential_deposits.clone()]);
@@ -773,13 +776,13 @@ impl<'a> CommunityFundingProject<'a> {
 			.collect::<Vec<_>>();
 		let total_ct_sold = bids.iter().map(|bid| bid.amount).sum::<u128>();
 
-		test_env.mint_plmc_to(plmc_bid_deposits.clone());
+		test_env.mint_plmc_to(necessary_plmc_mint.clone());
 		test_env.mint_plmc_to(plmc_existential_deposits.clone());
 		test_env.mint_statemint_asset_to(funding_asset_deposits.clone());
 
 		auctioning_project.bid_for_users(bids).expect("Bidding should work");
 
-		test_env.do_reserved_plmc_assertions(plmc_bid_deposits, LockType::Participation(project_id));
+		test_env.do_reserved_plmc_assertions(total_plmc_participation_locked, LockType::Participation(project_id));
 		test_env.do_bid_transferred_statemint_asset_assertions(funding_asset_deposits, project_id);
 		test_env.do_free_plmc_assertions(expected_free_plmc_balances);
 		test_env.do_free_statemint_asset_assertions(prev_funding_asset_balances);
@@ -904,7 +907,11 @@ impl<'a> RemainderFundingProject<'a> {
 		let prev_plmc_balances = test_env.get_free_plmc_balances_for(contributors.clone());
 		let prev_funding_asset_balances =
 			test_env.get_free_statemint_asset_balances_for(asset_id, contributors.clone());
+
+		let plmc_bid_deposits = calculate_auction_plmc_spent(bids.clone());
 		let plmc_contribution_deposits = calculate_contributed_plmc_spent(contributions.clone(), ct_price);
+		let necessary_plmc_mint = merge_subtract_mappings_by_user(plmc_contribution_deposits.clone(), vec![plmc_evaluation_deposits]);
+
 		let plmc_existential_deposits: UserToPLMCBalance = contributors
 			.iter()
 			.map(|acc| (acc.clone(), get_ed()))
