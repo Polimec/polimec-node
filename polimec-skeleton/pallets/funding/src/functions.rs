@@ -21,6 +21,7 @@
 use super::*;
 
 use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice};
+use frame_support::traits::fungible::InspectHold;
 use frame_support::traits::tokens::{Precision, Preservation};
 use frame_support::{
 	ensure,
@@ -31,7 +32,6 @@ use frame_support::{
 		Get,
 	},
 };
-use frame_support::traits::fungible::InspectHold;
 
 use sp_arithmetic::traits::Zero;
 use sp_runtime::Percent;
@@ -875,7 +875,8 @@ impl<T: Config> Pallet<T> {
 		let now = <frame_system::Pallet<T>>::block_number();
 		let bid_id = Self::next_bid_id();
 		let mut existing_bids = Bids::<T>::get(project_id, bidder.clone());
-		let evaluation_bonded = <T as Config>::NativeCurrency::balance_on_hold(&LockType::Evaluation(project_id), &bidder);
+		let evaluation_bonded =
+			<T as Config>::NativeCurrency::balance_on_hold(&LockType::Evaluation(project_id), &bidder);
 
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
 		let funding_asset_usd_price =
@@ -936,11 +937,16 @@ impl<T: Config> Pallet<T> {
 		// * Update storage *
 		match existing_bids.try_push(new_bid.clone()) {
 			Ok(_) => {
-				let new_bond_to_lock  = required_plmc_bond.saturating_sub(evaluation_bonded);
+				let new_bond_to_lock = required_plmc_bond.saturating_sub(evaluation_bonded);
 				let evaluation_bonded_to_change_lock = required_plmc_bond.saturating_sub(new_bond_to_lock);
 
-				T::NativeCurrency::release(&LockType::Evaluation(project_id), &bidder, evaluation_bonded_to_change_lock, Precision::Exact)
-					.map_err(|_| Error::<T>::ImpossibleState)?;
+				T::NativeCurrency::release(
+					&LockType::Evaluation(project_id),
+					&bidder,
+					evaluation_bonded_to_change_lock,
+					Precision::Exact,
+				)
+				.map_err(|_| Error::<T>::ImpossibleState)?;
 
 				T::NativeCurrency::hold(&LockType::Participation(project_id), &bidder, required_plmc_bond)
 					.map_err(|_| Error::<T>::InsufficientBalance)?;
@@ -964,7 +970,6 @@ impl<T: Config> Pallet<T> {
 
 				ensure!(new_bid.clone() > lowest_bid, Error::<T>::BidTooLow);
 
-
 				let unlocked_bond = T::NativeCurrency::release(
 					&LockType::Participation(project_id),
 					&lowest_bid.bidder.clone(),
@@ -974,11 +979,16 @@ impl<T: Config> Pallet<T> {
 
 				let new_required_plmc_bond = required_plmc_bond.saturating_sub(unlocked_bond);
 
-				let new_bond_to_lock  = new_required_plmc_bond.saturating_sub(evaluation_bonded);
+				let new_bond_to_lock = new_required_plmc_bond.saturating_sub(evaluation_bonded);
 				let evaluation_bonded_to_change_lock = new_required_plmc_bond.saturating_sub(new_bond_to_lock);
 
-				T::NativeCurrency::release(&LockType::Evaluation(project_id), &bidder, evaluation_bonded_to_change_lock, Precision::Exact)
-					.map_err(|_| Error::<T>::ImpossibleState)?;
+				T::NativeCurrency::release(
+					&LockType::Evaluation(project_id),
+					&bidder,
+					evaluation_bonded_to_change_lock,
+					Precision::Exact,
+				)
+				.map_err(|_| Error::<T>::ImpossibleState)?;
 
 				T::NativeCurrency::hold(&LockType::Participation(project_id), &bidder, required_plmc_bond)
 					.map_err(|_| Error::<T>::InsufficientBalance)?;
@@ -1044,7 +1054,8 @@ impl<T: Config> Pallet<T> {
 		let now = <frame_system::Pallet<T>>::block_number();
 		let contribution_id = Self::next_contribution_id();
 		let mut existing_contributions = Contributions::<T>::get(project_id, contributor.clone());
-		let evaluation_bonded = <T as Config>::NativeCurrency::balance_on_hold(&LockType::Evaluation(project_id), &contributor);
+		let evaluation_bonded =
+			<T as Config>::NativeCurrency::balance_on_hold(&LockType::Evaluation(project_id), &contributor);
 
 		let ct_usd_price = project_details
 			.weighted_average_price
@@ -1125,11 +1136,16 @@ impl<T: Config> Pallet<T> {
 		// Try adding the new contribution to the system
 		match existing_contributions.try_push(new_contribution.clone()) {
 			Ok(_) => {
-				let new_bond_to_lock  = required_plmc_bond.saturating_sub(evaluation_bonded);
+				let new_bond_to_lock = required_plmc_bond.saturating_sub(evaluation_bonded);
 				let evaluation_bonded_to_change_lock = required_plmc_bond.saturating_sub(new_bond_to_lock);
 
-				T::NativeCurrency::release(&LockType::Evaluation(project_id), &contributor, evaluation_bonded_to_change_lock, Precision::Exact)
-					.map_err(|_| Error::<T>::ImpossibleState)?;
+				T::NativeCurrency::release(
+					&LockType::Evaluation(project_id),
+					&contributor,
+					evaluation_bonded_to_change_lock,
+					Precision::Exact,
+				)
+				.map_err(|_| Error::<T>::ImpossibleState)?;
 
 				T::NativeCurrency::hold(&LockType::Participation(project_id), &contributor, required_plmc_bond)
 					.map_err(|_| Error::<T>::InsufficientBalance)?;
@@ -1165,11 +1181,16 @@ impl<T: Config> Pallet<T> {
 
 				let new_required_plmc_bond = required_plmc_bond.saturating_sub(unlocked_bond);
 
-				let new_bond_to_lock  = new_required_plmc_bond.saturating_sub(evaluation_bonded);
+				let new_bond_to_lock = new_required_plmc_bond.saturating_sub(evaluation_bonded);
 				let evaluation_bonded_to_change_lock = new_required_plmc_bond.saturating_sub(new_bond_to_lock);
 
-				T::NativeCurrency::release(&LockType::Evaluation(project_id), &contributor, evaluation_bonded_to_change_lock, Precision::Exact)
-					.map_err(|_| Error::<T>::ImpossibleState)?;
+				T::NativeCurrency::release(
+					&LockType::Evaluation(project_id),
+					&contributor,
+					evaluation_bonded_to_change_lock,
+					Precision::Exact,
+				)
+				.map_err(|_| Error::<T>::ImpossibleState)?;
 
 				T::NativeCurrency::hold(&LockType::Participation(project_id), &contributor, required_plmc_bond)
 					.map_err(|_| Error::<T>::InsufficientBalance)?;
@@ -1263,7 +1284,12 @@ impl<T: Config> Pallet<T> {
 
 			// * Update storage *
 			// TODO: check that the full amount was unreserved
-			T::NativeCurrency::release(&LockType::Participation(project_id), &bid.bidder, unbond_amount, Precision::Exact)?;
+			T::NativeCurrency::release(
+				&LockType::Participation(project_id),
+				&bid.bidder,
+				unbond_amount,
+				Precision::Exact,
+			)?;
 			new_bids.push(bid.clone());
 
 			// * Emit events *
