@@ -941,7 +941,7 @@ impl<'a> RemainderFundingProject<'a> {
 			.buy_for_retail_users(contributions.clone())
 			.expect("Contributing should work");
 
-		test_env.do_reserved_plmc_assertions(plmc_contribution_deposits, LockType::Participation(project_id));
+		test_env.do_reserved_plmc_assertions(total_plmc_participation_locked, LockType::Participation(project_id));
 		test_env.do_contribution_transferred_statemint_asset_assertions(funding_asset_deposits, project_id);
 		test_env.do_free_plmc_assertions(expected_free_plmc_balances);
 		test_env.do_free_statemint_asset_assertions(prev_funding_asset_balances);
@@ -1265,7 +1265,7 @@ pub mod helper_functions {
 			output = Vec::new();
 			let mut i = 0;
 			let mut j = 0;
-			while true {
+			loop {
 				let old_tup = old_output.get(i);
 				let new_tup = map.get(j);
 
@@ -1299,7 +1299,7 @@ pub mod helper_functions {
 	}
 
 	pub fn generic_map_merge_reduce<M: Clone, K: Ord + Clone, S: Clone>(
-		mut mappings: Vec<Vec<M>>, key_extractor: impl Fn(&M) -> K, initial_state: S, merge_reduce: impl Fn(&M, S) -> S,
+		mappings: Vec<Vec<M>>, key_extractor: impl Fn(&M) -> K, initial_state: S, merge_reduce: impl Fn(&M, S) -> S,
 	) -> Vec<(K, S)> {
 		let mut output = BTreeMap::new();
 		for mut map in mappings {
@@ -1360,8 +1360,8 @@ pub mod helper_functions {
 
 	// Mappings should be sorted based on their account id, ascending.
 	pub fn merge_subtract_mappings_by_user<I: Saturating + Ord + Copy>(
-		mut base_mapping: Vec<(AccountIdOf<TestRuntime>, I)>,
-		mut subtract_mappings: Vec<Vec<(AccountIdOf<TestRuntime>, I)>>,
+		base_mapping: Vec<(AccountIdOf<TestRuntime>, I)>,
+		subtract_mappings: Vec<Vec<(AccountIdOf<TestRuntime>, I)>>,
 	) -> Vec<(AccountIdOf<TestRuntime>, I)> {
 		let mut output = base_mapping;
 		output.sort_by_key(|k| k.0);
@@ -1371,7 +1371,7 @@ pub mod helper_functions {
 			output = Vec::new();
 			let mut i = 0;
 			let mut j = 0;
-			while true {
+			loop {
 				let old_tup = old_output.get(i);
 				let new_tup = map.get(j);
 
@@ -1777,7 +1777,7 @@ mod auction_round_success {
 		);
 
 		let mut bids = Vec::new();
-		for i in 0..<TestRuntime as Config>::MaxBidsPerUser::get() {
+		for _ in 0..<TestRuntime as Config>::MaxBidsPerUser::get() {
 			bids.push(TestBid::new(
 				evaluator_bidder,
 				10 * ASSET_UNIT,
@@ -1787,7 +1787,7 @@ mod auction_round_success {
 			));
 		}
 
-		let mut fill_necessary_plmc_for_bids = calculate_auction_plmc_spent(bids.clone());
+		let fill_necessary_plmc_for_bids = calculate_auction_plmc_spent(bids.clone());
 		let fill_necessary_usdt_for_bids = calculate_auction_funding_asset_spent(bids.clone());
 
 		let bid_necessary_plmc = calculate_auction_plmc_spent(vec![evaluator_bid]);
@@ -2016,7 +2016,7 @@ mod auction_round_success {
 		let ed_plmc: UserToPLMCBalance = evaluations
 			.clone()
 			.into_iter()
-			.map(|(account, amount)| (account, get_ed()))
+			.map(|(account, _amount)| (account, get_ed()))
 			.collect();
 		test_env.mint_plmc_to(required_plmc);
 		test_env.mint_plmc_to(ed_plmc);
@@ -2042,7 +2042,7 @@ mod auction_round_success {
 		let ed_plmc: UserToPLMCBalance = evaluations
 			.clone()
 			.into_iter()
-			.map(|(account, amount)| (account, get_ed()))
+			.map(|(account, _amount)| (account, get_ed()))
 			.collect();
 		test_env.mint_plmc_to(required_plmc);
 		test_env.mint_plmc_to(ed_plmc);
@@ -2072,7 +2072,7 @@ mod auction_round_success {
 		let ed_plmc: UserToPLMCBalance = evaluations
 			.clone()
 			.into_iter()
-			.map(|(account, amount)| (account, get_ed()))
+			.map(|(account, _amount)| (account, get_ed()))
 			.collect();
 		test_env.mint_plmc_to(required_plmc);
 		test_env.mint_plmc_to(ed_plmc);
@@ -2758,7 +2758,7 @@ mod community_round_success {
 		);
 
 		let mut fill_contributions = Vec::new();
-		for i in 0..<TestRuntime as Config>::MaxContributionsPerUser::get() {
+		for _i in 0..<TestRuntime as Config>::MaxContributionsPerUser::get() {
 			fill_contributions.push(TestContribution::new(
 				evaluator_contributor,
 				10 * ASSET_UNIT,
@@ -2768,7 +2768,7 @@ mod community_round_success {
 		}
 
 		let expected_price = FixedU128::from_float(38.3333333333f64);
-		let mut fill_necessary_plmc = calculate_contributed_plmc_spent(fill_contributions.clone(), expected_price);
+		let fill_necessary_plmc = calculate_contributed_plmc_spent(fill_contributions.clone(), expected_price);
 		let fill_necessary_usdt_for_bids =
 			calculate_contributed_funding_asset_spent(fill_contributions.clone(), expected_price);
 
@@ -2901,7 +2901,7 @@ mod remainder_round_success {
 		);
 
 		let mut fill_contributions = Vec::new();
-		for i in 0..<TestRuntime as Config>::MaxContributionsPerUser::get() {
+		for _i in 0..<TestRuntime as Config>::MaxContributionsPerUser::get() {
 			fill_contributions.push(TestContribution::new(
 				evaluator_contributor,
 				10 * ASSET_UNIT,
@@ -2911,7 +2911,7 @@ mod remainder_round_success {
 		}
 
 		let expected_price = FixedU128::from_float(38.3333333333f64);
-		let mut fill_necessary_plmc = calculate_contributed_plmc_spent(fill_contributions.clone(), expected_price);
+		let fill_necessary_plmc = calculate_contributed_plmc_spent(fill_contributions.clone(), expected_price);
 		let fill_necessary_usdt_for_bids =
 			calculate_contributed_funding_asset_spent(fill_contributions.clone(), expected_price);
 
@@ -2986,7 +2986,7 @@ mod purchased_vesting {
 		let user_buys = generic_map_merge(
 			vec![community_contributions.clone(), default_remainder_buys()],
 			|m| m.contributor.clone(),
-			|mut m1, m2| {
+			|m1, m2| {
 				let total_amount = m1.amount.clone() + m2.amount.clone();
 				let mut mx = m1.clone();
 				mx.amount = total_amount;
@@ -3226,35 +3226,35 @@ mod test_helper_functions {
 		const TOKEN_AMOUNT_1: u128 = 120_0_000_000_000_u128;
 		const PRICE_PER_TOKEN_1: f64 = 0.3f64;
 		const MULTIPLIER_1: u32 = 1u32;
-		const TICKET_SIZE_USD_1: u128 = 36_0_000_000_000_u128;
+		const _TICKET_SIZE_USD_1: u128 = 36_0_000_000_000_u128;
 		const EXPECTED_PLMC_AMOUNT_1: u128 = 4_2_857_142_857_u128;
 
 		const BIDDER_2: AccountIdOf<TestRuntime> = 2u64;
 		const TOKEN_AMOUNT_2: u128 = 5023_0_000_000_000_u128;
 		const PRICE_PER_TOKEN_2: f64 = 13f64;
 		const MULTIPLIER_2: u32 = 2u32;
-		const TICKET_SIZE_USD_2: u128 = 65_299_0_000_000_000_u128;
+		const _TICKET_SIZE_USD_2: u128 = 65_299_0_000_000_000_u128;
 		const EXPECTED_PLMC_AMOUNT_2: u128 = 3_886_8_452_380_952_u128;
 
 		const BIDDER_3: AccountIdOf<TestRuntime> = 3u64;
 		const TOKEN_AMOUNT_3: u128 = 20_000_0_000_000_000_u128;
 		const PRICE_PER_TOKEN_3: f64 = 20f64;
 		const MULTIPLIER_3: u32 = 17u32;
-		const TICKET_SIZE_USD_3: u128 = 400_000_0_000_000_000_u128;
+		const _TICKET_SIZE_USD_3: u128 = 400_000_0_000_000_000_u128;
 		const EXPECTED_PLMC_AMOUNT_3: u128 = 2_801_1_204_481_792_u128;
 
 		const BIDDER_4: AccountIdOf<TestRuntime> = 4u64;
 		const TOKEN_AMOUNT_4: u128 = 1_000_000_0_000_000_000_u128;
 		const PRICE_PER_TOKEN_4: f64 = 5.52f64;
 		const MULTIPLIER_4: u32 = 25u32;
-		const TICKET_SIZE_4: u128 = 5_520_000_0_000_000_000_u128;
+		const _TICKET_SIZE_USD_4: u128 = 5_520_000_0_000_000_000_u128;
 		const EXPECTED_PLMC_AMOUNT_4: u128 = 26_285_7_142_857_142_u128;
 
 		const BIDDER_5: AccountIdOf<TestRuntime> = 5u64;
 		const TOKEN_AMOUNT_5: u128 = 0_1_233_000_000_u128;
 		const PRICE_PER_TOKEN_5: f64 = 11.34f64;
 		const MULTIPLIER_5: u32 = 10u32;
-		const TICKET_SIZE_5: u128 = 1_3_982_220_000_u128;
+		const _TICKET_SIZE_USD_5: u128 = 1_3_982_220_000_u128;
 		// TODO: Is this due to rounding errors?
 		// Should be in reality 0.0166455, but we get 0.0166454999. i.e error of 0.0000000001 PLMC
 		const EXPECTED_PLMC_AMOUNT_5: u128 = 0_0_166_454_999_u128;
@@ -3294,31 +3294,31 @@ mod test_helper_functions {
 		const CONTRIBUTOR_1: AccountIdOf<TestRuntime> = 1u64;
 		const TOKEN_AMOUNT_1: u128 = 120_0_000_000_000_u128;
 		const MULTIPLIER_1: u32 = 1u32;
-		const TICKET_SIZE_USD_1: u128 = 1_958_4_000_000_000_u128;
+		const _TICKET_SIZE_USD_1: u128 = 1_958_4_000_000_000_u128;
 		const EXPECTED_PLMC_AMOUNT_1: u128 = 233_1_428_571_428_u128;
 
 		const CONTRIBUTOR_2: AccountIdOf<TestRuntime> = 2u64;
 		const TOKEN_AMOUNT_2: u128 = 5023_0_000_000_000_u128;
 		const MULTIPLIER_2: u32 = 2u32;
-		const TICKET_SIZE_USD_2: u128 = 81_975_3_600_000_000_u128;
+		const _TICKET_SIZE_USD_2: u128 = 81_975_3_600_000_000_u128;
 		const EXPECTED_PLMC_AMOUNT_2: u128 = 4_879_4_857_142_857_u128;
 
 		const CONTRIBUTOR_3: AccountIdOf<TestRuntime> = 3u64;
 		const TOKEN_AMOUNT_3: u128 = 20_000_0_000_000_000_u128;
 		const MULTIPLIER_3: u32 = 17u32;
-		const TICKET_SIZE_USD_3: u128 = 326_400_0_000_000_000_u128;
+		const _TICKET_SIZE_USD_3: u128 = 326_400_0_000_000_000_u128;
 		const EXPECTED_PLMC_AMOUNT_3: u128 = 2_285_7_142_857_142_u128;
 
 		const CONTRIBUTOR_4: AccountIdOf<TestRuntime> = 4u64;
 		const TOKEN_AMOUNT_4: u128 = 1_000_000_0_000_000_000_u128;
 		const MULTIPLIER_4: u32 = 25u32;
-		const TICKET_SIZE_4: u128 = 16_320_000_0_000_000_000_u128;
+		const _TICKET_SIZE_4: u128 = 16_320_000_0_000_000_000_u128;
 		const EXPECTED_PLMC_AMOUNT_4: u128 = 77_714_2_857_142_857_u128;
 
 		const CONTRIBUTOR_5: AccountIdOf<TestRuntime> = 5u64;
 		const TOKEN_AMOUNT_5: u128 = 0_1_233_000_000_u128;
 		const MULTIPLIER_5: u32 = 10u32;
-		const TICKET_SIZE_5: u128 = 2_0_122_562_000_u128;
+		const _TICKET_SIZE_5: u128 = 2_0_122_562_000_u128;
 		const EXPECTED_PLMC_AMOUNT_5: u128 = 0_0_239_554_285_u128;
 
 
