@@ -274,7 +274,7 @@ pub mod pallet {
 		/// The inner balance type we will use for all of our outer currency types. (e.g native, funding, CTs)
 		type Balance: Balance + From<u64> + FixedPointOperand;
 
-		/// Represents the value of something in USDf
+		/// Represents the value of something in USD
 		type Price: FixedPointNumber + Parameter + Copy;
 
 		/// The chains native currency
