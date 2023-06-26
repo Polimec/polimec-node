@@ -1176,8 +1176,8 @@ mod defaults {
 }
 
 pub mod helper_functions {
-	use std::collections::BTreeMap;
 	use super::*;
+	use std::collections::BTreeMap;
 
 	pub fn get_ed() -> BalanceOf<TestRuntime> {
 		<TestRuntime as pallet_balances::Config>::ExistentialDeposit::get()
@@ -1360,8 +1360,7 @@ pub mod helper_functions {
 
 	// Mappings should be sorted based on their account id, ascending.
 	pub fn merge_subtract_mappings_by_user<I: Saturating + Ord + Copy>(
-		base_mapping: Vec<(AccountIdOf<TestRuntime>, I)>,
-		subtract_mappings: Vec<Vec<(AccountIdOf<TestRuntime>, I)>>,
+		base_mapping: Vec<(AccountIdOf<TestRuntime>, I)>, subtract_mappings: Vec<Vec<(AccountIdOf<TestRuntime>, I)>>,
 	) -> Vec<(AccountIdOf<TestRuntime>, I)> {
 		let mut output = base_mapping;
 		output.sort_by_key(|k| k.0);
@@ -2176,11 +2175,35 @@ mod auction_round_failure {
 		let project_id = auctioning_project.project_id;
 		const DAVE: AccountId = 42;
 		let bids: TestBids = vec![
-			TestBid::new(DAVE, 10_000 * USDT_UNIT, 2_u128.into(), None, AcceptedFundingAsset::USDT), // 20k
-			TestBid::new(DAVE, 12_000 * USDT_UNIT, 8_u128.into(), None, AcceptedFundingAsset::USDT), // 96k
-			TestBid::new(DAVE, 15_000 * USDT_UNIT, 5_u128.into(), None, AcceptedFundingAsset::USDT), // 75k
-			TestBid::new(DAVE, 1_000 * USDT_UNIT, 7_u128.into(), None, AcceptedFundingAsset::USDT),  // 7k
-			TestBid::new(DAVE, 20_000 * USDT_UNIT, 5_u128.into(), None, AcceptedFundingAsset::USDT), // 100k
+			TestBid::new(
+				DAVE,
+				10_000 * USDT_UNIT,
+				2_u128.into(),
+				None,
+				AcceptedFundingAsset::USDT,
+			), // 20k
+			TestBid::new(
+				DAVE,
+				12_000 * USDT_UNIT,
+				8_u128.into(),
+				None,
+				AcceptedFundingAsset::USDT,
+			), // 96k
+			TestBid::new(
+				DAVE,
+				15_000 * USDT_UNIT,
+				5_u128.into(),
+				None,
+				AcceptedFundingAsset::USDT,
+			), // 75k
+			TestBid::new(DAVE, 1_000 * USDT_UNIT, 7_u128.into(), None, AcceptedFundingAsset::USDT), // 7k
+			TestBid::new(
+				DAVE,
+				20_000 * USDT_UNIT,
+				5_u128.into(),
+				None,
+				AcceptedFundingAsset::USDT,
+			),   // 100k
 		];
 
 		let mut plmc_fundings: UserToPLMCBalance = calculate_auction_plmc_spent(bids.clone());
@@ -3041,33 +3064,23 @@ mod purchased_vesting {
 			},
 		);
 
-		let participation_locked_plmc = merge_add_mappings_by_user(vec![bidders_plmc_bond.clone(), contributors_plmc_spent.clone()]);
-		let purchase_unbonds = merge_subtract_mappings_by_user(participation_locked_plmc.clone(), vec![bidders_plmc_bond.clone()]);
-
-
+		let participation_locked_plmc =
+			merge_add_mappings_by_user(vec![bidders_plmc_bond.clone(), contributors_plmc_spent.clone()]);
+		let purchase_unbonds =
+			merge_subtract_mappings_by_user(participation_locked_plmc.clone(), vec![bidders_plmc_bond.clone()]);
 
 		for ((user, pre_locked), (_, post_released)) in zip(participation_locked_plmc, purchase_unbonds) {
 			let actual_bonded_plmc = test_env.in_ext(|| {
-				<TestRuntime as Config>::NativeCurrency::balance_on_hold(
-					&LockType::Participation(project_id),
-					&user,
-				)
+				<TestRuntime as Config>::NativeCurrency::balance_on_hold(&LockType::Participation(project_id), &user)
 			});
 
 			assert_eq!(actual_bonded_plmc, pre_locked);
 
 			let result = test_env.in_ext(|| {
-				FundingModule::vested_plmc_purchase_unbond_for(
-					RuntimeOrigin::signed(user),
-					project_id,
-					user,
-				)
+				FundingModule::vested_plmc_purchase_unbond_for(RuntimeOrigin::signed(user), project_id, user)
 			});
 			let actual_bonded_plmc = test_env.in_ext(|| {
-				<TestRuntime as Config>::NativeCurrency::balance_on_hold(
-					&LockType::Participation(project_id),
-					&user,
-				)
+				<TestRuntime as Config>::NativeCurrency::balance_on_hold(&LockType::Participation(project_id), &user)
 			});
 			assert_ok!(result);
 			assert_eq!(actual_bonded_plmc, pre_locked - post_released);
@@ -3267,11 +3280,41 @@ mod test_helper_functions {
 		);
 
 		let bids = vec![
-			TestBid::new(BIDDER_1, TOKEN_AMOUNT_1, PriceOf::<TestRuntime>::from_float(PRICE_PER_TOKEN_1), Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_1)), AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_2, TOKEN_AMOUNT_2, PriceOf::<TestRuntime>::from_float(PRICE_PER_TOKEN_2), Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_2)), AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_3, TOKEN_AMOUNT_3, PriceOf::<TestRuntime>::from_float(PRICE_PER_TOKEN_3), Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_3)), AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_4, TOKEN_AMOUNT_4, PriceOf::<TestRuntime>::from_float(PRICE_PER_TOKEN_4), Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_4)), AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_5, TOKEN_AMOUNT_5, PriceOf::<TestRuntime>::from_float(PRICE_PER_TOKEN_5), Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_5)), AcceptedFundingAsset::USDT),
+			TestBid::new(
+				BIDDER_1,
+				TOKEN_AMOUNT_1,
+				PriceOf::<TestRuntime>::from_float(PRICE_PER_TOKEN_1),
+				Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_1)),
+				AcceptedFundingAsset::USDT,
+			),
+			TestBid::new(
+				BIDDER_2,
+				TOKEN_AMOUNT_2,
+				PriceOf::<TestRuntime>::from_float(PRICE_PER_TOKEN_2),
+				Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_2)),
+				AcceptedFundingAsset::USDT,
+			),
+			TestBid::new(
+				BIDDER_3,
+				TOKEN_AMOUNT_3,
+				PriceOf::<TestRuntime>::from_float(PRICE_PER_TOKEN_3),
+				Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_3)),
+				AcceptedFundingAsset::USDT,
+			),
+			TestBid::new(
+				BIDDER_4,
+				TOKEN_AMOUNT_4,
+				PriceOf::<TestRuntime>::from_float(PRICE_PER_TOKEN_4),
+				Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_4)),
+				AcceptedFundingAsset::USDT,
+			),
+			TestBid::new(
+				BIDDER_5,
+				TOKEN_AMOUNT_5,
+				PriceOf::<TestRuntime>::from_float(PRICE_PER_TOKEN_5),
+				Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_5)),
+				AcceptedFundingAsset::USDT,
+			),
 		];
 
 		let expected_plmc_spent = vec![
@@ -3285,7 +3328,7 @@ mod test_helper_functions {
 		let result = super::helper_functions::calculate_auction_plmc_spent(bids);
 		assert_eq!(result, expected_plmc_spent);
 	}
-	
+
 	#[test]
 	fn calculate_contributed_plmc_spent() {
 		const PLMC_PRICE: f64 = 8.4f64;
@@ -3321,19 +3364,42 @@ mod test_helper_functions {
 		const _TICKET_SIZE_5: u128 = 2_0_122_562_000_u128;
 		const EXPECTED_PLMC_AMOUNT_5: u128 = 0_0_239_554_285_u128;
 
-
-
 		assert_eq!(
 			<TestRuntime as Config>::PriceProvider::get_price(PLMC_STATEMINT_ID.into()).unwrap(),
 			PriceOf::<TestRuntime>::from_float(PLMC_PRICE)
 		);
 
 		let contributions = vec![
-			TestContribution::new(CONTRIBUTOR_1, TOKEN_AMOUNT_1, Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_1)), AcceptedFundingAsset::USDT),
-			TestContribution::new(CONTRIBUTOR_2, TOKEN_AMOUNT_2, Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_2)), AcceptedFundingAsset::USDT),
-			TestContribution::new(CONTRIBUTOR_3, TOKEN_AMOUNT_3, Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_3)), AcceptedFundingAsset::USDT),
-			TestContribution::new(CONTRIBUTOR_4, TOKEN_AMOUNT_4, Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_4)), AcceptedFundingAsset::USDT),
-			TestContribution::new(CONTRIBUTOR_5, TOKEN_AMOUNT_5, Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_5)), AcceptedFundingAsset::USDT),
+			TestContribution::new(
+				CONTRIBUTOR_1,
+				TOKEN_AMOUNT_1,
+				Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_1)),
+				AcceptedFundingAsset::USDT,
+			),
+			TestContribution::new(
+				CONTRIBUTOR_2,
+				TOKEN_AMOUNT_2,
+				Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_2)),
+				AcceptedFundingAsset::USDT,
+			),
+			TestContribution::new(
+				CONTRIBUTOR_3,
+				TOKEN_AMOUNT_3,
+				Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_3)),
+				AcceptedFundingAsset::USDT,
+			),
+			TestContribution::new(
+				CONTRIBUTOR_4,
+				TOKEN_AMOUNT_4,
+				Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_4)),
+				AcceptedFundingAsset::USDT,
+			),
+			TestContribution::new(
+				CONTRIBUTOR_5,
+				TOKEN_AMOUNT_5,
+				Some(MultiplierOf::<TestRuntime>::from(MULTIPLIER_5)),
+				AcceptedFundingAsset::USDT,
+			),
 		];
 
 		let expected_plmc_spent = vec![
@@ -3344,7 +3410,10 @@ mod test_helper_functions {
 			(CONTRIBUTOR_5, EXPECTED_PLMC_AMOUNT_5),
 		];
 
-		let result = super::helper_functions::calculate_contributed_plmc_spent(contributions, PriceOf::<TestRuntime>::from_float(CT_PRICE));
+		let result = super::helper_functions::calculate_contributed_plmc_spent(
+			contributions,
+			PriceOf::<TestRuntime>::from_float(CT_PRICE),
+		);
 		assert_eq!(result, expected_plmc_spent);
 	}
 }
