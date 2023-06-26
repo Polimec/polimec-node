@@ -244,7 +244,7 @@ pub type BidInfoOf<T> = BidInfo<
 >;
 pub type ContributionInfoOf<T> =
 	ContributionInfo<StorageItemIdOf<T>, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, VestingOf<T>, VestingOf<T>>;
-pub type BondTypeOf<T> = BondType<ProjectIdOf<T>>;
+pub type BondTypeOf<T> = LockType<ProjectIdOf<T>>;
 
 const PLMC_STATEMINT_ID: u32 = 2069;
 
@@ -717,7 +717,7 @@ pub mod pallet {
 			origin: OriginFor<T>, project_id: T::ProjectIdentifier, #[pallet::compact] amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let evaluator = ensure_signed(origin)?;
-			Self::do_evaluation(evaluator, project_id, amount)
+			Self::do_evaluate(evaluator, project_id, amount)
 		}
 
 		/// Release the bonded PLMC for an evaluator if the project assigned to it is in the EvaluationFailed phase

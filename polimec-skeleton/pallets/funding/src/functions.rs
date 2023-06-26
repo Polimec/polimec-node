@@ -21,6 +21,7 @@
 use super::*;
 
 use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice};
+use frame_support::traits::fungible::InspectHold;
 use frame_support::traits::tokens::{Precision, Preservation};
 use frame_support::{
 	ensure,
@@ -721,7 +722,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 	// Note: usd_amount needs to have the same amount of decimals as PLMC,, so when multiplied by the plmc-usd price, it gives us the PLMC amount with the decimals we wanted.
-	pub fn do_evaluation(
+	pub fn do_evaluate(
 		evaluator: AccountIdOf<T>, project_id: T::ProjectIdentifier, usd_amount: BalanceOf<T>,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
@@ -763,28 +764,27 @@ impl<T: Config> Pallet<T> {
 
 		match existing_evaluations.try_push(new_evaluation.clone()) {
 			Ok(_) => {
-				T::NativeCurrency::hold(&BondType::Evaluation(project_id), &evaluator, plmc_bond)
+				T::NativeCurrency::hold(&LockType::Evaluation(project_id), &evaluator, plmc_bond)
 					.map_err(|_| Error::<T>::InsufficientBalance)?;
 			}
 			Err(_) => {
 				// Evaluations are stored in descending order. If the evaluation vector for the user is full, we drop the lowest/last bond
-				let lowest_evaluation_index: usize = (T::MaxEvaluationsPerUser::get() - 1)
-					.try_into()
-					.map_err(|_| Error::<T>::BadMath)?;
-				let lowest_evaluation = existing_evaluations.swap_remove(lowest_evaluation_index);
+				let lowest_evaluation = existing_evaluations.swap_remove(existing_evaluations.len() - 1);
+
 				ensure!(
 					lowest_evaluation.plmc_bond < plmc_bond,
 					Error::<T>::EvaluationBondTooLow
 				);
+
 				T::NativeCurrency::release(
-					&BondType::Evaluation(project_id),
+					&LockType::Evaluation(project_id),
 					&lowest_evaluation.evaluator,
 					lowest_evaluation.plmc_bond,
 					Precision::Exact,
 				)
 				.map_err(|_| Error::<T>::InsufficientBalance)?;
 
-				T::NativeCurrency::hold(&BondType::Evaluation(project_id), &evaluator, plmc_bond)
+				T::NativeCurrency::hold(&LockType::Evaluation(project_id), &evaluator, plmc_bond)
 					.map_err(|_| Error::<T>::InsufficientBalance)?;
 
 				// This should never fail since we just removed an element from the vector
@@ -832,7 +832,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Update Storage *
 		T::NativeCurrency::release(
-			&BondType::Evaluation(project_id),
+			&LockType::Evaluation(project_id),
 			&evaluation.evaluator.clone(),
 			evaluation.plmc_bond,
 			Precision::Exact,
@@ -904,7 +904,6 @@ impl<T: Config> Pallet<T> {
 		);
 
 		// * Calculate new variables *
-		let holding_account = Self::fund_account_id(project_id);
 		let (plmc_vesting_period, ct_vesting_period) =
 			Self::calculate_vesting_periods(bidder.clone(), multiplier, ct_amount, ct_usd_price)
 				.map_err(|_| Error::<T>::BadMath)?;
@@ -934,52 +933,37 @@ impl<T: Config> Pallet<T> {
 		// * Update storage *
 		match existing_bids.try_push(new_bid.clone()) {
 			Ok(_) => {
-				T::NativeCurrency::hold(&BondType::Bid(project_id), &bidder, required_plmc_bond)
-					.map_err(|_| Error::<T>::InsufficientBalance)?;
+				Self::try_plmc_participation_lock(&bidder, project_id, required_plmc_bond)?;
+				Self::try_funding_asset_hold(&bidder, project_id, required_funding_asset_transfer, asset_id)?;
 
-				T::FundingCurrency::transfer(
-					asset_id.into(),
-					&bidder,
-					&holding_account,
-					required_funding_asset_transfer,
-					Preservation::Expendable,
-				)?;
 				// TODO: PLMC-159. Send an XCM message to Statemint/e to transfer a `bid.market_cap` amount of USDC (or the Currency specified by the issuer) to the PalletId Account
 				// Alternative TODO: PLMC-159. The user should have the specified currency (e.g: USDC) already on Polimec
 			}
 			Err(_) => {
 				// Since the bids are sorted by price, and in this branch the Vec is full, the last element is the lowest bid
-				let lowest_bid_index: usize = (T::MaxBidsPerUser::get() - 1)
-					.try_into()
-					.map_err(|_| Error::<T>::BadMath)?;
-				let lowest_bid = existing_bids.swap_remove(lowest_bid_index);
+				let lowest_plmc_bond = existing_bids
+					.iter()
+					.last()
+					.ok_or(Error::<T>::ImpossibleState)?
+					.plmc_bond;
 
-				ensure!(new_bid.clone() > lowest_bid, Error::<T>::BidTooLow);
+				ensure!(
+					new_bid.plmc_bond > lowest_plmc_bond,
+					Error::<T>::BidTooLow
+				);
 
-				T::NativeCurrency::release(
-					&BondType::Bid(project_id),
-					&lowest_bid.bidder.clone(),
-					lowest_bid.plmc_bond,
-					Precision::Exact,
-				)?;
-
-				T::NativeCurrency::hold(&BondType::Bid(project_id), &bidder, required_plmc_bond)
-					.map_err(|_| Error::<T>::InsufficientBalance)?;
-
-				T::FundingCurrency::transfer(
-					lowest_bid.funding_asset.to_statemint_id(),
-					&holding_account,
-					&lowest_bid.bidder.clone(),
-					lowest_bid.funding_asset_amount,
-					Preservation::Expendable,
-				)?;
-				T::FundingCurrency::transfer(
-					asset_id.into(),
+				Self::release_last_funding_item_in_vec(
 					&bidder,
-					&holding_account,
-					required_funding_asset_transfer,
-					Preservation::Expendable,
+					project_id,
+					asset_id,
+					&mut existing_bids,
+					|x| x.plmc_bond,
+					|x| x.funding_asset_amount,
 				)?;
+
+				Self::try_plmc_participation_lock(&bidder, project_id, required_plmc_bond)?;
+
+				Self::try_funding_asset_hold(&bidder, project_id, required_funding_asset_transfer, asset_id)?;
 
 				// This should never fail, since we just removed an element from the Vec
 				existing_bids
@@ -1047,6 +1031,7 @@ impl<T: Config> Pallet<T> {
 				|| project_details.status == ProjectStatus::RemainderRound,
 			Error::<T>::AuctionNotStarted
 		);
+
 		if let Some(minimum_ticket_size) = project_metadata.ticket_size.minimum {
 			// Make sure the bid amount is greater than the minimum specified by the issuer
 			ensure!(ticket_size >= minimum_ticket_size, Error::<T>::ContributionTooLow);
@@ -1067,7 +1052,6 @@ impl<T: Config> Pallet<T> {
 		// );
 
 		// * Calculate variables *
-		let fund_account = Self::fund_account_id(project_id);
 		let buyable_tokens = if project_details.remaining_contribution_tokens > token_amount {
 			token_amount
 		} else {
@@ -1086,7 +1070,7 @@ impl<T: Config> Pallet<T> {
 			.ok_or(Error::<T>::BadMath)?
 			.saturating_mul_int(ticket_size);
 		let asset_id = asset.to_statemint_id();
-		let mut remaining_cts_after_purchase = project_details
+		let remaining_cts_after_purchase = project_details
 			.remaining_contribution_tokens
 			.saturating_sub(buyable_tokens);
 
@@ -1107,59 +1091,34 @@ impl<T: Config> Pallet<T> {
 		// Try adding the new contribution to the system
 		match existing_contributions.try_push(new_contribution.clone()) {
 			Ok(_) => {
-				T::NativeCurrency::hold(&BondType::Contribution(project_id), &contributor, required_plmc_bond)
-					.map_err(|_| Error::<T>::InsufficientBalance)?;
-
-				T::FundingCurrency::transfer(
-					asset_id.into(),
-					&contributor,
-					&fund_account,
-					required_funding_asset_transfer,
-					Preservation::Expendable,
-				)?;
+				Self::try_plmc_participation_lock(&contributor, project_id, required_plmc_bond)?;
+				Self::try_funding_asset_hold(&contributor, project_id, required_funding_asset_transfer, asset_id)?;
 			}
 			Err(_) => {
 				// The contributions are sorted by highest PLMC bond. If the contribution vector for the user is full, we drop the lowest/last item
-				let lowest_contribution_index: usize = (T::MaxContributionsPerUser::get() - 1)
-					.try_into()
-					.map_err(|_| Error::<T>::BadMath)?;
-				let lowest_contribution = existing_contributions.swap_remove(lowest_contribution_index);
-				remaining_cts_after_purchase =
-					remaining_cts_after_purchase.saturating_add(lowest_contribution.ct_amount);
+				let lowest_plmc_bond = existing_contributions
+					.iter()
+					.last()
+					.ok_or(Error::<T>::ImpossibleState)?
+					.plmc_bond;
 
 				ensure!(
-					new_contribution.plmc_bond > lowest_contribution.plmc_bond,
+					new_contribution.plmc_bond > lowest_plmc_bond,
 					Error::<T>::ContributionTooLow
 				);
 
-				// _528_589_814
-				// 1_585_769_442
-				//
-				T::NativeCurrency::release(
-					&BondType::Contribution(project_id),
-					&lowest_contribution.contributor,
-					lowest_contribution.plmc_bond,
-					Precision::Exact,
-				)?;
-
-				T::NativeCurrency::hold(&BondType::Contribution(project_id), &contributor, required_plmc_bond)
-					.map_err(|_| Error::<T>::InsufficientBalance)?;
-
-				T::FundingCurrency::transfer(
-					asset_id.into(),
-					&fund_account,
+				Self::release_last_funding_item_in_vec(
 					&contributor,
-					lowest_contribution.funding_asset_amount,
-					Preservation::Expendable,
+					project_id,
+					asset_id,
+					&mut existing_contributions,
+					|x| x.plmc_bond,
+					|x| x.funding_asset_amount,
 				)?;
 
-				T::FundingCurrency::transfer(
-					asset_id.into(),
-					&contributor,
-					&fund_account,
-					required_funding_asset_transfer,
-					Preservation::Expendable,
-				)?;
+				Self::try_plmc_participation_lock(&contributor, project_id, required_plmc_bond)?;
+
+				Self::try_funding_asset_hold(&contributor, project_id, required_funding_asset_transfer, asset_id)?;
 
 				// This should never fail, since we just removed an item from the vector
 				existing_contributions
@@ -1234,7 +1193,12 @@ impl<T: Config> Pallet<T> {
 
 			// * Update storage *
 			// TODO: check that the full amount was unreserved
-			T::NativeCurrency::release(&BondType::Bid(project_id), &bid.bidder, unbond_amount, Precision::Exact)?;
+			T::NativeCurrency::release(
+				&LockType::Participation(project_id),
+				&bid.bidder,
+				unbond_amount,
+				Precision::Exact,
+			)?;
 			new_bids.push(bid.clone());
 
 			// * Emit events *
@@ -1369,7 +1333,7 @@ impl<T: Config> Pallet<T> {
 			// TODO: Should we mint here, or should the full mint happen to the treasury and then do transfers from there?
 			// Unreserve the funds for the user
 			T::NativeCurrency::release(
-				&BondType::Contribution(project_id),
+				&LockType::Participation(project_id),
 				&claimer,
 				unbond_amount,
 				Precision::Exact,
@@ -1713,5 +1677,67 @@ impl<T: Config> Pallet<T> {
 	pub fn add_decimals_to_number(number: BalanceOf<T>, decimals: u8) -> BalanceOf<T> {
 		let zeroes: BalanceOf<T> = BalanceOf::<T>::from(10u64).saturating_pow(decimals.into());
 		number.saturating_mul(zeroes)
+	}
+
+	pub fn try_plmc_participation_lock(
+		who: &T::AccountId, project_id: T::ProjectIdentifier, amount: BalanceOf<T>,
+	) -> Result<(), DispatchError> {
+		// Check if the user has already locked tokens in the evaluation period
+		let evaluation_bonded = <T as Config>::NativeCurrency::balance_on_hold(&LockType::Evaluation(project_id), who);
+
+		let new_amount_to_lock = amount.saturating_sub(evaluation_bonded);
+		let evaluation_bonded_to_change_lock = amount.saturating_sub(new_amount_to_lock);
+
+		T::NativeCurrency::release(
+			&LockType::Evaluation(project_id),
+			who,
+			evaluation_bonded_to_change_lock,
+			Precision::Exact,
+		)
+		.map_err(|_| Error::<T>::ImpossibleState)?;
+
+		T::NativeCurrency::hold(&LockType::Participation(project_id), who, amount)
+			.map_err(|_| Error::<T>::InsufficientBalance)?;
+
+		Ok(())
+	}
+
+	// TODO(216): use the hold interface of the fungibles::MutateHold once its implemented on pallet_assets.
+	pub fn try_funding_asset_hold(
+		who: &T::AccountId, project_id: T::ProjectIdentifier, amount: BalanceOf<T>, asset_id: AssetIdOf<T>,
+	) -> Result<(), DispatchError> {
+		let fund_account = Self::fund_account_id(project_id);
+
+		T::FundingCurrency::transfer(asset_id, &who, &fund_account, amount, Preservation::Expendable)?;
+
+		Ok(())
+	}
+
+	// TODO(216): use the hold interface of the fungibles::MutateHold once its implemented on pallet_assets.
+	pub fn release_last_funding_item_in_vec<I, M>(
+		who: &T::AccountId, project_id: T::ProjectIdentifier, asset_id: AssetIdOf<T>, vec: &mut BoundedVec<I, M>,
+		plmc_getter: impl Fn(&I) -> BalanceOf<T>, funding_asset_getter: impl Fn(&I) -> BalanceOf<T>,
+	) -> Result<(), DispatchError> {
+		let fund_account = Self::fund_account_id(project_id);
+		let last_item = vec.swap_remove(vec.len() - 1);
+		let plmc_amount = plmc_getter(&last_item);
+		let funding_asset_amount = funding_asset_getter(&last_item);
+
+		T::NativeCurrency::release(
+			&LockType::Participation(project_id),
+			&who,
+			plmc_amount,
+			Precision::Exact,
+		)?;
+
+		T::FundingCurrency::transfer(
+			asset_id,
+			&fund_account,
+			&who,
+			funding_asset_amount,
+			Preservation::Expendable,
+		)?;
+
+		Ok(())
 	}
 }
