@@ -1092,6 +1092,11 @@ mod defaults {
 		let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
 		let metadata_hash = hashed(format!("{}-{}", METADATA, nonce));
 		ProjectMetadata {
+			token_information: CurrencyMetadata {
+				name: bounded_name,
+				symbol: bounded_symbol,
+				decimals: ASSET_DECIMALS,
+			},
 			total_allocation_size: 1_000_000_0_000_000_000,
 			minimum_price: PriceOf::<TestRuntime>::from_float(1.0),
 			ticket_size: TicketSize {
@@ -1103,14 +1108,9 @@ mod defaults {
 				maximum: None,
 			},
 			funding_thresholds: Default::default(),
+			offchain_information_hash: Some(metadata_hash),
 			conversion_rate: 0,
 			participation_currencies: AcceptedFundingAsset::USDT,
-			offchain_information_hash: Some(metadata_hash),
-			token_information: CurrencyMetadata {
-				name: bounded_name,
-				symbol: bounded_symbol,
-				decimals: ASSET_DECIMALS,
-			},
 		}
 	}
 
@@ -1618,6 +1618,48 @@ mod evaluation_round_success {
 		AuctioningProject::new_with(&test_env, project2, issuer, evaluations.clone());
 		AuctioningProject::new_with(&test_env, project3, issuer, evaluations.clone());
 		AuctioningProject::new_with(&test_env, project4, issuer, evaluations);
+	}
+
+	#[test]
+	fn rewards_are_paid() {
+		const TARGET_FUNDING_AMOUNT_USD: BalanceOf<TestRuntime> = 1_000_000 * US_DOLLAR;
+
+
+		let test_env = TestEnvironment::new();
+		let issuer = ISSUER;
+		let project = ProjectMetadataOf::<TestRuntime> {
+			token_information: CurrencyMetadata {
+				name: "Test Token".as_bytes().to_vec().try_into().unwrap(),
+				symbol: "TT".as_bytes().to_vec().try_into().unwrap(),
+				decimals: 10,
+			},
+			total_allocation_size: 1_000_000 * ASSET_UNIT,
+			minimum_price: 1u128.into(),
+			ticket_size: TicketSize::<BalanceOf<TestRuntime>> { minimum: Some(1), maximum: None },
+			participants_size: ParticipantsSize {
+				minimum: Some(2),
+				maximum: None,
+			},
+			funding_thresholds: Default::default(),
+			conversion_rate: 0,
+			participation_currencies: Default::default(),
+			offchain_information_hash: Some(hashed(METADATA)),
+		};
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = default_remainder_buys();
+
+		let finished_project = FinishedProject::new_with(
+			&test_env,
+			project,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions,
+			remainder_contributions,
+		);
+
 	}
 }
 
