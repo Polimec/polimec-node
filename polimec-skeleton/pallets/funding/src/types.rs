@@ -76,9 +76,11 @@ pub mod storage_types {
 	use super::*;
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct ProjectMetadata<BoundedString, Balance: BalanceT, Price: FixedPointNumber, Hash> {
+	pub struct ProjectMetadata<BoundedString, Balance: BalanceT, Price: FixedPointNumber, AccountId, Hash> {
 		/// Token Metadata
 		pub token_information: CurrencyMetadata<BoundedString>,
+		/// Mainnet Token Max Supply
+		pub mainnet_token_max_supply: Balance,
 		/// Total allocation of Contribution Tokens available for the Funding Round
 		pub total_allocation_size: Balance,
 		/// Minimum price per Contribution Token
@@ -95,11 +97,12 @@ pub mod storage_types {
 		/// e.g. https://github.com/paritytech/substrate/blob/427fd09bcb193c1e79dec85b1e207c718b686c35/frame/uniques/src/types.rs#L110
 		/// For now is easier to handle the case where only just one Currency is accepted
 		pub participation_currencies: AcceptedFundingAsset,
+		pub funding_destination_account: AccountId,
 		/// Additional metadata
 		pub offchain_information_hash: Option<Hash>,
 	}
-	impl<BoundedString, Balance: BalanceT, Price: FixedPointNumber, Hash>
-		ProjectMetadata<BoundedString, Balance, Price, Hash>
+	impl<BoundedString, Balance: BalanceT, Price: FixedPointNumber, Hash, AccountId>
+		ProjectMetadata<BoundedString, Balance, Price, Hash, AccountId>
 	{
 		// TODO: PLMC-162. Perform a REAL validity check
 		pub fn validity_check(&self) -> Result<(), ValidityError> {

@@ -1097,6 +1097,7 @@ mod defaults {
 				symbol: bounded_symbol,
 				decimals: ASSET_DECIMALS,
 			},
+			mainnet_token_max_supply: 8_000_000_0_000_000_000,
 			total_allocation_size: 1_000_000_0_000_000_000,
 			minimum_price: PriceOf::<TestRuntime>::from_float(1.0),
 			ticket_size: TicketSize {
@@ -1108,9 +1109,10 @@ mod defaults {
 				maximum: None,
 			},
 			funding_thresholds: Default::default(),
-			offchain_information_hash: Some(metadata_hash),
 			conversion_rate: 0,
 			participation_currencies: AcceptedFundingAsset::USDT,
+			funding_destination_account: ISSUER,
+			offchain_information_hash: Some(metadata_hash),
 		}
 	}
 
@@ -1633,6 +1635,7 @@ mod evaluation_round_success {
 				symbol: "TT".as_bytes().to_vec().try_into().unwrap(),
 				decimals: 10,
 			},
+			mainnet_token_max_supply: 10_000_000 * ASSET_UNIT,
 			total_allocation_size: 1_000_000 * ASSET_UNIT,
 			minimum_price: 1u128.into(),
 			ticket_size: TicketSize::<BalanceOf<TestRuntime>> { minimum: Some(1), maximum: None },
@@ -1643,6 +1646,7 @@ mod evaluation_round_success {
 			funding_thresholds: Default::default(),
 			conversion_rate: 0,
 			participation_currencies: Default::default(),
+			funding_destination_account: ISSUER,
 			offchain_information_hash: Some(hashed(METADATA)),
 		};
 		let evaluations = default_evaluations();
