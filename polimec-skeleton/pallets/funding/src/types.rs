@@ -130,6 +130,8 @@ pub mod storage_types {
 		pub fundraising_target: Balance,
 		/// The amount of Contribution Tokens that have not yet been sold
 		pub remaining_contribution_tokens: Balance,
+		/// Funding reached amount in USD equivalent
+		pub funding_amount_reached: Balance,
 	}
 
 	/// Tells on_initialize what to do with the project
@@ -149,7 +151,8 @@ pub mod storage_types {
 		pub project_id: ProjectId,
 		pub evaluator: AccountId,
 		pub plmc_bond: Balance,
-		pub usd_amount: Balance,
+		pub early_usd_amount: Balance,
+		pub late_usd_amount: Balance,
 		pub when: BlockNumber,
 	}
 
@@ -163,16 +166,20 @@ pub mod storage_types {
 		BlockNumber,
 		PlmcVesting,
 		CTVesting,
+		Multiplier
 	> {
 		pub id: Id,
 		pub project_id: ProjectId,
 		pub bidder: AccountId,
 		pub status: BidStatus<Balance>,
 		#[codec(compact)]
-		pub ct_amount: Balance,
-		pub ct_usd_price: Price,
+		pub original_ct_amount: Balance,
+		pub original_ct_usd_price: Price,
+		pub final_ct_amount: Balance,
+		pub final_ct_usd_price: Price,
 		pub funding_asset: AcceptedFundingAsset,
-		pub funding_asset_amount: Balance,
+		pub funding_asset_amount_locked: Balance,
+		pub multiplier: Multiplier,
 		pub plmc_bond: Balance,
 		// TODO: PLMC-159. Not used yet, but will be used to check if the bid is funded after XCM is implemented
 		pub funded: bool,
@@ -190,11 +197,12 @@ pub mod storage_types {
 			BlockNumber: Eq,
 			PlmcVesting: Eq,
 			CTVesting: Eq,
-		> Ord for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, PlmcVesting, CTVesting>
+			Multiplier: Eq,
+		> Ord for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, PlmcVesting, CTVesting, Multiplier>
 	{
 		fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
-			let self_ticket_size = self.ct_usd_price.saturating_mul_int(self.ct_amount);
-			let other_ticket_size = other.ct_usd_price.saturating_mul_int(other.ct_amount);
+			let self_ticket_size = self.original_ct_usd_price.saturating_mul_int(self.original_ct_amount);
+			let other_ticket_size = other.original_ct_usd_price.saturating_mul_int(other.original_ct_amount);
 			self_ticket_size.cmp(&other_ticket_size)
 		}
 	}
@@ -208,7 +216,8 @@ pub mod storage_types {
 			BlockNumber: Eq,
 			PlmcVesting: Eq,
 			CTVesting: Eq,
-		> PartialOrd for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, PlmcVesting, CTVesting>
+			Multiplier: Eq,
+		> PartialOrd for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, PlmcVesting, CTVesting, Multiplier>
 	{
 		fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
 			Some(self.cmp(other))

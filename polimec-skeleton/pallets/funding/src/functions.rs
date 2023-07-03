@@ -32,10 +32,16 @@ use frame_support::{
 		Get,
 	},
 };
+use sp_arithmetic::Perbill;
 
-use sp_arithmetic::traits::Zero;
+use sp_arithmetic::traits::{CheckedSub, Zero};
 use sp_runtime::Percent;
 use sp_std::prelude::*;
+
+use itertools::{Itertools};
+
+pub const US_DOLLAR: u128 = 1_0_000_000_000;
+pub const US_CENT: u128 = 0_0_100_000_000;
 
 // Round transition functions
 impl<T: Config> Pallet<T> {
@@ -100,6 +106,7 @@ impl<T: Config> Pallet<T> {
 				remainder: BlockNumberPair::new(None, None),
 			},
 			remaining_contribution_tokens: initial_metadata.total_allocation_size,
+			funding_amount_reached: BalanceOf::<T>::zero(),
 		};
 
 		let project_metadata = initial_metadata;
@@ -729,9 +736,11 @@ impl<T: Config> Pallet<T> {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let evaluation_id = Self::next_evaluation_id();
-		let mut existing_evaluations = Evaluations::<T>::get(project_id, evaluator.clone());
-
+		let mut caller_existing_evaluations = Evaluations::<T>::get(project_id, evaluator.clone());
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
+		let early_evaluation_reward_threshold_usd =
+			T::EarlyEvaluationThreshold::get() * project_details.fundraising_target;
+		let all_existing_evaluations = Evaluations::<T>::iter_prefix(project_id);
 
 		// * Validity Checks *
 		ensure!(
@@ -750,26 +759,48 @@ impl<T: Config> Pallet<T> {
 			.checked_mul_int(usd_amount)
 			.ok_or(Error::<T>::BadMath)?;
 
+		let previous_total_evaluation_bonded_usd = all_existing_evaluations
+			.map(|(evaluator, evaluations)| {
+				evaluations.iter().fold(BalanceOf::<T>::zero(), |acc, evaluation| {
+					acc.saturating_add(evaluation.early_usd_amount)
+						.saturating_add(evaluation.late_usd_amount)
+				})
+			})
+			.fold(BalanceOf::<T>::zero(), |acc, evaluation| acc.saturating_add(evaluation));
+
+		let remaining_bond_to_reach_threshold = early_evaluation_reward_threshold_usd
+			.checked_sub(&previous_total_evaluation_bonded_usd)
+			.unwrap_or(BalanceOf::<T>::zero());
+
+		let early_usd_amount = if usd_amount <= remaining_bond_to_reach_threshold {
+			usd_amount
+		} else {
+			remaining_bond_to_reach_threshold
+		};
+
+		let late_usd_amount = usd_amount.checked_sub(&early_usd_amount).ok_or(Error::<T>::BadMath)?;
+
 		let new_evaluation = EvaluationInfoOf::<T> {
 			id: evaluation_id,
 			project_id,
 			evaluator: evaluator.clone(),
 			plmc_bond,
-			usd_amount,
+			early_usd_amount,
+			late_usd_amount,
 			when: now,
 		};
 
 		// * Update Storage *
 		// TODO: PLMC-144. Unlock the PLMC when it's the right time
 
-		match existing_evaluations.try_push(new_evaluation.clone()) {
+		match caller_existing_evaluations.try_push(new_evaluation.clone()) {
 			Ok(_) => {
 				T::NativeCurrency::hold(&LockType::Evaluation(project_id), &evaluator, plmc_bond)
 					.map_err(|_| Error::<T>::InsufficientBalance)?;
 			}
 			Err(_) => {
 				// Evaluations are stored in descending order. If the evaluation vector for the user is full, we drop the lowest/last bond
-				let lowest_evaluation = existing_evaluations.swap_remove(existing_evaluations.len() - 1);
+				let lowest_evaluation = caller_existing_evaluations.swap_remove(caller_existing_evaluations.len() - 1);
 
 				ensure!(
 					lowest_evaluation.plmc_bond < plmc_bond,
@@ -788,15 +819,15 @@ impl<T: Config> Pallet<T> {
 					.map_err(|_| Error::<T>::InsufficientBalance)?;
 
 				// This should never fail since we just removed an element from the vector
-				existing_evaluations
+				caller_existing_evaluations
 					.try_push(new_evaluation)
 					.map_err(|_| Error::<T>::ImpossibleState)?;
 			}
 		};
 
-		existing_evaluations.sort_by_key(|bond| Reverse(bond.plmc_bond));
+		caller_existing_evaluations.sort_by_key(|bond| Reverse(bond.plmc_bond));
 
-		Evaluations::<T>::set(project_id, evaluator.clone(), existing_evaluations);
+		Evaluations::<T>::set(project_id, evaluator.clone(), caller_existing_evaluations);
 		NextEvaluationId::<T>::set(evaluation_id.saturating_add(One::one()));
 
 		// * Emit events *
@@ -919,10 +950,13 @@ impl<T: Config> Pallet<T> {
 			project_id,
 			bidder: bidder.clone(),
 			status: BidStatus::YetUnknown,
-			ct_amount,
-			ct_usd_price,
+			original_ct_amount: ct_amount,
+			original_ct_usd_price: ct_usd_price,
+			final_ct_amount: ct_amount,
+			final_ct_usd_price: ct_usd_price,
 			funding_asset,
-			funding_asset_amount: required_funding_asset_transfer,
+			funding_asset_amount_locked: required_funding_asset_transfer,
+			multiplier,
 			plmc_bond: required_plmc_bond,
 			funded: false,
 			plmc_vesting_period,
@@ -947,10 +981,7 @@ impl<T: Config> Pallet<T> {
 					.ok_or(Error::<T>::ImpossibleState)?
 					.plmc_bond;
 
-				ensure!(
-					new_bid.plmc_bond > lowest_plmc_bond,
-					Error::<T>::BidTooLow
-				);
+				ensure!(new_bid.plmc_bond > lowest_plmc_bond, Error::<T>::BidTooLow);
 
 				Self::release_last_funding_item_in_vec(
 					&bidder,
@@ -958,7 +989,7 @@ impl<T: Config> Pallet<T> {
 					asset_id,
 					&mut existing_bids,
 					|x| x.plmc_bond,
-					|x| x.funding_asset_amount,
+					|x| x.funding_asset_amount_locked,
 				)?;
 
 				Self::try_plmc_participation_lock(&bidder, project_id, required_plmc_bond)?;
@@ -1133,7 +1164,8 @@ impl<T: Config> Pallet<T> {
 		NextContributionId::<T>::set(contribution_id.saturating_add(One::one()));
 		ProjectsDetails::<T>::mutate(project_id, |maybe_project| {
 			if let Some(project) = maybe_project {
-				project.remaining_contribution_tokens = remaining_cts_after_purchase
+				project.remaining_contribution_tokens = remaining_cts_after_purchase;
+				project.funding_amount_reached = project.funding_amount_reached.saturating_add(ticket_size);
 			}
 		});
 
@@ -1534,61 +1566,87 @@ impl<T: Config> Pallet<T> {
 		let mut bid_token_amount_sum = BalanceOf::<T>::zero();
 		// temp variable to store the total value of the bids (i.e price * amount)
 		let mut bid_usd_value_sum = BalanceOf::<T>::zero();
-
+		let project_account = Self::fund_account_id(project_id);
+		let plmc_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
 		// sort bids by price
 		bids.sort();
 		// accept only bids that were made before `end_block` i.e end of candle auction
-		let bids = bids
+		let bids: Result<Vec<_>, DispatchError> = bids
 			.into_iter()
 			.map(|mut bid| {
 				if bid.when > end_block {
 					bid.status = BidStatus::Rejected(RejectionReason::AfterCandleEnd);
 					// TODO: PLMC-147. Unlock funds. We can do this inside the "on_idle" hook, and change the `status` of the `Bid` to "Unreserved"
-					return bid;
+					return Ok(bid);
 				}
 				let buyable_amount = total_allocation_size.saturating_sub(bid_token_amount_sum);
 				if buyable_amount == 0_u32.into() {
 					bid.status = BidStatus::Rejected(RejectionReason::NoTokensLeft);
-				} else if bid.ct_amount <= buyable_amount {
-					let maybe_ticket_size = bid.ct_usd_price.checked_mul_int(bid.ct_amount);
+				} else if bid.original_ct_amount <= buyable_amount {
+					let maybe_ticket_size = bid.original_ct_usd_price.checked_mul_int(bid.original_ct_amount);
 					if let Some(ticket_size) = maybe_ticket_size {
-						bid_token_amount_sum.saturating_accrue(bid.ct_amount);
+						bid_token_amount_sum.saturating_accrue(bid.original_ct_amount);
 						bid_usd_value_sum.saturating_accrue(ticket_size);
 						bid.status = BidStatus::Accepted;
 					} else {
 						bid.status = BidStatus::Rejected(RejectionReason::BadMath);
-						return bid;
+						return Ok(bid);
 					}
 				} else {
-					let maybe_ticket_size = bid.ct_usd_price.checked_mul_int(buyable_amount);
+					let maybe_ticket_size = bid.original_ct_usd_price.checked_mul_int(buyable_amount);
 					if let Some(ticket_size) = maybe_ticket_size {
 						bid_usd_value_sum.saturating_accrue(ticket_size);
 						bid_token_amount_sum.saturating_accrue(buyable_amount);
-						bid.status = BidStatus::PartiallyAccepted(buyable_amount, RejectionReason::NoTokensLeft)
+						bid.status = BidStatus::PartiallyAccepted(buyable_amount, RejectionReason::NoTokensLeft);
+						bid.final_ct_amount = buyable_amount;
+
+						let funding_asset_price = T::PriceProvider::get_price(bid.funding_asset.to_statemint_id())
+							.ok_or(Error::<T>::PriceNotFound)?;
+						let funding_asset_amount_needed = funding_asset_price.reciprocal().ok_or(Error::<T>::BadMath)?
+							.checked_mul_int(ticket_size).ok_or(Error::<T>::BadMath)?;
+						T::FundingCurrency::transfer(
+							bid.funding_asset.to_statemint_id(),
+							&project_account,
+							&bid.bidder,
+							bid.funding_asset_amount_locked.saturating_sub(funding_asset_amount_needed),
+							Preservation::Preserve
+						)?;
+
+						let usd_bond_needed = bid.multiplier.calculate_bonding_requirement(ticket_size)
+							.map_err(|_| Error::<T>::BadMath)?;
+						let plmc_bond_needed = plmc_price.reciprocal().ok_or(Error::<T>::BadMath)?
+							.checked_mul_int(usd_bond_needed).ok_or(Error::<T>::BadMath)?;
+						T::NativeCurrency::release(&LockType::Participation(project_id), &bid.bidder, bid.plmc_bond.saturating_sub(plmc_bond_needed), Precision::Exact)?;
+
+						bid.funding_asset_amount_locked = funding_asset_amount_needed;
+						bid.plmc_bond = plmc_bond_needed;
+
 					} else {
 						bid.status = BidStatus::Rejected(RejectionReason::BadMath);
-						return bid;
+						bid.final_ct_amount = 0_u32.into();
+						bid.final_ct_usd_price = PriceOf::<T>::zero();
+
+						T::FundingCurrency::transfer(
+							bid.funding_asset.to_statemint_id(),
+							&project_account,
+							&bid.bidder,
+							bid.funding_asset_amount_locked,
+							Preservation::Preserve
+						)?;
+						T::NativeCurrency::release(&LockType::Participation(project_id), &bid.bidder, bid.plmc_bond, Precision::Exact)?;
+						bid.funding_asset_amount_locked = BalanceOf::<T>::zero();
+						bid.plmc_bond = BalanceOf::<T>::zero();
+
+						return Ok(bid);
 					}
 
 					// TODO: PLMC-147. Refund remaining amount
 				}
 
-				bid
+				Ok(bid)
 			})
-			.collect::<Vec<BidInfoOf<T>>>();
-
-		// Update the bid in the storage
-		for bid in bids.iter() {
-			Bids::<T>::mutate(project_id, bid.bidder.clone(), |bids| -> Result<(), DispatchError> {
-				let bid_index = bids
-					.clone()
-					.into_iter()
-					.position(|b| b.id == bid.id)
-					.ok_or(Error::<T>::ImpossibleState)?;
-				bids[bid_index] = bid.clone();
-				Ok(())
-			})?;
-		}
+			.collect();
+		let bids = bids?;
 
 		// Calculate the weighted price of the token for the next funding rounds, using winning bids.
 		// for example: if there are 3 winning bids,
@@ -1608,29 +1666,75 @@ impl<T: Config> Pallet<T> {
 
 		// lastly, sum all the weighted prices to get the final weighted price for the next funding round
 		// 3 + 10.6 + 2.6 = 16.333...
-		let weighted_token_price = bids
-            // TODO: PLMC-150. collecting due to previous mut borrow, find a way to not collect and borrow bid on filter_map
-            .into_iter()
-            .filter_map(|bid| match bid.status {
-                BidStatus::Accepted => {
+		let weighted_token_price: PriceOf<T> = bids
+			// TODO: PLMC-150. collecting due to previous mut borrow, find a way to not collect and borrow bid on filter_map
+			.iter()
+			.filter_map(|bid| match bid.status {
+				BidStatus::Accepted => {
 					let bid_weight = <T::Price as FixedPointNumber>::saturating_from_rational(
-						bid.ct_usd_price.saturating_mul_int(bid.ct_amount), bid_usd_value_sum
+						bid.original_ct_usd_price.saturating_mul_int(bid.original_ct_amount), bid_usd_value_sum
 					);
-					let weighted_price = bid.ct_usd_price * bid_weight;
-                    Some(weighted_price)
-                },
+					let weighted_price = bid.original_ct_usd_price * bid_weight;
+					Some(weighted_price)
+				},
 
-                BidStatus::PartiallyAccepted(amount, _) => {
+				BidStatus::PartiallyAccepted(amount, _) => {
 					let bid_weight = <T::Price as FixedPointNumber>::saturating_from_rational(
-						bid.ct_usd_price.saturating_mul_int(amount), bid_usd_value_sum
+						bid.original_ct_usd_price.saturating_mul_int(amount), bid_usd_value_sum
 					);
-					Some(bid.ct_usd_price.saturating_mul(bid_weight))
-                },
+					Some(bid.original_ct_usd_price.saturating_mul(bid_weight))
+				},
 
-                _ => None,
-            })
-            .reduce(|a, b| a.saturating_add(b))
-            .ok_or(Error::<T>::NoBidsFound)?;
+				_ => None,
+			})
+			.reduce(|a, b| a.saturating_add(b))
+			.ok_or(Error::<T>::NoBidsFound)?;
+
+
+		// Update the bid in the storage
+		for bid in bids.into_iter() {
+			Bids::<T>::mutate(project_id, bid.bidder.clone(), |bids| -> Result<(), DispatchError> {
+				let bid_index = bids
+					.clone()
+					.into_iter()
+					.position(|b| b.id == bid.id)
+					.ok_or(Error::<T>::ImpossibleState)?;
+				let mut final_bid = bid;
+
+				if final_bid.final_ct_usd_price > weighted_token_price {
+					final_bid.final_ct_usd_price = weighted_token_price;
+					let new_ticket_size = weighted_token_price.checked_mul_int(final_bid.final_ct_amount).ok_or(Error::<T>::BadMath)?;
+
+					let funding_asset_price = T::PriceProvider::get_price(final_bid.funding_asset.to_statemint_id())
+						.ok_or(Error::<T>::PriceNotFound)?;
+					let funding_asset_amount_needed = funding_asset_price.reciprocal().ok_or(Error::<T>::BadMath)?
+						.checked_mul_int(new_ticket_size).ok_or(Error::<T>::BadMath)?;
+					T::FundingCurrency::transfer(
+						final_bid.funding_asset.to_statemint_id(),
+						&project_account,
+						&final_bid.bidder,
+						final_bid.funding_asset_amount_locked.saturating_sub(funding_asset_amount_needed),
+						Preservation::Preserve
+					)?;
+					final_bid.funding_asset_amount_locked = funding_asset_amount_needed;
+
+					let usd_bond_needed = final_bid.multiplier.calculate_bonding_requirement(new_ticket_size)
+						.map_err(|_| Error::<T>::BadMath)?;
+					let plmc_bond_needed = plmc_price.reciprocal().ok_or(Error::<T>::BadMath)?
+						.checked_mul_int(usd_bond_needed).ok_or(Error::<T>::BadMath)?;
+					T::NativeCurrency::release(
+						&LockType::Participation(project_id),
+						&final_bid.bidder,
+						final_bid.plmc_bond.saturating_sub(plmc_bond_needed),
+						Precision::Exact
+					)?;
+					final_bid.plmc_bond = plmc_bond_needed;
+				}
+
+				bids[bid_index] = final_bid;
+				Ok(())
+			})?;
+		}
 
 		// Update storage
 		ProjectsDetails::<T>::mutate(project_id, |maybe_info| -> Result<(), DispatchError> {
@@ -1638,6 +1742,7 @@ impl<T: Config> Pallet<T> {
 				info.weighted_average_price = Some(weighted_token_price);
 				info.remaining_contribution_tokens =
 					info.remaining_contribution_tokens.saturating_sub(bid_token_amount_sum);
+				info.funding_amount_reached = info.funding_amount_reached.saturating_add(bid_usd_value_sum);
 				Ok(())
 			} else {
 				Err(Error::<T>::ProjectNotFound.into())
@@ -1739,5 +1844,98 @@ impl<T: Config> Pallet<T> {
 		)?;
 
 		Ok(())
+	}
+
+	pub fn calculate_fees(project_id: T::ProjectIdentifier) -> Result<BalanceOf<T>, DispatchError> {
+		let funding_reached = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectNotFound)?
+			.funding_amount_reached;
+		let mut remaining_for_fee = funding_reached;
+
+		Ok(T::FeeBrackets::get()
+			.into_iter()
+			.map(|(fee, limit)| {
+				let try_operation = remaining_for_fee.checked_sub(&limit);
+				if let Some(remaining_amount) = try_operation {
+					remaining_for_fee = remaining_amount;
+					fee * limit
+				} else {
+					let temp = remaining_for_fee;
+					remaining_for_fee = BalanceOf::<T>::zero();
+					fee * temp
+				}
+			})
+			.fold(BalanceOf::<T>::zero(), |acc, fee| acc.saturating_add(fee)))
+	}
+
+	pub fn get_evaluator_ct_rewards(
+		project_id: T::ProjectIdentifier,
+	) -> Result<Vec<(T::AccountId, T::Balance)>, DispatchError> {
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+		let evaluation_usd_amounts = Evaluations::<T>::iter_prefix(project_id)
+			.map(|(evaluator, evaluations)| {
+				(
+					evaluator,
+					evaluations.into_iter().fold(
+						(BalanceOf::<T>::zero(), BalanceOf::<T>::zero()),
+						|acc, evaluation| {
+							(
+								acc.0.saturating_add(evaluation.early_usd_amount),
+								acc.1.saturating_add(evaluation.late_usd_amount),
+							)
+						},
+					),
+				)
+			})
+			.collect::<Vec<_>>();
+		let ct_price = project_details
+			.weighted_average_price
+			.ok_or(Error::<T>::ImpossibleState)?;
+		let target_funding = project_details.fundraising_target;
+		let funding_reached = project_details.funding_amount_reached;
+
+		// This is the "Y" variable from the knowledge hub
+		let percentage_of_target_funding = Percent::from_rational(funding_reached, target_funding);
+
+		let fees = Self::calculate_fees(project_id)?;
+		let evaluator_fees = percentage_of_target_funding * (Percent::from_percent(30) * fees);
+
+		let early_evaluator_rewards = Percent::from_percent(20) * evaluator_fees;
+		let all_evaluator_rewards = Percent::from_percent(80) * evaluator_fees;
+
+		let early_evaluator_total_locked = evaluation_usd_amounts
+			.iter()
+			.fold(BalanceOf::<T>::zero(), |acc, (_, (early, _))| {
+				acc.saturating_add(*early)
+			});
+		let late_evaluator_total_locked = evaluation_usd_amounts
+			.iter()
+			.fold(BalanceOf::<T>::zero(), |acc, (_, (_, late))| acc.saturating_add(*late));
+		let all_evaluator_total_locked = early_evaluator_total_locked.saturating_add(late_evaluator_total_locked);
+
+		let evaluator_usd_rewards = evaluation_usd_amounts
+			.into_iter()
+			.map(|(evaluator, (early, late))| {
+				let early_evaluator_weight = Percent::from_rational(early, early_evaluator_total_locked);
+				let all_evaluator_weight = Percent::from_rational(early + late, all_evaluator_total_locked);
+
+				let early_reward = early_evaluator_weight * early_evaluator_rewards;
+				let all_reward = all_evaluator_weight * all_evaluator_rewards;
+
+				(evaluator, early_reward.saturating_add(all_reward))
+			})
+			.collect::<Vec<_>>();
+		let ct_price_reciprocal = ct_price.reciprocal().ok_or(Error::<T>::BadMath)?;
+
+		evaluator_usd_rewards
+			.iter()
+			.map(|(evaluator, usd_reward)| {
+				if let Some(reward) = ct_price_reciprocal.checked_mul_int(*usd_reward) {
+					Ok((evaluator.clone(), reward))
+				} else {
+					Err(Error::<T>::BadMath.into())
+				}
+			})
+			.collect()
 	}
 }

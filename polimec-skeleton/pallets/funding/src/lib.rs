@@ -227,7 +227,8 @@ pub type HashOf<T> = <T as frame_system::Config>::Hash;
 pub type AssetIdOf<T> =
 	<<T as Config>::FundingCurrency as fungibles::Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
 
-pub type ProjectMetadataOf<T> = ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, HashOf<T>>;
+pub type ProjectMetadataOf<T> =
+	ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, HashOf<T>>;
 pub type ProjectDetailsOf<T> = ProjectDetails<AccountIdOf<T>, BlockNumberOf<T>, PriceOf<T>, BalanceOf<T>>;
 pub type VestingOf<T> = Vesting<BlockNumberOf<T>, BalanceOf<T>>;
 pub type EvaluationInfoOf<T> =
@@ -241,6 +242,7 @@ pub type BidInfoOf<T> = BidInfo<
 	BlockNumberOf<T>,
 	VestingOf<T>,
 	VestingOf<T>,
+	MultiplierOf<T>,
 >;
 pub type ContributionInfoOf<T> =
 	ContributionInfo<StorageItemIdOf<T>, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, VestingOf<T>, VestingOf<T>>;
@@ -256,6 +258,7 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use local_macros::*;
+	use sp_arithmetic::Percent;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -371,6 +374,10 @@ pub mod pallet {
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
+
+		type FeeBrackets: Get<Vec<(Percent, Self::Balance)>>;
+
+		type EarlyEvaluationThreshold: Get<Percent>;
 	}
 
 	#[pallet::storage]

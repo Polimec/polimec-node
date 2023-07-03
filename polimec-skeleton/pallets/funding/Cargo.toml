@@ -17,6 +17,7 @@ parity-scale-codec = { version = "3.0.0", features = [
 scale-info = { version = "2.5.0", default-features = false, features = [
     "derive",
 ] }
+itertools = { version = "0.11.0", default-features = false }
 
 # Substrate dependencies
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true, branch = "polkadot-v0.9.42" }
@@ -40,6 +41,7 @@ pallet-credentials = { path = "../credentials", default-features = false }
 [features]
 default = ["std"]
 std = [
+    "itertools/use_std",
     "parity-scale-codec/std",
     "scale-info/std",
     "sp-std/std",
