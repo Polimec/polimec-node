@@ -1616,7 +1616,7 @@ mod creation_round_failure {
 
 #[cfg(test)]
 mod evaluation_round_success {
-	use sp_arithmetic::Percent;
+	use sp_arithmetic::{Perbill, Percent};
 	use super::*;
 
 	#[test]
@@ -1648,36 +1648,43 @@ mod evaluation_round_success {
 	#[test]
 	fn rewards_are_paid_full_funding() {
 		const TARGET_FUNDING_AMOUNT_USD: BalanceOf<TestRuntime> = 2_000_000 * US_DOLLAR;
-		const EVALUATION_AMOUNT_1: BalanceOf<TestRuntime> = 100_000 * US_DOLLAR;
-		const EVALUATION_AMOUNT_2: BalanceOf<TestRuntime> = 230_000 * US_DOLLAR;
-		const EVALUATION_AMOUNT_3: BalanceOf<TestRuntime> = 76_000 * US_DOLLAR;
+		let evaluator_1_usd_amount: BalanceOf<TestRuntime> = Percent::from_percent(8u8) * TARGET_FUNDING_AMOUNT_USD; // Full early evaluator reward
+		let evaluator_2_usd_amount: BalanceOf<TestRuntime> = Percent::from_percent(3u8) * TARGET_FUNDING_AMOUNT_USD; // Partial early evaluator reward
+		let evaluator_3_usd_amount: BalanceOf<TestRuntime> = Percent::from_percent(4u8) * TARGET_FUNDING_AMOUNT_USD; // No early evaluator reward
+
+		let funding_weights = [25, 30, 31, 14];
+		assert_eq!(funding_weights.iter().sum::<u8>(), 100, "remaining_funding_weights must sum up to 100%");
+		let funding_weights = funding_weights.into_iter().map(|x| Percent::from_percent(x)).collect::<Vec<_>>();
+
+		let bidder_1_usd_amount: BalanceOf<TestRuntime> = funding_weights[0] * TARGET_FUNDING_AMOUNT_USD;
+		let bidder_2_usd_amount: BalanceOf<TestRuntime> = funding_weights[1] * TARGET_FUNDING_AMOUNT_USD;
+
+		let buyer_1_usd_amount: BalanceOf<TestRuntime> = funding_weights[2] * TARGET_FUNDING_AMOUNT_USD;
+		let buyer_2_usd_amount: BalanceOf<TestRuntime> = funding_weights[3] * TARGET_FUNDING_AMOUNT_USD;
 
 		let test_env = TestEnvironment::new();
 
-		let remainder_to_full_funding = TARGET_FUNDING_AMOUNT_USD - EVALUATION_AMOUNT_1 - EVALUATION_AMOUNT_2 - EVALUATION_AMOUNT_3;
-		let remaining_funding_weights = [25u8, 30u8, 31u8, 14u8];
-		assert_eq!(remaining_funding_weights.iter().sum::<u8>(), 100u8, "remaining_funding_weights must sum up to 100%");
-		let remaining_funding_weights = remaining_funding_weights.into_iter().map(|x| Percent::from_percent(x)).collect::<Vec<_>>();
+		let plmc_price = test_env.in_ext(|| <TestRuntime as Config>::PriceProvider::get_price(PLMC_STATEMINT_ID)).unwrap();
+
+		let evaluations: UserToUSDBalance = vec![
+			(EVALUATOR_1, evaluator_1_usd_amount),
+			(EVALUATOR_2, evaluator_2_usd_amount),
+			(EVALUATOR_3, evaluator_3_usd_amount),
+		];
 
 		let bidder_1_ct_price = PriceOf::<TestRuntime>::from_float(4.2f64);
 		let bidder_2_ct_price = PriceOf::<TestRuntime>::from_float(2.3f64);
 
-		let bidder_1_ct_amount = bidder_1_ct_price.reciprocal().unwrap().checked_mul_int(remaining_funding_weights[0] * remainder_to_full_funding).unwrap();
-		let bidder_2_ct_amount = bidder_2_ct_price.reciprocal().unwrap().checked_mul_int(remaining_funding_weights[1] * remainder_to_full_funding).unwrap();
+		let bidder_1_ct_amount = bidder_1_ct_price.reciprocal().unwrap().checked_mul_int(bidder_1_usd_amount).unwrap();
+		let bidder_2_ct_amount = bidder_2_ct_price.reciprocal().unwrap().checked_mul_int(bidder_2_usd_amount).unwrap();
 
 		let final_ct_price = calculate_price_from_test_bids(vec![
 			TestBid::new(BIDDER_1, bidder_1_ct_amount, bidder_1_ct_price, None, AcceptedFundingAsset::USDT),
 			TestBid::new(BIDDER_2, bidder_2_ct_amount, bidder_2_ct_price, None, AcceptedFundingAsset::USDT),
 		]);
 
-		let buyer_1_ct_amount = final_ct_price.reciprocal().unwrap().checked_mul_int(remaining_funding_weights[2] * remainder_to_full_funding).unwrap();
-		let buyer_2_ct_amount = final_ct_price.reciprocal().unwrap().checked_mul_int(remaining_funding_weights[3] * remainder_to_full_funding).unwrap();
-
-		let evaluations: UserToPLMCBalance = vec![
-			(EVALUATOR_1, EVALUATION_AMOUNT_1),
-			(EVALUATOR_2, EVALUATION_AMOUNT_2),
-			(EVALUATOR_3, EVALUATION_AMOUNT_3),
-		];
+		let buyer_1_ct_amount = final_ct_price.reciprocal().unwrap().checked_mul_int(buyer_1_usd_amount).unwrap();
+		let buyer_2_ct_amount = final_ct_price.reciprocal().unwrap().checked_mul_int(buyer_2_usd_amount).unwrap();
 
 		let bids: TestBids = vec![
 			TestBid::new(BIDDER_1, bidder_1_ct_amount, bidder_1_ct_price, None, AcceptedFundingAsset::USDT),
@@ -1717,8 +1724,82 @@ mod evaluation_round_success {
 			evaluations,
 			bids,
 			community_contributions,
-			vec![],
+			vec![]
 		);
+
+		let project_id = finished_project.get_project_id();
+
+		let mut remaining_for_fee = TARGET_FUNDING_AMOUNT_USD;
+		let amount_for_10_percent = {
+			let sub = remaining_for_fee.checked_sub(1_000_000 * US_DOLLAR);
+			if let Some(sub) = sub {
+				remaining_for_fee = sub;
+				1_000_000 * US_DOLLAR
+			} else {
+				let temp = remaining_for_fee;
+				remaining_for_fee = 0;
+				temp
+			}
+		};
+
+		let amount_for_8_percent = {
+			let sub = remaining_for_fee.checked_sub(5_000_000 * US_DOLLAR);
+			if let Some(sub) = sub {
+				remaining_for_fee = sub;
+				5_000_000 * US_DOLLAR
+			} else {
+				let temp = remaining_for_fee;
+				remaining_for_fee = 0;
+				temp
+			}
+		};
+
+		let amount_for_6_percent = remaining_for_fee;
+
+		let total_fee = Percent::from_percent(10u8) * amount_for_10_percent + Percent::from_percent(8u8) * amount_for_8_percent + Percent::from_percent(6u8) * amount_for_6_percent;
+
+		// "Y" variable is 1, since the full funding amount was reached, which means the full 30% of the fee goes to evaluators
+		let evaluator_rewards_usd = Percent::from_percent(30) * total_fee;
+		let total_evaluation_locked = evaluator_1_usd_amount + evaluator_2_usd_amount + evaluator_3_usd_amount;
+		let early_evaluator_locked = Percent::from_percent(10) * TARGET_FUNDING_AMOUNT_USD;
+
+		let eval_1_all_evaluator_reward_weight = Perbill::from_rational(evaluator_1_usd_amount, total_evaluation_locked);
+		let eval_2_all_evaluator_reward_weight = Perbill::from_rational(evaluator_2_usd_amount, total_evaluation_locked);
+		let eval_3_all_evaluator_reward_weight = Perbill::from_rational(evaluator_3_usd_amount, total_evaluation_locked);
+
+		let eval_1_early_evaluator_reward_weight = Perbill::from_rational(evaluator_1_usd_amount, early_evaluator_locked);
+		let eval_2_early_evaluator_reward_weight = Perbill::from_rational(Perbill::from_rational(2u32, 3u32) * evaluator_2_usd_amount, early_evaluator_locked);
+		let eval_3_early_evaluator_reward_weight = Perbill::from_percent(0);
+
+		let all_evaluator_rewards_pot = Percent::from_percent(80) * evaluator_rewards_usd;
+		let early_evaluator_rewards_pot = Percent::from_percent(20) * evaluator_rewards_usd;
+
+		let evaluator_1_all_evaluator_reward = eval_1_all_evaluator_reward_weight * all_evaluator_rewards_pot;
+		let evaluator_2_all_evaluator_reward = eval_2_all_evaluator_reward_weight * all_evaluator_rewards_pot;
+		let evaluator_3_all_evaluator_reward = eval_3_all_evaluator_reward_weight * all_evaluator_rewards_pot;
+
+		let evaluator_1_early_evaluator_reward = eval_1_early_evaluator_reward_weight * early_evaluator_rewards_pot;
+		let evaluator_2_early_evaluator_reward = eval_2_early_evaluator_reward_weight * early_evaluator_rewards_pot;
+		let evaluator_3_early_evaluator_reward = eval_3_early_evaluator_reward_weight * early_evaluator_rewards_pot;
+
+
+
+		let actual_reward_balances = test_env.in_ext(|| {
+			vec![
+				(EVALUATOR_1, <TestRuntime as Config>::ContributionTokenCurrency::balance(project_id, EVALUATOR_1)),
+				(EVALUATOR_2, <TestRuntime as Config>::ContributionTokenCurrency::balance(project_id, EVALUATOR_2)),
+				(EVALUATOR_3, <TestRuntime as Config>::ContributionTokenCurrency::balance(project_id, EVALUATOR_3)),
+			]
+		});
+		let expected_reward_balances = vec![
+			(EVALUATOR_1, evaluator_1_all_evaluator_reward + evaluator_1_early_evaluator_reward),
+			(EVALUATOR_2, evaluator_2_all_evaluator_reward + evaluator_2_early_evaluator_reward),
+			(EVALUATOR_3, evaluator_2_all_evaluator_reward + evaluator_2_early_evaluator_reward),
+		];
+		assert_eq!(actual_reward_balances, expected_reward_balances);
+
+
+
 
 	}
 }

@@ -714,10 +714,10 @@ pub mod pallet {
 		/// Bond PLMC for a project in the evaluation stage
 		#[pallet::weight(T::WeightInfo::bond())]
 		pub fn bond_evaluation(
-			origin: OriginFor<T>, project_id: T::ProjectIdentifier, #[pallet::compact] amount: BalanceOf<T>,
+			origin: OriginFor<T>, project_id: T::ProjectIdentifier, #[pallet::compact] usd_amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let evaluator = ensure_signed(origin)?;
-			Self::do_evaluate(evaluator, project_id, amount)
+			Self::do_evaluate(evaluator, project_id, usd_amount)
 		}
 
 		/// Release the bonded PLMC for an evaluator if the project assigned to it is in the EvaluationFailed phase
