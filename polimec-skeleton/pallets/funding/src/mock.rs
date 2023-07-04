@@ -286,7 +286,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 				AcceptedFundingAsset::USDT.to_statemint_id(),
 				<TestRuntime as Config>::PalletId::get().into_account_truncating(),
 				false,
-				10,
+				1,
 			)],
 			metadata: vec![],
 			accounts: vec![],

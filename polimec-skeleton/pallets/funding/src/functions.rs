@@ -32,6 +32,7 @@ use frame_support::{
 		Get,
 	},
 };
+use frame_support::traits::fungibles::Inspect;
 use sp_arithmetic::Perbill;
 
 use sp_arithmetic::traits::{CheckedSub, Zero};
@@ -1702,6 +1703,7 @@ impl<T: Config> Pallet<T> {
 				let mut final_bid = bid;
 
 				if final_bid.final_ct_usd_price > weighted_token_price {
+
 					final_bid.final_ct_usd_price = weighted_token_price;
 					let new_ticket_size = weighted_token_price.checked_mul_int(final_bid.final_ct_amount).ok_or(Error::<T>::BadMath)?;
 
@@ -1709,25 +1711,35 @@ impl<T: Config> Pallet<T> {
 						.ok_or(Error::<T>::PriceNotFound)?;
 					let funding_asset_amount_needed = funding_asset_price.reciprocal().ok_or(Error::<T>::BadMath)?
 						.checked_mul_int(new_ticket_size).ok_or(Error::<T>::BadMath)?;
-					T::FundingCurrency::transfer(
+
+					let try_transfer = T::FundingCurrency::transfer(
 						final_bid.funding_asset.to_statemint_id(),
 						&project_account,
 						&final_bid.bidder,
 						final_bid.funding_asset_amount_locked.saturating_sub(funding_asset_amount_needed),
 						Preservation::Preserve
-					)?;
+					);
+					if let Err(e) = try_transfer {
+						Self::deposit_event(Event::<T>::TransferError { error: e });
+					}
+
 					final_bid.funding_asset_amount_locked = funding_asset_amount_needed;
 
 					let usd_bond_needed = final_bid.multiplier.calculate_bonding_requirement(new_ticket_size)
 						.map_err(|_| Error::<T>::BadMath)?;
 					let plmc_bond_needed = plmc_price.reciprocal().ok_or(Error::<T>::BadMath)?
 						.checked_mul_int(usd_bond_needed).ok_or(Error::<T>::BadMath)?;
-					T::NativeCurrency::release(
+
+					let try_release = T::NativeCurrency::release(
 						&LockType::Participation(project_id),
 						&final_bid.bidder,
 						final_bid.plmc_bond.saturating_sub(plmc_bond_needed),
 						Precision::Exact
-					)?;
+					);
+					if let Err(e) = try_release {
+						Self::deposit_event(Event::<T>::TransferError { error: e });
+					}
+
 					final_bid.plmc_bond = plmc_bond_needed;
 				}
 

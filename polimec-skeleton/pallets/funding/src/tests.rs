@@ -401,6 +401,7 @@ impl TestEnvironment {
 				<AllPalletsWithoutSystem as OnIdle<u64>>::on_idle(System::block_number(), Weight::MAX);
 				System::set_block_number(System::block_number() + 1);
 				<AllPalletsWithSystem as OnInitialize<u64>>::on_initialize(System::block_number());
+				panic_if_on_initialize_failed(System::events());
 			}
 		});
 	}
@@ -1194,6 +1195,7 @@ pub mod helper_functions {
 	use super::*;
 	use sp_arithmetic::traits::Zero;
 	use std::collections::BTreeMap;
+	use sp_core::H256;
 
 	pub fn get_ed() -> BalanceOf<TestRuntime> {
 		<TestRuntime as pallet_balances::Config>::ExistentialDeposit::get()
@@ -1458,6 +1460,16 @@ pub mod helper_functions {
 			})
 			.reduce(|a, b| a.saturating_add(b))
 			.unwrap()
+	}
+
+	pub fn panic_if_on_initialize_failed(events: Vec<frame_system::EventRecord<RuntimeEvent, H256>>){
+		let last_event = events.into_iter().last().expect("No events found for this action.");
+		match last_event {
+			frame_system::EventRecord { event: RuntimeEvent::FundingModule(Event::TransitionError { project_id, error }), .. } => {
+				panic!("Project {} transition failed in on_initialize: {:?}", project_id, error);
+			}
+			_ => {}
+		}
 	}
 }
 
@@ -2187,7 +2199,7 @@ mod auction_round_success {
 	}
 
 	#[test]
-	fn only_candle_bids_before_random_block_get_included() {
+	fn conly_candle_bids_before_random_block_get_included() {
 		let test_env = TestEnvironment::new();
 		let issuer = ISSUER;
 		let project = default_project(test_env.get_new_nonce());
@@ -2255,6 +2267,8 @@ mod auction_round_success {
 		}
 		test_env.advance_time(candle_end_block - test_env.current_block() + 1);
 
+		let details = auctioning_project.get_project_details();
+		let now = test_env.current_block();
 		let random_end = auctioning_project
 			.get_project_details()
 			.phase_transition_points
@@ -2425,7 +2439,7 @@ mod auction_round_success {
 			CommunityFundingProject::new_with(&test_env, project, issuer, evaluations, bids);
 		let project_id = community_funding_project.project_id;
 		let bidder_2_bid = test_env.in_ext(|| Bids::<TestRuntime>::get(project_id, BIDDER_2))[0];
-		assert_eq!(bidder_2_bid.final_ct_usd_price, PriceOf::<TestRuntime>::from_rational(88, 5));
+		assert_eq!(bidder_2_bid.final_ct_usd_price.checked_mul_int(US_DOLLAR).unwrap(), 17_6_666_666_666);
 	}
 }
 

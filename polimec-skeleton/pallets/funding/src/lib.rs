@@ -547,6 +547,8 @@ pub mod pallet {
 			contributor: AccountIdOf<T>,
 			amount: BalanceOf<T>,
 		},
+		/// A transfer of tokens failed, but because it was done inside on_initialize it cannot be solved.
+		TransferError { error: DispatchError },
 	}
 
 	#[pallet::error]
