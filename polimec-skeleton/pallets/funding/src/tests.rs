@@ -394,16 +394,21 @@ impl TestEnvironment {
 	fn current_block(&self) -> BlockNumber {
 		self.ext_env.borrow_mut().execute_with(|| System::block_number())
 	}
-	fn advance_time(&self, amount: BlockNumber) {
+	fn advance_time(&self, amount: BlockNumber) -> Result<(), DispatchError>{
 		self.ext_env.borrow_mut().execute_with(|| {
 			for _block in 0..amount {
 				<AllPalletsWithoutSystem as OnFinalize<u64>>::on_finalize(System::block_number());
 				<AllPalletsWithoutSystem as OnIdle<u64>>::on_idle(System::block_number(), Weight::MAX);
 				System::set_block_number(System::block_number() + 1);
+				let pre_events = System::events();
 				<AllPalletsWithSystem as OnInitialize<u64>>::on_initialize(System::block_number());
-				panic_if_on_initialize_failed(System::events());
+				let post_events = System::events();
+				if post_events.len() > pre_events.len() {
+					err_if_on_initialize_failed(System::events())?;
+				}
 			}
-		});
+			Ok(())
+		})
 	}
 	fn do_free_plmc_assertions(&self, correct_funds: UserToPLMCBalance) {
 		for (user, balance) in correct_funds {
@@ -600,7 +605,7 @@ impl<'a> EvaluatingProject<'a> {
 			let evaluation_end = project_details.phase_transition_points.evaluation.end().unwrap();
 			let auction_start = evaluation_end.saturating_add(2);
 			let blocks_to_start = auction_start.saturating_sub(self.test_env.current_block());
-			self.test_env.advance_time(blocks_to_start);
+			self.test_env.advance_time(blocks_to_start).unwrap();
 		};
 
 		assert_eq!(
@@ -706,7 +711,7 @@ impl<'a> AuctioningProject<'a> {
 		let candle_start = english_end + 2;
 
 		self.test_env
-			.advance_time(candle_start.saturating_sub(self.test_env.current_block()));
+			.advance_time(candle_start.saturating_sub(self.test_env.current_block())).unwrap();
 		let candle_end = self
 			.get_project_details()
 			.phase_transition_points
@@ -717,7 +722,7 @@ impl<'a> AuctioningProject<'a> {
 		let community_start = candle_end + 2;
 
 		self.test_env
-			.advance_time(community_start.saturating_sub(self.test_env.current_block()));
+			.advance_time(community_start.saturating_sub(self.test_env.current_block())).unwrap();
 
 		assert_eq!(self.get_project_details().status, ProjectStatus::CommunityRound);
 
@@ -858,7 +863,7 @@ impl<'a> CommunityFundingProject<'a> {
 			.expect("Community funding end point should exist");
 		let remainder_start = community_funding_end + 1;
 		self.test_env
-			.advance_time(remainder_start.saturating_sub(self.test_env.current_block()));
+			.advance_time(remainder_start.saturating_sub(self.test_env.current_block())).unwrap();
 		assert_eq!(self.get_project_details().status, ProjectStatus::RemainderRound);
 		RemainderFundingProject {
 			test_env: self.test_env,
@@ -970,8 +975,8 @@ impl<'a> RemainderFundingProject<'a> {
 			.expect("Should have remainder end");
 		let finish_block = remainder_funding_end + 1;
 		self.test_env
-			.advance_time(finish_block.saturating_sub(self.test_env.current_block()));
-		assert_eq!(self.get_project_details().status, ProjectStatus::FundingEnded);
+			.advance_time(finish_block.saturating_sub(self.test_env.current_block())).unwrap();
+		assert_eq!(self.get_project_details().status, ProjectStatus::FundingSuccessful);
 
 		FinishedProject {
 			test_env: self.test_env,
@@ -1471,6 +1476,16 @@ pub mod helper_functions {
 			_ => {}
 		}
 	}
+
+	pub fn err_if_on_initialize_failed(events: Vec<frame_system::EventRecord<RuntimeEvent, H256>>) -> Result<(), DispatchError>{
+		let last_event = events.into_iter().last().expect("No events found for this action.");
+		match last_event {
+			frame_system::EventRecord { event: RuntimeEvent::FundingModule(Event::TransitionError { project_id, error }), .. } => {
+				Err(error)
+			}
+			_ => {Ok(())}
+		}
+	}
 }
 
 #[cfg(test)]
@@ -1934,7 +1949,7 @@ mod evaluation_round_failure {
 		test_env.do_free_plmc_assertions(plmc_existential_deposits);
 		test_env.do_reserved_plmc_assertions(plmc_eval_deposits, LockType::Evaluation(project_id));
 
-		test_env.advance_time(evaluation_end - now + 1);
+		test_env.advance_time(evaluation_end - now + 1).unwrap();
 
 		assert_eq!(
 			evaluating_project.get_project_details().status,
@@ -1942,7 +1957,7 @@ mod evaluation_round_failure {
 		);
 
 		// Check that on_idle has unlocked the failed bonds
-		test_env.advance_time(10);
+		test_env.advance_time(10).unwrap();
 		test_env.do_free_plmc_assertions(expected_evaluator_balances);
 	}
 
@@ -2199,7 +2214,7 @@ mod auction_round_success {
 	}
 
 	#[test]
-	fn conly_candle_bids_before_random_block_get_included() {
+	fn only_candle_bids_before_random_block_get_included() {
 		let test_env = TestEnvironment::new();
 		let issuer = ISSUER;
 		let project = default_project(test_env.get_new_nonce());
@@ -2213,7 +2228,7 @@ mod auction_round_success {
 			.expect("Auction start point should exist");
 		// The block following the end of the english auction, is used to transition the project into candle auction.
 		// We move past that transition, into the start of the candle auction.
-		test_env.advance_time(english_end_block - test_env.current_block() + 1);
+		test_env.advance_time(english_end_block - test_env.current_block() + 1).unwrap();
 		assert_eq!(
 			auctioning_project.get_project_details().status,
 			ProjectStatus::AuctionRound(AuctionPhase::Candle)
@@ -2263,9 +2278,9 @@ mod auction_round_success {
 			bids_made.push(bids[0]);
 			bidding_account += 1;
 
-			test_env.advance_time(1);
+			test_env.advance_time(1).unwrap();
 		}
-		test_env.advance_time(candle_end_block - test_env.current_block() + 1);
+		test_env.advance_time(candle_end_block - test_env.current_block() + 1).unwrap();
 
 		let details = auctioning_project.get_project_details();
 		let now = test_env.current_block();
@@ -2333,12 +2348,12 @@ mod auction_round_success {
 		test_env.mint_plmc_to(required_plmc);
 		test_env.mint_plmc_to(ed_plmc);
 		project.bond_for_users(evaluations).unwrap();
-		test_env.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1);
+		test_env.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
 		assert_eq!(
 			project.get_project_details().status,
 			ProjectStatus::AuctionInitializePeriod
 		);
-		test_env.advance_time(<TestRuntime as Config>::AuctionInitializePeriodDuration::get() + 2);
+		test_env.advance_time(<TestRuntime as Config>::AuctionInitializePeriodDuration::get() + 2).unwrap();
 		assert_eq!(
 			project.get_project_details().status,
 			ProjectStatus::AuctionRound(AuctionPhase::English)
@@ -2359,12 +2374,12 @@ mod auction_round_success {
 		test_env.mint_plmc_to(required_plmc);
 		test_env.mint_plmc_to(ed_plmc);
 		project.bond_for_users(evaluations).unwrap();
-		test_env.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1);
+		test_env.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
 		assert_eq!(
 			project.get_project_details().status,
 			ProjectStatus::AuctionInitializePeriod
 		);
-		test_env.advance_time(1);
+		test_env.advance_time(1).unwrap();
 
 		test_env
 			.in_ext(|| FundingModule::start_auction(RuntimeOrigin::signed(ISSUER), project.get_project_id()))
@@ -2389,12 +2404,12 @@ mod auction_round_success {
 		test_env.mint_plmc_to(required_plmc);
 		test_env.mint_plmc_to(ed_plmc);
 		project.bond_for_users(evaluations).unwrap();
-		test_env.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1);
+		test_env.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
 		assert_eq!(
 			project.get_project_details().status,
 			ProjectStatus::AuctionInitializePeriod
 		);
-		test_env.advance_time(1);
+		test_env.advance_time(1).unwrap();
 
 		for account in 6000..6010 {
 			test_env.in_ext(|| {
@@ -2575,6 +2590,17 @@ mod auction_round_failure {
 		let outcome = auctioning_project.bid_for_users(bids);
 		frame_support::assert_err!(outcome, Error::<TestRuntime>::FundingAssetNotAccepted);
 	}
+
+	#[test]
+	fn no_bids_made() {
+		let test_env = TestEnvironment::new();
+		let issuer = ISSUER;
+		let project = default_project(test_env.get_new_nonce());
+		let evaluations = default_evaluations();
+		let bids: TestBids = vec![];
+		let _community_funding_project =
+			CommunityFundingProject::new_with(&test_env, project, issuer, evaluations, bids);
+	}
 }
 
 #[cfg(test)]
@@ -2667,7 +2693,7 @@ mod community_round_success {
 		community_funding_project
 			.buy_for_retail_users(vec![contributions[0]])
 			.expect("The Buyer should be able to buy multiple times");
-		test_env.advance_time((1 * HOURS) as BlockNumber);
+		test_env.advance_time((1 * HOURS) as BlockNumber).unwrap();
 
 		community_funding_project
 			.buy_for_retail_users(vec![contributions[1]])
@@ -2728,7 +2754,7 @@ mod community_round_success {
 		community_funding_project
 			.buy_for_retail_users(contributions)
 			.expect("The Buyer should be able to buy the exact amount of remaining CTs");
-		test_env.advance_time(2u64);
+		test_env.advance_time(2u64).unwrap();
 		// Check remaining CTs is 0
 		assert_eq!(
 			community_funding_project
@@ -2741,7 +2767,7 @@ mod community_round_success {
 		// Check project is in FundingEnded state
 		assert_eq!(
 			community_funding_project.get_project_details().status,
-			ProjectStatus::FundingEnded
+			ProjectStatus::FundingSuccessful
 		);
 
 		test_env.do_free_plmc_assertions(vec![plmc_fundings[1].clone()]);
@@ -2793,7 +2819,7 @@ mod community_round_success {
 		community_funding_project
 			.buy_for_retail_users(contributions)
 			.expect("The Buyer should be able to buy the exact amount of remaining CTs");
-		test_env.advance_time(2u64);
+		test_env.advance_time(2u64).unwrap();
 
 		// Check remaining CTs is 0
 		assert_eq!(
@@ -2807,7 +2833,7 @@ mod community_round_success {
 		// Check project is in FundingEnded state
 		assert_eq!(
 			community_funding_project.get_project_details().status,
-			ProjectStatus::FundingEnded
+			ProjectStatus::FundingSuccessful
 		);
 
 		let reserved_plmc = plmc_fundings.swap_remove(0).1;
@@ -3777,7 +3803,7 @@ mod misc_features {
 			FundingModule::add_to_update_store(now + 20u64, (&69u32, RemainderFundingStart));
 			FundingModule::add_to_update_store(now + 5u64, (&404u32, RemainderFundingStart));
 		});
-		test_env.advance_time(2u64);
+		test_env.advance_time(2u64).unwrap();
 		test_env.ext_env.borrow_mut().execute_with(|| {
 			let stored = ProjectsToUpdate::<TestRuntime>::iter_values().collect::<Vec<_>>();
 			assert_eq!(stored.len(), 3, "There should be 3 blocks scheduled for updating");

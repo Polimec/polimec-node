@@ -499,7 +499,15 @@ impl<T: Config> Pallet<T> {
 		let community_end_block = now + T::CommunityFundingDuration::get();
 
 		// * Update Storage *
-		Self::calculate_weighted_average_price(project_id, end_block, project_details.fundraising_target)?;
+		let calculation_result = Self::calculate_weighted_average_price(project_id, end_block, project_details.fundraising_target);
+		match calculation_result  {
+			Err(pallet_error) if pallet_error == Error::<T>::NoBidsFound.into() => {
+				let x = 10;
+				Ok(())
+			},
+			e @ Err(_) => {e},
+			_ => {Ok(())}
+		}?;
 		// Get info again after updating it with new price.
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		project_details.phase_transition_points.random_candle_ending = Some(end_block);
@@ -622,11 +630,11 @@ impl<T: Config> Pallet<T> {
 		if let Some(end_block) = remainder_end_block {
 			ensure!(now > end_block, Error::<T>::TooEarlyForFundingEnd);
 		} else {
-			ensure!(remaining_cts == 0u32.into(), Error::<T>::TooEarlyForFundingEnd);
+			ensure!(remaining_cts == 0u32.into() || project_details.status == ProjectStatus::EvaluationFailed, Error::<T>::TooEarlyForFundingEnd);
 		}
 
 		// * Calculate new variables *
-		project_details.status = ProjectStatus::FundingEnded;
+		project_details.status = ProjectStatus::FundingSuccessful;
 		ProjectsDetails::<T>::insert(project_id, project_details.clone());
 
 		// * Update Storage *
@@ -671,7 +679,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			project_details.status == ProjectStatus::FundingEnded,
+			project_details.status == ProjectStatus::FundingSuccessful,
 			Error::<T>::ProjectNotInFundingEndedRound
 		);
 
@@ -1337,7 +1345,7 @@ impl<T: Config> Pallet<T> {
 		// 	Error::<T>::NotAuthorized
 		// );
 		ensure!(
-			project_details.status == ProjectStatus::FundingEnded,
+			project_details.status == ProjectStatus::FundingSuccessful,
 			Error::<T>::CannotClaimYet
 		);
 		// TODO: PLMC-160. Check the flow of the final_price if the final price discovery during the Auction Round fails
@@ -1421,7 +1429,7 @@ impl<T: Config> Pallet<T> {
 		// 	Error::<T>::NotAuthorized
 		// );
 		ensure!(
-			project_details.status == ProjectStatus::FundingEnded,
+			project_details.status == ProjectStatus::FundingSuccessful,
 			Error::<T>::CannotClaimYet
 		);
 		// TODO: PLMC-160. Check the flow of the final_price if the final price discovery during the Auction Round fails

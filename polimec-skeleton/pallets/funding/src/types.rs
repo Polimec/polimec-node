@@ -339,7 +339,8 @@ pub mod inner_types {
 		AuctionRound(AuctionPhase),
 		CommunityRound,
 		RemainderRound,
-		FundingEnded,
+		FundingSuccessful,
+		FundingFailed,
 		ReadyToLaunch,
 	}
 
