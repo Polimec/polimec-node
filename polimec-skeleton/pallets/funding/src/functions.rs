@@ -22,6 +22,7 @@ use super::*;
 
 use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice};
 use frame_support::traits::fungible::InspectHold;
+use frame_support::traits::fungibles::Inspect;
 use frame_support::traits::tokens::{Precision, Preservation};
 use frame_support::{
 	ensure,
@@ -32,14 +33,13 @@ use frame_support::{
 		Get,
 	},
 };
-use frame_support::traits::fungibles::Inspect;
 use sp_arithmetic::Perbill;
 
 use sp_arithmetic::traits::{CheckedSub, Zero};
 use sp_runtime::Percent;
 use sp_std::prelude::*;
 
-use itertools::{Itertools};
+use itertools::Itertools;
 
 pub const US_DOLLAR: u128 = 1_0_000_000_000;
 pub const US_CENT: u128 = 0_0_100_000_000;
@@ -499,33 +499,44 @@ impl<T: Config> Pallet<T> {
 		let community_end_block = now + T::CommunityFundingDuration::get();
 
 		// * Update Storage *
-		let calculation_result = Self::calculate_weighted_average_price(project_id, end_block, project_details.fundraising_target);
-		match calculation_result  {
-			Err(pallet_error) if pallet_error == Error::<T>::NoBidsFound.into() => {
-				let x = 10;
-				Ok(())
-			},
-			e @ Err(_) => {e},
-			_ => {Ok(())}
-		}?;
-		// Get info again after updating it with new price.
+		let calculation_result =
+			Self::calculate_weighted_average_price(project_id, end_block, project_details.fundraising_target);
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		project_details.phase_transition_points.random_candle_ending = Some(end_block);
-		project_details
-			.phase_transition_points
-			.community
-			.update(Some(community_start_block), Some(community_end_block.clone()));
-		project_details.status = ProjectStatus::CommunityRound;
-		ProjectsDetails::<T>::insert(project_id, project_details);
-		// Schedule for automatic transition by `on_initialize`
-		Self::add_to_update_store(
-			community_end_block + 1u32.into(),
-			(&project_id, UpdateType::RemainderFundingStart),
-		);
+		match calculation_result {
+			Err(pallet_error) if pallet_error == Error::<T>::NoBidsFound.into() => {
+				project_details.status = ProjectStatus::AuctionFailed;
+				ProjectsDetails::<T>::insert(project_id, project_details);
+				Self::add_to_update_store(
+					<frame_system::Pallet<T>>::block_number() + 1u32.into(),
+					(&project_id, UpdateType::FundingEnd),
+				);
 
-		// * Emit events *
-		Self::deposit_event(Event::<T>::CommunityFundingStarted { project_id });
-		Ok(())
+				// * Emit events *
+				Self::deposit_event(Event::<T>::AuctionFailed { project_id });
+
+				Ok(())
+			}
+			e @ Err(_) => e,
+			Some(()) => {
+				// Get info again after updating it with new price.
+				project_details.phase_transition_points.random_candle_ending = Some(end_block);
+				project_details
+					.phase_transition_points
+					.community
+					.update(Some(community_start_block), Some(community_end_block.clone()));
+				project_details.status = ProjectStatus::CommunityRound;
+				ProjectsDetails::<T>::insert(project_id, project_details);
+				Self::add_to_update_store(
+					community_end_block + 1u32.into(),
+					(&project_id, UpdateType::RemainderFundingStart),
+				);
+
+				// * Emit events *
+				Self::deposit_event(Event::<T>::CommunityFundingStarted { project_id });
+
+				Ok(())
+			}
+		}
 	}
 
 	/// Called automatically by on_initialize
@@ -630,30 +641,66 @@ impl<T: Config> Pallet<T> {
 		if let Some(end_block) = remainder_end_block {
 			ensure!(now > end_block, Error::<T>::TooEarlyForFundingEnd);
 		} else {
-			ensure!(remaining_cts == 0u32.into() || project_details.status == ProjectStatus::EvaluationFailed, Error::<T>::TooEarlyForFundingEnd);
+			ensure!(
+				remaining_cts == 0u32.into()
+					|| project_details.status == ProjectStatus::EvaluationFailed
+					|| project_details.status == ProjectStatus::AuctionFailed,
+				Error::<T>::TooEarlyForFundingEnd
+			);
 		}
 
 		// * Calculate new variables *
-		project_details.status = ProjectStatus::FundingSuccessful;
-		ProjectsDetails::<T>::insert(project_id, project_details.clone());
+		let funding_target = project_metadata
+			.minimum_price
+			.checked_mul_int(project_metadata.minimum_price)
+			.ok_or(Error::<T>::BadMath)?;
+		let funding_reached = project_details.funding_amount_reached;
+		let funding_is_successful = !(project_details.status == ProjectStatus::EvaluationFailed
+			|| project_details.status == ProjectStatus::AuctionFailed
+			|| funding_reached < funding_target);
 
-		// * Update Storage *
-		// Create the "Contribution Token" as an asset using the pallet_assets and set its metadata
-		T::ContributionTokenCurrency::create(project_id, project_details.issuer.clone(), false, 1_u32.into())
-			.map_err(|_| Error::<T>::AssetCreationFailed)?;
-		// Update the CT metadata
-		T::ContributionTokenCurrency::set(
-			project_id,
-			&project_details.issuer,
-			token_information.name.into(),
-			token_information.symbol.into(),
-			token_information.decimals,
-		)
-		.map_err(|_| Error::<T>::AssetMetadataUpdateFailed)?;
+		if funding_is_successful {
+			project_details.status = ProjectStatus::FundingSuccessful;
+			project_details.cleanup = ProjectCleanup::Ready(RemainingOperations::Success(SuccessRemainingOperations::default()));
 
-		// * Emit events *
-		Self::deposit_event(Event::FundingEnded { project_id });
-		Ok(())
+			// * Update Storage *
+			ProjectsDetails::<T>::insert(project_id, project_details.clone());
+			T::ContributionTokenCurrency::create(project_id, project_details.issuer.clone(), false, 1_u32.into())
+				.map_err(|_| Error::<T>::AssetCreationFailed)?;
+			T::ContributionTokenCurrency::set(
+				project_id,
+				&project_details.issuer,
+				token_information.name.into(),
+				token_information.symbol.into(),
+				token_information.decimals,
+			)
+			.map_err(|_| Error::<T>::AssetMetadataUpdateFailed)?;
+
+			// * Emit events *
+			let success_reason = match remaining_cts {
+				0u32 => SuccessReason::SoldOut,
+				_ => SuccessReason::ReachedTarget,
+			};
+			Self::deposit_event(Event::<T>::FundingEnded { project_id, outcome: FundingOutcome::Success(success_reason) });
+			Ok(())
+
+		} else {
+			project_details.status = ProjectStatus::FundingFailed;
+			project_details.cleanup = ProjectCleanup::Ready(RemainingOperations::Failure(FailureRemainingOperations::default()));
+
+			// * Update Storage *
+			ProjectsDetails::<T>::insert(project_id, project_details.clone());
+
+			// * Emit events *
+			let failure_reason = match project_details.status {
+				ProjectStatus::AuctionFailed => FailureReason::AuctionFailed,
+				ProjectStatus::EvaluationFailed => FailureReason::EvaluationFailed,
+				_ if funding_reached < funding_target => FailureReason::TargetNotReached,
+				_ => FailureReason::Unknown,
+			};
+			Self::deposit_event(Event::<T>::FundingEnded { project_id, outcome: FundingOutcome::Failure(failure_reason) });
+			Ok(())
+		}
 	}
 
 	/// Called manually by a user extrinsic
@@ -1611,25 +1658,38 @@ impl<T: Config> Pallet<T> {
 
 						let funding_asset_price = T::PriceProvider::get_price(bid.funding_asset.to_statemint_id())
 							.ok_or(Error::<T>::PriceNotFound)?;
-						let funding_asset_amount_needed = funding_asset_price.reciprocal().ok_or(Error::<T>::BadMath)?
-							.checked_mul_int(ticket_size).ok_or(Error::<T>::BadMath)?;
+						let funding_asset_amount_needed = funding_asset_price
+							.reciprocal()
+							.ok_or(Error::<T>::BadMath)?
+							.checked_mul_int(ticket_size)
+							.ok_or(Error::<T>::BadMath)?;
 						T::FundingCurrency::transfer(
 							bid.funding_asset.to_statemint_id(),
 							&project_account,
 							&bid.bidder,
-							bid.funding_asset_amount_locked.saturating_sub(funding_asset_amount_needed),
-							Preservation::Preserve
+							bid.funding_asset_amount_locked
+								.saturating_sub(funding_asset_amount_needed),
+							Preservation::Preserve,
 						)?;
 
-						let usd_bond_needed = bid.multiplier.calculate_bonding_requirement(ticket_size)
+						let usd_bond_needed = bid
+							.multiplier
+							.calculate_bonding_requirement(ticket_size)
 							.map_err(|_| Error::<T>::BadMath)?;
-						let plmc_bond_needed = plmc_price.reciprocal().ok_or(Error::<T>::BadMath)?
-							.checked_mul_int(usd_bond_needed).ok_or(Error::<T>::BadMath)?;
-						T::NativeCurrency::release(&LockType::Participation(project_id), &bid.bidder, bid.plmc_bond.saturating_sub(plmc_bond_needed), Precision::Exact)?;
+						let plmc_bond_needed = plmc_price
+							.reciprocal()
+							.ok_or(Error::<T>::BadMath)?
+							.checked_mul_int(usd_bond_needed)
+							.ok_or(Error::<T>::BadMath)?;
+						T::NativeCurrency::release(
+							&LockType::Participation(project_id),
+							&bid.bidder,
+							bid.plmc_bond.saturating_sub(plmc_bond_needed),
+							Precision::Exact,
+						)?;
 
 						bid.funding_asset_amount_locked = funding_asset_amount_needed;
 						bid.plmc_bond = plmc_bond_needed;
-
 					} else {
 						bid.status = BidStatus::Rejected(RejectionReason::BadMath);
 						bid.final_ct_amount = 0_u32.into();
@@ -1640,9 +1700,14 @@ impl<T: Config> Pallet<T> {
 							&project_account,
 							&bid.bidder,
 							bid.funding_asset_amount_locked,
-							Preservation::Preserve
+							Preservation::Preserve,
 						)?;
-						T::NativeCurrency::release(&LockType::Participation(project_id), &bid.bidder, bid.plmc_bond, Precision::Exact)?;
+						T::NativeCurrency::release(
+							&LockType::Participation(project_id),
+							&bid.bidder,
+							bid.plmc_bond,
+							Precision::Exact,
+						)?;
 						bid.funding_asset_amount_locked = BalanceOf::<T>::zero();
 						bid.plmc_bond = BalanceOf::<T>::zero();
 
@@ -1699,7 +1764,6 @@ impl<T: Config> Pallet<T> {
 			.reduce(|a, b| a.saturating_add(b))
 			.ok_or(Error::<T>::NoBidsFound)?;
 
-
 		// Update the bid in the storage
 		for bid in bids.into_iter() {
 			Bids::<T>::mutate(project_id, bid.bidder.clone(), |bids| -> Result<(), DispatchError> {
@@ -1711,21 +1775,27 @@ impl<T: Config> Pallet<T> {
 				let mut final_bid = bid;
 
 				if final_bid.final_ct_usd_price > weighted_token_price {
-
 					final_bid.final_ct_usd_price = weighted_token_price;
-					let new_ticket_size = weighted_token_price.checked_mul_int(final_bid.final_ct_amount).ok_or(Error::<T>::BadMath)?;
+					let new_ticket_size = weighted_token_price
+						.checked_mul_int(final_bid.final_ct_amount)
+						.ok_or(Error::<T>::BadMath)?;
 
 					let funding_asset_price = T::PriceProvider::get_price(final_bid.funding_asset.to_statemint_id())
 						.ok_or(Error::<T>::PriceNotFound)?;
-					let funding_asset_amount_needed = funding_asset_price.reciprocal().ok_or(Error::<T>::BadMath)?
-						.checked_mul_int(new_ticket_size).ok_or(Error::<T>::BadMath)?;
+					let funding_asset_amount_needed = funding_asset_price
+						.reciprocal()
+						.ok_or(Error::<T>::BadMath)?
+						.checked_mul_int(new_ticket_size)
+						.ok_or(Error::<T>::BadMath)?;
 
 					let try_transfer = T::FundingCurrency::transfer(
 						final_bid.funding_asset.to_statemint_id(),
 						&project_account,
 						&final_bid.bidder,
-						final_bid.funding_asset_amount_locked.saturating_sub(funding_asset_amount_needed),
-						Preservation::Preserve
+						final_bid
+							.funding_asset_amount_locked
+							.saturating_sub(funding_asset_amount_needed),
+						Preservation::Preserve,
 					);
 					if let Err(e) = try_transfer {
 						Self::deposit_event(Event::<T>::TransferError { error: e });
@@ -1733,16 +1803,21 @@ impl<T: Config> Pallet<T> {
 
 					final_bid.funding_asset_amount_locked = funding_asset_amount_needed;
 
-					let usd_bond_needed = final_bid.multiplier.calculate_bonding_requirement(new_ticket_size)
+					let usd_bond_needed = final_bid
+						.multiplier
+						.calculate_bonding_requirement(new_ticket_size)
 						.map_err(|_| Error::<T>::BadMath)?;
-					let plmc_bond_needed = plmc_price.reciprocal().ok_or(Error::<T>::BadMath)?
-						.checked_mul_int(usd_bond_needed).ok_or(Error::<T>::BadMath)?;
+					let plmc_bond_needed = plmc_price
+						.reciprocal()
+						.ok_or(Error::<T>::BadMath)?
+						.checked_mul_int(usd_bond_needed)
+						.ok_or(Error::<T>::BadMath)?;
 
 					let try_release = T::NativeCurrency::release(
 						&LockType::Participation(project_id),
 						&final_bid.bidder,
 						final_bid.plmc_bond.saturating_sub(plmc_bond_needed),
-						Precision::Exact
+						Precision::Exact,
 					);
 					if let Err(e) = try_release {
 						Self::deposit_event(Event::<T>::TransferError { error: e });

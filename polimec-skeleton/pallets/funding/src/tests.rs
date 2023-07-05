@@ -39,10 +39,10 @@ use frame_support::{
 use helper_functions::*;
 
 use crate::traits::BondingRequirementCalculation;
+use sp_arithmetic::traits::Zero;
 use sp_runtime::DispatchError;
 use std::cell::RefCell;
 use std::iter::zip;
-use sp_arithmetic::traits::Zero;
 
 type ProjectIdOf<T> = <T as Config>::ProjectIdentifier;
 type UserToPLMCBalance = Vec<(AccountId, BalanceOf<TestRuntime>)>;
@@ -394,7 +394,7 @@ impl TestEnvironment {
 	fn current_block(&self) -> BlockNumber {
 		self.ext_env.borrow_mut().execute_with(|| System::block_number())
 	}
-	fn advance_time(&self, amount: BlockNumber) -> Result<(), DispatchError>{
+	fn advance_time(&self, amount: BlockNumber) -> Result<(), DispatchError> {
 		self.ext_env.borrow_mut().execute_with(|| {
 			for _block in 0..amount {
 				<AllPalletsWithoutSystem as OnFinalize<u64>>::on_finalize(System::block_number());
@@ -711,7 +711,8 @@ impl<'a> AuctioningProject<'a> {
 		let candle_start = english_end + 2;
 
 		self.test_env
-			.advance_time(candle_start.saturating_sub(self.test_env.current_block())).unwrap();
+			.advance_time(candle_start.saturating_sub(self.test_env.current_block()))
+			.unwrap();
 		let candle_end = self
 			.get_project_details()
 			.phase_transition_points
@@ -722,7 +723,8 @@ impl<'a> AuctioningProject<'a> {
 		let community_start = candle_end + 2;
 
 		self.test_env
-			.advance_time(community_start.saturating_sub(self.test_env.current_block())).unwrap();
+			.advance_time(community_start.saturating_sub(self.test_env.current_block()))
+			.unwrap();
 
 		assert_eq!(self.get_project_details().status, ProjectStatus::CommunityRound);
 
@@ -759,6 +761,11 @@ impl<'a> CommunityFundingProject<'a> {
 		let auctioning_project = AuctioningProject::new_with(test_env, project_metadata, issuer, evaluations.clone());
 
 		let project_id = auctioning_project.get_project_id();
+
+		if bids.is_empty() {
+			panic!("Cannot start community funding without bids")
+		}
+
 		let bidders = bids
 			.iter()
 			.map(|b| b.bidder.clone())
@@ -863,7 +870,8 @@ impl<'a> CommunityFundingProject<'a> {
 			.expect("Community funding end point should exist");
 		let remainder_start = community_funding_end + 1;
 		self.test_env
-			.advance_time(remainder_start.saturating_sub(self.test_env.current_block())).unwrap();
+			.advance_time(remainder_start.saturating_sub(self.test_env.current_block()))
+			.unwrap();
 		assert_eq!(self.get_project_details().status, ProjectStatus::RemainderRound);
 		RemainderFundingProject {
 			test_env: self.test_env,
@@ -975,7 +983,8 @@ impl<'a> RemainderFundingProject<'a> {
 			.expect("Should have remainder end");
 		let finish_block = remainder_funding_end + 1;
 		self.test_env
-			.advance_time(finish_block.saturating_sub(self.test_env.current_block())).unwrap();
+			.advance_time(finish_block.saturating_sub(self.test_env.current_block()))
+			.unwrap();
 		assert_eq!(self.get_project_details().status, ProjectStatus::FundingSuccessful);
 
 		FinishedProject {
@@ -1199,8 +1208,8 @@ mod defaults {
 pub mod helper_functions {
 	use super::*;
 	use sp_arithmetic::traits::Zero;
-	use std::collections::BTreeMap;
 	use sp_core::H256;
+	use std::collections::BTreeMap;
 
 	pub fn get_ed() -> BalanceOf<TestRuntime> {
 		<TestRuntime as pallet_balances::Config>::ExistentialDeposit::get()
@@ -1467,23 +1476,29 @@ pub mod helper_functions {
 			.unwrap()
 	}
 
-	pub fn panic_if_on_initialize_failed(events: Vec<frame_system::EventRecord<RuntimeEvent, H256>>){
+	pub fn panic_if_on_initialize_failed(events: Vec<frame_system::EventRecord<RuntimeEvent, H256>>) {
 		let last_event = events.into_iter().last().expect("No events found for this action.");
 		match last_event {
-			frame_system::EventRecord { event: RuntimeEvent::FundingModule(Event::TransitionError { project_id, error }), .. } => {
+			frame_system::EventRecord {
+				event: RuntimeEvent::FundingModule(Event::TransitionError { project_id, error }),
+				..
+			} => {
 				panic!("Project {} transition failed in on_initialize: {:?}", project_id, error);
 			}
 			_ => {}
 		}
 	}
 
-	pub fn err_if_on_initialize_failed(events: Vec<frame_system::EventRecord<RuntimeEvent, H256>>) -> Result<(), DispatchError>{
+	pub fn err_if_on_initialize_failed(
+		events: Vec<frame_system::EventRecord<RuntimeEvent, H256>>,
+	) -> Result<(), DispatchError> {
 		let last_event = events.into_iter().last().expect("No events found for this action.");
 		match last_event {
-			frame_system::EventRecord { event: RuntimeEvent::FundingModule(Event::TransitionError { project_id, error }), .. } => {
-				Err(error)
-			}
-			_ => {Ok(())}
+			frame_system::EventRecord {
+				event: RuntimeEvent::FundingModule(Event::TransitionError { project_id, error }),
+				..
+			} => Err(error),
+			_ => Ok(()),
 		}
 	}
 }
@@ -2184,9 +2199,27 @@ mod auction_round_success {
 		let auctioning_project =
 			AuctioningProject::new_with(&test_env, project_metadata, ISSUER, default_evaluations());
 		let bids = vec![
-			TestBid::new(BIDDER_1, 10_000 * ASSET_UNIT, 15.into(), None, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_2, 20_000 * ASSET_UNIT, 20.into(), None, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_3, 20_000 * ASSET_UNIT, 16.into(), None, AcceptedFundingAsset::USDT),
+			TestBid::new(
+				BIDDER_1,
+				10_000 * ASSET_UNIT,
+				15.into(),
+				None,
+				AcceptedFundingAsset::USDT,
+			),
+			TestBid::new(
+				BIDDER_2,
+				20_000 * ASSET_UNIT,
+				20.into(),
+				None,
+				AcceptedFundingAsset::USDT,
+			),
+			TestBid::new(
+				BIDDER_3,
+				20_000 * ASSET_UNIT,
+				16.into(),
+				None,
+				AcceptedFundingAsset::USDT,
+			),
 		];
 
 		let statemint_funding = calculate_auction_funding_asset_spent(bids.clone());
@@ -2228,7 +2261,9 @@ mod auction_round_success {
 			.expect("Auction start point should exist");
 		// The block following the end of the english auction, is used to transition the project into candle auction.
 		// We move past that transition, into the start of the candle auction.
-		test_env.advance_time(english_end_block - test_env.current_block() + 1).unwrap();
+		test_env
+			.advance_time(english_end_block - test_env.current_block() + 1)
+			.unwrap();
 		assert_eq!(
 			auctioning_project.get_project_details().status,
 			ProjectStatus::AuctionRound(AuctionPhase::Candle)
@@ -2280,7 +2315,9 @@ mod auction_round_success {
 
 			test_env.advance_time(1).unwrap();
 		}
-		test_env.advance_time(candle_end_block - test_env.current_block() + 1).unwrap();
+		test_env
+			.advance_time(candle_end_block - test_env.current_block() + 1)
+			.unwrap();
 
 		let details = auctioning_project.get_project_details();
 		let now = test_env.current_block();
@@ -2348,12 +2385,16 @@ mod auction_round_success {
 		test_env.mint_plmc_to(required_plmc);
 		test_env.mint_plmc_to(ed_plmc);
 		project.bond_for_users(evaluations).unwrap();
-		test_env.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
+		test_env
+			.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1)
+			.unwrap();
 		assert_eq!(
 			project.get_project_details().status,
 			ProjectStatus::AuctionInitializePeriod
 		);
-		test_env.advance_time(<TestRuntime as Config>::AuctionInitializePeriodDuration::get() + 2).unwrap();
+		test_env
+			.advance_time(<TestRuntime as Config>::AuctionInitializePeriodDuration::get() + 2)
+			.unwrap();
 		assert_eq!(
 			project.get_project_details().status,
 			ProjectStatus::AuctionRound(AuctionPhase::English)
@@ -2374,7 +2415,9 @@ mod auction_round_success {
 		test_env.mint_plmc_to(required_plmc);
 		test_env.mint_plmc_to(ed_plmc);
 		project.bond_for_users(evaluations).unwrap();
-		test_env.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
+		test_env
+			.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1)
+			.unwrap();
 		assert_eq!(
 			project.get_project_details().status,
 			ProjectStatus::AuctionInitializePeriod
@@ -2404,7 +2447,9 @@ mod auction_round_success {
 		test_env.mint_plmc_to(required_plmc);
 		test_env.mint_plmc_to(ed_plmc);
 		project.bond_for_users(evaluations).unwrap();
-		test_env.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
+		test_env
+			.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1)
+			.unwrap();
 		assert_eq!(
 			project.get_project_details().status,
 			ProjectStatus::AuctionInitializePeriod
@@ -2445,16 +2490,37 @@ mod auction_round_success {
 		let mut project = default_project(test_env.get_new_nonce());
 		let evaluations = default_evaluations();
 		let bids: TestBids = vec![
-			TestBid::new(BIDDER_1, 10_000 * ASSET_UNIT, 15.into(), None, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_2, 20_000 * ASSET_UNIT, 20.into(), None, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_4, 20_000 * ASSET_UNIT, 16.into(), None, AcceptedFundingAsset::USDT),
+			TestBid::new(
+				BIDDER_1,
+				10_000 * ASSET_UNIT,
+				15.into(),
+				None,
+				AcceptedFundingAsset::USDT,
+			),
+			TestBid::new(
+				BIDDER_2,
+				20_000 * ASSET_UNIT,
+				20.into(),
+				None,
+				AcceptedFundingAsset::USDT,
+			),
+			TestBid::new(
+				BIDDER_4,
+				20_000 * ASSET_UNIT,
+				16.into(),
+				None,
+				AcceptedFundingAsset::USDT,
+			),
 		];
 
 		let community_funding_project =
 			CommunityFundingProject::new_with(&test_env, project, issuer, evaluations, bids);
 		let project_id = community_funding_project.project_id;
 		let bidder_2_bid = test_env.in_ext(|| Bids::<TestRuntime>::get(project_id, BIDDER_2))[0];
-		assert_eq!(bidder_2_bid.final_ct_usd_price.checked_mul_int(US_DOLLAR).unwrap(), 17_6_666_666_666);
+		assert_eq!(
+			bidder_2_bid.final_ct_usd_price.checked_mul_int(US_DOLLAR).unwrap(),
+			17_6_666_666_666
+		);
 	}
 }
 
@@ -2598,8 +2664,20 @@ mod auction_round_failure {
 		let project = default_project(test_env.get_new_nonce());
 		let evaluations = default_evaluations();
 		let bids: TestBids = vec![];
-		let _community_funding_project =
-			CommunityFundingProject::new_with(&test_env, project, issuer, evaluations, bids);
+		let bidding_project = AuctioningProject::new_with(&test_env, project, issuer, evaluations);
+
+		let details = bidding_project.get_project_details();
+		let english_end = details.phase_transition_points.english_auction.end().unwrap();
+		let now = test_env.current_block();
+		test_env.advance_time(english_end - now + 2).unwrap();
+
+		let details = bidding_project.get_project_details();
+		let candle_end = details.phase_transition_points.candle_auction.end().unwrap();
+		let now = test_env.current_block();
+		test_env.advance_time(candle_end - now + 2).unwrap();
+
+		let details = bidding_project.get_project_details();
+		assert_eq!(details.status, ProjectStatus::FundingFailed);
 	}
 }
 
@@ -3831,9 +3909,27 @@ mod misc_features {
 		];
 
 		let bids: TestBids = vec![
-			TestBid::new(BIDDER_1, 10_000 * ASSET_UNIT, 15.into(), None, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_2, 20_000 * ASSET_UNIT, 20.into(), None, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_4, 20_000 * ASSET_UNIT, 16.into(), None, AcceptedFundingAsset::USDT),
+			TestBid::new(
+				BIDDER_1,
+				10_000 * ASSET_UNIT,
+				15.into(),
+				None,
+				AcceptedFundingAsset::USDT,
+			),
+			TestBid::new(
+				BIDDER_2,
+				20_000 * ASSET_UNIT,
+				20.into(),
+				None,
+				AcceptedFundingAsset::USDT,
+			),
+			TestBid::new(
+				BIDDER_4,
+				20_000 * ASSET_UNIT,
+				16.into(),
+				None,
+				AcceptedFundingAsset::USDT,
+			),
 		];
 
 		let contributions: TestContributions = vec![
@@ -3849,7 +3945,8 @@ mod misc_features {
 		let project =
 			RemainderFundingProject::new_with(&test_env, default_project(0), ISSUER, evaluations, bids, contributions);
 		let details = project.get_project_details();
-		let mut ct_evaluation_rewards = test_env.in_ext(|| FundingModule::get_evaluator_ct_rewards(project.get_project_id()).unwrap());
+		let mut ct_evaluation_rewards =
+			test_env.in_ext(|| FundingModule::get_evaluator_ct_rewards(project.get_project_id()).unwrap());
 		ct_evaluation_rewards.sort_by_key(|item| item.0);
 		let expected_ct_rewards = vec![
 			(EVALUATOR_1, 1_236_9_500_000_000),

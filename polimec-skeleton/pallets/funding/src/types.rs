@@ -132,6 +132,8 @@ pub mod storage_types {
 		pub remaining_contribution_tokens: Balance,
 		/// Funding reached amount in USD equivalent
 		pub funding_amount_reached: Balance,
+		/// Cleanup operations remaining
+		pub cleanup: ProjectCleanup,
 	}
 
 	/// Tells on_initialize what to do with the project
@@ -166,7 +168,7 @@ pub mod storage_types {
 		BlockNumber,
 		PlmcVesting,
 		CTVesting,
-		Multiplier
+		Multiplier,
 	> {
 		pub id: Id,
 		pub project_id: ProjectId,
@@ -334,9 +336,10 @@ pub mod inner_types {
 		#[default]
 		Application,
 		EvaluationRound,
-		AuctionInitializePeriod,
 		EvaluationFailed,
+		AuctionInitializePeriod,
 		AuctionRound(AuctionPhase),
+		AuctionFailed,
 		CommunityRound,
 		RemainderRound,
 		FundingSuccessful,
@@ -454,6 +457,84 @@ pub mod inner_types {
 				self.next_withdrawal = next_withdrawal;
 				self.amount -= withdraw_amount;
 				Ok(withdraw_amount)
+			}
+		}
+	}
+
+	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum FundingOutcome {
+		Success(SuccessReason),
+		Failure(FailureReason),
+	}
+
+	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum SuccessReason {
+		SoldOut,
+		ReachedTarget,
+	}
+
+	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum FailureReason {
+		EvaluationFailed,
+		AuctionFailed,
+		TargetNotReached,
+		Unknown
+	}
+
+	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum ProjectCleanup {
+		#[default]
+		NotReady,
+		Ready(RemainingOperations),
+		Finished
+	}
+
+	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum RemainingOperations {
+		Success(SuccessRemainingOperations),
+		Failure(FailureRemainingOperations),
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub struct SuccessRemainingOperations {
+		pub evaluation_unbonding: bool,
+		pub bidder_plmc_vesting: bool,
+		pub bidder_ct_mint: bool,
+		pub contributor_plmc_vesting: bool,
+		pub contributor_ct_mint: bool,
+		pub bids_funding_to_issuer_transfer: bool,
+		pub contributions_funding_to_issuer_transfer: bool,
+	}
+	impl Default for SuccessRemainingOperations {
+		fn default() -> Self {
+			Self {
+				evaluation_unbonding: true,
+				bidder_plmc_vesting: true,
+				bidder_ct_mint: true,
+				contributor_plmc_vesting: true,
+				contributor_ct_mint: true,
+				bids_funding_to_issuer_transfer: true,
+				contributions_funding_to_issuer_transfer: true,
+			}
+		}
+	}
+
+	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub struct FailureRemainingOperations {
+		pub evaluation_unbonding: bool,
+		pub bidder_plmc_unbonding: bool,
+		pub contributor_plmc_unbonding: bool,
+		pub bids_funding_to_bidder_return: bool,
+		pub contributions_funding_to_contributor_return: bool,
+	}
+	impl Default for FailureRemainingOperations {
+		fn default() -> Self {
+			Self {
+				evaluation_unbonding: true,
+				bidder_plmc_unbonding: true,
+				contributor_plmc_unbonding: true,
+				bids_funding_to_bidder_return: true,
+				contributions_funding_to_contributor_return: true,
 			}
 		}
 	}

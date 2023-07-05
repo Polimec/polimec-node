@@ -499,7 +499,7 @@ pub mod pallet {
 			when: T::BlockNumber,
 		},
 		/// The auction round of a project ended.
-		AuctionEnded { project_id: T::ProjectIdentifier },
+		AuctionFailed { project_id: T::ProjectIdentifier },
 		/// A `bonder` bonded an `amount` of PLMC for `project_id`.
 		FundsBonded {
 			project_id: T::ProjectIdentifier,
@@ -532,7 +532,7 @@ pub mod pallet {
 		/// A project is now in the remainder funding round
 		RemainderFundingStarted { project_id: T::ProjectIdentifier },
 		/// A project has now finished funding
-		FundingEnded { project_id: T::ProjectIdentifier },
+		FundingEnded { project_id: T::ProjectIdentifier, outcome: FundingOutcome},
 		/// Something was not properly initialized. Most likely due to dev error manually calling do_* functions or updating storage
 		TransitionError {
 			project_id: T::ProjectIdentifier,
