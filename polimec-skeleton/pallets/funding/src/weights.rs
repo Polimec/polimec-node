@@ -59,6 +59,9 @@ pub trait WeightInfo {
     fn claim_contribution_tokens() -> Weight;
     fn on_initialize() -> Weight;
     fn failed_evaluation_unbond_for() -> Weight;
+    fn insert_cleaned_projects(amount: u64) -> Weight;
+    // used in on_idle to deduct the weight required to update the cleaned_project
+    fn insert_cleaned_project() -> Weight;
 }
 
 /// Weights for pallet_funding using the Substrate node and recommended hardware.
@@ -342,4 +345,7 @@ impl WeightInfo for () {
     fn failed_evaluation_unbond_for() -> Weight {
         Weight::from_parts(1_000_000, 0)
     }
+
+    // used in on_idle to deduct the weight required to update the cleaned_project
+    fn insert_cleaned_project() -> Weight{ Weight::from_parts(1_000_000, 0) }
 }

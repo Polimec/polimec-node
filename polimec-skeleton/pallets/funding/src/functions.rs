@@ -108,6 +108,7 @@ impl<T: Config> Pallet<T> {
 			},
 			remaining_contribution_tokens: initial_metadata.total_allocation_size,
 			funding_amount_reached: BalanceOf::<T>::zero(),
+			cleanup: ProjectCleanup::NotReady,
 		};
 
 		let project_metadata = initial_metadata;
@@ -241,7 +242,7 @@ impl<T: Config> Pallet<T> {
 		let initial_balance: BalanceOf<T> = 0u32.into();
 		let total_amount_bonded =
 			Evaluations::<T>::iter_prefix(project_id).fold(initial_balance, |total, (_evaluator, bonds)| {
-				let user_total_plmc_bond = bonds.iter().fold(total, |acc, bond| acc.saturating_add(bond.plmc_bond));
+				let user_total_plmc_bond = bonds.iter().fold(total, |acc, bond| acc.saturating_add(bond.original_plmc_bond));
 				total.saturating_add(user_total_plmc_bond)
 			});
 		// TODO: PLMC-142. 10% is hardcoded, check if we want to configure it a runtime as explained here:
@@ -840,7 +841,7 @@ impl<T: Config> Pallet<T> {
 			id: evaluation_id,
 			project_id,
 			evaluator: evaluator.clone(),
-			plmc_bond,
+			original_plmc_bond: plmc_bond,
 			early_usd_amount,
 			late_usd_amount,
 			when: now,
@@ -859,14 +860,14 @@ impl<T: Config> Pallet<T> {
 				let lowest_evaluation = caller_existing_evaluations.swap_remove(caller_existing_evaluations.len() - 1);
 
 				ensure!(
-					lowest_evaluation.plmc_bond < plmc_bond,
+					lowest_evaluation.original_plmc_bond < plmc_bond,
 					Error::<T>::EvaluationBondTooLow
 				);
 
 				T::NativeCurrency::release(
 					&LockType::Evaluation(project_id),
 					&lowest_evaluation.evaluator,
-					lowest_evaluation.plmc_bond,
+					lowest_evaluation.original_plmc_bond,
 					Precision::Exact,
 				)
 				.map_err(|_| Error::<T>::InsufficientBalance)?;
@@ -881,7 +882,7 @@ impl<T: Config> Pallet<T> {
 			}
 		};
 
-		caller_existing_evaluations.sort_by_key(|bond| Reverse(bond.plmc_bond));
+		caller_existing_evaluations.sort_by_key(|bond| Reverse(bond.original_plmc_bond));
 
 		Evaluations::<T>::set(project_id, evaluator.clone(), caller_existing_evaluations);
 		NextEvaluationId::<T>::set(evaluation_id.saturating_add(One::one()));
@@ -896,40 +897,36 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn do_failed_evaluation_unbond_for(
-		bond_id: T::StorageItemId, project_id: T::ProjectIdentifier, evaluator: AccountIdOf<T>,
-		releaser: AccountIdOf<T>,
-	) -> Result<(), DispatchError> {
+	pub fn do_evaluation_unbond_for(project_id: T::ProjectIdentifier, evaluator: AccountIdOf<T>, releaser: AccountIdOf<T>, evaluation_id: T::StorageItemId) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		let mut user_bonds = Evaluations::<T>::get(project_id, evaluator.clone());
+		let mut user_evaluations = Evaluations::<T>::get(project_id, evaluator.clone());
+		let evaluation_position = user_evaluations
+			.iter()
+			.position(|evaluation| evaluation.id == evaluation_id)
+			.ok_or(Error::<T>::EvaluationNotFound)?;
+		let released_evaluation = user_evaluations.swap_remove(evaluation_position);
 
 		// * Validity checks *
 		ensure!(
-			project_details.status == ProjectStatus::EvaluationFailed,
-			Error::<T>::EvaluationNotFailed
+			project_details.status == ProjectStatus::FundingSuccessful && released_evaluation.rewarded_or_slashed == true
+			|| project_details.status == ProjectStatus::FundingFailed && released_evaluation.rewarded_or_slashed == true,
+			Error::<T>::NotAllowed
 		);
-
-		// * Calculate new variables *
-		let evaluation_pos = user_bonds
-			.iter()
-			.position(|bond| bond.id == bond_id)
-			.ok_or(Error::<T>::BondNotFound)?;
-		let evaluation = user_bonds.swap_remove(evaluation_pos);
 
 		// * Update Storage *
 		T::NativeCurrency::release(
 			&LockType::Evaluation(project_id),
-			&evaluation.evaluator.clone(),
-			evaluation.plmc_bond,
+			&evaluator,
+			released_evaluation.current_plmc_bond,
 			Precision::Exact,
 		)?;
-		Evaluations::<T>::set(project_id, evaluator.clone(), user_bonds);
+		Evaluations::<T>::set(project_id, evaluator.clone(), user_evaluations);
 
 		// * Emit events *
 		Self::deposit_event(Event::<T>::BondReleased {
 			project_id,
-			amount: evaluation.plmc_bond,
+			amount: released_evaluation.current_plmc_bond,
 			bonder: evaluator,
 			releaser,
 		});

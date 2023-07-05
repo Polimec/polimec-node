@@ -152,10 +152,13 @@ pub mod storage_types {
 		pub id: Id,
 		pub project_id: ProjectId,
 		pub evaluator: AccountId,
-		pub plmc_bond: Balance,
+		pub original_plmc_bond: Balance,
+		// An evaluation bond can be converted to participation bond
+		pub current_plmc_bond: Balance,
 		pub early_usd_amount: Balance,
 		pub late_usd_amount: Balance,
 		pub when: BlockNumber,
+		pub rewarded_or_slashed: bool,
 	}
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -493,6 +496,7 @@ pub mod inner_types {
 	pub enum RemainingOperations {
 		Success(SuccessRemainingOperations),
 		Failure(FailureRemainingOperations),
+		None
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]

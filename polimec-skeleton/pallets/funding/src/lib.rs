@@ -195,6 +195,7 @@ pub mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 pub mod traits;
+mod impls;
 
 #[allow(unused_imports)]
 use polimec_traits::{MemberRole, PolimecMembers};
@@ -663,6 +664,8 @@ pub mod pallet {
 		EvaluationBondTooLow,
 		/// Bond is bigger than the limit set by issuer
 		EvaluationBondTooHigh,
+		/// Tried to do an operation on an evaluation that does not exist
+		EvaluationNotFound
 	}
 
 	#[pallet::call]
@@ -854,48 +857,41 @@ pub mod pallet {
 
 		fn on_idle(_now: T::BlockNumber, max_weight: Weight) -> Weight {
 			let pallet_account: AccountIdOf<T> = <T as Config>::PalletId::get().into_account_truncating();
-
 			let mut remaining_weight = max_weight;
 
-			// Unbond the plmc from failed evaluation projects
-			let unbond_results = ProjectsDetails::<T>::iter()
-                // Retrieve failed evaluation projects
-                .filter_map(|(project_id, info)| {
-                    if let ProjectStatus::EvaluationFailed = info.status {
-                        Some(project_id)
-                    } else {
-                        None
+			let projects_needing_cleanup = ProjectsDetails::<T>::iter()
+				.filter_map(|(project_id, info)| {
+					match info.cleanup {
+						ProjectCleanup::Ready(remaining_operations) if remaining_operations != RemainingOperations::None => {
+							Some((project_id, remaining_operations))
+						}
+						_ => None
                     }
-                })
-                // Get a flat list of bonds
-                .flat_map(|project_id| {
-                    // get all the bonds for projects with a failed evaluation phase
-                    Evaluations::<T>::iter_prefix(project_id)
-                        .flat_map(|(_bonder, bonds)| bonds)
-                        .collect::<Vec<_>>()
-                })
-                // Retrieve as many as possible for the given weight
-                .take_while(|_bond| {
-                    if let Some(new_weight) =
-                        remaining_weight.checked_sub(&T::WeightInfo::failed_evaluation_unbond_for())
-                    {
-                        remaining_weight = new_weight;
-                        true
-                    } else {
-                        false
-                    }
-                })
-                // Unbond the plmc
-                .map(|bond|
-					Self::do_failed_evaluation_unbond_for(
-						bond.id, bond.project_id, bond.evaluator, pallet_account.clone()))
-                .collect::<Vec<_>>();
+				})
+				.collect::<Vec<_>>();
 
-			// Make sure no unbonding failed
-			for result in unbond_results {
-				if let Err(e) = result {
-					Self::deposit_event(Event::<T>::FailedEvaluationUnbondFailed { error: e });
+			let projects_amount = projects_needing_cleanup.len() as u64;
+			let mut max_weight_per_project = remaining_weight.saturating_div(projects_amount);
+
+			for (i, (project_id, mut remaining_ops)) in projects_needing_cleanup.into_iter().enumerate() {
+				let mut consumed_weight = T::WeightInfo::insert_cleaned_project();
+				while consumed_weight < max_weight_per_project {
+					if let Some(weight) = remaining_ops.do_one_operation() {
+						consumed_weight += weight
+					} else {
+						break
+					}
 				}
+				let mut details = ProjectsDetails::<T>::get(project_id);
+				if let RemainingOperations::None = remaining_ops {
+					details.cleanup = ProjectCleanup::Finished;
+				} else {
+					details.cleanup = ProjectCleanup::Ready(remaining_ops);
+				}
+
+				ProjectsDetails::<T>::insert(project_id, details);
+				remaining_weight = remaining_weight.saturating_sub(consumed_weight);
+				max_weight_per_project = remaining_weight.saturating_div((projects_amount - i - 1));
 			}
 
 			// // TODO: PLMC-127. Set a proper weight
