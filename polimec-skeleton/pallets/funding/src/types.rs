@@ -342,7 +342,6 @@ pub mod inner_types {
 		EvaluationFailed,
 		AuctionInitializePeriod,
 		AuctionRound(AuctionPhase),
-		AuctionFailed,
 		CommunityRound,
 		RemainderRound,
 		FundingSuccessful,
@@ -464,24 +463,24 @@ pub mod inner_types {
 		}
 	}
 
-	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub enum FundingOutcome {
 		Success(SuccessReason),
 		Failure(FailureReason),
 	}
 
-	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub enum SuccessReason {
 		SoldOut,
 		ReachedTarget,
 	}
 
-	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub enum FailureReason {
 		EvaluationFailed,
 		AuctionFailed,
 		TargetNotReached,
-		Unknown
+		Unknown,
 	}
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -489,18 +488,19 @@ pub mod inner_types {
 		#[default]
 		NotReady,
 		Ready(RemainingOperations),
-		Finished
+		Finished,
 	}
 
-	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub enum RemainingOperations {
 		Success(SuccessRemainingOperations),
 		Failure(FailureRemainingOperations),
-		None
+		None,
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct SuccessRemainingOperations {
+		pub evaluation_reward_or_slash: bool,
 		pub evaluation_unbonding: bool,
 		pub bidder_plmc_vesting: bool,
 		pub bidder_ct_mint: bool,
@@ -512,6 +512,7 @@ pub mod inner_types {
 	impl Default for SuccessRemainingOperations {
 		fn default() -> Self {
 			Self {
+				evaluation_reward_or_slash: true,
 				evaluation_unbonding: true,
 				bidder_plmc_vesting: true,
 				bidder_ct_mint: true,
@@ -523,8 +524,9 @@ pub mod inner_types {
 		}
 	}
 
-	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct FailureRemainingOperations {
+		pub evaluation_reward_or_slash: bool,
 		pub evaluation_unbonding: bool,
 		pub bidder_plmc_unbonding: bool,
 		pub contributor_plmc_unbonding: bool,
@@ -534,6 +536,7 @@ pub mod inner_types {
 	impl Default for FailureRemainingOperations {
 		fn default() -> Self {
 			Self {
+				evaluation_reward_or_slash: true,
 				evaluation_unbonding: true,
 				bidder_plmc_unbonding: true,
 				contributor_plmc_unbonding: true,

@@ -242,7 +242,9 @@ impl<T: Config> Pallet<T> {
 		let initial_balance: BalanceOf<T> = 0u32.into();
 		let total_amount_bonded =
 			Evaluations::<T>::iter_prefix(project_id).fold(initial_balance, |total, (_evaluator, bonds)| {
-				let user_total_plmc_bond = bonds.iter().fold(total, |acc, bond| acc.saturating_add(bond.original_plmc_bond));
+				let user_total_plmc_bond = bonds
+					.iter()
+					.fold(total, |acc, bond| acc.saturating_add(bond.original_plmc_bond));
 				total.saturating_add(user_total_plmc_bond)
 			});
 		// TODO: PLMC-142. 10% is hardcoded, check if we want to configure it a runtime as explained here:
@@ -292,9 +294,8 @@ impl<T: Config> Pallet<T> {
 		} else {
 			// * Update storage *
 			project_details.status = ProjectStatus::EvaluationFailed;
+			project_details.cleanup = ProjectCleanup::Ready(RemainingOperations::Failure(Default::default()));
 			ProjectsDetails::<T>::insert(project_id, project_details);
-			// Schedule project for processing in on_initialize
-			Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::FundingEnd));
 
 			// * Emit events *
 			Self::deposit_event(Event::<T>::EvaluationFailed { project_id });
@@ -505,7 +506,7 @@ impl<T: Config> Pallet<T> {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		match calculation_result {
 			Err(pallet_error) if pallet_error == Error::<T>::NoBidsFound.into() => {
-				project_details.status = ProjectStatus::AuctionFailed;
+				project_details.status = ProjectStatus::FundingFailed;
 				ProjectsDetails::<T>::insert(project_id, project_details);
 				Self::add_to_update_store(
 					<frame_system::Pallet<T>>::block_number() + 1u32.into(),
@@ -518,7 +519,7 @@ impl<T: Config> Pallet<T> {
 				Ok(())
 			}
 			e @ Err(_) => e,
-			Some(()) => {
+			Ok(()) => {
 				// Get info again after updating it with new price.
 				project_details.phase_transition_points.random_candle_ending = Some(end_block);
 				project_details
@@ -643,9 +644,7 @@ impl<T: Config> Pallet<T> {
 			ensure!(now > end_block, Error::<T>::TooEarlyForFundingEnd);
 		} else {
 			ensure!(
-				remaining_cts == 0u32.into()
-					|| project_details.status == ProjectStatus::EvaluationFailed
-					|| project_details.status == ProjectStatus::AuctionFailed,
+				remaining_cts == 0u32.into() || project_details.status == ProjectStatus::FundingFailed,
 				Error::<T>::TooEarlyForFundingEnd
 			);
 		}
@@ -653,16 +652,16 @@ impl<T: Config> Pallet<T> {
 		// * Calculate new variables *
 		let funding_target = project_metadata
 			.minimum_price
-			.checked_mul_int(project_metadata.minimum_price)
+			.checked_mul_int(project_metadata.total_allocation_size)
 			.ok_or(Error::<T>::BadMath)?;
 		let funding_reached = project_details.funding_amount_reached;
-		let funding_is_successful = !(project_details.status == ProjectStatus::EvaluationFailed
-			|| project_details.status == ProjectStatus::AuctionFailed
-			|| funding_reached < funding_target);
+		let funding_is_successful =
+			!(project_details.status == ProjectStatus::FundingFailed || funding_reached < funding_target);
 
 		if funding_is_successful {
 			project_details.status = ProjectStatus::FundingSuccessful;
-			project_details.cleanup = ProjectCleanup::Ready(RemainingOperations::Success(SuccessRemainingOperations::default()));
+			project_details.cleanup =
+				ProjectCleanup::Ready(RemainingOperations::Success(SuccessRemainingOperations::default()));
 
 			// * Update Storage *
 			ProjectsDetails::<T>::insert(project_id, project_details.clone());
@@ -679,27 +678,28 @@ impl<T: Config> Pallet<T> {
 
 			// * Emit events *
 			let success_reason = match remaining_cts {
-				0u32 => SuccessReason::SoldOut,
+				x if x == 0u32.into() => SuccessReason::SoldOut,
 				_ => SuccessReason::ReachedTarget,
 			};
-			Self::deposit_event(Event::<T>::FundingEnded { project_id, outcome: FundingOutcome::Success(success_reason) });
+			Self::deposit_event(Event::<T>::FundingEnded {
+				project_id,
+				outcome: FundingOutcome::Success(success_reason),
+			});
 			Ok(())
-
 		} else {
 			project_details.status = ProjectStatus::FundingFailed;
-			project_details.cleanup = ProjectCleanup::Ready(RemainingOperations::Failure(FailureRemainingOperations::default()));
+			project_details.cleanup =
+				ProjectCleanup::Ready(RemainingOperations::Failure(FailureRemainingOperations::default()));
 
 			// * Update Storage *
 			ProjectsDetails::<T>::insert(project_id, project_details.clone());
 
 			// * Emit events *
-			let failure_reason = match project_details.status {
-				ProjectStatus::AuctionFailed => FailureReason::AuctionFailed,
-				ProjectStatus::EvaluationFailed => FailureReason::EvaluationFailed,
-				_ if funding_reached < funding_target => FailureReason::TargetNotReached,
-				_ => FailureReason::Unknown,
-			};
-			Self::deposit_event(Event::<T>::FundingEnded { project_id, outcome: FundingOutcome::Failure(failure_reason) });
+			let failure_reason = FailureReason::TargetNotReached;
+			Self::deposit_event(Event::<T>::FundingEnded {
+				project_id,
+				outcome: FundingOutcome::Failure(failure_reason),
+			});
 			Ok(())
 		}
 	}
@@ -842,9 +842,11 @@ impl<T: Config> Pallet<T> {
 			project_id,
 			evaluator: evaluator.clone(),
 			original_plmc_bond: plmc_bond,
+			current_plmc_bond: plmc_bond,
 			early_usd_amount,
 			late_usd_amount,
 			when: now,
+			rewarded_or_slashed: false,
 		};
 
 		// * Update Storage *
@@ -897,7 +899,10 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn do_evaluation_unbond_for(project_id: T::ProjectIdentifier, evaluator: AccountIdOf<T>, releaser: AccountIdOf<T>, evaluation_id: T::StorageItemId) -> Result<(), DispatchError> {
+	pub fn do_evaluation_unbond_for(
+		releaser: AccountIdOf<T>, project_id: T::ProjectIdentifier, evaluator: AccountIdOf<T>,
+		evaluation_id: T::StorageItemId,
+	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let mut user_evaluations = Evaluations::<T>::get(project_id, evaluator.clone());
@@ -909,8 +914,10 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			project_details.status == ProjectStatus::FundingSuccessful && released_evaluation.rewarded_or_slashed == true
-			|| project_details.status == ProjectStatus::FundingFailed && released_evaluation.rewarded_or_slashed == true,
+			project_details.status == ProjectStatus::FundingSuccessful
+				&& released_evaluation.rewarded_or_slashed == true
+				|| project_details.status == ProjectStatus::FundingFailed
+					&& released_evaluation.rewarded_or_slashed == true,
 			Error::<T>::NotAllowed
 		);
 
@@ -1523,6 +1530,13 @@ impl<T: Config> Pallet<T> {
 				.map_err(|_| Error::<T>::TooManyContributions)?;
 		Contributions::<T>::insert(project_id, &claimer, updated_contributions);
 
+		Ok(())
+	}
+
+	pub fn do_evaluation_reward_or_slash(
+		caller: AccountIdOf<T>, project_id: T::ProjectIdentifier, evaluator: AccountIdOf<T>,
+		evaluation_id: StorageItemIdOf<T>,
+	) -> Result<(), DispatchError> {
 		Ok(())
 	}
 }

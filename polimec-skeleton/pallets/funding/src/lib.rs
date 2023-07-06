@@ -194,8 +194,8 @@ pub mod tests;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
-pub mod traits;
 mod impls;
+pub mod traits;
 
 #[allow(unused_imports)]
 use polimec_traits::{MemberRole, PolimecMembers};
@@ -255,7 +255,7 @@ const PLMC_STATEMINT_ID: u32 = 2069;
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
 	use super::*;
-	use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice};
+	use crate::traits::{BondingRequirementCalculation, DoRemainingOperation, ProvideStatemintPrice};
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use local_macros::*;
@@ -533,14 +533,17 @@ pub mod pallet {
 		/// A project is now in the remainder funding round
 		RemainderFundingStarted { project_id: T::ProjectIdentifier },
 		/// A project has now finished funding
-		FundingEnded { project_id: T::ProjectIdentifier, outcome: FundingOutcome},
+		FundingEnded {
+			project_id: T::ProjectIdentifier,
+			outcome: FundingOutcome,
+		},
 		/// Something was not properly initialized. Most likely due to dev error manually calling do_* functions or updating storage
 		TransitionError {
 			project_id: T::ProjectIdentifier,
 			error: DispatchError,
 		},
 		/// Something terribly wrong happened where the bond could not be unbonded. Most likely a programming error
-		FailedEvaluationUnbondFailed { error: DispatchError },
+		EvaluationUnbondFailed { error: DispatchError },
 		/// Contribution tokens were minted to a user
 		ContributionTokenMinted {
 			caller: AccountIdOf<T>,
@@ -665,7 +668,7 @@ pub mod pallet {
 		/// Bond is bigger than the limit set by issuer
 		EvaluationBondTooHigh,
 		/// Tried to do an operation on an evaluation that does not exist
-		EvaluationNotFound
+		EvaluationNotFound,
 	}
 
 	#[pallet::call]
@@ -732,14 +735,14 @@ pub mod pallet {
 			Self::do_evaluate(evaluator, project_id, usd_amount)
 		}
 
-		/// Release the bonded PLMC for an evaluator if the project assigned to it is in the EvaluationFailed phase
-		#[pallet::weight(T::WeightInfo::failed_evaluation_unbond_for())]
-		pub fn failed_evaluation_unbond_for(
+		/// Release evaluation-bonded PLMC when a project finishes its funding round.
+		#[pallet::weight(T::WeightInfo::evaluation_unbond_for())]
+		pub fn evaluation_unbond_for(
 			origin: OriginFor<T>, bond_id: T::StorageItemId, project_id: T::ProjectIdentifier,
 			evaluator: AccountIdOf<T>,
 		) -> DispatchResult {
 			let releaser = ensure_signed(origin)?;
-			Self::do_failed_evaluation_unbond_for(bond_id, project_id, evaluator, releaser)
+			Self::do_evaluation_unbond_for(releaser, project_id, evaluator, bond_id)
 		}
 
 		/// Bid for a project in the Auction round
@@ -860,29 +863,39 @@ pub mod pallet {
 			let mut remaining_weight = max_weight;
 
 			let projects_needing_cleanup = ProjectsDetails::<T>::iter()
-				.filter_map(|(project_id, info)| {
-					match info.cleanup {
-						ProjectCleanup::Ready(remaining_operations) if remaining_operations != RemainingOperations::None => {
-							Some((project_id, remaining_operations))
-						}
-						_ => None
-                    }
+				.filter_map(|(project_id, info)| match info.cleanup {
+					ProjectCleanup::Ready(remaining_operations)
+						if remaining_operations != RemainingOperations::None =>
+					{
+						Some((project_id, remaining_operations))
+					}
+					_ => None,
 				})
 				.collect::<Vec<_>>();
 
 			let projects_amount = projects_needing_cleanup.len() as u64;
+			if projects_amount == 0 {
+				return max_weight;
+			}
+
 			let mut max_weight_per_project = remaining_weight.saturating_div(projects_amount);
 
-			for (i, (project_id, mut remaining_ops)) in projects_needing_cleanup.into_iter().enumerate() {
+			for (remaining_projects, (project_id, mut remaining_ops)) in
+				projects_needing_cleanup.into_iter().enumerate().rev()
+			{
 				let mut consumed_weight = T::WeightInfo::insert_cleaned_project();
-				while consumed_weight < max_weight_per_project {
-					if let Some(weight) = remaining_ops.do_one_operation() {
+				while !consumed_weight.any_gt(max_weight_per_project) {
+					if let Ok(weight) = remaining_ops.do_one_operation::<T>(project_id) {
 						consumed_weight += weight
 					} else {
-						break
+						break;
 					}
 				}
-				let mut details = ProjectsDetails::<T>::get(project_id);
+				let mut details = if let Some(d) = ProjectsDetails::<T>::get(project_id) {
+					d
+				} else {
+					continue;
+				};
 				if let RemainingOperations::None = remaining_ops {
 					details.cleanup = ProjectCleanup::Finished;
 				} else {
@@ -891,7 +904,9 @@ pub mod pallet {
 
 				ProjectsDetails::<T>::insert(project_id, details);
 				remaining_weight = remaining_weight.saturating_sub(consumed_weight);
-				max_weight_per_project = remaining_weight.saturating_div((projects_amount - i - 1));
+				if remaining_projects > 0 {
+					max_weight_per_project = remaining_weight.saturating_div(remaining_projects as u64);
+				}
 			}
 
 			// // TODO: PLMC-127. Set a proper weight

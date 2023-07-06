@@ -523,6 +523,7 @@ impl<'a> CreatedProject<'a> {
 				.unwrap(),
 			remaining_contribution_tokens: expected_metadata.total_allocation_size,
 			funding_amount_reached: BalanceOf::<TestRuntime>::zero(),
+			cleanup: ProjectCleanup::NotReady,
 		};
 		assert_eq!(metadata, expected_metadata);
 		assert_eq!(details, expected_details);
