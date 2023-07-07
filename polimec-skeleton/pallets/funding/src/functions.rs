@@ -914,10 +914,11 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			project_details.status == ProjectStatus::FundingSuccessful
-				&& released_evaluation.rewarded_or_slashed == true
-				|| project_details.status == ProjectStatus::FundingFailed
-					&& released_evaluation.rewarded_or_slashed == true,
+			released_evaluation.rewarded_or_slashed == true
+				&& matches!(
+					project_details.status,
+					ProjectStatus::EvaluationFailed | ProjectStatus::FundingFailed | ProjectStatus::FundingSuccessful
+				),
 			Error::<T>::NotAllowed
 		);
 

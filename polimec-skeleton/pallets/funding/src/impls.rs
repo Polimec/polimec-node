@@ -1,5 +1,8 @@
 use crate::traits::DoRemainingOperation;
-use crate::{Config, EvaluationInfoOf, Evaluations, Event, FailureRemainingOperations, Pallet, RemainingOperations, SuccessRemainingOperations, WeightInfo};
+use crate::{
+	Config, EvaluationInfoOf, Evaluations, Event, FailureRemainingOperations, Pallet, RemainingOperations,
+	SuccessRemainingOperations, WeightInfo,
+};
 use frame_support::traits::Get;
 use frame_support::weights::Weight;
 use sp_runtime::traits::AccountIdConversion;
@@ -40,40 +43,34 @@ impl DoRemainingOperation for FailureRemainingOperations {
 	}
 	fn do_one_operation<T: crate::Config>(&mut self, project_id: T::ProjectIdentifier) -> Result<Weight, ()> {
 		if self.evaluation_reward_or_slash {
-
-
+			reward_or_slash_one_evaluation::<T>(project_id).or_else(|_| {
+				self.evaluation_reward_or_slash = false;
+				Ok(Weight::zero())
+			})
 		} else if self.evaluation_unbonding {
-			let evaluations = Evaluations::<T>::iter_prefix_values(project_id)
-				.flatten()
-				.collect::<Vec<EvaluationInfoOf<T>>>();
-
-			let evaluation = evaluations
-				.iter()
-				.find(|evaluation| evaluation.rewarded_or_slashed == true)
-				.ok_or(())?;
-			Pallet::<T>::do_evaluation_unbond_for(
-				T::PalletId::get().into_account_truncating(),
-				evaluation.project_id,
-				evaluation.evaluator.clone(),
-				evaluation.id,
-			)
-			.map_err(|_| ())?;
-
-			if evaluations.len() == 1 {
+			unbond_one_evaluation::<T>(project_id).or_else(|_| {
 				self.evaluation_unbonding = false;
-			}
-
-			Ok(T::WeightInfo::evaluation_unbond_for())
+				Ok(Weight::zero())
+			})
 		} else if self.bidder_plmc_unbonding {
-			todo!();
+			// todo!();
+			self.bidder_plmc_unbonding = false;
+			Ok(Weight::zero())
 		} else if self.contributor_plmc_unbonding {
-			todo!();
+			// todo!();
+			self.contributor_plmc_unbonding = false;
+			Ok(Weight::zero())
 		} else if self.bids_funding_to_bidder_return {
-			todo!();
+			// todo!();
+			self.bids_funding_to_bidder_return = false;
+			Ok(Weight::zero())
 		} else if self.contributions_funding_to_contributor_return {
-			todo!();
+			// todo!();
+			self.contributions_funding_to_contributor_return = false;
+			Ok(Weight::zero())
 		} else {
-			todo!();
+			// todo!();
+			Ok(Weight::zero())
 		}
 	}
 }
@@ -94,22 +91,45 @@ impl DoRemainingOperation for SuccessRemainingOperations {
 				self.evaluation_reward_or_slash = false;
 				Ok(Weight::zero())
 			})
+
 		} else if self.evaluation_unbonding {
-			todo!();
+			unbond_one_evaluation::<T>(project_id).or_else(|_| {
+				self.evaluation_unbonding = false;
+				Ok(Weight::zero())
+			})
 		} else if self.bidder_plmc_vesting {
-			todo!();
+			// todo!();
+			self.bidder_plmc_vesting = false;
+			Ok(Weight::zero())
+
 		} else if self.bidder_ct_mint {
-			todo!();
+			// todo!();
+			self.bidder_ct_mint = false;
+			Ok(Weight::zero())
+
 		} else if self.contributor_plmc_vesting {
-			todo!();
+			// todo!();
+			self.contributor_plmc_vesting = false;
+			Ok(Weight::zero())
+
 		} else if self.contributor_ct_mint {
-			todo!();
+			// todo!();
+			self.contributor_ct_mint = false;
+			Ok(Weight::zero())
+
 		} else if self.bids_funding_to_issuer_transfer {
-			todo!();
+			// todo!();
+			self.bids_funding_to_issuer_transfer = false;
+			Ok(Weight::zero())
+
 		} else if self.contributions_funding_to_issuer_transfer {
-			todo!();
+			// todo!();
+			self.contributions_funding_to_issuer_transfer = false;
+			Ok(Weight::zero())
+
 		} else {
-			todo!();
+			// todo!();
+			Ok(Weight::zero())
 		}
 	}
 }
@@ -121,7 +141,8 @@ enum OperationsLeft {
 
 fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> Result<Weight, ()> {
 	let mut user_evaluations = Evaluations::<T>::iter_prefix_values(project_id)
-		.find(|evaluations| evaluations.iter().any(|e| !e.rewarded_or_slashed)).ok_or(())?;
+		.find(|evaluations| evaluations.iter().any(|e| !e.rewarded_or_slashed))
+		.ok_or(())?;
 
 	let mut evaluation = user_evaluations
 		.iter_mut()
@@ -134,7 +155,7 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 		evaluation.evaluator.clone(),
 		evaluation.id,
 	)
-		.map_err(|_| ())?;
+	.map_err(|_| ())?;
 
 	evaluation.rewarded_or_slashed = true;
 
@@ -145,7 +166,8 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 
 fn unbond_one_evaluation<T: crate::Config>(project_id: T::ProjectIdentifier) -> Result<Weight, ()> {
 	let mut user_evaluations = Evaluations::<T>::iter_prefix_values(project_id)
-		.find(|evaluations| evaluations.iter().any(|e| e.rewarded_or_slashed)).ok_or(())?;
+		.find(|evaluations| evaluations.iter().any(|e| e.rewarded_or_slashed))
+		.ok_or(())?;
 
 	let mut evaluation = user_evaluations
 		.iter_mut()
@@ -158,9 +180,7 @@ fn unbond_one_evaluation<T: crate::Config>(project_id: T::ProjectIdentifier) -> 
 		evaluation.evaluator.clone(),
 		evaluation.id,
 	)
-		.map_err(|_| ())?;
-
-	Evaluations::<T>::insert(project_id, evaluation.evaluator.clone(), user_evaluations);
+	.map_err(|_| ())?;
 
 	Ok(Weight::zero())
 }
