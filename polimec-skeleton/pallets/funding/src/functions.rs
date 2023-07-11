@@ -294,7 +294,7 @@ impl<T: Config> Pallet<T> {
 		} else {
 			// * Update storage *
 			project_details.status = ProjectStatus::EvaluationFailed;
-			project_details.cleanup = ProjectCleanup::Ready(RemainingOperations::Failure(Default::default()));
+			project_details.cleanup = ProjectCleanup::Ready(ProjectFinalizer::Failure(Default::default()));
 			ProjectsDetails::<T>::insert(project_id, project_details);
 
 			// * Emit events *
@@ -660,8 +660,7 @@ impl<T: Config> Pallet<T> {
 
 		if funding_is_successful {
 			project_details.status = ProjectStatus::FundingSuccessful;
-			project_details.cleanup =
-				ProjectCleanup::Ready(RemainingOperations::Success(SuccessRemainingOperations::default()));
+			project_details.cleanup = ProjectCleanup::Ready(ProjectFinalizer::Success(Default::default()));
 
 			// * Update Storage *
 			ProjectsDetails::<T>::insert(project_id, project_details.clone());
@@ -688,8 +687,7 @@ impl<T: Config> Pallet<T> {
 			Ok(())
 		} else {
 			project_details.status = ProjectStatus::FundingFailed;
-			project_details.cleanup =
-				ProjectCleanup::Ready(RemainingOperations::Failure(FailureRemainingOperations::default()));
+			project_details.cleanup = ProjectCleanup::Ready(ProjectFinalizer::Failure(Default::default()));
 
 			// * Update Storage *
 			ProjectsDetails::<T>::insert(project_id, project_details.clone());
@@ -1023,6 +1021,7 @@ impl<T: Config> Pallet<T> {
 			plmc_vesting_period,
 			ct_vesting_period,
 			when: now,
+			funds_released: false,
 		};
 
 		// * Update storage *
@@ -1177,6 +1176,7 @@ impl<T: Config> Pallet<T> {
 			plmc_bond: required_plmc_bond,
 			plmc_vesting_period,
 			ct_vesting_period,
+			funds_released: false,
 		};
 
 		// * Update storage *
@@ -1540,6 +1540,47 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), DispatchError> {
 		Ok(())
 	}
+
+	pub fn do_release_bid_funds_for(
+		caller: AccountIdOf<T>, project_id: T::ProjectIdentifier, bidder: AccountIdOf<T>, bid_id: StorageItemIdOf<T>,
+	) -> Result<(), DispatchError> {
+		Ok(())
+	}
+
+	pub fn do_bid_unbond_for(
+		caller: AccountIdOf<T>, project_id: T::ProjectIdentifier, bidder: AccountIdOf<T>, bid_id: StorageItemIdOf<T>,
+	) -> Result<(), DispatchError> {
+		Ok(())
+	}
+
+	pub fn do_release_contribution_funds_for(
+		caller: AccountIdOf<T>, project_id: T::ProjectIdentifier, contributor: AccountIdOf<T>,
+		contribution_id: StorageItemIdOf<T>,
+	) -> Result<(), DispatchError> {
+		Ok(())
+	}
+
+	pub fn do_contribution_unbond_for(
+		caller: AccountIdOf<T>, project_id: T::ProjectIdentifier, contributor: AccountIdOf<T>,
+		contribution_id: StorageItemIdOf<T>,
+	) -> Result<(), DispatchError> {
+		Ok(())
+	}
+
+	pub fn do_payout_contribution_funds_for(
+		caller: AccountIdOf<T>, project_id: T::ProjectIdentifier, contributor: AccountIdOf<T>,
+		contribution_id: StorageItemIdOf<T>,
+	) -> Result<(), DispatchError> {
+		Ok(())
+	}
+
+	pub fn do_payout_bid_funds_for(
+		caller: AccountIdOf<T>, project_id: T::ProjectIdentifier, bidder: AccountIdOf<T>,
+		bid_id: StorageItemIdOf<T>,
+	) -> Result<(), DispatchError> {
+		Ok(())
+	}
+
 }
 
 // Helper functions

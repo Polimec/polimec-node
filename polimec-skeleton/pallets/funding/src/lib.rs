@@ -543,7 +543,12 @@ pub mod pallet {
 			error: DispatchError,
 		},
 		/// Something terribly wrong happened where the bond could not be unbonded. Most likely a programming error
-		EvaluationUnbondFailed { error: DispatchError },
+		EvaluationUnbondFailed {
+			project_id: ProjectIdOf<T>,
+			evaluator: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			error: DispatchError,
+		},
 		/// Contribution tokens were minted to a user
 		ContributionTokenMinted {
 			caller: AccountIdOf<T>,
@@ -553,6 +558,48 @@ pub mod pallet {
 		},
 		/// A transfer of tokens failed, but because it was done inside on_initialize it cannot be solved.
 		TransferError { error: DispatchError },
+		EvaluationRewardOrSlashFailed {
+			project_id: ProjectIdOf<T>,
+			evaluator: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			error: DispatchError,
+		},
+		ReleaseBidFundsFailed {
+			project_id: ProjectIdOf<T>,
+			bidder: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			error: DispatchError,
+		},
+		BidUnbondFailed {
+			project_id: ProjectIdOf<T>,
+			bidder: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			error: DispatchError,
+		},
+		ReleaseContributionFundsFailed {
+			project_id: ProjectIdOf<T>,
+			contributor: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			error: DispatchError,
+		},
+		ContributionUnbondFailed {
+			project_id: ProjectIdOf<T>,
+			contributor: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			error: DispatchError,
+		},
+		PayoutContributionFundsFailed {
+			project_id: ProjectIdOf<T>,
+			contributor: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			error: DispatchError,
+		},
+		PayoutBidFundsFailed {
+			project_id: ProjectIdOf<T>,
+			bidder: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			error: DispatchError,
+		},
 	}
 
 	#[pallet::error]
@@ -864,10 +911,8 @@ pub mod pallet {
 
 			let projects_needing_cleanup = ProjectsDetails::<T>::iter()
 				.filter_map(|(project_id, info)| match info.cleanup {
-					ProjectCleanup::Ready(remaining_operations)
-						if remaining_operations != RemainingOperations::None =>
-					{
-						Some((project_id, remaining_operations))
+					ProjectCleanup::Ready(project_finalizer) if project_finalizer != ProjectFinalizer::None => {
+						Some((project_id, project_finalizer))
 					}
 					_ => None,
 				})
@@ -880,12 +925,12 @@ pub mod pallet {
 
 			let mut max_weight_per_project = remaining_weight.saturating_div(projects_amount);
 
-			for (remaining_projects, (project_id, mut remaining_ops)) in
+			for (remaining_projects, (project_id, mut project_finalizer)) in
 				projects_needing_cleanup.into_iter().enumerate().rev()
 			{
 				let mut consumed_weight = T::WeightInfo::insert_cleaned_project();
 				while !consumed_weight.any_gt(max_weight_per_project) {
-					if let Ok(weight) = remaining_ops.do_one_operation::<T>(project_id) {
+					if let Ok(weight) = project_finalizer.do_one_operation::<T>(project_id) {
 						consumed_weight += weight
 					} else {
 						break;
@@ -896,10 +941,10 @@ pub mod pallet {
 				} else {
 					continue;
 				};
-				if let RemainingOperations::None = remaining_ops {
+				if let ProjectFinalizer::None = project_finalizer {
 					details.cleanup = ProjectCleanup::Finished;
 				} else {
-					details.cleanup = ProjectCleanup::Ready(remaining_ops);
+					details.cleanup = ProjectCleanup::Ready(project_finalizer);
 				}
 
 				ProjectsDetails::<T>::insert(project_id, details);
@@ -909,7 +954,7 @@ pub mod pallet {
 				}
 			}
 
-			// // TODO: PLMC-127. Set a proper weight
+			// TODO: PLMC-127. Set a proper weight
 			max_weight.saturating_sub(remaining_weight)
 		}
 	}

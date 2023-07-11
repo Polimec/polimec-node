@@ -191,6 +191,7 @@ pub mod storage_types {
 		pub plmc_vesting_period: PlmcVesting,
 		pub ct_vesting_period: CTVesting,
 		pub when: BlockNumber,
+		pub funds_released: bool,
 	}
 
 	impl<
@@ -241,6 +242,7 @@ pub mod storage_types {
 		pub plmc_bond: Balance,
 		pub plmc_vesting_period: PLMCVesting,
 		pub ct_vesting_period: CTVesting,
+		pub funds_released: bool,
 	}
 }
 
@@ -487,62 +489,42 @@ pub mod inner_types {
 	pub enum ProjectCleanup {
 		#[default]
 		NotReady,
-		Ready(RemainingOperations),
+		Ready(ProjectFinalizer),
 		Finished,
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum RemainingOperations {
-		Success(SuccessRemainingOperations),
-		Failure(FailureRemainingOperations),
+	pub enum ProjectFinalizer {
+		Success(SuccessFinalizer),
+		Failure(FailureFinalizer),
 		None,
 	}
 
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub struct SuccessRemainingOperations {
-		pub evaluation_reward_or_slash: bool,
-		pub evaluation_unbonding: bool,
-		pub bidder_plmc_vesting: bool,
-		pub bidder_ct_mint: bool,
-		pub contributor_plmc_vesting: bool,
-		pub contributor_ct_mint: bool,
-		pub bids_funding_to_issuer_transfer: bool,
-		pub contributions_funding_to_issuer_transfer: bool,
-	}
-	impl Default for SuccessRemainingOperations {
-		fn default() -> Self {
-			Self {
-				evaluation_reward_or_slash: true,
-				evaluation_unbonding: true,
-				bidder_plmc_vesting: true,
-				bidder_ct_mint: true,
-				contributor_plmc_vesting: true,
-				contributor_ct_mint: true,
-				bids_funding_to_issuer_transfer: true,
-				contributions_funding_to_issuer_transfer: true,
-			}
-		}
+	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum SuccessFinalizer {
+		#[default]
+		Initialized,
+		EvaluationRewardOrSlash(u64),
+		EvaluationUnbonding(u64),
+		BidPLMCVesting(u64),
+		BidCTMint(u64),
+		ContributionPLMCVesting(u64),
+		ContributionCTMint(u64),
+		BidFundingPayout(u64),
+		ContributionFundingPayout(u64),
+		Finished,
 	}
 
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub struct FailureRemainingOperations {
-		pub evaluation_reward_or_slash: bool,
-		pub evaluation_unbonding: bool,
-		pub bidder_plmc_unbonding: bool,
-		pub contributor_plmc_unbonding: bool,
-		pub bids_funding_to_bidder_return: bool,
-		pub contributions_funding_to_contributor_return: bool,
-	}
-	impl Default for FailureRemainingOperations {
-		fn default() -> Self {
-			Self {
-				evaluation_reward_or_slash: true,
-				evaluation_unbonding: true,
-				bidder_plmc_unbonding: true,
-				contributor_plmc_unbonding: true,
-				bids_funding_to_bidder_return: true,
-				contributions_funding_to_contributor_return: true,
-			}
-		}
+	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum FailureFinalizer {
+		#[default]
+		Initialized,
+		EvaluationRewardOrSlash(u64),
+		EvaluationUnbonding(u64),
+		BidFundingRelease(u64),
+		BidUnbonding(u64),
+		ContributionFundingRelease(u64),
+		ContributionUnbonding(u64),
+		Finished,
 	}
 }
