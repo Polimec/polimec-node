@@ -2523,6 +2523,7 @@ mod auction_round_success {
 			17_6_666_666_666
 		);
 	}
+
 }
 
 #[cfg(test)]

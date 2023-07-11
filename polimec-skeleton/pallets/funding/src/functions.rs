@@ -897,49 +897,6 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn do_evaluation_unbond_for(
-		releaser: AccountIdOf<T>, project_id: T::ProjectIdentifier, evaluator: AccountIdOf<T>,
-		evaluation_id: T::StorageItemId,
-	) -> Result<(), DispatchError> {
-		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		let mut user_evaluations = Evaluations::<T>::get(project_id, evaluator.clone());
-		let evaluation_position = user_evaluations
-			.iter()
-			.position(|evaluation| evaluation.id == evaluation_id)
-			.ok_or(Error::<T>::EvaluationNotFound)?;
-		let released_evaluation = user_evaluations.swap_remove(evaluation_position);
-
-		// * Validity checks *
-		ensure!(
-			released_evaluation.rewarded_or_slashed == true
-				&& matches!(
-					project_details.status,
-					ProjectStatus::EvaluationFailed | ProjectStatus::FundingFailed | ProjectStatus::FundingSuccessful
-				),
-			Error::<T>::NotAllowed
-		);
-
-		// * Update Storage *
-		T::NativeCurrency::release(
-			&LockType::Evaluation(project_id),
-			&evaluator,
-			released_evaluation.current_plmc_bond,
-			Precision::Exact,
-		)?;
-		Evaluations::<T>::set(project_id, evaluator.clone(), user_evaluations);
-
-		// * Emit events *
-		Self::deposit_event(Event::<T>::BondReleased {
-			project_id,
-			amount: released_evaluation.current_plmc_bond,
-			bonder: evaluator,
-			releaser,
-		});
-
-		Ok(())
-	}
-
 	/// Bid for a project in the bidding stage
 	///
 	/// # Arguments
@@ -1530,6 +1487,49 @@ impl<T: Config> Pallet<T> {
 				.try_into()
 				.map_err(|_| Error::<T>::TooManyContributions)?;
 		Contributions::<T>::insert(project_id, &claimer, updated_contributions);
+
+		Ok(())
+	}
+
+	pub fn do_evaluation_unbond_for(
+		releaser: AccountIdOf<T>, project_id: T::ProjectIdentifier, evaluator: AccountIdOf<T>,
+		evaluation_id: T::StorageItemId,
+	) -> Result<(), DispatchError> {
+		// * Get variables *
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let mut user_evaluations = Evaluations::<T>::get(project_id, evaluator.clone());
+		let evaluation_position = user_evaluations
+			.iter()
+			.position(|evaluation| evaluation.id == evaluation_id)
+			.ok_or(Error::<T>::EvaluationNotFound)?;
+		let released_evaluation = user_evaluations.swap_remove(evaluation_position);
+
+		// * Validity checks *
+		ensure!(
+			released_evaluation.rewarded_or_slashed == true
+				&& matches!(
+					project_details.status,
+					ProjectStatus::EvaluationFailed | ProjectStatus::FundingFailed | ProjectStatus::FundingSuccessful
+				),
+			Error::<T>::NotAllowed
+		);
+
+		// * Update Storage *
+		T::NativeCurrency::release(
+			&LockType::Evaluation(project_id),
+			&evaluator,
+			released_evaluation.current_plmc_bond,
+			Precision::Exact,
+		)?;
+		Evaluations::<T>::set(project_id, evaluator.clone(), user_evaluations);
+
+		// * Emit events *
+		Self::deposit_event(Event::<T>::BondReleased {
+			project_id,
+			amount: released_evaluation.current_plmc_bond,
+			bonder: evaluator,
+			releaser,
+		});
 
 		Ok(())
 	}
