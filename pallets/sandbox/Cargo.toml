@@ -40,7 +40,6 @@ sp-runtime.workspace = true
 pallet-balances.workspace = true
 pallet-insecure-randomness-collective-flip.workspace = true
 pallet-assets.workspace = true
-pallet-credentials.workspace = true
 
 
 [features]
@@ -58,7 +57,6 @@ std = [
 	"sp-runtime/std",
 	"pallet-assets/std",
 	"pallet-balances/std",
-	"pallet-credentials/std",
 	"polimec-traits/std",
 	"frame-benchmarking?/std",
 	"parachains-common/std",
