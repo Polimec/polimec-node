@@ -55,7 +55,6 @@ frame_support::construct_runtime!(
 		Assets: pallet_assets,
 		Balances: pallet_balances,
 		FundingModule: pallet_funding,
-		Credentials: pallet_credentials,
 	}
 );
 
@@ -107,17 +106,6 @@ impl pallet_balances::Config for TestRuntime {
 }
 
 impl pallet_insecure_randomness_collective_flip::Config for TestRuntime {}
-
-impl pallet_credentials::Config for TestRuntime {
-	type RuntimeEvent = RuntimeEvent;
-	type AddOrigin = EnsureSigned<AccountId>;
-	type RemoveOrigin = EnsureSigned<AccountId>;
-	type SwapOrigin = EnsureSigned<AccountId>;
-	type ResetOrigin = EnsureSigned<AccountId>;
-	type PrimeOrigin = EnsureSigned<AccountId>;
-	type MembershipInitialized = ();
-	type MembershipChanged = ();
-}
 
 impl pallet_assets::Config for TestRuntime {
 	type RuntimeEvent = RuntimeEvent;
@@ -171,7 +159,6 @@ impl pallet_funding::Config for TestRuntime {
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
 	type CommunityFundingDuration = CommunityRoundDuration;
 	type Randomness = RandomnessCollectiveFlip;
-	type HandleMembers = Credentials;
 	type PreImageLimit = ConstU32<1024>;
 	// Low value to simplify the tests
 	type MaximumBidsPerUser = ConstU32<4>;
@@ -195,12 +182,6 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 
 	GenesisConfig {
 		balances: BalancesConfig { balances: vec![] },
-		credentials: CredentialsConfig {
-			issuers: vec![1, 16558220937623665250],
-			retails: vec![2],
-			professionals: vec![2, 3],
-			institutionals: vec![4],
-		},
 		..Default::default()
 	}
 	.assimilate_storage(&mut t)

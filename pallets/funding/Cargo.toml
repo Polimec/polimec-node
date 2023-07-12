@@ -33,7 +33,6 @@ sp-io.workspace = true
 pallet-balances.workspace = true
 pallet-insecure-randomness-collective-flip.workspace = true
 pallet-assets.workspace = true
-pallet-credentials.workspace = true
 
 [features]
 default = ["std"]
@@ -47,7 +46,6 @@ std = [
 	"frame-system/std",
 	"pallet-assets/std",
 	"pallet-balances/std",
-	"pallet-credentials/std",
 	"polimec-traits/std",
 	"frame-benchmarking?/std",
 ]

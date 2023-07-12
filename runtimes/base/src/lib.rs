@@ -53,16 +53,15 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 // XCM Imports
-use xcm::latest::prelude::BodyId;
-use xcm_executor::XcmExecutor;
-
-pub use runtime_common::constants::*;
-use runtime_common::{
-	fees::{ToAuthor, WeightToFee},
-	FeeSplit,
-};
+use parachains_common::AVERAGE_ON_INITIALIZE_RATIO;
+use parachains_common::HOURS;
+use parachains_common::MAXIMUM_BLOCK_WEIGHT;
+use parachains_common::NORMAL_DISPATCH_RATIO;
+use parachains_common::SLOT_DURATION;
 use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
+use xcm::latest::prelude::BodyId;
 use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
+use xcm_executor::XcmExecutor;
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -127,16 +126,123 @@ pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, Si
 pub type Executive =
 	frame_executive::Executive<Runtime, Block, frame_system::ChainContext<Runtime>, Runtime, AllPalletsWithSystem>;
 
+pub mod fee {
+	use super::{currency::MICRO_PLMC, Balance, ExtrinsicBaseWeight};
+	use frame_support::weights::{Weight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial};
+	use smallvec::smallvec;
+	use sp_arithmetic::traits::{BaseArithmetic, Unsigned};
+	use sp_runtime::{Perbill, SaturatedConversion};
+
+	/// Handles converting a weight scalar to a fee value, based on the scale and granularity of the
+	/// node's balance type.
+	///
+	/// This should typically create a mapping between the following ranges:
+	///   - `[0, MAXIMUM_BLOCK_WEIGHT]`
+	///   - `[Balance::min, Balance::max]`
+	///
+	/// Yet, it can be used for any other sort of change to weight-fee. Some examples being:
+	///   - Setting it to `0` will essentially disable the weight fee.
+	///   - Setting it to `1` will cause the literal `#[weight = x]` values to be charged.
+	pub struct WeightToFee;
+	impl frame_support::weights::WeightToFee for WeightToFee {
+		type Balance = Balance;
+
+		fn weight_to_fee(weight: &Weight) -> Self::Balance {
+			let ref_time = Balance::saturated_from(weight.ref_time());
+			let proof_size = Balance::saturated_from(weight.proof_size());
+
+			let ref_polynomial = RefTimeToFee::polynomial();
+			let proof_polynomial = ProofSizeToFee::polynomial();
+
+			// Get fee amount from ref_time based on the RefTime polynomial
+			let ref_fee: Balance = ref_polynomial
+				.iter()
+				.fold(0, |acc, term| term.saturating_eval(acc, ref_time));
+
+			// Get fee amount from proof_size based on the ProofSize polynomial
+			let proof_fee: Balance = proof_polynomial
+				.iter()
+				.fold(0, |acc, term| term.saturating_eval(acc, proof_size));
+
+			// Take the maximum instead of the sum to charge by the more scarce resource.
+			ref_fee.max(proof_fee)
+		}
+	}
+
+	/// Maps the Ref time component of `Weight` to a fee.
+	pub struct RefTimeToFee;
+	impl WeightToFeePolynomial for RefTimeToFee {
+		type Balance = Balance;
+		fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
+			// in Rococo, extrinsic base weight (smallest non-zero weight) is mapped to 1 MILLIUNIT:
+			// in our template, we map to 1/10 of that, or 1/10 MILLIUNIT
+			let p = MILLIUNIT / 10;
+			let q = 100 * Balance::from(ExtrinsicBaseWeight::get().ref_time());
+			smallvec![WeightToFeeCoefficient {
+				degree: 1,
+				negative: false,
+				coeff_frac: Perbill::from_rational(p % q, q),
+				coeff_integer: p / q,
+			}]
+		}
+	}
+
+	/// Maps the proof size component of `Weight` to a fee.
+	pub struct ProofSizeToFee;
+	impl WeightToFeePolynomial for ProofSizeToFee {
+		type Balance = Balance;
+		fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
+			// Map 10kb proof to 1 CENT.
+			let p = MILLIUNIT / 10;
+			let q = 10_000;
+
+			smallvec![WeightToFeeCoefficient {
+				degree: 1,
+				negative: false,
+				coeff_frac: Perbill::from_rational(p % q, q),
+				coeff_integer: p / q,
+			}]
+		}
+	}
+
+	// TODO: Refactor out this code to use `FeePolynomial` on versions using polkadot-v0.9.42 and above:
+	pub trait WeightCoefficientCalc<Balance> {
+		fn saturating_eval(&self, result: Balance, x: Balance) -> Balance;
+	}
+
+	impl<Balance> WeightCoefficientCalc<Balance> for WeightToFeeCoefficient<Balance>
+	where
+		Balance: BaseArithmetic + From<u32> + Copy + Unsigned + SaturatedConversion,
+	{
+		fn saturating_eval(&self, mut result: Balance, x: Balance) -> Balance {
+			let power = x.saturating_pow(self.degree.into());
+
+			let frac = self.coeff_frac * power; // Overflow safe since coeff_frac is strictly less than 1.
+			let integer = self.coeff_integer.saturating_mul(power);
+			// Do not add them together here to avoid an underflow.
+
+			if self.negative {
+				result = result.saturating_sub(frac);
+				result = result.saturating_sub(integer);
+			} else {
+				result = result.saturating_add(frac);
+				result = result.saturating_add(integer);
+			}
+
+			result
+		}
+	}
+}
+
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
 /// of data like extrinsics, allowing for them to continue syncing the network through upgrades
 /// to even the core data structures.
 pub mod opaque {
-	pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
+	use super::*;
 	use sp_runtime::{generic, traits::BlakeTwo256};
 
-	use super::*;
-
+	pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
 	/// Opaque block header type.
 	pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 	/// Opaque block type.
@@ -267,7 +373,7 @@ impl pallet_timestamp::Config for Runtime {
 
 impl pallet_authorship::Config for Runtime {
 	type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
-	type EventHandler = ParachainStaking;
+	type EventHandler = ();
 }
 
 parameter_types! {
@@ -295,12 +401,11 @@ parameter_types! {
 
 impl pallet_transaction_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type OnChargeTransaction =
-		pallet_transaction_payment::CurrencyAdapter<Balances, FeeSplit<Runtime, Treasury, ToAuthor<Runtime>>>;
-	type OperationalFeeMultiplier = runtime_common::constants::fee::OperationalFeeMultiplier;
-	type WeightToFee = WeightToFee<Runtime>;
-	type LengthToFee = ConstantMultiplier<Balance, runtime_common::constants::fee::TransactionByteFee>;
+	type OnChargeTransaction = pallet_transaction_payment::CurrencyAdapter<Balances, DealWithFees<Runtime>>;
+	type WeightToFee = WeightToFee;
+	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
+	type OperationalFeeMultiplier = ConstU8<5>;
 }
 
 parameter_types! {
@@ -351,9 +456,9 @@ impl pallet_session::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type ValidatorId = AccountId;
 	type ValidatorIdOf = ConvertInto;
-	type ShouldEndSession = ParachainStaking;
-	type NextSessionRotation = ParachainStaking;
-	type SessionManager = ParachainStaking;
+	type ShouldEndSession = ();
+	type NextSessionRotation = ();
+	type SessionManager = ();
 	type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
 	type Keys = SessionKeys;
 	// type WeightInfo = weights::pallet_session::WeightInfo<Runtime>;
@@ -404,33 +509,6 @@ impl pallet_treasury::Config for Runtime {
 	type MaxApprovals = MaxApprovals;
 }
 
-impl parachain_staking::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-	type CurrencyBalance = Balance;
-
-	type MinBlocksPerRound = runtime_common::constants::staking::MinBlocksPerRound;
-	type DefaultBlocksPerRound = runtime_common::constants::staking::DefaultBlocksPerRound;
-	type StakeDuration = runtime_common::constants::staking::StakeDuration;
-	type ExitQueueDelay = runtime_common::constants::staking::ExitQueueDelay;
-	type MinCollators = runtime_common::constants::staking::MinCollators;
-	type MinRequiredCollators = runtime_common::constants::staking::MinRequiredCollators;
-	type MaxDelegationsPerRound = runtime_common::constants::staking::MaxDelegationsPerRound;
-	type MaxDelegatorsPerCollator = runtime_common::constants::staking::MaxDelegatorsPerCollator;
-	type MinCollatorStake = runtime_common::constants::staking::MinCollatorStake;
-	type MinCollatorCandidateStake = runtime_common::constants::staking::MinCollatorStake;
-	type MaxTopCandidates = runtime_common::constants::staking::MaxCollatorCandidates;
-	type MinDelegatorStake = runtime_common::constants::staking::MinDelegatorStake;
-	type MaxUnstakeRequests = runtime_common::constants::staking::MaxUnstakeRequests;
-	type NetworkRewardRate = runtime_common::constants::staking::NetworkRewardRate;
-	type NetworkRewardStart = runtime_common::constants::staking::NetworkRewardStart;
-	type NetworkRewardBeneficiary = Treasury;
-	// type WeightInfo = weights::parachain_staking::WeightInfo<Runtime>;
-	type WeightInfo = ();
-
-	const BLOCKS_PER_YEAR: Self::BlockNumber = runtime_common::constants::BLOCKS_PER_YEAR;
-}
-
 impl pallet_sudo::Config for Runtime {
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
@@ -460,7 +538,6 @@ construct_runtime!(
 		// Dependencies: AuraExt on Aura, Authorship and Session on ParachainStaking
 		Aura: pallet_aura = 23,
 		Session: pallet_session = 22,
-		ParachainStaking: parachain_staking = 21,
 		Authorship: pallet_authorship = 20,
 		AuraExt: cumulus_pallet_aura_ext = 24,
 
@@ -686,7 +763,8 @@ struct CheckInherents;
 
 impl cumulus_pallet_parachain_system::CheckInherents<Block> for CheckInherents {
 	fn check_inherents(
-		block: &Block, relay_state_proof: &cumulus_pallet_parachain_system::RelayChainStateProof,
+		block: &Block,
+		relay_state_proof: &cumulus_pallet_parachain_system::RelayChainStateProof,
 	) -> sp_inherents::CheckInherentsResult {
 		let relay_chain_slot = relay_state_proof
 			.read_slot()
