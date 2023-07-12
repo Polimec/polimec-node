@@ -133,7 +133,7 @@ impl DoRemainingOperation for SuccessFinalizer {
 					Ok(consumed_weight)
 				}
 			}
-			SuccessFinalizer::Finished => {Err(())}
+			SuccessFinalizer::Finished => Err(()),
 		}
 	}
 }
@@ -499,7 +499,6 @@ fn unbond_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weig
 
 	// let contributions_count = project_contributions.iter().flatten().count() as u64;
 	let contributions_count = 0u64;
-
 
 	let mut maybe_user_contributions = project_contributions
 		.into_iter()

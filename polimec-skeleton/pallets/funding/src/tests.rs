@@ -249,6 +249,16 @@ trait ProjectInstance {
 	fn in_ext<R>(&self, execute: impl FnOnce() -> R) -> R {
 		self.get_test_environment().ext_env.borrow_mut().execute_with(execute)
 	}
+	fn get_update_pair(&self) -> (BlockNumber, UpdateType) {
+		self.in_ext(|| {
+			ProjectsToUpdate::<TestRuntime>::iter().find_map(|(block, update_vec)| {
+				update_vec
+					.iter()
+					.find(|(project_id, update)| *project_id == self.get_project_id())
+					.map(|(project_id, update)| (block, update.clone()))
+			}).unwrap()
+		})
+	}
 }
 
 // Initial instance of a test
@@ -880,6 +890,25 @@ impl<'a> CommunityFundingProject<'a> {
 			project_id: self.project_id,
 		}
 	}
+
+	fn finish_funding(self) -> FinishedProject<'a> {
+		let test_env = self.get_test_environment();
+		let (update_block, _) = self.get_update_pair();
+		test_env.advance_time(update_block.saturating_sub(test_env.current_block())).unwrap();
+		if self.get_project_details().status == ProjectStatus::RemainderRound {
+			let (end_block, _) = self.get_update_pair();
+			self.test_env
+				.advance_time(end_block.saturating_sub(self.test_env.current_block()))
+				.unwrap();
+		}
+		let project_details = self.get_project_details();
+		assert!(matches!(project_details.status, ProjectStatus::FundingSuccessful) || matches!(project_details.status, ProjectStatus::FundingFailed), "Project should be in Finished status");
+		FinishedProject {
+			test_env: self.test_env,
+			issuer: self.issuer,
+			project_id: self.project_id,
+		}
+	}
 }
 
 #[derive(Debug)]
@@ -935,7 +964,7 @@ impl<'a> RemainderFundingProject<'a> {
 			test_env.get_free_statemint_asset_balances_for(asset_id, contributors.clone());
 
 		let plmc_evaluation_deposits = calculate_evaluation_plmc_spent(evaluations.clone());
-		let plmc_bid_deposits = calculate_auction_plmc_spent(bids.clone());
+		let plmc_bid_deposits = calculate_auction_plmc_spent_after_price_calculation(bids.clone(), ct_price);
 		let plmc_contribution_deposits = calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 
 		let necessary_plmc_mint =
@@ -973,6 +1002,9 @@ impl<'a> RemainderFundingProject<'a> {
 
 		community_funding_project.start_remainder_funding()
 	}
+
+	// 227_683_3_333_333_330
+	// 1_000_000_0_000_000_000
 
 	fn end_funding(&self) -> FinishedProject<'a> {
 		assert_eq!(self.get_project_details().status, ProjectStatus::RemainderRound);
@@ -1047,7 +1079,7 @@ impl<'a> FinishedProject<'a> {
 			test_env.get_free_statemint_asset_balances_for(asset_id, contributors.clone());
 
 		let plmc_evaluation_deposits = calculate_evaluation_plmc_spent(evaluations.clone());
-		let plmc_bid_deposits = calculate_auction_plmc_spent(bids.clone());
+		let plmc_bid_deposits = calculate_auction_plmc_spent_after_price_calculation(bids.clone(), ct_price);
 		let plmc_community_contribution_deposits =
 			calculate_contributed_plmc_spent(community_contributions.clone(), ct_price);
 		let plmc_remainder_contribution_deposits =
@@ -1175,14 +1207,14 @@ mod defaults {
 		vec![
 			TestBid::new(
 				BIDDER_1,
-				3000 * ASSET_UNIT,
-				50_u128.into(),
+				50000 * ASSET_UNIT,
+				18_u128.into(),
 				None,
 				AcceptedFundingAsset::USDT,
 			),
 			TestBid::new(
 				BIDDER_2,
-				5000 * ASSET_UNIT,
+				40000 * ASSET_UNIT,
 				15_u128.into(),
 				None,
 				AcceptedFundingAsset::USDT,
@@ -1192,16 +1224,17 @@ mod defaults {
 
 	pub fn default_community_buys() -> TestContributions {
 		vec![
-			TestContribution::new(BUYER_1, 10 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_2, 20 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_1, 100 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_2, 200 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_3, 2000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
 		]
 	}
 
 	pub fn default_remainder_buys() -> TestContributions {
 		vec![
-			TestContribution::new(EVALUATOR_2, 30 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_2, 6 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BIDDER_1, 4 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
+			TestContribution::new(EVALUATOR_2, 300 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_2, 600 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
+			TestContribution::new(BIDDER_1, 4000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
 		]
 	}
 }
@@ -1232,6 +1265,27 @@ pub mod helper_functions {
 		let mut output = UserToPLMCBalance::new();
 		for bid in bids {
 			let usd_ticket_size = bid.price.saturating_mul_int(bid.amount);
+			let usd_bond = bid
+				.multiplier
+				.unwrap_or_default()
+				.calculate_bonding_requirement(usd_ticket_size)
+				.unwrap();
+			let plmc_bond = plmc_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
+			output.push((bid.bidder, plmc_bond));
+		}
+		output
+	}
+
+	// This differs from `calculate_auction_plmc_spent` in that it recalculates bids over the average price as using that price.
+	pub fn calculate_auction_plmc_spent_after_price_calculation(
+		bids: TestBids, price: PriceOf<TestRuntime>,
+	) -> UserToPLMCBalance {
+		let plmc_price = PriceMap::get().get(&PLMC_STATEMINT_ID).unwrap().clone();
+		let mut output = UserToPLMCBalance::new();
+		for bid in bids {
+			let final_price = if bid.price < price { bid.price } else { price };
+
+			let usd_ticket_size = final_price.saturating_mul_int(bid.amount);
 			let usd_bond = bid
 				.multiplier
 				.unwrap_or_default()
@@ -2278,8 +2332,13 @@ mod auction_round_success {
 			.expect("Candle auction end point should exist");
 
 		let mut bidding_account = 1000;
-		// Imitate the first default bid
-		let bid_info = default_bids()[0];
+		let bid_info = TestBid::new(
+			0,
+			50u128,
+			PriceOf::<TestRuntime>::from_float(15f64),
+			None,
+			AcceptedFundingAsset::USDT,
+		);
 		let plmc_necessary_funding = calculate_auction_plmc_spent(vec![bid_info.clone()])[0].1;
 		let statemint_asset_necessary_funding = calculate_auction_funding_asset_spent(vec![bid_info.clone()])[0].1;
 
@@ -2523,7 +2582,6 @@ mod auction_round_success {
 			17_6_666_666_666
 		);
 	}
-
 }
 
 #[cfg(test)]
@@ -3228,10 +3286,9 @@ mod community_round_success {
 			));
 		}
 
-		let expected_price = FixedU128::from_float(38.3333333333f64);
+		let expected_price = calculate_price_from_test_bids(bids.clone());
 		let fill_necessary_plmc = calculate_contributed_plmc_spent(fill_contributions.clone(), expected_price);
-		let fill_necessary_usdt_for_bids =
-			calculate_contributed_funding_asset_spent(fill_contributions.clone(), expected_price);
+		let fill_necessary_usdt = calculate_contributed_funding_asset_spent(fill_contributions.clone(), expected_price);
 
 		let overflow_necessary_plmc = calculate_contributed_plmc_spent(vec![overflow_contribution], expected_price);
 		let overflow_necessary_usdt =
@@ -3251,7 +3308,7 @@ mod community_round_success {
 		let project_id = community_funding_project.get_project_id();
 
 		test_env.mint_plmc_to(vec![(evaluator_contributor, FUNDED_DELTA_PLMC)]);
-		test_env.mint_statemint_asset_to(fill_necessary_usdt_for_bids);
+		test_env.mint_statemint_asset_to(fill_necessary_usdt);
 		test_env.mint_statemint_asset_to(overflow_necessary_usdt);
 
 		community_funding_project
@@ -3371,7 +3428,7 @@ mod remainder_round_success {
 			));
 		}
 
-		let expected_price = FixedU128::from_float(38.3333333333f64);
+		let expected_price = calculate_price_from_test_bids(bids.clone());
 		let fill_necessary_plmc = calculate_contributed_plmc_spent(fill_contributions.clone(), expected_price);
 		let fill_necessary_usdt_for_bids =
 			calculate_contributed_funding_asset_spent(fill_contributions.clone(), expected_price);
@@ -3582,12 +3639,12 @@ mod bids_vesting {
 		let project_id = finished_project.project_id;
 		let ct_price = finished_project.get_project_details().weighted_average_price.unwrap();
 
-		let plmc_bid_deposits = calculate_auction_plmc_spent(bids.clone());
+		let plmc_bid_deposits = calculate_auction_plmc_spent_after_price_calculation(bids.clone(), ct_price);
 		let plmc_community_contribution_deposits =
 			calculate_contributed_plmc_spent(community_contributions.clone(), ct_price);
 		let plmc_remainder_contribution_deposits =
 			calculate_contributed_plmc_spent(remainder_contributions.clone(), ct_price);
-		let total_plmc_participation_locked = merge_add_mappings_by_user(vec![
+		let mut total_plmc_participation_locked = merge_add_mappings_by_user(vec![
 			plmc_bid_deposits.clone(),
 			plmc_community_contribution_deposits,
 			plmc_remainder_contribution_deposits.clone(),
@@ -3871,8 +3928,10 @@ mod test_helper_functions {
 
 #[cfg(test)]
 mod misc_features {
+	use sp_arithmetic::Perbill;
 	use super::*;
 	use crate::UpdateType::{CommunityFundingStart, RemainderFundingStart};
+	use testing_macros::*;
 
 	#[test]
 	fn remove_from_update_store_works() {
@@ -3902,6 +3961,33 @@ mod misc_features {
 	#[test]
 	fn get_evaluator_ct_rewards_works() {
 		let test_env = TestEnvironment::new();
+
+		let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
+		let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
+		let metadata_hash = hashed(format!("{}-{}", METADATA, 420));
+		let project_metadata = ProjectMetadataOf::<TestRuntime> {
+			token_information: CurrencyMetadata {
+				name: bounded_name,
+				symbol: bounded_symbol,
+				decimals: ASSET_DECIMALS,
+			},
+			mainnet_token_max_supply: 8_000_000_0_000_000_000,
+			total_allocation_size: 100_000_0_000_000_000,
+			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
+			ticket_size: TicketSize {
+				minimum: Some(1),
+				maximum: None,
+			},
+			participants_size: ParticipantsSize {
+				minimum: Some(2),
+				maximum: None,
+			},
+			funding_thresholds: Default::default(),
+			conversion_rate: 0,
+			participation_currencies: AcceptedFundingAsset::USDT,
+			funding_destination_account: ISSUER,
+			offchain_information_hash: Some(metadata_hash),
+		};
 
 		// all values taken from the knowledge hub
 		let evaluations: UserToUSDBalance = vec![
@@ -3944,19 +4030,38 @@ mod misc_features {
 			TestContribution::new(BUYER_7, 2_000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
 		];
 
-		let project =
-			RemainderFundingProject::new_with(&test_env, default_project(0), ISSUER, evaluations, bids, contributions);
-		let details = project.get_project_details();
+		let community_funding_project = CommunityFundingProject::new_with(
+			&test_env,
+			project_metadata,
+			ISSUER,
+			evaluations,
+			bids,
+		);
+		let details = community_funding_project.get_project_details();
+		let ct_price = details.weighted_average_price.unwrap();
+		let mut plmc_deposits = calculate_contributed_plmc_spent(contributions.clone(), ct_price);
+		plmc_deposits = plmc_deposits.into_iter().map(|(account, balance)| (account, balance + get_ed())).collect();
+		let funding_deposits = calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
+
+		test_env.mint_plmc_to(plmc_deposits);
+		test_env.mint_statemint_asset_to(funding_deposits);
+
+		community_funding_project.buy_for_retail_users(contributions).unwrap();
+		let finished_project = community_funding_project.finish_funding();
+		let details = finished_project.get_project_details();
 		let mut ct_evaluation_rewards =
-			test_env.in_ext(|| FundingModule::get_evaluator_ct_rewards(project.get_project_id()).unwrap());
+			test_env.in_ext(|| FundingModule::get_evaluator_ct_rewards(finished_project.get_project_id()).unwrap());
 		ct_evaluation_rewards.sort_by_key(|item| item.0);
 		let expected_ct_rewards = vec![
-			(EVALUATOR_1, 1_236_9_500_000_000),
-			(EVALUATOR_2, 852_8_100_000_000),
-			(EVALUATOR_3, 660_2_400_000_000),
+			(EVALUATOR_1, 1_196_1_509_434_007),
+			(EVALUATOR_2, 824_0_150_943_427),
+			(EVALUATOR_3, 637_9_471_698_137),
 		];
 
-		assert_eq!(ct_evaluation_rewards, expected_ct_rewards);
+		for (real, desired) in zip(ct_evaluation_rewards.iter(), expected_ct_rewards.iter()) {
+			assert_eq!(real.0, desired.0, "bad accounts order");
+			assert_close_enough!(real.1, desired.1, Perbill::from_parts(1u32));
+		}
 	}
 
 	fn sandbox() {
@@ -3972,4 +4077,16 @@ mod misc_features {
 		// let x = "x";
 		// 29_4_117_647_058
 	}
+}
+
+mod testing_macros {
+	#[allow(unused_macros)]
+	macro_rules! assert_close_enough {
+		($real:expr, $desired:expr, $min_approximation:expr) => {
+			let real_approximation = Perbill::from_rational_approximation($real, $desired);
+			assert!(real_approximation >= $min_approximation);
+		};
+	}
+	pub(crate) use assert_close_enough;
+
 }

@@ -250,7 +250,7 @@ impl<T: Config> Pallet<T> {
 		// TODO: PLMC-142. 10% is hardcoded, check if we want to configure it a runtime as explained here:
 		// 	https://substrate.stackexchange.com/questions/2784/how-to-get-a-percent-portion-of-a-balance:
 		// TODO: PLMC-143. Check if it's safe to use * here
-		let evaluation_target_usd = Percent::from_percent(10) * fundraising_target_usd;
+		let evaluation_target_usd = Perbill::from_percent(10) * fundraising_target_usd;
 		let evaluation_target_plmc = current_plmc_price
 			.reciprocal()
 			.ok_or(Error::<T>::BadMath)?
@@ -1187,8 +1187,11 @@ impl<T: Config> Pallet<T> {
 			}
 		});
 
+
+
 		// If no CTs remain, end the funding phase
 		if remaining_cts_after_purchase == 0u32.into() {
+			Self::remove_from_update_store(&project_id)?;
 			Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::FundingEnd));
 		}
 
@@ -1575,12 +1578,10 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_payout_bid_funds_for(
-		caller: AccountIdOf<T>, project_id: T::ProjectIdentifier, bidder: AccountIdOf<T>,
-		bid_id: StorageItemIdOf<T>,
+		caller: AccountIdOf<T>, project_id: T::ProjectIdentifier, bidder: AccountIdOf<T>, bid_id: StorageItemIdOf<T>,
 	) -> Result<(), DispatchError> {
 		Ok(())
 	}
-
 }
 
 // Helper functions
@@ -1817,6 +1818,7 @@ impl<T: Config> Pallet<T> {
 			.reduce(|a, b| a.saturating_add(b))
 			.ok_or(Error::<T>::NoBidsFound)?;
 
+		let mut final_total_funding_reached_by_bids = BalanceOf::<T>::zero();
 		// Update the bid in the storage
 		for bid in bids.into_iter() {
 			Bids::<T>::mutate(project_id, bid.bidder.clone(), |bids| -> Result<(), DispatchError> {
@@ -1878,7 +1880,10 @@ impl<T: Config> Pallet<T> {
 
 					final_bid.plmc_bond = plmc_bond_needed;
 				}
-
+				let final_ticket_size = final_bid.final_ct_usd_price
+					.checked_mul_int(final_bid.final_ct_amount)
+					.ok_or(Error::<T>::BadMath)?;
+				final_total_funding_reached_by_bids += final_ticket_size;
 				bids[bid_index] = final_bid;
 				Ok(())
 			})?;
@@ -1890,7 +1895,7 @@ impl<T: Config> Pallet<T> {
 				info.weighted_average_price = Some(weighted_token_price);
 				info.remaining_contribution_tokens =
 					info.remaining_contribution_tokens.saturating_sub(bid_token_amount_sum);
-				info.funding_amount_reached = info.funding_amount_reached.saturating_add(bid_usd_value_sum);
+				info.funding_amount_reached = info.funding_amount_reached.saturating_add(final_total_funding_reached_by_bids);
 				Ok(())
 			} else {
 				Err(Error::<T>::ProjectNotFound.into())
@@ -2043,13 +2048,13 @@ impl<T: Config> Pallet<T> {
 		let funding_reached = project_details.funding_amount_reached;
 
 		// This is the "Y" variable from the knowledge hub
-		let percentage_of_target_funding = Percent::from_rational(funding_reached, target_funding);
+		let percentage_of_target_funding = Perbill::from_rational(funding_reached, target_funding);
 
 		let fees = Self::calculate_fees(project_id)?;
-		let evaluator_fees = percentage_of_target_funding * (Percent::from_percent(30) * fees);
+		let evaluator_fees = percentage_of_target_funding * (Perbill::from_percent(30) * fees);
 
-		let early_evaluator_rewards = Percent::from_percent(20) * evaluator_fees;
-		let all_evaluator_rewards = Percent::from_percent(80) * evaluator_fees;
+		let early_evaluator_rewards = Perbill::from_percent(20) * evaluator_fees;
+		let all_evaluator_rewards = Perbill::from_percent(80) * evaluator_fees;
 
 		let early_evaluator_total_locked = evaluation_usd_amounts
 			.iter()
@@ -2064,8 +2069,8 @@ impl<T: Config> Pallet<T> {
 		let evaluator_usd_rewards = evaluation_usd_amounts
 			.into_iter()
 			.map(|(evaluator, (early, late))| {
-				let early_evaluator_weight = Percent::from_rational(early, early_evaluator_total_locked);
-				let all_evaluator_weight = Percent::from_rational(early + late, all_evaluator_total_locked);
+				let early_evaluator_weight = Perbill::from_rational(early, early_evaluator_total_locked);
+				let all_evaluator_weight = Perbill::from_rational(early + late, all_evaluator_total_locked);
 
 				let early_reward = early_evaluator_weight * early_evaluator_rewards;
 				let all_reward = all_evaluator_weight * all_evaluator_rewards;
