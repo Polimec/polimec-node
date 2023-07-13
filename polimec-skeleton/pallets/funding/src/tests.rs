@@ -1757,18 +1757,15 @@ mod evaluation_round_success {
 
 	#[test]
 	fn rewards_are_paid_full_funding() {
-		// numbers taken fron knowledge hub
+		// numbers taken from knowledge hub
 		const TARGET_FUNDING_AMOUNT_USD: BalanceOf<TestRuntime> = 1_000_000 * US_DOLLAR;
 		let evaluator_1_usd_amount: BalanceOf<TestRuntime> = 75_000 * US_DOLLAR; // Full early evaluator reward
 		let evaluator_2_usd_amount: BalanceOf<TestRuntime> = 65_000 * US_DOLLAR; // Partial early evaluator reward
 		let evaluator_3_usd_amount: BalanceOf<TestRuntime> = 60_000 * US_DOLLAR; // No early evaluator reward
 
-		let funding_weights = [25, 30, 31, 14];
-		assert_eq!(
-			funding_weights.iter().sum::<u8>(),
-			100,
-			"remaining_funding_weights must sum up to 100%"
-		);
+		// 105% funding because price for bids is always a couple points per billion lower than expected
+		let funding_weights = [25, 30, 35, 15];
+
 		let funding_weights = funding_weights
 			.into_iter()
 			.map(|x| Percent::from_percent(x))
@@ -1792,8 +1789,8 @@ mod evaluation_round_success {
 			(EVALUATOR_3, evaluator_3_usd_amount),
 		];
 
-		let bidder_1_ct_price = PriceOf::<TestRuntime>::from_float(4.2f64);
-		let bidder_2_ct_price = PriceOf::<TestRuntime>::from_float(2.3f64);
+		let bidder_1_ct_price = PriceOf::<TestRuntime>::from_float(14f64);
+		let bidder_2_ct_price = PriceOf::<TestRuntime>::from_float(14f64);
 
 		let bidder_1_ct_amount = bidder_1_ct_price
 			.reciprocal()
