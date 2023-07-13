@@ -16,6 +16,7 @@ log.workspace = true
 parity-scale-codec = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 jsonrpsee = { workspace = true, features = ["server"] }
+hex-literal.workspace = true
 
 # Local
 polimec-parachain-runtime.workspace = true

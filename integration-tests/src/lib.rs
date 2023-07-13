@@ -28,11 +28,6 @@ use xcm_emulator::{
 	TestExt,
 };
 
-// DIP
-use did::did_details::{DidDetails, DidEncryptionKey, DidVerificationKey};
-use dip_provider_runtime_template::DidIdentifier;
-use kilt_support::deposit::Deposit;
-
 const RELAY_ASSET_ID: u32 = 0;
 const RESERVE_TRANSFER_AMOUNT: u128 = 10_0_000_000_000; //10 UNITS when 10 decimals
 pub const INITIAL_BALANCE: u128 = 100_0_000_000_000;
@@ -81,16 +76,6 @@ decl_test_parachain! {
 	}
 }
 
-decl_test_parachain! {
-	pub struct ProviderParachain {
-		Runtime = dip_provider_runtime_template::Runtime,
-		RuntimeOrigin = dip_provider_runtime_template::RuntimeOrigin,
-		XcmpMessageHandler = dip_provider_runtime_template::XcmpQueue,
-		DmpMessageHandler = dip_provider_runtime_template::DmpQueue,
-		new_ext = provider_ext(provider_id()),
-	}
-}
-
 decl_test_network! {
 	pub struct Network {
 		relay_chain = PolkadotNet,
@@ -98,7 +83,6 @@ decl_test_network! {
 			(2000u32, PolimecNet),
 			(1000u32, StatemintNet),
 			(3000u32, PenpalNet),
-			(2001u32, ProviderParachain),
 		],
 	}
 }
@@ -252,12 +236,6 @@ pub fn polimec_ext(para_id: u32) -> sp_io::TestExternalities {
 	.unwrap();
 
 	pallet_assets::GenesisConfig::<Runtime, polimec_runtime::StatemintAssetsInstance> {
-		assets: vec![(
-			RELAY_ASSET_ID,
-			polimec_runtime::AssetsPalletId::get().into_account_truncating(),
-			false,
-			1_0_000_000_000,
-		)],
 		metadata: vec![(
 			RELAY_ASSET_ID,
 			"Local DOT".as_bytes().to_vec(),
@@ -265,6 +243,7 @@ pub fn polimec_ext(para_id: u32) -> sp_io::TestExternalities {
 			12,
 		)],
 		accounts: vec![(RELAY_ASSET_ID, ALICE, INITIAL_BALANCE)],
+		..Default::default()
 	}
 	.assimilate_storage(&mut t)
 	.unwrap();
@@ -341,55 +320,6 @@ pub fn penpal_ext(para_id: u32) -> sp_io::TestExternalities {
 	ext
 }
 
-pub fn provider_ext(para_id: u32) -> sp_io::TestExternalities {
-	use dip_provider_runtime_template::{Runtime, System};
-
-	let mut t = frame_system::GenesisConfig::default()
-		.build_storage::<Runtime>()
-		.unwrap();
-
-	let parachain_info_config = parachain_info::GenesisConfig {
-		parachain_id: para_id.into(),
-	};
-	<parachain_info::GenesisConfig as GenesisBuild<Runtime, _>>::assimilate_storage(&parachain_info_config, &mut t)
-		.unwrap();
-
-	let mut ext = sp_io::TestExternalities::new(t);
-	let did: DidIdentifier = did_auth_key().public().into();
-	let details = generate_did_details();
-	ext.execute_with(|| {
-		did::pallet::Did::<Runtime>::insert(&did, details);
-		System::set_block_number(1);
-	});
-	ext
-}
-
-pub(crate) fn did_auth_key() -> ed25519::Pair {
-	ed25519::Pair::from_seed(&[200u8; 32])
-}
-
-fn generate_did_details() -> DidDetails<dip_provider_runtime_template::Runtime> {
-	let auth_key: DidVerificationKey = did_auth_key().public().into();
-	let att_key: DidVerificationKey = sr25519::Pair::from_seed(&[100u8; 32]).public().into();
-	let del_key: DidVerificationKey = ecdsa::Pair::from_seed(&[101u8; 32]).public().into();
-
-	let mut details = DidDetails::new(
-		auth_key,
-		0u32,
-		Deposit {
-			amount: 1u64.into(),
-			owner: dip_provider_runtime_template::AccountId::new([1u8; 32]),
-		},
-	)
-	.unwrap();
-	details.update_attestation_key(att_key, 0u32).unwrap();
-	details.update_delegation_key(del_key, 0u32).unwrap();
-	details
-		.add_key_agreement_key(DidEncryptionKey::X25519([100u8; 32]), 0u32)
-		.unwrap();
-	details
-}
-
 /// Shortcuts to reduce boilerplate on runtime types
 pub mod shortcuts {
 	use super::*;
@@ -398,7 +328,6 @@ pub mod shortcuts {
 	pub type PolimecRuntime = polimec_runtime::Runtime;
 	pub type StatemintRuntime = statemint_runtime::Runtime;
 	pub type PenpalRuntime = penpal_runtime::Runtime;
-	pub type ProviderRuntime = dip_provider_runtime_template::Runtime;
 
 	pub type PolkadotXcmPallet = polkadot_runtime::XcmPallet;
 	pub type PolimecXcmPallet = polimec_runtime::PolkadotXcm;
@@ -429,7 +358,6 @@ pub mod shortcuts {
 	pub type PolimecAccountId = polkadot_primitives::AccountId;
 	pub type StatemintAccountId = polkadot_primitives::AccountId;
 	pub type PenpalAccountId = polkadot_primitives::AccountId;
-	pub type ProviderAccountId = dip_provider_runtime_template::AccountId;
 }
 
 #[cfg(test)]
@@ -663,7 +591,7 @@ mod reserve_backed_transfers {
 		let statemint_delta_dot_issuance = statemint_prev_dot_issuance - statemint_post_dot_issuance;
 
 		assert!(
-			polimec_delta_alice_dot_balance >= RESERVE_TRANSFER_AMOUNT - polimec_runtime::WeightToFee::<PolimecRuntime>::weight_to_fee(&MAX_XCM_WEIGHT) &&
+			polimec_delta_alice_dot_balance >= RESERVE_TRANSFER_AMOUNT - polimec_runtime::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT) &&
 			polimec_delta_alice_dot_balance <= RESERVE_TRANSFER_AMOUNT,
 			"Polimec ALICE DOT balance should have increased by at least the transfer amount minus the XCM execution fee"
 		);
@@ -671,7 +599,7 @@ mod reserve_backed_transfers {
 		assert!(
 			polimec_delta_dot_issuance
 				>= RESERVE_TRANSFER_AMOUNT
-					- polimec_runtime::WeightToFee::<PolimecRuntime>::weight_to_fee(&MAX_XCM_WEIGHT)
+					- polimec_runtime::WeightToFee::weight_to_fee(&MAX_XCM_WEIGHT)
 				&& polimec_delta_dot_issuance <= RESERVE_TRANSFER_AMOUNT,
 			"Polimec DOT issuance should have increased by at least the transfer amount minus the XCM execution fee"
 		);
@@ -1405,101 +1333,5 @@ mod reserve_backed_transfers {
 			polimec_delta_plmc_issuance, 0,
 			"Polimec PLMC issuance should not have changed"
 		);
-	}
-}
-
-#[cfg(test)]
-mod dip {
-	use super::*;
-	use did::{Did, DidSignature};
-	use dip_provider_runtime_template::DipProvider;
-	use pallet_did_lookup::linkable_account::LinkableAccountId;
-	use polimec_runtime::DipConsumer;
-
-	#[test]
-	fn commit_identity() {
-		Network::reset();
-		use frame_system::RawOrigin;
-		use kilt_dip_support::{
-			did::{MerkleEntriesAndDidSignature, TimeBoundDidSignature},
-			merkle::MerkleProof,
-		};
-		use kilt_runtime_common::dip::merkle::CompleteMerkleProof;
-		use kilt_runtime_common::dip::merkle::DidMerkleRootGenerator;
-		use polimec_parachain_runtime::{
-			BlockNumber, DidLookup, Runtime as ConsumerRuntime, RuntimeCall as ConsumerRuntimeCall, RuntimeEvent,
-			System,
-		};
-		use sp_runtime::traits::Zero;
-
-		let did: DidIdentifier = did_auth_key().public().into();
-
-		// 1. Send identity proof from DIP provider to DIP consumer.
-		ProviderParachain::execute_with(|| {
-			assert_ok!(DipProvider::commit_identity(
-				RawOrigin::Signed(ProviderAccountId::from([0u8; 32])).into(),
-				did.clone(),
-				Box::new(ParentThen(X1(Parachain(polimec_id()))).into()),
-				Box::new((Here, 1_000_000_000).into()),
-				Weight::from_ref_time(4_000),
-			));
-		});
-		// 2. Verify that the proof has made it to the DIP consumer.
-		PolimecNet::execute_with(|| {
-			// 2.1 Verify that there was no XCM error.
-			assert!(!System::events().iter().any(|r| matches!(
-				r.event,
-				RuntimeEvent::XcmpQueue(XcmpEvent::Fail {
-					error: _,
-					message_hash: _,
-					weight: _
-				})
-			)));
-			// 2.2 Verify the proof digest was stored correctly.
-			assert!(DipConsumer::identity_proofs(&did).is_some());
-		});
-		// 3. Call an extrinsic on the consumer chain with a valid proof and signature
-		let did_details = ProviderParachain::execute_with(|| {
-			Did::get(&did).expect("DID details should be stored on the provider chain.")
-		});
-		let call = ConsumerRuntimeCall::DidLookup(pallet_did_lookup::Call::<ConsumerRuntime>::associate_sender {});
-		// 3.1 Generate a proof
-		let CompleteMerkleProof { proof, .. } = DidMerkleRootGenerator::<ProviderRuntime>::generate_proof(
-			&did_details,
-			[did_details.authentication_key].iter(),
-		)
-		.expect("Proof generation should not fail");
-		// 3.2 Generate a DID signature
-		let genesis_hash =
-			PolimecNet::execute_with(|| frame_system::Pallet::<ConsumerRuntime>::block_hash(BlockNumber::zero()));
-		let system_block = PolimecNet::execute_with(frame_system::Pallet::<ConsumerRuntime>::block_number);
-		let payload = (call.clone(), 0u128, DISPATCHER_ACCOUNT, system_block, genesis_hash);
-		let signature: DidSignature = did_auth_key().sign(&payload.encode()).into();
-		// 3.3 Call the `dispatch_as` extrinsic on the consumer chain with the generated
-		// proof
-		PolimecNet::execute_with(|| {
-			assert_ok!(DipConsumer::dispatch_as(
-				RawOrigin::Signed(DISPATCHER_ACCOUNT).into(),
-				did.clone(),
-				MerkleEntriesAndDidSignature {
-					merkle_entries: MerkleProof {
-						blinded: proof.blinded,
-						revealed: proof.revealed,
-					},
-					did_signature: TimeBoundDidSignature {
-						signature,
-						block_number: system_block
-					}
-				},
-				Box::new(call),
-			));
-			// Verify the account -> DID link exists and contains the right information
-			let linked_did =
-				DidLookup::connected_dids::<LinkableAccountId>(DISPATCHER_ACCOUNT.into()).map(|link| link.did);
-			assert_eq!(linked_did, Some(did.clone()));
-			// Verify that the details of the DID subject have been bumped
-			let details = DipConsumer::identity_proofs(&did).map(|entry| entry.details);
-			assert_eq!(details, Some(1u128));
-		});
 	}
 }

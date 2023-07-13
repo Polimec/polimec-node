@@ -1,9 +1,9 @@
 [workspace]
-members = [ "nodes/*",
-            "pallets/*",
-            "runtimes/*",
-            "traits",
-            # "integration-tests"
+members = [
+    "nodes/*",
+    "pallets/*",
+    "runtimes/*",
+    "integration-tests"
 ]
 
 [workspace.package]
@@ -46,21 +46,21 @@ substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", bran
 # Internal pallets (with default disabled)
 pallet-funding = { path = "pallets/funding", default-features = false }
 pallet-sandbox = { path = "pallets/sandbox", default-features = false }
+pallet-parachain-staking = { git = "https://gitlab.com/Omegabit/stake-patch", default-features = false }
+
 
 # Internal support (with default disabled)
-polimec-traits = { path = "traits", default-features = false }
-xcm-primitives = { path = "primitives/xcm", default-features = false }
+shared-configuration = { path = "runtimes/shared-configuration", default-features = false }
 
 # External support (with default disabled)
-dip-support = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
-kilt-support = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
-kilt-dip-support = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
-did = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
-pallet-did-lookup = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
-pallet-dip-provider = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
-pallet-dip-consumer = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
-# Internal runtime API (with default disabled)
-kilt-runtime-api-staking = { path = "runtime-api/staking", default-features = false }
+# dip-support = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
+# kilt-support = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
+# kilt-dip-support = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
+# did = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
+# pallet-did-lookup = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
+# pallet-dip-provider = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
+# pallet-dip-consumer = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
+
 
 # External (without extra features and with default disabled if necessary)
 parity-scale-codec = { version = "3.3.0", default-features = false }

@@ -14,15 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! Expose the auto generated weight files.
+#![cfg_attr(not(feature = "std"), no_std)]
 
-pub mod block_weights;
-pub mod extrinsic_weights;
-pub mod pallet_funding;
-pub mod paritydb_weights;
-pub mod rocksdb_weights;
+pub mod assets;
+pub mod currency;
+pub mod fee;
+pub mod funding;
+pub mod governance;
+pub mod staking;
+pub mod weights;
 
-pub use block_weights::constants::BlockExecutionWeight;
-pub use extrinsic_weights::constants::ExtrinsicBaseWeight;
-pub use paritydb_weights::constants::ParityDbWeight;
-pub use rocksdb_weights::constants::RocksDbWeight;
+/// Common types
+pub use parachains_common::{Balance, BlockNumber, DAYS};
