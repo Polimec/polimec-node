@@ -1736,7 +1736,7 @@ mod creation_round_failure {
 #[cfg(test)]
 mod evaluation_round_success {
 	use super::*;
-	use sp_arithmetic::{Perbill};
+	use sp_arithmetic::Perbill;
 	use testing_macros::assert_close_enough;
 
 	#[test]
@@ -1882,7 +1882,6 @@ mod evaluation_round_success {
 			assert_close_enough!(real.1, desired.1, Perbill::from_parts(1u32));
 		}
 	}
-
 }
 
 #[cfg(test)]
@@ -3833,7 +3832,6 @@ mod misc_features {
 	use super::*;
 	use crate::UpdateType::{CommunityFundingStart, RemainderFundingStart};
 
-
 	#[test]
 	fn remove_from_update_store_works() {
 		let test_env = TestEnvironment::new();
@@ -3858,7 +3856,6 @@ mod misc_features {
 			);
 		});
 	}
-
 
 	#[allow(dead_code)]
 	fn sandbox() {

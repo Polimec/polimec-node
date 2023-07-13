@@ -1,16 +1,18 @@
+use crate::traits::DoRemainingOperation;
 use crate::*;
 use frame_support::traits::Get;
 use frame_support::weights::Weight;
-use sp_runtime::DispatchError;
 use sp_runtime::traits::AccountIdConversion;
+use sp_runtime::DispatchError;
 use sp_std::prelude::*;
-use crate::traits::DoRemainingOperation;
 
 impl DoRemainingOperation for ProjectFinalizer {
 	fn is_done(&self) -> bool {
 		matches!(self, ProjectFinalizer::None)
 	}
-	fn do_one_operation<T: crate::Config>(&mut self, project_id: T::ProjectIdentifier) -> Result<Weight, DispatchError> {
+	fn do_one_operation<T: crate::Config>(
+		&mut self, project_id: T::ProjectIdentifier,
+	) -> Result<Weight, DispatchError> {
 		match self {
 			ProjectFinalizer::None => Err(Error::<T>::NoFinalizerSet.into()),
 			ProjectFinalizer::Success(ops) => {

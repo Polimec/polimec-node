@@ -1593,13 +1593,15 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_release_bid_funds_for(
-		_caller: AccountIdOf<T>, _project_id: T::ProjectIdentifier, _bidder: AccountIdOf<T>, _bid_id: StorageItemIdOf<T>,
+		_caller: AccountIdOf<T>, _project_id: T::ProjectIdentifier, _bidder: AccountIdOf<T>,
+		_bid_id: StorageItemIdOf<T>,
 	) -> Result<(), DispatchError> {
 		Ok(())
 	}
 
 	pub fn do_bid_unbond_for(
-		_caller: AccountIdOf<T>, _project_id: T::ProjectIdentifier, _bidder: AccountIdOf<T>, _bid_id: StorageItemIdOf<T>,
+		_caller: AccountIdOf<T>, _project_id: T::ProjectIdentifier, _bidder: AccountIdOf<T>,
+		_bid_id: StorageItemIdOf<T>,
 	) -> Result<(), DispatchError> {
 		Ok(())
 	}
@@ -1626,7 +1628,8 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_payout_bid_funds_for(
-		_caller: AccountIdOf<T>, _project_id: T::ProjectIdentifier, _bidder: AccountIdOf<T>, _bid_id: StorageItemIdOf<T>,
+		_caller: AccountIdOf<T>, _project_id: T::ProjectIdentifier, _bidder: AccountIdOf<T>,
+		_bid_id: StorageItemIdOf<T>,
 	) -> Result<(), DispatchError> {
 		Ok(())
 	}
