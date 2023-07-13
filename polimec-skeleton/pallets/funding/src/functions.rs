@@ -1187,8 +1187,6 @@ impl<T: Config> Pallet<T> {
 			}
 		});
 
-
-
 		// If no CTs remain, end the funding phase
 		if remaining_cts_after_purchase == 0u32.into() {
 			Self::remove_from_update_store(&project_id)?;
@@ -1880,7 +1878,8 @@ impl<T: Config> Pallet<T> {
 
 					final_bid.plmc_bond = plmc_bond_needed;
 				}
-				let final_ticket_size = final_bid.final_ct_usd_price
+				let final_ticket_size = final_bid
+					.final_ct_usd_price
 					.checked_mul_int(final_bid.final_ct_amount)
 					.ok_or(Error::<T>::BadMath)?;
 				final_total_funding_reached_by_bids += final_ticket_size;
@@ -1895,7 +1894,9 @@ impl<T: Config> Pallet<T> {
 				info.weighted_average_price = Some(weighted_token_price);
 				info.remaining_contribution_tokens =
 					info.remaining_contribution_tokens.saturating_sub(bid_token_amount_sum);
-				info.funding_amount_reached = info.funding_amount_reached.saturating_add(final_total_funding_reached_by_bids);
+				info.funding_amount_reached = info
+					.funding_amount_reached
+					.saturating_add(final_total_funding_reached_by_bids);
 				Ok(())
 			} else {
 				Err(Error::<T>::ProjectNotFound.into())

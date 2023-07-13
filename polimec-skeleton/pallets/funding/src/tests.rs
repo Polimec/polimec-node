@@ -251,12 +251,14 @@ trait ProjectInstance {
 	}
 	fn get_update_pair(&self) -> (BlockNumber, UpdateType) {
 		self.in_ext(|| {
-			ProjectsToUpdate::<TestRuntime>::iter().find_map(|(block, update_vec)| {
-				update_vec
-					.iter()
-					.find(|(project_id, update)| *project_id == self.get_project_id())
-					.map(|(project_id, update)| (block, update.clone()))
-			}).unwrap()
+			ProjectsToUpdate::<TestRuntime>::iter()
+				.find_map(|(block, update_vec)| {
+					update_vec
+						.iter()
+						.find(|(project_id, update)| *project_id == self.get_project_id())
+						.map(|(project_id, update)| (block, update.clone()))
+				})
+				.unwrap()
 		})
 	}
 }
@@ -894,7 +896,9 @@ impl<'a> CommunityFundingProject<'a> {
 	fn finish_funding(self) -> FinishedProject<'a> {
 		let test_env = self.get_test_environment();
 		let (update_block, _) = self.get_update_pair();
-		test_env.advance_time(update_block.saturating_sub(test_env.current_block())).unwrap();
+		test_env
+			.advance_time(update_block.saturating_sub(test_env.current_block()))
+			.unwrap();
 		if self.get_project_details().status == ProjectStatus::RemainderRound {
 			let (end_block, _) = self.get_update_pair();
 			self.test_env
@@ -902,7 +906,11 @@ impl<'a> CommunityFundingProject<'a> {
 				.unwrap();
 		}
 		let project_details = self.get_project_details();
-		assert!(matches!(project_details.status, ProjectStatus::FundingSuccessful) || matches!(project_details.status, ProjectStatus::FundingFailed), "Project should be in Finished status");
+		assert!(
+			matches!(project_details.status, ProjectStatus::FundingSuccessful)
+				|| matches!(project_details.status, ProjectStatus::FundingFailed),
+			"Project should be in Finished status"
+		);
 		FinishedProject {
 			test_env: self.test_env,
 			issuer: self.issuer,
@@ -3925,9 +3933,9 @@ mod test_helper_functions {
 
 #[cfg(test)]
 mod misc_features {
-	use sp_arithmetic::Perbill;
 	use super::*;
 	use crate::UpdateType::{CommunityFundingStart, RemainderFundingStart};
+	use sp_arithmetic::Perbill;
 	use testing_macros::*;
 
 	#[test]
@@ -4027,17 +4035,15 @@ mod misc_features {
 			TestContribution::new(BUYER_7, 2_000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
 		];
 
-		let community_funding_project = CommunityFundingProject::new_with(
-			&test_env,
-			project_metadata,
-			ISSUER,
-			evaluations,
-			bids,
-		);
+		let community_funding_project =
+			CommunityFundingProject::new_with(&test_env, project_metadata, ISSUER, evaluations, bids);
 		let details = community_funding_project.get_project_details();
 		let ct_price = details.weighted_average_price.unwrap();
 		let mut plmc_deposits = calculate_contributed_plmc_spent(contributions.clone(), ct_price);
-		plmc_deposits = plmc_deposits.into_iter().map(|(account, balance)| (account, balance + get_ed())).collect();
+		plmc_deposits = plmc_deposits
+			.into_iter()
+			.map(|(account, balance)| (account, balance + get_ed()))
+			.collect();
 		let funding_deposits = calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
 
 		test_env.mint_plmc_to(plmc_deposits);
@@ -4085,5 +4091,4 @@ mod testing_macros {
 		};
 	}
 	pub(crate) use assert_close_enough;
-
 }
