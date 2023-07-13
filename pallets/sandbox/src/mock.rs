@@ -173,16 +173,11 @@ impl pallet_funding::Config for TestRuntime {
 // TODO: PLMC-161. Add some mocks projects at Genesis to simplify the tests
 #[allow(dead_code)]
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = frame_system::GenesisConfig::default()
-		.build_storage::<TestRuntime>()
-		.unwrap();
+	let mut t = frame_system::GenesisConfig::default().build_storage::<TestRuntime>().unwrap();
 
-	GenesisConfig {
-		balances: BalancesConfig { balances: vec![] },
-		..Default::default()
-	}
-	.assimilate_storage(&mut t)
-	.unwrap();
+	GenesisConfig { balances: BalancesConfig { balances: vec![] }, ..Default::default() }
+		.assimilate_storage(&mut t)
+		.unwrap();
 
 	let mut ext = sp_io::TestExternalities::new(t);
 	// In order to emit events the block number must be more than 0

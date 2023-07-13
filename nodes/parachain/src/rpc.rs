@@ -43,7 +43,9 @@ pub struct FullDeps<C, P> {
 }
 
 /// Instantiate all RPC extensions.
-pub fn create_full<C, P>(deps: FullDeps<C, P>) -> Result<RpcExtension, Box<dyn std::error::Error + Send + Sync>>
+pub fn create_full<C, P>(
+	deps: FullDeps<C, P>,
+) -> Result<RpcExtension, Box<dyn std::error::Error + Send + Sync>>
 where
 	C: ProvideRuntimeApi<Block>
 		+ HeaderBackend<Block>
@@ -61,11 +63,7 @@ where
 	use substrate_frame_rpc_system::{System, SystemApiServer};
 
 	let mut module = RpcExtension::new(());
-	let FullDeps {
-		client,
-		pool,
-		deny_unsafe,
-	} = deps;
+	let FullDeps { client, pool, deny_unsafe } = deps;
 
 	module.merge(System::new(client.clone(), pool, deny_unsafe).into_rpc())?;
 	module.merge(TransactionPayment::new(client).into_rpc())?;

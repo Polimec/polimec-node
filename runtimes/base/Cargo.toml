@@ -14,7 +14,7 @@ version.workspace = true
 substrate-wasm-builder.workspace = true
 
 [dependencies]
-parity-scale-codec = {  version = "3.3.0", default-features = false, features = [
+parity-scale-codec = { version = "3.3.0", default-features = false, features = [
 	"derive",
 ] }
 hex-literal = { version = "0.3.4", optional = true }
@@ -25,6 +25,8 @@ scale-info = { version = "2.3.1", default-features = false, features = [
 smallvec = "1.10.0"
 
 # Local
+pallet-parachain-staking.workspace = true
+shared-configuration.workspace = true
 
 # Substrate
 frame-benchmarking = { workspace = true, optional = true }
@@ -43,6 +45,7 @@ pallet-sudo.workspace = true
 pallet-timestamp.workspace = true
 pallet-transaction-payment.workspace = true
 pallet-transaction-payment-rpc-runtime-api.workspace = true
+sp-arithmetic.workspace = true
 sp-api.workspace = true
 sp-block-builder.workspace = true
 sp-consensus-aura.workspace = true
@@ -99,6 +102,8 @@ std = [
 	"frame-support/std",
 	"frame-system-rpc-runtime-api/std",
 	"frame-system/std",
+	"pallet-parachain-staking/std",
+	"parachains-common/std",
 	"pallet-aura/std",
 	"pallet-authorship/std",
 	"pallet-balances/std",
@@ -112,6 +117,7 @@ std = [
 	"parachain-info/std",
 	"polkadot-parachain/std",
 	"polkadot-runtime-common/std",
+	"sp-arithmetic/std",
 	"sp-api/std",
 	"sp-block-builder/std",
 	"sp-consensus-aura/std",
@@ -122,6 +128,7 @@ std = [
 	"sp-session/std",
 	"sp-std/std",
 	"sp-transaction-pool/std",
+	"shared-configuration/std",
 	"sp-version/std",
 	"xcm-builder/std",
 	"xcm-executor/std",

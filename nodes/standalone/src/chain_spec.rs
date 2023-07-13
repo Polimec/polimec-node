@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use polimec_standalone_runtime::{
-	AccountId, BalancesConfig, CredentialsConfig, GenesisConfig, SessionConfig, Signature, SudoConfig, SystemConfig,
+	AccountId, BalancesConfig, GenesisConfig, SessionConfig, Signature, SudoConfig, SystemConfig,
 	WASM_BINARY,
 };
 use sc_service::{ChainType, Properties};
@@ -153,7 +153,9 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 
 /// Configure initial storage state for FRAME modules.
 fn testnet_genesis(
-	wasm_binary: &[u8], initial_authorities: Vec<(AccountId, AuraId, GrandpaId)>, root_key: AccountId,
+	wasm_binary: &[u8],
+	initial_authorities: Vec<(AccountId, AuraId, GrandpaId)>,
+	root_key: AccountId,
 	endowed_accounts: Vec<AccountId>,
 ) -> GenesisConfig {
 	GenesisConfig {
@@ -175,12 +177,6 @@ fn testnet_genesis(
 		council: Default::default(),
 		technical_committee: Default::default(),
 		democracy: Default::default(),
-		credentials: CredentialsConfig {
-			issuers: endowed_accounts.clone(),
-			retails: endowed_accounts.clone(),
-			professionals: endowed_accounts.clone(),
-			institutionals: endowed_accounts.clone(),
-		},
 		session: SessionConfig {
 			keys: initial_authorities
 				.iter()

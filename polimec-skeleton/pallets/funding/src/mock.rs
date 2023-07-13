@@ -86,7 +86,6 @@ parameter_types! {
 	// https://github.com/paritytech/substrate/blob/069917b/frame/assets/src/lib.rs#L257L271
 	pub const MetadataDepositBase: Balance = free_deposit();
 	pub const MetadataDepositPerByte: Balance = free_deposit();
-	pub const AssetsPalletId: PalletId = PalletId(*b"assetsid");
 	pub const ApprovalDeposit: Balance = EXISTENTIAL_DEPOSIT;
 
 }

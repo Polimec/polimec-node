@@ -66,7 +66,6 @@ hex-literal = { workspace = true, optional = true }
 
 # Local Dependencies
 pallet-funding.workspace = true
-polimec-traits.workspace = true
 
 [build-dependencies]
 substrate-wasm-builder.workspace = true
@@ -112,7 +111,6 @@ std = [
 	"pallet-session/std",
 	"pallet-authorship/std",
 	"pallet-insecure-randomness-collective-flip/std",
-	"polimec-traits/std",
 	"pallet-vesting/std",
 ]
 
@@ -131,7 +129,6 @@ runtime-benchmarks = [
 	"pallet-democracy/runtime-benchmarks",
 	"pallet-funding/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
-	"polimec-traits/runtime-benchmarks",
 	"pallet-vesting/runtime-benchmarks",
 ]
 try-runtime = [
@@ -153,6 +150,5 @@ try-runtime = [
 	"pallet-insecure-randomness-collective-flip/try-runtime",
 	"pallet-scheduler/try-runtime",
 	"pallet-session/try-runtime",
-	"polimec-traits/try-runtime",
 	"pallet-vesting/try-runtime",
 ]

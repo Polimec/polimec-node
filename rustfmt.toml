@@ -1,8 +1,24 @@
-edition = "2021"
-fn_params_layout = "Compressed"
-use_field_init_shorthand = true
-max_width = 120
-use_small_heuristics = "Default" # This modifies `fn_call_width`, `attr_fn_like_width`, `struct_lit_width`, `struct_variant_width`, `array_width`, `chain_width`, `single_line_if_else_max_width` according to the value of `max_width`
-use_try_shorthand = true
-newline_style = "Unix"
+# Basic
 hard_tabs = true
+max_width = 100
+use_small_heuristics = "Max"
+# Imports
+imports_granularity = "Crate"
+reorder_imports = true
+# Consistency
+newline_style = "Unix"
+# Misc
+chain_width = 80
+spaces_around_ranges = false
+binop_separator = "Back"
+reorder_impl_items = false
+match_arm_leading_pipes = "Preserve"
+match_arm_blocks = false
+match_block_trailing_comma = true
+trailing_comma = "Vertical"
+trailing_semicolon = false
+use_field_init_shorthand = true
+ignore = [
+    "bridges",
+]
+edition = "2021"
