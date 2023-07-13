@@ -26,6 +26,7 @@ use sp_arithmetic::{FixedPointNumber, FixedPointOperand};
 use sp_runtime::traits::CheckedDiv;
 use sp_std::cmp::Eq;
 use sp_std::collections::btree_map::*;
+use sp_std::prelude::*;
 
 pub use config_types::*;
 pub use inner_types::*;
@@ -116,7 +117,7 @@ pub mod storage_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct ProjectDetails<AccountId, BlockNumber, Price: FixedPointNumber, Balance: BalanceT> {
+	pub struct ProjectDetails<AccountId, BlockNumber, Price: FixedPointNumber, Balance: BalanceT, RewardOrSlashList> {
 		pub issuer: AccountId,
 		/// Whether the project is frozen, so no `metadata` changes are allowed.
 		pub is_frozen: bool,
@@ -134,6 +135,8 @@ pub mod storage_types {
 		pub funding_amount_reached: Balance,
 		/// Cleanup operations remaining
 		pub cleanup: ProjectCleanup,
+		/// Evaluator rewards/penalties
+		pub evaluation_reward_or_slash_info: Option<RewardOrSlashList>,
 	}
 
 	/// Tells on_initialize what to do with the project
@@ -526,5 +529,20 @@ pub mod inner_types {
 		ContributionFundingRelease(u64),
 		ContributionUnbonding(u64),
 		Finished,
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum EvaluationRewardOrSlashInfo<AccountId, Balance> {
+		Rewards(RewardInfo<Balance>),
+		Slashes(Vec<(AccountId, Balance)>),
+		Unchanged,
+	}
+
+	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub struct RewardInfo<Balance> {
+		pub early_evaluator_reward_pot_usd: Balance,
+		pub normal_evaluator_reward_pot_usd: Balance,
+		pub early_evaluator_total_bonded_usd: Balance,
+		pub normal_evaluator_total_bonded_usd: Balance,
 	}
 }

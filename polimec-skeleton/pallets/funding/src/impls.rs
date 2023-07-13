@@ -1,33 +1,31 @@
-use crate::traits::DoRemainingOperation;
-use crate::{
-	Bids, Config, Contributions, EvaluationInfoOf, Evaluations, Event, FailureFinalizer, Pallet, ProjectFinalizer,
-	SuccessFinalizer, WeightInfo,
-};
+use crate::*;
 use frame_support::traits::Get;
 use frame_support::weights::Weight;
+use sp_runtime::DispatchError;
 use sp_runtime::traits::AccountIdConversion;
 use sp_std::prelude::*;
+use crate::traits::DoRemainingOperation;
 
 impl DoRemainingOperation for ProjectFinalizer {
 	fn is_done(&self) -> bool {
 		matches!(self, ProjectFinalizer::None)
 	}
-	fn do_one_operation<T: crate::Config>(&mut self, project_id: T::ProjectIdentifier) -> Result<Weight, ()> {
+	fn do_one_operation<T: crate::Config>(&mut self, project_id: T::ProjectIdentifier) -> Result<Weight, DispatchError> {
 		match self {
-			ProjectFinalizer::None => Err(()),
+			ProjectFinalizer::None => Err(Error::<T>::NoFinalizerSet.into()),
 			ProjectFinalizer::Success(ops) => {
-				let weight = ops.do_one_operation::<T>(project_id);
+				let weight = ops.do_one_operation::<T>(project_id)?;
 				if ops.is_done() {
 					*self = ProjectFinalizer::None;
 				}
-				weight
+				Ok(weight)
 			}
 			ProjectFinalizer::Failure(ops) => {
-				let weight = ops.do_one_operation::<T>(project_id);
+				let weight = ops.do_one_operation::<T>(project_id)?;
 				if ops.is_done() {
 					*self = ProjectFinalizer::None;
 				}
-				weight
+				Ok(weight)
 			}
 		}
 	}
@@ -38,7 +36,7 @@ impl DoRemainingOperation for SuccessFinalizer {
 		matches!(self, SuccessFinalizer::Finished)
 	}
 
-	fn do_one_operation<T: Config>(&mut self, project_id: T::ProjectIdentifier) -> Result<Weight, ()> {
+	fn do_one_operation<T: Config>(&mut self, project_id: T::ProjectIdentifier) -> Result<Weight, DispatchError> {
 		match self {
 			SuccessFinalizer::Initialized => {
 				*self =
@@ -50,7 +48,7 @@ impl DoRemainingOperation for SuccessFinalizer {
 					*self = SuccessFinalizer::EvaluationUnbonding(remaining_evaluations::<T>(project_id));
 					Ok(Weight::zero())
 				} else {
-					let (consumed_weight, remaining_evaluations) = reward_or_slash_one_evaluation::<T>(project_id);
+					let (consumed_weight, remaining_evaluations) = reward_or_slash_one_evaluation::<T>(project_id)?;
 					*self = SuccessFinalizer::EvaluationRewardOrSlash(remaining_evaluations);
 					Ok(consumed_weight)
 				}
@@ -133,7 +131,7 @@ impl DoRemainingOperation for SuccessFinalizer {
 					Ok(consumed_weight)
 				}
 			}
-			SuccessFinalizer::Finished => Err(()),
+			SuccessFinalizer::Finished => Err(Error::<T>::FinalizerFinished.into()),
 		}
 	}
 }
@@ -142,7 +140,7 @@ impl DoRemainingOperation for FailureFinalizer {
 	fn is_done(&self) -> bool {
 		matches!(self, FailureFinalizer::Finished)
 	}
-	fn do_one_operation<T: Config>(&mut self, project_id: T::ProjectIdentifier) -> Result<Weight, ()> {
+	fn do_one_operation<T: Config>(&mut self, project_id: T::ProjectIdentifier) -> Result<Weight, DispatchError> {
 		match self {
 			FailureFinalizer::Initialized => {
 				*self =
@@ -155,7 +153,7 @@ impl DoRemainingOperation for FailureFinalizer {
 					*self = FailureFinalizer::EvaluationUnbonding(remaining_evaluations::<T>(project_id));
 					Ok(Weight::zero())
 				} else {
-					let (consumed_weight, remaining_evaluators) = reward_or_slash_one_evaluation::<T>(project_id);
+					let (consumed_weight, remaining_evaluators) = reward_or_slash_one_evaluation::<T>(project_id)?;
 					*self = FailureFinalizer::EvaluationRewardOrSlash(remaining_evaluators);
 					Ok(consumed_weight)
 				}
@@ -218,7 +216,7 @@ impl DoRemainingOperation for FailureFinalizer {
 				}
 			}
 
-			FailureFinalizer::Finished => Err(()),
+			FailureFinalizer::Finished => Err(Error::<T>::FinalizerFinished.into()),
 		}
 	}
 }
@@ -261,24 +259,24 @@ fn remaining_contributions<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
 	Contributions::<T>::iter_prefix_values(project_id).flatten().count() as u64
 }
 
-fn remaining_bids_without_plmc_vesting<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
+fn remaining_bids_without_plmc_vesting<T: Config>(_project_id: T::ProjectIdentifier) -> u64 {
 	// TODO: current vesting implementation starts the schedule on bid creation. We should later on use pallet_vesting
 	// 	and add a check in the bid struct for initializing the vesting schedule
 	0u64
 }
 
-fn remaining_bids_without_ct_minted<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
+fn remaining_bids_without_ct_minted<T: Config>(_project_id: T::ProjectIdentifier) -> u64 {
 	// TODO: currently we vest the contribution tokens. We should change this to a direct mint.
 	0u64
 }
 
-fn remaining_contributions_without_plmc_vesting<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
+fn remaining_contributions_without_plmc_vesting<T: Config>(_project_id: T::ProjectIdentifier) -> u64 {
 	// TODO: current vesting implementation starts the schedule on contribution creation. We should later on use pallet_vesting
 	// 	and add a check in the contribution struct for initializing the vesting schedule
 	0u64
 }
 
-fn remaining_contributions_without_ct_minted<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
+fn remaining_contributions_without_ct_minted<T: Config>(_project_id: T::ProjectIdentifier) -> u64 {
 	// TODO: currently we vest the contribution tokens. We should change this to a direct mint.
 	0u64
 }
@@ -297,7 +295,8 @@ fn remaining_contributions_without_issuer_payout<T: Config>(project_id: T::Proje
 		.count() as u64
 }
 
-fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
+fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> Result<(Weight, u64), DispatchError> {
+	let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 	let project_evaluations: Vec<_> = Evaluations::<T>::iter_prefix_values(project_id).collect();
 	let remaining_evaluations = project_evaluations
 		.iter()
@@ -315,30 +314,34 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 			.find(|evaluation| !evaluation.rewarded_or_slashed)
 			.expect("user_evaluations can only exist if an item here is found; qed");
 
-		match Pallet::<T>::do_evaluation_reward_or_slash(
-			T::PalletId::get().into_account_truncating(),
-			evaluation.project_id,
-			evaluation.evaluator.clone(),
-			evaluation.id,
-		) {
-			Ok(_) => (),
-			Err(e) => Pallet::<T>::deposit_event(Event::EvaluationRewardOrSlashFailed {
-				project_id: evaluation.project_id,
-				evaluator: evaluation.evaluator.clone(),
-				id: evaluation.id,
-				error: e,
-			}),
-		};
+		match project_details.evaluation_reward_or_slash_info {
+			Some(EvaluationRewardOrSlashInfo::Rewards(_)) => {
+				match Pallet::<T>::do_evaluation_reward(
+					T::PalletId::get().into_account_truncating(),
+					evaluation.project_id,
+					evaluation.evaluator.clone(),
+					evaluation.id,
+				) {
+					Ok(_) => (),
+					Err(e) => Pallet::<T>::deposit_event(Event::EvaluationRewardOrSlashFailed {
+						project_id: evaluation.project_id,
+						evaluator: evaluation.evaluator.clone(),
+						id: evaluation.id,
+						error: e,
+					}),
+				};
+			}
+			_ => (),
+		}
 
 		// if the evaluation outcome failed, we still want to flag it as rewarded or slashed. Otherwise the automatic
 		// transition will get stuck.
 		evaluation.rewarded_or_slashed = true;
-
 		Evaluations::<T>::insert(project_id, evaluation.evaluator.clone(), user_evaluations);
 
-		(Weight::zero(), remaining_evaluations.saturating_sub(1u64))
+		Ok((Weight::zero(), remaining_evaluations.saturating_sub(1u64)))
 	} else {
-		(Weight::zero(), 0u64)
+		Ok((Weight::zero(), 0u64))
 	}
 }
 
@@ -346,12 +349,12 @@ fn unbond_one_evaluation<T: crate::Config>(project_id: T::ProjectIdentifier) -> 
 	let project_evaluations: Vec<_> = Evaluations::<T>::iter_prefix_values(project_id).collect();
 	let evaluation_count = project_evaluations.iter().flatten().count() as u64;
 
-	let mut maybe_user_evaluations = project_evaluations
+	let maybe_user_evaluations = project_evaluations
 		.into_iter()
 		.find(|evaluations| evaluations.iter().any(|e| e.rewarded_or_slashed));
 
 	if let Some(mut user_evaluations) = maybe_user_evaluations {
-		let mut evaluation = user_evaluations
+		let evaluation = user_evaluations
 			.iter_mut()
 			.find(|evaluation| evaluation.rewarded_or_slashed)
 			.expect("user_evaluations can only exist if an item here is found; qed");
@@ -420,12 +423,12 @@ fn unbond_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) 
 	// remove when do_bid_unbond_for is correctly implemented
 	let bids_count = 0u64;
 
-	let mut maybe_user_bids = project_bids
+	let maybe_user_bids = project_bids
 		.into_iter()
 		.find(|bids| bids.iter().any(|e| e.funds_released));
 
 	if let Some(mut user_bids) = maybe_user_bids {
-		let mut bid = user_bids
+		let bid = user_bids
 			.iter_mut()
 			.find(|bid| bid.funds_released)
 			.expect("user_evaluations can only exist if an item here is found; qed");
@@ -500,12 +503,12 @@ fn unbond_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weig
 	// let contributions_count = project_contributions.iter().flatten().count() as u64;
 	let contributions_count = 0u64;
 
-	let mut maybe_user_contributions = project_contributions
+	let maybe_user_contributions = project_contributions
 		.into_iter()
 		.find(|contributions| contributions.iter().any(|e| e.funds_released));
 
 	if let Some(mut user_contributions) = maybe_user_contributions {
-		let mut contribution = user_contributions
+		let contribution = user_contributions
 			.iter_mut()
 			.find(|contribution| contribution.funds_released)
 			.expect("user_evaluations can only exist if an item here is found; qed");
@@ -530,22 +533,22 @@ fn unbond_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weig
 	}
 }
 
-fn start_bid_plmc_vesting_schedule<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
+fn start_bid_plmc_vesting_schedule<T: Config>(_project_id: T::ProjectIdentifier) -> (Weight, u64) {
 	// TODO: change when new vesting schedule is implemented
 	(Weight::zero(), 0u64)
 }
 
-fn start_contribution_plmc_vesting_schedule<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
+fn start_contribution_plmc_vesting_schedule<T: Config>(_project_id: T::ProjectIdentifier) -> (Weight, u64) {
 	// TODO: change when new vesting schedule is implemented
 	(Weight::zero(), 0u64)
 }
 
-fn mint_ct_for_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
+fn mint_ct_for_one_bid<T: Config>(_project_id: T::ProjectIdentifier) -> (Weight, u64) {
 	// TODO: Change when new vesting schedule is implemented
 	(Weight::zero(), 0u64)
 }
 
-fn mint_ct_for_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
+fn mint_ct_for_one_contribution<T: Config>(_project_id: T::ProjectIdentifier) -> (Weight, u64) {
 	// TODO: Change when new vesting schedule is implemented
 	(Weight::zero(), 0u64)
 }

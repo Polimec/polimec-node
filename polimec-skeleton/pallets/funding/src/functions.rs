@@ -22,7 +22,6 @@ use super::*;
 
 use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice};
 use frame_support::traits::fungible::InspectHold;
-use frame_support::traits::fungibles::Inspect;
 use frame_support::traits::tokens::{Precision, Preservation};
 use frame_support::{
 	ensure,
@@ -36,13 +35,7 @@ use frame_support::{
 use sp_arithmetic::Perbill;
 
 use sp_arithmetic::traits::{CheckedSub, Zero};
-use sp_runtime::Percent;
 use sp_std::prelude::*;
-
-use itertools::Itertools;
-
-pub const US_DOLLAR: u128 = 1_0_000_000_000;
-pub const US_CENT: u128 = 0_0_100_000_000;
 
 // Round transition functions
 impl<T: Config> Pallet<T> {
@@ -109,6 +102,7 @@ impl<T: Config> Pallet<T> {
 			remaining_contribution_tokens: initial_metadata.total_allocation_size,
 			funding_amount_reached: BalanceOf::<T>::zero(),
 			cleanup: ProjectCleanup::NotReady,
+			evaluation_reward_or_slash_info: None,
 		};
 
 		let project_metadata = initial_metadata;
@@ -657,10 +651,11 @@ impl<T: Config> Pallet<T> {
 		let funding_reached = project_details.funding_amount_reached;
 		let funding_is_successful =
 			!(project_details.status == ProjectStatus::FundingFailed || funding_reached < funding_target);
-
+		let evaluation_reward_or_slash_info = Self::generate_evaluation_reward_or_slash_info(project_id)?;
 		if funding_is_successful {
 			project_details.status = ProjectStatus::FundingSuccessful;
 			project_details.cleanup = ProjectCleanup::Ready(ProjectFinalizer::Success(Default::default()));
+			project_details.evaluation_reward_or_slash_info = Some(evaluation_reward_or_slash_info);
 
 			// * Update Storage *
 			ProjectsDetails::<T>::insert(project_id, project_details.clone());
@@ -815,7 +810,7 @@ impl<T: Config> Pallet<T> {
 			.ok_or(Error::<T>::BadMath)?;
 
 		let previous_total_evaluation_bonded_usd = all_existing_evaluations
-			.map(|(evaluator, evaluations)| {
+			.map(|(_evaluator, evaluations)| {
 				evaluations.iter().fold(BalanceOf::<T>::zero(), |acc, evaluation| {
 					acc.saturating_add(evaluation.early_usd_amount)
 						.saturating_add(evaluation.late_usd_amount)
@@ -1535,48 +1530,103 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn do_evaluation_reward_or_slash(
+	pub fn do_evaluation_reward(
 		caller: AccountIdOf<T>, project_id: T::ProjectIdentifier, evaluator: AccountIdOf<T>,
 		evaluation_id: StorageItemIdOf<T>,
 	) -> Result<(), DispatchError> {
+		// * Get variables *
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let ct_price = project_details
+			.weighted_average_price
+			.ok_or(Error::<T>::ImpossibleState)?;
+		let reward_info =
+			if let Some(EvaluationRewardOrSlashInfo::Rewards(info)) = project_details.evaluation_reward_or_slash_info {
+				info
+			} else {
+				return Err(Error::<T>::NotAllowed.into());
+			};
+		let mut user_evaluations = Evaluations::<T>::get(project_id, evaluator.clone());
+		let evaluation = user_evaluations
+			.iter_mut()
+			.find(|evaluation| evaluation.id == evaluation_id)
+			.ok_or(Error::<T>::EvaluationNotFound)?;
+
+		// * Validity checks *
+		ensure!(
+			evaluation.rewarded_or_slashed == false
+				&& matches!(project_details.status, ProjectStatus::FundingSuccessful),
+			Error::<T>::NotAllowed
+		);
+
+		// * Calculate variables *
+		let early_reward_weight = Perbill::from_rational(
+			evaluation.early_usd_amount,
+			reward_info.early_evaluator_total_bonded_usd,
+		);
+		let normal_reward_weight = Perbill::from_rational(
+			evaluation.late_usd_amount.saturating_add(evaluation.early_usd_amount),
+			reward_info.normal_evaluator_total_bonded_usd,
+		);
+		let total_reward_amount_usd = early_reward_weight * reward_info.early_evaluator_reward_pot_usd
+			+ normal_reward_weight * reward_info.normal_evaluator_reward_pot_usd;
+		let reward_amount_ct: BalanceOf<T> = ct_price
+			.reciprocal()
+			.ok_or(Error::<T>::BadMath)?
+			.checked_mul_int(total_reward_amount_usd)
+			.ok_or(Error::<T>::BadMath)?;
+
+		// * Update storage *
+		T::ContributionTokenCurrency::mint_into(project_id, &evaluation.evaluator, reward_amount_ct)?;
+		evaluation.rewarded_or_slashed = true;
+		Evaluations::<T>::set(project_id, evaluator.clone(), user_evaluations);
+
+		// * Emit events *
+		Self::deposit_event(Event::<T>::EvaluationRewarded {
+			project_id,
+			evaluator: evaluator.clone(),
+			id: evaluation_id,
+			amount: reward_amount_ct,
+			caller,
+		});
+
 		Ok(())
 	}
 
 	pub fn do_release_bid_funds_for(
-		caller: AccountIdOf<T>, project_id: T::ProjectIdentifier, bidder: AccountIdOf<T>, bid_id: StorageItemIdOf<T>,
+		_caller: AccountIdOf<T>, _project_id: T::ProjectIdentifier, _bidder: AccountIdOf<T>, _bid_id: StorageItemIdOf<T>,
 	) -> Result<(), DispatchError> {
 		Ok(())
 	}
 
 	pub fn do_bid_unbond_for(
-		caller: AccountIdOf<T>, project_id: T::ProjectIdentifier, bidder: AccountIdOf<T>, bid_id: StorageItemIdOf<T>,
+		_caller: AccountIdOf<T>, _project_id: T::ProjectIdentifier, _bidder: AccountIdOf<T>, _bid_id: StorageItemIdOf<T>,
 	) -> Result<(), DispatchError> {
 		Ok(())
 	}
 
 	pub fn do_release_contribution_funds_for(
-		caller: AccountIdOf<T>, project_id: T::ProjectIdentifier, contributor: AccountIdOf<T>,
-		contribution_id: StorageItemIdOf<T>,
+		_caller: AccountIdOf<T>, _project_id: T::ProjectIdentifier, _contributor: AccountIdOf<T>,
+		_contribution_id: StorageItemIdOf<T>,
 	) -> Result<(), DispatchError> {
 		Ok(())
 	}
 
 	pub fn do_contribution_unbond_for(
-		caller: AccountIdOf<T>, project_id: T::ProjectIdentifier, contributor: AccountIdOf<T>,
-		contribution_id: StorageItemIdOf<T>,
+		_caller: AccountIdOf<T>, _project_id: T::ProjectIdentifier, _contributor: AccountIdOf<T>,
+		_contribution_id: StorageItemIdOf<T>,
 	) -> Result<(), DispatchError> {
 		Ok(())
 	}
 
 	pub fn do_payout_contribution_funds_for(
-		caller: AccountIdOf<T>, project_id: T::ProjectIdentifier, contributor: AccountIdOf<T>,
-		contribution_id: StorageItemIdOf<T>,
+		_caller: AccountIdOf<T>, _project_id: T::ProjectIdentifier, _contributor: AccountIdOf<T>,
+		_contribution_id: StorageItemIdOf<T>,
 	) -> Result<(), DispatchError> {
 		Ok(())
 	}
 
 	pub fn do_payout_bid_funds_for(
-		caller: AccountIdOf<T>, project_id: T::ProjectIdentifier, bidder: AccountIdOf<T>, bid_id: StorageItemIdOf<T>,
+		_caller: AccountIdOf<T>, _project_id: T::ProjectIdentifier, _bidder: AccountIdOf<T>, _bid_id: StorageItemIdOf<T>,
 	) -> Result<(), DispatchError> {
 		Ok(())
 	}
@@ -2025,7 +2075,12 @@ impl<T: Config> Pallet<T> {
 	pub fn get_evaluator_ct_rewards(
 		project_id: T::ProjectIdentifier,
 	) -> Result<Vec<(T::AccountId, T::Balance)>, DispatchError> {
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+		let (early_evaluator_rewards, all_evaluator_rewards, early_evaluator_total_locked, all_evaluator_total_locked) =
+			Self::get_evaluator_rewards_info(project_id)?;
+		let ct_price = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ProjectNotFound)?
+			.weighted_average_price
+			.ok_or(Error::<T>::ImpossibleState)?;
 		let evaluation_usd_amounts = Evaluations::<T>::iter_prefix(project_id)
 			.map(|(evaluator, evaluations)| {
 				(
@@ -2042,31 +2097,6 @@ impl<T: Config> Pallet<T> {
 				)
 			})
 			.collect::<Vec<_>>();
-		let ct_price = project_details
-			.weighted_average_price
-			.ok_or(Error::<T>::ImpossibleState)?;
-		let target_funding = project_details.fundraising_target;
-		let funding_reached = project_details.funding_amount_reached;
-
-		// This is the "Y" variable from the knowledge hub
-		let percentage_of_target_funding = Perbill::from_rational(funding_reached, target_funding);
-
-		let fees = Self::calculate_fees(project_id)?;
-		let evaluator_fees = percentage_of_target_funding * (Perbill::from_percent(30) * fees);
-
-		let early_evaluator_rewards = Perbill::from_percent(20) * evaluator_fees;
-		let all_evaluator_rewards = Perbill::from_percent(80) * evaluator_fees;
-
-		let early_evaluator_total_locked = evaluation_usd_amounts
-			.iter()
-			.fold(BalanceOf::<T>::zero(), |acc, (_, (early, _))| {
-				acc.saturating_add(*early)
-			});
-		let late_evaluator_total_locked = evaluation_usd_amounts
-			.iter()
-			.fold(BalanceOf::<T>::zero(), |acc, (_, (_, late))| acc.saturating_add(*late));
-		let all_evaluator_total_locked = early_evaluator_total_locked.saturating_add(late_evaluator_total_locked);
-
 		let evaluator_usd_rewards = evaluation_usd_amounts
 			.into_iter()
 			.map(|(evaluator, (early, late))| {
@@ -2091,5 +2121,96 @@ impl<T: Config> Pallet<T> {
 				}
 			})
 			.collect()
+	}
+
+	pub fn get_evaluator_rewards_info(
+		project_id: <T as Config>::ProjectIdentifier,
+	) -> Result<
+		(
+			<T as Config>::Balance,
+			<T as Config>::Balance,
+			<T as Config>::Balance,
+			<T as Config>::Balance,
+		),
+		DispatchError,
+	> {
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+		let evaluation_usd_amounts = Evaluations::<T>::iter_prefix(project_id)
+			.map(|(evaluator, evaluations)| {
+				(
+					evaluator,
+					evaluations.into_iter().fold(
+						(BalanceOf::<T>::zero(), BalanceOf::<T>::zero()),
+						|acc, evaluation| {
+							(
+								acc.0.saturating_add(evaluation.early_usd_amount),
+								acc.1.saturating_add(evaluation.late_usd_amount),
+							)
+						},
+					),
+				)
+			})
+			.collect::<Vec<_>>();
+		let target_funding = project_details.fundraising_target;
+		let funding_reached = project_details.funding_amount_reached;
+
+		// This is the "Y" variable from the knowledge hub
+		let percentage_of_target_funding = Perbill::from_rational(funding_reached, target_funding);
+
+		let fees = Self::calculate_fees(project_id)?;
+		let evaluator_fees = percentage_of_target_funding * (Perbill::from_percent(30) * fees);
+
+		let early_evaluator_rewards = Perbill::from_percent(20) * evaluator_fees;
+		let all_evaluator_rewards = Perbill::from_percent(80) * evaluator_fees;
+
+		let early_evaluator_total_locked = evaluation_usd_amounts
+			.iter()
+			.fold(BalanceOf::<T>::zero(), |acc, (_, (early, _))| {
+				acc.saturating_add(*early)
+			});
+		let late_evaluator_total_locked = evaluation_usd_amounts
+			.iter()
+			.fold(BalanceOf::<T>::zero(), |acc, (_, (_, late))| acc.saturating_add(*late));
+		let all_evaluator_total_locked = early_evaluator_total_locked.saturating_add(late_evaluator_total_locked);
+		Ok((
+			early_evaluator_rewards,
+			all_evaluator_rewards,
+			early_evaluator_total_locked,
+			all_evaluator_total_locked,
+		))
+	}
+
+	pub fn generate_evaluation_reward_or_slash_info(
+		project_id: T::ProjectIdentifier,
+	) -> Result<EvaluationRewardOrSlashInfoOf<T>, DispatchError> {
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+		let funding_target = project_details.fundraising_target;
+		let funding_reached = project_details.funding_amount_reached;
+		let funding_ratio = Perbill::from_rational(funding_reached, funding_target);
+
+		// Project Automatically rejected, evaluators slashed
+		if funding_ratio <= Perbill::from_percent(33) {
+			todo!()
+		// Project Manually accepted, evaluators slashed
+		} else if funding_ratio < Perbill::from_percent(75) {
+			todo!()
+		// Project Manually accepted, evaluators unaffected
+		} else if funding_ratio < Perbill::from_percent(90) {
+			todo!()
+		// Project Automatically accepted, evaluators rewarded
+		} else {
+			let (
+				early_evaluator_reward_pot_usd,
+				normal_evaluator_reward_pot_usd,
+				early_evaluator_total_bonded_usd,
+				normal_evaluator_total_bonded_usd,
+			) = Self::get_evaluator_rewards_info(project_id)?;
+			Ok(EvaluationRewardOrSlashInfo::Rewards(RewardInfo {
+				early_evaluator_reward_pot_usd,
+				normal_evaluator_reward_pot_usd,
+				early_evaluator_total_bonded_usd,
+				normal_evaluator_total_bonded_usd,
+			}))
+		}
 	}
 }

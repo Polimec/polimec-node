@@ -230,7 +230,9 @@ pub type AssetIdOf<T> =
 
 pub type ProjectMetadataOf<T> =
 	ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, HashOf<T>>;
-pub type ProjectDetailsOf<T> = ProjectDetails<AccountIdOf<T>, BlockNumberOf<T>, PriceOf<T>, BalanceOf<T>>;
+pub type ProjectDetailsOf<T> =
+	ProjectDetails<AccountIdOf<T>, BlockNumberOf<T>, PriceOf<T>, BalanceOf<T>, EvaluationRewardOrSlashInfoOf<T>>;
+pub type EvaluationRewardOrSlashInfoOf<T> = EvaluationRewardOrSlashInfo<AccountIdOf<T>, BalanceOf<T>>;
 pub type VestingOf<T> = Vesting<BlockNumberOf<T>, BalanceOf<T>>;
 pub type EvaluationInfoOf<T> =
 	EvaluationInfo<StorageItemIdOf<T>, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, BlockNumberOf<T>>;
@@ -600,6 +602,13 @@ pub mod pallet {
 			id: StorageItemIdOf<T>,
 			error: DispatchError,
 		},
+		EvaluationRewarded {
+			project_id: ProjectIdOf<T>,
+			evaluator: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			amount: BalanceOf<T>,
+			caller: AccountIdOf<T>,
+		},
 	}
 
 	#[pallet::error]
@@ -716,6 +725,10 @@ pub mod pallet {
 		EvaluationBondTooHigh,
 		/// Tried to do an operation on an evaluation that does not exist
 		EvaluationNotFound,
+		/// Tried to do an operation on a finalizer that is not yet set
+		NoFinalizerSet,
+		/// Tried to do an operation on a finalizer that already finished
+		FinalizerFinished,
 	}
 
 	#[pallet::call]
@@ -906,7 +919,6 @@ pub mod pallet {
 		}
 
 		fn on_idle(_now: T::BlockNumber, max_weight: Weight) -> Weight {
-			let pallet_account: AccountIdOf<T> = <T as Config>::PalletId::get().into_account_truncating();
 			let mut remaining_weight = max_weight;
 
 			let projects_needing_cleanup = ProjectsDetails::<T>::iter()

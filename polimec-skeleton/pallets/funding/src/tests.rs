@@ -255,8 +255,8 @@ trait ProjectInstance {
 				.find_map(|(block, update_vec)| {
 					update_vec
 						.iter()
-						.find(|(project_id, update)| *project_id == self.get_project_id())
-						.map(|(project_id, update)| (block, update.clone()))
+						.find(|(project_id, _update)| *project_id == self.get_project_id())
+						.map(|(_project_id, update)| (block, update.clone()))
 				})
 				.unwrap()
 		})
@@ -536,6 +536,7 @@ impl<'a> CreatedProject<'a> {
 			remaining_contribution_tokens: expected_metadata.total_allocation_size,
 			funding_amount_reached: BalanceOf::<TestRuntime>::zero(),
 			cleanup: ProjectCleanup::NotReady,
+			evaluation_reward_or_slash_info: None,
 		};
 		assert_eq!(metadata, expected_metadata);
 		assert_eq!(details, expected_details);
@@ -1558,7 +1559,7 @@ pub mod helper_functions {
 		let last_event = events.into_iter().last().expect("No events found for this action.");
 		match last_event {
 			frame_system::EventRecord {
-				event: RuntimeEvent::FundingModule(Event::TransitionError { project_id, error }),
+				event: RuntimeEvent::FundingModule(Event::TransitionError { project_id: _, error }),
 				..
 			} => Err(error),
 			_ => Ok(()),
@@ -1735,7 +1736,8 @@ mod creation_round_failure {
 #[cfg(test)]
 mod evaluation_round_success {
 	use super::*;
-	use sp_arithmetic::{Perbill, Percent};
+	use sp_arithmetic::{Perbill};
+	use testing_macros::assert_close_enough;
 
 	#[test]
 	fn evaluation_round_completed() {
@@ -1765,112 +1767,21 @@ mod evaluation_round_success {
 
 	#[test]
 	fn rewards_are_paid_full_funding() {
-		// numbers taken from knowledge hub
-		const TARGET_FUNDING_AMOUNT_USD: BalanceOf<TestRuntime> = 1_000_000 * US_DOLLAR;
-		let evaluator_1_usd_amount: BalanceOf<TestRuntime> = 75_000 * US_DOLLAR; // Full early evaluator reward
-		let evaluator_2_usd_amount: BalanceOf<TestRuntime> = 65_000 * US_DOLLAR; // Partial early evaluator reward
-		let evaluator_3_usd_amount: BalanceOf<TestRuntime> = 60_000 * US_DOLLAR; // No early evaluator reward
-
-		// 105% funding because price for bids is always a couple points per billion lower than expected
-		let funding_weights = [25, 30, 35, 15];
-
-		let funding_weights = funding_weights
-			.into_iter()
-			.map(|x| Percent::from_percent(x))
-			.collect::<Vec<_>>();
-
-		let bidder_1_usd_amount: BalanceOf<TestRuntime> = funding_weights[0] * TARGET_FUNDING_AMOUNT_USD;
-		let bidder_2_usd_amount: BalanceOf<TestRuntime> = funding_weights[1] * TARGET_FUNDING_AMOUNT_USD;
-
-		let buyer_1_usd_amount: BalanceOf<TestRuntime> = funding_weights[2] * TARGET_FUNDING_AMOUNT_USD;
-		let buyer_2_usd_amount: BalanceOf<TestRuntime> = funding_weights[3] * TARGET_FUNDING_AMOUNT_USD;
-
 		let test_env = TestEnvironment::new();
 
-		let plmc_price = test_env
-			.in_ext(|| <TestRuntime as Config>::PriceProvider::get_price(PLMC_STATEMINT_ID))
-			.unwrap();
-
-		let evaluations: UserToUSDBalance = vec![
-			(EVALUATOR_1, evaluator_1_usd_amount),
-			(EVALUATOR_2, evaluator_2_usd_amount),
-			(EVALUATOR_3, evaluator_3_usd_amount),
-		];
-
-		let bidder_1_ct_price = PriceOf::<TestRuntime>::from_float(14f64);
-		let bidder_2_ct_price = PriceOf::<TestRuntime>::from_float(14f64);
-
-		let bidder_1_ct_amount = bidder_1_ct_price
-			.reciprocal()
-			.unwrap()
-			.checked_mul_int(bidder_1_usd_amount)
-			.unwrap();
-		let bidder_2_ct_amount = bidder_2_ct_price
-			.reciprocal()
-			.unwrap()
-			.checked_mul_int(bidder_2_usd_amount)
-			.unwrap();
-
-		let final_ct_price = calculate_price_from_test_bids(vec![
-			TestBid::new(
-				BIDDER_1,
-				bidder_1_ct_amount,
-				bidder_1_ct_price,
-				None,
-				AcceptedFundingAsset::USDT,
-			),
-			TestBid::new(
-				BIDDER_2,
-				bidder_2_ct_amount,
-				bidder_2_ct_price,
-				None,
-				AcceptedFundingAsset::USDT,
-			),
-		]);
-
-		let buyer_1_ct_amount = final_ct_price
-			.reciprocal()
-			.unwrap()
-			.checked_mul_int(buyer_1_usd_amount)
-			.unwrap();
-		let buyer_2_ct_amount = final_ct_price
-			.reciprocal()
-			.unwrap()
-			.checked_mul_int(buyer_2_usd_amount)
-			.unwrap();
-
-		let bids: TestBids = vec![
-			TestBid::new(
-				BIDDER_1,
-				bidder_1_ct_amount,
-				bidder_1_ct_price,
-				None,
-				AcceptedFundingAsset::USDT,
-			),
-			TestBid::new(
-				BIDDER_2,
-				bidder_2_ct_amount,
-				bidder_2_ct_price,
-				None,
-				AcceptedFundingAsset::USDT,
-			),
-		];
-
-		let community_contributions = vec![
-			TestContribution::new(BUYER_1, buyer_1_ct_amount, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_2, buyer_2_ct_amount, None, AcceptedFundingAsset::USDT),
-		];
-
-		let project = ProjectMetadataOf::<TestRuntime> {
+		let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
+		let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
+		let metadata_hash = hashed(format!("{}-{}", METADATA, 420));
+		let project_metadata = ProjectMetadataOf::<TestRuntime> {
 			token_information: CurrencyMetadata {
-				name: "Test Token".as_bytes().to_vec().try_into().unwrap(),
-				symbol: "TT".as_bytes().to_vec().try_into().unwrap(),
-				decimals: 10,
+				name: bounded_name,
+				symbol: bounded_symbol,
+				decimals: ASSET_DECIMALS,
 			},
-			mainnet_token_max_supply: 10_000_000 * ASSET_UNIT,
-			total_allocation_size: 1_000_000 * ASSET_UNIT,
-			minimum_price: 1u128.into(),
-			ticket_size: TicketSize::<BalanceOf<TestRuntime>> {
+			mainnet_token_max_supply: 8_000_000_0_000_000_000,
+			total_allocation_size: 100_000_0_000_000_000,
+			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
+			ticket_size: TicketSize {
 				minimum: Some(1),
 				maximum: None,
 			},
@@ -1880,86 +1791,70 @@ mod evaluation_round_success {
 			},
 			funding_thresholds: Default::default(),
 			conversion_rate: 0,
-			participation_currencies: Default::default(),
+			participation_currencies: AcceptedFundingAsset::USDT,
 			funding_destination_account: ISSUER,
-			offchain_information_hash: Some(hashed(METADATA)),
+			offchain_information_hash: Some(metadata_hash),
 		};
 
-		let finished_project = FinishedProject::new_with(
-			&test_env,
-			project,
-			ISSUER,
-			evaluations,
-			bids,
-			community_contributions,
-			vec![],
-		);
+		// all values taken from the knowledge hub
+		let evaluations: UserToUSDBalance = vec![
+			(EVALUATOR_1, 75_000 * US_DOLLAR),
+			(EVALUATOR_2, 65_000 * US_DOLLAR),
+			(EVALUATOR_3, 60_000 * US_DOLLAR),
+		];
 
-		let project_id = finished_project.get_project_id();
+		let bids: TestBids = vec![
+			TestBid::new(
+				BIDDER_1,
+				10_000 * ASSET_UNIT,
+				15.into(),
+				None,
+				AcceptedFundingAsset::USDT,
+			),
+			TestBid::new(
+				BIDDER_2,
+				20_000 * ASSET_UNIT,
+				20.into(),
+				None,
+				AcceptedFundingAsset::USDT,
+			),
+			TestBid::new(
+				BIDDER_4,
+				20_000 * ASSET_UNIT,
+				16.into(),
+				None,
+				AcceptedFundingAsset::USDT,
+			),
+		];
 
-		let mut remaining_for_fee = TARGET_FUNDING_AMOUNT_USD;
+		let contributions: TestContributions = vec![
+			TestContribution::new(BUYER_1, 4_000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_2, 2_000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_3, 2_000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_4, 5_000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_5, 30_000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_6, 5_000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_7, 2_000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
+		];
 
-		let amount_for_10_percent = {
-			let sub = remaining_for_fee.checked_sub(1_000_000 * US_DOLLAR);
-			if let Some(sub) = sub {
-				remaining_for_fee = sub;
-				1_000_000 * US_DOLLAR
-			} else {
-				let temp = remaining_for_fee;
-				remaining_for_fee = 0;
-				temp
-			}
-		};
+		let community_funding_project =
+			CommunityFundingProject::new_with(&test_env, project_metadata, ISSUER, evaluations, bids);
+		let details = community_funding_project.get_project_details();
+		let ct_price = details.weighted_average_price.unwrap();
+		let mut plmc_deposits = calculate_contributed_plmc_spent(contributions.clone(), ct_price);
+		plmc_deposits = plmc_deposits
+			.into_iter()
+			.map(|(account, balance)| (account, balance + get_ed()))
+			.collect();
+		let funding_deposits = calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
 
-		let amount_for_8_percent = {
-			let sub = remaining_for_fee.checked_sub(5_000_000 * US_DOLLAR);
-			if let Some(sub) = sub {
-				remaining_for_fee = sub;
-				5_000_000 * US_DOLLAR
-			} else {
-				let temp = remaining_for_fee;
-				remaining_for_fee = 0;
-				temp
-			}
-		};
+		test_env.mint_plmc_to(plmc_deposits);
+		test_env.mint_statemint_asset_to(funding_deposits);
 
-		let amount_for_6_percent = remaining_for_fee;
-
-		let total_fee = Percent::from_percent(10u8) * amount_for_10_percent
-			+ Percent::from_percent(8u8) * amount_for_8_percent
-			+ Percent::from_percent(6u8) * amount_for_6_percent;
-
-		// "Y" variable is 1, since the full funding amount was reached, which means the full 30% of the fee goes to evaluators
-		let evaluator_rewards_usd = Percent::from_percent(30) * total_fee;
-		let total_evaluation_locked = evaluator_1_usd_amount + evaluator_2_usd_amount + evaluator_3_usd_amount;
-		let early_evaluator_locked = Percent::from_percent(10) * TARGET_FUNDING_AMOUNT_USD;
-
-		let eval_1_all_evaluator_reward_weight =
-			Perbill::from_rational(evaluator_1_usd_amount, total_evaluation_locked);
-		let eval_2_all_evaluator_reward_weight =
-			Perbill::from_rational(evaluator_2_usd_amount, total_evaluation_locked);
-		let eval_3_all_evaluator_reward_weight =
-			Perbill::from_rational(evaluator_3_usd_amount, total_evaluation_locked);
-
-		let eval_1_early_evaluator_reward_weight =
-			Perbill::from_rational(evaluator_1_usd_amount, early_evaluator_locked);
-		let eval_2_early_evaluator_reward_weight = Perbill::from_rational(
-			Perbill::from_rational(2u32, 3u32) * evaluator_2_usd_amount,
-			early_evaluator_locked,
-		);
-		let eval_3_early_evaluator_reward_weight = Perbill::from_percent(0);
-
-		let all_evaluator_rewards_pot = Percent::from_percent(80) * evaluator_rewards_usd;
-		let early_evaluator_rewards_pot = Percent::from_percent(20) * evaluator_rewards_usd;
-
-		let evaluator_1_all_evaluator_reward = eval_1_all_evaluator_reward_weight * all_evaluator_rewards_pot;
-		let evaluator_2_all_evaluator_reward = eval_2_all_evaluator_reward_weight * all_evaluator_rewards_pot;
-		let evaluator_3_all_evaluator_reward = eval_3_all_evaluator_reward_weight * all_evaluator_rewards_pot;
-
-		let evaluator_1_early_evaluator_reward = eval_1_early_evaluator_reward_weight * early_evaluator_rewards_pot;
-		let evaluator_2_early_evaluator_reward = eval_2_early_evaluator_reward_weight * early_evaluator_rewards_pot;
-		let evaluator_3_early_evaluator_reward = eval_3_early_evaluator_reward_weight * early_evaluator_rewards_pot;
-
+		community_funding_project.buy_for_retail_users(contributions).unwrap();
+		let finished_project = community_funding_project.finish_funding();
+		test_env.advance_time(10).unwrap();
+		let project_id = finished_project.project_id;
 		let actual_reward_balances = test_env.in_ext(|| {
 			vec![
 				(
@@ -1976,13 +1871,18 @@ mod evaluation_round_success {
 				),
 			]
 		});
-		let expected_reward_balances = vec![
-			(EVALUATOR_1, 1_236_9_500_000_000),
-			(EVALUATOR_2, 852_8_100_000_000),
-			(EVALUATOR_3, 660_2_400_000_000),
+		let expected_ct_rewards = vec![
+			(EVALUATOR_1, 1_196_1_509_434_007),
+			(EVALUATOR_2, 824_0_150_943_427),
+			(EVALUATOR_3, 637_9_471_698_137),
 		];
-		assert_eq!(actual_reward_balances, expected_reward_balances);
+
+		for (real, desired) in zip(actual_reward_balances.iter(), expected_ct_rewards.iter()) {
+			assert_eq!(real.0, desired.0, "bad accounts order");
+			assert_close_enough!(real.1, desired.1, Perbill::from_parts(1u32));
+		}
 	}
+
 }
 
 #[cfg(test)]
@@ -2255,7 +2155,7 @@ mod auction_round_success {
 	fn price_calculation_2() {
 		// From the knowledge hub
 		let test_env = TestEnvironment::new();
-		let mut project_metadata = default_project(test_env.get_new_nonce());
+		let project_metadata = default_project(test_env.get_new_nonce());
 		let auctioning_project =
 			AuctioningProject::new_with(&test_env, project_metadata, ISSUER, default_evaluations());
 		let bids = vec![
@@ -2384,8 +2284,6 @@ mod auction_round_success {
 			.advance_time(candle_end_block - test_env.current_block() + 1)
 			.unwrap();
 
-		let details = auctioning_project.get_project_details();
-		let now = test_env.current_block();
 		let random_end = auctioning_project
 			.get_project_details()
 			.phase_transition_points
@@ -2552,7 +2450,7 @@ mod auction_round_success {
 	fn bids_at_higher_price_than_weighted_average_use_average() {
 		let test_env = TestEnvironment::new();
 		let issuer = ISSUER;
-		let mut project = default_project(test_env.get_new_nonce());
+		let project = default_project(test_env.get_new_nonce());
 		let evaluations = default_evaluations();
 		let bids: TestBids = vec![
 			TestBid::new(
@@ -2728,7 +2626,6 @@ mod auction_round_failure {
 		let issuer = ISSUER;
 		let project = default_project(test_env.get_new_nonce());
 		let evaluations = default_evaluations();
-		let bids: TestBids = vec![];
 		let bidding_project = AuctioningProject::new_with(&test_env, project, issuer, evaluations);
 
 		let details = bidding_project.get_project_details();
@@ -3649,7 +3546,7 @@ mod bids_vesting {
 			calculate_contributed_plmc_spent(community_contributions.clone(), ct_price);
 		let plmc_remainder_contribution_deposits =
 			calculate_contributed_plmc_spent(remainder_contributions.clone(), ct_price);
-		let mut total_plmc_participation_locked = merge_add_mappings_by_user(vec![
+		let total_plmc_participation_locked = merge_add_mappings_by_user(vec![
 			plmc_bid_deposits.clone(),
 			plmc_community_contribution_deposits,
 			plmc_remainder_contribution_deposits.clone(),
@@ -3935,8 +3832,7 @@ mod test_helper_functions {
 mod misc_features {
 	use super::*;
 	use crate::UpdateType::{CommunityFundingStart, RemainderFundingStart};
-	use sp_arithmetic::Perbill;
-	use testing_macros::*;
+
 
 	#[test]
 	fn remove_from_update_store_works() {
@@ -3963,122 +3859,10 @@ mod misc_features {
 		});
 	}
 
-	#[test]
-	fn get_evaluator_ct_rewards_works() {
-		let test_env = TestEnvironment::new();
 
-		let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
-		let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
-		let metadata_hash = hashed(format!("{}-{}", METADATA, 420));
-		let project_metadata = ProjectMetadataOf::<TestRuntime> {
-			token_information: CurrencyMetadata {
-				name: bounded_name,
-				symbol: bounded_symbol,
-				decimals: ASSET_DECIMALS,
-			},
-			mainnet_token_max_supply: 8_000_000_0_000_000_000,
-			total_allocation_size: 100_000_0_000_000_000,
-			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
-			ticket_size: TicketSize {
-				minimum: Some(1),
-				maximum: None,
-			},
-			participants_size: ParticipantsSize {
-				minimum: Some(2),
-				maximum: None,
-			},
-			funding_thresholds: Default::default(),
-			conversion_rate: 0,
-			participation_currencies: AcceptedFundingAsset::USDT,
-			funding_destination_account: ISSUER,
-			offchain_information_hash: Some(metadata_hash),
-		};
-
-		// all values taken from the knowledge hub
-		let evaluations: UserToUSDBalance = vec![
-			(EVALUATOR_1, 75_000 * US_DOLLAR),
-			(EVALUATOR_2, 65_000 * US_DOLLAR),
-			(EVALUATOR_3, 60_000 * US_DOLLAR),
-		];
-
-		let bids: TestBids = vec![
-			TestBid::new(
-				BIDDER_1,
-				10_000 * ASSET_UNIT,
-				15.into(),
-				None,
-				AcceptedFundingAsset::USDT,
-			),
-			TestBid::new(
-				BIDDER_2,
-				20_000 * ASSET_UNIT,
-				20.into(),
-				None,
-				AcceptedFundingAsset::USDT,
-			),
-			TestBid::new(
-				BIDDER_4,
-				20_000 * ASSET_UNIT,
-				16.into(),
-				None,
-				AcceptedFundingAsset::USDT,
-			),
-		];
-
-		let contributions: TestContributions = vec![
-			TestContribution::new(BUYER_1, 4_000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_2, 2_000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_3, 2_000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_4, 5_000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_5, 30_000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_6, 5_000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_7, 2_000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-		];
-
-		let community_funding_project =
-			CommunityFundingProject::new_with(&test_env, project_metadata, ISSUER, evaluations, bids);
-		let details = community_funding_project.get_project_details();
-		let ct_price = details.weighted_average_price.unwrap();
-		let mut plmc_deposits = calculate_contributed_plmc_spent(contributions.clone(), ct_price);
-		plmc_deposits = plmc_deposits
-			.into_iter()
-			.map(|(account, balance)| (account, balance + get_ed()))
-			.collect();
-		let funding_deposits = calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
-
-		test_env.mint_plmc_to(plmc_deposits);
-		test_env.mint_statemint_asset_to(funding_deposits);
-
-		community_funding_project.buy_for_retail_users(contributions).unwrap();
-		let finished_project = community_funding_project.finish_funding();
-		let details = finished_project.get_project_details();
-		let mut ct_evaluation_rewards =
-			test_env.in_ext(|| FundingModule::get_evaluator_ct_rewards(finished_project.get_project_id()).unwrap());
-		ct_evaluation_rewards.sort_by_key(|item| item.0);
-		let expected_ct_rewards = vec![
-			(EVALUATOR_1, 1_196_1_509_434_007),
-			(EVALUATOR_2, 824_0_150_943_427),
-			(EVALUATOR_3, 637_9_471_698_137),
-		];
-
-		for (real, desired) in zip(ct_evaluation_rewards.iter(), expected_ct_rewards.iter()) {
-			assert_eq!(real.0, desired.0, "bad accounts order");
-			assert_close_enough!(real.1, desired.1, Perbill::from_parts(1u32));
-		}
-	}
-
+	#[allow(dead_code)]
 	fn sandbox() {
-		// let plmc_price_in_usd = 8_5_000_000_000_u128;
-		// let token_amount= FixedU128::from_float(12.5);
-		// let ticket_size: u128 = token_amount.checked_mul_int(plmc_price_in_usd).unwrap();
-		//
-		// let ticket_size = 250_0_000_000_000_u128;
-		// let rate = FixedU128::from_float(8.5f64);
-		// let inv_rate = rate.reciprocal().unwrap();
-		// let amount = inv_rate.checked_mul_int(ticket_size).unwrap();
-		// let a = FixedU128::from
-		// let x = "x";
-		// 29_4_117_647_058
+		assert!(true)
 	}
 }
 
@@ -4086,7 +3870,7 @@ mod testing_macros {
 	#[allow(unused_macros)]
 	macro_rules! assert_close_enough {
 		($real:expr, $desired:expr, $min_approximation:expr) => {
-			let real_approximation = Perbill::from_rational_approximation($real, $desired);
+			let real_approximation = Perbill::from_rational($real, $desired);
 			assert!(real_approximation >= $min_approximation);
 		};
 	}
