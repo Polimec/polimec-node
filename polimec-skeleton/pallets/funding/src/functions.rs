@@ -241,9 +241,7 @@ impl<T: Config> Pallet<T> {
 					.fold(total, |acc, bond| acc.saturating_add(bond.original_plmc_bond));
 				total.saturating_add(user_total_plmc_bond)
 			});
-		// TODO: PLMC-142. 10% is hardcoded, check if we want to configure it a runtime as explained here:
-		// 	https://substrate.stackexchange.com/questions/2784/how-to-get-a-percent-portion-of-a-balance:
-		// TODO: PLMC-143. Check if it's safe to use * here
+
 		let evaluation_target_usd = Perbill::from_percent(10) * fundraising_target_usd;
 		let evaluation_target_plmc = current_plmc_price
 			.reciprocal()
@@ -288,7 +286,7 @@ impl<T: Config> Pallet<T> {
 		} else {
 			// * Update storage *
 			project_details.status = ProjectStatus::EvaluationFailed;
-			project_details.cleanup = ProjectCleanup::Ready(ProjectFinalizer::Failure(Default::default()));
+			project_details.cleanup = ProjectCleanup::Ready(ProjectFinalizer::Failure(FailureFinalizer::Initialized));
 			ProjectsDetails::<T>::insert(project_id, project_details);
 
 			// * Emit events *
@@ -654,7 +652,7 @@ impl<T: Config> Pallet<T> {
 		let evaluation_reward_or_slash_info = Self::generate_evaluation_reward_or_slash_info(project_id)?;
 		if funding_is_successful {
 			project_details.status = ProjectStatus::FundingSuccessful;
-			project_details.cleanup = ProjectCleanup::Ready(ProjectFinalizer::Success(Default::default()));
+			project_details.cleanup = ProjectCleanup::Ready(ProjectFinalizer::Success(SuccessFinalizer::Initialized));
 			project_details.evaluation_reward_or_slash_info = Some(evaluation_reward_or_slash_info);
 
 			// * Update Storage *
@@ -819,8 +817,7 @@ impl<T: Config> Pallet<T> {
 			.fold(BalanceOf::<T>::zero(), |acc, evaluation| acc.saturating_add(evaluation));
 
 		let remaining_bond_to_reach_threshold = early_evaluation_reward_threshold_usd
-			.checked_sub(&previous_total_evaluation_bonded_usd)
-			.unwrap_or(BalanceOf::<T>::zero());
+			.saturating_sub(&previous_total_evaluation_bonded_usd)
 
 		let early_usd_amount = if usd_amount <= remaining_bond_to_reach_threshold {
 			usd_amount
@@ -1567,8 +1564,7 @@ impl<T: Config> Pallet<T> {
 			evaluation.late_usd_amount.saturating_add(evaluation.early_usd_amount),
 			reward_info.normal_evaluator_total_bonded_usd,
 		);
-		let total_reward_amount_usd = early_reward_weight * reward_info.early_evaluator_reward_pot_usd
-			+ normal_reward_weight * reward_info.normal_evaluator_reward_pot_usd;
+		let total_reward_amount_usd = (early_reward_weight * reward_info.early_evaluator_reward_pot_usd).saturating_add(normal_reward_weight * reward_info.normal_evaluator_reward_pot_usd);
 		let reward_amount_ct: BalanceOf<T> = ct_price
 			.reciprocal()
 			.ok_or(Error::<T>::BadMath)?
