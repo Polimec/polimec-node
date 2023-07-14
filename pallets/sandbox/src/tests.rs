@@ -19,11 +19,7 @@ fn test_buy_if_popular() {
 		let project = default_project(0);
 		assert_ok!(FundingModule::create(RuntimeOrigin::signed(creator), project.clone(),));
 		assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(creator), 0));
-		assert_ok!(FundingModule::bond_evaluation(
-			RuntimeOrigin::signed(evaluator),
-			0,
-			120_000 * PLMC
-		));
+		assert_ok!(FundingModule::bond_evaluation(RuntimeOrigin::signed(evaluator), 0, 120_000 * PLMC));
 
 		// advance time
 		for _block in 0..<TestRuntime as pallet_funding::Config>::EvaluationDuration::get() + 10 {
@@ -76,9 +72,7 @@ const METADATA: &str = r#"
 	"usage_of_founds":"ipfs_url"
 }"#;
 
-pub fn default_project(
-	nonce: u64,
-) -> ProjectMetadata<BoundedVec<u8, ConstU32<64>>, u128, sp_core::H256> {
+pub fn default_project(nonce: u64) -> ProjectMetadata<BoundedVec<u8, ConstU32<64>>, u128, sp_core::H256> {
 	let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
 	let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
 	let metadata_hash = hashed(format!("{}-{}", METADATA, nonce));
@@ -91,11 +85,7 @@ pub fn default_project(
 		conversion_rate: 0,
 		participation_currencies: Default::default(),
 		offchain_information_hash: Some(metadata_hash),
-		token_information: CurrencyMetadata {
-			name: bounded_name,
-			symbol: bounded_symbol,
-			decimals: ASSET_DECIMALS,
-		},
+		token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: ASSET_DECIMALS },
 	}
 }
 
@@ -104,12 +94,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 
 	GenesisConfig {
 		balances: BalancesConfig {
-			balances: vec![
-				(1, 1_000_000 * PLMC),
-				(2, 1_000_000 * PLMC),
-				(3, 1_000_000 * PLMC),
-				(4, 10_000_000 * PLMC),
-			],
+			balances: vec![(1, 1_000_000 * PLMC), (2, 1_000_000 * PLMC), (3, 1_000_000 * PLMC), (4, 10_000_000 * PLMC)],
 		},
 		..Default::default()
 	}

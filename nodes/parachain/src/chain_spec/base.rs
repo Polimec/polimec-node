@@ -31,9 +31,8 @@ use base_runtime::{
 		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
 		InflationInfo, Range,
 	},
-	AccountId, AuraId as AuthorityId, Balance, BalancesConfig, GenesisConfig, MinCandidateStk,
-	ParachainInfoConfig, ParachainStakingConfig, PolkadotXcmConfig, SessionConfig, SudoConfig,
-	SystemConfig, PLMC,
+	AccountId, AuraId as AuthorityId, Balance, BalancesConfig, GenesisConfig, MinCandidateStk, ParachainInfoConfig,
+	ParachainStakingConfig, PolkadotXcmConfig, SessionConfig, SudoConfig, SystemConfig, PLMC,
 };
 
 /// The default XCM version to set in genesis config.
@@ -55,11 +54,8 @@ pub fn polimec_inflation_config() -> InflationInfo<Balance> {
 		)
 	}
 
-	let annual = Range {
-		min: Perbill::from_percent(2),
-		ideal: Perbill::from_percent(3),
-		max: Perbill::from_percent(3),
-	};
+	let annual =
+		Range { min: Perbill::from_percent(2), ideal: Perbill::from_percent(3), max: Perbill::from_percent(3) };
 
 	InflationInfo {
 		// staking expectations
@@ -86,16 +82,8 @@ pub fn get_local_base_chain_spec() -> Result<ChainSpec, String> {
 			base_testnet_genesis(
 				wasm,
 				vec![
-					(
-						get_account_id_from_seed::<sr25519::Public>("Alice"),
-						None,
-						2 * MinCandidateStk::get(),
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Bob"),
-						None,
-						2 * MinCandidateStk::get(),
-					),
+					(get_account_id_from_seed::<sr25519::Public>("Alice"), None, 2 * MinCandidateStk::get()),
+					(get_account_id_from_seed::<sr25519::Public>("Bob"), None, 2 * MinCandidateStk::get()),
 				],
 				polimec_inflation_config(),
 				vec![
@@ -103,30 +91,12 @@ pub fn get_local_base_chain_spec() -> Result<ChainSpec, String> {
 					get_account_id_from_seed::<sr25519::Public>("Bob"),
 				],
 				vec![
-					(
-						get_account_id_from_seed::<sr25519::Public>("Alice"),
-						5 * MinCandidateStk::get(),
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Bob"),
-						5 * MinCandidateStk::get(),
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Charlie"),
-						5 * MinCandidateStk::get(),
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Dave"),
-						5 * MinCandidateStk::get(),
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Eve"),
-						5 * MinCandidateStk::get(),
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-						5 * MinCandidateStk::get(),
-					),
+					(get_account_id_from_seed::<sr25519::Public>("Alice"), 5 * MinCandidateStk::get()),
+					(get_account_id_from_seed::<sr25519::Public>("Bob"), 5 * MinCandidateStk::get()),
+					(get_account_id_from_seed::<sr25519::Public>("Charlie"), 5 * MinCandidateStk::get()),
+					(get_account_id_from_seed::<sr25519::Public>("Dave"), 5 * MinCandidateStk::get()),
+					(get_account_id_from_seed::<sr25519::Public>("Eve"), 5 * MinCandidateStk::get()),
+					(get_account_id_from_seed::<sr25519::Public>("Ferdie"), 5 * MinCandidateStk::get()),
 				],
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				DEFAULT_PARA_ID,

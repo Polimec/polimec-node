@@ -18,9 +18,8 @@
 
 //! Benchmarking
 use crate::{
-	AwardedPts, BalanceOf, Call, CandidateBondLessRequest, Config, DelegationAction, Pallet,
-	ParachainBondConfig, ParachainBondInfo, Points, Range, RewardPayment, Round, ScheduledRequest,
-	Staked, TopDelegations,
+	AwardedPts, BalanceOf, Call, CandidateBondLessRequest, Config, DelegationAction, Pallet, ParachainBondConfig,
+	ParachainBondInfo, Points, Range, RewardPayment, Round, ScheduledRequest, Staked, TopDelegations,
 };
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite, vec};
 use frame_support::traits::{Currency, Get, OnFinalize, OnInitialize};
@@ -41,11 +40,7 @@ fn min_delegator_stk<T: Config>() -> BalanceOf<T> {
 /// Create a funded user.
 /// Extra + min_candidate_stk is total minted funds
 /// Returns tuple (id, balance)
-fn create_funded_user<T: Config>(
-	string: &'static str,
-	n: u32,
-	extra: BalanceOf<T>,
-) -> (T::AccountId, BalanceOf<T>) {
+fn create_funded_user<T: Config>(string: &'static str, n: u32, extra: BalanceOf<T>) -> (T::AccountId, BalanceOf<T>) {
 	const SEED: u32 = 0;
 	let user = account(string, n, SEED);
 	let min_candidate_stk = min_candidate_stk::<T>();
@@ -107,9 +102,7 @@ fn roll_to_and_author<T: Config>(round_delay: u32, author: T::AccountId) {
 	while now < end {
 		parachain_staking_on_finalize::<T>(author.clone());
 		<frame_system::Pallet<T>>::on_finalize(<frame_system::Pallet<T>>::block_number());
-		<frame_system::Pallet<T>>::set_block_number(
-			<frame_system::Pallet<T>>::block_number() + 1u32.into(),
-		);
+		<frame_system::Pallet<T>>::set_block_number(<frame_system::Pallet<T>>::block_number() + 1u32.into());
 		<frame_system::Pallet<T>>::on_initialize(<frame_system::Pallet<T>>::block_number());
 		Pallet::<T>::on_initialize(<frame_system::Pallet<T>>::block_number());
 		now += 1u32.into();

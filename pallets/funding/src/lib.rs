@@ -218,11 +218,8 @@ use sp_std::prelude::*;
 
 type BalanceOf<T> = <T as Config>::Balance;
 
-type ProjectMetadataOf<T> = ProjectMetadata<
-	BoundedVec<u8, <T as Config>::StringLimit>,
-	BalanceOf<T>,
-	<T as frame_system::Config>::Hash,
->;
+type ProjectMetadataOf<T> =
+	ProjectMetadata<BoundedVec<u8, <T as Config>::StringLimit>, BalanceOf<T>, <T as frame_system::Config>::Hash>;
 
 type ProjectDetailsOf<T> = ProjectDetails<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>;
 
@@ -395,20 +392,17 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn projects)]
 	/// A StorageMap containing the primary project information of projects
-	pub type ProjectsMetadata<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, ProjectMetadataOf<T>>;
+	pub type ProjectsMetadata<T: Config> = StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, ProjectMetadataOf<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn project_issuer)]
 	/// StorageMap to get the issuer of a project
-	pub type ProjectsIssuers<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, T::AccountId>;
+	pub type ProjectsIssuers<T: Config> = StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, T::AccountId>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn project_info)]
 	/// StorageMap containing additional information for the projects, relevant for correctness of the protocol
-	pub type ProjectsDetails<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, ProjectDetailsOf<T>>;
+	pub type ProjectsDetails<T: Config> = StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, ProjectDetailsOf<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn projects_to_update)]
@@ -514,12 +508,7 @@ pub mod pallet {
 			releaser: T::AccountId,
 		},
 		/// A bid was made for a project
-		Bid {
-			project_id: T::ProjectIdentifier,
-			amount: BalanceOf<T>,
-			price: BalanceOf<T>,
-			multiplier: MultiplierOf<T>,
-		},
+		Bid { project_id: T::ProjectIdentifier, amount: BalanceOf<T>, price: BalanceOf<T>, multiplier: MultiplierOf<T> },
 		/// A contribution was made for a project. i.e token purchase
 		Contribution {
 			project_id: T::ProjectIdentifier,
@@ -679,10 +668,7 @@ pub mod pallet {
 
 		/// Starts the evaluation round of a project. It needs to be called by the project issuer.
 		#[pallet::weight(T::WeightInfo::start_evaluation())]
-		pub fn start_evaluation(
-			origin: OriginFor<T>,
-			project_id: T::ProjectIdParameter,
-		) -> DispatchResult {
+		pub fn start_evaluation(origin: OriginFor<T>, project_id: T::ProjectIdParameter) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
@@ -701,10 +687,7 @@ pub mod pallet {
 		/// institutional user can set bids for a token_amount/token_price pair.
 		/// Any bids from this point until the candle_auction starts, will be considered as valid.
 		#[pallet::weight(T::WeightInfo::start_auction())]
-		pub fn start_auction(
-			origin: OriginFor<T>,
-			project_id: T::ProjectIdParameter,
-		) -> DispatchResult {
+		pub fn start_auction(origin: OriginFor<T>, project_id: T::ProjectIdParameter) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 			let project_id = project_id.into();
 
@@ -739,8 +722,7 @@ pub mod pallet {
 			bonder: T::AccountId,
 		) -> DispatchResult {
 			let releaser = ensure_signed(origin)?;
-			let bond = EvaluationBonds::<T>::get(project_id.into(), bonder)
-				.ok_or(Error::<T>::BondNotFound)?;
+			let bond = EvaluationBonds::<T>::get(project_id.into(), bonder).ok_or(Error::<T>::BondNotFound)?;
 			Self::do_failed_evaluation_unbond_for(bond, releaser)
 		}
 
@@ -876,8 +858,7 @@ pub mod pallet {
 		}
 
 		fn on_idle(_now: T::BlockNumber, max_weight: Weight) -> Weight {
-			let pallet_account: T::AccountId =
-				<T as Config>::PalletId::get().into_account_truncating();
+			let pallet_account: T::AccountId = <T as Config>::PalletId::get().into_account_truncating();
 
 			let mut remaining_weight = max_weight;
 
@@ -894,9 +875,7 @@ pub mod pallet {
 				// Get a flat list of bonds
 				.flat_map(|project_id| {
 					// get all the bonds for projects with a failed evaluation phase
-					EvaluationBonds::<T>::iter_prefix(project_id)
-						.map(|(_bonder, bond)| bond)
-						.collect::<Vec<_>>()
+					EvaluationBonds::<T>::iter_prefix(project_id).map(|(_bonder, bond)| bond).collect::<Vec<_>>()
 				})
 				// Retrieve as many as possible for the given weight
 				.take_while(|_| {
@@ -936,6 +915,7 @@ pub mod pallet {
 		fn create_project_id_parameter(id: u32) -> T::ProjectIdParameter {
 			id.into()
 		}
+
 		fn create_dummy_project(metadata_hash: T::Hash) -> ProjectMetadataOf<T> {
 			let project: ProjectMetadataOf<T> = ProjectMetadata {
 				total_allocation_size: 1_000_000u64.into(),
@@ -976,10 +956,7 @@ pub mod local_macros {
 			match $option {
 				Ok(val) => val,
 				Err(err) => {
-					Self::deposit_event(Event::<T>::TransitionError {
-						project_id: $project_id,
-						error: err,
-					});
+					Self::deposit_event(Event::<T>::TransitionError { project_id: $project_id, error: err });
 					continue
 				},
 			}

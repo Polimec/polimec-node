@@ -19,18 +19,10 @@
 use frame_support::pallet_prelude::Weight;
 
 pub trait OnCollatorPayout<AccountId, Balance> {
-	fn on_collator_payout(
-		for_round: crate::RoundIndex,
-		collator_id: AccountId,
-		amount: Balance,
-	) -> Weight;
+	fn on_collator_payout(for_round: crate::RoundIndex, collator_id: AccountId, amount: Balance) -> Weight;
 }
 impl<AccountId, Balance> OnCollatorPayout<AccountId, Balance> for () {
-	fn on_collator_payout(
-		_for_round: crate::RoundIndex,
-		_collator_id: AccountId,
-		_amount: Balance,
-	) -> Weight {
+	fn on_collator_payout(_for_round: crate::RoundIndex, _collator_id: AccountId, _amount: Balance) -> Weight {
 		Weight::zero()
 	}
 }
