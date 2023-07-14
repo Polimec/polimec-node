@@ -202,7 +202,7 @@ use frame_support::{
 	pallet_prelude::ValueQuery,
 	traits::{
 		tokens::{
-			fungibles::{metadata::Mutate as MetadataMutate, Create, InspectMetadata, Mutate},
+			fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate},
 			Balance,
 		},
 		Currency as CurrencyT, Get, NamedReservableCurrency, Randomness, ReservableCurrency,
@@ -298,8 +298,7 @@ pub mod pallet {
 		/// The currency used for minting contribution tokens as fungible assets (i.e pallet-assets)
 		type ContributionTokenCurrency: Create<Self::AccountId, AssetId = Self::ProjectIdentifier, Balance = BalanceOf<Self>>
 			+ Mutate<Self::AccountId>
-			+ MetadataMutate<Self::AccountId>
-			+ InspectMetadata<Self::AccountId>;
+			+ MetadataMutate<Self::AccountId>;
 
 		/// Unique identifier for any bid in the system.
 		type BidId: Parameter + Copy + Saturating + One + Default;

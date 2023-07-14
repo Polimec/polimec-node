@@ -103,6 +103,10 @@ impl pallet_balances::Config for TestRuntime {
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
 	type WeightInfo = ();
+	type MaxHolds = ConstU32<1024>;
+	type MaxFreezes = ();
+	type HoldIdentifier = BondType;
+	type FreezeIdentifier = ();
 }
 
 impl pallet_insecure_randomness_collective_flip::Config for TestRuntime {}
