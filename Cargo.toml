@@ -46,13 +46,14 @@ substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", bran
 # Internal pallets (with default disabled)
 pallet-funding = { path = "pallets/funding", default-features = false }
 pallet-sandbox = { path = "pallets/sandbox", default-features = false }
-pallet-parachain-staking = { git = "https://gitlab.com/Omegabit/stake-patch", default-features = false,  branch = "0.9.42"}
+pallet-parachain-staking = { path = "pallets/parachain-staking", default-features = false}
 
 
 # Internal support (with default disabled)
 shared-configuration = { path = "runtimes/shared-configuration", default-features = false }
 
 # External support (with default disabled)
+substrate-fixed = { git = "https://github.com/encointer/substrate-fixed", default-features = false }
 # dip-support = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
 # kilt-support = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
 # kilt-dip-support = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
