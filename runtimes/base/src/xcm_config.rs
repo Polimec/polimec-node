@@ -15,8 +15,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use super::{
-	AccountId, AllPalletsWithSystem, Balances, ParachainInfo, ParachainSystem, PolkadotXcm,
-	Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmpQueue,
+	AccountId, AllPalletsWithSystem, Balances, EnsureRoot, ParachainInfo, ParachainSystem,
+	PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmpQueue,
 };
 use frame_support::{
 	match_types, parameter_types,
@@ -169,6 +169,7 @@ parameter_types! {
 }
 
 impl pallet_xcm::Config for Runtime {
+	type AdminOrigin = EnsureRoot<AccountId>;
 	type RuntimeEvent = RuntimeEvent;
 	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type XcmRouter = XcmRouter;

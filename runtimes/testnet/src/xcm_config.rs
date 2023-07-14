@@ -26,7 +26,7 @@ use core::marker::PhantomData;
 use frame_support::{
 	match_types, parameter_types,
 	traits::{
-		fungibles::{self, Balanced, CreditOf},
+		fungibles::{self, Balanced, Credit},
 		ConstU32, Contains, ContainsPair, Everything, Get, Nothing,
 	},
 	weights::Weight,
@@ -53,7 +53,7 @@ use xcm_executor::{
 };
 
 use super::{
-	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances,
+	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances, EnsureRoot,
 	ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
 	StatemintAssets, WeightToFee, XcmpQueue,
 };
@@ -154,7 +154,7 @@ impl<
 		ConvertedConcreteId::<AssetId, Balance, ConvertAssetId, ConvertBalance>::matches_fungibles(
 			a,
 		)
-		.map_err(|_| Error::AssetNotFound)
+		.map_err(|_| Error::AssetNotHandled)
 	}
 }
 
@@ -303,7 +303,7 @@ where
 	R: pallet_authorship::Config + pallet_assets::Config<I>,
 	AccountIdOf<R>: From<polkadot_primitives::AccountId> + Into<polkadot_primitives::AccountId>,
 {
-	fn handle_credit(credit: CreditOf<AccountIdOf<R>, pallet_assets::Pallet<R, I>>) {
+	fn handle_credit(credit: Credit<AccountIdOf<R>, pallet_assets::Pallet<R, I>>) {
 		if let Some(author) = pallet_authorship::Pallet::<R>::author() {
 			// In case of error: Will drop the result triggering the `OnDrop` of the imbalance.
 			let _ = pallet_assets::Pallet::<R, I>::resolve(&author, credit);
@@ -437,6 +437,7 @@ impl pallet_xcm::Config for Runtime {
 	type SovereignAccountOf = LocationToAccountId;
 	type MaxLockers = ConstU32<8>;
 	type WeightInfo = pallet_xcm::TestWeightInfo;
+	type AdminOrigin = EnsureRoot<AccountId>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type ReachableDest = ReachableDest;
 }
