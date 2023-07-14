@@ -1,19 +1,28 @@
 [package]
 name = "pallet-parachain-staking"
-description = "parachain staking pallet for collator selection and reward distribution"
-edition = "2021"
-version = "3.0.0"
+description = "prachain staking pallet for collator selection and reward distribution"
+authors.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+readme.workspace = true
+repository.workspace = true
+version.workspace = true
 
 [dependencies]
 serde = { version = "1", default-features = false, optional = true }
 log = "0.4"
 
-# Substrate
+parity-scale-codec = { workspace = true, features = [
+	"derive",
+] }
+scale-info = { workspace = true, features = ["derive"] }
+
+# FRAME
 frame-benchmarking = { workspace = true, optional = true }
 frame-support.workspace = true
 frame-system.workspace = true
-parity-scale-codec.workspace = true
-scale-info.workspace = true
 sp-runtime.workspace = true
 sp-std.workspace = true
 substrate-fixed.workspace = true
@@ -44,6 +53,8 @@ std = [
 	"sp-staking/std",
 	"pallet-authorship/std",
 	"pallet-session/std",
+	"pallet-balances/std",
+	"sp-consensus-aura/std"
 ]
 runtime-benchmarks = ["frame-benchmarking"]
 try-runtime = ["frame-support/try-runtime"]
