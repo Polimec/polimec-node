@@ -966,7 +966,6 @@ pub mod pallet {
 				}
 			}
 
-			// TODO: PLMC-127. Set a proper weight
 			max_weight.saturating_sub(remaining_weight)
 		}
 	}
