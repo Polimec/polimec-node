@@ -18,8 +18,7 @@
 
 //! Types for Funding pallet.
 
-use crate::traits::BondingRequirementCalculation;
-use crate::BalanceOf;
+use crate::{traits::BondingRequirementCalculation, BalanceOf};
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
 use sp_arithmetic::traits::Saturating;
 use sp_runtime::traits::CheckedDiv;
@@ -76,7 +75,7 @@ impl<BoundedString, Balance: BalanceT, Hash> ProjectMetadata<BoundedString, Bala
 	// TODO: PLMC-162. Perform a REAL validity check
 	pub fn validity_check(&self) -> Result<(), ValidityError> {
 		if self.minimum_price == Balance::zero() {
-			return Err(ValidityError::PriceTooLow);
+			return Err(ValidityError::PriceTooLow)
 		}
 		self.ticket_size.is_valid()?;
 		self.participants_size.is_valid()?;
@@ -94,13 +93,13 @@ impl<Balance: BalanceT> TicketSize<Balance> {
 	fn is_valid(&self) -> Result<(), ValidityError> {
 		if self.minimum.is_some() && self.maximum.is_some() {
 			if self.minimum < self.maximum {
-				return Ok(());
+				return Ok(())
 			} else {
-				return Err(ValidityError::TicketSizeError);
+				return Err(ValidityError::TicketSizeError)
 			}
 		}
 		if self.minimum.is_some() || self.maximum.is_some() {
-			return Ok(());
+			return Ok(())
 		}
 
 		Err(ValidityError::TicketSizeError)
@@ -116,20 +115,18 @@ pub struct ParticipantsSize {
 impl ParticipantsSize {
 	fn is_valid(&self) -> Result<(), ValidityError> {
 		match (self.minimum, self.maximum) {
-			(Some(min), Some(max)) => {
+			(Some(min), Some(max)) =>
 				if min < max && min > 0 && max > 0 {
 					Ok(())
 				} else {
 					Err(ValidityError::ParticipantsSizeError)
-				}
-			}
-			(Some(elem), None) | (None, Some(elem)) => {
+				},
+			(Some(elem), None) | (None, Some(elem)) =>
 				if elem > 0 {
 					Ok(())
 				} else {
 					Err(ValidityError::ParticipantsSizeError)
-				}
-			}
+				},
 			(None, None) => Err(ValidityError::ParticipantsSizeError),
 		}
 	}
@@ -177,6 +174,7 @@ impl<BlockNumber: Copy> BlockNumberPair<BlockNumber> {
 	pub fn new(start: Option<BlockNumber>, end: Option<BlockNumber>) -> Self {
 		Self { start, end }
 	}
+
 	pub fn start(&self) -> Option<BlockNumber> {
 		self.start
 	}
@@ -225,8 +223,14 @@ impl<BidId, ProjectId, Balance: BalanceT, AccountId, BlockNumber, PlmcVesting, C
 	BidInfo<BidId, ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
 {
 	pub fn new(
-		bid_id: BidId, project: ProjectId, amount: Balance, price: Balance, when: BlockNumber, bidder: AccountId,
-		plmc_vesting_period: PlmcVesting, ct_vesting_period: CTVesting,
+		bid_id: BidId,
+		project: ProjectId,
+		amount: Balance,
+		price: Balance,
+		when: BlockNumber,
+		bidder: AccountId,
+		plmc_vesting_period: PlmcVesting,
+		ct_vesting_period: CTVesting,
 	) -> Self {
 		let ticket_size = amount.saturating_mul(price);
 		Self {

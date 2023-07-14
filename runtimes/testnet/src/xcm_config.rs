@@ -26,7 +26,7 @@ use core::marker::PhantomData;
 use frame_support::{
 	match_types, parameter_types,
 	traits::{
-		fungibles::{self, Balanced, CreditOf},
+		fungibles::{self, Balanced, Credit},
 		ConstU32, Contains, ContainsPair, Everything, Get, Nothing,
 	},
 	weights::Weight,
@@ -51,8 +51,9 @@ use xcm_executor::{
 };
 
 use super::{
-	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances, ParachainInfo, ParachainSystem,
-	PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, StatemintAssets, WeightToFee, XcmpQueue,
+	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances, EnsureRoot, ParachainInfo,
+	ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, StatemintAssets, WeightToFee,
+	XcmpQueue,
 };
 
 const DOT_ASSET_ID: AssetId = Concrete(RelayLocation::get());
@@ -121,19 +122,14 @@ pub struct NativeToFungible;
 impl Convert<MultiLocation, AssetIdPalletAssets> for NativeToFungible {
 	fn convert(asset: MultiLocation) -> Result<AssetIdPalletAssets, MultiLocation> {
 		match asset {
-			MultiLocation {
-				parents: 1,
-				interior: Here,
-			} => Ok(AssetIdPalletAssets::from(0u32)),
+			MultiLocation { parents: 1, interior: Here } => Ok(AssetIdPalletAssets::from(0u32)),
 			_ => Err(asset),
 		}
 	}
+
 	fn reverse(value: AssetIdPalletAssets) -> Result<MultiLocation, AssetIdPalletAssets> {
 		if value == AssetIdPalletAssets::from(0u32) {
-			Ok(MultiLocation {
-				parents: 1,
-				interior: Here,
-			})
+			Ok(MultiLocation { parents: 1, interior: Here })
 		} else {
 			Err(value)
 		}
@@ -155,7 +151,7 @@ impl<
 {
 	fn matches_fungibles(a: &MultiAsset) -> Result<(AssetId, Balance), Error> {
 		ConvertedConcreteId::<AssetId, Balance, ConvertAssetId, ConvertBalance>::matches_fungibles(a)
-			.map_err(|_| Error::AssetNotFound)
+			.map_err(|_| Error::AssetNotHandled)
 	}
 }
 
@@ -250,23 +246,13 @@ impl ContainsPair<MultiAsset, MultiLocation> for StatemintAssetsFilter {
 		// location must be the statemint parachain
 		let loc = MultiLocation::new(1, X1(Parachain(1000)));
 		// asset must be either a fungible asset from `pallet_assets` or the native token of the relay chain
-		&loc == origin
-			&& match asset {
+		&loc == origin &&
+			match asset {
 				MultiAsset {
-					id:
-						Concrete(MultiLocation {
-							parents: 0,
-							interior: X2(PalletInstance(50), GeneralIndex(_)),
-						}),
+					id: Concrete(MultiLocation { parents: 0, interior: X2(PalletInstance(50), GeneralIndex(_)) }),
 					..
 				} => true,
-				MultiAsset {
-					id: Concrete(MultiLocation {
-						parents: 1,
-						interior: Here,
-					}),
-					..
-				} => true,
+				MultiAsset { id: Concrete(MultiLocation { parents: 1, interior: Here }), .. } => true,
 
 				_ => false,
 			}
@@ -276,8 +262,8 @@ impl ContainsPair<MultiAsset, MultiLocation> for StatemintAssetsFilter {
 impl<T: Get<MultiLocation>> ContainsPair<MultiAsset, MultiLocation> for AssetsFrom<T> {
 	fn contains(asset: &MultiAsset, origin: &MultiLocation) -> bool {
 		let loc = T::get();
-		&loc == origin
-			&& matches!(asset, MultiAsset { id: AssetId::Concrete(asset_loc), fun: Fungible(_a) }
+		&loc == origin &&
+			matches!(asset, MultiAsset { id: AssetId::Concrete(asset_loc), fun: Fungible(_a) }
 			if asset_loc.match_and_split(&loc).is_some())
 	}
 }
@@ -304,7 +290,7 @@ where
 	R: pallet_authorship::Config + pallet_assets::Config<I>,
 	AccountIdOf<R>: From<polkadot_primitives::AccountId> + Into<polkadot_primitives::AccountId>,
 {
-	fn handle_credit(credit: CreditOf<AccountIdOf<R>, pallet_assets::Pallet<R, I>>) {
+	fn handle_credit(credit: Credit<AccountIdOf<R>, pallet_assets::Pallet<R, I>>) {
 		if let Some(author) = pallet_authorship::Pallet::<R>::author() {
 			// In case of error: Will drop the result triggering the `OnDrop` of the imbalance.
 			let _ = pallet_assets::Pallet::<R, I>::resolve(&author, credit);
@@ -343,7 +329,7 @@ impl ContainsPair<MultiAsset, MultiLocation> for MultiNativeAsset {
 	fn contains(asset: &MultiAsset, origin: &MultiLocation) -> bool {
 		if let Some(ref reserve) = asset.reserve() {
 			if reserve == origin {
-				return true;
+				return true
 			}
 		}
 		false
@@ -364,35 +350,35 @@ pub type Reserves = (NativeAsset, StatemintAssetsFilter);
 pub struct XcmConfig;
 
 impl xcm_executor::Config for XcmConfig {
-	type RuntimeCall = RuntimeCall;
-	type XcmSender = XcmRouter;
+	type AssetClaims = PolkadotXcm;
+	type AssetExchanger = ();
+	type AssetLocker = ();
 	// How to withdraw and deposit an asset.
 	type AssetTransactor = AssetTransactors;
-	type OriginConverter = XcmOriginToTransactDispatchOrigin;
+	type AssetTrap = PolkadotXcm;
+	type Barrier = Barrier;
+	type CallDispatcher = RuntimeCall;
+	type FeeManager = ();
 	type IsReserve = Reserves;
 	type IsTeleporter = NativeAsset;
-	type UniversalLocation = UniversalLocation;
-	type Barrier = Barrier;
-	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
-	type Trader = (
-		// TODO: weight to fee has to be carefully considered. For now use default
-		UsingComponents<WeightToFee<Runtime>, HereLocation, AccountId, Balances, ToAuthor<Runtime>>,
-		FixedRateOfFungible<DotTraderParams, ()>,
-	);
-	type ResponseHandler = PolkadotXcm;
-	type AssetTrap = PolkadotXcm;
-	type AssetClaims = PolkadotXcm;
-	type SubscriptionService = PolkadotXcm;
-	type PalletInstancesInfo = AllPalletsWithSystem;
 	type MaxAssetsIntoHolding = MaxAssetsIntoHolding;
-	type AssetLocker = ();
-	type AssetExchanger = ();
-	type FeeManager = ();
 	type MessageExporter = ();
-	type UniversalAliases = Nothing;
-	type CallDispatcher = RuntimeCall;
+	type OriginConverter = XcmOriginToTransactDispatchOrigin;
+	type PalletInstancesInfo = AllPalletsWithSystem;
+	type ResponseHandler = PolkadotXcm;
+	type RuntimeCall = RuntimeCall;
 	// TODO: Restrict this to a subset of allowed `RuntimeCall`.
 	type SafeCallFilter = Everything;
+	type SubscriptionService = PolkadotXcm;
+	type Trader = (
+		// TODO: weight to fee has to be carefully considered. For now use default
+		UsingComponents<WeightToFee, HereLocation, AccountId, Balances, ToAuthor<Runtime>>,
+		FixedRateOfFungible<DotTraderParams, ()>,
+	);
+	type UniversalAliases = Nothing;
+	type UniversalLocation = UniversalLocation;
+	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
+	type XcmSender = XcmRouter;
 }
 
 /// No local origins on this chain are allowed to dispatch XCM sends/executions.
@@ -413,33 +399,34 @@ parameter_types! {
 }
 
 impl pallet_xcm::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
+	type AdminOrigin = EnsureRoot<AccountId>;
+	// ^ Override for AdvertisedXcmVersion default
+	type AdvertisedXcmVersion = pallet_xcm::CurrentXcmVersion;
 	type Currency = Balances;
 	type CurrencyMatcher = ();
-	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
-	type XcmRouter = XcmRouter;
 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
+	type MaxLockers = ConstU32<8>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type ReachableDest = ReachableDest;
+	type RuntimeCall = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeOrigin = RuntimeOrigin;
+	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
+	type SovereignAccountOf = LocationToAccountId;
+	type TrustedLockers = ();
+	type UniversalLocation = UniversalLocation;
+	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
+	type WeightInfo = pallet_xcm::TestWeightInfo;
 	// TODO: change back to `Nothing` once we add the xcm functionalities into a pallet
 	type XcmExecuteFilter = Everything;
 	// ^ Disable dispatchable execute on the XCM pallet.
 	// Needs to be `Everything` for local testing.
 	type XcmExecutor = XcmExecutor<XcmConfig>;
-	type XcmTeleportFilter = Everything;
 	type XcmReserveTransferFilter = Everything;
-	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
-	type UniversalLocation = UniversalLocation;
+	type XcmRouter = XcmRouter;
+	type XcmTeleportFilter = Everything;
 
-	type RuntimeOrigin = RuntimeOrigin;
-	type RuntimeCall = RuntimeCall;
 	const VERSION_DISCOVERY_QUEUE_SIZE: u32 = 100;
-	// ^ Override for AdvertisedXcmVersion default
-	type AdvertisedXcmVersion = pallet_xcm::CurrentXcmVersion;
-	type TrustedLockers = ();
-	type SovereignAccountOf = LocationToAccountId;
-	type MaxLockers = ConstU32<8>;
-	type WeightInfo = pallet_xcm::TestWeightInfo;
-	#[cfg(feature = "runtime-benchmarks")]
-	type ReachableDest = ReachableDest;
 }
 
 impl cumulus_pallet_xcm::Config for Runtime {

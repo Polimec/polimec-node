@@ -16,6 +16,7 @@ log.workspace = true
 parity-scale-codec = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 jsonrpsee = { workspace = true, features = ["server"] }
+hex-literal.workspace = true
 
 # Local
 polimec-parachain-runtime.workspace = true
@@ -41,6 +42,7 @@ sc-telemetry.workspace = true
 sc-tracing.workspace = true
 sc-transaction-pool.workspace = true
 sc-transaction-pool-api.workspace = true
+sc-network-sync.workspace = true
 sp-api.workspace = true
 sp-block-builder.workspace = true
 sp-blockchain.workspace = true

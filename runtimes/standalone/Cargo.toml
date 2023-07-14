@@ -31,6 +31,7 @@ sp-session.workspace = true
 sp-std.workspace = true
 sp-transaction-pool.workspace = true
 sp-version.workspace = true
+sp-consensus-grandpa.workspace = true
 
 # FRAME
 pallet-aura.workspace = true
@@ -66,16 +67,14 @@ hex-literal = { workspace = true, optional = true }
 
 # Local Dependencies
 pallet-funding.workspace = true
-pallet-credentials.workspace = true
-polimec-traits.workspace = true
-runtime-common.workspace = true
+shared-configuration.workspace = true
 
 [build-dependencies]
 substrate-wasm-builder.workspace = true
 
 [features]
 default = ["std"]
-fast-gov = ["runtime-common/fast-gov"]
+fast-gov = []
 std = [
 	"frame-benchmarking?/std",
 	"parity-scale-codec/std",
@@ -107,7 +106,6 @@ std = [
 	"sp-std/std",
 	"sp-transaction-pool/std",
 	"sp-version/std",
-	"pallet-credentials/std",
 	"pallet-funding/std",
 	"pallet-democracy/std",
 	"pallet-collective/std",
@@ -115,9 +113,9 @@ std = [
 	"pallet-session/std",
 	"pallet-authorship/std",
 	"pallet-insecure-randomness-collective-flip/std",
-	"polimec-traits/std",
 	"pallet-vesting/std",
-	"runtime-common/std"
+	"shared-configuration/std",
+	"sp-consensus-grandpa/std"
 ]
 
 runtime-benchmarks = [
@@ -132,13 +130,10 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"pallet-assets/runtime-benchmarks",
 	"pallet-collective/runtime-benchmarks",
-	"pallet-credentials/runtime-benchmarks",
 	"pallet-democracy/runtime-benchmarks",
 	"pallet-funding/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
-	"polimec-traits/runtime-benchmarks",
 	"pallet-vesting/runtime-benchmarks",
-	"runtime-common/runtime-benchmarks"
 ]
 try-runtime = [
 	"frame-executive/try-runtime",
@@ -154,13 +149,10 @@ try-runtime = [
 	"pallet-transaction-payment/try-runtime",
 	"pallet-authorship/try-runtime",
 	"pallet-collective/try-runtime",
-	"pallet-credentials/try-runtime",
 	"pallet-democracy/try-runtime",
 	"pallet-funding/try-runtime",
 	"pallet-insecure-randomness-collective-flip/try-runtime",
 	"pallet-scheduler/try-runtime",
 	"pallet-session/try-runtime",
-	"polimec-traits/try-runtime",
 	"pallet-vesting/try-runtime",
-	"runtime-common/try-runtime"
 ]

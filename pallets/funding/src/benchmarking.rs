@@ -62,10 +62,7 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 
 #[allow(unused)]
 fn get_events<T: Config>() -> frame_benchmarking::Vec<<T as frame_system::Config>::RuntimeEvent> {
-	frame_system::Pallet::<T>::events()
-		.into_iter()
-		.map(|r| r.event)
-		.collect::<frame_benchmarking::Vec<_>>()
+	frame_system::Pallet::<T>::events().into_iter().map(|r| r.event).collect::<frame_benchmarking::Vec<_>>()
 }
 
 fn create_default_project<T: Config>(id: Option<u32>) -> (T::ProjectIdParameter, T::AccountId, ProjectMetadataOf<T>) {

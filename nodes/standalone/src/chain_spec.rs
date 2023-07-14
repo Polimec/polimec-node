@@ -15,13 +15,12 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use polimec_standalone_runtime::{
-	AccountId, BalancesConfig, CredentialsConfig, GenesisConfig, SessionConfig, Signature, SudoConfig, SystemConfig,
-	WASM_BINARY,
+	AccountId, BalancesConfig, GenesisConfig, SessionConfig, Signature, SudoConfig, SystemConfig, WASM_BINARY,
 };
 use sc_service::{ChainType, Properties};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+use sp_consensus_grandpa::AuthorityId as GrandpaId;
 use sp_core::{sr25519, Pair, Public};
-use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
 // The URL for the telemetry server.
@@ -39,9 +38,7 @@ fn polimec_properties() -> Properties {
 
 /// Helper function to generate a crypto pair from seed
 fn get_from_secret<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
-	TPublic::Pair::from_string(seed, None)
-		.unwrap_or_else(|_| panic!("Invalid string '{seed}'"))
-		.public()
+	TPublic::Pair::from_string(seed, None).unwrap_or_else(|_| panic!("Invalid string '{seed}'")).public()
 }
 
 /// Helper function to generate an account ID from seed
@@ -120,10 +117,7 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 			testnet_genesis(
 				wasm_binary,
 				// Initial PoA authorities
-				vec![
-					get_authority_keys_from_secret("//Alice"),
-					get_authority_keys_from_secret("//Bob"),
-				],
+				vec![get_authority_keys_from_secret("//Alice"), get_authority_keys_from_secret("//Bob")],
 				// Sudo account
 				get_account_id_from_secret::<sr25519::Public>("//Alice"),
 				// Pre-funded accounts
@@ -153,7 +147,9 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 
 /// Configure initial storage state for FRAME modules.
 fn testnet_genesis(
-	wasm_binary: &[u8], initial_authorities: Vec<(AccountId, AuraId, GrandpaId)>, root_key: AccountId,
+	wasm_binary: &[u8],
+	initial_authorities: Vec<(AccountId, AuraId, GrandpaId)>,
+	root_key: AccountId,
 	endowed_accounts: Vec<AccountId>,
 ) -> GenesisConfig {
 	GenesisConfig {
@@ -175,12 +171,6 @@ fn testnet_genesis(
 		council: Default::default(),
 		technical_committee: Default::default(),
 		democracy: Default::default(),
-		credentials: CredentialsConfig {
-			issuers: endowed_accounts.clone(),
-			retails: endowed_accounts.clone(),
-			professionals: endowed_accounts.clone(),
-			institutionals: endowed_accounts.clone(),
-		},
 		session: SessionConfig {
 			keys: initial_authorities
 				.iter()
@@ -188,10 +178,7 @@ fn testnet_genesis(
 					(
 						x.0.clone(),
 						x.0.clone(),
-						polimec_standalone_runtime::opaque::SessionKeys {
-							aura: x.1.clone(),
-							grandpa: x.2.clone(),
-						},
+						polimec_standalone_runtime::opaque::SessionKeys { aura: x.1.clone(), grandpa: x.2.clone() },
 					)
 				})
 				.collect::<Vec<_>>(),
