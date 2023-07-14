@@ -61,11 +61,7 @@ pub enum Subcommand {
 }
 
 #[derive(Debug, clap::Parser)]
-#[command(
-	propagate_version = true,
-	args_conflicts_with_subcommands = true,
-	subcommand_negates_reqs = true
-)]
+#[command(propagate_version = true, args_conflicts_with_subcommands = true, subcommand_negates_reqs = true)]
 pub struct Cli {
 	#[command(subcommand)]
 	pub subcommand: Option<Subcommand>,

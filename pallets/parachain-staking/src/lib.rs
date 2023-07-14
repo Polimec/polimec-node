@@ -87,8 +87,8 @@ pub mod pallet {
 	use frame_support::{
 		pallet_prelude::*,
 		traits::{
-			tokens::WithdrawReasons, Currency, EstimateNextSessionRotation, Get, Imbalance,
-			LockIdentifier, LockableCurrency, ReservableCurrency,
+			tokens::WithdrawReasons, Currency, EstimateNextSessionRotation, Get, Imbalance, LockIdentifier,
+			LockableCurrency, ReservableCurrency,
 		},
 	};
 	use frame_system::pallet_prelude::*;
@@ -106,8 +106,7 @@ pub mod pallet {
 
 	pub type RoundIndex = u32;
 	type RewardPoint = u32;
-	pub type BalanceOf<T> =
-		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+	pub type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 
@@ -272,9 +271,13 @@ pub mod pallet {
 			new_bond: BalanceOf<T>,
 		},
 		/// Candidate temporarily leave the set of collator candidates without unbonding.
-		CandidateWentOffline { candidate: T::AccountId },
+		CandidateWentOffline {
+			candidate: T::AccountId,
+		},
 		/// Candidate rejoins the set of collator candidates.
-		CandidateBackOnline { candidate: T::AccountId },
+		CandidateBackOnline {
+			candidate: T::AccountId,
+		},
 		/// Candidate has requested to leave the set of candidates.
 		CandidateScheduledExit {
 			exit_allowed_round: RoundIndex,
@@ -282,7 +285,9 @@ pub mod pallet {
 			scheduled_exit: RoundIndex,
 		},
 		/// Cancelled request to leave the set of candidates.
-		CancelledCandidateExit { candidate: T::AccountId },
+		CancelledCandidateExit {
+			candidate: T::AccountId,
+		},
 		/// Cancelled request to decrease candidate's bond.
 		CancelledCandidateBondLess {
 			candidate: T::AccountId,
@@ -330,7 +335,10 @@ pub mod pallet {
 			scheduled_exit: RoundIndex,
 		},
 		/// Delegator has left the set of delegators.
-		DelegatorLeft { delegator: T::AccountId, unstaked_amount: BalanceOf<T> },
+		DelegatorLeft {
+			delegator: T::AccountId,
+			unstaked_amount: BalanceOf<T>,
+		},
 		/// Delegation revoked.
 		DelegationRevoked {
 			delegator: T::AccountId,
@@ -344,7 +352,9 @@ pub mod pallet {
 			unstaked_amount: BalanceOf<T>,
 		},
 		/// Cancelled a pending request to exit the set of delegators.
-		DelegatorExitCancelled { delegator: T::AccountId },
+		DelegatorExitCancelled {
+			delegator: T::AccountId,
+		},
 		/// Cancelled request to change an existing delegation.
 		CancelledDelegationRequest {
 			delegator: T::AccountId,
@@ -367,13 +377,25 @@ pub mod pallet {
 			total_candidate_staked: BalanceOf<T>,
 		},
 		/// Paid the account (delegator or collator) the balance as liquid rewards.
-		Rewarded { account: T::AccountId, rewards: BalanceOf<T> },
+		Rewarded {
+			account: T::AccountId,
+			rewards: BalanceOf<T>,
+		},
 		/// Transferred to account which holds funds reserved for parachain bond.
-		ReservedForParachainBond { account: T::AccountId, value: BalanceOf<T> },
+		ReservedForParachainBond {
+			account: T::AccountId,
+			value: BalanceOf<T>,
+		},
 		/// Account (re)set for parachain bond treasury.
-		ParachainBondAccountSet { old: T::AccountId, new: T::AccountId },
+		ParachainBondAccountSet {
+			old: T::AccountId,
+			new: T::AccountId,
+		},
 		/// Percent of inflation reserved for parachain bond (re)set.
-		ParachainBondReservePercentSet { old: Percent, new: Percent },
+		ParachainBondReservePercentSet {
+			old: Percent,
+			new: Percent,
+		},
 		/// Annual inflation input (first 3) was used to derive new per-round inflation (last 3)
 		InflationSet {
 			annual_min: Perbill,
@@ -390,9 +412,15 @@ pub mod pallet {
 			expect_max: BalanceOf<T>,
 		},
 		/// Set total selected candidates to this value.
-		TotalSelectedSet { old: u32, new: u32 },
+		TotalSelectedSet {
+			old: u32,
+			new: u32,
+		},
 		/// Set collator commission to this value.
-		CollatorCommissionSet { old: Perbill, new: Perbill },
+		CollatorCommissionSet {
+			old: Perbill,
+			new: Perbill,
+		},
 		/// Set blocks per round
 		BlocksPerRoundSet {
 			current_round: RoundIndex,
@@ -404,9 +432,17 @@ pub mod pallet {
 			new_per_round_inflation_max: Perbill,
 		},
 		/// Auto-compounding reward percent was set for a delegation.
-		AutoCompoundSet { candidate: T::AccountId, delegator: T::AccountId, value: Percent },
+		AutoCompoundSet {
+			candidate: T::AccountId,
+			delegator: T::AccountId,
+			value: Percent,
+		},
 		/// Compounded a portion of rewards towards the delegation.
-		Compounded { candidate: T::AccountId, delegator: T::AccountId, amount: BalanceOf<T> },
+		Compounded {
+			candidate: T::AccountId,
+			delegator: T::AccountId,
+			amount: BalanceOf<T>,
+		},
 	}
 
 	#[pallet::hooks]
@@ -464,8 +500,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn parachain_bond_info)]
 	/// Parachain bond config info { account, percent_of_inflation }
-	pub(crate) type ParachainBondInfo<T: Config> =
-		StorageValue<_, ParachainBondConfig<T::AccountId>, ValueQuery>;
+	pub(crate) type ParachainBondInfo<T: Config> = StorageValue<_, ParachainBondConfig<T::AccountId>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn round)]
@@ -475,13 +510,8 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn delegator_state)]
 	/// Get delegator state associated with an account if account is delegating else None
-	pub(crate) type DelegatorState<T: Config> = StorageMap<
-		_,
-		Twox64Concat,
-		T::AccountId,
-		Delegator<T::AccountId, BalanceOf<T>>,
-		OptionQuery,
-	>;
+	pub(crate) type DelegatorState<T: Config> =
+		StorageMap<_, Twox64Concat, T::AccountId, Delegator<T::AccountId, BalanceOf<T>>, OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn candidate_info)]
@@ -492,13 +522,8 @@ pub mod pallet {
 	/// Stores outstanding delegation requests per collator.
 	#[pallet::storage]
 	#[pallet::getter(fn delegation_scheduled_requests)]
-	pub(crate) type DelegationScheduledRequests<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		T::AccountId,
-		Vec<ScheduledRequest<T::AccountId, BalanceOf<T>>>,
-		ValueQuery,
-	>;
+	pub(crate) type DelegationScheduledRequests<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, Vec<ScheduledRequest<T::AccountId, BalanceOf<T>>>, ValueQuery>;
 
 	pub struct AddGet<T, R> {
 		_phantom: PhantomData<(T, R)>,
@@ -530,24 +555,14 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn top_delegations)]
 	/// Top delegations for collator candidate
-	pub(crate) type TopDelegations<T: Config> = StorageMap<
-		_,
-		Twox64Concat,
-		T::AccountId,
-		Delegations<T::AccountId, BalanceOf<T>>,
-		OptionQuery,
-	>;
+	pub(crate) type TopDelegations<T: Config> =
+		StorageMap<_, Twox64Concat, T::AccountId, Delegations<T::AccountId, BalanceOf<T>>, OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn bottom_delegations)]
 	/// Bottom delegations for collator candidate
-	pub(crate) type BottomDelegations<T: Config> = StorageMap<
-		_,
-		Twox64Concat,
-		T::AccountId,
-		Delegations<T::AccountId, BalanceOf<T>>,
-		OptionQuery,
-	>;
+	pub(crate) type BottomDelegations<T: Config> =
+		StorageMap<_, Twox64Concat, T::AccountId, Delegations<T::AccountId, BalanceOf<T>>, OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn selected_candidates)]
@@ -602,15 +617,8 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn awarded_pts)]
 	/// Points for each collator per round
-	pub type AwardedPts<T: Config> = StorageDoubleMap<
-		_,
-		Twox64Concat,
-		RoundIndex,
-		Twox64Concat,
-		T::AccountId,
-		RewardPoint,
-		ValueQuery,
-	>;
+	pub type AwardedPts<T: Config> =
+		StorageDoubleMap<_, Twox64Concat, RoundIndex, Twox64Concat, T::AccountId, RewardPoint, ValueQuery>;
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
@@ -670,8 +678,7 @@ pub mod pallet {
 			}
 
 			let mut col_delegator_count: BTreeMap<T::AccountId, u32> = BTreeMap::new();
-			let mut col_auto_compound_delegator_count: BTreeMap<T::AccountId, u32> =
-				BTreeMap::new();
+			let mut col_auto_compound_delegator_count: BTreeMap<T::AccountId, u32> = BTreeMap::new();
 			let mut del_delegation_count: BTreeMap<T::AccountId, u32> = BTreeMap::new();
 			// Initialize the delegations
 			for &(ref delegator, ref target, balance, auto_compound) in &self.delegations {
@@ -679,12 +686,9 @@ pub mod pallet {
 					<Pallet<T>>::get_delegator_stakable_free_balance(delegator) >= balance,
 					"Account does not have enough balance to place delegation."
 				);
-				let cd_count =
-					if let Some(x) = col_delegator_count.get(target) { *x } else { 0u32 };
-				let dd_count =
-					if let Some(x) = del_delegation_count.get(delegator) { *x } else { 0u32 };
-				let cd_auto_compound_count =
-					col_auto_compound_delegator_count.get(target).cloned().unwrap_or_default();
+				let cd_count = if let Some(x) = col_delegator_count.get(target) { *x } else { 0u32 };
+				let dd_count = if let Some(x) = del_delegation_count.get(delegator) { *x } else { 0u32 };
+				let cd_auto_compound_count = col_auto_compound_delegator_count.get(target).cloned().unwrap_or_default();
 				if let Err(error) = <Pallet<T>>::delegate_with_auto_compound(
 					T::RuntimeOrigin::from(Some(delegator.clone()).into()),
 					target.clone(),
@@ -733,8 +737,7 @@ pub mod pallet {
 			// Choose top TotalSelected collator candidates
 			let (_, v_count, _, total_staked) = <Pallet<T>>::select_top_candidates(1u32);
 			// Start Round 1 at Block 0
-			let round: RoundInfo<T::BlockNumber> =
-				RoundInfo::new(1u32, 0u32.into(), self.blocks_per_round);
+			let round: RoundInfo<T::BlockNumber> = RoundInfo::new(1u32, 0u32.into(), self.blocks_per_round);
 			<Round<T>>::put(round);
 			// Snapshot total stake
 			<Staked<T>>::insert(1u32, <Total<T>>::get());
@@ -774,10 +777,7 @@ pub mod pallet {
 		/// Set the annual inflation rate to derive per-round inflation
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_inflation())]
-		pub fn set_inflation(
-			origin: OriginFor<T>,
-			schedule: Range<Perbill>,
-		) -> DispatchResultWithPostInfo {
+		pub fn set_inflation(origin: OriginFor<T>, schedule: Range<Perbill>) -> DispatchResultWithPostInfo {
 			T::MonetaryGovernanceOrigin::ensure_origin(origin)?;
 			ensure!(schedule.is_valid(), Error::<T>::InvalidSchedule);
 			let mut config = <InflationConfig<T>>::get();
@@ -799,10 +799,7 @@ pub mod pallet {
 		/// Set the account that will hold funds set aside for parachain bond
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_parachain_bond_account())]
-		pub fn set_parachain_bond_account(
-			origin: OriginFor<T>,
-			new: T::AccountId,
-		) -> DispatchResultWithPostInfo {
+		pub fn set_parachain_bond_account(origin: OriginFor<T>, new: T::AccountId) -> DispatchResultWithPostInfo {
 			T::MonetaryGovernanceOrigin::ensure_origin(origin)?;
 			let ParachainBondConfig { account: old, percent } = <ParachainBondInfo<T>>::get();
 			ensure!(old != new, Error::<T>::NoWritingSameValue);
@@ -814,10 +811,7 @@ pub mod pallet {
 		/// Set the percent of inflation set aside for parachain bond
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_parachain_bond_reserve_percent())]
-		pub fn set_parachain_bond_reserve_percent(
-			origin: OriginFor<T>,
-			new: Percent,
-		) -> DispatchResultWithPostInfo {
+		pub fn set_parachain_bond_reserve_percent(origin: OriginFor<T>, new: Percent) -> DispatchResultWithPostInfo {
 			T::MonetaryGovernanceOrigin::ensure_origin(origin)?;
 			let ParachainBondConfig { account, percent: old } = <ParachainBondInfo<T>>::get();
 			ensure!(old != new, Error::<T>::NoWritingSameValue);
@@ -835,10 +829,7 @@ pub mod pallet {
 			ensure!(new >= T::MinSelectedCandidates::get(), Error::<T>::CannotSetBelowMin);
 			let old = <TotalSelected<T>>::get();
 			ensure!(old != new, Error::<T>::NoWritingSameValue);
-			ensure!(
-				new < <Round<T>>::get().length,
-				Error::<T>::RoundLengthMustBeGreaterThanTotalSelectedCollators,
-			);
+			ensure!(new < <Round<T>>::get().length, Error::<T>::RoundLengthMustBeGreaterThanTotalSelectedCollators,);
 			<TotalSelected<T>>::put(new);
 			Self::deposit_event(Event::TotalSelectedSet { old, new });
 			Ok(().into())
@@ -847,10 +838,7 @@ pub mod pallet {
 		/// Set the commission for all collators
 		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_collator_commission())]
-		pub fn set_collator_commission(
-			origin: OriginFor<T>,
-			new: Perbill,
-		) -> DispatchResultWithPostInfo {
+		pub fn set_collator_commission(origin: OriginFor<T>, new: Perbill) -> DispatchResultWithPostInfo {
 			frame_system::ensure_root(origin)?;
 			let old = <CollatorCommission<T>>::get();
 			ensure!(old != new, Error::<T>::NoWritingSameValue);
@@ -871,10 +859,7 @@ pub mod pallet {
 			let mut round = <Round<T>>::get();
 			let (now, first, old) = (round.current, round.first, round.length);
 			ensure!(old != new, Error::<T>::NoWritingSameValue);
-			ensure!(
-				new > <TotalSelected<T>>::get(),
-				Error::<T>::RoundLengthMustBeGreaterThanTotalSelectedCollators,
-			);
+			ensure!(new > <TotalSelected<T>>::get(), Error::<T>::RoundLengthMustBeGreaterThanTotalSelectedCollators,);
 			round.length = new;
 			// update per-round inflation given new rounds per year
 			let mut inflation_config = <InflationConfig<T>>::get();
@@ -907,18 +892,9 @@ pub mod pallet {
 			ensure!(bond >= T::MinCandidateStk::get(), Error::<T>::CandidateBondBelowMin);
 			let mut candidates = <CandidatePool<T>>::get();
 			let old_count = candidates.0.len() as u32;
-			ensure!(
-				candidate_count >= old_count,
-				Error::<T>::TooLowCandidateCountWeightHintJoinCandidates
-			);
-			ensure!(
-				candidates.insert(Bond { owner: acc.clone(), amount: bond }),
-				Error::<T>::CandidateExists
-			);
-			ensure!(
-				Self::get_collator_stakable_free_balance(&acc) >= bond,
-				Error::<T>::InsufficientBalance,
-			);
+			ensure!(candidate_count >= old_count, Error::<T>::TooLowCandidateCountWeightHintJoinCandidates);
+			ensure!(candidates.insert(Bond { owner: acc.clone(), amount: bond }), Error::<T>::CandidateExists);
+			ensure!(Self::get_collator_stakable_free_balance(&acc) >= bond, Error::<T>::InsufficientBalance,);
 			T::Currency::set_lock(COLLATOR_LOCK_ID, &acc, bond, WithdrawReasons::all());
 			let candidate = CandidateMetadata::new(bond);
 			<CandidateInfo<T>>::insert(&acc, candidate);
@@ -942,18 +918,12 @@ pub mod pallet {
 		/// removed from the candidate pool to prevent selection as a collator.
 		#[pallet::call_index(8)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_leave_candidates(*candidate_count))]
-		pub fn schedule_leave_candidates(
-			origin: OriginFor<T>,
-			candidate_count: u32,
-		) -> DispatchResultWithPostInfo {
+		pub fn schedule_leave_candidates(origin: OriginFor<T>, candidate_count: u32) -> DispatchResultWithPostInfo {
 			let collator = ensure_signed(origin)?;
 			let mut state = <CandidateInfo<T>>::get(&collator).ok_or(Error::<T>::CandidateDNE)?;
 			let (now, when) = state.schedule_leave::<T>()?;
 			let mut candidates = <CandidatePool<T>>::get();
-			ensure!(
-				candidate_count >= candidates.0.len() as u32,
-				Error::<T>::TooLowCandidateCountToLeaveCandidates
-			);
+			ensure!(candidate_count >= candidates.0.len() as u32, Error::<T>::TooLowCandidateCountToLeaveCandidates);
 			if candidates.remove(&Bond::from_owner(collator.clone())) {
 				<CandidatePool<T>>::put(candidates);
 			}
@@ -992,11 +962,7 @@ pub mod pallet {
 				);
 
 				if let Some(remaining) = delegator.rm_delegation::<T>(&candidate) {
-					Self::delegation_remove_request_with_state(
-						&candidate,
-						&bond.owner,
-						&mut delegator,
-					);
+					Self::delegation_remove_request_with_state(&candidate, &bond.owner, &mut delegator);
 					<AutoCompoundDelegations<T>>::remove_auto_compound(&candidate, &bond.owner);
 
 					if remaining.is_zero() {
@@ -1018,15 +984,13 @@ pub mod pallet {
 			// total backing stake is at least the candidate self bond
 			let mut total_backing = state.bond;
 			// return all top delegations
-			let top_delegations =
-				<TopDelegations<T>>::take(&candidate).expect("CandidateInfo existence checked");
+			let top_delegations = <TopDelegations<T>>::take(&candidate).expect("CandidateInfo existence checked");
 			for bond in top_delegations.delegations {
 				return_stake(bond)?;
 			}
 			total_backing = total_backing.saturating_add(top_delegations.total);
 			// return all bottom delegations
-			let bottom_delegations =
-				<BottomDelegations<T>>::take(&candidate).expect("CandidateInfo existence checked");
+			let bottom_delegations = <BottomDelegations<T>>::take(&candidate).expect("CandidateInfo existence checked");
 			for bond in bottom_delegations.delegations {
 				return_stake(bond)?;
 			}
@@ -1053,10 +1017,7 @@ pub mod pallet {
 		/// - result upon successful call is the candidate is active in the candidate pool
 		#[pallet::call_index(10)]
 		#[pallet::weight(<T as Config>::WeightInfo::cancel_leave_candidates(*candidate_count))]
-		pub fn cancel_leave_candidates(
-			origin: OriginFor<T>,
-			candidate_count: u32,
-		) -> DispatchResultWithPostInfo {
+		pub fn cancel_leave_candidates(origin: OriginFor<T>, candidate_count: u32) -> DispatchResultWithPostInfo {
 			let collator = ensure_signed(origin)?;
 			let mut state = <CandidateInfo<T>>::get(&collator).ok_or(Error::<T>::CandidateDNE)?;
 			ensure!(state.is_leaving(), Error::<T>::CandidateNotLeaving);
@@ -1116,10 +1077,7 @@ pub mod pallet {
 		/// Increase collator candidate self bond by `more`
 		#[pallet::call_index(13)]
 		#[pallet::weight(<T as Config>::WeightInfo::candidate_bond_more())]
-		pub fn candidate_bond_more(
-			origin: OriginFor<T>,
-			more: BalanceOf<T>,
-		) -> DispatchResultWithPostInfo {
+		pub fn candidate_bond_more(origin: OriginFor<T>, more: BalanceOf<T>) -> DispatchResultWithPostInfo {
 			let collator = ensure_signed(origin)?;
 			let mut state = <CandidateInfo<T>>::get(&collator).ok_or(Error::<T>::CandidateDNE)?;
 			state.bond_more::<T>(collator.clone(), more)?;
@@ -1134,10 +1092,7 @@ pub mod pallet {
 		/// Request by collator candidate to decrease self bond by `less`
 		#[pallet::call_index(14)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_candidate_bond_less())]
-		pub fn schedule_candidate_bond_less(
-			origin: OriginFor<T>,
-			less: BalanceOf<T>,
-		) -> DispatchResultWithPostInfo {
+		pub fn schedule_candidate_bond_less(origin: OriginFor<T>, less: BalanceOf<T>) -> DispatchResultWithPostInfo {
 			let collator = ensure_signed(origin)?;
 			let mut state = <CandidateInfo<T>>::get(&collator).ok_or(Error::<T>::CandidateDNE)?;
 			let when = state.schedule_bond_less::<T>(less)?;
@@ -1275,10 +1230,7 @@ pub mod pallet {
 		/// A revoke may not be performed if any other scheduled request is pending.
 		#[pallet::call_index(22)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_revoke_delegation())]
-		pub fn schedule_revoke_delegation(
-			origin: OriginFor<T>,
-			collator: T::AccountId,
-		) -> DispatchResultWithPostInfo {
+		pub fn schedule_revoke_delegation(origin: OriginFor<T>, collator: T::AccountId) -> DispatchResultWithPostInfo {
 			let delegator = ensure_signed(origin)?;
 			Self::delegation_schedule_revoke(collator, delegator)
 		}
@@ -1292,17 +1244,8 @@ pub mod pallet {
 			more: BalanceOf<T>,
 		) -> DispatchResultWithPostInfo {
 			let delegator = ensure_signed(origin)?;
-			let in_top = Self::delegation_bond_more_without_event(
-				delegator.clone(),
-				candidate.clone(),
-				more,
-			)?;
-			Pallet::<T>::deposit_event(Event::DelegationIncreased {
-				delegator,
-				candidate,
-				amount: more,
-				in_top,
-			});
+			let in_top = Self::delegation_bond_more_without_event(delegator.clone(), candidate.clone(), more)?;
+			Pallet::<T>::deposit_event(Event::DelegationIncreased { delegator, candidate, amount: more, in_top });
 
 			Ok(().into())
 		}
@@ -1336,10 +1279,7 @@ pub mod pallet {
 		/// Cancel request to change an existing delegation.
 		#[pallet::call_index(26)]
 		#[pallet::weight(<T as Config>::WeightInfo::cancel_delegator_bond_less())]
-		pub fn cancel_delegation_request(
-			origin: OriginFor<T>,
-			candidate: T::AccountId,
-		) -> DispatchResultWithPostInfo {
+		pub fn cancel_delegation_request(origin: OriginFor<T>, candidate: T::AccountId) -> DispatchResultWithPostInfo {
 			let delegator = ensure_signed(origin)?;
 			Self::delegation_cancel_request(candidate, delegator)
 		}
@@ -1379,14 +1319,8 @@ pub mod pallet {
 			ensure_signed(origin)?;
 			ensure!(candidates.len() < 100, <Error<T>>::InsufficientBalance);
 			for candidate in &candidates {
-				ensure!(
-					<CandidateInfo<T>>::get(candidate).is_none(),
-					<Error<T>>::CandidateNotLeaving
-				);
-				ensure!(
-					<DelegationScheduledRequests<T>>::get(candidate).is_empty(),
-					<Error<T>>::CandidateNotLeaving
-				);
+				ensure!(<CandidateInfo<T>>::get(candidate).is_none(), <Error<T>>::CandidateNotLeaving);
+				ensure!(<DelegationScheduledRequests<T>>::get(candidate).is_empty(), <Error<T>>::CandidateNotLeaving);
 			}
 
 			for candidate in candidates {
@@ -1412,12 +1346,15 @@ pub mod pallet {
 		pub fn is_delegator(acc: &T::AccountId) -> bool {
 			<DelegatorState<T>>::get(acc).is_some()
 		}
+
 		pub fn is_candidate(acc: &T::AccountId) -> bool {
 			<CandidateInfo<T>>::get(acc).is_some()
 		}
+
 		pub fn is_selected_candidate(acc: &T::AccountId) -> bool {
 			<SelectedCandidates<T>>::get().binary_search(acc).is_ok()
 		}
+
 		/// Returns an account's free balance which is not locked in delegation staking
 		pub fn get_delegator_stakable_free_balance(acc: &T::AccountId) -> BalanceOf<T> {
 			let mut balance = T::Currency::free_balance(acc);
@@ -1426,6 +1363,7 @@ pub mod pallet {
 			}
 			balance
 		}
+
 		/// Returns an account's free balance which is not locked in collator staking
 		pub fn get_collator_stakable_free_balance(acc: &T::AccountId) -> BalanceOf<T> {
 			let mut balance = T::Currency::free_balance(acc);
@@ -1434,13 +1372,12 @@ pub mod pallet {
 			}
 			balance
 		}
+
 		/// Returns a delegations auto-compound value.
-		pub fn delegation_auto_compound(
-			candidate: &T::AccountId,
-			delegator: &T::AccountId,
-		) -> Percent {
+		pub fn delegation_auto_compound(candidate: &T::AccountId, delegator: &T::AccountId) -> Percent {
 			<AutoCompoundDelegations<T>>::auto_compound(candidate, delegator)
 		}
+
 		/// Caller must ensure candidate is active before calling
 		pub(crate) fn update_active(candidate: T::AccountId, total: BalanceOf<T>) {
 			let mut candidates = <CandidatePool<T>>::get();
@@ -1448,6 +1385,7 @@ pub mod pallet {
 			candidates.insert(Bond { owner: candidate, amount: total });
 			<CandidatePool<T>>::put(candidates);
 		}
+
 		/// Compute round issuance based on total staked for the given round
 		fn compute_issuance(staked: BalanceOf<T>) -> BalanceOf<T> {
 			let config = <InflationConfig<T>>::get();
@@ -1461,6 +1399,7 @@ pub mod pallet {
 				round_issuance.ideal
 			}
 		}
+
 		/// Remove delegation from candidate state
 		/// Amount input should be retrieved from delegator and it informs the storage lookups
 		pub(crate) fn delegator_leaves_candidate(
@@ -1482,6 +1421,7 @@ pub mod pallet {
 			});
 			Ok(())
 		}
+
 		pub(crate) fn prepare_staking_payouts(now: RoundIndex) -> Weight {
 			// payout is now - delay rounds ago => now - delay > 0 else return early
 			let delay = T::RewardPaymentDelay::get();
@@ -1499,9 +1439,7 @@ pub mod pallet {
 			// reserve portion of issuance for parachain bond account
 			let bond_config = <ParachainBondInfo<T>>::get();
 			let parachain_bond_reserve = bond_config.percent * total_issuance;
-			if let Ok(imb) =
-				T::Currency::deposit_into_existing(&bond_config.account, parachain_bond_reserve)
-			{
+			if let Ok(imb) = T::Currency::deposit_into_existing(&bond_config.account, parachain_bond_reserve) {
 				// update round issuance iff transfer succeeds
 				left_issuance = left_issuance.saturating_sub(imb.peek());
 				Self::deposit_event(Event::ReservedForParachainBond {
@@ -1578,9 +1516,7 @@ pub mod pallet {
 			let collator_fee = payout_info.collator_commission;
 			let collator_issuance = collator_fee * payout_info.round_issuance;
 
-			if let Some((collator, state)) =
-				<AtStake<T>>::iter_prefix(paid_for_round).drain().next()
-			{
+			if let Some((collator, state)) = <AtStake<T>>::iter_prefix(paid_for_round).drain().next() {
 				// read and kill AtStake
 				early_weight = early_weight.saturating_add(T::DbWeight::get().reads_writes(1, 1));
 
@@ -1608,11 +1544,7 @@ pub mod pallet {
 							collator.clone(),
 							amt_due,
 						))
-						.saturating_add(T::OnCollatorPayout::on_collator_payout(
-							paid_for_round,
-							collator,
-							amt_due,
-						));
+						.saturating_add(T::OnCollatorPayout::on_collator_payout(paid_for_round, collator, amt_due));
 					log::warn!("💵 Solo collator reward: {:?}", amt_due);
 				} else {
 					// pay collator first; commission + due_portion
@@ -1649,8 +1581,7 @@ pub mod pallet {
 
 				(
 					RewardPayment::Paid,
-					T::WeightInfo::pay_one_collator_reward(num_delegators as u32)
-						.saturating_add(extra_weight),
+					T::WeightInfo::pay_one_collator_reward(num_delegators as u32).saturating_add(extra_weight),
 				)
 			} else {
 				// Note that we don't clean up storage here; it is cleaned up in
@@ -1682,11 +1613,7 @@ pub mod pallet {
 					a.amount.cmp(&b.amount).then_with(|| a.owner.cmp(&b.owner)).reverse()
 				});
 
-				let mut collators = candidates
-					.into_iter()
-					.take(top_n)
-					.map(|x| x.owner)
-					.collect::<Vec<T::AccountId>>();
+				let mut collators = candidates.into_iter().take(top_n).map(|x| x.owner).collect::<Vec<T::AccountId>>();
 
 				// Sort collators by AccountId
 				collators.sort();
@@ -1698,11 +1625,11 @@ pub mod pallet {
 				candidates.into_iter().map(|x| x.owner).collect::<Vec<T::AccountId>>()
 			}
 		}
+
 		/// Best as in most cumulatively supported in terms of stake
 		/// Returns [collator_count, delegation_count, total staked]
 		pub(crate) fn select_top_candidates(now: RoundIndex) -> (Weight, u32, u32, BalanceOf<T>) {
-			let (mut collator_count, mut delegation_count, mut total) =
-				(0u32, 0u32, BalanceOf::<T>::zero());
+			let (mut collator_count, mut delegation_count, mut total) = (0u32, 0u32, BalanceOf::<T>::zero());
 			// choose the top TotalSelected qualified candidates, ordered by stake
 			let collators = Self::compute_top_candidates();
 			if collators.is_empty() {
@@ -1712,8 +1639,7 @@ pub mod pallet {
 				// set this round AtStake to last round AtStake
 				for (account, snapshot) in <AtStake<T>>::iter_prefix(last_round) {
 					collator_count = collator_count.saturating_add(1u32);
-					delegation_count =
-						delegation_count.saturating_add(snapshot.delegations.len() as u32);
+					delegation_count = delegation_count.saturating_add(snapshot.delegations.len() as u32);
 					total = total.saturating_add(snapshot.total);
 					total_per_candidate.insert(account.clone(), snapshot.total);
 					<AtStake<T>>::insert(now, account, snapshot);
@@ -1721,9 +1647,8 @@ pub mod pallet {
 				// `SelectedCandidates` remains unchanged from last round
 				// emit CollatorChosen event for tools that use this event
 				for candidate in <SelectedCandidates<T>>::get() {
-					let snapshot_total = total_per_candidate
-						.get(&candidate)
-						.expect("all selected candidates have snapshots");
+					let snapshot_total =
+						total_per_candidate.get(&candidate).expect("all selected candidates have snapshots");
 					Self::deposit_event(Event::CollatorChosen {
 						round: now,
 						collator_account: candidate,
@@ -1736,8 +1661,7 @@ pub mod pallet {
 
 			// snapshot exposure for round for weighting reward distribution
 			for account in collators.iter() {
-				let state = <CandidateInfo<T>>::get(account)
-					.expect("all members of CandidateQ must be candidates");
+				let state = <CandidateInfo<T>>::get(account).expect("all members of CandidateQ must be candidates");
 
 				collator_count = collator_count.saturating_add(1u32);
 				delegation_count = delegation_count.saturating_add(state.delegation_count);
@@ -1762,11 +1686,8 @@ pub mod pallet {
 					})
 					.collect();
 
-				let snapshot = CollatorSnapshot {
-					bond: state.bond,
-					delegations: rewardable_delegations,
-					total: total_counted,
-				};
+				let snapshot =
+					CollatorSnapshot { bond: state.bond, delegations: rewardable_delegations, total: total_counted };
 				<AtStake<T>>::insert(now, account, snapshot);
 				Self::deposit_event(Event::CollatorChosen {
 					round: now,
@@ -1841,10 +1762,7 @@ pub mod pallet {
 		/// Mint a specified reward amount to the beneficiary account. Emits the [Rewarded] event.
 		pub fn mint(amt: BalanceOf<T>, to: T::AccountId) {
 			if let Ok(amount_transferred) = T::Currency::deposit_into_existing(&to, amt) {
-				Self::deposit_event(Event::Rewarded {
-					account: to.clone(),
-					rewards: amount_transferred.peek(),
-				});
+				Self::deposit_event(Event::Rewarded { account: to.clone(), rewards: amount_transferred.peek() });
 			}
 		}
 
@@ -1875,36 +1793,27 @@ pub mod pallet {
 		) -> Weight {
 			let mut weight = T::WeightInfo::mint_collator_reward();
 			if let Ok(amount_transferred) = T::Currency::deposit_into_existing(&delegator, amt) {
-				Self::deposit_event(Event::Rewarded {
-					account: delegator.clone(),
-					rewards: amount_transferred.peek(),
-				});
+				Self::deposit_event(Event::Rewarded { account: delegator.clone(), rewards: amount_transferred.peek() });
 
 				let compound_amount = compound_percent.mul_ceil(amount_transferred.peek());
 				if compound_amount.is_zero() {
 					return weight
 				}
 
-				if let Err(err) = Self::delegation_bond_more_without_event(
-					delegator.clone(),
-					candidate.clone(),
-					compound_amount,
-				) {
+				if let Err(err) =
+					Self::delegation_bond_more_without_event(delegator.clone(), candidate.clone(), compound_amount)
+				{
 					log::warn!(
-								"skipped compounding staking reward towards candidate '{:?}' for delegator '{:?}': {:?}",
-								candidate,
-								delegator,
-								err
-							);
+						"skipped compounding staking reward towards candidate '{:?}' for delegator '{:?}': {:?}",
+						candidate,
+						delegator,
+						err
+					);
 					return weight
 				};
 				weight = weight.saturating_add(T::WeightInfo::delegator_bond_more());
 
-				Pallet::<T>::deposit_event(Event::Compounded {
-					delegator,
-					candidate,
-					amount: compound_amount,
-				});
+				Pallet::<T>::deposit_event(Event::Compounded { delegator, candidate, amount: compound_amount });
 			};
 
 			weight
@@ -1996,9 +1905,7 @@ pub mod pallet {
 			)
 		}
 
-		fn estimate_next_session_rotation(
-			_now: T::BlockNumber,
-		) -> (Option<T::BlockNumber>, Weight) {
+		fn estimate_next_session_rotation(_now: T::BlockNumber) -> (Option<T::BlockNumber>, Weight) {
 			let round = <Round<T>>::get();
 
 			(

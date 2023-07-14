@@ -28,9 +28,8 @@ use polimec_parachain_runtime::{
 };
 
 use polimec_parachain_runtime::{
-	AccountId, Balance, BalancesConfig, CouncilConfig, GenesisConfig, ParachainInfoConfig,
-	PolkadotXcmConfig, SessionConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
-	VestingConfig,
+	AccountId, Balance, BalancesConfig, CouncilConfig, GenesisConfig, ParachainInfoConfig, PolkadotXcmConfig,
+	SessionConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, VestingConfig,
 };
 use sc_service::ChainType;
 use sp_core::{crypto::UncheckedInto, sr25519};
@@ -58,11 +57,8 @@ pub fn polimec_inflation_config() -> InflationInfo<Balance> {
 		)
 	}
 
-	let annual = Range {
-		min: Perbill::from_percent(2),
-		ideal: Perbill::from_percent(3),
-		max: Perbill::from_percent(3),
-	};
+	let annual =
+		Range { min: Perbill::from_percent(2), ideal: Perbill::from_percent(3), max: Perbill::from_percent(3) };
 
 	InflationInfo {
 		// staking expectations
@@ -89,16 +85,8 @@ pub fn get_chain_spec_dev() -> Result<ChainSpec, String> {
 			testnet_genesis(
 				wasm,
 				vec![
-					(
-						get_account_id_from_seed::<sr25519::Public>("Alice"),
-						None,
-						2 * MinCandidateStk::get(),
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Bob"),
-						None,
-						2 * MinCandidateStk::get(),
-					),
+					(get_account_id_from_seed::<sr25519::Public>("Alice"), None, 2 * MinCandidateStk::get()),
+					(get_account_id_from_seed::<sr25519::Public>("Bob"), None, 2 * MinCandidateStk::get()),
 				],
 				polimec_inflation_config(),
 				vec![
@@ -106,30 +94,12 @@ pub fn get_chain_spec_dev() -> Result<ChainSpec, String> {
 					get_account_id_from_seed::<sr25519::Public>("Bob"),
 				],
 				vec![
-					(
-						get_account_id_from_seed::<sr25519::Public>("Alice"),
-						5 * MinCandidateStk::get(),
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Bob"),
-						5 * MinCandidateStk::get(),
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Charlie"),
-						5 * MinCandidateStk::get(),
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Dave"),
-						5 * MinCandidateStk::get(),
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Eve"),
-						5 * MinCandidateStk::get(),
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-						5 * MinCandidateStk::get(),
-					),
+					(get_account_id_from_seed::<sr25519::Public>("Alice"), 5 * MinCandidateStk::get()),
+					(get_account_id_from_seed::<sr25519::Public>("Bob"), 5 * MinCandidateStk::get()),
+					(get_account_id_from_seed::<sr25519::Public>("Charlie"), 5 * MinCandidateStk::get()),
+					(get_account_id_from_seed::<sr25519::Public>("Dave"), 5 * MinCandidateStk::get()),
+					(get_account_id_from_seed::<sr25519::Public>("Eve"), 5 * MinCandidateStk::get()),
+					(get_account_id_from_seed::<sr25519::Public>("Ferdie"), 5 * MinCandidateStk::get()),
 				],
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				DEFAULT_PARA_ID,
@@ -228,9 +198,7 @@ fn testnet_genesis(
 					(
 						acc.clone(),
 						acc.clone(),
-						get_testnet_session_keys(
-							Into::<[u8; 32]>::into(acc.clone()).unchecked_into(),
-						),
+						get_testnet_session_keys(Into::<[u8; 32]>::into(acc.clone()).unchecked_into()),
 					)
 				})
 				.collect::<Vec<_>>(),
@@ -239,10 +207,7 @@ fn testnet_genesis(
 		treasury: Default::default(),
 		sudo: SudoConfig { key: Some(sudo_account) },
 		council: CouncilConfig { members: accounts.clone(), phantom: Default::default() },
-		technical_committee: TechnicalCommitteeConfig {
-			members: accounts.clone(),
-			phantom: Default::default(),
-		},
+		technical_committee: TechnicalCommitteeConfig { members: accounts.clone(), phantom: Default::default() },
 		democracy: Default::default(),
 		vesting: VestingConfig { vesting: vec![] },
 	}
