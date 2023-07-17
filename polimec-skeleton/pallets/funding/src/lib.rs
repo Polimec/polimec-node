@@ -205,7 +205,7 @@ use frame_support::{
 	pallet_prelude::ValueQuery,
 	traits::{
 		tokens::{fungible, fungibles, Balance},
-		Get, Randomness,
+		Get, Randomness, VestingSchedule,
 	},
 	BoundedVec, PalletId, Parameter,
 };
@@ -314,6 +314,8 @@ pub mod pallet {
 
 		/// Something that provides the members of Polimec
 		type HandleMembers: PolimecMembers<AccountIdOf<Self>>;
+
+		type Vesting: VestingSchedule<AccountIdOf<Self>>;
 
 		/// The maximum length of data stored on-chain.
 		#[pallet::constant]

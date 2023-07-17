@@ -5904,6 +5904,7 @@ dependencies = [
  "pallet-balances",
  "pallet-credentials",
  "pallet-insecure-randomness-collective-flip",
+ "pallet-vesting",
  "parity-scale-codec",
  "polimec-traits",
  "scale-info",
