@@ -2217,10 +2217,10 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	pub fn set_vesting_for(
-		who: T::AccountId, locked: BalanceOf<T>, per_block: BalanceOf<T>, starting_block: T::BlockNumber,
-	) -> Result<(), DispatchError> {
-		let target = who;
-		T::Vesting::add_vesting_schedule(&target, locked, per_block, starting_block)
-	}
+	// pub fn set_vesting_for(
+	// 	who: T::AccountId, locked: BalanceOf<T>, per_block: BalanceOf<T>, starting_block: T::BlockNumber,
+	// ) -> Result<(), DispatchError> {
+	// 	let target = who;
+	// 	T::Vesting::add_vesting_schedule(&target, locked, per_block, starting_block)
+	// }
 }
