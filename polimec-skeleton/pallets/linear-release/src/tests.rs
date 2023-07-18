@@ -96,7 +96,7 @@ fn check_vesting_status_for_multi_schedule_account() {
 
 		// Account 2's free balance is from sched0.
 		let free_balance = Balances::free_balance(&2);
-		assert_eq!(free_balance, ED * (20));
+		assert_eq!(free_balance, ED * (1));
 		assert_eq!(Vesting::vesting_balance(&2), Some(free_balance));
 
 		// Add a 2nd schedule that is already unlocking by block #1.
@@ -259,11 +259,11 @@ fn extra_balance_should_transfer() {
 		assert_eq!(Vesting::vesting_balance(&1), Some(45));
 		assert_ok!(Vesting::vest(Some(1).into()));
 		let user1_free_balance2 = Balances::free_balance(&1);
-		assert_eq!(user1_free_balance2, 150); // Account 1 has 100 more free balance than normal
+		assert_eq!(user1_free_balance2, 195); // Account 1 has 100 more free balance than normal
 		assert_ok!(Balances::transfer_allow_death(Some(1).into(), 3, 155)); // Account 1 can send extra units gained
 
 		// Account 2 has no units vested at block 1, but gained 100
-		assert_eq!(Vesting::vesting_balance(&2), Some(200));
+		assert_eq!(Vesting::vesting_balance(&2), Some(110));
 		assert_ok!(Vesting::vest(Some(2).into()));
 		assert_ok!(Balances::transfer_allow_death(Some(2).into(), 3, 100)); // Account 2 can send extra
 		                                                            // units gained
@@ -462,7 +462,7 @@ fn force_vested_transfer_correctly_fails() {
 	ExtBuilder::default().existential_deposit(ED).build().execute_with(|| {
 		let user2_free_balance = Balances::free_balance(&2);
 		let user4_free_balance = Balances::free_balance(&4);
-		assert_eq!(user2_free_balance, ED * 20);
+		assert_eq!(user2_free_balance, ED * 21);
 		assert_eq!(user4_free_balance, ED * 40);
 		// Account 2 should already have a vesting schedule.
 		let user2_vesting_schedule = VestingInfo::new(
@@ -1010,5 +1010,60 @@ fn vested_transfer_less_than_existential_deposit_fails() {
 		assert_noop!(Vesting::vested_transfer(Some(3).into(), 99, sched), TokenError::BelowMinimum,);
 		// force_vested_transfer fails.
 		assert_noop!(Vesting::force_vested_transfer(RawOrigin::Root.into(), 3, 99, sched), TokenError::BelowMinimum,);
+	});
+}
+
+
+// TODO
+#[test]
+fn set_release_schedule() {
+	ExtBuilder::default().existential_deposit(ED).build().execute_with(|| {
+		assert_eq!(System::block_number(), 1);
+		// Initial Status
+		let user_3_free_balance = Balances::free_balance(&3);
+		assert_eq!(user_3_free_balance, 30 * ED); // 7680 ED
+		let user_3_reserved_balance = Balances::reserved_balance(&3);
+		assert_eq!(user_3_reserved_balance, 0);
+		let user_3_on_hold_balance = Balances::balance_on_hold(&LockType::Participation(0), &3);
+		assert_eq!(user_3_on_hold_balance, 0);
+		assert_eq!(Vesting::vesting_balance(&3), None);
+
+		// Hold 15 ED
+		assert_ok!(Balances::hold(&LockType::Participation(0), &3, 15 * ED));
+		let user_3_free_balance = Balances::free_balance(&3);
+		assert_eq!(user_3_free_balance, 15 * ED);
+		let user_3_on_hold_balance = Balances::balance_on_hold(&LockType::Participation(0), &3);
+		assert_eq!(user_3_on_hold_balance, 15 * ED);
+		let user_3_reserved_balance = Balances::reserved_balance(&3);
+		assert_eq!(user_3_reserved_balance, 15 * ED);
+		assert_eq!(Vesting::vesting_balance(&3), None);
+
+		// Set release schedule to release the locked amount, starting from now, one ED per block.
+		let user3_vesting_schedule = VestingInfo::new(
+			user_3_on_hold_balance,
+			ED,
+			System::block_number(),
+		);
+		assert_ok!(Vesting::release_schedule(Some(3).into(), user3_vesting_schedule));
+		assert_eq!(Vesting::vesting_balance(&3), Some(15 * ED));
+
+		// 1 ED can be "released"
+		System::set_block_number(2);
+		assert_eq!(Vesting::vesting_balance(&3), Some(14 * ED));
+
+
+		// 2 ED can be "released"
+		System::set_block_number(3);
+		assert_eq!(Vesting::vesting_balance(&3), Some(13 * ED));
+
+		// Go to the end of the schedule
+		System::set_block_number(16);
+		assert_eq!(System::block_number(), 16);
+		assert_eq!(Vesting::vesting_balance(&3), Some(0));
+		vest_and_assert_no_vesting::<Test>(3);
+		let user_3_free_balance = Balances::free_balance(&3);
+		assert_eq!(user_3_free_balance, 30 * ED);
+
+
 	});
 }

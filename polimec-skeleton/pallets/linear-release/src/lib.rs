@@ -114,7 +114,7 @@ impl<T: Config> Get<u32> for MaxVestingSchedulesGet<T> {
 pub mod pallet {
 	use crate::types::LockType;
 
-use super::*;
+	use super::*;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -194,6 +194,9 @@ use super::*;
 
 				// TODO: Use T::Currency::hold to lock the funds, using the T::Reasons
 
+				T::Currency::hold(&LockType::Participation(0u32.into()), who, locked)
+					.map_err(|err| panic!("{:?}", err))
+					.unwrap();
 			}
 		}
 	}
@@ -360,7 +363,7 @@ use super::*;
 		pub fn merge_schedules(origin: OriginFor<T>, schedule1_index: u32, schedule2_index: u32) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			if schedule1_index == schedule2_index {
-				return Ok(())
+				return Ok(());
 			};
 			let schedule1_index = schedule1_index as usize;
 			let schedule2_index = schedule2_index as usize;
@@ -374,6 +377,15 @@ use super::*;
 			Self::write_lock(&who, locked_now)?;
 
 			Ok(())
+		}
+
+		#[pallet::call_index(5)]
+		pub fn release_schedule(
+			origin: OriginFor<T>,
+			schedule: VestingInfo<BalanceOf<T>, BlockNumberFor<T>>,
+		) -> DispatchResult {
+			let transactor = ensure_signed(origin)?;
+			Self::set_release_schedule(&transactor, schedule.locked(), schedule.per_block(), schedule.starting_block())
 		}
 	}
 }

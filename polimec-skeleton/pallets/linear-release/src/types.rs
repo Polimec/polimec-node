@@ -11,11 +11,11 @@ pub enum LockType<ProjectId> {
 #[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct VestingInfo<Balance, BlockNumber> {
 	/// Locked amount at genesis.
-	locked: Balance,
+	pub locked: Balance,
 	/// Amount that gets unlocked every block after `starting_block`.
-	per_block: Balance,
+	pub per_block: Balance,
 	/// Starting block for unlocking(vesting).
-	starting_block: BlockNumber,
+	pub starting_block: BlockNumber,
 }
 
 impl<Balance, BlockNumber> VestingInfo<Balance, BlockNumber>

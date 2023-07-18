@@ -72,13 +72,9 @@ impl<T: Config> Pallet<T> {
 		)?;
 
 		// We can't let this fail because the currency transfer has already happened.
-		let res = Self::add_release_schedule(
-			&target,
-			schedule.locked(),
-			schedule.per_block(),
-			schedule.starting_block(),
-		);
-		debug_assert!(res.is_ok(), "Failed to add a schedule when we had to succeed.");
+		let res =
+			Self::add_release_schedule(&target, schedule.locked(), schedule.per_block(), schedule.starting_block());
+		debug_assert!(res.is_ok(), "{:#?}", res.err());
 
 		Ok(())
 	}
@@ -116,17 +112,22 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Write an accounts updated vesting lock to storage.
-	pub fn write_lock(who: &T::AccountId, total_locked_now: BalanceOf<T>) -> Result<(), DispatchError>{
+	pub fn write_lock(who: &T::AccountId, total_locked_now: BalanceOf<T>) -> Result<(), DispatchError> {
 		if total_locked_now.is_zero() {
+			T::Currency::release(
+				&LockType::Participation(0u32.into()),
+				who,
+				T::Currency::balance_on_hold(&LockType::Participation(0u32.into()), who),
+				frame_support::traits::tokens::Precision::BestEffort,
+			)?;
+			Self::deposit_event(Event::<T>::VestingCompleted { account: who.clone() });
+		} else {
 			T::Currency::release(
 				&LockType::Participation(0u32.into()),
 				who,
 				total_locked_now,
 				frame_support::traits::tokens::Precision::BestEffort,
 			)?;
-			Self::deposit_event(Event::<T>::VestingCompleted { account: who.clone() });
-		} else {
-			T::Currency::hold(&LockType::Participation(0u32.into()), who, total_locked_now)?;
 			Self::deposit_event(Event::<T>::VestingUpdated { account: who.clone(), unvested: total_locked_now });
 		};
 
@@ -155,6 +156,9 @@ impl<T: Config> Pallet<T> {
 		let schedules = Self::vesting(&who).ok_or(Error::<T>::NotVesting)?;
 
 		let (schedules, locked_now) = Self::exec_action(schedules.to_vec(), VestingAction::Passive)?;
+
+		println!("do_vest: schedules: {:?}", schedules);
+		println!("do_vest: locked_now: {:?}", locked_now);
 
 		Self::write_vesting(&who, schedules)?;
 		Self::write_lock(&who, locked_now)?;
@@ -320,7 +324,7 @@ impl<T: Config> ReleaseSchedule<T::AccountId> for Pallet<T>
 		// will give the correct new locked amount.
 		ensure!(schedules.try_push(vesting_schedule).is_ok(), Error::<T>::AtMaxVestingSchedules);
 
-		let (schedules, locked_now) = Self::exec_action(schedules.to_vec(), VestingAction::Passive)?;
+		let (schedules, _) = Self::exec_action(schedules.to_vec(), VestingAction::Passive)?;
 
 		Self::write_vesting(who, schedules)?;
 		Ok(())
