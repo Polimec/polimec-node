@@ -37,7 +37,7 @@ use frame_support::{
 };
 use frame_system::{pallet_prelude::*, WeightInfo};
 
-use crate::types::LockType;
+// use crate::types::LockType;
 use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{AtLeast32BitUnsigned, Bounded, Convert, One, Saturating, Zero},
@@ -112,7 +112,9 @@ impl<T: Config> Get<u32> for MaxVestingSchedulesGet<T> {
 /// Enable `dev_mode` for this pallet.
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
-	use super::*;
+	use crate::types::LockType;
+
+use super::*;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -121,10 +123,11 @@ pub mod pallet {
 
 		type Balance: Balance + From<u64> + MaybeSerializeDeserialize;
 
+		// TODO: Unused at the moment, but will be used in the future instead of hardcoding `LockType`.
 		type Reason: Parameter + Member + MaxEncodedLen + Ord + Copy;
 
 		type Currency: InspectHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
-			+ MutateHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, Reason = ReasonOf<Self>>
+			+ MutateHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, Reason = LockType<BalanceOf<Self>>>
 			+ BalancedHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
 			+ Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
 
@@ -262,9 +265,9 @@ pub mod pallet {
 		/// ## Complexity
 		/// - `O(1)`.
 		#[pallet::call_index(0)]
-		pub fn vest(origin: OriginFor<T>, reason: ReasonOf<T>) -> DispatchResult {
+		pub fn vest(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			Self::do_vest(who, &reason)
+			Self::do_vest(who)
 		}
 
 		/// Unlock any vested funds of a `target` account.
@@ -279,9 +282,9 @@ pub mod pallet {
 		/// ## Complexity
 		/// - `O(1)`.
 		#[pallet::call_index(1)]
-		pub fn vest_other(origin: OriginFor<T>, target: AccountIdOf<T>, reason: ReasonOf<T>) -> DispatchResult {
+		pub fn vest_other(origin: OriginFor<T>, target: AccountIdOf<T>) -> DispatchResult {
 			ensure_signed(origin)?;
-			Self::do_vest(target, &reason)
+			Self::do_vest(target)
 		}
 
 		/// Create a vested transfer.
@@ -302,10 +305,9 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			target: AccountIdOf<T>,
 			schedule: VestingInfo<BalanceOf<T>, BlockNumberFor<T>>,
-			reason: ReasonOf<T>
 		) -> DispatchResult {
 			let transactor = ensure_signed(origin)?;
-			Self::do_vested_transfer(transactor, target, schedule, &reason)
+			Self::do_vested_transfer(transactor, target, schedule)
 		}
 
 		/// Force a vested transfer.
@@ -328,10 +330,9 @@ pub mod pallet {
 			source: AccountIdOf<T>,
 			target: AccountIdOf<T>,
 			schedule: VestingInfo<BalanceOf<T>, BlockNumberFor<T>>,
-			reason: ReasonOf<T>
 		) -> DispatchResult {
 			ensure_root(origin)?;
-			Self::do_vested_transfer(source, target, schedule, &reason)
+			Self::do_vested_transfer(source, target, schedule)
 		}
 
 		/// Merge two vesting schedules together, creating a new vesting schedule that unlocks over
@@ -356,7 +357,7 @@ pub mod pallet {
 		/// - `schedule1_index`: index of the first schedule to merge.
 		/// - `schedule2_index`: index of the second schedule to merge.
 		#[pallet::call_index(4)]
-		pub fn merge_schedules(origin: OriginFor<T>, schedule1_index: u32, schedule2_index: u32, reason: ReasonOf<T>) -> DispatchResult {
+		pub fn merge_schedules(origin: OriginFor<T>, schedule1_index: u32, schedule2_index: u32) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			if schedule1_index == schedule2_index {
 				return Ok(())
@@ -370,7 +371,7 @@ pub mod pallet {
 			let (schedules, locked_now) = Self::exec_action(schedules.to_vec(), merge_action)?;
 
 			Self::write_vesting(&who, schedules)?;
-			Self::write_lock(&who, locked_now, &reason);
+			Self::write_lock(&who, locked_now)?;
 
 			Ok(())
 		}

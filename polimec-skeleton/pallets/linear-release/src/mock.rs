@@ -9,7 +9,7 @@ use sp_runtime::{
 };
 
 use super::*;
-use crate as pallet_vesting;
+use crate::{self as pallet_vesting, types::LockType};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -82,7 +82,7 @@ impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
 	type WeightInfo = ();
-
+	type Reason = LockType<u64>;
 	const MAX_VESTING_SCHEDULES: u32 = 3;
 }
 
