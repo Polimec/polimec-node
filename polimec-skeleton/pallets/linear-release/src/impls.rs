@@ -53,6 +53,7 @@ impl<T: Config> Pallet<T> {
 		source: AccountIdOf<T>,
 		target: AccountIdOf<T>,
 		schedule: VestingInfo<BalanceOf<T>, BlockNumberFor<T>>,
+		reason: ReasonOf<T>
 	) -> DispatchResult {
 		// Validate user inputs.
 		ensure!(schedule.locked() >= T::MinVestedTransfer::get(), Error::<T>::AmountLow);
@@ -73,7 +74,7 @@ impl<T: Config> Pallet<T> {
 
 		// We can't let this fail because the currency transfer has already happened.
 		let res =
-			Self::add_release_schedule(&target, schedule.locked(), schedule.per_block(), schedule.starting_block());
+			Self::add_release_schedule(&target, schedule.locked(), schedule.per_block(), schedule.starting_block(), reason);
 		debug_assert!(res.is_ok(), "{:#?}", res.err());
 
 		Ok(())
@@ -112,20 +113,22 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Write an accounts updated vesting lock to storage.
-	pub fn write_lock(who: &T::AccountId, total_locked_now: BalanceOf<T>) -> Result<(), DispatchError> {
+	pub fn write_lock(who: &T::AccountId, total_locked_now: BalanceOf<T>, reason: ReasonOf<T>) -> Result<(), DispatchError> {
 		if total_locked_now.is_zero() {
 			T::Currency::release(
-				&LockType::Participation(0u32.into()),
+				&reason,
 				who,
-				T::Currency::balance_on_hold(&LockType::Participation(0u32.into()), who),
+				T::Currency::balance_on_hold(&reason, who),
 				frame_support::traits::tokens::Precision::BestEffort,
 			)?;
 			Self::deposit_event(Event::<T>::VestingCompleted { account: who.clone() });
 		} else {
+			let amount = T::Currency::balance_on_hold(&reason, who);
+			let amount = amount.saturating_sub(total_locked_now);
 			T::Currency::release(
-				&LockType::Participation(0u32.into()),
+				&reason,
 				who,
-				total_locked_now,
+				amount,
 				frame_support::traits::tokens::Precision::BestEffort,
 			)?;
 			Self::deposit_event(Event::<T>::VestingUpdated { account: who.clone(), unvested: total_locked_now });
@@ -152,7 +155,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Unlock any vested funds of `who`.
-	pub fn do_vest(who: T::AccountId) -> DispatchResult {
+	pub fn do_vest(who: T::AccountId, reason: ReasonOf<T>) -> DispatchResult {
 		let schedules = Self::vesting(&who).ok_or(Error::<T>::NotVesting)?;
 
 		let (schedules, locked_now) = Self::exec_action(schedules.to_vec(), VestingAction::Passive)?;
@@ -161,7 +164,7 @@ impl<T: Config> Pallet<T> {
 		println!("do_vest: locked_now: {:?}", locked_now);
 
 		Self::write_vesting(&who, schedules)?;
-		Self::write_lock(&who, locked_now)?;
+		Self::write_lock(&who, locked_now, reason)?;
 
 		Ok(())
 	}
@@ -208,7 +211,7 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-impl<T: Config> ReleaseSchedule<T::AccountId> for Pallet<T>
+impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T>
 // where
 // 	BalanceOf<T>: MaybeSerializeDeserialize + Debug,
 {
@@ -245,6 +248,7 @@ impl<T: Config> ReleaseSchedule<T::AccountId> for Pallet<T>
 		locked: BalanceOf<T>,
 		per_block: BalanceOf<T>,
 		starting_block: BlockNumberFor<T>,
+		reason: ReasonOf<T>,
 	) -> DispatchResult {
 		if locked.is_zero() {
 			return Ok(());
@@ -265,7 +269,7 @@ impl<T: Config> ReleaseSchedule<T::AccountId> for Pallet<T>
 		let (schedules, locked_now) = Self::exec_action(schedules.to_vec(), VestingAction::Passive)?;
 
 		Self::write_vesting(who, schedules)?;
-		Self::write_lock(who, locked_now)?;
+		Self::write_lock(who, locked_now, reason)?;
 		Ok(())
 	}
 
@@ -291,14 +295,14 @@ impl<T: Config> ReleaseSchedule<T::AccountId> for Pallet<T>
 	}
 
 	/// Remove a vesting schedule for a given account.
-	fn remove_vesting_schedule(who: &T::AccountId, schedule_index: u32) -> DispatchResult {
+	fn remove_vesting_schedule(who: &T::AccountId, schedule_index: u32, reason: ReasonOf<T>,) -> DispatchResult {
 		let schedules = Self::vesting(who).ok_or(Error::<T>::NotVesting)?;
 		let remove_action = VestingAction::Remove { index: schedule_index as usize };
 
 		let (schedules, locked_now) = Self::exec_action(schedules.to_vec(), remove_action)?;
 
 		Self::write_vesting(who, schedules)?;
-		Self::write_lock(who, locked_now)?;
+		Self::write_lock(who, locked_now, reason)?;
 		Ok(())
 	}
 

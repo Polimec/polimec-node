@@ -65,6 +65,7 @@ frame_support::construct_runtime!(
 		Balances: pallet_balances,
 		FundingModule: pallet_funding,
 		Credentials: pallet_credentials,
+		Vesting: pallet_linear_release,
 		LocalAssets: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>},
 		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>},
 	}
@@ -225,6 +226,25 @@ parameter_types! {
 	pub EarlyEvaluationThreshold: Percent = Percent::from_percent(10);
 }
 
+use frame_support::traits::WithdrawReasons;
+
+parameter_types! {
+	pub const MinVestedTransfer: u64 = 256 * 2;
+	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
+		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
+}
+impl pallet_linear_release::Config for TestRuntime {
+	type Balance = Balance;
+	type BlockNumberToBalance = ConvertInto;
+	type Currency = Balances;
+	type MinVestedTransfer = MinVestedTransfer;
+	type RuntimeEvent = RuntimeEvent;
+	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
+	type WeightInfo = ();
+	type Reason = LockType<u32>;
+	const MAX_VESTING_SCHEDULES: u32 = 3;
+}
+
 impl pallet_funding::Config for TestRuntime {
 	type RuntimeEvent = RuntimeEvent;
 	type ProjectIdentifier = Identifier;
@@ -258,6 +278,7 @@ impl pallet_funding::Config for TestRuntime {
 	type WeightInfo = ();
 	type FeeBrackets = FeeBrackets;
 	type EarlyEvaluationThreshold = EarlyEvaluationThreshold;
+	type Vesting = Vesting;
 }
 
 // Build genesis storage according to the mock runtime.

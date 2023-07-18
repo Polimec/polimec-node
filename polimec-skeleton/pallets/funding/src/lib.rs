@@ -315,6 +315,8 @@ pub mod pallet {
 		/// Something that provides the members of Polimec
 		type HandleMembers: PolimecMembers<AccountIdOf<Self>>;
 
+		type Vesting: traits::ReleaseSchedule<AccountIdOf<Self>, BondTypeOf<Self>>;
+
 		/// The maximum length of data stored on-chain.
 		#[pallet::constant]
 		type StringLimit: Get<u32>;

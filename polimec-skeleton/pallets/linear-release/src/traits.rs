@@ -4,7 +4,7 @@ use frame_support::{pallet_prelude::DispatchResult, traits::tokens::fungible};
 
 /// A release schedule over a fungible. This allows a particular fungible to have release limits
 /// applied to it.
-pub trait ReleaseSchedule<AccountId> {
+pub trait ReleaseSchedule<AccountId, Reason> {
 	/// The quantity used to denote time; usually just a `BlockNumber`.
 	type Moment;
 
@@ -31,6 +31,7 @@ pub trait ReleaseSchedule<AccountId> {
 		locked: <Self::Currency as fungible::Inspect<AccountId>>::Balance,
 		per_block: <Self::Currency as fungible::Inspect<AccountId>>::Balance,
 		starting_block: Self::Moment,
+		reason: Reason,
 	) -> DispatchResult;
 
 	/// Ser a release schedule to a given account, without locking any funds.
@@ -59,5 +60,5 @@ pub trait ReleaseSchedule<AccountId> {
 	/// Remove a release schedule for a given account.
 	///
 	/// NOTE: This doesn't alter the free balance of the account.
-	fn remove_vesting_schedule(who: &AccountId, schedule_index: u32) -> DispatchResult;
+	fn remove_vesting_schedule(who: &AccountId, schedule_index: u32, reason: Reason) -> DispatchResult;
 }

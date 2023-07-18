@@ -58,13 +58,13 @@ impl pallet_balances::Config for Test {
 	type Balance = u64;
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
-	type FreezeIdentifier = LockType<u64>;
-	type HoldIdentifier = LockType<u64>;
+	type FreezeIdentifier = LockType<u32>;
+	type HoldIdentifier = LockType<u32>;
 	type MaxFreezes = ConstU32<10>;
 	type MaxHolds = ConstU32<10>;
 	type MaxLocks = ConstU32<10>;
 	type MaxReserves = ConstU32<10>;
-	type ReserveIdentifier = LockType<u64>;
+	type ReserveIdentifier = LockType<u32>;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }
@@ -78,11 +78,11 @@ impl Config for Test {
 	type Balance = u64;
 	type BlockNumberToBalance = Identity;
 	type Currency = Balances;
+	type Reason = LockType<u32>; // TODO: Use the type from Balances.
 	type MinVestedTransfer = MinVestedTransfer;
 	type RuntimeEvent = RuntimeEvent;
 	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
 	type WeightInfo = ();
-	type Reason = LockType<u64>;
 	const MAX_VESTING_SCHEDULES: u32 = 3;
 }
 
