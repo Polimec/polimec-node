@@ -118,7 +118,7 @@ pub mod storage_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct ProjectDetails<AccountId, BlockNumber, Price: FixedPointNumber, Balance: BalanceT, RewardOrSlashList> {
+	pub struct ProjectDetails<AccountId, BlockNumber, Price: FixedPointNumber, Balance: BalanceT, EvaluationRoundInfo> {
 		pub issuer: AccountId,
 		/// Whether the project is frozen, so no `metadata` changes are allowed.
 		pub is_frozen: bool,
@@ -136,8 +136,8 @@ pub mod storage_types {
 		pub funding_amount_reached: Balance,
 		/// Cleanup operations remaining
 		pub cleanup: ProjectCleanup,
-		/// Evaluator rewards/penalties
-		pub evaluation_reward_or_slash_info: Option<RewardOrSlashList>,
+		/// Information about the total amount bonded, and the outcome in regards to reward/slash/nothing
+		pub evaluation_round_info: EvaluationRoundInfo,
 	}
 
 	/// Tells on_initialize what to do with the project
@@ -533,10 +533,17 @@ pub mod inner_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum EvaluationRewardOrSlashInfo<AccountId, Balance> {
-		Rewards(RewardInfo<Balance>),
-		Slashes(Vec<(AccountId, Balance)>),
+	pub struct EvaluationRoundInfo<AccountId, Balance> {
+		pub total_bonded_usd: Balance,
+		pub total_bonded_plmc: Balance,
+		pub evaluators_outcome: EvaluatorsOutcome<AccountId, Balance>
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum EvaluatorsOutcome<AccountId, Balance> {
 		Unchanged,
+		Rewarded(RewardInfo<Balance>),
+		Slashed(Vec<(AccountId, Balance)>),
 	}
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]

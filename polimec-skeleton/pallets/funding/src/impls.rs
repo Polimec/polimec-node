@@ -316,8 +316,8 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 			.find(|evaluation| !evaluation.rewarded_or_slashed)
 			.expect("user_evaluations can only exist if an item here is found; qed");
 
-		match project_details.evaluation_reward_or_slash_info {
-			Some(EvaluationRewardOrSlashInfo::Rewards(_)) => {
+		match project_details.evaluation_round_info.evaluators_outcome {
+			EvaluatorsOutcome::Rewarded(_) => {
 				match Pallet::<T>::do_evaluation_reward(
 					T::PalletId::get().into_account_truncating(),
 					evaluation.project_id,

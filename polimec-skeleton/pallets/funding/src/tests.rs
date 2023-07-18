@@ -536,7 +536,11 @@ impl<'a> CreatedProject<'a> {
 			remaining_contribution_tokens: expected_metadata.total_allocation_size,
 			funding_amount_reached: BalanceOf::<TestRuntime>::zero(),
 			cleanup: ProjectCleanup::NotReady,
-			evaluation_reward_or_slash_info: None,
+			evaluation_round_info: EvaluationRoundInfoOf::<TestRuntime> {
+				total_bonded_usd: Zero::zero(),
+				total_bonded_plmc: Zero::zero(),
+				evaluators_outcome: EvaluatorsOutcome::Unchanged,
+			},
 		};
 		assert_eq!(metadata, expected_metadata);
 		assert_eq!(details, expected_details);

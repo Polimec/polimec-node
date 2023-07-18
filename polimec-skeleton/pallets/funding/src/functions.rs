@@ -102,7 +102,11 @@ impl<T: Config> Pallet<T> {
 			remaining_contribution_tokens: initial_metadata.total_allocation_size,
 			funding_amount_reached: BalanceOf::<T>::zero(),
 			cleanup: ProjectCleanup::NotReady,
-			evaluation_reward_or_slash_info: None,
+			evaluation_round_info: EvaluationRoundInfoOf::<T> {
+				total_bonded_usd: Zero::zero(),
+				total_bonded_plmc: Zero::zero(),
+				evaluators_outcome: EvaluatorsOutcome::Unchanged,
+			},
 		};
 
 		let project_metadata = initial_metadata;
@@ -649,11 +653,11 @@ impl<T: Config> Pallet<T> {
 		let funding_reached = project_details.funding_amount_reached;
 		let funding_is_successful =
 			!(project_details.status == ProjectStatus::FundingFailed || funding_reached < funding_target);
-		let evaluation_reward_or_slash_info = Self::generate_evaluation_reward_or_slash_info(project_id)?;
+		let evaluators_outcome = Self::generate_evaluators_outcome(project_id)?;
+		project_details.evaluation_round_info.evaluators_outcome = evaluators_outcome;
 		if funding_is_successful {
 			project_details.status = ProjectStatus::FundingSuccessful;
 			project_details.cleanup = ProjectCleanup::Ready(ProjectFinalizer::Success(SuccessFinalizer::Initialized));
-			project_details.evaluation_reward_or_slash_info = Some(evaluation_reward_or_slash_info);
 
 			// * Update Storage *
 			ProjectsDetails::<T>::insert(project_id, project_details.clone());
@@ -781,14 +785,14 @@ impl<T: Config> Pallet<T> {
 		evaluator: AccountIdOf<T>, project_id: T::ProjectIdentifier, usd_amount: BalanceOf<T>,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let evaluation_id = Self::next_evaluation_id();
 		let mut caller_existing_evaluations = Evaluations::<T>::get(project_id, evaluator.clone());
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
 		let early_evaluation_reward_threshold_usd =
 			T::EarlyEvaluationThreshold::get() * project_details.fundraising_target;
-		let all_existing_evaluations = Evaluations::<T>::iter_prefix(project_id);
+		let evaluation_round_info = &mut project_details.evaluation_round_info;
 
 		// * Validity Checks *
 		ensure!(
@@ -807,17 +811,10 @@ impl<T: Config> Pallet<T> {
 			.checked_mul_int(usd_amount)
 			.ok_or(Error::<T>::BadMath)?;
 
-		let previous_total_evaluation_bonded_usd = all_existing_evaluations
-			.map(|(_evaluator, evaluations)| {
-				evaluations.iter().fold(BalanceOf::<T>::zero(), |acc, evaluation| {
-					acc.saturating_add(evaluation.early_usd_amount)
-						.saturating_add(evaluation.late_usd_amount)
-				})
-			})
-			.fold(BalanceOf::<T>::zero(), |acc, evaluation| acc.saturating_add(evaluation));
+		let previous_total_evaluation_bonded_usd = evaluation_round_info.total_bonded_usd;
 
 		let remaining_bond_to_reach_threshold = early_evaluation_reward_threshold_usd
-			.saturating_sub(&previous_total_evaluation_bonded_usd)
+			.saturating_sub(previous_total_evaluation_bonded_usd);
 
 		let early_usd_amount = if usd_amount <= remaining_bond_to_reach_threshold {
 			usd_amount
@@ -878,6 +875,10 @@ impl<T: Config> Pallet<T> {
 
 		Evaluations::<T>::set(project_id, evaluator.clone(), caller_existing_evaluations);
 		NextEvaluationId::<T>::set(evaluation_id.saturating_add(One::one()));
+		evaluation_round_info.total_bonded_usd += usd_amount;
+		evaluation_round_info.total_bonded_plmc += plmc_bond;
+		ProjectsDetails::<T>::insert(project_id, project_details);
+
 
 		// * Emit events *
 		Self::deposit_event(Event::<T>::FundsBonded {
@@ -1537,7 +1538,7 @@ impl<T: Config> Pallet<T> {
 			.weighted_average_price
 			.ok_or(Error::<T>::ImpossibleState)?;
 		let reward_info =
-			if let Some(EvaluationRewardOrSlashInfo::Rewards(info)) = project_details.evaluation_reward_or_slash_info {
+			if let EvaluatorsOutcome::Rewarded(info)  = project_details.evaluation_round_info.evaluators_outcome {
 				info
 			} else {
 				return Err(Error::<T>::NotAllowed.into());
@@ -2179,9 +2180,9 @@ impl<T: Config> Pallet<T> {
 		))
 	}
 
-	pub fn generate_evaluation_reward_or_slash_info(
+	pub fn generate_evaluators_outcome(
 		project_id: T::ProjectIdentifier,
-	) -> Result<EvaluationRewardOrSlashInfoOf<T>, DispatchError> {
+	) -> Result<EvaluatorsOutcomeOf<T>, DispatchError> {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let funding_target = project_details.fundraising_target;
 		let funding_reached = project_details.funding_amount_reached;
@@ -2204,7 +2205,7 @@ impl<T: Config> Pallet<T> {
 				early_evaluator_total_bonded_usd,
 				normal_evaluator_total_bonded_usd,
 			) = Self::get_evaluator_rewards_info(project_id)?;
-			Ok(EvaluationRewardOrSlashInfo::Rewards(RewardInfo {
+			Ok(EvaluatorsOutcome::Rewarded(RewardInfo {
 				early_evaluator_reward_pot_usd,
 				normal_evaluator_reward_pot_usd,
 				early_evaluator_total_bonded_usd,
