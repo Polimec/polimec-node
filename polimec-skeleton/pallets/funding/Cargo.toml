@@ -35,7 +35,6 @@ sp-io = { git = "https://github.com/paritytech/substrate", default-features = fa
 pallet-balances = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
 pallet-insecure-randomness-collective-flip = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
 pallet-assets = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
-pallet-vesting = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
 pallet-credentials = { path = "../credentials", default-features = false }
 
 [features]
@@ -53,7 +52,6 @@ std = [
     "pallet-balances/std",
     "pallet-credentials/std",
     "polimec-traits/std",
-    "pallet-vesting/std",
     "frame-benchmarking?/std",
 ]
 runtime-benchmarks = [

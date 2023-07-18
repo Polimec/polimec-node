@@ -65,7 +65,6 @@ frame_support::construct_runtime!(
 		Balances: pallet_balances,
 		FundingModule: pallet_funding,
 		Credentials: pallet_credentials,
-		Vesting: pallet_vesting,
 		LocalAssets: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>},
 		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>},
 	}
@@ -201,29 +200,6 @@ impl pallet_credentials::Config for TestRuntime {
 	type MembershipInitialized = ();
 	type MembershipChanged = ();
 }
-
-use frame_support::traits::WithdrawReasons;
-
-
-parameter_types! {
-	pub const MinVestedTransfer: Balance = 10 * PLMC;
-	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
-		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
-}
-
-impl pallet_vesting::Config for TestRuntime {
-	type BlockNumberToBalance = ConvertInto;
-	type Currency = Balances;
-	type MinVestedTransfer = MinVestedTransfer;
-	type RuntimeEvent = RuntimeEvent;
-	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
-	type WeightInfo = ();
-
-	// `VestingInfo` encode length is 36bytes. 28 schedules gets encoded as 1009 bytes, which is the
-	// highest number of schedules that encodes less than 2^10.
-	const MAX_VESTING_SCHEDULES: u32 = 28;
-}
-
 pub const HOURS: BlockNumber = 300u64;
 
 // REMARK: In the production configuration we use DAYS instead of HOURS.
@@ -273,7 +249,6 @@ impl pallet_funding::Config for TestRuntime {
 	type PalletId = FundingPalletId;
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
 	type MaxEvaluationsPerUser = ConstU32<4>;
-	type Vesting = Vesting;
 	// Low value to simplify the tests
 	type MaxBidsPerUser = ConstU32<4>;
 	type MaxContributionsPerUser = ConstU32<4>;
