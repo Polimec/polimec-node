@@ -1,0 +1,67 @@
+[package]
+name = 'pallet-funding'
+authors = ['Polimec Foundation <info@polimec.org>']
+documentation = "https://wiki.polimec.org/"
+edition = "2021"
+homepage = "https://www.polimec.org/"
+license-file = "LICENSE"
+readme = "README.md"
+repository = "https://github.com/Polimec/polimec-node"
+version = "0.1.0"
+rust-version = "1.69.0"
+
+[dependencies]
+parity-scale-codec = { version = "3.0.0", features = [
+    "derive",
+], default-features = false }
+scale-info = { version = "2.5.0", default-features = false, features = [
+    "derive",
+] }
+itertools = { version = "0.11.0", default-features = false }
+
+# Substrate dependencies
+frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true, branch = "polkadot-v0.9.42" }
+
+frame-support = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
+frame-system = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
+sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
+sp-arithmetic = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
+polimec-traits = { path = "../../traits", default-features = false }
+
+[dev-dependencies]
+sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
+sp-io = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
+pallet-balances = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
+pallet-insecure-randomness-collective-flip = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
+pallet-assets = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
+pallet-vesting = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
+pallet-credentials = { path = "../credentials", default-features = false }
+
+[features]
+default = ["std"]
+std = [
+    "itertools/use_std",
+    "parity-scale-codec/std",
+    "scale-info/std",
+    "sp-std/std",
+    "sp-runtime/std",
+    "sp-arithmetic/std",
+    "frame-support/std",
+    "frame-system/std",
+    "pallet-assets/std",
+    "pallet-balances/std",
+    "pallet-credentials/std",
+    "polimec-traits/std",
+    "pallet-vesting/std",
+    "frame-benchmarking?/std",
+]
+runtime-benchmarks = [
+    "frame-benchmarking/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+    "sp-runtime/runtime-benchmarks",
+    "pallet-assets/runtime-benchmarks",
+    "pallet-balances/runtime-benchmarks",
+]
+try-runtime = ["frame-support/try-runtime"]
