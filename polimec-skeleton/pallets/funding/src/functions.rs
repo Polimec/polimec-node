@@ -32,7 +32,8 @@ use frame_support::{
 		Get,
 	},
 };
-use sp_arithmetic::Perbill;
+use itertools::Itertools;
+use sp_arithmetic::Perquintill;
 
 use sp_arithmetic::traits::{CheckedSub, Zero};
 use sp_std::prelude::*;
@@ -246,7 +247,7 @@ impl<T: Config> Pallet<T> {
 				total.saturating_add(user_total_plmc_bond)
 			});
 
-		let evaluation_target_usd = Perbill::from_percent(10) * fundraising_target_usd;
+		let evaluation_target_usd = Perquintill::from_percent(10) * fundraising_target_usd;
 		let evaluation_target_plmc = current_plmc_price
 			.reciprocal()
 			.ok_or(Error::<T>::BadMath)?
@@ -813,8 +814,8 @@ impl<T: Config> Pallet<T> {
 
 		let previous_total_evaluation_bonded_usd = evaluation_round_info.total_bonded_usd;
 
-		let remaining_bond_to_reach_threshold = early_evaluation_reward_threshold_usd
-			.saturating_sub(previous_total_evaluation_bonded_usd);
+		let remaining_bond_to_reach_threshold =
+			early_evaluation_reward_threshold_usd.saturating_sub(previous_total_evaluation_bonded_usd);
 
 		let early_usd_amount = if usd_amount <= remaining_bond_to_reach_threshold {
 			usd_amount
@@ -878,7 +879,6 @@ impl<T: Config> Pallet<T> {
 		evaluation_round_info.total_bonded_usd += usd_amount;
 		evaluation_round_info.total_bonded_plmc += plmc_bond;
 		ProjectsDetails::<T>::insert(project_id, project_details);
-
 
 		// * Emit events *
 		Self::deposit_event(Event::<T>::FundsBonded {
@@ -1538,7 +1538,7 @@ impl<T: Config> Pallet<T> {
 			.weighted_average_price
 			.ok_or(Error::<T>::ImpossibleState)?;
 		let reward_info =
-			if let EvaluatorsOutcome::Rewarded(info)  = project_details.evaluation_round_info.evaluators_outcome {
+			if let EvaluatorsOutcome::Rewarded(info) = project_details.evaluation_round_info.evaluators_outcome {
 				info
 			} else {
 				return Err(Error::<T>::NotAllowed.into());
@@ -1557,15 +1557,16 @@ impl<T: Config> Pallet<T> {
 		);
 
 		// * Calculate variables *
-		let early_reward_weight = Perbill::from_rational(
+		let early_reward_weight = Perquintill::from_rational(
 			evaluation.early_usd_amount,
 			reward_info.early_evaluator_total_bonded_usd,
 		);
-		let normal_reward_weight = Perbill::from_rational(
+		let normal_reward_weight = Perquintill::from_rational(
 			evaluation.late_usd_amount.saturating_add(evaluation.early_usd_amount),
 			reward_info.normal_evaluator_total_bonded_usd,
 		);
-		let total_reward_amount_usd = (early_reward_weight * reward_info.early_evaluator_reward_pot_usd).saturating_add(normal_reward_weight * reward_info.normal_evaluator_reward_pot_usd);
+		let total_reward_amount_usd = (early_reward_weight * reward_info.early_evaluator_reward_pot_usd)
+			.saturating_add(normal_reward_weight * reward_info.normal_evaluator_reward_pot_usd);
 		let reward_amount_ct: BalanceOf<T> = ct_price
 			.reciprocal()
 			.ok_or(Error::<T>::BadMath)?
@@ -1726,8 +1727,9 @@ impl<T: Config> Pallet<T> {
 		let mut bid_usd_value_sum = BalanceOf::<T>::zero();
 		let project_account = Self::fund_account_id(project_id);
 		let plmc_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
-		// sort bids by price
+		// sort bids by price, and equal prices sorted by block number
 		bids.sort();
+		bids.reverse();
 		// accept only bids that were made before `end_block` i.e end of candle auction
 		let bids: Result<Vec<_>, DispatchError> = bids
 			.into_iter()
@@ -1735,11 +1737,49 @@ impl<T: Config> Pallet<T> {
 				if bid.when > end_block {
 					bid.status = BidStatus::Rejected(RejectionReason::AfterCandleEnd);
 					// TODO: PLMC-147. Unlock funds. We can do this inside the "on_idle" hook, and change the `status` of the `Bid` to "Unreserved"
+					bid.final_ct_amount = 0_u32.into();
+					bid.final_ct_usd_price = PriceOf::<T>::zero();
+
+					T::FundingCurrency::transfer(
+						bid.funding_asset.to_statemint_id(),
+						&project_account,
+						&bid.bidder,
+						bid.funding_asset_amount_locked,
+						Preservation::Preserve,
+					)?;
+					T::NativeCurrency::release(
+						&LockType::Participation(project_id),
+						&bid.bidder,
+						bid.plmc_bond,
+						Precision::Exact,
+					)?;
+					bid.funding_asset_amount_locked = BalanceOf::<T>::zero();
+					bid.plmc_bond = BalanceOf::<T>::zero();
+
 					return Ok(bid);
 				}
 				let buyable_amount = total_allocation_size.saturating_sub(bid_token_amount_sum);
 				if buyable_amount == 0_u32.into() {
 					bid.status = BidStatus::Rejected(RejectionReason::NoTokensLeft);
+					bid.final_ct_amount = 0_u32.into();
+					bid.final_ct_usd_price = PriceOf::<T>::zero();
+
+					T::FundingCurrency::transfer(
+						bid.funding_asset.to_statemint_id(),
+						&project_account,
+						&bid.bidder,
+						bid.funding_asset_amount_locked,
+						Preservation::Preserve,
+					)?;
+					T::NativeCurrency::release(
+						&LockType::Participation(project_id),
+						&bid.bidder,
+						bid.plmc_bond,
+						Precision::Exact,
+					)?;
+					bid.funding_asset_amount_locked = BalanceOf::<T>::zero();
+					bid.plmc_bond = BalanceOf::<T>::zero();
+					return Ok(bid);
 				} else if bid.original_ct_amount <= buyable_amount {
 					let maybe_ticket_size = bid.original_ct_usd_price.checked_mul_int(bid.original_ct_amount);
 					if let Some(ticket_size) = maybe_ticket_size {
@@ -1748,6 +1788,25 @@ impl<T: Config> Pallet<T> {
 						bid.status = BidStatus::Accepted;
 					} else {
 						bid.status = BidStatus::Rejected(RejectionReason::BadMath);
+
+						bid.final_ct_amount = 0_u32.into();
+						bid.final_ct_usd_price = PriceOf::<T>::zero();
+
+						T::FundingCurrency::transfer(
+							bid.funding_asset.to_statemint_id(),
+							&project_account,
+							&bid.bidder,
+							bid.funding_asset_amount_locked,
+							Preservation::Preserve,
+						)?;
+						T::NativeCurrency::release(
+							&LockType::Participation(project_id),
+							&bid.bidder,
+							bid.plmc_bond,
+							Precision::Exact,
+						)?;
+						bid.funding_asset_amount_locked = BalanceOf::<T>::zero();
+						bid.plmc_bond = BalanceOf::<T>::zero();
 						return Ok(bid);
 					}
 				} else {
@@ -1815,8 +1874,6 @@ impl<T: Config> Pallet<T> {
 
 						return Ok(bid);
 					}
-
-					// TODO: PLMC-147. Refund remaining amount
 				}
 
 				Ok(bid)
@@ -2100,8 +2157,8 @@ impl<T: Config> Pallet<T> {
 		let evaluator_usd_rewards = evaluation_usd_amounts
 			.into_iter()
 			.map(|(evaluator, (early, late))| {
-				let early_evaluator_weight = Perbill::from_rational(early, early_evaluator_total_locked);
-				let all_evaluator_weight = Perbill::from_rational(early + late, all_evaluator_total_locked);
+				let early_evaluator_weight = Perquintill::from_rational(early, early_evaluator_total_locked);
+				let all_evaluator_weight = Perquintill::from_rational(early + late, all_evaluator_total_locked);
 
 				let early_reward = early_evaluator_weight * early_evaluator_rewards;
 				let all_reward = all_evaluator_weight * all_evaluator_rewards;
@@ -2155,13 +2212,13 @@ impl<T: Config> Pallet<T> {
 		let funding_reached = project_details.funding_amount_reached;
 
 		// This is the "Y" variable from the knowledge hub
-		let percentage_of_target_funding = Perbill::from_rational(funding_reached, target_funding);
+		let percentage_of_target_funding = Perquintill::from_rational(funding_reached, target_funding);
 
 		let fees = Self::calculate_fees(project_id)?;
-		let evaluator_fees = percentage_of_target_funding * (Perbill::from_percent(30) * fees);
+		let evaluator_fees = percentage_of_target_funding * (Perquintill::from_percent(30) * fees);
 
-		let early_evaluator_rewards = Perbill::from_percent(20) * evaluator_fees;
-		let all_evaluator_rewards = Perbill::from_percent(80) * evaluator_fees;
+		let early_evaluator_rewards = Perquintill::from_percent(20) * evaluator_fees;
+		let all_evaluator_rewards = Perquintill::from_percent(80) * evaluator_fees;
 
 		let early_evaluator_total_locked = evaluation_usd_amounts
 			.iter()
@@ -2186,16 +2243,16 @@ impl<T: Config> Pallet<T> {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let funding_target = project_details.fundraising_target;
 		let funding_reached = project_details.funding_amount_reached;
-		let funding_ratio = Perbill::from_rational(funding_reached, funding_target);
+		let funding_ratio = Perquintill::from_rational(funding_reached, funding_target);
 
 		// Project Automatically rejected, evaluators slashed
-		if funding_ratio <= Perbill::from_percent(33) {
+		if funding_ratio <= Perquintill::from_percent(33) {
 			todo!()
 		// Project Manually accepted, evaluators slashed
-		} else if funding_ratio < Perbill::from_percent(75) {
+		} else if funding_ratio < Perquintill::from_percent(75) {
 			todo!()
 		// Project Manually accepted, evaluators unaffected
-		} else if funding_ratio < Perbill::from_percent(90) {
+		} else if funding_ratio < Perquintill::from_percent(90) {
 			todo!()
 		// Project Automatically accepted, evaluators rewarded
 		} else {
