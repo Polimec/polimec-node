@@ -53,6 +53,13 @@ impl frame_system::Config for Test {
 	type Version = ();
 }
 
+parameter_types! {
+	pub const MinVestedTransfer: u64 = 256 * 2;
+	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
+		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
+	pub static ExistentialDeposit: u64 = 1;
+}
+
 impl pallet_balances::Config for Test {
 	type AccountStore = System;
 	type Balance = u64;
@@ -68,12 +75,7 @@ impl pallet_balances::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }
-parameter_types! {
-	pub const MinVestedTransfer: u64 = 256 * 2;
-	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
-		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
-	pub static ExistentialDeposit: u64 = 1;
-}
+
 impl Config for Test {
 	type Balance = u64;
 	type BlockNumberToBalance = Identity;
@@ -89,7 +91,7 @@ impl Config for Test {
 #[derive(Default)]
 pub struct ExtBuilder {
 	existential_deposit: u64,
-	vesting_genesis_config: Option<Vec<(u64, u64, u64, u64)>>,
+	vesting_genesis_config: Option<Vec<(u64, u64, u64, u64, LockType<u32>)>>,
 }
 
 impl ExtBuilder {
@@ -119,9 +121,9 @@ impl ExtBuilder {
 			vesting_config
 		} else {
 			vec![
-				(1, 0, 10, 5 * self.existential_deposit),
-				(2, 10, 20, self.existential_deposit),
-				(12, 10, 20, 5 * self.existential_deposit),
+				(1, 0, 10, 5 * self.existential_deposit, LockType::Participation(0)),
+				(2, 10, 20, self.existential_deposit, LockType::Participation(0)),
+				(12, 10, 20, 5 * self.existential_deposit,  LockType::Participation(0)),
 			]
 		};
 

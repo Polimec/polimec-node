@@ -123,7 +123,7 @@ pub mod pallet {
 		type Balance: Balance + From<u64> + MaybeSerializeDeserialize;
 
 		// TODO: Still I dont-like this. I want to be able to use the `LockType` from the pallet_balances, without coupling it.
-		type Reason: Parameter + Copy;
+		type Reason: Parameter + Copy + MaybeSerializeDeserialize;
 
 		type Currency: InspectHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
 			+ MutateHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, Reason = ReasonOf<Self>>
@@ -157,7 +157,7 @@ pub mod pallet {
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
-		pub vesting: Vec<(AccountIdOf<T>, T::BlockNumber, T::BlockNumber, BalanceOf<T>)>,
+		pub vesting: Vec<(AccountIdOf<T>, T::BlockNumber, T::BlockNumber, BalanceOf<T>, ReasonOf<T>)>,
 	}
 
 	#[cfg(feature = "std")]
@@ -177,7 +177,7 @@ pub mod pallet {
 			// * begin - Block when the account will start to vest
 			// * length - Number of blocks from `begin` until fully vested
 			// * liquid - Number of units which can be spent before vesting begins
-			for &(ref who, begin, length, liquid) in self.vesting.iter() {
+			for &(ref who, begin, length, liquid, reason) in self.vesting.iter() {
 				let balance = T::Currency::balance(who);
 				assert!(!balance.is_zero(), "Currencies must be init'd before vesting");
 				// Total genesis `balance` minus `liquid` equals funds locked for vesting
@@ -191,12 +191,9 @@ pub mod pallet {
 
 				Vesting::<T>::try_append(who, vesting_info).expect("Too many vesting schedules at genesis.");
 
-				// TODO: Use T::Currency::hold to lock the funds, using the T::Reasons
-				// FIXME: Re-add it, otherwise the tests will fail
-
-				// T::Currency::hold(&LockType::Participation(0u32.into()), who, locked)
-				// 	.map_err(|err| panic!("{:?}", err))
-				// 	.unwrap();
+				T::Currency::hold(&reason, who, locked)
+					.map_err(|err| panic!("{:?}", err))
+					.unwrap();
 			}
 		}
 	}
@@ -308,7 +305,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			target: AccountIdOf<T>,
 			schedule: VestingInfo<BalanceOf<T>, BlockNumberFor<T>>,
-			reason: ReasonOf<T>
+			reason: ReasonOf<T>,
 		) -> DispatchResult {
 			let transactor = ensure_signed(origin)?;
 			Self::do_vested_transfer(transactor, target, schedule, reason)
@@ -334,7 +331,7 @@ pub mod pallet {
 			source: AccountIdOf<T>,
 			target: AccountIdOf<T>,
 			schedule: VestingInfo<BalanceOf<T>, BlockNumberFor<T>>,
-			reason: ReasonOf<T>
+			reason: ReasonOf<T>,
 		) -> DispatchResult {
 			ensure_root(origin)?;
 			Self::do_vested_transfer(source, target, schedule, reason)
@@ -362,7 +359,12 @@ pub mod pallet {
 		/// - `schedule1_index`: index of the first schedule to merge.
 		/// - `schedule2_index`: index of the second schedule to merge.
 		#[pallet::call_index(4)]
-		pub fn merge_schedules(origin: OriginFor<T>, schedule1_index: u32, schedule2_index: u32, reason: ReasonOf<T>) -> DispatchResult {
+		pub fn merge_schedules(
+			origin: OriginFor<T>,
+			schedule1_index: u32,
+			schedule2_index: u32,
+			reason: ReasonOf<T>,
+		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			if schedule1_index == schedule2_index {
 				return Ok(());
