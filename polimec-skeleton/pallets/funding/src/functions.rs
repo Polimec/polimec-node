@@ -637,14 +637,12 @@ impl<T: Config> Pallet<T> {
 		let remainder_end_block = project_details.phase_transition_points.remainder.end();
 
 		// * Validity checks *
-		if let Some(end_block) = remainder_end_block {
-			ensure!(now > end_block, Error::<T>::TooEarlyForFundingEnd);
-		} else {
-			ensure!(
-				remaining_cts == 0u32.into() || project_details.status == ProjectStatus::FundingFailed,
-				Error::<T>::TooEarlyForFundingEnd
-			);
-		}
+		ensure!(
+			remaining_cts == 0u32.into()
+			|| project_details.status == ProjectStatus::FundingFailed
+			|| matches!(remainder_end_block, Some(end_block) if now > end_block),
+			Error::<T>::TooEarlyForFundingEnd
+		);
 
 		// * Calculate new variables *
 		let funding_target = project_metadata
