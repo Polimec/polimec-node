@@ -203,16 +203,17 @@ pub mod storage_types {
 			Balance: BalanceT + FixedPointOperand + Ord,
 			Price: FixedPointNumber,
 			AccountId: Eq,
-			BlockNumber: Eq,
+			BlockNumber: Eq + Ord,
 			PlmcVesting: Eq,
 			CTVesting: Eq,
 			Multiplier: Eq,
 		> Ord for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, PlmcVesting, CTVesting, Multiplier>
 	{
 		fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
-			let self_ticket_size = self.original_ct_usd_price.saturating_mul_int(self.original_ct_amount);
-			let other_ticket_size = other.original_ct_usd_price.saturating_mul_int(other.original_ct_amount);
-			self_ticket_size.cmp(&other_ticket_size)
+			match self.original_ct_usd_price.cmp(&other.original_ct_usd_price) {
+				sp_std::cmp::Ordering::Equal => Ord::cmp(&self.when, &other.when),
+				other => other,
+			}
 		}
 	}
 
@@ -222,7 +223,7 @@ pub mod storage_types {
 			Balance: BalanceT + FixedPointOperand,
 			Price: FixedPointNumber,
 			AccountId: Eq,
-			BlockNumber: Eq,
+			BlockNumber: Eq + Ord,
 			PlmcVesting: Eq,
 			CTVesting: Eq,
 			Multiplier: Eq,
@@ -535,7 +536,7 @@ pub mod inner_types {
 	pub struct EvaluationRoundInfo<AccountId, Balance> {
 		pub total_bonded_usd: Balance,
 		pub total_bonded_plmc: Balance,
-		pub evaluators_outcome: EvaluatorsOutcome<AccountId, Balance>
+		pub evaluators_outcome: EvaluatorsOutcome<AccountId, Balance>,
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]

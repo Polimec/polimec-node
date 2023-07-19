@@ -1740,7 +1740,7 @@ mod creation_round_failure {
 #[cfg(test)]
 mod evaluation_round_success {
 	use super::*;
-	use sp_arithmetic::Perbill;
+	use sp_arithmetic::Perquintill;
 	use testing_macros::assert_close_enough;
 
 	#[test]
@@ -1883,7 +1883,8 @@ mod evaluation_round_success {
 
 		for (real, desired) in zip(actual_reward_balances.iter(), expected_ct_rewards.iter()) {
 			assert_eq!(real.0, desired.0, "bad accounts order");
-			assert_close_enough!(real.1, desired.1, Perbill::from_parts(1u32));
+			// 0.01 parts of a Perbill
+			assert_close_enough!(real.1, desired.1, Perquintill::from_parts(10_000_000u64));
 		}
 	}
 }
@@ -2643,6 +2644,164 @@ mod auction_round_failure {
 
 		let details = bidding_project.get_project_details();
 		assert_eq!(details.status, ProjectStatus::FundingFailed);
+	}
+
+	#[test]
+	fn after_ct_soldout_bid_gets_refunded() {
+		let test_env = TestEnvironment::new();
+		let auctioning_project =
+			AuctioningProject::new_with(&test_env, default_project(0), ISSUER, default_evaluations());
+		let metadata = auctioning_project.get_project_metadata();
+		let max_cts_for_bids = metadata.total_allocation_size.clone();
+		let project_id = auctioning_project.get_project_id();
+
+		let glutton_bid = TestBid::new(
+			BIDDER_1,
+			max_cts_for_bids,
+			10_u128.into(),
+			None,
+			AcceptedFundingAsset::USDT,
+		);
+		let rejected_bid = TestBid::new(
+			BIDDER_2,
+			10_000 * ASSET_UNIT,
+			5_u128.into(),
+			None,
+			AcceptedFundingAsset::USDT,
+		);
+
+		let mut plmc_fundings: UserToPLMCBalance =
+			calculate_auction_plmc_spent(vec![glutton_bid.clone(), rejected_bid.clone()]);
+		plmc_fundings.push((BIDDER_1, get_ed()));
+		plmc_fundings.push((BIDDER_2, get_ed()));
+
+		let usdt_fundings = calculate_auction_funding_asset_spent(vec![glutton_bid.clone(), rejected_bid.clone()]);
+
+		test_env.mint_plmc_to(plmc_fundings.clone());
+		test_env.mint_statemint_asset_to(usdt_fundings.clone());
+
+		auctioning_project
+			.bid_for_users(vec![glutton_bid, rejected_bid])
+			.expect("Bids should pass");
+
+		test_env.do_free_plmc_assertions(vec![(BIDDER_1, get_ed()), (BIDDER_2, get_ed())]);
+		test_env.do_reserved_plmc_assertions(
+			vec![(BIDDER_1, plmc_fundings[0].1), (BIDDER_2, plmc_fundings[1].1)],
+			LockType::Participation(project_id),
+		);
+		test_env.do_bid_transferred_statemint_asset_assertions(
+			vec![
+				(
+					BIDDER_1,
+					usdt_fundings[0].1,
+					AcceptedFundingAsset::USDT.to_statemint_id(),
+				),
+				(
+					BIDDER_2,
+					usdt_fundings[1].1,
+					AcceptedFundingAsset::USDT.to_statemint_id(),
+				),
+			],
+			project_id,
+		);
+
+		let community_funding_project = auctioning_project.start_community_funding();
+		let details = community_funding_project.get_project_details();
+
+		test_env.do_free_plmc_assertions(vec![(BIDDER_1, get_ed()), (BIDDER_2, plmc_fundings[1].1 + get_ed())]);
+
+		test_env.do_reserved_plmc_assertions(
+			vec![(BIDDER_1, plmc_fundings[0].1), (BIDDER_2, 0)],
+			LockType::Participation(project_id),
+		);
+
+		test_env.do_bid_transferred_statemint_asset_assertions(
+			vec![
+				(
+					BIDDER_1,
+					usdt_fundings[0].1,
+					AcceptedFundingAsset::USDT.to_statemint_id(),
+				),
+				(BIDDER_2, 0, AcceptedFundingAsset::USDT.to_statemint_id()),
+			],
+			project_id,
+		);
+	}
+
+	#[test]
+	fn after_random_end_bid_gets_refunded() {
+		let test_env = TestEnvironment::new();
+		let auctioning_project =
+			AuctioningProject::new_with(&test_env, default_project(0), ISSUER, default_evaluations());
+		let project_id = auctioning_project.get_project_id();
+
+		let (bid_in, bid_out) = (default_bids()[0], default_bids()[1]);
+
+		let mut plmc_fundings: UserToPLMCBalance = calculate_auction_plmc_spent(vec![bid_in.clone(), bid_out.clone()]);
+		plmc_fundings.push((BIDDER_1, get_ed()));
+		plmc_fundings.push((BIDDER_2, get_ed()));
+
+		let usdt_fundings = calculate_auction_funding_asset_spent(vec![bid_in.clone(), bid_out.clone()]);
+
+		test_env.mint_plmc_to(plmc_fundings.clone());
+		test_env.mint_statemint_asset_to(usdt_fundings.clone());
+
+		auctioning_project
+			.bid_for_users(vec![bid_in])
+			.expect("Bids should pass");
+
+		test_env.advance_time(
+			<TestRuntime as Config>::EnglishAuctionDuration::get()
+				+ <TestRuntime as Config>::CandleAuctionDuration::get()
+				- 1,
+		).unwrap();
+
+		auctioning_project
+			.bid_for_users(vec![bid_out])
+			.expect("Bids should pass");
+
+		test_env.do_free_plmc_assertions(vec![(BIDDER_1, get_ed()), (BIDDER_2, get_ed())]);
+		test_env.do_reserved_plmc_assertions(
+			vec![(BIDDER_1, plmc_fundings[0].1), (BIDDER_2, plmc_fundings[1].1)],
+			LockType::Participation(project_id),
+		);
+		test_env.do_bid_transferred_statemint_asset_assertions(
+			vec![
+				(
+					BIDDER_1,
+					usdt_fundings[0].1,
+					AcceptedFundingAsset::USDT.to_statemint_id(),
+				),
+				(
+					BIDDER_2,
+					usdt_fundings[1].1,
+					AcceptedFundingAsset::USDT.to_statemint_id(),
+				),
+			],
+			project_id,
+		);
+
+		let community_funding_project = auctioning_project.start_community_funding();
+		let details = community_funding_project.get_project_details();
+
+		test_env.do_free_plmc_assertions(vec![(BIDDER_1, get_ed()), (BIDDER_2, plmc_fundings[1].1 + get_ed())]);
+
+		test_env.do_reserved_plmc_assertions(
+			vec![(BIDDER_1, plmc_fundings[0].1), (BIDDER_2, 0)],
+			LockType::Participation(project_id),
+		);
+
+		test_env.do_bid_transferred_statemint_asset_assertions(
+			vec![
+				(
+					BIDDER_1,
+					usdt_fundings[0].1,
+					AcceptedFundingAsset::USDT.to_statemint_id(),
+				),
+				(BIDDER_2, 0, AcceptedFundingAsset::USDT.to_statemint_id()),
+			],
+			project_id,
+		);
 	}
 }
 
@@ -3870,9 +4029,11 @@ mod misc_features {
 mod testing_macros {
 	#[allow(unused_macros)]
 	macro_rules! assert_close_enough {
-		($real:expr, $desired:expr, $min_approximation:expr) => {
-			let real_approximation = Perbill::from_rational($real, $desired);
-			assert!(real_approximation >= $min_approximation);
+		($real:expr, $desired:expr, $max_approximation:expr) => {
+			let real_parts = Perquintill::from_rational($real, $desired);
+			let one = Perquintill::from_percent(100u64);
+			let real_approximation = one - real_parts;
+			assert!(real_approximation <= $max_approximation);
 		};
 	}
 	pub(crate) use assert_close_enough;
