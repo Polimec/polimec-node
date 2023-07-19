@@ -170,7 +170,7 @@ fn unvested_balance_should_not_transfer() {
 		let user1_free_balance = Balances::free_balance(&1);
 		assert_eq!(user1_free_balance, 50); // Account 1 has free balance
 									// Account 1 has only 5 units vested at block 1 (plus 50 unvested)
-		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(45));		// Account 1 cannot send more than vested amount...
+		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(45)); // Account 1 cannot send more than vested amount...
 		assert_noop!(Balances::transfer_allow_death(Some(1).into(), 2, 56), TokenError::FundsUnavailable);
 	});
 }
