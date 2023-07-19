@@ -846,8 +846,8 @@ impl<'a> CommunityFundingProject<'a> {
 		let bid_expectations = bids
 			.iter()
 			.map(|bid| BidInfoFilter {
-				ct_amount: Some(bid.amount),
-				ct_usd_price: Some(bid.price),
+				original_ct_amount: Some(bid.amount),
+				original_ct_usd_price: Some(bid.price),
 				..Default::default()
 			})
 			.collect::<Vec<_>>();
@@ -1979,14 +1979,17 @@ mod evaluation_round_success {
 			default_project(test_env.get_new_nonce()),
 			ISSUER,
 			evaluations.clone(),
-			default_bids(), ,
+			vec![TestBid::new(BUYER_1, 1000 * ASSET_UNIT, 10u128.into(), None, AcceptedFundingAsset::USDT)],
+			vec![TestContribution::new(BUYER_1, 1000 * US_DOLLAR, None, AcceptedFundingAsset::USDT)],
 		);
+
 		let project_id = remainder_funding_project.get_project_id();
 		let prev_reserved_plmc = test_env.get_reserved_plmc_balances_for(evaluators.clone(), LockType::Evaluation(project_id));
 
 		let prev_free_plmc = test_env.get_free_plmc_balances_for(evaluators.clone());
 
-		remainder_funding_project.end_funding();
+		let finished_project = remainder_funding_project.end_funding();
+		assert_eq!(finished_project.get_project_details().status, ProjectStatus::FundingFailed);
 		test_env.advance_time(10).unwrap();
 
 		let post_unbond_amounts: UserToPLMCBalance = prev_reserved_plmc.iter().map(|(evaluator, amount)| (*evaluator, Zero::zero())).collect();
@@ -2423,10 +2426,10 @@ mod auction_round_success {
 			let pid = auctioning_project.get_project_id();
 			let stored_bids = auctioning_project.in_ext(|| FundingModule::bids(pid, bid.bidder));
 			let desired_bid = BidInfoFilter {
-				project: Some(pid),
+				project_id: Some(pid),
 				bidder: Some(bid.bidder),
-				ct_amount: Some(bid.amount),
-				ct_usd_price: Some(bid.price),
+				original_ct_amount: Some(bid.amount),
+				original_ct_usd_price: Some(bid.price),
 				status: Some(BidStatus::Accepted),
 				..Default::default()
 			};
@@ -2441,10 +2444,10 @@ mod auction_round_success {
 			let pid = auctioning_project.get_project_id();
 			let stored_bids = auctioning_project.in_ext(|| FundingModule::bids(pid, bid.bidder));
 			let desired_bid = BidInfoFilter {
-				project: Some(pid),
+				project_id: Some(pid),
 				bidder: Some(bid.bidder),
-				ct_amount: Some(bid.amount),
-				ct_usd_price: Some(bid.price),
+				original_ct_amount: Some(bid.amount),
+				original_ct_usd_price: Some(bid.price),
 				status: Some(BidStatus::Rejected(RejectionReason::AfterCandleEnd)),
 				..Default::default()
 			};
