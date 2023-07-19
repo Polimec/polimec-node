@@ -1,4 +1,4 @@
-use crate::types::LockType;
+use frame_support::traits::tokens::Precision;
 
 use super::*;
 
@@ -53,7 +53,7 @@ impl<T: Config> Pallet<T> {
 		source: AccountIdOf<T>,
 		target: AccountIdOf<T>,
 		schedule: VestingInfo<BalanceOf<T>, BlockNumberFor<T>>,
-		reason: ReasonOf<T>
+		reason: ReasonOf<T>,
 	) -> DispatchResult {
 		// Validate user inputs.
 		ensure!(schedule.locked() >= T::MinVestedTransfer::get(), Error::<T>::AmountLow);
@@ -64,17 +64,24 @@ impl<T: Config> Pallet<T> {
 		// Check we can add to this account prior to any storage writes.
 		Self::can_add_release_schedule(&target, schedule.locked(), schedule.per_block(), schedule.starting_block())?;
 
-		T::Currency::transfer(
+		let amount_transferred = T::Currency::transfer_and_hold(
+			&reason,
 			&source,
 			&target,
 			schedule.locked(),
-			// TODO: Set a proper Preservation
+			Precision::BestEffort,
 			frame_support::traits::tokens::Preservation::Expendable,
+			frame_support::traits::tokens::Fortitude::Polite,
 		)?;
 
 		// We can't let this fail because the currency transfer has already happened.
-		let res =
-			Self::add_release_schedule(&target, schedule.locked(), schedule.per_block(), schedule.starting_block(), reason);
+		let res = Self::add_release_schedule(
+			&target,
+			amount_transferred,
+			schedule.per_block(),
+			schedule.starting_block(),
+			reason,
+		);
 		debug_assert!(res.is_ok(), "{:#?}", res.err());
 
 		Ok(())
@@ -113,7 +120,11 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Write an accounts updated vesting lock to storage.
-	pub fn write_lock(who: &T::AccountId, total_locked_now: BalanceOf<T>, reason: ReasonOf<T>) -> Result<(), DispatchError> {
+	pub fn write_lock(
+		who: &T::AccountId,
+		total_locked_now: BalanceOf<T>,
+		reason: ReasonOf<T>,
+	) -> Result<(), DispatchError> {
 		if total_locked_now.is_zero() {
 			T::Currency::release(
 				&reason,
@@ -123,14 +134,13 @@ impl<T: Config> Pallet<T> {
 			)?;
 			Self::deposit_event(Event::<T>::VestingCompleted { account: who.clone() });
 		} else {
-			let amount = T::Currency::balance_on_hold(&reason, who);
-			let amount = amount.saturating_sub(total_locked_now);
-			T::Currency::release(
-				&reason,
-				who,
-				amount,
-				frame_support::traits::tokens::Precision::BestEffort,
-			)?;
+			let free_balance_now = T::Currency::balance(who);
+			let alredy_holded = T::Currency::balance_on_hold(&reason, who);
+			println!("write_lock: free_balance_now: {:?}", free_balance_now);
+			println!("write_lock: alredy_holded: {:?}", alredy_holded);
+			println!("write_lock: total_locked_now: {:?}", total_locked_now);
+			let to_release = alredy_holded.saturating_sub(total_locked_now);
+			T::Currency::release(&reason, who, to_release, Precision::BestEffort)?;
 			Self::deposit_event(Event::<T>::VestingUpdated { account: who.clone(), unvested: total_locked_now });
 		};
 
@@ -295,7 +305,7 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T>
 	}
 
 	/// Remove a vesting schedule for a given account.
-	fn remove_vesting_schedule(who: &T::AccountId, schedule_index: u32, reason: ReasonOf<T>,) -> DispatchResult {
+	fn remove_vesting_schedule(who: &T::AccountId, schedule_index: u32, reason: ReasonOf<T>) -> DispatchResult {
 		let schedules = Self::vesting(who).ok_or(Error::<T>::NotVesting)?;
 		let remove_action = VestingAction::Remove { index: schedule_index as usize };
 
