@@ -55,6 +55,7 @@ pub mod config_types {
 
 	/// Enum used to identify PLMC holds
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 	pub enum LockType<ProjectId> {
 		Evaluation(ProjectId),
 		Participation(ProjectId),
