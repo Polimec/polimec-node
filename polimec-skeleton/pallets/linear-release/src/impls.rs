@@ -134,11 +134,7 @@ impl<T: Config> Pallet<T> {
 			)?;
 			Self::deposit_event(Event::<T>::VestingCompleted { account: who.clone() });
 		} else {
-			let free_balance_now = T::Currency::balance(who);
 			let alredy_holded = T::Currency::balance_on_hold(&reason, who);
-			println!("write_lock: free_balance_now: {:?}", free_balance_now);
-			println!("write_lock: alredy_holded: {:?}", alredy_holded);
-			println!("write_lock: total_locked_now: {:?}", total_locked_now);
 			let to_release = alredy_holded.saturating_sub(total_locked_now);
 			T::Currency::release(&reason, who, to_release, Precision::BestEffort)?;
 			Self::deposit_event(Event::<T>::VestingUpdated { account: who.clone(), unvested: total_locked_now });
@@ -169,9 +165,6 @@ impl<T: Config> Pallet<T> {
 		let schedules = Self::vesting(&who).ok_or(Error::<T>::NotVesting)?;
 
 		let (schedules, locked_now) = Self::exec_action(schedules.to_vec(), VestingAction::Passive)?;
-
-		println!("do_vest: schedules: {:?}", schedules);
-		println!("do_vest: locked_now: {:?}", locked_now);
 
 		Self::write_vesting(&who, schedules)?;
 		Self::write_lock(&who, locked_now, reason)?;
@@ -221,21 +214,18 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T>
-// where
-// 	BalanceOf<T>: MaybeSerializeDeserialize + Debug,
-{
+impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 	type Currency = T::Currency;
 	type Moment = BlockNumberFor<T>;
 
 	/// Get the amount that is currently being vested and cannot be transferred out of this account.
-	fn vesting_balance(who: &T::AccountId) -> Option<BalanceOf<T>> {
+	fn vesting_balance(who: &T::AccountId, reason: ReasonOf<T>) -> Option<BalanceOf<T>> {
 		if let Some(v) = Self::vesting(who) {
 			let now = <frame_system::Pallet<T>>::block_number();
 			let total_locked_now = v.iter().fold(Zero::zero(), |total, schedule| {
 				schedule.locked_at::<T::BlockNumberToBalance>(now).saturating_add(total)
 			});
-			Some(T::Currency::balance(who).min(total_locked_now))
+			Some(T::Currency::balance_on_hold(&reason, who).min(total_locked_now))
 		} else {
 			None
 		}

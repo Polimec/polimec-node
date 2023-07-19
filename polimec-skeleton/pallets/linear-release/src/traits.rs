@@ -16,7 +16,7 @@ pub trait ReleaseSchedule<AccountId, Reason> {
 
 	/// Get the amount that is currently being vested and cannot be transferred out of this account.
 	/// Returns `None` if the account has no vesting schedule.
-	fn vesting_balance(who: &AccountId) -> Option<<Self::Currency as fungible::Inspect<AccountId>>::Balance>;
+	fn vesting_balance(who: &AccountId, reason: Reason) -> Option<<Self::Currency as fungible::Inspect<AccountId>>::Balance>;
 
 	/// Adds a release schedule to a given account.
 	///
