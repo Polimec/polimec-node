@@ -47,6 +47,7 @@ pub trait ReleaseSchedule<AccountId, Reason> {
 		locked: <Self::Currency as fungible::Inspect<AccountId>>::Balance,
 		per_block: <Self::Currency as fungible::Inspect<AccountId>>::Balance,
 		starting_block: Self::Moment,
+		reason: Reason
 	) -> DispatchResult;
 
 	/// Checks if `add_release_schedule` would work against `who`.
@@ -55,6 +56,7 @@ pub trait ReleaseSchedule<AccountId, Reason> {
 		locked: <Self::Currency as fungible::Inspect<AccountId>>::Balance,
 		per_block: <Self::Currency as fungible::Inspect<AccountId>>::Balance,
 		starting_block: Self::Moment,
+		reason: Reason
 	) -> DispatchResult;
 
 	/// Remove a release schedule for a given account.
