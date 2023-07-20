@@ -189,11 +189,9 @@ pub mod pallet {
 					panic!("Invalid VestingInfo params at genesis")
 				};
 
-				Vesting::<T>::try_append(who, vesting_info).expect("Too many vesting schedules at genesis.");
+				Vesting::<T>::try_append(who, reason, vesting_info).expect("Too many vesting schedules at genesis.");
 
-				T::Currency::hold(&reason, who, locked)
-					.map_err(|err| panic!("{:?}", err))
-					.unwrap();
+				T::Currency::hold(&reason, who, locked).map_err(|err| panic!("{:?}", err)).unwrap();
 			}
 		}
 	}
@@ -236,20 +234,15 @@ pub mod pallet {
 		InvalidScheduleParams,
 	}
 
-	/// The MEL requirement for bounded pallets is skipped by `dev_mode`.
-	/// This means that all storages are marked as unbounded.
-	/// This is equivalent to specifying `#[pallet::unbounded]` on this type definitions.
-	/// When the dev_mode is removed, we would need to implement implement `MaxEncodedLen`.
-	#[pallet::storage]
-	pub type Dummy<T: Config> = StorageValue<_, Vec<T::AccountId>>;
-
 	/// Information regarding the vesting of a given account.
 	#[pallet::storage]
 	#[pallet::getter(fn vesting)]
-	pub type Vesting<T: Config> = StorageMap<
+	pub type Vesting<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
-		T::AccountId,
+		AccountIdOf<T>,
+		Blake2_128Concat,
+		ReasonOf<T>,
 		BoundedVec<VestingInfo<BalanceOf<T>, BlockNumberFor<T>>, MaxVestingSchedulesGet<T>>,
 	>;
 
@@ -372,24 +365,15 @@ pub mod pallet {
 			let schedule1_index = schedule1_index as usize;
 			let schedule2_index = schedule2_index as usize;
 
-			let schedules = Self::vesting(&who).ok_or(Error::<T>::NotVesting)?;
+			let schedules = Self::vesting(&who, reason).ok_or(Error::<T>::NotVesting)?;
 			let merge_action = VestingAction::Merge { index1: schedule1_index, index2: schedule2_index };
 
 			let (schedules, locked_now) = Self::exec_action(schedules.to_vec(), merge_action)?;
 
-			Self::write_vesting(&who, schedules)?;
+			Self::write_vesting(&who, schedules, reason)?;
 			Self::write_lock(&who, locked_now, reason)?;
 
 			Ok(())
-		}
-
-		#[pallet::call_index(5)]
-		pub fn release_schedule(
-			origin: OriginFor<T>,
-			schedule: VestingInfo<BalanceOf<T>, BlockNumberFor<T>>,
-		) -> DispatchResult {
-			let transactor = ensure_signed(origin)?;
-			Self::set_release_schedule(&transactor, schedule.locked(), schedule.per_block(), schedule.starting_block())
 		}
 	}
 }

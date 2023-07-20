@@ -62,7 +62,7 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// Check we can add to this account prior to any storage writes.
-		Self::can_add_release_schedule(&target, schedule.locked(), schedule.per_block(), schedule.starting_block())?;
+		Self::can_add_release_schedule(&target, schedule.locked(), schedule.per_block(), schedule.starting_block(), reason)?;
 
 		let amount_transferred = T::Currency::transfer_and_hold(
 			&reason,
@@ -147,14 +147,15 @@ impl<T: Config> Pallet<T> {
 	pub fn write_vesting(
 		who: &T::AccountId,
 		schedules: Vec<VestingInfo<BalanceOf<T>, BlockNumberFor<T>>>,
+		reason: ReasonOf<T>,
 	) -> Result<(), DispatchError> {
 		let schedules: BoundedVec<VestingInfo<BalanceOf<T>, BlockNumberFor<T>>, MaxVestingSchedulesGet<T>> =
 			schedules.try_into().map_err(|_| Error::<T>::AtMaxVestingSchedules)?;
 
 		if schedules.len() == 0 {
-			Vesting::<T>::remove(&who);
+			Vesting::<T>::remove(&who, reason);
 		} else {
-			Vesting::<T>::insert(who, schedules)
+			Vesting::<T>::insert(who, reason, schedules)
 		}
 
 		Ok(())
@@ -162,11 +163,11 @@ impl<T: Config> Pallet<T> {
 
 	/// Unlock any vested funds of `who`.
 	pub fn do_vest(who: T::AccountId, reason: ReasonOf<T>) -> DispatchResult {
-		let schedules = Self::vesting(&who).ok_or(Error::<T>::NotVesting)?;
+		let schedules = Self::vesting(&who, reason).ok_or(Error::<T>::NotVesting)?;
 
 		let (schedules, locked_now) = Self::exec_action(schedules.to_vec(), VestingAction::Passive)?;
 
-		Self::write_vesting(&who, schedules)?;
+		Self::write_vesting(&who, schedules, reason)?;
 		Self::write_lock(&who, locked_now, reason)?;
 
 		Ok(())
@@ -220,7 +221,7 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 
 	/// Get the amount that is currently being vested and cannot be transferred out of this account.
 	fn vesting_balance(who: &T::AccountId, reason: ReasonOf<T>) -> Option<BalanceOf<T>> {
-		if let Some(v) = Self::vesting(who) {
+		if let Some(v) = Self::vesting(who, reason) {
 			let now = <frame_system::Pallet<T>>::block_number();
 			let total_locked_now = v.iter().fold(Zero::zero(), |total, schedule| {
 				schedule.locked_at::<T::BlockNumberToBalance>(now).saturating_add(total)
@@ -260,7 +261,7 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 			return Err(Error::<T>::InvalidScheduleParams.into());
 		};
 
-		let mut schedules = Self::vesting(who).unwrap_or_default();
+		let mut schedules = Self::vesting(who, reason).unwrap_or_default();
 
 		// NOTE: we must push the new schedule so that `exec_action`
 		// will give the correct new locked amount.
@@ -268,7 +269,7 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 
 		let (schedules, locked_now) = Self::exec_action(schedules.to_vec(), VestingAction::Passive)?;
 
-		Self::write_vesting(who, schedules)?;
+		Self::write_vesting(who, schedules, reason)?;
 		Self::write_lock(who, locked_now, reason)?;
 		Ok(())
 	}
@@ -280,6 +281,7 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 		locked: BalanceOf<T>,
 		per_block: BalanceOf<T>,
 		starting_block: BlockNumberFor<T>,
+		reason: ReasonOf<T>
 	) -> DispatchResult {
 		// Check for `per_block` or `locked` of 0.
 		if !VestingInfo::new(locked, per_block, starting_block).is_valid() {
@@ -287,22 +289,10 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 		}
 
 		ensure!(
-			(Vesting::<T>::decode_len(who).unwrap_or_default() as u32) < T::MAX_VESTING_SCHEDULES,
+			(Vesting::<T>::decode_len(who, reason).unwrap_or_default() as u32) < T::MAX_VESTING_SCHEDULES,
 			Error::<T>::AtMaxVestingSchedules
 		);
 
-		Ok(())
-	}
-
-	/// Remove a vesting schedule for a given account.
-	fn remove_vesting_schedule(who: &T::AccountId, schedule_index: u32, reason: ReasonOf<T>) -> DispatchResult {
-		let schedules = Self::vesting(who).ok_or(Error::<T>::NotVesting)?;
-		let remove_action = VestingAction::Remove { index: schedule_index as usize };
-
-		let (schedules, locked_now) = Self::exec_action(schedules.to_vec(), remove_action)?;
-
-		Self::write_vesting(who, schedules)?;
-		Self::write_lock(who, locked_now, reason)?;
 		Ok(())
 	}
 
@@ -311,6 +301,7 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 		locked: <Self::Currency as frame_support::traits::fungible::Inspect<T::AccountId>>::Balance,
 		per_block: <Self::Currency as frame_support::traits::fungible::Inspect<T::AccountId>>::Balance,
 		starting_block: Self::Moment,
+		reason: ReasonOf<T>
 	) -> DispatchResult {
 		if locked.is_zero() {
 			return Ok(());
@@ -322,7 +313,7 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 			return Err(Error::<T>::InvalidScheduleParams.into());
 		};
 
-		let mut schedules = Self::vesting(who).unwrap_or_default();
+		let mut schedules = Self::vesting(who, reason).unwrap_or_default();
 
 		// NOTE: we must push the new schedule so that `exec_action`
 		// will give the correct new locked amount.
@@ -330,7 +321,19 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 
 		let (schedules, _) = Self::exec_action(schedules.to_vec(), VestingAction::Passive)?;
 
-		Self::write_vesting(who, schedules)?;
+		Self::write_vesting(who, schedules, reason)?;
+		Ok(())
+	}
+
+	/// Remove a vesting schedule for a given account.
+	fn remove_vesting_schedule(who: &T::AccountId, schedule_index: u32, reason: ReasonOf<T>) -> DispatchResult {
+		let schedules = Self::vesting(who, reason).ok_or(Error::<T>::NotVesting)?;
+		let remove_action = VestingAction::Remove { index: schedule_index as usize };
+
+		let (schedules, locked_now) = Self::exec_action(schedules.to_vec(), remove_action)?;
+
+		Self::write_vesting(who, schedules, reason)?;
+		Self::write_lock(who, locked_now, reason)?;
 		Ok(())
 	}
 }
