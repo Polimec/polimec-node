@@ -364,6 +364,7 @@ pub mod pallet {
 			};
 			let schedule1_index = schedule1_index as usize;
 			let schedule2_index = schedule2_index as usize;
+			// TODO: Add the different reasons check.
 
 			let schedules = Self::vesting(&who, reason).ok_or(Error::<T>::NotVesting)?;
 			let merge_action = VestingAction::Merge { index1: schedule1_index, index2: schedule2_index };
