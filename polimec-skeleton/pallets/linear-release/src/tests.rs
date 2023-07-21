@@ -23,7 +23,7 @@ where
 	T: pallet::Config,
 {
 	// Its ok for this to fail because the user may already have no schedules.
-	let _result: Result<(), DispatchError> = Vesting::vest(Some(account).into(), reason);
+	let _result: Result<(), DispatchError> = Vesting::vest(Some(account).into(), LockType::Participation(0));
 	assert!(!<VestingStorage<T>>::contains_key(account, reason));
 }
 
@@ -1257,12 +1257,14 @@ fn multile_holds_release_schedule() {
 		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(1)), Some(7 * ED));
 
 		System::set_block_number(16);
-		vest_and_assert_no_vesting::<Test>(3, LockType::Participation(0));
+		assert_ok!(Vesting::vest(Some(3).into(), LockType::Participation(0)));
+		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), None);
 		let user_3_free_balance = Balances::free_balance(&3);
 		assert_eq!(user_3_free_balance, 23 * ED);
 
 		System::set_block_number(100);
-		vest_and_assert_no_vesting::<Test>(3, LockType::Participation(1));
+		assert_ok!(Vesting::vest(Some(3).into(), LockType::Participation(1)));
+		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(1)), None);
 		let user_3_free_balance = Balances::free_balance(&3);
 		assert_eq!(user_3_free_balance, 30 * ED);
 	});
