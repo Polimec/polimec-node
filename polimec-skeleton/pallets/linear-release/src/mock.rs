@@ -112,6 +112,7 @@ impl ExtBuilder {
 				(4, 40 * self.existential_deposit),
 				(12, 10 * self.existential_deposit),
 				(13, 9999 * self.existential_deposit),
+				(14, 2000 * self.existential_deposit),
 			],
 		}
 		.assimilate_storage(&mut t)
