@@ -257,7 +257,7 @@ impl pallet_funding::Config for TestRuntime {
 	type BenchmarkHelper = ();
 	type WeightInfo = ();
 	type FeeBrackets = FeeBrackets;
-	type EarlyEvaluationThreshold = EarlyEvaluationThreshold;
+	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
 }
 
 // Build genesis storage according to the mock runtime.
