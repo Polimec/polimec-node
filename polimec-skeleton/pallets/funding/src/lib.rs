@@ -210,6 +210,7 @@ use frame_support::{
 use parity_scale_codec::{Decode, Encode};
 
 use sp_arithmetic::traits::{One, Saturating};
+
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
 use sp_std::prelude::*;
 
@@ -225,6 +226,7 @@ pub type HashOf<T> = <T as frame_system::Config>::Hash;
 pub type AssetIdOf<T> =
 	<<T as Config>::FundingCurrency as fungibles::Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
 
+pub type RewardInfoOf<T> = RewardInfo<BalanceOf<T>>;
 pub type EvaluatorsOutcomeOf<T> = EvaluatorsOutcome<AccountIdOf<T>, BalanceOf<T>>;
 pub type ProjectMetadataOf<T> =
 	ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, HashOf<T>>;
@@ -313,8 +315,6 @@ pub mod pallet {
 		/// Something that provides the members of Polimec
 		type HandleMembers: PolimecMembers<AccountIdOf<Self>>;
 
-		type Vesting: polimec_traits::ReleaseSchedule<AccountIdOf<Self>, BondTypeOf<Self>>;
-
 		/// The maximum length of data stored on-chain.
 		#[pallet::constant]
 		type StringLimit: Get<u32>;
@@ -381,6 +381,8 @@ pub mod pallet {
 		type FeeBrackets: Get<Vec<(Percent, Self::Balance)>>;
 
 		type EvaluationSuccessThreshold: Get<Percent>;
+
+		type Vesting: polimec_traits::ReleaseSchedule<AccountIdOf<Self>, BondTypeOf<Self>>;
 	}
 
 	#[pallet::storage]
@@ -911,6 +913,10 @@ pub mod pallet {
 					// CommunityRound || RemainderRound -> FundingEnded
 					UpdateType::FundingEnd => {
 						unwrap_result_or_skip!(Self::do_end_funding(project_id), project_id)
+					},
+
+					UpdateType::ProjectDecision(decision) => {
+						unwrap_result_or_skip!(Self::do_project_decision(project_id, decision), project_id)
 					},
 				}
 			}

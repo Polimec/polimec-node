@@ -22,6 +22,7 @@ use super::*;
 
 use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice};
 use frame_support::{
+	dispatch::DispatchResult,
 	ensure,
 	pallet_prelude::DispatchError,
 	traits::{
@@ -579,7 +580,6 @@ impl<T: Config> Pallet<T> {
 		let now = <frame_system::Pallet<T>>::block_number();
 		// TODO: PLMC-149 Check if make sense to set the admin as T::fund_account_id(project_id)
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let token_information = project_metadata.token_information;
 		let remaining_cts = project_details.remaining_contribution_tokens;
 		let remainder_end_block = project_details.phase_transition_points.remainder.end();
 
@@ -597,52 +597,43 @@ impl<T: Config> Pallet<T> {
 			.checked_mul_int(project_metadata.total_allocation_size)
 			.ok_or(Error::<T>::BadMath)?;
 		let funding_reached = project_details.funding_amount_reached;
-		let funding_is_successful =
-			!(project_details.status == ProjectStatus::FundingFailed || funding_reached < funding_target);
-		let evaluators_outcome = Self::generate_evaluators_outcome(project_id)?;
-		project_details.evaluation_round_info.evaluators_outcome = evaluators_outcome;
-		if funding_is_successful {
-			project_details.status = ProjectStatus::FundingSuccessful;
-			project_details.cleanup = ProjectCleanup::Ready(ProjectFinalizer::Success(SuccessFinalizer::Initialized));
+		let funding_ratio = Perquintill::from_rational(funding_reached, funding_target);
 
-			// * Update Storage *
-			ProjectsDetails::<T>::insert(project_id, project_details.clone());
-			T::ContributionTokenCurrency::create(project_id, project_details.issuer.clone(), false, 1_u32.into())
-				.map_err(|_| Error::<T>::AssetCreationFailed)?;
-			T::ContributionTokenCurrency::set(
-				project_id,
-				&project_details.issuer,
-				token_information.name.into(),
-				token_information.symbol.into(),
-				token_information.decimals,
-			)
-			.map_err(|_| Error::<T>::AssetMetadataUpdateFailed)?;
-
-			// * Emit events *
-			let success_reason = match remaining_cts {
-				x if x == 0u32.into() => SuccessReason::SoldOut,
-				_ => SuccessReason::ReachedTarget,
-			};
-			Self::deposit_event(Event::<T>::FundingEnded {
-				project_id,
-				outcome: FundingOutcome::Success(success_reason),
-			});
+		if funding_ratio <= Perquintill::from_percent(33u64) {
+			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Slashed(vec![]);
+			Self::make_project_funding_fail(project_id, project_details, FailureReason::TargetNotReached)
+		} else if funding_ratio <= Perquintill::from_percent(75u64) {
+			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Slashed(vec![]);
+			project_details.status = ProjectStatus::AwaitingProjectDecision;
+			ProjectsDetails::<T>::insert(project_id, project_details);
+			Ok(())
+		} else if funding_ratio < Perquintill::from_percent(90u64) {
+			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Unchanged;
+			project_details.status = ProjectStatus::AwaitingProjectDecision;
+			ProjectsDetails::<T>::insert(project_id, project_details);
 			Ok(())
 		} else {
-			project_details.status = ProjectStatus::FundingFailed;
-			project_details.cleanup = ProjectCleanup::Ready(ProjectFinalizer::Failure(Default::default()));
-
-			// * Update Storage *
-			ProjectsDetails::<T>::insert(project_id, project_details.clone());
-
-			// * Emit events *
-			let failure_reason = FailureReason::TargetNotReached;
-			Self::deposit_event(Event::<T>::FundingEnded {
-				project_id,
-				outcome: FundingOutcome::Failure(failure_reason),
-			});
-			Ok(())
+			let reward_info = Self::generate_evaluator_rewards_info(project_id)?;
+			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Rewarded(reward_info);
+			Self::make_project_funding_successful(project_id, project_details, SuccessReason::ReachedTarget)
 		}
+	}
+
+	pub fn do_project_decision(project_id: T::ProjectIdentifier, decision: FundingOutcomeDecision) -> DispatchResult {
+		// * Get variables *
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+
+		// * Update storage *
+		match decision {
+			FundingOutcomeDecision::AcceptFunding => {
+				Self::make_project_funding_successful(project_id, project_details, SuccessReason::ProjectDecision)?;
+			},
+			FundingOutcomeDecision::RejectFunding => {
+				Self::make_project_funding_fail(project_id, project_details, FailureReason::ProjectDecision)?;
+			},
+		}
+
+		Ok(())
 	}
 
 	/// Called manually by a user extrinsic
@@ -1080,6 +1071,26 @@ impl<T: Config> Pallet<T> {
 
 		// * Emit events *
 		Self::deposit_event(Event::<T>::Contribution { project_id, contributor, amount: token_amount, multiplier });
+
+		Ok(())
+	}
+
+	pub fn do_decide_project_outcome(
+		issuer: AccountIdOf<T>,
+		project_id: T::ProjectIdentifier,
+		decision: FundingOutcomeDecision,
+	) -> DispatchResult {
+		// * Get variables *
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let now = <frame_system::Pallet<T>>::block_number();
+
+		// * Validity checks *
+		ensure!(project_details.issuer == issuer, Error::<T>::NotAllowed);
+		ensure!(project_details.status == ProjectStatus::AwaitingProjectDecision, Error::<T>::NotAllowed);
+
+		// * Update storage *
+		Self::remove_from_update_store(&project_id)?;
+		Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::ProjectDecision(decision)));
 
 		Ok(())
 	}
@@ -2014,63 +2025,9 @@ impl<T: Config> Pallet<T> {
 			.fold(BalanceOf::<T>::zero(), |acc, fee| acc.saturating_add(fee)))
 	}
 
-	pub fn get_evaluator_ct_rewards(
-		project_id: T::ProjectIdentifier,
-	) -> Result<Vec<(T::AccountId, T::Balance)>, DispatchError> {
-		let (early_evaluator_rewards, all_evaluator_rewards, early_evaluator_total_locked, all_evaluator_total_locked) =
-			Self::get_evaluator_rewards_info(project_id)?;
-		let ct_price = ProjectsDetails::<T>::get(project_id)
-			.ok_or(Error::<T>::ProjectNotFound)?
-			.weighted_average_price
-			.ok_or(Error::<T>::ImpossibleState)?;
-		let evaluation_usd_amounts = Evaluations::<T>::iter_prefix(project_id)
-			.map(|(evaluator, evaluations)| {
-				(
-					evaluator,
-					evaluations.into_iter().fold(
-						(BalanceOf::<T>::zero(), BalanceOf::<T>::zero()),
-						|acc, evaluation| {
-							(
-								acc.0.saturating_add(evaluation.early_usd_amount),
-								acc.1.saturating_add(evaluation.late_usd_amount),
-							)
-						},
-					),
-				)
-			})
-			.collect::<Vec<_>>();
-		let evaluator_usd_rewards = evaluation_usd_amounts
-			.into_iter()
-			.map(|(evaluator, (early, late))| {
-				let early_evaluator_weight = Perquintill::from_rational(early, early_evaluator_total_locked);
-				let all_evaluator_weight = Perquintill::from_rational(early + late, all_evaluator_total_locked);
-
-				let early_reward = early_evaluator_weight * early_evaluator_rewards;
-				let all_reward = all_evaluator_weight * all_evaluator_rewards;
-
-				(evaluator, early_reward.saturating_add(all_reward))
-			})
-			.collect::<Vec<_>>();
-		let ct_price_reciprocal = ct_price.reciprocal().ok_or(Error::<T>::BadMath)?;
-
-		evaluator_usd_rewards
-			.iter()
-			.map(|(evaluator, usd_reward)| {
-				if let Some(reward) = ct_price_reciprocal.checked_mul_int(*usd_reward) {
-					Ok((evaluator.clone(), reward))
-				} else {
-					Err(Error::<T>::BadMath.into())
-				}
-			})
-			.collect()
-	}
-
-	pub fn get_evaluator_rewards_info(
+	pub fn generate_evaluator_rewards_info(
 		project_id: <T as Config>::ProjectIdentifier,
-	) -> Result<
-		(<T as Config>::Balance, <T as Config>::Balance, <T as Config>::Balance, <T as Config>::Balance),
-		DispatchError,
-	> {
+	) -> Result<RewardInfoOf<T>, DispatchError> {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let evaluation_usd_amounts = Evaluations::<T>::iter_prefix(project_id)
 			.map(|(evaluator, evaluations)| {
@@ -2097,49 +2054,63 @@ impl<T: Config> Pallet<T> {
 		let fees = Self::calculate_fees(project_id)?;
 		let evaluator_fees = percentage_of_target_funding * (Perquintill::from_percent(30) * fees);
 
-		let early_evaluator_rewards = Perquintill::from_percent(20) * evaluator_fees;
-		let all_evaluator_rewards = Perquintill::from_percent(80) * evaluator_fees;
+		let early_evaluator_reward_pot_usd = Perquintill::from_percent(20) * evaluator_fees;
+		let normal_evaluator_reward_pot_usd = Perquintill::from_percent(80) * evaluator_fees;
 
-		let early_evaluator_total_locked = evaluation_usd_amounts
+		let early_evaluator_total_bonded_usd = evaluation_usd_amounts
 			.iter()
 			.fold(BalanceOf::<T>::zero(), |acc, (_, (early, _))| acc.saturating_add(*early));
-		let late_evaluator_total_locked =
+		let late_evaluator_total_bonded_usd =
 			evaluation_usd_amounts.iter().fold(BalanceOf::<T>::zero(), |acc, (_, (_, late))| acc.saturating_add(*late));
-		let all_evaluator_total_locked = early_evaluator_total_locked.saturating_add(late_evaluator_total_locked);
-		Ok((early_evaluator_rewards, all_evaluator_rewards, early_evaluator_total_locked, all_evaluator_total_locked))
+		let normal_evaluator_total_bonded_usd =
+			early_evaluator_total_bonded_usd.saturating_add(late_evaluator_total_bonded_usd);
+		Ok(RewardInfo {
+			early_evaluator_reward_pot_usd,
+			normal_evaluator_reward_pot_usd,
+			early_evaluator_total_bonded_usd,
+			normal_evaluator_total_bonded_usd,
+		})
 	}
 
-	pub fn generate_evaluators_outcome(
+	pub fn make_project_funding_successful(
 		project_id: T::ProjectIdentifier,
-	) -> Result<EvaluatorsOutcomeOf<T>, DispatchError> {
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let funding_target = project_details.fundraising_target;
-		let funding_reached = project_details.funding_amount_reached;
-		let funding_ratio = Perquintill::from_rational(funding_reached, funding_target);
+		mut project_details: ProjectDetailsOf<T>,
+		reason: SuccessReason,
+	) -> DispatchResult {
+		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+		let token_information = project_metadata.token_information;
 
-		// Project Automatically rejected, evaluators slashed
-		if funding_ratio <= Perquintill::from_percent(33) {
-			todo!()
-		// Project Manually accepted, evaluators slashed
-		} else if funding_ratio < Perquintill::from_percent(75) {
-			todo!()
-		// Project Manually accepted, evaluators unaffected
-		} else if funding_ratio < Perquintill::from_percent(90) {
-			todo!()
-		// Project Automatically accepted, evaluators rewarded
-		} else {
-			let (
-				early_evaluator_reward_pot_usd,
-				normal_evaluator_reward_pot_usd,
-				early_evaluator_total_bonded_usd,
-				normal_evaluator_total_bonded_usd,
-			) = Self::get_evaluator_rewards_info(project_id)?;
-			Ok(EvaluatorsOutcome::Rewarded(RewardInfo {
-				early_evaluator_reward_pot_usd,
-				normal_evaluator_reward_pot_usd,
-				early_evaluator_total_bonded_usd,
-				normal_evaluator_total_bonded_usd,
-			}))
-		}
+		project_details.status = ProjectStatus::FundingSuccessful;
+		project_details.cleanup = ProjectCleanup::Ready(ProjectFinalizer::Success(SuccessFinalizer::Initialized));
+
+		ProjectsDetails::<T>::insert(project_id, project_details.clone());
+		T::ContributionTokenCurrency::create(project_id, project_details.issuer.clone(), false, 1_u32.into())
+			.map_err(|_| Error::<T>::AssetCreationFailed)?;
+		T::ContributionTokenCurrency::set(
+			project_id,
+			&project_details.issuer,
+			token_information.name.into(),
+			token_information.symbol.into(),
+			token_information.decimals,
+		)
+		.map_err(|_| Error::<T>::AssetMetadataUpdateFailed)?;
+
+		Self::deposit_event(Event::<T>::FundingEnded { project_id, outcome: FundingOutcome::Success(reason) });
+
+		Ok(())
+	}
+
+	pub fn make_project_funding_fail(
+		project_id: T::ProjectIdentifier,
+		mut project_details: ProjectDetailsOf<T>,
+		reason: FailureReason,
+	) -> DispatchResult {
+		project_details.status = ProjectStatus::FundingFailed;
+		project_details.cleanup = ProjectCleanup::Ready(ProjectFinalizer::Failure(Default::default()));
+
+		ProjectsDetails::<T>::insert(project_id, project_details.clone());
+
+		Self::deposit_event(Event::<T>::FundingEnded { project_id, outcome: FundingOutcome::Failure(reason) });
+		Ok(())
 	}
 }

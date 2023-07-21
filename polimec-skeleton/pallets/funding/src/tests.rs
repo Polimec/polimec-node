@@ -221,6 +221,7 @@ const BIDDER_1: AccountId = 30;
 const BIDDER_2: AccountId = 31;
 const BIDDER_3: AccountId = 32;
 const BIDDER_4: AccountId = 33;
+const BIDDER_5: AccountId = 34;
 const BUYER_1: AccountId = 40;
 const BUYER_2: AccountId = 41;
 const BUYER_3: AccountId = 42;
@@ -1242,6 +1243,7 @@ mod defaults {
 pub mod helper_functions {
 	use super::*;
 	use sp_arithmetic::traits::Zero;
+	use sp_arithmetic::Percent;
 	use sp_core::H256;
 	use std::collections::BTreeMap;
 
@@ -1556,6 +1558,38 @@ pub mod helper_functions {
 			},
 			_ => Ok(()),
 		}
+	}
+
+	pub fn generate_bids_from_total_usd(
+		usd_amount: BalanceOf<TestRuntime>, min_price: PriceOf<TestRuntime>,
+	) -> TestBids {
+		const WEIGHTS: [u8; 5] = [30u8, 20u8, 15u8, 10u8, 25u8];
+		const BIDDERS: [AccountIdOf<TestRuntime>; 5] = [BUYER_1, BUYER_2, BUYER_3, BUYER_4, BUYER_5];
+
+		zip(WEIGHTS, BIDDERS)
+			.map(|(weight, bidder)| {
+				let ticket_size = Percent::from_percent(weight) * usd_amount;
+				let token_amount = min_price.reciprocal().unwrap().saturating_mul_int(ticket_size);
+
+				TestBid::new(bidder, token_amount, min_price, None, AcceptedFundingAsset::USDT)
+			})
+			.collect()
+	}
+
+	pub fn generate_contributions_from_total_usd(
+		usd_amount: BalanceOf<TestRuntime>, final_price: PriceOf<TestRuntime>,
+	) -> TestContributions {
+		const WEIGHTS: [u8; 5] = [30u8, 20u8, 15u8, 10u8, 25u8];
+		const BIDDERS: [AccountIdOf<TestRuntime>; 5] = [BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5];
+
+		zip(WEIGHTS, BIDDERS)
+			.map(|(weight, bidder)| {
+				let ticket_size = Percent::from_percent(weight) * usd_amount;
+				let token_amount = final_price.reciprocal().unwrap().saturating_mul_int(ticket_size);
+
+				TestContribution::new(bidder, token_amount, None, AcceptedFundingAsset::USDT)
+			})
+			.collect()
 	}
 }
 
@@ -3379,6 +3413,32 @@ mod remainder_round_success {
 			vec![(BOB, actual_funding_transferred, AcceptedFundingAsset::USDT.to_statemint_id())],
 			remainder_funding_project.get_project_id(),
 		);
+	}
+}
+
+#[cfg(test)]
+mod funding_end {
+	use super::*;
+	use sp_arithmetic::{Percent, Perquintill};
+
+	#[test]
+	fn automatic_fail_less_eq_33_percent() {
+		let test_env = TestEnvironment::new();
+		let project_metadata = default_project(test_env.get_new_nonce());
+		let min_price = project_metadata.minimum_price;
+		let twenty_percent_funding_usd = Perquintill::from_percent(20u64)
+			* (project_metadata
+				.minimum_price
+				.checked_mul_int(project_metadata.total_allocation_size)
+				.unwrap());
+		let evaluations = default_evaluations();
+		let bids = generate_bids_from_total_usd(Percent::from_percent(10u8) * twenty_percent_funding_usd, min_price);
+		let contributions =
+			generate_contributions_from_total_usd(Percent::from_percent(10u8) * twenty_percent_funding_usd, min_price);
+		let remainder_project =
+			RemainderFundingProject::new_with(&test_env, project_metadata, ISSUER, evaluations, bids, contributions);
+
+		remainder_project.end_funding();
 	}
 }
 
