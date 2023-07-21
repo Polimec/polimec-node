@@ -15,7 +15,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use polimec_standalone_runtime::{
-	AccountId, BalancesConfig, GenesisConfig, SessionConfig, Signature, SudoConfig, SystemConfig, WASM_BINARY,
+	AccountId, BalancesConfig, GenesisConfig, SessionConfig, Signature, SudoConfig, SystemConfig,
+	WASM_BINARY,
 };
 use sc_service::{ChainType, Properties};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -38,7 +39,9 @@ fn polimec_properties() -> Properties {
 
 /// Helper function to generate a crypto pair from seed
 fn get_from_secret<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
-	TPublic::Pair::from_string(seed, None).unwrap_or_else(|_| panic!("Invalid string '{seed}'")).public()
+	TPublic::Pair::from_string(seed, None)
+		.unwrap_or_else(|_| panic!("Invalid string '{seed}'"))
+		.public()
 }
 
 /// Helper function to generate an account ID from seed
@@ -117,7 +120,10 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 			testnet_genesis(
 				wasm_binary,
 				// Initial PoA authorities
-				vec![get_authority_keys_from_secret("//Alice"), get_authority_keys_from_secret("//Bob")],
+				vec![
+					get_authority_keys_from_secret("//Alice"),
+					get_authority_keys_from_secret("//Bob"),
+				],
 				// Sudo account
 				get_account_id_from_secret::<sr25519::Public>("//Alice"),
 				// Pre-funded accounts
@@ -178,7 +184,10 @@ fn testnet_genesis(
 					(
 						x.0.clone(),
 						x.0.clone(),
-						polimec_standalone_runtime::opaque::SessionKeys { aura: x.1.clone(), grandpa: x.2.clone() },
+						polimec_standalone_runtime::opaque::SessionKeys {
+							aura: x.1.clone(),
+							grandpa: x.2.clone(),
+						},
 					)
 				})
 				.collect::<Vec<_>>(),

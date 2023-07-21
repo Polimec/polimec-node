@@ -32,11 +32,15 @@ const DEFAULT_PARA_ID: ParaId = LOWEST_PUBLIC_ID;
 
 /// Helper function to generate a crypto pair from seed
 pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
-	TPublic::Pair::from_string(&format!("//{seed}"), None).expect("static values are valid; qed").public()
+	TPublic::Pair::from_string(&format!("//{seed}"), None)
+		.expect("static values are valid; qed")
+		.public()
 }
 
 /// The extensions for the [`ChainSpec`].
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ChainSpecGroup, ChainSpecExtension)]
+#[derive(
+	Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ChainSpecGroup, ChainSpecExtension,
+)]
 #[serde(deny_unknown_fields)]
 pub struct Extensions {
 	/// The relay chain of the Parachain.

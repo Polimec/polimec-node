@@ -23,8 +23,8 @@ use log::{info, warn};
 use parity_scale_codec::Encode;
 use polimec_parachain_runtime::Block;
 use sc_cli::{
-	ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams, NetworkParams, Result,
-	RuntimeVersion, SharedParams, SubstrateCli,
+	ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams,
+	NetworkParams, Result, RuntimeVersion, SharedParams, SubstrateCli,
 };
 use sc_service::config::{BasePath, PrometheusConfig};
 use sp_core::hexdisplay::HexDisplay;
@@ -65,8 +65,8 @@ impl RuntimeResolver for PathBuf {
 
 		let file = std::fs::File::open(self).expect("Failed to open file");
 		let reader = std::io::BufReader::new(file);
-		let chain_spec: EmptyChainSpecWithId =
-			sp_serializer::from_reader(reader).expect("Failed to read 'json' file with ChainSpec configuration");
+		let chain_spec: EmptyChainSpecWithId = sp_serializer::from_reader(reader)
+			.expect("Failed to read 'json' file with ChainSpec configuration");
 		runtime(&chain_spec.id)
 	}
 }
@@ -98,7 +98,9 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 		"polimec-polkadot" => Box::new(chain_spec::testnet::get_prod_chain_spec()?),
 		// -- Fallback (generic chainspec)
 		"" => {
-			log::warn!("No ChainSpec.id specified, so using default one, based on polimec-rococo-local");
+			log::warn!(
+				"No ChainSpec.id specified, so using default one, based on polimec-rococo-local"
+			);
 			Box::new(chain_spec::testnet::get_chain_spec_dev()?)
 		},
 		// A custom chainspec path
@@ -219,10 +221,14 @@ pub fn run() -> Result<()> {
 			})
 		},
 		Some(Subcommand::ExportBlocks(cmd)) => {
-			construct_async_run!(|components, cli, cmd, config| Ok(cmd.run(components.client, config.database)))
+			construct_async_run!(|components, cli, cmd, config| Ok(
+				cmd.run(components.client, config.database)
+			))
 		},
 		Some(Subcommand::ExportState(cmd)) => {
-			construct_async_run!(|components, cli, cmd, config| Ok(cmd.run(components.client, config.chain_spec)))
+			construct_async_run!(|components, cli, cmd, config| Ok(
+				cmd.run(components.client, config.chain_spec)
+			))
 		},
 		Some(Subcommand::ImportBlocks(cmd)) => {
 			construct_async_run!(|components, cli, cmd, config| {
@@ -243,9 +249,12 @@ pub fn run() -> Result<()> {
 					[RelayChainCli::executable_name()].iter().chain(cli.relay_chain_args.iter()),
 				);
 
-				let polkadot_config =
-					SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, config.tokio_handle.clone())
-						.map_err(|err| format!("Relay chain argument error: {}", err))?;
+				let polkadot_config = SubstrateCli::create_configuration(
+					&polkadot_cli,
+					&polkadot_cli,
+					config.tokio_handle.clone(),
+				)
+				.map_err(|err| format!("Relay chain argument error: {}", err))?;
 
 				cmd.run(config, polkadot_config)
 			})
@@ -316,10 +325,13 @@ pub fn run() -> Result<()> {
 
 			// grab the task manager.
 			let registry = &runner.config().prometheus_config.as_ref().map(|cfg| &cfg.registry);
-			let task_manager = sc_service::TaskManager::new(runner.config().tokio_handle.clone(), *registry)
-				.map_err(|e| format!("Error: {:?}", e))?;
+			let task_manager =
+				sc_service::TaskManager::new(runner.config().tokio_handle.clone(), *registry)
+					.map_err(|e| format!("Error: {:?}", e))?;
 
-			runner.async_run(|_| Ok((cmd.run::<Block, HostFunctionsOf<ParachainNativeExecutor>>(), task_manager)))
+			runner.async_run(|_| {
+				Ok((cmd.run::<Block, HostFunctionsOf<ParachainNativeExecutor>>(), task_manager))
+			})
 		},
 		#[cfg(not(feature = "try-runtime"))]
 		Some(Subcommand::TryRuntime) => Err("Try-runtime was not enabled when building the node. \
@@ -422,7 +434,10 @@ impl CliConfiguration<Self> for RelayChainCli {
 	}
 
 	fn base_path(&self) -> Result<Option<BasePath>> {
-		Ok(self.shared_params().base_path()?.or_else(|| self.base_path.clone().map(Into::into)))
+		Ok(self
+			.shared_params()
+			.base_path()?
+			.or_else(|| self.base_path.clone().map(Into::into)))
 	}
 
 	fn rpc_http(&self, default_listen_port: u16) -> Result<Option<SocketAddr>> {
@@ -508,7 +523,10 @@ impl CliConfiguration<Self> for RelayChainCli {
 		self.base.base.announce_block()
 	}
 
-	fn telemetry_endpoints(&self, chain_spec: &Box<dyn ChainSpec>) -> Result<Option<sc_telemetry::TelemetryEndpoints>> {
+	fn telemetry_endpoints(
+		&self,
+		chain_spec: &Box<dyn ChainSpec>,
+	) -> Result<Option<sc_telemetry::TelemetryEndpoints>> {
 		self.base.base.telemetry_endpoints(chain_spec)
 	}
 

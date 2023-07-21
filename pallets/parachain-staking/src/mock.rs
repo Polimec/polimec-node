@@ -17,8 +17,8 @@
 //! Test utilities
 use crate as pallet_parachain_staking;
 use crate::{
-	pallet, AwardedPts, Config, Event as ParachainStakingEvent, InflationInfo, Points, Range, COLLATOR_LOCK_ID,
-	DELEGATOR_LOCK_ID,
+	pallet, AwardedPts, Config, Event as ParachainStakingEvent, InflationInfo, Points, Range,
+	COLLATOR_LOCK_ID, DELEGATOR_LOCK_ID,
 };
 use frame_support::{
 	construct_runtime, parameter_types,
@@ -63,48 +63,48 @@ parameter_types! {
 	pub const SS58Prefix: u8 = 42;
 }
 impl frame_system::Config for Test {
-	type AccountData = pallet_balances::AccountData<Balance>;
-	type AccountId = AccountId;
 	type BaseCallFilter = Everything;
-	type BlockHashCount = BlockHashCount;
-	type BlockLength = ();
-	type BlockNumber = BlockNumber;
-	type BlockWeights = ();
 	type DbWeight = RocksDbWeight;
+	type RuntimeOrigin = RuntimeOrigin;
+	type Index = u64;
+	type BlockNumber = BlockNumber;
+	type RuntimeCall = RuntimeCall;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type Header = sp_runtime::generic::Header<BlockNumber, BlakeTwo256>;
-	type Index = u64;
+	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type MaxConsumers = frame_support::traits::ConstU32<16>;
-	type OnKilledAccount = ();
-	type OnNewAccount = ();
-	type OnSetCode = ();
-	type PalletInfo = PalletInfo;
-	type RuntimeCall = RuntimeCall;
+	type Header = sp_runtime::generic::Header<BlockNumber, BlakeTwo256>;
 	type RuntimeEvent = RuntimeEvent;
-	type RuntimeOrigin = RuntimeOrigin;
-	type SS58Prefix = SS58Prefix;
-	type SystemWeightInfo = ();
+	type BlockHashCount = BlockHashCount;
 	type Version = ();
+	type PalletInfo = PalletInfo;
+	type AccountData = pallet_balances::AccountData<Balance>;
+	type OnNewAccount = ();
+	type OnKilledAccount = ();
+	type SystemWeightInfo = ();
+	type BlockWeights = ();
+	type BlockLength = ();
+	type SS58Prefix = SS58Prefix;
+	type OnSetCode = ();
+	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 parameter_types! {
 	pub const ExistentialDeposit: u128 = 1;
 }
 impl pallet_balances::Config for Test {
-	type AccountStore = System;
-	type Balance = Balance;
-	type DustRemoval = ();
-	type ExistentialDeposit = ExistentialDeposit;
-	type FreezeIdentifier = ();
-	type HoldIdentifier = ();
-	type MaxFreezes = ();
-	type MaxHolds = ();
-	type MaxLocks = ();
 	type MaxReserves = ();
 	type ReserveIdentifier = [u8; 4];
+	type MaxLocks = ();
+	type Balance = Balance;
 	type RuntimeEvent = RuntimeEvent;
+	type DustRemoval = ();
+	type ExistentialDeposit = ExistentialDeposit;
+	type AccountStore = System;
 	type WeightInfo = ();
+	type HoldIdentifier = ();
+	type FreezeIdentifier = ();
+	type MaxHolds = ();
+	type MaxFreezes = ();
 }
 parameter_types! {
 	#[derive(Debug, Eq, PartialEq)]
@@ -118,17 +118,17 @@ impl pallet_aura::Config for Test {
 }
 
 impl pallet_authorship::Config for Test {
-	type EventHandler = ParachainStaking;
 	type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
+	type EventHandler = ParachainStaking;
 }
 parameter_types! {
 	pub const MinimumPeriod: u64 = 1;
 }
 
 impl pallet_timestamp::Config for Test {
-	type MinimumPeriod = MinimumPeriod;
 	type Moment = u64;
 	type OnTimestampSet = Aura;
+	type MinimumPeriod = MinimumPeriod;
 	type WeightInfo = ();
 }
 
@@ -167,37 +167,37 @@ use sp_runtime::{
 };
 
 impl pallet_session::Config for Test {
-	type Keys = MockSessionKeys;
-	type NextSessionRotation = ParachainStaking;
 	type RuntimeEvent = RuntimeEvent;
-	type SessionHandler = <MockSessionKeys as OpaqueKeys>::KeyTypeIdProviders;
-	type SessionManager = ParachainStaking;
-	type ShouldEndSession = ParachainStaking;
 	type ValidatorId = AccountId;
 	type ValidatorIdOf = ConvertInto;
+	type ShouldEndSession = ParachainStaking;
+	type NextSessionRotation = ParachainStaking;
+	type SessionManager = ParachainStaking;
+	type SessionHandler = <MockSessionKeys as OpaqueKeys>::KeyTypeIdProviders;
+	type Keys = MockSessionKeys;
 	type WeightInfo = ();
 }
 impl Config for Test {
-	type CandidateBondLessDelay = CandidateBondLessDelay;
+	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
-	type DelegationBondLessDelay = DelegationBondLessDelay;
+	type MonetaryGovernanceOrigin = frame_system::EnsureRoot<AccountId>;
+	type MinBlocksPerRound = MinBlocksPerRound;
 	type LeaveCandidatesDelay = LeaveCandidatesDelay;
+	type CandidateBondLessDelay = CandidateBondLessDelay;
 	type LeaveDelegatorsDelay = LeaveDelegatorsDelay;
+	type RevokeDelegationDelay = RevokeDelegationDelay;
+	type DelegationBondLessDelay = DelegationBondLessDelay;
+	type RewardPaymentDelay = RewardPaymentDelay;
+	type MinSelectedCandidates = MinSelectedCandidates;
+	type MaxTopDelegationsPerCandidate = MaxTopDelegationsPerCandidate;
 	type MaxBottomDelegationsPerCandidate = MaxBottomDelegationsPerCandidate;
 	type MaxDelegationsPerDelegator = MaxDelegationsPerDelegator;
-	type MaxTopDelegationsPerCandidate = MaxTopDelegationsPerCandidate;
-	type MinBlocksPerRound = MinBlocksPerRound;
 	type MinCandidateStk = MinCandidateStk;
-	type MinDelegation = MinDelegation;
 	type MinDelegatorStk = MinDelegatorStk;
-	type MinSelectedCandidates = MinSelectedCandidates;
-	type MonetaryGovernanceOrigin = frame_system::EnsureRoot<AccountId>;
+	type MinDelegation = MinDelegation;
 	type OnCollatorPayout = ();
-	type OnNewRound = ();
 	type PayoutCollatorReward = ();
-	type RevokeDelegationDelay = RevokeDelegationDelay;
-	type RewardPaymentDelay = RewardPaymentDelay;
-	type RuntimeEvent = RuntimeEvent;
+	type OnNewRound = ();
 	type WeightInfo = ();
 }
 
@@ -248,8 +248,12 @@ impl ExtBuilder {
 		self
 	}
 
-	pub(crate) fn with_delegations(mut self, delegations: Vec<(AccountId, AccountId, Balance)>) -> Self {
-		self.delegations = delegations.into_iter().map(|d| (d.0, d.1, d.2, Percent::zero())).collect();
+	pub(crate) fn with_delegations(
+		mut self,
+		delegations: Vec<(AccountId, AccountId, Balance)>,
+	) -> Self {
+		self.delegations =
+			delegations.into_iter().map(|d| (d.0, d.1, d.2, Percent::zero())).collect();
 		self
 	}
 
@@ -344,7 +348,15 @@ pub(crate) fn events() -> Vec<pallet::Event<Test>> {
 	System::events()
 		.into_iter()
 		.map(|r| r.event)
-		.filter_map(|e| if let RuntimeEvent::ParachainStaking(inner) = e { Some(inner) } else { None })
+		.filter_map(
+			|e| {
+				if let RuntimeEvent::ParachainStaking(inner) = e {
+					Some(inner)
+				} else {
+					None
+				}
+			},
+		)
 		.collect::<Vec<_>>()
 }
 
@@ -561,7 +573,17 @@ pub(crate) fn query_lock_amount(account_id: u64, id: LockIdentifier) -> Option<B
 #[test]
 fn geneses() {
 	ExtBuilder::default()
-		.with_balances(vec![(1, 1000), (2, 300), (3, 100), (4, 100), (5, 100), (6, 100), (7, 100), (8, 9), (9, 4)])
+		.with_balances(vec![
+			(1, 1000),
+			(2, 300),
+			(3, 100),
+			(4, 100),
+			(5, 100),
+			(6, 100),
+			(7, 100),
+			(8, 9),
+			(9, 4),
+		])
 		.with_candidates(vec![(1, 500), (2, 200)])
 		.with_delegations(vec![(3, 1, 100), (4, 1, 100), (5, 2, 100), (6, 2, 100)])
 		.build()
@@ -679,7 +701,11 @@ fn test_assert_events_eq_fails_if_event_missing() {
 		inject_test_events();
 
 		assert_events_eq!(
-			ParachainStakingEvent::CollatorChosen { round: 2, collator_account: 1, total_exposed_amount: 10 },
+			ParachainStakingEvent::CollatorChosen {
+				round: 2,
+				collator_account: 1,
+				total_exposed_amount: 10,
+			},
 			ParachainStakingEvent::NewRound {
 				starting_block: 10,
 				round: 2,
@@ -697,7 +723,11 @@ fn test_assert_events_eq_fails_if_event_extra() {
 		inject_test_events();
 
 		assert_events_eq!(
-			ParachainStakingEvent::CollatorChosen { round: 2, collator_account: 1, total_exposed_amount: 10 },
+			ParachainStakingEvent::CollatorChosen {
+				round: 2,
+				collator_account: 1,
+				total_exposed_amount: 10,
+			},
 			ParachainStakingEvent::NewRound {
 				starting_block: 10,
 				round: 2,
@@ -718,7 +748,11 @@ fn test_assert_events_eq_fails_if_event_wrong_order() {
 
 		assert_events_eq!(
 			ParachainStakingEvent::Rewarded { account: 1, rewards: 100 },
-			ParachainStakingEvent::CollatorChosen { round: 2, collator_account: 1, total_exposed_amount: 10 },
+			ParachainStakingEvent::CollatorChosen {
+				round: 2,
+				collator_account: 1,
+				total_exposed_amount: 10,
+			},
 			ParachainStakingEvent::NewRound {
 				starting_block: 10,
 				round: 2,
@@ -736,7 +770,11 @@ fn test_assert_events_eq_fails_if_event_wrong_value() {
 		inject_test_events();
 
 		assert_events_eq!(
-			ParachainStakingEvent::CollatorChosen { round: 2, collator_account: 1, total_exposed_amount: 10 },
+			ParachainStakingEvent::CollatorChosen {
+				round: 2,
+				collator_account: 1,
+				total_exposed_amount: 10,
+			},
 			ParachainStakingEvent::NewRound {
 				starting_block: 10,
 				round: 2,
@@ -763,7 +801,11 @@ fn test_assert_events_eq_passes_if_all_events_present_multiple() {
 		inject_test_events();
 
 		assert_events_eq!(
-			ParachainStakingEvent::CollatorChosen { round: 2, collator_account: 1, total_exposed_amount: 10 },
+			ParachainStakingEvent::CollatorChosen {
+				round: 2,
+				collator_account: 1,
+				total_exposed_amount: 10,
+			},
 			ParachainStakingEvent::NewRound {
 				starting_block: 10,
 				round: 2,
@@ -814,7 +856,11 @@ fn test_assert_events_emitted_passes_if_all_events_present_multiple() {
 		inject_test_events();
 
 		assert_events_emitted!(
-			ParachainStakingEvent::CollatorChosen { round: 2, collator_account: 1, total_exposed_amount: 10 },
+			ParachainStakingEvent::CollatorChosen {
+				round: 2,
+				collator_account: 1,
+				total_exposed_amount: 10,
+			},
 			ParachainStakingEvent::Rewarded { account: 1, rewards: 100 },
 		);
 	});
@@ -826,7 +872,10 @@ fn test_assert_events_eq_match_fails_if_event_missing() {
 	ExtBuilder::default().build().execute_with(|| {
 		inject_test_events();
 
-		assert_events_eq_match!(ParachainStakingEvent::CollatorChosen { .. }, ParachainStakingEvent::NewRound { .. },);
+		assert_events_eq_match!(
+			ParachainStakingEvent::CollatorChosen { .. },
+			ParachainStakingEvent::NewRound { .. },
+		);
 	});
 }
 
@@ -901,7 +950,10 @@ fn test_assert_events_emitted_match_fails_if_event_missing() {
 	ExtBuilder::default().build().execute_with(|| {
 		inject_test_events();
 
-		assert_events_emitted_match!(ParachainStakingEvent::DelegatorExitScheduled { round: 2, .. });
+		assert_events_emitted_match!(ParachainStakingEvent::DelegatorExitScheduled {
+			round: 2,
+			..
+		});
 	});
 }
 
@@ -938,7 +990,11 @@ fn test_assert_events_emitted_match_passes_if_all_events_present_multiple() {
 
 fn inject_test_events() {
 	[
-		ParachainStakingEvent::CollatorChosen { round: 2, collator_account: 1, total_exposed_amount: 10 },
+		ParachainStakingEvent::CollatorChosen {
+			round: 2,
+			collator_account: 1,
+			total_exposed_amount: 10,
+		},
 		ParachainStakingEvent::NewRound {
 			starting_block: 10,
 			round: 2,

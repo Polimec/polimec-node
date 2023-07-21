@@ -17,7 +17,10 @@
 use crate::{currency::MILLI_PLMC, Balance};
 use frame_support::{
 	parameter_types,
-	weights::{constants::ExtrinsicBaseWeight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial},
+	weights::{
+		constants::ExtrinsicBaseWeight, WeightToFeeCoefficient, WeightToFeeCoefficients,
+		WeightToFeePolynomial,
+	},
 };
 use parachains_common::SLOT_DURATION;
 use smallvec::smallvec;
@@ -26,7 +29,6 @@ use sp_arithmetic::Perbill;
 pub struct WeightToFee;
 impl WeightToFeePolynomial for WeightToFee {
 	type Balance = Balance;
-
 	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
 		// extrinsic base weight (smallest non-zero weight) is mapped to 1/10 CENT:
 		let p = 10 * MILLI_PLMC;

@@ -174,7 +174,6 @@ impl<BlockNumber: Copy> BlockNumberPair<BlockNumber> {
 	pub fn new(start: Option<BlockNumber>, end: Option<BlockNumber>) -> Self {
 		Self { start, end }
 	}
-
 	pub fn start(&self) -> Option<BlockNumber> {
 		self.start
 	}
@@ -199,7 +198,15 @@ impl<BlockNumber: Copy> BlockNumberPair<BlockNumber> {
 }
 
 #[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct BidInfo<BidId, ProjectId, Balance: BalanceT, AccountId, BlockNumber, PlmcVesting, CTVesting> {
+pub struct BidInfo<
+	BidId,
+	ProjectId,
+	Balance: BalanceT,
+	AccountId,
+	BlockNumber,
+	PlmcVesting,
+	CTVesting,
+> {
 	pub bid_id: BidId,
 	pub project: ProjectId,
 	#[codec(compact)]
@@ -250,16 +257,32 @@ impl<BidId, ProjectId, Balance: BalanceT, AccountId, BlockNumber, PlmcVesting, C
 	}
 }
 
-impl<BidId: Eq, ProjectId: Eq, Balance: BalanceT, AccountId: Eq, BlockNumber: Eq, PlmcVesting: Eq, CTVesting: Eq>
-	sp_std::cmp::Ord for BidInfo<BidId, ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
+impl<
+		BidId: Eq,
+		ProjectId: Eq,
+		Balance: BalanceT,
+		AccountId: Eq,
+		BlockNumber: Eq,
+		PlmcVesting: Eq,
+		CTVesting: Eq,
+	> sp_std::cmp::Ord
+	for BidInfo<BidId, ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
 {
 	fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
 		self.price.cmp(&other.price)
 	}
 }
 
-impl<BidId: Eq, ProjectId: Eq, Balance: BalanceT, AccountId: Eq, BlockNumber: Eq, PlmcVesting: Eq, CTVesting: Eq>
-	sp_std::cmp::PartialOrd for BidInfo<BidId, ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
+impl<
+		BidId: Eq,
+		ProjectId: Eq,
+		Balance: BalanceT,
+		AccountId: Eq,
+		BlockNumber: Eq,
+		PlmcVesting: Eq,
+		CTVesting: Eq,
+	> sp_std::cmp::PartialOrd
+	for BidInfo<BidId, ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
 {
 	fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
 		Some(self.cmp(other))
@@ -327,7 +350,19 @@ pub enum RejectionReason {
 }
 
 /// Enum used to identify PLMC named reserves
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
+#[derive(
+	Clone,
+	Encode,
+	Decode,
+	Eq,
+	PartialEq,
+	RuntimeDebug,
+	TypeInfo,
+	MaxEncodedLen,
+	Copy,
+	Ord,
+	PartialOrd,
+)]
 pub enum BondType {
 	Evaluation,
 	Bidding,
@@ -393,7 +428,19 @@ impl<
 }
 
 /// Tells on_initialize what to do with the project
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
+#[derive(
+	Clone,
+	Encode,
+	Decode,
+	Eq,
+	PartialEq,
+	RuntimeDebug,
+	TypeInfo,
+	MaxEncodedLen,
+	Copy,
+	Ord,
+	PartialOrd,
+)]
 pub enum UpdateType {
 	EvaluationEnd,
 	EnglishAuctionStart,
@@ -403,7 +450,19 @@ pub enum UpdateType {
 	FundingEnd,
 }
 
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
+#[derive(
+	Clone,
+	Encode,
+	Decode,
+	Eq,
+	PartialEq,
+	RuntimeDebug,
+	TypeInfo,
+	MaxEncodedLen,
+	Copy,
+	Ord,
+	PartialOrd,
+)]
 pub struct Multiplier<T: crate::Config>(pub T::Balance);
 impl<T: crate::Config> BondingRequirementCalculation<T> for Multiplier<T> {
 	fn calculate_bonding_requirement(&self, ticket_size: BalanceOf<T>) -> Result<BalanceOf<T>, ()> {
