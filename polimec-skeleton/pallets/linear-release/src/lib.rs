@@ -317,7 +317,11 @@ pub mod pallet {
 			let transactor = ensure_signed(origin)?;
 			Self::do_vested_transfer(transactor, target, schedule, reason)
 		}
+
 		/// Force a vested transfer.
+		///
+		/// The dispatch origin for this call must be _Root_.
+		///
 		/// - `source`: The account whose funds should be transferred.
 		/// - `target`: The account that should be transferred the vested funds.
 		/// - `schedule`: The vesting schedule attached to the transfer.
