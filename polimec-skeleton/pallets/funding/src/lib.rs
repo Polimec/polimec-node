@@ -379,7 +379,7 @@ pub mod pallet {
 
 		type FeeBrackets: Get<Vec<(Percent, Self::Balance)>>;
 
-		type EarlyEvaluationThreshold: Get<Percent>;
+		type EvaluationSuccessThreshold: Get<Percent>;
 	}
 
 	#[pallet::storage]
