@@ -944,7 +944,7 @@ pub mod pallet {
 				let mut consumed_weight = T::WeightInfo::insert_cleaned_project();
 				while !consumed_weight.any_gt(max_weight_per_project) {
 					if let Ok(weight) = project_finalizer.do_one_operation::<T>(project_id) {
-						consumed_weight += weight
+						consumed_weight.saturating_accrue(weight);
 					} else {
 						break;
 					}
