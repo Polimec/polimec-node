@@ -177,9 +177,14 @@
 // we add more without this limit.
 #![cfg_attr(feature = "runtime-benchmarks", recursion_limit = "512")]
 
+pub use pallet::*;
+
 pub mod types;
+pub use types::*;
+
 pub mod weights;
-pub mod functions;
+
+mod functions;
 
 #[cfg(test)]
 pub mod mock;
@@ -188,12 +193,9 @@ pub mod mock;
 pub mod tests;
 
 #[cfg(feature = "runtime-benchmarks")]
-pub mod benchmarking;
-pub mod impls;
+mod benchmarking;
+mod impls;
 pub mod traits;
-
-pub use pallet::*;
-pub use types::*;
 
 #[allow(unused_imports)]
 use polimec_traits::{MemberRole, PolimecMembers};
