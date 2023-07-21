@@ -97,6 +97,9 @@ fn statemint_id() -> u32 {
 fn penpal_id() -> u32 {
 	_para_ids()[2]
 }
+fn provider_id() -> u32 {
+	_para_ids()[3]
+}
 
 // Helper functions to calculate chain accounts
 struct ParachainAccounts;
@@ -120,6 +123,9 @@ impl ParachainAccounts {
 	}
 	fn penpal_sibling_account() -> RuntimeAccountId32 {
 		SiblingId::from(penpal_id()).into_account_truncating()
+	}
+	fn provider_sibling_account() -> RuntimeAccountId32 {
+		SiblingId::from(provider_id()).into_account_truncating()
 	}
 }
 
@@ -223,6 +229,7 @@ pub fn polimec_ext(para_id: u32) -> sp_io::TestExternalities {
 			(DISPATCHER_ACCOUNT, INITIAL_BALANCE),
 			(ParachainAccounts::penpal_sibling_account(), INITIAL_BALANCE),
 			(ParachainAccounts::statemint_sibling_account(), INITIAL_BALANCE),
+			(ParachainAccounts::provider_sibling_account(), INITIAL_BALANCE),
 		],
 	}
 	.assimilate_storage(&mut t)
@@ -236,12 +243,7 @@ pub fn polimec_ext(para_id: u32) -> sp_io::TestExternalities {
 			12,
 		)],
 		accounts: vec![(RELAY_ASSET_ID, ALICE, INITIAL_BALANCE)],
-		assets: vec![(
-			RELAY_ASSET_ID,
-			frame_support::PalletId(*b"assetsid").into_account_truncating(),
-			false,
-			1_0_000_000_000,
-		)],
+		..Default::default()
 	}
 	.assimilate_storage(&mut t)
 	.unwrap();
