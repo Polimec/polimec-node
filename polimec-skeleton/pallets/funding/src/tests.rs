@@ -360,17 +360,6 @@ impl TestEnvironment {
 			balances
 		})
 	}
-	fn get_all_reserved_plmc_balances(&self, reserve_type: LockType<ProjectIdOf<TestRuntime>>) -> UserToPLMCBalance {
-		self.ext_env.borrow_mut().execute_with(|| {
-			let mut fundings = UserToPLMCBalance::new();
-			let user_keys: Vec<AccountId> = frame_system::Account::<TestRuntime>::iter_keys().collect();
-			for user in user_keys {
-				let funding = Balances::balance_on_hold(&reserve_type, &user);
-				fundings.push((user, funding));
-			}
-			fundings
-		})
-	}
 	#[allow(dead_code)]
 	fn get_all_reserved_plmc_balances(&self, reserve_type: LockType<ProjectIdOf<TestRuntime>>) -> UserToPLMCBalance {
 		self.ext_env.borrow_mut().execute_with(|| {
