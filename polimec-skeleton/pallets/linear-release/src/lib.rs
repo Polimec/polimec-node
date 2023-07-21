@@ -33,7 +33,11 @@ use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
 	pallet_prelude::*,
-	traits::{fungible::*, tokens::Balance, Get, WithdrawReasons},
+	traits::{
+		fungible::*,
+		tokens::{Balance, Precision},
+		Get, WithdrawReasons,
+	},
 };
 use frame_system::{pallet_prelude::*, WeightInfo};
 

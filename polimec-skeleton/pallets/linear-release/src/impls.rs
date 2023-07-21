@@ -1,5 +1,3 @@
-use frame_support::traits::tokens::Precision;
-
 use super::*;
 
 impl<T: Config> Pallet<T> {
