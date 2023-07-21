@@ -124,7 +124,7 @@ pub mod pallet {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-		type Balance: Balance + From<u64> + MaybeSerializeDeserialize;
+		type Balance: Balance + MaybeSerializeDeserialize;
 
 		// TODO: Still I dont-like this. I want to be able to use the `LockType` from the pallet_balances, without coupling it.
 		type Reason: Parameter + Copy + MaybeSerializeDeserialize;
