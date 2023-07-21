@@ -602,7 +602,7 @@ impl pallet_funding::Config for Runtime {
 	type BenchmarkHelper = ();
 	type WeightInfo = ();
 	type FeeBrackets = FeeBrackets;
-	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
+	type EarlyEvaluationThreshold = EarlyEvaluationThreshold;
 }
 
 impl pallet_credentials::Config for Runtime {

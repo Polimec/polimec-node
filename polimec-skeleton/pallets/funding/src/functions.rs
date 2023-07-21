@@ -247,7 +247,7 @@ impl<T: Config> Pallet<T> {
 				total.saturating_add(user_total_plmc_bond)
 			});
 
-		let evaluation_target_usd = <T as Config>::EvaluationSuccessThreshold::get() * fundraising_target_usd;
+		let evaluation_target_usd = Perquintill::from_percent(10) * fundraising_target_usd;
 		let evaluation_target_plmc = current_plmc_price
 			.reciprocal()
 			.ok_or(Error::<T>::BadMath)?
@@ -790,7 +790,7 @@ impl<T: Config> Pallet<T> {
 		let mut caller_existing_evaluations = Evaluations::<T>::get(project_id, evaluator.clone());
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
 		let early_evaluation_reward_threshold_usd =
-			T::EvaluationSuccessThreshold::get() * project_details.fundraising_target;
+			T::EarlyEvaluationThreshold::get() * project_details.fundraising_target;
 		let evaluation_round_info = &mut project_details.evaluation_round_info;
 
 		// * Validity Checks *
