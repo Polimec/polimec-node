@@ -32,7 +32,7 @@ use frame_support::{
 		Get,
 	},
 };
-use itertools::Itertools;
+
 use sp_arithmetic::Perquintill;
 
 use sp_arithmetic::traits::{CheckedSub, Zero};
@@ -1726,8 +1726,7 @@ impl<T: Config> Pallet<T> {
 		let project_account = Self::fund_account_id(project_id);
 		let plmc_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
 		// sort bids by price, and equal prices sorted by block number
-		bids.sort();
-		bids.reverse();
+		bids.sort_by(|a, b| b.cmp(a));
 		// accept only bids that were made before `end_block` i.e end of candle auction
 		let bids: Result<Vec<_>, DispatchError> = bids
 			.into_iter()
