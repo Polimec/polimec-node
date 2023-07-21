@@ -2824,6 +2824,8 @@ mod auction_round_failure {
 			project_id,
 		);
 
+		let _community_funding_project = auctioning_project.start_community_funding();
+
 		test_env.do_free_plmc_assertions(vec![(BIDDER_1, get_ed()), (BIDDER_2, plmc_fundings[1].1 + get_ed())]);
 
 		test_env.do_reserved_plmc_assertions(
@@ -2896,6 +2898,8 @@ mod auction_round_failure {
 			],
 			project_id,
 		);
+
+		let _community_funding_project = auctioning_project.start_community_funding();
 
 		test_env.do_free_plmc_assertions(vec![(BIDDER_1, get_ed()), (BIDDER_2, plmc_fundings[1].1 + get_ed())]);
 
