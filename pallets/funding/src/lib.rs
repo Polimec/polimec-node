@@ -307,6 +307,9 @@ pub mod pallet {
 		/// Something that provides randomness in the runtime.
 		type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
 
+		/// Something that provides the members of Polimec
+		type HandleMembers: PolimecMembers<Self::AccountId>;
+
 		/// The maximum length of data stored on-chain.
 		#[pallet::constant]
 		type StringLimit: Get<u32>;

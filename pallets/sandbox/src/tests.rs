@@ -133,6 +133,12 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 				(4, 10_000_000 * PLMC),
 			],
 		},
+		credentials: CredentialsConfig {
+			issuers: vec![1, 16558220937623665250],
+			retails: vec![2],
+			professionals: vec![2, 3],
+			institutionals: vec![4],
+		},
 		..Default::default()
 	}
 	.assimilate_storage(&mut t)

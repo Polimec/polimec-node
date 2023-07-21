@@ -1,10 +1,5 @@
 [workspace]
-members = [ "nodes/*",
-            "pallets/*",
-            "runtimes/*",
-            "traits",
-            # "integration-tests"
-]
+members = ["nodes/*", "pallets/*", "runtimes/*", "traits", "integration-tests"]
 
 [workspace.package]
 authors = ['Polimec Foundation <info@polimec.org>']
@@ -44,10 +39,14 @@ overflow-checks = true
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.39" }
 
 # Internal pallets (with default disabled)
+parachain-staking = { path = "pallets/parachain-staking", default-features = false }
+pallet-credentials = { path = "pallets/credentials", default-features = false }
 pallet-funding = { path = "pallets/funding", default-features = false }
 pallet-sandbox = { path = "pallets/sandbox", default-features = false }
+pallet-asset-registry = { path = "pallets/asset-registry", default-features = false }
 
 # Internal support (with default disabled)
+runtime-common = { path = "runtimes/common", default-features = false }
 polimec-traits = { path = "traits", default-features = false }
 xcm-primitives = { path = "primitives/xcm", default-features = false }
 

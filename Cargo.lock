@@ -451,6 +451,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1181e1e0d1fce796a03db1ae795d67167da795f9cf4a39c37589e85ef57f26d3"
 
 [[package]]
+name = "attestation"
+version = "1.11.0-dev"
+source = "git+https://github.com/KILTprotocol/kilt-node?branch=aa/dip#17c587e7cfd39e79ee06c7a568271ee8beecc505"
+dependencies = [
+ "ctype",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "kilt-support",
+ "log",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2236,6 +2256,58 @@ dependencies = [
 ]
 
 [[package]]
+name = "dip-provider-runtime-template"
+version = "1.11.0-dev"
+source = "git+https://github.com/KILTprotocol/kilt-node?branch=aa/dip#17c587e7cfd39e79ee06c7a568271ee8beecc505"
+dependencies = [
+ "cumulus-pallet-aura-ext",
+ "cumulus-pallet-dmp-queue",
+ "cumulus-pallet-parachain-system",
+ "cumulus-pallet-xcm",
+ "cumulus-pallet-xcmp-queue",
+ "cumulus-primitives-core",
+ "cumulus-primitives-timestamp",
+ "cumulus-primitives-utility",
+ "did",
+ "dip-support",
+ "frame-executive",
+ "frame-support",
+ "frame-system",
+ "frame-system-rpc-runtime-api",
+ "kilt-runtime-api-dip-provider",
+ "pallet-aura",
+ "pallet-authorship",
+ "pallet-balances",
+ "pallet-collator-selection",
+ "pallet-dip-provider",
+ "pallet-session",
+ "pallet-sudo",
+ "pallet-timestamp",
+ "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-xcm",
+ "parachain-info",
+ "parity-scale-codec",
+ "runtime-common 1.11.0-dev",
+ "scale-info",
+ "sp-api",
+ "sp-block-builder",
+ "sp-consensus-aura",
+ "sp-core",
+ "sp-inherents",
+ "sp-offchain",
+ "sp-runtime",
+ "sp-session",
+ "sp-std",
+ "sp-transaction-pool",
+ "sp-version",
+ "substrate-wasm-builder",
+ "xcm",
+ "xcm-builder",
+ "xcm-executor",
+]
+
+[[package]]
 name = "dip-support"
 version = "1.11.0-dev"
 source = "git+https://github.com/KILTprotocol/kilt-node?branch=aa/dip#17c587e7cfd39e79ee06c7a568271ee8beecc505"
@@ -3676,6 +3748,46 @@ dependencies = [
 ]
 
 [[package]]
+name = "integration-tests"
+version = "0.1.0"
+dependencies = [
+ "cumulus-pallet-xcm",
+ "cumulus-primitives-core",
+ "did",
+ "dip-provider-runtime-template",
+ "dip-support",
+ "frame-support",
+ "frame-system",
+ "kilt-dip-support",
+ "kilt-support",
+ "pallet-assets",
+ "pallet-balances",
+ "pallet-did-lookup",
+ "pallet-xcm",
+ "parachain-info",
+ "parity-scale-codec",
+ "penpal-runtime",
+ "polimec-parachain-runtime",
+ "polkadot-core-primitives",
+ "polkadot-parachain",
+ "polkadot-runtime",
+ "polkadot-runtime-parachains",
+ "runtime-common 0.1.0",
+ "runtime-common 1.11.0-dev",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "statemint-runtime",
+ "substrate-wasm-builder",
+ "xcm",
+ "xcm-builder",
+ "xcm-emulator",
+ "xcm-executor",
+]
+
+[[package]]
 name = "interceptor"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3920,6 +4032,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "kilt-asset-dids"
+version = "1.11.0-dev"
+source = "git+https://github.com/KILTprotocol/kilt-node?branch=aa/dip#17c587e7cfd39e79ee06c7a568271ee8beecc505"
+dependencies = [
+ "base58",
+ "frame-support",
+ "hex",
+ "hex-literal",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-std",
+]
+
+[[package]]
 name = "kilt-dip-support"
 version = "1.11.0-dev"
 source = "git+https://github.com/KILTprotocol/kilt-node?branch=aa/dip#17c587e7cfd39e79ee06c7a568271ee8beecc505"
@@ -3934,6 +4062,36 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "sp-trie",
+]
+
+[[package]]
+name = "kilt-runtime-api-dip-provider"
+version = "1.11.0-dev"
+source = "git+https://github.com/KILTprotocol/kilt-node?branch=aa/dip#17c587e7cfd39e79ee06c7a568271ee8beecc505"
+dependencies = [
+ "parity-scale-codec",
+ "sp-api",
+]
+
+[[package]]
+name = "kilt-runtime-api-staking"
+version = "0.1.0"
+dependencies = [
+ "parity-scale-codec",
+ "scale-info",
+ "sp-api",
+ "sp-runtime",
+]
+
+[[package]]
+name = "kilt-runtime-api-staking"
+version = "1.11.0-dev"
+source = "git+https://github.com/KILTprotocol/kilt-node?branch=aa/dip#17c587e7cfd39e79ee06c7a568271ee8beecc505"
+dependencies = [
+ "parity-scale-codec",
+ "scale-info",
+ "sp-api",
+ "sp-runtime",
 ]
 
 [[package]]
@@ -5486,6 +5644,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-asset-registry"
+version = "0.0.1"
+dependencies = [
+ "cumulus-pallet-dmp-queue",
+ "cumulus-pallet-xcmp-queue",
+ "cumulus-primitives-core",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-assets",
+ "pallet-balances",
+ "pallet-xcm",
+ "parachain-info",
+ "parachains-common",
+ "parity-scale-codec",
+ "polkadot-core-primitives",
+ "polkadot-parachain",
+ "polkadot-runtime-parachains",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "xcm",
+ "xcm-builder",
+ "xcm-executor",
+ "xcm-primitives",
+ "xcm-simulator",
+]
+
+[[package]]
 name = "pallet-asset-tx-payment"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39#8c4b84520cee2d7de53cc33cb67605ce4efefba8"
@@ -5757,6 +5946,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-credentials"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "parity-scale-codec",
+ "polimec-traits",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-democracy"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39#8c4b84520cee2d7de53cc33cb67605ce4efefba8"
@@ -5811,6 +6017,20 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-dip-provider"
+version = "1.11.0-dev"
+source = "git+https://github.com/KILTprotocol/kilt-node?branch=aa/dip#17c587e7cfd39e79ee06c7a568271ee8beecc505"
+dependencies = [
+ "dip-support",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-std",
+ "xcm",
 ]
 
 [[package]]
@@ -5894,6 +6114,7 @@ dependencies = [
  "frame-system",
  "pallet-assets",
  "pallet-balances",
+ "pallet-credentials",
  "pallet-insecure-randomness-collective-flip",
  "parity-scale-codec",
  "polimec-traits",
@@ -6243,6 +6464,7 @@ dependencies = [
  "frame-system",
  "pallet-assets",
  "pallet-balances",
+ "pallet-credentials",
  "pallet-funding",
  "pallet-insecure-randomness-collective-flip",
  "parachains-common",
@@ -6507,6 +6729,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-uniques"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39#8c4b84520cee2d7de53cc33cb67605ce4efefba8"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-utility"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.39#8c4b84520cee2d7de53cc33cb67605ce4efefba8"
@@ -6531,6 +6768,20 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-web3-names"
+version = "1.11.0-dev"
+source = "git+https://github.com/KILTprotocol/kilt-node?branch=aa/dip#17c587e7cfd39e79ee06c7a568271ee8beecc505"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "kilt-support",
  "parity-scale-codec",
  "scale-info",
  "sp-runtime",
@@ -6602,6 +6853,53 @@ dependencies = [
  "frame-system",
  "parity-scale-codec",
  "scale-info",
+]
+
+[[package]]
+name = "parachain-staking"
+version = "1.9.0-dev"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "kilt-runtime-api-staking 0.1.0",
+ "log",
+ "pallet-aura",
+ "pallet-authorship",
+ "pallet-balances",
+ "pallet-session",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-consensus-aura",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-staking",
+ "sp-std",
+]
+
+[[package]]
+name = "parachain-staking"
+version = "1.11.0-dev"
+source = "git+https://github.com/KILTprotocol/kilt-node?branch=aa/dip#17c587e7cfd39e79ee06c7a568271ee8beecc505"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "kilt-runtime-api-staking 1.11.0-dev",
+ "kilt-support",
+ "log",
+ "pallet-authorship",
+ "pallet-balances",
+ "pallet-session",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-runtime",
+ "sp-staking",
+ "sp-std",
 ]
 
 [[package]]
@@ -6793,6 +7091,65 @@ dependencies = [
 ]
 
 [[package]]
+name = "penpal-runtime"
+version = "0.9.27"
+dependencies = [
+ "cumulus-pallet-aura-ext",
+ "cumulus-pallet-dmp-queue",
+ "cumulus-pallet-parachain-system",
+ "cumulus-pallet-session-benchmarking",
+ "cumulus-pallet-xcm",
+ "cumulus-pallet-xcmp-queue",
+ "cumulus-primitives-core",
+ "cumulus-primitives-timestamp",
+ "cumulus-primitives-utility",
+ "frame-benchmarking",
+ "frame-executive",
+ "frame-support",
+ "frame-system",
+ "frame-system-benchmarking",
+ "frame-system-rpc-runtime-api",
+ "frame-try-runtime",
+ "hex-literal",
+ "log",
+ "pallet-asset-tx-payment",
+ "pallet-assets",
+ "pallet-aura",
+ "pallet-authorship",
+ "pallet-balances",
+ "pallet-collator-selection",
+ "pallet-session",
+ "pallet-sudo",
+ "pallet-timestamp",
+ "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-xcm",
+ "parachain-info",
+ "parachains-common",
+ "parity-scale-codec",
+ "polkadot-parachain",
+ "polkadot-primitives",
+ "polkadot-runtime-common",
+ "scale-info",
+ "smallvec",
+ "sp-api",
+ "sp-block-builder",
+ "sp-consensus-aura",
+ "sp-core",
+ "sp-inherents",
+ "sp-offchain",
+ "sp-runtime",
+ "sp-session",
+ "sp-std",
+ "sp-transaction-pool",
+ "sp-version",
+ "substrate-wasm-builder",
+ "xcm",
+ "xcm-builder",
+ "xcm-executor",
+]
+
+[[package]]
 name = "percent-encoding"
 version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6951,11 +7308,13 @@ dependencies = [
  "pallet-treasury",
  "pallet-xcm",
  "parachain-info",
+ "parachain-staking 1.9.0-dev",
  "parachains-common",
  "parity-scale-codec",
  "polkadot-parachain",
  "polkadot-primitives",
  "polkadot-runtime-common",
+ "runtime-common 0.1.0",
  "scale-info",
  "smallvec",
  "sp-api",
@@ -7062,12 +7421,14 @@ dependencies = [
  "hex-literal",
  "kilt-dip-support",
  "log",
+ "pallet-asset-registry",
  "pallet-asset-tx-payment",
  "pallet-assets",
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
  "pallet-collective",
+ "pallet-credentials",
  "pallet-democracy",
  "pallet-did-lookup",
  "pallet-dip-consumer",
@@ -7086,12 +7447,14 @@ dependencies = [
  "pallet-vesting",
  "pallet-xcm",
  "parachain-info",
+ "parachain-staking 1.9.0-dev",
  "parachains-common",
  "parity-scale-codec",
  "polimec-traits",
  "polkadot-parachain",
  "polkadot-primitives",
  "polkadot-runtime-common",
+ "runtime-common 0.1.0",
  "scale-info",
  "serde",
  "smallvec",
@@ -7176,6 +7539,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-collective",
+ "pallet-credentials",
  "pallet-democracy",
  "pallet-funding",
  "pallet-grandpa",
@@ -7192,6 +7556,7 @@ dependencies = [
  "pallet-vesting",
  "parity-scale-codec",
  "polimec-traits",
+ "runtime-common 0.1.0",
  "scale-info",
  "sp-api",
  "sp-block-builder",
@@ -8651,6 +9016,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "public-credentials"
+version = "1.11.0-dev"
+source = "git+https://github.com/KILTprotocol/kilt-node?branch=aa/dip#17c587e7cfd39e79ee06c7a568271ee8beecc505"
+dependencies = [
+ "ctype",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "kilt-support",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "quick-error"
 version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9165,6 +9548,79 @@ dependencies = [
  "serde",
  "thiserror",
  "webrtc-util",
+]
+
+[[package]]
+name = "runtime-common"
+version = "0.1.0"
+dependencies = [
+ "cumulus-primitives-core",
+ "did",
+ "dip-support",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-authorship",
+ "pallet-balances",
+ "pallet-did-lookup",
+ "pallet-dip-consumer",
+ "pallet-dip-provider",
+ "pallet-membership",
+ "pallet-transaction-payment",
+ "parachain-staking 1.9.0-dev",
+ "parachains-common",
+ "parity-scale-codec",
+ "polkadot-parachain",
+ "scale-info",
+ "smallvec",
+ "sp-consensus-aura",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "sp-trie",
+ "xcm",
+ "xcm-builder",
+ "xcm-executor",
+]
+
+[[package]]
+name = "runtime-common"
+version = "1.11.0-dev"
+source = "git+https://github.com/KILTprotocol/kilt-node?branch=aa/dip#17c587e7cfd39e79ee06c7a568271ee8beecc505"
+dependencies = [
+ "attestation",
+ "ctype",
+ "cumulus-primitives-core",
+ "did",
+ "frame-support",
+ "frame-system",
+ "kilt-asset-dids",
+ "kilt-dip-support",
+ "kilt-support",
+ "log",
+ "pallet-authorship",
+ "pallet-balances",
+ "pallet-dip-consumer",
+ "pallet-dip-provider",
+ "pallet-membership",
+ "pallet-transaction-payment",
+ "pallet-web3-names",
+ "parachain-staking 1.11.0-dev",
+ "parity-scale-codec",
+ "polkadot-parachain",
+ "public-credentials",
+ "scale-info",
+ "smallvec",
+ "sp-consensus-aura",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "sp-trie",
+ "xcm",
+ "xcm-builder",
+ "xcm-executor",
 ]
 
 [[package]]
@@ -11611,6 +12067,70 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
+name = "statemint-runtime"
+version = "1.0.0"
+source = "git+https://github.com/paritytech/cumulus?branch=polkadot-v0.9.39#d6eef144421ef5c3f339f681484d06bb729dfa82"
+dependencies = [
+ "cumulus-pallet-aura-ext",
+ "cumulus-pallet-dmp-queue",
+ "cumulus-pallet-parachain-system",
+ "cumulus-pallet-session-benchmarking",
+ "cumulus-pallet-xcm",
+ "cumulus-pallet-xcmp-queue",
+ "cumulus-primitives-core",
+ "cumulus-primitives-timestamp",
+ "cumulus-primitives-utility",
+ "frame-benchmarking",
+ "frame-executive",
+ "frame-support",
+ "frame-system",
+ "frame-system-benchmarking",
+ "frame-system-rpc-runtime-api",
+ "hex-literal",
+ "log",
+ "pallet-asset-tx-payment",
+ "pallet-assets",
+ "pallet-aura",
+ "pallet-authorship",
+ "pallet-balances",
+ "pallet-collator-selection",
+ "pallet-multisig",
+ "pallet-proxy",
+ "pallet-session",
+ "pallet-timestamp",
+ "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-uniques",
+ "pallet-utility",
+ "pallet-xcm",
+ "pallet-xcm-benchmarks",
+ "parachain-info",
+ "parachains-common",
+ "parity-scale-codec",
+ "polkadot-core-primitives",
+ "polkadot-parachain",
+ "polkadot-runtime-common",
+ "polkadot-runtime-constants",
+ "scale-info",
+ "smallvec",
+ "sp-api",
+ "sp-block-builder",
+ "sp-consensus-aura",
+ "sp-core",
+ "sp-inherents",
+ "sp-offchain",
+ "sp-runtime",
+ "sp-session",
+ "sp-std",
+ "sp-transaction-pool",
+ "sp-version",
+ "substrate-wasm-builder",
+ "xcm",
+ "xcm-builder",
+ "xcm-executor",
+]
+
+[[package]]
 name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13769,6 +14289,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "xcm-emulator"
+version = "0.1.0"
+source = "git+https://github.com/shaunxw/xcm-simulator?rev=aa13dce47596e150806dfc3af99096dae6ffc65e#aa13dce47596e150806dfc3af99096dae6ffc65e"
+dependencies = [
+ "cumulus-pallet-dmp-queue",
+ "cumulus-pallet-parachain-system",
+ "cumulus-pallet-xcmp-queue",
+ "cumulus-primitives-core",
+ "cumulus-primitives-parachain-inherent",
+ "cumulus-test-relay-sproof-builder",
+ "frame-support",
+ "frame-system",
+ "parachain-info",
+ "parity-scale-codec",
+ "paste",
+ "polkadot-primitives",
+ "polkadot-runtime-parachains",
+ "quote",
+ "sp-arithmetic",
+ "sp-io",
+ "sp-std",
+ "xcm",
+ "xcm-executor",
+]
+
+[[package]]
 name = "xcm-executor"
 version = "0.9.39-1"
 source = "git+https://github.com/paritytech/polkadot?branch=release-v0.9.39#c22e1c4173bf6966f5d1980f4299f7abe836f0c1"
@@ -13806,6 +14352,23 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "xcm-simulator"
+version = "0.9.39-1"
+source = "git+https://github.com/paritytech/polkadot?branch=release-v0.9.39#c22e1c4173bf6966f5d1980f4299f7abe836f0c1"
+dependencies = [
+ "frame-support",
+ "parity-scale-codec",
+ "paste",
+ "polkadot-core-primitives",
+ "polkadot-parachain",
+ "polkadot-runtime-parachains",
+ "sp-io",
+ "sp-std",
+ "xcm",
+ "xcm-executor",
 ]
 
 [[package]]
