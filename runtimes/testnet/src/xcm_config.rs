@@ -39,13 +39,11 @@ use polkadot_runtime_common::impls::ToAuthor;
 use sp_runtime::traits::Zero;
 use xcm::latest::prelude::*;
 use xcm_builder::{
-	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses,
-	AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom, AsPrefixedGeneralIndex,
-	ConvertedConcreteId, CurrencyAdapter, EnsureXcmOrigin, FixedRateOfFungible, FixedWeightBounds,
-	FungiblesAdapter, IsConcrete, LocalMint, NativeAsset, ParentIsPreset, RelayChainAsNative,
-	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
-	SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, UsingComponents,
-	WithComputedOrigin,
+	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses, AllowSubscriptionsFrom,
+	AllowTopLevelPaidExecutionFrom, AsPrefixedGeneralIndex, ConvertedConcreteId, CurrencyAdapter, EnsureXcmOrigin,
+	FixedRateOfFungible, FixedWeightBounds, FungiblesAdapter, IsConcrete, LocalMint, NativeAsset, ParentIsPreset,
+	RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
+	SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, UsingComponents, WithComputedOrigin,
 };
 use xcm_executor::{
 	traits::{Convert, Error, JustTry, MatchesFungibles},
@@ -53,9 +51,8 @@ use xcm_executor::{
 };
 
 use super::{
-	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances,
-	ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
-	StatemintAssets, WeightToFee, XcmpQueue,
+	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances, ParachainInfo, ParachainSystem,
+	PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, StatemintAssets, WeightToFee, XcmpQueue,
 };
 
 const DOT_ASSET_ID: AssetId = Concrete(RelayLocation::get());
@@ -124,13 +121,19 @@ pub struct NativeToFungible;
 impl Convert<MultiLocation, AssetIdPalletAssets> for NativeToFungible {
 	fn convert(asset: MultiLocation) -> Result<AssetIdPalletAssets, MultiLocation> {
 		match asset {
-			MultiLocation { parents: 1, interior: Here } => Ok(AssetIdPalletAssets::from(0u32)),
+			MultiLocation {
+				parents: 1,
+				interior: Here,
+			} => Ok(AssetIdPalletAssets::from(0u32)),
 			_ => Err(asset),
 		}
 	}
 	fn reverse(value: AssetIdPalletAssets) -> Result<MultiLocation, AssetIdPalletAssets> {
 		if value == AssetIdPalletAssets::from(0u32) {
-			Ok(MultiLocation { parents: 1, interior: Here })
+			Ok(MultiLocation {
+				parents: 1,
+				interior: Here,
+			})
 		} else {
 			Err(value)
 		}
@@ -151,10 +154,8 @@ impl<
 	for NonBlockingConvertedConcreteId<AssetId, Balance, ConvertAssetId, ConvertBalance>
 {
 	fn matches_fungibles(a: &MultiAsset) -> Result<(AssetId, Balance), Error> {
-		ConvertedConcreteId::<AssetId, Balance, ConvertAssetId, ConvertBalance>::matches_fungibles(
-			a,
-		)
-		.map_err(|_| Error::AssetNotFound)
+		ConvertedConcreteId::<AssetId, Balance, ConvertAssetId, ConvertBalance>::matches_fungibles(a)
+			.map_err(|_| Error::AssetNotFound)
 	}
 }
 
@@ -175,8 +176,7 @@ pub type StatemintDotTransactor = FungiblesAdapter<
 >;
 
 /// Means for transacting assets on this chain.
-pub type AssetTransactors =
-	(CurrencyTransactor, StatemintDotTransactor, StatemintFungiblesTransactor);
+pub type AssetTransactors = (CurrencyTransactor, StatemintDotTransactor, StatemintFungiblesTransactor);
 
 /// This is the type we use to convert an (incoming) XCM origin into a local `Origin` instance,
 /// ready for dispatching a transaction with Xcm's `Transact`. There is an `OriginKind` which can
@@ -228,10 +228,7 @@ pub type Barrier = DenyThenTry<
 				// If the message is one that immediately attemps to pay for execution, then allow it.
 				AllowTopLevelPaidExecutionFrom<Everything>,
 				// Common Good Assets parachain, parent and its exec plurality get free execution
-				AllowExplicitUnpaidExecutionFrom<(
-					CommonGoodAssetsParachain,
-					ParentOrParentsExecutivePlurality,
-				)>,
+				AllowExplicitUnpaidExecutionFrom<(CommonGoodAssetsParachain, ParentOrParentsExecutivePlurality)>,
 				// Subscriptions for version tracking are OK.
 				AllowSubscriptionsFrom<Everything>,
 			),
@@ -253,8 +250,8 @@ impl ContainsPair<MultiAsset, MultiLocation> for StatemintAssetsFilter {
 		// location must be the statemint parachain
 		let loc = MultiLocation::new(1, X1(Parachain(1000)));
 		// asset must be either a fungible asset from `pallet_assets` or the native token of the relay chain
-		&loc == origin &&
-			match asset {
+		&loc == origin
+			&& match asset {
 				MultiAsset {
 					id:
 						Concrete(MultiLocation {
@@ -264,7 +261,11 @@ impl ContainsPair<MultiAsset, MultiLocation> for StatemintAssetsFilter {
 					..
 				} => true,
 				MultiAsset {
-					id: Concrete(MultiLocation { parents: 1, interior: Here }), ..
+					id: Concrete(MultiLocation {
+						parents: 1,
+						interior: Here,
+					}),
+					..
 				} => true,
 
 				_ => false,
@@ -275,8 +276,8 @@ impl ContainsPair<MultiAsset, MultiLocation> for StatemintAssetsFilter {
 impl<T: Get<MultiLocation>> ContainsPair<MultiAsset, MultiLocation> for AssetsFrom<T> {
 	fn contains(asset: &MultiAsset, origin: &MultiLocation) -> bool {
 		let loc = T::get();
-		&loc == origin &&
-			matches!(asset, MultiAsset { id: AssetId::Concrete(asset_loc), fun: Fungible(_a) }
+		&loc == origin
+			&& matches!(asset, MultiAsset { id: AssetId::Concrete(asset_loc), fun: Fungible(_a) }
 			if asset_loc.match_and_split(&loc).is_some())
 	}
 }
@@ -342,7 +343,7 @@ impl ContainsPair<MultiAsset, MultiLocation> for MultiNativeAsset {
 	fn contains(asset: &MultiAsset, origin: &MultiLocation) -> bool {
 		if let Some(ref reserve) = asset.reserve() {
 			if reserve == origin {
-				return true
+				return true;
 			}
 		}
 		false
@@ -375,7 +376,7 @@ impl xcm_executor::Config for XcmConfig {
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
 	type Trader = (
 		// TODO: weight to fee has to be carefully considered. For now use default
-		UsingComponents<WeightToFee, HereLocation, AccountId, Balances, ToAuthor<Runtime>>,
+		UsingComponents<WeightToFee<Runtime>, HereLocation, AccountId, Balances, ToAuthor<Runtime>>,
 		FixedRateOfFungible<DotTraderParams, ()>,
 	);
 	type ResponseHandler = PolkadotXcm;

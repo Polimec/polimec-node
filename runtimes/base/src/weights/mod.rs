@@ -14,18 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{
-	currency::{deposit, PLMC},
-	Balance,
-};
-use frame_support::parameter_types;
+//! Expose the auto generated weight files.
 
-parameter_types! {
-	pub const AssetDeposit: Balance = 10  * PLMC;
-	pub const AssetsStringLimit: u32 = 50;
-	/// Key = 32 bytes, Value = 36 bytes (32+1+1+1+1)
-	// https://github.com/paritytech/substrate/blob/069917b/frame/assets/src/lib.rs#L257L271
-	pub const MetadataDepositBase: Balance = deposit(1, 68);
-	pub const MetadataDepositPerByte: Balance = deposit(0, 1);
-	pub const AssetAccountDeposit: Balance = deposit(1, 18);
-}
+pub mod block_weights;
+pub mod extrinsic_weights;
+pub mod paritydb_weights;
+pub mod rocksdb_weights;
+
+pub use block_weights::constants::BlockExecutionWeight;
+pub use extrinsic_weights::constants::ExtrinsicBaseWeight;
+pub use paritydb_weights::constants::ParityDbWeight;
+pub use rocksdb_weights::constants::RocksDbWeight;

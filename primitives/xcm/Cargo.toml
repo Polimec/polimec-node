@@ -1,0 +1,18 @@
+[package]
+name = "xcm-primitives"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+sp-std.workspace = true
+
+xcm.workspace = true
+xcm-executor.workspace = true
+
+[features]
+default = [ "std" ]
+std = [
+    "sp-std/std",
+    "xcm/std",
+    "xcm-executor/std"
+]

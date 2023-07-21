@@ -22,18 +22,13 @@ use crate::chain_spec::Extensions;
 use cumulus_primitives_core::ParaId;
 use polimec_base_runtime as base_runtime;
 use sc_service::ChainType;
-use sp_core::{crypto::UncheckedInto, sr25519};
-use sp_runtime::{Perbill, Percent};
+use sp_core::sr25519;
 
-use crate::chain_spec::{get_account_id_from_seed, get_properties, DEFAULT_PARA_ID};
+use crate::chain_spec::{get_account_id_from_seed, get_from_seed, get_properties, DEFAULT_PARA_ID};
 use base_runtime::{
-	pallet_parachain_staking::{
-		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
-		InflationInfo, Range,
-	},
-	AccountId, AuraId as AuthorityId, Balance, BalancesConfig, GenesisConfig, MinCandidateStk,
-	ParachainInfoConfig, ParachainStakingConfig, PolkadotXcmConfig, SessionConfig, SudoConfig,
-	SystemConfig, PLMC,
+	polimec_inflation_config, staking::MinCollatorStake, AccountId, AuraId as AuthorityId, Balance, BalancesConfig,
+	GenesisConfig, InflationInfo, ParachainInfoConfig, ParachainStakingConfig, PolkadotXcmConfig, SessionConfig,
+	SudoConfig, SystemConfig, MAX_COLLATOR_STAKE, PLMC,
 };
 
 /// The default XCM version to set in genesis config.
@@ -42,45 +37,13 @@ const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
 /// Specialized `ChainSpec` for the shell parachain runtime.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
 
-const COLLATOR_COMMISSION: Perbill = Perbill::from_percent(30);
-const PARACHAIN_BOND_RESERVE_PERCENT: Percent = Percent::from_percent(0);
-const BLOCKS_PER_ROUND: u32 = 2 * 10;
-const NUM_SELECTED_CANDIDATES: u32 = 5;
-pub fn polimec_inflation_config() -> InflationInfo<Balance> {
-	fn to_round_inflation(annual: Range<Perbill>) -> Range<Perbill> {
-		perbill_annual_to_perbill_round(
-			annual,
-			// rounds per year
-			BLOCKS_PER_YEAR / BLOCKS_PER_ROUND,
-		)
-	}
-
-	let annual = Range {
-		min: Perbill::from_percent(2),
-		ideal: Perbill::from_percent(3),
-		max: Perbill::from_percent(3),
-	};
-
-	InflationInfo {
-		// staking expectations
-		expect: Range { min: 100_000 * PLMC, ideal: 200_000 * PLMC, max: 500_000 * PLMC },
-		// annual inflation
-		annual,
-		round: to_round_inflation(annual),
-	}
-}
-
-pub fn get_base_session_keys(keys: AuthorityId) -> base_runtime::SessionKeys {
-	base_runtime::SessionKeys { aura: keys }
-}
-
 pub fn get_local_base_chain_spec() -> Result<ChainSpec, String> {
 	let properties = get_properties("PLMC", 10, 41);
 	let wasm = base_runtime::WASM_BINARY.ok_or("No WASM")?;
 
 	Ok(ChainSpec::from_genesis(
 		"Polimec Base Develop",
-		"polimec-base",
+		"polimec",
 		ChainType::Local,
 		move || {
 			base_testnet_genesis(
@@ -89,46 +52,58 @@ pub fn get_local_base_chain_spec() -> Result<ChainSpec, String> {
 					(
 						get_account_id_from_seed::<sr25519::Public>("Alice"),
 						None,
-						2 * MinCandidateStk::get(),
+						2 * MinCollatorStake::get(),
 					),
 					(
 						get_account_id_from_seed::<sr25519::Public>("Bob"),
 						None,
-						2 * MinCandidateStk::get(),
+						2 * MinCollatorStake::get(),
 					),
 				],
 				polimec_inflation_config(),
-				vec![
-					get_account_id_from_seed::<sr25519::Public>("Alice"),
-					get_account_id_from_seed::<sr25519::Public>("Bob"),
-				],
+				MAX_COLLATOR_STAKE,
 				vec![
 					(
 						get_account_id_from_seed::<sr25519::Public>("Alice"),
-						5 * MinCandidateStk::get(),
+						get_from_seed::<AuthorityId>("Alice"),
 					),
 					(
 						get_account_id_from_seed::<sr25519::Public>("Bob"),
-						5 * MinCandidateStk::get(),
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Charlie"),
-						5 * MinCandidateStk::get(),
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Dave"),
-						5 * MinCandidateStk::get(),
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Eve"),
-						5 * MinCandidateStk::get(),
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-						5 * MinCandidateStk::get(),
+						get_from_seed::<AuthorityId>("Bob"),
 					),
 				],
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				vec![
+					(get_account_id_from_seed::<sr25519::Public>("Alice"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Bob"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Charlie"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Dave"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Eve"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Ferdie"), 10000000 * PLMC),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+						10000000 * PLMC,
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+						10000000 * PLMC,
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
+						10000000 * PLMC,
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
+						10000000 * PLMC,
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
+						10000000 * PLMC,
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+						10000000 * PLMC,
+					),
+				],
 				DEFAULT_PARA_ID,
 			)
 		},
@@ -137,42 +112,58 @@ pub fn get_local_base_chain_spec() -> Result<ChainSpec, String> {
 		Some("polimec"),
 		None,
 		Some(properties),
-		Extensions { relay_chain: "rococo_local_testnet".into(), para_id: DEFAULT_PARA_ID.into() },
+		Extensions {
+			relay_chain: "rococo_local_testnet".into(),
+			para_id: DEFAULT_PARA_ID.into(),
+		},
 	))
 }
 
-pub fn get_kusama_base_chain_spec() -> Result<ChainSpec, String> {
+pub fn get_live_base_chain_spec() -> Result<ChainSpec, String> {
 	let properties = get_properties("PLMC", 10, 41);
 	let wasm = base_runtime::WASM_BINARY.ok_or("No WASM")?;
 
 	// TODO: Update this after reserving a ParaId
-	let id: u32 = 4261;
-
-	const PLMC_SUDO_ACC: [u8; 32] =
-		hex_literal::hex!["d4192a54c9caa4a38eeb3199232ed0d8568b22956cafb76c7d5a1afbf4e2dc38"];
-	const PLMC_COL_ACC_1: [u8; 32] =
-		hex_literal::hex!["6603f63a4091ba074b4384e64c6bba1dd96f6af49331ebda686b0a0f27dd961c"];
-	const PLMC_COL_ACC_2: [u8; 32] =
-		hex_literal::hex!["ba48ab77461ef53f9ebfdc94a12c780b57354f986e31eb2504b9e3ed580fab51"];
+	let id: u32 = 2105;
 
 	Ok(ChainSpec::from_genesis(
-		"Polimec Kusama Testnet",
+		"Polimec Base",
 		"polimec",
 		ChainType::Live,
 		move || {
 			base_testnet_genesis(
 				wasm,
+				// TODO: Update stakers
 				vec![
-					(PLMC_COL_ACC_1.into(), None, 2 * MinCandidateStk::get()),
-					(PLMC_COL_ACC_2.into(), None, 2 * MinCandidateStk::get()),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Alice"),
+						None,
+						2 * MinCollatorStake::get(),
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Bob"),
+						None,
+						2 * MinCollatorStake::get(),
+					),
 				],
 				polimec_inflation_config(),
-				vec![(PLMC_COL_ACC_1.into()), (PLMC_COL_ACC_2.into())],
+				MAX_COLLATOR_STAKE,
+				// TODO: Update initial authorities
 				vec![
-					(PLMC_COL_ACC_1.into(), 3 * MinCandidateStk::get()),
-					(PLMC_COL_ACC_2.into(), 3 * MinCandidateStk::get()),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Alice"),
+						get_from_seed::<AuthorityId>("Alice"),
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Bob"),
+						get_from_seed::<AuthorityId>("Bob"),
+					),
 				],
-				PLMC_SUDO_ACC.into(),
+				// TODO: Update initial balances
+				vec![
+					(get_account_id_from_seed::<sr25519::Public>("Alice"), 10000000 * PLMC),
+					(get_account_id_from_seed::<sr25519::Public>("Bob"), 10000000 * PLMC),
+				],
 				id.into(),
 			)
 		},
@@ -181,34 +172,35 @@ pub fn get_kusama_base_chain_spec() -> Result<ChainSpec, String> {
 		Some("polimec"),
 		None,
 		Some(properties),
-		Extensions { relay_chain: "kusama".into(), para_id: id },
+		Extensions {
+			relay_chain: "polkadot".into(),
+			para_id: id,
+		},
 	))
 }
 
 fn base_testnet_genesis(
-	wasm_binary: &[u8],
-	stakers: Vec<(AccountId, Option<AccountId>, Balance)>,
-	inflation_config: InflationInfo<Balance>,
-	initial_authorities: Vec<AccountId>,
-	endowed_accounts: Vec<(AccountId, Balance)>,
-	sudo_account: AccountId,
-	id: ParaId,
+	wasm_binary: &[u8], stakers: Vec<(AccountId, Option<AccountId>, Balance)>, inflation_config: InflationInfo,
+	max_candidate_stake: Balance, initial_authorities: Vec<(AccountId, AuthorityId)>,
+	endowed_accounts: Vec<(AccountId, Balance)>, id: ParaId,
 ) -> GenesisConfig {
+	let accounts = endowed_accounts
+		.iter()
+		.map(|(account, _)| account.clone())
+		.collect::<Vec<_>>();
+
 	GenesisConfig {
-		system: SystemConfig { code: wasm_binary.to_vec() },
-		balances: BalancesConfig { balances: endowed_accounts.clone() },
+		system: SystemConfig {
+			code: wasm_binary.to_vec(),
+		},
+		balances: BalancesConfig {
+			balances: endowed_accounts.clone(),
+		},
 		parachain_info: ParachainInfoConfig { parachain_id: id },
 		parachain_staking: ParachainStakingConfig {
-			candidates: stakers
-				.iter()
-				.map(|(accunt, _, balance)| (accunt.clone(), balance.clone()))
-				.collect::<Vec<_>>(),
+			stakers,
 			inflation_config,
-			delegations: vec![],
-			collator_commission: COLLATOR_COMMISSION,
-			parachain_bond_reserve_percent: PARACHAIN_BOND_RESERVE_PERCENT,
-			blocks_per_round: BLOCKS_PER_ROUND,
-			num_selected_candidates: NUM_SELECTED_CANDIDATES,
+			max_candidate_stake,
 		},
 		aura: Default::default(),
 		aura_ext: Default::default(),
@@ -216,17 +208,22 @@ fn base_testnet_genesis(
 		session: SessionConfig {
 			keys: initial_authorities
 				.iter()
-				.map(|acc| {
+				.map(|(acc, key)| {
 					(
 						acc.clone(),
 						acc.clone(),
-						get_base_session_keys(Into::<[u8; 32]>::into(acc.clone()).unchecked_into()),
+						base_runtime::SessionKeys { aura: key.clone() },
 					)
 				})
 				.collect::<Vec<_>>(),
 		},
-		polkadot_xcm: PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION) },
-		sudo: SudoConfig { key: Some(sudo_account) },
+		treasury: Default::default(),
+		polkadot_xcm: PolkadotXcmConfig {
+			safe_xcm_version: Some(SAFE_XCM_VERSION),
+		},
+		sudo: SudoConfig {
+			key: Some(accounts.first().expect("").to_owned()),
+		},
 		transaction_payment: Default::default(),
 	}
 }

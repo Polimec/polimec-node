@@ -28,6 +28,8 @@ use sp_runtime::traits::{IdentifyAccount, Verify};
 pub mod base;
 pub mod testnet;
 
+// TODO: Set a proper TELEMETRY_URL
+const TELEMETRY_URL: &str = "wss://tbd";
 const DEFAULT_PARA_ID: ParaId = LOWEST_PUBLIC_ID;
 
 /// Helper function to generate a crypto pair from seed
@@ -38,9 +40,7 @@ pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Pu
 }
 
 /// The extensions for the [`ChainSpec`].
-#[derive(
-	Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ChainSpecGroup, ChainSpecExtension,
-)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ChainSpecGroup, ChainSpecExtension)]
 #[serde(deny_unknown_fields)]
 pub struct Extensions {
 	/// The relay chain of the Parachain.

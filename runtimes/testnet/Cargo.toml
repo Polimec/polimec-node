@@ -25,7 +25,16 @@ smallvec.workspace = true
 
 # Polimec specific
 pallet-funding.workspace = true
-shared-configuration.workspace = true
+polimec-traits.workspace = true
+
+# KILT specific
+pallet-dip-consumer.workspace = true
+did.workspace = true
+pallet-did-lookup.workspace = true
+kilt-dip-support.workspace = true
+
+# Primitives
+xcm-primitives.workspace = true
 
 # FRAME
 frame-benchmarking = { workspace = true, optional = true }
@@ -54,7 +63,6 @@ pallet-multisig.workspace = true
 pallet-preimage.workspace = true
 pallet-insecure-randomness-collective-flip.workspace = true
 pallet-vesting.workspace = true
-pallet-parachain-staking.workspace = true
 
 # Substrate
 sp-api.workspace = true
@@ -142,6 +150,7 @@ std = [
 	"parachain-info/std",
 	"polkadot-parachain/std",
 	"polkadot-runtime-common/std",
+	"polimec-traits/std",
 	"sp-api/std",
 	"sp-block-builder/std",
 	"sp-consensus-aura/std",
@@ -157,8 +166,9 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
-	"shared-configuration/std",
-	"pallet-parachain-staking/std"
+	"did/std",
+	"pallet-dip-consumer/std",
+	"pallet-did-lookup/std",
 ]
 
 runtime-benchmarks = [
@@ -180,7 +190,7 @@ runtime-benchmarks = [
 	"pallet-assets/runtime-benchmarks",
 	"pallet-collective/runtime-benchmarks",
 ]
-
+#
 try-runtime = [
 	"cumulus-pallet-aura-ext/try-runtime",
 	"cumulus-pallet-dmp-queue/try-runtime",

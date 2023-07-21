@@ -43,12 +43,18 @@ fn test_buy_if_popular() {
 			<AllPalletsWithSystem as OnInitialize<u64>>::on_initialize(System::block_number());
 		}
 
-		assert_ok!(FundingModule::bid(RuntimeOrigin::signed(bidder), 0, 1000, 100 * PLMC, None));
+		assert_ok!(FundingModule::bid(
+			RuntimeOrigin::signed(bidder),
+			0,
+			1000,
+			100 * PLMC,
+			None
+		));
 
 		// advance time
-		for _block in 0..(<TestRuntime as pallet_funding::Config>::EnglishAuctionDuration::get() +
-			<TestRuntime as pallet_funding::Config>::CandleAuctionDuration::get() +
-			5)
+		for _block in 0..(<TestRuntime as pallet_funding::Config>::EnglishAuctionDuration::get()
+			+ <TestRuntime as pallet_funding::Config>::CandleAuctionDuration::get()
+			+ 5)
 		{
 			<AllPalletsWithoutSystem as OnFinalize<u64>>::on_finalize(System::block_number());
 			<AllPalletsWithoutSystem as OnIdle<u64>>::on_idle(System::block_number(), Weight::MAX);
@@ -56,11 +62,21 @@ fn test_buy_if_popular() {
 			<AllPalletsWithSystem as OnInitialize<u64>>::on_initialize(System::block_number());
 		}
 
-		assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(contributor), 0, 1, None));
+		assert_ok!(FundingModule::contribute(
+			RuntimeOrigin::signed(contributor),
+			0,
+			1,
+			None
+		));
 
 		assert!(Sandbox::buy_if_popular(RuntimeOrigin::signed(4), 0, 1000).is_err());
 
-		assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(contributor), 0, 10000, None));
+		assert_ok!(FundingModule::contribute(
+			RuntimeOrigin::signed(contributor),
+			0,
+			10000,
+			None
+		));
 
 		assert_ok!(Sandbox::buy_if_popular(RuntimeOrigin::signed(4), 0, 1000));
 	});
@@ -76,17 +92,21 @@ const METADATA: &str = r#"
 	"usage_of_founds":"ipfs_url"
 }"#;
 
-pub fn default_project(
-	nonce: u64,
-) -> ProjectMetadata<BoundedVec<u8, ConstU32<64>>, u128, sp_core::H256> {
+pub fn default_project(nonce: u64) -> ProjectMetadata<BoundedVec<u8, ConstU32<64>>, u128, sp_core::H256> {
 	let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
 	let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
 	let metadata_hash = hashed(format!("{}-{}", METADATA, nonce));
 	ProjectMetadata {
 		total_allocation_size: 1_000_000,
 		minimum_price: 1 * PLMC,
-		ticket_size: TicketSize { minimum: Some(1), maximum: None },
-		participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+		ticket_size: TicketSize {
+			minimum: Some(1),
+			maximum: None,
+		},
+		participants_size: ParticipantsSize {
+			minimum: Some(2),
+			maximum: None,
+		},
 		funding_thresholds: Default::default(),
 		conversion_rate: 0,
 		participation_currencies: Default::default(),
@@ -100,7 +120,9 @@ pub fn default_project(
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = frame_system::GenesisConfig::default().build_storage::<TestRuntime>().unwrap();
+	let mut t = frame_system::GenesisConfig::default()
+		.build_storage::<TestRuntime>()
+		.unwrap();
 
 	GenesisConfig {
 		balances: BalancesConfig {
