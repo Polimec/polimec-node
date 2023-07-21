@@ -217,9 +217,19 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// The amount vested has been updated. This could indicate a change in funds available.
 		/// The balance given is the amount which is left unvested (and thus locked).
-		VestingUpdated { account: T::AccountId, unvested: BalanceOf<T> },
+		VestingUpdated {
+			account: T::AccountId,
+			unvested: BalanceOf<T>,
+		},
 		/// An \[account\] has become fully vested.
-		VestingCompleted { account: T::AccountId },
+		VestingCompleted {
+			account: T::AccountId,
+		},
+		// An \[account\] has reveived a vested transfer of \[amount\].
+		VestingTransferred {
+			to: T::AccountId,
+			amount: BalanceOf<T>,
+		},
 	}
 
 	/// Error for the vesting pallet.

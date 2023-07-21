@@ -60,7 +60,13 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// Check we can add to this account prior to any storage writes.
-		Self::can_add_release_schedule(&target, schedule.locked(), schedule.per_block(), schedule.starting_block(), reason)?;
+		Self::can_add_release_schedule(
+			&target,
+			schedule.locked(),
+			schedule.per_block(),
+			schedule.starting_block(),
+			reason,
+		)?;
 
 		let amount_transferred = T::Currency::transfer_and_hold(
 			&reason,
@@ -71,6 +77,8 @@ impl<T: Config> Pallet<T> {
 			frame_support::traits::tokens::Preservation::Expendable,
 			frame_support::traits::tokens::Fortitude::Polite,
 		)?;
+
+		Self::deposit_event(Event::<T>::VestingTransferred { to: target.clone(), amount: amount_transferred });
 
 		// We can't let this fail because the currency transfer has already happened.
 		let res = Self::add_release_schedule(
@@ -279,7 +287,7 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 		locked: BalanceOf<T>,
 		per_block: BalanceOf<T>,
 		starting_block: BlockNumberFor<T>,
-		reason: ReasonOf<T>
+		reason: ReasonOf<T>,
 	) -> DispatchResult {
 		// Check for `per_block` or `locked` of 0.
 		if !VestingInfo::new(locked, per_block, starting_block).is_valid() {
@@ -299,7 +307,7 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 		locked: <Self::Currency as frame_support::traits::fungible::Inspect<T::AccountId>>::Balance,
 		per_block: <Self::Currency as frame_support::traits::fungible::Inspect<T::AccountId>>::Balance,
 		starting_block: Self::Moment,
-		reason: ReasonOf<T>
+		reason: ReasonOf<T>,
 	) -> DispatchResult {
 		if locked.is_zero() {
 			return Ok(());
