@@ -348,7 +348,6 @@ impl TestEnvironment {
 			balances
 		})
 	}
-	#[allow(dead_code)]
 	fn get_all_reserved_plmc_balances(&self, reserve_type: LockType<ProjectIdOf<TestRuntime>>) -> UserToPLMCBalance {
 		self.ext_env.borrow_mut().execute_with(|| {
 			let mut fundings = UserToPLMCBalance::new();
@@ -902,7 +901,7 @@ impl<'a> CommunityFundingProject<'a> {
 			"Weighted average price should exist"
 		);
 
-		for filter in bid_expectations {
+		for mut filter in bid_expectations {
 			let _found_bid = flattened_bids.iter().find(|bid| filter.matches_bid(&bid)).unwrap();
 		}
 
@@ -1955,7 +1954,9 @@ mod evaluation_round_success {
 		remainder_funding_project.end_funding();
 		test_env.advance_time(10).unwrap();
 
-		let post_unbond_amounts: UserToPLMCBalance = prev_reserved_plmc.iter().map(|(evaluator, _amount)| (*evaluator, Zero::zero())).collect();
+		let post_unbond_amounts: UserToPLMCBalance = prev_reserved_plmc.iter().map(|(evaluator, amount)| (*evaluator, Zero::zero())).collect();
+
+		let temp_actual_par_lock = test_env.get_all_reserved_plmc_balances(LockType::Participation(project_id));
 
 		test_env.do_reserved_plmc_assertions(post_unbond_amounts.clone(), LockType::Evaluation(project_id));
 		test_env.do_reserved_plmc_assertions(post_unbond_amounts, LockType::Participation(project_id));
@@ -1991,8 +1992,9 @@ mod evaluation_round_success {
 		assert_eq!(finished_project.get_project_details().status, ProjectStatus::FundingFailed);
 		test_env.advance_time(10).unwrap();
 
-		let post_unbond_amounts: UserToPLMCBalance = prev_reserved_plmc.iter().map(|(evaluator, _amount)| (*evaluator, Zero::zero())).collect();
+		let post_unbond_amounts: UserToPLMCBalance = prev_reserved_plmc.iter().map(|(evaluator, amount)| (*evaluator, Zero::zero())).collect();
 
+		let temp_actual_par_lock = test_env.get_all_reserved_plmc_balances(LockType::Participation(project_id));
 
 		test_env.do_reserved_plmc_assertions(post_unbond_amounts.clone(), LockType::Evaluation(project_id));
 		test_env.do_reserved_plmc_assertions(post_unbond_amounts, LockType::Participation(project_id));
@@ -2824,6 +2826,9 @@ mod auction_round_failure {
 			project_id,
 		);
 
+		let community_funding_project = auctioning_project.start_community_funding();
+		let details = community_funding_project.get_project_details();
+
 		test_env.do_free_plmc_assertions(vec![(BIDDER_1, get_ed()), (BIDDER_2, plmc_fundings[1].1 + get_ed())]);
 
 		test_env.do_reserved_plmc_assertions(
@@ -2897,6 +2902,9 @@ mod auction_round_failure {
 			project_id,
 		);
 
+		let community_funding_project = auctioning_project.start_community_funding();
+		let details = community_funding_project.get_project_details();
+
 		test_env.do_free_plmc_assertions(vec![(BIDDER_1, get_ed()), (BIDDER_2, plmc_fundings[1].1 + get_ed())]);
 
 		test_env.do_reserved_plmc_assertions(
@@ -2920,7 +2928,6 @@ mod auction_round_failure {
 
 #[cfg(test)]
 mod community_round_success {
-	use frame_support::traits::fungible::Inspect;
 	use super::*;
 
 	pub const HOURS: BlockNumber = 300u64;
@@ -3214,7 +3221,7 @@ mod community_round_success {
 
 		// Check that the right amount of PLMC is bonded, and funding currency is transferred
 		let contributor_post_buy_plmc_balance =
-			project.in_ext(|| <TestRuntime as Config>::NativeCurrency::balance(&CONTRIBUTOR));
+			project.in_ext(|| <TestRuntime as Config>::NativeCurrency::free_balance(&CONTRIBUTOR));
 		let contributor_post_buy_statemint_asset_balance =
 			project.in_ext(|| <TestRuntime as Config>::FundingCurrency::balance(USDT_STATEMINT_ID, &CONTRIBUTOR));
 
