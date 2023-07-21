@@ -21,7 +21,7 @@ use std::{sync::Arc, time::Duration};
 
 use cumulus_client_cli::CollatorOptions;
 // Local Runtime Types
-use polimec_parachain_runtime::{opaque::Block, RuntimeApi};
+use polimec_parachain_runtime::{opaque::Block, Hash, RuntimeApi};
 
 // Cumulus Imports
 use cumulus_client_consensus_aura::{AuraConsensus, BuildAuraConsensusParams, SlotProportion};
@@ -33,19 +33,17 @@ use cumulus_client_service::{
 	start_full_node, BuildNetworkParams, StartCollatorParams, StartFullNodeParams,
 };
 use cumulus_primitives_core::ParaId;
-use cumulus_relay_chain_interface::RelayChainInterface;
+use cumulus_relay_chain_interface::{RelayChainError, RelayChainInterface};
 
 // Substrate Imports
 use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
 use sc_consensus::ImportQueue;
-use sc_executor::{
-	HeapAllocStrategy, NativeElseWasmExecutor, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY,
-};
-use sc_network::NetworkBlock;
-use sc_network_sync::SyncingService;
+use sc_executor::NativeElseWasmExecutor;
+use sc_network::NetworkService;
+use sc_network_common::service::NetworkBlock;
 use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryHandle, TelemetryWorker, TelemetryWorkerHandle};
-use sp_keystore::KeystorePtr;
+use sp_keystore::SyncCryptoStorePtr;
 use substrate_prometheus_endpoint::Registry;
 
 /// Native executor type.
@@ -75,7 +73,6 @@ type ParachainBlockImport = TParachainBlockImport<Block, Arc<ParachainClient>, P
 ///
 /// Use this macro if you don't actually need the full service, but just the builder in order to
 /// be able to perform chain operations.
-#[allow(clippy::type_complexity)]
 pub fn new_partial(
 	config: &Configuration,
 ) -> Result<
@@ -100,19 +97,12 @@ pub fn new_partial(
 		})
 		.transpose()?;
 
-	let heap_pages = config
-		.default_heap_pages
-		.map_or(DEFAULT_HEAP_ALLOC_STRATEGY, |h| HeapAllocStrategy::Static { extra_pages: h as _ });
-
-	let wasm = WasmExecutor::builder()
-		.with_execution_method(config.wasm_method)
-		.with_onchain_heap_alloc_strategy(heap_pages)
-		.with_offchain_heap_alloc_strategy(heap_pages)
-		.with_max_runtime_instances(config.max_runtime_instances)
-		.with_runtime_cache_size(config.runtime_cache_size)
-		.build();
-
-	let executor = ParachainExecutor::new_with_wasm_executor(wasm);
+	let executor = ParachainExecutor::new(
+		config.wasm_method,
+		config.default_heap_pages,
+		config.max_runtime_instances,
+		config.runtime_cache_size,
+	);
 
 	let (client, backend, keystore_container, task_manager) =
 		sc_service::new_full_parts::<Block, RuntimeApi, _>(
@@ -188,7 +178,10 @@ async fn start_node_impl(
 		hwbench.clone(),
 	)
 	.await
-	.map_err(|e| sc_service::Error::Application(Box::new(e) as Box<_>))?;
+	.map_err(|e| match e {
+		RelayChainError::ServiceError(polkadot_service::Error::Sub(x)) => x,
+		s => s.to_string().into(),
+	})?;
 
 	let force_authoring = parachain_config.force_authoring;
 	let validator = parachain_config.role.is_authority();
@@ -196,7 +189,7 @@ async fn start_node_impl(
 	let transaction_pool = params.transaction_pool.clone();
 	let import_queue_service = params.import_queue.service();
 
-	let (network, system_rpc_tx, tx_handler_controller, start_network, sync_service) =
+	let (network, system_rpc_tx, tx_handler_controller, start_network) =
 		build_network(BuildNetworkParams {
 			parachain_config: &parachain_config,
 			client: client.clone(),
@@ -238,10 +231,9 @@ async fn start_node_impl(
 		transaction_pool: transaction_pool.clone(),
 		task_manager: &mut task_manager,
 		config: parachain_config,
-		keystore: params.keystore_container.keystore(),
+		keystore: params.keystore_container.sync_keystore(),
 		backend,
 		network: network.clone(),
-		sync_service: sync_service.clone(),
 		system_rpc_tx,
 		tx_handler_controller,
 		telemetry: telemetry.as_mut(),
@@ -269,8 +261,8 @@ async fn start_node_impl(
 	}
 
 	let announce_block = {
-		let sync_service = sync_service.clone();
-		Arc::new(move |hash, data| sync_service.announce_block(hash, data))
+		let network = network.clone();
+		Arc::new(move |hash, data| network.announce_block(hash, data))
 	};
 
 	let relay_chain_slot_duration = Duration::from_secs(6);
@@ -288,8 +280,8 @@ async fn start_node_impl(
 			&task_manager,
 			relay_chain_interface.clone(),
 			transaction_pool,
-			sync_service.clone(),
-			params.keystore_container.keystore(),
+			network,
+			params.keystore_container.sync_keystore(),
 			force_authoring,
 			para_id,
 		)?;
@@ -308,7 +300,6 @@ async fn start_node_impl(
 			collator_key: collator_key.expect("Command line arguments do not allow this. qed"),
 			relay_chain_slot_duration,
 			recovery_handle: Box::new(overseer_handle),
-			sync_service,
 		};
 
 		start_collator(params).await?;
@@ -322,7 +313,6 @@ async fn start_node_impl(
 			relay_chain_slot_duration,
 			import_queue: import_queue_service,
 			recovery_handle: Box::new(overseer_handle),
-			sync_service,
 		};
 
 		start_full_node(params)?;
@@ -356,8 +346,7 @@ fn build_import_queue(
 		create_inherent_data_providers: move |_, _| async move {
 			let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
 
-			let slot =
-				sp_consensus_aura::inherents::InherentDataProvider::from_timestamp_and_slot_duration(
+			let slot = sp_consensus_aura::inherents::InherentDataProvider::from_timestamp_and_slot_duration(
 					*timestamp,
 					slot_duration,
 				);
@@ -371,7 +360,6 @@ fn build_import_queue(
 	.map_err(Into::into)
 }
 
-#[allow(clippy::too_many_arguments)]
 fn build_consensus(
 	client: Arc<ParachainClient>,
 	block_import: ParachainBlockImport,
@@ -380,8 +368,8 @@ fn build_consensus(
 	task_manager: &TaskManager,
 	relay_chain_interface: Arc<dyn RelayChainInterface>,
 	transaction_pool: Arc<sc_transaction_pool::FullPool<Block, ParachainClient>>,
-	sync_oracle: Arc<SyncingService<Block>>,
-	keystore: KeystorePtr,
+	sync_oracle: Arc<NetworkService<Block, Hash>>,
+	keystore: SyncCryptoStorePtr,
 	force_authoring: bool,
 	para_id: ParaId,
 ) -> Result<Box<dyn ParachainConsensus<Block>>, sc_service::Error> {
@@ -410,11 +398,10 @@ fn build_consensus(
 					.await;
 				let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
 
-				let slot =
-						sp_consensus_aura::inherents::InherentDataProvider::from_timestamp_and_slot_duration(
-							*timestamp,
-							slot_duration,
-						);
+				let slot = sp_consensus_aura::inherents::InherentDataProvider::from_timestamp_and_slot_duration(
+					*timestamp,
+					slot_duration,
+				);
 
 				let parachain_inherent = parachain_inherent.ok_or_else(|| {
 					Box::<dyn std::error::Error + Send + Sync>::from(

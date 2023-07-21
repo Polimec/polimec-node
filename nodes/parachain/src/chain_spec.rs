@@ -18,7 +18,7 @@
 
 use cumulus_primitives_core::ParaId;
 use polimec_parachain_runtime::{AccountId, Signature};
-use polkadot_primitives::v4::LOWEST_PUBLIC_ID;
+use polkadot_primitives::v2::LOWEST_PUBLIC_ID;
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::Properties;
 use serde::{Deserialize, Serialize};
