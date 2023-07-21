@@ -1298,13 +1298,15 @@ fn merge_schedules_different_reason() {
 		assert_eq!(Balances::balance(&2), ED);
 		assert_eq!(Vesting::vesting(&2, LockType::Participation(0)).unwrap(), vec![sched0]);
 
-
 		// Add a schedule that is identical to the one that already exists.
 		assert_ok!(Vesting::vested_transfer(Some(14).into(), 2, sched0, LockType::Participation(1)));
 		assert_ok!(Vesting::vested_transfer(Some(14).into(), 2, sched0, LockType::Participation(1)));
 		assert_eq!(Vesting::vesting(&2, LockType::Participation(1)).unwrap(), vec![sched0, sched0]);
 		assert_eq!(Balances::balance(&2), ED);
-		assert_noop!(Vesting::merge_schedules(Some(2).into(), 0, 1, LockType::Participation(0)), Error::<Test>::ScheduleIndexOutOfBounds);
+		assert_noop!(
+			Vesting::merge_schedules(Some(2).into(), 0, 1, LockType::Participation(0)),
+			Error::<Test>::ScheduleIndexOutOfBounds
+		);
 		assert_ok!(Vesting::merge_schedules(Some(2).into(), 0, 1, LockType::Participation(1)));
 
 		// Since we merged identical schedules, the new schedule finishes at the same

@@ -26,11 +26,13 @@ pub trait ReleaseSchedule<AccountId, Reason> {
 	type Currency: fungible::InspectHold<AccountId>
 		+ fungible::MutateHold<AccountId>
 		+ fungible::BalancedHold<AccountId>;
-		
 
 	/// Get the amount that is currently being vested and cannot be transferred out of this account.
 	/// Returns `None` if the account has no vesting schedule.
-	fn vesting_balance(who: &AccountId, reason: Reason) -> Option<<Self::Currency as fungible::Inspect<AccountId>>::Balance>;
+	fn vesting_balance(
+		who: &AccountId,
+		reason: Reason,
+	) -> Option<<Self::Currency as fungible::Inspect<AccountId>>::Balance>;
 
 	/// Adds a release schedule to a given account.
 	///
@@ -61,7 +63,7 @@ pub trait ReleaseSchedule<AccountId, Reason> {
 		locked: <Self::Currency as fungible::Inspect<AccountId>>::Balance,
 		per_block: <Self::Currency as fungible::Inspect<AccountId>>::Balance,
 		starting_block: Self::Moment,
-		reason: Reason
+		reason: Reason,
 	) -> DispatchResult;
 
 	/// Checks if `add_release_schedule` would work against `who`.
@@ -70,7 +72,7 @@ pub trait ReleaseSchedule<AccountId, Reason> {
 		locked: <Self::Currency as fungible::Inspect<AccountId>>::Balance,
 		per_block: <Self::Currency as fungible::Inspect<AccountId>>::Balance,
 		starting_block: Self::Moment,
-		reason: Reason
+		reason: Reason,
 	) -> DispatchResult;
 
 	/// Remove a release schedule for a given account.

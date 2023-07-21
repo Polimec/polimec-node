@@ -96,11 +96,13 @@ impl Config for Test {
 	type Balance = u64;
 	type BlockNumberToBalance = Identity;
 	type Currency = Balances;
-	type Reason = LockType<u32>; // TODO: Use the type from Balances.
+	// TODO: Use the type from Balances.
 	type MinVestedTransfer = MinVestedTransfer;
+	type Reason = LockType<u32>;
 	type RuntimeEvent = RuntimeEvent;
 	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
 	type WeightInfo = ();
+
 	const MAX_VESTING_SCHEDULES: u32 = 3;
 }
 
@@ -115,7 +117,6 @@ impl ExtBuilder {
 		self.existential_deposit = existential_deposit;
 		self
 	}
-
 
 	pub fn build(self) -> sp_io::TestExternalities {
 		EXISTENTIAL_DEPOSIT.with(|v| *v.borrow_mut() = self.existential_deposit);
@@ -140,13 +141,11 @@ impl ExtBuilder {
 			vec![
 				(1, 0, 10, 5 * self.existential_deposit, LockType::Participation(0)),
 				(2, 10, 20, self.existential_deposit, LockType::Participation(0)),
-				(12, 10, 20, 5 * self.existential_deposit,  LockType::Participation(0)),
+				(12, 10, 20, 5 * self.existential_deposit, LockType::Participation(0)),
 			]
 		};
 
-		pallet_vesting::GenesisConfig::<Test> { vesting }
-			.assimilate_storage(&mut t)
-			.unwrap();
+		pallet_vesting::GenesisConfig::<Test> { vesting }.assimilate_storage(&mut t).unwrap();
 		let mut ext = sp_io::TestExternalities::new(t);
 		ext.execute_with(|| System::set_block_number(1));
 		ext
