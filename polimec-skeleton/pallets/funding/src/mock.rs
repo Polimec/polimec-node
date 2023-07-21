@@ -90,7 +90,6 @@ parameter_types! {
 	// https://github.com/paritytech/substrate/blob/069917b/frame/assets/src/lib.rs#L257L271
 	pub const MetadataDepositBase: Balance = free_deposit();
 	pub const MetadataDepositPerByte: Balance = free_deposit();
-	pub const AssetsPalletId: PalletId = PalletId(*b"assetsid");
 	pub const ApprovalDeposit: Balance = EXISTENTIAL_DEPOSIT;
 
 }
@@ -277,8 +276,7 @@ impl pallet_funding::Config for TestRuntime {
 	type BenchmarkHelper = ();
 	type WeightInfo = ();
 	type FeeBrackets = FeeBrackets;
-	type EarlyEvaluationThreshold = EarlyEvaluationThreshold;
-	type Vesting = Vesting;
+	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
 }
 
 // Build genesis storage according to the mock runtime.

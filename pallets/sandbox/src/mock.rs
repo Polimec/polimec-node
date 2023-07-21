@@ -50,7 +50,6 @@ frame_support::construct_runtime!(
 		Assets: pallet_assets,
 		Balances: pallet_balances,
 		FundingModule: pallet_funding,
-		Credentials: pallet_credentials,
 		Sandbox: crate,
 	}
 );
@@ -62,30 +61,30 @@ parameter_types! {
 }
 
 impl system::Config for TestRuntime {
+	type AccountData = pallet_balances::AccountData<Balance>;
+	type AccountId = AccountId;
 	type BaseCallFilter = frame_support::traits::Everything;
-	type BlockWeights = ();
+	type BlockHashCount = BlockHashCount;
 	type BlockLength = ();
-	type RuntimeOrigin = RuntimeOrigin;
-	type RuntimeCall = RuntimeCall;
-	type Index = u64;
 	type BlockNumber = BlockNumber;
+	type BlockWeights = ();
+	type DbWeight = ();
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = AccountId;
-	type Lookup = IdentityLookup<AccountId>;
 	type Header = Header;
-	type RuntimeEvent = RuntimeEvent;
-	type BlockHashCount = BlockHashCount;
-	type DbWeight = ();
-	type Version = ();
-	type PalletInfo = PalletInfo;
-	type AccountData = pallet_balances::AccountData<Balance>;
-	type OnNewAccount = ();
-	type OnKilledAccount = ();
-	type SystemWeightInfo = ();
-	type SS58Prefix = ConstU16<42>;
-	type OnSetCode = ();
+	type Index = u64;
+	type Lookup = IdentityLookup<AccountId>;
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type OnKilledAccount = ();
+	type OnNewAccount = ();
+	type OnSetCode = ();
+	type PalletInfo = PalletInfo;
+	type RuntimeCall = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeOrigin = RuntimeOrigin;
+	type SS58Prefix = ConstU16<42>;
+	type SystemWeightInfo = ();
+	type Version = ();
 }
 
 parameter_types! {
@@ -93,51 +92,44 @@ parameter_types! {
 }
 
 impl pallet_balances::Config for TestRuntime {
+	type AccountStore = System;
+	type Balance = Balance;
+	type DustRemoval = ();
+	type ExistentialDeposit = ExistentialDeposit;
+	type FreezeIdentifier = pallet_funding::BondType;
+	type HoldIdentifier = pallet_funding::BondType;
+	type MaxFreezes = ();
+	type MaxHolds = ();
 	type MaxLocks = frame_support::traits::ConstU32<1024>;
 	type MaxReserves = frame_support::traits::ConstU32<1024>;
 	type ReserveIdentifier = pallet_funding::BondType;
-	type Balance = Balance;
 	type RuntimeEvent = RuntimeEvent;
-	type DustRemoval = ();
-	type ExistentialDeposit = ExistentialDeposit;
-	type AccountStore = System;
 	type WeightInfo = ();
 }
 
 impl pallet_insecure_randomness_collective_flip::Config for TestRuntime {}
 
-impl pallet_credentials::Config for TestRuntime {
-	type RuntimeEvent = RuntimeEvent;
-	type AddOrigin = EnsureSigned<AccountId>;
-	type RemoveOrigin = EnsureSigned<AccountId>;
-	type SwapOrigin = EnsureSigned<AccountId>;
-	type ResetOrigin = EnsureSigned<AccountId>;
-	type PrimeOrigin = EnsureSigned<AccountId>;
-	type MembershipInitialized = ();
-	type MembershipChanged = ();
-}
-
 impl pallet_assets::Config for TestRuntime {
-	type RuntimeEvent = RuntimeEvent;
-	type Balance = Balance;
-	type AssetId = Identifier;
-	type Currency = Balances;
-	type ForceOrigin = frame_system::EnsureRoot<u64>;
-	type AssetDeposit = ConstU128<1>;
-	type AssetAccountDeposit = ConstU128<10>;
-	type MetadataDepositBase = ConstU128<1>;
-	type MetadataDepositPerByte = ConstU128<1>;
 	type ApprovalDeposit = ConstU128<1>;
-	type StringLimit = ConstU32<50>;
-	type Freezer = ();
-	type WeightInfo = ();
-	type Extra = ();
+	type AssetAccountDeposit = ConstU128<10>;
+	type AssetDeposit = ConstU128<1>;
+	type AssetId = Identifier;
 	type AssetIdParameter = Identifier;
-	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
-	type CallbackHandle = ();
-	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
+	type Balance = Balance;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+	type CallbackHandle = ();
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
+	type Currency = Balances;
+	type Extra = ();
+	type ForceOrigin = frame_system::EnsureRoot<u64>;
+	type Freezer = ();
+	type MetadataDepositBase = ConstU128<1>;
+	type MetadataDepositPerByte = ConstU128<1>;
+	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
+	type RuntimeEvent = RuntimeEvent;
+	type StringLimit = ConstU32<50>;
+	type WeightInfo = ();
 }
 
 // REMARK: In the production configuration we use DAYS instead of HOURS.
@@ -152,56 +144,44 @@ parameter_types! {
 }
 
 impl pallet_funding::Config for TestRuntime {
-	type RuntimeEvent = RuntimeEvent;
-	type StringLimit = ConstU32<64>;
-	type ProjectIdentifier = Identifier;
-	type ProjectIdParameter = Identifier;
-	type BidId = u128;
-	type ContributionTokenCurrency = Assets;
-	type EvaluationDuration = EvaluationDuration;
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
-	type EnglishAuctionDuration = EnglishAuctionDuration;
-	type CandleAuctionDuration = CandleAuctionDuration;
-	type RemainderFundingDuration = RemainderFundingDuration;
-	type PalletId = FundingPalletId;
-	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
-	type CommunityFundingDuration = CommunityRoundDuration;
-	type Randomness = RandomnessCollectiveFlip;
-	type HandleMembers = Credentials;
-	type PreImageLimit = ConstU32<1024>;
-	// Low value to simplify the tests
-	type MaximumBidsPerUser = ConstU32<4>;
-	type MaxContributionsPerUser = ConstU32<4>;
-	type ContributionVesting = ConstU32<4>;
-	type WeightInfo = ();
+	type Balance = Balance;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
-	type Multiplier = pallet_funding::types::Multiplier<TestRuntime>;
-	type Balance = Balance;
-	type NativeCurrency = Balances;
+	type BidId = u128;
+	type CandleAuctionDuration = CandleAuctionDuration;
+	type CommunityFundingDuration = CommunityRoundDuration;
+	type ContributionTokenCurrency = Assets;
+	type ContributionVesting = ConstU32<4>;
+	type EnglishAuctionDuration = EnglishAuctionDuration;
+	type EvaluationDuration = EvaluationDuration;
 	type FundingCurrency = Balances;
+	type MaxContributionsPerUser = ConstU32<4>;
+	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
+	// Low value to simplify the tests
+	type MaximumBidsPerUser = ConstU32<4>;
+	type Multiplier = pallet_funding::types::Multiplier<TestRuntime>;
+	type NativeCurrency = Balances;
+	type PalletId = FundingPalletId;
+	type PreImageLimit = ConstU32<1024>;
+	type ProjectIdParameter = Identifier;
+	type ProjectIdentifier = Identifier;
+	type Randomness = RandomnessCollectiveFlip;
+	type RemainderFundingDuration = RemainderFundingDuration;
+	type RuntimeEvent = RuntimeEvent;
+	type StringLimit = ConstU32<64>;
+	type WeightInfo = ();
 }
 
 // Build genesis storage according to the mock runtime.
 // TODO: PLMC-161. Add some mocks projects at Genesis to simplify the tests
 #[allow(dead_code)]
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = frame_system::GenesisConfig::default()
-		.build_storage::<TestRuntime>()
-		.unwrap();
+	let mut t = frame_system::GenesisConfig::default().build_storage::<TestRuntime>().unwrap();
 
-	GenesisConfig {
-		balances: BalancesConfig { balances: vec![] },
-		credentials: CredentialsConfig {
-			issuers: vec![1, 16558220937623665250],
-			retails: vec![2],
-			professionals: vec![2, 3],
-			institutionals: vec![4],
-		},
-		..Default::default()
-	}
-	.assimilate_storage(&mut t)
-	.unwrap();
+	GenesisConfig { balances: BalancesConfig { balances: vec![] }, ..Default::default() }
+		.assimilate_storage(&mut t)
+		.unwrap();
 
 	let mut ext = sp_io::TestExternalities::new(t);
 	// In order to emit events the block number must be more than 0

@@ -18,7 +18,7 @@
 
 use cumulus_primitives_core::ParaId;
 use polimec_parachain_runtime::{AccountId, Signature};
-use polkadot_primitives::v2::LOWEST_PUBLIC_ID;
+use polkadot_primitives::v4::LOWEST_PUBLIC_ID;
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::Properties;
 use serde::{Deserialize, Serialize};
@@ -28,15 +28,11 @@ use sp_runtime::traits::{IdentifyAccount, Verify};
 pub mod base;
 pub mod testnet;
 
-// TODO: Set a proper TELEMETRY_URL
-const TELEMETRY_URL: &str = "wss://tbd";
 const DEFAULT_PARA_ID: ParaId = LOWEST_PUBLIC_ID;
 
 /// Helper function to generate a crypto pair from seed
 pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
-	TPublic::Pair::from_string(&format!("//{seed}"), None)
-		.expect("static values are valid; qed")
-		.public()
+	TPublic::Pair::from_string(&format!("//{seed}"), None).expect("static values are valid; qed").public()
 }
 
 /// The extensions for the [`ChainSpec`].

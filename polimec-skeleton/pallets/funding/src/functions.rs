@@ -32,7 +32,7 @@ use frame_support::{
 		Get,
 	},
 };
-use itertools::Itertools;
+
 use sp_arithmetic::Perquintill;
 
 use sp_arithmetic::traits::{CheckedSub, Zero};
@@ -247,7 +247,7 @@ impl<T: Config> Pallet<T> {
 				total.saturating_add(user_total_plmc_bond)
 			});
 
-		let evaluation_target_usd = Perquintill::from_percent(10) * fundraising_target_usd;
+		let evaluation_target_usd = <T as Config>::EvaluationSuccessThreshold::get() * fundraising_target_usd;
 		let evaluation_target_plmc = current_plmc_price
 			.reciprocal()
 			.ok_or(Error::<T>::BadMath)?
@@ -639,8 +639,8 @@ impl<T: Config> Pallet<T> {
 		// * Validity checks *
 		ensure!(
 			remaining_cts == 0u32.into()
-			|| project_details.status == ProjectStatus::FundingFailed
-			|| matches!(remainder_end_block, Some(end_block) if now > end_block),
+				|| project_details.status == ProjectStatus::FundingFailed
+				|| matches!(remainder_end_block, Some(end_block) if now > end_block),
 			Error::<T>::TooEarlyForFundingEnd
 		);
 
@@ -790,7 +790,7 @@ impl<T: Config> Pallet<T> {
 		let mut caller_existing_evaluations = Evaluations::<T>::get(project_id, evaluator.clone());
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
 		let early_evaluation_reward_threshold_usd =
-			T::EarlyEvaluationThreshold::get() * project_details.fundraising_target;
+		T::EvaluationSuccessThreshold::get() * project_details.fundraising_target;
 		let evaluation_round_info = &mut project_details.evaluation_round_info;
 
 		// * Validity Checks *
@@ -1726,8 +1726,7 @@ impl<T: Config> Pallet<T> {
 		let project_account = Self::fund_account_id(project_id);
 		let plmc_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
 		// sort bids by price, and equal prices sorted by block number
-		bids.sort();
-		bids.reverse();
+		bids.sort_by(|a, b| b.cmp(a));
 		// accept only bids that were made before `end_block` i.e end of candle auction
 		let bids: Result<Vec<_>, DispatchError> = bids
 			.into_iter()
