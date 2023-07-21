@@ -31,7 +31,7 @@ use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, FixedU128,
+	ApplyExtrinsicResult, FixedU128, Percent,
 };
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
 use sp_std::collections::btree_map::BTreeMap;
@@ -160,6 +160,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	transaction_version: 1,
 	state_version: 1,
 };
+
+const US_DOLLAR: u128 = 1_0_000_000_000u128;
 
 /// This determines the average expected block time that we are targeting.
 /// Blocks will be produced at a minimum duration defined by `SLOT_DURATION`.
@@ -560,6 +562,12 @@ parameter_types! {
 		(1984u32, FixedU128::from_rational(95, 100)), // USDT
 		(2069u32, FixedU128::from_rational(840, 100)), // PLMC
 	]);
+	pub FeeBrackets: Vec<(Percent, Balance)> = vec![
+		(Percent::from_percent(10), 1_000_000 * US_DOLLAR),
+		(Percent::from_percent(8), 5_000_000 * US_DOLLAR),
+		(Percent::from_percent(6), u128::MAX), // Making it max signifies the last bracket
+	];
+	pub EarlyEvaluationThreshold: Percent = Percent::from_percent(10);
 }
 
 impl pallet_funding::Config for Runtime {
@@ -593,6 +601,8 @@ impl pallet_funding::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 	type WeightInfo = ();
+	type FeeBrackets = FeeBrackets;
+	type EarlyEvaluationThreshold = EarlyEvaluationThreshold;
 }
 
 impl pallet_credentials::Config for Runtime {

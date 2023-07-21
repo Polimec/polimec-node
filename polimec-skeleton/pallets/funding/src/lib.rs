@@ -54,10 +54,10 @@
 //! | Community Funding Start   | After the [`Config::CandleAuctionDuration`] has passed, the auction automatically. A final token price for the next rounds is calculated based on the accepted bids.                                                                                                                                                                                                                                        | [`CommunityRound`](ProjectStatus::CommunityRound)                   |
 //! | Funding Submissions       | Retail investors can call the [`contribute()`](Pallet::contribute) extrinsic to buy tokens at the set price.                                                                                                                                                                                                                                                                                                | [`CommunityRound`](ProjectStatus::CommunityRound)                   |
 //! | Remainder Funding Start   | After the [`Config::CommunityFundingDuration`] has passed, the project is now open to token purchases from any user type                                                                                                                                                                                                                                                                                    | [`RemainderRound`](ProjectStatus::RemainderRound)                   |
-//! | Funding End               | If all tokens were sold, or after the [`Config::RemainderFundingDuration`] has passed, the project automatically ends, and it is calculated if it reached its desired funding or not.                                                                                                                                                                                                                       | [`FundingEnded`](ProjectStatus::FundingEnded)                       |
-//! | Evaluator Rewards         | If the funding was successful, evaluators can claim their contribution token rewards with the [`TBD`]() extrinsic. If it failed, evaluators can either call the [`failed_evaluation_unbond_for()`](Pallet::failed_evaluation_unbond_for) extrinsic, or wait for the [`on_idle()`](Pallet::on_initialize) function, to return their funds                                                                    | [`FundingEnded`](ProjectStatus::FundingEnded)                       |
-//! | Bidder Rewards            | If the funding was successful, bidders will call [`vested_contribution_token_bid_mint_for()`](Pallet::vested_contribution_token_bid_mint_for) to mint the contribution tokens they are owed, and [`vested_plmc_bid_unbond_for()`](Pallet::vested_plmc_bid_unbond_for) to unbond their PLMC, based on their current vesting schedule.                                                                        | [`FundingEnded`](ProjectStatus::FundingEnded)                       |
-//! | Buyer Rewards             | If the funding was successful, users who bought tokens on the Community or Remainder round, can call [`vested_contribution_token_purchase_mint_for()`](Pallet::vested_contribution_token_purchase_mint_for) to mint the contribution tokens they are owed, and [`vested_plmc_purchase_unbond_for()`](Pallet::vested_plmc_purchase_unbond_for) to unbond their PLMC, based on their current vesting schedule | [`FundingEnded`](ProjectStatus::FundingEnded)                       |
+//! | Funding End               | If all tokens were sold, or after the [`Config::RemainderFundingDuration`] has passed, the project automatically ends, and it is calculated if it reached its desired funding or not.                                                                                                                                                                                                                       | [`FundingEnded`](ProjectStatus::FundingSuccessful)                       |
+//! | Evaluator Rewards         | If the funding was successful, evaluators can claim their contribution token rewards with the [`TBD`]() extrinsic. If it failed, evaluators can either call the [`failed_evaluation_unbond_for()`](Pallet::failed_evaluation_unbond_for) extrinsic, or wait for the [`on_idle()`](Pallet::on_initialize) function, to return their funds                                                                    | [`FundingEnded`](ProjectStatus::FundingSuccessful)                       |
+//! | Bidder Rewards            | If the funding was successful, bidders will call [`vested_contribution_token_bid_mint_for()`](Pallet::vested_contribution_token_bid_mint_for) to mint the contribution tokens they are owed, and [`vested_plmc_bid_unbond_for()`](Pallet::vested_plmc_bid_unbond_for) to unbond their PLMC, based on their current vesting schedule.                                                                        | [`FundingEnded`](ProjectStatus::FundingSuccessful)                       |
+//! | Buyer Rewards             | If the funding was successful, users who bought tokens on the Community or Remainder round, can call [`vested_contribution_token_purchase_mint_for()`](Pallet::vested_contribution_token_purchase_mint_for) to mint the contribution tokens they are owed, and [`vested_plmc_purchase_unbond_for()`](Pallet::vested_plmc_purchase_unbond_for) to unbond their PLMC, based on their current vesting schedule | [`FundingEnded`](ProjectStatus::FundingSuccessful)                       |
 //!
 //! ## Interface
 //! All users who wish to participate need to have a valid credential, given to them on the KILT parachain, by a KYC/AML provider.
@@ -194,6 +194,7 @@ pub mod tests;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
+mod impls;
 pub mod traits;
 
 #[allow(unused_imports)]
@@ -227,8 +228,12 @@ pub type HashOf<T> = <T as frame_system::Config>::Hash;
 pub type AssetIdOf<T> =
 	<<T as Config>::FundingCurrency as fungibles::Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
 
-pub type ProjectMetadataOf<T> = ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, BalanceOf<T>, PriceOf<T>, HashOf<T>>;
-pub type ProjectDetailsOf<T> = ProjectDetails<AccountIdOf<T>, BlockNumberOf<T>, PriceOf<T>, BalanceOf<T>>;
+pub type EvaluatorsOutcomeOf<T> = EvaluatorsOutcome<AccountIdOf<T>, BalanceOf<T>>;
+pub type ProjectMetadataOf<T> =
+	ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, HashOf<T>>;
+pub type ProjectDetailsOf<T> =
+	ProjectDetails<AccountIdOf<T>, BlockNumberOf<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>;
+pub type EvaluationRoundInfoOf<T> = EvaluationRoundInfo<AccountIdOf<T>, BalanceOf<T>>;
 pub type VestingOf<T> = Vesting<BlockNumberOf<T>, BalanceOf<T>>;
 pub type EvaluationInfoOf<T> =
 	EvaluationInfo<StorageItemIdOf<T>, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, BlockNumberOf<T>>;
@@ -241,6 +246,7 @@ pub type BidInfoOf<T> = BidInfo<
 	BlockNumberOf<T>,
 	VestingOf<T>,
 	VestingOf<T>,
+	MultiplierOf<T>,
 >;
 pub type ContributionInfoOf<T> =
 	ContributionInfo<StorageItemIdOf<T>, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, VestingOf<T>, VestingOf<T>>;
@@ -252,10 +258,11 @@ const PLMC_STATEMINT_ID: u32 = 2069;
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
 	use super::*;
-	use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice};
+	use crate::traits::{BondingRequirementCalculation, DoRemainingOperation, ProvideStatemintPrice};
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use local_macros::*;
+	use sp_arithmetic::Percent;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -371,6 +378,10 @@ pub mod pallet {
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
+
+		type FeeBrackets: Get<Vec<(Percent, Self::Balance)>>;
+
+		type EarlyEvaluationThreshold: Get<Percent>;
 	}
 
 	#[pallet::storage]
@@ -492,7 +503,7 @@ pub mod pallet {
 			when: T::BlockNumber,
 		},
 		/// The auction round of a project ended.
-		AuctionEnded { project_id: T::ProjectIdentifier },
+		AuctionFailed { project_id: T::ProjectIdentifier },
 		/// A `bonder` bonded an `amount` of PLMC for `project_id`.
 		FundsBonded {
 			project_id: T::ProjectIdentifier,
@@ -525,20 +536,79 @@ pub mod pallet {
 		/// A project is now in the remainder funding round
 		RemainderFundingStarted { project_id: T::ProjectIdentifier },
 		/// A project has now finished funding
-		FundingEnded { project_id: T::ProjectIdentifier },
+		FundingEnded {
+			project_id: T::ProjectIdentifier,
+			outcome: FundingOutcome,
+		},
 		/// Something was not properly initialized. Most likely due to dev error manually calling do_* functions or updating storage
 		TransitionError {
 			project_id: T::ProjectIdentifier,
 			error: DispatchError,
 		},
 		/// Something terribly wrong happened where the bond could not be unbonded. Most likely a programming error
-		FailedEvaluationUnbondFailed { error: DispatchError },
+		EvaluationUnbondFailed {
+			project_id: ProjectIdOf<T>,
+			evaluator: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			error: DispatchError,
+		},
 		/// Contribution tokens were minted to a user
 		ContributionTokenMinted {
 			caller: AccountIdOf<T>,
 			project_id: T::ProjectIdentifier,
 			contributor: AccountIdOf<T>,
 			amount: BalanceOf<T>,
+		},
+		/// A transfer of tokens failed, but because it was done inside on_initialize it cannot be solved.
+		TransferError { error: DispatchError },
+		EvaluationRewardOrSlashFailed {
+			project_id: ProjectIdOf<T>,
+			evaluator: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			error: DispatchError,
+		},
+		ReleaseBidFundsFailed {
+			project_id: ProjectIdOf<T>,
+			bidder: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			error: DispatchError,
+		},
+		BidUnbondFailed {
+			project_id: ProjectIdOf<T>,
+			bidder: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			error: DispatchError,
+		},
+		ReleaseContributionFundsFailed {
+			project_id: ProjectIdOf<T>,
+			contributor: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			error: DispatchError,
+		},
+		ContributionUnbondFailed {
+			project_id: ProjectIdOf<T>,
+			contributor: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			error: DispatchError,
+		},
+		PayoutContributionFundsFailed {
+			project_id: ProjectIdOf<T>,
+			contributor: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			error: DispatchError,
+		},
+		PayoutBidFundsFailed {
+			project_id: ProjectIdOf<T>,
+			bidder: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			error: DispatchError,
+		},
+		EvaluationRewarded {
+			project_id: ProjectIdOf<T>,
+			evaluator: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			amount: BalanceOf<T>,
+			caller: AccountIdOf<T>,
 		},
 	}
 
@@ -654,6 +724,12 @@ pub mod pallet {
 		EvaluationBondTooLow,
 		/// Bond is bigger than the limit set by issuer
 		EvaluationBondTooHigh,
+		/// Tried to do an operation on an evaluation that does not exist
+		EvaluationNotFound,
+		/// Tried to do an operation on a finalizer that is not yet set
+		NoFinalizerSet,
+		/// Tried to do an operation on a finalizer that already finished
+		FinalizerFinished,
 	}
 
 	#[pallet::call]
@@ -714,20 +790,20 @@ pub mod pallet {
 		/// Bond PLMC for a project in the evaluation stage
 		#[pallet::weight(T::WeightInfo::bond())]
 		pub fn bond_evaluation(
-			origin: OriginFor<T>, project_id: T::ProjectIdentifier, #[pallet::compact] amount: BalanceOf<T>,
+			origin: OriginFor<T>, project_id: T::ProjectIdentifier, #[pallet::compact] usd_amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let evaluator = ensure_signed(origin)?;
-			Self::do_evaluate(evaluator, project_id, amount)
+			Self::do_evaluate(evaluator, project_id, usd_amount)
 		}
 
-		/// Release the bonded PLMC for an evaluator if the project assigned to it is in the EvaluationFailed phase
-		#[pallet::weight(T::WeightInfo::failed_evaluation_unbond_for())]
-		pub fn failed_evaluation_unbond_for(
+		/// Release evaluation-bonded PLMC when a project finishes its funding round.
+		#[pallet::weight(T::WeightInfo::evaluation_unbond_for())]
+		pub fn evaluation_unbond_for(
 			origin: OriginFor<T>, bond_id: T::StorageItemId, project_id: T::ProjectIdentifier,
 			evaluator: AccountIdOf<T>,
 		) -> DispatchResult {
 			let releaser = ensure_signed(origin)?;
-			Self::do_failed_evaluation_unbond_for(bond_id, project_id, evaluator, releaser)
+			Self::do_evaluation_unbond_for(releaser, project_id, evaluator, bond_id)
 		}
 
 		/// Bid for a project in the Auction round
@@ -844,52 +920,53 @@ pub mod pallet {
 		}
 
 		fn on_idle(_now: T::BlockNumber, max_weight: Weight) -> Weight {
-			let pallet_account: AccountIdOf<T> = <T as Config>::PalletId::get().into_account_truncating();
-
 			let mut remaining_weight = max_weight;
 
-			// Unbond the plmc from failed evaluation projects
-			let unbond_results = ProjectsDetails::<T>::iter()
-                // Retrieve failed evaluation projects
-                .filter_map(|(project_id, info)| {
-                    if let ProjectStatus::EvaluationFailed = info.status {
-                        Some(project_id)
-                    } else {
-                        None
-                    }
-                })
-                // Get a flat list of bonds
-                .flat_map(|project_id| {
-                    // get all the bonds for projects with a failed evaluation phase
-                    Evaluations::<T>::iter_prefix(project_id)
-                        .flat_map(|(_bonder, bonds)| bonds)
-                        .collect::<Vec<_>>()
-                })
-                // Retrieve as many as possible for the given weight
-                .take_while(|_bond| {
-                    if let Some(new_weight) =
-                        remaining_weight.checked_sub(&T::WeightInfo::failed_evaluation_unbond_for())
-                    {
-                        remaining_weight = new_weight;
-                        true
-                    } else {
-                        false
-                    }
-                })
-                // Unbond the plmc
-                .map(|bond|
-					Self::do_failed_evaluation_unbond_for(
-						bond.id, bond.project_id, bond.evaluator, pallet_account.clone()))
-                .collect::<Vec<_>>();
+			let projects_needing_cleanup = ProjectsDetails::<T>::iter()
+				.filter_map(|(project_id, info)| match info.cleanup {
+					ProjectCleanup::Ready(project_finalizer) if project_finalizer != ProjectFinalizer::None => {
+						Some((project_id, project_finalizer))
+					}
+					_ => None,
+				})
+				.collect::<Vec<_>>();
 
-			// Make sure no unbonding failed
-			for result in unbond_results {
-				if let Err(e) = result {
-					Self::deposit_event(Event::<T>::FailedEvaluationUnbondFailed { error: e });
+			let projects_amount = projects_needing_cleanup.len() as u64;
+			if projects_amount == 0 {
+				return max_weight;
+			}
+
+			let mut max_weight_per_project = remaining_weight.saturating_div(projects_amount);
+
+			for (remaining_projects, (project_id, mut project_finalizer)) in
+				projects_needing_cleanup.into_iter().enumerate().rev()
+			{
+				let mut consumed_weight = T::WeightInfo::insert_cleaned_project();
+				while !consumed_weight.any_gt(max_weight_per_project) {
+					if let Ok(weight) = project_finalizer.do_one_operation::<T>(project_id) {
+						consumed_weight.saturating_accrue(weight);
+					} else {
+						break;
+					}
+				}
+				let mut details = if let Some(d) = ProjectsDetails::<T>::get(project_id) {
+					d
+				} else {
+					continue;
+				};
+				if let ProjectFinalizer::None = project_finalizer {
+					details.cleanup = ProjectCleanup::Finished;
+				} else {
+					details.cleanup = ProjectCleanup::Ready(project_finalizer);
+				}
+
+				ProjectsDetails::<T>::insert(project_id, details);
+				remaining_weight = remaining_weight.saturating_sub(consumed_weight);
+				if remaining_projects > 0 {
+					max_weight_per_project = remaining_weight.saturating_div(remaining_projects as u64);
 				}
 			}
 
-			// // TODO: PLMC-127. Set a proper weight
 			max_weight.saturating_sub(remaining_weight)
 		}
 	}

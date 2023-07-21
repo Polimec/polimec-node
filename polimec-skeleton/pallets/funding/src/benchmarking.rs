@@ -192,8 +192,8 @@ benchmarks! {
 	verify {
 		let project_auctions = Bids::<T>::get(project_id, bidder_1);
 		assert_eq!(project_auctions.len(), 1);
-		assert_eq!(project_auctions[0].ct_amount, 10_000_u64.into());
-		assert_eq!(project_auctions[0].ct_usd_price, T::Price::saturating_from_integer(15));
+		assert_eq!(project_auctions[0].original_ct_amount, 10_000_u64.into());
+		assert_eq!(project_auctions[0].original_ct_usd_price, T::Price::saturating_from_integer(15));
 		let events = PolimecSystem::<T>::events();
 		assert!(events.iter().any(|r| {
 			let expected_event: <T as Config>::RuntimeEvent = Event::<T>::Bid {

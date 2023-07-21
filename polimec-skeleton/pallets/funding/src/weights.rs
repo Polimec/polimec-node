@@ -59,6 +59,9 @@ pub trait WeightInfo {
     fn claim_contribution_tokens() -> Weight;
     fn on_initialize() -> Weight;
     fn failed_evaluation_unbond_for() -> Weight;
+    // used in on_idle to deduct the weight required to update the cleaned_project
+    fn insert_cleaned_project() -> Weight;
+    fn evaluation_unbond_for() -> Weight;
 }
 
 /// Weights for pallet_funding using the Substrate node and recommended hardware.
@@ -201,8 +204,15 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
     fn failed_evaluation_unbond_for() -> Weight {
         Weight::from_parts(1_000_000, 0)
     }
-}
 
+    fn insert_cleaned_project() -> Weight {
+        Weight::from_parts(1_000_000, 0)
+    }
+
+    fn evaluation_unbond_for() -> Weight {
+        Weight::from_parts(1_000_000, 0)
+    }
+}
 // For backwards compatibility and tests
 impl WeightInfo for () {
     // Storage: PolimecFunding Images (r:0 w:1)
@@ -340,6 +350,13 @@ impl WeightInfo for () {
     }
 
     fn failed_evaluation_unbond_for() -> Weight {
+        Weight::from_parts(1_000_000, 0)
+    }
+
+    // used in on_idle to deduct the weight required to update the cleaned_project
+    fn insert_cleaned_project() -> Weight { Weight::from_parts(1_000_000, 0) }
+
+    fn evaluation_unbond_for() -> Weight {
         Weight::from_parts(1_000_000, 0)
     }
 }

@@ -26,6 +26,7 @@ use sp_arithmetic::{FixedPointNumber, FixedPointOperand};
 use sp_runtime::traits::CheckedDiv;
 use sp_std::cmp::Eq;
 use sp_std::collections::btree_map::*;
+use sp_std::prelude::*;
 
 pub use config_types::*;
 pub use inner_types::*;
@@ -76,9 +77,11 @@ pub mod storage_types {
 	use super::*;
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct ProjectMetadata<BoundedString, Balance: BalanceT, Price: FixedPointNumber, Hash> {
+	pub struct ProjectMetadata<BoundedString, Balance: BalanceT, Price: FixedPointNumber, AccountId, Hash> {
 		/// Token Metadata
 		pub token_information: CurrencyMetadata<BoundedString>,
+		/// Mainnet Token Max Supply
+		pub mainnet_token_max_supply: Balance,
 		/// Total allocation of Contribution Tokens available for the Funding Round
 		pub total_allocation_size: Balance,
 		/// Minimum price per Contribution Token
@@ -95,11 +98,12 @@ pub mod storage_types {
 		/// e.g. https://github.com/paritytech/substrate/blob/427fd09bcb193c1e79dec85b1e207c718b686c35/frame/uniques/src/types.rs#L110
 		/// For now is easier to handle the case where only just one Currency is accepted
 		pub participation_currencies: AcceptedFundingAsset,
+		pub funding_destination_account: AccountId,
 		/// Additional metadata
 		pub offchain_information_hash: Option<Hash>,
 	}
-	impl<BoundedString, Balance: BalanceT, Price: FixedPointNumber, Hash>
-		ProjectMetadata<BoundedString, Balance, Price, Hash>
+	impl<BoundedString, Balance: BalanceT, Price: FixedPointNumber, Hash, AccountId>
+		ProjectMetadata<BoundedString, Balance, Price, Hash, AccountId>
 	{
 		// TODO: PLMC-162. Perform a REAL validity check
 		pub fn validity_check(&self) -> Result<(), ValidityError> {
@@ -113,7 +117,7 @@ pub mod storage_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct ProjectDetails<AccountId, BlockNumber, Price: FixedPointNumber, Balance: BalanceT> {
+	pub struct ProjectDetails<AccountId, BlockNumber, Price: FixedPointNumber, Balance: BalanceT, EvaluationRoundInfo> {
 		pub issuer: AccountId,
 		/// Whether the project is frozen, so no `metadata` changes are allowed.
 		pub is_frozen: bool,
@@ -127,6 +131,12 @@ pub mod storage_types {
 		pub fundraising_target: Balance,
 		/// The amount of Contribution Tokens that have not yet been sold
 		pub remaining_contribution_tokens: Balance,
+		/// Funding reached amount in USD equivalent
+		pub funding_amount_reached: Balance,
+		/// Cleanup operations remaining
+		pub cleanup: ProjectCleanup,
+		/// Information about the total amount bonded, and the outcome in regards to reward/slash/nothing
+		pub evaluation_round_info: EvaluationRoundInfo,
 	}
 
 	/// Tells on_initialize what to do with the project
@@ -145,9 +155,13 @@ pub mod storage_types {
 		pub id: Id,
 		pub project_id: ProjectId,
 		pub evaluator: AccountId,
-		pub plmc_bond: Balance,
-		pub usd_amount: Balance,
+		pub original_plmc_bond: Balance,
+		// An evaluation bond can be converted to participation bond
+		pub current_plmc_bond: Balance,
+		pub early_usd_amount: Balance,
+		pub late_usd_amount: Balance,
 		pub when: BlockNumber,
+		pub rewarded_or_slashed: bool,
 	}
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -160,22 +174,27 @@ pub mod storage_types {
 		BlockNumber,
 		PlmcVesting,
 		CTVesting,
+		Multiplier,
 	> {
 		pub id: Id,
 		pub project_id: ProjectId,
 		pub bidder: AccountId,
 		pub status: BidStatus<Balance>,
 		#[codec(compact)]
-		pub ct_amount: Balance,
-		pub ct_usd_price: Price,
+		pub original_ct_amount: Balance,
+		pub original_ct_usd_price: Price,
+		pub final_ct_amount: Balance,
+		pub final_ct_usd_price: Price,
 		pub funding_asset: AcceptedFundingAsset,
-		pub funding_asset_amount: Balance,
+		pub funding_asset_amount_locked: Balance,
+		pub multiplier: Multiplier,
 		pub plmc_bond: Balance,
 		// TODO: PLMC-159. Not used yet, but will be used to check if the bid is funded after XCM is implemented
 		pub funded: bool,
 		pub plmc_vesting_period: PlmcVesting,
 		pub ct_vesting_period: CTVesting,
 		pub when: BlockNumber,
+		pub funds_released: bool,
 	}
 
 	impl<
@@ -184,15 +203,17 @@ pub mod storage_types {
 			Balance: BalanceT + FixedPointOperand + Ord,
 			Price: FixedPointNumber,
 			AccountId: Eq,
-			BlockNumber: Eq,
+			BlockNumber: Eq + Ord,
 			PlmcVesting: Eq,
 			CTVesting: Eq,
-		> Ord for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, PlmcVesting, CTVesting>
+			Multiplier: Eq,
+		> Ord for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, PlmcVesting, CTVesting, Multiplier>
 	{
 		fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
-			let self_ticket_size = self.ct_usd_price.saturating_mul_int(self.ct_amount);
-			let other_ticket_size = other.ct_usd_price.saturating_mul_int(other.ct_amount);
-			self_ticket_size.cmp(&other_ticket_size)
+			match self.original_ct_usd_price.cmp(&other.original_ct_usd_price) {
+				sp_std::cmp::Ordering::Equal => Ord::cmp(&self.when, &other.when),
+				other => other,
+			}
 		}
 	}
 
@@ -202,10 +223,11 @@ pub mod storage_types {
 			Balance: BalanceT + FixedPointOperand,
 			Price: FixedPointNumber,
 			AccountId: Eq,
-			BlockNumber: Eq,
+			BlockNumber: Eq + Ord,
 			PlmcVesting: Eq,
 			CTVesting: Eq,
-		> PartialOrd for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, PlmcVesting, CTVesting>
+			Multiplier: Eq,
+		> PartialOrd for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, PlmcVesting, CTVesting, Multiplier>
 	{
 		fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
 			Some(self.cmp(other))
@@ -224,6 +246,7 @@ pub mod storage_types {
 		pub plmc_bond: Balance,
 		pub plmc_vesting_period: PLMCVesting,
 		pub ct_vesting_period: CTVesting,
+		pub funds_released: bool,
 	}
 }
 
@@ -322,12 +345,13 @@ pub mod inner_types {
 		#[default]
 		Application,
 		EvaluationRound,
-		AuctionInitializePeriod,
 		EvaluationFailed,
+		AuctionInitializePeriod,
 		AuctionRound(AuctionPhase),
 		CommunityRound,
 		RemainderRound,
-		FundingEnded,
+		FundingSuccessful,
+		FundingFailed,
 		ReadyToLaunch,
 	}
 
@@ -443,5 +467,90 @@ pub mod inner_types {
 				Ok(withdraw_amount)
 			}
 		}
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum FundingOutcome {
+		Success(SuccessReason),
+		Failure(FailureReason),
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum SuccessReason {
+		SoldOut,
+		ReachedTarget,
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum FailureReason {
+		EvaluationFailed,
+		AuctionFailed,
+		TargetNotReached,
+		Unknown,
+	}
+
+	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum ProjectCleanup {
+		#[default]
+		NotReady,
+		Ready(ProjectFinalizer),
+		Finished,
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum ProjectFinalizer {
+		Success(SuccessFinalizer),
+		Failure(FailureFinalizer),
+		None,
+	}
+
+	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum SuccessFinalizer {
+		#[default]
+		Initialized,
+		EvaluationRewardOrSlash(u64),
+		EvaluationUnbonding(u64),
+		BidPLMCVesting(u64),
+		BidCTMint(u64),
+		ContributionPLMCVesting(u64),
+		ContributionCTMint(u64),
+		BidFundingPayout(u64),
+		ContributionFundingPayout(u64),
+		Finished,
+	}
+
+	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum FailureFinalizer {
+		#[default]
+		Initialized,
+		EvaluationRewardOrSlash(u64),
+		EvaluationUnbonding(u64),
+		BidFundingRelease(u64),
+		BidUnbonding(u64),
+		ContributionFundingRelease(u64),
+		ContributionUnbonding(u64),
+		Finished,
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub struct EvaluationRoundInfo<AccountId, Balance> {
+		pub total_bonded_usd: Balance,
+		pub total_bonded_plmc: Balance,
+		pub evaluators_outcome: EvaluatorsOutcome<AccountId, Balance>,
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum EvaluatorsOutcome<AccountId, Balance> {
+		Unchanged,
+		Rewarded(RewardInfo<Balance>),
+		Slashed(Vec<(AccountId, Balance)>),
+	}
+
+	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub struct RewardInfo<Balance> {
+		pub early_evaluator_reward_pot_usd: Balance,
+		pub normal_evaluator_reward_pot_usd: Balance,
+		pub early_evaluator_total_bonded_usd: Balance,
+		pub normal_evaluator_total_bonded_usd: Balance,
 	}
 }
