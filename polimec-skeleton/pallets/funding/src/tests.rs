@@ -100,17 +100,7 @@ impl TestContribution {
 pub type TestContributions = Vec<TestContribution>;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct BidInfoFilter<
-	Id,
-	ProjectId,
-	Balance: BalanceT,
-	Price,
-	AccountId,
-	Multiplier,
-	BlockNumber,
-	PlmcVesting,
-	CTVesting,
-> {
+pub struct BidInfoFilter<Id, ProjectId, Balance: BalanceT, Price, AccountId, Multiplier, BlockNumber, PlmcVesting, CTVesting> {
 	pub id: Option<Id>,
 	pub project_id: Option<ProjectId>,
 	pub bidder: Option<AccountId>,
@@ -192,9 +182,7 @@ impl BidInfoFilterOf<TestRuntime> {
 		if self.funding_asset.is_some() && self.funding_asset.unwrap() != bid.funding_asset {
 			return false;
 		}
-		if self.funding_asset_amount_locked.is_some()
-			&& self.funding_asset_amount_locked.unwrap() != bid.funding_asset_amount_locked
-		{
+		if self.funding_asset_amount_locked.is_some() && self.funding_asset_amount_locked.unwrap() != bid.funding_asset_amount_locked {
 			return false;
 		}
 		if self.multiplier.is_some() && self.multiplier.unwrap() != bid.multiplier {
@@ -397,9 +385,7 @@ impl TestEnvironment {
 			balances
 		})
 	}
-	fn get_reserved_plmc_balances_for(
-		&self, user_keys: Vec<AccountId>, lock_type: LockType<ProjectIdOf<TestRuntime>>,
-	) -> UserToPLMCBalance {
+	fn get_reserved_plmc_balances_for(&self, user_keys: Vec<AccountId>, lock_type: LockType<ProjectIdOf<TestRuntime>>) -> UserToPLMCBalance {
 		self.ext_env.borrow_mut().execute_with(|| {
 			let mut balances = UserToPLMCBalance::new();
 			for user in user_keys {
@@ -1615,12 +1601,15 @@ pub mod helper_functions {
 			frame_system::EventRecord {
 				event: RuntimeEvent::FundingModule(Event::TransitionError { project_id: _, error }),
 				..
-			} => match error {
-				DispatchError::Module(module_error) => {
-					let pallet_error: Error<TestRuntime> = Decode::decode(&mut &module_error.error[..]).unwrap();
-					Err(pallet_error)
+			} => {
+				match error {
+					DispatchError::Module(module_error) => {
+						let pallet_error: Error<TestRuntime> = Decode::decode(&mut &module_error.error[..]).unwrap();
+						Err(pallet_error)
+
+					}
+					_ => panic!("wrong conversion")
 				}
-				_ => panic!("wrong conversion"),
 			},
 			_ => Ok(()),
 		}
@@ -1948,7 +1937,7 @@ mod evaluation_round_success {
 	fn plmc_unbonded_after_funding_success() {
 		let test_env = TestEnvironment::new();
 		let evaluations = default_evaluations();
-		let evaluators = evaluations.iter().map(|ev| ev.0.clone()).collect::<Vec<_>>();
+		let evaluators = evaluations.iter().map(|ev|ev.0.clone()).collect::<Vec<_>>();
 
 		let remainder_funding_project = RemainderFundingProject::new_with(
 			&test_env,
@@ -1959,18 +1948,14 @@ mod evaluation_round_success {
 			default_community_buys(),
 		);
 		let project_id = remainder_funding_project.get_project_id();
-		let prev_reserved_plmc =
-			test_env.get_reserved_plmc_balances_for(evaluators.clone(), LockType::Evaluation(project_id));
+		let prev_reserved_plmc = test_env.get_reserved_plmc_balances_for(evaluators.clone(), LockType::Evaluation(project_id));
 
 		let prev_free_plmc = test_env.get_free_plmc_balances_for(evaluators.clone());
 
 		remainder_funding_project.end_funding();
 		test_env.advance_time(10).unwrap();
 
-		let post_unbond_amounts: UserToPLMCBalance = prev_reserved_plmc
-			.iter()
-			.map(|(evaluator, _amount)| (*evaluator, Zero::zero()))
-			.collect();
+		let post_unbond_amounts: UserToPLMCBalance = prev_reserved_plmc.iter().map(|(evaluator, _amount)| (*evaluator, Zero::zero())).collect();
 
 		test_env.do_reserved_plmc_assertions(post_unbond_amounts.clone(), LockType::Evaluation(project_id));
 		test_env.do_reserved_plmc_assertions(post_unbond_amounts, LockType::Participation(project_id));
@@ -1986,45 +1971,28 @@ mod evaluation_round_success {
 	fn plmc_unbonded_after_funding_failure() {
 		let test_env = TestEnvironment::new();
 		let evaluations = default_evaluations();
-		let evaluators = evaluations.iter().map(|ev| ev.0.clone()).collect::<Vec<_>>();
+		let evaluators = evaluations.iter().map(|ev|ev.0.clone()).collect::<Vec<_>>();
 
 		let remainder_funding_project = RemainderFundingProject::new_with(
 			&test_env,
 			default_project(test_env.get_new_nonce()),
 			ISSUER,
 			evaluations.clone(),
-			vec![TestBid::new(
-				BUYER_1,
-				1000 * ASSET_UNIT,
-				10u128.into(),
-				None,
-				AcceptedFundingAsset::USDT,
-			)],
-			vec![TestContribution::new(
-				BUYER_1,
-				1000 * US_DOLLAR,
-				None,
-				AcceptedFundingAsset::USDT,
-			)],
+			vec![TestBid::new(BUYER_1, 1000 * ASSET_UNIT, 10u128.into(), None, AcceptedFundingAsset::USDT)],
+			vec![TestContribution::new(BUYER_1, 1000 * US_DOLLAR, None, AcceptedFundingAsset::USDT)],
 		);
 
 		let project_id = remainder_funding_project.get_project_id();
-		let prev_reserved_plmc =
-			test_env.get_reserved_plmc_balances_for(evaluators.clone(), LockType::Evaluation(project_id));
+		let prev_reserved_plmc = test_env.get_reserved_plmc_balances_for(evaluators.clone(), LockType::Evaluation(project_id));
 
 		let prev_free_plmc = test_env.get_free_plmc_balances_for(evaluators.clone());
 
 		let finished_project = remainder_funding_project.end_funding();
-		assert_eq!(
-			finished_project.get_project_details().status,
-			ProjectStatus::FundingFailed
-		);
+		assert_eq!(finished_project.get_project_details().status, ProjectStatus::FundingFailed);
 		test_env.advance_time(10).unwrap();
 
-		let post_unbond_amounts: UserToPLMCBalance = prev_reserved_plmc
-			.iter()
-			.map(|(evaluator, _amount)| (*evaluator, Zero::zero()))
-			.collect();
+		let post_unbond_amounts: UserToPLMCBalance = prev_reserved_plmc.iter().map(|(evaluator, _amount)| (*evaluator, Zero::zero())).collect();
+
 
 		test_env.do_reserved_plmc_assertions(post_unbond_amounts.clone(), LockType::Evaluation(project_id));
 		test_env.do_reserved_plmc_assertions(post_unbond_amounts, LockType::Participation(project_id));
@@ -2035,6 +2003,8 @@ mod evaluation_round_success {
 
 		assert_eq!(increased_amounts, calculate_evaluation_plmc_spent(evaluations))
 	}
+
+
 }
 
 #[cfg(test)]
@@ -2898,13 +2868,11 @@ mod auction_round_failure {
 			.bid_for_users(vec![bid_in])
 			.expect("Bids should pass");
 
-		test_env
-			.advance_time(
-				<TestRuntime as Config>::EnglishAuctionDuration::get()
-					+ <TestRuntime as Config>::CandleAuctionDuration::get()
-					- 1,
-			)
-			.unwrap();
+		test_env.advance_time(
+			<TestRuntime as Config>::EnglishAuctionDuration::get()
+				+ <TestRuntime as Config>::CandleAuctionDuration::get()
+				- 1,
+		).unwrap();
 
 		auctioning_project
 			.bid_for_users(vec![bid_out])
@@ -2956,8 +2924,8 @@ mod auction_round_failure {
 
 #[cfg(test)]
 mod community_round_success {
-	use super::*;
 	use frame_support::traits::fungible::Inspect;
+	use super::*;
 
 	pub const HOURS: BlockNumber = 300u64;
 
@@ -3703,7 +3671,7 @@ mod remainder_round_success {
 			ISSUER,
 			default_evaluations(),
 			default_bids(),
-			default_community_buys(),
+			default_community_buys()
 		);
 		const BOB: AccountId = 808;
 
@@ -3769,7 +3737,7 @@ mod remainder_round_success {
 			ISSUER,
 			default_evaluations(),
 			default_bids(),
-			default_community_buys(),
+			default_community_buys()
 		);
 		const BOB: AccountId = 808;
 		const OVERBUY_CT: BalanceOf<TestRuntime> = 40 * ASSET_UNIT;

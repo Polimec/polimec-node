@@ -639,8 +639,8 @@ impl<T: Config> Pallet<T> {
 		// * Validity checks *
 		ensure!(
 			remaining_cts == 0u32.into()
-				|| project_details.status == ProjectStatus::FundingFailed
-				|| matches!(remainder_end_block, Some(end_block) if now > end_block),
+			|| project_details.status == ProjectStatus::FundingFailed
+			|| matches!(remainder_end_block, Some(end_block) if now > end_block),
 			Error::<T>::TooEarlyForFundingEnd
 		);
 
