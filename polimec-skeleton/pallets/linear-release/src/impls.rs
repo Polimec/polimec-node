@@ -144,10 +144,10 @@ impl<T: Config> Pallet<T> {
 	/// Write an accounts updated vesting lock to storage.
 	pub fn write_lock(
 		who: &T::AccountId,
-		total_locked_now: BalanceOf<T>,
+		total_held_now: BalanceOf<T>,
 		reason: ReasonOf<T>,
 	) -> Result<(), DispatchError> {
-		if total_locked_now.is_zero() {
+		if total_held_now.is_zero() {
 			T::Currency::release(
 				&reason,
 				who,
@@ -156,10 +156,10 @@ impl<T: Config> Pallet<T> {
 			)?;
 			Self::deposit_event(Event::<T>::VestingCompleted { account: who.clone() });
 		} else {
-			let alredy_holded = T::Currency::balance_on_hold(&reason, who);
-			let to_release = alredy_holded.saturating_sub(total_locked_now);
+			let already_held = T::Currency::balance_on_hold(&reason, who);
+			let to_release = already_held.saturating_sub(total_held_now);
 			T::Currency::release(&reason, who, to_release, Precision::BestEffort)?;
-			Self::deposit_event(Event::<T>::VestingUpdated { account: who.clone(), unvested: total_locked_now });
+			Self::deposit_event(Event::<T>::VestingUpdated { account: who.clone(), unvested: to_release });
 		};
 
 		Ok(())

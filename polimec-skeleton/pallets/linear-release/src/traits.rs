@@ -50,7 +50,7 @@ pub trait ReleaseSchedule<AccountId, Reason> {
 		reason: Reason,
 	) -> DispatchResult;
 
-	/// Ser a release schedule to a given account, without locking any funds.
+	/// Set a release schedule to a given account, without locking any funds.
 	///
 	/// If the account has `MaxVestingSchedules`, an Error is returned and nothing
 	/// is updated.
