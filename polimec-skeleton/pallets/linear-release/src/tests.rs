@@ -72,28 +72,28 @@ fn check_vesting_status() {
 		assert_eq!(Vesting::vesting(&12, LockType::Participation(0)).unwrap(), vec![user12_vesting_schedule]); // Account 12 has a vesting schedule
 
 		// Account 1 has only 128 units vested from their illiquid ED * 5 units at block 1
-		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(128 * 9));
+		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(128));
 		// Account 2 has their full balance locked
-		assert_eq!(Vesting::vesting_balance(&2, LockType::Participation(0)), Some(ED * 20));
+		assert_eq!(Vesting::vesting_balance(&2, LockType::Participation(0)), Some(0));
 		// Account 12 has only their illiquid funds locked
-		assert_eq!(Vesting::vesting_balance(&12, LockType::Participation(0)), Some(ED * 5));
+		assert_eq!(Vesting::vesting_balance(&12, LockType::Participation(0)), Some(0));
 
 		System::set_block_number(10);
 		assert_eq!(System::block_number(), 10);
 
 		// Account 1 has fully vested by block 10
-		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(0));
+		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(ED * 5));
 		// Account 2 has started vesting by block 10
-		assert_eq!(Vesting::vesting_balance(&2, LockType::Participation(0)), Some(ED * 20));
+		assert_eq!(Vesting::vesting_balance(&2, LockType::Participation(0)), Some(0));
 		// Account 12 has started vesting by block 10
-		assert_eq!(Vesting::vesting_balance(&12, LockType::Participation(0)), Some(ED * 5));
+		assert_eq!(Vesting::vesting_balance(&12, LockType::Participation(0)), Some(0));
 
 		System::set_block_number(30);
 		assert_eq!(System::block_number(), 30);
 
-		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(0)); // Account 1 is still fully vested, and not negative
-		assert_eq!(Vesting::vesting_balance(&2, LockType::Participation(0)), Some(0)); // Account 2 has fully vested by block 30
-		assert_eq!(Vesting::vesting_balance(&12, LockType::Participation(0)), Some(0)); // Account 2 has fully vested by block 30
+		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(ED * 5)); // Account 1 is still fully vested, and not negative
+		assert_eq!(Vesting::vesting_balance(&2, LockType::Participation(0)), Some(ED * 20)); // Account 2 has fully vested by block 30
+		assert_eq!(Vesting::vesting_balance(&12, LockType::Participation(0)), Some(ED * 5)); // Account 2 has fully vested by block 30
 
 		// Once we unlock the funds, they are removed from storage.
 		vest_and_assert_no_vesting::<Test>(1, LockType::Participation(0));
@@ -117,7 +117,7 @@ fn check_vesting_status_for_multi_schedule_account() {
 		// Account 2's free balance is the one set in Genesis inside the Balances pallet.
 		let balance = Balances::balance(&2);
 		assert_eq!(balance, ED * (1));
-		assert_eq!(Vesting::vesting_balance(&2, LockType::Participation(0)), Some(ED * (20)));
+		assert_eq!(Vesting::vesting_balance(&2, LockType::Participation(0)), Some(0));
 
 		// Add a 2nd schedule that is already unlocking by block #1.
 		let sched1 = VestingInfo::new(
@@ -125,7 +125,9 @@ fn check_vesting_status_for_multi_schedule_account() {
 			ED, // Vesting over 10 blocks
 			0,
 		);
+		assert_eq!(Balances::balance_on_hold(&LockType::Participation(0), &2), 20 * ED);
 		assert_ok!(Vesting::vested_transfer(Some(4).into(), 2, sched1, LockType::Participation(0)));
+		assert_eq!(Balances::balance_on_hold(&LockType::Participation(0), &2), 29 * ED); // Why 29 and not 30? Because sched1 is already unlocking.
 		// Free balance is the one set in Genesis inside the Balances pallet
 		// + the one from the vested transfer.
 		// BUT NOT the one in sched0, since the vesting will start at block #10.
@@ -141,6 +143,7 @@ fn check_vesting_status_for_multi_schedule_account() {
 			5,
 		);
 		assert_ok!(Vesting::vested_transfer(Some(4).into(), 2, sched2, LockType::Participation(0)));
+		assert_eq!(Balances::balance_on_hold(&LockType::Participation(0), &2), 15104); // 59 * ED
 
 		System::set_block_number(9);
 		assert_eq!(System::block_number(), 9);
@@ -152,27 +155,34 @@ fn check_vesting_status_for_multi_schedule_account() {
 		assert_ok!(Vesting::vest(Some(2).into(), LockType::Participation(0)));
 		let balance = Balances::balance(&2);
 		assert_eq!(balance, ED * (1 + 9 + 4)); // 1 from Genesis + 9 from sched1 + 4 from sched2
+		assert_eq!(Balances::balance_on_hold(&LockType::Participation(0), &2), 12032); // 47 * ED
 
 		// sched1 and sched2 are freeing funds at block #9, but sched0 is not.
 		assert_eq!(
 			Vesting::vesting_balance(&2, LockType::Participation(0)),
-			Some(sched0.per_block() * 20 + sched1.per_block() * 1 + sched2.per_block() * 26)
+			Some(sched1.per_block() * System::block_number() + sched2.per_block() * 4)
 		);
 
 		System::set_block_number(20);
 		// At block #20 sched1 is fully unlocked while sched2 and sched0 are partially unlocked.
 		assert_eq!(
 			Vesting::vesting_balance(&2, LockType::Participation(0)),
-			Some(sched0.per_block() * 10 + sched2.per_block() * 15)
+			Some(sched1.locked() + sched0.per_block() * 10 + sched2.per_block() * 15)
 		);
 
 		System::set_block_number(30);
 		// At block #30 sched0 and sched1 are fully unlocked while sched2 is partially unlocked.
-		assert_eq!(Vesting::vesting_balance(&2, LockType::Participation(0)), Some(sched2.per_block() * 5));
+		assert_eq!(
+			Vesting::vesting_balance(&2, LockType::Participation(0)),
+			Some(sched0.locked() + sched1.locked() + sched2.per_block() * 25)
+		);
 
 		// At block #35 sched2 fully unlocks and thus all schedules funds are unlocked.
 		System::set_block_number(35);
-		assert_eq!(Vesting::vesting_balance(&2, LockType::Participation(0)), Some(0));
+		assert_eq!(
+			Vesting::vesting_balance(&2, LockType::Participation(0)),
+			Some(sched0.locked() + sched1.locked() + sched2.locked())
+		);
 		// Since we have not called any extrinsics that would unlock funds the schedules
 		// are still in storage,
 		assert_eq!(Vesting::vesting(&2, LockType::Participation(0)).unwrap(), vec![sched0, sched1, sched2]);
@@ -187,7 +197,7 @@ fn unvested_balance_should_not_transfer() {
 		let user1_free_balance = Balances::free_balance(&1);
 		assert_eq!(user1_free_balance, 50); // Account 1 has free balance
 									// Account 1 has only 5 units vested at block 1 (plus 50 unvested)
-		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(45)); // Account 1 cannot send more than vested amount...
+		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(5)); // Account 1 cannot send more than vested amount...
 		assert_noop!(Balances::transfer_allow_death(Some(1).into(), 2, 56), TokenError::FundsUnavailable);
 	});
 }
@@ -199,7 +209,7 @@ fn vested_balance_should_transfer() {
 		let user1_free_balance = Balances::free_balance(&1);
 		assert_eq!(user1_free_balance, 50); // Account 1 has free balance
 									// Account 1 has only 5 units vested at block 1 (plus 50 unvested)
-		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(45));
+		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(5));
 		assert_noop!(Balances::transfer_allow_death(Some(1).into(), 2, 45), TokenError::Frozen); // Account 1 free balance - ED is < 45
 		assert_ok!(Vesting::vest(Some(1).into(), LockType::Participation(0)));
 		let user1_free_balance = Balances::free_balance(&1);
@@ -231,8 +241,8 @@ fn vested_balance_should_transfer_with_multi_sched() {
 		let user1_free_balance = Balances::free_balance(&1);
 		assert_eq!(user1_free_balance, user1_initial_free_balance + (2 * sched0.per_block()));
 
-		//
-		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(9 * ED));
+		// Account "1" has only 256 units (1 ED) unlocking at block 1 (plus 1280 already free).
+		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(1 * ED));
 		assert_ok!(Vesting::vest(Some(1).into(), LockType::Participation(0)));
 		let user1_free_balance = Balances::balance(&1);
 		assert_ok!(Balances::transfer_allow_death(Some(1).into(), 2, user1_free_balance - ED));
@@ -253,7 +263,7 @@ fn vested_balance_should_transfer_using_vest_other() {
 		let user1_free_balance = Balances::free_balance(&1);
 		assert_eq!(user1_free_balance, 50); // Account 1 has free balance
 									// Account 1 has only 5 units vested at block 1 (plus 50 unvested)
-		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(45));
+		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(5));
 		assert_ok!(Vesting::vest_other(Some(2).into(), 1, LockType::Participation(0)));
 		assert_ok!(Balances::transfer_allow_death(Some(1).into(), 2, 55 - 10));
 	});
@@ -270,8 +280,8 @@ fn vested_balance_should_transfer_using_vest_other_with_multi_sched() {
 		let user1_free_balance = Balances::free_balance(&1);
 		assert_eq!(user1_free_balance, 1536); // Account 1 has free balance
 
-		// Account 1 has only 256 units unlocking at block 1 (plus 1280 already free).
-		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(9 * ED));
+		// Account 1 has only 256 units (1 ED) unlocking at block 1 (plus 1280 already free).
+		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(ED));
 		assert_ok!(Vesting::vest_other(Some(2).into(), 1, LockType::Participation(0)));
 		assert_ok!(Balances::transfer_allow_death(Some(1).into(), 2, 1536 - ED));
 	});
@@ -302,15 +312,13 @@ fn extra_balance_should_transfer() {
 		assert_eq!(user2_free_balance, 110); // Account 2 has 100 more free balance than normal
 
 		// Account 1 has only 5 units vested at block 1 (plus 150 unvested)
-		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(45));
+		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(5));
 		assert_ok!(Vesting::vest(Some(1).into(), LockType::Participation(0)));
 		let user1_free_balance2 = Balances::free_balance(&1);
 		assert_eq!(user1_free_balance2, 155); // Account 1 has 100 more free balance than normal
 		assert_ok!(Balances::transfer_allow_death(Some(1).into(), 3, 155 - 10)); // Account 1 can send extra units gained
 
 		// Account 2 has no units vested at block 1, but gained 100
-		assert_eq!(Vesting::vesting_balance(&2, LockType::Participation(0)), Some(200));
-		assert_ok!(Vesting::vest(Some(2).into(), LockType::Participation(0)));
 		assert_ok!(Balances::transfer_allow_death(Some(2).into(), 3, 100 - 10)); // Account 2 can send extra
 		                                                                 // units gained
 	});
@@ -323,7 +331,7 @@ fn liquid_funds_should_transfer_with_delayed_vesting() {
 
 		assert_eq!(user12_free_balance, 1280); // Account 12 has free balance
 									   // Account 12 has liquid funds
-		assert_eq!(Vesting::vesting_balance(&12, LockType::Participation(0)), Some(256 * 5));
+		assert_eq!(Vesting::vesting_balance(&12, LockType::Participation(0)), Some(0));
 
 		// Account 12 has delayed vesting
 		let user12_vesting_schedule = VestingInfo::new(
@@ -362,7 +370,7 @@ fn vested_transfer_works() {
 		let user4_free_balance_updated = Balances::free_balance(&4);
 		assert_eq!(user4_free_balance_updated, 256 * 40);
 		// Account 4 has 5 * 256 locked.
-		assert_eq!(Vesting::vesting_balance(&4, LockType::Participation(0)), Some(256 * 5));
+		assert_eq!(Vesting::vesting_balance(&4, LockType::Participation(0)), Some(0));
 
 		System::set_block_number(20);
 		assert_eq!(System::block_number(), 20);
@@ -374,7 +382,7 @@ fn vested_transfer_works() {
 		assert_eq!(System::block_number(), 30);
 
 		// Account 4 has fully vested,
-		assert_eq!(Vesting::vesting_balance(&4, LockType::Participation(0)), Some(0));
+		assert_eq!(Vesting::vesting_balance(&4, LockType::Participation(0)), Some(new_vesting_schedule.locked()));
 		// and after unlocking its schedules are removed from storage.
 		vest_and_assert_no_vesting::<Test>(4, LockType::Participation(0));
 	});
@@ -442,8 +450,7 @@ fn vested_transfer_allows_max_schedules() {
 		}
 
 		// The schedules count towards vesting balance
-		let transferred_amount = <Test as Config>::MinVestedTransfer::get() * max_schedules as u64;
-		assert_eq!(Vesting::vesting_balance(&4, LockType::Participation(0)), Some(transferred_amount));
+		assert_eq!(Vesting::vesting_balance(&4, LockType::Participation(0)), Some(0));
 		// BUT NOT the free balance.
 		assert_eq!(Balances::free_balance(&4), user_4_free_balance);
 
@@ -457,7 +464,10 @@ fn vested_transfer_allows_max_schedules() {
 
 		// Account 4 has fully vested when all the schedules end,
 		System::set_block_number(<Test as Config>::MinVestedTransfer::get() + sched.starting_block());
-		assert_eq!(Vesting::vesting_balance(&4, LockType::Participation(0)), Some(0));
+		assert_eq!(
+			Vesting::vesting_balance(&4, LockType::Participation(0)),
+			Some(sched.locked() * max_schedules as u64)
+		);
 		// and after unlocking its schedules are removed from storage.
 		vest_and_assert_no_vesting::<Test>(4, LockType::Participation(0));
 	});
@@ -499,7 +509,7 @@ fn force_vested_transfer_works() {
 		let user4_free_balance_updated = Balances::free_balance(&4);
 		assert_eq!(user4_free_balance_updated, ED * 40);
 		// Account 4 has 5 * ED locked.
-		assert_eq!(Vesting::vesting_balance(&4, LockType::Participation(0)), Some(ED * 5));
+		assert_eq!(Vesting::vesting_balance(&4, LockType::Participation(0)), Some(0));
 
 		System::set_block_number(20);
 		assert_eq!(System::block_number(), 20);
@@ -511,7 +521,7 @@ fn force_vested_transfer_works() {
 		assert_eq!(System::block_number(), 30);
 
 		// Account 4 has fully vested,
-		assert_eq!(Vesting::vesting_balance(&4, LockType::Participation(0)), Some(0));
+		assert_eq!(Vesting::vesting_balance(&4, LockType::Participation(0)), Some(new_vesting_schedule.locked()));
 		// and after unlocking its schedules are removed from storage.
 		vest_and_assert_no_vesting::<Test>(4, LockType::Participation(0));
 	});
@@ -596,8 +606,7 @@ fn force_vested_transfer_allows_max_schedules() {
 		}
 
 		// The schedules count towards vesting balance.
-		let transferred_amount = <Test as Config>::MinVestedTransfer::get() * max_schedules as u64;
-		assert_eq!(Vesting::vesting_balance(&4, LockType::Participation(0)), Some(transferred_amount));
+		assert_eq!(Vesting::vesting_balance(&4, LockType::Participation(0)), Some(0));
 		// but NOT free balance.
 		assert_eq!(Balances::free_balance(&4), user_4_free_balance);
 
@@ -611,7 +620,7 @@ fn force_vested_transfer_allows_max_schedules() {
 
 		// Account 4 has fully vested when all the schedules end,
 		System::set_block_number(<Test as Config>::MinVestedTransfer::get() + 10);
-		assert_eq!(Vesting::vesting_balance(&4, LockType::Participation(0)), Some(0));
+		assert_eq!(Vesting::vesting_balance(&4, LockType::Participation(0)), Some(sched.locked * max_schedules as u64));
 		// and after unlocking its schedules are removed from storage.
 		vest_and_assert_no_vesting::<Test>(4, LockType::Participation(0));
 	});
@@ -955,20 +964,13 @@ fn merge_finished_and_yet_to_be_started_schedules() {
 		assert_ok!(Vesting::vested_transfer(Some(13).into(), 2, sched2, LockType::Participation(0)));
 		assert_eq!(Vesting::vesting(&2, LockType::Participation(0)).unwrap(), vec![sched0, sched1, sched2]);
 
-		assert_eq!(
-			Vesting::vesting_balance(&2, LockType::Participation(0)).unwrap(),
-			Balances::balance_on_hold(&LockType::Participation(0), &2)
-		);
-		assert_eq!(
-			Vesting::vesting_balance(&2, LockType::Participation(0)),
-			Some(sched0.locked() + sched1.locked() + sched2.locked())
-		);
+		assert_eq!(Vesting::vesting_balance(&2, LockType::Participation(0)), Some(0));
 
 		System::set_block_number(30);
 
 		// At block 30, sched0 has finished unlocking while sched1 and sched2 are still fully
 		// locked,
-		assert_eq!(Vesting::vesting_balance(&2, LockType::Participation(0)), Some(sched1.locked() + sched2.locked()));
+		assert_eq!(Vesting::vesting_balance(&2, LockType::Participation(0)), Some(sched0.locked()));
 		// but since we have not vested usable balance is still 0.
 		assert_eq!(Balances::balance(&2), ED);
 
@@ -981,6 +983,10 @@ fn merge_finished_and_yet_to_be_started_schedules() {
 
 		// The usable balance is updated because merging fully unlocked sched0.
 		assert_eq!(Balances::balance(&2), ED + sched0.locked());
+		assert_eq!(Vesting::vesting_balance(&2, LockType::Participation(0)), Some(0));
+		System::set_block_number(75);
+		assert_eq!(Vesting::vesting_balance(&2, LockType::Participation(0)), Some(sched2.locked() + sched1.locked()));
+		vest_and_assert_no_vesting::<Test>(2, LockType::Participation(0));
 	});
 }
 
@@ -1146,18 +1152,18 @@ fn set_release_schedule() {
 			user3_vesting_schedule.starting_block,
 			LockType::Participation(0)
 		));
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(15 * ED));
+		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(0));
 
 		// 1 ED can be "released", we need to call vest to release it.
 		System::set_block_number(2);
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(14 * ED));
+		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(1 * ED));
 		assert_ok!(Vesting::vest(Some(3).into(), LockType::Participation(0)));
 		let user_3_free_balance = Balances::free_balance(&3);
 		assert_eq!(user_3_free_balance, 16 * ED);
 
 		// 2 ED can be "released"
 		System::set_block_number(3);
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(13 * ED));
+		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(2 * ED));
 		assert_ok!(Vesting::vest(Some(3).into(), LockType::Participation(0)));
 		let user_3_free_balance = Balances::free_balance(&3);
 		assert_eq!(user_3_free_balance, 17 * ED);
@@ -1165,10 +1171,11 @@ fn set_release_schedule() {
 		// Go to the end of the schedule
 		System::set_block_number(16);
 		assert_eq!(System::block_number(), 16);
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(0));
+		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(user3_vesting_schedule.locked));
 		vest_and_assert_no_vesting::<Test>(3, LockType::Participation(0));
 		let user_3_free_balance = Balances::free_balance(&3);
 		assert_eq!(user_3_free_balance, 30 * ED);
+		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), None);
 	});
 }
 
@@ -1205,11 +1212,11 @@ fn cannot_release_different_reason() {
 			user3_vesting_schedule.starting_block,
 			LockType::Participation(0)
 		));
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(15 * ED));
+		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(0));
 
 		// 1 ED can be "released", we need to call vest to release it.
 		System::set_block_number(2);
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(14 * ED));
+		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(1 * ED));
 		assert_ok!(Vesting::vest(Some(3).into(), LockType::Participation(0)));
 		let user_3_free_balance = Balances::free_balance(&3);
 		assert_eq!(user_3_free_balance, 16 * ED);
@@ -1249,7 +1256,7 @@ fn multile_holds_release_schedule() {
 			user3_vesting_schedule.starting_block,
 			LockType::Participation(0)
 		));
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(15 * ED));
+		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(0));
 
 		// Hold 7 ED more
 		assert_ok!(Balances::hold(&LockType::Participation(1), &3, 7 * ED));
@@ -1269,8 +1276,8 @@ fn multile_holds_release_schedule() {
 			user3_vesting_schedule.starting_block,
 			LockType::Participation(1)
 		));
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(15 * ED));
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(1)), Some(7 * ED));
+		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(0));
+		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(1)), Some(0));
 
 		System::set_block_number(16);
 		assert_ok!(Vesting::vest(Some(3).into(), LockType::Participation(0)));

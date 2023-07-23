@@ -240,14 +240,14 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 	type Currency = T::Currency;
 	type Moment = BlockNumberFor<T>;
 
-	/// Get the amount that is currently being vested and cannot be transferred out of this account.
+	/// Get the amount that is currently being held and cannot be transferred out of this account.
 	fn vesting_balance(who: &T::AccountId, reason: ReasonOf<T>) -> Option<BalanceOf<T>> {
 		if let Some(v) = Self::vesting(who, reason) {
 			let now = <frame_system::Pallet<T>>::block_number();
-			let total_locked_now = v.iter().fold(Zero::zero(), |total, schedule| {
-				schedule.locked_at::<T::BlockNumberToBalance>(now).saturating_add(total)
+			let total_releasable = v.iter().fold(Zero::zero(), |total, schedule| {
+				schedule.releaseble_at::<T::BlockNumberToBalance>(now).saturating_add(total)
 			});
-			Some(T::Currency::balance_on_hold(&reason, who).min(total_locked_now))
+			Some(total_releasable)
 		} else {
 			None
 		}

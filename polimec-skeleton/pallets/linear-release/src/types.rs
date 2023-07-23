@@ -75,16 +75,28 @@ where
 	}
 
 	/// Amount locked at block `n`.
-	pub fn locked_at<BlockNumberToBalance: Convert<BlockNumber, Balance>>(&self, n: BlockNumber) -> Balance {
+	pub fn locked_at<BlockNumberToBalance: Convert<BlockNumber, Balance>>(&self, now: BlockNumber) -> Balance {
 		// Number of blocks that count toward vesting;
 		// saturating to 0 when n < starting_block.
-		let vested_block_count = n.saturating_sub(self.starting_block);
-		let vested_block_count = BlockNumberToBalance::convert(vested_block_count);
+		let time_range = now.saturating_sub(self.starting_block);
+		let vested_block_count = BlockNumberToBalance::convert(time_range);
 		// Return amount that is still locked in vesting.
 		vested_block_count
 			.checked_mul(&self.per_block()) // `per_block` accessor guarantees at least 1.
 			.map(|to_unlock| self.locked.saturating_sub(to_unlock))
 			.unwrap_or(Zero::zero())
+	}
+
+	/// Amount to be released at block `n`.
+	pub fn releaseble_at<BlockNumberToBalance: Convert<BlockNumber, Balance>>(&self, now: BlockNumber) -> Balance {
+		// Number of blocks that count toward vesting;
+		// saturating to 0 when n < starting_block.
+		let time_range = now.saturating_sub(self.starting_block);
+		let vested_block_count = BlockNumberToBalance::convert(time_range);
+		// TODO: Find a way to improve this.
+		// Return amount that is releasable in vesting.
+		let res = vested_block_count.checked_mul(&self.per_block()).unwrap_or(Zero::zero());
+		res.min(self.locked)
 	}
 
 	/// Block number at which the schedule ends (as type `Balance`).
