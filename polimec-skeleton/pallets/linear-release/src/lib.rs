@@ -251,7 +251,7 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Unlock any vested funds of the sender account.
+		/// Unlock any vested funds of the sender account, for the given `reason`.
 		///
 		/// The dispatch origin for this call must be _Signed_ and the sender must have funds still
 		/// locked under this pallet.
@@ -266,7 +266,7 @@ pub mod pallet {
 			Self::do_vest(who, reason)
 		}
 
-		/// Unlock any vested funds of a `target` account.
+		/// Unlock any vested funds of a `target` account, for the given `reason`.
 		///
 		/// The dispatch origin for this call must be _Signed_.
 		///
@@ -377,6 +377,46 @@ pub mod pallet {
 			Self::write_vesting_schedule(&who, schedules, reason)?;
 			Self::write_release(&who, locked_now, reason)?;
 
+			Ok(())
+		}
+
+		/// Unlock any vested funds of the sender account.
+		///
+		/// The dispatch origin for this call must be _Signed_ and the sender must have funds still
+		/// locked under this pallet.
+		///
+		/// Emits either `VestingCompleted` or `VestingUpdated`.
+		///
+		/// ## Complexity
+		/// - `O(1)`.
+		#[pallet::call_index(5)]
+		pub fn vest_all(origin: OriginFor<T>) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			let reasons = <Vesting<T>>::iter_key_prefix(&who);
+			for reason in reasons {
+				Self::do_vest(who.clone(), reason)?;
+			}
+			Ok(())
+		}
+
+		/// Unlock any vested funds of a `target` account.
+		///
+		/// The dispatch origin for this call must be _Signed_.
+		///
+		/// - `target`: The account whose vested funds should be unlocked. Must have funds still
+		/// locked under this pallet.
+		///
+		/// Emits either `VestingCompleted` or `VestingUpdated`.
+		///
+		/// ## Complexity
+		/// - `O(1)`.
+		#[pallet::call_index(6)]
+		pub fn vest_all_other(origin: OriginFor<T>, target: AccountIdOf<T>) -> DispatchResult {
+			ensure_signed(origin)?;
+			let reasons = <Vesting<T>>::iter_key_prefix(&target);
+			for reason in reasons {
+				Self::do_vest(target.clone(), reason)?;
+			}
 			Ok(())
 		}
 	}
