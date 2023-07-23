@@ -125,7 +125,7 @@ impl<T: Config> Pallet<T> {
 	) -> (Vec<VestingInfo<BalanceOf<T>, BlockNumberFor<T>>>, BalanceOf<T>) {
 		let now = <frame_system::Pallet<T>>::block_number();
 
-		let mut total_locked_now: BalanceOf<T> = Zero::zero();
+		let mut total_releasable: BalanceOf<T> = Zero::zero();
 		let filtered_schedules = action
 			.pick_schedules::<T>(schedules)
 			.filter(|schedule| {
@@ -138,11 +138,11 @@ impl<T: Config> Pallet<T> {
 			})
 			.collect::<Vec<_>>();
 
-		(filtered_schedules, total_locked_now)
+		(filtered_schedules, total_releasable)
 	}
 
 	/// Write an accounts updated vesting lock to storage.
-	pub fn write_lock(
+	pub fn write_release(
 		who: &T::AccountId,
 		total_held_now: BalanceOf<T>,
 		reason: ReasonOf<T>,
@@ -166,7 +166,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Write an accounts updated vesting schedules to storage.
-	pub fn write_vesting(
+	pub fn write_vesting_schedule(
 		who: &T::AccountId,
 		schedules: Vec<VestingInfo<BalanceOf<T>, BlockNumberFor<T>>>,
 		reason: ReasonOf<T>,
@@ -188,9 +188,8 @@ impl<T: Config> Pallet<T> {
 		let schedules = Self::vesting(&who, reason).ok_or(Error::<T>::NotVesting)?;
 
 		let (schedules, locked_now) = Self::exec_action(schedules.to_vec(), VestingAction::Passive)?;
-
-		Self::write_vesting(&who, schedules, reason)?;
-		Self::write_lock(&who, locked_now, reason)?;
+		Self::write_vesting_schedule(&who, schedules, reason)?;
+		Self::write_release(&who, locked_now, reason)?;
 
 		Ok(())
 	}
@@ -291,8 +290,8 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 
 		let (schedules, locked_now) = Self::exec_action(schedules.to_vec(), VestingAction::Passive)?;
 
-		Self::write_vesting(who, schedules, reason)?;
-		Self::write_lock(who, locked_now, reason)?;
+		Self::write_vesting_schedule(who, schedules, reason)?;
+		Self::write_release(who, locked_now, reason)?;
 		Ok(())
 	}
 
@@ -343,7 +342,7 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 
 		let (schedules, _) = Self::exec_action(schedules.to_vec(), VestingAction::Passive)?;
 
-		Self::write_vesting(who, schedules, reason)?;
+		Self::write_vesting_schedule(who, schedules, reason)?;
 		Ok(())
 	}
 
@@ -354,8 +353,8 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 
 		let (schedules, locked_now) = Self::exec_action(schedules.to_vec(), remove_action)?;
 
-		Self::write_vesting(who, schedules, reason)?;
-		Self::write_lock(who, locked_now, reason)?;
+		Self::write_vesting_schedule(who, schedules, reason)?;
+		Self::write_release(who, locked_now, reason)?;
 		Ok(())
 	}
 }

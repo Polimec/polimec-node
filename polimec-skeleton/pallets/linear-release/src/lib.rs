@@ -374,8 +374,8 @@ pub mod pallet {
 
 			let (schedules, locked_now) = Self::exec_action(schedules.to_vec(), merge_action)?;
 
-			Self::write_vesting(&who, schedules, reason)?;
-			Self::write_lock(&who, locked_now, reason)?;
+			Self::write_vesting_schedule(&who, schedules, reason)?;
+			Self::write_release(&who, locked_now, reason)?;
 
 			Ok(())
 		}
