@@ -132,7 +132,7 @@ impl<T: Config> Pallet<T> {
 				let locked_now = schedule.locked_at::<T::BlockNumberToBalance>(now);
 				let keep = !locked_now.is_zero();
 				if keep {
-					total_locked_now = total_locked_now.saturating_add(locked_now);
+					total_releasable.saturating_accrue(locked_now);
 				}
 				keep
 			})
