@@ -89,7 +89,7 @@ impl<T: Config> Pallet<T> {
 			&source,
 			&target,
 			schedule.locked(),
-			Precision::BestEffort,
+			Precision::Exact,
 			frame_support::traits::tokens::Preservation::Expendable,
 			frame_support::traits::tokens::Fortitude::Polite,
 		)?;
