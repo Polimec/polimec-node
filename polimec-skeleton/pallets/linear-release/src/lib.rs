@@ -30,7 +30,7 @@ use frame_support::{
 };
 use frame_system::{pallet_prelude::*, WeightInfo};
 
-// use crate::types::LockType;
+use polimec_traits::ReleaseSchedule;
 use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{AtLeast32BitUnsigned, Bounded, Convert, One, Saturating, Zero},
@@ -40,7 +40,6 @@ use sp_std::{marker::PhantomData, prelude::*};
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
-use traits::ReleaseSchedule;
 use types::VestingInfo;
 
 #[cfg(test)]
@@ -49,7 +48,6 @@ mod mock;
 mod tests;
 
 mod impls;
-pub mod traits;
 mod types;
 
 pub type BalanceOf<T> = <T as Config>::Balance;

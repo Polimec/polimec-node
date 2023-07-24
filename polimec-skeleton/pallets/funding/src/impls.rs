@@ -1,17 +1,16 @@
-use crate::traits::DoRemainingOperation;
-use crate::*;
-use frame_support::traits::Get;
-use frame_support::weights::Weight;
-use sp_runtime::traits::AccountIdConversion;
-use sp_runtime::DispatchError;
+use crate::{traits::DoRemainingOperation, *};
+use frame_support::{traits::Get, weights::Weight};
+use sp_runtime::{traits::AccountIdConversion, DispatchError};
 use sp_std::prelude::*;
 
 impl DoRemainingOperation for ProjectFinalizer {
 	fn is_done(&self) -> bool {
 		matches!(self, ProjectFinalizer::None)
 	}
+
 	fn do_one_operation<T: crate::Config>(
-		&mut self, project_id: T::ProjectIdentifier,
+		&mut self,
+		project_id: T::ProjectIdentifier,
 	) -> Result<Weight, DispatchError> {
 		match self {
 			ProjectFinalizer::None => Err(Error::<T>::NoFinalizerSet.into()),
@@ -21,14 +20,14 @@ impl DoRemainingOperation for ProjectFinalizer {
 					*self = ProjectFinalizer::None;
 				}
 				Ok(weight)
-			}
+			},
 			ProjectFinalizer::Failure(ops) => {
 				let weight = ops.do_one_operation::<T>(project_id)?;
 				if ops.is_done() {
 					*self = ProjectFinalizer::None;
 				}
 				Ok(weight)
-			}
+			},
 		}
 	}
 }
@@ -44,8 +43,8 @@ impl DoRemainingOperation for SuccessFinalizer {
 				*self =
 					SuccessFinalizer::EvaluationRewardOrSlash(remaining_evaluators_to_reward_or_slash::<T>(project_id));
 				Ok(Weight::zero())
-			}
-			SuccessFinalizer::EvaluationRewardOrSlash(remaining) => {
+			},
+			SuccessFinalizer::EvaluationRewardOrSlash(remaining) =>
 				if *remaining == 0 {
 					*self = SuccessFinalizer::EvaluationUnbonding(remaining_evaluations::<T>(project_id));
 					Ok(Weight::zero())
@@ -53,9 +52,8 @@ impl DoRemainingOperation for SuccessFinalizer {
 					let (consumed_weight, remaining_evaluations) = reward_or_slash_one_evaluation::<T>(project_id)?;
 					*self = SuccessFinalizer::EvaluationRewardOrSlash(remaining_evaluations);
 					Ok(consumed_weight)
-				}
-			}
-			SuccessFinalizer::EvaluationUnbonding(remaining) => {
+				},
+			SuccessFinalizer::EvaluationUnbonding(remaining) =>
 				if *remaining == 0 {
 					*self = SuccessFinalizer::BidPLMCVesting(remaining_bids_without_plmc_vesting::<T>(project_id));
 					Ok(Weight::zero())
@@ -63,9 +61,8 @@ impl DoRemainingOperation for SuccessFinalizer {
 					let (consumed_weight, remaining_evaluations) = unbond_one_evaluation::<T>(project_id);
 					*self = SuccessFinalizer::EvaluationUnbonding(remaining_evaluations);
 					Ok(consumed_weight)
-				}
-			}
-			SuccessFinalizer::BidPLMCVesting(remaining) => {
+				},
+			SuccessFinalizer::BidPLMCVesting(remaining) =>
 				if *remaining == 0 {
 					*self = SuccessFinalizer::BidCTMint(remaining_bids_without_ct_minted::<T>(project_id));
 					Ok(Weight::zero())
@@ -73,9 +70,8 @@ impl DoRemainingOperation for SuccessFinalizer {
 					let (consumed_weight, remaining_bids) = start_bid_plmc_vesting_schedule::<T>(project_id);
 					*self = SuccessFinalizer::BidPLMCVesting(remaining_bids);
 					Ok(consumed_weight)
-				}
-			}
-			SuccessFinalizer::BidCTMint(remaining) => {
+				},
+			SuccessFinalizer::BidCTMint(remaining) =>
 				if *remaining == 0 {
 					*self = SuccessFinalizer::ContributionPLMCVesting(
 						remaining_contributions_without_plmc_vesting::<T>(project_id),
@@ -85,9 +81,8 @@ impl DoRemainingOperation for SuccessFinalizer {
 					let (consumed_weight, remaining_bids) = mint_ct_for_one_bid::<T>(project_id);
 					*self = SuccessFinalizer::BidCTMint(remaining_bids);
 					Ok(consumed_weight)
-				}
-			}
-			SuccessFinalizer::ContributionPLMCVesting(remaining) => {
+				},
+			SuccessFinalizer::ContributionPLMCVesting(remaining) =>
 				if *remaining == 0 {
 					*self = SuccessFinalizer::ContributionCTMint(remaining_contributions_without_ct_minted::<T>(
 						project_id,
@@ -98,9 +93,8 @@ impl DoRemainingOperation for SuccessFinalizer {
 						start_contribution_plmc_vesting_schedule::<T>(project_id);
 					*self = SuccessFinalizer::ContributionPLMCVesting(remaining_contributions);
 					Ok(consumed_weight)
-				}
-			}
-			SuccessFinalizer::ContributionCTMint(remaining) => {
+				},
+			SuccessFinalizer::ContributionCTMint(remaining) =>
 				if *remaining == 0 {
 					*self = SuccessFinalizer::BidFundingPayout(remaining_bids_without_issuer_payout::<T>(project_id));
 					Ok(Weight::zero())
@@ -108,9 +102,8 @@ impl DoRemainingOperation for SuccessFinalizer {
 					let (consumed_weight, remaining_contributions) = mint_ct_for_one_contribution::<T>(project_id);
 					*self = SuccessFinalizer::ContributionCTMint(remaining_contributions);
 					Ok(consumed_weight)
-				}
-			}
-			SuccessFinalizer::BidFundingPayout(remaining) => {
+				},
+			SuccessFinalizer::BidFundingPayout(remaining) =>
 				if *remaining == 0 {
 					*self = SuccessFinalizer::ContributionFundingPayout(
 						remaining_contributions_without_issuer_payout::<T>(project_id),
@@ -120,9 +113,8 @@ impl DoRemainingOperation for SuccessFinalizer {
 					let (consumed_weight, remaining_contributions) = issuer_funding_payout_one_bid::<T>(project_id);
 					*self = SuccessFinalizer::BidFundingPayout(remaining_contributions);
 					Ok(consumed_weight)
-				}
-			}
-			SuccessFinalizer::ContributionFundingPayout(remaining) => {
+				},
+			SuccessFinalizer::ContributionFundingPayout(remaining) =>
 				if *remaining == 0 {
 					*self = SuccessFinalizer::Finished;
 					Ok(Weight::zero())
@@ -131,8 +123,7 @@ impl DoRemainingOperation for SuccessFinalizer {
 						issuer_funding_payout_one_contribution::<T>(project_id);
 					*self = SuccessFinalizer::ContributionFundingPayout(remaining_contributions);
 					Ok(consumed_weight)
-				}
-			}
+				},
 			SuccessFinalizer::Finished => Err(Error::<T>::FinalizerFinished.into()),
 		}
 	}
@@ -142,15 +133,16 @@ impl DoRemainingOperation for FailureFinalizer {
 	fn is_done(&self) -> bool {
 		matches!(self, FailureFinalizer::Finished)
 	}
+
 	fn do_one_operation<T: Config>(&mut self, project_id: T::ProjectIdentifier) -> Result<Weight, DispatchError> {
 		match self {
 			FailureFinalizer::Initialized => {
 				*self =
 					FailureFinalizer::EvaluationRewardOrSlash(remaining_evaluators_to_reward_or_slash::<T>(project_id));
 				Ok(Weight::zero())
-			}
+			},
 
-			FailureFinalizer::EvaluationRewardOrSlash(remaining) => {
+			FailureFinalizer::EvaluationRewardOrSlash(remaining) =>
 				if *remaining == 0 {
 					*self = FailureFinalizer::EvaluationUnbonding(remaining_evaluations::<T>(project_id));
 					Ok(Weight::zero())
@@ -158,10 +150,9 @@ impl DoRemainingOperation for FailureFinalizer {
 					let (consumed_weight, remaining_evaluators) = reward_or_slash_one_evaluation::<T>(project_id)?;
 					*self = FailureFinalizer::EvaluationRewardOrSlash(remaining_evaluators);
 					Ok(consumed_weight)
-				}
-			}
+				},
 
-			FailureFinalizer::EvaluationUnbonding(remaining) => {
+			FailureFinalizer::EvaluationUnbonding(remaining) =>
 				if *remaining == 0 {
 					*self = FailureFinalizer::BidFundingRelease(remaining_bids_to_release_funds::<T>(project_id));
 					Ok(Weight::zero())
@@ -169,10 +160,9 @@ impl DoRemainingOperation for FailureFinalizer {
 					let (consumed_weight, remaining_evaluators) = unbond_one_evaluation::<T>(project_id);
 					*self = FailureFinalizer::EvaluationUnbonding(remaining_evaluators);
 					Ok(consumed_weight)
-				}
-			}
+				},
 
-			FailureFinalizer::BidFundingRelease(remaining) => {
+			FailureFinalizer::BidFundingRelease(remaining) =>
 				if *remaining == 0 {
 					*self = FailureFinalizer::BidUnbonding(remaining_bids::<T>(project_id));
 					Ok(Weight::zero())
@@ -180,10 +170,9 @@ impl DoRemainingOperation for FailureFinalizer {
 					let (consumed_weight, remaining_bids) = release_funds_one_bid::<T>(project_id);
 					*self = FailureFinalizer::BidFundingRelease(remaining_bids);
 					Ok(consumed_weight)
-				}
-			}
+				},
 
-			FailureFinalizer::BidUnbonding(remaining) => {
+			FailureFinalizer::BidUnbonding(remaining) =>
 				if *remaining == 0 {
 					*self = FailureFinalizer::ContributionFundingRelease(
 						remaining_contributions_to_release_funds::<T>(project_id),
@@ -193,10 +182,9 @@ impl DoRemainingOperation for FailureFinalizer {
 					let (consumed_weight, remaining_bids) = unbond_one_bid::<T>(project_id);
 					*self = FailureFinalizer::BidUnbonding(remaining_bids);
 					Ok(consumed_weight)
-				}
-			}
+				},
 
-			FailureFinalizer::ContributionFundingRelease(remaining) => {
+			FailureFinalizer::ContributionFundingRelease(remaining) =>
 				if *remaining == 0 {
 					*self = FailureFinalizer::ContributionUnbonding(remaining_contributions::<T>(project_id));
 					Ok(Weight::zero())
@@ -204,10 +192,9 @@ impl DoRemainingOperation for FailureFinalizer {
 					let (consumed_weight, remaining_contributions) = release_funds_one_contribution::<T>(project_id);
 					*self = FailureFinalizer::ContributionFundingRelease(remaining_contributions);
 					Ok(consumed_weight)
-				}
-			}
+				},
 
-			FailureFinalizer::ContributionUnbonding(remaining) => {
+			FailureFinalizer::ContributionUnbonding(remaining) =>
 				if *remaining == 0 {
 					*self = FailureFinalizer::Finished;
 					Ok(Weight::zero())
@@ -215,8 +202,7 @@ impl DoRemainingOperation for FailureFinalizer {
 					let (consumed_weight, remaining_contributions) = unbond_one_contribution::<T>(project_id);
 					*self = FailureFinalizer::ContributionUnbonding(remaining_contributions);
 					Ok(consumed_weight)
-				}
-			}
+				},
 
 			FailureFinalizer::Finished => Err(Error::<T>::FinalizerFinished.into()),
 		}
@@ -240,10 +226,7 @@ fn remaining_evaluations<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
 }
 
 fn remaining_bids_to_release_funds<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
-	Bids::<T>::iter_prefix_values(project_id)
-		.flatten()
-		.filter(|bid| !bid.funds_released)
-		.count() as u64
+	Bids::<T>::iter_prefix_values(project_id).flatten().filter(|bid| !bid.funds_released).count() as u64
 }
 
 fn remaining_bids<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
@@ -284,27 +267,18 @@ fn remaining_contributions_without_ct_minted<T: Config>(_project_id: T::ProjectI
 }
 
 fn remaining_bids_without_issuer_payout<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
-	Bids::<T>::iter_prefix_values(project_id)
-		.flatten()
-		.filter(|bid| !bid.funds_released)
-		.count() as u64
+	Bids::<T>::iter_prefix_values(project_id).flatten().filter(|bid| !bid.funds_released).count() as u64
 }
 
 fn remaining_contributions_without_issuer_payout<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
-	Contributions::<T>::iter_prefix_values(project_id)
-		.flatten()
-		.filter(|bid| !bid.funds_released)
-		.count() as u64
+	Contributions::<T>::iter_prefix_values(project_id).flatten().filter(|bid| !bid.funds_released).count() as u64
 }
 
 fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> Result<(Weight, u64), DispatchError> {
 	let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 	let project_evaluations: Vec<_> = Evaluations::<T>::iter_prefix_values(project_id).collect();
-	let remaining_evaluations = project_evaluations
-		.iter()
-		.flatten()
-		.filter(|evaluation| !evaluation.rewarded_or_slashed)
-		.count() as u64;
+	let remaining_evaluations =
+		project_evaluations.iter().flatten().filter(|evaluation| !evaluation.rewarded_or_slashed).count() as u64;
 
 	let maybe_user_evaluations = project_evaluations
 		.into_iter()
@@ -332,7 +306,7 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 						error: e,
 					}),
 				};
-			}
+			},
 			_ => (),
 		}
 
@@ -351,9 +325,8 @@ fn unbond_one_evaluation<T: crate::Config>(project_id: T::ProjectIdentifier) -> 
 	let project_evaluations: Vec<_> = Evaluations::<T>::iter_prefix_values(project_id).collect();
 	let evaluation_count = project_evaluations.iter().flatten().count() as u64;
 
-	let maybe_user_evaluations = project_evaluations
-		.into_iter()
-		.find(|evaluations| evaluations.iter().any(|e| e.rewarded_or_slashed));
+	let maybe_user_evaluations =
+		project_evaluations.into_iter().find(|evaluations| evaluations.iter().any(|e| e.rewarded_or_slashed));
 
 	if let Some(mut user_evaluations) = maybe_user_evaluations {
 		let evaluation = user_evaluations
@@ -384,9 +357,7 @@ fn unbond_one_evaluation<T: crate::Config>(project_id: T::ProjectIdentifier) -> 
 fn release_funds_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
 	let project_bids: Vec<_> = Bids::<T>::iter_prefix_values(project_id).collect();
 	let remaining_bids = project_bids.iter().flatten().filter(|bid| !bid.funds_released).count() as u64;
-	let maybe_user_bids = project_bids
-		.into_iter()
-		.find(|bids| bids.iter().any(|bid| !bid.funds_released));
+	let maybe_user_bids = project_bids.into_iter().find(|bids| bids.iter().any(|bid| !bid.funds_released));
 
 	if let Some(mut user_bids) = maybe_user_bids {
 		let mut bid = user_bids
@@ -425,9 +396,7 @@ fn unbond_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) 
 	// remove when do_bid_unbond_for is correctly implemented
 	let bids_count = 0u64;
 
-	let maybe_user_bids = project_bids
-		.into_iter()
-		.find(|bids| bids.iter().any(|e| e.funds_released));
+	let maybe_user_bids = project_bids.into_iter().find(|bids| bids.iter().any(|e| e.funds_released));
 
 	if let Some(mut user_bids) = maybe_user_bids {
 		let bid = user_bids
@@ -505,9 +474,8 @@ fn unbond_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weig
 	// let contributions_count = project_contributions.iter().flatten().count() as u64;
 	let contributions_count = 0u64;
 
-	let maybe_user_contributions = project_contributions
-		.into_iter()
-		.find(|contributions| contributions.iter().any(|e| e.funds_released));
+	let maybe_user_contributions =
+		project_contributions.into_iter().find(|contributions| contributions.iter().any(|e| e.funds_released));
 
 	if let Some(mut user_contributions) = maybe_user_contributions {
 		let contribution = user_contributions
@@ -565,9 +533,7 @@ fn issuer_funding_payout_one_bid<T: Config>(project_id: T::ProjectIdentifier) ->
 	// 	.count() as u64;
 	let remaining_bids = 0u64;
 
-	let maybe_user_bids = project_bids
-		.into_iter()
-		.find(|bids| bids.iter().any(|bid| !bid.funds_released));
+	let maybe_user_bids = project_bids.into_iter().find(|bids| bids.iter().any(|bid| !bid.funds_released));
 
 	if let Some(mut user_bids) = maybe_user_bids {
 		let mut bid = user_bids
@@ -648,9 +614,7 @@ fn issuer_funding_payout_one_contribution<T: Config>(project_id: T::ProjectIdent
 // might come in handy later
 #[allow(unused)]
 fn unbond_evaluators<T: Config>(project_id: T::ProjectIdentifier, max_weight: Weight) -> (Weight, OperationsLeft) {
-	let evaluations = Evaluations::<T>::iter_prefix_values(project_id)
-		.flatten()
-		.collect::<Vec<EvaluationInfoOf<T>>>();
+	let evaluations = Evaluations::<T>::iter_prefix_values(project_id).flatten().collect::<Vec<EvaluationInfoOf<T>>>();
 
 	let mut used_weight = Weight::zero();
 
@@ -675,10 +639,8 @@ fn unbond_evaluators<T: Config>(project_id: T::ProjectIdentifier, max_weight: We
 		})
 		.collect::<Vec<_>>();
 
-	let successful_results = unbond_results
-		.into_iter()
-		.filter(|result| if let Err(e) = result { false } else { true })
-		.collect::<Vec<_>>();
+	let successful_results =
+		unbond_results.into_iter().filter(|result| if let Err(e) = result { false } else { true }).collect::<Vec<_>>();
 
 	let operations_left = if successful_results.len() == evaluations.len() {
 		OperationsLeft::None

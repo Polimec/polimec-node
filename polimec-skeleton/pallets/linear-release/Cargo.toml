@@ -13,7 +13,6 @@ readme = "README.md"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-serde = { version = "1.0.136", optional = true }
 codec = { package = "parity-scale-codec", version = "3.2.2", default-features = false }
 log = { version = "0.4.17", default-features = false }
 scale-info = { version = "2.5.0", default-features = false, features = ["derive"] }
@@ -21,11 +20,14 @@ frame-support = { git = "https://github.com/paritytech/substrate", default-featu
 frame-system = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
 sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
 sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
+polimec-traits = { path = "../../traits", default-features = false }
 
 [dev-dependencies]
 sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
 sp-io = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
 pallet-balances = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
+pallet-funding = { path = "../funding", default-features = false }
+
 
 [features]
 default = ["std"]
@@ -38,6 +40,7 @@ std = [
 	"sp-runtime/std",
 	"sp-std/std",
 	"pallet-balances/std",
-	"serde"
+	"polimec-traits/std",
+	"pallet-funding/std"
 ]
 try-runtime = ["frame-support/try-runtime"]

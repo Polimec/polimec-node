@@ -29,7 +29,6 @@ sp-std = { git = "https://github.com/paritytech/substrate", default-features = f
 sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
 sp-arithmetic = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
 polimec-traits = { path = "../../traits", default-features = false }
-pallet-linear-release = { path = "../linear-release", default-features = false }
 
 [dev-dependencies]
 sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
@@ -38,6 +37,7 @@ pallet-balances = { git = "https://github.com/paritytech/substrate", default-fea
 pallet-insecure-randomness-collective-flip = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
 pallet-assets = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
 pallet-credentials = { path = "../credentials", default-features = false }
+pallet-linear-release = { path = "../linear-release", default-features = false }
 
 [features]
 default = ["std"]

@@ -19,5 +19,3 @@ pub trait DoRemainingOperation {
 	fn do_one_operation<T: crate::Config>(&mut self, project_id: T::ProjectIdentifier)
 		-> Result<Weight, DispatchError>;
 }
-
-pub use pallet_linear_release::traits::ReleaseSchedule;

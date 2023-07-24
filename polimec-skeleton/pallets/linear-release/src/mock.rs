@@ -25,7 +25,8 @@ use sp_runtime::{
 };
 
 use super::*;
-use crate::{self as pallet_vesting, types::LockType};
+use crate::{self as pallet_vesting};
+use pallet_funding::LockType;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
