@@ -1089,7 +1089,6 @@ impl<T: Config> Pallet<T> {
 		ensure!(project_details.status == ProjectStatus::AwaitingProjectDecision, Error::<T>::NotAllowed);
 
 		// * Update storage *
-		Self::remove_from_update_store(&project_id)?;
 		Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::ProjectDecision(decision)));
 
 		Ok(())

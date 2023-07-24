@@ -3527,6 +3527,60 @@ mod funding_end {
 			assert_eq!(finished_project.get_project_details().status, ProjectStatus::AwaitingProjectDecision);
 		}
 	}
+
+	#[test]
+	fn manual_acceptance() {
+		let test_env = TestEnvironment::new();
+		let project_metadata = default_project(test_env.get_new_nonce());
+		let min_price = project_metadata.minimum_price;
+		let twenty_percent_funding_usd = Perquintill::from_percent(55) *
+			(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size).unwrap());
+		let evaluations = default_evaluations();
+		let bids = generate_bids_from_total_usd(Percent::from_percent(50u8) * twenty_percent_funding_usd, min_price);
+		let contributions =
+			generate_contributions_from_total_usd(Percent::from_percent(50u8) * twenty_percent_funding_usd, min_price);
+		let finished_project =
+			FinishedProject::new_with(&test_env, project_metadata, ISSUER, evaluations, bids, contributions, vec![]);
+		assert_eq!(finished_project.get_project_details().status, ProjectStatus::AwaitingProjectDecision);
+
+		let project_id = finished_project.project_id;
+		test_env
+			.in_ext(|| {
+				FundingModule::do_decide_project_outcome(ISSUER, project_id, FundingOutcomeDecision::AcceptFunding)
+			})
+			.unwrap();
+
+		test_env.advance_time(2u64).unwrap();
+
+		assert_eq!(finished_project.get_project_details().status, ProjectStatus::FundingSuccessful);
+	}
+
+	#[test]
+	fn manual_rejection() {
+		let test_env = TestEnvironment::new();
+		let project_metadata = default_project(test_env.get_new_nonce());
+		let min_price = project_metadata.minimum_price;
+		let twenty_percent_funding_usd = Perquintill::from_percent(55) *
+			(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size).unwrap());
+		let evaluations = default_evaluations();
+		let bids = generate_bids_from_total_usd(Percent::from_percent(50u8) * twenty_percent_funding_usd, min_price);
+		let contributions =
+			generate_contributions_from_total_usd(Percent::from_percent(50u8) * twenty_percent_funding_usd, min_price);
+		let finished_project =
+			FinishedProject::new_with(&test_env, project_metadata, ISSUER, evaluations, bids, contributions, vec![]);
+		assert_eq!(finished_project.get_project_details().status, ProjectStatus::AwaitingProjectDecision);
+
+		let project_id = finished_project.project_id;
+		test_env
+			.in_ext(|| {
+				FundingModule::do_decide_project_outcome(ISSUER, project_id, FundingOutcomeDecision::RejectFunding)
+			})
+			.unwrap();
+
+		test_env.advance_time(2u64).unwrap();
+
+		assert_eq!(finished_project.get_project_details().status, ProjectStatus::FundingFailed);
+	}
 }
 
 #[cfg(test)]
