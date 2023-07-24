@@ -79,6 +79,7 @@ parachain-info = { git = "https://github.com/paritytech/cumulus.git", branch = "
 
 # Not from the Template
 pallet-funding = { path = "../pallets/funding", default-features = false }
+pallet-linear-release = { path = "../pallets/linear-release", default-features = false }
 pallet-credentials = { path = "../pallets/credentials", default-features = false }
 pallet-assets = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
 pallet-insecure-randomness-collective-flip = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
@@ -139,6 +140,7 @@ std = [
 	"parachains-common/std",
 	"polkadot-primitives/std",
 	"pallet-asset-tx-payment/std",
+	"pallet-linear-release/std"
 ]
 
 runtime-benchmarks = [

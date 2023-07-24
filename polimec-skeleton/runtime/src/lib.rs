@@ -14,7 +14,7 @@ use frame_support::{
 	construct_runtime,
 	dispatch::DispatchClass,
 	parameter_types,
-	traits::{AsEnsureOriginWithArg, ConstU32, ConstU64, ConstU8, EitherOfDiverse, Everything},
+	traits::{AsEnsureOriginWithArg, ConstU32, ConstU64, ConstU8, EitherOfDiverse, Everything, WithdrawReasons},
 	weights::{ConstantMultiplier, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial},
 	PalletId,
 };
@@ -29,7 +29,7 @@ pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT},
+	traits::{AccountIdLookup, ConvertInto, BlakeTwo256, Block as BlockT},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, FixedU128, Percent,
 };
@@ -595,7 +595,6 @@ impl pallet_funding::Config for Runtime {
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
 	type MaxEvaluationsPerUser = ();
 	type MaxBidsPerUser = ConstU32<256>;
-
 	type MaxContributionsPerUser = ConstU32<256>;
 	type ContributionVesting = ContributionVestingDuration;
 	#[cfg(feature = "runtime-benchmarks")]
@@ -603,6 +602,26 @@ impl pallet_funding::Config for Runtime {
 	type WeightInfo = ();
 	type FeeBrackets = FeeBrackets;
 	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
+	type Vesting = Vesting;
+}
+
+parameter_types! {
+	pub const MinVestedTransfer: Balance = 1 * PLMC;
+	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
+		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
+}
+
+impl pallet_linear_release::Config for Runtime {
+	type Balance = Balance;
+	type BlockNumberToBalance = ConvertInto;
+	type Currency = Balances;
+	type MinVestedTransfer = MinVestedTransfer;
+	type Reason = BondTypeOf<Runtime>;
+	type RuntimeEvent = RuntimeEvent;
+	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
+	type WeightInfo = ();
+
+	const MAX_VESTING_SCHEDULES: u32 = 12;
 }
 
 impl pallet_credentials::Config for Runtime {
@@ -652,6 +671,7 @@ construct_runtime!(
 		Random: pallet_insecure_randomness_collective_flip = 40,
 		Funding: pallet_funding = 41,
 		Credentials: pallet_credentials = 42,
+		Vesting: pallet_linear_release = 43,
 	}
 );
 
