@@ -1242,8 +1242,7 @@ mod defaults {
 
 pub mod helper_functions {
 	use super::*;
-	use sp_arithmetic::traits::Zero;
-	use sp_arithmetic::Percent;
+	use sp_arithmetic::{traits::Zero, Percent};
 	use sp_core::H256;
 	use std::collections::BTreeMap;
 
@@ -1561,7 +1560,8 @@ pub mod helper_functions {
 	}
 
 	pub fn generate_bids_from_total_usd(
-		usd_amount: BalanceOf<TestRuntime>, min_price: PriceOf<TestRuntime>,
+		usd_amount: BalanceOf<TestRuntime>,
+		min_price: PriceOf<TestRuntime>,
 	) -> TestBids {
 		const WEIGHTS: [u8; 5] = [30u8, 20u8, 15u8, 10u8, 25u8];
 		const BIDDERS: [AccountIdOf<TestRuntime>; 5] = [BUYER_1, BUYER_2, BUYER_3, BUYER_4, BUYER_5];
@@ -1577,7 +1577,8 @@ pub mod helper_functions {
 	}
 
 	pub fn generate_contributions_from_total_usd(
-		usd_amount: BalanceOf<TestRuntime>, final_price: PriceOf<TestRuntime>,
+		usd_amount: BalanceOf<TestRuntime>,
+		final_price: PriceOf<TestRuntime>,
 	) -> TestContributions {
 		const WEIGHTS: [u8; 5] = [30u8, 20u8, 15u8, 10u8, 25u8];
 		const BIDDERS: [AccountIdOf<TestRuntime>; 5] = [BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5];
@@ -3426,11 +3427,8 @@ mod funding_end {
 		let test_env = TestEnvironment::new();
 		let project_metadata = default_project(test_env.get_new_nonce());
 		let min_price = project_metadata.minimum_price;
-		let twenty_percent_funding_usd = Perquintill::from_percent(20u64)
-			* (project_metadata
-				.minimum_price
-				.checked_mul_int(project_metadata.total_allocation_size)
-				.unwrap());
+		let twenty_percent_funding_usd = Perquintill::from_percent(20u64) *
+			(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size).unwrap());
 		let evaluations = default_evaluations();
 		let bids = generate_bids_from_total_usd(Percent::from_percent(10u8) * twenty_percent_funding_usd, min_price);
 		let contributions =
