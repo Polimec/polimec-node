@@ -3501,7 +3501,32 @@ mod funding_end {
 	}
 
 	#[test]
-	fn manual_outcome_above33_to_below90() {}
+	fn manual_outcome_above33_to_below90() {
+		for funding_percent in 34..90 {
+			let test_env = TestEnvironment::new();
+			let project_metadata = default_project(test_env.get_new_nonce());
+			let min_price = project_metadata.minimum_price;
+			let twenty_percent_funding_usd = Perquintill::from_percent(funding_percent) *
+				(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size).unwrap());
+			let evaluations = default_evaluations();
+			let bids =
+				generate_bids_from_total_usd(Percent::from_percent(50u8) * twenty_percent_funding_usd, min_price);
+			let contributions = generate_contributions_from_total_usd(
+				Percent::from_percent(50u8) * twenty_percent_funding_usd,
+				min_price,
+			);
+			let finished_project = FinishedProject::new_with(
+				&test_env,
+				project_metadata,
+				ISSUER,
+				evaluations,
+				bids,
+				contributions,
+				vec![],
+			);
+			assert_eq!(finished_project.get_project_details().status, ProjectStatus::AwaitingProjectDecision);
+		}
+	}
 }
 
 #[cfg(test)]
