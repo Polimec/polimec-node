@@ -40,7 +40,7 @@ use helper_functions::*;
 
 use crate::traits::BondingRequirementCalculation;
 use sp_arithmetic::traits::Zero;
-use sp_runtime::DispatchError;
+use sp_runtime::{DispatchError, Either};
 use std::{cell::RefCell, iter::zip};
 
 type ProjectIdOf<T> = <T as Config>::ProjectIdentifier;
@@ -915,7 +915,7 @@ impl<'a> CommunityFundingProject<'a> {
 		);
 	}
 
-	fn start_remainder_funding(self) -> RemainderFundingProject<'a> {
+	fn start_remainder_or_end_funding(self) -> Either<RemainderFundingProject<'a>, FinishedProject<'a>> {
 		assert_eq!(self.get_project_details().status, ProjectStatus::CommunityRound);
 		let community_funding_end = self
 			.get_project_details()
@@ -925,8 +925,19 @@ impl<'a> CommunityFundingProject<'a> {
 			.expect("Community funding end point should exist");
 		let remainder_start = community_funding_end + 1;
 		self.test_env.advance_time(remainder_start.saturating_sub(self.test_env.current_block())).unwrap();
-		assert_eq!(self.get_project_details().status, ProjectStatus::RemainderRound);
-		RemainderFundingProject { test_env: self.test_env, issuer: self.issuer, project_id: self.project_id }
+		match self.get_project_details().status {
+			ProjectStatus::RemainderRound => Either::Left(RemainderFundingProject {
+				test_env: self.test_env,
+				issuer: self.issuer,
+				project_id: self.project_id,
+			}),
+			ProjectStatus::FundingSuccessful => Either::Right(FinishedProject {
+				test_env: self.test_env,
+				issuer: self.issuer,
+				project_id: self.project_id,
+			}),
+			_ => panic!("Unknown state"),
+		}
 	}
 
 	fn finish_funding(self) -> FinishedProject<'a> {
@@ -990,7 +1001,7 @@ impl<'a> RemainderFundingProject<'a> {
 		evaluations: UserToUSDBalance,
 		bids: TestBids,
 		contributions: TestContributions,
-	) -> Self {
+	) -> Either<Self, FinishedProject> {
 		let community_funding_project =
 			CommunityFundingProject::new_with(test_env, project_metadata, issuer, evaluations.clone(), bids.clone());
 
@@ -1035,11 +1046,8 @@ impl<'a> RemainderFundingProject<'a> {
 		test_env.do_free_statemint_asset_assertions(prev_funding_asset_balances);
 		test_env.do_total_plmc_assertions(post_supply);
 
-		community_funding_project.start_remainder_funding()
+		community_funding_project.start_remainder_or_end_funding()
 	}
-
-	// 227_683_3_333_333_330
-	// 1_000_000_0_000_000_000
 
 	fn end_funding(&self) -> FinishedProject<'a> {
 		assert_eq!(self.get_project_details().status, ProjectStatus::RemainderRound);
@@ -1047,7 +1055,10 @@ impl<'a> RemainderFundingProject<'a> {
 			self.get_project_details().phase_transition_points.remainder.end().expect("Should have remainder end");
 		let finish_block = remainder_funding_end + 1;
 		self.test_env.advance_time(finish_block.saturating_sub(self.test_env.current_block())).unwrap();
-		assert_eq!(self.get_project_details().status, ProjectStatus::FundingSuccessful);
+		assert!(matches!(
+			self.get_project_details().status,
+			ProjectStatus::FundingSuccessful | ProjectStatus::FundingFailed | ProjectStatus::AwaitingProjectDecision
+		));
 
 		FinishedProject { test_env: self.test_env, issuer: self.issuer.clone(), project_id: self.project_id.clone() }
 	}
@@ -1082,7 +1093,7 @@ impl<'a> FinishedProject<'a> {
 		community_contributions: TestContributions,
 		remainder_contributions: TestContributions,
 	) -> Self {
-		let remainder_funding_project = RemainderFundingProject::new_with(
+		let project = RemainderFundingProject::new_with(
 			test_env,
 			project_metadata.clone(),
 			issuer,
@@ -1091,9 +1102,12 @@ impl<'a> FinishedProject<'a> {
 			community_contributions.clone(),
 		);
 
-		if remainder_contributions.is_empty() {
-			return remainder_funding_project.end_funding()
-		}
+		let remainder_funding_project = match project {
+			Either::Right(finished_project) => return finished_project,
+			Either::Left(remainder_project) if remainder_contributions.is_empty() =>
+				return remainder_project.end_funding(),
+			Either::Left(remainder_project) => remainder_project,
+		};
 
 		let project_id = remainder_funding_project.get_project_id();
 		let ct_price = remainder_funding_project.get_project_details().weighted_average_price.unwrap();
@@ -1149,20 +1163,22 @@ impl<'a> FinishedProject<'a> {
 
 		let finished_project = remainder_funding_project.end_funding();
 
-		// Check that remaining CTs are updated
-		let project_details = finished_project.get_project_details();
-		let auction_bought_tokens: u128 = bids.iter().map(|bid| bid.amount).sum();
-		let community_bought_tokens: u128 = community_contributions.iter().map(|cont| cont.amount).sum();
-		let remainder_bought_tokens: u128 = remainder_contributions.iter().map(|cont| cont.amount).sum();
+		if finished_project.get_project_details().status == ProjectStatus::FundingSuccessful {
+			// Check that remaining CTs are updated
+			let project_details = finished_project.get_project_details();
+			let auction_bought_tokens: u128 = bids.iter().map(|bid| bid.amount).sum();
+			let community_bought_tokens: u128 = community_contributions.iter().map(|cont| cont.amount).sum();
+			let remainder_bought_tokens: u128 = remainder_contributions.iter().map(|cont| cont.amount).sum();
 
-		assert_eq!(
-			project_details.remaining_contribution_tokens,
-			project_metadata.total_allocation_size -
-				auction_bought_tokens -
-				community_bought_tokens -
-				remainder_bought_tokens,
-			"Remaining CTs are incorrect"
-		);
+			assert_eq!(
+				project_details.remaining_contribution_tokens,
+				project_metadata.total_allocation_size -
+					auction_bought_tokens -
+					community_bought_tokens -
+					remainder_bought_tokens,
+				"Remaining CTs are incorrect"
+			);
+		}
 
 		finished_project
 	}
@@ -1860,7 +1876,8 @@ mod evaluation_round_success {
 			evaluations.clone(),
 			default_bids(),
 			default_community_buys(),
-		);
+		)
+		.unwrap_left();
 		let project_id = remainder_funding_project.get_project_id();
 		let prev_reserved_plmc =
 			test_env.get_reserved_plmc_balances_for(evaluators.clone(), LockType::Evaluation(project_id));
@@ -1895,7 +1912,8 @@ mod evaluation_round_success {
 			evaluations.clone(),
 			vec![TestBid::new(BUYER_1, 1000 * ASSET_UNIT, 10u128.into(), None, AcceptedFundingAsset::USDT)],
 			vec![TestContribution::new(BUYER_1, 1000 * US_DOLLAR, None, AcceptedFundingAsset::USDT)],
-		);
+		)
+		.unwrap_left();
 
 		let project_id = remainder_funding_project.get_project_id();
 		let prev_reserved_plmc =
@@ -3209,9 +3227,10 @@ mod remainder_round_success {
 		evaluations.push((evaluator_contributor, evaluation_amount));
 		let bids = default_bids();
 
-		let contributing_project =
-			RemainderFundingProject::new_with(&test_env, project, issuer, evaluations, bids, community_contributions);
-		let ct_price = contributing_project.get_project_details().weighted_average_price.unwrap();
+		let remainder_funding_project =
+			RemainderFundingProject::new_with(&test_env, project, issuer, evaluations, bids, community_contributions)
+				.unwrap_left();
+		let ct_price = remainder_funding_project.get_project_details().weighted_average_price.unwrap();
 		let already_bonded_plmc =
 			calculate_evaluation_plmc_spent(vec![(evaluator_contributor, evaluation_amount)])[0].1;
 		let necessary_plmc_for_buy = calculate_contributed_plmc_spent(vec![remainder_contribution], ct_price)[0].1;
@@ -3220,7 +3239,7 @@ mod remainder_round_success {
 		test_env.mint_plmc_to(vec![(evaluator_contributor, necessary_plmc_for_buy - already_bonded_plmc)]);
 		test_env.mint_statemint_asset_to(necessary_usdt_for_buy);
 
-		contributing_project.buy_for_any_user(vec![remainder_contribution]).unwrap();
+		remainder_funding_project.buy_for_any_user(vec![remainder_contribution]).unwrap();
 	}
 
 	#[test]
@@ -3263,7 +3282,8 @@ mod remainder_round_success {
 		evaluations.push((evaluator_contributor, evaluation_usd_amount));
 
 		let remainder_funding_project =
-			RemainderFundingProject::new_with(&test_env, project, issuer, evaluations, bids, default_community_buys());
+			RemainderFundingProject::new_with(&test_env, project, issuer, evaluations, bids, default_community_buys())
+				.unwrap_left();
 		let project_id = remainder_funding_project.get_project_id();
 
 		test_env.mint_plmc_to(vec![(evaluator_contributor, FUNDED_DELTA_PLMC)]);
@@ -3304,7 +3324,8 @@ mod remainder_round_success {
 			default_evaluations(),
 			default_bids(),
 			default_community_buys(),
-		);
+		)
+		.unwrap_left();
 		const BOB: AccountId = 808;
 
 		let remaining_ct = remainder_funding_project.get_project_details().remaining_contribution_tokens;
@@ -3357,7 +3378,8 @@ mod remainder_round_success {
 			default_evaluations(),
 			default_bids(),
 			default_community_buys(),
-		);
+		)
+		.unwrap_left();
 		const BOB: AccountId = 808;
 		const OVERBUY_CT: BalanceOf<TestRuntime> = 40 * ASSET_UNIT;
 
@@ -3424,20 +3446,62 @@ mod funding_end {
 
 	#[test]
 	fn automatic_fail_less_eq_33_percent() {
-		let test_env = TestEnvironment::new();
-		let project_metadata = default_project(test_env.get_new_nonce());
-		let min_price = project_metadata.minimum_price;
-		let twenty_percent_funding_usd = Perquintill::from_percent(20u64) *
-			(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size).unwrap());
-		let evaluations = default_evaluations();
-		let bids = generate_bids_from_total_usd(Percent::from_percent(10u8) * twenty_percent_funding_usd, min_price);
-		let contributions =
-			generate_contributions_from_total_usd(Percent::from_percent(10u8) * twenty_percent_funding_usd, min_price);
-		let remainder_project =
-			RemainderFundingProject::new_with(&test_env, project_metadata, ISSUER, evaluations, bids, contributions);
-
-		remainder_project.end_funding();
+		for funding_percent in 1..=33 {
+			let test_env = TestEnvironment::new();
+			let project_metadata = default_project(test_env.get_new_nonce());
+			let min_price = project_metadata.minimum_price;
+			let twenty_percent_funding_usd = Perquintill::from_percent(funding_percent) *
+				(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size).unwrap());
+			let evaluations = default_evaluations();
+			let bids =
+				generate_bids_from_total_usd(Percent::from_percent(50u8) * twenty_percent_funding_usd, min_price);
+			let contributions = generate_contributions_from_total_usd(
+				Percent::from_percent(50u8) * twenty_percent_funding_usd,
+				min_price,
+			);
+			let finished_project = FinishedProject::new_with(
+				&test_env,
+				project_metadata,
+				ISSUER,
+				evaluations,
+				bids,
+				contributions,
+				vec![],
+			);
+			assert_eq!(finished_project.get_project_details().status, ProjectStatus::FundingFailed);
+		}
 	}
+
+	#[test]
+	fn automatic_success_bigger_eq_90_percent() {
+		for funding_percent in 90..=100 {
+			let test_env = TestEnvironment::new();
+			let project_metadata = default_project(test_env.get_new_nonce());
+			let min_price = project_metadata.minimum_price;
+			let twenty_percent_funding_usd = Perquintill::from_percent(funding_percent) *
+				(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size).unwrap());
+			let evaluations = default_evaluations();
+			let bids =
+				generate_bids_from_total_usd(Percent::from_percent(50u8) * twenty_percent_funding_usd, min_price);
+			let contributions = generate_contributions_from_total_usd(
+				Percent::from_percent(50u8) * twenty_percent_funding_usd,
+				min_price,
+			);
+			let finished_project = FinishedProject::new_with(
+				&test_env,
+				project_metadata,
+				ISSUER,
+				evaluations,
+				bids,
+				contributions,
+				vec![],
+			);
+			assert_eq!(finished_project.get_project_details().status, ProjectStatus::FundingSuccessful);
+		}
+	}
+
+	#[test]
+	fn manual_outcome_above33_to_below90() {}
 }
 
 #[cfg(test)]
