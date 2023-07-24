@@ -208,11 +208,11 @@ pub mod pallet {
 			account: T::AccountId,
 			unvested: BalanceOf<T>,
 		},
-		/// An \[account\] has become fully vested.
+		/// An `account` has become fully vested.
 		VestingCompleted {
 			account: T::AccountId,
 		},
-		// An \[account\] has reveived a vested transfer of \[amount\].
+		// An `account` has reveived a vested transfer of `amount`.
 		VestingTransferred {
 			to: T::AccountId,
 			amount: BalanceOf<T>,
