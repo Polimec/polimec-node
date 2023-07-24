@@ -50,6 +50,11 @@ mod tests;
 mod impls;
 mod types;
 
+
+// TODO: Find a way to use
+// 1. type BalanceOf<T> = <<T as Config>::Currency as fungible::Inspect<<T as frame_system::Config>::AccountId>>::Balance;
+// 2. type ReasonOf<T> = <<T as Config>::Currency as InspectHold<<T as frame_system::Config>::AccountId>>::Reason;
+// So we can remove the `Balance` and the `Reason` type from the pallet's config.
 pub type BalanceOf<T> = <T as Config>::Balance;
 pub type ReasonOf<T> = <T as Config>::Reason;
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
