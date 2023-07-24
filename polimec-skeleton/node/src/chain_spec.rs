@@ -216,5 +216,6 @@ fn testnet_genesis(
 		},
 		transaction_payment: Default::default(),
 		credentials: Default::default(),
+		vesting: Default::default()
 	}
 }
