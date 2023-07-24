@@ -16,14 +16,6 @@
 
 use super::*;
 
-/// Enum used to identify PLMC holds
-#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo, Ord, PartialOrd)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-pub enum LockType<ProjectId> {
-	Evaluation(ProjectId),
-	Participation(ProjectId),
-}
-
 /// Struct to encode the vesting schedule of an individual account.
 #[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct VestingInfo<Balance, BlockNumber> {
