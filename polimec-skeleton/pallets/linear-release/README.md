@@ -8,8 +8,8 @@ It implements the new `ReleaseSchedule` trait. The trait serves to apply release
 Key features of the `ReleaseSchedule` trait include:
 
 - `vesting_balance`: This method returns the amount that is currently being vested and cannot be transferred out of an account. It returns None if the account has no vesting schedule.
-- `add_release_schedule`: This method allows a release schedule to be added to a given account. If the account has reached the MaxVestingSchedules, an error is returned and nothing is updated. It's a no-op if the amount to be vested is zero. Importantly, this doesn't alter the free balance of the account.
-- `set_release_schedule`: This method sets a release schedule for a given account, without locking any funds. Similar to the add_release_schedule, it returns an error if the account has MaxVestingSchedules and doesn't alter the free balance of the account.
+- `add_release_schedule`: This method allows a release schedule to be added to a given account. If the account has reached the MaxVestingSchedules, an error is returned and nothing is updated. It's a no-op if the amount to be vested is zero.
+- `set_release_schedule`: This method sets a release schedule for a given account, without locking any funds. Similar to the `add_release_schedule`, it returns an error if the account has `MaxVestingSchedules` and doesn't alter the free balance of the account.
 - `can_add_release_schedule`: This method checks if a release schedule can be added to a given account.
 - `remove_vesting_schedule`: This method allows for a vesting schedule to be removed from a given account. Note, this does not alter the free balance of the account.
 
