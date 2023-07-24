@@ -11,6 +11,7 @@ version = "0.1.0"
 rust-version = "1.69.0"
 
 [dependencies]
+serde = { version = "*", optional = true }
 parity-scale-codec = { version = "3.0.0", features = [
     "derive",
 ], default-features = false }
@@ -35,8 +36,8 @@ sp-io = { git = "https://github.com/paritytech/substrate", default-features = fa
 pallet-balances = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
 pallet-insecure-randomness-collective-flip = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
 pallet-assets = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.42" }
-
 pallet-credentials = { path = "../credentials", default-features = false }
+pallet-linear-release = { path = "../linear-release", default-features = false }
 
 [features]
 default = ["std"]
@@ -53,7 +54,9 @@ std = [
     "pallet-balances/std",
     "pallet-credentials/std",
     "polimec-traits/std",
+    "pallet-linear-release/std",
     "frame-benchmarking?/std",
+    "serde",
 ]
 runtime-benchmarks = [
     "frame-benchmarking/runtime-benchmarks",

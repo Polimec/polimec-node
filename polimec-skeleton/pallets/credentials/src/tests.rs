@@ -19,10 +19,7 @@ use frame_support::{assert_noop, assert_ok, error::BadOrigin, BoundedVec};
 use polimec_traits::{Country, Credential, Issuers, MemberRole, PolimecMembers};
 
 pub fn last_event() -> RuntimeEvent {
-	frame_system::Pallet::<Test>::events()
-		.pop()
-		.expect("Event expected")
-		.event
+	frame_system::Pallet::<Test>::events().pop().expect("Event expected").event
 }
 
 const ALICE: AccountId = 1;
@@ -71,10 +68,7 @@ fn add_member_works() {
 fn only_root_can_add_member() {
 	new_test_ext().execute_with(|| {
 		let cred = new_test_credential(MemberRole::Issuer);
-		assert_noop!(
-			Credentials::add_member(RuntimeOrigin::signed(ALICE), cred, BOB),
-			BadOrigin
-		);
+		assert_noop!(Credentials::add_member(RuntimeOrigin::signed(ALICE), cred, BOB), BadOrigin);
 	})
 }
 
@@ -82,10 +76,7 @@ fn only_root_can_add_member() {
 fn cant_add_already_member() {
 	new_test_ext().execute_with(|| {
 		let cred = new_test_credential(MemberRole::Issuer);
-		assert_noop!(
-			Credentials::add_member(RuntimeOrigin::root(), cred, ALICE),
-			Error::<Test>::AlreadyMember
-		);
+		assert_noop!(Credentials::add_member(RuntimeOrigin::root(), cred, ALICE), Error::<Test>::AlreadyMember);
 	})
 }
 
@@ -102,10 +93,7 @@ fn remove_member_works() {
 fn only_root_can_remove_member() {
 	new_test_ext().execute_with(|| {
 		let cred = new_test_credential(MemberRole::Issuer);
-		assert_noop!(
-			Credentials::remove_member(RuntimeOrigin::signed(ALICE), cred, ALICE),
-			BadOrigin
-		);
+		assert_noop!(Credentials::remove_member(RuntimeOrigin::signed(ALICE), cred, ALICE), BadOrigin);
 	})
 }
 
@@ -113,10 +101,7 @@ fn only_root_can_remove_member() {
 fn cant_remove_not_a_member() {
 	new_test_ext().execute_with(|| {
 		let cred = new_test_credential(MemberRole::Issuer);
-		assert_noop!(
-			Credentials::remove_member(RuntimeOrigin::root(), cred, EVE),
-			Error::<Test>::NotMember
-		);
+		assert_noop!(Credentials::remove_member(RuntimeOrigin::root(), cred, EVE), Error::<Test>::NotMember);
 	})
 }
 

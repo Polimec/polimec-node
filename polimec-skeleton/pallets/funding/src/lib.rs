@@ -177,9 +177,9 @@
 // we add more without this limit.
 #![cfg_attr(feature = "runtime-benchmarks", recursion_limit = "512")]
 
+pub mod functions;
 pub mod types;
 pub mod weights;
-pub mod functions;
 
 #[cfg(test)]
 pub mod mock;
@@ -210,7 +210,6 @@ use frame_support::{
 use parity_scale_codec::{Decode, Encode};
 
 use sp_arithmetic::traits::{One, Saturating};
-
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
 use sp_std::prelude::*;
 
@@ -313,6 +312,8 @@ pub mod pallet {
 
 		/// Something that provides the members of Polimec
 		type HandleMembers: PolimecMembers<AccountIdOf<Self>>;
+
+		type Vesting: polimec_traits::ReleaseSchedule<AccountIdOf<Self>, BondTypeOf<Self>>;
 
 		/// The maximum length of data stored on-chain.
 		#[pallet::constant]
@@ -491,23 +492,13 @@ pub mod pallet {
 			end_block: T::BlockNumber,
 		},
 		/// The auction round of a project started.
-		EnglishAuctionStarted {
-			project_id: T::ProjectIdentifier,
-			when: T::BlockNumber,
-		},
+		EnglishAuctionStarted { project_id: T::ProjectIdentifier, when: T::BlockNumber },
 		/// The candle auction part of the auction started for a project
-		CandleAuctionStarted {
-			project_id: T::ProjectIdentifier,
-			when: T::BlockNumber,
-		},
+		CandleAuctionStarted { project_id: T::ProjectIdentifier, when: T::BlockNumber },
 		/// The auction round of a project ended.
 		AuctionFailed { project_id: T::ProjectIdentifier },
 		/// A `bonder` bonded an `amount` of PLMC for `project_id`.
-		FundsBonded {
-			project_id: T::ProjectIdentifier,
-			amount: BalanceOf<T>,
-			bonder: AccountIdOf<T>,
-		},
+		FundsBonded { project_id: T::ProjectIdentifier, amount: BalanceOf<T>, bonder: AccountIdOf<T> },
 		/// Someone paid for the release of a user's PLMC bond for a project.
 		BondReleased {
 			project_id: T::ProjectIdentifier,
@@ -516,12 +507,7 @@ pub mod pallet {
 			releaser: AccountIdOf<T>,
 		},
 		/// A bid was made for a project
-		Bid {
-			project_id: T::ProjectIdentifier,
-			amount: BalanceOf<T>,
-			price: T::Price,
-			multiplier: MultiplierOf<T>,
-		},
+		Bid { project_id: T::ProjectIdentifier, amount: BalanceOf<T>, price: T::Price, multiplier: MultiplierOf<T> },
 		/// A contribution was made for a project. i.e token purchase
 		Contribution {
 			project_id: T::ProjectIdentifier,
@@ -534,15 +520,9 @@ pub mod pallet {
 		/// A project is now in the remainder funding round
 		RemainderFundingStarted { project_id: T::ProjectIdentifier },
 		/// A project has now finished funding
-		FundingEnded {
-			project_id: T::ProjectIdentifier,
-			outcome: FundingOutcome,
-		},
+		FundingEnded { project_id: T::ProjectIdentifier, outcome: FundingOutcome },
 		/// Something was not properly initialized. Most likely due to dev error manually calling do_* functions or updating storage
-		TransitionError {
-			project_id: T::ProjectIdentifier,
-			error: DispatchError,
-		},
+		TransitionError { project_id: T::ProjectIdentifier, error: DispatchError },
 		/// Something terribly wrong happened where the bond could not be unbonded. Most likely a programming error
 		EvaluationUnbondFailed {
 			project_id: ProjectIdOf<T>,
@@ -749,7 +729,9 @@ pub mod pallet {
 		/// Change the metadata hash of a project
 		#[pallet::weight(T::WeightInfo::edit_metadata())]
 		pub fn edit_metadata(
-			origin: OriginFor<T>, project_id: T::ProjectIdentifier, project_metadata_hash: T::Hash,
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+			project_metadata_hash: T::Hash,
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 
@@ -788,7 +770,9 @@ pub mod pallet {
 		/// Bond PLMC for a project in the evaluation stage
 		#[pallet::weight(T::WeightInfo::bond())]
 		pub fn bond_evaluation(
-			origin: OriginFor<T>, project_id: T::ProjectIdentifier, #[pallet::compact] usd_amount: BalanceOf<T>,
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+			#[pallet::compact] usd_amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let evaluator = ensure_signed(origin)?;
 			Self::do_evaluate(evaluator, project_id, usd_amount)
@@ -797,7 +781,9 @@ pub mod pallet {
 		/// Release evaluation-bonded PLMC when a project finishes its funding round.
 		#[pallet::weight(T::WeightInfo::evaluation_unbond_for())]
 		pub fn evaluation_unbond_for(
-			origin: OriginFor<T>, bond_id: T::StorageItemId, project_id: T::ProjectIdentifier,
+			origin: OriginFor<T>,
+			bond_id: T::StorageItemId,
+			project_id: T::ProjectIdentifier,
 			evaluator: AccountIdOf<T>,
 		) -> DispatchResult {
 			let releaser = ensure_signed(origin)?;
@@ -807,8 +793,12 @@ pub mod pallet {
 		/// Bid for a project in the Auction round
 		#[pallet::weight(T::WeightInfo::bid())]
 		pub fn bid(
-			origin: OriginFor<T>, project_id: T::ProjectIdentifier, #[pallet::compact] amount: BalanceOf<T>,
-			price: PriceOf<T>, multiplier: Option<T::Multiplier>, asset: AcceptedFundingAsset,
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+			#[pallet::compact] amount: BalanceOf<T>,
+			price: PriceOf<T>,
+			multiplier: Option<T::Multiplier>,
+			asset: AcceptedFundingAsset,
 		) -> DispatchResult {
 			let bidder = ensure_signed(origin)?;
 
@@ -823,8 +813,11 @@ pub mod pallet {
 		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
 		#[pallet::weight(T::WeightInfo::contribute())]
 		pub fn contribute(
-			origin: OriginFor<T>, project_id: T::ProjectIdentifier, #[pallet::compact] amount: BalanceOf<T>,
-			multiplier: Option<MultiplierOf<T>>, asset: AcceptedFundingAsset,
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+			#[pallet::compact] amount: BalanceOf<T>,
+			multiplier: Option<MultiplierOf<T>>,
+			asset: AcceptedFundingAsset,
 		) -> DispatchResult {
 			let contributor = ensure_signed(origin)?;
 
@@ -833,7 +826,9 @@ pub mod pallet {
 
 		/// Unbond some plmc from a contribution, after a step in the vesting period has passed.
 		pub fn vested_plmc_bid_unbond_for(
-			origin: OriginFor<T>, project_id: T::ProjectIdentifier, bidder: AccountIdOf<T>,
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+			bidder: AccountIdOf<T>,
 		) -> DispatchResult {
 			// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
 			let releaser = ensure_signed(origin)?;
@@ -844,7 +839,9 @@ pub mod pallet {
 		// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
 		/// Mint contribution tokens after a step in the vesting period for a successful bid.
 		pub fn vested_contribution_token_bid_mint_for(
-			origin: OriginFor<T>, project_id: T::ProjectIdentifier, bidder: AccountIdOf<T>,
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+			bidder: AccountIdOf<T>,
 		) -> DispatchResult {
 			let releaser = ensure_signed(origin)?;
 
@@ -854,7 +851,9 @@ pub mod pallet {
 		// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
 		/// Unbond some plmc from a contribution, after a step in the vesting period has passed.
 		pub fn vested_plmc_purchase_unbond_for(
-			origin: OriginFor<T>, project_id: T::ProjectIdentifier, purchaser: AccountIdOf<T>,
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+			purchaser: AccountIdOf<T>,
 		) -> DispatchResult {
 			let releaser = ensure_signed(origin)?;
 
@@ -864,7 +863,9 @@ pub mod pallet {
 		// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
 		/// Mint contribution tokens after a step in the vesting period for a contribution.
 		pub fn vested_contribution_token_purchase_mint_for(
-			origin: OriginFor<T>, project_id: T::ProjectIdentifier, purchaser: AccountIdOf<T>,
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+			purchaser: AccountIdOf<T>,
 		) -> DispatchResult {
 			let releaser = ensure_signed(origin)?;
 
@@ -881,7 +882,7 @@ pub mod pallet {
 					// EvaluationRound -> AuctionInitializePeriod | EvaluationFailed
 					UpdateType::EvaluationEnd => {
 						unwrap_result_or_skip!(Self::do_evaluation_end(project_id), project_id);
-					}
+					},
 
 					// AuctionInitializePeriod -> AuctionRound(AuctionPhase::English)
 					// Only if it wasn't first handled by user extrinsic
@@ -890,27 +891,27 @@ pub mod pallet {
 							Self::do_english_auction(T::PalletId::get().into_account_truncating(), project_id),
 							project_id
 						);
-					}
+					},
 
 					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
 					UpdateType::CandleAuctionStart => {
 						unwrap_result_or_skip!(Self::do_candle_auction(project_id), project_id);
-					}
+					},
 
 					// AuctionRound(AuctionPhase::Candle) -> CommunityRound
 					UpdateType::CommunityFundingStart => {
 						unwrap_result_or_skip!(Self::do_community_funding(project_id), project_id);
-					}
+					},
 
 					// CommunityRound -> RemainderRound
 					UpdateType::RemainderFundingStart => {
 						unwrap_result_or_skip!(Self::do_remainder_funding(project_id), project_id)
-					}
+					},
 
 					// CommunityRound || RemainderRound -> FundingEnded
 					UpdateType::FundingEnd => {
 						unwrap_result_or_skip!(Self::do_end_funding(project_id), project_id)
-					}
+					},
 				}
 			}
 			// TODO: PLMC-127. Set a proper weight
@@ -922,16 +923,15 @@ pub mod pallet {
 
 			let projects_needing_cleanup = ProjectsDetails::<T>::iter()
 				.filter_map(|(project_id, info)| match info.cleanup {
-					ProjectCleanup::Ready(project_finalizer) if project_finalizer != ProjectFinalizer::None => {
-						Some((project_id, project_finalizer))
-					}
+					ProjectCleanup::Ready(project_finalizer) if project_finalizer != ProjectFinalizer::None =>
+						Some((project_id, project_finalizer)),
 					_ => None,
 				})
 				.collect::<Vec<_>>();
 
 			let projects_amount = projects_needing_cleanup.len() as u64;
 			if projects_amount == 0 {
-				return max_weight;
+				return max_weight
 			}
 
 			let mut max_weight_per_project = remaining_weight.saturating_div(projects_amount);
@@ -944,14 +944,10 @@ pub mod pallet {
 					if let Ok(weight) = project_finalizer.do_one_operation::<T>(project_id) {
 						consumed_weight.saturating_accrue(weight);
 					} else {
-						break;
+						break
 					}
 				}
-				let mut details = if let Some(d) = ProjectsDetails::<T>::get(project_id) {
-					d
-				} else {
-					continue;
-				};
+				let mut details = if let Some(d) = ProjectsDetails::<T>::get(project_id) { d } else { continue };
 				if let ProjectFinalizer::None = project_finalizer {
 					details.cleanup = ProjectCleanup::Finished;
 				} else {
@@ -980,18 +976,13 @@ pub mod pallet {
 		fn create_project_id_parameter(id: u32) -> T::ProjectIdentifier {
 			id.into()
 		}
+
 		fn create_dummy_project(metadata_hash: T::Hash) -> ProjectMetadataOf<T> {
 			let project: ProjectMetadataOf<T> = ProjectMetadata {
 				total_allocation_size: 1_000_000_0_000_000_000u64.into(),
 				minimum_price: PriceOf::<T>::saturating_from_integer(1),
-				ticket_size: TicketSize {
-					minimum: Some(1u8.into()),
-					maximum: None,
-				},
-				participants_size: ParticipantsSize {
-					minimum: Some(2),
-					maximum: None,
-				},
+				ticket_size: TicketSize { minimum: Some(1u8.into()), maximum: None },
+				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 				offchain_information_hash: Some(metadata_hash),
 				..Default::default()
 			};
@@ -1013,8 +1004,8 @@ pub mod local_macros {
 						project_id: $project_id,
 						error: Error::<T>::FieldIsNone.into(),
 					});
-					continue;
-				}
+					continue
+				},
 			}
 		};
 	}
@@ -1026,12 +1017,9 @@ pub mod local_macros {
 			match $option {
 				Ok(val) => val,
 				Err(err) => {
-					Self::deposit_event(Event::<T>::TransitionError {
-						project_id: $project_id,
-						error: err,
-					});
-					continue;
-				}
+					Self::deposit_event(Event::<T>::TransitionError { project_id: $project_id, error: err });
+					continue
+				},
 			}
 		};
 	}

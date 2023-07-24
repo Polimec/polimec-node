@@ -139,25 +139,13 @@ pub mod pallet {
 			use sp_std::collections::btree_set::BTreeSet;
 
 			let issuers_set: BTreeSet<_> = self.issuers.iter().collect();
-			assert_eq!(
-				issuers_set.len(),
-				self.issuers.len(),
-				"Issuers cannot contain duplicate accounts."
-			);
+			assert_eq!(issuers_set.len(), self.issuers.len(), "Issuers cannot contain duplicate accounts.");
 
 			let retails_set: BTreeSet<_> = self.retails.iter().collect();
-			assert_eq!(
-				retails_set.len(),
-				self.retails.len(),
-				"Issuers cannot contain duplicate accounts."
-			);
+			assert_eq!(retails_set.len(), self.retails.len(), "Issuers cannot contain duplicate accounts.");
 
 			let professionals_set: BTreeSet<_> = self.professionals.iter().collect();
-			assert_eq!(
-				professionals_set.len(),
-				self.professionals.len(),
-				"Issuers cannot contain duplicate accounts."
-			);
+			assert_eq!(professionals_set.len(), self.professionals.len(), "Issuers cannot contain duplicate accounts.");
 
 			let institutionals_set: BTreeSet<_> = self.institutionals.iter().collect();
 			assert_eq!(
@@ -194,7 +182,9 @@ pub mod pallet {
 		// TODO: Set a proper weight
 		#[pallet::weight(1)]
 		pub fn remove_member(
-			origin: OriginFor<T>, credential: Credential, who: AccountIdLookupOf<T>,
+			origin: OriginFor<T>,
+			credential: Credential,
+			who: AccountIdLookupOf<T>,
 		) -> DispatchResult {
 			T::RemoveOrigin::ensure_origin(origin)?;
 			let who = T::Lookup::lookup(who)?;

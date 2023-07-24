@@ -49,30 +49,30 @@ parameter_types! {
 }
 
 impl frame_system::Config for Test {
+	type AccountData = pallet_balances::AccountData<Balance>;
+	type AccountId = AccountId;
 	type BaseCallFilter = frame_support::traits::Everything;
-	type BlockWeights = ();
+	type BlockHashCount = BlockHashCount;
 	type BlockLength = ();
-	type DbWeight = ();
-	type RuntimeOrigin = RuntimeOrigin;
-	type RuntimeCall = RuntimeCall;
-	type Index = u64;
 	type BlockNumber = BlockNumber;
+	type BlockWeights = ();
+	type DbWeight = ();
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = AccountId;
-	type Lookup = IdentityLookup<AccountId>;
 	type Header = Header;
-	type RuntimeEvent = RuntimeEvent;
-	type BlockHashCount = BlockHashCount;
-	type Version = ();
-	type PalletInfo = PalletInfo;
-	type AccountData = pallet_balances::AccountData<Balance>;
-	type OnNewAccount = ();
-	type OnKilledAccount = ();
-	type SystemWeightInfo = ();
-	type SS58Prefix = ConstU16<42>;
-	type OnSetCode = ();
+	type Index = u64;
+	type Lookup = IdentityLookup<AccountId>;
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type OnKilledAccount = ();
+	type OnNewAccount = ();
+	type OnSetCode = ();
+	type PalletInfo = PalletInfo;
+	type RuntimeCall = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeOrigin = RuntimeOrigin;
+	type SS58Prefix = ConstU16<42>;
+	type SystemWeightInfo = ();
+	type Version = ();
 }
 
 parameter_types! {
@@ -80,30 +80,30 @@ parameter_types! {
 }
 
 impl pallet_balances::Config for Test {
+	type AccountStore = System;
+	type Balance = Balance;
+	type DustRemoval = ();
+	type ExistentialDeposit = ExistentialDeposit;
+	type FreezeIdentifier = [u8; 8];
+	type HoldIdentifier = [u8; 8];
+	type MaxFreezes = frame_support::traits::ConstU32<1024>;
+	type MaxHolds = frame_support::traits::ConstU32<1024>;
 	type MaxLocks = frame_support::traits::ConstU32<1024>;
 	type MaxReserves = ();
 	type ReserveIdentifier = [u8; 8];
-	type Balance = Balance;
 	type RuntimeEvent = RuntimeEvent;
-	type DustRemoval = ();
-	type ExistentialDeposit = ExistentialDeposit;
-	type AccountStore = System;
 	type WeightInfo = ();
-	type HoldIdentifier = [u8; 8];
-	type FreezeIdentifier = [u8; 8];
-	type MaxFreezes = frame_support::traits::ConstU32<1024>;
-	type MaxHolds = frame_support::traits::ConstU32<1024>;
 }
 
 impl pallet_credentials::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AddOrigin = EnsureRoot<AccountId>;
-	type RemoveOrigin = EnsureRoot<AccountId>;
-	type SwapOrigin = EnsureRoot<AccountId>;
-	type ResetOrigin = EnsureRoot<AccountId>;
-	type PrimeOrigin = EnsureRoot<AccountId>;
-	type MembershipInitialized = ();
 	type MembershipChanged = ();
+	type MembershipInitialized = ();
+	type PrimeOrigin = EnsureRoot<AccountId>;
+	type RemoveOrigin = EnsureRoot<AccountId>;
+	type ResetOrigin = EnsureRoot<AccountId>;
+	type RuntimeEvent = RuntimeEvent;
+	type SwapOrigin = EnsureRoot<AccountId>;
 }
 
 // Build genesis storage according to the mock runtime.
@@ -112,9 +112,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
 	GenesisConfig {
-		balances: BalancesConfig {
-			balances: vec![(1, 512), (2, 512), (3, 512), (4, 512), (5, 512)],
-		},
+		balances: BalancesConfig { balances: vec![(1, 512), (2, 512), (3, 512), (4, 512), (5, 512)] },
 		credentials: CredentialsConfig {
 			issuers: vec![1],
 			retails: vec![2],

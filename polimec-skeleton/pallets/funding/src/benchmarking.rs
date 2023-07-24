@@ -27,14 +27,13 @@ type PolimecSystem<T> = frame_system::Pallet<T>;
 
 use super::*;
 use frame_benchmarking::{account, benchmarks};
-use frame_support::dispatch::RawOrigin;
-use frame_support::traits::OriginTrait;
 use frame_support::{
 	assert_ok,
+	dispatch::RawOrigin,
 	traits::{
 		fungible::Mutate,
 		fungibles::{Inspect, Mutate as FungiblesMutate},
-		Hooks,
+		Hooks, OriginTrait,
 	},
 };
 use frame_system::{Pallet as System, RawOrigin as SystemOrigin};
@@ -67,10 +66,7 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 
 #[allow(unused)]
 fn get_events<T: Config>() -> frame_benchmarking::Vec<<T as frame_system::Config>::RuntimeEvent> {
-	frame_system::Pallet::<T>::events()
-		.into_iter()
-		.map(|r| r.event)
-		.collect::<frame_benchmarking::Vec<_>>()
+	frame_system::Pallet::<T>::events().into_iter().map(|r| r.event).collect::<frame_benchmarking::Vec<_>>()
 }
 
 fn create_default_project<T: Config>(id: Option<u32>) -> (T::ProjectIdentifier, AccountIdOf<T>, ProjectMetadataOf<T>) {

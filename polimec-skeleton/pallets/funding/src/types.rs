@@ -18,15 +18,14 @@
 
 //! Types for Funding pallet.
 
-use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice};
-use crate::BalanceOf;
+use crate::{
+	traits::{BondingRequirementCalculation, ProvideStatemintPrice},
+	BalanceOf,
+};
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
-use sp_arithmetic::traits::Saturating;
-use sp_arithmetic::{FixedPointNumber, FixedPointOperand};
+use sp_arithmetic::{traits::Saturating, FixedPointNumber, FixedPointOperand};
 use sp_runtime::traits::CheckedDiv;
-use sp_std::cmp::Eq;
-use sp_std::collections::btree_map::*;
-use sp_std::prelude::*;
+use sp_std::{cmp::Eq, collections::btree_map::*, prelude::*};
 
 pub use config_types::*;
 pub use inner_types::*;
@@ -53,8 +52,10 @@ pub mod config_types {
 		}
 	}
 
-	/// Enum used to identify PLMC holds
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
+	/// Enum used to identify PLMC holds.
+	/// It implements Serialize and Deserialize (only in the "std" feature set) to hold a fungible in the Genesis Configuration.
+	#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo, Ord, PartialOrd)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 	pub enum LockType<ProjectId> {
 		Evaluation(ProjectId),
 		Participation(ProjectId),
@@ -108,7 +109,7 @@ pub mod storage_types {
 		// TODO: PLMC-162. Perform a REAL validity check
 		pub fn validity_check(&self) -> Result<(), ValidityError> {
 			if self.minimum_price == Price::zero() {
-				return Err(ValidityError::PriceTooLow);
+				return Err(ValidityError::PriceTooLow)
 			}
 			self.ticket_size.is_valid()?;
 			self.participants_size.is_valid()?;
@@ -271,14 +272,10 @@ pub mod inner_types {
 	impl<Balance: BalanceT> TicketSize<Balance> {
 		pub(crate) fn is_valid(&self) -> Result<(), ValidityError> {
 			if self.minimum.is_some() && self.maximum.is_some() {
-				return if self.minimum < self.maximum {
-					Ok(())
-				} else {
-					Err(ValidityError::TicketSizeError)
-				};
+				return if self.minimum < self.maximum { Ok(()) } else { Err(ValidityError::TicketSizeError) }
 			}
 			if self.minimum.is_some() || self.maximum.is_some() {
-				return Ok(());
+				return Ok(())
 			}
 
 			Err(ValidityError::TicketSizeError)
@@ -293,20 +290,18 @@ pub mod inner_types {
 	impl ParticipantsSize {
 		pub(crate) fn is_valid(&self) -> Result<(), ValidityError> {
 			match (self.minimum, self.maximum) {
-				(Some(min), Some(max)) => {
+				(Some(min), Some(max)) =>
 					if min < max && min > 0 && max > 0 {
 						Ok(())
 					} else {
 						Err(ValidityError::ParticipantsSizeError)
-					}
-				}
-				(Some(elem), None) | (None, Some(elem)) => {
+					},
+				(Some(elem), None) | (None, Some(elem)) =>
 					if elem > 0 {
 						Ok(())
 					} else {
 						Err(ValidityError::ParticipantsSizeError)
-					}
-				}
+					},
 				(None, None) => Err(ValidityError::ParticipantsSizeError),
 			}
 		}
@@ -384,6 +379,7 @@ pub mod inner_types {
 		pub fn new(start: Option<BlockNumber>, end: Option<BlockNumber>) -> Self {
 			Self { start, end }
 		}
+
 		pub fn start(&self) -> Option<BlockNumber> {
 			self.start
 		}
