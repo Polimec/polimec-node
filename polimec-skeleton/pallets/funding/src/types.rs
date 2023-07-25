@@ -141,7 +141,7 @@ pub mod storage_types {
 	}
 
 	/// Tells on_initialize what to do with the project
-	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub enum UpdateType {
 		EvaluationEnd,
 		EnglishAuctionStart,
@@ -150,6 +150,7 @@ pub mod storage_types {
 		RemainderFundingStart,
 		FundingEnd,
 		ProjectDecision(FundingOutcomeDecision),
+		StartSettlement(ProjectFinalizer),
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Ord, PartialOrd)]

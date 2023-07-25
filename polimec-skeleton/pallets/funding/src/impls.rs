@@ -285,7 +285,7 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 		.find(|evaluations| evaluations.iter().any(|evaluation| !evaluation.rewarded_or_slashed));
 
 	if let Some(mut user_evaluations) = maybe_user_evaluations {
-		let mut evaluation = user_evaluations
+		let evaluation = user_evaluations
 			.iter_mut()
 			.find(|evaluation| !evaluation.rewarded_or_slashed)
 			.expect("user_evaluations can only exist if an item here is found; qed");
@@ -360,7 +360,7 @@ fn release_funds_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight
 	let maybe_user_bids = project_bids.into_iter().find(|bids| bids.iter().any(|bid| !bid.funds_released));
 
 	if let Some(mut user_bids) = maybe_user_bids {
-		let mut bid = user_bids
+		let bid = user_bids
 			.iter_mut()
 			.find(|bid| !bid.funds_released)
 			.expect("user_bids can only exist if an item here is found; qed");
@@ -438,7 +438,7 @@ fn release_funds_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -
 		.find(|contributions| contributions.iter().any(|contribution| !contribution.funds_released));
 
 	if let Some(mut user_contributions) = maybe_user_contributions {
-		let mut contribution = user_contributions
+		let contribution = user_contributions
 			.iter_mut()
 			.find(|contribution| !contribution.funds_released)
 			.expect("user_contributions can only exist if an item here is found; qed");
@@ -536,7 +536,7 @@ fn issuer_funding_payout_one_bid<T: Config>(project_id: T::ProjectIdentifier) ->
 	let maybe_user_bids = project_bids.into_iter().find(|bids| bids.iter().any(|bid| !bid.funds_released));
 
 	if let Some(mut user_bids) = maybe_user_bids {
-		let mut bid = user_bids
+		let bid = user_bids
 			.iter_mut()
 			.find(|bid| !bid.funds_released)
 			.expect("user_bids can only exist if an item here is found; qed");
@@ -581,7 +581,7 @@ fn issuer_funding_payout_one_contribution<T: Config>(project_id: T::ProjectIdent
 		.find(|contributions| contributions.iter().any(|contribution| !contribution.funds_released));
 
 	if let Some(mut user_contributions) = maybe_user_contributions {
-		let mut contribution = user_contributions
+		let contribution = user_contributions
 			.iter_mut()
 			.find(|contribution| !contribution.funds_released)
 			.expect("user_contributions can only exist if an item here is found; qed");

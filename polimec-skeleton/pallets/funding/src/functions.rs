@@ -577,11 +577,11 @@ impl<T: Config> Pallet<T> {
 	pub fn do_end_funding(project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		let now = <frame_system::Pallet<T>>::block_number();
 		// TODO: PLMC-149 Check if make sense to set the admin as T::fund_account_id(project_id)
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let remaining_cts = project_details.remaining_contribution_tokens;
 		let remainder_end_block = project_details.phase_transition_points.remainder.end();
+		let now = <frame_system::Pallet<T>>::block_number();
 
 		// * Validity checks *
 		ensure!(
@@ -599,12 +599,17 @@ impl<T: Config> Pallet<T> {
 		let funding_reached = project_details.funding_amount_reached;
 		let funding_ratio = Perquintill::from_rational(funding_reached, funding_target);
 
+		// * Update Storage *
 		if funding_ratio <= Perquintill::from_percent(33u64) {
 			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Slashed(vec![]);
-			Self::make_project_funding_fail(project_id, project_details, FailureReason::TargetNotReached)
+			Self::make_project_funding_fail(project_id, project_details, FailureReason::TargetNotReached, 0u32.into())
 		} else if funding_ratio <= Perquintill::from_percent(75u64) {
 			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Slashed(vec![]);
 			project_details.status = ProjectStatus::AwaitingProjectDecision;
+			Self::add_to_update_store(
+				now + T::ManualAcceptanceDuration::get() + 1u32.into(),
+				(&project_id, UpdateType::ProjectDecision(FundingOutcomeDecision::AcceptFunding)),
+			);
 			ProjectsDetails::<T>::insert(project_id, project_details);
 			Ok(())
 		} else if funding_ratio < Perquintill::from_percent(90u64) {
@@ -615,7 +620,12 @@ impl<T: Config> Pallet<T> {
 		} else {
 			let reward_info = Self::generate_evaluator_rewards_info(project_id)?;
 			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Rewarded(reward_info);
-			Self::make_project_funding_successful(project_id, project_details, SuccessReason::ReachedTarget)
+			Self::make_project_funding_successful(
+				project_id,
+				project_details,
+				SuccessReason::ReachedTarget,
+				0u32.into(),
+			)
 		}
 	}
 
@@ -626,11 +636,54 @@ impl<T: Config> Pallet<T> {
 		// * Update storage *
 		match decision {
 			FundingOutcomeDecision::AcceptFunding => {
-				Self::make_project_funding_successful(project_id, project_details, SuccessReason::ProjectDecision)?;
+				Self::make_project_funding_successful(
+					project_id,
+					project_details,
+					SuccessReason::ProjectDecision,
+					T::SuccessToSettlementTime::get(),
+				)?;
 			},
 			FundingOutcomeDecision::RejectFunding => {
-				Self::make_project_funding_fail(project_id, project_details, FailureReason::ProjectDecision)?;
+				Self::make_project_funding_fail(
+					project_id,
+					project_details,
+					FailureReason::ProjectDecision,
+					T::SuccessToSettlementTime::get(),
+				)?;
 			},
+		}
+
+		Ok(())
+	}
+
+	pub fn do_start_settlement(project_id: T::ProjectIdentifier, finalizer: ProjectFinalizer) -> DispatchResult {
+		// * Get variables *
+		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let token_information =
+			ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?.token_information;
+
+		// * Validity checks *
+		ensure!(
+			project_details.status == ProjectStatus::FundingSuccessful ||
+				project_details.status == ProjectStatus::FundingFailed,
+			Error::<T>::NotAllowed
+		);
+
+		// * Update storage *
+		project_details.cleanup = ProjectCleanup::Ready(finalizer);
+		ProjectsDetails::<T>::insert(project_id, project_details.clone());
+
+		if project_details.status == ProjectStatus::FundingSuccessful {
+			T::ContributionTokenCurrency::create(project_id, project_details.issuer.clone(), false, 1_u32.into())
+				.map_err(|_| Error::<T>::AssetCreationFailed)?;
+			T::ContributionTokenCurrency::set(
+				project_id,
+				&project_details.issuer,
+				token_information.name.into(),
+				token_information.symbol.into(),
+				token_information.decimals,
+			)
+			.map_err(|_| Error::<T>::AssetMetadataUpdateFailed)?;
 		}
 
 		Ok(())
@@ -1089,6 +1142,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(project_details.status == ProjectStatus::AwaitingProjectDecision, Error::<T>::NotAllowed);
 
 		// * Update storage *
+		Self::remove_from_update_store(&project_id)?;
 		Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::ProjectDecision(decision)));
 
 		Ok(())
@@ -1556,7 +1610,7 @@ impl<T: Config> Pallet<T> {
 		// Try to get the project into the earliest possible block to update.
 		// There is a limit for how many projects can update each block, so we need to make sure we don't exceed that limit
 		let mut block_number = block_number;
-		while ProjectsToUpdate::<T>::try_append(block_number, store).is_err() {
+		while ProjectsToUpdate::<T>::try_append(block_number, store.clone()).is_err() {
 			// TODO: Should we end the loop if we iterated over too many blocks?
 			block_number += 1u32.into();
 		}
@@ -2075,24 +2129,16 @@ impl<T: Config> Pallet<T> {
 		project_id: T::ProjectIdentifier,
 		mut project_details: ProjectDetailsOf<T>,
 		reason: SuccessReason,
+		settlement_delta: T::BlockNumber,
 	) -> DispatchResult {
-		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let token_information = project_metadata.token_information;
-
+		let now = <frame_system::Pallet<T>>::block_number();
 		project_details.status = ProjectStatus::FundingSuccessful;
-		project_details.cleanup = ProjectCleanup::Ready(ProjectFinalizer::Success(SuccessFinalizer::Initialized));
-
 		ProjectsDetails::<T>::insert(project_id, project_details.clone());
-		T::ContributionTokenCurrency::create(project_id, project_details.issuer.clone(), false, 1_u32.into())
-			.map_err(|_| Error::<T>::AssetCreationFailed)?;
-		T::ContributionTokenCurrency::set(
-			project_id,
-			&project_details.issuer,
-			token_information.name.into(),
-			token_information.symbol.into(),
-			token_information.decimals,
-		)
-		.map_err(|_| Error::<T>::AssetMetadataUpdateFailed)?;
+
+		Self::add_to_update_store(
+			now + settlement_delta,
+			(&project_id, UpdateType::StartSettlement(ProjectFinalizer::Success(SuccessFinalizer::Initialized))),
+		);
 
 		Self::deposit_event(Event::<T>::FundingEnded { project_id, outcome: FundingOutcome::Success(reason) });
 
@@ -2103,12 +2149,16 @@ impl<T: Config> Pallet<T> {
 		project_id: T::ProjectIdentifier,
 		mut project_details: ProjectDetailsOf<T>,
 		reason: FailureReason,
+		settlement_delta: T::BlockNumber,
 	) -> DispatchResult {
+		let now = <frame_system::Pallet<T>>::block_number();
 		project_details.status = ProjectStatus::FundingFailed;
-		project_details.cleanup = ProjectCleanup::Ready(ProjectFinalizer::Failure(Default::default()));
-
 		ProjectsDetails::<T>::insert(project_id, project_details.clone());
 
+		Self::add_to_update_store(
+			now + settlement_delta,
+			(&project_id, UpdateType::StartSettlement(ProjectFinalizer::Failure(FailureFinalizer::Initialized))),
+		);
 		Self::deposit_event(Event::<T>::FundingEnded { project_id, outcome: FundingOutcome::Failure(reason) });
 		Ok(())
 	}

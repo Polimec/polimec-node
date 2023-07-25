@@ -17,9 +17,6 @@
 // If you feel like getting in touch with us, you can do so at info@polimec.org
 
 //! Tests for Funding pallet.
-
-#![feature(assert_matches)]
-
 use super::*;
 use crate as pallet_funding;
 use crate::{
@@ -3583,8 +3580,9 @@ mod funding_end {
 			.unwrap();
 
 		test_env.advance_time(1u64).unwrap();
-
 		assert_eq!(finished_project.get_project_details().status, ProjectStatus::FundingSuccessful);
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+
 		assert_matches!(
 			finished_project.get_project_details().cleanup,
 			ProjectCleanup::Ready(ProjectFinalizer::Success(_)),
@@ -3620,6 +3618,7 @@ mod funding_end {
 		test_env.advance_time(1u64).unwrap();
 
 		assert_eq!(finished_project.get_project_details().status, ProjectStatus::FundingFailed);
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		assert_matches!(
 			finished_project.get_project_details().cleanup,
 			ProjectCleanup::Ready(ProjectFinalizer::Failure(_))
@@ -3627,8 +3626,38 @@ mod funding_end {
 
 		test_ct_not_created_for(&test_env, project_id);
 
-		test_env.advance_time(1u64).unwrap();
+		test_env.advance_time(10u64).unwrap();
 		assert_matches!(finished_project.get_project_details().cleanup, ProjectCleanup::Finished);
+	}
+
+	#[test]
+	fn automatic_acceptance_on_manual_decision_after_time_delta() {
+		let test_env = TestEnvironment::new();
+		let project_metadata = default_project(test_env.get_new_nonce());
+		let min_price = project_metadata.minimum_price;
+		let twenty_percent_funding_usd = Perquintill::from_percent(55) *
+			(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size).unwrap());
+		let evaluations = default_evaluations();
+		let bids = generate_bids_from_total_usd(Percent::from_percent(50u8) * twenty_percent_funding_usd, min_price);
+		let contributions =
+			generate_contributions_from_total_usd(Percent::from_percent(50u8) * twenty_percent_funding_usd, min_price);
+		let finished_project =
+			FinishedProject::new_with(&test_env, project_metadata, ISSUER, evaluations, bids, contributions, vec![]);
+		assert_eq!(finished_project.get_project_details().status, ProjectStatus::AwaitingProjectDecision);
+
+		let project_id = finished_project.project_id;
+		test_env.advance_time(1u64 + <TestRuntime as Config>::ManualAcceptanceDuration::get()).unwrap();
+		assert_eq!(finished_project.get_project_details().status, ProjectStatus::FundingSuccessful);
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+
+		assert_matches!(
+			finished_project.get_project_details().cleanup,
+			ProjectCleanup::Ready(ProjectFinalizer::Success(_)),
+		);
+		test_ct_created_for(&test_env, project_id);
+
+		test_env.advance_time(10u64).unwrap();
+		assert_matches!(finished_project.get_project_details().cleanup, ProjectCleanup::Finished,);
 	}
 }
 

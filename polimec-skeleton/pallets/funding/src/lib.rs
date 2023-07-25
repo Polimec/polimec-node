@@ -384,6 +384,10 @@ pub mod pallet {
 		type EvaluationSuccessThreshold: Get<Percent>;
 
 		type Vesting: polimec_traits::ReleaseSchedule<AccountIdOf<Self>, BondTypeOf<Self>>;
+		/// For now we expect 3 days until the project is automatically accepted. Timeline decided by MiCA regulations.
+		type ManualAcceptanceDuration: Get<Self::BlockNumber>;
+		/// For now we expect 4 days from acceptance to settlement due to MiCA regulations.
+		type SuccessToSettlementTime: Get<Self::BlockNumber>;
 	}
 
 	#[pallet::storage]
@@ -918,6 +922,10 @@ pub mod pallet {
 
 					UpdateType::ProjectDecision(decision) => {
 						unwrap_result_or_skip!(Self::do_project_decision(project_id, decision), project_id)
+					},
+
+					UpdateType::StartSettlement(finalizer) => {
+						unwrap_result_or_skip!(Self::do_start_settlement(project_id, finalizer), project_id)
 					},
 				}
 			}

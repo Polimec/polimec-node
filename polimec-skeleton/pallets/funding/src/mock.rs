@@ -211,6 +211,8 @@ parameter_types! {
 	pub const CommunityRoundDuration: BlockNumber = (5 * HOURS) as BlockNumber;
 	pub const RemainderFundingDuration: BlockNumber = (1 * HOURS) as BlockNumber;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
+	pub const ManualAcceptanceDuration: BlockNumber = (3 * HOURS) as BlockNumber;
+	pub const SuccessToSettlementTime: BlockNumber =(4 * HOURS) as BlockNumber;
 	pub PriceMap: BTreeMap<AssetId, FixedU128> = BTreeMap::from_iter(vec![
 		(0u32, FixedU128::from_float(69f64)), // DOT
 		(420u32, FixedU128::from_float(0.97f64)), // USDC
@@ -260,6 +262,7 @@ impl pallet_funding::Config for TestRuntime {
 	type FeeBrackets = FeeBrackets;
 	type FundingCurrency = StatemintAssets;
 	type HandleMembers = Credentials;
+	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	// Low value to simplify the tests
 	type MaxBidsPerUser = ConstU32<4>;
 	type MaxContributionsPerUser = ConstU32<4>;
@@ -277,6 +280,7 @@ impl pallet_funding::Config for TestRuntime {
 	type RuntimeEvent = RuntimeEvent;
 	type StorageItemId = u128;
 	type StringLimit = ConstU32<64>;
+	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type Vesting = Vesting;
 	type WeightInfo = ();
 }
