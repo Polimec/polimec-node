@@ -5,6 +5,7 @@ members = [
     "runtimes/*",
     "integration-tests"
 ]
+resolver = "2"
 
 [workspace.package]
 authors = ['Polimec Foundation <info@polimec.org>']
