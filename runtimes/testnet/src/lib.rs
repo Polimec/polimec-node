@@ -570,7 +570,7 @@ construct_runtime!(
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 10,
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage, Event<T>} = 11,
 		AssetTxPayment: pallet_asset_tx_payment::{Pallet, Storage, Event<T>} = 12,
-		LocalAssets: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>} = 13,
+		LocalAssets: pallet_assets::<Instance1>::{Pallet, Storage, Event<T>} = 13,
 		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>} = 14,
 		Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 16,
 
