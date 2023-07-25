@@ -18,6 +18,8 @@
 
 //! Tests for Funding pallet.
 
+#![feature(assert_matches)]
+
 use super::*;
 use crate as pallet_funding;
 use crate::{
@@ -1258,6 +1260,9 @@ mod defaults {
 
 pub mod helper_functions {
 	use super::*;
+	use frame_support::traits::fungibles::{
+		metadata::Inspect as MetadataInspect, roles::Inspect as RolesInspect, Inspect,
+	};
 	use sp_arithmetic::{traits::Zero, Percent};
 	use sp_core::H256;
 	use std::collections::BTreeMap;
@@ -1607,6 +1612,32 @@ pub mod helper_functions {
 				TestContribution::new(bidder, token_amount, None, AcceptedFundingAsset::USDT)
 			})
 			.collect()
+	}
+
+	pub fn test_ct_created_for(test_env: &TestEnvironment, project_id: ProjectIdOf<TestRuntime>) {
+		test_env.in_ext(|| {
+			let metadata = ProjectsMetadata::<TestRuntime>::get(project_id).unwrap();
+			let details = ProjectsDetails::<TestRuntime>::get(project_id).unwrap();
+			assert_eq!(
+				<TestRuntime as Config>::ContributionTokenCurrency::name(project_id),
+				metadata.token_information.name.to_vec()
+			);
+			assert_eq!(<TestRuntime as Config>::ContributionTokenCurrency::admin(project_id).unwrap(), details.issuer);
+			assert_eq!(
+				<TestRuntime as Config>::ContributionTokenCurrency::total_issuance(project_id),
+				0u32.into(),
+				"No CTs should have been minted at this point"
+			);
+		});
+	}
+
+	pub fn test_ct_not_created_for(test_env: &TestEnvironment, project_id: ProjectIdOf<TestRuntime>) {
+		test_env.in_ext(|| {
+			assert!(
+				!<TestRuntime as Config>::ContributionTokenCurrency::asset_exists(project_id),
+				"Asset shouldn't exist, since funding failed"
+			);
+		});
 	}
 }
 
@@ -3443,6 +3474,7 @@ mod remainder_round_success {
 mod funding_end {
 	use super::*;
 	use sp_arithmetic::{Percent, Perquintill};
+	use std::assert_matches::assert_matches;
 
 	#[test]
 	fn automatic_fail_less_eq_33_percent() {
@@ -3550,9 +3582,17 @@ mod funding_end {
 			})
 			.unwrap();
 
-		test_env.advance_time(2u64).unwrap();
+		test_env.advance_time(1u64).unwrap();
 
 		assert_eq!(finished_project.get_project_details().status, ProjectStatus::FundingSuccessful);
+		assert_matches!(
+			finished_project.get_project_details().cleanup,
+			ProjectCleanup::Ready(ProjectFinalizer::Success(_)),
+		);
+		test_ct_created_for(&test_env, project_id);
+
+		test_env.advance_time(10u64).unwrap();
+		assert_matches!(finished_project.get_project_details().cleanup, ProjectCleanup::Finished,);
 	}
 
 	#[test]
@@ -3577,9 +3617,18 @@ mod funding_end {
 			})
 			.unwrap();
 
-		test_env.advance_time(2u64).unwrap();
+		test_env.advance_time(1u64).unwrap();
 
 		assert_eq!(finished_project.get_project_details().status, ProjectStatus::FundingFailed);
+		assert_matches!(
+			finished_project.get_project_details().cleanup,
+			ProjectCleanup::Ready(ProjectFinalizer::Failure(_))
+		);
+
+		test_ct_not_created_for(&test_env, project_id);
+
+		test_env.advance_time(1u64).unwrap();
+		assert_matches!(finished_project.get_project_details().cleanup, ProjectCleanup::Finished);
 	}
 }
 
