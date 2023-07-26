@@ -50,7 +50,6 @@ mod tests;
 mod impls;
 mod types;
 
-
 // TODO: Find a way to use
 // 1. type BalanceOf<T> = <<T as Config>::Currency as fungible::Inspect<<T as frame_system::Config>::AccountId>>::Balance;
 // 2. type ReasonOf<T> = <<T as Config>::Currency as InspectHold<<T as frame_system::Config>::AccountId>>::Reason;

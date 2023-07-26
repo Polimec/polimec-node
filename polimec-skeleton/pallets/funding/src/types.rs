@@ -141,7 +141,7 @@ pub mod storage_types {
 	}
 
 	/// Tells on_initialize what to do with the project
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub enum UpdateType {
 		EvaluationEnd,
 		EnglishAuctionStart,
@@ -149,6 +149,8 @@ pub mod storage_types {
 		CommunityFundingStart,
 		RemainderFundingStart,
 		FundingEnd,
+		ProjectDecision(FundingOutcomeDecision),
+		StartSettlement(ProjectFinalizer),
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Ord, PartialOrd)]
@@ -345,8 +347,9 @@ pub mod inner_types {
 		AuctionRound(AuctionPhase),
 		CommunityRound,
 		RemainderRound,
-		FundingSuccessful,
 		FundingFailed,
+		AwaitingProjectDecision,
+		FundingSuccessful,
 		ReadyToLaunch,
 	}
 
@@ -475,6 +478,7 @@ pub mod inner_types {
 	pub enum SuccessReason {
 		SoldOut,
 		ReachedTarget,
+		ProjectDecision,
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -482,6 +486,7 @@ pub mod inner_types {
 		EvaluationFailed,
 		AuctionFailed,
 		TargetNotReached,
+		ProjectDecision,
 		Unknown,
 	}
 
@@ -548,5 +553,11 @@ pub mod inner_types {
 		pub normal_evaluator_reward_pot_usd: Balance,
 		pub early_evaluator_total_bonded_usd: Balance,
 		pub normal_evaluator_total_bonded_usd: Balance,
+	}
+
+	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum FundingOutcomeDecision {
+		AcceptFunding,
+		RejectFunding,
 	}
 }
