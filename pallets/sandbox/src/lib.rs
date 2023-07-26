@@ -15,6 +15,7 @@ pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
+	use funding::AcceptedFundingAsset;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -28,15 +29,16 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn buy_if_popular(
 			origin: OriginFor<T>,
-			project_id: <T as funding::Config>::ProjectIdParameter,
+			project_id: <T as funding::Config>::ProjectIdentifier,
 			amount: <T as funding::Config>::Balance,
+			asset_id: AcceptedFundingAsset,
 		) -> DispatchResult {
 			let retail_user = ensure_signed(origin)?;
 			let project_id: <T as funding::Config>::ProjectIdentifier = project_id.into();
 			// Check project is in the community round
-			let project_info = funding::Pallet::<T>::project_info(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+			let project_info = funding::Pallet::<T>::project_details(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 			ensure!(
-				project_info.project_status == funding::ProjectStatus::CommunityRound,
+				project_info.status == funding::ProjectStatus::CommunityRound,
 				"Project is not in the community round"
 			);
 
@@ -45,7 +47,7 @@ pub mod pallet {
 				funding::Contributions::<T>::iter_prefix_values(project_id)
 					.flatten()
 					.fold(0u64.into(), |total_tokens_bought, contribution| {
-						total_tokens_bought + contribution.contribution_amount
+						total_tokens_bought + contribution.funding_asset_amount
 					});
 
 			ensure!(
@@ -54,7 +56,7 @@ pub mod pallet {
 			);
 
 			// Buy tokens with the default multiplier
-			<funding::Pallet<T>>::do_contribute(retail_user, project_id, amount, None)?;
+			<funding::Pallet<T>>::do_contribute(retail_user, project_id, amount, None, asset_id)?;
 
 			Ok(())
 		}

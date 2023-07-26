@@ -3,8 +3,10 @@ members = [
     "nodes/*",
     "pallets/*",
     "runtimes/*",
-    "integration-tests"
+    "integration-tests",
+    "traits"
 ]
+
 resolver = "2"
 
 [workspace.package]
@@ -16,7 +18,6 @@ license-file = "LICENSE"
 readme = "README.md"
 repository = "https://github.com/Polimec/polimec-node"
 version = "0.1.0"
-rust-version = "1.64.0"
 
 [profile.release]
 # Substrate runtime requires unwinding.
@@ -48,21 +49,14 @@ substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", bran
 pallet-funding = { path = "pallets/funding", default-features = false }
 pallet-sandbox = { path = "pallets/sandbox", default-features = false }
 pallet-parachain-staking = { path = "pallets/parachain-staking", default-features = false}
-
+pallet-linear-release = { path = "pallets/linear-release", default-features = false }
 
 # Internal support (with default disabled)
 shared-configuration = { path = "runtimes/shared-configuration", default-features = false }
+polimec-traits = { path = "traits", default-features = false }
 
 # External support (with default disabled)
 substrate-fixed = { git = "https://github.com/encointer/substrate-fixed", default-features = false }
-# dip-support = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
-# kilt-support = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
-# kilt-dip-support = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
-# did = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
-# pallet-did-lookup = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
-# pallet-dip-provider = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
-# pallet-dip-consumer = { git = "https://github.com/KILTprotocol/kilt-node", default-features = false, branch = "aa/dip" }
-
 
 # External (without extra features and with default disabled if necessary)
 parity-scale-codec = { version = "3.3.0", default-features = false }

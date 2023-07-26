@@ -25,7 +25,9 @@ extern crate frame_benchmarking;
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{AsEnsureOriginWithArg, ConstU32, Currency, EitherOfDiverse, EqualPrivilegeOnly, Everything},
+	traits::{
+		AsEnsureOriginWithArg, ConstU32, Currency, EitherOfDiverse, EqualPrivilegeOnly, Everything, WithdrawReasons,
+	},
 	weights::{ConstantMultiplier, Weight},
 };
 use frame_system::{EnsureRoot, EnsureSigned};
@@ -47,14 +49,14 @@ use sp_runtime::{
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult,
 };
-pub use sp_runtime::{MultiAddress, Perbill, Permill};
+pub use sp_runtime::{FixedU128, MultiAddress, Perbill, Permill};
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 // XCM Imports
-use xcm_config::XcmConfig;
+pub use xcm_config::XcmConfig;
 use xcm_executor::XcmExecutor;
 mod xcm_config;
 pub use crate::xcm_config::*;
@@ -64,7 +66,7 @@ pub use crate::xcm_config::*;
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 // Polimec Shared Imports
-use pallet_funding::{BondType, Multiplier as FundingMultiplier};
+use pallet_funding::BondTypeOf;
 pub use pallet_parachain_staking;
 pub use shared_configuration::{
 	assets::*,
@@ -214,12 +216,12 @@ impl pallet_balances::Config for Runtime {
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type FreezeIdentifier = ();
-	type HoldIdentifier = ();
+	type HoldIdentifier = BondTypeOf<Runtime>;
 	type MaxFreezes = MaxReserves;
 	type MaxHolds = MaxLocks;
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
-	type ReserveIdentifier = BondType;
+	type ReserveIdentifier = BondTypeOf<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }
@@ -300,35 +302,6 @@ impl pallet_aura::Config for Runtime {
 }
 
 impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
-
-impl pallet_funding::Config for Runtime {
-	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
-	type Balance = Balance;
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
-	type BidId = u128;
-	type CandleAuctionDuration = CandleAuctionDuration;
-	type CommunityFundingDuration = CommunityFundingDuration;
-	type ContributionTokenCurrency = LocalAssets;
-	type ContributionVesting = ContributionVestingDuration;
-	type EnglishAuctionDuration = EnglishAuctionDuration;
-	type EvaluationDuration = EvaluationDuration;
-	type FundingCurrency = Balances;
-	type MaxContributionsPerUser = ConstU32<256>;
-	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
-	type MaximumBidsPerUser = ConstU32<256>;
-	type Multiplier = FundingMultiplier<Runtime>;
-	type NativeCurrency = Balances;
-	type PalletId = FundingPalletId;
-	type PreImageLimit = ConstU32<1024>;
-	type ProjectIdParameter = parity_scale_codec::Compact<u32>;
-	type ProjectIdentifier = u32;
-	type Randomness = Random;
-	type RemainderFundingDuration = RemainderFundingDuration;
-	type RuntimeEvent = RuntimeEvent;
-	type StringLimit = ConstU32<64>;
-	type WeightInfo = ();
-}
 
 impl pallet_treasury::Config for Runtime {
 	// TODO: Use the Council instead of Root!
@@ -514,17 +487,59 @@ impl pallet_assets::Config<StatemintAssetsInstance> for Runtime {
 	type WeightInfo = ();
 }
 
-impl pallet_vesting::Config for Runtime {
+impl pallet_funding::Config for Runtime {
+	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
+	type Balance = Balance;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
+	type CandleAuctionDuration = CandleAuctionDuration;
+	type CommunityFundingDuration = CommunityFundingDuration;
+	type ContributionTokenCurrency = LocalAssets;
+	type ContributionVesting = ContributionVestingDuration;
+	type EnglishAuctionDuration = EnglishAuctionDuration;
+	type EvaluationDuration = EvaluationDuration;
+	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
+	type FeeBrackets = FeeBrackets;
+	type FundingCurrency = StatemintAssets;
+	type ManualAcceptanceDuration = ManualAcceptanceDuration;
+	type MaxBidsPerUser = ConstU32<256>;
+	type MaxContributionsPerUser = ConstU32<256>;
+	type MaxEvaluationsPerUser = ();
+	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
+	type Multiplier = pallet_funding::types::Multiplier<Self>;
+	type NativeCurrency = Balances;
+	type PalletId = FundingPalletId;
+	type PreImageLimit = ConstU32<1024>;
+	type Price = FixedU128;
+	type PriceProvider = pallet_funding::types::ConstPriceProvider<AssetId, FixedU128, PriceMap>;
+	type ProjectIdentifier = u32;
+	type Randomness = Random;
+	type RemainderFundingDuration = RemainderFundingDuration;
+	type RuntimeEvent = RuntimeEvent;
+	type StorageItemId = u128;
+	type StringLimit = ConstU32<64>;
+	type SuccessToSettlementTime = SuccessToSettlementTime;
+	type Vesting = Vesting;
+	type WeightInfo = ();
+}
+
+parameter_types! {
+	pub const MinVestedTransfer: Balance = 1 * PLMC;
+	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
+		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
+}
+
+impl pallet_linear_release::Config for Runtime {
+	type Balance = Balance;
 	type BlockNumberToBalance = ConvertInto;
 	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;
+	type Reason = BondTypeOf<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
 	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
-	type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = ();
 
-	// `VestingInfo` encode length is 36bytes. 28 schedules gets encoded as 1009 bytes, which is the
-	// highest number of schedules that encodes less than 2^10.
-	const MAX_VESTING_SCHEDULES: u32 = 28;
+	const MAX_VESTING_SCHEDULES: u32 = 12;
 }
 
 impl pallet_parachain_staking::Config for Runtime {
@@ -572,7 +587,6 @@ construct_runtime!(
 		AssetTxPayment: pallet_asset_tx_payment::{Pallet, Storage, Event<T>} = 12,
 		LocalAssets: pallet_assets::<Instance1>::{Pallet, Storage, Event<T>} = 13,
 		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>} = 14,
-		Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 16,
 
 		// Collator support. the order of these 5 are important and shall not change.
 		Authorship: pallet_authorship::{Pallet, Storage} = 20,
@@ -591,6 +605,7 @@ construct_runtime!(
 
 		// Polimec Core
 		PolimecFunding: pallet_funding::{Pallet, Call, Storage, Event<T>}  = 52,
+		Vesting: pallet_linear_release::{Pallet, Call, Storage, Event<T>, Config<T>} = 53,
 
 		// Utilities
 		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 61,

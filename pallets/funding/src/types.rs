@@ -18,400 +18,546 @@
 
 //! Types for Funding pallet.
 
-use crate::{traits::BondingRequirementCalculation, BalanceOf};
+use crate::{
+	traits::{BondingRequirementCalculation, ProvideStatemintPrice},
+	BalanceOf,
+};
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
-use sp_arithmetic::traits::Saturating;
+use sp_arithmetic::{traits::Saturating, FixedPointNumber, FixedPointOperand};
 use sp_runtime::traits::CheckedDiv;
-use sp_std::cmp::Eq;
+use sp_std::{cmp::Eq, collections::btree_map::*, prelude::*};
 
-#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct ProjectMetadata<BoundedString, Balance: BalanceT, Hash> {
-	/// Token Metadata
-	pub token_information: CurrencyMetadata<BoundedString>,
-	/// Total allocation of Contribution Tokens available for the Funding Round
-	pub total_allocation_size: Balance,
-	/// Minimum price per Contribution Token
-	pub minimum_price: Balance,
-	/// Maximum and/or minimum ticket size
-	pub ticket_size: TicketSize<Balance>,
-	/// Maximum and/or minimum number of participants for the Auction and Community Round
-	pub participants_size: ParticipantsSize,
-	/// Funding round thresholds for Retail, Professional and Institutional participants
-	pub funding_thresholds: Thresholds,
-	/// Conversion rate of contribution token to mainnet token
-	pub conversion_rate: u32,
-	/// Participation currencies (e.g stablecoin, DOT, KSM)
-	/// e.g. https://github.com/paritytech/substrate/blob/427fd09bcb193c1e79dec85b1e207c718b686c35/frame/uniques/src/types.rs#L110
-	/// For now is easier to handle the case where only just one Currency is accepted
-	pub participation_currencies: Currencies,
-	/// Additional metadata
-	pub offchain_information_hash: Option<Hash>,
-}
+pub use config_types::*;
+pub use inner_types::*;
+pub use storage_types::*;
 
-#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct ProjectDetails<BlockNumber, Balance: BalanceT> {
-	/// Whether the project is frozen, so no `metadata` changes are allowed.
-	pub is_frozen: bool,
-	/// The price decided after the Auction Round
-	pub weighted_average_price: Option<Balance>,
-	/// The current status of the project
-	pub project_status: ProjectStatus,
-	/// When the different project phases start and end
-	pub phase_transition_points: PhaseTransitionPoints<BlockNumber>,
-	/// Fundraising target amount in USD equivalent
-	pub fundraising_target: Balance,
-	/// The amount of Contribution Tokens that have not yet been sold
-	pub remaining_contribution_tokens: Balance,
-}
+pub mod config_types {
+	use super::*;
 
-#[derive(Debug)]
-pub enum ValidityError {
-	PriceTooLow,
-	TicketSizeError,
-	ParticipantsSizeError,
-}
-
-impl<BoundedString, Balance: BalanceT, Hash> ProjectMetadata<BoundedString, Balance, Hash> {
-	// TODO: PLMC-162. Perform a REAL validity check
-	pub fn validity_check(&self) -> Result<(), ValidityError> {
-		if self.minimum_price == Balance::zero() {
-			return Err(ValidityError::PriceTooLow)
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
+	pub struct Multiplier<T: crate::Config>(pub T::Balance);
+	impl<T: crate::Config> BondingRequirementCalculation<T> for Multiplier<T> {
+		fn calculate_bonding_requirement(&self, ticket_size: BalanceOf<T>) -> Result<BalanceOf<T>, ()> {
+			ticket_size.checked_div(&self.0).ok_or(())
 		}
-		self.ticket_size.is_valid()?;
-		self.participants_size.is_valid()?;
-		Ok(())
+	}
+	impl<T: crate::Config> Default for Multiplier<T> {
+		fn default() -> Self {
+			Self(1u32.into())
+		}
+	}
+	impl<T: crate::Config> From<u32> for Multiplier<T> {
+		fn from(x: u32) -> Self {
+			Self(x.into())
+		}
+	}
+
+	/// Enum used to identify PLMC holds.
+	/// It implements Serialize and Deserialize (only in the "std" feature set) to hold a fungible in the Genesis Configuration.
+	#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo, Ord, PartialOrd)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	pub enum LockType<ProjectId> {
+		Evaluation(ProjectId),
+		Participation(ProjectId),
+	}
+
+	pub struct ConstPriceProvider<AssetId, Price, Mapping>(PhantomData<(AssetId, Price, Mapping)>);
+	impl<AssetId: Ord, Price: FixedPointNumber + Clone, Mapping: Get<BTreeMap<AssetId, Price>>> ProvideStatemintPrice
+		for ConstPriceProvider<AssetId, Price, Mapping>
+	{
+		type AssetId = AssetId;
+		type Price = Price;
+
+		fn get_price(asset_id: AssetId) -> Option<Price> {
+			Mapping::get().get(&asset_id).cloned()
+		}
 	}
 }
 
-#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct TicketSize<Balance: BalanceT> {
-	pub minimum: Option<Balance>,
-	pub maximum: Option<Balance>,
-}
+pub mod storage_types {
+	use super::*;
 
-impl<Balance: BalanceT> TicketSize<Balance> {
-	fn is_valid(&self) -> Result<(), ValidityError> {
-		if self.minimum.is_some() && self.maximum.is_some() {
-			if self.minimum < self.maximum {
-				return Ok(())
-			} else {
-				return Err(ValidityError::TicketSizeError)
+	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub struct ProjectMetadata<BoundedString, Balance: BalanceT, Price: FixedPointNumber, AccountId, Hash> {
+		/// Token Metadata
+		pub token_information: CurrencyMetadata<BoundedString>,
+		/// Mainnet Token Max Supply
+		pub mainnet_token_max_supply: Balance,
+		/// Total allocation of Contribution Tokens available for the Funding Round
+		pub total_allocation_size: Balance,
+		/// Minimum price per Contribution Token
+		pub minimum_price: Price,
+		/// Maximum and/or minimum ticket size
+		pub ticket_size: TicketSize<Balance>,
+		/// Maximum and/or minimum number of participants for the Auction and Community Round
+		pub participants_size: ParticipantsSize,
+		/// Funding round thresholds for Retail, Professional and Institutional participants
+		pub funding_thresholds: Thresholds,
+		/// Conversion rate of contribution token to mainnet token
+		pub conversion_rate: u32,
+		/// Participation currencies (e.g stablecoin, DOT, KSM)
+		/// e.g. https://github.com/paritytech/substrate/blob/427fd09bcb193c1e79dec85b1e207c718b686c35/frame/uniques/src/types.rs#L110
+		/// For now is easier to handle the case where only just one Currency is accepted
+		pub participation_currencies: AcceptedFundingAsset,
+		pub funding_destination_account: AccountId,
+		/// Additional metadata
+		pub offchain_information_hash: Option<Hash>,
+	}
+	impl<BoundedString, Balance: BalanceT, Price: FixedPointNumber, Hash, AccountId>
+		ProjectMetadata<BoundedString, Balance, Price, Hash, AccountId>
+	{
+		// TODO: PLMC-162. Perform a REAL validity check
+		pub fn validity_check(&self) -> Result<(), ValidityError> {
+			if self.minimum_price == Price::zero() {
+				return Err(ValidityError::PriceTooLow)
+			}
+			self.ticket_size.is_valid()?;
+			self.participants_size.is_valid()?;
+			Ok(())
+		}
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub struct ProjectDetails<AccountId, BlockNumber, Price: FixedPointNumber, Balance: BalanceT, EvaluationRoundInfo> {
+		pub issuer: AccountId,
+		/// Whether the project is frozen, so no `metadata` changes are allowed.
+		pub is_frozen: bool,
+		/// The price in USD per token decided after the Auction Round
+		pub weighted_average_price: Option<Price>,
+		/// The current status of the project
+		pub status: ProjectStatus,
+		/// When the different project phases start and end
+		pub phase_transition_points: PhaseTransitionPoints<BlockNumber>,
+		/// Fundraising target amount in USD equivalent
+		pub fundraising_target: Balance,
+		/// The amount of Contribution Tokens that have not yet been sold
+		pub remaining_contribution_tokens: Balance,
+		/// Funding reached amount in USD equivalent
+		pub funding_amount_reached: Balance,
+		/// Cleanup operations remaining
+		pub cleanup: ProjectCleanup,
+		/// Information about the total amount bonded, and the outcome in regards to reward/slash/nothing
+		pub evaluation_round_info: EvaluationRoundInfo,
+	}
+
+	/// Tells on_initialize what to do with the project
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum UpdateType {
+		EvaluationEnd,
+		EnglishAuctionStart,
+		CandleAuctionStart,
+		CommunityFundingStart,
+		RemainderFundingStart,
+		FundingEnd,
+		ProjectDecision(FundingOutcomeDecision),
+		StartSettlement(ProjectFinalizer),
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Ord, PartialOrd)]
+	pub struct EvaluationInfo<Id, ProjectId, AccountId, Balance, BlockNumber> {
+		pub id: Id,
+		pub project_id: ProjectId,
+		pub evaluator: AccountId,
+		pub original_plmc_bond: Balance,
+		// An evaluation bond can be converted to participation bond
+		pub current_plmc_bond: Balance,
+		pub early_usd_amount: Balance,
+		pub late_usd_amount: Balance,
+		pub when: BlockNumber,
+		pub rewarded_or_slashed: bool,
+	}
+
+	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub struct BidInfo<
+		Id,
+		ProjectId,
+		Balance: BalanceT,
+		Price: FixedPointNumber,
+		AccountId,
+		BlockNumber,
+		PlmcVesting,
+		CTVesting,
+		Multiplier,
+	> {
+		pub id: Id,
+		pub project_id: ProjectId,
+		pub bidder: AccountId,
+		pub status: BidStatus<Balance>,
+		#[codec(compact)]
+		pub original_ct_amount: Balance,
+		pub original_ct_usd_price: Price,
+		pub final_ct_amount: Balance,
+		pub final_ct_usd_price: Price,
+		pub funding_asset: AcceptedFundingAsset,
+		pub funding_asset_amount_locked: Balance,
+		pub multiplier: Multiplier,
+		pub plmc_bond: Balance,
+		// TODO: PLMC-159. Not used yet, but will be used to check if the bid is funded after XCM is implemented
+		pub funded: bool,
+		pub plmc_vesting_period: PlmcVesting,
+		pub ct_vesting_period: CTVesting,
+		pub when: BlockNumber,
+		pub funds_released: bool,
+	}
+
+	impl<
+			BidId: Eq,
+			ProjectId: Eq,
+			Balance: BalanceT + FixedPointOperand + Ord,
+			Price: FixedPointNumber,
+			AccountId: Eq,
+			BlockNumber: Eq + Ord,
+			PlmcVesting: Eq,
+			CTVesting: Eq,
+			Multiplier: Eq,
+		> Ord for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, PlmcVesting, CTVesting, Multiplier>
+	{
+		fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
+			match self.original_ct_usd_price.cmp(&other.original_ct_usd_price) {
+				sp_std::cmp::Ordering::Equal => Ord::cmp(&self.when, &other.when),
+				other => other,
 			}
 		}
-		if self.minimum.is_some() || self.maximum.is_some() {
-			return Ok(())
-		}
-
-		Err(ValidityError::TicketSizeError)
 	}
-}
 
-#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct ParticipantsSize {
-	pub minimum: Option<u32>,
-	pub maximum: Option<u32>,
-}
-
-impl ParticipantsSize {
-	fn is_valid(&self) -> Result<(), ValidityError> {
-		match (self.minimum, self.maximum) {
-			(Some(min), Some(max)) =>
-				if min < max && min > 0 && max > 0 {
-					Ok(())
-				} else {
-					Err(ValidityError::ParticipantsSizeError)
-				},
-			(Some(elem), None) | (None, Some(elem)) =>
-				if elem > 0 {
-					Ok(())
-				} else {
-					Err(ValidityError::ParticipantsSizeError)
-				},
-			(None, None) => Err(ValidityError::ParticipantsSizeError),
+	impl<
+			BidId: Eq,
+			ProjectId: Eq,
+			Balance: BalanceT + FixedPointOperand,
+			Price: FixedPointNumber,
+			AccountId: Eq,
+			BlockNumber: Eq + Ord,
+			PlmcVesting: Eq,
+			CTVesting: Eq,
+			Multiplier: Eq,
+		> PartialOrd for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, PlmcVesting, CTVesting, Multiplier>
+	{
+		fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
+			Some(self.cmp(other))
 		}
 	}
-}
 
-#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct Thresholds {
-	#[codec(compact)]
-	retail: u8,
-	#[codec(compact)]
-	professional: u8,
-	#[codec(compact)]
-	institutional: u8,
-}
-
-#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct CurrencyMetadata<BoundedString> {
-	/// The user friendly name of this asset. Limited in length by `StringLimit`.
-	pub name: BoundedString,
-	/// The ticker symbol for this asset. Limited in length by `StringLimit`.
-	pub symbol: BoundedString,
-	/// The number of decimals this asset uses to represent one unit.
-	pub decimals: u8,
-}
-
-#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct PhaseTransitionPoints<BlockNumber> {
-	pub application: BlockNumberPair<BlockNumber>,
-	pub evaluation: BlockNumberPair<BlockNumber>,
-	pub auction_initialize_period: BlockNumberPair<BlockNumber>,
-	pub english_auction: BlockNumberPair<BlockNumber>,
-	pub random_candle_ending: Option<BlockNumber>,
-	pub candle_auction: BlockNumberPair<BlockNumber>,
-	pub community: BlockNumberPair<BlockNumber>,
-	pub remainder: BlockNumberPair<BlockNumber>,
-}
-
-#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct BlockNumberPair<BlockNumber> {
-	start: Option<BlockNumber>,
-	end: Option<BlockNumber>,
-}
-
-impl<BlockNumber: Copy> BlockNumberPair<BlockNumber> {
-	pub fn new(start: Option<BlockNumber>, end: Option<BlockNumber>) -> Self {
-		Self { start, end }
-	}
-
-	pub fn start(&self) -> Option<BlockNumber> {
-		self.start
-	}
-
-	pub fn end(&self) -> Option<BlockNumber> {
-		self.end
-	}
-
-	pub fn update(&mut self, start: Option<BlockNumber>, end: Option<BlockNumber>) {
-		let new_state = match (start, end) {
-			(Some(start), None) => (Some(start), self.end),
-			(None, Some(end)) => (self.start, Some(end)),
-			(Some(start), Some(end)) => (Some(start), Some(end)),
-			(None, None) => (self.start, self.end),
-		};
-		(self.start, self.end) = (new_state.0, new_state.1);
-	}
-
-	pub fn force_update(&mut self, start: Option<BlockNumber>, end: Option<BlockNumber>) -> Self {
-		Self { start, end }
+	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub struct ContributionInfo<Id, ProjectId, AccountId, Balance, PLMCVesting, CTVesting> {
+		pub id: Id,
+		pub project_id: ProjectId,
+		pub contributor: AccountId,
+		pub ct_amount: Balance,
+		pub usd_contribution_amount: Balance,
+		pub funding_asset: AcceptedFundingAsset,
+		pub funding_asset_amount: Balance,
+		pub plmc_bond: Balance,
+		pub plmc_vesting_period: PLMCVesting,
+		pub ct_vesting_period: CTVesting,
+		pub funds_released: bool,
 	}
 }
 
-#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct BidInfo<BidId, ProjectId, Balance: BalanceT, AccountId, BlockNumber, PlmcVesting, CTVesting> {
-	pub bid_id: BidId,
-	pub project: ProjectId,
-	#[codec(compact)]
-	pub amount: Balance,
-	#[codec(compact)]
-	pub price: Balance,
-	#[codec(compact)]
-	pub ticket_size: Balance,
-	// Removed due to only being used in the price calculation, and it's not really needed there
-	// pub ratio: Option<Perbill>,
-	pub when: BlockNumber,
-	pub bidder: AccountId,
-	// TODO: PLMC-159. Not used yet, but will be used to check if the bid is funded after XCM is implemented
-	pub funded: bool,
-	pub plmc_vesting_period: PlmcVesting,
-	pub ct_vesting_period: CTVesting,
-	pub status: BidStatus<Balance>,
-}
+pub mod inner_types {
+	use super::*;
 
-impl<BidId, ProjectId, Balance: BalanceT, AccountId, BlockNumber, PlmcVesting, CTVesting>
-	BidInfo<BidId, ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
-{
-	pub fn new(
-		bid_id: BidId,
-		project: ProjectId,
-		amount: Balance,
-		price: Balance,
-		when: BlockNumber,
-		bidder: AccountId,
-		plmc_vesting_period: PlmcVesting,
-		ct_vesting_period: CTVesting,
-	) -> Self {
-		let ticket_size = amount.saturating_mul(price);
-		Self {
-			bid_id,
-			project,
-			amount,
-			price,
-			ticket_size,
-			// ratio: None,
-			when,
-			bidder,
-			funded: false,
-			plmc_vesting_period,
-			ct_vesting_period,
-			status: BidStatus::YetUnknown,
+	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub struct CurrencyMetadata<BoundedString> {
+		/// The user friendly name of this asset. Limited in length by `StringLimit`.
+		pub name: BoundedString,
+		/// The ticker symbol for this asset. Limited in length by `StringLimit`.
+		pub symbol: BoundedString,
+		/// The number of decimals this asset uses to represent one unit.
+		pub decimals: u8,
+	}
+
+	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub struct TicketSize<Balance: BalanceT> {
+		pub minimum: Option<Balance>,
+		pub maximum: Option<Balance>,
+	}
+	impl<Balance: BalanceT> TicketSize<Balance> {
+		pub(crate) fn is_valid(&self) -> Result<(), ValidityError> {
+			if self.minimum.is_some() && self.maximum.is_some() {
+				return if self.minimum < self.maximum { Ok(()) } else { Err(ValidityError::TicketSizeError) }
+			}
+			if self.minimum.is_some() || self.maximum.is_some() {
+				return Ok(())
+			}
+
+			Err(ValidityError::TicketSizeError)
 		}
 	}
-}
 
-impl<BidId: Eq, ProjectId: Eq, Balance: BalanceT, AccountId: Eq, BlockNumber: Eq, PlmcVesting: Eq, CTVesting: Eq>
-	sp_std::cmp::Ord for BidInfo<BidId, ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
-{
-	fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
-		self.price.cmp(&other.price)
+	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub struct ParticipantsSize {
+		pub minimum: Option<u32>,
+		pub maximum: Option<u32>,
 	}
-}
-
-impl<BidId: Eq, ProjectId: Eq, Balance: BalanceT, AccountId: Eq, BlockNumber: Eq, PlmcVesting: Eq, CTVesting: Eq>
-	sp_std::cmp::PartialOrd for BidInfo<BidId, ProjectId, Balance, AccountId, BlockNumber, PlmcVesting, CTVesting>
-{
-	fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
-		Some(self.cmp(other))
-	}
-}
-
-#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct ContributionInfo<Balance, PLMCVesting, CTVesting> {
-	// Tokens you paid in exchange for CTs
-	pub contribution_amount: Balance,
-	pub plmc_vesting: PLMCVesting,
-	pub ct_vesting: CTVesting,
-}
-
-// TODO: PLMC-157. Use SCALE fixed indexes
-#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub enum Currencies {
-	DOT,
-	KSM,
-	#[default]
-	USDC,
-	USDT,
-}
-
-#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub enum ProjectStatus {
-	#[default]
-	Application,
-	EvaluationRound,
-	AuctionInitializePeriod,
-	EvaluationFailed,
-	AuctionRound(AuctionPhase),
-	CommunityRound,
-	RemainderRound,
-	FundingEnded,
-	ReadyToLaunch,
-}
-
-#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub enum AuctionPhase {
-	#[default]
-	English,
-	Candle,
-}
-
-#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub enum BidStatus<Balance: BalanceT> {
-	/// The bid is not yet accepted or rejected
-	#[default]
-	YetUnknown,
-	/// The bid is accepted
-	Accepted,
-	/// The bid is rejected, and the reason is provided
-	Rejected(RejectionReason),
-	/// The bid is partially accepted. The amount accepted and reason for rejection are provided
-	PartiallyAccepted(Balance, RejectionReason),
-}
-
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub enum RejectionReason {
-	/// The bid was submitted after the candle auction ended
-	AfterCandleEnd,
-	/// The bid was accepted but too many tokens were requested. A partial amount was accepted
-	NoTokensLeft,
-}
-
-/// Enum used to identify PLMC named reserves
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
-pub enum BondType {
-	Evaluation,
-	Bidding,
-	Contributing,
-	LongTermHolderBonus,
-	Staking,
-	Governance,
-}
-
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct EvaluationBond<ProjectId, AccountId, Balance, BlockNumber> {
-	pub project: ProjectId,
-	pub account: AccountId,
-	pub amount: Balance,
-	pub when: BlockNumber,
-}
-
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct BiddingBond<ProjectId, AccountId, Balance, BlockNumber> {
-	pub project: ProjectId,
-	pub account: AccountId,
-	pub amount: Balance,
-	pub when: BlockNumber,
-}
-
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct ContributingBond<ProjectId, AccountId, Balance> {
-	pub project: ProjectId,
-	pub account: AccountId,
-	pub amount: Balance,
-}
-
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct Vesting<BlockNumber: Copy, Balance> {
-	// Amount of tokens vested
-	pub amount: Balance,
-	// number of blocks after project ends, when vesting starts
-	pub start: BlockNumber,
-	// number of blocks after project ends, when vesting ends
-	pub end: BlockNumber,
-	// number of blocks between each withdrawal
-	pub step: BlockNumber,
-	// absolute block number of next block where withdrawal is possible
-	pub next_withdrawal: BlockNumber,
-}
-
-impl<
-		BlockNumber: Saturating + Copy + CheckedDiv,
-		Balance: Saturating + CheckedDiv + Copy + From<u32> + Eq + sp_std::ops::SubAssign,
-	> Vesting<BlockNumber, Balance>
-{
-	pub fn calculate_next_withdrawal(&mut self) -> Result<Balance, ()> {
-		if self.amount == 0u32.into() {
-			Err(())
-		} else {
-			let next_withdrawal = self.next_withdrawal.saturating_add(self.step);
-			let withdraw_amount = self.amount;
-			self.next_withdrawal = next_withdrawal;
-			self.amount -= withdraw_amount;
-			Ok(withdraw_amount)
+	impl ParticipantsSize {
+		pub(crate) fn is_valid(&self) -> Result<(), ValidityError> {
+			match (self.minimum, self.maximum) {
+				(Some(min), Some(max)) =>
+					if min < max && min > 0 && max > 0 {
+						Ok(())
+					} else {
+						Err(ValidityError::ParticipantsSizeError)
+					},
+				(Some(elem), None) | (None, Some(elem)) =>
+					if elem > 0 {
+						Ok(())
+					} else {
+						Err(ValidityError::ParticipantsSizeError)
+					},
+				(None, None) => Err(ValidityError::ParticipantsSizeError),
+			}
 		}
 	}
-}
 
-/// Tells on_initialize what to do with the project
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
-pub enum UpdateType {
-	EvaluationEnd,
-	EnglishAuctionStart,
-	CandleAuctionStart,
-	CommunityFundingStart,
-	RemainderFundingStart,
-	FundingEnd,
-}
-
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
-pub struct Multiplier<T: crate::Config>(pub T::Balance);
-impl<T: crate::Config> BondingRequirementCalculation<T> for Multiplier<T> {
-	fn calculate_bonding_requirement(&self, ticket_size: BalanceOf<T>) -> Result<BalanceOf<T>, ()> {
-		ticket_size.checked_div(&self.0).ok_or(())
+	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub struct Thresholds {
+		#[codec(compact)]
+		retail: u8,
+		#[codec(compact)]
+		professional: u8,
+		#[codec(compact)]
+		institutional: u8,
 	}
-}
-impl<T: crate::Config> Default for Multiplier<T> {
-	fn default() -> Self {
-		Self(1u32.into())
+
+	// TODO: PLMC-157. Use SCALE fixed indexes
+	#[derive(Default, Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum AcceptedFundingAsset {
+		#[default]
+		USDT,
+		USDC,
+		DOT,
+	}
+	impl AcceptedFundingAsset {
+		pub fn to_statemint_id(&self) -> u32 {
+			match self {
+				AcceptedFundingAsset::USDT => 1984,
+				AcceptedFundingAsset::DOT => 0,
+				AcceptedFundingAsset::USDC => 420,
+			}
+		}
+	}
+
+	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum ProjectStatus {
+		#[default]
+		Application,
+		EvaluationRound,
+		EvaluationFailed,
+		AuctionInitializePeriod,
+		AuctionRound(AuctionPhase),
+		CommunityRound,
+		RemainderRound,
+		FundingFailed,
+		AwaitingProjectDecision,
+		FundingSuccessful,
+		ReadyToLaunch,
+	}
+
+	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum AuctionPhase {
+		#[default]
+		English,
+		Candle,
+	}
+
+	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub struct PhaseTransitionPoints<BlockNumber> {
+		pub application: BlockNumberPair<BlockNumber>,
+		pub evaluation: BlockNumberPair<BlockNumber>,
+		pub auction_initialize_period: BlockNumberPair<BlockNumber>,
+		pub english_auction: BlockNumberPair<BlockNumber>,
+		pub random_candle_ending: Option<BlockNumber>,
+		pub candle_auction: BlockNumberPair<BlockNumber>,
+		pub community: BlockNumberPair<BlockNumber>,
+		pub remainder: BlockNumberPair<BlockNumber>,
+	}
+
+	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub struct BlockNumberPair<BlockNumber> {
+		pub start: Option<BlockNumber>,
+		pub end: Option<BlockNumber>,
+	}
+
+	impl<BlockNumber: Copy> BlockNumberPair<BlockNumber> {
+		pub fn new(start: Option<BlockNumber>, end: Option<BlockNumber>) -> Self {
+			Self { start, end }
+		}
+
+		pub fn start(&self) -> Option<BlockNumber> {
+			self.start
+		}
+
+		pub fn end(&self) -> Option<BlockNumber> {
+			self.end
+		}
+
+		pub fn update(&mut self, start: Option<BlockNumber>, end: Option<BlockNumber>) {
+			let new_state = match (start, end) {
+				(Some(start), None) => (Some(start), self.end),
+				(None, Some(end)) => (self.start, Some(end)),
+				(Some(start), Some(end)) => (Some(start), Some(end)),
+				(None, None) => (self.start, self.end),
+			};
+			(self.start, self.end) = (new_state.0, new_state.1);
+		}
+
+		pub fn force_update(&mut self, start: Option<BlockNumber>, end: Option<BlockNumber>) -> Self {
+			Self { start, end }
+		}
+	}
+
+	#[derive(Debug)]
+	pub enum ValidityError {
+		PriceTooLow,
+		TicketSizeError,
+		ParticipantsSizeError,
+	}
+
+	#[derive(Default, Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum BidStatus<Balance: BalanceT> {
+		/// The bid is not yet accepted or rejected
+		#[default]
+		YetUnknown,
+		/// The bid is accepted
+		Accepted,
+		/// The bid is rejected, and the reason is provided
+		Rejected(RejectionReason),
+		/// The bid is partially accepted. The amount accepted and reason for rejection are provided
+		PartiallyAccepted(Balance, RejectionReason),
+	}
+
+	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum RejectionReason {
+		/// The bid was submitted after the candle auction ended
+		AfterCandleEnd,
+		/// The bid was accepted but too many tokens were requested. A partial amount was accepted
+		NoTokensLeft,
+		/// Error in calculating ticket_size for partially funded request
+		BadMath,
+	}
+
+	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub struct Vesting<BlockNumber, Balance> {
+		// Amount of tokens vested
+		pub amount: Balance,
+		// number of blocks after project ends, when vesting starts
+		pub start: BlockNumber,
+		// number of blocks after project ends, when vesting ends
+		pub end: BlockNumber,
+		// number of blocks between each withdrawal
+		pub step: BlockNumber,
+		// absolute block number of next block where withdrawal is possible
+		pub next_withdrawal: BlockNumber,
+	}
+
+	impl<
+			BlockNumber: Saturating + Copy + CheckedDiv,
+			Balance: Saturating + CheckedDiv + Copy + From<u32> + Eq + sp_std::ops::SubAssign,
+		> Vesting<BlockNumber, Balance>
+	{
+		pub fn calculate_next_withdrawal(&mut self) -> Result<Balance, ()> {
+			if self.amount == 0u32.into() {
+				Err(())
+			} else {
+				let next_withdrawal = self.next_withdrawal.saturating_add(self.step);
+				let withdraw_amount = self.amount;
+				self.next_withdrawal = next_withdrawal;
+				self.amount -= withdraw_amount;
+				Ok(withdraw_amount)
+			}
+		}
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum FundingOutcome {
+		Success(SuccessReason),
+		Failure(FailureReason),
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum SuccessReason {
+		SoldOut,
+		ReachedTarget,
+		ProjectDecision,
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum FailureReason {
+		EvaluationFailed,
+		AuctionFailed,
+		TargetNotReached,
+		ProjectDecision,
+		Unknown,
+	}
+
+	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum ProjectCleanup {
+		#[default]
+		NotReady,
+		Ready(ProjectFinalizer),
+		Finished,
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum ProjectFinalizer {
+		Success(SuccessFinalizer),
+		Failure(FailureFinalizer),
+		None,
+	}
+
+	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum SuccessFinalizer {
+		#[default]
+		Initialized,
+		EvaluationRewardOrSlash(u64),
+		EvaluationUnbonding(u64),
+		BidPLMCVesting(u64),
+		BidCTMint(u64),
+		ContributionPLMCVesting(u64),
+		ContributionCTMint(u64),
+		BidFundingPayout(u64),
+		ContributionFundingPayout(u64),
+		Finished,
+	}
+
+	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum FailureFinalizer {
+		#[default]
+		Initialized,
+		EvaluationRewardOrSlash(u64),
+		EvaluationUnbonding(u64),
+		BidFundingRelease(u64),
+		BidUnbonding(u64),
+		ContributionFundingRelease(u64),
+		ContributionUnbonding(u64),
+		Finished,
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub struct EvaluationRoundInfo<AccountId, Balance> {
+		pub total_bonded_usd: Balance,
+		pub total_bonded_plmc: Balance,
+		pub evaluators_outcome: EvaluatorsOutcome<AccountId, Balance>,
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum EvaluatorsOutcome<AccountId, Balance> {
+		Unchanged,
+		Rewarded(RewardInfo<Balance>),
+		Slashed(Vec<(AccountId, Balance)>),
+	}
+
+	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub struct RewardInfo<Balance> {
+		pub early_evaluator_reward_pot_usd: Balance,
+		pub normal_evaluator_reward_pot_usd: Balance,
+		pub early_evaluator_total_bonded_usd: Balance,
+		pub normal_evaluator_total_bonded_usd: Balance,
+	}
+
+	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum FundingOutcomeDecision {
+		AcceptFunding,
+		RejectFunding,
 	}
 }

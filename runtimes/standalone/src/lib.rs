@@ -39,7 +39,7 @@ use frame_support::traits::AsEnsureOriginWithArg;
 use frame_system::EnsureSigned;
 pub use frame_system::{Call as SystemCall, EnsureRoot};
 pub use pallet_balances::Call as BalancesCall;
-use pallet_funding::{BondType, Multiplier as FundingMultiplier};
+use pallet_funding::BondTypeOf;
 use pallet_grandpa::AuthorityId as GrandpaId;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{ConstFeeMultiplier, CurrencyAdapter, Multiplier};
@@ -54,10 +54,10 @@ use sp_runtime::{
 		AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, IdentifyAccount, NumberFor, One, OpaqueKeys, Verify,
 	},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, MultiSignature,
+	ApplyExtrinsicResult, FixedU128, MultiSignature, Percent,
 };
 pub use sp_runtime::{Perbill, Permill};
-use sp_std::prelude::*;
+use sp_std::{collections::btree_map::BTreeMap, prelude::*};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
@@ -280,12 +280,12 @@ impl pallet_balances::Config for Runtime {
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type FreezeIdentifier = ();
-	type HoldIdentifier = ();
+	type HoldIdentifier = BondTypeOf<Runtime>;
 	type MaxFreezes = MaxReserves;
 	type MaxHolds = MaxLocks;
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
-	type ReserveIdentifier = BondType;
+	type ReserveIdentifier = BondTypeOf<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }
@@ -340,6 +340,18 @@ parameter_types! {
 	pub const RemainderFundingDuration: BlockNumber = 10;
 	pub const ContributionVestingDuration: BlockNumber = 100;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
+	pub PriceMap: BTreeMap<u32, FixedU128> = BTreeMap::from_iter(vec![
+		(0u32, FixedU128::from_rational(69, 1)), // DOT
+		(420u32, FixedU128::from_rational(97, 100)), // USDC
+		(1984u32, FixedU128::from_rational(95, 100)), // USDT
+		(2069u32, FixedU128::from_rational(840, 100)), // PLMC
+	]);
+	pub FeeBrackets: Vec<(Percent, Balance)> = vec![
+		(Percent::from_percent(10), 1_000_000 * US_DOLLAR),
+		(Percent::from_percent(8), 5_000_000 * US_DOLLAR),
+		(Percent::from_percent(6), u128::MAX), // Making it max signifies the last bracket
+	];
+	pub EarlyEvaluationThreshold: Percent = Percent::from_percent(10);
 }
 
 impl pallet_funding::Config for Runtime {
@@ -347,28 +359,48 @@ impl pallet_funding::Config for Runtime {
 	type Balance = Balance;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
-	type BidId = u128;
 	type CandleAuctionDuration = CandleAuctionDuration;
-	type CommunityFundingDuration = CommunityRoundDuration;
+	type CommunityFundingDuration = CommunityFundingDuration;
 	type ContributionTokenCurrency = Assets;
 	type ContributionVesting = ContributionVestingDuration;
 	type EnglishAuctionDuration = EnglishAuctionDuration;
 	type EvaluationDuration = EvaluationDuration;
-	type FundingCurrency = Balances;
-	type MaxContributionsPerUser = ConstU32<64>;
+	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
+	type FeeBrackets = FeeBrackets;
+	type FundingCurrency = Assets;
+	type ManualAcceptanceDuration = ManualAcceptanceDuration;
+	type MaxBidsPerUser = ConstU32<256>;
+	type MaxContributionsPerUser = ConstU32<256>;
+	type MaxEvaluationsPerUser = ();
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
-	type MaximumBidsPerUser = ConstU32<256>;
-	type Multiplier = FundingMultiplier<Runtime>;
+	type Multiplier = pallet_funding::types::Multiplier<Self>;
 	type NativeCurrency = Balances;
 	type PalletId = FundingPalletId;
 	type PreImageLimit = ConstU32<1024>;
-	type ProjectIdParameter = parity_scale_codec::Compact<u32>;
+	type Price = FixedU128;
+	type PriceProvider = pallet_funding::types::ConstPriceProvider<u32, FixedU128, PriceMap>;
 	type ProjectIdentifier = u32;
 	type Randomness = Random;
 	type RemainderFundingDuration = RemainderFundingDuration;
 	type RuntimeEvent = RuntimeEvent;
+	type StorageItemId = u128;
 	type StringLimit = ConstU32<64>;
+	type SuccessToSettlementTime = SuccessToSettlementTime;
+	type Vesting = Release;
 	type WeightInfo = ();
+}
+
+impl pallet_linear_release::Config for Runtime {
+	type Balance = Balance;
+	type BlockNumberToBalance = ConvertInto;
+	type Currency = Balances;
+	type MinVestedTransfer = MinVestedTransfer;
+	type Reason = BondTypeOf<Runtime>;
+	type RuntimeEvent = RuntimeEvent;
+	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
+	type WeightInfo = ();
+
+	const MAX_VESTING_SCHEDULES: u32 = 12;
 }
 
 impl pallet_scheduler::Config for Runtime {
@@ -590,6 +622,7 @@ construct_runtime!(
 
 		// Include the custom logic
 		PolimecFunding: pallet_funding,
+		Release: pallet_linear_release,
 	}
 );
 

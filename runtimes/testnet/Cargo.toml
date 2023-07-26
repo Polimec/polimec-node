@@ -14,9 +14,7 @@ version.workspace = true
 substrate-wasm-builder.workspace = true
 
 [dependencies]
-parity-scale-codec = {  workspace = true, features = [
-	"derive",
-] }
+parity-scale-codec = { workspace = true, features = ["derive"] }
 log = { workspace = true }
 scale-info = { workspace = true, features = ["derive"] }
 hex-literal = { workspace = true, optional = true }
@@ -25,6 +23,7 @@ smallvec.workspace = true
 
 # Polimec specific
 pallet-funding.workspace = true
+pallet-linear-release.workspace = true
 shared-configuration.workspace = true
 
 # FRAME
@@ -138,6 +137,7 @@ std = [
 	"pallet-vesting/std",
 	"pallet-preimage/std",
 	"pallet-insecure-randomness-collective-flip/std",
+	"pallet-linear-release/std",
 	"parachains-common/std",
 	"parachain-info/std",
 	"polkadot-parachain/std",
@@ -158,7 +158,7 @@ std = [
 	"xcm-executor/std",
 	"xcm/std",
 	"shared-configuration/std",
-	"pallet-parachain-staking/std"
+	"pallet-parachain-staking/std",
 ]
 
 runtime-benchmarks = [
