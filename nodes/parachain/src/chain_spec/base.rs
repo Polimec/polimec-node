@@ -115,8 +115,7 @@ pub fn get_polkadot_base_chain_spec() -> Result<ChainSpec, String> {
 	let properties = get_properties("PLMC", 10, 41);
 	let wasm = base_runtime::WASM_BINARY.ok_or("No WASM")?;
 
-	// TODO: Update this after reserving a ParaId
-	let id: u32 = 3155;
+	let id: u32 = 3344;
 
 	const PLMC_SUDO_ACC: [u8; 32] =
 		hex_literal::hex!["d4192a54c9caa4a38eeb3199232ed0d8568b22956cafb76c7d5a1afbf4e2dc38"];

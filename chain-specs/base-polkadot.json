@@ -1,5 +1,5 @@
 {
-  "name": "Polimec",
+  "name": "Polimec Polkadot",
   "id": "polimec-base",
   "chainType": "Live",
   "bootNodes": [],
@@ -11,7 +11,7 @@
     "tokenSymbol": "PLMC"
   },
   "relay_chain": "polkadot",
-  "para_id": 3155,
+  "para_id": 3344,
   "codeSubstitutes": {},
   "genesis": {
     "runtime": {
@@ -20,7 +20,7 @@
       },
       "parachainSystem": null,
       "parachainInfo": {
-        "parachainId": 3155
+        "parachainId": 3344
       },
       "sudo": {
         "key": "5GroV3jyMXauhB5K1csDbXCocKwgTC1PgvWqauSfUWRCb2Qv"

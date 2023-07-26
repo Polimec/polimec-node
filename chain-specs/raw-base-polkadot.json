@@ -1,5 +1,5 @@
 {
-  "name": "Polimec",
+  "name": "Polimec Polkadot",
   "id": "polimec-base",
   "chainType": "Live",
   "bootNodes": [],
@@ -11,12 +11,12 @@
     "tokenSymbol": "PLMC"
   },
   "relay_chain": "polkadot",
-  "para_id": 3155,
+  "para_id": 3344,
   "codeSubstitutes": {},
   "genesis": {
     "raw": {
       "top": {
-        "0x0d715f2646c8f85767b5d2764bb2782604a74d81251e398fd8a0a4d55023bb3f": "0x530c0000",
+        "0x0d715f2646c8f85767b5d2764bb2782604a74d81251e398fd8a0a4d55023bb3f": "0x100d0000",
         "0x0d715f2646c8f85767b5d2764bb278264e7b9012096b41c4eb3aaf947f6ea429": "0x0000",
         "0x26aa394eea5630e07c48ae0c9558cef74e7b9012096b41c4eb3aaf947f6ea429": "0x0000",
         "0x26aa394eea5630e07c48ae0c9558cef75684a022a34dd8bfa2baaf44f172b710": "0x01",
