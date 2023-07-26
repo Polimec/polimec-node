@@ -20,7 +20,7 @@ chain = "rococo-local"
 
 [[parachains]]
 id = 2000
-chain = "base-rococo-local"
+chain = "base-polkadot"
 
 	[[parachains.collators]]
 	name = "collator1"

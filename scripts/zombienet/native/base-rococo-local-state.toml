@@ -12,11 +12,21 @@ chain = "rococo-local"
 	[[relaychain.nodes]]
 	name = "bob"
 
+	[[relaychain.nodes]]
+	name = "charlie"
+
+	[[relaychain.nodes]]
+	name = "dave"
+
 [[parachains]]
 id = 2000
-genesis_state_path = "./scripts/zombienet/native/genesis/base-state-rococo-local"
-genesis_wasm_path = "./scripts/zombienet/native/genesis/base-wasm-rococo-local"
+genesis_state_path = "./scripts/zombienet/native/genesis/para-2000-state"
+genesis_wasm_path = "./scripts/zombienet/native/genesis/para-2000-wasm"
 
 	[[parachains.collators]]
-	name = "polimec-collator"
+	name = "polimec-collator-1"
+	command = "polimec-parachain-node"
+
+	[[parachains.collators]]
+	name = "polimec-collator-2"
 	command = "polimec-parachain-node"
