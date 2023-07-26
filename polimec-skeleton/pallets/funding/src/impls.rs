@@ -1,210 +1,223 @@
 use crate::{traits::DoRemainingOperation, *};
 use frame_support::{traits::Get, weights::Weight};
 use sp_runtime::{traits::AccountIdConversion, DispatchError};
-use sp_std::prelude::*;
+use sp_std::{marker::PhantomData, prelude::*};
 
-impl DoRemainingOperation for ProjectFinalizer {
-	fn is_done(&self) -> bool {
-		matches!(self, ProjectFinalizer::None)
+impl Cleaner {
+	pub fn has_remaining_operations(&self) -> bool {
+		match self {
+			Cleaner::NotReady => false,
+			Cleaner::Success(state) => state.has_remaining_operations(),
+			Cleaner::Failure(state) => state.has_remaining_operations(),
+		}
 	}
 
-	fn do_one_operation<T: crate::Config>(
-		&mut self,
-		project_id: T::ProjectIdentifier,
-	) -> Result<Weight, DispatchError> {
+	pub fn do_one_operation<T: Config>(&mut self, project_id: T::ProjectIdentifier) -> Result<Weight, DispatchError> {
 		match self {
-			ProjectFinalizer::None => Err(Error::<T>::NoFinalizerSet.into()),
-			ProjectFinalizer::Success(ops) => {
-				let weight = ops.do_one_operation::<T>(project_id)?;
-				if ops.is_done() {
-					*self = ProjectFinalizer::None;
-				}
-				Ok(weight)
-			},
-			ProjectFinalizer::Failure(ops) => {
-				let weight = ops.do_one_operation::<T>(project_id)?;
-				if ops.is_done() {
-					*self = ProjectFinalizer::None;
-				}
-				Ok(weight)
-			},
+			Cleaner::NotReady => Err(DispatchError::Other("Cleaner not ready")),
+			Cleaner::Success(state) => state.do_one_operation::<T>(project_id),
+			Cleaner::Failure(state) => state.do_one_operation::<T>(project_id),
 		}
 	}
 }
 
-impl DoRemainingOperation for SuccessFinalizer {
-	fn is_done(&self) -> bool {
-		matches!(self, SuccessFinalizer::Finished)
+impl DoRemainingOperation for CleanerState<Success> {
+	fn has_remaining_operations(&self) -> bool {
+		!matches!(self, CleanerState::Finished(_))
 	}
 
 	fn do_one_operation<T: Config>(&mut self, project_id: T::ProjectIdentifier) -> Result<Weight, DispatchError> {
 		match self {
-			SuccessFinalizer::Initialized => {
-				*self =
-					SuccessFinalizer::EvaluationRewardOrSlash(remaining_evaluators_to_reward_or_slash::<T>(project_id));
+			CleanerState::Initialized(PhantomData) => {
+				*self = Self::EvaluationRewardOrSlash(
+					remaining_evaluators_to_reward_or_slash::<T>(project_id),
+					PhantomData,
+				);
 				Ok(Weight::zero())
 			},
-			SuccessFinalizer::EvaluationRewardOrSlash(remaining) =>
+			CleanerState::EvaluationRewardOrSlash(remaining, PhantomData) =>
 				if *remaining == 0 {
-					*self = SuccessFinalizer::EvaluationUnbonding(remaining_evaluations::<T>(project_id));
+					*self = Self::EvaluationUnbonding(remaining_evaluations::<T>(project_id), PhantomData);
 					Ok(Weight::zero())
 				} else {
 					let (consumed_weight, remaining_evaluations) = reward_or_slash_one_evaluation::<T>(project_id)?;
-					*self = SuccessFinalizer::EvaluationRewardOrSlash(remaining_evaluations);
+					*self = CleanerState::EvaluationRewardOrSlash(remaining_evaluations, PhantomData);
 					Ok(consumed_weight)
 				},
-			SuccessFinalizer::EvaluationUnbonding(remaining) =>
+			CleanerState::EvaluationUnbonding(remaining, PhantomData) =>
 				if *remaining == 0 {
-					*self = SuccessFinalizer::BidPLMCVesting(remaining_bids_without_plmc_vesting::<T>(project_id));
+					*self =
+						CleanerState::BidPLMCVesting(remaining_bids_without_plmc_vesting::<T>(project_id), PhantomData);
 					Ok(Weight::zero())
 				} else {
 					let (consumed_weight, remaining_evaluations) = unbond_one_evaluation::<T>(project_id);
-					*self = SuccessFinalizer::EvaluationUnbonding(remaining_evaluations);
+					*self = CleanerState::EvaluationUnbonding(remaining_evaluations, PhantomData);
 					Ok(consumed_weight)
 				},
-			SuccessFinalizer::BidPLMCVesting(remaining) =>
+			CleanerState::BidPLMCVesting(remaining, PhantomData) =>
 				if *remaining == 0 {
-					*self = SuccessFinalizer::BidCTMint(remaining_bids_without_ct_minted::<T>(project_id));
+					*self = CleanerState::BidCTMint(remaining_bids_without_ct_minted::<T>(project_id), PhantomData);
 					Ok(Weight::zero())
 				} else {
 					let (consumed_weight, remaining_bids) = start_bid_plmc_vesting_schedule::<T>(project_id);
-					*self = SuccessFinalizer::BidPLMCVesting(remaining_bids);
+					*self = CleanerState::BidPLMCVesting(remaining_bids, PhantomData);
 					Ok(consumed_weight)
 				},
-			SuccessFinalizer::BidCTMint(remaining) =>
+			CleanerState::BidCTMint(remaining, PhantomData) =>
 				if *remaining == 0 {
-					*self = SuccessFinalizer::ContributionPLMCVesting(
+					*self = CleanerState::ContributionPLMCVesting(
 						remaining_contributions_without_plmc_vesting::<T>(project_id),
+						PhantomData,
 					);
 					Ok(Weight::zero())
 				} else {
 					let (consumed_weight, remaining_bids) = mint_ct_for_one_bid::<T>(project_id);
-					*self = SuccessFinalizer::BidCTMint(remaining_bids);
+					*self = CleanerState::BidCTMint(remaining_bids, PhantomData);
 					Ok(consumed_weight)
 				},
-			SuccessFinalizer::ContributionPLMCVesting(remaining) =>
+			CleanerState::ContributionPLMCVesting(remaining, PhantomData) =>
 				if *remaining == 0 {
-					*self = SuccessFinalizer::ContributionCTMint(remaining_contributions_without_ct_minted::<T>(
-						project_id,
-					));
+					*self = CleanerState::ContributionCTMint(
+						remaining_contributions_without_ct_minted::<T>(project_id),
+						PhantomData,
+					);
 					Ok(Weight::zero())
 				} else {
 					let (consumed_weight, remaining_contributions) =
 						start_contribution_plmc_vesting_schedule::<T>(project_id);
-					*self = SuccessFinalizer::ContributionPLMCVesting(remaining_contributions);
+					*self = CleanerState::ContributionPLMCVesting(remaining_contributions, PhantomData);
 					Ok(consumed_weight)
 				},
-			SuccessFinalizer::ContributionCTMint(remaining) =>
+			CleanerState::ContributionCTMint(remaining, PhantomData) =>
 				if *remaining == 0 {
-					*self = SuccessFinalizer::BidFundingPayout(remaining_bids_without_issuer_payout::<T>(project_id));
+					*self = CleanerState::BidFundingPayout(
+						remaining_bids_without_issuer_payout::<T>(project_id),
+						PhantomData,
+					);
 					Ok(Weight::zero())
 				} else {
 					let (consumed_weight, remaining_contributions) = mint_ct_for_one_contribution::<T>(project_id);
-					*self = SuccessFinalizer::ContributionCTMint(remaining_contributions);
+					*self = CleanerState::ContributionCTMint(remaining_contributions, PhantomData);
 					Ok(consumed_weight)
 				},
-			SuccessFinalizer::BidFundingPayout(remaining) =>
+			CleanerState::BidFundingPayout(remaining, PhantomData) =>
 				if *remaining == 0 {
-					*self = SuccessFinalizer::ContributionFundingPayout(
+					*self = CleanerState::ContributionFundingPayout(
 						remaining_contributions_without_issuer_payout::<T>(project_id),
+						PhantomData,
 					);
 					Ok(Weight::zero())
 				} else {
 					let (consumed_weight, remaining_contributions) = issuer_funding_payout_one_bid::<T>(project_id);
-					*self = SuccessFinalizer::BidFundingPayout(remaining_contributions);
+					*self = CleanerState::BidFundingPayout(remaining_contributions, PhantomData);
 					Ok(consumed_weight)
 				},
-			SuccessFinalizer::ContributionFundingPayout(remaining) =>
+			CleanerState::ContributionFundingPayout(remaining, PhantomData) =>
 				if *remaining == 0 {
-					*self = SuccessFinalizer::Finished;
+					*self = CleanerState::Finished(PhantomData);
 					Ok(Weight::zero())
 				} else {
 					let (consumed_weight, remaining_contributions) =
 						issuer_funding_payout_one_contribution::<T>(project_id);
-					*self = SuccessFinalizer::ContributionFundingPayout(remaining_contributions);
+					*self = CleanerState::ContributionFundingPayout(remaining_contributions, PhantomData);
 					Ok(consumed_weight)
 				},
-			SuccessFinalizer::Finished => Err(Error::<T>::FinalizerFinished.into()),
+			CleanerState::Finished(PhantomData) => Err(Error::<T>::FinalizerFinished.into()),
+
+			_ => Err(Error::<T>::ImpossibleState.into()),
 		}
 	}
 }
-
-impl DoRemainingOperation for FailureFinalizer {
-	fn is_done(&self) -> bool {
-		matches!(self, FailureFinalizer::Finished)
+impl DoRemainingOperation for CleanerState<Failure> {
+	fn has_remaining_operations(&self) -> bool {
+		!matches!(self, CleanerState::Finished(PhantomData::<Failure>))
 	}
 
 	fn do_one_operation<T: Config>(&mut self, project_id: T::ProjectIdentifier) -> Result<Weight, DispatchError> {
 		match self {
-			FailureFinalizer::Initialized => {
-				*self =
-					FailureFinalizer::EvaluationRewardOrSlash(remaining_evaluators_to_reward_or_slash::<T>(project_id));
+			CleanerState::Initialized(PhantomData::<Failure>) => {
+				*self = CleanerState::EvaluationRewardOrSlash(
+					remaining_evaluators_to_reward_or_slash::<T>(project_id),
+					PhantomData::<Failure>,
+				);
 				Ok(Weight::zero())
 			},
 
-			FailureFinalizer::EvaluationRewardOrSlash(remaining) =>
+			CleanerState::EvaluationRewardOrSlash(remaining, PhantomData::<Failure>) =>
 				if *remaining == 0 {
-					*self = FailureFinalizer::EvaluationUnbonding(remaining_evaluations::<T>(project_id));
+					*self = CleanerState::EvaluationUnbonding(
+						remaining_evaluations::<T>(project_id),
+						PhantomData::<Failure>,
+					);
 					Ok(Weight::zero())
 				} else {
 					let (consumed_weight, remaining_evaluators) = reward_or_slash_one_evaluation::<T>(project_id)?;
-					*self = FailureFinalizer::EvaluationRewardOrSlash(remaining_evaluators);
+					*self = CleanerState::EvaluationRewardOrSlash(remaining_evaluators, PhantomData);
 					Ok(consumed_weight)
 				},
 
-			FailureFinalizer::EvaluationUnbonding(remaining) =>
+			CleanerState::EvaluationUnbonding(remaining, PhantomData::<Failure>) =>
 				if *remaining == 0 {
-					*self = FailureFinalizer::BidFundingRelease(remaining_bids_to_release_funds::<T>(project_id));
+					*self = CleanerState::BidFundingRelease(
+						remaining_bids_to_release_funds::<T>(project_id),
+						PhantomData::<Failure>,
+					);
 					Ok(Weight::zero())
 				} else {
 					let (consumed_weight, remaining_evaluators) = unbond_one_evaluation::<T>(project_id);
-					*self = FailureFinalizer::EvaluationUnbonding(remaining_evaluators);
+					*self = CleanerState::EvaluationUnbonding(remaining_evaluators, PhantomData);
 					Ok(consumed_weight)
 				},
 
-			FailureFinalizer::BidFundingRelease(remaining) =>
+			CleanerState::BidFundingRelease(remaining, PhantomData::<Failure>) =>
 				if *remaining == 0 {
-					*self = FailureFinalizer::BidUnbonding(remaining_bids::<T>(project_id));
+					*self = CleanerState::BidUnbonding(remaining_bids::<T>(project_id), PhantomData::<Failure>);
 					Ok(Weight::zero())
 				} else {
 					let (consumed_weight, remaining_bids) = release_funds_one_bid::<T>(project_id);
-					*self = FailureFinalizer::BidFundingRelease(remaining_bids);
+					*self = CleanerState::BidFundingRelease(remaining_bids, PhantomData);
 					Ok(consumed_weight)
 				},
 
-			FailureFinalizer::BidUnbonding(remaining) =>
+			CleanerState::BidUnbonding(remaining, PhantomData::<Failure>) =>
 				if *remaining == 0 {
-					*self = FailureFinalizer::ContributionFundingRelease(
+					*self = CleanerState::ContributionFundingRelease(
 						remaining_contributions_to_release_funds::<T>(project_id),
+						PhantomData::<Failure>,
 					);
 					Ok(Weight::zero())
 				} else {
 					let (consumed_weight, remaining_bids) = unbond_one_bid::<T>(project_id);
-					*self = FailureFinalizer::BidUnbonding(remaining_bids);
+					*self = CleanerState::BidUnbonding(remaining_bids, PhantomData::<Failure>);
 					Ok(consumed_weight)
 				},
 
-			FailureFinalizer::ContributionFundingRelease(remaining) =>
+			CleanerState::ContributionFundingRelease(remaining, PhantomData::<Failure>) =>
 				if *remaining == 0 {
-					*self = FailureFinalizer::ContributionUnbonding(remaining_contributions::<T>(project_id));
+					*self = CleanerState::ContributionUnbonding(
+						remaining_contributions::<T>(project_id),
+						PhantomData::<Failure>,
+					);
 					Ok(Weight::zero())
 				} else {
 					let (consumed_weight, remaining_contributions) = release_funds_one_contribution::<T>(project_id);
-					*self = FailureFinalizer::ContributionFundingRelease(remaining_contributions);
+					*self = CleanerState::ContributionFundingRelease(remaining_contributions, PhantomData::<Failure>);
 					Ok(consumed_weight)
 				},
 
-			FailureFinalizer::ContributionUnbonding(remaining) =>
+			CleanerState::ContributionUnbonding(remaining, PhantomData::<Failure>) =>
 				if *remaining == 0 {
-					*self = FailureFinalizer::Finished;
+					*self = CleanerState::Finished(PhantomData::<Failure>);
 					Ok(Weight::zero())
 				} else {
 					let (consumed_weight, remaining_contributions) = unbond_one_contribution::<T>(project_id);
-					*self = FailureFinalizer::ContributionUnbonding(remaining_contributions);
+					*self = CleanerState::ContributionUnbonding(remaining_contributions, PhantomData::<Failure>);
 					Ok(consumed_weight)
 				},
 
-			FailureFinalizer::Finished => Err(Error::<T>::FinalizerFinished.into()),
+			CleanerState::Finished(PhantomData::<Failure>) => Err(Error::<T>::FinalizerFinished.into()),
+
+			_ => Err(Error::<T>::ImpossibleState.into()),
 		}
 	}
 }
