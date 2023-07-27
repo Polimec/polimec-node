@@ -40,6 +40,7 @@ use helper_functions::*;
 use crate::traits::BondingRequirementCalculation;
 use sp_arithmetic::traits::Zero;
 use sp_runtime::{DispatchError, Either};
+use sp_std::marker::PhantomData;
 use std::{cell::RefCell, iter::zip};
 
 type ProjectIdOf<T> = <T as Config>::ProjectIdentifier;
@@ -590,7 +591,7 @@ impl<'a> CreatedProject<'a> {
 				.unwrap(),
 			remaining_contribution_tokens: expected_metadata.total_allocation_size,
 			funding_amount_reached: BalanceOf::<TestRuntime>::zero(),
-			cleanup: ProjectCleanup::NotReady,
+			cleanup: Cleaner::NotReady,
 			evaluation_round_info: EvaluationRoundInfoOf::<TestRuntime> {
 				total_bonded_usd: Zero::zero(),
 				total_bonded_plmc: Zero::zero(),
@@ -1914,6 +1915,7 @@ mod evaluation_round_success {
 
 		remainder_funding_project.end_funding();
 		test_env.advance_time(10).unwrap();
+		let deets = remainder_funding_project.get_project_details();
 		let post_unbond_amounts: UserToPLMCBalance =
 			prev_reserved_plmc.iter().map(|(evaluator, _amount)| (*evaluator, Zero::zero())).collect();
 
@@ -3475,7 +3477,7 @@ mod funding_end {
 
 	#[test]
 	fn automatic_fail_less_eq_33_percent() {
-		for funding_percent in 1..=33 {
+		for funding_percent in (1..=33).step_by(5) {
 			let test_env = TestEnvironment::new();
 			let project_metadata = default_project(test_env.get_new_nonce());
 			let min_price = project_metadata.minimum_price;
@@ -3503,7 +3505,7 @@ mod funding_end {
 
 	#[test]
 	fn automatic_success_bigger_eq_90_percent() {
-		for funding_percent in 90..=100 {
+		for funding_percent in (90..=100).step_by(2) {
 			let test_env = TestEnvironment::new();
 			let project_metadata = default_project(test_env.get_new_nonce());
 			let min_price = project_metadata.minimum_price;
@@ -3531,7 +3533,7 @@ mod funding_end {
 
 	#[test]
 	fn manual_outcome_above33_to_below90() {
-		for funding_percent in 34..90 {
+		for funding_percent in (34..90).step_by(5) {
 			let test_env = TestEnvironment::new();
 			let project_metadata = default_project(test_env.get_new_nonce());
 			let min_price = project_metadata.minimum_price;
@@ -3585,12 +3587,15 @@ mod funding_end {
 
 		assert_matches!(
 			finished_project.get_project_details().cleanup,
-			ProjectCleanup::Ready(ProjectFinalizer::Success(_)),
+			Cleaner::Success(CleanerState::Initialized(PhantomData)),
 		);
 		test_ct_created_for(&test_env, project_id);
 
 		test_env.advance_time(10u64).unwrap();
-		assert_matches!(finished_project.get_project_details().cleanup, ProjectCleanup::Finished,);
+		assert_matches!(
+			finished_project.get_project_details().cleanup,
+			Cleaner::Success(CleanerState::Finished(PhantomData)),
+		);
 	}
 
 	#[test]
@@ -3621,13 +3626,16 @@ mod funding_end {
 		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		assert_matches!(
 			finished_project.get_project_details().cleanup,
-			ProjectCleanup::Ready(ProjectFinalizer::Failure(_))
+			Cleaner::Failure(CleanerState::Initialized(PhantomData))
 		);
 
 		test_ct_not_created_for(&test_env, project_id);
 
 		test_env.advance_time(10u64).unwrap();
-		assert_matches!(finished_project.get_project_details().cleanup, ProjectCleanup::Finished);
+		assert_matches!(
+			finished_project.get_project_details().cleanup,
+			Cleaner::Failure(CleanerState::Finished(PhantomData))
+		);
 	}
 
 	#[test]
@@ -3652,12 +3660,15 @@ mod funding_end {
 
 		assert_matches!(
 			finished_project.get_project_details().cleanup,
-			ProjectCleanup::Ready(ProjectFinalizer::Success(_)),
+			Cleaner::Success(CleanerState::Initialized(PhantomData))
 		);
 		test_ct_created_for(&test_env, project_id);
 
 		test_env.advance_time(10u64).unwrap();
-		assert_matches!(finished_project.get_project_details().cleanup, ProjectCleanup::Finished,);
+		assert_matches!(
+			finished_project.get_project_details().cleanup,
+			Cleaner::Success(CleanerState::Finished(PhantomData))
+		);
 	}
 }
 

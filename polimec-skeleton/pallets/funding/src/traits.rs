@@ -14,7 +14,7 @@ pub trait ProvideStatemintPrice {
 }
 
 pub trait DoRemainingOperation {
-	fn is_done(&self) -> bool;
+	fn has_remaining_operations(&self) -> bool;
 
 	fn do_one_operation<T: crate::Config>(&mut self, project_id: T::ProjectIdentifier)
 		-> Result<Weight, DispatchError>;

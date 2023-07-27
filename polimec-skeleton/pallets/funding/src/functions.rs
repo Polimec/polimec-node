@@ -19,6 +19,7 @@
 //! Functions for the Funding pallet.
 
 use super::*;
+use sp_std::marker::PhantomData;
 
 use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice};
 use frame_support::{
@@ -102,7 +103,7 @@ impl<T: Config> Pallet<T> {
 			},
 			remaining_contribution_tokens: initial_metadata.total_allocation_size,
 			funding_amount_reached: BalanceOf::<T>::zero(),
-			cleanup: ProjectCleanup::NotReady,
+			cleanup: Cleaner::NotReady,
 			evaluation_round_info: EvaluationRoundInfoOf::<T> {
 				total_bonded_usd: Zero::zero(),
 				total_bonded_plmc: Zero::zero(),
@@ -260,18 +261,16 @@ impl<T: Config> Pallet<T> {
 				start_block: auction_initialize_period_start_block,
 				end_block: auction_initialize_period_end_block,
 			});
-		// TODO: PLMC-144. Unlock the bonds and clean the storage
 
 		// Unsuccessful path
 		} else {
 			// * Update storage *
 			project_details.status = ProjectStatus::EvaluationFailed;
-			project_details.cleanup = ProjectCleanup::Ready(ProjectFinalizer::Failure(FailureFinalizer::Initialized));
+			project_details.cleanup = Cleaner::Failure(CleanerState::Initialized(PhantomData::<Failure>));
 			ProjectsDetails::<T>::insert(project_id, project_details);
 
 			// * Emit events *
 			Self::deposit_event(Event::<T>::EvaluationFailed { project_id });
-			// TODO: PLMC-144. Unlock the bonds and clean the storage
 		}
 
 		Ok(())
@@ -602,7 +601,7 @@ impl<T: Config> Pallet<T> {
 		// * Update Storage *
 		if funding_ratio <= Perquintill::from_percent(33u64) {
 			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Slashed(vec![]);
-			Self::make_project_funding_fail(project_id, project_details, FailureReason::TargetNotReached, 0u32.into())
+			Self::make_project_funding_fail(project_id, project_details, FailureReason::TargetNotReached, 1u32.into())
 		} else if funding_ratio <= Perquintill::from_percent(75u64) {
 			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Slashed(vec![]);
 			project_details.status = ProjectStatus::AwaitingProjectDecision;
@@ -624,7 +623,7 @@ impl<T: Config> Pallet<T> {
 				project_id,
 				project_details,
 				SuccessReason::ReachedTarget,
-				0u32.into(),
+				1u32.into(),
 			)
 		}
 	}
@@ -656,7 +655,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn do_start_settlement(project_id: T::ProjectIdentifier, finalizer: ProjectFinalizer) -> DispatchResult {
+	pub fn do_start_settlement(project_id: T::ProjectIdentifier) -> DispatchResult {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let token_information =
@@ -670,7 +669,9 @@ impl<T: Config> Pallet<T> {
 		);
 
 		// * Update storage *
-		project_details.cleanup = ProjectCleanup::Ready(finalizer);
+
+		project_details.cleanup =
+			Cleaner::try_from(project_details.status.clone()).map_err(|_| Error::<T>::NotAllowed)?;
 		ProjectsDetails::<T>::insert(project_id, project_details.clone());
 
 		if project_details.status == ProjectStatus::FundingSuccessful {
@@ -2135,10 +2136,7 @@ impl<T: Config> Pallet<T> {
 		project_details.status = ProjectStatus::FundingSuccessful;
 		ProjectsDetails::<T>::insert(project_id, project_details.clone());
 
-		Self::add_to_update_store(
-			now + settlement_delta,
-			(&project_id, UpdateType::StartSettlement(ProjectFinalizer::Success(SuccessFinalizer::Initialized))),
-		);
+		Self::add_to_update_store(now + settlement_delta, (&project_id, UpdateType::StartSettlement));
 
 		Self::deposit_event(Event::<T>::FundingEnded { project_id, outcome: FundingOutcome::Success(reason) });
 
@@ -2155,10 +2153,7 @@ impl<T: Config> Pallet<T> {
 		project_details.status = ProjectStatus::FundingFailed;
 		ProjectsDetails::<T>::insert(project_id, project_details.clone());
 
-		Self::add_to_update_store(
-			now + settlement_delta,
-			(&project_id, UpdateType::StartSettlement(ProjectFinalizer::Failure(FailureFinalizer::Initialized))),
-		);
+		Self::add_to_update_store(now + settlement_delta, (&project_id, UpdateType::StartSettlement));
 		Self::deposit_event(Event::<T>::FundingEnded { project_id, outcome: FundingOutcome::Failure(reason) });
 		Ok(())
 	}
