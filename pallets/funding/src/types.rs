@@ -135,7 +135,7 @@ pub mod storage_types {
 		/// Funding reached amount in USD equivalent
 		pub funding_amount_reached: Balance,
 		/// Cleanup operations remaining
-		pub cleanup: ProjectCleanup,
+		pub cleanup: Cleaner,
 		/// Information about the total amount bonded, and the outcome in regards to reward/slash/nothing
 		pub evaluation_round_info: EvaluationRoundInfo,
 	}
@@ -150,7 +150,7 @@ pub mod storage_types {
 		RemainderFundingStart,
 		FundingEnd,
 		ProjectDecision(FundingOutcomeDecision),
-		StartSettlement(ProjectFinalizer),
+		StartSettlement,
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Ord, PartialOrd)]
@@ -490,47 +490,53 @@ pub mod inner_types {
 		Unknown,
 	}
 
-	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum ProjectCleanup {
-		#[default]
-		NotReady,
-		Ready(ProjectFinalizer),
-		Finished,
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub struct Success;
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub struct Failure;
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum CleanerState<T> {
+		Initialized(PhantomData<T>),
+		// Success or Failure
+		EvaluationRewardOrSlash(u64, PhantomData<T>),
+		EvaluationUnbonding(u64, PhantomData<T>),
+		// Branch
+		// A. Success only
+		BidPLMCVesting(u64, PhantomData<T>),
+		BidCTMint(u64, PhantomData<T>),
+		ContributionPLMCVesting(u64, PhantomData<T>),
+		ContributionCTMint(u64, PhantomData<T>),
+		BidFundingPayout(u64, PhantomData<T>),
+		ContributionFundingPayout(u64, PhantomData<T>),
+		// B. Failure only
+		BidFundingRelease(u64, PhantomData<T>),
+		BidUnbonding(u64, PhantomData<T>),
+		ContributionFundingRelease(u64, PhantomData<T>),
+		ContributionUnbonding(u64, PhantomData<T>),
+		// Merge
+		// Success or Failure
+		Finished(PhantomData<T>),
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum ProjectFinalizer {
-		Success(SuccessFinalizer),
-		Failure(FailureFinalizer),
-		None,
+	pub enum Cleaner {
+		NotReady,
+		Success(CleanerState<Success>),
+		Failure(CleanerState<Failure>),
 	}
+	impl TryFrom<ProjectStatus> for Cleaner {
+		type Error = ();
 
-	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum SuccessFinalizer {
-		#[default]
-		Initialized,
-		EvaluationRewardOrSlash(u64),
-		EvaluationUnbonding(u64),
-		BidPLMCVesting(u64),
-		BidCTMint(u64),
-		ContributionPLMCVesting(u64),
-		ContributionCTMint(u64),
-		BidFundingPayout(u64),
-		ContributionFundingPayout(u64),
-		Finished,
-	}
-
-	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum FailureFinalizer {
-		#[default]
-		Initialized,
-		EvaluationRewardOrSlash(u64),
-		EvaluationUnbonding(u64),
-		BidFundingRelease(u64),
-		BidUnbonding(u64),
-		ContributionFundingRelease(u64),
-		ContributionUnbonding(u64),
-		Finished,
+		fn try_from(value: ProjectStatus) -> Result<Self, ()> {
+			match value {
+				ProjectStatus::FundingSuccessful => Ok(Cleaner::Success(CleanerState::Initialized(PhantomData))),
+				ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed =>
+					Ok(Cleaner::Failure(CleanerState::Initialized(PhantomData))),
+				_ => Err(()),
+			}
+		}
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]

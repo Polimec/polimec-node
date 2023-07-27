@@ -196,6 +196,9 @@ pub mod traits;
 pub use pallet::*;
 pub use types::*;
 
+#[allow(unused_imports)]
+use polimec_traits::{MemberRole, PolimecMembers};
+
 pub use crate::weights::WeightInfo;
 use frame_support::{
 	pallet_prelude::ValueQuery,
@@ -226,6 +229,7 @@ pub type AssetIdOf<T> =
 
 pub type RewardInfoOf<T> = RewardInfo<BalanceOf<T>>;
 pub type EvaluatorsOutcomeOf<T> = EvaluatorsOutcome<AccountIdOf<T>, BalanceOf<T>>;
+
 pub type ProjectMetadataOf<T> =
 	ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, HashOf<T>>;
 pub type ProjectDetailsOf<T> =
@@ -255,7 +259,7 @@ const PLMC_STATEMINT_ID: u32 = 2069;
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
 	use super::*;
-	use crate::traits::{BondingRequirementCalculation, DoRemainingOperation, ProvideStatemintPrice};
+	use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice};
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use local_macros::*;
@@ -309,6 +313,9 @@ pub mod pallet {
 
 		/// Something that provides randomness in the runtime.
 		type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
+
+		/// Something that provides the members of Polimec
+		type HandleMembers: PolimecMembers<AccountIdOf<Self>>;
 
 		/// The maximum length of data stored on-chain.
 		#[pallet::constant]
@@ -423,7 +430,12 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn project_details)]
 	/// StorageMap containing additional information for the projects, relevant for correctness of the protocol
-	pub type ProjectsDetails<T: Config> = StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, ProjectDetailsOf<T>>;
+	pub type ProjectsDetails<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		T::ProjectIdentifier,
+		ProjectDetails<AccountIdOf<T>, BlockNumberOf<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>,
+	>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn projects_to_update)]
@@ -709,6 +721,8 @@ pub mod pallet {
 		NoFinalizerSet,
 		/// Tried to do an operation on a finalizer that already finished
 		FinalizerFinished,
+		/// Tried to do an operation on a cleaner that is not ready
+		CleanerNotReady,
 	}
 
 	#[pallet::call]
@@ -918,8 +932,8 @@ pub mod pallet {
 						unwrap_result_or_skip!(Self::do_project_decision(project_id, decision), project_id)
 					},
 
-					UpdateType::StartSettlement(finalizer) => {
-						unwrap_result_or_skip!(Self::do_start_settlement(project_id, finalizer), project_id)
+					UpdateType::StartSettlement => {
+						unwrap_result_or_skip!(Self::do_start_settlement(project_id), project_id)
 					},
 				}
 			}
@@ -932,8 +946,7 @@ pub mod pallet {
 
 			let projects_needing_cleanup = ProjectsDetails::<T>::iter()
 				.filter_map(|(project_id, info)| match info.cleanup {
-					ProjectCleanup::Ready(project_finalizer) if project_finalizer != ProjectFinalizer::None =>
-						Some((project_id, project_finalizer)),
+					cleaner if cleaner.has_remaining_operations() => Some((project_id, cleaner)),
 					_ => None,
 				})
 				.collect::<Vec<_>>();
@@ -945,25 +958,23 @@ pub mod pallet {
 
 			let mut max_weight_per_project = remaining_weight.saturating_div(projects_amount);
 
-			for (remaining_projects, (project_id, mut project_finalizer)) in
+			for (remaining_projects, (project_id, mut cleaner)) in
 				projects_needing_cleanup.into_iter().enumerate().rev()
 			{
 				let mut consumed_weight = T::WeightInfo::insert_cleaned_project();
 				while !consumed_weight.any_gt(max_weight_per_project) {
-					if let Ok(weight) = project_finalizer.do_one_operation::<T>(project_id) {
+					if let Ok(weight) = cleaner.do_one_operation::<T>(project_id) {
 						consumed_weight.saturating_accrue(weight);
 					} else {
 						break
 					}
 				}
-				let mut details = if let Some(d) = ProjectsDetails::<T>::get(project_id) { d } else { continue };
-				if let ProjectFinalizer::None = project_finalizer {
-					details.cleanup = ProjectCleanup::Finished;
-				} else {
-					details.cleanup = ProjectCleanup::Ready(project_finalizer);
-				}
 
+				let mut details =
+					if let Some(details) = ProjectsDetails::<T>::get(project_id) { details } else { continue };
+				details.cleanup = cleaner;
 				ProjectsDetails::<T>::insert(project_id, details);
+
 				remaining_weight = remaining_weight.saturating_sub(consumed_weight);
 				if remaining_projects > 0 {
 					max_weight_per_project = remaining_weight.saturating_div(remaining_projects as u64);

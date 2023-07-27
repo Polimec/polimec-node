@@ -1,37 +1,36 @@
 [package]
 name = 'pallet-funding'
-description = 'FRAME pallet handle funding'
-authors.workspace = true
-documentation.workspace = true
-edition.workspace = true
-homepage.workspace = true
-license-file.workspace = true
-readme.workspace = true
-repository.workspace = true
-version.workspace = true
+authors = ['Polimec Foundation <info@polimec.org>']
+documentation = "https://wiki.polimec.org/"
+edition = "2021"
+homepage = "https://www.polimec.org/"
+license-file = "LICENSE"
+readme = "README.md"
+repository = "https://github.com/Polimec/polimec-node"
+version = "0.1.0"
+rust-version = "1.69.0"
 
 [dependencies]
 serde = { version = "*", optional = true }
-parity-scale-codec = { workspace = true, features = [
-	"derive",
+parity-scale-codec = { version = "3.0.0", features = [
+    "derive",
+], default-features = false }
+scale-info = { version = "2.5.0", default-features = false, features = [
+    "derive",
 ] }
-scale-info = { workspace = true, features = ["derive"] }
 itertools = { version = "0.11.0", default-features = false }
 
 # Substrate dependencies
+
 frame-support.workspace = true
 frame-system.workspace = true
 sp-std.workspace = true
 sp-runtime.workspace = true
 sp-arithmetic.workspace = true
-
-# Benchmarking dependencies
-frame-benchmarking = { workspace = true, optional = true }
-
-# Polimec dependencies
 polimec-traits.workspace = true
 
 [dev-dependencies]
+frame-benchmarking.workspace = true
 sp-core.workspace = true
 sp-io.workspace = true
 pallet-balances.workspace = true
