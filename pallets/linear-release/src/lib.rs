@@ -17,7 +17,6 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
@@ -29,6 +28,7 @@ use frame_support::{
 	},
 };
 use frame_system::{pallet_prelude::*, WeightInfo};
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 
 use polimec_traits::ReleaseSchedule;
 use scale_info::TypeInfo;

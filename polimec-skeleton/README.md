@@ -1,1 +1,0 @@
-# Polimec Skeleton

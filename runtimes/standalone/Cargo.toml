@@ -14,9 +14,7 @@ version.workspace = true
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-parity-scale-codec = {  workspace = true, features = [
-	"derive",
-] }
+parity-scale-codec = { workspace = true, features = ["derive"] }
 scale-info = { workspace = true, features = ["derive"] }
 
 # Substrate
@@ -67,6 +65,7 @@ hex-literal = { workspace = true, optional = true }
 
 # Local Dependencies
 pallet-funding.workspace = true
+pallet-linear-release.workspace = true
 shared-configuration.workspace = true
 
 [build-dependencies]
@@ -114,8 +113,9 @@ std = [
 	"pallet-authorship/std",
 	"pallet-insecure-randomness-collective-flip/std",
 	"pallet-vesting/std",
+	"pallet-linear-release/std",
 	"shared-configuration/std",
-	"sp-consensus-grandpa/std"
+	"sp-consensus-grandpa/std",
 ]
 
 runtime-benchmarks = [

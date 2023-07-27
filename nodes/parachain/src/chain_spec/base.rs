@@ -43,7 +43,7 @@ pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
 
 const COLLATOR_COMMISSION: Perbill = Perbill::from_percent(30);
 const PARACHAIN_BOND_RESERVE_PERCENT: Percent = Percent::from_percent(0);
-const BLOCKS_PER_ROUND: u32 = 2 * 10;
+const BLOCKS_PER_ROUND: u32 = 2 * 100;
 const NUM_SELECTED_CANDIDATES: u32 = 5;
 pub fn polimec_inflation_config() -> InflationInfo<Balance> {
 	fn to_round_inflation(annual: Range<Perbill>) -> Range<Perbill> {
@@ -111,12 +111,11 @@ pub fn get_local_base_chain_spec() -> Result<ChainSpec, String> {
 	))
 }
 
-pub fn get_kusama_base_chain_spec() -> Result<ChainSpec, String> {
+pub fn get_polkadot_base_chain_spec() -> Result<ChainSpec, String> {
 	let properties = get_properties("PLMC", 10, 41);
 	let wasm = base_runtime::WASM_BINARY.ok_or("No WASM")?;
 
-	// TODO: Update this after reserving a ParaId
-	let id: u32 = 4261;
+	let id: u32 = 3344;
 
 	const PLMC_SUDO_ACC: [u8; 32] =
 		hex_literal::hex!["d4192a54c9caa4a38eeb3199232ed0d8568b22956cafb76c7d5a1afbf4e2dc38"];
@@ -126,8 +125,8 @@ pub fn get_kusama_base_chain_spec() -> Result<ChainSpec, String> {
 		hex_literal::hex!["ba48ab77461ef53f9ebfdc94a12c780b57354f986e31eb2504b9e3ed580fab51"];
 
 	Ok(ChainSpec::from_genesis(
-		"Polimec Kusama Testnet",
-		"polimec",
+		"Polimec Polkadot",
+		"polimec-base",
 		ChainType::Live,
 		move || {
 			base_testnet_genesis(
@@ -139,8 +138,9 @@ pub fn get_kusama_base_chain_spec() -> Result<ChainSpec, String> {
 				polimec_inflation_config(),
 				vec![(PLMC_COL_ACC_1.into()), (PLMC_COL_ACC_2.into())],
 				vec![
-					(PLMC_COL_ACC_1.into(), 3 * MinCandidateStk::get()),
-					(PLMC_COL_ACC_2.into(), 3 * MinCandidateStk::get()),
+					(PLMC_COL_ACC_1.into(), 4 * MinCandidateStk::get()),
+					(PLMC_COL_ACC_2.into(), 4 * MinCandidateStk::get()),
+					(PLMC_SUDO_ACC.into(), 4 * MinCandidateStk::get()),
 				],
 				PLMC_SUDO_ACC.into(),
 				id.into(),
@@ -151,7 +151,7 @@ pub fn get_kusama_base_chain_spec() -> Result<ChainSpec, String> {
 		Some("polimec"),
 		None,
 		Some(properties),
-		Extensions { relay_chain: "kusama".into(), para_id: id },
+		Extensions { relay_chain: "polkadot".into(), para_id: id },
 	))
 }
 

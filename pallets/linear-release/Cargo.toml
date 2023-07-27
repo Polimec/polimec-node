@@ -1,0 +1,48 @@
+[package]
+name = "pallet-linear-release"
+version = "4.0.0-dev"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2021"
+license = "MIT-0"
+homepage = "https://substrate.io"
+repository = "https://github.com/paritytech/substrate/"
+description = "FRAME example pallet"
+readme = "README.md"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+parity-scale-codec = { workspace = true, features = [
+	"derive",
+] }
+scale-info = { workspace = true, features = ["derive"] }
+log.workspace = true
+frame-support.workspace = true
+frame-system.workspace = true
+sp-std.workspace = true
+sp-runtime.workspace = true
+polimec-traits.workspace = true
+
+[dev-dependencies]
+sp-core.workspace = true
+sp-io.workspace = true
+pallet-balances.workspace = true
+pallet-funding.workspace = true
+
+
+[features]
+default = ["std"]
+std = [
+	"parity-scale-codec/std",
+	"frame-support/std",
+	"frame-system/std",
+	"log/std",
+	"scale-info/std",
+	"sp-runtime/std",
+	"sp-std/std",
+	"pallet-balances/std",
+	"polimec-traits/std",
+	"pallet-funding/std"
+]
+try-runtime = ["frame-support/try-runtime"]
