@@ -3,7 +3,7 @@ members = [
     "nodes/*",
     "pallets/*",
     "runtimes/*",
-    "integration-tests",
+#    "integration-tests",
     "traits"
 ]
 

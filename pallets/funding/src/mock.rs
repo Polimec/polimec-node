@@ -64,7 +64,6 @@ frame_support::construct_runtime!(
 		RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip,
 		Balances: pallet_balances,
 		FundingModule: pallet_funding,
-		Credentials: pallet_credentials,
 		Vesting: pallet_linear_release,
 		LocalAssets: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>},
 		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>},
@@ -190,16 +189,6 @@ impl pallet_balances::Config for TestRuntime {
 
 impl pallet_insecure_randomness_collective_flip::Config for TestRuntime {}
 
-impl pallet_credentials::Config for TestRuntime {
-	type AddOrigin = EnsureSigned<AccountId>;
-	type MembershipChanged = ();
-	type MembershipInitialized = ();
-	type PrimeOrigin = EnsureSigned<AccountId>;
-	type RemoveOrigin = EnsureSigned<AccountId>;
-	type ResetOrigin = EnsureSigned<AccountId>;
-	type RuntimeEvent = RuntimeEvent;
-	type SwapOrigin = EnsureSigned<AccountId>;
-}
 pub const HOURS: BlockNumber = 300u64;
 
 // REMARK: In the production configuration we use DAYS instead of HOURS.
@@ -261,7 +250,6 @@ impl pallet_funding::Config for TestRuntime {
 	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
 	type FeeBrackets = FeeBrackets;
 	type FundingCurrency = StatemintAssets;
-	type HandleMembers = Credentials;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	// Low value to simplify the tests
 	type MaxBidsPerUser = ConstU32<4>;
@@ -296,12 +284,6 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 				<TestRuntime as Config>::PalletId::get().into_account_truncating(),
 				<TestRuntime as pallet_balances::Config>::ExistentialDeposit::get(),
 			)],
-		},
-		credentials: CredentialsConfig {
-			issuers: vec![1, 16558220937623665250],
-			retails: vec![2],
-			professionals: vec![2, 3],
-			institutionals: vec![4],
 		},
 		statemint_assets: StatemintAssetsConfig {
 			assets: vec![(

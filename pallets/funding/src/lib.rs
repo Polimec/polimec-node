@@ -196,9 +196,6 @@ pub mod traits;
 pub use pallet::*;
 pub use types::*;
 
-#[allow(unused_imports)]
-use polimec_traits::{MemberRole, PolimecMembers};
-
 pub use crate::weights::WeightInfo;
 use frame_support::{
 	pallet_prelude::ValueQuery,
@@ -313,9 +310,6 @@ pub mod pallet {
 
 		/// Something that provides randomness in the runtime.
 		type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
-
-		/// Something that provides the members of Polimec
-		type HandleMembers: PolimecMembers<AccountIdOf<Self>>;
 
 		/// The maximum length of data stored on-chain.
 		#[pallet::constant]
