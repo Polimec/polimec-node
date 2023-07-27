@@ -68,15 +68,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 // Polimec Shared Imports
 use pallet_funding::BondTypeOf;
 pub use pallet_parachain_staking;
-pub use shared_configuration::{
-	assets::*,
-	currency::{vesting::*, *},
-	fee::*,
-	funding::*,
-	governance::*,
-	staking::*,
-	weights::*,
-};
+pub use shared_configuration::*;
 
 pub type NegativeImbalanceOf<T> =
 	<pallet_balances::Pallet<T> as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
@@ -487,6 +479,9 @@ impl pallet_assets::Config<StatemintAssetsInstance> for Runtime {
 	type WeightInfo = ();
 }
 
+parameter_types! {
+	pub TreasuryAccount: AccountId = [69u8; 32].into();
+}
 impl pallet_funding::Config for Runtime {
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;
@@ -499,6 +494,7 @@ impl pallet_funding::Config for Runtime {
 	type EnglishAuctionDuration = EnglishAuctionDuration;
 	type EvaluationDuration = EvaluationDuration;
 	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
+	type EvaluatorSlash = EvaluatorSlash;
 	type FeeBrackets = FeeBrackets;
 	type FundingCurrency = StatemintAssets;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
@@ -521,6 +517,7 @@ impl pallet_funding::Config for Runtime {
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type Vesting = Vesting;
 	type WeightInfo = ();
+	type TreasuryAccount = TreasuryAccount;
 }
 
 parameter_types! {

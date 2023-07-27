@@ -292,14 +292,14 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 	if let Some(mut evaluation) = remaining_evaluations.next() {
 		match project_details.evaluation_round_info.evaluators_outcome {
 			EvaluatorsOutcome::Rewarded(_) => {
-				match Pallet::<T>::do_evaluation_reward(
+				match Pallet::<T>::do_evaluation_reward_payout_for(
 					T::PalletId::get().into_account_truncating(),
 					evaluation.project_id,
 					evaluation.evaluator.clone(),
 					evaluation.id,
 				) {
 					Ok(_) => (),
-					Err(e) => Pallet::<T>::deposit_event(Event::EvaluationRewardOrSlashFailed {
+					Err(e) => Pallet::<T>::deposit_event(Event::EvaluationRewardFailed {
 						project_id: evaluation.project_id,
 						evaluator: evaluation.evaluator.clone(),
 						id: evaluation.id,
@@ -307,7 +307,23 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 					}),
 				};
 			},
-			_ => (),
+			EvaluatorsOutcome::Slashed => {
+				match Pallet::<T>::do_evaluation_slash_for(
+					T::PalletId::get().into_account_truncating(),
+					evaluation.project_id,
+					evaluation.evaluator.clone(),
+					evaluation.id,
+				) {
+					Ok(_) => (),
+					Err(e) => Pallet::<T>::deposit_event(Event::EvaluationSlashFailed {
+						project_id: evaluation.project_id,
+						evaluator: evaluation.evaluator.clone(),
+						id: evaluation.id,
+						error: e,
+					}),
+				};
+			},
+			_ => {},
 		}
 
 		// if the evaluation outcome failed, we still want to flag it as rewarded or slashed. Otherwise the automatic

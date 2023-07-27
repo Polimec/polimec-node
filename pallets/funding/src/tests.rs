@@ -1912,7 +1912,6 @@ mod evaluation_round_success {
 
 		remainder_funding_project.end_funding();
 		test_env.advance_time(10).unwrap();
-		let deets = remainder_funding_project.get_project_details();
 		let post_unbond_amounts: UserToPLMCBalance =
 			prev_reserved_plmc.iter().map(|(evaluator, _amount)| (*evaluator, Zero::zero())).collect();
 
@@ -4116,6 +4115,7 @@ mod test_helper_functions {
 mod misc_features {
 	use super::*;
 	use crate::UpdateType::{CommunityFundingStart, RemainderFundingStart};
+	use sp_arithmetic::Percent;
 
 	#[test]
 	fn remove_from_update_store_works() {
@@ -4138,8 +4138,11 @@ mod misc_features {
 		});
 	}
 
-	#[allow(dead_code)]
+	#[test]
 	fn sandbox() {
+		let percent = Percent::from_percent(120);
+		let _x = percent * 100u64;
+
 		assert!(true)
 	}
 }

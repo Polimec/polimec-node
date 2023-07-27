@@ -225,13 +225,13 @@ pub type AssetIdOf<T> =
 	<<T as Config>::FundingCurrency as fungibles::Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
 
 pub type RewardInfoOf<T> = RewardInfo<BalanceOf<T>>;
-pub type EvaluatorsOutcomeOf<T> = EvaluatorsOutcome<AccountIdOf<T>, BalanceOf<T>>;
+pub type EvaluatorsOutcomeOf<T> = EvaluatorsOutcome<BalanceOf<T>>;
 
 pub type ProjectMetadataOf<T> =
 	ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, HashOf<T>>;
 pub type ProjectDetailsOf<T> =
 	ProjectDetails<AccountIdOf<T>, BlockNumberOf<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>;
-pub type EvaluationRoundInfoOf<T> = EvaluationRoundInfo<AccountIdOf<T>, BalanceOf<T>>;
+pub type EvaluationRoundInfoOf<T> = EvaluationRoundInfo<BalanceOf<T>>;
 pub type VestingOf<T> = Vesting<BlockNumberOf<T>, BalanceOf<T>>;
 pub type EvaluationInfoOf<T> =
 	EvaluationInfo<StorageItemIdOf<T>, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, BlockNumberOf<T>>;
@@ -383,6 +383,10 @@ pub mod pallet {
 		type ManualAcceptanceDuration: Get<Self::BlockNumber>;
 		/// For now we expect 4 days from acceptance to settlement due to MiCA regulations.
 		type SuccessToSettlementTime: Get<Self::BlockNumber>;
+
+		type EvaluatorSlash: Get<Percent>;
+
+		type TreasuryAccount: Get<AccountIdOf<Self>>;
 	}
 
 	#[pallet::storage]
@@ -546,7 +550,13 @@ pub mod pallet {
 		},
 		/// A transfer of tokens failed, but because it was done inside on_initialize it cannot be solved.
 		TransferError { error: DispatchError },
-		EvaluationRewardOrSlashFailed {
+		EvaluationRewardFailed {
+			project_id: ProjectIdOf<T>,
+			evaluator: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			error: DispatchError,
+		},
+		EvaluationSlashFailed {
 			project_id: ProjectIdOf<T>,
 			evaluator: AccountIdOf<T>,
 			id: StorageItemIdOf<T>,
@@ -589,6 +599,13 @@ pub mod pallet {
 			error: DispatchError,
 		},
 		EvaluationRewarded {
+			project_id: ProjectIdOf<T>,
+			evaluator: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			amount: BalanceOf<T>,
+			caller: AccountIdOf<T>,
+		},
+		EvaluationSlashed {
 			project_id: ProjectIdOf<T>,
 			evaluator: AccountIdOf<T>,
 			id: StorageItemIdOf<T>,
@@ -787,18 +804,6 @@ pub mod pallet {
 			Self::do_evaluate(evaluator, project_id, usd_amount)
 		}
 
-		/// Release evaluation-bonded PLMC when a project finishes its funding round.
-		#[pallet::weight(T::WeightInfo::evaluation_unbond_for())]
-		pub fn evaluation_unbond_for(
-			origin: OriginFor<T>,
-			bond_id: T::StorageItemId,
-			project_id: T::ProjectIdentifier,
-			evaluator: AccountIdOf<T>,
-		) -> DispatchResult {
-			let releaser = ensure_signed(origin)?;
-			Self::do_evaluation_unbond_for(releaser, project_id, evaluator, bond_id)
-		}
-
 		/// Bid for a project in the Auction round
 		#[pallet::weight(T::WeightInfo::bid())]
 		pub fn bid(
@@ -831,6 +836,29 @@ pub mod pallet {
 			let contributor = ensure_signed(origin)?;
 
 			Self::do_contribute(contributor, project_id, amount, multiplier, asset)
+		}
+
+		/// Release evaluation-bonded PLMC when a project finishes its funding round.
+		#[pallet::weight(T::WeightInfo::evaluation_unbond_for())]
+		pub fn evaluation_unbond_for(
+			origin: OriginFor<T>,
+			bond_id: T::StorageItemId,
+			project_id: T::ProjectIdentifier,
+			evaluator: AccountIdOf<T>,
+		) -> DispatchResult {
+			let releaser = ensure_signed(origin)?;
+			Self::do_evaluation_unbond_for(releaser, project_id, evaluator, bond_id)
+		}
+
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn evaluation_reward_payout_for(
+			origin: OriginFor<T>,
+			bond_id: T::StorageItemId,
+			project_id: T::ProjectIdentifier,
+			evaluator: AccountIdOf<T>,
+		) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			Self::do_evaluation_reward_payout_for(caller, project_id, evaluator, bond_id)
 		}
 
 		/// Unbond some plmc from a contribution, after a step in the vesting period has passed.

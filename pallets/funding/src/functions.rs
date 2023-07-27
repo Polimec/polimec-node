@@ -29,8 +29,8 @@ use frame_support::{
 	traits::{
 		fungible::{InspectHold, MutateHold as FungibleMutateHold},
 		fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate as FungiblesMutate},
-		tokens::{Precision, Preservation},
-		Get, Len,
+		tokens::{Fortitude, Precision, Preservation, Restriction},
+		Get, Len
 	},
 };
 
@@ -596,10 +596,10 @@ impl<T: Config> Pallet<T> {
 
 		// * Update Storage *
 		if funding_ratio <= Perquintill::from_percent(33u64) {
-			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Slashed(vec![]);
+			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Slashed;
 			Self::make_project_funding_fail(project_id, project_details, FailureReason::TargetNotReached, 1u32.into())
 		} else if funding_ratio <= Perquintill::from_percent(75u64) {
-			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Slashed(vec![]);
+			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Slashed;
 			project_details.status = ProjectStatus::AwaitingProjectDecision;
 			Self::add_to_update_store(
 				now + T::ManualAcceptanceDuration::get() + 1u32.into(),
@@ -1428,7 +1428,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn do_evaluation_reward(
+	pub fn do_evaluation_reward_payout_for(
 		caller: AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		evaluator: AccountIdOf<T>,
@@ -1479,6 +1479,61 @@ impl<T: Config> Pallet<T> {
 			evaluator: evaluator.clone(),
 			id: evaluation_id,
 			amount: reward_amount_ct,
+			caller,
+		});
+
+		Ok(())
+	}
+
+	pub fn do_evaluation_slash_for(
+		caller: AccountIdOf<T>,
+		project_id: T::ProjectIdentifier,
+		evaluator: AccountIdOf<T>,
+		evaluation_id: StorageItemIdOf<T>,
+	) -> Result<(), DispatchError> {
+		// * Get variables *
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let slash_percentage = T::EvaluatorSlash::get();
+		let treasury_account = T::TreasuryAccount::get();
+
+		let mut user_evaluations = Evaluations::<T>::get(project_id, evaluator.clone());
+		let evaluation = user_evaluations
+			.iter_mut()
+			.find(|evaluation| evaluation.id == evaluation_id)
+			.ok_or(Error::<T>::EvaluationNotFound)?;
+
+		// * Validity checks *
+		ensure!(
+			evaluation.rewarded_or_slashed == false &&
+				matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Slashed),
+			Error::<T>::NotAllowed
+		);
+
+		// * Calculate variables *
+		let slashed_amount = slash_percentage * evaluation.current_plmc_bond;
+
+		// * Update storage *
+		evaluation.rewarded_or_slashed = true;
+
+		T::NativeCurrency::transfer_on_hold(
+			&LockType::Evaluation(project_id),
+			&evaluator,
+			&treasury_account,
+			slashed_amount,
+			Precision::Exact,
+			Restriction::Free,
+			Fortitude::Force,
+		)?;
+
+		evaluation.current_plmc_bond = evaluation.current_plmc_bond.saturating_sub(slashed_amount);
+		Evaluations::<T>::set(project_id, evaluator.clone(), user_evaluations);
+
+		// * Emit events *
+		Self::deposit_event(Event::<T>::EvaluationSlashed {
+			project_id,
+			evaluator: evaluator.clone(),
+			id: evaluation_id,
+			amount: slashed_amount,
 			caller,
 		});
 
