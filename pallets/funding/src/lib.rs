@@ -458,14 +458,14 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn bids)]
 	/// StorageMap containing the bids for each project and user
-	pub type Bids<T: Config> = StorageDoubleMap<
+	pub type Bids<T: Config> = StorageNMap<
 		_,
-		Blake2_128Concat,
-		T::ProjectIdentifier,
-		Blake2_128Concat,
-		AccountIdOf<T>,
-		BoundedVec<BidInfoOf<T>, T::MaxBidsPerUser>,
-		ValueQuery,
+		(
+			NMapKey<Blake2_128Concat, T::ProjectIdentifier>,
+			NMapKey<Blake2_128Concat, AccountIdOf<T>>,
+			NMapKey<Blake2_128Concat, StorageItemIdOf<T>>,
+		),
+		BidInfoOf<T>,
 	>;
 
 	#[pallet::storage]

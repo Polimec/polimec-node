@@ -774,7 +774,8 @@ impl<T: Config> Pallet<T> {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let evaluation_id = Self::next_evaluation_id();
-		let mut caller_existing_evaluations: Vec<(StorageItemIdOf<T>, EvaluationInfoOf<T>)> = Evaluations::<T>::iter_prefix((project_id, evaluator.clone())).collect();
+		let mut caller_existing_evaluations: Vec<(StorageItemIdOf<T>, EvaluationInfoOf<T>)> =
+			Evaluations::<T>::iter_prefix((project_id, evaluator.clone())).collect();
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
 		let early_evaluation_reward_threshold_usd =
 			T::EvaluationSuccessThreshold::get() * project_details.fundraising_target;
@@ -821,7 +822,6 @@ impl<T: Config> Pallet<T> {
 			T::NativeCurrency::hold(&LockType::Evaluation(project_id), &evaluator, plmc_bond)
 				.map_err(|_| Error::<T>::InsufficientBalance)?;
 		} else {
-			// If the evaluation vector for the user is full, we drop the lowest/last bond
 			let (low_id, lowest_evaluation) = caller_existing_evaluations
 				.iter()
 				.min_by_key(|(_, evaluation)| evaluation.original_plmc_bond)
@@ -887,7 +887,7 @@ impl<T: Config> Pallet<T> {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let bid_id = Self::next_bid_id();
-		let mut existing_bids = Bids::<T>::get(project_id, bidder.clone());
+		let mut existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder.clone())).collect::<Vec<_>>();
 
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
 		let funding_asset_usd_price =
@@ -938,41 +938,35 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// * Update storage *
-		match existing_bids.try_push(new_bid.clone()) {
-			Ok(_) => {
-				Self::try_plmc_participation_lock(&bidder, project_id, required_plmc_bond)?;
-				Self::try_funding_asset_hold(&bidder, project_id, required_funding_asset_transfer, asset_id)?;
+		if existing_bids.len() < T::MaxBidsPerUser::get() as usize {
+			Self::try_plmc_participation_lock(&bidder, project_id, required_plmc_bond)?;
+			Self::try_funding_asset_hold(&bidder, project_id, required_funding_asset_transfer, asset_id)?;
+		} else {
+			let lowest_bid =
+				existing_bids.iter().min_by_key(|bid| bid.plmc_bond).ok_or(Error::<T>::ImpossibleState)?.clone();
 
-				// TODO: PLMC-159. Send an XCM message to Statemint/e to transfer a `bid.market_cap` amount of USDC (or the Currency specified by the issuer) to the PalletId Account
-				// Alternative TODO: PLMC-159. The user should have the specified currency (e.g: USDC) already on Polimec
-			},
-			Err(_) => {
-				// Since the bids are sorted by price, and in this branch the Vec is full, the last element is the lowest bid
-				let lowest_plmc_bond = existing_bids.iter().last().ok_or(Error::<T>::ImpossibleState)?.plmc_bond;
+			ensure!(new_bid.plmc_bond > lowest_bid.plmc_bond, Error::<T>::BidTooLow);
 
-				ensure!(new_bid.plmc_bond > lowest_plmc_bond, Error::<T>::BidTooLow);
+			T::NativeCurrency::release(
+				&LockType::Participation(project_id),
+				&lowest_bid.bidder,
+				lowest_bid.plmc_bond,
+				Precision::Exact,
+			)?;
+			T::FundingCurrency::transfer(
+				asset_id,
+				&Self::fund_account_id(project_id),
+				&lowest_bid.bidder,
+				lowest_bid.funding_asset_amount_locked,
+				Preservation::Expendable,
+			)?;
+			Bids::<T>::remove((project_id, lowest_bid.bidder, lowest_bid.id));
 
-				Self::release_last_funding_item_in_vec(
-					&bidder,
-					project_id,
-					asset_id,
-					&mut existing_bids,
-					|x| x.plmc_bond,
-					|x| x.funding_asset_amount_locked,
-				)?;
+			Self::try_plmc_participation_lock(&bidder, project_id, required_plmc_bond)?;
+			Self::try_funding_asset_hold(&bidder, project_id, required_funding_asset_transfer, asset_id)?;
+		}
 
-				Self::try_plmc_participation_lock(&bidder, project_id, required_plmc_bond)?;
-
-				Self::try_funding_asset_hold(&bidder, project_id, required_funding_asset_transfer, asset_id)?;
-
-				// This should never fail, since we just removed an element from the Vec
-				existing_bids.try_push(new_bid).map_err(|_| Error::<T>::ImpossibleState)?;
-			},
-		};
-
-		existing_bids.sort_by(|a, b| b.cmp(a));
-
-		Bids::<T>::set(project_id, bidder, existing_bids);
+		Bids::<T>::insert((project_id, bidder, bid_id), new_bid);
 		NextBidId::<T>::set(bid_id.saturating_add(One::one()));
 
 		Self::deposit_event(Event::<T>::Bid { project_id, amount: ct_amount, price: ct_usd_price, multiplier });
@@ -1160,10 +1154,8 @@ impl<T: Config> Pallet<T> {
 		bidder: AccountIdOf<T>,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
-		let bids = Bids::<T>::get(project_id, &bidder);
+		let bids = Bids::<T>::iter_prefix_values((project_id, bidder.clone()));
 		let now = <frame_system::Pallet<T>>::block_number();
-		let mut new_bids = vec![];
-
 		for mut bid in bids {
 			let mut plmc_vesting = bid.plmc_vesting_period;
 
@@ -1193,7 +1185,7 @@ impl<T: Config> Pallet<T> {
 				unbond_amount,
 				Precision::Exact,
 			)?;
-			new_bids.push(bid.clone());
+			Bids::<T>::insert((project_id, bidder.clone(), bid.id), bid.clone());
 
 			// * Emit events *
 			Self::deposit_event(Event::<T>::BondReleased {
@@ -1203,13 +1195,6 @@ impl<T: Config> Pallet<T> {
 				releaser: releaser.clone(),
 			});
 		}
-
-		// Should never return error since we are using the same amount of bids that were there before.
-		let new_bids: BoundedVec<BidInfoOf<T>, T::MaxBidsPerUser> =
-			new_bids.try_into().map_err(|_| Error::<T>::TooManyBids)?;
-
-		// Update the AuctionInfo with the new bids vector
-		Bids::<T>::insert(project_id, &bidder, new_bids);
 
 		Ok(())
 	}
@@ -1230,8 +1215,7 @@ impl<T: Config> Pallet<T> {
 		bidder: AccountIdOf<T>,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
-		let bids = Bids::<T>::get(project_id, &bidder);
-		let mut new_bids = vec![];
+		let bids = Bids::<T>::iter_prefix_values((project_id, bidder.clone()));
 		let now = <frame_system::Pallet<T>>::block_number();
 		for mut bid in bids {
 			let mut ct_vesting = bid.ct_vesting_period;
@@ -1257,7 +1241,7 @@ impl<T: Config> Pallet<T> {
 			// TODO: Should we mint here, or should the full mint happen to the treasury and then do transfers from there?
 			// Mint the funds for the user
 			T::ContributionTokenCurrency::mint_into(bid.project_id, &bid.bidder, mint_amount)?;
-			new_bids.push(bid);
+			Bids::<T>::insert((project_id, bidder.clone(), bid.id), bid.clone());
 
 			// * Emit events *
 			Self::deposit_event(Event::<T>::ContributionTokenMinted {
@@ -1267,10 +1251,6 @@ impl<T: Config> Pallet<T> {
 				amount: mint_amount,
 			})
 		}
-		// Update the bids with the new vesting period struct
-		let new_bids: BoundedVec<BidInfoOf<T>, T::MaxBidsPerUser> =
-			new_bids.try_into().map_err(|_| Error::<T>::TooManyBids)?;
-		Bids::<T>::insert(project_id, &bidder, new_bids);
 
 		Ok(())
 	}
@@ -1439,7 +1419,8 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		let released_evaluation = Evaluations::<T>::get((project_id, evaluator.clone(), evaluation_id)).ok_or(Error::<T>::EvaluationNotFound)?;
+		let released_evaluation = Evaluations::<T>::get((project_id, evaluator.clone(), evaluation_id))
+			.ok_or(Error::<T>::EvaluationNotFound)?;
 
 		// * Validity checks *
 		ensure!(
@@ -1486,7 +1467,8 @@ impl<T: Config> Pallet<T> {
 			} else {
 				return Err(Error::<T>::NotAllowed.into())
 			};
-		let mut evaluation = Evaluations::<T>::get((project_id, evaluator.clone(), evaluation_id)).ok_or(Error::<T>::EvaluationNotFound)?;
+		let mut evaluation = Evaluations::<T>::get((project_id, evaluator.clone(), evaluation_id))
+			.ok_or(Error::<T>::EvaluationNotFound)?;
 
 		// * Validity checks *
 		ensure!(
@@ -1665,7 +1647,7 @@ impl<T: Config> Pallet<T> {
 		total_allocation_size: BalanceOf<T>,
 	) -> Result<(), DispatchError> {
 		// Get all the bids that were made before the end of the candle
-		let mut bids = Bids::<T>::iter_prefix(project_id).flat_map(|(_bidder, bids)| bids).collect::<Vec<_>>();
+		let mut bids = Bids::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
 		// temp variable to store the sum of the bids
 		let mut bid_token_amount_sum = BalanceOf::<T>::zero();
 		// temp variable to store the total value of the bids (i.e price * amount)
@@ -1870,68 +1852,57 @@ impl<T: Config> Pallet<T> {
 
 		let mut final_total_funding_reached_by_bids = BalanceOf::<T>::zero();
 		// Update the bid in the storage
-		for bid in bids.into_iter() {
-			Bids::<T>::mutate(project_id, bid.bidder.clone(), |bids| -> Result<(), DispatchError> {
-				let bid_index =
-					bids.clone().into_iter().position(|b| b.id == bid.id).ok_or(Error::<T>::ImpossibleState)?;
-				let mut final_bid = bid;
+		for mut bid in bids.into_iter() {
+			if bid.final_ct_usd_price > weighted_token_price {
+				bid.final_ct_usd_price = weighted_token_price;
+				let new_ticket_size =
+					weighted_token_price.checked_mul_int(bid.final_ct_amount).ok_or(Error::<T>::BadMath)?;
 
-				if final_bid.final_ct_usd_price > weighted_token_price {
-					final_bid.final_ct_usd_price = weighted_token_price;
-					let new_ticket_size =
-						weighted_token_price.checked_mul_int(final_bid.final_ct_amount).ok_or(Error::<T>::BadMath)?;
-
-					let funding_asset_price = T::PriceProvider::get_price(final_bid.funding_asset.to_statemint_id())
-						.ok_or(Error::<T>::PriceNotFound)?;
-					let funding_asset_amount_needed = funding_asset_price
-						.reciprocal()
-						.ok_or(Error::<T>::BadMath)?
-						.checked_mul_int(new_ticket_size)
-						.ok_or(Error::<T>::BadMath)?;
-
-					let try_transfer = T::FundingCurrency::transfer(
-						final_bid.funding_asset.to_statemint_id(),
-						&project_account,
-						&final_bid.bidder,
-						final_bid.funding_asset_amount_locked.saturating_sub(funding_asset_amount_needed),
-						Preservation::Preserve,
-					);
-					if let Err(e) = try_transfer {
-						Self::deposit_event(Event::<T>::TransferError { error: e });
-					}
-
-					final_bid.funding_asset_amount_locked = funding_asset_amount_needed;
-
-					let usd_bond_needed = final_bid
-						.multiplier
-						.calculate_bonding_requirement(new_ticket_size)
-						.map_err(|_| Error::<T>::BadMath)?;
-					let plmc_bond_needed = plmc_price
-						.reciprocal()
-						.ok_or(Error::<T>::BadMath)?
-						.checked_mul_int(usd_bond_needed)
-						.ok_or(Error::<T>::BadMath)?;
-
-					let try_release = T::NativeCurrency::release(
-						&LockType::Participation(project_id),
-						&final_bid.bidder,
-						final_bid.plmc_bond.saturating_sub(plmc_bond_needed),
-						Precision::Exact,
-					);
-					if let Err(e) = try_release {
-						Self::deposit_event(Event::<T>::TransferError { error: e });
-					}
-
-					final_bid.plmc_bond = plmc_bond_needed;
-				}
-				let final_ticket_size = final_bid
-					.final_ct_usd_price
-					.checked_mul_int(final_bid.final_ct_amount)
+				let funding_asset_price = T::PriceProvider::get_price(bid.funding_asset.to_statemint_id())
+					.ok_or(Error::<T>::PriceNotFound)?;
+				let funding_asset_amount_needed = funding_asset_price
+					.reciprocal()
+					.ok_or(Error::<T>::BadMath)?
+					.checked_mul_int(new_ticket_size)
 					.ok_or(Error::<T>::BadMath)?;
-				final_total_funding_reached_by_bids += final_ticket_size;
-				bids[bid_index] = final_bid;
-				Ok(())
-			})?;
+
+				let try_transfer = T::FundingCurrency::transfer(
+					bid.funding_asset.to_statemint_id(),
+					&project_account,
+					&bid.bidder,
+					bid.funding_asset_amount_locked.saturating_sub(funding_asset_amount_needed),
+					Preservation::Preserve,
+				);
+				if let Err(e) = try_transfer {
+					Self::deposit_event(Event::<T>::TransferError { error: e });
+				}
+
+				bid.funding_asset_amount_locked = funding_asset_amount_needed;
+
+				let usd_bond_needed =
+					bid.multiplier.calculate_bonding_requirement(new_ticket_size).map_err(|_| Error::<T>::BadMath)?;
+				let plmc_bond_needed = plmc_price
+					.reciprocal()
+					.ok_or(Error::<T>::BadMath)?
+					.checked_mul_int(usd_bond_needed)
+					.ok_or(Error::<T>::BadMath)?;
+
+				let try_release = T::NativeCurrency::release(
+					&LockType::Participation(project_id),
+					&bid.bidder,
+					bid.plmc_bond.saturating_sub(plmc_bond_needed),
+					Precision::Exact,
+				);
+				if let Err(e) = try_release {
+					Self::deposit_event(Event::<T>::TransferError { error: e });
+				}
+
+				bid.plmc_bond = plmc_bond_needed;
+			}
+			let final_ticket_size =
+				bid.final_ct_usd_price.checked_mul_int(bid.final_ct_amount).ok_or(Error::<T>::BadMath)?;
+			final_total_funding_reached_by_bids += final_ticket_size;
+			Bids::<T>::insert((project_id, bid.bidder.clone(), bid.id), bid);
 		}
 
 		// Update storage
@@ -2084,12 +2055,14 @@ impl<T: Config> Pallet<T> {
 		let early_evaluator_reward_pot_usd = Perquintill::from_percent(20) * evaluator_fees;
 		let normal_evaluator_reward_pot_usd = Perquintill::from_percent(80) * evaluator_fees;
 
-		let early_evaluator_total_bonded_usd = evaluations
-			.iter()
-			.fold(BalanceOf::<T>::zero(), |acc, ((_evaluator, _id), evaluation)| acc.saturating_add(evaluation.early_usd_amount));
-		let late_evaluator_total_bonded_usd = evaluations
-			.iter()
-			.fold(BalanceOf::<T>::zero(), |acc, ((_evaluator, _id), evaluation)| acc.saturating_add(evaluation.late_usd_amount));
+		let early_evaluator_total_bonded_usd =
+			evaluations.iter().fold(BalanceOf::<T>::zero(), |acc, ((_evaluator, _id), evaluation)| {
+				acc.saturating_add(evaluation.early_usd_amount)
+			});
+		let late_evaluator_total_bonded_usd =
+			evaluations.iter().fold(BalanceOf::<T>::zero(), |acc, ((_evaluator, _id), evaluation)| {
+				acc.saturating_add(evaluation.late_usd_amount)
+			});
 		let normal_evaluator_total_bonded_usd =
 			early_evaluator_total_bonded_usd.saturating_add(late_evaluator_total_bonded_usd);
 		Ok(RewardInfo {
