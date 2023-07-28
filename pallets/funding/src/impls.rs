@@ -228,14 +228,13 @@ enum OperationsLeft {
 }
 
 fn remaining_evaluators_to_reward_or_slash<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
-	Evaluations::<T>::iter_prefix_values(project_id)
-		.flatten()
+	Evaluations::<T>::iter_prefix_values((project_id,))
 		.filter(|evaluation| !evaluation.rewarded_or_slashed)
 		.count() as u64
 }
 
 fn remaining_evaluations<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
-	Evaluations::<T>::iter_prefix_values(project_id).flatten().count() as u64
+	Evaluations::<T>::iter_prefix_values((project_id,)).count() as u64
 }
 
 fn remaining_bids_to_release_funds<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
@@ -289,20 +288,11 @@ fn remaining_contributions_without_issuer_payout<T: Config>(project_id: T::Proje
 
 fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> Result<(Weight, u64), DispatchError> {
 	let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-	let project_evaluations: Vec<_> = Evaluations::<T>::iter_prefix_values(project_id).collect();
-	let remaining_evaluations =
-		project_evaluations.iter().flatten().filter(|evaluation| !evaluation.rewarded_or_slashed).count() as u64;
+	let mut project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,));
+	let mut remaining_evaluations =
+		project_evaluations.filter(|evaluation| !evaluation.rewarded_or_slashed);
 
-	let maybe_user_evaluations = project_evaluations
-		.into_iter()
-		.find(|evaluations| evaluations.iter().any(|evaluation| !evaluation.rewarded_or_slashed));
-
-	if let Some(mut user_evaluations) = maybe_user_evaluations {
-		let evaluation = user_evaluations
-			.iter_mut()
-			.find(|evaluation| !evaluation.rewarded_or_slashed)
-			.expect("user_evaluations can only exist if an item here is found; qed");
-
+	if let Some(mut evaluation) = remaining_evaluations.next() {
 		match project_details.evaluation_round_info.evaluators_outcome {
 			EvaluatorsOutcome::Rewarded(_) => {
 				match Pallet::<T>::do_evaluation_reward(
@@ -326,27 +316,19 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 		// if the evaluation outcome failed, we still want to flag it as rewarded or slashed. Otherwise the automatic
 		// transition will get stuck.
 		evaluation.rewarded_or_slashed = true;
-		Evaluations::<T>::insert(project_id, evaluation.evaluator.clone(), user_evaluations);
+		Evaluations::<T>::insert((project_id, evaluation.evaluator.clone(), evaluation.id), evaluation);
 
-		Ok((Weight::zero(), remaining_evaluations.saturating_sub(1u64)))
+		Ok((Weight::zero(), remaining_evaluations.count() as u64))
 	} else {
 		Ok((Weight::zero(), 0u64))
 	}
 }
 
-fn unbond_one_evaluation<T: crate::Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
-	let project_evaluations: Vec<_> = Evaluations::<T>::iter_prefix_values(project_id).collect();
-	let evaluation_count = project_evaluations.iter().flatten().count() as u64;
+fn unbond_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
+	let mut project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
+	let evaluation_count = project_evaluations.len() as u64;
 
-	let maybe_user_evaluations =
-		project_evaluations.into_iter().find(|evaluations| evaluations.iter().any(|e| e.rewarded_or_slashed));
-
-	if let Some(mut user_evaluations) = maybe_user_evaluations {
-		let evaluation = user_evaluations
-			.iter_mut()
-			.find(|evaluation| evaluation.rewarded_or_slashed)
-			.expect("user_evaluations can only exist if an item here is found; qed");
-
+	if let Some(mut evaluation) = project_evaluations.iter().find(|evaluation| evaluation.rewarded_or_slashed) {
 		match Pallet::<T>::do_evaluation_unbond_for(
 			T::PalletId::get().into_account_truncating(),
 			evaluation.project_id,
@@ -622,44 +604,4 @@ fn issuer_funding_payout_one_contribution<T: Config>(project_id: T::ProjectIdent
 	} else {
 		(Weight::zero(), 0u64)
 	}
-}
-
-// might come in handy later
-#[allow(unused)]
-fn unbond_evaluators<T: Config>(project_id: T::ProjectIdentifier, max_weight: Weight) -> (Weight, OperationsLeft) {
-	let evaluations = Evaluations::<T>::iter_prefix_values(project_id).flatten().collect::<Vec<EvaluationInfoOf<T>>>();
-
-	let mut used_weight = Weight::zero();
-
-	let unbond_results = evaluations
-		.iter()
-		.take_while(|_evaluation| {
-			let new_used_weight = used_weight.saturating_add(T::WeightInfo::evaluation_unbond_for());
-			if new_used_weight.any_gt(max_weight) {
-				false
-			} else {
-				used_weight = new_used_weight;
-				true
-			}
-		})
-		.map(|evaluation| {
-			Pallet::<T>::do_evaluation_unbond_for(
-				T::PalletId::get().into_account_truncating(),
-				evaluation.project_id,
-				evaluation.evaluator.clone(),
-				evaluation.id,
-			)
-		})
-		.collect::<Vec<_>>();
-
-	let successful_results =
-		unbond_results.into_iter().filter(|result| if let Err(e) = result { false } else { true }).collect::<Vec<_>>();
-
-	let operations_left = if successful_results.len() == evaluations.len() {
-		OperationsLeft::None
-	} else {
-		OperationsLeft::Some(evaluations.len().saturating_sub(successful_results.len()) as u64)
-	};
-
-	(used_weight, operations_left)
 }

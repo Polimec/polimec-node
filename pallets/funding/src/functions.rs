@@ -30,7 +30,7 @@ use frame_support::{
 		fungible::{InspectHold, MutateHold as FungibleMutateHold},
 		fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate as FungiblesMutate},
 		tokens::{Precision, Preservation},
-		Get,
+		Get, Len,
 	},
 };
 
@@ -219,12 +219,8 @@ impl<T: Config> Pallet<T> {
 
 		// * Calculate new variables *
 		let initial_balance: BalanceOf<T> = 0u32.into();
-		let total_amount_bonded =
-			Evaluations::<T>::iter_prefix(project_id).fold(initial_balance, |total, (_evaluator, bonds)| {
-				let user_total_plmc_bond =
-					bonds.iter().fold(total, |acc, bond| acc.saturating_add(bond.original_plmc_bond));
-				total.saturating_add(user_total_plmc_bond)
-			});
+		let total_amount_bonded = Evaluations::<T>::iter_prefix((project_id,))
+			.fold(initial_balance, |total, (_evaluator, bond)| total.saturating_add(bond.original_plmc_bond));
 
 		let evaluation_target_usd = <T as Config>::EvaluationSuccessThreshold::get() * fundraising_target_usd;
 		let evaluation_target_plmc = current_plmc_price
@@ -778,7 +774,7 @@ impl<T: Config> Pallet<T> {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let evaluation_id = Self::next_evaluation_id();
-		let mut caller_existing_evaluations = Evaluations::<T>::get(project_id, evaluator.clone());
+		let mut caller_existing_evaluations: Vec<(StorageItemIdOf<T>, EvaluationInfoOf<T>)> = Evaluations::<T>::iter_prefix((project_id, evaluator.clone())).collect();
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
 		let early_evaluation_reward_threshold_usd =
 			T::EvaluationSuccessThreshold::get() * project_details.fundraising_target;
@@ -821,38 +817,38 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// * Update Storage *
-		// TODO: PLMC-144. Unlock the PLMC when it's the right time
+		if caller_existing_evaluations.len() < T::MaxEvaluationsPerUser::get() as usize {
+			T::NativeCurrency::hold(&LockType::Evaluation(project_id), &evaluator, plmc_bond)
+				.map_err(|_| Error::<T>::InsufficientBalance)?;
+		} else {
+			// If the evaluation vector for the user is full, we drop the lowest/last bond
+			let (low_id, lowest_evaluation) = caller_existing_evaluations
+				.iter()
+				.min_by_key(|(_, evaluation)| evaluation.original_plmc_bond)
+				.ok_or(Error::<T>::ImpossibleState)?
+				.clone();
 
-		match caller_existing_evaluations.try_push(new_evaluation.clone()) {
-			Ok(_) => {
-				T::NativeCurrency::hold(&LockType::Evaluation(project_id), &evaluator, plmc_bond)
-					.map_err(|_| Error::<T>::InsufficientBalance)?;
-			},
-			Err(_) => {
-				// Evaluations are stored in descending order. If the evaluation vector for the user is full, we drop the lowest/last bond
-				let lowest_evaluation = caller_existing_evaluations.swap_remove(caller_existing_evaluations.len() - 1);
+			ensure!(lowest_evaluation.original_plmc_bond < plmc_bond, Error::<T>::EvaluationBondTooLow);
+			ensure!(
+				lowest_evaluation.original_plmc_bond == lowest_evaluation.current_plmc_bond,
+				"Using evaluation funds for participating should not be possible in the evaluation round"
+			);
 
-				ensure!(lowest_evaluation.original_plmc_bond < plmc_bond, Error::<T>::EvaluationBondTooLow);
+			T::NativeCurrency::release(
+				&LockType::Evaluation(project_id),
+				&lowest_evaluation.evaluator,
+				lowest_evaluation.original_plmc_bond,
+				Precision::Exact,
+			)
+			.map_err(|_| Error::<T>::InsufficientBalance)?;
 
-				T::NativeCurrency::release(
-					&LockType::Evaluation(project_id),
-					&lowest_evaluation.evaluator,
-					lowest_evaluation.original_plmc_bond,
-					Precision::Exact,
-				)
+			T::NativeCurrency::hold(&LockType::Evaluation(project_id), &evaluator, plmc_bond)
 				.map_err(|_| Error::<T>::InsufficientBalance)?;
 
-				T::NativeCurrency::hold(&LockType::Evaluation(project_id), &evaluator, plmc_bond)
-					.map_err(|_| Error::<T>::InsufficientBalance)?;
+			Evaluations::<T>::remove((project_id, evaluator.clone(), low_id));
+		}
 
-				// This should never fail since we just removed an element from the vector
-				caller_existing_evaluations.try_push(new_evaluation).map_err(|_| Error::<T>::ImpossibleState)?;
-			},
-		};
-
-		caller_existing_evaluations.sort_by_key(|bond| Reverse(bond.original_plmc_bond));
-
-		Evaluations::<T>::set(project_id, evaluator.clone(), caller_existing_evaluations);
+		Evaluations::<T>::insert((project_id, evaluator.clone(), evaluation_id), new_evaluation);
 		NextEvaluationId::<T>::set(evaluation_id.saturating_add(One::one()));
 		evaluation_round_info.total_bonded_usd += usd_amount;
 		evaluation_round_info.total_bonded_plmc += plmc_bond;
@@ -1443,12 +1439,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		let mut user_evaluations = Evaluations::<T>::get(project_id, evaluator.clone());
-		let evaluation_position = user_evaluations
-			.iter()
-			.position(|evaluation| evaluation.id == evaluation_id)
-			.ok_or(Error::<T>::EvaluationNotFound)?;
-		let released_evaluation = user_evaluations.swap_remove(evaluation_position);
+		let released_evaluation = Evaluations::<T>::get((project_id, evaluator.clone(), evaluation_id)).ok_or(Error::<T>::EvaluationNotFound)?;
 
 		// * Validity checks *
 		ensure!(
@@ -1467,7 +1458,7 @@ impl<T: Config> Pallet<T> {
 			released_evaluation.current_plmc_bond,
 			Precision::Exact,
 		)?;
-		Evaluations::<T>::set(project_id, evaluator.clone(), user_evaluations);
+		Evaluations::<T>::remove((project_id, evaluator.clone(), evaluation_id));
 
 		// * Emit events *
 		Self::deposit_event(Event::<T>::BondReleased {
@@ -1495,11 +1486,7 @@ impl<T: Config> Pallet<T> {
 			} else {
 				return Err(Error::<T>::NotAllowed.into())
 			};
-		let mut user_evaluations = Evaluations::<T>::get(project_id, evaluator.clone());
-		let evaluation = user_evaluations
-			.iter_mut()
-			.find(|evaluation| evaluation.id == evaluation_id)
-			.ok_or(Error::<T>::EvaluationNotFound)?;
+		let mut evaluation = Evaluations::<T>::get((project_id, evaluator.clone(), evaluation_id)).ok_or(Error::<T>::EvaluationNotFound)?;
 
 		// * Validity checks *
 		ensure!(
@@ -1526,7 +1513,7 @@ impl<T: Config> Pallet<T> {
 		// * Update storage *
 		T::ContributionTokenCurrency::mint_into(project_id, &evaluation.evaluator, reward_amount_ct)?;
 		evaluation.rewarded_or_slashed = true;
-		Evaluations::<T>::set(project_id, evaluator.clone(), user_evaluations);
+		Evaluations::<T>::insert((project_id, evaluator.clone(), evaluation_id), evaluation);
 
 		// * Emit events *
 		Self::deposit_event(Event::<T>::EvaluationRewarded {
@@ -2083,22 +2070,8 @@ impl<T: Config> Pallet<T> {
 		project_id: <T as Config>::ProjectIdentifier,
 	) -> Result<RewardInfoOf<T>, DispatchError> {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let evaluation_usd_amounts = Evaluations::<T>::iter_prefix(project_id)
-			.map(|(evaluator, evaluations)| {
-				(
-					evaluator,
-					evaluations.into_iter().fold(
-						(BalanceOf::<T>::zero(), BalanceOf::<T>::zero()),
-						|acc, evaluation| {
-							(
-								acc.0.saturating_add(evaluation.early_usd_amount),
-								acc.1.saturating_add(evaluation.late_usd_amount),
-							)
-						},
-					),
-				)
-			})
-			.collect::<Vec<_>>();
+		let evaluations = Evaluations::<T>::iter_prefix((project_id,)).collect::<Vec<_>>();
+
 		let target_funding = project_details.fundraising_target;
 		let funding_reached = project_details.funding_amount_reached;
 
@@ -2111,11 +2084,12 @@ impl<T: Config> Pallet<T> {
 		let early_evaluator_reward_pot_usd = Perquintill::from_percent(20) * evaluator_fees;
 		let normal_evaluator_reward_pot_usd = Perquintill::from_percent(80) * evaluator_fees;
 
-		let early_evaluator_total_bonded_usd = evaluation_usd_amounts
+		let early_evaluator_total_bonded_usd = evaluations
 			.iter()
-			.fold(BalanceOf::<T>::zero(), |acc, (_, (early, _))| acc.saturating_add(*early));
-		let late_evaluator_total_bonded_usd =
-			evaluation_usd_amounts.iter().fold(BalanceOf::<T>::zero(), |acc, (_, (_, late))| acc.saturating_add(*late));
+			.fold(BalanceOf::<T>::zero(), |acc, ((_evaluator, _id), evaluation)| acc.saturating_add(evaluation.early_usd_amount));
+		let late_evaluator_total_bonded_usd = evaluations
+			.iter()
+			.fold(BalanceOf::<T>::zero(), |acc, ((_evaluator, _id), evaluation)| acc.saturating_add(evaluation.late_usd_amount));
 		let normal_evaluator_total_bonded_usd =
 			early_evaluator_total_bonded_usd.saturating_add(late_evaluator_total_bonded_usd);
 		Ok(RewardInfo {

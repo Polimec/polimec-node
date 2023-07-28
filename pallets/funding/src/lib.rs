@@ -445,14 +445,14 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn evaluations)]
 	/// Keep track of the PLMC bonds made to each project by each evaluator
-	pub type Evaluations<T: Config> = StorageDoubleMap<
+	pub type Evaluations<T: Config> = StorageNMap<
 		_,
-		Blake2_128Concat,
-		T::ProjectIdentifier,
-		Blake2_128Concat,
-		AccountIdOf<T>,
-		BoundedVec<EvaluationInfoOf<T>, T::MaxEvaluationsPerUser>,
-		ValueQuery,
+		(
+			NMapKey<Blake2_128Concat, T::ProjectIdentifier>,
+			NMapKey<Blake2_128Concat, AccountIdOf<T>>,
+			NMapKey<Blake2_128Concat, StorageItemIdOf<T>>,
+		),
+		EvaluationInfoOf<T>,
 	>;
 
 	#[pallet::storage]
