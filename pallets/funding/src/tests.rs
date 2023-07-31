@@ -527,8 +527,7 @@ impl TestEnvironment {
 	) {
 		for (user, expected_amount, _token_id) in correct_funds {
 			self.ext_env.borrow_mut().execute_with(|| {
-				Contributions::<TestRuntime>::get(project_id, user.clone())
-					.iter()
+				Contributions::<TestRuntime>::iter_prefix_values((project_id, user.clone()))
 					.find(|c| c.funding_asset_amount == expected_amount)
 					.expect("Contribution not found in storage");
 			});
@@ -2515,7 +2514,7 @@ mod auction_round_failure {
 			TestBid::new(DAVE, 12_000 * USDT_UNIT, 8_u128.into(), None, AcceptedFundingAsset::USDT), // 96k
 			TestBid::new(DAVE, 15_000 * USDT_UNIT, 5_u128.into(), None, AcceptedFundingAsset::USDT), // 75k
 			// Bid with lowest PLMC bonded gets dropped
-			TestBid::new(DAVE, 1_000 * USDT_UNIT, 7_u128.into(), None, AcceptedFundingAsset::USDT),  // 7k
+			TestBid::new(DAVE, 1_000 * USDT_UNIT, 7_u128.into(), None, AcceptedFundingAsset::USDT), // 7k
 			TestBid::new(DAVE, 20_000 * USDT_UNIT, 5_u128.into(), None, AcceptedFundingAsset::USDT), // 100k
 		];
 
@@ -2790,7 +2789,7 @@ mod community_round_success {
 
 		let project_id = community_funding_project.get_project_id();
 		let bob_total_contributions: BalanceOf<TestRuntime> = community_funding_project
-			.in_ext(|| Contributions::<TestRuntime>::get(project_id, BOB).iter().map(|c| c.funding_asset_amount).sum());
+			.in_ext(|| Contributions::<TestRuntime>::iter_prefix_values((project_id, BOB)).map(|c| c.funding_asset_amount).sum());
 
 		let total_contributed = calculate_contributed_funding_asset_spent(contributions.clone(), token_price)
 			.iter()
@@ -2967,8 +2966,7 @@ mod community_round_success {
 			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&LockType::Participation(project_id), &CONTRIBUTOR)
 		});
 		let statemint_asset_contributions_stored = project.in_ext(|| {
-			Contributions::<TestRuntime>::get(project.project_id, CONTRIBUTOR)
-				.iter()
+			Contributions::<TestRuntime>::iter_prefix_values((project.project_id, CONTRIBUTOR))
 				.map(|c| c.funding_asset_amount)
 				.sum::<BalanceOf<TestRuntime>>()
 		});
@@ -3004,8 +3002,7 @@ mod community_round_success {
 			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&LockType::Participation(project_id), &CONTRIBUTOR)
 		});
 		let new_statemint_asset_contributions_stored = project.in_ext(|| {
-			Contributions::<TestRuntime>::get(project.project_id, CONTRIBUTOR)
-				.iter()
+			Contributions::<TestRuntime>::iter_prefix_values((project.project_id, CONTRIBUTOR))
 				.map(|c| c.funding_asset_amount)
 				.sum::<BalanceOf<TestRuntime>>()
 		});
@@ -3070,8 +3067,7 @@ mod community_round_success {
 			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&LockType::Participation(project_id), &CONTRIBUTOR)
 		});
 		let statemint_asset_contributions_stored = project.in_ext(|| {
-			Contributions::<TestRuntime>::get(project.project_id, CONTRIBUTOR)
-				.iter()
+			Contributions::<TestRuntime>::iter_prefix_values((project.project_id, CONTRIBUTOR))
 				.map(|c| c.funding_asset_amount)
 				.sum::<BalanceOf<TestRuntime>>()
 		});
@@ -3107,8 +3103,7 @@ mod community_round_success {
 			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&LockType::Participation(project_id), &CONTRIBUTOR)
 		});
 		let new_statemint_asset_contributions_stored = project.in_ext(|| {
-			Contributions::<TestRuntime>::get(project.project_id, CONTRIBUTOR)
-				.iter()
+			Contributions::<TestRuntime>::iter_prefix_values((project.project_id, CONTRIBUTOR))
 				.map(|c| c.funding_asset_amount)
 				.sum::<BalanceOf<TestRuntime>>()
 		});

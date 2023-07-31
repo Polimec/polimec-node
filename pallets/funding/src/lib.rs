@@ -471,14 +471,14 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn contributions)]
 	/// Contributions made during the Community and Remainder round. i.e token buys
-	pub type Contributions<T: Config> = StorageDoubleMap<
+	pub type Contributions<T: Config> = StorageNMap<
 		_,
-		Blake2_128Concat,
-		T::ProjectIdentifier,
-		Blake2_128Concat,
-		AccountIdOf<T>,
-		BoundedVec<ContributionInfoOf<T>, T::MaxContributionsPerUser>,
-		ValueQuery,
+		(
+			NMapKey<Blake2_128Concat, T::ProjectIdentifier>,
+			NMapKey<Blake2_128Concat, AccountIdOf<T>>,
+			NMapKey<Blake2_128Concat, StorageItemIdOf<T>>,
+		),
+		ContributionInfoOf<T>,
 	>;
 
 	#[pallet::event]

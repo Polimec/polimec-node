@@ -997,10 +997,11 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let contribution_id = Self::next_contribution_id();
-		let mut existing_contributions = Contributions::<T>::get(project_id, contributor.clone());
+		let mut existing_contributions =
+			Contributions::<T>::iter_prefix_values((project_id, contributor.clone())).collect::<Vec<_>>();
 
 		let ct_usd_price = project_details.weighted_average_price.ok_or(Error::<T>::AuctionNotStarted)?;
 		let mut ticket_size = ct_usd_price.checked_mul_int(token_amount).ok_or(Error::<T>::BadMath)?;
@@ -1066,46 +1067,47 @@ impl<T: Config> Pallet<T> {
 
 		// * Update storage *
 		// Try adding the new contribution to the system
-		match existing_contributions.try_push(new_contribution.clone()) {
-			Ok(_) => {
-				Self::try_plmc_participation_lock(&contributor, project_id, required_plmc_bond)?;
-				Self::try_funding_asset_hold(&contributor, project_id, required_funding_asset_transfer, asset_id)?;
-			},
-			Err(_) => {
-				// The contributions are sorted by highest PLMC bond. If the contribution vector for the user is full, we drop the lowest/last item
-				let lowest_plmc_bond =
-					existing_contributions.iter().last().ok_or(Error::<T>::ImpossibleState)?.plmc_bond;
+		if existing_contributions.len() < T::MaxContributionsPerUser::get() as usize {
+			Self::try_plmc_participation_lock(&contributor, project_id, required_plmc_bond)?;
+			Self::try_funding_asset_hold(&contributor, project_id, required_funding_asset_transfer, asset_id)?;
+		} else {
+			let lowest_contribution = existing_contributions
+				.iter()
+				.min_by_key(|contribution| contribution.plmc_bond)
+				.ok_or(Error::<T>::ImpossibleState)?;
 
-				ensure!(new_contribution.plmc_bond > lowest_plmc_bond, Error::<T>::ContributionTooLow);
+			ensure!(new_contribution.plmc_bond > lowest_contribution.plmc_bond, Error::<T>::ContributionTooLow);
 
-				Self::release_last_funding_item_in_vec(
-					&contributor,
-					project_id,
-					asset_id,
-					&mut existing_contributions,
-					|x| x.plmc_bond,
-					|x| x.funding_asset_amount,
-				)?;
+			T::NativeCurrency::release(
+				&LockType::Participation(project_id),
+				&lowest_contribution.contributor,
+				lowest_contribution.plmc_bond,
+				Precision::Exact,
+			)?;
+			T::FundingCurrency::transfer(
+				asset_id,
+				&Self::fund_account_id(project_id),
+				&lowest_contribution.contributor,
+				lowest_contribution.funding_asset_amount,
+				Preservation::Expendable,
+			)?;
+			Contributions::<T>::remove((project_id, lowest_contribution.contributor.clone(), lowest_contribution.id));
 
-				Self::try_plmc_participation_lock(&contributor, project_id, required_plmc_bond)?;
+			Self::try_plmc_participation_lock(&contributor, project_id, required_plmc_bond)?;
+			Self::try_funding_asset_hold(&contributor, project_id, required_funding_asset_transfer, asset_id)?;
 
-				Self::try_funding_asset_hold(&contributor, project_id, required_funding_asset_transfer, asset_id)?;
-
-				// This should never fail, since we just removed an item from the vector
-				existing_contributions.try_push(new_contribution).map_err(|_| Error::<T>::ImpossibleState)?;
-			},
+			project_details.remaining_contribution_tokens =
+				project_details.remaining_contribution_tokens.saturating_add(lowest_contribution.ct_amount);
+			project_details.funding_amount_reached =
+				project_details.funding_amount_reached.saturating_sub(lowest_contribution.usd_contribution_amount);
 		}
 
-		existing_contributions.sort_by_key(|contribution| Reverse(contribution.plmc_bond));
-
-		Contributions::<T>::set(project_id, contributor.clone(), existing_contributions);
+		Contributions::<T>::insert((project_id, contributor.clone(), contribution_id), new_contribution.clone());
 		NextContributionId::<T>::set(contribution_id.saturating_add(One::one()));
-		ProjectsDetails::<T>::mutate(project_id, |maybe_project| {
-			if let Some(project) = maybe_project {
-				project.remaining_contribution_tokens = remaining_cts_after_purchase;
-				project.funding_amount_reached = project.funding_amount_reached.saturating_add(ticket_size);
-			}
-		});
+
+		project_details.remaining_contribution_tokens = project_details.remaining_contribution_tokens.saturating_sub(new_contribution.ct_amount);
+		project_details.funding_amount_reached = project_details.funding_amount_reached.saturating_add(new_contribution.usd_contribution_amount);
+		ProjectsDetails::<T>::insert(project_id, project_details);
 
 		// If no CTs remain, end the funding phase
 		if remaining_cts_after_purchase == 0u32.into() {
@@ -1271,9 +1273,8 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let contributions = Contributions::<T>::get(project_id, &claimer);
+		let contributions = Contributions::<T>::iter_prefix_values((project_id, &claimer));
 		let now = <frame_system::Pallet<T>>::block_number();
-		let mut updated_contributions = vec![];
 
 		// * Validity checks *
 		// TODO: PLMC-133. Check the right credential status
@@ -1313,7 +1314,7 @@ impl<T: Config> Pallet<T> {
 				unbond_amount,
 				Precision::Exact,
 			)?;
-			updated_contributions.push(contribution);
+			Contributions::<T>::insert((project_id, &claimer, contribution.id), contribution.clone());
 
 			// * Emit events *
 			Self::deposit_event(Event::BondReleased {
@@ -1323,14 +1324,6 @@ impl<T: Config> Pallet<T> {
 				releaser: releaser.clone(),
 			})
 		}
-
-		// * Update storage *
-		// TODO: PLMC-147. For now only the participants of the Community Round can claim their tokens
-		// 	Obviously also the participants of the Auction Round should be able to claim their tokens
-		// In theory this should never fail, since we insert the same number of contributions as before
-		let updated_contributions: BoundedVec<ContributionInfoOf<T>, T::MaxContributionsPerUser> =
-			updated_contributions.try_into().map_err(|_| Error::<T>::TooManyContributions)?;
-		Contributions::<T>::insert(project_id, &claimer, updated_contributions);
 
 		Ok(())
 	}
@@ -1352,16 +1345,10 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let contributions = Contributions::<T>::get(project_id, &claimer);
+		let contributions = Contributions::<T>::iter_prefix_values((project_id, &claimer));
 		let now = <frame_system::Pallet<T>>::block_number();
-		let mut updated_contributions = vec![];
 
 		// * Validity checks *
-		// TODO: PLMC-133. Check the right credential status
-		// ensure!(
-		// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
-		// 	Error::<T>::NotAuthorized
-		// );
 		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::CannotClaimYet);
 		// TODO: PLMC-160. Check the flow of the final_price if the final price discovery during the Auction Round fails
 
@@ -1385,11 +1372,7 @@ impl<T: Config> Pallet<T> {
 			}
 			contribution.ct_vesting_period = ct_vesting;
 
-			// * Update storage *
-			// TODO: Should we mint here, or should the full mint happen to the treasury and then do transfers from there?
-			// Mint the funds for the user
-			T::ContributionTokenCurrency::mint_into(project_id, &claimer, mint_amount)?;
-			updated_contributions.push(contribution);
+			Contributions::<T>::insert((project_id, contribution.contributor.clone(), contribution.id), contribution.clone());
 
 			// * Emit events *
 			Self::deposit_event(Event::ContributionTokenMinted {
@@ -1401,13 +1384,6 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// * Update storage *
-		// TODO: PLMC-147. For now only the participants of the Community Round can claim their tokens
-		// 	Obviously also the participants of the Auction Round should be able to claim their tokens
-		// In theory this should never fail, since we insert the same number of contributions as before
-		let updated_contributions: BoundedVec<ContributionInfoOf<T>, T::MaxContributionsPerUser> =
-			updated_contributions.try_into().map_err(|_| Error::<T>::TooManyContributions)?;
-		Contributions::<T>::insert(project_id, &claimer, updated_contributions);
-
 		Ok(())
 	}
 
@@ -1991,27 +1967,6 @@ impl<T: Config> Pallet<T> {
 		let fund_account = Self::fund_account_id(project_id);
 
 		T::FundingCurrency::transfer(asset_id, &who, &fund_account, amount, Preservation::Expendable)?;
-
-		Ok(())
-	}
-
-	// TODO(216): use the hold interface of the fungibles::MutateHold once its implemented on pallet_assets.
-	pub fn release_last_funding_item_in_vec<I, M>(
-		who: &T::AccountId,
-		project_id: T::ProjectIdentifier,
-		asset_id: AssetIdOf<T>,
-		vec: &mut BoundedVec<I, M>,
-		plmc_getter: impl Fn(&I) -> BalanceOf<T>,
-		funding_asset_getter: impl Fn(&I) -> BalanceOf<T>,
-	) -> Result<(), DispatchError> {
-		let fund_account = Self::fund_account_id(project_id);
-		let last_item = vec.swap_remove(vec.len() - 1);
-		let plmc_amount = plmc_getter(&last_item);
-		let funding_asset_amount = funding_asset_getter(&last_item);
-
-		T::NativeCurrency::release(&LockType::Participation(project_id), &who, plmc_amount, Precision::Exact)?;
-
-		T::FundingCurrency::transfer(asset_id, &fund_account, &who, funding_asset_amount, Preservation::Expendable)?;
 
 		Ok(())
 	}

@@ -44,8 +44,7 @@ pub mod pallet {
 
 			// Calculate how much funding was done already
 			let project_contributions: <T as funding::Config>::Balance =
-				funding::Contributions::<T>::iter_prefix_values(project_id)
-					.flatten()
+				funding::Contributions::<T>::iter_prefix_values((project_id,))
 					.fold(0u64.into(), |total_tokens_bought, contribution| {
 						total_tokens_bought + contribution.funding_asset_amount
 					});
