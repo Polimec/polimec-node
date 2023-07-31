@@ -1998,9 +1998,26 @@ impl<T: Config> Pallet<T> {
 		amount: BalanceOf<T>,
 	) -> Result<(), DispatchError> {
 		// Check if the user has already locked tokens in the evaluation period
-		let evaluation_bonded = <T as Config>::NativeCurrency::balance_on_hold(&LockType::Evaluation(project_id), who);
+		let user_evaluations = Evaluations::<T>::iter_prefix_values((project_id, who.clone()));
 
-		let new_amount_to_lock = amount.saturating_sub(evaluation_bonded);
+		let mut to_convert = amount;
+		for mut evaluation in user_evaluations {
+			if to_convert == Zero::zero() {break}
+			let slash_deposit = <T as Config>::EvaluatorSlash::get() * evaluation.original_plmc_bond;
+			let available_to_convert = evaluation.current_plmc_bond.saturating_sub(slash_deposit);
+			let converted = to_convert.min(available_to_convert);
+			evaluation.current_plmc_bond = evaluation.current_plmc_bond.saturating_sub(converted);
+			Evaluations::<T>::insert((project_id, who.clone(), evaluation.id), evaluation);
+			T::NativeCurrency::transfer_on_hold(
+				&LockType::Evaluation(project_id),
+				who,
+				converted,
+				Precision::Exact,
+			)
+
+		}
+
+		let new_amount_to_lock = amount.saturating_sub(evaluation_lock_transfer);
 		let evaluation_bonded_to_change_lock = amount.saturating_sub(new_amount_to_lock);
 
 		T::NativeCurrency::release(
