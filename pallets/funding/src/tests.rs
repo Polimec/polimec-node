@@ -1649,7 +1649,7 @@ pub mod helper_functions {
 
 	pub fn slash_evaluator_balances(mut balances: UserToPLMCBalance) -> UserToPLMCBalance {
 		let slash_percentage = <TestRuntime as Config>::EvaluatorSlash::get();
-		for (acc, balance) in balances.iter_mut() {
+		for (_acc, balance) in balances.iter_mut() {
 			*balance -= slash_percentage * *balance;
 		}
 		balances
@@ -3738,12 +3738,86 @@ mod funding_end {
 
 	#[test]
 	fn evaluators_get_slashed_funding_funding_rejected() {
-		assert!(false)
+		let test_env = TestEnvironment::new();
+		let finished_project = FinishedProject::from_funding_reached(&test_env, 56u64);
+		let project_id = finished_project.get_project_id();
+		assert_eq!(finished_project.get_project_details().status, ProjectStatus::AwaitingProjectDecision);
+
+		let old_evaluation_locked_plmc: UserToPLMCBalance = test_env
+			.get_all_reserved_plmc_balances(LockType::Evaluation(project_id))
+			.into_iter()
+			.filter(|(_acc, amount)| amount > &Zero::zero())
+			.collect::<Vec<_>>();
+
+		let evaluators = old_evaluation_locked_plmc.iter().map(|(acc, _)| acc.clone()).collect::<Vec<_>>();
+
+		let old_participation_locked_plmc =
+			test_env.get_reserved_plmc_balances_for(evaluators.clone(), LockType::Participation(project_id));
+		let old_free_plmc: UserToPLMCBalance = test_env.get_free_plmc_balances_for(evaluators.clone());
+
+		call_and_is_ok!(
+			test_env,
+			FundingModule::do_decide_project_outcome(
+				ISSUER,
+				finished_project.project_id,
+				FundingOutcomeDecision::RejectFunding
+			)
+		);
+		test_env.advance_time(1u64).unwrap();
+		assert_eq!(finished_project.get_project_details().status, ProjectStatus::FundingFailed);
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 10u64).unwrap();
+		assert_matches!(
+			finished_project.get_project_details().cleanup,
+			Cleaner::Failure(CleanerState::Finished(PhantomData))
+		);
+
+		let slashed_evaluation_locked_plmc = slash_evaluator_balances(old_evaluation_locked_plmc);
+		let expected_evaluator_free_balances = merge_add_mappings_by_user(vec![
+			slashed_evaluation_locked_plmc,
+			old_participation_locked_plmc,
+			old_free_plmc,
+		]);
+
+		let actual_evaluator_free_balances = test_env.get_free_plmc_balances_for(evaluators.clone());
+
+		assert_eq!(actual_evaluator_free_balances, expected_evaluator_free_balances);
 	}
 
 	#[test]
 	fn evaluators_get_slashed_funding_failed() {
-		assert!(false)
+		let test_env = TestEnvironment::new();
+		let finished_project = FinishedProject::from_funding_reached(&test_env, 24u64);
+		let project_id = finished_project.get_project_id();
+		assert_eq!(finished_project.get_project_details().status, ProjectStatus::FundingFailed);
+
+		let old_evaluation_locked_plmc: UserToPLMCBalance = test_env
+			.get_all_reserved_plmc_balances(LockType::Evaluation(project_id))
+			.into_iter()
+			.filter(|(_acc, amount)| amount > &Zero::zero())
+			.collect::<Vec<_>>();
+
+		let evaluators = old_evaluation_locked_plmc.iter().map(|(acc, _)| acc.clone()).collect::<Vec<_>>();
+
+		let old_participation_locked_plmc =
+			test_env.get_reserved_plmc_balances_for(evaluators.clone(), LockType::Participation(project_id));
+		let old_free_plmc: UserToPLMCBalance = test_env.get_free_plmc_balances_for(evaluators.clone());
+
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 10u64).unwrap();
+		assert_matches!(
+			finished_project.get_project_details().cleanup,
+			Cleaner::Failure(CleanerState::Finished(PhantomData))
+		);
+
+		let slashed_evaluation_locked_plmc = slash_evaluator_balances(old_evaluation_locked_plmc);
+		let expected_evaluator_free_balances = merge_add_mappings_by_user(vec![
+			slashed_evaluation_locked_plmc,
+			old_participation_locked_plmc,
+			old_free_plmc,
+		]);
+
+		let actual_evaluator_free_balances = test_env.get_free_plmc_balances_for(evaluators.clone());
+
+		assert_eq!(actual_evaluator_free_balances, expected_evaluator_free_balances);
 	}
 }
 
