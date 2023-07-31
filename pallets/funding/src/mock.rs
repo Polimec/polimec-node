@@ -273,8 +273,8 @@ impl pallet_funding::Config for TestRuntime {
 	type StorageItemId = u128;
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
-	type Vesting = Vesting;
 	type TreasuryAccount = TreasuryAccount;
+	type Vesting = Vesting;
 	type WeightInfo = ();
 }
 

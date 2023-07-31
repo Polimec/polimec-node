@@ -38,7 +38,7 @@ use frame_support::{
 use helper_functions::*;
 
 use crate::traits::BondingRequirementCalculation;
-use sp_arithmetic::traits::Zero;
+use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::{DispatchError, Either};
 use sp_std::marker::PhantomData;
 use std::{cell::RefCell, iter::zip};
@@ -1179,6 +1179,18 @@ impl<'a> FinishedProject<'a> {
 
 		finished_project
 	}
+
+	fn from_funding_reached(test_env: &'a TestEnvironment, percent: u64) -> Self {
+		let project_metadata = default_project(test_env.get_new_nonce());
+		let min_price = project_metadata.minimum_price;
+		let usd_to_reach = Perquintill::from_percent(percent) *
+			(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size).unwrap());
+		let evaluations = default_evaluations();
+		let bids = generate_bids_from_total_usd(Percent::from_percent(50u8) * usd_to_reach, min_price);
+		let contributions =
+			generate_contributions_from_total_usd(Percent::from_percent(50u8) * usd_to_reach, min_price);
+		FinishedProject::new_with(test_env, project_metadata, ISSUER, evaluations, bids, contributions, vec![])
+	}
 }
 
 mod defaults {
@@ -1634,6 +1646,14 @@ pub mod helper_functions {
 			);
 		});
 	}
+
+	pub fn slash_evaluator_balances(mut balances: UserToPLMCBalance) -> UserToPLMCBalance {
+		let slash_percentage = <TestRuntime as Config>::EvaluatorSlash::get();
+		for (acc, balance) in balances.iter_mut() {
+			*balance -= slash_percentage * *balance;
+		}
+		balances
+	}
 }
 
 #[cfg(test)]
@@ -1960,7 +1980,7 @@ mod evaluation_round_success {
 
 		let increased_amounts = merge_subtract_mappings_by_user(post_free_plmc, vec![prev_free_plmc]);
 
-		assert_eq!(increased_amounts, calculate_evaluation_plmc_spent(evaluations))
+		assert_eq!(increased_amounts, slash_evaluator_balances(calculate_evaluation_plmc_spent(evaluations)))
 	}
 }
 
@@ -2787,8 +2807,9 @@ mod community_round_success {
 			.expect("The Buyer should be able to buy multiple times");
 
 		let project_id = community_funding_project.get_project_id();
-		let bob_total_contributions: BalanceOf<TestRuntime> = community_funding_project
-			.in_ext(|| Contributions::<TestRuntime>::iter_prefix_values((project_id, BOB)).map(|c| c.funding_asset_amount).sum());
+		let bob_total_contributions: BalanceOf<TestRuntime> = community_funding_project.in_ext(|| {
+			Contributions::<TestRuntime>::iter_prefix_values((project_id, BOB)).map(|c| c.funding_asset_amount).sum()
+		});
 
 		let total_contributed = calculate_contributed_funding_asset_spent(contributions.clone(), token_price)
 			.iter()
@@ -3470,6 +3491,7 @@ mod funding_end {
 	use super::*;
 	use sp_arithmetic::{Percent, Perquintill};
 	use std::assert_matches::assert_matches;
+	use testing_macros::call_and_is_ok;
 
 	#[test]
 	fn automatic_fail_less_eq_33_percent() {
@@ -3665,6 +3687,45 @@ mod funding_end {
 			finished_project.get_project_details().cleanup,
 			Cleaner::Success(CleanerState::Finished(PhantomData))
 		);
+	}
+
+	#[test]
+	fn evaluators_get_slashed_funding_accepted() {
+		let test_env = TestEnvironment::new();
+		let finished_project = FinishedProject::from_funding_reached(&test_env, 43u64);
+		let project_id = finished_project.get_project_id();
+		assert_eq!(finished_project.get_project_details().status, ProjectStatus::AwaitingProjectDecision);
+
+		let old_evaluation_locked_plmc = test_env.get_all_reserved_plmc_balances(LockType::Evaluation(project_id));
+		let old_rest_plmc = merge_subtract_mappings_by_user(test_env.get_all_free_plmc_balances(), vec![old_evaluation_locked_plmc.clone()]);
+
+		call_and_is_ok!(
+			test_env,
+			FundingModule::do_decide_project_outcome(
+				ISSUER,
+				finished_project.project_id,
+				FundingOutcomeDecision::AcceptFunding
+			)
+		);
+		test_env.advance_time(1u64).unwrap();
+		assert_eq!(finished_project.get_project_details().status, ProjectStatus::FundingSuccessful);
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 10u64).unwrap();
+		assert_matches!(finished_project.get_project_details().cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+
+
+
+		// assert_eq!(slashed_evaluations, slash_evaluator_balances(old_evaluations))
+
+
+
+	}
+
+	fn evaluators_get_slashed_funding_funding_rejected() {
+		assert!(false)
+	}
+
+	fn evaluators_get_slashed_funding_failed() {
+		assert!(false)
 	}
 }
 
@@ -4158,4 +4219,14 @@ mod testing_macros {
 		};
 	}
 	pub(crate) use assert_close_enough;
+
+	macro_rules! call_and_is_ok {
+		($env: expr, $call: expr) => {
+			$env.ext_env.borrow_mut().execute_with(|| {
+				let result = $call;
+				assert!(result.is_ok(), "Call failed: {:?}", result);
+			});
+		};
+	}
+	pub(crate) use call_and_is_ok;
 }

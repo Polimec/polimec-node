@@ -388,9 +388,9 @@ impl pallet_funding::Config for Runtime {
 	type StorageItemId = u128;
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
+	type TreasuryAccount = TreasuryAccount;
 	type Vesting = Release;
 	type WeightInfo = ();
-	type TreasuryAccount = TreasuryAccount;
 }
 
 impl pallet_linear_release::Config for Runtime {

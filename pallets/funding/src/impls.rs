@@ -27,10 +27,14 @@ impl DoRemainingOperation for CleanerState<Success> {
 	}
 
 	fn do_one_operation<T: Config>(&mut self, project_id: T::ProjectIdentifier) -> Result<Weight, DispatchError> {
+		let evaluators_outcome = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ImpossibleState)?
+			.evaluation_round_info
+			.evaluators_outcome;
 		match self {
 			CleanerState::Initialized(PhantomData) => {
 				*self = Self::EvaluationRewardOrSlash(
-					remaining_evaluators_to_reward_or_slash::<T>(project_id),
+					remaining_evaluators_to_reward_or_slash::<T>(project_id, evaluators_outcome),
 					PhantomData,
 				);
 				Ok(Weight::zero())
@@ -134,10 +138,15 @@ impl DoRemainingOperation for CleanerState<Failure> {
 	}
 
 	fn do_one_operation<T: Config>(&mut self, project_id: T::ProjectIdentifier) -> Result<Weight, DispatchError> {
+		let evaluators_outcome = ProjectsDetails::<T>::get(project_id)
+			.ok_or(Error::<T>::ImpossibleState)?
+			.evaluation_round_info
+			.evaluators_outcome;
+
 		match self {
 			CleanerState::Initialized(PhantomData::<Failure>) => {
 				*self = CleanerState::EvaluationRewardOrSlash(
-					remaining_evaluators_to_reward_or_slash::<T>(project_id),
+					remaining_evaluators_to_reward_or_slash::<T>(project_id, evaluators_outcome),
 					PhantomData::<Failure>,
 				);
 				Ok(Weight::zero())
@@ -222,14 +231,16 @@ impl DoRemainingOperation for CleanerState<Failure> {
 	}
 }
 
-enum OperationsLeft {
-	Some(u64),
-	None,
-}
-
-fn remaining_evaluators_to_reward_or_slash<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
-	Evaluations::<T>::iter_prefix_values((project_id,)).filter(|evaluation| !evaluation.rewarded_or_slashed).count()
-		as u64
+fn remaining_evaluators_to_reward_or_slash<T: Config>(
+	project_id: T::ProjectIdentifier,
+	outcome: EvaluatorsOutcomeOf<T>,
+) -> u64 {
+	if outcome == EvaluatorsOutcomeOf::<T>::Unchanged {
+		0u64
+	} else {
+		Evaluations::<T>::iter_prefix_values((project_id,)).filter(|evaluation| !evaluation.rewarded_or_slashed).count()
+			as u64
+	}
 }
 
 fn remaining_evaluations<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
@@ -245,9 +256,8 @@ fn remaining_bids<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
 }
 
 fn remaining_contributions_to_release_funds<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
-	Contributions::<T>::iter_prefix_values((project_id,))
-		.filter(|contribution| !contribution.funds_released)
-		.count() as u64
+	Contributions::<T>::iter_prefix_values((project_id,)).filter(|contribution| !contribution.funds_released).count()
+		as u64
 }
 
 fn remaining_contributions<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
@@ -286,10 +296,10 @@ fn remaining_contributions_without_issuer_payout<T: Config>(project_id: T::Proje
 
 fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> Result<(Weight, u64), DispatchError> {
 	let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-	let mut project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,));
+	let project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,));
 	let mut remaining_evaluations = project_evaluations.filter(|evaluation| !evaluation.rewarded_or_slashed);
 
-	if let Some(mut evaluation) = remaining_evaluations.next() {
+	if let Some(evaluation) = remaining_evaluations.next() {
 		match project_details.evaluation_round_info.evaluators_outcome {
 			EvaluatorsOutcome::Rewarded(_) => {
 				match Pallet::<T>::do_evaluation_reward_payout_for(
@@ -323,25 +333,24 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 					}),
 				};
 			},
-			_ => {},
+			_ => {
+				#[cfg(debug_assertions)]
+				unreachable!("EvaluatorsOutcome should be either Slashed or Rewarded if this function is called")
+			},
 		}
 
-		// if the evaluation outcome failed, we still want to flag it as rewarded or slashed. Otherwise the automatic
-		// transition will get stuck.
-		evaluation.rewarded_or_slashed = true;
-		Evaluations::<T>::insert((project_id, evaluation.evaluator.clone(), evaluation.id), evaluation);
-
-		Ok((Weight::zero(), remaining_evaluations.count() as u64))
+		let remaining = remaining_evaluations.count() as u64;
+		Ok((Weight::zero(), remaining))
 	} else {
 		Ok((Weight::zero(), 0u64))
 	}
 }
 
 fn unbond_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
-	let mut project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
+	let project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
 	let evaluation_count = project_evaluations.len() as u64;
 
-	if let Some(mut evaluation) = project_evaluations.iter().find(|evaluation| evaluation.rewarded_or_slashed) {
+	if let Some(evaluation) = project_evaluations.iter().next() {
 		match Pallet::<T>::do_evaluation_unbond_for(
 			T::PalletId::get().into_account_truncating(),
 			evaluation.project_id,
@@ -397,7 +406,7 @@ fn unbond_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) 
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	let mut remaining_bids = project_bids.filter(|bid| bid.funds_released);
 
-	if let Some(mut bid) = remaining_bids.next() {
+	if let Some(bid) = remaining_bids.next() {
 		match Pallet::<T>::do_bid_unbond_for(
 			T::PalletId::get().into_account_truncating(),
 			bid.project_id,
@@ -446,7 +455,6 @@ fn release_funds_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -
 		// (Weight::zero(), remaining_contributions.count() as u64)
 		// TODO: Remove this when function is implemented
 		(Weight::zero(), 0u64)
-
 	} else {
 		(Weight::zero(), 0u64)
 	}
@@ -455,9 +463,10 @@ fn release_funds_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -
 fn unbond_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
 	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
 
-	let mut remaining_contributions = project_contributions.clone().into_iter().filter(|contribution| contribution.funds_released);
+	let mut remaining_contributions =
+		project_contributions.clone().into_iter().filter(|contribution| contribution.funds_released);
 
-	if let Some(mut contribution) = remaining_contributions.next() {
+	if let Some(contribution) = remaining_contributions.next() {
 		match Pallet::<T>::do_contribution_unbond_for(
 			T::PalletId::get().into_account_truncating(),
 			contribution.project_id,
@@ -536,8 +545,7 @@ fn issuer_funding_payout_one_bid<T: Config>(project_id: T::ProjectIdentifier) ->
 fn issuer_funding_payout_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
 	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
 
-	let mut remaining_contributions = project_contributions
-		.filter(|contribution| !contribution.funds_released);
+	let mut remaining_contributions = project_contributions.filter(|contribution| !contribution.funds_released);
 
 	if let Some(mut contribution) = remaining_contributions.next() {
 		match Pallet::<T>::do_payout_contribution_funds_for(
@@ -562,7 +570,6 @@ fn issuer_funding_payout_one_contribution<T: Config>(project_id: T::ProjectIdent
 		// (Weight::zero(), remaining_contributions.count() as u64)
 		// TODO: remove this when function is implemented
 		(Weight::zero(), 0u64)
-
 	} else {
 		(Weight::zero(), 0u64)
 	}

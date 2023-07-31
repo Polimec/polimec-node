@@ -515,9 +515,9 @@ impl pallet_funding::Config for Runtime {
 	type StorageItemId = u128;
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
+	type TreasuryAccount = TreasuryAccount;
 	type Vesting = Vesting;
 	type WeightInfo = ();
-	type TreasuryAccount = TreasuryAccount;
 }
 
 parameter_types! {

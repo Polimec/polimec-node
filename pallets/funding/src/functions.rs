@@ -30,7 +30,7 @@ use frame_support::{
 		fungible::{InspectHold, MutateHold as FungibleMutateHold},
 		fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate as FungiblesMutate},
 		tokens::{Fortitude, Precision, Preservation, Restriction},
-		Get, Len
+		Get,
 	},
 };
 
@@ -774,7 +774,7 @@ impl<T: Config> Pallet<T> {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let evaluation_id = Self::next_evaluation_id();
-		let mut caller_existing_evaluations: Vec<(StorageItemIdOf<T>, EvaluationInfoOf<T>)> =
+		let caller_existing_evaluations: Vec<(StorageItemIdOf<T>, EvaluationInfoOf<T>)> =
 			Evaluations::<T>::iter_prefix((project_id, evaluator.clone())).collect();
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
 		let early_evaluation_reward_threshold_usd =
@@ -887,7 +887,7 @@ impl<T: Config> Pallet<T> {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let bid_id = Self::next_bid_id();
-		let mut existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder.clone())).collect::<Vec<_>>();
+		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder.clone())).collect::<Vec<_>>();
 
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
 		let funding_asset_usd_price =
@@ -1000,7 +1000,7 @@ impl<T: Config> Pallet<T> {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let contribution_id = Self::next_contribution_id();
-		let mut existing_contributions =
+		let existing_contributions =
 			Contributions::<T>::iter_prefix_values((project_id, contributor.clone())).collect::<Vec<_>>();
 
 		let ct_usd_price = project_details.weighted_average_price.ok_or(Error::<T>::AuctionNotStarted)?;
@@ -1105,8 +1105,10 @@ impl<T: Config> Pallet<T> {
 		Contributions::<T>::insert((project_id, contributor.clone(), contribution_id), new_contribution.clone());
 		NextContributionId::<T>::set(contribution_id.saturating_add(One::one()));
 
-		project_details.remaining_contribution_tokens = project_details.remaining_contribution_tokens.saturating_sub(new_contribution.ct_amount);
-		project_details.funding_amount_reached = project_details.funding_amount_reached.saturating_add(new_contribution.usd_contribution_amount);
+		project_details.remaining_contribution_tokens =
+			project_details.remaining_contribution_tokens.saturating_sub(new_contribution.ct_amount);
+		project_details.funding_amount_reached =
+			project_details.funding_amount_reached.saturating_add(new_contribution.usd_contribution_amount);
 		ProjectsDetails::<T>::insert(project_id, project_details);
 
 		// If no CTs remain, end the funding phase
@@ -1372,7 +1374,10 @@ impl<T: Config> Pallet<T> {
 			}
 			contribution.ct_vesting_period = ct_vesting;
 
-			Contributions::<T>::insert((project_id, contribution.contributor.clone(), contribution.id), contribution.clone());
+			Contributions::<T>::insert(
+				(project_id, contribution.contributor.clone(), contribution.id),
+				contribution.clone(),
+			);
 
 			// * Emit events *
 			Self::deposit_event(Event::ContributionTokenMinted {
@@ -1400,7 +1405,8 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			released_evaluation.rewarded_or_slashed == true &&
+			(project_details.evaluation_round_info.evaluators_outcome == EvaluatorsOutcomeOf::<T>::Unchanged ||
+				released_evaluation.rewarded_or_slashed == true) &&
 				matches!(
 					project_details.status,
 					ProjectStatus::EvaluationFailed | ProjectStatus::FundingFailed | ProjectStatus::FundingSuccessful
@@ -1496,11 +1502,9 @@ impl<T: Config> Pallet<T> {
 		let slash_percentage = T::EvaluatorSlash::get();
 		let treasury_account = T::TreasuryAccount::get();
 
-		let mut user_evaluations = Evaluations::<T>::get(project_id, evaluator.clone());
-		let evaluation = user_evaluations
-			.iter_mut()
-			.find(|evaluation| evaluation.id == evaluation_id)
-			.ok_or(Error::<T>::EvaluationNotFound)?;
+		let mut user_evaluations = Evaluations::<T>::iter_prefix_values((project_id, evaluator.clone()));
+		let mut evaluation =
+			user_evaluations.find(|evaluation| evaluation.id == evaluation_id).ok_or(Error::<T>::EvaluationNotFound)?;
 
 		// * Validity checks *
 		ensure!(
@@ -1526,7 +1530,7 @@ impl<T: Config> Pallet<T> {
 		)?;
 
 		evaluation.current_plmc_bond = evaluation.current_plmc_bond.saturating_sub(slashed_amount);
-		Evaluations::<T>::set(project_id, evaluator.clone(), user_evaluations);
+		Evaluations::<T>::insert((project_id, evaluator.clone(), evaluation.id), evaluation);
 
 		// * Emit events *
 		Self::deposit_event(Event::<T>::EvaluationSlashed {
