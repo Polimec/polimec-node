@@ -3157,11 +3157,11 @@ mod community_round_success {
 		let ct_price = contributing_project.get_project_details().weighted_average_price.unwrap();
 		let already_bonded_plmc =
 			calculate_evaluation_plmc_spent(vec![(evaluator_contributor, evaluation_amount)])[0].1;
-		let necessary_plmc_for_bid = calculate_contributed_plmc_spent(vec![contribution], ct_price)[0].1;
-		let necessary_usdt_for_bid = calculate_contributed_funding_asset_spent(vec![contribution], ct_price);
+		let necessary_plmc_for_contribution = calculate_contributed_plmc_spent(vec![contribution], ct_price)[0].1;
+		let necessary_usdt_for_contribution = calculate_contributed_funding_asset_spent(vec![contribution], ct_price);
 
-		test_env.mint_plmc_to(vec![(evaluator_contributor, necessary_plmc_for_bid - already_bonded_plmc)]);
-		test_env.mint_statemint_asset_to(necessary_usdt_for_bid);
+		test_env.mint_plmc_to(vec![(evaluator_contributor, necessary_plmc_for_contribution - already_bonded_plmc)]);
+		test_env.mint_statemint_asset_to(necessary_usdt_for_contribution);
 
 		contributing_project.buy_for_retail_users(vec![contribution]).unwrap();
 	}
@@ -3234,6 +3234,37 @@ mod community_round_success {
 			)
 		});
 		assert_eq!(evaluation_bond, 0);
+	}
+
+	#[test]
+	fn evaluator_cannot_use_slash_reserve_for_contributing() {
+		let test_env = TestEnvironment::new();
+		let issuer = ISSUER;
+		let project = default_project(test_env.get_new_nonce());
+		let mut evaluations = default_evaluations();
+		let evaluator_contributor = 69;
+		let evaluation_amount = 420 * US_DOLLAR;
+		let contribution =
+			TestContribution::new(evaluator_contributor, 600 * ASSET_UNIT, None, AcceptedFundingAsset::USDT);
+		evaluations.push((evaluator_contributor, evaluation_amount));
+		let bids = default_bids();
+
+		let contributing_project = CommunityFundingProject::new_with(&test_env, project, issuer, evaluations, bids);
+		let project_id = contributing_project.get_project_id();
+		let ct_price = contributing_project.get_project_details().weighted_average_price.unwrap();
+		let necessary_plmc_for_contribution = calculate_contributed_plmc_spent(vec![contribution], ct_price)[0].1;
+		assert!(necessary_plmc_for_contribution > calculate_evaluation_plmc_spent(vec![(evaluator_contributor, evaluation_amount)])[0].1);
+		let necessary_usdt_for_contribution = calculate_contributed_funding_asset_spent(vec![contribution], ct_price);
+
+		test_env.mint_plmc_to(vec![(evaluator_contributor, necessary_plmc_for_contribution)]);
+		test_env.mint_statemint_asset_to(necessary_usdt_for_contribution);
+
+		let slash_reserve = slash_evaluator_balances(calculate_evaluation_plmc_spent(vec![(evaluator_contributor, evaluation_amount)]));
+		contributing_project.buy_for_retail_users(vec![contribution]).unwrap();
+
+		test_env.do_reserved_plmc_assertions(slash_reserve, LockType::Evaluation(project_id));
+
+
 	}
 }
 

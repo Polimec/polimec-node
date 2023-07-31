@@ -1514,7 +1514,8 @@ impl<T: Config> Pallet<T> {
 		);
 
 		// * Calculate variables *
-		let slashed_amount = slash_percentage * evaluation.current_plmc_bond;
+		// We need to make sure that the current plmc bond is always >= than the slash amount.
+		let slashed_amount = slash_percentage * evaluation.original_plmc_bond;
 
 		// * Update storage *
 		evaluation.rewarded_or_slashed = true;
