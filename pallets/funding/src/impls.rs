@@ -395,7 +395,10 @@ fn unbond_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) 
 				error: e,
 			}),
 		};
-		(Weight::zero(), remaining_bids.count() as u64)
+		// (Weight::zero(), remaining_bids.count() as u64)
+		// TODO: Remove this below when function is implemented
+		(Weight::zero(), 0u64)
+
 	} else {
 		(Weight::zero(), 0u64)
 	}

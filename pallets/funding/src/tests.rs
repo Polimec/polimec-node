@@ -2514,6 +2514,7 @@ mod auction_round_failure {
 			TestBid::new(DAVE, 10_000 * USDT_UNIT, 2_u128.into(), None, AcceptedFundingAsset::USDT), // 20k
 			TestBid::new(DAVE, 12_000 * USDT_UNIT, 8_u128.into(), None, AcceptedFundingAsset::USDT), // 96k
 			TestBid::new(DAVE, 15_000 * USDT_UNIT, 5_u128.into(), None, AcceptedFundingAsset::USDT), // 75k
+			// Bid with lowest PLMC bonded gets dropped
 			TestBid::new(DAVE, 1_000 * USDT_UNIT, 7_u128.into(), None, AcceptedFundingAsset::USDT),  // 7k
 			TestBid::new(DAVE, 20_000 * USDT_UNIT, 5_u128.into(), None, AcceptedFundingAsset::USDT), // 100k
 		];
@@ -2536,9 +2537,9 @@ mod auction_round_failure {
 			let mut stored_bids = Bids::<TestRuntime>::iter_prefix_values((project_id, DAVE)).collect::<Vec<_>>();
 			assert_eq!(stored_bids.len(), 4);
 			stored_bids.sort();
-			assert_eq!(stored_bids[0].original_ct_usd_price, 5_u128.into());
+			assert_eq!(stored_bids[0].original_ct_usd_price, 2_u128.into());
 			assert_eq!(stored_bids[1].original_ct_usd_price, 5_u128.into());
-			assert_eq!(stored_bids[2].original_ct_usd_price, 7_u128.into());
+			assert_eq!(stored_bids[2].original_ct_usd_price, 5_u128.into());
 			assert_eq!(stored_bids[3].original_ct_usd_price, 8_u128.into());
 		});
 	}
