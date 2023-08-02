@@ -27,7 +27,7 @@ use frame_support::{
 	ensure,
 	pallet_prelude::DispatchError,
 	traits::{
-		fungible::{InspectHold, MutateHold as FungibleMutateHold},
+		fungible::{MutateHold as FungibleMutateHold},
 		fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate as FungiblesMutate},
 		tokens::{Fortitude, Precision, Preservation, Restriction},
 		Get,
