@@ -1502,7 +1502,6 @@ pub mod helper_functions {
 						// uncomment this if we want to keep unmatched mappings on the substractor
 						// output.extend_from_slice(&map[j..]);
 						break
-
 					},
 					(Some((acc_i, val_i)), Some((acc_j, val_j))) =>
 						if acc_i == acc_j {
@@ -2104,7 +2103,8 @@ mod auction_round_success {
 		let bidding_project = AuctioningProject::new_with(&test_env, project, issuer, evaluations);
 
 		let already_bonded_plmc = calculate_evaluation_plmc_spent(vec![(evaluator_bidder, evaluation_amount)])[0].1;
-		let usable_evaluation_plmc = already_bonded_plmc - <TestRuntime as Config>::EvaluatorSlash::get() * already_bonded_plmc;
+		let usable_evaluation_plmc =
+			already_bonded_plmc - <TestRuntime as Config>::EvaluatorSlash::get() * already_bonded_plmc;
 		let necessary_plmc_for_bid = calculate_auction_plmc_spent(vec![evaluator_bid])[0].1;
 		let necessary_usdt_for_bid = calculate_auction_funding_asset_spent(vec![evaluator_bid]);
 
@@ -2136,7 +2136,8 @@ mod auction_round_success {
 		let bid_necessary_usdt = calculate_auction_funding_asset_spent(vec![evaluator_bid]);
 
 		let evaluation_bond = sum_balance_mappings(vec![fill_necessary_plmc_for_bids, bid_necessary_plmc.clone()]);
-		let plmc_available_for_participation = evaluation_bond - <TestRuntime as Config>::EvaluatorSlash::get() * evaluation_bond;
+		let plmc_available_for_participation =
+			evaluation_bond - <TestRuntime as Config>::EvaluatorSlash::get() * evaluation_bond;
 
 		let evaluation_usd_amount = <TestRuntime as Config>::PriceProvider::get_price(PLMC_STATEMINT_ID)
 			.unwrap()
@@ -2704,9 +2705,9 @@ mod auction_round_failure {
 }
 
 mod community_round_success {
-	use std::assert_matches::assert_matches;
 	use super::*;
 	use frame_support::traits::fungible::Inspect;
+	use std::assert_matches::assert_matches;
 
 	pub const HOURS: BlockNumber = 300u64;
 
@@ -3148,11 +3149,15 @@ mod community_round_success {
 		let ct_price = contributing_project.get_project_details().weighted_average_price.unwrap();
 		let already_bonded_plmc =
 			calculate_evaluation_plmc_spent(vec![(evaluator_contributor, evaluation_amount)])[0].1;
-		let plmc_available_for_participating = already_bonded_plmc - <TestRuntime as Config>::EvaluatorSlash::get() * already_bonded_plmc;
+		let plmc_available_for_participating =
+			already_bonded_plmc - <TestRuntime as Config>::EvaluatorSlash::get() * already_bonded_plmc;
 		let necessary_plmc_for_contribution = calculate_contributed_plmc_spent(vec![contribution], ct_price)[0].1;
 		let necessary_usdt_for_contribution = calculate_contributed_funding_asset_spent(vec![contribution], ct_price);
 
-		test_env.mint_plmc_to(vec![(evaluator_contributor, necessary_plmc_for_contribution - plmc_available_for_participating)]);
+		test_env.mint_plmc_to(vec![(
+			evaluator_contributor,
+			necessary_plmc_for_contribution - plmc_available_for_participating,
+		)]);
 		test_env.mint_statemint_asset_to(necessary_usdt_for_contribution);
 
 		contributing_project.buy_for_retail_users(vec![contribution]).unwrap();
@@ -3188,7 +3193,8 @@ mod community_round_success {
 			calculate_contributed_funding_asset_spent(vec![overflow_contribution], expected_price);
 
 		let evaluation_bond = sum_balance_mappings(vec![fill_necessary_plmc, overflow_necessary_plmc.clone()]);
-		let plmc_available_for_participating = evaluation_bond - <TestRuntime as Config>::EvaluatorSlash::get() * evaluation_bond;
+		let plmc_available_for_participating =
+			evaluation_bond - <TestRuntime as Config>::EvaluatorSlash::get() * evaluation_bond;
 
 		let evaluation_usd_amount = <TestRuntime as Config>::PriceProvider::get_price(PLMC_STATEMINT_ID)
 			.unwrap()
@@ -3231,10 +3237,13 @@ mod community_round_success {
 		let contributing_project = CommunityFundingProject::new_with(&test_env, project, issuer, evaluations, bids);
 		let ct_price = contributing_project.get_project_details().weighted_average_price.unwrap();
 		let necessary_plmc_for_contribution = calculate_contributed_plmc_spent(vec![contribution], ct_price)[0].1;
-		let plmc_evaluation_amount =  calculate_evaluation_plmc_spent(vec![(evaluator_contributor, evaluation_amount)])[0].1;
-		let plmc_available_for_participating = plmc_evaluation_amount - <TestRuntime as Config>::EvaluatorSlash::get() * plmc_evaluation_amount;
+		let plmc_evaluation_amount =
+			calculate_evaluation_plmc_spent(vec![(evaluator_contributor, evaluation_amount)])[0].1;
+		let plmc_available_for_participating =
+			plmc_evaluation_amount - <TestRuntime as Config>::EvaluatorSlash::get() * plmc_evaluation_amount;
 		assert!(
-			necessary_plmc_for_contribution > plmc_available_for_participating && necessary_plmc_for_contribution < plmc_evaluation_amount
+			necessary_plmc_for_contribution > plmc_available_for_participating &&
+				necessary_plmc_for_contribution < plmc_evaluation_amount
 		);
 		// 1199_9_999_999_999
 		// 49_9_999_999_999
@@ -3263,24 +3272,31 @@ mod community_round_success {
 
 		let ct_price = contributing_project.get_project_details().weighted_average_price.unwrap();
 		let necessary_plmc_for_contribution = calculate_contributed_plmc_spent(vec![contribution], ct_price)[0].1;
-		let plmc_evaluation_amount =  calculate_evaluation_plmc_spent(vec![(evaluator_contributor, evaluation_amount)])[0].1;
-		let plmc_available_for_participating = plmc_evaluation_amount - <TestRuntime as Config>::EvaluatorSlash::get() * plmc_evaluation_amount;
+		let plmc_evaluation_amount =
+			calculate_evaluation_plmc_spent(vec![(evaluator_contributor, evaluation_amount)])[0].1;
+		let plmc_available_for_participating =
+			plmc_evaluation_amount - <TestRuntime as Config>::EvaluatorSlash::get() * plmc_evaluation_amount;
 		assert!(
-			necessary_plmc_for_contribution > plmc_available_for_participating && necessary_plmc_for_contribution < plmc_evaluation_amount
+			necessary_plmc_for_contribution > plmc_available_for_participating &&
+				necessary_plmc_for_contribution < plmc_evaluation_amount
 		);
 		let necessary_usdt_for_contribution = calculate_contributed_funding_asset_spent(vec![contribution], ct_price);
 
-		test_env.mint_plmc_to(vec![(evaluator_contributor, necessary_plmc_for_contribution - plmc_available_for_participating)]);
+		test_env.mint_plmc_to(vec![(
+			evaluator_contributor,
+			necessary_plmc_for_contribution - plmc_available_for_participating,
+		)]);
 		test_env.mint_statemint_asset_to(necessary_usdt_for_contribution);
 
 		contributing_project.buy_for_retail_users(vec![contribution]).unwrap();
-		let evaluation_locked = test_env.get_reserved_plmc_balances_for(vec![evaluator_contributor], LockType::Evaluation(project_id))[0].1;
-		let participation_locked = test_env.get_reserved_plmc_balances_for(vec![evaluator_contributor], LockType::Participation(project_id))[0].1;
+		let evaluation_locked =
+			test_env.get_reserved_plmc_balances_for(vec![evaluator_contributor], LockType::Evaluation(project_id))[0].1;
+		let participation_locked = test_env
+			.get_reserved_plmc_balances_for(vec![evaluator_contributor], LockType::Participation(project_id))[0]
+			.1;
 
 		assert_eq!(evaluation_locked, <TestRuntime as Config>::EvaluatorSlash::get() * plmc_evaluation_amount);
 		assert_eq!(participation_locked, necessary_plmc_for_contribution);
-
-
 	}
 }
 
@@ -3325,7 +3341,8 @@ mod remainder_round_success {
 		let ct_price = remainder_funding_project.get_project_details().weighted_average_price.unwrap();
 		let already_bonded_plmc =
 			calculate_evaluation_plmc_spent(vec![(evaluator_contributor, evaluation_amount)])[0].1;
-		let plmc_available_for_contribution = already_bonded_plmc - <TestRuntime as Config>::EvaluatorSlash::get() * already_bonded_plmc;
+		let plmc_available_for_contribution =
+			already_bonded_plmc - <TestRuntime as Config>::EvaluatorSlash::get() * already_bonded_plmc;
 		let necessary_plmc_for_buy = calculate_contributed_plmc_spent(vec![remainder_contribution], ct_price)[0].1;
 		let necessary_usdt_for_buy = calculate_contributed_funding_asset_spent(vec![remainder_contribution], ct_price);
 
@@ -3366,7 +3383,8 @@ mod remainder_round_success {
 			calculate_contributed_funding_asset_spent(vec![overflow_contribution], expected_price);
 
 		let evaluation_bond = sum_balance_mappings(vec![fill_necessary_plmc, overflow_necessary_plmc.clone()]);
-		let plmc_available_for_participating = evaluation_bond - <TestRuntime as Config>::EvaluatorSlash::get() * evaluation_bond;
+		let plmc_available_for_participating =
+			evaluation_bond - <TestRuntime as Config>::EvaluatorSlash::get() * evaluation_bond;
 
 		let evaluation_usd_amount = <TestRuntime as Config>::PriceProvider::get_price(PLMC_STATEMINT_ID)
 			.unwrap()
@@ -3385,7 +3403,6 @@ mod remainder_round_success {
 		remainder_funding_project.buy_for_any_user(fill_contributions).unwrap();
 		remainder_funding_project.buy_for_any_user(vec![overflow_contribution]).unwrap();
 
-
 		let evaluation_bonded = test_env.in_ext(|| {
 			<TestRuntime as Config>::NativeCurrency::balance_on_hold(
 				&LockType::Evaluation(project_id),
@@ -3393,7 +3410,6 @@ mod remainder_round_success {
 			)
 		});
 		assert_eq!(evaluation_bonded, <TestRuntime as Config>::EvaluatorSlash::get() * evaluation_bond);
-
 	}
 
 	#[test]
