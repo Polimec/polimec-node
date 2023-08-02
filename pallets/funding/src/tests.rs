@@ -829,8 +829,13 @@ impl<'a> CommunityFundingProject<'a> {
 		let prev_funding_asset_balances = test_env.get_free_statemint_asset_balances_for(asset_id, bidders);
 		let plmc_evaluation_deposits: UserToPLMCBalance = calculate_evaluation_plmc_spent(evaluations.clone());
 		let plmc_bid_deposits: UserToPLMCBalance = calculate_auction_plmc_spent(bids.clone());
+		let participation_usable_evaluation_deposits = plmc_evaluation_deposits
+			.clone()
+			.into_iter()
+			.map(|(acc, amount)| (acc, amount.saturating_sub(<TestRuntime as Config>::EvaluatorSlash::get() * amount)))
+			.collect::<UserToPLMCBalance>();
 		let necessary_plmc_mint =
-			merge_subtract_mappings_by_user(plmc_bid_deposits.clone(), vec![plmc_evaluation_deposits]);
+			merge_subtract_mappings_by_user(plmc_bid_deposits.clone(), vec![participation_usable_evaluation_deposits]);
 		let total_plmc_participation_locked = plmc_bid_deposits;
 		let plmc_existential_deposits: UserToPLMCBalance = bids.iter().map(|bid| (bid.bidder, get_ed())).collect::<_>();
 		let funding_asset_deposits = calculate_auction_funding_asset_spent(bids.clone());
@@ -1469,7 +1474,8 @@ pub mod helper_functions {
 		output
 	}
 
-	// Mappings should be sorted based on their account id, ascending.
+	// Accounts in base_mapping will be deducted balances from the matching accounts in substract_mappings.
+	// Mappings in substract_mappings without a match in base_mapping have no effect, nor will they get returned
 	pub fn merge_subtract_mappings_by_user<I: Saturating + Ord + Copy>(
 		base_mapping: Vec<(AccountIdOf<TestRuntime>, I)>,
 		subtract_mappings: Vec<Vec<(AccountIdOf<TestRuntime>, I)>>,
@@ -1493,7 +1499,8 @@ pub mod helper_functions {
 						break
 					},
 					(None, Some(_)) => {
-						output.extend_from_slice(&map[j..]);
+						// uncomment this if we want to keep unmatched mappings on the substractor
+						// output.extend_from_slice(&map[j..]);
 						break
 					},
 					(Some((acc_i, val_i)), Some((acc_j, val_j))) =>
@@ -1505,7 +1512,8 @@ pub mod helper_functions {
 							output.push(old_output[i]);
 							i += 1;
 						} else {
-							output.push(map[j]);
+							// uncomment to keep unmatched maps
+							// output.push(map[j]);
 							j += 1;
 						},
 				}
@@ -3253,18 +3261,20 @@ mod community_round_success {
 		let project_id = contributing_project.get_project_id();
 		let ct_price = contributing_project.get_project_details().weighted_average_price.unwrap();
 		let necessary_plmc_for_contribution = calculate_contributed_plmc_spent(vec![contribution], ct_price)[0].1;
-		assert!(necessary_plmc_for_contribution > calculate_evaluation_plmc_spent(vec![(evaluator_contributor, evaluation_amount)])[0].1);
+		assert!(
+			necessary_plmc_for_contribution >
+				calculate_evaluation_plmc_spent(vec![(evaluator_contributor, evaluation_amount)])[0].1
+		);
 		let necessary_usdt_for_contribution = calculate_contributed_funding_asset_spent(vec![contribution], ct_price);
 
 		test_env.mint_plmc_to(vec![(evaluator_contributor, necessary_plmc_for_contribution)]);
 		test_env.mint_statemint_asset_to(necessary_usdt_for_contribution);
 
-		let slash_reserve = slash_evaluator_balances(calculate_evaluation_plmc_spent(vec![(evaluator_contributor, evaluation_amount)]));
+		let slash_reserve =
+			slash_evaluator_balances(calculate_evaluation_plmc_spent(vec![(evaluator_contributor, evaluation_amount)]));
 		contributing_project.buy_for_retail_users(vec![contribution]).unwrap();
 
 		test_env.do_reserved_plmc_assertions(slash_reserve, LockType::Evaluation(project_id));
-
-
 	}
 }
 

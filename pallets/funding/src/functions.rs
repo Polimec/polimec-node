@@ -2002,33 +2002,22 @@ impl<T: Config> Pallet<T> {
 
 		let mut to_convert = amount;
 		for mut evaluation in user_evaluations {
-			if to_convert == Zero::zero() {break}
+			if to_convert == Zero::zero() {
+				break
+			}
 			let slash_deposit = <T as Config>::EvaluatorSlash::get() * evaluation.original_plmc_bond;
 			let available_to_convert = evaluation.current_plmc_bond.saturating_sub(slash_deposit);
 			let converted = to_convert.min(available_to_convert);
 			evaluation.current_plmc_bond = evaluation.current_plmc_bond.saturating_sub(converted);
 			Evaluations::<T>::insert((project_id, who.clone(), evaluation.id), evaluation);
-			T::NativeCurrency::transfer_on_hold(
-				&LockType::Evaluation(project_id),
-				who,
-				converted,
-				Precision::Exact,
-			)
-
+			T::NativeCurrency::release(&LockType::Evaluation(project_id), who, converted, Precision::Exact)
+				.map_err(|_| Error::<T>::ImpossibleState)?;
+			T::NativeCurrency::hold(&LockType::Participation(project_id), who, converted)
+				.map_err(|_| Error::<T>::ImpossibleState)?;
+			to_convert = to_convert.saturating_sub(converted)
 		}
 
-		let new_amount_to_lock = amount.saturating_sub(evaluation_lock_transfer);
-		let evaluation_bonded_to_change_lock = amount.saturating_sub(new_amount_to_lock);
-
-		T::NativeCurrency::release(
-			&LockType::Evaluation(project_id),
-			who,
-			evaluation_bonded_to_change_lock,
-			Precision::Exact,
-		)
-		.map_err(|_| Error::<T>::ImpossibleState)?;
-
-		T::NativeCurrency::hold(&LockType::Participation(project_id), who, amount)
+		T::NativeCurrency::hold(&LockType::Participation(project_id), who, to_convert)
 			.map_err(|_| Error::<T>::InsufficientBalance)?;
 
 		Ok(())
