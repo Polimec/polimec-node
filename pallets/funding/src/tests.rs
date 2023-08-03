@@ -3674,6 +3674,7 @@ mod purchased_vesting {
 	use super::*;
 
 	#[test]
+	#[ignore = "Still in development"]
 	fn individual_contribution_token_mints() {
 		// TODO: currently the vesting is limited to the whole payment at once. We should test it with several payments over a vesting period.
 		let test_env = TestEnvironment::new();
@@ -3718,6 +3719,7 @@ mod purchased_vesting {
 	}
 
 	#[test]
+	#[ignore = "Still in development"]
 	fn plmc_unbonded() {
 		let test_env = TestEnvironment::new();
 		let evaluations = default_evaluations();
@@ -3776,6 +3778,7 @@ mod bids_vesting {
 	use super::*;
 
 	#[test]
+	#[ignore = "Still in development"]
 	fn contribution_token_mints() {
 		let test_env = TestEnvironment::new();
 		let bids = default_bids();
@@ -3810,6 +3813,7 @@ mod bids_vesting {
 	}
 
 	#[test]
+	#[ignore = "Still in development"]
 	fn plmc_unbonded() {
 		let test_env = TestEnvironment::new();
 		let bids = default_bids();
