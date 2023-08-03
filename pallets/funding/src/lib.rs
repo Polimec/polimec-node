@@ -724,14 +724,8 @@ pub mod pallet {
 		/// Creates a project and assigns it to the `issuer` account.
 		#[pallet::weight(T::WeightInfo::create())]
 		pub fn create(origin: OriginFor<T>, project: ProjectMetadataOf<T>) -> DispatchResult {
+			// TODO: PLMC-133 Ensure DipOrigin when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/494
 			let issuer = ensure_signed(origin)?;
-
-			// TODO: PLMC-133 Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
-			// ensure!(
-			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
-			// 	Error::<T>::NotAuthorized
-			// );
-
 			Self::do_create(issuer, project)
 		}
 
@@ -742,21 +736,16 @@ pub mod pallet {
 			project_id: T::ProjectIdentifier,
 			project_metadata_hash: T::Hash,
 		) -> DispatchResult {
+			// TODO: PLMC-133 Ensure DipOrigin when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/494
 			let issuer = ensure_signed(origin)?;
-
 			Self::do_edit_metadata(issuer, project_id, project_metadata_hash)
 		}
 
 		/// Starts the evaluation round of a project. It needs to be called by the project issuer.
 		#[pallet::weight(T::WeightInfo::start_evaluation())]
 		pub fn start_evaluation(origin: OriginFor<T>, project_id: T::ProjectIdentifier) -> DispatchResult {
+			// TODO: PLMC-133 Ensure DipOrigin when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/494
 			let issuer = ensure_signed(origin)?;
-
-			// TODO: PLMC-133. Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
-			// ensure!(
-			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
-			// 	Error::<T>::NotAuthorized
-			// );
 			Self::do_evaluation_start(issuer, project_id)
 		}
 
@@ -765,14 +754,8 @@ pub mod pallet {
 		/// Any bids from this point until the candle_auction starts, will be considered as valid.
 		#[pallet::weight(T::WeightInfo::start_auction())]
 		pub fn start_auction(origin: OriginFor<T>, project_id: T::ProjectIdentifier) -> DispatchResult {
+			// TODO: PLMC-133 Ensure DipOrigin when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/494
 			let issuer = ensure_signed(origin)?;
-
-			// TODO: PLMC-133. Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
-			// ensure!(
-			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
-			// 	Error::<T>::NotAuthorized
-			// );
-
 			Self::do_english_auction(issuer, project_id)
 		}
 
@@ -783,6 +766,7 @@ pub mod pallet {
 			project_id: T::ProjectIdentifier,
 			#[pallet::compact] usd_amount: BalanceOf<T>,
 		) -> DispatchResult {
+			// TODO: PLMC-133 Ensure DipOrigin when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/494
 			let evaluator = ensure_signed(origin)?;
 			Self::do_evaluate(evaluator, project_id, usd_amount)
 		}
@@ -795,6 +779,7 @@ pub mod pallet {
 			project_id: T::ProjectIdentifier,
 			evaluator: AccountIdOf<T>,
 		) -> DispatchResult {
+			// TODO: PLMC-133 Ensure DipOrigin when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/494
 			let releaser = ensure_signed(origin)?;
 			Self::do_evaluation_unbond_for(releaser, project_id, evaluator, bond_id)
 		}
@@ -809,13 +794,8 @@ pub mod pallet {
 			multiplier: Option<T::Multiplier>,
 			asset: AcceptedFundingAsset,
 		) -> DispatchResult {
+			// TODO: PLMC-133 Ensure DipOrigin when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/494
 			let bidder = ensure_signed(origin)?;
-
-			// TODO: PLMC-133. Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
-			// ensure!(
-			// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
-			// 	Error::<T>::NotAuthorized
-			// );
 			Self::do_bid(bidder, project_id, amount, price, multiplier, asset)
 		}
 
@@ -828,8 +808,8 @@ pub mod pallet {
 			multiplier: Option<MultiplierOf<T>>,
 			asset: AcceptedFundingAsset,
 		) -> DispatchResult {
+			// TODO: PLMC-133 Ensure DipOrigin when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/494
 			let contributor = ensure_signed(origin)?;
-
 			Self::do_contribute(contributor, project_id, amount, multiplier, asset)
 		}
 
@@ -839,9 +819,9 @@ pub mod pallet {
 			project_id: T::ProjectIdentifier,
 			bidder: AccountIdOf<T>,
 		) -> DispatchResult {
+			// TODO: PLMC-133 Ensure DipOrigin when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/494
 			// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
 			let releaser = ensure_signed(origin)?;
-
 			Self::do_vested_plmc_bid_unbond_for(releaser, project_id, bidder)
 		}
 
@@ -852,8 +832,8 @@ pub mod pallet {
 			project_id: T::ProjectIdentifier,
 			bidder: AccountIdOf<T>,
 		) -> DispatchResult {
+			// TODO: PLMC-133 Ensure DipOrigin when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/494
 			let releaser = ensure_signed(origin)?;
-
 			Self::do_vested_contribution_token_bid_mint_for(releaser, project_id, bidder)
 		}
 
@@ -864,8 +844,8 @@ pub mod pallet {
 			project_id: T::ProjectIdentifier,
 			purchaser: AccountIdOf<T>,
 		) -> DispatchResult {
+			// TODO: PLMC-133 Ensure DipOrigin when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/494
 			let releaser = ensure_signed(origin)?;
-
 			Self::do_vested_plmc_purchase_unbond_for(releaser, project_id, purchaser)
 		}
 
@@ -876,8 +856,8 @@ pub mod pallet {
 			project_id: T::ProjectIdentifier,
 			purchaser: AccountIdOf<T>,
 		) -> DispatchResult {
+			// TODO: PLMC-133 Ensure DipOrigin when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/494
 			let releaser = ensure_signed(origin)?;
-
 			Self::do_vested_contribution_token_purchase_mint_for(releaser, project_id, purchaser)
 		}
 	}
