@@ -1247,7 +1247,8 @@ impl<T: Config> Pallet<T> {
 		contribution_id: T::StorageItemId,
 	) -> DispatchResult {
 		// * Get variables *
-		let mut contribution = Contributions::<T>::get((project_id, contributor.clone(), contribution_id)).ok_or(Error::<T>::BidNotFound)?;
+		let mut contribution = Contributions::<T>::get((project_id, contributor.clone(), contribution_id))
+			.ok_or(Error::<T>::BidNotFound)?;
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let ct_amount = contribution.ct_amount;
 
