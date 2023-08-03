@@ -14,13 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use cumulus_pallet_xcmp_queue::Event as XcmpEvent;
+#![cfg(test)]
+
+
 use frame_support::{assert_ok, pallet_prelude::Weight, traits::GenesisBuild};
 use parity_scale_codec::Encode;
 use polimec_parachain_runtime as polimec_runtime;
 use polkadot_parachain::primitives::{Id as ParaId, Sibling as SiblingId};
 use shortcuts::*;
-use sp_core::{ecdsa, ed25519, sr25519, Pair};
 use sp_runtime::{traits::AccountIdConversion, AccountId32 as RuntimeAccountId32};
 use xcm::{v3::prelude::*, VersionedMultiAssets, VersionedMultiLocation, VersionedXcm};
 use xcm_emulator::{
@@ -144,7 +145,7 @@ fn default_parachains_host_configuration(
 		max_upward_queue_count: 8,
 		max_upward_queue_size: 1024 * 1024,
 		max_downward_message_size: 1024,
-		ump_service_total_weight: Weight::from_ref_time(4 * 1_000_000_000),
+		ump_service_total_weight: Weight::from_parts(4 * 1_000_000_000, 0),
 		max_upward_message_size: 50 * 1024,
 		max_upward_message_num_per_candidate: 5,
 		hrmp_sender_deposit: 0,
@@ -419,7 +420,7 @@ mod network_tests {
 			value: 1_000,
 		});
 
-		let here_asset: MultiAsset = (MultiLocation::here(), INITIAL_BALANCE / 2).into();
+		let here_asset: MultiAsset = (MultiLocation::here(), INITIAL_BALANCE).into();
 
 		PenpalNet::execute_with(|| {
 			assert_ok!(PenpalXcmPallet::send_xcm(

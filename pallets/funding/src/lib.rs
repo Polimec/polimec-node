@@ -792,7 +792,7 @@ pub mod pallet {
 			let evaluator = ensure_signed(origin)?;
 			Self::do_evaluate(evaluator, project_id, usd_amount)
 		}
-    
+
 		/// Bid for a project in the Auction round
 		#[pallet::weight(T::WeightInfo::bid())]
 		pub fn bid(
@@ -853,7 +853,7 @@ pub mod pallet {
 			bidder: AccountIdOf<T>,
 			bid_id: T::StorageItemId,
 		) -> DispatchResult {
-      // TODO: PLMC-133 Ensure DipOrigin when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/494
+			// TODO: PLMC-133 Ensure DipOrigin when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/494
 			// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
 			let caller = ensure_signed(origin)?;
 			Self::do_bid_ct_mint_for(caller, project_id, bidder, bid_id)
@@ -876,7 +876,7 @@ pub mod pallet {
 			project_id: T::ProjectIdentifier,
 			bidder: AccountIdOf<T>,
 		) -> DispatchResult {
-      // TODO: PLMC-133 Ensure DipOrigin when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/494
+			// TODO: PLMC-133 Ensure DipOrigin when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/494
 			// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
 			let releaser = ensure_signed(origin)?;
 
