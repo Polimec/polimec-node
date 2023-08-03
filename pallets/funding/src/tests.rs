@@ -3021,7 +3021,6 @@ mod community_round_success {
 		test_env.mint_plmc_to(plmc_funding);
 		test_env.mint_statemint_asset_to(statemint_funding.clone());
 
-		// TODO: Set a reasonable amount of Contribution Tokens that the user wants to buy
 		community_funding_project
 			.buy_for_retail_users(vec![contributions[0]])
 			.expect("The Buyer should be able to buy multiple times");
@@ -3761,10 +3760,6 @@ mod community_round_success {
 			})
 		}
 	}
-}
-
-mod community_round_failure {
-	// TODO: Maybe here we can test what happens if we sell all the CTs in the community round
 }
 
 mod remainder_round_success {

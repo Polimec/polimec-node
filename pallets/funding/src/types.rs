@@ -192,7 +192,6 @@ pub mod storage_types {
 		pub funding_asset_amount_locked: Balance,
 		pub multiplier: Multiplier,
 		pub plmc_bond: Balance,
-		// TODO: PLMC-159. Not used yet, but will be used to check if the bid is funded after XCM is implemented
 		pub funded: bool,
 		pub plmc_vesting_period: PlmcVesting,
 		pub ct_vesting_period: CTVesting,
