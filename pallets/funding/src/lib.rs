@@ -124,8 +124,7 @@
 //! 			ensure!(project_details.status == pallet_funding::ProjectStatus::CommunityRound, "Project is not in the community round");
 //!
 //! 			// Calculate how much funding was done already
-//! 			let project_contributions: <T as pallet_funding::Config>::Balance = pallet_funding::Contributions::<T>::iter_prefix_values(project_id)
-//! 				.flatten()
+//! 			let project_contributions: <T as pallet_funding::Config>::Balance = pallet_funding::Contributions::<T>::iter_prefix_values((project_id,))
 //! 				.fold(
 //! 					0u64.into(),
 //! 					|total_tokens_bought, contribution| {
@@ -543,9 +542,9 @@ pub mod pallet {
 		},
 		/// Contribution tokens were minted to a user
 		ContributionTokenMinted {
-			caller: AccountIdOf<T>,
+			releaser: AccountIdOf<T>,
 			project_id: T::ProjectIdentifier,
-			contributor: AccountIdOf<T>,
+			claimer: AccountIdOf<T>,
 			amount: BalanceOf<T>,
 		},
 		/// A transfer of tokens failed, but because it was done inside on_initialize it cannot be solved.
@@ -611,6 +610,12 @@ pub mod pallet {
 			id: StorageItemIdOf<T>,
 			amount: BalanceOf<T>,
 			caller: AccountIdOf<T>,
+		},
+		BidCtMintFailed {
+			project_id: ProjectIdOf<T>,
+			bidder: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			error: DispatchError,
 		},
 	}
 
@@ -821,9 +826,9 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::evaluation_unbond_for())]
 		pub fn evaluation_unbond_for(
 			origin: OriginFor<T>,
-			bond_id: T::StorageItemId,
 			project_id: T::ProjectIdentifier,
 			evaluator: AccountIdOf<T>,
+			bond_id: T::StorageItemId,
 		) -> DispatchResult {
 			// TODO: PLMC-133 Ensure DipOrigin when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/494
 			let releaser = ensure_signed(origin)?;
@@ -833,12 +838,25 @@ pub mod pallet {
 		#[pallet::weight(Weight::from_parts(0, 0))]
 		pub fn evaluation_reward_payout_for(
 			origin: OriginFor<T>,
-			bond_id: T::StorageItemId,
 			project_id: T::ProjectIdentifier,
 			evaluator: AccountIdOf<T>,
+			bond_id: T::StorageItemId,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
 			Self::do_evaluation_reward_payout_for(caller, project_id, evaluator, bond_id)
+		}
+
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn bid_ct_mint_for(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+			bidder: AccountIdOf<T>,
+			bid_id: T::StorageItemId,
+		) -> DispatchResult {
+      // TODO: PLMC-133 Ensure DipOrigin when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/494
+			// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
+			let caller = ensure_signed(origin)?;
+			Self::do_bid_ct_mint_for(caller, project_id, bidder, bid_id)
 		}
 
 		/// Unbond some plmc from a contribution, after a step in the vesting period has passed.
@@ -847,22 +865,11 @@ pub mod pallet {
 			project_id: T::ProjectIdentifier,
 			bidder: AccountIdOf<T>,
 		) -> DispatchResult {
-			// TODO: PLMC-133 Ensure DipOrigin when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/494
+      // TODO: PLMC-133 Ensure DipOrigin when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/494
 			// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
 			let releaser = ensure_signed(origin)?;
-			Self::do_vested_plmc_bid_unbond_for(releaser, project_id, bidder)
-		}
 
-		// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
-		/// Mint contribution tokens after a step in the vesting period for a successful bid.
-		pub fn vested_contribution_token_bid_mint_for(
-			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
-			bidder: AccountIdOf<T>,
-		) -> DispatchResult {
-			// TODO: PLMC-133 Ensure DipOrigin when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/494
-			let releaser = ensure_signed(origin)?;
-			Self::do_vested_contribution_token_bid_mint_for(releaser, project_id, bidder)
+			Self::do_vested_plmc_bid_unbond_for(releaser, project_id, bidder)
 		}
 
 		// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
@@ -875,18 +882,6 @@ pub mod pallet {
 			// TODO: PLMC-133 Ensure DipOrigin when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/494
 			let releaser = ensure_signed(origin)?;
 			Self::do_vested_plmc_purchase_unbond_for(releaser, project_id, purchaser)
-		}
-
-		// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
-		/// Mint contribution tokens after a step in the vesting period for a contribution.
-		pub fn vested_contribution_token_purchase_mint_for(
-			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
-			purchaser: AccountIdOf<T>,
-		) -> DispatchResult {
-			// TODO: PLMC-133 Ensure DipOrigin when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/494
-			let releaser = ensure_signed(origin)?;
-			Self::do_vested_contribution_token_purchase_mint_for(releaser, project_id, purchaser)
 		}
 	}
 

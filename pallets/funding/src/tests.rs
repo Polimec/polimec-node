@@ -2456,6 +2456,123 @@ mod auction_round_success {
 			test_env.in_ext(|| Bids::<TestRuntime>::iter_prefix_values((project_id, BIDDER_2)).next().unwrap());
 		assert_eq!(bidder_2_bid.final_ct_usd_price.checked_mul_int(US_DOLLAR).unwrap(), 17_6_666_666_666);
 	}
+
+	#[test]
+	fn ct_minted_for_bids_automatically() {
+		let test_env = TestEnvironment::new();
+		let issuer = ISSUER;
+		let project = default_project(test_env.get_new_nonce());
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = vec![];
+
+		let finished_project = FinishedProject::new_with(
+			&test_env,
+			project,
+			issuer,
+			evaluations,
+			bids.clone(),
+			community_contributions,
+			remainder_contributions,
+		);
+		let project_id = finished_project.get_project_id();
+		let details = finished_project.get_project_details();
+		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
+		assert_eq!(details.cleanup, Cleaner::NotReady);
+
+		test_env.advance_time(10u64).unwrap();
+		let details = finished_project.get_project_details();
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+
+		let stored_bids =
+			test_env.in_ext(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
+		assert_eq!(stored_bids.len(), bids.len());
+		let user_ct_amounts = generic_map_merge_reduce(
+			vec![stored_bids],
+			|bid| bid.bidder,
+			BalanceOf::<TestRuntime>::zero(),
+			|bid, acc| acc + bid.final_ct_amount,
+		);
+		assert_eq!(user_ct_amounts.len(), bids.len());
+
+		for (bidder, amount) in user_ct_amounts {
+			let minted =
+				test_env.in_ext(|| <TestRuntime as Config>::ContributionTokenCurrency::balance(project_id, bidder));
+			assert_eq!(minted, amount);
+		}
+	}
+
+	#[test]
+	fn ct_minted_for_bids_manually() {
+		let test_env = TestEnvironment::new();
+		let issuer = ISSUER;
+		let project = default_project(test_env.get_new_nonce());
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = vec![];
+
+		let finished_project = FinishedProject::new_with(
+			&test_env,
+			project,
+			issuer,
+			evaluations,
+			bids.clone(),
+			community_contributions,
+			remainder_contributions,
+		);
+		let project_id = finished_project.get_project_id();
+		let details = finished_project.get_project_details();
+		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
+		assert_eq!(details.cleanup, Cleaner::NotReady);
+		let stored_bids =
+			test_env.in_ext(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
+
+		for bid in stored_bids.clone() {
+			test_env.in_ext(|| {
+				assert_noop!(
+					Pallet::<TestRuntime>::bid_ct_mint_for(
+						RuntimeOrigin::signed(bid.bidder),
+						project_id,
+						bid.bidder,
+						bid.id,
+					),
+					Error::<TestRuntime>::CannotClaimYet
+				);
+			})
+		}
+		test_env.advance_time(1u64).unwrap();
+		let details = finished_project.get_project_details();
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
+
+		for bid in stored_bids.clone() {
+			test_env.in_ext(|| {
+				Pallet::<TestRuntime>::bid_ct_mint_for(
+					RuntimeOrigin::signed(bid.bidder),
+					project_id,
+					bid.bidder,
+					bid.id,
+				)
+				.unwrap()
+			});
+		}
+
+		assert_eq!(stored_bids.len(), bids.len());
+		let user_ct_amounts = generic_map_merge_reduce(
+			vec![stored_bids],
+			|bid| bid.bidder,
+			BalanceOf::<TestRuntime>::zero(),
+			|bid, acc| acc + bid.final_ct_amount,
+		);
+		assert_eq!(user_ct_amounts.len(), bids.len());
+
+		for (bidder, amount) in user_ct_amounts {
+			let minted =
+				test_env.in_ext(|| <TestRuntime as Config>::ContributionTokenCurrency::balance(project_id, bidder));
+			assert_eq!(minted, amount);
+		}
+	}
 }
 
 mod auction_round_failure {
@@ -3868,196 +3985,6 @@ mod funding_end {
 		let actual_evaluator_free_balances = test_env.get_free_plmc_balances_for(evaluators.clone());
 
 		assert_eq!(actual_evaluator_free_balances, expected_evaluator_free_balances);
-	}
-}
-
-mod purchased_vesting {
-	use super::*;
-
-	#[test]
-	fn individual_contribution_token_mints() {
-		// TODO: currently the vesting is limited to the whole payment at once. We should test it with several payments over a vesting period.
-		let test_env = TestEnvironment::new();
-		let community_contributions = default_community_buys();
-		let remainder_contributions = default_remainder_buys();
-		let finished_project = FinishedProject::new_with(
-			&test_env,
-			default_project(test_env.get_new_nonce()),
-			ISSUER,
-			default_evaluations(),
-			default_bids(),
-			community_contributions.clone(),
-			remainder_contributions.clone(),
-		);
-		let project_id = finished_project.project_id;
-		let user_buys = generic_map_merge(
-			vec![community_contributions.clone(), default_remainder_buys()],
-			|m| m.contributor.clone(),
-			|m1, m2| {
-				let total_amount = m1.amount.clone() + m2.amount.clone();
-				let mut mx = m1.clone();
-				mx.amount = total_amount;
-				mx
-			},
-		);
-
-		for merged_contribution in user_buys {
-			let result = test_env.in_ext(|| {
-				FundingModule::vested_contribution_token_purchase_mint_for(
-					RuntimeOrigin::signed(merged_contribution.contributor),
-					project_id,
-					merged_contribution.contributor,
-				)
-			});
-			assert_ok!(result);
-			let minted_balance = test_env.in_ext(|| {
-				<TestRuntime as Config>::ContributionTokenCurrency::balance(project_id, merged_contribution.contributor)
-			});
-			let desired_balance = merged_contribution.amount;
-			assert_eq!(minted_balance, desired_balance);
-		}
-	}
-
-	#[test]
-	fn plmc_unbonded() {
-		let test_env = TestEnvironment::new();
-		let evaluations = default_evaluations();
-		let bids = default_bids();
-		let community_contributions = default_community_buys();
-		let remainder_contributions = default_remainder_buys();
-		let finished_project = FinishedProject::new_with(
-			&test_env,
-			default_project(test_env.get_new_nonce()),
-			ISSUER,
-			evaluations.clone(),
-			bids.clone(),
-			community_contributions.clone(),
-			remainder_contributions.clone(),
-		);
-		let project_id = finished_project.project_id;
-		let token_price = finished_project.get_project_details().weighted_average_price.unwrap();
-
-		let bidders_plmc_bond = calculate_auction_plmc_spent(bids.clone());
-		let contributors_plmc_spent: UserToPLMCBalance = generic_map_merge_reduce(
-			vec![community_contributions.clone(), remainder_contributions.clone()],
-			|m| m.contributor.clone(),
-			0_u128,
-			|contribution, total_plmc_spent| {
-				let new_plmc = calculate_contributed_plmc_spent(vec![contribution.clone()], token_price)[0].1;
-				total_plmc_spent.checked_add(new_plmc).unwrap()
-			},
-		);
-
-		let participation_locked_plmc =
-			merge_add_mappings_by_user(vec![bidders_plmc_bond.clone(), contributors_plmc_spent.clone()]);
-		let purchase_unbonds =
-			merge_subtract_mappings_by_user(participation_locked_plmc.clone(), vec![bidders_plmc_bond.clone()]);
-
-		for ((user, pre_locked), (_, post_released)) in zip(participation_locked_plmc, purchase_unbonds) {
-			let actual_bonded_plmc = test_env.in_ext(|| {
-				<TestRuntime as Config>::NativeCurrency::balance_on_hold(&LockType::Participation(project_id), &user)
-			});
-
-			assert_eq!(actual_bonded_plmc, pre_locked);
-
-			let result = test_env.in_ext(|| {
-				FundingModule::vested_plmc_purchase_unbond_for(RuntimeOrigin::signed(user), project_id, user)
-			});
-			let actual_bonded_plmc = test_env.in_ext(|| {
-				<TestRuntime as Config>::NativeCurrency::balance_on_hold(&LockType::Participation(project_id), &user)
-			});
-			assert_ok!(result);
-			assert_eq!(actual_bonded_plmc, pre_locked - post_released);
-		}
-	}
-}
-
-mod bids_vesting {
-	use super::*;
-
-	#[test]
-	fn contribution_token_mints() {
-		let test_env = TestEnvironment::new();
-		let bids = default_bids();
-		let finished_project = FinishedProject::new_with(
-			&test_env,
-			default_project(test_env.get_new_nonce()),
-			ISSUER,
-			default_evaluations(),
-			bids.clone(),
-			default_community_buys(),
-			default_remainder_buys(),
-		);
-		let project_id = finished_project.project_id;
-
-		for bid in bids {
-			let actual_ct_balance =
-				test_env.in_ext(|| <TestRuntime as Config>::ContributionTokenCurrency::balance(project_id, bid.bidder));
-			assert_eq!(actual_ct_balance, 0u32.into());
-
-			let result = test_env.in_ext(|| {
-				FundingModule::vested_contribution_token_bid_mint_for(
-					RuntimeOrigin::signed(bid.bidder),
-					project_id,
-					bid.bidder,
-				)
-			});
-			assert_ok!(result);
-			let minted_balance =
-				test_env.in_ext(|| <TestRuntime as Config>::ContributionTokenCurrency::balance(project_id, bid.bidder));
-			assert_eq!(minted_balance, bid.amount);
-		}
-	}
-
-	#[test]
-	fn plmc_unbonded() {
-		let test_env = TestEnvironment::new();
-		let bids = default_bids();
-		let community_contributions = default_community_buys();
-		let remainder_contributions = default_remainder_buys();
-		let finished_project = FinishedProject::new_with(
-			&test_env,
-			default_project(test_env.get_new_nonce()),
-			ISSUER,
-			default_evaluations(),
-			bids.clone(),
-			default_community_buys(),
-			default_remainder_buys(),
-		);
-		let project_id = finished_project.project_id;
-		let ct_price = finished_project.get_project_details().weighted_average_price.unwrap();
-
-		let plmc_bid_deposits = calculate_auction_plmc_spent_after_price_calculation(bids.clone(), ct_price);
-		let plmc_community_contribution_deposits =
-			calculate_contributed_plmc_spent(community_contributions.clone(), ct_price);
-		let plmc_remainder_contribution_deposits =
-			calculate_contributed_plmc_spent(remainder_contributions.clone(), ct_price);
-		let total_plmc_participation_locked = merge_add_mappings_by_user(vec![
-			plmc_bid_deposits.clone(),
-			plmc_community_contribution_deposits,
-			plmc_remainder_contribution_deposits.clone(),
-		]);
-
-		test_env
-			.do_reserved_plmc_assertions(total_plmc_participation_locked.clone(), LockType::Participation(project_id));
-
-		for (bidder, deposit) in plmc_bid_deposits {
-			let bidder_participation_locked = total_plmc_participation_locked
-				.clone()
-				.into_iter()
-				.find(|(acc, _)| acc.clone() == bidder.clone())
-				.unwrap()
-				.1;
-			let result = test_env.in_ext(|| {
-				FundingModule::vested_plmc_bid_unbond_for(RuntimeOrigin::signed(bidder.clone()), project_id, bidder)
-			});
-			assert_ok!(result);
-
-			test_env.do_reserved_plmc_assertions(
-				vec![(bidder, bidder_participation_locked - deposit)],
-				LockType::Participation(project_id),
-			);
-		}
 	}
 }
 

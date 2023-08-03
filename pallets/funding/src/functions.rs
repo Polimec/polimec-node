@@ -28,7 +28,7 @@ use frame_support::{
 	pallet_prelude::DispatchError,
 	traits::{
 		fungible::MutateHold as FungibleMutateHold,
-		fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate as FungiblesMutate},
+		fungibles::{metadata::Mutate as MetadataMutate, Create, Inspect, Mutate as FungiblesMutate},
 		tokens::{Fortitude, Precision, Preservation, Restriction},
 		Get,
 	},
@@ -935,6 +935,7 @@ impl<T: Config> Pallet<T> {
 			ct_vesting_period,
 			when: now,
 			funds_released: false,
+			ct_minted: false,
 		};
 
 		// * Update storage *
@@ -1203,58 +1204,36 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	/// Mint contribution tokens after a step in the vesting period for a successful bid.
-	///
-	/// # Arguments
-	/// * bidder: The account who made bids
-	/// * project_id: The project the bids where made for
-	///
-	/// # Storage access
-	///
-	/// * `AuctionsInfo` - Check if its time to mint some tokens based on the bid vesting period, and update the bid after minting.
-	/// * `T::ContributionTokenCurrency` - Mint the tokens to the bidder
-	pub fn do_vested_contribution_token_bid_mint_for(
+	pub fn do_bid_ct_mint_for(
 		releaser: AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		bidder: AccountIdOf<T>,
-	) -> Result<(), DispatchError> {
+		bid_id: T::StorageItemId,
+	) -> DispatchResult {
 		// * Get variables *
-		let bids = Bids::<T>::iter_prefix_values((project_id, bidder.clone()));
-		let now = <frame_system::Pallet<T>>::block_number();
-		for mut bid in bids {
-			let mut ct_vesting = bid.ct_vesting_period;
-			let mut mint_amount: BalanceOf<T> = 0u32.into();
+		let mut bid = Bids::<T>::get((project_id, bidder.clone(), bid_id)).ok_or(Error::<T>::BidNotFound)?;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+		let ct_amount = bid.final_ct_amount;
 
-			// * Validity checks *
-			// check that it is not too early to withdraw the next amount
-			if ct_vesting.next_withdrawal > now {
-				continue
-			}
+		// * Validity checks *
+		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::NotAllowed);
+		ensure!(matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)), Error::<T>::NotAllowed);
+		ensure!(T::ContributionTokenCurrency::asset_exists(project_id), Error::<T>::CannotClaimYet);
 
-			// * Calculate variables *
-			// Update vesting period until the next withdrawal is in the future
-			while let Ok(amount) = ct_vesting.calculate_next_withdrawal() {
-				mint_amount = mint_amount.saturating_add(amount);
-				if ct_vesting.next_withdrawal > now {
-					break
-				}
-			}
-			bid.ct_vesting_period = ct_vesting;
+		// * Calculate variables *
+		bid.ct_minted = true;
 
-			// * Update storage *
-			// TODO: Should we mint here, or should the full mint happen to the treasury and then do transfers from there?
-			// Mint the funds for the user
-			T::ContributionTokenCurrency::mint_into(bid.project_id, &bid.bidder, mint_amount)?;
-			Bids::<T>::insert((project_id, bidder.clone(), bid.id), bid.clone());
+		// * Update storage *
+		T::ContributionTokenCurrency::mint_into(project_id, &bid.bidder, ct_amount)?;
+		Bids::<T>::insert((project_id, bidder.clone(), bid_id), bid.clone());
 
-			// * Emit events *
-			Self::deposit_event(Event::<T>::ContributionTokenMinted {
-				caller: releaser.clone(),
-				project_id,
-				contributor: bidder.clone(),
-				amount: mint_amount,
-			})
-		}
+		// * Emit events *
+		Self::deposit_event(Event::<T>::ContributionTokenMinted {
+			releaser,
+			project_id: bid.project_id,
+			claimer: bidder,
+			amount: ct_amount,
+		});
 
 		Ok(())
 	}
@@ -1327,68 +1306,6 @@ impl<T: Config> Pallet<T> {
 			})
 		}
 
-		Ok(())
-	}
-
-	/// Mint contribution tokens after a step in the vesting period for a contribution.
-	///
-	/// # Arguments
-	/// * claimer: The account who made the contribution
-	/// * project_id: The project the contribution was made for
-	///
-	/// # Storage access
-	/// * [`ProjectsDetails`] - Check that the funding period ended
-	/// * [`Contributions`] - Check if its time to mint some tokens based on the contributions vesting periods, and update the contribution after minting.
-	/// * [`T::ContributionTokenCurrency`] - Mint the tokens to the claimer
-	pub fn do_vested_contribution_token_purchase_mint_for(
-		releaser: AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
-		claimer: AccountIdOf<T>,
-	) -> Result<(), DispatchError> {
-		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let contributions = Contributions::<T>::iter_prefix_values((project_id, &claimer));
-		let now = <frame_system::Pallet<T>>::block_number();
-
-		// * Validity checks *
-		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::CannotClaimYet);
-		// TODO: PLMC-160. Check the flow of the final_price if the final price discovery during the Auction Round fails
-
-		for mut contribution in contributions {
-			let mut ct_vesting = contribution.ct_vesting_period;
-			let mut mint_amount: BalanceOf<T> = 0u32.into();
-
-			// * Validity checks *
-			// check that it is not too early to withdraw the next amount
-			if ct_vesting.next_withdrawal > now {
-				continue
-			}
-
-			// * Calculate variables *
-			// Update vesting period until the next withdrawal is in the future
-			while let Ok(amount) = ct_vesting.calculate_next_withdrawal() {
-				mint_amount = mint_amount.saturating_add(amount);
-				if ct_vesting.next_withdrawal > now {
-					break
-				}
-			}
-			contribution.ct_vesting_period = ct_vesting;
-
-			Contributions::<T>::insert(
-				(project_id, contribution.contributor.clone(), contribution.id),
-				contribution.clone(),
-			);
-
-			// * Emit events *
-			Self::deposit_event(Event::ContributionTokenMinted {
-				caller: releaser.clone(),
-				project_id,
-				contributor: claimer.clone(),
-				amount: mint_amount,
-			})
-		}
-
-		// * Update storage *
 		Ok(())
 	}
 
