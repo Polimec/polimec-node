@@ -4631,7 +4631,7 @@ fn test_delegator_with_deprecated_status_leaving_can_schedule_leave_delegators_a
 		.build()
 		.execute_with(|| {
 			<DelegatorState<Test>>::mutate(2, |value| {
-				value.as_mut().map(|mut state| {
+				value.as_mut().map(|state| {
 					state.status = DelegatorStatus::Leaving(2);
 				})
 			});
@@ -4659,7 +4659,7 @@ fn test_delegator_with_deprecated_status_leaving_can_cancel_leave_delegators_as_
 		.build()
 		.execute_with(|| {
 			<DelegatorState<Test>>::mutate(2, |value| {
-				value.as_mut().map(|mut state| {
+				value.as_mut().map(|state| {
 					state.status = DelegatorStatus::Leaving(2);
 				})
 			});
@@ -4684,7 +4684,7 @@ fn test_delegator_with_deprecated_status_leaving_can_execute_leave_delegators_as
 		.build()
 		.execute_with(|| {
 			<DelegatorState<Test>>::mutate(2, |value| {
-				value.as_mut().map(|mut state| {
+				value.as_mut().map(|state| {
 					state.status = DelegatorStatus::Leaving(2);
 				})
 			});
@@ -4710,7 +4710,7 @@ fn test_delegator_with_deprecated_status_leaving_cannot_execute_leave_delegators
 		.build()
 		.execute_with(|| {
 			<DelegatorState<Test>>::mutate(2, |value| {
-				value.as_mut().map(|mut state| {
+				value.as_mut().map(|state| {
 					state.status = DelegatorStatus::Leaving(2);
 				})
 			});
@@ -4959,7 +4959,7 @@ fn test_execute_leave_delegators_with_deprecated_status_leaving_removes_auto_com
 			));
 
 			<DelegatorState<Test>>::mutate(2, |value| {
-				value.as_mut().map(|mut state| {
+				value.as_mut().map(|state| {
 					state.status = DelegatorStatus::Leaving(2);
 				})
 			});

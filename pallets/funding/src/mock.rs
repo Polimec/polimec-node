@@ -214,6 +214,9 @@ parameter_types! {
 		(Percent::from_percent(6), u128::MAX), // Making it max signifies the last bracket
 	];
 	pub EarlyEvaluationThreshold: Percent = Percent::from_percent(10);
+	pub EvaluatorSlash: Percent = Percent::from_percent(20);
+	pub TreasuryAccount: AccountId = AccountId::from(69u64);
+
 }
 
 use frame_support::traits::WithdrawReasons;
@@ -248,6 +251,7 @@ impl pallet_funding::Config for TestRuntime {
 	type EnglishAuctionDuration = EnglishAuctionDuration;
 	type EvaluationDuration = EvaluationDuration;
 	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
+	type EvaluatorSlash = EvaluatorSlash;
 	type FeeBrackets = FeeBrackets;
 	type FundingCurrency = StatemintAssets;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
@@ -269,6 +273,7 @@ impl pallet_funding::Config for TestRuntime {
 	type StorageItemId = u128;
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
+	type TreasuryAccount = TreasuryAccount;
 	type Vesting = Vesting;
 	type WeightInfo = ();
 }

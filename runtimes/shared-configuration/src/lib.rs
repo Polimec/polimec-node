@@ -26,3 +26,11 @@ pub mod weights;
 
 /// Common types
 pub use parachains_common::{Balance, BlockNumber, DAYS};
+
+pub use assets::*;
+pub use currency::*;
+pub use fee::*;
+pub use funding::*;
+pub use governance::*;
+pub use staking::*;
+pub use weights::*;

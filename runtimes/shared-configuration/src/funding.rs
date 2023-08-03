@@ -61,7 +61,7 @@ pub const MANUAL_ACCEPTANCE_DURATION: BlockNumber = 3;
 pub const MANUAL_ACCEPTANCE_DURATION: BlockNumber = 3 * DAYS;
 
 #[cfg(feature = "fast-gov")]
-pub const MANUAL_ACCEPTANCE_DURATION: BlockNumber = 4;
+pub const SUCCESS_TO_SETTLEMENT_TIME: BlockNumber = 4;
 #[cfg(not(feature = "fast-gov"))]
 pub const SUCCESS_TO_SETTLEMENT_TIME: BlockNumber = 4 * DAYS;
 
@@ -88,4 +88,5 @@ parameter_types! {
 		(Percent::from_percent(6), u128::MAX), // Making it max signifies the last bracket
 	];
 	pub EarlyEvaluationThreshold: Percent = Percent::from_percent(10);
+	pub EvaluatorSlash: Percent = Percent::from_percent(20);
 }

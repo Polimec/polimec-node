@@ -27,10 +27,10 @@ use frame_support::{
 	ensure,
 	pallet_prelude::DispatchError,
 	traits::{
-		fungible::{InspectHold, MutateHold as FungibleMutateHold},
+		fungible::MutateHold as FungibleMutateHold,
 		fungibles::{metadata::Mutate as MetadataMutate, Create, Mutate as FungiblesMutate},
-		tokens::{Precision, Preservation},
-		Get, Len,
+		tokens::{Fortitude, Precision, Preservation, Restriction},
+		Get,
 	},
 };
 
@@ -596,10 +596,10 @@ impl<T: Config> Pallet<T> {
 
 		// * Update Storage *
 		if funding_ratio <= Perquintill::from_percent(33u64) {
-			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Slashed(vec![]);
+			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Slashed;
 			Self::make_project_funding_fail(project_id, project_details, FailureReason::TargetNotReached, 1u32.into())
 		} else if funding_ratio <= Perquintill::from_percent(75u64) {
-			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Slashed(vec![]);
+			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Slashed;
 			project_details.status = ProjectStatus::AwaitingProjectDecision;
 			Self::add_to_update_store(
 				now + T::ManualAcceptanceDuration::get() + 1u32.into(),
@@ -774,7 +774,7 @@ impl<T: Config> Pallet<T> {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let evaluation_id = Self::next_evaluation_id();
-		let mut caller_existing_evaluations: Vec<(StorageItemIdOf<T>, EvaluationInfoOf<T>)> =
+		let caller_existing_evaluations: Vec<(StorageItemIdOf<T>, EvaluationInfoOf<T>)> =
 			Evaluations::<T>::iter_prefix((project_id, evaluator.clone())).collect();
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
 		let early_evaluation_reward_threshold_usd =
@@ -887,7 +887,7 @@ impl<T: Config> Pallet<T> {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let bid_id = Self::next_bid_id();
-		let mut existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder.clone())).collect::<Vec<_>>();
+		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder.clone())).collect::<Vec<_>>();
 
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
 		let funding_asset_usd_price =
@@ -1000,7 +1000,7 @@ impl<T: Config> Pallet<T> {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let contribution_id = Self::next_contribution_id();
-		let mut existing_contributions =
+		let existing_contributions =
 			Contributions::<T>::iter_prefix_values((project_id, contributor.clone())).collect::<Vec<_>>();
 
 		let ct_usd_price = project_details.weighted_average_price.ok_or(Error::<T>::AuctionNotStarted)?;
@@ -1105,8 +1105,10 @@ impl<T: Config> Pallet<T> {
 		Contributions::<T>::insert((project_id, contributor.clone(), contribution_id), new_contribution.clone());
 		NextContributionId::<T>::set(contribution_id.saturating_add(One::one()));
 
-		project_details.remaining_contribution_tokens = project_details.remaining_contribution_tokens.saturating_sub(new_contribution.ct_amount);
-		project_details.funding_amount_reached = project_details.funding_amount_reached.saturating_add(new_contribution.usd_contribution_amount);
+		project_details.remaining_contribution_tokens =
+			project_details.remaining_contribution_tokens.saturating_sub(new_contribution.ct_amount);
+		project_details.funding_amount_reached =
+			project_details.funding_amount_reached.saturating_add(new_contribution.usd_contribution_amount);
 		ProjectsDetails::<T>::insert(project_id, project_details);
 
 		// If no CTs remain, end the funding phase
@@ -1372,7 +1374,10 @@ impl<T: Config> Pallet<T> {
 			}
 			contribution.ct_vesting_period = ct_vesting;
 
-			Contributions::<T>::insert((project_id, contribution.contributor.clone(), contribution.id), contribution.clone());
+			Contributions::<T>::insert(
+				(project_id, contribution.contributor.clone(), contribution.id),
+				contribution.clone(),
+			);
 
 			// * Emit events *
 			Self::deposit_event(Event::ContributionTokenMinted {
@@ -1400,7 +1405,8 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			released_evaluation.rewarded_or_slashed == true &&
+			(project_details.evaluation_round_info.evaluators_outcome == EvaluatorsOutcomeOf::<T>::Unchanged ||
+				released_evaluation.rewarded_or_slashed == true) &&
 				matches!(
 					project_details.status,
 					ProjectStatus::EvaluationFailed | ProjectStatus::FundingFailed | ProjectStatus::FundingSuccessful
@@ -1428,7 +1434,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn do_evaluation_reward(
+	pub fn do_evaluation_reward_payout_for(
 		caller: AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		evaluator: AccountIdOf<T>,
@@ -1479,6 +1485,60 @@ impl<T: Config> Pallet<T> {
 			evaluator: evaluator.clone(),
 			id: evaluation_id,
 			amount: reward_amount_ct,
+			caller,
+		});
+
+		Ok(())
+	}
+
+	pub fn do_evaluation_slash_for(
+		caller: AccountIdOf<T>,
+		project_id: T::ProjectIdentifier,
+		evaluator: AccountIdOf<T>,
+		evaluation_id: StorageItemIdOf<T>,
+	) -> Result<(), DispatchError> {
+		// * Get variables *
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let slash_percentage = T::EvaluatorSlash::get();
+		let treasury_account = T::TreasuryAccount::get();
+
+		let mut user_evaluations = Evaluations::<T>::iter_prefix_values((project_id, evaluator.clone()));
+		let mut evaluation =
+			user_evaluations.find(|evaluation| evaluation.id == evaluation_id).ok_or(Error::<T>::EvaluationNotFound)?;
+
+		// * Validity checks *
+		ensure!(
+			evaluation.rewarded_or_slashed == false &&
+				matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Slashed),
+			Error::<T>::NotAllowed
+		);
+
+		// * Calculate variables *
+		// We need to make sure that the current plmc bond is always >= than the slash amount.
+		let slashed_amount = slash_percentage * evaluation.original_plmc_bond;
+
+		// * Update storage *
+		evaluation.rewarded_or_slashed = true;
+
+		T::NativeCurrency::transfer_on_hold(
+			&LockType::Evaluation(project_id),
+			&evaluator,
+			&treasury_account,
+			slashed_amount,
+			Precision::Exact,
+			Restriction::Free,
+			Fortitude::Force,
+		)?;
+
+		evaluation.current_plmc_bond = evaluation.current_plmc_bond.saturating_sub(slashed_amount);
+		Evaluations::<T>::insert((project_id, evaluator.clone(), evaluation.id), evaluation);
+
+		// * Emit events *
+		Self::deposit_event(Event::<T>::EvaluationSlashed {
+			project_id,
+			evaluator: evaluator.clone(),
+			id: evaluation_id,
+			amount: slashed_amount,
 			caller,
 		});
 
@@ -1938,20 +1998,26 @@ impl<T: Config> Pallet<T> {
 		amount: BalanceOf<T>,
 	) -> Result<(), DispatchError> {
 		// Check if the user has already locked tokens in the evaluation period
-		let evaluation_bonded = <T as Config>::NativeCurrency::balance_on_hold(&LockType::Evaluation(project_id), who);
+		let user_evaluations = Evaluations::<T>::iter_prefix_values((project_id, who.clone()));
 
-		let new_amount_to_lock = amount.saturating_sub(evaluation_bonded);
-		let evaluation_bonded_to_change_lock = amount.saturating_sub(new_amount_to_lock);
+		let mut to_convert = amount;
+		for mut evaluation in user_evaluations {
+			if to_convert == Zero::zero() {
+				break
+			}
+			let slash_deposit = <T as Config>::EvaluatorSlash::get() * evaluation.original_plmc_bond;
+			let available_to_convert = evaluation.current_plmc_bond.saturating_sub(slash_deposit);
+			let converted = to_convert.min(available_to_convert);
+			evaluation.current_plmc_bond = evaluation.current_plmc_bond.saturating_sub(converted);
+			Evaluations::<T>::insert((project_id, who.clone(), evaluation.id), evaluation);
+			T::NativeCurrency::release(&LockType::Evaluation(project_id), who, converted, Precision::Exact)
+				.map_err(|_| Error::<T>::ImpossibleState)?;
+			T::NativeCurrency::hold(&LockType::Participation(project_id), who, converted)
+				.map_err(|_| Error::<T>::ImpossibleState)?;
+			to_convert = to_convert.saturating_sub(converted)
+		}
 
-		T::NativeCurrency::release(
-			&LockType::Evaluation(project_id),
-			who,
-			evaluation_bonded_to_change_lock,
-			Precision::Exact,
-		)
-		.map_err(|_| Error::<T>::ImpossibleState)?;
-
-		T::NativeCurrency::hold(&LockType::Participation(project_id), who, amount)
+		T::NativeCurrency::hold(&LockType::Participation(project_id), who, to_convert)
 			.map_err(|_| Error::<T>::InsufficientBalance)?;
 
 		Ok(())

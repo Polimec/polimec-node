@@ -540,17 +540,17 @@ pub mod inner_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub struct EvaluationRoundInfo<AccountId, Balance> {
+	pub struct EvaluationRoundInfo<Balance> {
 		pub total_bonded_usd: Balance,
 		pub total_bonded_plmc: Balance,
-		pub evaluators_outcome: EvaluatorsOutcome<AccountId, Balance>,
+		pub evaluators_outcome: EvaluatorsOutcome<Balance>,
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum EvaluatorsOutcome<AccountId, Balance> {
+	pub enum EvaluatorsOutcome<Balance> {
 		Unchanged,
 		Rewarded(RewardInfo<Balance>),
-		Slashed(Vec<(AccountId, Balance)>),
+		Slashed,
 	}
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
