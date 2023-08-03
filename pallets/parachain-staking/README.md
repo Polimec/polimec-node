@@ -1,30 +1,12 @@
 # DPoS Pallet for Parachain Staking
 
-## Polimec Changes
+This repository contains a modified version of Moonbeam's 'parachain_staking' Substrate Pallet. The original version can be found [here](https://github.com/PureStake/moonbeam/tree/master/pallets/parachain-staking).
 
-<Insert something about the changes: removed Nimbus and added `pallet_authorship` and `pallet_session`>
-
-## Formatting Rules
-
-- dependencies in alphabetical order in the `Cargo.toml` and at the top of each file
-- prefer explicit imports to glob import syntax i.e. prefer `use::crate::{Ex1, Ex2, ..};` to `use super::*;`
-
-## Description
-
-Implements Delegated Proof of Stake to
-
-1. select the active set of eligible block producers
-2. reward block authors
-3. enable delegators and collators to participate in inflationary rewards
-
-Links:
-
-- [Rust Documentation](https://purestake.github.io/moonbeam/pallet_parachain_staking/index.html)
-- [Unofficial Documentation](https://meta5.world/parachain-staking-docs/)
-- [(Outdated) Blog Post with Justification](https://meta5.world/posts/parachain-staking)
-
-## History
-
-Since January 2021, Moonbeam's team has maintained this Delegated Proof of Stake (DPoS) pallet designed specifically for parachains.
-
-Since April 2021, the development of this pallet has been supported by [a Web3 Foundation grant](https://github.com/w3f/Grants-Program/pull/389). The [first milestone](https://github.com/w3f/Grant-Milestone-Delivery/pull/218) was approved in June 2021.
+## Modifications
+The modifications to the original pallet include the following:
+1. Removed Nimbus Dependencies: The original dependencies on Nimbus have been removed. This simplifies the usage of the pallet and makes it independent of Nimbus.
+2. Implemented Traits from **pallet_authorship** and **pallet_session**: To replace some functionality previously provided by Nimbus, several traits from _pallet_authorship_ and _pallet_session_ have been implemented:
+    - **EventHandler** from *pallet_authorship*: This trait is used to note the block author and award them points for producing a block. The points are then used for staking purposes.
+    - **SessionManager** from *pallet_session*: This trait is used to manage the start and end of sessions, as well as assemble new collators for new sessions.
+    - **ShouldEndSession** from *pallet_session*: This trait is used to decide when a session should end.
+    - **EstimateNextSessionRotation** from *pallet_session*: This trait is used to estimate the average session length and the current session progress, as well as estimate the next session rotation.
