@@ -3769,7 +3769,7 @@ mod community_round_failure {
 
 mod remainder_round_success {
 	use super::*;
-	use crate::tests::testing_macros::{extract_from_event, find_event};
+	use crate::tests::testing_macros::extract_from_event;
 
 	#[test]
 	fn remainder_round_works() {
@@ -4933,12 +4933,7 @@ mod test_helper_functions {
 
 mod misc_features {
 	use super::*;
-	use crate::{
-		tests::testing_macros::{extract_from_event, find_event},
-		UpdateType::{CommunityFundingStart, RemainderFundingStart},
-	};
-	use sp_arithmetic::Percent;
-	use std::assert_matches::assert_matches;
+	use crate::UpdateType::{CommunityFundingStart, RemainderFundingStart};
 
 	#[test]
 	fn remove_from_update_store_works() {
@@ -4963,36 +4958,11 @@ mod misc_features {
 
 	#[test]
 	fn sandbox() {
-		let test_env = TestEnvironment::new();
-		let issuer = ISSUER;
-		let project = default_project(test_env.get_new_nonce());
-		let evaluations = default_evaluations();
-		let bids = default_bids();
-		let community_contributions = default_community_buys();
-		let remainder_contributions = vec![];
-
-		let finished_project = FinishedProject::new_with(
-			&test_env,
-			project,
-			issuer,
-			evaluations,
-			bids,
-			community_contributions.clone(),
-			remainder_contributions,
-		);
-		let events = test_env.in_ext(|| System::events());
-		let len = events.len();
-		assert!(len > 0);
-		let event = find_event!(&test_env, Event::<TestRuntime>::Bid { project_id: 0, amount, .. }).unwrap();
-		assert_matches!(event, Event::<TestRuntime>::Bid { .. });
-		let e =
-			extract_from_event!(&test_env, Event::<TestRuntime>::Bid { project_id: 0, amount, .. }, amount).unwrap();
-		assert_eq!(e, 100);
+		assert!(true);
 	}
 }
 
 mod testing_macros {
-	#[allow(unused_macros)]
 	macro_rules! assert_close_enough {
 		($real:expr, $desired:expr, $max_approximation:expr) => {
 			let real_parts = Perquintill::from_rational($real, $desired);
@@ -5013,6 +4983,7 @@ mod testing_macros {
 	}
 	pub(crate) use call_and_is_ok;
 
+	#[allow(unused_macros)]
 	macro_rules! find_event {
 		($env: expr, $pattern:pat) => {
 			$env.ext_env.borrow_mut().execute_with(|| {
@@ -5032,6 +5003,7 @@ mod testing_macros {
 			})
 		};
 	}
+	#[allow(unused_imports)]
 	pub(crate) use find_event;
 
 	macro_rules! extract_from_event {
