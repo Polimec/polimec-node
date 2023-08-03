@@ -62,8 +62,6 @@ impl<T: Config> Pallet<T> {
 	/// The issuer will call an extrinsic to start the evaluation round of the project.
 	/// [`do_evaluation_start`](Self::do_evaluation_start) will be executed.
 	pub fn do_create(issuer: AccountIdOf<T>, initial_metadata: ProjectMetadataOf<T>) -> Result<(), DispatchError> {
-		// TODO: Probably the issuers don't want to sell all of their tokens. Is there some logic for this?
-		// 	also even if an issuer wants to sell all their tokens, they could target a lower amount than that to consider it a success
 		// * Get variables *
 		let project_id = Self::next_project_id();
 
@@ -164,8 +162,6 @@ impl<T: Config> Pallet<T> {
 		project_details.status = ProjectStatus::EvaluationRound;
 
 		// * Update storage *
-		// TODO: Should we make it possible to end an application, and schedule for a later point the evaluation?
-		// 	Or should we just make it so that the evaluation starts immediately after the application ends?
 		ProjectsDetails::<T>::insert(project_id, project_details);
 		Self::add_to_update_store(evaluation_end_block + 1u32.into(), (&project_id, UpdateType::EvaluationEnd));
 
@@ -556,7 +552,6 @@ impl<T: Config> Pallet<T> {
 	/// * Project achieves its funding target - the project info is set to a successful funding state,
 	/// and the contribution token asset class is created with the same id as the project.
 	///
-	/// TODO: unsuccessful funding unimplemented
 	/// * Project doesn't achieve its funding target - the project info is set to an unsuccessful funding state.
 	///
 	/// # Next step
@@ -572,7 +567,6 @@ impl<T: Config> Pallet<T> {
 	pub fn do_end_funding(project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		// TODO: PLMC-149 Check if make sense to set the admin as T::fund_account_id(project_id)
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let remaining_cts = project_details.remaining_contribution_tokens;
 		let remainder_end_block = project_details.phase_transition_points.remainder.end();
@@ -699,7 +693,6 @@ impl<T: Config> Pallet<T> {
 	/// # Success Path
 	/// For now it will always succeed as long as the project exists. This functions is a WIP.
 	///
-	/// TODO: Discuss this function with Leonardo
 	///
 	/// # Next step
 	/// WIP
@@ -745,13 +738,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(project_details.issuer == issuer, Error::<T>::NotAllowed);
 		ensure!(!project_details.is_frozen, Error::<T>::Frozen);
 		ensure!(!Images::<T>::contains_key(project_metadata_hash), Error::<T>::MetadataAlreadyExists);
-
-		// TODO: PLMC-133. Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
-		// ensure!(
-		// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
-		// 	Error::<T>::NotAuthorized
-		// );
-
+		
 		// * Calculate new variables *
 
 		// * Update Storage *
@@ -1028,13 +1015,7 @@ impl<T: Config> Pallet<T> {
 			ensure!(ticket_size <= maximum_ticket_size, Error::<T>::ContributionTooHigh);
 		};
 		ensure!(project_metadata.participation_currencies == asset, Error::<T>::FundingAssetNotAccepted);
-
-		// TODO: PLMC-133. Replace this when this PR is merged: https://github.com/KILTprotocol/kilt-node/pull/448
-		// ensure!(
-		// 	T::HandleMembers::is_in(&MemberRole::Retail, &contributor),
-		// 	Error::<T>::NotAuthorized
-		// );
-
+		
 		// * Calculate variables *
 		let buyable_tokens = if project_details.remaining_contribution_tokens > token_amount {
 			token_amount
@@ -1184,7 +1165,6 @@ impl<T: Config> Pallet<T> {
 			bid.plmc_vesting_period = plmc_vesting;
 
 			// * Update storage *
-			// TODO: check that the full amount was unreserved
 			T::NativeCurrency::release(
 				&LockType::Participation(project_id),
 				&bid.bidder,
@@ -1295,13 +1275,7 @@ impl<T: Config> Pallet<T> {
 		let now = <frame_system::Pallet<T>>::block_number();
 
 		// * Validity checks *
-		// TODO: PLMC-133. Check the right credential status
-		// ensure!(
-		// 	T::HandleMembers::is_in(&MemberRole::Issuer, &issuer),
-		// 	Error::<T>::NotAuthorized
-		// );
 		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::CannotClaimYet);
-		// TODO: PLMC-160. Check the flow of the final_price if the final price discovery during the Auction Round fails
 
 		for mut contribution in contributions {
 			let mut plmc_vesting = contribution.plmc_vesting_period;
@@ -1324,7 +1298,6 @@ impl<T: Config> Pallet<T> {
 			contribution.plmc_vesting_period = plmc_vesting;
 
 			// * Update storage *
-			// TODO: Should we mint here, or should the full mint happen to the treasury and then do transfers from there?
 			// Unreserve the funds for the user
 			T::NativeCurrency::release(
 				&LockType::Participation(project_id),
@@ -1602,7 +1575,6 @@ impl<T: Config> Pallet<T> {
 		let plmc_start: T::BlockNumber = 0u32.into();
 		let ct_start: T::BlockNumber = (T::MaxProjectsToUpdatePerBlock::get() * 7).into();
 		// TODO: Calculate real vesting periods based on multiplier and caller type
-		// FIXME: if divide fails, we probably dont want to assume the multiplier is one
 		let ticket_size = token_price.checked_mul_int(token_amount).ok_or(Error::<T>::BadMath)?;
 		let usd_bonding_amount =
 			multiplier.calculate_bonding_requirement(ticket_size).map_err(|_| Error::<T>::BadMath)?;
@@ -1652,7 +1624,6 @@ impl<T: Config> Pallet<T> {
 			.map(|mut bid| {
 				if bid.when > end_block {
 					bid.status = BidStatus::Rejected(RejectionReason::AfterCandleEnd);
-					// TODO: PLMC-147. Unlock funds. We can do this inside the "on_idle" hook, and change the `status` of the `Bid` to "Unreserved"
 					bid.final_ct_amount = 0_u32.into();
 					bid.final_ct_usd_price = PriceOf::<T>::zero();
 
@@ -1815,7 +1786,6 @@ impl<T: Config> Pallet<T> {
 		// lastly, sum all the weighted prices to get the final weighted price for the next funding round
 		// 3 + 10.6 + 2.6 = 16.333...
 		let weighted_token_price: PriceOf<T> = bids
-			// TODO: PLMC-150. collecting due to previous mut borrow, find a way to not collect and borrow bid on filter_map
 			.iter()
 			.filter_map(|bid| match bid.status {
 				BidStatus::Accepted => {
