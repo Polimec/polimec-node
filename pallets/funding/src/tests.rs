@@ -2573,6 +2573,119 @@ mod auction_round_success {
 			assert_eq!(minted, amount);
 		}
 	}
+
+	#[test]
+	pub fn cannot_mint_ct_twice_manually() {
+		let test_env = TestEnvironment::new();
+		let issuer = ISSUER;
+		let project = default_project(test_env.get_new_nonce());
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = vec![];
+
+		let finished_project = FinishedProject::new_with(
+			&test_env,
+			project,
+			issuer,
+			evaluations,
+			bids.clone(),
+			community_contributions,
+			remainder_contributions,
+		);
+		let project_id = finished_project.get_project_id();
+		let details = finished_project.get_project_details();
+		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
+		assert_eq!(details.cleanup, Cleaner::NotReady);
+		let stored_bids =
+			test_env.in_ext(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
+
+		test_env.advance_time(1u64).unwrap();
+		let details = finished_project.get_project_details();
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
+
+		for bid in stored_bids.clone() {
+			test_env.in_ext(|| {
+				Pallet::<TestRuntime>::bid_ct_mint_for(
+					RuntimeOrigin::signed(bid.bidder),
+					project_id,
+					bid.bidder,
+					bid.id,
+				)
+					.unwrap();
+
+				assert_noop!(
+					Pallet::<TestRuntime>::bid_ct_mint_for(
+						RuntimeOrigin::signed(bid.bidder),
+						project_id,
+						bid.bidder,
+						bid.id,
+					),
+					Error::<TestRuntime>::NotAllowed
+				);
+			});
+		}
+	}
+
+	#[test]
+	pub fn cannot_mint_ct_manually_after_automatic_mint() {
+		let test_env = TestEnvironment::new();
+		let issuer = ISSUER;
+		let project = default_project(test_env.get_new_nonce());
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = vec![];
+
+		let finished_project = FinishedProject::new_with(
+			&test_env,
+			project,
+			issuer,
+			evaluations,
+			bids.clone(),
+			community_contributions,
+			remainder_contributions,
+		);
+		let project_id = finished_project.get_project_id();
+		let details = finished_project.get_project_details();
+		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
+		assert_eq!(details.cleanup, Cleaner::NotReady);
+
+		test_env.advance_time(10u64).unwrap();
+		let details = finished_project.get_project_details();
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+
+		let stored_bids =
+			test_env.in_ext(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
+		assert_eq!(stored_bids.len(), bids.len());
+		let user_ct_amounts = generic_map_merge_reduce(
+			vec![stored_bids.clone()],
+			|bid| bid.bidder,
+			BalanceOf::<TestRuntime>::zero(),
+			|bid, acc| acc + bid.final_ct_amount,
+		);
+		assert_eq!(user_ct_amounts.len(), bids.len());
+
+		for (bidder, amount) in user_ct_amounts {
+			let minted =
+				test_env.in_ext(|| <TestRuntime as Config>::ContributionTokenCurrency::balance(project_id, bidder));
+			assert_eq!(minted, amount);
+		}
+
+		for bid in stored_bids.clone() {
+			test_env.in_ext(|| {
+				assert_noop!(
+					Pallet::<TestRuntime>::bid_ct_mint_for(
+						RuntimeOrigin::signed(bid.bidder),
+						project_id,
+						bid.bidder,
+						bid.id,
+					),
+					Error::<TestRuntime>::NotAllowed
+				);
+			})
+		}
+	}
 }
 
 mod auction_round_failure {
@@ -3414,6 +3527,236 @@ mod community_round_success {
 
 		assert_eq!(evaluation_locked, <TestRuntime as Config>::EvaluatorSlash::get() * plmc_evaluation_amount);
 		assert_eq!(participation_locked, necessary_plmc_for_contribution);
+	}
+
+	#[test]
+	fn ct_minted_for_community_buys_automatically() {
+		let test_env = TestEnvironment::new();
+		let issuer = ISSUER;
+		let project = default_project(test_env.get_new_nonce());
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = vec![];
+
+		let finished_project = FinishedProject::new_with(
+			&test_env,
+			project,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions.clone(),
+			remainder_contributions,
+		);
+		let project_id = finished_project.get_project_id();
+		let details = finished_project.get_project_details();
+		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
+		assert_eq!(details.cleanup, Cleaner::NotReady);
+
+		test_env.advance_time(10u64).unwrap();
+		let details = finished_project.get_project_details();
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+
+		let stored_community_buys =
+			test_env.in_ext(|| Contributions::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
+		assert_eq!(stored_community_buys.len(), community_contributions.len());
+		let user_ct_amounts = generic_map_merge_reduce(
+			vec![stored_community_buys],
+			|contribution| contribution.contributor,
+			BalanceOf::<TestRuntime>::zero(),
+			|contribution, acc| acc + contribution.ct_amount,
+		);
+		assert_eq!(user_ct_amounts.len(), community_contributions.len());
+
+		for (contributor, amount) in user_ct_amounts {
+			let minted =
+				test_env.in_ext(|| <TestRuntime as Config>::ContributionTokenCurrency::balance(project_id, contributor));
+			assert_eq!(minted, amount);
+		}
+	}
+
+	#[test]
+	fn ct_minted_for_community_buys_manually() {
+		let test_env = TestEnvironment::new();
+		let issuer = ISSUER;
+		let project = default_project(test_env.get_new_nonce());
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = vec![];
+
+		let finished_project = FinishedProject::new_with(
+			&test_env,
+			project,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions.clone(),
+			remainder_contributions,
+		);
+		let project_id = finished_project.get_project_id();
+		let details = finished_project.get_project_details();
+		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
+		assert_eq!(details.cleanup, Cleaner::NotReady);
+		let stored_contributions =
+			test_env.in_ext(|| Contributions::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
+
+		for contribution in stored_contributions.clone() {
+			test_env.in_ext(|| {
+				assert_noop!(
+					Pallet::<TestRuntime>::contribution_ct_mint_for(
+						RuntimeOrigin::signed(contribution.contributor),
+						project_id,
+						contribution.contributor,
+						contribution.id,
+					),
+					Error::<TestRuntime>::CannotClaimYet
+				);
+			})
+		}
+		test_env.advance_time(1u64).unwrap();
+		let details = finished_project.get_project_details();
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
+
+		for contribution in stored_contributions.clone() {
+			test_env.in_ext(|| {
+				Pallet::<TestRuntime>::contribution_ct_mint_for(
+					RuntimeOrigin::signed(contribution.contributor),
+					project_id,
+					contribution.contributor,
+					contribution.id,
+				)
+					.unwrap()
+			});
+		}
+
+		assert_eq!(stored_contributions.len(), community_contributions.len());
+		let user_ct_amounts = generic_map_merge_reduce(
+			vec![stored_contributions],
+			|contribution| contribution.contributor,
+			BalanceOf::<TestRuntime>::zero(),
+			|contribution, acc| acc + contribution.ct_amount
+		);
+		assert_eq!(user_ct_amounts.len(), community_contributions.len());
+
+		for (contributor, amount) in user_ct_amounts {
+			let minted =
+				test_env.in_ext(|| <TestRuntime as Config>::ContributionTokenCurrency::balance(project_id, contributor));
+			assert_eq!(minted, amount);
+		}
+	}
+
+	#[test]
+	pub fn cannot_mint_ct_twice_manually() {
+		let test_env = TestEnvironment::new();
+		let issuer = ISSUER;
+		let project = default_project(test_env.get_new_nonce());
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = vec![];
+
+		let finished_project = FinishedProject::new_with(
+			&test_env,
+			project,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions.clone(),
+			remainder_contributions,
+		);
+		let project_id = finished_project.get_project_id();
+		let details = finished_project.get_project_details();
+		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
+		assert_eq!(details.cleanup, Cleaner::NotReady);
+		let stored_contributions =
+			test_env.in_ext(|| Contributions::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
+
+		test_env.advance_time(1u64).unwrap();
+		let details = finished_project.get_project_details();
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
+
+		for contribution in stored_contributions.clone() {
+			test_env.in_ext(|| {
+				Pallet::<TestRuntime>::contribution_ct_mint_for(
+					RuntimeOrigin::signed(contribution.contributor),
+					project_id,
+					contribution.contributor,
+					contribution.id,
+				)
+					.unwrap();
+
+				assert_noop!(
+					Pallet::<TestRuntime>::contribution_ct_mint_for(
+						RuntimeOrigin::signed(contribution.contributor),
+						project_id,
+						contribution.contributor,
+						contribution.id,
+					),
+					Error::<TestRuntime>::NotAllowed
+				);
+			});
+		}
+	}
+
+	#[test]
+	pub fn cannot_mint_ct_manually_after_automatic_mint() {
+		let test_env = TestEnvironment::new();
+		let issuer = ISSUER;
+		let project = default_project(test_env.get_new_nonce());
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = vec![];
+
+		let finished_project = FinishedProject::new_with(
+			&test_env,
+			project,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions.clone(),
+			remainder_contributions,
+		);
+		let project_id = finished_project.get_project_id();
+		let details = finished_project.get_project_details();
+		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
+		assert_eq!(details.cleanup, Cleaner::NotReady);
+
+		test_env.advance_time(10u64).unwrap();
+		let details = finished_project.get_project_details();
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+
+		let stored_contributions =
+			test_env.in_ext(|| Contributions::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
+		assert_eq!(stored_contributions.len(), community_contributions.len());
+		let user_ct_amounts = generic_map_merge_reduce(
+			vec![stored_contributions.clone()],
+			|contribution| contribution.contributor,
+			BalanceOf::<TestRuntime>::zero(),
+			|contribution, acc| acc + contribution.ct_amount,
+		);
+		assert_eq!(user_ct_amounts.len(), community_contributions.len());
+
+		for (contributor, amount) in user_ct_amounts {
+			let minted =
+				test_env.in_ext(|| <TestRuntime as Config>::ContributionTokenCurrency::balance(project_id, contributor));
+			assert_eq!(minted, amount);
+		}
+
+		for contribution in stored_contributions.clone() {
+			test_env.in_ext(|| {
+				assert_noop!(
+					Pallet::<TestRuntime>::contribution_ct_mint_for(
+						RuntimeOrigin::signed(contribution.contributor),
+						project_id,
+						contribution.contributor,
+						contribution.id,
+					),
+					Error::<TestRuntime>::NotAllowed
+				);
+			})
+		}
 	}
 }
 

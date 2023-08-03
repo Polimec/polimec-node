@@ -124,8 +124,7 @@
 //! 			ensure!(project_details.status == pallet_funding::ProjectStatus::CommunityRound, "Project is not in the community round");
 //!
 //! 			// Calculate how much funding was done already
-//! 			let project_contributions: <T as pallet_funding::Config>::Balance = pallet_funding::Contributions::<T>::iter_prefix_values(project_id)
-//! 				.flatten()
+//! 			let project_contributions: <T as pallet_funding::Config>::Balance = pallet_funding::Contributions::<T>::iter_prefix_values((project_id,))
 //! 				.fold(
 //! 					0u64.into(),
 //! 					|total_tokens_bought, contribution| {
@@ -612,9 +611,9 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 			caller: AccountIdOf<T>,
 		},
-		BidCtMintFailed {
+		CTMintFailed {
 			project_id: ProjectIdOf<T>,
-			bidder: AccountIdOf<T>,
+			claimer: AccountIdOf<T>,
 			id: StorageItemIdOf<T>,
 			error: DispatchError,
 		},
@@ -876,6 +875,17 @@ pub mod pallet {
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
 			Self::do_bid_ct_mint_for(caller, project_id, bidder, bid_id)
+		}
+
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn contribution_ct_mint_for(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+			contributor: AccountIdOf<T>,
+			contribution_id: T::StorageItemId,
+		) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			Self::do_contribution_ct_mint_for(caller, project_id, contributor, contribution_id)
 		}
 
 		/// Unbond some plmc from a contribution, after a step in the vesting period has passed.

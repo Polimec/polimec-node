@@ -281,9 +281,9 @@ fn remaining_contributions_without_plmc_vesting<T: Config>(_project_id: T::Proje
 	0u64
 }
 
-fn remaining_contributions_without_ct_minted<T: Config>(_project_id: T::ProjectIdentifier) -> u64 {
-	// TODO: currently we vest the contribution tokens. We should change this to a direct mint.
-	0u64
+fn remaining_contributions_without_ct_minted<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
+	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
+	project_contributions.filter(|contribution| !contribution.ct_minted).count() as u64
 }
 
 fn remaining_bids_without_issuer_payout<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
@@ -511,9 +511,9 @@ fn mint_ct_for_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, 
 			bid.id,
 		) {
 			Ok(_) => (),
-			Err(e) => Pallet::<T>::deposit_event(Event::BidCtMintFailed {
+			Err(e) => Pallet::<T>::deposit_event(Event::CTMintFailed {
 				project_id: bid.project_id,
-				bidder: bid.bidder.clone(),
+				claimer: bid.bidder.clone(),
 				id: bid.id,
 				error: e,
 			}),
@@ -524,9 +524,29 @@ fn mint_ct_for_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, 
 	}
 }
 
-fn mint_ct_for_one_contribution<T: Config>(_project_id: T::ProjectIdentifier) -> (Weight, u64) {
-	// TODO: Change when new vesting schedule is implemented
-	(Weight::zero(), 0u64)
+fn mint_ct_for_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
+	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
+	let mut remaining_contributions = project_contributions.filter(|contribution| !contribution.ct_minted);
+
+	if let Some(contribution) = remaining_contributions.next() {
+		match Pallet::<T>::do_contribution_ct_mint_for(
+			T::PalletId::get().into_account_truncating(),
+			contribution.project_id,
+			contribution.contributor.clone(),
+			contribution.id,
+		) {
+			Ok(_) => (),
+			Err(e) => Pallet::<T>::deposit_event(Event::CTMintFailed {
+				project_id: contribution.project_id,
+				claimer: contribution.contributor.clone(),
+				id: contribution.id,
+				error: e,
+			}),
+		};
+		(Weight::zero(), remaining_contributions.count() as u64)
+	} else {
+		(Weight::zero(), 0u64)
+	}
 }
 
 fn issuer_funding_payout_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {

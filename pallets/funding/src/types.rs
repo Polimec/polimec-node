@@ -251,6 +251,7 @@ pub mod storage_types {
 		pub plmc_vesting_period: PLMCVesting,
 		pub ct_vesting_period: CTVesting,
 		pub funds_released: bool,
+		pub ct_minted: bool,
 	}
 }
 
