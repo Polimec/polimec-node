@@ -507,8 +507,7 @@ impl TestEnvironment {
 			self.ext_env.borrow_mut().execute_with(|| {
 				// total amount of contributions for this user for this project stored in the mapping
 				let contribution_total: <TestRuntime as Config>::Balance =
-					Bids::<TestRuntime>::get(project_id, user.clone())
-						.iter()
+					Bids::<TestRuntime>::iter_prefix_values((project_id, user.clone()))
 						.map(|c| c.funding_asset_amount_locked)
 						.sum();
 				assert_eq!(
@@ -528,8 +527,7 @@ impl TestEnvironment {
 	) {
 		for (user, expected_amount, _token_id) in correct_funds {
 			self.ext_env.borrow_mut().execute_with(|| {
-				Contributions::<TestRuntime>::get(project_id, user.clone())
-					.iter()
+				Contributions::<TestRuntime>::iter_prefix_values((project_id, user.clone()))
 					.find(|c| c.funding_asset_amount == expected_amount)
 					.expect("Contribution not found in storage");
 			});
@@ -899,12 +897,11 @@ impl<'a> CommunityFundingProject<'a> {
 		let project_metadata = self.get_project_metadata();
 		let project_details = self.get_project_details();
 		let project_id = self.get_project_id();
-		let project_bids = self.in_ext(|| Bids::<TestRuntime>::iter_prefix(project_id).collect::<Vec<_>>());
-		let flattened_bids = project_bids.into_iter().map(|bid| bid.1).flatten().collect::<Vec<_>>();
+		let project_bids = self.in_ext(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
 		assert!(matches!(project_details.weighted_average_price, Some(_)), "Weighted average price should exist");
 
 		for filter in bid_expectations {
-			let _found_bid = flattened_bids.iter().find(|bid| filter.matches_bid(&bid)).unwrap();
+			let _found_bid = project_bids.iter().find(|bid| filter.matches_bid(&bid)).unwrap();
 		}
 
 		// Remaining CTs are updated
@@ -2318,7 +2315,8 @@ mod auction_round_success {
 
 		for bid in included_bids {
 			let pid = auctioning_project.get_project_id();
-			let stored_bids = auctioning_project.in_ext(|| FundingModule::bids(pid, bid.bidder));
+			let mut stored_bids =
+				auctioning_project.in_ext(|| Bids::<TestRuntime>::iter_prefix_values((pid, bid.bidder.clone())));
 			let desired_bid = BidInfoFilter {
 				project_id: Some(pid),
 				bidder: Some(bid.bidder),
@@ -2329,14 +2327,15 @@ mod auction_round_success {
 			};
 
 			assert!(
-				stored_bids.iter().any(|bid| desired_bid.matches_bid(&bid)),
+				test_env.in_ext(|| stored_bids.any(|bid| desired_bid.matches_bid(&bid))),
 				"Stored bid does not match the given filter"
 			)
 		}
 
 		for bid in excluded_bids {
 			let pid = auctioning_project.get_project_id();
-			let stored_bids = auctioning_project.in_ext(|| FundingModule::bids(pid, bid.bidder));
+			let mut stored_bids =
+				auctioning_project.in_ext(|| Bids::<TestRuntime>::iter_prefix_values((pid, bid.bidder.clone())));
 			let desired_bid = BidInfoFilter {
 				project_id: Some(pid),
 				bidder: Some(bid.bidder),
@@ -2346,7 +2345,7 @@ mod auction_round_success {
 				..Default::default()
 			};
 			assert!(
-				stored_bids.iter().any(|bid| desired_bid.matches_bid(&bid)),
+				test_env.in_ext(|| stored_bids.any(|bid| desired_bid.matches_bid(&bid))),
 				"Stored bid does not match the given filter"
 			);
 		}
@@ -2441,7 +2440,8 @@ mod auction_round_success {
 		let community_funding_project =
 			CommunityFundingProject::new_with(&test_env, project, issuer, evaluations, bids);
 		let project_id = community_funding_project.project_id;
-		let bidder_2_bid = test_env.in_ext(|| Bids::<TestRuntime>::get(project_id, BIDDER_2))[0];
+		let bidder_2_bid =
+			test_env.in_ext(|| Bids::<TestRuntime>::iter_prefix_values((project_id, BIDDER_2)).next().unwrap());
 		assert_eq!(bidder_2_bid.final_ct_usd_price.checked_mul_int(US_DOLLAR).unwrap(), 17_6_666_666_666);
 	}
 }
@@ -2513,7 +2513,8 @@ mod auction_round_failure {
 			TestBid::new(DAVE, 10_000 * USDT_UNIT, 2_u128.into(), None, AcceptedFundingAsset::USDT), // 20k
 			TestBid::new(DAVE, 12_000 * USDT_UNIT, 8_u128.into(), None, AcceptedFundingAsset::USDT), // 96k
 			TestBid::new(DAVE, 15_000 * USDT_UNIT, 5_u128.into(), None, AcceptedFundingAsset::USDT), // 75k
-			TestBid::new(DAVE, 1_000 * USDT_UNIT, 7_u128.into(), None, AcceptedFundingAsset::USDT),  // 7k
+			// Bid with lowest PLMC bonded gets dropped
+			TestBid::new(DAVE, 1_000 * USDT_UNIT, 7_u128.into(), None, AcceptedFundingAsset::USDT), // 7k
 			TestBid::new(DAVE, 20_000 * USDT_UNIT, 5_u128.into(), None, AcceptedFundingAsset::USDT), // 100k
 		];
 
@@ -2532,12 +2533,12 @@ mod auction_round_failure {
 		auctioning_project.bid_for_users(bids).expect("Bids should pass");
 
 		test_env.ext_env.borrow_mut().execute_with(|| {
-			let mut stored_bids = FundingModule::bids(project_id, DAVE);
+			let mut stored_bids = Bids::<TestRuntime>::iter_prefix_values((project_id, DAVE)).collect::<Vec<_>>();
 			assert_eq!(stored_bids.len(), 4);
 			stored_bids.sort();
-			assert_eq!(stored_bids[0].original_ct_usd_price, 5_u128.into());
+			assert_eq!(stored_bids[0].original_ct_usd_price, 2_u128.into());
 			assert_eq!(stored_bids[1].original_ct_usd_price, 5_u128.into());
-			assert_eq!(stored_bids[2].original_ct_usd_price, 7_u128.into());
+			assert_eq!(stored_bids[2].original_ct_usd_price, 5_u128.into());
 			assert_eq!(stored_bids[3].original_ct_usd_price, 8_u128.into());
 		});
 	}
@@ -2788,7 +2789,7 @@ mod community_round_success {
 
 		let project_id = community_funding_project.get_project_id();
 		let bob_total_contributions: BalanceOf<TestRuntime> = community_funding_project
-			.in_ext(|| Contributions::<TestRuntime>::get(project_id, BOB).iter().map(|c| c.funding_asset_amount).sum());
+			.in_ext(|| Contributions::<TestRuntime>::iter_prefix_values((project_id, BOB)).map(|c| c.funding_asset_amount).sum());
 
 		let total_contributed = calculate_contributed_funding_asset_spent(contributions.clone(), token_price)
 			.iter()
@@ -2965,8 +2966,7 @@ mod community_round_success {
 			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&LockType::Participation(project_id), &CONTRIBUTOR)
 		});
 		let statemint_asset_contributions_stored = project.in_ext(|| {
-			Contributions::<TestRuntime>::get(project.project_id, CONTRIBUTOR)
-				.iter()
+			Contributions::<TestRuntime>::iter_prefix_values((project.project_id, CONTRIBUTOR))
 				.map(|c| c.funding_asset_amount)
 				.sum::<BalanceOf<TestRuntime>>()
 		});
@@ -3002,8 +3002,7 @@ mod community_round_success {
 			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&LockType::Participation(project_id), &CONTRIBUTOR)
 		});
 		let new_statemint_asset_contributions_stored = project.in_ext(|| {
-			Contributions::<TestRuntime>::get(project.project_id, CONTRIBUTOR)
-				.iter()
+			Contributions::<TestRuntime>::iter_prefix_values((project.project_id, CONTRIBUTOR))
 				.map(|c| c.funding_asset_amount)
 				.sum::<BalanceOf<TestRuntime>>()
 		});
@@ -3068,8 +3067,7 @@ mod community_round_success {
 			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&LockType::Participation(project_id), &CONTRIBUTOR)
 		});
 		let statemint_asset_contributions_stored = project.in_ext(|| {
-			Contributions::<TestRuntime>::get(project.project_id, CONTRIBUTOR)
-				.iter()
+			Contributions::<TestRuntime>::iter_prefix_values((project.project_id, CONTRIBUTOR))
 				.map(|c| c.funding_asset_amount)
 				.sum::<BalanceOf<TestRuntime>>()
 		});
@@ -3105,8 +3103,7 @@ mod community_round_success {
 			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&LockType::Participation(project_id), &CONTRIBUTOR)
 		});
 		let new_statemint_asset_contributions_stored = project.in_ext(|| {
-			Contributions::<TestRuntime>::get(project.project_id, CONTRIBUTOR)
-				.iter()
+			Contributions::<TestRuntime>::iter_prefix_values((project.project_id, CONTRIBUTOR))
 				.map(|c| c.funding_asset_amount)
 				.sum::<BalanceOf<TestRuntime>>()
 		});

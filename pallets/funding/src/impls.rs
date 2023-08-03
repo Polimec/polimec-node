@@ -228,33 +228,30 @@ enum OperationsLeft {
 }
 
 fn remaining_evaluators_to_reward_or_slash<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
-	Evaluations::<T>::iter_prefix_values(project_id)
-		.flatten()
-		.filter(|evaluation| !evaluation.rewarded_or_slashed)
-		.count() as u64
+	Evaluations::<T>::iter_prefix_values((project_id,)).filter(|evaluation| !evaluation.rewarded_or_slashed).count()
+		as u64
 }
 
 fn remaining_evaluations<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
-	Evaluations::<T>::iter_prefix_values(project_id).flatten().count() as u64
+	Evaluations::<T>::iter_prefix_values((project_id,)).count() as u64
 }
 
 fn remaining_bids_to_release_funds<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
-	Bids::<T>::iter_prefix_values(project_id).flatten().filter(|bid| !bid.funds_released).count() as u64
+	Bids::<T>::iter_prefix_values((project_id,)).filter(|bid| !bid.funds_released).count() as u64
 }
 
 fn remaining_bids<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
-	Bids::<T>::iter_prefix_values(project_id).flatten().count() as u64
+	Bids::<T>::iter_prefix_values((project_id,)).count() as u64
 }
 
 fn remaining_contributions_to_release_funds<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
-	Contributions::<T>::iter_prefix_values(project_id)
-		.flatten()
+	Contributions::<T>::iter_prefix_values((project_id,))
 		.filter(|contribution| !contribution.funds_released)
 		.count() as u64
 }
 
 fn remaining_contributions<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
-	Contributions::<T>::iter_prefix_values(project_id).flatten().count() as u64
+	Contributions::<T>::iter_prefix_values((project_id,)).count() as u64
 }
 
 fn remaining_bids_without_plmc_vesting<T: Config>(_project_id: T::ProjectIdentifier) -> u64 {
@@ -280,29 +277,19 @@ fn remaining_contributions_without_ct_minted<T: Config>(_project_id: T::ProjectI
 }
 
 fn remaining_bids_without_issuer_payout<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
-	Bids::<T>::iter_prefix_values(project_id).flatten().filter(|bid| !bid.funds_released).count() as u64
+	Bids::<T>::iter_prefix_values((project_id,)).filter(|bid| !bid.funds_released).count() as u64
 }
 
 fn remaining_contributions_without_issuer_payout<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
-	Contributions::<T>::iter_prefix_values(project_id).flatten().filter(|bid| !bid.funds_released).count() as u64
+	Contributions::<T>::iter_prefix_values((project_id,)).filter(|bid| !bid.funds_released).count() as u64
 }
 
 fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> Result<(Weight, u64), DispatchError> {
 	let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-	let project_evaluations: Vec<_> = Evaluations::<T>::iter_prefix_values(project_id).collect();
-	let remaining_evaluations =
-		project_evaluations.iter().flatten().filter(|evaluation| !evaluation.rewarded_or_slashed).count() as u64;
+	let mut project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,));
+	let mut remaining_evaluations = project_evaluations.filter(|evaluation| !evaluation.rewarded_or_slashed);
 
-	let maybe_user_evaluations = project_evaluations
-		.into_iter()
-		.find(|evaluations| evaluations.iter().any(|evaluation| !evaluation.rewarded_or_slashed));
-
-	if let Some(mut user_evaluations) = maybe_user_evaluations {
-		let evaluation = user_evaluations
-			.iter_mut()
-			.find(|evaluation| !evaluation.rewarded_or_slashed)
-			.expect("user_evaluations can only exist if an item here is found; qed");
-
+	if let Some(mut evaluation) = remaining_evaluations.next() {
 		match project_details.evaluation_round_info.evaluators_outcome {
 			EvaluatorsOutcome::Rewarded(_) => {
 				match Pallet::<T>::do_evaluation_reward(
@@ -326,27 +313,19 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 		// if the evaluation outcome failed, we still want to flag it as rewarded or slashed. Otherwise the automatic
 		// transition will get stuck.
 		evaluation.rewarded_or_slashed = true;
-		Evaluations::<T>::insert(project_id, evaluation.evaluator.clone(), user_evaluations);
+		Evaluations::<T>::insert((project_id, evaluation.evaluator.clone(), evaluation.id), evaluation);
 
-		Ok((Weight::zero(), remaining_evaluations.saturating_sub(1u64)))
+		Ok((Weight::zero(), remaining_evaluations.count() as u64))
 	} else {
 		Ok((Weight::zero(), 0u64))
 	}
 }
 
-fn unbond_one_evaluation<T: crate::Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
-	let project_evaluations: Vec<_> = Evaluations::<T>::iter_prefix_values(project_id).collect();
-	let evaluation_count = project_evaluations.iter().flatten().count() as u64;
+fn unbond_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
+	let mut project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
+	let evaluation_count = project_evaluations.len() as u64;
 
-	let maybe_user_evaluations =
-		project_evaluations.into_iter().find(|evaluations| evaluations.iter().any(|e| e.rewarded_or_slashed));
-
-	if let Some(mut user_evaluations) = maybe_user_evaluations {
-		let evaluation = user_evaluations
-			.iter_mut()
-			.find(|evaluation| evaluation.rewarded_or_slashed)
-			.expect("user_evaluations can only exist if an item here is found; qed");
-
+	if let Some(mut evaluation) = project_evaluations.iter().find(|evaluation| evaluation.rewarded_or_slashed) {
 		match Pallet::<T>::do_evaluation_unbond_for(
 			T::PalletId::get().into_account_truncating(),
 			evaluation.project_id,
@@ -368,16 +347,10 @@ fn unbond_one_evaluation<T: crate::Config>(project_id: T::ProjectIdentifier) -> 
 }
 
 fn release_funds_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
-	let project_bids: Vec<_> = Bids::<T>::iter_prefix_values(project_id).collect();
-	let remaining_bids = project_bids.iter().flatten().filter(|bid| !bid.funds_released).count() as u64;
-	let maybe_user_bids = project_bids.into_iter().find(|bids| bids.iter().any(|bid| !bid.funds_released));
+	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
+	let mut remaining_bids = project_bids.filter(|bid| !bid.funds_released);
 
-	if let Some(mut user_bids) = maybe_user_bids {
-		let bid = user_bids
-			.iter_mut()
-			.find(|bid| !bid.funds_released)
-			.expect("user_bids can only exist if an item here is found; qed");
-
+	if let Some(mut bid) = remaining_bids.next() {
 		match Pallet::<T>::do_release_bid_funds_for(
 			T::PalletId::get().into_account_truncating(),
 			bid.project_id,
@@ -394,29 +367,21 @@ fn release_funds_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight
 		};
 
 		bid.funds_released = true;
+		Bids::<T>::insert((project_id, bid.bidder.clone(), bid.id), bid);
 
-		Bids::<T>::insert(project_id, bid.bidder.clone(), user_bids);
-
-		(Weight::zero(), remaining_bids.saturating_sub(1u64))
+		// (Weight::zero(), remaining_bids.count() as u64)
+		// TODO: delete this when function is implemented
+		(Weight::zero(), 0u64)
 	} else {
 		(Weight::zero(), 0u64)
 	}
 }
 
 fn unbond_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
-	let project_bids: Vec<_> = Bids::<T>::iter_prefix_values(project_id).collect();
-	// let bids_count = project_bids.iter().flatten().count() as u64;
-	// remove when do_bid_unbond_for is correctly implemented
-	let bids_count = 0u64;
+	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
+	let mut remaining_bids = project_bids.filter(|bid| bid.funds_released);
 
-	let maybe_user_bids = project_bids.into_iter().find(|bids| bids.iter().any(|e| e.funds_released));
-
-	if let Some(mut user_bids) = maybe_user_bids {
-		let bid = user_bids
-			.iter_mut()
-			.find(|bid| bid.funds_released)
-			.expect("user_evaluations can only exist if an item here is found; qed");
-
+	if let Some(mut bid) = remaining_bids.next() {
 		match Pallet::<T>::do_bid_unbond_for(
 			T::PalletId::get().into_account_truncating(),
 			bid.project_id,
@@ -431,31 +396,19 @@ fn unbond_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) 
 				error: e,
 			}),
 		};
-		(Weight::zero(), bids_count.saturating_sub(1u64))
+		// (Weight::zero(), remaining_bids.count() as u64)
+		// TODO: Remove this below when function is implemented
+		(Weight::zero(), 0u64)
 	} else {
 		(Weight::zero(), 0u64)
 	}
 }
 
 fn release_funds_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
-	let project_contributions: Vec<_> = Contributions::<T>::iter_prefix_values(project_id).collect();
-	// let remaining_contributions = project_contributions
-	// 	.iter()
-	// 	.flatten()
-	// 	.filter(|contribution| !contribution.funds_released)
-	// 	.count() as u64;
-	// remove when do_release_contribution_funds_for is correctly implemented
-	let remaining_contributions = 0u64;
-	let maybe_user_contributions = project_contributions
-		.into_iter()
-		.find(|contributions| contributions.iter().any(|contribution| !contribution.funds_released));
+	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
+	let mut remaining_contributions = project_contributions.filter(|contribution| !contribution.funds_released);
 
-	if let Some(mut user_contributions) = maybe_user_contributions {
-		let contribution = user_contributions
-			.iter_mut()
-			.find(|contribution| !contribution.funds_released)
-			.expect("user_contributions can only exist if an item here is found; qed");
-
+	if let Some(mut contribution) = remaining_contributions.next() {
 		match Pallet::<T>::do_release_contribution_funds_for(
 			T::PalletId::get().into_account_truncating(),
 			contribution.project_id,
@@ -473,29 +426,22 @@ fn release_funds_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -
 
 		contribution.funds_released = true;
 
-		Contributions::<T>::insert(project_id, contribution.contributor.clone(), user_contributions);
+		Contributions::<T>::insert((project_id, contribution.contributor.clone(), contribution.id), contribution);
+		// (Weight::zero(), remaining_contributions.count() as u64)
+		// TODO: Remove this when function is implemented
+		(Weight::zero(), 0u64)
 
-		(Weight::zero(), remaining_contributions.saturating_sub(1u64))
 	} else {
 		(Weight::zero(), 0u64)
 	}
 }
 
 fn unbond_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
-	let project_contributions: Vec<_> = Contributions::<T>::iter_prefix_values(project_id).collect();
+	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
 
-	// let contributions_count = project_contributions.iter().flatten().count() as u64;
-	let contributions_count = 0u64;
+	let mut remaining_contributions = project_contributions.clone().into_iter().filter(|contribution| contribution.funds_released);
 
-	let maybe_user_contributions =
-		project_contributions.into_iter().find(|contributions| contributions.iter().any(|e| e.funds_released));
-
-	if let Some(mut user_contributions) = maybe_user_contributions {
-		let contribution = user_contributions
-			.iter_mut()
-			.find(|contribution| contribution.funds_released)
-			.expect("user_evaluations can only exist if an item here is found; qed");
-
+	if let Some(mut contribution) = remaining_contributions.next() {
 		match Pallet::<T>::do_contribution_unbond_for(
 			T::PalletId::get().into_account_truncating(),
 			contribution.project_id,
@@ -510,7 +456,9 @@ fn unbond_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weig
 				error: e,
 			}),
 		};
-		(Weight::zero(), contributions_count.saturating_sub(1u64))
+		// (Weight::zero(), (project_contributions.len() as u64).saturating_sub(One::one()))
+		// TODO: Remove this when function is implemented
+		(Weight::zero(), 0u64)
 	} else {
 		(Weight::zero(), 0u64)
 	}
@@ -537,23 +485,11 @@ fn mint_ct_for_one_contribution<T: Config>(_project_id: T::ProjectIdentifier) ->
 }
 
 fn issuer_funding_payout_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
-	let project_bids: Vec<_> = Bids::<T>::iter_prefix_values(project_id).collect();
+	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 
-	// let remaining_bids = project_bids
-	// 	.iter()
-	// 	.flatten()
-	// 	.filter(|bid| !bid.funds_released)
-	// 	.count() as u64;
-	let remaining_bids = 0u64;
+	let mut remaining_bids = project_bids.filter(|bid| !bid.funds_released);
 
-	let maybe_user_bids = project_bids.into_iter().find(|bids| bids.iter().any(|bid| !bid.funds_released));
-
-	if let Some(mut user_bids) = maybe_user_bids {
-		let bid = user_bids
-			.iter_mut()
-			.find(|bid| !bid.funds_released)
-			.expect("user_bids can only exist if an item here is found; qed");
-
+	if let Some(mut bid) = remaining_bids.next() {
 		match Pallet::<T>::do_payout_bid_funds_for(
 			T::PalletId::get().into_account_truncating(),
 			bid.project_id,
@@ -571,34 +507,23 @@ fn issuer_funding_payout_one_bid<T: Config>(project_id: T::ProjectIdentifier) ->
 
 		bid.funds_released = true;
 
-		Bids::<T>::insert(project_id, bid.bidder.clone(), user_bids);
+		Bids::<T>::insert((project_id, bid.bidder.clone(), bid.id), bid);
 
-		(Weight::zero(), remaining_bids.saturating_sub(1u64))
+		// (Weight::zero(), remaining_bids.count() as u64)
+		// TODO: Remove this when function is implemented
+		(Weight::zero(), 0u64)
 	} else {
 		(Weight::zero(), 0u64)
 	}
 }
 
 fn issuer_funding_payout_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
-	let project_contributions: Vec<_> = Contributions::<T>::iter_prefix_values(project_id).collect();
+	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
 
-	// let remaining_contributions = project_contributions
-	// 	.iter()
-	// 	.flatten()
-	// 	.filter(|contribution| !contribution.funds_released)
-	// 	.count() as u64;
-	let remaining_contributions = 0u64;
+	let mut remaining_contributions = project_contributions
+		.filter(|contribution| !contribution.funds_released);
 
-	let maybe_user_contributions = project_contributions
-		.into_iter()
-		.find(|contributions| contributions.iter().any(|contribution| !contribution.funds_released));
-
-	if let Some(mut user_contributions) = maybe_user_contributions {
-		let contribution = user_contributions
-			.iter_mut()
-			.find(|contribution| !contribution.funds_released)
-			.expect("user_contributions can only exist if an item here is found; qed");
-
+	if let Some(mut contribution) = remaining_contributions.next() {
 		match Pallet::<T>::do_payout_contribution_funds_for(
 			T::PalletId::get().into_account_truncating(),
 			contribution.project_id,
@@ -616,50 +541,13 @@ fn issuer_funding_payout_one_contribution<T: Config>(project_id: T::ProjectIdent
 
 		contribution.funds_released = true;
 
-		Contributions::<T>::insert(project_id, contribution.contributor.clone(), user_contributions);
+		Contributions::<T>::insert((project_id, contribution.contributor.clone(), contribution.id), contribution);
 
-		(Weight::zero(), remaining_contributions.saturating_sub(1u64))
+		// (Weight::zero(), remaining_contributions.count() as u64)
+		// TODO: remove this when function is implemented
+		(Weight::zero(), 0u64)
+
 	} else {
 		(Weight::zero(), 0u64)
 	}
-}
-
-// might come in handy later
-#[allow(unused)]
-fn unbond_evaluators<T: Config>(project_id: T::ProjectIdentifier, max_weight: Weight) -> (Weight, OperationsLeft) {
-	let evaluations = Evaluations::<T>::iter_prefix_values(project_id).flatten().collect::<Vec<EvaluationInfoOf<T>>>();
-
-	let mut used_weight = Weight::zero();
-
-	let unbond_results = evaluations
-		.iter()
-		.take_while(|_evaluation| {
-			let new_used_weight = used_weight.saturating_add(T::WeightInfo::evaluation_unbond_for());
-			if new_used_weight.any_gt(max_weight) {
-				false
-			} else {
-				used_weight = new_used_weight;
-				true
-			}
-		})
-		.map(|evaluation| {
-			Pallet::<T>::do_evaluation_unbond_for(
-				T::PalletId::get().into_account_truncating(),
-				evaluation.project_id,
-				evaluation.evaluator.clone(),
-				evaluation.id,
-			)
-		})
-		.collect::<Vec<_>>();
-
-	let successful_results =
-		unbond_results.into_iter().filter(|result| if let Err(e) = result { false } else { true }).collect::<Vec<_>>();
-
-	let operations_left = if successful_results.len() == evaluations.len() {
-		OperationsLeft::None
-	} else {
-		OperationsLeft::Some(evaluations.len().saturating_sub(successful_results.len()) as u64)
-	};
-
-	(used_weight, operations_left)
 }
