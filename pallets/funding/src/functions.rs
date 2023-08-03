@@ -1064,6 +1064,7 @@ impl<T: Config> Pallet<T> {
 			plmc_vesting_period,
 			ct_vesting_period,
 			funds_released: false,
+			ct_minted: false,
 		};
 
 		// * Update storage *
@@ -1217,6 +1218,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::NotAllowed);
+		ensure!(bid.ct_minted == false, Error::<T>::NotAllowed);
 		ensure!(matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)), Error::<T>::NotAllowed);
 		ensure!(T::ContributionTokenCurrency::asset_exists(project_id), Error::<T>::CannotClaimYet);
 
@@ -1232,6 +1234,41 @@ impl<T: Config> Pallet<T> {
 			releaser,
 			project_id: bid.project_id,
 			claimer: bidder,
+			amount: ct_amount,
+		});
+
+		Ok(())
+	}
+
+	pub fn do_contribution_ct_mint_for(
+		releaser: AccountIdOf<T>,
+		project_id: T::ProjectIdentifier,
+		contributor: AccountIdOf<T>,
+		contribution_id: T::StorageItemId,
+	) -> DispatchResult {
+		// * Get variables *
+		let mut contribution = Contributions::<T>::get((project_id, contributor.clone(), contribution_id))
+			.ok_or(Error::<T>::BidNotFound)?;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+		let ct_amount = contribution.ct_amount;
+
+		// * Validity checks *
+		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::NotAllowed);
+		ensure!(contribution.ct_minted == false, Error::<T>::NotAllowed);
+		ensure!(T::ContributionTokenCurrency::asset_exists(project_id), Error::<T>::CannotClaimYet);
+
+		// * Calculate variables *
+		contribution.ct_minted = true;
+
+		// * Update storage *
+		T::ContributionTokenCurrency::mint_into(project_id, &contribution.contributor, ct_amount)?;
+		Contributions::<T>::insert((project_id, contributor.clone(), contribution_id), contribution.clone());
+
+		// * Emit events *
+		Self::deposit_event(Event::<T>::ContributionTokenMinted {
+			releaser,
+			project_id: contribution.project_id,
+			claimer: contributor,
 			amount: ct_amount,
 		});
 

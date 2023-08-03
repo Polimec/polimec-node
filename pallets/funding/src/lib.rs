@@ -611,9 +611,9 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 			caller: AccountIdOf<T>,
 		},
-		BidCtMintFailed {
+		CTMintFailed {
 			project_id: ProjectIdOf<T>,
-			bidder: AccountIdOf<T>,
+			claimer: AccountIdOf<T>,
 			id: StorageItemIdOf<T>,
 			error: DispatchError,
 		},
@@ -857,6 +857,17 @@ pub mod pallet {
 			// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
 			let caller = ensure_signed(origin)?;
 			Self::do_bid_ct_mint_for(caller, project_id, bidder, bid_id)
+		}
+
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn contribution_ct_mint_for(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+			contributor: AccountIdOf<T>,
+			contribution_id: T::StorageItemId,
+		) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			Self::do_contribution_ct_mint_for(caller, project_id, contributor, contribution_id)
 		}
 
 		/// Unbond some plmc from a contribution, after a step in the vesting period has passed.
