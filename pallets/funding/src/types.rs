@@ -198,6 +198,7 @@ pub mod storage_types {
 		pub ct_vesting_period: CTVesting,
 		pub when: BlockNumber,
 		pub funds_released: bool,
+		pub ct_minted: bool,
 	}
 
 	impl<

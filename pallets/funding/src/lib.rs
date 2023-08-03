@@ -543,9 +543,9 @@ pub mod pallet {
 		},
 		/// Contribution tokens were minted to a user
 		ContributionTokenMinted {
-			caller: AccountIdOf<T>,
+			releaser: AccountIdOf<T>,
 			project_id: T::ProjectIdentifier,
-			contributor: AccountIdOf<T>,
+			claimer: AccountIdOf<T>,
 			amount: BalanceOf<T>,
 		},
 		/// A transfer of tokens failed, but because it was done inside on_initialize it cannot be solved.
@@ -611,6 +611,12 @@ pub mod pallet {
 			id: StorageItemIdOf<T>,
 			amount: BalanceOf<T>,
 			caller: AccountIdOf<T>,
+		},
+		BidCtMintFailed {
+			project_id: ProjectIdOf<T>,
+			bidder: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			error: DispatchError,
 		},
 	}
 
@@ -842,9 +848,9 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::evaluation_unbond_for())]
 		pub fn evaluation_unbond_for(
 			origin: OriginFor<T>,
-			bond_id: T::StorageItemId,
 			project_id: T::ProjectIdentifier,
 			evaluator: AccountIdOf<T>,
+			bond_id: T::StorageItemId,
 		) -> DispatchResult {
 			let releaser = ensure_signed(origin)?;
 			Self::do_evaluation_unbond_for(releaser, project_id, evaluator, bond_id)
@@ -853,12 +859,23 @@ pub mod pallet {
 		#[pallet::weight(Weight::from_parts(0, 0))]
 		pub fn evaluation_reward_payout_for(
 			origin: OriginFor<T>,
-			bond_id: T::StorageItemId,
 			project_id: T::ProjectIdentifier,
 			evaluator: AccountIdOf<T>,
+			bond_id: T::StorageItemId,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
 			Self::do_evaluation_reward_payout_for(caller, project_id, evaluator, bond_id)
+		}
+
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn bid_ct_mint_for(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+			bidder: AccountIdOf<T>,
+			bid_id: T::StorageItemId,
+		) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			Self::do_bid_ct_mint_for(caller, project_id, bidder, bid_id)
 		}
 
 		/// Unbond some plmc from a contribution, after a step in the vesting period has passed.
@@ -874,18 +891,6 @@ pub mod pallet {
 		}
 
 		// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
-		/// Mint contribution tokens after a step in the vesting period for a successful bid.
-		pub fn vested_contribution_token_bid_mint_for(
-			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
-			bidder: AccountIdOf<T>,
-		) -> DispatchResult {
-			let releaser = ensure_signed(origin)?;
-
-			Self::do_vested_contribution_token_bid_mint_for(releaser, project_id, bidder)
-		}
-
-		// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
 		/// Unbond some plmc from a contribution, after a step in the vesting period has passed.
 		pub fn vested_plmc_purchase_unbond_for(
 			origin: OriginFor<T>,
@@ -895,18 +900,6 @@ pub mod pallet {
 			let releaser = ensure_signed(origin)?;
 
 			Self::do_vested_plmc_purchase_unbond_for(releaser, project_id, purchaser)
-		}
-
-		// TODO: PLMC-157. Manage the fact that the CTs may not be claimed by those entitled
-		/// Mint contribution tokens after a step in the vesting period for a contribution.
-		pub fn vested_contribution_token_purchase_mint_for(
-			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
-			purchaser: AccountIdOf<T>,
-		) -> DispatchResult {
-			let releaser = ensure_signed(origin)?;
-
-			Self::do_vested_contribution_token_purchase_mint_for(releaser, project_id, purchaser)
 		}
 	}
 

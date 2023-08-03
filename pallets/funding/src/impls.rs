@@ -270,9 +270,9 @@ fn remaining_bids_without_plmc_vesting<T: Config>(_project_id: T::ProjectIdentif
 	0u64
 }
 
-fn remaining_bids_without_ct_minted<T: Config>(_project_id: T::ProjectIdentifier) -> u64 {
-	// TODO: currently we vest the contribution tokens. We should change this to a direct mint.
-	0u64
+fn remaining_bids_without_ct_minted<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
+	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
+	project_bids.filter(|bid| !bid.ct_minted).count() as u64
 }
 
 fn remaining_contributions_without_plmc_vesting<T: Config>(_project_id: T::ProjectIdentifier) -> u64 {
@@ -499,9 +499,29 @@ fn start_contribution_plmc_vesting_schedule<T: Config>(_project_id: T::ProjectId
 	(Weight::zero(), 0u64)
 }
 
-fn mint_ct_for_one_bid<T: Config>(_project_id: T::ProjectIdentifier) -> (Weight, u64) {
-	// TODO: Change when new vesting schedule is implemented
-	(Weight::zero(), 0u64)
+fn mint_ct_for_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
+	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
+	let mut remaining_bids = project_bids.filter(|bid| !bid.ct_minted);
+
+	if let Some(bid) = remaining_bids.next() {
+		match Pallet::<T>::do_bid_ct_mint_for(
+			T::PalletId::get().into_account_truncating(),
+			bid.project_id,
+			bid.bidder.clone(),
+			bid.id,
+		) {
+			Ok(_) => (),
+			Err(e) => Pallet::<T>::deposit_event(Event::BidCtMintFailed {
+				project_id: bid.project_id,
+				bidder: bid.bidder.clone(),
+				id: bid.id,
+				error: e,
+			}),
+		};
+		(Weight::zero(), remaining_bids.count() as u64)
+	} else {
+		(Weight::zero(), 0u64)
+	}
 }
 
 fn mint_ct_for_one_contribution<T: Config>(_project_id: T::ProjectIdentifier) -> (Weight, u64) {
