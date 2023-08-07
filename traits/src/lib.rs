@@ -36,6 +36,12 @@ pub trait ReleaseSchedule<AccountId, Reason> {
 		reason: Reason,
 	) -> Option<<Self::Currency as fungible::Inspect<AccountId>>::Balance>;
 
+	/// Release the vested amount of the given account.
+	fn vest(
+		who: AccountId,
+		reason: Reason,
+	) -> DispatchResult;
+
 	/// Adds a release schedule to a given account.
 	///
 	/// If the account has `MaxVestingSchedules`, an Error is returned and nothing

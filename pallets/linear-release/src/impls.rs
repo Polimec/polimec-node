@@ -357,4 +357,8 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 		Self::write_release(who, locked_now, reason)?;
 		Ok(())
 	}
+
+	fn vest(who: AccountIdOf<T>, reason: ReasonOf<T>) -> DispatchResult {
+		Self::do_vest(who, reason)
+	}
 }
