@@ -36,7 +36,7 @@ use frame_support::{
 
 use sp_arithmetic::Perquintill;
 
-use sp_arithmetic::traits::{CheckedSub, Zero};
+use sp_arithmetic::traits::{CheckedDiv, CheckedSub, Zero};
 use sp_std::prelude::*;
 
 // Round transition functions
@@ -879,6 +879,7 @@ impl<T: Config> Pallet<T> {
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
 		let funding_asset_usd_price =
 			T::PriceProvider::get_price(funding_asset.to_statemint_id()).ok_or(Error::<T>::PriceNotFound)?;
+		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PriceNotFound)?;
 		let multiplier = multiplier.unwrap_or_default();
 
 		// * Validity checks *
@@ -896,11 +897,13 @@ impl<T: Config> Pallet<T> {
 		ensure!(funding_asset == project_metadata.participation_currencies, Error::<T>::FundingAssetNotAccepted);
 
 		// * Calculate new variables *
-		let (plmc_vesting_period, ct_vesting_period) =
-			Self::calculate_vesting_periods(bidder.clone(), multiplier, ct_amount, ct_usd_price)
+		let plmc_bond = Self::calculate_plmc_bond(ticket_size, multiplier, plmc_usd_price)
+			.map_err(|_| Error::<T>::BadMath)?;
+		let plmc_vesting_info =
+			Self::calculate_vesting_info(bidder.clone(), multiplier, plmc_bond)
 				.map_err(|_| Error::<T>::BadMath)?;
-		let required_plmc_bond = plmc_vesting_period.amount;
-		let required_funding_asset_transfer =
+
+		let funding_asset_amount_locked =
 			funding_asset_usd_price.reciprocal().ok_or(Error::<T>::BadMath)?.saturating_mul_int(ticket_size);
 		let asset_id = funding_asset.to_statemint_id();
 
@@ -914,12 +917,11 @@ impl<T: Config> Pallet<T> {
 			final_ct_amount: ct_amount,
 			final_ct_usd_price: ct_usd_price,
 			funding_asset,
-			funding_asset_amount_locked: required_funding_asset_transfer,
+			funding_asset_amount_locked,
 			multiplier,
-			plmc_bond: required_plmc_bond,
+			plmc_bond,
+			plmc_vesting_info,
 			funded: false,
-			plmc_vesting_period,
-			ct_vesting_period,
 			when: now,
 			funds_released: false,
 			ct_minted: false,
@@ -927,8 +929,8 @@ impl<T: Config> Pallet<T> {
 
 		// * Update storage *
 		if existing_bids.len() < T::MaxBidsPerUser::get() as usize {
-			Self::try_plmc_participation_lock(&bidder, project_id, required_plmc_bond)?;
-			Self::try_funding_asset_hold(&bidder, project_id, required_funding_asset_transfer, asset_id)?;
+			Self::try_plmc_participation_lock(&bidder, project_id, plmc_bond)?;
+			Self::try_funding_asset_hold(&bidder, project_id, funding_asset_amount_locked, asset_id)?;
 		} else {
 			let lowest_bid =
 				existing_bids.iter().min_by_key(|bid| bid.plmc_bond).ok_or(Error::<T>::ImpossibleState)?.clone();
@@ -950,8 +952,8 @@ impl<T: Config> Pallet<T> {
 			)?;
 			Bids::<T>::remove((project_id, lowest_bid.bidder, lowest_bid.id));
 
-			Self::try_plmc_participation_lock(&bidder, project_id, required_plmc_bond)?;
-			Self::try_funding_asset_hold(&bidder, project_id, required_funding_asset_transfer, asset_id)?;
+			Self::try_plmc_participation_lock(&bidder, project_id, plmc_bond)?;
+			Self::try_funding_asset_hold(&bidder, project_id, funding_asset_amount_locked, asset_id)?;
 		}
 
 		Bids::<T>::insert((project_id, bidder, bid_id), new_bid);
@@ -992,6 +994,7 @@ impl<T: Config> Pallet<T> {
 			Contributions::<T>::iter_prefix_values((project_id, contributor.clone())).collect::<Vec<_>>();
 
 		let ct_usd_price = project_details.weighted_average_price.ok_or(Error::<T>::AuctionNotStarted)?;
+		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PriceNotFound)?;
 		let mut ticket_size = ct_usd_price.checked_mul_int(token_amount).ok_or(Error::<T>::BadMath)?;
 		let funding_asset_usd_price =
 			T::PriceProvider::get_price(asset.to_statemint_id()).ok_or(Error::<T>::PriceNotFound)?;
@@ -1024,11 +1027,10 @@ impl<T: Config> Pallet<T> {
 			ticket_size = ct_usd_price.checked_mul_int(remaining_amount).ok_or(Error::<T>::BadMath)?;
 			remaining_amount
 		};
-		let (plmc_vesting_period, ct_vesting_period) =
-			Self::calculate_vesting_periods(contributor.clone(), multiplier.clone(), buyable_tokens, ct_usd_price)
-				.map_err(|_| Error::<T>::BadMath)?;
-		let required_plmc_bond = plmc_vesting_period.amount;
-		let required_funding_asset_transfer =
+		let plmc_bond = Self::calculate_plmc_bond(ticket_size, multiplier, plmc_usd_price)?;
+		let plmc_vesting_info =
+			Self::calculate_vesting_info(contributor.clone(), multiplier.clone(), plmc_bond)?;
+		let funding_asset_amount =
 			funding_asset_usd_price.reciprocal().ok_or(Error::<T>::BadMath)?.saturating_mul_int(ticket_size);
 		let asset_id = asset.to_statemint_id();
 		let remaining_cts_after_purchase = project_details.remaining_contribution_tokens.saturating_sub(buyable_tokens);
@@ -1037,13 +1039,12 @@ impl<T: Config> Pallet<T> {
 			id: contribution_id,
 			project_id,
 			contributor: contributor.clone(),
-			ct_amount: ct_vesting_period.amount,
+			ct_amount: token_amount,
 			usd_contribution_amount: ticket_size,
 			funding_asset: asset,
-			funding_asset_amount: required_funding_asset_transfer,
-			plmc_bond: required_plmc_bond,
-			plmc_vesting_period,
-			ct_vesting_period,
+			funding_asset_amount,
+			plmc_bond,
+			plmc_vesting_info,
 			funds_released: false,
 			ct_minted: false,
 		};
@@ -1051,8 +1052,8 @@ impl<T: Config> Pallet<T> {
 		// * Update storage *
 		// Try adding the new contribution to the system
 		if existing_contributions.len() < T::MaxContributionsPerUser::get() as usize {
-			Self::try_plmc_participation_lock(&contributor, project_id, required_plmc_bond)?;
-			Self::try_funding_asset_hold(&contributor, project_id, required_funding_asset_transfer, asset_id)?;
+			Self::try_plmc_participation_lock(&contributor, project_id, plmc_bond)?;
+			Self::try_funding_asset_hold(&contributor, project_id, funding_asset_amount, asset_id)?;
 		} else {
 			let lowest_contribution = existing_contributions
 				.iter()
@@ -1076,8 +1077,8 @@ impl<T: Config> Pallet<T> {
 			)?;
 			Contributions::<T>::remove((project_id, lowest_contribution.contributor.clone(), lowest_contribution.id));
 
-			Self::try_plmc_participation_lock(&contributor, project_id, required_plmc_bond)?;
-			Self::try_funding_asset_hold(&contributor, project_id, required_funding_asset_transfer, asset_id)?;
+			Self::try_plmc_participation_lock(&contributor, project_id, plmc_bond)?;
+			Self::try_funding_asset_hold(&contributor, project_id, funding_asset_amount, asset_id)?;
 
 			project_details.remaining_contribution_tokens =
 				project_details.remaining_contribution_tokens.saturating_add(lowest_contribution.ct_amount);
@@ -1126,64 +1127,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	/// Unbond some plmc from a successful bid, after a step in the vesting period has passed.
-	///
-	/// # Arguments
-	/// * bid: The bid to unbond from
-	///
-	/// # Storage access
-	/// * [`Bids`] - Check if its time to unbond some plmc based on the bid vesting period, and update the bid after unbonding.
-	/// * [`BiddingBonds`] - Update the bid with the new vesting period struct, reflecting this withdrawal
-	/// * [`T::NativeCurrency`] - Unreserve the unbonded amount
-	pub fn do_vested_plmc_bid_unbond_for(
-		releaser: AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
-		bidder: AccountIdOf<T>,
-	) -> Result<(), DispatchError> {
-		// * Get variables *
-		let bids = Bids::<T>::iter_prefix_values((project_id, bidder.clone()));
-		let now = <frame_system::Pallet<T>>::block_number();
-		for mut bid in bids {
-			let mut plmc_vesting = bid.plmc_vesting_period;
 
-			// * Validity checks *
-			// check that it is not too early to withdraw the next amount
-			if plmc_vesting.next_withdrawal > now {
-				continue
-			}
-
-			// * Calculate variables *
-			let mut unbond_amount: BalanceOf<T> = 0u32.into();
-
-			// update vesting period until the next withdrawal is in the future
-			while let Ok(amount) = plmc_vesting.calculate_next_withdrawal() {
-				unbond_amount = unbond_amount.saturating_add(amount);
-				if plmc_vesting.next_withdrawal > now {
-					break
-				}
-			}
-			bid.plmc_vesting_period = plmc_vesting;
-
-			// * Update storage *
-			T::NativeCurrency::release(
-				&LockType::Participation(project_id),
-				&bid.bidder,
-				unbond_amount,
-				Precision::Exact,
-			)?;
-			Bids::<T>::insert((project_id, bidder.clone(), bid.id), bid.clone());
-
-			// * Emit events *
-			Self::deposit_event(Event::<T>::BondReleased {
-				project_id: bid.project_id,
-				amount: unbond_amount,
-				bonder: bid.bidder,
-				releaser: releaser.clone(),
-			});
-		}
-
-		Ok(())
-	}
 
 	pub fn do_bid_ct_mint_for(
 		releaser: AccountIdOf<T>,
@@ -1251,70 +1195,6 @@ impl<T: Config> Pallet<T> {
 			claimer: contributor,
 			amount: ct_amount,
 		});
-
-		Ok(())
-	}
-
-	/// Unbond some plmc from a contribution, after a step in the vesting period has passed.
-	///
-	/// # Arguments
-	/// * bid: The bid to unbond from
-	///
-	/// # Storage access
-	/// * [`Bids`] - Check if its time to unbond some plmc based on the bid vesting period, and update the bid after unbonding.
-	/// * [`BiddingBonds`] - Update the bid with the new vesting period struct, reflecting this withdrawal
-	/// * [`T::NativeCurrency`] - Unreserve the unbonded amount
-	pub fn do_vested_plmc_purchase_unbond_for(
-		releaser: AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
-		claimer: AccountIdOf<T>,
-	) -> Result<(), DispatchError> {
-		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let contributions = Contributions::<T>::iter_prefix_values((project_id, &claimer));
-		let now = <frame_system::Pallet<T>>::block_number();
-
-		// * Validity checks *
-		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::CannotClaimYet);
-
-		for mut contribution in contributions {
-			let mut plmc_vesting = contribution.plmc_vesting_period;
-			let mut unbond_amount: BalanceOf<T> = 0u32.into();
-
-			// * Validity checks *
-			// check that it is not too early to withdraw the next amount
-			if plmc_vesting.next_withdrawal > now {
-				continue
-			}
-
-			// * Calculate variables *
-			// Update vesting period until the next withdrawal is in the future
-			while let Ok(amount) = plmc_vesting.calculate_next_withdrawal() {
-				unbond_amount = unbond_amount.saturating_add(amount);
-				if plmc_vesting.next_withdrawal > now {
-					break
-				}
-			}
-			contribution.plmc_vesting_period = plmc_vesting;
-
-			// * Update storage *
-			// Unreserve the funds for the user
-			T::NativeCurrency::release(
-				&LockType::Participation(project_id),
-				&claimer,
-				unbond_amount,
-				Precision::Exact,
-			)?;
-			Contributions::<T>::insert((project_id, &claimer, contribution.id), contribution.clone());
-
-			// * Emit events *
-			Self::deposit_event(Event::BondReleased {
-				project_id,
-				amount: unbond_amount,
-				bonder: claimer.clone(),
-				releaser: releaser.clone(),
-			})
-		}
 
 		Ok(())
 	}
@@ -1564,42 +1444,36 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	/// Based on the amount of tokens and price to buy, a desired multiplier, and the type of investor the caller is,
-	/// calculate the amount and vesting periods of bonded PLMC and reward CT tokens.
-	pub fn calculate_vesting_periods(
-		_caller: AccountIdOf<T>,
-		multiplier: MultiplierOf<T>,
-		token_amount: BalanceOf<T>,
-		token_price: T::Price,
-	) -> Result<(Vesting<T::BlockNumber, BalanceOf<T>>, Vesting<T::BlockNumber, BalanceOf<T>>), DispatchError> {
-		let plmc_start: T::BlockNumber = 0u32.into();
-		let ct_start: T::BlockNumber = (T::MaxProjectsToUpdatePerBlock::get() * 7).into();
-		// TODO: Calculate real vesting periods based on multiplier and caller type
-		let ticket_size = token_price.checked_mul_int(token_amount).ok_or(Error::<T>::BadMath)?;
-		let usd_bonding_amount =
+	pub fn calculate_plmc_bond(ticket_size: BalanceOf<T>, multiplier: MultiplierOf<T>, plmc_price: PriceOf<T>) -> Result<BalanceOf<T>, DispatchError> {
+		let usd_bond =
 			multiplier.calculate_bonding_requirement(ticket_size).map_err(|_| Error::<T>::BadMath)?;
-		let plmc_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
-		let plmc_bonding_amount = plmc_price
+		plmc_price
 			.reciprocal()
 			.ok_or(Error::<T>::BadMath)?
-			.checked_mul_int(usd_bonding_amount)
-			.ok_or(Error::<T>::BadMath)?;
-		Ok((
-			Vesting {
-				amount: plmc_bonding_amount,
+			.checked_mul_int(usd_bond)
+			.ok_or(Error::<T>::BadMath.into())
+	}
+
+	/// Based on the amount of tokens and price to buy, a desired multiplier, and the type of investor the caller is,
+	/// calculate the amount and vesting periods of bonded PLMC and reward CT tokens.
+	pub fn calculate_vesting_info(
+		_caller: AccountIdOf<T>,
+		_multiplier: MultiplierOf<T>,
+		plmc_bonded_amount: BalanceOf<T>,
+	) -> Result<VestingInfo<T::BlockNumber, BalanceOf<T>>, DispatchError> {
+		let plmc_start: T::BlockNumber = 0u32.into();
+
+		// TODO: lock_time should depend on `_multiplier` and `_caller` credential
+		let lock_time = 7 * parachains_common::DAYS;
+		let amount_per_block = plmc_bonded_amount.checked_div(&lock_time.into()).ok_or(Error::<T>::BadMath)?;
+
+		Ok(
+			VestingInfo {
+				amount_per_block,
 				start: plmc_start,
-				end: plmc_start,
-				step: 0u32.into(),
-				next_withdrawal: 0u32.into(),
+				end: plmc_start.saturating_add(lock_time.into()),
 			},
-			Vesting {
-				amount: token_amount,
-				start: ct_start,
-				end: ct_start,
-				step: 0u32.into(),
-				next_withdrawal: 0u32.into(),
-			},
-		))
+		)
 	}
 
 	/// Calculates the price (in USD) of contribution tokens for the Community and Remainder Rounds

@@ -175,9 +175,8 @@ pub mod storage_types {
 		Price: FixedPointNumber,
 		AccountId,
 		BlockNumber,
-		PlmcVesting,
-		CTVesting,
 		Multiplier,
+		VestingInfo
 	> {
 		pub id: Id,
 		pub project_id: ProjectId,
@@ -192,9 +191,8 @@ pub mod storage_types {
 		pub funding_asset_amount_locked: Balance,
 		pub multiplier: Multiplier,
 		pub plmc_bond: Balance,
+		pub plmc_vesting_info: VestingInfo,
 		pub funded: bool,
-		pub plmc_vesting_period: PlmcVesting,
-		pub ct_vesting_period: CTVesting,
 		pub when: BlockNumber,
 		pub funds_released: bool,
 		pub ct_minted: bool,
@@ -207,10 +205,9 @@ pub mod storage_types {
 			Price: FixedPointNumber,
 			AccountId: Eq,
 			BlockNumber: Eq + Ord,
-			PlmcVesting: Eq,
-			CTVesting: Eq,
 			Multiplier: Eq,
-		> Ord for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, PlmcVesting, CTVesting, Multiplier>
+			VestingInfo: Eq
+		> Ord for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, Multiplier, VestingInfo>
 	{
 		fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
 			match self.original_ct_usd_price.cmp(&other.original_ct_usd_price) {
@@ -227,10 +224,9 @@ pub mod storage_types {
 			Price: FixedPointNumber,
 			AccountId: Eq,
 			BlockNumber: Eq + Ord,
-			PlmcVesting: Eq,
-			CTVesting: Eq,
 			Multiplier: Eq,
-		> PartialOrd for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, PlmcVesting, CTVesting, Multiplier>
+			VestingInfo: Eq
+		> PartialOrd for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, Multiplier, VestingInfo>
 	{
 		fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
 			Some(self.cmp(other))
@@ -238,7 +234,7 @@ pub mod storage_types {
 	}
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct ContributionInfo<Id, ProjectId, AccountId, Balance, PLMCVesting, CTVesting> {
+	pub struct ContributionInfo<Id, ProjectId, AccountId, Balance, VestingInfo> {
 		pub id: Id,
 		pub project_id: ProjectId,
 		pub contributor: AccountId,
@@ -247,8 +243,7 @@ pub mod storage_types {
 		pub funding_asset: AcceptedFundingAsset,
 		pub funding_asset_amount: Balance,
 		pub plmc_bond: Balance,
-		pub plmc_vesting_period: PLMCVesting,
-		pub ct_vesting_period: CTVesting,
+		pub plmc_vesting_info: VestingInfo,
 		pub funds_released: bool,
 		pub ct_minted: bool,
 	}
@@ -438,35 +433,13 @@ pub mod inner_types {
 	}
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub struct Vesting<BlockNumber, Balance> {
+	pub struct VestingInfo<BlockNumber, Balance> {
 		// Amount of tokens vested
-		pub amount: Balance,
+		pub amount_per_block: Balance,
 		// number of blocks after project ends, when vesting starts
 		pub start: BlockNumber,
 		// number of blocks after project ends, when vesting ends
 		pub end: BlockNumber,
-		// number of blocks between each withdrawal
-		pub step: BlockNumber,
-		// absolute block number of next block where withdrawal is possible
-		pub next_withdrawal: BlockNumber,
-	}
-
-	impl<
-			BlockNumber: Saturating + Copy + CheckedDiv,
-			Balance: Saturating + CheckedDiv + Copy + From<u32> + Eq + sp_std::ops::SubAssign,
-		> Vesting<BlockNumber, Balance>
-	{
-		pub fn calculate_next_withdrawal(&mut self) -> Result<Balance, ()> {
-			if self.amount == 0u32.into() {
-				Err(())
-			} else {
-				let next_withdrawal = self.next_withdrawal.saturating_add(self.step);
-				let withdraw_amount = self.amount;
-				self.next_withdrawal = next_withdrawal;
-				self.amount -= withdraw_amount;
-				Ok(withdraw_amount)
-			}
-		}
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]

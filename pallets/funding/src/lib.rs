@@ -231,7 +231,7 @@ pub type ProjectMetadataOf<T> =
 pub type ProjectDetailsOf<T> =
 	ProjectDetails<AccountIdOf<T>, BlockNumberOf<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>;
 pub type EvaluationRoundInfoOf<T> = EvaluationRoundInfo<BalanceOf<T>>;
-pub type VestingOf<T> = Vesting<BlockNumberOf<T>, BalanceOf<T>>;
+pub type VestingInfoOf<T> = VestingInfo<BlockNumberOf<T>, BalanceOf<T>>;
 pub type EvaluationInfoOf<T> =
 	EvaluationInfo<StorageItemIdOf<T>, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, BlockNumberOf<T>>;
 pub type BidInfoOf<T> = BidInfo<
@@ -241,12 +241,11 @@ pub type BidInfoOf<T> = BidInfo<
 	PriceOf<T>,
 	AccountIdOf<T>,
 	BlockNumberOf<T>,
-	VestingOf<T>,
-	VestingOf<T>,
 	MultiplierOf<T>,
+	VestingInfoOf<T>,
 >;
 pub type ContributionInfoOf<T> =
-	ContributionInfo<StorageItemIdOf<T>, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, VestingOf<T>, VestingOf<T>>;
+	ContributionInfo<StorageItemIdOf<T>, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, VestingInfoOf<T>>;
 pub type BondTypeOf<T> = LockType<ProjectIdOf<T>>;
 
 const PLMC_STATEMINT_ID: u32 = 2069;
@@ -856,27 +855,6 @@ pub mod pallet {
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
 			Self::do_contribution_ct_mint_for(caller, project_id, contributor, contribution_id)
-		}
-
-		/// Unbond some plmc from a contribution, after a step in the vesting period has passed.
-		pub fn vested_plmc_bid_unbond_for(
-			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
-			bidder: AccountIdOf<T>,
-		) -> DispatchResult {
-			let releaser = ensure_signed(origin)?;
-
-			Self::do_vested_plmc_bid_unbond_for(releaser, project_id, bidder)
-		}
-
-		/// Unbond some plmc from a contribution, after a step in the vesting period has passed.
-		pub fn vested_plmc_purchase_unbond_for(
-			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
-			purchaser: AccountIdOf<T>,
-		) -> DispatchResult {
-			let releaser = ensure_signed(origin)?;
-			Self::do_vested_plmc_purchase_unbond_for(releaser, project_id, purchaser)
 		}
 	}
 

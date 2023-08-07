@@ -36,6 +36,7 @@ pub trait ReleaseSchedule<AccountId, Reason> {
 		reason: Reason,
 	) -> Option<<Self::Currency as fungible::Inspect<AccountId>>::Balance>;
 
+
 	/// Release the vested amount of the given account.
 	fn vest(
 		who: AccountId,

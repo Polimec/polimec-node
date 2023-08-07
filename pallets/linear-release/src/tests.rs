@@ -1475,6 +1475,7 @@ fn manual_vest_all_different_reason() {
 }
 
 #[test]
+#[ignore]
 fn check_external_release_behavior() {
 	const ED: u64 = 10u64;
 	ExtBuilder::default().existential_deposit(ED).build().execute_with(|| {

@@ -99,7 +99,6 @@ pub struct BidInfoFilter<
 	Multiplier,
 	BlockNumber,
 	PlmcVesting,
-	CTVesting,
 > {
 	pub id: Option<Id>,
 	pub project_id: Option<ProjectId>,
@@ -114,8 +113,7 @@ pub struct BidInfoFilter<
 	pub multiplier: Option<Multiplier>,
 	pub plmc_bond: Option<Balance>,
 	pub funded: Option<bool>,
-	pub plmc_vesting_period: Option<PlmcVesting>,
-	pub ct_vesting_period: Option<CTVesting>,
+	pub plmc_vesting_info: Option<PlmcVesting>,
 	pub when: Option<BlockNumber>,
 	pub funds_released: Option<bool>,
 }
@@ -127,8 +125,7 @@ type BidInfoFilterOf<T> = BidInfoFilter<
 	<T as frame_system::Config>::AccountId,
 	MultiplierOf<T>,
 	BlockNumberOf<T>,
-	VestingOf<T>,
-	VestingOf<T>,
+	VestingInfoOf<T>,
 >;
 impl Default for BidInfoFilterOf<TestRuntime> {
 	fn default() -> Self {
@@ -146,8 +143,7 @@ impl Default for BidInfoFilterOf<TestRuntime> {
 			multiplier: None,
 			plmc_bond: None,
 			funded: None,
-			plmc_vesting_period: None,
-			ct_vesting_period: None,
+			plmc_vesting_info: None,
 			when: None,
 			funds_released: None,
 		}
@@ -196,10 +192,7 @@ impl BidInfoFilterOf<TestRuntime> {
 		if self.funded.is_some() && self.funded.unwrap() != bid.funded {
 			return false
 		}
-		if self.plmc_vesting_period.is_some() && self.plmc_vesting_period.unwrap() != bid.plmc_vesting_period {
-			return false
-		}
-		if self.ct_vesting_period.is_some() && self.ct_vesting_period.unwrap() != bid.ct_vesting_period {
+		if self.plmc_vesting_info.is_some() && self.plmc_vesting_info.unwrap() != bid.plmc_vesting_info {
 			return false
 		}
 		if self.when.is_some() && self.when.unwrap() != bid.when {
