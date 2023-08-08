@@ -1031,7 +1031,6 @@ impl<T: Config> Pallet<T> {
 			remaining_amount
 		};
 		let plmc_bond = Self::calculate_plmc_bond(ticket_size, multiplier, plmc_usd_price)?;
-		let plmc_vesting_info = Self::calculate_vesting_info(contributor.clone(), multiplier.clone(), plmc_bond)?;
 		let funding_asset_amount =
 			funding_asset_usd_price.reciprocal().ok_or(Error::<T>::BadMath)?.saturating_mul_int(ticket_size);
 		let asset_id = asset.to_statemint_id();
@@ -1043,10 +1042,11 @@ impl<T: Config> Pallet<T> {
 			contributor: contributor.clone(),
 			ct_amount: token_amount,
 			usd_contribution_amount: ticket_size,
+			multiplier,
 			funding_asset: asset,
 			funding_asset_amount,
 			plmc_bond,
-			plmc_vesting_info,
+			plmc_vesting_info: None,
 			funds_released: false,
 			ct_minted: false,
 		};
@@ -1389,6 +1389,50 @@ impl<T: Config> Pallet<T> {
 			project_id,
 			bidder: bidder.clone(),
 			id: bid_id,
+			amount: vest_info.total_amount,
+			caller,
+		});
+
+		Ok(())
+	}
+
+	pub fn do_start_contribution_vesting_schedule_for(
+		caller: AccountIdOf<T>,
+		project_id: T::ProjectIdentifier,
+		contributor: AccountIdOf<T>,
+		contribution_id: StorageItemIdOf<T>,
+	) -> Result<(), DispatchError> {
+		// * Get variables *
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let mut contribution = Contributions::<T>::get((project_id, contributor.clone(), contribution_id)).ok_or(Error::<T>::BidNotFound)?;
+		let funding_end_block = project_details.funding_end_block.ok_or(Error::<T>::ImpossibleState)?;
+
+		// * Validity checks *
+		ensure!(
+			matches!(contribution.plmc_vesting_info, None) && project_details.status == ProjectStatus::FundingSuccessful,
+			Error::<T>::NotAllowed
+		);
+
+		// * Calculate variables *
+		let vest_info = Self::calculate_vesting_info(contributor.clone(), contribution.multiplier, contribution.plmc_bond)
+			.map_err(|_| Error::<T>::BadMath)?;
+		contribution.plmc_vesting_info = Some(vest_info);
+
+		// * Update storage *
+		T::Vesting::add_release_schedule(
+			&contributor,
+			vest_info.total_amount,
+			vest_info.amount_per_block,
+			funding_end_block,
+			LockType::Participation(project_id),
+		)?;
+		Contributions::<T>::insert((project_id, contributor.clone(), contribution_id), contribution);
+
+		// * Emit events *
+		Self::deposit_event(Event::<T>::ContributionPlmcVestingScheduled {
+			project_id,
+			contributor: contributor.clone(),
+			id: contribution_id,
 			amount: vest_info.total_amount,
 			caller,
 		});

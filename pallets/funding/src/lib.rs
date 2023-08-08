@@ -245,7 +245,7 @@ pub type BidInfoOf<T> = BidInfo<
 	VestingInfoOf<T>,
 >;
 pub type ContributionInfoOf<T> =
-	ContributionInfo<StorageItemIdOf<T>, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, VestingInfoOf<T>>;
+	ContributionInfo<StorageItemIdOf<T>, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>, VestingInfoOf<T>>;
 pub type BondTypeOf<T> = LockType<ProjectIdOf<T>>;
 
 const PLMC_STATEMINT_ID: u32 = 2069;
@@ -626,9 +626,22 @@ pub mod pallet {
 			id: StorageItemIdOf<T>,
 			error: DispatchError,
 		},
+		StartContributionVestingScheduleFailed {
+			project_id: ProjectIdOf<T>,
+			contributor: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			error: DispatchError,
+		},
 		BidPlmcVestingScheduled {
 			project_id: ProjectIdOf<T>,
 			bidder: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			amount: BalanceOf<T>,
+			caller: AccountIdOf<T>,
+		},
+		ContributionPlmcVestingScheduled {
+			project_id: ProjectIdOf<T>,
+			contributor: AccountIdOf<T>,
 			id: StorageItemIdOf<T>,
 			amount: BalanceOf<T>,
 			caller: AccountIdOf<T>,

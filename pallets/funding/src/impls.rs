@@ -504,9 +504,32 @@ fn start_one_bid_vesting_schedule<T: Config>(project_id: T::ProjectIdentifier) -
 	}
 }
 
-fn start_one_contribution_vesting_schedule<T: Config>(_project_id: T::ProjectIdentifier) -> (Weight, u64) {
-	// TODO: change when new vesting schedule is implemented
-	(Weight::zero(), 0u64)
+fn start_one_contribution_vesting_schedule<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
+	let project_bids = Contributions::<T>::iter_prefix_values((project_id,));
+	let mut unscheduled_contributions = project_bids.filter(|contribution| matches!(contribution.plmc_vesting_info, None));
+
+	if let Some(contribution) = unscheduled_contributions.next() {
+		match Pallet::<T>::do_start_contribution_vesting_schedule_for(
+			T::PalletId::get().into_account_truncating(),
+			project_id,
+			contribution.contributor.clone(),
+			contribution.id,
+		) {
+			Ok(_) => {},
+			Err(e) => {
+				Pallet::<T>::deposit_event(Event::StartContributionVestingScheduleFailed {
+					project_id: contribution.project_id,
+					contributor: contribution.contributor.clone(),
+					id: contribution.id,
+					error: e,
+				});
+			},
+		}
+
+		(Weight::zero(), unscheduled_contributions.count() as u64)
+	} else {
+		(Weight::zero(), 0u64)
+	}
 }
 
 fn mint_ct_for_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {

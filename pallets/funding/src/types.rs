@@ -242,16 +242,17 @@ pub mod storage_types {
 	}
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct ContributionInfo<Id, ProjectId, AccountId, Balance, VestingInfo> {
+	pub struct ContributionInfo<Id, ProjectId, AccountId, Balance, Multiplier, VestingInfo> {
 		pub id: Id,
 		pub project_id: ProjectId,
 		pub contributor: AccountId,
 		pub ct_amount: Balance,
 		pub usd_contribution_amount: Balance,
+		pub multiplier: Multiplier,
 		pub funding_asset: AcceptedFundingAsset,
 		pub funding_asset_amount: Balance,
 		pub plmc_bond: Balance,
-		pub plmc_vesting_info: VestingInfo,
+		pub plmc_vesting_info: Option<VestingInfo>,
 		pub funds_released: bool,
 		pub ct_minted: bool,
 	}
