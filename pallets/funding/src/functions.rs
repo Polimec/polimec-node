@@ -33,11 +33,13 @@ use frame_support::{
 		Get,
 	},
 };
+use parachains_common::BlockNumber;
 
 use sp_arithmetic::Perquintill;
 
 use sp_arithmetic::traits::{CheckedDiv, CheckedSub, Zero};
 use sp_std::prelude::*;
+use polimec_traits::ReleaseSchedule;
 
 // Round transition functions
 impl<T: Config> Pallet<T> {
@@ -107,6 +109,7 @@ impl<T: Config> Pallet<T> {
 				total_bonded_plmc: Zero::zero(),
 				evaluators_outcome: EvaluatorsOutcome::Unchanged,
 			},
+			funding_end_block: None
 		};
 
 		let project_metadata = initial_metadata;
@@ -650,6 +653,7 @@ impl<T: Config> Pallet<T> {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let token_information =
 			ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?.token_information;
+		let now = <frame_system::Pallet<T>>::block_number();
 
 		// * Validity checks *
 		ensure!(
@@ -658,10 +662,13 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::NotAllowed
 		);
 
-		// * Update storage *
-
+		// * Calculate new variables *
 		project_details.cleanup =
 			Cleaner::try_from(project_details.status.clone()).map_err(|_| Error::<T>::NotAllowed)?;
+		project_details.funding_end_block = Some(now);
+
+		// * Update storage *
+
 		ProjectsDetails::<T>::insert(project_id, project_details.clone());
 
 		if project_details.status == ProjectStatus::FundingSuccessful {
@@ -738,7 +745,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(project_details.issuer == issuer, Error::<T>::NotAllowed);
 		ensure!(!project_details.is_frozen, Error::<T>::Frozen);
 		ensure!(!Images::<T>::contains_key(project_metadata_hash), Error::<T>::MetadataAlreadyExists);
-		
+
 		// * Calculate new variables *
 
 		// * Update Storage *
@@ -897,11 +904,10 @@ impl<T: Config> Pallet<T> {
 		ensure!(funding_asset == project_metadata.participation_currencies, Error::<T>::FundingAssetNotAccepted);
 
 		// * Calculate new variables *
-		let plmc_bond = Self::calculate_plmc_bond(ticket_size, multiplier, plmc_usd_price)
-			.map_err(|_| Error::<T>::BadMath)?;
+		let plmc_bond =
+			Self::calculate_plmc_bond(ticket_size, multiplier, plmc_usd_price).map_err(|_| Error::<T>::BadMath)?;
 		let plmc_vesting_info =
-			Self::calculate_vesting_info(bidder.clone(), multiplier, plmc_bond)
-				.map_err(|_| Error::<T>::BadMath)?;
+			Self::calculate_vesting_info(bidder.clone(), multiplier, plmc_bond).map_err(|_| Error::<T>::BadMath)?;
 
 		let funding_asset_amount_locked =
 			funding_asset_usd_price.reciprocal().ok_or(Error::<T>::BadMath)?.saturating_mul_int(ticket_size);
@@ -1018,7 +1024,7 @@ impl<T: Config> Pallet<T> {
 			ensure!(ticket_size <= maximum_ticket_size, Error::<T>::ContributionTooHigh);
 		};
 		ensure!(project_metadata.participation_currencies == asset, Error::<T>::FundingAssetNotAccepted);
-		
+
 		// * Calculate variables *
 		let buyable_tokens = if project_details.remaining_contribution_tokens > token_amount {
 			token_amount
@@ -1028,8 +1034,7 @@ impl<T: Config> Pallet<T> {
 			remaining_amount
 		};
 		let plmc_bond = Self::calculate_plmc_bond(ticket_size, multiplier, plmc_usd_price)?;
-		let plmc_vesting_info =
-			Self::calculate_vesting_info(contributor.clone(), multiplier.clone(), plmc_bond)?;
+		let plmc_vesting_info = Self::calculate_vesting_info(contributor.clone(), multiplier.clone(), plmc_bond)?;
 		let funding_asset_amount =
 			funding_asset_usd_price.reciprocal().ok_or(Error::<T>::BadMath)?.saturating_mul_int(ticket_size);
 		let asset_id = asset.to_statemint_id();
@@ -1126,8 +1131,6 @@ impl<T: Config> Pallet<T> {
 
 		Ok(())
 	}
-
-
 
 	pub fn do_bid_ct_mint_for(
 		releaser: AccountIdOf<T>,
@@ -1352,6 +1355,43 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	pub fn do_start_bid_vesting_schedule_for(
+		caller: AccountIdOf<T>,
+		project_id: T::ProjectIdentifier,
+		bidder: AccountIdOf<T>,
+		bid_id: StorageItemIdOf<T>,
+	) -> Result<(), DispatchError> {
+		// * Get variables *
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let mut bid = Bids::<T>::get((project_id, bidder.clone(), bid_id)).ok_or(Error::<T>::BidNotFound)?;
+		let funding_end_block = project_details.funding_end_block.ok_or(Error::<T>::ImpossibleState)?;
+		let vest_info = bid.plmc_vesting_info.clone();
+
+		// * Validity checks *
+		ensure!(
+			!bid.plmc_vesting_info.scheduled && project_details.status == ProjectStatus::FundingSuccessful,
+			Error::<T>::NotAllowed
+		);
+
+		// * Calculate variables *
+		bid.plmc_vesting_info.scheduled = true;
+
+		// * Update storage *
+		T::Vesting::add_release_schedule(&bidder, vest_info.total_amount, vest_info.amount_per_block, funding_end_block, LockType::Participation(project_id))?;
+		Bids::<T>::insert((project_id, bidder.clone(), bid_id), bid);
+
+		// * Emit events *
+		Self::deposit_event(Event::<T>::BidPlmcVestingScheduled {
+			project_id,
+			bidder: bidder.clone(),
+			id: bid_id,
+			amount: vest_info.total_amount,
+			caller
+		});
+
+		Ok(())
+	}
+
 	pub fn do_release_bid_funds_for(
 		_caller: AccountIdOf<T>,
 		_project_id: T::ProjectIdentifier,
@@ -1405,6 +1445,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), DispatchError> {
 		Ok(())
 	}
+
 }
 
 // Helper functions
@@ -1423,7 +1464,7 @@ impl<T: Config> Pallet<T> {
 		// Try to get the project into the earliest possible block to update.
 		// There is a limit for how many projects can update each block, so we need to make sure we don't exceed that limit
 		let mut block_number = block_number;
-		while ProjectsToUpdate::<T>::try_append(block_number, store.clone()).is_err() {
+		while ProjectsToUpdate::<T>::try_append(block_number.clone(), store.clone()).is_err() {
 			// TODO: Should we end the loop if we iterated over too many blocks?
 			block_number += 1u32.into();
 		}
@@ -1444,14 +1485,13 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn calculate_plmc_bond(ticket_size: BalanceOf<T>, multiplier: MultiplierOf<T>, plmc_price: PriceOf<T>) -> Result<BalanceOf<T>, DispatchError> {
-		let usd_bond =
-			multiplier.calculate_bonding_requirement(ticket_size).map_err(|_| Error::<T>::BadMath)?;
-		plmc_price
-			.reciprocal()
-			.ok_or(Error::<T>::BadMath)?
-			.checked_mul_int(usd_bond)
-			.ok_or(Error::<T>::BadMath.into())
+	pub fn calculate_plmc_bond(
+		ticket_size: BalanceOf<T>,
+		multiplier: MultiplierOf<T>,
+		plmc_price: PriceOf<T>,
+	) -> Result<BalanceOf<T>, DispatchError> {
+		let usd_bond = multiplier.calculate_bonding_requirement(ticket_size).map_err(|_| Error::<T>::BadMath)?;
+		plmc_price.reciprocal().ok_or(Error::<T>::BadMath)?.checked_mul_int(usd_bond).ok_or(Error::<T>::BadMath.into())
 	}
 
 	/// Based on the amount of tokens and price to buy, a desired multiplier, and the type of investor the caller is,
@@ -1459,21 +1499,13 @@ impl<T: Config> Pallet<T> {
 	pub fn calculate_vesting_info(
 		_caller: AccountIdOf<T>,
 		_multiplier: MultiplierOf<T>,
-		plmc_bonded_amount: BalanceOf<T>,
+		bonded_amount: BalanceOf<T>,
 	) -> Result<VestingInfo<T::BlockNumber, BalanceOf<T>>, DispatchError> {
-		let plmc_start: T::BlockNumber = 0u32.into();
-
 		// TODO: lock_time should depend on `_multiplier` and `_caller` credential
-		let lock_time = 7 * parachains_common::DAYS;
-		let amount_per_block = plmc_bonded_amount.checked_div(&lock_time.into()).ok_or(Error::<T>::BadMath)?;
+		let duration: u32 = 7u32 * parachains_common::DAYS;
+		let amount_per_block = bonded_amount.checked_div(&duration.into()).ok_or(Error::<T>::BadMath)?;
 
-		Ok(
-			VestingInfo {
-				amount_per_block,
-				start: plmc_start,
-				end: plmc_start.saturating_add(lock_time.into()),
-			},
-		)
+		Ok(VestingInfo { total_amount: bonded_amount, amount_per_block, duration: <T::BlockNumber as From<u32>>::from(duration), scheduled: false })
 	}
 
 	/// Calculates the price (in USD) of contribution tokens for the Community and Remainder Rounds

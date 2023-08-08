@@ -90,16 +90,7 @@ impl TestContribution {
 pub type TestContributions = Vec<TestContribution>;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct BidInfoFilter<
-	Id,
-	ProjectId,
-	Balance: BalanceT,
-	Price,
-	AccountId,
-	Multiplier,
-	BlockNumber,
-	PlmcVesting,
-> {
+pub struct BidInfoFilter<Id, ProjectId, Balance: BalanceT, Price, AccountId, Multiplier, BlockNumber, PlmcVesting> {
 	pub id: Option<Id>,
 	pub project_id: Option<ProjectId>,
 	pub bidder: Option<AccountId>,
@@ -588,6 +579,7 @@ impl<'a> CreatedProject<'a> {
 				total_bonded_plmc: Zero::zero(),
 				evaluators_outcome: EvaluatorsOutcome::Unchanged,
 			},
+			funding_end_block: None,
 		};
 		assert_eq!(metadata, expected_metadata);
 		assert_eq!(details, expected_details);

@@ -1498,13 +1498,7 @@ fn check_external_release_behavior() {
 		// assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), None);
 
 		// Set release schedule to release the locked amount, starting from now, one ED per block.
-		assert_ok!(Vesting::set_release_schedule(
-			&3,
-			user_3_on_hold_balance,
-			ED,
-			0,
-			LockType::Participation(0)
-		));
+		assert_ok!(Vesting::set_release_schedule(&3, user_3_on_hold_balance, ED, 0, LockType::Participation(0)));
 
 		let user_3_on_hold_balance = Balances::balance_on_hold(&LockType::Participation(0), &3);
 		assert_eq!(user_3_on_hold_balance, 4 * ED);

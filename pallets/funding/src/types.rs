@@ -61,6 +61,12 @@ pub mod config_types {
 		Participation(ProjectId),
 	}
 
+	#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo, Ord, PartialOrd)]
+	pub enum ParticipationType<StorageItemId> {
+		Bid(StorageItemId),
+		Contribution(StorageItemId)
+	}
+
 	pub struct ConstPriceProvider<AssetId, Price, Mapping>(PhantomData<(AssetId, Price, Mapping)>);
 	impl<AssetId: Ord, Price: FixedPointNumber + Clone, Mapping: Get<BTreeMap<AssetId, Price>>> ProvideStatemintPrice
 		for ConstPriceProvider<AssetId, Price, Mapping>
@@ -138,6 +144,8 @@ pub mod storage_types {
 		pub cleanup: Cleaner,
 		/// Information about the total amount bonded, and the outcome in regards to reward/slash/nothing
 		pub evaluation_round_info: EvaluationRoundInfo,
+
+		pub funding_end_block: Option<BlockNumber>,
 	}
 
 	/// Tells on_initialize what to do with the project
@@ -176,7 +184,7 @@ pub mod storage_types {
 		AccountId,
 		BlockNumber,
 		Multiplier,
-		VestingInfo
+		VestingInfo,
 	> {
 		pub id: Id,
 		pub project_id: ProjectId,
@@ -206,7 +214,7 @@ pub mod storage_types {
 			AccountId: Eq,
 			BlockNumber: Eq + Ord,
 			Multiplier: Eq,
-			VestingInfo: Eq
+			VestingInfo: Eq,
 		> Ord for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, Multiplier, VestingInfo>
 	{
 		fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
@@ -225,7 +233,7 @@ pub mod storage_types {
 			AccountId: Eq,
 			BlockNumber: Eq + Ord,
 			Multiplier: Eq,
-			VestingInfo: Eq
+			VestingInfo: Eq,
 		> PartialOrd for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, Multiplier, VestingInfo>
 	{
 		fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
@@ -434,12 +442,10 @@ pub mod inner_types {
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct VestingInfo<BlockNumber, Balance> {
-		// Amount of tokens vested
+		pub total_amount: Balance,
 		pub amount_per_block: Balance,
-		// number of blocks after project ends, when vesting starts
-		pub start: BlockNumber,
-		// number of blocks after project ends, when vesting ends
-		pub end: BlockNumber,
+		pub duration: BlockNumber,
+		pub scheduled: bool
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -478,10 +484,10 @@ pub mod inner_types {
 		EvaluationUnbonding(u64, PhantomData<T>),
 		// Branch
 		// A. Success only
-		BidPLMCVesting(u64, PhantomData<T>),
 		BidCTMint(u64, PhantomData<T>),
-		ContributionPLMCVesting(u64, PhantomData<T>),
 		ContributionCTMint(u64, PhantomData<T>),
+		StartBidderVestingSchedule(u64, PhantomData<T>),
+		StartContributorVestingSchedule(u64, PhantomData<T>),
 		BidFundingPayout(u64, PhantomData<T>),
 		ContributionFundingPayout(u64, PhantomData<T>),
 		// B. Failure only

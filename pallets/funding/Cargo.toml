@@ -51,6 +51,7 @@ std = [
     "frame-system/std",
     "pallet-assets/std",
     "pallet-balances/std",
+    "parachains-common/std",
     "polimec-traits/std",
     "pallet-linear-release/std",
     "frame-benchmarking?/std",
