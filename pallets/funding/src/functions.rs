@@ -37,9 +37,9 @@ use parachains_common::BlockNumber;
 
 use sp_arithmetic::Perquintill;
 
+use polimec_traits::ReleaseSchedule;
 use sp_arithmetic::traits::{CheckedDiv, CheckedSub, Zero};
 use sp_std::prelude::*;
-use polimec_traits::ReleaseSchedule;
 
 // Round transition functions
 impl<T: Config> Pallet<T> {
@@ -109,7 +109,7 @@ impl<T: Config> Pallet<T> {
 				total_bonded_plmc: Zero::zero(),
 				evaluators_outcome: EvaluatorsOutcome::Unchanged,
 			},
-			funding_end_block: None
+			funding_end_block: None,
 		};
 
 		let project_metadata = initial_metadata;
@@ -906,8 +906,6 @@ impl<T: Config> Pallet<T> {
 		// * Calculate new variables *
 		let plmc_bond =
 			Self::calculate_plmc_bond(ticket_size, multiplier, plmc_usd_price).map_err(|_| Error::<T>::BadMath)?;
-		let plmc_vesting_info =
-			Self::calculate_vesting_info(bidder.clone(), multiplier, plmc_bond).map_err(|_| Error::<T>::BadMath)?;
 
 		let funding_asset_amount_locked =
 			funding_asset_usd_price.reciprocal().ok_or(Error::<T>::BadMath)?.saturating_mul_int(ticket_size);
@@ -926,7 +924,7 @@ impl<T: Config> Pallet<T> {
 			funding_asset_amount_locked,
 			multiplier,
 			plmc_bond,
-			plmc_vesting_info,
+			plmc_vesting_info: None,
 			funded: false,
 			when: now,
 			funds_released: false,
@@ -1365,19 +1363,26 @@ impl<T: Config> Pallet<T> {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let mut bid = Bids::<T>::get((project_id, bidder.clone(), bid_id)).ok_or(Error::<T>::BidNotFound)?;
 		let funding_end_block = project_details.funding_end_block.ok_or(Error::<T>::ImpossibleState)?;
-		let vest_info = bid.plmc_vesting_info.clone();
 
 		// * Validity checks *
 		ensure!(
-			!bid.plmc_vesting_info.scheduled && project_details.status == ProjectStatus::FundingSuccessful,
+			matches!(bid.plmc_vesting_info, None) && project_details.status == ProjectStatus::FundingSuccessful,
 			Error::<T>::NotAllowed
 		);
 
 		// * Calculate variables *
-		bid.plmc_vesting_info.scheduled = true;
+		let vest_info = Self::calculate_vesting_info(bidder.clone(), bid.multiplier, bid.plmc_bond)
+			.map_err(|_| Error::<T>::BadMath)?;
+		bid.plmc_vesting_info = Some(vest_info);
 
 		// * Update storage *
-		T::Vesting::add_release_schedule(&bidder, vest_info.total_amount, vest_info.amount_per_block, funding_end_block, LockType::Participation(project_id))?;
+		T::Vesting::add_release_schedule(
+			&bidder,
+			vest_info.total_amount,
+			vest_info.amount_per_block,
+			funding_end_block,
+			LockType::Participation(project_id),
+		)?;
 		Bids::<T>::insert((project_id, bidder.clone(), bid_id), bid);
 
 		// * Emit events *
@@ -1386,7 +1391,7 @@ impl<T: Config> Pallet<T> {
 			bidder: bidder.clone(),
 			id: bid_id,
 			amount: vest_info.total_amount,
-			caller
+			caller,
 		});
 
 		Ok(())
@@ -1445,7 +1450,6 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), DispatchError> {
 		Ok(())
 	}
-
 }
 
 // Helper functions
@@ -1505,7 +1509,11 @@ impl<T: Config> Pallet<T> {
 		let duration: u32 = 7u32 * parachains_common::DAYS;
 		let amount_per_block = bonded_amount.checked_div(&duration.into()).ok_or(Error::<T>::BadMath)?;
 
-		Ok(VestingInfo { total_amount: bonded_amount, amount_per_block, duration: <T::BlockNumber as From<u32>>::from(duration), scheduled: false })
+		Ok(VestingInfo {
+			total_amount: bonded_amount,
+			amount_per_block,
+			duration: <T::BlockNumber as From<u32>>::from(duration),
+		})
 	}
 
 	/// Calculates the price (in USD) of contribution tokens for the Community and Remainder Rounds

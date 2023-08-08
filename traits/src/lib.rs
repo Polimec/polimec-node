@@ -29,12 +29,19 @@ pub trait ReleaseSchedule<AccountId, Reason> {
 		+ fungible::MutateHold<AccountId>
 		+ fungible::BalancedHold<AccountId>;
 
-	/// Get the amount that is currently being vested and cannot be transferred out of this account.
-	/// Returns `None` if the account has no vesting schedule.
+	/// Get the amount that is possible to vest (i.e release) at the current block
 	fn vesting_balance(
 		who: &AccountId,
 		reason: Reason,
 	) -> Option<<Self::Currency as fungible::Inspect<AccountId>>::Balance>;
+
+	/// Get the amount that was scheduled, regardless if it was already vested or not
+	fn total_scheduled_amount(
+		who: &AccountId,
+		reason: Reason,
+	) -> Option<<Self::Currency as fungible::Inspect<AccountId>>::Balance>;
+
+
 
 	/// Release the vested amount of the given account.
 	fn vest(who: AccountId, reason: Reason) -> DispatchResult;

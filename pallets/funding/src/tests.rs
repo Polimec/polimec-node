@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// If you feel like getting in touch with us, you can do so at info@polimec.org
+// If you feel like getting in touch with us, you ca ,n do so at info@polimec.org
 
 //! Tests for Funding pallet.
 use super::*;
@@ -116,7 +116,7 @@ type BidInfoFilterOf<T> = BidInfoFilter<
 	<T as frame_system::Config>::AccountId,
 	MultiplierOf<T>,
 	BlockNumberOf<T>,
-	VestingInfoOf<T>,
+	Option<VestingInfoOf<T>>,
 >;
 impl Default for BidInfoFilterOf<TestRuntime> {
 	fn default() -> Self {
@@ -2047,6 +2047,8 @@ mod evaluation_round_failure {
 
 mod auction_round_success {
 	use super::*;
+	use polimec_traits::ReleaseSchedule;
+	use std::ops::Div;
 
 	#[test]
 	fn auction_round_completed() {
@@ -2673,6 +2675,58 @@ mod auction_round_success {
 				);
 			})
 		}
+	}
+
+	#[test]
+	pub fn plmc_vesting_schedule_starts_automatically() {
+		let test_env = TestEnvironment::new();
+		let issuer = ISSUER;
+		let project = default_project(test_env.get_new_nonce());
+		let evaluations = default_evaluations();
+
+		let mut bids = default_bids();
+		let median_price = bids[bids.len().div(2)].price;
+		let new_bids = vec![
+			TestBid::new(BIDDER_4, 30_000 * US_DOLLAR, median_price, None, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_5, 167_000 * US_DOLLAR, median_price, None, AcceptedFundingAsset::USDT),
+		];
+		bids.extend(new_bids.clone());
+
+		let community_contributions = default_community_buys();
+		let remainder_contributions = vec![];
+
+		let finished_project = FinishedProject::new_with(
+			&test_env,
+			project,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions,
+			remainder_contributions,
+		);
+
+		test_env.advance_time(10u64).unwrap();
+		let details = finished_project.get_project_details();
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+
+		let final_price = details.weighted_average_price.unwrap();
+		let plmc_locked_for_bids = calculate_auction_plmc_spent_after_price_calculation(new_bids, final_price);
+
+		for (user, amount) in plmc_locked_for_bids {
+			let schedule = test_env.in_ext(|| {
+				<TestRuntime as Config>::Vesting::total_scheduled_amount(
+					&user,
+					LockType::Participation(finished_project.project_id),
+				)
+			});
+
+			assert_eq!(schedule.unwrap(), amount);
+		}
+	}
+
+	#[test]
+	pub fn plmc_vesting_works() {
+		assert!(true);
 	}
 }
 

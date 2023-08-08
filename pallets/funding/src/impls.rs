@@ -50,10 +50,7 @@ impl DoRemainingOperation for CleanerState<Success> {
 				},
 			CleanerState::EvaluationUnbonding(remaining, PhantomData) =>
 				if *remaining == 0 {
-					*self = CleanerState::StartBidderVestingSchedule(
-						remaining_bids::<T>(project_id),
-						PhantomData,
-					);
+					*self = CleanerState::StartBidderVestingSchedule(remaining_bids::<T>(project_id), PhantomData);
 					Ok(Weight::zero())
 				} else {
 					let (consumed_weight, remaining_evaluations) = unbond_one_evaluation::<T>(project_id);
@@ -481,15 +478,17 @@ fn unbond_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weig
 
 fn start_one_bid_vesting_schedule<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
-	let mut unscheduled_bids = project_bids.filter(|bid| !bid.plmc_vesting_info.scheduled);
+	let mut unscheduled_bids = project_bids.filter(|bid| matches!(bid.plmc_vesting_info, None));
 
 	if let Some(mut bid) = unscheduled_bids.next() {
-		match Pallet::<T>::do_start_bid_vesting_schedule_for(T::PalletId::get().into_account_truncating(), project_id, bid.bidder.clone(), bid.id) {
-			Ok(_) => {
-				bid.plmc_vesting_info.scheduled = true;
-				Bids::<T>::insert((project_id, bid.bidder.clone(), bid.id), bid);
-			},
-			Err(e) =>  {
+		match Pallet::<T>::do_start_bid_vesting_schedule_for(
+			T::PalletId::get().into_account_truncating(),
+			project_id,
+			bid.bidder.clone(),
+			bid.id,
+		) {
+			Ok(_) => {},
+			Err(e) => {
 				Pallet::<T>::deposit_event(Event::StartBidderVestingScheduleFailed {
 					project_id: bid.project_id,
 					bidder: bid.bidder.clone(),
@@ -500,12 +499,9 @@ fn start_one_bid_vesting_schedule<T: Config>(project_id: T::ProjectIdentifier) -
 		}
 
 		(Weight::zero(), unscheduled_bids.count() as u64)
-
 	} else {
 		(Weight::zero(), 0u64)
 	}
-
-
 }
 
 fn start_one_contribution_vesting_schedule<T: Config>(_project_id: T::ProjectIdentifier) -> (Weight, u64) {

@@ -376,7 +376,12 @@ pub mod pallet {
 
 		type EvaluationSuccessThreshold: Get<Percent>;
 
-		type Vesting: polimec_traits::ReleaseSchedule<AccountIdOf<Self>, BondTypeOf<Self>, Currency=Self::NativeCurrency, Moment=BlockNumberOf<Self>>;
+		type Vesting: polimec_traits::ReleaseSchedule<
+			AccountIdOf<Self>,
+			BondTypeOf<Self>,
+			Currency = Self::NativeCurrency,
+			Moment = BlockNumberOf<Self>,
+		>;
 		/// For now we expect 3 days until the project is automatically accepted. Timeline decided by MiCA regulations.
 		type ManualAcceptanceDuration: Get<Self::BlockNumber>;
 		/// For now we expect 4 days from acceptance to settlement due to MiCA regulations.

@@ -64,7 +64,7 @@ pub mod config_types {
 	#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo, Ord, PartialOrd)]
 	pub enum ParticipationType<StorageItemId> {
 		Bid(StorageItemId),
-		Contribution(StorageItemId)
+		Contribution(StorageItemId),
 	}
 
 	pub struct ConstPriceProvider<AssetId, Price, Mapping>(PhantomData<(AssetId, Price, Mapping)>);
@@ -199,7 +199,7 @@ pub mod storage_types {
 		pub funding_asset_amount_locked: Balance,
 		pub multiplier: Multiplier,
 		pub plmc_bond: Balance,
-		pub plmc_vesting_info: VestingInfo,
+		pub plmc_vesting_info: Option<VestingInfo>,
 		pub funded: bool,
 		pub when: BlockNumber,
 		pub funds_released: bool,
@@ -445,7 +445,6 @@ pub mod inner_types {
 		pub total_amount: Balance,
 		pub amount_per_block: Balance,
 		pub duration: BlockNumber,
-		pub scheduled: bool
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
