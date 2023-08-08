@@ -2051,6 +2051,7 @@ mod auction_round_success {
 	use std::ops::Div;
 	use frame_support::traits::fungible::Inspect;
 	use parachains_common::DAYS;
+	use crate::tests::testing_macros::call_and_is_ok;
 
 	#[test]
 	fn auction_round_completed() {
@@ -2727,6 +2728,58 @@ mod auction_round_success {
 	}
 
 	#[test]
+	pub fn plmc_vesting_schedule_starts_manually() {
+		let test_env = TestEnvironment::new();
+		let issuer = ISSUER;
+		let project = default_project(test_env.get_new_nonce());
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = vec![];
+
+		let finished_project = FinishedProject::new_with(
+			&test_env,
+			project,
+			issuer,
+			evaluations,
+			bids.clone(),
+			community_contributions,
+			remainder_contributions,
+		);
+
+		let details = finished_project.get_project_details();
+		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
+		assert_eq!(details.cleanup, Cleaner::NotReady);
+
+		test_env.advance_time(1u64).unwrap();
+		let details = finished_project.get_project_details();
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
+
+		let stored_bids = test_env.in_ext(|| Bids::<TestRuntime>::iter_prefix_values((finished_project.project_id,)).collect::<Vec<_>>());
+		for bid in stored_bids {
+			call_and_is_ok!(
+				test_env,
+				Pallet::<TestRuntime>::start_bid_vesting_schedule_for(
+					RuntimeOrigin::signed(bid.bidder),
+					finished_project.project_id,
+					bid.bidder,
+					bid.id,
+				)
+			);
+
+			let schedule = test_env.in_ext(|| {
+				<TestRuntime as Config>::Vesting::total_scheduled_amount(
+					&bid.bidder,
+					LockType::Participation(finished_project.project_id),
+				)
+			});
+
+			let bid = test_env.in_ext(|| Bids::<TestRuntime>::get((finished_project.project_id, bid.bidder, bid.id)).unwrap());
+			assert_eq!(schedule.unwrap(), bid.plmc_vesting_info.unwrap().total_amount);
+		}
+	}
+
+	#[test]
 	pub fn plmc_vesting_full_amount() {
 		let test_env = TestEnvironment::new();
 		let issuer = ISSUER;
@@ -3072,6 +3125,7 @@ mod community_round_success {
 	use std::assert_matches::assert_matches;
 	use parachains_common::DAYS;
 	use polimec_traits::ReleaseSchedule;
+	use crate::tests::testing_macros::call_and_is_ok;
 
 	pub const HOURS: BlockNumber = 300u64;
 
@@ -3928,6 +3982,58 @@ mod community_round_success {
 			});
 
 			assert_eq!(schedule.unwrap(), amount);
+		}
+	}
+
+	#[test]
+	pub fn plmc_vesting_schedule_starts_manually() {
+		let test_env = TestEnvironment::new();
+		let issuer = ISSUER;
+		let project = default_project(test_env.get_new_nonce());
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = vec![];
+
+		let finished_project = FinishedProject::new_with(
+			&test_env,
+			project,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions.clone(),
+			remainder_contributions,
+		);
+
+		let details = finished_project.get_project_details();
+		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
+		assert_eq!(details.cleanup, Cleaner::NotReady);
+
+		test_env.advance_time(1u64).unwrap();
+		let details = finished_project.get_project_details();
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
+
+		let contributions = test_env.in_ext(|| Contributions::<TestRuntime>::iter_prefix_values((finished_project.project_id,)).collect::<Vec<_>>());
+		for contribution in contributions {
+			call_and_is_ok!(
+				test_env,
+				Pallet::<TestRuntime>::start_contribution_vesting_schedule_for(
+					RuntimeOrigin::signed(contribution.contributor),
+					finished_project.project_id,
+					contribution.contributor,
+					contribution.id,
+				)
+			);
+
+			let schedule = test_env.in_ext(|| {
+				<TestRuntime as Config>::Vesting::total_scheduled_amount(
+					&contribution.contributor,
+					LockType::Participation(finished_project.project_id),
+				)
+			});
+
+			let contribution = test_env.in_ext(|| Contributions::<TestRuntime>::get((finished_project.project_id, contribution.contributor, contribution.id)).unwrap());
+			assert_eq!(schedule.unwrap(), contribution.plmc_vesting_info.unwrap().total_amount);
 		}
 	}
 

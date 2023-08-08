@@ -893,6 +893,29 @@ pub mod pallet {
 			let caller = ensure_signed(origin)?;
 			Self::do_contribution_ct_mint_for(caller, project_id, contributor, contribution_id)
 		}
+
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn start_bid_vesting_schedule_for(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+			bidder: AccountIdOf<T>,
+			bid_id: T::StorageItemId,
+		) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			Self::do_start_bid_vesting_schedule_for(caller, project_id, bidder, bid_id)
+		}
+
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn start_contribution_vesting_schedule_for(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+			contributor: AccountIdOf<T>,
+			contribution_id: T::StorageItemId,
+		) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			Self::do_start_contribution_vesting_schedule_for(caller, project_id, contributor, contribution_id)
+		}
+
 	}
 
 	#[pallet::hooks]
