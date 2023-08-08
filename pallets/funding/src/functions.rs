@@ -1396,21 +1396,19 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn do_vest_plmc_for(caller: AccountIdOf<T>, project_id: T::ProjectIdentifier, participant: AccountIdOf<T>) -> DispatchResult {
+	pub fn do_vest_plmc_for(
+		caller: AccountIdOf<T>,
+		project_id: T::ProjectIdentifier,
+		participant: AccountIdOf<T>,
+	) -> DispatchResult {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 
 		// * Validity checks *
-		ensure!(
-			matches!(project_details.status, ProjectStatus::FundingSuccessful),
-			Error::<T>::NotAllowed
-		);
+		ensure!(matches!(project_details.status, ProjectStatus::FundingSuccessful), Error::<T>::NotAllowed);
 
 		// * Update storage *
-		let vested_amount = T::Vesting::vest(
-			participant.clone(),
-			LockType::Participation(project_id),
-		)?;
+		let vested_amount = T::Vesting::vest(participant.clone(), LockType::Participation(project_id))?;
 
 		// * Emit events *
 		Self::deposit_event(Event::<T>::ParticipantPlmcVested {

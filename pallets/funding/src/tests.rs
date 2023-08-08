@@ -2049,6 +2049,9 @@ mod auction_round_success {
 	use super::*;
 	use polimec_traits::ReleaseSchedule;
 	use std::ops::Div;
+	use frame_support::traits::fungible::Inspect;
+	use parachains_common::DAYS;
+	use crate::tests::testing_macros::extract_from_event;
 
 	#[test]
 	fn auction_round_completed() {
@@ -2725,20 +2728,12 @@ mod auction_round_success {
 	}
 
 	#[test]
-	pub fn plmc_vesting_works() {
+	pub fn plmc_vesting_full_amount() {
 		let test_env = TestEnvironment::new();
 		let issuer = ISSUER;
 		let project = default_project(test_env.get_new_nonce());
 		let evaluations = default_evaluations();
-
-		let mut bids = default_bids();
-		let median_price = bids[bids.len().div(2)].price;
-		let new_bids = vec![
-			TestBid::new(BIDDER_4, 30_000 * US_DOLLAR, median_price, None, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_5, 167_000 * US_DOLLAR, median_price, None, AcceptedFundingAsset::USDT),
-		];
-		bids.extend(new_bids.clone());
-
+		let bids = default_bids();
 		let community_contributions = default_community_buys();
 		let remainder_contributions = vec![];
 
@@ -2756,12 +2751,74 @@ mod auction_round_success {
 		let details = finished_project.get_project_details();
 		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
 
-		let final_price = details.weighted_average_price.unwrap();
-		let plmc_locked_for_bids = calculate_auction_plmc_spent_after_price_calculation(new_bids, final_price);
-		let bidders = plmc_locked_for_bids.clone().into_iter().map(|(acc, amount)| acc).collect::<Vec<_>>();
-		let free_plmc_on_bidders = test_env.get_free_plmc_balances_for(bidders);
+		let stored_bids = test_env
+			.in_ext(|| Bids::<TestRuntime>::iter_prefix_values((finished_project.project_id,)).collect::<Vec<_>>());
 
+		test_env.advance_time((31 * DAYS).into()).unwrap();
 
+		for bid in stored_bids {
+			let vesting_info = bid.plmc_vesting_info.unwrap();
+			let locked_amount = vesting_info.total_amount;
+
+			let prev_free_balance = test_env.in_ext(|| <TestRuntime as Config>::NativeCurrency::balance(&bid.bidder));
+
+			test_env.in_ext(|| Pallet::<TestRuntime>::do_vest_plmc_for(
+				bid.bidder.clone(),
+				finished_project.project_id,
+				bid.bidder.clone(),
+			)).unwrap();
+
+			let post_free_balance = test_env.in_ext(|| <TestRuntime as Config>::NativeCurrency::balance(&bid.bidder));
+			assert_eq!(locked_amount, post_free_balance - prev_free_balance);
+		}
+	}
+
+	#[test]
+	pub fn plmc_vesting_partial_amount() {
+		let test_env = TestEnvironment::new();
+		let issuer = ISSUER;
+		let project = default_project(test_env.get_new_nonce());
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = vec![];
+
+		let finished_project = FinishedProject::new_with(
+			&test_env,
+			project,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions,
+			remainder_contributions,
+		);
+
+		test_env.advance_time(15u64).unwrap();
+		let details = finished_project.get_project_details();
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		let vest_start_block = details.funding_end_block.unwrap();
+		let stored_bids = test_env
+			.in_ext(|| Bids::<TestRuntime>::iter_prefix_values((finished_project.project_id,)).collect::<Vec<_>>());
+
+		for bid in stored_bids {
+			let vesting_info = bid.plmc_vesting_info.unwrap();
+			let locked_amount = vesting_info.total_amount;
+
+			let now = test_env.current_block();
+			let blocks_passed = now - vest_start_block;
+			let vested_amount = vesting_info.amount_per_block * blocks_passed as u128;
+
+			let prev_free_balance = test_env.in_ext(|| <TestRuntime as Config>::NativeCurrency::balance(&bid.bidder));
+
+			test_env.in_ext(|| Pallet::<TestRuntime>::do_vest_plmc_for(
+				bid.bidder.clone(),
+				finished_project.project_id,
+				bid.bidder.clone(),
+			)).unwrap();
+
+			let post_free_balance = test_env.in_ext(|| <TestRuntime as Config>::NativeCurrency::balance(&bid.bidder));
+			assert_eq!(vested_amount, post_free_balance - prev_free_balance);
+		}
 	}
 }
 

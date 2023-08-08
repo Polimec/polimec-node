@@ -148,12 +148,7 @@ impl<T: Config> Pallet<T> {
 		reason: ReasonOf<T>,
 	) -> Result<(), DispatchError> {
 		if total_held_now.is_zero() {
-			T::Currency::release(
-				&reason,
-				who,
-				T::Currency::balance_on_hold(&reason, who),
-				frame_support::traits::tokens::Precision::BestEffort,
-			)?;
+			T::Currency::release(&reason, who, T::Currency::balance_on_hold(&reason, who), Precision::BestEffort)?;
 			Self::deposit_event(Event::<T>::VestingCompleted { account: who.clone() });
 		} else {
 			let already_held = T::Currency::balance_on_hold(&reason, who);
@@ -255,9 +250,7 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 
 	fn total_scheduled_amount(who: &T::AccountId, reason: ReasonOf<T>) -> Option<BalanceOf<T>> {
 		if let Some(v) = Self::vesting(who, reason) {
-			let total = v.iter().fold(Zero::zero(), |total, schedule| {
-				schedule.locked.saturating_add(total)
-			});
+			let total = v.iter().fold(Zero::zero(), |total, schedule| schedule.locked.saturating_add(total));
 			Some(total)
 		} else {
 			None
@@ -369,7 +362,14 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 		Ok(())
 	}
 
-	fn vest(who: AccountIdOf<T>, reason: ReasonOf<T>) -> DispatchResult {
-		Self::do_vest(who, reason)
+	fn vest(
+		who: AccountIdOf<T>,
+		reason: ReasonOf<T>,
+	) -> Result<<Self::Currency as Inspect<T::AccountId>>::Balance, DispatchError> {
+		let prev_locked = T::Currency::balance_on_hold(&reason, &who);
+		Self::do_vest(who.clone(), reason.clone())?;
+		let post_locked = T::Currency::balance_on_hold(&reason, &who);
+
+		Ok(post_locked.saturating_sub(prev_locked))
 	}
 }
