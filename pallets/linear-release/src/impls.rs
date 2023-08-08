@@ -159,7 +159,7 @@ impl<T: Config> Pallet<T> {
 			let already_held = T::Currency::balance_on_hold(&reason, who);
 			let to_release = already_held.saturating_sub(total_held_now);
 			T::Currency::release(&reason, who, to_release, Precision::BestEffort)?;
-			Self::deposit_event(Event::<T>::VestingUpdated { account: who.clone(), unvested: to_release });
+			Self::deposit_event(Event::<T>::VestingUpdated { account: who.clone(), unvested: total_held_now });
 		};
 
 		Ok(())
