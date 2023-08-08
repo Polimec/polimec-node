@@ -33,7 +33,6 @@ use frame_support::{
 		Get,
 	},
 };
-use parachains_common::BlockNumber;
 
 use sp_arithmetic::Perquintill;
 
@@ -1391,6 +1390,33 @@ impl<T: Config> Pallet<T> {
 			bidder: bidder.clone(),
 			id: bid_id,
 			amount: vest_info.total_amount,
+			caller,
+		});
+
+		Ok(())
+	}
+
+	pub fn do_vest_plmc_for(caller: AccountIdOf<T>, project_id: T::ProjectIdentifier, participant: AccountIdOf<T>) -> DispatchResult {
+		// * Get variables *
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+
+		// * Validity checks *
+		ensure!(
+			matches!(project_details.status, ProjectStatus::FundingSuccessful),
+			Error::<T>::NotAllowed
+		);
+
+		// * Update storage *
+		let vested_amount = T::Vesting::vest(
+			participant.clone(),
+			LockType::Participation(project_id),
+		)?;
+
+		// * Emit events *
+		Self::deposit_event(Event::<T>::ParticipantPlmcVested {
+			project_id,
+			participant: participant.clone(),
+			amount: vested_amount,
 			caller,
 		});
 

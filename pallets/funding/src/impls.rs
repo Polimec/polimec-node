@@ -480,7 +480,7 @@ fn start_one_bid_vesting_schedule<T: Config>(project_id: T::ProjectIdentifier) -
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	let mut unscheduled_bids = project_bids.filter(|bid| matches!(bid.plmc_vesting_info, None));
 
-	if let Some(mut bid) = unscheduled_bids.next() {
+	if let Some(bid) = unscheduled_bids.next() {
 		match Pallet::<T>::do_start_bid_vesting_schedule_for(
 			T::PalletId::get().into_account_truncating(),
 			project_id,

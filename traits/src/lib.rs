@@ -44,7 +44,7 @@ pub trait ReleaseSchedule<AccountId, Reason> {
 
 
 	/// Release the vested amount of the given account.
-	fn vest(who: AccountId, reason: Reason) -> DispatchResult;
+	fn vest(who: AccountId, reason: Reason) -> Result<<Self::Currency as fungible::Inspect<AccountId>>::Balance, DispatchError>;
 
 	/// Adds a release schedule to a given account.
 	///

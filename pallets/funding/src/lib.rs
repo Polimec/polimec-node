@@ -633,6 +633,12 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 			caller: AccountIdOf<T>,
 		},
+		ParticipantPlmcVested {
+			project_id: ProjectIdOf<T>,
+			participant: AccountIdOf<T>,
+			amount: BalanceOf<T>,
+			caller: AccountIdOf<T>,
+		},
 	}
 
 	#[pallet::error]

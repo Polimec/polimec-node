@@ -2726,7 +2726,42 @@ mod auction_round_success {
 
 	#[test]
 	pub fn plmc_vesting_works() {
-		assert!(true);
+		let test_env = TestEnvironment::new();
+		let issuer = ISSUER;
+		let project = default_project(test_env.get_new_nonce());
+		let evaluations = default_evaluations();
+
+		let mut bids = default_bids();
+		let median_price = bids[bids.len().div(2)].price;
+		let new_bids = vec![
+			TestBid::new(BIDDER_4, 30_000 * US_DOLLAR, median_price, None, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_5, 167_000 * US_DOLLAR, median_price, None, AcceptedFundingAsset::USDT),
+		];
+		bids.extend(new_bids.clone());
+
+		let community_contributions = default_community_buys();
+		let remainder_contributions = vec![];
+
+		let finished_project = FinishedProject::new_with(
+			&test_env,
+			project,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions,
+			remainder_contributions,
+		);
+
+		test_env.advance_time(10u64).unwrap();
+		let details = finished_project.get_project_details();
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+
+		let final_price = details.weighted_average_price.unwrap();
+		let plmc_locked_for_bids = calculate_auction_plmc_spent_after_price_calculation(new_bids, final_price);
+		let bidders = plmc_locked_for_bids.clone().into_iter().map(|(acc, amount)| acc).collect::<Vec<_>>();
+		let free_plmc_on_bidders = test_env.get_free_plmc_balances_for(bidders);
+
+
 	}
 }
 

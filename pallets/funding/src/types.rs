@@ -23,7 +23,7 @@ use crate::{
 	BalanceOf,
 };
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
-use sp_arithmetic::{traits::Saturating, FixedPointNumber, FixedPointOperand};
+use sp_arithmetic::{FixedPointNumber, FixedPointOperand};
 use sp_runtime::traits::CheckedDiv;
 use sp_std::{cmp::Eq, collections::btree_map::*, prelude::*};
 
