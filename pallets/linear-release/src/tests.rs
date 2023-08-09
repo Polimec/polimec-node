@@ -1349,7 +1349,7 @@ fn vest_all_different_reason() {
 
 		// Set release schedule to release the locked amount, starting from now, one ED per block.
 		let user3_vesting_schedule = VestingInfo::new(user_3_on_hold_balance, ED, 0);
-		assert_ok!(Vesting::set_release_schedule(
+		assert_ok!(Vesting::add_release_schedule(
 			&3,
 			user3_vesting_schedule.locked,
 			user3_vesting_schedule.per_block,
@@ -1420,7 +1420,7 @@ fn manual_vest_all_different_reason() {
 
 		// Set release schedule to release the locked amount, starting from now, one ED per block.
 		let user3_vesting_schedule = VestingInfo::new(user_3_on_hold_balance, ED, 0);
-		assert_ok!(Vesting::set_release_schedule(
+		assert_ok!(Vesting::add_release_schedule(
 			&3,
 			user3_vesting_schedule.locked,
 			user3_vesting_schedule.per_block,
@@ -1471,54 +1471,5 @@ fn manual_vest_all_different_reason() {
 		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(1)), None);
 		let user_3_free_balance = Balances::free_balance(&3);
 		assert_eq!(user_3_free_balance, 30 * ED);
-	});
-}
-
-#[test]
-#[ignore]
-fn check_external_release_behavior() {
-	const ED: u64 = 10u64;
-	ExtBuilder::default().existential_deposit(ED).build().execute_with(|| {
-		assert_eq!(System::block_number(), 1);
-		// Initial Status
-		let user_3_initial_free_balance = Balances::free_balance(&3);
-		assert_eq!(user_3_initial_free_balance, 30 * ED); // 7680 ED
-		let user_3_reserved_balance = Balances::reserved_balance(&3);
-		assert_eq!(user_3_reserved_balance, 0);
-		let user_3_on_hold_balance = Balances::balance_on_hold(&LockType::Participation(0), &3);
-		assert_eq!(user_3_on_hold_balance, 0);
-
-		assert_ok!(Balances::hold(&LockType::Participation(0), &3, 4 * ED));
-		let user_3_on_hold_balance = Balances::balance_on_hold(&LockType::Participation(0), &3);
-		let user_3_initial_free_balance = Balances::free_balance(&3);
-		assert_eq!(user_3_initial_free_balance, 26 * ED); // 7680 ED
-		assert_eq!(user_3_on_hold_balance, 4 * ED);
-		let user_3_reserved_balance = Balances::reserved_balance(&3);
-		assert_eq!(user_3_reserved_balance, 4 * ED);
-		// assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), None);
-
-		// Set release schedule to release the locked amount, starting from now, one ED per block.
-		assert_ok!(Vesting::set_release_schedule(&3, user_3_on_hold_balance, ED, 0, LockType::Participation(0)));
-
-		let user_3_on_hold_balance = Balances::balance_on_hold(&LockType::Participation(0), &3);
-		assert_eq!(user_3_on_hold_balance, 4 * ED);
-
-		// Release amount for block 0 to 3
-		System::set_block_number(3);
-		assert_eq!(System::block_number(), 3);
-		assert_ok!(Vesting::vest(Some(3).into(), LockType::Participation(0)));
-		let free_balance = Balances::free_balance(&3);
-		let held_balance = Balances::balance_on_hold(&LockType::Participation(0), &3);
-		assert_eq!(free_balance, 29 * ED);
-		assert_eq!(held_balance, 0 * ED);
-
-		// Try releasing the remaining 2 ED, since the first release one was not available
-		System::set_block_number(4);
-		assert_eq!(System::block_number(), 4);
-		assert_ok!(Vesting::vest(Some(3).into(), LockType::Participation(0)));
-		let free_balance = Balances::free_balance(&3);
-		let held_balance = Balances::balance_on_hold(&LockType::Participation(0), &3);
-		assert_eq!(free_balance, 30 * ED);
-		assert_eq!(held_balance, 0 * ED);
 	});
 }

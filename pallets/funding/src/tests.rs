@@ -43,6 +43,7 @@ use sp_runtime::{DispatchError, Either};
 use sp_std::marker::PhantomData;
 use std::{cell::RefCell, iter::zip};
 
+
 type ProjectIdOf<T> = <T as Config>::ProjectIdentifier;
 type UserToPLMCBalance = Vec<(AccountId, BalanceOf<TestRuntime>)>;
 type UserToUSDBalance = Vec<(AccountId, BalanceOf<TestRuntime>)>;
@@ -4132,8 +4133,11 @@ mod community_round_success {
 }
 
 mod remainder_round_success {
+	use frame_support::traits::fungible::Inspect;
+	use parachains_common::DAYS;
+	use polimec_traits::ReleaseSchedule;
 	use super::*;
-	use crate::tests::testing_macros::extract_from_event;
+	use crate::tests::testing_macros::{call_and_is_ok, extract_from_event};
 
 	#[test]
 	fn remainder_round_works() {
@@ -4707,6 +4711,217 @@ mod remainder_round_success {
 					Error::<TestRuntime>::NotAllowed
 				);
 			});
+		}
+	}
+
+	#[test]
+	pub fn plmc_vesting_schedule_starts_automatically() {
+		let test_env = TestEnvironment::new();
+		let issuer = ISSUER;
+		let project = default_project(test_env.get_new_nonce());
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = default_remainder_buys();
+
+		let finished_project = FinishedProject::new_with(
+			&test_env,
+			project,
+			issuer,
+			evaluations,
+			bids.clone(),
+			community_contributions.clone(),
+			remainder_contributions.clone(),
+		);
+
+		let price = finished_project.get_project_details().weighted_average_price.unwrap();
+		let auction_locked_plmc = calculate_auction_plmc_spent_after_price_calculation(bids, price);
+		let community_locked_plmc = calculate_contributed_plmc_spent(community_contributions, price);
+		let remainder_locked_plmc = calculate_contributed_plmc_spent(remainder_contributions, price);
+		let all_plmc_locks = merge_add_mappings_by_user(vec![auction_locked_plmc, community_locked_plmc, remainder_locked_plmc]);
+
+		test_env.advance_time(10u64).unwrap();
+		let details = finished_project.get_project_details();
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+
+		for (user, amount) in all_plmc_locks {
+			let schedule = test_env.in_ext(|| {
+				<TestRuntime as Config>::Vesting::total_scheduled_amount(
+					&user,
+					LockType::Participation(finished_project.project_id),
+				)
+			});
+
+			assert_eq!(schedule.unwrap(), amount);
+		}
+	}
+
+	#[test]
+	pub fn plmc_vesting_schedule_starts_manually() {
+		let test_env = TestEnvironment::new();
+		let issuer = ISSUER;
+		let project = default_project(test_env.get_new_nonce());
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = default_remainder_buys();
+
+		let finished_project = FinishedProject::new_with(
+			&test_env,
+			project,
+			issuer,
+			evaluations,
+			bids.clone(),
+			community_contributions.clone(),
+			remainder_contributions.clone(),
+		);
+
+		let details = finished_project.get_project_details();
+		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
+		assert_eq!(details.cleanup, Cleaner::NotReady);
+
+		test_env.advance_time(1u64).unwrap();
+		let details = finished_project.get_project_details();
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
+
+		let contributions = test_env.in_ext(|| Contributions::<TestRuntime>::iter_prefix_values((finished_project.project_id,)).collect::<Vec<_>>());
+		for contribution in contributions {
+			let prev_scheduled = test_env.in_ext(|| {
+				<TestRuntime as Config>::Vesting::total_scheduled_amount(
+					&contribution.contributor,
+					LockType::Participation(finished_project.project_id),
+				)
+			}).unwrap_or(Zero::zero());
+
+			call_and_is_ok!(
+				test_env,
+				Pallet::<TestRuntime>::start_contribution_vesting_schedule_for(
+					RuntimeOrigin::signed(contribution.contributor),
+					finished_project.project_id,
+					contribution.contributor,
+					contribution.id,
+				)
+			);
+
+			let post_scheduled = test_env.in_ext(|| {
+				<TestRuntime as Config>::Vesting::total_scheduled_amount(
+					&contribution.contributor,
+					LockType::Participation(finished_project.project_id),
+				)
+			}).unwrap();
+
+			let new_scheduled = post_scheduled - prev_scheduled;
+
+			let contribution = test_env.in_ext(|| Contributions::<TestRuntime>::get((finished_project.project_id, contribution.contributor, contribution.id)).unwrap());
+			assert_eq!(new_scheduled, contribution.plmc_vesting_info.unwrap().total_amount);
+		}
+	}
+
+	#[test]
+	pub fn plmc_vesting_full_amount() {
+		let test_env = TestEnvironment::new();
+		let issuer = ISSUER;
+		let project = default_project(test_env.get_new_nonce());
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = default_remainder_buys();
+
+		let finished_project = FinishedProject::new_with(
+			&test_env,
+			project,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions,
+			remainder_contributions,
+		);
+
+		test_env.advance_time(10u64).unwrap();
+		let details = finished_project.get_project_details();
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+
+		let stored_bids = test_env.in_ext(|| Bids::<TestRuntime>::iter_prefix_values((finished_project.project_id,)).collect::<Vec<_>>());
+		let stored_contributions = test_env
+			.in_ext(|| Contributions::<TestRuntime>::iter_prefix_values((finished_project.project_id,)).collect::<Vec<_>>());
+
+		let bid_plmc_balances = stored_bids.into_iter().map(|b| (b.bidder, b.plmc_vesting_info.unwrap().total_amount)).collect::<Vec<_>>();
+		let contributed_plmc_balances = stored_contributions.into_iter().map(|c| (c.contributor, c.plmc_vesting_info.unwrap().total_amount)).collect::<Vec<_>>();
+
+		let merged_plmc_balances = generic_map_merge_reduce(
+			vec![contributed_plmc_balances.clone(), bid_plmc_balances.clone()],
+			|(account, amount)| account.clone(),
+			BalanceOf::<TestRuntime>::zero(),
+			|(account, amount), total| total + amount
+		);
+		test_env.advance_time((1 * DAYS + 1u32).into()).unwrap();
+
+		for (contributor, plmc_amount) in merged_plmc_balances {
+			let prev_free_balance = test_env.in_ext(|| <TestRuntime as Config>::NativeCurrency::balance(&contributor));
+			test_env.in_ext(|| Pallet::<TestRuntime>::do_vest_plmc_for(
+				contributor.clone(),
+				finished_project.project_id,
+				contributor.clone(),
+			)).unwrap();
+
+			let post_free_balance = test_env.in_ext(|| <TestRuntime as Config>::NativeCurrency::balance(&contributor));
+			assert_eq!(plmc_amount, post_free_balance - prev_free_balance);
+		}
+	}
+
+	#[test]
+	pub fn plmc_vesting_partial_amount() {
+		let test_env = TestEnvironment::new();
+		let issuer = ISSUER;
+		let project = default_project(test_env.get_new_nonce());
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = default_remainder_buys();
+
+		let finished_project = FinishedProject::new_with(
+			&test_env,
+			project,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions,
+			remainder_contributions,
+		);
+
+		test_env.advance_time(15u64).unwrap();
+		let details = finished_project.get_project_details();
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		let vest_start_block = details.funding_end_block.unwrap();
+
+		let stored_bids = test_env.in_ext(|| Bids::<TestRuntime>::iter_prefix_values((finished_project.project_id,)).collect::<Vec<_>>());
+		let stored_contributions = test_env
+			.in_ext(|| Contributions::<TestRuntime>::iter_prefix_values((finished_project.project_id,)).collect::<Vec<_>>());
+
+		let now = test_env.current_block();
+		let blocks_passed = now - vest_start_block;
+
+		let bid_plmc_balances = stored_bids.into_iter().map(|b| (b.bidder, b.plmc_vesting_info.unwrap().amount_per_block * blocks_passed as u128)).collect::<Vec<_>>();
+		let contributed_plmc_balances = stored_contributions.into_iter().map(|c| (c.contributor, c.plmc_vesting_info.unwrap().amount_per_block * blocks_passed as u128)).collect::<Vec<_>>();
+
+		let merged_plmc_balances = generic_map_merge_reduce(
+			vec![contributed_plmc_balances.clone(), bid_plmc_balances.clone()],
+			|(account, amount)| account.clone(),
+			BalanceOf::<TestRuntime>::zero(),
+			|(account, amount), total| total + amount
+		);
+
+		for (contributor, amount) in merged_plmc_balances {
+			let prev_free_balance = test_env.in_ext(|| <TestRuntime as Config>::NativeCurrency::balance(&contributor));
+
+			test_env.in_ext(|| Pallet::<TestRuntime>::do_vest_plmc_for(
+				contributor,
+				finished_project.project_id,
+				contributor,
+			)).unwrap();
+
+			let post_free_balance = test_env.in_ext(|| <TestRuntime as Config>::NativeCurrency::balance(&contributor));
+			assert_eq!(amount, post_free_balance - prev_free_balance);
 		}
 	}
 }

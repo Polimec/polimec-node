@@ -33,6 +33,7 @@ use frame_support::{
 		Get,
 	},
 };
+use frame_support::traits::fungible::InspectHold;
 
 use sp_arithmetic::Perquintill;
 
@@ -1574,7 +1575,7 @@ impl<T: Config> Pallet<T> {
 		bonded_amount: BalanceOf<T>,
 	) -> Result<VestingInfo<T::BlockNumber, BalanceOf<T>>, DispatchError> {
 		// TODO: lock_time should depend on `_multiplier` and `_caller` credential
-		let duration: u32 = 7u32 * parachains_common::DAYS;
+		let duration: u32 = 1u32 * parachains_common::DAYS;
 		let amount_per_block = bonded_amount.checked_div(&duration.into()).ok_or(Error::<T>::BadMath)?;
 
 		Ok(VestingInfo {

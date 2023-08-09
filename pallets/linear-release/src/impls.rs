@@ -97,7 +97,7 @@ impl<T: Config> Pallet<T> {
 		Self::deposit_event(Event::<T>::VestingTransferred { to: target.clone(), amount: amount_transferred });
 
 		// We can't let this fail because the currency transfer has already happened.
-		let res = Self::add_release_schedule(
+		let res = Self::set_release_schedule(
 			&target,
 			amount_transferred,
 			schedule.per_block(),
@@ -269,7 +269,7 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 	/// Is a no-op if the amount to be vested is zero.
 	///
 	/// NOTE: This doesn't alter the free balance of the account.
-	fn add_release_schedule(
+	fn set_release_schedule(
 		who: &T::AccountId,
 		locked: BalanceOf<T>,
 		per_block: BalanceOf<T>,
@@ -321,7 +321,7 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 		Ok(())
 	}
 
-	fn set_release_schedule(
+	fn add_release_schedule(
 		who: &T::AccountId,
 		locked: <Self::Currency as frame_support::traits::fungible::Inspect<T::AccountId>>::Balance,
 		per_block: <Self::Currency as frame_support::traits::fungible::Inspect<T::AccountId>>::Balance,
@@ -370,6 +370,6 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 		Self::do_vest(who.clone(), reason.clone())?;
 		let post_locked = T::Currency::balance_on_hold(&reason, &who);
 
-		Ok(post_locked.saturating_sub(prev_locked))
+		Ok(prev_locked.saturating_sub(post_locked))
 	}
 }
