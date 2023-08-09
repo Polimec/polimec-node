@@ -585,8 +585,10 @@ pub mod inner_types {
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct RewardInfo<Balance> {
-		pub early_evaluator_reward_pot_usd: Balance,
-		pub normal_evaluator_reward_pot_usd: Balance,
+		// Total "Early Evaluators" rewards amount in Contribution Tokens
+		pub early_evaluator_reward_pot: Balance,
+		// Total "Normal Evaluators" rewards amount in Contribution Tokens
+		pub normal_evaluator_reward_pot: Balance,
 		pub early_evaluator_total_bonded_usd: Balance,
 		pub normal_evaluator_total_bonded_usd: Balance,
 	}

@@ -1249,7 +1249,6 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		let ct_price = project_details.weighted_average_price.ok_or(Error::<T>::ImpossibleState)?;
 		let reward_info =
 			if let EvaluatorsOutcome::Rewarded(info) = project_details.evaluation_round_info.evaluators_outcome {
 				info
@@ -1273,16 +1272,11 @@ impl<T: Config> Pallet<T> {
 			evaluation.late_usd_amount.saturating_add(evaluation.early_usd_amount),
 			reward_info.normal_evaluator_total_bonded_usd,
 		);
-		let total_reward_amount_usd = (early_reward_weight * reward_info.early_evaluator_reward_pot_usd)
-			.saturating_add(normal_reward_weight * reward_info.normal_evaluator_reward_pot_usd);
-		let reward_amount_ct: BalanceOf<T> = ct_price
-			.reciprocal()
-			.ok_or(Error::<T>::BadMath)?
-			.checked_mul_int(total_reward_amount_usd)
-			.ok_or(Error::<T>::BadMath)?;
-
+		let early_evaluators_rewards = early_reward_weight * reward_info.early_evaluator_reward_pot;
+		let normal_evaluators_rewards = normal_reward_weight * reward_info.normal_evaluator_reward_pot;
+		let total_reward_amount = early_evaluators_rewards.saturating_add(normal_evaluators_rewards);
 		// * Update storage *
-		T::ContributionTokenCurrency::mint_into(project_id, &evaluation.evaluator, reward_amount_ct)?;
+		T::ContributionTokenCurrency::mint_into(project_id, &evaluation.evaluator, total_reward_amount)?;
 		evaluation.rewarded_or_slashed = true;
 		Evaluations::<T>::insert((project_id, evaluator.clone(), evaluation_id), evaluation);
 
@@ -1291,7 +1285,7 @@ impl<T: Config> Pallet<T> {
 			project_id,
 			evaluator: evaluator.clone(),
 			id: evaluation_id,
-			amount: reward_amount_ct,
+			amount: total_reward_amount,
 			caller,
 		});
 
@@ -2140,44 +2134,68 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn calculate_fees(project_id: T::ProjectIdentifier) -> Result<BalanceOf<T>, DispatchError> {
-		let funding_reached =
-			ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?.funding_amount_reached;
+	pub fn calculate_fees(funding_reached: BalanceOf<T>) -> Perquintill {
+		let total_fee = Self::compute_total_fee_from_brackets(funding_reached);
+		Perquintill::from_rational(total_fee, funding_reached)
+	}
+
+	fn compute_total_fee_from_brackets(funding_reached: BalanceOf<T>) -> BalanceOf<T> {
 		let mut remaining_for_fee = funding_reached;
 
-		Ok(T::FeeBrackets::get()
+		T::FeeBrackets::get()
 			.into_iter()
-			.map(|(fee, limit)| {
-				let try_operation = remaining_for_fee.checked_sub(&limit);
-				if let Some(remaining_amount) = try_operation {
-					remaining_for_fee = remaining_amount;
-					fee * limit
-				} else {
-					let temp = remaining_for_fee;
-					remaining_for_fee = BalanceOf::<T>::zero();
-					fee * temp
-				}
-			})
-			.fold(BalanceOf::<T>::zero(), |acc, fee| acc.saturating_add(fee)))
+			.map(|(fee, limit)| Self::compute_fee_for_bracket(&mut remaining_for_fee, fee, limit))
+			.fold(BalanceOf::<T>::zero(), |acc, fee| acc.saturating_add(fee))
+	}
+
+	fn compute_fee_for_bracket(
+		remaining_for_fee: &mut BalanceOf<T>,
+		fee: Percent,
+		limit: BalanceOf<T>,
+	) -> BalanceOf<T> {
+		if let Some(remaining_amount) = remaining_for_fee.checked_sub(&limit) {
+			*remaining_for_fee = remaining_amount;
+			fee * limit
+		} else {
+			let fee_for_this_bracket = fee * *remaining_for_fee;
+			*remaining_for_fee = BalanceOf::<T>::zero();
+			fee_for_this_bracket
+		}
 	}
 
 	pub fn generate_evaluator_rewards_info(
 		project_id: <T as Config>::ProjectIdentifier,
 	) -> Result<RewardInfoOf<T>, DispatchError> {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let evaluations = Evaluations::<T>::iter_prefix((project_id,)).collect::<Vec<_>>();
 
-		let target_funding = project_details.fundraising_target;
 		let funding_reached = project_details.funding_amount_reached;
 
-		// This is the "Y" variable from the knowledge hub
-		let percentage_of_target_funding = Perquintill::from_rational(funding_reached, target_funding);
+		let total_issuer_fees = Self::calculate_fees(funding_reached);
 
-		let fees = Self::calculate_fees(project_id)?;
-		let evaluator_fees = percentage_of_target_funding * (Perquintill::from_percent(30) * fees);
+		let token_sold = project_metadata
+			.total_allocation_size
+			.checked_sub(&project_details.remaining_contribution_tokens)
+			// This should never happen, but we still want to make sure we don't panic
+			.unwrap_or(project_metadata.total_allocation_size);
+		let total_fee_allocation = total_issuer_fees * token_sold;
 
-		let early_evaluator_reward_pot_usd = Perquintill::from_percent(20) * evaluator_fees;
-		let normal_evaluator_reward_pot_usd = Perquintill::from_percent(80) * evaluator_fees;
+		// This is the "Y" variable from the Knowledge Hub. src: https://hub.polimec.org/learn/funding-process/reward-payouts#issuer-fee-allocation
+		let percentage_of_target_funding =
+			Perquintill::from_rational(funding_reached, project_details.fundraising_target);
+
+		let evaluator_rewards = percentage_of_target_funding * Perquintill::from_percent(30) * total_fee_allocation;
+
+		// Unused and not really tested yet, but they will be handy in the future
+		let _liquidity_pool = Perquintill::from_percent(50) * total_fee_allocation;
+		let _raw_long_term_holder_bonus = Perquintill::from_percent(20) * total_fee_allocation;
+		let _one_minus_percentage_of_target_funding = Perquintill::from_percent(100) - percentage_of_target_funding;
+		let _temp = Perquintill::from_percent(30) * _one_minus_percentage_of_target_funding * total_fee_allocation;
+		let _long_term_holder_bonus = _raw_long_term_holder_bonus.saturating_add(_temp);
+
+		let early_evaluator_reward_pot = Perquintill::from_percent(20) * evaluator_rewards;
+		let normal_evaluator_reward_pot = Perquintill::from_percent(80) * evaluator_rewards;
 
 		let early_evaluator_total_bonded_usd =
 			evaluations.iter().fold(BalanceOf::<T>::zero(), |acc, ((_evaluator, _id), evaluation)| {
@@ -2187,14 +2205,17 @@ impl<T: Config> Pallet<T> {
 			evaluations.iter().fold(BalanceOf::<T>::zero(), |acc, ((_evaluator, _id), evaluation)| {
 				acc.saturating_add(evaluation.late_usd_amount)
 			});
+
 		let normal_evaluator_total_bonded_usd =
 			early_evaluator_total_bonded_usd.saturating_add(late_evaluator_total_bonded_usd);
-		Ok(RewardInfo {
-			early_evaluator_reward_pot_usd,
-			normal_evaluator_reward_pot_usd,
+
+		let reward_info = RewardInfo {
+			early_evaluator_reward_pot,
+			normal_evaluator_reward_pot,
 			early_evaluator_total_bonded_usd,
 			normal_evaluator_total_bonded_usd,
-		})
+		};
+		Ok(reward_info)
 	}
 
 	pub fn make_project_funding_successful(
