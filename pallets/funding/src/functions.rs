@@ -1527,7 +1527,6 @@ impl<T: Config> Pallet<T> {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let mut bid = Bids::<T>::get((project_id, bidder.clone(), bid_id)).ok_or(Error::<T>::BidNotFound)?;
 
-
 		// * Validity checks *
 		ensure!(
 			project_details.status == ProjectStatus::FundingSuccessful &&

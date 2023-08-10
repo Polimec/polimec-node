@@ -616,7 +616,6 @@ fn issuer_funding_payout_one_bid<T: Config>(project_id: T::ProjectIdentifier) ->
 			}),
 		};
 		(Weight::zero(), remaining_bids.count() as u64)
-
 	} else {
 		(Weight::zero(), 0u64)
 	}

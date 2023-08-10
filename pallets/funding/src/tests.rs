@@ -2965,13 +2965,13 @@ mod auction_round_success {
 		let remainder_contributions = vec![];
 
 		let finished_project = FinishedProject::new_with(
-				&test_env,
-				project,
-				issuer,
-				evaluations,
-				bids,
-				community_contributions,
-				remainder_contributions,
+			&test_env,
+			project,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions,
+			remainder_contributions,
 		);
 		let project_id = finished_project.get_project_id();
 		let final_bid_payouts = test_env.in_ext(|| {
@@ -2979,24 +2979,22 @@ mod auction_round_success {
 				.map(|bid| (bid.bidder, bid.funding_asset_amount_locked, bid.funding_asset.to_statemint_id()))
 				.collect::<UserToStatemintAsset>()
 		});
-		let total_expected_bid_payout = final_bid_payouts.iter().map(|bid| bid.1.clone()).sum::<BalanceOf<TestRuntime>>();
+		let total_expected_bid_payout =
+			final_bid_payouts.iter().map(|bid| bid.1.clone()).sum::<BalanceOf<TestRuntime>>();
 
-		let prev_issuer_funding_balance = test_env.get_free_statemint_asset_balances_for(
-			final_bid_payouts[0].2,
-			vec![issuer.clone()],
-		)[0].1;
+		let prev_issuer_funding_balance =
+			test_env.get_free_statemint_asset_balances_for(final_bid_payouts[0].2, vec![issuer.clone()])[0].1;
 		let prev_bidders_funding_balances = test_env.get_free_statemint_asset_balances_for(
 			final_bid_payouts[0].2,
 			final_bid_payouts.iter().map(|(acc, _, _)| acc.clone()).collect::<Vec<_>>(),
 		);
-		let prev_total_bidder_balance = prev_bidders_funding_balances
-			.iter()
-			.map(|(_, balance, _)| balance)
-			.sum::<BalanceOf<TestRuntime>>();
+		let prev_total_bidder_balance =
+			prev_bidders_funding_balances.iter().map(|(_, balance, _)| balance).sum::<BalanceOf<TestRuntime>>();
 		let prev_project_pot_funding_balance = test_env.get_free_statemint_asset_balances_for(
 			final_bid_payouts[0].2,
 			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
-		)[0].1;
+		)[0]
+		.1;
 
 		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
 		assert_eq!(
@@ -3004,22 +3002,19 @@ mod auction_round_success {
 			Cleaner::Success(CleanerState::Finished(PhantomData))
 		);
 
-		let post_issuer_funding_balance = test_env.get_free_statemint_asset_balances_for(
-			final_bid_payouts[0].2,
-			vec![issuer.clone()],
-		)[0].1;
+		let post_issuer_funding_balance =
+			test_env.get_free_statemint_asset_balances_for(final_bid_payouts[0].2, vec![issuer.clone()])[0].1;
 		let post_bidders_funding_balances = test_env.get_free_statemint_asset_balances_for(
 			final_bid_payouts[0].2,
 			final_bid_payouts.iter().map(|(acc, _, _)| acc.clone()).collect::<Vec<_>>(),
 		);
-		let post_total_bidder_balance = post_bidders_funding_balances
-			.iter()
-			.map(|(_, balance, _)| balance)
-			.sum::<BalanceOf<TestRuntime>>();
+		let post_total_bidder_balance =
+			post_bidders_funding_balances.iter().map(|(_, balance, _)| balance).sum::<BalanceOf<TestRuntime>>();
 		let post_project_pot_funding_balance = test_env.get_free_statemint_asset_balances_for(
 			final_bid_payouts[0].2,
 			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
-		)[0].1;
+		)[0]
+		.1;
 
 		let issuer_funding_delta = post_issuer_funding_balance - prev_issuer_funding_balance;
 		let bidders_funding_delta = prev_total_bidder_balance - post_total_bidder_balance;
