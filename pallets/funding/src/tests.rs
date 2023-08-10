@@ -21,7 +21,7 @@ use super::*;
 use crate as pallet_funding;
 use crate::{
 	mock::{FundingModule, *},
-	tests::testing_macros::{call_and_is_ok, extract_from_event, assert_close_enough},
+	tests::testing_macros::{assert_close_enough, call_and_is_ok, extract_from_event},
 	traits::{BondingRequirementCalculation, ProvideStatemintPrice},
 	CurrencyMetadata, Error, ParticipantsSize, ProjectMetadata, TicketSize,
 	UpdateType::{CommunityFundingStart, RemainderFundingStart},
