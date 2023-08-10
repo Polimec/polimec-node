@@ -626,7 +626,7 @@ fn issuer_funding_payout_one_contribution<T: Config>(project_id: T::ProjectIdent
 
 	let mut remaining_contributions = project_contributions.filter(|contribution| !contribution.funds_released);
 
-	if let Some(mut contribution) = remaining_contributions.next() {
+	if let Some(contribution) = remaining_contributions.next() {
 		match Pallet::<T>::do_payout_contribution_funds_for(
 			T::PalletId::get().into_account_truncating(),
 			contribution.project_id,
@@ -642,13 +642,7 @@ fn issuer_funding_payout_one_contribution<T: Config>(project_id: T::ProjectIdent
 			}),
 		};
 
-		contribution.funds_released = true;
-
-		Contributions::<T>::insert((project_id, contribution.contributor.clone(), contribution.id), contribution);
-
-		// (Weight::zero(), remaining_contributions.count() as u64)
-		// TODO: remove this when function is implemented
-		(Weight::zero(), 0u64)
+		(Weight::zero(), remaining_contributions.count() as u64)
 	} else {
 		(Weight::zero(), 0u64)
 	}
