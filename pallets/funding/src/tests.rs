@@ -21,27 +21,33 @@ use super::*;
 use crate as pallet_funding;
 use crate::{
 	mock::{FundingModule, *},
-	traits::ProvideStatemintPrice,
+	tests::testing_macros::{call_and_is_ok, extract_from_event, assert_close_enough},
+	traits::{BondingRequirementCalculation, ProvideStatemintPrice},
 	CurrencyMetadata, Error, ParticipantsSize, ProjectMetadata, TicketSize,
+	UpdateType::{CommunityFundingStart, RemainderFundingStart},
 };
 use defaults::*;
 use frame_support::{
 	assert_noop, assert_ok,
 	traits::{
-		fungible::{InspectHold as FungibleInspectHold, Mutate as FungibleMutate},
-		fungibles::Mutate as FungiblesMutate,
+		fungible::{Inspect as FungibleInspect, InspectHold as FungibleInspectHold, Mutate as FungibleMutate},
+		fungibles::{
+			metadata::Inspect as MetadataInspect, roles::Inspect as RolesInspect, Inspect as FungiblesInspect,
+			Mutate as FungiblesMutate,
+		},
 		tokens::Balance as BalanceT,
 		OnFinalize, OnIdle, OnInitialize,
 	},
 	weights::Weight,
 };
 use helper_functions::*;
-
-use crate::traits::BondingRequirementCalculation;
+use parachains_common::DAYS;
+use polimec_traits::ReleaseSchedule;
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
+use sp_core::H256;
 use sp_runtime::{DispatchError, Either};
 use sp_std::marker::PhantomData;
-use std::{cell::RefCell, iter::zip};
+use std::{assert_matches::assert_matches, cell::RefCell, collections::BTreeMap, iter::zip, ops::Div};
 
 type ProjectIdOf<T> = <T as Config>::ProjectIdentifier;
 type UserToPLMCBalance = Vec<(AccountId, BalanceOf<TestRuntime>)>;
@@ -1260,12 +1266,6 @@ mod defaults {
 
 pub mod helper_functions {
 	use super::*;
-	use frame_support::traits::fungibles::{
-		metadata::Inspect as MetadataInspect, roles::Inspect as RolesInspect, Inspect,
-	};
-	use sp_arithmetic::{traits::Zero, Percent};
-	use sp_core::H256;
-	use std::collections::BTreeMap;
 
 	pub fn get_ed() -> BalanceOf<TestRuntime> {
 		<TestRuntime as pallet_balances::Config>::ExistentialDeposit::get()
@@ -1790,8 +1790,6 @@ mod creation_round_failure {
 
 mod evaluation_round_success {
 	use super::*;
-	use sp_arithmetic::Perquintill;
-	use testing_macros::assert_close_enough;
 
 	#[test]
 	fn evaluation_round_completed() {
@@ -2047,11 +2045,6 @@ mod evaluation_round_failure {
 
 mod auction_round_success {
 	use super::*;
-	use crate::tests::testing_macros::call_and_is_ok;
-	use frame_support::traits::fungible::Inspect;
-	use parachains_common::DAYS;
-	use polimec_traits::ReleaseSchedule;
-	use std::ops::Div;
 
 	#[test]
 	fn auction_round_completed() {
@@ -3205,11 +3198,6 @@ mod auction_round_failure {
 
 mod community_round_success {
 	use super::*;
-	use crate::tests::testing_macros::call_and_is_ok;
-	use frame_support::traits::fungible::Inspect;
-	use parachains_common::DAYS;
-	use polimec_traits::ReleaseSchedule;
-	use std::assert_matches::assert_matches;
 
 	pub const HOURS: BlockNumber = 300u64;
 
@@ -4240,10 +4228,6 @@ mod community_round_success {
 
 mod remainder_round_success {
 	use super::*;
-	use crate::tests::testing_macros::{call_and_is_ok, extract_from_event};
-	use frame_support::traits::fungible::Inspect;
-	use parachains_common::DAYS;
-	use polimec_traits::ReleaseSchedule;
 
 	#[test]
 	fn remainder_round_works() {
@@ -5066,9 +5050,6 @@ mod remainder_round_success {
 
 mod funding_end {
 	use super::*;
-	use sp_arithmetic::{Percent, Perquintill};
-	use std::assert_matches::assert_matches;
-	use testing_macros::call_and_is_ok;
 
 	#[test]
 	fn automatic_fail_less_eq_33_percent() {
@@ -5650,7 +5631,6 @@ mod test_helper_functions {
 
 mod misc_features {
 	use super::*;
-	use crate::UpdateType::{CommunityFundingStart, RemainderFundingStart};
 
 	#[test]
 	fn remove_from_update_store_works() {
