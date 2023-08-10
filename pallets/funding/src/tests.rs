@@ -2881,6 +2881,80 @@ mod auction_round_success {
 			assert_eq!(vested_amount, post_free_balance - prev_free_balance);
 		}
 	}
+
+	#[test]
+	pub fn unsuccessful_bids_dont_get_vest_schedule() {
+		let test_env = TestEnvironment::new();
+		let issuer = ISSUER;
+		let project = default_project(test_env.get_new_nonce());
+		let evaluations = default_evaluations();
+		let mut bids = default_bids();
+
+		let available_tokens =
+			project.total_allocation_size.saturating_sub(bids.iter().fold(0, |acc, bid| acc + bid.amount));
+
+		let median_price = bids[bids.len().div(2)].price;
+		let accepted_bid =
+			vec![TestBid::new(BIDDER_4, available_tokens, median_price, None, AcceptedFundingAsset::USDT)];
+		let rejected_bid =
+			vec![TestBid::new(BIDDER_5, 50_000 * ASSET_UNIT, median_price, None, AcceptedFundingAsset::USDT)];
+		bids.extend(accepted_bid.clone());
+		bids.extend(rejected_bid.clone());
+
+		let community_contributions = default_community_buys();
+
+		let auctioning_project = AuctioningProject::new_with(&test_env, project, issuer, evaluations);
+		let mut bidders_plmc = calculate_auction_plmc_spent(bids.clone());
+		bidders_plmc.iter_mut().for_each(|(acc, amount)| *amount += get_ed());
+		test_env.mint_plmc_to(bidders_plmc.clone());
+
+		let bidders_funding_assets = calculate_auction_funding_asset_spent(bids.clone());
+		test_env.mint_statemint_asset_to(bidders_funding_assets.clone());
+
+		auctioning_project.bid_for_users(bids).unwrap();
+
+		let community_funding_project = auctioning_project.start_community_funding();
+		let final_price = community_funding_project.get_project_details().weighted_average_price.unwrap();
+		let mut contributors_plmc = calculate_contributed_plmc_spent(community_contributions.clone(), final_price);
+		contributors_plmc.iter_mut().for_each(|(acc, amount)| *amount += get_ed());
+		test_env.mint_plmc_to(contributors_plmc.clone());
+
+		let contributors_funding_assets =
+			calculate_contributed_funding_asset_spent(community_contributions.clone(), final_price);
+		test_env.mint_statemint_asset_to(contributors_funding_assets.clone());
+
+		community_funding_project.buy_for_retail_users(community_contributions).unwrap();
+		let finished_project = community_funding_project.finish_funding();
+
+		test_env.advance_time(10u64).unwrap();
+		let details = finished_project.get_project_details();
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+
+		let plmc_locked_for_accepted_bid =
+			calculate_auction_plmc_spent_after_price_calculation(accepted_bid, final_price);
+		let plmc_locked_for_rejected_bid =
+			calculate_auction_plmc_spent_after_price_calculation(rejected_bid, final_price);
+
+		let (accepted_user, accepted_plmc_amount) = plmc_locked_for_accepted_bid[0];
+		let schedule = test_env.in_ext(|| {
+			<TestRuntime as Config>::Vesting::total_scheduled_amount(
+				&accepted_user,
+				LockType::Participation(finished_project.project_id),
+			)
+		});
+		assert_eq!(schedule.unwrap(), accepted_plmc_amount);
+
+		let (rejected_user, _rejected_plmc_amount) = plmc_locked_for_rejected_bid[0];
+		let schedule_exists = test_env
+			.in_ext(|| {
+				<TestRuntime as Config>::Vesting::total_scheduled_amount(
+					&rejected_user,
+					LockType::Participation(finished_project.project_id),
+				)
+			})
+			.is_some();
+		assert!(!schedule_exists);
+	}
 }
 
 mod auction_round_failure {

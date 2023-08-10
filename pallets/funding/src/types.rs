@@ -61,12 +61,6 @@ pub mod config_types {
 		Participation(ProjectId),
 	}
 
-	#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo, Ord, PartialOrd)]
-	pub enum ParticipationType<StorageItemId> {
-		Bid(StorageItemId),
-		Contribution(StorageItemId),
-	}
-
 	pub struct ConstPriceProvider<AssetId, Price, Mapping>(PhantomData<(AssetId, Price, Mapping)>);
 	impl<AssetId: Ord, Price: FixedPointNumber + Clone, Mapping: Get<BTreeMap<AssetId, Price>>> ProvideStatemintPrice
 		for ConstPriceProvider<AssetId, Price, Mapping>

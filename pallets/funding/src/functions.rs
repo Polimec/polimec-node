@@ -27,7 +27,7 @@ use frame_support::{
 	ensure,
 	pallet_prelude::DispatchError,
 	traits::{
-		fungible::{InspectHold, MutateHold as FungibleMutateHold},
+		fungible::MutateHold as FungibleMutateHold,
 		fungibles::{metadata::Mutate as MetadataMutate, Create, Inspect, Mutate as FungiblesMutate},
 		tokens::{Fortitude, Precision, Preservation, Restriction},
 		Get,
@@ -127,6 +127,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	//noinspection ALL
 	/// Called by user extrinsic
 	/// Starts the evaluation round of a project. It needs to be called by the project issuer.
 	///
@@ -1365,7 +1366,9 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			matches!(bid.plmc_vesting_info, None) && project_details.status == ProjectStatus::FundingSuccessful,
+			matches!(bid.plmc_vesting_info, None) &&
+				project_details.status == ProjectStatus::FundingSuccessful &&
+				matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)),
 			Error::<T>::NotAllowed
 		);
 
@@ -1576,7 +1579,7 @@ impl<T: Config> Pallet<T> {
 		_multiplier: MultiplierOf<T>,
 		bonded_amount: BalanceOf<T>,
 	) -> Result<VestingInfo<T::BlockNumber, BalanceOf<T>>, DispatchError> {
-		// TODO: lock_time should depend on `_multiplier` and `_caller` credential
+		// TODO: duration should depend on `_multiplier` and `_caller` credential
 		let duration: u32 = 1u32 * parachains_common::DAYS;
 		let amount_per_block = bonded_amount.checked_div(&duration.into()).ok_or(Error::<T>::BadMath)?;
 

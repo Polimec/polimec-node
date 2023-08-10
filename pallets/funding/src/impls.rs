@@ -50,7 +50,10 @@ impl DoRemainingOperation for CleanerState<Success> {
 				},
 			CleanerState::EvaluationUnbonding(remaining, PhantomData) =>
 				if *remaining == 0 {
-					*self = CleanerState::StartBidderVestingSchedule(remaining_bids::<T>(project_id), PhantomData);
+					*self = CleanerState::StartBidderVestingSchedule(
+						remaining_successful_bids::<T>(project_id),
+						PhantomData,
+					);
 					Ok(Weight::zero())
 				} else {
 					let (consumed_weight, remaining_evaluations) = unbond_one_evaluation::<T>(project_id);
@@ -252,6 +255,12 @@ fn remaining_bids_to_release_funds<T: Config>(project_id: T::ProjectIdentifier) 
 
 fn remaining_bids<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
 	Bids::<T>::iter_prefix_values((project_id,)).count() as u64
+}
+
+fn remaining_successful_bids<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
+	Bids::<T>::iter_prefix_values((project_id,))
+		.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
+		.count() as u64
 }
 
 fn remaining_contributions_to_release_funds<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
@@ -478,7 +487,10 @@ fn unbond_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weig
 
 fn start_one_bid_vesting_schedule<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
-	let mut unscheduled_bids = project_bids.filter(|bid| matches!(bid.plmc_vesting_info, None));
+	let mut unscheduled_bids = project_bids.filter(|bid| {
+		matches!(bid.plmc_vesting_info, None) &&
+			matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..))
+	});
 
 	if let Some(bid) = unscheduled_bids.next() {
 		match Pallet::<T>::do_start_bid_vesting_schedule_for(
