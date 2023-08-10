@@ -1517,11 +1517,41 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_payout_bid_funds_for(
-		_caller: AccountIdOf<T>,
-		_project_id: T::ProjectIdentifier,
-		_bidder: AccountIdOf<T>,
-		_bid_id: StorageItemIdOf<T>,
+		caller: AccountIdOf<T>,
+		project_id: T::ProjectIdentifier,
+		bidder: AccountIdOf<T>,
+		bid_id: StorageItemIdOf<T>,
 	) -> Result<(), DispatchError> {
+		// * Get variables *
+		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let mut bid = Bids::<T>::get((project_id, bidder.clone(), bid_id)).ok_or(Error::<T>::BidNotFound)?;
+
+
+		// * Validity checks *
+		ensure!(
+			project_details.status == ProjectStatus::FundingSuccessful &&
+				matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)),
+			Error::<T>::NotAllowed
+		);
+
+		// * Calculate variables *
+		let issuer = project_details.issuer;
+		let project_pot = Self::fund_account_id(project_id);
+		let payout_amount = bid.funding_asset_amount_locked;
+		let payout_asset = bid.funding_asset;
+
+		// * Update storage *
+		T::FundingCurrency::transfer(
+			payout_asset.to_statemint_id(),
+			&project_pot,
+			&issuer,
+			payout_amount,
+			Preservation::Expendable,
+		)?;
+		bid.funds_released = true;
+		Bids::<T>::insert((project_id, bidder.clone(), bid_id), bid);
+
 		Ok(())
 	}
 }

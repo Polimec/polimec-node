@@ -615,14 +615,8 @@ fn issuer_funding_payout_one_bid<T: Config>(project_id: T::ProjectIdentifier) ->
 				error: e,
 			}),
 		};
+		(Weight::zero(), remaining_bids.count() as u64)
 
-		bid.funds_released = true;
-
-		Bids::<T>::insert((project_id, bid.bidder.clone(), bid.id), bid);
-
-		// (Weight::zero(), remaining_bids.count() as u64)
-		// TODO: Remove this when function is implemented
-		(Weight::zero(), 0u64)
 	} else {
 		(Weight::zero(), 0u64)
 	}
