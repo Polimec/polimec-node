@@ -615,7 +615,7 @@ impl<T: Config> Pallet<T> {
 				project_id,
 				project_details,
 				SuccessReason::ReachedTarget,
-				1u32.into(),
+				T::SuccessToSettlementTime::get()
 			)
 		}
 	}
