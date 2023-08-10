@@ -2903,7 +2903,7 @@ mod auction_round_success {
 
 		let auctioning_project = AuctioningProject::new_with(&test_env, project, issuer, evaluations);
 		let mut bidders_plmc = calculate_auction_plmc_spent(bids.clone());
-		bidders_plmc.iter_mut().for_each(|(acc, amount)| *amount += get_ed());
+		bidders_plmc.iter_mut().for_each(|(_acc, amount)| *amount += get_ed());
 		test_env.mint_plmc_to(bidders_plmc.clone());
 
 		let bidders_funding_assets = calculate_auction_funding_asset_spent(bids.clone());
@@ -2914,7 +2914,7 @@ mod auction_round_success {
 		let community_funding_project = auctioning_project.start_community_funding();
 		let final_price = community_funding_project.get_project_details().weighted_average_price.unwrap();
 		let mut contributors_plmc = calculate_contributed_plmc_spent(community_contributions.clone(), final_price);
-		contributors_plmc.iter_mut().for_each(|(acc, amount)| *amount += get_ed());
+		contributors_plmc.iter_mut().for_each(|(_acc, amount)| *amount += get_ed());
 		test_env.mint_plmc_to(contributors_plmc.clone());
 
 		let contributors_funding_assets =
@@ -3017,18 +3017,14 @@ mod auction_round_success {
 		.1;
 
 		let issuer_funding_delta = post_issuer_funding_balance - prev_issuer_funding_balance;
-		let bidders_funding_delta = prev_total_bidder_balance - post_total_bidder_balance;
 		let project_pot_funding_delta = prev_project_pot_funding_balance - post_project_pot_funding_balance;
 
 		assert_eq!(issuer_funding_delta, total_expected_bid_payout);
 		assert_eq!(issuer_funding_delta, project_pot_funding_delta);
 
-		for (_bidder, balance, _asset) in post_bidders_funding_balances {
-			assert_eq!(balance, 0);
-		}
-		// 1_052_631_5_789_473_682
-		// 894_736_8_421_052_630
 
+		assert_eq!(prev_total_bidder_balance, 0u128);
+		assert_eq!(post_total_bidder_balance, 0u128);
 		assert_eq!(post_project_pot_funding_balance, 0u128);
 	}
 }
@@ -5053,9 +5049,9 @@ mod remainder_round_success {
 
 		let merged_plmc_balances = generic_map_merge_reduce(
 			vec![contributed_plmc_balances.clone(), bid_plmc_balances.clone()],
-			|(account, amount)| account.clone(),
+			|(account, _amount)| account.clone(),
 			BalanceOf::<TestRuntime>::zero(),
-			|(account, amount), total| total + amount,
+			|(_account, amount), total| total + amount,
 		);
 		test_env.advance_time((1 * DAYS + 1u32).into()).unwrap();
 
@@ -5122,9 +5118,9 @@ mod remainder_round_success {
 
 		let merged_plmc_balances = generic_map_merge_reduce(
 			vec![contributed_plmc_balances.clone(), bid_plmc_balances.clone()],
-			|(account, amount)| account.clone(),
+			|(account, _amount)| account.clone(),
 			BalanceOf::<TestRuntime>::zero(),
-			|(account, amount), total| total + amount,
+			|(_account, amount), total| total + amount,
 		);
 
 		for (contributor, amount) in merged_plmc_balances {

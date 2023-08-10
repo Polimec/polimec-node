@@ -1523,7 +1523,6 @@ impl<T: Config> Pallet<T> {
 		bid_id: StorageItemIdOf<T>,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
-		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let mut bid = Bids::<T>::get((project_id, bidder.clone(), bid_id)).ok_or(Error::<T>::BidNotFound)?;
 
@@ -1550,6 +1549,15 @@ impl<T: Config> Pallet<T> {
 		)?;
 		bid.funds_released = true;
 		Bids::<T>::insert((project_id, bidder.clone(), bid_id), bid);
+
+		// * Emit events *
+		Self::deposit_event(Event::<T>::BidFundingPaidOut {
+			project_id,
+			bidder: bidder.clone(),
+			id: bid_id,
+			amount: payout_amount,
+			caller,
+		});
 
 		Ok(())
 	}

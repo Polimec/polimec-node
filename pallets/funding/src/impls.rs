@@ -600,7 +600,7 @@ fn issuer_funding_payout_one_bid<T: Config>(project_id: T::ProjectIdentifier) ->
 
 	let mut remaining_bids = project_bids.filter(|bid| !bid.funds_released);
 
-	if let Some(mut bid) = remaining_bids.next() {
+	if let Some(bid) = remaining_bids.next() {
 		match Pallet::<T>::do_payout_bid_funds_for(
 			T::PalletId::get().into_account_truncating(),
 			bid.project_id,

@@ -658,6 +658,13 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 			caller: AccountIdOf<T>,
 		},
+		BidFundingPaidOut {
+			project_id: ProjectIdOf<T>,
+			bidder: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			amount: BalanceOf<T>,
+			caller: AccountIdOf<T>,
+		},
 	}
 
 	#[pallet::error]
