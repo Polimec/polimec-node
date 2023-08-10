@@ -506,7 +506,8 @@ fn start_one_bid_vesting_schedule<T: Config>(project_id: T::ProjectIdentifier) -
 
 fn start_one_contribution_vesting_schedule<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
 	let project_bids = Contributions::<T>::iter_prefix_values((project_id,));
-	let mut unscheduled_contributions = project_bids.filter(|contribution| matches!(contribution.plmc_vesting_info, None));
+	let mut unscheduled_contributions =
+		project_bids.filter(|contribution| matches!(contribution.plmc_vesting_info, None));
 
 	if let Some(contribution) = unscheduled_contributions.next() {
 		match Pallet::<T>::do_start_contribution_vesting_schedule_for(

@@ -244,8 +244,14 @@ pub type BidInfoOf<T> = BidInfo<
 	MultiplierOf<T>,
 	VestingInfoOf<T>,
 >;
-pub type ContributionInfoOf<T> =
-	ContributionInfo<StorageItemIdOf<T>, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>, VestingInfoOf<T>>;
+pub type ContributionInfoOf<T> = ContributionInfo<
+	StorageItemIdOf<T>,
+	ProjectIdOf<T>,
+	AccountIdOf<T>,
+	BalanceOf<T>,
+	MultiplierOf<T>,
+	VestingInfoOf<T>,
+>;
 pub type BondTypeOf<T> = LockType<ProjectIdOf<T>>;
 
 const PLMC_STATEMINT_ID: u32 = 2069;
@@ -915,7 +921,6 @@ pub mod pallet {
 			let caller = ensure_signed(origin)?;
 			Self::do_start_contribution_vesting_schedule_for(caller, project_id, contributor, contribution_id)
 		}
-
 	}
 
 	#[pallet::hooks]

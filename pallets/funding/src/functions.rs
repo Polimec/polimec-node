@@ -27,13 +27,12 @@ use frame_support::{
 	ensure,
 	pallet_prelude::DispatchError,
 	traits::{
-		fungible::MutateHold as FungibleMutateHold,
+		fungible::{InspectHold, MutateHold as FungibleMutateHold},
 		fungibles::{metadata::Mutate as MetadataMutate, Create, Inspect, Mutate as FungiblesMutate},
 		tokens::{Fortitude, Precision, Preservation, Restriction},
 		Get,
 	},
 };
-use frame_support::traits::fungible::InspectHold;
 
 use sp_arithmetic::Perquintill;
 
@@ -1405,18 +1404,21 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		let mut contribution = Contributions::<T>::get((project_id, contributor.clone(), contribution_id)).ok_or(Error::<T>::BidNotFound)?;
+		let mut contribution = Contributions::<T>::get((project_id, contributor.clone(), contribution_id))
+			.ok_or(Error::<T>::BidNotFound)?;
 		let funding_end_block = project_details.funding_end_block.ok_or(Error::<T>::ImpossibleState)?;
 
 		// * Validity checks *
 		ensure!(
-			matches!(contribution.plmc_vesting_info, None) && project_details.status == ProjectStatus::FundingSuccessful,
+			matches!(contribution.plmc_vesting_info, None) &&
+				project_details.status == ProjectStatus::FundingSuccessful,
 			Error::<T>::NotAllowed
 		);
 
 		// * Calculate variables *
-		let vest_info = Self::calculate_vesting_info(contributor.clone(), contribution.multiplier, contribution.plmc_bond)
-			.map_err(|_| Error::<T>::BadMath)?;
+		let vest_info =
+			Self::calculate_vesting_info(contributor.clone(), contribution.multiplier, contribution.plmc_bond)
+				.map_err(|_| Error::<T>::BadMath)?;
 		contribution.plmc_vesting_info = Some(vest_info);
 
 		// * Update storage *
