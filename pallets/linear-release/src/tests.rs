@@ -1117,7 +1117,6 @@ fn vested_transfer_less_than_existential_deposit_fails() {
 	});
 }
 
-// TODO
 #[test]
 fn set_release_schedule() {
 	ExtBuilder::default().existential_deposit(ED).build().execute_with(|| {
@@ -1177,7 +1176,6 @@ fn set_release_schedule() {
 	});
 }
 
-// TODO
 #[test]
 fn cannot_release_different_reason() {
 	ExtBuilder::default().existential_deposit(ED).build().execute_with(|| {
@@ -1221,7 +1219,6 @@ fn cannot_release_different_reason() {
 	});
 }
 
-// TODO
 #[test]
 fn multile_holds_release_schedule() {
 	ExtBuilder::default().existential_deposit(ED).build().execute_with(|| {
@@ -1352,7 +1349,7 @@ fn vest_all_different_reason() {
 
 		// Set release schedule to release the locked amount, starting from now, one ED per block.
 		let user3_vesting_schedule = VestingInfo::new(user_3_on_hold_balance, ED, 0);
-		assert_ok!(Vesting::set_release_schedule(
+		assert_ok!(Vesting::add_release_schedule(
 			&3,
 			user3_vesting_schedule.locked,
 			user3_vesting_schedule.per_block,
@@ -1423,7 +1420,7 @@ fn manual_vest_all_different_reason() {
 
 		// Set release schedule to release the locked amount, starting from now, one ED per block.
 		let user3_vesting_schedule = VestingInfo::new(user_3_on_hold_balance, ED, 0);
-		assert_ok!(Vesting::set_release_schedule(
+		assert_ok!(Vesting::add_release_schedule(
 			&3,
 			user3_vesting_schedule.locked,
 			user3_vesting_schedule.per_block,

@@ -16,7 +16,6 @@
 
 #![cfg(test)]
 
-
 use frame_support::{assert_ok, pallet_prelude::Weight, traits::GenesisBuild};
 use parity_scale_codec::Encode;
 use polimec_parachain_runtime as polimec_runtime;
