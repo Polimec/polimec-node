@@ -2953,6 +2953,74 @@ mod auction_round_success {
 			.is_some();
 		assert!(!schedule_exists);
 	}
+
+	#[test]
+	pub fn bid_funding_assets_are_paid_automatically_to_issuer() {
+		let test_env = TestEnvironment::new();
+		let project = default_project(test_env.get_new_nonce());
+		let issuer = ISSUER;
+		let evaluations = default_evaluations();
+		let bids = generate_bids_from_total_usd(project.total_allocation_size, project.minimum_price);
+		let community_contributions = vec![];
+		let remainder_contributions = vec![];
+
+		let finished_project = FinishedProject::new_with(
+				&test_env,
+				project,
+				issuer,
+				evaluations,
+				bids,
+				community_contributions,
+				remainder_contributions,
+		);
+
+		let final_bid_payouts = test_env.in_ext(|| {
+			Bids::<TestRuntime>::iter_prefix_values((finished_project.project_id,))
+				.map(|bid| (bid.bidder, bid.funding_asset_amount_locked, bid.funding_asset.to_statemint_id()))
+				.collect::<UserToStatemintAsset>()
+		});
+
+		let prev_issuer_funding_balance = test_env.get_free_statemint_asset_balances_for(
+			final_bid_payouts[0].2,
+			vec![issuer.clone()],
+		)[0].1;
+		let prev_bidders_funding_balances = test_env.get_free_statemint_asset_balances_for(
+			final_bid_payouts[0].2,
+			final_bid_payouts.iter().map(|(acc, _, _)| acc.clone()).collect::<Vec<_>>(),
+		);
+		let prev_total_bidder_balance = prev_bidders_funding_balances
+			.iter()
+			.map(|(_, balance, _)| balance)
+			.sum::<BalanceOf<TestRuntime>>();
+
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
+		assert_eq!(
+			finished_project.get_project_details().cleanup,
+			Cleaner::Success(CleanerState::Finished(PhantomData))
+		);
+
+		let post_issuer_funding_balance = test_env.get_free_statemint_asset_balances_for(
+			final_bid_payouts[0].2,
+			vec![issuer.clone()],
+		)[0].1;
+		let post_bidders_funding_balances = test_env.get_free_statemint_asset_balances_for(
+			final_bid_payouts[0].2,
+			final_bid_payouts.iter().map(|(acc, _, _)| acc.clone()).collect::<Vec<_>>(),
+		);
+		let post_total_bidder_balance = post_bidders_funding_balances
+			.iter()
+			.map(|(_, balance, _)| balance)
+			.sum::<BalanceOf<TestRuntime>>();
+
+		let issuer_funding_delta = post_issuer_funding_balance - prev_issuer_funding_balance;
+		let bidders_funding_delta = prev_total_bidder_balance - post_total_bidder_balance;
+
+		assert_eq!(issuer_funding_delta, bidders_funding_delta);
+
+		for (_bidder, balance, _asset) in post_bidders_funding_balances {
+			assert_eq!(balance, 0);
+		}
+	}
 }
 
 mod auction_round_failure {
