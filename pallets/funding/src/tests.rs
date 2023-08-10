@@ -2924,7 +2924,7 @@ mod auction_round_success {
 		community_funding_project.buy_for_retail_users(community_contributions).unwrap();
 		let finished_project = community_funding_project.finish_funding();
 
-		test_env.advance_time(10u64).unwrap();
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
 		let details = finished_project.get_project_details();
 		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
 
