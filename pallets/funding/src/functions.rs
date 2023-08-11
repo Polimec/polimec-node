@@ -1507,49 +1507,6 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn do_payout_contribution_funds_for(
-		caller: AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
-		contributor: AccountIdOf<T>,
-		contribution_id: StorageItemIdOf<T>,
-	) -> Result<(), DispatchError> {
-		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		let mut contribution = Contributions::<T>::get((project_id, contributor.clone(), contribution_id))
-			.ok_or(Error::<T>::BidNotFound)?;
-
-		// * Validity checks *
-		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::NotAllowed);
-
-		// * Calculate variables *
-		let issuer = project_details.issuer;
-		let project_pot = Self::fund_account_id(project_id);
-		let payout_amount = contribution.funding_asset_amount;
-		let payout_asset = contribution.funding_asset;
-
-		// * Update storage *
-		T::FundingCurrency::transfer(
-			payout_asset.to_statemint_id(),
-			&project_pot,
-			&issuer,
-			payout_amount,
-			Preservation::Expendable,
-		)?;
-		contribution.funds_released = true;
-		Contributions::<T>::insert((project_id, contributor.clone(), contribution_id), contribution);
-
-		// * Emit events *
-		Self::deposit_event(Event::<T>::ContributionFundingPaidOut {
-			project_id,
-			contributor,
-			id: contribution_id,
-			amount: payout_amount,
-			caller,
-		});
-
-		Ok(())
-	}
-
 	pub fn do_payout_bid_funds_for(
 		caller: AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
@@ -1589,6 +1546,49 @@ impl<T: Config> Pallet<T> {
 			project_id,
 			bidder: bidder.clone(),
 			id: bid_id,
+			amount: payout_amount,
+			caller,
+		});
+
+		Ok(())
+	}
+
+	pub fn do_payout_contribution_funds_for(
+		caller: AccountIdOf<T>,
+		project_id: T::ProjectIdentifier,
+		contributor: AccountIdOf<T>,
+		contribution_id: StorageItemIdOf<T>,
+	) -> Result<(), DispatchError> {
+		// * Get variables *
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let mut contribution = Contributions::<T>::get((project_id, contributor.clone(), contribution_id))
+			.ok_or(Error::<T>::BidNotFound)?;
+
+		// * Validity checks *
+		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::NotAllowed);
+
+		// * Calculate variables *
+		let issuer = project_details.issuer;
+		let project_pot = Self::fund_account_id(project_id);
+		let payout_amount = contribution.funding_asset_amount;
+		let payout_asset = contribution.funding_asset;
+
+		// * Update storage *
+		T::FundingCurrency::transfer(
+			payout_asset.to_statemint_id(),
+			&project_pot,
+			&issuer,
+			payout_amount,
+			Preservation::Expendable,
+		)?;
+		contribution.funds_released = true;
+		Contributions::<T>::insert((project_id, contributor.clone(), contribution_id), contribution);
+
+		// * Emit events *
+		Self::deposit_event(Event::<T>::ContributionFundingPaidOut {
+			project_id,
+			contributor,
+			id: contribution_id,
 			amount: payout_amount,
 			caller,
 		});

@@ -3026,6 +3026,94 @@ mod auction_round_success {
 		assert_eq!(post_total_bidder_balance, 0u128);
 		assert_eq!(post_project_pot_funding_balance, 0u128);
 	}
+
+	#[test]
+	pub fn bid_funding_assets_are_paid_manually_to_issuer() {
+		let test_env = TestEnvironment::new();
+		let project = default_project(test_env.get_new_nonce());
+		let issuer = ISSUER;
+		let evaluations = default_evaluations();
+		let bids = generate_bids_from_total_usd(project.total_allocation_size, project.minimum_price);
+		let community_contributions = vec![];
+		let remainder_contributions = vec![];
+
+		let finished_project = FinishedProject::new_with(
+			&test_env,
+			project,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions,
+			remainder_contributions,
+		);
+		let project_id = finished_project.get_project_id();
+		let final_winning_bids = test_env
+			.in_ext(|| Bids::<TestRuntime>::iter_prefix_values((finished_project.project_id,)).collect::<Vec<_>>());
+		let final_bid_payouts = test_env.in_ext(|| {
+			Bids::<TestRuntime>::iter_prefix_values((finished_project.project_id,))
+				.map(|bid| (bid.bidder, bid.funding_asset_amount_locked, bid.funding_asset.to_statemint_id()))
+				.collect::<UserToStatemintAsset>()
+		});
+		let total_expected_bid_payout =
+			final_bid_payouts.iter().map(|bid| bid.1.clone()).sum::<BalanceOf<TestRuntime>>();
+
+		let prev_issuer_funding_balance =
+			test_env.get_free_statemint_asset_balances_for(final_bid_payouts[0].2, vec![issuer.clone()])[0].1;
+		let prev_bidders_funding_balances = test_env.get_free_statemint_asset_balances_for(
+			final_bid_payouts[0].2,
+			final_bid_payouts.iter().map(|(acc, _, _)| acc.clone()).collect::<Vec<_>>(),
+		);
+		let prev_total_bidder_balance =
+			prev_bidders_funding_balances.iter().map(|(_, balance, _)| balance).sum::<BalanceOf<TestRuntime>>();
+		let prev_project_pot_funding_balance = test_env.get_free_statemint_asset_balances_for(
+			final_bid_payouts[0].2,
+			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
+		)[0]
+		.1;
+
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+		assert_eq!(
+			finished_project.get_project_details().cleanup,
+			Cleaner::Success(CleanerState::Initialized(PhantomData))
+		);
+
+		for bid in final_winning_bids {
+			test_env
+				.in_ext(|| {
+					Pallet::<TestRuntime>::payout_bid_funds_for(
+						RuntimeOrigin::signed(issuer),
+						project_id,
+						bid.bidder,
+						bid.id,
+					)
+				})
+				.unwrap();
+		}
+
+		let post_issuer_funding_balance =
+			test_env.get_free_statemint_asset_balances_for(final_bid_payouts[0].2, vec![issuer.clone()])[0].1;
+		let post_bidders_funding_balances = test_env.get_free_statemint_asset_balances_for(
+			final_bid_payouts[0].2,
+			final_bid_payouts.iter().map(|(acc, _, _)| acc.clone()).collect::<Vec<_>>(),
+		);
+		let post_total_bidder_balance =
+			post_bidders_funding_balances.iter().map(|(_, balance, _)| balance).sum::<BalanceOf<TestRuntime>>();
+		let post_project_pot_funding_balance = test_env.get_free_statemint_asset_balances_for(
+			final_bid_payouts[0].2,
+			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
+		)[0]
+		.1;
+
+		let issuer_funding_delta = post_issuer_funding_balance - prev_issuer_funding_balance;
+		let project_pot_funding_delta = prev_project_pot_funding_balance - post_project_pot_funding_balance;
+
+		assert_eq!(issuer_funding_delta, total_expected_bid_payout);
+		assert_eq!(issuer_funding_delta, project_pot_funding_delta);
+
+		assert_eq!(prev_total_bidder_balance, 0u128);
+		assert_eq!(post_total_bidder_balance, 0u128);
+		assert_eq!(post_project_pot_funding_balance, 0u128);
+	}
 }
 
 mod auction_round_failure {
@@ -4401,6 +4489,132 @@ mod community_round_success {
 		assert_eq!(post_total_contributor_balance, 0u128);
 		assert_eq!(post_project_pot_funding_balance, 0u128);
 	}
+
+	#[test]
+	pub fn contribution_and_bid_funding_assets_are_paid_manually_to_issuer() {
+		let test_env = TestEnvironment::new();
+		let project = default_project(test_env.get_new_nonce());
+		let issuer = ISSUER;
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = vec![];
+
+		let finished_project = FinishedProject::new_with(
+			&test_env,
+			project,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions,
+			remainder_contributions,
+		);
+		let project_id = finished_project.get_project_id();
+
+		let final_winning_bids = test_env.in_ext(|| {
+			Bids::<TestRuntime>::iter_prefix_values((finished_project.project_id,))
+				.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
+				.collect::<Vec<_>>()
+		});
+		let final_bid_payouts = test_env.in_ext(|| {
+			Bids::<TestRuntime>::iter_prefix_values((finished_project.project_id,))
+				.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
+				.map(|bid| (bid.bidder, bid.funding_asset_amount_locked, bid.funding_asset.to_statemint_id()))
+				.collect::<UserToStatemintAsset>()
+		});
+		let final_contributions = test_env.in_ext(|| {
+			Contributions::<TestRuntime>::iter_prefix_values((finished_project.project_id,)).collect::<Vec<_>>()
+		});
+		let final_contribution_payouts = test_env.in_ext(|| {
+			Contributions::<TestRuntime>::iter_prefix_values((finished_project.project_id,))
+				.map(|contribution| {
+					(
+						contribution.contributor,
+						contribution.funding_asset_amount,
+						contribution.funding_asset.to_statemint_id(),
+					)
+				})
+				.collect::<UserToStatemintAsset>()
+		});
+
+		let total_expected_bid_payout =
+			final_bid_payouts.iter().map(|bid| bid.1.clone()).sum::<BalanceOf<TestRuntime>>();
+		let total_expected_contribution_payout = final_contribution_payouts
+			.iter()
+			.map(|contribution| contribution.1.clone())
+			.sum::<BalanceOf<TestRuntime>>();
+
+		let prev_issuer_funding_balance =
+			test_env.get_free_statemint_asset_balances_for(final_bid_payouts[0].2, vec![issuer.clone()])[0].1;
+
+		let prev_contributors_funding_balances = test_env.get_free_statemint_asset_balances_for(
+			final_contribution_payouts[0].2,
+			final_contribution_payouts.iter().map(|(acc, _, _)| acc.clone()).collect::<Vec<_>>(),
+		);
+
+		let prev_total_contributor_balance =
+			prev_contributors_funding_balances.iter().map(|(_, balance, _)| balance).sum::<BalanceOf<TestRuntime>>();
+		let prev_project_pot_funding_balance = test_env.get_free_statemint_asset_balances_for(
+			final_bid_payouts[0].2,
+			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
+		)[0]
+		.1;
+
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+		assert_eq!(
+			finished_project.get_project_details().cleanup,
+			Cleaner::Success(CleanerState::Initialized(PhantomData))
+		);
+		for bid in final_winning_bids {
+			test_env
+				.in_ext(|| {
+					Pallet::<TestRuntime>::payout_bid_funds_for(
+						RuntimeOrigin::signed(issuer),
+						project_id,
+						bid.bidder,
+						bid.id,
+					)
+				})
+				.unwrap();
+		}
+		for contribution in final_contributions {
+			test_env
+				.in_ext(|| {
+					Pallet::<TestRuntime>::payout_contribution_funds_for(
+						RuntimeOrigin::signed(issuer),
+						project_id,
+						contribution.contributor,
+						contribution.id,
+					)
+				})
+				.unwrap();
+		}
+		let post_issuer_funding_balance =
+			test_env.get_free_statemint_asset_balances_for(final_bid_payouts[0].2, vec![issuer.clone()])[0].1;
+
+		let post_contributors_funding_balances = test_env.get_free_statemint_asset_balances_for(
+			final_contribution_payouts[0].2,
+			final_contribution_payouts.iter().map(|(acc, _, _)| acc.clone()).collect::<Vec<_>>(),
+		);
+
+		let post_total_contributor_balance =
+			post_contributors_funding_balances.iter().map(|(_, balance, _)| balance).sum::<BalanceOf<TestRuntime>>();
+		let post_project_pot_funding_balance = test_env.get_free_statemint_asset_balances_for(
+			final_bid_payouts[0].2,
+			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
+		)[0]
+		.1;
+
+		let issuer_funding_delta = post_issuer_funding_balance - prev_issuer_funding_balance;
+		let project_pot_funding_delta = prev_project_pot_funding_balance - post_project_pot_funding_balance;
+
+		assert_eq!(issuer_funding_delta - total_expected_bid_payout, total_expected_contribution_payout);
+		assert_eq!(issuer_funding_delta, project_pot_funding_delta);
+
+		assert_eq!(prev_total_contributor_balance, 0u128);
+		assert_eq!(post_total_contributor_balance, 0u128);
+		assert_eq!(post_project_pot_funding_balance, 0u128);
+	}
 }
 
 mod remainder_round_success {
@@ -5229,6 +5443,383 @@ mod remainder_round_success {
 			let post_free_balance = test_env.in_ext(|| <TestRuntime as Config>::NativeCurrency::balance(&contributor));
 			assert_eq!(amount, post_free_balance - prev_free_balance);
 		}
+	}
+
+	#[test]
+	pub fn community_contribution_remainder_contribution_and_bid_funding_assets_are_paid_automatically_to_issuer() {
+		let test_env = TestEnvironment::new();
+		let project = default_project(test_env.get_new_nonce());
+		let issuer = ISSUER;
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = default_remainder_buys();
+
+		let finished_project = FinishedProject::new_with(
+			&test_env,
+			project,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions,
+			remainder_contributions,
+		);
+		let project_id = finished_project.get_project_id();
+
+		let final_bid_payouts = test_env.in_ext(|| {
+			Bids::<TestRuntime>::iter_prefix_values((finished_project.project_id,))
+				.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
+				.map(|bid| (bid.bidder, bid.funding_asset_amount_locked, bid.funding_asset.to_statemint_id()))
+				.collect::<UserToStatemintAsset>()
+		});
+		let final_contribution_payouts = test_env.in_ext(|| {
+			Contributions::<TestRuntime>::iter_prefix_values((finished_project.project_id,))
+				.map(|contribution| {
+					(
+						contribution.contributor,
+						contribution.funding_asset_amount,
+						contribution.funding_asset.to_statemint_id(),
+					)
+				})
+				.collect::<UserToStatemintAsset>()
+		});
+
+		let total_expected_bid_payout =
+			final_bid_payouts.iter().map(|bid| bid.1.clone()).sum::<BalanceOf<TestRuntime>>();
+		let total_expected_contribution_payout = final_contribution_payouts
+			.iter()
+			.map(|contribution| contribution.1.clone())
+			.sum::<BalanceOf<TestRuntime>>();
+
+		let prev_issuer_funding_balance =
+			test_env.get_free_statemint_asset_balances_for(final_bid_payouts[0].2, vec![issuer.clone()])[0].1;
+
+		let prev_project_pot_funding_balance = test_env.get_free_statemint_asset_balances_for(
+			final_bid_payouts[0].2,
+			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
+		)[0]
+		.1;
+
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
+		assert_eq!(
+			finished_project.get_project_details().cleanup,
+			Cleaner::Success(CleanerState::Finished(PhantomData))
+		);
+
+		let post_issuer_funding_balance =
+			test_env.get_free_statemint_asset_balances_for(final_bid_payouts[0].2, vec![issuer.clone()])[0].1;
+
+		let post_project_pot_funding_balance = test_env.get_free_statemint_asset_balances_for(
+			final_bid_payouts[0].2,
+			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
+		)[0]
+		.1;
+
+		let issuer_funding_delta = post_issuer_funding_balance - prev_issuer_funding_balance;
+		let project_pot_funding_delta = prev_project_pot_funding_balance - post_project_pot_funding_balance;
+
+		assert_eq!(issuer_funding_delta - total_expected_bid_payout, total_expected_contribution_payout);
+		assert_eq!(issuer_funding_delta, project_pot_funding_delta);
+
+		assert_eq!(post_project_pot_funding_balance, 0u128);
+	}
+
+	#[test]
+	pub fn remainder_contribution_and_bid_funding_assets_are_paid_automatically_to_issuer() {
+		let test_env = TestEnvironment::new();
+		let project = default_project(test_env.get_new_nonce());
+		let issuer = ISSUER;
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = vec![];
+		let remainder_contributions = default_remainder_buys();
+
+		let finished_project = FinishedProject::new_with(
+			&test_env,
+			project,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions,
+			remainder_contributions,
+		);
+		let project_id = finished_project.get_project_id();
+
+		let final_bid_payouts = test_env.in_ext(|| {
+			Bids::<TestRuntime>::iter_prefix_values((finished_project.project_id,))
+				.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
+				.map(|bid| (bid.bidder, bid.funding_asset_amount_locked, bid.funding_asset.to_statemint_id()))
+				.collect::<UserToStatemintAsset>()
+		});
+		let final_contribution_payouts = test_env.in_ext(|| {
+			Contributions::<TestRuntime>::iter_prefix_values((finished_project.project_id,))
+				.map(|contribution| {
+					(
+						contribution.contributor,
+						contribution.funding_asset_amount,
+						contribution.funding_asset.to_statemint_id(),
+					)
+				})
+				.collect::<UserToStatemintAsset>()
+		});
+
+		let total_expected_bid_payout =
+			final_bid_payouts.iter().map(|bid| bid.1.clone()).sum::<BalanceOf<TestRuntime>>();
+		let total_expected_contribution_payout = final_contribution_payouts
+			.iter()
+			.map(|contribution| contribution.1.clone())
+			.sum::<BalanceOf<TestRuntime>>();
+
+		let prev_issuer_funding_balance =
+			test_env.get_free_statemint_asset_balances_for(final_bid_payouts[0].2, vec![issuer.clone()])[0].1;
+
+		let prev_project_pot_funding_balance = test_env.get_free_statemint_asset_balances_for(
+			final_bid_payouts[0].2,
+			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
+		)[0]
+		.1;
+
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
+		assert_eq!(
+			finished_project.get_project_details().cleanup,
+			Cleaner::Success(CleanerState::Finished(PhantomData))
+		);
+
+		let post_issuer_funding_balance =
+			test_env.get_free_statemint_asset_balances_for(final_bid_payouts[0].2, vec![issuer.clone()])[0].1;
+
+		let post_project_pot_funding_balance = test_env.get_free_statemint_asset_balances_for(
+			final_bid_payouts[0].2,
+			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
+		)[0]
+		.1;
+
+		let issuer_funding_delta = post_issuer_funding_balance - prev_issuer_funding_balance;
+		let project_pot_funding_delta = prev_project_pot_funding_balance - post_project_pot_funding_balance;
+
+		assert_eq!(issuer_funding_delta - total_expected_bid_payout, total_expected_contribution_payout);
+		assert_eq!(issuer_funding_delta, project_pot_funding_delta);
+
+		assert_eq!(post_project_pot_funding_balance, 0u128);
+	}
+
+	#[test]
+	pub fn remainder_contribution_community_contribution_and_bid_funding_assets_are_paid_manually_to_issuer() {
+		let test_env = TestEnvironment::new();
+		let project = default_project(test_env.get_new_nonce());
+		let issuer = ISSUER;
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = default_remainder_buys();
+
+		let finished_project = FinishedProject::new_with(
+			&test_env,
+			project,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions,
+			remainder_contributions,
+		);
+		let project_id = finished_project.get_project_id();
+
+		let final_winning_bids = test_env.in_ext(|| {
+			Bids::<TestRuntime>::iter_prefix_values((finished_project.project_id,))
+				.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
+				.collect::<Vec<_>>()
+		});
+		let final_bid_payouts = test_env.in_ext(|| {
+			Bids::<TestRuntime>::iter_prefix_values((finished_project.project_id,))
+				.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
+				.map(|bid| (bid.bidder, bid.funding_asset_amount_locked, bid.funding_asset.to_statemint_id()))
+				.collect::<UserToStatemintAsset>()
+		});
+		let final_contributions = test_env.in_ext(|| {
+			Contributions::<TestRuntime>::iter_prefix_values((finished_project.project_id,)).collect::<Vec<_>>()
+		});
+		let final_contribution_payouts = test_env.in_ext(|| {
+			Contributions::<TestRuntime>::iter_prefix_values((finished_project.project_id,))
+				.map(|contribution| {
+					(
+						contribution.contributor,
+						contribution.funding_asset_amount,
+						contribution.funding_asset.to_statemint_id(),
+					)
+				})
+				.collect::<UserToStatemintAsset>()
+		});
+
+		let total_expected_bid_payout =
+			final_bid_payouts.iter().map(|bid| bid.1.clone()).sum::<BalanceOf<TestRuntime>>();
+		let total_expected_contribution_payout = final_contribution_payouts
+			.iter()
+			.map(|contribution| contribution.1.clone())
+			.sum::<BalanceOf<TestRuntime>>();
+
+		let prev_issuer_funding_balance =
+			test_env.get_free_statemint_asset_balances_for(final_bid_payouts[0].2, vec![issuer.clone()])[0].1;
+
+		let prev_project_pot_funding_balance = test_env.get_free_statemint_asset_balances_for(
+			final_bid_payouts[0].2,
+			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
+		)[0]
+			.1;
+
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+		assert_eq!(
+			finished_project.get_project_details().cleanup,
+			Cleaner::Success(CleanerState::Initialized(PhantomData))
+		);
+		for bid in final_winning_bids {
+			test_env
+				.in_ext(|| {
+					Pallet::<TestRuntime>::payout_bid_funds_for(
+						RuntimeOrigin::signed(issuer),
+						project_id,
+						bid.bidder,
+						bid.id,
+					)
+				})
+				.unwrap();
+		}
+		for contribution in final_contributions {
+			test_env
+				.in_ext(|| {
+					Pallet::<TestRuntime>::payout_contribution_funds_for(
+						RuntimeOrigin::signed(issuer),
+						project_id,
+						contribution.contributor,
+						contribution.id,
+					)
+				})
+				.unwrap();
+		}
+		let post_issuer_funding_balance =
+			test_env.get_free_statemint_asset_balances_for(final_bid_payouts[0].2, vec![issuer.clone()])[0].1;
+
+		let post_project_pot_funding_balance = test_env.get_free_statemint_asset_balances_for(
+			final_bid_payouts[0].2,
+			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
+		)[0]
+			.1;
+		let issuer_funding_delta = post_issuer_funding_balance - prev_issuer_funding_balance;
+		let project_pot_funding_delta = prev_project_pot_funding_balance - post_project_pot_funding_balance;
+
+		assert_eq!(issuer_funding_delta - total_expected_bid_payout, total_expected_contribution_payout);
+		assert_eq!(issuer_funding_delta, project_pot_funding_delta);
+
+		assert_eq!(post_project_pot_funding_balance, 0u128);
+	}
+
+	#[test]
+	pub fn remainder_contribution_and_bid_funding_assets_are_paid_manually_to_issuer() {
+		let test_env = TestEnvironment::new();
+		let project = default_project(test_env.get_new_nonce());
+		let issuer = ISSUER;
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = vec![];
+		let remainder_contributions = default_remainder_buys();
+
+		let finished_project = FinishedProject::new_with(
+			&test_env,
+			project,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions,
+			remainder_contributions,
+		);
+		let project_id = finished_project.get_project_id();
+
+		let final_winning_bids = test_env.in_ext(|| {
+			Bids::<TestRuntime>::iter_prefix_values((finished_project.project_id,))
+				.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
+				.collect::<Vec<_>>()
+		});
+		let final_bid_payouts = test_env.in_ext(|| {
+			Bids::<TestRuntime>::iter_prefix_values((finished_project.project_id,))
+				.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
+				.map(|bid| (bid.bidder, bid.funding_asset_amount_locked, bid.funding_asset.to_statemint_id()))
+				.collect::<UserToStatemintAsset>()
+		});
+		let final_contributions = test_env.in_ext(|| {
+			Contributions::<TestRuntime>::iter_prefix_values((finished_project.project_id,)).collect::<Vec<_>>()
+		});
+		let final_contribution_payouts = test_env.in_ext(|| {
+			Contributions::<TestRuntime>::iter_prefix_values((finished_project.project_id,))
+				.map(|contribution| {
+					(
+						contribution.contributor,
+						contribution.funding_asset_amount,
+						contribution.funding_asset.to_statemint_id(),
+					)
+				})
+				.collect::<UserToStatemintAsset>()
+		});
+
+		let total_expected_bid_payout =
+			final_bid_payouts.iter().map(|bid| bid.1.clone()).sum::<BalanceOf<TestRuntime>>();
+		let total_expected_contribution_payout = final_contribution_payouts
+			.iter()
+			.map(|contribution| contribution.1.clone())
+			.sum::<BalanceOf<TestRuntime>>();
+
+		let prev_issuer_funding_balance =
+			test_env.get_free_statemint_asset_balances_for(final_bid_payouts[0].2, vec![issuer.clone()])[0].1;
+
+		let prev_project_pot_funding_balance = test_env.get_free_statemint_asset_balances_for(
+			final_bid_payouts[0].2,
+			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
+		)[0]
+			.1;
+
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+		assert_eq!(
+			finished_project.get_project_details().cleanup,
+			Cleaner::Success(CleanerState::Initialized(PhantomData))
+		);
+		for bid in final_winning_bids {
+			test_env
+				.in_ext(|| {
+					Pallet::<TestRuntime>::payout_bid_funds_for(
+						RuntimeOrigin::signed(issuer),
+						project_id,
+						bid.bidder,
+						bid.id,
+					)
+				})
+				.unwrap();
+		}
+		for contribution in final_contributions {
+			test_env
+				.in_ext(|| {
+					Pallet::<TestRuntime>::payout_contribution_funds_for(
+						RuntimeOrigin::signed(issuer),
+						project_id,
+						contribution.contributor,
+						contribution.id,
+					)
+				})
+				.unwrap();
+		}
+		let post_issuer_funding_balance =
+			test_env.get_free_statemint_asset_balances_for(final_bid_payouts[0].2, vec![issuer.clone()])[0].1;
+
+		let post_project_pot_funding_balance = test_env.get_free_statemint_asset_balances_for(
+			final_bid_payouts[0].2,
+			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
+		)[0]
+			.1;
+
+		let issuer_funding_delta = post_issuer_funding_balance - prev_issuer_funding_balance;
+		let project_pot_funding_delta = prev_project_pot_funding_balance - post_project_pot_funding_balance;
+
+		assert_eq!(issuer_funding_delta - total_expected_bid_payout, total_expected_contribution_payout);
+		assert_eq!(issuer_funding_delta, project_pot_funding_delta);
+
+		assert_eq!(post_project_pot_funding_balance, 0u128);
 	}
 }
 
