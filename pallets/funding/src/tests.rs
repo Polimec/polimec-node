@@ -3022,7 +3022,6 @@ mod auction_round_success {
 		assert_eq!(issuer_funding_delta, total_expected_bid_payout);
 		assert_eq!(issuer_funding_delta, project_pot_funding_delta);
 
-
 		assert_eq!(prev_total_bidder_balance, 0u128);
 		assert_eq!(post_total_bidder_balance, 0u128);
 		assert_eq!(post_project_pot_funding_balance, 0u128);
