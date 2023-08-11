@@ -5664,7 +5664,7 @@ mod remainder_round_success {
 			final_bid_payouts[0].2,
 			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
 		)[0]
-			.1;
+		.1;
 
 		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		assert_eq!(
@@ -5702,7 +5702,7 @@ mod remainder_round_success {
 			final_bid_payouts[0].2,
 			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
 		)[0]
-			.1;
+		.1;
 		let issuer_funding_delta = post_issuer_funding_balance - prev_issuer_funding_balance;
 		let project_pot_funding_delta = prev_project_pot_funding_balance - post_project_pot_funding_balance;
 
@@ -5773,7 +5773,7 @@ mod remainder_round_success {
 			final_bid_payouts[0].2,
 			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
 		)[0]
-			.1;
+		.1;
 
 		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		assert_eq!(
@@ -5811,7 +5811,7 @@ mod remainder_round_success {
 			final_bid_payouts[0].2,
 			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
 		)[0]
-			.1;
+		.1;
 
 		let issuer_funding_delta = post_issuer_funding_balance - prev_issuer_funding_balance;
 		let project_pot_funding_delta = prev_project_pot_funding_balance - post_project_pot_funding_balance;
