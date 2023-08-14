@@ -600,7 +600,7 @@ fn issuer_funding_payout_one_bid<T: Config>(project_id: T::ProjectIdentifier) ->
 
 	let mut remaining_bids = project_bids.filter(|bid| !bid.funds_released);
 
-	if let Some(mut bid) = remaining_bids.next() {
+	if let Some(bid) = remaining_bids.next() {
 		match Pallet::<T>::do_payout_bid_funds_for(
 			T::PalletId::get().into_account_truncating(),
 			bid.project_id,
@@ -615,14 +615,7 @@ fn issuer_funding_payout_one_bid<T: Config>(project_id: T::ProjectIdentifier) ->
 				error: e,
 			}),
 		};
-
-		bid.funds_released = true;
-
-		Bids::<T>::insert((project_id, bid.bidder.clone(), bid.id), bid);
-
-		// (Weight::zero(), remaining_bids.count() as u64)
-		// TODO: Remove this when function is implemented
-		(Weight::zero(), 0u64)
+		(Weight::zero(), remaining_bids.count() as u64)
 	} else {
 		(Weight::zero(), 0u64)
 	}
