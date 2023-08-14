@@ -1647,11 +1647,11 @@ impl<T: Config> Pallet<T> {
 	/// calculate the amount and vesting periods of bonded PLMC and reward CT tokens.
 	pub fn calculate_vesting_info(
 		_caller: AccountIdOf<T>,
-		_multiplier: MultiplierOf<T>,
+		multiplier: MultiplierOf<T>,
 		bonded_amount: BalanceOf<T>,
 	) -> Result<VestingInfo<T::BlockNumber, BalanceOf<T>>, DispatchError> {
 		// TODO: duration should depend on `_multiplier` and `_caller` credential
-		let duration: u32 = 1u32 * parachains_common::DAYS;
+		let duration: T::BlockNumber = multiplier.calculate_vesting_duration();
 		let amount_per_block = bonded_amount.checked_div(&duration.into()).ok_or(Error::<T>::BadMath)?;
 
 		Ok(VestingInfo {
