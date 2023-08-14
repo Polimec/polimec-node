@@ -42,6 +42,7 @@ use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::{DispatchError, Either};
 use sp_std::marker::PhantomData;
 use std::{cell::RefCell, iter::zip};
+use std::collections::HashMap;
 
 type ProjectIdOf<T> = <T as Config>::ProjectIdentifier;
 type UserToPLMCBalance = Vec<(AccountId, BalanceOf<TestRuntime>)>;
@@ -67,6 +68,10 @@ impl TestBid {
 	) -> Self {
 		Self { bidder, amount, price, multiplier, asset }
 	}
+
+	fn from(bidder: AccountId, amount: BalanceOf<TestRuntime>, price: PriceOf<TestRuntime>) -> Self {
+		Self { bidder, amount, price, multiplier: None, asset: AcceptedFundingAsset::USDT }
+	}
 }
 pub type TestBids = Vec<TestBid>;
 
@@ -85,6 +90,10 @@ impl TestContribution {
 		asset: AcceptedFundingAsset,
 	) -> Self {
 		Self { contributor, amount, multiplier, asset }
+	}
+
+	fn from(contributor: AccountId, amount: BalanceOf<TestRuntime>) -> Self {
+		Self { contributor, amount, multiplier: None, asset: AcceptedFundingAsset::USDT }
 	}
 }
 pub type TestContributions = Vec<TestContribution>;
@@ -1021,6 +1030,7 @@ impl<'a> RemainderFundingProject<'a> {
 		let plmc_evaluation_deposits = calculate_evaluation_plmc_spent(evaluations.clone());
 		let plmc_bid_deposits = calculate_auction_plmc_spent_after_price_calculation(bids.clone(), ct_price);
 		let plmc_contribution_deposits = calculate_contributed_plmc_spent(contributions.clone(), ct_price);
+		println!("plmc_contribution_deposits {:?}", plmc_contribution_deposits);
 
 		let necessary_plmc_mint =
 			merge_subtract_mappings_by_user(plmc_contribution_deposits.clone(), vec![plmc_evaluation_deposits]);
@@ -1221,6 +1231,27 @@ mod defaults {
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 			funding_thresholds: Default::default(),
 			conversion_rate: 0,
+			participation_currencies: AcceptedFundingAsset::USDT,
+			funding_destination_account: ISSUER,
+			offchain_information_hash: Some(metadata_hash),
+		}
+	}
+
+	pub fn excel_project(nonce: u64) -> ProjectMetadataOf<TestRuntime> {
+		let bounded_name = BoundedVec::try_from("Polimec".as_bytes().to_vec()).unwrap();
+		let bounded_symbol = BoundedVec::try_from("PLMC".as_bytes().to_vec()).unwrap();
+		let metadata_hash = hashed(format!("{}-{}", METADATA, nonce));
+		ProjectMetadata {
+			token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: 10 },
+			mainnet_token_max_supply: 1_000_000_0_000_000_000, // Made up, not in the Sheet.
+			// Total Allocation of Contribution Tokens Available for the Funding Round
+			total_allocation_size: 100_000_0_000_000_000,
+			// Minimum Price per Contribution Token (in USDT)
+			minimum_price: PriceOf::<TestRuntime>::from(10),
+			ticket_size: TicketSize { minimum: Some(1), maximum: None },
+			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+			funding_thresholds: Default::default(),
+			conversion_rate: 1,
 			participation_currencies: AcceptedFundingAsset::USDT,
 			funding_destination_account: ISSUER,
 			offchain_information_hash: Some(metadata_hash),
@@ -4958,6 +4989,7 @@ mod misc_features {
 }
 
 mod testing_macros {
+
 	macro_rules! assert_close_enough {
 		($real:expr, $desired:expr, $max_approximation:expr) => {
 			let real_parts = Perquintill::from_rational($real, $desired);
@@ -5018,4 +5050,293 @@ mod testing_macros {
 		};
 	}
 	pub(crate) use extract_from_event;
+
+	macro_rules! define_names {
+		($($name:ident: $id:expr, $label:expr);* $(;)?) => {
+			$(
+				pub const $name: AccountId = $id;
+			)*
+	
+			pub fn names() -> HashMap<AccountId, &'static str> {
+				let mut names = HashMap::new();
+				$(
+					names.insert($name, $label);
+				)*
+				names
+			}
+		};
+	}
+	pub(crate) use define_names;
+}
+
+mod e2e_testing {
+
+	use itertools::Itertools;
+
+	use super::{*, testing_macros::define_names};
+
+	define_names! {
+		// In order to auto-incriment the ids, we have to use unsafe Rust.
+		LINA: 101, "Lina";
+		MIA: 102, "Mia";
+		ALEXEY: 103, "Alexey";
+		PAUL: 104, "Paul";
+		MARIA: 105, "Maria";
+		GEORGE: 106, "George";
+		CLARA: 107, "Clara";
+		RAMONA: 108, "Ramona";
+		PASCAL: 109, "Pascal";
+		EMMA: 110, "Emma";
+		BIBI: 111, "Bibi";
+		AHMED: 112, "Ahmed";
+		HERBERT: 113, "Herbert";
+		LENI: 114, "Leni";
+		XI: 115, "Xi";
+		TOM: 116, "Tom";
+		ADAMS: 117, "Adams";
+		POLK: 118, "Polk";
+		MARKUS: 119, "Markus";
+		ELLA: 120, "Ella";
+		SKR: 121, "Skr";
+		ARTHUR: 122, "Arthur";
+		MILA: 123, "Mila";
+		LINCOLN: 124, "Lincoln";
+		MONROE: 125, "Monroe";
+		ARBRESHA: 126, "Arbresha";
+		ELDIN: 127, "Eldin";
+		HARDING: 128, "Harding";
+		SOFIA: 129, "Sofia";
+		DOMINIK: 130, "Dominik";
+		NOLAND: 131, "Noland";
+		HANNAH: 132, "Hannah";
+		HOOVER: 133, "Hoover";
+		GIGI: 134, "Gigi";
+		JEFFERSON: 135, "Jefferson";
+		LINDI: 136, "Lindi";
+		KEVIN: 137, "Kevin";
+		ANIS: 138, "Anis";
+		RETO: 139, "Reto";
+		HAALAND: 140, "Haaland";
+		XENIA: 141, "Xenia";
+		EVA: 142, "Eva";
+		SKARA: 143, "Skara";
+		ROOSEVELT: 144, "Roosevelt";
+		DRACULA: 145, "Dracula";
+		DURIM: 146, "Durim";
+		HARRISON: 147, "Harrison";
+		DRIN: 148, "Drin";
+		PARI: 149, "Pari";
+		TUTI: 150, "Tuti";
+		BENITO: 151, "Benito";
+		VANESSA: 152, "Vanessa";
+		ENES: 153, "Enes";
+		RUDOLF: 154, "Rudolf";
+		CERTO: 155, "Certo";
+		TIESTO: 156, "Tiesto";
+		DAVID: 157, "David";
+		ATAKAN: 158, "Atakan";
+		YANN: 159, "Yann";
+		ENIS: 160, "Enis";
+		ALFREDO: 161, "Alfredo";
+		QENDRIM: 162, "Qendrim";
+		LEONARDO: 163, "Leonardo";
+		KEN: 164, "Ken";
+		LUCA: 165, "Luca";
+		FLAVIO: 167, "Flavio";
+		FREDI: 168, "Fredi";
+		ALI: 169, "Ali";
+		DILARA: 170, "Dilara";
+		DAMIAN: 171, "Damian";
+		KAYA: 172, "Kaya";
+		IAZI: 173, "Iazi";
+		CHRIGI: 174, "Chrigi";
+		VALENTINA: 175, "Valentina";
+		ALMA: 176, "Alma";
+		ALENA: 177, "Alena";
+		PATRICK: 178, "Patrick";
+		ONTARIO: 179, "Ontario";
+		RAKIA: 180, "Rakia";
+		HUBERT: 181, "Hubert";
+		UTUS: 182, "Utus";
+		TOME: 183, "Tome";
+		ZUBER: 184, "Zuber";
+		ADAM: 185, "Adam";
+		STANI: 186, "Stani";
+		BETI: 187, "Beti";
+		HALIT: 188, "Halit";
+		DRAGAN: 189, "Dragan";
+		LEA: 190, "Lea";
+		LUIS: 191, "Luis";
+		TATI: 192, "Tati";
+		WEST: 193, "West";
+		MIRIJAM: 194, "Mirijam";
+		LIONEL: 195, "Lionel";
+		GIOVANNI: 196, "Giovanni";
+	}
+	
+
+	fn excel_evaluators() -> UserToUSDBalance {
+		vec![
+			(LINA, 93754 * US_DOLLAR),
+			(MIA, 162 * US_DOLLAR),
+			(ALEXEY, 7454 * US_DOLLAR),
+			(PAUL, 8192 * US_DOLLAR),
+			(MARIA, 11131 * US_DOLLAR),
+			(GEORGE, 4765 * US_DOLLAR),
+			(CLARA, 4363 * US_DOLLAR),
+			(RAMONA, 4120 * US_DOLLAR),
+			(PASCAL, 1626 * US_DOLLAR),
+			(EMMA, 3996 * US_DOLLAR),
+			(BIBI, 3441 * US_DOLLAR),
+			(AHMED, 8048 * US_DOLLAR),
+			(HERBERT, 2538 * US_DOLLAR),
+			(LENI, 5803 * US_DOLLAR),
+			(XI, 1669 * US_DOLLAR),
+			(TOM, 6526 * US_DOLLAR),
+		]
+	}
+
+	fn excel_bidders() -> TestBids {
+		vec![
+			TestBid::from(ADAMS, 692, (17 * US_DOLLAR).into()),
+			TestBid::from(POLK, 236, (19 * US_DOLLAR).into()),
+			TestBid::from(MARKUS, 24, (19 * US_DOLLAR).into()),
+			TestBid::from(ELLA, 688, (13 * US_DOLLAR).into()),
+			TestBid::from(SKR, 33, (15 * US_DOLLAR).into()),
+			TestBid::from(ARTHUR, 1148, (12 * US_DOLLAR).into()),
+			TestBid::from(MILA, 35, (15 * US_DOLLAR).into()),
+			TestBid::from(LINCOLN, 840, (14 * US_DOLLAR).into()),
+			TestBid::from(MONROE, 132, (18 * US_DOLLAR).into()),
+			TestBid::from(ARBRESHA, 21, (19 * US_DOLLAR).into()),
+			TestBid::from(ELDIN, 59, (18 * US_DOLLAR).into()),
+			TestBid::from(HARDING, 89, (18 * US_DOLLAR).into()),
+			TestBid::from(SOFIA, 332, (19 * US_DOLLAR).into()),
+			TestBid::from(DOMINIK, 8110, (17 * US_DOLLAR).into()),
+			TestBid::from(NOLAND, 17, (17 * US_DOLLAR).into()),
+			TestBid::from(LINA, 9424, (20 * US_DOLLAR).into()),
+			TestBid::from(HANNAH, 14, (20 * US_DOLLAR).into()),
+			TestBid::from(HOOVER, 4906, (16 * US_DOLLAR).into()),
+			TestBid::from(GIGI, 68, (10 * US_DOLLAR).into()),
+			TestBid::from(JEFFERSON, 9037, (13 * US_DOLLAR).into()),
+			TestBid::from(LINDI, 442, (11 * US_DOLLAR).into()),
+			TestBid::from(KEVIN, 40, (19 * US_DOLLAR).into()),
+			TestBid::from(ANIS, 68, (15 * US_DOLLAR).into()),
+			TestBid::from(RETO, 68, (12 * US_DOLLAR).into()),
+			TestBid::from(HAALAND, 98, (11 * US_DOLLAR).into()),
+			TestBid::from(XENIA, 17, (12 * US_DOLLAR).into()),
+			TestBid::from(EVA, 422, (19 * US_DOLLAR).into()),
+			TestBid::from(SKARA, 615, (18 * US_DOLLAR).into()),
+			TestBid::from(ROOSEVELT, 65, (16 * US_DOLLAR).into()),
+			TestBid::from(DRACULA, 5863, (16 * US_DOLLAR).into()),
+			TestBid::from(DURIM, 56, (13 * US_DOLLAR).into()),
+			TestBid::from(HARRISON, 36, (10 * US_DOLLAR).into()),
+		]
+	}
+
+	pub fn excel_contributors() -> TestContributions {
+		vec![
+			TestContribution::from(DRIN, 692 * US_DOLLAR),
+			TestContribution::from(PARI, 236 * US_DOLLAR),
+			TestContribution::from(TUTI, 24 * US_DOLLAR),
+			TestContribution::from(BENITO, 688 * US_DOLLAR),
+			TestContribution::from(VANESSA, 33 * US_DOLLAR),
+			TestContribution::from(ENES, 1148 * US_DOLLAR),
+			TestContribution::from(RUDOLF, 35 * US_DOLLAR),
+			TestContribution::from(CERTO, 840 * US_DOLLAR),
+			TestContribution::from(TIESTO, 132 * US_DOLLAR),
+			TestContribution::from(DAVID, 21 * US_DOLLAR),
+			TestContribution::from(ATAKAN, 59 * US_DOLLAR),
+			TestContribution::from(YANN, 89 * US_DOLLAR),
+			TestContribution::from(ENIS, 332 * US_DOLLAR),
+			TestContribution::from(ALFREDO, 8110 * US_DOLLAR),
+			TestContribution::from(QENDRIM, 394 * US_DOLLAR),
+			TestContribution::from(LEONARDO, 840 * US_DOLLAR),
+			TestContribution::from(KEN, 352 * US_DOLLAR),
+			TestContribution::from(LUCA, 640 * US_DOLLAR),
+			TestContribution::from(XI, 588 * US_DOLLAR),
+			TestContribution::from(FLAVIO, 792 * US_DOLLAR),
+			TestContribution::from(FREDI, 993 * US_DOLLAR),
+			TestContribution::from(ALI, 794 * US_DOLLAR),
+			TestContribution::from(DILARA, 256 * US_DOLLAR),
+			TestContribution::from(DAMIAN, 431 * US_DOLLAR),
+			TestContribution::from(KAYA, 935 * US_DOLLAR),
+			TestContribution::from(IAZI, 174 * US_DOLLAR),
+			TestContribution::from(CHRIGI, 877 * US_DOLLAR),
+			TestContribution::from(VALENTINA, 961 * US_DOLLAR),
+			TestContribution::from(ALMA, 394 * US_DOLLAR),
+			TestContribution::from(ALENA, 442 * US_DOLLAR),
+			TestContribution::from(PATRICK, 486 * US_DOLLAR),
+			TestContribution::from(ONTARIO, 17 * US_DOLLAR),
+			TestContribution::from(RAKIA, 9424 * US_DOLLAR),
+			TestContribution::from(HUBERT, 14 * US_DOLLAR),
+			TestContribution::from(UTUS, 4906 * US_DOLLAR),
+			TestContribution::from(TOME, 68 * US_DOLLAR),
+			TestContribution::from(ZUBER, 9037 * US_DOLLAR),
+			TestContribution::from(ADAM, 442 * US_DOLLAR),
+			TestContribution::from(STANI, 40 * US_DOLLAR),
+			TestContribution::from(BETI, 68 * US_DOLLAR),
+			TestContribution::from(HALIT, 68 * US_DOLLAR),
+			TestContribution::from(DRAGAN, 98 * US_DOLLAR),
+			TestContribution::from(LEA, 17 * US_DOLLAR),
+			TestContribution::from(LUIS, 422 * US_DOLLAR),
+			TestContribution::from(TATI, 228 * US_DOLLAR),
+			TestContribution::from(WEST, 695 * US_DOLLAR),
+			TestContribution::from(MIRIJAM, 498 * US_DOLLAR),
+			TestContribution::from(LIONEL, 864 * US_DOLLAR),
+			TestContribution::from(GIOVANNI, 306 * US_DOLLAR),
+		]
+	}
+	
+
+	#[test]
+	fn evaluation_round_completed() {
+		let test_env = TestEnvironment::new();
+		let issuer = ISSUER;
+		let project = excel_project(test_env.get_new_nonce());
+		let evaluations = excel_evaluators();
+
+		AuctioningProject::new_with(&test_env, project, issuer, evaluations);
+	}
+
+	#[test]
+	fn auction_round_completed() {
+		let test_env = TestEnvironment::new();
+		let issuer = ISSUER;
+		let project = excel_project(test_env.get_new_nonce());
+		let evaluations = excel_evaluators();
+		let bids = excel_bidders();
+		let community_funding_project =
+			CommunityFundingProject::new_with(&test_env, project, issuer, evaluations, bids);
+		let wavgp_from_excel = 16.6977664556;
+		// Convert the float to a FixedU128 and multiply by PLMC to get a number with 10 decimals.
+		let wavgp_to_substrate = FixedU128::from_float(wavgp_from_excel).mul(PLMC.into());
+		let wavgp_from_chain = community_funding_project.get_project_details().weighted_average_price.unwrap();
+		let res = wavgp_from_chain - wavgp_to_substrate;
+		// From the 11th decimal onwards, the difference should be less than 0.5.
+		assert!(res < FixedU128::from_float(0.5));
+		// let names = names();
+
+		test_env.in_ext(|| {
+			let bids = Bids::<TestRuntime>::iter_prefix_values((0,)).sorted_by_key(|bid| bid.bidder).collect_vec();
+
+			// for bid in bids.clone() {
+			// 	println!("{}: {}", names[&bid.bidder], bid.funding_asset_amount_locked)
+			// }
+			let toal_participation = bids.into_iter().fold(0, |acc, bid| acc + bid.funding_asset_amount_locked);
+			println!("Total participation: {}", toal_participation);
+		})
+	}
+
+	#[test]
+	fn community_round_completed(){
+		let test_env = TestEnvironment::new();
+		let _community_funding_project = RemainderFundingProject::new_with(
+			&test_env,
+			excel_project(0),
+			ISSUER,
+			excel_evaluators(),
+			excel_bidders(),
+			excel_contributors(),
+		);
+	}
 }
