@@ -231,7 +231,7 @@ pub type ProjectMetadataOf<T> =
 pub type ProjectDetailsOf<T> =
 	ProjectDetails<AccountIdOf<T>, BlockNumberOf<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>;
 pub type EvaluationRoundInfoOf<T> = EvaluationRoundInfo<BalanceOf<T>>;
-pub type VestingOf<T> = Vesting<BlockNumberOf<T>, BalanceOf<T>>;
+pub type VestingInfoOf<T> = VestingInfo<BlockNumberOf<T>, BalanceOf<T>>;
 pub type EvaluationInfoOf<T> =
 	EvaluationInfo<StorageItemIdOf<T>, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, BlockNumberOf<T>>;
 pub type BidInfoOf<T> = BidInfo<
@@ -241,12 +241,17 @@ pub type BidInfoOf<T> = BidInfo<
 	PriceOf<T>,
 	AccountIdOf<T>,
 	BlockNumberOf<T>,
-	VestingOf<T>,
-	VestingOf<T>,
 	MultiplierOf<T>,
+	VestingInfoOf<T>,
 >;
-pub type ContributionInfoOf<T> =
-	ContributionInfo<StorageItemIdOf<T>, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, VestingOf<T>, VestingOf<T>>;
+pub type ContributionInfoOf<T> = ContributionInfo<
+	StorageItemIdOf<T>,
+	ProjectIdOf<T>,
+	AccountIdOf<T>,
+	BalanceOf<T>,
+	MultiplierOf<T>,
+	VestingInfoOf<T>,
+>;
 pub type BondTypeOf<T> = LockType<ProjectIdOf<T>>;
 
 const PLMC_STATEMINT_ID: u32 = 2069;
@@ -377,7 +382,12 @@ pub mod pallet {
 
 		type EvaluationSuccessThreshold: Get<Percent>;
 
-		type Vesting: polimec_traits::ReleaseSchedule<AccountIdOf<Self>, BondTypeOf<Self>>;
+		type Vesting: polimec_traits::ReleaseSchedule<
+			AccountIdOf<Self>,
+			BondTypeOf<Self>,
+			Currency = Self::NativeCurrency,
+			Moment = BlockNumberOf<Self>,
+		>;
 		/// For now we expect 3 days until the project is automatically accepted. Timeline decided by MiCA regulations.
 		type ManualAcceptanceDuration: Get<Self::BlockNumber>;
 		/// For now we expect 4 days from acceptance to settlement due to MiCA regulations.
@@ -615,6 +625,52 @@ pub mod pallet {
 			claimer: AccountIdOf<T>,
 			id: StorageItemIdOf<T>,
 			error: DispatchError,
+		},
+		StartBidderVestingScheduleFailed {
+			project_id: ProjectIdOf<T>,
+			bidder: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			error: DispatchError,
+		},
+		StartContributionVestingScheduleFailed {
+			project_id: ProjectIdOf<T>,
+			contributor: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			error: DispatchError,
+		},
+		BidPlmcVestingScheduled {
+			project_id: ProjectIdOf<T>,
+			bidder: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			amount: BalanceOf<T>,
+			caller: AccountIdOf<T>,
+		},
+		ContributionPlmcVestingScheduled {
+			project_id: ProjectIdOf<T>,
+			contributor: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			amount: BalanceOf<T>,
+			caller: AccountIdOf<T>,
+		},
+		ParticipantPlmcVested {
+			project_id: ProjectIdOf<T>,
+			participant: AccountIdOf<T>,
+			amount: BalanceOf<T>,
+			caller: AccountIdOf<T>,
+		},
+		BidFundingPaidOut {
+			project_id: ProjectIdOf<T>,
+			bidder: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			amount: BalanceOf<T>,
+			caller: AccountIdOf<T>,
+		},
+		ContributionFundingPaidOut {
+			project_id: ProjectIdOf<T>,
+			contributor: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			amount: BalanceOf<T>,
+			caller: AccountIdOf<T>,
 		},
 	}
 
@@ -858,25 +914,48 @@ pub mod pallet {
 			Self::do_contribution_ct_mint_for(caller, project_id, contributor, contribution_id)
 		}
 
-		/// Unbond some plmc from a contribution, after a step in the vesting period has passed.
-		pub fn vested_plmc_bid_unbond_for(
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn start_bid_vesting_schedule_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
 			bidder: AccountIdOf<T>,
+			bid_id: T::StorageItemId,
 		) -> DispatchResult {
-			let releaser = ensure_signed(origin)?;
-
-			Self::do_vested_plmc_bid_unbond_for(releaser, project_id, bidder)
+			let caller = ensure_signed(origin)?;
+			Self::do_start_bid_vesting_schedule_for(caller, project_id, bidder, bid_id)
 		}
 
-		/// Unbond some plmc from a contribution, after a step in the vesting period has passed.
-		pub fn vested_plmc_purchase_unbond_for(
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn start_contribution_vesting_schedule_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
-			purchaser: AccountIdOf<T>,
+			contributor: AccountIdOf<T>,
+			contribution_id: T::StorageItemId,
 		) -> DispatchResult {
-			let releaser = ensure_signed(origin)?;
-			Self::do_vested_plmc_purchase_unbond_for(releaser, project_id, purchaser)
+			let caller = ensure_signed(origin)?;
+			Self::do_start_contribution_vesting_schedule_for(caller, project_id, contributor, contribution_id)
+		}
+
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn payout_bid_funds_for(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+			bidder: AccountIdOf<T>,
+			bid_id: T::StorageItemId,
+		) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			Self::do_payout_bid_funds_for(caller, project_id, bidder, bid_id)
+		}
+
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn payout_contribution_funds_for(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+			contributor: AccountIdOf<T>,
+			contribution_id: T::StorageItemId,
+		) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			Self::do_payout_contribution_funds_for(caller, project_id, contributor, contribution_id)
 		}
 	}
 

@@ -28,6 +28,7 @@ sp-std.workspace = true
 sp-runtime.workspace = true
 sp-arithmetic.workspace = true
 polimec-traits.workspace = true
+parachains-common.workspace = true
 
 [dev-dependencies]
 sp-core.workspace = true
@@ -50,6 +51,7 @@ std = [
     "frame-system/std",
     "pallet-assets/std",
     "pallet-balances/std",
+    "parachains-common/std",
     "polimec-traits/std",
     "pallet-linear-release/std",
     "frame-benchmarking?/std",

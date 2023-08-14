@@ -66,7 +66,7 @@ parameter_types! {
 	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
 	pub UniversalLocation: InteriorMultiLocation = (
 		GlobalConsensus(Polkadot),
- 		Parachain(ParachainInfo::parachain_id().into()),
+		 Parachain(ParachainInfo::parachain_id().into()),
 	).into();
 	pub const HereLocation: MultiLocation = MultiLocation::here();
 

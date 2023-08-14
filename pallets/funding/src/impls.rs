@@ -50,36 +50,39 @@ impl DoRemainingOperation for CleanerState<Success> {
 				},
 			CleanerState::EvaluationUnbonding(remaining, PhantomData) =>
 				if *remaining == 0 {
-					*self =
-						CleanerState::BidPLMCVesting(remaining_bids_without_plmc_vesting::<T>(project_id), PhantomData);
+					*self = CleanerState::StartBidderVestingSchedule(
+						remaining_successful_bids::<T>(project_id),
+						PhantomData,
+					);
 					Ok(Weight::zero())
 				} else {
 					let (consumed_weight, remaining_evaluations) = unbond_one_evaluation::<T>(project_id);
 					*self = CleanerState::EvaluationUnbonding(remaining_evaluations, PhantomData);
 					Ok(consumed_weight)
 				},
-			CleanerState::BidPLMCVesting(remaining, PhantomData) =>
+			CleanerState::StartBidderVestingSchedule(remaining, PhantomData) =>
 				if *remaining == 0 {
-					*self = CleanerState::BidCTMint(remaining_bids_without_ct_minted::<T>(project_id), PhantomData);
-					Ok(Weight::zero())
-				} else {
-					let (consumed_weight, remaining_bids) = start_bid_plmc_vesting_schedule::<T>(project_id);
-					*self = CleanerState::BidPLMCVesting(remaining_bids, PhantomData);
-					Ok(consumed_weight)
-				},
-			CleanerState::BidCTMint(remaining, PhantomData) =>
-				if *remaining == 0 {
-					*self = CleanerState::ContributionPLMCVesting(
-						remaining_contributions_without_plmc_vesting::<T>(project_id),
+					*self = CleanerState::StartContributorVestingSchedule(
+						remaining_contributions::<T>(project_id),
 						PhantomData,
 					);
 					Ok(Weight::zero())
 				} else {
-					let (consumed_weight, remaining_bids) = mint_ct_for_one_bid::<T>(project_id);
-					*self = CleanerState::BidCTMint(remaining_bids, PhantomData);
+					let (consumed_weight, remaining_evaluations) = start_one_bid_vesting_schedule::<T>(project_id);
+					*self = CleanerState::StartBidderVestingSchedule(remaining_evaluations, PhantomData);
 					Ok(consumed_weight)
 				},
-			CleanerState::ContributionPLMCVesting(remaining, PhantomData) =>
+			CleanerState::StartContributorVestingSchedule(remaining, PhantomData) =>
+				if *remaining == 0 {
+					*self = CleanerState::BidCTMint(remaining_bids_without_ct_minted::<T>(project_id), PhantomData);
+					Ok(Weight::zero())
+				} else {
+					let (consumed_weight, remaining_evaluations) =
+						start_one_contribution_vesting_schedule::<T>(project_id);
+					*self = CleanerState::StartContributorVestingSchedule(remaining_evaluations, PhantomData);
+					Ok(consumed_weight)
+				},
+			CleanerState::BidCTMint(remaining, PhantomData) =>
 				if *remaining == 0 {
 					*self = CleanerState::ContributionCTMint(
 						remaining_contributions_without_ct_minted::<T>(project_id),
@@ -87,9 +90,8 @@ impl DoRemainingOperation for CleanerState<Success> {
 					);
 					Ok(Weight::zero())
 				} else {
-					let (consumed_weight, remaining_contributions) =
-						start_contribution_plmc_vesting_schedule::<T>(project_id);
-					*self = CleanerState::ContributionPLMCVesting(remaining_contributions, PhantomData);
+					let (consumed_weight, remaining_bids) = mint_ct_for_one_bid::<T>(project_id);
+					*self = CleanerState::BidCTMint(remaining_bids, PhantomData);
 					Ok(consumed_weight)
 				},
 			CleanerState::ContributionCTMint(remaining, PhantomData) =>
@@ -255,6 +257,12 @@ fn remaining_bids<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
 	Bids::<T>::iter_prefix_values((project_id,)).count() as u64
 }
 
+fn remaining_successful_bids<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
+	Bids::<T>::iter_prefix_values((project_id,))
+		.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
+		.count() as u64
+}
+
 fn remaining_contributions_to_release_funds<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
 	Contributions::<T>::iter_prefix_values((project_id,)).filter(|contribution| !contribution.funds_released).count()
 		as u64
@@ -264,21 +272,9 @@ fn remaining_contributions<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
 	Contributions::<T>::iter_prefix_values((project_id,)).count() as u64
 }
 
-fn remaining_bids_without_plmc_vesting<T: Config>(_project_id: T::ProjectIdentifier) -> u64 {
-	// TODO: current vesting implementation starts the schedule on bid creation. We should later on use pallet_vesting
-	// 	and add a check in the bid struct for initializing the vesting schedule
-	0u64
-}
-
 fn remaining_bids_without_ct_minted<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	project_bids.filter(|bid| !bid.ct_minted).count() as u64
-}
-
-fn remaining_contributions_without_plmc_vesting<T: Config>(_project_id: T::ProjectIdentifier) -> u64 {
-	// TODO: current vesting implementation starts the schedule on contribution creation. We should later on use pallet_vesting
-	// 	and add a check in the contribution struct for initializing the vesting schedule
-	0u64
 }
 
 fn remaining_contributions_without_ct_minted<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
@@ -489,14 +485,64 @@ fn unbond_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weig
 	}
 }
 
-fn start_bid_plmc_vesting_schedule<T: Config>(_project_id: T::ProjectIdentifier) -> (Weight, u64) {
-	// TODO: change when new vesting schedule is implemented
-	(Weight::zero(), 0u64)
+fn start_one_bid_vesting_schedule<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
+	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
+	let mut unscheduled_bids = project_bids.filter(|bid| {
+		matches!(bid.plmc_vesting_info, None) &&
+			matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..))
+	});
+
+	if let Some(bid) = unscheduled_bids.next() {
+		match Pallet::<T>::do_start_bid_vesting_schedule_for(
+			T::PalletId::get().into_account_truncating(),
+			project_id,
+			bid.bidder.clone(),
+			bid.id,
+		) {
+			Ok(_) => {},
+			Err(e) => {
+				Pallet::<T>::deposit_event(Event::StartBidderVestingScheduleFailed {
+					project_id: bid.project_id,
+					bidder: bid.bidder.clone(),
+					id: bid.id,
+					error: e,
+				});
+			},
+		}
+
+		(Weight::zero(), unscheduled_bids.count() as u64)
+	} else {
+		(Weight::zero(), 0u64)
+	}
 }
 
-fn start_contribution_plmc_vesting_schedule<T: Config>(_project_id: T::ProjectIdentifier) -> (Weight, u64) {
-	// TODO: change when new vesting schedule is implemented
-	(Weight::zero(), 0u64)
+fn start_one_contribution_vesting_schedule<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
+	let project_bids = Contributions::<T>::iter_prefix_values((project_id,));
+	let mut unscheduled_contributions =
+		project_bids.filter(|contribution| matches!(contribution.plmc_vesting_info, None));
+
+	if let Some(contribution) = unscheduled_contributions.next() {
+		match Pallet::<T>::do_start_contribution_vesting_schedule_for(
+			T::PalletId::get().into_account_truncating(),
+			project_id,
+			contribution.contributor.clone(),
+			contribution.id,
+		) {
+			Ok(_) => {},
+			Err(e) => {
+				Pallet::<T>::deposit_event(Event::StartContributionVestingScheduleFailed {
+					project_id: contribution.project_id,
+					contributor: contribution.contributor.clone(),
+					id: contribution.id,
+					error: e,
+				});
+			},
+		}
+
+		(Weight::zero(), unscheduled_contributions.count() as u64)
+	} else {
+		(Weight::zero(), 0u64)
+	}
 }
 
 fn mint_ct_for_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
@@ -554,7 +600,7 @@ fn issuer_funding_payout_one_bid<T: Config>(project_id: T::ProjectIdentifier) ->
 
 	let mut remaining_bids = project_bids.filter(|bid| !bid.funds_released);
 
-	if let Some(mut bid) = remaining_bids.next() {
+	if let Some(bid) = remaining_bids.next() {
 		match Pallet::<T>::do_payout_bid_funds_for(
 			T::PalletId::get().into_account_truncating(),
 			bid.project_id,
@@ -569,14 +615,7 @@ fn issuer_funding_payout_one_bid<T: Config>(project_id: T::ProjectIdentifier) ->
 				error: e,
 			}),
 		};
-
-		bid.funds_released = true;
-
-		Bids::<T>::insert((project_id, bid.bidder.clone(), bid.id), bid);
-
-		// (Weight::zero(), remaining_bids.count() as u64)
-		// TODO: Remove this when function is implemented
-		(Weight::zero(), 0u64)
+		(Weight::zero(), remaining_bids.count() as u64)
 	} else {
 		(Weight::zero(), 0u64)
 	}
@@ -587,7 +626,7 @@ fn issuer_funding_payout_one_contribution<T: Config>(project_id: T::ProjectIdent
 
 	let mut remaining_contributions = project_contributions.filter(|contribution| !contribution.funds_released);
 
-	if let Some(mut contribution) = remaining_contributions.next() {
+	if let Some(contribution) = remaining_contributions.next() {
 		match Pallet::<T>::do_payout_contribution_funds_for(
 			T::PalletId::get().into_account_truncating(),
 			contribution.project_id,
@@ -603,13 +642,7 @@ fn issuer_funding_payout_one_contribution<T: Config>(project_id: T::ProjectIdent
 			}),
 		};
 
-		contribution.funds_released = true;
-
-		Contributions::<T>::insert((project_id, contribution.contributor.clone(), contribution.id), contribution);
-
-		// (Weight::zero(), remaining_contributions.count() as u64)
-		// TODO: remove this when function is implemented
-		(Weight::zero(), 0u64)
+		(Weight::zero(), remaining_contributions.count() as u64)
 	} else {
 		(Weight::zero(), 0u64)
 	}
