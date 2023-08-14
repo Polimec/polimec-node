@@ -1473,38 +1473,156 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_release_bid_funds_for(
-		_caller: AccountIdOf<T>,
-		_project_id: T::ProjectIdentifier,
-		_bidder: AccountIdOf<T>,
-		_bid_id: StorageItemIdOf<T>,
+		caller: AccountIdOf<T>,
+		project_id: T::ProjectIdentifier,
+		bidder: AccountIdOf<T>,
+		bid_id: StorageItemIdOf<T>,
 	) -> Result<(), DispatchError> {
+		// * Get variables *
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let mut bid = Bids::<T>::get((project_id, bidder.clone(), bid_id)).ok_or(Error::<T>::BidNotFound)?;
+
+		// * Validity checks *
+		ensure!(
+			project_details.status == ProjectStatus::FundingFailed &&
+				matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)),
+			Error::<T>::NotAllowed
+		);
+
+		// * Calculate variables *
+		let project_pot = Self::fund_account_id(project_id);
+		let payout_amount = bid.funding_asset_amount_locked;
+		let payout_asset = bid.funding_asset;
+
+		// * Update storage *
+		T::FundingCurrency::transfer(
+			payout_asset.to_statemint_id(),
+			&project_pot,
+			&bidder,
+			payout_amount,
+			Preservation::Expendable,
+		)?;
+		bid.funds_released = true;
+		Bids::<T>::insert((project_id, bidder.clone(), bid_id), bid);
+
+		// * Emit events *
+		Self::deposit_event(Event::<T>::BidFundingReleased {
+			project_id,
+			bidder: bidder.clone(),
+			id: bid_id,
+			amount: payout_amount,
+			caller,
+		});
+
 		Ok(())
 	}
 
 	pub fn do_bid_unbond_for(
-		_caller: AccountIdOf<T>,
-		_project_id: T::ProjectIdentifier,
-		_bidder: AccountIdOf<T>,
-		_bid_id: StorageItemIdOf<T>,
+		caller: AccountIdOf<T>,
+		project_id: T::ProjectIdentifier,
+		bidder: AccountIdOf<T>,
+		bid_id: StorageItemIdOf<T>,
 	) -> Result<(), DispatchError> {
+		// * Get variables *
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let bid = Bids::<T>::get((project_id, bidder.clone(), bid_id)).ok_or(Error::<T>::EvaluationNotFound)?;
+
+		// * Validity checks *
+		ensure!(
+			project_details.status == ProjectStatus::FundingFailed &&
+				matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)) &&
+				bid.funds_released,
+			Error::<T>::NotAllowed
+		);
+
+		// * Update Storage *
+		T::NativeCurrency::release(&LockType::Participation(project_id), &bidder, bid.plmc_bond, Precision::Exact)?;
+		Bids::<T>::remove((project_id, bidder.clone(), bid_id));
+
+		// * Emit events *
+		Self::deposit_event(Event::<T>::BondReleased {
+			project_id,
+			amount: bid.plmc_bond,
+			bonder: bidder,
+			releaser: caller,
+		});
+
 		Ok(())
 	}
 
 	pub fn do_release_contribution_funds_for(
-		_caller: AccountIdOf<T>,
-		_project_id: T::ProjectIdentifier,
-		_contributor: AccountIdOf<T>,
-		_contribution_id: StorageItemIdOf<T>,
+		caller: AccountIdOf<T>,
+		project_id: T::ProjectIdentifier,
+		contributor: AccountIdOf<T>,
+		contribution_id: StorageItemIdOf<T>,
 	) -> Result<(), DispatchError> {
+		// * Get variables *
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let mut contribution = Contributions::<T>::get((project_id, contributor.clone(), contribution_id))
+			.ok_or(Error::<T>::ContributionNotFound)?;
+
+		// * Validity checks *
+		ensure!(project_details.status == ProjectStatus::FundingFailed, Error::<T>::NotAllowed);
+
+		// * Calculate variables *
+		let project_pot = Self::fund_account_id(project_id);
+		let payout_amount = contribution.funding_asset_amount;
+		let payout_asset = contribution.funding_asset;
+
+		// * Update storage *
+		T::FundingCurrency::transfer(
+			payout_asset.to_statemint_id(),
+			&project_pot,
+			&contributor,
+			payout_amount,
+			Preservation::Expendable,
+		)?;
+		contribution.funds_released = true;
+		Contributions::<T>::insert((project_id, contributor.clone(), contribution_id), contribution);
+
+		// * Emit events *
+		Self::deposit_event(Event::<T>::ContributionFundingReleased {
+			project_id,
+			contributor: contributor.clone(),
+			id: contribution_id,
+			amount: payout_amount,
+			caller,
+		});
+
 		Ok(())
 	}
 
 	pub fn do_contribution_unbond_for(
-		_caller: AccountIdOf<T>,
-		_project_id: T::ProjectIdentifier,
-		_contributor: AccountIdOf<T>,
-		_contribution_id: StorageItemIdOf<T>,
+		caller: AccountIdOf<T>,
+		project_id: T::ProjectIdentifier,
+		contributor: AccountIdOf<T>,
+		contribution_id: StorageItemIdOf<T>,
 	) -> Result<(), DispatchError> {
+		// * Get variables *
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let bid = Contributions::<T>::get((project_id, contributor.clone(), contribution_id))
+			.ok_or(Error::<T>::EvaluationNotFound)?;
+
+		// * Validity checks *
+		ensure!(project_details.status == ProjectStatus::FundingFailed, Error::<T>::NotAllowed);
+
+		// * Update Storage *
+		T::NativeCurrency::release(
+			&LockType::Participation(project_id),
+			&contributor,
+			bid.plmc_bond,
+			Precision::Exact,
+		)?;
+		Contributions::<T>::remove((project_id, contributor.clone(), contribution_id));
+
+		// * Emit events *
+		Self::deposit_event(Event::<T>::BondReleased {
+			project_id,
+			amount: bid.plmc_bond,
+			bonder: contributor,
+			releaser: caller,
+		});
+
 		Ok(())
 	}
 

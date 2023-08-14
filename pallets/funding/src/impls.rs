@@ -371,7 +371,7 @@ fn release_funds_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	let mut remaining_bids = project_bids.filter(|bid| !bid.funds_released);
 
-	if let Some(mut bid) = remaining_bids.next() {
+	if let Some(bid) = remaining_bids.next() {
 		match Pallet::<T>::do_release_bid_funds_for(
 			T::PalletId::get().into_account_truncating(),
 			bid.project_id,
@@ -387,12 +387,7 @@ fn release_funds_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight
 			}),
 		};
 
-		bid.funds_released = true;
-		Bids::<T>::insert((project_id, bid.bidder.clone(), bid.id), bid);
-
-		// (Weight::zero(), remaining_bids.count() as u64)
-		// TODO: delete this when function is implemented
-		(Weight::zero(), 0u64)
+		(Weight::zero(), remaining_bids.count() as u64)
 	} else {
 		(Weight::zero(), 0u64)
 	}
@@ -417,9 +412,7 @@ fn unbond_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) 
 				error: e,
 			}),
 		};
-		// (Weight::zero(), remaining_bids.count() as u64)
-		// TODO: Remove this below when function is implemented
-		(Weight::zero(), 0u64)
+		(Weight::zero(), remaining_bids.count() as u64)
 	} else {
 		(Weight::zero(), 0u64)
 	}
@@ -429,7 +422,7 @@ fn release_funds_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -
 	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
 	let mut remaining_contributions = project_contributions.filter(|contribution| !contribution.funds_released);
 
-	if let Some(mut contribution) = remaining_contributions.next() {
+	if let Some(contribution) = remaining_contributions.next() {
 		match Pallet::<T>::do_release_contribution_funds_for(
 			T::PalletId::get().into_account_truncating(),
 			contribution.project_id,
@@ -445,12 +438,7 @@ fn release_funds_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -
 			}),
 		};
 
-		contribution.funds_released = true;
-
-		Contributions::<T>::insert((project_id, contribution.contributor.clone(), contribution.id), contribution);
-		// (Weight::zero(), remaining_contributions.count() as u64)
-		// TODO: Remove this when function is implemented
-		(Weight::zero(), 0u64)
+		(Weight::zero(), remaining_contributions.count() as u64)
 	} else {
 		(Weight::zero(), 0u64)
 	}
@@ -477,9 +465,7 @@ fn unbond_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weig
 				error: e,
 			}),
 		};
-		// (Weight::zero(), (project_contributions.len() as u64).saturating_sub(One::one()))
-		// TODO: Remove this when function is implemented
-		(Weight::zero(), 0u64)
+		(Weight::zero(), remaining_contributions.count() as u64)
 	} else {
 		(Weight::zero(), 0u64)
 	}

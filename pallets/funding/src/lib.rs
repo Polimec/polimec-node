@@ -278,7 +278,12 @@ pub mod pallet {
 		// TODO: PLMC-153 + MaybeSerializeDeserialize: Maybe needed for JSON serialization @ Genesis: https://github.com/paritytech/substrate/issues/12738#issuecomment-1320921201
 
 		/// Multiplier that decides how much PLMC needs to be bonded for a token buy/bid
-		type Multiplier: Parameter + BondingRequirementCalculation + VestingDurationCalculation + Default + Copy;
+		type Multiplier: Parameter
+			+ BondingRequirementCalculation
+			+ VestingDurationCalculation
+			+ Default
+			+ Copy
+			+ TryFrom<u8>;
 
 		/// The inner balance type we will use for all of our outer currency types. (e.g native, funding, CTs)
 		type Balance: Balance + From<u64> + FixedPointOperand;
@@ -677,6 +682,20 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 			caller: AccountIdOf<T>,
 		},
+		BidFundingReleased {
+			project_id: ProjectIdOf<T>,
+			bidder: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			amount: BalanceOf<T>,
+			caller: AccountIdOf<T>,
+		},
+		ContributionFundingReleased {
+			project_id: ProjectIdOf<T>,
+			contributor: AccountIdOf<T>,
+			id: StorageItemIdOf<T>,
+			amount: BalanceOf<T>,
+			caller: AccountIdOf<T>,
+		},
 	}
 
 	#[pallet::error]
@@ -798,6 +817,7 @@ pub mod pallet {
 		FinalizerFinished,
 		/// Tried to do an operation on a cleaner that is not ready
 		CleanerNotReady,
+		ContributionNotFound,
 	}
 
 	#[pallet::call]
@@ -887,6 +907,17 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn evaluation_slash_for(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+			evaluator: AccountIdOf<T>,
+			bond_id: T::StorageItemId,
+		) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			Self::do_evaluation_slash_for(caller, project_id, evaluator, bond_id)
+		}
+
+		#[pallet::weight(Weight::from_parts(0, 0))]
 		pub fn evaluation_reward_payout_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -961,6 +992,60 @@ pub mod pallet {
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
 			Self::do_payout_contribution_funds_for(caller, project_id, contributor, contribution_id)
+		}
+
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn decide_project_outcome(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+			outcome: FundingOutcomeDecision,
+		) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			Self::do_decide_project_outcome(caller, project_id, outcome)
+		}
+
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn release_bid_funds_for(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+			bidder: AccountIdOf<T>,
+			bid_id: T::StorageItemId,
+		) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			Self::do_release_bid_funds_for(caller, project_id, bidder, bid_id)
+		}
+
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn bid_unbond_for(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+			bidder: AccountIdOf<T>,
+			bid_id: T::StorageItemId,
+		) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			Self::do_bid_unbond_for(caller, project_id, bidder, bid_id)
+		}
+
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn release_contribution_funds_for(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+			contributor: AccountIdOf<T>,
+			contribution_id: T::StorageItemId,
+		) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			Self::do_release_contribution_funds_for(caller, project_id, contributor, contribution_id)
+		}
+
+		#[pallet::weight(Weight::from_parts(0, 0))]
+		pub fn contribution_unbond_for(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+			contributor: AccountIdOf<T>,
+			contribution_id: T::StorageItemId,
+		) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			Self::do_contribution_unbond_for(caller, project_id, contributor, contribution_id)
 		}
 	}
 
