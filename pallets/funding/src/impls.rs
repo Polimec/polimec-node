@@ -1,7 +1,8 @@
-use crate::{traits::DoRemainingOperation, *};
 use frame_support::{traits::Get, weights::Weight};
 use sp_runtime::{traits::AccountIdConversion, DispatchError};
-use sp_std::{marker::PhantomData, prelude::*};
+use sp_std::marker::PhantomData;
+
+use crate::{traits::DoRemainingOperation, *};
 
 impl Cleaner {
 	pub fn has_remaining_operations(&self) -> bool {

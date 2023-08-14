@@ -272,7 +272,6 @@ impl pallet_funding::Config for TestRuntime {
 	type Randomness = RandomnessCollectiveFlip;
 	type RemainderFundingDuration = RemainderFundingDuration;
 	type RuntimeEvent = RuntimeEvent;
-	type StorageItemId = u32;
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type TreasuryAccount = TreasuryAccount;
