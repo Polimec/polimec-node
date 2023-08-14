@@ -36,16 +36,21 @@ pub use parachains_common::{
 	Header, Index, Signature, AVERAGE_ON_INITIALIZE_RATIO, DAYS, HOURS, MAXIMUM_BLOCK_WEIGHT, MINUTES,
 	NORMAL_DISPATCH_RATIO, SLOT_DURATION,
 };
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 
 // Polkadot imports
 use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
+use scale_info::TypeInfo;
 use sp_api::impl_runtime_apis;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_core::{
+	crypto::{AccountId32, KeyTypeId},
+	OpaqueMetadata,
+};
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, OpaqueKeys},
+	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, BlockNumberProvider, ConvertInto, OpaqueKeys},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult,
 };
@@ -75,6 +80,15 @@ pub type NegativeImbalanceOf<T> =
 
 /// The address format for describing accounts.
 pub type Address = MultiAddress<AccountId, ()>;
+
+// #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, MaxEncodedLen, TypeInfo, Debug)]
+// #[cfg_attr(feature = "std", derive(Hash))]
+// pub struct AccountId(pub [u8; 32]);
+// impl From<AccountId32> for AccountId {
+// 	fn from(account_id: AccountId32) -> Self {
+// 		Self(account_id)
+// 	}
+// }
 
 /// Block type as expected by this runtime.
 pub type Block = generic::Block<Header, UncheckedExtrinsic>;
@@ -484,10 +498,10 @@ parameter_types! {
 	pub TreasuryAccount: AccountId = [69u8; 32].into();
 }
 impl pallet_funding::Config for Runtime {
+	#[cfg(feature = "runtime-benchmarks")]
+	type AllPalletsWithoutSystem = (Balances, LocalAssets, StatemintAssets, PolimecFunding, Vesting, Random,);
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
 	type BlockNumberToBalance = ConvertInto;
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityFundingDuration = CommunityFundingDuration;

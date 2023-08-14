@@ -29,11 +29,13 @@ sp-runtime.workspace = true
 sp-arithmetic.workspace = true
 polimec-traits.workspace = true
 parachains-common.workspace = true
+sp-core.workspace = true
+pallet-balances.workspace = true
+sp-io.workspace = true
+pallet-timestamp.workspace = true
+
 
 [dev-dependencies]
-sp-core.workspace = true
-sp-io.workspace = true
-pallet-balances.workspace = true
 pallet-insecure-randomness-collective-flip.workspace = true
 pallet-assets.workspace = true
 pallet-linear-release.workspace = true
@@ -69,6 +71,7 @@ runtime-benchmarks = [
 	"pallet-balances/runtime-benchmarks",
 	"polimec-traits/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
+    "itertools/use_alloc",
 ]
 try-runtime = [
 	"frame-support/try-runtime",

@@ -18,13 +18,9 @@
 
 //! Test environment for Funding pallet.
 
-use super::*;
-use crate as pallet_funding;
-use sp_std::collections::btree_map::BTreeMap;
-
 use frame_support::{
 	parameter_types,
-	traits::{AsEnsureOriginWithArg, ConstU16, ConstU32},
+	traits::{AsEnsureOriginWithArg, ConstU16, ConstU32, WithdrawReasons},
 	PalletId,
 };
 use frame_system as system;
@@ -36,7 +32,14 @@ use sp_runtime::{
 	traits::{BlakeTwo256, ConvertInto, IdentityLookup},
 	BuildStorage,
 };
+use sp_std::collections::btree_map::BTreeMap;
 use system::EnsureSigned;
+
+use crate as pallet_funding;
+use crate::instantiator::BoxToFunction;
+
+use super::*;
+
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<TestRuntime>;
 type Block = frame_system::mocking::MockBlock<TestRuntime>;
 
@@ -219,8 +222,6 @@ parameter_types! {
 
 }
 
-use frame_support::traits::WithdrawReasons;
-
 parameter_types! {
 	pub const MinVestedTransfer: u64 = 256 * 2;
 	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
@@ -239,11 +240,11 @@ impl pallet_linear_release::Config for TestRuntime {
 	const MAX_VESTING_SCHEDULES: u32 = 3;
 }
 
-impl pallet_funding::Config for TestRuntime {
+impl Config for TestRuntime {
+	#[cfg(feature = "runtime-benchmarks")]
+	type AllPalletsWithoutSystem = AllPalletsWithoutSystem;
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
 	type BlockNumberToBalance = ConvertInto;
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityFundingDuration = CommunityRoundDuration;

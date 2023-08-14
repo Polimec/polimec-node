@@ -1,19 +1,19 @@
-// // Polimec Blockchain – https://www.polimec.org/
-// // Copyright (C) Polimec 2022. All rights reserved.
-
-// // The Polimec Blockchain is free software: you can redistribute it and/or modify
-// // it under the terms of the GNU General Public License as published by
-// // the Free Software Foundation, either version 3 of the License, or
-// // (at your option) any later version.
-
-// // The Polimec Blockchain is distributed in the hope that it will be useful,
-// // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// // GNU General Public License for more details.
-
-// // You should have received a copy of the GNU General Public License
-// // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
+// // // Polimec Blockchain – https://www.polimec.org/
+// // // Copyright (C) Polimec 2022. All rights reserved.
+//
+// // // The Polimec Blockchain is free software: you can redistribute it and/or modify
+// // // it under the terms of the GNU General Public License as published by
+// // // the Free Software Foundation, either version 3 of the License, or
+// // // (at your option) any later version.
+//
+// // // The Polimec Blockchain is distributed in the hope that it will be useful,
+// // // but WITHOUT ANY WARRANTY; without even the implied warranty of
+// // // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// // // GNU General Public License for more details.
+//
+// // // You should have received a copy of the GNU General Public License
+// // // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
 // use sp_std::collections::btree_map::BTreeMap;
 // use frame_support::{
 // 	parameter_types,
@@ -30,10 +30,10 @@
 // 	BuildStorage,
 // };
 // use system::EnsureSigned;
-
+//
 // type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<TestRuntime>;
 // type Block = frame_system::mocking::MockBlock<TestRuntime>;
-
+//
 // pub type AccountId = u64;
 // pub type Balance = u128;
 // pub type BlockNumber = u64;
@@ -41,7 +41,7 @@
 // pub type AssetId = u32;
 // pub const PLMC: u128 = 10_000_000_000_u128;
 // const US_DOLLAR: u128 = 1_0_000_000_000u128;
-
+//
 // // Configure a mock runtime to test the pallet.
 // frame_support::construct_runtime!(
 // 	pub enum TestRuntime where
@@ -57,13 +57,13 @@
 // 		Sandbox: crate,
 // 	}
 // );
-
+//
 // impl crate::Config for TestRuntime {}
-
+//
 // parameter_types! {
 // 	pub const BlockHashCount: u32 = 250;
 // }
-
+//
 // impl system::Config for TestRuntime {
 // 	type AccountData = pallet_balances::AccountData<Balance>;
 // 	type AccountId = AccountId;
@@ -90,11 +90,11 @@
 // 	type SystemWeightInfo = ();
 // 	type Version = ();
 // }
-
+//
 // parameter_types! {
 // 	pub static ExistentialDeposit: Balance = 1;
 // }
-
+//
 // impl pallet_balances::Config for TestRuntime {
 // 	type AccountStore = System;
 // 	type Balance = Balance;
@@ -110,9 +110,9 @@
 // 	type RuntimeEvent = RuntimeEvent;
 // 	type WeightInfo = ();
 // }
-
+//
 // impl pallet_insecure_randomness_collective_flip::Config for TestRuntime {}
-
+//
 // impl pallet_assets::Config for TestRuntime {
 // 	type ApprovalDeposit = ConstU128<1>;
 // 	type AssetAccountDeposit = ConstU128<10>;
@@ -135,7 +135,7 @@
 // 	type StringLimit = ConstU32<50>;
 // 	type WeightInfo = ();
 // }
-
+//
 // // REMARK: In the production configuration we use DAYS instead of HOURS.
 // parameter_types! {
 // 	pub const EvaluationDuration: BlockNumber = (28 * HOURS) as BlockNumber;
@@ -160,7 +160,7 @@
 // 	];
 // 	pub EarlyEvaluationThreshold: Percent = Percent::from_percent(10);
 // }
-
+//
 // impl pallet_funding::Config for TestRuntime {
 // 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 // 	type Balance = Balance;
@@ -191,28 +191,27 @@
 // 	type Randomness = RandomnessCollectiveFlip;
 // 	type RemainderFundingDuration = RemainderFundingDuration;
 // 	type RuntimeEvent = RuntimeEvent;
-// 	type StorageItemId = u128;
 // 	type StringLimit = ConstU32<64>;
 // 	type SuccessToSettlementTime = SuccessToSettlementTime;
 // 	type Vesting = ();
 // 	type WeightInfo = ();
 // }
-
+//
 // // Build genesis storage according to the mock runtime.
 // #[allow(dead_code)]
 // pub fn new_test_ext() -> sp_io::TestExternalities {
 // 	let mut t = frame_system::GenesisConfig::default().build_storage::<TestRuntime>().unwrap();
-
+//
 // 	GenesisConfig { balances: BalancesConfig { balances: vec![] }, ..Default::default() }
 // 		.assimilate_storage(&mut t)
 // 		.unwrap();
-
+//
 // 	let mut ext = sp_io::TestExternalities::new(t);
 // 	// In order to emit events the block number must be more than 0
 // 	ext.execute_with(|| System::set_block_number(1));
 // 	ext
 // }
-
+//
 // pub fn hashed(data: impl AsRef<[u8]>) -> H256 {
 // 	<BlakeTwo256 as sp_runtime::traits::Hash>::hash(data.as_ref())
 // }

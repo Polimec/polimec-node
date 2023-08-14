@@ -603,6 +603,10 @@ impl<T: Config> Pallet<T> {
 		} else if funding_ratio < Perquintill::from_percent(90u64) {
 			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Unchanged;
 			project_details.status = ProjectStatus::AwaitingProjectDecision;
+			Self::add_to_update_store(
+				now + T::ManualAcceptanceDuration::get() + 1u32.into(),
+				(&project_id, UpdateType::ProjectDecision(FundingOutcomeDecision::AcceptFunding)),
+			);
 			ProjectsDetails::<T>::insert(project_id, project_details);
 			Ok(())
 		} else {
