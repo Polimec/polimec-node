@@ -18,10 +18,6 @@
 
 //! Functions for the Funding pallet.
 
-use super::*;
-use sp_std::marker::PhantomData;
-
-use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
@@ -33,13 +29,18 @@ use frame_support::{
 		Get,
 	},
 };
-
-use sp_arithmetic::Perquintill;
+use sp_arithmetic::{
+	traits::{CheckedDiv, CheckedSub, Zero},
+	Perquintill,
+};
+use sp_runtime::traits::Convert;
+use sp_std::marker::PhantomData;
 
 use polimec_traits::ReleaseSchedule;
-use sp_arithmetic::traits::{CheckedDiv, CheckedSub, Zero};
-use sp_runtime::traits::Convert;
-use sp_std::prelude::*;
+
+use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
+
+use super::*;
 
 // Round transition functions
 impl<T: Config> Pallet<T> {
@@ -769,7 +770,7 @@ impl<T: Config> Pallet<T> {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let evaluation_id = Self::next_evaluation_id();
-		let caller_existing_evaluations: Vec<(StorageItemIdOf<T>, EvaluationInfoOf<T>)> =
+		let caller_existing_evaluations: Vec<(u32, EvaluationInfoOf<T>)> =
 			Evaluations::<T>::iter_prefix((project_id, evaluator.clone())).collect();
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
 		let early_evaluation_reward_threshold_usd =
@@ -1132,7 +1133,7 @@ impl<T: Config> Pallet<T> {
 		releaser: AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		bidder: AccountIdOf<T>,
-		bid_id: T::StorageItemId,
+		bid_id: u32,
 	) -> DispatchResult {
 		// * Get variables *
 		let mut bid = Bids::<T>::get((project_id, bidder.clone(), bid_id)).ok_or(Error::<T>::BidNotFound)?;
@@ -1167,7 +1168,7 @@ impl<T: Config> Pallet<T> {
 		releaser: AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		contributor: AccountIdOf<T>,
-		contribution_id: T::StorageItemId,
+		contribution_id: u32,
 	) -> DispatchResult {
 		// * Get variables *
 		let mut contribution = Contributions::<T>::get((project_id, contributor.clone(), contribution_id))
@@ -1202,7 +1203,7 @@ impl<T: Config> Pallet<T> {
 		releaser: AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		evaluator: AccountIdOf<T>,
-		evaluation_id: T::StorageItemId,
+		evaluation_id: u32,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
@@ -1244,7 +1245,7 @@ impl<T: Config> Pallet<T> {
 		caller: AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		evaluator: AccountIdOf<T>,
-		evaluation_id: StorageItemIdOf<T>,
+		evaluation_id: u32,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
@@ -1301,7 +1302,7 @@ impl<T: Config> Pallet<T> {
 		caller: AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		evaluator: AccountIdOf<T>,
-		evaluation_id: StorageItemIdOf<T>,
+		evaluation_id: u32,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
@@ -1355,7 +1356,7 @@ impl<T: Config> Pallet<T> {
 		caller: AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		bidder: AccountIdOf<T>,
-		bid_id: StorageItemIdOf<T>,
+		bid_id: u32,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
@@ -1401,7 +1402,7 @@ impl<T: Config> Pallet<T> {
 		caller: AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		contributor: AccountIdOf<T>,
-		contribution_id: StorageItemIdOf<T>,
+		contribution_id: u32,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
@@ -1473,7 +1474,7 @@ impl<T: Config> Pallet<T> {
 		caller: AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		bidder: AccountIdOf<T>,
-		bid_id: StorageItemIdOf<T>,
+		bid_id: u32,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
@@ -1518,7 +1519,7 @@ impl<T: Config> Pallet<T> {
 		caller: AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		bidder: AccountIdOf<T>,
-		bid_id: StorageItemIdOf<T>,
+		bid_id: u32,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
@@ -1551,7 +1552,7 @@ impl<T: Config> Pallet<T> {
 		caller: AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		contributor: AccountIdOf<T>,
-		contribution_id: StorageItemIdOf<T>,
+		contribution_id: u32,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
@@ -1593,7 +1594,7 @@ impl<T: Config> Pallet<T> {
 		caller: AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		contributor: AccountIdOf<T>,
-		contribution_id: StorageItemIdOf<T>,
+		contribution_id: u32,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
@@ -1627,7 +1628,7 @@ impl<T: Config> Pallet<T> {
 		caller: AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		bidder: AccountIdOf<T>,
-		bid_id: StorageItemIdOf<T>,
+		bid_id: u32,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
@@ -1673,7 +1674,7 @@ impl<T: Config> Pallet<T> {
 		caller: AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		contributor: AccountIdOf<T>,
-		contribution_id: StorageItemIdOf<T>,
+		contribution_id: u32,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;

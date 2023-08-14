@@ -514,7 +514,6 @@ impl pallet_funding::Config for Runtime {
 	type Randomness = Random;
 	type RemainderFundingDuration = RemainderFundingDuration;
 	type RuntimeEvent = RuntimeEvent;
-	type StorageItemId = u128;
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type TreasuryAccount = TreasuryAccount;

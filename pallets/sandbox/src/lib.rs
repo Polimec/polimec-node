@@ -16,7 +16,7 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use funding::AcceptedFundingAsset;
-	use pallet_funding::{MultiplierOf};
+	use pallet_funding::MultiplierOf;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
