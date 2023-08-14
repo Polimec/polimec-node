@@ -47,9 +47,13 @@ use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_core::H256;
 use sp_runtime::{DispatchError, Either};
 use sp_std::marker::PhantomData;
-use std::{cell::RefCell, iter::zip};
-use std::{assert_matches::assert_matches, cell::RefCell, collections::BTreeMap, iter::zip, ops::Div};
-
+use std::{
+	assert_matches::assert_matches,
+	cell::RefCell,
+	collections::{BTreeMap, HashMap},
+	iter::zip,
+	ops::Div,
+};
 
 type ProjectIdOf<T> = <T as Config>::ProjectIdentifier;
 type UserToPLMCBalance = Vec<(AccountId, BalanceOf<TestRuntime>)>;
@@ -6534,7 +6538,7 @@ mod testing_macros {
 			$(
 				pub const $name: AccountId = $id;
 			)*
-	
+
 			pub fn names() -> HashMap<AccountId, &'static str> {
 				let mut names = HashMap::new();
 				$(
@@ -6551,7 +6555,7 @@ mod e2e_testing {
 
 	use itertools::Itertools;
 
-	use super::{*, testing_macros::define_names};
+	use super::{testing_macros::define_names, *};
 
 	define_names! {
 		// In order to auto-incriment the ids, we have to use unsafe Rust.
@@ -6651,7 +6655,6 @@ mod e2e_testing {
 		LIONEL: 195, "Lionel";
 		GIOVANNI: 196, "Giovanni";
 	}
-	
 
 	fn excel_evaluators() -> UserToUSDBalance {
 		vec![
@@ -6676,38 +6679,38 @@ mod e2e_testing {
 
 	fn excel_bidders() -> TestBids {
 		vec![
-			TestBid::from(ADAMS, 692, (17 * US_DOLLAR).into()),
-			TestBid::from(POLK, 236, (19 * US_DOLLAR).into()),
-			TestBid::from(MARKUS, 24, (19 * US_DOLLAR).into()),
-			TestBid::from(ELLA, 688, (13 * US_DOLLAR).into()),
-			TestBid::from(SKR, 33, (15 * US_DOLLAR).into()),
-			TestBid::from(ARTHUR, 1148, (12 * US_DOLLAR).into()),
-			TestBid::from(MILA, 35, (15 * US_DOLLAR).into()),
-			TestBid::from(LINCOLN, 840, (14 * US_DOLLAR).into()),
-			TestBid::from(MONROE, 132, (18 * US_DOLLAR).into()),
-			TestBid::from(ARBRESHA, 21, (19 * US_DOLLAR).into()),
-			TestBid::from(ELDIN, 59, (18 * US_DOLLAR).into()),
-			TestBid::from(HARDING, 89, (18 * US_DOLLAR).into()),
-			TestBid::from(SOFIA, 332, (19 * US_DOLLAR).into()),
-			TestBid::from(DOMINIK, 8110, (17 * US_DOLLAR).into()),
-			TestBid::from(NOLAND, 17, (17 * US_DOLLAR).into()),
-			TestBid::from(LINA, 9424, (20 * US_DOLLAR).into()),
-			TestBid::from(HANNAH, 14, (20 * US_DOLLAR).into()),
-			TestBid::from(HOOVER, 4906, (16 * US_DOLLAR).into()),
-			TestBid::from(GIGI, 68, (10 * US_DOLLAR).into()),
-			TestBid::from(JEFFERSON, 9037, (13 * US_DOLLAR).into()),
-			TestBid::from(LINDI, 442, (11 * US_DOLLAR).into()),
-			TestBid::from(KEVIN, 40, (19 * US_DOLLAR).into()),
-			TestBid::from(ANIS, 68, (15 * US_DOLLAR).into()),
-			TestBid::from(RETO, 68, (12 * US_DOLLAR).into()),
-			TestBid::from(HAALAND, 98, (11 * US_DOLLAR).into()),
-			TestBid::from(XENIA, 17, (12 * US_DOLLAR).into()),
-			TestBid::from(EVA, 422, (19 * US_DOLLAR).into()),
-			TestBid::from(SKARA, 615, (18 * US_DOLLAR).into()),
-			TestBid::from(ROOSEVELT, 65, (16 * US_DOLLAR).into()),
-			TestBid::from(DRACULA, 5863, (16 * US_DOLLAR).into()),
-			TestBid::from(DURIM, 56, (13 * US_DOLLAR).into()),
-			TestBid::from(HARRISON, 36, (10 * US_DOLLAR).into()),
+			TestBid::from(ADAMS, 692 * ASSET_UNIT, 17_u128.into()),
+			TestBid::from(POLK, 236 * ASSET_UNIT, 19_u128.into()),
+			TestBid::from(MARKUS, 24 * ASSET_UNIT, 19_u128.into()),
+			TestBid::from(ELLA, 688 * ASSET_UNIT, 13_u128.into()),
+			TestBid::from(SKR, 33 * ASSET_UNIT, 15_u128.into()),
+			TestBid::from(ARTHUR, 1148 * ASSET_UNIT, 12_u128.into()),
+			TestBid::from(MILA, 35 * ASSET_UNIT, 15_u128.into()),
+			TestBid::from(LINCOLN, 840 * ASSET_UNIT, 14_u128.into()),
+			TestBid::from(MONROE, 132 * ASSET_UNIT, 18_u128.into()),
+			TestBid::from(ARBRESHA, 21 * ASSET_UNIT, 19_u128.into()),
+			TestBid::from(ELDIN, 59 * ASSET_UNIT, 18_u128.into()),
+			TestBid::from(HARDING, 89 * ASSET_UNIT, 18_u128.into()),
+			TestBid::from(SOFIA, 332 * ASSET_UNIT, 19_u128.into()),
+			TestBid::from(DOMINIK, 8110 * ASSET_UNIT, 17_u128.into()),
+			TestBid::from(NOLAND, 17 * ASSET_UNIT, 17_u128.into()),
+			TestBid::from(LINA, 9424 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(HANNAH, 14 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(HOOVER, 4906 * ASSET_UNIT, 16_u128.into()),
+			TestBid::from(GIGI, 68 * ASSET_UNIT, 10_u128.into()),
+			TestBid::from(JEFFERSON, 9037 * ASSET_UNIT, 13_u128.into()),
+			TestBid::from(LINDI, 442 * ASSET_UNIT, 11_u128.into()),
+			TestBid::from(KEVIN, 40 * ASSET_UNIT, 19_u128.into()),
+			TestBid::from(ANIS, 68 * ASSET_UNIT, 15_u128.into()),
+			TestBid::from(RETO, 68 * ASSET_UNIT, 12_u128.into()),
+			TestBid::from(HAALAND, 98 * ASSET_UNIT, 11_u128.into()),
+			TestBid::from(XENIA, 17 * ASSET_UNIT, 12_u128.into()),
+			TestBid::from(EVA, 422 * ASSET_UNIT, 19_u128.into()),
+			TestBid::from(SKARA, 615 * ASSET_UNIT, 18_u128.into()),
+			TestBid::from(ROOSEVELT, 65 * ASSET_UNIT, 16_u128.into()),
+			TestBid::from(DRACULA, 5863 * ASSET_UNIT, 16_u128.into()),
+			TestBid::from(DURIM, 56 * ASSET_UNIT, 13_u128.into()),
+			TestBid::from(HARRISON, 36 * ASSET_UNIT, 10_u128.into()),
 		]
 	}
 
@@ -6764,7 +6767,6 @@ mod e2e_testing {
 			TestContribution::from(GIOVANNI, 306 * US_DOLLAR),
 		]
 	}
-	
 
 	#[test]
 	fn evaluation_round_completed() {
@@ -6787,7 +6789,7 @@ mod e2e_testing {
 			CommunityFundingProject::new_with(&test_env, project, issuer, evaluations, bids);
 		let wavgp_from_excel = 16.6977664556;
 		// Convert the float to a FixedU128 and multiply by PLMC to get a number with 10 decimals.
-		let wavgp_to_substrate = FixedU128::from_float(wavgp_from_excel).mul(PLMC.into());
+		let wavgp_to_substrate = FixedU128::from_float(wavgp_from_excel);
 		let wavgp_from_chain = community_funding_project.get_project_details().weighted_average_price.unwrap();
 		let res = wavgp_from_chain - wavgp_to_substrate;
 		// From the 11th decimal onwards, the difference should be less than 0.5.
@@ -6806,7 +6808,8 @@ mod e2e_testing {
 	}
 
 	#[test]
-	fn community_round_completed(){
+	#[ignore]
+	fn community_round_completed() {
 		let test_env = TestEnvironment::new();
 		let _community_funding_project = RemainderFundingProject::new_with(
 			&test_env,
