@@ -66,7 +66,7 @@ pub struct TestBid {
 	bidder: AccountId,
 	amount: BalanceOf<TestRuntime>,
 	price: PriceOf<TestRuntime>,
-	multiplier: Option<MultiplierOf<TestRuntime>>,
+	multiplier: MultiplierOf<TestRuntime>,
 	asset: AcceptedFundingAsset,
 }
 impl TestBid {
@@ -74,10 +74,10 @@ impl TestBid {
 		bidder: AccountId,
 		amount: BalanceOf<TestRuntime>,
 		price: PriceOf<TestRuntime>,
-		multiplier: Option<MultiplierOf<TestRuntime>>,
+		multiplier: u8,
 		asset: AcceptedFundingAsset,
 	) -> Self {
-		Self { bidder, amount, price, multiplier, asset }
+		Self { bidder, amount, price, multiplier: multiplier.try_into().unwrap(), asset }
 	}
 }
 pub type TestBids = Vec<TestBid>;
@@ -86,17 +86,17 @@ pub type TestBids = Vec<TestBid>;
 pub struct TestContribution {
 	contributor: AccountId,
 	amount: BalanceOf<TestRuntime>,
-	multiplier: Option<MultiplierOf<TestRuntime>>,
+	multiplier: MultiplierOf<TestRuntime>,
 	asset: AcceptedFundingAsset,
 }
 impl TestContribution {
 	fn new(
 		contributor: AccountId,
 		amount: BalanceOf<TestRuntime>,
-		multiplier: Option<MultiplierOf<TestRuntime>>,
+		multiplier: u8,
 		asset: AcceptedFundingAsset,
 	) -> Self {
-		Self { contributor, amount, multiplier, asset }
+		Self { contributor, amount, multiplier: multiplier.try_into().unwrap(), asset }
 	}
 }
 pub type TestContributions = Vec<TestContribution>;
@@ -1251,31 +1251,31 @@ mod defaults {
 	pub fn default_bids() -> TestBids {
 		// This should reflect the bidding currency, which currently is USDT
 		vec![
-			TestBid::new(BIDDER_1, 50000 * ASSET_UNIT, 18_u128.into(), None, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_2, 40000 * ASSET_UNIT, 15_u128.into(), None, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_1, 50000 * ASSET_UNIT, 18_u128.into(), 1u8, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_2, 40000 * ASSET_UNIT, 15_u128.into(), 1u8, AcceptedFundingAsset::USDT),
 		]
 	}
 
 	pub fn default_community_buys() -> TestContributions {
 		vec![
-			TestContribution::new(BUYER_1, 100 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_2, 200 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_3, 2000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_1, 100 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_2, 200 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_3, 2000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		]
 	}
 
 	pub fn default_remainder_buys() -> TestContributions {
 		vec![
-			TestContribution::new(EVALUATOR_2, 300 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_2, 600 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BIDDER_1, 4000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
+			TestContribution::new(EVALUATOR_2, 300 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_2, 600 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BIDDER_1, 4000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		]
 	}
 }
 
 pub mod helper_functions {
 	use super::*;
-
+	
 	pub fn get_ed() -> BalanceOf<TestRuntime> {
 		<TestRuntime as pallet_balances::Config>::ExistentialDeposit::get()
 	}
@@ -1296,7 +1296,7 @@ pub mod helper_functions {
 		let mut output = UserToPLMCBalance::new();
 		for bid in bids {
 			let usd_ticket_size = bid.price.saturating_mul_int(bid.amount);
-			let multiplier = bid.multiplier.unwrap_or_default();
+			let multiplier = bid.multiplier;
 			let usd_bond = multiplier.calculate_bonding_requirement::<TestRuntime>(usd_ticket_size).unwrap();
 			let plmc_bond = plmc_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
 			output.push((bid.bidder, plmc_bond));
@@ -1317,7 +1317,6 @@ pub mod helper_functions {
 			let usd_ticket_size = final_price.saturating_mul_int(bid.amount);
 			let usd_bond = bid
 				.multiplier
-				.unwrap_or_default()
 				.calculate_bonding_requirement::<TestRuntime>(usd_ticket_size)
 				.unwrap();
 			let plmc_bond = plmc_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
@@ -1347,7 +1346,6 @@ pub mod helper_functions {
 			let usd_ticket_size = token_usd_price.saturating_mul_int(cont.amount);
 			let usd_bond = cont
 				.multiplier
-				.unwrap_or_default()
 				.calculate_bonding_requirement::<TestRuntime>(usd_ticket_size)
 				.unwrap();
 			let plmc_bond = plmc_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
@@ -1659,7 +1657,7 @@ pub mod helper_functions {
 				let ticket_size = Percent::from_percent(weight) * usd_amount;
 				let token_amount = min_price.reciprocal().unwrap().saturating_mul_int(ticket_size);
 
-				TestBid::new(bidder, token_amount, min_price, None, AcceptedFundingAsset::USDT)
+				TestBid::new(bidder, token_amount, min_price, 1u8, AcceptedFundingAsset::USDT)
 			})
 			.collect()
 	}
@@ -1676,7 +1674,7 @@ pub mod helper_functions {
 				let ticket_size = Percent::from_percent(weight) * usd_amount;
 				let token_amount = final_price.reciprocal().unwrap().saturating_mul_int(ticket_size);
 
-				TestContribution::new(bidder, token_amount, None, AcceptedFundingAsset::USDT)
+				TestContribution::new(bidder, token_amount, 1u8, AcceptedFundingAsset::USDT)
 			})
 			.collect()
 	}
@@ -1887,19 +1885,19 @@ mod evaluation_round_success {
 		];
 
 		let bids: TestBids = vec![
-			TestBid::new(BIDDER_1, 10_000 * ASSET_UNIT, 15.into(), None, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_2, 20_000 * ASSET_UNIT, 20.into(), None, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_4, 20_000 * ASSET_UNIT, 16.into(), None, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_1, 10_000 * ASSET_UNIT, 15.into(), 1u8, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_2, 20_000 * ASSET_UNIT, 20.into(), 1u8, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_4, 20_000 * ASSET_UNIT, 16.into(), 1u8, AcceptedFundingAsset::USDT),
 		];
 
 		let contributions: TestContributions = vec![
-			TestContribution::new(BUYER_1, 4_000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_2, 2_000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_3, 2_000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_4, 5_000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_5, 30_000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_6, 5_000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_7, 2_000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_1, 4_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_2, 2_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_3, 2_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_4, 5_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_5, 30_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_6, 5_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_7, 2_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 
 		let community_funding_project =
@@ -1988,8 +1986,8 @@ mod evaluation_round_success {
 			default_project(test_env.get_new_nonce()),
 			ISSUER,
 			evaluations.clone(),
-			vec![TestBid::new(BUYER_1, 1000 * ASSET_UNIT, 10u128.into(), None, AcceptedFundingAsset::USDT)],
-			vec![TestContribution::new(BUYER_1, 1000 * US_DOLLAR, None, AcceptedFundingAsset::USDT)],
+			vec![TestBid::new(BUYER_1, 1000 * ASSET_UNIT, 10u128.into(), 1u8, AcceptedFundingAsset::USDT)],
+			vec![TestContribution::new(BUYER_1, 1000 * US_DOLLAR, 1u8, AcceptedFundingAsset::USDT)],
 		)
 		.unwrap_left();
 
@@ -2124,7 +2122,7 @@ mod auction_round_success {
 		let evaluator_bidder = 69;
 		let evaluation_amount = 420 * US_DOLLAR;
 		let evaluator_bid =
-			TestBid::new(evaluator_bidder, 600 * ASSET_UNIT, 15.into(), None, AcceptedFundingAsset::USDT);
+			TestBid::new(evaluator_bidder, 600 * ASSET_UNIT, 15.into(), 1u8, AcceptedFundingAsset::USDT);
 		evaluations.push((evaluator_bidder, evaluation_amount));
 
 		let bidding_project = AuctioningProject::new_with(&test_env, project, issuer, evaluations);
@@ -2149,11 +2147,11 @@ mod auction_round_success {
 		let mut evaluations = default_evaluations();
 		let evaluator_bidder = 69;
 		let evaluator_bid =
-			TestBid::new(evaluator_bidder, 600 * ASSET_UNIT, 15.into(), None, AcceptedFundingAsset::USDT);
+			TestBid::new(evaluator_bidder, 600 * ASSET_UNIT, 15.into(), 1u8, AcceptedFundingAsset::USDT);
 
 		let mut bids = Vec::new();
 		for _ in 0..<TestRuntime as Config>::MaxBidsPerUser::get() {
-			bids.push(TestBid::new(evaluator_bidder, 10 * ASSET_UNIT, 15.into(), None, AcceptedFundingAsset::USDT));
+			bids.push(TestBid::new(evaluator_bidder, 10 * ASSET_UNIT, 15.into(), 1u8, AcceptedFundingAsset::USDT));
 		}
 
 		let fill_necessary_plmc_for_bids = calculate_auction_plmc_spent(bids.clone());
@@ -2215,9 +2213,9 @@ mod auction_round_success {
 		let auctioning_project =
 			AuctioningProject::new_with(&test_env, project_metadata, ISSUER, default_evaluations());
 		let bids = vec![
-			TestBid::new(100, 10_000_0_000_000_000, 15.into(), None, AcceptedFundingAsset::USDT),
-			TestBid::new(200, 20_000_0_000_000_000, 20.into(), None, AcceptedFundingAsset::USDT),
-			TestBid::new(300, 20_000_0_000_000_000, 10.into(), None, AcceptedFundingAsset::USDT),
+			TestBid::new(100, 10_000_0_000_000_000, 15.into(), 1u8, AcceptedFundingAsset::USDT),
+			TestBid::new(200, 20_000_0_000_000_000, 20.into(), 1u8, AcceptedFundingAsset::USDT),
+			TestBid::new(300, 20_000_0_000_000_000, 10.into(), 1u8, AcceptedFundingAsset::USDT),
 		];
 		let statemint_funding = calculate_auction_funding_asset_spent(bids.clone());
 		let plmc_funding = calculate_auction_plmc_spent(bids.clone());
@@ -2250,9 +2248,9 @@ mod auction_round_success {
 		let auctioning_project =
 			AuctioningProject::new_with(&test_env, project_metadata, ISSUER, default_evaluations());
 		let bids = vec![
-			TestBid::new(BIDDER_1, 10_000 * ASSET_UNIT, 15.into(), None, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_2, 20_000 * ASSET_UNIT, 20.into(), None, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_3, 20_000 * ASSET_UNIT, 16.into(), None, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_1, 10_000 * ASSET_UNIT, 15.into(), 1u8, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_2, 20_000 * ASSET_UNIT, 20.into(), 1u8, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_3, 20_000 * ASSET_UNIT, 16.into(), 1u8, AcceptedFundingAsset::USDT),
 		];
 
 		let statemint_funding = calculate_auction_funding_asset_spent(bids.clone());
@@ -2303,7 +2301,7 @@ mod auction_round_success {
 
 		let mut bidding_account = 1000;
 		let bid_info =
-			TestBid::new(0, 50u128, PriceOf::<TestRuntime>::from_float(15f64), None, AcceptedFundingAsset::USDT);
+			TestBid::new(0, 50u128, PriceOf::<TestRuntime>::from_float(15f64), 1u8, AcceptedFundingAsset::USDT);
 		let plmc_necessary_funding = calculate_auction_plmc_spent(vec![bid_info.clone()])[0].1;
 		let statemint_asset_necessary_funding = calculate_auction_funding_asset_spent(vec![bid_info.clone()])[0].1;
 
@@ -2324,13 +2322,13 @@ mod auction_round_success {
 				statemint_asset_necessary_funding,
 				bid_info.asset.to_statemint_id(),
 			)]);
-			let bids: TestBids = vec![TestBid::new(
-				bidding_account,
-				bid_info.amount,
-				bid_info.price,
-				bid_info.multiplier,
-				bid_info.asset,
-			)];
+			let bids: TestBids = vec![TestBid {
+				bidder: bidding_account,
+				amount: bid_info.amount,
+				price: bid_info.price,
+				multiplier: bid_info.multiplier,
+				asset: bid_info.asset,
+			}];
 			auctioning_project.bid_for_users(bids.clone()).expect("Candle Bidding should not fail");
 
 			bids_made.push(bids[0]);
@@ -2459,7 +2457,7 @@ mod auction_round_success {
 		let evaluations = default_evaluations();
 		let mut bids = default_bids();
 		let evaluator = evaluations[0].0;
-		bids.push(TestBid::new(evaluator, 150 * ASSET_UNIT, 21_u128.into(), None, AcceptedFundingAsset::USDT));
+		bids.push(TestBid::new(evaluator, 150 * ASSET_UNIT, 21_u128.into(), 1u8, AcceptedFundingAsset::USDT));
 		let _community_funding_project =
 			CommunityFundingProject::new_with(&test_env, project, issuer, evaluations, bids);
 	}
@@ -2471,9 +2469,9 @@ mod auction_round_success {
 		let project = default_project(test_env.get_new_nonce());
 		let evaluations = default_evaluations();
 		let bids: TestBids = vec![
-			TestBid::new(BIDDER_1, 10_000 * ASSET_UNIT, 15.into(), None, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_2, 20_000 * ASSET_UNIT, 20.into(), None, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_4, 20_000 * ASSET_UNIT, 16.into(), None, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_1, 10_000 * ASSET_UNIT, 15.into(), 1u8, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_2, 20_000 * ASSET_UNIT, 20.into(), 1u8, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_4, 20_000 * ASSET_UNIT, 16.into(), 1u8, AcceptedFundingAsset::USDT),
 		];
 
 		let community_funding_project =
@@ -2725,8 +2723,8 @@ mod auction_round_success {
 		let mut bids = default_bids();
 		let median_price = bids[bids.len().div(2)].price;
 		let new_bids = vec![
-			TestBid::new(BIDDER_4, 30_000 * US_DOLLAR, median_price, None, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_5, 167_000 * US_DOLLAR, median_price, None, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_4, 30_000 * US_DOLLAR, median_price, 1u8, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_5, 167_000 * US_DOLLAR, median_price, 1u8, AcceptedFundingAsset::USDT),
 		];
 		bids.extend(new_bids.clone());
 
@@ -2873,26 +2871,26 @@ mod auction_round_success {
 		let project = default_project(test_env.get_new_nonce());
 		let evaluations = default_evaluations();
 		let bids = vec![
-			TestBid::new(BIDDER_1, 40_000 * ASSET_UNIT, 15.into(), None, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_1, 40_000 * ASSET_UNIT, 15.into(), 1u8, AcceptedFundingAsset::USDT),
 			TestBid::new(
 				BIDDER_2,
 				152_000 * ASSET_UNIT,
 				11.into(),
-				Some(10u8.try_into().unwrap()),
+				10u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
 			TestBid::new(
 				BIDDER_3,
 				20_000 * ASSET_UNIT,
 				17.into(),
-				Some(2u8.try_into().unwrap()),
+				2u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
 			TestBid::new(
 				BIDDER_4,
 				88_000 * ASSET_UNIT,
 				18.into(),
-				Some(25u8.try_into().unwrap()),
+				25u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
 		];
@@ -2954,9 +2952,9 @@ mod auction_round_success {
 
 		let median_price = bids[bids.len().div(2)].price;
 		let accepted_bid =
-			vec![TestBid::new(BIDDER_4, available_tokens, median_price, None, AcceptedFundingAsset::USDT)];
+			vec![TestBid::new(BIDDER_4, available_tokens, median_price, 1u8, AcceptedFundingAsset::USDT)];
 		let rejected_bid =
-			vec![TestBid::new(BIDDER_5, 50_000 * ASSET_UNIT, median_price, None, AcceptedFundingAsset::USDT)];
+			vec![TestBid::new(BIDDER_5, 50_000 * ASSET_UNIT, median_price, 1u8, AcceptedFundingAsset::USDT)];
 		bids.extend(accepted_bid.clone());
 		bids.extend(rejected_bid.clone());
 
@@ -3504,7 +3502,7 @@ mod auction_round_failure {
 					0,
 					1,
 					100_u128.into(),
-					None,
+					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT
 				),
 				Error::<TestRuntime>::AuctionNotStarted
@@ -3523,7 +3521,7 @@ mod auction_round_failure {
 					RuntimeOrigin::signed(BIDDER_1),
 					project_id,
 					100,
-					None,
+					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT
 				),
 				Error::<TestRuntime>::AuctionNotStarted
@@ -3539,12 +3537,12 @@ mod auction_round_failure {
 		let project_id = auctioning_project.project_id;
 		const DAVE: AccountId = 42;
 		let bids: TestBids = vec![
-			TestBid::new(DAVE, 10_000 * USDT_UNIT, 2_u128.into(), None, AcceptedFundingAsset::USDT), // 20k
-			TestBid::new(DAVE, 12_000 * USDT_UNIT, 8_u128.into(), None, AcceptedFundingAsset::USDT), // 96k
-			TestBid::new(DAVE, 15_000 * USDT_UNIT, 5_u128.into(), None, AcceptedFundingAsset::USDT), // 75k
+			TestBid::new(DAVE, 10_000 * USDT_UNIT, 2_u128.into(), 1u8, AcceptedFundingAsset::USDT), // 20k
+			TestBid::new(DAVE, 12_000 * USDT_UNIT, 8_u128.into(), 1u8, AcceptedFundingAsset::USDT), // 96k
+			TestBid::new(DAVE, 15_000 * USDT_UNIT, 5_u128.into(), 1u8, AcceptedFundingAsset::USDT), // 75k
 			// Bid with lowest PLMC bonded gets dropped
-			TestBid::new(DAVE, 1_000 * USDT_UNIT, 7_u128.into(), None, AcceptedFundingAsset::USDT), // 7k
-			TestBid::new(DAVE, 20_000 * USDT_UNIT, 5_u128.into(), None, AcceptedFundingAsset::USDT), // 100k
+			TestBid::new(DAVE, 1_000 * USDT_UNIT, 7_u128.into(), 1u8, AcceptedFundingAsset::USDT), // 7k
+			TestBid::new(DAVE, 20_000 * USDT_UNIT, 5_u128.into(), 1u8, AcceptedFundingAsset::USDT), // 100k
 		];
 
 		let mut plmc_fundings: UserToPLMCBalance = calculate_auction_plmc_spent(bids.clone());
@@ -3577,10 +3575,9 @@ mod auction_round_failure {
 		let test_env = TestEnvironment::new();
 		let auctioning_project =
 			AuctioningProject::new_with(&test_env, default_project(0), ISSUER, default_evaluations());
-		let mul_2 = MultiplierOf::<TestRuntime>::new(2u8).unwrap();
 		let bids = vec![
-			TestBid::new(BIDDER_1, 10_000, 2_u128.into(), None, AcceptedFundingAsset::USDC),
-			TestBid::new(BIDDER_2, 13_000, 3_u128.into(), Some(mul_2), AcceptedFundingAsset::USDC),
+			TestBid::new(BIDDER_1, 10_000, 2_u128.into(), 1u8, AcceptedFundingAsset::USDC),
+			TestBid::new(BIDDER_2, 13_000, 3_u128.into(), 2u8, AcceptedFundingAsset::USDC),
 		];
 		let outcome = auctioning_project.bid_for_users(bids);
 		frame_support::assert_err!(outcome, Error::<TestRuntime>::FundingAssetNotAccepted);
@@ -3617,8 +3614,8 @@ mod auction_round_failure {
 		let max_cts_for_bids = metadata.total_allocation_size.clone();
 		let project_id = auctioning_project.get_project_id();
 
-		let glutton_bid = TestBid::new(BIDDER_1, max_cts_for_bids, 10_u128.into(), None, AcceptedFundingAsset::USDT);
-		let rejected_bid = TestBid::new(BIDDER_2, 10_000 * ASSET_UNIT, 5_u128.into(), None, AcceptedFundingAsset::USDT);
+		let glutton_bid = TestBid::new(BIDDER_1, max_cts_for_bids, 10_u128.into(), 1u8, AcceptedFundingAsset::USDT);
+		let rejected_bid = TestBid::new(BIDDER_2, 10_000 * ASSET_UNIT, 5_u128.into(), 1u8, AcceptedFundingAsset::USDT);
 
 		let mut plmc_fundings: UserToPLMCBalance =
 			calculate_auction_plmc_spent(vec![glutton_bid.clone(), rejected_bid.clone()]);
@@ -3792,8 +3789,8 @@ mod community_round_success {
 		const BOB: AccountId = 42;
 		let token_price = community_funding_project.get_project_details().weighted_average_price.unwrap();
 		let contributions: TestContributions = vec![
-			TestContribution::new(BOB, 3 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BOB, 4 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
+			TestContribution::new(BOB, 3 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BOB, 4 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 
 		let mut plmc_funding: UserToPLMCBalance = calculate_contributed_plmc_spent(contributions.clone(), token_price);
@@ -3844,7 +3841,7 @@ mod community_round_success {
 		let project_id = community_funding_project.get_project_id();
 
 		let contributions: TestContributions =
-			vec![TestContribution::new(BOB, remaining_ct, None, AcceptedFundingAsset::USDT)];
+			vec![TestContribution::new(BOB, remaining_ct, 1u8, AcceptedFundingAsset::USDT)];
 		let mut plmc_fundings: UserToPLMCBalance = calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 		plmc_fundings.push((BOB, get_ed()));
 		let statemint_asset_fundings: UserToStatemintAsset =
@@ -3898,8 +3895,8 @@ mod community_round_success {
 		let project_id = community_funding_project.get_project_id();
 
 		let contributions: TestContributions = vec![
-			TestContribution::new(BOB, remaining_ct, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BOB, OVERBUY_CT, None, AcceptedFundingAsset::USDT),
+			TestContribution::new(BOB, remaining_ct, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BOB, OVERBUY_CT, 1u8, AcceptedFundingAsset::USDT),
 		];
 		let mut plmc_fundings: UserToPLMCBalance = calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 		plmc_fundings.push((BOB, get_ed()));
@@ -3962,11 +3959,10 @@ mod community_round_success {
 		let token_price = project_details.weighted_average_price.unwrap();
 
 		// Create a contribution vector that will reach the limit of contributions for a user-project
-		let multiplier: Option<MultiplierOf<TestRuntime>> = None;
 		let token_amount: BalanceOf<TestRuntime> = 1 * ASSET_UNIT;
 		let range = 0..<TestRuntime as Config>::MaxContributionsPerUser::get();
 		let contributions: TestContributions = range
-			.map(|_| TestContribution::new(CONTRIBUTOR, token_amount, multiplier, AcceptedFundingAsset::USDT))
+			.map(|_| TestContribution::new(CONTRIBUTOR, token_amount, 1u8, AcceptedFundingAsset::USDT))
 			.collect();
 
 		let plmc_funding = calculate_contributed_plmc_spent(contributions.clone(), token_price);
@@ -4001,10 +3997,9 @@ mod community_round_success {
 		assert_eq!(plmc_bond_stored, sum_balance_mappings(vec![plmc_funding.clone()]));
 		assert_eq!(statemint_asset_contributions_stored, sum_statemint_mappings(vec![statemint_funding.clone()]));
 
-		let new_multiplier: Option<MultiplierOf<TestRuntime>> = None;
 		let new_token_amount: BalanceOf<TestRuntime> = 2 * ASSET_UNIT;
 		let new_contribution: TestContributions =
-			vec![TestContribution::new(CONTRIBUTOR, new_token_amount, new_multiplier, AcceptedFundingAsset::USDT)];
+			vec![TestContribution::new(CONTRIBUTOR, new_token_amount, 1u8, AcceptedFundingAsset::USDT)];
 
 		let new_plmc_funding = calculate_contributed_plmc_spent(new_contribution.clone(), token_price);
 		let new_statemint_funding = calculate_contributed_funding_asset_spent(new_contribution.clone(), token_price);
@@ -4063,11 +4058,10 @@ mod community_round_success {
 		let token_price = project_details.weighted_average_price.unwrap();
 
 		// Create a contribution vector that will reach the limit of contributions for a user-project
-		let multiplier: Option<MultiplierOf<TestRuntime>> = Some(MultiplierOf::<TestRuntime>::new(3u8).unwrap());
 		let token_amount: BalanceOf<TestRuntime> = 10 * ASSET_UNIT;
 		let range = 0..<TestRuntime as Config>::MaxContributionsPerUser::get();
 		let contributions: TestContributions = range
-			.map(|_| TestContribution::new(CONTRIBUTOR, token_amount, multiplier, AcceptedFundingAsset::USDT))
+			.map(|_| TestContribution::new(CONTRIBUTOR, token_amount, 3u8, AcceptedFundingAsset::USDT))
 			.collect();
 
 		let plmc_funding = calculate_contributed_plmc_spent(contributions.clone(), token_price);
@@ -4102,10 +4096,9 @@ mod community_round_success {
 		assert_eq!(plmc_bond_stored, sum_balance_mappings(vec![plmc_funding.clone()]));
 		assert_eq!(statemint_asset_contributions_stored, sum_statemint_mappings(vec![statemint_funding.clone()]));
 
-		let new_multiplier: Option<MultiplierOf<TestRuntime>> = None;
 		let new_token_amount: BalanceOf<TestRuntime> = 10 * ASSET_UNIT;
 		let new_contribution: TestContributions =
-			vec![TestContribution::new(CONTRIBUTOR, new_token_amount, new_multiplier, AcceptedFundingAsset::USDT)];
+			vec![TestContribution::new(CONTRIBUTOR, new_token_amount, 1u8, AcceptedFundingAsset::USDT)];
 
 		let new_plmc_funding = calculate_contributed_plmc_spent(new_contribution.clone(), token_price);
 		let new_statemint_funding = calculate_contributed_funding_asset_spent(new_contribution.clone(), token_price);
@@ -4156,7 +4149,7 @@ mod community_round_success {
 		let evaluator_contributor = 69;
 		let evaluation_amount = 420 * US_DOLLAR;
 		let contribution =
-			TestContribution::new(evaluator_contributor, 600 * ASSET_UNIT, None, AcceptedFundingAsset::USDT);
+			TestContribution::new(evaluator_contributor, 600 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
 		evaluations.push((evaluator_contributor, evaluation_amount));
 		let bids = default_bids();
 
@@ -4187,14 +4180,14 @@ mod community_round_success {
 		let bids = default_bids();
 		let evaluator_contributor = 69;
 		let overflow_contribution =
-			TestContribution::new(evaluator_contributor, 600 * ASSET_UNIT, None, AcceptedFundingAsset::USDT);
+			TestContribution::new(evaluator_contributor, 600 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
 
 		let mut fill_contributions = Vec::new();
 		for _i in 0..<TestRuntime as Config>::MaxContributionsPerUser::get() {
 			fill_contributions.push(TestContribution::new(
 				evaluator_contributor,
 				10 * ASSET_UNIT,
-				None,
+				1u8,
 				AcceptedFundingAsset::USDT,
 			));
 		}
@@ -4245,7 +4238,7 @@ mod community_round_success {
 		let evaluator_contributor = 69;
 		let evaluation_amount = 420 * US_DOLLAR;
 		let contribution =
-			TestContribution::new(evaluator_contributor, 22 * ASSET_UNIT, None, AcceptedFundingAsset::USDT);
+			TestContribution::new(evaluator_contributor, 22 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
 		evaluations.push((evaluator_contributor, evaluation_amount));
 		let bids = default_bids();
 
@@ -4278,7 +4271,7 @@ mod community_round_success {
 		let evaluator_contributor = 69;
 		let evaluation_amount = 420 * US_DOLLAR;
 		let contribution =
-			TestContribution::new(evaluator_contributor, 22 * ASSET_UNIT, None, AcceptedFundingAsset::USDT);
+			TestContribution::new(evaluator_contributor, 22 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
 		evaluations.push((evaluator_contributor, evaluation_amount));
 		let bids = default_bids();
 
@@ -4707,26 +4700,26 @@ mod community_round_success {
 		let project = default_project(test_env.get_new_nonce());
 		let evaluations = default_evaluations();
 		let bids = vec![
-			TestBid::new(BIDDER_1, 40_000 * ASSET_UNIT, 15.into(), None, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_1, 40_000 * ASSET_UNIT, 15.into(), 1u8, AcceptedFundingAsset::USDT),
 			TestBid::new(
 				BIDDER_2,
 				152_000 * ASSET_UNIT,
 				11.into(),
-				Some(10u8.try_into().unwrap()),
+				10u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
 			TestBid::new(
 				BIDDER_3,
 				20_000 * ASSET_UNIT,
 				17.into(),
-				Some(2u8.try_into().unwrap()),
+				2u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
 			TestBid::new(
 				BIDDER_4,
 				88_000 * ASSET_UNIT,
 				18.into(),
-				Some(25u8.try_into().unwrap()),
+				25u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
 		];
@@ -5015,11 +5008,11 @@ mod community_round_failure {
 			TestContribution::new(
 				BUYER_1,
 				1_000 * ASSET_UNIT,
-				Some(2u8.try_into().unwrap()),
+				2u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
-			TestContribution::new(BUYER_2, 500 * ASSET_UNIT, Some(1u8.try_into().unwrap()), AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_3, 73 * ASSET_UNIT, Some(1u8.try_into().unwrap()), AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_2, 500 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_3, 73 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
 		];
 		let remainder_contributions = vec![];
 
@@ -5136,11 +5129,11 @@ mod community_round_failure {
 			TestContribution::new(
 				BUYER_1,
 				1_000 * ASSET_UNIT,
-				Some(2u8.try_into().unwrap()),
+				2u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
-			TestContribution::new(BUYER_2, 500 * ASSET_UNIT, Some(1u8.try_into().unwrap()), AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_3, 73 * ASSET_UNIT, Some(1u8.try_into().unwrap()), AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_2, 500 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_3, 73 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
 		];
 		let remainder_contributions = vec![];
 
@@ -5287,11 +5280,11 @@ mod community_round_failure {
 			TestContribution::new(
 				BUYER_1,
 				1_000 * ASSET_UNIT,
-				Some(2u8.try_into().unwrap()),
+				2u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
-			TestContribution::new(BUYER_2, 500 * ASSET_UNIT, Some(1u8.try_into().unwrap()), AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_3, 73 * ASSET_UNIT, Some(1u8.try_into().unwrap()), AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_2, 500 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_3, 73 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
 		];
 
 		let remainder_contributions = vec![];
@@ -5489,7 +5482,7 @@ mod remainder_round_success {
 		let evaluator_contributor = 69;
 		let evaluation_amount = 420 * US_DOLLAR;
 		let remainder_contribution =
-			TestContribution::new(evaluator_contributor, 600 * ASSET_UNIT, None, AcceptedFundingAsset::USDT);
+			TestContribution::new(evaluator_contributor, 600 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
 		evaluations.push((evaluator_contributor, evaluation_amount));
 		let bids = default_bids();
 
@@ -5519,14 +5512,14 @@ mod remainder_round_success {
 		let bids = default_bids();
 		let evaluator_contributor = 69;
 		let overflow_contribution =
-			TestContribution::new(evaluator_contributor, 600 * ASSET_UNIT, None, AcceptedFundingAsset::USDT);
+			TestContribution::new(evaluator_contributor, 600 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
 
 		let mut fill_contributions = Vec::new();
 		for _i in 0..<TestRuntime as Config>::MaxContributionsPerUser::get() {
 			fill_contributions.push(TestContribution::new(
 				evaluator_contributor,
 				10 * ASSET_UNIT,
-				None,
+				1u8,
 				AcceptedFundingAsset::USDT,
 			));
 		}
@@ -5590,7 +5583,7 @@ mod remainder_round_success {
 		let project_id = remainder_funding_project.get_project_id();
 
 		let contributions: TestContributions =
-			vec![TestContribution::new(BOB, remaining_ct, None, AcceptedFundingAsset::USDT)];
+			vec![TestContribution::new(BOB, remaining_ct, 1u8, AcceptedFundingAsset::USDT)];
 		let mut plmc_fundings: UserToPLMCBalance = calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 		plmc_fundings.push((BOB, get_ed()));
 		let statemint_asset_fundings: UserToStatemintAsset =
@@ -5647,8 +5640,8 @@ mod remainder_round_success {
 		let project_id = remainder_funding_project.get_project_id();
 
 		let contributions: TestContributions = vec![
-			TestContribution::new(BOB, remaining_ct, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BOB, OVERBUY_CT, None, AcceptedFundingAsset::USDT),
+			TestContribution::new(BOB, remaining_ct, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BOB, OVERBUY_CT, 1u8, AcceptedFundingAsset::USDT),
 		];
 		let mut plmc_fundings: UserToPLMCBalance = calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 		plmc_fundings.push((BOB, get_ed()));
@@ -5702,18 +5695,18 @@ mod remainder_round_success {
 		let evaluations =
 			vec![(EVALUATOR_1, 50_000 * PLMC), (EVALUATOR_2, 25_000 * PLMC), (EVALUATOR_3, 32_000 * PLMC)];
 		let bids = vec![
-			TestBid::new(BIDDER_1, 50000 * ASSET_UNIT, 18_u128.into(), None, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_2, 40000 * ASSET_UNIT, 15_u128.into(), None, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_1, 50000 * ASSET_UNIT, 18_u128.into(), 1u8, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_2, 40000 * ASSET_UNIT, 15_u128.into(), 1u8, AcceptedFundingAsset::USDT),
 		];
 		let community_contributions = vec![
-			TestContribution::new(BUYER_1, 100 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_2, 200 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_3, 2000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_1, 100 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_2, 200 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_3, 2000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 		let remainder_contributions = vec![
-			TestContribution::new(EVALUATOR_2, 300 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_2, 600 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BIDDER_1, 4000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
+			TestContribution::new(EVALUATOR_2, 300 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_2, 600 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BIDDER_1, 4000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 
 		let finished_project = FinishedProject::new_with(
@@ -5762,18 +5755,18 @@ mod remainder_round_success {
 		let evaluations =
 			vec![(EVALUATOR_1, 50_000 * PLMC), (EVALUATOR_2, 25_000 * PLMC), (EVALUATOR_3, 32_000 * PLMC)];
 		let bids = vec![
-			TestBid::new(BIDDER_1, 50000 * ASSET_UNIT, 18_u128.into(), None, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_2, 40000 * ASSET_UNIT, 15_u128.into(), None, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_1, 50000 * ASSET_UNIT, 18_u128.into(), 1u8, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_2, 40000 * ASSET_UNIT, 15_u128.into(), 1u8, AcceptedFundingAsset::USDT),
 		];
 		let community_contributions = vec![
-			TestContribution::new(BUYER_1, 100 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_2, 200 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_3, 2000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_1, 100 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_2, 200 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_3, 2000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 		let remainder_contributions = vec![
-			TestContribution::new(EVALUATOR_2, 300 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_2, 600 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BIDDER_1, 4000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
+			TestContribution::new(EVALUATOR_2, 300 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_2, 600 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BIDDER_1, 4000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 
 		let finished_project = FinishedProject::new_with(
@@ -5860,18 +5853,18 @@ mod remainder_round_success {
 		let evaluations =
 			vec![(EVALUATOR_1, 50_000 * PLMC), (EVALUATOR_2, 25_000 * PLMC), (EVALUATOR_3, 32_000 * PLMC)];
 		let bids = vec![
-			TestBid::new(BIDDER_1, 50000 * ASSET_UNIT, 18_u128.into(), None, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_2, 40000 * ASSET_UNIT, 15_u128.into(), None, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_1, 50000 * ASSET_UNIT, 18_u128.into(), 1u8, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_2, 40000 * ASSET_UNIT, 15_u128.into(), 1u8, AcceptedFundingAsset::USDT),
 		];
 		let community_contributions = vec![
-			TestContribution::new(BUYER_1, 100 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_2, 200 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_3, 2000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_1, 100 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_2, 200 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_3, 2000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 		let remainder_contributions = vec![
-			TestContribution::new(EVALUATOR_2, 300 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_2, 600 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BIDDER_1, 4000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
+			TestContribution::new(EVALUATOR_2, 300 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_2, 600 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BIDDER_1, 4000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 
 		let finished_project = FinishedProject::new_with(
@@ -5968,18 +5961,18 @@ mod remainder_round_success {
 		let evaluations =
 			vec![(EVALUATOR_1, 50_000 * PLMC), (EVALUATOR_2, 25_000 * PLMC), (EVALUATOR_3, 32_000 * PLMC)];
 		let bids = vec![
-			TestBid::new(BIDDER_1, 50000 * ASSET_UNIT, 18_u128.into(), None, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_2, 40000 * ASSET_UNIT, 15_u128.into(), None, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_1, 50000 * ASSET_UNIT, 18_u128.into(), 1u8, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_2, 40000 * ASSET_UNIT, 15_u128.into(), 1u8, AcceptedFundingAsset::USDT),
 		];
 		let community_contributions = vec![
-			TestContribution::new(BUYER_1, 100 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_2, 200 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_3, 2000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_1, 100 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_2, 200 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_3, 2000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 		let remainder_contributions = vec![
-			TestContribution::new(EVALUATOR_2, 300 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_2, 600 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
-			TestContribution::new(BIDDER_1, 4000 * ASSET_UNIT, None, AcceptedFundingAsset::USDT),
+			TestContribution::new(EVALUATOR_2, 300 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_2, 600 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			TestContribution::new(BIDDER_1, 4000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 
 		let finished_project = FinishedProject::new_with(
@@ -6692,26 +6685,26 @@ mod remainder_round_failure {
 			TestContribution::new(
 				BUYER_1,
 				1_000 * ASSET_UNIT,
-				Some(2u8.try_into().unwrap()),
+				2u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
-			TestContribution::new(BUYER_2, 500 * ASSET_UNIT, Some(1u8.try_into().unwrap()), AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_3, 73 * ASSET_UNIT, Some(1u8.try_into().unwrap()), AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_2, 500 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_3, 73 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
 		];
 		let remainder_contributions = vec![
 			TestContribution::new(
 				EVALUATOR_1,
 				250 * ASSET_UNIT,
-				Some(1u8.try_into().unwrap()),
+				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
 			TestContribution::new(
 				BIDDER_1,
 				130_400 * ASSET_UNIT,
-				Some(3u8.try_into().unwrap()),
+				3u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
-			TestContribution::new(BUYER_1, 42 * ASSET_UNIT, Some(1u8.try_into().unwrap()), AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_1, 42 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
 		];
 
 		let finished_project = FinishedProject::new_with(
@@ -6816,26 +6809,26 @@ mod remainder_round_failure {
 			TestContribution::new(
 				BUYER_1,
 				1_000 * ASSET_UNIT,
-				Some(2u8.try_into().unwrap()),
+				2u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
-			TestContribution::new(BUYER_2, 500 * ASSET_UNIT, Some(1u8.try_into().unwrap()), AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_3, 73 * ASSET_UNIT, Some(1u8.try_into().unwrap()), AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_2, 500 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_3, 73 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
 		];
 		let remainder_contributions = vec![
 			TestContribution::new(
 				EVALUATOR_1,
 				250 * ASSET_UNIT,
-				Some(1u8.try_into().unwrap()),
+				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
 			TestContribution::new(
 				BIDDER_1,
 				130_400 * ASSET_UNIT,
-				Some(3u8.try_into().unwrap()),
+				3u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
-			TestContribution::new(BUYER_1, 42 * ASSET_UNIT, Some(1u8.try_into().unwrap()), AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_1, 42 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
 		];
 
 		let finished_project = FinishedProject::new_with(
@@ -6972,26 +6965,26 @@ mod remainder_round_failure {
 			TestContribution::new(
 				BUYER_1,
 				1_000 * ASSET_UNIT,
-				Some(2u8.try_into().unwrap()),
+				2u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
-			TestContribution::new(BUYER_2, 500 * ASSET_UNIT, Some(1u8.try_into().unwrap()), AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_3, 73 * ASSET_UNIT, Some(1u8.try_into().unwrap()), AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_2, 500 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_3, 73 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
 		];
 		let remainder_contributions = vec![
 			TestContribution::new(
 				EVALUATOR_1,
 				250 * ASSET_UNIT,
-				Some(1u8.try_into().unwrap()),
+				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
 			TestContribution::new(
 				BIDDER_1,
 				130_400 * ASSET_UNIT,
-				Some(3u8.try_into().unwrap()),
+				3u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
-			TestContribution::new(BUYER_1, 42 * ASSET_UNIT, Some(1u8.try_into().unwrap()), AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_1, 42 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
 		];
 
 		let finished_project = FinishedProject::new_with(
@@ -7011,7 +7004,7 @@ mod remainder_round_failure {
 				vec![TestContribution::new(
 					EVALUATOR_1,
 					250 * ASSET_UNIT,
-					Some(1u8.try_into().unwrap()),
+					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 				)],
 				final_price,
@@ -7025,13 +7018,13 @@ mod remainder_round_failure {
 				TestContribution::new(
 					BIDDER_1,
 					130_400 * ASSET_UNIT,
-					Some(3u8.try_into().unwrap()),
+					3u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 				),
 				TestContribution::new(
 					BUYER_1,
 					42 * ASSET_UNIT,
-					Some(1u8.try_into().unwrap()),
+					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 				),
 			],
@@ -7109,26 +7102,26 @@ mod remainder_round_failure {
 			TestContribution::new(
 				BUYER_1,
 				1_000 * ASSET_UNIT,
-				Some(2u8.try_into().unwrap()),
+				2u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
-			TestContribution::new(BUYER_2, 500 * ASSET_UNIT, Some(1u8.try_into().unwrap()), AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_3, 73 * ASSET_UNIT, Some(1u8.try_into().unwrap()), AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_2, 500 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_3, 73 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
 		];
 		let remainder_contributions = vec![
 			TestContribution::new(
 				EVALUATOR_1,
 				250 * ASSET_UNIT,
-				Some(1u8.try_into().unwrap()),
+				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
 			TestContribution::new(
 				BIDDER_1,
 				130_400 * ASSET_UNIT,
-				Some(3u8.try_into().unwrap()),
+				3u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
-			TestContribution::new(BUYER_1, 42 * ASSET_UNIT, Some(1u8.try_into().unwrap()), AcceptedFundingAsset::USDT),
+			TestContribution::new(BUYER_1, 42 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
 		];
 
 		let finished_project = FinishedProject::new_with(
@@ -7148,7 +7141,7 @@ mod remainder_round_failure {
 				vec![TestContribution::new(
 					EVALUATOR_1,
 					250 * ASSET_UNIT,
-					Some(1u8.try_into().unwrap()),
+					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 				)],
 				final_price,
@@ -7162,13 +7155,13 @@ mod remainder_round_failure {
 				TestContribution::new(
 					BIDDER_1,
 					130_400 * ASSET_UNIT,
-					Some(3u8.try_into().unwrap()),
+					3u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 				),
 				TestContribution::new(
 					BUYER_1,
 					42 * ASSET_UNIT,
-					Some(1u8.try_into().unwrap()),
+					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 				),
 			],
@@ -7630,54 +7623,54 @@ mod funding_end {
 		let project = default_project(test_env.get_new_nonce());
 		let evaluations = default_evaluations();
 		let bids = vec![
-			TestBid::new(BIDDER_1, 40_000 * ASSET_UNIT, 15.into(), None, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_1, 40_000 * ASSET_UNIT, 15.into(), 1u8, AcceptedFundingAsset::USDT),
 			TestBid::new(
 				BIDDER_2,
 				40_000 * ASSET_UNIT,
 				15.into(),
-				Some(1u8.try_into().unwrap()),
+				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
 			TestBid::new(
 				BIDDER_3,
 				152_000 * ASSET_UNIT,
 				11.into(),
-				Some(2u8.try_into().unwrap()),
+				2u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
 			TestBid::new(
 				BIDDER_4,
 				20_000 * ASSET_UNIT,
 				17.into(),
-				Some(3u8.try_into().unwrap()),
+				3u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
 			TestBid::new(
 				BIDDER_5,
 				9_000 * ASSET_UNIT,
 				18.into(),
-				Some(19u8.try_into().unwrap()),
+				19u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
 			TestBid::new(
 				BIDDER_6,
 				1_000 * ASSET_UNIT,
 				18.into(),
-				Some(20u8.try_into().unwrap()),
+				20u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
 			TestBid::new(
 				BIDDER_7,
 				8_000 * ASSET_UNIT,
 				18.into(),
-				Some(24u8.try_into().unwrap()),
+				24u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
 			TestBid::new(
 				BIDDER_8,
 				68_000 * ASSET_UNIT,
 				18.into(),
-				Some(25u8.try_into().unwrap()),
+				25u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 			),
 		];
@@ -7836,35 +7829,35 @@ mod test_helper_functions {
 				BIDDER_1,
 				TOKEN_AMOUNT_1,
 				PriceOf::<TestRuntime>::from_float(PRICE_PER_TOKEN_1),
-				Some(MultiplierOf::<TestRuntime>::new(MULTIPLIER_1).unwrap()),
+				MULTIPLIER_1,
 				AcceptedFundingAsset::USDT,
 			),
 			TestBid::new(
 				BIDDER_2,
 				TOKEN_AMOUNT_2,
 				PriceOf::<TestRuntime>::from_float(PRICE_PER_TOKEN_2),
-				Some(MultiplierOf::<TestRuntime>::new(MULTIPLIER_2).unwrap()),
+				MULTIPLIER_2,
 				AcceptedFundingAsset::USDT,
 			),
 			TestBid::new(
 				BIDDER_3,
 				TOKEN_AMOUNT_3,
 				PriceOf::<TestRuntime>::from_float(PRICE_PER_TOKEN_3),
-				Some(MultiplierOf::<TestRuntime>::new(MULTIPLIER_3).unwrap()),
+				MULTIPLIER_3,
 				AcceptedFundingAsset::USDT,
 			),
 			TestBid::new(
 				BIDDER_4,
 				TOKEN_AMOUNT_4,
 				PriceOf::<TestRuntime>::from_float(PRICE_PER_TOKEN_4),
-				Some(MultiplierOf::<TestRuntime>::new(MULTIPLIER_4).unwrap()),
+				MULTIPLIER_4,
 				AcceptedFundingAsset::USDT,
 			),
 			TestBid::new(
 				BIDDER_5,
 				TOKEN_AMOUNT_5,
 				PriceOf::<TestRuntime>::from_float(PRICE_PER_TOKEN_5),
-				Some(MultiplierOf::<TestRuntime>::new(MULTIPLIER_5).unwrap()),
+				MULTIPLIER_5,
 				AcceptedFundingAsset::USDT,
 			),
 		];
@@ -7925,31 +7918,31 @@ mod test_helper_functions {
 			TestContribution::new(
 				CONTRIBUTOR_1,
 				TOKEN_AMOUNT_1,
-				Some(MultiplierOf::<TestRuntime>::new(MULTIPLIER_1).unwrap()),
+				MULTIPLIER_1,
 				AcceptedFundingAsset::USDT,
 			),
 			TestContribution::new(
 				CONTRIBUTOR_2,
 				TOKEN_AMOUNT_2,
-				Some(MultiplierOf::<TestRuntime>::new(MULTIPLIER_2).unwrap()),
+				MULTIPLIER_2,
 				AcceptedFundingAsset::USDT,
 			),
 			TestContribution::new(
 				CONTRIBUTOR_3,
 				TOKEN_AMOUNT_3,
-				Some(MultiplierOf::<TestRuntime>::new(MULTIPLIER_3).unwrap()),
+				MULTIPLIER_3,
 				AcceptedFundingAsset::USDT,
 			),
 			TestContribution::new(
 				CONTRIBUTOR_4,
 				TOKEN_AMOUNT_4,
-				Some(MultiplierOf::<TestRuntime>::new(MULTIPLIER_4).unwrap()),
+				MULTIPLIER_4,
 				AcceptedFundingAsset::USDT,
 			),
 			TestContribution::new(
 				CONTRIBUTOR_5,
 				TOKEN_AMOUNT_5,
-				Some(MultiplierOf::<TestRuntime>::new(MULTIPLIER_5).unwrap()),
+				MULTIPLIER_5,
 				AcceptedFundingAsset::USDT,
 			),
 		];
@@ -7972,9 +7965,9 @@ mod test_helper_functions {
 	#[test]
 	fn test_calculate_price_from_test_bids() {
 		let bids = vec![
-			TestBid::new(100, 10_000_0_000_000_000, 15.into(), None, AcceptedFundingAsset::USDT),
-			TestBid::new(200, 20_000_0_000_000_000, 20.into(), None, AcceptedFundingAsset::USDT),
-			TestBid::new(300, 20_000_0_000_000_000, 10.into(), None, AcceptedFundingAsset::USDT),
+			TestBid::new(100, 10_000_0_000_000_000, 15.into(), 1u8, AcceptedFundingAsset::USDT),
+			TestBid::new(200, 20_000_0_000_000_000, 20.into(), 1u8, AcceptedFundingAsset::USDT),
+			TestBid::new(300, 20_000_0_000_000_000, 10.into(), 1u8, AcceptedFundingAsset::USDT),
 		];
 		let price = calculate_price_from_test_bids(bids);
 		let price_in_10_decimals = price.checked_mul_int(1_0_000_000_000_u128).unwrap();

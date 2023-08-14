@@ -100,7 +100,7 @@
 //!     use super::*;
 //!     use frame_support::pallet_prelude::*;
 //!     use frame_system::pallet_prelude::*;
-//!    	use pallet_funding::AcceptedFundingAsset;
+//!    	use pallet_funding::{AcceptedFundingAsset, MultiplierOf};
 //!
 //!     #[pallet::pallet]
 //!     pub struct Pallet<T>(_);
@@ -133,9 +133,9 @@
 //! 				);
 //!
 //! 			ensure!(project_contributions >= 500_000_0_000_000_000u64.into(), "Project did not achieve at least 500k USDT funding");
-//!
-//! 			// Buy tokens with the default multiplier
-//! 			<pallet_funding::Pallet<T>>::do_contribute(retail_user.into(), project_id, amount, None, AcceptedFundingAsset::USDT)?;
+//!				let multiplier: MultiplierOf<T> = 1u8.try_into().map_err(|_| Error::<T>::ProjectNotFound)?;
+//!				// Buy tokens with the default multiplier
+//!				<pallet_funding::Pallet<T>>::do_contribute(retail_user, project_id, amount, multiplier, AcceptedFundingAsset::USDT)?;
 //!
 //! 			Ok(())
 //! 		}
@@ -874,7 +874,7 @@ pub mod pallet {
 			project_id: T::ProjectIdentifier,
 			#[pallet::compact] amount: BalanceOf<T>,
 			price: PriceOf<T>,
-			multiplier: Option<T::Multiplier>,
+			multiplier: T::Multiplier,
 			asset: AcceptedFundingAsset,
 		) -> DispatchResult {
 			let bidder = ensure_signed(origin)?;
@@ -887,7 +887,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
 			#[pallet::compact] amount: BalanceOf<T>,
-			multiplier: Option<MultiplierOf<T>>,
+			multiplier:MultiplierOf<T>,
 			asset: AcceptedFundingAsset,
 		) -> DispatchResult {
 			let contributor = ensure_signed(origin)?;

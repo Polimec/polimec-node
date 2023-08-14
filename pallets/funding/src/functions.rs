@@ -874,7 +874,7 @@ impl<T: Config> Pallet<T> {
 		project_id: T::ProjectIdentifier,
 		ct_amount: BalanceOf<T>,
 		ct_usd_price: T::Price,
-		multiplier: Option<MultiplierOf<T>>,
+		multiplier: MultiplierOf<T>,
 		funding_asset: AcceptedFundingAsset,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
@@ -888,7 +888,6 @@ impl<T: Config> Pallet<T> {
 		let funding_asset_usd_price =
 			T::PriceProvider::get_price(funding_asset.to_statemint_id()).ok_or(Error::<T>::PriceNotFound)?;
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PriceNotFound)?;
-		let multiplier = multiplier.unwrap_or_default();
 
 		// * Validity checks *
 		ensure!(bidder.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
@@ -987,7 +986,7 @@ impl<T: Config> Pallet<T> {
 		contributor: AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		token_amount: BalanceOf<T>,
-		multiplier: Option<MultiplierOf<T>>,
+		multiplier: MultiplierOf<T>,
 		asset: AcceptedFundingAsset,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
@@ -1003,8 +1002,6 @@ impl<T: Config> Pallet<T> {
 		let mut ticket_size = ct_usd_price.checked_mul_int(token_amount).ok_or(Error::<T>::BadMath)?;
 		let funding_asset_usd_price =
 			T::PriceProvider::get_price(asset.to_statemint_id()).ok_or(Error::<T>::PriceNotFound)?;
-		// Default should normally be multiplier of 1
-		let multiplier = multiplier.unwrap_or_default();
 
 		// * Validity checks *
 		ensure!(contributor.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
