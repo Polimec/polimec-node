@@ -40,7 +40,7 @@ test-runtime-features:
 
 # Benchmark the "Testnet" Runtime
 benchmark-runtime-funding:
-	cargo run --features runtime-benchmarks,fast-gov --release -p polimec-parachain-node benchmark pallet \
+	cargo run --features runtime-benchmarks --release -p polimec-parachain-node benchmark pallet \
 		--chain=polimec-rococo-local \
 		--steps=50 \
 		--repeat=20 \

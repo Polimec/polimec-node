@@ -6024,6 +6024,7 @@ dependencies = [
  "pallet-balances",
  "pallet-insecure-randomness-collective-flip",
  "pallet-linear-release",
+ "pallet-timestamp",
  "parachains-common",
  "parity-scale-codec",
  "polimec-traits",
@@ -7423,6 +7424,7 @@ dependencies = [
  "sp-transaction-pool",
  "sp-version",
  "substrate-wasm-builder",
+ "xcm-builder",
 ]
 
 [[package]]

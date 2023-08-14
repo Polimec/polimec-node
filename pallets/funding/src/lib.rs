@@ -206,12 +206,15 @@ pub mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 pub mod impls;
+#[cfg(any(feature = "runtime-benchmarks", test))]
+pub mod instantiator;
 pub mod traits;
 
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 pub type ProjectIdOf<T> = <T as Config>::ProjectIdentifier;
 pub type MultiplierOf<T> = <T as Config>::Multiplier;
+
 pub type BalanceOf<T> = <T as Config>::Balance;
 pub type PriceOf<T> = <T as Config>::Price;
 pub type StringLimitOf<T> = <T as Config>::StringLimit;
@@ -303,7 +306,8 @@ pub mod pallet {
 			+ fungibles::InspectEnumerable<AccountIdOf<Self>, Balance = BalanceOf<Self>>
 			+ fungibles::metadata::Inspect<AccountIdOf<Self>>
 			+ fungibles::metadata::Mutate<AccountIdOf<Self>>
-			+ fungibles::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
+			+ fungibles::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>
+			+ fungibles::roles::Inspect<AccountIdOf<Self>>;
 
 		type PriceProvider: ProvideStatemintPrice<AssetId = u32, Price = Self::Price>;
 
@@ -368,7 +372,9 @@ pub mod pallet {
 
 		/// Helper trait for benchmarks.
 		#[cfg(feature = "runtime-benchmarks")]
-		type BenchmarkHelper: BenchmarkHelper<Self>;
+		type AllPalletsWithoutSystem: frame_support::traits::OnFinalize<BlockNumberOf<Self>>
+			+ frame_support::traits::OnIdle<BlockNumberOf<Self>>
+			+ frame_support::traits::OnInitialize<BlockNumberOf<Self>>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -1140,31 +1146,6 @@ pub mod pallet {
 			}
 
 			max_weight.saturating_sub(remaining_weight)
-		}
-	}
-
-	#[cfg(feature = "runtime-benchmarks")]
-	pub trait BenchmarkHelper<T: Config> {
-		fn create_project_id_parameter(id: u32) -> T::ProjectIdentifier;
-		fn create_dummy_project(metadata_hash: T::Hash) -> ProjectMetadataOf<T>;
-	}
-
-	#[cfg(feature = "runtime-benchmarks")]
-	impl<T: Config> BenchmarkHelper<T> for () {
-		fn create_project_id_parameter(id: u32) -> T::ProjectIdentifier {
-			id.into()
-		}
-
-		fn create_dummy_project(metadata_hash: T::Hash) -> ProjectMetadataOf<T> {
-			let project: ProjectMetadataOf<T> = ProjectMetadata {
-				total_allocation_size: 1_000_000_0_000_000_000u64.into(),
-				minimum_price: PriceOf::<T>::saturating_from_integer(1),
-				ticket_size: TicketSize { minimum: Some(1u8.into()), maximum: None },
-				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-				offchain_information_hash: Some(metadata_hash),
-				..Default::default()
-			};
-			project
 		}
 	}
 }
