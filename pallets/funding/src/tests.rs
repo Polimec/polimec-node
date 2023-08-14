@@ -1878,6 +1878,8 @@ mod evaluation_round_success {
 
 		community_funding_project.buy_for_retail_users(contributions).unwrap();
 		let finished_project = community_funding_project.finish_funding();
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+
 		test_env.advance_time(10).unwrap();
 		let project_id = finished_project.project_id;
 		let actual_reward_balances = test_env.in_ext(|| {
@@ -1922,6 +1924,8 @@ mod evaluation_round_success {
 		let prev_free_plmc = test_env.get_free_plmc_balances_for(evaluators.clone());
 
 		remainder_funding_project.end_funding();
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+
 		test_env.advance_time(10).unwrap();
 		let post_unbond_amounts: UserToPLMCBalance =
 			prev_reserved_plmc.iter().map(|(evaluator, _amount)| (*evaluator, Zero::zero())).collect();
@@ -2466,7 +2470,7 @@ mod auction_round_success {
 		let details = finished_project.get_project_details();
 		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
 		assert_eq!(details.cleanup, Cleaner::NotReady);
-
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		test_env.advance_time(10u64).unwrap();
 		let details = finished_project.get_project_details();
 		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
@@ -2528,7 +2532,7 @@ mod auction_round_success {
 				);
 			})
 		}
-		test_env.advance_time(1u64).unwrap();
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		let details = finished_project.get_project_details();
 		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
 
@@ -2586,7 +2590,7 @@ mod auction_round_success {
 		let stored_bids =
 			test_env.in_ext(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
 
-		test_env.advance_time(1u64).unwrap();
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		let details = finished_project.get_project_details();
 		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
 
@@ -2637,7 +2641,8 @@ mod auction_round_success {
 		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
 		assert_eq!(details.cleanup, Cleaner::NotReady);
 
-		test_env.advance_time(10u64).unwrap();
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+		test_env.advance_time(10u64.into()).unwrap();
 		let details = finished_project.get_project_details();
 		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
 
@@ -2700,7 +2705,7 @@ mod auction_round_success {
 			community_contributions,
 			remainder_contributions,
 		);
-
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		test_env.advance_time(10u64).unwrap();
 		let details = finished_project.get_project_details();
 		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
@@ -2743,8 +2748,7 @@ mod auction_round_success {
 		let details = finished_project.get_project_details();
 		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
 		assert_eq!(details.cleanup, Cleaner::NotReady);
-
-		test_env.advance_time(1u64).unwrap();
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		let details = finished_project.get_project_details();
 		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
 
@@ -2793,6 +2797,7 @@ mod auction_round_success {
 			community_contributions,
 			remainder_contributions,
 		);
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
 		test_env.advance_time(10u64).unwrap();
 		let details = finished_project.get_project_details();
@@ -2843,7 +2848,7 @@ mod auction_round_success {
 			community_contributions,
 			remainder_contributions,
 		);
-
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		test_env.advance_time(15u64).unwrap();
 		let details = finished_project.get_project_details();
 		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
@@ -2919,7 +2924,7 @@ mod auction_round_success {
 		community_funding_project.buy_for_retail_users(community_contributions).unwrap();
 		let finished_project = community_funding_project.finish_funding();
 
-		test_env.advance_time(10u64).unwrap();
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
 		let details = finished_project.get_project_details();
 		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
 
@@ -3811,7 +3816,7 @@ mod community_round_success {
 		let details = finished_project.get_project_details();
 		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
 		assert_eq!(details.cleanup, Cleaner::NotReady);
-
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		test_env.advance_time(10u64).unwrap();
 		let details = finished_project.get_project_details();
 		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
@@ -3873,7 +3878,8 @@ mod community_round_success {
 				);
 			})
 		}
-		test_env.advance_time(1u64).unwrap();
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+
 		let details = finished_project.get_project_details();
 		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
 
@@ -3930,8 +3936,8 @@ mod community_round_success {
 		assert_eq!(details.cleanup, Cleaner::NotReady);
 		let stored_contributions =
 			test_env.in_ext(|| Contributions::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
-		test_env.advance_time(1u64).unwrap();
 		let details = finished_project.get_project_details();
 		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
 
@@ -3981,6 +3987,7 @@ mod community_round_success {
 		let details = finished_project.get_project_details();
 		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
 		assert_eq!(details.cleanup, Cleaner::NotReady);
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
 		test_env.advance_time(10u64).unwrap();
 		let details = finished_project.get_project_details();
@@ -4040,7 +4047,7 @@ mod community_round_success {
 
 		let price = finished_project.get_project_details().weighted_average_price.unwrap();
 		let contribution_locked_plmc = calculate_contributed_plmc_spent(community_contributions, price);
-
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		test_env.advance_time(10u64).unwrap();
 		let details = finished_project.get_project_details();
 		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
@@ -4080,8 +4087,8 @@ mod community_round_success {
 		let details = finished_project.get_project_details();
 		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
 		assert_eq!(details.cleanup, Cleaner::NotReady);
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
-		test_env.advance_time(1u64).unwrap();
 		let details = finished_project.get_project_details();
 		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
 
@@ -4137,6 +4144,7 @@ mod community_round_success {
 			community_contributions,
 			remainder_contributions,
 		);
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
 		test_env.advance_time(10u64).unwrap();
 		let details = finished_project.get_project_details();
@@ -4190,6 +4198,7 @@ mod community_round_success {
 			community_contributions,
 			remainder_contributions,
 		);
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
 		test_env.advance_time(15u64).unwrap();
 		let details = finished_project.get_project_details();
@@ -4493,6 +4502,7 @@ mod remainder_round_success {
 		let details = finished_project.get_project_details();
 		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
 		assert_eq!(details.cleanup, Cleaner::NotReady);
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
 		test_env.advance_time(10u64).unwrap();
 		let details = finished_project.get_project_details();
@@ -4575,7 +4585,8 @@ mod remainder_round_success {
 				);
 			})
 		}
-		test_env.advance_time(1u64).unwrap();
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+
 		let details = finished_project.get_project_details();
 		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
 
@@ -4672,7 +4683,8 @@ mod remainder_round_success {
 				);
 			})
 		}
-		test_env.advance_time(1u64).unwrap();
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+
 		let details = finished_project.get_project_details();
 		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
 
@@ -4766,6 +4778,7 @@ mod remainder_round_success {
 				Contributions::<TestRuntime>::iter_prefix_values((project_id, BIDDER_1)).next().unwrap();
 			vec![evaluator_contribution.clone(), buyer_contribution.clone(), bidder_contribution.clone()]
 		});
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
 		test_env.advance_time(10u64).unwrap();
 		let details = finished_project.get_project_details();
@@ -4830,6 +4843,7 @@ mod remainder_round_success {
 		let remainder_locked_plmc = calculate_contributed_plmc_spent(remainder_contributions, price);
 		let all_plmc_locks =
 			merge_add_mappings_by_user(vec![auction_locked_plmc, community_locked_plmc, remainder_locked_plmc]);
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
 		test_env.advance_time(10u64).unwrap();
 		let details = finished_project.get_project_details();
@@ -4870,8 +4884,8 @@ mod remainder_round_success {
 		let details = finished_project.get_project_details();
 		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
 		assert_eq!(details.cleanup, Cleaner::NotReady);
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
-		test_env.advance_time(1u64).unwrap();
 		let details = finished_project.get_project_details();
 		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
 
@@ -4940,6 +4954,7 @@ mod remainder_round_success {
 			community_contributions,
 			remainder_contributions,
 		);
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
 		test_env.advance_time(10u64).unwrap();
 		let details = finished_project.get_project_details();
@@ -5002,6 +5017,7 @@ mod remainder_round_success {
 			community_contributions,
 			remainder_contributions,
 		);
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
 		test_env.advance_time(15u64).unwrap();
 		let details = finished_project.get_project_details();
