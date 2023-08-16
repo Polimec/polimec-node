@@ -49,7 +49,7 @@ use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_core::H256;
 use sp_runtime::{DispatchError, Either};
 use sp_std::marker::PhantomData;
-use std::{cell::RefCell, collections::BTreeMap, iter::zip, ops::Div, stringify};
+use std::{cell::RefCell, collections::BTreeMap, iter::zip, ops::Div};
 
 type ProjectIdOf<T> = <T as Config>::ProjectIdentifier;
 type UserToPLMCBalance = Vec<(AccountId, BalanceOf<TestRuntime>)>;
@@ -6464,7 +6464,7 @@ mod testing_macros {
 				let events = System::events();
 
 				events.iter().find_map(|event_record| {
-					if let frame_system::EventRecord {
+					if let frame_system::EventRecord {gi
 						event: RuntimeEvent::FundingModule(desired_event @ $pattern),
 						..
 					} = event_record

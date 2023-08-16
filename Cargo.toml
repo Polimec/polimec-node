@@ -41,6 +41,8 @@ debug-assertions = true
 overflow-checks = true
 
 [workspace.dependencies]
+# Testing deps
+assert_matches2 = "0.1.0"
 
 # Build deps
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.42" }
