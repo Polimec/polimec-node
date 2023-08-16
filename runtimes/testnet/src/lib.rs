@@ -66,7 +66,7 @@ pub use crate::xcm_config::*;
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 // Polimec Shared Imports
-use pallet_funding::BondTypeOf;
+use pallet_funding::{BondTypeOf, WeeksToBlocks};
 pub use pallet_parachain_staking;
 pub use shared_configuration::*;
 
@@ -487,6 +487,7 @@ impl pallet_funding::Config for Runtime {
 	type Balance = Balance;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+	type BlockNumberToBalance = ConvertInto;
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityFundingDuration = CommunityFundingDuration;
 	type ContributionTokenCurrency = LocalAssets;
@@ -502,7 +503,7 @@ impl pallet_funding::Config for Runtime {
 	type MaxContributionsPerUser = ConstU32<256>;
 	type MaxEvaluationsPerUser = ();
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
-	type Multiplier = pallet_funding::types::Multiplier<Self>;
+	type Multiplier = pallet_funding::types::Multiplier;
 	type NativeCurrency = Balances;
 	type PalletId = FundingPalletId;
 	type PreImageLimit = ConstU32<1024>;
@@ -517,6 +518,7 @@ impl pallet_funding::Config for Runtime {
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type TreasuryAccount = TreasuryAccount;
 	type Vesting = Vesting;
+	type WeeksToBlocks = WeeksToBlocks;
 	type WeightInfo = ();
 }
 

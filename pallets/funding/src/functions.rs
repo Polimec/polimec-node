@@ -21,7 +21,7 @@
 use super::*;
 use sp_std::marker::PhantomData;
 
-use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice};
+use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
@@ -38,6 +38,7 @@ use sp_arithmetic::Perquintill;
 
 use polimec_traits::ReleaseSchedule;
 use sp_arithmetic::traits::{CheckedDiv, CheckedSub, Zero};
+use sp_runtime::traits::Convert;
 use sp_std::prelude::*;
 
 // Round transition functions
@@ -1639,7 +1640,7 @@ impl<T: Config> Pallet<T> {
 		multiplier: MultiplierOf<T>,
 		plmc_price: PriceOf<T>,
 	) -> Result<BalanceOf<T>, DispatchError> {
-		let usd_bond = multiplier.calculate_bonding_requirement(ticket_size).map_err(|_| Error::<T>::BadMath)?;
+		let usd_bond = multiplier.calculate_bonding_requirement::<T>(ticket_size).map_err(|_| Error::<T>::BadMath)?;
 		plmc_price.reciprocal().ok_or(Error::<T>::BadMath)?.checked_mul_int(usd_bond).ok_or(Error::<T>::BadMath.into())
 	}
 
@@ -1651,14 +1652,15 @@ impl<T: Config> Pallet<T> {
 		bonded_amount: BalanceOf<T>,
 	) -> Result<VestingInfo<T::BlockNumber, BalanceOf<T>>, DispatchError> {
 		// TODO: duration should depend on `_multiplier` and `_caller` credential
-		let duration: T::BlockNumber = multiplier.calculate_vesting_duration();
-		let amount_per_block = bonded_amount.checked_div(&duration.into()).ok_or(Error::<T>::BadMath)?;
+		let duration: T::BlockNumber = multiplier.calculate_vesting_duration::<T>();
+		let duration_as_balance = T::BlockNumberToBalance::convert(duration);
+		let amount_per_block = if duration_as_balance == Zero::zero() {
+			bonded_amount
+		} else {
+			bonded_amount.checked_div(&duration_as_balance).ok_or(Error::<T>::BadMath)?
+		};
 
-		Ok(VestingInfo {
-			total_amount: bonded_amount,
-			amount_per_block,
-			duration: <T::BlockNumber as From<u32>>::from(duration),
-		})
+		Ok(VestingInfo { total_amount: bonded_amount, amount_per_block, duration })
 	}
 
 	/// Calculates the price (in USD) of contribution tokens for the Community and Remainder Rounds
@@ -1780,7 +1782,7 @@ impl<T: Config> Pallet<T> {
 
 						let usd_bond_needed = bid
 							.multiplier
-							.calculate_bonding_requirement(ticket_size)
+							.calculate_bonding_requirement::<T>(ticket_size)
 							.map_err(|_| Error::<T>::BadMath)?;
 						let plmc_bond_needed = plmc_price
 							.reciprocal()
@@ -1898,8 +1900,10 @@ impl<T: Config> Pallet<T> {
 
 				bid.funding_asset_amount_locked = funding_asset_amount_needed;
 
-				let usd_bond_needed =
-					bid.multiplier.calculate_bonding_requirement(new_ticket_size).map_err(|_| Error::<T>::BadMath)?;
+				let usd_bond_needed = bid
+					.multiplier
+					.calculate_bonding_requirement::<T>(new_ticket_size)
+					.map_err(|_| Error::<T>::BadMath)?;
 				let plmc_bond_needed = plmc_price
 					.reciprocal()
 					.ok_or(Error::<T>::BadMath)?

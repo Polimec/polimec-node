@@ -244,6 +244,7 @@ impl pallet_funding::Config for TestRuntime {
 	type Balance = Balance;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+	type BlockNumberToBalance = ConvertInto;
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityFundingDuration = CommunityRoundDuration;
 	type ContributionTokenCurrency = LocalAssets;
@@ -260,7 +261,7 @@ impl pallet_funding::Config for TestRuntime {
 	type MaxContributionsPerUser = ConstU32<4>;
 	type MaxEvaluationsPerUser = ConstU32<4>;
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
-	type Multiplier = Multiplier<TestRuntime>;
+	type Multiplier = Multiplier;
 	type NativeCurrency = Balances;
 	type PalletId = FundingPalletId;
 	type PreImageLimit = ConstU32<1024>;
@@ -275,6 +276,7 @@ impl pallet_funding::Config for TestRuntime {
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type TreasuryAccount = TreasuryAccount;
 	type Vesting = Vesting;
+	type WeeksToBlocks = WeeksToBlocks;
 	type WeightInfo = ();
 }
 

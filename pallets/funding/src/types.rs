@@ -32,37 +32,54 @@ pub use inner_types::*;
 pub use storage_types::*;
 
 pub mod config_types {
-	use sp_arithmetic::FixedU128;
-	use sp_arithmetic::traits::SaturatedConversion;
-	use crate::traits::VestingDurationCalculation;
 	use super::*;
-
-	const BALANCE_UNIT: u128 = 1_0_000_000_000u128;
+	use crate::{traits::VestingDurationCalculation, Config};
+	use parachains_common::DAYS;
+	use sp_arithmetic::FixedU128;
+	use sp_runtime::traits::{Convert, Zero};
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
-	pub struct Multiplier<T: crate::Config>(pub T::Balance);
-	impl<T: crate::Config> BondingRequirementCalculation<T> for Multiplier<T> {
-		fn calculate_bonding_requirement(&self, ticket_size: BalanceOf<T>) -> Result<BalanceOf<T>, ()> {
-			ticket_size.checked_div(&self.0).ok_or(())
+	pub struct Multiplier(u8);
+
+	impl Multiplier {
+		pub fn new(x: u8) -> Result<Self, ()> {
+			if x > 0 && x <= 25 {
+				Ok(Self(x))
+			} else {
+				Err(())
+			}
 		}
 	}
-	impl<T: crate::Config> VestingDurationCalculation<T> for Multiplier<T> {
-		fn calculate_vesting_duration(&self) -> Result<T::BlockNumber, ()> {
-			let m: BalanceOf<T> = FixedU128::from_float(2.167f64).checked_mul_int(BALANCE_UNIT).ok_or(())?.saturated_into();
-			let b: BalanceOf<T> = FixedU128::from_float(2.2.175f64).checked_mul_int(BALANCE_UNIT).ok_or(())?.saturated_into();
-			let x = self.0;
-			let y = m.checked_mul_int(x);
-			let _ = b.c
+
+	impl BondingRequirementCalculation for Multiplier {
+		fn calculate_bonding_requirement<T: Config>(&self, ticket_size: BalanceOf<T>) -> Result<BalanceOf<T>, ()> {
+			let u32_multiplier = self.0 as u32;
+			let balance_multiplier = BalanceOf::<T>::from(u32_multiplier);
+			ticket_size.checked_div(&balance_multiplier).ok_or(())
 		}
 	}
-	impl<T: crate::Config> Default for Multiplier<T> {
+
+	impl VestingDurationCalculation for Multiplier {
+		fn calculate_vesting_duration<T: Config>(&self) -> T::BlockNumber {
+			let gradient = FixedU128::from_rational(2167u128, 1000u128);
+			let neg_constant = FixedU128::from_rational(2167u128, 1000u128);
+			let multiplier = FixedU128::saturating_from_integer(self.0);
+			let weeks = gradient * multiplier - neg_constant;
+			T::WeeksToBlocks::convert(weeks)
+		}
+	}
+
+	impl Default for Multiplier {
 		fn default() -> Self {
-			Self(1u32.into())
+			Self(1u8)
 		}
 	}
-	impl<T: crate::Config> From<u32> for Multiplier<T> {
-		fn from(x: u32) -> Self {
-			Self(x.into())
+
+	impl TryFrom<u8> for Multiplier {
+		type Error = ();
+
+		fn try_from(x: u8) -> Result<Self, ()> {
+			Self::new(x)
 		}
 	}
 
@@ -84,6 +101,28 @@ pub mod config_types {
 
 		fn get_price(asset_id: AssetId) -> Option<Price> {
 			Mapping::get().get(&asset_id).cloned()
+		}
+	}
+
+	pub struct WeeksToBlocks;
+	impl Convert<FixedU128, u64> for WeeksToBlocks {
+		fn convert(a: FixedU128) -> u64 {
+			if a == Zero::zero() {
+				return 1u64
+			} else {
+				let one_week_in_blocks = DAYS * 7;
+				a.saturating_mul_int(one_week_in_blocks as u64)
+			}
+		}
+	}
+	impl Convert<FixedU128, u32> for WeeksToBlocks {
+		fn convert(a: FixedU128) -> u32 {
+			if a == Zero::zero() {
+				return 1u32
+			} else {
+				let one_week_in_blocks = DAYS * 7;
+				a.saturating_mul_int(one_week_in_blocks)
+			}
 		}
 	}
 }
