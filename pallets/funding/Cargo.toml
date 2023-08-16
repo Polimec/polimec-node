@@ -37,6 +37,7 @@ pallet-balances.workspace = true
 pallet-insecure-randomness-collective-flip.workspace = true
 pallet-assets.workspace = true
 pallet-linear-release.workspace = true
+assert_matches2 = "0.1.0"
 
 [features]
 default = ["std"]

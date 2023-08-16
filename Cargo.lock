@@ -389,6 +389,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b34d609dfbaf33d6889b2b7106d3ca345eacad44200913df5ba02bfd31d2ba9"
 
 [[package]]
+name = "assert_matches2"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af2f0d0b12ad8a519db313659cbd5e8757633f75d77ac5df1f8644f38f9c5946"
+
+[[package]]
 name = "assets-common"
 version = "0.1.0"
 source = "git+https://github.com/paritytech/cumulus?branch=polkadot-v0.9.42#f603a61ff370fc33740c9373833c3c6ba1486846"
@@ -5986,6 +5992,7 @@ dependencies = [
 name = "pallet-funding"
 version = "0.1.0"
 dependencies = [
+ "assert_matches2",
  "frame-benchmarking",
  "frame-support",
  "frame-system",

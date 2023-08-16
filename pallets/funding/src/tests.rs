@@ -26,6 +26,8 @@ use crate::{
 	CurrencyMetadata, Error, ParticipantsSize, ProjectMetadata, TicketSize,
 	UpdateType::{CommunityFundingStart, RemainderFundingStart},
 };
+use assert_matches2::assert_matches;
+
 use defaults::*;
 use frame_support::{
 	assert_noop, assert_ok,
@@ -5971,17 +5973,17 @@ mod funding_end {
 		assert_eq!(finished_project.get_project_details().status, ProjectStatus::FundingSuccessful);
 		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
-		// assert_matches!(
-		// 	finished_project.get_project_details().cleanup,
-		// 	Cleaner::Success(CleanerState::Initialized(PhantomData)),
-		// );
-		// test_ct_created_for(&test_env, project_id);
+		assert_matches!(
+			finished_project.get_project_details().cleanup,
+			Cleaner::Success(CleanerState::Initialized(_))
+		);
+		test_ct_created_for(&test_env, project_id);
 
-		// test_env.advance_time(10u64).unwrap();
-		// assert_matches!(
-		// 	finished_project.get_project_details().cleanup,
-		// 	Cleaner::Success(CleanerState::Finished(PhantomData)),
-		// );
+		test_env.advance_time(10u64).unwrap();
+		assert_matches!(
+			finished_project.get_project_details().cleanup,
+			Cleaner::Success(CleanerState::Finished(PhantomData))
+		);
 	}
 
 	#[test]
