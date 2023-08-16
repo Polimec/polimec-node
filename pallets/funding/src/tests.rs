@@ -6500,7 +6500,7 @@ mod testing_macros {
 				let events = System::events();
 
 				events.iter().find_map(|event_record| {
-					if let frame_system::EventRecord {
+					if let frame_system::EventRecord {gi
 						event: RuntimeEvent::FundingModule(desired_event @ $pattern),
 						..
 					} = event_record
