@@ -26,6 +26,8 @@ use crate::{
 	CurrencyMetadata, Error, ParticipantsSize, ProjectMetadata, TicketSize,
 	UpdateType::{CommunityFundingStart, RemainderFundingStart},
 };
+use assert_matches2::assert_matches;
+
 use defaults::*;
 use frame_support::{
 	assert_noop, assert_ok,
@@ -47,7 +49,7 @@ use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_core::H256;
 use sp_runtime::{DispatchError, Either};
 use sp_std::marker::PhantomData;
-use std::{assert_matches::assert_matches, cell::RefCell, collections::BTreeMap, iter::zip, ops::Div};
+use std::{cell::RefCell, collections::BTreeMap, iter::zip, ops::Div};
 
 type ProjectIdOf<T> = <T as Config>::ProjectIdentifier;
 type UserToPLMCBalance = Vec<(AccountId, BalanceOf<TestRuntime>)>;
@@ -5938,14 +5940,14 @@ mod funding_end {
 
 		assert_matches!(
 			finished_project.get_project_details().cleanup,
-			Cleaner::Success(CleanerState::Initialized(PhantomData)),
+			Cleaner::Success(CleanerState::Initialized(_))
 		);
 		test_ct_created_for(&test_env, project_id);
 
 		test_env.advance_time(10u64).unwrap();
 		assert_matches!(
 			finished_project.get_project_details().cleanup,
-			Cleaner::Success(CleanerState::Finished(PhantomData)),
+			Cleaner::Success(CleanerState::Finished(PhantomData))
 		);
 	}
 
@@ -6462,7 +6464,7 @@ mod testing_macros {
 				let events = System::events();
 
 				events.iter().find_map(|event_record| {
-					if let frame_system::EventRecord {
+					if let frame_system::EventRecord {gi
 						event: RuntimeEvent::FundingModule(desired_event @ $pattern),
 						..
 					} = event_record
@@ -6495,4 +6497,5 @@ mod testing_macros {
 		};
 	}
 	pub(crate) use extract_from_event;
+
 }
