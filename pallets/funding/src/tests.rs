@@ -6714,7 +6714,7 @@ use sp_arithmetic::traits::CheckedSub;
 		]
 	}
 
-	pub fn excel_contributors() -> TestContributions {
+	fn excel_contributors() -> TestContributions {
 		vec![
 			TestContribution::from(DRIN, 692 * US_DOLLAR),
 			TestContribution::from(PARI, 236 * US_DOLLAR),
@@ -6792,8 +6792,8 @@ use sp_arithmetic::traits::CheckedSub;
 		let wavgp_to_substrate = FixedU128::from_float(wavgp_from_excel);
 		let wavgp_from_chain = community_funding_project.get_project_details().weighted_average_price.unwrap();
 		let res = wavgp_from_chain.checked_sub(&wavgp_to_substrate).unwrap();
-		// From the 11th decimal onwards, the difference should be less than 0.5.
-		assert!(res < FixedU128::from_float(0.5));
+			// We are more precise than Excel. From the 11th decimal onwards, the difference should be less than 0.00001.
+		assert!(res < FixedU128::from_float(0.00001));
 		let names = names();
 
 		test_env.in_ext(|| {
@@ -6821,12 +6821,43 @@ use sp_arithmetic::traits::CheckedSub;
 
 		test_env.in_ext(|| {
 			let contributions = Contributions::<TestRuntime>::iter_prefix_values((0,)).sorted_by_key(|bid| bid.contributor).collect_vec();
-
-			// for bid in bids.clone() {
-			// 	println!("{}: {}", names[&bid.contributor], bid.funding_asset_amount);
-			// }
 			let total_contribution = contributions.into_iter().fold(0, |acc, bid| acc + bid.funding_asset_amount);
-			dbg!(total_contribution);
+			let total_contribution_as_fixed = FixedU128::from_rational(total_contribution, PLMC);
+			dbg!(total_contribution_as_fixed);
+			let total_from_excel = 825070.0361;
+			let total_to_substrate = FixedU128::from_float(total_from_excel);
+			dbg!(total_to_substrate);
+			let res = total_contribution_as_fixed.checked_sub(&total_to_substrate).unwrap();
+			// We are more precise than Excel. From the 11th decimal onwards, the difference should be less than 0.00001.
+			assert!(res < FixedU128::from_float(0.00001));
+		})
+	}
+
+	#[test]
+	fn remainder_round_completed() {
+		let test_env = TestEnvironment::new();
+		let _remaindery_funding_project = FinishedProject::new_with(
+			&test_env,
+			excel_project(0),
+			ISSUER,
+			excel_evaluators(),
+			excel_bidders(),
+			excel_contributors(),
+			vec![]
+		);
+
+
+		test_env.in_ext(|| {
+			let contributions = Contributions::<TestRuntime>::iter_prefix_values((0,)).sorted_by_key(|bid| bid.contributor).collect_vec();
+			let total_contribution = contributions.into_iter().fold(0, |acc, bid| acc + bid.funding_asset_amount);
+			let total_contribution_as_fixed = FixedU128::from_rational(total_contribution, PLMC);
+			dbg!(total_contribution_as_fixed);
+			let total_from_excel = 825070.0361;
+			let total_to_substrate = FixedU128::from_float(total_from_excel);
+			dbg!(total_to_substrate);
+			let res = total_contribution_as_fixed.checked_sub(&total_to_substrate).unwrap();
+			// We are more precise than Excel. From the 11th decimal onwards, the difference should be less than 0.00001.
+			assert!(res < FixedU128::from_float(0.00001));
 		})
 	}
 	
