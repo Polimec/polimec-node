@@ -175,7 +175,6 @@
 // This recursion limit is needed because we have too many benchmarks and benchmarking will fail if
 // we add more without this limit.
 #![cfg_attr(feature = "runtime-benchmarks", recursion_limit = "512")]
-// #![feature(assert_matches)]
 
 pub mod functions;
 pub mod types;
