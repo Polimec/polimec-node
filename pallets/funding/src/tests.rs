@@ -1528,7 +1528,7 @@ pub mod helper_functions {
 						// output.extend_from_slice(&map[j..]);
 						break
 					},
-					(Some((acc_i, val_i)), Some((acc_j, val_j))) =>
+					(Some((acc_i, val_i)), Some((acc_j, val_j))) => {
 						if acc_i == acc_j {
 							output.push((acc_i.clone(), val_i.clone().saturating_sub(val_j.clone())));
 							i += 1;
@@ -1540,7 +1540,8 @@ pub mod helper_functions {
 							// uncomment to keep unmatched maps
 							// output.push(map[j]);
 							j += 1;
-						},
+						}
+					},
 				}
 			}
 		}
@@ -5973,10 +5974,7 @@ mod funding_end {
 		assert_eq!(finished_project.get_project_details().status, ProjectStatus::FundingSuccessful);
 		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
-		assert_matches!(
-			finished_project.get_project_details().cleanup,
-			Cleaner::Success(CleanerState::Initialized(_))
-		);
+		assert_matches!(finished_project.get_project_details().cleanup, Cleaner::Success(CleanerState::Initialized(_)));
 		test_ct_created_for(&test_env, project_id);
 
 		test_env.advance_time(10u64).unwrap();
@@ -6555,7 +6553,8 @@ mod testing_macros {
 mod e2e_testing {
 
 	use itertools::Itertools;
-use sp_arithmetic::traits::CheckedSub;
+	use sp_arithmetic::traits::CheckedSub;
+	use sp_runtime::traits::AccountIdConversion;
 
 	use super::{testing_macros::define_names, *};
 
@@ -6794,7 +6793,7 @@ use sp_arithmetic::traits::CheckedSub;
 		let wavgp_to_substrate = FixedU128::from_float(wavgp_from_excel);
 		let wavgp_from_chain = community_funding_project.get_project_details().weighted_average_price.unwrap();
 		let res = wavgp_from_chain.checked_sub(&wavgp_to_substrate).unwrap();
-			// We are more precise than Excel. From the 11th decimal onwards, the difference should be less than 0.00001.
+		// We are more precise than Excel. From the 11th decimal onwards, the difference should be less than 0.00001.
 		assert!(res < FixedU128::from_float(0.00001));
 		let names = names();
 
@@ -6822,7 +6821,9 @@ use sp_arithmetic::traits::CheckedSub;
 		);
 
 		test_env.in_ext(|| {
-			let contributions = Contributions::<TestRuntime>::iter_prefix_values((0,)).sorted_by_key(|bid| bid.contributor).collect_vec();
+			let contributions = Contributions::<TestRuntime>::iter_prefix_values((0,))
+				.sorted_by_key(|bid| bid.contributor)
+				.collect_vec();
 			let total_contribution = contributions.into_iter().fold(0, |acc, bid| acc + bid.funding_asset_amount);
 			let total_contribution_as_fixed = FixedU128::from_rational(total_contribution, PLMC);
 			dbg!(total_contribution_as_fixed);
@@ -6836,7 +6837,7 @@ use sp_arithmetic::traits::CheckedSub;
 	}
 
 	#[test]
-	fn remainder_round_completed() {
+	fn funds_raised() {
 		let test_env = TestEnvironment::new();
 		let _remaindery_funding_project = FinishedProject::new_with(
 			&test_env,
@@ -6845,12 +6846,13 @@ use sp_arithmetic::traits::CheckedSub;
 			excel_evaluators(),
 			excel_bidders(),
 			excel_contributors(),
-			vec![]
+			vec![],
 		);
 
-
 		test_env.in_ext(|| {
-			let contributions = Contributions::<TestRuntime>::iter_prefix_values((0,)).sorted_by_key(|bid| bid.contributor).collect_vec();
+			let contributions = Contributions::<TestRuntime>::iter_prefix_values((0,))
+				.sorted_by_key(|bid| bid.contributor)
+				.collect_vec();
 			let total_contribution = contributions.into_iter().fold(0, |acc, bid| acc + bid.funding_asset_amount);
 			let total_contribution_as_fixed = FixedU128::from_rational(total_contribution, PLMC);
 			dbg!(total_contribution_as_fixed);
@@ -6860,7 +6862,38 @@ use sp_arithmetic::traits::CheckedSub;
 			let res = total_contribution_as_fixed.checked_sub(&total_to_substrate).unwrap();
 			// We are more precise than Excel. From the 11th decimal onwards, the difference should be less than 0.00001.
 			assert!(res < FixedU128::from_float(0.00001));
+			let pallet_id = <mock::TestRuntime as pallet::Config>::PalletId::get();
+			let project_specific_account: u64 = pallet_id.into_sub_account_truncating(0);
+			let funding = StatemintAssets::balance(1984, project_specific_account);
+			let fund_raised_from_excel = 1498888.758;
+			let fund_raised_to_substrate = FixedU128::from_float(fund_raised_from_excel);
+			let fund_raised_as_fixed = FixedU128::from_rational(funding, ASSET_UNIT);
+			let res = fund_raised_as_fixed.checked_sub(&fund_raised_to_substrate).unwrap();
+			// We are more precise than Excel. From the 11th decimal onwards, the difference should be less than 0.0003.
+			assert!(res < FixedU128::from_float(0.0003));
 		})
 	}
-	
+
+	#[test]
+	fn ct_minted() {
+		let test_env = TestEnvironment::new();
+		let _remaindery_funding_project = FinishedProject::new_with(
+			&test_env,
+			excel_project(0),
+			ISSUER,
+			excel_evaluators(),
+			excel_bidders(),
+			excel_contributors(),
+			vec![],
+		);
+
+		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+
+		test_env.advance_time(10u64).unwrap();
+
+		test_env.in_ext(|| {
+			let ct_amount = LocalAssets::balance(0, LINA);
+			dbg!(FixedU128::from_rational(ct_amount, ASSET_UNIT));
+		})
+	}
 }
