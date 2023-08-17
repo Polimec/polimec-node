@@ -31,6 +31,7 @@ jobs:
 
   check:
     # The type of runner that the job will run on
+    needs: fmt
     runs-on: ubuntu-22.04
     container:
       image: paritytech/ci-linux:production
@@ -61,6 +62,7 @@ jobs:
 
   test:
     # The type of runner that the job will run on
+    needs: check
     runs-on: ubuntu-22.04
     container:
       image: paritytech/ci-linux:production
