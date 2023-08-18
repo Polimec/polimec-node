@@ -36,6 +36,7 @@ pub mod config_types {
 	use crate::{traits::VestingDurationCalculation, Config};
 	use parachains_common::DAYS;
 	use sp_arithmetic::FixedU128;
+	use sp_arithmetic::traits::Saturating;
 	use sp_runtime::traits::{Convert, Zero};
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
@@ -54,23 +55,24 @@ pub mod config_types {
 				Err(())
 			}
 		}
-		}
 	}
 
 	impl BondingRequirementCalculation for Multiplier {
 		fn calculate_bonding_requirement<T: Config>(&self, ticket_size: BalanceOf<T>) -> Result<BalanceOf<T>, ()> {
-			let u32_multiplier = self.0 as u32;
-			let balance_multiplier = BalanceOf::<T>::from(u32_multiplier);
+			let balance_multiplier = BalanceOf::<T>::from(self.0);
 			ticket_size.checked_div(&balance_multiplier).ok_or(())
 		}
 	}
 
 	impl VestingDurationCalculation for Multiplier {
 		fn calculate_vesting_duration<T: Config>(&self) -> T::BlockNumber {
-			let gradient = FixedU128::from_rational(2167u128, 1000u128);
-			let neg_constant = FixedU128::from_rational(2167u128, 1000u128);
-			let multiplier = FixedU128::saturating_from_integer(self.0);
-			let weeks = gradient * multiplier - neg_constant;
+			// gradient "m" of the linear curve function y = m*x + b
+			const GRADIENT: FixedU128 = FixedU128::from_rational(2167u128, 1000u128);
+			// negative constant (because we cannot have negative values, so we take the negative and do "-b" instead of "+b") "b" of the linear curve function y = m*x + b
+			const NEG_CONSTANT: FixedU128 = FixedU128::from_rational(2167u128, 1000u128);
+
+			let multiplier_as_fixed = FixedU128::saturating_from_integer(self.0);
+			let weeks = GRADIENT.saturating_mul(multiplier_as_fixed).saturating_sub(NEG_CONSTANT);
 			T::WeeksToBlocks::convert(weeks)
 		}
 	}
