@@ -42,12 +42,18 @@ pub mod config_types {
 	pub struct Multiplier(u8);
 
 	impl Multiplier {
+		/// Creates a new `Multiplier` if the value is between 1 and 25, otherwise returns an error.
 		pub fn new(x: u8) -> Result<Self, ()> {
-			if x > 0 && x <= 25 {
+			// The minimum and maximum values are chosen to be 1 and 25 respectively, as defined in the Knowledge Hub.
+			const MIN_VALID: u8 = 1;
+			const MAX_VALID: u8 = 25;
+	
+			if x >= MIN_VALID && x <= MAX_VALID {
 				Ok(Self(x))
 			} else {
 				Err(())
 			}
+		}
 		}
 	}
 
