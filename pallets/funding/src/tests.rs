@@ -6230,7 +6230,13 @@ mod funding_end {
 		let evaluations = default_evaluations();
 		let bids = vec![
 			TestBid::new(BIDDER_1, 40_000 * ASSET_UNIT, 15.into(), None, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_2, 40_000 * ASSET_UNIT, 15.into(), Some(1u8.try_into().unwrap()), AcceptedFundingAsset::USDT),
+			TestBid::new(
+				BIDDER_2,
+				40_000 * ASSET_UNIT,
+				15.into(),
+				Some(1u8.try_into().unwrap()),
+				AcceptedFundingAsset::USDT,
+			),
 			TestBid::new(
 				BIDDER_3,
 				152_000 * ASSET_UNIT,
@@ -6299,12 +6305,30 @@ mod funding_end {
 		let one_week_in_blocks = DAYS * 7;
 		assert_eq!(stored_bids[0].plmc_vesting_info.unwrap().duration, 1u64);
 		assert_eq!(stored_bids[1].plmc_vesting_info.unwrap().duration, 1u64);
-		assert_eq!(stored_bids[2].plmc_vesting_info.unwrap().duration, FixedU128::from_rational(2167,1000).saturating_mul_int(one_week_in_blocks as u64));
-		assert_eq!(stored_bids[3].plmc_vesting_info.unwrap().duration, FixedU128::from_rational(4334,1000).saturating_mul_int(one_week_in_blocks as u64));
-		assert_eq!(stored_bids[4].plmc_vesting_info.unwrap().duration, FixedU128::from_rational(39006,1000).saturating_mul_int(one_week_in_blocks as u64));
-		assert_eq!(stored_bids[5].plmc_vesting_info.unwrap().duration, FixedU128::from_rational(41173,1000).saturating_mul_int(one_week_in_blocks as u64));
-		assert_eq!(stored_bids[6].plmc_vesting_info.unwrap().duration, FixedU128::from_rational(49841,1000).saturating_mul_int(one_week_in_blocks as u64));
-		assert_eq!(stored_bids[7].plmc_vesting_info.unwrap().duration, FixedU128::from_rational(52008,1000).saturating_mul_int(one_week_in_blocks as u64));
+		assert_eq!(
+			stored_bids[2].plmc_vesting_info.unwrap().duration,
+			FixedU128::from_rational(2167, 1000).saturating_mul_int(one_week_in_blocks as u64)
+		);
+		assert_eq!(
+			stored_bids[3].plmc_vesting_info.unwrap().duration,
+			FixedU128::from_rational(4334, 1000).saturating_mul_int(one_week_in_blocks as u64)
+		);
+		assert_eq!(
+			stored_bids[4].plmc_vesting_info.unwrap().duration,
+			FixedU128::from_rational(39006, 1000).saturating_mul_int(one_week_in_blocks as u64)
+		);
+		assert_eq!(
+			stored_bids[5].plmc_vesting_info.unwrap().duration,
+			FixedU128::from_rational(41173, 1000).saturating_mul_int(one_week_in_blocks as u64)
+		);
+		assert_eq!(
+			stored_bids[6].plmc_vesting_info.unwrap().duration,
+			FixedU128::from_rational(49841, 1000).saturating_mul_int(one_week_in_blocks as u64)
+		);
+		assert_eq!(
+			stored_bids[7].plmc_vesting_info.unwrap().duration,
+			FixedU128::from_rational(52008, 1000).saturating_mul_int(one_week_in_blocks as u64)
+		);
 	}
 }
 
@@ -6587,7 +6611,7 @@ mod misc_features {
 		let default_multiplier = MultiplierOf::<TestRuntime>::default();
 		let default_multiplier_duration = default_multiplier.calculate_vesting_duration::<TestRuntime>();
 		assert_eq!(default_multiplier_duration, 1u64);
-		
+
 		let multiplier_1 = MultiplierOf::<TestRuntime>::new(1u8).unwrap();
 		let multiplier_1_duration = multiplier_1.calculate_vesting_duration::<TestRuntime>();
 		assert_eq!(multiplier_1_duration, 1u64);
@@ -6615,7 +6639,6 @@ mod misc_features {
 		let multiplier_25 = MultiplierOf::<TestRuntime>::new(25u8).unwrap();
 		let multiplier_25_duration = multiplier_25.calculate_vesting_duration::<TestRuntime>();
 		assert_eq!(multiplier_25_duration, FixedU128::from_rational(52008, 1000).saturating_mul_int((DAYS * 7) as u64));
-
 	}
 
 	#[test]

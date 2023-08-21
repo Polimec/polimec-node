@@ -35,8 +35,7 @@ pub mod config_types {
 	use super::*;
 	use crate::{traits::VestingDurationCalculation, Config};
 	use parachains_common::DAYS;
-	use sp_arithmetic::FixedU128;
-	use sp_arithmetic::traits::Saturating;
+	use sp_arithmetic::{traits::Saturating, FixedU128};
 	use sp_runtime::traits::{Convert, One, Zero};
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
@@ -48,7 +47,7 @@ pub mod config_types {
 			// The minimum and maximum values are chosen to be 1 and 25 respectively, as defined in the Knowledge Hub.
 			const MIN_VALID: u8 = 1;
 			const MAX_VALID: u8 = 25;
-	
+
 			if x >= MIN_VALID && x <= MAX_VALID {
 				Ok(Self(x))
 			} else {

@@ -492,6 +492,7 @@ impl pallet_funding::Config for Runtime {
 	type CommunityFundingDuration = CommunityFundingDuration;
 	type ContributionTokenCurrency = LocalAssets;
 	type ContributionVesting = ContributionVestingDuration;
+	type DaysToBlocks = DaysToBlocks;
 	type EnglishAuctionDuration = EnglishAuctionDuration;
 	type EvaluationDuration = EvaluationDuration;
 	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
@@ -518,7 +519,6 @@ impl pallet_funding::Config for Runtime {
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type TreasuryAccount = TreasuryAccount;
 	type Vesting = Vesting;
-	type DaysToBlocks = DaysToBlocks;
 	type WeightInfo = ();
 }
 
