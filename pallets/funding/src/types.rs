@@ -37,7 +37,7 @@ pub mod config_types {
 	use parachains_common::DAYS;
 	use sp_arithmetic::FixedU128;
 	use sp_arithmetic::traits::Saturating;
-	use sp_runtime::traits::{Convert, Zero};
+	use sp_runtime::traits::{Convert, One, Zero};
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
 	pub struct Multiplier(u8);
@@ -73,7 +73,11 @@ pub mod config_types {
 
 			let multiplier_as_fixed = FixedU128::saturating_from_integer(self.0);
 			let weeks = GRADIENT.saturating_mul(multiplier_as_fixed).saturating_sub(NEG_CONSTANT);
-			T::WeeksToBlocks::convert(weeks)
+			if weeks == Zero::zero() {
+				One::one()
+			} else {
+				T::DaysToBlocks::convert(weeks * FixedU128::from_u32(7u32))
+			}
 		}
 	}
 
@@ -112,25 +116,17 @@ pub mod config_types {
 		}
 	}
 
-	pub struct WeeksToBlocks;
-	impl Convert<FixedU128, u64> for WeeksToBlocks {
+	pub struct DaysToBlocks;
+	impl Convert<FixedU128, u64> for DaysToBlocks {
 		fn convert(a: FixedU128) -> u64 {
-			if a == Zero::zero() {
-				return 1u64
-			} else {
-				let one_week_in_blocks = DAYS * 7;
-				a.saturating_mul_int(one_week_in_blocks as u64)
-			}
+			let one_day_in_blocks = DAYS;
+			a.saturating_mul_int(one_day_in_blocks as u64)
 		}
 	}
-	impl Convert<FixedU128, u32> for WeeksToBlocks {
+	impl Convert<FixedU128, u32> for DaysToBlocks {
 		fn convert(a: FixedU128) -> u32 {
-			if a == Zero::zero() {
-				return 1u32
-			} else {
-				let one_week_in_blocks = DAYS * 7;
-				a.saturating_mul_int(one_week_in_blocks)
-			}
+			let one_day_in_blocks = DAYS;
+			a.saturating_mul_int(one_day_in_blocks)
 		}
 	}
 }

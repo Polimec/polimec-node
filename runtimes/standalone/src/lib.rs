@@ -39,7 +39,7 @@ use frame_support::traits::AsEnsureOriginWithArg;
 use frame_system::EnsureSigned;
 pub use frame_system::{Call as SystemCall, EnsureRoot};
 pub use pallet_balances::Call as BalancesCall;
-use pallet_funding::{BondTypeOf, WeeksToBlocks};
+use pallet_funding::{BondTypeOf, DaysToBlocks};
 use pallet_grandpa::AuthorityId as GrandpaId;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{ConstFeeMultiplier, CurrencyAdapter, Multiplier};
@@ -391,7 +391,7 @@ impl pallet_funding::Config for Runtime {
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type TreasuryAccount = TreasuryAccount;
 	type Vesting = Release;
-	type WeeksToBlocks = WeeksToBlocks;
+	type DaysToBlocks = DaysToBlocks;
 	type WeightInfo = ();
 }
 

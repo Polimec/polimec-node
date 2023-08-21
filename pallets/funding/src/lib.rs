@@ -397,7 +397,8 @@ pub mod pallet {
 
 		type TreasuryAccount: Get<AccountIdOf<Self>>;
 
-		type WeeksToBlocks: Convert<FixedU128, BlockNumberOf<Self>>;
+		/// Convert 24 hours as FixedU128, to the corresponding amount of blocks in the same type as frame_system
+		type DaysToBlocks: Convert<FixedU128, BlockNumberOf<Self>>;
 
 		type BlockNumberToBalance: Convert<BlockNumberOf<Self>, BalanceOf<Self>>;
 	}

@@ -276,7 +276,7 @@ impl pallet_funding::Config for TestRuntime {
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type TreasuryAccount = TreasuryAccount;
 	type Vesting = Vesting;
-	type WeeksToBlocks = WeeksToBlocks;
+	type DaysToBlocks = DaysToBlocks;
 	type WeightInfo = ();
 }
 
