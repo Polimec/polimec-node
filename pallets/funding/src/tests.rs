@@ -7044,7 +7044,7 @@ mod e2e_testing {
 
 		test_env.advance_time(10).unwrap();
 
-		let lina_reward = extract_from_event!(
+		let minted_from_evaluation = extract_from_event!(
 			&test_env,
 			Event::<TestRuntime>::EvaluationRewarded { evaluator: LINA, amount, .. },
 			amount
@@ -7053,11 +7053,12 @@ mod e2e_testing {
 
 		for (contributor, expected_amount, project_id) in excel_ct_amounts() {
 			let minted = test_env
-				.in_ext(|| <TestRuntime as Config>::ContributionTokenCurrency::balance(project_id, contributor));
+				.in_ext(|| <TestRuntime as Config>::ContributionTokenCurrency::balance(project_id, &contributor));
 			if contributor == LINA {
+				let minted_from_contribution = minted - minted_from_evaluation;
 				dbg!(contributor);
-				dbg!(minted);
-				dbg!(minted - lina_reward);
+				dbg!(minted_from_contribution);
+				dbg!(minted_from_evaluation);
 			}
 			assert_eq!(minted, expected_amount);
 		}
