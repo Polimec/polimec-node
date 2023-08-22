@@ -6134,10 +6134,10 @@ mod funding_end {
 		test_env.advance_time(1u64).unwrap();
 		assert_eq!(finished_project.get_project_details().status, ProjectStatus::FundingFailed);
 		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 10u64).unwrap();
-		// assert_matches!(
-		// 	finished_project.get_project_details().cleanup,
-		// 	Cleaner::Failure(CleanerState::Finished(PhantomData))
-		// );
+		assert_matches!(
+			finished_project.get_project_details().cleanup,
+			Cleaner::Failure(CleanerState::Finished(PhantomData))
+		);
 
 		let slashed_evaluation_locked_plmc = slash_evaluator_balances(old_evaluation_locked_plmc);
 		let expected_evaluator_free_balances = merge_add_mappings_by_user(vec![
