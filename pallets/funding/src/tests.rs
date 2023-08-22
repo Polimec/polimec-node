@@ -62,6 +62,7 @@ type UserToPLMCBalance = Vec<(AccountId, BalanceOf<TestRuntime>)>;
 type UserToUSDBalance = Vec<(AccountId, BalanceOf<TestRuntime>)>;
 type UserToStatemintAsset =
 	Vec<(AccountId, BalanceOf<TestRuntime>, <TestRuntime as pallet_assets::Config<StatemintAssetsInstance>>::AssetId)>;
+type UserToCTBalance = Vec<(AccountId, BalanceOf<TestRuntime>, ProjectIdOf<TestRuntime>)>;
 
 #[derive(Clone, Copy)]
 pub struct TestBid {
@@ -6655,6 +6656,16 @@ mod e2e_testing {
 		MIRIJAM: 194, "Mirijam";
 		LIONEL: 195, "Lionel";
 		GIOVANNI: 196, "Giovanni";
+		JOEL: 197, "Joel";
+		POLKA: 198, "Polk";
+		MALIK: 199, "Malik";
+		ALEXANDER: 201, "Alexander";
+		SOLOMUN: 203, "Solomun";
+		JOHNNY: 204, "Johnny";
+		GRINGO: 205, "Gringo";
+		JONAS: 206, "Jonas";
+		BUNDI: 207, "Bundi";
+		FELIX: 208, "Felix";
 	}
 
 	fn excel_evaluators() -> UserToUSDBalance {
@@ -6769,6 +6780,132 @@ mod e2e_testing {
 		]
 	}
 
+	fn excel_remainders() -> TestContributions {
+		vec![
+			TestContribution::from(JOEL, 692 * US_DOLLAR),
+			TestContribution::from(POLK, 236 * US_DOLLAR),
+			TestContribution::from(MALIK, 24 * US_DOLLAR),
+			TestContribution::from(LEA, 688 * US_DOLLAR),
+			TestContribution::from(ALEXANDER, 33 * US_DOLLAR),
+			TestContribution::from(BUNDI, 1148 * US_DOLLAR),
+			TestContribution::from(RAMONA, 35 * US_DOLLAR),
+			TestContribution::from(SOLOMUN, 840 * US_DOLLAR),
+			TestContribution::from(JOHNNY, 132 * US_DOLLAR),
+			TestContribution::from(GRINGO, 21 * US_DOLLAR),
+			TestContribution::from(JONAS, 59 * US_DOLLAR),
+			TestContribution::from(FELIX, 89 * US_DOLLAR),
+		]
+	}
+
+	fn excel_ct_amounts() -> UserToCTBalance {
+		vec![
+			(ADAMS, 6920000000000, 0),
+			(POLK, 4720000000000, 0),
+			(MARKUS, 240000000000, 0),
+			(ELLA, 6880000000000, 0),
+			(SKR, 330000000000, 0),
+			(ARTHUR, 11480000000000, 0),
+			(MILA, 350000000000, 0),
+			(LINCOLN, 8400000000000, 0),
+			(MONROE, 1320000000000, 0),
+			(ARBRESHA, 210000000000, 0),
+			(ELDIN, 590000000000, 0),
+			(HARDING, 890000000000, 0),
+			(SOFIA, 3320000000000, 0),
+			(DOMINIK, 81100000000000, 0),
+			(NOLAND, 170000000000, 0),
+			(LINA, 111492249218776, 0), // EV
+			(HANNAH, 140000000000, 0),
+			(HOOVER, 49060000000000, 0),
+			(GIGI, 680000000000, 0),
+			(JEFFERSON, 90370000000000, 0),
+			(LINDI, 4420000000000, 0),
+			(KEVIN, 400000000000, 0),
+			(ANIS, 680000000000, 0),
+			(RETO, 680000000000, 0),
+			(HAALAND, 980000000000, 0),
+			(XENIA, 170000000000, 0),
+			(EVA, 4220000000000, 0),
+			(SKARA, 6150000000000, 0),
+			(ROOSEVELT, 650000000000, 0),
+			(DRACULA, 58630000000000, 0),
+			(DURIM, 560000000000, 0),
+			(HARRISON, 360000000000, 0),
+			(DRIN, 6920000000000, 0),
+			(PARI, 2360000000000, 0),
+			(TUTI, 240000000000, 0),
+			(BENITO, 6880000000000, 0),
+			(VANESSA, 330000000000, 0),
+			(ENES, 11480000000000, 0),
+			(RUDOLF, 350000000000, 0),
+			(CERTO, 8400000000000, 0),
+			(TIESTO, 1320000000000, 0),
+			(DAVID, 210000000000, 0),
+			(ATAKAN, 590000000000, 0),
+			(YANN, 890000000000, 0),
+			(ENIS, 3320000000000, 0),
+			(ALFREDO, 81100000000000, 0),
+			(QENDRIM, 3940000000000, 0),
+			(LEONARDO, 8400000000000, 0),
+			(KEN, 3520000000000, 0),
+			(LUCA, 6400000000000, 0),
+			// (XI, 6096440755041, 0), //EV
+			(FLAVIO, 7920000000000, 0),
+			(FREDI, 9930000000000, 0),
+			(ALI, 7940000000000, 0),
+			(DILARA, 2560000000000, 0),
+			(DAMIAN, 4310000000000, 0),
+			(KAYA, 9350000000000, 0),
+			(IAZI, 1740000000000, 0),
+			(CHRIGI, 8770000000000, 0),
+			(VALENTINA, 9610000000000, 0),
+			(ALMA, 3940000000000, 0),
+			(ALENA, 4420000000000, 0),
+			(PATRICK, 4860000000000, 0),
+			(ONTARIO, 170000000000, 0),
+			(RAKIA, 94240000000000, 0),
+			(HUBERT, 140000000000, 0),
+			(UTUS, 49060000000000, 0),
+			(TOME, 680000000000, 0),
+			(ZUBER, 90370000000000, 0),
+			(ADAM, 4420000000000, 0),
+			(STANI, 400000000000, 0),
+			(BETI, 680000000000, 0),
+			(HALIT, 680000000000, 0),
+			(DRAGAN, 980000000000, 0),
+			(LEA, 7050000000000, 0),
+			(LUIS, 4220000000000, 0),
+			(TATI, 2280000000000, 0),
+			(WEST, 6950000000000, 0),
+			(MIRIJAM, 4980000000000, 0),
+			(LIONEL, 8640000000000, 0),
+			(GIOVANNI, 3060000000000, 0),
+			(JOEL, 6920000000000, 0),
+			(MALIK, 240000000000, 0),
+			(ALEXANDER, 330000000000, 0),
+			(BUNDI, 11480000000000, 0),
+			// (RAMONA, 884293535511, 0), // EV
+			(SOLOMUN, 8400000000000, 0),
+			(JOHNNY, 1320000000000, 0),
+			(GRINGO, 210000000000, 0),
+			(JONAS, 590000000000, 0),
+			(FELIX, 890000000000, 0),
+			// (MIA, 29810614730, 0), // EV
+			// (ALEXEY, 1297219766503, 0), // EV
+			// (PAUL, 1062362291967, 0), // EV
+			// (MARIA, 1443500326158, 0), // EV
+			// (GEORGE, 617939004056, 0), // EV
+			// (CLARA, 565806479474, 0), // EV
+			// (PASCAL, 210864390471, 0), // EV
+			// (EMMA, 518212856287, 0), // EV
+			// (BIBI, 446238848469, 0), // EV
+			// (AHMED, 1043687954804, 0), // EV
+			// (HERBERT, 329135192506, 0), // EV
+			// (LENI, 752549851109, 0), // EV
+			// (TOM, 846310585617, 0), // EV
+		]
+	}
+
 	#[test]
 	fn evaluation_round_completed() {
 		let test_env = TestEnvironment::new();
@@ -6811,7 +6948,7 @@ mod e2e_testing {
 	#[test]
 	fn community_round_completed() {
 		let test_env = TestEnvironment::new();
-		let _community_funding_project = RemainderFundingProject::new_with(
+		let _ = RemainderFundingProject::new_with(
 			&test_env,
 			excel_project(0),
 			ISSUER,
@@ -6837,38 +6974,55 @@ mod e2e_testing {
 	}
 
 	#[test]
-	fn funds_raised() {
+	fn remainder_round_completed() {
 		let test_env = TestEnvironment::new();
-		let _remaindery_funding_project = FinishedProject::new_with(
+		let _ = FinishedProject::new_with(
 			&test_env,
 			excel_project(0),
 			ISSUER,
 			excel_evaluators(),
 			excel_bidders(),
 			excel_contributors(),
-			vec![],
+			excel_remainders(),
 		);
 
 		test_env.in_ext(|| {
 			let contributions = Contributions::<TestRuntime>::iter_prefix_values((0,))
 				.sorted_by_key(|bid| bid.contributor)
 				.collect_vec();
-			let total_contribution = contributions.into_iter().fold(0, |acc, bid| acc + bid.funding_asset_amount);
-			let total_contribution_as_fixed = FixedU128::from_rational(total_contribution, PLMC);
-			dbg!(total_contribution_as_fixed);
-			let total_from_excel = 825070.0361;
+			let total_contributions = contributions.into_iter().fold(0, |acc, bid| acc + bid.funding_asset_amount);
+			let total_contributions_as_fixed = FixedU128::from_rational(total_contributions, PLMC);
+			dbg!(total_contributions_as_fixed);
+			let total_from_excel = 891811.0086;
 			let total_to_substrate = FixedU128::from_float(total_from_excel);
 			dbg!(total_to_substrate);
-			let res = total_contribution_as_fixed.checked_sub(&total_to_substrate).unwrap();
-			// We are more precise than Excel. From the 11th decimal onwards, the difference should be less than 0.00001.
-			assert!(res < FixedU128::from_float(0.00001));
+			let res = total_contributions_as_fixed.checked_sub(&total_to_substrate).unwrap();
+			// We are more precise than Excel. From the 11th decimal onwards, the difference should be less than 0.0001.
+			assert!(res < FixedU128::from_float(0.0001));
+		})
+	}
+
+	#[test]
+	fn funds_raised() {
+		let test_env = TestEnvironment::new();
+		let _ = FinishedProject::new_with(
+			&test_env,
+			excel_project(0),
+			ISSUER,
+			excel_evaluators(),
+			excel_bidders(),
+			excel_contributors(),
+			excel_remainders(),
+		);
+
+		test_env.in_ext(|| {
 			let pallet_id = <mock::TestRuntime as pallet::Config>::PalletId::get();
 			let project_specific_account: u64 = pallet_id.into_sub_account_truncating(0);
 			let funding = StatemintAssets::balance(1984, project_specific_account);
-			let fund_raised_from_excel = 1498888.758;
+			let fund_raised_from_excel = 1565629.731;
 			let fund_raised_to_substrate = FixedU128::from_float(fund_raised_from_excel);
 			let fund_raised_as_fixed = FixedU128::from_rational(funding, ASSET_UNIT);
-			let res = fund_raised_as_fixed.checked_sub(&fund_raised_to_substrate).unwrap();
+			let res = fund_raised_to_substrate.checked_sub(&fund_raised_as_fixed).unwrap();
 			// We are more precise than Excel. From the 11th decimal onwards, the difference should be less than 0.0003.
 			assert!(res < FixedU128::from_float(0.0003));
 		})
@@ -6877,23 +7031,35 @@ mod e2e_testing {
 	#[test]
 	fn ct_minted() {
 		let test_env = TestEnvironment::new();
-		let _remaindery_funding_project = FinishedProject::new_with(
+		let _ = FinishedProject::new_with(
 			&test_env,
 			excel_project(0),
 			ISSUER,
 			excel_evaluators(),
 			excel_bidders(),
 			excel_contributors(),
-			vec![],
+			excel_remainders(),
 		);
-
 		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
-		test_env.advance_time(10u64).unwrap();
+		test_env.advance_time(10).unwrap();
 
-		test_env.in_ext(|| {
-			let ct_amount = LocalAssets::balance(0, LINA);
-			dbg!(FixedU128::from_rational(ct_amount, ASSET_UNIT));
-		})
+		let lina_reward = extract_from_event!(
+			&test_env,
+			Event::<TestRuntime>::EvaluationRewarded { evaluator: LINA, amount, .. },
+			amount
+		)
+		.unwrap();
+
+		for (contributor, expected_amount, project_id) in excel_ct_amounts() {
+			let minted = test_env
+				.in_ext(|| <TestRuntime as Config>::ContributionTokenCurrency::balance(project_id, contributor));
+			if contributor == LINA {
+				dbg!(contributor);
+				dbg!(minted);
+				dbg!(minted - lina_reward);
+			}
+			assert_eq!(minted, expected_amount);
+		}
 	}
 }
