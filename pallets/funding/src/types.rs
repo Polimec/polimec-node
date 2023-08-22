@@ -18,10 +18,6 @@
 
 //! Types for Funding pallet.
 
-use crate::{
-	traits::{BondingRequirementCalculation, ProvideStatemintPrice},
-	BalanceOf,
-};
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
 use sp_arithmetic::{FixedPointNumber, FixedPointOperand};
 use sp_runtime::traits::CheckedDiv;
@@ -31,12 +27,19 @@ pub use config_types::*;
 pub use inner_types::*;
 pub use storage_types::*;
 
+use crate::{
+	traits::{BondingRequirementCalculation, ProvideStatemintPrice},
+	BalanceOf,
+};
+
 pub mod config_types {
-	use super::*;
-	use crate::{traits::VestingDurationCalculation, Config};
 	use parachains_common::DAYS;
 	use sp_arithmetic::{traits::Saturating, FixedU128};
-	use sp_runtime::traits::{Convert, One, Zero};
+	use sp_runtime::traits::{Convert, One};
+
+	use crate::{traits::VestingDurationCalculation, Config};
+
+	use super::*;
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
 	pub struct Multiplier(u8);
@@ -65,18 +68,15 @@ pub mod config_types {
 
 	impl VestingDurationCalculation for Multiplier {
 		fn calculate_vesting_duration<T: Config>(&self) -> T::BlockNumber {
-			// gradient "m" of the linear curve function y = m*x + b
+			// gradient "m" of the linear curve function y = m*x + b where x is the multiplier and y is the number of weeks
 			const GRADIENT: FixedU128 = FixedU128::from_rational(2167u128, 1000u128);
 			// negative constant (because we cannot have negative values, so we take the negative and do "-b" instead of "+b") "b" of the linear curve function y = m*x + b
 			const NEG_CONSTANT: FixedU128 = FixedU128::from_rational(2167u128, 1000u128);
 
 			let multiplier_as_fixed = FixedU128::saturating_from_integer(self.0);
 			let weeks = GRADIENT.saturating_mul(multiplier_as_fixed).saturating_sub(NEG_CONSTANT);
-			if weeks == Zero::zero() {
-				One::one()
-			} else {
-				T::DaysToBlocks::convert(weeks * FixedU128::from_u32(7u32))
-			}
+
+			T::DaysToBlocks::convert(weeks * FixedU128::from_u32(7u32)).max(One::one())
 		}
 	}
 

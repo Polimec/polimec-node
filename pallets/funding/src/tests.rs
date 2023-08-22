@@ -17,20 +17,9 @@
 // If you feel like getting in touch with us, you ca ,n do so at info@polimec.org
 
 //! Tests for Funding pallet.
-use super::*;
-use crate as pallet_funding;
-use std::cmp::min;
+use std::{cell::RefCell, cmp::min, collections::BTreeMap, iter::zip, ops::Div};
 
-use crate::{
-	mock::{FundingModule, *},
-	tests::testing_macros::{assert_close_enough, call_and_is_ok, extract_from_event},
-	traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation},
-	CurrencyMetadata, Error, ParticipantsSize, ProjectMetadata, TicketSize,
-	UpdateType::{CommunityFundingStart, RemainderFundingStart},
-};
 use assert_matches2::assert_matches;
-
-use defaults::*;
 use frame_support::{
 	assert_noop, assert_ok,
 	traits::{
@@ -44,14 +33,26 @@ use frame_support::{
 	},
 	weights::Weight,
 };
-use helper_functions::*;
 use parachains_common::DAYS;
-use polimec_traits::ReleaseSchedule;
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_core::H256;
 use sp_runtime::{DispatchError, Either};
 use sp_std::marker::PhantomData;
-use std::{cell::RefCell, collections::BTreeMap, iter::zip, ops::Div};
+
+use defaults::*;
+use helper_functions::*;
+use polimec_traits::ReleaseSchedule;
+
+use crate as pallet_funding;
+use crate::{
+	mock::{FundingModule, *},
+	tests::testing_macros::{assert_close_enough, call_and_is_ok, extract_from_event},
+	traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation},
+	CurrencyMetadata, Error, ParticipantsSize, ProjectMetadata, TicketSize,
+	UpdateType::{CommunityFundingStart, RemainderFundingStart},
+};
+
+use super::*;
 
 type ProjectIdOf<T> = <T as Config>::ProjectIdentifier;
 type UserToPLMCBalance = Vec<(AccountId, BalanceOf<TestRuntime>)>;
@@ -1727,18 +1728,6 @@ mod creation_round_failure {
 	use super::*;
 
 	#[test]
-	#[ignore]
-	fn only_with_credential_can_create() {
-		new_test_ext().execute_with(|| {
-			let project_metadata = default_project(0);
-			assert_noop!(
-				FundingModule::create(RuntimeOrigin::signed(ISSUER), project_metadata),
-				Error::<TestRuntime>::NotAuthorized
-			);
-		})
-	}
-
-	#[test]
 	fn price_too_low() {
 		let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
 			minimum_price: 0_u128.into(),
@@ -1784,21 +1773,6 @@ mod creation_round_failure {
 		let test_env = TestEnvironment::new();
 		test_env.mint_plmc_to(default_plmc_balances());
 
-		let project_err = test_env.create_project(ISSUER, wrong_project).unwrap_err();
-		assert_eq!(project_err, Error::<TestRuntime>::TicketSizeError.into());
-	}
-
-	#[test]
-	#[ignore = "ATM only the first error will be thrown"]
-	fn multiple_field_error() {
-		let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
-			minimum_price: 0_u128.into(),
-			ticket_size: TicketSize { minimum: None, maximum: None },
-			participants_size: ParticipantsSize { minimum: None, maximum: None },
-			..Default::default()
-		};
-		let test_env = TestEnvironment::new();
-		test_env.mint_plmc_to(default_plmc_balances());
 		let project_err = test_env.create_project(ISSUER, wrong_project).unwrap_err();
 		assert_eq!(project_err, Error::<TestRuntime>::TicketSizeError.into());
 	}
