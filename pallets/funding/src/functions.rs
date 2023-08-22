@@ -33,9 +33,7 @@ use frame_support::{
 		Get,
 	},
 };
-
-use sp_arithmetic::Perquintill;
-
+use sp_arithmetic::{Percent, Perquintill};
 use polimec_traits::ReleaseSchedule;
 use sp_arithmetic::traits::{CheckedDiv, CheckedSub, Zero};
 use sp_std::prelude::*;
@@ -2020,25 +2018,35 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn calculate_fees(project_id: T::ProjectIdentifier) -> Result<BalanceOf<T>, DispatchError> {
-		let funding_reached =
-			ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?.funding_amount_reached;
+	pub fn calculate_fees(funding_reached: BalanceOf<T>) -> (BalanceOf<T>, Perquintill) {
+		let total_fee = Self::compute_total_fee_from_brackets(funding_reached);
+		let total_fee_weight = Perquintill::from_rational(total_fee, funding_reached);
+
+		(total_fee, total_fee_weight)
+	}
+
+	fn compute_total_fee_from_brackets(funding_reached: BalanceOf<T>) -> BalanceOf<T> {
 		let mut remaining_for_fee = funding_reached;
 
-		Ok(T::FeeBrackets::get()
+		T::FeeBrackets::get()
 			.into_iter()
-			.map(|(fee, limit)| {
-				let try_operation = remaining_for_fee.checked_sub(&limit);
-				if let Some(remaining_amount) = try_operation {
-					remaining_for_fee = remaining_amount;
-					fee * limit
-				} else {
-					let temp = remaining_for_fee;
-					remaining_for_fee = BalanceOf::<T>::zero();
-					fee * temp
-				}
-			})
-			.fold(BalanceOf::<T>::zero(), |acc, fee| acc.saturating_add(fee)))
+			.map(|(fee, limit)| Self::compute_fee_for_bracket(&mut remaining_for_fee, fee, limit))
+			.fold(BalanceOf::<T>::zero(), |acc, fee| acc.saturating_add(fee))
+	}
+
+	fn compute_fee_for_bracket(
+		remaining_for_fee: &mut BalanceOf<T>,
+		fee: Percent,
+		limit: BalanceOf<T>,
+	) -> BalanceOf<T> {
+		if let Some(remaining_amount) = remaining_for_fee.checked_sub(&limit) {
+			*remaining_for_fee = remaining_amount;
+			fee * limit
+		} else {
+			let fee_for_this_bracket = fee * *remaining_for_fee;
+			*remaining_for_fee = BalanceOf::<T>::zero();
+			fee_for_this_bracket
+		}
 	}
 
 	pub fn generate_evaluator_rewards_info(
@@ -2050,14 +2058,19 @@ impl<T: Config> Pallet<T> {
 		let target_funding = project_details.fundraising_target;
 		let funding_reached = project_details.funding_amount_reached;
 
+		let (fees, perc) = Self::calculate_fees(funding_reached);
+
 		// This is the "Y" variable from the knowledge hub
 		let percentage_of_target_funding = Perquintill::from_rational(funding_reached, target_funding);
-
-		let fees = Self::calculate_fees(project_id)?;
 		let evaluator_fees = percentage_of_target_funding * (Perquintill::from_percent(30) * fees);
 
 		let early_evaluator_reward_pot_usd = Perquintill::from_percent(20) * evaluator_fees;
 		let normal_evaluator_reward_pot_usd = Perquintill::from_percent(80) * evaluator_fees;
+
+		//let total_fee_allocation_in_contribution_tokens = token_sold * perc;
+		let early_evaluator_reward_pot = Perquintill::from_percent(20) * perc;
+		let normal_evaluator_reward_pot = Perquintill::from_percent(80) * perc;
+		dbg!(early_evaluator_reward_pot, normal_evaluator_reward_pot);
 
 		let early_evaluator_total_bonded_usd =
 			evaluations.iter().fold(BalanceOf::<T>::zero(), |acc, ((_evaluator, _id), evaluation)| {
@@ -2069,6 +2082,7 @@ impl<T: Config> Pallet<T> {
 			});
 		let normal_evaluator_total_bonded_usd =
 			early_evaluator_total_bonded_usd.saturating_add(late_evaluator_total_bonded_usd);
+
 		Ok(RewardInfo {
 			early_evaluator_reward_pot_usd,
 			normal_evaluator_reward_pot_usd,
