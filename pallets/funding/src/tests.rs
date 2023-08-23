@@ -6814,7 +6814,7 @@ mod e2e_testing {
 			(SOFIA, 3320000000000, 0),
 			(DOMINIK, 81100000000000, 0),
 			(NOLAND, 170000000000, 0),
-			(LINA, 111492249218776, 0), // EV
+			(LINA, 111403137276535, 0), // EV
 			(HANNAH, 140000000000, 0),
 			(HOOVER, 49060000000000, 0),
 			(GIGI, 680000000000, 0),
@@ -6849,7 +6849,7 @@ mod e2e_testing {
 			(LEONARDO, 8400000000000, 0),
 			(KEN, 3520000000000, 0),
 			(LUCA, 6400000000000, 0),
-			// (XI, 6096440755041, 0), //EV
+			(XI, 215322787417, 0), //EV
 			(FLAVIO, 7920000000000, 0),
 			(FREDI, 9930000000000, 0),
 			(ALI, 7940000000000, 0),
@@ -6884,25 +6884,25 @@ mod e2e_testing {
 			(MALIK, 240000000000, 0),
 			(ALEXANDER, 330000000000, 0),
 			(BUNDI, 11480000000000, 0),
-			// (RAMONA, 884293535511, 0), // EV
+			(RAMONA, 881533783198, 0), // EV
 			(SOLOMUN, 8400000000000, 0),
 			(JOHNNY, 1320000000000, 0),
 			(GRINGO, 210000000000, 0),
 			(JONAS, 590000000000, 0),
 			(FELIX, 890000000000, 0),
-			// (MIA, 29810614730, 0), // EV
-			// (ALEXEY, 1297219766503, 0), // EV
-			// (PAUL, 1062362291967, 0), // EV
-			// (MARIA, 1443500326158, 0), // EV
-			// (GEORGE, 617939004056, 0), // EV
-			// (CLARA, 565806479474, 0), // EV
-			// (PASCAL, 210864390471, 0), // EV
-			// (EMMA, 518212856287, 0), // EV
-			// (BIBI, 446238848469, 0), // EV
-			// (AHMED, 1043687954804, 0), // EV
-			// (HERBERT, 329135192506, 0), // EV
-			// (LENI, 752549851109, 0), // EV
-			// (TOM, 846310585617, 0), // EV
+			(MIA, 29656635864, 0),
+			(ALEXEY, 1290519320002, 0),
+			(PAUL, 1056874939797, 0),
+			(MARIA, 1436044306015, 0),
+			(GEORGE, 614747203141, 0),
+			(CLARA, 562883955363, 0),
+			(PASCAL, 209775226088, 0),
+			(EMMA, 515536164481, 0),
+			(BIBI, 443933919414, 0),
+			(AHMED, 1038297059995, 0),
+			(HERBERT, 327435131495, 0),
+			(LENI, 748662753374, 0),
+			(TOM, 841939191542, 0),
 		]
 	}
 
@@ -7044,22 +7044,9 @@ mod e2e_testing {
 
 		test_env.advance_time(10).unwrap();
 
-		let minted_from_evaluation = extract_from_event!(
-			&test_env,
-			Event::<TestRuntime>::EvaluationRewarded { evaluator: LINA, amount, .. },
-			amount
-		)
-		.unwrap();
-
 		for (contributor, expected_amount, project_id) in excel_ct_amounts() {
 			let minted = test_env
 				.in_ext(|| <TestRuntime as Config>::ContributionTokenCurrency::balance(project_id, &contributor));
-			if contributor == LINA {
-				let minted_from_contribution = minted - minted_from_evaluation;
-				dbg!(contributor);
-				dbg!(minted_from_contribution);
-				dbg!(minted_from_evaluation);
-			}
 			assert_eq!(minted, expected_amount);
 		}
 	}
