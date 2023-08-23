@@ -2047,24 +2047,35 @@ impl<T: Config> Pallet<T> {
 		project_id: <T as Config>::ProjectIdentifier,
 	) -> Result<RewardInfoOf<T>, DispatchError> {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let evaluations = Evaluations::<T>::iter_prefix((project_id,)).collect::<Vec<_>>();
 
-		let target_funding = project_details.fundraising_target;
 		let funding_reached = project_details.funding_amount_reached;
 
-		let (fees, perc) = Self::calculate_fees(funding_reached);
+		let total_issuer_fees = Self::calculate_fees(funding_reached);
 
-		// This is the "Y" variable from the knowledge hub
-		let percentage_of_target_funding = Perquintill::from_rational(funding_reached, target_funding);
-		let evaluator_fees = percentage_of_target_funding * (Perquintill::from_percent(30) * fees);
+		let token_sold = project_metadata
+			.total_allocation_size
+			.checked_sub(&project_details.remaining_contribution_tokens)
+			// This should never happen, but we still want to make sure we don't panic
+			.unwrap_or(project_metadata.total_allocation_size);
+		let total_fee_allocation = total_issuer_fees * token_sold;
 
-		let early_evaluator_reward_pot_usd = Perquintill::from_percent(20) * evaluator_fees;
-		let normal_evaluator_reward_pot_usd = Perquintill::from_percent(80) * evaluator_fees;
+		// This is the "Y" variable from the Knowledge Hub. src: https://hub.polimec.org/learn/funding-process/reward-payouts#issuer-fee-allocation
+		let percentage_of_target_funding =
+			Perquintill::from_rational(funding_reached, project_details.fundraising_target);
 
-		//let total_fee_allocation_in_contribution_tokens = token_sold * perc;
-		let early_evaluator_reward_pot = Perquintill::from_percent(20) * perc;
-		let normal_evaluator_reward_pot = Perquintill::from_percent(80) * perc;
-		dbg!(early_evaluator_reward_pot, normal_evaluator_reward_pot);
+		let evaluator_rewards = percentage_of_target_funding * Perquintill::from_percent(30) * total_fee_allocation;
+
+		// Unused and not really tested yet, but they will be handy in the future
+		let _liquidity_pool = Perquintill::from_percent(50) * total_fee_allocation;
+		let _raw_long_term_holder_bonus = Perquintill::from_percent(20) * total_fee_allocation;
+		let _one_minus_percentage_of_target_funding = Perquintill::from_percent(100) - percentage_of_target_funding;
+		let _temp = Perquintill::from_percent(30) * _one_minus_percentage_of_target_funding * total_fee_allocation;
+		let _long_term_holder_bonus = _raw_long_term_holder_bonus.saturating_add(_temp);
+
+		let early_evaluator_reward_pot = Perquintill::from_percent(20) * evaluator_rewards;
+		let normal_evaluator_reward_pot = Perquintill::from_percent(80) * evaluator_rewards;
 
 		let early_evaluator_total_bonded_usd =
 			evaluations.iter().fold(BalanceOf::<T>::zero(), |acc, ((_evaluator, _id), evaluation)| {
@@ -2074,15 +2085,17 @@ impl<T: Config> Pallet<T> {
 			evaluations.iter().fold(BalanceOf::<T>::zero(), |acc, ((_evaluator, _id), evaluation)| {
 				acc.saturating_add(evaluation.late_usd_amount)
 			});
+
 		let normal_evaluator_total_bonded_usd =
 			early_evaluator_total_bonded_usd.saturating_add(late_evaluator_total_bonded_usd);
 
-		Ok(RewardInfo {
-			early_evaluator_reward_pot_usd,
-			normal_evaluator_reward_pot_usd,
+		let reward_info = RewardInfo {
+			early_evaluator_reward_pot,
+			normal_evaluator_reward_pot,
 			early_evaluator_total_bonded_usd,
 			normal_evaluator_total_bonded_usd,
-		})
+		};
+		Ok(reward_info)
 	}
 
 	pub fn make_project_funding_successful(
