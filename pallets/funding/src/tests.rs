@@ -6011,18 +6011,18 @@ mod funding_end {
 
 		assert_eq!(finished_project.get_project_details().status, ProjectStatus::FundingFailed);
 		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-		// assert_matches!(
-		// 	finished_project.get_project_details().cleanup,
-		// 	Cleaner::Failure(CleanerState::Initialized(PhantomData))
-		// );
+		assert_matches!(
+			finished_project.get_project_details().cleanup,
+			Cleaner::Failure(CleanerState::Initialized(PhantomData))
+		);
 
-		// test_ct_not_created_for(&test_env, project_id);
+		test_ct_not_created_for(&test_env, project_id);
 
-		// test_env.advance_time(10u64).unwrap();
-		// assert_matches!(
-		// 	finished_project.get_project_details().cleanup,
-		// 	Cleaner::Failure(CleanerState::Finished(PhantomData))
-		// );
+		test_env.advance_time(10u64).unwrap();
+		assert_matches!(
+			finished_project.get_project_details().cleanup,
+			Cleaner::Failure(CleanerState::Finished(PhantomData))
+		);
 	}
 
 	#[test]
@@ -6045,17 +6045,17 @@ mod funding_end {
 		assert_eq!(finished_project.get_project_details().status, ProjectStatus::FundingSuccessful);
 		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
-		// assert_matches!(
-		// 	finished_project.get_project_details().cleanup,
-		// 	Cleaner::Success(CleanerState::Initialized(PhantomData))
-		// );
-		// test_ct_created_for(&test_env, project_id);
+		assert_matches!(
+			finished_project.get_project_details().cleanup,
+			Cleaner::Success(CleanerState::Initialized(PhantomData))
+		);
+		test_ct_created_for(&test_env, project_id);
 
-		// test_env.advance_time(10u64).unwrap();
-		// assert_matches!(
-		// 	finished_project.get_project_details().cleanup,
-		// 	Cleaner::Success(CleanerState::Finished(PhantomData))
-		// );
+		test_env.advance_time(10u64).unwrap();
+		assert_matches!(
+			finished_project.get_project_details().cleanup,
+			Cleaner::Success(CleanerState::Finished(PhantomData))
+		);
 	}
 
 	#[test]
@@ -6088,10 +6088,10 @@ mod funding_end {
 		test_env.advance_time(1u64).unwrap();
 		assert_eq!(finished_project.get_project_details().status, ProjectStatus::FundingSuccessful);
 		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 10u64).unwrap();
-		// assert_matches!(
-		// 	finished_project.get_project_details().cleanup,
-		// 	Cleaner::Success(CleanerState::Finished(PhantomData))
-		// );
+		assert_matches!(
+			finished_project.get_project_details().cleanup,
+			Cleaner::Success(CleanerState::Finished(PhantomData))
+		);
 
 		let slashed_evaluation_locked_plmc = slash_evaluator_balances(old_evaluation_locked_plmc);
 		let expected_evaluator_free_balances = merge_add_mappings_by_user(vec![
@@ -6172,10 +6172,10 @@ mod funding_end {
 		let old_free_plmc: UserToPLMCBalance = test_env.get_free_plmc_balances_for(evaluators.clone());
 
 		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 10u64).unwrap();
-		// assert_matches!(
-		// 	finished_project.get_project_details().cleanup,
-		// 	Cleaner::Failure(CleanerState::Finished(PhantomData))
-		// );
+		assert_matches!(
+			finished_project.get_project_details().cleanup,
+			Cleaner::Failure(CleanerState::Finished(PhantomData))
+		);
 
 		let slashed_evaluation_locked_plmc = slash_evaluator_balances(old_evaluation_locked_plmc);
 		let expected_evaluator_free_balances = merge_add_mappings_by_user(vec![
