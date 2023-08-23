@@ -1248,7 +1248,6 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		let ct_price = project_details.weighted_average_price.ok_or(Error::<T>::ImpossibleState)?;
 		let reward_info =
 			if let EvaluatorsOutcome::Rewarded(info) = project_details.evaluation_round_info.evaluators_outcome {
 				info
@@ -1272,16 +1271,11 @@ impl<T: Config> Pallet<T> {
 			evaluation.late_usd_amount.saturating_add(evaluation.early_usd_amount),
 			reward_info.normal_evaluator_total_bonded_usd,
 		);
-		let total_reward_amount_usd = (early_reward_weight * reward_info.early_evaluator_reward_pot_usd)
-			.saturating_add(normal_reward_weight * reward_info.normal_evaluator_reward_pot_usd);
-		let reward_amount_ct: BalanceOf<T> = ct_price
-			.reciprocal()
-			.ok_or(Error::<T>::BadMath)?
-			.checked_mul_int(total_reward_amount_usd)
-			.ok_or(Error::<T>::BadMath)?;
-
+		let early_evaluators_rewards = early_reward_weight * reward_info.early_evaluator_reward_pot;
+		let normal_evaluators_rewards = normal_reward_weight * reward_info.normal_evaluator_reward_pot;
+		let total_reward_amount = early_evaluators_rewards.saturating_add(normal_evaluators_rewards);
 		// * Update storage *
-		T::ContributionTokenCurrency::mint_into(project_id, &evaluation.evaluator, reward_amount_ct)?;
+		T::ContributionTokenCurrency::mint_into(project_id, &evaluation.evaluator, total_reward_amount)?;
 		evaluation.rewarded_or_slashed = true;
 		Evaluations::<T>::insert((project_id, evaluator.clone(), evaluation_id), evaluation);
 
@@ -1290,7 +1284,7 @@ impl<T: Config> Pallet<T> {
 			project_id,
 			evaluator: evaluator.clone(),
 			id: evaluation_id,
-			amount: reward_amount_ct,
+			amount: total_reward_amount,
 			caller,
 		});
 
