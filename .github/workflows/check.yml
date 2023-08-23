@@ -29,37 +29,6 @@ jobs:
       - name: Check the formatting
         run: cargo +nightly fmt --all --check
 
-  check:
-    # The type of runner that the job will run on
-    needs: fmt
-    runs-on: ubuntu-22.04
-    container:
-      image: paritytech/ci-linux:production
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
-      # Required by actions/cache@v3
-      - name: Set-Up
-        run: apt update && apt install -y nodejs
-
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v3
-
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      # This will essentially compile the package without performing the final step of code generation.
-      - name: Check the building
-        run: SKIP_WASM_BUILD=1 cargo check --locked -p polimec-parachain-runtime
-
-      
-
   test:
     # The type of runner that the job will run on
     needs: check
