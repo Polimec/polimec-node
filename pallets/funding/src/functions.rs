@@ -33,9 +33,11 @@ use frame_support::{
 		Get,
 	},
 };
-use sp_arithmetic::{Percent, Perquintill};
 use polimec_traits::ReleaseSchedule;
-use sp_arithmetic::traits::{CheckedDiv, CheckedSub, Zero};
+use sp_arithmetic::{
+	traits::{CheckedDiv, CheckedSub, Zero},
+	Percent, Perquintill,
+};
 use sp_std::prelude::*;
 
 // Round transition functions
@@ -2012,11 +2014,9 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn calculate_fees(funding_reached: BalanceOf<T>) -> (BalanceOf<T>, Perquintill) {
+	pub fn calculate_fees(funding_reached: BalanceOf<T>) -> Perquintill {
 		let total_fee = Self::compute_total_fee_from_brackets(funding_reached);
-		let total_fee_weight = Perquintill::from_rational(total_fee, funding_reached);
-
-		(total_fee, total_fee_weight)
+		Perquintill::from_rational(total_fee, funding_reached)
 	}
 
 	fn compute_total_fee_from_brackets(funding_reached: BalanceOf<T>) -> BalanceOf<T> {
