@@ -39,7 +39,7 @@ use frame_support::traits::AsEnsureOriginWithArg;
 use frame_system::EnsureSigned;
 pub use frame_system::{Call as SystemCall, EnsureRoot};
 pub use pallet_balances::Call as BalancesCall;
-use pallet_funding::BondTypeOf;
+use pallet_funding::{BondTypeOf, DaysToBlocks};
 use pallet_grandpa::AuthorityId as GrandpaId;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{ConstFeeMultiplier, CurrencyAdapter, Multiplier};
@@ -360,10 +360,12 @@ impl pallet_funding::Config for Runtime {
 	type Balance = Balance;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+	type BlockNumberToBalance = ConvertInto;
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityFundingDuration = CommunityFundingDuration;
 	type ContributionTokenCurrency = Assets;
 	type ContributionVesting = ContributionVestingDuration;
+	type DaysToBlocks = DaysToBlocks;
 	type EnglishAuctionDuration = EnglishAuctionDuration;
 	type EvaluationDuration = EvaluationDuration;
 	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
@@ -375,7 +377,7 @@ impl pallet_funding::Config for Runtime {
 	type MaxContributionsPerUser = ConstU32<256>;
 	type MaxEvaluationsPerUser = ();
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
-	type Multiplier = pallet_funding::types::Multiplier<Self>;
+	type Multiplier = pallet_funding::types::Multiplier;
 	type NativeCurrency = Balances;
 	type PalletId = FundingPalletId;
 	type PreImageLimit = ConstU32<1024>;

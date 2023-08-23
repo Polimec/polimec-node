@@ -259,11 +259,12 @@ const PLMC_STATEMINT_ID: u32 = 2069;
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
 	use super::*;
-	use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice};
+	use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use local_macros::*;
 	use sp_arithmetic::Percent;
+	use sp_runtime::traits::Convert;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -277,7 +278,7 @@ pub mod pallet {
 		// TODO: PLMC-153 + MaybeSerializeDeserialize: Maybe needed for JSON serialization @ Genesis: https://github.com/paritytech/substrate/issues/12738#issuecomment-1320921201
 
 		/// Multiplier that decides how much PLMC needs to be bonded for a token buy/bid
-		type Multiplier: Parameter + BondingRequirementCalculation<Self> + Default + From<u32> + Copy;
+		type Multiplier: Parameter + BondingRequirementCalculation + VestingDurationCalculation + Default + Copy;
 
 		/// The inner balance type we will use for all of our outer currency types. (e.g native, funding, CTs)
 		type Balance: Balance + From<u64> + FixedPointOperand;
@@ -395,6 +396,11 @@ pub mod pallet {
 		type EvaluatorSlash: Get<Percent>;
 
 		type TreasuryAccount: Get<AccountIdOf<Self>>;
+
+		/// Convert 24 hours as FixedU128, to the corresponding amount of blocks in the same type as frame_system
+		type DaysToBlocks: Convert<FixedU128, BlockNumberOf<Self>>;
+
+		type BlockNumberToBalance: Convert<BlockNumberOf<Self>, BalanceOf<Self>>;
 	}
 
 	#[pallet::storage]

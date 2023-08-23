@@ -18,10 +18,6 @@
 
 //! Types for Funding pallet.
 
-use crate::{
-	traits::{BondingRequirementCalculation, ProvideStatemintPrice},
-	BalanceOf,
-};
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
 use sp_arithmetic::{FixedPointNumber, FixedPointOperand};
 use sp_runtime::traits::CheckedDiv;
@@ -31,24 +27,70 @@ pub use config_types::*;
 pub use inner_types::*;
 pub use storage_types::*;
 
+use crate::{
+	traits::{BondingRequirementCalculation, ProvideStatemintPrice},
+	BalanceOf,
+};
+
 pub mod config_types {
+	use parachains_common::DAYS;
+	use sp_arithmetic::{traits::Saturating, FixedU128};
+	use sp_runtime::traits::{Convert, One};
+
+	use crate::{traits::VestingDurationCalculation, Config};
+
 	use super::*;
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
-	pub struct Multiplier<T: crate::Config>(pub T::Balance);
-	impl<T: crate::Config> BondingRequirementCalculation<T> for Multiplier<T> {
-		fn calculate_bonding_requirement(&self, ticket_size: BalanceOf<T>) -> Result<BalanceOf<T>, ()> {
-			ticket_size.checked_div(&self.0).ok_or(())
+	pub struct Multiplier(u8);
+
+	impl Multiplier {
+		/// Creates a new `Multiplier` if the value is between 1 and 25, otherwise returns an error.
+		pub fn new(x: u8) -> Result<Self, ()> {
+			// The minimum and maximum values are chosen to be 1 and 25 respectively, as defined in the Knowledge Hub.
+			const MIN_VALID: u8 = 1;
+			const MAX_VALID: u8 = 25;
+
+			if x >= MIN_VALID && x <= MAX_VALID {
+				Ok(Self(x))
+			} else {
+				Err(())
+			}
 		}
 	}
-	impl<T: crate::Config> Default for Multiplier<T> {
+
+	impl BondingRequirementCalculation for Multiplier {
+		fn calculate_bonding_requirement<T: Config>(&self, ticket_size: BalanceOf<T>) -> Result<BalanceOf<T>, ()> {
+			let balance_multiplier = BalanceOf::<T>::from(self.0);
+			ticket_size.checked_div(&balance_multiplier).ok_or(())
+		}
+	}
+
+	impl VestingDurationCalculation for Multiplier {
+		fn calculate_vesting_duration<T: Config>(&self) -> T::BlockNumber {
+			// gradient "m" of the linear curve function y = m*x + b where x is the multiplier and y is the number of weeks
+			const GRADIENT: FixedU128 = FixedU128::from_rational(2167u128, 1000u128);
+			// negative constant (because we cannot have negative values, so we take the negative and do "-b" instead of "+b") "b" of the linear curve function y = m*x + b
+			const NEG_CONSTANT: FixedU128 = FixedU128::from_rational(2167u128, 1000u128);
+
+			let multiplier_as_fixed = FixedU128::saturating_from_integer(self.0);
+			let weeks = GRADIENT.saturating_mul(multiplier_as_fixed).saturating_sub(NEG_CONSTANT);
+
+			T::DaysToBlocks::convert(weeks * FixedU128::from_u32(7u32)).max(One::one())
+		}
+	}
+
+	impl Default for Multiplier {
 		fn default() -> Self {
-			Self(1u32.into())
+			Self(1u8)
 		}
 	}
-	impl<T: crate::Config> From<u32> for Multiplier<T> {
-		fn from(x: u32) -> Self {
-			Self(x.into())
+
+	impl TryFrom<u8> for Multiplier {
+		type Error = ();
+
+		fn try_from(x: u8) -> Result<Self, ()> {
+			Self::new(x)
 		}
 	}
 
@@ -70,6 +112,20 @@ pub mod config_types {
 
 		fn get_price(asset_id: AssetId) -> Option<Price> {
 			Mapping::get().get(&asset_id).cloned()
+		}
+	}
+
+	pub struct DaysToBlocks;
+	impl Convert<FixedU128, u64> for DaysToBlocks {
+		fn convert(a: FixedU128) -> u64 {
+			let one_day_in_blocks = DAYS;
+			a.saturating_mul_int(one_day_in_blocks as u64)
+		}
+	}
+	impl Convert<FixedU128, u32> for DaysToBlocks {
+		fn convert(a: FixedU128) -> u32 {
+			let one_day_in_blocks = DAYS;
+			a.saturating_mul_int(one_day_in_blocks)
 		}
 	}
 }
