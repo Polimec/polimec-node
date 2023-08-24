@@ -18,17 +18,12 @@ jobs:
   fmt:
     # The type of runner that the job will run on
     runs-on: ubuntu-22.04
+    container:
+      image: paritytech/ci-linux:production
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
-
-      - name: Set-Up
-        run: sudo apt update && sudo apt install -y protobuf-compiler clang
-
-      - name: Install Rust
-        # Using the version specified in the rust-toolchain.toml 
-        uses: actions-rust-lang/setup-rust-toolchain@v1
 
       # Fail fast: check formatting first as it doesn't require compilation
       - name: Check the formatting
