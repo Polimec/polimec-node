@@ -31,28 +31,18 @@ jobs:
 
   test:
     # The type of runner that the job will run on
-    needs: fmt
     runs-on: ubuntu-22.04
-    container:
-      image: paritytech/ci-linux:production
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Required by actions/cache@v3
       - name: Set-Up
-        run: apt update && apt install -y nodejs
+        run: sudo apt update && sudo apt install -y protobuf-compiler clang
 
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
       
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install Rust
+        # Using the version specified in the rust-toolchain.toml 
+        uses: actions-rust-lang/setup-rust-toolchain@v1
 
       - name: Test the Parachain
         run: SKIP_WASM_BUILD=1 cargo test --locked
