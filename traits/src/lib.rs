@@ -92,4 +92,6 @@ pub trait ReleaseSchedule<AccountId, Reason> {
 	///
 	/// NOTE: This doesn't alter the free balance of the account.
 	fn remove_vesting_schedule(who: &AccountId, schedule_index: u32, reason: Reason) -> DispatchResult;
+
+	fn remove_all_vesting_schedules(who: &AccountId, reason: Reason) -> DispatchResult;
 }

@@ -362,6 +362,19 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 		Ok(())
 	}
 
+	fn remove_all_vesting_schedules(who: &T::AccountId, reason: ReasonOf<T>) -> DispatchResult {
+		let schedules_count = Self::vesting(who, reason).ok_or(Error::<T>::NotVesting)?.len();
+		for _ in 0..schedules_count {
+			let current_schedules = Self::vesting(who, reason).ok_or(Error::<T>::NotVesting)?;
+			let remove_action = VestingAction::Remove { index: 0usize };
+			let (schedules, locked_now) = Self::exec_action(current_schedules.to_vec(), remove_action)?;
+			Self::write_vesting_schedule(who, schedules, reason)?;
+			Self::write_release(who, locked_now, reason)?;
+		}
+
+		Ok(())
+	}
+
 	fn vest(
 		who: AccountIdOf<T>,
 		reason: ReasonOf<T>,
