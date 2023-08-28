@@ -18,6 +18,7 @@
 
 //! Tests for Funding pallet.
 use std::{cell::RefCell, cmp::min, collections::BTreeMap, iter::zip, ops::Div};
+use std::collections::HashMap;
 
 use assert_matches2::assert_matches;
 use frame_support::{

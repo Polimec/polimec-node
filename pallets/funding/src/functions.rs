@@ -31,7 +31,7 @@ use frame_support::{
 };
 use sp_arithmetic::{
 	traits::{CheckedDiv, CheckedSub, Zero},
-	Perquintill,
+	Perquintill, Percent
 };
 use sp_runtime::traits::Convert;
 use sp_std::marker::PhantomData;
