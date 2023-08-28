@@ -3,8 +3,12 @@ use frame_support::weights::Weight;
 use sp_arithmetic::FixedPointNumber;
 use sp_runtime::DispatchError;
 
-pub trait BondingRequirementCalculation<T: Config> {
-	fn calculate_bonding_requirement(&self, ticket_size: BalanceOf<T>) -> Result<BalanceOf<T>, ()>;
+pub trait BondingRequirementCalculation {
+	fn calculate_bonding_requirement<T: Config>(&self, ticket_size: BalanceOf<T>) -> Result<BalanceOf<T>, ()>;
+}
+
+pub trait VestingDurationCalculation {
+	fn calculate_vesting_duration<T: Config>(&self) -> T::BlockNumber;
 }
 
 pub trait ProvideStatemintPrice {

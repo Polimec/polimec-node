@@ -66,7 +66,7 @@ pub use crate::xcm_config::*;
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 // Polimec Shared Imports
-use pallet_funding::BondTypeOf;
+use pallet_funding::{BondTypeOf, DaysToBlocks};
 pub use pallet_parachain_staking;
 pub use shared_configuration::*;
 
@@ -487,10 +487,12 @@ impl pallet_funding::Config for Runtime {
 	type Balance = Balance;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+	type BlockNumberToBalance = ConvertInto;
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityFundingDuration = CommunityFundingDuration;
 	type ContributionTokenCurrency = LocalAssets;
 	type ContributionVesting = ContributionVestingDuration;
+	type DaysToBlocks = DaysToBlocks;
 	type EnglishAuctionDuration = EnglishAuctionDuration;
 	type EvaluationDuration = EvaluationDuration;
 	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
@@ -502,7 +504,7 @@ impl pallet_funding::Config for Runtime {
 	type MaxContributionsPerUser = ConstU32<256>;
 	type MaxEvaluationsPerUser = ();
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
-	type Multiplier = pallet_funding::types::Multiplier<Self>;
+	type Multiplier = pallet_funding::types::Multiplier;
 	type NativeCurrency = Balances;
 	type PalletId = FundingPalletId;
 	type PreImageLimit = ConstU32<1024>;
@@ -512,7 +514,6 @@ impl pallet_funding::Config for Runtime {
 	type Randomness = Random;
 	type RemainderFundingDuration = RemainderFundingDuration;
 	type RuntimeEvent = RuntimeEvent;
-	type StorageItemId = u128;
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type TreasuryAccount = TreasuryAccount;

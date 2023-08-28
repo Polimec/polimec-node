@@ -16,6 +16,7 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use funding::AcceptedFundingAsset;
+	use pallet_funding::MultiplierOf;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -54,8 +55,9 @@ pub mod pallet {
 				"Project did not achieve at least 500k USDT funding"
 			);
 
+			let multiplier: MultiplierOf<T> = 1u8.try_into().map_err(|_| Error::<T>::ProjectNotFound)?;
 			// Buy tokens with the default multiplier
-			<funding::Pallet<T>>::do_contribute(retail_user, project_id, amount, None, asset_id)?;
+			<funding::Pallet<T>>::do_contribute(retail_user, project_id, amount, multiplier, asset_id)?;
 
 			Ok(())
 		}

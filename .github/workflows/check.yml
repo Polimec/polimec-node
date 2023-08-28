@@ -4,7 +4,7 @@ name: Check Set-Up & Build
 on:
   pull_request:
     branches: [main]
-    types: [ready_for_review, labeled]
+    types: [synchronize, reopened, ready_for_review, labeled]
   label:
     types: [created, deleted]
   # Allows you to run this workflow manually from the Actions tab
@@ -15,46 +15,34 @@ env:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  check:
+  fmt:
     # The type of runner that the job will run on
     runs-on: ubuntu-22.04
+    container:
+      image: paritytech/ci-linux:production
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
-
-      - name: Set-Up
-        run: sudo apt update && sudo apt install -y protobuf-compiler clang
-
-      - name: Install Rust
-        # Using the version specified in the rust-toolchain.toml 
-        uses: actions-rust-lang/setup-rust-toolchain@v1
 
       # Fail fast: check formatting first as it doesn't require compilation
-      - name: Check formatting
-        run: cargo fmt --all --check
-
-      - name: Check Build Parachain Runtime
-        run: |
-          SKIP_WASM_BUILD=1 cargo check --release -p polimec-parachain-runtime
+      - name: Check the formatting
+        run: cargo +nightly fmt --all --check
 
   test:
-    # This job runs only if `check` is successful
-    needs: check 
     # The type of runner that the job will run on
     runs-on: ubuntu-22.04
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v3
-
       - name: Set-Up
         run: sudo apt update && sudo apt install -y protobuf-compiler clang
 
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+      
       - name: Install Rust
         # Using the version specified in the rust-toolchain.toml 
         uses: actions-rust-lang/setup-rust-toolchain@v1
 
       - name: Test the Parachain
-        run: |
-          SKIP_WASM_BUILD=1 cargo test --release
+        run: SKIP_WASM_BUILD=1 cargo test --locked
