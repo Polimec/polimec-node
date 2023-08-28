@@ -31,7 +31,7 @@ use frame_support::{
 };
 use sp_arithmetic::{
 	traits::{CheckedDiv, CheckedSub, Zero},
-	Perquintill, Percent
+	Percent, Perquintill,
 };
 use sp_runtime::traits::Convert;
 use sp_std::marker::PhantomData;
@@ -2084,11 +2084,6 @@ impl<T: Config> Pallet<T> {
 		FixedU128::saturating_from_rational(contribution_amount, weighted_average_price)
 	}
 
-	pub fn add_decimals_to_number(number: BalanceOf<T>, decimals: u8) -> BalanceOf<T> {
-		let zeroes: BalanceOf<T> = BalanceOf::<T>::from(10u64).saturating_pow(decimals.into());
-		number.saturating_mul(zeroes)
-	}
-
 	pub fn try_plmc_participation_lock(
 		who: &T::AccountId,
 		project_id: T::ProjectIdentifier,
@@ -2134,11 +2129,13 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Calculate the total fees based on the funding reached.
 	pub fn calculate_fees(funding_reached: BalanceOf<T>) -> Perquintill {
 		let total_fee = Self::compute_total_fee_from_brackets(funding_reached);
 		Perquintill::from_rational(total_fee, funding_reached)
 	}
 
+	/// Computes the total fee from all defined fee brackets.
 	fn compute_total_fee_from_brackets(funding_reached: BalanceOf<T>) -> BalanceOf<T> {
 		let mut remaining_for_fee = funding_reached;
 
@@ -2148,6 +2145,7 @@ impl<T: Config> Pallet<T> {
 			.fold(BalanceOf::<T>::zero(), |acc, fee| acc.saturating_add(fee))
 	}
 
+	/// Calculate the fee for a particular bracket.
 	fn compute_fee_for_bracket(
 		remaining_for_fee: &mut BalanceOf<T>,
 		fee: Percent,
@@ -2163,40 +2161,49 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	/// Generate and return evaluator rewards based on a project's funding status.
+	///
+	/// The function calculates rewards based on several metrics: funding achieved,
+	/// total allocations, and issuer fees. It also differentiates between early and
+	/// normal evaluators for reward distribution.
+	///
+	/// Note: Consider refactoring the `RewardInfo` struct to make it more generic and
+	/// reusable, not just for evaluator rewards.
 	pub fn generate_evaluator_rewards_info(
 		project_id: <T as Config>::ProjectIdentifier,
 	) -> Result<RewardInfoOf<T>, DispatchError> {
+		// Fetching the necessary data for a specific project.
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let evaluations = Evaluations::<T>::iter_prefix((project_id,)).collect::<Vec<_>>();
 
-		let funding_reached = project_details.funding_amount_reached;
+		// Determine how much funding has been achieved.
+		let funding_amount_reached = project_details.funding_amount_reached;
+		let fundraising_target = project_details.fundraising_target;
+		let total_issuer_fees = Self::calculate_fees(funding_amount_reached);
 
-		let total_issuer_fees = Self::calculate_fees(funding_reached);
-
+		// Calculate the number of tokens sold for the project.
 		let token_sold = project_metadata
 			.total_allocation_size
 			.checked_sub(&project_details.remaining_contribution_tokens)
-			// This should never happen, but we still want to make sure we don't panic
+			// Ensure safety by providing a default in case of unexpected situations.
 			.unwrap_or(project_metadata.total_allocation_size);
 		let total_fee_allocation = total_issuer_fees * token_sold;
 
-		// This is the "Y" variable from the Knowledge Hub. src: https://hub.polimec.org/learn/funding-process/reward-payouts#issuer-fee-allocation
-		let percentage_of_target_funding =
-			Perquintill::from_rational(funding_reached, project_details.fundraising_target);
+		// Calculate the percentage of target funding based on available documentation.
+		let percentage_of_target_funding = Perquintill::from_rational(funding_amount_reached, fundraising_target);
 
+		// Calculate rewards.
 		let evaluator_rewards = percentage_of_target_funding * Perquintill::from_percent(30) * total_fee_allocation;
-
-		// Unused and not really tested yet, but they will be handy in the future
+		// Placeholder allocations (intended for future use).
 		let _liquidity_pool = Perquintill::from_percent(50) * total_fee_allocation;
-		let _raw_long_term_holder_bonus = Perquintill::from_percent(20) * total_fee_allocation;
-		let _one_minus_percentage_of_target_funding = Perquintill::from_percent(100) - percentage_of_target_funding;
-		let _temp = Perquintill::from_percent(30) * _one_minus_percentage_of_target_funding * total_fee_allocation;
-		let _long_term_holder_bonus = _raw_long_term_holder_bonus.saturating_add(_temp);
+		let _long_term_holder_bonus = _liquidity_pool.saturating_sub(evaluator_rewards);
 
+		// Distribute rewards between early and normal evaluators.
 		let early_evaluator_reward_pot = Perquintill::from_percent(20) * evaluator_rewards;
 		let normal_evaluator_reward_pot = Perquintill::from_percent(80) * evaluator_rewards;
 
+		// Sum up the total bonded USD amounts for both early and late evaluators.
 		let early_evaluator_total_bonded_usd =
 			evaluations.iter().fold(BalanceOf::<T>::zero(), |acc, ((_evaluator, _id), evaluation)| {
 				acc.saturating_add(evaluation.early_usd_amount)
@@ -2209,12 +2216,14 @@ impl<T: Config> Pallet<T> {
 		let normal_evaluator_total_bonded_usd =
 			early_evaluator_total_bonded_usd.saturating_add(late_evaluator_total_bonded_usd);
 
+		// Construct the reward information object.
 		let reward_info = RewardInfo {
 			early_evaluator_reward_pot,
 			normal_evaluator_reward_pot,
 			early_evaluator_total_bonded_usd,
 			normal_evaluator_total_bonded_usd,
 		};
+
 		Ok(reward_info)
 	}
 

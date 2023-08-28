@@ -17,8 +17,13 @@
 // If you feel like getting in touch with us, you ca ,n do so at info@polimec.org
 
 //! Tests for Funding pallet.
-use std::{cell::RefCell, cmp::min, collections::BTreeMap, iter::zip, ops::Div};
-use std::collections::HashMap;
+use std::{
+	cell::RefCell,
+	cmp::min,
+	collections::{BTreeMap, HashMap},
+	iter::zip,
+	ops::Div,
+};
 
 use assert_matches2::assert_matches;
 use frame_support::{
@@ -3979,9 +3984,8 @@ mod community_round_success {
 		// Create a contribution vector that will reach the limit of contributions for a user-project
 		let token_amount: BalanceOf<TestRuntime> = 1 * ASSET_UNIT;
 		let range = 0..<TestRuntime as Config>::MaxContributionsPerUser::get();
-		let contributions: TestContributions = range
-			.map(|_| TestContribution::new(CONTRIBUTOR, token_amount, 1u8, AcceptedFundingAsset::USDT))
-			.collect();
+		let contributions: TestContributions =
+			range.map(|_| TestContribution::new(CONTRIBUTOR, token_amount, 1u8, AcceptedFundingAsset::USDT)).collect();
 
 		let plmc_funding = calculate_contributed_plmc_spent(contributions.clone(), token_price);
 		let ed_funding: UserToPLMCBalance = vec![(CONTRIBUTOR, get_ed())];
@@ -4078,9 +4082,8 @@ mod community_round_success {
 		// Create a contribution vector that will reach the limit of contributions for a user-project
 		let token_amount: BalanceOf<TestRuntime> = 10 * ASSET_UNIT;
 		let range = 0..<TestRuntime as Config>::MaxContributionsPerUser::get();
-		let contributions: TestContributions = range
-			.map(|_| TestContribution::new(CONTRIBUTOR, token_amount, 3u8, AcceptedFundingAsset::USDT))
-			.collect();
+		let contributions: TestContributions =
+			range.map(|_| TestContribution::new(CONTRIBUTOR, token_amount, 3u8, AcceptedFundingAsset::USDT)).collect();
 
 		let plmc_funding = calculate_contributed_plmc_spent(contributions.clone(), token_price);
 		let ed_funding: UserToPLMCBalance = vec![(CONTRIBUTOR, get_ed())];
@@ -7551,13 +7554,7 @@ mod funding_end {
 		let evaluations = default_evaluations();
 		let bids = vec![
 			TestBid::new(BIDDER_1, 40_000 * ASSET_UNIT, 15.into(), 1u8, AcceptedFundingAsset::USDT),
-			TestBid::new(
-				BIDDER_2,
-				40_000 * ASSET_UNIT,
-				15.into(),
-				1u8.try_into().unwrap(),
-				AcceptedFundingAsset::USDT,
-			),
+			TestBid::new(BIDDER_2, 40_000 * ASSET_UNIT, 15.into(), 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
 			TestBid::new(
 				BIDDER_3,
 				152_000 * ASSET_UNIT,
@@ -7818,36 +7815,11 @@ mod test_helper_functions {
 		);
 
 		let contributions = vec![
-			TestContribution::new(
-				CONTRIBUTOR_1,
-				TOKEN_AMOUNT_1,
-				MULTIPLIER_1,
-				AcceptedFundingAsset::USDT,
-			),
-			TestContribution::new(
-				CONTRIBUTOR_2,
-				TOKEN_AMOUNT_2,
-				MULTIPLIER_2,
-				AcceptedFundingAsset::USDT,
-			),
-			TestContribution::new(
-				CONTRIBUTOR_3,
-				TOKEN_AMOUNT_3,
-				MULTIPLIER_3,
-				AcceptedFundingAsset::USDT,
-			),
-			TestContribution::new(
-				CONTRIBUTOR_4,
-				TOKEN_AMOUNT_4,
-				MULTIPLIER_4,
-				AcceptedFundingAsset::USDT,
-			),
-			TestContribution::new(
-				CONTRIBUTOR_5,
-				TOKEN_AMOUNT_5,
-				MULTIPLIER_5,
-				AcceptedFundingAsset::USDT,
-			),
+			TestContribution::new(CONTRIBUTOR_1, TOKEN_AMOUNT_1, MULTIPLIER_1, AcceptedFundingAsset::USDT),
+			TestContribution::new(CONTRIBUTOR_2, TOKEN_AMOUNT_2, MULTIPLIER_2, AcceptedFundingAsset::USDT),
+			TestContribution::new(CONTRIBUTOR_3, TOKEN_AMOUNT_3, MULTIPLIER_3, AcceptedFundingAsset::USDT),
+			TestContribution::new(CONTRIBUTOR_4, TOKEN_AMOUNT_4, MULTIPLIER_4, AcceptedFundingAsset::USDT),
+			TestContribution::new(CONTRIBUTOR_5, TOKEN_AMOUNT_5, MULTIPLIER_5, AcceptedFundingAsset::USDT),
 		];
 
 		let expected_plmc_spent = vec![
@@ -8013,7 +7985,7 @@ mod testing_macros {
 			$(
 				pub const $name: AccountId = $id;
 			)*
-	
+
 			pub fn names() -> HashMap<AccountId, &'static str> {
 				let mut names = HashMap::new();
 				$(
@@ -8221,7 +8193,9 @@ mod e2e_testing {
 			TestContribution::from(LEONARDO, 840 * US_DOLLAR),
 			TestContribution::from(KEN, 352 * US_DOLLAR),
 			TestContribution::from(LUCA, 640 * US_DOLLAR),
-			//TestContribution::from(XI, 588 * US_DOLLAR),
+			// TODO: XI is a partipant in the Community Round AND an Evaluator. At the moment, this returns `InsufficientBalance` because it seems we don't mint to him enough USDT.
+			// To be addressed and tested in a separate PR.
+			// TestContribution::from(XI, 588 * US_DOLLAR),
 			TestContribution::from(FLAVIO, 792 * US_DOLLAR),
 			TestContribution::from(FREDI, 993 * US_DOLLAR),
 			TestContribution::from(ALI, 794 * US_DOLLAR),
@@ -8289,7 +8263,7 @@ mod e2e_testing {
 			(SOFIA, 3320000000000, 0),
 			(DOMINIK, 81100000000000, 0),
 			(NOLAND, 170000000000, 0),
-			(LINA, 111403137276535, 0), // EV
+			(LINA, 111403137276535, 0),
 			(HANNAH, 140000000000, 0),
 			(HOOVER, 49060000000000, 0),
 			(GIGI, 680000000000, 0),
@@ -8359,7 +8333,7 @@ mod e2e_testing {
 			(MALIK, 240000000000, 0),
 			(ALEXANDER, 330000000000, 0),
 			(BUNDI, 11480000000000, 0),
-			(RAMONA, 881533783198, 0), // EV
+			(RAMONA, 881533783198, 0),
 			(SOLOMUN, 8400000000000, 0),
 			(JOHNNY, 1320000000000, 0),
 			(GRINGO, 210000000000, 0),
