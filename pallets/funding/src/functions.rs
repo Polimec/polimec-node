@@ -674,16 +674,14 @@ impl<T: Config> Pallet<T> {
 		ProjectsDetails::<T>::insert(project_id, project_details.clone());
 
 		if project_details.status == ProjectStatus::FundingSuccessful {
-			T::ContributionTokenCurrency::create(project_id, project_details.issuer.clone(), false, 1_u32.into())
-				.map_err(|_| Error::<T>::AssetCreationFailed)?;
+			T::ContributionTokenCurrency::create(project_id, project_details.issuer.clone(), false, 1_u32.into())?;
 			T::ContributionTokenCurrency::set(
 				project_id,
 				&project_details.issuer,
 				token_information.name.into(),
 				token_information.symbol.into(),
 				token_information.decimals,
-			)
-			.map_err(|_| Error::<T>::AssetMetadataUpdateFailed)?;
+			)?;
 		}
 
 		Ok(())
@@ -815,8 +813,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Update Storage *
 		if caller_existing_evaluations.len() < T::MaxEvaluationsPerUser::get() as usize {
-			T::NativeCurrency::hold(&LockType::Evaluation(project_id), &evaluator, plmc_bond)
-				.map_err(|_| Error::<T>::InsufficientBalance)?;
+			T::NativeCurrency::hold(&LockType::Evaluation(project_id), &evaluator, plmc_bond)?;
 		} else {
 			let (low_id, lowest_evaluation) = caller_existing_evaluations
 				.iter()
@@ -835,11 +832,9 @@ impl<T: Config> Pallet<T> {
 				&lowest_evaluation.evaluator,
 				lowest_evaluation.original_plmc_bond,
 				Precision::Exact,
-			)
-			.map_err(|_| Error::<T>::InsufficientBalance)?;
+			)?;
 
-			T::NativeCurrency::hold(&LockType::Evaluation(project_id), &evaluator, plmc_bond)
-				.map_err(|_| Error::<T>::InsufficientBalance)?;
+			T::NativeCurrency::hold(&LockType::Evaluation(project_id), &evaluator, plmc_bond)?;
 
 			Evaluations::<T>::remove((project_id, evaluator.clone(), low_id));
 		}
@@ -2109,8 +2104,7 @@ impl<T: Config> Pallet<T> {
 			to_convert = to_convert.saturating_sub(converted)
 		}
 
-		T::NativeCurrency::hold(&LockType::Participation(project_id), who, to_convert)
-			.map_err(|_| Error::<T>::InsufficientBalance)?;
+		T::NativeCurrency::hold(&LockType::Participation(project_id), who, to_convert)?;
 
 		Ok(())
 	}

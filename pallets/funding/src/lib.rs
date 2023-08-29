@@ -753,9 +753,6 @@ pub mod pallet {
 		Frozen,
 		/// The bid is too low
 		BidTooLow,
-		/// The user has not enough balance to perform the action
-		InsufficientBalance,
-		NotAuthorized,
 		/// The Funding Round of the project has not ended yet
 		CannotClaimYet,
 		/// No bids were made for the project at the time of the auction close
@@ -774,14 +771,10 @@ pub mod pallet {
 		ProjectNotInCandleAuctionRound,
 		/// Tried to move the project to RemainderRound, but it was not in CommunityRound before
 		ProjectNotInCommunityRound,
-		/// Tried to move the project to FundingEndedRound, but it was not in RemainderRound before
-		ProjectNotInRemainderRound,
 		/// Tried to move the project to ReadyToLaunch round, but it was not in FundingEnded round before
 		ProjectNotInFundingEndedRound,
 		/// Tried to start an auction before the initialization period
 		TooEarlyForEnglishAuctionStart,
-		/// Tried to start an auction after the initialization period
-		TooLateForEnglishAuctionStart,
 		/// Tried to move the project to CandleAuctionRound, but its too early for that
 		TooEarlyForCandleAuctionStart,
 		/// Tried to move the project to CommunityRound, but its too early for that
@@ -792,34 +785,16 @@ pub mod pallet {
 		TooEarlyForFundingEnd,
 		/// Checks for other projects not copying metadata of others
 		MetadataAlreadyExists,
-		/// The specified issuer does not exist
-		ProjectIssuerNotFound,
 		/// The specified project info does not exist
 		ProjectInfoNotFound,
 		/// Tried to finish an evaluation before its target end block
 		EvaluationPeriodNotEnded,
 		/// Tried to access field that is not set
 		FieldIsNone,
-		/// Tried to create the contribution token after the remaining round but it failed
-		AssetCreationFailed,
-		/// Tried to update the metadata of the contribution token but it failed
-		AssetMetadataUpdateFailed,
-		/// Tried to do an operation assuming the evaluation failed, when in fact it did not
-		EvaluationNotFailed,
-		/// Tried to unbond PLMC after unsuccessful evaluation, but specified bond does not exist.
-		BondNotFound,
 		/// Checked math failed
 		BadMath,
-		/// Tried to bond PLMC for bidding, but that phase has already ended
-		TooLateForBidBonding,
 		/// Tried to retrieve a bid but it does not exist
 		BidNotFound,
-		/// Tried to append a new bid to storage but too many bids were already made
-		TooManyBids,
-		/// Tried to append a new contribution to storage but too many were made for that user
-		TooManyContributions,
-		/// Tried to bond PLMC for contributing in the community or remainder round, but remainder round ended already
-		TooLateForContributingBonding,
 		/// Tried to contribute but its too low to be accepted
 		ContributionTooLow,
 		/// Contribution is higher than the limit set by the issuer
@@ -834,16 +809,11 @@ pub mod pallet {
 		PriceNotFound,
 		/// Bond is either lower than the minimum set by the issuer, or the vec is full and can't replace an old one with a lower value
 		EvaluationBondTooLow,
-		/// Bond is bigger than the limit set by issuer
-		EvaluationBondTooHigh,
 		/// Tried to do an operation on an evaluation that does not exist
 		EvaluationNotFound,
-		/// Tried to do an operation on a finalizer that is not yet set
-		NoFinalizerSet,
 		/// Tried to do an operation on a finalizer that already finished
 		FinalizerFinished,
-		/// Tried to do an operation on a cleaner that is not ready
-		CleanerNotReady,
+		///
 		ContributionNotFound,
 	}
 
