@@ -27,7 +27,7 @@ use std::{
 
 use assert_matches2::assert_matches;
 use frame_support::{
-	assert_noop, assert_ok,
+	assert_err, assert_noop, assert_ok,
 	traits::{
 		fungible::{Inspect as FungibleInspect, InspectHold as FungibleInspectHold, Mutate as FungibleMutate},
 		fungibles::{
@@ -43,7 +43,7 @@ use itertools::Itertools;
 use parachains_common::DAYS;
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_core::H256;
-use sp_runtime::{DispatchError, Either};
+use sp_runtime::{DispatchError, Either, TokenError};
 use sp_std::marker::PhantomData;
 
 use defaults::*;
@@ -2106,8 +2106,8 @@ mod evaluation_round_failure {
 
 		let evaluating_project = EvaluatingProject::new_with(&test_env, project, issuer);
 
-		let dispatch_error = evaluating_project.bond_for_users(evaluations).unwrap_err();
-		assert_eq!(dispatch_error, Error::<TestRuntime>::InsufficientBalance.into())
+		let dispatch_error = evaluating_project.bond_for_users(evaluations);
+		assert_err!(dispatch_error, TokenError::FundsUnavailable)
 	}
 }
 
