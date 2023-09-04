@@ -231,7 +231,7 @@ impl<T: Config> Pallet<T> {
 
 		let auction_initialize_period_start_block = now + 1u32.into();
 		let auction_initialize_period_end_block =
-			auction_initialize_period_start_block.clone() + T::AuctionInitializePeriodDuration::get();
+			auction_initialize_period_start_block + T::AuctionInitializePeriodDuration::get();
 
 		// Check which logic path to follow
 		let is_funded = total_amount_bonded >= evaluation_target_plmc;
@@ -243,7 +243,7 @@ impl<T: Config> Pallet<T> {
 			project_details
 				.phase_transition_points
 				.auction_initialize_period
-				.update(Some(auction_initialize_period_start_block.clone()), Some(auction_initialize_period_end_block));
+				.update(Some(auction_initialize_period_start_block), Some(auction_initialize_period_end_block));
 			project_details.status = ProjectStatus::AuctionInitializePeriod;
 			ProjectsDetails::<T>::insert(project_id, project_details);
 			Self::add_to_update_store(
@@ -328,7 +328,7 @@ impl<T: Config> Pallet<T> {
 		project_details
 			.phase_transition_points
 			.english_auction
-			.update(Some(english_start_block), Some(english_end_block.clone()));
+			.update(Some(english_start_block), Some(english_end_block));
 		project_details.status = ProjectStatus::AuctionRound(AuctionPhase::English);
 		ProjectsDetails::<T>::insert(project_id, project_details);
 
@@ -388,10 +388,7 @@ impl<T: Config> Pallet<T> {
 		let candle_end_block = now + T::CandleAuctionDuration::get();
 
 		// * Update Storage *
-		project_details
-			.phase_transition_points
-			.candle_auction
-			.update(Some(candle_start_block), Some(candle_end_block.clone()));
+		project_details.phase_transition_points.candle_auction.update(Some(candle_start_block), Some(candle_end_block));
 		project_details.status = ProjectStatus::AuctionRound(AuctionPhase::Candle);
 		ProjectsDetails::<T>::insert(project_id, project_details);
 		// Schedule for automatic check by on_initialize. Success depending on enough funding reached
@@ -471,7 +468,7 @@ impl<T: Config> Pallet<T> {
 				project_details
 					.phase_transition_points
 					.community
-					.update(Some(community_start_block), Some(community_end_block.clone()));
+					.update(Some(community_start_block), Some(community_end_block));
 				project_details.status = ProjectStatus::CommunityRound;
 				ProjectsDetails::<T>::insert(project_id, project_details);
 				Self::add_to_update_store(
@@ -527,7 +524,7 @@ impl<T: Config> Pallet<T> {
 		project_details
 			.phase_transition_points
 			.remainder
-			.update(Some(remainder_start_block), Some(remainder_end_block.clone()));
+			.update(Some(remainder_start_block), Some(remainder_end_block));
 		project_details.status = ProjectStatus::RemainderRound;
 		ProjectsDetails::<T>::insert(project_id, project_details);
 		// Schedule for automatic transition by `on_initialize`
@@ -1136,7 +1133,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::NotAllowed);
-		ensure!(bid.ct_minted == false, Error::<T>::NotAllowed);
+		ensure!(!bid.ct_minted, Error::<T>::NotAllowed);
 		ensure!(matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)), Error::<T>::NotAllowed);
 		ensure!(T::ContributionTokenCurrency::asset_exists(project_id), Error::<T>::CannotClaimYet);
 
@@ -1172,7 +1169,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::NotAllowed);
-		ensure!(contribution.ct_minted == false, Error::<T>::NotAllowed);
+		ensure!(!contribution.ct_minted, Error::<T>::NotAllowed);
 		ensure!(T::ContributionTokenCurrency::asset_exists(project_id), Error::<T>::CannotClaimYet);
 
 		// * Calculate variables *
@@ -1207,7 +1204,7 @@ impl<T: Config> Pallet<T> {
 		// * Validity checks *
 		ensure!(
 			(project_details.evaluation_round_info.evaluators_outcome == EvaluatorsOutcomeOf::<T>::Unchanged ||
-				released_evaluation.rewarded_or_slashed == true) &&
+				released_evaluation.rewarded_or_slashed) &&
 				matches!(
 					project_details.status,
 					ProjectStatus::EvaluationFailed | ProjectStatus::FundingFailed | ProjectStatus::FundingSuccessful
@@ -1254,8 +1251,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			evaluation.rewarded_or_slashed == false &&
-				matches!(project_details.status, ProjectStatus::FundingSuccessful),
+			!evaluation.rewarded_or_slashed && matches!(project_details.status, ProjectStatus::FundingSuccessful),
 			Error::<T>::NotAllowed
 		);
 
@@ -1303,7 +1299,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			evaluation.rewarded_or_slashed == false &&
+			!evaluation.rewarded_or_slashed &&
 				matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Slashed),
 			Error::<T>::NotAllowed
 		);
@@ -1353,7 +1349,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			matches!(bid.plmc_vesting_info, None) &&
+			bid.plmc_vesting_info.is_none() &&
 				project_details.status == ProjectStatus::FundingSuccessful &&
 				matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)),
 			Error::<T>::NotAllowed
@@ -1400,8 +1396,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			matches!(contribution.plmc_vesting_info, None) &&
-				project_details.status == ProjectStatus::FundingSuccessful,
+			contribution.plmc_vesting_info.is_none() && project_details.status == ProjectStatus::FundingSuccessful,
 			Error::<T>::NotAllowed
 		);
 
@@ -1718,7 +1713,7 @@ impl<T: Config> Pallet<T> {
 		// Try to get the project into the earliest possible block to update.
 		// There is a limit for how many projects can update each block, so we need to make sure we don't exceed that limit
 		let mut block_number = block_number;
-		while ProjectsToUpdate::<T>::try_append(block_number.clone(), store.clone()).is_err() {
+		while ProjectsToUpdate::<T>::try_append(block_number, store.clone()).is_err() {
 			// TODO: Should we end the loop if we iterated over too many blocks?
 			block_number += 1u32.into();
 		}
@@ -2117,7 +2112,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), DispatchError> {
 		let fund_account = Self::fund_account_id(project_id);
 
-		T::FundingCurrency::transfer(asset_id, &who, &fund_account, amount, Preservation::Expendable)?;
+		T::FundingCurrency::transfer(asset_id, who, &fund_account, amount, Preservation::Expendable)?;
 
 		Ok(())
 	}

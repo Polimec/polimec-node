@@ -347,7 +347,7 @@ fn unbond_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> (Weight
 	let project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
 	let evaluation_count = project_evaluations.len() as u64;
 
-	if let Some(evaluation) = project_evaluations.iter().next() {
+	if let Some(evaluation) = project_evaluations.first() {
 		match Pallet::<T>::do_evaluation_unbond_for(
 			T::PalletId::get().into_account_truncating(),
 			evaluation.project_id,
@@ -475,8 +475,7 @@ fn unbond_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weig
 fn start_one_bid_vesting_schedule<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	let mut unscheduled_bids = project_bids.filter(|bid| {
-		matches!(bid.plmc_vesting_info, None) &&
-			matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..))
+		bid.plmc_vesting_info.is_none() && matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..))
 	});
 
 	if let Some(bid) = unscheduled_bids.next() {
@@ -505,8 +504,7 @@ fn start_one_bid_vesting_schedule<T: Config>(project_id: T::ProjectIdentifier) -
 
 fn start_one_contribution_vesting_schedule<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
 	let project_bids = Contributions::<T>::iter_prefix_values((project_id,));
-	let mut unscheduled_contributions =
-		project_bids.filter(|contribution| matches!(contribution.plmc_vesting_info, None));
+	let mut unscheduled_contributions = project_bids.filter(|contribution| contribution.plmc_vesting_info.is_none());
 
 	if let Some(contribution) = unscheduled_contributions.next() {
 		match Pallet::<T>::do_start_contribution_vesting_schedule_for(
