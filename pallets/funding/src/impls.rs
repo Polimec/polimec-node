@@ -449,7 +449,7 @@ fn unbond_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weig
 	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
 
 	let mut remaining_contributions =
-		project_contributions.clone().into_iter().filter(|contribution| contribution.funds_released);
+		project_contributions.into_iter().filter(|contribution| contribution.funds_released);
 
 	if let Some(contribution) = remaining_contributions.next() {
 		match Pallet::<T>::do_contribution_unbond_for(

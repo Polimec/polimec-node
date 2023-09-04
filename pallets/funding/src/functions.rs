@@ -1203,8 +1203,8 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		let released_evaluation = Evaluations::<T>::get((project_id, evaluator, evaluation_id))
-			.ok_or(Error::<T>::EvaluationNotFound)?;
+		let released_evaluation =
+			Evaluations::<T>::get((project_id, evaluator, evaluation_id)).ok_or(Error::<T>::EvaluationNotFound)?;
 
 		// * Validity checks *
 		ensure!(
@@ -1278,7 +1278,7 @@ impl<T: Config> Pallet<T> {
 		// * Emit events *
 		Self::deposit_event(Event::EvaluationRewarded {
 			project_id,
-			evaluator: evaluator.clone(),
+			evaluator,
 			id: evaluation_id,
 			amount: total_reward_amount,
 			caller,
@@ -1378,7 +1378,7 @@ impl<T: Config> Pallet<T> {
 		// * Emit events *
 		Self::deposit_event(Event::BidPlmcVestingScheduled {
 			project_id,
-			bidder: bidder.clone(),
+			bidder,
 			id: bid_id,
 			amount: vest_info.total_amount,
 			caller,
@@ -1424,7 +1424,7 @@ impl<T: Config> Pallet<T> {
 		// * Emit events *
 		Self::deposit_event(Event::ContributionPlmcVestingScheduled {
 			project_id,
-			contributor: contributor.clone(),
+			contributor,
 			id: contribution_id,
 			amount: vest_info.total_amount,
 			caller,
@@ -1448,12 +1448,7 @@ impl<T: Config> Pallet<T> {
 		let vested_amount = T::Vesting::vest(participant.clone(), LockType::Participation(project_id))?;
 
 		// * Emit events *
-		Self::deposit_event(Event::ParticipantPlmcVested {
-			project_id,
-			participant: participant.clone(),
-			amount: vested_amount,
-			caller,
-		});
+		Self::deposit_event(Event::ParticipantPlmcVested { project_id, participant, amount: vested_amount, caller });
 
 		Ok(())
 	}
@@ -1494,7 +1489,7 @@ impl<T: Config> Pallet<T> {
 		// * Emit events *
 		Self::deposit_event(Event::BidFundingReleased {
 			project_id,
-			bidder: bidder.clone(),
+			bidder,
 			id: bid_id,
 			amount: payout_amount,
 			caller,
@@ -1569,7 +1564,7 @@ impl<T: Config> Pallet<T> {
 		// * Emit events *
 		Self::deposit_event(Event::ContributionFundingReleased {
 			project_id,
-			contributor: contributor.clone(),
+			contributor,
 			id: contribution_id,
 			amount: payout_amount,
 			caller,
@@ -1647,13 +1642,7 @@ impl<T: Config> Pallet<T> {
 		Bids::<T>::insert((project_id, bidder.clone(), bid_id), bid);
 
 		// * Emit events *
-		Self::deposit_event(Event::BidFundingPaidOut {
-			project_id,
-			bidder: bidder.clone(),
-			id: bid_id,
-			amount: payout_amount,
-			caller,
-		});
+		Self::deposit_event(Event::BidFundingPaidOut { project_id, bidder, id: bid_id, amount: payout_amount, caller });
 
 		Ok(())
 	}
@@ -2228,7 +2217,7 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		let now = <frame_system::Pallet<T>>::block_number();
 		project_details.status = ProjectStatus::FundingSuccessful;
-		ProjectsDetails::<T>::insert(project_id, project_details.clone());
+		ProjectsDetails::<T>::insert(project_id, project_details);
 
 		Self::add_to_update_store(now + settlement_delta, (&project_id, UpdateType::StartSettlement));
 
@@ -2245,7 +2234,7 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		let now = <frame_system::Pallet<T>>::block_number();
 		project_details.status = ProjectStatus::FundingFailed;
-		ProjectsDetails::<T>::insert(project_id, project_details.clone());
+		ProjectsDetails::<T>::insert(project_id, project_details);
 
 		Self::add_to_update_store(now + settlement_delta, (&project_id, UpdateType::StartSettlement));
 		Self::deposit_event(Event::FundingEnded { project_id, outcome: FundingOutcome::Failure(reason) });
