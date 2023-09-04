@@ -300,9 +300,9 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 		match project_details.evaluation_round_info.evaluators_outcome {
 			EvaluatorsOutcome::Rewarded(_) => {
 				match Pallet::<T>::do_evaluation_reward_payout_for(
-					T::PalletId::get().into_account_truncating(),
+					&T::PalletId::get().into_account_truncating(),
 					evaluation.project_id,
-					evaluation.evaluator.clone(),
+					&evaluation.evaluator,
 					evaluation.id,
 				) {
 					Ok(_) => (),
@@ -316,9 +316,9 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 			},
 			EvaluatorsOutcome::Slashed => {
 				match Pallet::<T>::do_evaluation_slash_for(
-					T::PalletId::get().into_account_truncating(),
+					&T::PalletId::get().into_account_truncating(),
 					evaluation.project_id,
-					evaluation.evaluator.clone(),
+					&evaluation.evaluator,
 					evaluation.id,
 				) {
 					Ok(_) => (),
@@ -347,11 +347,11 @@ fn unbond_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> (Weight
 	let project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
 	let evaluation_count = project_evaluations.len() as u64;
 
-	if let Some(evaluation) = project_evaluations.iter().next() {
+	if let Some(evaluation) = project_evaluations.first() {
 		match Pallet::<T>::do_evaluation_unbond_for(
-			T::PalletId::get().into_account_truncating(),
+			&T::PalletId::get().into_account_truncating(),
 			evaluation.project_id,
-			evaluation.evaluator.clone(),
+			&evaluation.evaluator,
 			evaluation.id,
 		) {
 			Ok(_) => (),
@@ -374,9 +374,9 @@ fn release_funds_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight
 
 	if let Some(bid) = remaining_bids.next() {
 		match Pallet::<T>::do_release_bid_funds_for(
-			T::PalletId::get().into_account_truncating(),
+			&T::PalletId::get().into_account_truncating(),
 			bid.project_id,
-			bid.bidder.clone(),
+			&bid.bidder,
 			bid.id,
 		) {
 			Ok(_) => (),
@@ -400,9 +400,9 @@ fn unbond_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) 
 
 	if let Some(bid) = remaining_bids.next() {
 		match Pallet::<T>::do_bid_unbond_for(
-			T::PalletId::get().into_account_truncating(),
+			&T::PalletId::get().into_account_truncating(),
 			bid.project_id,
-			bid.bidder.clone(),
+			&bid.bidder,
 			bid.id,
 		) {
 			Ok(_) => (),
@@ -425,9 +425,9 @@ fn release_funds_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -
 
 	if let Some(contribution) = remaining_contributions.next() {
 		match Pallet::<T>::do_release_contribution_funds_for(
-			T::PalletId::get().into_account_truncating(),
+			&T::PalletId::get().into_account_truncating(),
 			contribution.project_id,
-			contribution.contributor.clone(),
+			&contribution.contributor,
 			contribution.id,
 		) {
 			Ok(_) => (),
@@ -446,16 +446,16 @@ fn release_funds_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -
 }
 
 fn unbond_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
-	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
+	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
 
 	let mut remaining_contributions =
-		project_contributions.clone().into_iter().filter(|contribution| contribution.funds_released);
+		project_contributions.into_iter().filter(|contribution| contribution.funds_released);
 
 	if let Some(contribution) = remaining_contributions.next() {
 		match Pallet::<T>::do_contribution_unbond_for(
-			T::PalletId::get().into_account_truncating(),
+			&T::PalletId::get().into_account_truncating(),
 			contribution.project_id,
-			contribution.contributor.clone(),
+			&contribution.contributor,
 			contribution.id,
 		) {
 			Ok(_) => (),
@@ -475,15 +475,14 @@ fn unbond_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weig
 fn start_one_bid_vesting_schedule<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	let mut unscheduled_bids = project_bids.filter(|bid| {
-		matches!(bid.plmc_vesting_info, None) &&
-			matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..))
+		bid.plmc_vesting_info.is_none() && matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..))
 	});
 
 	if let Some(bid) = unscheduled_bids.next() {
 		match Pallet::<T>::do_start_bid_vesting_schedule_for(
-			T::PalletId::get().into_account_truncating(),
+			&T::PalletId::get().into_account_truncating(),
 			project_id,
-			bid.bidder.clone(),
+			&bid.bidder,
 			bid.id,
 		) {
 			Ok(_) => {},
@@ -505,14 +504,13 @@ fn start_one_bid_vesting_schedule<T: Config>(project_id: T::ProjectIdentifier) -
 
 fn start_one_contribution_vesting_schedule<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
 	let project_bids = Contributions::<T>::iter_prefix_values((project_id,));
-	let mut unscheduled_contributions =
-		project_bids.filter(|contribution| matches!(contribution.plmc_vesting_info, None));
+	let mut unscheduled_contributions = project_bids.filter(|contribution| contribution.plmc_vesting_info.is_none());
 
 	if let Some(contribution) = unscheduled_contributions.next() {
 		match Pallet::<T>::do_start_contribution_vesting_schedule_for(
-			T::PalletId::get().into_account_truncating(),
+			&T::PalletId::get().into_account_truncating(),
 			project_id,
-			contribution.contributor.clone(),
+			&contribution.contributor,
 			contribution.id,
 		) {
 			Ok(_) => {},
@@ -538,9 +536,9 @@ fn mint_ct_for_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, 
 
 	if let Some(bid) = remaining_bids.next() {
 		match Pallet::<T>::do_bid_ct_mint_for(
-			T::PalletId::get().into_account_truncating(),
+			&T::PalletId::get().into_account_truncating(),
 			bid.project_id,
-			bid.bidder.clone(),
+			&bid.bidder,
 			bid.id,
 		) {
 			Ok(_) => (),
@@ -563,9 +561,9 @@ fn mint_ct_for_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> 
 
 	if let Some(contribution) = remaining_contributions.next() {
 		match Pallet::<T>::do_contribution_ct_mint_for(
-			T::PalletId::get().into_account_truncating(),
+			&T::PalletId::get().into_account_truncating(),
 			contribution.project_id,
-			contribution.contributor.clone(),
+			&contribution.contributor,
 			contribution.id,
 		) {
 			Ok(_) => (),
@@ -589,9 +587,9 @@ fn issuer_funding_payout_one_bid<T: Config>(project_id: T::ProjectIdentifier) ->
 
 	if let Some(bid) = remaining_bids.next() {
 		match Pallet::<T>::do_payout_bid_funds_for(
-			T::PalletId::get().into_account_truncating(),
+			&T::PalletId::get().into_account_truncating(),
 			bid.project_id,
-			bid.bidder.clone(),
+			&bid.bidder,
 			bid.id,
 		) {
 			Ok(_) => (),
@@ -615,9 +613,9 @@ fn issuer_funding_payout_one_contribution<T: Config>(project_id: T::ProjectIdent
 
 	if let Some(contribution) = remaining_contributions.next() {
 		match Pallet::<T>::do_payout_contribution_funds_for(
-			T::PalletId::get().into_account_truncating(),
+			&T::PalletId::get().into_account_truncating(),
 			contribution.project_id,
-			contribution.contributor.clone(),
+			&contribution.contributor,
 			contribution.id,
 		) {
 			Ok(_) => (),

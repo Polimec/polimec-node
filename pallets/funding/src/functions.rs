@@ -64,7 +64,7 @@ impl<T: Config> Pallet<T> {
 	/// # Next step
 	/// The issuer will call an extrinsic to start the evaluation round of the project.
 	/// [`do_evaluation_start`](Self::do_evaluation_start) will be executed.
-	pub fn do_create(issuer: AccountIdOf<T>, initial_metadata: ProjectMetadataOf<T>) -> Result<(), DispatchError> {
+	pub fn do_create(issuer: &AccountIdOf<T>, initial_metadata: ProjectMetadataOf<T>) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_id = Self::next_project_id();
 
@@ -113,13 +113,11 @@ impl<T: Config> Pallet<T> {
 			funding_end_block: None,
 		};
 
-		let project_metadata = initial_metadata;
-
 		// * Update storage *
-		ProjectsMetadata::<T>::insert(project_id, project_metadata.clone());
+		ProjectsMetadata::<T>::insert(project_id, &initial_metadata);
 		ProjectsDetails::<T>::insert(project_id, project_details);
 		NextProjectId::<T>::mutate(|n| n.saturating_inc());
-		if let Some(metadata) = project_metadata.offchain_information_hash {
+		if let Some(metadata) = initial_metadata.offchain_information_hash {
 			Images::<T>::insert(metadata, issuer);
 		}
 
@@ -231,7 +229,7 @@ impl<T: Config> Pallet<T> {
 
 		let auction_initialize_period_start_block = now + 1u32.into();
 		let auction_initialize_period_end_block =
-			auction_initialize_period_start_block.clone() + T::AuctionInitializePeriodDuration::get();
+			auction_initialize_period_start_block + T::AuctionInitializePeriodDuration::get();
 
 		// Check which logic path to follow
 		let is_funded = total_amount_bonded >= evaluation_target_plmc;
@@ -243,7 +241,7 @@ impl<T: Config> Pallet<T> {
 			project_details
 				.phase_transition_points
 				.auction_initialize_period
-				.update(Some(auction_initialize_period_start_block.clone()), Some(auction_initialize_period_end_block));
+				.update(Some(auction_initialize_period_start_block), Some(auction_initialize_period_end_block));
 			project_details.status = ProjectStatus::AuctionInitializePeriod;
 			ProjectsDetails::<T>::insert(project_id, project_details);
 			Self::add_to_update_store(
@@ -328,7 +326,7 @@ impl<T: Config> Pallet<T> {
 		project_details
 			.phase_transition_points
 			.english_auction
-			.update(Some(english_start_block), Some(english_end_block.clone()));
+			.update(Some(english_start_block), Some(english_end_block));
 		project_details.status = ProjectStatus::AuctionRound(AuctionPhase::English);
 		ProjectsDetails::<T>::insert(project_id, project_details);
 
@@ -388,10 +386,7 @@ impl<T: Config> Pallet<T> {
 		let candle_end_block = now + T::CandleAuctionDuration::get();
 
 		// * Update Storage *
-		project_details
-			.phase_transition_points
-			.candle_auction
-			.update(Some(candle_start_block), Some(candle_end_block.clone()));
+		project_details.phase_transition_points.candle_auction.update(Some(candle_start_block), Some(candle_end_block));
 		project_details.status = ProjectStatus::AuctionRound(AuctionPhase::Candle);
 		ProjectsDetails::<T>::insert(project_id, project_details);
 		// Schedule for automatic check by on_initialize. Success depending on enough funding reached
@@ -471,7 +466,7 @@ impl<T: Config> Pallet<T> {
 				project_details
 					.phase_transition_points
 					.community
-					.update(Some(community_start_block), Some(community_end_block.clone()));
+					.update(Some(community_start_block), Some(community_end_block));
 				project_details.status = ProjectStatus::CommunityRound;
 				ProjectsDetails::<T>::insert(project_id, project_details);
 				Self::add_to_update_store(
@@ -527,7 +522,7 @@ impl<T: Config> Pallet<T> {
 		project_details
 			.phase_transition_points
 			.remainder
-			.update(Some(remainder_start_block), Some(remainder_end_block.clone()));
+			.update(Some(remainder_start_block), Some(remainder_end_block));
 		project_details.status = ProjectStatus::RemainderRound;
 		ProjectsDetails::<T>::insert(project_id, project_details);
 		// Schedule for automatic transition by `on_initialize`
@@ -670,7 +665,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Update storage *
 
-		ProjectsDetails::<T>::insert(project_id, project_details.clone());
+		ProjectsDetails::<T>::insert(project_id, &project_details);
 
 		if project_details.status == ProjectStatus::FundingSuccessful {
 			T::ContributionTokenCurrency::create(project_id, project_details.issuer.clone(), false, 1_u32.into())?;
@@ -759,7 +754,7 @@ impl<T: Config> Pallet<T> {
 
 	// Note: usd_amount needs to have the same amount of decimals as PLMC,, so when multiplied by the plmc-usd price, it gives us the PLMC amount with the decimals we wanted.
 	pub fn do_evaluate(
-		evaluator: AccountIdOf<T>,
+		evaluator: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		usd_amount: BalanceOf<T>,
 	) -> Result<(), DispatchError> {
@@ -768,7 +763,7 @@ impl<T: Config> Pallet<T> {
 		let now = <frame_system::Pallet<T>>::block_number();
 		let evaluation_id = Self::next_evaluation_id();
 		let caller_existing_evaluations: Vec<(u32, EvaluationInfoOf<T>)> =
-			Evaluations::<T>::iter_prefix((project_id, evaluator.clone())).collect();
+			Evaluations::<T>::iter_prefix((project_id, evaluator)).collect();
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
 		let early_evaluation_reward_threshold_usd =
 			T::EvaluationSuccessThreshold::get() * project_details.fundraising_target;
@@ -812,13 +807,12 @@ impl<T: Config> Pallet<T> {
 
 		// * Update Storage *
 		if caller_existing_evaluations.len() < T::MaxEvaluationsPerUser::get() as usize {
-			T::NativeCurrency::hold(&LockType::Evaluation(project_id), &evaluator, plmc_bond)?;
+			T::NativeCurrency::hold(&LockType::Evaluation(project_id), evaluator, plmc_bond)?;
 		} else {
 			let (low_id, lowest_evaluation) = caller_existing_evaluations
 				.iter()
 				.min_by_key(|(_, evaluation)| evaluation.original_plmc_bond)
-				.ok_or(Error::<T>::ImpossibleState)?
-				.clone();
+				.ok_or(Error::<T>::ImpossibleState)?;
 
 			ensure!(lowest_evaluation.original_plmc_bond < plmc_bond, Error::<T>::EvaluationBondTooLow);
 			ensure!(
@@ -833,19 +827,19 @@ impl<T: Config> Pallet<T> {
 				Precision::Exact,
 			)?;
 
-			T::NativeCurrency::hold(&LockType::Evaluation(project_id), &evaluator, plmc_bond)?;
+			T::NativeCurrency::hold(&LockType::Evaluation(project_id), evaluator, plmc_bond)?;
 
-			Evaluations::<T>::remove((project_id, evaluator.clone(), low_id));
+			Evaluations::<T>::remove((project_id, evaluator, low_id));
 		}
 
-		Evaluations::<T>::insert((project_id, evaluator.clone(), evaluation_id), new_evaluation);
+		Evaluations::<T>::insert((project_id, evaluator, evaluation_id), new_evaluation);
 		NextEvaluationId::<T>::set(evaluation_id.saturating_add(One::one()));
 		evaluation_round_info.total_bonded_usd += usd_amount;
 		evaluation_round_info.total_bonded_plmc += plmc_bond;
 		ProjectsDetails::<T>::insert(project_id, project_details);
 
 		// * Emit events *
-		Self::deposit_event(Event::FundsBonded { project_id, amount: plmc_bond, bonder: evaluator });
+		Self::deposit_event(Event::FundsBonded { project_id, amount: plmc_bond, bonder: evaluator.clone() });
 
 		Ok(())
 	}
@@ -865,7 +859,7 @@ impl<T: Config> Pallet<T> {
 	/// * [`BiddingBonds`] - Update the storage with the bidder's PLMC bond for that bid
 	/// * [`Bids`] - Check previous bids by that user, and update the storage with the new bid
 	pub fn do_bid(
-		bidder: AccountIdOf<T>,
+		bidder: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		ct_amount: BalanceOf<T>,
 		ct_usd_price: T::Price,
@@ -877,7 +871,7 @@ impl<T: Config> Pallet<T> {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let bid_id = Self::next_bid_id();
-		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder.clone())).collect::<Vec<_>>();
+		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder)).collect::<Vec<_>>();
 
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
 		let funding_asset_usd_price =
@@ -927,12 +921,9 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// * Update storage *
-		if existing_bids.len() < T::MaxBidsPerUser::get() as usize {
-			Self::try_plmc_participation_lock(&bidder, project_id, plmc_bond)?;
-			Self::try_funding_asset_hold(&bidder, project_id, funding_asset_amount_locked, asset_id)?;
-		} else {
+		if existing_bids.len() >= T::MaxBidsPerUser::get() as usize {
 			let lowest_bid =
-				existing_bids.iter().min_by_key(|bid| bid.plmc_bond).ok_or(Error::<T>::ImpossibleState)?.clone();
+				existing_bids.iter().min_by_key(|bid| &bid.plmc_bond).ok_or(Error::<T>::ImpossibleState)?;
 
 			ensure!(new_bid.plmc_bond > lowest_bid.plmc_bond, Error::<T>::BidTooLow);
 
@@ -949,11 +940,11 @@ impl<T: Config> Pallet<T> {
 				lowest_bid.funding_asset_amount_locked,
 				Preservation::Expendable,
 			)?;
-			Bids::<T>::remove((project_id, lowest_bid.bidder, lowest_bid.id));
-
-			Self::try_plmc_participation_lock(&bidder, project_id, plmc_bond)?;
-			Self::try_funding_asset_hold(&bidder, project_id, funding_asset_amount_locked, asset_id)?;
+			Bids::<T>::remove((project_id, &lowest_bid.bidder, lowest_bid.id));
 		}
+
+		Self::try_plmc_participation_lock(bidder, project_id, plmc_bond)?;
+		Self::try_funding_asset_hold(bidder, project_id, funding_asset_amount_locked, asset_id)?;
 
 		Bids::<T>::insert((project_id, bidder, bid_id), new_bid);
 		NextBidId::<T>::set(bid_id.saturating_add(One::one()));
@@ -978,7 +969,7 @@ impl<T: Config> Pallet<T> {
 	/// * [`Contributions`] - Update storage with the new contribution
 	/// * [`T::NativeCurrency`] - Update the balance of the contributor and the project pot
 	pub fn do_contribute(
-		contributor: AccountIdOf<T>,
+		contributor: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		token_amount: BalanceOf<T>,
 		multiplier: MultiplierOf<T>,
@@ -990,7 +981,7 @@ impl<T: Config> Pallet<T> {
 		let now = <frame_system::Pallet<T>>::block_number();
 		let contribution_id = Self::next_contribution_id();
 		let existing_contributions =
-			Contributions::<T>::iter_prefix_values((project_id, contributor.clone())).collect::<Vec<_>>();
+			Contributions::<T>::iter_prefix_values((project_id, contributor)).collect::<Vec<_>>();
 
 		let ct_usd_price = project_details.weighted_average_price.ok_or(Error::<T>::AuctionNotStarted)?;
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PriceNotFound)?;
@@ -1048,8 +1039,8 @@ impl<T: Config> Pallet<T> {
 		// * Update storage *
 		// Try adding the new contribution to the system
 		if existing_contributions.len() < T::MaxContributionsPerUser::get() as usize {
-			Self::try_plmc_participation_lock(&contributor, project_id, plmc_bond)?;
-			Self::try_funding_asset_hold(&contributor, project_id, funding_asset_amount, asset_id)?;
+			Self::try_plmc_participation_lock(contributor, project_id, plmc_bond)?;
+			Self::try_funding_asset_hold(contributor, project_id, funding_asset_amount, asset_id)?;
 		} else {
 			let lowest_contribution = existing_contributions
 				.iter()
@@ -1071,10 +1062,10 @@ impl<T: Config> Pallet<T> {
 				lowest_contribution.funding_asset_amount,
 				Preservation::Expendable,
 			)?;
-			Contributions::<T>::remove((project_id, lowest_contribution.contributor.clone(), lowest_contribution.id));
+			Contributions::<T>::remove((project_id, &lowest_contribution.contributor, &lowest_contribution.id));
 
-			Self::try_plmc_participation_lock(&contributor, project_id, plmc_bond)?;
-			Self::try_funding_asset_hold(&contributor, project_id, funding_asset_amount, asset_id)?;
+			Self::try_plmc_participation_lock(contributor, project_id, plmc_bond)?;
+			Self::try_funding_asset_hold(contributor, project_id, funding_asset_amount, asset_id)?;
 
 			project_details.remaining_contribution_tokens =
 				project_details.remaining_contribution_tokens.saturating_add(lowest_contribution.ct_amount);
@@ -1082,7 +1073,7 @@ impl<T: Config> Pallet<T> {
 				project_details.funding_amount_reached.saturating_sub(lowest_contribution.usd_contribution_amount);
 		}
 
-		Contributions::<T>::insert((project_id, contributor.clone(), contribution_id), new_contribution.clone());
+		Contributions::<T>::insert((project_id, contributor, contribution_id), &new_contribution);
 		NextContributionId::<T>::set(contribution_id.saturating_add(One::one()));
 
 		project_details.remaining_contribution_tokens =
@@ -1098,7 +1089,12 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// * Emit events *
-		Self::deposit_event(Event::Contribution { project_id, contributor, amount: token_amount, multiplier });
+		Self::deposit_event(Event::Contribution {
+			project_id,
+			contributor: contributor.clone(),
+			amount: token_amount,
+			multiplier,
+		});
 
 		Ok(())
 	}
@@ -1124,19 +1120,19 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_bid_ct_mint_for(
-		releaser: AccountIdOf<T>,
+		releaser: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
-		bidder: AccountIdOf<T>,
+		bidder: &AccountIdOf<T>,
 		bid_id: u32,
 	) -> DispatchResult {
 		// * Get variables *
-		let mut bid = Bids::<T>::get((project_id, bidder.clone(), bid_id)).ok_or(Error::<T>::BidNotFound)?;
+		let mut bid = Bids::<T>::get((project_id, bidder, bid_id)).ok_or(Error::<T>::BidNotFound)?;
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let ct_amount = bid.final_ct_amount;
 
 		// * Validity checks *
 		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::NotAllowed);
-		ensure!(bid.ct_minted == false, Error::<T>::NotAllowed);
+		ensure!(!bid.ct_minted, Error::<T>::NotAllowed);
 		ensure!(matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)), Error::<T>::NotAllowed);
 		ensure!(T::ContributionTokenCurrency::asset_exists(project_id), Error::<T>::CannotClaimYet);
 
@@ -1145,13 +1141,13 @@ impl<T: Config> Pallet<T> {
 
 		// * Update storage *
 		T::ContributionTokenCurrency::mint_into(project_id, &bid.bidder, ct_amount)?;
-		Bids::<T>::insert((project_id, bidder.clone(), bid_id), bid.clone());
+		Bids::<T>::insert((project_id, bidder, bid_id), &bid);
 
 		// * Emit events *
 		Self::deposit_event(Event::ContributionTokenMinted {
-			releaser,
+			releaser: releaser.clone(),
 			project_id: bid.project_id,
-			claimer: bidder,
+			claimer: bidder.clone(),
 			amount: ct_amount,
 		});
 
@@ -1159,20 +1155,20 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_contribution_ct_mint_for(
-		releaser: AccountIdOf<T>,
+		releaser: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
-		contributor: AccountIdOf<T>,
+		contributor: &AccountIdOf<T>,
 		contribution_id: u32,
 	) -> DispatchResult {
 		// * Get variables *
-		let mut contribution = Contributions::<T>::get((project_id, contributor.clone(), contribution_id))
-			.ok_or(Error::<T>::BidNotFound)?;
+		let mut contribution =
+			Contributions::<T>::get((project_id, contributor, contribution_id)).ok_or(Error::<T>::BidNotFound)?;
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let ct_amount = contribution.ct_amount;
 
 		// * Validity checks *
 		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::NotAllowed);
-		ensure!(contribution.ct_minted == false, Error::<T>::NotAllowed);
+		ensure!(!contribution.ct_minted, Error::<T>::NotAllowed);
 		ensure!(T::ContributionTokenCurrency::asset_exists(project_id), Error::<T>::CannotClaimYet);
 
 		// * Calculate variables *
@@ -1180,13 +1176,13 @@ impl<T: Config> Pallet<T> {
 
 		// * Update storage *
 		T::ContributionTokenCurrency::mint_into(project_id, &contribution.contributor, ct_amount)?;
-		Contributions::<T>::insert((project_id, contributor.clone(), contribution_id), contribution.clone());
+		Contributions::<T>::insert((project_id, contributor, contribution_id), contribution);
 
 		// * Emit events *
 		Self::deposit_event(Event::ContributionTokenMinted {
-			releaser,
-			project_id: contribution.project_id,
-			claimer: contributor,
+			releaser: releaser.clone(),
+			project_id,
+			claimer: contributor.clone(),
 			amount: ct_amount,
 		});
 
@@ -1194,20 +1190,20 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_evaluation_unbond_for(
-		releaser: AccountIdOf<T>,
+		releaser: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
-		evaluator: AccountIdOf<T>,
+		evaluator: &AccountIdOf<T>,
 		evaluation_id: u32,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		let released_evaluation = Evaluations::<T>::get((project_id, evaluator.clone(), evaluation_id))
-			.ok_or(Error::<T>::EvaluationNotFound)?;
+		let released_evaluation =
+			Evaluations::<T>::get((project_id, evaluator, evaluation_id)).ok_or(Error::<T>::EvaluationNotFound)?;
 
 		// * Validity checks *
 		ensure!(
 			(project_details.evaluation_round_info.evaluators_outcome == EvaluatorsOutcomeOf::<T>::Unchanged ||
-				released_evaluation.rewarded_or_slashed == true) &&
+				released_evaluation.rewarded_or_slashed) &&
 				matches!(
 					project_details.status,
 					ProjectStatus::EvaluationFailed | ProjectStatus::FundingFailed | ProjectStatus::FundingSuccessful
@@ -1218,27 +1214,27 @@ impl<T: Config> Pallet<T> {
 		// * Update Storage *
 		T::NativeCurrency::release(
 			&LockType::Evaluation(project_id),
-			&evaluator,
+			evaluator,
 			released_evaluation.current_plmc_bond,
 			Precision::Exact,
 		)?;
-		Evaluations::<T>::remove((project_id, evaluator.clone(), evaluation_id));
+		Evaluations::<T>::remove((project_id, evaluator, evaluation_id));
 
 		// * Emit events *
 		Self::deposit_event(Event::BondReleased {
 			project_id,
 			amount: released_evaluation.current_plmc_bond,
-			bonder: evaluator,
-			releaser,
+			bonder: evaluator.clone(),
+			releaser: releaser.clone(),
 		});
 
 		Ok(())
 	}
 
 	pub fn do_evaluation_reward_payout_for(
-		caller: AccountIdOf<T>,
+		caller: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
-		evaluator: AccountIdOf<T>,
+		evaluator: &AccountIdOf<T>,
 		evaluation_id: u32,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
@@ -1249,13 +1245,12 @@ impl<T: Config> Pallet<T> {
 			} else {
 				return Err(Error::<T>::NotAllowed.into())
 			};
-		let mut evaluation = Evaluations::<T>::get((project_id, evaluator.clone(), evaluation_id))
-			.ok_or(Error::<T>::EvaluationNotFound)?;
+		let mut evaluation =
+			Evaluations::<T>::get((project_id, evaluator, evaluation_id)).ok_or(Error::<T>::EvaluationNotFound)?;
 
 		// * Validity checks *
 		ensure!(
-			evaluation.rewarded_or_slashed == false &&
-				matches!(project_details.status, ProjectStatus::FundingSuccessful),
+			!evaluation.rewarded_or_slashed && matches!(project_details.status, ProjectStatus::FundingSuccessful),
 			Error::<T>::NotAllowed
 		);
 
@@ -1272,7 +1267,7 @@ impl<T: Config> Pallet<T> {
 		// * Update storage *
 		T::ContributionTokenCurrency::mint_into(project_id, &evaluation.evaluator, total_reward_amount)?;
 		evaluation.rewarded_or_slashed = true;
-		Evaluations::<T>::insert((project_id, evaluator.clone(), evaluation_id), evaluation);
+		Evaluations::<T>::insert((project_id, evaluator, evaluation_id), evaluation);
 
 		// * Emit events *
 		Self::deposit_event(Event::EvaluationRewarded {
@@ -1280,16 +1275,16 @@ impl<T: Config> Pallet<T> {
 			evaluator: evaluator.clone(),
 			id: evaluation_id,
 			amount: total_reward_amount,
-			caller,
+			caller: caller.clone(),
 		});
 
 		Ok(())
 	}
 
 	pub fn do_evaluation_slash_for(
-		caller: AccountIdOf<T>,
+		caller: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
-		evaluator: AccountIdOf<T>,
+		evaluator: &AccountIdOf<T>,
 		evaluation_id: u32,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
@@ -1297,19 +1292,19 @@ impl<T: Config> Pallet<T> {
 		let slash_percentage = T::EvaluatorSlash::get();
 		let treasury_account = T::TreasuryAccount::get();
 
-		let mut user_evaluations = Evaluations::<T>::iter_prefix_values((project_id, evaluator.clone()));
+		let mut user_evaluations = Evaluations::<T>::iter_prefix_values((project_id, evaluator));
 		let mut evaluation =
 			user_evaluations.find(|evaluation| evaluation.id == evaluation_id).ok_or(Error::<T>::EvaluationNotFound)?;
 
 		// * Validity checks *
 		ensure!(
-			evaluation.rewarded_or_slashed == false &&
+			!evaluation.rewarded_or_slashed &&
 				matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Slashed),
 			Error::<T>::NotAllowed
 		);
 
 		// * Calculate variables *
-		// We need to make sure that the current plmc bond is always >= than the slash amount.
+		// We need to make sure that the current PLMC bond is always >= than the slash amount.
 		let slashed_amount = slash_percentage * evaluation.original_plmc_bond;
 
 		// * Update storage *
@@ -1317,7 +1312,7 @@ impl<T: Config> Pallet<T> {
 
 		T::NativeCurrency::transfer_on_hold(
 			&LockType::Evaluation(project_id),
-			&evaluator,
+			evaluator,
 			&treasury_account,
 			slashed_amount,
 			Precision::Exact,
@@ -1325,8 +1320,8 @@ impl<T: Config> Pallet<T> {
 			Fortitude::Force,
 		)?;
 
-		evaluation.current_plmc_bond = evaluation.current_plmc_bond.saturating_sub(slashed_amount);
-		Evaluations::<T>::insert((project_id, evaluator.clone(), evaluation.id), evaluation);
+		evaluation.current_plmc_bond.saturating_reduce(slashed_amount);
+		Evaluations::<T>::insert((project_id, evaluator, evaluation.id), evaluation);
 
 		// * Emit events *
 		Self::deposit_event(Event::EvaluationSlashed {
@@ -1334,45 +1329,45 @@ impl<T: Config> Pallet<T> {
 			evaluator: evaluator.clone(),
 			id: evaluation_id,
 			amount: slashed_amount,
-			caller,
+			caller: caller.clone(),
 		});
 
 		Ok(())
 	}
 
 	pub fn do_start_bid_vesting_schedule_for(
-		caller: AccountIdOf<T>,
+		caller: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
-		bidder: AccountIdOf<T>,
+		bidder: &AccountIdOf<T>,
 		bid_id: u32,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		let mut bid = Bids::<T>::get((project_id, bidder.clone(), bid_id)).ok_or(Error::<T>::BidNotFound)?;
+		let mut bid = Bids::<T>::get((project_id, bidder, bid_id)).ok_or(Error::<T>::BidNotFound)?;
 		let funding_end_block = project_details.funding_end_block.ok_or(Error::<T>::ImpossibleState)?;
 
 		// * Validity checks *
 		ensure!(
-			matches!(bid.plmc_vesting_info, None) &&
+			bid.plmc_vesting_info.is_none() &&
 				project_details.status == ProjectStatus::FundingSuccessful &&
 				matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)),
 			Error::<T>::NotAllowed
 		);
 
 		// * Calculate variables *
-		let vest_info = Self::calculate_vesting_info(bidder.clone(), bid.multiplier, bid.plmc_bond)
-			.map_err(|_| Error::<T>::BadMath)?;
+		let vest_info =
+			Self::calculate_vesting_info(bidder, bid.multiplier, bid.plmc_bond).map_err(|_| Error::<T>::BadMath)?;
 		bid.plmc_vesting_info = Some(vest_info);
 
 		// * Update storage *
 		T::Vesting::add_release_schedule(
-			&bidder,
+			bidder,
 			vest_info.total_amount,
 			vest_info.amount_per_block,
 			funding_end_block,
 			LockType::Participation(project_id),
 		)?;
-		Bids::<T>::insert((project_id, bidder.clone(), bid_id), bid);
+		Bids::<T>::insert((project_id, bidder, bid_id), bid);
 
 		// * Emit events *
 		Self::deposit_event(Event::BidPlmcVestingScheduled {
@@ -1380,46 +1375,44 @@ impl<T: Config> Pallet<T> {
 			bidder: bidder.clone(),
 			id: bid_id,
 			amount: vest_info.total_amount,
-			caller,
+			caller: caller.clone(),
 		});
 
 		Ok(())
 	}
 
 	pub fn do_start_contribution_vesting_schedule_for(
-		caller: AccountIdOf<T>,
+		caller: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
-		contributor: AccountIdOf<T>,
+		contributor: &AccountIdOf<T>,
 		contribution_id: u32,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		let mut contribution = Contributions::<T>::get((project_id, contributor.clone(), contribution_id))
-			.ok_or(Error::<T>::BidNotFound)?;
+		let mut contribution =
+			Contributions::<T>::get((project_id, contributor, contribution_id)).ok_or(Error::<T>::BidNotFound)?;
 		let funding_end_block = project_details.funding_end_block.ok_or(Error::<T>::ImpossibleState)?;
 
 		// * Validity checks *
 		ensure!(
-			matches!(contribution.plmc_vesting_info, None) &&
-				project_details.status == ProjectStatus::FundingSuccessful,
+			contribution.plmc_vesting_info.is_none() && project_details.status == ProjectStatus::FundingSuccessful,
 			Error::<T>::NotAllowed
 		);
 
 		// * Calculate variables *
-		let vest_info =
-			Self::calculate_vesting_info(contributor.clone(), contribution.multiplier, contribution.plmc_bond)
-				.map_err(|_| Error::<T>::BadMath)?;
+		let vest_info = Self::calculate_vesting_info(contributor, contribution.multiplier, contribution.plmc_bond)
+			.map_err(|_| Error::<T>::BadMath)?;
 		contribution.plmc_vesting_info = Some(vest_info);
 
 		// * Update storage *
 		T::Vesting::add_release_schedule(
-			&contributor,
+			contributor,
 			vest_info.total_amount,
 			vest_info.amount_per_block,
 			funding_end_block,
 			LockType::Participation(project_id),
 		)?;
-		Contributions::<T>::insert((project_id, contributor.clone(), contribution_id), contribution);
+		Contributions::<T>::insert((project_id, contributor, contribution_id), contribution);
 
 		// * Emit events *
 		Self::deposit_event(Event::ContributionPlmcVestingScheduled {
@@ -1427,7 +1420,7 @@ impl<T: Config> Pallet<T> {
 			contributor: contributor.clone(),
 			id: contribution_id,
 			amount: vest_info.total_amount,
-			caller,
+			caller: caller.clone(),
 		});
 
 		Ok(())
@@ -1448,25 +1441,20 @@ impl<T: Config> Pallet<T> {
 		let vested_amount = T::Vesting::vest(participant.clone(), LockType::Participation(project_id))?;
 
 		// * Emit events *
-		Self::deposit_event(Event::ParticipantPlmcVested {
-			project_id,
-			participant: participant.clone(),
-			amount: vested_amount,
-			caller,
-		});
+		Self::deposit_event(Event::ParticipantPlmcVested { project_id, participant, amount: vested_amount, caller });
 
 		Ok(())
 	}
 
 	pub fn do_release_bid_funds_for(
-		caller: AccountIdOf<T>,
+		caller: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
-		bidder: AccountIdOf<T>,
+		bidder: &AccountIdOf<T>,
 		bid_id: u32,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		let mut bid = Bids::<T>::get((project_id, bidder.clone(), bid_id)).ok_or(Error::<T>::BidNotFound)?;
+		let mut bid = Bids::<T>::get((project_id, bidder, bid_id)).ok_or(Error::<T>::BidNotFound)?;
 
 		// * Validity checks *
 		ensure!(
@@ -1484,12 +1472,12 @@ impl<T: Config> Pallet<T> {
 		T::FundingCurrency::transfer(
 			payout_asset.to_statemint_id(),
 			&project_pot,
-			&bidder,
+			bidder,
 			payout_amount,
 			Preservation::Expendable,
 		)?;
 		bid.funds_released = true;
-		Bids::<T>::insert((project_id, bidder.clone(), bid_id), bid);
+		Bids::<T>::insert((project_id, bidder, bid_id), bid);
 
 		// * Emit events *
 		Self::deposit_event(Event::BidFundingReleased {
@@ -1497,21 +1485,21 @@ impl<T: Config> Pallet<T> {
 			bidder: bidder.clone(),
 			id: bid_id,
 			amount: payout_amount,
-			caller,
+			caller: caller.clone(),
 		});
 
 		Ok(())
 	}
 
 	pub fn do_bid_unbond_for(
-		caller: AccountIdOf<T>,
+		caller: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
-		bidder: AccountIdOf<T>,
+		bidder: &AccountIdOf<T>,
 		bid_id: u32,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		let bid = Bids::<T>::get((project_id, bidder.clone(), bid_id)).ok_or(Error::<T>::EvaluationNotFound)?;
+		let bid = Bids::<T>::get((project_id, bidder, bid_id)).ok_or(Error::<T>::EvaluationNotFound)?;
 
 		// * Validity checks *
 		ensure!(
@@ -1522,29 +1510,29 @@ impl<T: Config> Pallet<T> {
 		);
 
 		// * Update Storage *
-		T::NativeCurrency::release(&LockType::Participation(project_id), &bidder, bid.plmc_bond, Precision::Exact)?;
-		Bids::<T>::remove((project_id, bidder.clone(), bid_id));
+		T::NativeCurrency::release(&LockType::Participation(project_id), bidder, bid.plmc_bond, Precision::Exact)?;
+		Bids::<T>::remove((project_id, bidder, bid_id));
 
 		// * Emit events *
 		Self::deposit_event(Event::BondReleased {
 			project_id,
 			amount: bid.plmc_bond,
-			bonder: bidder,
-			releaser: caller,
+			bonder: bidder.clone(),
+			releaser: caller.clone(),
 		});
 
 		Ok(())
 	}
 
 	pub fn do_release_contribution_funds_for(
-		caller: AccountIdOf<T>,
+		caller: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
-		contributor: AccountIdOf<T>,
+		contributor: &AccountIdOf<T>,
 		contribution_id: u32,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		let mut contribution = Contributions::<T>::get((project_id, contributor.clone(), contribution_id))
+		let mut contribution = Contributions::<T>::get((project_id, contributor, contribution_id))
 			.ok_or(Error::<T>::ContributionNotFound)?;
 
 		// * Validity checks *
@@ -1559,12 +1547,12 @@ impl<T: Config> Pallet<T> {
 		T::FundingCurrency::transfer(
 			payout_asset.to_statemint_id(),
 			&project_pot,
-			&contributor,
+			contributor,
 			payout_amount,
 			Preservation::Expendable,
 		)?;
 		contribution.funds_released = true;
-		Contributions::<T>::insert((project_id, contributor.clone(), contribution_id), contribution);
+		Contributions::<T>::insert((project_id, contributor, contribution_id), contribution);
 
 		// * Emit events *
 		Self::deposit_event(Event::ContributionFundingReleased {
@@ -1572,55 +1560,50 @@ impl<T: Config> Pallet<T> {
 			contributor: contributor.clone(),
 			id: contribution_id,
 			amount: payout_amount,
-			caller,
+			caller: caller.clone(),
 		});
 
 		Ok(())
 	}
 
 	pub fn do_contribution_unbond_for(
-		caller: AccountIdOf<T>,
+		caller: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
-		contributor: AccountIdOf<T>,
+		contributor: &AccountIdOf<T>,
 		contribution_id: u32,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		let bid = Contributions::<T>::get((project_id, contributor.clone(), contribution_id))
+		let bid = Contributions::<T>::get((project_id, contributor, contribution_id))
 			.ok_or(Error::<T>::EvaluationNotFound)?;
 
 		// * Validity checks *
 		ensure!(project_details.status == ProjectStatus::FundingFailed, Error::<T>::NotAllowed);
 
 		// * Update Storage *
-		T::NativeCurrency::release(
-			&LockType::Participation(project_id),
-			&contributor,
-			bid.plmc_bond,
-			Precision::Exact,
-		)?;
-		Contributions::<T>::remove((project_id, contributor.clone(), contribution_id));
+		T::NativeCurrency::release(&LockType::Participation(project_id), contributor, bid.plmc_bond, Precision::Exact)?;
+		Contributions::<T>::remove((project_id, contributor, contribution_id));
 
 		// * Emit events *
 		Self::deposit_event(Event::BondReleased {
 			project_id,
 			amount: bid.plmc_bond,
-			bonder: contributor,
-			releaser: caller,
+			bonder: contributor.clone(),
+			releaser: caller.clone(),
 		});
 
 		Ok(())
 	}
 
 	pub fn do_payout_bid_funds_for(
-		caller: AccountIdOf<T>,
+		caller: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
-		bidder: AccountIdOf<T>,
+		bidder: &AccountIdOf<T>,
 		bid_id: u32,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		let mut bid = Bids::<T>::get((project_id, bidder.clone(), bid_id)).ok_or(Error::<T>::BidNotFound)?;
+		let mut bid = Bids::<T>::get((project_id, bidder, bid_id)).ok_or(Error::<T>::BidNotFound)?;
 
 		// * Validity checks *
 		ensure!(
@@ -1644,7 +1627,7 @@ impl<T: Config> Pallet<T> {
 			Preservation::Expendable,
 		)?;
 		bid.funds_released = true;
-		Bids::<T>::insert((project_id, bidder.clone(), bid_id), bid);
+		Bids::<T>::insert((project_id, bidder, bid_id), bid);
 
 		// * Emit events *
 		Self::deposit_event(Event::BidFundingPaidOut {
@@ -1652,22 +1635,22 @@ impl<T: Config> Pallet<T> {
 			bidder: bidder.clone(),
 			id: bid_id,
 			amount: payout_amount,
-			caller,
+			caller: caller.clone(),
 		});
 
 		Ok(())
 	}
 
 	pub fn do_payout_contribution_funds_for(
-		caller: AccountIdOf<T>,
+		caller: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
-		contributor: AccountIdOf<T>,
+		contributor: &AccountIdOf<T>,
 		contribution_id: u32,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		let mut contribution = Contributions::<T>::get((project_id, contributor.clone(), contribution_id))
-			.ok_or(Error::<T>::BidNotFound)?;
+		let mut contribution =
+			Contributions::<T>::get((project_id, contributor, contribution_id)).ok_or(Error::<T>::BidNotFound)?;
 
 		// * Validity checks *
 		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::NotAllowed);
@@ -1687,15 +1670,15 @@ impl<T: Config> Pallet<T> {
 			Preservation::Expendable,
 		)?;
 		contribution.funds_released = true;
-		Contributions::<T>::insert((project_id, contributor.clone(), contribution_id), contribution);
+		Contributions::<T>::insert((project_id, contributor, contribution_id), contribution);
 
 		// * Emit events *
 		Self::deposit_event(Event::ContributionFundingPaidOut {
 			project_id,
-			contributor,
+			contributor: contributor.clone(),
 			id: contribution_id,
 			amount: payout_amount,
-			caller,
+			caller: caller.clone(),
 		});
 
 		Ok(())
@@ -1718,7 +1701,7 @@ impl<T: Config> Pallet<T> {
 		// Try to get the project into the earliest possible block to update.
 		// There is a limit for how many projects can update each block, so we need to make sure we don't exceed that limit
 		let mut block_number = block_number;
-		while ProjectsToUpdate::<T>::try_append(block_number.clone(), store.clone()).is_err() {
+		while ProjectsToUpdate::<T>::try_append(block_number, store.clone()).is_err() {
 			// TODO: Should we end the loop if we iterated over too many blocks?
 			block_number += 1u32.into();
 		}
@@ -1751,7 +1734,7 @@ impl<T: Config> Pallet<T> {
 	/// Based on the amount of tokens and price to buy, a desired multiplier, and the type of investor the caller is,
 	/// calculate the amount and vesting periods of bonded PLMC and reward CT tokens.
 	pub fn calculate_vesting_info(
-		_caller: AccountIdOf<T>,
+		_caller: &AccountIdOf<T>,
 		multiplier: MultiplierOf<T>,
 		bonded_amount: BalanceOf<T>,
 	) -> Result<VestingInfo<T::BlockNumber, BalanceOf<T>>, DispatchError> {
@@ -2029,7 +2012,7 @@ impl<T: Config> Pallet<T> {
 			let final_ticket_size =
 				bid.final_ct_usd_price.checked_mul_int(bid.final_ct_amount).ok_or(Error::<T>::BadMath)?;
 			final_total_funding_reached_by_bids += final_ticket_size;
-			Bids::<T>::insert((project_id, bid.bidder.clone(), bid.id), bid);
+			Bids::<T>::insert((project_id, &bid.bidder, &bid.id), &bid);
 		}
 
 		// Update storage
@@ -2084,7 +2067,7 @@ impl<T: Config> Pallet<T> {
 		amount: BalanceOf<T>,
 	) -> Result<(), DispatchError> {
 		// Check if the user has already locked tokens in the evaluation period
-		let user_evaluations = Evaluations::<T>::iter_prefix_values((project_id, who.clone()));
+		let user_evaluations = Evaluations::<T>::iter_prefix_values((project_id, who));
 
 		let mut to_convert = amount;
 		for mut evaluation in user_evaluations {
@@ -2095,7 +2078,7 @@ impl<T: Config> Pallet<T> {
 			let available_to_convert = evaluation.current_plmc_bond.saturating_sub(slash_deposit);
 			let converted = to_convert.min(available_to_convert);
 			evaluation.current_plmc_bond = evaluation.current_plmc_bond.saturating_sub(converted);
-			Evaluations::<T>::insert((project_id, who.clone(), evaluation.id), evaluation);
+			Evaluations::<T>::insert((project_id, who, evaluation.id), evaluation);
 			T::NativeCurrency::release(&LockType::Evaluation(project_id), who, converted, Precision::Exact)
 				.map_err(|_| Error::<T>::ImpossibleState)?;
 			T::NativeCurrency::hold(&LockType::Participation(project_id), who, converted)
@@ -2117,7 +2100,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), DispatchError> {
 		let fund_account = Self::fund_account_id(project_id);
 
-		T::FundingCurrency::transfer(asset_id, &who, &fund_account, amount, Preservation::Expendable)?;
+		T::FundingCurrency::transfer(asset_id, who, &fund_account, amount, Preservation::Expendable)?;
 
 		Ok(())
 	}
@@ -2228,7 +2211,7 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		let now = <frame_system::Pallet<T>>::block_number();
 		project_details.status = ProjectStatus::FundingSuccessful;
-		ProjectsDetails::<T>::insert(project_id, project_details.clone());
+		ProjectsDetails::<T>::insert(project_id, project_details);
 
 		Self::add_to_update_store(now + settlement_delta, (&project_id, UpdateType::StartSettlement));
 
@@ -2245,7 +2228,7 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		let now = <frame_system::Pallet<T>>::block_number();
 		project_details.status = ProjectStatus::FundingFailed;
-		ProjectsDetails::<T>::insert(project_id, project_details.clone());
+		ProjectsDetails::<T>::insert(project_id, project_details);
 
 		Self::add_to_update_store(now + settlement_delta, (&project_id, UpdateType::StartSettlement));
 		Self::deposit_event(Event::FundingEnded { project_id, outcome: FundingOutcome::Failure(reason) });

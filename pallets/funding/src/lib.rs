@@ -135,7 +135,7 @@
 //! 			ensure!(project_contributions >= 500_000_0_000_000_000u64.into(), "Project did not achieve at least 500k USDT funding");
 //!    			let multiplier: MultiplierOf<T> = 1u8.try_into().map_err(|_| Error::<T>::ProjectNotFound)?;
 //!    			// Buy tokens with the default multiplier
-//!    			<pallet_funding::Pallet<T>>::do_contribute(retail_user, project_id, amount, multiplier, AcceptedFundingAsset::USDT)?;
+//!    			<pallet_funding::Pallet<T>>::do_contribute(&retail_user, project_id, amount, multiplier, AcceptedFundingAsset::USDT)?;
 //!
 //! 			Ok(())
 //! 		}
@@ -823,7 +823,7 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::create())]
 		pub fn create(origin: OriginFor<T>, project: ProjectMetadataOf<T>) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
-			Self::do_create(issuer, project)
+			Self::do_create(&issuer, project)
 		}
 
 		/// Change the metadata hash of a project
@@ -861,7 +861,7 @@ pub mod pallet {
 			#[pallet::compact] usd_amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let evaluator = ensure_signed(origin)?;
-			Self::do_evaluate(evaluator, project_id, usd_amount)
+			Self::do_evaluate(&evaluator, project_id, usd_amount)
 		}
 
 		/// Bid for a project in the Auction round
@@ -875,7 +875,7 @@ pub mod pallet {
 			asset: AcceptedFundingAsset,
 		) -> DispatchResult {
 			let bidder = ensure_signed(origin)?;
-			Self::do_bid(bidder, project_id, amount, price, multiplier, asset)
+			Self::do_bid(&bidder, project_id, amount, price, multiplier, asset)
 		}
 
 		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
@@ -888,7 +888,7 @@ pub mod pallet {
 			asset: AcceptedFundingAsset,
 		) -> DispatchResult {
 			let contributor = ensure_signed(origin)?;
-			Self::do_contribute(contributor, project_id, amount, multiplier, asset)
+			Self::do_contribute(&contributor, project_id, amount, multiplier, asset)
 		}
 
 		/// Release evaluation-bonded PLMC when a project finishes its funding round.
@@ -900,7 +900,7 @@ pub mod pallet {
 			bond_id: u32,
 		) -> DispatchResult {
 			let releaser = ensure_signed(origin)?;
-			Self::do_evaluation_unbond_for(releaser, project_id, evaluator, bond_id)
+			Self::do_evaluation_unbond_for(&releaser, project_id, &evaluator, bond_id)
 		}
 
 		#[pallet::weight(Weight::from_parts(0, 0))]
@@ -911,7 +911,7 @@ pub mod pallet {
 			bond_id: u32,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
-			Self::do_evaluation_slash_for(caller, project_id, evaluator, bond_id)
+			Self::do_evaluation_slash_for(&caller, project_id, &evaluator, bond_id)
 		}
 
 		#[pallet::weight(Weight::from_parts(0, 0))]
@@ -922,7 +922,7 @@ pub mod pallet {
 			bond_id: u32,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
-			Self::do_evaluation_reward_payout_for(caller, project_id, evaluator, bond_id)
+			Self::do_evaluation_reward_payout_for(&caller, project_id, &evaluator, bond_id)
 		}
 
 		#[pallet::weight(Weight::from_parts(0, 0))]
@@ -933,7 +933,7 @@ pub mod pallet {
 			bid_id: u32,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
-			Self::do_bid_ct_mint_for(caller, project_id, bidder, bid_id)
+			Self::do_bid_ct_mint_for(&caller, project_id, &bidder, bid_id)
 		}
 
 		#[pallet::weight(Weight::from_parts(0, 0))]
@@ -944,7 +944,7 @@ pub mod pallet {
 			contribution_id: u32,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
-			Self::do_contribution_ct_mint_for(caller, project_id, contributor, contribution_id)
+			Self::do_contribution_ct_mint_for(&caller, project_id, &contributor, contribution_id)
 		}
 
 		#[pallet::weight(Weight::from_parts(0, 0))]
@@ -955,7 +955,7 @@ pub mod pallet {
 			bid_id: u32,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
-			Self::do_start_bid_vesting_schedule_for(caller, project_id, bidder, bid_id)
+			Self::do_start_bid_vesting_schedule_for(&caller, project_id, &bidder, bid_id)
 		}
 
 		#[pallet::weight(Weight::from_parts(0, 0))]
@@ -966,7 +966,7 @@ pub mod pallet {
 			contribution_id: u32,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
-			Self::do_start_contribution_vesting_schedule_for(caller, project_id, contributor, contribution_id)
+			Self::do_start_contribution_vesting_schedule_for(&caller, project_id, &contributor, contribution_id)
 		}
 
 		#[pallet::weight(Weight::from_parts(0, 0))]
@@ -977,7 +977,7 @@ pub mod pallet {
 			bid_id: u32,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
-			Self::do_payout_bid_funds_for(caller, project_id, bidder, bid_id)
+			Self::do_payout_bid_funds_for(&caller, project_id, &bidder, bid_id)
 		}
 
 		#[pallet::weight(Weight::from_parts(0, 0))]
@@ -988,7 +988,7 @@ pub mod pallet {
 			contribution_id: u32,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
-			Self::do_payout_contribution_funds_for(caller, project_id, contributor, contribution_id)
+			Self::do_payout_contribution_funds_for(&caller, project_id, &contributor, contribution_id)
 		}
 
 		#[pallet::weight(Weight::from_parts(0, 0))]
@@ -1009,7 +1009,7 @@ pub mod pallet {
 			bid_id: u32,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
-			Self::do_release_bid_funds_for(caller, project_id, bidder, bid_id)
+			Self::do_release_bid_funds_for(&caller, project_id, &bidder, bid_id)
 		}
 
 		#[pallet::weight(Weight::from_parts(0, 0))]
@@ -1020,7 +1020,7 @@ pub mod pallet {
 			bid_id: u32,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
-			Self::do_bid_unbond_for(caller, project_id, bidder, bid_id)
+			Self::do_bid_unbond_for(&caller, project_id, &bidder, bid_id)
 		}
 
 		#[pallet::weight(Weight::from_parts(0, 0))]
@@ -1031,7 +1031,7 @@ pub mod pallet {
 			contribution_id: u32,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
-			Self::do_release_contribution_funds_for(caller, project_id, contributor, contribution_id)
+			Self::do_release_contribution_funds_for(&caller, project_id, &contributor, contribution_id)
 		}
 
 		#[pallet::weight(Weight::from_parts(0, 0))]
@@ -1042,7 +1042,7 @@ pub mod pallet {
 			contribution_id: u32,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
-			Self::do_contribution_unbond_for(caller, project_id, contributor, contribution_id)
+			Self::do_contribution_unbond_for(&caller, project_id, &contributor, contribution_id)
 		}
 	}
 
