@@ -922,7 +922,7 @@ pub mod pallet {
 			bond_id: u32,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
-			Self::do_evaluation_reward_payout_for(caller, project_id, evaluator, bond_id)
+			Self::do_evaluation_reward_payout_for(&caller, project_id, &evaluator, bond_id)
 		}
 
 		#[pallet::weight(Weight::from_parts(0, 0))]
@@ -933,7 +933,7 @@ pub mod pallet {
 			bid_id: u32,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
-			Self::do_bid_ct_mint_for(caller, project_id, bidder, bid_id)
+			Self::do_bid_ct_mint_for(&caller, project_id, &bidder, bid_id)
 		}
 
 		#[pallet::weight(Weight::from_parts(0, 0))]
@@ -944,7 +944,7 @@ pub mod pallet {
 			contribution_id: u32,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
-			Self::do_contribution_ct_mint_for(caller, project_id, contributor, contribution_id)
+			Self::do_contribution_ct_mint_for(&caller, project_id, &contributor, contribution_id)
 		}
 
 		#[pallet::weight(Weight::from_parts(0, 0))]
@@ -955,7 +955,7 @@ pub mod pallet {
 			bid_id: u32,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
-			Self::do_start_bid_vesting_schedule_for(caller, project_id, bidder, bid_id)
+			Self::do_start_bid_vesting_schedule_for(&caller, project_id, &bidder, bid_id)
 		}
 
 		#[pallet::weight(Weight::from_parts(0, 0))]
@@ -966,7 +966,7 @@ pub mod pallet {
 			contribution_id: u32,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
-			Self::do_start_contribution_vesting_schedule_for(caller, project_id, contributor, contribution_id)
+			Self::do_start_contribution_vesting_schedule_for(&caller, project_id, &contributor, contribution_id)
 		}
 
 		#[pallet::weight(Weight::from_parts(0, 0))]
@@ -977,7 +977,7 @@ pub mod pallet {
 			bid_id: u32,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
-			Self::do_payout_bid_funds_for(caller, project_id, bidder, bid_id)
+			Self::do_payout_bid_funds_for(&caller, project_id, &bidder, bid_id)
 		}
 
 		#[pallet::weight(Weight::from_parts(0, 0))]
@@ -988,7 +988,7 @@ pub mod pallet {
 			contribution_id: u32,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
-			Self::do_payout_contribution_funds_for(caller, project_id, contributor, contribution_id)
+			Self::do_payout_contribution_funds_for(&caller, project_id, &contributor, contribution_id)
 		}
 
 		#[pallet::weight(Weight::from_parts(0, 0))]
@@ -1009,7 +1009,7 @@ pub mod pallet {
 			bid_id: u32,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
-			Self::do_release_bid_funds_for(caller, project_id, bidder, bid_id)
+			Self::do_release_bid_funds_for(&caller, project_id, &bidder, bid_id)
 		}
 
 		#[pallet::weight(Weight::from_parts(0, 0))]
@@ -1020,7 +1020,7 @@ pub mod pallet {
 			bid_id: u32,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
-			Self::do_bid_unbond_for(caller, project_id, bidder, bid_id)
+			Self::do_bid_unbond_for(&caller, project_id, &bidder, bid_id)
 		}
 
 		#[pallet::weight(Weight::from_parts(0, 0))]
@@ -1031,7 +1031,7 @@ pub mod pallet {
 			contribution_id: u32,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
-			Self::do_release_contribution_funds_for(caller, project_id, contributor, contribution_id)
+			Self::do_release_contribution_funds_for(&caller, project_id, &contributor, contribution_id)
 		}
 
 		#[pallet::weight(Weight::from_parts(0, 0))]
@@ -1042,7 +1042,7 @@ pub mod pallet {
 			contribution_id: u32,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
-			Self::do_contribution_unbond_for(caller, project_id, contributor, contribution_id)
+			Self::do_contribution_unbond_for(&caller, project_id, &contributor, contribution_id)
 		}
 	}
 
