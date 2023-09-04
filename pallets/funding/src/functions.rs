@@ -924,15 +924,12 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// * Update storage *
-		if existing_bids.len() < T::MaxBidsPerUser::get() as usize {
-			Self::try_plmc_participation_lock(bidder, project_id, plmc_bond)?;
-			Self::try_funding_asset_hold(bidder, project_id, funding_asset_amount_locked, asset_id)?;
-		} else {
-			let lowest_bid =
-				existing_bids.iter().min_by_key(|bid| bid.plmc_bond).ok_or(Error::<T>::ImpossibleState)?.clone();
-
+		if existing_bids.len() >= T::MaxBidsPerUser::get() as usize {
+			let lowest_bid = existing_bids.iter().min_by_key(|bid| &bid.plmc_bond)
+				.ok_or(Error::<T>::ImpossibleState)?;
+		
 			ensure!(new_bid.plmc_bond > lowest_bid.plmc_bond, Error::<T>::BidTooLow);
-
+		
 			T::NativeCurrency::release(
 				&LockType::Participation(project_id),
 				&lowest_bid.bidder,
@@ -946,11 +943,12 @@ impl<T: Config> Pallet<T> {
 				lowest_bid.funding_asset_amount_locked,
 				Preservation::Expendable,
 			)?;
-			Bids::<T>::remove((project_id, lowest_bid.bidder, lowest_bid.id));
-
-			Self::try_plmc_participation_lock(bidder, project_id, plmc_bond)?;
-			Self::try_funding_asset_hold(bidder, project_id, funding_asset_amount_locked, asset_id)?;
+			Bids::<T>::remove((project_id, &lowest_bid.bidder, lowest_bid.id));
 		}
+		
+		Self::try_plmc_participation_lock(bidder, project_id, plmc_bond)?;
+		Self::try_funding_asset_hold(bidder, project_id, funding_asset_amount_locked, asset_id)?;
+		
 
 		Bids::<T>::insert((project_id, bidder, bid_id), new_bid);
 		NextBidId::<T>::set(bid_id.saturating_add(One::one()));

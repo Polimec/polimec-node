@@ -345,7 +345,7 @@ pub mod inner_types {
 		pub maximum: Option<u32>,
 	}
 	impl ParticipantsSize {
-		pub(crate) fn is_valid(&self) -> Result<(), ValidityError> {
+		pub(crate) const fn is_valid(&self) -> Result<(), ValidityError> {
 			match (self.minimum, self.maximum) {
 				(Some(min), Some(max)) =>
 					if min < max && min > 0 && max > 0 {
@@ -383,7 +383,7 @@ pub mod inner_types {
 		DOT,
 	}
 	impl AcceptedFundingAsset {
-		pub fn to_statemint_id(&self) -> u32 {
+		pub const fn to_statemint_id(&self) -> u32 {
 			match self {
 				AcceptedFundingAsset::USDT => 1984,
 				AcceptedFundingAsset::DOT => 0,
@@ -434,15 +434,15 @@ pub mod inner_types {
 	}
 
 	impl<BlockNumber: Copy> BlockNumberPair<BlockNumber> {
-		pub fn new(start: Option<BlockNumber>, end: Option<BlockNumber>) -> Self {
+		pub const fn new(start: Option<BlockNumber>, end: Option<BlockNumber>) -> Self {
 			Self { start, end }
 		}
 
-		pub fn start(&self) -> Option<BlockNumber> {
+		pub const fn start(&self) -> Option<BlockNumber> {
 			self.start
 		}
 
-		pub fn end(&self) -> Option<BlockNumber> {
+		pub const fn end(&self) -> Option<BlockNumber> {
 			self.end
 		}
 

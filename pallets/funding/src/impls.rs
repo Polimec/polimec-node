@@ -446,7 +446,7 @@ fn release_funds_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -
 }
 
 fn unbond_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
-	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
+	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
 
 	let mut remaining_contributions =
 		project_contributions.into_iter().filter(|contribution| contribution.funds_released);
