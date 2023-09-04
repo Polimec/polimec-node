@@ -64,7 +64,7 @@ impl<T: Config> Pallet<T> {
 	/// # Next step
 	/// The issuer will call an extrinsic to start the evaluation round of the project.
 	/// [`do_evaluation_start`](Self::do_evaluation_start) will be executed.
-	pub fn do_create(issuer: AccountIdOf<T>, initial_metadata: ProjectMetadataOf<T>) -> Result<(), DispatchError> {
+	pub fn do_create(issuer: &AccountIdOf<T>, initial_metadata: ProjectMetadataOf<T>) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_id = Self::next_project_id();
 
@@ -756,7 +756,7 @@ impl<T: Config> Pallet<T> {
 
 	// Note: usd_amount needs to have the same amount of decimals as PLMC,, so when multiplied by the plmc-usd price, it gives us the PLMC amount with the decimals we wanted.
 	pub fn do_evaluate(
-		evaluator: AccountIdOf<T>,
+		evaluator: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		usd_amount: BalanceOf<T>,
 	) -> Result<(), DispatchError> {
@@ -765,7 +765,7 @@ impl<T: Config> Pallet<T> {
 		let now = <frame_system::Pallet<T>>::block_number();
 		let evaluation_id = Self::next_evaluation_id();
 		let caller_existing_evaluations: Vec<(u32, EvaluationInfoOf<T>)> =
-			Evaluations::<T>::iter_prefix((project_id, evaluator.clone())).collect();
+			Evaluations::<T>::iter_prefix((project_id, evaluator)).collect();
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
 		let early_evaluation_reward_threshold_usd =
 			T::EvaluationSuccessThreshold::get() * project_details.fundraising_target;
@@ -809,7 +809,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Update Storage *
 		if caller_existing_evaluations.len() < T::MaxEvaluationsPerUser::get() as usize {
-			T::NativeCurrency::hold(&LockType::Evaluation(project_id), &evaluator, plmc_bond)?;
+			T::NativeCurrency::hold(&LockType::Evaluation(project_id), evaluator, plmc_bond)?;
 		} else {
 			let (low_id, lowest_evaluation) = caller_existing_evaluations
 				.iter()
@@ -830,7 +830,7 @@ impl<T: Config> Pallet<T> {
 				Precision::Exact,
 			)?;
 
-			T::NativeCurrency::hold(&LockType::Evaluation(project_id), &evaluator, plmc_bond)?;
+			T::NativeCurrency::hold(&LockType::Evaluation(project_id), evaluator, plmc_bond)?;
 
 			Evaluations::<T>::remove((project_id, evaluator.clone(), low_id));
 		}
@@ -842,7 +842,7 @@ impl<T: Config> Pallet<T> {
 		ProjectsDetails::<T>::insert(project_id, project_details);
 
 		// * Emit events *
-		Self::deposit_event(Event::FundsBonded { project_id, amount: plmc_bond, bonder: evaluator });
+		Self::deposit_event(Event::FundsBonded { project_id, amount: plmc_bond, bonder: evaluator.clone() });
 
 		Ok(())
 	}
@@ -862,7 +862,7 @@ impl<T: Config> Pallet<T> {
 	/// * [`BiddingBonds`] - Update the storage with the bidder's PLMC bond for that bid
 	/// * [`Bids`] - Check previous bids by that user, and update the storage with the new bid
 	pub fn do_bid(
-		bidder: AccountIdOf<T>,
+		bidder: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		ct_amount: BalanceOf<T>,
 		ct_usd_price: T::Price,
@@ -874,7 +874,7 @@ impl<T: Config> Pallet<T> {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let bid_id = Self::next_bid_id();
-		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder.clone())).collect::<Vec<_>>();
+		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder)).collect::<Vec<_>>();
 
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
 		let funding_asset_usd_price =
@@ -925,8 +925,8 @@ impl<T: Config> Pallet<T> {
 
 		// * Update storage *
 		if existing_bids.len() < T::MaxBidsPerUser::get() as usize {
-			Self::try_plmc_participation_lock(&bidder, project_id, plmc_bond)?;
-			Self::try_funding_asset_hold(&bidder, project_id, funding_asset_amount_locked, asset_id)?;
+			Self::try_plmc_participation_lock(bidder, project_id, plmc_bond)?;
+			Self::try_funding_asset_hold(bidder, project_id, funding_asset_amount_locked, asset_id)?;
 		} else {
 			let lowest_bid =
 				existing_bids.iter().min_by_key(|bid| bid.plmc_bond).ok_or(Error::<T>::ImpossibleState)?.clone();
@@ -948,8 +948,8 @@ impl<T: Config> Pallet<T> {
 			)?;
 			Bids::<T>::remove((project_id, lowest_bid.bidder, lowest_bid.id));
 
-			Self::try_plmc_participation_lock(&bidder, project_id, plmc_bond)?;
-			Self::try_funding_asset_hold(&bidder, project_id, funding_asset_amount_locked, asset_id)?;
+			Self::try_plmc_participation_lock(bidder, project_id, plmc_bond)?;
+			Self::try_funding_asset_hold(bidder, project_id, funding_asset_amount_locked, asset_id)?;
 		}
 
 		Bids::<T>::insert((project_id, bidder, bid_id), new_bid);
@@ -975,7 +975,7 @@ impl<T: Config> Pallet<T> {
 	/// * [`Contributions`] - Update storage with the new contribution
 	/// * [`T::NativeCurrency`] - Update the balance of the contributor and the project pot
 	pub fn do_contribute(
-		contributor: AccountIdOf<T>,
+		contributor: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		token_amount: BalanceOf<T>,
 		multiplier: MultiplierOf<T>,
@@ -987,7 +987,7 @@ impl<T: Config> Pallet<T> {
 		let now = <frame_system::Pallet<T>>::block_number();
 		let contribution_id = Self::next_contribution_id();
 		let existing_contributions =
-			Contributions::<T>::iter_prefix_values((project_id, contributor.clone())).collect::<Vec<_>>();
+			Contributions::<T>::iter_prefix_values((project_id, contributor)).collect::<Vec<_>>();
 
 		let ct_usd_price = project_details.weighted_average_price.ok_or(Error::<T>::AuctionNotStarted)?;
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PriceNotFound)?;
@@ -1045,8 +1045,8 @@ impl<T: Config> Pallet<T> {
 		// * Update storage *
 		// Try adding the new contribution to the system
 		if existing_contributions.len() < T::MaxContributionsPerUser::get() as usize {
-			Self::try_plmc_participation_lock(&contributor, project_id, plmc_bond)?;
-			Self::try_funding_asset_hold(&contributor, project_id, funding_asset_amount, asset_id)?;
+			Self::try_plmc_participation_lock(contributor, project_id, plmc_bond)?;
+			Self::try_funding_asset_hold(contributor, project_id, funding_asset_amount, asset_id)?;
 		} else {
 			let lowest_contribution = existing_contributions
 				.iter()
@@ -1070,8 +1070,8 @@ impl<T: Config> Pallet<T> {
 			)?;
 			Contributions::<T>::remove((project_id, lowest_contribution.contributor.clone(), lowest_contribution.id));
 
-			Self::try_plmc_participation_lock(&contributor, project_id, plmc_bond)?;
-			Self::try_funding_asset_hold(&contributor, project_id, funding_asset_amount, asset_id)?;
+			Self::try_plmc_participation_lock(contributor, project_id, plmc_bond)?;
+			Self::try_funding_asset_hold(contributor, project_id, funding_asset_amount, asset_id)?;
 
 			project_details.remaining_contribution_tokens =
 				project_details.remaining_contribution_tokens.saturating_add(lowest_contribution.ct_amount);
@@ -1079,7 +1079,7 @@ impl<T: Config> Pallet<T> {
 				project_details.funding_amount_reached.saturating_sub(lowest_contribution.usd_contribution_amount);
 		}
 
-		Contributions::<T>::insert((project_id, contributor.clone(), contribution_id), new_contribution.clone());
+		Contributions::<T>::insert((project_id, contributor, contribution_id), new_contribution.clone());
 		NextContributionId::<T>::set(contribution_id.saturating_add(One::one()));
 
 		project_details.remaining_contribution_tokens =
@@ -1095,7 +1095,12 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// * Emit events *
-		Self::deposit_event(Event::Contribution { project_id, contributor, amount: token_amount, multiplier });
+		Self::deposit_event(Event::Contribution {
+			project_id,
+			contributor: contributor.clone(),
+			amount: token_amount,
+			multiplier,
+		});
 
 		Ok(())
 	}
@@ -1191,14 +1196,14 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_evaluation_unbond_for(
-		releaser: AccountIdOf<T>,
+		releaser: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
-		evaluator: AccountIdOf<T>,
+		evaluator: &AccountIdOf<T>,
 		evaluation_id: u32,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		let released_evaluation = Evaluations::<T>::get((project_id, evaluator.clone(), evaluation_id))
+		let released_evaluation = Evaluations::<T>::get((project_id, evaluator, evaluation_id))
 			.ok_or(Error::<T>::EvaluationNotFound)?;
 
 		// * Validity checks *
@@ -1215,18 +1220,18 @@ impl<T: Config> Pallet<T> {
 		// * Update Storage *
 		T::NativeCurrency::release(
 			&LockType::Evaluation(project_id),
-			&evaluator,
+			evaluator,
 			released_evaluation.current_plmc_bond,
 			Precision::Exact,
 		)?;
-		Evaluations::<T>::remove((project_id, evaluator.clone(), evaluation_id));
+		Evaluations::<T>::remove((project_id, evaluator, evaluation_id));
 
 		// * Emit events *
 		Self::deposit_event(Event::BondReleased {
 			project_id,
 			amount: released_evaluation.current_plmc_bond,
-			bonder: evaluator,
-			releaser,
+			bonder: evaluator.clone(),
+			releaser: releaser.clone(),
 		});
 
 		Ok(())
@@ -1283,9 +1288,9 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_evaluation_slash_for(
-		caller: AccountIdOf<T>,
+		caller: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
-		evaluator: AccountIdOf<T>,
+		evaluator: &AccountIdOf<T>,
 		evaluation_id: u32,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
@@ -1293,7 +1298,7 @@ impl<T: Config> Pallet<T> {
 		let slash_percentage = T::EvaluatorSlash::get();
 		let treasury_account = T::TreasuryAccount::get();
 
-		let mut user_evaluations = Evaluations::<T>::iter_prefix_values((project_id, evaluator.clone()));
+		let mut user_evaluations = Evaluations::<T>::iter_prefix_values((project_id, evaluator));
 		let mut evaluation =
 			user_evaluations.find(|evaluation| evaluation.id == evaluation_id).ok_or(Error::<T>::EvaluationNotFound)?;
 
@@ -1305,7 +1310,7 @@ impl<T: Config> Pallet<T> {
 		);
 
 		// * Calculate variables *
-		// We need to make sure that the current plmc bond is always >= than the slash amount.
+		// We need to make sure that the current PLMC bond is always >= than the slash amount.
 		let slashed_amount = slash_percentage * evaluation.original_plmc_bond;
 
 		// * Update storage *
@@ -1313,7 +1318,7 @@ impl<T: Config> Pallet<T> {
 
 		T::NativeCurrency::transfer_on_hold(
 			&LockType::Evaluation(project_id),
-			&evaluator,
+			evaluator,
 			&treasury_account,
 			slashed_amount,
 			Precision::Exact,
@@ -1321,8 +1326,8 @@ impl<T: Config> Pallet<T> {
 			Fortitude::Force,
 		)?;
 
-		evaluation.current_plmc_bond = evaluation.current_plmc_bond.saturating_sub(slashed_amount);
-		Evaluations::<T>::insert((project_id, evaluator.clone(), evaluation.id), evaluation);
+		evaluation.current_plmc_bond.saturating_reduce(slashed_amount);
+		Evaluations::<T>::insert((project_id, evaluator, evaluation.id), evaluation);
 
 		// * Emit events *
 		Self::deposit_event(Event::EvaluationSlashed {
@@ -1330,7 +1335,7 @@ impl<T: Config> Pallet<T> {
 			evaluator: evaluator.clone(),
 			id: evaluation_id,
 			amount: slashed_amount,
-			caller,
+			caller: caller.clone(),
 		});
 
 		Ok(())

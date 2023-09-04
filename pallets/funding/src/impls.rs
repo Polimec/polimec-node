@@ -316,9 +316,9 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 			},
 			EvaluatorsOutcome::Slashed => {
 				match Pallet::<T>::do_evaluation_slash_for(
-					T::PalletId::get().into_account_truncating(),
+					&T::PalletId::get().into_account_truncating(),
 					evaluation.project_id,
-					evaluation.evaluator.clone(),
+					&evaluation.evaluator,
 					evaluation.id,
 				) {
 					Ok(_) => (),
@@ -349,9 +349,9 @@ fn unbond_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> (Weight
 
 	if let Some(evaluation) = project_evaluations.first() {
 		match Pallet::<T>::do_evaluation_unbond_for(
-			T::PalletId::get().into_account_truncating(),
+			&T::PalletId::get().into_account_truncating(),
 			evaluation.project_id,
-			evaluation.evaluator.clone(),
+			&evaluation.evaluator,
 			evaluation.id,
 		) {
 			Ok(_) => (),
