@@ -1178,7 +1178,7 @@ pub mod local_macros {
 			match $option {
 				Some(val) => val,
 				None => {
-					Self::deposit_event(Event::<T>::TransitionError {
+					Self::deposit_event(Event::TransitionError {
 						project_id: $project_id,
 						error: Error::<T>::FieldIsNone.into(),
 					});
@@ -1195,7 +1195,7 @@ pub mod local_macros {
 			match $option {
 				Ok(val) => val,
 				Err(err) => {
-					Self::deposit_event(Event::<T>::TransitionError { project_id: $project_id, error: err });
+					Self::deposit_event(Event::TransitionError { project_id: $project_id, error: err });
 					continue
 				},
 			}

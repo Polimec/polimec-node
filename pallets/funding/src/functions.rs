@@ -124,12 +124,11 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// * Emit events *
-		Self::deposit_event(Event::<T>::Created { project_id });
+		Self::deposit_event(Event::Created { project_id });
 
 		Ok(())
 	}
 
-	//noinspection ALL
 	/// Called by user extrinsic
 	/// Starts the evaluation round of a project. It needs to be called by the project issuer.
 	///
@@ -171,7 +170,7 @@ impl<T: Config> Pallet<T> {
 		Self::add_to_update_store(evaluation_end_block + 1u32.into(), (&project_id, UpdateType::EvaluationEnd));
 
 		// * Emit events *
-		Self::deposit_event(Event::<T>::EvaluationStarted { project_id });
+		Self::deposit_event(Event::EvaluationStarted { project_id });
 
 		Ok(())
 	}
@@ -253,7 +252,7 @@ impl<T: Config> Pallet<T> {
 			);
 
 			// * Emit events *
-			Self::deposit_event(Event::<T>::AuctionInitializePeriod {
+			Self::deposit_event(Event::AuctionInitializePeriod {
 				project_id,
 				start_block: auction_initialize_period_start_block,
 				end_block: auction_initialize_period_end_block,
@@ -267,7 +266,7 @@ impl<T: Config> Pallet<T> {
 			ProjectsDetails::<T>::insert(project_id, project_details);
 
 			// * Emit events *
-			Self::deposit_event(Event::<T>::EvaluationFailed { project_id });
+			Self::deposit_event(Event::EvaluationFailed { project_id });
 		}
 
 		Ok(())
@@ -342,7 +341,7 @@ impl<T: Config> Pallet<T> {
 		Self::add_to_update_store(english_end_block + 1u32.into(), (&project_id, UpdateType::CandleAuctionStart));
 
 		// * Emit events *
-		Self::deposit_event(Event::<T>::EnglishAuctionStarted { project_id, when: now });
+		Self::deposit_event(Event::EnglishAuctionStarted { project_id, when: now });
 
 		Ok(())
 	}
@@ -399,7 +398,7 @@ impl<T: Config> Pallet<T> {
 		Self::add_to_update_store(candle_end_block + 1u32.into(), (&project_id, UpdateType::CommunityFundingStart));
 
 		// * Emit events *
-		Self::deposit_event(Event::<T>::CandleAuctionStarted { project_id, when: now });
+		Self::deposit_event(Event::CandleAuctionStarted { project_id, when: now });
 
 		Ok(())
 	}
@@ -461,7 +460,7 @@ impl<T: Config> Pallet<T> {
 				);
 
 				// * Emit events *
-				Self::deposit_event(Event::<T>::AuctionFailed { project_id });
+				Self::deposit_event(Event::AuctionFailed { project_id });
 
 				Ok(())
 			},
@@ -481,7 +480,7 @@ impl<T: Config> Pallet<T> {
 				);
 
 				// * Emit events *
-				Self::deposit_event(Event::<T>::CommunityFundingStarted { project_id });
+				Self::deposit_event(Event::CommunityFundingStarted { project_id });
 
 				Ok(())
 			},
@@ -535,7 +534,7 @@ impl<T: Config> Pallet<T> {
 		Self::add_to_update_store(remainder_end_block + 1u32.into(), (&project_id, UpdateType::FundingEnd));
 
 		// * Emit events *
-		Self::deposit_event(Event::<T>::RemainderFundingStarted { project_id });
+		Self::deposit_event(Event::RemainderFundingStarted { project_id });
 
 		Ok(())
 	}
@@ -846,7 +845,7 @@ impl<T: Config> Pallet<T> {
 		ProjectsDetails::<T>::insert(project_id, project_details);
 
 		// * Emit events *
-		Self::deposit_event(Event::<T>::FundsBonded { project_id, amount: plmc_bond, bonder: evaluator });
+		Self::deposit_event(Event::FundsBonded { project_id, amount: plmc_bond, bonder: evaluator });
 
 		Ok(())
 	}
@@ -959,7 +958,7 @@ impl<T: Config> Pallet<T> {
 		Bids::<T>::insert((project_id, bidder, bid_id), new_bid);
 		NextBidId::<T>::set(bid_id.saturating_add(One::one()));
 
-		Self::deposit_event(Event::<T>::Bid { project_id, amount: ct_amount, price: ct_usd_price, multiplier });
+		Self::deposit_event(Event::Bid { project_id, amount: ct_amount, price: ct_usd_price, multiplier });
 
 		Ok(())
 	}
@@ -1099,7 +1098,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// * Emit events *
-		Self::deposit_event(Event::<T>::Contribution { project_id, contributor, amount: token_amount, multiplier });
+		Self::deposit_event(Event::Contribution { project_id, contributor, amount: token_amount, multiplier });
 
 		Ok(())
 	}
@@ -1149,7 +1148,7 @@ impl<T: Config> Pallet<T> {
 		Bids::<T>::insert((project_id, bidder.clone(), bid_id), bid.clone());
 
 		// * Emit events *
-		Self::deposit_event(Event::<T>::ContributionTokenMinted {
+		Self::deposit_event(Event::ContributionTokenMinted {
 			releaser,
 			project_id: bid.project_id,
 			claimer: bidder,
@@ -1184,7 +1183,7 @@ impl<T: Config> Pallet<T> {
 		Contributions::<T>::insert((project_id, contributor.clone(), contribution_id), contribution.clone());
 
 		// * Emit events *
-		Self::deposit_event(Event::<T>::ContributionTokenMinted {
+		Self::deposit_event(Event::ContributionTokenMinted {
 			releaser,
 			project_id: contribution.project_id,
 			claimer: contributor,
@@ -1226,7 +1225,7 @@ impl<T: Config> Pallet<T> {
 		Evaluations::<T>::remove((project_id, evaluator.clone(), evaluation_id));
 
 		// * Emit events *
-		Self::deposit_event(Event::<T>::BondReleased {
+		Self::deposit_event(Event::BondReleased {
 			project_id,
 			amount: released_evaluation.current_plmc_bond,
 			bonder: evaluator,
@@ -1276,7 +1275,7 @@ impl<T: Config> Pallet<T> {
 		Evaluations::<T>::insert((project_id, evaluator.clone(), evaluation_id), evaluation);
 
 		// * Emit events *
-		Self::deposit_event(Event::<T>::EvaluationRewarded {
+		Self::deposit_event(Event::EvaluationRewarded {
 			project_id,
 			evaluator: evaluator.clone(),
 			id: evaluation_id,
@@ -1330,7 +1329,7 @@ impl<T: Config> Pallet<T> {
 		Evaluations::<T>::insert((project_id, evaluator.clone(), evaluation.id), evaluation);
 
 		// * Emit events *
-		Self::deposit_event(Event::<T>::EvaluationSlashed {
+		Self::deposit_event(Event::EvaluationSlashed {
 			project_id,
 			evaluator: evaluator.clone(),
 			id: evaluation_id,
@@ -1376,7 +1375,7 @@ impl<T: Config> Pallet<T> {
 		Bids::<T>::insert((project_id, bidder.clone(), bid_id), bid);
 
 		// * Emit events *
-		Self::deposit_event(Event::<T>::BidPlmcVestingScheduled {
+		Self::deposit_event(Event::BidPlmcVestingScheduled {
 			project_id,
 			bidder: bidder.clone(),
 			id: bid_id,
@@ -1423,7 +1422,7 @@ impl<T: Config> Pallet<T> {
 		Contributions::<T>::insert((project_id, contributor.clone(), contribution_id), contribution);
 
 		// * Emit events *
-		Self::deposit_event(Event::<T>::ContributionPlmcVestingScheduled {
+		Self::deposit_event(Event::ContributionPlmcVestingScheduled {
 			project_id,
 			contributor: contributor.clone(),
 			id: contribution_id,
@@ -1449,7 +1448,7 @@ impl<T: Config> Pallet<T> {
 		let vested_amount = T::Vesting::vest(participant.clone(), LockType::Participation(project_id))?;
 
 		// * Emit events *
-		Self::deposit_event(Event::<T>::ParticipantPlmcVested {
+		Self::deposit_event(Event::ParticipantPlmcVested {
 			project_id,
 			participant: participant.clone(),
 			amount: vested_amount,
@@ -1493,7 +1492,7 @@ impl<T: Config> Pallet<T> {
 		Bids::<T>::insert((project_id, bidder.clone(), bid_id), bid);
 
 		// * Emit events *
-		Self::deposit_event(Event::<T>::BidFundingReleased {
+		Self::deposit_event(Event::BidFundingReleased {
 			project_id,
 			bidder: bidder.clone(),
 			id: bid_id,
@@ -1527,7 +1526,7 @@ impl<T: Config> Pallet<T> {
 		Bids::<T>::remove((project_id, bidder.clone(), bid_id));
 
 		// * Emit events *
-		Self::deposit_event(Event::<T>::BondReleased {
+		Self::deposit_event(Event::BondReleased {
 			project_id,
 			amount: bid.plmc_bond,
 			bonder: bidder,
@@ -1568,7 +1567,7 @@ impl<T: Config> Pallet<T> {
 		Contributions::<T>::insert((project_id, contributor.clone(), contribution_id), contribution);
 
 		// * Emit events *
-		Self::deposit_event(Event::<T>::ContributionFundingReleased {
+		Self::deposit_event(Event::ContributionFundingReleased {
 			project_id,
 			contributor: contributor.clone(),
 			id: contribution_id,
@@ -1603,7 +1602,7 @@ impl<T: Config> Pallet<T> {
 		Contributions::<T>::remove((project_id, contributor.clone(), contribution_id));
 
 		// * Emit events *
-		Self::deposit_event(Event::<T>::BondReleased {
+		Self::deposit_event(Event::BondReleased {
 			project_id,
 			amount: bid.plmc_bond,
 			bonder: contributor,
@@ -1648,7 +1647,7 @@ impl<T: Config> Pallet<T> {
 		Bids::<T>::insert((project_id, bidder.clone(), bid_id), bid);
 
 		// * Emit events *
-		Self::deposit_event(Event::<T>::BidFundingPaidOut {
+		Self::deposit_event(Event::BidFundingPaidOut {
 			project_id,
 			bidder: bidder.clone(),
 			id: bid_id,
@@ -1691,7 +1690,7 @@ impl<T: Config> Pallet<T> {
 		Contributions::<T>::insert((project_id, contributor.clone(), contribution_id), contribution);
 
 		// * Emit events *
-		Self::deposit_event(Event::<T>::ContributionFundingPaidOut {
+		Self::deposit_event(Event::ContributionFundingPaidOut {
 			project_id,
 			contributor,
 			id: contribution_id,
@@ -2000,7 +1999,7 @@ impl<T: Config> Pallet<T> {
 					Preservation::Preserve,
 				);
 				if let Err(e) = try_transfer {
-					Self::deposit_event(Event::<T>::TransferError { error: e });
+					Self::deposit_event(Event::TransferError { error: e });
 				}
 
 				bid.funding_asset_amount_locked = funding_asset_amount_needed;
@@ -2022,7 +2021,7 @@ impl<T: Config> Pallet<T> {
 					Precision::Exact,
 				);
 				if let Err(e) = try_release {
-					Self::deposit_event(Event::<T>::TransferError { error: e });
+					Self::deposit_event(Event::TransferError { error: e });
 				}
 
 				bid.plmc_bond = plmc_bond_needed;
@@ -2233,7 +2232,7 @@ impl<T: Config> Pallet<T> {
 
 		Self::add_to_update_store(now + settlement_delta, (&project_id, UpdateType::StartSettlement));
 
-		Self::deposit_event(Event::<T>::FundingEnded { project_id, outcome: FundingOutcome::Success(reason) });
+		Self::deposit_event(Event::FundingEnded { project_id, outcome: FundingOutcome::Success(reason) });
 
 		Ok(())
 	}
@@ -2249,7 +2248,7 @@ impl<T: Config> Pallet<T> {
 		ProjectsDetails::<T>::insert(project_id, project_details.clone());
 
 		Self::add_to_update_store(now + settlement_delta, (&project_id, UpdateType::StartSettlement));
-		Self::deposit_event(Event::<T>::FundingEnded { project_id, outcome: FundingOutcome::Failure(reason) });
+		Self::deposit_event(Event::FundingEnded { project_id, outcome: FundingOutcome::Failure(reason) });
 		Ok(())
 	}
 }
