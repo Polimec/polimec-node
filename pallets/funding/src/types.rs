@@ -51,7 +51,7 @@ pub mod config_types {
 			const MIN_VALID: u8 = 1;
 			const MAX_VALID: u8 = 25;
 
-			if (MIN_VALID..=MAX_VALID).contains(&x) {
+			if x >= MIN_VALID && x <= MAX_VALID {
 				Ok(Self(x))
 			} else {
 				Err(())
