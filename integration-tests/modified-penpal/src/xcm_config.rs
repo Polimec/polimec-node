@@ -349,7 +349,9 @@ impl pallet_xcm::Config for Runtime {
 	type XcmReserveTransferFilter = Everything;
 	type XcmRouter = XcmRouter;
 	type XcmTeleportFilter = Everything;
-
+	type MaxRemoteLockConsumers = ConstU32<8>;
+	type RemoteLockConsumerIdentifier = ();
+	
 	const VERSION_DISCOVERY_QUEUE_SIZE: u32 = 100;
 }
 

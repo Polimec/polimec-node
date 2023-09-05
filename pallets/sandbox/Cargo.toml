@@ -54,15 +54,15 @@ std = [
 	"pallet-assets/std",
 	"pallet-balances/std",
 	"pallet-funding/std",
+	"pallet-insecure-randomness-collective-flip/std",
 	"parachains-common/std",
 	"parity-scale-codec/std",
 	"scale-info/std",
+	"sp-arithmetic/std",
 	"sp-core/std",
 	"sp-io/std",
 	"sp-runtime/std",
-	"pallet-insecure-randomness-collective-flip/std",
-	"sp-arithmetic/std",
-	"sp-std/std"
+	"sp-std/std",
 ]
 try-runtime = [
 	"frame-support/try-runtime",

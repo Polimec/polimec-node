@@ -45,22 +45,22 @@ std = [
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
+	"log/std",
+	"pallet-aura/std",
 	"pallet-authorship/std",
 	"pallet-balances/std",
 	"pallet-session/std",
+	"pallet-timestamp/std",
 	"parity-scale-codec/std",
 	"scale-info/std",
 	"serde/std",
 	"sp-consensus-aura/std",
+	"sp-core/std",
+	"sp-io/std",
 	"sp-runtime/std",
 	"sp-staking/std",
 	"sp-std/std",
-	"log/std",
-	"pallet-aura/std",
-	"pallet-timestamp/std",
-	"sp-core/std",
-	"sp-io/std",
-	"substrate-fixed/std"
+	"substrate-fixed/std",
 ]
 runtime-benchmarks = [ "frame-benchmarking" ]
 try-runtime = [

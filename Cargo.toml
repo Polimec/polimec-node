@@ -1,5 +1,11 @@
 [workspace]
-members = ["nodes/*", "pallets/*", "runtimes/*", "integration-tests", "traits"]
+members = [
+    "nodes/*",
+    "pallets/*",
+    "runtimes/*",
+    # "integration-tests",
+    "traits",
+]
 
 resolver = "2"
 

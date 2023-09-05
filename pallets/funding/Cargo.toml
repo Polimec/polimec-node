@@ -48,6 +48,7 @@ std = [
 	"itertools/use_std",
 	"pallet-assets/std",
 	"pallet-balances/std",
+	"pallet-insecure-randomness-collective-flip/std",
 	"pallet-linear-release/std",
 	"parachains-common/std",
 	"parity-scale-codec/std",
@@ -55,11 +56,10 @@ std = [
 	"scale-info/std",
 	"serde",
 	"sp-arithmetic/std",
+	"sp-core/std",
+	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
-	"pallet-insecure-randomness-collective-flip/std",
-	"sp-core/std",
-	"sp-io/std"
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
