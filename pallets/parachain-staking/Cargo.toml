@@ -55,6 +55,12 @@ std = [
 	"sp-runtime/std",
 	"sp-staking/std",
 	"sp-std/std",
+	"log/std",
+	"pallet-aura/std",
+	"pallet-timestamp/std",
+	"sp-core/std",
+	"sp-io/std",
+	"substrate-fixed/std"
 ]
 runtime-benchmarks = [ "frame-benchmarking" ]
 try-runtime = [

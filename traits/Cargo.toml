@@ -41,6 +41,8 @@ std = [
 	"serde/std",
 	"sp-runtime/std",
 	"sp-std/std",
+	"sp-core/std",
+	"sp-io/std"
 ]
 runtime-benchmarks = [ "frame-benchmarking/runtime-benchmarks" ]
 try-runtime = [

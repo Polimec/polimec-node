@@ -158,6 +158,9 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
+	"cumulus-pallet-session-benchmarking/std",
+	"frame-system-benchmarking?/std",
+	"serde?/std"
 ]
 
 runtime-benchmarks = [

@@ -30,5 +30,6 @@ std = [
 	"parachains-common/std",
 	"sp-arithmetic/std",
 	"sp-std/std",
+	"frame-system/std"
 ]
 runtime-benchmarks = [ "frame-support/runtime-benchmarks" ]
