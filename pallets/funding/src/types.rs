@@ -46,7 +46,7 @@ pub mod config_types {
 
 	impl Multiplier {
 		/// Creates a new `Multiplier` if the value is between 1 and 25, otherwise returns an error.
-		pub fn new(x: u8) -> Result<Self, ()> {
+		pub const fn new(x: u8) -> Result<Self, ()> {
 			// The minimum and maximum values are chosen to be 1 and 25 respectively, as defined in the Knowledge Hub.
 			const MIN_VALID: u8 = 1;
 			const MAX_VALID: u8 = 25;
@@ -199,6 +199,8 @@ pub mod storage_types {
 		pub funding_end_block: Option<BlockNumber>,
 		/// Current bucket in the Auction Round
 		pub bucket: u32,
+		///
+		pub base_increment: Price,
 	}
 
 	/// Tells on_initialize what to do with the project

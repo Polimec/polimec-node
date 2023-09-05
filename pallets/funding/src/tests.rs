@@ -588,6 +588,7 @@ impl<'a> CreatedProject<'a> {
 	) {
 		let metadata = self.get_project_metadata();
 		let details = self.get_project_details();
+		let base_increment = (expected_metadata.minimum_price / 10.into()).into();
 		let expected_details = ProjectDetailsOf::<TestRuntime> {
 			issuer: self.get_issuer(),
 			is_frozen: false,
@@ -610,7 +611,8 @@ impl<'a> CreatedProject<'a> {
 				evaluators_outcome: EvaluatorsOutcome::Unchanged,
 			},
 			funding_end_block: None,
-			bucket: 0,
+			bucket: 2,
+			base_increment,
 		};
 		assert_eq!(metadata, expected_metadata);
 		assert_eq!(details, expected_details);
@@ -1232,7 +1234,7 @@ mod defaults {
 			},
 			mainnet_token_max_supply: 8_000_000_0_000_000_000,
 			total_allocation_size: 1_000_000_0_000_000_000,
-			minimum_price: PriceOf::<TestRuntime>::from_float(1.0),
+			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
 			ticket_size: TicketSize { minimum: Some(1), maximum: None },
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 			funding_thresholds: Default::default(),

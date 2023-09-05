@@ -86,6 +86,8 @@ impl<T: Config> Pallet<T> {
 			.minimum_price
 			.checked_mul_int(initial_metadata.total_allocation_size)
 			.ok_or(Error::<T>::BadMath)?;
+		let ten_percent_in_price: <T as Config>::Price = PriceOf::<T>::checked_from_rational(1, 10).ok_or(Error::<T>::BadMath)?;
+		let base_increment: <T as Config>::Price = initial_metadata.minimum_price.saturating_mul(ten_percent_in_price);
 		let project_details = ProjectDetails {
 			issuer: issuer.clone(),
 			is_frozen: false,
@@ -111,8 +113,11 @@ impl<T: Config> Pallet<T> {
 				evaluators_outcome: EvaluatorsOutcome::Unchanged,
 			},
 			funding_end_block: None,
-			bucket: 0_u32,
+			bucket: 2_u32,
+			base_increment,
 		};
+
+		dbg!(base_increment);
 
 		// * Update storage *
 		ProjectsMetadata::<T>::insert(project_id, &initial_metadata);
@@ -875,6 +880,7 @@ impl<T: Config> Pallet<T> {
 		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder)).collect::<Vec<_>>();
 
 		let bucket_amount = Percent::from_percent(10) * project_details.bucket;
+		dbg!(bucket_amount);
 		// let bucket_price = T::Price::new(bucket_amount);
 		let ct_usd_price = project_metadata.minimum_price;
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
