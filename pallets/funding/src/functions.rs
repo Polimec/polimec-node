@@ -21,7 +21,7 @@
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
-	pallet_prelude::DispatchError,
+	pallet_prelude::*,
 	traits::{
 		fungible::MutateHold as FungibleMutateHold,
 		fungibles::{metadata::Mutate as MetadataMutate, Create, Inspect, Mutate as FungiblesMutate},
@@ -111,6 +111,7 @@ impl<T: Config> Pallet<T> {
 				evaluators_outcome: EvaluatorsOutcome::Unchanged,
 			},
 			funding_end_block: None,
+			bucket: 0_u32,
 		};
 
 		// * Update storage *
@@ -862,7 +863,7 @@ impl<T: Config> Pallet<T> {
 		bidder: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		ct_amount: BalanceOf<T>,
-		ct_usd_price: T::Price,
+		_ct_usd_price: T::Price,
 		multiplier: MultiplierOf<T>,
 		funding_asset: AcceptedFundingAsset,
 	) -> Result<(), DispatchError> {
@@ -873,6 +874,9 @@ impl<T: Config> Pallet<T> {
 		let bid_id = Self::next_bid_id();
 		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder)).collect::<Vec<_>>();
 
+		let bucket_amount = Percent::from_percent(10) * project_details.bucket;
+		// let bucket_price = T::Price::new(bucket_amount);
+		let ct_usd_price = project_metadata.minimum_price;
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
 		let funding_asset_usd_price =
 			T::PriceProvider::get_price(funding_asset.to_statemint_id()).ok_or(Error::<T>::PriceNotFound)?;
@@ -881,7 +885,6 @@ impl<T: Config> Pallet<T> {
 		// * Validity checks *
 		ensure!(bidder.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
 		ensure!(matches!(project_details.status, ProjectStatus::AuctionRound(_)), Error::<T>::AuctionNotStarted);
-		ensure!(ct_usd_price >= project_metadata.minimum_price, Error::<T>::BidTooLow);
 		if let Some(minimum_ticket_size) = project_metadata.ticket_size.minimum {
 			// Make sure the bid amount is greater than the minimum specified by the issuer
 			ensure!(ticket_size >= minimum_ticket_size, Error::<T>::BidTooLow);
@@ -974,7 +977,7 @@ impl<T: Config> Pallet<T> {
 		token_amount: BalanceOf<T>,
 		multiplier: MultiplierOf<T>,
 		asset: AcceptedFundingAsset,
-	) -> Result<(), DispatchError> {
+	) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
@@ -1096,7 +1099,7 @@ impl<T: Config> Pallet<T> {
 			multiplier,
 		});
 
-		Ok(())
+		Ok(Pays::No.into())
 	}
 
 	pub fn do_decide_project_outcome(
