@@ -1,7 +1,7 @@
 <!-- markdown-link-check-disable -->
 # Pallet Linear Release
 
-A modified version of [pallet-vesting](https://github.com/paritytech/substrate/tree/polkadot-v0.9.43/frame/vesting/src). It allows to set a Release Schedule using the new `fungible::Hold` API instead of the old and deprecated `LockableCurrency`.
+A modified version of [pallet-vesting](https://github.com/paritytech/substrate/tree/polkadot-v0.9.42/frame/vesting/src). It allows to set a Release Schedule using the new `fungible::Hold` API instead of the old and deprecated `LockableCurrency`.
 
 It implements the new `ReleaseSchedule` trait. The trait serves to apply release limits to a particular fungible and provides several key methods to interact with the release schedule for an account.
 
