@@ -12,10 +12,10 @@ rust-version = "1.69.0"
 
 [dependencies]
 serde = { version = "*", optional = true }
-parity-scale-codec = { version = "3.0.0", features = [
+parity-scale-codec = { version = "3.6.5", features = [
     "derive",
 ], default-features = false }
-scale-info = { version = "2.5.0", default-features = false, features = [
+scale-info = { version = "2.9.0", default-features = false, features = [
     "derive",
 ] }
 itertools = { version = "0.11.0", default-features = false }

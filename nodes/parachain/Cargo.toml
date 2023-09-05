@@ -17,7 +17,7 @@ parity-scale-codec = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 jsonrpsee = { workspace = true, features = ["server"] }
 hex-literal.workspace = true
-color-print = "0.3.4"
+color-print = "0.3.5"
 
 # Local
 polimec-parachain-runtime.workspace = true

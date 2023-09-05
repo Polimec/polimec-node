@@ -12,8 +12,8 @@ edition = "2021"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-parity-scale-codec = {  version = "3.0.0", features = ["derive"], default-features = false }
-scale-info = { version = "2.2.0", default-features = false, features = ["derive"] }
+parity-scale-codec = {  version = "3.6.5", features = ["derive"], default-features = false }
+scale-info = { version = "2.9.0", default-features = false, features = ["derive"] }
 
 # Local dependencies
 
@@ -30,7 +30,7 @@ pallet-funding.workspace = true
 frame-benchmarking = { workspace = true, optional = true }
 
 [dev-dependencies]
-serde = { version = "1.0.132" }
+serde = { version = "1.0.188" }
 
 # Substrate
 sp-core.workspace = true
