@@ -28,6 +28,7 @@ use std::{
 use assert_matches2::assert_matches;
 use frame_support::{
 	assert_err, assert_noop, assert_ok,
+	pallet_prelude::{Decode, DispatchResultWithPostInfo},
 	traits::{
 		fungible::{Inspect as FungibleInspect, InspectHold as FungibleInspectHold, Mutate as FungibleMutate},
 		fungibles::{
@@ -609,6 +610,7 @@ impl<'a> CreatedProject<'a> {
 				evaluators_outcome: EvaluatorsOutcome::Unchanged,
 			},
 			funding_end_block: None,
+			bucket: 0,
 		};
 		assert_eq!(metadata, expected_metadata);
 		assert_eq!(details, expected_details);
@@ -892,7 +894,7 @@ impl<'a> CommunityFundingProject<'a> {
 		community_project
 	}
 
-	fn buy_for_retail_users(&self, contributions: TestContributions) -> Result<(), DispatchError> {
+	fn buy_for_retail_users(&self, contributions: TestContributions) -> DispatchResultWithPostInfo {
 		let project_id = self.get_project_id();
 		for cont in contributions {
 			self.test_env.ext_env.borrow_mut().execute_with(|| {
@@ -905,7 +907,7 @@ impl<'a> CommunityFundingProject<'a> {
 				)
 			})?;
 		}
-		Ok(())
+		Ok(().into())
 	}
 
 	fn finalized_bids_assertions(
@@ -994,7 +996,7 @@ impl<'a> ProjectInstance for RemainderFundingProject<'a> {
 	}
 }
 impl<'a> RemainderFundingProject<'a> {
-	fn buy_for_any_user(&self, contributions: TestContributions) -> Result<(), DispatchError> {
+	fn buy_for_any_user(&self, contributions: TestContributions) -> DispatchResultWithPostInfo {
 		let project_id = self.get_project_id();
 		for cont in contributions {
 			self.test_env.ext_env.borrow_mut().execute_with(|| {
@@ -1007,7 +1009,7 @@ impl<'a> RemainderFundingProject<'a> {
 				)
 			})?;
 		}
-		Ok(())
+		Ok(().into())
 	}
 
 	fn new_with(

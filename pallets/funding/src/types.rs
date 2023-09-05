@@ -187,6 +187,7 @@ pub mod storage_types {
 		/// Fundraising target amount in USD equivalent
 		pub fundraising_target: Balance,
 		/// The amount of Contribution Tokens that have not yet been sold
+		// TODO: This probably should be a tuple (Balance, Balance) to keep track of the remaining tokens in the Auction and Community Round
 		pub remaining_contribution_tokens: Balance,
 		/// Funding reached amount in USD equivalent
 		pub funding_amount_reached: Balance,
@@ -194,8 +195,10 @@ pub mod storage_types {
 		pub cleanup: Cleaner,
 		/// Information about the total amount bonded, and the outcome in regards to reward/slash/nothing
 		pub evaluation_round_info: EvaluationRoundInfo,
-
+		/// When the Funding Round ends
 		pub funding_end_block: Option<BlockNumber>,
+		/// Current bucket in the Auction Round
+		pub bucket: u32,
 	}
 
 	/// Tells on_initialize what to do with the project

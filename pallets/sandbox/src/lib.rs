@@ -33,7 +33,7 @@ pub mod pallet {
 			project_id: <T as funding::Config>::ProjectIdentifier,
 			amount: <T as funding::Config>::Balance,
 			asset_id: AcceptedFundingAsset,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let retail_user = ensure_signed(origin)?;
 			let project_id: <T as funding::Config>::ProjectIdentifier = project_id.into();
 			// Check project is in the community round
@@ -57,9 +57,7 @@ pub mod pallet {
 
 			let multiplier: MultiplierOf<T> = 1u8.try_into().map_err(|_| Error::<T>::ProjectNotFound)?;
 			// Buy tokens with the default multiplier
-			<funding::Pallet<T>>::do_contribute(&retail_user, project_id, amount, multiplier, asset_id)?;
-
-			Ok(())
+			<funding::Pallet<T>>::do_contribute(&retail_user, project_id, amount, multiplier, asset_id)
 		}
 	}
 

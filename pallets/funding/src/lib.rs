@@ -116,7 +116,7 @@
 //! 			origin: OriginFor<T>,
 //! 			project_id: <T as pallet_funding::Config>::ProjectIdentifier,
 //! 			amount: <T as pallet_funding::Config>::Balance
-//! 		) -> DispatchResult {
+//! 		) -> DispatchResultWithPostInfo {
 //! 			let retail_user = ensure_signed(origin)?;
 //! 			let project_id: <T as pallet_funding::Config>::ProjectIdentifier = project_id.into();
 //! 			// Check project is in the community round
@@ -135,9 +135,7 @@
 //! 			ensure!(project_contributions >= 500_000_0_000_000_000u64.into(), "Project did not achieve at least 500k USDT funding");
 //!    			let multiplier: MultiplierOf<T> = 1u8.try_into().map_err(|_| Error::<T>::ProjectNotFound)?;
 //!    			// Buy tokens with the default multiplier
-//!    			<pallet_funding::Pallet<T>>::do_contribute(&retail_user, project_id, amount, multiplier, AcceptedFundingAsset::USDT)?;
-//!
-//! 			Ok(())
+//!    			pallet_funding::Pallet::<T>::do_contribute(&retail_user, project_id, amount, multiplier, AcceptedFundingAsset::USDT)
 //! 		}
 //! 	}
 //!
@@ -183,7 +181,6 @@ use frame_support::{
 	},
 	BoundedVec, PalletId,
 };
-use parity_scale_codec::{Decode, Encode};
 use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
 use sp_std::prelude::*;
@@ -870,12 +867,12 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
 			#[pallet::compact] amount: BalanceOf<T>,
-			price: PriceOf<T>,
+			_price: PriceOf<T>,
 			multiplier: T::Multiplier,
 			asset: AcceptedFundingAsset,
 		) -> DispatchResult {
 			let bidder = ensure_signed(origin)?;
-			Self::do_bid(&bidder, project_id, amount, price, multiplier, asset)
+			Self::do_bid(&bidder, project_id, amount, _price, multiplier, asset)
 		}
 
 		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
@@ -886,7 +883,7 @@ pub mod pallet {
 			#[pallet::compact] amount: BalanceOf<T>,
 			multiplier: MultiplierOf<T>,
 			asset: AcceptedFundingAsset,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let contributor = ensure_signed(origin)?;
 			Self::do_contribute(&contributor, project_id, amount, multiplier, asset)
 		}
