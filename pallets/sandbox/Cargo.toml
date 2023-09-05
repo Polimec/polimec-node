@@ -42,21 +42,26 @@ pallet-assets.workspace = true
 
 
 [features]
-default = ["std"]
-runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks"]
+default = [ "std" ]
+runtime-benchmarks = [
+	"frame-benchmarking/runtime-benchmarks",
+	"pallet-funding/runtime-benchmarks",
+]
 std = [
-	"parity-scale-codec/std",
-	"scale-info/std",
-	"pallet-funding/std",
+	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
-	"sp-runtime/std",
+	"pallet-assets/std",
+	"pallet-balances/std",
+	"pallet-funding/std",
+	"parachains-common/std",
+	"parity-scale-codec/std",
+	"scale-info/std",
 	"sp-core/std",
 	"sp-io/std",
 	"sp-runtime/std",
-	"pallet-assets/std",
-	"pallet-balances/std",
-	"frame-benchmarking?/std",
-	"parachains-common/std",
 ]
-try-runtime = [ "frame-support/try-runtime" ]
+try-runtime = [
+	"frame-support/try-runtime", 
+	"pallet-funding/try-runtime"
+]

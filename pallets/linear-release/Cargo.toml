@@ -32,17 +32,21 @@ pallet-funding.workspace = true
 
 
 [features]
-default = ["std"]
+default = [ "std" ]
 std = [
-	"parity-scale-codec/std",
 	"frame-support/std",
 	"frame-system/std",
 	"log/std",
+	"pallet-balances/std",
+	"pallet-funding/std",
+	"parity-scale-codec/std",
+	"polimec-traits/std",
 	"scale-info/std",
 	"sp-runtime/std",
 	"sp-std/std",
-	"pallet-balances/std",
-	"polimec-traits/std",
-	"pallet-funding/std"
 ]
-try-runtime = ["frame-support/try-runtime"]
+try-runtime = [
+	"frame-support/try-runtime",
+	"pallet-funding/try-runtime",
+	"polimec-traits/try-runtime"
+]
