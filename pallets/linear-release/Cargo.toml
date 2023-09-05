@@ -47,6 +47,9 @@ std = [
 ]
 try-runtime = [
 	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"pallet-balances/try-runtime",
 	"pallet-funding/try-runtime",
-	"polimec-traits/try-runtime"
+	"polimec-traits/try-runtime",
+	"sp-runtime/try-runtime",
 ]

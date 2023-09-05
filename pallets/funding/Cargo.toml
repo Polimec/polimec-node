@@ -69,6 +69,11 @@ runtime-benchmarks = [
 ]
 try-runtime = [
 	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"pallet-assets/try-runtime",
+	"pallet-balances/try-runtime",
+	"pallet-insecure-randomness-collective-flip/try-runtime",
 	"pallet-linear-release/try-runtime",
-	"polimec-traits/try-runtime"
+	"polimec-traits/try-runtime",
+	"sp-runtime/try-runtime",
 ]

@@ -37,6 +37,7 @@ sc-chain-spec.workspace = true
 sc-consensus-grandpa.workspace = true
 sp-consensus-grandpa.workspace = true
 sc-network.workspace = true
+sp-io = { workspace = true, optional = true }
 # These dependencies are used for the node's RPCs
 jsonrpsee = { workspace = true, features = ["server"] }
 sc-rpc.workspace = true
@@ -75,5 +76,7 @@ try-runtime = [
 	"frame-system/try-runtime",
 	"pallet-transaction-payment/try-runtime",
 	"polimec-standalone-runtime/try-runtime",
-	"try-runtime-cli",
+	"sp-io",
+	"sp-runtime/try-runtime",
+	"try-runtime-cli/try-runtime",
 ]

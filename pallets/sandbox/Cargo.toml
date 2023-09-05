@@ -62,6 +62,11 @@ std = [
 	"sp-runtime/std",
 ]
 try-runtime = [
-	"frame-support/try-runtime", 
-	"pallet-funding/try-runtime"
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"pallet-assets/try-runtime",
+	"pallet-balances/try-runtime",
+	"pallet-funding/try-runtime",
+	"pallet-insecure-randomness-collective-flip/try-runtime",
+	"sp-runtime/try-runtime",
 ]
