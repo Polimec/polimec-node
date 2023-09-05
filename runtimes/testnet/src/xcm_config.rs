@@ -126,13 +126,13 @@ pub struct NativeToFungible;
 impl Convert<MultiLocation, AssetIdPalletAssets> for NativeToFungible {
 	fn convert(asset: MultiLocation) -> Result<AssetIdPalletAssets, MultiLocation> {
 		match asset {
-			MultiLocation { parents: 1, interior: Here } => Ok(AssetIdPalletAssets::from(0u32)),
+			MultiLocation { parents: 1, interior: Here } => Ok(0u32),
 			_ => Err(asset),
 		}
 	}
 
 	fn reverse(value: AssetIdPalletAssets) -> Result<MultiLocation, AssetIdPalletAssets> {
-		if value == AssetIdPalletAssets::from(0u32) {
+		if value == 0u32 {
 			Ok(MultiLocation { parents: 1, interior: Here })
 		} else {
 			Err(value)
@@ -274,14 +274,13 @@ impl<T: Get<MultiLocation>> ContainsPair<MultiAsset, MultiLocation> for AssetsFr
 
 /// Allow checking in assets that have issuance > 0.
 pub struct NonZeroIssuance<AccountId, Assets>(PhantomData<(AccountId, Assets)>);
-
 impl<AccountId, Assets> Contains<<Assets as fungibles::Inspect<AccountId>>::AssetId>
 	for NonZeroIssuance<AccountId, Assets>
 where
 	Assets: fungibles::Inspect<AccountId>,
 {
 	fn contains(id: &<Assets as fungibles::Inspect<AccountId>>::AssetId) -> bool {
-		!Assets::total_issuance(*id).is_zero()
+		!Assets::total_issuance(id.clone()).is_zero()
 	}
 }
 
@@ -310,12 +309,12 @@ pub trait Reserve {
 // Takes the chain part of a MultiAsset
 impl Reserve for MultiAsset {
 	fn reserve(&self) -> Option<MultiLocation> {
-		if let AssetId::Concrete(location) = self.id.clone() {
+		if let AssetId::Concrete(location) = self.id {
 			let first_interior = location.first_interior();
 			let parents = location.parent_count();
-			match (parents, first_interior.clone()) {
-				(0, Some(Parachain(id))) => Some(MultiLocation::new(0, X1(Parachain(id.clone())))),
-				(1, Some(Parachain(id))) => Some(MultiLocation::new(1, X1(Parachain(id.clone())))),
+			match (parents, first_interior) {
+				(0, Some(Parachain(id))) => Some(MultiLocation::new(0, X1(Parachain(*id)))),
+				(1, Some(Parachain(id))) => Some(MultiLocation::new(1, X1(Parachain(*id)))),
 				(1, _) => Some(MultiLocation::parent()),
 				_ => None,
 			}
@@ -328,7 +327,6 @@ impl Reserve for MultiAsset {
 /// A `FilterAssetLocation` implementation. Filters multi native assets whose
 /// reserve is same with `origin`.
 pub struct MultiNativeAsset;
-
 impl ContainsPair<MultiAsset, MultiLocation> for MultiNativeAsset {
 	fn contains(asset: &MultiAsset, origin: &MultiLocation) -> bool {
 		if let Some(ref reserve) = asset.reserve() {
@@ -410,8 +408,10 @@ impl pallet_xcm::Config for Runtime {
 	type CurrencyMatcher = ();
 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type MaxLockers = ConstU32<8>;
+	type MaxRemoteLockConsumers = ConstU32<0>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type ReachableDest = ReachableDest;
+	type RemoteLockConsumerIdentifier = ();
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;

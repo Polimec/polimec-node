@@ -46,42 +46,39 @@ polkadot-runtime.workspace = true
 statemint-runtime.workspace = true
 polimec-parachain-runtime.workspace = true
 penpal-runtime.workspace = true
-# dip-provider-runtime-template = { workspace = true, features = ["std"] }
-# did = { workspace = true, features = ["std"] }
-# kilt-support = { workspace = true, features = ["std"] }
-# pallet-did-lookup = { workspace = true, features = ["std"] }
-# dip-support = { workspace = true, features = ["std"] }
-# runtime-common = { workspace = true, features = ["std"] }
-# kilt-dip-support = { workspace = true, features = ["std"] }
-# kilt-runtime-common = { workspace = true, features = ["std"] }
 
 [features]
-default = ["std"]
+default = [ "std" ]
 
 std = [
-    "pallet-assets/std",
-    "frame-system/std",
-    "frame-support/std",
-    "pallet-balances/std",
-    "sp-std/std",
-    "sp-core/std",
-    "sp-runtime/std",
-    "sp-runtime/std",
-    "sp-io/std",
-    "xcm/std",
-    "xcm-builder/std",
-    "xcm-executor/std",
-    "pallet-xcm/std",
-    "polkadot-core-primitives/std",
-    "polkadot-runtime-parachains/std",
-    "polkadot-parachain/std",
-    "parachain-info/std",
-    "polkadot-runtime/std",
-    "statemint-runtime/std",
-    "polimec-parachain-runtime/std",
-    "penpal-runtime/std"
+	"frame-support/std",
+	"frame-system/std",
+	"pallet-assets/std",
+	"pallet-balances/std",
+	"pallet-xcm/std",
+	"parachain-info/std",
+	"penpal-runtime/std",
+	"polimec-parachain-runtime/std",
+	"polkadot-core-primitives/std",
+	"polkadot-parachain/std",
+	"polkadot-runtime-parachains/std",
+	"polkadot-runtime/std",
+	"sp-core/std",
+	"sp-io/std",
+	"sp-runtime/std",
+	"sp-std/std",
+	"statemint-runtime/std",
+	"xcm-builder/std",
+	"xcm-executor/std",
+	"xcm/std",
+	"cumulus-pallet-xcm/std",
+	"cumulus-primitives-core/std",
+	"parity-scale-codec/std",
+	"scale-info/std"
 ]
 
 runtime-benchmarks = [
-    "statemint-runtime/runtime-benchmarks",
+	"statemint-runtime/runtime-benchmarks",
+	"penpal-runtime/runtime-benchmarks",
+	"polimec-parachain-runtime/runtime-benchmarks"
 ]

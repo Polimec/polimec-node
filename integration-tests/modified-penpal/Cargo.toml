@@ -12,21 +12,21 @@ edition = "2021"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.42" }
+substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
 
 [dependencies]
-parity-scale-codec = {  version = "3.0.0", default-features = false, features = ["derive"] }
+parity-scale-codec = {  version = "3.6.5", default-features = false, features = ["derive"] }
 hex-literal = { version = "0.3.4", optional = true }
-log = { version = "0.4.16", default-features = false }
-scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
-smallvec = "1.10.0"
+log = { version = "0.4.20", default-features = false }
+scale-info = { version = "2.9.0", default-features = false, features = ["derive"] }
+smallvec = "1.11.0"
 
 # Substrate
 frame-benchmarking.workspace = true
 frame-executive.workspace = true
 frame-support.workspace = true
 frame-system.workspace = true
-frame-system-benchmarking.workspace = true
+frame-system-benchmarking = { workspace = true, optional = true }
 frame-system-rpc-runtime-api.workspace = true
 frame-try-runtime.workspace = true
 pallet-aura.workspace = true
@@ -75,13 +75,8 @@ parachain-info.workspace = true
 parachains-common.workspace = true
 
 [features]
-default = [
-	"std",
-]
+default = [ "std" ]
 std = [
-	"parity-scale-codec/std",
-	"log/std",
-	"scale-info/std",
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-dmp-queue/std",
 	"cumulus-pallet-parachain-system/std",
@@ -94,6 +89,9 @@ std = [
 	"frame-support/std",
 	"frame-system-rpc-runtime-api/std",
 	"frame-system/std",
+	"log/std",
+	"pallet-asset-tx-payment/std",
+	"pallet-assets/std",
 	"pallet-aura/std",
 	"pallet-authorship/std",
 	"pallet-balances/std",
@@ -103,13 +101,13 @@ std = [
 	"pallet-timestamp/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
-	"pallet-assets/std",
-	"pallet-asset-tx-payment/std",
 	"pallet-xcm/std",
-	"polkadot-primitives/std",
 	"parachain-info/std",
+	"parity-scale-codec/std",
 	"polkadot-parachain/std",
+	"polkadot-primitives/std",
 	"polkadot-runtime-common/std",
+	"scale-info/std",
 	"sp-api/std",
 	"sp-block-builder/std",
 	"sp-consensus-aura/std",
@@ -124,14 +122,21 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
+	"cumulus-pallet-session-benchmarking/std",
+	"frame-benchmarking/std",
+	"frame-system-benchmarking?/std",
+	"frame-try-runtime/std",
+	"parachains-common/std"
 ]
 
 runtime-benchmarks = [
-	"hex-literal",
+	"cumulus-pallet-session-benchmarking/runtime-benchmarks",
+	"cumulus-pallet-xcmp-queue/runtime-benchmarks",
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system-benchmarking/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
+	"hex-literal",
 	"pallet-assets/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-collator-selection/runtime-benchmarks",
@@ -139,8 +144,6 @@ runtime-benchmarks = [
 	"pallet-xcm/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
-	"cumulus-pallet-session-benchmarking/runtime-benchmarks",
-	"cumulus-pallet-xcmp-queue/runtime-benchmarks",
 ]
 
 try-runtime = [
@@ -152,6 +155,8 @@ try-runtime = [
 	"frame-executive/try-runtime",
 	"frame-system/try-runtime",
 	"frame-try-runtime/try-runtime",
+	"pallet-asset-tx-payment/try-runtime",
+	"pallet-assets/try-runtime",
 	"pallet-aura/try-runtime",
 	"pallet-authorship/try-runtime",
 	"pallet-balances/try-runtime",
@@ -160,8 +165,9 @@ try-runtime = [
 	"pallet-sudo/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"pallet-transaction-payment/try-runtime",
-	"pallet-assets/try-runtime",
-	"pallet-asset-tx-payment/try-runtime",
 	"pallet-xcm/try-runtime",
 	"parachain-info/try-runtime",
+	"frame-support/try-runtime",
+	"polkadot-runtime-common/try-runtime",
+	"sp-runtime/try-runtime"
 ]

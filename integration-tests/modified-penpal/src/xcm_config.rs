@@ -191,7 +191,7 @@ where
 	Assets: fungibles::Inspect<AccountId>,
 {
 	fn contains(id: &<Assets as fungibles::Inspect<AccountId>>::AssetId) -> bool {
-		!Assets::total_issuance(*id).is_zero()
+		!Assets::total_issuance(id.clone()).is_zero()
 	}
 }
 
@@ -349,7 +349,9 @@ impl pallet_xcm::Config for Runtime {
 	type XcmReserveTransferFilter = Everything;
 	type XcmRouter = XcmRouter;
 	type XcmTeleportFilter = Everything;
-
+	type MaxRemoteLockConsumers = ConstU32<8>;
+	type RemoteLockConsumerIdentifier = ();
+	
 	const VERSION_DISCOVERY_QUEUE_SIZE: u32 = 100;
 }
 

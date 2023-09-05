@@ -40,21 +40,36 @@ sp-io.workspace = true
 sp-consensus-aura.workspace = true
 
 [features]
-default = ["std"]
+default = [ "std" ]
 std = [
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
+	"log/std",
+	"pallet-aura/std",
+	"pallet-authorship/std",
+	"pallet-balances/std",
+	"pallet-session/std",
+	"pallet-timestamp/std",
 	"parity-scale-codec/std",
 	"scale-info/std",
 	"serde/std",
+	"sp-consensus-aura/std",
+	"sp-core/std",
+	"sp-io/std",
 	"sp-runtime/std",
-	"sp-std/std",
 	"sp-staking/std",
-	"pallet-authorship/std",
-	"pallet-session/std",
-	"pallet-balances/std",
-	"sp-consensus-aura/std"
+	"sp-std/std",
+	"substrate-fixed/std",
 ]
-runtime-benchmarks = ["frame-benchmarking"]
-try-runtime = ["frame-support/try-runtime"]
+runtime-benchmarks = [ "frame-benchmarking" ]
+try-runtime = [
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"pallet-aura/try-runtime",
+	"pallet-authorship/try-runtime",
+	"pallet-balances/try-runtime",
+	"pallet-session/try-runtime",
+	"pallet-timestamp/try-runtime",
+	"sp-runtime/try-runtime",
+]
