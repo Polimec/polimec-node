@@ -198,7 +198,7 @@ pub mod storage_types {
 		/// When the Funding Round ends
 		pub funding_end_block: Option<BlockNumber>,
 		/// Current bucket in the Auction Round
-		pub bucket: u32,
+		pub bucket: Price,
 		///
 		pub base_increment: Price,
 	}

@@ -30,7 +30,7 @@ use frame_support::{
 	},
 };
 use sp_arithmetic::{
-	traits::{CheckedDiv, CheckedSub, Zero},
+	traits::{CheckedAdd, CheckedDiv, CheckedSub, Zero},
 	Percent, Perquintill,
 };
 use sp_runtime::traits::Convert;
@@ -86,7 +86,8 @@ impl<T: Config> Pallet<T> {
 			.minimum_price
 			.checked_mul_int(initial_metadata.total_allocation_size)
 			.ok_or(Error::<T>::BadMath)?;
-		let ten_percent_in_price: <T as Config>::Price = PriceOf::<T>::checked_from_rational(1, 10).ok_or(Error::<T>::BadMath)?;
+		let ten_percent_in_price: <T as Config>::Price =
+			PriceOf::<T>::checked_from_rational(1, 10).ok_or(Error::<T>::BadMath)?;
 		let base_increment: <T as Config>::Price = initial_metadata.minimum_price.saturating_mul(ten_percent_in_price);
 		let project_details = ProjectDetails {
 			issuer: issuer.clone(),
@@ -113,15 +114,14 @@ impl<T: Config> Pallet<T> {
 				evaluators_outcome: EvaluatorsOutcome::Unchanged,
 			},
 			funding_end_block: None,
-			bucket: 2_u32,
+			bucket: Default::default(),
 			base_increment,
 		};
-
-		dbg!(base_increment);
 
 		// * Update storage *
 		ProjectsMetadata::<T>::insert(project_id, &initial_metadata);
 		ProjectsDetails::<T>::insert(project_id, project_details);
+		TokenLeft::<T>::insert(project_id, initial_metadata.total_allocation_size);
 		NextProjectId::<T>::mutate(|n| n.saturating_inc());
 		if let Some(metadata) = initial_metadata.offchain_information_hash {
 			Images::<T>::insert(metadata, issuer);
@@ -879,18 +879,39 @@ impl<T: Config> Pallet<T> {
 		let bid_id = Self::next_bid_id();
 		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder)).collect::<Vec<_>>();
 
-		let bucket_amount = Percent::from_percent(10) * project_details.bucket;
-		dbg!(bucket_amount);
-		// let bucket_price = T::Price::new(bucket_amount);
-		let ct_usd_price = project_metadata.minimum_price;
+		let token_left = TokenLeft::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+		let flag = token_left > ct_amount;
+
+		// * Validity checks *
+		ensure!(bidder.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
+		ensure!(matches!(project_details.status, ProjectStatus::AuctionRound(_)), Error::<T>::AuctionNotStarted);
+
+		match flag {
+			// There are enough tokens left to bid
+			true => {
+				// The price is the minimum price, we DON'T need to split the bid in multiple bids.
+				// Update the token left
+				TokenLeft::<T>::mutate(project_id, |v| v.unwrap().saturating_reduce(ct_amount));
+				// Continue with the bid
+			},
+			// There are not enough tokens left to bid
+			false => {
+				// If there are token left in this bucket, we need to split the bid in multiple bids.
+				
+				// Increment the bucket
+				project_details.bucket.saturating_plus_one();
+				ProjectsDetails::<T>::insert(project_id, project_details);
+			},
+		}
+
+		let extra_increment: <T as Config>::Price =
+			project_details.base_increment.saturating_mul(project_details.bucket);
+		let ct_usd_price = project_metadata.minimum_price.checked_add(&extra_increment).ok_or(Error::<T>::BadMath)?;
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
 		let funding_asset_usd_price =
 			T::PriceProvider::get_price(funding_asset.to_statemint_id()).ok_or(Error::<T>::PriceNotFound)?;
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PriceNotFound)?;
 
-		// * Validity checks *
-		ensure!(bidder.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
-		ensure!(matches!(project_details.status, ProjectStatus::AuctionRound(_)), Error::<T>::AuctionNotStarted);
 		if let Some(minimum_ticket_size) = project_metadata.ticket_size.minimum {
 			// Make sure the bid amount is greater than the minimum specified by the issuer
 			ensure!(ticket_size >= minimum_ticket_size, Error::<T>::BidTooLow);
@@ -957,6 +978,7 @@ impl<T: Config> Pallet<T> {
 
 		Bids::<T>::insert((project_id, bidder, bid_id), new_bid);
 		NextBidId::<T>::set(bid_id.saturating_add(One::one()));
+		TokenLeft::<T>::mutate(project_id, |v| v.unwrap().saturating_reduce(ct_amount));
 
 		Self::deposit_event(Event::Bid { project_id, amount: ct_amount, price: ct_usd_price, multiplier });
 

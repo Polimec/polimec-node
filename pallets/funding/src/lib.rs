@@ -431,6 +431,10 @@ pub mod pallet {
 	pub type ProjectsMetadata<T: Config> = StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, ProjectMetadataOf<T>>;
 
 	#[pallet::storage]
+	/// A StorageMap containing the primary project information of projects
+	pub type TokenLeft<T: Config> = StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, BalanceOf<T>>;
+
+	#[pallet::storage]
 	#[pallet::getter(fn project_details)]
 	/// StorageMap containing additional information for the projects, relevant for correctness of the protocol
 	pub type ProjectsDetails<T: Config> = StorageMap<

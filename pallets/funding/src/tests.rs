@@ -611,7 +611,7 @@ impl<'a> CreatedProject<'a> {
 				evaluators_outcome: EvaluatorsOutcome::Unchanged,
 			},
 			funding_end_block: None,
-			bucket: 2,
+			bucket: 0.into(),
 			base_increment,
 		};
 		assert_eq!(metadata, expected_metadata);
@@ -1233,7 +1233,7 @@ mod defaults {
 				decimals: ASSET_DECIMALS,
 			},
 			mainnet_token_max_supply: 8_000_000_0_000_000_000,
-			total_allocation_size: 1_000_000_0_000_000_000,
+			total_allocation_size: 1_000_000_0_000_000_00,
 			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
 			ticket_size: TicketSize { minimum: Some(1), maximum: None },
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
