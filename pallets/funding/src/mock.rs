@@ -258,9 +258,9 @@ impl pallet_funding::Config for TestRuntime {
 	type FundingCurrency = StatemintAssets;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	// Low value to simplify the tests
-	type MaxBidsPerUser = ConstU32<4>;
-	type MaxContributionsPerUser = ConstU32<4>;
-	type MaxEvaluationsPerUser = ConstU32<4>;
+	type MaxBidsPerUser = ConstU32<8>;
+	type MaxContributionsPerUser = ConstU32<8>;
+	type MaxEvaluationsPerUser = ConstU32<8>;
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
 	type Multiplier = Multiplier;
 	type NativeCurrency = Balances;

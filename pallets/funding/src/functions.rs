@@ -30,7 +30,7 @@ use frame_support::{
 	},
 };
 use sp_arithmetic::{
-	traits::{CheckedAdd, CheckedDiv, CheckedSub, Zero},
+	traits::{CheckedDiv, CheckedSub, Zero},
 	Percent, Perquintill,
 };
 use sp_runtime::traits::Convert;
@@ -86,25 +86,19 @@ impl<T: Config> Pallet<T> {
 			.minimum_price
 			.checked_mul_int(initial_metadata.total_allocation_size)
 			.ok_or(Error::<T>::BadMath)?;
+		let bucket_delta_amount = Percent::from_percent(10) * initial_metadata.total_allocation_size;
 		let ten_percent_in_price: <T as Config>::Price =
 			PriceOf::<T>::checked_from_rational(1, 10).ok_or(Error::<T>::BadMath)?;
-		let base_increment: <T as Config>::Price = initial_metadata.minimum_price.saturating_mul(ten_percent_in_price);
+		let bucket_delta_price: <T as Config>::Price =
+			initial_metadata.minimum_price.saturating_mul(ten_percent_in_price);
+		let now = <frame_system::Pallet<T>>::block_number();
 		let project_details = ProjectDetails {
 			issuer: issuer.clone(),
 			is_frozen: false,
 			weighted_average_price: None,
 			fundraising_target,
 			status: ProjectStatus::Application,
-			phase_transition_points: PhaseTransitionPoints {
-				application: BlockNumberPair::new(Some(<frame_system::Pallet<T>>::block_number()), None),
-				evaluation: BlockNumberPair::new(None, None),
-				auction_initialize_period: BlockNumberPair::new(None, None),
-				english_auction: BlockNumberPair::new(None, None),
-				random_candle_ending: None,
-				candle_auction: BlockNumberPair::new(None, None),
-				community: BlockNumberPair::new(None, None),
-				remainder: BlockNumberPair::new(None, None),
-			},
+			phase_transition_points: PhaseTransitionPoints::new(now),
 			remaining_contribution_tokens: initial_metadata.total_allocation_size,
 			funding_amount_reached: BalanceOf::<T>::zero(),
 			cleanup: Cleaner::NotReady,
@@ -114,14 +108,18 @@ impl<T: Config> Pallet<T> {
 				evaluators_outcome: EvaluatorsOutcome::Unchanged,
 			},
 			funding_end_block: None,
-			bucket: Default::default(),
-			base_increment,
 		};
+		let bucket: BucketOf<T> = Bucket::new(
+			initial_metadata.total_allocation_size,
+			initial_metadata.minimum_price,
+			bucket_delta_price,
+			bucket_delta_amount,
+		);
 
 		// * Update storage *
 		ProjectsMetadata::<T>::insert(project_id, &initial_metadata);
 		ProjectsDetails::<T>::insert(project_id, project_details);
-		TokenLeft::<T>::insert(project_id, initial_metadata.total_allocation_size);
+		Buckets::<T>::insert(project_id, bucket);
 		NextProjectId::<T>::mutate(|n| n.saturating_inc());
 		if let Some(metadata) = initial_metadata.offchain_information_hash {
 			Images::<T>::insert(metadata, issuer);
@@ -873,55 +871,129 @@ impl<T: Config> Pallet<T> {
 		funding_asset: AcceptedFundingAsset,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
-		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		let now = <frame_system::Pallet<T>>::block_number();
-		let bid_id = Self::next_bid_id();
-		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder)).collect::<Vec<_>>();
-
-		let token_left = TokenLeft::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let flag = token_left > ct_amount;
+		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 
 		// * Validity checks *
 		ensure!(bidder.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
 		ensure!(matches!(project_details.status, ProjectStatus::AuctionRound(_)), Error::<T>::AuctionNotStarted);
+		ensure!(funding_asset == project_metadata.participation_currencies, Error::<T>::FundingAssetNotAccepted);
 
-		match flag {
+		// Fetch current bucket details and other required info
+		let mut current_bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+		let bid_id = Self::next_bid_id();
+		let now = <frame_system::Pallet<T>>::block_number();
+
+		if current_bucket.amount_left > ct_amount {
 			// There are enough tokens left to bid
-			true => {
-				// The price is the minimum price, we DON'T need to split the bid in multiple bids.
-				// Update the token left
-				TokenLeft::<T>::mutate(project_id, |v| v.unwrap().saturating_reduce(ct_amount));
-				// Continue with the bid
-			},
-			// There are not enough tokens left to bid
-			false => {
-				// If there are token left in this bucket, we need to split the bid in multiple bids.
-				
-				// Increment the bucket
-				project_details.bucket.saturating_plus_one();
-				ProjectsDetails::<T>::insert(project_id, project_details);
-			},
-		}
+			Self::perform_do_bid(
+				bidder,
+				project_id,
+				ct_amount,
+				current_bucket.current_price,
+				multiplier,
+				funding_asset,
+				project_metadata.ticket_size,
+				bid_id,
+				now,
+			)?;
+			// Update the tokens left in the bucket
+			Buckets::<T>::mutate(project_id, |maybe_bucket| {
+				if let Some(bucket) = maybe_bucket {
+					bucket.amount_left.saturating_reduce(ct_amount);
+					Ok(())
+				} else {
+					Err(Error::<T>::ProjectNotFound)
+				}
+			})?;
+		} else {
+			// Tokens in current bucket are not enough, multiple bids may be needed
+			let bid = Self::perform_do_bid(
+				bidder,
+				project_id,
+				current_bucket.amount_left,
+				current_bucket.current_price,
+				multiplier,
+				funding_asset,
+				project_metadata.ticket_size,
+				bid_id,
+				now,
+			)?;
 
-		let extra_increment: <T as Config>::Price =
-			project_details.base_increment.saturating_mul(project_details.bucket);
-		let ct_usd_price = project_metadata.minimum_price.checked_add(&extra_increment).ok_or(Error::<T>::BadMath)?;
+			// Move to the next bucket
+			Buckets::<T>::mutate(project_id, |maybe_bucket| {
+				if let Some(bucket) = maybe_bucket {
+					bucket.next();
+					Ok(())
+				} else {
+					Err(Error::<T>::ProjectNotFound)
+				}
+			})?;
+
+			let mut remaining_amount = ct_amount.saturating_sub(bid.original_ct_amount);
+			current_bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+
+			// While there's still a remaining amount to bid for
+			while !remaining_amount.is_zero() {
+				let bid = Self::perform_do_bid(
+					bidder,
+					project_id,
+					remaining_amount,
+					current_bucket.current_price,
+					multiplier,
+					funding_asset,
+					project_metadata.ticket_size,
+					bid_id,
+					now,
+				)?;
+
+				remaining_amount = remaining_amount.saturating_sub(bid.original_ct_amount);
+
+				// If the remaining amount exceeds what's left in the current bucket, move to the next bucket
+				if remaining_amount > current_bucket.amount_left {
+					Buckets::<T>::mutate(project_id, |maybe_bucket| {
+						if let Some(bucket) = maybe_bucket {
+							bucket.next();
+							Ok(())
+						} else {
+							Err(Error::<T>::ProjectNotFound)
+						}
+					})?;
+					current_bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+				}
+			}
+		}
+		Ok(())
+	}
+
+	fn perform_do_bid(
+		bidder: &AccountIdOf<T>,
+		project_id: T::ProjectIdentifier,
+		ct_amount: BalanceOf<T>,
+		ct_usd_price: T::Price,
+		multiplier: MultiplierOf<T>,
+		funding_asset: AcceptedFundingAsset,
+		project_ticket_size: TicketSize<BalanceOf<T>>,
+		bid_id: u32,
+		now: BlockNumberOf<T>,
+	) -> Result<BidInfoOf<T>, DispatchError> {
+		dbg!(bidder);
+		dbg!(ct_usd_price);
+		dbg!(ct_amount);
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
 		let funding_asset_usd_price =
 			T::PriceProvider::get_price(funding_asset.to_statemint_id()).ok_or(Error::<T>::PriceNotFound)?;
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PriceNotFound)?;
+		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder)).collect::<Vec<_>>();
 
-		if let Some(minimum_ticket_size) = project_metadata.ticket_size.minimum {
+		if let Some(minimum_ticket_size) = project_ticket_size.minimum {
 			// Make sure the bid amount is greater than the minimum specified by the issuer
 			ensure!(ticket_size >= minimum_ticket_size, Error::<T>::BidTooLow);
 		};
-		if let Some(maximum_ticket_size) = project_metadata.ticket_size.maximum {
+		if let Some(maximum_ticket_size) = project_ticket_size.maximum {
 			// Make sure the bid amount is less than the maximum specified by the issuer
 			ensure!(ticket_size <= maximum_ticket_size, Error::<T>::BidTooLow);
 		};
-		ensure!(funding_asset == project_metadata.participation_currencies, Error::<T>::FundingAssetNotAccepted);
-
 		// * Calculate new variables *
 		let plmc_bond =
 			Self::calculate_plmc_bond(ticket_size, multiplier, plmc_usd_price).map_err(|_| Error::<T>::BadMath)?;
@@ -976,13 +1048,12 @@ impl<T: Config> Pallet<T> {
 		Self::try_plmc_participation_lock(bidder, project_id, plmc_bond)?;
 		Self::try_funding_asset_hold(bidder, project_id, funding_asset_amount_locked, asset_id)?;
 
-		Bids::<T>::insert((project_id, bidder, bid_id), new_bid);
+		Bids::<T>::insert((project_id, bidder, bid_id), &new_bid);
 		NextBidId::<T>::set(bid_id.saturating_add(One::one()));
-		TokenLeft::<T>::mutate(project_id, |v| v.unwrap().saturating_reduce(ct_amount));
 
 		Self::deposit_event(Event::Bid { project_id, amount: ct_amount, price: ct_usd_price, multiplier });
 
-		Ok(())
+		Ok(new_bid)
 	}
 
 	/// Buy tokens in the Community Round at the price set in the Bidding Round

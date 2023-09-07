@@ -588,7 +588,6 @@ impl<'a> CreatedProject<'a> {
 	) {
 		let metadata = self.get_project_metadata();
 		let details = self.get_project_details();
-		let base_increment = (expected_metadata.minimum_price / 10.into()).into();
 		let expected_details = ProjectDetailsOf::<TestRuntime> {
 			issuer: self.get_issuer(),
 			is_frozen: false,
@@ -611,8 +610,6 @@ impl<'a> CreatedProject<'a> {
 				evaluators_outcome: EvaluatorsOutcome::Unchanged,
 			},
 			funding_end_block: None,
-			bucket: 0.into(),
-			base_increment,
 		};
 		assert_eq!(metadata, expected_metadata);
 		assert_eq!(details, expected_details);
@@ -1586,7 +1583,7 @@ pub mod helper_functions {
 						// output.extend_from_slice(&map[j..]);
 						break
 					},
-					(Some((acc_i, val_i)), Some((acc_j, val_j))) =>
+					(Some((acc_i, val_i)), Some((acc_j, val_j))) => {
 						if acc_i == acc_j {
 							output.push((acc_i.clone(), val_i.clone().saturating_sub(val_j.clone())));
 							i += 1;
@@ -1598,7 +1595,8 @@ pub mod helper_functions {
 							// uncomment to keep unmatched maps
 							// output.push(map[j]);
 							j += 1;
-						},
+						}
+					},
 				}
 			}
 		}
@@ -8142,38 +8140,48 @@ mod e2e_testing {
 
 	fn excel_bidders() -> TestBids {
 		vec![
-			TestBid::from(ADAMS, 692 * ASSET_UNIT, 17_u128.into()),
-			TestBid::from(POLK, 236 * ASSET_UNIT, 19_u128.into()),
-			TestBid::from(MARKUS, 24 * ASSET_UNIT, 19_u128.into()),
-			TestBid::from(ELLA, 688 * ASSET_UNIT, 13_u128.into()),
-			TestBid::from(SKR, 33 * ASSET_UNIT, 15_u128.into()),
-			TestBid::from(ARTHUR, 1148 * ASSET_UNIT, 12_u128.into()),
-			TestBid::from(MILA, 35 * ASSET_UNIT, 15_u128.into()),
-			TestBid::from(LINCOLN, 840 * ASSET_UNIT, 14_u128.into()),
-			TestBid::from(MONROE, 132 * ASSET_UNIT, 18_u128.into()),
-			TestBid::from(ARBRESHA, 21 * ASSET_UNIT, 19_u128.into()),
-			TestBid::from(ELDIN, 59 * ASSET_UNIT, 18_u128.into()),
-			TestBid::from(HARDING, 89 * ASSET_UNIT, 18_u128.into()),
-			TestBid::from(SOFIA, 332 * ASSET_UNIT, 19_u128.into()),
-			TestBid::from(DOMINIK, 8110 * ASSET_UNIT, 17_u128.into()),
-			TestBid::from(NOLAND, 17 * ASSET_UNIT, 17_u128.into()),
-			TestBid::from(LINA, 9424 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(HANNAH, 14 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(HOOVER, 4906 * ASSET_UNIT, 16_u128.into()),
-			TestBid::from(GIGI, 68 * ASSET_UNIT, 10_u128.into()),
-			TestBid::from(JEFFERSON, 9037 * ASSET_UNIT, 13_u128.into()),
-			TestBid::from(LINDI, 442 * ASSET_UNIT, 11_u128.into()),
-			TestBid::from(KEVIN, 40 * ASSET_UNIT, 19_u128.into()),
-			TestBid::from(ANIS, 68 * ASSET_UNIT, 15_u128.into()),
-			TestBid::from(RETO, 68 * ASSET_UNIT, 12_u128.into()),
-			TestBid::from(HAALAND, 98 * ASSET_UNIT, 11_u128.into()),
-			TestBid::from(XENIA, 17 * ASSET_UNIT, 12_u128.into()),
-			TestBid::from(EVA, 422 * ASSET_UNIT, 19_u128.into()),
-			TestBid::from(SKARA, 615 * ASSET_UNIT, 18_u128.into()),
-			TestBid::from(ROOSEVELT, 65 * ASSET_UNIT, 16_u128.into()),
-			TestBid::from(DRACULA, 5863 * ASSET_UNIT, 16_u128.into()),
-			TestBid::from(DURIM, 56 * ASSET_UNIT, 13_u128.into()),
-			TestBid::from(HARRISON, 36 * ASSET_UNIT, 10_u128.into()),
+			TestBid::from(ADAMS, 6920 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(POLK, 2360 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(MARKUS, 240 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(ELLA, 6880 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(SKR, 330 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(ARTHUR, 11480 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(MILA, 350 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(LINCOLN, 8400 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(MONROE, 1320 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(ARBRESHA, 210 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(ELDIN, 590 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(HARDING, 890 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(SOFIA, 3320 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(DOMINIK, 81100 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(NOLAND, 170 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(LINA, 94240 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(HANNAH, 140 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(HOOVER, 49060 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(GIGI, 680 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(JEFFERSON, 9037 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(LINDI, 442 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(KEVIN, 40 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(ANIS, 68 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(RETO, 68 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(HAALAND, 98 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(XENIA, 17 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(EVA, 422 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(SKARA, 615 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(ROOSEVELT, 65 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(DRACULA, 5863 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(DURIM, 56 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(HARRISON, 36 * ASSET_UNIT, 20_u128.into()),
+		]
+	}
+
+	fn simple_bidders() -> TestBids {
+		vec![
+			TestBid::from(ADAMS, 100000 * ASSET_UNIT, 10_u128.into()),
+			TestBid::from(POLK, 20000 * ASSET_UNIT, 30_u128.into()),
+			TestBid::from(ELDIN, 5000 * ASSET_UNIT, 30_u128.into()),
+			TestBid::from(HARRISON, 5000 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(HARRISON, 5000 * ASSET_UNIT, 20_u128.into()),
 		]
 	}
 
@@ -8367,6 +8375,26 @@ mod e2e_testing {
 		let evaluations = excel_evaluators();
 
 		AuctioningProject::new_with(&test_env, project, issuer, evaluations);
+	}
+
+	#[test]
+	fn auction_round_simple_completed() {
+		let test_env = TestEnvironment::new();
+		let issuer = ISSUER;
+		let project = excel_project(test_env.get_new_nonce());
+		let evaluations = excel_evaluators();
+		let bids = simple_bidders();
+		let _community_funding_project =
+			CommunityFundingProject::new_with(&test_env, project, issuer, evaluations, bids);
+		test_env.in_ext(|| {
+			let bids = Bids::<TestRuntime>::iter_prefix_values((0,)).sorted_by_key(|bid| bid.bidder).collect_vec();
+
+			for bid in bids.clone() {
+				println!("{}: {}", &bid.bidder, bid.funding_asset_amount_locked);
+			}
+			let total_participation = bids.into_iter().fold(0, |acc, bid| acc + bid.funding_asset_amount_locked);
+			dbg!(total_participation);
+		})
 	}
 
 	#[test]

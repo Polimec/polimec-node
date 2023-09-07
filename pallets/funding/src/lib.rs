@@ -238,6 +238,8 @@ pub type BidInfoOf<T> = BidInfo<
 >;
 pub type ContributionInfoOf<T> =
 	ContributionInfo<u32, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>, VestingInfoOf<T>>;
+
+pub type BucketOf<T> = Bucket<BalanceOf<T>, PriceOf<T>>;
 pub type BondTypeOf<T> = LockType<ProjectIdOf<T>>;
 
 const PLMC_STATEMINT_ID: u32 = 2069;
@@ -432,7 +434,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// A StorageMap containing the primary project information of projects
-	pub type TokenLeft<T: Config> = StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, BalanceOf<T>>;
+	pub type Buckets<T: Config> = StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, BucketOf<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn project_details)]

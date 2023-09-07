@@ -131,6 +131,8 @@ pub mod config_types {
 }
 
 pub mod storage_types {
+	use sp_arithmetic::traits::{One, Zero};
+
 	use super::*;
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -197,10 +199,6 @@ pub mod storage_types {
 		pub evaluation_round_info: EvaluationRoundInfo,
 		/// When the Funding Round ends
 		pub funding_end_block: Option<BlockNumber>,
-		/// Current bucket in the Auction Round
-		pub bucket: Price,
-		///
-		pub base_increment: Price,
 	}
 
 	/// Tells on_initialize what to do with the project
@@ -311,6 +309,51 @@ pub mod storage_types {
 		pub funds_released: bool,
 		pub ct_minted: bool,
 	}
+
+	/// Represents a bucket that holds a specific amount of tokens at a given price.
+	/// Each bucket has a unique ID, an amount of tokens left, a current price, an initial price,
+	/// and constants to define price and amount increments for the next buckets.
+	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub struct Bucket<Balance, Price> {
+		/// A unique identifier for the bucket.
+		/// NOTE: This is currently used in calculations and is represented as a `FixedPointNumber`.
+		/// Ensure compatibility when performing mathematical operations.
+		pub id: Price,
+		/// The amount of tokens left in this bucket.
+		pub amount_left: Balance,
+		/// The current price of tokens in this bucket.
+		pub current_price: Price,
+		/// The initial price of tokens in the bucket.
+		pub initial_price: Price,
+		/// Defines the price increment for each subsequent bucket.
+		pub delta_price: Price,
+		/// Defines the amount increment for each subsequent bucket.
+		pub delta_amount: Balance,
+	}
+
+	impl<Balance: Copy, Price: FixedPointNumber> Bucket<Balance, Price> {
+		/// Creates a new bucket with the given parameters.
+		pub fn new(amount_left: Balance, initial_price: Price, delta_price: Price, delta_amount: Balance) -> Self {
+			Self {
+				id: Zero::zero(),
+				amount_left,
+				current_price: initial_price,
+				initial_price,
+				delta_price,
+				delta_amount,
+			}
+		}
+
+		/// Updates the bucket to represent the next one in the sequence. This involves incrementing
+		/// the bucket's ID, resetting the amount left, and recalculating the current price based on the initial
+		/// price and the price increments defined by the `delta_price`.
+		pub fn next(&mut self) {
+			self.id.saturating_accrue(One::one());
+			self.amount_left = self.delta_amount;
+			let extra_increment = self.delta_price.saturating_mul(self.id);
+			self.current_price = self.initial_price.saturating_add(extra_increment);
+		}
+	}
 }
 
 pub mod inner_types {
@@ -326,12 +369,12 @@ pub mod inner_types {
 		pub decimals: u8,
 	}
 
-	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct TicketSize<Balance: BalanceT> {
+	#[derive(Default, Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub struct TicketSize<Balance: BalanceT + Copy> {
 		pub minimum: Option<Balance>,
 		pub maximum: Option<Balance>,
 	}
-	impl<Balance: BalanceT> TicketSize<Balance> {
+	impl<Balance: BalanceT + Copy> TicketSize<Balance> {
 		pub(crate) fn is_valid(&self) -> Result<(), ValidityError> {
 			if self.minimum.is_some() && self.maximum.is_some() {
 				return if self.minimum < self.maximum { Ok(()) } else { Err(ValidityError::TicketSizeError) }
@@ -430,6 +473,21 @@ pub mod inner_types {
 		pub candle_auction: BlockNumberPair<BlockNumber>,
 		pub community: BlockNumberPair<BlockNumber>,
 		pub remainder: BlockNumberPair<BlockNumber>,
+	}
+
+	impl<BlockNumber: Copy> PhaseTransitionPoints<BlockNumber> {
+		pub fn new(now: BlockNumber) -> Self {
+			Self {
+				application: BlockNumberPair::new(Some(now), None),
+				evaluation: BlockNumberPair::new(None, None),
+				auction_initialize_period: BlockNumberPair::new(None, None),
+				english_auction: BlockNumberPair::new(None, None),
+				random_candle_ending: None,
+				candle_auction: BlockNumberPair::new(None, None),
+				community: BlockNumberPair::new(None, None),
+				remainder: BlockNumberPair::new(None, None),
+			}
+		}
 	}
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
