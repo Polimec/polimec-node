@@ -881,11 +881,11 @@ impl<T: Config> Pallet<T> {
 
 		// Fetch current bucket details and other required info
 		let mut current_bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let bid_id = Self::next_bid_id();
 		let now = <frame_system::Pallet<T>>::block_number();
 
 		if current_bucket.amount_left > ct_amount {
 			// There are enough tokens left to bid
+			let bid_id = Self::next_bid_id();
 			Self::perform_do_bid(
 				bidder,
 				project_id,
@@ -908,6 +908,7 @@ impl<T: Config> Pallet<T> {
 			})?;
 		} else {
 			// Tokens in current bucket are not enough, multiple bids may be needed
+			let bid_id = Self::next_bid_id();
 			let bid = Self::perform_do_bid(
 				bidder,
 				project_id,
@@ -935,6 +936,7 @@ impl<T: Config> Pallet<T> {
 
 			// While there's still a remaining amount to bid for
 			while !remaining_amount.is_zero() {
+				let bid_id = Self::next_bid_id();
 				let bid = Self::perform_do_bid(
 					bidder,
 					project_id,
