@@ -8142,43 +8142,6 @@ mod e2e_testing {
 
 	fn excel_bidders() -> TestBids {
 		vec![
-			TestBid::from(ADAMS, 6920 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(POLK, 2360 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(MARKUS, 240 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(ELLA, 6880 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(SKR, 330 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(ARTHUR, 11480 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(MILA, 350 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(LINCOLN, 8400 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(MONROE, 1320 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(ARBRESHA, 210 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(ELDIN, 590 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(HARDING, 890 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(SOFIA, 3320 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(DOMINIK, 81100 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(NOLAND, 170 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(LINA, 94240 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(HANNAH, 140 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(HOOVER, 49060 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(GIGI, 680 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(JEFFERSON, 9037 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(LINDI, 442 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(KEVIN, 40 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(ANIS, 68 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(RETO, 68 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(HAALAND, 98 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(XENIA, 17 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(EVA, 422 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(SKARA, 615 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(ROOSEVELT, 65 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(DRACULA, 5863 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(DURIM, 56 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(HARRISON, 36 * ASSET_UNIT, 20_u128.into()),
-		]
-	}
-
-	fn simple_bidders() -> TestBids {
-		vec![
 			TestBid::from(ADAMS, 700 * ASSET_UNIT, 10_u128.into()),
 			TestBid::from(POLK, 4000 * ASSET_UNIT, 10_u128.into()),
 			TestBid::from(MARKUS, 3000 * ASSET_UNIT, 10_u128.into()),
@@ -8194,11 +8157,11 @@ mod e2e_testing {
 			TestBid::from(SOFIA, 3000 * ASSET_UNIT, 10_u128.into()),
 			TestBid::from(DOMINIK, 8000 * ASSET_UNIT, 10_u128.into()),
 			TestBid::from(NOLAND, 900 * ASSET_UNIT, 10_u128.into()),
-			TestBid::from(LINA, 9400 * ASSET_UNIT, 13_u128.into()),
-			TestBid::from(HANNAH, 400 * ASSET_UNIT, 13_u128.into()),
-			TestBid::from(HOOVER, 2000 * ASSET_UNIT, 13_u128.into()),
-			TestBid::from(GIGI, 600 * ASSET_UNIT, 13_u128.into()),
-			TestBid::from(JEFFERSON, 3000 * ASSET_UNIT, 13_u128.into()),
+			TestBid::from(LINA, 9400 * ASSET_UNIT, 11_u128.into()),
+			TestBid::from(HANNAH, 400 * ASSET_UNIT, 11_u128.into()),
+			TestBid::from(HOOVER, 2000 * ASSET_UNIT, 11_u128.into()),
+			TestBid::from(GIGI, 600 * ASSET_UNIT, 11_u128.into()),
+			TestBid::from(JEFFERSON, 3000 * ASSET_UNIT, 12_u128.into()),
 		]
 	}
 
@@ -8400,23 +8363,19 @@ mod e2e_testing {
 		let issuer = ISSUER;
 		let project = excel_project(test_env.get_new_nonce());
 		let evaluations = excel_evaluators();
-		let bids = simple_bidders();
+		let bids = excel_bidders();
 		let community_funding_project =
 			CommunityFundingProject::new_with(&test_env, project, issuer, evaluations, bids);
 		let metadata = community_funding_project.get_project_metadata();
 		let total_allocation_size = metadata.total_allocation_size.clone();
 		dbg!(total_allocation_size);
-		let names = names();
 		test_env.in_ext(|| {
 			let bids = Bids::<TestRuntime>::iter_prefix_values((0,)).sorted_by_key(|bid| bid.id).collect_vec();
 
 			for bid in bids.clone() {
-				println!(
-					"{}: {} CT @ {} USD",
-					names[&bid.bidder],
-					bid.final_ct_amount / PLMC,
-					bid.final_ct_usd_price.to_float(),
-				);
+				if bid.bidder == 135 {
+					// dbg!(bid);
+				}
 			}
 			let total_participation = bids.into_iter().fold(0, |acc, bid| acc + bid.final_ct_amount);
 			dbg!(total_participation);
@@ -8432,7 +8391,7 @@ mod e2e_testing {
 		let bids = excel_bidders();
 		let community_funding_project =
 			CommunityFundingProject::new_with(&test_env, project, issuer, evaluations, bids);
-		let wavgp_from_excel = 16.6977664556;
+		let wavgp_from_excel = 10.1;
 		// Convert the float to a FixedU128
 		let wavgp_to_substrate = FixedU128::from_float(wavgp_from_excel);
 		let wavgp_from_chain = community_funding_project.get_project_details().weighted_average_price.unwrap();

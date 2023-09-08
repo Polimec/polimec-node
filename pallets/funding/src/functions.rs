@@ -884,7 +884,7 @@ impl<T: Config> Pallet<T> {
 		let mut current_bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 
-		if current_bucket.amount_left > ct_amount {
+		if ct_amount <= current_bucket.amount_left {
 			// There are enough tokens left to bid
 			let bid_id = Self::next_bid_id();
 			Self::perform_do_bid(
@@ -921,19 +921,9 @@ impl<T: Config> Pallet<T> {
 				bid_id,
 				now,
 			)?;
-
-			// Move to the next bucket
-			Buckets::<T>::mutate(project_id, |maybe_bucket| {
-				if let Some(bucket) = maybe_bucket {
-					bucket.next();
-					Ok(())
-				} else {
-					Err(Error::<T>::ProjectNotFound)
-				}
-			})?;
+			current_bucket.next();
 
 			let mut remaining_amount = ct_amount.saturating_sub(bid.original_ct_amount);
-			current_bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 
 			// While there's still a remaining amount to bid for
 			while !remaining_amount.is_zero() {
@@ -950,21 +940,16 @@ impl<T: Config> Pallet<T> {
 					now,
 				)?;
 
-				remaining_amount = remaining_amount.saturating_sub(bid.original_ct_amount);
+				remaining_amount.saturating_reduce(bid.original_ct_amount);
+				current_bucket.amount_left.saturating_reduce(bid.original_ct_amount);
 
 				// If the remaining amount exceeds what's left in the current bucket, move to the next bucket
 				if remaining_amount > current_bucket.amount_left {
-					Buckets::<T>::mutate(project_id, |maybe_bucket| {
-						if let Some(bucket) = maybe_bucket {
-							bucket.next();
-							Ok(())
-						} else {
-							Err(Error::<T>::ProjectNotFound)
-						}
-					})?;
-					current_bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+					current_bucket.next();
 				}
 			}
+			// Update the tokens left in the bucket
+			Buckets::<T>::insert(project_id, current_bucket);
 		}
 		Ok(())
 	}
@@ -1862,7 +1847,7 @@ impl<T: Config> Pallet<T> {
 		let mut bids = Bids::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
 		// temp variable to store the sum of the bids
 		let mut bid_token_amount_sum = Zero::zero();
-		// temp variable to store the total value of the bids (i.e price * amount = Ticket size)
+		// temp variable to store the total value of the bids (i.e price * amount = Cumulative Ticket Size)
 		let mut bid_usd_value_sum = BalanceOf::<T>::zero();
 		let project_account = Self::fund_account_id(project_id);
 		let plmc_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
@@ -1874,8 +1859,8 @@ impl<T: Config> Pallet<T> {
 			.map(|mut bid| {
 				if bid.when > end_block {
 					bid.status = BidStatus::Rejected(RejectionReason::AfterCandleEnd);
-					bid.final_ct_amount = 0_u32.into();
-					bid.final_ct_usd_price = PriceOf::<T>::zero();
+					bid.final_ct_amount = Zero::zero();
+					bid.final_ct_usd_price = Zero::zero();
 
 					T::FundingCurrency::transfer(
 						bid.funding_asset.to_statemint_id(),
@@ -1890,14 +1875,13 @@ impl<T: Config> Pallet<T> {
 						bid.plmc_bond,
 						Precision::Exact,
 					)?;
-					bid.funding_asset_amount_locked = BalanceOf::<T>::zero();
-					bid.plmc_bond = BalanceOf::<T>::zero();
+					bid.funding_asset_amount_locked = Zero::zero();
+					bid.plmc_bond = Zero::zero();
 
 					return Ok(bid)
 				}
 				let buyable_amount = total_allocation_size.saturating_sub(bid_token_amount_sum);
 				if buyable_amount.is_zero() {
-					dbg!("buyable amount is zero");
 					bid.status = BidStatus::Rejected(RejectionReason::NoTokensLeft);
 					bid.final_ct_amount = Zero::zero();
 					bid.final_ct_usd_price = Zero::zero();
@@ -2017,7 +2001,6 @@ impl<T: Config> Pallet<T> {
 			})
 			.collect();
 		let bids = bids?;
-
 		// Calculate the weighted price of the token for the next funding rounds, using winning bids.
 		// for example: if there are 3 winning bids,
 		// A: 10K tokens @ USD15 per token = 150K USD value
@@ -2040,20 +2023,25 @@ impl<T: Config> Pallet<T> {
 			.iter()
 			.filter_map(|bid| match bid.status {
 				BidStatus::Accepted => {
+					let ticket_size = bid.original_ct_usd_price.saturating_mul_int(bid.original_ct_amount);
 					let bid_weight = <T::Price as FixedPointNumber>::saturating_from_rational(
-						bid.original_ct_usd_price.saturating_mul_int(bid.original_ct_amount),
+						ticket_size,
 						bid_usd_value_sum,
 					);
-					let weighted_price = bid.original_ct_usd_price * bid_weight;
+					let weighted_price = bid.original_ct_usd_price.saturating_mul(bid_weight);
+					dbg!(ticket_size, bid_weight, weighted_price);
 					Some(weighted_price)
 				},
 
 				BidStatus::PartiallyAccepted(amount, _) => {
+					let ticket_size = bid.original_ct_usd_price.saturating_mul_int(amount);
 					let bid_weight = <T::Price as FixedPointNumber>::saturating_from_rational(
-						bid.original_ct_usd_price.saturating_mul_int(amount),
+						ticket_size,
 						bid_usd_value_sum,
 					);
-					Some(bid.original_ct_usd_price.saturating_mul(bid_weight))
+					let weighted_price = bid.original_ct_usd_price.saturating_mul(bid_weight);
+					dbg!(ticket_size, bid_weight, weighted_price);
+					Some(weighted_price)
 				},
 
 				_ => None,
@@ -2077,16 +2065,13 @@ impl<T: Config> Pallet<T> {
 					.checked_mul_int(new_ticket_size)
 					.ok_or(Error::<T>::BadMath)?;
 
-				let try_transfer = T::FundingCurrency::transfer(
+				T::FundingCurrency::transfer(
 					bid.funding_asset.to_statemint_id(),
 					&project_account,
 					&bid.bidder,
 					bid.funding_asset_amount_locked.saturating_sub(funding_asset_amount_needed),
 					Preservation::Preserve,
-				);
-				if let Err(e) = try_transfer {
-					Self::deposit_event(Event::TransferError { error: e });
-				}
+				)?;
 
 				bid.funding_asset_amount_locked = funding_asset_amount_needed;
 
@@ -2100,21 +2085,18 @@ impl<T: Config> Pallet<T> {
 					.checked_mul_int(usd_bond_needed)
 					.ok_or(Error::<T>::BadMath)?;
 
-				let try_release = T::NativeCurrency::release(
+				T::NativeCurrency::release(
 					&LockType::Participation(project_id),
 					&bid.bidder,
 					bid.plmc_bond.saturating_sub(plmc_bond_needed),
 					Precision::Exact,
-				);
-				if let Err(e) = try_release {
-					Self::deposit_event(Event::TransferError { error: e });
-				}
+				)?;
 
 				bid.plmc_bond = plmc_bond_needed;
 			}
 			let final_ticket_size =
 				bid.final_ct_usd_price.checked_mul_int(bid.final_ct_amount).ok_or(Error::<T>::BadMath)?;
-			final_total_funding_reached_by_bids += final_ticket_size;
+			final_total_funding_reached_by_bids.saturating_accrue(final_ticket_size);
 			Bids::<T>::insert((project_id, &bid.bidder, &bid.id), &bid);
 		}
 
@@ -2122,10 +2104,8 @@ impl<T: Config> Pallet<T> {
 		ProjectsDetails::<T>::mutate(project_id, |maybe_info| -> Result<(), DispatchError> {
 			if let Some(info) = maybe_info {
 				info.weighted_average_price = Some(weighted_token_price);
-				info.remaining_contribution_tokens =
-					info.remaining_contribution_tokens.saturating_sub(bid_token_amount_sum);
-				info.funding_amount_reached =
-					info.funding_amount_reached.saturating_add(final_total_funding_reached_by_bids);
+				info.remaining_contribution_tokens.saturating_reduce(bid_token_amount_sum);
+				info.funding_amount_reached.saturating_accrue(final_total_funding_reached_by_bids);
 				Ok(())
 			} else {
 				Err(Error::<T>::ProjectNotFound.into())
