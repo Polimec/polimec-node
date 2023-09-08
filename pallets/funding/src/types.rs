@@ -260,7 +260,7 @@ pub mod storage_types {
 	}
 
 	impl<
-			BidId: Eq,
+			BidId: Eq + Ord,
 			ProjectId: Eq,
 			Balance: BalanceT + FixedPointOperand + Ord,
 			Price: FixedPointNumber,
@@ -272,14 +272,17 @@ pub mod storage_types {
 	{
 		fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
 			match self.original_ct_usd_price.cmp(&other.original_ct_usd_price) {
-				sp_std::cmp::Ordering::Equal => Ord::cmp(&self.when, &other.when),
+				sp_std::cmp::Ordering::Equal => match Ord::cmp(&self.when, &other.when) {
+					sp_std::cmp::Ordering::Equal => Ord::cmp(&other.id, &self.id),
+					other => other,
+				},
 				other => other,
 			}
 		}
 	}
 
 	impl<
-			BidId: Eq,
+			BidId: Eq + Ord,
 			ProjectId: Eq,
 			Balance: BalanceT + FixedPointOperand,
 			Price: FixedPointNumber,

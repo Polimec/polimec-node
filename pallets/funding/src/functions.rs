@@ -427,6 +427,7 @@ impl<T: Config> Pallet<T> {
 	pub fn do_community_funding(project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let auction_candle_start_block =
 			project_details.phase_transition_points.candle_auction.start().ok_or(Error::<T>::FieldIsNone)?;
@@ -447,7 +448,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Update Storage *
 		let calculation_result =
-			Self::calculate_weighted_average_price(project_id, end_block, project_details.fundraising_target);
+			Self::calculate_weighted_average_price(project_id, end_block, project_metadata.total_allocation_size);
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		match calculation_result {
 			Err(pallet_error) if pallet_error == Error::<T>::NoBidsFound.into() => {
@@ -979,9 +980,6 @@ impl<T: Config> Pallet<T> {
 		bid_id: u32,
 		now: BlockNumberOf<T>,
 	) -> Result<BidInfoOf<T>, DispatchError> {
-		dbg!(bidder);
-		dbg!(ct_usd_price);
-		dbg!(ct_amount);
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
 		let funding_asset_usd_price =
 			T::PriceProvider::get_price(funding_asset.to_statemint_id()).ok_or(Error::<T>::PriceNotFound)?;
@@ -1863,8 +1861,8 @@ impl<T: Config> Pallet<T> {
 		// Get all the bids that were made before the end of the candle
 		let mut bids = Bids::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
 		// temp variable to store the sum of the bids
-		let mut bid_token_amount_sum = BalanceOf::<T>::zero();
-		// temp variable to store the total value of the bids (i.e price * amount)
+		let mut bid_token_amount_sum = Zero::zero();
+		// temp variable to store the total value of the bids (i.e price * amount = Ticket size)
 		let mut bid_usd_value_sum = BalanceOf::<T>::zero();
 		let project_account = Self::fund_account_id(project_id);
 		let plmc_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
@@ -1898,10 +1896,11 @@ impl<T: Config> Pallet<T> {
 					return Ok(bid)
 				}
 				let buyable_amount = total_allocation_size.saturating_sub(bid_token_amount_sum);
-				if buyable_amount == 0_u32.into() {
+				if buyable_amount.is_zero() {
+					dbg!("buyable amount is zero");
 					bid.status = BidStatus::Rejected(RejectionReason::NoTokensLeft);
-					bid.final_ct_amount = 0_u32.into();
-					bid.final_ct_usd_price = PriceOf::<T>::zero();
+					bid.final_ct_amount = Zero::zero();
+					bid.final_ct_usd_price = Zero::zero();
 
 					T::FundingCurrency::transfer(
 						bid.funding_asset.to_statemint_id(),
@@ -1916,8 +1915,8 @@ impl<T: Config> Pallet<T> {
 						bid.plmc_bond,
 						Precision::Exact,
 					)?;
-					bid.funding_asset_amount_locked = BalanceOf::<T>::zero();
-					bid.plmc_bond = BalanceOf::<T>::zero();
+					bid.funding_asset_amount_locked = Zero::zero();
+					bid.plmc_bond = Zero::zero();
 					return Ok(bid)
 				} else if bid.original_ct_amount <= buyable_amount {
 					let maybe_ticket_size = bid.original_ct_usd_price.checked_mul_int(bid.original_ct_amount);
@@ -1928,8 +1927,8 @@ impl<T: Config> Pallet<T> {
 					} else {
 						bid.status = BidStatus::Rejected(RejectionReason::BadMath);
 
-						bid.final_ct_amount = 0_u32.into();
-						bid.final_ct_usd_price = PriceOf::<T>::zero();
+						bid.final_ct_amount = Zero::zero();
+						bid.final_ct_usd_price = Zero::zero();
 
 						T::FundingCurrency::transfer(
 							bid.funding_asset.to_statemint_id(),
@@ -1944,8 +1943,8 @@ impl<T: Config> Pallet<T> {
 							bid.plmc_bond,
 							Precision::Exact,
 						)?;
-						bid.funding_asset_amount_locked = BalanceOf::<T>::zero();
-						bid.plmc_bond = BalanceOf::<T>::zero();
+						bid.funding_asset_amount_locked = Zero::zero();
+						bid.plmc_bond = Zero::zero();
 						return Ok(bid)
 					}
 				} else {
@@ -1991,8 +1990,8 @@ impl<T: Config> Pallet<T> {
 						bid.plmc_bond = plmc_bond_needed;
 					} else {
 						bid.status = BidStatus::Rejected(RejectionReason::BadMath);
-						bid.final_ct_amount = 0_u32.into();
-						bid.final_ct_usd_price = PriceOf::<T>::zero();
+						bid.final_ct_amount = Zero::zero();
+						bid.final_ct_usd_price = Zero::zero();
 
 						T::FundingCurrency::transfer(
 							bid.funding_asset.to_statemint_id(),
@@ -2007,8 +2006,8 @@ impl<T: Config> Pallet<T> {
 							bid.plmc_bond,
 							Precision::Exact,
 						)?;
-						bid.funding_asset_amount_locked = BalanceOf::<T>::zero();
-						bid.plmc_bond = BalanceOf::<T>::zero();
+						bid.funding_asset_amount_locked = Zero::zero();
+						bid.plmc_bond = Zero::zero();
 
 						return Ok(bid)
 					}
@@ -2135,6 +2134,10 @@ impl<T: Config> Pallet<T> {
 
 		Ok(())
 	}
+
+	// fn reject_bid(status){
+
+	// }
 
 	pub fn select_random_block(
 		candle_starting_block: T::BlockNumber,

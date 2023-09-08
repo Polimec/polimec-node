@@ -1252,7 +1252,7 @@ mod defaults {
 			token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: 10 },
 			mainnet_token_max_supply: 1_000_000_0_000_000_000, // Made up, not in the Sheet.
 			// Total Allocation of Contribution Tokens Available for the Funding Round
-			total_allocation_size: 100_000_0_000_000_000,
+			total_allocation_size: 50_000_0_000_000_000,
 			// Minimum Price per Contribution Token (in USDT)
 			minimum_price: PriceOf::<TestRuntime>::from(10),
 			ticket_size: TicketSize { minimum: Some(1), maximum: None },
@@ -8179,11 +8179,26 @@ mod e2e_testing {
 
 	fn simple_bidders() -> TestBids {
 		vec![
-			TestBid::from(POLK, 20000 * ASSET_UNIT, 30_u128.into()),
-			TestBid::from(ADAMS, 100000 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(ELDIN, 5000 * ASSET_UNIT, 30_u128.into()),
-			TestBid::from(HARRISON, 5000 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(HARRISON, 5000 * ASSET_UNIT, 20_u128.into()),
+			TestBid::from(ADAMS, 700 * ASSET_UNIT, 10_u128.into()),
+			TestBid::from(POLK, 4000 * ASSET_UNIT, 10_u128.into()),
+			TestBid::from(MARKUS, 3000 * ASSET_UNIT, 10_u128.into()),
+			TestBid::from(ELLA, 700 * ASSET_UNIT, 10_u128.into()),
+			TestBid::from(SKR, 3400 * ASSET_UNIT, 10_u128.into()),
+			TestBid::from(ARTHUR, 1000 * ASSET_UNIT, 10_u128.into()),
+			TestBid::from(MILA, 8400 * ASSET_UNIT, 10_u128.into()),
+			TestBid::from(LINCOLN, 800 * ASSET_UNIT, 10_u128.into()),
+			TestBid::from(MONROE, 1300 * ASSET_UNIT, 10_u128.into()),
+			TestBid::from(ARBRESHA, 5000 * ASSET_UNIT, 10_u128.into()),
+			TestBid::from(ELDIN, 600 * ASSET_UNIT, 10_u128.into()),
+			TestBid::from(HARDING, 800 * ASSET_UNIT, 10_u128.into()),
+			TestBid::from(SOFIA, 3000 * ASSET_UNIT, 10_u128.into()),
+			TestBid::from(DOMINIK, 8000 * ASSET_UNIT, 10_u128.into()),
+			TestBid::from(NOLAND, 900 * ASSET_UNIT, 10_u128.into()),
+			TestBid::from(LINA, 9400 * ASSET_UNIT, 13_u128.into()),
+			TestBid::from(HANNAH, 400 * ASSET_UNIT, 13_u128.into()),
+			TestBid::from(HOOVER, 2000 * ASSET_UNIT, 13_u128.into()),
+			TestBid::from(GIGI, 600 * ASSET_UNIT, 13_u128.into()),
+			TestBid::from(JEFFERSON, 3000 * ASSET_UNIT, 13_u128.into()),
 		]
 	}
 
@@ -8386,16 +8401,24 @@ mod e2e_testing {
 		let project = excel_project(test_env.get_new_nonce());
 		let evaluations = excel_evaluators();
 		let bids = simple_bidders();
-		let _community_funding_project =
+		let community_funding_project =
 			CommunityFundingProject::new_with(&test_env, project, issuer, evaluations, bids);
+		let metadata = community_funding_project.get_project_metadata();
+		let total_allocation_size = metadata.total_allocation_size.clone();
+		dbg!(total_allocation_size);
 		let names = names();
 		test_env.in_ext(|| {
-			let bids = Bids::<TestRuntime>::iter_prefix_values((0,)).sorted_by_key(|bid| bid.bidder).collect_vec();
+			let bids = Bids::<TestRuntime>::iter_prefix_values((0,)).sorted_by_key(|bid| bid.id).collect_vec();
 
 			for bid in bids.clone() {
-				println!("{}: {} CT @ {} USD", names[&bid.bidder], bid.original_ct_amount, bid.original_ct_usd_price);
+				println!(
+					"{}: {} CT @ {} USD",
+					names[&bid.bidder],
+					bid.final_ct_amount / PLMC,
+					bid.final_ct_usd_price.to_float(),
+				);
 			}
-			let total_participation = bids.into_iter().fold(0, |acc, bid| acc + bid.funding_asset_amount_locked);
+			let total_participation = bids.into_iter().fold(0, |acc, bid| acc + bid.final_ct_amount);
 			dbg!(total_participation);
 		})
 	}
