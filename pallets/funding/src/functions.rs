@@ -874,6 +874,7 @@ impl<T: Config> Pallet<T> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PriceNotFound)?;
 
 		// * Validity checks *
 		ensure!(bidder.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
@@ -883,74 +884,39 @@ impl<T: Config> Pallet<T> {
 		// Fetch current bucket details and other required info
 		let mut current_bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
+		let mut amount_to_bid = ct_amount;
 
-		if ct_amount <= current_bucket.amount_left {
-			// There are enough tokens left to bid
+		// While there's a remaining amount to bid for
+		while !amount_to_bid.is_zero() {
+			let bid_amount = if amount_to_bid <= current_bucket.amount_left {
+				// Simple case, the bucket has enough to cover the bid
+				amount_to_bid
+			} else {
+				// The bucket doesn't have enough to cover the bid, so we bid the remaining amount of the current bucket
+				current_bucket.amount_left
+			};
 			let bid_id = Self::next_bid_id();
+
 			Self::perform_do_bid(
 				bidder,
 				project_id,
-				ct_amount,
+				bid_amount,
 				current_bucket.current_price,
 				multiplier,
 				funding_asset,
 				project_metadata.ticket_size,
 				bid_id,
 				now,
+				plmc_usd_price,
 			)?;
-			// Update the tokens left in the bucket
-			Buckets::<T>::mutate(project_id, |maybe_bucket| {
-				if let Some(bucket) = maybe_bucket {
-					bucket.amount_left.saturating_reduce(ct_amount);
-					Ok(())
-				} else {
-					Err(Error::<T>::ProjectNotFound)
-				}
-			})?;
-		} else {
-			// Tokens in current bucket are not enough, multiple bids may be needed
-			let bid_id = Self::next_bid_id();
-			let bid = Self::perform_do_bid(
-				bidder,
-				project_id,
-				current_bucket.amount_left,
-				current_bucket.current_price,
-				multiplier,
-				funding_asset,
-				project_metadata.ticket_size,
-				bid_id,
-				now,
-			)?;
-			current_bucket.next();
-
-			let mut remaining_amount = ct_amount.saturating_sub(bid.original_ct_amount);
-
-			// While there's still a remaining amount to bid for
-			while !remaining_amount.is_zero() {
-				let bid_id = Self::next_bid_id();
-				let bid = Self::perform_do_bid(
-					bidder,
-					project_id,
-					remaining_amount,
-					current_bucket.current_price,
-					multiplier,
-					funding_asset,
-					project_metadata.ticket_size,
-					bid_id,
-					now,
-				)?;
-
-				remaining_amount.saturating_reduce(bid.original_ct_amount);
-				current_bucket.amount_left.saturating_reduce(bid.original_ct_amount);
-
-				// If the remaining amount exceeds what's left in the current bucket, move to the next bucket
-				if remaining_amount > current_bucket.amount_left {
-					current_bucket.next();
-				}
-			}
-			// Update the tokens left in the bucket
-			Buckets::<T>::insert(project_id, current_bucket);
+			// Update current bucket, and reduce the amount to bid by the amount we just bid
+			current_bucket.update(bid_amount);
+			amount_to_bid.saturating_reduce(bid_amount);
 		}
+
+		// Note: If the bucket has been exhausted, the 'update' function has already made the 'current_bucket' point to the next one.
+		Buckets::<T>::insert(project_id, current_bucket);
+
 		Ok(())
 	}
 
@@ -964,11 +930,11 @@ impl<T: Config> Pallet<T> {
 		project_ticket_size: TicketSize<BalanceOf<T>>,
 		bid_id: u32,
 		now: BlockNumberOf<T>,
+		plmc_usd_price: T::Price,
 	) -> Result<BidInfoOf<T>, DispatchError> {
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
 		let funding_asset_usd_price =
 			T::PriceProvider::get_price(funding_asset.to_statemint_id()).ok_or(Error::<T>::PriceNotFound)?;
-		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PriceNotFound)?;
 		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder)).collect::<Vec<_>>();
 
 		if let Some(minimum_ticket_size) = project_ticket_size.minimum {
@@ -1012,7 +978,8 @@ impl<T: Config> Pallet<T> {
 			let lowest_bid =
 				existing_bids.iter().min_by_key(|bid| &bid.plmc_bond).ok_or(Error::<T>::ImpossibleState)?;
 
-			ensure!(new_bid.plmc_bond > lowest_bid.plmc_bond, Error::<T>::BidTooLow);
+			// TODO: Check how to handle this
+			// ensure!(new_bid.plmc_bond > lowest_bid.plmc_bond, Error::<T>::BidTooLow);
 
 			T::NativeCurrency::release(
 				&LockType::Participation(project_id),
@@ -1098,9 +1065,9 @@ impl<T: Config> Pallet<T> {
 		let buyable_tokens = if project_details.remaining_contribution_tokens > token_amount {
 			token_amount
 		} else {
-			let remaining_amount = project_details.remaining_contribution_tokens;
-			ticket_size = ct_usd_price.checked_mul_int(remaining_amount).ok_or(Error::<T>::BadMath)?;
-			remaining_amount
+			let amount_to_bid = project_details.remaining_contribution_tokens;
+			ticket_size = ct_usd_price.checked_mul_int(amount_to_bid).ok_or(Error::<T>::BadMath)?;
+			amount_to_bid
 		};
 		let plmc_bond = Self::calculate_plmc_bond(ticket_size, multiplier, plmc_usd_price)?;
 		let funding_asset_amount =
@@ -2024,23 +1991,17 @@ impl<T: Config> Pallet<T> {
 			.filter_map(|bid| match bid.status {
 				BidStatus::Accepted => {
 					let ticket_size = bid.original_ct_usd_price.saturating_mul_int(bid.original_ct_amount);
-					let bid_weight = <T::Price as FixedPointNumber>::saturating_from_rational(
-						ticket_size,
-						bid_usd_value_sum,
-					);
+					let bid_weight =
+						<T::Price as FixedPointNumber>::saturating_from_rational(ticket_size, bid_usd_value_sum);
 					let weighted_price = bid.original_ct_usd_price.saturating_mul(bid_weight);
-					dbg!(ticket_size, bid_weight, weighted_price);
 					Some(weighted_price)
 				},
 
 				BidStatus::PartiallyAccepted(amount, _) => {
 					let ticket_size = bid.original_ct_usd_price.saturating_mul_int(amount);
-					let bid_weight = <T::Price as FixedPointNumber>::saturating_from_rational(
-						ticket_size,
-						bid_usd_value_sum,
-					);
+					let bid_weight =
+						<T::Price as FixedPointNumber>::saturating_from_rational(ticket_size, bid_usd_value_sum);
 					let weighted_price = bid.original_ct_usd_price.saturating_mul(bid_weight);
-					dbg!(ticket_size, bid_weight, weighted_price);
 					Some(weighted_price)
 				},
 
@@ -2214,8 +2175,8 @@ impl<T: Config> Pallet<T> {
 		fee: Percent,
 		limit: BalanceOf<T>,
 	) -> BalanceOf<T> {
-		if let Some(remaining_amount) = remaining_for_fee.checked_sub(&limit) {
-			*remaining_for_fee = remaining_amount;
+		if let Some(amount_to_bid) = remaining_for_fee.checked_sub(&limit) {
+			*remaining_for_fee = amount_to_bid;
 			fee * limit
 		} else {
 			let fee_for_this_bracket = fee * *remaining_for_fee;

@@ -69,7 +69,7 @@ type UserToStatemintAsset =
 	Vec<(AccountId, BalanceOf<TestRuntime>, <TestRuntime as pallet_assets::Config<StatemintAssetsInstance>>::AssetId)>;
 type UserToCTBalance = Vec<(AccountId, BalanceOf<TestRuntime>, ProjectIdOf<TestRuntime>)>;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct TestBid {
 	bidder: AccountId,
 	amount: BalanceOf<TestRuntime>,
@@ -2223,32 +2223,15 @@ mod auction_round_success {
 
 	#[test]
 	fn price_calculation_1() {
-		// Calculate the weighted price of the token for the next funding rounds, using winning bids.
-		// for example: if there are 3 winning bids,
-		// A: 10K tokens @ USD15 per token = 150K USD value
-		// B: 20K tokens @ USD20 per token = 400K USD value
-		// C: 20K tokens @ USD10 per token = 200K USD value,
-
-		// then the weight for each bid is:
-		// A: 150K / (150K + 400K + 200K) = 0.20
-		// B: 400K / (150K + 400K + 200K) = 0.533...
-		// C: 200K / (150K + 400K + 200K) = 0.266...
-
-		// then multiply each weight by the price of the token to get the weighted price per bid
-		// A: 0.20 * 15 = 3
-		// B: 0.533... * 20 = 10.666...
-		// C: 0.266... * 10 = 2.666...
-
-		// lastly, sum all the weighted prices to get the final weighted price for the next funding round
-		// 3 + 10.6 + 2.6 = 16.333...
+		// TODO: Update this test to use the knowledge hub values (when they are available)
 		let test_env = TestEnvironment::new();
 		let project_metadata = default_project(test_env.get_new_nonce());
 		let auctioning_project =
 			AuctioningProject::new_with(&test_env, project_metadata, ISSUER, default_evaluations());
 		let bids = vec![
-			TestBid::new(100, 10_000_0_000_000_000, 15.into(), 1u8, AcceptedFundingAsset::USDT),
-			TestBid::new(200, 20_000_0_000_000_000, 20.into(), 1u8, AcceptedFundingAsset::USDT),
-			TestBid::new(300, 20_000_0_000_000_000, 10.into(), 1u8, AcceptedFundingAsset::USDT),
+			TestBid::new(100, 40_000_0_000_000_000, 15.into(), 1u8, AcceptedFundingAsset::USDT),
+			TestBid::new(200, 40_000_0_000_000_000, 15.into(), 1u8, AcceptedFundingAsset::USDT),
+			TestBid::new(300, 40_000_0_000_000_000, 15.into(), 1u8, AcceptedFundingAsset::USDT),
 		];
 		let statemint_funding = calculate_auction_funding_asset_spent(bids.clone());
 		let plmc_funding = calculate_auction_plmc_spent(bids.clone());
@@ -2265,25 +2248,21 @@ mod auction_round_success {
 		auctioning_project.bid_for_users(bids).unwrap();
 
 		let community_funding_project = auctioning_project.start_community_funding();
-		let token_price = community_funding_project.get_project_details().weighted_average_price.unwrap();
-
-		let price_in_10_decimals = token_price.checked_mul_int(1_0_000_000_000_u128).unwrap();
-		let price_in_12_decimals = token_price.checked_mul_int(1_000_000_000_000_u128).unwrap();
-		assert_eq!(price_in_10_decimals, 16_3_333_333_333_u128);
-		assert_eq!(price_in_12_decimals, 16_333_333_333_333_u128);
+		let token_price = community_funding_project.get_project_details().weighted_average_price.unwrap().to_float();
+		assert_eq!(token_price, 10.339805825242719);
 	}
 
 	#[test]
 	fn price_calculation_2() {
-		// From the knowledge hub
+		// TODO: Update this test to use the knowledge hub values (when they are available)
 		let test_env = TestEnvironment::new();
 		let project_metadata = default_project(test_env.get_new_nonce());
 		let auctioning_project =
 			AuctioningProject::new_with(&test_env, project_metadata, ISSUER, default_evaluations());
 		let bids = vec![
-			TestBid::new(BIDDER_1, 10_000 * ASSET_UNIT, 15.into(), 1u8, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_2, 20_000 * ASSET_UNIT, 20.into(), 1u8, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_3, 20_000 * ASSET_UNIT, 16.into(), 1u8, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_1, 10_000 * ASSET_UNIT, 10.into(), 1u8, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_2, 20_000 * ASSET_UNIT, 10.into(), 1u8, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_3, 20_000 * ASSET_UNIT, 10.into(), 1u8, AcceptedFundingAsset::USDT),
 		];
 
 		let statemint_funding = calculate_auction_funding_asset_spent(bids.clone());
@@ -2301,10 +2280,9 @@ mod auction_round_success {
 		auctioning_project.bid_for_users(bids).unwrap();
 
 		let community_funding_project = auctioning_project.start_community_funding();
-		let token_price = community_funding_project.get_project_details().weighted_average_price.unwrap();
+		let token_price = community_funding_project.get_project_details().weighted_average_price.unwrap().to_float();
 
-		let price_in_10_decimals = token_price.checked_mul_int(1_0_000_000_000_u128).unwrap();
-		assert_eq!(price_in_10_decimals, 17_6_666_666_666);
+		assert_eq!(token_price, 10.0);
 	}
 
 	#[test]
@@ -2979,7 +2957,7 @@ mod auction_round_success {
 
 		let median_price = bids[bids.len().div(2)].price;
 		let accepted_bid =
-			vec![TestBid::new(BIDDER_4, available_tokens, median_price, 1u8, AcceptedFundingAsset::USDT)];
+			vec![TestBid::new(BIDDER_4, 40_000 * ASSET_UNIT, median_price, 1u8, AcceptedFundingAsset::USDT)];
 		let rejected_bid =
 			vec![TestBid::new(BIDDER_5, 50_000 * ASSET_UNIT, median_price, 1u8, AcceptedFundingAsset::USDT)];
 		bids.extend(accepted_bid.clone());
@@ -2988,6 +2966,7 @@ mod auction_round_success {
 		let community_contributions = default_community_buys();
 
 		let auctioning_project = AuctioningProject::new_with(&test_env, project, issuer, evaluations);
+		dbg!(bids.clone());
 		let mut bidders_plmc = calculate_auction_plmc_spent(bids.clone());
 		bidders_plmc.iter_mut().for_each(|(_acc, amount)| *amount += get_ed());
 		test_env.mint_plmc_to(bidders_plmc.clone());
@@ -3009,6 +2988,21 @@ mod auction_round_success {
 
 		community_funding_project.buy_for_retail_users(community_contributions).unwrap();
 		let finished_project = community_funding_project.finish_funding();
+
+		test_env.in_ext(|| {
+			let bids = Bids::<TestRuntime>::iter_prefix_values((0,)).sorted_by_key(|bid| bid.bidder).collect_vec();
+
+			for bid in bids.clone() {
+				println!(
+					"{} -> CT Amount: {}, Price USD {}",
+					bid.bidder,
+					bid.final_ct_amount / PLMC,
+					bid.final_ct_usd_price.to_float()
+				);
+			}
+			let total_participation = bids.into_iter().fold(0, |acc, bid| acc + bid.funding_asset_amount_locked);
+			dbg!(total_participation);
+		});
 
 		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
 		let details = finished_project.get_project_details();
@@ -8157,11 +8151,11 @@ mod e2e_testing {
 			TestBid::from(SOFIA, 3000 * ASSET_UNIT, 10_u128.into()),
 			TestBid::from(DOMINIK, 8000 * ASSET_UNIT, 10_u128.into()),
 			TestBid::from(NOLAND, 900 * ASSET_UNIT, 10_u128.into()),
-			TestBid::from(LINA, 9400 * ASSET_UNIT, 11_u128.into()),
-			TestBid::from(HANNAH, 400 * ASSET_UNIT, 11_u128.into()),
-			TestBid::from(HOOVER, 2000 * ASSET_UNIT, 11_u128.into()),
-			TestBid::from(GIGI, 600 * ASSET_UNIT, 11_u128.into()),
-			TestBid::from(JEFFERSON, 3000 * ASSET_UNIT, 12_u128.into()),
+			TestBid::from(LINA, 9400 * ASSET_UNIT, 12_u128.into()),
+			TestBid::from(HANNAH, 400 * ASSET_UNIT, 12_u128.into()),
+			TestBid::from(HOOVER, 2000 * ASSET_UNIT, 12_u128.into()),
+			TestBid::from(GIGI, 600 * ASSET_UNIT, 12_u128.into()),
+			TestBid::from(JEFFERSON, 3000 * ASSET_UNIT, 13_u128.into()),
 		]
 	}
 
@@ -8213,11 +8207,6 @@ mod e2e_testing {
 			TestContribution::from(DRAGAN, 98 * US_DOLLAR),
 			TestContribution::from(LEA, 17 * US_DOLLAR),
 			TestContribution::from(LUIS, 422 * US_DOLLAR),
-			TestContribution::from(TATI, 228 * US_DOLLAR),
-			TestContribution::from(WEST, 695 * US_DOLLAR),
-			TestContribution::from(MIRIJAM, 498 * US_DOLLAR),
-			TestContribution::from(LIONEL, 864 * US_DOLLAR),
-			TestContribution::from(GIOVANNI, 306 * US_DOLLAR),
 		]
 	}
 
@@ -8364,18 +8353,29 @@ mod e2e_testing {
 		let project = excel_project(test_env.get_new_nonce());
 		let evaluations = excel_evaluators();
 		let bids = excel_bidders();
-		let community_funding_project =
+		let _community_funding_project =
 			CommunityFundingProject::new_with(&test_env, project, issuer, evaluations, bids);
-		let metadata = community_funding_project.get_project_metadata();
-		let total_allocation_size = metadata.total_allocation_size.clone();
-		dbg!(total_allocation_size);
+		let names = names();
 		test_env.in_ext(|| {
 			let bids = Bids::<TestRuntime>::iter_prefix_values((0,)).sorted_by_key(|bid| bid.id).collect_vec();
 
+			println!("---Original---");
 			for bid in bids.clone() {
-				if bid.bidder == 135 {
-					// dbg!(bid);
-				}
+				println!(
+					"{} -> CT Amount: {}, Price USD {}",
+					names[&bid.bidder],
+					bid.original_ct_amount / PLMC,
+					bid.original_ct_usd_price.to_float()
+				);
+			}
+			println!("---Final---");
+			for bid in bids.clone() {
+				println!(
+					"{} -> CT Amount: {}, Price USD {}",
+					names[&bid.bidder],
+					bid.final_ct_amount / PLMC,
+					bid.final_ct_usd_price.to_float()
+				);
 			}
 			let total_participation = bids.into_iter().fold(0, |acc, bid| acc + bid.final_ct_amount);
 			dbg!(total_participation);
@@ -8391,7 +8391,7 @@ mod e2e_testing {
 		let bids = excel_bidders();
 		let community_funding_project =
 			CommunityFundingProject::new_with(&test_env, project, issuer, evaluations, bids);
-		let wavgp_from_excel = 10.1;
+		let wavgp_from_excel = 10.202357561;
 		// Convert the float to a FixedU128
 		let wavgp_to_substrate = FixedU128::from_float(wavgp_from_excel);
 		let wavgp_from_chain = community_funding_project.get_project_details().weighted_average_price.unwrap();

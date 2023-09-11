@@ -131,7 +131,7 @@ pub mod config_types {
 }
 
 pub mod storage_types {
-	use sp_arithmetic::traits::{One, Zero};
+	use sp_arithmetic::traits::{One, Saturating, Zero};
 
 	use super::*;
 
@@ -334,7 +334,7 @@ pub mod storage_types {
 		pub delta_amount: Balance,
 	}
 
-	impl<Balance: Copy, Price: FixedPointNumber> Bucket<Balance, Price> {
+	impl<Balance: Copy + Saturating + One + Zero, Price: FixedPointNumber> Bucket<Balance, Price> {
 		/// Creates a new bucket with the given parameters.
 		pub fn new(amount_left: Balance, initial_price: Price, delta_price: Price, delta_amount: Balance) -> Self {
 			Self {
@@ -344,6 +344,14 @@ pub mod storage_types {
 				initial_price,
 				delta_price,
 				delta_amount,
+			}
+		}
+
+		/// Update the bucket
+		pub fn update(&mut self, removed_amount: Balance) {
+			self.amount_left.saturating_reduce(removed_amount);
+			if self.amount_left.is_zero() {
+				self.next();
 			}
 		}
 
@@ -479,7 +487,7 @@ pub mod inner_types {
 	}
 
 	impl<BlockNumber: Copy> PhaseTransitionPoints<BlockNumber> {
-		pub fn new(now: BlockNumber) -> Self {
+		pub const fn new(now: BlockNumber) -> Self {
 			Self {
 				application: BlockNumberPair::new(Some(now), None),
 				evaluation: BlockNumberPair::new(None, None),
