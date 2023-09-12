@@ -487,6 +487,8 @@ fn start_one_bid_vesting_schedule<T: Config>(project_id: T::ProjectIdentifier) -
 		) {
 			Ok(_) => {},
 			Err(e) => {
+				// TODO: Handle `MAX_VESTING_SCHEDULES` error
+
 				Pallet::<T>::deposit_event(Event::StartBidderVestingScheduleFailed {
 					project_id: bid.project_id,
 					bidder: bid.bidder.clone(),
@@ -532,7 +534,8 @@ fn start_one_contribution_vesting_schedule<T: Config>(project_id: T::ProjectIden
 
 fn mint_ct_for_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
-	let mut remaining_bids = project_bids.filter(|bid| !bid.ct_minted);
+	let mut remaining_bids = project_bids
+		.filter(|bid| !bid.ct_minted && matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)));
 
 	if let Some(bid) = remaining_bids.next() {
 		match Pallet::<T>::do_bid_ct_mint_for(
@@ -583,7 +586,9 @@ fn mint_ct_for_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> 
 fn issuer_funding_payout_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 
-	let mut remaining_bids = project_bids.filter(|bid| !bid.funds_released);
+	let mut remaining_bids = project_bids.filter(|bid| {
+		!bid.funds_released && matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..))
+	});
 
 	if let Some(bid) = remaining_bids.next() {
 		match Pallet::<T>::do_payout_bid_funds_for(

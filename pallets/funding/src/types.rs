@@ -142,7 +142,7 @@ pub mod storage_types {
 		/// Mainnet Token Max Supply
 		pub mainnet_token_max_supply: Balance,
 		/// Total allocation of Contribution Tokens available for the Funding Round
-		pub total_allocation_size: Balance,
+		pub total_allocation_size: (Balance, Balance),
 		/// Minimum price per Contribution Token
 		pub minimum_price: Price,
 		/// Maximum and/or minimum ticket size
@@ -189,8 +189,7 @@ pub mod storage_types {
 		/// Fundraising target amount in USD equivalent
 		pub fundraising_target: Balance,
 		/// The amount of Contribution Tokens that have not yet been sold
-		// TODO: This probably should be a tuple (Balance, Balance) to keep track of the remaining tokens in the Auction and Community Round
-		pub remaining_contribution_tokens: Balance,
+		pub remaining_contribution_tokens: (Balance, Balance),
 		/// Funding reached amount in USD equivalent
 		pub funding_amount_reached: Balance,
 		/// Cleanup operations remaining
