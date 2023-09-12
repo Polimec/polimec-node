@@ -21,11 +21,11 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
-#[allow(unused_imports)]
-use pallet::Pallet as PalletFunding;
 use crate::instantiator::*;
 use frame_benchmarking::v2::*;
 use frame_support::{traits::OriginTrait, Parameter};
+#[allow(unused_imports)]
+use pallet::Pallet as PalletFunding;
 use scale_info::prelude::format;
 use sp_core::H256;
 use sp_runtime::traits::{BlakeTwo256, Member};
