@@ -23,12 +23,10 @@
 use super::*;
 use crate::instantiator::*;
 use frame_benchmarking::v2::*;
-use frame_support::{traits::OriginTrait, Parameter, log::Level,};
-use pallet::Pallet as PalletFunding;
+use frame_support::{traits::OriginTrait, Parameter};
 use scale_info::prelude::format;
 use sp_core::H256;
 use sp_runtime::traits::{BlakeTwo256, Member};
-use frame_benchmarking::log::log;
 const METADATA: &str = r#"
 {
     "whitepaper":"ipfs_url",
@@ -122,91 +120,71 @@ mod benchmarks {
 
 	impl_benchmark_test_suite!(PalletFunding, crate::mock::new_test_ext(), crate::mock::TestRuntime);
 
-	type BenchInstantiator<T> = Instantiator<
-		T,
-		<T as Config>::AllPalletsWithoutSystem,
-		<T as Config>::RuntimeEvent,
-	>;
-
-	// #[benchmark]
-	// fn bid() {
-	// 	let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-	// 	frame_system::Pallet::<T>::remark_with_event(RawOrigin::Signed(issuer.clone()).into(), vec![1u8,2u8,3u8,4u8]);
-	// 	let debug_events = frame_system::Pallet::<T>::events();
-	// 	log!(
-	// 		Level::Error,
-	// 		"frame system default events {:?}",
-	// 		debug_events
-	// 	);
-	// 	let mut inst = BenchInstantiator::<T>::new(None);
-	//
-	// 	let bidder = account::<AccountIdOf<T>>("bidder", 0, 0);
-	// 	whitelist_account!(bidder);
-	//
-	// 	let project_id = inst.create_auctioning_project(
-	// 		default_project::<T>(inst.get_new_nonce(), issuer.clone()),
-	// 		issuer,
-	// 		default_evaluations::<T>(),
-	// 	);
-	//
-	// 	let bid_params = BidParams::new(
-	// 		bidder.clone(),
-	// 		(50000u128 * ASSET_UNIT).into(),
-	// 		18_u128.into(),
-	// 		1u8,
-	// 		AcceptedFundingAsset::USDT,
-	// 	);
-	// 	let necessary_plmc = BenchInstantiator::<T>::calculate_auction_plmc_spent(vec![bid_params.clone()]);
-	// 	let existential_deposits: Vec<UserToPLMCBalance<T>> = necessary_plmc.accounts().existential_deposits();
-	// 	let necessary_usdt = BenchInstantiator::<T>::calculate_auction_funding_asset_spent(vec![bid_params.clone()]);
-	//
-	// 	inst.mint_plmc_to(necessary_plmc);
-	// 	inst.mint_plmc_to(existential_deposits);
-	// 	inst.mint_statemint_asset_to(necessary_usdt);
-	//
-	// 	#[extrinsic_call]
-	// 	bid(
-	// 		RawOrigin::Signed(bidder.clone()),
-	// 		project_id,
-	// 		bid_params.amount,
-	// 		bid_params.price,
-	// 		bid_params.multiplier,
-	// 		bid_params.asset,
-	// 	);
-	//
-	// 	let debug_events = frame_system::Pallet::<T>::events();
-	// 	log!(
-	// 		Level::Error,
-	// 		"frame system default events {:?}",
-	// 		debug_events
-	// 	);
-	//
-	// }
+	type BenchInstantiator<T> = Instantiator<T, <T as Config>::AllPalletsWithoutSystem, <T as Config>::RuntimeEvent>;
 
 	#[benchmark]
-	fn test(){
-		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-		frame_system::Pallet::<T>::remark_with_event(RawOrigin::Signed(issuer.clone()).into(), vec![1u8,2u8,3u8,4u8]);
+	fn bid() {
 		let mut inst = BenchInstantiator::<T>::new(None);
-		inst.advance_time(5u32.into()).unwrap();
+		// real benchmark starts at block 0, and we can't call `events()` at block 0
+		inst.advance_time(1u32.into()).unwrap();
 
-		let debug_events = frame_system::Pallet::<T>::events();
-		log!(
-			Level::Error,
-			"frame system default events {:?}",
-			debug_events
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+		let bidder = account::<AccountIdOf<T>>("bidder", 0, 0);
+		whitelist_account!(bidder);
+
+		let project_id = inst.create_auctioning_project(
+			default_project::<T>(inst.get_new_nonce(), issuer.clone()),
+			issuer,
+			default_evaluations::<T>(),
 		);
 
-		#[block]
-		{
+		let bid_params = BidParams::new(
+			bidder.clone(),
+			(50000u128 * ASSET_UNIT).into(),
+			18_u128.into(),
+			1u8,
+			AcceptedFundingAsset::USDT,
+		);
+		let necessary_plmc = BenchInstantiator::<T>::calculate_auction_plmc_spent(vec![bid_params.clone()]);
+		let existential_deposits: Vec<UserToPLMCBalance<T>> = necessary_plmc.accounts().existential_deposits();
+		let necessary_usdt = BenchInstantiator::<T>::calculate_auction_funding_asset_spent(vec![bid_params.clone()]);
 
-		}
+		inst.mint_plmc_to(necessary_plmc);
+		inst.mint_plmc_to(existential_deposits);
+		inst.mint_statemint_asset_to(necessary_usdt);
 
-		let debug_events = frame_system::Pallet::<T>::events();
-		log!(
-			Level::Error,
-			"frame system default events {:?}",
-			debug_events
+		#[extrinsic_call]
+		bid(
+			RawOrigin::Signed(bidder.clone()),
+			project_id,
+			bid_params.amount,
+			bid_params.price,
+			bid_params.multiplier,
+			bid_params.asset,
 		);
 	}
+
+	// #[benchmark]
+	// fn test(){
+	// 	let mut inst = BenchInstantiator::<T>::new(None);
+	// 	inst.advance_time(5u32.into()).unwrap();
+	// 	let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+	// 	frame_system::Pallet::<T>::remark_with_event(RawOrigin::Signed(issuer.clone()).into(), vec![1u8,2u8,3u8,4u8]);
+	//
+	// 	let debug_events = frame_system::Pallet::<T>::events();
+	// 	if debug_events.len() == 0 {
+	// 		panic!("events in store: {:?}", debug_events.len());
+	// 	}
+	//
+	// 	#[block]
+	// 	{
+	//
+	// 	}
+	//
+	// 	let debug_events = frame_system::Pallet::<T>::events();
+	// 	log::info!(
+	// 		"frame system default events {:?}",
+	// 		debug_events
+	// 	);
+	// }
 }

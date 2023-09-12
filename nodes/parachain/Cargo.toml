@@ -22,6 +22,7 @@ color-print = "0.3.5"
 # Local
 polimec-parachain-runtime.workspace = true
 polimec-base-runtime.workspace = true
+pallet-funding.workspace = true
 
 # Substrate
 frame-benchmarking.workspace = true

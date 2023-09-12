@@ -5,9 +5,7 @@
 // };
 
 #[cfg(feature = "runtime-benchmarks")]
-use frame_benchmarking::log::log;
 use frame_support::{
-	log::Level,
 	traits::{
 		fungible::{Inspect as FungibleInspect, InspectHold as FungibleInspectHold, Mutate as FungibleMutate},
 		fungibles::{
@@ -25,8 +23,7 @@ use sp_arithmetic::{
 	traits::{SaturatedConversion, Saturating, Zero},
 	FixedPointNumber, Percent,
 };
-use sp_core::{H256, LogLevel};
-use sp_io::logging::log;
+use sp_core::H256;
 use sp_runtime::{
 	traits::{Member, One},
 	DispatchError,
@@ -211,13 +208,6 @@ where
 
 	pub fn advance_time(&mut self, amount: BlockNumberOf<T>) -> Result<(), DispatchError> {
 		self.execute(|| {
-			let debug_events = frame_system::Pallet::<T>::events();
-			#[cfg(feature = "runtime-benchmarks")]
-			log!(
-				Level::Error,
-				"{:?}",
-				debug_events
-			);
 			for _block in 0u32..amount.saturated_into() {
 				let mut current_block = frame_system::Pallet::<T>::block_number();
 
