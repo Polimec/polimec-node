@@ -36,21 +36,16 @@ pub use parachains_common::{
 	Header, Index, Signature, AVERAGE_ON_INITIALIZE_RATIO, DAYS, HOURS, MAXIMUM_BLOCK_WEIGHT, MINUTES,
 	NORMAL_DISPATCH_RATIO, SLOT_DURATION,
 };
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 
 // Polkadot imports
 use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
-use scale_info::TypeInfo;
 use sp_api::impl_runtime_apis;
-use sp_core::{
-	crypto::{AccountId32, KeyTypeId},
-	OpaqueMetadata,
-};
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, BlockNumberProvider, ConvertInto, OpaqueKeys},
+	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, OpaqueKeys},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult,
 };
@@ -499,7 +494,7 @@ parameter_types! {
 }
 impl pallet_funding::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
-	type AllPalletsWithoutSystem = (Balances, LocalAssets, StatemintAssets, PolimecFunding, Vesting, Random,);
+	type AllPalletsWithoutSystem = (Balances, LocalAssets, StatemintAssets, PolimecFunding, Vesting, Random);
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;
 	type BlockNumberToBalance = ConvertInto;
@@ -517,7 +512,7 @@ impl pallet_funding::Config for Runtime {
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	type MaxBidsPerUser = ConstU32<256>;
 	type MaxContributionsPerUser = ConstU32<256>;
-	type MaxEvaluationsPerUser = ();
+	type MaxEvaluationsPerUser = ConstU32<256>;
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
 	type Multiplier = pallet_funding::types::Multiplier;
 	type NativeCurrency = Balances;
@@ -599,7 +594,7 @@ construct_runtime!(
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage, Event<T>} = 11,
 		AssetTxPayment: pallet_asset_tx_payment::{Pallet, Storage, Event<T>} = 12,
 		LocalAssets: pallet_assets::<Instance1>::{Pallet, Storage, Event<T>} = 13,
-		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>} = 14,
+		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Config<T>, Storage, Event<T>} = 14,
 
 		// Collator support. the order of these 5 are important and shall not change.
 		Authorship: pallet_authorship::{Pallet, Storage} = 20,

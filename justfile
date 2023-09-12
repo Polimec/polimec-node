@@ -61,7 +61,7 @@ benchmark-pallet-funding:
 		--extrinsic '*' \
 		--execution=wasm \
 		--heap-pages=4096 \
-		--output=pallets/funding/src/weights.rs \
+		--output=pallets/funding/src/weights-test.rs \
 		--template=./.maintain/frame-weight-template.hbs
 
 benchmarks-test:

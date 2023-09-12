@@ -6035,6 +6035,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "xcm-builder",
 ]
 
 [[package]]
@@ -7211,6 +7212,7 @@ dependencies = [
  "hex-literal 0.3.4",
  "jsonrpsee",
  "log",
+ "pallet-funding",
  "pallet-transaction-payment-rpc",
  "parachains-common",
  "parity-scale-codec",

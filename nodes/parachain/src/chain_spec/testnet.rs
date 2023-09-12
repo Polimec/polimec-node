@@ -24,16 +24,13 @@ use polimec_parachain_runtime::{
 		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
 		InflationInfo, Range,
 	},
-	AuraId as AuthorityId, MinCandidateStk, ParachainStakingConfig, PLMC,
-};
-
-use polimec_parachain_runtime::{
-	AccountId, Balance, BalancesConfig, CouncilConfig, GenesisConfig, ParachainInfoConfig, PolkadotXcmConfig,
-	SessionConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, VestingConfig,
+	AccountId, AuraId as AuthorityId, Balance, BalancesConfig, CouncilConfig, GenesisConfig, MinCandidateStk,
+	ParachainInfoConfig, ParachainStakingConfig, PolkadotXcmConfig, Runtime, SessionConfig, StatemintAssetsConfig,
+	SudoConfig, SystemConfig, TechnicalCommitteeConfig, VestingConfig, EXISTENTIAL_DEPOSIT, PLMC,
 };
 use sc_service::ChainType;
 use sp_core::{crypto::UncheckedInto, sr25519};
-use sp_runtime::{Perbill, Percent};
+use sp_runtime::{traits::AccountIdConversion, Perbill, Percent};
 
 use crate::chain_spec::{get_account_id_from_seed, DEFAULT_PARA_ID};
 
@@ -164,15 +161,26 @@ fn testnet_genesis(
 	stakers: Vec<(AccountId, Option<AccountId>, Balance)>,
 	inflation_config: InflationInfo<Balance>,
 	initial_authorities: Vec<AccountId>,
-	endowed_accounts: Vec<(AccountId, Balance)>,
+	mut endowed_accounts: Vec<(AccountId, Balance)>,
 	sudo_account: AccountId,
 	id: ParaId,
 ) -> GenesisConfig {
 	let accounts = endowed_accounts.iter().map(|(account, _)| account.clone()).collect::<Vec<_>>();
-
+	endowed_accounts
+		.push((<Runtime as pallet_funding::Config>::PalletId::get().into_account_truncating(), EXISTENTIAL_DEPOSIT));
 	GenesisConfig {
 		system: SystemConfig { code: wasm_binary.to_vec() },
 		balances: BalancesConfig { balances: endowed_accounts.clone() },
+		statemint_assets: StatemintAssetsConfig {
+			assets: vec![(
+				pallet_funding::types::AcceptedFundingAsset::USDT.to_statemint_id(),
+				<Runtime as pallet_funding::Config>::PalletId::get().into_account_truncating(),
+				false,
+				10,
+			)],
+			metadata: vec![],
+			accounts: vec![],
+		},
 		parachain_info: ParachainInfoConfig { parachain_id: id },
 		parachain_staking: ParachainStakingConfig {
 			candidates: stakers
