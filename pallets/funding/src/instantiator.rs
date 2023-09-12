@@ -4,7 +4,6 @@
 // 	iter::zip,
 // };
 
-#[cfg(feature = "runtime-benchmarks")]
 use frame_support::{
 	traits::{
 		fungible::{Inspect as FungibleInspect, InspectHold as FungibleInspectHold, Mutate as FungibleMutate},
@@ -17,6 +16,7 @@ use frame_support::{
 	weights::Weight,
 	Parameter,
 };
+
 use itertools::Itertools;
 use parity_scale_codec::Decode;
 use sp_arithmetic::{
