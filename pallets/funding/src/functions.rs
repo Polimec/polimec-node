@@ -1993,12 +1993,10 @@ impl<T: Config> Pallet<T> {
 		// lastly, sum all the weighted prices to get the final weighted price for the next funding round
 		// 3 + 10.6 + 2.6 = 16.333...
 		let current_bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let is_first_bucket = current_bucket.id.is_zero();
+		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+		let is_first_bucket = current_bucket.current_price == project_metadata.minimum_price;
 		let weighted_token_price = match is_first_bucket {
-			true => {
-				let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-				project_metadata.minimum_price
-			},
+			true => project_metadata.minimum_price,
 			false => bids
 				.iter()
 				.filter_map(|bid| match bid.status {

@@ -317,10 +317,6 @@ pub mod storage_types {
 	/// and constants to define price and amount increments for the next buckets.
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	pub struct Bucket<Balance, Price> {
-		/// A unique identifier for the bucket.
-		/// NOTE: This is currently used in calculations and is represented as a `FixedPointNumber`.
-		/// Ensure compatibility when performing mathematical operations.
-		pub id: Price,
 		/// The amount of tokens left in this bucket.
 		pub amount_left: Balance,
 		/// The current price of tokens in this bucket.
@@ -336,14 +332,7 @@ pub mod storage_types {
 	impl<Balance: Copy + Saturating + One + Zero, Price: FixedPointNumber> Bucket<Balance, Price> {
 		/// Creates a new bucket with the given parameters.
 		pub fn new(amount_left: Balance, initial_price: Price, delta_price: Price, delta_amount: Balance) -> Self {
-			Self {
-				id: Zero::zero(),
-				amount_left,
-				current_price: initial_price,
-				initial_price,
-				delta_price,
-				delta_amount,
-			}
+			Self { amount_left, current_price: initial_price, initial_price, delta_price, delta_amount }
 		}
 
 		/// Update the bucket
@@ -358,10 +347,8 @@ pub mod storage_types {
 		/// the bucket's ID, resetting the amount left, and recalculating the current price based on the initial
 		/// price and the price increments defined by the `delta_price`.
 		pub fn next(&mut self) {
-			self.id.saturating_accrue(One::one());
 			self.amount_left = self.delta_amount;
-			let extra_increment = self.delta_price.saturating_mul(self.id);
-			self.current_price = self.initial_price.saturating_add(extra_increment);
+			self.current_price = self.current_price.saturating_add(self.delta_price);
 		}
 	}
 }
