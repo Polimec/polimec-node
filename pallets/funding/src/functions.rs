@@ -1995,7 +1995,7 @@ impl<T: Config> Pallet<T> {
 		let current_bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let is_first_bucket = current_bucket.current_price == project_metadata.minimum_price;
-		let weighted_token_price = match is_first_bucket {
+		let weighted_token_price = match is_first_bucket && !bids.is_empty() {
 			true => project_metadata.minimum_price,
 			false => bids
 				.iter()

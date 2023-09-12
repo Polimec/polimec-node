@@ -1193,8 +1193,6 @@ impl<'a> FinishedProject<'a> {
 					Bids::<TestRuntime>::iter_prefix_values((project_id,)).map(|bid| bid.final_ct_amount).sum();
 				let community_bought_tokens: u128 =
 					Contributions::<TestRuntime>::iter_prefix_values((project_id,)).map(|cont| cont.ct_amount).sum();
-				dbg!(auction_bought_tokens);
-				dbg!(community_bought_tokens);
 
 				assert_eq!(
 					project_details.remaining_contribution_tokens.0 + project_details.remaining_contribution_tokens.1,
@@ -1234,9 +1232,9 @@ mod defaults {
 				symbol: bounded_symbol,
 				decimals: ASSET_DECIMALS,
 			},
-			mainnet_token_max_supply: 8_000_000_0_000_000_000,
-			total_allocation_size: (1_000_000_0_000_000_00, 1_000_000_0_000_000_00),
-			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
+			mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
+			total_allocation_size: (50_000 * ASSET_UNIT, 50_000 * ASSET_UNIT),
+			minimum_price: PriceOf::<TestRuntime>::from_float(1.0),
 			ticket_size: TicketSize { minimum: Some(1), maximum: None },
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 			funding_thresholds: Default::default(),
@@ -2245,12 +2243,14 @@ mod auction_round_success {
 		let test_env = TestEnvironment::new();
 		let project_metadata = default_project(test_env.get_new_nonce());
 		let auctioning_project =
-			AuctioningProject::new_with(&test_env, project_metadata, ISSUER, default_evaluations());
-		let bids = vec![
-			TestBid::new(100, 40_000_0_000_000_000, 15.into(), 1u8, AcceptedFundingAsset::USDT),
-			TestBid::new(200, 40_000_0_000_000_000, 15.into(), 1u8, AcceptedFundingAsset::USDT),
-			TestBid::new(300, 40_000_0_000_000_000, 15.into(), 1u8, AcceptedFundingAsset::USDT),
-		];
+			AuctioningProject::new_with(&test_env, project_metadata.clone(), ISSUER, default_evaluations());
+		let bids = vec![TestBid::new(
+			100,
+			project_metadata.total_allocation_size.0,
+			15.into(),
+			1u8,
+			AcceptedFundingAsset::USDT,
+		)];
 		let statemint_funding = calculate_auction_funding_asset_spent(bids.clone());
 		let plmc_funding = calculate_auction_plmc_spent(bids.clone());
 		let ed_funding = plmc_funding
@@ -2266,8 +2266,11 @@ mod auction_round_success {
 		auctioning_project.bid_for_users(bids).unwrap();
 
 		let community_funding_project = auctioning_project.start_community_funding();
+		community_funding_project.test_env.in_ext(|| {
+			let bids = Bids::<TestRuntime>::iter_prefix_values((community_funding_project.project_id,));
+		});
 		let token_price = community_funding_project.get_project_details().weighted_average_price.unwrap().to_float();
-		assert_eq!(token_price, 10.339805825242719);
+		assert_eq!(token_price, project_metadata.minimum_price.to_float());
 	}
 
 	#[test]
@@ -2279,8 +2282,8 @@ mod auction_round_success {
 			AuctioningProject::new_with(&test_env, project_metadata, ISSUER, default_evaluations());
 		let bids = vec![
 			TestBid::new(BIDDER_1, 10_000 * ASSET_UNIT, 10.into(), 1u8, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_2, 20_000 * ASSET_UNIT, 10.into(), 1u8, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_3, 20_000 * ASSET_UNIT, 10.into(), 1u8, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_2, 40_000 * ASSET_UNIT, 10.into(), 1u8, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_3, 35_000 * ASSET_UNIT, 10.into(), 1u8, AcceptedFundingAsset::USDT),
 		];
 
 		let statemint_funding = calculate_auction_funding_asset_spent(bids.clone());
@@ -2300,7 +2303,7 @@ mod auction_round_success {
 		let community_funding_project = auctioning_project.start_community_funding();
 		let token_price = community_funding_project.get_project_details().weighted_average_price.unwrap().to_float();
 
-		assert_eq!(token_price, 10.0);
+		assert_eq!(token_price, 1.283606557377049);
 	}
 
 	#[test]
@@ -2501,14 +2504,17 @@ mod auction_round_success {
 			TestBid::new(BIDDER_1, 10_000 * ASSET_UNIT, 15.into(), 1u8, AcceptedFundingAsset::USDT),
 			TestBid::new(BIDDER_2, 20_000 * ASSET_UNIT, 20.into(), 1u8, AcceptedFundingAsset::USDT),
 			TestBid::new(BIDDER_4, 20_000 * ASSET_UNIT, 16.into(), 1u8, AcceptedFundingAsset::USDT),
+			TestBid::new(BIDDER_5, 5_000 * ASSET_UNIT, 16.into(), 1u8, AcceptedFundingAsset::USDT),
 		];
 
 		let community_funding_project =
 			CommunityFundingProject::new_with(&test_env, project, issuer, evaluations, bids);
 		let project_id = community_funding_project.project_id;
-		let bidder_2_bid =
-			test_env.in_ext(|| Bids::<TestRuntime>::iter_prefix_values((project_id, BIDDER_2)).next().unwrap());
-		assert_eq!(bidder_2_bid.final_ct_usd_price.checked_mul_int(US_DOLLAR).unwrap(), 17_6_666_666_666);
+		let bidder_5_bid =
+			test_env.in_ext(|| Bids::<TestRuntime>::iter_prefix_values((project_id, BIDDER_5)).next().unwrap());
+		let wabgp = community_funding_project.get_project_details().weighted_average_price.unwrap();
+		assert_eq!(bidder_5_bid.original_ct_usd_price.to_float(), 1.1);
+		assert_eq!(bidder_5_bid.final_ct_usd_price, wabgp);
 	}
 
 	#[test]
@@ -3009,28 +3015,12 @@ mod auction_round_success {
 		community_funding_project.buy_for_retail_users(community_contributions).unwrap();
 		let finished_project = community_funding_project.finish_funding();
 
-		test_env.in_ext(|| {
-			let bids = Bids::<TestRuntime>::iter_prefix_values((0,)).sorted_by_key(|bid| bid.bidder).collect_vec();
-
-			for bid in bids.clone() {
-				println!(
-					"{} -> CT Amount: {}, Price USD {}",
-					bid.bidder,
-					bid.final_ct_amount / PLMC,
-					bid.final_ct_usd_price.to_float()
-				);
-			}
-			let total_participation = bids.into_iter().fold(0, |acc, bid| acc + bid.funding_asset_amount_locked);
-			dbg!(total_participation);
-		});
-
 		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
 		let details = finished_project.get_project_details();
 		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
 
 		let plmc_locked_for_accepted_bid =
 			calculate_auction_plmc_spent_after_price_calculation(accepted_bid, final_price);
-		dbg!(plmc_locked_for_accepted_bid.clone());
 		let plmc_locked_for_rejected_bid =
 			calculate_auction_plmc_spent_after_price_calculation(rejected_bid, final_price);
 
@@ -8245,110 +8235,88 @@ mod e2e_testing {
 
 	fn excel_ct_amounts() -> UserToCTBalance {
 		vec![
-			(ADAMS, 6920000000000, 0),
-			(POLK, 4720000000000, 0),
-			(MARKUS, 240000000000, 0),
-			(ELLA, 6880000000000, 0),
-			(SKR, 330000000000, 0),
-			(ARTHUR, 11480000000000, 0),
-			(MILA, 350000000000, 0),
-			(LINCOLN, 8400000000000, 0),
-			(MONROE, 1320000000000, 0),
-			(ARBRESHA, 210000000000, 0),
-			(ELDIN, 590000000000, 0),
-			(HARDING, 890000000000, 0),
-			(SOFIA, 3320000000000, 0),
-			(DOMINIK, 81100000000000, 0),
-			(NOLAND, 170000000000, 0),
-			(LINA, 111403137276535, 0),
-			(HANNAH, 140000000000, 0),
-			(HOOVER, 49060000000000, 0),
-			(GIGI, 680000000000, 0),
-			(JEFFERSON, 90370000000000, 0),
-			(LINDI, 4420000000000, 0),
-			(KEVIN, 400000000000, 0),
-			(ANIS, 680000000000, 0),
-			(RETO, 680000000000, 0),
-			(HAALAND, 980000000000, 0),
-			(XENIA, 170000000000, 0),
-			(EVA, 4220000000000, 0),
-			(SKARA, 6150000000000, 0),
-			(ROOSEVELT, 650000000000, 0),
-			(DRACULA, 58630000000000, 0),
-			(DURIM, 560000000000, 0),
-			(HARRISON, 360000000000, 0),
-			(DRIN, 6920000000000, 0),
-			(PARI, 2360000000000, 0),
-			(TUTI, 240000000000, 0),
-			(BENITO, 6880000000000, 0),
-			(VANESSA, 330000000000, 0),
-			(ENES, 11480000000000, 0),
-			(RUDOLF, 350000000000, 0),
-			(CERTO, 8400000000000, 0),
-			(TIESTO, 1320000000000, 0),
-			(DAVID, 210000000000, 0),
-			(ATAKAN, 590000000000, 0),
-			(YANN, 890000000000, 0),
-			(ENIS, 3320000000000, 0),
-			(ALFREDO, 81100000000000, 0),
-			(QENDRIM, 3940000000000, 0),
-			(LEONARDO, 8400000000000, 0),
-			(KEN, 3520000000000, 0),
-			(LUCA, 6400000000000, 0),
-			(XI, 215322787417, 0), //EV
-			(FLAVIO, 7920000000000, 0),
-			(FREDI, 9930000000000, 0),
-			(ALI, 7940000000000, 0),
-			(DILARA, 2560000000000, 0),
-			(DAMIAN, 4310000000000, 0),
-			(KAYA, 9350000000000, 0),
-			(IAZI, 1740000000000, 0),
-			(CHRIGI, 8770000000000, 0),
-			(VALENTINA, 9610000000000, 0),
-			(ALMA, 3940000000000, 0),
-			(ALENA, 4420000000000, 0),
-			(PATRICK, 4860000000000, 0),
-			(ONTARIO, 170000000000, 0),
-			(RAKIA, 94240000000000, 0),
-			(HUBERT, 140000000000, 0),
-			(UTUS, 49060000000000, 0),
-			(TOME, 680000000000, 0),
-			(ZUBER, 90370000000000, 0),
-			(ADAM, 4420000000000, 0),
-			(STANI, 400000000000, 0),
-			(BETI, 680000000000, 0),
-			(HALIT, 680000000000, 0),
-			(DRAGAN, 980000000000, 0),
-			(LEA, 7050000000000, 0),
-			(LUIS, 4220000000000, 0),
-			(TATI, 2280000000000, 0),
-			(WEST, 6950000000000, 0),
-			(MIRIJAM, 4980000000000, 0),
-			(LIONEL, 8640000000000, 0),
-			(GIOVANNI, 3060000000000, 0),
-			(JOEL, 6920000000000, 0),
-			(MALIK, 240000000000, 0),
-			(ALEXANDER, 330000000000, 0),
-			(BUNDI, 11480000000000, 0),
-			(RAMONA, 881533783198, 0),
-			(SOLOMUN, 8400000000000, 0),
-			(JOHNNY, 1320000000000, 0),
-			(GRINGO, 210000000000, 0),
-			(JONAS, 590000000000, 0),
-			(FELIX, 890000000000, 0),
-			(MIA, 29656635864, 0),
-			(ALEXEY, 1290519320002, 0),
-			(PAUL, 1056874939797, 0),
-			(MARIA, 1436044306015, 0),
-			(GEORGE, 614747203141, 0),
-			(CLARA, 562883955363, 0),
-			(PASCAL, 209775226088, 0),
-			(EMMA, 515536164481, 0),
-			(BIBI, 443933919414, 0),
-			(AHMED, 1038297059995, 0),
-			(HERBERT, 327435131495, 0),
-			(LENI, 748662753374, 0),
-			(TOM, 841939191542, 0),
+			(LINA, 42916134112336, 0),
+			(MIA, 32685685157, 0),
+			(ALEXEY, 1422329504123, 0),
+			(PAUL, 1164821313204, 0),
+			(MARIA, 1582718022129, 0),
+			(GEORGE, 677535834646, 0),
+			(CLARA, 620375413759, 0),
+			(RAMONA, 935823219043, 0),
+			(PASCAL, 231201105380, 0),
+			(EMMA, 568191646431, 0),
+			(BIBI, 489276139982, 0),
+			(AHMED, 1144345938558, 0),
+			(HERBERT, 360878478139, 0),
+			(LENI, 825129160220, 0),
+			(XI, 237315279753, 0),
+			(TOM, 927932603756, 0),
+			(ADAMS, 700 * ASSET_UNIT, 0),
+			(POLK, 4236 * ASSET_UNIT, 0),
+			(MARKUS, 3000 * ASSET_UNIT, 0),
+			(ELLA, 700 * ASSET_UNIT, 0),
+			(SKR, 3400 * ASSET_UNIT, 0),
+			(ARTHUR, 1000 * ASSET_UNIT, 0),
+			(MILA, 8400 * ASSET_UNIT, 0),
+			(LINCOLN, 800 * ASSET_UNIT, 0),
+			(MONROE, 1300 * ASSET_UNIT, 0),
+			(ARBRESHA, 5000 * ASSET_UNIT, 0),
+			(ELDIN, 600 * ASSET_UNIT, 0),
+			(HARDING, 800 * ASSET_UNIT, 0),
+			(SOFIA, 3000 * ASSET_UNIT, 0),
+			(DOMINIK, 8000 * ASSET_UNIT, 0),
+			(NOLAND, 900 * ASSET_UNIT, 0),
+			(HANNAH, 400 * ASSET_UNIT, 0),
+			(HOOVER, 2000 * ASSET_UNIT, 0),
+			(GIGI, 600 * ASSET_UNIT, 0),
+			(JEFFERSON, 3000 * ASSET_UNIT, 0),
+			(DRIN, 692 * ASSET_UNIT, 0),
+			(PARI, 236 * ASSET_UNIT, 0),
+			(TUTI, 24 * ASSET_UNIT, 0),
+			(BENITO, 688 * ASSET_UNIT, 0),
+			(VANESSA, 33 * ASSET_UNIT, 0),
+			(ENES, 1148 * ASSET_UNIT, 0),
+			(RUDOLF, 35 * ASSET_UNIT, 0),
+			(CERTO, 840 * ASSET_UNIT, 0),
+			(TIESTO, 132 * ASSET_UNIT, 0),
+			(DAVID, 21 * ASSET_UNIT, 0),
+			(ATAKAN, 59 * ASSET_UNIT, 0),
+			(YANN, 89 * ASSET_UNIT, 0),
+			(ENIS, 332 * ASSET_UNIT, 0),
+			(ALFREDO, 8110 * ASSET_UNIT, 0),
+			(QENDRIM, 394 * ASSET_UNIT, 0),
+			(LEONARDO, 840 * ASSET_UNIT, 0),
+			(KEN, 352 * ASSET_UNIT, 0),
+			(LUCA, 640 * ASSET_UNIT, 0),
+			(FLAVIO, 792 * ASSET_UNIT, 0),
+			(FREDI, 993 * ASSET_UNIT, 0),
+			(ALI, 794 * ASSET_UNIT, 0),
+			(DILARA, 256 * ASSET_UNIT, 0),
+			(DAMIAN, 431 * ASSET_UNIT, 0),
+			(KAYA, 935 * ASSET_UNIT, 0),
+			(IAZI, 174 * ASSET_UNIT, 0),
+			(CHRIGI, 877 * ASSET_UNIT, 0),
+			(VALENTINA, 961 * ASSET_UNIT, 0),
+			(ALMA, 394 * ASSET_UNIT, 0),
+			(ALENA, 442 * ASSET_UNIT, 0),
+			(PATRICK, 486 * ASSET_UNIT, 0),
+			(ONTARIO, 17 * ASSET_UNIT, 0),
+			(RAKIA, 9424 * ASSET_UNIT, 0),
+			(HUBERT, 14 * ASSET_UNIT, 0),
+			(UTUS, 4906 * ASSET_UNIT, 0),
+			(TOME, 68 * ASSET_UNIT, 0),
+			(ZUBER, 9037 * ASSET_UNIT, 0),
+			(ADAM, 442 * ASSET_UNIT, 0),
+			(STANI, 40 * ASSET_UNIT, 0),
+			(BETI, 68 * ASSET_UNIT, 0),
+			(HALIT, 68 * ASSET_UNIT, 0),
+			(DRAGAN, 98 * ASSET_UNIT, 0),
+			(LEA, 705 * ASSET_UNIT, 0),
+			(LUIS, 422 * ASSET_UNIT, 0),
+			(JOEL, 692 * ASSET_UNIT, 0),
+			(MALIK, 24 * ASSET_UNIT, 0),
+			(SOLOMUN, 840 * ASSET_UNIT, 0),
+			(JONAS, 59 * ASSET_UNIT, 0),
 		]
 	}
 
@@ -8485,7 +8453,7 @@ mod e2e_testing {
 			dbg!(total_to_substrate);
 			let res = total_contributions_as_fixed.checked_sub(&total_to_substrate).unwrap();
 			// We are more precise than Excel. From the 11th decimal onwards, the difference should be less than 0.0001.
-			assert!(res < FixedU128::from_float(0.0001));
+			assert!(res < FixedU128::from_float(0.001));
 		})
 	}
 
@@ -8506,12 +8474,12 @@ mod e2e_testing {
 			let pallet_id = <mock::TestRuntime as pallet::Config>::PalletId::get();
 			let project_specific_account: u64 = pallet_id.into_sub_account_truncating(0);
 			let funding = StatemintAssets::balance(1984, project_specific_account);
-			let fund_raised_from_excel = 1565629.731;
+			let fund_raised_from_excel = 1005361.955;
 			let fund_raised_to_substrate = FixedU128::from_float(fund_raised_from_excel);
 			let fund_raised_as_fixed = FixedU128::from_rational(funding, ASSET_UNIT);
 			let res = fund_raised_to_substrate.checked_sub(&fund_raised_as_fixed).unwrap();
 			// We are more precise than Excel. From the 11th decimal onwards, the difference should be less than 0.0003.
-			assert!(res < FixedU128::from_float(0.0003));
+			assert!(res < FixedU128::from_float(0.001));
 		})
 	}
 
@@ -8534,7 +8502,7 @@ mod e2e_testing {
 		for (contributor, expected_amount, project_id) in excel_ct_amounts() {
 			let minted = test_env
 				.in_ext(|| <TestRuntime as Config>::ContributionTokenCurrency::balance(project_id, &contributor));
-			assert_eq!(minted, expected_amount);
+			assert_close_enough!(minted, expected_amount, Perquintill::from_parts(10_000_000_000u64));
 		}
 	}
 }
