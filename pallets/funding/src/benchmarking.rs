@@ -21,6 +21,8 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
+#[allow(unused_imports)]
+use pallet::Pallet as PalletFunding;
 use crate::instantiator::*;
 use frame_benchmarking::v2::*;
 use frame_support::{traits::OriginTrait, Parameter};
@@ -36,7 +38,7 @@ const METADATA: &str = r#"
     "usage_of_founds":"ipfs_url"
 }
 "#;
-
+#[allow(unused_imports)]
 const EDIT_METADATA: &str = r#"
 {
     "whitepaper":"new_ipfs_url",
@@ -50,6 +52,7 @@ const EDIT_METADATA: &str = r#"
 const ASSET_DECIMALS: u8 = 10;
 const US_DOLLAR: u128 = 1_0_000_000_000u128;
 const ASSET_UNIT: u128 = 1_0_000_000_000u128;
+#[allow(unused_imports)]
 const PLMC_UNIT: u128 = 1_0_000_000_000u128;
 
 pub fn usdt_id() -> u32 {

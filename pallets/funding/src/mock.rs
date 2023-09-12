@@ -36,7 +36,6 @@ use sp_std::collections::btree_map::BTreeMap;
 use system::EnsureSigned;
 
 use crate as pallet_funding;
-use crate::instantiator::BoxToFunction;
 
 use super::*;
 
