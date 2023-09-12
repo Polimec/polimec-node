@@ -3595,10 +3595,10 @@ mod auction_round_failure {
 			let mut stored_bids = Bids::<TestRuntime>::iter_prefix_values((project_id, DAVE)).collect::<Vec<_>>();
 			assert_eq!(stored_bids.len(), 4);
 			stored_bids.sort();
-			assert_eq!(stored_bids[0].original_ct_usd_price, 2_u128.into());
-			assert_eq!(stored_bids[1].original_ct_usd_price, 5_u128.into());
-			assert_eq!(stored_bids[2].original_ct_usd_price, 5_u128.into());
-			assert_eq!(stored_bids[3].original_ct_usd_price, 8_u128.into());
+			assert_eq!(stored_bids[0].original_ct_usd_price.to_float(), 1.0);
+			assert_eq!(stored_bids[1].original_ct_usd_price.to_float(), 1.0);
+			assert_eq!(stored_bids[2].original_ct_usd_price.to_float(), 1.1);
+			assert_eq!(stored_bids[3].original_ct_usd_price.to_float(), 1.2);
 		});
 	}
 

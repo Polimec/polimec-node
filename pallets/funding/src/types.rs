@@ -331,7 +331,7 @@ pub mod storage_types {
 
 	impl<Balance: Copy + Saturating + One + Zero, Price: FixedPointNumber> Bucket<Balance, Price> {
 		/// Creates a new bucket with the given parameters.
-		pub fn new(amount_left: Balance, initial_price: Price, delta_price: Price, delta_amount: Balance) -> Self {
+		pub const fn new(amount_left: Balance, initial_price: Price, delta_price: Price, delta_amount: Balance) -> Self {
 			Self { amount_left, current_price: initial_price, initial_price, delta_price, delta_amount }
 		}
 
