@@ -978,8 +978,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Update storage *
 		if existing_bids.len() >= T::MaxBidsPerUser::get() as usize {
-			let lowest_bid =
-				existing_bids.iter().min_by_key(|bid| &bid.id).ok_or(Error::<T>::ImpossibleState)?;
+			let lowest_bid = existing_bids.iter().min_by_key(|bid| &bid.id).ok_or(Error::<T>::ImpossibleState)?;
 
 			// TODO: Check how to handle this
 			// ensure!(new_bid.plmc_bond > lowest_bid.plmc_bond, Error::<T>::BidTooLow);
