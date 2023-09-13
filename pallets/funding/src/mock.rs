@@ -276,7 +276,7 @@ impl Config for TestRuntime {
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type TreasuryAccount = TreasuryAccount;
 	type Vesting = Vesting;
-	type WeightInfo = ();
+	type WeightInfo = weights::SubstrateWeight<TestRuntime>;
 }
 
 // Build genesis storage according to the mock runtime.

@@ -829,8 +829,6 @@ where
 				if let DispatchError::Module(module_error) = error {
 					let pallet_error: Error<T> = Decode::decode(&mut &module_error.error[..]).unwrap();
 					return Err(pallet_error)
-				} else {
-					panic!("wrong conversion");
 				}
 			}
 		}
@@ -923,18 +921,14 @@ where
 		let now = self.current_block();
 		self.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), Self::get_ed())]);
 		self.execute(|| {
-			crate::Pallet::<T>::create(
-				<<T as frame_system::Config>::RuntimeOrigin as OriginTrait>::signed(issuer.into()),
-				project_metadata.clone(),
-			)
-			.unwrap();
+			crate::Pallet::<T>::do_create(&issuer, project_metadata.clone()).unwrap();
 		});
 		self.advance_time(10u32.into()).unwrap();
 		let created_project_id = self.execute(|| {
 			let project_id = frame_system::Pallet::<T>::events()
 				.iter()
 				.filter_map(|event| match RuntimeEvent::try_into(event.event.clone()) {
-					Ok(Event::Created { project_id }) => Some(project_id),
+					Ok(Event::ProjectCreated { project_id, issuer: _ }) => Some(project_id),
 					_ => None,
 				})
 				.last()
@@ -953,7 +947,7 @@ where
 		caller: AccountIdOf<T>,
 	) -> Result<(), DispatchError> {
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::Application);
-		self.execute(|| crate::Pallet::<T>::start_evaluation(RuntimeOriginOf::<T>::signed(caller.into()), project_id))?;
+		self.execute(|| crate::Pallet::<T>::do_evaluation_start(caller, project_id))?;
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::EvaluationRound);
 
 		Ok(())
@@ -975,13 +969,7 @@ where
 		bonds: Vec<UserToUSDBalance<T>>,
 	) -> Result<(), DispatchError> {
 		for UserToUSDBalance { account, usd_amount } in bonds {
-			self.execute(|| {
-				crate::Pallet::<T>::bond_evaluation(
-					RuntimeOriginOf::<T>::signed(account.into()),
-					project_id,
-					usd_amount,
-				)
-			})?;
+			self.execute(|| crate::Pallet::<T>::do_evaluate(&account, project_id, usd_amount))?;
 		}
 		Ok(())
 	}
@@ -998,7 +986,7 @@ where
 
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 
-		self.execute(|| crate::Pallet::<T>::start_auction(RuntimeOriginOf::<T>::signed(caller.into()), project_id))?;
+		self.execute(|| crate::Pallet::<T>::do_english_auction(caller, project_id))?;
 
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionRound(AuctionPhase::English));
 
@@ -1042,14 +1030,7 @@ where
 	pub fn bid_for_users(&mut self, project_id: ProjectIdOf<T>, bids: Vec<BidParams<T>>) -> Result<(), DispatchError> {
 		for bid in bids {
 			self.execute(|| {
-				crate::Pallet::<T>::bid(
-					RuntimeOriginOf::<T>::signed(bid.bidder.into()),
-					project_id,
-					bid.amount,
-					bid.price,
-					bid.multiplier,
-					bid.asset,
-				)
+				crate::Pallet::<T>::do_bid(&bid.bidder, project_id, bid.amount, bid.price, bid.multiplier, bid.asset)
 			})?;
 		}
 		Ok(())
@@ -1164,8 +1145,8 @@ where
 	) -> Result<(), DispatchError> {
 		for cont in contributions {
 			self.execute(|| {
-				crate::Pallet::<T>::contribute(
-					RuntimeOriginOf::<T>::signed(cont.contributor.into()),
+				crate::Pallet::<T>::do_contribute(
+					&cont.contributor,
 					project_id,
 					cont.amount,
 					cont.multiplier,
@@ -1632,6 +1613,7 @@ impl<T: Config> Default for BidInfoFilter<T> {
 }
 
 pub mod testing_macros {
+
 	#[macro_export]
 	macro_rules! assert_close_enough {
 		($real:expr, $desired:expr, $max_approximation:expr) => {
@@ -1654,27 +1636,26 @@ pub mod testing_macros {
 		};
 	}
 
-	#[allow(unused_macros)]
-	#[macro_export]
-	macro_rules! find_event {
-		($env: expr, $pattern:pat) => {
-			$env.ext_env.borrow_mut().execute_with(|| {
-				let events = System::events();
-
-				events.iter().find_map(|event_record| {
-					if let frame_system::EventRecord {
-						event: RuntimeEvent::FundingModule(desired_event @ $pattern),
-						..
-					} = event_record
-					{
-						Some(desired_event.clone())
-					} else {
-						None
-					}
-				})
-			})
-		};
-	}
+	// #[macro_export]
+	// macro_rules! find_event {
+	// 	($env: expr, $pattern:pat) => {
+	// 		$env.execute(|| {
+	// 			let events = System::events();
+	//
+	// 			events.iter().find_map(|event_record| {
+	// 				if let frame_system::EventRecord {
+	// 					event: RuntimeEvent::FundingModule(desired_event @ $pattern),
+	// 					..
+	// 				} = event_record
+	// 				{
+	// 					Some(desired_event.clone())
+	// 				} else {
+	// 					None
+	// 				}
+	// 			})
+	// 		})
+	// 	};
+	// }
 
 	#[macro_export]
 	macro_rules! extract_from_event {
