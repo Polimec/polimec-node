@@ -581,7 +581,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			remaining_cts == 0u32.into() ||
+			remaining_cts == Zero::zero() ||
 				project_details.status == ProjectStatus::FundingFailed ||
 				matches!(remainder_end_block, Some(end_block) if now > end_block),
 			Error::<T>::TooEarlyForFundingEnd
@@ -1034,8 +1034,6 @@ impl<T: Config> Pallet<T> {
 		// * Get variables *
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		// TODO: Replace with a better error
-		ensure!(project_details.remaining_contribution_tokens.1 > Zero::zero(), Error::<T>::NotAllowed);
 		let now = <frame_system::Pallet<T>>::block_number();
 		let contribution_id = Self::next_contribution_id();
 		let existing_contributions =
@@ -1043,11 +1041,11 @@ impl<T: Config> Pallet<T> {
 
 		let ct_usd_price = project_details.weighted_average_price.ok_or(Error::<T>::AuctionNotStarted)?;
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PriceNotFound)?;
-		let mut ticket_size = ct_usd_price.checked_mul_int(token_amount).ok_or(Error::<T>::BadMath)?;
 		let funding_asset_usd_price =
 			T::PriceProvider::get_price(asset.to_statemint_id()).ok_or(Error::<T>::PriceNotFound)?;
 
 		// * Validity checks *
+		ensure!(project_metadata.participation_currencies == asset, Error::<T>::FundingAssetNotAccepted);
 		ensure!(contributor.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
 		ensure!(
 			project_details.status == ProjectStatus::CommunityRound ||
@@ -1055,6 +1053,13 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::AuctionNotStarted
 		);
 
+		// * Calculate variables *
+		let buyable_tokens = Self::calculate_buyable_amount(
+			&project_details.status,
+			token_amount,
+			project_details.remaining_contribution_tokens,
+		);
+		let ticket_size = ct_usd_price.checked_mul_int(buyable_tokens).ok_or(Error::<T>::BadMath)?;
 		if let Some(minimum_ticket_size) = project_metadata.ticket_size.minimum {
 			// Make sure the bid amount is greater than the minimum specified by the issuer
 			ensure!(ticket_size >= minimum_ticket_size, Error::<T>::ContributionTooLow);
@@ -1063,22 +1068,11 @@ impl<T: Config> Pallet<T> {
 			// Make sure the bid amount is less than the maximum specified by the issuer
 			ensure!(ticket_size <= maximum_ticket_size, Error::<T>::ContributionTooHigh);
 		};
-		ensure!(project_metadata.participation_currencies == asset, Error::<T>::FundingAssetNotAccepted);
 
-		// * Calculate variables *
-		let buyable_tokens = if project_details.remaining_contribution_tokens.1 > token_amount {
-			token_amount
-		} else {
-			let amount_to_bid = project_details.remaining_contribution_tokens.1;
-			ticket_size = ct_usd_price.checked_mul_int(amount_to_bid).ok_or(Error::<T>::BadMath)?;
-			amount_to_bid
-		};
 		let plmc_bond = Self::calculate_plmc_bond(ticket_size, multiplier, plmc_usd_price)?;
 		let funding_asset_amount =
 			funding_asset_usd_price.reciprocal().ok_or(Error::<T>::BadMath)?.saturating_mul_int(ticket_size);
 		let asset_id = asset.to_statemint_id();
-		let remaining_cts_after_purchase =
-			project_details.remaining_contribution_tokens.1.saturating_sub(buyable_tokens);
 
 		let new_contribution = ContributionInfoOf::<T> {
 			id: contribution_id,
@@ -1126,21 +1120,33 @@ impl<T: Config> Pallet<T> {
 			Self::try_plmc_participation_lock(contributor, project_id, plmc_bond)?;
 			Self::try_funding_asset_hold(contributor, project_id, funding_asset_amount, asset_id)?;
 
-			project_details.remaining_contribution_tokens.1 =
-				project_details.remaining_contribution_tokens.1.saturating_add(lowest_contribution.ct_amount);
-			project_details.funding_amount_reached =
-				project_details.funding_amount_reached.saturating_sub(lowest_contribution.usd_contribution_amount);
+			project_details.remaining_contribution_tokens.1.saturating_accrue(lowest_contribution.ct_amount);
+			project_details.funding_amount_reached.saturating_reduce(lowest_contribution.usd_contribution_amount);
 		}
 
 		Contributions::<T>::insert((project_id, contributor, contribution_id), &new_contribution);
 		NextContributionId::<T>::set(contribution_id.saturating_add(One::one()));
 
-		project_details.remaining_contribution_tokens.1 =
-			project_details.remaining_contribution_tokens.1.saturating_sub(new_contribution.ct_amount);
-		project_details.funding_amount_reached =
-			project_details.funding_amount_reached.saturating_add(new_contribution.usd_contribution_amount);
-		ProjectsDetails::<T>::insert(project_id, project_details);
+		if project_details.status == ProjectStatus::CommunityRound {
+			project_details.remaining_contribution_tokens.1.saturating_reduce(new_contribution.ct_amount);
+		} else {
+			let before = project_details.remaining_contribution_tokens.0;
+			let remaining_cts_in_round = before.saturating_sub(new_contribution.ct_amount);
+			project_details.remaining_contribution_tokens.0 = remaining_cts_in_round;
 
+			// If the entire ct_amount could not be subtracted from remaining_contribution_tokens.0, subtract the difference from remaining_contribution_tokens.1
+			if remaining_cts_in_round.is_zero() {
+				let difference = new_contribution.ct_amount.saturating_sub(before);
+				project_details.remaining_contribution_tokens.1.saturating_reduce(difference);
+			}
+		}
+
+		let remaining_cts_after_purchase = project_details
+			.remaining_contribution_tokens
+			.0
+			.saturating_add(project_details.remaining_contribution_tokens.1);
+		project_details.funding_amount_reached.saturating_accrue(new_contribution.usd_contribution_amount);
+		ProjectsDetails::<T>::insert(project_id, project_details);
 		// If no CTs remain, end the funding phase
 		if remaining_cts_after_purchase.is_zero() {
 			Self::remove_from_update_store(&project_id)?;
@@ -1156,6 +1162,30 @@ impl<T: Config> Pallet<T> {
 		});
 
 		Ok(Pays::No.into())
+	}
+
+	fn calculate_buyable_amount(
+		status: &ProjectStatus,
+		amount: BalanceOf<T>,
+		remaining_contribution_tokens: (BalanceOf<T>, BalanceOf<T>),
+	) -> BalanceOf<T> {
+		match status {
+			ProjectStatus::CommunityRound =>
+				if remaining_contribution_tokens.1 >= amount {
+					amount
+				} else {
+					remaining_contribution_tokens.1
+				},
+			ProjectStatus::RemainderRound => {
+				let sum = remaining_contribution_tokens.0.saturating_add(remaining_contribution_tokens.1);
+				if sum >= amount {
+					amount
+				} else {
+					sum
+				}
+			},
+			_ => Zero::zero(),
+		}
 	}
 
 	pub fn do_decide_project_outcome(
