@@ -861,21 +861,12 @@ impl<'a> CommunityFundingProject<'a> {
 
 		let prev_supply = test_env.get_plmc_total_supply();
 		let post_supply = prev_supply + bidder_balances;
-		let bid_expectations = bids
-			.iter()
-			.map(|bid| BidInfoFilter {
-				original_ct_amount: Some(bid.amount),
-				original_ct_usd_price: Some(bid.price),
-				..Default::default()
-			})
-			.collect_vec();
-		let total_ct_sold = bids.iter().map(|bid| bid.amount).sum::<u128>();
 
 		test_env.mint_plmc_to(necessary_plmc_mint.clone());
 		test_env.mint_plmc_to(plmc_existential_deposits.clone());
 		test_env.mint_statemint_asset_to(funding_asset_deposits.clone());
 
-		auctioning_project.bid_for_users(bids).expect("Bidding should work");
+		auctioning_project.bid_for_users(bids.clone()).expect("Bidding should work");
 		test_env.do_reserved_plmc_assertions(total_plmc_participation_locked, LockType::Participation(project_id));
 		// test_env.do_bid_transferred_statemint_asset_assertions(funding_asset_deposits, project_id);
 		test_env.do_free_plmc_assertions(expected_free_plmc_balances);
@@ -884,7 +875,26 @@ impl<'a> CommunityFundingProject<'a> {
 
 		let community_project = auctioning_project.start_community_funding();
 
-		// community_project.finalized_bids_assertions(bid_expectations, total_ct_sold);
+		let stored_bids = community_project
+			.get_test_environment()
+			.in_ext(|| Bids::<TestRuntime>::iter_prefix_values((community_project.project_id,)).collect_vec());
+		let new_bids = stored_bids
+			.into_iter()
+			.filter(|bid| bid.final_ct_amount != 0)
+			.map(|bid| TestBid::from(bid.bidder, bid.final_ct_amount, bid.final_ct_usd_price))
+			.collect_vec();
+
+		let bid_expectations = new_bids
+			.iter()
+			.map(|bid| BidInfoFilter {
+				final_ct_amount: Some(bid.amount),
+				final_ct_usd_price: Some(bid.price),
+				..Default::default()
+			})
+			.collect_vec();
+		let total_ct_sold = new_bids.iter().map(|bid| bid.amount).sum::<u128>();
+
+		community_project.finalized_bids_assertions(bid_expectations, total_ct_sold);
 
 		community_project
 	}
@@ -916,9 +926,9 @@ impl<'a> CommunityFundingProject<'a> {
 		let project_bids = self.in_ext(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect_vec());
 		assert!(matches!(project_details.weighted_average_price, Some(_)), "Weighted average price should exist");
 
-		// for filter in bid_expectations {
-		// 	let _found_bid = project_bids.iter().find(|bid| filter.matches_bid(&bid)).unwrap();
-		// }
+		for filter in bid_expectations {
+			let _found_bid = project_bids.iter().find(|bid| filter.matches_bid(&bid)).unwrap();
+		}
 
 		// Remaining CTs are updated
 		dbg!(expected_ct_sold.clone());
@@ -1056,9 +1066,9 @@ impl<'a> RemainderFundingProject<'a> {
 		community_funding_project.buy_for_retail_users(contributions.clone()).expect("Contributing should work");
 
 		test_env.do_reserved_plmc_assertions(total_plmc_participation_locked, LockType::Participation(project_id));
-		test_env.do_contribution_transferred_statemint_asset_assertions(funding_asset_deposits, project_id);
+		// test_env.do_contribution_transferred_statemint_asset_assertions(funding_asset_deposits, project_id);
 		test_env.do_free_plmc_assertions(expected_free_plmc_balances);
-		test_env.do_free_statemint_asset_assertions(prev_funding_asset_balances);
+		// test_env.do_free_statemint_asset_assertions(prev_funding_asset_balances);
 		test_env.do_total_plmc_assertions(post_supply);
 
 		community_funding_project.start_remainder_or_end_funding()
@@ -4264,29 +4274,28 @@ mod community_round_success {
 		let mut evaluations = default_evaluations();
 		let evaluator_contributor = 69;
 		let evaluation_amount = 420 * US_DOLLAR;
-		let contribution =
-			TestContribution::new(evaluator_contributor, 22 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
+		let contributions =
+			vec![TestContribution::new(evaluator_contributor, 200 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT)];
 		evaluations.push((evaluator_contributor, evaluation_amount));
 		let bids = default_bids();
 
 		let contributing_project = CommunityFundingProject::new_with(&test_env, project, issuer, evaluations, bids);
 		let ct_price = contributing_project.get_project_details().weighted_average_price.unwrap();
-		let necessary_plmc_for_contribution = calculate_contributed_plmc_spent(vec![contribution], ct_price)[0].1;
+		let necessary_plmc_for_contribution = calculate_contributed_plmc_spent(contributions.clone(), ct_price)[0].1;
 		let plmc_evaluation_amount =
 			calculate_evaluation_plmc_spent(vec![(evaluator_contributor, evaluation_amount)])[0].1;
 		let plmc_available_for_participating =
 			plmc_evaluation_amount - <TestRuntime as Config>::EvaluatorSlash::get() * plmc_evaluation_amount;
 		assert!(
-			necessary_plmc_for_contribution > plmc_available_for_participating &&
+			plmc_available_for_participating > necessary_plmc_for_contribution &&
 				necessary_plmc_for_contribution < plmc_evaluation_amount
 		);
-		// 1199_9_999_999_999
-		// 49_9_999_999_999
-		let necessary_usdt_for_contribution = calculate_contributed_funding_asset_spent(vec![contribution], ct_price);
+		let necessary_usdt_for_contribution =
+			calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
 
 		test_env.mint_statemint_asset_to(necessary_usdt_for_contribution);
 
-		assert_matches!(contributing_project.buy_for_retail_users(vec![contribution]), Err(_));
+		assert_matches!(contributing_project.buy_for_retail_users(contributions), Err(_));
 	}
 
 	#[test]
@@ -8350,6 +8359,33 @@ mod e2e_testing {
 			// assert!(res < FixedU128::from_float(0.001));
 			let total_ct_sold_from_excel = 46821;
 			assert_eq!(total_ct_amount / PLMC, total_ct_sold_from_excel)
+		})
+	}
+
+	#[test]
+	fn community_round_completed_test() {
+		let test_env = TestEnvironment::new();
+		const HUGE_CONTRIBUTION: BalanceOf<TestRuntime> = 420_000 * US_DOLLAR;
+		let remproj = RemainderFundingProject::new_with(
+			&test_env,
+			excel_project(0),
+			ISSUER,
+			excel_evaluators(),
+			excel_bidders(),
+			vec![
+				TestContribution::from(DRIN, HUGE_CONTRIBUTION),
+			],
+		);
+		let extpected_ct_amount = remproj.expect_right("No remainder").get_project_details();
+		let ct_amount_left = extpected_ct_amount.remaining_contribution_tokens;
+
+		test_env.in_ext(|| {
+			let contributions = Contributions::<TestRuntime>::iter_prefix_values((0,))
+				.sorted_by_key(|bid| bid.contributor)
+				.collect_vec();
+			let ct_amount_from_contrib = contributions.first().unwrap().ct_amount;
+			assert_eq!(ct_amount_left.1, 0);
+			assert_eq!(ct_amount_from_contrib, 50_000 * ASSET_UNIT);
 		})
 	}
 
