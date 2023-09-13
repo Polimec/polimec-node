@@ -1078,7 +1078,7 @@ impl<T: Config> Pallet<T> {
 			id: contribution_id,
 			project_id,
 			contributor: contributor.clone(),
-			ct_amount: token_amount,
+			ct_amount: buyable_tokens,
 			usd_contribution_amount: ticket_size,
 			multiplier,
 			funding_asset: asset,
@@ -1171,7 +1171,7 @@ impl<T: Config> Pallet<T> {
 	) -> BalanceOf<T> {
 		match status {
 			ProjectStatus::CommunityRound =>
-				if remaining_contribution_tokens.1 >= amount {
+				if amount <= remaining_contribution_tokens.1 {
 					amount
 				} else {
 					remaining_contribution_tokens.1
