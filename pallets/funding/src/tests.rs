@@ -440,9 +440,9 @@ impl TestEnvironment {
 		correct_funds: UserToPLMCBalance,
 		reserve_type: LockType<ProjectIdOf<TestRuntime>>,
 	) {
-		for (user, balance) in correct_funds {
+		for (user, _balance) in correct_funds {
 			self.ext_env.borrow_mut().execute_with(|| {
-				let reserved = Balances::balance_on_hold(&reserve_type, &user);
+				let _reserved = Balances::balance_on_hold(&reserve_type, &user);
 				// TODO: Enable this
 				// assert_eq!(reserved, balance);
 			});
@@ -487,9 +487,9 @@ impl TestEnvironment {
 	}
 
 	fn do_free_plmc_assertions(&self, correct_funds: UserToPLMCBalance) {
-		for (user, balance) in correct_funds {
+		for (user, _balance) in correct_funds {
 			self.ext_env.borrow_mut().execute_with(|| {
-				let free = Balances::free_balance(user);
+				let _free = Balances::free_balance(user);
 				// TODO: Enable this
 				// assert_eq!(free, balance);
 			});
@@ -839,7 +839,7 @@ impl<'a> CommunityFundingProject<'a> {
 		let bidders = bids.iter().map(|b| b.bidder.clone()).collect::<Vec<AccountIdOf<TestRuntime>>>();
 		let asset_id = bids[0].asset.to_statemint_id();
 		let prev_plmc_balances = test_env.get_free_plmc_balances_for(bidders.clone());
-		let prev_funding_asset_balances = test_env.get_free_statemint_asset_balances_for(asset_id, bidders);
+		let _prev_funding_asset_balances = test_env.get_free_statemint_asset_balances_for(asset_id, bidders);
 		let plmc_evaluation_deposits: UserToPLMCBalance = calculate_evaluation_plmc_spent(evaluations.clone());
 		let plmc_bid_deposits: UserToPLMCBalance = calculate_auction_plmc_spent(bids.clone());
 		let participation_usable_evaluation_deposits = plmc_evaluation_deposits
@@ -1035,7 +1035,7 @@ impl<'a> RemainderFundingProject<'a> {
 		let contributors = contributions.iter().map(|cont| cont.contributor).collect::<Vec<_>>();
 		let asset_id = contributions[0].asset.to_statemint_id();
 		let prev_plmc_balances = test_env.get_free_plmc_balances_for(contributors.clone());
-		let prev_funding_asset_balances =
+		let _prev_funding_asset_balances =
 			test_env.get_free_statemint_asset_balances_for(asset_id, contributors.clone());
 
 		let plmc_evaluation_deposits = calculate_evaluation_plmc_spent(evaluations.clone());
