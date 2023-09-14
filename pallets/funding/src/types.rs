@@ -271,10 +271,7 @@ pub mod storage_types {
 	{
 		fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
 			match self.original_ct_usd_price.cmp(&other.original_ct_usd_price) {
-				sp_std::cmp::Ordering::Equal => match Ord::cmp(&self.when, &other.when) {
-					sp_std::cmp::Ordering::Equal => Ord::cmp(&other.id, &self.id),
-					other => other,
-				},
+				sp_std::cmp::Ordering::Equal => Ord::cmp(&other.id, &self.id),
 				other => other,
 			}
 		}
