@@ -875,6 +875,7 @@ impl<T: Config> Pallet<T> {
 		funding_asset: AcceptedFundingAsset,
 	) -> Result<(), DispatchError> {
 		// * Get variables *
+		ensure!(ct_amount > Zero::zero(), Error::<T>::BidTooLow);
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PriceNotFound)?;
@@ -883,6 +884,8 @@ impl<T: Config> Pallet<T> {
 		ensure!(bidder.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
 		ensure!(matches!(project_details.status, ProjectStatus::AuctionRound(_)), Error::<T>::AuctionNotStarted);
 		ensure!(funding_asset == project_metadata.participation_currencies, Error::<T>::FundingAssetNotAccepted);
+		// Note: We limit the CT Amount to the total allocation size, to avoid long running loops.
+		ensure!(ct_amount <= project_metadata.total_allocation_size.0, Error::<T>::NotAllowed);
 
 		// Fetch current bucket details and other required info
 		let mut current_bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
