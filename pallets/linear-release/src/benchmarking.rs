@@ -24,6 +24,20 @@ use frame_support::traits::OriginTrait;
 use frame_system::RawOrigin;
 use pallet_funding::LockType;
 
+const SEED: u32 = 0;
+
+fn add_holds<T: Config<Reason = LockType<u32>>>(who: &T::AccountId, n: u8) {
+	for id in 0..n {
+		let locked = 256u32;
+		let reason: ReasonOf<T> = LockType::Participation(0);
+		let _ = T::Currency::hold(&reason, who, locked.into());
+	}
+}
+
+fn get_reason<T: Config<Reason = LockType<u32>>>(n: u32) -> ReasonOf<T> {
+	LockType::Participation(n)
+}
+
 #[benchmarks(
 	where
 	T: Config + frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent>,
@@ -40,14 +54,35 @@ mod benches {
 		crate::mock::Test
 	);
 
-	#[benchmark]
-	fn vest() -> Result<(), BenchmarkError> {
-		let caller = whitelisted_caller();
+	// #[benchmark]
+	// fn vest() -> Result<(), BenchmarkError> {
+	// 	let caller: T::AccountId = whitelisted_caller();
 
-		let reason: ReasonOf<T> = LockType::Participation(0);
+	// 	let reason = get_reason::<T>(0);
+
+	// 	#[extrinsic_call]
+	// 	_(RawOrigin::Signed(caller.clone()), reason);
+
+	// 	Ok(())
+	// }
+
+	#[benchmark]
+	fn vest_all() -> Result<(), BenchmarkError> {
+		let caller: T::AccountId = whitelisted_caller();
 
 		#[extrinsic_call]
-		_(RawOrigin::Signed(caller.clone()), reason);
+		_(RawOrigin::Signed(caller.clone()));
+
+		Ok(())
+	}
+
+	#[benchmark]
+	fn vest_all_other() -> Result<(), BenchmarkError> {
+		let caller: T::AccountId = whitelisted_caller();
+		let test_dest: T::AccountId = account("test_dest", 0, SEED);
+
+		#[extrinsic_call]
+		_(RawOrigin::Signed(caller.clone()), test_dest.clone());
 
 		Ok(())
 	}
