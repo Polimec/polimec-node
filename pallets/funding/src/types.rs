@@ -345,9 +345,9 @@ pub mod storage_types {
 			}
 		}
 
-		/// Updates the bucket to represent the next one in the sequence. This involves incrementing
-		/// the bucket's ID, resetting the amount left, and recalculating the current price based on the initial
-		/// price and the price increments defined by the `delta_price`.
+		/// Updates the bucket to represent the next one in the sequence. This involves:
+		/// - resetting the amount left,
+		/// - recalculating the price based on the current price and the price increments defined by the `delta_price`.
 		fn next(&mut self) {
 			self.amount_left = self.delta_amount;
 			self.current_price = self.current_price.saturating_add(self.delta_price);
