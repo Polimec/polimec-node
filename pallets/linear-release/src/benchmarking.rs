@@ -32,6 +32,14 @@ use pallet_funding::LockType;
 mod benches {
 	use super::*;
 
+	// Implements a test for each benchmark. Execute with:
+	// `cargo test -p pallet-linear-release --features runtime-benchmarks`.
+	impl_benchmark_test_suite!(
+		PalletLinearRelease,
+		crate::mock::ExtBuilder::default().existential_deposit(256).build(),
+		crate::mock::Test
+	);
+
 	#[benchmark]
 	fn vest() -> Result<(), BenchmarkError> {
 		let caller = whitelisted_caller();
@@ -43,7 +51,4 @@ mod benches {
 
 		Ok(())
 	}
-	// Implements a test for each benchmark. Execute with:
-	// `cargo test -p pallet-linear-release --features runtime-benchmarks`.
-	impl_benchmark_test_suite!(PalletLinearRelease, crate::mock::new_test_ext(), crate::mock::Test);
 }
