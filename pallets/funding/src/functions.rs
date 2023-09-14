@@ -2120,10 +2120,6 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	// fn reject_bid(status){
-
-	// }
-
 	pub fn select_random_block(
 		candle_starting_block: T::BlockNumber,
 		candle_ending_block: T::BlockNumber,
