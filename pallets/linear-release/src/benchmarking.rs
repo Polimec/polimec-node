@@ -34,10 +34,6 @@ fn add_holds<T: Config<Reason = LockType<u32>>>(who: &T::AccountId, n: u8) {
 	}
 }
 
-fn get_reason<T: Config<Reason = LockType<u32>>>(n: u32) -> ReasonOf<T> {
-	LockType::Participation(n)
-}
-
 #[benchmarks(
 	where
 	T: Config + frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent>,
@@ -54,17 +50,17 @@ mod benches {
 		crate::mock::Test
 	);
 
-	// #[benchmark]
-	// fn vest() -> Result<(), BenchmarkError> {
-	// 	let caller: T::AccountId = whitelisted_caller();
+	#[benchmark]
+	fn vest() -> Result<(), BenchmarkError> {
+		let caller: T::AccountId = whitelisted_caller();
 
-	// 	let reason = get_reason::<T>(0);
+		let reason = LockType::Participation(0);
 
-	// 	#[extrinsic_call]
-	// 	_(RawOrigin::Signed(caller.clone()), reason);
+		#[extrinsic_call]
+		_(RawOrigin::Signed(caller.clone()), reason);
 
-	// 	Ok(())
-	// }
+		Ok(())
+	}
 
 	#[benchmark]
 	fn vest_all() -> Result<(), BenchmarkError> {
