@@ -380,7 +380,7 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 		reason: ReasonOf<T>,
 	) -> Result<<Self::Currency as Inspect<T::AccountId>>::Balance, DispatchError> {
 		let prev_locked = T::Currency::balance_on_hold(&reason, &who);
-		Self::do_vest(who.clone(), reason.clone())?;
+		Self::do_vest(who.clone(), reason)?;
 		let post_locked = T::Currency::balance_on_hold(&reason, &who);
 
 		Ok(prev_locked.saturating_sub(post_locked))

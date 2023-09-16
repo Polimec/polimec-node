@@ -113,6 +113,7 @@ mod benches {
 
 		Ok(())
 	}
+
 	#[benchmark]
 	fn vest_unlocked(l: Linear<0, 9>, s: Linear<1, { T::MAX_VESTING_SCHEDULES - 1 }>) -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
@@ -208,15 +209,14 @@ mod benches {
 	#[benchmark]
 	fn vested_transfer(l: Linear<0, 9>, s: Linear<1, { T::MAX_VESTING_SCHEDULES - 1 }>) -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
-		T::Currency::set_balance(&caller, T::Currency::minimum_balance().saturating_add(1024u32.into()));
+		T::Currency::set_balance(&caller, T::Currency::minimum_balance().saturating_mul(1024u32.into()));
 
 		let target: T::AccountId = account("target", 0, SEED);
 		// Give target existing locks
-		T::Currency::set_balance(&target, T::Currency::minimum_balance().saturating_add(1024u32.into()));
+		T::Currency::set_balance(&target, T::Currency::minimum_balance().saturating_mul(1024u32.into()));
 		add_holds::<T>(&target, l);
 
 		// Add one vesting schedules.
-		let _ = T::Currency::balance(&target);
 		let reason = LockType::Participation(l);
 		let mut expected_balance = add_vesting_schedules::<T>(target.clone(), s, reason)?;
 
@@ -246,13 +246,11 @@ mod benches {
 		T::Currency::set_balance(&source, T::Currency::minimum_balance().saturating_add(1024u32.into()));
 
 		let target: T::AccountId = account("target", 0, SEED);
-
 		// Give target existing locks
 		T::Currency::set_balance(&target, T::Currency::minimum_balance().saturating_add(1024u32.into()));
 		add_holds::<T>(&target, l);
 
 		// Add one less than max vesting schedules
-		let _ = T::Currency::balance(&target);
 		let reason = LockType::Participation(l);
 		let mut expected_balance = add_vesting_schedules::<T>(target.clone(), s, reason)?;
 
@@ -270,6 +268,7 @@ mod benches {
 			Some(BalanceOf::<T>::zero()),
 			"Lock not correctly updated",
 		);
+
 		Ok(())
 	}
 
@@ -379,6 +378,68 @@ mod benches {
 		// Since merge unlocks all schedules we can now transfer the balance.
 		assert_ok!(T::Currency::transfer(&caller, &test_dest, expected_balance, Expendable));
 
+		Ok(())
+	}
+
+	#[benchmark]
+	fn vest_all(l: Linear<0, 9>, s: Linear<1, { T::MAX_VESTING_SCHEDULES - 1 }>) -> Result<(), BenchmarkError> {
+		let caller: T::AccountId = whitelisted_caller();
+		T::Currency::set_balance(&caller, T::Currency::minimum_balance().saturating_add(1024u32.into()));
+
+		add_holds::<T>(&caller, l);
+		// At block zero, everything is vested.
+		assert_eq!(System::<T>::block_number(), BlockNumberFor::<T>::zero());
+		let reason = LockType::Participation(l);
+		let _ = add_vesting_schedules::<T>(caller.clone(), s, reason)?;
+		assert_eq!(
+			PalletLinearRelease::<T>::vesting_balance(&caller, reason),
+			Some(BalanceOf::<T>::zero()),
+			"Vesting schedule not added",
+		);
+
+		#[extrinsic_call]
+		vest_all(RawOrigin::Signed(caller.clone()));
+
+		for _ in 0..l {
+			let reason = LockType::Participation(l);
+			// Nothing happened since everything is still vested.
+			assert_eq!(
+				PalletLinearRelease::<T>::vesting_balance(&caller, reason),
+				Some(BalanceOf::<T>::zero()),
+				"Vesting schedule was removed",
+			);
+		}
+
+		Ok(())
+	}
+
+	#[benchmark]
+	fn vest_all_other(l: Linear<0, 9>, s: Linear<1, { T::MAX_VESTING_SCHEDULES - 1 }>) -> Result<(), BenchmarkError> {
+		let other: T::AccountId = account("other", 0, SEED);
+		let caller: T::AccountId = whitelisted_caller();
+
+		T::Currency::set_balance(&other, T::Currency::minimum_balance().saturating_add(1024u32.into()));
+		add_holds::<T>(&other, l);
+		let reason = LockType::Participation(l);
+		let _ = add_vesting_schedules::<T>(other.clone(), s, reason)?;
+
+		// At block zero, everything is vested.
+		assert_eq!(System::<T>::block_number(), BlockNumberFor::<T>::zero());
+		assert_eq!(
+			PalletLinearRelease::<T>::vesting_balance(&other, reason),
+			Some(BalanceOf::<T>::zero()),
+			"Vesting schedule not added",
+		);
+
+		#[extrinsic_call]
+		vest_all_other(RawOrigin::Signed(caller.clone()), other.clone());
+
+		// Nothing happened since everything is still vested.
+		assert_eq!(
+			PalletLinearRelease::<T>::vesting_balance(&other, reason),
+			Some(BalanceOf::<T>::zero()),
+			"Vesting schedule was removed",
+		);
 		Ok(())
 	}
 }

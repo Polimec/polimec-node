@@ -18,6 +18,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 mod benchmarking;
+mod weights;
 
 use frame_support::{
 	dispatch::DispatchResult,
@@ -29,9 +30,8 @@ use frame_support::{
 		Get, WithdrawReasons,
 	},
 };
-use frame_system::{pallet_prelude::*, WeightInfo};
+use frame_system::pallet_prelude::*;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
-
 use polimec_traits::ReleaseSchedule;
 use scale_info::TypeInfo;
 use sp_runtime::{
@@ -42,7 +42,8 @@ use sp_std::{marker::PhantomData, prelude::*};
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
-use types::VestingInfo;
+pub use types::VestingInfo;
+pub use weights::WeightInfo;
 
 #[cfg(test)]
 mod mock;
@@ -109,7 +110,6 @@ impl<T: Config> Get<u32> for MaxVestingSchedulesGet<T> {
 /// Enable `dev_mode` for this pallet.
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
-
 	use super::*;
 
 	#[pallet::config]
@@ -265,6 +265,9 @@ pub mod pallet {
 		/// ## Complexity
 		/// - `O(1)`.
 		#[pallet::call_index(0)]
+		#[pallet::weight(T::WeightInfo::vest_other_locked(10, T::MAX_VESTING_SCHEDULES)
+		.max(T::WeightInfo::vest_other_unlocked(10, T::MAX_VESTING_SCHEDULES))
+	)]
 		pub fn vest(origin: OriginFor<T>, reason: ReasonOf<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			Self::do_vest(who, reason)
@@ -282,6 +285,9 @@ pub mod pallet {
 		/// ## Complexity
 		/// - `O(1)`.
 		#[pallet::call_index(1)]
+		#[pallet::weight(T::WeightInfo::vest_other_locked(10, T::MAX_VESTING_SCHEDULES)
+		.max(T::WeightInfo::vest_other_unlocked(10, T::MAX_VESTING_SCHEDULES))
+	)]
 		pub fn vest_other(origin: OriginFor<T>, target: AccountIdOf<T>, reason: ReasonOf<T>) -> DispatchResult {
 			ensure_signed(origin)?;
 			Self::do_vest(target, reason)
@@ -301,6 +307,7 @@ pub mod pallet {
 		/// ## Complexity
 		/// - `O(1)`.
 		#[pallet::call_index(2)]
+		#[pallet::weight(T::WeightInfo::vested_transfer(10, T::MAX_VESTING_SCHEDULES))]
 		pub fn vested_transfer(
 			origin: OriginFor<T>,
 			target: AccountIdOf<T>,
@@ -326,6 +333,7 @@ pub mod pallet {
 		/// ## Complexity
 		/// - `O(1)`.
 		#[pallet::call_index(3)]
+		#[pallet::weight(T::WeightInfo::force_vested_transfer(10, T::MAX_VESTING_SCHEDULES))]
 		pub fn force_vested_transfer(
 			origin: OriginFor<T>,
 			source: AccountIdOf<T>,
@@ -359,6 +367,10 @@ pub mod pallet {
 		/// - `schedule1_index`: index of the first schedule to merge.
 		/// - `schedule2_index`: index of the second schedule to merge.
 		#[pallet::call_index(4)]
+		#[pallet::weight(
+			T::WeightInfo::not_unlocking_merge_schedules(10, T::MAX_VESTING_SCHEDULES)
+			.max(T::WeightInfo::unlocking_merge_schedules(10, T::MAX_VESTING_SCHEDULES))
+		)]
 		pub fn merge_schedules(
 			origin: OriginFor<T>,
 			schedule1_index: u32,
@@ -394,6 +406,9 @@ pub mod pallet {
 		/// ## Complexity
 		/// - `O(1)`.
 		#[pallet::call_index(5)]
+		#[pallet::weight(T::WeightInfo::vest_locked(10, T::MAX_VESTING_SCHEDULES)
+		.max(T::WeightInfo::vest_all(10, T::MAX_VESTING_SCHEDULES))
+	)]
 		pub fn vest_all(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let reasons = <Vesting<T>>::iter_key_prefix(&who);
@@ -415,6 +430,9 @@ pub mod pallet {
 		/// ## Complexity
 		/// - `O(1)`.
 		#[pallet::call_index(6)]
+		#[pallet::weight(T::WeightInfo::vest_other_locked(10, T::MAX_VESTING_SCHEDULES)
+		.max(T::WeightInfo::vest_all_other(10, T::MAX_VESTING_SCHEDULES))
+	)]
 		pub fn vest_all_other(origin: OriginFor<T>, target: AccountIdOf<T>) -> DispatchResult {
 			ensure_signed(origin)?;
 			let reasons = <Vesting<T>>::iter_key_prefix(&target);
