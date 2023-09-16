@@ -642,6 +642,7 @@ mod benches {
 		[pallet_timestamp, Timestamp]
 		[cumulus_pallet_xcmp_queue, XcmpQueue]
 		[pallet_funding, PolimecFunding]
+		[pallet_linear_release, Vesting]
 	);
 }
 

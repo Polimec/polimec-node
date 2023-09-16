@@ -50,8 +50,7 @@ fn add_vesting_schedules<T: Config>(
 	let starting_block = 1u32;
 
 	let source: T::AccountId = account("source", 0, SEED);
-	T::Currency::set_balance(&source, u32::MAX.into());
-
+	T::Currency::set_balance(&source, T::Currency::minimum_balance().saturating_add(locked));
 	System::<T>::set_block_number(BlockNumberFor::<T>::zero());
 
 	let mut total_locked: BalanceOf<T> = Zero::zero();
@@ -63,7 +62,7 @@ fn add_vesting_schedules<T: Config>(
 		assert_ok!(PalletLinearRelease::<T>::do_vested_transfer(source.clone(), target.clone(), schedule, reason));
 
 		// Top up to guarantee we can always transfer another schedule.
-		T::Currency::set_balance(&source, u32::MAX.into());
+		T::Currency::set_balance(&source, T::Currency::minimum_balance().saturating_add(locked));
 	}
 
 	Ok(total_locked)
@@ -88,7 +87,7 @@ mod benches {
 	#[benchmark]
 	fn vest_locked(l: Linear<0, 9>, s: Linear<1, { T::MAX_VESTING_SCHEDULES - 1 }>) -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
-		T::Currency::set_balance(&caller, 1024u32.into());
+		T::Currency::set_balance(&caller, T::Currency::minimum_balance().saturating_add(1024u32.into()));
 
 		add_holds::<T>(&caller, l);
 		let reason = LockType::Participation(l);
@@ -117,7 +116,7 @@ mod benches {
 	#[benchmark]
 	fn vest_unlocked(l: Linear<0, 9>, s: Linear<1, { T::MAX_VESTING_SCHEDULES - 1 }>) -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
-		T::Currency::set_balance(&caller, 1024u32.into());
+		T::Currency::set_balance(&caller, T::Currency::minimum_balance().saturating_add(1024u32.into()));
 
 		add_holds::<T>(&caller, l);
 		let reason = LockType::Participation(l);
@@ -152,7 +151,7 @@ mod benches {
 		let other: T::AccountId = account("other", 0, SEED);
 		let caller: T::AccountId = whitelisted_caller();
 
-		T::Currency::set_balance(&other, 1024u32.into());
+		T::Currency::set_balance(&other, T::Currency::minimum_balance().saturating_add(1024u32.into()));
 		add_holds::<T>(&other, l);
 		let reason = LockType::Participation(l);
 		let _ = add_vesting_schedules::<T>(other.clone(), s, reason)?;
@@ -185,7 +184,7 @@ mod benches {
 		let other: T::AccountId = account("other", 0, SEED);
 		let caller: T::AccountId = whitelisted_caller();
 
-		T::Currency::set_balance(&other, 1024u32.into());
+		T::Currency::set_balance(&other, T::Currency::minimum_balance().saturating_add(1024u32.into()));
 		add_holds::<T>(&other, l);
 		let reason = LockType::Participation(l);
 		let held = add_vesting_schedules::<T>(other.clone(), s, reason)?;
@@ -209,11 +208,11 @@ mod benches {
 	#[benchmark]
 	fn vested_transfer(l: Linear<0, 9>, s: Linear<1, { T::MAX_VESTING_SCHEDULES - 1 }>) -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
-		T::Currency::set_balance(&caller, 1024u32.into());
+		T::Currency::set_balance(&caller, T::Currency::minimum_balance().saturating_add(1024u32.into()));
 
 		let target: T::AccountId = account("target", 0, SEED);
 		// Give target existing locks
-		T::Currency::set_balance(&target, 512u32.into());
+		T::Currency::set_balance(&target, T::Currency::minimum_balance().saturating_add(1024u32.into()));
 		add_holds::<T>(&target, l);
 
 		// Add one vesting schedules.
@@ -244,12 +243,12 @@ mod benches {
 		s: Linear<1, { T::MAX_VESTING_SCHEDULES - 1 }>,
 	) -> Result<(), BenchmarkError> {
 		let source: T::AccountId = account("source", 0, SEED);
-		T::Currency::set_balance(&source, 512u32.into());
+		T::Currency::set_balance(&source, T::Currency::minimum_balance().saturating_add(1024u32.into()));
 
 		let target: T::AccountId = account("target", 0, SEED);
 
 		// Give target existing locks
-		T::Currency::set_balance(&target, 256u32.into());
+		T::Currency::set_balance(&target, T::Currency::minimum_balance().saturating_add(1024u32.into()));
 		add_holds::<T>(&target, l);
 
 		// Add one less than max vesting schedules
@@ -281,7 +280,7 @@ mod benches {
 	) -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		// Give target existing locks.
-		T::Currency::set_balance(&caller, 512u32.into());
+		T::Currency::set_balance(&caller, T::Currency::minimum_balance().saturating_add(1024u32.into()));
 		add_holds::<T>(&caller, l);
 		// Add max vesting schedules.
 		let reason = LockType::Participation(l);
@@ -334,7 +333,7 @@ mod benches {
 
 		let caller: T::AccountId = account("caller", 0, SEED);
 		// Give target other locks.
-		T::Currency::set_balance(&caller, 512u32.into());
+		T::Currency::set_balance(&caller, T::Currency::minimum_balance().saturating_add(1024u32.into()));
 		add_holds::<T>(&caller, l);
 		// Add max vesting schedules.
 		let reason = LockType::Participation(l);

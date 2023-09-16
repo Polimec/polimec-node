@@ -74,7 +74,7 @@ parameter_types! {
 	pub const MinVestedTransfer: u64 = 256 * 2;
 	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
 		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
-	pub static ExistentialDeposit: u64 = 1;
+	pub static ExistentialDeposit: u64 = 10u64.pow(7);
 }
 
 impl pallet_balances::Config for Test {

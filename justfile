@@ -64,6 +64,18 @@ benchmark-pallet-funding:
 		--output=pallets/funding/src/weights-test.rs \
 		--template=./.maintain/frame-weight-template.hbs
 
+benchmark-pallet-linear-release:
+	cargo run --features runtime-benchmarks,fast-gov --release -p polimec-parachain-node benchmark pallet \
+		--chain=polimec-rococo-local \
+		--steps=50 \
+		--repeat=20 \
+		--pallet=pallet_linear_release \
+		--extrinsic '*' \
+		--execution=wasm \
+		--heap-pages=4096 \
+		--output=pallets/linear-release/src/weights.rs \
+		--template=./.maintain/frame-weight-template.hbs
+
 benchmarks-test:
 	cargo run --features runtime-benchmarks,fast-gov -p polimec-parachain-node benchmark pallet \
 		--chain=polimec-rococo-local \
