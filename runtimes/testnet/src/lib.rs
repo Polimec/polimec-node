@@ -545,7 +545,7 @@ impl pallet_linear_release::Config for Runtime {
 	type Reason = BondTypeOf<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
 	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
-	type WeightInfo = ();
+	type WeightInfo = pallet_linear_release::weights::SubstrateWeight<Runtime>;
 
 	const MAX_VESTING_SCHEDULES: u32 = 12;
 }
