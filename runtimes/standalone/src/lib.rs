@@ -388,7 +388,7 @@ impl pallet_funding::Config for Runtime {
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type TreasuryAccount = TreasuryAccount;
 	type Vesting = Release;
-	type WeightInfo = ();
+	type WeightInfo = pallet_funding::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_linear_release::Config for Runtime {

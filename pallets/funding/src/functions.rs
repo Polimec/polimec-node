@@ -122,7 +122,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// * Emit events *
-		Self::deposit_event(Event::Created { project_id });
+		Self::deposit_event(Event::ProjectCreated { project_id, issuer: issuer.clone() });
 
 		Ok(())
 	}

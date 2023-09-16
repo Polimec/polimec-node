@@ -248,15 +248,10 @@ mod creation_round_success {
 	fn multiple_creation_rounds() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project1 = default_project(inst.get_new_nonce(), issuer);
-		let project2 = default_project(inst.get_new_nonce(), issuer);
-		let project3 = default_project(inst.get_new_nonce(), issuer);
-		let project4 = default_project(inst.get_new_nonce(), issuer);
-
-		inst.create_evaluating_project(project1, issuer);
-		inst.create_evaluating_project(project2, issuer);
-		inst.create_evaluating_project(project3, issuer);
-		inst.create_evaluating_project(project4, issuer);
+		for _ in 0..1000 {
+			let project = default_project(inst.get_new_nonce(), issuer);
+			inst.create_evaluating_project(project, issuer);
+		}
 	}
 
 	#[test]
@@ -6920,7 +6915,8 @@ mod e2e_testing {
 
 	#[test]
 	fn evaluation_round_completed() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let ext = Some(RefCell::new(new_test_ext()));
+		let mut inst = MockInstantiator::new(ext);
 		let issuer = ISSUER;
 		let project = excel_project(inst.get_new_nonce());
 		let evaluations = excel_evaluators();

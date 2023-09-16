@@ -67,7 +67,7 @@ benchmark-pallet-funding:
 benchmarks-test:
 	cargo run --features runtime-benchmarks,fast-gov -p polimec-parachain-node benchmark pallet \
 		--chain=polimec-rococo-local \
-		--pallet="*" \
+		--pallet="pallet_funding" \
 		--extrinsic="*"
 
 # Build the Node Docker Image

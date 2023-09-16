@@ -32,18 +32,20 @@ impl DoRemainingOperation for CleanerState<Success> {
 			.ok_or(Error::<T>::ImpossibleState)?
 			.evaluation_round_info
 			.evaluators_outcome;
+		let base_weight = Weight::from_parts(10_000_000, 0);
+
 		match self {
 			CleanerState::Initialized(PhantomData) => {
 				*self = Self::EvaluationRewardOrSlash(
 					remaining_evaluators_to_reward_or_slash::<T>(project_id, evaluators_outcome),
 					PhantomData,
 				);
-				Ok(Weight::zero())
+				Ok(base_weight)
 			},
 			CleanerState::EvaluationRewardOrSlash(remaining, PhantomData) =>
 				if *remaining == 0 {
 					*self = Self::EvaluationUnbonding(remaining_evaluations::<T>(project_id), PhantomData);
-					Ok(Weight::zero())
+					Ok(base_weight)
 				} else {
 					let (consumed_weight, remaining_evaluations) = reward_or_slash_one_evaluation::<T>(project_id)?;
 					*self = CleanerState::EvaluationRewardOrSlash(remaining_evaluations, PhantomData);
@@ -55,7 +57,7 @@ impl DoRemainingOperation for CleanerState<Success> {
 						remaining_successful_bids::<T>(project_id),
 						PhantomData,
 					);
-					Ok(Weight::zero())
+					Ok(base_weight)
 				} else {
 					let (consumed_weight, remaining_evaluations) = unbond_one_evaluation::<T>(project_id);
 					*self = CleanerState::EvaluationUnbonding(remaining_evaluations, PhantomData);
@@ -67,7 +69,7 @@ impl DoRemainingOperation for CleanerState<Success> {
 						remaining_contributions::<T>(project_id),
 						PhantomData,
 					);
-					Ok(Weight::zero())
+					Ok(base_weight)
 				} else {
 					let (consumed_weight, remaining_evaluations) = start_one_bid_vesting_schedule::<T>(project_id);
 					*self = CleanerState::StartBidderVestingSchedule(remaining_evaluations, PhantomData);
@@ -76,7 +78,7 @@ impl DoRemainingOperation for CleanerState<Success> {
 			CleanerState::StartContributorVestingSchedule(remaining, PhantomData) =>
 				if *remaining == 0 {
 					*self = CleanerState::BidCTMint(remaining_bids_without_ct_minted::<T>(project_id), PhantomData);
-					Ok(Weight::zero())
+					Ok(base_weight)
 				} else {
 					let (consumed_weight, remaining_evaluations) =
 						start_one_contribution_vesting_schedule::<T>(project_id);
@@ -89,7 +91,7 @@ impl DoRemainingOperation for CleanerState<Success> {
 						remaining_contributions_without_ct_minted::<T>(project_id),
 						PhantomData,
 					);
-					Ok(Weight::zero())
+					Ok(base_weight)
 				} else {
 					let (consumed_weight, remaining_bids) = mint_ct_for_one_bid::<T>(project_id);
 					*self = CleanerState::BidCTMint(remaining_bids, PhantomData);
@@ -101,7 +103,7 @@ impl DoRemainingOperation for CleanerState<Success> {
 						remaining_bids_without_issuer_payout::<T>(project_id),
 						PhantomData,
 					);
-					Ok(Weight::zero())
+					Ok(base_weight)
 				} else {
 					let (consumed_weight, remaining_contributions) = mint_ct_for_one_contribution::<T>(project_id);
 					*self = CleanerState::ContributionCTMint(remaining_contributions, PhantomData);
@@ -113,7 +115,7 @@ impl DoRemainingOperation for CleanerState<Success> {
 						remaining_contributions_without_issuer_payout::<T>(project_id),
 						PhantomData,
 					);
-					Ok(Weight::zero())
+					Ok(base_weight)
 				} else {
 					let (consumed_weight, remaining_contributions) = issuer_funding_payout_one_bid::<T>(project_id);
 					*self = CleanerState::BidFundingPayout(remaining_contributions, PhantomData);
@@ -122,7 +124,7 @@ impl DoRemainingOperation for CleanerState<Success> {
 			CleanerState::ContributionFundingPayout(remaining, PhantomData) =>
 				if *remaining == 0 {
 					*self = CleanerState::Finished(PhantomData);
-					Ok(Weight::zero())
+					Ok(base_weight)
 				} else {
 					let (consumed_weight, remaining_contributions) =
 						issuer_funding_payout_one_contribution::<T>(project_id);
@@ -145,6 +147,7 @@ impl DoRemainingOperation for CleanerState<Failure> {
 			.ok_or(Error::<T>::ImpossibleState)?
 			.evaluation_round_info
 			.evaluators_outcome;
+		let base_weight = Weight::from_parts(10_000_000, 0);
 
 		match self {
 			CleanerState::Initialized(PhantomData::<Failure>) => {
@@ -152,7 +155,7 @@ impl DoRemainingOperation for CleanerState<Failure> {
 					remaining_evaluators_to_reward_or_slash::<T>(project_id, evaluators_outcome),
 					PhantomData::<Failure>,
 				);
-				Ok(Weight::zero())
+				Ok(base_weight)
 			},
 
 			CleanerState::EvaluationRewardOrSlash(remaining, PhantomData::<Failure>) =>
@@ -161,7 +164,7 @@ impl DoRemainingOperation for CleanerState<Failure> {
 						remaining_evaluations::<T>(project_id),
 						PhantomData::<Failure>,
 					);
-					Ok(Weight::zero())
+					Ok(base_weight)
 				} else {
 					let (consumed_weight, remaining_evaluators) = reward_or_slash_one_evaluation::<T>(project_id)?;
 					*self = CleanerState::EvaluationRewardOrSlash(remaining_evaluators, PhantomData);
@@ -174,7 +177,7 @@ impl DoRemainingOperation for CleanerState<Failure> {
 						remaining_bids_to_release_funds::<T>(project_id),
 						PhantomData::<Failure>,
 					);
-					Ok(Weight::zero())
+					Ok(base_weight)
 				} else {
 					let (consumed_weight, remaining_evaluators) = unbond_one_evaluation::<T>(project_id);
 					*self = CleanerState::EvaluationUnbonding(remaining_evaluators, PhantomData);
@@ -184,7 +187,7 @@ impl DoRemainingOperation for CleanerState<Failure> {
 			CleanerState::BidFundingRelease(remaining, PhantomData::<Failure>) =>
 				if *remaining == 0 {
 					*self = CleanerState::BidUnbonding(remaining_bids::<T>(project_id), PhantomData::<Failure>);
-					Ok(Weight::zero())
+					Ok(base_weight)
 				} else {
 					let (consumed_weight, remaining_bids) = release_funds_one_bid::<T>(project_id);
 					*self = CleanerState::BidFundingRelease(remaining_bids, PhantomData);
@@ -197,7 +200,7 @@ impl DoRemainingOperation for CleanerState<Failure> {
 						remaining_contributions_to_release_funds::<T>(project_id),
 						PhantomData::<Failure>,
 					);
-					Ok(Weight::zero())
+					Ok(base_weight)
 				} else {
 					let (consumed_weight, remaining_bids) = unbond_one_bid::<T>(project_id);
 					*self = CleanerState::BidUnbonding(remaining_bids, PhantomData::<Failure>);
@@ -210,7 +213,7 @@ impl DoRemainingOperation for CleanerState<Failure> {
 						remaining_contributions::<T>(project_id),
 						PhantomData::<Failure>,
 					);
-					Ok(Weight::zero())
+					Ok(base_weight)
 				} else {
 					let (consumed_weight, remaining_contributions) = release_funds_one_contribution::<T>(project_id);
 					*self = CleanerState::ContributionFundingRelease(remaining_contributions, PhantomData::<Failure>);
@@ -220,7 +223,7 @@ impl DoRemainingOperation for CleanerState<Failure> {
 			CleanerState::ContributionUnbonding(remaining, PhantomData::<Failure>) =>
 				if *remaining == 0 {
 					*self = CleanerState::Finished(PhantomData::<Failure>);
-					Ok(Weight::zero())
+					Ok(base_weight)
 				} else {
 					let (consumed_weight, remaining_contributions) = unbond_one_contribution::<T>(project_id);
 					*self = CleanerState::ContributionUnbonding(remaining_contributions, PhantomData::<Failure>);
@@ -295,8 +298,12 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 	let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 	let project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,));
 	let mut remaining_evaluations = project_evaluations.filter(|evaluation| !evaluation.rewarded_or_slashed);
+	let base_weight = Weight::from_parts(10_000_000, 0);
 
 	if let Some(evaluation) = remaining_evaluations.next() {
+		// TODO: This base weight and the one in all other functions below should be calculated with a benchmark
+		let remaining = remaining_evaluations.count() as u64;
+
 		match project_details.evaluation_round_info.evaluators_outcome {
 			EvaluatorsOutcome::Rewarded(_) => {
 				match Pallet::<T>::do_evaluation_reward_payout_for(
@@ -313,6 +320,8 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 						error: e,
 					}),
 				};
+
+				return Ok((base_weight.saturating_add(T::WeightInfo::evaluation_reward_payout_for()), remaining))
 			},
 			EvaluatorsOutcome::Slashed => {
 				match Pallet::<T>::do_evaluation_slash_for(
@@ -329,23 +338,25 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 						error: e,
 					}),
 				};
+
+				return Ok((base_weight.saturating_add(T::WeightInfo::evaluation_slash_for()), remaining))
 			},
 			_ => {
 				#[cfg(debug_assertions)]
-				unreachable!("EvaluatorsOutcome should be either Slashed or Rewarded if this function is called")
+				unreachable!("EvaluatorsOutcome should be either Slashed or Rewarded if this function is called");
+				#[cfg(not(debug_assertions))]
+				return Err(Error::<T>::ImpossibleState.into())
 			},
 		}
-
-		let remaining = remaining_evaluations.count() as u64;
-		Ok((Weight::zero(), remaining))
 	} else {
-		Ok((Weight::zero(), 0u64))
+		Ok((base_weight, 0u64))
 	}
 }
 
 fn unbond_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
 	let project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
 	let evaluation_count = project_evaluations.len() as u64;
+	let base_weight = Weight::from_parts(10_000_000, 0);
 
 	if let Some(evaluation) = project_evaluations.first() {
 		match Pallet::<T>::do_evaluation_unbond_for(
@@ -362,15 +373,16 @@ fn unbond_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> (Weight
 				error: e,
 			}),
 		};
-		(Weight::zero(), evaluation_count.saturating_sub(1u64))
+		(base_weight.saturating_add(T::WeightInfo::evaluation_unbond_for()), evaluation_count.saturating_sub(1u64))
 	} else {
-		(Weight::zero(), 0u64)
+		(base_weight, 0u64)
 	}
 }
 
 fn release_funds_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	let mut remaining_bids = project_bids.filter(|bid| !bid.funds_released);
+	let base_weight = Weight::from_parts(10_000_000, 0);
 
 	if let Some(bid) = remaining_bids.next() {
 		match Pallet::<T>::do_release_bid_funds_for(
@@ -388,15 +400,16 @@ fn release_funds_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight
 			}),
 		};
 
-		(Weight::zero(), remaining_bids.count() as u64)
+		(base_weight.saturating_add(T::WeightInfo::release_bid_funds_for()), remaining_bids.count() as u64)
 	} else {
-		(Weight::zero(), 0u64)
+		(base_weight, 0u64)
 	}
 }
 
 fn unbond_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	let mut remaining_bids = project_bids.filter(|bid| bid.funds_released);
+	let base_weight = Weight::from_parts(10_000_000, 0);
 
 	if let Some(bid) = remaining_bids.next() {
 		match Pallet::<T>::do_bid_unbond_for(
@@ -413,15 +426,16 @@ fn unbond_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) 
 				error: e,
 			}),
 		};
-		(Weight::zero(), remaining_bids.count() as u64)
+		(base_weight.saturating_add(T::WeightInfo::bid_unbond_for()), remaining_bids.count() as u64)
 	} else {
-		(Weight::zero(), 0u64)
+		(base_weight, 0u64)
 	}
 }
 
 fn release_funds_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
 	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
 	let mut remaining_contributions = project_contributions.filter(|contribution| !contribution.funds_released);
+	let base_weight = Weight::from_parts(10_000_000, 0);
 
 	if let Some(contribution) = remaining_contributions.next() {
 		match Pallet::<T>::do_release_contribution_funds_for(
@@ -439,9 +453,12 @@ fn release_funds_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -
 			}),
 		};
 
-		(Weight::zero(), remaining_contributions.count() as u64)
+		(
+			base_weight.saturating_add(T::WeightInfo::release_contribution_funds_for()),
+			remaining_contributions.count() as u64,
+		)
 	} else {
-		(Weight::zero(), 0u64)
+		(base_weight, 0u64)
 	}
 }
 
@@ -450,6 +467,7 @@ fn unbond_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weig
 
 	let mut remaining_contributions =
 		project_contributions.into_iter().filter(|contribution| contribution.funds_released);
+	let base_weight = Weight::from_parts(10_000_000, 0);
 
 	if let Some(contribution) = remaining_contributions.next() {
 		match Pallet::<T>::do_contribution_unbond_for(
@@ -466,9 +484,9 @@ fn unbond_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weig
 				error: e,
 			}),
 		};
-		(Weight::zero(), remaining_contributions.count() as u64)
+		(base_weight.saturating_add(T::WeightInfo::contribution_unbond_for()), remaining_contributions.count() as u64)
 	} else {
-		(Weight::zero(), 0u64)
+		(base_weight, 0u64)
 	}
 }
 
@@ -477,6 +495,7 @@ fn start_one_bid_vesting_schedule<T: Config>(project_id: T::ProjectIdentifier) -
 	let mut unscheduled_bids = project_bids.filter(|bid| {
 		bid.plmc_vesting_info.is_none() && matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..))
 	});
+	let base_weight = Weight::from_parts(10_000_000, 0);
 
 	if let Some(bid) = unscheduled_bids.next() {
 		match Pallet::<T>::do_start_bid_vesting_schedule_for(
@@ -495,16 +514,16 @@ fn start_one_bid_vesting_schedule<T: Config>(project_id: T::ProjectIdentifier) -
 				});
 			},
 		}
-
-		(Weight::zero(), unscheduled_bids.count() as u64)
+		(base_weight.saturating_add(T::WeightInfo::start_bid_vesting_schedule_for()), unscheduled_bids.count() as u64)
 	} else {
-		(Weight::zero(), 0u64)
+		(base_weight, 0u64)
 	}
 }
 
 fn start_one_contribution_vesting_schedule<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
 	let project_bids = Contributions::<T>::iter_prefix_values((project_id,));
 	let mut unscheduled_contributions = project_bids.filter(|contribution| contribution.plmc_vesting_info.is_none());
+	let base_weight = Weight::from_parts(10_000_000, 0);
 
 	if let Some(contribution) = unscheduled_contributions.next() {
 		match Pallet::<T>::do_start_contribution_vesting_schedule_for(
@@ -523,16 +542,19 @@ fn start_one_contribution_vesting_schedule<T: Config>(project_id: T::ProjectIden
 				});
 			},
 		}
-
-		(Weight::zero(), unscheduled_contributions.count() as u64)
+		(
+			base_weight.saturating_add(T::WeightInfo::start_contribution_vesting_schedule_for()),
+			unscheduled_contributions.count() as u64,
+		)
 	} else {
-		(Weight::zero(), 0u64)
+		(base_weight, 0u64)
 	}
 }
 
 fn mint_ct_for_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	let mut remaining_bids = project_bids.filter(|bid| !bid.ct_minted);
+	let base_weight = Weight::from_parts(10_000_000, 0);
 
 	if let Some(bid) = remaining_bids.next() {
 		match Pallet::<T>::do_bid_ct_mint_for(
@@ -549,15 +571,16 @@ fn mint_ct_for_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, 
 				error: e,
 			}),
 		};
-		(Weight::zero(), remaining_bids.count() as u64)
+		(base_weight.saturating_add(T::WeightInfo::bid_ct_mint_for()), remaining_bids.count() as u64)
 	} else {
-		(Weight::zero(), 0u64)
+		(base_weight, 0u64)
 	}
 }
 
 fn mint_ct_for_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
 	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
 	let mut remaining_contributions = project_contributions.filter(|contribution| !contribution.ct_minted);
+	let base_weight = Weight::from_parts(10_000_000, 0);
 
 	if let Some(contribution) = remaining_contributions.next() {
 		match Pallet::<T>::do_contribution_ct_mint_for(
@@ -574,9 +597,9 @@ fn mint_ct_for_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> 
 				error: e,
 			}),
 		};
-		(Weight::zero(), remaining_contributions.count() as u64)
+		(base_weight.saturating_add(T::WeightInfo::contribution_ct_mint_for()), remaining_contributions.count() as u64)
 	} else {
-		(Weight::zero(), 0u64)
+		(base_weight, 0u64)
 	}
 }
 
@@ -584,6 +607,7 @@ fn issuer_funding_payout_one_bid<T: Config>(project_id: T::ProjectIdentifier) ->
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 
 	let mut remaining_bids = project_bids.filter(|bid| !bid.funds_released);
+	let base_weight = Weight::from_parts(10_000_000, 0);
 
 	if let Some(bid) = remaining_bids.next() {
 		match Pallet::<T>::do_payout_bid_funds_for(
@@ -600,9 +624,9 @@ fn issuer_funding_payout_one_bid<T: Config>(project_id: T::ProjectIdentifier) ->
 				error: e,
 			}),
 		};
-		(Weight::zero(), remaining_bids.count() as u64)
+		(base_weight.saturating_add(T::WeightInfo::payout_bid_funds_for()), remaining_bids.count() as u64)
 	} else {
-		(Weight::zero(), 0u64)
+		(base_weight, 0u64)
 	}
 }
 
@@ -610,6 +634,7 @@ fn issuer_funding_payout_one_contribution<T: Config>(project_id: T::ProjectIdent
 	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
 
 	let mut remaining_contributions = project_contributions.filter(|contribution| !contribution.funds_released);
+	let base_weight = Weight::from_parts(10_000_000, 0);
 
 	if let Some(contribution) = remaining_contributions.next() {
 		match Pallet::<T>::do_payout_contribution_funds_for(
@@ -627,8 +652,11 @@ fn issuer_funding_payout_one_contribution<T: Config>(project_id: T::ProjectIdent
 			}),
 		};
 
-		(Weight::zero(), remaining_contributions.count() as u64)
+		(
+			base_weight.saturating_add(T::WeightInfo::payout_contribution_funds_for()),
+			remaining_contributions.count() as u64,
+		)
 	} else {
-		(Weight::zero(), 0u64)
+		(base_weight, 0u64)
 	}
 }
