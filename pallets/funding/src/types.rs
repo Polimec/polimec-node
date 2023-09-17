@@ -46,7 +46,7 @@ pub mod config_types {
 
 	impl Multiplier {
 		/// Creates a new `Multiplier` if the value is between 1 and 25, otherwise returns an error.
-		pub fn new(x: u8) -> Result<Self, ()> {
+		pub const fn new(x: u8) -> Result<Self, ()> {
 			// The minimum and maximum values are chosen to be 1 and 25 respectively, as defined in the Knowledge Hub.
 			const MIN_VALID: u8 = 1;
 			const MAX_VALID: u8 = 25;
@@ -131,6 +131,8 @@ pub mod config_types {
 }
 
 pub mod storage_types {
+	use sp_arithmetic::traits::{One, Saturating, Zero};
+
 	use super::*;
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -140,7 +142,7 @@ pub mod storage_types {
 		/// Mainnet Token Max Supply
 		pub mainnet_token_max_supply: Balance,
 		/// Total allocation of Contribution Tokens available for the Funding Round
-		pub total_allocation_size: Balance,
+		pub total_allocation_size: (Balance, Balance),
 		/// Minimum price per Contribution Token
 		pub minimum_price: Price,
 		/// Maximum and/or minimum ticket size
@@ -187,14 +189,14 @@ pub mod storage_types {
 		/// Fundraising target amount in USD equivalent
 		pub fundraising_target: Balance,
 		/// The amount of Contribution Tokens that have not yet been sold
-		pub remaining_contribution_tokens: Balance,
+		pub remaining_contribution_tokens: (Balance, Balance),
 		/// Funding reached amount in USD equivalent
 		pub funding_amount_reached: Balance,
 		/// Cleanup operations remaining
 		pub cleanup: Cleaner,
 		/// Information about the total amount bonded, and the outcome in regards to reward/slash/nothing
 		pub evaluation_round_info: EvaluationRoundInfo,
-
+		/// When the Funding Round ends
 		pub funding_end_block: Option<BlockNumber>,
 	}
 
@@ -257,7 +259,7 @@ pub mod storage_types {
 	}
 
 	impl<
-			BidId: Eq,
+			BidId: Eq + Ord,
 			ProjectId: Eq,
 			Balance: BalanceT + FixedPointOperand + Ord,
 			Price: FixedPointNumber,
@@ -269,14 +271,14 @@ pub mod storage_types {
 	{
 		fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
 			match self.original_ct_usd_price.cmp(&other.original_ct_usd_price) {
-				sp_std::cmp::Ordering::Equal => Ord::cmp(&self.when, &other.when),
+				sp_std::cmp::Ordering::Equal => Ord::cmp(&other.id, &self.id),
 				other => other,
 			}
 		}
 	}
 
 	impl<
-			BidId: Eq,
+			BidId: Eq + Ord,
 			ProjectId: Eq,
 			Balance: BalanceT + FixedPointOperand,
 			Price: FixedPointNumber,
@@ -306,6 +308,51 @@ pub mod storage_types {
 		pub funds_released: bool,
 		pub ct_minted: bool,
 	}
+
+	/// Represents a bucket that holds a specific amount of tokens at a given price.
+	/// Each bucket has a unique ID, an amount of tokens left, a current price, an initial price,
+	/// and constants to define price and amount increments for the next buckets.
+	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub struct Bucket<Balance, Price> {
+		/// The amount of tokens left in this bucket.
+		pub amount_left: Balance,
+		/// The current price of tokens in this bucket.
+		pub current_price: Price,
+		/// The initial price of tokens in the bucket.
+		pub initial_price: Price,
+		/// Defines the price increment for each subsequent bucket.
+		pub delta_price: Price,
+		/// Defines the amount increment for each subsequent bucket.
+		pub delta_amount: Balance,
+	}
+
+	impl<Balance: Copy + Saturating + One + Zero, Price: FixedPointNumber> Bucket<Balance, Price> {
+		/// Creates a new bucket with the given parameters.
+		pub const fn new(
+			amount_left: Balance,
+			initial_price: Price,
+			delta_price: Price,
+			delta_amount: Balance,
+		) -> Self {
+			Self { amount_left, current_price: initial_price, initial_price, delta_price, delta_amount }
+		}
+
+		/// Update the bucket
+		pub fn update(&mut self, removed_amount: Balance) {
+			self.amount_left.saturating_reduce(removed_amount);
+			if self.amount_left.is_zero() {
+				self.next();
+			}
+		}
+
+		/// Updates the bucket to represent the next one in the sequence. This involves:
+		/// - resetting the amount left,
+		/// - recalculating the price based on the current price and the price increments defined by the `delta_price`.
+		fn next(&mut self) {
+			self.amount_left = self.delta_amount;
+			self.current_price = self.current_price.saturating_add(self.delta_price);
+		}
+	}
 }
 
 pub mod inner_types {
@@ -321,12 +368,12 @@ pub mod inner_types {
 		pub decimals: u8,
 	}
 
-	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct TicketSize<Balance: BalanceT> {
+	#[derive(Default, Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub struct TicketSize<Balance: BalanceT + Copy> {
 		pub minimum: Option<Balance>,
 		pub maximum: Option<Balance>,
 	}
-	impl<Balance: BalanceT> TicketSize<Balance> {
+	impl<Balance: BalanceT + Copy> TicketSize<Balance> {
 		pub(crate) fn is_valid(&self) -> Result<(), ValidityError> {
 			if self.minimum.is_some() && self.maximum.is_some() {
 				return if self.minimum < self.maximum { Ok(()) } else { Err(ValidityError::TicketSizeError) }
@@ -425,6 +472,21 @@ pub mod inner_types {
 		pub candle_auction: BlockNumberPair<BlockNumber>,
 		pub community: BlockNumberPair<BlockNumber>,
 		pub remainder: BlockNumberPair<BlockNumber>,
+	}
+
+	impl<BlockNumber: Copy> PhaseTransitionPoints<BlockNumber> {
+		pub const fn new(now: BlockNumber) -> Self {
+			Self {
+				application: BlockNumberPair::new(Some(now), None),
+				evaluation: BlockNumberPair::new(None, None),
+				auction_initialize_period: BlockNumberPair::new(None, None),
+				english_auction: BlockNumberPair::new(None, None),
+				random_candle_ending: None,
+				candle_auction: BlockNumberPair::new(None, None),
+				community: BlockNumberPair::new(None, None),
+				remainder: BlockNumberPair::new(None, None),
+			}
+		}
 	}
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]

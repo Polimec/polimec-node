@@ -236,7 +236,7 @@ impl pallet_linear_release::Config for TestRuntime {
 	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
 	type WeightInfo = ();
 
-	const MAX_VESTING_SCHEDULES: u32 = 3;
+	const MAX_VESTING_SCHEDULES: u32 = 32;
 }
 
 impl Config for TestRuntime {
