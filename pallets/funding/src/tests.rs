@@ -32,7 +32,7 @@ use sp_arithmetic::{
 	Percent, Perquintill,
 };
 use sp_std::{cell::RefCell, marker::PhantomData};
-use std::{cmp::min, iter::zip, ops::Div};
+use std::{cmp::min, iter::zip};
 
 use defaults::*;
 use polimec_traits::ReleaseSchedule;
@@ -72,9 +72,6 @@ const BIDDER_2: AccountId = 31;
 const BIDDER_3: AccountId = 32;
 const BIDDER_4: AccountId = 33;
 const BIDDER_5: AccountId = 34;
-const BIDDER_6: AccountId = 35;
-const BIDDER_7: AccountId = 36;
-const BIDDER_8: AccountId = 37;
 const BUYER_1: AccountId = 40;
 const BUYER_2: AccountId = 41;
 const BUYER_3: AccountId = 42;
