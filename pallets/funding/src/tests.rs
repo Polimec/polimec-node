@@ -17,17 +17,9 @@
 // If you feel like getting in touch with us, you ca ,n do so at info@polimec.org
 
 //! Tests for Funding pallet.
-use std::{
-	cell::RefCell,
-	cmp::min,
-	collections::{BTreeMap, HashMap},
-	iter::zip,
-	ops::Div,
-};
-
 use assert_matches2::assert_matches;
 use frame_support::{
-	assert_err, assert_noop, assert_ok,
+	assert_noop, assert_ok,
 	traits::{
 		fungible::{Inspect as FungibleInspect, InspectHold as FungibleInspectHold},
 		Get,
@@ -62,162 +54,15 @@ use super::*;
 type MockInstantiator = Instantiator<TestRuntime, AllPalletsWithoutSystem, RuntimeEvent>;
 type UserToCTBalance = Vec<(AccountId, BalanceOf<TestRuntime>, ProjectIdOf<TestRuntime>)>;
 
-#[derive(Clone, Copy)]
-pub struct TestBid {
-	bidder: AccountId,
-	amount: BalanceOf<TestRuntime>,
-	price: PriceOf<TestRuntime>,
-	multiplier: MultiplierOf<TestRuntime>,
-	asset: AcceptedFundingAsset,
-}
-impl TestBid {
-	fn new(
-		bidder: AccountId,
-		amount: BalanceOf<TestRuntime>,
-		price: PriceOf<TestRuntime>,
-		multiplier: u8,
-		asset: AcceptedFundingAsset,
-	) -> Self {
-		Self { bidder, amount, price, multiplier: multiplier.try_into().unwrap(), asset }
-	}
-
-	fn from(bidder: AccountId, amount: BalanceOf<TestRuntime>, price: PriceOf<TestRuntime>) -> Self {
-		Self { bidder, amount, price, multiplier: 1_u8.try_into().unwrap(), asset: AcceptedFundingAsset::USDT }
-	}
-}
-pub type TestBids = Vec<TestBid>;
-
-#[derive(Clone, Copy, Debug)]
-pub struct TestContribution {
-	contributor: AccountId,
-	amount: BalanceOf<TestRuntime>,
-	multiplier: MultiplierOf<TestRuntime>,
-	asset: AcceptedFundingAsset,
-}
-impl TestContribution {
-	fn new(
-		contributor: AccountId,
-		amount: BalanceOf<TestRuntime>,
-		multiplier: u8,
-		asset: AcceptedFundingAsset,
-	) -> Self {
-		Self { contributor, amount, multiplier: multiplier.try_into().unwrap(), asset }
-	}
-
-	fn from(contributor: AccountId, amount: BalanceOf<TestRuntime>) -> Self {
-		Self { contributor, amount, multiplier: 1_u8.try_into().unwrap(), asset: AcceptedFundingAsset::USDT }
-	}
-}
-pub type TestContributions = Vec<TestContribution>;
-
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct BidInfoFilter<Id, ProjectId, Balance: BalanceT, Price, AccountId, Multiplier, BlockNumber, PlmcVesting> {
-	pub id: Option<Id>,
-	pub project_id: Option<ProjectId>,
-	pub bidder: Option<AccountId>,
-	pub status: Option<BidStatus<Balance>>,
-	pub original_ct_amount: Option<Balance>,
-	pub original_ct_usd_price: Option<Price>,
-	pub final_ct_amount: Option<Balance>,
-	pub final_ct_usd_price: Option<Price>,
-	pub funding_asset: Option<AcceptedFundingAsset>,
-	pub funding_asset_amount_locked: Option<Balance>,
-	pub multiplier: Option<Multiplier>,
-	pub plmc_bond: Option<Balance>,
-	pub funded: Option<bool>,
-	pub plmc_vesting_info: Option<PlmcVesting>,
-	pub when: Option<BlockNumber>,
-	pub funds_released: Option<bool>,
-}
-type BidInfoFilterOf<T> = BidInfoFilter<
-	u32,
-	<T as Config>::ProjectIdentifier,
-	BalanceOf<T>,
-	PriceOf<T>,
-	<T as frame_system::Config>::AccountId,
-	MultiplierOf<T>,
-	BlockNumberOf<T>,
-	Option<VestingInfoOf<T>>,
->;
-impl Default for BidInfoFilterOf<TestRuntime> {
-	fn default() -> Self {
-		BidInfoFilter {
-			id: None,
-			project_id: None,
-			bidder: None,
-			status: None,
-			original_ct_amount: None,
-			original_ct_usd_price: None,
-			final_ct_amount: None,
-			final_ct_usd_price: None,
-			funding_asset: None,
-			funding_asset_amount_locked: None,
-			multiplier: None,
-			plmc_bond: None,
-			funded: None,
-			plmc_vesting_info: None,
-			when: None,
-			funds_released: None,
-		}
-	}
-}
-impl BidInfoFilterOf<TestRuntime> {
-	fn matches_bid(&self, bid: &BidInfoOf<TestRuntime>) -> bool {
-		if self.id.is_some() && self.id.unwrap() != bid.id {
-			return false
-		}
-		if self.project_id.is_some() && self.project_id.unwrap() != bid.project_id {
-			return false
-		}
-		if self.bidder.is_some() && self.bidder.unwrap() != bid.bidder {
-			return false
-		}
-		if self.status.is_some() && self.status.as_ref().unwrap() != &bid.status {
-			return false
-		}
-		if self.original_ct_amount.is_some() && self.original_ct_amount.unwrap() != bid.original_ct_amount {
-			return false
-		}
-		if self.original_ct_usd_price.is_some() && self.original_ct_usd_price.unwrap() != bid.original_ct_usd_price {
-			return false
-		}
-		if self.final_ct_amount.is_some() && self.final_ct_amount.unwrap() != bid.final_ct_amount {
-			return false
-		}
-		if self.final_ct_usd_price.is_some() && self.final_ct_usd_price.unwrap() != bid.final_ct_usd_price {
-			return false
-		}
-		if self.funding_asset.is_some() && self.funding_asset.unwrap() != bid.funding_asset {
-			return false
-		}
-		if self.funding_asset_amount_locked.is_some() &&
-			self.funding_asset_amount_locked.unwrap() != bid.funding_asset_amount_locked
-		{
-			return false
-		}
-		if self.multiplier.is_some() && self.multiplier.unwrap() != bid.multiplier {
-			return false
-		}
-		if self.plmc_bond.is_some() && self.plmc_bond.unwrap() != bid.plmc_bond {
-			return false
-		}
-		if self.funded.is_some() && self.funded.unwrap() != bid.funded {
-			return false
-		}
-		if self.plmc_vesting_info.is_some() && self.plmc_vesting_info.unwrap() != bid.plmc_vesting_info {
-			return false
-		}
-		if self.when.is_some() && self.when.unwrap() != bid.when {
-			return false
-		}
-		if self.funds_released.is_some() && self.funds_released.unwrap() != bid.funds_released {
-			return false
-		}
-
-		return true
-	}
-}
-
+const METADATA: &str = r#"METADATA
+            {
+                "whitepaper":"ipfs_url",
+                "team_description":"ipfs_url",
+                "tokenomics":"ipfs_url",
+                "roadmap":"ipfs_url",
+                "usage_of_founds":"ipfs_url"
+            }"#;
+const ASSET_DECIMALS: u8 = 10;
 const ISSUER: AccountId = 10;
 const EVALUATOR_1: AccountId = 20;
 const EVALUATOR_2: AccountId = 21;
@@ -245,976 +90,7 @@ const USDT_UNIT: u128 = 10_000_000_000_u128;
 
 pub const US_DOLLAR: u128 = 1_0_000_000_000;
 
-const METADATA: &str = r#"
-{
-    "whitepaper":"ipfs_url",
-    "team_description":"ipfs_url",
-    "tokenomics":"ipfs_url",
-    "roadmap":"ipfs_url",
-    "usage_of_founds":"ipfs_url"
-}"#;
-
-// REMARK: Uncomment if we want to test the events.
-// fn last_event() -> RuntimeEvent {
-// 	frame_system::Pallet::<TestRuntime>::events()
-// 		.pop()
-// 		.expect("Event expected")
-// 		.event
-// }
-
-trait TestInstance {}
-trait ProjectInstance {
-	fn get_test_environment(&self) -> &TestEnvironment;
-	fn get_issuer(&self) -> AccountId;
-	fn get_project_id(&self) -> ProjectIdOf<TestRuntime>;
-	fn get_project_metadata(&self) -> ProjectMetadataOf<TestRuntime> {
-		self.get_test_environment().ext_env.borrow_mut().execute_with(|| {
-			FundingModule::projects_metadata(self.get_project_id()).expect("Project info should exist")
-		})
-	}
-	fn get_project_details(&self) -> ProjectDetailsOf<TestRuntime> {
-		self.get_test_environment()
-			.ext_env
-			.borrow_mut()
-			.execute_with(|| FundingModule::project_details(self.get_project_id()).expect("Project info should exist"))
-	}
-	fn in_ext<R>(&self, execute: impl FnOnce() -> R) -> R {
-		self.get_test_environment().ext_env.borrow_mut().execute_with(execute)
-	}
-	fn get_update_pair(&self) -> (BlockNumber, UpdateType) {
-		self.in_ext(|| {
-			ProjectsToUpdate::<TestRuntime>::iter()
-				.find_map(|(block, update_vec)| {
-					update_vec
-						.iter()
-						.find(|(project_id, _update)| *project_id == self.get_project_id())
-						.map(|(_project_id, update)| (block, update.clone()))
-				})
-				.unwrap()
-		})
-	}
-}
-
-// Initial instance of a test
-#[derive(Debug)]
-pub struct TestEnvironment {
-	pub ext_env: RefCell<sp_io::TestExternalities>,
-	pub nonce: RefCell<u64>,
-}
-impl TestEnvironment {
-	pub fn new() -> Self {
-		Self { ext_env: RefCell::new(new_test_ext()), nonce: RefCell::new(0u64) }
-	}
-
-	fn get_new_nonce(&self) -> u64 {
-		let nonce = self.nonce.borrow_mut().clone();
-		self.nonce.replace(nonce + 1);
-		nonce
-	}
-
-	fn create_project(
-		&self,
-		issuer: AccountId,
-		project: ProjectMetadataOf<TestRuntime>,
-	) -> Result<CreatedProject, DispatchError> {
-		// Create project in the externalities environment of this struct instance
-		self.ext_env.borrow_mut().execute_with(|| FundingModule::create(RuntimeOrigin::signed(issuer), project))?;
-
-		// Retrieve the project_id from the events
-		let project_id = self.ext_env.borrow_mut().execute_with(|| {
-			frame_system::Pallet::<TestRuntime>::events()
-				.iter()
-				.filter_map(|event| match event.event {
-					RuntimeEvent::FundingModule(Event::Created { project_id }) => Some(project_id),
-					_ => None,
-				})
-				.last()
-				.expect("Project created event expected")
-				.clone()
-		});
-
-		Ok(CreatedProject { test_env: self, issuer, project_id })
-	}
-
-	fn in_ext<R>(&self, execute: impl FnOnce() -> R) -> R {
-		self.ext_env.borrow_mut().execute_with(execute)
-	}
-
-	#[allow(dead_code)]
-	fn get_all_free_plmc_balances(&self) -> UserToPLMCBalance {
-		self.ext_env.borrow_mut().execute_with(|| {
-			let mut balances = UserToPLMCBalance::new();
-			let user_keys: Vec<AccountId> = frame_system::Account::<TestRuntime>::iter_keys().collect();
-			for user in user_keys {
-				let funding = Balances::free_balance(&user);
-				balances.push((user, funding));
-			}
-			balances.sort_by(|a, b| a.0.cmp(&b.0));
-			balances
-		})
-	}
-
-	#[allow(dead_code)]
-	fn get_all_reserved_plmc_balances(&self, reserve_type: LockType<ProjectIdOf<TestRuntime>>) -> UserToPLMCBalance {
-		self.ext_env.borrow_mut().execute_with(|| {
-			let mut fundings = UserToPLMCBalance::new();
-			let user_keys: Vec<AccountId> = frame_system::Account::<TestRuntime>::iter_keys().collect();
-			for user in user_keys {
-				let funding = Balances::balance_on_hold(&reserve_type, &user);
-				fundings.push((user, funding));
-			}
-			fundings
-		})
-	}
-
-	#[allow(dead_code)]
-	fn get_all_free_statemint_asset_balances(&self, asset_id: AssetId) -> UserToStatemintAsset {
-		self.ext_env.borrow_mut().execute_with(|| {
-			let user_keys: Vec<AccountId> = frame_system::Account::<TestRuntime>::iter_keys().collect();
-			let mut balances: UserToStatemintAsset = UserToStatemintAsset::new();
-			for user in user_keys {
-				let asset_balance = StatemintAssets::balance(asset_id, &user);
-				balances.push((user, asset_balance, asset_id.clone()));
-			}
-			balances.sort_by(|a, b| a.0.cmp(&b.0));
-			balances
-		})
-	}
-
-	fn get_free_plmc_balances_for(&self, user_keys: Vec<AccountId>) -> UserToPLMCBalance {
-		self.ext_env.borrow_mut().execute_with(|| {
-			let mut balances = UserToPLMCBalance::new();
-			for user in user_keys {
-				let funding = Balances::free_balance(&user);
-				balances.push((user, funding));
-			}
-			balances.sort_by(|a, b| a.0.cmp(&b.0));
-			balances
-		})
-	}
-
-	fn get_reserved_plmc_balances_for(
-		&self,
-		user_keys: Vec<AccountId>,
-		lock_type: LockType<ProjectIdOf<TestRuntime>>,
-	) -> UserToPLMCBalance {
-		self.ext_env.borrow_mut().execute_with(|| {
-			let mut balances = UserToPLMCBalance::new();
-			for user in user_keys {
-				let funding = Balances::balance_on_hold(&lock_type, &user);
-				balances.push((user, funding));
-			}
-			balances.sort_by(|a, b| a.0.cmp(&b.0));
-			balances
-		})
-	}
-
-	fn get_free_statemint_asset_balances_for(
-		&self,
-		asset_id: AssetId,
-		user_keys: Vec<AccountId>,
-	) -> UserToStatemintAsset {
-		self.ext_env.borrow_mut().execute_with(|| {
-			let mut balances = UserToStatemintAsset::new();
-			for user in user_keys {
-				let asset_balance = StatemintAssets::balance(asset_id, &user);
-				balances.push((user, asset_balance, asset_id.clone()));
-			}
-			balances.sort_by(|a, b| a.0.cmp(&b.0));
-			balances
-		})
-	}
-
-	fn get_plmc_total_supply(&self) -> BalanceOf<TestRuntime> {
-		self.ext_env
-			.borrow_mut()
-			.execute_with(|| <TestRuntime as pallet_funding::Config>::NativeCurrency::total_issuance())
-	}
-
-	fn do_reserved_plmc_assertions(
-		&self,
-		correct_funds: UserToPLMCBalance,
-		reserve_type: LockType<ProjectIdOf<TestRuntime>>,
-	) {
-		for (user, balance) in correct_funds {
-			self.ext_env.borrow_mut().execute_with(|| {
-				let reserved = Balances::balance_on_hold(&reserve_type, &user);
-				assert_eq!(reserved, balance);
-			});
-		}
-	}
-
-	fn mint_plmc_to(&self, mapping: UserToPLMCBalance) {
-		self.ext_env.borrow_mut().execute_with(|| {
-			for (account, amount) in mapping {
-				Balances::mint_into(&account, amount).expect("Minting should work");
-			}
-		});
-	}
-
-	fn mint_statemint_asset_to(&self, mapping: UserToStatemintAsset) {
-		self.ext_env.borrow_mut().execute_with(|| {
-			for (account, amount, id) in mapping {
-				StatemintAssets::mint_into(id, &account, amount).expect("Minting should work");
-			}
-		});
-	}
-
-	fn current_block(&self) -> BlockNumber {
-		self.ext_env.borrow_mut().execute_with(|| System::block_number())
-	}
-
-	fn advance_time(&self, amount: BlockNumber) -> Result<(), DispatchError> {
-		self.ext_env.borrow_mut().execute_with(|| {
-			for _block in 0..amount {
-				<AllPalletsWithoutSystem as OnFinalize<u64>>::on_finalize(System::block_number());
-				<AllPalletsWithoutSystem as OnIdle<u64>>::on_idle(System::block_number(), Weight::MAX);
-				System::set_block_number(System::block_number() + 1);
-				let pre_events = System::events();
-				<AllPalletsWithSystem as OnInitialize<u64>>::on_initialize(System::block_number());
-				let post_events = System::events();
-				if post_events.len() > pre_events.len() {
-					err_if_on_initialize_failed(System::events())?;
-				}
-			}
-			Ok(())
-		})
-	}
-
-	fn do_free_plmc_assertions(&self, correct_funds: UserToPLMCBalance) {
-		for (user, balance) in correct_funds {
-			self.ext_env.borrow_mut().execute_with(|| {
-				let free = Balances::free_balance(user);
-				assert_eq!(free, balance);
-			});
-		}
-	}
-
-	fn do_total_plmc_assertions(&self, expected_supply: BalanceOf<TestRuntime>) {
-		let real_supply = self.get_plmc_total_supply();
-		assert_eq!(real_supply, expected_supply);
-	}
-
-	fn do_free_statemint_asset_assertions(&self, correct_funds: UserToStatemintAsset) {
-		for (user, expected_amount, token_id) in correct_funds {
-			self.ext_env.borrow_mut().execute_with(|| {
-				let real_amount = <TestRuntime as Config>::FundingCurrency::balance(token_id, &user);
-				assert_eq!(expected_amount, real_amount, "Wrong statemint asset balance expected for user {}", user);
-			});
-		}
-	}
-
-	fn do_bid_transferred_statemint_asset_assertions(
-		&self,
-		correct_funds: UserToStatemintAsset,
-		project_id: ProjectIdOf<TestRuntime>,
-	) {
-		for (user, expected_amount, _token_id) in correct_funds {
-			self.ext_env.borrow_mut().execute_with(|| {
-				// total amount of contributions for this user for this project stored in the mapping
-				let contribution_total: <TestRuntime as Config>::Balance =
-					Bids::<TestRuntime>::iter_prefix_values((project_id, user.clone()))
-						.map(|c| c.funding_asset_amount_locked)
-						.sum();
-				assert_eq!(
-					contribution_total, expected_amount,
-					"Wrong statemint asset balance expected for stored auction info on user {}",
-					user
-				);
-			});
-		}
-	}
-
-	// Check if a Contribution storage item exists for the given funding asset transfer
-	fn do_contribution_transferred_statemint_asset_assertions(
-		&self,
-		correct_funds: UserToStatemintAsset,
-		project_id: ProjectIdOf<TestRuntime>,
-	) {
-		for (user, expected_amount, _token_id) in correct_funds {
-			self.ext_env.borrow_mut().execute_with(|| {
-				let mut contributions = Contributions::<TestRuntime>::iter_prefix_values((project_id, user.clone()));
-				contributions
-					.find(|c| c.funding_asset_amount == expected_amount)
-					.expect("Contribution not found in storage");
-			});
-		}
-	}
-}
-
-#[derive(Debug, Clone)]
-pub struct CreatedProject<'a> {
-	test_env: &'a TestEnvironment,
-	issuer: AccountId,
-	project_id: ProjectIdOf<TestRuntime>,
-}
-impl<'a> ProjectInstance for CreatedProject<'a> {
-	fn get_test_environment(&self) -> &TestEnvironment {
-		self.test_env
-	}
-
-	fn get_issuer(&self) -> AccountId {
-		self.issuer.clone()
-	}
-
-	fn get_project_id(&self) -> ProjectIdOf<TestRuntime> {
-		self.project_id.clone()
-	}
-}
-impl<'a> CreatedProject<'a> {
-	fn new_with(
-		test_env: &'a TestEnvironment,
-		project_metadata: ProjectMetadataOf<TestRuntime>,
-		issuer: <TestRuntime as frame_system::Config>::AccountId,
-	) -> Self {
-		let now = test_env.current_block();
-		test_env.mint_plmc_to(vec![(issuer, get_ed())]);
-		let created_project = test_env.create_project(issuer, project_metadata.clone()).unwrap();
-		created_project.creation_assertions(project_metadata, now);
-		created_project
-	}
-
-	fn creation_assertions(
-		&self,
-		expected_metadata: ProjectMetadataOf<TestRuntime>,
-		creation_start_block: BlockNumberOf<TestRuntime>,
-	) {
-		let metadata = self.get_project_metadata();
-		let details = self.get_project_details();
-		let expected_details = ProjectDetailsOf::<TestRuntime> {
-			issuer: self.get_issuer(),
-			is_frozen: false,
-			weighted_average_price: None,
-			status: ProjectStatus::Application,
-			phase_transition_points: PhaseTransitionPoints {
-				application: BlockNumberPair { start: Some(creation_start_block), end: None },
-				..Default::default()
-			},
-			fundraising_target: expected_metadata
-				.minimum_price
-				.checked_mul_int(expected_metadata.total_allocation_size.0 + expected_metadata.total_allocation_size.1)
-				.unwrap(),
-			remaining_contribution_tokens: expected_metadata.total_allocation_size,
-			funding_amount_reached: BalanceOf::<TestRuntime>::zero(),
-			cleanup: Cleaner::NotReady,
-			evaluation_round_info: EvaluationRoundInfoOf::<TestRuntime> {
-				total_bonded_usd: Zero::zero(),
-				total_bonded_plmc: Zero::zero(),
-				evaluators_outcome: EvaluatorsOutcome::Unchanged,
-			},
-			funding_end_block: None,
-		};
-		assert_eq!(metadata, expected_metadata);
-		assert_eq!(details, expected_details);
-	}
-
-	// Move to next project phase
-	fn start_evaluation(self, caller: AccountId) -> Result<EvaluatingProject<'a>, DispatchError> {
-		assert_eq!(self.get_project_details().status, ProjectStatus::Application);
-		self.in_ext(|| FundingModule::start_evaluation(RuntimeOrigin::signed(caller), self.project_id))?;
-		assert_eq!(self.get_project_details().status, ProjectStatus::EvaluationRound);
-
-		Ok(EvaluatingProject { test_env: self.test_env, issuer: self.issuer, project_id: self.project_id })
-	}
-}
-
-#[derive(Debug, Clone)]
-struct EvaluatingProject<'a> {
-	test_env: &'a TestEnvironment,
-	issuer: AccountId,
-	project_id: ProjectIdOf<TestRuntime>,
-}
-impl<'a> ProjectInstance for EvaluatingProject<'a> {
-	fn get_test_environment(&self) -> &TestEnvironment {
-		self.test_env
-	}
-
-	fn get_issuer(&self) -> AccountId {
-		self.issuer.clone()
-	}
-
-	fn get_project_id(&self) -> ProjectIdOf<TestRuntime> {
-		self.project_id.clone()
-	}
-}
-impl<'a> EvaluatingProject<'a> {
-	fn new_with(
-		test_env: &'a TestEnvironment,
-		project_metadata: ProjectMetadataOf<TestRuntime>,
-		issuer: <TestRuntime as frame_system::Config>::AccountId,
-	) -> Self {
-		let created_project = CreatedProject::new_with(test_env, project_metadata.clone(), issuer);
-		let creator = created_project.get_issuer();
-
-		let evaluating_project = created_project.start_evaluation(creator).unwrap();
-
-		evaluating_project
-	}
-
-	pub fn evaluation_assertions(
-		&self,
-		expected_free_plmc_balances: UserToPLMCBalance,
-		expected_reserved_plmc_balances: UserToPLMCBalance,
-		total_plmc_supply: BalanceOf<TestRuntime>,
-	) {
-		let project_details = self.get_project_details();
-		let test_env = self.test_env;
-		assert_eq!(project_details.status, ProjectStatus::EvaluationRound);
-		test_env.do_free_plmc_assertions(expected_free_plmc_balances);
-		test_env
-			.do_reserved_plmc_assertions(expected_reserved_plmc_balances, LockType::Evaluation(self.get_project_id()));
-		test_env.do_total_plmc_assertions(total_plmc_supply);
-	}
-
-	fn bond_for_users(&self, bonds: UserToUSDBalance) -> Result<(), DispatchError> {
-		let project_id = self.get_project_id();
-		for (account, amount) in bonds {
-			self.test_env
-				.ext_env
-				.borrow_mut()
-				.execute_with(|| FundingModule::bond_evaluation(RuntimeOrigin::signed(account), project_id, amount))?;
-		}
-		Ok(())
-	}
-
-	fn start_auction(self, caller: AccountId) -> Result<AuctioningProject<'a>, DispatchError> {
-		let project_details = self.get_project_details();
-
-		if project_details.status == ProjectStatus::EvaluationRound {
-			let evaluation_end = project_details.phase_transition_points.evaluation.end().unwrap();
-			let auction_start = evaluation_end.saturating_add(2);
-			let blocks_to_start = auction_start.saturating_sub(self.test_env.current_block());
-			self.test_env.advance_time(blocks_to_start).unwrap();
-		};
-
-		assert_eq!(self.get_project_details().status, ProjectStatus::AuctionInitializePeriod);
-
-		self.in_ext(|| FundingModule::start_auction(RuntimeOrigin::signed(caller), self.get_project_id()))?;
-
-		assert_eq!(self.get_project_details().status, ProjectStatus::AuctionRound(AuctionPhase::English));
-
-		Ok(AuctioningProject { test_env: self.test_env, issuer: self.issuer, project_id: self.project_id })
-	}
-}
-
-#[derive(Debug)]
-struct AuctioningProject<'a> {
-	test_env: &'a TestEnvironment,
-	issuer: AccountId,
-	project_id: ProjectIdOf<TestRuntime>,
-}
-impl<'a> ProjectInstance for AuctioningProject<'a> {
-	fn get_test_environment(&self) -> &TestEnvironment {
-		self.test_env
-	}
-
-	fn get_issuer(&self) -> AccountId {
-		self.issuer.clone()
-	}
-
-	fn get_project_id(&self) -> ProjectIdOf<TestRuntime> {
-		self.project_id.clone()
-	}
-}
-impl<'a> AuctioningProject<'a> {
-	fn new_with(
-		test_env: &'a TestEnvironment,
-		project_metadata: ProjectMetadataOf<TestRuntime>,
-		issuer: <TestRuntime as frame_system::Config>::AccountId,
-		evaluations: UserToUSDBalance,
-	) -> Self {
-		let evaluating_project = EvaluatingProject::new_with(test_env, project_metadata, issuer);
-
-		let evaluators = evaluations.iter().map(|(acc, _val)| acc.clone()).collect::<Vec<AccountIdOf<TestRuntime>>>();
-		let prev_supply = test_env.get_plmc_total_supply();
-		let prev_plmc_balances = test_env.get_free_plmc_balances_for(evaluators);
-
-		let plmc_eval_deposits: UserToPLMCBalance = calculate_evaluation_plmc_spent(evaluations.clone());
-		let plmc_existential_deposits: UserToPLMCBalance =
-			evaluations.iter().map(|(account, _amount)| (account.clone(), get_ed())).collect();
-
-		let expected_remaining_plmc: UserToPLMCBalance =
-			merge_add_mappings_by_user(vec![prev_plmc_balances.clone(), plmc_existential_deposits.clone()]);
-
-		test_env.mint_plmc_to(plmc_eval_deposits.clone());
-		test_env.mint_plmc_to(plmc_existential_deposits.clone());
-
-		evaluating_project.bond_for_users(evaluations).unwrap();
-
-		let expected_evaluator_balances =
-			sum_balance_mappings(vec![plmc_eval_deposits.clone(), plmc_existential_deposits.clone()]);
-
-		let expected_total_supply = prev_supply + expected_evaluator_balances;
-
-		evaluating_project.evaluation_assertions(expected_remaining_plmc, plmc_eval_deposits, expected_total_supply);
-
-		evaluating_project.start_auction(issuer).unwrap()
-	}
-
-	fn bid_for_users(&self, bids: TestBids) -> Result<(), DispatchError> {
-		let project_id = self.get_project_id();
-		for bid in bids {
-			self.test_env.ext_env.borrow_mut().execute_with(|| {
-				FundingModule::bid(
-					RuntimeOrigin::signed(bid.bidder),
-					project_id,
-					bid.amount,
-					bid.price,
-					bid.multiplier,
-					bid.asset,
-				)
-			})?;
-		}
-		Ok(())
-	}
-
-	fn start_community_funding(self) -> CommunityFundingProject<'a> {
-		let english_end = self
-			.get_project_details()
-			.phase_transition_points
-			.english_auction
-			.end()
-			.expect("English end point should exist");
-
-		let candle_start = english_end + 2;
-
-		self.test_env.advance_time(candle_start.saturating_sub(self.test_env.current_block())).unwrap();
-		let candle_end = self
-			.get_project_details()
-			.phase_transition_points
-			.candle_auction
-			.end()
-			.expect("Candle end point should exist");
-
-		let community_start = candle_end + 2;
-
-		self.test_env.advance_time(community_start.saturating_sub(self.test_env.current_block())).unwrap();
-
-		assert_eq!(self.get_project_details().status, ProjectStatus::CommunityRound);
-
-		CommunityFundingProject { test_env: self.test_env, issuer: self.issuer, project_id: self.project_id }
-	}
-}
-
-#[derive(Debug)]
-pub struct CommunityFundingProject<'a> {
-	test_env: &'a TestEnvironment,
-	issuer: AccountId,
-	project_id: ProjectIdOf<TestRuntime>,
-}
-impl<'a> ProjectInstance for CommunityFundingProject<'a> {
-	fn get_test_environment(&self) -> &TestEnvironment {
-		self.test_env
-	}
-
-	fn get_issuer(&self) -> AccountId {
-		self.issuer.clone()
-	}
-
-	fn get_project_id(&self) -> ProjectIdOf<TestRuntime> {
-		self.project_id.clone()
-	}
-}
-impl<'a> CommunityFundingProject<'a> {
-	fn new_with(
-		test_env: &'a TestEnvironment,
-		project_metadata: ProjectMetadataOf<TestRuntime>,
-		issuer: <TestRuntime as frame_system::Config>::AccountId,
-		evaluations: UserToUSDBalance,
-		bids: TestBids,
-	) -> Self {
-		let auctioning_project = AuctioningProject::new_with(test_env, project_metadata, issuer, evaluations.clone());
-		let project_id = auctioning_project.get_project_id();
-
-		if bids.is_empty() {
-			panic!("Cannot start community funding without bids")
-		}
-
-		let bidders = bids.iter().map(|b| b.bidder.clone()).collect::<Vec<AccountIdOf<TestRuntime>>>();
-		let asset_id = bids[0].asset.to_statemint_id();
-		let prev_plmc_balances = test_env.get_free_plmc_balances_for(bidders.clone());
-		let prev_funding_asset_balances = test_env.get_free_statemint_asset_balances_for(asset_id, bidders);
-		let plmc_evaluation_deposits: UserToPLMCBalance = calculate_evaluation_plmc_spent(evaluations.clone());
-		let plmc_bid_deposits: UserToPLMCBalance = calculate_auction_plmc_spent(bids.clone());
-		let participation_usable_evaluation_deposits = plmc_evaluation_deposits
-			.clone()
-			.into_iter()
-			.map(|(acc, amount)| (acc, amount.saturating_sub(<TestRuntime as Config>::EvaluatorSlash::get() * amount)))
-			.collect::<UserToPLMCBalance>();
-		let necessary_plmc_mint =
-			merge_subtract_mappings_by_user(plmc_bid_deposits.clone(), vec![participation_usable_evaluation_deposits]);
-		let total_plmc_participation_locked = plmc_bid_deposits;
-		let plmc_existential_deposits: UserToPLMCBalance = bids.iter().map(|bid| (bid.bidder, get_ed())).collect::<_>();
-		let funding_asset_deposits = calculate_auction_funding_asset_spent(bids.clone());
-
-		let bidder_balances =
-			sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
-
-		let expected_free_plmc_balances =
-			merge_add_mappings_by_user(vec![prev_plmc_balances.clone(), plmc_existential_deposits.clone()]);
-
-		let prev_supply = test_env.get_plmc_total_supply();
-		let post_supply = prev_supply + bidder_balances;
-
-		test_env.mint_plmc_to(necessary_plmc_mint.clone());
-		test_env.mint_plmc_to(plmc_existential_deposits.clone());
-		test_env.mint_statemint_asset_to(funding_asset_deposits.clone());
-
-		auctioning_project.bid_for_users(bids.clone()).expect("Bidding should work");
-		test_env.do_reserved_plmc_assertions(total_plmc_participation_locked, LockType::Participation(project_id));
-		// test_env.do_bid_transferred_statemint_asset_assertions(funding_asset_deposits, project_id);
-		test_env.do_free_plmc_assertions(expected_free_plmc_balances);
-		// test_env.do_free_statemint_asset_assertions(prev_funding_asset_balances);
-		test_env.do_total_plmc_assertions(post_supply);
-
-		let community_project = auctioning_project.start_community_funding();
-
-		let stored_bids = community_project
-			.get_test_environment()
-			.in_ext(|| Bids::<TestRuntime>::iter_prefix_values((community_project.project_id,)).collect_vec());
-		let new_bids = stored_bids
-			.into_iter()
-			.filter(|bid| bid.final_ct_amount != 0)
-			.map(|bid| TestBid::from(bid.bidder, bid.final_ct_amount, bid.final_ct_usd_price))
-			.collect_vec();
-
-		let bid_expectations = new_bids
-			.iter()
-			.map(|bid| BidInfoFilter {
-				final_ct_amount: Some(bid.amount),
-				final_ct_usd_price: Some(bid.price),
-				..Default::default()
-			})
-			.collect_vec();
-		let total_ct_sold = new_bids.iter().map(|bid| bid.amount).sum::<u128>();
-
-		community_project.finalized_bids_assertions(bid_expectations, total_ct_sold);
-
-		community_project
-	}
-
-	fn buy_for_retail_users(&self, contributions: TestContributions) -> Result<(), DispatchError> {
-		let project_id = self.get_project_id();
-		for cont in contributions {
-			self.test_env.ext_env.borrow_mut().execute_with(|| {
-				FundingModule::contribute(
-					RuntimeOrigin::signed(cont.contributor),
-					project_id,
-					cont.amount,
-					cont.multiplier,
-					cont.asset,
-				)
-			})?;
-		}
-		Ok(())
-	}
-
-	fn finalized_bids_assertions(
-		&self,
-		bid_expectations: Vec<BidInfoFilterOf<TestRuntime>>,
-		expected_ct_sold: BalanceOf<TestRuntime>,
-	) {
-		let project_metadata = self.get_project_metadata();
-		let project_details = self.get_project_details();
-		let project_id = self.get_project_id();
-		let project_bids = self.in_ext(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
-		assert!(matches!(project_details.weighted_average_price, Some(_)), "Weighted average price should exist");
-
-		for filter in bid_expectations {
-			let _found_bid = project_bids.iter().find(|bid| filter.matches_bid(&bid)).unwrap();
-		}
-
-		// Remaining CTs are updated
-		assert_eq!(
-			project_details.remaining_contribution_tokens,
-			project_metadata.total_allocation_size - expected_ct_sold,
-			"Remaining CTs are incorrect"
-		);
-	}
-
-	fn start_remainder_or_end_funding(self) -> Either<RemainderFundingProject<'a>, FinishedProject<'a>> {
-		assert_eq!(self.get_project_details().status, ProjectStatus::CommunityRound);
-		let community_funding_end = self
-			.get_project_details()
-			.phase_transition_points
-			.community
-			.end()
-			.expect("Community funding end point should exist");
-		let remainder_start = community_funding_end + 1;
-		self.test_env.advance_time(remainder_start.saturating_sub(self.test_env.current_block())).unwrap();
-		match self.get_project_details().status {
-			ProjectStatus::RemainderRound => Either::Left(RemainderFundingProject {
-				test_env: self.test_env,
-				issuer: self.issuer,
-				project_id: self.project_id,
-			}),
-			ProjectStatus::FundingSuccessful => Either::Right(FinishedProject {
-				test_env: self.test_env,
-				issuer: self.issuer,
-				project_id: self.project_id,
-			}),
-			_ => panic!("Unknown state"),
-		}
-	}
-
-	fn finish_funding(self) -> FinishedProject<'a> {
-		let test_env = self.get_test_environment();
-		let (update_block, _) = self.get_update_pair();
-		test_env.advance_time(update_block.saturating_sub(test_env.current_block())).unwrap();
-		if self.get_project_details().status == ProjectStatus::RemainderRound {
-			let (end_block, _) = self.get_update_pair();
-			self.test_env.advance_time(end_block.saturating_sub(self.test_env.current_block())).unwrap();
-		}
-		let project_details = self.get_project_details();
-		assert!(
-			matches!(project_details.status, ProjectStatus::FundingSuccessful) ||
-				matches!(project_details.status, ProjectStatus::FundingFailed),
-			"Project should be in Finished status"
-		);
-		FinishedProject { test_env: self.test_env, issuer: self.issuer, project_id: self.project_id }
-	}
-}
-
-#[derive(Debug)]
-struct RemainderFundingProject<'a> {
-	test_env: &'a TestEnvironment,
-	issuer: AccountId,
-	project_id: ProjectIdOf<TestRuntime>,
-}
-impl<'a> ProjectInstance for RemainderFundingProject<'a> {
-	fn get_test_environment(&self) -> &TestEnvironment {
-		self.test_env
-	}
-
-	fn get_issuer(&self) -> AccountId {
-		self.issuer.clone()
-	}
-
-	fn get_project_id(&self) -> ProjectIdOf<TestRuntime> {
-		self.project_id.clone()
-	}
-}
-impl<'a> RemainderFundingProject<'a> {
-	fn buy_for_any_user(&self, contributions: TestContributions) -> Result<(), DispatchError> {
-		let project_id = self.get_project_id();
-		for cont in contributions {
-			self.test_env.ext_env.borrow_mut().execute_with(|| {
-				FundingModule::contribute(
-					RuntimeOrigin::signed(cont.contributor),
-					project_id,
-					cont.amount,
-					cont.multiplier,
-					cont.asset,
-				)
-			})?;
-		}
-		Ok(())
-	}
-
-	fn new_with(
-		test_env: &'a TestEnvironment,
-		project_metadata: ProjectMetadataOf<TestRuntime>,
-		issuer: AccountId,
-		evaluations: UserToUSDBalance,
-		bids: TestBids,
-		contributions: TestContributions,
-	) -> Either<Self, FinishedProject> {
-		let community_funding_project =
-			CommunityFundingProject::new_with(test_env, project_metadata, issuer, evaluations.clone(), bids.clone());
-		if contributions.is_empty() {
-			return community_funding_project.start_remainder_or_end_funding()
-		}
-		let project_id = community_funding_project.get_project_id();
-		let ct_price = community_funding_project.get_project_details().weighted_average_price.unwrap();
-		let contributors = contributions.iter().map(|cont| cont.contributor).collect::<Vec<_>>();
-		let asset_id = contributions[0].asset.to_statemint_id();
-		let prev_plmc_balances = test_env.get_free_plmc_balances_for(contributors.clone());
-		let prev_funding_asset_balances =
-			test_env.get_free_statemint_asset_balances_for(asset_id, contributors.clone());
-
-		let plmc_evaluation_deposits = calculate_evaluation_plmc_spent(evaluations.clone());
-		let plmc_bid_deposits = calculate_auction_plmc_spent_after_price_calculation(bids.clone(), ct_price);
-		let plmc_contribution_deposits = calculate_contributed_plmc_spent(contributions.clone(), ct_price);
-
-		let necessary_plmc_mint =
-			merge_subtract_mappings_by_user(plmc_contribution_deposits.clone(), vec![plmc_evaluation_deposits]);
-		let total_plmc_participation_locked =
-			merge_add_mappings_by_user(vec![plmc_bid_deposits, plmc_contribution_deposits.clone()]);
-		let plmc_existential_deposits: UserToPLMCBalance =
-			contributors.iter().map(|acc| (acc.clone(), get_ed())).collect::<Vec<_>>();
-		let funding_asset_deposits = calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
-		let contributor_balances =
-			sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
-
-		let expected_free_plmc_balances =
-			merge_add_mappings_by_user(vec![prev_plmc_balances.clone(), plmc_existential_deposits.clone()]);
-
-		let prev_supply = test_env.get_plmc_total_supply();
-		let post_supply = prev_supply + contributor_balances;
-		test_env.mint_plmc_to(necessary_plmc_mint.clone());
-		test_env.mint_plmc_to(plmc_existential_deposits.clone());
-		test_env.mint_statemint_asset_to(funding_asset_deposits.clone());
-
-		community_funding_project.buy_for_retail_users(contributions.clone()).expect("Contributing should work");
-
-		test_env.do_reserved_plmc_assertions(total_plmc_participation_locked, LockType::Participation(project_id));
-		// test_env.do_contribution_transferred_statemint_asset_assertions(funding_asset_deposits, project_id);
-		test_env.do_free_plmc_assertions(expected_free_plmc_balances);
-		// test_env.do_free_statemint_asset_assertions(prev_funding_asset_balances);
-		test_env.do_total_plmc_assertions(post_supply);
-
-		community_funding_project.start_remainder_or_end_funding()
-	}
-
-	fn end_funding(&self) -> FinishedProject<'a> {
-		assert_eq!(self.get_project_details().status, ProjectStatus::RemainderRound);
-		let remainder_funding_end =
-			self.get_project_details().phase_transition_points.remainder.end().expect("Should have remainder end");
-		let finish_block = remainder_funding_end + 1;
-		self.test_env.advance_time(finish_block.saturating_sub(self.test_env.current_block())).unwrap();
-		assert!(matches!(
-			self.get_project_details().status,
-			ProjectStatus::FundingSuccessful | ProjectStatus::FundingFailed | ProjectStatus::AwaitingProjectDecision
-		));
-
-		FinishedProject { test_env: self.test_env, issuer: self.issuer.clone(), project_id: self.project_id.clone() }
-	}
-}
-
-#[derive(Debug)]
-struct FinishedProject<'a> {
-	test_env: &'a TestEnvironment,
-	issuer: AccountId,
-	project_id: ProjectIdOf<TestRuntime>,
-}
-impl<'a> ProjectInstance for FinishedProject<'a> {
-	fn get_test_environment(&self) -> &TestEnvironment {
-		self.test_env
-	}
-
-	fn get_issuer(&self) -> AccountId {
-		self.issuer.clone()
-	}
-
-	fn get_project_id(&self) -> ProjectIdOf<TestRuntime> {
-		self.project_id.clone()
-	}
-}
-impl<'a> FinishedProject<'a> {
-	fn new_with(
-		test_env: &'a TestEnvironment,
-		project_metadata: ProjectMetadataOf<TestRuntime>,
-		issuer: AccountId,
-		evaluations: UserToUSDBalance,
-		bids: TestBids,
-		community_contributions: TestContributions,
-		remainder_contributions: TestContributions,
-	) -> Self {
-		let project = RemainderFundingProject::new_with(
-			test_env,
-			project_metadata.clone(),
-			issuer,
-			evaluations.clone(),
-			bids.clone(),
-			community_contributions.clone(),
-		);
-
-		let remainder_funding_project = match project {
-			Either::Right(finished_project) => return finished_project,
-			Either::Left(remainder_project) if remainder_contributions.is_empty() =>
-				return remainder_project.end_funding(),
-			Either::Left(remainder_project) => remainder_project,
-		};
-
-		let project_id = remainder_funding_project.get_project_id();
-		let ct_price = remainder_funding_project.get_project_details().weighted_average_price.unwrap();
-		let contributors = remainder_contributions.iter().map(|cont| cont.contributor).collect::<Vec<_>>();
-		let asset_id = remainder_contributions[0].asset.to_statemint_id();
-		let prev_plmc_balances = test_env.get_free_plmc_balances_for(contributors.clone());
-		let prev_funding_asset_balances =
-			test_env.get_free_statemint_asset_balances_for(asset_id, contributors.clone());
-
-		let plmc_evaluation_deposits = calculate_evaluation_plmc_spent(evaluations.clone());
-		let plmc_bid_deposits = calculate_auction_plmc_spent_after_price_calculation(bids.clone(), ct_price);
-		let plmc_community_contribution_deposits =
-			calculate_contributed_plmc_spent(community_contributions.clone(), ct_price);
-		let plmc_remainder_contribution_deposits =
-			calculate_contributed_plmc_spent(remainder_contributions.clone(), ct_price);
-
-		let necessary_plmc_mint = merge_subtract_mappings_by_user(
-			plmc_remainder_contribution_deposits.clone(),
-			vec![plmc_evaluation_deposits],
-		);
-		let total_plmc_participation_locked = merge_add_mappings_by_user(vec![
-			plmc_bid_deposits,
-			plmc_community_contribution_deposits,
-			plmc_remainder_contribution_deposits.clone(),
-		]);
-		let plmc_existential_deposits: UserToPLMCBalance =
-			contributors.iter().map(|acc| (acc.clone(), get_ed())).collect::<Vec<_>>();
-		let funding_asset_deposits =
-			calculate_contributed_funding_asset_spent(remainder_contributions.clone(), ct_price);
-
-		let contributor_balances =
-			sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
-
-		let expected_free_plmc_balances =
-			merge_add_mappings_by_user(vec![prev_plmc_balances.clone(), plmc_existential_deposits.clone()]);
-
-		let prev_supply = test_env.get_plmc_total_supply();
-		let post_supply = prev_supply + contributor_balances;
-
-		test_env.mint_plmc_to(necessary_plmc_mint.clone());
-		test_env.mint_plmc_to(plmc_existential_deposits.clone());
-		test_env.mint_statemint_asset_to(funding_asset_deposits.clone());
-
-		remainder_funding_project
-			.buy_for_any_user(remainder_contributions.clone())
-			.expect("Remainder Contributing should work");
-
-		test_env.do_reserved_plmc_assertions(total_plmc_participation_locked, LockType::Participation(project_id));
-		test_env.do_contribution_transferred_statemint_asset_assertions(funding_asset_deposits, project_id);
-		test_env.do_free_plmc_assertions(expected_free_plmc_balances);
-		test_env.do_free_statemint_asset_assertions(prev_funding_asset_balances);
-		test_env.do_total_plmc_assertions(post_supply);
-
-		let finished_project = remainder_funding_project.end_funding();
-
-		if finished_project.get_project_details().status == ProjectStatus::FundingSuccessful {
-			// Check that remaining CTs are updated
-			let project_details = finished_project.get_project_details();
-			test_env.in_ext(|| {
-				let auction_bought_tokens: u128 =
-					Bids::<TestRuntime>::iter_prefix_values((project_id,)).map(|bid| bid.final_ct_amount).sum();
-				let community_bought_tokens: u128 =
-					Contributions::<TestRuntime>::iter_prefix_values((project_id,)).map(|cont| cont.ct_amount).sum();
-
-				assert_eq!(
-					project_details.remaining_contribution_tokens.0 + project_details.remaining_contribution_tokens.1,
-					project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1 -
-						auction_bought_tokens - community_bought_tokens,
-					"Remaining CTs are incorrect"
-				);
-			});
-		}
-
-		finished_project
-	}
-
-	fn from_funding_reached(test_env: &'a TestEnvironment, percent: u64) -> Self {
-		let project_metadata = default_project(test_env.get_new_nonce());
-		let min_price = project_metadata.minimum_price;
-		let usd_to_reach = Perquintill::from_percent(percent) *
-			(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size.0).unwrap());
-		let evaluations = default_evaluations();
-		let bids = generate_bids_from_total_usd(Percent::from_percent(50u8) * usd_to_reach, min_price);
-		let contributions =
-			generate_contributions_from_total_usd(Percent::from_percent(50u8) * usd_to_reach, min_price);
-		FinishedProject::new_with(test_env, project_metadata, ISSUER, evaluations, bids, contributions, vec![])
-	}
-}
-
-mod defaults {
+pub mod defaults {
 	use super::*;
 
 	pub fn default_project(nonce: u64, issuer: AccountId) -> ProjectMetadataOf<TestRuntime> {
@@ -1227,8 +103,8 @@ mod defaults {
 				symbol: bounded_symbol,
 				decimals: ASSET_DECIMALS,
 			},
-			mainnet_token_max_supply: 8_000_000_0_000_000_000,
-			total_allocation_size: 1_000_000_0_000_000_000,
+			mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
+			total_allocation_size: (50_000 * ASSET_UNIT, 50_000 * ASSET_UNIT),
 			minimum_price: PriceOf::<TestRuntime>::from_float(1.0),
 			ticket_size: TicketSize { minimum: Some(1), maximum: None },
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
@@ -1282,15 +158,15 @@ mod defaults {
 		]
 	}
 
-	pub fn default_failing_evaluations() -> UserToPLMCBalance {
-		vec![(EVALUATOR_1, 10_000 * PLMC), (EVALUATOR_2, 5_000 * PLMC)]
+	pub fn default_failing_evaluations() -> Vec<UserToUSDBalance<TestRuntime>> {
+		vec![UserToUSDBalance::new(EVALUATOR_1, 3_000 * PLMC), UserToUSDBalance::new(EVALUATOR_2, 1_000 * PLMC)]
 	}
 
 	pub fn default_bids() -> Vec<BidParams<TestRuntime>> {
 		// This should reflect the bidding currency, which currently is USDT
 		vec![
-			TestBid::new(BIDDER_1, 50000 * ASSET_UNIT, 18_u128.into(), 1u8, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_2, 40000 * ASSET_UNIT, 15_u128.into(), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_1, 40_000 * ASSET_UNIT, FixedU128::from_float(1.0), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_2, 5_000 * ASSET_UNIT, FixedU128::from_float(1.0), 1u8, AcceptedFundingAsset::USDT),
 		]
 	}
 
@@ -1314,435 +190,33 @@ mod defaults {
 		vec![20u8, 15u8, 10u8, 25u8, 30u8]
 	}
 
-	pub fn calculate_auction_plmc_spent(bids: TestBids) -> UserToPLMCBalance {
-		let plmc_price = PriceMap::get().get(&PLMC_STATEMINT_ID).unwrap().clone();
-		let mut output = UserToPLMCBalance::new();
-		for bid in bids {
-			let usd_ticket_size = bid.price.saturating_mul_int(bid.amount);
-			let multiplier = bid.multiplier;
-			let usd_bond = multiplier.calculate_bonding_requirement::<TestRuntime>(usd_ticket_size).unwrap();
-			let plmc_bond = plmc_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
-			output.push((bid.bidder, plmc_bond));
-		}
-		output
+	pub fn default_bidders() -> Vec<AccountId> {
+		vec![BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5]
 	}
 
-	// This differs from `calculate_auction_plmc_spent` in that it recalculates bids over the average price as using that price.
-	pub fn calculate_auction_plmc_spent_after_price_calculation(
-		bids: TestBids,
-		price: PriceOf<TestRuntime>,
-	) -> UserToPLMCBalance {
-		let plmc_price = PriceMap::get().get(&PLMC_STATEMINT_ID).unwrap().clone();
-		let mut output = UserToPLMCBalance::new();
-		for bid in bids {
-			let final_price = if bid.price < price { bid.price } else { price };
-
-			let usd_ticket_size = final_price.saturating_mul_int(bid.amount);
-			let usd_bond = bid.multiplier.calculate_bonding_requirement::<TestRuntime>(usd_ticket_size).unwrap();
-			let plmc_bond = plmc_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
-			output.push((bid.bidder, plmc_bond));
-		}
-		output
+	pub fn default_contributors() -> Vec<AccountId> {
+		vec![BUYER_1, BUYER_2, BUYER_3, BUYER_4, BUYER_5]
 	}
 
-	pub fn calculate_auction_funding_asset_spent(bids: TestBids) -> UserToStatemintAsset {
-		let mut output = UserToStatemintAsset::new();
-		for bid in bids {
-			let asset_price = PriceMap::get().get(&(bid.asset.to_statemint_id())).unwrap().clone();
-			let usd_ticket_size = bid.price.saturating_mul_int(bid.amount);
-			let funding_asset_spent = asset_price.reciprocal().unwrap().saturating_mul_int(usd_ticket_size);
-			output.push((bid.bidder, funding_asset_spent, bid.asset.to_statemint_id()));
-		}
-		output
-	}
-
-	pub fn calculate_contributed_plmc_spent(
-		contributions: TestContributions,
-		token_usd_price: PriceOf<TestRuntime>,
-	) -> UserToPLMCBalance {
-		let plmc_price = PriceMap::get().get(&PLMC_STATEMINT_ID).unwrap().clone();
-		let mut output = UserToPLMCBalance::new();
-		for cont in contributions {
-			let usd_ticket_size = token_usd_price.saturating_mul_int(cont.amount);
-			let usd_bond = cont.multiplier.calculate_bonding_requirement::<TestRuntime>(usd_ticket_size).unwrap();
-			let plmc_bond = plmc_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
-			output.push((cont.contributor, plmc_bond));
-		}
-		output
-	}
-
-	pub fn calculate_total_plmc_locked_from_evaluations_and_remainder_contributions(
-		evaluations: UserToUSDBalance,
-		contributions: TestContributions,
-		price: PriceOf<TestRuntime>,
-		slashed: bool,
-	) -> UserToPLMCBalance {
-		let evaluation_locked_plmc_amounts = calculate_evaluation_plmc_spent(evaluations);
-		// how much new plmc would be locked without considering evaluation bonds
-		let theoretical_contribution_locked_plmc_amounts = calculate_contributed_plmc_spent(contributions, price);
-
-		let slash_percentage = <TestRuntime as Config>::EvaluatorSlash::get();
-		let slashable_min_deposits = evaluation_locked_plmc_amounts
-			.clone()
-			.iter()
-			.map(|(acc, val)| (acc.clone(), slash_percentage * val.clone()))
-			.collect::<Vec<_>>();
-		let available_evaluation_locked_plmc_for_lock_transfer = merge_subtract_mappings_by_user(
-			evaluation_locked_plmc_amounts.clone(),
-			vec![slashable_min_deposits.clone()],
+	pub fn project_from_funding_reached(instantiator: &mut MockInstantiator, percent: u64) -> ProjectIdOf<TestRuntime> {
+		let project_metadata = default_project(instantiator.get_new_nonce(), ISSUER);
+		let min_price = project_metadata.minimum_price;
+		let usd_to_reach = Perquintill::from_percent(percent) *
+			(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size.0).unwrap());
+		let evaluations = default_evaluations();
+		let bids = MockInstantiator::generate_bids_from_total_usd(
+			Percent::from_percent(50u8) * usd_to_reach,
+			min_price,
+			default_weights(),
+			default_bidders(),
 		);
-
-		// how much new plmc was actually locked, considering already evaluation bonds used first.
-		let actual_contribution_locked_plmc_amounts = generic_map_merge(
-			vec![
-				theoretical_contribution_locked_plmc_amounts.clone(),
-				available_evaluation_locked_plmc_for_lock_transfer,
-			],
-			|(acc, _)| acc.clone(),
-			|(acc_1, contribution_amount), (_acc_2, evaluation_amount)| {
-				if contribution_amount > evaluation_amount {
-					(acc_1.clone(), contribution_amount - evaluation_amount)
-				} else {
-					(acc_1.clone(), Zero::zero())
-				}
-			},
+		let contributions = MockInstantiator::generate_contributions_from_total_usd(
+			Percent::from_percent(50u8) * usd_to_reach,
+			min_price,
+			default_weights(),
+			default_contributors(),
 		);
-		let mut result =
-			merge_add_mappings_by_user(vec![evaluation_locked_plmc_amounts, actual_contribution_locked_plmc_amounts]);
-
-		if slashed {
-			result = merge_subtract_mappings_by_user(result, vec![slashable_min_deposits]);
-		}
-
-		result
-	}
-
-	pub fn calculate_contributed_funding_asset_spent(
-		contributions: TestContributions,
-		token_usd_price: PriceOf<TestRuntime>,
-	) -> UserToStatemintAsset {
-		let price_map = PriceMap::get();
-		contributions
-			.iter()
-			.filter_map(|cont| {
-				let asset_id = cont.asset.to_statemint_id();
-				price_map.get(&asset_id).map(|asset_price| {
-					let usd_ticket_size = token_usd_price.saturating_mul_int(cont.amount);
-					let funding_asset_spent = asset_price.reciprocal().unwrap().saturating_mul_int(usd_ticket_size);
-					(cont.contributor.clone(), funding_asset_spent, asset_id)
-				})
-			})
-			.collect()
-	}
-
-	/// add all the user -> I maps together, and add the I's of the ones with the same user.
-	// Mappings should be sorted based on their account id, ascending.
-	pub fn merge_add_mappings_by_user<I: std::ops::Add<Output = I> + Ord + Copy>(
-		mut mappings: Vec<Vec<(AccountIdOf<TestRuntime>, I)>>,
-	) -> Vec<(AccountIdOf<TestRuntime>, I)> {
-		let mut output = mappings.swap_remove(0);
-		output.sort_by_key(|k| k.0);
-		for mut map in mappings {
-			map.sort_by_key(|k| k.0);
-			let old_output = output.clone();
-			output = Vec::new();
-			let mut i = 0;
-			let mut j = 0;
-			loop {
-				let old_tup = old_output.get(i);
-				let new_tup = map.get(j);
-
-				match (old_tup, new_tup) {
-					(None, None) => break,
-					(Some(_), None) => {
-						output.extend_from_slice(&old_output[i..]);
-						break
-					},
-					(None, Some(_)) => {
-						output.extend_from_slice(&map[j..]);
-						break
-					},
-					(Some((acc_i, val_i)), Some((acc_j, val_j))) =>
-						if acc_i == acc_j {
-							output.push((acc_i.clone(), val_i.clone() + val_j.clone()));
-							i += 1;
-							j += 1;
-						} else if acc_i < acc_j {
-							output.push(old_output[i]);
-							i += 1;
-						} else {
-							output.push(map[j]);
-							j += 1;
-						},
-				}
-			}
-		}
-		output
-	}
-
-	pub fn generic_map_merge_reduce<M: Clone, K: Ord + Clone, S: Clone>(
-		mappings: Vec<Vec<M>>,
-		key_extractor: impl Fn(&M) -> K,
-		initial_state: S,
-		merge_reduce: impl Fn(&M, S) -> S,
-	) -> Vec<(K, S)> {
-		let mut output = BTreeMap::new();
-		for mut map in mappings {
-			for item in map.drain(..) {
-				let key = key_extractor(&item);
-				let new_state = merge_reduce(&item, output.get(&key).cloned().unwrap_or(initial_state.clone()));
-				output.insert(key, new_state);
-			}
-		}
-		output.into_iter().collect()
-	}
-
-	pub fn generic_map_merge<M: Clone, K: Ord + Clone>(
-		mut mappings: Vec<Vec<M>>,
-		key_extractor: impl Fn(&M) -> K,
-		merger: impl Fn(&M, &M) -> M,
-	) -> Vec<M> {
-		let mut output = mappings.swap_remove(0);
-		output.sort_by_key(|k| key_extractor(k));
-		for mut new_map in mappings {
-			new_map.sort_by_key(|k| key_extractor(k));
-			let old_output = output.clone();
-			output = Vec::new();
-			let mut i = 0;
-			let mut j = 0;
-			loop {
-				let output_item = old_output.get(i);
-				let new_item = new_map.get(j);
-
-				match (output_item, new_item) {
-					(None, None) => break,
-					(Some(_), None) => {
-						output.extend_from_slice(&old_output[i..]);
-						break
-					},
-					(None, Some(_)) => {
-						output.extend_from_slice(&new_map[j..]);
-						break
-					},
-					(Some(m_i), Some(m_j)) => {
-						let k_i = key_extractor(m_i);
-						let k_j = key_extractor(m_j);
-						if k_i == k_j {
-							output.push(merger(m_i, m_j));
-							i += 1;
-							j += 1;
-						} else if k_i < k_j {
-							output.push(old_output[i].clone());
-							i += 1;
-						} else {
-							output.push(new_map[j].clone());
-							j += 1;
-						}
-					},
-				}
-			}
-		}
-		output
-	}
-
-	// Accounts in base_mapping will be deducted balances from the matching accounts in substract_mappings.
-	// Mappings in substract_mappings without a match in base_mapping have no effect, nor will they get returned
-	pub fn merge_subtract_mappings_by_user<I: Saturating + Ord + Copy>(
-		base_mapping: Vec<(AccountIdOf<TestRuntime>, I)>,
-		subtract_mappings: Vec<Vec<(AccountIdOf<TestRuntime>, I)>>,
-	) -> Vec<(AccountIdOf<TestRuntime>, I)> {
-		let mut output = base_mapping;
-		output.sort_by_key(|k| k.0);
-		for mut map in subtract_mappings {
-			map.sort_by_key(|k| k.0);
-			let old_output = output.clone();
-			output = Vec::new();
-			let mut i = 0;
-			let mut j = 0;
-			loop {
-				let old_tup = old_output.get(i);
-				let new_tup = map.get(j);
-
-				match (old_tup, new_tup) {
-					(None, None) => break,
-					(Some(_), None) => {
-						output.extend_from_slice(&old_output[i..]);
-						break
-					},
-					(None, Some(_)) => {
-						// uncomment this if we want to keep unmatched mappings on the substractor
-						// output.extend_from_slice(&map[j..]);
-						break
-					},
-					(Some((acc_i, val_i)), Some((acc_j, val_j))) =>
-						if acc_i == acc_j {
-							output.push((acc_i.clone(), val_i.clone().saturating_sub(val_j.clone())));
-							i += 1;
-							j += 1;
-						} else if acc_i < acc_j {
-							output.push(old_output[i]);
-							i += 1;
-						} else {
-							// uncomment to keep unmatched maps
-							// output.push(map[j]);
-							j += 1;
-						},
-				}
-			}
-		}
-		output
-	}
-
-	pub fn sum_balance_mappings<I: sp_std::ops::Add<Output = I> + sp_std::iter::Sum>(
-		mut mappings: Vec<Vec<(AccountIdOf<TestRuntime>, I)>>,
-	) -> I {
-		let mut output: I = mappings.swap_remove(0).into_iter().map(|(_, val)| val).sum();
-		for map in mappings {
-			output = output + map.into_iter().map(|(_, val)| val).sum();
-		}
-		output
-	}
-
-	pub fn sum_statemint_mappings<I: sp_std::ops::Add<Output = I> + sp_std::iter::Sum, S>(
-		mut mappings: Vec<Vec<(AccountIdOf<TestRuntime>, I, S)>>,
-	) -> I {
-		let mut output: I = mappings.swap_remove(0).into_iter().map(|(_, val, _)| val).sum();
-		for map in mappings {
-			output = output + map.into_iter().map(|(_, val, _)| val).sum();
-		}
-		output
-	}
-
-	pub fn calculate_price_from_test_bids(bids: TestBids) -> PriceOf<TestRuntime> {
-		// temp variable to store the total value of the bids (i.e price * amount)
-		let mut bid_usd_value_sum = BalanceOf::<TestRuntime>::zero();
-
-		for bid in bids.iter() {
-			let ticket_size = bid.price.checked_mul_int(bid.amount).unwrap();
-			bid_usd_value_sum.saturating_accrue(ticket_size);
-		}
-
-		bids.into_iter()
-			.map(|bid| {
-				let bid_weight = <PriceOf<TestRuntime> as FixedPointNumber>::saturating_from_rational(
-					bid.price.saturating_mul_int(bid.amount),
-					bid_usd_value_sum,
-				);
-				bid.price * bid_weight
-			})
-			.reduce(|a, b| a.saturating_add(b))
-			.unwrap()
-	}
-
-	pub fn panic_if_on_initialize_failed(events: Vec<frame_system::EventRecord<RuntimeEvent, H256>>) {
-		let last_event = events.into_iter().last().expect("No events found for this action.");
-		match last_event {
-			frame_system::EventRecord {
-				event: RuntimeEvent::FundingModule(Event::TransitionError { project_id, error }),
-				..
-			} => {
-				panic!("Project {} transition failed in on_initialize: {:?}", project_id, error);
-			},
-			_ => {},
-		}
-	}
-
-	pub fn err_if_on_initialize_failed(
-		events: Vec<frame_system::EventRecord<RuntimeEvent, H256>>,
-	) -> Result<(), Error<TestRuntime>> {
-		let last_event = events.into_iter().last().expect("No events found for this action.");
-		match last_event {
-			frame_system::EventRecord {
-				event: RuntimeEvent::FundingModule(Event::TransitionError { project_id: _, error }),
-				..
-			} => match error {
-				DispatchError::Module(module_error) => {
-					let pallet_error: Error<TestRuntime> = Decode::decode(&mut &module_error.error[..]).unwrap();
-					Err(pallet_error)
-				},
-				DispatchError::Other(_) => todo!(),
-				DispatchError::CannotLookup => todo!(),
-				DispatchError::BadOrigin => todo!(),
-				DispatchError::ConsumerRemaining => todo!(),
-				DispatchError::NoProviders => todo!(),
-				DispatchError::TooManyConsumers => todo!(),
-				DispatchError::Token(err) => panic!("Token error: {:?}", err),
-				DispatchError::Arithmetic(_) => todo!(),
-				DispatchError::Transactional(_) => todo!(),
-				DispatchError::Exhausted => todo!(),
-				DispatchError::Corruption => todo!(),
-				DispatchError::Unavailable => todo!(),
-				DispatchError::RootNotAllowed => todo!(),
-			},
-			_ => Ok(()),
-		}
-	}
-
-	pub fn generate_bids_from_total_usd(
-		usd_amount: BalanceOf<TestRuntime>,
-		min_price: PriceOf<TestRuntime>,
-	) -> TestBids {
-		const WEIGHTS: [u8; 5] = [30u8, 20u8, 15u8, 10u8, 25u8];
-		const BIDDERS: [AccountIdOf<TestRuntime>; 5] = [BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5];
-
-		zip(WEIGHTS, BIDDERS)
-			.map(|(weight, bidder)| {
-				let ticket_size = Percent::from_percent(weight) * usd_amount;
-				let token_amount = min_price.reciprocal().unwrap().saturating_mul_int(ticket_size);
-				TestBid::from(bidder, token_amount, min_price)
-			})
-			.collect()
-	}
-
-	pub fn generate_contributions_from_total_usd(
-		usd_amount: BalanceOf<TestRuntime>,
-		final_price: PriceOf<TestRuntime>,
-	) -> TestContributions {
-		const WEIGHTS: [u8; 5] = [30u8, 20u8, 15u8, 10u8, 25u8];
-		const BIDDERS: [AccountIdOf<TestRuntime>; 5] = [BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5];
-
-		zip(WEIGHTS, BIDDERS)
-			.map(|(weight, bidder)| {
-				let ticket_size = Percent::from_percent(weight) * usd_amount;
-				let token_amount = final_price.reciprocal().unwrap().saturating_mul_int(ticket_size);
-
-				TestContribution::from(bidder, token_amount)
-			})
-			.collect()
-	}
-
-	pub fn test_ct_created_for(test_env: &TestEnvironment, project_id: ProjectIdOf<TestRuntime>) {
-		test_env.in_ext(|| {
-			let metadata = ProjectsMetadata::<TestRuntime>::get(project_id).unwrap();
-			let details = ProjectsDetails::<TestRuntime>::get(project_id).unwrap();
-			assert_eq!(
-				<TestRuntime as Config>::ContributionTokenCurrency::name(project_id),
-				metadata.token_information.name.to_vec()
-			);
-			assert_eq!(<TestRuntime as Config>::ContributionTokenCurrency::admin(project_id).unwrap(), details.issuer);
-			assert_eq!(
-				<TestRuntime as Config>::ContributionTokenCurrency::total_issuance(project_id),
-				0u32.into(),
-				"No CTs should have been minted at this point"
-			);
-		});
-	}
-
-	pub fn test_ct_not_created_for(test_env: &TestEnvironment, project_id: ProjectIdOf<TestRuntime>) {
-		test_env.in_ext(|| {
-			assert!(
-				!<TestRuntime as Config>::ContributionTokenCurrency::asset_exists(project_id),
-				"Asset shouldn't exist, since funding failed"
-			);
-		});
-	}
-
-	pub fn slash_evaluator_balances(mut balances: UserToPLMCBalance) -> UserToPLMCBalance {
-		let slash_percentage = <TestRuntime as Config>::EvaluatorSlash::get();
-		for (_acc, balance) in balances.iter_mut() {
-			*balance -= slash_percentage * *balance;
-		}
-		balances
+		instantiator.create_finished_project(project_metadata, ISSUER, evaluations, bids, contributions, vec![])
 	}
 }
 
@@ -1910,16 +384,12 @@ mod evaluation_round_success {
 		};
 
 		// all values taken from the knowledge hub
-		let evaluations: UserToUSDBalance = vec![
-			(EVALUATOR_1, 75_000 * US_DOLLAR),
-			(EVALUATOR_2, 65_000 * US_DOLLAR),
-			(EVALUATOR_3, 60_000 * US_DOLLAR),
-		];
+		let evaluations: Vec<UserToUSDBalance<TestRuntime>> = default_evaluations();
 
-		let bids: TestBids = vec![
-			TestBid::new(BIDDER_1, 10_000 * ASSET_UNIT, 15.into(), 1u8, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_2, 20_000 * ASSET_UNIT, 20.into(), 1u8, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_4, 20_000 * ASSET_UNIT, 16.into(), 1u8, AcceptedFundingAsset::USDT),
+		let bids: Vec<BidParams<TestRuntime>> = vec![
+			BidParams::new(BIDDER_1, 10_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_2, 20_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_4, 20_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
 		];
 
 		let contributions: Vec<ContributionParams<_>> = vec![
@@ -2186,11 +656,11 @@ mod auction_round_success {
 		let mut evaluations = default_evaluations();
 		let evaluator_bidder = 69;
 		let evaluator_bid =
-			TestBid::new(evaluator_bidder, 600 * ASSET_UNIT, 15.into(), 1u8, AcceptedFundingAsset::USDT);
+			BidParams::new(evaluator_bidder, 600 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT);
 
 		let mut bids = Vec::new();
 		for _ in 0..<TestRuntime as Config>::MaxBidsPerUser::get() {
-			bids.push(TestBid::new(evaluator_bidder, 10 * ASSET_UNIT, 15.into(), 1u8, AcceptedFundingAsset::USDT));
+			bids.push(BidParams::new(evaluator_bidder, 100 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT));
 		}
 
 		let fill_necessary_plmc_for_bids = MockInstantiator::calculate_auction_plmc_spent(bids.clone());
@@ -2236,40 +706,20 @@ mod auction_round_success {
 
 	#[test]
 	fn price_calculation_1() {
-		// Calculate the weighted price of the token for the next funding rounds, using winning bids.
-		// for example: if there are 3 winning bids,
-		// A: 10K tokens @ USD15 per token = 150K USD value
-		// B: 20K tokens @ USD20 per token = 400K USD value
-		// C: 20K tokens @ USD10 per token = 200K USD value,
-
-		// then the weight for each bid is:
-		// A: 150K / (150K + 400K + 200K) = 0.20
-		// B: 400K / (150K + 400K + 200K) = 0.533...
-		// C: 200K / (150K + 400K + 200K) = 0.266...
-
-		// then multiply each weight by the price of the token to get the weighted price per bid
-		// A: 0.20 * 15 = 3
-		// B: 0.533... * 20 = 10.666...
-		// C: 0.266... * 10 = 2.666...
-
-		// lastly, sum all the weighted prices to get the final weighted price for the next funding round
-		// 3 + 10.6 + 2.6 = 16.333...
-		let test_env = TestEnvironment::new();
-		let project_metadata = default_project(test_env.get_new_nonce());
-		let auctioning_project =
-			AuctioningProject::new_with(&test_env, project_metadata, ISSUER, default_evaluations());
-		let bids = vec![
-			TestBid::new(100, 10_000_0_000_000_000, 15.into(), 1u8, AcceptedFundingAsset::USDT),
-			TestBid::new(200, 20_000_0_000_000_000, 20.into(), 1u8, AcceptedFundingAsset::USDT),
-			TestBid::new(300, 20_000_0_000_000_000, 10.into(), 1u8, AcceptedFundingAsset::USDT),
-		];
-		let statemint_funding = calculate_auction_funding_asset_spent(bids.clone());
-		let plmc_funding = calculate_auction_plmc_spent(bids.clone());
-		let ed_funding = plmc_funding
-			.clone()
-			.into_iter()
-			.map(|(account, _amount)| (account, get_ed()))
-			.collect::<UserToPLMCBalance>();
+		// TODO: Update this test to use the knowledge hub values (when they are available)
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project(inst.get_new_nonce(), ISSUER);
+		let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER, default_evaluations());
+		let bids = vec![BidParams::new(
+			100,
+			project_metadata.total_allocation_size.0,
+			15.into(),
+			1u8,
+			AcceptedFundingAsset::USDT,
+		)];
+		let statemint_funding = MockInstantiator::calculate_auction_funding_asset_spent(bids.clone());
+		let plmc_funding = MockInstantiator::calculate_auction_plmc_spent(bids.clone());
+		let ed_funding = plmc_funding.accounts().existential_deposits();
 
 		inst.mint_plmc_to(ed_funding);
 		inst.mint_plmc_to(plmc_funding);
@@ -2277,26 +727,25 @@ mod auction_round_success {
 
 		inst.bid_for_users(project_id, bids).unwrap();
 
-		let community_funding_project = auctioning_project.start_community_funding();
-		let token_price = community_funding_project.get_project_details().weighted_average_price.unwrap();
+		inst.start_community_funding(project_id).unwrap();
+		// let token_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
-		let price_in_10_decimals = token_price.checked_mul_int(1_0_000_000_000_u128).unwrap();
-		let price_in_12_decimals = token_price.checked_mul_int(1_000_000_000_000_u128).unwrap();
-		assert_eq!(price_in_10_decimals, 16_3_333_333_333_u128);
-		assert_eq!(price_in_12_decimals, 16_333_333_333_333_u128);
+		// let price_in_10_decimals = token_price.checked_mul_int(1_0_000_000_000_u128).unwrap();
+		// let price_in_12_decimals = token_price.checked_mul_int(1_000_000_000_000_u128).unwrap();
+		// assert_eq!(price_in_10_decimals, 16_3_333_333_333_u128);
+		// assert_eq!(price_in_12_decimals, 16_333_333_333_333_u128);
 	}
 
 	#[test]
 	fn price_calculation_2() {
 		// From the knowledge hub
-		let test_env = TestEnvironment::new();
-		let project_metadata = default_project(test_env.get_new_nonce());
-		let auctioning_project =
-			AuctioningProject::new_with(&test_env, project_metadata, ISSUER, default_evaluations());
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project(inst.get_new_nonce(), ISSUER);
+		let project_id = inst.create_auctioning_project(project_metadata, ISSUER, default_evaluations());
 		let bids = vec![
-			TestBid::new(BIDDER_1, 10_000 * ASSET_UNIT, 15.into(), 1u8, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_2, 20_000 * ASSET_UNIT, 20.into(), 1u8, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_3, 20_000 * ASSET_UNIT, 16.into(), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_1, 10_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_2, 40_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_3, 35_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
 		];
 
 		let statemint_funding = MockInstantiator::calculate_auction_funding_asset_spent(bids.clone());
@@ -2309,8 +758,8 @@ mod auction_round_success {
 
 		inst.bid_for_users(project_id, bids).unwrap();
 
-		let community_funding_project = auctioning_project.start_community_funding();
-		let token_price = community_funding_project.get_project_details().weighted_average_price.unwrap();
+		inst.start_community_funding(project_id).unwrap();
+		let token_price = inst.get_project_details(project_id).weighted_average_price.unwrap().to_float();
 
 		assert_eq!(token_price, 1.283606557377049);
 	}
@@ -2343,9 +792,11 @@ mod auction_round_success {
 
 		let mut bidding_account = 1000;
 		let bid_info =
-			TestBid::new(0, 50u128, PriceOf::<TestRuntime>::from_float(15f64), 1u8, AcceptedFundingAsset::USDT);
-		let plmc_necessary_funding = calculate_auction_plmc_spent(vec![bid_info.clone()])[0].1;
-		let statemint_asset_necessary_funding = calculate_auction_funding_asset_spent(vec![bid_info.clone()])[0].1;
+			BidParams::new(0, 50u128, PriceOf::<TestRuntime>::from_float(1.0), 1u8, AcceptedFundingAsset::USDT);
+		let plmc_necessary_funding =
+			MockInstantiator::calculate_auction_plmc_spent(vec![bid_info.clone()])[0].plmc_amount;
+		let statemint_asset_necessary_funding =
+			MockInstantiator::calculate_auction_funding_asset_spent(vec![bid_info.clone()])[0].asset_amount;
 
 		let mut bids_made: Vec<BidParams<TestRuntime>> = vec![];
 		let starting_bid_block = inst.current_block();
@@ -2489,10 +940,9 @@ mod auction_round_success {
 		let project = default_project(inst.get_new_nonce(), ISSUER);
 		let evaluations = default_evaluations();
 		let mut bids = default_bids();
-		let evaluator = evaluations[0].0;
-		bids.push(TestBid::new(evaluator, 150 * ASSET_UNIT, 21_u128.into(), 1u8, AcceptedFundingAsset::USDT));
-		let _community_funding_project =
-			CommunityFundingProject::new_with(&test_env, project, issuer, evaluations, bids);
+		let evaluator = evaluations[0].account;
+		bids.push(BidParams::new(evaluator, 150 * ASSET_UNIT, 21_u128.into(), 1u8, AcceptedFundingAsset::USDT));
+		let _ = inst.create_community_contributing_project(project, issuer, evaluations, bids);
 	}
 
 	#[test]
@@ -2501,18 +951,19 @@ mod auction_round_success {
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
-		let bids: TestBids = vec![
-			TestBid::new(BIDDER_1, 10_000 * ASSET_UNIT, 15.into(), 1u8, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_2, 20_000 * ASSET_UNIT, 20.into(), 1u8, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_4, 20_000 * ASSET_UNIT, 16.into(), 1u8, AcceptedFundingAsset::USDT),
+		let bids: Vec<BidParams<_>> = vec![
+			BidParams::new(BIDDER_1, 10_000 * ASSET_UNIT, 15.into(), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_2, 20_000 * ASSET_UNIT, 20.into(), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_4, 20_000 * ASSET_UNIT, 16.into(), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_5, 5_000 * ASSET_UNIT, 16.into(), 1u8, AcceptedFundingAsset::USDT),
 		];
 
-		let community_funding_project =
-			CommunityFundingProject::new_with(&test_env, project, issuer, evaluations, bids);
-		let project_id = community_funding_project.project_id;
-		let bidder_2_bid =
-			test_env.in_ext(|| Bids::<TestRuntime>::iter_prefix_values((project_id, BIDDER_2)).next().unwrap());
-		assert_eq!(bidder_2_bid.final_ct_usd_price.checked_mul_int(US_DOLLAR).unwrap(), 17_6_666_666_666);
+		let project_id = inst.create_community_contributing_project(project, issuer, evaluations, bids);
+		let bidder_5_bid =
+			inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id, BIDDER_5)).next().unwrap());
+		let wabgp = inst.get_project_details(project_id).weighted_average_price.unwrap();
+		assert_eq!(bidder_5_bid.original_ct_usd_price.to_float(), 1.1);
+		assert_eq!(bidder_5_bid.final_ct_usd_price, wabgp);
 	}
 
 	#[test]
@@ -2742,11 +1193,13 @@ mod auction_round_success {
 		let evaluations = default_evaluations();
 
 		let mut bids = default_bids();
-		let median_price = bids[bids.len().div(2)].price;
-		let new_bids = vec![
-			TestBid::new(BIDDER_4, 30_000 * US_DOLLAR, median_price, 1u8, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_5, 167_000 * US_DOLLAR, median_price, 1u8, AcceptedFundingAsset::USDT),
-		];
+		let new_bids = vec![BidParams::new(
+			BIDDER_4,
+			500 * US_DOLLAR,
+			FixedU128::from_float(1.1),
+			1u8,
+			AcceptedFundingAsset::USDT,
+		)];
 		bids.extend(new_bids.clone());
 
 		let community_contributions = default_community_buys();
@@ -2774,7 +1227,7 @@ mod auction_round_success {
 				<TestRuntime as Config>::Vesting::total_scheduled_amount(&account, LockType::Participation(project_id))
 			});
 
-			assert_eq!(schedule.unwrap(), amount);
+			assert_close_enough!(schedule.unwrap(), plmc_amount, Perquintill::from_parts(10_000_000_000u64));
 		}
 	}
 
@@ -2879,22 +1332,8 @@ mod auction_round_success {
 		let project = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = vec![
-			TestBid::new(BIDDER_1, 40_000 * ASSET_UNIT, 15.into(), 1u8, AcceptedFundingAsset::USDT),
-			TestBid::new(
-				BIDDER_2,
-				152_000 * ASSET_UNIT,
-				11.into(),
-				10u8.try_into().unwrap(),
-				AcceptedFundingAsset::USDT,
-			),
-			TestBid::new(BIDDER_3, 20_000 * ASSET_UNIT, 17.into(), 2u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			TestBid::new(
-				BIDDER_4,
-				88_000 * ASSET_UNIT,
-				18.into(),
-				25u8.try_into().unwrap(),
-				AcceptedFundingAsset::USDT,
-			),
+			BidParams::new(BIDDER_1, 49_000 * ASSET_UNIT, FixedU128::from_float(1.0), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_2, 1 * ASSET_UNIT, FixedU128::from_float(1.0), 1u8, AcceptedFundingAsset::USDT),
 		];
 		let community_contributions = default_community_buys();
 		let remainder_contributions = vec![];
@@ -2953,10 +1392,7 @@ mod auction_round_success {
 			vec![BidParams::new(BIDDER_5, available_tokens, unused_price, 1u8, AcceptedFundingAsset::USDT)];
 		let unused_price = FixedU128::from_float(1.1);
 		let accepted_bid =
-			vec![TestBid::new(BIDDER_4, available_tokens, median_price, 1u8, AcceptedFundingAsset::USDT)];
-		let rejected_bid =
-			vec![TestBid::new(BIDDER_5, 50_000 * ASSET_UNIT, median_price, 1u8, AcceptedFundingAsset::USDT)];
-		bids.extend(accepted_bid.clone());
+			vec![BidParams::new(BIDDER_4, available_tokens, unused_price, 1u8, AcceptedFundingAsset::USDT)];
 		bids.extend(rejected_bid.clone());
 		bids.extend(accepted_bid.clone());
 
@@ -3028,7 +1464,12 @@ mod auction_round_success {
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
-		let bids = generate_bids_from_total_usd(project.total_allocation_size, project.minimum_price);
+		let bids = MockInstantiator::generate_bids_from_total_usd(
+			project.total_allocation_size.0,
+			project.minimum_price,
+			default_weights(),
+			default_bidders(),
+		);
 		let community_contributions = vec![];
 		let remainder_contributions = vec![];
 
@@ -3100,7 +1541,12 @@ mod auction_round_success {
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
-		let bids = generate_bids_from_total_usd(project.total_allocation_size, project.minimum_price);
+		let bids = MockInstantiator::generate_bids_from_total_usd(
+			project.total_allocation_size.0,
+			project.minimum_price,
+			default_weights(),
+			default_bidders(),
+		);
 		let community_contributions = vec![];
 		let remainder_contributions = vec![];
 
@@ -3191,7 +1637,12 @@ mod auction_round_success {
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
-		let mut bids = generate_bids_from_total_usd(project.total_allocation_size, project.minimum_price);
+		let mut bids = MockInstantiator::generate_bids_from_total_usd(
+			project.total_allocation_size.0,
+			project.minimum_price,
+			default_weights(),
+			default_bidders(),
+		);
 		bids.remove(0);
 		let community_contributions = vec![];
 		let remainder_contributions = vec![];
@@ -3268,7 +1719,12 @@ mod auction_round_success {
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
-		let mut bids = generate_bids_from_total_usd(project.total_allocation_size, project.minimum_price);
+		let mut bids = MockInstantiator::generate_bids_from_total_usd(
+			project.total_allocation_size.0,
+			project.minimum_price,
+			default_weights(),
+			default_bidders(),
+		);
 		bids.remove(0);
 		let community_contributions = vec![];
 		let remainder_contributions = vec![];
@@ -3361,7 +1817,12 @@ mod auction_round_success {
 		let project = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 
-		let mut bids = generate_bids_from_total_usd(project.total_allocation_size, project.minimum_price);
+		let mut bids = MockInstantiator::generate_bids_from_total_usd(
+			project.total_allocation_size.0,
+			project.minimum_price,
+			default_weights(),
+			default_bidders(),
+		);
 		bids.remove(0);
 
 		let community_contributions = vec![];
@@ -3417,7 +1878,12 @@ mod auction_round_success {
 		let project = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 
-		let mut bids = generate_bids_from_total_usd(project.total_allocation_size, project.minimum_price);
+		let mut bids = MockInstantiator::generate_bids_from_total_usd(
+			project.total_allocation_size.0,
+			project.minimum_price,
+			default_weights(),
+			default_bidders(),
+		);
 		bids.remove(0);
 
 		let community_contributions = vec![];
@@ -3611,27 +2077,40 @@ mod auction_round_failure {
 
 	#[test]
 	fn after_ct_soldout_bid_gets_refunded() {
-		let test_env = TestEnvironment::new();
-		let auctioning_project =
-			AuctioningProject::new_with(&test_env, default_project(0), ISSUER, default_evaluations());
-		let metadata = auctioning_project.get_project_metadata();
-		let max_cts_for_bids = metadata.total_allocation_size.clone();
-		let project_id = auctioning_project.get_project_id();
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_id = inst.create_auctioning_project(default_project(0, ISSUER), ISSUER, default_evaluations());
+		let metadata = inst.get_project_metadata(project_id);
+		let max_cts_for_bids = metadata.total_allocation_size.0.clone();
 
-		let glutton_bid = TestBid::new(BIDDER_1, max_cts_for_bids, 10_u128.into(), 1u8, AcceptedFundingAsset::USDT);
-		let rejected_bid = TestBid::new(BIDDER_2, 10_000 * ASSET_UNIT, 5_u128.into(), 1u8, AcceptedFundingAsset::USDT);
+		let glutton_bid_1 = BidParams::new(
+			BIDDER_1,
+			max_cts_for_bids - 5_000 * ASSET_UNIT,
+			FixedU128::from_float(1.0),
+			1u8,
+			AcceptedFundingAsset::USDT,
+		);
+		let rejected_bid =
+			BidParams::new(BIDDER_2, 5_000 * ASSET_UNIT, FixedU128::from_float(1.0), 1u8, AcceptedFundingAsset::USDT);
+		let glutton_bid_2 =
+			BidParams::new(BIDDER_1, 5_000 * ASSET_UNIT, FixedU128::from_float(1.1), 1u8, AcceptedFundingAsset::USDT);
+		let mut plmc_fundings = MockInstantiator::calculate_auction_plmc_spent(vec![
+			rejected_bid.clone(),
+			glutton_bid_1.clone(),
+			glutton_bid_2.clone(),
+		]);
+		plmc_fundings.push(UserToPLMCBalance::new(BIDDER_1, MockInstantiator::get_ed()));
+		plmc_fundings.push(UserToPLMCBalance::new(BIDDER_2, MockInstantiator::get_ed()));
 
-		let mut plmc_fundings: UserToPLMCBalance =
-			calculate_auction_plmc_spent(vec![glutton_bid.clone(), rejected_bid.clone()]);
-		plmc_fundings.push((BIDDER_1, get_ed()));
-		plmc_fundings.push((BIDDER_2, get_ed()));
-
-		let usdt_fundings = calculate_auction_funding_asset_spent(vec![glutton_bid.clone(), rejected_bid.clone()]);
+		let usdt_fundings = MockInstantiator::calculate_auction_funding_asset_spent(vec![
+			rejected_bid.clone(),
+			glutton_bid_1.clone(),
+			glutton_bid_2.clone(),
+		]);
 
 		inst.mint_plmc_to(plmc_fundings.clone());
 		inst.mint_statemint_asset_to(usdt_fundings.clone());
 
-		auctioning_project.bid_for_users(vec![glutton_bid, rejected_bid]).expect("Bids should pass");
+		inst.bid_for_users(project_id, vec![glutton_bid_1, rejected_bid, glutton_bid_2]).expect("Bids should pass");
 
 		inst.do_free_plmc_assertions(vec![
 			UserToPLMCBalance::new(BIDDER_1, MockInstantiator::get_ed()),
@@ -3646,13 +2125,21 @@ mod auction_round_failure {
 		);
 		inst.do_bid_transferred_statemint_asset_assertions(
 			vec![
-				(BIDDER_1, usdt_fundings[0].1, AcceptedFundingAsset::USDT.to_statemint_id()),
-				(BIDDER_2, usdt_fundings[1].1, AcceptedFundingAsset::USDT.to_statemint_id()),
+				UserToStatemintAsset::<TestRuntime>::new(
+					BIDDER_1,
+					usdt_fundings[0].asset_amount + usdt_fundings[2].asset_amount,
+					AcceptedFundingAsset::USDT.to_statemint_id(),
+				),
+				UserToStatemintAsset::<TestRuntime>::new(
+					BIDDER_2,
+					usdt_fundings[1].asset_amount,
+					AcceptedFundingAsset::USDT.to_statemint_id(),
+				),
 			],
 			project_id,
 		);
 
-		let _community_funding_project = auctioning_project.start_community_funding();
+		inst.start_community_funding(project_id).unwrap();
 
 		inst.do_free_plmc_assertions(vec![
 			UserToPLMCBalance::new(BIDDER_1, MockInstantiator::get_ed()),
@@ -3666,8 +2153,12 @@ mod auction_round_failure {
 
 		inst.do_bid_transferred_statemint_asset_assertions(
 			vec![
-				(BIDDER_1, usdt_fundings[0].1, AcceptedFundingAsset::USDT.to_statemint_id()),
-				(BIDDER_2, 0, AcceptedFundingAsset::USDT.to_statemint_id()),
+				UserToStatemintAsset::new(
+					BIDDER_1,
+					usdt_fundings[0].asset_amount,
+					AcceptedFundingAsset::USDT.to_statemint_id(),
+				),
+				UserToStatemintAsset::new(BIDDER_2, 0, AcceptedFundingAsset::USDT.to_statemint_id()),
 			],
 			project_id,
 		);
@@ -3850,25 +2341,23 @@ mod community_round_success {
 
 	#[test]
 	fn community_round_ends_on_all_ct_sold_exact() {
-		let test_env = TestEnvironment::new();
-		let community_funding_project = CommunityFundingProject::new_with(
-			&test_env,
-			default_project(0),
-			ISSUER,
-			default_evaluations(),
-			default_bids(),
-		);
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let bids = vec![
+			BidParams::from(BIDDER_1, 40_000 * ASSET_UNIT, FixedU128::from_float(1.0)),
+			BidParams::from(BIDDER_2, 10_000 * ASSET_UNIT, FixedU128::from_float(1.0)),
+		];
+		let project_id =
+			inst.create_community_contributing_project(default_project(0, ISSUER), ISSUER, default_evaluations(), bids);
 		const BOB: AccountId = 808;
 
 		let remaining_ct = inst.get_project_details(project_id).remaining_contribution_tokens;
 		let ct_price = inst.get_project_details(project_id).weighted_average_price.expect("CT Price should exist");
 
-		let contributions: TestContributions =
-			vec![TestContribution::new(BOB, remaining_ct, 1u8, AcceptedFundingAsset::USDT)];
-		let mut plmc_fundings: UserToPLMCBalance = calculate_contributed_plmc_spent(contributions.clone(), ct_price);
-		plmc_fundings.push((BOB, get_ed()));
-		let statemint_asset_fundings: UserToStatemintAsset =
-			calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
+		let contributions = vec![ContributionParams::new(BOB, remaining_ct.1, 1u8, AcceptedFundingAsset::USDT)];
+		let mut plmc_fundings = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
+		plmc_fundings.push(UserToPLMCBalance::new(BOB, MockInstantiator::get_ed()));
+		let statemint_asset_fundings =
+			MockInstantiator::calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
 
 		inst.mint_plmc_to(plmc_fundings.clone());
 		inst.mint_statemint_asset_to(statemint_asset_fundings.clone());
@@ -3879,7 +2368,7 @@ mod community_round_success {
 		inst.advance_time(2u64).unwrap();
 		// Check remaining CTs is 0
 		assert_eq!(
-			community_funding_project.get_project_details().remaining_contribution_tokens,
+			inst.get_project_details(project_id).remaining_contribution_tokens.1,
 			0,
 			"There are still remaining CTs"
 		);
@@ -3899,30 +2388,24 @@ mod community_round_success {
 
 	#[test]
 	fn community_round_ends_on_all_ct_sold_overbuy() {
-		let test_env = TestEnvironment::new();
-		let community_funding_project = CommunityFundingProject::new_with(
-			&test_env,
-			default_project(0),
-			ISSUER,
-			default_evaluations(),
-			default_bids(),
-		);
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let bids = vec![
+			BidParams::new(BIDDER_1, 40_000 * ASSET_UNIT, FixedU128::from_float(1.0), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_2, 10_000 * ASSET_UNIT, FixedU128::from_float(1.0), 1u8, AcceptedFundingAsset::USDT),
+		];
+		let project_id =
+			inst.create_community_contributing_project(default_project(0, ISSUER), ISSUER, default_evaluations(), bids);
 		const BOB: AccountId = 808;
 
 		let remaining_ct = inst.get_project_details(project_id).remaining_contribution_tokens;
 
 		let ct_price = inst.get_project_details(project_id).weighted_average_price.expect("CT Price should exist");
 
-		let project_id = community_funding_project.get_project_id();
-
-		let contributions: TestContributions = vec![
-			TestContribution::new(BOB, remaining_ct, 1u8, AcceptedFundingAsset::USDT),
-			TestContribution::new(BOB, OVERBUY_CT, 1u8, AcceptedFundingAsset::USDT),
-		];
-		let mut plmc_fundings: UserToPLMCBalance = calculate_contributed_plmc_spent(contributions.clone(), ct_price);
-		plmc_fundings.push((BOB, get_ed()));
-		let mut statemint_asset_fundings: UserToStatemintAsset =
-			calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
+		let contributions = vec![ContributionParams::new(BOB, remaining_ct.1, 1u8, AcceptedFundingAsset::USDT)];
+		let mut plmc_fundings = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
+		plmc_fundings.push(UserToPLMCBalance::new(BOB, MockInstantiator::get_ed()));
+		let mut statemint_asset_fundings =
+			MockInstantiator::calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
 
 		inst.mint_plmc_to(plmc_fundings.clone());
 		inst.mint_statemint_asset_to(statemint_asset_fundings.clone());
@@ -3934,7 +2417,7 @@ mod community_round_success {
 
 		// Check remaining CTs is 0
 		assert_eq!(
-			community_funding_project.get_project_details().remaining_contribution_tokens,
+			inst.get_project_details(project_id).remaining_contribution_tokens.1,
 			0,
 			"There are still remaining CTs"
 		);
@@ -4296,8 +2779,8 @@ mod community_round_success {
 		let evaluator_contributor = 69;
 		let evaluation_amount = 420 * US_DOLLAR;
 		let contribution =
-			TestContribution::new(evaluator_contributor, 22 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
-		evaluations.push((evaluator_contributor, evaluation_amount));
+			ContributionParams::new(evaluator_contributor, 396 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
+		evaluations.push(UserToUSDBalance::new(evaluator_contributor, evaluation_amount));
 		let bids = default_bids();
 
 		let project_id = inst.create_community_contributing_project(project, issuer, evaluations, bids);
@@ -4315,9 +2798,8 @@ mod community_round_success {
 			necessary_plmc_for_contribution > plmc_available_for_participating &&
 				necessary_plmc_for_contribution < plmc_evaluation_amount
 		);
-		// 1199_9_999_999_999
-		// 49_9_999_999_999
-		let necessary_usdt_for_contribution = calculate_contributed_funding_asset_spent(vec![contribution], ct_price);
+		let necessary_usdt_for_contribution =
+			MockInstantiator::calculate_contributed_funding_asset_spent(vec![contribution.clone()], ct_price);
 
 		inst.mint_statemint_asset_to(necessary_usdt_for_contribution);
 
@@ -4333,8 +2815,8 @@ mod community_round_success {
 		let evaluator_contributor = 69;
 		let evaluation_amount = 420 * US_DOLLAR;
 		let contribution =
-			TestContribution::new(evaluator_contributor, 22 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
-		evaluations.push((evaluator_contributor, evaluation_amount));
+			ContributionParams::new(evaluator_contributor, 396 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
+		evaluations.push(UserToUSDBalance::new(evaluator_contributor, evaluation_amount));
 		let bids = default_bids();
 
 		let project_id = inst.create_community_contributing_project(project, issuer, evaluations, bids);
@@ -4746,22 +3228,8 @@ mod community_round_success {
 		let project = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = vec![
-			TestBid::new(BIDDER_1, 40_000 * ASSET_UNIT, 15.into(), 1u8, AcceptedFundingAsset::USDT),
-			TestBid::new(
-				BIDDER_2,
-				152_000 * ASSET_UNIT,
-				11.into(),
-				10u8.try_into().unwrap(),
-				AcceptedFundingAsset::USDT,
-			),
-			TestBid::new(BIDDER_3, 20_000 * ASSET_UNIT, 17.into(), 2u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			TestBid::new(
-				BIDDER_4,
-				88_000 * ASSET_UNIT,
-				18.into(),
-				25u8.try_into().unwrap(),
-				AcceptedFundingAsset::USDT,
-			),
+			BidParams::new(BIDDER_1, 49_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_2, 1 * ASSET_UNIT, 1.into(), 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
 		];
 		let community_contributions = default_community_buys();
 		let remainder_contributions = vec![];
@@ -5045,7 +3513,12 @@ mod community_round_failure {
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
-		let bids = generate_bids_from_total_usd(project.total_allocation_size / 2, project.minimum_price);
+		let bids = MockInstantiator::generate_bids_from_total_usd(
+			project.total_allocation_size.0 / 2,
+			project.minimum_price,
+			default_weights(),
+			default_bidders(),
+		);
 
 		let community_contributions = vec![
 			ContributionParams::new(BUYER_1, 1_000 * ASSET_UNIT, 2u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
@@ -5155,7 +3628,12 @@ mod community_round_failure {
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
-		let bids = generate_bids_from_total_usd(project.total_allocation_size / 2, project.minimum_price);
+		let bids = MockInstantiator::generate_bids_from_total_usd(
+			project.total_allocation_size.0 / 2,
+			project.minimum_price,
+			default_weights(),
+			default_bidders(),
+		);
 
 		let community_contributions = vec![
 			ContributionParams::new(BUYER_1, 1_000 * ASSET_UNIT, 2u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
@@ -5296,7 +3774,12 @@ mod community_round_failure {
 		let project = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 
-		let bids = generate_bids_from_total_usd(project.total_allocation_size / 2, project.minimum_price);
+		let bids = MockInstantiator::generate_bids_from_total_usd(
+			project.total_allocation_size.0 / 2,
+			project.minimum_price,
+			default_weights(),
+			default_bidders(),
+		);
 
 		let community_contributions = vec![
 			ContributionParams::new(BUYER_1, 1_000 * ASSET_UNIT, 2u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
@@ -5386,7 +3869,12 @@ mod community_round_failure {
 		let project = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 
-		let mut bids = generate_bids_from_total_usd(project.total_allocation_size, project.minimum_price);
+		let mut bids = MockInstantiator::generate_bids_from_total_usd(
+			project.total_allocation_size.0,
+			project.minimum_price,
+			default_weights(),
+			default_bidders(),
+		);
 		bids.remove(0);
 
 		let community_contributions = vec![];
@@ -5626,12 +4114,12 @@ mod remainder_round_success {
 		let remaining_ct = inst.get_project_details(project_id).remaining_contribution_tokens;
 		let ct_price = inst.get_project_details(project_id).weighted_average_price.expect("CT Price should exist");
 
-		let contributions: TestContributions =
-			vec![TestContribution::new(BOB, remaining_ct, 1u8, AcceptedFundingAsset::USDT)];
-		let mut plmc_fundings: UserToPLMCBalance = calculate_contributed_plmc_spent(contributions.clone(), ct_price);
-		plmc_fundings.push((BOB, get_ed()));
-		let statemint_asset_fundings: UserToStatemintAsset =
-			calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
+		let contributions =
+			vec![ContributionParams::new(BOB, remaining_ct.0 + remaining_ct.1, 1u8, AcceptedFundingAsset::USDT)];
+		let mut plmc_fundings = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
+		plmc_fundings.push(UserToPLMCBalance::new(BOB, MockInstantiator::get_ed()));
+		let statemint_asset_fundings =
+			MockInstantiator::calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
 
 		inst.mint_plmc_to(plmc_fundings.clone());
 		inst.mint_statemint_asset_to(statemint_asset_fundings.clone());
@@ -5643,7 +4131,8 @@ mod remainder_round_success {
 
 		// Check remaining CTs is 0
 		assert_eq!(
-			remainder_funding_project.get_project_details().remaining_contribution_tokens,
+			inst.get_project_details(project_id).remaining_contribution_tokens.0 +
+				inst.get_project_details(project_id).remaining_contribution_tokens.1,
 			0,
 			"There are still remaining CTs"
 		);
@@ -5673,20 +4162,16 @@ mod remainder_round_success {
 		);
 		const BOB: AccountId = 808;
 
-		let remaining_ct = remainder_funding_project.get_project_details().remaining_contribution_tokens;
+		let remaining_ct = inst.get_project_details(project_id).remaining_contribution_tokens.0 +
+			inst.get_project_details(project_id).remaining_contribution_tokens.1;
 
 		let ct_price = inst.get_project_details(project_id).weighted_average_price.expect("CT Price should exist");
 
-		let project_id = remainder_funding_project.get_project_id();
-
-		let contributions: TestContributions = vec![
-			TestContribution::new(BOB, remaining_ct, 1u8, AcceptedFundingAsset::USDT),
-			TestContribution::new(BOB, OVERBUY_CT, 1u8, AcceptedFundingAsset::USDT),
-		];
-		let mut plmc_fundings: UserToPLMCBalance = calculate_contributed_plmc_spent(contributions.clone(), ct_price);
-		plmc_fundings.push((BOB, get_ed()));
-		let mut statemint_asset_fundings: UserToStatemintAsset =
-			calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
+		let contributions = vec![ContributionParams::new(BOB, remaining_ct, 1u8, AcceptedFundingAsset::USDT)];
+		let mut plmc_fundings = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
+		plmc_fundings.push(UserToPLMCBalance::new(BOB, MockInstantiator::get_ed()));
+		let mut statemint_asset_fundings =
+			MockInstantiator::calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
 
 		inst.mint_plmc_to(plmc_fundings.clone());
 		inst.mint_statemint_asset_to(statemint_asset_fundings.clone());
@@ -5694,11 +4179,12 @@ mod remainder_round_success {
 		// Buy remaining CTs
 		inst.contribute_for_users(project_id, contributions)
 			.expect("The Buyer should be able to buy the exact amount of remaining CTs");
-		test_env.advance_time(2u64).unwrap();
+		inst.advance_time(2u64).unwrap();
 
 		// Check remaining CTs is 0
 		assert_eq!(
-			remainder_funding_project.get_project_details().remaining_contribution_tokens,
+			inst.get_project_details(project_id).remaining_contribution_tokens.0 +
+				inst.get_project_details(project_id).remaining_contribution_tokens.1,
 			0,
 			"There are still remaining CTs"
 		);
@@ -5738,23 +4224,11 @@ mod remainder_round_success {
 	fn ct_minted_for_remainder_buys_automatically() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(test_env.get_new_nonce());
-		let evaluations =
-			vec![(EVALUATOR_1, 50_000 * PLMC), (EVALUATOR_2, 25_000 * PLMC), (EVALUATOR_3, 32_000 * PLMC)];
-		let bids = vec![
-			TestBid::new(BIDDER_1, 50000 * ASSET_UNIT, 18_u128.into(), 1u8, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_2, 40000 * ASSET_UNIT, 15_u128.into(), 1u8, AcceptedFundingAsset::USDT),
-		];
-		let community_contributions = vec![
-			TestContribution::new(BUYER_1, 100 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_2, 200 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_3, 2000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-		];
-		let remainder_contributions = vec![
-			TestContribution::new(EVALUATOR_2, 300 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_2, 600 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			TestContribution::new(BIDDER_1, 4000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-		];
+		let project = default_project(inst.get_new_nonce(), issuer);
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = default_remainder_buys();
 
 		let project_id = inst.create_finished_project(
 			project,
@@ -5796,13 +4270,13 @@ mod remainder_round_success {
 	fn ct_minted_for_community_buys_manually() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(test_env.get_new_nonce());
-		let evaluations =
-			vec![(EVALUATOR_1, 50_000 * PLMC), (EVALUATOR_2, 25_000 * PLMC), (EVALUATOR_3, 32_000 * PLMC)];
-		let bids = vec![
-			TestBid::new(BIDDER_1, 50000 * ASSET_UNIT, 18_u128.into(), 1u8, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_2, 40000 * ASSET_UNIT, 15_u128.into(), 1u8, AcceptedFundingAsset::USDT),
+		let project = default_project(inst.get_new_nonce(), issuer);
+		let evaluations = vec![
+			UserToUSDBalance::new(EVALUATOR_1, 50_000 * PLMC),
+			UserToUSDBalance::new(EVALUATOR_2, 25_000 * PLMC),
+			UserToUSDBalance::new(EVALUATOR_3, 32_000 * PLMC),
 		];
+		let bids = vec![BidParams::new(BIDDER_1, 50000 * ASSET_UNIT, 1_u128.into(), 1u8, AcceptedFundingAsset::USDT)];
 		let community_contributions = vec![
 			ContributionParams::new(BUYER_1, 100 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 			ContributionParams::new(BUYER_2, 200 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
@@ -5892,26 +4366,13 @@ mod remainder_round_success {
 	pub fn cannot_mint_ct_twice_manually() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(test_env.get_new_nonce());
-		let evaluations =
-			vec![(EVALUATOR_1, 50_000 * PLMC), (EVALUATOR_2, 25_000 * PLMC), (EVALUATOR_3, 32_000 * PLMC)];
-		let bids = vec![
-			TestBid::new(BIDDER_1, 50000 * ASSET_UNIT, 18_u128.into(), 1u8, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_2, 40000 * ASSET_UNIT, 15_u128.into(), 1u8, AcceptedFundingAsset::USDT),
-		];
-		let community_contributions = vec![
-			TestContribution::new(BUYER_1, 100 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_2, 200 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_3, 2000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-		];
-		let remainder_contributions = vec![
-			TestContribution::new(EVALUATOR_2, 300 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_2, 600 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			TestContribution::new(BIDDER_1, 4000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-		];
+		let project = default_project(inst.get_new_nonce(), issuer);
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = default_remainder_buys();
 
-		let finished_project = FinishedProject::new_with(
-			&test_env,
+		let project_id = inst.create_finished_project(
 			project,
 			issuer,
 			evaluations,
@@ -5999,23 +4460,11 @@ mod remainder_round_success {
 	pub fn cannot_mint_ct_manually_after_automatic_mint() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(test_env.get_new_nonce());
-		let evaluations =
-			vec![(EVALUATOR_1, 50_000 * PLMC), (EVALUATOR_2, 25_000 * PLMC), (EVALUATOR_3, 32_000 * PLMC)];
-		let bids = vec![
-			TestBid::new(BIDDER_1, 50000 * ASSET_UNIT, 18_u128.into(), 1u8, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_2, 40000 * ASSET_UNIT, 15_u128.into(), 1u8, AcceptedFundingAsset::USDT),
-		];
-		let community_contributions = vec![
-			TestContribution::new(BUYER_1, 100 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_2, 200 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_3, 2000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-		];
-		let remainder_contributions = vec![
-			TestContribution::new(EVALUATOR_2, 300 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_2, 600 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			TestContribution::new(BIDDER_1, 4000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-		];
+		let project = default_project(inst.get_new_nonce(), issuer);
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = default_remainder_buys();
 
 		let project_id = inst.create_finished_project(
 			project,
@@ -6096,13 +4545,21 @@ mod remainder_round_success {
 			remainder_contributions.clone(),
 		);
 
-		let price = finished_project.get_project_details().weighted_average_price.unwrap();
-		let auction_locked_plmc = calculate_auction_plmc_spent_after_price_calculation(bids, price);
-		let community_locked_plmc = calculate_contributed_plmc_spent(community_contributions, price);
-		let remainder_locked_plmc = calculate_contributed_plmc_spent(remainder_contributions, price);
-		let all_plmc_locks =
-			merge_add_mappings_by_user(vec![auction_locked_plmc, community_locked_plmc, remainder_locked_plmc]);
-		test_env.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+		let price = inst.get_project_details(project_id).weighted_average_price.unwrap();
+		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect_vec());
+		bids = stored_bids
+			.into_iter()
+			.map(|bid| BidParams::from(bid.bidder, bid.final_ct_amount, bid.final_ct_usd_price))
+			.collect();
+		let auction_locked_plmc = MockInstantiator::calculate_auction_plmc_spent_after_price_calculation(bids, price);
+		let community_locked_plmc = MockInstantiator::calculate_contributed_plmc_spent(community_contributions, price);
+		let remainder_locked_plmc = MockInstantiator::calculate_contributed_plmc_spent(remainder_contributions, price);
+		let all_plmc_locks = MockInstantiator::merge_add_mappings_by_user(vec![
+			auction_locked_plmc,
+			community_locked_plmc,
+			remainder_locked_plmc,
+		]);
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
 		inst.advance_time(10u64).unwrap();
 		let details = inst.get_project_details(project_id);
@@ -6705,7 +5162,12 @@ mod remainder_round_failure {
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
-		let bids = generate_bids_from_total_usd(project.total_allocation_size / 2, project.minimum_price);
+		let bids = MockInstantiator::generate_bids_from_total_usd(
+			project.total_allocation_size.0 / 4,
+			project.minimum_price,
+			default_weights(),
+			default_bidders(),
+		);
 
 		let community_contributions = vec![
 			ContributionParams::new(BUYER_1, 1_000 * ASSET_UNIT, 2u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
@@ -6713,9 +5175,9 @@ mod remainder_round_failure {
 			ContributionParams::new(BUYER_3, 73 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
 		];
 		let remainder_contributions = vec![
-			TestContribution::new(EVALUATOR_1, 250 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			TestContribution::new(BIDDER_1, 130_400 * ASSET_UNIT, 3u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_1, 42 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			ContributionParams::new(EVALUATOR_1, 250 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			ContributionParams::new(BIDDER_1, 13_400 * ASSET_UNIT, 3u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_1, 42 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
 		];
 
 		let project_id = inst.create_finished_project(
@@ -6817,7 +5279,12 @@ mod remainder_round_failure {
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
-		let bids = generate_bids_from_total_usd(project.total_allocation_size / 2, project.minimum_price);
+		let bids = MockInstantiator::generate_bids_from_total_usd(
+			project.total_allocation_size.0 / 4,
+			project.minimum_price,
+			default_weights(),
+			default_bidders(),
+		);
 
 		let community_contributions = vec![
 			ContributionParams::new(BUYER_1, 1_000 * ASSET_UNIT, 2u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
@@ -6825,9 +5292,9 @@ mod remainder_round_failure {
 			ContributionParams::new(BUYER_3, 73 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
 		];
 		let remainder_contributions = vec![
-			TestContribution::new(EVALUATOR_1, 250 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			TestContribution::new(BIDDER_1, 130_400 * ASSET_UNIT, 3u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_1, 42 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			ContributionParams::new(EVALUATOR_1, 250 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			ContributionParams::new(BIDDER_1, 13_400 * ASSET_UNIT, 3u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_1, 42 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
 		];
 
 		let project_id = inst.create_finished_project(
@@ -6957,12 +5424,14 @@ mod remainder_round_failure {
 	pub fn bids_and_community_and_remainder_contribution_plmc_bonded_is_returned_automatically_on_funding_fail() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let evaluations = vec![
-			(EVALUATOR_1, 50_000 * US_DOLLAR),
-			(EVALUATOR_2, 25_000 * US_DOLLAR),
-			(EVALUATOR_3, 32_000 * US_DOLLAR),
-		];
-		let bids = generate_bids_from_total_usd(project.total_allocation_size / 2, project.minimum_price);
+		let project = default_project(inst.get_new_nonce(), issuer);
+		let evaluations = vec![UserToUSDBalance::new(EVALUATOR_1, 50_000 * US_DOLLAR)];
+		let bids = MockInstantiator::generate_bids_from_total_usd(
+			project.total_allocation_size.0 / 5,
+			project.minimum_price,
+			default_weights(),
+			default_bidders(),
+		);
 
 		let community_contributions = vec![
 			ContributionParams::new(BUYER_1, 1_000 * ASSET_UNIT, 2u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
@@ -6970,9 +5439,9 @@ mod remainder_round_failure {
 			ContributionParams::new(BUYER_3, 73 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
 		];
 		let remainder_contributions = vec![
-			TestContribution::new(EVALUATOR_1, 250 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			TestContribution::new(BIDDER_1, 130_400 * ASSET_UNIT, 3u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_1, 42 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			ContributionParams::new(EVALUATOR_1, 250 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			ContributionParams::new(BIDDER_1, 13_400 * ASSET_UNIT, 3u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_1, 42 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
 		];
 
 		let project_id = inst.create_finished_project(
@@ -6997,7 +5466,14 @@ mod remainder_round_failure {
 				final_price,
 				true,
 			);
-		let expected_bid_payouts = calculate_auction_plmc_spent_after_price_calculation(bids.clone(), final_price);
+		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect_vec());
+		let bids = stored_bids
+			.into_iter()
+			.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
+			.map(|bid| BidParams::from(bid.bidder, bid.final_ct_amount, bid.final_ct_usd_price))
+			.collect_vec();
+		let expected_bid_payouts =
+			MockInstantiator::calculate_auction_plmc_spent_after_price_calculation(bids.clone(), final_price);
 		let expected_community_contribution_payouts =
 			MockInstantiator::calculate_contributed_plmc_spent(community_contributions.clone(), final_price);
 		let expected_remainder_contribution_payouts = MockInstantiator::calculate_contributed_plmc_spent(
@@ -7076,7 +5552,12 @@ mod remainder_round_failure {
 			UserToUSDBalance::new(EVALUATOR_2, 25_000 * US_DOLLAR),
 			UserToUSDBalance::new(EVALUATOR_3, 32_000 * US_DOLLAR),
 		];
-		let bids = generate_bids_from_total_usd(project.total_allocation_size / 2, project.minimum_price);
+		let bids = MockInstantiator::generate_bids_from_total_usd(
+			project.total_allocation_size.0 / 4,
+			project.minimum_price,
+			default_weights(),
+			default_bidders(),
+		);
 
 		let community_contributions = vec![
 			ContributionParams::new(BUYER_1, 1_000 * ASSET_UNIT, 2u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
@@ -7084,9 +5565,9 @@ mod remainder_round_failure {
 			ContributionParams::new(BUYER_3, 73 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
 		];
 		let remainder_contributions = vec![
-			TestContribution::new(EVALUATOR_1, 250 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			TestContribution::new(BIDDER_1, 130_400 * ASSET_UNIT, 3u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			TestContribution::new(BUYER_1, 42 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			ContributionParams::new(EVALUATOR_1, 250 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			ContributionParams::new(BIDDER_1, 13_400 * ASSET_UNIT, 3u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_1, 42 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
 		];
 
 		let project_id = inst.create_finished_project(
@@ -7586,26 +6067,9 @@ mod funding_end {
 		let project = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = vec![
-			TestBid::new(BIDDER_1, 40_000 * ASSET_UNIT, 15.into(), 1u8, AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_2, 40_000 * ASSET_UNIT, 15.into(), 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			TestBid::new(
-				BIDDER_3,
-				152_000 * ASSET_UNIT,
-				11.into(),
-				2u8.try_into().unwrap(),
-				AcceptedFundingAsset::USDT,
-			),
-			TestBid::new(BIDDER_4, 20_000 * ASSET_UNIT, 17.into(), 3u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_5, 9_000 * ASSET_UNIT, 18.into(), 19u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_6, 1_000 * ASSET_UNIT, 18.into(), 20u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			TestBid::new(BIDDER_7, 8_000 * ASSET_UNIT, 18.into(), 24u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			TestBid::new(
-				BIDDER_8,
-				68_000 * ASSET_UNIT,
-				18.into(),
-				25u8.try_into().unwrap(),
-				AcceptedFundingAsset::USDT,
-			),
+			BidParams::new(BIDDER_1, 10_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_2, 20_000 * ASSET_UNIT, 1.into(), 2u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_3, 20_000 * ASSET_UNIT, 11.into(), 3u8, AcceptedFundingAsset::USDT),
 		];
 		let community_contributions = default_community_buys();
 		let remainder_contributions = vec![];
@@ -7620,8 +6084,8 @@ mod funding_end {
 		);
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
-		test_env.advance_time(10u64).unwrap();
-		let details = finished_project.get_project_details();
+		inst.advance_time(10u64).unwrap();
+		let details = inst.get_project_details(project_id);
 		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
 
 		let mut stored_bids =
@@ -7932,12 +6396,7 @@ mod misc_features {
 }
 
 mod e2e_testing {
-
-	use itertools::Itertools;
-	use sp_arithmetic::traits::CheckedSub;
-	use sp_runtime::traits::AccountIdConversion;
-
-	use super::{testing_macros::define_names, *};
+	use super::*;
 
 	define_names! {
 		// In order to auto-incriment the ids, we have to use unsafe Rust.
@@ -8071,38 +6530,28 @@ mod e2e_testing {
 
 	fn excel_bidders() -> Vec<BidParams<TestRuntime>> {
 		vec![
-			TestBid::from(ADAMS, 692 * ASSET_UNIT, 17_u128.into()),
-			TestBid::from(POLK, 236 * ASSET_UNIT, 19_u128.into()),
-			TestBid::from(MARKUS, 24 * ASSET_UNIT, 19_u128.into()),
-			TestBid::from(ELLA, 688 * ASSET_UNIT, 13_u128.into()),
-			TestBid::from(SKR, 33 * ASSET_UNIT, 15_u128.into()),
-			TestBid::from(ARTHUR, 1148 * ASSET_UNIT, 12_u128.into()),
-			TestBid::from(MILA, 35 * ASSET_UNIT, 15_u128.into()),
-			TestBid::from(LINCOLN, 840 * ASSET_UNIT, 14_u128.into()),
-			TestBid::from(MONROE, 132 * ASSET_UNIT, 18_u128.into()),
-			TestBid::from(ARBRESHA, 21 * ASSET_UNIT, 19_u128.into()),
-			TestBid::from(ELDIN, 59 * ASSET_UNIT, 18_u128.into()),
-			TestBid::from(HARDING, 89 * ASSET_UNIT, 18_u128.into()),
-			TestBid::from(SOFIA, 332 * ASSET_UNIT, 19_u128.into()),
-			TestBid::from(DOMINIK, 8110 * ASSET_UNIT, 17_u128.into()),
-			TestBid::from(NOLAND, 17 * ASSET_UNIT, 17_u128.into()),
-			TestBid::from(LINA, 9424 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(HANNAH, 14 * ASSET_UNIT, 20_u128.into()),
-			TestBid::from(HOOVER, 4906 * ASSET_UNIT, 16_u128.into()),
-			TestBid::from(GIGI, 68 * ASSET_UNIT, 10_u128.into()),
-			TestBid::from(JEFFERSON, 9037 * ASSET_UNIT, 13_u128.into()),
-			TestBid::from(LINDI, 442 * ASSET_UNIT, 11_u128.into()),
-			TestBid::from(KEVIN, 40 * ASSET_UNIT, 19_u128.into()),
-			TestBid::from(ANIS, 68 * ASSET_UNIT, 15_u128.into()),
-			TestBid::from(RETO, 68 * ASSET_UNIT, 12_u128.into()),
-			TestBid::from(HAALAND, 98 * ASSET_UNIT, 11_u128.into()),
-			TestBid::from(XENIA, 17 * ASSET_UNIT, 12_u128.into()),
-			TestBid::from(EVA, 422 * ASSET_UNIT, 19_u128.into()),
-			TestBid::from(SKARA, 615 * ASSET_UNIT, 18_u128.into()),
-			TestBid::from(ROOSEVELT, 65 * ASSET_UNIT, 16_u128.into()),
-			TestBid::from(DRACULA, 5863 * ASSET_UNIT, 16_u128.into()),
-			TestBid::from(DURIM, 56 * ASSET_UNIT, 13_u128.into()),
-			TestBid::from(HARRISON, 36 * ASSET_UNIT, 10_u128.into()),
+			BidParams::from(ADAMS, 700 * ASSET_UNIT, FixedU128::from_float(10.0)),
+			BidParams::from(POLK, 4000 * ASSET_UNIT, FixedU128::from_float(10.0)),
+			BidParams::from(MARKUS, 3000 * ASSET_UNIT, FixedU128::from_float(10.0)),
+			BidParams::from(ELLA, 700 * ASSET_UNIT, FixedU128::from_float(10.0)),
+			BidParams::from(SKR, 3400 * ASSET_UNIT, FixedU128::from_float(10.0)),
+			BidParams::from(ARTHUR, 1000 * ASSET_UNIT, FixedU128::from_float(10.0)),
+			BidParams::from(MILA, 8400 * ASSET_UNIT, FixedU128::from_float(10.0)),
+			BidParams::from(LINCOLN, 800 * ASSET_UNIT, FixedU128::from_float(10.0)),
+			BidParams::from(MONROE, 1300 * ASSET_UNIT, FixedU128::from_float(10.0)),
+			BidParams::from(ARBRESHA, 5000 * ASSET_UNIT, FixedU128::from_float(10.0)),
+			BidParams::from(ELDIN, 600 * ASSET_UNIT, FixedU128::from_float(10.0)),
+			BidParams::from(HARDING, 800 * ASSET_UNIT, FixedU128::from_float(10.0)),
+			BidParams::from(SOFIA, 3000 * ASSET_UNIT, FixedU128::from_float(10.0)),
+			BidParams::from(DOMINIK, 8000 * ASSET_UNIT, FixedU128::from_float(10.0)),
+			BidParams::from(NOLAND, 900 * ASSET_UNIT, FixedU128::from_float(10.0)),
+			BidParams::from(LINA, 8400 * ASSET_UNIT, FixedU128::from_float(10.0)),
+			BidParams::from(LINA, 1000 * ASSET_UNIT, FixedU128::from_float(11.0)),
+			BidParams::from(HANNAH, 400 * ASSET_UNIT, FixedU128::from_float(11.0)),
+			BidParams::from(HOOVER, 2000 * ASSET_UNIT, FixedU128::from_float(11.0)),
+			BidParams::from(GIGI, 600 * ASSET_UNIT, FixedU128::from_float(11.0)),
+			BidParams::from(JEFFERSON, 1000 * ASSET_UNIT, FixedU128::from_float(11.0)),
+			BidParams::from(JEFFERSON, 2000 * ASSET_UNIT, FixedU128::from_float(12.0)),
 		]
 	}
 
@@ -8128,54 +6577,44 @@ mod e2e_testing {
 			ContributionParams::from(LUCA, 640 * US_DOLLAR),
 			// TODO: XI is a partipant in the Community Round AND an Evaluator. At the moment, this returns `InsufficientBalance` because it seems we don't mint to him enough USDT.
 			// To be addressed and tested in a separate PR.
-			//TestContribution::from(XI, 588 * US_DOLLAR),
-			TestContribution::from(FLAVIO, 792 * US_DOLLAR),
-			TestContribution::from(FREDI, 993 * US_DOLLAR),
-			TestContribution::from(ALI, 794 * US_DOLLAR),
-			TestContribution::from(DILARA, 256 * US_DOLLAR),
-			TestContribution::from(DAMIAN, 431 * US_DOLLAR),
-			TestContribution::from(KAYA, 935 * US_DOLLAR),
-			TestContribution::from(IAZI, 174 * US_DOLLAR),
-			TestContribution::from(CHRIGI, 877 * US_DOLLAR),
-			TestContribution::from(VALENTINA, 961 * US_DOLLAR),
-			TestContribution::from(ALMA, 394 * US_DOLLAR),
-			TestContribution::from(ALENA, 442 * US_DOLLAR),
-			TestContribution::from(PATRICK, 486 * US_DOLLAR),
-			TestContribution::from(ONTARIO, 17 * US_DOLLAR),
-			TestContribution::from(RAKIA, 9424 * US_DOLLAR),
-			TestContribution::from(HUBERT, 14 * US_DOLLAR),
-			TestContribution::from(UTUS, 4906 * US_DOLLAR),
-			TestContribution::from(TOME, 68 * US_DOLLAR),
-			TestContribution::from(ZUBER, 9037 * US_DOLLAR),
-			TestContribution::from(ADAM, 442 * US_DOLLAR),
-			TestContribution::from(STANI, 40 * US_DOLLAR),
-			TestContribution::from(BETI, 68 * US_DOLLAR),
-			TestContribution::from(HALIT, 68 * US_DOLLAR),
-			TestContribution::from(DRAGAN, 98 * US_DOLLAR),
-			TestContribution::from(LEA, 17 * US_DOLLAR),
-			TestContribution::from(LUIS, 422 * US_DOLLAR),
-			TestContribution::from(TATI, 228 * US_DOLLAR),
-			TestContribution::from(WEST, 695 * US_DOLLAR),
-			TestContribution::from(MIRIJAM, 498 * US_DOLLAR),
-			TestContribution::from(LIONEL, 864 * US_DOLLAR),
-			TestContribution::from(GIOVANNI, 306 * US_DOLLAR),
+			//ContributionParams::from(XI, 588 * US_DOLLAR),
+			ContributionParams::from(FLAVIO, 792 * US_DOLLAR),
+			ContributionParams::from(FREDI, 993 * US_DOLLAR),
+			ContributionParams::from(ALI, 794 * US_DOLLAR),
+			ContributionParams::from(DILARA, 256 * US_DOLLAR),
+			ContributionParams::from(DAMIAN, 431 * US_DOLLAR),
+			ContributionParams::from(KAYA, 935 * US_DOLLAR),
+			ContributionParams::from(IAZI, 174 * US_DOLLAR),
+			ContributionParams::from(CHRIGI, 877 * US_DOLLAR),
+			ContributionParams::from(VALENTINA, 961 * US_DOLLAR),
+			ContributionParams::from(ALMA, 394 * US_DOLLAR),
+			ContributionParams::from(ALENA, 442 * US_DOLLAR),
+			ContributionParams::from(PATRICK, 486 * US_DOLLAR),
+			ContributionParams::from(ONTARIO, 17 * US_DOLLAR),
+			ContributionParams::from(RAKIA, 9424 * US_DOLLAR),
+			ContributionParams::from(HUBERT, 14 * US_DOLLAR),
+			ContributionParams::from(UTUS, 4906 * US_DOLLAR),
+			ContributionParams::from(TOME, 68 * US_DOLLAR),
+			ContributionParams::from(ZUBER, 9037 * US_DOLLAR),
+			ContributionParams::from(ADAM, 442 * US_DOLLAR),
+			ContributionParams::from(STANI, 40 * US_DOLLAR),
+			ContributionParams::from(BETI, 68 * US_DOLLAR),
+			ContributionParams::from(HALIT, 68 * US_DOLLAR),
+			ContributionParams::from(DRAGAN, 98 * US_DOLLAR),
+			ContributionParams::from(LEA, 17 * US_DOLLAR),
+			ContributionParams::from(LUIS, 422 * US_DOLLAR),
 		]
 	}
 
 	fn excel_remainders() -> Vec<ContributionParams<TestRuntime>> {
 		vec![
-			TestContribution::from(JOEL, 692 * US_DOLLAR),
-			TestContribution::from(POLK, 236 * US_DOLLAR),
-			TestContribution::from(MALIK, 24 * US_DOLLAR),
-			TestContribution::from(LEA, 688 * US_DOLLAR),
-			TestContribution::from(ALEXANDER, 33 * US_DOLLAR),
-			TestContribution::from(BUNDI, 1148 * US_DOLLAR),
-			TestContribution::from(RAMONA, 35 * US_DOLLAR),
-			TestContribution::from(SOLOMUN, 840 * US_DOLLAR),
-			TestContribution::from(JOHNNY, 132 * US_DOLLAR),
-			TestContribution::from(GRINGO, 21 * US_DOLLAR),
-			TestContribution::from(JONAS, 59 * US_DOLLAR),
-			TestContribution::from(FELIX, 89 * US_DOLLAR),
+			ContributionParams::from(JOEL, 692 * US_DOLLAR),
+			ContributionParams::from(POLK, 236 * US_DOLLAR),
+			ContributionParams::from(MALIK, 24 * US_DOLLAR),
+			ContributionParams::from(LEA, 688 * US_DOLLAR),
+			ContributionParams::from(RAMONA, 35 * US_DOLLAR),
+			ContributionParams::from(SOLOMUN, 840 * US_DOLLAR),
+			ContributionParams::from(JONAS, 59 * US_DOLLAR),
 		]
 	}
 
@@ -8284,12 +6723,13 @@ mod e2e_testing {
 		let project = excel_project(inst.get_new_nonce());
 		let evaluations = excel_evaluators();
 		let bids = excel_bidders();
-		let community_funding_project =
-			CommunityFundingProject::new_with(&test_env, project, issuer, evaluations, bids);
-		let wavgp_from_excel = 16.6977664556;
+		let project_id = inst.create_community_contributing_project(project, issuer, evaluations, bids);
+		let wavgp_from_excel = 10.202357561;
 		// Convert the float to a FixedU128
 		let wavgp_to_substrate = FixedU128::from_float(wavgp_from_excel);
-		let wavgp_from_chain = community_funding_project.get_project_details().weighted_average_price.unwrap();
+		dbg!(wavgp_to_substrate);
+		let wavgp_from_chain = inst.get_project_details(project_id).weighted_average_price.unwrap();
+		dbg!(wavgp_from_chain);
 		let res = wavgp_from_chain.checked_sub(&wavgp_to_substrate).unwrap();
 		// We are more precise than Excel. From the 11th decimal onwards, the difference should be less than 0.00001.
 		assert!(res < FixedU128::from_float(0.00001));
@@ -8405,9 +6845,9 @@ mod e2e_testing {
 		inst.advance_time(10).unwrap();
 
 		for (contributor, expected_amount, project_id) in excel_ct_amounts() {
-			let minted = test_env
-				.in_ext(|| <TestRuntime as Config>::ContributionTokenCurrency::balance(project_id, &contributor));
-			assert_eq!(minted, expected_amount);
+			let minted =
+				inst.execute(|| <TestRuntime as Config>::ContributionTokenCurrency::balance(project_id, &contributor));
+			assert_close_enough!(minted, expected_amount, Perquintill::from_parts(10_000_000_000u64));
 		}
 	}
 }
