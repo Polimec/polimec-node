@@ -6125,6 +6125,7 @@ dependencies = [
 name = "pallet-linear-release"
 version = "4.0.0-dev"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
@@ -6137,6 +6138,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "xcm-builder",
 ]
 
 [[package]]

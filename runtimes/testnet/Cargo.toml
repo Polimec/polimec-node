@@ -181,6 +181,7 @@ runtime-benchmarks = [
 	"pallet-xcm/runtime-benchmarks",
 	"shared-configuration/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
+	"pallet-linear-release/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 ]
 
