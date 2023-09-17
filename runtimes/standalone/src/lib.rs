@@ -18,10 +18,6 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
 
-#[cfg(feature = "runtime-benchmarks")]
-#[macro_use]
-extern crate frame_benchmarking;
-
 pub use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
@@ -357,10 +353,10 @@ parameter_types! {
 }
 
 impl pallet_funding::Config for Runtime {
+	#[cfg(feature = "runtime-benchmarks")]
+	type AllPalletsWithoutSystem = AllPalletsWithoutSystem;
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
 	type BlockNumberToBalance = ConvertInto;
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityFundingDuration = CommunityFundingDuration;
@@ -392,7 +388,7 @@ impl pallet_funding::Config for Runtime {
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type TreasuryAccount = TreasuryAccount;
 	type Vesting = Release;
-	type WeightInfo = ();
+	type WeightInfo = pallet_funding::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_linear_release::Config for Runtime {
@@ -668,7 +664,6 @@ mod benches {
 		[frame_system, SystemBench::<Runtime>]
 		[pallet_balances, Balances]
 		[pallet_timestamp, Timestamp]
-		[pallet_sudo, Sudo]
 	);
 }
 

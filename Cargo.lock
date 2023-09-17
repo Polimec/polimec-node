@@ -6017,6 +6017,7 @@ dependencies = [
  "pallet-balances",
  "pallet-insecure-randomness-collective-flip",
  "pallet-linear-release",
+ "pallet-timestamp",
  "parachains-common",
  "parity-scale-codec",
  "polimec-traits",
@@ -6027,6 +6028,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "xcm-builder",
 ]
 
 [[package]]
@@ -7203,6 +7205,7 @@ dependencies = [
  "hex-literal 0.3.4",
  "jsonrpsee",
  "log",
+ "pallet-funding",
  "pallet-transaction-payment-rpc",
  "parachains-common",
  "parity-scale-codec",
@@ -7416,6 +7419,7 @@ dependencies = [
  "sp-transaction-pool",
  "sp-version",
  "substrate-wasm-builder",
+ "xcm-builder",
 ]
 
 [[package]]

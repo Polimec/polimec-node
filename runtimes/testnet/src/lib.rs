@@ -76,6 +76,15 @@ pub type NegativeImbalanceOf<T> =
 /// The address format for describing accounts.
 pub type Address = MultiAddress<AccountId, ()>;
 
+// #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, MaxEncodedLen, TypeInfo, Debug)]
+// #[cfg_attr(feature = "std", derive(Hash))]
+// pub struct AccountId(pub [u8; 32]);
+// impl From<AccountId32> for AccountId {
+// 	fn from(account_id: AccountId32) -> Self {
+// 		Self(account_id)
+// 	}
+// }
+
 /// Block type as expected by this runtime.
 pub type Block = generic::Block<Header, UncheckedExtrinsic>;
 
@@ -484,10 +493,10 @@ parameter_types! {
 	pub TreasuryAccount: AccountId = [69u8; 32].into();
 }
 impl pallet_funding::Config for Runtime {
+	#[cfg(feature = "runtime-benchmarks")]
+	type AllPalletsWithoutSystem = (Balances, LocalAssets, StatemintAssets, PolimecFunding, Vesting, Random);
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
 	type BlockNumberToBalance = ConvertInto;
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityFundingDuration = CommunityFundingDuration;
@@ -503,7 +512,7 @@ impl pallet_funding::Config for Runtime {
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	type MaxBidsPerUser = ConstU32<256>;
 	type MaxContributionsPerUser = ConstU32<256>;
-	type MaxEvaluationsPerUser = ();
+	type MaxEvaluationsPerUser = ConstU32<256>;
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
 	type Multiplier = pallet_funding::types::Multiplier;
 	type NativeCurrency = Balances;
@@ -519,7 +528,7 @@ impl pallet_funding::Config for Runtime {
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type TreasuryAccount = TreasuryAccount;
 	type Vesting = Vesting;
-	type WeightInfo = ();
+	type WeightInfo = pallet_funding::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -585,7 +594,7 @@ construct_runtime!(
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage, Event<T>} = 11,
 		AssetTxPayment: pallet_asset_tx_payment::{Pallet, Storage, Event<T>} = 12,
 		LocalAssets: pallet_assets::<Instance1>::{Pallet, Storage, Event<T>} = 13,
-		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>} = 14,
+		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Config<T>, Storage, Event<T>} = 14,
 
 		// Collator support. the order of these 5 are important and shall not change.
 		Authorship: pallet_authorship::{Pallet, Storage} = 20,
@@ -811,13 +820,13 @@ impl_runtime_apis! {
 			list_benchmarks!(list, extra);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
-			return (list, storage_info)
+			(list, storage_info)
 		}
 
 		fn dispatch_benchmark(
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
-			use frame_benchmarking::{Benchmarking, BenchmarkBatch};
+			use frame_benchmarking::{BenchmarkError, Benchmarking, BenchmarkBatch};
 
 			use frame_system_benchmarking::Pallet as SystemBench;
 			impl frame_system_benchmarking::Config for Runtime {}

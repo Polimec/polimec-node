@@ -203,12 +203,15 @@ pub mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 pub mod impls;
+#[cfg(any(feature = "runtime-benchmarks", test))]
+pub mod instantiator;
 pub mod traits;
 
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 pub type ProjectIdOf<T> = <T as Config>::ProjectIdentifier;
 pub type MultiplierOf<T> = <T as Config>::Multiplier;
+
 pub type BalanceOf<T> = <T as Config>::Balance;
 pub type PriceOf<T> = <T as Config>::Price;
 pub type StringLimitOf<T> = <T as Config>::StringLimit;
@@ -266,7 +269,7 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Global identifier for the projects.
-		type ProjectIdentifier: Parameter + Copy + Default + One + Saturating + From<u32>;
+		type ProjectIdentifier: Parameter + Copy + Default + One + Saturating + From<u32> + Ord;
 		// TODO: PLMC-153 + MaybeSerializeDeserialize: Maybe needed for JSON serialization @ Genesis: https://github.com/paritytech/substrate/issues/12738#issuecomment-1320921201
 
 		/// Multiplier that decides how much PLMC needs to be bonded for a token buy/bid
@@ -302,7 +305,8 @@ pub mod pallet {
 			+ fungibles::InspectEnumerable<AccountIdOf<Self>, Balance = BalanceOf<Self>>
 			+ fungibles::metadata::Inspect<AccountIdOf<Self>>
 			+ fungibles::metadata::Mutate<AccountIdOf<Self>>
-			+ fungibles::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
+			+ fungibles::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>
+			+ fungibles::roles::Inspect<AccountIdOf<Self>>;
 
 		type PriceProvider: ProvideStatemintPrice<AssetId = u32, Price = Self::Price>;
 
@@ -367,7 +371,9 @@ pub mod pallet {
 
 		/// Helper trait for benchmarks.
 		#[cfg(feature = "runtime-benchmarks")]
-		type BenchmarkHelper: BenchmarkHelper<Self>;
+		type AllPalletsWithoutSystem: frame_support::traits::OnFinalize<BlockNumberOf<Self>>
+			+ frame_support::traits::OnIdle<BlockNumberOf<Self>>
+			+ frame_support::traits::OnInitialize<BlockNumberOf<Self>>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -500,8 +506,9 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A project was created.
-		Created {
+		ProjectCreated {
 			project_id: T::ProjectIdentifier,
+			issuer: T::AccountId,
 		},
 		/// The metadata of a project was modified.
 		MetadataEdited {
@@ -857,7 +864,7 @@ pub mod pallet {
 		}
 
 		/// Bond PLMC for a project in the evaluation stage
-		#[pallet::weight(T::WeightInfo::bond())]
+		#[pallet::weight(T::WeightInfo::bond_evaluation())]
 		pub fn bond_evaluation(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -906,7 +913,7 @@ pub mod pallet {
 			Self::do_evaluation_unbond_for(&releaser, project_id, &evaluator, bond_id)
 		}
 
-		#[pallet::weight(Weight::from_parts(0, 0))]
+		#[pallet::weight(T::WeightInfo::evaluation_slash_for())]
 		pub fn evaluation_slash_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -917,7 +924,7 @@ pub mod pallet {
 			Self::do_evaluation_slash_for(&caller, project_id, &evaluator, bond_id)
 		}
 
-		#[pallet::weight(Weight::from_parts(0, 0))]
+		#[pallet::weight(T::WeightInfo::evaluation_reward_payout_for())]
 		pub fn evaluation_reward_payout_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -928,7 +935,7 @@ pub mod pallet {
 			Self::do_evaluation_reward_payout_for(&caller, project_id, &evaluator, bond_id)
 		}
 
-		#[pallet::weight(Weight::from_parts(0, 0))]
+		#[pallet::weight(T::WeightInfo::bid_ct_mint_for())]
 		pub fn bid_ct_mint_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -939,7 +946,7 @@ pub mod pallet {
 			Self::do_bid_ct_mint_for(&caller, project_id, &bidder, bid_id)
 		}
 
-		#[pallet::weight(Weight::from_parts(0, 0))]
+		#[pallet::weight(T::WeightInfo::contribution_ct_mint_for())]
 		pub fn contribution_ct_mint_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -950,7 +957,7 @@ pub mod pallet {
 			Self::do_contribution_ct_mint_for(&caller, project_id, &contributor, contribution_id)
 		}
 
-		#[pallet::weight(Weight::from_parts(0, 0))]
+		#[pallet::weight(T::WeightInfo::start_bid_vesting_schedule_for())]
 		pub fn start_bid_vesting_schedule_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -961,7 +968,7 @@ pub mod pallet {
 			Self::do_start_bid_vesting_schedule_for(&caller, project_id, &bidder, bid_id)
 		}
 
-		#[pallet::weight(Weight::from_parts(0, 0))]
+		#[pallet::weight(T::WeightInfo::start_contribution_vesting_schedule_for())]
 		pub fn start_contribution_vesting_schedule_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -972,7 +979,7 @@ pub mod pallet {
 			Self::do_start_contribution_vesting_schedule_for(&caller, project_id, &contributor, contribution_id)
 		}
 
-		#[pallet::weight(Weight::from_parts(0, 0))]
+		#[pallet::weight(T::WeightInfo::payout_bid_funds_for())]
 		pub fn payout_bid_funds_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -983,7 +990,7 @@ pub mod pallet {
 			Self::do_payout_bid_funds_for(&caller, project_id, &bidder, bid_id)
 		}
 
-		#[pallet::weight(Weight::from_parts(0, 0))]
+		#[pallet::weight(T::WeightInfo::payout_contribution_funds_for())]
 		pub fn payout_contribution_funds_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -994,7 +1001,7 @@ pub mod pallet {
 			Self::do_payout_contribution_funds_for(&caller, project_id, &contributor, contribution_id)
 		}
 
-		#[pallet::weight(Weight::from_parts(0, 0))]
+		#[pallet::weight(T::WeightInfo::decide_project_outcome())]
 		pub fn decide_project_outcome(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -1004,7 +1011,7 @@ pub mod pallet {
 			Self::do_decide_project_outcome(caller, project_id, outcome)
 		}
 
-		#[pallet::weight(Weight::from_parts(0, 0))]
+		#[pallet::weight(T::WeightInfo::release_bid_funds_for())]
 		pub fn release_bid_funds_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -1015,7 +1022,7 @@ pub mod pallet {
 			Self::do_release_bid_funds_for(&caller, project_id, &bidder, bid_id)
 		}
 
-		#[pallet::weight(Weight::from_parts(0, 0))]
+		#[pallet::weight(T::WeightInfo::bid_unbond_for())]
 		pub fn bid_unbond_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -1026,7 +1033,7 @@ pub mod pallet {
 			Self::do_bid_unbond_for(&caller, project_id, &bidder, bid_id)
 		}
 
-		#[pallet::weight(Weight::from_parts(0, 0))]
+		#[pallet::weight(T::WeightInfo::release_contribution_funds_for())]
 		pub fn release_contribution_funds_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -1037,7 +1044,7 @@ pub mod pallet {
 			Self::do_release_contribution_funds_for(&caller, project_id, &contributor, contribution_id)
 		}
 
-		#[pallet::weight(Weight::from_parts(0, 0))]
+		#[pallet::weight(T::WeightInfo::contribution_unbond_for())]
 		pub fn contribution_unbond_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -1122,7 +1129,9 @@ pub mod pallet {
 			for (remaining_projects, (project_id, mut cleaner)) in
 				projects_needing_cleanup.into_iter().enumerate().rev()
 			{
-				let mut consumed_weight = T::WeightInfo::insert_cleaned_project();
+				// TODO: Create this benchmark
+				// let mut consumed_weight = T::WeightInfo::insert_cleaned_project();
+				let mut consumed_weight = Weight::from_parts(6_034_000, 0);
 				while !consumed_weight.any_gt(max_weight_per_project) {
 					if let Ok(weight) = cleaner.do_one_operation::<T>(project_id) {
 						consumed_weight.saturating_accrue(weight);
@@ -1143,31 +1152,6 @@ pub mod pallet {
 			}
 
 			max_weight.saturating_sub(remaining_weight)
-		}
-	}
-
-	#[cfg(feature = "runtime-benchmarks")]
-	pub trait BenchmarkHelper<T: Config> {
-		fn create_project_id_parameter(id: u32) -> T::ProjectIdentifier;
-		fn create_dummy_project(metadata_hash: T::Hash) -> ProjectMetadataOf<T>;
-	}
-
-	#[cfg(feature = "runtime-benchmarks")]
-	impl<T: Config> BenchmarkHelper<T> for () {
-		fn create_project_id_parameter(id: u32) -> T::ProjectIdentifier {
-			id.into()
-		}
-
-		fn create_dummy_project(metadata_hash: T::Hash) -> ProjectMetadataOf<T> {
-			let project: ProjectMetadataOf<T> = ProjectMetadata {
-				total_allocation_size: 1_000_000_0_000_000_000u64.into(),
-				minimum_price: PriceOf::<T>::saturating_from_integer(1),
-				ticket_size: TicketSize { minimum: Some(1u8.into()), maximum: None },
-				participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-				offchain_information_hash: Some(metadata_hash),
-				..Default::default()
-			};
-			project
 		}
 	}
 }

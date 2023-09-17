@@ -40,7 +40,7 @@ test-runtime-features:
 
 # Benchmark the "Testnet" Runtime
 benchmark-runtime-funding:
-	cargo run --features runtime-benchmarks,fast-gov --release -p polimec-parachain-node benchmark pallet \
+	cargo run --features runtime-benchmarks --release -p polimec-parachain-node benchmark pallet \
 		--chain=polimec-rococo-local \
 		--steps=50 \
 		--repeat=20 \
@@ -61,13 +61,13 @@ benchmark-pallet-funding:
 		--extrinsic '*' \
 		--execution=wasm \
 		--heap-pages=4096 \
-		--output=pallets/funding/src/weights.rs \
+		--output=pallets/funding/src/weights-test.rs \
 		--template=./.maintain/frame-weight-template.hbs
 
 benchmarks-test:
 	cargo run --features runtime-benchmarks,fast-gov -p polimec-parachain-node benchmark pallet \
 		--chain=polimec-rococo-local \
-		--pallet="*" \
+		--pallet="pallet_funding" \
 		--extrinsic="*"
 
 # Build the Node Docker Image
