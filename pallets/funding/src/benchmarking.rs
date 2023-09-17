@@ -73,8 +73,10 @@ where
 		token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: ASSET_DECIMALS },
 		mainnet_token_max_supply: BalanceOf::<T>::try_from(8_000_000_0_000_000_000u128)
 			.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-		total_allocation_size: BalanceOf::<T>::try_from(1_000_000_0_000_000_000u128)
-			.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+		total_allocation_size: (
+			BalanceOf::<T>::try_from(50_000_0_000_000_000u128).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+			BalanceOf::<T>::try_from(50_000_0_000_000_000u128).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+		),
 		minimum_price: 1u128.into(),
 		ticket_size: TicketSize {
 			minimum: Some(1u128.try_into().unwrap_or_else(|_| panic!("Failed to create BalanceOf"))),
@@ -108,15 +110,15 @@ where
 	vec![
 		BidParams::new(
 			account::<AccountIdOf<T>>("bidder_1", 0, 0),
-			(50_000 * ASSET_UNIT).into(),
-			18_u128.into(),
+			(40_000 * ASSET_UNIT).into(),
+			1_u128.into(),
 			1u8,
 			AcceptedFundingAsset::USDT,
 		),
 		BidParams::new(
 			account::<AccountIdOf<T>>("bidder_2", 0, 0),
-			(40_000 * ASSET_UNIT).into(),
-			15_u128.into(),
+			(5_000 * ASSET_UNIT).into(),
+			1_u128.into(),
 			7u8,
 			AcceptedFundingAsset::USDT,
 		),
@@ -344,7 +346,7 @@ mod benchmarks {
 		let bid_params = BidParams::new(
 			bidder.clone(),
 			(50000u128 * ASSET_UNIT).into(),
-			18_u128.into(),
+			1_u128.into(),
 			1u8,
 			AcceptedFundingAsset::USDT,
 		);
@@ -478,7 +480,7 @@ mod benchmarks {
 
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
-			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
+			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size.0);
 
 		let bids = BenchInstantiator::generate_bids_from_total_usd(
 			Percent::from_percent(15) * target_funding_amount,
@@ -800,16 +802,18 @@ mod benchmarks {
 
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
-			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
+			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size.0);
 
 		let bids = BenchInstantiator::generate_bids_from_total_usd(
-			Percent::from_percent(20) * target_funding_amount,
-			10u128.into(),
+			Percent::from_percent(40) * target_funding_amount,
+			1u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
 		);
+		let target_funding_amount: BalanceOf<T> =
+			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size.1);
 		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
-			Percent::from_percent(20) * target_funding_amount,
+			Percent::from_percent(40) * target_funding_amount,
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
@@ -838,7 +842,7 @@ mod benchmarks {
 
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
-			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
+			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size.0);
 
 		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
 			Percent::from_percent(15) * target_funding_amount,
@@ -884,7 +888,7 @@ mod benchmarks {
 
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
-			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
+			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size.0);
 
 		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
 			Percent::from_percent(15) * target_funding_amount,
@@ -940,11 +944,11 @@ mod benchmarks {
 
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
-			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
+			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size.0);
 
 		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
 			Percent::from_percent(15) * target_funding_amount,
-			10u128.into(),
+			1u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
 		);
@@ -992,11 +996,11 @@ mod benchmarks {
 
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
-			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
+			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size.0);
 
 		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
 			Percent::from_percent(15) * target_funding_amount,
-			10u128.into(),
+			1u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
 		);
