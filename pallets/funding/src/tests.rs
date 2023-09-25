@@ -5723,6 +5723,40 @@ mod funding_end {
 	use super::*;
 
 	#[test]
+	fn multiple_projects_end_successfully() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let mut issuer = 1000u64;
+		for _ in 0..20 {
+			let project_metadata = default_project(inst.get_new_nonce(), issuer);
+			issuer += 1;
+			let min_price = project_metadata.minimum_price;
+			let allocation_size = project_metadata.total_allocation_size.0.saturating_add(project_metadata.total_allocation_size.1);
+			let twenty_percent_funding_usd = Perquintill::from_percent(95) *
+				project_metadata.minimum_price.checked_mul_int(allocation_size).unwrap();
+			let evaluations = default_evaluations();
+			let bids = MockInstantiator::generate_bids_from_total_usd(
+				Percent::from_percent(50u8) * twenty_percent_funding_usd,
+				min_price,
+				default_weights(),
+				default_bidders(),
+			);
+			let contributions = MockInstantiator::generate_contributions_from_total_usd(
+				Percent::from_percent(50u8) * twenty_percent_funding_usd,
+				min_price,
+				default_weights(),
+				default_contributors(),
+			);
+			let project_id =
+				inst.create_finished_project(project_metadata, ISSUER, evaluations, bids, contributions, vec![]);
+
+			inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 10u64).unwrap();
+			let project_details = inst.get_project_details(project_id);
+			assert_eq!(project_details.status, ProjectStatus::FundingSuccessful);
+			assert_eq!(project_details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		}
+	}
+
+	#[test]
 	fn automatic_fail_less_eq_33_percent() {
 		for funding_percent in (1..=33).step_by(5) {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
@@ -6385,11 +6419,6 @@ mod misc_features {
 		let multiplier_25_duration = multiplier_25.calculate_vesting_duration::<TestRuntime>();
 		assert_eq!(multiplier_25_duration, FixedU128::from_rational(52008, 1000).saturating_mul_int((DAYS * 7) as u64));
 	}
-
-	#[test]
-	fn sandbox() {
-		assert!(true);
-	}
 }
 
 mod e2e_testing {
@@ -6845,6 +6874,29 @@ mod e2e_testing {
 			let minted =
 				inst.execute(|| <TestRuntime as Config>::ContributionTokenCurrency::balance(project_id, &contributor));
 			assert_close_enough!(minted, expected_amount, Perquintill::from_parts(10_000_000_000u64));
+		}
+	}
+}
+
+mod sandbox {
+	use super::*;
+	use frame_support::traits::fungibles::Mutate;
+	use frame_support::traits::tokens::Preservation;
+
+	#[test]
+	fn transfering_more_than_max_consumers_tokens_to_one_user_fails() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let receiver = 420u64;
+		inst.mint_plmc_to(vec![UserToPLMCBalance::new(receiver, PLMC * 1000)]);
+
+		// Create 20 different assets in pallet-assets
+		for admin in 0..20u64 {
+			inst.mint_plmc_to(vec![UserToPLMCBalance::new(admin, PLMC * 1000)]);
+			inst.execute(|| {
+				mock::StatemintAssets::create(mock::RuntimeOrigin::signed(admin), (admin as u32).into(), admin, 1u128).unwrap();
+				mock::StatemintAssets::mint_into((admin as u32).into(), &admin, 100_0_000_000_000).unwrap();
+				<mock::StatemintAssets as Mutate<AccountId>>::transfer((admin as u32).into(), &admin, &receiver, 50_0_000_000_000, Preservation::Preserve).unwrap();
+			});
 		}
 	}
 }

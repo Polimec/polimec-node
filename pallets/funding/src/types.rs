@@ -141,7 +141,7 @@ pub mod storage_types {
 		pub token_information: CurrencyMetadata<BoundedString>,
 		/// Mainnet Token Max Supply
 		pub mainnet_token_max_supply: Balance,
-		/// Total allocation of Contribution Tokens available for the Funding Round
+		/// Total allocation of Contribution Tokens available for the Funding Round (Auction, Community)
 		pub total_allocation_size: (Balance, Balance),
 		/// Minimum price per Contribution Token
 		pub minimum_price: Price,
