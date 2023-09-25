@@ -93,10 +93,8 @@
 //! This is useful if you need to make use of this pallet's functionalities in a pallet of your own, and you don't want to pay the transaction fees twice.
 //! ### Example: A retail user buying tokens for a project in the community round
 //! ```
-//! pub use pallet::*;
-//!
 //! #[frame_support::pallet(dev_mode)]
-//! pub mod pallet { //!
+//! pub mod pallet {
 //!     use super::*;
 //!     use frame_support::pallet_prelude::*;
 //!     use frame_system::pallet_prelude::*;
@@ -247,8 +245,7 @@ pub type BondTypeOf<T> = LockType<ProjectIdOf<T>>;
 
 const PLMC_STATEMINT_ID: u32 = 2069;
 
-// TODO: PLMC-152. Remove `dev_mode` attribute when extrinsics API are stable
-#[frame_support::pallet(dev_mode)]
+#[frame_support::pallet]
 pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
@@ -269,7 +266,7 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Global identifier for the projects.
-		type ProjectIdentifier: Parameter + Copy + Default + One + Saturating + From<u32> + Ord;
+		type ProjectIdentifier: Parameter + Copy + Default + One + Saturating + From<u32> + Ord + MaxEncodedLen;
 		// TODO: PLMC-153 + MaybeSerializeDeserialize: Maybe needed for JSON serialization @ Genesis: https://github.com/paritytech/substrate/issues/12738#issuecomment-1320921201
 
 		/// Multiplier that decides how much PLMC needs to be bonded for a token buy/bid
@@ -278,13 +275,14 @@ pub mod pallet {
 			+ VestingDurationCalculation
 			+ Default
 			+ Copy
-			+ TryFrom<u8>;
+			+ TryFrom<u8>
+			+ MaxEncodedLen;
 
 		/// The inner balance type we will use for all of our outer currency types. (e.g native, funding, CTs)
 		type Balance: Balance + From<u64> + FixedPointOperand;
 
 		/// Represents the value of something in USD
-		type Price: FixedPointNumber + Parameter + Copy;
+		type Price: FixedPointNumber + Parameter + Copy + MaxEncodedLen;
 
 		/// The chains native currency
 		type NativeCurrency: fungible::InspectHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
@@ -830,6 +828,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Creates a project and assigns it to the `issuer` account.
+		#[pallet::call_index(0)]
 		#[pallet::weight(T::WeightInfo::create())]
 		pub fn create(origin: OriginFor<T>, project: ProjectMetadataOf<T>) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
@@ -837,6 +836,7 @@ pub mod pallet {
 		}
 
 		/// Change the metadata hash of a project
+		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::edit_metadata())]
 		pub fn edit_metadata(
 			origin: OriginFor<T>,
@@ -848,6 +848,7 @@ pub mod pallet {
 		}
 
 		/// Starts the evaluation round of a project. It needs to be called by the project issuer.
+		#[pallet::call_index(2)]
 		#[pallet::weight(T::WeightInfo::start_evaluation())]
 		pub fn start_evaluation(origin: OriginFor<T>, project_id: T::ProjectIdentifier) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
@@ -857,6 +858,7 @@ pub mod pallet {
 		/// Starts the auction round for a project. From the next block forward, any professional or
 		/// institutional user can set bids for a token_amount/token_price pair.
 		/// Any bids from this point until the candle_auction starts, will be considered as valid.
+		#[pallet::call_index(3)]
 		#[pallet::weight(T::WeightInfo::start_auction())]
 		pub fn start_auction(origin: OriginFor<T>, project_id: T::ProjectIdentifier) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
@@ -864,6 +866,7 @@ pub mod pallet {
 		}
 
 		/// Bond PLMC for a project in the evaluation stage
+		#[pallet::call_index(4)]
 		#[pallet::weight(T::WeightInfo::bond_evaluation())]
 		pub fn bond_evaluation(
 			origin: OriginFor<T>,
@@ -875,6 +878,7 @@ pub mod pallet {
 		}
 
 		/// Bid for a project in the Auction round
+		#[pallet::call_index(5)]
 		#[pallet::weight(T::WeightInfo::bid())]
 		pub fn bid(
 			origin: OriginFor<T>,
@@ -889,6 +893,7 @@ pub mod pallet {
 		}
 
 		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
+		#[pallet::call_index(6)]
 		#[pallet::weight(T::WeightInfo::contribute())]
 		pub fn contribute(
 			origin: OriginFor<T>,
@@ -902,6 +907,7 @@ pub mod pallet {
 		}
 
 		/// Release evaluation-bonded PLMC when a project finishes its funding round.
+		#[pallet::call_index(7)]
 		#[pallet::weight(T::WeightInfo::evaluation_unbond_for())]
 		pub fn evaluation_unbond_for(
 			origin: OriginFor<T>,
@@ -913,6 +919,7 @@ pub mod pallet {
 			Self::do_evaluation_unbond_for(&releaser, project_id, &evaluator, bond_id)
 		}
 
+		#[pallet::call_index(8)]
 		#[pallet::weight(T::WeightInfo::evaluation_slash_for())]
 		pub fn evaluation_slash_for(
 			origin: OriginFor<T>,
@@ -924,6 +931,7 @@ pub mod pallet {
 			Self::do_evaluation_slash_for(&caller, project_id, &evaluator, bond_id)
 		}
 
+		#[pallet::call_index(9)]
 		#[pallet::weight(T::WeightInfo::evaluation_reward_payout_for())]
 		pub fn evaluation_reward_payout_for(
 			origin: OriginFor<T>,
@@ -935,6 +943,7 @@ pub mod pallet {
 			Self::do_evaluation_reward_payout_for(&caller, project_id, &evaluator, bond_id)
 		}
 
+		#[pallet::call_index(10)]
 		#[pallet::weight(T::WeightInfo::bid_ct_mint_for())]
 		pub fn bid_ct_mint_for(
 			origin: OriginFor<T>,
@@ -946,6 +955,7 @@ pub mod pallet {
 			Self::do_bid_ct_mint_for(&caller, project_id, &bidder, bid_id)
 		}
 
+		#[pallet::call_index(11)]
 		#[pallet::weight(T::WeightInfo::contribution_ct_mint_for())]
 		pub fn contribution_ct_mint_for(
 			origin: OriginFor<T>,
@@ -957,6 +967,7 @@ pub mod pallet {
 			Self::do_contribution_ct_mint_for(&caller, project_id, &contributor, contribution_id)
 		}
 
+		#[pallet::call_index(12)]
 		#[pallet::weight(T::WeightInfo::start_bid_vesting_schedule_for())]
 		pub fn start_bid_vesting_schedule_for(
 			origin: OriginFor<T>,
@@ -968,6 +979,7 @@ pub mod pallet {
 			Self::do_start_bid_vesting_schedule_for(&caller, project_id, &bidder, bid_id)
 		}
 
+		#[pallet::call_index(13)]
 		#[pallet::weight(T::WeightInfo::start_contribution_vesting_schedule_for())]
 		pub fn start_contribution_vesting_schedule_for(
 			origin: OriginFor<T>,
@@ -979,6 +991,7 @@ pub mod pallet {
 			Self::do_start_contribution_vesting_schedule_for(&caller, project_id, &contributor, contribution_id)
 		}
 
+		#[pallet::call_index(14)]
 		#[pallet::weight(T::WeightInfo::payout_bid_funds_for())]
 		pub fn payout_bid_funds_for(
 			origin: OriginFor<T>,
@@ -990,6 +1003,7 @@ pub mod pallet {
 			Self::do_payout_bid_funds_for(&caller, project_id, &bidder, bid_id)
 		}
 
+		#[pallet::call_index(15)]
 		#[pallet::weight(T::WeightInfo::payout_contribution_funds_for())]
 		pub fn payout_contribution_funds_for(
 			origin: OriginFor<T>,
@@ -1001,6 +1015,7 @@ pub mod pallet {
 			Self::do_payout_contribution_funds_for(&caller, project_id, &contributor, contribution_id)
 		}
 
+		#[pallet::call_index(16)]
 		#[pallet::weight(T::WeightInfo::decide_project_outcome())]
 		pub fn decide_project_outcome(
 			origin: OriginFor<T>,
@@ -1011,6 +1026,7 @@ pub mod pallet {
 			Self::do_decide_project_outcome(caller, project_id, outcome)
 		}
 
+		#[pallet::call_index(17)]
 		#[pallet::weight(T::WeightInfo::release_bid_funds_for())]
 		pub fn release_bid_funds_for(
 			origin: OriginFor<T>,
@@ -1022,6 +1038,7 @@ pub mod pallet {
 			Self::do_release_bid_funds_for(&caller, project_id, &bidder, bid_id)
 		}
 
+		#[pallet::call_index(18)]
 		#[pallet::weight(T::WeightInfo::bid_unbond_for())]
 		pub fn bid_unbond_for(
 			origin: OriginFor<T>,
@@ -1033,6 +1050,7 @@ pub mod pallet {
 			Self::do_bid_unbond_for(&caller, project_id, &bidder, bid_id)
 		}
 
+		#[pallet::call_index(19)]
 		#[pallet::weight(T::WeightInfo::release_contribution_funds_for())]
 		pub fn release_contribution_funds_for(
 			origin: OriginFor<T>,
@@ -1044,6 +1062,7 @@ pub mod pallet {
 			Self::do_release_contribution_funds_for(&caller, project_id, &contributor, contribution_id)
 		}
 
+		#[pallet::call_index(20)]
 		#[pallet::weight(T::WeightInfo::contribution_unbond_for())]
 		pub fn contribution_unbond_for(
 			origin: OriginFor<T>,
