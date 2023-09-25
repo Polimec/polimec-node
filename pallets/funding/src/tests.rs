@@ -6880,23 +6880,39 @@ mod e2e_testing {
 
 mod sandbox {
 	use super::*;
-	use frame_support::traits::fungibles::Mutate;
+	use frame_support::traits::fungibles::Mutate as MutateFungibles;
+	use frame_support::traits::fungible::Mutate as MutateFungible;
 	use frame_support::traits::tokens::Preservation;
 
 	#[test]
-	fn transfering_more_than_max_consumers_tokens_to_one_user_fails() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let receiver = 420u64;
-		inst.mint_plmc_to(vec![UserToPLMCBalance::new(receiver, PLMC * 1000)]);
+	fn transferring_more_than_max_consumers_tokens_to_one_user_fails() {
+		new_test_ext().execute_with(|| {
+			let receiver = 420u64;
+			mock::Balances::mint_into(&receiver, PLMC * 1000);
 
-		// Create 20 different assets in pallet-assets
-		for admin in 0..20u64 {
-			inst.mint_plmc_to(vec![UserToPLMCBalance::new(admin, PLMC * 1000)]);
-			inst.execute(|| {
+			for admin in 0..20u64 {
+				mock::Balances::mint_into(&admin, PLMC * 1000);
 				mock::StatemintAssets::create(mock::RuntimeOrigin::signed(admin), (admin as u32).into(), admin, 1u128).unwrap();
 				mock::StatemintAssets::mint_into((admin as u32).into(), &admin, 100_0_000_000_000).unwrap();
-				<mock::StatemintAssets as Mutate<AccountId>>::transfer((admin as u32).into(), &admin, &receiver, 50_0_000_000_000, Preservation::Preserve).unwrap();
-			});
-		}
+
+				<mock::StatemintAssets as MutateFungibles<AccountId>>::transfer((admin as u32).into(), &admin, &receiver, 50_0_000_000_000, Preservation::Preserve).unwrap();
+			}
+		});
 	}
+
+	#[test]
+	fn minting_more_than_max_consumers_tokens_to_one_user_fails() {
+		new_test_ext().execute_with(|| {
+			let receiver = 420u64;
+			mock::Balances::mint_into(&receiver, 10_000_000_000_u128 * 1000);
+
+			for admin in 0..20u64 {
+				mock::Balances::mint_into(&admin, 10_000_000_000_u128 * 1000);
+				mock::StatemintAssets::create(mock::RuntimeOrigin::signed(admin), (admin as u32).into(), admin, 1u128).unwrap();
+				mock::StatemintAssets::mint_into((admin as u32).into(), &receiver, 100_0_000_000_000).unwrap();
+
+			}
+		});
+	}
+
 }
