@@ -977,7 +977,6 @@ impl<T: Config> Pallet<T> {
 			multiplier,
 			plmc_bond,
 			plmc_vesting_info: None,
-			funded: false,
 			when: now,
 			funds_released: false,
 			ct_minted: false,

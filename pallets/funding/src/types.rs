@@ -252,7 +252,6 @@ pub mod storage_types {
 		pub multiplier: Multiplier,
 		pub plmc_bond: Balance,
 		pub plmc_vesting_info: Option<VestingInfo>,
-		pub funded: bool,
 		pub when: BlockNumber,
 		pub funds_released: bool,
 		pub ct_minted: bool,

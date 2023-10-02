@@ -1584,9 +1584,6 @@ impl<T: Config> BidInfoFilter<T> {
 		if self.plmc_bond.is_some() && self.plmc_bond.unwrap() != bid.plmc_bond {
 			return false
 		}
-		if self.funded.is_some() && self.funded.unwrap() != bid.funded {
-			return false
-		}
 		if self.plmc_vesting_info.is_some() && self.plmc_vesting_info.unwrap() != bid.plmc_vesting_info {
 			return false
 		}
