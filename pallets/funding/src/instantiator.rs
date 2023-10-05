@@ -1539,10 +1539,10 @@ pub struct BidInfoFilter<T: Config> {
 	pub funding_asset_amount_locked: Option<BalanceOf<T>>,
 	pub multiplier: Option<MultiplierOf<T>>,
 	pub plmc_bond: Option<BalanceOf<T>>,
-	pub funded: Option<bool>,
 	pub plmc_vesting_info: Option<Option<VestingInfoOf<T>>>,
 	pub when: Option<BlockNumberOf<T>>,
 	pub funds_released: Option<bool>,
+	pub ct_minted: Option<bool>
 }
 impl<T: Config> BidInfoFilter<T> {
 	pub(crate) fn matches_bid(&self, bid: &BidInfoOf<T>) -> bool {
@@ -1593,6 +1593,9 @@ impl<T: Config> BidInfoFilter<T> {
 		if self.funds_released.is_some() && self.funds_released.unwrap() != bid.funds_released {
 			return false
 		}
+		if self.ct_minted.is_some() && self.ct_minted.unwrap() != bid.ct_minted {
+			return false
+		}
 
 		return true
 	}
@@ -1612,10 +1615,10 @@ impl<T: Config> Default for BidInfoFilter<T> {
 			funding_asset_amount_locked: None,
 			multiplier: None,
 			plmc_bond: None,
-			funded: None,
 			plmc_vesting_info: None,
 			when: None,
 			funds_released: None,
+			ct_minted: None
 		}
 	}
 }

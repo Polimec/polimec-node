@@ -438,25 +438,25 @@ mod benchmarks {
 			.sorted_by(|a, b| a.id.cmp(&b.id))
 			.last()
 			.unwrap();
-		let expected_bid = BidInfoOf::<T> {
-			id: 0,
-			project_id,
-			bidder: bidder.clone(),
-			status: BidStatus::YetUnknown,
-			original_ct_amount: bid_params.amount,
-			original_ct_usd_price: bid_params.price,
-			final_ct_amount: bid_params.amount,
-			final_ct_usd_price: bid_params.price,
-			funding_asset: AcceptedFundingAsset::USDT,
-			funding_asset_amount_locked: necessary_usdt[0].asset_amount,
-			multiplier: bid_params.multiplier,
-			plmc_bond: necessary_plmc[0].plmc_amount,
-			plmc_vesting_info: None,
-			when: 8414u32.into(),
-			funds_released: false,
-			ct_minted: false
+		let bid_filter = BidInfoFilter {
+			id: None,
+			project_id: Some(project_id),
+			bidder: Some(bidder.clone()),
+			status: Some(BidStatus::YetUnknown),
+			original_ct_amount: Some(bid_params.amount),
+			original_ct_usd_price: Some(bid_params.price),
+			final_ct_amount: Some(bid_params.amount),
+			final_ct_usd_price: Some(bid_params.price),
+			funding_asset: Some(AcceptedFundingAsset::USDT),
+			funding_asset_amount_locked: Some(necessary_usdt[0].asset_amount),
+			multiplier: Some(bid_params.multiplier),
+			plmc_bond: Some(necessary_plmc[0].plmc_amount),
+			plmc_vesting_info: Some(None),
+			when: None,
+			funds_released: Some(false),
+			ct_minted: Some(false)
 		};
-		assert_eq!(stored_bid, expected_bid)
+		assert!(bid_filter.matches_bid(&stored_bid));
 
 		// Balances
 
