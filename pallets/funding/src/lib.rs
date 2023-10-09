@@ -173,18 +173,21 @@
 #![cfg_attr(feature = "runtime-benchmarks", recursion_limit = "512")]
 
 use frame_support::{
+	pallet_prelude::Weight,
 	traits::{
 		tokens::{fungible, fungibles, Balance},
 		Randomness,
 	},
 	BoundedVec, PalletId,
 };
+pub use pallet::*;
+use parity_scale_codec::Encode;
+use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
-use sp_std::prelude::*;
-
-pub use pallet::*;
+use sp_std::{marker::PhantomData, prelude::*};
 pub use types::*;
+use xcm::v3::{opaque::Instruction, prelude::*, SendXcm};
 
 pub use crate::weights::WeightInfo;
 
@@ -201,7 +204,7 @@ pub mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 pub mod impls;
-#[cfg(any(feature = "runtime-benchmarks", test))]
+#[cfg(any(feature = "runtime-benchmarks", test, all(feature = "testing-node", feature = "std")))]
 pub mod instantiator;
 pub mod traits;
 
@@ -241,6 +244,7 @@ pub type ContributionInfoOf<T> =
 
 pub type BucketOf<T> = Bucket<BalanceOf<T>, PriceOf<T>>;
 pub type BondTypeOf<T> = LockType<ProjectIdOf<T>>;
+pub type WeightInfoOf<T> = <T as Config>::WeightInfo;
 
 pub const PLMC_STATEMINT_ID: u32 = 2069;
 
@@ -261,8 +265,17 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+	pub trait Config: frame_system::Config + pallet_balances::Config<Balance = BalanceOf<Self>> {
+		/// Helper trait for benchmarks.
+		type AllPalletsWithoutSystem: frame_support::traits::OnFinalize<BlockNumberOf<Self>>
+			+ frame_support::traits::OnIdle<BlockNumberOf<Self>>
+			+ frame_support::traits::OnInitialize<BlockNumberOf<Self>>;
+
+		type RuntimeEvent: From<Event<Self>>
+			+ TryInto<Event<Self>>
+			+ IsType<<Self as frame_system::Config>::RuntimeEvent>
+			+ Parameter
+			+ Member;
 
 		/// Global identifier for the projects.
 		type ProjectIdentifier: Parameter + Copy + Default + One + Saturating + From<u32> + Ord + MaxEncodedLen;
@@ -275,13 +288,14 @@ pub mod pallet {
 			+ Default
 			+ Copy
 			+ TryFrom<u8>
-			+ MaxEncodedLen;
+			+ MaxEncodedLen
+			+ MaybeSerializeDeserialize;
 
 		/// The inner balance type we will use for all of our outer currency types. (e.g native, funding, CTs)
-		type Balance: Balance + From<u64> + FixedPointOperand;
+		type Balance: Balance + From<u64> + FixedPointOperand + MaybeSerializeDeserialize;
 
 		/// Represents the value of something in USD
-		type Price: FixedPointNumber + Parameter + Copy + MaxEncodedLen;
+		type Price: FixedPointNumber + Parameter + Copy + MaxEncodedLen + MaybeSerializeDeserialize;
 
 		/// The chains native currency
 		type NativeCurrency: fungible::InspectHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
@@ -366,16 +380,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type ContributionVesting: Get<u32>;
 
-		/// Helper trait for benchmarks.
-		#[cfg(feature = "runtime-benchmarks")]
-		type AllPalletsWithoutSystem: frame_support::traits::OnFinalize<BlockNumberOf<Self>>
-			+ frame_support::traits::OnIdle<BlockNumberOf<Self>>
-			+ frame_support::traits::OnInitialize<BlockNumberOf<Self>>;
-
 		/// Weight information for extrinsics in this pallet.
-		type WeightInfo: WeightInfo;
+		type WeightInfo: weights::WeightInfo;
 
-		type FeeBrackets: Get<Vec<(Percent, Self::Balance)>>;
+		type FeeBrackets: Get<Vec<(Percent, <Self as Config>::Balance)>>;
 
 		type EvaluationSuccessThreshold: Get<Percent>;
 
@@ -734,6 +742,26 @@ pub mod pallet {
 			project_id: ProjectIdOf<T>,
 			decision: FundingOutcomeDecision,
 		},
+		ProjectParaIdSet {
+			project_id: T::ProjectIdentifier,
+			para_id: ParaId,
+			caller: T::AccountId,
+		},
+		/// A channel was accepted from a parachain to Polimec belonging to a project. A request has been sent to the relay for a Polimec->project channel
+		HrmpChannelAccepted {
+			project_id: T::ProjectIdentifier,
+			para_id: ParaId,
+		},
+		/// A channel was established from Polimec to a project. The relay has notified us of their acceptance of our request
+		HrmpChannelEstablished {
+			project_id: T::ProjectIdentifier,
+			para_id: ParaId,
+		},
+		/// Started a migration readiness check
+		MigrationReadinessCheckStarted {
+			project_id: T::ProjectIdentifier,
+			caller: T::AccountId,
+		},
 	}
 
 	#[pallet::error]
@@ -826,21 +854,24 @@ pub mod pallet {
 		FinalizerFinished,
 		///
 		ContributionNotFound,
+		/// Tried to start a migration check but the bidirectional channel is not yet open
+		CommsNotEstablished,
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Creates a project and assigns it to the `issuer` account.
 		#[pallet::call_index(0)]
-		#[pallet::weight(T::WeightInfo::create())]
+		#[pallet::weight(WeightInfoOf::<T>::create())]
 		pub fn create(origin: OriginFor<T>, project: ProjectMetadataOf<T>) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
+			log::trace!(target: "pallet_funding::test", "in create");
 			Self::do_create(&issuer, project)
 		}
 
 		/// Change the metadata hash of a project
 		#[pallet::call_index(1)]
-		#[pallet::weight(T::WeightInfo::edit_metadata())]
+		#[pallet::weight(WeightInfoOf::<T>::edit_metadata())]
 		pub fn edit_metadata(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -852,7 +883,7 @@ pub mod pallet {
 
 		/// Starts the evaluation round of a project. It needs to be called by the project issuer.
 		#[pallet::call_index(2)]
-		#[pallet::weight(T::WeightInfo::start_evaluation())]
+		#[pallet::weight(WeightInfoOf::<T>::start_evaluation())]
 		pub fn start_evaluation(origin: OriginFor<T>, project_id: T::ProjectIdentifier) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 			Self::do_evaluation_start(issuer, project_id)
@@ -862,7 +893,7 @@ pub mod pallet {
 		/// institutional user can set bids for a token_amount/token_price pair.
 		/// Any bids from this point until the candle_auction starts, will be considered as valid.
 		#[pallet::call_index(3)]
-		#[pallet::weight(T::WeightInfo::start_auction())]
+		#[pallet::weight(WeightInfoOf::<T>::start_auction())]
 		pub fn start_auction(origin: OriginFor<T>, project_id: T::ProjectIdentifier) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 			Self::do_english_auction(issuer, project_id)
@@ -870,7 +901,7 @@ pub mod pallet {
 
 		/// Bond PLMC for a project in the evaluation stage
 		#[pallet::call_index(4)]
-		#[pallet::weight(T::WeightInfo::bond_evaluation())]
+		#[pallet::weight(WeightInfoOf::<T>::bond_evaluation())]
 		pub fn bond_evaluation(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -882,7 +913,7 @@ pub mod pallet {
 
 		/// Bid for a project in the Auction round
 		#[pallet::call_index(5)]
-		#[pallet::weight(T::WeightInfo::bid())]
+		#[pallet::weight(WeightInfoOf::<T>::bid())]
 		pub fn bid(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -896,7 +927,7 @@ pub mod pallet {
 
 		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
 		#[pallet::call_index(6)]
-		#[pallet::weight(T::WeightInfo::contribute())]
+		#[pallet::weight(WeightInfoOf::<T>::contribute())]
 		pub fn contribute(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -910,7 +941,7 @@ pub mod pallet {
 
 		/// Release evaluation-bonded PLMC when a project finishes its funding round.
 		#[pallet::call_index(7)]
-		#[pallet::weight(T::WeightInfo::evaluation_unbond_for())]
+		#[pallet::weight(WeightInfoOf::<T>::evaluation_unbond_for())]
 		pub fn evaluation_unbond_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -922,7 +953,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(8)]
-		#[pallet::weight(T::WeightInfo::evaluation_slash_for())]
+		#[pallet::weight(WeightInfoOf::<T>::evaluation_slash_for())]
 		pub fn evaluation_slash_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -934,7 +965,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(9)]
-		#[pallet::weight(T::WeightInfo::evaluation_reward_payout_for())]
+		#[pallet::weight(WeightInfoOf::<T>::evaluation_reward_payout_for())]
 		pub fn evaluation_reward_payout_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -946,7 +977,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(10)]
-		#[pallet::weight(T::WeightInfo::bid_ct_mint_for())]
+		#[pallet::weight(WeightInfoOf::<T>::bid_ct_mint_for())]
 		pub fn bid_ct_mint_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -958,7 +989,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(11)]
-		#[pallet::weight(T::WeightInfo::contribution_ct_mint_for())]
+		#[pallet::weight(WeightInfoOf::<T>::contribution_ct_mint_for())]
 		pub fn contribution_ct_mint_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -970,7 +1001,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(12)]
-		#[pallet::weight(T::WeightInfo::start_bid_vesting_schedule_for())]
+		#[pallet::weight(WeightInfoOf::<T>::start_bid_vesting_schedule_for())]
 		pub fn start_bid_vesting_schedule_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -982,7 +1013,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(13)]
-		#[pallet::weight(T::WeightInfo::start_contribution_vesting_schedule_for())]
+		#[pallet::weight(WeightInfoOf::<T>::start_contribution_vesting_schedule_for())]
 		pub fn start_contribution_vesting_schedule_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -994,7 +1025,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(14)]
-		#[pallet::weight(T::WeightInfo::payout_bid_funds_for())]
+		#[pallet::weight(WeightInfoOf::<T>::payout_bid_funds_for())]
 		pub fn payout_bid_funds_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -1006,7 +1037,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(15)]
-		#[pallet::weight(T::WeightInfo::payout_contribution_funds_for())]
+		#[pallet::weight(WeightInfoOf::<T>::payout_contribution_funds_for())]
 		pub fn payout_contribution_funds_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -1018,7 +1049,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(16)]
-		#[pallet::weight(T::WeightInfo::decide_project_outcome())]
+		#[pallet::weight(WeightInfoOf::<T>::decide_project_outcome())]
 		pub fn decide_project_outcome(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -1029,7 +1060,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(17)]
-		#[pallet::weight(T::WeightInfo::release_bid_funds_for())]
+		#[pallet::weight(WeightInfoOf::<T>::release_bid_funds_for())]
 		pub fn release_bid_funds_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -1041,7 +1072,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(18)]
-		#[pallet::weight(T::WeightInfo::bid_unbond_for())]
+		#[pallet::weight(WeightInfoOf::<T>::bid_unbond_for())]
 		pub fn bid_unbond_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -1053,7 +1084,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(19)]
-		#[pallet::weight(T::WeightInfo::release_contribution_funds_for())]
+		#[pallet::weight(WeightInfoOf::<T>::release_contribution_funds_for())]
 		pub fn release_contribution_funds_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -1065,7 +1096,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(20)]
-		#[pallet::weight(T::WeightInfo::contribution_unbond_for())]
+		#[pallet::weight(WeightInfoOf::<T>::contribution_unbond_for())]
 		pub fn contribution_unbond_for(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -1074,6 +1105,17 @@ pub mod pallet {
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
 			Self::do_contribution_unbond_for(&caller, project_id, &contributor, contribution_id)
+		}
+
+		#[pallet::call_index(21)]
+		#[pallet::weight(Weight::from_parts(1000, 0))]
+		pub fn set_para_id_for_project(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+			para_id: ParaId,
+		) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			Self::do_set_para_id_for_project(&caller, project_id, para_id)
 		}
 	}
 
@@ -1151,7 +1193,7 @@ pub mod pallet {
 				projects_needing_cleanup.into_iter().enumerate().rev()
 			{
 				// TODO: Create this benchmark
-				// let mut consumed_weight = T::WeightInfo::insert_cleaned_project();
+				// let mut consumed_weight = WeightInfoOf::<T>::insert_cleaned_project();
 				let mut consumed_weight = Weight::from_parts(6_034_000, 0);
 				while !consumed_weight.any_gt(max_weight_per_project) {
 					if let Ok(weight) = cleaner.do_one_operation::<T>(project_id) {
@@ -1173,6 +1215,255 @@ pub mod pallet {
 			}
 
 			max_weight.saturating_sub(remaining_weight)
+		}
+	}
+
+	#[cfg(all(feature = "testing-node", feature = "std"))]
+	use frame_support::traits::{OnFinalize, OnIdle, OnInitialize, OriginTrait};
+
+	#[cfg(all(feature = "testing-node", feature = "std"))]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	#[cfg_attr(
+		feature = "std",
+		serde(rename_all = "camelCase", deny_unknown_fields, bound(serialize = ""), bound(deserialize = ""))
+	)]
+	#[derive(Clone, PartialEq, Eq, Debug, Encode, Decode)]
+	pub struct TestProject<T: Config> {
+		pub expected_state: ProjectStatus,
+		pub metadata: ProjectMetadataOf<T>,
+		pub issuer: AccountIdOf<T>,
+		pub evaluations: Vec<instantiator::UserToUSDBalance<T>>,
+		pub bids: Vec<instantiator::BidParams<T>>,
+		pub community_contributions: Vec<instantiator::ContributionParams<T>>,
+		pub remainder_contributions: Vec<instantiator::ContributionParams<T>>,
+	}
+
+	#[pallet::genesis_config]
+	pub struct GenesisConfig<T: Config> {
+		#[cfg(all(feature = "testing-node", feature = "std"))]
+		pub starting_projects: Vec<TestProject<T>>,
+		pub phantom: PhantomData<T>,
+	}
+
+	#[cfg(all(feature = "testing-node", feature = "std"))]
+	impl<T: Config> Default for GenesisConfig<T>
+	where
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
+		T::AllPalletsWithoutSystem:
+			OnFinalize<BlockNumberOf<T>> + OnIdle<BlockNumberOf<T>> + OnInitialize<BlockNumberOf<T>>,
+		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
+		// AccountIdOf<T>: Into<<instantiator::RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
+	{
+		fn default() -> Self {
+			Self { starting_projects: vec![], phantom: PhantomData }
+		}
+	}
+
+	#[cfg(not(all(feature = "testing-node", feature = "std")))]
+	impl<T: Config> Default for GenesisConfig<T> {
+		fn default() -> Self {
+			Self { phantom: PhantomData }
+		}
+	}
+
+	#[pallet::genesis_build]
+	#[cfg(not(all(feature = "testing-node", feature = "std")))]
+	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+		fn build(&self) {}
+	}
+
+	#[cfg(all(feature = "testing-node", feature = "std"))]
+	impl<T: Config> GenesisBuild<T> for GenesisConfig<T>
+	where
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
+		<T as Config>::AllPalletsWithoutSystem:
+			OnFinalize<BlockNumberOf<T>> + OnIdle<BlockNumberOf<T>> + OnInitialize<BlockNumberOf<T>>,
+		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
+		// AccountIdOf<T>: Into<<instantiator::RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
+		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
+	{
+		fn build(&self) {
+			{
+				type GenesisInstantiator<T> =
+					instantiator::Instantiator<T, <T as Config>::AllPalletsWithoutSystem, <T as Config>::RuntimeEvent>;
+				let mut inst = GenesisInstantiator::<T>::new(None);
+
+				for test_project in self.starting_projects.clone() {
+					inst.create_project_at(
+						test_project.expected_state,
+						test_project.metadata,
+						test_project.issuer,
+						test_project.evaluations,
+						test_project.bids,
+						test_project.community_contributions,
+						test_project.remainder_contributions,
+					);
+				}
+			}
+		}
+	}
+
+	#[cfg(all(feature = "testing-node", feature = "std"))]
+	impl<T: Config> GenesisConfig<T>
+	where
+		T: Config
+			+ frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent>
+			+ pallet_balances::Config<Balance = BalanceOf<T>>,
+		T::AllPalletsWithoutSystem:
+			OnFinalize<BlockNumberOf<T>> + OnIdle<BlockNumberOf<T>> + OnInitialize<BlockNumberOf<T>>,
+		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
+		AccountIdOf<T>: Into<<instantiator::RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
+		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
+	{
+		/// Direct implementation of `GenesisBuild::build_storage`.
+		///
+		/// Kept in order not to break dependency.
+		pub fn build_storage(&self) -> Result<sp_runtime::Storage, String> {
+			<Self as GenesisBuild<T>>::build_storage(self)
+		}
+
+		/// Direct implementation of `GenesisBuild::assimilate_storage`.
+		///
+		/// Kept in order not to break dependency.
+		pub fn assimilate_storage(&self, storage: &mut sp_runtime::Storage) -> Result<(), String> {
+			<Self as GenesisBuild<T>>::assimilate_storage(self, storage)
+		}
+	}
+}
+
+pub mod xcm_executor_impl {
+	use super::*;
+	use crate::ProjectStatus::FundingSuccessful;
+
+	pub struct HrmpHandler<T: Config, XcmSender: SendXcm>(PhantomData<(T, XcmSender)>);
+	impl<T: Config, XcmSender: SendXcm> polimec_xcm_executor::HrmpHandler
+		for HrmpHandler<T, XcmSender>
+	{
+		fn handle_channel_open_request(message: Instruction) -> XcmResult {
+			// TODO: set these constants with a proper value
+			const MAX_MESSAGE_SIZE_THRESHOLDS: (u32, u32) = (50000, 102_400);
+			const MAX_CAPACITY_THRESHOLDS: (u32, u32) = (8, 1000);
+			const REQUIRED_MAX_CAPACITY: u32 = 8u32;
+			const REQUIRED_MAX_MESSAGE_SIZE: u32 = 102_400u32;
+			const EXECUTION_DOT: MultiAsset = MultiAsset {
+				id: Concrete(MultiLocation { parents: 0, interior: Here }),
+				fun: Fungible(1_0_000_000_000u128),
+			};
+			const MAX_WEIGHT: Weight = Weight::from_parts(20_000_000_000, 1_000_000);
+			const POLIMEC_PARA_ID: u32 = 3355u32;
+
+			log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest received: {:?}", message);
+
+			match message {
+				Instruction::HrmpNewChannelOpenRequest { sender, max_message_size, max_capacity }
+					if max_message_size >= MAX_MESSAGE_SIZE_THRESHOLDS.0 &&
+						max_message_size <= MAX_MESSAGE_SIZE_THRESHOLDS.1 &&
+						max_capacity >= MAX_CAPACITY_THRESHOLDS.0 &&
+						max_capacity <= MAX_CAPACITY_THRESHOLDS.1 =>
+				{
+					log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest accepted");
+
+					let (project_id, mut project_details) = ProjectsDetails::<T>::iter()
+						.find(|(_id, details)| {
+							details.parachain_id == Some(ParaId::from(sender)) && details.status == FundingSuccessful
+						})
+						.ok_or(XcmError::BadOrigin)?;
+
+					let accept_channel_relay_call =
+						polkadot_runtime::RuntimeCall::Hrmp(polkadot_runtime_parachains::hrmp::Call::<
+							polkadot_runtime::Runtime,
+						>::hrmp_accept_open_channel {
+							sender: ParaId::from(sender),
+						})
+						.encode();
+
+					let request_channel_relay_call =
+						polkadot_runtime::RuntimeCall::Hrmp(polkadot_runtime_parachains::hrmp::Call::<
+							polkadot_runtime::Runtime,
+						>::hrmp_init_open_channel {
+							recipient: ParaId::from(sender),
+							proposed_max_capacity: REQUIRED_MAX_CAPACITY,
+							proposed_max_message_size: REQUIRED_MAX_MESSAGE_SIZE,
+						})
+						.encode();
+
+					let xcm: Xcm<()> = Xcm(vec![
+						WithdrawAsset(vec![EXECUTION_DOT.clone()].into()),
+						BuyExecution { fees: EXECUTION_DOT.clone(), weight_limit: Unlimited },
+						Transact {
+							origin_kind: OriginKind::Native,
+							require_weight_at_most: MAX_WEIGHT,
+							call: accept_channel_relay_call.into(),
+						},
+						Transact {
+							origin_kind: OriginKind::Native,
+							require_weight_at_most: MAX_WEIGHT,
+							call: request_channel_relay_call.into(),
+						},
+						RefundSurplus,
+						DepositAsset {
+							assets: Wild(All),
+							beneficiary: MultiLocation { parents: 0, interior: X1(Parachain(POLIMEC_PARA_ID)) },
+						},
+					]);
+					let mut message = Some(xcm);
+
+					let dest_loc = MultiLocation { parents: 1, interior: Here };
+					let mut destination = Some(dest_loc);
+					let (ticket, _price) = XcmSender::validate(&mut destination, &mut message)?;
+
+					match XcmSender::deliver(ticket) {
+						Ok(_) => {
+							log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest: acceptance successfully sent");
+							project_details.hrmp_channel_status.project_to_polimec = ChannelStatus::Open;
+							project_details.hrmp_channel_status.polimec_to_project = ChannelStatus::AwaitingAcceptance;
+							ProjectsDetails::<T>::insert(project_id, project_details);
+
+							Pallet::<T>::deposit_event(Event::<T>::HrmpChannelAccepted {
+								project_id,
+								para_id: ParaId::from(sender),
+							});
+							Ok(())
+						},
+						Err(e) => {
+							log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest: acceptance sending failed - {:?}", e);
+							Err(XcmError::Unimplemented)
+						},
+					}
+				},
+				instr @ _ => {
+					log::trace!(target: "pallet_funding::hrmp", "Bad instruction: {:?}", instr);
+					Err(XcmError::Unimplemented)
+				},
+			}
+		}
+
+		fn handle_channel_accepted(message: Instruction) -> XcmResult {
+			log::trace!(target: "pallet_funding::hrmp", "Hrmp received: {:?}", message);
+
+			match message {
+				Instruction::HrmpChannelAccepted { recipient } => {
+					log::trace!(target: "pallet_funding::hrmp", "HrmpChannelAccepted received: {:?}", message);
+					let (project_id, mut project_details) = ProjectsDetails::<T>::iter()
+						.find(|(_id, details)| {
+							details.parachain_id == Some(ParaId::from(recipient)) && details.status == FundingSuccessful
+						})
+						.ok_or(XcmError::BadOrigin)?;
+
+					project_details.hrmp_channel_status.polimec_to_project = ChannelStatus::Open;
+					ProjectsDetails::<T>::insert(project_id, project_details);
+
+					Pallet::<T>::deposit_event(Event::<T>::HrmpChannelEstablished {
+						project_id,
+						para_id: ParaId::from(recipient),
+					});
+					Ok(())
+				},
+				instr @ _ => {
+					log::trace!(target: "pallet_funding::hrmp", "Bad instruction: {:?}", instr);
+					Err(XcmError::Unimplemented)
+				},
+			}
 		}
 	}
 }

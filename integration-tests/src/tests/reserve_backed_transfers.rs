@@ -6,13 +6,10 @@ use frame_support::{
 	},
 	weights::WeightToFee,
 };
-use pallet_balances::Instance1;
-use pallet_funding::{types::AcceptedFundingAsset, PLMC_STATEMINT_ID};
-use sp_runtime::traits::Zero;
+use pallet_funding::types::AcceptedFundingAsset;
 const RESERVE_TRANSFER_AMOUNT: u128 = 10_0_000_000_000; // 10 DOT
 const MAX_REF_TIME: u64 = 5_000_000_000;
 const MAX_PROOF_SIZE: u64 = 200_000;
-use accounts::{ALICE, BOB, FERDIE};
 
 fn create_usdt_on_statemint() {
 	let usdt_admin_account = Statemint::account_id_of(FERDIE);

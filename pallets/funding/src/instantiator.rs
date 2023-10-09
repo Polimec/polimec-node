@@ -12,7 +12,7 @@ use frame_support::{
 			metadata::Inspect as MetadataInspect, roles::Inspect as RolesInspect, Inspect as FungiblesInspect,
 			Mutate as FungiblesMutate,
 		},
-		Get, OnFinalize, OnIdle, OnInitialize, OriginTrait,
+		Get, OnFinalize, OnIdle, OnInitialize,
 	},
 	weights::Weight,
 	Parameter,
@@ -42,14 +42,14 @@ use sp_std::{
 use crate::{
 	traits::{BondingRequirementCalculation, ProvideStatemintPrice},
 	AcceptedFundingAsset, AccountIdOf, AssetIdOf, AuctionPhase, BalanceOf, BidInfoOf, BidStatus, Bids, BlockNumberOf,
-	BlockNumberPair, BucketOf, Buckets, Cleaner, Config, Contributions, Error, EvaluationInfoOf, EvaluationRoundInfoOf,
-	EvaluatorsOutcome, Event, LockType, MultiplierOf, PhaseTransitionPoints, PriceOf, ProjectDetailsOf, ProjectIdOf,
-	ProjectMetadataOf, ProjectStatus, ProjectsDetails, ProjectsMetadata, ProjectsToUpdate, RewardInfoOf, UpdateType,
-	VestingInfoOf, PLMC_STATEMINT_ID,
+	BlockNumberPair, BucketOf, Buckets, Cleaner, HRMPChannelStatus, Config, Contributions, Error, EvaluationInfoOf, EvaluationRoundInfoOf,
+	EvaluatorsOutcome, Event, LockType, MultiplierOf, NextProjectId, PhaseTransitionPoints, PriceOf, ProjectDetailsOf,
+	ProjectIdOf, ProjectMetadataOf, ProjectStatus, ProjectsDetails, ProjectsMetadata, ProjectsToUpdate, RewardInfoOf,
+	UpdateType, VestingInfoOf, PLMC_STATEMINT_ID,
 };
 
 pub use testing_macros::*;
-type RuntimeOriginOf<T> = <T as frame_system::Config>::RuntimeOrigin;
+pub type RuntimeOriginOf<T> = <T as frame_system::Config>::RuntimeOrigin;
 
 pub struct BoxToFunction(pub Box<dyn FnOnce()>);
 impl Default for BoxToFunction {
@@ -58,13 +58,13 @@ impl Default for BoxToFunction {
 	}
 }
 pub struct Instantiator<
-	T: Config + frame_system::Config<RuntimeEvent = RuntimeEvent> + pallet_balances::Config<Balance = BalanceOf<T>>,
+	T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 	AllPalletsWithoutSystem: OnFinalize<BlockNumberOf<T>> + OnIdle<BlockNumberOf<T>> + OnInitialize<BlockNumberOf<T>>,
-	RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
+	RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 > {
-	#[cfg(feature = "std")]
+	#[cfg(all(feature = "std", not(feature = "testing-node")))]
 	ext: Option<RefCell<sp_io::TestExternalities>>,
-	#[cfg(not(feature = "std"))]
+	#[cfg(not(all(feature = "std", not(feature = "testing-node"))))]
 	ext: Option<()>,
 	nonce: RefCell<u64>,
 	_marker: PhantomData<(T, AllPalletsWithoutSystem, RuntimeEvent)>,
@@ -72,31 +72,27 @@ pub struct Instantiator<
 
 // general chain interactions
 impl<
-		T: Config + frame_system::Config<RuntimeEvent = RuntimeEvent> + pallet_balances::Config<Balance = BalanceOf<T>>,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberOf<T>> + OnIdle<BlockNumberOf<T>> + OnInitialize<BlockNumberOf<T>>,
-		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
-	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
-where
-	AccountIdOf<T>: Into<<RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
-	<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
-{
+		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
+	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent> {
 	pub fn new(
-		#[cfg(feature = "std")] ext: Option<RefCell<sp_io::TestExternalities>>,
-		#[cfg(not(feature = "std"))] ext: Option<()>,
+		#[cfg(all(feature = "std", not(feature = "testing-node")))] ext: Option<RefCell<sp_io::TestExternalities>>,
+		#[cfg(not(all(feature = "std", not(feature = "testing-node"))))] ext: Option<()>,
 	) -> Self {
 		Self { ext, nonce: RefCell::new(0u64), _marker: PhantomData }
 	}
 
 	pub fn set_ext(
 		&mut self,
-		#[cfg(feature = "std")] ext: Option<RefCell<sp_io::TestExternalities>>,
-		#[cfg(not(feature = "std"))] ext: Option<()>,
+		#[cfg(all(feature = "std", not(feature = "testing-node")))] ext: Option<RefCell<sp_io::TestExternalities>>,
+		#[cfg(not(all(feature = "std", not(feature = "testing-node"))))] ext: Option<()>,
 	) {
 		self.ext = ext;
 	}
 
 	pub fn execute<R>(&mut self, execution: impl FnOnce() -> R) -> R {
-		#[cfg(feature = "std")]
+		#[cfg(all(feature = "std", not(feature = "testing-node")))]
 		if let Some(ext) = &self.ext {
 			return ext.borrow_mut().execute_with(execution)
 		}
@@ -199,7 +195,7 @@ where
 		for UserToPLMCBalance { account, plmc_amount } in correct_funds {
 			self.execute(|| {
 				let reserved = <T as Config>::NativeCurrency::balance_on_hold(&reserve_type, &account);
-				println!("Account: {:?}, reserved: {:?}, expected: {:?}", account, Into::into(reserved), plmc_amount);
+				println!("Account: {:?}, reserved: {:?}, expected: {:?}", account, reserved, plmc_amount);
 				assert_eq!(reserved, plmc_amount);
 			});
 		}
@@ -312,13 +308,11 @@ where
 
 // assertions
 impl<
-		T: Config + frame_system::Config<RuntimeEvent = RuntimeEvent> + pallet_balances::Config<Balance = BalanceOf<T>>,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberOf<T>> + OnIdle<BlockNumberOf<T>> + OnInitialize<BlockNumberOf<T>>,
-		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
+		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
 where
-	AccountIdOf<T>: Into<<RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
-	<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 {
 	pub fn test_ct_created_for(&mut self, project_id: ProjectIdOf<T>) {
 		self.execute(|| {
@@ -376,6 +370,12 @@ where
 				evaluators_outcome: EvaluatorsOutcome::Unchanged,
 			},
 			funding_end_block: None,
+			parachain_id: None,
+			migration_readiness_check: None,
+			hrmp_channel_status: HRMPChannelStatus {
+				project_to_polimec: crate::ChannelStatus::Closed,
+				polimec_to_project: crate::ChannelStatus::Closed,
+			},
 		};
 		assert_eq!(metadata, expected_metadata);
 		assert_eq!(details, expected_details);
@@ -395,7 +395,8 @@ where
 		assert_eq!(self.get_plmc_total_supply(), total_plmc_supply)
 	}
 
-	fn finalized_bids_assertions(
+	#[allow(unused)]
+	pub fn finalized_bids_assertions(
 		&mut self,
 		project_id: ProjectIdOf<T>,
 		bid_expectations: Vec<BidInfoFilter<T>>,
@@ -421,13 +422,11 @@ where
 
 // calculations
 impl<
-		T: Config + frame_system::Config<RuntimeEvent = RuntimeEvent> + pallet_balances::Config<Balance = BalanceOf<T>>,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberOf<T>> + OnIdle<BlockNumberOf<T>> + OnInitialize<BlockNumberOf<T>>,
-		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
+		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
 where
-	AccountIdOf<T>: Into<<RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
-	<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 {
 	pub fn get_ed() -> BalanceOf<T> {
 		T::ExistentialDeposit::get()
@@ -634,18 +633,18 @@ where
 	}
 
 	/// Merge the given mappings into one mapping, where the values are merged using the given
-	/// merge operation. 
-	/// 
+	/// merge operation.
+	///
 	/// In case of the `Add` operation, all values are Unioned, and duplicate accounts are
 	/// added together.
 	/// In case of the `Subtract` operation, all values of the first mapping are subtracted by
 	/// the values of the other mappings. Accounts in the other mappings that are not present
 	/// in the first mapping are ignored.
-	/// 
+	///
 	/// # Pseudocode Example
 	/// List1: [(A, 10), (B, 5), (C, 5)]
 	/// List2: [(A, 5), (B, 5), (D, 5)]
-	/// 
+	///
 	/// Add: [(A, 15), (B, 10), (C, 5), (D, 5)]
 	/// Subtract: [(A, 5), (B, 0), (C, 5)]
 	pub fn generic_map_operation<N: AccountMerge + Extend<<N as AccountMerge>::Inner> + IntoIterator<Item = <N as AccountMerge>::Inner>> (
@@ -722,11 +721,11 @@ where
 	}
 
 	pub fn err_if_on_initialize_failed(
-		events: Vec<frame_system::EventRecord<RuntimeEvent, T::Hash>>,
+		events: Vec<frame_system::EventRecord<<T as frame_system::Config>::RuntimeEvent, T::Hash>>,
 	) -> Result<(), Error<T>> {
 		let last_event_record = events.into_iter().last().expect("No events found for this action.");
 		let last_event = last_event_record.event;
-		let maybe_funding_event = last_event.try_into();
+		let maybe_funding_event = <T as Config>::RuntimeEvent::from(last_event).try_into();
 		if let Ok(funding_event) = maybe_funding_event {
 			if let Event::TransitionError { project_id: _, error } = funding_event {
 				if let DispatchError::Module(module_error) = error {
@@ -799,13 +798,11 @@ where
 
 // project chain interactions
 impl<
-		T: Config + frame_system::Config<RuntimeEvent = RuntimeEvent> + pallet_balances::Config<Balance = BalanceOf<T>>,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberOf<T>> + OnIdle<BlockNumberOf<T>> + OnInitialize<BlockNumberOf<T>>,
-		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
+		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
 where
-	AccountIdOf<T>: Into<<RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
-	<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 {
 	pub fn get_issuer(&mut self, project_id: ProjectIdOf<T>) -> AccountIdOf<T> {
 		self.execute(|| ProjectsDetails::<T>::get(project_id).unwrap().issuer)
@@ -841,21 +838,12 @@ where
 		self.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), Self::get_ed())]);
 		self.execute(|| {
 			crate::Pallet::<T>::do_create(&issuer, project_metadata.clone()).unwrap();
+			let last_project_metadata = ProjectsMetadata::<T>::iter().last().unwrap();
+			log::trace!("Last project metadata: {:?}", last_project_metadata);
 		});
-		self.advance_time(10u32.into()).unwrap();
-		let created_project_id = self.execute(|| {
-			let project_id = frame_system::Pallet::<T>::events()
-				.iter()
-				.filter_map(|event| match RuntimeEvent::try_into(event.event.clone()) {
-					Ok(Event::ProjectCreated { project_id, issuer: _ }) => Some(project_id),
-					_ => None,
-				})
-				.last()
-				.expect("Project created event expected")
-				.clone();
 
-			project_id
-		});
+		self.advance_time(10u32.into()).unwrap();
+		let created_project_id = self.execute(|| NextProjectId::<T>::get().saturating_sub(One::one()));
 		self.creation_assertions(created_project_id, project_metadata, now);
 		created_project_id
 	}
@@ -994,7 +982,7 @@ where
 			panic!("Cannot start community funding without bids")
 		}
 
-		
+
 		let project_id = self.create_auctioning_project(project_metadata.clone(), issuer, evaluations.clone());
 		let bids = self.simulate_bids_with_bucket(bids, project_id);
 		let bidders = bids.accounts();
@@ -1013,7 +1001,7 @@ where
 			})
 			.collect::<Vec<UserToPLMCBalance<T>>>();
 		let necessary_plmc_mint = Self::generic_map_operation(
-			
+
 			vec![plmc_bid_deposits.clone(), participation_usable_evaluation_deposits],
 			MergeOperation::Subtract,
 		);
@@ -1296,6 +1284,42 @@ where
 
 		project_id
 	}
+
+	pub fn create_project_at(
+		&mut self,
+		status: ProjectStatus,
+		project_metadata: ProjectMetadataOf<T>,
+		issuer: AccountIdOf<T>,
+		evaluations: Vec<UserToUSDBalance<T>>,
+		bids: Vec<BidParams<T>>,
+		community_contributions: Vec<ContributionParams<T>>,
+		remainder_contributions: Vec<ContributionParams<T>>,
+	) -> ProjectIdOf<T> {
+		match status {
+			ProjectStatus::FundingSuccessful => self.create_finished_project(
+				project_metadata,
+				issuer,
+				evaluations,
+				bids,
+				community_contributions,
+				remainder_contributions,
+			),
+			ProjectStatus::RemainderRound => self.create_remainder_contributing_project(
+				project_metadata,
+				issuer,
+				evaluations,
+				bids,
+				community_contributions,
+			).0,
+			ProjectStatus::CommunityRound =>
+				self.create_community_contributing_project(project_metadata, issuer, evaluations, bids).0,
+			ProjectStatus::AuctionRound(AuctionPhase::English) =>
+				self.create_auctioning_project(project_metadata, issuer, evaluations),
+			ProjectStatus::EvaluationRound => self.create_evaluating_project(project_metadata, issuer),
+			ProjectStatus::Application => self.create_new_project(project_metadata, issuer),
+			_ => panic!("unsupported project creation in that status"),
+		}
+	}
 }
 
 pub trait Accounts {
@@ -1311,7 +1335,7 @@ pub enum MergeOperation {
 pub trait AccountMerge {
 	/// The inner type of the Vec implementing this Trait.
 	type Inner;
-	/// Merge accounts in the list based on the operation. 
+	/// Merge accounts in the list based on the operation.
 	fn merge_accounts(&self, ops: MergeOperation) -> Self;
 	/// Subtract amount of the matching accounts in the other list from the current list.
 	/// If the account is not present in the current list, it is ignored.
@@ -1322,10 +1346,7 @@ pub trait ExistentialDeposits<T: Config> {
 	fn existential_deposits(&self) -> Vec<UserToPLMCBalance<T>>;
 }
 
-impl<T: Config + pallet_balances::Config> ExistentialDeposits<T> for Vec<AccountIdOf<T>>
-where
-	<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
-{
+impl<T: Config + pallet_balances::Config> ExistentialDeposits<T> for Vec<AccountIdOf<T>> {
 	fn existential_deposits(&self) -> Vec<UserToPLMCBalance<T>> {
 		self.iter()
 			.map(|x| {
@@ -1361,7 +1382,7 @@ impl<T: Config> AccountMerge for Vec<UserToPLMCBalance<T>> {
 		let mut btree = BTreeMap::new();
 		for UserToPLMCBalance { account, plmc_amount } in self.iter() {
 			btree.entry(account.clone())
-				.and_modify(|e: &mut BalanceOf<T>| *e = 
+				.and_modify(|e: &mut BalanceOf<T>| *e =
 					match ops {
 						MergeOperation::Add => e.saturating_add(*plmc_amount),
 						MergeOperation::Subtract => e.saturating_sub(*plmc_amount),
@@ -1381,7 +1402,12 @@ impl<T: Config> AccountMerge for Vec<UserToPLMCBalance<T>> {
 	}
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+	feature = "std",
+	serde(rename_all = "camelCase", deny_unknown_fields, bound(serialize = ""), bound(deserialize = ""))
+)]
 pub struct UserToUSDBalance<T: Config> {
 	pub account: AccountIdOf<T>,
 	pub usd_amount: BalanceOf<T>,
@@ -1402,33 +1428,32 @@ impl<T: Config> Accounts for Vec<UserToUSDBalance<T>> {
 		btree.into_iter().collect_vec()
 	}
 }
-
 impl<T: Config> AccountMerge for Vec<UserToUSDBalance<T>> {
-	type Inner = UserToUSDBalance<T>;
-	fn merge_accounts(&self, ops: MergeOperation) -> Self {
-		let mut btree = BTreeMap::new();
-		for UserToUSDBalance { account, usd_amount } in self.iter() {
-			btree.entry(account.clone())
-				.and_modify(|e: &mut BalanceOf<T>| *e = 
-					match ops {
-						MergeOperation::Add => e.saturating_add(*usd_amount),
-						MergeOperation::Subtract => e.saturating_sub(*usd_amount),
-					})
-				.or_insert(*usd_amount);
-		}
-		btree.into_iter().map(|(account, usd_amount)| UserToUSDBalance::new(account, usd_amount)).collect()
-	}
+    type Inner = UserToUSDBalance<T>;
+    fn merge_accounts(&self, ops: MergeOperation) -> Self {
+        let mut btree = BTreeMap::new();
+        for UserToUSDBalance { account, usd_amount } in self.iter() {
+            btree.entry(account.clone())
+                .and_modify(|e: &mut BalanceOf<T>| *e =
+                    match ops {
+                        MergeOperation::Add => e.saturating_add(*usd_amount),
+                        MergeOperation::Subtract => e.saturating_sub(*usd_amount),
+                    })
+                .or_insert(*usd_amount);
+        }
+        btree.into_iter().map(|(account, usd_amount)| UserToUSDBalance::new(account, usd_amount)).collect()
+    }
 
-	fn subtract_accounts(&self, other_list: Self) -> Self {
-		let current_accounts = self.accounts();
-		let filtered_list = other_list.into_iter().filter(|x| current_accounts.contains(&x.account)).collect_vec();
-		let mut new_list = self.clone();
-		new_list.extend(filtered_list);
-		new_list.merge_accounts(MergeOperation::Subtract)
-	}
+    fn subtract_accounts(&self, other_list: Self) -> Self {
+        let current_accounts = self.accounts();
+        let filtered_list = other_list.into_iter().filter(|x| current_accounts.contains(&x.account)).collect_vec();
+        let mut new_list = self.clone();
+        new_list.extend(filtered_list);
+        new_list.merge_accounts(MergeOperation::Subtract)
+    }
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct UserToStatemintAsset<T: Config> {
 	pub account: AccountIdOf<T>,
 	pub asset_amount: BalanceOf<T>,
@@ -1450,33 +1475,38 @@ impl<T: Config> Accounts for Vec<UserToStatemintAsset<T>> {
 		btree.into_iter().collect_vec()
 	}
 }
-
 impl<T: Config> AccountMerge for Vec<UserToStatemintAsset<T>> {
-	type Inner = UserToStatemintAsset<T>;
-	fn merge_accounts(&self, ops: MergeOperation) -> Self {
-		let mut btree = BTreeMap::new();
-		for UserToStatemintAsset { account, asset_amount, asset_id } in self.iter() {
-			btree.entry(account.clone())
-				.and_modify(|e: &mut (BalanceOf<T>, u32)| e.0 = 
-					match ops {
-						MergeOperation::Add => e.0.saturating_add(*asset_amount),
-						MergeOperation::Subtract => e.0.saturating_sub(*asset_amount),
-					})
-				.or_insert((*asset_amount, asset_id.clone()));
-				
-		}
-		btree.into_iter().map(|(account, info)| UserToStatemintAsset::new(account, info.0, info.1)).collect()
-	}
+    type Inner = UserToStatemintAsset<T>;
+    fn merge_accounts(&self, ops: MergeOperation) -> Self {
+        let mut btree = BTreeMap::new();
+        for UserToStatemintAsset { account, asset_amount, asset_id } in self.iter() {
+            btree.entry(account.clone())
+                .and_modify(|e: &mut (BalanceOf<T>, u32)| e.0 =
+                    match ops {
+                        MergeOperation::Add => e.0.saturating_add(*asset_amount),
+                        MergeOperation::Subtract => e.0.saturating_sub(*asset_amount),
+                    })
+                .or_insert((*asset_amount, asset_id.clone()));
 
-	fn subtract_accounts(&self, other_list: Self) -> Self {
-		let current_accounts = self.accounts();
-		let filtered_list = other_list.into_iter().filter(|x| current_accounts.contains(&x.account)).collect_vec();
-		let mut new_list = self.clone();
-		new_list.extend(filtered_list);
-		new_list.merge_accounts(MergeOperation::Subtract)
-	}
+        }
+        btree.into_iter().map(|(account, info)| UserToStatemintAsset::new(account, info.0, info.1)).collect()
+    }
+
+    fn subtract_accounts(&self, other_list: Self) -> Self {
+        let current_accounts = self.accounts();
+        let filtered_list = other_list.into_iter().filter(|x| current_accounts.contains(&x.account)).collect_vec();
+        let mut new_list = self.clone();
+        new_list.extend(filtered_list);
+        new_list.merge_accounts(MergeOperation::Subtract)
+    }
 }
-#[derive(Clone, Debug)]
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+	feature = "std",
+	serde(rename_all = "camelCase", deny_unknown_fields, bound(serialize = ""), bound(deserialize = ""))
+)]
 pub struct BidParams<T: Config> {
 	pub bidder: AccountIdOf<T>,
 	pub amount: BalanceOf<T>,
@@ -1518,7 +1548,12 @@ impl<T: Config> Accounts for Vec<BidParams<T>> {
 	}
 }
 
-#[derive(Clone)]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+	feature = "std",
+	serde(rename_all = "camelCase", deny_unknown_fields, bound(serialize = ""), bound(deserialize = ""))
+)]
 pub struct ContributionParams<T: Config> {
 	pub contributor: AccountIdOf<T>,
 	pub amount: BalanceOf<T>,

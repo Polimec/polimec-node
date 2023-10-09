@@ -250,6 +250,7 @@ pub mod polimec {
 					.expect("WASM binary was not build, please build it!")
 					.to_vec(),
 			},
+			polimec_funding: Default::default(),
 			balances: polimec_parachain_runtime::BalancesConfig { balances: funded_accounts },
 			parachain_info: polimec_parachain_runtime::ParachainInfoConfig { parachain_id: PARA_ID.into() },
 			session: polimec_parachain_runtime::SessionConfig {
@@ -287,7 +288,7 @@ pub mod polimec {
 			},
 			technical_committee: Default::default(),
 			treasury: Default::default(),
-			vesting: Default::default(),
+			linear_vesting: Default::default(),
 		};
 
 		genesis_config.build_storage().unwrap()
