@@ -22,33 +22,31 @@
 //! with statemine as the reserve. At present no derivative tokens are minted on receipt of a
 //! ReserveAssetTransferDeposited message but that will but the intension will be to support this soon.
 use core::marker::PhantomData;
-
 use frame_support::{
-	match_types, parameter_types,
+	ensure, match_types, parameter_types,
 	traits::{
 		fungibles::{self, Balanced, Credit},
-		ConstU32, Contains, ContainsPair, Everything, Get, Nothing,
+		ConstU32, Contains, ContainsPair, Everything, Get, Nothing, ProcessMessageError,
 	},
 	weights::Weight,
 };
 use pallet_asset_tx_payment::HandleCredit;
 use pallet_xcm::XcmPassthrough;
 use parachains_common::xcm_config::{DenyReserveTransferToRelayChain, DenyThenTry};
+use polimec_xcm_executor::XcmExecutor;
 use polkadot_parachain::primitives::Sibling;
 use polkadot_runtime_common::impls::ToAuthor;
 use sp_runtime::traits::Zero;
 use xcm::latest::prelude::*;
 use xcm_builder::{
 	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses, AllowSubscriptionsFrom,
-	AllowTopLevelPaidExecutionFrom, AsPrefixedGeneralIndex, ConvertedConcreteId, CurrencyAdapter, EnsureXcmOrigin,
-	FixedRateOfFungible, FixedWeightBounds, FungiblesAdapter, IsConcrete, LocalMint, NativeAsset, ParentIsPreset,
-	RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
-	SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, UsingComponents, WithComputedOrigin,
+	AllowTopLevelPaidExecutionFrom, AsPrefixedGeneralIndex, ConvertedConcreteId, CreateMatcher, CurrencyAdapter,
+	EnsureXcmOrigin, FixedRateOfFungible, FixedWeightBounds, FungiblesAdapter, IsConcrete, LocalMint, MatchXcm,
+	NativeAsset, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
+	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, UsingComponents,
+	WithComputedOrigin,
 };
-use xcm_executor::{
-	traits::{Convert, Error, JustTry, MatchesFungibles},
-	XcmExecutor,
-};
+use xcm_executor::traits::{Convert, Error, JustTry, MatchesFungibles, ShouldExecute};
 
 use super::{
 	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances, EnsureRoot, ParachainInfo,
@@ -62,7 +60,7 @@ const DOT_PER_MB_PROOF: u128 = 0_0_000_001_000; // 0.0000001 DOT per Megabyte of
 
 const USDT_ASSET_ID: AssetId =
 	Concrete(MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1984)) });
-const USDT_PER_SECOND_EXECUTION: u128 = 0_0_000_001_000; // 0.0000001 USDT per second of execution time
+// const USDT_PER_SECOND_EXECUTION: u128 = 0_0_000_001_000; // 0.0000001 USDT per second of execution time
 
 parameter_types! {
 	pub const RelayLocation: MultiLocation = MultiLocation::parent();
@@ -231,6 +229,8 @@ pub type Barrier = DenyThenTry<
 		// Allow XCMs with some computed origins to pass through.
 		WithComputedOrigin<
 			(
+				// HRMP notifications from relay get free pass
+				AllowHrmpNotifications<ParentOrParentsExecutivePlurality>,
 				// If the message is one that immediately attemps to pay for execution, then allow it.
 				AllowTopLevelPaidExecutionFrom<Everything>,
 				// Common Good Assets parachain, parent and its exec plurality get free execution
@@ -361,7 +361,7 @@ pub type Reserves = (NativeAsset, StatemintAssetsFilter);
 
 pub struct XcmConfig;
 
-impl xcm_executor::Config for XcmConfig {
+impl polimec_xcm_executor::Config for XcmConfig {
 	type AssetClaims = PolkadotXcm;
 	type AssetExchanger = ();
 	type AssetLocker = ();
@@ -371,6 +371,8 @@ impl xcm_executor::Config for XcmConfig {
 	type Barrier = Barrier;
 	type CallDispatcher = RuntimeCall;
 	type FeeManager = ();
+	type HrmpChannelOpenRequestHandler =
+		pallet_funding::xcm_executor_impl::HrmpChannelOpenRequestHandler<Runtime, XcmRouter>;
 	type IsReserve = Reserves;
 	type IsTeleporter = NativeAsset;
 	type MaxAssetsIntoHolding = MaxAssetsIntoHolding;
@@ -447,4 +449,28 @@ impl pallet_xcm::Config for Runtime {
 impl cumulus_pallet_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
+}
+
+pub struct AllowHrmpNotifications<T>(PhantomData<T>);
+impl<T: Contains<MultiLocation>> ShouldExecute for AllowHrmpNotifications<T> {
+	fn should_execute<Call>(
+		origin: &MultiLocation,
+		instructions: &mut [Instruction<Call>],
+		max_weight: Weight,
+		_weight_credit: &mut Weight,
+	) -> Result<(), ProcessMessageError> {
+		log::trace!(
+			target: "xcm::barriers",
+			"AllowHrmpNotifications origin: {:?}, instructions: {:?}, max_weight: {:?}, weight_credit: {:?}",
+			origin, instructions, max_weight, _weight_credit,
+		);
+		ensure!(T::contains(origin), ProcessMessageError::Unsupported);
+		instructions.matcher().assert_remaining_insts(1)?.match_next_inst(|inst| match inst {
+			HrmpNewChannelOpenRequest { .. } => Ok(()),
+			HrmpChannelAccepted { .. } => Ok(()),
+			HrmpChannelClosing { .. } => Ok(()),
+			_ => Err(ProcessMessageError::Unsupported),
+		})?;
+		Ok(())
+	}
 }

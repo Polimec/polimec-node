@@ -18,6 +18,8 @@ parity-scale-codec = { version = "3.6.5", features = [
 scale-info = { version = "2.9.0", default-features = false, features = [
     "derive",
 ] }
+log.workspace = true
+
 itertools = { version = "0.11.0", default-features = false }
 
 # Substrate dependencies
@@ -34,6 +36,12 @@ pallet-balances.workspace = true
 sp-io.workspace = true
 pallet-timestamp.workspace = true
 xcm-builder.workspace = true
+xcm.workspace = true
+polimec-xcm-executor.workspace = true
+pallet-xcm.workspace = true
+polkadot-runtime.workspace = true
+polkadot-runtime-parachains.workspace = true
+polkadot-parachain.workspace = true
 
 
 [dev-dependencies]
@@ -45,24 +53,34 @@ assert_matches2.workspace = true
 [features]
 default = [ "std" ]
 std = [
+	"serde",
+	"parity-scale-codec/std",
+	"scale-info/std",
+	"log/std",
+	"itertools/use_std",
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
-	"itertools/use_std",
-	"pallet-assets/std",
-	"pallet-balances/std",
-	"pallet-insecure-randomness-collective-flip/std",
-	"pallet-linear-release/std",
-	"parachains-common/std",
-	"parity-scale-codec/std",
-	"polimec-traits/std",
-	"scale-info/std",
-	"serde",
-	"sp-arithmetic/std",
-	"sp-core/std",
-	"sp-io/std",
-	"sp-runtime/std",
 	"sp-std/std",
+	"sp-runtime/std",
+	"sp-arithmetic/std",
+	"polimec-traits/std",
+	"parachains-common/std",
+	"sp-core/std",
+	"pallet-balances/std",
+	"sp-io/std",
+	"pallet-timestamp/std",
+	"xcm-builder/std",
+	"xcm/std",
+	"polimec-xcm-executor/std",
+	"pallet-xcm/std",
+	"polkadot-runtime/std",
+	"polkadot-runtime-parachains/std",
+	"polkadot-parachain/std",
+
+	"pallet-insecure-randomness-collective-flip/std",
+	"pallet-assets/std",
+	"pallet-linear-release/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
@@ -72,8 +90,15 @@ runtime-benchmarks = [
 	"pallet-balances/runtime-benchmarks",
 	"polimec-traits/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
-    "xcm-builder/runtime-benchmarks",
-    "itertools/use_alloc",
+	"xcm-builder/runtime-benchmarks",
+	"itertools/use_alloc",
+	"pallet-linear-release/runtime-benchmarks",
+	"pallet-timestamp/runtime-benchmarks",
+	"pallet-xcm/runtime-benchmarks",
+	"polimec-xcm-executor/runtime-benchmarks",
+	"polkadot-parachain/runtime-benchmarks",
+	"polkadot-runtime/runtime-benchmarks",
+	"polkadot-runtime-parachains/runtime-benchmarks"
 ]
 try-runtime = [
 	"frame-support/try-runtime",
@@ -84,4 +109,6 @@ try-runtime = [
 	"pallet-linear-release/try-runtime",
 	"polimec-traits/try-runtime",
 	"sp-runtime/try-runtime",
+]
+testing-node = [
 ]

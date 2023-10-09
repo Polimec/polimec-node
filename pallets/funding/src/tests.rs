@@ -82,7 +82,7 @@ const BUYER_7: AccountId = 46;
 
 const ASSET_UNIT: u128 = 10_u128.pow(10 as u32);
 
-const USDT_STATEMINT_ID: AssetId = 1984u32;
+const USDT_STATEMINT_ID: crate::mock::AssetId = 1984u32;
 const USDT_UNIT: u128 = 10_000_000_000_u128;
 
 pub const US_DOLLAR: u128 = 1_0_000_000_000;
@@ -6099,6 +6099,82 @@ mod funding_end {
 			stored_bids[2].plmc_vesting_info.unwrap().duration,
 			FixedU128::from_rational(4334, 1000).saturating_mul_int(one_week_in_blocks as u64)
 		);
+	}
+}
+
+mod ct_migration {
+	use super::*;
+	use frame_support::assert_err;
+
+	#[test]
+	fn para_id_for_project_can_be_set_by_issuer() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_id = inst.create_finished_project(
+			default_project(inst.get_new_nonce(), ISSUER),
+			ISSUER,
+			default_evaluations(),
+			default_bids(),
+			default_community_buys(),
+			vec![],
+		);
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 20u64).unwrap();
+		let project_details = inst.get_project_details(project_id);
+		assert_eq!(project_details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+
+		inst.execute(|| {
+			assert_ok!(crate::Pallet::<TestRuntime>::set_para_id_for_project(
+				RuntimeOrigin::signed(ISSUER),
+				project_id,
+				ParaId::from(2006u32)
+			));
+		});
+		let project_details = inst.get_project_details(project_id);
+		assert_eq!(project_details.parachain_id, Some(ParaId::from(2006u32)));
+	}
+
+	#[test]
+	fn para_id_for_project_cannot_be_set_by_anyone_but_issuer() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_id = inst.create_finished_project(
+			default_project(inst.get_new_nonce(), ISSUER),
+			ISSUER,
+			default_evaluations(),
+			default_bids(),
+			default_community_buys(),
+			vec![],
+		);
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 20u64).unwrap();
+		let project_details = inst.get_project_details(project_id);
+		assert_eq!(project_details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+
+		inst.execute(|| {
+			assert_err!(
+				crate::Pallet::<TestRuntime>::set_para_id_for_project(
+					RuntimeOrigin::signed(EVALUATOR_1),
+					project_id,
+					ParaId::from(2006u32)
+				),
+				Error::<TestRuntime>::NotAllowed
+			);
+			assert_err!(
+				crate::Pallet::<TestRuntime>::set_para_id_for_project(
+					RuntimeOrigin::signed(BIDDER_1),
+					project_id,
+					ParaId::from(2006u32)
+				),
+				Error::<TestRuntime>::NotAllowed
+			);
+			assert_err!(
+				crate::Pallet::<TestRuntime>::set_para_id_for_project(
+					RuntimeOrigin::signed(BUYER_1),
+					project_id,
+					ParaId::from(2006u32)
+				),
+				Error::<TestRuntime>::NotAllowed
+			);
+		});
+		let project_details = inst.get_project_details(project_id);
+		assert_eq!(project_details.parachain_id, None);
 	}
 }
 

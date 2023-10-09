@@ -1,0 +1,56 @@
+[settings]
+timeout = 1000
+provider = "native"
+
+[relaychain]
+default_command = "../polkadot/target/release/polkadot"
+chain = "rococo-local"
+
+
+    [[relaychain.nodes]]
+    name = "alice"
+    ws_port = 6969
+    args = ["-lerror", "-lxcm::process_instruction=trace", "-lxcm::execute_xcm_in_credit=trace", "-lxcm::barriers=trace", "-lpallet_funding::hrmp=trace", "-lpallet_funding::test=trace", "--execution=native", ]
+    [[relaychain.nodes]]
+    name = "bob"
+
+    [[relaychain.nodes]]
+    name = "charlie"
+
+    [[relaychain.nodes]]
+    name = "dave"
+
+    [[relaychain.nodes]]
+    name = "eve"
+
+    [[relaychain.nodes]]
+    name = "ferdie"
+
+[[parachains]]
+id = 1000
+chain = "statemint-local"
+
+	[[parachains.collators]]
+	name = "statemint-dev"
+	command = "../cumulus/target/release/polkadot-parachain"
+    args = ["-lerror", "-lxcm::process_instruction=trace", "-lxcm::execute_xcm_in_credit=trace", "-lxcm::barriers=trace", "-lpallet_funding::hrmp=trace", "-lpallet_funding::test=trace", "--execution=native", ]   
+    ws_port = 7777
+
+
+[[parachains]]
+id = 3355
+chain = "polimec-testing"
+	[[parachains.collators]]
+	name = "polimec-testing"
+	command = "./target/release/polimec-parachain-node"
+    args = ["-lerror", "-lxcm::process_instruction=trace", "-lxcm::execute_xcm_in_credit=trace", "-lxcm::barriers=trace", "-lpallet_funding::hrmp=trace", "-lpallet_funding::test=trace", "--execution=native", ]   
+    ws_port = 8888
+
+[[parachains]]
+id = 3000
+chain = "penpal-polkadot-3000"
+	[[parachains.collators]]
+	name = "penpal-collator"
+	command = "../cumulus/target/release/polkadot-parachain"
+    args = ["-lerror", "-lxcm::process_instruction=trace", "-lxcm::execute_xcm_in_credit=trace", "-lxcm::barriers=trace", "-lpallet_funding::hrmp=trace", "-lpallet_funding::test=trace", "--execution=native", ]   
+    ws_port = 9999

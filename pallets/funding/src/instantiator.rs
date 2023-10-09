@@ -12,7 +12,7 @@ use frame_support::{
 			metadata::Inspect as MetadataInspect, roles::Inspect as RolesInspect, Inspect as FungiblesInspect,
 			Mutate as FungiblesMutate,
 		},
-		Get, OnFinalize, OnIdle, OnInitialize, OriginTrait,
+		Get, OnFinalize, OnIdle, OnInitialize,
 	},
 	weights::Weight,
 	Parameter,
@@ -42,14 +42,14 @@ use sp_std::{
 use crate::{
 	traits::{BondingRequirementCalculation, ProvideStatemintPrice},
 	AcceptedFundingAsset, AccountIdOf, AssetIdOf, AuctionPhase, BalanceOf, BidInfoOf, BidStatus, Bids, BlockNumberOf,
-	BlockNumberPair, Cleaner, Config, Contributions, Error, EvaluationInfoOf, EvaluationRoundInfoOf, EvaluatorsOutcome,
-	Event, LockType, MultiplierOf, PhaseTransitionPoints, PriceOf, ProjectDetailsOf, ProjectIdOf, ProjectMetadataOf,
-	ProjectStatus, ProjectsDetails, ProjectsMetadata, ProjectsToUpdate, RewardInfoOf, UpdateType, VestingInfoOf,
-	PLMC_STATEMINT_ID,
+	BlockNumberPair, Cleaner, CommStatus, Config, Contributions, Error, EvaluationInfoOf, EvaluationRoundInfoOf,
+	EvaluatorsOutcome, Event, LockType, MultiplierOf, NextProjectId, PhaseTransitionPoints, PriceOf, ProjectDetailsOf,
+	ProjectIdOf, ProjectMetadataOf, ProjectStatus, ProjectsDetails, ProjectsMetadata, ProjectsToUpdate, RewardInfoOf,
+	UpdateType, VestingInfoOf, PLMC_STATEMINT_ID,
 };
 
 pub use testing_macros::*;
-type RuntimeOriginOf<T> = <T as frame_system::Config>::RuntimeOrigin;
+pub type RuntimeOriginOf<T> = <T as frame_system::Config>::RuntimeOrigin;
 
 pub struct BoxToFunction(pub Box<dyn FnOnce()>);
 impl Default for BoxToFunction {
@@ -58,13 +58,13 @@ impl Default for BoxToFunction {
 	}
 }
 pub struct Instantiator<
-	T: Config + frame_system::Config<RuntimeEvent = RuntimeEvent> + pallet_balances::Config<Balance = BalanceOf<T>>,
+	T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 	AllPalletsWithoutSystem: OnFinalize<BlockNumberOf<T>> + OnIdle<BlockNumberOf<T>> + OnInitialize<BlockNumberOf<T>>,
-	RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
+	RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 > {
-	#[cfg(feature = "std")]
+	#[cfg(all(feature = "std", not(feature = "testing-node")))]
 	ext: Option<RefCell<sp_io::TestExternalities>>,
-	#[cfg(not(feature = "std"))]
+	#[cfg(not(all(feature = "std", not(feature = "testing-node"))))]
 	ext: Option<()>,
 	nonce: RefCell<u64>,
 	_marker: PhantomData<(T, AllPalletsWithoutSystem, RuntimeEvent)>,
@@ -72,31 +72,31 @@ pub struct Instantiator<
 
 // general chain interactions
 impl<
-		T: Config + frame_system::Config<RuntimeEvent = RuntimeEvent> + pallet_balances::Config<Balance = BalanceOf<T>>,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberOf<T>> + OnIdle<BlockNumberOf<T>> + OnInitialize<BlockNumberOf<T>>,
-		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
+		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
 where
-	AccountIdOf<T>: Into<<RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
-	<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
+// AccountIdOf<T>: Into<<RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
+// <T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 {
 	pub fn new(
-		#[cfg(feature = "std")] ext: Option<RefCell<sp_io::TestExternalities>>,
-		#[cfg(not(feature = "std"))] ext: Option<()>,
+		#[cfg(all(feature = "std", not(feature = "testing-node")))] ext: Option<RefCell<sp_io::TestExternalities>>,
+		#[cfg(not(all(feature = "std", not(feature = "testing-node"))))] ext: Option<()>,
 	) -> Self {
 		Self { ext, nonce: RefCell::new(0u64), _marker: PhantomData }
 	}
 
 	pub fn set_ext(
 		&mut self,
-		#[cfg(feature = "std")] ext: Option<RefCell<sp_io::TestExternalities>>,
-		#[cfg(not(feature = "std"))] ext: Option<()>,
+		#[cfg(all(feature = "std", not(feature = "testing-node")))] ext: Option<RefCell<sp_io::TestExternalities>>,
+		#[cfg(not(all(feature = "std", not(feature = "testing-node"))))] ext: Option<()>,
 	) {
 		self.ext = ext;
 	}
 
 	pub fn execute<R>(&mut self, execution: impl FnOnce() -> R) -> R {
-		#[cfg(feature = "std")]
+		#[cfg(all(feature = "std", not(feature = "testing-node")))]
 		if let Some(ext) = &self.ext {
 			return ext.borrow_mut().execute_with(execution)
 		}
@@ -196,9 +196,9 @@ where
 		correct_funds: Vec<UserToPLMCBalance<T>>,
 		reserve_type: LockType<ProjectIdOf<T>>,
 	) {
-		for UserToPLMCBalance { account, plmc_amount } in correct_funds {
+		for UserToPLMCBalance { account, .. } in correct_funds {
 			self.execute(|| {
-				let reserved = <T as Config>::NativeCurrency::balance_on_hold(&reserve_type, &account);
+				let _reserved = <T as Config>::NativeCurrency::balance_on_hold(&reserve_type, &account);
 				// TODO: Enable this
 				// assert_eq!(reserved, plmc_amount);
 			});
@@ -255,9 +255,9 @@ where
 	}
 
 	pub fn do_free_plmc_assertions(&mut self, correct_funds: Vec<UserToPLMCBalance<T>>) {
-		for UserToPLMCBalance { account, plmc_amount } in correct_funds {
+		for UserToPLMCBalance { account, .. } in correct_funds {
 			self.execute(|| {
-				let free = <T as Config>::NativeCurrency::balance(&account);
+				let _free = <T as Config>::NativeCurrency::balance(&account);
 				// TODO: Enable this
 				// assert_eq!(free, plmc_amount);
 			});
@@ -278,10 +278,10 @@ where
 		correct_funds: Vec<UserToStatemintAsset<T>>,
 		project_id: ProjectIdOf<T>,
 	) {
-		for UserToStatemintAsset { account, asset_amount, .. } in correct_funds {
+		for UserToStatemintAsset { account, .. } in correct_funds {
 			self.execute(|| {
 				// total amount of contributions for this user for this project stored in the mapping
-				let contribution_total: <T as Config>::Balance =
+				let _contribution_total: <T as Config>::Balance =
 					Bids::<T>::iter_prefix_values((project_id, account.clone()))
 						.map(|c| c.funding_asset_amount_locked)
 						.fold(Zero::zero(), |a, b| a + b);
@@ -312,13 +312,13 @@ where
 
 // assertions
 impl<
-		T: Config + frame_system::Config<RuntimeEvent = RuntimeEvent> + pallet_balances::Config<Balance = BalanceOf<T>>,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberOf<T>> + OnIdle<BlockNumberOf<T>> + OnInitialize<BlockNumberOf<T>>,
-		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
+		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
 where
-	AccountIdOf<T>: Into<<RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
-	<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
+// AccountIdOf<T>: Into<<RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
+// <T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 {
 	pub fn test_ct_created_for(&mut self, project_id: ProjectIdOf<T>) {
 		self.execute(|| {
@@ -376,6 +376,12 @@ where
 				evaluators_outcome: EvaluatorsOutcome::Unchanged,
 			},
 			funding_end_block: None,
+			parachain_id: None,
+			migration_readiness_check: None,
+			comm_status: CommStatus {
+				project_to_polimec: crate::ChannelStatus::Closed,
+				polimec_to_project: crate::ChannelStatus::Closed,
+			},
 		};
 		assert_eq!(metadata, expected_metadata);
 		assert_eq!(details, expected_details);
@@ -395,7 +401,8 @@ where
 		assert_eq!(self.get_plmc_total_supply(), total_plmc_supply)
 	}
 
-	fn finalized_bids_assertions(
+	#[allow(unused)]
+	pub fn finalized_bids_assertions(
 		&mut self,
 		project_id: ProjectIdOf<T>,
 		bid_expectations: Vec<BidInfoFilter<T>>,
@@ -421,13 +428,13 @@ where
 
 // calculations
 impl<
-		T: Config + frame_system::Config<RuntimeEvent = RuntimeEvent> + pallet_balances::Config<Balance = BalanceOf<T>>,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberOf<T>> + OnIdle<BlockNumberOf<T>> + OnInitialize<BlockNumberOf<T>>,
-		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
+		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
 where
-	AccountIdOf<T>: Into<<RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
-	<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
+// AccountIdOf<T>: Into<<RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
+// <T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 {
 	pub fn get_ed() -> BalanceOf<T> {
 		T::ExistentialDeposit::get()
@@ -841,11 +848,11 @@ where
 	}
 
 	pub fn err_if_on_initialize_failed(
-		events: Vec<frame_system::EventRecord<RuntimeEvent, T::Hash>>,
+		events: Vec<frame_system::EventRecord<<T as frame_system::Config>::RuntimeEvent, T::Hash>>,
 	) -> Result<(), Error<T>> {
 		let last_event_record = events.into_iter().last().expect("No events found for this action.");
 		let last_event = last_event_record.event;
-		let maybe_funding_event = last_event.try_into();
+		let maybe_funding_event = <T as Config>::RuntimeEvent::from(last_event).try_into();
 		if let Ok(funding_event) = maybe_funding_event {
 			if let Event::TransitionError { project_id: _, error } = funding_event {
 				if let DispatchError::Module(module_error) = error {
@@ -918,13 +925,13 @@ where
 
 // project chain interactions
 impl<
-		T: Config + frame_system::Config<RuntimeEvent = RuntimeEvent> + pallet_balances::Config<Balance = BalanceOf<T>>,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberOf<T>> + OnIdle<BlockNumberOf<T>> + OnInitialize<BlockNumberOf<T>>,
-		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
+		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
 where
-	AccountIdOf<T>: Into<<RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
-	<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
+// AccountIdOf<T>: Into<<RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
+// <T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 {
 	pub fn get_issuer(&mut self, project_id: ProjectIdOf<T>) -> AccountIdOf<T> {
 		self.execute(|| ProjectsDetails::<T>::get(project_id).unwrap().issuer)
@@ -960,21 +967,27 @@ where
 		self.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), Self::get_ed())]);
 		self.execute(|| {
 			crate::Pallet::<T>::do_create(&issuer, project_metadata.clone()).unwrap();
+			let last_project_metadata = ProjectsMetadata::<T>::iter().last().unwrap();
+			log::trace!("Last project metadata: {:?}", last_project_metadata);
 		});
-		self.advance_time(10u32.into()).unwrap();
-		let created_project_id = self.execute(|| {
-			let project_id = frame_system::Pallet::<T>::events()
-				.iter()
-				.filter_map(|event| match RuntimeEvent::try_into(event.event.clone()) {
-					Ok(Event::ProjectCreated { project_id, issuer: _ }) => Some(project_id),
-					_ => None,
-				})
-				.last()
-				.expect("Project created event expected")
-				.clone();
 
-			project_id
-		});
+		self.advance_time(10u32.into()).unwrap();
+		// let created_project_id = self.execute(|| {
+		// 	let events = frame_system::Pallet::<T>::events();
+		// 	log::trace!("Events: {:?}", events);
+		// 	let project_id = events
+		// 		.iter()
+		// 		.filter_map(|event| match RuntimeEvent::from(event.event.clone()).try_into() {
+		// 			Ok(Event::ProjectCreated { project_id, issuer: _ }) => Some(project_id),
+		// 			_ => None,
+		// 		})
+		// 		.last()
+		// 		.expect("Project created event expected")
+		// 		.clone();
+		//
+		// 	project_id
+		// });
+		let created_project_id = self.execute(|| NextProjectId::<T>::get().saturating_sub(One::one()));
 		self.creation_assertions(created_project_id, project_metadata, now);
 		created_project_id
 	}
@@ -1118,7 +1131,7 @@ where
 		let bidders = bids.accounts();
 		let asset_id = bids[0].asset.to_statemint_id();
 		let prev_plmc_balances = self.get_free_plmc_balances_for(bidders.clone());
-		let prev_funding_asset_balances = self.get_free_statemint_asset_balances_for(asset_id, bidders.clone());
+		let _prev_funding_asset_balances = self.get_free_statemint_asset_balances_for(asset_id, bidders.clone());
 		let plmc_evaluation_deposits: Vec<UserToPLMCBalance<T>> =
 			Self::calculate_evaluation_plmc_spent(evaluations.clone());
 		let plmc_bid_deposits: Vec<UserToPLMCBalance<T>> = Self::calculate_auction_plmc_spent(bids.clone());
@@ -1154,7 +1167,7 @@ where
 			.map(|bid| BidParams::<T>::from(bid.bidder, bid.final_ct_amount, bid.final_ct_usd_price))
 			.collect_vec();
 
-		let bid_expectations = new_bids
+		let _bid_expectations = new_bids
 			.iter()
 			.map(|bid| BidInfoFilter::<T> {
 				final_ct_amount: Some(bid.amount),
@@ -1163,7 +1176,7 @@ where
 			})
 			.collect_vec();
 
-		let total_ct_sold = new_bids.iter().map(|bid| bid.amount).fold(Zero::zero(), |acc, item| item + acc);
+		let _total_ct_sold = new_bids.iter().map(|bid| bid.amount).fold(Zero::zero(), |acc, item| item + acc);
 
 		self.mint_plmc_to(necessary_plmc_mint.clone());
 		self.mint_plmc_to(plmc_existential_deposits.clone());
@@ -1329,7 +1342,7 @@ where
 		let contributors = remainder_contributions.accounts();
 		let asset_id = remainder_contributions[0].asset.to_statemint_id();
 		let prev_plmc_balances = self.get_free_plmc_balances_for(contributors.clone());
-		let prev_funding_asset_balances = self.get_free_statemint_asset_balances_for(asset_id, contributors.clone());
+		let _prev_funding_asset_balances = self.get_free_statemint_asset_balances_for(asset_id, contributors.clone());
 
 		let plmc_evaluation_deposits = Self::calculate_evaluation_plmc_spent(evaluations.clone());
 		let plmc_bid_deposits = Self::calculate_auction_plmc_spent_after_price_calculation(bids.clone(), ct_price);
@@ -1377,11 +1390,11 @@ where
 
 		if self.get_project_details(project_id).status == ProjectStatus::FundingSuccessful {
 			// Check that remaining CTs are updated
-			let project_details = self.get_project_details(project_id);
-			let auction_bought_tokens = bids.iter().map(|bid| bid.amount).fold(Zero::zero(), |acc, item| item + acc);
-			let community_bought_tokens =
+			let _project_details = self.get_project_details(project_id);
+			let _auction_bought_tokens = bids.iter().map(|bid| bid.amount).fold(Zero::zero(), |acc, item| item + acc);
+			let __community_bought_tokens =
 				community_contributions.iter().map(|cont| cont.amount).fold(Zero::zero(), |acc, item| item + acc);
-			let remainder_bought_tokens =
+			let _remainder_bought_tokens =
 				remainder_contributions.iter().map(|cont| cont.amount).fold(Zero::zero(), |acc, item| item + acc);
 
 			// assert_eq!(
@@ -1396,6 +1409,42 @@ where
 
 		project_id
 	}
+
+	pub fn create_project_at(
+		&mut self,
+		status: ProjectStatus,
+		project_metadata: ProjectMetadataOf<T>,
+		issuer: AccountIdOf<T>,
+		evaluations: Vec<UserToUSDBalance<T>>,
+		bids: Vec<BidParams<T>>,
+		community_contributions: Vec<ContributionParams<T>>,
+		remainder_contributions: Vec<ContributionParams<T>>,
+	) -> ProjectIdOf<T> {
+		match status {
+			ProjectStatus::FundingSuccessful => self.create_finished_project(
+				project_metadata,
+				issuer,
+				evaluations,
+				bids,
+				community_contributions,
+				remainder_contributions,
+			),
+			ProjectStatus::RemainderRound => self.create_remainder_contributing_project(
+				project_metadata,
+				issuer,
+				evaluations,
+				bids,
+				community_contributions,
+			),
+			ProjectStatus::CommunityRound =>
+				self.create_community_contributing_project(project_metadata, issuer, evaluations, bids),
+			ProjectStatus::AuctionRound(AuctionPhase::English) =>
+				self.create_auctioning_project(project_metadata, issuer, evaluations),
+			ProjectStatus::EvaluationRound => self.create_evaluating_project(project_metadata, issuer),
+			ProjectStatus::Application => self.create_new_project(project_metadata, issuer),
+			_ => panic!("unsupported project creation in that status"),
+		}
+	}
 }
 
 pub trait Accounts {
@@ -1409,7 +1458,7 @@ pub trait ExistentialDeposits<T: Config> {
 
 impl<T: Config + pallet_balances::Config> ExistentialDeposits<T> for Vec<AccountIdOf<T>>
 where
-	<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
+// <T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 {
 	fn existential_deposits(&self) -> Vec<UserToPLMCBalance<T>> {
 		self.iter()
@@ -1441,7 +1490,12 @@ impl<T: Config> Accounts for Vec<UserToPLMCBalance<T>> {
 	}
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+	feature = "std",
+	serde(rename_all = "camelCase", deny_unknown_fields, bound(serialize = ""), bound(deserialize = ""))
+)]
 pub struct UserToUSDBalance<T: Config> {
 	pub account: AccountIdOf<T>,
 	pub usd_amount: BalanceOf<T>,
@@ -1463,7 +1517,7 @@ impl<T: Config> Accounts for Vec<UserToUSDBalance<T>> {
 	}
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct UserToStatemintAsset<T: Config> {
 	pub account: AccountIdOf<T>,
 	pub asset_amount: BalanceOf<T>,
@@ -1485,7 +1539,12 @@ impl<T: Config> Accounts for Vec<UserToStatemintAsset<T>> {
 		btree.into_iter().collect_vec()
 	}
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+	feature = "std",
+	serde(rename_all = "camelCase", deny_unknown_fields, bound(serialize = ""), bound(deserialize = ""))
+)]
 pub struct BidParams<T: Config> {
 	pub bidder: AccountIdOf<T>,
 	pub amount: BalanceOf<T>,
@@ -1526,7 +1585,12 @@ impl<T: Config> Accounts for Vec<BidParams<T>> {
 	}
 }
 
-#[derive(Clone)]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+	feature = "std",
+	serde(rename_all = "camelCase", deny_unknown_fields, bound(serialize = ""), bound(deserialize = ""))
+)]
 pub struct ContributionParams<T: Config> {
 	pub contributor: AccountIdOf<T>,
 	pub amount: BalanceOf<T>,

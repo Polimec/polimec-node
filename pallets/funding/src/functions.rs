@@ -108,6 +108,12 @@ impl<T: Config> Pallet<T> {
 				evaluators_outcome: EvaluatorsOutcome::Unchanged,
 			},
 			funding_end_block: None,
+			parachain_id: None,
+			migration_readiness_check: None,
+			comm_status: CommStatus {
+				project_to_polimec: ChannelStatus::Closed,
+				polimec_to_project: ChannelStatus::Closed,
+			},
 		};
 		let bucket: BucketOf<T> = Bucket::new(
 			initial_metadata.total_allocation_size.0,
@@ -689,36 +695,6 @@ impl<T: Config> Pallet<T> {
 				token_information.decimals,
 			)?;
 		}
-
-		Ok(())
-	}
-
-	/// Called manually by a user extrinsic
-	/// Marks the project as ready to launch on mainnet, which will in the future start the logic
-	/// to burn the contribution tokens and mint the real tokens the project's chain
-	///
-	/// # Arguments
-	/// * `project_id` - The project identifier
-	///
-	/// # Storage access
-	/// * [`ProjectsDetails`] - Check that the funding round ended, and update the status to ReadyToLaunch
-	///
-	/// # Success Path
-	/// For now it will always succeed as long as the project exists. This functions is a WIP.
-	///
-	///
-	/// # Next step
-	/// WIP
-	pub fn do_ready_to_launch(project_id: &T::ProjectIdentifier) -> Result<(), DispatchError> {
-		// * Get variables *
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-
-		// * Validity checks *
-		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::ProjectNotInFundingEndedRound);
-
-		// Update project Info
-		project_details.status = ProjectStatus::ReadyToLaunch;
-		ProjectsDetails::<T>::insert(project_id, project_details);
 
 		Ok(())
 	}
@@ -1778,6 +1754,62 @@ impl<T: Config> Pallet<T> {
 			caller: caller.clone(),
 		});
 
+		Ok(())
+	}
+
+	pub fn do_set_para_id_for_project(
+		caller: &AccountIdOf<T>,
+		project_id: T::ProjectIdentifier,
+		para_id: ParaId,
+	) -> Result<(), DispatchError> {
+		// * Get variables *
+		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+
+		// * Validity checks *
+		ensure!(&(project_details.issuer) == caller, Error::<T>::NotAllowed);
+
+		// * Update storage *
+		project_details.parachain_id = Some(para_id);
+		ProjectsDetails::<T>::insert(project_id, project_details);
+
+		// * Emit events *
+		Self::deposit_event(Event::ProjectParaIdSet { project_id, para_id, caller: caller.clone() });
+
+		Ok(())
+	}
+
+	pub fn start_migration_readiness_check(
+		caller: &AccountIdOf<T>,
+		project_id: T::ProjectIdentifier,
+	) -> Result<(), DispatchError> {
+		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::NotAllowed);
+		ensure!(
+			project_details.comm_status ==
+				CommStatus { project_to_polimec: ChannelStatus::Open, polimec_to_project: ChannelStatus::Open },
+			Error::<T>::CommsNotEstablished
+		);
+		if project_details.migration_readiness_check.is_none() {
+			ensure!(caller.clone() == T::PalletId::get().into_account_truncating(), Error::<T>::NotAllowed);
+		} else if project_details.migration_readiness_check == Some(MigrationReadinessCheck::CheckFailed) {
+			ensure!(caller == &project_details.issuer, Error::<T>::NotAllowed);
+		}
+
+		project_details.migration_readiness_check = Some(MigrationReadinessCheck::QuerySent);
+		ProjectsDetails::<T>::insert(project_id, project_details);
+
+		// TODO: send message to polimec receiver pallet with query
+
+		Self::deposit_event(Event::<T>::MigrationReadinessCheckStarted { project_id, caller: caller.clone() });
+
+		Ok(())
+	}
+
+	pub fn finish_migration_readiness_check(
+		_caller: ParaId,
+		_project_id: T::ProjectIdentifier,
+		_check_bytes: Vec<u8>,
+	) -> Result<(), DispatchError> {
 		Ok(())
 	}
 }

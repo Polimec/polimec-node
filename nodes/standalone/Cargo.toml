@@ -80,3 +80,20 @@ try-runtime = [
 	"sp-runtime/try-runtime",
 	"try-runtime-cli/try-runtime",
 ]
+std = [
+	"frame-benchmarking/std",
+	"frame-system/std",
+	"pallet-transaction-payment/std",
+	"serde/std",
+	"sp-api/std",
+	"sp-block-builder/std",
+	"sp-consensus-aura/std",
+	"sp-consensus-grandpa/std",
+	"sp-core/std",
+	"sp-inherents/std",
+	"sp-io?/std",
+	"sp-runtime/std"
+]
+testing-node = [
+	"polimec-standalone-runtime/testing-node"
+]

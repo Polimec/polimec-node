@@ -95,6 +95,8 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 		"base-rococo-local" => Box::new(chain_spec::base::get_local_base_chain_spec()?),
 		"base-polkadot" => Box::new(chain_spec::base::get_polkadot_base_chain_spec()?),
 		// Testnet runtime
+		#[cfg(all(feature = "testing-node", feature = "std"))]
+		"polimec-testing" => Box::new(chain_spec::testnet::get_chain_spec_testing()?),
 		"polimec-rococo-local" => Box::new(chain_spec::testnet::get_chain_spec_dev()?),
 		"polimec-polkadot" => Box::new(chain_spec::testnet::get_prod_chain_spec()?),
 		// -- Fallback (generic chainspec)

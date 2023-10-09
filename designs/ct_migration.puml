@@ -1,0 +1,24 @@
+@startuml
+Issuer -> "Galaxy": Add Polimec receiver pallet
+
+Issuer -> "Galaxy": Sudo - HRMP channel request
+Galaxy --> Relay: Init open channel to Polimec
+
+Galaxy -> Polimec: Specify Galaxy chain spec (paraId) and notify about HRMP request on relay
+Polimec --> Relay: Accept HRMP request
+
+Polimec -> Relay: Init open channel to Galaxy
+Issuer --> "Galaxy": Sudo - HRMP channel accept
+Galaxy --> Relay: Accept HRMP request
+
+Issuer -> Polimec: Start migration availability check
+Polimec --> Galaxy: query receiver pallet exists and is correct & there are enough funds on Polimec sovereign account
+Galaxy --> Polimec: Confirmation
+Polimec --> Issuer: Migration ready
+
+Issuer -> Polimec: Start migration
+loop for every CT holder
+    Polimec --> Galaxy: Tell receiver pallet: account, amount, vesting info
+    Galaxy --> Galaxy: Start CT Vesting for that user
+end
+@enduml

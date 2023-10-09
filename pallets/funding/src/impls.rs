@@ -321,7 +321,7 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 					}),
 				};
 
-				return Ok((base_weight.saturating_add(T::WeightInfo::evaluation_reward_payout_for()), remaining))
+				return Ok((base_weight.saturating_add(WeightInfoOf::<T>::evaluation_reward_payout_for()), remaining))
 			},
 			EvaluatorsOutcome::Slashed => {
 				match Pallet::<T>::do_evaluation_slash_for(
@@ -339,7 +339,7 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 					}),
 				};
 
-				return Ok((base_weight.saturating_add(T::WeightInfo::evaluation_slash_for()), remaining))
+				return Ok((base_weight.saturating_add(WeightInfoOf::<T>::evaluation_slash_for()), remaining))
 			},
 			_ => {
 				#[cfg(debug_assertions)]
@@ -373,7 +373,7 @@ fn unbond_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> (Weight
 				error: e,
 			}),
 		};
-		(base_weight.saturating_add(T::WeightInfo::evaluation_unbond_for()), evaluation_count.saturating_sub(1u64))
+		(base_weight.saturating_add(WeightInfoOf::<T>::evaluation_unbond_for()), evaluation_count.saturating_sub(1u64))
 	} else {
 		(base_weight, 0u64)
 	}
@@ -400,7 +400,7 @@ fn release_funds_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight
 			}),
 		};
 
-		(base_weight.saturating_add(T::WeightInfo::release_bid_funds_for()), remaining_bids.count() as u64)
+		(base_weight.saturating_add(WeightInfoOf::<T>::release_bid_funds_for()), remaining_bids.count() as u64)
 	} else {
 		(base_weight, 0u64)
 	}
@@ -426,7 +426,7 @@ fn unbond_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) 
 				error: e,
 			}),
 		};
-		(base_weight.saturating_add(T::WeightInfo::bid_unbond_for()), remaining_bids.count() as u64)
+		(base_weight.saturating_add(WeightInfoOf::<T>::bid_unbond_for()), remaining_bids.count() as u64)
 	} else {
 		(base_weight, 0u64)
 	}
@@ -454,7 +454,7 @@ fn release_funds_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -
 		};
 
 		(
-			base_weight.saturating_add(T::WeightInfo::release_contribution_funds_for()),
+			base_weight.saturating_add(WeightInfoOf::<T>::release_contribution_funds_for()),
 			remaining_contributions.count() as u64,
 		)
 	} else {
@@ -484,7 +484,10 @@ fn unbond_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weig
 				error: e,
 			}),
 		};
-		(base_weight.saturating_add(T::WeightInfo::contribution_unbond_for()), remaining_contributions.count() as u64)
+		(
+			base_weight.saturating_add(WeightInfoOf::<T>::contribution_unbond_for()),
+			remaining_contributions.count() as u64,
+		)
 	} else {
 		(base_weight, 0u64)
 	}
@@ -516,7 +519,10 @@ fn start_one_bid_vesting_schedule<T: Config>(project_id: T::ProjectIdentifier) -
 				});
 			},
 		}
-		(base_weight.saturating_add(T::WeightInfo::start_bid_vesting_schedule_for()), unscheduled_bids.count() as u64)
+		(
+			base_weight.saturating_add(WeightInfoOf::<T>::start_bid_vesting_schedule_for()),
+			unscheduled_bids.count() as u64,
+		)
 	} else {
 		(base_weight, 0u64)
 	}
@@ -545,7 +551,7 @@ fn start_one_contribution_vesting_schedule<T: Config>(project_id: T::ProjectIden
 			},
 		}
 		(
-			base_weight.saturating_add(T::WeightInfo::start_contribution_vesting_schedule_for()),
+			base_weight.saturating_add(WeightInfoOf::<T>::start_contribution_vesting_schedule_for()),
 			unscheduled_contributions.count() as u64,
 		)
 	} else {
@@ -574,7 +580,7 @@ fn mint_ct_for_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, 
 				error: e,
 			}),
 		};
-		(base_weight.saturating_add(T::WeightInfo::bid_ct_mint_for()), remaining_bids.count() as u64)
+		(base_weight.saturating_add(WeightInfoOf::<T>::bid_ct_mint_for()), remaining_bids.count() as u64)
 	} else {
 		(base_weight, 0u64)
 	}
@@ -600,7 +606,10 @@ fn mint_ct_for_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> 
 				error: e,
 			}),
 		};
-		(base_weight.saturating_add(T::WeightInfo::contribution_ct_mint_for()), remaining_contributions.count() as u64)
+		(
+			base_weight.saturating_add(WeightInfoOf::<T>::contribution_ct_mint_for()),
+			remaining_contributions.count() as u64,
+		)
 	} else {
 		(base_weight, 0u64)
 	}
@@ -629,7 +638,7 @@ fn issuer_funding_payout_one_bid<T: Config>(project_id: T::ProjectIdentifier) ->
 				error: e,
 			}),
 		};
-		(base_weight.saturating_add(T::WeightInfo::payout_bid_funds_for()), remaining_bids.count() as u64)
+		(base_weight.saturating_add(WeightInfoOf::<T>::payout_bid_funds_for()), remaining_bids.count() as u64)
 	} else {
 		(base_weight, 0u64)
 	}
@@ -658,7 +667,7 @@ fn issuer_funding_payout_one_contribution<T: Config>(project_id: T::ProjectIdent
 		};
 
 		(
-			base_weight.saturating_add(T::WeightInfo::payout_contribution_funds_for()),
+			base_weight.saturating_add(WeightInfoOf::<T>::payout_contribution_funds_for()),
 			remaining_contributions.count() as u64,
 		)
 	} else {
