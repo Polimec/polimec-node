@@ -741,7 +741,7 @@ where
 					(
 						Some(UserToPLMCBalance { account: acc_i, plmc_amount: val_i }),
 						Some(UserToPLMCBalance { account: acc_j, plmc_amount: val_j }),
-					) =>
+					) => {
 						if acc_i == acc_j {
 							output.push(UserToPLMCBalance::new(
 								acc_i.clone(),
@@ -756,7 +756,8 @@ where
 							// uncomment to keep unmatched maps
 							// output.push(map[j]);
 							j += 1;
-						},
+						}
+					},
 				}
 			}
 		}
