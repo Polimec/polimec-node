@@ -18,6 +18,8 @@ use frame_support::{
 	Parameter,
 };
 
+use sp_arithmetic::Perquintill;
+
 use itertools::Itertools;
 use parity_scale_codec::Decode;
 use sp_arithmetic::{
@@ -40,9 +42,9 @@ use sp_std::{
 use crate::{
 	traits::{BondingRequirementCalculation, ProvideStatemintPrice},
 	AcceptedFundingAsset, AccountIdOf, AssetIdOf, AuctionPhase, BalanceOf, BidInfoOf, BidStatus, Bids, BlockNumberOf,
-	BlockNumberPair, Cleaner, Config, Contributions, Error, EvaluationRoundInfoOf, EvaluatorsOutcome, Event, LockType,
+	BlockNumberPair, Cleaner, Config, Contributions, Error, EvaluationInfoOf, EvaluationRoundInfoOf, EvaluatorsOutcome, Event, LockType,
 	MultiplierOf, PhaseTransitionPoints, PriceOf, ProjectDetailsOf, ProjectIdOf, ProjectMetadataOf, ProjectStatus,
-	ProjectsDetails, ProjectsMetadata, ProjectsToUpdate, UpdateType, VestingInfoOf, PLMC_STATEMINT_ID,
+	ProjectsDetails, ProjectsMetadata, ProjectsToUpdate, UpdateType, VestingInfoOf, PLMC_STATEMINT_ID, RewardInfoOf,
 };
 
 pub use testing_macros::*;
@@ -147,6 +149,21 @@ where
 				balances.push(UserToStatemintAsset { account, asset_amount, asset_id });
 			}
 			balances.sort_by(|a, b| a.account.cmp(&b.account));
+			balances
+		})
+	}
+
+	pub fn get_ct_asset_balances_for(
+		&mut self,
+		project_id: ProjectIdOf<T>,
+		user_keys: Vec<AccountIdOf<T>>,
+	) -> Vec<BalanceOf<T>> {
+		self.execute(|| {
+			let mut balances: Vec<BalanceOf<T>> = Vec::new();
+			for account in user_keys {
+				let asset_amount = <T as Config>::ContributionTokenCurrency::balance(project_id.into(), &account);
+				balances.push(asset_amount);
+			}
 			balances
 		})
 	}
@@ -879,6 +896,19 @@ where
 		}
 		balances
 	}
+
+	pub fn calculate_total_reward_for_evaluation(evaluation: EvaluationInfoOf<T>, reward_info: RewardInfoOf<T>) -> BalanceOf<T> {
+		let early_reward_weight =
+		Perquintill::from_rational(evaluation.early_usd_amount, reward_info.early_evaluator_total_bonded_usd);
+		let normal_reward_weight = Perquintill::from_rational(
+			evaluation.late_usd_amount.saturating_add(evaluation.early_usd_amount),
+			reward_info.normal_evaluator_total_bonded_usd,
+		);
+		let early_evaluators_rewards = early_reward_weight * reward_info.early_evaluator_reward_pot;
+		let normal_evaluators_rewards = normal_reward_weight * reward_info.normal_evaluator_reward_pot;
+		let total_reward_amount = early_evaluators_rewards.saturating_add(normal_evaluators_rewards);
+		total_reward_amount.into()
+	}
 }
 
 // project chain interactions
@@ -1450,7 +1480,6 @@ impl<T: Config> Accounts for Vec<UserToStatemintAsset<T>> {
 		btree.into_iter().collect_vec()
 	}
 }
-
 #[derive(Clone, Debug)]
 pub struct BidParams<T: Config> {
 	pub bidder: AccountIdOf<T>,

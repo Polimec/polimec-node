@@ -22,8 +22,9 @@
 
 use super::*;
 use crate::instantiator::*;
+use polimec_traits::ReleaseSchedule;
 use frame_benchmarking::v2::*;
-use frame_support::{dispatch::RawOrigin, traits::OriginTrait, Parameter};
+use frame_support::{dispatch::RawOrigin, traits::{OriginTrait, fungibles::Inspect}, Parameter};
 #[allow(unused_imports)]
 use pallet::Pallet as PalletFunding;
 use scale_info::prelude::format;
@@ -714,209 +715,321 @@ mod benchmarks {
 			project_id,
 			evaluator.clone(),
 			evaluation_to_unbond.id,
-		)
+		);
 
 		// * validity checks *
 		// Storage
+		let stored_evaluation = Evaluations::<T>::get((project_id, evaluator.clone(), evaluation_to_unbond.id)).unwrap();
+		assert!(stored_evaluation.rewarded_or_slashed);
+		let slashed_amount = T::EvaluatorSlash::get() * evaluation_to_unbond.original_plmc_bond;
+		let current_plmc_bond = evaluation_to_unbond.current_plmc_bond
+			.saturating_sub(slashed_amount);
+		assert_eq!(stored_evaluation.current_plmc_bond, current_plmc_bond);
 
 		// Balance
+		let treasury_account = T::TreasuryAccount::get();
+		let bonded_plmc = inst.get_reserved_plmc_balances_for(vec![evaluator.clone()], LockType::Evaluation(project_id))[0].plmc_amount;
+		assert_eq!(bonded_plmc, stored_evaluation.current_plmc_bond);
+		let free_treasury_plmc = inst.get_free_plmc_balances_for(vec![treasury_account.clone()])[0].plmc_amount;
+		assert_eq!(free_treasury_plmc, slashed_amount);
 
 		// Events
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::EvaluationSlashed {
+				project_id,
+				evaluator: evaluator.clone(),
+				id: stored_evaluation.id,
+				amount: slashed_amount,
+				caller: evaluator.clone(),
+			}.into()
+		);
 	}
-	//
-	// #[benchmark]
-	// fn evaluation_reward_payout_for() {
-	// 	// setup
-	// 	let mut inst = BenchInstantiator::<T>::new(None);
-	// 	// real benchmark starts at block 0, and we can't call `events()` at block 0
-	// 	inst.advance_time(1u32.into()).unwrap();
-	//
-	// 	let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-	// 	let evaluations = default_evaluations::<T>();
-	// 	let evaluator = evaluations[0].account.clone();
-	// 	whitelist_account!(evaluator);
-	//
-	// 	let project_id = inst.create_finished_project(
-	// 		default_project::<T>(inst.get_new_nonce(), issuer.clone()),
-	// 		issuer,
-	// 		evaluations,
-	// 		default_bids::<T>(),
-	// 		default_community_contributions::<T>(),
-	// 		vec![],
-	// 	);
-	//
-	// 	inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
-	// 	assert_eq!(
-	// 		inst.get_project_details(project_id).cleanup,
-	// 		Cleaner::Success(CleanerState::Initialized(PhantomData))
-	// 	);
-	//
-	// 	let evaluation_to_unbond =
-	// 		inst.execute(|| Evaluations::<T>::iter_prefix_values((project_id, evaluator.clone())).next().unwrap());
-	//
-	// 	#[extrinsic_call]
-	// 	evaluation_reward_payout_for(
-	// 		RawOrigin::Signed(evaluator.clone()),
-	// 		project_id,
-	// 		evaluator.clone(),
-	// 		evaluation_to_unbond.id,
-	// 	)
-	//
-	// 	// validity checks
-	// }
-	//
-	// #[benchmark]
-	// fn bid_ct_mint_for() {
-	// 	// setup
-	// 	let mut inst = BenchInstantiator::<T>::new(None);
-	// 	// real benchmark starts at block 0, and we can't call `events()` at block 0
-	// 	inst.advance_time(1u32.into()).unwrap();
-	//
-	// 	let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-	// 	let bids = default_bids::<T>();
-	// 	let bidder = bids[0].bidder.clone();
-	// 	whitelist_account!(bidder);
-	//
-	// 	let project_id = inst.create_finished_project(
-	// 		default_project::<T>(inst.get_new_nonce(), issuer.clone()),
-	// 		issuer,
-	// 		default_evaluations::<T>(),
-	// 		bids,
-	// 		default_community_contributions::<T>(),
-	// 		vec![],
-	// 	);
-	//
-	// 	inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
-	// 	assert_eq!(
-	// 		inst.get_project_details(project_id).cleanup,
-	// 		Cleaner::Success(CleanerState::Initialized(PhantomData))
-	// 	);
-	//
-	// 	let bid_to_mint_ct =
-	// 		inst.execute(|| Bids::<T>::iter_prefix_values((project_id, bidder.clone())).next().unwrap());
-	//
-	// 	#[extrinsic_call]
-	// 	bid_ct_mint_for(RawOrigin::Signed(bidder.clone()), project_id, bidder.clone(), bid_to_mint_ct.id)
-	//
-	// 	// validity checks
-	// }
-	//
-	// #[benchmark]
-	// fn contribution_ct_mint_for() {
-	// 	// setup
-	// 	let mut inst = BenchInstantiator::<T>::new(None);
-	// 	// real benchmark starts at block 0, and we can't call `events()` at block 0
-	// 	inst.advance_time(1u32.into()).unwrap();
-	//
-	// 	let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-	// 	let contributions = default_community_contributions::<T>();
-	// 	let contributor = contributions[0].contributor.clone();
-	// 	whitelist_account!(contributor);
-	//
-	// 	let project_id = inst.create_finished_project(
-	// 		default_project::<T>(inst.get_new_nonce(), issuer.clone()),
-	// 		issuer,
-	// 		default_evaluations::<T>(),
-	// 		default_bids::<T>(),
-	// 		contributions,
-	// 		vec![],
-	// 	);
-	//
-	// 	inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
-	// 	assert_eq!(
-	// 		inst.get_project_details(project_id).cleanup,
-	// 		Cleaner::Success(CleanerState::Initialized(PhantomData))
-	// 	);
-	//
-	// 	let contribution_to_mint_ct =
-	// 		inst.execute(|| Contributions::<T>::iter_prefix_values((project_id, contributor.clone())).next().unwrap());
-	//
-	// 	#[extrinsic_call]
-	// 	contribution_ct_mint_for(
-	// 		RawOrigin::Signed(contributor.clone()),
-	// 		project_id,
-	// 		contributor.clone(),
-	// 		contribution_to_mint_ct.id,
-	// 	)
-	//
-	// 	// validity checks
-	// }
-	//
-	// #[benchmark]
-	// fn start_bid_vesting_schedule_for() {
-	// 	// setup
-	// 	let mut inst = BenchInstantiator::<T>::new(None);
-	// 	// real benchmark starts at block 0, and we can't call `events()` at block 0
-	// 	inst.advance_time(1u32.into()).unwrap();
-	//
-	// 	let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-	// 	let bids = default_bids::<T>();
-	// 	let bidder = bids[0].bidder.clone();
-	// 	whitelist_account!(bidder);
-	//
-	// 	let project_id = inst.create_finished_project(
-	// 		default_project::<T>(inst.get_new_nonce(), issuer.clone()),
-	// 		issuer,
-	// 		default_evaluations::<T>(),
-	// 		bids,
-	// 		default_community_contributions::<T>(),
-	// 		vec![],
-	// 	);
-	//
-	// 	inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
-	// 	assert_eq!(
-	// 		inst.get_project_details(project_id).cleanup,
-	// 		Cleaner::Success(CleanerState::Initialized(PhantomData))
-	// 	);
-	//
-	// 	let stored_bid = inst.execute(|| Bids::<T>::iter_prefix_values((project_id, bidder.clone())).next().unwrap());
-	//
-	// 	#[extrinsic_call]
-	// 	start_bid_vesting_schedule_for(RawOrigin::Signed(bidder.clone()), project_id, bidder.clone(), stored_bid.id)
-	//
-	// 	// validity checks
-	// }
-	//
-	// #[benchmark]
-	// fn start_contribution_vesting_schedule_for() {
-	// 	// setup
-	// 	let mut inst = BenchInstantiator::<T>::new(None);
-	// 	// real benchmark starts at block 0, and we can't call `events()` at block 0
-	// 	inst.advance_time(1u32.into()).unwrap();
-	//
-	// 	let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-	// 	let contributions = default_community_contributions::<T>();
-	// 	let contributor = contributions[0].contributor.clone();
-	// 	whitelist_account!(contributor);
-	//
-	// 	let project_id = inst.create_finished_project(
-	// 		default_project::<T>(inst.get_new_nonce(), issuer.clone()),
-	// 		issuer,
-	// 		default_evaluations::<T>(),
-	// 		default_bids::<T>(),
-	// 		contributions,
-	// 		vec![],
-	// 	);
-	//
-	// 	inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
-	// 	assert_eq!(
-	// 		inst.get_project_details(project_id).cleanup,
-	// 		Cleaner::Success(CleanerState::Initialized(PhantomData))
-	// 	);
-	//
-	// 	let stored_contribution =
-	// 		inst.execute(|| Contributions::<T>::iter_prefix_values((project_id, contributor.clone())).next().unwrap());
-	//
-	// 	#[extrinsic_call]
-	// 	start_contribution_vesting_schedule_for(
-	// 		RawOrigin::Signed(contributor.clone()),
-	// 		project_id,
-	// 		contributor.clone(),
-	// 		stored_contribution.id,
-	// 	)
-	//
-	// 	// validity checks
-	// }
+
+	#[benchmark]
+	fn evaluation_reward_payout_for() {
+		// setup
+		let mut inst = BenchInstantiator::<T>::new(None);
+		// real benchmark starts at block 0, and we can't call `events()` at block 0
+		inst.advance_time(1u32.into()).unwrap();
+	
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+		let evaluations = default_evaluations::<T>();
+		let evaluator = evaluations[0].account.clone();
+		whitelist_account!(evaluator);
+	
+		let project_id = inst.create_finished_project(
+			default_project::<T>(inst.get_new_nonce(), issuer.clone()),
+			issuer,
+			evaluations,
+			default_bids::<T>(),
+			default_community_contributions::<T>(),
+			vec![],
+		);
+	
+		inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
+		assert_eq!(
+			inst.get_project_details(project_id).cleanup,
+			Cleaner::Success(CleanerState::Initialized(PhantomData))
+		);
+	
+		let evaluation_to_unbond =
+			inst.execute(|| Evaluations::<T>::iter_prefix_values((project_id, evaluator.clone())).next().unwrap());
+	
+		#[extrinsic_call]
+		evaluation_reward_payout_for(
+			RawOrigin::Signed(evaluator.clone()),
+			project_id,
+			evaluator.clone(),
+			evaluation_to_unbond.id,
+		);
+	
+		// * validity checks *
+		// Storage
+		let stored_evaluation = Evaluations::<T>::get((project_id, evaluator.clone(), evaluation_to_unbond.id)).unwrap();
+		assert!(stored_evaluation.rewarded_or_slashed);
+
+		// Balances
+		let project_details = ProjectsDetails::<T>::get(project_id).unwrap();
+		let reward_info = match project_details.evaluation_round_info.evaluators_outcome {
+			EvaluatorsOutcome::Rewarded(reward_info) => reward_info,
+			_ => panic!("EvaluatorsOutcome should be Rewarded")
+		};
+		let total_reward = BenchInstantiator::<T>::calculate_total_reward_for_evaluation(stored_evaluation.clone(), reward_info);
+		let ct_amount = inst.get_ct_asset_balances_for(project_id, vec![evaluator.clone()])[0];
+		assert_eq!(ct_amount, total_reward);
+		
+		// Events
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::EvaluationRewarded {
+				project_id,
+				evaluator: evaluator.clone(),
+				id: stored_evaluation.id,
+				amount: total_reward,
+				caller: evaluator.clone(),
+			}.into()
+		);
+	}
+	
+	#[benchmark]
+	fn bid_ct_mint_for() {
+		// setup
+		let mut inst = BenchInstantiator::<T>::new(None);
+		// real benchmark starts at block 0, and we can't call `events()` at block 0
+		inst.advance_time(1u32.into()).unwrap();
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+		let bids = default_bids::<T>();
+		let bidder = bids[0].bidder.clone();
+		whitelist_account!(bidder);
+	
+		let project_id = inst.create_finished_project(
+			default_project::<T>(inst.get_new_nonce(), issuer.clone()),
+			issuer,
+			default_evaluations::<T>(),
+			bids,
+			default_community_contributions::<T>(),
+			vec![],
+		);
+
+		inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
+		assert_eq!(
+			inst.get_project_details(project_id).cleanup,
+			Cleaner::Success(CleanerState::Initialized(PhantomData))
+		);
+
+		let bid_to_mint_ct =
+			inst.execute(|| Bids::<T>::iter_prefix_values((project_id, bidder.clone())).next().unwrap());
+
+		#[extrinsic_call]
+		bid_ct_mint_for(RawOrigin::Signed(bidder.clone()), project_id, bidder.clone(), bid_to_mint_ct.id);
+
+		// * validity checks *
+		// Storage
+		let stored_bid = Bids::<T>::get((project_id, bidder.clone(), bid_to_mint_ct.id)).unwrap();
+		assert!(stored_bid.ct_minted);
+
+		// Balances
+		let ct_amount = inst.get_ct_asset_balances_for(project_id, vec![bidder.clone()])[0];
+		assert_eq!(stored_bid.final_ct_amount, ct_amount);
+
+		// Events
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::ContributionTokenMinted {
+				releaser: bidder.clone(),
+				project_id: project_id,
+				claimer: bidder.clone(),
+				amount: ct_amount,
+			}.into()
+		);
+	}
+
+	#[benchmark]
+	fn contribution_ct_mint_for() {
+		// setup
+		let mut inst = BenchInstantiator::<T>::new(None);
+		// real benchmark starts at block 0, and we can't call `events()` at block 0
+		inst.advance_time(1u32.into()).unwrap();
+	
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+		let contributions = default_community_contributions::<T>();
+		let contributor = contributions[0].contributor.clone();
+		whitelist_account!(contributor);
+	
+		let project_id = inst.create_finished_project(
+			default_project::<T>(inst.get_new_nonce(), issuer.clone()),
+			issuer,
+			default_evaluations::<T>(),
+			default_bids::<T>(),
+			contributions,
+			vec![],
+		);
+	
+		inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
+		assert_eq!(
+			inst.get_project_details(project_id).cleanup,
+			Cleaner::Success(CleanerState::Initialized(PhantomData))
+		);
+	
+		let contribution_to_mint_ct =
+			inst.execute(|| Contributions::<T>::iter_prefix_values((project_id, contributor.clone())).next().unwrap());
+	
+		#[extrinsic_call]
+		contribution_ct_mint_for(
+			RawOrigin::Signed(contributor.clone()),
+			project_id,
+			contributor.clone(),
+			contribution_to_mint_ct.id,
+		);
+
+		// * validity checks *
+		// Storage
+		let stored_contribution = Contributions::<T>::get((project_id, contributor.clone(), contribution_to_mint_ct.id)).unwrap();
+		assert!(stored_contribution.ct_minted);
+
+		// Balances
+		let ct_amount = inst.get_ct_asset_balances_for(project_id, vec![contributor.clone()])[0];
+		assert_eq!(stored_contribution.ct_amount, ct_amount);
+
+		// Events
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::ContributionTokenMinted {
+				releaser: contributor.clone(),
+				project_id: project_id,
+				claimer: contributor.clone(),
+				amount: ct_amount,
+			}.into()
+		);
+	}
+
+	#[benchmark]
+	fn start_bid_vesting_schedule_for() {
+		// setup
+		let mut inst = BenchInstantiator::<T>::new(None);
+		// real benchmark starts at block 0, and we can't call `events()` at block 0
+		inst.advance_time(1u32.into()).unwrap();
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+		let bids = default_bids::<T>();
+		let bidder = bids[0].bidder.clone();
+		whitelist_account!(bidder);
+
+		let project_id = inst.create_finished_project(
+			default_project::<T>(inst.get_new_nonce(), issuer.clone()),
+			issuer,
+			default_evaluations::<T>(),
+			bids,
+			default_community_contributions::<T>(),
+			vec![],
+		);
+
+		inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
+		assert_eq!(
+			inst.get_project_details(project_id).cleanup,
+			Cleaner::Success(CleanerState::Initialized(PhantomData))
+		);
+	
+		let bid_to_vest = inst.execute(|| Bids::<T>::iter_prefix_values((project_id, bidder.clone())).next().unwrap());
+	
+		#[extrinsic_call]
+		start_bid_vesting_schedule_for(RawOrigin::Signed(bidder.clone()), project_id, bidder.clone(), bid_to_vest.id);
+	
+		// * validity checks *
+		// Storage
+		let stored_bid = Bids::<T>::get((project_id, bidder.clone(), bid_to_vest.id)).unwrap();
+		assert!(stored_bid.plmc_vesting_info.is_some());
+		let vest_info = stored_bid.plmc_vesting_info.unwrap();
+		let total_vested = T::Vesting::total_scheduled_amount(&bidder, LockType::Participation(project_id)).unwrap();
+		assert_eq!(vest_info.total_amount, total_vested);
+		
+		// Events
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::BidPlmcVestingScheduled {
+				project_id,
+				bidder: bidder.clone(),
+				id: stored_bid.id,
+				amount: vest_info.total_amount,
+				caller: bidder.clone(),
+			}.into()
+		);
+	}
+
+	#[benchmark]
+	fn start_contribution_vesting_schedule_for() {
+		// setup
+		let mut inst = BenchInstantiator::<T>::new(None);
+		// real benchmark starts at block 0, and we can't call `events()` at block 0
+		inst.advance_time(1u32.into()).unwrap();
+	
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+		let contributions = default_community_contributions::<T>();
+		let contributor = contributions[0].contributor.clone();
+		whitelist_account!(contributor);
+	
+		let project_id = inst.create_finished_project(
+			default_project::<T>(inst.get_new_nonce(), issuer.clone()),
+			issuer,
+			default_evaluations::<T>(),
+			default_bids::<T>(),
+			contributions,
+			vec![],
+		);
+
+		inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
+		assert_eq!(
+			inst.get_project_details(project_id).cleanup,
+			Cleaner::Success(CleanerState::Initialized(PhantomData))
+		);
+
+		let contribution_to_vest =
+			inst.execute(|| Contributions::<T>::iter_prefix_values((project_id, contributor.clone())).next().unwrap());
+
+		#[extrinsic_call]
+		start_contribution_vesting_schedule_for(
+			RawOrigin::Signed(contributor.clone()),
+			project_id,
+			contributor.clone(),
+			contribution_to_vest.id,
+		);
+
+		// * validity checks *
+		// Storage
+		let stored_contribution = Contributions::<T>::get((project_id, contributor.clone(), contribution_to_vest.id)).unwrap();
+		assert!(stored_contribution.plmc_vesting_info.is_some());
+		let vest_info = stored_contribution.plmc_vesting_info.unwrap();
+		let total_vested = T::Vesting::total_scheduled_amount(&contributor, LockType::Participation(project_id)).unwrap();
+		assert_eq!(vest_info.total_amount, total_vested);
+
+		// Events
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::ContributionPlmcVestingScheduled {
+				project_id,
+				contributor: contributor.clone(),
+				id: stored_contribution.id,
+				amount: vest_info.total_amount,
+				caller: contributor.clone(),
+			}.into()
+		);
+	}
 	//
 	// #[benchmark]
 	// fn payout_bid_funds_for() {
