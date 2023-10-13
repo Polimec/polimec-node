@@ -16,6 +16,7 @@
 
 use crate::{currency::US_DOLLAR, Balance, BlockNumber, DAYS};
 use frame_support::{parameter_types, PalletId};
+use pallet_funding::types::AcceptedFundingAsset;
 use parachains_common::AssetIdForTrustBackedAssets;
 use sp_arithmetic::{FixedU128, Percent};
 use sp_std::{collections::btree_map::BTreeMap, vec, vec::Vec};
@@ -77,10 +78,10 @@ parameter_types! {
 	pub const SuccessToSettlementTime: BlockNumber = SUCCESS_TO_SETTLEMENT_TIME;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 	pub PriceMap: BTreeMap<AssetIdForTrustBackedAssets, FixedU128> = BTreeMap::from_iter(vec![
-		(0u32, FixedU128::from_rational(69, 1)), // DOT
-		(420u32, FixedU128::from_rational(97, 100)), // USDC
-		(1984u32, FixedU128::from_rational(95, 100)), // USDT
-		(2069u32, FixedU128::from_rational(840, 100)), // PLMC
+		(AcceptedFundingAsset::DOT.to_statemint_id(), FixedU128::from_rational(69, 1)), // DOT
+		(AcceptedFundingAsset::USDC.to_statemint_id(), FixedU128::from_rational(97, 100)), // USDC
+		(AcceptedFundingAsset::USDT.to_statemint_id(), FixedU128::from_rational(95, 100)), // USDT
+		(pallet_funding::PLMC_STATEMINT_ID, FixedU128::from_rational(840, 100)), // PLMC
 	]);
 	pub FeeBrackets: Vec<(Percent, Balance)> = vec![
 		(Percent::from_percent(10), 1_000_000 * US_DOLLAR),

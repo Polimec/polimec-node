@@ -21,6 +21,7 @@ frame-support.workspace = true
 sp-arithmetic.workspace = true
 parachains-common.workspace = true
 sp-std.workspace = true
+pallet-funding.workspace = true
 
 [features]
 default = [ "std" ]

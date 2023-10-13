@@ -55,10 +55,14 @@ use super::{
 	ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, StatemintAssets, WeightToFee,
 	XcmpQueue,
 };
-
+// TODO: Check these numbers
 const DOT_ASSET_ID: AssetId = Concrete(RelayLocation::get());
 const DOT_PER_SECOND_EXECUTION: u128 = 0_0_000_001_000; // 0.0000001 DOT per second of execution time
 const DOT_PER_MB_PROOF: u128 = 0_0_000_001_000; // 0.0000001 DOT per Megabyte of proof size
+
+const USDT_ASSET_ID: AssetId =
+	Concrete(MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1984)) });
+const USDT_PER_SECOND_EXECUTION: u128 = 0_0_000_001_000; // 0.0000001 USDT per second of execution time
 
 parameter_types! {
 	pub const RelayLocation: MultiLocation = MultiLocation::parent();
@@ -71,6 +75,7 @@ parameter_types! {
 	pub const HereLocation: MultiLocation = MultiLocation::here();
 
 	pub const DotTraderParams: (AssetId, u128, u128) = (DOT_ASSET_ID, DOT_PER_SECOND_EXECUTION, DOT_PER_MB_PROOF);
+	pub const UsdtTraderParams: (AssetId, u128, u128) = (USDT_ASSET_ID, DOT_PER_SECOND_EXECUTION, DOT_PER_MB_PROOF);
 }
 
 /// Type for specifying how a `MultiLocation` can be converted into an `AccountId`. This is used
@@ -126,7 +131,8 @@ pub struct NativeToFungible;
 impl Convert<MultiLocation, AssetIdPalletAssets> for NativeToFungible {
 	fn convert(asset: MultiLocation) -> Result<AssetIdPalletAssets, MultiLocation> {
 		match asset {
-			MultiLocation { parents: 1, interior: Here } => Ok(0u32),
+			MultiLocation { parents: 1, interior: Here } =>
+				Ok(pallet_funding::types::AcceptedFundingAsset::DOT.to_statemint_id()),
 			_ => Err(asset),
 		}
 	}
@@ -176,7 +182,7 @@ pub type StatemintDotTransactor = FungiblesAdapter<
 >;
 
 /// Means for transacting assets on this chain.
-pub type AssetTransactors = (CurrencyTransactor, StatemintDotTransactor, StatemintFungiblesTransactor);
+pub type AssetTransactors = (StatemintDotTransactor, CurrencyTransactor, StatemintFungiblesTransactor);
 
 /// This is the type we use to convert an (incoming) XCM origin into a local `Origin` instance,
 /// ready for dispatching a transaction with Xcm's `Transact`. There is an `OriginKind` which can
@@ -253,7 +259,11 @@ impl ContainsPair<MultiAsset, MultiLocation> for StatemintAssetsFilter {
 		&loc == origin &&
 			match asset {
 				MultiAsset {
-					id: Concrete(MultiLocation { parents: 0, interior: X2(PalletInstance(50), GeneralIndex(_)) }),
+					id:
+						Concrete(MultiLocation {
+							parents: 1,
+							interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(_)),
+						}),
 					..
 				} => true,
 				MultiAsset { id: Concrete(MultiLocation { parents: 1, interior: Here }), .. } => true,
@@ -375,6 +385,7 @@ impl xcm_executor::Config for XcmConfig {
 	type Trader = (
 		// TODO: weight to fee has to be carefully considered. For now use default
 		UsingComponents<WeightToFee, HereLocation, AccountId, Balances, ToAuthor<Runtime>>,
+		FixedRateOfFungible<UsdtTraderParams, ()>,
 		FixedRateOfFungible<DotTraderParams, ()>,
 	);
 	type UniversalAliases = Nothing;

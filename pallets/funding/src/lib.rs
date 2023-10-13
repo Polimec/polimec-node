@@ -243,7 +243,7 @@ pub type ContributionInfoOf<T> =
 pub type BucketOf<T> = Bucket<BalanceOf<T>, PriceOf<T>>;
 pub type BondTypeOf<T> = LockType<ProjectIdOf<T>>;
 
-const PLMC_STATEMINT_ID: u32 = 2069;
+pub const PLMC_STATEMINT_ID: u32 = 2069;
 
 #[frame_support::pallet]
 pub mod pallet {

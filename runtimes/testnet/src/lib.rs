@@ -58,7 +58,7 @@ use sp_version::RuntimeVersion;
 // XCM Imports
 pub use xcm_config::XcmConfig;
 use xcm_executor::XcmExecutor;
-mod xcm_config;
+pub mod xcm_config;
 pub use crate::xcm_config::*;
 
 // Make the WASM binary available.
