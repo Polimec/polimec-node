@@ -730,6 +730,10 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 			caller: AccountIdOf<T>,
 		},
+		ProjectOutcomeDecided {
+			project_id: ProjectIdOf<T>,
+			decision: FundingOutcomeDecision,
+		}
 	}
 
 	#[pallet::error]
