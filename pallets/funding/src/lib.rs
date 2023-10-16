@@ -733,7 +733,7 @@ pub mod pallet {
 		ProjectOutcomeDecided {
 			project_id: ProjectIdOf<T>,
 			decision: FundingOutcomeDecision,
-		}
+		},
 	}
 
 	#[pallet::error]

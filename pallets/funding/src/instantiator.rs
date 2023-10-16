@@ -42,9 +42,10 @@ use sp_std::{
 use crate::{
 	traits::{BondingRequirementCalculation, ProvideStatemintPrice},
 	AcceptedFundingAsset, AccountIdOf, AssetIdOf, AuctionPhase, BalanceOf, BidInfoOf, BidStatus, Bids, BlockNumberOf,
-	BlockNumberPair, Cleaner, Config, Contributions, Error, EvaluationInfoOf, EvaluationRoundInfoOf, EvaluatorsOutcome, Event, LockType,
-	MultiplierOf, PhaseTransitionPoints, PriceOf, ProjectDetailsOf, ProjectIdOf, ProjectMetadataOf, ProjectStatus,
-	ProjectsDetails, ProjectsMetadata, ProjectsToUpdate, UpdateType, VestingInfoOf, PLMC_STATEMINT_ID, RewardInfoOf,
+	BlockNumberPair, Cleaner, Config, Contributions, Error, EvaluationInfoOf, EvaluationRoundInfoOf, EvaluatorsOutcome,
+	Event, LockType, MultiplierOf, PhaseTransitionPoints, PriceOf, ProjectDetailsOf, ProjectIdOf, ProjectMetadataOf,
+	ProjectStatus, ProjectsDetails, ProjectsMetadata, ProjectsToUpdate, RewardInfoOf, UpdateType, VestingInfoOf,
+	PLMC_STATEMINT_ID,
 };
 
 pub use testing_macros::*;
@@ -897,9 +898,12 @@ where
 		balances
 	}
 
-	pub fn calculate_total_reward_for_evaluation(evaluation: EvaluationInfoOf<T>, reward_info: RewardInfoOf<T>) -> BalanceOf<T> {
+	pub fn calculate_total_reward_for_evaluation(
+		evaluation: EvaluationInfoOf<T>,
+		reward_info: RewardInfoOf<T>,
+	) -> BalanceOf<T> {
 		let early_reward_weight =
-		Perquintill::from_rational(evaluation.early_usd_amount, reward_info.early_evaluator_total_bonded_usd);
+			Perquintill::from_rational(evaluation.early_usd_amount, reward_info.early_evaluator_total_bonded_usd);
 		let normal_reward_weight = Perquintill::from_rational(
 			evaluation.late_usd_amount.saturating_add(evaluation.early_usd_amount),
 			reward_info.normal_evaluator_total_bonded_usd,
@@ -1571,7 +1575,7 @@ pub struct BidInfoFilter<T: Config> {
 	pub plmc_vesting_info: Option<Option<VestingInfoOf<T>>>,
 	pub when: Option<BlockNumberOf<T>>,
 	pub funds_released: Option<bool>,
-	pub ct_minted: Option<bool>
+	pub ct_minted: Option<bool>,
 }
 impl<T: Config> BidInfoFilter<T> {
 	pub(crate) fn matches_bid(&self, bid: &BidInfoOf<T>) -> bool {
@@ -1647,7 +1651,7 @@ impl<T: Config> Default for BidInfoFilter<T> {
 			plmc_vesting_info: None,
 			when: None,
 			funds_released: None,
-			ct_minted: None
+			ct_minted: None,
 		}
 	}
 }

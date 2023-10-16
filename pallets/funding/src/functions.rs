@@ -1212,10 +1212,7 @@ impl<T: Config> Pallet<T> {
 		Self::remove_from_update_store(&project_id)?;
 		Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::ProjectDecision(decision)));
 
-		Self::deposit_event(Event::ProjectOutcomeDecided {
-			project_id: project_id,
-			decision: decision,
-		});
+		Self::deposit_event(Event::ProjectOutcomeDecided { project_id, decision });
 
 		Ok(())
 	}
