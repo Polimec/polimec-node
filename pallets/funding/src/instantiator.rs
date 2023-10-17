@@ -1033,7 +1033,7 @@ where
 	pub fn bid_for_users(&mut self, project_id: ProjectIdOf<T>, bids: Vec<BidParams<T>>) -> Result<(), DispatchError> {
 		for bid in bids {
 			self.execute(|| {
-				crate::Pallet::<T>::do_bid(&bid.bidder, project_id, bid.amount, bid.price, bid.multiplier, bid.asset)
+				crate::Pallet::<T>::do_bid(&bid.bidder, project_id, bid.amount, bid.multiplier, bid.asset)
 			})?;
 		}
 		Ok(())

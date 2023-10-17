@@ -363,7 +363,6 @@ mod benchmarks {
 			RawOrigin::Signed(bidder.clone()),
 			project_id,
 			bid_params.amount,
-			bid_params.price,
 			bid_params.multiplier,
 			bid_params.asset,
 		);

@@ -1972,7 +1972,6 @@ mod auction_round_failure {
 					RuntimeOrigin::signed(BIDDER_2),
 					0,
 					1,
-					100_u128.into(),
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT
 				),

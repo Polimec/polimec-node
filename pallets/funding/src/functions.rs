@@ -86,11 +86,6 @@ impl<T: Config> Pallet<T> {
 		// * Calculate new variables *
 		let fundraising_target =
 			initial_metadata.minimum_price.checked_mul_int(total_allocation_size).ok_or(Error::<T>::BadMath)?;
-		let bucket_delta_amount = Percent::from_percent(10) * initial_metadata.total_allocation_size.0;
-		let ten_percent_in_price: <T as Config>::Price =
-			PriceOf::<T>::checked_from_rational(1, 10).ok_or(Error::<T>::BadMath)?;
-		let bucket_delta_price: <T as Config>::Price =
-			initial_metadata.minimum_price.saturating_mul(ten_percent_in_price);
 		let now = <frame_system::Pallet<T>>::block_number();
 		let project_details = ProjectDetails {
 			issuer: issuer.clone(),
@@ -109,13 +104,8 @@ impl<T: Config> Pallet<T> {
 			},
 			funding_end_block: None,
 		};
-		let bucket: BucketOf<T> = Bucket::new(
-			initial_metadata.total_allocation_size.0,
-			initial_metadata.minimum_price,
-			bucket_delta_price,
-			bucket_delta_amount,
-		);
-
+		
+		let bucket: BucketOf<T> = Self::create_bucket_from_metadata(&initial_metadata)?;
 		// * Update storage *
 		ProjectsMetadata::<T>::insert(project_id, &initial_metadata);
 		ProjectsDetails::<T>::insert(project_id, project_details);
@@ -856,13 +846,12 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	/// Bid for a project in the bidding stage
+	/// Bid for a project in the bidding stage.
 	///
 	/// # Arguments
 	/// * `bidder` - The account that is bidding
 	/// * `project_id` - The project to bid for
 	/// * `amount` - The amount of tokens that the bidder wants to buy
-	/// * `price` - The price in USD per token that the bidder is willing to pay for
 	/// * `multiplier` - Used for calculating how much PLMC needs to be bonded to spend this much money (in USD)
 	///
 	/// # Storage access
@@ -874,7 +863,6 @@ impl<T: Config> Pallet<T> {
 		bidder: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		ct_amount: BalanceOf<T>,
-		_ct_usd_price: T::Price,
 		multiplier: MultiplierOf<T>,
 		funding_asset: AcceptedFundingAsset,
 	) -> Result<(), DispatchError> {
@@ -1818,6 +1806,23 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	pub fn create_bucket_from_metadata(metadata: &ProjectMetadataOf<T>) -> Result<BucketOf<T>, DispatchError> {
+		let bucket_delta_amount = Percent::from_percent(10) * metadata.total_allocation_size.0;
+		let ten_percent_in_price: <T as Config>::Price =
+			PriceOf::<T>::checked_from_rational(1, 10).ok_or(Error::<T>::BadMath)?;
+		let bucket_delta_price: <T as Config>::Price =
+			metadata.minimum_price.saturating_mul(ten_percent_in_price);
+
+		let bucket: BucketOf<T> = Bucket::new(
+			metadata.total_allocation_size.0,
+			metadata.minimum_price,
+			bucket_delta_price,
+			bucket_delta_amount,
+		);
+
+		Ok(bucket)
+	}
+
 	pub fn calculate_plmc_bond(
 		ticket_size: BalanceOf<T>,
 		multiplier: MultiplierOf<T>,
@@ -1867,50 +1872,11 @@ impl<T: Config> Pallet<T> {
 			.into_iter()
 			.map(|mut bid| {
 				if bid.when > end_block {
-					bid.status = BidStatus::Rejected(RejectionReason::AfterCandleEnd);
-					bid.final_ct_amount = Zero::zero();
-					bid.final_ct_usd_price = Zero::zero();
-
-					T::FundingCurrency::transfer(
-						bid.funding_asset.to_statemint_id(),
-						&project_account,
-						&bid.bidder,
-						bid.funding_asset_amount_locked,
-						Preservation::Preserve,
-					)?;
-					T::NativeCurrency::release(
-						&LockType::Participation(project_id),
-						&bid.bidder,
-						bid.plmc_bond,
-						Precision::Exact,
-					)?;
-					bid.funding_asset_amount_locked = Zero::zero();
-					bid.plmc_bond = Zero::zero();
-
-					return Ok(bid)
+					return Self::refund_bid(&mut bid, project_id, &project_account, RejectionReason::AfterCandleEnd).and(Ok(bid))
 				}
 				let buyable_amount = total_allocation_size.saturating_sub(bid_token_amount_sum);
 				if buyable_amount.is_zero() {
-					bid.status = BidStatus::Rejected(RejectionReason::NoTokensLeft);
-					bid.final_ct_amount = Zero::zero();
-					bid.final_ct_usd_price = Zero::zero();
-
-					T::FundingCurrency::transfer(
-						bid.funding_asset.to_statemint_id(),
-						&project_account,
-						&bid.bidder,
-						bid.funding_asset_amount_locked,
-						Preservation::Preserve,
-					)?;
-					T::NativeCurrency::release(
-						&LockType::Participation(project_id),
-						&bid.bidder,
-						bid.plmc_bond,
-						Precision::Exact,
-					)?;
-					bid.funding_asset_amount_locked = Zero::zero();
-					bid.plmc_bond = Zero::zero();
-					return Ok(bid)
+					return Self::refund_bid(&mut bid, project_id, &project_account, RejectionReason::NoTokensLeft).and(Ok(bid))
 				} else if bid.original_ct_amount <= buyable_amount {
 					let maybe_ticket_size = bid.original_ct_usd_price.checked_mul_int(bid.original_ct_amount);
 					if let Some(ticket_size) = maybe_ticket_size {
@@ -1918,27 +1884,7 @@ impl<T: Config> Pallet<T> {
 						bid_usd_value_sum.saturating_accrue(ticket_size);
 						bid.status = BidStatus::Accepted;
 					} else {
-						bid.status = BidStatus::Rejected(RejectionReason::BadMath);
-
-						bid.final_ct_amount = Zero::zero();
-						bid.final_ct_usd_price = Zero::zero();
-
-						T::FundingCurrency::transfer(
-							bid.funding_asset.to_statemint_id(),
-							&project_account,
-							&bid.bidder,
-							bid.funding_asset_amount_locked,
-							Preservation::Preserve,
-						)?;
-						T::NativeCurrency::release(
-							&LockType::Participation(project_id),
-							&bid.bidder,
-							bid.plmc_bond,
-							Precision::Exact,
-						)?;
-						bid.funding_asset_amount_locked = Zero::zero();
-						bid.plmc_bond = Zero::zero();
-						return Ok(bid)
+						return Self::refund_bid(&mut bid, project_id, &project_account, RejectionReason::BadMath).and(Ok(bid))
 					}
 				} else {
 					let maybe_ticket_size = bid.original_ct_usd_price.checked_mul_int(buyable_amount);
@@ -1982,27 +1928,7 @@ impl<T: Config> Pallet<T> {
 						bid.funding_asset_amount_locked = funding_asset_amount_needed;
 						bid.plmc_bond = plmc_bond_needed;
 					} else {
-						bid.status = BidStatus::Rejected(RejectionReason::BadMath);
-						bid.final_ct_amount = Zero::zero();
-						bid.final_ct_usd_price = Zero::zero();
-
-						T::FundingCurrency::transfer(
-							bid.funding_asset.to_statemint_id(),
-							&project_account,
-							&bid.bidder,
-							bid.funding_asset_amount_locked,
-							Preservation::Preserve,
-						)?;
-						T::NativeCurrency::release(
-							&LockType::Participation(project_id),
-							&bid.bidder,
-							bid.plmc_bond,
-							Precision::Exact,
-						)?;
-						bid.funding_asset_amount_locked = Zero::zero();
-						bid.plmc_bond = Zero::zero();
-
-						return Ok(bid)
+						return Self::refund_bid(&mut bid, project_id, &project_account, RejectionReason::BadMath).and(Ok(bid))
 					}
 				}
 
@@ -2031,27 +1957,25 @@ impl<T: Config> Pallet<T> {
 		let current_bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let is_first_bucket = current_bucket.current_price == project_metadata.minimum_price;
+
+		let calc_weighted_price_fn = |bid: &BidInfoOf<T> ,amount: BalanceOf<T>| -> Option<PriceOf<T>> {
+			let ticket_size = bid.original_ct_usd_price.saturating_mul_int(amount);
+			let bid_weight =
+				<T::Price as FixedPointNumber>::saturating_from_rational(ticket_size, bid_usd_value_sum);
+			let weighted_price = bid.original_ct_usd_price.saturating_mul(bid_weight);
+			Some(weighted_price)
+		};
 		let weighted_token_price = match is_first_bucket && !bids.is_empty() {
 			true => project_metadata.minimum_price,
 			false => bids
 				.iter()
 				.filter_map(|bid| match bid.status {
 					BidStatus::Accepted => {
-						let ticket_size = bid.original_ct_usd_price.saturating_mul_int(bid.original_ct_amount);
-						let bid_weight =
-							<T::Price as FixedPointNumber>::saturating_from_rational(ticket_size, bid_usd_value_sum);
-						let weighted_price = bid.original_ct_usd_price.saturating_mul(bid_weight);
-						Some(weighted_price)
+						calc_weighted_price_fn(bid, bid.original_ct_amount)
 					},
-
 					BidStatus::PartiallyAccepted(amount, _) => {
-						let ticket_size = bid.original_ct_usd_price.saturating_mul_int(amount);
-						let bid_weight =
-							<T::Price as FixedPointNumber>::saturating_from_rational(ticket_size, bid_usd_value_sum);
-						let weighted_price = bid.original_ct_usd_price.saturating_mul(bid_weight);
-						Some(weighted_price)
+						calc_weighted_price_fn(bid, amount)
 					},
-
 					_ => None,
 				})
 				.reduce(|a, b| a.saturating_add(b))
@@ -2120,6 +2044,31 @@ impl<T: Config> Pallet<T> {
 				Err(Error::<T>::ProjectNotFound.into())
 			}
 		})?;
+
+		Ok(())
+	}
+
+	/// Refund a bid because of `reason`.
+	fn refund_bid<'a>(bid: &'a mut BidInfoOf<T>, project_id: T::ProjectIdentifier, project_account: &'a AccountIdOf<T>, reason: RejectionReason) -> Result<(), DispatchError> {
+		bid.status = BidStatus::Rejected(reason);
+		bid.final_ct_amount = Zero::zero();
+		bid.final_ct_usd_price = Zero::zero();
+
+		T::FundingCurrency::transfer(
+			bid.funding_asset.to_statemint_id(),
+			project_account,
+			&bid.bidder,
+			bid.funding_asset_amount_locked,
+			Preservation::Preserve,
+		)?;
+		T::NativeCurrency::release(
+			&LockType::Participation(project_id),
+			&bid.bidder,
+			bid.plmc_bond,
+			Precision::Exact,
+		)?;
+		bid.funding_asset_amount_locked = Zero::zero();
+		bid.plmc_bond = Zero::zero();
 
 		Ok(())
 	}
