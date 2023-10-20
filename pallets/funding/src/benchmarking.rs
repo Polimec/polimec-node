@@ -285,9 +285,7 @@ mod benchmarks {
 		}
 
 		// Events
-		frame_system::Pallet::<T>::assert_last_event(
-			Event::EvaluationStarted { project_id }.into()
-		)
+		frame_system::Pallet::<T>::assert_last_event(Event::EvaluationStarted { project_id }.into())
 	}
 
 	#[benchmark]
@@ -598,7 +596,7 @@ mod benchmarks {
 		frame_system::Pallet::<T>::assert_last_event(
 			Event::Contribution {
 				project_id,
-				contributor: contributor,
+				contributor,
 				amount: contribution_params.amount,
 				multiplier: contribution_params.multiplier,
 			}
@@ -868,13 +866,8 @@ mod benchmarks {
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(
-			Event::ContributionTokenMinted {
-				releaser: bidder.clone(),
-				project_id,
-				claimer: bidder,
-				amount: ct_amount,
-			}
-			.into(),
+			Event::ContributionTokenMinted { releaser: bidder.clone(), project_id, claimer: bidder, amount: ct_amount }
+				.into(),
 		);
 	}
 
@@ -1099,14 +1092,8 @@ mod benchmarks {
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(
-			Event::BidFundingPaidOut {
-				project_id,
-				bidder: bidder,
-				id: stored_bid.id,
-				amount: free_assets,
-				caller: issuer,
-			}
-			.into(),
+			Event::BidFundingPaidOut { project_id, bidder, id: stored_bid.id, amount: free_assets, caller: issuer }
+				.into(),
 		);
 	}
 
@@ -1165,7 +1152,7 @@ mod benchmarks {
 		frame_system::Pallet::<T>::assert_last_event(
 			Event::ContributionFundingPaidOut {
 				project_id,
-				contributor: contributor,
+				contributor,
 				id: stored_contribution.id,
 				amount: free_assets,
 				caller: issuer,
@@ -1284,7 +1271,7 @@ mod benchmarks {
 		frame_system::Pallet::<T>::assert_last_event(
 			Event::BidFundingReleased {
 				project_id,
-				bidder: bidder,
+				bidder,
 				id: stored_bid.id,
 				amount: stored_bid.funding_asset_amount_locked,
 				caller: issuer,
@@ -1357,13 +1344,8 @@ mod benchmarks {
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(
-			Event::BondReleased {
-				project_id,
-				amount: stored_bid.plmc_bond,
-				bonder: bidder.clone(),
-				releaser: bidder,
-			}
-			.into(),
+			Event::BondReleased { project_id, amount: stored_bid.plmc_bond, bonder: bidder.clone(), releaser: bidder }
+				.into(),
 		);
 	}
 
