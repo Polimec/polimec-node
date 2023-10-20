@@ -42,7 +42,7 @@ use crate::{
 	AcceptedFundingAsset, AccountIdOf, AssetIdOf, AuctionPhase, BalanceOf, BidInfoOf, BidStatus, Bids, BlockNumberOf,
 	BlockNumberPair, Cleaner, Config, Contributions, Error, EvaluationRoundInfoOf, EvaluatorsOutcome, Event, LockType,
 	MultiplierOf, PhaseTransitionPoints, PriceOf, ProjectDetailsOf, ProjectIdOf, ProjectMetadataOf, ProjectStatus,
-	ProjectsDetails, ProjectsMetadata, ProjectsToUpdate, UpdateType, VestingInfoOf, PLMC_STATEMINT_ID,
+	ProjectsDetails, ProjectsMetadata, ProjectsToUpdate, UpdateType, VestingInfoOf, PLMC_STATEMINT_ID, BucketOf,
 };
 
 pub use testing_macros::*;
@@ -464,6 +464,27 @@ where
 			let usd_ticket_size = bid.price.saturating_mul_int(bid.amount);
 			let funding_asset_spent = asset_price.reciprocal().unwrap().saturating_mul_int(usd_ticket_size);
 			output.push(UserToStatemintAsset::new(bid.bidder, funding_asset_spent, bid.asset.to_statemint_id()));
+		}
+		output
+	}
+
+	pub fn get_bid_usd_ticket_size(bids: Vec<BidParams<T>>, metadata: &ProjectMetadataOf<T>) -> Vec<BalanceOf<T>> {
+		let mut output = Vec::new();
+		let mut bucket: BucketOf<T> = crate::Pallet::<T>::create_bucket_from_metadata(metadata).unwrap();
+		for bid in bids {
+			let mut amount_to_bid = bid.amount;
+			let mut ticket: BalanceOf<T> = 0u64.into();
+			while !amount_to_bid.is_zero() {
+				let bid_amount = if amount_to_bid <= bucket.amount_left {
+					amount_to_bid
+				} else {
+					bucket.amount_left
+				};
+				ticket += bucket.current_price.saturating_mul_int(bid_amount);
+				bucket.update(bid_amount);
+				amount_to_bid.saturating_reduce(bid_amount);
+			}
+			output.push(ticket);
 		}
 		output
 	}
