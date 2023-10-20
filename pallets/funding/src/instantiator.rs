@@ -18,6 +18,8 @@ use frame_support::{
 	Parameter,
 };
 
+use sp_arithmetic::Perquintill;
+
 use itertools::Itertools;
 use parity_scale_codec::Decode;
 use sp_arithmetic::{
@@ -40,9 +42,10 @@ use sp_std::{
 use crate::{
 	traits::{BondingRequirementCalculation, ProvideStatemintPrice},
 	AcceptedFundingAsset, AccountIdOf, AssetIdOf, AuctionPhase, BalanceOf, BidInfoOf, BidStatus, Bids, BlockNumberOf,
-	BlockNumberPair, Cleaner, Config, Contributions, Error, EvaluationRoundInfoOf, EvaluatorsOutcome, Event, LockType,
-	MultiplierOf, PhaseTransitionPoints, PriceOf, ProjectDetailsOf, ProjectIdOf, ProjectMetadataOf, ProjectStatus,
-	ProjectsDetails, ProjectsMetadata, ProjectsToUpdate, UpdateType, VestingInfoOf, PLMC_STATEMINT_ID,
+	BlockNumberPair, Cleaner, Config, Contributions, Error, EvaluationInfoOf, EvaluationRoundInfoOf, EvaluatorsOutcome,
+	Event, LockType, MultiplierOf, PhaseTransitionPoints, PriceOf, ProjectDetailsOf, ProjectIdOf, ProjectMetadataOf,
+	ProjectStatus, ProjectsDetails, ProjectsMetadata, ProjectsToUpdate, RewardInfoOf, UpdateType, VestingInfoOf,
+	PLMC_STATEMINT_ID,
 };
 
 pub use testing_macros::*;
@@ -147,6 +150,21 @@ where
 				balances.push(UserToStatemintAsset { account, asset_amount, asset_id });
 			}
 			balances.sort_by(|a, b| a.account.cmp(&b.account));
+			balances
+		})
+	}
+
+	pub fn get_ct_asset_balances_for(
+		&mut self,
+		project_id: ProjectIdOf<T>,
+		user_keys: Vec<AccountIdOf<T>>,
+	) -> Vec<BalanceOf<T>> {
+		self.execute(|| {
+			let mut balances: Vec<BalanceOf<T>> = Vec::new();
+			for account in user_keys {
+				let asset_amount = <T as Config>::ContributionTokenCurrency::balance(project_id.into(), &account);
+				balances.push(asset_amount);
+			}
 			balances
 		})
 	}
@@ -880,6 +898,22 @@ where
 		}
 		balances
 	}
+
+	pub fn calculate_total_reward_for_evaluation(
+		evaluation: EvaluationInfoOf<T>,
+		reward_info: RewardInfoOf<T>,
+	) -> BalanceOf<T> {
+		let early_reward_weight =
+			Perquintill::from_rational(evaluation.early_usd_amount, reward_info.early_evaluator_total_bonded_usd);
+		let normal_reward_weight = Perquintill::from_rational(
+			evaluation.late_usd_amount.saturating_add(evaluation.early_usd_amount),
+			reward_info.normal_evaluator_total_bonded_usd,
+		);
+		let early_evaluators_rewards = early_reward_weight * reward_info.early_evaluator_reward_pot;
+		let normal_evaluators_rewards = normal_reward_weight * reward_info.normal_evaluator_reward_pot;
+		let total_reward_amount = early_evaluators_rewards.saturating_add(normal_evaluators_rewards);
+		total_reward_amount.into()
+	}
 }
 
 // project chain interactions
@@ -1451,7 +1485,6 @@ impl<T: Config> Accounts for Vec<UserToStatemintAsset<T>> {
 		btree.into_iter().collect_vec()
 	}
 }
-
 #[derive(Clone, Debug)]
 pub struct BidParams<T: Config> {
 	pub bidder: AccountIdOf<T>,
@@ -1540,10 +1573,10 @@ pub struct BidInfoFilter<T: Config> {
 	pub funding_asset_amount_locked: Option<BalanceOf<T>>,
 	pub multiplier: Option<MultiplierOf<T>>,
 	pub plmc_bond: Option<BalanceOf<T>>,
-	pub funded: Option<bool>,
 	pub plmc_vesting_info: Option<Option<VestingInfoOf<T>>>,
 	pub when: Option<BlockNumberOf<T>>,
 	pub funds_released: Option<bool>,
+	pub ct_minted: Option<bool>,
 }
 impl<T: Config> BidInfoFilter<T> {
 	pub(crate) fn matches_bid(&self, bid: &BidInfoOf<T>) -> bool {
@@ -1585,9 +1618,6 @@ impl<T: Config> BidInfoFilter<T> {
 		if self.plmc_bond.is_some() && self.plmc_bond.unwrap() != bid.plmc_bond {
 			return false
 		}
-		if self.funded.is_some() && self.funded.unwrap() != bid.funded {
-			return false
-		}
 		if self.plmc_vesting_info.is_some() && self.plmc_vesting_info.unwrap() != bid.plmc_vesting_info {
 			return false
 		}
@@ -1595,6 +1625,9 @@ impl<T: Config> BidInfoFilter<T> {
 			return false
 		}
 		if self.funds_released.is_some() && self.funds_released.unwrap() != bid.funds_released {
+			return false
+		}
+		if self.ct_minted.is_some() && self.ct_minted.unwrap() != bid.ct_minted {
 			return false
 		}
 
@@ -1616,10 +1649,10 @@ impl<T: Config> Default for BidInfoFilter<T> {
 			funding_asset_amount_locked: None,
 			multiplier: None,
 			plmc_bond: None,
-			funded: None,
 			plmc_vesting_info: None,
 			when: None,
 			funds_released: None,
+			ct_minted: None,
 		}
 	}
 }
