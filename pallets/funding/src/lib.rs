@@ -216,7 +216,6 @@ pub type StringLimitOf<T> = <T as Config>::StringLimit;
 pub type HashOf<T> = <T as frame_system::Config>::Hash;
 pub type AssetIdOf<T> =
 	<<T as Config>::FundingCurrency as fungibles::Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
-
 pub type RewardInfoOf<T> = RewardInfo<BalanceOf<T>>;
 pub type EvaluatorsOutcomeOf<T> = EvaluatorsOutcome<BalanceOf<T>>;
 
@@ -243,7 +242,7 @@ pub type ContributionInfoOf<T> =
 pub type BucketOf<T> = Bucket<BalanceOf<T>, PriceOf<T>>;
 pub type BondTypeOf<T> = LockType<ProjectIdOf<T>>;
 
-const PLMC_STATEMINT_ID: u32 = 2069;
+pub const PLMC_STATEMINT_ID: u32 = 2069;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -730,6 +729,10 @@ pub mod pallet {
 			id: u32,
 			amount: BalanceOf<T>,
 			caller: AccountIdOf<T>,
+		},
+		ProjectOutcomeDecided {
+			project_id: ProjectIdOf<T>,
+			decision: FundingOutcomeDecision,
 		},
 	}
 

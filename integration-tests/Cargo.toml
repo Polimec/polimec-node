@@ -18,6 +18,7 @@ parity-scale-codec = {  workspace = true, features = [
 ] }
 scale-info = { workspace = true, features = ["derive"] }
 
+
 frame-system.workspace = true
 frame-support.workspace = true
 pallet-balances.workspace = true
@@ -25,7 +26,7 @@ sp-std.workspace = true
 sp-core.workspace = true
 sp-runtime.workspace = true
 sp-io.workspace = true
-
+pallet-funding.workspace = true
 xcm.workspace = true
 xcm-emulator.workspace = true
 xcm-executor.workspace = true
@@ -38,8 +39,20 @@ polkadot-parachain.workspace = true
 
 cumulus-primitives-core.workspace = true
 cumulus-pallet-xcm.workspace = true
+cumulus-pallet-xcmp-queue.workspace = true
 
 parachain-info.workspace = true
+parachains-common.workspace = true
+sc-consensus-grandpa.workspace = true
+pallet-im-online.workspace = true
+polkadot-primitives.workspace = true
+polkadot-service.workspace = true
+sp-authority-discovery.workspace = true
+sp-consensus-babe.workspace = true
+polkadot-runtime-constants.workspace = true
+pallet-staking.workspace = true
+pallet-message-queue.workspace = true
+
 
 # Runtimes
 polkadot-runtime.workspace = true

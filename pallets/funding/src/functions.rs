@@ -965,7 +965,6 @@ impl<T: Config> Pallet<T> {
 			multiplier,
 			plmc_bond,
 			plmc_vesting_info: None,
-			funded: false,
 			when: now,
 			funds_released: false,
 			ct_minted: false,
@@ -1026,18 +1025,8 @@ impl<T: Config> Pallet<T> {
 		multiplier: MultiplierOf<T>,
 		asset: AcceptedFundingAsset,
 	) -> DispatchResultWithPostInfo {
-		// * Get variables *
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		let now = <frame_system::Pallet<T>>::block_number();
-		let contribution_id = Self::next_contribution_id();
-		let existing_contributions =
-			Contributions::<T>::iter_prefix_values((project_id, contributor)).collect::<Vec<_>>();
-
-		let ct_usd_price = project_details.weighted_average_price.ok_or(Error::<T>::AuctionNotStarted)?;
-		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PriceNotFound)?;
-		let funding_asset_usd_price =
-			T::PriceProvider::get_price(asset.to_statemint_id()).ok_or(Error::<T>::PriceNotFound)?;
 
 		// * Validity checks *
 		ensure!(project_metadata.participation_currencies == asset, Error::<T>::FundingAssetNotAccepted);
@@ -1047,6 +1036,13 @@ impl<T: Config> Pallet<T> {
 				project_details.status == ProjectStatus::RemainderRound,
 			Error::<T>::AuctionNotStarted
 		);
+
+		let now = <frame_system::Pallet<T>>::block_number();
+
+		let ct_usd_price = project_details.weighted_average_price.ok_or(Error::<T>::AuctionNotStarted)?;
+		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PriceNotFound)?;
+		let funding_asset_usd_price =
+			T::PriceProvider::get_price(asset.to_statemint_id()).ok_or(Error::<T>::PriceNotFound)?;
 
 		// * Calculate variables *
 		let buyable_tokens = Self::calculate_buyable_amount(
@@ -1069,6 +1065,7 @@ impl<T: Config> Pallet<T> {
 			funding_asset_usd_price.reciprocal().ok_or(Error::<T>::BadMath)?.saturating_mul_int(ticket_size);
 		let asset_id = asset.to_statemint_id();
 
+		let contribution_id = Self::next_contribution_id();
 		let new_contribution = ContributionInfoOf::<T> {
 			id: contribution_id,
 			project_id,
@@ -1086,6 +1083,8 @@ impl<T: Config> Pallet<T> {
 
 		// * Update storage *
 		// Try adding the new contribution to the system
+		let existing_contributions =
+			Contributions::<T>::iter_prefix_values((project_id, contributor)).collect::<Vec<_>>();
 		if existing_contributions.len() < T::MaxContributionsPerUser::get() as usize {
 			Self::try_plmc_participation_lock(contributor, project_id, plmc_bond)?;
 			Self::try_funding_asset_hold(contributor, project_id, funding_asset_amount, asset_id)?;
@@ -1122,6 +1121,7 @@ impl<T: Config> Pallet<T> {
 		Contributions::<T>::insert((project_id, contributor, contribution_id), &new_contribution);
 		NextContributionId::<T>::set(contribution_id.saturating_add(One::one()));
 
+		// Update remaining contribution tokens
 		if project_details.status == ProjectStatus::CommunityRound {
 			project_details.remaining_contribution_tokens.1.saturating_reduce(new_contribution.ct_amount);
 		} else {
@@ -1199,6 +1199,8 @@ impl<T: Config> Pallet<T> {
 		// * Update storage *
 		Self::remove_from_update_store(&project_id)?;
 		Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::ProjectDecision(decision)));
+
+		Self::deposit_event(Event::ProjectOutcomeDecided { project_id, decision });
 
 		Ok(())
 	}
@@ -1376,9 +1378,8 @@ impl<T: Config> Pallet<T> {
 		let slash_percentage = T::EvaluatorSlash::get();
 		let treasury_account = T::TreasuryAccount::get();
 
-		let mut user_evaluations = Evaluations::<T>::iter_prefix_values((project_id, evaluator));
 		let mut evaluation =
-			user_evaluations.find(|evaluation| evaluation.id == evaluation_id).ok_or(Error::<T>::EvaluationNotFound)?;
+			Evaluations::<T>::get((project_id, evaluator, evaluation_id)).ok_or(Error::<T>::EvaluationNotFound)?;
 
 		// * Validity checks *
 		ensure!(
