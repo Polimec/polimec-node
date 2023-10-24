@@ -468,23 +468,22 @@ where
 		output
 	}
 
-	pub fn get_bid_usd_ticket_size(bids: Vec<BidParams<T>>, metadata: &ProjectMetadataOf<T>) -> Vec<BalanceOf<T>> {
+	pub fn simulate_bids_with_bucket(bids: Vec<BidParams<T>>, metadata: &ProjectMetadataOf<T>) -> Vec<BidParams<T>> {
 		let mut output = Vec::new();
 		let mut bucket: BucketOf<T> = crate::Pallet::<T>::create_bucket_from_metadata(metadata).unwrap();
 		for bid in bids {
 			let mut amount_to_bid = bid.amount;
-			let mut ticket: BalanceOf<T> = 0u64.into();
+			
 			while !amount_to_bid.is_zero() {
 				let bid_amount = if amount_to_bid <= bucket.amount_left {
 					amount_to_bid
 				} else {
 					bucket.amount_left
 				};
-				ticket += bucket.current_price.saturating_mul_int(bid_amount);
+				output.push(BidParams { bidder: bid.bidder.clone(), amount: bid_amount, price: bucket.current_price, multiplier: bid.multiplier, asset: bid.asset });
 				bucket.update(bid_amount);
 				amount_to_bid.saturating_reduce(bid_amount);
 			}
-			output.push(ticket);
 		}
 		output
 	}
