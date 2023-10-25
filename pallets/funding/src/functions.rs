@@ -104,7 +104,7 @@ impl<T: Config> Pallet<T> {
 			},
 			funding_end_block: None,
 		};
-		
+
 		let bucket: BucketOf<T> = Self::create_bucket_from_metadata(&initial_metadata)?;
 		// * Update storage *
 		ProjectsMetadata::<T>::insert(project_id, &initial_metadata);
@@ -1811,8 +1811,7 @@ impl<T: Config> Pallet<T> {
 		let bucket_delta_amount = Percent::from_percent(10) * metadata.total_allocation_size.0;
 		let ten_percent_in_price: <T as Config>::Price =
 			PriceOf::<T>::checked_from_rational(1, 10).ok_or(Error::<T>::BadMath)?;
-		let bucket_delta_price: <T as Config>::Price =
-			metadata.minimum_price.saturating_mul(ten_percent_in_price);
+		let bucket_delta_price: <T as Config>::Price = metadata.minimum_price.saturating_mul(ten_percent_in_price);
 
 		let bucket: BucketOf<T> = Bucket::new(
 			metadata.total_allocation_size.0,
@@ -1873,11 +1872,13 @@ impl<T: Config> Pallet<T> {
 			.into_iter()
 			.map(|mut bid| {
 				if bid.when > end_block {
-					return Self::refund_bid(&mut bid, project_id, &project_account, RejectionReason::AfterCandleEnd).and(Ok(bid))
+					return Self::refund_bid(&mut bid, project_id, &project_account, RejectionReason::AfterCandleEnd)
+						.and(Ok(bid))
 				}
 				let buyable_amount = total_allocation_size.saturating_sub(bid_token_amount_sum);
 				if buyable_amount.is_zero() {
-					return Self::refund_bid(&mut bid, project_id, &project_account, RejectionReason::NoTokensLeft).and(Ok(bid))
+					return Self::refund_bid(&mut bid, project_id, &project_account, RejectionReason::NoTokensLeft)
+						.and(Ok(bid))
 				} else if bid.original_ct_amount <= buyable_amount {
 					let maybe_ticket_size = bid.original_ct_usd_price.checked_mul_int(bid.original_ct_amount);
 					if let Some(ticket_size) = maybe_ticket_size {
@@ -1885,7 +1886,8 @@ impl<T: Config> Pallet<T> {
 						bid_usd_value_sum.saturating_accrue(ticket_size);
 						bid.status = BidStatus::Accepted;
 					} else {
-						return Self::refund_bid(&mut bid, project_id, &project_account, RejectionReason::BadMath).and(Ok(bid))
+						return Self::refund_bid(&mut bid, project_id, &project_account, RejectionReason::BadMath)
+							.and(Ok(bid))
 					}
 				} else {
 					let maybe_ticket_size = bid.original_ct_usd_price.checked_mul_int(buyable_amount);
@@ -1929,7 +1931,8 @@ impl<T: Config> Pallet<T> {
 						bid.funding_asset_amount_locked = funding_asset_amount_needed;
 						bid.plmc_bond = plmc_bond_needed;
 					} else {
-						return Self::refund_bid(&mut bid, project_id, &project_account, RejectionReason::BadMath).and(Ok(bid))
+						return Self::refund_bid(&mut bid, project_id, &project_account, RejectionReason::BadMath)
+							.and(Ok(bid))
 					}
 				}
 
@@ -1959,10 +1962,9 @@ impl<T: Config> Pallet<T> {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let is_first_bucket = current_bucket.current_price == project_metadata.minimum_price;
 
-		let calc_weighted_price_fn = |bid: &BidInfoOf<T> ,amount: BalanceOf<T>| -> Option<PriceOf<T>> {
+		let calc_weighted_price_fn = |bid: &BidInfoOf<T>, amount: BalanceOf<T>| -> Option<PriceOf<T>> {
 			let ticket_size = bid.original_ct_usd_price.saturating_mul_int(amount);
-			let bid_weight =
-				<T::Price as FixedPointNumber>::saturating_from_rational(ticket_size, bid_usd_value_sum);
+			let bid_weight = <T::Price as FixedPointNumber>::saturating_from_rational(ticket_size, bid_usd_value_sum);
 			let weighted_price = bid.original_ct_usd_price.saturating_mul(bid_weight);
 			Some(weighted_price)
 		};
@@ -1971,12 +1973,8 @@ impl<T: Config> Pallet<T> {
 			false => bids
 				.iter()
 				.filter_map(|bid| match bid.status {
-					BidStatus::Accepted => {
-						calc_weighted_price_fn(bid, bid.original_ct_amount)
-					},
-					BidStatus::PartiallyAccepted(amount, _) => {
-						calc_weighted_price_fn(bid, amount)
-					},
+					BidStatus::Accepted => calc_weighted_price_fn(bid, bid.original_ct_amount),
+					BidStatus::PartiallyAccepted(amount, _) => calc_weighted_price_fn(bid, amount),
 					_ => None,
 				})
 				.reduce(|a, b| a.saturating_add(b))
@@ -2050,7 +2048,12 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Refund a bid because of `reason`.
-	fn refund_bid<'a>(bid: &'a mut BidInfoOf<T>, project_id: T::ProjectIdentifier, project_account: &'a AccountIdOf<T>, reason: RejectionReason) -> Result<(), DispatchError> {
+	fn refund_bid<'a>(
+		bid: &'a mut BidInfoOf<T>,
+		project_id: T::ProjectIdentifier,
+		project_account: &'a AccountIdOf<T>,
+		reason: RejectionReason,
+	) -> Result<(), DispatchError> {
 		bid.status = BidStatus::Rejected(reason);
 		bid.final_ct_amount = Zero::zero();
 		bid.final_ct_usd_price = Zero::zero();
@@ -2062,12 +2065,7 @@ impl<T: Config> Pallet<T> {
 			bid.funding_asset_amount_locked,
 			Preservation::Preserve,
 		)?;
-		T::NativeCurrency::release(
-			&LockType::Participation(project_id),
-			&bid.bidder,
-			bid.plmc_bond,
-			Precision::Exact,
-		)?;
+		T::NativeCurrency::release(&LockType::Participation(project_id), &bid.bidder, bid.plmc_bond, Precision::Exact)?;
 		bid.funding_asset_amount_locked = Zero::zero();
 		bid.plmc_bond = Zero::zero();
 

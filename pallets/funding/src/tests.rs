@@ -664,7 +664,8 @@ mod auction_round_success {
 		let fill_necessary_usdt_for_bids = MockInstantiator::calculate_auction_funding_asset_spent(&bids, None);
 
 		let bid_necessary_plmc = MockInstantiator::calculate_auction_plmc_spent(&vec![evaluator_bid.clone()], None);
-		let bid_necessary_usdt = MockInstantiator::calculate_auction_funding_asset_spent(&vec![evaluator_bid.clone()], None);
+		let bid_necessary_usdt =
+			MockInstantiator::calculate_auction_funding_asset_spent(&vec![evaluator_bid.clone()], None);
 
 		let evaluation_bond =
 			MockInstantiator::sum_balance_mappings(vec![fill_necessary_plmc_for_bids, bid_necessary_plmc.clone()]);
@@ -1216,8 +1217,7 @@ mod auction_round_success {
 		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
 
 		let final_price = details.weighted_average_price.unwrap();
-		let plmc_locked_for_bids =
-			MockInstantiator::calculate_auction_plmc_spent(&new_bids, Some(final_price));
+		let plmc_locked_for_bids = MockInstantiator::calculate_auction_plmc_spent(&new_bids, Some(final_price));
 
 		for UserToPLMCBalance { account, plmc_amount } in plmc_locked_for_bids {
 			let schedule = inst.execute(|| {
@@ -1861,8 +1861,7 @@ mod auction_round_success {
 		delta_bidders_plmc_balances.sort_by_key(|item| item.account.clone());
 
 		let final_price = details.weighted_average_price.unwrap();
-		let mut plmc_locked_for_bids =
-			MockInstantiator::calculate_auction_plmc_spent(&bids, Some(final_price));
+		let mut plmc_locked_for_bids = MockInstantiator::calculate_auction_plmc_spent(&bids, Some(final_price));
 		plmc_locked_for_bids.sort_by_key(|item| item.account.clone());
 
 		assert_eq!(delta_bidders_plmc_balances, plmc_locked_for_bids);
@@ -1939,8 +1938,7 @@ mod auction_round_success {
 
 		let details = inst.get_project_details(project_id);
 		let final_price = details.weighted_average_price.unwrap();
-		let mut plmc_locked_for_bids =
-			MockInstantiator::calculate_auction_plmc_spent(&bids, Some(final_price));
+		let mut plmc_locked_for_bids = MockInstantiator::calculate_auction_plmc_spent(&bids, Some(final_price));
 		plmc_locked_for_bids.sort_by_key(|item| item.account);
 
 		assert_eq!(delta_bidders_plmc_balances, plmc_locked_for_bids);
@@ -2089,11 +2087,10 @@ mod auction_round_failure {
 			BidParams::new(BIDDER_2, 5_000 * ASSET_UNIT, FixedU128::from_float(1.0), 1u8, AcceptedFundingAsset::USDT);
 		let glutton_bid_2 =
 			BidParams::new(BIDDER_1, 5_000 * ASSET_UNIT, FixedU128::from_float(1.1), 1u8, AcceptedFundingAsset::USDT);
-		let bids = MockInstantiator::simulate_bids_with_bucket(vec![
-			glutton_bid_1.clone(),
-			rejected_bid.clone(),
-			glutton_bid_2.clone(),
-		], &metadata);
+		let bids = MockInstantiator::simulate_bids_with_bucket(
+			vec![glutton_bid_1.clone(), rejected_bid.clone(), glutton_bid_2.clone()],
+			&metadata,
+		);
 		let mut plmc_fundings = MockInstantiator::calculate_auction_plmc_spent(&bids, None);
 		plmc_fundings.push(UserToPLMCBalance::new(BIDDER_1, MockInstantiator::get_ed()));
 		plmc_fundings.push(UserToPLMCBalance::new(BIDDER_2, MockInstantiator::get_ed()));
@@ -2103,7 +2100,7 @@ mod auction_round_failure {
 		inst.mint_statemint_asset_to(usdt_fundings.clone());
 
 		inst.bid_for_users(project_id, vec![glutton_bid_1, rejected_bid, glutton_bid_2]).expect("Bids should pass");
-	
+
 		inst.do_free_plmc_assertions(vec![
 			UserToPLMCBalance::new(BIDDER_1, MockInstantiator::get_ed()),
 			UserToPLMCBalance::new(BIDDER_2, MockInstantiator::get_ed()),
@@ -2132,18 +2129,28 @@ mod auction_round_failure {
 		);
 
 		inst.start_community_funding(project_id).unwrap();
-	
+
 		let weighted_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 		let plmc_fundings_after_round = MockInstantiator::calculate_auction_plmc_spent(&bids, Some(weighted_price));
-		let usdt_fundings_after_round = MockInstantiator::calculate_auction_funding_asset_spent(&bids, Some(weighted_price));
-		
+		let usdt_fundings_after_round =
+			MockInstantiator::calculate_auction_funding_asset_spent(&bids, Some(weighted_price));
+
 		inst.do_free_plmc_assertions(vec![
-			UserToPLMCBalance::new(BIDDER_1, MockInstantiator::get_ed() + (plmc_fundings[2].plmc_amount - plmc_fundings_after_round[2].plmc_amount)),
+			UserToPLMCBalance::new(
+				BIDDER_1,
+				MockInstantiator::get_ed() + (plmc_fundings[2].plmc_amount - plmc_fundings_after_round[2].plmc_amount),
+			),
 			UserToPLMCBalance::new(BIDDER_2, plmc_fundings[1].plmc_amount + MockInstantiator::get_ed()),
 		]);
 
 		inst.do_reserved_plmc_assertions(
-			vec![UserToPLMCBalance::new(BIDDER_1, plmc_fundings_after_round[0].plmc_amount + plmc_fundings_after_round[2].plmc_amount), UserToPLMCBalance::new(BIDDER_2, 0)],
+			vec![
+				UserToPLMCBalance::new(
+					BIDDER_1,
+					plmc_fundings_after_round[0].plmc_amount + plmc_fundings_after_round[2].plmc_amount,
+				),
+				UserToPLMCBalance::new(BIDDER_2, 0),
+			],
 			LockType::Participation(project_id),
 		);
 
@@ -2167,7 +2174,8 @@ mod auction_round_failure {
 
 		let (bid_in, bid_out) = (default_bids()[0].clone(), default_bids()[1].clone());
 
-		let mut plmc_fundings = MockInstantiator::calculate_auction_plmc_spent(&vec![bid_in.clone(), bid_out.clone()], None);
+		let mut plmc_fundings =
+			MockInstantiator::calculate_auction_plmc_spent(&vec![bid_in.clone(), bid_out.clone()], None);
 		plmc_fundings.push(UserToPLMCBalance::new(BIDDER_1, MockInstantiator::get_ed()));
 		plmc_fundings.push(UserToPLMCBalance::new(BIDDER_2, MockInstantiator::get_ed()));
 
@@ -3847,8 +3855,7 @@ mod community_round_failure {
 		delta_contributors_plmc_balances.sort_by_key(|item| item.account);
 
 		let final_price = details.weighted_average_price.unwrap();
-		let mut plmc_locked_for_bids =
-			MockInstantiator::calculate_auction_plmc_spent(&bids, Some(final_price));
+		let mut plmc_locked_for_bids = MockInstantiator::calculate_auction_plmc_spent(&bids, Some(final_price));
 		plmc_locked_for_bids.sort_by_key(|item| item.account);
 		let mut plmc_locked_for_contributions =
 			MockInstantiator::calculate_contributed_plmc_spent(community_contributions, final_price);
@@ -3962,8 +3969,7 @@ mod community_round_failure {
 
 		let details = inst.get_project_details(project_id);
 		let final_price = details.weighted_average_price.unwrap();
-		let mut plmc_locked_for_bids =
-			MockInstantiator::calculate_auction_plmc_spent(&bids, Some(final_price));
+		let mut plmc_locked_for_bids = MockInstantiator::calculate_auction_plmc_spent(&bids, Some(final_price));
 		plmc_locked_for_bids.sort_by_key(|item| item.account);
 		let mut plmc_locked_for_contributions =
 			MockInstantiator::calculate_contributed_plmc_spent(community_contributions, final_price);
@@ -5468,8 +5474,7 @@ mod remainder_round_failure {
 			.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
 			.map(|bid| BidParams::from(bid.bidder, bid.final_ct_amount, bid.final_ct_usd_price))
 			.collect_vec();
-		let expected_bid_payouts =
-			MockInstantiator::calculate_auction_plmc_spent(&bids.clone(), Some(final_price));
+		let expected_bid_payouts = MockInstantiator::calculate_auction_plmc_spent(&bids.clone(), Some(final_price));
 		let expected_community_contribution_payouts =
 			MockInstantiator::calculate_contributed_plmc_spent(community_contributions.clone(), final_price);
 		let expected_remainder_contribution_payouts = MockInstantiator::calculate_contributed_plmc_spent(
@@ -5587,8 +5592,7 @@ mod remainder_round_failure {
 				final_price,
 				true,
 			);
-		let expected_bid_payouts =
-			MockInstantiator::calculate_auction_plmc_spent(&bids.clone(), Some(final_price));
+		let expected_bid_payouts = MockInstantiator::calculate_auction_plmc_spent(&bids.clone(), Some(final_price));
 		let expected_community_contribution_payouts =
 			MockInstantiator::calculate_contributed_plmc_spent(community_contributions.clone(), final_price);
 		let expected_remainder_contribution_payouts = MockInstantiator::calculate_contributed_plmc_spent(
