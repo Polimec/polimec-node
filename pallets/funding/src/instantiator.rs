@@ -200,10 +200,11 @@ where
 		for UserToPLMCBalance { account, plmc_amount } in correct_funds {
 			self.execute(|| {
 				let reserved = <T as Config>::NativeCurrency::balance_on_hold(&reserve_type, &account);
-				// TODO: Enable this
-				// assert_eq!(reserved, plmc_amount);
+				println!("Account: {:?}, reserved: {:?}, expected: {:?}", account, Into::into(reserved), plmc_amount);
+				assert_eq!(reserved, plmc_amount);
 			});
 		}
+		println!("Next");
 	}
 
 	pub fn mint_plmc_to(&mut self, mapping: Vec<UserToPLMCBalance<T>>) {
@@ -259,8 +260,7 @@ where
 		for UserToPLMCBalance { account, plmc_amount } in correct_funds {
 			self.execute(|| {
 				let free = <T as Config>::NativeCurrency::balance(&account);
-				// TODO: Enable this
-				// assert_eq!(free, plmc_amount);
+				assert_eq!(free, plmc_amount);
 			});
 		}
 	}
@@ -286,11 +286,11 @@ where
 					Bids::<T>::iter_prefix_values((project_id, account.clone()))
 						.map(|c| c.funding_asset_amount_locked)
 						.fold(Zero::zero(), |a, b| a + b);
-				// assert_eq!(
-				// 	contribution_total, asset_amount,
-				// 	"Wrong statemint asset balance expected for stored auction info on user {:?}",
-				// 	account
-				// );
+				assert_eq!(
+					contribution_total, asset_amount,
+					"Wrong statemint asset balance expected for stored auction info on user {:?}",
+					account
+				);
 			});
 		}
 	}
@@ -445,44 +445,51 @@ where
 		output
 	}
 
-	pub fn calculate_auction_plmc_spent(bids: Vec<BidParams<T>>) -> Vec<UserToPLMCBalance<T>> {
-		let plmc_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).unwrap().clone();
-		let mut output = Vec::new();
-		for bid in bids {
-			let usd_ticket_size = bid.price.saturating_mul_int(bid.amount);
-			let multiplier = bid.multiplier;
-			let usd_bond = multiplier.calculate_bonding_requirement::<T>(usd_ticket_size).unwrap();
-			let plmc_bond = plmc_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
-			output.push(UserToPLMCBalance::new(bid.bidder, plmc_bond));
-		}
-		output
-	}
 
-	// This differs from `calculate_auction_plmc_spent` in that it recalculates bids over the average price as using that price.
-	pub fn calculate_auction_plmc_spent_after_price_calculation(
-		bids: Vec<BidParams<T>>,
-		price: PriceOf<T>,
+	/// Calculate the amount of PLMC that would be locked if the given bids were to be accepted.
+	/// This is the amount of PLMC that would be locked if the bids were to be accepted, but not
+	/// considering the evaluation bonds.
+	/// 
+	/// * `bids` - The bids to calculate the bonded PLMC amount for.
+	/// * `weighted_price` - Used to calculate the new PLMC bond after the weighted price has
+	///   been calculated (if the weighted price is lower than the bid price).
+	/// 
+	pub fn calculate_auction_plmc_spent(
+		bids: &Vec<BidParams<T>>,
+		weighted_price: Option<PriceOf<T>>,
 	) -> Vec<UserToPLMCBalance<T>> {
 		let plmc_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).unwrap().clone();
 		let mut output = Vec::new();
 		for bid in bids {
-			let final_price = if bid.price < price { bid.price } else { price };
+			let final_price = match weighted_price {
+				Some(p) if bid.price < p => bid.price,
+				Some(p) => p,
+				None => bid.price,
+			};
 
 			let usd_ticket_size = final_price.saturating_mul_int(bid.amount);
 			let usd_bond = bid.multiplier.calculate_bonding_requirement::<T>(usd_ticket_size).unwrap();
 			let plmc_bond = plmc_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
-			output.push(UserToPLMCBalance::new(bid.bidder, plmc_bond));
+			output.push(UserToPLMCBalance::new(bid.bidder.clone(), plmc_bond));
 		}
 		output
 	}
 
-	pub fn calculate_auction_funding_asset_spent(bids: Vec<BidParams<T>>) -> Vec<UserToStatemintAsset<T>> {
+	pub fn calculate_auction_funding_asset_spent(
+		bids: &Vec<BidParams<T>>,
+		weighted_price: Option<PriceOf<T>>
+	) -> Vec<UserToStatemintAsset<T>> {
 		let mut output = Vec::new();
 		for bid in bids {
+			let final_price = match weighted_price {
+				Some(p) if bid.price < p => bid.price,
+				Some(p) => p,
+				None => bid.price,
+			};
 			let asset_price = T::PriceProvider::get_price(bid.asset.to_statemint_id()).unwrap().clone();
-			let usd_ticket_size = bid.price.saturating_mul_int(bid.amount);
+			let usd_ticket_size = final_price.saturating_mul_int(bid.amount);
 			let funding_asset_spent = asset_price.reciprocal().unwrap().saturating_mul_int(usd_ticket_size);
-			output.push(UserToStatemintAsset::new(bid.bidder, funding_asset_spent, bid.asset.to_statemint_id()));
+			output.push(UserToStatemintAsset::new(bid.bidder.clone(), funding_asset_spent, bid.asset.to_statemint_id()));
 		}
 		output
 	}
@@ -505,6 +512,26 @@ where
 			}
 		}
 		output
+	}
+
+	/// Filters the bids that would be rejected after the auction ends.
+	pub fn filter_bids_after_auction(bids: Vec<BidParams<T>>, total_cts: BalanceOf<T>) -> Vec<BidParams<T>> {
+		let mut filtered_bids: Vec<BidParams<T>> = Vec::new();
+		let mut sorted_bids = bids;
+		sorted_bids.sort_by(|a, b| b.price.cmp(&a.price));
+		let mut total_cts_left = total_cts;
+		for bid in sorted_bids {
+			if total_cts_left >= bid.amount {
+				total_cts_left.saturating_reduce(bid.amount);
+				filtered_bids.push(bid);
+			} else {
+				if !total_cts_left.is_zero() {
+					filtered_bids.push(BidParams { bidder: bid.bidder.clone(), amount: total_cts_left, price: bid.price, multiplier: bid.multiplier, asset: bid.asset });
+					total_cts_left = Zero::zero();
+				}
+			}
+		}
+		filtered_bids
 	}
 
 	pub fn calculate_contributed_plmc_spent(
@@ -1130,11 +1157,13 @@ where
 		evaluations: Vec<UserToUSDBalance<T>>,
 		bids: Vec<BidParams<T>>,
 	) -> ProjectIdOf<T> {
-		let project_id = self.create_auctioning_project(project_metadata, issuer, evaluations.clone());
 
 		if bids.is_empty() {
 			panic!("Cannot start community funding without bids")
 		}
+
+		let bids = Self::simulate_bids_with_bucket(bids, &(project_metadata));
+		let project_id = self.create_auctioning_project(project_metadata.clone(), issuer, evaluations.clone());
 
 		let bidders = bids.accounts();
 		let asset_id = bids[0].asset.to_statemint_id();
@@ -1142,7 +1171,7 @@ where
 		let prev_funding_asset_balances = self.get_free_statemint_asset_balances_for(asset_id, bidders.clone());
 		let plmc_evaluation_deposits: Vec<UserToPLMCBalance<T>> =
 			Self::calculate_evaluation_plmc_spent(evaluations.clone());
-		let plmc_bid_deposits: Vec<UserToPLMCBalance<T>> = Self::calculate_auction_plmc_spent(bids.clone());
+		let plmc_bid_deposits: Vec<UserToPLMCBalance<T>> = Self::calculate_auction_plmc_spent(&bids, None);
 		let participation_usable_evaluation_deposits = plmc_evaluation_deposits
 			.clone()
 			.into_iter()
@@ -1157,7 +1186,7 @@ where
 		);
 		let total_plmc_participation_locked = plmc_bid_deposits;
 		let plmc_existential_deposits: Vec<UserToPLMCBalance<T>> = bidders.existential_deposits();
-		let funding_asset_deposits = Self::calculate_auction_funding_asset_spent(bids.clone());
+		let funding_asset_deposits = Self::calculate_auction_funding_asset_spent(&bids, None);
 
 		let bidder_balances =
 			Self::sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
@@ -1168,39 +1197,39 @@ where
 		let prev_supply = self.get_plmc_total_supply();
 		let post_supply = prev_supply + bidder_balances;
 
-		let stored_bids = self.execute(|| Bids::<T>::iter_prefix_values((project_id,)).collect_vec());
-		let new_bids = stored_bids
-			.into_iter()
-			.filter(|bid| bid.final_ct_amount != 0u32.into())
-			.map(|bid| BidParams::<T>::from(bid.bidder, bid.final_ct_amount, bid.final_ct_usd_price))
-			.collect_vec();
-
-		let bid_expectations = new_bids
-			.iter()
-			.map(|bid| BidInfoFilter::<T> {
-				final_ct_amount: Some(bid.amount),
-				final_ct_usd_price: Some(bid.price),
-				..Default::default()
-			})
-			.collect_vec();
-
-		let total_ct_sold = new_bids.iter().map(|bid| bid.amount).fold(Zero::zero(), |acc, item| item + acc);
-
 		self.mint_plmc_to(necessary_plmc_mint.clone());
 		self.mint_plmc_to(plmc_existential_deposits.clone());
 		self.mint_statemint_asset_to(funding_asset_deposits.clone());
 
-		self.bid_for_users(project_id, bids).expect("Bidding should work");
+		self.bid_for_users(project_id, bids.clone()).expect("Bidding should work");
 
-		self.do_reserved_plmc_assertions(total_plmc_participation_locked, LockType::Participation(project_id));
-		self.do_bid_transferred_statemint_asset_assertions(funding_asset_deposits, project_id);
-		self.do_free_plmc_assertions(expected_free_plmc_balances);
-		// self.do_free_statemint_asset_assertions(prev_funding_asset_balances);
+
+		
+		self.do_reserved_plmc_assertions(total_plmc_participation_locked.merge_accounts(), LockType::Participation(project_id));
+		self.do_bid_transferred_statemint_asset_assertions(funding_asset_deposits.merge_accounts(), project_id);
+		self.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts());
+		self.do_free_statemint_asset_assertions(prev_funding_asset_balances.merge_accounts());
 		assert_eq!(self.get_plmc_total_supply(), post_supply);
 
 		self.start_community_funding(project_id).unwrap();
 
-		// self.finalized_bids_assertions(project_id, bid_expectations, total_ct_sold);
+		let weighted_price = self.get_project_details(project_id).weighted_average_price.unwrap();
+		let accepted_bids = Self::filter_bids_after_auction(bids, project_metadata.total_allocation_size.0);
+		let bid_expectations = 
+			accepted_bids
+			.iter()
+			.map(|bid| BidInfoFilter::<T> {
+				bidder: Some(bid.bidder.clone()),
+				final_ct_amount: Some(bid.amount),
+				final_ct_usd_price: Some(if bid.price < weighted_price { bid.price } else { weighted_price }),
+				..Default::default()
+			})
+			.collect_vec();
+
+		let total_ct_sold = accepted_bids.iter().map(|bid| bid.amount).fold(Zero::zero(), |acc, item| item + acc);
+
+
+		self.finalized_bids_assertions(project_id, bid_expectations, total_ct_sold);
 
 		project_id
 	}
@@ -1271,13 +1300,17 @@ where
 		bids: Vec<BidParams<T>>,
 		contributions: Vec<ContributionParams<T>>,
 	) -> ProjectIdOf<T> {
+		
 		let project_id =
-			self.create_community_contributing_project(project_metadata, issuer, evaluations.clone(), bids.clone());
+			self.create_community_contributing_project(project_metadata.clone(), issuer, evaluations.clone(), bids.clone());
 
 		if contributions.is_empty() {
 			self.start_remainder_or_end_funding(project_id).unwrap();
 			return project_id
 		}
+		let bids = Self::simulate_bids_with_bucket(bids, &(project_metadata));
+		let bids = Self::filter_bids_after_auction(bids, project_metadata.total_allocation_size.0);
+
 		let ct_price = self.get_project_details(project_id).weighted_average_price.unwrap();
 		let contributors = contributions.accounts();
 		let asset_id = contributions[0].asset.to_statemint_id();
@@ -1285,7 +1318,8 @@ where
 		let prev_funding_asset_balances = self.get_free_statemint_asset_balances_for(asset_id, contributors.clone());
 
 		let plmc_evaluation_deposits = Self::calculate_evaluation_plmc_spent(evaluations.clone());
-		let plmc_bid_deposits = Self::calculate_auction_plmc_spent_after_price_calculation(bids.clone(), ct_price);
+		let plmc_bid_deposits = Self::calculate_auction_plmc_spent(&bids.clone(), Some(ct_price));
+		
 		let plmc_contribution_deposits = Self::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 
 		let necessary_plmc_mint =
@@ -1310,10 +1344,10 @@ where
 
 		self.contribute_for_users(project_id, contributions.clone()).expect("Contributing should work");
 
-		self.do_reserved_plmc_assertions(total_plmc_participation_locked, LockType::Participation(project_id));
-		// self.do_contribution_transferred_statemint_asset_assertions(funding_asset_deposits, project_id);
-		self.do_free_plmc_assertions(expected_free_plmc_balances);
-		self.do_free_statemint_asset_assertions(prev_funding_asset_balances);
+		self.do_reserved_plmc_assertions(total_plmc_participation_locked.merge_accounts(), LockType::Participation(project_id));
+		self.do_contribution_transferred_statemint_asset_assertions(funding_asset_deposits.merge_accounts(), project_id);
+		self.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts());
+		self.do_free_statemint_asset_assertions(prev_funding_asset_balances.merge_accounts());
 		assert_eq!(self.get_plmc_total_supply(), post_supply);
 
 		self.start_remainder_or_end_funding(project_id).unwrap();
@@ -1346,6 +1380,9 @@ where
 			_ => {},
 		};
 
+		let bids = Self::simulate_bids_with_bucket(bids, &(project_metadata));
+		let bids = Self::filter_bids_after_auction(bids, project_metadata.total_allocation_size.0);
+
 		let ct_price = self.get_project_details(project_id).weighted_average_price.unwrap();
 		let contributors = remainder_contributions.accounts();
 		let asset_id = remainder_contributions[0].asset.to_statemint_id();
@@ -1353,7 +1390,7 @@ where
 		let prev_funding_asset_balances = self.get_free_statemint_asset_balances_for(asset_id, contributors.clone());
 
 		let plmc_evaluation_deposits = Self::calculate_evaluation_plmc_spent(evaluations.clone());
-		let plmc_bid_deposits = Self::calculate_auction_plmc_spent_after_price_calculation(bids.clone(), ct_price);
+		let plmc_bid_deposits = Self::calculate_auction_plmc_spent(&bids.clone(), Some(ct_price));
 		let plmc_community_contribution_deposits =
 			Self::calculate_contributed_plmc_spent(community_contributions.clone(), ct_price);
 		let plmc_remainder_contribution_deposits =
@@ -1388,10 +1425,10 @@ where
 		self.contribute_for_users(project_id, remainder_contributions.clone())
 			.expect("Remainder Contributing should work");
 
-		self.do_reserved_plmc_assertions(total_plmc_participation_locked, LockType::Participation(project_id));
-		// self.do_contribution_transferred_statemint_asset_assertions(funding_asset_deposits, project_id);
-		self.do_free_plmc_assertions(expected_free_plmc_balances);
-		// self.do_free_statemint_asset_assertions(prev_funding_asset_balances);
+		self.do_reserved_plmc_assertions(total_plmc_participation_locked.merge_accounts(), LockType::Participation(project_id));
+		self.do_contribution_transferred_statemint_asset_assertions(funding_asset_deposits.merge_accounts(), project_id);
+		self.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts());
+		self.do_free_statemint_asset_assertions(prev_funding_asset_balances.merge_accounts());
 		assert_eq!(self.get_plmc_total_supply(), post_supply);
 
 		self.finish_funding(project_id).unwrap();
@@ -1405,14 +1442,14 @@ where
 			let remainder_bought_tokens =
 				remainder_contributions.iter().map(|cont| cont.amount).fold(Zero::zero(), |acc, item| item + acc);
 
-			// assert_eq!(
-			// 	project_details.remaining_contribution_tokens.0 + project_details.remaining_contribution_tokens.1,
-			// 	project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1 -
-			// 		auction_bought_tokens -
-			// 		community_bought_tokens -
-			// 		remainder_bought_tokens,
-			// 	"Remaining CTs are incorrect"
-			// );
+			assert_eq!(
+				project_details.remaining_contribution_tokens.0 + project_details.remaining_contribution_tokens.1,
+				project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1 -
+					auction_bought_tokens -
+					community_bought_tokens -
+					remainder_bought_tokens,
+				"Remaining CTs are incorrect"
+			);
 		}
 
 		project_id
@@ -1424,6 +1461,11 @@ pub trait Accounts {
 
 	fn accounts(&self) -> Vec<Self::Account>;
 }
+
+pub trait AccountMerge {
+	fn merge_accounts(&self) -> Self;
+}
+
 pub trait ExistentialDeposits<T: Config> {
 	fn existential_deposits(&self) -> Vec<UserToPLMCBalance<T>>;
 }
@@ -1461,6 +1503,18 @@ impl<T: Config> Accounts for Vec<UserToPLMCBalance<T>> {
 		btree.into_iter().collect_vec()
 	}
 }
+impl<T: Config> AccountMerge for Vec<UserToPLMCBalance<T>> {
+	fn merge_accounts(&self) -> Self {
+		let mut btree = BTreeMap::new();
+		for UserToPLMCBalance { account, plmc_amount } in self.iter() {
+			let entry = btree.entry(account.clone()).or_insert(Zero::zero());
+			*entry += *plmc_amount;
+		}
+		btree.into_iter()
+			.map(|(account, plmc_amount)| UserToPLMCBalance::new(account, plmc_amount))
+			.collect()
+	}
+}
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct UserToUSDBalance<T: Config> {
@@ -1484,6 +1538,19 @@ impl<T: Config> Accounts for Vec<UserToUSDBalance<T>> {
 	}
 }
 
+impl<T: Config> AccountMerge for Vec<UserToUSDBalance<T>> {
+	fn merge_accounts(&self) -> Self {
+		let mut btree = BTreeMap::new();
+		for UserToUSDBalance { account, usd_amount } in self.iter() {
+			let entry = btree.entry(account.clone()).or_insert(Zero::zero());
+			*entry += *usd_amount;
+		}
+		btree.into_iter()
+			.map(|(account, plmc_amount)| UserToUSDBalance::new(account, plmc_amount))
+			.collect()
+	}
+}
+
 #[derive(Clone, PartialEq, Debug)]
 pub struct UserToStatemintAsset<T: Config> {
 	pub account: AccountIdOf<T>,
@@ -1504,6 +1571,19 @@ impl<T: Config> Accounts for Vec<UserToStatemintAsset<T>> {
 			btree.insert(account.clone());
 		}
 		btree.into_iter().collect_vec()
+	}
+}
+
+impl<T: Config> AccountMerge for Vec<UserToStatemintAsset<T>> {
+	fn merge_accounts(&self) -> Self {
+		let mut btree = BTreeMap::new();
+		for UserToStatemintAsset { account, asset_amount, asset_id } in self.iter() {
+			let entry: &mut (BalanceOf<T>, u32) = btree.entry(account.clone()).or_insert((Zero::zero(), asset_id.clone()));
+			entry.0 += *asset_amount;
+		}
+		btree.into_iter()
+			.map(|(account, info)| UserToStatemintAsset::new(account, info.0, info.1))
+			.collect()
 	}
 }
 #[derive(Clone, Debug)]
@@ -1535,6 +1615,7 @@ impl<T: Config> BidParams<T> {
 		}
 	}
 }
+
 impl<T: Config> Accounts for Vec<BidParams<T>> {
 	type Account = AccountIdOf<T>;
 
