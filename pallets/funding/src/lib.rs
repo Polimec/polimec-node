@@ -1119,6 +1119,16 @@ pub mod pallet {
 			let caller = ensure_signed(origin)?;
 			Self::do_set_para_id_for_project(&caller, project_id, para_id)
 		}
+
+		#[pallet::call_index(22)]
+		#[pallet::weight(Weight::from_parts(1000, 0))]
+		pub fn start_migration_readiness_check(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+		) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			Self::do_start_migration_readiness_check(&caller, project_id)
+		}
 	}
 
 	#[pallet::hooks]
@@ -1337,11 +1347,10 @@ pub mod pallet {
 pub mod xcm_executor_impl {
 	use super::*;
 	use crate::ProjectStatus::FundingSuccessful;
+	use frame_support::pallet_prelude::Get;
 
-	pub struct HrmpChannelOpenRequestHandler<T: Config, XcmSender: SendXcm>(PhantomData<(T, XcmSender)>);
-	impl<T: Config, XcmSender: SendXcm> polimec_xcm_executor::HrmpChannelOpenRequestHandler
-		for HrmpChannelOpenRequestHandler<T, XcmSender>
-	{
+	pub struct HrmpHandler<T: Config, XcmSender: SendXcm>(PhantomData<(T, XcmSender)>);
+	impl<T: Config, XcmSender: SendXcm> polimec_xcm_executor::HrmpHandler for HrmpHandler<T, XcmSender> {
 		fn handle_channel_open_request(message: Instruction) -> XcmResult {
 			// TODO: set these constants with a proper value
 			const MAX_MESSAGE_SIZE_THRESHOLDS: (u32, u32) = (50000, 102_400);
@@ -1434,6 +1443,15 @@ pub mod xcm_executor_impl {
 						},
 					}
 				},
+				instr @ _ => {
+					log::trace!(target: "pallet_funding::hrmp", "Bad instruction: {:?}", instr);
+					Err(XcmError::Unimplemented)
+				},
+			}
+		}
+
+		fn handle_channel_accepted(message: Instruction) -> XcmResult {
+			match message {
 				Instruction::HrmpChannelAccepted { recipient } => {
 					log::trace!(target: "pallet_funding::hrmp", "HrmpChannelAccepted received: {:?}", message);
 					let (project_id, mut project_details) = ProjectsDetails::<T>::iter()
@@ -1444,11 +1462,16 @@ pub mod xcm_executor_impl {
 
 					project_details.comm_status.polimec_to_project = ChannelStatus::Open;
 					ProjectsDetails::<T>::insert(project_id, project_details);
-
 					Pallet::<T>::deposit_event(Event::<T>::HrmpChannelEstablished {
 						project_id,
 						para_id: ParaId::from(recipient),
 					});
+
+					Pallet::<T>::do_start_migration_readiness_check(
+						T::PalletId::get().into_account_truncating(),
+						project_id,
+					)
+					.map_err(|_| XcmError::NoDeal)?;
 					Ok(())
 				},
 				instr @ _ => {

@@ -1778,7 +1778,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn start_migration_readiness_check(
+	pub fn do_start_migration_readiness_check(
 		caller: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 	) -> Result<(), DispatchError> {

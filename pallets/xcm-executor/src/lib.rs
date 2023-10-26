@@ -36,7 +36,7 @@ use xcm_executor::traits::{
 
 use xcm_executor::Assets;
 mod config;
-pub use config::{Config, HrmpChannelOpenRequestHandler};
+pub use config::{Config, HrmpHandler};
 
 /// A struct to specify how fees are being paid.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -879,9 +879,8 @@ impl<Config: config::Config> XcmExecutor<Config> {
 				ensure!(check_origin.is_none() || self.context.origin == check_origin, XcmError::BadOrigin);
 				Ok(())
 			},
-			msg @ HrmpNewChannelOpenRequest { .. } =>
-				Config::HrmpChannelOpenRequestHandler::handle_channel_open_request(msg.into()),
-			HrmpChannelAccepted { .. } => Err(XcmError::Unimplemented),
+			msg @ HrmpNewChannelOpenRequest { .. } => Config::HrmpHandler::handle_channel_open_request(msg.into()),
+			msg @ HrmpChannelAccepted { .. } => Config::HrmpHandler::handle_channel_accepted(msg.into()),
 			HrmpChannelClosing { .. } => Err(XcmError::Unimplemented),
 		}
 	}

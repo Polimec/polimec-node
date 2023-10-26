@@ -106,16 +106,21 @@ pub trait Config {
 	/// temporary measure until we properly account for proof size weights for XCM instructions.
 	type SafeCallFilter: Contains<Self::RuntimeCall>;
 
-	/// Polimec's custom type for handling the `HrmpNewChannelOpenRequest` instruction
-	type HrmpChannelOpenRequestHandler: HrmpChannelOpenRequestHandler;
+	/// Polimec's custom type for handling the `HrmpNewChannelOpenRequest` ans `HrmpChannelAccepted` instructions
+	type HrmpHandler: HrmpHandler;
 }
 
-pub trait HrmpChannelOpenRequestHandler {
+pub trait HrmpHandler {
 	fn handle_channel_open_request(message: Instruction) -> XcmResult;
+	fn handle_channel_accepted(message: Instruction) -> XcmResult;
 }
 
-impl HrmpChannelOpenRequestHandler for () {
+impl HrmpHandler for () {
 	fn handle_channel_open_request(_message: Instruction) -> XcmResult {
+		Err(XcmError::NoDeal)
+	}
+
+	fn handle_channel_accepted(_message: Instruction) -> XcmResult {
 		Err(XcmError::NoDeal)
 	}
 }

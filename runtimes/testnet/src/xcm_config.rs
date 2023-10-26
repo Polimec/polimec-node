@@ -371,8 +371,7 @@ impl polimec_xcm_executor::Config for XcmConfig {
 	type Barrier = Barrier;
 	type CallDispatcher = RuntimeCall;
 	type FeeManager = ();
-	type HrmpChannelOpenRequestHandler =
-		pallet_funding::xcm_executor_impl::HrmpChannelOpenRequestHandler<Runtime, XcmRouter>;
+	type HrmpChannelOpenRequestHandler = pallet_funding::xcm_executor_impl::HrmpHandler<Runtime, XcmRouter>;
 	type IsReserve = Reserves;
 	type IsTeleporter = NativeAsset;
 	type MaxAssetsIntoHolding = MaxAssetsIntoHolding;
