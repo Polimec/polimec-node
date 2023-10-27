@@ -1468,7 +1468,7 @@ pub mod xcm_executor_impl {
 					});
 
 					Pallet::<T>::do_start_migration_readiness_check(
-						T::PalletId::get().into_account_truncating(),
+						&(T::PalletId::get().into_account_truncating()),
 						project_id,
 					)
 					.map_err(|_| XcmError::NoDeal)?;
