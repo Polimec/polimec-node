@@ -419,10 +419,10 @@ mod benchmarks {
 		let bid_params =
 			BenchInstantiator::<T>::simulate_bids_with_bucket(vec![bid_params], &project_metadata)[0].clone();
 		let necessary_plmc: Vec<UserToPLMCBalance<T>> =
-			BenchInstantiator::<T>::calculate_auction_plmc_spent(vec![bid_params.clone()]);
+			BenchInstantiator::<T>::calculate_auction_plmc_spent(&vec![bid_params.clone()], None);
 		let existential_deposits: Vec<UserToPLMCBalance<T>> = necessary_plmc.accounts().existential_deposits();
 		let necessary_usdt: Vec<UserToStatemintAsset<T>> =
-			BenchInstantiator::<T>::calculate_auction_funding_asset_spent(vec![bid_params.clone()], None);
+			BenchInstantiator::<T>::calculate_auction_funding_asset_spent(&vec![bid_params.clone()], None);
 
 		inst.mint_plmc_to(necessary_plmc.clone());
 		inst.mint_plmc_to(existential_deposits.clone());
