@@ -57,6 +57,7 @@ use xcm_executor::{traits::JustTry, XcmExecutor};
 parameter_types! {
 	pub const RelayLocation: MultiLocation = MultiLocation::parent();
 	pub const RelayNetwork: Option<NetworkId> = None;
+	pub const HereLocation: MultiLocation = MultiLocation::here();
 	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
 	pub UniversalLocation: InteriorMultiLocation = X1(Parachain(ParachainInfo::parachain_id().into()));
 }
@@ -78,7 +79,7 @@ pub type CurrencyTransactor = CurrencyAdapter<
 	// Use this currency:
 	Balances,
 	// Use this currency when it is a fungible asset matching the given location or name:
-	IsConcrete<RelayLocation>,
+	IsConcrete<HereLocation>,
 	// Do a simple punn to convert an AccountId32 MultiLocation into a native chain account ID:
 	LocationToAccountId,
 	// Our chain's account ID type (we can't get away without mentioning it explicitly):
@@ -148,6 +149,9 @@ match_types! {
 	pub type CommonGoodAssetsParachain: impl Contains<MultiLocation> = {
 		MultiLocation { parents: 1, interior: X1(Parachain(1000)) }
 	};
+	pub type Polimec: impl Contains<MultiLocation> = {
+		MultiLocation { parents: 1, interior: X1(Parachain(3355)) }
+	};
 }
 
 pub type Barrier = DenyThenTry<
@@ -161,10 +165,11 @@ pub type Barrier = DenyThenTry<
 			(
 				// If the message is one that immediately attemps to pay for execution, then allow it.
 				AllowTopLevelPaidExecutionFrom<Everything>,
-				// Common Good Assets parachain, parent and its exec plurality get free execution
+				// Polimec, Common Good Assets parachain, parent and its exec plurality get free execution
 				AllowExplicitUnpaidExecutionFrom<(
 					CommonGoodAssetsParachain,
 					ParentOrParentsExecutivePlurality,
+					Polimec,
 				)>,
 				// Subscriptions for version tracking are OK.
 				AllowSubscriptionsFrom<Everything>,

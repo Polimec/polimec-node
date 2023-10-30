@@ -1,3 +1,3 @@
 mod basic_comms;
-mod hrmp_flow;
+mod sandbox;
 mod reserve_backed_transfers;
