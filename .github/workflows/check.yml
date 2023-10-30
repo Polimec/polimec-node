@@ -68,6 +68,11 @@ jobs:
         run: |
           echo "SKIP_WASM_BUILD=1" >> "$GITHUB_ENV"
         if: ${{ !contains(github.event.inputs.CRATE, 'integration-tests') }}
+      
+      - name: Print body
+        env:
+          BODY: ${{ github.event.comment.body }}
+        run: echo "Body -> $BODY"
 
       - name: Determine Crate Name
         id: crate_name
@@ -92,7 +97,7 @@ jobs:
         if: always()
         with:
           script: |
-            const name = '${{ github.job   }}';
+            const name = '${{ github.workflow   }}';
             const url = '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}';
             const success = '${{ job.status }}' === 'success';
             const body = `${name}: ${success ? 'Succeeded! ✅' : 'Failed ❌'}\n${url}`;
@@ -147,7 +152,7 @@ jobs:
         if: always()
         with:
           script: |
-            const name = '${{ github.job   }}';
+            const name = '${{ github.workflow   }}';
             const url = '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}';
             const success = '${{ job.status }}' === 'success';
             const body = `${name}: ${success ? 'Succeeded! ✅' : 'Failed ❌'}\n${url}`;
