@@ -13,7 +13,7 @@ fn balance_query() {
 	let execution_currency: MultiAsset = (MultiLocation { parents: 0, interior: Here }, 1_0_000_000_000u128).into(); // 1 unit for executing
 	let expected_currency: MultiAsset =
 		(MultiLocation { parents: 0, interior: Here }, 1_000_000_0_000_000_000u128).into(); // 1MM units for migrations
-	let xcm = VersionedXcm::from(Xcm(vec![
+	let xcm = Xcm(vec![
 		UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
 		WithdrawAsset(vec![expected_currency.clone()].into()),
 		ReportHolding {
@@ -25,13 +25,13 @@ fn balance_query() {
 			assets: Wild(All),
 		},
 		DepositAsset { assets: Wild(All), beneficiary: ParentThen(Parachain(3355).into()).into() }
-	]));
+	]);
 
 	let penpal_sov_acc = PolkadotRelay::sovereign_account_id_of(Parachain(Penpal::para_id().into()).into());
 	PolkadotRelay::fund_accounts(vec![(penpal_sov_acc, 100_0_000_000_000u128)]);
 
 	Polimec::execute_with(|| {
-		assert_ok!(PolimecXcmPallet::send(PolimecOrigin::root(), bx!(ParentThen(Parachain(3000).into()).into()), bx!(xcm),));
+		assert_ok!(PolimecXcmPallet::send_xcm(Here, MultiLocation::from(ParentThen(X1(Parachain(Penpal::para_id().into())))), xcm));
 		println!("polimec events:");
 		dbg!(Penpal::events())
 	});

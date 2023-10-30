@@ -59,7 +59,7 @@ pallet-message-queue.workspace = true
 polkadot-runtime.workspace = true
 statemint-runtime.workspace = true
 polimec-parachain-runtime.workspace = true
-penpal-runtime.workspace = true
+penpal-runtime = { path = "./penpal", default-features = false }
 
 [features]
 default = [ "std" ]
