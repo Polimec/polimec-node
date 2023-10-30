@@ -68,12 +68,17 @@ jobs:
         run: |
           echo "SKIP_WASM_BUILD=1" >> "$GITHUB_ENV"
         if: ${{ !contains(github.event.inputs.CRATE, 'integration-tests') }}
-
+      
+      - name: Set Body var
+        run: |
+          echo "BODY=${{ github.event.comment.body }}" >> "$GITHUB_ENV"
+       #  if:  "${{ github.event_name }}" == "issue_comment" 
       - name: Extract from BODY
         run: |
           extracted_value="${BODY#*test }"
           echo "EXTRACTED_VALUE=$extracted_value" >> "$GITHUB_ENV"
-
+       #  if:  "${{ github.event_name }}" == "issue_comment" 
+       
       - name: Determine Crate Name
         id: crate_name
         run: |
