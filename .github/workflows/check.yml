@@ -42,7 +42,7 @@ jobs:
         if: always()
         with:
           script: |
-            const name = '${{ github.workflow   }}';
+            const name = '${{ github.job   }}';
             const url = '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}';
             const success = '${{ job.status }}' === 'success';
             const body = `${name}: ${success ? 'Succeeded! ✅' : 'Failed ❌'}\n${url}`;
@@ -68,17 +68,22 @@ jobs:
         run: |
           echo "SKIP_WASM_BUILD=1" >> "$GITHUB_ENV"
         if: ${{ !contains(github.event.inputs.CRATE, 'integration-tests') }}
-      
+
       - name: Print body
         env:
           BODY: ${{ github.event.comment.body }}
         run: echo "Body -> $BODY"
 
+      - name: Extract from BODY
+        run: |
+          extracted_value="${BODY#*test }"
+          echo "EXTRACTED_VALUE=$extracted_value" >> "$GITHUB_ENV"
+
       - name: Determine Crate Name
         id: crate_name
         run: |
           if [[ "${{ github.event_name }}" == "issue_comment" ]]; then
-            echo "::set-output name=value::$(echo ${{github.event.comment.body}} | cut -d' ' -f3)"
+            echo "::set-output name=value::$(echo ${{env.EXTRACTED_VALUE}}"
           else
             echo "::set-output name=value::${{ github.event.inputs.CRATE }}"
           fi
@@ -97,7 +102,7 @@ jobs:
         if: always()
         with:
           script: |
-            const name = '${{ github.workflow   }}';
+            const name = '${{ github.job   }}';
             const url = '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}';
             const success = '${{ job.status }}' === 'success';
             const body = `${name}: ${success ? 'Succeeded! ✅' : 'Failed ❌'}\n${url}`;
@@ -152,7 +157,7 @@ jobs:
         if: always()
         with:
           script: |
-            const name = '${{ github.workflow   }}';
+            const name = '${{ github.job   }}';
             const url = '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}';
             const success = '${{ job.status }}' === 'success';
             const body = `${name}: ${success ? 'Succeeded! ✅' : 'Failed ❌'}\n${url}`;
