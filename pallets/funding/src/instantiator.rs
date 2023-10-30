@@ -528,17 +528,15 @@ where
 			if total_cts_left >= bid.amount {
 				total_cts_left.saturating_reduce(bid.amount);
 				filtered_bids.push(bid);
-			} else {
-				if !total_cts_left.is_zero() {
-					filtered_bids.push(BidParams {
-						bidder: bid.bidder.clone(),
-						amount: total_cts_left,
-						price: bid.price,
-						multiplier: bid.multiplier,
-						asset: bid.asset,
-					});
-					total_cts_left = Zero::zero();
-				}
+			} else if !total_cts_left.is_zero() {
+				filtered_bids.push(BidParams {
+					bidder: bid.bidder.clone(),
+					amount: total_cts_left,
+					price: bid.price,
+					multiplier: bid.multiplier,
+					asset: bid.asset,
+				});
+				total_cts_left = Zero::zero();
 			}
 		}
 		filtered_bids
