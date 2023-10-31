@@ -69,24 +69,26 @@ jobs:
           echo "SKIP_WASM_BUILD=1" >> "$GITHUB_ENV"
         if: ${{ !contains(github.event.inputs.CRATE, 'integration-tests') }}
       
+      
       - name: Set Body var
-        run: |
-          echo "BODY=${{ github.event.comment.body }}" >> "$GITHUB_ENV"
-       #  if:  "${{ github.event_name }}" == "issue_comment" 
+        run: echo "BODY=${{ github.event.comment.body }}" >> "$GITHUB_ENV"
+        if: github.event_name == 'issue_comment'
+
       - name: Extract from BODY
         run: |
           extracted_value="${BODY#*test }"
           echo "EXTRACTED_VALUE=$extracted_value" >> "$GITHUB_ENV"
-       #  if:  "${{ github.event_name }}" == "issue_comment" 
+        if: github.event_name == 'issue_comment'
        
       - name: Determine Crate Name
         id: crate_name
+        run: echo "CRATE_NAME=${{ env.EXTRACTED_VALUE }}" >> $GITHUB_OUTPUT
+        if: github.event_name == 'issue_comment'
+
+      - name: Sets env vars for NOT integration-tests
         run: |
-          if [[ "${{ github.event_name }}" == "issue_comment" ]]; then
-            echo "CRATE_NAME=${{ env.EXTRACTED_VALUE }}" >> $GITHUB_OUTPUT
-          else
-            echo "CRATE_NAME=${{ github.event.inputs.CRATE }}" >> $GITHUB_OUTPUT
-          fi
+          echo "SKIP_WASM_BUILD=1" >> "$GITHUB_ENV"
+        if: github.event_name == 'issue_comment' && !contains(steps.crate_name.outputs.CRATE_NAME, 'integration-tests')
 
       - name: Install Rust
         # Using the version specified in the rust-toolchain.toml
@@ -96,62 +98,11 @@ jobs:
 
       - name: Test the Parachain
         run: cargo test -p '${{ steps.crate_name.outputs.CRATE_NAME }}' --locked
-
-      - name: Add comment to PR
-        uses: actions/github-script@v6
-        if: always()
-        with:
-          script: |
-            const name = '${{ github.job   }}';
-            const url = '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}';
-            const success = '${{ job.status }}' === 'success';
-            const body = `${name}: ${success ? 'Succeeded! ✅' : 'Failed ❌'}\n${url}`;
-
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: body
-            })
-
-  benchmark:
-    if: (github.event_name == 'issue_comment' && github.event.issue.pull_request && startsWith(github.event.comment.body, '/bot benchmark')) || github.event_name == 'workflow_dispatch'
-    # The type of runner that the job will run on
-    runs-on: ubuntu-22.04
-    container:
-      image: paritytech/ci-linux:production
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v4
-
-      - name: Sets env vars for NOT integration-tests
-        run: |
-          echo "SKIP_WASM_BUILD=1" >> "$GITHUB_ENV"
-        if: ${{ !contains(github.event.inputs.CRATE, 'integration-tests') }}
-
-      - name: Extract from BODY
-        run: |
-          extracted_value="${BODY#*test }"
-          echo "EXTRACTED_VALUE=$extracted_value" >> "$GITHUB_ENV"
-
-      - name: Determine Crate Name
-        id: crate_name
-        run: |
-          if [[ "${{ github.event_name }}" == "issue_comment" ]]; then
-            echo "CRATE_NAME=${{ env.EXTRACTED_VALUE }}" >> $GITHUB_OUTPUT
-          else
-            echo "CRATE_NAME=${{ github.event.inputs.CRATE }}" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Install Rust
-        # Using the version specified in the rust-toolchain.toml
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          cache: true
-
-      - name: Test the Benchmarks
-        run: cargo test --features=runtime-benchmarks -p '${{ steps.crate_name.outputs.CRATE_NAME }}' --locked
+        if: github.event_name == 'issue_comment'
+      
+      - name: Test the Parachain
+        run: cargo test -p '${{ steps.crate_name.outputs.CRATE_NAME }}' --locked
+        if: github.event_name == 'workflow_dispatch'
 
       - name: Add comment to PR
         uses: actions/github-script@v6
