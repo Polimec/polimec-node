@@ -42,7 +42,7 @@ use sp_std::{
 use crate::{
 	traits::{BondingRequirementCalculation, ProvideStatemintPrice},
 	AcceptedFundingAsset, AccountIdOf, AssetIdOf, AuctionPhase, BalanceOf, BidInfoOf, BidStatus, Bids, BlockNumberOf,
-	BlockNumberPair, BucketOf, Cleaner, Config, Contributions, Error, EvaluationInfoOf, EvaluationRoundInfoOf,
+	BlockNumberPair, BucketOf, Buckets, Cleaner, Config, Contributions, Error, EvaluationInfoOf, EvaluationRoundInfoOf,
 	EvaluatorsOutcome, Event, LockType, MultiplierOf, PhaseTransitionPoints, PriceOf, ProjectDetailsOf, ProjectIdOf,
 	ProjectMetadataOf, ProjectStatus, ProjectsDetails, ProjectsMetadata, ProjectsToUpdate, RewardInfoOf, UpdateType,
 	VestingInfoOf, PLMC_STATEMINT_ID,
@@ -203,7 +203,7 @@ where
 				assert_eq!(reserved, plmc_amount);
 			});
 		}
-		println!("Next");
+		println!("NEXT")
 	}
 
 	pub fn mint_plmc_to(&mut self, mapping: Vec<UserToPLMCBalance<T>>) {
@@ -496,9 +496,9 @@ where
 		output
 	}
 
-	pub fn simulate_bids_with_bucket(bids: Vec<BidParams<T>>, metadata: &ProjectMetadataOf<T>) -> Vec<BidParams<T>> {
+	pub fn simulate_bids_with_bucket(&mut self, bids: Vec<BidParams<T>>, project_id: T::ProjectIdentifier) -> Vec<BidParams<T>> {
 		let mut output = Vec::new();
-		let mut bucket: BucketOf<T> = crate::Pallet::<T>::create_bucket_from_metadata(metadata).unwrap();
+		let mut bucket: BucketOf<T> = self.execute(|| Buckets::<T>::get(project_id).unwrap().clone());
 		for bid in bids {
 			let mut amount_to_bid = bid.amount;
 
@@ -576,34 +576,27 @@ where
 				plmc_amount: slash_percentage * plmc_amount.clone(),
 			})
 			.collect::<Vec<_>>();
-		let available_evaluation_locked_plmc_for_lock_transfer = Self::merge_subtract_mappings_by_user(
-			evaluation_locked_plmc_amounts.clone(),
-			vec![slashable_min_deposits.clone()],
+		let available_evaluation_locked_plmc_for_lock_transfer = Self::generic_map_operation(
+			vec![evaluation_locked_plmc_amounts.clone(), slashable_min_deposits.clone()],
+			MergeOperation::Subtract,
 		);
 
-		// how much new plmc was actually locked, considering already evaluation bonds used first.
-		let actual_contribution_locked_plmc_amounts = Self::generic_map_merge(
+		// how much new plmc was actually locked, considering already evaluation bonds used
+		// first.
+		let actual_contribution_locked_plmc_amounts = Self::generic_map_operation(
 			vec![
 				theoretical_contribution_locked_plmc_amounts.clone(),
 				available_evaluation_locked_plmc_for_lock_transfer,
 			],
-			|user_to_plmc| user_to_plmc.account.clone(),
-			|UserToPLMCBalance { account: acc_1, plmc_amount: contribution_amount },
-			 UserToPLMCBalance { account: _acc_2, plmc_amount: evaluation_amount }| {
-				if contribution_amount > evaluation_amount {
-					UserToPLMCBalance::new(acc_1.clone(), *contribution_amount - *evaluation_amount)
-				} else {
-					UserToPLMCBalance::new(acc_1.clone(), Zero::zero())
-				}
-			},
+			MergeOperation::Subtract,
 		);
-		let mut result = Self::merge_add_mappings_by_user(vec![
+		let mut result = Self::generic_map_operation(vec![
 			evaluation_locked_plmc_amounts,
 			actual_contribution_locked_plmc_amounts,
-		]);
+		], MergeOperation::Add);
 
 		if slashed {
-			result = Self::merge_subtract_mappings_by_user(result, vec![slashable_min_deposits]);
+			result = Self::generic_map_operation(vec![result, slashable_min_deposits], MergeOperation::Subtract);
 		}
 
 		result
@@ -619,52 +612,6 @@ where
 			let usd_ticket_size = token_usd_price.saturating_mul_int(cont.amount);
 			let funding_asset_spent = asset_price.reciprocal().unwrap().saturating_mul_int(usd_ticket_size);
 			output.push(UserToStatemintAsset::new(cont.contributor, funding_asset_spent, cont.asset.to_statemint_id()));
-		}
-		output
-	}
-
-	/// add all the user -> I maps together, and add the I's of the ones with the same user.
-	// Mappings should be sorted based on their account id, ascending.
-	pub fn merge_add_mappings_by_user(mut mappings: Vec<Vec<UserToPLMCBalance<T>>>) -> Vec<UserToPLMCBalance<T>> {
-		let mut output = mappings.swap_remove(0);
-		output.sort_by_key(|k| k.account.clone());
-		for mut map in mappings {
-			map.sort_by_key(|k| k.account.clone());
-			let old_output = output.clone();
-			output = Vec::new();
-			let mut i = 0;
-			let mut j = 0;
-			loop {
-				let old_tup = old_output.get(i);
-				let new_tup = map.get(j);
-
-				match (old_tup, new_tup) {
-					(None, None) => break,
-					(Some(_), None) => {
-						output.extend_from_slice(&old_output[i..]);
-						break
-					},
-					(None, Some(_)) => {
-						output.extend_from_slice(&map[j..]);
-						break
-					},
-					(
-						Some(UserToPLMCBalance { account: acc_i, plmc_amount: val_i }),
-						Some(UserToPLMCBalance { account: acc_j, plmc_amount: val_j }),
-					) =>
-						if acc_i == acc_j {
-							output.push(UserToPLMCBalance::new(acc_i.clone(), val_i.clone() + val_j.clone()));
-							i += 1;
-							j += 1;
-						} else if acc_i < acc_j {
-							output.push(old_output[i].clone());
-							i += 1;
-						} else {
-							output.push(map[j].clone());
-							j += 1;
-						},
-				}
-			}
 		}
 		output
 	}
@@ -686,156 +633,19 @@ where
 		output.into_iter().collect()
 	}
 
-	pub fn generic_map_merge<M: Clone, K: Ord + Clone>(
-		mut mappings: Vec<Vec<M>>,
-		key_extractor: impl Fn(&M) -> K,
-		merger: impl Fn(&M, &M) -> M,
-	) -> Vec<M> {
+	pub fn generic_map_operation<N: AccountMerge + Extend<<N as AccountMerge>::Inner> + IntoIterator<Item = <N as AccountMerge>::Inner>> (
+		mut mappings: Vec<N>,
+		ops: MergeOperation,
+	) -> N {
 		let mut output = mappings.swap_remove(0);
-		output.sort_by_key(|k| key_extractor(k));
-		for mut new_map in mappings {
-			new_map.sort_by_key(|k| key_extractor(k));
-			let old_output = output.clone();
-			output = Vec::new();
-			let mut i = 0;
-			let mut j = 0;
-			loop {
-				let output_item = old_output.get(i);
-				let new_item = new_map.get(j);
-
-				match (output_item, new_item) {
-					(None, None) => break,
-					(Some(_), None) => {
-						output.extend_from_slice(&old_output[i..]);
-						break
-					},
-					(None, Some(_)) => {
-						output.extend_from_slice(&new_map[j..]);
-						break
-					},
-					(Some(m_i), Some(m_j)) => {
-						let k_i = key_extractor(m_i);
-						let k_j = key_extractor(m_j);
-						if k_i == k_j {
-							output.push(merger(m_i, m_j));
-							i += 1;
-							j += 1;
-						} else if k_i < k_j {
-							output.push(old_output[i].clone());
-							i += 1;
-						} else {
-							output.push(new_map[j].clone());
-							j += 1;
-						}
-					},
-				}
+		output = output.merge_accounts(MergeOperation::Add);
+		for map in mappings {
+			match ops {
+				MergeOperation::Add => output.extend(map),
+				MergeOperation::Subtract => output = output.subtract_accounts(map),
 			}
 		}
-		output
-	}
-
-	pub fn generic_map_subtract<M: Clone, K: Ord + Clone>(
-		original_mapping: Vec<M>,
-		mappings: Vec<Vec<M>>,
-		key_extractor: impl Fn(&M) -> K,
-		subtractor: impl Fn(&M, &M) -> M,
-	) -> Vec<M> {
-		let mut output = original_mapping;
-		output.sort_by_key(|k| key_extractor(k));
-		for mut new_map in mappings {
-			new_map.sort_by_key(|k| key_extractor(k));
-			let old_output = output.clone();
-			output = Vec::new();
-			let mut i = 0;
-			let mut j = 0;
-			loop {
-				let output_item = old_output.get(i);
-				let new_item = new_map.get(j);
-
-				match (output_item, new_item) {
-					(None, None) => break,
-					(Some(_), None) => {
-						output.extend_from_slice(&old_output[i..]);
-						break
-					},
-					(None, Some(_)) => {
-						output.extend_from_slice(&new_map[j..]);
-						break
-					},
-					(Some(m_i), Some(m_j)) => {
-						let k_i = key_extractor(m_i);
-						let k_j = key_extractor(m_j);
-						if k_i == k_j {
-							output.push(subtractor(m_i, m_j));
-							i += 1;
-							j += 1;
-						} else if k_i < k_j {
-							output.push(old_output[i].clone());
-							i += 1;
-						} else {
-							output.push(new_map[j].clone());
-							j += 1;
-						}
-					},
-				}
-			}
-		}
-		output
-	}
-
-	// Accounts in base_mapping will be deducted balances from the matching accounts in substract_mappings.
-	// Mappings in substract_mappings without a match in base_mapping have no effect, nor will they get returned
-	pub fn merge_subtract_mappings_by_user(
-		base_mapping: Vec<UserToPLMCBalance<T>>,
-		subtract_mappings: Vec<Vec<UserToPLMCBalance<T>>>,
-	) -> Vec<UserToPLMCBalance<T>> {
-		let mut output = base_mapping;
-		output.sort_by_key(|k| k.account.clone());
-		for mut map in subtract_mappings {
-			map.sort_by_key(|k| k.account.clone());
-			let old_output = output.clone();
-			output = Vec::new();
-			let mut i = 0;
-			let mut j = 0;
-			loop {
-				let old_tup = old_output.get(i);
-				let new_tup = map.get(j);
-
-				match (old_tup, new_tup) {
-					(None, None) => break,
-					(Some(_), None) => {
-						output.extend_from_slice(&old_output[i..]);
-						break
-					},
-					(None, Some(_)) => {
-						// uncomment this if we want to keep unmatched mappings on the substractor
-						// output.extend_from_slice(&map[j..]);
-						break
-					},
-					(
-						Some(UserToPLMCBalance { account: acc_i, plmc_amount: val_i }),
-						Some(UserToPLMCBalance { account: acc_j, plmc_amount: val_j }),
-					) => {
-						if acc_i == acc_j {
-							output.push(UserToPLMCBalance::new(
-								acc_i.clone(),
-								val_i.clone().saturating_sub(val_j.clone()),
-							));
-							i += 1;
-							j += 1;
-						} else if acc_i < acc_j {
-							output.push(old_output[i].clone());
-							i += 1;
-						} else {
-							// uncomment to keep unmatched maps
-							// output.push(map[j]);
-							j += 1;
-						}
-					},
-				}
-			}
-		}
-		output
+		output.merge_accounts(ops)
 	}
 
 	pub fn sum_balance_mappings(mut mappings: Vec<Vec<UserToPLMCBalance<T>>>) -> BalanceOf<T> {
@@ -1103,7 +913,7 @@ where
 		let plmc_existential_deposits: Vec<UserToPLMCBalance<T>> = evaluators.existential_deposits();
 
 		let expected_remaining_plmc: Vec<UserToPLMCBalance<T>> =
-			Self::merge_add_mappings_by_user(vec![prev_plmc_balances.clone(), plmc_existential_deposits.clone()]);
+			Self::generic_map_operation(vec![prev_plmc_balances.clone(), plmc_existential_deposits.clone()], MergeOperation::Add);
 
 		self.mint_plmc_to(plmc_eval_deposits.clone());
 		self.mint_plmc_to(plmc_existential_deposits.clone());
@@ -1164,14 +974,14 @@ where
 		issuer: AccountIdOf<T>,
 		evaluations: Vec<UserToUSDBalance<T>>,
 		bids: Vec<BidParams<T>>,
-	) -> ProjectIdOf<T> {
+	) -> (ProjectIdOf<T>, Vec<BidParams<T>>) {
 		if bids.is_empty() {
 			panic!("Cannot start community funding without bids")
 		}
 
-		let bids = Self::simulate_bids_with_bucket(bids, &(project_metadata));
+		
 		let project_id = self.create_auctioning_project(project_metadata.clone(), issuer, evaluations.clone());
-
+		let bids = self.simulate_bids_with_bucket(bids, project_id);
 		let bidders = bids.accounts();
 		let asset_id = bids[0].asset.to_statemint_id();
 		let prev_plmc_balances = self.get_free_plmc_balances_for(bidders.clone());
@@ -1187,9 +997,10 @@ where
 				x
 			})
 			.collect::<Vec<UserToPLMCBalance<T>>>();
-		let necessary_plmc_mint = Self::merge_subtract_mappings_by_user(
-			plmc_bid_deposits.clone(),
-			vec![participation_usable_evaluation_deposits],
+		let necessary_plmc_mint = Self::generic_map_operation(
+			
+			vec![plmc_bid_deposits.clone(), participation_usable_evaluation_deposits],
+			MergeOperation::Subtract,
 		);
 		let total_plmc_participation_locked = plmc_bid_deposits;
 		let plmc_existential_deposits: Vec<UserToPLMCBalance<T>> = bidders.existential_deposits();
@@ -1199,7 +1010,7 @@ where
 			Self::sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
 
 		let expected_free_plmc_balances =
-			Self::merge_add_mappings_by_user(vec![prev_plmc_balances.clone(), plmc_existential_deposits.clone()]);
+			Self::generic_map_operation(vec![prev_plmc_balances.clone(), plmc_existential_deposits.clone()], MergeOperation::Add);
 
 		let prev_supply = self.get_plmc_total_supply();
 		let post_supply = prev_supply + bidder_balances;
@@ -1211,12 +1022,12 @@ where
 		self.bid_for_users(project_id, bids.clone()).expect("Bidding should work");
 
 		self.do_reserved_plmc_assertions(
-			total_plmc_participation_locked.merge_accounts(),
+			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
 			LockType::Participation(project_id),
 		);
-		self.do_bid_transferred_statemint_asset_assertions(funding_asset_deposits.merge_accounts(), project_id);
-		self.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts());
-		self.do_free_statemint_asset_assertions(prev_funding_asset_balances.merge_accounts());
+		self.do_bid_transferred_statemint_asset_assertions(funding_asset_deposits.merge_accounts(MergeOperation::Add), project_id);
+		self.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts(MergeOperation::Add));
+		self.do_free_statemint_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
 		assert_eq!(self.get_plmc_total_supply(), post_supply);
 
 		self.start_community_funding(project_id).unwrap();
@@ -1237,7 +1048,7 @@ where
 
 		self.finalized_bids_assertions(project_id, bid_expectations, total_ct_sold);
 
-		project_id
+		(project_id, accepted_bids)
 	}
 
 	pub fn contribute_for_users(
@@ -1305,20 +1116,18 @@ where
 		evaluations: Vec<UserToUSDBalance<T>>,
 		bids: Vec<BidParams<T>>,
 		contributions: Vec<ContributionParams<T>>,
-	) -> ProjectIdOf<T> {
-		let project_id = self.create_community_contributing_project(
+	) -> (ProjectIdOf<T>, Vec<BidParams<T>>) {
+		let (project_id, accepted_bids)  = self.create_community_contributing_project(
 			project_metadata.clone(),
 			issuer,
 			evaluations.clone(),
-			bids.clone(),
+			bids,
 		);
 
 		if contributions.is_empty() {
 			self.start_remainder_or_end_funding(project_id).unwrap();
-			return project_id
+			return (project_id, accepted_bids)
 		}
-		let bids = Self::simulate_bids_with_bucket(bids, &(project_metadata));
-		let bids = Self::filter_bids_after_auction(bids, project_metadata.total_allocation_size.0);
 
 		let ct_price = self.get_project_details(project_id).weighted_average_price.unwrap();
 		let contributors = contributions.accounts();
@@ -1327,14 +1136,14 @@ where
 		let prev_funding_asset_balances = self.get_free_statemint_asset_balances_for(asset_id, contributors.clone());
 
 		let plmc_evaluation_deposits = Self::calculate_evaluation_plmc_spent(evaluations.clone());
-		let plmc_bid_deposits = Self::calculate_auction_plmc_spent(&bids.clone(), Some(ct_price));
+		let plmc_bid_deposits = Self::calculate_auction_plmc_spent(&accepted_bids.clone(), Some(ct_price));
 
 		let plmc_contribution_deposits = Self::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 
 		let necessary_plmc_mint =
-			Self::merge_subtract_mappings_by_user(plmc_contribution_deposits.clone(), vec![plmc_evaluation_deposits]);
+			Self::generic_map_operation(vec![plmc_contribution_deposits.clone(),  plmc_evaluation_deposits], MergeOperation::Subtract);
 		let total_plmc_participation_locked =
-			Self::merge_add_mappings_by_user(vec![plmc_bid_deposits, plmc_contribution_deposits.clone()]);
+			Self::generic_map_operation(vec![plmc_bid_deposits, plmc_contribution_deposits.clone()], MergeOperation::Add);
 		let plmc_existential_deposits = contributors.existential_deposits();
 
 		let funding_asset_deposits = Self::calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
@@ -1342,7 +1151,7 @@ where
 			Self::sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
 
 		let expected_free_plmc_balances =
-			Self::merge_add_mappings_by_user(vec![prev_plmc_balances.clone(), plmc_existential_deposits.clone()]);
+			Self::generic_map_operation(vec![prev_plmc_balances.clone(), plmc_existential_deposits.clone()], MergeOperation::Add);
 
 		let prev_supply = self.get_plmc_total_supply();
 		let post_supply = prev_supply + contributor_balances;
@@ -1354,19 +1163,19 @@ where
 		self.contribute_for_users(project_id, contributions.clone()).expect("Contributing should work");
 
 		self.do_reserved_plmc_assertions(
-			total_plmc_participation_locked.merge_accounts(),
+			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
 			LockType::Participation(project_id),
 		);
 		self.do_contribution_transferred_statemint_asset_assertions(
-			funding_asset_deposits.merge_accounts(),
+			funding_asset_deposits.merge_accounts(MergeOperation::Add),
 			project_id,
 		);
-		self.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts());
-		self.do_free_statemint_asset_assertions(prev_funding_asset_balances.merge_accounts());
+		self.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts(MergeOperation::Add));
+		self.do_free_statemint_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
 		assert_eq!(self.get_plmc_total_supply(), post_supply);
 
 		self.start_remainder_or_end_funding(project_id).unwrap();
-		project_id
+		(project_id, accepted_bids)
 	}
 
 	pub fn create_finished_project(
@@ -1378,7 +1187,7 @@ where
 		community_contributions: Vec<ContributionParams<T>>,
 		remainder_contributions: Vec<ContributionParams<T>>,
 	) -> ProjectIdOf<T> {
-		let project_id = self.create_remainder_contributing_project(
+		let (project_id, accepted_bids) = self.create_remainder_contributing_project(
 			project_metadata.clone(),
 			issuer,
 			evaluations.clone(),
@@ -1395,9 +1204,6 @@ where
 			_ => {},
 		};
 
-		let bids = Self::simulate_bids_with_bucket(bids, &(project_metadata));
-		let bids = Self::filter_bids_after_auction(bids, project_metadata.total_allocation_size.0);
-
 		let ct_price = self.get_project_details(project_id).weighted_average_price.unwrap();
 		let contributors = remainder_contributions.accounts();
 		let asset_id = remainder_contributions[0].asset.to_statemint_id();
@@ -1405,21 +1211,21 @@ where
 		let prev_funding_asset_balances = self.get_free_statemint_asset_balances_for(asset_id, contributors.clone());
 
 		let plmc_evaluation_deposits = Self::calculate_evaluation_plmc_spent(evaluations.clone());
-		let plmc_bid_deposits = Self::calculate_auction_plmc_spent(&bids.clone(), Some(ct_price));
+		let plmc_bid_deposits = Self::calculate_auction_plmc_spent(&accepted_bids.clone(), Some(ct_price));
 		let plmc_community_contribution_deposits =
 			Self::calculate_contributed_plmc_spent(community_contributions.clone(), ct_price);
 		let plmc_remainder_contribution_deposits =
 			Self::calculate_contributed_plmc_spent(remainder_contributions.clone(), ct_price);
 
-		let necessary_plmc_mint = Self::merge_subtract_mappings_by_user(
-			plmc_remainder_contribution_deposits.clone(),
-			vec![plmc_evaluation_deposits],
+		let necessary_plmc_mint = Self::generic_map_operation(
+			vec![plmc_remainder_contribution_deposits.clone(), plmc_evaluation_deposits],
+			MergeOperation::Subtract,
 		);
-		let total_plmc_participation_locked = Self::merge_add_mappings_by_user(vec![
+		let total_plmc_participation_locked = Self::generic_map_operation(vec![
 			plmc_bid_deposits,
 			plmc_community_contribution_deposits,
 			plmc_remainder_contribution_deposits.clone(),
-		]);
+		], MergeOperation::Add);
 		let plmc_existential_deposits = contributors.existential_deposits();
 		let funding_asset_deposits =
 			Self::calculate_contributed_funding_asset_spent(remainder_contributions.clone(), ct_price);
@@ -1428,7 +1234,7 @@ where
 			Self::sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
 
 		let expected_free_plmc_balances =
-			Self::merge_add_mappings_by_user(vec![prev_plmc_balances.clone(), plmc_existential_deposits.clone()]);
+			Self::generic_map_operation(vec![prev_plmc_balances.clone(), plmc_existential_deposits.clone()], MergeOperation::Add);
 
 		let prev_supply = self.get_plmc_total_supply();
 		let post_supply = prev_supply + contributor_balances;
@@ -1441,15 +1247,15 @@ where
 			.expect("Remainder Contributing should work");
 
 		self.do_reserved_plmc_assertions(
-			total_plmc_participation_locked.merge_accounts(),
+			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
 			LockType::Participation(project_id),
 		);
 		self.do_contribution_transferred_statemint_asset_assertions(
-			funding_asset_deposits.merge_accounts(),
+			funding_asset_deposits.merge_accounts(MergeOperation::Add),
 			project_id,
 		);
-		self.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts());
-		self.do_free_statemint_asset_assertions(prev_funding_asset_balances.merge_accounts());
+		self.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts(MergeOperation::Add));
+		self.do_free_statemint_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
 		assert_eq!(self.get_plmc_total_supply(), post_supply);
 
 		self.finish_funding(project_id).unwrap();
@@ -1457,7 +1263,7 @@ where
 		if self.get_project_details(project_id).status == ProjectStatus::FundingSuccessful {
 			// Check that remaining CTs are updated
 			let project_details = self.get_project_details(project_id);
-			let auction_bought_tokens = bids.iter().map(|bid| bid.amount).fold(Zero::zero(), |acc, item| item + acc);
+			let auction_bought_tokens = accepted_bids.iter().map(|bid| bid.amount).fold(Zero::zero(), |acc, item| item + acc);
 			let community_bought_tokens =
 				community_contributions.iter().map(|cont| cont.amount).fold(Zero::zero(), |acc, item| item + acc);
 			let remainder_bought_tokens =
@@ -1483,8 +1289,14 @@ pub trait Accounts {
 	fn accounts(&self) -> Vec<Self::Account>;
 }
 
+pub enum MergeOperation {
+	Add,
+	Subtract,
+}
 pub trait AccountMerge {
-	fn merge_accounts(&self) -> Self;
+	type Inner;
+	fn merge_accounts(&self, ops: MergeOperation) -> Self;
+	fn subtract_accounts(&self, other_list: Self) -> Self;
 }
 
 pub trait ExistentialDeposits<T: Config> {
@@ -1525,13 +1337,28 @@ impl<T: Config> Accounts for Vec<UserToPLMCBalance<T>> {
 	}
 }
 impl<T: Config> AccountMerge for Vec<UserToPLMCBalance<T>> {
-	fn merge_accounts(&self) -> Self {
+	type Inner = UserToPLMCBalance<T>;
+	fn merge_accounts(&self, ops: MergeOperation) -> Self {
 		let mut btree = BTreeMap::new();
 		for UserToPLMCBalance { account, plmc_amount } in self.iter() {
-			let entry = btree.entry(account.clone()).or_insert(Zero::zero());
-			*entry += *plmc_amount;
+			btree.entry(account.clone())
+				.and_modify(|e: &mut BalanceOf<T>| *e = 
+					match ops {
+						MergeOperation::Add => e.saturating_add(*plmc_amount),
+						MergeOperation::Subtract => e.saturating_sub(*plmc_amount),
+					})
+				.or_insert(*plmc_amount);
+
 		}
 		btree.into_iter().map(|(account, plmc_amount)| UserToPLMCBalance::new(account, plmc_amount)).collect()
+	}
+
+	fn subtract_accounts(&self, other_list: Self) -> Self {
+		let current_accounts = self.accounts();
+		let filtered_list = other_list.into_iter().filter(|x| current_accounts.contains(&x.account)).collect_vec();
+		let mut new_list = self.clone();
+		new_list.extend(filtered_list);
+		new_list.merge_accounts(MergeOperation::Subtract)
 	}
 }
 
@@ -1558,13 +1385,27 @@ impl<T: Config> Accounts for Vec<UserToUSDBalance<T>> {
 }
 
 impl<T: Config> AccountMerge for Vec<UserToUSDBalance<T>> {
-	fn merge_accounts(&self) -> Self {
+	type Inner = UserToUSDBalance<T>;
+	fn merge_accounts(&self, ops: MergeOperation) -> Self {
 		let mut btree = BTreeMap::new();
 		for UserToUSDBalance { account, usd_amount } in self.iter() {
-			let entry = btree.entry(account.clone()).or_insert(Zero::zero());
-			*entry += *usd_amount;
+			btree.entry(account.clone())
+				.and_modify(|e: &mut BalanceOf<T>| *e = 
+					match ops {
+						MergeOperation::Add => e.saturating_add(*usd_amount),
+						MergeOperation::Subtract => e.saturating_sub(*usd_amount),
+					})
+				.or_insert(*usd_amount);
 		}
-		btree.into_iter().map(|(account, plmc_amount)| UserToUSDBalance::new(account, plmc_amount)).collect()
+		btree.into_iter().map(|(account, usd_amount)| UserToUSDBalance::new(account, usd_amount)).collect()
+	}
+
+	fn subtract_accounts(&self, other_list: Self) -> Self {
+		let current_accounts = self.accounts();
+		let filtered_list = other_list.into_iter().filter(|x| current_accounts.contains(&x.account)).collect_vec();
+		let mut new_list = self.clone();
+		new_list.extend(filtered_list);
+		new_list.merge_accounts(MergeOperation::Subtract)
 	}
 }
 
@@ -1592,14 +1433,28 @@ impl<T: Config> Accounts for Vec<UserToStatemintAsset<T>> {
 }
 
 impl<T: Config> AccountMerge for Vec<UserToStatemintAsset<T>> {
-	fn merge_accounts(&self) -> Self {
+	type Inner = UserToStatemintAsset<T>;
+	fn merge_accounts(&self, ops: MergeOperation) -> Self {
 		let mut btree = BTreeMap::new();
 		for UserToStatemintAsset { account, asset_amount, asset_id } in self.iter() {
-			let entry: &mut (BalanceOf<T>, u32) =
-				btree.entry(account.clone()).or_insert((Zero::zero(), asset_id.clone()));
-			entry.0 += *asset_amount;
+			btree.entry(account.clone())
+				.and_modify(|e: &mut (BalanceOf<T>, u32)| e.0 = 
+					match ops {
+						MergeOperation::Add => e.0.saturating_add(*asset_amount),
+						MergeOperation::Subtract => e.0.saturating_sub(*asset_amount),
+					})
+				.or_insert((*asset_amount, asset_id.clone()));
+				
 		}
 		btree.into_iter().map(|(account, info)| UserToStatemintAsset::new(account, info.0, info.1)).collect()
+	}
+
+	fn subtract_accounts(&self, other_list: Self) -> Self {
+		let current_accounts = self.accounts();
+		let filtered_list = other_list.into_iter().filter(|x| current_accounts.contains(&x.account)).collect_vec();
+		let mut new_list = self.clone();
+		new_list.extend(filtered_list);
+		new_list.merge_accounts(MergeOperation::Subtract)
 	}
 }
 #[derive(Clone, Debug)]
