@@ -68,7 +68,7 @@ jobs:
       - name: Sets env vars for NOT integration-tests (if from workflow_dispatch)
         run: |
           echo "SKIP_WASM_BUILD=1" >> "$GITHUB_ENV"
-        if: ${{ !contains(github.event.inputs.CRATE, 'integration-tests') }}
+        if: github.event_name == 'workflow_dispatch' &&  !contains(github.event.inputs.CRATE, 'integration-tests')
 
       - name: Set Body var
         run: echo "BODY=${{ github.event.comment.body }}" >> "$GITHUB_ENV"
@@ -135,7 +135,7 @@ jobs:
       - name: Sets env vars for NOT integration-tests (if from workflow_dispatch)
         run: |
           echo "SKIP_WASM_BUILD=1" >> "$GITHUB_ENV"
-        if: ${{ !contains(github.event.inputs.CRATE, 'integration-tests') }}
+        if: github.event_name == 'workflow_dispatch' && !contains(github.event.inputs.CRATE, 'integration-tests')
 
       - name: Set Body var
         run: echo "BODY=${{ github.event.comment.body }}" >> "$GITHUB_ENV"
