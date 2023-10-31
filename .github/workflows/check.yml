@@ -76,7 +76,7 @@ jobs:
 
       - name: Extract from BODY
         run: |
-          extracted_value="${BODY#*benchmark }"
+          extracted_value="${BODY#*test }"
           echo "EXTRACTED_VALUE=$extracted_value" >> "$GITHUB_ENV"
         if: github.event_name == 'issue_comment'
 
@@ -143,7 +143,7 @@ jobs:
 
       - name: Extract from BODY
         run: |
-          extracted_value="${BODY#*test }"
+          extracted_value="${BODY#*benchmark }"
           echo "EXTRACTED_VALUE=$extracted_value" >> "$GITHUB_ENV"
         if: github.event_name == 'issue_comment'
 
