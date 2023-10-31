@@ -69,8 +69,7 @@ jobs:
         run: |
           echo "SKIP_WASM_BUILD=1" >> "$GITHUB_ENV"
         if: ${{ !contains(github.event.inputs.CRATE, 'integration-tests') }}
-      
-      
+
       - name: Set Body var
         run: echo "BODY=${{ github.event.comment.body }}" >> "$GITHUB_ENV"
         if: github.event_name == 'issue_comment'
@@ -80,7 +79,7 @@ jobs:
           extracted_value="${BODY#*test }"
           echo "EXTRACTED_VALUE=$extracted_value" >> "$GITHUB_ENV"
         if: github.event_name == 'issue_comment'
-       
+
       - name: Determine Crate Name
         id: crate_name
         run: echo "CRATE_NAME=${{ env.EXTRACTED_VALUE }}" >> $GITHUB_OUTPUT
@@ -100,7 +99,7 @@ jobs:
       - name: Test the Parachain (if from issue_comment)
         run: cargo test -p '${{ steps.crate_name.outputs.CRATE_NAME }}' --locked
         if: github.event_name == 'issue_comment'
-      
+
       - name: Test the Parachain (if from workflow_dispatch)
         run: cargo test -p '${{ github.event.inputs.CRATE }}' --locked
         if: github.event_name == 'workflow_dispatch'
@@ -147,7 +146,7 @@ jobs:
           extracted_value="${BODY#*test }"
           echo "EXTRACTED_VALUE=$extracted_value" >> "$GITHUB_ENV"
         if: github.event_name == 'issue_comment'
-       
+
       - name: Determine Crate Name
         id: crate_name
         run: echo "CRATE_NAME=${{ env.EXTRACTED_VALUE }}" >> $GITHUB_OUTPUT
@@ -164,9 +163,13 @@ jobs:
         with:
           cache: true
 
-      - name: Test the Benchmarks
+      - name: Test the Benchmarks (if from issue_comment)
         run: cargo test --features=runtime-benchmarks -p '${{ steps.crate_name.outputs.CRATE_NAME }}' --locked benchmark_tests
+        if: github.event_name == 'issue_comment'
 
+      - name: Test the Benchmarks (if from workflow_dispatch)
+        run: cargo test --features=runtime-benchmarks -p '${{ github.event.inputs.CRATE }}' --locked benchmark_tests
+        if: github.event_name == 'workflow_dispatch'
       - name: Add comment to PR
         uses: actions/github-script@v6
         if: always()
