@@ -31,7 +31,15 @@ fn balance_query() {
 	PolkadotRelay::fund_accounts(vec![(penpal_sov_acc, 100_0_000_000_000u128)]);
 
 	Polimec::execute_with(|| {
-		assert_ok!(PolimecXcmPallet::send_xcm(Here, MultiLocation::from(ParentThen(X1(Parachain(Penpal::para_id().into())))), xcm));
+		let penpal_loc: MultiLocation = MultiLocation::from(ParentThen(X1(Parachain(Penpal::para_id().into()))));
+		let now = PolimecSystem::block_number();
+		// the parameters of the call are not relevant since they will be stripped and replaced by the query result
+		let call = PolimecCall::PolimecFunding(pallet_funding::Call::migration_check_response {
+			query_id: Default::default(),
+			response: Default::default(),
+		});
+		let query_id = PolimecXcmPallet::new_notify_query(penpal_loc, call,now + 20u32, Here);
+		assert_ok!(PolimecXcmPallet::send_xcm(Here, penpal_loc, xcm));
 		println!("polimec events:");
 		dbg!(Polimec::events())
 	});

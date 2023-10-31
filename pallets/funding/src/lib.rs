@@ -265,7 +265,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_balances::Config<Balance = BalanceOf<Self>> {
+	pub trait Config: frame_system::Config + pallet_balances::Config<Balance = BalanceOf<Self>> + pallet_xcm::Config {
 		/// Helper trait for benchmarks.
 		// #[cfg(any(feature = "runtime-benchmarks", feature = "testing-node"))]
 		type AllPalletsWithoutSystem: frame_support::traits::OnFinalize<BlockNumberOf<Self>>
@@ -1129,6 +1129,23 @@ pub mod pallet {
 			let caller = ensure_signed(origin)?;
 			Self::do_start_migration_readiness_check(&caller, project_id)
 		}
+
+		#[pallet::call_index(23)]
+		#[pallet::weight(Weight::from_parts(1000, 0))]
+		pub fn migration_check_response(
+			origin: OriginFor<T>,
+			query_id: xcm::v3::QueryId,
+			response: xcm::v3::Response
+		) -> DispatchResult {
+			let location = ensure_response(<T as pallet_xcm::Config>::RuntimeOrigin::from(origin))?;
+			let para_id = if let MultiLocation { parents: 1, interior: X1(Parachain(para_id))} = location {
+                para_id
+            } else {
+				return Err(Error::<T>::NotAllowed.into())
+			};
+			let x = 10;
+			Ok(())
+		}
 	}
 
 	#[pallet::hooks]
@@ -1232,6 +1249,8 @@ pub mod pallet {
 
 	#[cfg(all(feature = "testing-node", feature = "std"))]
 	use frame_support::traits::{OnFinalize, OnIdle, OnInitialize, OriginTrait};
+	use pallet_xcm::ensure_response;
+	use polkadot_runtime_parachains::ensure_parachain;
 
 	#[cfg(all(feature = "testing-node", feature = "std"))]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
