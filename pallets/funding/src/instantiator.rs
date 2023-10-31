@@ -633,6 +633,21 @@ where
 		output.into_iter().collect()
 	}
 
+	/// Merge the given mappings into one mapping, where the values are merged using the given
+	/// merge operation. 
+	/// 
+	/// In case of the `Add` operation, all values are Unioned, and duplicate accounts are
+	/// added together.
+	/// In case of the `Subtract` operation, all values of the first mapping are subtracted by
+	/// the values of the other mappings. Accounts in the other mappings that are not present
+	/// in the first mapping are ignored.
+	/// 
+	/// # Pseudocode Example
+	/// List1: [(A, 10), (B, 5), (C, 5)]
+	/// List2: [(A, 5), (B, 5), (D, 5)]
+	/// 
+	/// Add: [(A, 15), (B, 10), (C, 5), (D, 5)]
+	/// Subtract: [(A, 5), (B, 0), (C, 5)]
 	pub fn generic_map_operation<N: AccountMerge + Extend<<N as AccountMerge>::Inner> + IntoIterator<Item = <N as AccountMerge>::Inner>> (
 		mut mappings: Vec<N>,
 		ops: MergeOperation,
@@ -1294,8 +1309,12 @@ pub enum MergeOperation {
 	Subtract,
 }
 pub trait AccountMerge {
+	/// The inner type of the Vec implementing this Trait.
 	type Inner;
+	/// Merge accounts in the list based on the operation. 
 	fn merge_accounts(&self, ops: MergeOperation) -> Self;
+	/// Subtract amount of the matching accounts in the other list from the current list.
+	/// If the account is not present in the current list, it is ignored.
 	fn subtract_accounts(&self, other_list: Self) -> Self;
 }
 
