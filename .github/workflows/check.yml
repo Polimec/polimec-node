@@ -94,7 +94,15 @@ jobs:
         # Using the version specified in the rust-toolchain.toml
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
+          cache: false
+        if: ${{ env.ACT }}
+
+      - name: Install Rust
+        # Using the version specified in the rust-toolchain.toml
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
           cache: true
+        if: ${{ !env.ACT }}
 
       - name: Test the Parachain (if from issue_comment)
         run: cargo test -p '${{ steps.crate_name.outputs.CRATE_NAME }}' --locked
@@ -161,7 +169,15 @@ jobs:
         # Using the version specified in the rust-toolchain.toml
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
+          cache: false
+        if: ${{ env.ACT }}
+
+      - name: Install Rust
+        # Using the version specified in the rust-toolchain.toml
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
           cache: true
+        if: ${{ !env.ACT }}
 
       - name: Test the Benchmarks (if from issue_comment)
         run: cargo test --features=runtime-benchmarks -p '${{ steps.crate_name.outputs.CRATE_NAME }}' --locked benchmark_tests
@@ -170,6 +186,7 @@ jobs:
       - name: Test the Benchmarks (if from workflow_dispatch)
         run: cargo test --features=runtime-benchmarks -p '${{ github.event.inputs.CRATE }}' --locked benchmark_tests
         if: github.event_name == 'workflow_dispatch'
+        
       - name: Add comment to PR
         uses: actions/github-script@v6
         if: always()
