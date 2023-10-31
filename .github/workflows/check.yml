@@ -101,7 +101,7 @@ jobs:
         if: github.event_name == 'issue_comment'
       
       - name: Test the Parachain
-        run: cargo test -p '${{ steps.crate_name.outputs.CRATE_NAME }}' --locked
+        run: cargo test -p '${{ github.event.inputs.CRATE }}' --locked
         if: github.event_name == 'workflow_dispatch'
 
       - name: Add comment to PR
