@@ -887,12 +887,11 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
 			#[pallet::compact] amount: BalanceOf<T>,
-			_price: PriceOf<T>,
 			multiplier: T::Multiplier,
 			asset: AcceptedFundingAsset,
 		) -> DispatchResult {
 			let bidder = ensure_signed(origin)?;
-			Self::do_bid(&bidder, project_id, amount, _price, multiplier, asset)
+			Self::do_bid(&bidder, project_id, amount, multiplier, asset)
 		}
 
 		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
