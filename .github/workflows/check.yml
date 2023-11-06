@@ -32,7 +32,6 @@ jobs:
         # Force Rust Nightly to check the formatting
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          toolchain: nightly
           cache: true
 
       - name: Check the formatting
