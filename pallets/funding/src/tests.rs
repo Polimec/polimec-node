@@ -399,7 +399,7 @@ mod evaluation_round_success {
 			ContributionParams::new(BUYER_7, 2_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 
-		let (project_id, _)  = inst.create_community_contributing_project(project_metadata, ISSUER, evaluations, bids);
+		let (project_id, _) = inst.create_community_contributing_project(project_metadata, ISSUER, evaluations, bids);
 		let details = inst.get_project_details(project_id);
 		let ct_price = details.weighted_average_price.unwrap();
 		let plmc_deposits = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
@@ -466,7 +466,8 @@ mod evaluation_round_success {
 
 		let post_free_plmc = inst.get_free_plmc_balances_for(evaluators.clone());
 
-		let increased_amounts = MockInstantiator::generic_map_operation(vec![post_free_plmc, prev_free_plmc], MergeOperation::Subtract);
+		let increased_amounts =
+			MockInstantiator::generic_map_operation(vec![post_free_plmc, prev_free_plmc], MergeOperation::Subtract);
 
 		assert_eq!(increased_amounts, MockInstantiator::calculate_evaluation_plmc_spent(evaluations))
 	}
@@ -503,7 +504,8 @@ mod evaluation_round_success {
 
 		let post_free_plmc = inst.get_free_plmc_balances_for(evaluators.clone());
 
-		let increased_amounts = MockInstantiator::generic_map_operation( vec![post_free_plmc, prev_free_plmc], MergeOperation::Subtract);
+		let increased_amounts =
+			MockInstantiator::generic_map_operation(vec![post_free_plmc, prev_free_plmc], MergeOperation::Subtract);
 
 		assert_eq!(
 			increased_amounts,
@@ -526,10 +528,10 @@ mod evaluation_round_failure {
 		let plmc_eval_deposits: Vec<UserToPLMCBalance<_>> =
 			MockInstantiator::calculate_evaluation_plmc_spent(evaluations.clone());
 		let plmc_existential_deposits = plmc_eval_deposits.accounts().existential_deposits();
-		let expected_evaluator_balances = MockInstantiator::generic_map_operation(vec![
-			plmc_eval_deposits.clone(),
-			plmc_existential_deposits.clone(),
-		], MergeOperation::Add);
+		let expected_evaluator_balances = MockInstantiator::generic_map_operation(
+			vec![plmc_eval_deposits.clone(), plmc_existential_deposits.clone()],
+			MergeOperation::Add,
+		);
 
 		inst.mint_plmc_to(plmc_eval_deposits.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
@@ -956,7 +958,7 @@ mod auction_round_success {
 			BidParams::new(BIDDER_5, 5_000 * ASSET_UNIT, 0.into(), 1u8, AcceptedFundingAsset::USDT),
 		];
 
-		let (project_id, _)  = inst.create_community_contributing_project(project, issuer, evaluations, bids);
+		let (project_id, _) = inst.create_community_contributing_project(project, issuer, evaluations, bids);
 		let bidder_5_bid =
 			inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id, BIDDER_5)).next().unwrap());
 		let wabgp = inst.get_project_details(project_id).weighted_average_price.unwrap();
@@ -2306,7 +2308,7 @@ mod community_round_success {
 		let issuer = ISSUER;
 		let evaluations = default_evaluations();
 		let bids = default_bids();
-		let (project_id, _)  = inst.create_community_contributing_project(metadata, issuer, evaluations, bids);
+		let (project_id, _) = inst.create_community_contributing_project(metadata, issuer, evaluations, bids);
 
 		const BOB: AccountId = 42;
 		let token_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
@@ -2350,7 +2352,7 @@ mod community_round_success {
 			BidParams::from(BIDDER_1, 40_000 * ASSET_UNIT, FixedU128::from_float(1.0)),
 			BidParams::from(BIDDER_2, 10_000 * ASSET_UNIT, FixedU128::from_float(1.0)),
 		];
-		let (project_id, _)  =
+		let (project_id, _) =
 			inst.create_community_contributing_project(default_project(0, ISSUER), ISSUER, default_evaluations(), bids);
 		const BOB: AccountId = 808;
 
@@ -2397,7 +2399,7 @@ mod community_round_success {
 			BidParams::new(BIDDER_1, 40_000 * ASSET_UNIT, FixedU128::from_float(1.0), 1u8, AcceptedFundingAsset::USDT),
 			BidParams::new(BIDDER_2, 10_000 * ASSET_UNIT, FixedU128::from_float(1.0), 1u8, AcceptedFundingAsset::USDT),
 		];
-		let (project_id, _)  =
+		let (project_id, _) =
 			inst.create_community_contributing_project(default_project(0, ISSUER), ISSUER, default_evaluations(), bids);
 		const BOB: AccountId = 808;
 
@@ -2460,7 +2462,7 @@ mod community_round_success {
 	#[test]
 	fn contribution_is_returned_on_limit_reached_same_mult_diff_ct() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let (project_id, _)  = inst.create_community_contributing_project(
+		let (project_id, _) = inst.create_community_contributing_project(
 			default_project(0, ISSUER),
 			ISSUER,
 			default_evaluations(),
@@ -2568,7 +2570,7 @@ mod community_round_success {
 	#[test]
 	fn contribution_is_returned_on_limit_reached_diff_mult_same_ct() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let (project_id, _)  = inst.create_community_contributing_project(
+		let (project_id, _) = inst.create_community_contributing_project(
 			default_project(0, ISSUER),
 			ISSUER,
 			default_evaluations(),
@@ -2686,7 +2688,7 @@ mod community_round_success {
 		evaluations.push(UserToUSDBalance::new(evaluator_contributor, evaluation_amount));
 		let bids = default_bids();
 
-		let (project_id, _)  = inst.create_community_contributing_project(project, issuer, evaluations, bids);
+		let (project_id, _) = inst.create_community_contributing_project(project, issuer, evaluations, bids);
 		let ct_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 		let already_bonded_plmc = MockInstantiator::calculate_evaluation_plmc_spent(vec![UserToUSDBalance::new(
 			evaluator_contributor,
@@ -2753,7 +2755,7 @@ mod community_round_success {
 			.saturating_mul_int(evaluation_bond);
 		evaluations.push(UserToUSDBalance::new(evaluator_contributor, evaluation_usd_amount));
 
-		let (project_id, _)  = inst.create_community_contributing_project(project, issuer, evaluations, bids);
+		let (project_id, _) = inst.create_community_contributing_project(project, issuer, evaluations, bids);
 
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
 			evaluator_contributor,
@@ -2787,7 +2789,7 @@ mod community_round_success {
 		evaluations.push(UserToUSDBalance::new(evaluator_contributor, evaluation_amount));
 		let bids = default_bids();
 
-		let (project_id, _)  = inst.create_community_contributing_project(project, issuer, evaluations, bids);
+		let (project_id, _) = inst.create_community_contributing_project(project, issuer, evaluations, bids);
 		let ct_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 		let necessary_plmc_for_contribution =
 			MockInstantiator::calculate_contributed_plmc_spent(vec![contribution.clone()], ct_price)[0].plmc_amount;
@@ -2802,7 +2804,10 @@ mod community_round_success {
 			necessary_plmc_for_contribution > plmc_available_for_participating &&
 				necessary_plmc_for_contribution < plmc_evaluation_amount
 		);
-		println!("Plmc contr: {:?}, plmc eval: {:?}, plmc avail: {:?}", necessary_plmc_for_contribution, plmc_evaluation_amount, plmc_available_for_participating);
+		println!(
+			"Plmc contr: {:?}, plmc eval: {:?}, plmc avail: {:?}",
+			necessary_plmc_for_contribution, plmc_evaluation_amount, plmc_available_for_participating
+		);
 		let necessary_usdt_for_contribution =
 			MockInstantiator::calculate_contributed_funding_asset_spent(vec![contribution.clone()], ct_price);
 
@@ -2824,7 +2829,7 @@ mod community_round_success {
 		evaluations.push(UserToUSDBalance::new(evaluator_contributor, evaluation_amount));
 		let bids = default_bids();
 
-		let (project_id, _)  = inst.create_community_contributing_project(project, issuer, evaluations, bids);
+		let (project_id, _) = inst.create_community_contributing_project(project, issuer, evaluations, bids);
 
 		let ct_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 		let necessary_plmc_for_contribution =
@@ -3827,7 +3832,7 @@ mod community_round_failure {
 
 		let mut delta_contributors_plmc_balances = MockInstantiator::generic_map_operation(
 			vec![post_contributors_plmc_balances, prev_contributors_plmc_balances],
-			MergeOperation::Subtract
+			MergeOperation::Subtract,
 		);
 		delta_contributors_plmc_balances.sort_by_key(|item| item.account);
 
@@ -4533,11 +4538,10 @@ mod remainder_round_success {
 		let auction_locked_plmc = MockInstantiator::calculate_auction_plmc_spent(&bids, Some(price));
 		let community_locked_plmc = MockInstantiator::calculate_contributed_plmc_spent(community_contributions, price);
 		let remainder_locked_plmc = MockInstantiator::calculate_contributed_plmc_spent(remainder_contributions, price);
-		let all_plmc_locks = MockInstantiator::generic_map_operation(vec![
-			auction_locked_plmc,
-			community_locked_plmc,
-			remainder_locked_plmc,
-		], MergeOperation::Add);
+		let all_plmc_locks = MockInstantiator::generic_map_operation(
+			vec![auction_locked_plmc, community_locked_plmc, remainder_locked_plmc],
+			MergeOperation::Add,
+		);
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
 		inst.advance_time(10u64).unwrap();
@@ -5443,7 +5447,7 @@ mod remainder_round_failure {
 		);
 
 		let prev_issuer_funding_balance = inst.get_free_plmc_balances_for(vec![issuer.clone()])[0].plmc_amount;
-		
+
 		let all_participants = all_expected_payouts.accounts();
 		let prev_participants_plmc_balances = inst.get_free_plmc_balances_for(all_participants.clone());
 
@@ -5463,7 +5467,7 @@ mod remainder_round_failure {
 		let post_participants_plmc_balances = inst.get_free_plmc_balances_for(all_participants);
 
 		let all_participants_plmc_deltas = MockInstantiator::generic_map_operation(
-			vec![post_participants_plmc_balances,prev_participants_plmc_balances],
+			vec![post_participants_plmc_balances, prev_participants_plmc_balances],
 			MergeOperation::Subtract,
 		);
 
@@ -5633,7 +5637,6 @@ mod remainder_round_failure {
 		let post_participants_plmc_balances = inst.get_free_plmc_balances_for(all_participants);
 
 		let all_participants_plmc_deltas = MockInstantiator::generic_map_operation(
-			
 			vec![post_participants_plmc_balances, prev_participants_plmc_balances],
 			MergeOperation::Subtract,
 		);
@@ -5894,11 +5897,10 @@ mod funding_end {
 		);
 
 		let slashed_evaluation_locked_plmc = MockInstantiator::slash_evaluator_balances(old_evaluation_locked_plmc);
-		let expected_evaluator_free_balances = MockInstantiator::generic_map_operation(vec![
-			slashed_evaluation_locked_plmc,
-			old_participation_locked_plmc,
-			old_free_plmc,
-		], MergeOperation::Add);
+		let expected_evaluator_free_balances = MockInstantiator::generic_map_operation(
+			vec![slashed_evaluation_locked_plmc, old_participation_locked_plmc, old_free_plmc],
+			MergeOperation::Add,
+		);
 
 		let actual_evaluator_free_balances = inst.get_free_plmc_balances_for(evaluators.clone());
 
@@ -5936,11 +5938,10 @@ mod funding_end {
 		);
 
 		let slashed_evaluation_locked_plmc = MockInstantiator::slash_evaluator_balances(old_evaluation_locked_plmc);
-		let expected_evaluator_free_balances = MockInstantiator::generic_map_operation(vec![
-			slashed_evaluation_locked_plmc,
-			old_participation_locked_plmc,
-			old_free_plmc,
-		], MergeOperation::Add);
+		let expected_evaluator_free_balances = MockInstantiator::generic_map_operation(
+			vec![slashed_evaluation_locked_plmc, old_participation_locked_plmc, old_free_plmc],
+			MergeOperation::Add,
+		);
 
 		let actual_evaluator_free_balances = inst.get_free_plmc_balances_for(evaluators.clone());
 
@@ -5972,11 +5973,10 @@ mod funding_end {
 		);
 
 		let slashed_evaluation_locked_plmc = MockInstantiator::slash_evaluator_balances(old_evaluation_locked_plmc);
-		let expected_evaluator_free_balances = MockInstantiator::generic_map_operation(vec![
-			slashed_evaluation_locked_plmc,
-			old_participation_locked_plmc,
-			old_free_plmc,
-		], MergeOperation::Add);
+		let expected_evaluator_free_balances = MockInstantiator::generic_map_operation(
+			vec![slashed_evaluation_locked_plmc, old_participation_locked_plmc, old_free_plmc],
+			MergeOperation::Add,
+		);
 
 		let actual_evaluator_free_balances = inst.get_free_plmc_balances_for(evaluators.clone());
 
@@ -6647,7 +6647,7 @@ mod e2e_testing {
 		let evaluations = excel_evaluators();
 		let bids = excel_bidders();
 		//let filtered_bids = MockInstantiator::filter_bids_after_auction(bids.clone(), project.total_allocation_size.0);
-		let (project_id, _)  = inst.create_community_contributing_project(project, issuer, evaluations, bids);
+		let (project_id, _) = inst.create_community_contributing_project(project, issuer, evaluations, bids);
 		let wavgp_from_excel = 10.202357561;
 		// Convert the float to a FixedU128
 		let wavgp_to_substrate = FixedU128::from_float(wavgp_from_excel);

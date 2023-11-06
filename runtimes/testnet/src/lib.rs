@@ -116,6 +116,10 @@ pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, Si
 pub type Executive =
 	frame_executive::Executive<Runtime, Block, frame_system::ChainContext<Runtime>, Runtime, AllPalletsWithSystem>;
 
+pub type Price = FixedU128;
+
+pub type Moment = u64;
+
 impl_opaque_keys! {
 	pub struct SessionKeys {
 		pub aura: Aura,
@@ -201,7 +205,7 @@ impl frame_system::Config for Runtime {
 impl pallet_timestamp::Config for Runtime {
 	type MinimumPeriod = MinimumPeriod;
 	/// A timestamp: milliseconds since the unix epoch.
-	type Moment = u64;
+	type Moment = Moment;
 	type OnTimestampSet = Aura;
 	type WeightInfo = ();
 }
@@ -518,8 +522,8 @@ impl pallet_funding::Config for Runtime {
 	type NativeCurrency = Balances;
 	type PalletId = FundingPalletId;
 	type PreImageLimit = ConstU32<1024>;
-	type Price = FixedU128;
-	type PriceProvider = pallet_funding::types::ConstPriceProvider<AssetId, FixedU128, PriceMap>;
+	type Price = Price;
+	type PriceProvider = OraclePriceProvider<AssetId, Price, Oracle>;
 	type ProjectIdentifier = u32;
 	type Randomness = Random;
 	type RemainderFundingDuration = RemainderFundingDuration;
@@ -575,6 +579,42 @@ impl pallet_parachain_staking::Config for Runtime {
 	type WeightInfo = pallet_parachain_staking::weights::SubstrateWeight<Runtime>;
 }
 
+impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
+	type AddOrigin = EnsureRoot<AccountId>;
+	type MaxMembers = ConstU32<50>;
+	type MembershipChanged = Oracle;
+	type MembershipInitialized = ();
+	type PrimeOrigin = EnsureRoot<AccountId>;
+	type RemoveOrigin = EnsureRoot<AccountId>;
+	type ResetOrigin = EnsureRoot<AccountId>;
+	type RuntimeEvent = RuntimeEvent;
+	type SwapOrigin = EnsureRoot<AccountId>;
+	type WeightInfo = ();
+}
+
+parameter_types! {
+	pub const MinimumCount: u32 = 3;
+	pub const ExpiresIn: Moment = 1000 * 60 * 60; // 60 mins
+	pub const MaxHasDispatchedSize: u32 = 100;
+	pub RootOperatorAccountId: AccountId = AccountId::from([0xffu8; 32]);
+	pub const MaxFeedValues: u32 = 10; // max 10 values allowd to feed in one call.
+}
+type PolimecDataProvider = orml_oracle::Instance1;
+impl orml_oracle::Config<PolimecDataProvider> for Runtime {
+	type CombineData = orml_oracle::DefaultCombineData<Runtime, MinimumCount, ExpiresIn, PolimecDataProvider>;
+	type MaxFeedValues = MaxFeedValues;
+	type MaxHasDispatchedSize = ConstU32<20>;
+	type Members = OracleProvidersMembership;
+	type OnNewData = ();
+	type OracleKey = AssetId;
+	type OracleValue = Price;
+	type RootOperatorAccountId = RootOperatorAccountId;
+	type RuntimeEvent = RuntimeEvent;
+	type Time = Timestamp;
+	// TODO Add weight info
+	type WeightInfo = ();
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -595,6 +635,7 @@ construct_runtime!(
 		AssetTxPayment: pallet_asset_tx_payment::{Pallet, Storage, Event<T>} = 12,
 		LocalAssets: pallet_assets::<Instance1>::{Pallet, Storage, Event<T>} = 13,
 		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Config<T>, Storage, Event<T>} = 14,
+
 
 		// Collator support. the order of these 5 are important and shall not change.
 		Authorship: pallet_authorship::{Pallet, Storage} = 20,
@@ -618,6 +659,10 @@ construct_runtime!(
 		// Utilities
 		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 61,
 		Random: pallet_insecure_randomness_collective_flip = 62,
+
+		// Oracle
+		Oracle: orml_oracle::<Instance1> = 70,
+		OracleProvidersMembership: pallet_membership::<Instance1> = 71,
 
 		// Among others: Send and receive DMP and XCMP messages.
 		ParachainSystem: cumulus_pallet_parachain_system = 80,
