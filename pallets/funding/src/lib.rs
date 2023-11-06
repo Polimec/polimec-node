@@ -1336,9 +1336,7 @@ pub mod xcm_executor_impl {
 	use crate::ProjectStatus::FundingSuccessful;
 
 	pub struct HrmpHandler<T: Config, XcmSender: SendXcm>(PhantomData<(T, XcmSender)>);
-	impl<T: Config, XcmSender: SendXcm> polimec_xcm_executor::HrmpHandler
-		for HrmpHandler<T, XcmSender>
-	{
+	impl<T: Config, XcmSender: SendXcm> polimec_xcm_executor::HrmpHandler for HrmpHandler<T, XcmSender> {
 		fn handle_channel_open_request(message: Instruction) -> XcmResult {
 			// TODO: set these constants with a proper value
 			const MAX_MESSAGE_SIZE_THRESHOLDS: (u32, u32) = (50000, 102_400);

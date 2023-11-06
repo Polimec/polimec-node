@@ -882,10 +882,8 @@ impl<Config: config::Config> XcmExecutor<Config> {
 				ensure!(check_origin.is_none() || self.context.origin == check_origin, XcmError::BadOrigin);
 				Ok(())
 			},
-			msg @ HrmpNewChannelOpenRequest { .. } =>
-				Config::HrmpHandler::handle_channel_open_request(msg.into()),
-			msg @ HrmpChannelAccepted { .. } =>
-				Config::HrmpHandler::handle_channel_accepted(msg.into()),
+			msg @ HrmpNewChannelOpenRequest { .. } => Config::HrmpHandler::handle_channel_open_request(msg.into()),
+			msg @ HrmpChannelAccepted { .. } => Config::HrmpHandler::handle_channel_accepted(msg.into()),
 			HrmpChannelClosing { .. } => Err(XcmError::Unimplemented),
 		}
 	}

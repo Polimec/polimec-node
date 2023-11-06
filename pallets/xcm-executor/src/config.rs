@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Polkadot.  If not, see <http://www.gnu.org/licenses/>.
 
+use crate::polimec_traits::HrmpHandler;
 use frame_support::{
 	dispatch::{Dispatchable, GetDispatchInfo, Parameter, PostDispatchInfo},
 	traits::{Contains, ContainsPair, Get, PalletsInfoAccess},
@@ -23,7 +24,6 @@ use xcm_executor::traits::{
 	AssetExchange, AssetLock, CallDispatcher, ClaimAssets, ConvertOrigin, DropAssets, ExportXcm, FeeManager,
 	OnResponse, ShouldExecute, TransactAsset, VersionChangeNotifier, WeightBounds, WeightTrader,
 };
-use crate::polimec_traits::HrmpHandler;
 
 /// The trait to parameterize the `XcmExecutor`.
 pub trait Config {
@@ -110,4 +110,3 @@ pub trait Config {
 	/// Polimec's custom type for handling the `HrmpNewChannelOpenRequest` and `HrmpChannelAccepted` instruction
 	type HrmpHandler: HrmpHandler;
 }
-

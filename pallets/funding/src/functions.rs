@@ -1774,7 +1774,10 @@ impl<T: Config> Pallet<T> {
 		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::NotAllowed);
 		ensure!(
 			project_details.hrmp_channel_status ==
-				HRMPChannelStatus { project_to_polimec: ChannelStatus::Open, polimec_to_project: ChannelStatus::Open },
+				HRMPChannelStatus {
+					project_to_polimec: ChannelStatus::Open,
+					polimec_to_project: ChannelStatus::Open
+				},
 			Error::<T>::CommsNotEstablished
 		);
 		if project_details.migration_readiness_check.is_none() {
@@ -1782,7 +1785,7 @@ impl<T: Config> Pallet<T> {
 		} else if project_details.migration_readiness_check == Some(MigrationReadinessCheck::CheckFailed) {
 			ensure!(caller == &project_details.issuer, Error::<T>::NotAllowed);
 		} else {
-			return Err(Error::<T>::NotAllowed.into());
+			return Err(Error::<T>::NotAllowed.into())
 		}
 
 		project_details.migration_readiness_check = Some(MigrationReadinessCheck::QuerySent);
