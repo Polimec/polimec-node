@@ -594,16 +594,16 @@ impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 
 parameter_types! {
 	pub const MinimumCount: u32 = 3;
-	pub const ExpiresIn: Moment = 1000 * 60 * 60; // 60 mins
-	pub const MaxHasDispatchedSize: u32 = 100;
+	pub const ExpiresIn: Moment = 1000 * 60 * 20; // 20 mins
+	pub const MaxHasDispatchedSize: u32 = 20;
 	pub RootOperatorAccountId: AccountId = AccountId::from([0xffu8; 32]);
-	pub const MaxFeedValues: u32 = 10; // max 10 values allowd to feed in one call.
+	pub const MaxFeedValues: u32 = 4; // max 4 values allowd to feed in one call (USDT, USDC, DOT, PLMC).
 }
 type PolimecDataProvider = orml_oracle::Instance1;
 impl orml_oracle::Config<PolimecDataProvider> for Runtime {
 	type CombineData = orml_oracle::DefaultCombineData<Runtime, MinimumCount, ExpiresIn, PolimecDataProvider>;
 	type MaxFeedValues = MaxFeedValues;
-	type MaxHasDispatchedSize = ConstU32<20>;
+	type MaxHasDispatchedSize = MaxHasDispatchedSize;
 	type Members = OracleProvidersMembership;
 	type OnNewData = ();
 	type OracleKey = AssetId;
