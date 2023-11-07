@@ -16,8 +16,7 @@
 
 pub mod constants;
 
-// #[cfg(any(feature = "runtime-benchmarks", test, all(feature = "testing-node", feature = "std")))]
-#[cfg(test)]
+#[cfg(all(test, feature = "std", feature="testing-node"))]
 mod tests;
 
 pub use constants::{accounts::*, penpal, polimec, polkadot, statemint};

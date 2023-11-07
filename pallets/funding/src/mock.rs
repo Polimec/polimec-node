@@ -91,15 +91,39 @@ pub const fn free_deposit() -> Balance {
 use xcm_builder::{EnsureXcmOrigin, FixedWeightBounds, SignedToAccountId32, ParentIsPreset, SiblingParachainConvertsVia, AccountId32Aliases};
 use polkadot_parachain::primitives::Sibling;
 use frame_support::traits::Everything;
+use xcm_executor::traits::Convert;
+use frame_support::traits::OriginTrait;
+use sp_runtime::traits::Get;
+use frame_system::RawOrigin as SystemRawOrigin;
 
-pub type LocalOriginToLocation = SignedToAccountId32<RuntimeOrigin, AccountId, RelayNetwork>;
+
+pub struct SignedToAccountIndex<RuntimeOrigin, AccountId, Network>(
+	PhantomData<(RuntimeOrigin, AccountId, Network)>,
+);
+impl<
+	RuntimeOrigin: OriginTrait + Clone,
+	AccountId: Into<u64>,
+	Network: Get<Option<NetworkId>>,
+> Convert<RuntimeOrigin, MultiLocation> for SignedToAccountIndex<RuntimeOrigin, AccountId, Network>
+	where
+		RuntimeOrigin::PalletsOrigin: From<SystemRawOrigin<AccountId>>
+		+ TryInto<SystemRawOrigin<AccountId>, Error = RuntimeOrigin::PalletsOrigin>,
+{
+	fn convert(o: RuntimeOrigin) -> Result<MultiLocation, RuntimeOrigin> {
+		o.try_with_caller(|caller| match caller.try_into() {
+			Ok(SystemRawOrigin::Signed(who)) =>
+				Ok(Junction::AccountIndex64 { network: Network::get(), index: who.into() }.into()),
+			Ok(other) => Err(other.into()),
+			Err(other) => Err(other),
+		})
+	}
+}
+pub type LocalOriginToLocation = SignedToAccountIndex<RuntimeOrigin, AccountId, RelayNetwork>;
 pub type LocationToAccountId = (
 	// The parent (Relay-chain) origin converts to the parent `AccountId`.
 	ParentIsPreset<AccountId>,
 	// Sibling parachain origins convert to AccountId via the `ParaId::into`.
 	SiblingParachainConvertsVia<Sibling, AccountId>,
-	// Straight up local `AccountId32` origins just alias directly to `AccountId`.
-	AccountId32Aliases<RelayNetwork, AccountId>,
 );
 #[cfg(feature = "runtime-benchmarks")]
 parameter_types! {
@@ -108,7 +132,7 @@ parameter_types! {
 parameter_types! {
 	pub UniversalLocation: InteriorMultiLocation = (
 		GlobalConsensus(Polkadot),
-		 Parachain(ParachainInfo::parachain_id().into()),
+		 Parachain(3355u32.into()),
 	).into();
 	pub const RelayNetwork: Option<NetworkId> = None;
 	pub UnitWeightCost: Weight = Weight::from_parts(1_000_000_000, 64 * 1024);
@@ -308,41 +332,43 @@ impl pallet_linear_release::Config for TestRuntime {
 
 impl Config for TestRuntime {
 	type AllPalletsWithoutSystem = AllPalletsWithoutSystem;
-	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
+	type ProjectIdentifier = Identifier;
+	type Multiplier = Multiplier;
 	type Balance = Balance;
-	type BlockNumberToBalance = ConvertInto;
+	type Price = FixedU128;
+	type NativeCurrency = Balances;
+	type FundingCurrency = StatemintAssets;
+	type ContributionTokenCurrency = LocalAssets;
+	type PriceProvider = ConstPriceProvider<AssetId, FixedU128, PriceMap>;
+	type Randomness = RandomnessCollectiveFlip;
+	type StringLimit = ConstU32<64>;
+	type PreImageLimit = ConstU32<1024>;
+	type EvaluationDuration = EvaluationDuration;
+	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
+	type EnglishAuctionDuration = EnglishAuctionDuration;
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityFundingDuration = CommunityRoundDuration;
-	type ContributionTokenCurrency = LocalAssets;
-	type ContributionVesting = ConstU32<4>;
-	type DaysToBlocks = DaysToBlocks;
-	type EnglishAuctionDuration = EnglishAuctionDuration;
-	type EvaluationDuration = EvaluationDuration;
-	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
-	type EvaluatorSlash = EvaluatorSlash;
-	type FeeBrackets = FeeBrackets;
-	type FundingCurrency = StatemintAssets;
-	type ManualAcceptanceDuration = ManualAcceptanceDuration;
+	type RemainderFundingDuration = RemainderFundingDuration;
+	type PalletId = FundingPalletId;
+	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
+	type MaxEvaluationsPerUser = ConstU32<4>;
 	// Low value to simplify the tests
 	type MaxBidsPerUser = ConstU32<4>;
 	type MaxContributionsPerUser = ConstU32<4>;
-	type MaxEvaluationsPerUser = ConstU32<4>;
-	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
-	type Multiplier = Multiplier;
-	type NativeCurrency = Balances;
-	type PalletId = FundingPalletId;
-	type PreImageLimit = ConstU32<1024>;
-	type Price = FixedU128;
-	type PriceProvider = ConstPriceProvider<AssetId, FixedU128, PriceMap>;
-	type ProjectIdentifier = Identifier;
-	type Randomness = RandomnessCollectiveFlip;
-	type RemainderFundingDuration = RemainderFundingDuration;
-	type RuntimeEvent = RuntimeEvent;
-	type StringLimit = ConstU32<64>;
-	type SuccessToSettlementTime = SuccessToSettlementTime;
-	type TreasuryAccount = TreasuryAccount;
-	type Vesting = Vesting;
+	type ContributionVesting = ConstU32<4>;
 	type WeightInfo = weights::SubstrateWeight<TestRuntime>;
+	type FeeBrackets = FeeBrackets;
+	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
+	type Vesting = Vesting;
+	type ManualAcceptanceDuration = ManualAcceptanceDuration;
+	type SuccessToSettlementTime = SuccessToSettlementTime;
+	type EvaluatorSlash = EvaluatorSlash;
+	type TreasuryAccount = TreasuryAccount;
+	type DaysToBlocks = DaysToBlocks;
+	type BlockNumberToBalance = ConvertInto;
 }
 
 // Build genesis storage according to the mock runtime.
