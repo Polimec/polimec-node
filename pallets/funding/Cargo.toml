@@ -43,7 +43,6 @@ polkadot-runtime.workspace = true
 polkadot-runtime-parachains.workspace = true
 polkadot-parachain.workspace = true
 
-
 [dev-dependencies]
 pallet-insecure-randomness-collective-flip.workspace = true
 pallet-assets.workspace = true

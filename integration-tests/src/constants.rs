@@ -19,7 +19,6 @@ pub const REF_TIME_THRESHOLD: u64 = 33;
 pub const PROOF_SIZE_THRESHOLD: u64 = 33;
 pub const INITIAL_DEPOSIT: u128 = 420_0_000_000_000;
 
-
 type AccountPublic = <MultiSignature as Verify>::Signer;
 
 /// Helper function to generate a crypto pair from seed
@@ -315,9 +314,7 @@ pub mod penpal {
 			system: penpal_runtime::SystemConfig {
 				code: penpal_runtime::WASM_BINARY.expect("WASM binary was not build, please build it!").to_vec(),
 			},
-			balances: penpal_runtime::BalancesConfig {
-				balances: funded_accounts,
-			},
+			balances: penpal_runtime::BalancesConfig { balances: funded_accounts },
 			parachain_info: penpal_runtime::ParachainInfoConfig { parachain_id: ParaId::from(PARA_ID) },
 			collator_selection: penpal_runtime::CollatorSelectionConfig {
 				invulnerables: collators::invulnerables().iter().cloned().map(|(acc, _)| acc).collect(),

@@ -1,12 +1,24 @@
 use crate::*;
-
+use defaults::*;
+use std::cell::RefCell;
 const MAX_REF_TIME: u64 = 700_000_000;
 const MAX_PROOF_SIZE: u64 = 10_000;
 pub const REF_TIME_THRESHOLD: u64 = 33;
 pub const PROOF_SIZE_THRESHOLD: u64 = 33;
 
 #[test]
-fn balance_query() {
+fn migration_check() {
+	let inst = IntegrationInstantiator::new(None);
+	let project_id = Polimec::execute_with(|| {
+		inst.create_finished_project(
+			default_project(issuer(), 0),
+			issuer(),
+			default_evaluations(),
+			default_bids(),
+			default_community_contributions(),
+			vec![],
+		)
+	});
 	let max_weight = Weight::from_parts(MAX_REF_TIME, MAX_PROOF_SIZE);
 	let execution_currency: MultiAsset = (MultiLocation { parents: 0, interior: Here }, 1_0_000_000_000u128).into(); // 1 unit for executing
 	let expected_currency: MultiAsset =
@@ -22,7 +34,15 @@ fn balance_query() {
 			},
 			assets: Wild(All),
 		},
-		DepositAsset { assets: Wild(All), beneficiary: ParentThen(Parachain(3355).into()).into() }
+		QueryPallet {
+			module_name: Vec::from("polimec_receiver"),
+			response_info: QueryResponseInfo {
+				destination: ParentThen(Parachain(3355).into()).into(),
+				query_id: 1,
+				max_weight: max_weight.clone(),
+			},
+		},
+		DepositAsset { assets: Wild(All), beneficiary: ParentThen(Parachain(3355).into()).into() },
 	]);
 	let polimec_on_penpal = Penpal::sovereign_account_id_of((Parent, Parachain(polimec::PARA_ID)).into());
 	let balance_polimec = Penpal::account_data_of(polimec_on_penpal);
@@ -38,7 +58,8 @@ fn balance_query() {
 			query_id: Default::default(),
 			response: Default::default(),
 		});
-		let query_id = PolimecXcmPallet::new_notify_query(penpal_loc, call,now + 20u32, Here);
+		let query_id_0 = PolimecXcmPallet::new_notify_query(penpal_loc, call.clone(), now + 20u32, Here);
+		let query_id_1 = PolimecXcmPallet::new_notify_query(penpal_loc, call, now + 20u32, Here);
 		assert_ok!(PolimecXcmPallet::send_xcm(Here, penpal_loc, xcm));
 		println!("polimec events:");
 		dbg!(Polimec::events())
@@ -53,6 +74,4 @@ fn balance_query() {
 		println!("Polimec events:");
 		dbg!(Polimec::events());
 	});
-
-
 }

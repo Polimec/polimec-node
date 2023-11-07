@@ -493,7 +493,6 @@ parameter_types! {
 	pub TreasuryAccount: AccountId = [69u8; 32].into();
 }
 impl pallet_funding::Config for Runtime {
-	// #[cfg(any(feature = "runtime-benchmarks", feature = "testing-node"))]
 	type AllPalletsWithoutSystem = (Balances, LocalAssets, StatemintAssets, PolimecFunding, LinearVesting, Random);
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;
@@ -523,7 +522,9 @@ impl pallet_funding::Config for Runtime {
 	type ProjectIdentifier = u32;
 	type Randomness = Random;
 	type RemainderFundingDuration = RemainderFundingDuration;
+	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeOrigin = RuntimeOrigin;
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type TreasuryAccount = TreasuryAccount;

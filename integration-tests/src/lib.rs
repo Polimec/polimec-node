@@ -16,6 +16,8 @@
 
 pub mod constants;
 #[cfg(test)]
+mod defaults;
+#[cfg(test)]
 mod tests;
 
 pub use constants::{accounts::*, penpal, polimec, polkadot, statemint};

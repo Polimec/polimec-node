@@ -265,7 +265,9 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_balances::Config<Balance = BalanceOf<Self>> + pallet_xcm::Config {
+	pub trait Config:
+		frame_system::Config + pallet_balances::Config<Balance = BalanceOf<Self>> + pallet_xcm::Config
+	{
 		/// Helper trait for benchmarks.
 		// #[cfg(any(feature = "runtime-benchmarks", feature = "testing-node"))]
 		type AllPalletsWithoutSystem: frame_support::traits::OnFinalize<BlockNumberOf<Self>>
@@ -277,6 +279,11 @@ pub mod pallet {
 			+ IsType<<Self as frame_system::Config>::RuntimeEvent>
 			+ Parameter
 			+ Member;
+
+		type RuntimeOrigin: IsType<<Self as frame_system::Config>::RuntimeOrigin>
+			+ Into<Result<pallet_xcm::Origin, <Self as Config>::RuntimeOrigin>>;
+
+		type RuntimeCall: IsType<<Self as frame_system::Config>::RuntimeCall> + From<Call<Self>>;
 
 		/// Global identifier for the projects.
 		type ProjectIdentifier: Parameter + Copy + Default + One + Saturating + From<u32> + Ord + MaxEncodedLen;
@@ -763,6 +770,10 @@ pub mod pallet {
 			project_id: T::ProjectIdentifier,
 			caller: T::AccountId,
 		},
+		MigrationResponseReceived {
+			query_id: xcm::v3::QueryId,
+			response: xcm::v3::Response,
+		},
 	}
 
 	#[pallet::error]
@@ -857,6 +868,7 @@ pub mod pallet {
 		ContributionNotFound,
 		/// Tried to start a migration check but the bidirectional channel is not yet open
 		CommsNotEstablished,
+		XcmFailed,
 	}
 
 	#[pallet::call]
@@ -1135,16 +1147,11 @@ pub mod pallet {
 		pub fn migration_check_response(
 			origin: OriginFor<T>,
 			query_id: xcm::v3::QueryId,
-			response: xcm::v3::Response
+			response: xcm::v3::Response,
 		) -> DispatchResult {
-			let location = ensure_response(<T as pallet_xcm::Config>::RuntimeOrigin::from(origin))?;
-			let para_id = if let MultiLocation { parents: 1, interior: X1(Parachain(para_id))} = location {
-                para_id
-            } else {
-				return Err(Error::<T>::NotAllowed.into())
-			};
-			let x = 10;
-			Ok(())
+			let location = ensure_response(<T as Config>::RuntimeOrigin::from(origin))?;
+
+			Self::do_migration_check_response(location, query_id, response)
 		}
 	}
 
