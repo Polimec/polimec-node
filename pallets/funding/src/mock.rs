@@ -69,6 +69,7 @@ frame_support::construct_runtime!(
 		Vesting: pallet_linear_release,
 		LocalAssets: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>},
 		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>},
+		PolkadotXcm: pallet_xcm,
 	}
 );
 
@@ -83,6 +84,72 @@ pub const fn deposit(items: u32, bytes: u32) -> Balance {
 pub const fn free_deposit() -> Balance {
 	0 * MICRO_PLMC
 }
+
+
+
+//region DRAFT ZONE
+use xcm_builder::{EnsureXcmOrigin, FixedWeightBounds, SignedToAccountId32, ParentIsPreset, SiblingParachainConvertsVia, AccountId32Aliases};
+use polkadot_parachain::primitives::Sibling;
+use frame_support::traits::Everything;
+
+pub type LocalOriginToLocation = SignedToAccountId32<RuntimeOrigin, AccountId, RelayNetwork>;
+pub type LocationToAccountId = (
+	// The parent (Relay-chain) origin converts to the parent `AccountId`.
+	ParentIsPreset<AccountId>,
+	// Sibling parachain origins convert to AccountId via the `ParaId::into`.
+	SiblingParachainConvertsVia<Sibling, AccountId>,
+	// Straight up local `AccountId32` origins just alias directly to `AccountId`.
+	AccountId32Aliases<RelayNetwork, AccountId>,
+);
+#[cfg(feature = "runtime-benchmarks")]
+parameter_types! {
+	pub ReachableDest: Option<MultiLocation> = Some(Parent.into());
+}
+parameter_types! {
+	pub UniversalLocation: InteriorMultiLocation = (
+		GlobalConsensus(Polkadot),
+		 Parachain(ParachainInfo::parachain_id().into()),
+	).into();
+	pub const RelayNetwork: Option<NetworkId> = None;
+	pub UnitWeightCost: Weight = Weight::from_parts(1_000_000_000, 64 * 1024);
+	pub const MaxInstructions: u32 = 100;
+
+	pub const HereLocation: MultiLocation = MultiLocation::here();
+}
+impl pallet_xcm::Config for TestRuntime {
+	type AdminOrigin = EnsureRoot<AccountId>;
+	// ^ Override for AdvertisedXcmVersion default
+	type AdvertisedXcmVersion = pallet_xcm::CurrentXcmVersion;
+	type Currency = Balances;
+	type CurrencyMatcher = ();
+	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
+	type MaxLockers = ConstU32<8>;
+	type MaxRemoteLockConsumers = ConstU32<0>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type ReachableDest = ReachableDest;
+	type RemoteLockConsumerIdentifier = ();
+	type RuntimeCall = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeOrigin = RuntimeOrigin;
+	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
+	type SovereignAccountOf = LocationToAccountId;
+	type TrustedLockers = ();
+	type UniversalLocation = UniversalLocation;
+	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
+	type WeightInfo = pallet_xcm::TestWeightInfo;
+	// TODO: change back to `Nothing` once we add the xcm functionalities into a pallet
+	type XcmExecuteFilter = Everything;
+	// ^ Disable dispatchable execute on the XCM pallet.
+	// Needs to be `Everything` for local testing.
+	type XcmExecutor = ();
+	type XcmReserveTransferFilter = Everything;
+	type XcmRouter = ();
+	type XcmTeleportFilter = Everything;
+
+	const VERSION_DISCOVERY_QUEUE_SIZE: u32 = 100;
+}
+
+//endregion
 
 parameter_types! {
 	pub const AssetDeposit: Balance = PLMC; // 1 UNIT deposit to create asset
@@ -240,7 +307,6 @@ impl pallet_linear_release::Config for TestRuntime {
 }
 
 impl Config for TestRuntime {
-	// #[cfg(feature = "runtime-benchmarks")]
 	type AllPalletsWithoutSystem = AllPalletsWithoutSystem;
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;

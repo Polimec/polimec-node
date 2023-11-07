@@ -547,6 +547,10 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = pallet_sudo::weights::SubstrateWeight<Runtime>;
 }
 
+impl polimec_receiver::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -582,6 +586,7 @@ construct_runtime!(
 
 		// The main stage.
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 50,
+		PolimecReceiver: polimec_receiver = 51,
 
 		Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>} = 255,
 	}

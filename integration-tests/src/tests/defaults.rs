@@ -1,7 +1,7 @@
 use super::*;
+pub use pallet_funding::instantiator::{BidParams, ContributionParams, UserToPLMCBalance, UserToUSDBalance};
 use frame_support::BoundedVec;
 use pallet_funding::{
-	instantiator::{BidParams, ContributionParams, UserToPLMCBalance, UserToUSDBalance},
 	AcceptedFundingAsset, CurrencyMetadata, ParticipantsSize, PriceOf, ProjectMetadata, ProjectMetadataOf, TicketSize,
 };
 use sp_core::H256;
@@ -19,7 +19,7 @@ pub const METADATA: &str = r#"METADATA
         }"#;
 pub const ASSET_DECIMALS: u8 = 10;
 pub const ASSET_UNIT: u128 = 10_u128.pow(10 as u32);
-pub const PLMC: Balance = 10u128.pow(10);
+pub const PLMC: u128 = 10u128.pow(10);
 pub type IntegrationInstantiator = pallet_funding::instantiator::Instantiator<
 	PolimecRuntime,
 	<PolimecRuntime as pallet_funding::Config>::AllPalletsWithoutSystem,
@@ -143,7 +143,7 @@ pub fn default_bids() -> Vec<BidParams<PolimecRuntime>> {
 	)
 }
 
-pub fn default_community_contributions<T: pallet_funding::Config>() -> Vec<ContributionParams<T>> {
+pub fn default_community_contributions() -> Vec<ContributionParams<PolimecRuntime>> {
 	let fifty_percent_funding_usd = Perquintill::from_percent(50) *
 		(sp_runtime::FixedU128::from_float(1.0).checked_mul_int(100_000 * ASSET_UNIT).unwrap());
 
@@ -159,3 +159,9 @@ pub fn default_contributors() -> Vec<AccountId> {
 }
 
 use polimec_parachain_runtime::Runtime as T;
+use crate::{Polimec, PolimecRuntime};
+
+#[test]
+fn something() {
+	assert!(true);
+}

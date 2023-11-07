@@ -21,6 +21,9 @@ log = { version = "0.4.16", default-features = false }
 scale-info = { version = "2.7.0", default-features = false, features = ["derive"] }
 smallvec = "1.10.0"
 
+# Local
+polimec-receiver.workspace = true
+
 # Substrate
 frame-benchmarking = { workspace = true, optional = true }
 frame-executive.workspace = true

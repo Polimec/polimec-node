@@ -6647,21 +6647,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-parachain-template"
-version = "0.1.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
-]
-
-[[package]]
 name = "pallet-preimage"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.43#5e49f6e44820affccaf517fd22af564f4b495d40"
@@ -7361,6 +7346,7 @@ dependencies = [
  "parachain-info",
  "parachains-common",
  "parity-scale-codec",
+ "polimec-receiver",
  "polkadot-parachain",
  "polkadot-primitives",
  "polkadot-runtime-common",
@@ -7747,6 +7733,21 @@ dependencies = [
  "xcm",
  "xcm-builder",
  "xcm-executor",
+]
+
+[[package]]
+name = "polimec-receiver"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
 ]
 
 [[package]]

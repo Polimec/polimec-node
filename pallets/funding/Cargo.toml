@@ -48,6 +48,7 @@ pallet-insecure-randomness-collective-flip.workspace = true
 pallet-assets.workspace = true
 pallet-linear-release.workspace = true
 assert_matches2.workspace = true
+xcm-builder.workspace = true
 
 [features]
 default = [ "std" ]
