@@ -19,6 +19,7 @@
 //! Types for Funding pallet.
 
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
+use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::{FixedPointNumber, FixedPointOperand};
 use sp_runtime::traits::CheckedDiv;
 use sp_std::{cmp::Eq, collections::btree_map::*, prelude::*};
@@ -42,6 +43,7 @@ pub mod config_types {
 	use super::*;
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 	pub struct Multiplier(u8);
 
 	impl Multiplier {
@@ -136,6 +138,7 @@ pub mod storage_types {
 	use super::*;
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 	pub struct ProjectMetadata<BoundedString, Balance: BalanceT, Price: FixedPointNumber, AccountId, Hash> {
 		/// Token Metadata
 		pub token_information: CurrencyMetadata<BoundedString>,
@@ -198,8 +201,13 @@ pub mod storage_types {
 		pub evaluation_round_info: EvaluationRoundInfo,
 		/// When the Funding Round ends
 		pub funding_end_block: Option<BlockNumber>,
+		/// ParaId of project
+		pub parachain_id: Option<ParaId>,
+		/// Migration readiness check
+		pub migration_readiness_check: Option<MigrationReadinessCheck>,
+		/// HRMP Channel status
+		pub hrmp_channel_status: HRMPChannelStatus,
 	}
-
 	/// Tells on_initialize what to do with the project
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub enum UpdateType {
@@ -358,6 +366,7 @@ pub mod inner_types {
 	use super::*;
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 	pub struct CurrencyMetadata<BoundedString> {
 		/// The user friendly name of this asset. Limited in length by `StringLimit`.
 		pub name: BoundedString,
@@ -368,6 +377,7 @@ pub mod inner_types {
 	}
 
 	#[derive(Default, Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 	pub struct TicketSize<Balance: BalanceT + Copy> {
 		pub minimum: Option<Balance>,
 		pub maximum: Option<Balance>,
@@ -386,6 +396,7 @@ pub mod inner_types {
 	}
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 	pub struct ParticipantsSize {
 		pub minimum: Option<u32>,
 		pub maximum: Option<u32>,
@@ -411,6 +422,7 @@ pub mod inner_types {
 	}
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 	pub struct Thresholds {
 		#[codec(compact)]
 		retail: u8,
@@ -422,6 +434,7 @@ pub mod inner_types {
 
 	// TODO: PLMC-157. Use SCALE fixed indexes
 	#[derive(Default, Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 	pub enum AcceptedFundingAsset {
 		#[default]
 		USDT,
@@ -439,6 +452,7 @@ pub mod inner_types {
 	}
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 	pub enum ProjectStatus {
 		#[default]
 		Application,
@@ -451,10 +465,12 @@ pub mod inner_types {
 		FundingFailed,
 		AwaitingProjectDecision,
 		FundingSuccessful,
-		ReadyToLaunch,
+		ReadyToStartMigration,
+		MigrationCompleted,
 	}
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 	pub enum AuctionPhase {
 		#[default]
 		English,
@@ -658,5 +674,31 @@ pub mod inner_types {
 	pub enum FundingOutcomeDecision {
 		AcceptFunding,
 		RejectFunding,
+	}
+
+	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum MigrationReadinessCheck {
+		/// Sent an xcm to the project to check if it is ready to migrate
+		QuerySent,
+		/// The response was satisfactory
+		CheckPassed,
+		/// The response was not satisfactory or timed out
+		CheckFailed,
+	}
+
+	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub struct HRMPChannelStatus {
+		pub project_to_polimec: ChannelStatus,
+		pub polimec_to_project: ChannelStatus,
+	}
+
+	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum ChannelStatus {
+		/// hrmp channel is closed.
+		Closed,
+		/// hrmp channel is open.
+		Open,
+		/// request for a hrmp channel was sent to the relay. Waiting for response.
+		AwaitingAcceptance,
 	}
 }

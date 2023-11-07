@@ -19,7 +19,11 @@ use crate::{
 	Balance,
 };
 use frame_support::{parameter_types, PalletId};
-use parachains_common::{BlockNumber, DAYS, HOURS};
+use parachains_common::BlockNumber;
+#[cfg(feature = "fast-gov")]
+use parachains_common::MINUTES;
+#[cfg(not(feature = "fast-gov"))]
+use parachains_common::{DAYS, HOURS};
 use sp_arithmetic::Permill;
 
 pub const MIN_DEPOSIT: Balance = PLMC;

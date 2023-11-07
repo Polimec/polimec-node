@@ -2,12 +2,9 @@ use crate::*;
 
 const MAX_REF_TIME: u64 = 300_000_000;
 const MAX_PROOF_SIZE: u64 = 10_000;
-pub const REF_TIME_THRESHOLD: u64 = 33;
-pub const PROOF_SIZE_THRESHOLD: u64 = 33;
 
 #[test]
 fn dmp() {
-	let para_ids = PolkadotNet::_para_ids();
 	let remark = PolimecCall::System(frame_system::Call::<PolimecRuntime>::remark_with_event {
 		remark: "Hello from Polkadot!".as_bytes().to_vec(),
 	});
@@ -34,8 +31,6 @@ fn dmp() {
 	});
 
 	Polimec::execute_with(|| {
-		let events = <Polimec as Parachain>::System::events();
-
 		assert_expected_events!(
 			Polimec,
 			vec![
@@ -74,15 +69,13 @@ fn ump() {
 	});
 
 	PolkadotRelay::execute_with(|| {
-		let events = PolkadotSystem::events();
-		let para_id: ParaId = Polimec::para_id().into();
 		assert_expected_events!(
 			PolkadotRelay,
 			vec![
 				PolkadotEvent::MessageQueue(pallet_message_queue::Event::Processed {
 					id: _,
 					origin: AggregateMessageOrigin::Ump(
-						UmpQueueId::Para(para_id)
+						UmpQueueId::Para(_para_id)
 					),
 					weight_used: _,
 					success: false
@@ -94,9 +87,6 @@ fn ump() {
 
 #[test]
 fn xcmp() {
-	use frame_support::traits::fungible::Inspect;
-	use xcm::v3::SendXcm;
-
 	let burn_transfer = PolimecCall::Balances(pallet_balances::Call::<PolimecRuntime>::transfer {
 		dest: PolimecAccountId::from([0u8; 32]).into(),
 		value: 1_000,

@@ -416,8 +416,7 @@ mod benchmarks {
 			1u8,
 			AcceptedFundingAsset::USDT,
 		);
-		let bid_params =
-			inst.simulate_bids_with_bucket(vec![bid_params], project_id)[0].clone();
+		let bid_params = inst.simulate_bids_with_bucket(vec![bid_params], project_id)[0].clone();
 		let necessary_plmc: Vec<UserToPLMCBalance<T>> =
 			BenchInstantiator::<T>::calculate_auction_plmc_spent(&vec![bid_params.clone()], None);
 		let existential_deposits: Vec<UserToPLMCBalance<T>> = necessary_plmc.accounts().existential_deposits();
