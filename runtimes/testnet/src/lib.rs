@@ -56,8 +56,8 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 // XCM Imports
+use polimec_xcm_executor::XcmExecutor;
 pub use xcm_config::XcmConfig;
-use xcm_executor::XcmExecutor;
 pub mod xcm_config;
 pub use crate::xcm_config::*;
 
@@ -497,8 +497,7 @@ parameter_types! {
 	pub TreasuryAccount: AccountId = [69u8; 32].into();
 }
 impl pallet_funding::Config for Runtime {
-	#[cfg(feature = "runtime-benchmarks")]
-	type AllPalletsWithoutSystem = (Balances, LocalAssets, StatemintAssets, PolimecFunding, Vesting, Random);
+	type AllPalletsWithoutSystem = (Balances, LocalAssets, StatemintAssets, PolimecFunding, LinearVesting, Random);
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;
 	type BlockNumberToBalance = ConvertInto;
@@ -531,7 +530,7 @@ impl pallet_funding::Config for Runtime {
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type TreasuryAccount = TreasuryAccount;
-	type Vesting = Vesting;
+	type Vesting = LinearVesting;
 	type WeightInfo = pallet_funding::weights::SubstrateWeight<Runtime>;
 }
 
@@ -653,8 +652,8 @@ construct_runtime!(
 		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 44,
 
 		// Polimec Core
-		PolimecFunding: pallet_funding::{Pallet, Call, Storage, Event<T>}  = 52,
-		Vesting: pallet_linear_release::{Pallet, Call, Storage, Event<T>, Config<T>} = 53,
+		PolimecFunding: pallet_funding::{Pallet, Call, Storage, Event<T>, Config<T>}  = 52,
+		LinearVesting: pallet_linear_release::{Pallet, Call, Storage, Event<T>, Config<T>} = 53,
 
 		// Utilities
 		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 61,
@@ -687,7 +686,7 @@ mod benches {
 		[pallet_timestamp, Timestamp]
 		[cumulus_pallet_xcmp_queue, XcmpQueue]
 		[pallet_funding, PolimecFunding]
-		[pallet_linear_release, Vesting]
+		[pallet_linear_release, LinearVesting]
 	);
 }
 

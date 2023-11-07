@@ -1,8 +1,10 @@
 [workspace]
 members = [
-    "nodes/*",
+#    "nodes/*",
+#    "runtimes/*",
+    "nodes/parachain",
+    "runtimes/testnet",
     "pallets/*",
-    "runtimes/*",
     "integration-tests",
     "traits",
 ]
@@ -54,6 +56,7 @@ pallet-funding = { path = "pallets/funding", default-features = false }
 pallet-sandbox = { path = "pallets/sandbox", default-features = false }
 pallet-parachain-staking = { path = "pallets/parachain-staking", default-features = false }
 pallet-linear-release = { path = "pallets/linear-release", default-features = false }
+polimec-xcm-executor = { path = "pallets/xcm-executor", default-features = false}
 
 # External pallets (with default disabled)
 orml-oracle = {git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.43", default-features = false}
@@ -76,7 +79,7 @@ jsonrpsee = { version = "0.16.3", features = ["server"] }
 hex-literal = "0.3.4"
 serde = { version = "1.0.188", default-features = false }
 smallvec = "1.11.0"
-log = "0.4.20"
+log = { version = "0.4.17", default-features = false }
 
 # Emulations
 xcm-emulator = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "release-v0.9.430" }
@@ -111,6 +114,7 @@ pallet-im-online = { default-features = false, git = "https://github.com/parityt
 sp-authority-discovery = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
 sp-consensus-babe = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
 pallet-message-queue = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
+sp-weights = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
 
 # FRAME
 pallet-aura = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.43" }

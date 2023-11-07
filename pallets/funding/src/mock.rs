@@ -240,7 +240,7 @@ impl pallet_linear_release::Config for TestRuntime {
 }
 
 impl Config for TestRuntime {
-	#[cfg(feature = "runtime-benchmarks")]
+	// #[cfg(feature = "runtime-benchmarks")]
 	type AllPalletsWithoutSystem = AllPalletsWithoutSystem;
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;

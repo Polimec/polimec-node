@@ -1,7 +1,4 @@
-use crate::{
-	accounts::{ALICE, BOB, CHARLIE, DAVE},
-	*,
-};
+use crate::*;
 /// Tests for the oracle pallet integration.
 /// Alice, Bob, Charlie are members of the OracleProvidersMembers.
 /// Only members should be able to feed data into the oracle.

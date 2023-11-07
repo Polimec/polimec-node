@@ -18,7 +18,7 @@ pub mod constants;
 #[cfg(test)]
 mod tests;
 
-pub use constants::{accounts, penpal, polimec, polkadot, statemint};
+pub use constants::{accounts::*, penpal, polimec, polkadot, statemint};
 pub use frame_support::{assert_noop, assert_ok, pallet_prelude::Weight, parameter_types, sp_io, sp_tracing};
 pub use parachains_common::{AccountId, AuraId, Balance, BlockNumber, StatemintAuraId};
 pub use sp_core::{sr25519, storage::Storage, Encode, Get};
@@ -182,4 +182,4 @@ pub mod shortcuts {
 	pub type PenpalSystem = <Penpal as Parachain>::System;
 	pub type StatemintSystem = <Statemint as Parachain>::System;
 }
-use shortcuts::*;
+pub use shortcuts::*;
