@@ -491,6 +491,9 @@ impl pallet_assets::Config<StatemintAssetsInstance> for Runtime {
 
 parameter_types! {
 	pub TreasuryAccount: AccountId = [69u8; 32].into();
+	pub PolimecReceiverInfo: xcm::v3::PalletInfo = xcm::v3::PalletInfo::new(
+		51, "PolimecReceiver".into(), "polimec_receiver".into(), 0, 1, 0
+	).unwrap();
 }
 impl pallet_funding::Config for Runtime {
 	type AllPalletsWithoutSystem = (Balances, LocalAssets, StatemintAssets, PolimecFunding, LinearVesting, Random);
@@ -516,6 +519,7 @@ impl pallet_funding::Config for Runtime {
 	type Multiplier = pallet_funding::types::Multiplier;
 	type NativeCurrency = Balances;
 	type PalletId = FundingPalletId;
+	type PolimecReceiverInfo = PolimecReceiverInfo;
 	type PreImageLimit = ConstU32<1024>;
 	type Price = FixedU128;
 	type PriceProvider = pallet_funding::types::ConstPriceProvider<AssetId, FixedU128, PriceMap>;
@@ -577,6 +581,7 @@ impl pallet_parachain_staking::Config for Runtime {
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
+
 construct_runtime!(
 	pub enum Runtime where
 		Block = Block,

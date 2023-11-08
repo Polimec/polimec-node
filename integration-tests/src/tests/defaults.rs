@@ -1,6 +1,6 @@
 use super::*;
-pub use pallet_funding::instantiator::{BidParams, ContributionParams, UserToPLMCBalance, UserToUSDBalance};
 use frame_support::BoundedVec;
+pub use pallet_funding::instantiator::{BidParams, ContributionParams, UserToPLMCBalance, UserToUSDBalance};
 use pallet_funding::{
 	AcceptedFundingAsset, CurrencyMetadata, ParticipantsSize, PriceOf, ProjectMetadata, ProjectMetadataOf, TicketSize,
 };
@@ -158,8 +158,8 @@ pub fn default_contributors() -> Vec<AccountId> {
 	vec![buyer_1(), buyer_2(), buyer_3(), buyer_4(), buyer_5()]
 }
 
-use polimec_parachain_runtime::Runtime as T;
 use crate::{Polimec, PolimecRuntime};
+use polimec_parachain_runtime::Runtime as T;
 
 #[test]
 fn something() {

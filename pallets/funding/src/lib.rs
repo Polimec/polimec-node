@@ -283,7 +283,7 @@ pub mod pallet {
 		type RuntimeOrigin: IsType<<Self as frame_system::Config>::RuntimeOrigin>
 			+ Into<Result<pallet_xcm::Origin, <Self as Config>::RuntimeOrigin>>;
 
-		type RuntimeCall: IsType<<Self as frame_system::Config>::RuntimeCall> + From<Call<Self>>;
+		type RuntimeCall: Parameter + IsType<<Self as frame_system::Config>::RuntimeCall> + From<Call<Self>>;
 
 		/// Global identifier for the projects.
 		type ProjectIdentifier: Parameter + Copy + Default + One + Saturating + From<u32> + Ord + MaxEncodedLen;
@@ -414,6 +414,8 @@ pub mod pallet {
 		type DaysToBlocks: Convert<FixedU128, BlockNumberOf<Self>>;
 
 		type BlockNumberToBalance: Convert<BlockNumberOf<Self>, BalanceOf<Self>>;
+
+		type PolimecReceiverInfo: Get<PalletInfo>;
 	}
 
 	#[pallet::storage]
@@ -770,9 +772,16 @@ pub mod pallet {
 			project_id: T::ProjectIdentifier,
 			caller: T::AccountId,
 		},
-		MigrationResponseReceived {
+		MigrationCheckResponseAccepted {
 			query_id: xcm::v3::QueryId,
 			response: xcm::v3::Response,
+		},
+		MigrationCheckResponseRejected {
+			query_id: xcm::v3::QueryId,
+			response: xcm::v3::Response,
+		},
+		MigrationStarted {
+			project_id: T::ProjectIdentifier,
 		},
 	}
 
@@ -836,8 +845,8 @@ pub mod pallet {
 		TooEarlyForFundingEnd,
 		/// Checks for other projects not copying metadata of others
 		MetadataAlreadyExists,
-		/// The specified project info does not exist
-		ProjectInfoNotFound,
+		/// The specified project details does not exist
+		ProjectDetailsNotFound,
 		/// Tried to finish an evaluation before its target end block
 		EvaluationPeriodNotEnded,
 		/// Tried to access field that is not set

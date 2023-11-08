@@ -677,10 +677,22 @@ pub mod inner_types {
 	}
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum MigrationReadinessCheck {
-		QuerySent(xcm::v3::QueryId),
-		CheckPassed,
-		CheckFailed,
+	pub struct MigrationReadinessCheck {
+		pub holding_check: (xcm::v3::QueryId, CheckOutcome),
+		pub pallet_check: (xcm::v3::QueryId, CheckOutcome),
+	}
+
+	impl MigrationReadinessCheck {
+		pub fn is_ready(&self) -> bool {
+			self.holding_check.1 == CheckOutcome::Passed && self.pallet_check.1 == CheckOutcome::Passed
+		}
+	}
+
+	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum CheckOutcome {
+		AwaitingResponse,
+		Passed,
+		Failed,
 	}
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
