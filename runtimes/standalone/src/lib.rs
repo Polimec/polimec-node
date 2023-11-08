@@ -353,9 +353,7 @@ parameter_types! {
 }
 
 impl pallet_funding::Config for Runtime {
-	// #[cfg(feature = "runtime-benchmarks")]
-	#[cfg(any(feature = "runtime-benchmarks", feature = "testing-node"))]
-	type AllPalletsWithoutSystem = (Balances, LocalAssets, StatemintAssets, PolimecFunding, LinearVesting, Random);
+	type AllPalletsWithoutSystem = (Balances, PolimecFunding, Vesting, Random);
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;
 	type BlockNumberToBalance = ConvertInto;

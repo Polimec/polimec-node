@@ -215,6 +215,3 @@ frame-system-benchmarking = { git = "https://github.com/paritytech/substrate", d
 polimec-parachain-runtime = { path = "runtimes/testnet" }
 polimec-standalone-runtime = { path = "runtimes/standalone" }
 polimec-base-runtime = { path = "runtimes/base" }
-
-[patch.crates-io]
-ahash = {git = "https://github.com/tkaitchuck/aHash", tag = "v0.8.3"}

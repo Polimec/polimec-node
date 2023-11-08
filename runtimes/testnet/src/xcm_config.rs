@@ -60,7 +60,9 @@ const DOT_PER_MB_PROOF: u128 = 0_0_000_001_000; // 0.0000001 DOT per Megabyte of
 
 const USDT_ASSET_ID: AssetId =
 	Concrete(MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1984)) });
-// const USDT_PER_SECOND_EXECUTION: u128 = 0_0_000_001_000; // 0.0000001 USDT per second of execution time
+#[allow(unused)]
+const USDT_PER_SECOND_EXECUTION: u128 = 0_0_000_001_000; // 0.0000001 USDT per second of execution time
+const USDT_PER_MB_PROOF: u128 = 0_0_000_001_000; // 0.0000001 DOT per Megabyte of proof size
 
 parameter_types! {
 	pub const RelayLocation: MultiLocation = MultiLocation::parent();
@@ -73,7 +75,7 @@ parameter_types! {
 	pub const HereLocation: MultiLocation = MultiLocation::here();
 
 	pub const DotTraderParams: (AssetId, u128, u128) = (DOT_ASSET_ID, DOT_PER_SECOND_EXECUTION, DOT_PER_MB_PROOF);
-	pub const UsdtTraderParams: (AssetId, u128, u128) = (USDT_ASSET_ID, DOT_PER_SECOND_EXECUTION, DOT_PER_MB_PROOF);
+	pub const UsdtTraderParams: (AssetId, u128, u128) = (USDT_ASSET_ID, USDT_PER_SECOND_EXECUTION, USDT_PER_MB_PROOF);
 }
 
 /// Type for specifying how a `MultiLocation` can be converted into an `AccountId`. This is used

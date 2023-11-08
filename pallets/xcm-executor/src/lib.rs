@@ -36,7 +36,10 @@ use xcm_executor::traits::{
 
 use xcm_executor::Assets;
 mod config;
-pub use config::{Config, HrmpHandler};
+mod polimec_traits;
+
+pub use config::Config;
+pub use polimec_traits::HrmpHandler;
 
 /// A struct to specify how fees are being paid.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]

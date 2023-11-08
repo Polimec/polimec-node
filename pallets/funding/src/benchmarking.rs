@@ -416,25 +416,19 @@ mod benchmarks {
 			1u8,
 			AcceptedFundingAsset::USDT,
 		);
+		let bid_params = inst.simulate_bids_with_bucket(vec![bid_params], project_id)[0].clone();
 		let necessary_plmc: Vec<UserToPLMCBalance<T>> =
-			BenchInstantiator::<T>::calculate_auction_plmc_spent(vec![bid_params.clone()]);
+			BenchInstantiator::<T>::calculate_auction_plmc_spent(&vec![bid_params.clone()], None);
 		let existential_deposits: Vec<UserToPLMCBalance<T>> = necessary_plmc.accounts().existential_deposits();
 		let necessary_usdt: Vec<UserToStatemintAsset<T>> =
-			BenchInstantiator::<T>::calculate_auction_funding_asset_spent(vec![bid_params.clone()]);
+			BenchInstantiator::<T>::calculate_auction_funding_asset_spent(&vec![bid_params.clone()], None);
 
 		inst.mint_plmc_to(necessary_plmc.clone());
 		inst.mint_plmc_to(existential_deposits.clone());
 		inst.mint_statemint_asset_to(necessary_usdt.clone());
 
 		#[extrinsic_call]
-		bid(
-			RawOrigin::Signed(bidder.clone()),
-			project_id,
-			bid_params.amount,
-			bid_params.price,
-			bid_params.multiplier,
-			bid_params.asset,
-		);
+		bid(RawOrigin::Signed(bidder.clone()), project_id, bid_params.amount, bid_params.multiplier, bid_params.asset);
 
 		// * validity checks *
 		// Storage
@@ -515,7 +509,7 @@ mod benchmarks {
 
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
 
-		let project_id = inst.create_community_contributing_project(
+		let (project_id, _) = inst.create_community_contributing_project(
 			project_metadata.clone(),
 			issuer,
 			default_evaluations::<T>(),

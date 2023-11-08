@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Polkadot.  If not, see <http://www.gnu.org/licenses/>.
 
+use crate::polimec_traits::HrmpHandler;
 use frame_support::{
 	dispatch::{Dispatchable, GetDispatchInfo, Parameter, PostDispatchInfo},
 	traits::{Contains, ContainsPair, Get, PalletsInfoAccess},
@@ -108,19 +109,4 @@ pub trait Config {
 
 	/// Polimec's custom type for handling the `HrmpNewChannelOpenRequest` ans `HrmpChannelAccepted` instructions
 	type HrmpHandler: HrmpHandler;
-}
-
-pub trait HrmpHandler {
-	fn handle_channel_open_request(message: Instruction) -> XcmResult;
-	fn handle_channel_accepted(message: Instruction) -> XcmResult;
-}
-
-impl HrmpHandler for () {
-	fn handle_channel_open_request(_message: Instruction) -> XcmResult {
-		Err(XcmError::NoDeal)
-	}
-
-	fn handle_channel_accepted(_message: Instruction) -> XcmResult {
-		Err(XcmError::NoDeal)
-	}
 }

@@ -268,8 +268,6 @@ pub mod pallet {
 	pub trait Config:
 		frame_system::Config + pallet_balances::Config<Balance = BalanceOf<Self>> + pallet_xcm::Config
 	{
-		/// Helper trait for benchmarks.
-		// #[cfg(any(feature = "runtime-benchmarks", feature = "testing-node"))]
 		type AllPalletsWithoutSystem: frame_support::traits::OnFinalize<BlockNumberOf<Self>>
 			+ frame_support::traits::OnIdle<BlockNumberOf<Self>>
 			+ frame_support::traits::OnInitialize<BlockNumberOf<Self>>;
@@ -757,12 +755,12 @@ pub mod pallet {
 			para_id: ParaId,
 			caller: T::AccountId,
 		},
-		/// A channel was accepted from a parachain to polimec belonging to a project. A request has been sent to the relay for a polimec->project channel
+		/// A channel was accepted from a parachain to Polimec belonging to a project. A request has been sent to the relay for a polimec->project channel
 		HrmpChannelAccepted {
 			project_id: T::ProjectIdentifier,
 			para_id: ParaId,
 		},
-		/// A channel was established from polimec to a project. The relay has notified us of their acceptance of our request
+		/// A channel was established from Polimec to a project. The relay has notified us of their acceptance of our request
 		HrmpChannelEstablished {
 			project_id: T::ProjectIdentifier,
 			para_id: ParaId,
@@ -940,12 +938,11 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
 			#[pallet::compact] amount: BalanceOf<T>,
-			_price: PriceOf<T>,
 			multiplier: T::Multiplier,
 			asset: AcceptedFundingAsset,
 		) -> DispatchResult {
 			let bidder = ensure_signed(origin)?;
-			Self::do_bid(&bidder, project_id, amount, _price, multiplier, asset)
+			Self::do_bid(&bidder, project_id, amount, multiplier, asset)
 		}
 
 		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
