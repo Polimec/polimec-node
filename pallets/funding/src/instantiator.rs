@@ -194,8 +194,8 @@ impl<
 				assert_eq!(reserved, plmc_amount);
 			});
 		}
-        println!("NEXT")
-    }
+		println!("NEXT")
+	}
 
 	pub fn mint_plmc_to(&mut self, mapping: Vec<UserToPLMCBalance<T>>) {
 		self.execute(|| {

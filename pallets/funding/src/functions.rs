@@ -1920,7 +1920,10 @@ impl<T: Config> Pallet<T> {
 		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::NotAllowed);
 		ensure!(
 			project_details.hrmp_channel_status ==
-				HRMPChannelStatus { project_to_polimec: ChannelStatus::Open, polimec_to_project: ChannelStatus::Open },
+				HRMPChannelStatus {
+					project_to_polimec: ChannelStatus::Open,
+					polimec_to_project: ChannelStatus::Open
+				},
 			Error::<T>::CommsNotEstablished
 		);
 		if project_details.migration_readiness_check.is_none() {
@@ -2000,7 +2003,9 @@ impl<T: Config> Pallet<T> {
 		// TODO: check if this is too low performance. Maybe we want a new map of query_id -> project_id
 		let (project_id, mut project_details, mut migration_check) = ProjectsDetails::<T>::iter()
 			.find_map(|(project_id, details)| {
-				if let Some(check @ MigrationReadinessCheck { holding_check, pallet_check }) = details.migration_readiness_check {
+				if let Some(check @ MigrationReadinessCheck { holding_check, pallet_check }) =
+					details.migration_readiness_check
+				{
 					if holding_check.0 == query_id || pallet_check.0 == query_id {
 						return Some((project_id, details, check.clone()))
 					}
@@ -2045,7 +2050,7 @@ impl<T: Config> Pallet<T> {
 					_ => {
 						migration_check.holding_check.1 = CheckOutcome::Failed;
 						Self::deposit_event(Event::<T>::MigrationCheckResponseRejected { query_id, response });
-					}
+					},
 				}
 			},
 
@@ -2078,7 +2083,6 @@ impl<T: Config> Pallet<T> {
 		ensure!(migration_readiness_check.is_ready(), Error::<T>::NotAllowed);
 
 		// * Update storage *
-
 
 		// * Emit events *
 		Self::deposit_event(Event::<T>::MigrationStarted { project_id });

@@ -310,6 +310,9 @@ parameter_types! {
 	pub const MinVestedTransfer: u64 = 256 * 2;
 	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
 		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
+	pub PolimecReceiverInfo: xcm::v3::PalletInfo = xcm::v3::PalletInfo::new(
+		51, "PolimecReceiver".into(), "polimec_receiver".into(), 0, 1, 0
+	).unwrap();
 }
 impl pallet_linear_release::Config for TestRuntime {
 	type Balance = Balance;
@@ -363,6 +366,7 @@ impl Config for TestRuntime {
 	type TreasuryAccount = TreasuryAccount;
 	type Vesting = Vesting;
 	type WeightInfo = weights::SubstrateWeight<TestRuntime>;
+	type PolimecReceiverInfo = PolimecReceiverInfo;
 }
 
 // Build genesis storage according to the mock runtime.

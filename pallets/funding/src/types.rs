@@ -205,8 +205,8 @@ pub mod storage_types {
 		pub parachain_id: Option<ParaId>,
 		/// Migration readiness check
 		pub migration_readiness_check: Option<MigrationReadinessCheck>,
-        /// HRMP Channel status
-        pub hrmp_channel_status: HRMPChannelStatus,
+		/// HRMP Channel status
+		pub hrmp_channel_status: HRMPChannelStatus,
 	}
 	/// Tells on_initialize what to do with the project
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -695,19 +695,19 @@ pub mod inner_types {
 		Failed,
 	}
 
-    #[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-    pub struct HRMPChannelStatus {
-        pub project_to_polimec: ChannelStatus,
-        pub polimec_to_project: ChannelStatus,
-    }
+	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub struct HRMPChannelStatus {
+		pub project_to_polimec: ChannelStatus,
+		pub polimec_to_project: ChannelStatus,
+	}
 
-    #[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-    pub enum ChannelStatus {
-        /// hrmp channel is closed.
-        Closed,
-        /// hrmp channel is open.
-        Open,
-        /// request for a hrmp channel was sent to the relay. Waiting for response.
-        AwaitingAcceptance,
-    }
+	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum ChannelStatus {
+		/// hrmp channel is closed.
+		Closed,
+		/// hrmp channel is open.
+		Open,
+		/// request for a hrmp channel was sent to the relay. Waiting for response.
+		AwaitingAcceptance,
+	}
 }
