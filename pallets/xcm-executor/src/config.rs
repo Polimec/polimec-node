@@ -107,6 +107,6 @@ pub trait Config {
 	/// temporary measure until we properly account for proof size weights for XCM instructions.
 	type SafeCallFilter: Contains<Self::RuntimeCall>;
 
-	/// Polimec's custom type for handling the `HrmpNewChannelOpenRequest` ans `HrmpChannelAccepted` instructions
+	/// Polimec's custom type for handling the `HrmpNewChannelOpenRequest` and `HrmpChannelAccepted` instructions
 	type HrmpHandler: HrmpHandler;
 }
