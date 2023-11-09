@@ -1,10 +1,7 @@
 In this folder, there are 3 (+1) runtimes
 
-1. "Standalone" runtime.
-2. "Testnet" runtime.
-3. "Base" runtime.
-
-+ The "Standalone" runtime is the runtime that is used for the standalone node. It is the same as the "Testnet" runtime, but it works as a standalone chain. Useful for testing.
+1. "Testnet" runtime.
+2. "Base" runtime.
 
 + The "Testnet" runtime is the runtime that is used for the testnet node.
 

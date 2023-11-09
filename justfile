@@ -14,17 +14,9 @@ build-base-runtime:
 build-parachain-runtime:
 	cargo build --release -p polimec-parachain-runtime
 
-# Build the "Standalone" Runtime
-build-standalone-runtime:
-	cargo build --release -p polimec-standalone-runtime
-
 # Build the "Parachain" Node
 build-parachain-node:
 	cargo build --release -p polimec-parachain-node
-
-# Build the "Standalone" Node
-build-standalone-node:
-	cargo build --release -p polimec-standalone-node
 
 # Build the "Base" Runtime using srtool
 build-base-srtool:
@@ -98,10 +90,6 @@ benchmarks-test:
 # Build the Node Docker Image
 docker-build tag = "latest" package= "polimec-parachain-node":
 	./scripts/build_image.sh {{tag}} ./Dockerfile {{package}}
-
-# Run the "Standalone" node in --dev mode
-run-node:
-	cargo run --release -p polimec-standalone-node -- --dev
 
 # Create the "Base" Runtime Chainspec
 create-chainspec-base:
