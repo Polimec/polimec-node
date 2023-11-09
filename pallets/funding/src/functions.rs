@@ -1982,6 +1982,7 @@ impl<T: Config> Pallet<T> {
 		]);
 		<pallet_xcm::Pallet<T>>::send_xcm(Here, project_multilocation, xcm).map_err(|_| Error::<T>::XcmFailed)?;
 
+		// * Emit events *
 		Self::deposit_event(Event::<T>::MigrationReadinessCheckStarted { project_id, caller: caller.clone() });
 
 		Ok(())
@@ -1992,7 +1993,6 @@ impl<T: Config> Pallet<T> {
 		query_id: xcm::v3::QueryId,
 		response: xcm::v3::Response,
 	) -> DispatchResult {
-		// * Get variables *
 		use xcm::v3::prelude::*;
 		// TODO: check if this is too low performance. Maybe we want a new map of query_id -> project_id
 		let (project_id, mut project_details, mut migration_check) = ProjectsDetails::<T>::iter()
@@ -2022,10 +2022,8 @@ impl<T: Config> Pallet<T> {
 			.saturating_sub(project_details.remaining_contribution_tokens.0)
 			.saturating_sub(project_details.remaining_contribution_tokens.1);
 
-		// * Validity checks *
 		ensure!(project_details.parachain_id == Some(para_id), Error::<T>::NotAllowed);
 
-		// * Update storage *
 		match (response.clone(), migration_check) {
 			(
 				Response::Assets(assets),
@@ -2076,8 +2074,6 @@ impl<T: Config> Pallet<T> {
 		// * Validity Checks *
 		ensure!(caller == project_details.issuer, Error::<T>::NotAllowed);
 		ensure!(migration_readiness_check.is_ready(), Error::<T>::NotAllowed);
-
-		// * Update storage *
 
 		// * Emit events *
 		Self::deposit_event(Event::<T>::MigrationStarted { project_id });

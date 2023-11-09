@@ -753,7 +753,7 @@ pub mod pallet {
 			para_id: ParaId,
 			caller: T::AccountId,
 		},
-		/// A channel was accepted from a parachain to Polimec belonging to a project. A request has been sent to the relay for a polimec->project channel
+		/// A channel was accepted from a parachain to Polimec belonging to a project. A request has been sent to the relay for a Polimec->project channel
 		HrmpChannelAccepted {
 			project_id: T::ProjectIdentifier,
 			para_id: ParaId,
@@ -1146,6 +1146,7 @@ pub mod pallet {
 			Self::do_start_migration_readiness_check(&caller, project_id)
 		}
 
+		/// Called only by other chains through a query response xcm message
 		#[pallet::call_index(23)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
 		pub fn migration_check_response(

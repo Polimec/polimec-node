@@ -83,7 +83,6 @@ pub const fn free_deposit() -> Balance {
 	0 * MICRO_PLMC
 }
 
-//region DRAFT ZONE
 use frame_support::traits::{Everything, OriginTrait};
 use frame_system::RawOrigin as SystemRawOrigin;
 use polkadot_parachain::primitives::Sibling;
@@ -161,8 +160,6 @@ impl pallet_xcm::Config for TestRuntime {
 
 	const VERSION_DISCOVERY_QUEUE_SIZE: u32 = 100;
 }
-
-//endregion
 
 parameter_types! {
 	pub const AssetDeposit: Balance = PLMC; // 1 UNIT deposit to create asset
