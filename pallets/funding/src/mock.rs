@@ -18,7 +18,9 @@
 
 //! Test environment for Funding pallet.
 
+use super::*;
 use frame_support::{
+	pallet_prelude::Weight,
 	parameter_types,
 	traits::{AsEnsureOriginWithArg, ConstU16, ConstU32, WithdrawReasons},
 	PalletId,
@@ -34,10 +36,6 @@ use sp_runtime::{
 };
 use sp_std::collections::btree_map::BTreeMap;
 use system::EnsureSigned;
-
-use crate as pallet_funding;
-
-use super::*;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<TestRuntime>;
 type Block = frame_system::mocking::MockBlock<TestRuntime>;
@@ -65,7 +63,7 @@ frame_support::construct_runtime!(
 		System: frame_system,
 		RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip,
 		Balances: pallet_balances,
-		FundingModule: pallet_funding,
+		FundingModule: crate,
 		Vesting: pallet_linear_release,
 		LocalAssets: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>},
 		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>},
@@ -90,10 +88,7 @@ use frame_support::traits::{Everything, OriginTrait};
 use frame_system::RawOrigin as SystemRawOrigin;
 use polkadot_parachain::primitives::Sibling;
 use sp_runtime::traits::Get;
-use xcm_builder::{
-	AccountId32Aliases, EnsureXcmOrigin, FixedWeightBounds, ParentIsPreset, SiblingParachainConvertsVia,
-	SignedToAccountId32,
-};
+use xcm_builder::{EnsureXcmOrigin, FixedWeightBounds, ParentIsPreset, SiblingParachainConvertsVia};
 use xcm_executor::traits::Convert;
 
 pub struct SignedToAccountIndex<RuntimeOrigin, AccountId, Network>(PhantomData<(RuntimeOrigin, AccountId, Network)>);
@@ -352,6 +347,7 @@ impl Config for TestRuntime {
 	type Multiplier = Multiplier;
 	type NativeCurrency = Balances;
 	type PalletId = FundingPalletId;
+	type PolimecReceiverInfo = PolimecReceiverInfo;
 	type PreImageLimit = ConstU32<1024>;
 	type Price = FixedU128;
 	type PriceProvider = ConstPriceProvider<AssetId, FixedU128, PriceMap>;
@@ -366,7 +362,6 @@ impl Config for TestRuntime {
 	type TreasuryAccount = TreasuryAccount;
 	type Vesting = Vesting;
 	type WeightInfo = weights::SubstrateWeight<TestRuntime>;
-	type PolimecReceiverInfo = PolimecReceiverInfo;
 }
 
 // Build genesis storage according to the mock runtime.

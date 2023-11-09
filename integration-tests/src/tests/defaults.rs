@@ -1,14 +1,12 @@
-use super::*;
 use frame_support::BoundedVec;
 pub use pallet_funding::instantiator::{BidParams, ContributionParams, UserToPLMCBalance, UserToUSDBalance};
 use pallet_funding::{
-	AcceptedFundingAsset, CurrencyMetadata, ParticipantsSize, PriceOf, ProjectMetadata, ProjectMetadataOf, TicketSize,
+	AcceptedFundingAsset, CurrencyMetadata, ParticipantsSize, ProjectMetadata, ProjectMetadataOf, TicketSize,
 };
 use sp_core::H256;
-use sp_runtime::traits::BlakeTwo256;
 
 use polimec_parachain_runtime::AccountId;
-use sp_runtime::{traits::ConstU32, FixedPointNumber, Percent, Perquintill};
+use sp_runtime::{traits::ConstU32, FixedPointNumber, Perquintill};
 pub const METADATA: &str = r#"METADATA
         {
             "whitepaper":"ipfs_url",
@@ -69,24 +67,6 @@ pub fn buyer_4() -> AccountId {
 }
 pub fn buyer_5() -> AccountId {
 	Polimec::account_id_of("buyer_5")
-}
-pub fn all_testing_accounts() -> Vec<AccountId> {
-	vec![
-		issuer(),
-		eval_1(),
-		eval_2(),
-		eval_3(),
-		bidder_1(),
-		bidder_2(),
-		bidder_3(),
-		bidder_4(),
-		bidder_5(),
-		buyer_1(),
-		buyer_2(),
-		buyer_3(),
-		buyer_4(),
-		buyer_5(),
-	]
 }
 pub fn bounded_name() -> BoundedVec<u8, ConstU32<64>> {
 	BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap()
@@ -159,7 +139,6 @@ pub fn default_contributors() -> Vec<AccountId> {
 }
 
 use crate::{Polimec, PolimecRuntime};
-use polimec_parachain_runtime::Runtime as T;
 
 #[test]
 fn something() {

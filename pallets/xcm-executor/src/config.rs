@@ -19,7 +19,7 @@ use frame_support::{
 	dispatch::{Dispatchable, GetDispatchInfo, Parameter, PostDispatchInfo},
 	traits::{Contains, ContainsPair, Get, PalletsInfoAccess},
 };
-use xcm::v3::{opaque::Instruction, prelude::*};
+use xcm::v3::prelude::*;
 use xcm_executor::traits::{
 	AssetExchange, AssetLock, CallDispatcher, ClaimAssets, ConvertOrigin, DropAssets, ExportXcm, FeeManager,
 	OnResponse, ShouldExecute, TransactAsset, VersionChangeNotifier, WeightBounds, WeightTrader,

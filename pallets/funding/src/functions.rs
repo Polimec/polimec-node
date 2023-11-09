@@ -1903,16 +1903,10 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let parachain_id: u32 = project_details.parachain_id.ok_or(Error::<T>::ImpossibleState)?.into();
 		let project_multilocation = ParentThen(X1(Parachain(parachain_id)));
 		let now = <frame_system::Pallet<T>>::block_number();
-		let contribution_tokens_sold = project_metadata
-			.total_allocation_size
-			.0
-			.saturating_add(project_metadata.total_allocation_size.1)
-			.saturating_sub(project_details.remaining_contribution_tokens.0)
-			.saturating_sub(project_details.remaining_contribution_tokens.1);
+
 		// TODO: check these values
 		let max_weight = Weight::from_parts(700_000_000, 10_000);
 
@@ -2038,12 +2032,13 @@ impl<T: Config> Pallet<T> {
 				MigrationReadinessCheck { holding_check: (_, CheckOutcome::AwaitingResponse), .. },
 			) => {
 				let ct_sold_as_u128: u128 = contribution_tokens_sold.try_into().map_err(|_| Error::<T>::BadMath)?;
-				let expected_id = Concrete(MultiLocation { parents: 1, interior: X1(Parachain(para_id.into())) });
 				let assets: Vec<MultiAsset> = assets.into_inner();
 				let asset_1 = assets[0].clone();
-
 				match asset_1 {
-					MultiAsset { id: expected_id, fun: Fungible(amount) } if amount >= ct_sold_as_u128 => {
+					MultiAsset {
+						id: Concrete(MultiLocation { parents: 1, interior: X1(Parachain(pid)) }),
+						fun: Fungible(amount),
+					} if amount >= ct_sold_as_u128 && pid == u32::from(para_id) => {
 						migration_check.holding_check.1 = CheckOutcome::Passed;
 						Self::deposit_event(Event::<T>::MigrationCheckResponseAccepted { query_id, response });
 					},

@@ -1,12 +1,6 @@
 use crate::*;
 use polimec_parachain_runtime::PolimecFunding;
-use std::cell::RefCell;
 use tests::defaults::*;
-
-const MAX_REF_TIME: u64 = 700_000_000;
-const MAX_PROOF_SIZE: u64 = 10_000;
-pub const REF_TIME_THRESHOLD: u64 = 33;
-pub const PROOF_SIZE_THRESHOLD: u64 = 33;
 
 #[test]
 fn migration_check() {

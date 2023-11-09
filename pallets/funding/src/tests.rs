@@ -80,7 +80,7 @@ const BUYER_5: AccountId = 44;
 const BUYER_6: AccountId = 45;
 const BUYER_7: AccountId = 46;
 
-const ASSET_UNIT: u128 = 10_u128.pow(10 as u32);
+const ASSET_UNIT: u128 = 10_u128.pow(10u32);
 
 const USDT_STATEMINT_ID: crate::mock::AssetId = 1984u32;
 const USDT_UNIT: u128 = 10_000_000_000_u128;

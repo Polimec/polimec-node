@@ -31,7 +31,6 @@ fn dmp() {
 	});
 
 	Polimec::execute_with(|| {
-		let events = Polimec::events();
 		assert_expected_events!(
 			Polimec,
 			vec![

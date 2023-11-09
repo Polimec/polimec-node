@@ -304,7 +304,7 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 		// TODO: This base weight and the one in all other functions below should be calculated with a benchmark
 		let remaining = remaining_evaluations.count() as u64;
 
-		match project_details.evaluation_round_info.evaluators_outcome {
+		return match project_details.evaluation_round_info.evaluators_outcome {
 			EvaluatorsOutcome::Rewarded(_) => {
 				match Pallet::<T>::do_evaluation_reward_payout_for(
 					&T::PalletId::get().into_account_truncating(),
@@ -321,7 +321,7 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 					}),
 				};
 
-				return Ok((base_weight.saturating_add(WeightInfoOf::<T>::evaluation_reward_payout_for()), remaining))
+				Ok((base_weight.saturating_add(WeightInfoOf::<T>::evaluation_reward_payout_for()), remaining))
 			},
 			EvaluatorsOutcome::Slashed => {
 				match Pallet::<T>::do_evaluation_slash_for(
@@ -339,13 +339,13 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 					}),
 				};
 
-				return Ok((base_weight.saturating_add(WeightInfoOf::<T>::evaluation_slash_for()), remaining))
+				Ok((base_weight.saturating_add(WeightInfoOf::<T>::evaluation_slash_for()), remaining))
 			},
 			_ => {
 				#[cfg(debug_assertions)]
 				unreachable!("EvaluatorsOutcome should be either Slashed or Rewarded if this function is called");
 				#[cfg(not(debug_assertions))]
-				return Err(Error::<T>::ImpossibleState.into())
+				Err(Error::<T>::ImpossibleState.into())
 			},
 		}
 	} else {

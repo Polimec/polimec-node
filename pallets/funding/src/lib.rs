@@ -173,7 +173,6 @@
 #![cfg_attr(feature = "runtime-benchmarks", recursion_limit = "512")]
 
 use frame_support::{
-	pallet_prelude::Weight,
 	traits::{
 		tokens::{fungible, fungibles, Balance},
 		Randomness,
@@ -181,7 +180,6 @@ use frame_support::{
 	BoundedVec, PalletId,
 };
 pub use pallet::*;
-use parity_scale_codec::Encode;
 use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
@@ -1263,7 +1261,6 @@ pub mod pallet {
 	#[cfg(all(feature = "testing-node", feature = "std"))]
 	use frame_support::traits::{OnFinalize, OnIdle, OnInitialize, OriginTrait};
 	use pallet_xcm::ensure_response;
-	use polkadot_runtime_parachains::ensure_parachain;
 
 	#[cfg(all(feature = "testing-node", feature = "std"))]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
@@ -1378,8 +1375,6 @@ pub mod pallet {
 
 pub mod xcm_executor_impl {
 	use super::*;
-	use crate::ProjectStatus::FundingSuccessful;
-	use frame_support::pallet_prelude::Get;
 
 	pub struct HrmpHandler<T: Config>(PhantomData<T>);
 	impl<T: Config> polimec_xcm_executor::HrmpHandler for HrmpHandler<T> {
