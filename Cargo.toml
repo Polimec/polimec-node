@@ -1,9 +1,7 @@
 [workspace]
 members = [
-#    "nodes/*",
-#    "runtimes/*",
     "nodes/parachain",
-    "runtimes/testnet",
+    "runtimes/*",
     "pallets/*",
     "integration-tests",
     "traits",
