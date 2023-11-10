@@ -1158,6 +1158,16 @@ pub mod pallet {
 
 			Self::do_migration_check_response(location, query_id, response)
 		}
+
+		#[pallet::call_index(24)]
+		#[pallet::weight(Weight::from_part(1000, 0))]
+		pub fn start_migration(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+		) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			Self::do_start_migration(&caller, project_id)
+		}
 	}
 
 	#[pallet::hooks]

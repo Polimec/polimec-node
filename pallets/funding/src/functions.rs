@@ -2066,7 +2066,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn do_migration(caller: AccountIdOf<T>, project_id: T::ProjectIdentifier) -> DispatchResult {
+	pub fn do_start_migration(caller: AccountIdOf<T>, project_id: T::ProjectIdentifier) -> DispatchResult {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let migration_readiness_check = project_details.migration_readiness_check.ok_or(Error::<T>::NotAllowed)?;
@@ -2079,6 +2079,22 @@ impl<T: Config> Pallet<T> {
 		Self::deposit_event(Event::<T>::MigrationStarted { project_id });
 
 		Ok(())
+	}
+
+	pub fn do_one_migration(caller: AccountIdOf<T>, project_id: T::ProjectIdentifier, participant: AccountIdOf<T>) -> DispatchResult {
+		// * Get variables *
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let migration_readiness_check = project_details.migration_readiness_check.ok_or(Error::<T>::NotAllowed)?;
+		let maybe_bids = Bids::<T>::iter_prefix_values((project_id, participant));
+		let maybe_contributions = Contributions::<T>::iter_prefix_values((project_id, participant));
+
+		// * Validity Checks *
+		ensure!(migration_readiness_check.is_ready(), Error::<T>::NotAllowed);
+
+		// * Update storage *
+
+
+		// * Emit events *
 	}
 }
 
