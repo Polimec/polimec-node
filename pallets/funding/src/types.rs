@@ -69,7 +69,7 @@ pub mod config_types {
 	}
 
 	impl VestingDurationCalculation for Multiplier {
-		fn calculate_vesting_duration<T: Config>(&self) -> T::BlockNumber {
+		fn calculate_vesting_duration<T: Config>(&self) -> <T as frame_system::Config>::BlockNumber {
 			// gradient "m" of the linear curve function y = m*x + b where x is the multiplier and y is the number of weeks
 			const GRADIENT: FixedU128 = FixedU128::from_rational(2167u128, 1000u128);
 			// negative constant (because we cannot have negative values, so we take the negative and do "-b" instead of "+b") "b" of the linear curve function y = m*x + b

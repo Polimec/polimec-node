@@ -2066,14 +2066,16 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn do_start_migration(caller: AccountIdOf<T>, project_id: T::ProjectIdentifier) -> DispatchResult {
+	pub fn do_start_migration(caller: &AccountIdOf<T>, project_id: T::ProjectIdentifier) -> DispatchResult {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let migration_readiness_check = project_details.migration_readiness_check.ok_or(Error::<T>::NotAllowed)?;
 
 		// * Validity Checks *
-		ensure!(caller == project_details.issuer, Error::<T>::NotAllowed);
+		ensure!(caller.clone() == project_details.issuer, Error::<T>::NotAllowed);
 		ensure!(migration_readiness_check.is_ready(), Error::<T>::NotAllowed);
+
+		// Start automated migration process
 
 		// * Emit events *
 		Self::deposit_event(Event::<T>::MigrationStarted { project_id });
@@ -2085,14 +2087,23 @@ impl<T: Config> Pallet<T> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let migration_readiness_check = project_details.migration_readiness_check.ok_or(Error::<T>::NotAllowed)?;
-		let maybe_bids = Bids::<T>::iter_prefix_values((project_id, participant));
-		let maybe_contributions = Contributions::<T>::iter_prefix_values((project_id, participant));
+		let evaluations = Bids::<T>::iter_prefix_values((project_id, participant.clone()));
+		let bids = Bids::<T>::iter_prefix_values((project_id, participant.clone()));
+		let contributions = Contributions::<T>::iter_prefix_values((project_id, participant.clone()));
+		let available_contribution_tokens = T::ContributionTokenCurrency::balance(project_id, &participant.clone());
 
 		// * Validity Checks *
 		ensure!(migration_readiness_check.is_ready(), Error::<T>::NotAllowed);
 
-		// * Update storage *
+		// * Process Data *
+		let mut migrations: Vec<(u128, u32)> = Vec::new();
+			for contribution in contributions {
+				let multiplier = contribution.multiplier.calculate_vesting_duration::<T>();
+				let multiplier_local = <T as Config>::BlockNumber::from(multiplier);
+				migrations.push((contribution.ct_amount.into(), multiplier_local.into()))
+			}
 
+		Ok(())
 
 		// * Emit events *
 	}
@@ -2110,7 +2121,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Adds a project to the ProjectsToUpdate storage, so it can be updated at some later point in time.
-	pub fn add_to_update_store(block_number: T::BlockNumber, store: (&T::ProjectIdentifier, UpdateType)) {
+	pub fn add_to_update_store(block_number: <T as frame_system::Config>::BlockNumber, store: (&T::ProjectIdentifier, UpdateType)) {
 		// Try to get the project into the earliest possible block to update.
 		// There is a limit for how many projects can update each block, so we need to make sure we don't exceed that limit
 		let mut block_number = block_number;
@@ -2166,9 +2177,9 @@ impl<T: Config> Pallet<T> {
 		_caller: &AccountIdOf<T>,
 		multiplier: MultiplierOf<T>,
 		bonded_amount: BalanceOf<T>,
-	) -> Result<VestingInfo<T::BlockNumber, BalanceOf<T>>, DispatchError> {
+	) -> Result<VestingInfo<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>, DispatchError> {
 		// TODO: duration should depend on `_multiplier` and `_caller` credential
-		let duration: T::BlockNumber = multiplier.calculate_vesting_duration::<T>();
+		let duration: <T as frame_system::Config>::BlockNumber = multiplier.calculate_vesting_duration::<T>();
 		let duration_as_balance = T::BlockNumberToBalance::convert(duration);
 		let amount_per_block = if duration_as_balance == Zero::zero() {
 			bonded_amount
@@ -2182,7 +2193,7 @@ impl<T: Config> Pallet<T> {
 	/// Calculates the price (in USD) of contribution tokens for the Community and Remainder Rounds
 	pub fn calculate_weighted_average_price(
 		project_id: T::ProjectIdentifier,
-		end_block: T::BlockNumber,
+		end_block: <T as frame_system::Config>::BlockNumber,
 		total_allocation_size: BalanceOf<T>,
 	) -> DispatchResult {
 		// Get all the bids that were made before the end of the candle
@@ -2401,12 +2412,12 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn select_random_block(
-		candle_starting_block: T::BlockNumber,
-		candle_ending_block: T::BlockNumber,
-	) -> T::BlockNumber {
+		candle_starting_block: <T as frame_system::Config>::BlockNumber,
+		candle_ending_block: <T as frame_system::Config>::BlockNumber,
+	) -> <T as frame_system::Config>::BlockNumber {
 		let nonce = Self::get_and_increment_nonce();
 		let (random_value, _known_since) = T::Randomness::random(&nonce);
-		let random_block = <T::BlockNumber>::decode(&mut random_value.as_ref())
+		let random_block = <<T as frame_system::Config>::BlockNumber>::decode(&mut random_value.as_ref())
 			.expect("secure hashes should always be bigger than the block number; qed");
 		let block_range = candle_ending_block - candle_starting_block;
 
@@ -2581,7 +2592,7 @@ impl<T: Config> Pallet<T> {
 		project_id: T::ProjectIdentifier,
 		mut project_details: ProjectDetailsOf<T>,
 		reason: SuccessReason,
-		settlement_delta: T::BlockNumber,
+		settlement_delta: <T as frame_system::Config>::BlockNumber,
 	) -> DispatchResult {
 		let now = <frame_system::Pallet<T>>::block_number();
 		project_details.status = ProjectStatus::FundingSuccessful;
@@ -2598,7 +2609,7 @@ impl<T: Config> Pallet<T> {
 		project_id: T::ProjectIdentifier,
 		mut project_details: ProjectDetailsOf<T>,
 		reason: FailureReason,
-		settlement_delta: T::BlockNumber,
+		settlement_delta: <T as frame_system::Config>::BlockNumber,
 	) -> DispatchResult {
 		let now = <frame_system::Pallet<T>>::block_number();
 		project_details.status = ProjectStatus::FundingFailed;

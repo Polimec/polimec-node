@@ -276,6 +276,8 @@ pub mod pallet {
 			+ Parameter
 			+ Member;
 
+		type BlockNumber: IsType<<Self as frame_system::Config>::BlockNumber> + Into<u32>;
+
 		type RuntimeOrigin: IsType<<Self as frame_system::Config>::RuntimeOrigin>
 			+ Into<Result<pallet_xcm::Origin, <Self as Config>::RuntimeOrigin>>;
 
@@ -296,7 +298,7 @@ pub mod pallet {
 			+ MaybeSerializeDeserialize;
 
 		/// The inner balance type we will use for all of our outer currency types. (e.g native, funding, CTs)
-		type Balance: Balance + From<u64> + FixedPointOperand + MaybeSerializeDeserialize;
+		type Balance: Balance + From<u64> + FixedPointOperand + MaybeSerializeDeserialize + Into<u128>;
 
 		/// Represents the value of something in USD
 		type Price: FixedPointNumber + Parameter + Copy + MaxEncodedLen + MaybeSerializeDeserialize;
@@ -326,7 +328,7 @@ pub mod pallet {
 		type PriceProvider: ProvideStatemintPrice<AssetId = u32, Price = Self::Price>;
 
 		/// Something that provides randomness in the runtime.
-		type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
+		type Randomness: Randomness<Self::Hash, <Self as frame_system::Config>::BlockNumber>;
 
 		/// The maximum length of data stored on-chain.
 		#[pallet::constant]
@@ -338,27 +340,27 @@ pub mod pallet {
 
 		/// The length (expressed in number of blocks) of the evaluation period.
 		#[pallet::constant]
-		type EvaluationDuration: Get<Self::BlockNumber>;
+		type EvaluationDuration: Get<<Self as frame_system::Config>::BlockNumber>;
 
 		/// The time window (expressed in number of blocks) that an issuer has to start the auction round.
 		#[pallet::constant]
-		type AuctionInitializePeriodDuration: Get<Self::BlockNumber>;
+		type AuctionInitializePeriodDuration: Get<<Self as frame_system::Config>::BlockNumber>;
 
 		/// The length (expressed in number of blocks) of the Auction Round, English period.
 		#[pallet::constant]
-		type EnglishAuctionDuration: Get<Self::BlockNumber>;
+		type EnglishAuctionDuration: Get<<Self as frame_system::Config>::BlockNumber>;
 
 		/// The length (expressed in number of blocks) of the Auction Round, Candle period.
 		#[pallet::constant]
-		type CandleAuctionDuration: Get<Self::BlockNumber>;
+		type CandleAuctionDuration: Get<<Self as frame_system::Config>::BlockNumber>;
 
 		/// The length (expressed in number of blocks) of the Community Round.
 		#[pallet::constant]
-		type CommunityFundingDuration: Get<Self::BlockNumber>;
+		type CommunityFundingDuration: Get<<Self as frame_system::Config>::BlockNumber>;
 
 		/// The length (expressed in number of blocks) of the Remainder Round.
 		#[pallet::constant]
-		type RemainderFundingDuration: Get<Self::BlockNumber>;
+		type RemainderFundingDuration: Get<<Self as frame_system::Config>::BlockNumber>;
 
 		/// `PalletId` for the funding pallet. An appropriate value could be
 		/// `PalletId(*b"py/cfund")`
@@ -398,9 +400,9 @@ pub mod pallet {
 			Moment = BlockNumberOf<Self>,
 		>;
 		/// For now we expect 3 days until the project is automatically accepted. Timeline decided by MiCA regulations.
-		type ManualAcceptanceDuration: Get<Self::BlockNumber>;
+		type ManualAcceptanceDuration: Get<<Self as frame_system::Config>::BlockNumber>;
 		/// For now we expect 4 days from acceptance to settlement due to MiCA regulations.
-		type SuccessToSettlementTime: Get<Self::BlockNumber>;
+		type SuccessToSettlementTime: Get<<Self as frame_system::Config>::BlockNumber>;
 
 		type EvaluatorSlash: Get<Percent>;
 
@@ -469,7 +471,7 @@ pub mod pallet {
 	pub type ProjectsToUpdate<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
-		T::BlockNumber,
+		<T as frame_system::Config>::BlockNumber,
 		BoundedVec<(T::ProjectIdentifier, UpdateType), T::MaxProjectsToUpdatePerBlock>,
 		ValueQuery,
 	>;
@@ -536,18 +538,18 @@ pub mod pallet {
 		/// The period an issuer has to start the auction phase of the project.
 		AuctionInitializePeriod {
 			project_id: T::ProjectIdentifier,
-			start_block: T::BlockNumber,
-			end_block: T::BlockNumber,
+			start_block: <T as frame_system::Config>::BlockNumber,
+			end_block: <T as frame_system::Config>::BlockNumber,
 		},
 		/// The auction round of a project started.
 		EnglishAuctionStarted {
 			project_id: T::ProjectIdentifier,
-			when: T::BlockNumber,
+			when: <T as frame_system::Config>::BlockNumber,
 		},
 		/// The candle auction part of the auction started for a project
 		CandleAuctionStarted {
 			project_id: T::ProjectIdentifier,
-			when: T::BlockNumber,
+			when: <T as frame_system::Config>::BlockNumber,
 		},
 		/// The auction round of a project ended.
 		AuctionFailed {
@@ -1160,7 +1162,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(24)]
-		#[pallet::weight(Weight::from_part(1000, 0))]
+		#[pallet::weight(Weight::from_parts(1000, 0))]
 		pub fn start_migration(
 			origin: OriginFor<T>,
 			project_id: T::ProjectIdentifier,
@@ -1172,7 +1174,7 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(now: T::BlockNumber) -> Weight {
+		fn on_initialize(now: <T as frame_system::Config>::BlockNumber) -> Weight {
 			// Get the projects that need to be updated on this block and update them
 			for (project_id, update_type) in ProjectsToUpdate::<T>::take(now) {
 				match update_type {
@@ -1223,7 +1225,7 @@ pub mod pallet {
 			Weight::from_parts(0, 0)
 		}
 
-		fn on_idle(_now: T::BlockNumber, max_weight: Weight) -> Weight {
+		fn on_idle(_now: <T as frame_system::Config>::BlockNumber, max_weight: Weight) -> Weight {
 			let mut remaining_weight = max_weight;
 
 			let projects_needing_cleanup = ProjectsDetails::<T>::iter()
