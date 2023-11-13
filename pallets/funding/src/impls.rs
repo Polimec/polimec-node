@@ -244,7 +244,7 @@ fn remaining_evaluators_to_reward_or_slash<T: Config>(
 	if outcome == EvaluatorsOutcomeOf::<T>::Unchanged {
 		0u64
 	} else {
-		Evaluations::<T>::iter_prefix_values((project_id,)).filter(|evaluation| !evaluation.rewarded_or_slashed).count()
+		Evaluations::<T>::iter_prefix_values((project_id,)).filter(|evaluation| evaluation.rewarded_or_slashed.is_none()).count()
 			as u64
 	}
 }
@@ -297,7 +297,7 @@ fn remaining_contributions_without_issuer_payout<T: Config>(project_id: T::Proje
 fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> Result<(Weight, u64), DispatchError> {
 	let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 	let project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,));
-	let mut remaining_evaluations = project_evaluations.filter(|evaluation| !evaluation.rewarded_or_slashed);
+	let mut remaining_evaluations = project_evaluations.filter(|evaluation| evaluation.rewarded_or_slashed.is_none());
 	let base_weight = Weight::from_parts(10_000_000, 0);
 
 	if let Some(evaluation) = remaining_evaluations.next() {

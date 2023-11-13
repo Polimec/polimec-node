@@ -232,7 +232,8 @@ pub mod storage_types {
 		pub early_usd_amount: Balance,
 		pub late_usd_amount: Balance,
 		pub when: BlockNumber,
-		pub rewarded_or_slashed: bool,
+		// Will be Some after a reward of slash was made on this evaluation.
+		pub rewarded_or_slashed: Option<RewardOrSlash<Balance>>,
 	}
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -658,6 +659,12 @@ pub mod inner_types {
 		Unchanged,
 		Rewarded(RewardInfo<Balance>),
 		Slashed,
+	}
+
+	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, PartialOrd, Ord, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum RewardOrSlash<Balance> {
+		Reward(Balance),
+		Slash(Balance),
 	}
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]

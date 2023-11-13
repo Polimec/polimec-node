@@ -38,6 +38,7 @@ use sp_std::marker::PhantomData;
 
 use crate::ProjectStatus::FundingSuccessful;
 use polimec_traits::ReleaseSchedule;
+use crate::Call::start_bid_vesting_schedule_for;
 
 use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
 
@@ -781,7 +782,7 @@ impl<T: Config> Pallet<T> {
 			early_usd_amount,
 			late_usd_amount,
 			when: now,
-			rewarded_or_slashed: false,
+			rewarded_or_slashed: None,
 		};
 
 		// * Update Storage *
@@ -1266,7 +1267,7 @@ impl<T: Config> Pallet<T> {
 		// * Validity checks *
 		ensure!(
 			(project_details.evaluation_round_info.evaluators_outcome == EvaluatorsOutcomeOf::<T>::Unchanged ||
-				released_evaluation.rewarded_or_slashed) &&
+				released_evaluation.rewarded_or_slashed.is_some()) &&
 				matches!(
 					project_details.status,
 					ProjectStatus::EvaluationFailed | ProjectStatus::FundingFailed | ProjectStatus::FundingSuccessful
@@ -1313,7 +1314,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			!evaluation.rewarded_or_slashed && matches!(project_details.status, ProjectStatus::FundingSuccessful),
+			evaluation.rewarded_or_slashed.is_none() && matches!(project_details.status, ProjectStatus::FundingSuccessful),
 			Error::<T>::NotAllowed
 		);
 
@@ -1329,7 +1330,7 @@ impl<T: Config> Pallet<T> {
 		let total_reward_amount = early_evaluators_rewards.saturating_add(normal_evaluators_rewards);
 		// * Update storage *
 		T::ContributionTokenCurrency::mint_into(project_id, &evaluation.evaluator, total_reward_amount)?;
-		evaluation.rewarded_or_slashed = true;
+		evaluation.rewarded_or_slashed = Some(RewardOrSlash::Reward(total_reward_amount));
 		Evaluations::<T>::insert((project_id, evaluator, evaluation_id), evaluation);
 
 		// * Emit events *
@@ -1360,7 +1361,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			!evaluation.rewarded_or_slashed &&
+			evaluation.rewarded_or_slashed.is_none() &&
 				matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Slashed),
 			Error::<T>::NotAllowed
 		);
@@ -1370,7 +1371,7 @@ impl<T: Config> Pallet<T> {
 		let slashed_amount = slash_percentage * evaluation.original_plmc_bond;
 
 		// * Update storage *
-		evaluation.rewarded_or_slashed = true;
+		evaluation.rewarded_or_slashed = Some(RewardOrSlash::Slash(slashed_amount));
 
 		T::NativeCurrency::transfer_on_hold(
 			&LockType::Evaluation(project_id),
@@ -2087,7 +2088,7 @@ impl<T: Config> Pallet<T> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let migration_readiness_check = project_details.migration_readiness_check.ok_or(Error::<T>::NotAllowed)?;
-		let evaluations = Bids::<T>::iter_prefix_values((project_id, participant.clone()));
+		let evaluations = Evaluations::<T>::iter_prefix_values((project_id, participant.clone()));
 		let bids = Bids::<T>::iter_prefix_values((project_id, participant.clone()));
 		let contributions = Contributions::<T>::iter_prefix_values((project_id, participant.clone()));
 		let available_contribution_tokens = T::ContributionTokenCurrency::balance(project_id, &participant.clone());
@@ -2096,12 +2097,28 @@ impl<T: Config> Pallet<T> {
 		ensure!(migration_readiness_check.is_ready(), Error::<T>::NotAllowed);
 
 		// * Process Data *
-		let mut migrations: Vec<(u128, u32)> = Vec::new();
-			for contribution in contributions {
-				let multiplier = contribution.multiplier.calculate_vesting_duration::<T>();
-				let multiplier_local = <T as Config>::BlockNumber::from(multiplier);
-				migrations.push((contribution.ct_amount.into(), multiplier_local.into()))
+		// u128 is a balance, u64 is now a BlockNumber, but will be a Moment/Timestamp in the future
+		let mut migrations: Vec<(u128, u64)> = Vec::new();
+		let mut evaluation_ct_amount = available_contribution_tokens;
+		for evaluation in evaluations {
+			if let Some(RewardOrSlash::Reward(ct_amount)) = evaluation.rewarded_or_slashed {
+				let multiplier = MultiplierOf::<T>::try_from(1u8).map_err(|_| Error::<T>::BadConversion)?;
+				let vesting_duration = multiplier.calculate_vesting_duration::<T>();
+
 			}
+		}
+		for contribution in contributions {
+			let vesting_duration = contribution.multiplier.calculate_vesting_duration::<T>();
+			let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);
+			migrations.push((contribution.ct_amount.into(), vesting_duration_local_type.into()));
+			evaluation_ct_amount -= contribution.ct_amount;
+		}
+		for bid in bids {
+			let vesting_duration = bid.multiplier.calculate_vesting_duration::<T>();
+			let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);
+			migrations.push((bid.final_ct_amount.into(), vesting_duration_local_type.into()));
+			evaluation_ct_amount -= bid.final_ct_amount;
+		}
 
 		Ok(())
 

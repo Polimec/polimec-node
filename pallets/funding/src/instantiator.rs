@@ -791,7 +791,7 @@ impl<
 		let early_evaluators_rewards = early_reward_weight * reward_info.early_evaluator_reward_pot;
 		let normal_evaluators_rewards = normal_reward_weight * reward_info.normal_evaluator_reward_pot;
 		let total_reward_amount = early_evaluators_rewards.saturating_add(normal_evaluators_rewards);
-		total_reward_amount.into()
+		total_reward_amount
 	}
 }
 
@@ -1359,7 +1359,7 @@ impl<T: Config + pallet_balances::Config> ExistentialDeposits<T> for Vec<Account
 	fn existential_deposits(&self) -> Vec<UserToPLMCBalance<T>> {
 		self.iter()
 			.map(|x| {
-				UserToPLMCBalance::new(x.clone(), <T as pallet_balances::Config>::ExistentialDeposit::get().into())
+				UserToPLMCBalance::new(x.clone(), <T as pallet_balances::Config>::ExistentialDeposit::get())
 			})
 			.collect::<Vec<_>>()
 	}

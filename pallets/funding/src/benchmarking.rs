@@ -334,7 +334,7 @@ mod benchmarks {
 				evaluator == test_evaluator.clone() &&
 				original_plmc_bond == plmc_for_evaluating[0].plmc_amount &&
 				current_plmc_bond == plmc_for_evaluating[0].plmc_amount &&
-				!rewarded_or_slashed => {},
+				rewarded_or_slashed.is_some() => {},
 			_ => assert!(false, "Evaluation is not stored correctly"),
 		}
 
@@ -721,7 +721,7 @@ mod benchmarks {
 		// Storage
 		let stored_evaluation =
 			Evaluations::<T>::get((project_id, evaluator.clone(), evaluation_to_unbond.id)).unwrap();
-		assert!(stored_evaluation.rewarded_or_slashed);
+		assert!(stored_evaluation.rewarded_or_slashed.is_some());
 		let slashed_amount = T::EvaluatorSlash::get() * evaluation_to_unbond.original_plmc_bond;
 		let current_plmc_bond = evaluation_to_unbond.current_plmc_bond.saturating_sub(slashed_amount);
 		assert_eq!(stored_evaluation.current_plmc_bond, current_plmc_bond);
@@ -790,7 +790,7 @@ mod benchmarks {
 		// Storage
 		let stored_evaluation =
 			Evaluations::<T>::get((project_id, evaluator.clone(), evaluation_to_unbond.id)).unwrap();
-		assert!(stored_evaluation.rewarded_or_slashed);
+		assert!(stored_evaluation.rewarded_or_slashed.is_some());
 
 		// Balances
 		let project_details = ProjectsDetails::<T>::get(project_id).unwrap();

@@ -276,7 +276,8 @@ pub mod pallet {
 			+ Parameter
 			+ Member;
 
-		type BlockNumber: IsType<<Self as frame_system::Config>::BlockNumber> + Into<u32>;
+		// TODO: our local BlockNumber should be removed once we move onto using Moment for time tracking
+		type BlockNumber: IsType<<Self as frame_system::Config>::BlockNumber> + Into<u64>;
 
 		type RuntimeOrigin: IsType<<Self as frame_system::Config>::RuntimeOrigin>
 			+ Into<Result<pallet_xcm::Origin, <Self as Config>::RuntimeOrigin>>;
@@ -876,6 +877,8 @@ pub mod pallet {
 		/// Tried to start a migration check but the bidirectional channel is not yet open
 		CommsNotEstablished,
 		XcmFailed,
+		// Tried to convert one type into another and failed. i.e try_into failed
+		BadConversion
 	}
 
 	#[pallet::call]
