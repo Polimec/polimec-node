@@ -11,7 +11,10 @@ pub mod pallet {
 	use sp_std::prelude::*;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config
+	where
+		Self::AccountId: From<[u8; 32]>,
+	{
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 	}
 
@@ -24,7 +27,10 @@ pub mod pallet {
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
-	pub enum Event<T: Config> {
+	pub enum Event<T: Config>
+	where
+		T::AccountId: From<[u8; 32]>,
+	{
 		SomethingStored(u32, T::AccountId),
 	}
 
@@ -35,20 +41,19 @@ pub mod pallet {
 	}
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
-
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> where T::AccountId: From<[u8; 32]> {}
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {
+	impl<T: Config> Pallet<T>
+	where
+		T::AccountId: From<[u8; 32]>,
+	{
 		#[pallet::call_index(0)]
 		#[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
-		pub fn migrate_for_user(origin: OriginFor<T>, migrations: Vec<(u128, u64)>) -> DispatchResult {
-
+		pub fn migrate_for_user(origin: OriginFor<T>, user: [u8; 32], migrations: Vec<(u128, u64)>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			Ok(())
 		}
-
-
 	}
 }

@@ -244,8 +244,9 @@ fn remaining_evaluators_to_reward_or_slash<T: Config>(
 	if outcome == EvaluatorsOutcomeOf::<T>::Unchanged {
 		0u64
 	} else {
-		Evaluations::<T>::iter_prefix_values((project_id,)).filter(|evaluation| evaluation.rewarded_or_slashed.is_none()).count()
-			as u64
+		Evaluations::<T>::iter_prefix_values((project_id,))
+			.filter(|evaluation| evaluation.rewarded_or_slashed.is_none())
+			.count() as u64
 	}
 }
 

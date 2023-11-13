@@ -1358,9 +1358,7 @@ pub trait ExistentialDeposits<T: Config> {
 impl<T: Config + pallet_balances::Config> ExistentialDeposits<T> for Vec<AccountIdOf<T>> {
 	fn existential_deposits(&self) -> Vec<UserToPLMCBalance<T>> {
 		self.iter()
-			.map(|x| {
-				UserToPLMCBalance::new(x.clone(), <T as pallet_balances::Config>::ExistentialDeposit::get())
-			})
+			.map(|x| UserToPLMCBalance::new(x.clone(), <T as pallet_balances::Config>::ExistentialDeposit::get()))
 			.collect::<Vec<_>>()
 	}
 }

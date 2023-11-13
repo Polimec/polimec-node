@@ -279,6 +279,8 @@ pub mod pallet {
 		// TODO: our local BlockNumber should be removed once we move onto using Moment for time tracking
 		type BlockNumber: IsType<<Self as frame_system::Config>::BlockNumber> + Into<u64>;
 
+		type AccountId32Conversion: Convert<Self::AccountId, [u8; 32]>;
+
 		type RuntimeOrigin: IsType<<Self as frame_system::Config>::RuntimeOrigin>
 			+ Into<Result<pallet_xcm::Origin, <Self as Config>::RuntimeOrigin>>;
 
@@ -424,7 +426,6 @@ pub mod pallet {
 		type RequiredMaxCapacity: Get<u32>;
 		/// max_message_size config required for the channel from polimec to the project
 		type RequiredMaxMessageSize: Get<u32>;
-
 	}
 
 	#[pallet::storage]
@@ -792,6 +793,9 @@ pub mod pallet {
 		MigrationStarted {
 			project_id: T::ProjectIdentifier,
 		},
+		UserMigrationSent {
+			user: T::AccountId,
+		}
 	}
 
 	#[pallet::error]
@@ -888,7 +892,7 @@ pub mod pallet {
 		CommsNotEstablished,
 		XcmFailed,
 		// Tried to convert one type into another and failed. i.e try_into failed
-		BadConversion
+		BadConversion,
 	}
 
 	#[pallet::call]
@@ -1176,10 +1180,7 @@ pub mod pallet {
 
 		#[pallet::call_index(24)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
-		pub fn start_migration(
-			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
-		) -> DispatchResult {
+		pub fn start_migration(origin: OriginFor<T>, project_id: T::ProjectIdentifier) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
 			Self::do_start_migration(&caller, project_id)
 		}

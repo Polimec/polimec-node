@@ -234,6 +234,7 @@ pub mod storage_types {
 		pub when: BlockNumber,
 		// Will be Some after a reward of slash was made on this evaluation.
 		pub rewarded_or_slashed: Option<RewardOrSlash<Balance>>,
+		pub migration_sent: bool
 	}
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -264,6 +265,7 @@ pub mod storage_types {
 		pub when: BlockNumber,
 		pub funds_released: bool,
 		pub ct_minted: bool,
+		pub migration_sent: bool
 	}
 
 	impl<
@@ -315,6 +317,7 @@ pub mod storage_types {
 		pub plmc_vesting_info: Option<VestingInfo>,
 		pub funds_released: bool,
 		pub ct_minted: bool,
+		pub migration_sent: bool,
 	}
 
 	/// Represents a bucket that holds a specific amount of tokens at a given price.

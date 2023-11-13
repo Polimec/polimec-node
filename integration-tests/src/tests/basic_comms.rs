@@ -8,9 +8,9 @@ fn dmp() {
 	let remark = PolimecCall::System(frame_system::Call::<PolimecRuntime>::remark_with_event {
 		remark: "Hello from Polkadot!".as_bytes().to_vec(),
 	});
-	let inner_call = frame_system::Call::<PolimecRuntime>::remark_with_event {
-		remark: "Hello from Polkadot!".as_bytes().to_vec(),
-	}.encode();
+	let inner_call =
+		frame_system::Call::<PolimecRuntime>::remark_with_event { remark: "Hello from Polkadot!".as_bytes().to_vec() }
+			.encode();
 	let encoded_remark = remark.clone().encode();
 	let encoded_inner = "Hello from Polkadot!".as_bytes().to_vec();
 	let fake_encode = (0u8, 7u8, encoded_inner.clone()).encode();

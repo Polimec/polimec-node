@@ -31,6 +31,8 @@ fn migration_check() {
 
 		let channel_accepted_message = xcm::v3::opaque::Instruction::HrmpChannelAccepted { recipient: 6969u32 };
 		assert_ok!(PolimecFunding::do_handle_channel_accepted(channel_accepted_message));
+
+		inst.advance_time(10u32.into()).unwrap();
 	});
 
 	Penpal::execute_with(|| {
@@ -41,5 +43,8 @@ fn migration_check() {
 	Polimec::execute_with(|| {
 		println!("Polimec events:");
 		dbg!(Polimec::events());
+
+		let project_details = pallet_funding::ProjectsDetails::<PolimecRuntime>::get(project_id).unwrap();
+		assert!(project_details.migration_readiness_check.unwrap().is_ready())
 	});
 }

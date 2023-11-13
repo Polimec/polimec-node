@@ -29,6 +29,7 @@ use frame_support::{
 		Get,
 	},
 };
+use itertools::Itertools;
 use sp_arithmetic::{
 	traits::{CheckedDiv, CheckedSub, Zero},
 	Percent, Perquintill,
@@ -36,9 +37,8 @@ use sp_arithmetic::{
 use sp_runtime::traits::Convert;
 use sp_std::marker::PhantomData;
 
-use crate::ProjectStatus::FundingSuccessful;
+use crate::{Call::start_bid_vesting_schedule_for, ProjectStatus::FundingSuccessful};
 use polimec_traits::ReleaseSchedule;
-use crate::Call::start_bid_vesting_schedule_for;
 
 use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
 
@@ -1314,7 +1314,8 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			evaluation.rewarded_or_slashed.is_none() && matches!(project_details.status, ProjectStatus::FundingSuccessful),
+			evaluation.rewarded_or_slashed.is_none() &&
+				matches!(project_details.status, ProjectStatus::FundingSuccessful),
 			Error::<T>::NotAllowed
 		);
 
@@ -2083,7 +2084,11 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn do_one_migration(caller: AccountIdOf<T>, project_id: T::ProjectIdentifier, participant: AccountIdOf<T>) -> DispatchResult {
+	pub fn do_one_migration(
+		caller: AccountIdOf<T>,
+		project_id: T::ProjectIdentifier,
+		participant: AccountIdOf<T>,
+	) -> DispatchResult {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let migration_readiness_check = project_details.migration_readiness_check.ok_or(Error::<T>::NotAllowed)?;
@@ -2117,13 +2122,25 @@ impl<T: Config> Pallet<T> {
 			migrations.push((bid.final_ct_amount.into(), vesting_duration_local_type.into()));
 		}
 
-		// let xcm_messages = construct_migration_xcm_messages(migrations, max_message_size, project_para_id);
-
-
+		let xcm_messages = Self::construct_migration_xcm_messages(T::AccountId32Conversion::convert(participant), migrations, max_message_size);
+		for xcm in xcm_messages {
+			let dest_loc = MultiLocation { parents: 1, interior: Here };
+			let mut destination = Some(dest_loc);
+			let (ticket, _price) = T::XcmRouter::validate(&mut destination, &mut Some(xcm));
+			match T::XcmRouter::deliver(ticket) {
+				Ok(_) => {
+					Pallet::<T>::deposit_event(Event::<T>::UserMigrationSent {
+						user: participant.clone(),
+					});
+					Ok(())
+				},
+				Err(_e) => {
+					return Err(Error::<T>::XcmFailed)
+				},
+			}
+		}
 
 		Ok(())
-
-		// * Emit events *
 	}
 }
 
@@ -2139,7 +2156,10 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Adds a project to the ProjectsToUpdate storage, so it can be updated at some later point in time.
-	pub fn add_to_update_store(block_number: <T as frame_system::Config>::BlockNumber, store: (&T::ProjectIdentifier, UpdateType)) {
+	pub fn add_to_update_store(
+		block_number: <T as frame_system::Config>::BlockNumber,
+		store: (&T::ProjectIdentifier, UpdateType),
+	) {
 		// Try to get the project into the earliest possible block to update.
 		// There is a limit for how many projects can update each block, so we need to make sure we don't exceed that limit
 		let mut block_number = block_number;
@@ -2638,39 +2658,70 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	pub fn migrations_per_xcm_message_allowed(max_message_size: u32) -> u32 {
+		const MAX_WEIGHT: Weight = Weight::from_parts(20_000_000_000, 1_000_000);
+
+		let one_migration_bytes = (0u128, 0u64).encode().len() as u32;
+
+		// our encoded call starts with pallet index 51, and call index 0
+		let mut encoded_call = vec![51u8, 0];
+		let encoded_first_param = [0u8; 32].encode();
+		let encoded_second_param = Vec::<(u128, u32)>::new().encode();
+		// we append the encoded parameters, with our migrations vec being empty for now
+		encoded_call.extend_from_slice(encoded_first_param.as_slice());
+		encoded_call.extend_from_slice(encoded_second_param.as_slice());
+
+		let mut base_xcm_message: Xcm<()> = Xcm(vec![
+			UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
+			Transact { origin_kind: OriginKind::Native, require_weight_at_most: MAX_WEIGHT, call: encoded_call.into() },
+		]);
+		let xcm_size = base_xcm_message.encode().len();
+
+		let available_bytes_for_migration_per_message = max_message_size.saturating_sub(xcm_size as u32);
+
+		let mut output = 0u32;
+		let mut current_migration_size = 0u32;
+		while current_migration_size < available_bytes_for_migration_per_message {
+			if current_migration_size + one_migration_bytes > available_bytes_for_migration_per_message {
+				break
+			} else {
+				current_migration_size += one_migration_bytes;
+				output += 1;
+			}
+		}
+
+		output
+	}
+
 	pub fn construct_migration_xcm_messages(
+		user: [u8; 32],
 		migrations: Vec<(u128, u64)>,
 		max_message_size: u32,
-		project_para_id: ParaId,
 	) -> Vec<Xcm<()>> {
 		const MAX_WEIGHT: Weight = Weight::from_parts(20_000_000_000, 1_000_000);
-		let encoded_migrations_size = migrations.encode().len();
-		let migration_call = polimec_receiver::Call::migrate_for_user { migrations }.encode();
-		let polimec_receiver_info = T::PolimecReceiverInfo::get();
-		let encoded_call = vec![polimec_receiver_info.index];
-		let mut base_xcm_message = vec![
-			UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
-			Transact {
-				origin_kind: OriginKind::Native,
-				require_weight_at_most: MAX_WEIGHT,
-				call: polimec_receiver,
-			}
-		];
+		let _polimec_receiver_info = T::PolimecReceiverInfo::get();
+		// TODO: use the actual pallet index when the fields are not private anymore (https://github.com/paritytech/polkadot-sdk/pull/2231)
+		let migrations_per_xcm = Self::migrations_per_xcm_message_allowed(max_message_size);
 		let mut xcm_messages: Vec<Xcm<()>> = Vec::new();
-		let mut current_message: Vec<(u128, u64)> = Vec::new();
-		let mut current_message_size: u128 = 0;
-		for (amount, duration) in migrations {
-			if current_message_size + amount > max_message_size {
-				xcm_messages.push(Self::construct_xcm_message(current_message, project_para_id));
-				current_message = Vec::new();
-				current_message_size = 0;
-			}
-			current_message.push((amount, duration));
-			current_message_size += amount;
+
+		for migrations in migrations.chunks(migrations_per_xcm as usize) {
+			let migrations = migrations.to_vec();
+			let mut encoded_call = vec![51u8, 0];
+			encoded_call.extend_from_slice(user.encode().as_slice());
+			encoded_call.extend_from_slice(migrations.encode().as_slice());
+			let xcm: Xcm<()> = Xcm(vec![
+				UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
+				Transact {
+					origin_kind: OriginKind::Native,
+					require_weight_at_most: MAX_WEIGHT,
+					call: encoded_call.into(),
+				},
+			]);
+			xcm_messages.push(xcm);
 		}
-		if !current_message.is_empty() {
-			xcm_messages.push(Self::construct_xcm_message(current_message, project_para_id));
-		}
+
+		// TODO: we probably want to ensure we dont build too many messages to overflow the queue. Which we know from the parameter `T::RequiredMaxCapacity`.
+		// the problem is that we don't know the existing messages in the destination queue. So for now we assume all messages will succeed
 		xcm_messages
 	}
 }
