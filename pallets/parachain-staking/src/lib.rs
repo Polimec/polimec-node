@@ -235,7 +235,7 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// Started new round.
 		NewRound {
-			starting_block: <T as Config>::BlockNumber,
+			starting_block: T::BlockNumber,
 			round: RoundIndex,
 			selected_collators_number: u32,
 			total_balance: BalanceOf<T>,
@@ -424,7 +424,7 @@ pub mod pallet {
 		/// Set blocks per round
 		BlocksPerRoundSet {
 			current_round: RoundIndex,
-			first_block: <T as Config>::BlockNumber,
+			first_block: T::BlockNumber,
 			old: u32,
 			new: u32,
 			new_per_round_inflation_min: Perbill,
@@ -447,7 +447,7 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(n: <T as Config>::BlockNumber) -> Weight {
+		fn on_initialize(n: T::BlockNumber) -> Weight {
 			let mut weight = T::WeightInfo::base_on_initialize();
 
 			let mut round = <Round<T>>::get();
