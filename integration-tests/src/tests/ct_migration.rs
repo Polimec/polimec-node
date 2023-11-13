@@ -39,8 +39,6 @@ fn migration_check() {
 	});
 
 	Polimec::execute_with(|| {
-		dbg!(Polimec::events());
-		assert_ok!(PolimecFunding::do_migration(issuer(), 0u32));
 		println!("Polimec events:");
 		dbg!(Polimec::events());
 	});

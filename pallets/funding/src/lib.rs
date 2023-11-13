@@ -415,6 +415,16 @@ pub mod pallet {
 		type BlockNumberToBalance: Convert<BlockNumberOf<Self>, BalanceOf<Self>>;
 
 		type PolimecReceiverInfo: Get<PalletInfo>;
+
+		/// Range of max_message_size values for the hrmp config where we accept the incoming channel request
+		type MaxMessageSizeThresholds: Get<(u32, u32)>;
+		/// Range of max_capacity_thresholds values for the hrmp config where we accept the incoming channel request
+		type MaxCapacityThresholds: Get<(u32, u32)>;
+		/// max_capacity config required for the channel from polimec to the project
+		type RequiredMaxCapacity: Get<u32>;
+		/// max_message_size config required for the channel from polimec to the project
+		type RequiredMaxMessageSize: Get<u32>;
+
 	}
 
 	#[pallet::storage]

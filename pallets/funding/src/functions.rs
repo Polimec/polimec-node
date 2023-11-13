@@ -1770,10 +1770,6 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_handle_channel_open_request(message: Instruction) -> XcmResult {
 		// TODO: set these constants with a proper value
-		const MAX_MESSAGE_SIZE_THRESHOLDS: (u32, u32) = (50000, 102_400);
-		const MAX_CAPACITY_THRESHOLDS: (u32, u32) = (8, 1000);
-		const REQUIRED_MAX_CAPACITY: u32 = 8u32;
-		const REQUIRED_MAX_MESSAGE_SIZE: u32 = 102_400u32;
 		const EXECUTION_DOT: MultiAsset = MultiAsset {
 			id: Concrete(MultiLocation { parents: 0, interior: Here }),
 			fun: Fungible(1_0_000_000_000u128),
@@ -1781,14 +1777,17 @@ impl<T: Config> Pallet<T> {
 		const MAX_WEIGHT: Weight = Weight::from_parts(20_000_000_000, 1_000_000);
 		const POLIMEC_PARA_ID: u32 = 3355u32;
 
+		let max_message_size_thresholds = T::MaxMessageSizeThresholds::get();
+		let max_capacity_thresholds = T::MaxCapacityThresholds::get();
+
 		log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest received: {:?}", message);
 
 		match message {
 			Instruction::HrmpNewChannelOpenRequest { sender, max_message_size, max_capacity }
-				if max_message_size >= MAX_MESSAGE_SIZE_THRESHOLDS.0 &&
-					max_message_size <= MAX_MESSAGE_SIZE_THRESHOLDS.1 &&
-					max_capacity >= MAX_CAPACITY_THRESHOLDS.0 &&
-					max_capacity <= MAX_CAPACITY_THRESHOLDS.1 =>
+				if max_message_size >= max_message_size_thresholds.0 &&
+					max_message_size <= max_message_size_thresholds.1 &&
+					max_capacity >= max_capacity_thresholds.0 &&
+					max_capacity <= max_capacity_thresholds.1 =>
 			{
 				log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest accepted");
 
@@ -1811,8 +1810,8 @@ impl<T: Config> Pallet<T> {
 						polkadot_runtime::Runtime,
 					>::hrmp_init_open_channel {
 						recipient: ParaId::from(sender),
-						proposed_max_capacity: REQUIRED_MAX_CAPACITY,
-						proposed_max_message_size: REQUIRED_MAX_MESSAGE_SIZE,
+						proposed_max_capacity: T::RequiredMaxCapacity::get(),
+						proposed_max_message_size: T::RequiredMaxMessageSize::get(),
 					})
 					.encode();
 
@@ -2091,34 +2090,36 @@ impl<T: Config> Pallet<T> {
 		let evaluations = Evaluations::<T>::iter_prefix_values((project_id, participant.clone()));
 		let bids = Bids::<T>::iter_prefix_values((project_id, participant.clone()));
 		let contributions = Contributions::<T>::iter_prefix_values((project_id, participant.clone()));
-		let available_contribution_tokens = T::ContributionTokenCurrency::balance(project_id, &participant.clone());
-
+		let max_message_size = T::RequiredMaxMessageSize::get();
+		let project_para_id = project_details.parachain_id.ok_or(Error::<T>::ImpossibleState)?;
 		// * Validity Checks *
 		ensure!(migration_readiness_check.is_ready(), Error::<T>::NotAllowed);
 
 		// * Process Data *
 		// u128 is a balance, u64 is now a BlockNumber, but will be a Moment/Timestamp in the future
 		let mut migrations: Vec<(u128, u64)> = Vec::new();
-		let mut evaluation_ct_amount = available_contribution_tokens;
 		for evaluation in evaluations {
 			if let Some(RewardOrSlash::Reward(ct_amount)) = evaluation.rewarded_or_slashed {
 				let multiplier = MultiplierOf::<T>::try_from(1u8).map_err(|_| Error::<T>::BadConversion)?;
 				let vesting_duration = multiplier.calculate_vesting_duration::<T>();
-
+				let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);
+				migrations.push((ct_amount.into(), vesting_duration_local_type.into()));
 			}
 		}
 		for contribution in contributions {
 			let vesting_duration = contribution.multiplier.calculate_vesting_duration::<T>();
 			let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);
 			migrations.push((contribution.ct_amount.into(), vesting_duration_local_type.into()));
-			evaluation_ct_amount -= contribution.ct_amount;
 		}
 		for bid in bids {
 			let vesting_duration = bid.multiplier.calculate_vesting_duration::<T>();
 			let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);
 			migrations.push((bid.final_ct_amount.into(), vesting_duration_local_type.into()));
-			evaluation_ct_amount -= bid.final_ct_amount;
 		}
+
+		// let xcm_messages = construct_migration_xcm_messages(migrations, max_message_size, project_para_id);
+
+
 
 		Ok(())
 
@@ -2635,5 +2636,41 @@ impl<T: Config> Pallet<T> {
 		Self::add_to_update_store(now + settlement_delta, (&project_id, UpdateType::StartSettlement));
 		Self::deposit_event(Event::FundingEnded { project_id, outcome: FundingOutcome::Failure(reason) });
 		Ok(())
+	}
+
+	pub fn construct_migration_xcm_messages(
+		migrations: Vec<(u128, u64)>,
+		max_message_size: u32,
+		project_para_id: ParaId,
+	) -> Vec<Xcm<()>> {
+		const MAX_WEIGHT: Weight = Weight::from_parts(20_000_000_000, 1_000_000);
+		let encoded_migrations_size = migrations.encode().len();
+		let migration_call = polimec_receiver::Call::migrate_for_user { migrations }.encode();
+		let polimec_receiver_info = T::PolimecReceiverInfo::get();
+		let encoded_call = vec![polimec_receiver_info.index];
+		let mut base_xcm_message = vec![
+			UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
+			Transact {
+				origin_kind: OriginKind::Native,
+				require_weight_at_most: MAX_WEIGHT,
+				call: polimec_receiver,
+			}
+		];
+		let mut xcm_messages: Vec<Xcm<()>> = Vec::new();
+		let mut current_message: Vec<(u128, u64)> = Vec::new();
+		let mut current_message_size: u128 = 0;
+		for (amount, duration) in migrations {
+			if current_message_size + amount > max_message_size {
+				xcm_messages.push(Self::construct_xcm_message(current_message, project_para_id));
+				current_message = Vec::new();
+				current_message_size = 0;
+			}
+			current_message.push((amount, duration));
+			current_message_size += amount;
+		}
+		if !current_message.is_empty() {
+			xcm_messages.push(Self::construct_xcm_message(current_message, project_para_id));
+		}
+		xcm_messages
 	}
 }

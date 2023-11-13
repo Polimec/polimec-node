@@ -494,6 +494,10 @@ parameter_types! {
 	pub PolimecReceiverInfo: xcm::v3::PalletInfo = xcm::v3::PalletInfo::new(
 		51, "PolimecReceiver".into(), "polimec_receiver".into(), 0, 1, 0
 	).unwrap();
+	pub MaxMessageSizeThresholds: (u32, u32) = (50000, 102_400);
+	pub MaxCapacityThresholds: (u32, u32) = (8, 1000);
+	pub RequiredMaxCapacity: u32 = 8;
+	pub RequiredMaxMessageSize: u32 = 102_400;
 }
 impl pallet_funding::Config for Runtime {
 	type AllPalletsWithoutSystem = (Balances, LocalAssets, StatemintAssets, PolimecFunding, LinearVesting, Random);
@@ -535,6 +539,10 @@ impl pallet_funding::Config for Runtime {
 	type DaysToBlocks = DaysToBlocks;
 	type BlockNumberToBalance = ConvertInto;
 	type PolimecReceiverInfo = PolimecReceiverInfo;
+	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
+	type MaxCapacityThresholds = MaxCapacityThresholds;
+	type RequiredMaxCapacity = RequiredMaxCapacity;
+	type RequiredMaxMessageSize = RequiredMaxMessageSize;
 }
 
 parameter_types! {

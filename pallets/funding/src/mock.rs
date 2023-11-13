@@ -318,7 +318,12 @@ impl pallet_linear_release::Config for TestRuntime {
 
 	const MAX_VESTING_SCHEDULES: u32 = 32;
 }
-
+parameter_types! {
+	pub MaxMessageSizeThresholds: (u32, u32) = (50000, 102_400);
+	pub MaxCapacityThresholds: (u32, u32) = (8, 1000);
+	pub RequiredMaxCapacity: u32 = 8;
+	pub RequiredMaxMessageSize: u32 = 102_400;
+}
 impl Config for TestRuntime {
 	type AllPalletsWithoutSystem = AllPalletsWithoutSystem;
 	type RuntimeEvent = RuntimeEvent;
@@ -360,6 +365,10 @@ impl Config for TestRuntime {
 	type DaysToBlocks = DaysToBlocks;
 	type BlockNumberToBalance = ConvertInto;
 	type PolimecReceiverInfo = PolimecReceiverInfo;
+	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
+	type MaxCapacityThresholds = MaxCapacityThresholds;
+	type RequiredMaxCapacity = RequiredMaxCapacity;
+	type RequiredMaxMessageSize = RequiredMaxMessageSize;
 }
 
 // Build genesis storage according to the mock runtime.

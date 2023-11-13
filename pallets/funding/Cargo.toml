@@ -42,6 +42,7 @@ pallet-xcm.workspace = true
 polkadot-runtime.workspace = true
 polkadot-runtime-parachains.workspace = true
 polkadot-parachain.workspace = true
+polimec-receiver.workspace = true
 
 [dev-dependencies]
 pallet-insecure-randomness-collective-flip.workspace = true

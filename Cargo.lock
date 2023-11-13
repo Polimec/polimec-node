@@ -6304,6 +6304,7 @@ dependencies = [
  "pallet-xcm",
  "parachains-common",
  "parity-scale-codec",
+ "polimec-receiver",
  "polimec-traits",
  "polimec-xcm-executor",
  "polkadot-parachain",
@@ -7762,6 +7763,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
