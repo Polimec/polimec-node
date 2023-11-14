@@ -500,6 +500,7 @@ parameter_types! {
 	pub RequiredMaxMessageSize: u32 = 102_400;
 }
 impl pallet_funding::Config for Runtime {
+	type AccountId32Conversion = ConvertInto;
 	type AllPalletsWithoutSystem = (Balances, LocalAssets, StatemintAssets, PolimecFunding, LinearVesting, Random);
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;
@@ -543,7 +544,6 @@ impl pallet_funding::Config for Runtime {
 	type TreasuryAccount = TreasuryAccount;
 	type Vesting = LinearVesting;
 	type WeightInfo = pallet_funding::weights::SubstrateWeight<Runtime>;
-	type AccountId32Conversion = ConvertInto;
 }
 
 parameter_types! {

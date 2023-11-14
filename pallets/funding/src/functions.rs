@@ -1293,7 +1293,7 @@ impl<T: Config> Pallet<T> {
 		released_evaluation.current_plmc_bond = Zero::zero();
 		Evaluations::<T>::insert((project_id, evaluator, evaluation_id), released_evaluation);
 
-	 	// FIXME: same question as removing bid
+		// FIXME: same question as removing bid
 		// Evaluations::<T>::remove((project_id, evaluator, evaluation_id));
 
 		// * Emit events *
@@ -2108,15 +2108,12 @@ impl<T: Config> Pallet<T> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let migration_readiness_check = project_details.migration_readiness_check.ok_or(Error::<T>::NotAllowed)?;
-		let evaluations = Evaluations::<T>::iter_prefix_values((project_id, participant.clone())).filter(|evaluation| {
-			evaluation.ct_migration_sent == false
-		});
-		let bids = Bids::<T>::iter_prefix_values((project_id, participant.clone())).filter(|bid| {
-			bid.ct_migration_sent == false
-		});
-		let contributions = Contributions::<T>::iter_prefix_values((project_id, participant.clone())).filter(|contribution| {
-			contribution.ct_migration_sent == false
-		});
+		let evaluations = Evaluations::<T>::iter_prefix_values((project_id, participant.clone()))
+			.filter(|evaluation| evaluation.ct_migration_sent == false);
+		let bids = Bids::<T>::iter_prefix_values((project_id, participant.clone()))
+			.filter(|bid| bid.ct_migration_sent == false);
+		let contributions = Contributions::<T>::iter_prefix_values((project_id, participant.clone()))
+			.filter(|contribution| contribution.ct_migration_sent == false);
 		let max_message_size = T::RequiredMaxMessageSize::get();
 		let project_para_id = project_details.parachain_id.ok_or(Error::<T>::ImpossibleState)?;
 
@@ -2131,7 +2128,8 @@ impl<T: Config> Pallet<T> {
 				let multiplier = MultiplierOf::<T>::try_from(1u8).map_err(|_| Error::<T>::BadConversion)?;
 				let vesting_duration = multiplier.calculate_vesting_duration::<T>();
 				let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);
-				let migration_origin = MigrationOrigin::Evaluation { project_id, user: evaluation.evaluator, id: evaluation.id };
+				let migration_origin =
+					MigrationOrigin::Evaluation { project_id, user: evaluation.evaluator, id: evaluation.id };
 				let migration_info: MigrationInfo = (ct_amount.into(), vesting_duration_local_type.into()).into();
 				migrations.push((migration_origin, migration_info));
 			}
@@ -2139,8 +2137,10 @@ impl<T: Config> Pallet<T> {
 		for contribution in contributions {
 			let vesting_duration = contribution.multiplier.calculate_vesting_duration::<T>();
 			let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);
-			let migration_origin = MigrationOrigin::Contribution { project_id, user: contribution.contributor, id: contribution.id };
-			let migration_info: MigrationInfo = (contribution.ct_amount.into(), vesting_duration_local_type.into()).into();
+			let migration_origin =
+				MigrationOrigin::Contribution { project_id, user: contribution.contributor, id: contribution.id };
+			let migration_info: MigrationInfo =
+				(contribution.ct_amount.into(), vesting_duration_local_type.into()).into();
 			migrations.push((migration_origin, migration_info));
 		}
 		for bid in bids {
@@ -2151,25 +2151,24 @@ impl<T: Config> Pallet<T> {
 			migrations.push((migration_origin, migration_info));
 		}
 
-		let constructed_migrations = Self::construct_migration_xcm_messages(T::AccountId32Conversion::convert(participant.clone()), migrations, max_message_size);
+		let constructed_migrations = Self::construct_migration_xcm_messages(
+			T::AccountId32Conversion::convert(participant.clone()),
+			migrations,
+			max_message_size,
+		);
 		for (migration_origins, xcm) in constructed_migrations {
 			let project_multilocation = MultiLocation { parents: 1, interior: X1(Parachain(project_para_id.into())) };
-			 match <pallet_xcm::Pallet<T>>::send_xcm(Here, project_multilocation, xcm) {
+			match <pallet_xcm::Pallet<T>>::send_xcm(Here, project_multilocation, xcm) {
 				Ok(_) => {
 					for origin in migration_origins {
 						origin.mark_as_sent()
 					}
-					Self::deposit_event(Event::<T>::UserMigrationSent {
-						user: participant.clone(),
-					});
+					Self::deposit_event(Event::<T>::UserMigrationSent { user: participant.clone() });
 				},
-				Err(_e) => {
-					return Err(Error::<T>::XcmFailed.into())
-				},
+				Err(_e) => return Err(Error::<T>::XcmFailed.into()),
 			}
 		}
 		Ok(())
-
 	}
 }
 
@@ -2734,7 +2733,8 @@ impl<T: Config> Pallet<T> {
 		let mut output: Vec<(Vec<MigrationOrigin<T>>, Xcm<()>)> = Vec::new();
 
 		for migrations in migrations.chunks(migrations_per_xcm as usize) {
-			let (migration_origins, migration_infos): (Vec<MigrationOrigin<T>>, Vec<MigrationInfo>) = migrations.to_vec().into_iter().unzip();
+			let (migration_origins, migration_infos): (Vec<MigrationOrigin<T>>, Vec<MigrationInfo>) =
+				migrations.to_vec().into_iter().unzip();
 			let mut encoded_call = vec![51u8, 0];
 			encoded_call.extend_from_slice(user.encode().as_slice());
 			encoded_call.extend_from_slice(migration_infos.encode().as_slice());

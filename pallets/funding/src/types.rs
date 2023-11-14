@@ -235,7 +235,7 @@ pub mod storage_types {
 		// Will be Some after a reward of slash was made on this evaluation.
 		pub rewarded_or_slashed: Option<RewardOrSlash<Balance>>,
 		pub ct_migration_sent: bool,
-		pub ct_migration_confirmed: bool
+		pub ct_migration_confirmed: bool,
 	}
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -320,7 +320,7 @@ pub mod storage_types {
 		pub funds_released: bool,
 		pub ct_minted: bool,
 		pub ct_migration_sent: bool,
-		pub ct_migration_confirmed: bool
+		pub ct_migration_confirmed: bool,
 	}
 
 	/// Represents a bucket that holds a specific amount of tokens at a given price.
@@ -370,8 +370,8 @@ pub mod storage_types {
 }
 
 pub mod inner_types {
-	use crate::{AccountIdOf, Bids, Contributions, Evaluations, ProjectIdOf};
 	use super::*;
+	use crate::{AccountIdOf, Bids, Contributions, Evaluations, ProjectIdOf};
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
@@ -727,7 +727,7 @@ pub mod inner_types {
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub enum MigrationOrigin<T: crate::Config> {
-		Evaluation{ project_id: ProjectIdOf<T>, user: AccountIdOf<T>, id: u32 },
+		Evaluation { project_id: ProjectIdOf<T>, user: AccountIdOf<T>, id: u32 },
 		Bid { project_id: ProjectIdOf<T>, user: AccountIdOf<T>, id: u32 },
 		Contribution { project_id: ProjectIdOf<T>, user: AccountIdOf<T>, id: u32 },
 	}
@@ -735,26 +735,26 @@ pub mod inner_types {
 		pub fn mark_as_sent(&self) {
 			match self {
 				MigrationOrigin::Evaluation { project_id, user, id } => {
-					Evaluations::<T>::mutate((project_id, user, id), |maybe_evaluation|{
+					Evaluations::<T>::mutate((project_id, user, id), |maybe_evaluation| {
 						if let Some(evaluation) = maybe_evaluation {
 							evaluation.ct_migration_sent = true;
 						}
 					});
-				}
+				},
 				MigrationOrigin::Bid { project_id, user, id } => {
-					Bids::<T>::mutate((project_id, user, id), |maybe_bid|{
+					Bids::<T>::mutate((project_id, user, id), |maybe_bid| {
 						if let Some(bid) = maybe_bid {
 							bid.ct_migration_sent = true;
 						}
 					});
-				}
+				},
 				MigrationOrigin::Contribution { project_id, user, id } => {
-					Contributions::<T>::mutate((project_id, user, id), |maybe_contribution|{
+					Contributions::<T>::mutate((project_id, user, id), |maybe_contribution| {
 						if let Some(contribution) = maybe_contribution {
 							contribution.ct_migration_sent = true;
 						}
 					});
-				}
+				},
 			}
 		}
 	}
@@ -762,7 +762,7 @@ pub mod inner_types {
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct MigrationInfo {
 		contribution_token_amount: u128,
-		vesting_time: u64
+		vesting_time: u64,
 	}
 	impl From<(u128, u64)> for MigrationInfo {
 		fn from((contribution_token_amount, vesting_time): (u128, u64)) -> Self {

@@ -357,7 +357,8 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 
 fn unbond_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
 	let project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,));
-	let mut remaining_evaluations = project_evaluations.filter(|evaluation| evaluation.current_plmc_bond > Zero::zero());
+	let mut remaining_evaluations =
+		project_evaluations.filter(|evaluation| evaluation.current_plmc_bond > Zero::zero());
 	let base_weight = Weight::from_parts(10_000_000, 0);
 	if let Some(evaluation) = remaining_evaluations.next() {
 		let remaining = remaining_evaluations.count() as u64;

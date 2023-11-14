@@ -31,6 +31,7 @@ mod weights;
 pub mod xcm_config;
 
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
+use cumulus_primitives_core::ParaId;
 use frame_support::{
 	construct_runtime,
 	dispatch::DispatchClass,
@@ -74,8 +75,11 @@ use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 
 // XCM Imports
 use parachains_common::{AccountId, Signature};
+use sp_runtime::traits::Convert;
 use xcm::latest::prelude::BodyId;
 use xcm_executor::XcmExecutor;
+use polimec_receiver::MigrationInfo;
+use frame_support::traits::WithdrawReasons;
 
 /// Balance of an account.
 pub type Balance = u128;
@@ -390,6 +394,8 @@ impl pallet_balances::Config for Runtime {
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 }
 
+
+
 parameter_types! {
 	/// Relay Chain `TransactionByteFee` / 10
 	pub const TransactionByteFee: Balance = 10 * MICROUNIT;
@@ -547,9 +553,53 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = pallet_sudo::weights::SubstrateWeight<Runtime>;
 }
 
+parameter_types! {
+	pub const MinVestedTransfer: Balance = 0_1_000_000_000u128;
+	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
+		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
+}
+
+impl pallet_vesting::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type BlockNumberToBalance = ConvertInto;
+	type MinVestedTransfer = MinVestedTransfer;
+	type WeightInfo = ();
+	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
+	const MAX_VESTING_SCHEDULES: u32 = 100;
+}
+
+
+
+pub struct DivideBalanceByBlocks;
+impl Convert<MigrationInfo, Balance> for DivideBalanceByBlocks {
+	fn convert(migration_info: MigrationInfo) -> Balance {
+		let total_amount: Balance = migration_info.contribution_token_amount.into();
+		// normally BlockNumber is u64 so we can use the safe .into()
+		let vesting_time_in_blocks: BlockNumber = migration_info.vesting_time.try_into().unwrap();
+		if vesting_time_in_blocks == 0u32 {
+			total_amount
+		} else {
+			total_amount.checked_div(vesting_time_in_blocks as u128).expect("already checked division by zero")
+		}
+	}
+}
+parameter_types! {
+	pub PolimecParaId: ParaId = 3355u32.into();
+	pub GenesisMoment: BlockNumber = 0u32;
+}
 impl polimec_receiver::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+	type PolimecParaId = PolimecParaId;
+	type RuntimeOrigin = RuntimeOrigin;
+	type Vesting = Vesting;
+	type Balances = Balances;
+	type Balance = Balance;
+	type GenesisMoment = GenesisMoment;
+	type MigrationInfoToPerBlockBalance = DivideBalanceByBlocks;
 }
+
+impl polkadot_runtime_parachains::origin::Config for Runtime {}
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
@@ -565,6 +615,7 @@ construct_runtime!(
 		} = 1,
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 2,
 		ParachainInfo: parachain_info::{Pallet, Storage, Config} = 3,
+		ParachainOrigin: polkadot_runtime_parachains::origin = 4,
 
 		// Monetary stuff.
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 10,
@@ -587,6 +638,7 @@ construct_runtime!(
 		// The main stage.
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 50,
 		PolimecReceiver: polimec_receiver = 51,
+		Vesting: pallet_vesting = 52,
 
 		Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>} = 255,
 	}

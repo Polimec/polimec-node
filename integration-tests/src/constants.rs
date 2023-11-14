@@ -338,6 +338,7 @@ pub mod penpal {
 			parachain_system: Default::default(),
 			polkadot_xcm: penpal_runtime::PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION) },
 			sudo: penpal_runtime::SudoConfig { key: Some(get_account_id_from_seed::<sr25519::Public>("Alice")) },
+			..Default::default()
 		};
 
 		genesis_config.build_storage().unwrap()
