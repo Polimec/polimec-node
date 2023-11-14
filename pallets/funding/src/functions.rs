@@ -43,6 +43,7 @@ use polimec_traits::ReleaseSchedule;
 use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
 
 use super::*;
+const POLIMEC_PARA_ID: u32 = 3355u32;
 
 // Round transitions
 impl<T: Config> Pallet<T> {
@@ -1792,7 +1793,6 @@ impl<T: Config> Pallet<T> {
 			fun: Fungible(1_0_000_000_000u128),
 		};
 		const MAX_WEIGHT: Weight = Weight::from_parts(20_000_000_000, 1_000_000);
-		const POLIMEC_PARA_ID: u32 = 3355u32;
 
 		let max_message_size_thresholds = T::MaxMessageSizeThresholds::get();
 		let max_capacity_thresholds = T::MaxCapacityThresholds::get();
@@ -2116,13 +2116,14 @@ impl<T: Config> Pallet<T> {
 			.filter(|contribution| contribution.ct_migration_sent == false);
 		let max_message_size = T::RequiredMaxMessageSize::get();
 		let project_para_id = project_details.parachain_id.ok_or(Error::<T>::ImpossibleState)?;
+		let now = <frame_system::Pallet<T>>::block_number();
 
 		// * Validity Checks *
 		ensure!(migration_readiness_check.is_ready(), Error::<T>::NotAllowed);
 
 		// * Process Data *
 		// u128 is a balance, u64 is now a BlockNumber, but will be a Moment/Timestamp in the future
-		let mut migrations: Vec<(MigrationOrigin<T>, MigrationInfo)> = Vec::new();
+		let mut migrations: Vec<(MigrationOriginOf<T>, MigrationInfo)> = Vec::new();
 		for evaluation in evaluations {
 			if let Some(RewardOrSlash::Reward(ct_amount)) = evaluation.rewarded_or_slashed {
 				let multiplier = MultiplierOf::<T>::try_from(1u8).map_err(|_| Error::<T>::BadConversion)?;
@@ -2158,16 +2159,43 @@ impl<T: Config> Pallet<T> {
 		);
 		for (migration_origins, xcm) in constructed_migrations {
 			let project_multilocation = MultiLocation { parents: 1, interior: X1(Parachain(project_para_id.into())) };
-			match <pallet_xcm::Pallet<T>>::send_xcm(Here, project_multilocation, xcm) {
-				Ok(_) => {
-					for origin in migration_origins {
-						origin.mark_as_sent()
-					}
-					Self::deposit_event(Event::<T>::UserMigrationSent { user: participant.clone() });
-				},
-				Err(_e) => return Err(Error::<T>::XcmFailed.into()),
+
+			let call: <T as Config>::RuntimeCall =
+				Call::user_migration_response { query_id: Default::default(), response: Default::default() }.into();
+			let transact_response_query_id = pallet_xcm::Pallet::<T>::new_notify_query(
+				project_multilocation.clone(),
+				call.into(),
+				now + 20u32.into(),
+				Here,
+			);
+			// TODO: check these values
+			let max_weight = Weight::from_parts(700_000_000, 10_000);
+
+			let mut instructions = xcm.into_inner();
+			instructions.push(ReportTransactStatus(QueryResponseInfo {
+				destination: Parachain(POLIMEC_PARA_ID).into(),
+				query_id: transact_response_query_id,
+				max_weight,
+			}));
+			let xcm = Xcm(instructions);
+
+			<pallet_xcm::Pallet<T>>::send_xcm(Here, project_multilocation, xcm).map_err(|_| Error::<T>::XcmFailed)?;
+			for origin in migration_origins {
+				Self::mark_single_migration_as_sent(origin);
 			}
+			UnconfirmedMigrations::<T>::insert(transact_response_query_id, migration_origins);
+
+			Self::deposit_event(Event::<T>::UserMigrationSent { user: participant.clone() });
 		}
+		Ok(())
+	}
+
+	pub fn do_user_migration_response(
+		location: MultiLocation,
+		query_id: xcm::v3::QueryId,
+		response: xcm::v3::Response,
+	) -> DispatchResult {
+		use xcm::v3::prelude::*;
 		Ok(())
 	}
 }
@@ -2723,17 +2751,17 @@ impl<T: Config> Pallet<T> {
 
 	pub fn construct_migration_xcm_messages(
 		user: [u8; 32],
-		migrations: Vec<(MigrationOrigin<T>, MigrationInfo)>,
+		migrations: Vec<(MigrationOriginOf<T>, MigrationInfo)>,
 		max_message_size: u32,
-	) -> Vec<(Vec<MigrationOrigin<T>>, Xcm<()>)> {
+	) -> Vec<(Vec<MigrationOriginOf<T>>, Xcm<()>)> {
 		const MAX_WEIGHT: Weight = Weight::from_parts(20_000_000_000, 1_000_000);
 		let _polimec_receiver_info = T::PolimecReceiverInfo::get();
 		// TODO: use the actual pallet index when the fields are not private anymore (https://github.com/paritytech/polkadot-sdk/pull/2231)
 		let migrations_per_xcm = Self::migrations_per_xcm_message_allowed(max_message_size);
-		let mut output: Vec<(Vec<MigrationOrigin<T>>, Xcm<()>)> = Vec::new();
+		let mut output: Vec<(Vec<MigrationOriginOf<T>>, Xcm<()>)> = Vec::new();
 
 		for migrations in migrations.chunks(migrations_per_xcm as usize) {
-			let (migration_origins, migration_infos): (Vec<MigrationOrigin<T>>, Vec<MigrationInfo>) =
+			let (migration_origins, migration_infos): (Vec<MigrationOriginOf<T>>, Vec<MigrationInfo>) =
 				migrations.to_vec().into_iter().unzip();
 			let mut encoded_call = vec![51u8, 0];
 			encoded_call.extend_from_slice(user.encode().as_slice());
@@ -2752,5 +2780,33 @@ impl<T: Config> Pallet<T> {
 		// TODO: we probably want to ensure we dont build too many messages to overflow the queue. Which we know from the parameter `T::RequiredMaxCapacity`.
 		// the problem is that we don't know the existing messages in the destination queue. So for now we assume all messages will succeed
 		output
+	}
+
+	pub fn mark_single_migration_as_sent(
+		migration_origin: MigrationOriginOf<T>,
+	) {
+		match migration_origin {
+			MigrationOrigin::Evaluation { project_id, user, id } => {
+				Evaluations::<T>::mutate((project_id, user, id), |maybe_evaluation| {
+					if let Some(evaluation) = maybe_evaluation {
+						evaluation.ct_migration_sent = true;
+					}
+				});
+			},
+			MigrationOrigin::Bid { project_id, user, id } => {
+				Bids::<T>::mutate((project_id, user, id), |maybe_bid| {
+					if let Some(bid) = maybe_bid {
+						bid.ct_migration_sent = true;
+					}
+				});
+			},
+			MigrationOrigin::Contribution { project_id, user, id } => {
+				Contributions::<T>::mutate((project_id, user, id), |maybe_contribution| {
+					if let Some(contribution) = maybe_contribution {
+						contribution.ct_migration_sent = true;
+					}
+				});
+			},
+		}
 	}
 }

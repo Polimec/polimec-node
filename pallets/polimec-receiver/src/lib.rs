@@ -9,18 +9,17 @@ pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
+	use crate::MigrationInfo;
 	use frame_support::{
 		dispatch::DispatchResultWithPostInfo,
 		pallet_prelude::*,
-		traits::{Currency, ExistenceRequirement::KeepAlive},
+		traits::{tokens::Balance, Currency, ExistenceRequirement::KeepAlive, VestingSchedule},
 	};
 	use frame_system::pallet_prelude::*;
 	use polkadot_parachain::primitives::{Id as ParaId, Sibling};
 	use polkadot_runtime_parachains::origin::{ensure_parachain, Origin as ParachainOrigin};
 	use sp_runtime::traits::{AccountIdConversion, Convert, Zero};
 	use sp_std::prelude::*;
-	use frame_support::traits::{VestingSchedule, tokens::Balance};
-	use crate::MigrationInfo;
 
 	type MomentOf<T> = <<T as Config>::Vesting as VestingSchedule<<T as frame_system::Config>::AccountId>>::Moment;
 
@@ -33,8 +32,8 @@ pub mod pallet {
 		type PolimecParaId: Get<ParaId>;
 		type RuntimeOrigin: IsType<<Self as frame_system::Config>::RuntimeOrigin>
 			+ Into<Result<ParachainOrigin, <Self as Config>::RuntimeOrigin>>;
-		type Vesting: VestingSchedule<Self::AccountId, Currency=Self::Balances>;
-		type Balances: Currency<Self::AccountId, Balance=Self::Balance>;
+		type Vesting: VestingSchedule<Self::AccountId, Currency = Self::Balances>;
+		type Balances: Currency<Self::AccountId, Balance = Self::Balance>;
 		type Balance: Balance + From<u128> + MaybeSerializeDeserialize;
 		type GenesisMoment: Get<MomentOf<Self>>;
 		type MigrationInfoToPerBlockBalance: Convert<MigrationInfo, Self::Balance>;
@@ -53,10 +52,7 @@ pub mod pallet {
 	where
 		T::AccountId: From<[u8; 32]>,
 	{
-		MigrationsExecutedForUser {
-			user: T::AccountId,
-			migrations: Vec<MigrationInfo>,
-		},
+		MigrationsExecutedForUser { user: T::AccountId, migrations: Vec<MigrationInfo> },
 	}
 
 	#[pallet::error]
@@ -94,10 +90,15 @@ pub mod pallet {
 					migration.contribution_token_amount.into(),
 					KeepAlive,
 				)?;
-				T::Vesting::add_vesting_schedule(&user, migration.contribution_token_amount.into(), T::MigrationInfoToPerBlockBalance::convert(migration), T::GenesisMoment::get())?;
+				T::Vesting::add_vesting_schedule(
+					&user,
+					migration.contribution_token_amount.into(),
+					T::MigrationInfoToPerBlockBalance::convert(migration),
+					T::GenesisMoment::get(),
+				)?;
 			}
 
-			Self::deposit_event(Event::MigrationsExecutedForUser{user, migrations});
+			Self::deposit_event(Event::MigrationsExecutedForUser { user, migrations });
 
 			Ok(())
 		}

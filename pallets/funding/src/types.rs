@@ -726,39 +726,11 @@ pub mod inner_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum MigrationOrigin<T: crate::Config> {
-		Evaluation { project_id: ProjectIdOf<T>, user: AccountIdOf<T>, id: u32 },
-		Bid { project_id: ProjectIdOf<T>, user: AccountIdOf<T>, id: u32 },
-		Contribution { project_id: ProjectIdOf<T>, user: AccountIdOf<T>, id: u32 },
+	pub enum MigrationOrigin<AccountId, ProjectId> {
+		Evaluation { project_id: ProjectId, user: AccountId, id: u32 },
+		Bid { project_id: ProjectId, user: AccountId, id: u32 },
+		Contribution { project_id: ProjectId, user: AccountId, id: u32 },
 	}
-	impl<T: crate::Config> MigrationOrigin<T> {
-		pub fn mark_as_sent(&self) {
-			match self {
-				MigrationOrigin::Evaluation { project_id, user, id } => {
-					Evaluations::<T>::mutate((project_id, user, id), |maybe_evaluation| {
-						if let Some(evaluation) = maybe_evaluation {
-							evaluation.ct_migration_sent = true;
-						}
-					});
-				},
-				MigrationOrigin::Bid { project_id, user, id } => {
-					Bids::<T>::mutate((project_id, user, id), |maybe_bid| {
-						if let Some(bid) = maybe_bid {
-							bid.ct_migration_sent = true;
-						}
-					});
-				},
-				MigrationOrigin::Contribution { project_id, user, id } => {
-					Contributions::<T>::mutate((project_id, user, id), |maybe_contribution| {
-						if let Some(contribution) = maybe_contribution {
-							contribution.ct_migration_sent = true;
-						}
-					});
-				},
-			}
-		}
-	}
-
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct MigrationInfo {
 		contribution_token_amount: u128,

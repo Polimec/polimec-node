@@ -240,6 +240,8 @@ pub type BidInfoOf<T> = BidInfo<
 pub type ContributionInfoOf<T> =
 	ContributionInfo<u32, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>, VestingInfoOf<T>>;
 
+pub type MigrationOriginOf<T> = MigrationOrigin<AccountIdOf<T>, ProjectIdOf<T>>;
+
 pub type BucketOf<T> = Bucket<BalanceOf<T>, PriceOf<T>>;
 pub type BondTypeOf<T> = LockType<ProjectIdOf<T>>;
 pub type WeightInfoOf<T> = <T as Config>::WeightInfo;
@@ -526,6 +528,10 @@ pub mod pallet {
 		),
 		ContributionInfoOf<T>,
 	>;
+
+	#[pallet::storage]
+	/// Migrations sent and awaiting for confirmation
+	pub type UnconfirmedMigrations<T: Config> = StorageMap<_, Blake2_128Concat, QueryId, BoundedVec<MigrationOriginOf<T>, ConstU32<100>>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
@@ -1185,6 +1191,18 @@ pub mod pallet {
 			let caller = ensure_signed(origin)?;
 			Self::do_start_migration(&caller, project_id)
 		}
+
+		#[pallet::call_index(25)]
+		#[pallet::weight(Weight::from_parts(1000, 0))]
+		pub fn user_migration_response(
+			origin: OriginFor<T>,
+			query_id: xcm::v3::QueryId,
+			response: xcm::v3::Response,
+		) -> DispatchResult {
+			let location = ensure_response(<T as Config>::RuntimeOrigin::from(origin))?;
+
+			Self::do_user_migration_response(location, query_id, response)
+		}
 	}
 
 	#[pallet::hooks]
@@ -1321,7 +1339,6 @@ pub mod pallet {
 		T::AllPalletsWithoutSystem:
 			OnFinalize<BlockNumberOf<T>> + OnIdle<BlockNumberOf<T>> + OnInitialize<BlockNumberOf<T>>,
 		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
-		// AccountIdOf<T>: Into<<instantiator::RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
 	{
 		fn default() -> Self {
 			Self { starting_projects: vec![], phantom: PhantomData }

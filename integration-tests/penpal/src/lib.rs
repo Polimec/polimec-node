@@ -74,12 +74,12 @@ use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
 use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 
 // XCM Imports
+use frame_support::traits::WithdrawReasons;
 use parachains_common::{AccountId, Signature};
+use polimec_receiver::MigrationInfo;
 use sp_runtime::traits::Convert;
 use xcm::latest::prelude::BodyId;
 use xcm_executor::XcmExecutor;
-use polimec_receiver::MigrationInfo;
-use frame_support::traits::WithdrawReasons;
 
 /// Balance of an account.
 pub type Balance = u128;
@@ -394,8 +394,6 @@ impl pallet_balances::Config for Runtime {
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 }
 
-
-
 parameter_types! {
 	/// Relay Chain `TransactionByteFee` / 10
 	pub const TransactionByteFee: Balance = 10 * MICROUNIT;
@@ -560,16 +558,15 @@ parameter_types! {
 }
 
 impl pallet_vesting::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
 	type BlockNumberToBalance = ConvertInto;
+	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;
-	type WeightInfo = ();
+	type RuntimeEvent = RuntimeEvent;
 	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
+	type WeightInfo = ();
+
 	const MAX_VESTING_SCHEDULES: u32 = 100;
 }
-
-
 
 pub struct DivideBalanceByBlocks;
 impl Convert<MigrationInfo, Balance> for DivideBalanceByBlocks {
@@ -589,14 +586,14 @@ parameter_types! {
 	pub GenesisMoment: BlockNumber = 0u32;
 }
 impl polimec_receiver::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type PolimecParaId = PolimecParaId;
-	type RuntimeOrigin = RuntimeOrigin;
-	type Vesting = Vesting;
-	type Balances = Balances;
 	type Balance = Balance;
+	type Balances = Balances;
 	type GenesisMoment = GenesisMoment;
 	type MigrationInfoToPerBlockBalance = DivideBalanceByBlocks;
+	type PolimecParaId = PolimecParaId;
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeOrigin = RuntimeOrigin;
+	type Vesting = Vesting;
 }
 
 impl polkadot_runtime_parachains::origin::Config for Runtime {}
