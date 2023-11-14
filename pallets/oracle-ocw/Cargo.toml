@@ -1,0 +1,48 @@
+[package]
+name = "pallet-oracle-ocw"
+version = "0.1.0"
+description = "Offchain worker pallet for fetching price data and feeding prices to oracle pallet. Only authorised nodes can feed prices."
+authors = ["Parity Technologies <admin@parity.io>"]
+homepage = "https://polkadot.network/"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/paritytech/polkadot-sdk.git"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+serde_json = "1.0.108"
+
+parity-scale-codec = { workspace = true, features = ["derive"] }
+scale-info = { workspace = true, features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
+log.workspace = true
+frame-support.workspace = true
+frame-system.workspace = true
+sp-core.workspace = true
+sp-io.workspace = true
+sp-keystore.workspace = true
+sp-runtime.workspace = true
+sp-std.workspace = true
+
+[dev-dependencies]
+pallet-balances.workspace = true
+parking_lot = "0.12.1"
+
+[features]
+default = [ "std" ]
+std = [
+	"parity-scale-codec/std",
+	"scale-info/std",
+	"serde_json/std",
+	"log/std",
+	"serde/std",
+	"frame-support/std",
+	"frame-system/std",
+	"sp-core/std",
+	"sp-io/std",
+	"sp-keystore/std",
+	"sp-runtime/std",
+	"sp-std/std",
+]

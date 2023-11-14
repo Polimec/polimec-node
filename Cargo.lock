@@ -6623,6 +6623,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-oracle-ocw"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-balances",
+ "parity-scale-codec",
+ "parking_lot 0.12.1",
+ "scale-info",
+ "serde",
+ "serde_json",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-parachain-staking"
 version = "0.1.0"
 dependencies = [
