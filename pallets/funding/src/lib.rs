@@ -793,6 +793,7 @@ pub mod pallet {
 		MigrationStarted {
 			project_id: T::ProjectIdentifier,
 		},
+
 		UserMigrationSent {
 			user: T::AccountId,
 		}

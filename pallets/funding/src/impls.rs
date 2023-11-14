@@ -1,4 +1,5 @@
 use frame_support::{traits::Get, weights::Weight};
+use sp_arithmetic::traits::Zero;
 use sp_runtime::{traits::AccountIdConversion, DispatchError};
 use sp_std::marker::PhantomData;
 
@@ -355,11 +356,12 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 }
 
 fn unbond_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
-	let project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
-	let evaluation_count = project_evaluations.len() as u64;
+	let project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,));
+	let mut remaining_evaluations = project_evaluations.filter(|evaluation| evaluation.current_plmc_bond > Zero::zero());
 	let base_weight = Weight::from_parts(10_000_000, 0);
+	if let Some(evaluation) = remaining_evaluations.next() {
+		let remaining = remaining_evaluations.count() as u64;
 
-	if let Some(evaluation) = project_evaluations.first() {
 		match Pallet::<T>::do_evaluation_unbond_for(
 			&T::PalletId::get().into_account_truncating(),
 			evaluation.project_id,
@@ -374,7 +376,7 @@ fn unbond_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> (Weight
 				error: e,
 			}),
 		};
-		(base_weight.saturating_add(WeightInfoOf::<T>::evaluation_unbond_for()), evaluation_count.saturating_sub(1u64))
+		(base_weight.saturating_add(WeightInfoOf::<T>::evaluation_unbond_for()), remaining.saturating_sub(1u64))
 	} else {
 		(base_weight, 0u64)
 	}

@@ -783,6 +783,8 @@ impl<T: Config> Pallet<T> {
 			late_usd_amount,
 			when: now,
 			rewarded_or_slashed: None,
+			ct_migration_sent: false,
+			ct_migration_confirmed: false,
 		};
 
 		// * Update Storage *
@@ -946,6 +948,8 @@ impl<T: Config> Pallet<T> {
 			when: now,
 			funds_released: false,
 			ct_minted: false,
+			ct_migration_sent: false,
+			ct_migration_confirmed: false,
 		};
 
 		// * Update storage *
@@ -1057,6 +1061,8 @@ impl<T: Config> Pallet<T> {
 			plmc_vesting_info: None,
 			funds_released: false,
 			ct_minted: false,
+			ct_migration_sent: false,
+			ct_migration_confirmed: false,
 		};
 
 		// * Update storage *
@@ -1261,8 +1267,9 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		let released_evaluation =
+		let mut released_evaluation =
 			Evaluations::<T>::get((project_id, evaluator, evaluation_id)).ok_or(Error::<T>::EvaluationNotFound)?;
+		let release_amount = released_evaluation.current_plmc_bond;
 
 		// * Validity checks *
 		ensure!(
@@ -1282,12 +1289,17 @@ impl<T: Config> Pallet<T> {
 			released_evaluation.current_plmc_bond,
 			Precision::Exact,
 		)?;
-		Evaluations::<T>::remove((project_id, evaluator, evaluation_id));
+
+		released_evaluation.current_plmc_bond = Zero::zero();
+		Evaluations::<T>::insert((project_id, evaluator, evaluation_id), released_evaluation);
+
+	 	// FIXME: same question as removing bid
+		// Evaluations::<T>::remove((project_id, evaluator, evaluation_id));
 
 		// * Emit events *
 		Self::deposit_event(Event::BondReleased {
 			project_id,
-			amount: released_evaluation.current_plmc_bond,
+			amount: release_amount,
 			bonder: evaluator.clone(),
 			releaser: releaser.clone(),
 		});
@@ -1575,7 +1587,9 @@ impl<T: Config> Pallet<T> {
 
 		// * Update Storage *
 		T::NativeCurrency::release(&LockType::Participation(project_id), bidder, bid.plmc_bond, Precision::Exact)?;
-		Bids::<T>::remove((project_id, bidder, bid_id));
+
+		// FIXME: Since we store the migration info here, we might not want to delete it. Users will want to find out their previous history
+		// Bids::<T>::remove((project_id, bidder, bid_id));
 
 		// * Emit events *
 		Self::deposit_event(Event::BondReleased {
@@ -1646,7 +1660,9 @@ impl<T: Config> Pallet<T> {
 
 		// * Update Storage *
 		T::NativeCurrency::release(&LockType::Participation(project_id), contributor, bid.plmc_bond, Precision::Exact)?;
-		Contributions::<T>::remove((project_id, contributor, contribution_id));
+
+		// FIXME: same question as bids removing
+		// Contributions::<T>::remove((project_id, contributor, contribution_id));
 
 		// * Emit events *
 		Self::deposit_event(Event::BondReleased {
@@ -2084,7 +2100,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn do_one_migration(
+	pub fn do_migrate_one_participant(
 		caller: AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		participant: AccountIdOf<T>,
@@ -2092,55 +2108,68 @@ impl<T: Config> Pallet<T> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let migration_readiness_check = project_details.migration_readiness_check.ok_or(Error::<T>::NotAllowed)?;
-		let evaluations = Evaluations::<T>::iter_prefix_values((project_id, participant.clone()));
-		let bids = Bids::<T>::iter_prefix_values((project_id, participant.clone()));
-		let contributions = Contributions::<T>::iter_prefix_values((project_id, participant.clone()));
+		let evaluations = Evaluations::<T>::iter_prefix_values((project_id, participant.clone())).filter(|evaluation| {
+			evaluation.ct_migration_sent == false
+		});
+		let bids = Bids::<T>::iter_prefix_values((project_id, participant.clone())).filter(|bid| {
+			bid.ct_migration_sent == false
+		});
+		let contributions = Contributions::<T>::iter_prefix_values((project_id, participant.clone())).filter(|contribution| {
+			contribution.ct_migration_sent == false
+		});
 		let max_message_size = T::RequiredMaxMessageSize::get();
 		let project_para_id = project_details.parachain_id.ok_or(Error::<T>::ImpossibleState)?;
+
 		// * Validity Checks *
 		ensure!(migration_readiness_check.is_ready(), Error::<T>::NotAllowed);
 
 		// * Process Data *
 		// u128 is a balance, u64 is now a BlockNumber, but will be a Moment/Timestamp in the future
-		let mut migrations: Vec<(u128, u64)> = Vec::new();
+		let mut migrations: Vec<(MigrationOrigin<T>, MigrationInfo)> = Vec::new();
 		for evaluation in evaluations {
 			if let Some(RewardOrSlash::Reward(ct_amount)) = evaluation.rewarded_or_slashed {
 				let multiplier = MultiplierOf::<T>::try_from(1u8).map_err(|_| Error::<T>::BadConversion)?;
 				let vesting_duration = multiplier.calculate_vesting_duration::<T>();
 				let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);
-				migrations.push((ct_amount.into(), vesting_duration_local_type.into()));
+				let migration_origin = MigrationOrigin::Evaluation { project_id, user: evaluation.evaluator, id: evaluation.id };
+				let migration_info: MigrationInfo = (ct_amount.into(), vesting_duration_local_type.into()).into();
+				migrations.push((migration_origin, migration_info));
 			}
 		}
 		for contribution in contributions {
 			let vesting_duration = contribution.multiplier.calculate_vesting_duration::<T>();
 			let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);
-			migrations.push((contribution.ct_amount.into(), vesting_duration_local_type.into()));
+			let migration_origin = MigrationOrigin::Contribution { project_id, user: contribution.contributor, id: contribution.id };
+			let migration_info: MigrationInfo = (contribution.ct_amount.into(), vesting_duration_local_type.into()).into();
+			migrations.push((migration_origin, migration_info));
 		}
 		for bid in bids {
 			let vesting_duration = bid.multiplier.calculate_vesting_duration::<T>();
 			let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);
-			migrations.push((bid.final_ct_amount.into(), vesting_duration_local_type.into()));
+			let migration_origin = MigrationOrigin::Bid { project_id, user: bid.bidder, id: bid.id };
+			let migration_info: MigrationInfo = (bid.final_ct_amount.into(), vesting_duration_local_type.into()).into();
+			migrations.push((migration_origin, migration_info));
 		}
 
-		let xcm_messages = Self::construct_migration_xcm_messages(T::AccountId32Conversion::convert(participant), migrations, max_message_size);
-		for xcm in xcm_messages {
-			let dest_loc = MultiLocation { parents: 1, interior: Here };
-			let mut destination = Some(dest_loc);
-			let (ticket, _price) = T::XcmRouter::validate(&mut destination, &mut Some(xcm));
-			match T::XcmRouter::deliver(ticket) {
+		let constructed_migrations = Self::construct_migration_xcm_messages(T::AccountId32Conversion::convert(participant.clone()), migrations, max_message_size);
+		for (migration_origins, xcm) in constructed_migrations {
+			let project_multilocation = MultiLocation { parents: 1, interior: X1(Parachain(project_para_id.into())) };
+			 match <pallet_xcm::Pallet<T>>::send_xcm(Here, project_multilocation, xcm) {
 				Ok(_) => {
-					Pallet::<T>::deposit_event(Event::<T>::UserMigrationSent {
+					for origin in migration_origins {
+						origin.mark_as_sent()
+					}
+					Self::deposit_event(Event::<T>::UserMigrationSent {
 						user: participant.clone(),
 					});
-					Ok(())
 				},
 				Err(_e) => {
-					return Err(Error::<T>::XcmFailed)
+					return Err(Error::<T>::XcmFailed.into())
 				},
 			}
 		}
-
 		Ok(())
+
 	}
 }
 
@@ -2666,7 +2695,7 @@ impl<T: Config> Pallet<T> {
 		// our encoded call starts with pallet index 51, and call index 0
 		let mut encoded_call = vec![51u8, 0];
 		let encoded_first_param = [0u8; 32].encode();
-		let encoded_second_param = Vec::<(u128, u32)>::new().encode();
+		let encoded_second_param = Vec::<MigrationInfo>::new().encode();
 		// we append the encoded parameters, with our migrations vec being empty for now
 		encoded_call.extend_from_slice(encoded_first_param.as_slice());
 		encoded_call.extend_from_slice(encoded_second_param.as_slice());
@@ -2695,20 +2724,20 @@ impl<T: Config> Pallet<T> {
 
 	pub fn construct_migration_xcm_messages(
 		user: [u8; 32],
-		migrations: Vec<(u128, u64)>,
+		migrations: Vec<(MigrationOrigin<T>, MigrationInfo)>,
 		max_message_size: u32,
-	) -> Vec<Xcm<()>> {
+	) -> Vec<(Vec<MigrationOrigin<T>>, Xcm<()>)> {
 		const MAX_WEIGHT: Weight = Weight::from_parts(20_000_000_000, 1_000_000);
 		let _polimec_receiver_info = T::PolimecReceiverInfo::get();
 		// TODO: use the actual pallet index when the fields are not private anymore (https://github.com/paritytech/polkadot-sdk/pull/2231)
 		let migrations_per_xcm = Self::migrations_per_xcm_message_allowed(max_message_size);
-		let mut xcm_messages: Vec<Xcm<()>> = Vec::new();
+		let mut output: Vec<(Vec<MigrationOrigin<T>>, Xcm<()>)> = Vec::new();
 
 		for migrations in migrations.chunks(migrations_per_xcm as usize) {
-			let migrations = migrations.to_vec();
+			let (migration_origins, migration_infos): (Vec<MigrationOrigin<T>>, Vec<MigrationInfo>) = migrations.to_vec().into_iter().unzip();
 			let mut encoded_call = vec![51u8, 0];
 			encoded_call.extend_from_slice(user.encode().as_slice());
-			encoded_call.extend_from_slice(migrations.encode().as_slice());
+			encoded_call.extend_from_slice(migration_infos.encode().as_slice());
 			let xcm: Xcm<()> = Xcm(vec![
 				UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
 				Transact {
@@ -2717,11 +2746,11 @@ impl<T: Config> Pallet<T> {
 					call: encoded_call.into(),
 				},
 			]);
-			xcm_messages.push(xcm);
+			output.push((migration_origins, xcm));
 		}
 
 		// TODO: we probably want to ensure we dont build too many messages to overflow the queue. Which we know from the parameter `T::RequiredMaxCapacity`.
 		// the problem is that we don't know the existing messages in the destination queue. So for now we assume all messages will succeed
-		xcm_messages
+		output
 	}
 }

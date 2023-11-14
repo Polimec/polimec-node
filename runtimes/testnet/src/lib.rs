@@ -543,6 +543,7 @@ impl pallet_funding::Config for Runtime {
 	type TreasuryAccount = TreasuryAccount;
 	type Vesting = LinearVesting;
 	type WeightInfo = pallet_funding::weights::SubstrateWeight<Runtime>;
+	type AccountId32Conversion = ConvertInto;
 }
 
 parameter_types! {

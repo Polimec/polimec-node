@@ -1,4 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+
+use codec::{Decode, Encode, MaxEncodedLen};
+use frame_support::dispatch::TypeInfo;
+use frame_support::RuntimeDebug;
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// <https://docs.substrate.io/v3/runtime/frame>
@@ -50,10 +54,17 @@ pub mod pallet {
 	{
 		#[pallet::call_index(0)]
 		#[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
-		pub fn migrate_for_user(origin: OriginFor<T>, user: [u8; 32], migrations: Vec<(u128, u64)>) -> DispatchResult {
+		pub fn migrate_for_user(origin: OriginFor<T>, user: [u8; 32], migrations: Vec<crate::MigrationInfo>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+
 
 			Ok(())
 		}
 	}
+}
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct MigrationInfo {
+	contribution_token_amount: u128,
+	vesting_time: u64
 }
