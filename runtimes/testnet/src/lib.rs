@@ -36,7 +36,6 @@ pub use parachains_common::{
 	Header, Index, Signature, AVERAGE_ON_INITIALIZE_RATIO, DAYS, HOURS, MAXIMUM_BLOCK_WEIGHT, MINUTES,
 	NORMAL_DISPATCH_RATIO, SLOT_DURATION,
 };
-use parity_scale_codec::Encode;
 
 // Polkadot imports
 use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
@@ -55,14 +54,6 @@ use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
-use xcm::{
-	opaque::v3::Xcm,
-	v3::{
-		Instruction::{ReportTransactStatus, Transact, UnpaidExecution},
-		Junction::Parachain,
-		OriginKind, QueryResponseInfo, WeightLimit,
-	},
-};
 
 // XCM Imports
 use polimec_xcm_executor::XcmExecutor;

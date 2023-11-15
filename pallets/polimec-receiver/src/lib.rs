@@ -11,14 +11,13 @@ pub use pallet::*;
 pub mod pallet {
 	use crate::MigrationInfo;
 	use frame_support::{
-		dispatch::DispatchResultWithPostInfo,
 		pallet_prelude::*,
 		traits::{tokens::Balance, Currency, ExistenceRequirement::KeepAlive, VestingSchedule},
 	};
 	use frame_system::pallet_prelude::*;
 	use polkadot_parachain::primitives::{Id as ParaId, Sibling};
 	use polkadot_runtime_parachains::origin::{ensure_parachain, Origin as ParachainOrigin};
-	use sp_runtime::traits::{AccountIdConversion, Convert, Zero};
+	use sp_runtime::traits::{AccountIdConversion, Convert};
 	use sp_std::prelude::*;
 
 	type MomentOf<T> = <<T as Config>::Vesting as VestingSchedule<<T as frame_system::Config>::AccountId>>::Moment;

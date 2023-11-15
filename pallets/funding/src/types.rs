@@ -368,8 +368,6 @@ pub mod storage_types {
 
 pub mod inner_types {
 	use super::*;
-	use crate::{AccountIdOf, Bids, Contributions, Evaluations, ProjectIdOf};
-	use frame_support::parameter_types;
 	use xcm::v3::MaxDispatchErrorLen;
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]

@@ -1,5 +1,5 @@
 use crate::*;
-use pallet_funding::{AcceptedFundingAsset, BidInfoOf, ContributionInfoOf, EvaluationInfoOf, MigrationStatus, MultiplierOf, RewardOrSlash};
+use pallet_funding::{AcceptedFundingAsset, MigrationStatus, MultiplierOf, RewardOrSlash};
 use polimec_parachain_runtime::PolimecFunding;
 use sp_runtime::{FixedPointNumber, Perquintill};
 use pallet_funding::traits::VestingDurationCalculation;
@@ -188,12 +188,12 @@ fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 	// Migrate is sent
 	let migrated_ct_amount = Polimec::execute_with(|| {
 		assert_ok!(PolimecFunding::do_migrate_one_participant(eval_1(), project_id, eval_1()));
-		let (query_id, migrations) = pallet_funding::UnconfirmedMigrations::<PolimecRuntime>::iter().next().unwrap();
+		let (query_id, _migrations) = pallet_funding::UnconfirmedMigrations::<PolimecRuntime>::iter().next().unwrap();
 
-		let mut user_evaluations =
+		let user_evaluations =
 			pallet_funding::Evaluations::<PolimecRuntime>::iter_prefix_values((project_id, eval_1()));
-		let mut user_bids = pallet_funding::Bids::<PolimecRuntime>::iter_prefix_values((project_id, eval_1()));
-		let mut user_contributions =
+		let user_bids = pallet_funding::Bids::<PolimecRuntime>::iter_prefix_values((project_id, eval_1()));
+		let user_contributions =
 			pallet_funding::Contributions::<PolimecRuntime>::iter_prefix_values((project_id, eval_1()));
 
 		let evaluation_ct_amount = user_evaluations.map(|evaluation| {
@@ -349,12 +349,12 @@ fn vesting_over_several_blocks_on_project() {
 	// Migrate is sent
 	let migrated_ct_amount = Polimec::execute_with(|| {
 		assert_ok!(PolimecFunding::do_migrate_one_participant(buyer_1(), project_id, buyer_1()));
-		let (query_id, migrations) = pallet_funding::UnconfirmedMigrations::<PolimecRuntime>::iter().next().unwrap();
+		let (query_id, _migrations) = pallet_funding::UnconfirmedMigrations::<PolimecRuntime>::iter().next().unwrap();
 
-		let mut user_evaluations =
+		let user_evaluations =
 			pallet_funding::Evaluations::<PolimecRuntime>::iter_prefix_values((project_id, buyer_1()));
-		let mut user_bids = pallet_funding::Bids::<PolimecRuntime>::iter_prefix_values((project_id, buyer_1()));
-		let mut user_contributions =
+		let user_bids = pallet_funding::Bids::<PolimecRuntime>::iter_prefix_values((project_id, buyer_1()));
+		let user_contributions =
 			pallet_funding::Contributions::<PolimecRuntime>::iter_prefix_values((project_id, buyer_1()));
 
 		let evaluation_ct_amount = user_evaluations.map(|evaluation| {

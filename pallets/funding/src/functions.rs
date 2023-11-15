@@ -22,7 +22,6 @@ use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
 	pallet_prelude::*,
-	parameter_types,
 	traits::{
 		fungible::MutateHold as FungibleMutateHold,
 		fungibles::{metadata::Mutate as MetadataMutate, Create, Inspect, Mutate as FungiblesMutate},
@@ -30,7 +29,6 @@ use frame_support::{
 		Get,
 	},
 };
-use itertools::Itertools;
 use sp_arithmetic::{
 	traits::{CheckedDiv, CheckedSub, Zero},
 	Percent, Perquintill,
@@ -39,7 +37,7 @@ use sp_runtime::traits::Convert;
 use sp_std::marker::PhantomData;
 use xcm::v3::MaxDispatchErrorLen;
 
-use crate::{Call::start_bid_vesting_schedule_for, ProjectStatus::FundingSuccessful};
+use crate::{ProjectStatus::FundingSuccessful};
 use polimec_traits::ReleaseSchedule;
 
 use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
@@ -2125,7 +2123,6 @@ impl<T: Config> Pallet<T> {
 			Contributions::<T>::iter_prefix_values((project_id, participant.clone())).filter(|contribution| {
 				matches!(contribution.ct_migration_status, MigrationStatus::NotStarted | MigrationStatus::Failed(_))
 			});
-		let max_message_size = T::RequiredMaxMessageSize::get();
 		let project_para_id = project_details.parachain_id.ok_or(Error::<T>::ImpossibleState)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 
@@ -2757,7 +2754,7 @@ impl<T: Config> Pallet<T> {
 		encoded_call.extend_from_slice(encoded_first_param.as_slice());
 		encoded_call.extend_from_slice(encoded_second_param.as_slice());
 
-		let mut base_xcm_message: Xcm<()> = Xcm(vec![
+		let base_xcm_message: Xcm<()> = Xcm(vec![
 			UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
 			Transact { origin_kind: OriginKind::Native, require_weight_at_most: MAX_WEIGHT, call: encoded_call.into() },
 			ReportTransactStatus(QueryResponseInfo {
