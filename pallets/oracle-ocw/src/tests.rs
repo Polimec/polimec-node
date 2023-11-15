@@ -17,7 +17,7 @@
 #![cfg(test)]
 
 use crate::{mock::*, types::*, traits::*};
-
+use sp_runtime::RuntimeAppPublic;
 use frame_support::{assert_noop, assert_ok};
 
 #[test]
@@ -27,5 +27,15 @@ fn basic_works() {
 	ext.execute_with(|| {
 		let price = KrakenFetcher::get_moving_average(vec![AssetName::USDT], 5000);
 		
+	});
+}
+
+#[test]
+fn call_offchain_worker() {
+	let (mut ext, offchain_state) = new_test_ext_with_offchain_storage();
+	// println!("keys: {:?}", keystore.keys(crate::crypto::Public::ID));
+	// price_oracle_response(&mut offchain_state.write());
+	ext.execute_with(|| {
+		run_to_block(1);
 	});
 }

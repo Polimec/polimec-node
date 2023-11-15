@@ -18,23 +18,30 @@
 
 use super::*;
 use crate as pallet_oracle_ocw;
+use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 
 
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{ConstU32, ConstU64, Everything, SortedMembers},
-};
-use sp_runtime::{
-	testing::Header,
-	traits::{BlakeTwo256, IdentityLookup},
+	traits::{ConstU32, ConstU64, Everything, SortedMembers, Hooks},
 };
 use sp_core::{
-	offchain::{testing::{self, OffchainState}, OffchainWorkerExt},
+	offchain::{testing::{self, OffchainState}, OffchainWorkerExt, TransactionPoolExt},
+	sr25519::Signature,
 	H256
+};
+use sp_keystore::{testing::MemoryKeystore, Keystore, KeystoreExt};
+use sp_runtime::{
+	RuntimeAppPublic,
+	testing::{Header, TestXt},
+	traits::{BlakeTwo256, Extrinsic as ExtrinsicT, IdentifyAccount, IdentityLookup, Verify},
 };
 use std::sync::Arc;
 use parking_lot::RwLock;
-pub type AccountId = u128;
+
+
+type Extrinsic = TestXt<RuntimeCall, ()>;
+pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
 
 
 impl frame_system::Config for Test {
@@ -44,7 +51,7 @@ impl frame_system::Config for Test {
 	type BlockNumber = u64;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = AccountId;
+	type AccountId = sp_core::sr25519::Public;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
@@ -65,7 +72,35 @@ impl frame_system::Config for Test {
 }
 
 impl Config for Test {
+	type AuthorityId = crate::crypto::AuthorityId;
 	type RuntimeEvent = RuntimeEvent;
+}
+
+impl frame_system::offchain::SigningTypes for Test {
+	type Public = <Signature as Verify>::Signer;
+	type Signature = Signature;
+}
+
+impl<LocalCall> frame_system::offchain::SendTransactionTypes<LocalCall> for Test
+where
+	RuntimeCall: From<LocalCall>,
+{
+	type OverarchingCall = RuntimeCall;
+	type Extrinsic = Extrinsic;
+}
+
+impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Test
+where
+	RuntimeCall: From<LocalCall>,
+{
+	fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
+		call: RuntimeCall,
+		_public: <Signature as Verify>::Signer,
+		_account: AccountId,
+		nonce: u64,
+	) -> Option<(RuntimeCall, <Extrinsic as ExtrinsicT>::SignaturePayload)> {
+		Some((call, (nonce, ())))
+	}
 }
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
@@ -85,21 +120,29 @@ construct_runtime!(
 // This function basically just builds a genesis storage key/value store
 // according to our desired mockup.
 pub fn new_test_ext_with_offchain_storage() -> (sp_io::TestExternalities, Arc<RwLock<OffchainState>>) {
-
+	const PHRASE: &str =
+	"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
 	let (offchain, offchain_state) = testing::TestOffchainExt::new();
 	// let (pool, pool_state) = testing::TestTransactionPoolExt::new();
+	let (pool, pool_state) = testing::TestTransactionPoolExt::new();
+	let keystore = MemoryKeystore::new();
+	keystore
+		.sr25519_generate_new(crate::crypto::POLIMEC_ORACLE, Some(&format!("{}", PHRASE)))
+		.unwrap();
 
 	// let keystore = MemoryKeystore::new();
 	let storage = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 	let mut t: sp_io::TestExternalities = storage.into();
 	t.register_extension(OffchainWorkerExt::new(offchain));
+	t.register_extension(TransactionPoolExt::new(pool));
+	t.register_extension(KeystoreExt::new(keystore));
 	// t.register_extension(TransactionPoolExt::new(pool));
 	// t.register_extension(KeystoreExt::new(keystore));
 	(t, offchain_state)
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let (t, _) = new_test_ext_with_offchain_storage();
+	let (t, _,) = new_test_ext_with_offchain_storage();
 	t
 }
 
@@ -111,6 +154,12 @@ pub fn price_oracle_response(state: &mut testing::OffchainState) {
 		sent: true,
 		..Default::default()
 	});
+}
+pub fn run_to_block(n: u64) {
+	while System::block_number() < n {
+		OracleOcw::offchain_worker(System::block_number());
+		System::set_block_number(System::block_number() + 1);
+	}
 }
 
 

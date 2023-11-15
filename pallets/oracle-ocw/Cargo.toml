@@ -28,6 +28,7 @@ sp-std.workspace = true
 
 [dev-dependencies]
 pallet-balances.workspace = true
+sp-consensus-aura.workspace = true
 parking_lot = "0.12.1"
 
 [features]
@@ -40,6 +41,7 @@ std = [
 	"serde/std",
 	"frame-support/std",
 	"frame-system/std",
+	"sp-consensus-aura/std",
 	"sp-core/std",
 	"sp-io/std",
 	"sp-keystore/std",
