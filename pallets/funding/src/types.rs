@@ -234,11 +234,10 @@ pub mod storage_types {
 		pub when: BlockNumber,
 		// Will be Some after a reward of slash was made on this evaluation.
 		pub rewarded_or_slashed: Option<RewardOrSlash<Balance>>,
-		pub ct_migration_sent: bool,
-		pub ct_migration_confirmed: bool,
+		pub ct_migration_status: MigrationStatus,
 	}
 
-	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	pub struct BidInfo<
 		Id,
 		ProjectId,
@@ -266,8 +265,7 @@ pub mod storage_types {
 		pub when: BlockNumber,
 		pub funds_released: bool,
 		pub ct_minted: bool,
-		pub ct_migration_sent: bool,
-		pub ct_migration_confirmed: bool,
+		pub ct_migration_status: MigrationStatus,
 	}
 
 	impl<
@@ -305,7 +303,7 @@ pub mod storage_types {
 		}
 	}
 
-	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	pub struct ContributionInfo<Id, ProjectId, AccountId, Balance, Multiplier, VestingInfo> {
 		pub id: Id,
 		pub project_id: ProjectId,
@@ -319,8 +317,7 @@ pub mod storage_types {
 		pub plmc_vesting_info: Option<VestingInfo>,
 		pub funds_released: bool,
 		pub ct_minted: bool,
-		pub ct_migration_sent: bool,
-		pub ct_migration_confirmed: bool,
+		pub ct_migration_status: MigrationStatus,
 	}
 
 	/// Represents a bucket that holds a specific amount of tokens at a given price.
@@ -372,6 +369,8 @@ pub mod storage_types {
 pub mod inner_types {
 	use super::*;
 	use crate::{AccountIdOf, Bids, Contributions, Evaluations, ProjectIdOf};
+	use frame_support::parameter_types;
+	use xcm::v3::MaxDispatchErrorLen;
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
@@ -726,11 +725,18 @@ pub mod inner_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum MigrationOrigin<AccountId, ProjectId, Id> {
-		Evaluation { project_id: ProjectId, user: AccountId, id: Id },
-		Bid { project_id: ProjectId, user: AccountId, id: Id },
-		Contribution { project_id: ProjectId, user: AccountId, id: Id },
+	pub enum MigrationOrigin<AccountId, Id> {
+		Evaluation { user: AccountId, id: Id },
+		Bid { user: AccountId, id: Id },
+		Contribution { user: AccountId, id: Id },
 	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub struct ProjectMigrationOrigins<ProjectId, MigrationOrigins> {
+		pub project_id: ProjectId,
+		pub migration_origins: MigrationOrigins,
+	}
+
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct MigrationInfo {
 		contribution_token_amount: u128,
@@ -739,6 +745,22 @@ pub mod inner_types {
 	impl From<(u128, u64)> for MigrationInfo {
 		fn from((contribution_token_amount, vesting_time): (u128, u64)) -> Self {
 			Self { contribution_token_amount, vesting_time }
+		}
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum MigrationStatus {
+		NotStarted,
+		Sent(xcm::v3::QueryId),
+		Confirmed,
+		Failed(BoundedVec<u8, MaxDispatchErrorLen>),
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub struct MaxMigrationsPerXcm<T>(PhantomData<T>);
+	impl<T: crate::Config> Get<u32> for MaxMigrationsPerXcm<T> {
+		fn get() -> u32 {
+			crate::Pallet::<T>::migrations_per_xcm_message_allowed()
 		}
 	}
 }
