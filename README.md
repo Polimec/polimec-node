@@ -37,12 +37,6 @@ $ cargo build --release
 ```
 
 ```
-$ ./target/release/polimec-standalone-node --dev
-```
-
-or
-
-```
 $ cargo run --release -- --dev
 ```
 
@@ -88,8 +82,6 @@ Available recipes:
   build-parachain-node      # Build the "Parachain" Node
   build-parachain-runtime   # Build the "Testnet" Runtime
   build-parachain-srtool    # Build the "Testnet" Runtime using srtool
-  build-standalone-node     # Build the "Standalone" Node
-  build-standalone-runtime  # Build the "Standalone" Runtime
   create-chainspec-base     # Create the "Base" Runtime Chainspec
   default                   # Help information
   docker-build tag="latest" package="polimec-parachain-node" # Build the Node Docker Image

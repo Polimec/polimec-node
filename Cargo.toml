@@ -1,9 +1,7 @@
 [workspace]
 members = [
-#    "nodes/*",
-#    "runtimes/*",
-    "nodes/parachain",
-    "runtimes/testnet",
+    "nodes/*",
+    "runtimes/*",
     "pallets/*",
     "integration-tests",
     "traits",
@@ -217,6 +215,5 @@ frame-system-benchmarking = { git = "https://github.com/paritytech/substrate", d
 
 # Runtimes
 polimec-parachain-runtime = { path = "runtimes/testnet" }
-polimec-standalone-runtime = { path = "runtimes/standalone" }
 polimec-base-runtime = { path = "runtimes/base" }
 penpal-runtime = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "release-v0.9.430" }
