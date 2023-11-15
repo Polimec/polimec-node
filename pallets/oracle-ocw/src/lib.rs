@@ -44,8 +44,9 @@ pub mod pallet {
 		
 		/// The overarching event type of the runtime.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-		
-		/// The identifier type for an offchain worker.
+
+		/// An Identifying key for the offchain worker. Used to determine if the offchain
+		/// worker is authorized to submit price feeding transactions.
 		type AuthorityId: Member
 		+ Parameter
 		+ RuntimeAppPublic
@@ -53,6 +54,8 @@ pub mod pallet {
 		+ MaybeSerializeDeserialize
 		+ MaxEncodedLen;
 		
+		type Members: frame_support::traits::Contains<Self::AccountId>;
+
 	}
 
 	#[pallet::storage]
