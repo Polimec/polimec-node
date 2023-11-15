@@ -1207,6 +1207,19 @@ pub mod pallet {
 
 		#[pallet::call_index(25)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
+		pub fn migrate_one_participant(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+			participant: AccountIdOf<T>,
+		) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			Self::do_migrate_one_participant(caller, project_id, participant)
+		}
+
+
+
+		#[pallet::call_index(26)]
+		#[pallet::weight(Weight::from_parts(1000, 0))]
 		pub fn confirm_migrations(
 			origin: OriginFor<T>,
 			query_id: QueryId,

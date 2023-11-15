@@ -86,6 +86,7 @@ pub const fn free_deposit() -> Balance {
 use frame_support::traits::{Everything, OriginTrait};
 use frame_system::RawOrigin as SystemRawOrigin;
 use polkadot_parachain::primitives::Sibling;
+use sp_core::crypto::Dummy;
 use sp_runtime::traits::Get;
 use xcm_builder::{EnsureXcmOrigin, FixedWeightBounds, ParentIsPreset, SiblingParachainConvertsVia};
 use xcm_executor::traits::Convert;
@@ -327,52 +328,61 @@ parameter_types! {
 
 }
 
+pub struct DummyConverter;
+impl sp_runtime::traits::Convert<AccountId, [u8; 32]> for DummyConverter {
+	fn convert(a: AccountId) -> [u8; 32] {
+		let mut account: [u8; 32] = [0u8; 32];
+		account[0..7].copy_from_slice(a.to_le_bytes().as_slice());
+		account
+	}
+}
+
 impl Config for TestRuntime {
-	type AccountId32Conversion = ConvertInto;
 	type AllPalletsWithoutSystem = AllPalletsWithoutSystem;
-	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
-	type Balance = Balance;
+	type RuntimeEvent = RuntimeEvent;
 	type BlockNumber = BlockNumber;
-	type BlockNumberToBalance = ConvertInto;
+	type AccountId32Conversion = DummyConverter;
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
+	type ProjectIdentifier = Identifier;
+	type Multiplier = Multiplier;
+	type Balance = Balance;
+	type Price = FixedU128;
+	type NativeCurrency = Balances;
+	type FundingCurrency = StatemintAssets;
+	type ContributionTokenCurrency = LocalAssets;
+	type PriceProvider = ConstPriceProvider<AssetId, FixedU128, PriceMap>;
+	type Randomness = RandomnessCollectiveFlip;
+	type StringLimit = ConstU32<64>;
+	type PreImageLimit = ConstU32<1024>;
+	type EvaluationDuration = EvaluationDuration;
+	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
+	type EnglishAuctionDuration = EnglishAuctionDuration;
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityFundingDuration = CommunityRoundDuration;
-	type ContributionTokenCurrency = LocalAssets;
-	type ContributionVesting = ConstU32<4>;
-	type DaysToBlocks = DaysToBlocks;
-	type EnglishAuctionDuration = EnglishAuctionDuration;
-	type EvaluationDuration = EvaluationDuration;
-	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
-	type EvaluatorSlash = EvaluatorSlash;
-	type FeeBrackets = FeeBrackets;
-	type FundingCurrency = StatemintAssets;
-	type ManualAcceptanceDuration = ManualAcceptanceDuration;
+	type RemainderFundingDuration = RemainderFundingDuration;
+	type PalletId = FundingPalletId;
+	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
+	type MaxEvaluationsPerUser = ConstU32<4>;
 	// Low value to simplify the tests
 	type MaxBidsPerUser = ConstU32<4>;
-	type MaxCapacityThresholds = MaxCapacityThresholds;
 	type MaxContributionsPerUser = ConstU32<4>;
-	type MaxEvaluationsPerUser = ConstU32<4>;
-	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
-	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
-	type Multiplier = Multiplier;
-	type NativeCurrency = Balances;
-	type PalletId = FundingPalletId;
+	type ContributionVesting = ConstU32<4>;
+	type WeightInfo = weights::SubstrateWeight<TestRuntime>;
+	type FeeBrackets = FeeBrackets;
+	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
+	type Vesting = Vesting;
+	type ManualAcceptanceDuration = ManualAcceptanceDuration;
+	type SuccessToSettlementTime = SuccessToSettlementTime;
+	type EvaluatorSlash = EvaluatorSlash;
+	type TreasuryAccount = TreasuryAccount;
+	type DaysToBlocks = DaysToBlocks;
+	type BlockNumberToBalance = ConvertInto;
 	type PolimecReceiverInfo = PolimecReceiverInfo;
-	type PreImageLimit = ConstU32<1024>;
-	type Price = FixedU128;
-	type PriceProvider = ConstPriceProvider<AssetId, FixedU128, PriceMap>;
-	type ProjectIdentifier = Identifier;
-	type Randomness = RandomnessCollectiveFlip;
-	type RemainderFundingDuration = RemainderFundingDuration;
+	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
+	type MaxCapacityThresholds = MaxCapacityThresholds;
 	type RequiredMaxCapacity = RequiredMaxCapacity;
 	type RequiredMaxMessageSize = RequiredMaxMessageSize;
-	type RuntimeCall = RuntimeCall;
-	type RuntimeEvent = RuntimeEvent;
-	type RuntimeOrigin = RuntimeOrigin;
-	type StringLimit = ConstU32<64>;
-	type SuccessToSettlementTime = SuccessToSettlementTime;
-	type TreasuryAccount = TreasuryAccount;
-	type Vesting = Vesting;
-	type WeightInfo = weights::SubstrateWeight<TestRuntime>;
 }
 
 // Build genesis storage according to the mock runtime.

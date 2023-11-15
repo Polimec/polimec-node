@@ -114,7 +114,7 @@ fn migration_is_sent() {
 
 	// Migrate one user's contribution tokens. He evaluated, bid, and contributed
 	Polimec::execute_with(|| {
-		assert_ok!(PolimecFunding::do_migrate_one_participant(eval_1(), project_id, eval_1()));
+		assert_ok!(PolimecFunding::migrate_one_participant(PolimecOrigin::signed(eval_1()), project_id, eval_1()));
 		let query_id = pallet_funding::UnconfirmedMigrations::<PolimecRuntime>::iter_keys().next().unwrap();
 		let mut user_evaluations =
 			pallet_funding::Evaluations::<PolimecRuntime>::iter_prefix_values((project_id, eval_1()));
@@ -187,7 +187,7 @@ fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 
 	// Migrate is sent
 	let migrated_ct_amount = Polimec::execute_with(|| {
-		assert_ok!(PolimecFunding::do_migrate_one_participant(eval_1(), project_id, eval_1()));
+		assert_ok!(PolimecFunding::migrate_one_participant(PolimecOrigin::signed(eval_1()), project_id, eval_1()));
 		let (query_id, _migrations) = pallet_funding::UnconfirmedMigrations::<PolimecRuntime>::iter().next().unwrap();
 
 		let user_evaluations =
@@ -348,7 +348,7 @@ fn vesting_over_several_blocks_on_project() {
 
 	// Migrate is sent
 	let migrated_ct_amount = Polimec::execute_with(|| {
-		assert_ok!(PolimecFunding::do_migrate_one_participant(buyer_1(), project_id, buyer_1()));
+		assert_ok!(PolimecFunding::migrate_one_participant(PolimecOrigin::signed(buyer_1()), project_id, buyer_1()));
 		let (query_id, _migrations) = pallet_funding::UnconfirmedMigrations::<PolimecRuntime>::iter().next().unwrap();
 
 		let user_evaluations =
