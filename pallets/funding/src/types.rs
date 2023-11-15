@@ -726,10 +726,10 @@ pub mod inner_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum MigrationOrigin<AccountId, ProjectId> {
-		Evaluation { project_id: ProjectId, user: AccountId, id: u32 },
-		Bid { project_id: ProjectId, user: AccountId, id: u32 },
-		Contribution { project_id: ProjectId, user: AccountId, id: u32 },
+	pub enum MigrationOrigin<AccountId, ProjectId, Id> {
+		Evaluation { project_id: ProjectId, user: AccountId, id: Id },
+		Bid { project_id: ProjectId, user: AccountId, id: Id },
+		Contribution { project_id: ProjectId, user: AccountId, id: Id },
 	}
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct MigrationInfo {

@@ -318,57 +318,101 @@ impl pallet_linear_release::Config for TestRuntime {
 
 	const MAX_VESTING_SCHEDULES: u32 = 32;
 }
+pub fn migrations_per_xcm_message_allowed() -> u32 {
+	const MAX_WEIGHT: Weight = Weight::from_parts(20_000_000_000, 1_000_000);
+
+	let one_migration_bytes = (0u128, 0u64).encode().len() as u32;
+
+	// our encoded call starts with pallet index 51, and call index 0
+	let mut encoded_call = vec![51u8, 0];
+	let encoded_first_param = [0u8; 32].encode();
+	let encoded_second_param = Vec::<MigrationInfo>::new().encode();
+	// we append the encoded parameters, with our migrations vec being empty for now
+	encoded_call.extend_from_slice(encoded_first_param.as_slice());
+	encoded_call.extend_from_slice(encoded_second_param.as_slice());
+
+	let mut base_xcm_message: Xcm<()> = Xcm(vec![
+		UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
+		Transact { origin_kind: OriginKind::Native, require_weight_at_most: MAX_WEIGHT, call: encoded_call.into() },
+		ReportTransactStatus(QueryResponseInfo {
+			destination: Parachain(POLIMEC_PARA_ID).into(),
+			query_id: 0,
+			max_weight,
+		}),
+	]);
+	let xcm_size = base_xcm_message.encode().len();
+
+	let available_bytes_for_migration_per_message = RequiredMaxMessageSize::get().saturating_sub(xcm_size as u32);
+
+	let mut output = 0u32;
+	let mut current_migration_size = 0u32;
+	while current_migration_size < available_bytes_for_migration_per_message {
+		if current_migration_size + one_migration_bytes > available_bytes_for_migration_per_message {
+			break
+		} else {
+			current_migration_size += one_migration_bytes;
+			output += 1;
+		}
+	}
+
+	output
+}
+
 parameter_types! {
 	pub MaxMessageSizeThresholds: (u32, u32) = (50000, 102_400);
 	pub MaxCapacityThresholds: (u32, u32) = (8, 1000);
 	pub RequiredMaxCapacity: u32 = 8;
 	pub RequiredMaxMessageSize: u32 = 102_400;
+	pub MaxMigrationsPerXcm: u32 = migrations_per_xcm_message_allowed();
+
 }
 impl Config for TestRuntime {
 	type AllPalletsWithoutSystem = AllPalletsWithoutSystem;
-	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
-	type Balance = Balance;
+	type RuntimeEvent = RuntimeEvent;
 	type BlockNumber = BlockNumber;
-	type BlockNumberToBalance = ConvertInto;
+	type AccountId32Conversion = ConvertInto;
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
+	type ProjectIdentifier = Identifier;
+	type Multiplier = Multiplier;
+	type Balance = Balance;
+	type Price = FixedU128;
+	type NativeCurrency = Balances;
+	type FundingCurrency = StatemintAssets;
+	type ContributionTokenCurrency = LocalAssets;
+	type PriceProvider = ConstPriceProvider<AssetId, FixedU128, PriceMap>;
+	type Randomness = RandomnessCollectiveFlip;
+	type StringLimit = ConstU32<64>;
+	type PreImageLimit = ConstU32<1024>;
+	type EvaluationDuration = EvaluationDuration;
+	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
+	type EnglishAuctionDuration = EnglishAuctionDuration;
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityFundingDuration = CommunityRoundDuration;
-	type ContributionTokenCurrency = LocalAssets;
-	type ContributionVesting = ConstU32<4>;
-	type DaysToBlocks = DaysToBlocks;
-	type EnglishAuctionDuration = EnglishAuctionDuration;
-	type EvaluationDuration = EvaluationDuration;
-	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
-	type EvaluatorSlash = EvaluatorSlash;
-	type FeeBrackets = FeeBrackets;
-	type FundingCurrency = StatemintAssets;
-	type ManualAcceptanceDuration = ManualAcceptanceDuration;
+	type RemainderFundingDuration = RemainderFundingDuration;
+	type PalletId = FundingPalletId;
+	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
+	type MaxEvaluationsPerUser = ConstU32<4>;
 	// Low value to simplify the tests
 	type MaxBidsPerUser = ConstU32<4>;
-	type MaxCapacityThresholds = MaxCapacityThresholds;
 	type MaxContributionsPerUser = ConstU32<4>;
-	type MaxEvaluationsPerUser = ConstU32<4>;
-	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
-	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
-	type Multiplier = Multiplier;
-	type NativeCurrency = Balances;
-	type PalletId = FundingPalletId;
+	type ContributionVesting = ConstU32<4>;
+	type WeightInfo = weights::SubstrateWeight<TestRuntime>;
+	type FeeBrackets = FeeBrackets;
+	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
+	type Vesting = Vesting;
+	type ManualAcceptanceDuration = ManualAcceptanceDuration;
+	type SuccessToSettlementTime = SuccessToSettlementTime;
+	type EvaluatorSlash = EvaluatorSlash;
+	type TreasuryAccount = TreasuryAccount;
+	type DaysToBlocks = DaysToBlocks;
+	type BlockNumberToBalance = ConvertInto;
 	type PolimecReceiverInfo = PolimecReceiverInfo;
-	type PreImageLimit = ConstU32<1024>;
-	type Price = FixedU128;
-	type PriceProvider = ConstPriceProvider<AssetId, FixedU128, PriceMap>;
-	type ProjectIdentifier = Identifier;
-	type Randomness = RandomnessCollectiveFlip;
-	type RemainderFundingDuration = RemainderFundingDuration;
+	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
+	type MaxCapacityThresholds = MaxCapacityThresholds;
 	type RequiredMaxCapacity = RequiredMaxCapacity;
 	type RequiredMaxMessageSize = RequiredMaxMessageSize;
-	type RuntimeCall = RuntimeCall;
-	type RuntimeEvent = RuntimeEvent;
-	type RuntimeOrigin = RuntimeOrigin;
-	type StringLimit = ConstU32<64>;
-	type SuccessToSettlementTime = SuccessToSettlementTime;
-	type TreasuryAccount = TreasuryAccount;
-	type Vesting = Vesting;
-	type WeightInfo = weights::SubstrateWeight<TestRuntime>;
+	type MaxMigrationsPerXcm = MaxMigrationsPerXcm;
 }
 
 // Build genesis storage according to the mock runtime.

@@ -36,6 +36,7 @@ pub use parachains_common::{
 	Header, Index, Signature, AVERAGE_ON_INITIALIZE_RATIO, DAYS, HOURS, MAXIMUM_BLOCK_WEIGHT, MINUTES,
 	NORMAL_DISPATCH_RATIO, SLOT_DURATION,
 };
+use parity_scale_codec::Encode;
 
 // Polkadot imports
 use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
@@ -54,6 +55,8 @@ use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
+use xcm::opaque::v3::Xcm;
+use xcm::v3::{OriginKind, QueryResponseInfo, WeightLimit, Instruction::{Transact, UnpaidExecution, ReportTransactStatus}, Junction::Parachain};
 
 // XCM Imports
 use polimec_xcm_executor::XcmExecutor;
@@ -489,6 +492,48 @@ impl pallet_assets::Config<StatemintAssetsInstance> for Runtime {
 	type WeightInfo = ();
 }
 
+const POLIMEC_PARACHAIN_ID: u32 = 3355;
+
+pub fn migrations_per_xcm_message_allowed() -> u32 {
+	const MAX_WEIGHT: Weight = Weight::from_parts(20_000_000_000, 1_000_000);
+
+	let one_migration_bytes = (0u128, 0u64).encode().len() as u32;
+
+	// our encoded call starts with pallet index 51, and call index 0
+	let mut encoded_call = vec![51u8, 0];
+	let encoded_first_param = [0u8; 32].encode();
+	let encoded_second_param = Vec::<pallet_funding::MigrationInfo>::new().encode();
+	// we append the encoded parameters, with our migrations vec being empty for now
+	encoded_call.extend_from_slice(encoded_first_param.as_slice());
+	encoded_call.extend_from_slice(encoded_second_param.as_slice());
+
+	let mut base_xcm_message: Xcm = Xcm(vec![
+		UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
+		Transact { origin_kind: OriginKind::Native, require_weight_at_most: MAX_WEIGHT, call: encoded_call.into() },
+		ReportTransactStatus(QueryResponseInfo {
+			destination: Parachain(POLIMEC_PARACHAIN_ID).into(),
+			query_id: 0,
+			max_weight,
+		}),
+	]);
+	let xcm_size = base_xcm_message.encode().len();
+
+	let available_bytes_for_migration_per_message = RequiredMaxMessageSize::get().saturating_sub(xcm_size as u32);
+
+	let mut output = 0u32;
+	let mut current_migration_size = 0u32;
+	while current_migration_size < available_bytes_for_migration_per_message {
+		if current_migration_size + one_migration_bytes > available_bytes_for_migration_per_message {
+			break
+		} else {
+			current_migration_size += one_migration_bytes;
+			output += 1;
+		}
+	}
+
+	output
+}
+
 parameter_types! {
 	pub TreasuryAccount: AccountId = [69u8; 32].into();
 	pub PolimecReceiverInfo: xcm::v3::PalletInfo = xcm::v3::PalletInfo::new(
@@ -498,6 +543,7 @@ parameter_types! {
 	pub MaxCapacityThresholds: (u32, u32) = (8, 1000);
 	pub RequiredMaxCapacity: u32 = 8;
 	pub RequiredMaxMessageSize: u32 = 102_400;
+	pub MaxMigrationsPerXcm: u32 = migrations_per_xcm_message_allowed();
 }
 impl pallet_funding::Config for Runtime {
 	type AccountId32Conversion = ConvertInto;
@@ -544,6 +590,7 @@ impl pallet_funding::Config for Runtime {
 	type TreasuryAccount = TreasuryAccount;
 	type Vesting = LinearVesting;
 	type WeightInfo = pallet_funding::weights::SubstrateWeight<Runtime>;
+	type MaxMigrationsPerXcm = ();
 }
 
 parameter_types! {

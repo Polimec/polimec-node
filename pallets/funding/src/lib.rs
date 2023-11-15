@@ -240,7 +240,7 @@ pub type BidInfoOf<T> = BidInfo<
 pub type ContributionInfoOf<T> =
 	ContributionInfo<u32, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>, VestingInfoOf<T>>;
 
-pub type MigrationOriginOf<T> = MigrationOrigin<AccountIdOf<T>, ProjectIdOf<T>>;
+pub type MigrationOriginOf<T> = MigrationOrigin<AccountIdOf<T>, ProjectIdOf<T>, u32>;
 
 pub type BucketOf<T> = Bucket<BalanceOf<T>, PriceOf<T>>;
 pub type BondTypeOf<T> = LockType<ProjectIdOf<T>>;
@@ -428,6 +428,7 @@ pub mod pallet {
 		type RequiredMaxCapacity: Get<u32>;
 		/// max_message_size config required for the channel from polimec to the project
 		type RequiredMaxMessageSize: Get<u32>;
+		type MaxMigrationsPerXcm: Get<u32>;
 	}
 
 	#[pallet::storage]
@@ -531,7 +532,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// Migrations sent and awaiting for confirmation
-	pub type UnconfirmedMigrations<T: Config> = StorageMap<_, Blake2_128Concat, QueryId, BoundedVec<MigrationOriginOf<T>, ConstU32<100>>>;
+	pub type UnconfirmedMigrations<T: Config> = StorageMap<_, Blake2_128Concat, QueryId, BoundedVec<MigrationOriginOf<T>, T::MaxMigrationsPerXcm>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
@@ -1467,3 +1468,4 @@ pub mod local_macros {
 	}
 	pub(crate) use unwrap_result_or_skip;
 }
+

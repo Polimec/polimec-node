@@ -2714,47 +2714,14 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn migrations_per_xcm_message_allowed(max_message_size: u32) -> u32 {
-		const MAX_WEIGHT: Weight = Weight::from_parts(20_000_000_000, 1_000_000);
 
-		let one_migration_bytes = (0u128, 0u64).encode().len() as u32;
-
-		// our encoded call starts with pallet index 51, and call index 0
-		let mut encoded_call = vec![51u8, 0];
-		let encoded_first_param = [0u8; 32].encode();
-		let encoded_second_param = Vec::<MigrationInfo>::new().encode();
-		// we append the encoded parameters, with our migrations vec being empty for now
-		encoded_call.extend_from_slice(encoded_first_param.as_slice());
-		encoded_call.extend_from_slice(encoded_second_param.as_slice());
-
-		let mut base_xcm_message: Xcm<()> = Xcm(vec![
-			UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
-			Transact { origin_kind: OriginKind::Native, require_weight_at_most: MAX_WEIGHT, call: encoded_call.into() },
-		]);
-		let xcm_size = base_xcm_message.encode().len();
-
-		let available_bytes_for_migration_per_message = max_message_size.saturating_sub(xcm_size as u32);
-
-		let mut output = 0u32;
-		let mut current_migration_size = 0u32;
-		while current_migration_size < available_bytes_for_migration_per_message {
-			if current_migration_size + one_migration_bytes > available_bytes_for_migration_per_message {
-				break
-			} else {
-				current_migration_size += one_migration_bytes;
-				output += 1;
-			}
-		}
-
-		output
-	}
 
 	pub fn construct_migration_xcm_messages(
 		user: [u8; 32],
 		migrations: Vec<(MigrationOriginOf<T>, MigrationInfo)>,
-		max_message_size: u32,
 	) -> Vec<(Vec<MigrationOriginOf<T>>, Xcm<()>)> {
 		const MAX_WEIGHT: Weight = Weight::from_parts(20_000_000_000, 1_000_000);
+		let max_message_size = T::RequiredMaxMessageSize::get();
 		let _polimec_receiver_info = T::PolimecReceiverInfo::get();
 		// TODO: use the actual pallet index when the fields are not private anymore (https://github.com/paritytech/polkadot-sdk/pull/2231)
 		let migrations_per_xcm = Self::migrations_per_xcm_message_allowed(max_message_size);
@@ -2773,6 +2740,11 @@ impl<T: Config> Pallet<T> {
 					require_weight_at_most: MAX_WEIGHT,
 					call: encoded_call.into(),
 				},
+				ReportTransactStatus(QueryResponseInfo {
+					destination: Parachain(POLIMEC_PARA_ID).into(),
+					query_id: 0,
+					max_weight: MAX_WEIGHT,
+				}),
 			]);
 			output.push((migration_origins, xcm));
 		}
