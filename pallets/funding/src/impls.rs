@@ -361,8 +361,6 @@ fn unbond_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> (Weight
 		project_evaluations.filter(|evaluation| evaluation.current_plmc_bond > Zero::zero());
 	let base_weight = Weight::from_parts(10_000_000, 0);
 	if let Some(evaluation) = remaining_evaluations.next() {
-		let remaining = remaining_evaluations.count() as u64;
-
 		match Pallet::<T>::do_evaluation_unbond_for(
 			&T::PalletId::get().into_account_truncating(),
 			evaluation.project_id,
@@ -377,7 +375,7 @@ fn unbond_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> (Weight
 				error: e,
 			}),
 		};
-		(base_weight.saturating_add(WeightInfoOf::<T>::evaluation_unbond_for()), remaining.saturating_sub(1u64))
+		(base_weight.saturating_add(WeightInfoOf::<T>::evaluation_unbond_for()), remaining_evaluations.count() as u64)
 	} else {
 		(base_weight, 0u64)
 	}
