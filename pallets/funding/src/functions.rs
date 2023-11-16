@@ -37,7 +37,7 @@ use sp_runtime::traits::Convert;
 use sp_std::marker::PhantomData;
 use xcm::v3::MaxDispatchErrorLen;
 
-use crate::{ProjectStatus::FundingSuccessful};
+use crate::ProjectStatus::FundingSuccessful;
 use polimec_traits::ReleaseSchedule;
 
 use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
@@ -2190,16 +2190,16 @@ impl<T: Config> Pallet<T> {
 			Self::mark_migrations_as_sent(project_migration_origins.clone(), transact_response_query_id);
 			UnconfirmedMigrations::<T>::insert(transact_response_query_id, project_migration_origins);
 
-			Self::deposit_event(Event::<T>::UserMigrationSent { project_id, caller: caller.clone(), participant: participant.clone() });
+			Self::deposit_event(Event::<T>::UserMigrationSent {
+				project_id,
+				caller: caller.clone(),
+				participant: participant.clone(),
+			});
 		}
 		Ok(())
 	}
 
-	pub fn do_confirm_migrations(
-		location: MultiLocation,
-		query_id: QueryId,
-		response: Response,
-	) -> DispatchResult {
+	pub fn do_confirm_migrations(location: MultiLocation, query_id: QueryId, response: Response) -> DispatchResult {
 		use xcm::v3::prelude::*;
 		let unconfirmed_migrations = UnconfirmedMigrations::<T>::take(query_id).ok_or(Error::<T>::NotAllowed)?;
 		let project_id = unconfirmed_migrations.project_id;

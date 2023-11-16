@@ -4151,6 +4151,7 @@ dependencies = [
  "polkadot-service",
  "sc-consensus-grandpa",
  "scale-info",
+ "sp-arithmetic",
  "sp-authority-discovery",
  "sp-consensus-babe",
  "sp-core",

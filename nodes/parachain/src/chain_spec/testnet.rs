@@ -262,7 +262,6 @@ fn testnet_genesis(
 		democracy: Default::default(),
 		linear_vesting: LinearVestingConfig { vesting: vec![] },
 		oracle_providers_membership: Default::default(),
-		
 	}
 }
 

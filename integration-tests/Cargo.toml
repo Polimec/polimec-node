@@ -22,6 +22,7 @@ scale-info = { workspace = true, features = ["derive"] }
 # Local
 polimec-receiver.workspace = true
 
+sp-arithmetic.workspace = true
 frame-system.workspace = true
 frame-support.workspace = true
 pallet-balances.workspace = true
