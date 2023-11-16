@@ -41,6 +41,7 @@ pallet-authorship.workspace = true
 pallet-balances.workspace = true
 pallet-collective.workspace = true
 pallet-democracy.workspace = true
+pallet-membership.workspace = true
 pallet-scheduler.workspace = true
 pallet-session.workspace = true
 pallet-sudo.workspace = true
@@ -92,6 +93,8 @@ cumulus-primitives-utility.workspace = true
 parachain-info.workspace = true
 polkadot-primitives.workspace = true
 
+# ORML
+orml-oracle.workspace = true
 
 [features]
 default = [ "std" ]
@@ -114,6 +117,7 @@ std = [
 	"frame-system/std",
 	"frame-try-runtime?/std",
 	"log/std",
+	"orml-oracle/std",
 	"pallet-asset-tx-payment/std",
 	"pallet-assets/std",
 	"pallet-aura/std",
@@ -124,6 +128,7 @@ std = [
 	"pallet-funding/std",
 	"pallet-insecure-randomness-collective-flip/std",
 	"pallet-linear-release/std",
+	"pallet-membership/std",
 	"pallet-multisig/std",
 	"pallet-parachain-staking/std",
 	"pallet-preimage/std",
@@ -177,6 +182,7 @@ runtime-benchmarks = [
 	"pallet-balances/runtime-benchmarks",
 	"pallet-collective/runtime-benchmarks",
 	"pallet-funding/runtime-benchmarks",
+	"pallet-membership/runtime-benchmarks",
 	"pallet-parachain-staking/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-vesting/runtime-benchmarks",
@@ -212,6 +218,7 @@ try-runtime = [
 	"frame-system/try-runtime",
 	"frame-try-runtime",
 	"frame-try-runtime?/try-runtime",
+	"orml-oracle/try-runtime",
 	"pallet-asset-tx-payment/try-runtime",
 	"pallet-assets/try-runtime",
 	"pallet-aura/try-runtime",
@@ -223,6 +230,7 @@ try-runtime = [
 	"pallet-insecure-randomness-collective-flip/try-runtime",
 	"pallet-linear-release/try-runtime",
 	"pallet-multisig/try-runtime",
+	"pallet-membership/try-runtime",
 	"pallet-parachain-staking/try-runtime",
 	"pallet-preimage/try-runtime",
 	"pallet-scheduler/try-runtime",

@@ -8,10 +8,12 @@ use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::{sr25519, storage::Storage, Pair, Public};
 use sp_runtime::{
+	bounded_vec,
 	traits::{IdentifyAccount, Verify},
 	BuildStorage, MultiSignature, Perbill,
 };
 pub use xcm;
+use xcm_emulator::get_account_id_from_seed;
 
 pub const XCM_V2: u32 = 3;
 pub const XCM_V3: u32 = 2;
@@ -24,14 +26,6 @@ type AccountPublic = <MultiSignature as Verify>::Signer;
 /// Helper function to generate a crypto pair from seed
 fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
 	TPublic::Pair::from_string(&format!("//{}", seed), None).expect("static values are valid; qed").public()
-}
-
-/// Helper function to generate an account ID from seed.
-pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
-where
-	AccountPublic: From<<TPublic::Pair as Pair>::Public>,
-{
-	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
 
 pub mod accounts {
@@ -243,6 +237,9 @@ pub mod polimec {
 			(Polimec::sovereign_account_id_of((Parent, Parachain(statemint::PARA_ID)).into()), INITIAL_DEPOSIT),
 		];
 		let alice_account = Polimec::account_id_of(accounts::ALICE);
+		let bob_account: AccountId = Polimec::account_id_of(accounts::BOB);
+		let charlie_account: AccountId = Polimec::account_id_of(accounts::CHARLIE);
+
 		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
 		let genesis_config = polimec_parachain_runtime::GenesisConfig {
 			system: polimec_parachain_runtime::SystemConfig {
@@ -274,6 +271,10 @@ pub mod polimec {
 			},
 			council: Default::default(),
 			democracy: Default::default(),
+			oracle_providers_membership: polimec_parachain_runtime::OracleProvidersMembershipConfig {
+				members: bounded_vec![alice_account.clone(), bob_account, charlie_account],
+				..Default::default()
+			},
 			parachain_staking: Default::default(),
 			statemint_assets: polimec_parachain_runtime::StatemintAssetsConfig {
 				assets: vec![
