@@ -119,7 +119,7 @@
 //! 			let project_id: <T as pallet_funding::Config>::ProjectIdentifier = project_id.into();
 //! 			// Check project is in the community round
 //! 			let project_details = pallet_funding::Pallet::<T>::project_details(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-//! 			"ensure!(project_details.status == pallet_funding::ProjectStatus::CommunityRound, "Project is not in the community round");
+//! 			ensure!(project_details.status == pallet_funding::ProjectStatus::CommunityRound, "Project is not in the community round");
 //!
 //! 			// Calculate how much funding was done already
 //! 			let project_contributions: <T as pallet_funding::Config>::Balance = pallet_funding::Contributions::<T>::iter_prefix_values((project_id,))

@@ -1565,6 +1565,8 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	// Unbond the PLMC of a bid instantly, following a failed funding outcome.
+	// Unbonding of PLMC in a successful funding outcome is handled by the vesting schedule.
 	pub fn do_bid_unbond_for(
 		caller: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
@@ -1586,8 +1588,7 @@ impl<T: Config> Pallet<T> {
 		// * Update Storage *
 		T::NativeCurrency::release(&LockType::Participation(project_id), bidder, bid.plmc_bond, Precision::Exact)?;
 
-		// FIXME: Since we store the migration info here, we might not want to delete it. Users will want to find out their previous history
-		// Bids::<T>::remove((project_id, bidder, bid_id));
+		Bids::<T>::remove((project_id, bidder, bid_id));
 
 		// * Emit events *
 		Self::deposit_event(Event::BondReleased {
@@ -1642,6 +1643,8 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	// Unbond the PLMC of a contribution instantly, following a failed funding outcome.
+	// Unbonding of PLMC in a successful funding outcome is handled by the vesting schedule.
 	pub fn do_contribution_unbond_for(
 		caller: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
@@ -1659,8 +1662,7 @@ impl<T: Config> Pallet<T> {
 		// * Update Storage *
 		T::NativeCurrency::release(&LockType::Participation(project_id), contributor, bid.plmc_bond, Precision::Exact)?;
 
-		// FIXME: same question as bids removing
-		// Contributions::<T>::remove((project_id, contributor, contribution_id));
+		Contributions::<T>::remove((project_id, contributor, contribution_id));
 
 		// * Emit events *
 		Self::deposit_event(Event::BondReleased {
