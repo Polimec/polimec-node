@@ -18,7 +18,11 @@ use crate::{
 	currency::{deposit, PLMC},
 	Balance,
 };
+use core::marker::PhantomData;
 use frame_support::parameter_types;
+use orml_traits::DataProvider;
+use pallet_funding::traits::ProvideStatemintPrice;
+use sp_arithmetic::FixedPointNumber;
 
 parameter_types! {
 	pub const AssetDeposit: Balance = 10  * PLMC;
@@ -28,4 +32,19 @@ parameter_types! {
 	pub const MetadataDepositBase: Balance = deposit(1, 68);
 	pub const MetadataDepositPerByte: Balance = deposit(0, 1);
 	pub const AssetAccountDeposit: Balance = deposit(1, 18);
+}
+
+pub struct OraclePriceProvider<AssetId, Price, Oracle>(PhantomData<(AssetId, Price, Oracle)>);
+
+impl<AssetId, Price, Oracle> ProvideStatemintPrice for OraclePriceProvider<AssetId, Price, Oracle>
+where
+	Price: FixedPointNumber,
+	Oracle: DataProvider<AssetId, Price>,
+{
+	type AssetId = AssetId;
+	type Price = Price;
+
+	fn get_price(asset_id: AssetId) -> Option<Price> {
+		Oracle::get(&asset_id)
+	}
 }
