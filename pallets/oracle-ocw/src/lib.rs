@@ -32,9 +32,19 @@ mod crypto;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use super::*;
-	use frame_support::pallet_prelude::*;
+
+use super::*;
+	use frame_support::{pallet_prelude::*, traits::Contains};
 	use frame_system::pallet_prelude::*;
+	use frame_system::offchain::SigningTypes;
+	use sp_runtime::traits::IdentifyAccount;
+
+	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
+	pub type PublicOf<T> = <T as SigningTypes>::Public;
+	// pub type SignatureOf<T> = <T as SigningTypes>::Signature;
+	// pub type GenericPublicOf<T> = <<T as Config>::AppCrypto as AppCrypto<PublicOf<T>, SignatureOf<T>>>::GenericPublic;
+	// pub type RuntimeAppPublicOf<T> = <<T as Config>::AppCrypto as AppCrypto<PublicOf<T>, SignatureOf<T>>>::RuntimeAppPublic;
+
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -52,10 +62,14 @@ pub mod pallet {
 		+ RuntimeAppPublic
 		+ Ord
 		+ MaybeSerializeDeserialize
-		+ MaxEncodedLen;
+		+ MaxEncodedLen
+		+ Into<Self::Public>;
 		
+		type AppCrypto: AppCrypto<Self::Public, Self::Signature>;
+
 		type Members: frame_support::traits::Contains<Self::AccountId>;
 
+		
 	}
 
 	#[pallet::storage]
@@ -92,10 +106,21 @@ pub mod pallet {
 		fn offchain_worker(block_number: BlockNumberFor<T>) {
 			let local_keys = T::AuthorityId::all();
 
-			// let signer = Signer::<T, T::AuthorityId>::all_accounts();
-			// print!("{}",signer.can_sign());
-			println!("keys: {:?}", local_keys);
-			let average_price = Self::get_average_price();
+			let mut found_key: bool = false;
+			for key in local_keys.iter() {
+				let account: AccountIdOf<T> = <PublicOf<T> as IdentifyAccount>::into_account(key.clone().into());
+				if T::Members::contains(&account) && !found_key {
+					found_key = true;
+
+
+				} 
+			}
+
+			// Todo: 
+			// - Introduce backoff system to prevent spamming
+			// - Fetch price information for each asset
+			// - Fetch price information from different sources
+			// - Send signed price value to chain
 			
 		}
 	}
@@ -104,7 +129,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {}
 
 	impl<T: Config> Pallet<T> {
-		fn get_average_price() -> Option<u32> {
+		fn get_average_prices() -> Option<u32> {
 			
 			None
 		}

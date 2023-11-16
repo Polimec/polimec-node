@@ -18,21 +18,20 @@
 
 use super::*;
 use crate as pallet_oracle_ocw;
-use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 
 
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{ConstU32, ConstU64, Everything, SortedMembers, Hooks},
+	traits::{ConstU32, ConstU64, Everything, IsInVec, Hooks},
 };
 use sp_core::{
 	offchain::{testing::{self, OffchainState}, OffchainWorkerExt, TransactionPoolExt},
 	sr25519::Signature,
-	H256
+	Pair,
+	H256, Public
 };
 use sp_keystore::{testing::MemoryKeystore, Keystore, KeystoreExt};
 use sp_runtime::{
-	RuntimeAppPublic,
 	testing::{Header, TestXt},
 	traits::{BlakeTwo256, Extrinsic as ExtrinsicT, IdentifyAccount, IdentityLookup, Verify},
 };
@@ -42,7 +41,7 @@ use parking_lot::RwLock;
 
 type Extrinsic = TestXt<RuntimeCall, ()>;
 pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
-
+pub type AccountPublic = <Signature as Verify>::Signer;
 
 impl frame_system::Config for Test {
 	type RuntimeOrigin = RuntimeOrigin;
@@ -71,9 +70,18 @@ impl frame_system::Config for Test {
 	type MaxConsumers = ConstU32<16>;
 }
 
+parameter_types! {
+	pub static Members: Vec<AccountId> = vec![
+		get_account_id_from_seed::<crate::crypto::AuthorityId>("Alice"),
+		get_account_id_from_seed::<crate::crypto::AuthorityId>("Bob"),
+		get_account_id_from_seed::<crate::crypto::AuthorityId>("Charlie"),	
+	];
+}
 impl Config for Test {
 	type AuthorityId = crate::crypto::AuthorityId;
+	type AppCrypto = crate::crypto::PolimecCrypto;
 	type RuntimeEvent = RuntimeEvent;
+	type Members = IsInVec<Members>;
 }
 
 impl frame_system::offchain::SigningTypes for Test {
@@ -121,16 +129,15 @@ construct_runtime!(
 // according to our desired mockup.
 pub fn new_test_ext_with_offchain_storage() -> (sp_io::TestExternalities, Arc<RwLock<OffchainState>>) {
 	const PHRASE: &str =
-	"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
+	"//Alice";
 	let (offchain, offchain_state) = testing::TestOffchainExt::new();
 	// let (pool, pool_state) = testing::TestTransactionPoolExt::new();
-	let (pool, pool_state) = testing::TestTransactionPoolExt::new();
+	let (pool, _) = testing::TestTransactionPoolExt::new();
 	let keystore = MemoryKeystore::new();
 	keystore
 		.sr25519_generate_new(crate::crypto::POLIMEC_ORACLE, Some(&format!("{}", PHRASE)))
 		.unwrap();
 
-	// let keystore = MemoryKeystore::new();
 	let storage = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 	let mut t: sp_io::TestExternalities = storage.into();
 	t.register_extension(OffchainWorkerExt::new(offchain));
@@ -160,6 +167,20 @@ pub fn run_to_block(n: u64) {
 		OracleOcw::offchain_worker(System::block_number());
 		System::set_block_number(System::block_number() + 1);
 	}
+}
+
+/// Helper function to generate a crypto pair from seed
+pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
+	TPublic::Pair::from_string(&format!("//{}", seed), None)
+		.expect("static values are valid; qed")
+		.public()
+}
+
+pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
+where
+	AccountPublic: From<<TPublic::Pair as Pair>::Public>,
+{
+	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
 
 
