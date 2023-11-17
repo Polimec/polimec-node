@@ -5262,6 +5262,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "sp-core",
+ "syn 2.0.39",
+]
+
+[[package]]
+name = "macros-tests"
+version = "0.1.0"
+dependencies = [
+ "macros",
+]
+
+[[package]]
 name = "maplit"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

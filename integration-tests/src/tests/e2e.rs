@@ -3,13 +3,14 @@ use crate::{tests::defaults::*, *};
 use frame_support::BoundedVec;
 use pallet_funding::{instantiator::*, *};
 use polimec_parachain_runtime::US_DOLLAR;
-use sp_runtime::FixedU128;
-use sp_runtime::traits::{AccountIdConversion, CheckedSub};
 use sp_arithmetic::Perquintill;
 use sp_core::U256;
+use sp_runtime::{
+	traits::{AccountIdConversion, CheckedSub},
+	FixedU128,
+};
 
 type UserToCTBalance = Vec<(AccountId, BalanceOf<PolimecRuntime>, ProjectIdOf<PolimecRuntime>)>;
-
 
 fn increase_by_one(account_id: AccountId) -> impl FnMut() -> AccountId {
 	let mut num = U256::from(account_id.clone());
@@ -20,7 +21,6 @@ fn increase_by_one(account_id: AccountId) -> impl FnMut() -> AccountId {
 		account_id = num.try_into().unwrap();
 	}
 }
-
 
 define_names_v2! {
 	[0; 32],
