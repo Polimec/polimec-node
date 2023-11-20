@@ -2,13 +2,12 @@
 
 # Build Container Image from Dockerfile
 # Usage: ./build_image.sh <version> <path to Dockerfile/Dockerfile> <package>
-# Example: ./build_image.sh latest ./Dockerfile polimec-standalone-node
 
 # Check if tag is passed
 if [ -z "$1" ]
 then
     echo "Please pass tag as first argument"
-    echo "Example: ./build_image.sh latest ../Dockerfile polimec-standalone-node"
+    echo "Example: ./build_image.sh latest ../Dockerfile polimec-parachain-node"
     exit 1
 fi
 
@@ -16,7 +15,7 @@ fi
 if [ -z "$2" ]
 then
     echo "Please pass path to Dockerfile as second argument"
-    echo "Example: ./build_image.sh latest ../Dockerfile polimec-standalone-node"
+    echo "Example: ./build_image.sh latest ../Dockerfile polimec-parachain-node"
     exit 1
 fi
 
@@ -31,7 +30,7 @@ fi
 if [ -z "$3" ]
 then
     echo "Please pass package as third argument"
-    echo "Example: ./build_image.sh latest ../Dockerfile polimec-standalone-node"
+    echo "Example: ./build_image.sh latest ../Dockerfile polimec-parachain-node"
     exit 1
 fi
 

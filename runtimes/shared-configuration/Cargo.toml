@@ -22,6 +22,7 @@ sp-arithmetic.workspace = true
 parachains-common.workspace = true
 sp-std.workspace = true
 pallet-funding.workspace = true
+orml-traits.workspace = true
 
 [features]
 default = [ "std" ]
@@ -32,7 +33,8 @@ std = [
 	"parachains-common/std",
 	"sp-arithmetic/std",
 	"sp-std/std",
-	"pallet-funding/std"
+	"pallet-funding/std",
+	"orml-traits/std",
 ]
 runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",

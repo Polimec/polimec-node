@@ -261,6 +261,8 @@ fn testnet_genesis(
 		technical_committee: TechnicalCommitteeConfig { members: accounts.clone(), phantom: Default::default() },
 		democracy: Default::default(),
 		linear_vesting: LinearVestingConfig { vesting: vec![] },
+		oracle_providers_membership: Default::default(),
+		
 	}
 }
 

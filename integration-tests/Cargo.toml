@@ -53,7 +53,8 @@ sp-consensus-babe.workspace = true
 polkadot-runtime-constants.workspace = true
 pallet-staking.workspace = true
 pallet-message-queue.workspace = true
-
+pallet-membership.workspace = true
+orml-oracle.workspace = true
 
 # Runtimes
 polkadot-runtime.workspace = true
@@ -89,6 +90,8 @@ std = [
 	"cumulus-primitives-core/std",
 	"parity-scale-codec/std",
 	"scale-info/std",
+	"pallet-membership/std",
+	"orml-oracle/std",
 	"cumulus-pallet-xcmp-queue/std",
 	"pallet-funding/std",
 	"pallet-im-online/std",
