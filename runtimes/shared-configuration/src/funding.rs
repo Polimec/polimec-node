@@ -79,8 +79,8 @@ parameter_types! {
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 	pub PriceMap: BTreeMap<AssetIdForTrustBackedAssets, FixedU128> = BTreeMap::from_iter(vec![
 		(AcceptedFundingAsset::DOT.to_statemint_id(), FixedU128::from_rational(69, 1)), // DOT
-		(AcceptedFundingAsset::USDC.to_statemint_id(), FixedU128::from_rational(97, 100)), // USDC
-		(AcceptedFundingAsset::USDT.to_statemint_id(), FixedU128::from_rational(95, 100)), // USDT
+		(AcceptedFundingAsset::USDC.to_statemint_id(), FixedU128::from_rational(100, 100)), // USDC
+		(AcceptedFundingAsset::USDT.to_statemint_id(), FixedU128::from_rational(100, 100)), // USDT
 		(pallet_funding::PLMC_STATEMINT_ID, FixedU128::from_rational(840, 100)), // PLMC
 	]);
 	pub FeeBrackets: Vec<(Percent, Balance)> = vec![

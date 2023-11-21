@@ -5,31 +5,51 @@
 
 use core::panic;
 use proc_macro::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{format_ident, quote, ToTokens};
 use sp_core::U256;
 use syn::{parse::{Parse, ParseBuffer, ParseStream}, parse2, parse_macro_input, punctuated::Punctuated, token::Comma, Expr, GenericArgument, GenericParam, Generics, Ident, Result, Token, Type, Visibility, WhereClause, ItemMod};
 
-pub fn generate_accounts_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
-    let item = parse_macro_input!(input as ItemMod);
-    let name = &item.ident;
-    let content = item.content.expect("Expected accounts defined").1;
-    let names = parse_macro_input!(content as Punctuated<Ident, Comma>);
+pub fn generate_accounts_impl(input: TokenStream) -> TokenStream {
+    let inputs = parse_macro_input!(input with Punctuated::<Ident, Token![,]>::parse_terminated);
+    let mut output = quote! {};
+    let mut insertions = Vec::new();
 
-    let mut starting_value = U256::from(0u32);
+    for input in inputs {
+        let name = input.to_string();
 
-    let generated_consts = names.iter().enumerate().map(|(i, name)| {
-        let val = starting_value.checked_add(U256::from(i)).unwrap();
-        let const_value: [u8; 32] = val.try_into().unwrap();
-        quote! {
-                pub const #name: [u8; 32] = #const_value;
-            }
+        // Ensure the name is all uppercase
+        if name != name.to_uppercase() {
+            panic!("Name must be in all uppercase");
+        }
+
+        // Generate a unique [u8; 32] value for the constant
+        let mut value = [0u8; 32];
+        for (i, byte) in name.bytes().enumerate() {
+            value[i % 32] ^= byte;
+        }
+
+        let ident = format_ident!("{}", name);
+
+        // Convert the array into a tuple for the quote macro
+        let value_iter = value.clone().into_iter();
+
+        output.extend(quote! {
+            pub const #input: [u8; 32] = [#(#value_iter), *];
+        });
+
+        insertions.push(quote!{
+            names.insert(#input, stringify!(#ident));
+        });
+    }
+
+    output.extend(quote!{
+        pub fn names() -> std::collections::HashMap<[u8; 32], &'static str> {
+            let mut names = std::collections::HashMap::new();
+            #(#insertions)*
+            names
+        }
     });
 
-    let output = quote! {
-        pub mod #name {
-            #(#generated_consts)*
-        }
-    };
 
-    output.into()
+    TokenStream::from(output)
 }

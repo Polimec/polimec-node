@@ -4126,6 +4126,8 @@ dependencies = [
  "cumulus-primitives-core",
  "frame-support",
  "frame-system",
+ "itertools 0.10.5",
+ "macros",
  "orml-oracle",
  "pallet-assets",
  "pallet-balances",
