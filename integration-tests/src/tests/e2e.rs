@@ -477,3 +477,105 @@ fn ct_minted() {
 		}
 	});
 }
+
+#[test]
+fn ct_migrated() {
+	let mut inst = IntegrationInstantiator::new(None);
+
+	let project_id = Polimec::execute_with(|| {
+		set_oracle_prices();
+		let project_id = inst.create_finished_project(
+			excel_project(0),
+			issuer(),
+			excel_evaluators(),
+			excel_bidders(),
+			excel_contributions(),
+			excel_remainders(),
+		);
+		inst.advance_time(<PolimecRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+
+		inst.advance_time(10).unwrap();
+
+		for (contributor, expected_amount, project_id) in excel_ct_amounts() {
+			let minted = inst
+				.execute(|| <PolimecRuntime as Config>::ContributionTokenCurrency::balance(project_id, &contributor));
+			assert_close_enough!(minted, expected_amount, Perquintill::from_parts(10_000_000_000u64));
+		}
+
+		project_id
+	});
+
+	let project_details = Polimec::execute_with(|| {
+		inst.get_project_details(project_id)
+	});
+	assert!(matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Rewarded(_)));
+
+	// Mock HRMP establishment
+	Polimec::execute_with(|| {
+		assert_ok!(PolimecFunding::do_set_para_id_for_project(&issuer(), project_id, ParaId::from(6969u32)));
+
+		let open_channel_message = xcm::v3::opaque::Instruction::HrmpNewChannelOpenRequest {
+			sender: 6969,
+			max_message_size: 102_300,
+			max_capacity: 1000,
+		};
+		assert_ok!(PolimecFunding::do_handle_channel_open_request(open_channel_message));
+
+		let channel_accepted_message = xcm::v3::opaque::Instruction::HrmpChannelAccepted { recipient: 6969u32 };
+		assert_ok!(PolimecFunding::do_handle_channel_accepted(channel_accepted_message));
+
+	});
+
+	// Migration is ready
+	Polimec::execute_with(|| {
+		let project_details = pallet_funding::ProjectsDetails::<PolimecRuntime>::get(project_id).unwrap();
+		assert!(project_details.migration_readiness_check.unwrap().is_ready())
+	});
+
+
+	excel_ct_amounts().iter().unique().map(|item| {
+		let data = Penpal::account_data_of(item.0.clone());
+		assert_eq!(data.free, 0u128, "Participant balances should be 0 before ct migration");
+		data
+	}).collect::<Vec<_>>();
+
+	// Migrate CTs
+	let accounts = excel_ct_amounts().iter().map(|item| item.0.clone()).unique().collect::<Vec<_>>();
+	let total_ct_sold = excel_ct_amounts().iter().fold(0, |acc, item| acc + item.1);
+	dbg!(total_ct_sold);
+	let polimec_sov_acc = Penpal::sovereign_account_id_of((Parent, Parachain(polimec::PARA_ID)).into());
+	let polimec_fund_balance = Penpal::account_data_of(polimec_sov_acc);
+	dbg!(polimec_fund_balance);
+
+
+	let names = names();
+
+	Polimec::execute_with(|| {
+		for account in accounts {
+			assert_ok!(PolimecFunding::migrate_one_participant(PolimecOrigin::signed(account.clone()), project_id, account.clone()));
+			let key: [u8; 32] = account.clone().into();
+			println!("Migrated CTs for {}", names[&key]);
+			inst.advance_time(1u32).unwrap();
+		}
+
+		// dbg!(Polimec::events());
+	});
+
+	Penpal::execute_with(||{
+		dbg!(Penpal::events());
+		// <Penpal as Parachain>::XcmpMessageHandler
+	});
+
+
+
+	// Check balances after migration, before vesting
+	excel_ct_amounts().iter().unique().map(|item| {
+		let data = Penpal::account_data_of(item.0.clone());
+		let key: [u8; 32] = item.0.clone().into();
+		println!("Participant {} has {} CTs. Expected {}", names[&key], data.free.clone(), item.1);
+		dbg!(data.clone());
+		assert_close_enough!(data.free, item.1, Perquintill::from_parts(10_000_000_000u64), "Participant balances should be transfered to each account after ct migration, but be frozen");
+		data.clone()
+	}).collect::<Vec<_>>();
+
+}
