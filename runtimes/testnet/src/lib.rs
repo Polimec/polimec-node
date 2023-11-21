@@ -534,7 +534,7 @@ impl pallet_funding::Config for Runtime {
 	type PolimecReceiverInfo = PolimecReceiverInfo;
 	type PreImageLimit = ConstU32<1024>;
 	type Price = Price;
-	type PriceProvider = ConstPriceProvider<AssetId, FixedU128, PriceMap>;
+	type PriceProvider = OraclePriceProvider<AssetId, FixedU128, Oracle>;
 	type ProjectIdentifier = u32;
 	type Randomness = Random;
 	type RemainderFundingDuration = RemainderFundingDuration;
