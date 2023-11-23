@@ -691,6 +691,8 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
+pub const POLIMEC_PARA_ID: u32 = 3344;
+
 // Extrinsics and HRMP interactions
 impl<T: Config> Pallet<T> {
 	/// Change the metadata hash of a project
@@ -1778,7 +1780,7 @@ impl<T: Config> Pallet<T> {
 			fun: Fungible(1_0_000_000_000u128),
 		};
 		const MAX_WEIGHT: Weight = Weight::from_parts(20_000_000_000, 1_000_000);
-		const POLIMEC_PARA_ID: u32 = 3355u32;
+		const POLIMEC_PARA_ID: u32 = 3344u32;
 
 		log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest received: {:?}", message);
 
@@ -1964,7 +1966,7 @@ impl<T: Config> Pallet<T> {
 			WithdrawAsset(vec![expected_tokens.clone()].into()),
 			ReportHolding {
 				response_info: QueryResponseInfo {
-					destination: ParentThen(Parachain(3355).into()).into(),
+					destination: ParentThen(Parachain(POLIMEC_PARA_ID).into()).into(),
 					query_id: 0,
 					max_weight: max_weight.clone(),
 				},
@@ -1973,12 +1975,12 @@ impl<T: Config> Pallet<T> {
 			QueryPallet {
 				module_name: Vec::from("polimec_receiver"),
 				response_info: QueryResponseInfo {
-					destination: ParentThen(Parachain(3355).into()).into(),
+					destination: ParentThen(Parachain(POLIMEC_PARA_ID).into()).into(),
 					query_id: 1,
 					max_weight: max_weight.clone(),
 				},
 			},
-			DepositAsset { assets: Wild(All), beneficiary: ParentThen(Parachain(3355).into()).into() },
+			DepositAsset { assets: Wild(All), beneficiary: ParentThen(Parachain(POLIMEC_PARA_ID).into()).into() },
 		]);
 		<pallet_xcm::Pallet<T>>::send_xcm(Here, project_multilocation, xcm).map_err(|_| Error::<T>::XcmFailed)?;
 

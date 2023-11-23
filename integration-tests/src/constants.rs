@@ -226,7 +226,7 @@ pub mod polimec {
 	use pallet_funding::AcceptedFundingAsset;
 	use xcm::{prelude::Parachain, v3::Parent};
 
-	pub const PARA_ID: u32 = 3355;
+	pub const PARA_ID: u32 = 3344;
 	pub const ED: Balance = polimec_parachain_runtime::EXISTENTIAL_DEPOSIT;
 
 	pub fn genesis() -> Storage {
