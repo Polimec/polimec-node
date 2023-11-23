@@ -7,11 +7,7 @@ use sc_consensus_grandpa::AuthorityId as GrandpaId;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::{sr25519, storage::Storage, Pair, Public};
-use sp_runtime::{
-	bounded_vec,
-	traits::{IdentifyAccount, Verify},
-	BuildStorage, MultiSignature, Perbill,
-};
+use sp_runtime::{bounded_vec, BuildStorage, Perbill};
 pub use xcm;
 use xcm_emulator::get_account_id_from_seed;
 
@@ -20,8 +16,6 @@ pub const XCM_V3: u32 = 2;
 pub const REF_TIME_THRESHOLD: u64 = 33;
 pub const PROOF_SIZE_THRESHOLD: u64 = 33;
 pub const INITIAL_DEPOSIT: u128 = 420_0_000_000_000;
-
-type AccountPublic = <MultiSignature as Verify>::Signer;
 
 /// Helper function to generate a crypto pair from seed
 fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
@@ -226,7 +220,7 @@ pub mod polimec {
 	use pallet_funding::AcceptedFundingAsset;
 	use xcm::{prelude::Parachain, v3::Parent};
 
-	pub const PARA_ID: u32 = 3355;
+	pub const PARA_ID: u32 = 3344;
 	pub const ED: Balance = polimec_parachain_runtime::EXISTENTIAL_DEPOSIT;
 
 	pub fn genesis() -> Storage {

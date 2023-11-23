@@ -1216,15 +1216,9 @@ pub mod pallet {
 			Self::do_migrate_one_participant(caller, project_id, participant)
 		}
 
-
-
 		#[pallet::call_index(26)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
-		pub fn confirm_migrations(
-			origin: OriginFor<T>,
-			query_id: QueryId,
-			response: Response,
-		) -> DispatchResult {
+		pub fn confirm_migrations(origin: OriginFor<T>, query_id: QueryId, response: Response) -> DispatchResult {
 			let location = ensure_response(<T as Config>::RuntimeOrigin::from(origin))?;
 
 			Self::do_confirm_migrations(location, query_id, response)

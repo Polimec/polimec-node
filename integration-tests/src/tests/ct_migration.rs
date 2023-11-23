@@ -1,22 +1,26 @@
 use crate::*;
-use pallet_funding::{AcceptedFundingAsset, MigrationStatus, MultiplierOf, RewardOrSlash};
+use pallet_funding::{
+	traits::VestingDurationCalculation, AcceptedFundingAsset, MigrationStatus, MultiplierOf, RewardOrSlash,
+};
 use polimec_parachain_runtime::PolimecFunding;
 use sp_runtime::{FixedPointNumber, Perquintill};
-use pallet_funding::traits::VestingDurationCalculation;
 use tests::defaults::*;
 
 #[test]
 fn migration_check() {
 	let mut inst = IntegrationInstantiator::new(None);
 	let project_id = Polimec::execute_with(|| {
-		inst.create_finished_project(
+		let project_id = inst.create_finished_project(
 			default_project(issuer(), 0),
 			issuer(),
 			default_evaluations(),
 			default_bids(),
 			default_community_contributions(),
 			vec![],
-		)
+		);
+
+		inst.advance_time(<PolimecRuntime as pallet_funding::Config>::SuccessToSettlementTime::get() + 1u32).unwrap();
+		project_id
 	});
 
 	// Mock HRMP establishment
@@ -32,8 +36,6 @@ fn migration_check() {
 
 		let channel_accepted_message = xcm::v3::opaque::Instruction::HrmpChannelAccepted { recipient: 6969u32 };
 		assert_ok!(PolimecFunding::do_handle_channel_accepted(channel_accepted_message));
-
-		inst.advance_time(<PolimecRuntime as pallet_funding::Config>::SuccessToSettlementTime::get() + 1u32).unwrap();
 	});
 
 	Penpal::execute_with(|| {
@@ -122,7 +124,9 @@ fn migration_is_sent() {
 
 		assert!(user_evaluations.all(|evaluation| evaluation.ct_migration_status == MigrationStatus::Sent(query_id)));
 		assert!(user_bids.all(|bid| bid.ct_migration_status == MigrationStatus::Sent(query_id)));
-		assert!(user_contributions.all(|contribution| contribution.ct_migration_status == MigrationStatus::Sent(query_id)));
+		assert!(
+			user_contributions.all(|contribution| contribution.ct_migration_status == MigrationStatus::Sent(query_id))
+		);
 	});
 }
 
@@ -194,27 +198,31 @@ fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 		let user_contributions =
 			pallet_funding::Contributions::<PolimecRuntime>::iter_prefix_values((project_id, eval_1()));
 
-		let evaluation_ct_amount = user_evaluations.map(|evaluation| {
-			assert_eq!(evaluation.ct_migration_status, MigrationStatus::Sent(query_id));
-			if let Some(RewardOrSlash::Reward(amount)) = evaluation.rewarded_or_slashed {
-				amount
-			} else {
-				panic!("should be rewarded")
-			}
-		}).sum::<u128>();
-		let bid_ct_amount = user_bids.map(|bid| {
-			assert_eq!(bid.ct_migration_status, MigrationStatus::Sent(query_id));
-			bid.final_ct_amount
-		}).sum::<u128>();
-		let contribution_ct_amount = user_contributions.map(|contribution| {
-			assert_eq!(contribution.ct_migration_status, MigrationStatus::Sent(query_id));
-			contribution.ct_amount
-		}).sum::<u128>();
+		let evaluation_ct_amount = user_evaluations
+			.map(|evaluation| {
+				assert_eq!(evaluation.ct_migration_status, MigrationStatus::Sent(query_id));
+				if let Some(RewardOrSlash::Reward(amount)) = evaluation.rewarded_or_slashed {
+					amount
+				} else {
+					panic!("should be rewarded")
+				}
+			})
+			.sum::<u128>();
+		let bid_ct_amount = user_bids
+			.map(|bid| {
+				assert_eq!(bid.ct_migration_status, MigrationStatus::Sent(query_id));
+				bid.final_ct_amount
+			})
+			.sum::<u128>();
+		let contribution_ct_amount = user_contributions
+			.map(|contribution| {
+				assert_eq!(contribution.ct_migration_status, MigrationStatus::Sent(query_id));
+				contribution.ct_amount
+			})
+			.sum::<u128>();
 
 		evaluation_ct_amount + bid_ct_amount + contribution_ct_amount
-
 	});
-
 
 	Penpal::execute_with(|| {
 		assert_expected_events!(
@@ -355,27 +363,31 @@ fn vesting_over_several_blocks_on_project() {
 		let user_contributions =
 			pallet_funding::Contributions::<PolimecRuntime>::iter_prefix_values((project_id, buyer_1()));
 
-		let evaluation_ct_amount = user_evaluations.map(|evaluation| {
-			assert_eq!(evaluation.ct_migration_status, MigrationStatus::Sent(query_id));
-			if let Some(RewardOrSlash::Reward(amount)) = evaluation.rewarded_or_slashed {
-				amount
-			} else {
-				panic!("should be rewarded")
-			}
-		}).sum::<u128>();
-		let bid_ct_amount = user_bids.map(|bid| {
-			assert_eq!(bid.ct_migration_status, MigrationStatus::Sent(query_id));
-			bid.final_ct_amount
-		}).sum::<u128>();
-		let contribution_ct_amount = user_contributions.map(|contribution| {
-			assert_eq!(contribution.ct_migration_status, MigrationStatus::Sent(query_id));
-			contribution.ct_amount
-		}).sum::<u128>();
+		let evaluation_ct_amount = user_evaluations
+			.map(|evaluation| {
+				assert_eq!(evaluation.ct_migration_status, MigrationStatus::Sent(query_id));
+				if let Some(RewardOrSlash::Reward(amount)) = evaluation.rewarded_or_slashed {
+					amount
+				} else {
+					panic!("should be rewarded")
+				}
+			})
+			.sum::<u128>();
+		let bid_ct_amount = user_bids
+			.map(|bid| {
+				assert_eq!(bid.ct_migration_status, MigrationStatus::Sent(query_id));
+				bid.final_ct_amount
+			})
+			.sum::<u128>();
+		let contribution_ct_amount = user_contributions
+			.map(|contribution| {
+				assert_eq!(contribution.ct_migration_status, MigrationStatus::Sent(query_id));
+				contribution.ct_amount
+			})
+			.sum::<u128>();
 
 		evaluation_ct_amount + bid_ct_amount + contribution_ct_amount
-
 	});
-
 
 	Penpal::execute_with(|| {
 		assert_expected_events!(
@@ -426,4 +438,3 @@ fn vesting_over_several_blocks_on_project() {
 	let post_vest_balance = Penpal::account_data_of(buyer_1());
 	dbg!(post_vest_balance);
 }
-

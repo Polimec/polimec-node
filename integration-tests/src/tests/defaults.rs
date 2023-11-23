@@ -6,7 +6,7 @@ use pallet_funding::{
 use sp_core::H256;
 
 use polimec_parachain_runtime::AccountId;
-use sp_runtime::{traits::ConstU32, FixedPointNumber, Perquintill};
+use sp_runtime::{traits::ConstU32, Perquintill};
 pub const METADATA: &str = r#"METADATA
         {
             "whitepaper":"ipfs_url",
