@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use super::*;
+use parity_scale_codec::{Encode, Decode};
+use scale_info::TypeInfo;
 use serde_json::Value;
 use sp_std::{vec::Vec, collections::btree_map::BTreeMap};
 use sp_runtime::{Saturating, offchain::http::Response};
@@ -21,8 +23,8 @@ use sp_core::offchain::HttpRequestId as RequestId;
 use serde::{Deserialize};
 use core::str::FromStr;
 
-#[derive(Debug, Clone, Copy, Eq, Hash, PartialEq)]
-pub(crate) enum AssetName {
+#[derive(Debug, Clone, Copy, Eq, Hash, PartialEq, PartialOrd, Ord, Encode, Decode, TypeInfo)]
+pub enum AssetName {
     USDT,
     USDC,
     DOT,

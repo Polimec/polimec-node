@@ -22,10 +22,10 @@ use crate as pallet_oracle_ocw;
 
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{ConstU32, ConstU64, Everything, IsInVec, Hooks},
+	traits::{ConstU32, ConstU64, Everything, IsInVec, Hooks, Time},
 };
 use sp_core::{
-	offchain::{testing::{self, OffchainState}, OffchainWorkerExt, TransactionPoolExt},
+	offchain::{testing::{self, OffchainState, PoolState}, OffchainWorkerExt, TransactionPoolExt, OffchainDbExt},
 	sr25519::Signature,
 	Pair,
 	H256, Public
@@ -35,13 +35,16 @@ use sp_runtime::{
 	testing::{Header, TestXt},
 	traits::{BlakeTwo256, Extrinsic as ExtrinsicT, IdentifyAccount, IdentityLookup, Verify},
 };
+use sp_std::cell::RefCell;
 use std::sync::Arc;
 use parking_lot::RwLock;
 
 
-type Extrinsic = TestXt<RuntimeCall, ()>;
+pub type Extrinsic = TestXt<RuntimeCall, ()>;
 pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
 pub type AccountPublic = <Signature as Verify>::Signer;
+type OracleKey = u64;
+type OracleValue = FixedU128;
 
 impl frame_system::Config for Test {
 	type RuntimeOrigin = RuntimeOrigin;
@@ -70,6 +73,58 @@ impl frame_system::Config for Test {
 	type MaxConsumers = ConstU32<16>;
 }
 
+
+thread_local! {
+	static TIME: RefCell<u32> = RefCell::new(0);
+}
+
+pub struct Timestamp;
+impl Time for Timestamp {
+	type Moment = u32;
+
+	fn now() -> Self::Moment {
+		TIME.with(|v| *v.borrow())
+	}
+}
+
+impl Timestamp {
+	pub fn set_timestamp(val: u32) {
+		TIME.with(|v| *v.borrow_mut() = val);
+	}
+}
+
+parameter_types! {
+	pub RootOperatorAccountId: AccountId = AccountId::from_raw([0xffu8; 32]);
+	pub const MaxFeedValues: u32 = 4; // max 4 values allowd to feed in one call (USDT, USDC, DOT, PLMC).
+}
+
+impl orml_oracle::Config for Test {
+	type CombineData = orml_oracle::DefaultCombineData<Test, ConstU32<3>, ConstU32<10>, ()>;
+	type MaxFeedValues = MaxFeedValues;
+	type MaxHasDispatchedSize = ConstU32<20>;
+	type Members = IsInVec<Members>;
+	type OnNewData = ();
+	type OracleKey = OracleKey;
+	type OracleValue = OracleValue;
+	type RootOperatorAccountId = RootOperatorAccountId;
+	type RuntimeEvent = RuntimeEvent;
+	type Time = Timestamp;
+	// TODO Add weight info
+	type WeightInfo = ();
+}
+
+pub struct AssetPriceConverter;
+impl Convert<(AssetName, FixedU128), (OracleKey, OracleValue)> for AssetPriceConverter {
+	fn convert((asset, price): (AssetName, FixedU128)) -> (OracleKey, OracleValue) {
+		match asset {
+			AssetName::DOT => (0, price),
+			AssetName::USDC => (420, price),
+			AssetName::USDT => (1984, price),
+			AssetName::PLMC => (2069, price),
+		}
+	}
+}
+
 parameter_types! {
 	pub static Members: Vec<AccountId> = vec![
 		get_account_id_from_seed::<crate::crypto::AuthorityId>("Alice"),
@@ -82,6 +137,8 @@ impl Config for Test {
 	type AppCrypto = crate::crypto::PolimecCrypto;
 	type RuntimeEvent = RuntimeEvent;
 	type Members = IsInVec<Members>;
+	type GracePeriod = ConstU64<5u64>;
+	type ConvertAssetPricePair = AssetPriceConverter;
 }
 
 impl frame_system::offchain::SigningTypes for Test {
@@ -121,18 +178,20 @@ construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system::{Pallet, Call, Storage, Config, Event<T>},
+		Oracle: orml_oracle::{Pallet, Storage, Call, Event<T>},
 		OracleOcw: pallet_oracle_ocw::{Pallet, Storage, Call, Event<T>},
+
 	}
 );
 
 // This function basically just builds a genesis storage key/value store
 // according to our desired mockup.
-pub fn new_test_ext_with_offchain_storage() -> (sp_io::TestExternalities, Arc<RwLock<OffchainState>>) {
+pub fn new_test_ext_with_offchain_storage() -> (sp_io::TestExternalities, Arc<RwLock<OffchainState>>, Arc<RwLock<PoolState>>) {
 	const PHRASE: &str =
 	"//Alice";
 	let (offchain, offchain_state) = testing::TestOffchainExt::new();
 	// let (pool, pool_state) = testing::TestTransactionPoolExt::new();
-	let (pool, _) = testing::TestTransactionPoolExt::new();
+	let (pool, pool_state) = testing::TestTransactionPoolExt::new();
 	let keystore = MemoryKeystore::new();
 	keystore
 		.sr25519_generate_new(crate::crypto::POLIMEC_ORACLE, Some(&format!("{}", PHRASE)))
@@ -140,16 +199,15 @@ pub fn new_test_ext_with_offchain_storage() -> (sp_io::TestExternalities, Arc<Rw
 
 	let storage = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 	let mut t: sp_io::TestExternalities = storage.into();
-	t.register_extension(OffchainWorkerExt::new(offchain));
+	t.register_extension(OffchainWorkerExt::new(offchain.clone()));
 	t.register_extension(TransactionPoolExt::new(pool));
 	t.register_extension(KeystoreExt::new(keystore));
-	// t.register_extension(TransactionPoolExt::new(pool));
-	// t.register_extension(KeystoreExt::new(keystore));
-	(t, offchain_state)
+	t.register_extension(OffchainDbExt::new(offchain.clone()));
+	(t, offchain_state, pool_state)
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let (t, _,) = new_test_ext_with_offchain_storage();
+	let (t, _, _) = new_test_ext_with_offchain_storage();
 	t
 }
 
@@ -186,7 +244,9 @@ pub fn price_oracle_response(state: &mut testing::OffchainState) {
 pub fn run_to_block(n: u64) {
 	while System::block_number() < n {
 		OracleOcw::offchain_worker(System::block_number());
+		Oracle::on_finalize(System::block_number());
 		System::set_block_number(System::block_number() + 1);
+		Oracle::on_initialize(System::block_number());
 	}
 }
 

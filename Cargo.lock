@@ -6682,6 +6682,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
+ "orml-oracle",
  "pallet-balances",
  "parity-scale-codec",
  "parking_lot 0.12.1",

@@ -20,6 +20,7 @@ serde = { workspace = true, features = ["derive"] }
 log.workspace = true
 frame-support.workspace = true
 frame-system.workspace = true
+orml-oracle.workspace = true
 sp-core.workspace = true
 sp-io.workspace = true
 sp-keystore.workspace = true
@@ -41,6 +42,7 @@ std = [
 	"serde/std",
 	"frame-support/std",
 	"frame-system/std",
+	"orml-oracle/std",
 	"sp-consensus-aura/std",
 	"sp-core/std",
 	"sp-io/std",

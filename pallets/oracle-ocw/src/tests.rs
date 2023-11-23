@@ -16,16 +16,45 @@
 
 #![cfg(test)]
 
-use crate::{mock::*, types::*, traits::*};
-use sp_runtime::RuntimeAppPublic;
-use frame_support::{assert_noop, assert_ok};
 
+use crate::{mock::*, types::*, traits::*};
+use sp_runtime::{bounded_vec, FixedU128, Saturating};
+use frame_support::{assert_noop, assert_ok};
+use parity_scale_codec::Decode;
+
+
+fn assert_close_enough(a: FixedU128, b: FixedU128) {
+	match a > b {
+		true => assert!(a.saturating_sub(b) < FixedU128::from_float(0.0001)),
+		false => assert!(b.saturating_sub(a) < FixedU128::from_float(0.0001)),
+	}
+}
 
 #[test]
 fn call_offchain_worker() {
-	let (mut ext, offchain_state) = new_test_ext_with_offchain_storage();
+	let (mut ext, offchain_state, pool_state) = new_test_ext_with_offchain_storage();
 	price_oracle_response(&mut offchain_state.write());
 	ext.execute_with(|| {
-		run_to_block(1);
+		run_to_block(6);
+
+		let tx = pool_state.write().transactions.pop().unwrap();
+		let tx = Extrinsic::decode(&mut &*tx).unwrap();
+		assert_eq!(tx.signature.unwrap().0, 0);
+
+		match tx.call {
+			RuntimeCall::Oracle(orml_oracle::Call::feed_values { values }) => {
+				for (asset, price) in values {
+					match asset {
+						0 => assert_close_enough(price, FixedU128::from_float(5.522204608169164724)),
+						1984 => assert_close_enough(price, FixedU128::from_float(1.000714447104472902)),
+						420 => assert_close_enough(price, FixedU128::from_float(1.000420780717168255)),
+						_ => panic!("Unexpected asset"),
+					}
+				}
+				
+			},
+			_ => panic!("Unexpected call"),
+		}
+		
 	});
 }

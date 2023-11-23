@@ -21,7 +21,7 @@ use crate::{
 	traits::FetchPrice,
 	types::{AssetName, AssetRequest, KrakenFetcher}
 };
-use sp_runtime::{traits::{Zero, Saturating}, FixedU128, RuntimeAppPublic};
+use sp_runtime::{traits::{Convert, Zero, Saturating}, FixedU128, RuntimeAppPublic};
 use std::collections::HashMap;
 use frame_system::offchain::{AppCrypto, CreateSignedTransaction, SendSignedTransaction, Signer};
 mod mock;
@@ -33,17 +33,28 @@ mod types;
 
 mod crypto;
 
+const LOG_TARGET: &str = "ocw::oracle";
+
 #[frame_support::pallet]
 pub mod pallet {
 
-use crate::types::{BitFinexFetcher, BitStampFetcher};
-
+	use crate::types::{BitFinexFetcher, BitStampFetcher};
 	use super::*;
+	use std::collections::BTreeMap;
 	use frame_support::{pallet_prelude::*, traits::Contains};
 	use frame_system::pallet_prelude::*;
 	use frame_system::offchain::SigningTypes;
-	use sp_runtime::traits::IdentifyAccount;
+	use sp_runtime::{
+		offchain::{
+			storage::{StorageValueRef, StorageRetrievalError},
+			storage_lock::{Time, StorageLock},
+			Duration,
+		}, 
+		traits::{IdentifyAccount, Block}
+	};
+	use orml_oracle::{Call as OracleCall, Instance1};
 
+	const LOCK_TIMEOUT_EXPIRATION: u64 = 30_000; // 30 seconds
 
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	pub type PublicOf<T> = <T as SigningTypes>::Public;
@@ -56,7 +67,7 @@ use crate::types::{BitFinexFetcher, BitStampFetcher};
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: CreateSignedTransaction<Call<Self>> + frame_system::Config {
+	pub trait Config: CreateSignedTransaction<OracleCall<Self>>  + frame_system::Config + orml_oracle::Config<()> {
 		
 		/// The overarching event type of the runtime.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -75,6 +86,9 @@ use crate::types::{BitFinexFetcher, BitStampFetcher};
 
 		type Members: frame_support::traits::Contains<Self::AccountId>;
 		
+		type GracePeriod: Get<BlockNumberFor<Self>>;
+
+		type ConvertAssetPricePair: Convert<(AssetName, FixedU128), (Self::OracleKey, Self::OracleValue)>;
 	}
 
 	#[pallet::storage]
@@ -110,25 +124,52 @@ use crate::types::{BitFinexFetcher, BitStampFetcher};
 		/// You can use `Local Storage` API to coordinate runs of the worker.
 		fn offchain_worker(block_number: BlockNumberFor<T>) {
 			let local_keys = T::AuthorityId::all();
-
-			let mut found_key: bool = false;
+			let mut key_found: bool = false;
 			for key in local_keys.iter() {
 				let account: AccountIdOf<T> = <PublicOf<T> as IdentifyAccount>::into_account(key.clone().into());
-				if T::Members::contains(&account) && !found_key {
-					found_key = true;
+				if <T as pallet::Config>::Members::contains(&account) && !key_found {
 					
-					let prices = Self::fetch_prices();
-					println!("Prices: {:?}", prices);
-					
+					key_found = true;
+					let mut lock = StorageLock::<Time>::with_deadline(
+						b"oracle_ocw::lock", 
+						Duration::from_millis(LOCK_TIMEOUT_EXPIRATION)
+					);
+
+					// We try to acquire the lock here. If failed, we know another ocw
+					// is executing at the moment and exit this ocw.
+					if let Ok(_guard) = lock.try_lock() {
+						let val = StorageValueRef::persistent(b"oracle_ocw::last_send");
+						let last_send_for_assets_result: Result<Option<BTreeMap<AssetName, BlockNumberFor<T>>>, StorageRetrievalError> = val.get();
+						let mut last_send_for_assets = match last_send_for_assets_result {
+							Ok(Some(v)) => v,
+							_ => BTreeMap::from([(AssetName::USDT, Zero::zero()), (AssetName::USDC, Zero::zero()), (AssetName::DOT, Zero::zero())]),
+						};
+						let assets = last_send_for_assets.iter().filter_map(|(asset_name, last_send)| {
+							if block_number >= last_send.saturating_add(T::GracePeriod::get()) {
+								return Some(*asset_name)
+							}
+							None
+						}).collect::<Vec<AssetName>>();
+
+						if assets.len() == 0 {
+							return
+						}
+
+						log::trace!(target: LOG_TARGET, "Transaction grace period reached for assets {:?} in block {:?}", assets.clone(), block_number);
+
+						let prices = Self::fetch_prices(assets);
+						let _ = Self::send_signed_transaction(prices.clone());
+						for (asset_name, _) in prices {
+							last_send_for_assets.insert(asset_name, block_number);
+						}
+						let _ = val.set(&last_send_for_assets);
+					};
 				} 
 			}
 
 			// Todo: 
-			// - Introduce backoff system to prevent spamming
 			// - Fetch price information for each asset
 			// - Fetch price information from different sources
-			// - Send signed price value to chain
-			
 		}
 	}
 
@@ -136,23 +177,20 @@ use crate::types::{BitFinexFetcher, BitStampFetcher};
 	impl<T: Config> Pallet<T> {}
 
 	impl<T: Config> Pallet<T> {
-		fn fetch_prices() -> HashMap<AssetName, FixedU128> {
-			let assets: Vec<AssetName> = vec![AssetName::USDT, AssetName::USDC, AssetName::DOT];
+		fn fetch_prices(assets: Vec<AssetName>) -> HashMap<AssetName, FixedU128> {
+			
 			let kraken_prices = KrakenFetcher::get_moving_average(assets.clone(), 5000);
 			let bitfinex_prices = BitFinexFetcher::get_moving_average(assets.clone(), 5000);
 			let bitstamp_prices = BitStampFetcher::get_moving_average(assets.clone(), 5000);
-			
 			let mut prices: HashMap<AssetName, Vec<FixedU128>> = HashMap::new();
 			for (asset_name, price) in kraken_prices.into_iter().chain(bitfinex_prices.into_iter()).chain(bitstamp_prices.into_iter()) {
 				prices.entry(asset_name).and_modify(|e| e.push(price)).or_insert(vec![price]);
 			}
 
 			Self::combine_prices(prices)
-
 		}
 
 		fn combine_prices(prices: HashMap<AssetName, Vec<FixedU128>>) -> HashMap<AssetName, FixedU128>{
-
 			prices.into_iter().filter_map(|(key, value)| {
 				let mut value = value;
 				value.sort();
@@ -166,6 +204,28 @@ use crate::types::{BitFinexFetcher, BitStampFetcher};
 					}
 				}
 			}).collect::<HashMap<AssetName, FixedU128>>()
+		}
+
+		fn send_signed_transaction(prices: HashMap<AssetName, FixedU128>) -> Result<(), ()> {
+			let signer = Signer::<T, T::AppCrypto>::any_account();
+			let prices = prices.into_iter().map(|(asset_name, price)| {
+				T::ConvertAssetPricePair::convert((asset_name, price))
+			}).collect::<Vec<(T::OracleKey, T::OracleValue)>>();
+			
+			let call = OracleCall::<T, ()>::feed_values{
+				values: BoundedVec::<_, _>::truncate_from(prices),
+			};
+			let result = signer.send_signed_transaction(|_account| call.clone());
+			match result {
+				Some((account, Ok(_))) => {
+					log::trace!(target: LOG_TARGET, "offchain tx sent with: {:?}", account.id);
+					return Ok(())
+				},
+				_ => {
+					log::trace!(target: LOG_TARGET, "failure: offchain_signed_tx");
+					return Err(())
+				}
+			}
 		}
 	}
 }
