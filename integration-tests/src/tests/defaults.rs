@@ -112,8 +112,7 @@ pub fn default_bidders() -> Vec<AccountId> {
 }
 
 pub fn default_bids() -> Vec<BidParams<PolimecRuntime>> {
-	let forty_percent_funding_usd = Perquintill::from_percent(40) *
-		(sp_runtime::FixedU128::from_float(1.0).checked_mul_int(100_000 * ASSET_UNIT).unwrap());
+	let forty_percent_funding_usd = Perquintill::from_percent(40) * 100_000 * ASSET_UNIT;
 
 	IntegrationInstantiator::generate_bids_from_total_usd(
 		forty_percent_funding_usd,
@@ -124,8 +123,7 @@ pub fn default_bids() -> Vec<BidParams<PolimecRuntime>> {
 }
 
 pub fn default_community_contributions() -> Vec<ContributionParams<PolimecRuntime>> {
-	let fifty_percent_funding_usd = Perquintill::from_percent(50) *
-		(sp_runtime::FixedU128::from_float(1.0).checked_mul_int(100_000 * ASSET_UNIT).unwrap());
+	let fifty_percent_funding_usd = Perquintill::from_percent(50) * 100_000 * ASSET_UNIT;
 
 	IntegrationInstantiator::generate_contributions_from_total_usd(
 		fifty_percent_funding_usd,

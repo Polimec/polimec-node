@@ -693,6 +693,8 @@ impl<T: Config> Pallet<T> {
 
 pub const POLIMEC_PARA_ID: u32 = 3344;
 
+const QUERY_RESPONSE_TIME_WINDOW_BLOCKS: u32 = 20u32;
+
 // Extrinsics and HRMP interactions
 impl<T: Config> Pallet<T> {
 	/// Change the metadata hash of a project
@@ -1942,13 +1944,13 @@ impl<T: Config> Pallet<T> {
 		let query_id_holdings = pallet_xcm::Pallet::<T>::new_notify_query(
 			project_multilocation.clone(),
 			call.clone().into(),
-			now + 20u32.into(),
+			now + QUERY_RESPONSE_TIME_WINDOW_BLOCKS.into(),
 			Here,
 		);
 		let query_id_pallet = pallet_xcm::Pallet::<T>::new_notify_query(
 			project_multilocation.clone(),
 			call.into(),
-			now + 20u32.into(),
+			now + QUERY_RESPONSE_TIME_WINDOW_BLOCKS.into(),
 			Here,
 		);
 
