@@ -18,8 +18,6 @@ fn migration_check() {
 			vec![],
 		)
 	});
-	let penpal_sov_acc = PolkadotRelay::sovereign_account_id_of(Parachain(Penpal::para_id().into()).into());
-	PolkadotRelay::fund_accounts(vec![(penpal_sov_acc, 100_0_000_000_000u128)]);
 
 	// Mock HRMP establishment
 	Polimec::execute_with(|| {

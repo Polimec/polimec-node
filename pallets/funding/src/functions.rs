@@ -43,7 +43,8 @@ use polimec_traits::ReleaseSchedule;
 use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
 
 use super::*;
-const POLIMEC_PARA_ID: u32 = 3355u32;
+const POLIMEC_PARA_ID: u32 = 3344u32;
+const QUERY_RESPONSE_TIME_WINDOW_BLOCKS: u32 = 20u32;
 
 // Round transitions
 impl<T: Config> Pallet<T> {
@@ -692,6 +693,8 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 }
+
+// Extrinsics and HRMP interactions
 
 // Extrinsics and HRMP interactions
 impl<T: Config> Pallet<T> {
@@ -1956,13 +1959,13 @@ impl<T: Config> Pallet<T> {
 		let query_id_holdings = pallet_xcm::Pallet::<T>::new_notify_query(
 			project_multilocation.clone(),
 			call.clone().into(),
-			now + 20u32.into(),
+			now + QUERY_RESPONSE_TIME_WINDOW_BLOCKS.into(),
 			Here,
 		);
 		let query_id_pallet = pallet_xcm::Pallet::<T>::new_notify_query(
 			project_multilocation.clone(),
 			call.into(),
-			now + 20u32.into(),
+			now + QUERY_RESPONSE_TIME_WINDOW_BLOCKS.into(),
 			Here,
 		);
 
@@ -1980,7 +1983,7 @@ impl<T: Config> Pallet<T> {
 			WithdrawAsset(vec![expected_tokens.clone()].into()),
 			ReportHolding {
 				response_info: QueryResponseInfo {
-					destination: ParentThen(Parachain(3355).into()).into(),
+					destination: ParentThen(Parachain(POLIMEC_PARA_ID).into()).into(),
 					query_id: 0,
 					max_weight: max_weight.clone(),
 				},
@@ -1989,12 +1992,12 @@ impl<T: Config> Pallet<T> {
 			QueryPallet {
 				module_name: Vec::from("polimec_receiver"),
 				response_info: QueryResponseInfo {
-					destination: ParentThen(Parachain(3355).into()).into(),
+					destination: ParentThen(Parachain(POLIMEC_PARA_ID).into()).into(),
 					query_id: 1,
 					max_weight: max_weight.clone(),
 				},
 			},
-			DepositAsset { assets: Wild(All), beneficiary: ParentThen(Parachain(3355).into()).into() },
+			DepositAsset { assets: Wild(All), beneficiary: ParentThen(Parachain(POLIMEC_PARA_ID).into()).into() },
 		]);
 		<pallet_xcm::Pallet<T>>::send_xcm(Here, project_multilocation, xcm).map_err(|_| Error::<T>::XcmFailed)?;
 
