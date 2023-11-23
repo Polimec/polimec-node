@@ -582,7 +582,7 @@ impl Convert<MigrationInfo, Balance> for DivideBalanceByBlocks {
 	}
 }
 parameter_types! {
-	pub PolimecParaId: ParaId = 3355u32.into();
+	pub PolimecParaId: ParaId = 3344u32.into();
 	pub GenesisMoment: BlockNumber = 0u32;
 }
 impl polimec_receiver::Config for Runtime {

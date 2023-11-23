@@ -147,7 +147,7 @@ match_types! {
 		MultiLocation { parents: 1, interior: X1(Parachain(1000)) }
 	};
 	pub type Polimec: impl Contains<MultiLocation> = {
-		MultiLocation { parents: 1, interior: X1(Parachain(3355)) }
+		MultiLocation { parents: 1, interior: X1(Parachain(3344)) }
 	};
 }
 

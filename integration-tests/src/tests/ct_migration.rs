@@ -11,17 +11,18 @@ fn migration_check() {
 	let mut inst = IntegrationInstantiator::new(None);
 	set_oracle_prices();
 	let project_id = Polimec::execute_with(|| {
-		inst.create_finished_project(
+		let project_id = inst.create_finished_project(
 			default_project(issuer(), 0),
 			issuer(),
 			default_evaluations(),
 			default_bids(),
 			default_community_contributions(),
 			vec![],
-		)
+		);
+
+		inst.advance_time(<PolimecRuntime as pallet_funding::Config>::SuccessToSettlementTime::get() + 1u32).unwrap();
+		project_id
 	});
-	let penpal_sov_acc = PolkadotRelay::sovereign_account_id_of(Parachain(Penpal::para_id().into()).into());
-	PolkadotRelay::fund_accounts(vec![(penpal_sov_acc, 100_0_000_000_000u128)]);
 
 	// Mock HRMP establishment
 	Polimec::execute_with(|| {
@@ -36,8 +37,6 @@ fn migration_check() {
 
 		let channel_accepted_message = xcm::v3::opaque::Instruction::HrmpChannelAccepted { recipient: 6969u32 };
 		assert_ok!(PolimecFunding::do_handle_channel_accepted(channel_accepted_message));
-
-		inst.advance_time(<PolimecRuntime as pallet_funding::Config>::SuccessToSettlementTime::get() + 1u32).unwrap();
 	});
 
 	Penpal::execute_with(|| {
