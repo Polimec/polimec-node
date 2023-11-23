@@ -2788,7 +2788,6 @@ impl<T: Config> Pallet<T> {
 		user: [u8; 32],
 		migrations: Vec<(MigrationOriginOf<T>, MigrationInfo)>,
 	) -> Vec<(BoundedVec<MigrationOriginOf<T>, MaxMigrationsPerXcm<T>>, Xcm<()>)> {
-
 		// TODO: adjust this as benchmarks for polimec-receiver are written
 		const MAX_WEIGHT: Weight = Weight::from_parts(10_000, 0);
 		// const MAX_WEIGHT: Weight = Weight::from_parts(100_003_000_000_000, 10_000_196_608);

@@ -1,14 +1,11 @@
 use crate::{tests::defaults::*, *};
-use frame_support::{BoundedVec};
+use frame_support::BoundedVec;
 use itertools::Itertools;
 use macros::generate_accounts;
 use pallet_funding::*;
 use polimec_parachain_runtime::{PolimecFunding, US_DOLLAR};
 use sp_arithmetic::{FixedPointNumber, Perquintill};
-use sp_runtime::{
-	traits::{CheckedSub},
-	FixedU128,
-};
+use sp_runtime::{traits::CheckedSub, FixedU128};
 
 type UserToCTBalance = Vec<(AccountId, BalanceOf<PolimecRuntime>, ProjectIdOf<PolimecRuntime>)>;
 
@@ -21,8 +18,6 @@ generate_accounts!(
 	ONTARIO, RAKIA, HUBERT, UTUS, TOME, ZUBER, ADAM, STANI, BETI, HALIT, DRAGAN, LEA, LUIS, TATI, WEST, MIRIJAM,
 	LIONEL, GIOVANNI, JOEL, POLKA, MALIK, ALEXANDER, SOLOMUN, JOHNNY, GRINGO, JONAS, BUNDI, FELIX,
 );
-
-
 
 pub fn excel_project(nonce: u64) -> ProjectMetadataOf<PolimecRuntime> {
 	let bounded_name = BoundedVec::try_from("Polimec".as_bytes().to_vec()).unwrap();
@@ -458,9 +453,7 @@ fn ct_migrated() {
 		project_id
 	});
 
-	let project_details = Polimec::execute_with(|| {
-		inst.get_project_details(project_id)
-	});
+	let project_details = Polimec::execute_with(|| inst.get_project_details(project_id));
 	assert!(matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Rewarded(_)));
 
 	// Mock HRMP establishment
@@ -476,7 +469,6 @@ fn ct_migrated() {
 
 		let channel_accepted_message = xcm::v3::opaque::Instruction::HrmpChannelAccepted { recipient: 6969u32 };
 		assert_ok!(PolimecFunding::do_handle_channel_accepted(channel_accepted_message));
-
 	});
 
 	// Migration is ready
@@ -484,7 +476,6 @@ fn ct_migrated() {
 		let project_details = pallet_funding::ProjectsDetails::<PolimecRuntime>::get(project_id).unwrap();
 		assert!(project_details.migration_readiness_check.unwrap().is_ready())
 	});
-
 
 	excel_ct_amounts().iter().unique().for_each(|item| {
 		let data = Penpal::account_data_of(item.0.clone());
@@ -499,12 +490,15 @@ fn ct_migrated() {
 	let polimec_fund_balance = Penpal::account_data_of(polimec_sov_acc);
 	dbg!(polimec_fund_balance);
 
-
 	let names = names();
 
 	Polimec::execute_with(|| {
 		for account in accounts {
-			assert_ok!(PolimecFunding::migrate_one_participant(PolimecOrigin::signed(account.clone()), project_id, account.clone()));
+			assert_ok!(PolimecFunding::migrate_one_participant(
+				PolimecOrigin::signed(account.clone()),
+				project_id,
+				account.clone()
+			));
 			let key: [u8; 32] = account.clone().into();
 			println!("Migrated CTs for {}", names[&key]);
 			inst.advance_time(1u32).unwrap();
@@ -513,12 +507,10 @@ fn ct_migrated() {
 		// dbg!(Polimec::events());
 	});
 
-	Penpal::execute_with(||{
+	Penpal::execute_with(|| {
 		dbg!(Penpal::events());
 		// <Penpal as Parachain>::XcmpMessageHandler
 	});
-
-
 
 	// Check balances after migration, before vesting
 	excel_ct_amounts().iter().unique().for_each(|item| {
@@ -526,7 +518,11 @@ fn ct_migrated() {
 		let key: [u8; 32] = item.0.clone().into();
 		println!("Participant {} has {} CTs. Expected {}", names[&key], data.free.clone(), item.1);
 		dbg!(data.clone());
-		assert_close_enough!(data.free, item.1, Perquintill::from_parts(10_000_000_000u64), "Participant balances should be transfered to each account after ct migration, but be frozen");
+		assert_close_enough!(
+			data.free,
+			item.1,
+			Perquintill::from_parts(10_000_000_000u64),
+			"Participant balances should be transfered to each account after ct migration, but be frozen"
+		);
 	});
-
 }

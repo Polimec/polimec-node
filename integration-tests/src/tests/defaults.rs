@@ -1,11 +1,11 @@
-use std::collections::HashMap;
 use frame_support::{assert_ok, bounded_vec, BoundedVec};
-use sp_arithmetic::FixedU128;
 pub use pallet_funding::instantiator::{BidParams, ContributionParams, UserToPLMCBalance, UserToUSDBalance};
 use pallet_funding::{
 	AcceptedFundingAsset, CurrencyMetadata, ParticipantsSize, ProjectMetadata, ProjectMetadataOf, TicketSize,
 };
+use sp_arithmetic::FixedU128;
 use sp_core::H256;
+use std::collections::HashMap;
 
 use crate::PolimecOrigin;
 use polimec_parachain_runtime::AccountId;
@@ -143,10 +143,9 @@ pub fn default_contributors() -> Vec<AccountId> {
 	vec![buyer_1(), buyer_2(), buyer_3(), buyer_4(), buyer_5()]
 }
 
-use crate::{ALICE, BOB, CHARLIE, Polimec, PolimecRuntime};
+use crate::{Polimec, PolimecRuntime, ALICE, BOB, CHARLIE};
 
 pub fn set_oracle_prices() {
-
 	Polimec::execute_with(|| {
 		fn values(
 			values: [f64; 4],

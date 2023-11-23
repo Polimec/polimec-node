@@ -27,10 +27,7 @@ use frame_support::{
 };
 use itertools::Itertools;
 use parachains_common::DAYS;
-use sp_arithmetic::{
-	traits::{Zero},
-	Percent, Perquintill,
-};
+use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_std::{cell::RefCell, marker::PhantomData};
 use std::{cmp::min, iter::zip};
 
