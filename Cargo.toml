@@ -4,6 +4,7 @@ members = [
     "runtimes/*",
     "pallets/*",
     "integration-tests",
+    "integration-tests/penpal",
     "traits",
 ]
 
@@ -55,6 +56,7 @@ pallet-sandbox = { path = "pallets/sandbox", default-features = false }
 pallet-parachain-staking = { path = "pallets/parachain-staking", default-features = false }
 pallet-linear-release = { path = "pallets/linear-release", default-features = false }
 polimec-xcm-executor = { path = "pallets/xcm-executor", default-features = false}
+polimec-receiver = { path = "pallets/polimec-receiver", default-features = false }
 
 # External pallets (with default disabled)
 orml-oracle = {git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.43", default-features = false}
@@ -216,4 +218,3 @@ frame-system-benchmarking = { git = "https://github.com/paritytech/substrate", d
 # Runtimes
 polimec-parachain-runtime = { path = "runtimes/testnet" }
 polimec-base-runtime = { path = "runtimes/base" }
-penpal-runtime = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "release-v0.9.430" }

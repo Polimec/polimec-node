@@ -9,7 +9,7 @@ fn dmp() {
 		remark: "Hello from Polkadot!".as_bytes().to_vec(),
 	});
 	let sudo_origin = PolkadotOrigin::root();
-	let para_id = 3344;
+	let para_id = Polimec::para_id();
 	let xcm = VersionedXcm::from(Xcm(vec![
 		UnpaidExecution { weight_limit: Unlimited, check_origin: None },
 		Transact {
@@ -20,7 +20,7 @@ fn dmp() {
 	]));
 
 	PolkadotRelay::execute_with(|| {
-		assert_ok!(PolkadotXcmPallet::send(sudo_origin, bx!(Parachain(para_id).into()), bx!(xcm),));
+		assert_ok!(PolkadotXcmPallet::send(sudo_origin, bx!(Parachain(para_id.into()).into()), bx!(xcm),));
 
 		assert_expected_events!(
 			PolkadotRelay,

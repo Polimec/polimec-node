@@ -15,7 +15,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 pub mod constants;
-#[cfg(test)]
+
+#[cfg(all(test, feature = "std", feature = "testing-node"))]
 mod tests;
 
 pub use constants::{accounts::*, penpal, polimec, polkadot, statemint};

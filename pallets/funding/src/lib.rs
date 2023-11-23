@@ -173,7 +173,6 @@
 #![cfg_attr(feature = "runtime-benchmarks", recursion_limit = "512")]
 
 use frame_support::{
-	pallet_prelude::Weight,
 	traits::{
 		tokens::{fungible, fungibles, Balance},
 		Randomness,
@@ -181,7 +180,6 @@ use frame_support::{
 	BoundedVec, PalletId,
 };
 pub use pallet::*;
-use parity_scale_codec::Encode;
 use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
@@ -265,8 +263,9 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_balances::Config<Balance = BalanceOf<Self>> {
-		/// Helper trait for benchmarks.
+	pub trait Config:
+		frame_system::Config + pallet_balances::Config<Balance = BalanceOf<Self>> + pallet_xcm::Config
+	{
 		type AllPalletsWithoutSystem: frame_support::traits::OnFinalize<BlockNumberOf<Self>>
 			+ frame_support::traits::OnIdle<BlockNumberOf<Self>>
 			+ frame_support::traits::OnInitialize<BlockNumberOf<Self>>;
@@ -276,6 +275,11 @@ pub mod pallet {
 			+ IsType<<Self as frame_system::Config>::RuntimeEvent>
 			+ Parameter
 			+ Member;
+
+		type RuntimeOrigin: IsType<<Self as frame_system::Config>::RuntimeOrigin>
+			+ Into<Result<pallet_xcm::Origin, <Self as Config>::RuntimeOrigin>>;
+
+		type RuntimeCall: Parameter + IsType<<Self as frame_system::Config>::RuntimeCall> + From<Call<Self>>;
 
 		/// Global identifier for the projects.
 		type ProjectIdentifier: Parameter + Copy + Default + One + Saturating + From<u32> + Ord + MaxEncodedLen;
@@ -406,6 +410,8 @@ pub mod pallet {
 		type DaysToBlocks: Convert<FixedU128, BlockNumberOf<Self>>;
 
 		type BlockNumberToBalance: Convert<BlockNumberOf<Self>, BalanceOf<Self>>;
+
+		type PolimecReceiverInfo: Get<PalletInfo>;
 	}
 
 	#[pallet::storage]
@@ -762,6 +768,17 @@ pub mod pallet {
 			project_id: T::ProjectIdentifier,
 			caller: T::AccountId,
 		},
+		MigrationCheckResponseAccepted {
+			query_id: xcm::v3::QueryId,
+			response: xcm::v3::Response,
+		},
+		MigrationCheckResponseRejected {
+			query_id: xcm::v3::QueryId,
+			response: xcm::v3::Response,
+		},
+		MigrationStarted {
+			project_id: T::ProjectIdentifier,
+		},
 	}
 
 	#[pallet::error]
@@ -824,8 +841,8 @@ pub mod pallet {
 		TooEarlyForFundingEnd,
 		/// Checks for other projects not copying metadata of others
 		MetadataAlreadyExists,
-		/// The specified project info does not exist
-		ProjectInfoNotFound,
+		/// The specified project details does not exist
+		ProjectDetailsNotFound,
 		/// Tried to finish an evaluation before its target end block
 		EvaluationPeriodNotEnded,
 		/// Tried to access field that is not set
@@ -856,6 +873,7 @@ pub mod pallet {
 		ContributionNotFound,
 		/// Tried to start a migration check but the bidirectional channel is not yet open
 		CommsNotEstablished,
+		XcmFailed,
 	}
 
 	#[pallet::call]
@@ -1117,6 +1135,29 @@ pub mod pallet {
 			let caller = ensure_signed(origin)?;
 			Self::do_set_para_id_for_project(&caller, project_id, para_id)
 		}
+
+		#[pallet::call_index(22)]
+		#[pallet::weight(Weight::from_parts(1000, 0))]
+		pub fn start_migration_readiness_check(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+		) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			Self::do_start_migration_readiness_check(&caller, project_id)
+		}
+
+		/// Called only by other chains through a query response xcm message
+		#[pallet::call_index(23)]
+		#[pallet::weight(Weight::from_parts(1000, 0))]
+		pub fn migration_check_response(
+			origin: OriginFor<T>,
+			query_id: xcm::v3::QueryId,
+			response: xcm::v3::Response,
+		) -> DispatchResult {
+			let location = ensure_response(<T as Config>::RuntimeOrigin::from(origin))?;
+
+			Self::do_migration_check_response(location, query_id, response)
+		}
 	}
 
 	#[pallet::hooks]
@@ -1220,6 +1261,7 @@ pub mod pallet {
 
 	#[cfg(all(feature = "testing-node", feature = "std"))]
 	use frame_support::traits::{OnFinalize, OnIdle, OnInitialize, OriginTrait};
+	use pallet_xcm::ensure_response;
 
 	#[cfg(all(feature = "testing-node", feature = "std"))]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
@@ -1303,6 +1345,7 @@ pub mod pallet {
 		}
 	}
 
+	// #[cfg(feature = "std")]
 	#[cfg(all(feature = "testing-node", feature = "std"))]
 	impl<T: Config> GenesisConfig<T>
 	where
@@ -1333,135 +1376,15 @@ pub mod pallet {
 
 pub mod xcm_executor_impl {
 	use super::*;
-	use crate::ProjectStatus::FundingSuccessful;
 
-	pub struct HrmpHandler<T: Config, XcmSender: SendXcm>(PhantomData<(T, XcmSender)>);
-	impl<T: Config, XcmSender: SendXcm> polimec_xcm_executor::HrmpHandler for HrmpHandler<T, XcmSender> {
+	pub struct HrmpHandler<T: Config>(PhantomData<T>);
+	impl<T: Config> polimec_xcm_executor::HrmpHandler for HrmpHandler<T> {
 		fn handle_channel_open_request(message: Instruction) -> XcmResult {
-			// TODO: set these constants with a proper value
-			const MAX_MESSAGE_SIZE_THRESHOLDS: (u32, u32) = (50000, 102_400);
-			const MAX_CAPACITY_THRESHOLDS: (u32, u32) = (8, 1000);
-			const REQUIRED_MAX_CAPACITY: u32 = 8u32;
-			const REQUIRED_MAX_MESSAGE_SIZE: u32 = 102_400u32;
-			const EXECUTION_DOT: MultiAsset = MultiAsset {
-				id: Concrete(MultiLocation { parents: 0, interior: Here }),
-				fun: Fungible(1_0_000_000_000u128),
-			};
-			const MAX_WEIGHT: Weight = Weight::from_parts(20_000_000_000, 1_000_000);
-			const POLIMEC_PARA_ID: u32 = 3355u32;
-
-			log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest received: {:?}", message);
-
-			match message {
-				Instruction::HrmpNewChannelOpenRequest { sender, max_message_size, max_capacity }
-					if max_message_size >= MAX_MESSAGE_SIZE_THRESHOLDS.0 &&
-						max_message_size <= MAX_MESSAGE_SIZE_THRESHOLDS.1 &&
-						max_capacity >= MAX_CAPACITY_THRESHOLDS.0 &&
-						max_capacity <= MAX_CAPACITY_THRESHOLDS.1 =>
-				{
-					log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest accepted");
-
-					let (project_id, mut project_details) = ProjectsDetails::<T>::iter()
-						.find(|(_id, details)| {
-							details.parachain_id == Some(ParaId::from(sender)) && details.status == FundingSuccessful
-						})
-						.ok_or(XcmError::BadOrigin)?;
-
-					let accept_channel_relay_call =
-						polkadot_runtime::RuntimeCall::Hrmp(polkadot_runtime_parachains::hrmp::Call::<
-							polkadot_runtime::Runtime,
-						>::hrmp_accept_open_channel {
-							sender: ParaId::from(sender),
-						})
-						.encode();
-
-					let request_channel_relay_call =
-						polkadot_runtime::RuntimeCall::Hrmp(polkadot_runtime_parachains::hrmp::Call::<
-							polkadot_runtime::Runtime,
-						>::hrmp_init_open_channel {
-							recipient: ParaId::from(sender),
-							proposed_max_capacity: REQUIRED_MAX_CAPACITY,
-							proposed_max_message_size: REQUIRED_MAX_MESSAGE_SIZE,
-						})
-						.encode();
-
-					let xcm: Xcm<()> = Xcm(vec![
-						WithdrawAsset(vec![EXECUTION_DOT.clone()].into()),
-						BuyExecution { fees: EXECUTION_DOT.clone(), weight_limit: Unlimited },
-						Transact {
-							origin_kind: OriginKind::Native,
-							require_weight_at_most: MAX_WEIGHT,
-							call: accept_channel_relay_call.into(),
-						},
-						Transact {
-							origin_kind: OriginKind::Native,
-							require_weight_at_most: MAX_WEIGHT,
-							call: request_channel_relay_call.into(),
-						},
-						RefundSurplus,
-						DepositAsset {
-							assets: Wild(All),
-							beneficiary: MultiLocation { parents: 0, interior: X1(Parachain(POLIMEC_PARA_ID)) },
-						},
-					]);
-					let mut message = Some(xcm);
-
-					let dest_loc = MultiLocation { parents: 1, interior: Here };
-					let mut destination = Some(dest_loc);
-					let (ticket, _price) = XcmSender::validate(&mut destination, &mut message)?;
-
-					match XcmSender::deliver(ticket) {
-						Ok(_) => {
-							log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest: acceptance successfully sent");
-							project_details.hrmp_channel_status.project_to_polimec = ChannelStatus::Open;
-							project_details.hrmp_channel_status.polimec_to_project = ChannelStatus::AwaitingAcceptance;
-							ProjectsDetails::<T>::insert(project_id, project_details);
-
-							Pallet::<T>::deposit_event(Event::<T>::HrmpChannelAccepted {
-								project_id,
-								para_id: ParaId::from(sender),
-							});
-							Ok(())
-						},
-						Err(e) => {
-							log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest: acceptance sending failed - {:?}", e);
-							Err(XcmError::Unimplemented)
-						},
-					}
-				},
-				instr @ _ => {
-					log::trace!(target: "pallet_funding::hrmp", "Bad instruction: {:?}", instr);
-					Err(XcmError::Unimplemented)
-				},
-			}
+			<Pallet<T>>::do_handle_channel_open_request(message)
 		}
 
 		fn handle_channel_accepted(message: Instruction) -> XcmResult {
-			log::trace!(target: "pallet_funding::hrmp", "Hrmp received: {:?}", message);
-
-			match message {
-				Instruction::HrmpChannelAccepted { recipient } => {
-					log::trace!(target: "pallet_funding::hrmp", "HrmpChannelAccepted received: {:?}", message);
-					let (project_id, mut project_details) = ProjectsDetails::<T>::iter()
-						.find(|(_id, details)| {
-							details.parachain_id == Some(ParaId::from(recipient)) && details.status == FundingSuccessful
-						})
-						.ok_or(XcmError::BadOrigin)?;
-
-					project_details.hrmp_channel_status.polimec_to_project = ChannelStatus::Open;
-					ProjectsDetails::<T>::insert(project_id, project_details);
-
-					Pallet::<T>::deposit_event(Event::<T>::HrmpChannelEstablished {
-						project_id,
-						para_id: ParaId::from(recipient),
-					});
-					Ok(())
-				},
-				instr @ _ => {
-					log::trace!(target: "pallet_funding::hrmp", "Bad instruction: {:?}", instr);
-					Err(XcmError::Unimplemented)
-				},
-			}
+			<Pallet<T>>::do_handle_channel_accepted(message)
 		}
 	}
 }

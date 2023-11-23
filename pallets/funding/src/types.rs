@@ -144,7 +144,7 @@ pub mod storage_types {
 		pub token_information: CurrencyMetadata<BoundedString>,
 		/// Mainnet Token Max Supply
 		pub mainnet_token_max_supply: Balance,
-		/// Total allocation of Contribution Tokens available for the Funding Round
+		/// Total allocation of Contribution Tokens available for the Funding Round. (Auction, Community)
 		pub total_allocation_size: (Balance, Balance),
 		/// Minimum price per Contribution Token
 		pub minimum_price: Price,
@@ -677,13 +677,22 @@ pub mod inner_types {
 	}
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum MigrationReadinessCheck {
-		/// Sent an xcm to the project to check if it is ready to migrate
-		QuerySent,
-		/// The response was satisfactory
-		CheckPassed,
-		/// The response was not satisfactory or timed out
-		CheckFailed,
+	pub struct MigrationReadinessCheck {
+		pub holding_check: (xcm::v3::QueryId, CheckOutcome),
+		pub pallet_check: (xcm::v3::QueryId, CheckOutcome),
+	}
+
+	impl MigrationReadinessCheck {
+		pub fn is_ready(&self) -> bool {
+			self.holding_check.1 == CheckOutcome::Passed && self.pallet_check.1 == CheckOutcome::Passed
+		}
+	}
+
+	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum CheckOutcome {
+		AwaitingResponse,
+		Passed,
+		Failed,
 	}
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]

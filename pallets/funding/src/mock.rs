@@ -18,7 +18,9 @@
 
 //! Test environment for Funding pallet.
 
+use super::*;
 use frame_support::{
+	pallet_prelude::Weight,
 	parameter_types,
 	traits::{AsEnsureOriginWithArg, ConstU16, ConstU32, WithdrawReasons},
 	PalletId,
@@ -34,10 +36,6 @@ use sp_runtime::{
 };
 use sp_std::collections::btree_map::BTreeMap;
 use system::EnsureSigned;
-
-use crate as pallet_funding;
-
-use super::*;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<TestRuntime>;
 type Block = frame_system::mocking::MockBlock<TestRuntime>;
@@ -65,10 +63,11 @@ frame_support::construct_runtime!(
 		System: frame_system,
 		RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip,
 		Balances: pallet_balances,
-		FundingModule: pallet_funding,
+		FundingModule: crate,
 		Vesting: pallet_linear_release,
 		LocalAssets: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>},
 		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>},
+		PolkadotXcm: pallet_xcm,
 	}
 );
 
@@ -82,6 +81,84 @@ pub const fn deposit(items: u32, bytes: u32) -> Balance {
 
 pub const fn free_deposit() -> Balance {
 	0 * MICRO_PLMC
+}
+
+use frame_support::traits::{Everything, OriginTrait};
+use frame_system::RawOrigin as SystemRawOrigin;
+use polkadot_parachain::primitives::Sibling;
+use sp_runtime::traits::Get;
+use xcm_builder::{EnsureXcmOrigin, FixedWeightBounds, ParentIsPreset, SiblingParachainConvertsVia};
+use xcm_executor::traits::Convert;
+
+pub struct SignedToAccountIndex<RuntimeOrigin, AccountId, Network>(PhantomData<(RuntimeOrigin, AccountId, Network)>);
+impl<RuntimeOrigin: OriginTrait + Clone, AccountId: Into<u64>, Network: Get<Option<NetworkId>>>
+	Convert<RuntimeOrigin, MultiLocation> for SignedToAccountIndex<RuntimeOrigin, AccountId, Network>
+where
+	RuntimeOrigin::PalletsOrigin:
+		From<SystemRawOrigin<AccountId>> + TryInto<SystemRawOrigin<AccountId>, Error = RuntimeOrigin::PalletsOrigin>,
+{
+	fn convert(o: RuntimeOrigin) -> Result<MultiLocation, RuntimeOrigin> {
+		o.try_with_caller(|caller| match caller.try_into() {
+			Ok(SystemRawOrigin::Signed(who)) =>
+				Ok(Junction::AccountIndex64 { network: Network::get(), index: who.into() }.into()),
+			Ok(other) => Err(other.into()),
+			Err(other) => Err(other),
+		})
+	}
+}
+pub type LocalOriginToLocation = SignedToAccountIndex<RuntimeOrigin, AccountId, RelayNetwork>;
+pub type LocationToAccountId = (
+	// The parent (Relay-chain) origin converts to the parent `AccountId`.
+	ParentIsPreset<AccountId>,
+	// Sibling parachain origins convert to AccountId via the `ParaId::into`.
+	SiblingParachainConvertsVia<Sibling, AccountId>,
+);
+#[cfg(feature = "runtime-benchmarks")]
+parameter_types! {
+	pub ReachableDest: Option<MultiLocation> = Some(Parent.into());
+}
+parameter_types! {
+	pub UniversalLocation: InteriorMultiLocation = (
+		GlobalConsensus(Polkadot),
+		 Parachain(functions::POLIMEC_PARA_ID.into()),
+	).into();
+	pub const RelayNetwork: Option<NetworkId> = None;
+	pub UnitWeightCost: Weight = Weight::from_parts(1_000_000_000, 64 * 1024);
+	pub const MaxInstructions: u32 = 100;
+
+	pub const HereLocation: MultiLocation = MultiLocation::here();
+}
+impl pallet_xcm::Config for TestRuntime {
+	type AdminOrigin = EnsureRoot<AccountId>;
+	// ^ Override for AdvertisedXcmVersion default
+	type AdvertisedXcmVersion = pallet_xcm::CurrentXcmVersion;
+	type Currency = Balances;
+	type CurrencyMatcher = ();
+	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
+	type MaxLockers = ConstU32<8>;
+	type MaxRemoteLockConsumers = ConstU32<0>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type ReachableDest = ReachableDest;
+	type RemoteLockConsumerIdentifier = ();
+	type RuntimeCall = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeOrigin = RuntimeOrigin;
+	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
+	type SovereignAccountOf = LocationToAccountId;
+	type TrustedLockers = ();
+	type UniversalLocation = UniversalLocation;
+	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
+	type WeightInfo = pallet_xcm::TestWeightInfo;
+	// TODO: change back to `Nothing` once we add the xcm functionalities into a pallet
+	type XcmExecuteFilter = Everything;
+	// ^ Disable dispatchable execute on the XCM pallet.
+	// Needs to be `Everything` for local testing.
+	type XcmExecutor = ();
+	type XcmReserveTransferFilter = Everything;
+	type XcmRouter = ();
+	type XcmTeleportFilter = Everything;
+
+	const VERSION_DISCOVERY_QUEUE_SIZE: u32 = 100;
 }
 
 parameter_types! {
@@ -225,6 +302,9 @@ parameter_types! {
 	pub const MinVestedTransfer: u64 = 256 * 2;
 	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
 		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
+	pub PolimecReceiverInfo: xcm::v3::PalletInfo = xcm::v3::PalletInfo::new(
+		51, "PolimecReceiver".into(), "polimec_receiver".into(), 0, 1, 0
+	).unwrap();
 }
 impl pallet_linear_release::Config for TestRuntime {
 	type Balance = Balance;
@@ -240,7 +320,6 @@ impl pallet_linear_release::Config for TestRuntime {
 }
 
 impl Config for TestRuntime {
-	// #[cfg(feature = "runtime-benchmarks")]
 	type AllPalletsWithoutSystem = AllPalletsWithoutSystem;
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;
@@ -265,13 +344,16 @@ impl Config for TestRuntime {
 	type Multiplier = Multiplier;
 	type NativeCurrency = Balances;
 	type PalletId = FundingPalletId;
+	type PolimecReceiverInfo = PolimecReceiverInfo;
 	type PreImageLimit = ConstU32<1024>;
 	type Price = FixedU128;
 	type PriceProvider = ConstPriceProvider<AssetId, FixedU128, PriceMap>;
 	type ProjectIdentifier = Identifier;
 	type Randomness = RandomnessCollectiveFlip;
 	type RemainderFundingDuration = RemainderFundingDuration;
+	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeOrigin = RuntimeOrigin;
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type TreasuryAccount = TreasuryAccount;

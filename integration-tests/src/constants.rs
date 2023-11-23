@@ -299,18 +299,24 @@ pub mod polimec {
 // Penpal
 pub mod penpal {
 	use super::*;
+	use crate::{ParaId, Penpal};
+	use xcm::{prelude::Parachain, v3::Parent};
 	pub const PARA_ID: u32 = 6969;
 	pub const ED: Balance = penpal_runtime::EXISTENTIAL_DEPOSIT;
 
 	pub fn genesis() -> Storage {
+		let mut funded_accounts = vec![
+			(Penpal::sovereign_account_id_of((Parent, Parachain(statemint::PARA_ID)).into()), INITIAL_DEPOSIT),
+			(Penpal::sovereign_account_id_of((Parent, Parachain(polimec::PARA_ID)).into()), 2_000_000_0_000_000_000), // i.e the CTs sold on polimec
+		];
+		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
+
 		let genesis_config = penpal_runtime::GenesisConfig {
 			system: penpal_runtime::SystemConfig {
 				code: penpal_runtime::WASM_BINARY.expect("WASM binary was not build, please build it!").to_vec(),
 			},
-			balances: penpal_runtime::BalancesConfig {
-				balances: accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)).collect(),
-			},
-			parachain_info: penpal_runtime::ParachainInfoConfig { parachain_id: PARA_ID.into() },
+			balances: penpal_runtime::BalancesConfig { balances: funded_accounts },
+			parachain_info: penpal_runtime::ParachainInfoConfig { parachain_id: ParaId::from(PARA_ID) },
 			collator_selection: penpal_runtime::CollatorSelectionConfig {
 				invulnerables: collators::invulnerables().iter().cloned().map(|(acc, _)| acc).collect(),
 				candidacy_bond: ED * 16,

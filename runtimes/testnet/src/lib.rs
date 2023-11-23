@@ -66,7 +66,7 @@ pub use crate::xcm_config::*;
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 // Polimec Shared Imports
-use pallet_funding::{BondTypeOf, DaysToBlocks, ConstPriceProvider};
+use pallet_funding::{BondTypeOf, ConstPriceProvider, DaysToBlocks};
 pub use pallet_parachain_staking;
 pub use shared_configuration::*;
 
@@ -495,6 +495,9 @@ impl pallet_assets::Config<StatemintAssetsInstance> for Runtime {
 
 parameter_types! {
 	pub TreasuryAccount: AccountId = [69u8; 32].into();
+	pub PolimecReceiverInfo: xcm::v3::PalletInfo = xcm::v3::PalletInfo::new(
+		51, "PolimecReceiver".into(), "polimec_receiver".into(), 0, 1, 0
+	).unwrap();
 }
 impl pallet_funding::Config for Runtime {
 	type AllPalletsWithoutSystem = (Balances, LocalAssets, StatemintAssets, PolimecFunding, LinearVesting, Random);
@@ -520,13 +523,16 @@ impl pallet_funding::Config for Runtime {
 	type Multiplier = pallet_funding::types::Multiplier;
 	type NativeCurrency = Balances;
 	type PalletId = FundingPalletId;
+	type PolimecReceiverInfo = PolimecReceiverInfo;
 	type PreImageLimit = ConstU32<1024>;
 	type Price = Price;
 	type PriceProvider = ConstPriceProvider<AssetId, FixedU128, PriceMap>;
 	type ProjectIdentifier = u32;
 	type Randomness = Random;
 	type RemainderFundingDuration = RemainderFundingDuration;
+	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeOrigin = RuntimeOrigin;
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type TreasuryAccount = TreasuryAccount;
@@ -615,6 +621,7 @@ impl orml_oracle::Config<PolimecDataProvider> for Runtime {
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
+
 construct_runtime!(
 	pub enum Runtime where
 		Block = Block,
