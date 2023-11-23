@@ -9,6 +9,7 @@ use tests::defaults::*;
 #[test]
 fn migration_check() {
 	let mut inst = IntegrationInstantiator::new(None);
+	set_oracle_prices();
 	let project_id = Polimec::execute_with(|| {
 		inst.create_finished_project(
 			default_project(issuer(), 0),
@@ -56,6 +57,8 @@ fn migration_check() {
 #[test]
 fn migration_is_sent() {
 	let mut inst = IntegrationInstantiator::new(None);
+	set_oracle_prices();
+
 	let project_id = Polimec::execute_with(|| {
 		inst.create_finished_project(
 			default_project(issuer(), 0),
@@ -134,6 +137,8 @@ fn migration_is_sent() {
 #[test]
 fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 	let mut inst = IntegrationInstantiator::new(None);
+	set_oracle_prices();
+
 	let project_id = Polimec::execute_with(|| {
 		inst.create_finished_project(
 			default_project(issuer(), 0),
@@ -226,6 +231,7 @@ fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 	});
 
 	Penpal::execute_with(|| {
+		dbg!(Penpal::events());
 		assert_expected_events!(
 			Penpal,
 			vec![
@@ -270,6 +276,8 @@ fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 #[test]
 fn vesting_over_several_blocks_on_project() {
 	let mut inst = IntegrationInstantiator::new(None);
+	set_oracle_prices();
+
 	let mut bids = Vec::new();
 	let mut contributions = Vec::new();
 	let multiplier_for_vesting = MultiplierOf::<PolimecRuntime>::try_from(10u8).unwrap();

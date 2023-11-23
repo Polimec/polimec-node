@@ -69,7 +69,7 @@ pub mod pallet {
 		T::AccountId: From<[u8; 32]>,
 	{
 		#[pallet::call_index(0)]
-		#[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
+		#[pallet::weight(Weight::from_parts(10_000, 0))]
 		pub fn migrate_for_user(
 			origin: OriginFor<T>,
 			user: [u8; 32],

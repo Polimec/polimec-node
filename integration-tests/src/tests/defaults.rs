@@ -1,12 +1,17 @@
-use frame_support::BoundedVec;
+use std::collections::HashMap;
+use frame_support::{assert_ok, bounded_vec, BoundedVec};
+use sp_arithmetic::FixedU128;
 pub use pallet_funding::instantiator::{BidParams, ContributionParams, UserToPLMCBalance, UserToUSDBalance};
 use pallet_funding::{
 	AcceptedFundingAsset, CurrencyMetadata, ParticipantsSize, ProjectMetadata, ProjectMetadataOf, TicketSize,
 };
 use sp_core::H256;
 
+use crate::PolimecOrigin;
 use polimec_parachain_runtime::AccountId;
 use sp_runtime::{traits::ConstU32, FixedPointNumber, Perquintill};
+use xcm_emulator::TestExt;
+
 pub const METADATA: &str = r#"METADATA
         {
             "whitepaper":"ipfs_url",
@@ -138,7 +143,57 @@ pub fn default_contributors() -> Vec<AccountId> {
 	vec![buyer_1(), buyer_2(), buyer_3(), buyer_4(), buyer_5()]
 }
 
-use crate::{Polimec, PolimecRuntime};
+use crate::{ALICE, BOB, CHARLIE, Polimec, PolimecRuntime};
+
+pub fn set_oracle_prices() {
+
+	Polimec::execute_with(|| {
+		fn values(
+			values: [f64; 4],
+		) -> BoundedVec<
+			(u32, FixedU128),
+			<polimec_parachain_runtime::Runtime as orml_oracle::Config<orml_oracle::Instance1>>::MaxFeedValues,
+		> {
+			let [dot, usdc, usdt, plmc] = values;
+			bounded_vec![
+				(0u32, FixedU128::from_float(dot)),
+				(420u32, FixedU128::from_float(usdc)),
+				(1984u32, FixedU128::from_float(usdt)),
+				(2069u32, FixedU128::from_float(plmc))
+			]
+		}
+
+		let alice = Polimec::account_id_of(ALICE);
+		assert_ok!(polimec_parachain_runtime::Oracle::feed_values(
+			PolimecOrigin::signed(alice.clone()),
+			values([4.84, 1.0, 1.0, 0.4])
+		));
+
+		let bob = Polimec::account_id_of(BOB);
+		assert_ok!(polimec_parachain_runtime::Oracle::feed_values(
+			PolimecOrigin::signed(bob.clone()),
+			values([4.84, 1.0, 1.0, 0.4])
+		));
+
+		let charlie = Polimec::account_id_of(CHARLIE);
+		assert_ok!(polimec_parachain_runtime::Oracle::feed_values(
+			PolimecOrigin::signed(charlie.clone()),
+			values([4.84, 1.0, 1.0, 0.4])
+		));
+
+		let expected_values = HashMap::from([
+			(0u32, FixedU128::from_float(4.84)),
+			(420u32, FixedU128::from_float(1.0)),
+			(1984u32, FixedU128::from_float(1.0)),
+			(2069u32, FixedU128::from_float(0.4)),
+		]);
+
+		for (key, value) in polimec_parachain_runtime::Oracle::get_all_values() {
+			assert!(value.is_some());
+			assert_eq!(expected_values.get(&key).unwrap(), &value.unwrap().value);
+		}
+	});
+}
 
 #[test]
 fn something() {

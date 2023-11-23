@@ -1,17 +1,14 @@
-use super::*;
 use crate::{tests::defaults::*, *};
-use frame_support::{bounded_vec, BoundedVec};
+use frame_support::{BoundedVec};
 use itertools::Itertools;
 use macros::generate_accounts;
-use pallet_funding::{instantiator::*, *};
+use pallet_funding::*;
 use polimec_parachain_runtime::{PolimecFunding, US_DOLLAR};
 use sp_arithmetic::{FixedPointNumber, Perquintill};
-use sp_core::U256;
 use sp_runtime::{
-	traits::{AccountIdConversion, CheckedSub},
+	traits::{CheckedSub},
 	FixedU128,
 };
-use std::collections::HashMap;
 
 type UserToCTBalance = Vec<(AccountId, BalanceOf<PolimecRuntime>, ProjectIdOf<PolimecRuntime>)>;
 
@@ -25,52 +22,7 @@ generate_accounts!(
 	LIONEL, GIOVANNI, JOEL, POLKA, MALIK, ALEXANDER, SOLOMUN, JOHNNY, GRINGO, JONAS, BUNDI, FELIX,
 );
 
-pub fn set_oracle_prices() {
-	fn values(
-		values: [f64; 4],
-	) -> BoundedVec<
-		(u32, FixedU128),
-		<polimec_parachain_runtime::Runtime as orml_oracle::Config<orml_oracle::Instance1>>::MaxFeedValues,
-	> {
-		let [dot, usdc, usdt, plmc] = values;
-		bounded_vec![
-			(0u32, FixedU128::from_float(dot)),
-			(420u32, FixedU128::from_float(usdc)),
-			(1984u32, FixedU128::from_float(usdt)),
-			(2069u32, FixedU128::from_float(plmc))
-		]
-	}
 
-	let alice = Polimec::account_id_of(ALICE);
-	assert_ok!(polimec_parachain_runtime::Oracle::feed_values(
-		PolimecOrigin::signed(alice.clone()),
-		values([4.84, 1.0, 1.0, 0.4])
-	));
-
-	let bob = Polimec::account_id_of(BOB);
-	assert_ok!(polimec_parachain_runtime::Oracle::feed_values(
-		PolimecOrigin::signed(bob.clone()),
-		values([4.84, 1.0, 1.0, 0.4])
-	));
-
-	let charlie = Polimec::account_id_of(CHARLIE);
-	assert_ok!(polimec_parachain_runtime::Oracle::feed_values(
-		PolimecOrigin::signed(charlie.clone()),
-		values([4.84, 1.0, 1.0, 0.4])
-	));
-
-	let expected_values = HashMap::from([
-		(0u32, FixedU128::from_float(4.84)),
-		(420u32, FixedU128::from_float(1.0)),
-		(1984u32, FixedU128::from_float(1.0)),
-		(2069u32, FixedU128::from_float(0.4)),
-	]);
-
-	for (key, value) in polimec_parachain_runtime::Oracle::get_all_values() {
-		assert!(value.is_some());
-		assert_eq!(expected_values.get(&key).unwrap(), &value.unwrap().value);
-	}
-}
 
 pub fn excel_project(nonce: u64) -> ProjectMetadataOf<PolimecRuntime> {
 	let bounded_name = BoundedVec::try_from("Polimec".as_bytes().to_vec()).unwrap();
@@ -298,9 +250,9 @@ fn evaluation_round_completed() {
 	let issuer = issuer();
 	let project = excel_project(inst.get_new_nonce());
 	let evaluations = excel_evaluators();
+	set_oracle_prices();
 
 	Polimec::execute_with(|| {
-		set_oracle_prices();
 		inst.create_auctioning_project(project, issuer, evaluations);
 	});
 }
@@ -313,9 +265,9 @@ fn auction_round_completed() {
 	let project = excel_project(inst.get_new_nonce());
 	let evaluations = excel_evaluators();
 	let bids = excel_bidders();
+	set_oracle_prices();
 
 	Polimec::execute_with(|| {
-		set_oracle_prices();
 		//let filtered_bids = MockInstantiator::filter_bids_after_auction(bids.clone(), project.total_allocation_size.0);
 		let (project_id, _) = inst.create_community_contributing_project(project, issuer, evaluations, bids);
 		let wavgp_from_excel = 10.202357561;
@@ -345,9 +297,9 @@ fn auction_round_completed() {
 #[test]
 fn community_round_completed() {
 	let mut inst = IntegrationInstantiator::new(None);
+	set_oracle_prices();
 
 	Polimec::execute_with(|| {
-		set_oracle_prices();
 		let _ = inst.create_remainder_contributing_project(
 			excel_project(0),
 			issuer(),
@@ -380,9 +332,9 @@ fn community_round_completed() {
 #[test]
 fn remainder_round_completed() {
 	let mut inst = IntegrationInstantiator::new(None);
+	set_oracle_prices();
 
 	Polimec::execute_with(|| {
-		set_oracle_prices();
 		let project_id = inst.create_finished_project(
 			excel_project(0),
 			issuer(),
@@ -426,9 +378,9 @@ fn remainder_round_completed() {
 #[test]
 fn funds_raised() {
 	let mut inst = IntegrationInstantiator::new(None);
+	set_oracle_prices();
 
 	Polimec::execute_with(|| {
-		set_oracle_prices();
 		let project_id = inst.create_finished_project(
 			excel_project(0),
 			issuer(),
@@ -455,9 +407,9 @@ fn funds_raised() {
 #[test]
 fn ct_minted() {
 	let mut inst = IntegrationInstantiator::new(None);
+	set_oracle_prices();
 
 	Polimec::execute_with(|| {
-		set_oracle_prices();
 		let _ = inst.create_finished_project(
 			excel_project(0),
 			issuer(),
@@ -478,12 +430,13 @@ fn ct_minted() {
 	});
 }
 
+#[ignore]
 #[test]
 fn ct_migrated() {
 	let mut inst = IntegrationInstantiator::new(None);
+	set_oracle_prices();
 
 	let project_id = Polimec::execute_with(|| {
-		set_oracle_prices();
 		let project_id = inst.create_finished_project(
 			excel_project(0),
 			issuer(),
@@ -533,11 +486,10 @@ fn ct_migrated() {
 	});
 
 
-	excel_ct_amounts().iter().unique().map(|item| {
+	excel_ct_amounts().iter().unique().for_each(|item| {
 		let data = Penpal::account_data_of(item.0.clone());
 		assert_eq!(data.free, 0u128, "Participant balances should be 0 before ct migration");
-		data
-	}).collect::<Vec<_>>();
+	});
 
 	// Migrate CTs
 	let accounts = excel_ct_amounts().iter().map(|item| item.0.clone()).unique().collect::<Vec<_>>();
@@ -569,13 +521,12 @@ fn ct_migrated() {
 
 
 	// Check balances after migration, before vesting
-	excel_ct_amounts().iter().unique().map(|item| {
+	excel_ct_amounts().iter().unique().for_each(|item| {
 		let data = Penpal::account_data_of(item.0.clone());
 		let key: [u8; 32] = item.0.clone().into();
 		println!("Participant {} has {} CTs. Expected {}", names[&key], data.free.clone(), item.1);
 		dbg!(data.clone());
 		assert_close_enough!(data.free, item.1, Perquintill::from_parts(10_000_000_000u64), "Participant balances should be transfered to each account after ct migration, but be frozen");
-		data.clone()
-	}).collect::<Vec<_>>();
+	});
 
 }

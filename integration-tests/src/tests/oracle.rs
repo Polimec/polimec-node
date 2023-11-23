@@ -100,7 +100,7 @@ fn pallet_funding_works() {
 		let charlie = Polimec::account_id_of(CHARLIE);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(charlie.clone()), values([4.84, 1.0, 1.0, 0.4])));
 
-		let project_id = inst.create_finished_project(
+		let _project_id = inst.create_finished_project(
 			default_project(issuer(), 0),
 			issuer(),
 			default_evaluations(),

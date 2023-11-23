@@ -86,7 +86,6 @@ pub const fn free_deposit() -> Balance {
 use frame_support::traits::{Everything, OriginTrait};
 use frame_system::RawOrigin as SystemRawOrigin;
 use polkadot_parachain::primitives::Sibling;
-use sp_core::crypto::Dummy;
 use sp_runtime::traits::Get;
 use xcm_builder::{EnsureXcmOrigin, FixedWeightBounds, ParentIsPreset, SiblingParachainConvertsVia};
 use xcm_executor::traits::Convert;
