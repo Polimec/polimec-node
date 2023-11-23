@@ -33,6 +33,9 @@ pub(crate) trait FetchPrice {
         let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(timeout));
         let asset_requests = assets.into_iter().filter_map(|asset| {
             let url = Self::get_url(asset);
+            if url == "" {
+                return None
+            }
             let request = http::Request::get(url);
             
             if let Ok(req) = request.deadline(deadline).send() {

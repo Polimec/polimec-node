@@ -17,9 +17,12 @@
 //! Offchain Worker for Oracle price feed
 #![cfg_attr(not(feature = "std"), no_std)]
 pub use pallet::*;
-use crate::types::{AssetName, AssetRequest};
-use sp_runtime::{traits::Zero, FixedU128, RuntimeAppPublic};
-
+use crate::{
+	traits::FetchPrice,
+	types::{AssetName, AssetRequest, KrakenFetcher}
+};
+use sp_runtime::{traits::{Zero, Saturating}, FixedU128, RuntimeAppPublic};
+use std::collections::HashMap;
 use frame_system::offchain::{AppCrypto, CreateSignedTransaction, SendSignedTransaction, Signer};
 mod mock;
 mod tests;
@@ -33,11 +36,14 @@ mod crypto;
 #[frame_support::pallet]
 pub mod pallet {
 
-use super::*;
+use crate::types::{BitFinexFetcher, BitStampFetcher};
+
+	use super::*;
 	use frame_support::{pallet_prelude::*, traits::Contains};
 	use frame_system::pallet_prelude::*;
 	use frame_system::offchain::SigningTypes;
 	use sp_runtime::traits::IdentifyAccount;
+
 
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	pub type PublicOf<T> = <T as SigningTypes>::Public;
@@ -68,7 +74,6 @@ use super::*;
 		type AppCrypto: AppCrypto<Self::Public, Self::Signature>;
 
 		type Members: frame_support::traits::Contains<Self::AccountId>;
-
 		
 	}
 
@@ -111,8 +116,10 @@ use super::*;
 				let account: AccountIdOf<T> = <PublicOf<T> as IdentifyAccount>::into_account(key.clone().into());
 				if T::Members::contains(&account) && !found_key {
 					found_key = true;
-
-
+					
+					let prices = Self::fetch_prices();
+					println!("Prices: {:?}", prices);
+					
 				} 
 			}
 
@@ -129,9 +136,36 @@ use super::*;
 	impl<T: Config> Pallet<T> {}
 
 	impl<T: Config> Pallet<T> {
-		fn get_average_prices() -> Option<u32> {
+		fn fetch_prices() -> HashMap<AssetName, FixedU128> {
+			let assets: Vec<AssetName> = vec![AssetName::USDT, AssetName::USDC, AssetName::DOT];
+			let kraken_prices = KrakenFetcher::get_moving_average(assets.clone(), 5000);
+			let bitfinex_prices = BitFinexFetcher::get_moving_average(assets.clone(), 5000);
+			let bitstamp_prices = BitStampFetcher::get_moving_average(assets.clone(), 5000);
 			
-			None
+			let mut prices: HashMap<AssetName, Vec<FixedU128>> = HashMap::new();
+			for (asset_name, price) in kraken_prices.into_iter().chain(bitfinex_prices.into_iter()).chain(bitstamp_prices.into_iter()) {
+				prices.entry(asset_name).and_modify(|e| e.push(price)).or_insert(vec![price]);
+			}
+
+			Self::combine_prices(prices)
+
+		}
+
+		fn combine_prices(prices: HashMap<AssetName, Vec<FixedU128>>) -> HashMap<AssetName, FixedU128>{
+
+			prices.into_iter().filter_map(|(key, value)| {
+				let mut value = value;
+				value.sort();
+				match value.len() {
+					0 => None,
+					1 => Some((key, value[0])),
+					2 => Some((key, value[0].saturating_add(value[1]) / FixedU128::from_u32(2u32))),
+					_ => {
+						let value = value[1..value.len()].iter().fold(FixedU128::from_u32(0), |acc, x| acc.saturating_add(*x)) / FixedU128::from_u32((value.len() - 1) as u32 );
+						Some((key, value))
+					}
+				}
+			}).collect::<HashMap<AssetName, FixedU128>>()
 		}
 	}
 }
