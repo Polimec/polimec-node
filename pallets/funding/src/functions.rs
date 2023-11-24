@@ -1985,7 +1985,7 @@ impl<T: Config> Pallet<T> {
 				response_info: QueryResponseInfo {
 					destination: ParentThen(Parachain(POLIMEC_PARA_ID).into()).into(),
 					query_id: 0,
-					max_weight: max_weight,
+					max_weight,
 				},
 				assets: Wild(All),
 			},
@@ -1994,7 +1994,7 @@ impl<T: Config> Pallet<T> {
 				response_info: QueryResponseInfo {
 					destination: ParentThen(Parachain(POLIMEC_PARA_ID).into()).into(),
 					query_id: 1,
-					max_weight: max_weight,
+					max_weight,
 				},
 			},
 			DepositAsset { assets: Wild(All), beneficiary: ParentThen(Parachain(POLIMEC_PARA_ID).into()).into() },
@@ -2172,12 +2172,8 @@ impl<T: Config> Pallet<T> {
 
 			let call: <T as Config>::RuntimeCall =
 				Call::confirm_migrations { query_id: Default::default(), response: Default::default() }.into();
-			let transact_response_query_id = pallet_xcm::Pallet::<T>::new_notify_query(
-				project_multilocation,
-				call.into(),
-				now + 20u32.into(),
-				Here,
-			);
+			let transact_response_query_id =
+				pallet_xcm::Pallet::<T>::new_notify_query(project_multilocation, call.into(), now + 20u32.into(), Here);
 			// TODO: check these values
 			let max_weight = Weight::from_parts(700_000_000, 10_000);
 
