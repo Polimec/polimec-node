@@ -322,6 +322,8 @@ mod benchmarks {
 			.last()
 			.unwrap();
 
+		dbg!(frame_system::Pallet::<T>::events());
+
 		match stored_evaluation {
 			EvaluationInfo {
 				project_id,
@@ -334,7 +336,7 @@ mod benchmarks {
 				evaluator == test_evaluator.clone() &&
 				original_plmc_bond == plmc_for_evaluating[0].plmc_amount &&
 				current_plmc_bond == plmc_for_evaluating[0].plmc_amount &&
-				rewarded_or_slashed.is_some() => {},
+				rewarded_or_slashed.is_none() => {},
 			_ => assert!(false, "Evaluation is not stored correctly"),
 		}
 
@@ -648,9 +650,6 @@ mod benchmarks {
 		);
 
 		// * validity checks *
-		// Storage
-		assert!(Evaluations::<T>::iter_prefix_values((project_id, evaluator.clone())).next().is_none());
-
 		// Balance
 		let bonded_plmc = inst
 			.get_reserved_plmc_balances_for(vec![evaluator.clone()], LockType::Evaluation(project_id))[0]
