@@ -74,7 +74,7 @@ pub enum VestingAction {
 
 impl VestingAction {
 	/// Whether or not the filter says the schedule index should be removed.
-	fn should_remove(&self, index: usize) -> bool {
+	const fn should_remove(&self, index: usize) -> bool {
 		match self {
 			Self::Passive => false,
 			Self::Remove { index: index1 } => *index1 == index,

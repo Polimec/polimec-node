@@ -33,7 +33,11 @@ where
 	BlockNumber: AtLeast32BitUnsigned + Copy + Bounded,
 {
 	/// Instantiate a new `VestingInfo`.
-	pub fn new(locked: Balance, per_block: Balance, starting_block: BlockNumber) -> VestingInfo<Balance, BlockNumber> {
+	pub const fn new(
+		locked: Balance,
+		per_block: Balance,
+		starting_block: BlockNumber,
+	) -> VestingInfo<Balance, BlockNumber> {
 		VestingInfo { locked, per_block, starting_block }
 	}
 
@@ -44,7 +48,7 @@ where
 	}
 
 	/// Locked amount at schedule creation.
-	pub fn locked(&self) -> Balance {
+	pub const fn locked(&self) -> Balance {
 		self.locked
 	}
 
@@ -57,12 +61,12 @@ where
 
 	/// Get the unmodified `per_block`. Generally should not be used, but is useful for
 	/// validating `per_block`.
-	pub(crate) fn raw_per_block(&self) -> Balance {
+	pub(crate) const fn raw_per_block(&self) -> Balance {
 		self.per_block
 	}
 
 	/// Starting block for unlocking(vesting).
-	pub fn starting_block(&self) -> BlockNumber {
+	pub const fn starting_block(&self) -> BlockNumber {
 		self.starting_block
 	}
 
@@ -76,7 +80,7 @@ where
 		vested_block_count
 			.checked_mul(&self.per_block()) // `per_block` accessor guarantees at least 1.
 			.map(|to_unlock| self.locked.saturating_sub(to_unlock))
-			.unwrap_or(Zero::zero())
+			.unwrap_or_else(Zero::zero())
 	}
 
 	/// Amount to be released at block `n`.
@@ -87,7 +91,7 @@ where
 		let vested_block_count = BlockNumberToBalance::convert(time_range);
 		// TODO: Find a way to improve this.
 		// Return amount that is releasable in vesting.
-		let res = vested_block_count.checked_mul(&self.per_block()).unwrap_or(Zero::zero());
+		let res = vested_block_count.checked_mul(&self.per_block()).unwrap_or_else(Zero::zero());
 		res.min(self.locked)
 	}
 
