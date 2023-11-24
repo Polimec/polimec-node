@@ -2773,7 +2773,7 @@ impl<T: Config> Pallet<T> {
 		let available_bytes_for_migration_per_message =
 			T::RequiredMaxMessageSize::get().saturating_sub(xcm_size as u32);
 
-        available_bytes_for_migration_per_message.saturating_div(one_migration_bytes);
+        available_bytes_for_migration_per_message.saturating_div(one_migration_bytes)
 
     }
 
