@@ -137,6 +137,7 @@ runtime-benchmarks = [
 	"statemint-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
+	"pallet-xcm/runtime-benchmarks"
 ]
 testing-node = [
 	"pallet-funding/testing-node",
@@ -144,3 +145,4 @@ testing-node = [
 ]
 try-runtime = []
 fast-gov = [ "polimec-parachain-runtime/fast-gov" ]
+

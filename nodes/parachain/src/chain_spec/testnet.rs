@@ -19,15 +19,11 @@
 //! Polimec Testnet chain specification
 
 use cumulus_primitives_core::ParaId;
-use polimec_parachain_runtime::{
-	pallet_parachain_staking::{
-		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
-		InflationInfo, Range,
-	},
-	AccountId, AuraId as AuthorityId, Balance, BalancesConfig, CouncilConfig, GenesisConfig, LinearVestingConfig,
-	MinCandidateStk, ParachainInfoConfig, ParachainStakingConfig, PolkadotXcmConfig, Runtime, SessionConfig,
-	StatemintAssetsConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, EXISTENTIAL_DEPOSIT, PLMC,
-};
+use frame_benchmarking::frame_support::bounded_vec;
+use polimec_parachain_runtime::{pallet_parachain_staking::{
+	inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
+	InflationInfo, Range,
+}, AccountId, AuraId as AuthorityId, Balance, BalancesConfig, CouncilConfig, GenesisConfig, LinearVestingConfig, MinCandidateStk, ParachainInfoConfig, ParachainStakingConfig, PolkadotXcmConfig, Runtime, SessionConfig, StatemintAssetsConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, EXISTENTIAL_DEPOSIT, PLMC, OracleProvidersMembershipConfig};
 use sc_service::ChainType;
 use sp_core::{crypto::UncheckedInto, sr25519};
 use sp_runtime::{traits::AccountIdConversion, Perbill, Percent};
@@ -261,7 +257,14 @@ fn testnet_genesis(
 		technical_committee: TechnicalCommitteeConfig { members: accounts.clone(), phantom: Default::default() },
 		democracy: Default::default(),
 		linear_vesting: LinearVestingConfig { vesting: vec![] },
-		oracle_providers_membership: Default::default(),
+		oracle_providers_membership: OracleProvidersMembershipConfig {
+			members: bounded_vec![
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				get_account_id_from_seed::<sr25519::Public>("Bob"),
+				get_account_id_from_seed::<sr25519::Public>("Charlie"),
+			],
+			phantom: Default::default(),
+		},
 	}
 }
 

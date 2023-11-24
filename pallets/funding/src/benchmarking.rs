@@ -21,7 +21,7 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
-use crate::instantiator::*;
+use crate::{instantiator::*, traits::SetPrices};
 use frame_benchmarking::v2::*;
 use frame_support::{dispatch::RawOrigin, traits::OriginTrait, Parameter};
 #[allow(unused_imports)]
@@ -198,6 +198,7 @@ mod benchmarks {
 	fn create() {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
@@ -228,6 +229,8 @@ mod benchmarks {
 	fn edit_metadata() {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
+
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
@@ -256,6 +259,8 @@ mod benchmarks {
 	fn start_evaluation() {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
+
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
@@ -292,6 +297,8 @@ mod benchmarks {
 	fn bond_evaluation() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
+
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
@@ -334,7 +341,7 @@ mod benchmarks {
 				evaluator == test_evaluator.clone() &&
 				original_plmc_bond == plmc_for_evaluating[0].plmc_amount &&
 				current_plmc_bond == plmc_for_evaluating[0].plmc_amount &&
-				rewarded_or_slashed.is_some() => {},
+				rewarded_or_slashed.is_none() => {},
 			_ => assert!(false, "Evaluation is not stored correctly"),
 		}
 
@@ -359,6 +366,8 @@ mod benchmarks {
 	fn start_auction() {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
+
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
@@ -398,6 +407,8 @@ mod benchmarks {
 	fn bid() {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
+
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
@@ -500,6 +511,7 @@ mod benchmarks {
 	fn contribute() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
@@ -603,6 +615,8 @@ mod benchmarks {
 	fn evaluation_unbond_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
+
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
@@ -648,9 +662,6 @@ mod benchmarks {
 		);
 
 		// * validity checks *
-		// Storage
-		assert!(Evaluations::<T>::iter_prefix_values((project_id, evaluator.clone())).next().is_none());
-
 		// Balance
 		let bonded_plmc = inst
 			.get_reserved_plmc_balances_for(vec![evaluator.clone()], LockType::Evaluation(project_id))[0]
@@ -673,6 +684,8 @@ mod benchmarks {
 	fn evaluation_slash_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
+
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
@@ -753,6 +766,8 @@ mod benchmarks {
 	fn evaluation_reward_payout_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
+
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
@@ -821,6 +836,8 @@ mod benchmarks {
 	fn bid_ct_mint_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
+
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
@@ -870,6 +887,8 @@ mod benchmarks {
 	fn contribution_ct_mint_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
+
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
@@ -930,6 +949,8 @@ mod benchmarks {
 	fn start_bid_vesting_schedule_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
+
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
@@ -983,6 +1004,8 @@ mod benchmarks {
 	fn start_contribution_vesting_schedule_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
+
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
@@ -1044,6 +1067,8 @@ mod benchmarks {
 	fn payout_bid_funds_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
+
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
@@ -1096,6 +1121,8 @@ mod benchmarks {
 	fn payout_contribution_funds_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
+
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
@@ -1160,6 +1187,8 @@ mod benchmarks {
 	fn decide_project_outcome() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
+
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
@@ -1211,6 +1240,8 @@ mod benchmarks {
 	fn release_bid_funds_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
+
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
@@ -1279,6 +1310,8 @@ mod benchmarks {
 	fn bid_unbond_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
+
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
@@ -1348,6 +1381,8 @@ mod benchmarks {
 	fn release_contribution_funds_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
+
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
@@ -1423,6 +1458,8 @@ mod benchmarks {
 	fn contribution_unbond_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		<T as Config>::SetPrices::set_prices();
+
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 

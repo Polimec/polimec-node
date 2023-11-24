@@ -270,6 +270,9 @@ pub mod pallet {
 	pub trait Config:
 		frame_system::Config + pallet_balances::Config<Balance = BalanceOf<Self>> + pallet_xcm::Config
 	{
+		#[cfg(feature = "runtime-benchmarks")]
+		type SetPrices: traits::SetPrices;
+
 		type AllPalletsWithoutSystem: frame_support::traits::OnFinalize<BlockNumberOf<Self>>
 			+ frame_support::traits::OnIdle<BlockNumberOf<Self>>
 			+ frame_support::traits::OnInitialize<BlockNumberOf<Self>>;
