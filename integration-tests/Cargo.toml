@@ -145,3 +145,4 @@ testing-node = [
 ]
 try-runtime = []
 fast-gov = [ "polimec-parachain-runtime/fast-gov" ]
+
