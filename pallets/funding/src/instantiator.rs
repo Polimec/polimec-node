@@ -1702,6 +1702,14 @@ pub mod testing_macros {
 
 	#[macro_export]
 	macro_rules! assert_close_enough {
+		// Match when a message is provided
+		($real:expr, $desired:expr, $max_approximation:expr, $msg:expr) => {
+			let real_parts = Perquintill::from_rational($real, $desired);
+			let one = Perquintill::from_percent(100u64);
+			let real_approximation = one - real_parts;
+			assert!(real_approximation <= $max_approximation, $msg);
+		};
+		// Match when no message is provided
 		($real:expr, $desired:expr, $max_approximation:expr) => {
 			let real_parts = Perquintill::from_rational($real, $desired);
 			let one = Perquintill::from_percent(100u64);

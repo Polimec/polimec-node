@@ -66,7 +66,7 @@ pub use crate::xcm_config::*;
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 // Polimec Shared Imports
-use pallet_funding::{BondTypeOf, ConstPriceProvider, DaysToBlocks};
+use pallet_funding::{BondTypeOf, DaysToBlocks};
 pub use pallet_parachain_staking;
 pub use shared_configuration::*;
 
@@ -534,7 +534,7 @@ impl pallet_funding::Config for Runtime {
 	type PolimecReceiverInfo = PolimecReceiverInfo;
 	type PreImageLimit = ConstU32<1024>;
 	type Price = Price;
-	type PriceProvider = ConstPriceProvider<AssetId, FixedU128, PriceMap>;
+	type PriceProvider = OraclePriceProvider<AssetId, FixedU128, Oracle>;
 	type ProjectIdentifier = u32;
 	type Randomness = Random;
 	type RemainderFundingDuration = RemainderFundingDuration;

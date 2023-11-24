@@ -5,6 +5,8 @@ members = [
     "pallets/*",
     "integration-tests",
     "integration-tests/penpal",
+    "integration-tests/macros",
+    "integration-tests/macros/tests",
     "traits",
 ]
 
@@ -57,6 +59,11 @@ pallet-parachain-staking = { path = "pallets/parachain-staking", default-feature
 pallet-linear-release = { path = "pallets/linear-release", default-features = false }
 polimec-xcm-executor = { path = "pallets/xcm-executor", default-features = false}
 polimec-receiver = { path = "pallets/polimec-receiver", default-features = false }
+
+# Internal macros
+macros = { path = "integration-tests/macros" }
+macros-tests = { path = "integration-tests/macros/tests" }
+
 
 # External pallets (with default disabled)
 orml-oracle = {git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.43", default-features = false}

@@ -21,7 +21,9 @@ scale-info = { workspace = true, features = ["derive"] }
 
 # Local
 polimec-receiver.workspace = true
+macros.workspace = true
 
+sp-arithmetic.workspace = true
 frame-system.workspace = true
 frame-support.workspace = true
 pallet-balances.workspace = true
@@ -65,6 +67,7 @@ polkadot-runtime.workspace = true
 statemint-runtime.workspace = true
 polimec-parachain-runtime.workspace = true
 penpal-runtime = { path = "./penpal", default-features = false }
+itertools = "0.10.5"
 
 [features]
 default = [ "std" ]

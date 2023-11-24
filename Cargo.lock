@@ -4126,6 +4126,8 @@ dependencies = [
  "cumulus-primitives-core",
  "frame-support",
  "frame-system",
+ "itertools 0.10.5",
+ "macros",
  "orml-oracle",
  "pallet-assets",
  "pallet-balances",
@@ -4151,6 +4153,7 @@ dependencies = [
  "polkadot-service",
  "sc-consensus-grandpa",
  "scale-info",
+ "sp-arithmetic",
  "sp-authority-discovery",
  "sp-consensus-babe",
  "sp-core",
@@ -5258,6 +5261,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b823e83b2affd8f40a9ee8c29dbc56404c1e34cd2710921f2801e2cf29527afa"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "sp-core",
+ "syn 2.0.39",
+]
+
+[[package]]
+name = "macros-tests"
+version = "0.1.0"
+dependencies = [
+ "macros",
 ]
 
 [[package]]

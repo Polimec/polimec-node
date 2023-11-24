@@ -25,8 +25,8 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config
 	where
-		// Used for converting a polimec account into a local account for Contribution Token migrations
-		Self::AccountId: From<[u8; 32]>,
+        // Used for converting a polimec account into a local account for Contribution Token migrations
+        Self::AccountId: From<[u8; 32]>,
 	{
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type PolimecParaId: Get<ParaId>;
@@ -70,7 +70,7 @@ pub mod pallet {
 		T::AccountId: From<[u8; 32]>,
 	{
 		#[pallet::call_index(0)]
-		#[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
+		#[pallet::weight(Weight::from_parts(10_000, 0))]
 		pub fn migrate_for_user(
 			origin: OriginFor<T>,
 			user: [u8; 32],
