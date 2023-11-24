@@ -8,7 +8,7 @@ pub trait BondingRequirementCalculation {
 }
 
 pub trait VestingDurationCalculation {
-	fn calculate_vesting_duration<T: Config>(&self) -> T::BlockNumber;
+	fn calculate_vesting_duration<T: Config>(&self) -> <T as frame_system::Config>::BlockNumber;
 }
 
 pub trait ProvideStatemintPrice {

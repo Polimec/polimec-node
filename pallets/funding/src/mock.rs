@@ -120,7 +120,7 @@ parameter_types! {
 parameter_types! {
 	pub UniversalLocation: InteriorMultiLocation = (
 		GlobalConsensus(Polkadot),
-		 Parachain(functions::POLIMEC_PARA_ID.into()),
+		 Parachain(3344u32.into()),
 	).into();
 	pub const RelayNetwork: Option<NetworkId> = None;
 	pub UnitWeightCost: Weight = Weight::from_parts(1_000_000_000, 64 * 1024);
@@ -319,10 +319,29 @@ impl pallet_linear_release::Config for TestRuntime {
 	const MAX_VESTING_SCHEDULES: u32 = 32;
 }
 
+parameter_types! {
+	pub MaxMessageSizeThresholds: (u32, u32) = (50000, 102_400);
+	pub MaxCapacityThresholds: (u32, u32) = (8, 1000);
+	pub RequiredMaxCapacity: u32 = 8;
+	pub RequiredMaxMessageSize: u32 = 102_400;
+
+}
+
+pub struct DummyConverter;
+impl sp_runtime::traits::Convert<AccountId, [u8; 32]> for DummyConverter {
+	fn convert(a: AccountId) -> [u8; 32] {
+		let mut account: [u8; 32] = [0u8; 32];
+		account[0..7].copy_from_slice(a.to_le_bytes().as_slice());
+		account
+	}
+}
+
 impl Config for TestRuntime {
+	type AccountId32Conversion = DummyConverter;
 	type AllPalletsWithoutSystem = AllPalletsWithoutSystem;
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;
+	type BlockNumber = BlockNumber;
 	type BlockNumberToBalance = ConvertInto;
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityFundingDuration = CommunityRoundDuration;
@@ -338,8 +357,10 @@ impl Config for TestRuntime {
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	// Low value to simplify the tests
 	type MaxBidsPerUser = ConstU32<4>;
+	type MaxCapacityThresholds = MaxCapacityThresholds;
 	type MaxContributionsPerUser = ConstU32<4>;
 	type MaxEvaluationsPerUser = ConstU32<4>;
+	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
 	type Multiplier = Multiplier;
 	type NativeCurrency = Balances;
@@ -351,6 +372,8 @@ impl Config for TestRuntime {
 	type ProjectIdentifier = Identifier;
 	type Randomness = RandomnessCollectiveFlip;
 	type RemainderFundingDuration = RemainderFundingDuration;
+	type RequiredMaxCapacity = RequiredMaxCapacity;
+	type RequiredMaxMessageSize = RequiredMaxMessageSize;
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;

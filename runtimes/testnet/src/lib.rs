@@ -498,11 +498,17 @@ parameter_types! {
 	pub PolimecReceiverInfo: xcm::v3::PalletInfo = xcm::v3::PalletInfo::new(
 		51, "PolimecReceiver".into(), "polimec_receiver".into(), 0, 1, 0
 	).unwrap();
+	pub MaxMessageSizeThresholds: (u32, u32) = (50000, 102_400);
+	pub MaxCapacityThresholds: (u32, u32) = (8, 1000);
+	pub RequiredMaxCapacity: u32 = 8;
+	pub RequiredMaxMessageSize: u32 = 102_400;
 }
 impl pallet_funding::Config for Runtime {
+	type AccountId32Conversion = ConvertInto;
 	type AllPalletsWithoutSystem = (Balances, LocalAssets, StatemintAssets, PolimecFunding, LinearVesting, Random);
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;
+	type BlockNumber = BlockNumber;
 	type BlockNumberToBalance = ConvertInto;
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityFundingDuration = CommunityFundingDuration;
@@ -517,8 +523,10 @@ impl pallet_funding::Config for Runtime {
 	type FundingCurrency = StatemintAssets;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	type MaxBidsPerUser = ConstU32<256>;
+	type MaxCapacityThresholds = MaxCapacityThresholds;
 	type MaxContributionsPerUser = ConstU32<256>;
 	type MaxEvaluationsPerUser = ConstU32<256>;
+	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
 	type Multiplier = pallet_funding::types::Multiplier;
 	type NativeCurrency = Balances;
@@ -530,6 +538,8 @@ impl pallet_funding::Config for Runtime {
 	type ProjectIdentifier = u32;
 	type Randomness = Random;
 	type RemainderFundingDuration = RemainderFundingDuration;
+	type RequiredMaxCapacity = RequiredMaxCapacity;
+	type RequiredMaxMessageSize = RequiredMaxMessageSize;
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;

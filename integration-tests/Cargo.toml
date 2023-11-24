@@ -19,6 +19,8 @@ parity-scale-codec = {  workspace = true, features = [
 ] }
 scale-info = { workspace = true, features = ["derive"] }
 
+# Local
+polimec-receiver.workspace = true
 
 frame-system.workspace = true
 frame-support.workspace = true
@@ -55,6 +57,8 @@ pallet-staking.workspace = true
 pallet-message-queue.workspace = true
 pallet-membership.workspace = true
 orml-oracle.workspace = true
+
+pallet-vesting.workspace = true
 
 # Runtimes
 polkadot-runtime.workspace = true

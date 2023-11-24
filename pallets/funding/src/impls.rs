@@ -1,4 +1,5 @@
 use frame_support::{traits::Get, weights::Weight};
+use sp_arithmetic::traits::Zero;
 use sp_runtime::{traits::AccountIdConversion, DispatchError};
 use sp_std::marker::PhantomData;
 
@@ -244,8 +245,9 @@ fn remaining_evaluators_to_reward_or_slash<T: Config>(
 	if outcome == EvaluatorsOutcomeOf::<T>::Unchanged {
 		0u64
 	} else {
-		Evaluations::<T>::iter_prefix_values((project_id,)).filter(|evaluation| !evaluation.rewarded_or_slashed).count()
-			as u64
+		Evaluations::<T>::iter_prefix_values((project_id,))
+			.filter(|evaluation| evaluation.rewarded_or_slashed.is_none())
+			.count() as u64
 	}
 }
 
@@ -297,7 +299,7 @@ fn remaining_contributions_without_issuer_payout<T: Config>(project_id: T::Proje
 fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> Result<(Weight, u64), DispatchError> {
 	let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 	let project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,));
-	let mut remaining_evaluations = project_evaluations.filter(|evaluation| !evaluation.rewarded_or_slashed);
+	let mut remaining_evaluations = project_evaluations.filter(|evaluation| evaluation.rewarded_or_slashed.is_none());
 	let base_weight = Weight::from_parts(10_000_000, 0);
 
 	if let Some(evaluation) = remaining_evaluations.next() {
@@ -354,11 +356,11 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 }
 
 fn unbond_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
-	let project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
-	let evaluation_count = project_evaluations.len() as u64;
+	let project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,));
+	let mut remaining_evaluations =
+		project_evaluations.filter(|evaluation| evaluation.current_plmc_bond > Zero::zero());
 	let base_weight = Weight::from_parts(10_000_000, 0);
-
-	if let Some(evaluation) = project_evaluations.first() {
+	if let Some(evaluation) = remaining_evaluations.next() {
 		match Pallet::<T>::do_evaluation_unbond_for(
 			&T::PalletId::get().into_account_truncating(),
 			evaluation.project_id,
@@ -373,7 +375,7 @@ fn unbond_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> (Weight
 				error: e,
 			}),
 		};
-		(base_weight.saturating_add(WeightInfoOf::<T>::evaluation_unbond_for()), evaluation_count.saturating_sub(1u64))
+		(base_weight.saturating_add(WeightInfoOf::<T>::evaluation_unbond_for()), remaining_evaluations.count() as u64)
 	} else {
 		(base_weight, 0u64)
 	}

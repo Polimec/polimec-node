@@ -240,6 +240,10 @@ pub type BidInfoOf<T> = BidInfo<
 pub type ContributionInfoOf<T> =
 	ContributionInfo<u32, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>, VestingInfoOf<T>>;
 
+pub type MigrationOriginOf<T> = MigrationOrigin<AccountIdOf<T>, u32>;
+pub type ProjectMigrationOriginsOf<T> =
+	ProjectMigrationOrigins<ProjectIdOf<T>, BoundedVec<MigrationOriginOf<T>, MaxMigrationsPerXcm<T>>>;
+
 pub type BucketOf<T> = Bucket<BalanceOf<T>, PriceOf<T>>;
 pub type BondTypeOf<T> = LockType<ProjectIdOf<T>>;
 pub type WeightInfoOf<T> = <T as Config>::WeightInfo;
@@ -276,6 +280,11 @@ pub mod pallet {
 			+ Parameter
 			+ Member;
 
+		// TODO: our local BlockNumber should be removed once we move onto using Moment for time tracking
+		type BlockNumber: IsType<<Self as frame_system::Config>::BlockNumber> + Into<u64>;
+
+		type AccountId32Conversion: Convert<Self::AccountId, [u8; 32]>;
+
 		type RuntimeOrigin: IsType<<Self as frame_system::Config>::RuntimeOrigin>
 			+ Into<Result<pallet_xcm::Origin, <Self as Config>::RuntimeOrigin>>;
 
@@ -296,7 +305,7 @@ pub mod pallet {
 			+ MaybeSerializeDeserialize;
 
 		/// The inner balance type we will use for all of our outer currency types. (e.g native, funding, CTs)
-		type Balance: Balance + From<u64> + FixedPointOperand + MaybeSerializeDeserialize;
+		type Balance: Balance + From<u64> + FixedPointOperand + MaybeSerializeDeserialize + Into<u128>;
 
 		/// Represents the value of something in USD
 		type Price: FixedPointNumber + Parameter + Copy + MaxEncodedLen + MaybeSerializeDeserialize;
@@ -326,7 +335,7 @@ pub mod pallet {
 		type PriceProvider: ProvideStatemintPrice<AssetId = u32, Price = Self::Price>;
 
 		/// Something that provides randomness in the runtime.
-		type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
+		type Randomness: Randomness<Self::Hash, <Self as frame_system::Config>::BlockNumber>;
 
 		/// The maximum length of data stored on-chain.
 		#[pallet::constant]
@@ -338,27 +347,27 @@ pub mod pallet {
 
 		/// The length (expressed in number of blocks) of the evaluation period.
 		#[pallet::constant]
-		type EvaluationDuration: Get<Self::BlockNumber>;
+		type EvaluationDuration: Get<<Self as frame_system::Config>::BlockNumber>;
 
 		/// The time window (expressed in number of blocks) that an issuer has to start the auction round.
 		#[pallet::constant]
-		type AuctionInitializePeriodDuration: Get<Self::BlockNumber>;
+		type AuctionInitializePeriodDuration: Get<<Self as frame_system::Config>::BlockNumber>;
 
 		/// The length (expressed in number of blocks) of the Auction Round, English period.
 		#[pallet::constant]
-		type EnglishAuctionDuration: Get<Self::BlockNumber>;
+		type EnglishAuctionDuration: Get<<Self as frame_system::Config>::BlockNumber>;
 
 		/// The length (expressed in number of blocks) of the Auction Round, Candle period.
 		#[pallet::constant]
-		type CandleAuctionDuration: Get<Self::BlockNumber>;
+		type CandleAuctionDuration: Get<<Self as frame_system::Config>::BlockNumber>;
 
 		/// The length (expressed in number of blocks) of the Community Round.
 		#[pallet::constant]
-		type CommunityFundingDuration: Get<Self::BlockNumber>;
+		type CommunityFundingDuration: Get<<Self as frame_system::Config>::BlockNumber>;
 
 		/// The length (expressed in number of blocks) of the Remainder Round.
 		#[pallet::constant]
-		type RemainderFundingDuration: Get<Self::BlockNumber>;
+		type RemainderFundingDuration: Get<<Self as frame_system::Config>::BlockNumber>;
 
 		/// `PalletId` for the funding pallet. An appropriate value could be
 		/// `PalletId(*b"py/cfund")`
@@ -398,9 +407,9 @@ pub mod pallet {
 			Moment = BlockNumberOf<Self>,
 		>;
 		/// For now we expect 3 days until the project is automatically accepted. Timeline decided by MiCA regulations.
-		type ManualAcceptanceDuration: Get<Self::BlockNumber>;
+		type ManualAcceptanceDuration: Get<<Self as frame_system::Config>::BlockNumber>;
 		/// For now we expect 4 days from acceptance to settlement due to MiCA regulations.
-		type SuccessToSettlementTime: Get<Self::BlockNumber>;
+		type SuccessToSettlementTime: Get<<Self as frame_system::Config>::BlockNumber>;
 
 		type EvaluatorSlash: Get<Percent>;
 
@@ -412,6 +421,15 @@ pub mod pallet {
 		type BlockNumberToBalance: Convert<BlockNumberOf<Self>, BalanceOf<Self>>;
 
 		type PolimecReceiverInfo: Get<PalletInfo>;
+
+		/// Range of max_message_size values for the hrmp config where we accept the incoming channel request
+		type MaxMessageSizeThresholds: Get<(u32, u32)>;
+		/// Range of max_capacity_thresholds values for the hrmp config where we accept the incoming channel request
+		type MaxCapacityThresholds: Get<(u32, u32)>;
+		/// max_capacity config required for the channel from polimec to the project
+		type RequiredMaxCapacity: Get<u32>;
+		/// max_message_size config required for the channel from polimec to the project
+		type RequiredMaxMessageSize: Get<u32>;
 	}
 
 	#[pallet::storage]
@@ -469,7 +487,7 @@ pub mod pallet {
 	pub type ProjectsToUpdate<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
-		T::BlockNumber,
+		<T as frame_system::Config>::BlockNumber,
 		BoundedVec<(T::ProjectIdentifier, UpdateType), T::MaxProjectsToUpdatePerBlock>,
 		ValueQuery,
 	>;
@@ -513,6 +531,10 @@ pub mod pallet {
 		ContributionInfoOf<T>,
 	>;
 
+	#[pallet::storage]
+	/// Migrations sent and awaiting for confirmation
+	pub type UnconfirmedMigrations<T: Config> = StorageMap<_, Blake2_128Concat, QueryId, ProjectMigrationOriginsOf<T>>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -536,18 +558,18 @@ pub mod pallet {
 		/// The period an issuer has to start the auction phase of the project.
 		AuctionInitializePeriod {
 			project_id: T::ProjectIdentifier,
-			start_block: T::BlockNumber,
-			end_block: T::BlockNumber,
+			start_block: <T as frame_system::Config>::BlockNumber,
+			end_block: <T as frame_system::Config>::BlockNumber,
 		},
 		/// The auction round of a project started.
 		EnglishAuctionStarted {
 			project_id: T::ProjectIdentifier,
-			when: T::BlockNumber,
+			when: <T as frame_system::Config>::BlockNumber,
 		},
 		/// The candle auction part of the auction started for a project
 		CandleAuctionStarted {
 			project_id: T::ProjectIdentifier,
-			when: T::BlockNumber,
+			when: <T as frame_system::Config>::BlockNumber,
 		},
 		/// The auction round of a project ended.
 		AuctionFailed {
@@ -769,15 +791,30 @@ pub mod pallet {
 			caller: T::AccountId,
 		},
 		MigrationCheckResponseAccepted {
-			query_id: xcm::v3::QueryId,
-			response: xcm::v3::Response,
+			project_id: ProjectIdOf<T>,
+			query_id: QueryId,
+			response: Response,
 		},
 		MigrationCheckResponseRejected {
-			query_id: xcm::v3::QueryId,
-			response: xcm::v3::Response,
+			project_id: ProjectIdOf<T>,
+			query_id: QueryId,
+			response: Response,
 		},
 		MigrationStarted {
 			project_id: T::ProjectIdentifier,
+		},
+		UserMigrationSent {
+			project_id: ProjectIdOf<T>,
+			caller: AccountIdOf<T>,
+			participant: AccountIdOf<T>,
+		},
+		MigrationsConfirmed {
+			project_id: ProjectIdOf<T>,
+			query_id: QueryId,
+		},
+		MigrationsFailed {
+			project_id: ProjectIdOf<T>,
+			query_id: QueryId,
 		},
 	}
 
@@ -874,6 +911,8 @@ pub mod pallet {
 		/// Tried to start a migration check but the bidirectional channel is not yet open
 		CommsNotEstablished,
 		XcmFailed,
+		// Tried to convert one type into another and failed. i.e try_into failed
+		BadConversion,
 	}
 
 	#[pallet::call]
@@ -1158,11 +1197,37 @@ pub mod pallet {
 
 			Self::do_migration_check_response(location, query_id, response)
 		}
+
+		#[pallet::call_index(24)]
+		#[pallet::weight(Weight::from_parts(1000, 0))]
+		pub fn start_migration(origin: OriginFor<T>, project_id: T::ProjectIdentifier) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			Self::do_start_migration(&caller, project_id)
+		}
+
+		#[pallet::call_index(25)]
+		#[pallet::weight(Weight::from_parts(1000, 0))]
+		pub fn migrate_one_participant(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+			participant: AccountIdOf<T>,
+		) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			Self::do_migrate_one_participant(caller, project_id, participant)
+		}
+
+		#[pallet::call_index(26)]
+		#[pallet::weight(Weight::from_parts(1000, 0))]
+		pub fn confirm_migrations(origin: OriginFor<T>, query_id: QueryId, response: Response) -> DispatchResult {
+			let location = ensure_response(<T as Config>::RuntimeOrigin::from(origin))?;
+
+			Self::do_confirm_migrations(location, query_id, response)
+		}
 	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(now: T::BlockNumber) -> Weight {
+		fn on_initialize(now: <T as frame_system::Config>::BlockNumber) -> Weight {
 			// Get the projects that need to be updated on this block and update them
 			for (project_id, update_type) in ProjectsToUpdate::<T>::take(now) {
 				match update_type {
@@ -1213,7 +1278,7 @@ pub mod pallet {
 			Weight::from_parts(0, 0)
 		}
 
-		fn on_idle(_now: T::BlockNumber, max_weight: Weight) -> Weight {
+		fn on_idle(_now: <T as frame_system::Config>::BlockNumber, max_weight: Weight) -> Weight {
 			let mut remaining_weight = max_weight;
 
 			let projects_needing_cleanup = ProjectsDetails::<T>::iter()
@@ -1294,7 +1359,6 @@ pub mod pallet {
 		T::AllPalletsWithoutSystem:
 			OnFinalize<BlockNumberOf<T>> + OnIdle<BlockNumberOf<T>> + OnInitialize<BlockNumberOf<T>>,
 		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
-		// AccountIdOf<T>: Into<<instantiator::RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
 	{
 		fn default() -> Self {
 			Self { starting_projects: vec![], phantom: PhantomData }

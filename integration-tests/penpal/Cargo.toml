@@ -53,6 +53,7 @@ sp-session.workspace = true
 sp-std.workspace = true
 sp-transaction-pool.workspace = true
 sp-version.workspace = true
+polkadot-runtime-parachains.workspace = true
 
 # Polkadot
 polkadot-primitives.workspace = true
@@ -76,6 +77,7 @@ cumulus-primitives-utility.workspace = true
 pallet-collator-selection.workspace = true
 parachain-info.workspace = true
 parachains-common.workspace = true
+pallet-vesting.workspace = true
 
 [features]
 default = [
