@@ -80,7 +80,7 @@ where
 		vested_block_count
 			.checked_mul(&self.per_block()) // `per_block` accessor guarantees at least 1.
 			.map(|to_unlock| self.locked.saturating_sub(to_unlock))
-			.unwrap_or_else(Zero::zero())
+			.unwrap_or(Zero::zero())
 	}
 
 	/// Amount to be released at block `n`.
