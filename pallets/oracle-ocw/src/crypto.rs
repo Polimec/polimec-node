@@ -21,20 +21,16 @@
 /// When offchain worker is signing transactions it's going to request keys of type
 /// `KeyTypeId` from the keystore and use the ones it finds to sign the transaction.
 /// The keys can be inserted manually via RPC (see `author_insertKey`).
-
 use sp_core::crypto::KeyTypeId;
 use sp_core::sr25519::Signature as Sr25519Signature;
-use sp_runtime::{
-    traits::Verify,
-    MultiSignature, MultiSigner,
-};
+use sp_runtime::{traits::Verify, MultiSignature, MultiSigner};
 
 pub const POLIMEC_ORACLE: KeyTypeId = KeyTypeId(*b"plmc");
 
 mod app_sr25519 {
-    use sp_runtime::app_crypto::{app_crypto, sr25519};
-    use super::POLIMEC_ORACLE;
-    app_crypto!(sr25519, POLIMEC_ORACLE);
+	use super::POLIMEC_ORACLE;
+	use sp_runtime::app_crypto::{app_crypto, sr25519};
+	app_crypto!(sr25519, POLIMEC_ORACLE);
 }
 
 pub type AuthorityId = app_sr25519::Public;
@@ -42,16 +38,14 @@ pub type AuthorityId = app_sr25519::Public;
 pub struct PolimecCrypto;
 
 impl frame_system::offchain::AppCrypto<MultiSigner, MultiSignature> for PolimecCrypto {
-    type RuntimeAppPublic = AuthorityId;
-    type GenericSignature = sp_core::sr25519::Signature;
-    type GenericPublic = sp_core::sr25519::Public;
+	type GenericPublic = sp_core::sr25519::Public;
+	type GenericSignature = sp_core::sr25519::Signature;
+	type RuntimeAppPublic = AuthorityId;
 }
 
 // implemented for mock runtime in test
-impl frame_system::offchain::AppCrypto<<Sr25519Signature as Verify>::Signer, Sr25519Signature>
-    for PolimecCrypto
-{
-    type RuntimeAppPublic = AuthorityId;
-    type GenericSignature = sp_core::sr25519::Signature;
-    type GenericPublic = sp_core::sr25519::Public;
+impl frame_system::offchain::AppCrypto<<Sr25519Signature as Verify>::Signer, Sr25519Signature> for PolimecCrypto {
+	type GenericPublic = sp_core::sr25519::Public;
+	type GenericSignature = sp_core::sr25519::Signature;
+	type RuntimeAppPublic = AuthorityId;
 }

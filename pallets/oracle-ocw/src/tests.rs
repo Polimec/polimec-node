@@ -16,11 +16,9 @@
 
 #![cfg(test)]
 
-
 use crate::mock::*;
-use sp_runtime::FixedU128;
 use parity_scale_codec::Decode;
-
+use sp_runtime::FixedU128;
 
 #[test]
 fn call_offchain_worker() {
@@ -34,7 +32,7 @@ fn call_offchain_worker() {
 		assert_eq!(tx.signature.unwrap().0, 0);
 
 		match tx.call {
-			RuntimeCall::Oracle(orml_oracle::Call::feed_values { values }) => {
+			RuntimeCall::Oracle(orml_oracle::Call::feed_values { values }) =>
 				for (asset, price) in values {
 					match asset {
 						0 => assert_close_enough(price, FixedU128::from_float(5.519610553825360850)),
@@ -42,11 +40,8 @@ fn call_offchain_worker() {
 						420 => assert_close_enough(price, FixedU128::from_float(1.000198559694455204)),
 						_ => panic!("Unexpected asset"),
 					}
-				}
-				
-			},
+				},
 			_ => panic!("Unexpected call"),
 		}
-		
 	});
 }

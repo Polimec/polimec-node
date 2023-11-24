@@ -16,14 +16,19 @@
 
 //! Offchain Worker for Oracle price feed
 #![cfg_attr(not(feature = "std"), no_std)]
-pub use pallet::*;
 use crate::{
 	traits::FetchPrice,
-	types::{AssetName, AssetRequest, BitFinexFetcher, BitStampFetcher, CoinbaseFetcher, KrakenFetcher, OpenCloseVolume}
+	types::{
+		AssetName, AssetRequest, BitFinexFetcher, BitStampFetcher, CoinbaseFetcher, KrakenFetcher, OpenCloseVolume,
+	},
 };
-use sp_runtime::{traits::{Convert, Zero, Saturating}, FixedU128, RuntimeAppPublic};
-use std::collections::HashMap;
 use frame_system::offchain::{AppCrypto, CreateSignedTransaction, SendSignedTransaction, Signer};
+pub use pallet::*;
+use sp_runtime::{
+	traits::{Convert, Saturating, Zero},
+	FixedU128, RuntimeAppPublic,
+};
+use std::collections::HashMap;
 mod mock;
 mod tests;
 
@@ -38,19 +43,18 @@ const LOG_TARGET: &str = "ocw::oracle";
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use std::collections::BTreeMap;
 	use frame_support::{pallet_prelude::*, traits::Contains};
-	use frame_system::pallet_prelude::*;
-	use frame_system::offchain::SigningTypes;
+	use frame_system::{offchain::SigningTypes, pallet_prelude::*};
+	use orml_oracle::Call as OracleCall;
 	use sp_runtime::{
 		offchain::{
-			storage::{StorageValueRef, StorageRetrievalError},
-			storage_lock::{Time, StorageLock},
+			storage::{StorageRetrievalError, StorageValueRef},
+			storage_lock::{StorageLock, Time},
 			Duration,
-		}, 
-		traits::IdentifyAccount
+		},
+		traits::IdentifyAccount,
 	};
-	use orml_oracle::Call as OracleCall;
+	use std::collections::BTreeMap;
 
 	const LOCK_TIMEOUT_EXPIRATION: u64 = 30_000; // 30 seconds
 
@@ -60,30 +64,30 @@ pub mod pallet {
 	// pub type GenericPublicOf<T> = <<T as Config>::AppCrypto as AppCrypto<PublicOf<T>, SignatureOf<T>>>::GenericPublic;
 	// pub type RuntimeAppPublicOf<T> = <<T as Config>::AppCrypto as AppCrypto<PublicOf<T>, SignatureOf<T>>>::RuntimeAppPublic;
 
-
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: CreateSignedTransaction<OracleCall<Self>>  + frame_system::Config + orml_oracle::Config<()> {
-		
+	pub trait Config:
+		CreateSignedTransaction<OracleCall<Self>> + frame_system::Config + orml_oracle::Config<()>
+	{
 		/// The overarching event type of the runtime.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// An Identifying key for the offchain worker. Used to determine if the offchain
 		/// worker is authorized to submit price feeding transactions.
 		type AuthorityId: Member
-		+ Parameter
-		+ RuntimeAppPublic
-		+ Ord
-		+ MaybeSerializeDeserialize
-		+ MaxEncodedLen
-		+ Into<Self::Public>;
-		
+			+ Parameter
+			+ RuntimeAppPublic
+			+ Ord
+			+ MaybeSerializeDeserialize
+			+ MaxEncodedLen
+			+ Into<Self::Public>;
+
 		type AppCrypto: AppCrypto<Self::Public, Self::Signature>;
 
 		type Members: frame_support::traits::Contains<Self::AccountId>;
-		
+
 		type GracePeriod: Get<BlockNumberFor<Self>>;
 
 		type ConvertAssetPricePair: Convert<(AssetName, FixedU128), (Self::OracleKey, Self::OracleValue)>;
@@ -91,7 +95,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	pub type DummyValue<T> = StorageValue<_, u32>;
-	
+
 	#[pallet::event]
 	pub enum Event<T: Config> {}
 
@@ -123,25 +127,35 @@ pub mod pallet {
 
 			if let Some(_authority_key) = maybe_key {
 				let mut lock = StorageLock::<Time>::with_deadline(
-					b"oracle_ocw::lock", 
-					Duration::from_millis(LOCK_TIMEOUT_EXPIRATION)
+					b"oracle_ocw::lock",
+					Duration::from_millis(LOCK_TIMEOUT_EXPIRATION),
 				);
 
 				// We try to acquire the lock here. If failed, we know another ocw
 				// is executing at the moment and exit this ocw.
 				if let Ok(_guard) = lock.try_lock() {
 					let val = StorageValueRef::persistent(b"oracle_ocw::last_send");
-					let last_send_for_assets_result: Result<Option<BTreeMap<AssetName, BlockNumberFor<T>>>, StorageRetrievalError> = val.get();
+					let last_send_for_assets_result: Result<
+						Option<BTreeMap<AssetName, BlockNumberFor<T>>>,
+						StorageRetrievalError,
+					> = val.get();
 					let mut last_send_for_assets = match last_send_for_assets_result {
 						Ok(Some(v)) => v,
-						_ => BTreeMap::from([(AssetName::USDT, Zero::zero()), (AssetName::USDC, Zero::zero()), (AssetName::DOT, Zero::zero())]),
+						_ => BTreeMap::from([
+							(AssetName::USDT, Zero::zero()),
+							(AssetName::USDC, Zero::zero()),
+							(AssetName::DOT, Zero::zero()),
+						]),
 					};
-					let assets = last_send_for_assets.iter().filter_map(|(asset_name, last_send)| {
-						if block_number >= last_send.saturating_add(T::GracePeriod::get()) {
-							return Some(*asset_name)
-						}
-						None
-					}).collect::<Vec<AssetName>>();
+					let assets = last_send_for_assets
+						.iter()
+						.filter_map(|(asset_name, last_send)| {
+							if block_number >= last_send.saturating_add(T::GracePeriod::get()) {
+								return Some(*asset_name)
+							}
+							None
+						})
+						.collect::<Vec<AssetName>>();
 
 					if assets.is_empty() {
 						return
@@ -160,7 +174,7 @@ pub mod pallet {
 				};
 			}
 
-			// Todo: 
+			// Todo:
 			// - Fetch price information for each asset
 			// - Fetch price information from different sources
 		}
@@ -171,14 +185,13 @@ pub mod pallet {
 
 	impl<T: Config> Pallet<T> {
 		fn fetch_prices(assets: Vec<AssetName>) -> HashMap<AssetName, FixedU128> {
-			
 			let fetchers = vec![
-				KrakenFetcher::get_moving_average, 
-				BitFinexFetcher::get_moving_average, 
-				BitStampFetcher::get_moving_average, 
-				CoinbaseFetcher::get_moving_average
+				KrakenFetcher::get_moving_average,
+				BitFinexFetcher::get_moving_average,
+				BitStampFetcher::get_moving_average,
+				CoinbaseFetcher::get_moving_average,
 			];
-			
+
 			let mut aggr_prices: HashMap<AssetName, Vec<FixedU128>> = HashMap::new();
 			for fetcher in fetchers.into_iter() {
 				let fetcher_prices = fetcher(assets.clone(), 5000);
@@ -190,34 +203,36 @@ pub mod pallet {
 			Self::combine_prices(aggr_prices)
 		}
 
-		fn combine_prices(prices: HashMap<AssetName, Vec<FixedU128>>) -> HashMap<AssetName, FixedU128>{
-			prices.into_iter().filter_map(|(key, mut price_list)| {
-				if price_list.is_empty() {
-					return None
-				}
-				price_list.sort();
-				let combined_prices = match price_list.len() {
-					1 => price_list[0],
-					2 => price_list[0].saturating_add(price_list[1]) / FixedU128::from_u32(2u32),
-					len => {
-						// Remove the highest and lowest price
-						price_list[1..len - 1].iter().fold(FixedU128::from_u32(0), |acc, x| acc.saturating_add(*x)) / FixedU128::from_u32((len - 2) as u32 )
-						
+		fn combine_prices(prices: HashMap<AssetName, Vec<FixedU128>>) -> HashMap<AssetName, FixedU128> {
+			prices
+				.into_iter()
+				.filter_map(|(key, mut price_list)| {
+					if price_list.is_empty() {
+						return None
 					}
-				};
-				Some((key, combined_prices))
-			}).collect::<HashMap<AssetName, FixedU128>>()
+					price_list.sort();
+					let combined_prices = match price_list.len() {
+						1 => price_list[0],
+						2 => price_list[0].saturating_add(price_list[1]) / FixedU128::from_u32(2u32),
+						len => {
+							// Remove the highest and lowest price
+							price_list[1..len - 1].iter().fold(FixedU128::from_u32(0), |acc, x| acc.saturating_add(*x)) /
+								FixedU128::from_u32((len - 2) as u32)
+						},
+					};
+					Some((key, combined_prices))
+				})
+				.collect::<HashMap<AssetName, FixedU128>>()
 		}
 
 		fn send_signed_transaction(prices: HashMap<AssetName, FixedU128>) -> Result<(), ()> {
 			let signer = Signer::<T, T::AppCrypto>::any_account();
-			let prices = prices.into_iter().map(|(asset_name, price)| {
-				T::ConvertAssetPricePair::convert((asset_name, price))
-			}).collect::<Vec<(T::OracleKey, T::OracleValue)>>();
-			
-			let call = OracleCall::<T, ()>::feed_values{
-				values: BoundedVec::<_, _>::truncate_from(prices),
-			};
+			let prices = prices
+				.into_iter()
+				.map(|(asset_name, price)| T::ConvertAssetPricePair::convert((asset_name, price)))
+				.collect::<Vec<(T::OracleKey, T::OracleValue)>>();
+
+			let call = OracleCall::<T, ()>::feed_values { values: BoundedVec::<_, _>::truncate_from(prices) };
 			let result = signer.send_signed_transaction(|_account| call.clone());
 			match result {
 				Some((account, Ok(_))) => {
@@ -227,7 +242,7 @@ pub mod pallet {
 				_ => {
 					log::trace!(target: LOG_TARGET, "failure: offchain_signed_tx");
 					return Err(())
-				}
+				},
 			}
 		}
 	}
