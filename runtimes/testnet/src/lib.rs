@@ -29,6 +29,7 @@ use frame_support::{
 		AsEnsureOriginWithArg, ConstU32, Currency, EitherOfDiverse, EqualPrivilegeOnly, Everything, WithdrawReasons,
 	},
 	weights::{ConstantMultiplier, Weight},
+	BoundedVec,
 };
 use frame_system::{EnsureRoot, EnsureSigned};
 pub use parachains_common::{
@@ -40,7 +41,7 @@ pub use parachains_common::{
 // Polkadot imports
 use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
 use sp_api::impl_runtime_apis;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata, Pair, Public};
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
@@ -50,6 +51,7 @@ use sp_runtime::{
 	ApplyExtrinsicResult,
 };
 pub use sp_runtime::{FixedU128, MultiAddress, Perbill, Permill};
+
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -66,7 +68,7 @@ pub use crate::xcm_config::*;
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 // Polimec Shared Imports
-use pallet_funding::{BondTypeOf, DaysToBlocks};
+use pallet_funding::{traits::SetPrices, BondTypeOf, DaysToBlocks};
 pub use pallet_parachain_staking;
 pub use shared_configuration::*;
 
@@ -142,6 +144,69 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 #[cfg(feature = "std")]
 pub fn native_version() -> NativeVersion {
 	NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
+}
+
+struct SetOraclePrices;
+impl SetPrices for SetOraclePrices {
+	fn set_prices() {
+		use sp_core::{Pair, Public};
+		use sp_runtime::{
+			app_crypto::sr25519,
+			traits::{IdentifyAccount, Verify},
+		};
+		fn values(
+			values: [f64; 4],
+		) -> BoundedVec<(u32, FixedU128), <Runtime as orml_oracle::Config<orml_oracle::Instance1>>::MaxFeedValues> {
+			let [dot, usdc, usdt, plmc] = values;
+			vec![
+				(0u32, FixedU128::from_float(dot)),
+				(420u32, FixedU128::from_float(usdc)),
+				(1984u32, FixedU128::from_float(usdt)),
+				(2069u32, FixedU128::from_float(plmc)),
+			].try_into().expect("only run in benchmarks mode, so it can panic");
+		}
+		type AccountPublic = <Signature as Verify>::Signer;
+
+		pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
+			TPublic::Pair::from_string(&format!("//{}", seed), None).expect("static values are valid; qed").public()
+		}
+		pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
+		where
+			AccountPublic: From<<TPublic::Pair as Pair>::Public>,
+		{
+			AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
+		}
+
+		let alice = get_account_id_from_seed::<sr25519::Public>("Alice");
+		frame_support::assert_ok!(Oracle::feed_values(
+			RuntimeOrigin::signed(alice.clone()),
+			values([4.84, 1.0, 1.0, 0.4])
+		));
+
+		let bob = get_account_id_from_seed::<sr25519::Public>("Bob");
+		frame_support::assert_ok!(Oracle::feed_values(
+			RuntimeOrigin::signed(bob.clone()),
+			values([4.84, 1.0, 1.0, 0.4])
+		));
+
+		let charlie = get_account_id_from_seed::<sr25519::Public>("Charlie");
+		frame_support::assert_ok!(Oracle::feed_values(
+			RuntimeOrigin::signed(charlie.clone()),
+			values([4.84, 1.0, 1.0, 0.4])
+		));
+
+		let expected_values = std::collections::HashMap::from([
+			(0u32, FixedU128::from_float(4.84)),
+			(420u32, FixedU128::from_float(1.0)),
+			(1984u32, FixedU128::from_float(1.0)),
+			(2069u32, FixedU128::from_float(0.4)),
+		]);
+
+		for (key, value) in Oracle::get_all_values() {
+			assert!(value.is_some());
+			assert_eq!(expected_values.get(&key).unwrap(), &value.unwrap().value);
+		}
+	}
 }
 
 parameter_types! {
@@ -543,6 +608,8 @@ impl pallet_funding::Config for Runtime {
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
+	#[cfg(feature = "runtime-benchmarks")]
+	type SetPrices = SetOraclePrices;
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type TreasuryAccount = TreasuryAccount;
