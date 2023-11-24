@@ -80,7 +80,7 @@ where
 		vested_block_count
 			.checked_mul(&self.per_block()) // `per_block` accessor guarantees at least 1.
 			.map(|to_unlock| self.locked.saturating_sub(to_unlock))
-			.unwrap_or(Zero::zero())
+			.unwrap_or_else(Zero::zero())
 	}
 
 	/// Amount to be released at block `n`.
@@ -91,7 +91,7 @@ where
 		let vested_block_count = BlockNumberToBalance::convert(time_range);
 		// TODO: Find a way to improve this.
 		// Return amount that is releasable in vesting.
-		let res = vested_block_count.checked_mul(&self.per_block()).unwrap_or(Zero::zero());
+		let res = vested_block_count.checked_mul(&self.per_block()).unwrap_or_else(Zero::zero());
 		res.min(self.locked)
 	}
 
