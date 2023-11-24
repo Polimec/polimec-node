@@ -42,13 +42,14 @@ runtime-benchmarks = [
 	"polimec-traits/runtime-benchmarks",
 	"polkadot-parachain/runtime-benchmarks",
 	"polkadot-runtime-parachains/runtime-benchmarks",
-	"sp-runtime/runtime-benchmarks"
+	"sp-runtime/runtime-benchmarks",
 ]
 std = [
 	"codec/std",
 	"frame-benchmarking/std",
 	"frame-support/std",
 	"frame-system/std",
+	"polimec-traits/std",
 	"polkadot-parachain/std",
 	"polkadot-runtime-parachains/std",
 	"scale-info/std",
@@ -56,12 +57,11 @@ std = [
 	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
-	"polimec-traits/std"
 ]
 try-runtime = [
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
 	"polimec-traits/try-runtime",
 	"polkadot-runtime-parachains/try-runtime",
-	"sp-runtime/try-runtime"
+	"sp-runtime/try-runtime",
 ]

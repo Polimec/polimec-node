@@ -98,7 +98,7 @@ orml-oracle.workspace = true
 
 [features]
 default = [ "std" ]
-fast-gov = []
+fast-gov = [ "shared-configuration/fast-gov" ]
 std = [
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-dmp-queue/std",

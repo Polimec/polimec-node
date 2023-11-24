@@ -98,6 +98,7 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 ]
 try-runtime = [
+	"pallet-funding/try-runtime",
 	"polimec-base-runtime/try-runtime",
 	"polimec-parachain-runtime/try-runtime",
 	"polkadot-cli/try-runtime",
@@ -105,9 +106,11 @@ try-runtime = [
 	"sp-runtime/try-runtime",
 	"try-runtime-cli",
 	"try-runtime-cli?/try-runtime",
-	"pallet-funding/try-runtime"
 ]
-fast-gov = [ "polimec-parachain-runtime/fast-gov" ]
+fast-gov = [
+	"polimec-base-runtime/fast-gov",
+	"polimec-parachain-runtime/fast-gov",
+]
 std = [
 	"cumulus-primitives-core/std",
 	"frame-benchmarking/std",
