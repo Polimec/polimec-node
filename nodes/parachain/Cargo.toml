@@ -88,6 +88,7 @@ default = []
 runtime-benchmarks = [
 	"frame-benchmarking-cli/runtime-benchmarks",
 	"frame-benchmarking/runtime-benchmarks",
+	"pallet-funding/runtime-benchmarks",
 	"polimec-base-runtime/runtime-benchmarks",
 	"polimec-parachain-runtime/runtime-benchmarks",
 	"polkadot-cli/runtime-benchmarks",
@@ -95,9 +96,9 @@ runtime-benchmarks = [
 	"polkadot-service/runtime-benchmarks",
 	"sc-service/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
-	"pallet-funding/runtime-benchmarks"
 ]
 try-runtime = [
+	"pallet-funding/try-runtime",
 	"polimec-base-runtime/try-runtime",
 	"polimec-parachain-runtime/try-runtime",
 	"polkadot-cli/try-runtime",
@@ -106,7 +107,10 @@ try-runtime = [
 	"try-runtime-cli",
 	"try-runtime-cli?/try-runtime",
 ]
-fast-gov = [ "polimec-parachain-runtime/fast-gov" ]
+fast-gov = [
+	"polimec-base-runtime/fast-gov",
+	"polimec-parachain-runtime/fast-gov",
+]
 std = [
 	"cumulus-primitives-core/std",
 	"frame-benchmarking/std",
@@ -125,10 +129,10 @@ std = [
 	"sp-runtime/std",
 	"sp-session/std",
 	"sp-transaction-pool/std",
-	"xcm/std"
+	"xcm/std",
 ]
 testing-node = [
 	"pallet-funding/testing-node",
+	"polimec-base-runtime/testing-node",
 	"polimec-parachain-runtime/testing-node",
-	"polimec-base-runtime/testing-node"
 ]

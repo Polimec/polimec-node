@@ -561,6 +561,7 @@ mod benchmarks {
 			plmc_vesting_info: None,
 			funds_released: false,
 			ct_minted: false,
+			ct_migration_status: MigrationStatus::NotStarted,
 		};
 		assert_eq!(stored_contribution, contribution);
 

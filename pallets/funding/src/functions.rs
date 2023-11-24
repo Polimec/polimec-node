@@ -1878,7 +1878,7 @@ impl<T: Config> Pallet<T> {
 					},
 				}
 			},
-			instr @ _ => {
+			instr => {
 				log::trace!(target: "pallet_funding::hrmp", "Bad instruction: {:?}", instr);
 				Err(XcmError::Unimplemented)
 			},
@@ -1909,7 +1909,7 @@ impl<T: Config> Pallet<T> {
 				.map_err(|_| XcmError::NoDeal)?;
 				Ok(())
 			},
-			instr @ _ => {
+			instr => {
 				log::trace!(target: "pallet_funding::hrmp", "Bad instruction: {:?}", instr);
 				Err(XcmError::Unimplemented)
 			},
@@ -1980,12 +1980,12 @@ impl<T: Config> Pallet<T> {
 			(MultiLocation { parents: 0, interior: Here }, 1_000_000_0_000_000_000u128).into(); // 1MM units for migrations
 		let xcm = Xcm(vec![
 			UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
-			WithdrawAsset(vec![expected_tokens.clone()].into()),
+			WithdrawAsset(vec![expected_tokens].into()),
 			ReportHolding {
 				response_info: QueryResponseInfo {
 					destination: ParentThen(Parachain(POLIMEC_PARA_ID).into()).into(),
 					query_id: 0,
-					max_weight: max_weight.clone(),
+					max_weight,
 				},
 				assets: Wild(All),
 			},
@@ -1994,7 +1994,7 @@ impl<T: Config> Pallet<T> {
 				response_info: QueryResponseInfo {
 					destination: ParentThen(Parachain(POLIMEC_PARA_ID).into()).into(),
 					query_id: 1,
-					max_weight: max_weight.clone(),
+					max_weight,
 				},
 			},
 			DepositAsset { assets: Wild(All), beneficiary: ParentThen(Parachain(POLIMEC_PARA_ID).into()).into() },
@@ -2020,7 +2020,7 @@ impl<T: Config> Pallet<T> {
 					details.migration_readiness_check
 				{
 					if holding_check.0 == query_id || pallet_check.0 == query_id {
-						return Some((project_id, details, check.clone()))
+						return Some((project_id, details, check))
 					}
 				}
 				None
@@ -2172,12 +2172,8 @@ impl<T: Config> Pallet<T> {
 
 			let call: <T as Config>::RuntimeCall =
 				Call::confirm_migrations { query_id: Default::default(), response: Default::default() }.into();
-			let transact_response_query_id = pallet_xcm::Pallet::<T>::new_notify_query(
-				project_multilocation.clone(),
-				call.into(),
-				now + 20u32.into(),
-				Here,
-			);
+			let transact_response_query_id =
+				pallet_xcm::Pallet::<T>::new_notify_query(project_multilocation, call.into(), now + 20u32.into(), Here);
 			// TODO: check these values
 			let max_weight = Weight::from_parts(700_000_000, 10_000);
 
@@ -2773,9 +2769,8 @@ impl<T: Config> Pallet<T> {
 		let available_bytes_for_migration_per_message =
 			T::RequiredMaxMessageSize::get().saturating_sub(xcm_size as u32);
 
-        available_bytes_for_migration_per_message.saturating_div(one_migration_bytes)
-
-    }
+		available_bytes_for_migration_per_message.saturating_div(one_migration_bytes)
+	}
 
 	pub fn construct_migration_xcm_messages(
 		user: [u8; 32],

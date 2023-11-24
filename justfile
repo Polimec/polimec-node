@@ -28,7 +28,7 @@ build-parachain-srtool:
 
 # Test the runtimes features
 test-runtime-features:
-	cargo test --features runtime-benchmarks
+	cargo test --features runtime-benchmarks -p polimec-parachain-runtime
 
 # Benchmark the "Testnet" Runtime
 benchmark-runtime-funding:
