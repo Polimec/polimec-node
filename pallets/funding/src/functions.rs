@@ -2773,19 +2773,9 @@ impl<T: Config> Pallet<T> {
 		let available_bytes_for_migration_per_message =
 			T::RequiredMaxMessageSize::get().saturating_sub(xcm_size as u32);
 
-		let mut output = 0u32;
-		let mut current_migration_size = 0u32;
-		while current_migration_size < available_bytes_for_migration_per_message {
-			if current_migration_size + one_migration_bytes > available_bytes_for_migration_per_message {
-				break
-			} else {
-				current_migration_size += one_migration_bytes;
-				output += 1;
-			}
-		}
+        available_bytes_for_migration_per_message.saturating_div(one_migration_bytes);
 
-		output
-	}
+    }
 
 	pub fn construct_migration_xcm_messages(
 		user: [u8; 32],

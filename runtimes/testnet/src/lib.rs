@@ -500,7 +500,7 @@ parameter_types! {
 	).unwrap();
 	pub MaxMessageSizeThresholds: (u32, u32) = (50000, 102_400);
 	pub MaxCapacityThresholds: (u32, u32) = (8, 1000);
-	pub RequiredMaxCapacity: u32 = 20;
+	pub RequiredMaxCapacity: u32 = 8;
 	pub RequiredMaxMessageSize: u32 = 102_400;
 }
 impl pallet_funding::Config for Runtime {

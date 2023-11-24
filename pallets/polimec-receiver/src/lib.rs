@@ -25,7 +25,8 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config
 	where
-		Self::AccountId: From<[u8; 32]>,
+        // Used for converting a polimec account into a local account for Contribution Token migrations
+        Self::AccountId: From<[u8; 32]>,
 	{
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type PolimecParaId: Get<ParaId>;
