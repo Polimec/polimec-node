@@ -170,17 +170,17 @@ impl SetPrices for SetOraclePrices {
 		let charlie: [u8; 32] = [144, 181, 171, 32, 92, 105, 116, 201, 234, 132, 27, 230, 136, 134, 70, 51, 220, 156, 168, 163, 87, 132, 62, 234, 207, 35, 20, 100, 153, 101, 254, 34];
 
 		frame_support::assert_ok!(Oracle::feed_values(
-			RuntimeOrigin::signed(alice.clone()),
+			RuntimeOrigin::signed(alice.clone().into()),
 			values([4.84, 1.0, 1.0, 0.4])
 		));
 
 		frame_support::assert_ok!(Oracle::feed_values(
-			RuntimeOrigin::signed(bob.clone()),
+			RuntimeOrigin::signed(bob.clone().into()),
 			values([4.84, 1.0, 1.0, 0.4])
 		));
 
 		frame_support::assert_ok!(Oracle::feed_values(
-			RuntimeOrigin::signed(charlie.clone()),
+			RuntimeOrigin::signed(charlie.clone().into()),
 			values([4.84, 1.0, 1.0, 0.4])
 		));
 	}
