@@ -41,7 +41,7 @@ pub use parachains_common::{
 // Polkadot imports
 use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
 use sp_api::impl_runtime_apis;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata, Pair, Public};
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
@@ -68,7 +68,9 @@ pub use crate::xcm_config::*;
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 // Polimec Shared Imports
-use pallet_funding::{traits::SetPrices, BondTypeOf, DaysToBlocks};
+use pallet_funding::{BondTypeOf, DaysToBlocks};
+#[cfg(feature = "runtime-benchmarks")]
+use pallet_funding::traits::SetPrices;
 pub use pallet_parachain_staking;
 pub use shared_configuration::*;
 
@@ -146,14 +148,11 @@ pub fn native_version() -> NativeVersion {
 	NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
 }
 
+#[cfg(feature = "runtime-benchmarks")]
 struct SetOraclePrices;
+#[cfg(feature = "runtime-benchmarks")]
 impl SetPrices for SetOraclePrices {
 	fn set_prices() {
-		use sp_core::{Pair, Public};
-		use sp_runtime::{
-			app_crypto::sr25519,
-			traits::{IdentifyAccount, Verify},
-		};
 		fn values(
 			values: [f64; 4],
 		) -> BoundedVec<(u32, FixedU128), <Runtime as orml_oracle::Config<orml_oracle::Instance1>>::MaxFeedValues> {
@@ -165,47 +164,25 @@ impl SetPrices for SetOraclePrices {
 				(2069u32, FixedU128::from_float(plmc)),
 			].try_into().expect("only run in benchmarks mode, so it can panic");
 		}
-		type AccountPublic = <Signature as Verify>::Signer;
 
-		pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
-			TPublic::Pair::from_string(&format!("//{}", seed), None).expect("static values are valid; qed").public()
-		}
-		pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
-		where
-			AccountPublic: From<<TPublic::Pair as Pair>::Public>,
-		{
-			AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
-		}
+		let alice: [u8; 32] = [212, 53, 147, 199, 21, 253, 211, 28, 97, 20, 26, 189, 4, 169, 159, 214, 130, 44, 133, 88, 133, 76, 205, 227, 154, 86, 132, 231, 165, 109, 162, 125];
+		let bob: [u8; 32] = [142, 175, 4, 21, 22, 135, 115, 99, 38, 201, 254, 161, 126, 37, 252, 82, 135, 97, 54, 147, 201, 18, 144, 156, 178, 38, 170, 71, 148, 242, 106, 72];
+		let charlie: [u8; 32] = [144, 181, 171, 32, 92, 105, 116, 201, 234, 132, 27, 230, 136, 134, 70, 51, 220, 156, 168, 163, 87, 132, 62, 234, 207, 35, 20, 100, 153, 101, 254, 34];
 
-		let alice = get_account_id_from_seed::<sr25519::Public>("Alice");
 		frame_support::assert_ok!(Oracle::feed_values(
 			RuntimeOrigin::signed(alice.clone()),
 			values([4.84, 1.0, 1.0, 0.4])
 		));
 
-		let bob = get_account_id_from_seed::<sr25519::Public>("Bob");
 		frame_support::assert_ok!(Oracle::feed_values(
 			RuntimeOrigin::signed(bob.clone()),
 			values([4.84, 1.0, 1.0, 0.4])
 		));
 
-		let charlie = get_account_id_from_seed::<sr25519::Public>("Charlie");
 		frame_support::assert_ok!(Oracle::feed_values(
 			RuntimeOrigin::signed(charlie.clone()),
 			values([4.84, 1.0, 1.0, 0.4])
 		));
-
-		let expected_values = std::collections::HashMap::from([
-			(0u32, FixedU128::from_float(4.84)),
-			(420u32, FixedU128::from_float(1.0)),
-			(1984u32, FixedU128::from_float(1.0)),
-			(2069u32, FixedU128::from_float(0.4)),
-		]);
-
-		for (key, value) in Oracle::get_all_values() {
-			assert!(value.is_some());
-			assert_eq!(expected_values.get(&key).unwrap(), &value.unwrap().value);
-		}
 	}
 }
 
