@@ -6075,6 +6075,14 @@ mod ct_migration {
 		let project_details = inst.get_project_details(project_id);
 		assert_eq!(project_details.parachain_id, None);
 	}
+
+	#[test]
+	fn check_migrations_per_xcm() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		inst.execute(||{
+			dbg!(Pallet::<TestRuntime>::migrations_per_xcm_message_allowed())
+		});
+	}
 }
 
 mod test_helper_functions {

@@ -2772,17 +2772,7 @@ impl<T: Config> Pallet<T> {
 
 		let available_bytes_for_migration_per_message =
 			T::RequiredMaxMessageSize::get().saturating_sub(xcm_size as u32);
-
-		let mut output = 0u32;
-		let mut current_migration_size = 0u32;
-		while current_migration_size < available_bytes_for_migration_per_message {
-			if current_migration_size + one_migration_bytes > available_bytes_for_migration_per_message {
-				break
-			} else {
-				current_migration_size += one_migration_bytes;
-				output += 1;
-			}
-		}
+		let mut output = available_bytes_for_migration_per_message.saturating_div(one_migration_bytes);
 
 		output
 	}
@@ -2793,6 +2783,7 @@ impl<T: Config> Pallet<T> {
 	) -> Vec<(BoundedVec<MigrationOriginOf<T>, MaxMigrationsPerXcm<T>>, Xcm<()>)> {
 		// TODO: adjust this as benchmarks for polimec-receiver are written
 		const MAX_WEIGHT: Weight = Weight::from_parts(10_000, 0);
+
 		// const MAX_WEIGHT: Weight = Weight::from_parts(100_003_000_000_000, 10_000_196_608);
 		let _polimec_receiver_info = T::PolimecReceiverInfo::get();
 		// TODO: use the actual pallet index when the fields are not private anymore (https://github.com/paritytech/polkadot-sdk/pull/2231)

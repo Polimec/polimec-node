@@ -492,6 +492,13 @@ fn ct_migrated() {
 
 	let names = names();
 
+	Penpal::execute_with(||{
+		assert_ok!(<Penpal as Parachain>::XcmpMessageHandler::update_xcmp_max_individual_weight(
+			PenpalOrigin::root(),
+			Weight::from_parts(10_000_000_000, 500_000)
+		));
+	});
+
 	Polimec::execute_with(|| {
 		for account in accounts {
 			assert_ok!(PolimecFunding::migrate_one_participant(
