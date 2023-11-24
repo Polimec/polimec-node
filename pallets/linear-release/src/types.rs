@@ -91,7 +91,7 @@ where
 		let vested_block_count = BlockNumberToBalance::convert(time_range);
 		// TODO: Find a way to improve this.
 		// Return amount that is releasable in vesting.
-		let res = vested_block_count.checked_mul(&self.per_block()).unwrap_or_else(Zero::zero());
+		let res = vested_block_count.checked_mul(&self.per_block()).unwrap_or(Zero::zero());
 		res.min(self.locked)
 	}
 
