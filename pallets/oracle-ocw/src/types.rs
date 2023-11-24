@@ -18,7 +18,7 @@ use parity_scale_codec::{Encode, Decode};
 use scale_info::TypeInfo;
 use serde_json::Value;
 use sp_std::{vec::Vec, collections::btree_map::BTreeMap};
-use sp_runtime::{Saturating, offchain::http::Response};
+use sp_runtime::Saturating;
 use sp_core::offchain::HttpRequestId as RequestId;
 use serde::{Deserialize};
 use core::str::FromStr;
@@ -37,11 +37,6 @@ pub (crate) struct AssetRequest {
     pub id: RequestId,
 }
 
-pub (crate) struct AssetResponse {
-    pub asset: AssetName,
-    pub response: Response,
-}
-
 pub (crate) struct OpenCloseVolume {
     pub open: FixedU128,
     pub close: FixedU128,
@@ -52,14 +47,6 @@ impl OpenCloseVolume {
     pub fn vwp(&self) -> FixedU128 {
         let avg_price = self.open.saturating_add(self.close) / FixedU128::from_u32(2u32);
         self.volume.saturating_mul(avg_price)
-    }
-
-    pub fn new(open: FixedU128, close: FixedU128, volume: FixedU128) -> Self {
-        OpenCloseVolume {
-            open,
-            close,
-            volume,
-        }
     }
 
     pub fn from_f64(open: f64, close: f64, volume: f64) -> Self {
@@ -107,12 +94,12 @@ struct KrakenResult {
     #[serde(deserialize_with = "deserialize_hloc_kraken")]
     data: Vec<OpenCloseVolume>,
     #[serde(skip)]
-    last: String,
+    _last: String,
 }
 #[derive(Deserialize)]
 struct KrakenResponse {
     #[serde(skip)]
-    error: Vec<String>,
+    _error: Vec<String>,
     #[serde(default)]
     result: KrakenResult,
 }
@@ -197,7 +184,7 @@ struct BitStampResult {
     #[serde(deserialize_with = "deserialize_hloc_bitstamp")]
     ohlc: Vec<OpenCloseVolume>,
     #[serde(skip)]
-    pair: String, 
+    _pair: String, 
 }
 
 #[derive(Deserialize, Default)]

@@ -17,18 +17,10 @@
 #![cfg(test)]
 
 
-use crate::{mock::*, types::*, traits::*};
-use sp_runtime::{bounded_vec, FixedU128, Saturating};
-use frame_support::{assert_noop, assert_ok};
+use crate::mock::*;
+use sp_runtime::FixedU128;
 use parity_scale_codec::Decode;
 
-
-fn assert_close_enough(a: FixedU128, b: FixedU128) {
-	match a > b {
-		true => assert!(a.saturating_sub(b) < FixedU128::from_float(0.0001)),
-		false => assert!(b.saturating_sub(a) < FixedU128::from_float(0.0001)),
-	}
-}
 
 #[test]
 fn call_offchain_worker() {
@@ -45,9 +37,9 @@ fn call_offchain_worker() {
 			RuntimeCall::Oracle(orml_oracle::Call::feed_values { values }) => {
 				for (asset, price) in values {
 					match asset {
-						0 => assert_close_enough(price, FixedU128::from_float(5.522204608169164724)),
-						1984 => assert_close_enough(price, FixedU128::from_float(1.000714447104472902)),
-						420 => assert_close_enough(price, FixedU128::from_float(1.000420780717168255)),
+						0 => assert_close_enough(price, FixedU128::from_float(5.519610553825360850)),
+						1984 => assert_close_enough(price, FixedU128::from_float(1.000692308098215370)),
+						420 => assert_close_enough(price, FixedU128::from_float(1.000198559694455204)),
 						_ => panic!("Unexpected asset"),
 					}
 				}

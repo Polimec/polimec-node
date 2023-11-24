@@ -11,8 +11,6 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
-use crate::types::{AssetResponse, OpenCloseVolume};
-
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use super::*;
@@ -21,7 +19,7 @@ use sp_runtime::{
     FixedU128,
     Saturating,
     offchain::{
-        http::{self, Request, PendingRequest, Response},
+        http::{self, PendingRequest},
         Duration,
     }
 };
@@ -33,7 +31,7 @@ pub(crate) trait FetchPrice {
         let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(timeout));
         let asset_requests = assets.into_iter().filter_map(|asset| {
             let url = Self::get_url(asset);
-            if url == "" {
+            if url.is_empty() {
                 return None
             }
             let request = http::Request::get(url);

@@ -19,7 +19,7 @@
 pub use pallet::*;
 use crate::{
 	traits::FetchPrice,
-	types::{AssetName, AssetRequest, KrakenFetcher, BitFinexFetcher, BitStampFetcher, CoinbaseFetcher}
+	types::{AssetName, AssetRequest, BitFinexFetcher, BitStampFetcher, CoinbaseFetcher, KrakenFetcher, OpenCloseVolume}
 };
 use sp_runtime::{traits::{Convert, Zero, Saturating}, FixedU128, RuntimeAppPublic};
 use std::collections::HashMap;
@@ -48,9 +48,9 @@ pub mod pallet {
 			storage_lock::{Time, StorageLock},
 			Duration,
 		}, 
-		traits::{IdentifyAccount, Block}
+		traits::IdentifyAccount
 	};
-	use orml_oracle::{Call as OracleCall, Instance1};
+	use orml_oracle::Call as OracleCall;
 
 	const LOCK_TIMEOUT_EXPIRATION: u64 = 30_000; // 30 seconds
 
@@ -93,21 +93,11 @@ pub mod pallet {
 	pub type DummyValue<T> = StorageValue<_, u32>;
 	
 	#[pallet::event]
-	#[pallet::generate_deposit(pub(super) fn deposit_event)]
-	pub enum Event<T: Config> {
-		/// The value was changed to the new value.
-		Changed {
-			/// The new value.
-			value: u32,
-		}
-	}
+	pub enum Event<T: Config> {}
 
 	// Errors inform users that something went wrong.
 	#[pallet::error]
-	pub enum Error<T> {
-		/// The value was too large.
-		TooLarge,
-	}
+	pub enum Error<T> {}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
@@ -122,49 +112,52 @@ pub mod pallet {
 		/// You can use `Local Storage` API to coordinate runs of the worker.
 		fn offchain_worker(block_number: BlockNumberFor<T>) {
 			let local_keys = T::AuthorityId::all();
-			let mut key_found: bool = false;
-			for key in local_keys.iter() {
+			let maybe_key = local_keys.iter().find_map(|key| {
 				let account: AccountIdOf<T> = <PublicOf<T> as IdentifyAccount>::into_account(key.clone().into());
-				if <T as pallet::Config>::Members::contains(&account) && !key_found {
-					
-					key_found = true;
-					let mut lock = StorageLock::<Time>::with_deadline(
-						b"oracle_ocw::lock", 
-						Duration::from_millis(LOCK_TIMEOUT_EXPIRATION)
-					);
+				if <T as pallet::Config>::Members::contains(&account) {
+					Some(key)
+				} else {
+					None
+				}
+			});
 
-					// We try to acquire the lock here. If failed, we know another ocw
-					// is executing at the moment and exit this ocw.
-					if let Ok(_guard) = lock.try_lock() {
-						let val = StorageValueRef::persistent(b"oracle_ocw::last_send");
-						let last_send_for_assets_result: Result<Option<BTreeMap<AssetName, BlockNumberFor<T>>>, StorageRetrievalError> = val.get();
-						let mut last_send_for_assets = match last_send_for_assets_result {
-							Ok(Some(v)) => v,
-							_ => BTreeMap::from([(AssetName::USDT, Zero::zero()), (AssetName::USDC, Zero::zero()), (AssetName::DOT, Zero::zero())]),
-						};
-						let assets = last_send_for_assets.iter().filter_map(|(asset_name, last_send)| {
-							if block_number >= last_send.saturating_add(T::GracePeriod::get()) {
-								return Some(*asset_name)
-							}
-							None
-						}).collect::<Vec<AssetName>>();
+			if let Some(_authority_key) = maybe_key {
+				let mut lock = StorageLock::<Time>::with_deadline(
+					b"oracle_ocw::lock", 
+					Duration::from_millis(LOCK_TIMEOUT_EXPIRATION)
+				);
 
-						if assets.len() == 0 {
-							return
-						}
-
-						log::trace!(target: LOG_TARGET, "Transaction grace period reached for assets {:?} in block {:?}", assets.clone(), block_number);
-
-						let prices = Self::fetch_prices(assets);
-						let result = Self::send_signed_transaction(prices.clone());
-						if result.is_ok() {
-							for (asset_name, _) in prices {
-								last_send_for_assets.insert(asset_name, block_number);
-							}
-							let _ = val.set(&last_send_for_assets);
-						}
+				// We try to acquire the lock here. If failed, we know another ocw
+				// is executing at the moment and exit this ocw.
+				if let Ok(_guard) = lock.try_lock() {
+					let val = StorageValueRef::persistent(b"oracle_ocw::last_send");
+					let last_send_for_assets_result: Result<Option<BTreeMap<AssetName, BlockNumberFor<T>>>, StorageRetrievalError> = val.get();
+					let mut last_send_for_assets = match last_send_for_assets_result {
+						Ok(Some(v)) => v,
+						_ => BTreeMap::from([(AssetName::USDT, Zero::zero()), (AssetName::USDC, Zero::zero()), (AssetName::DOT, Zero::zero())]),
 					};
-				} 
+					let assets = last_send_for_assets.iter().filter_map(|(asset_name, last_send)| {
+						if block_number >= last_send.saturating_add(T::GracePeriod::get()) {
+							return Some(*asset_name)
+						}
+						None
+					}).collect::<Vec<AssetName>>();
+
+					if assets.is_empty() {
+						return
+					}
+
+					log::trace!(target: LOG_TARGET, "Transaction grace period reached for assets {:?} in block {:?}", assets.clone(), block_number);
+
+					let prices = Self::fetch_prices(assets);
+					let result = Self::send_signed_transaction(prices.clone());
+					if result.is_ok() {
+						for (asset_name, _) in prices {
+							last_send_for_assets.insert(asset_name, block_number);
+						}
+						let _ = val.set(&last_send_for_assets);
+					}
+				};
 			}
 
 			// Todo: 
@@ -179,34 +172,40 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		fn fetch_prices(assets: Vec<AssetName>) -> HashMap<AssetName, FixedU128> {
 			
-			let kraken_prices = KrakenFetcher::get_moving_average(assets.clone(), 5000);
-			let bitfinex_prices = BitFinexFetcher::get_moving_average(assets.clone(), 5000);
-			let bitstamp_prices = BitStampFetcher::get_moving_average(assets.clone(), 5000);
-			let coinbase_prices = CoinbaseFetcher::get_moving_average(assets.clone(), 5000);
-			let mut prices: HashMap<AssetName, Vec<FixedU128>> = HashMap::new();
-			for (asset_name, price) in kraken_prices.into_iter()
-				.chain(bitfinex_prices.into_iter())
-				.chain(bitstamp_prices.into_iter()) 
-				.chain(coinbase_prices.into_iter()) {
-					prices.entry(asset_name).and_modify(|e| e.push(price)).or_insert(vec![price]);
+			let fetchers = vec![
+				KrakenFetcher::get_moving_average, 
+				BitFinexFetcher::get_moving_average, 
+				BitStampFetcher::get_moving_average, 
+				CoinbaseFetcher::get_moving_average
+			];
+			
+			let mut aggr_prices: HashMap<AssetName, Vec<FixedU128>> = HashMap::new();
+			for fetcher in fetchers.into_iter() {
+				let fetcher_prices = fetcher(assets.clone(), 5000);
+				for (asset_name, price) in fetcher_prices {
+					aggr_prices.entry(asset_name).and_modify(|e| e.push(price)).or_insert(vec![price]);
+				}
 			}
 
-			Self::combine_prices(prices)
+			Self::combine_prices(aggr_prices)
 		}
 
 		fn combine_prices(prices: HashMap<AssetName, Vec<FixedU128>>) -> HashMap<AssetName, FixedU128>{
-			prices.into_iter().filter_map(|(key, value)| {
-				let mut value = value;
-				value.sort();
-				match value.len() {
-					0 => None,
-					1 => Some((key, value[0])),
-					2 => Some((key, value[0].saturating_add(value[1]) / FixedU128::from_u32(2u32))),
-					_ => {
-						let value = value[1..value.len()].iter().fold(FixedU128::from_u32(0), |acc, x| acc.saturating_add(*x)) / FixedU128::from_u32((value.len() - 1) as u32 );
-						Some((key, value))
-					}
+			prices.into_iter().filter_map(|(key, mut price_list)| {
+				if price_list.is_empty() {
+					return None
 				}
+				price_list.sort();
+				let combined_prices = match price_list.len() {
+					1 => price_list[0],
+					2 => price_list[0].saturating_add(price_list[1]) / FixedU128::from_u32(2u32),
+					len => {
+						// Remove the highest and lowest price
+						price_list[1..len - 1].iter().fold(FixedU128::from_u32(0), |acc, x| acc.saturating_add(*x)) / FixedU128::from_u32((len - 2) as u32 )
+						
+					}
+				};
+				Some((key, combined_prices))
 			}).collect::<HashMap<AssetName, FixedU128>>()
 		}
 
