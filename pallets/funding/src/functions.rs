@@ -1792,7 +1792,7 @@ impl<T: Config> Pallet<T> {
 		// TODO: set these constants with a proper value
 		const EXECUTION_DOT: MultiAsset = MultiAsset {
 			id: Concrete(MultiLocation { parents: 0, interior: Here }),
-			fun: Fungible(10_000_000_000_u128),
+			fun: Fungible(1_0_000_000_000u128),
 		};
 		const MAX_WEIGHT: Weight = Weight::from_parts(20_000_000_000, 1_000_000);
 
@@ -1977,7 +1977,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Send the migration query *
 		let expected_tokens: MultiAsset =
-			(MultiLocation { parents: 0, interior: Here }, 10_000_000_000_000_000_u128).into(); // 1MM units for migrations
+			(MultiLocation { parents: 0, interior: Here }, 1_000_000_0_000_000_000u128).into(); // 1MM units for migrations
 		let xcm = Xcm(vec![
 			UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
 			WithdrawAsset(vec![expected_tokens].into()),
