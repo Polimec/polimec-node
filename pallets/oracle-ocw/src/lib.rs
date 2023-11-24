@@ -19,7 +19,7 @@
 pub use pallet::*;
 use crate::{
 	traits::FetchPrice,
-	types::{AssetName, AssetRequest, KrakenFetcher}
+	types::{AssetName, AssetRequest, KrakenFetcher, BitFinexFetcher, BitStampFetcher, CoinbaseFetcher}
 };
 use sp_runtime::{traits::{Convert, Zero, Saturating}, FixedU128, RuntimeAppPublic};
 use std::collections::HashMap;
@@ -37,8 +37,6 @@ const LOG_TARGET: &str = "ocw::oracle";
 
 #[frame_support::pallet]
 pub mod pallet {
-
-	use crate::types::{BitFinexFetcher, BitStampFetcher};
 	use super::*;
 	use std::collections::BTreeMap;
 	use frame_support::{pallet_prelude::*, traits::Contains};
@@ -158,11 +156,13 @@ pub mod pallet {
 						log::trace!(target: LOG_TARGET, "Transaction grace period reached for assets {:?} in block {:?}", assets.clone(), block_number);
 
 						let prices = Self::fetch_prices(assets);
-						let _ = Self::send_signed_transaction(prices.clone());
-						for (asset_name, _) in prices {
-							last_send_for_assets.insert(asset_name, block_number);
+						let result = Self::send_signed_transaction(prices.clone());
+						if result.is_ok() {
+							for (asset_name, _) in prices {
+								last_send_for_assets.insert(asset_name, block_number);
+							}
+							let _ = val.set(&last_send_for_assets);
 						}
-						let _ = val.set(&last_send_for_assets);
 					};
 				} 
 			}
@@ -182,9 +182,13 @@ pub mod pallet {
 			let kraken_prices = KrakenFetcher::get_moving_average(assets.clone(), 5000);
 			let bitfinex_prices = BitFinexFetcher::get_moving_average(assets.clone(), 5000);
 			let bitstamp_prices = BitStampFetcher::get_moving_average(assets.clone(), 5000);
+			let coinbase_prices = CoinbaseFetcher::get_moving_average(assets.clone(), 5000);
 			let mut prices: HashMap<AssetName, Vec<FixedU128>> = HashMap::new();
-			for (asset_name, price) in kraken_prices.into_iter().chain(bitfinex_prices.into_iter()).chain(bitstamp_prices.into_iter()) {
-				prices.entry(asset_name).and_modify(|e| e.push(price)).or_insert(vec![price]);
+			for (asset_name, price) in kraken_prices.into_iter()
+				.chain(bitfinex_prices.into_iter())
+				.chain(bitstamp_prices.into_iter()) 
+				.chain(coinbase_prices.into_iter()) {
+					prices.entry(asset_name).and_modify(|e| e.push(price)).or_insert(vec![price]);
 			}
 
 			Self::combine_prices(prices)

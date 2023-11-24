@@ -231,3 +231,39 @@ impl FetchPrice for BitStampFetcher {
         }
     }
 }
+
+
+#[derive(Default, Deserialize)]
+struct CoinbaseOHLC {
+    _timestamp: u64,
+    _low:  f64,
+    _high: f64,
+    pub open: f64,
+    pub close: f64,
+    pub volume: f64,
+}
+pub (crate) struct CoinbaseFetcher;
+impl FetchPrice for CoinbaseFetcher {
+
+    fn parse_body(body: &str) -> Option<Vec<OpenCloseVolume>> {
+        let maybe_response = serde_json::from_str::<Vec<CoinbaseOHLC>>(body);
+        if let Err(e) = maybe_response {
+            panic!("Error parsing response: {:?}", e);
+        }
+        let response = maybe_response.ok()?;
+        if response.len() < 10 {
+            return None
+        }
+
+        Some(response.into_iter().map(|r| OpenCloseVolume::from_f64(r.open, r.close, r.volume)).collect())
+    }
+
+    fn get_url(name: AssetName) -> &'static str {
+        match name {
+            AssetName::USDT => "https://api.exchange.coinbase.com/products/USDT-USD/candles?granularity=60",
+            AssetName::DOT => "https://api.exchange.coinbase.com/products/DOT-USD/candles?granularity=60",
+            AssetName::USDC => "",
+            _ => "",
+        }
+    }
+}
