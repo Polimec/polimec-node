@@ -73,18 +73,34 @@ itertools = "0.10.5"
 default = [ "std" ]
 
 std = [
+	"cumulus-pallet-xcm/std",
+	"cumulus-pallet-xcmp-queue/std",
+	"cumulus-primitives-core/std",
 	"frame-support/std",
 	"frame-system/std",
+	"orml-oracle/std",
 	"pallet-assets/std",
 	"pallet-balances/std",
+	"pallet-funding/std",
+	"pallet-im-online/std",
+	"pallet-membership/std",
+	"pallet-message-queue/std",
+	"pallet-staking/std",
 	"pallet-xcm/std",
 	"parachain-info/std",
+	"parachains-common/std",
+	"parity-scale-codec/std",
 	"penpal-runtime/std",
 	"polimec-parachain-runtime/std",
 	"polkadot-core-primitives/std",
 	"polkadot-parachain/std",
+	"polkadot-primitives/std",
+	"polkadot-runtime-constants/std",
 	"polkadot-runtime-parachains/std",
 	"polkadot-runtime/std",
+	"scale-info/std",
+	"sp-authority-discovery/std",
+	"sp-consensus-babe/std",
 	"sp-core/std",
 	"sp-io/std",
 	"sp-runtime/std",
@@ -93,28 +109,12 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
-	"cumulus-pallet-xcm/std",
-	"cumulus-primitives-core/std",
-	"parity-scale-codec/std",
-	"scale-info/std",
-	"pallet-membership/std",
-	"orml-oracle/std",
-	"cumulus-pallet-xcmp-queue/std",
-	"pallet-funding/std",
-	"pallet-im-online/std",
-	"pallet-message-queue/std",
-	"pallet-staking/std",
-	"parachains-common/std",
-	"polkadot-primitives/std",
-	"polkadot-runtime-constants/std",
-	"sp-authority-discovery/std",
-	"sp-consensus-babe/std"
+	"pallet-vesting/std",
+	"polimec-receiver/std",
+	"sp-arithmetic/std"
 ]
 
 runtime-benchmarks = [
-	"statemint-runtime/runtime-benchmarks",
-	"penpal-runtime/runtime-benchmarks",
-	"polimec-parachain-runtime/runtime-benchmarks",
 	"cumulus-pallet-xcmp-queue/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
@@ -125,16 +125,23 @@ runtime-benchmarks = [
 	"pallet-message-queue/runtime-benchmarks",
 	"pallet-staking/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
+	"penpal-runtime/runtime-benchmarks",
+	"polimec-parachain-runtime/runtime-benchmarks",
 	"polkadot-parachain/runtime-benchmarks",
 	"polkadot-primitives/runtime-benchmarks",
-	"polkadot-runtime/runtime-benchmarks",
 	"polkadot-runtime-parachains/runtime-benchmarks",
+	"polkadot-runtime/runtime-benchmarks",
 	"polkadot-service/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
+	"statemint-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
-	"xcm-executor/runtime-benchmarks"
+	"xcm-executor/runtime-benchmarks",
+	"pallet-membership/runtime-benchmarks",
+	"pallet-vesting/runtime-benchmarks",
+	"polimec-receiver/runtime-benchmarks"
 ]
 testing-node = [
 	"pallet-funding/testing-node",
-	"polimec-parachain-runtime/testing-node"
+	"polimec-parachain-runtime/testing-node",
 ]
+try-runtime = []

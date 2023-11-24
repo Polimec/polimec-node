@@ -7,3 +7,6 @@ edition = "2021"
 
 [dependencies]
 macros.workspace = true
+
+[features]
+std = []
