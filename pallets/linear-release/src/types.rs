@@ -33,7 +33,11 @@ where
 	BlockNumber: AtLeast32BitUnsigned + Copy + Bounded,
 {
 	/// Instantiate a new `VestingInfo`.
-	pub fn new(locked: Balance, per_block: Balance, starting_block: BlockNumber) -> VestingInfo<Balance, BlockNumber> {
+	pub const fn new(
+		locked: Balance,
+		per_block: Balance,
+		starting_block: BlockNumber,
+	) -> VestingInfo<Balance, BlockNumber> {
 		VestingInfo { locked, per_block, starting_block }
 	}
 
@@ -44,7 +48,7 @@ where
 	}
 
 	/// Locked amount at schedule creation.
-	pub fn locked(&self) -> Balance {
+	pub const fn locked(&self) -> Balance {
 		self.locked
 	}
 
@@ -57,12 +61,12 @@ where
 
 	/// Get the unmodified `per_block`. Generally should not be used, but is useful for
 	/// validating `per_block`.
-	pub(crate) fn raw_per_block(&self) -> Balance {
+	pub(crate) const fn raw_per_block(&self) -> Balance {
 		self.per_block
 	}
 
 	/// Starting block for unlocking(vesting).
-	pub fn starting_block(&self) -> BlockNumber {
+	pub const fn starting_block(&self) -> BlockNumber {
 		self.starting_block
 	}
 
