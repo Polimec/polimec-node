@@ -1792,7 +1792,7 @@ impl<T: Config> Pallet<T> {
 		// TODO: set these constants with a proper value
 		const EXECUTION_DOT: MultiAsset = MultiAsset {
 			id: Concrete(MultiLocation { parents: 0, interior: Here }),
-			fun: Fungible(1_0_000_000_000u128),
+			fun: Fungible(10_000_000_000_u128),
 		};
 		const MAX_WEIGHT: Weight = Weight::from_parts(20_000_000_000, 1_000_000);
 
@@ -1878,7 +1878,7 @@ impl<T: Config> Pallet<T> {
 					},
 				}
 			},
-			instr @ _ => {
+			instr => {
 				log::trace!(target: "pallet_funding::hrmp", "Bad instruction: {:?}", instr);
 				Err(XcmError::Unimplemented)
 			},
@@ -1909,7 +1909,7 @@ impl<T: Config> Pallet<T> {
 				.map_err(|_| XcmError::NoDeal)?;
 				Ok(())
 			},
-			instr @ _ => {
+			instr => {
 				log::trace!(target: "pallet_funding::hrmp", "Bad instruction: {:?}", instr);
 				Err(XcmError::Unimplemented)
 			},
@@ -1977,15 +1977,15 @@ impl<T: Config> Pallet<T> {
 
 		// * Send the migration query *
 		let expected_tokens: MultiAsset =
-			(MultiLocation { parents: 0, interior: Here }, 1_000_000_0_000_000_000u128).into(); // 1MM units for migrations
+			(MultiLocation { parents: 0, interior: Here }, 10_000_000_000_000_000_u128).into(); // 1MM units for migrations
 		let xcm = Xcm(vec![
 			UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
-			WithdrawAsset(vec![expected_tokens.clone()].into()),
+			WithdrawAsset(vec![expected_tokens].into()),
 			ReportHolding {
 				response_info: QueryResponseInfo {
 					destination: ParentThen(Parachain(POLIMEC_PARA_ID).into()).into(),
 					query_id: 0,
-					max_weight: max_weight.clone(),
+					max_weight: max_weight,
 				},
 				assets: Wild(All),
 			},
@@ -1994,7 +1994,7 @@ impl<T: Config> Pallet<T> {
 				response_info: QueryResponseInfo {
 					destination: ParentThen(Parachain(POLIMEC_PARA_ID).into()).into(),
 					query_id: 1,
-					max_weight: max_weight.clone(),
+					max_weight: max_weight,
 				},
 			},
 			DepositAsset { assets: Wild(All), beneficiary: ParentThen(Parachain(POLIMEC_PARA_ID).into()).into() },
@@ -2020,7 +2020,7 @@ impl<T: Config> Pallet<T> {
 					details.migration_readiness_check
 				{
 					if holding_check.0 == query_id || pallet_check.0 == query_id {
-						return Some((project_id, details, check.clone()))
+						return Some((project_id, details, check))
 					}
 				}
 				None
@@ -2173,7 +2173,7 @@ impl<T: Config> Pallet<T> {
 			let call: <T as Config>::RuntimeCall =
 				Call::confirm_migrations { query_id: Default::default(), response: Default::default() }.into();
 			let transact_response_query_id = pallet_xcm::Pallet::<T>::new_notify_query(
-				project_multilocation.clone(),
+				project_multilocation,
 				call.into(),
 				now + 20u32.into(),
 				Here,
