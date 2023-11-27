@@ -39,15 +39,12 @@ frame-try-runtime = { workspace = true, optional = true }
 pallet-aura.workspace = true
 pallet-authorship.workspace = true
 pallet-balances.workspace = true
-pallet-membership.workspace = true
-pallet-oracle-ocw.workspace = true
 pallet-session.workspace = true
 pallet-sudo.workspace = true
 pallet-timestamp.workspace = true
 pallet-transaction-payment.workspace = true
 pallet-transaction-payment-rpc-runtime-api.workspace = true
 pallet-treasury.workspace = true
-orml-oracle.workspace = true
 sp-arithmetic.workspace = true
 sp-api.workspace = true
 sp-block-builder.workspace = true
@@ -108,8 +105,6 @@ std = [
 	"pallet-aura/std",
 	"pallet-authorship/std",
 	"pallet-balances/std",
-	"pallet-membership/std",
-	"pallet-oracle-ocw/std",
 	"pallet-parachain-staking/std",
 	"pallet-session/std",
 	"pallet-sudo/std",
@@ -124,7 +119,6 @@ std = [
 	"polkadot-parachain/std",
 	"polkadot-primitives/std",
 	"polkadot-runtime-common/std",
-	"orml-oracle/std",
 	"scale-info/std",
 	"shared-configuration/std",
 	"sp-api/std",
@@ -153,7 +147,6 @@ runtime-benchmarks = [
 	"frame-system/runtime-benchmarks",
 	"hex-literal",
 	"pallet-balances/runtime-benchmarks",
-	"pallet-membership/runtime-benchmarks",
 	"pallet-parachain-staking/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
@@ -182,7 +175,6 @@ try-runtime = [
 	"pallet-aura/try-runtime",
 	"pallet-authorship/try-runtime",
 	"pallet-balances/try-runtime",
-	"pallet-membership/try-runtime",
 	"pallet-parachain-staking/try-runtime",
 	"pallet-session/try-runtime",
 	"pallet-sudo/try-runtime",
@@ -192,7 +184,6 @@ try-runtime = [
 	"pallet-xcm/try-runtime",
 	"parachain-info/try-runtime",
 	"polkadot-runtime-common/try-runtime",
-	"orml-oracle/try-runtime",
 	"sp-runtime/try-runtime",
 ]
 testing-node = [
