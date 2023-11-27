@@ -659,7 +659,7 @@ construct_runtime!(
 		Random: pallet_insecure_randomness_collective_flip = 62,
 
 		// Oracle
-		Oracle: orml_oracle::{Pallet, Call, Storage, Event<T>, Config<T>} = 70,
+		Oracle: orml_oracle::{Pallet, Call, Storage, Event<T>} = 70,
 		OracleProvidersMembership: pallet_membership::<Instance1> = 71,
 
 		// Among others: Send and receive DMP and XCMP messages.
