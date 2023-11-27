@@ -30,6 +30,7 @@ use frame_support::{
 };
 use frame_system::EnsureRoot;
 use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
+use parachains_common::AssetIdForTrustBackedAssets as AssetId;
 use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
@@ -37,11 +38,11 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, IdentifyAccount, OpaqueKeys, Verify},
+	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConstU32, ConvertInto, IdentifyAccount, OpaqueKeys, Verify},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature,
 };
-pub use sp_runtime::{MultiAddress, Perbill, Permill};
+pub use sp_runtime::{MultiAddress, Perbill, Permill, FixedU128};
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -117,6 +118,12 @@ pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, Si
 /// Executive: handles dispatch to the various modules.
 pub type Executive =
 	frame_executive::Executive<Runtime, Block, frame_system::ChainContext<Runtime>, Runtime, AllPalletsWithSystem>;
+
+/// Unit to messure time in this runtime.
+pub type Moment = u64;
+
+/// Type for expressing prices of assets.
+pub type Price = FixedU128;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -219,7 +226,7 @@ impl frame_system::Config for Runtime {
 impl pallet_timestamp::Config for Runtime {
 	type MinimumPeriod = MinimumPeriod;
 	/// A timestamp: milliseconds since the unix epoch.
-	type Moment = u64;
+	type Moment = Moment;
 	type OnTimestampSet = Aura;
 	type WeightInfo = ();
 }
@@ -337,6 +344,41 @@ impl pallet_parachain_staking::Config for Runtime {
 	type WeightInfo = pallet_parachain_staking::weights::SubstrateWeight<Runtime>;
 }
 
+impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
+	type AddOrigin = EnsureRoot<AccountId>;
+	type MaxMembers = ConstU32<50>;
+	type MembershipChanged = Oracle;
+	type MembershipInitialized = ();
+	type PrimeOrigin = EnsureRoot<AccountId>;
+	type RemoveOrigin = EnsureRoot<AccountId>;
+	type ResetOrigin = EnsureRoot<AccountId>;
+	type RuntimeEvent = RuntimeEvent;
+	type SwapOrigin = EnsureRoot<AccountId>;
+	type WeightInfo = ();
+}
+
+parameter_types! {
+	pub const MinimumCount: u32 = 3;
+	pub const ExpiresIn: Moment = 1000 * 60 * 20; // 20 mins
+	pub const MaxHasDispatchedSize: u32 = 20;
+	pub RootOperatorAccountId: AccountId = AccountId::from([0xffu8; 32]);
+	pub const MaxFeedValues: u32 = 4; // max 4 values allowd to feed in one call (USDT, USDC, DOT, PLMC).
+}
+impl orml_oracle::Config for Runtime {
+	type CombineData = orml_oracle::DefaultCombineData<Runtime, MinimumCount, ExpiresIn, ()>;
+	type MaxFeedValues = MaxFeedValues;
+	type MaxHasDispatchedSize = MaxHasDispatchedSize;
+	type Members = OracleProvidersMembership;
+	type OnNewData = ();
+	type OracleKey = AssetId;
+	type OracleValue = Price;
+	type RootOperatorAccountId = RootOperatorAccountId;
+	type RuntimeEvent = RuntimeEvent;
+	type Time = Timestamp;
+	// TODO Add weight info
+	type WeightInfo = ();
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -367,6 +409,12 @@ construct_runtime!(
 		PolkadotXcm: pallet_xcm = 31,
 		CumulusXcm: cumulus_pallet_xcm = 32,
 		DmpQueue: cumulus_pallet_dmp_queue = 33,
+
+		// Oracle
+		Oracle: orml_oracle::{Pallet, Call, Storage, Event<T>} = 70,
+		OracleProvidersMembership: pallet_membership::<Instance1> = 71,
+		OracleOffchainWorker: pallet_oracle_ocw::{Pallet, Call} = 72,
+
 	}
 );
 

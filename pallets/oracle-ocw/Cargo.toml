@@ -42,6 +42,7 @@ std = [
 	"serde/std",
 	"frame-support/std",
 	"frame-system/std",
+	"pallet-balances/std",
 	"orml-oracle/std",
 	"sp-consensus-aura/std",
 	"sp-core/std",

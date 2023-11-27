@@ -598,9 +598,8 @@ parameter_types! {
 	pub RootOperatorAccountId: AccountId = AccountId::from([0xffu8; 32]);
 	pub const MaxFeedValues: u32 = 4; // max 4 values allowd to feed in one call (USDT, USDC, DOT, PLMC).
 }
-type PolimecDataProvider = orml_oracle::Instance1;
-impl orml_oracle::Config<PolimecDataProvider> for Runtime {
-	type CombineData = orml_oracle::DefaultCombineData<Runtime, MinimumCount, ExpiresIn, PolimecDataProvider>;
+impl orml_oracle::Config for Runtime {
+	type CombineData = orml_oracle::DefaultCombineData<Runtime, MinimumCount, ExpiresIn, ()>;
 	type MaxFeedValues = MaxFeedValues;
 	type MaxHasDispatchedSize = MaxHasDispatchedSize;
 	type Members = OracleProvidersMembership;
@@ -660,7 +659,7 @@ construct_runtime!(
 		Random: pallet_insecure_randomness_collective_flip = 62,
 
 		// Oracle
-		Oracle: orml_oracle::<Instance1> = 70,
+		Oracle: orml_oracle::{Pallet, Call, Storage, Event<T>, Config<T>} = 70,
 		OracleProvidersMembership: pallet_membership::<Instance1> = 71,
 
 		// Among others: Send and receive DMP and XCMP messages.
