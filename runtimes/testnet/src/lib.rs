@@ -661,6 +661,7 @@ construct_runtime!(
 		// Oracle
 		Oracle: orml_oracle::{Pallet, Call, Storage, Event<T>} = 70,
 		OracleProvidersMembership: pallet_membership::<Instance1> = 71,
+		OracleOffchainWorker: pallet_oracle_owc::{Pallet, Call, Storage, Event<T>} = 72,
 
 		// Among others: Send and receive DMP and XCMP messages.
 		ParachainSystem: cumulus_pallet_parachain_system = 80,

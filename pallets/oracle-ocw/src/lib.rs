@@ -169,7 +169,7 @@ pub mod pallet {
 						for (asset_name, _) in prices {
 							last_send_for_assets.insert(asset_name, block_number);
 						}
-						let _ = val.set(&last_send_for_assets);
+						val.set(&last_send_for_assets);
 					}
 				};
 			}

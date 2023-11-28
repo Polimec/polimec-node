@@ -23,7 +23,7 @@ smallvec.workspace = true
 
 # Polimec specific
 pallet-funding.workspace = true
-# pallet-oracle-ocw.workspace = true
+pallet-oracle-ocw.workspace = true
 pallet-linear-release.workspace = true
 shared-configuration.workspace = true
 
@@ -131,7 +131,7 @@ std = [
 	"pallet-linear-release/std",
 	"pallet-membership/std",
 	"pallet-multisig/std",
-	# "pallet-oracle-ocw/std",
+	"pallet-oracle-ocw/std",
 	"pallet-parachain-staking/std",
 	"pallet-preimage/std",
 	"pallet-scheduler/std",

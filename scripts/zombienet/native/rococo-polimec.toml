@@ -3,7 +3,7 @@ timeout = 1000
 provider = "native"
 
 [relaychain]
-default_command = "polkadot"
+default_command = "./bin/polkadot"
 chain = "rococo-local"
 
 	[[relaychain.nodes]]
@@ -24,8 +24,10 @@ chain = "polimec-rococo-local"
 
 	[[parachains.collators]]
 	name = "collator1"
-	command = "polimec-parachain-node"
+	command = "./bin/polimec-parachain-node"
+	args = ["--offchain-worker when-authority"]
 
 	[[parachains.collators]]
 	name = "collator2"
-	command = "polimec-parachain-node"
+	command = "./bin/polimec-parachain-node"
+	args = ["--offchain-worker when-authority"]

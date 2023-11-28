@@ -7772,6 +7772,7 @@ dependencies = [
  "pallet-linear-release",
  "pallet-membership",
  "pallet-multisig",
+ "pallet-oracle-ocw",
  "pallet-parachain-staking",
  "pallet-preimage",
  "pallet-scheduler",
