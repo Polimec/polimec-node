@@ -138,3 +138,6 @@ testing-node = [
 	"pallet-funding/testing-node",
 	"polimec-parachain-runtime/testing-node"
 ]
+fast-gov = [
+	"polimec-parachain-runtime/fast-gov"
+]

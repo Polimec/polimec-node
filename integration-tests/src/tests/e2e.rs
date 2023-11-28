@@ -425,7 +425,6 @@ fn ct_minted() {
 	});
 }
 
-#[ignore]
 #[test]
 fn ct_migrated() {
 	let mut inst = IntegrationInstantiator::new(None);
@@ -499,20 +498,33 @@ fn ct_migrated() {
 		));
 	});
 
-	Polimec::execute_with(|| {
-		for account in accounts {
-			assert_ok!(PolimecFunding::migrate_one_participant(
-				PolimecOrigin::signed(account.clone()),
-				project_id,
-				account.clone()
-			));
-			let key: [u8; 32] = account.clone().into();
-			println!("Migrated CTs for {}", names[&key]);
-			inst.advance_time(1u32).unwrap();
-		}
+	for group in accounts.chunks(5) {
+		PolkadotRelay::execute_with(||{
+			let now = PolkadotSystem::block_number();
+			PolkadotSystem::set_block_number(now + 1u32);
 
-		// dbg!(Polimec::events());
-	});
+		});
+		Polimec::execute_with(||{
+			let now = PolimecSystem::block_number();
+			PolimecSystem::set_block_number(now + 1u32);
+		});
+		Penpal::execute_with(||{
+			let now = PenpalSystem::block_number();
+			PenpalSystem::set_block_number(now + 1u32);
+		});
+		for account in group {
+			Polimec::execute_with(|| {
+				assert_ok!(PolimecFunding::migrate_one_participant(
+			PolimecOrigin::signed(account.clone()),
+			project_id,
+			account.clone()
+		));
+				let key: [u8; 32] = account.clone().into();
+				println!("Migrated CTs for {}", names[&key]);
+			});
+		}
+	}
+
 
 	Penpal::execute_with(|| {
 		dbg!(Penpal::events());
