@@ -190,11 +190,9 @@ impl<
 		for UserToPLMCBalance { account, plmc_amount } in correct_funds {
 			self.execute(|| {
 				let reserved = <T as Config>::NativeCurrency::balance_on_hold(&reserve_type, &account);
-				println!("Account: {:?}, reserved: {:?}, expected: {:?}", account, reserved, plmc_amount);
 				assert_eq!(reserved, plmc_amount);
 			});
 		}
-		println!("NEXT")
 	}
 
 	pub fn mint_plmc_to(&mut self, mapping: Vec<UserToPLMCBalance<T>>) {

@@ -98,7 +98,7 @@ orml-oracle.workspace = true
 
 [features]
 default = [ "std" ]
-fast-gov = []
+fast-gov = [ "shared-configuration/fast-gov" ]
 std = [
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-dmp-queue/std",
@@ -145,6 +145,7 @@ std = [
 	"parachain-info/std",
 	"parachains-common/std",
 	"parity-scale-codec/std",
+	"polimec-xcm-executor/std",
 	"polkadot-parachain/std",
 	"polkadot-primitives/std",
 	"polkadot-runtime-common/std",
@@ -165,12 +166,12 @@ std = [
 	"sp-transaction-pool/std",
 	"sp-version/std",
 	"xcm-builder/std",
-	"polimec-xcm-executor/std",
 	"xcm-executor/std",
 	"xcm/std",
 ]
 
 runtime-benchmarks = [
+	"cumulus-pallet-parachain-system/runtime-benchmarks",
 	"cumulus-pallet-session-benchmarking/runtime-benchmarks",
 	"cumulus-pallet-xcmp-queue/runtime-benchmarks",
 	"frame-benchmarking/runtime-benchmarks",
@@ -178,33 +179,32 @@ runtime-benchmarks = [
 	"frame-system-benchmarking/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"hex-literal",
+	"pallet-asset-tx-payment/runtime-benchmarks",
 	"pallet-assets/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-collective/runtime-benchmarks",
-	"pallet-funding/runtime-benchmarks",
-	"pallet-membership/runtime-benchmarks",
-	"pallet-parachain-staking/runtime-benchmarks",
-	"pallet-timestamp/runtime-benchmarks",
-	"pallet-vesting/runtime-benchmarks",
-	"pallet-xcm/runtime-benchmarks",
-	"shared-configuration/runtime-benchmarks",
-	"sp-runtime/runtime-benchmarks",
-	"pallet-linear-release/runtime-benchmarks",
-	"xcm-builder/runtime-benchmarks",
-	"cumulus-pallet-parachain-system/runtime-benchmarks",
-	"pallet-asset-tx-payment/runtime-benchmarks",
 	"pallet-democracy/runtime-benchmarks",
+	"pallet-funding/runtime-benchmarks",
+	"pallet-linear-release/runtime-benchmarks",
+	"pallet-membership/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",
+	"pallet-parachain-staking/runtime-benchmarks",
 	"pallet-preimage/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
 	"pallet-sudo/runtime-benchmarks",
+	"pallet-timestamp/runtime-benchmarks",
 	"pallet-treasury/runtime-benchmarks",
 	"pallet-utility/runtime-benchmarks",
+	"pallet-vesting/runtime-benchmarks",
+	"pallet-xcm/runtime-benchmarks",
 	"polimec-xcm-executor/runtime-benchmarks",
 	"polkadot-parachain/runtime-benchmarks",
 	"polkadot-primitives/runtime-benchmarks",
 	"polkadot-runtime-common/runtime-benchmarks",
-	"xcm-executor/runtime-benchmarks"
+	"shared-configuration/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+	"xcm-builder/runtime-benchmarks",
+	"xcm-executor/runtime-benchmarks",
 ]
 
 try-runtime = [
@@ -229,8 +229,8 @@ try-runtime = [
 	"pallet-funding/try-runtime",
 	"pallet-insecure-randomness-collective-flip/try-runtime",
 	"pallet-linear-release/try-runtime",
-	"pallet-multisig/try-runtime",
 	"pallet-membership/try-runtime",
+	"pallet-multisig/try-runtime",
 	"pallet-parachain-staking/try-runtime",
 	"pallet-preimage/try-runtime",
 	"pallet-scheduler/try-runtime",
@@ -246,6 +246,4 @@ try-runtime = [
 	"polkadot-runtime-common/try-runtime",
 	"sp-runtime/try-runtime",
 ]
-testing-node = [
-	"pallet-funding/testing-node",
-]
+testing-node = [ "pallet-funding/testing-node" ]

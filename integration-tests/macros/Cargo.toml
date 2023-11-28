@@ -18,8 +18,6 @@ sp-core.workspace = true
 
 
 [features]
-default = ["std"]
+default = [ "std" ]
 
-std = [
-    "sp-core/std",
-]
+std = [ "sp-core/std" ]

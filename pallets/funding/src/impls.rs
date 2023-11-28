@@ -306,7 +306,7 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 		// TODO: This base weight and the one in all other functions below should be calculated with a benchmark
 		let remaining = remaining_evaluations.count() as u64;
 
-		return match project_details.evaluation_round_info.evaluators_outcome {
+		match project_details.evaluation_round_info.evaluators_outcome {
 			EvaluatorsOutcome::Rewarded(_) => {
 				match Pallet::<T>::do_evaluation_reward_payout_for(
 					&T::PalletId::get().into_account_truncating(),

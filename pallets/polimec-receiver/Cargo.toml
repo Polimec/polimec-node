@@ -34,19 +34,34 @@ sp-io = { git = "https://github.com/paritytech/substrate", default-features = fa
 sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.43" }
 
 [features]
-default = ["std"]
-runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks"]
+default = [ "std" ]
+runtime-benchmarks = [
+	"frame-benchmarking/runtime-benchmarks",
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+	"polimec-traits/runtime-benchmarks",
+	"polkadot-parachain/runtime-benchmarks",
+	"polkadot-runtime-parachains/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+]
 std = [
 	"codec/std",
-	"scale-info/std",
 	"frame-benchmarking/std",
 	"frame-support/std",
 	"frame-system/std",
+	"polimec-traits/std",
+	"polkadot-parachain/std",
+	"polkadot-runtime-parachains/std",
+	"scale-info/std",
 	"sp-core/std",
 	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
-	"polkadot-runtime-parachains/std",
-	"polkadot-parachain/std",
 ]
-try-runtime = [ "frame-support/try-runtime" ]
+try-runtime = [
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"polimec-traits/try-runtime",
+	"polkadot-runtime-parachains/try-runtime",
+	"sp-runtime/try-runtime",
+]

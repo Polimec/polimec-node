@@ -23,25 +23,26 @@ xcm-executor.workspace = true
 
 
 [features]
-default = ["std"]
+default = [ "std" ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
-	"xcm-executor/runtime-benchmarks"
+	"xcm-executor/runtime-benchmarks",
 ]
 std = [
-	"parity-scale-codec/std",
-	"xcm/std",
-	"sp-std/std",
-	"sp-io/std",
-	"sp-arithmetic/std",
-	"sp-core/std",
-	"sp-runtime/std",
-	"sp-weights/std",
+	"environmental/std",
+	"frame-benchmarking?/std",
 	"frame-support/std",
 	"log/std",
-	"frame-benchmarking?/std",
+	"parity-scale-codec/std",
+	"sp-arithmetic/std",
+	"sp-core/std",
+	"sp-io/std",
+	"sp-runtime/std",
+	"sp-std/std",
+	"sp-weights/std",
 	"xcm-executor/std",
-	"environmental/std"
+	"xcm/std",
 ]
+try-runtime = []

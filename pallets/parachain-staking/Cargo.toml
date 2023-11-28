@@ -70,7 +70,7 @@ runtime-benchmarks = [
 	"pallet-balances/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
-	"sp-staking/runtime-benchmarks"
+	"sp-staking/runtime-benchmarks",
 ]
 try-runtime = [
 	"frame-support/try-runtime",

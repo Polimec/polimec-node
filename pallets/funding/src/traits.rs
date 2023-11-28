@@ -23,3 +23,13 @@ pub trait DoRemainingOperation {
 	fn do_one_operation<T: crate::Config>(&mut self, project_id: T::ProjectIdentifier)
 		-> Result<Weight, DispatchError>;
 }
+
+#[cfg(feature = "runtime-benchmarks")]
+pub trait SetPrices {
+	fn set_prices();
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+impl SetPrices for () {
+	fn set_prices() {}
+}

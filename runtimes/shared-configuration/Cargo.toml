@@ -30,17 +30,16 @@ fast-gov = []
 std = [
 	"frame-support/std",
 	"frame-system/std",
+	"orml-traits/std",
+	"pallet-funding/std",
 	"parachains-common/std",
 	"sp-arithmetic/std",
 	"sp-std/std",
-	"pallet-funding/std",
-	"orml-traits/std",
 ]
 runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
-	"pallet-funding/runtime-benchmarks"
+	"pallet-funding/runtime-benchmarks",
 ]
-testing-node = [
-	"pallet-funding/testing-node"
-]
+testing-node = [ "pallet-funding/testing-node" ]
+try-runtime = []
