@@ -28,7 +28,8 @@ use sp_runtime::{
 	traits::{Convert, Saturating, Zero},
 	FixedU128, RuntimeAppPublic,
 };
-use std::collections::HashMap;
+use sp_std::{vec, vec::Vec, collections::btree_map::BTreeMap};
+
 mod mock;
 mod tests;
 
@@ -54,7 +55,7 @@ pub mod pallet {
 		},
 		traits::IdentifyAccount,
 	};
-	use std::collections::BTreeMap;
+	
 
 	const LOCK_TIMEOUT_EXPIRATION: u64 = 30_000; // 30 seconds
 
@@ -184,7 +185,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {}
 
 	impl<T: Config> Pallet<T> {
-		fn fetch_prices(assets: Vec<AssetName>) -> HashMap<AssetName, FixedU128> {
+		fn fetch_prices(assets: Vec<AssetName>) -> BTreeMap<AssetName, FixedU128> {
 			let fetchers = vec![
 				KrakenFetcher::get_moving_average,
 				BitFinexFetcher::get_moving_average,
@@ -192,7 +193,7 @@ pub mod pallet {
 				CoinbaseFetcher::get_moving_average,
 			];
 
-			let mut aggr_prices: HashMap<AssetName, Vec<FixedU128>> = HashMap::new();
+			let mut aggr_prices: BTreeMap<AssetName, Vec<FixedU128>> = BTreeMap::new();
 			for fetcher in fetchers.into_iter() {
 				let fetcher_prices = fetcher(assets.clone(), 5000);
 				for (asset_name, price) in fetcher_prices {
@@ -203,7 +204,7 @@ pub mod pallet {
 			Self::combine_prices(aggr_prices)
 		}
 
-		fn combine_prices(prices: HashMap<AssetName, Vec<FixedU128>>) -> HashMap<AssetName, FixedU128> {
+		fn combine_prices(prices: BTreeMap<AssetName, Vec<FixedU128>>) -> BTreeMap<AssetName, FixedU128> {
 			prices
 				.into_iter()
 				.filter_map(|(key, mut price_list)| {
@@ -222,10 +223,10 @@ pub mod pallet {
 					};
 					Some((key, combined_prices))
 				})
-				.collect::<HashMap<AssetName, FixedU128>>()
+				.collect::<BTreeMap<AssetName, FixedU128>>()
 		}
 
-		fn send_signed_transaction(prices: HashMap<AssetName, FixedU128>) -> Result<(), ()> {
+		fn send_signed_transaction(prices: BTreeMap<AssetName, FixedU128>) -> Result<(), ()> {
 			let signer = Signer::<T, T::AppCrypto>::any_account();
 			let prices = prices
 				.into_iter()

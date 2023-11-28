@@ -21,7 +21,6 @@ use serde::Deserialize;
 use serde_json::Value;
 use sp_core::offchain::HttpRequestId as RequestId;
 use sp_runtime::Saturating;
-use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 
 #[derive(Debug, Clone, Copy, Eq, Hash, PartialEq, PartialOrd, Ord, Encode, Decode, TypeInfo)]
 pub enum AssetName {

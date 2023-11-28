@@ -27,8 +27,8 @@ sp-runtime.workspace = true
 sp-std.workspace = true
 
 [dev-dependencies]
-pallet-balances.workspace = true
-sp-consensus-aura.workspace = true
+pallet-balances = { workspace = true, features = ["std"] }
+sp-consensus-aura = { workspace = true, features = ["std"] }
 parking_lot = "0.12.1"
 
 [features]
@@ -37,19 +37,19 @@ std = [
 	"parity-scale-codec/std",
 	"scale-info/std",
 	"log/std",
+	"serde/std",
+	"serde_json/std",
 	"frame-support/std",
 	"frame-system/std",
-	"pallet-balances/std",
 	"orml-oracle/std",
-	"sp-consensus-aura/std",
 	"sp-core/std",
 	"sp-io/std",
 	"sp-keystore/std",
 	"sp-runtime/std",
 	"sp-std/std",
 ]
-try-runtime = [
-	"frame-support/try-runtime",
-	"frame-system/try-runtime",
-	"sp-runtime/try-runtime",
-]
+# try-runtime = [
+# 	"frame-support/try-runtime",
+# 	"frame-system/try-runtime",
+# 	"sp-runtime/try-runtime",
+# ]
