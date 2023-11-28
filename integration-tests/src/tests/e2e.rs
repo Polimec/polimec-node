@@ -511,22 +511,23 @@ fn ct_migrated() {
 	// 		let now = PenpalSystem::block_number();
 	// 		PenpalSystem::set_block_number(now + 1u32);
 	// 	});
-		for account in accounts {
-			Polimec::execute_with(|| {
-				assert_ok!(PolimecFunding::migrate_one_participant(
-					PolimecOrigin::signed(account.clone()),
-					project_id,
-					account.clone()
-				));
-				let key: [u8; 32] = account.clone().into();
-				println!("Migrated CTs for {}", names[&key]);
-			});
-		}
+	for account in accounts {
+		Polimec::execute_with(|| {
+			assert_ok!(PolimecFunding::migrate_one_participant(
+				PolimecOrigin::signed(account.clone()),
+				project_id,
+				account.clone()
+			));
+			let key: [u8; 32] = account.clone().into();
+			println!("Migrated CTs for {}", names[&key]);
+			inst.advance_time(1u32).unwrap();
+
+		});
+	}
 	// }
 
 	Penpal::execute_with(|| {
 		dbg!(Penpal::events());
-		// <Penpal as Parachain>::XcmpMessageHandler
 	});
 
 	// Check balances after migration, before vesting
