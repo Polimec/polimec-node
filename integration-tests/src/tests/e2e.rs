@@ -491,7 +491,7 @@ fn ct_migrated() {
 
 	let names = names();
 
-	Penpal::execute_with(||{
+	Penpal::execute_with(|| {
 		assert_ok!(<Penpal as Parachain>::XcmpMessageHandler::update_xcmp_max_individual_weight(
 			PenpalOrigin::root(),
 			Weight::from_parts(10_000_000_000, 500_000)
@@ -499,32 +499,30 @@ fn ct_migrated() {
 	});
 
 	for group in accounts.chunks(5) {
-		PolkadotRelay::execute_with(||{
+		PolkadotRelay::execute_with(|| {
 			let now = PolkadotSystem::block_number();
 			PolkadotSystem::set_block_number(now + 1u32);
-
 		});
-		Polimec::execute_with(||{
+		Polimec::execute_with(|| {
 			let now = PolimecSystem::block_number();
 			PolimecSystem::set_block_number(now + 1u32);
 		});
-		Penpal::execute_with(||{
+		Penpal::execute_with(|| {
 			let now = PenpalSystem::block_number();
 			PenpalSystem::set_block_number(now + 1u32);
 		});
 		for account in group {
 			Polimec::execute_with(|| {
 				assert_ok!(PolimecFunding::migrate_one_participant(
-			PolimecOrigin::signed(account.clone()),
-			project_id,
-			account.clone()
-		));
+					PolimecOrigin::signed(account.clone()),
+					project_id,
+					account.clone()
+				));
 				let key: [u8; 32] = account.clone().into();
 				println!("Migrated CTs for {}", names[&key]);
 			});
 		}
 	}
-
 
 	Penpal::execute_with(|| {
 		dbg!(Penpal::events());

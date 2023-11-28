@@ -20,10 +20,16 @@
 
 use cumulus_primitives_core::ParaId;
 use frame_benchmarking::frame_support::bounded_vec;
-use polimec_parachain_runtime::{pallet_parachain_staking::{
-	inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
-	InflationInfo, Range,
-}, AccountId, AuraId as AuthorityId, Balance, BalancesConfig, CouncilConfig, GenesisConfig, LinearVestingConfig, MinCandidateStk, ParachainInfoConfig, ParachainStakingConfig, PolkadotXcmConfig, Runtime, SessionConfig, StatemintAssetsConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, EXISTENTIAL_DEPOSIT, PLMC, OracleProvidersMembershipConfig};
+use polimec_parachain_runtime::{
+	pallet_parachain_staking::{
+		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
+		InflationInfo, Range,
+	},
+	AccountId, AuraId as AuthorityId, Balance, BalancesConfig, CouncilConfig, GenesisConfig, LinearVestingConfig,
+	MinCandidateStk, OracleProvidersMembershipConfig, ParachainInfoConfig, ParachainStakingConfig, PolkadotXcmConfig,
+	Runtime, SessionConfig, StatemintAssetsConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
+	EXISTENTIAL_DEPOSIT, PLMC,
+};
 use sc_service::ChainType;
 use sp_core::{crypto::UncheckedInto, sr25519};
 use sp_runtime::{traits::AccountIdConversion, Perbill, Percent};

@@ -6079,9 +6079,7 @@ mod ct_migration {
 	#[test]
 	fn check_migrations_per_xcm() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		inst.execute(||{
-			dbg!(Pallet::<TestRuntime>::migrations_per_xcm_message_allowed())
-		});
+		inst.execute(|| dbg!(Pallet::<TestRuntime>::migrations_per_xcm_message_allowed()));
 	}
 }
 
