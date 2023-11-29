@@ -105,8 +105,9 @@ pub mod pallet {
 	}
 }
 
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub struct MigrationInfo {
 	pub contribution_token_amount: u128,
 	pub vesting_time: u64,
 }
+

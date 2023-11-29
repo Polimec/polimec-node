@@ -521,7 +521,6 @@ fn ct_migrated() {
 			let key: [u8; 32] = account.clone().into();
 			println!("Migrated CTs for {}", names[&key]);
 			inst.advance_time(1u32).unwrap();
-
 		});
 	}
 	// }

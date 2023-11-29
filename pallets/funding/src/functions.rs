@@ -695,8 +695,6 @@ impl<T: Config> Pallet<T> {
 }
 
 // Extrinsics and HRMP interactions
-
-// Extrinsics and HRMP interactions
 impl<T: Config> Pallet<T> {
 	/// Change the metadata hash of a project
 	///
@@ -2772,7 +2770,7 @@ impl<T: Config> Pallet<T> {
 
 		let available_bytes_for_migration_per_message =
 			T::RequiredMaxMessageSize::get().saturating_sub(xcm_size as u32);
-		let mut output = available_bytes_for_migration_per_message.saturating_div(one_migration_bytes);
+		let output = available_bytes_for_migration_per_message.saturating_div(one_migration_bytes);
 
 		output
 	}
