@@ -16,7 +16,8 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::{pallet_prelude::*, traits::tokens::fungible};
+use frame_support::{pallet_prelude::*, traits::tokens::fungible, RuntimeDebug};
+use sp_std::prelude::*;
 
 /// A release schedule over a fungible. This allows a particular fungible to have release limits
 /// applied to it.
@@ -94,4 +95,33 @@ pub trait ReleaseSchedule<AccountId, Reason> {
 	fn remove_vesting_schedule(who: &AccountId, schedule_index: u32, reason: Reason) -> DispatchResult;
 
 	fn remove_all_vesting_schedules(who: &AccountId, reason: Reason) -> DispatchResult;
+}
+
+pub mod migration_types {
+	use super::*;
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum MigrationOrigin {
+		Evaluation { user: [u8; 32], id: u32 },
+		Bid { user: [u8; 32], id: u32 },
+		Contribution { user: [u8; 32], id: u32 },
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub struct MigrationInfo {
+		contribution_token_amount: u128,
+		vesting_time: u64,
+	}
+	impl From<(u128, u64)> for MigrationInfo {
+		fn from((contribution_token_amount, vesting_time): (u128, u64)) -> Self {
+			Self { contribution_token_amount, vesting_time }
+		}
+	}
+
+	pub struct Migration {
+		origin: MigrationOrigin,
+		info: MigrationInfo
+	}
+
+	pub struct Migrations(Vec<Migration>);
 }

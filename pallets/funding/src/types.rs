@@ -239,7 +239,6 @@ pub mod storage_types {
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	pub struct BidInfo<
-		Id,
 		ProjectId,
 		Balance: BalanceT,
 		Price: FixedPointNumber,
@@ -248,7 +247,7 @@ pub mod storage_types {
 		Multiplier,
 		VestingInfo,
 	> {
-		pub id: Id,
+		pub id: u32,
 		pub project_id: ProjectId,
 		pub bidder: AccountId,
 		pub status: BidStatus<Balance>,
@@ -269,7 +268,6 @@ pub mod storage_types {
 	}
 
 	impl<
-			BidId: Eq + Ord,
 			ProjectId: Eq,
 			Balance: BalanceT + FixedPointOperand + Ord,
 			Price: FixedPointNumber,
@@ -277,7 +275,7 @@ pub mod storage_types {
 			BlockNumber: Eq + Ord,
 			Multiplier: Eq,
 			VestingInfo: Eq,
-		> Ord for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, Multiplier, VestingInfo>
+		> Ord for BidInfo<ProjectId, Balance, Price, AccountId, BlockNumber, Multiplier, VestingInfo>
 	{
 		fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
 			match self.original_ct_usd_price.cmp(&other.original_ct_usd_price) {
@@ -288,7 +286,6 @@ pub mod storage_types {
 	}
 
 	impl<
-			BidId: Eq + Ord,
 			ProjectId: Eq,
 			Balance: BalanceT + FixedPointOperand,
 			Price: FixedPointNumber,
@@ -296,7 +293,7 @@ pub mod storage_types {
 			BlockNumber: Eq + Ord,
 			Multiplier: Eq,
 			VestingInfo: Eq,
-		> PartialOrd for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, Multiplier, VestingInfo>
+		> PartialOrd for BidInfo<ProjectId, Balance, Price, AccountId, BlockNumber, Multiplier, VestingInfo>
 	{
 		fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
 			Some(self.cmp(other))
@@ -723,29 +720,10 @@ pub mod inner_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum MigrationOrigin<AccountId, Id> {
-		Evaluation { user: AccountId, id: Id },
-		Bid { user: AccountId, id: Id },
-		Contribution { user: AccountId, id: Id },
-	}
-
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct ProjectMigrationOrigins<ProjectId, MigrationOrigins> {
 		pub project_id: ProjectId,
 		pub migration_origins: MigrationOrigins,
 	}
-
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub struct MigrationInfo {
-		contribution_token_amount: u128,
-		vesting_time: u64,
-	}
-	impl From<(u128, u64)> for MigrationInfo {
-		fn from((contribution_token_amount, vesting_time): (u128, u64)) -> Self {
-			Self { contribution_token_amount, vesting_time }
-		}
-	}
-
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub enum MigrationStatus {
 		NotStarted,

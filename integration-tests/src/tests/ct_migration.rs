@@ -1,17 +1,20 @@
 use crate::*;
-use pallet_funding::{traits::VestingDurationCalculation, AcceptedFundingAsset, MigrationStatus, MultiplierOf, ProjectIdOf, RewardOrSlash, BidStatus, Multiplier, assert_close_enough};
+use pallet_funding::{
+	assert_close_enough, traits::VestingDurationCalculation, AcceptedFundingAsset, BidStatus, MigrationStatus,
+	Multiplier, MultiplierOf, ProjectIdOf, RewardOrSlash,
+};
 use polimec_parachain_runtime::PolimecFunding;
+use polimec_receiver::MigrationInfo;
 use sp_runtime::{FixedPointNumber, Perquintill};
 use std::collections::HashMap;
-use polimec_receiver::MigrationInfo;
 use tests::defaults::*;
 
-fn calculate_total_ct_amount<'a>(migrations: impl Iterator<Item=&'a MigrationInfo>) -> u128 {
+fn calculate_total_ct_amount<'a>(migrations: impl Iterator<Item = &'a MigrationInfo>) -> u128 {
 	migrations.into_iter().map(|m| m.contribution_token_amount).sum()
 }
 
 fn execute_cleaner(inst: &mut IntegrationInstantiator) {
-	Polimec::execute_with(||{
+	Polimec::execute_with(|| {
 		inst.advance_time(<PolimecRuntime as pallet_funding::Config>::SuccessToSettlementTime::get() + 1u32).unwrap();
 	});
 }
@@ -50,7 +53,11 @@ fn send_migrations(
 	let mut output = HashMap::new();
 	for account in accounts {
 		let migrations = Polimec::execute_with(|| {
-			assert_ok!(PolimecFunding::migrate_one_participant(PolimecOrigin::signed(account.clone()), project_id, account.clone()));
+			assert_ok!(PolimecFunding::migrate_one_participant(
+				PolimecOrigin::signed(account.clone()),
+				project_id,
+				account.clone()
+			));
 			let (query_id, _migrations) =
 				pallet_funding::UnconfirmedMigrations::<PolimecRuntime>::iter().next().unwrap();
 
@@ -61,34 +68,34 @@ fn send_migrations(
 			let user_contributions =
 				pallet_funding::Contributions::<PolimecRuntime>::iter_prefix_values((project_id, account.clone()));
 
-			let evaluation_migrations = user_evaluations
-				.map(|evaluation| {
-					assert_eq!(evaluation.ct_migration_status, MigrationStatus::Sent(query_id));
-					if let Some(RewardOrSlash::Reward(amount)) = evaluation.rewarded_or_slashed {
-						MigrationInfo {
-							contribution_token_amount: amount,
-							vesting_time: Multiplier::new(1u8).unwrap().calculate_vesting_duration::<PolimecRuntime>().into()
-						}
-					} else {
-						panic!("should be rewarded")
-					}
-				});
-			let bid_migrations = user_bids
-				.map(|bid| {
-					assert_eq!(bid.ct_migration_status, MigrationStatus::Sent(query_id));
+			let evaluation_migrations = user_evaluations.map(|evaluation| {
+				assert_eq!(evaluation.ct_migration_status, MigrationStatus::Sent(query_id));
+				if let Some(RewardOrSlash::Reward(amount)) = evaluation.rewarded_or_slashed {
 					MigrationInfo {
-						contribution_token_amount: bid.final_ct_amount,
-						vesting_time: bid.multiplier.calculate_vesting_duration::<PolimecRuntime>().into()
+						contribution_token_amount: amount,
+						vesting_time: Multiplier::new(1u8)
+							.unwrap()
+							.calculate_vesting_duration::<PolimecRuntime>()
+							.into(),
 					}
-				});
-			let contribution_ct_amount = user_contributions
-				.map(|contribution| {
-					assert_eq!(contribution.ct_migration_status, MigrationStatus::Sent(query_id));
-					MigrationInfo {
-						contribution_token_amount: contribution.ct_amount,
-						vesting_time: contribution.multiplier.calculate_vesting_duration::<PolimecRuntime>().into()
-					}
-				});
+				} else {
+					panic!("should be rewarded")
+				}
+			});
+			let bid_migrations = user_bids.map(|bid| {
+				assert_eq!(bid.ct_migration_status, MigrationStatus::Sent(query_id));
+				MigrationInfo {
+					contribution_token_amount: bid.final_ct_amount,
+					vesting_time: bid.multiplier.calculate_vesting_duration::<PolimecRuntime>().into(),
+				}
+			});
+			let contribution_ct_amount = user_contributions.map(|contribution| {
+				assert_eq!(contribution.ct_migration_status, MigrationStatus::Sent(query_id));
+				MigrationInfo {
+					contribution_token_amount: contribution.ct_amount,
+					vesting_time: contribution.multiplier.calculate_vesting_duration::<PolimecRuntime>().into(),
+				}
+			});
 
 			evaluation_migrations.chain(bid_migrations).chain(contribution_ct_amount).collect::<Vec<MigrationInfo>>()
 		});
@@ -97,9 +104,8 @@ fn send_migrations(
 	output
 }
 
-fn migrations_are_executed(migrations: impl Iterator<Item=(AccountId, Vec<MigrationInfo>)>) {
+fn migrations_are_executed(migrations: impl Iterator<Item = (AccountId, Vec<MigrationInfo>)>) {
 	Penpal::execute_with(|| {
-
 		for (account, migrations) in migrations {
 			let amount = calculate_total_ct_amount(migrations.iter());
 
@@ -121,13 +127,16 @@ fn migrations_are_confirmed_for(project_id: u32, accounts: Vec<AccountId>) {
 		for account in accounts {
 			let mut user_evaluations =
 				pallet_funding::Evaluations::<PolimecRuntime>::iter_prefix_values((project_id, account.clone()));
-			let mut user_bids = pallet_funding::Bids::<PolimecRuntime>::iter_prefix_values((project_id, account.clone()));
+			let mut user_bids =
+				pallet_funding::Bids::<PolimecRuntime>::iter_prefix_values((project_id, account.clone()));
 			let mut user_contributions =
 				pallet_funding::Contributions::<PolimecRuntime>::iter_prefix_values((project_id, account.clone()));
 
 			assert!(user_evaluations.all(|bid| bid.ct_migration_status == MigrationStatus::Confirmed));
 			assert!(user_bids.all(|bid| bid.ct_migration_status == MigrationStatus::Confirmed));
-			assert!(user_contributions.all(|contribution| contribution.ct_migration_status == MigrationStatus::Confirmed));
+			assert!(
+				user_contributions.all(|contribution| contribution.ct_migration_status == MigrationStatus::Confirmed)
+			);
 
 			assert_expected_events!(
 				Polimec,
@@ -200,7 +209,6 @@ fn migration_is_sent() {
 	let penpal_sov_acc = PolkadotRelay::sovereign_account_id_of(Parachain(Penpal::para_id().into()).into());
 	PolkadotRelay::fund_accounts(vec![(penpal_sov_acc, 100_0_000_000_000u128)]);
 
-
 	mock_hrmp_establishment(project_id);
 
 	assert_migration_is_ready(project_id);
@@ -252,14 +260,12 @@ fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 	let migrations = send_migrations(project_id, vec![eval_1()]);
 	let eval_1_migrations = migrations[&eval_1()].clone();
 
-
 	migrations_are_confirmed_for(project_id, vec![eval_1()]);
 	let eval_1_total_migrated_amount = calculate_total_ct_amount(eval_1_migrations.iter());
 
 	// Balance is there for the user after vesting (Multiplier 1, so no vesting)
 	let post_migration_balance = Penpal::account_data_of(eval_1());
 	assert_eq!(post_migration_balance.free - pre_migration_balance.free, eval_1_total_migrated_amount);
-
 }
 
 #[test]
@@ -339,10 +345,16 @@ fn vesting_over_several_blocks_on_project() {
 
 	let post_migration_balance = Penpal::account_data_of(buyer_1());
 
-	assert_close_enough!(post_migration_balance.free - pre_migration_balance.free - post_migration_balance.frozen - pre_migration_balance.frozen, 10_250 * ASSET_UNIT, Perquintill::from_parts(10_000_000_000u64));
+	assert_close_enough!(
+		post_migration_balance.free -
+			pre_migration_balance.free -
+			post_migration_balance.frozen -
+			pre_migration_balance.frozen,
+		10_250 * ASSET_UNIT,
+		Perquintill::from_parts(10_000_000_000u64)
+	);
 
 	migrations_are_confirmed_for(project_id, vec![buyer_1()]);
-
 
 	Penpal::execute_with(|| {
 		let unblock_time: u32 = multiplier_for_vesting.calculate_vesting_duration::<PolimecRuntime>();
@@ -351,7 +363,11 @@ fn vesting_over_several_blocks_on_project() {
 	});
 
 	let post_vest_balance = Penpal::account_data_of(buyer_1());
-	assert_close_enough!(post_vest_balance.free - post_vest_balance.frozen, 10_250 * ASSET_UNIT + 2000 * ASSET_UNIT, Perquintill::from_parts(10_000_000_000u64));
+	assert_close_enough!(
+		post_vest_balance.free - post_vest_balance.frozen,
+		10_250 * ASSET_UNIT + 2000 * ASSET_UNIT,
+		Perquintill::from_parts(10_000_000_000u64)
+	);
 }
 
 #[test]

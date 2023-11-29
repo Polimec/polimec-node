@@ -51,6 +51,7 @@ use sp_runtime::{
 	ApplyExtrinsicResult,
 };
 pub use sp_runtime::{FixedU128, MultiAddress, Perbill, Permill};
+use sp_runtime::traits::{Convert, ConvertBack, Identity};
 
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -542,8 +543,19 @@ parameter_types! {
 	pub RequiredMaxCapacity: u32 = 20;
 	pub RequiredMaxMessageSize: u32 = 102_400;
 }
+pub struct ConvertSelf;
+impl Convert<AccountId, [u8;32]> for ConvertSelf {
+	fn convert(account_id: AccountId) -> [u8;32] {
+		account_id.into()
+	}
+}
+impl ConvertBack<AccountId, [u8; 32]> for ConvertSelf {
+	fn convert_back(bytes: [u8; 32]) -> AccountId {
+		bytes.into()
+	}
+}
 impl pallet_funding::Config for Runtime {
-	type AccountId32Conversion = ConvertInto;
+	type AccountId32Conversion = ConvertSelf;
 	type AllPalletsWithoutSystem = (Balances, LocalAssets, StatemintAssets, PolimecFunding, LinearVesting, Random);
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;

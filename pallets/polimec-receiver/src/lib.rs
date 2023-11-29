@@ -110,4 +110,3 @@ pub struct MigrationInfo {
 	pub contribution_token_amount: u128,
 	pub vesting_time: u64,
 }
-
