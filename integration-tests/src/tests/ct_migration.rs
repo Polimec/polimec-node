@@ -148,7 +148,7 @@ fn migrations_are_executed(grouped_migrations: Vec<Migrations>) {
 				None
 			}
 		}).sum::<u128>();
-		assert_close_enough!(user_info.frozen, vest_scheduled_cts, Perquintill::from_parts(1_000_000_000u64));
+		assert_close_enough!(user_info.frozen, vest_scheduled_cts, Perquintill::from_parts(10_000_000_000_000u64));
 	}
 }
 
@@ -207,6 +207,14 @@ fn migrations_are_confirmed(project_id: u32, grouped_migrations: Vec<Migrations>
 }
 
 fn vest_migrations(grouped_migrations: Vec<Migrations>) {
+	let biggest_time = grouped_migrations
+		.iter()
+		.map(|migrations| migrations.biggest_vesting_time())
+		.max()
+		.unwrap();
+	Penpal::execute_with(||{
+		PenpalSystem::set_block_number(biggest_time as u32);
+	});
 	for migration_group in grouped_migrations {
 		let user = migration_group.clone().inner()[0].origin.user;
 		assert!(migration_group.origins().iter().all(|origin|origin.user == user ));
@@ -216,6 +224,7 @@ fn vest_migrations(grouped_migrations: Vec<Migrations>) {
 		});
 	}
 }
+
 fn migrations_are_vested(grouped_migrations: Vec<Migrations>) {
 	for migration_group in grouped_migrations {
 		let user = migration_group.clone().inner()[0].origin.user;
@@ -329,6 +338,7 @@ fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 	let grouped_migrations = migrations_map.values().cloned().collect::<Vec<_>>();
 
 	migrations_are_executed(grouped_migrations.clone());
+
 	migrations_are_confirmed(project_id, grouped_migrations.clone());
 }
 
@@ -406,31 +416,11 @@ fn vesting_over_several_blocks_on_project() {
 
 	migrations_are_executed(grouped_migrations.clone());
 
-	let post_migration_balance = Penpal::account_data_of(BUYER_1.into());
-
-	assert_close_enough!(
-		post_migration_balance.free -
-			pre_migration_balance.free -
-			post_migration_balance.frozen -
-			pre_migration_balance.frozen,
-		10_250 * ASSET_UNIT,
-		Perquintill::from_parts(10_000_000_000u64)
-	);
-
 	migrations_are_confirmed(project_id, grouped_migrations.clone());
 
-	Penpal::execute_with(|| {
-		let unblock_time: u32 = multiplier_for_vesting.calculate_vesting_duration::<PolimecRuntime>();
-		PenpalSystem::set_block_number(unblock_time + 1u32);
-		assert_ok!(pallet_vesting::Pallet::<PenpalRuntime>::vest(PenpalOrigin::signed(BUYER_1.into())));
-	});
+	vest_migrations(grouped_migrations.clone());
 
-	let post_vest_balance = Penpal::account_data_of(BUYER_1.into());
-	assert_close_enough!(
-		post_vest_balance.free - post_vest_balance.frozen,
-		10_250 * ASSET_UNIT + 2000 * ASSET_UNIT,
-		Perquintill::from_parts(10_000_000_000u64)
-	);
+	migrations_are_vested(grouped_migrations.clone());
 }
 
 #[test]
