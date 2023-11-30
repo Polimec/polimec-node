@@ -63,7 +63,10 @@ pub mod pallet {
 	where
 		T::AccountId: From<[u8; 32]>,
 	{
-		MigrationsExecuted { migrations: Migrations },
+		/// A Migration executed sucessfully
+		MigrationExecuted { migration: Migration },
+		/// A Migration was found which wa already executed, and was skipped.
+		DuplicatedMigrationSkipped { migration: Migration },
 	}
 
 	#[pallet::error]
@@ -88,13 +91,14 @@ pub mod pallet {
 			let polimec_soverign_account = Sibling(polimec_id).into_account_truncating();
 
 			ensure!(para_id == T::PolimecParaId::get(), "Only Polimec Parachain can call migrations");
-			for Migration {
+			for migration @ Migration {
 				origin: MigrationOrigin { user, id, participation_type },
-				info: info @ MigrationInfo { contribution_token_amount, .. },
+				info: MigrationInfo { contribution_token_amount, .. },
 			} in migrations.clone().inner()
 			{
 				let already_executed = ExecutedMigrations::<T>::get((user.clone(), participation_type, id));
 				if already_executed {
+					Self::deposit_event(Event::DuplicatedMigrationSkipped { migration });
 					continue
 				}
 				T::Balances::transfer(
@@ -106,13 +110,12 @@ pub mod pallet {
 				T::Vesting::add_vesting_schedule(
 					&user.into(),
 					contribution_token_amount.into(),
-					T::MigrationInfoToPerBlockBalance::convert(info),
+					T::MigrationInfoToPerBlockBalance::convert(migration.info.clone()),
 					T::GenesisMoment::get(),
 				)?;
 				ExecutedMigrations::<T>::insert((user.clone(), participation_type, id), true);
+				Self::deposit_event(Event::MigrationExecuted { migration });
 			}
-
-			Self::deposit_event(Event::MigrationsExecuted { migrations });
 
 			Ok(())
 		}

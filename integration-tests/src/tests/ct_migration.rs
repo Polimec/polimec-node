@@ -124,30 +124,39 @@ fn send_migrations(
 fn migrations_are_executed(grouped_migrations: Vec<Migrations>) {
 	for migration_group in grouped_migrations {
 		let user = migration_group.clone().inner()[0].origin.user;
-		assert!(migration_group.origins().iter().all(|origin|origin.user == user ));
-		Penpal::execute_with(|| {
-			assert_expected_events!(
-				Penpal,
-				vec![
-					PenpalEvent::PolimecReceiver(polimec_receiver::Event::MigrationsExecuted{migrations}) => {
-						migrations: {
-							migrations.clone().sort_by_ct_amount() == migration_group.clone().sort_by_ct_amount()
+		assert!(migration_group.origins().iter().all(|origin| origin.user == user));
+
+		for single_migration in migration_group.clone().inner() {
+			Penpal::execute_with(|| {
+				assert_expected_events!(
+					Penpal,
+					vec![
+						PenpalEvent::PolimecReceiver(polimec_receiver::Event::MigrationExecuted{migration}) => {
+							migration: *migration == single_migration,
 						},
-					},
-				]
-			);
-		});
+					]
+				);
+			});
+		}
 
 		let user_info = Penpal::account_data_of(user.into());
-		assert_close_enough!(user_info.free, migration_group.total_ct_amount(), Perquintill::from_parts(10_000_000_000u64));
+		assert_close_enough!(
+			user_info.free,
+			migration_group.total_ct_amount(),
+			Perquintill::from_parts(10_000_000_000u64)
+		);
 
-		let vest_scheduled_cts = migration_group.inner().iter().filter_map(|migration| {
-			if migration.info.vesting_time > 1 {
-				Some(migration.info.contribution_token_amount)
-			} else {
-				None
-			}
-		}).sum::<u128>();
+		let vest_scheduled_cts = migration_group
+			.inner()
+			.iter()
+			.filter_map(|migration| {
+				if migration.info.vesting_time > 1 {
+					Some(migration.info.contribution_token_amount)
+				} else {
+					None
+				}
+			})
+			.sum::<u128>();
 		assert_close_enough!(user_info.frozen, vest_scheduled_cts, Perquintill::from_parts(10_000_000_000_000u64));
 	}
 }
@@ -177,8 +186,7 @@ fn migrations_are_confirmed(project_id: u32, grouped_migrations: Vec<Migrations>
 							project_id,
 							AccountId::from(migration_origin.user),
 							migration_origin.id,
-						)
-						)
+						))
 						.unwrap();
 						assert_eq!(evaluation.ct_migration_status, MigrationStatus::Confirmed);
 					},
@@ -207,17 +215,13 @@ fn migrations_are_confirmed(project_id: u32, grouped_migrations: Vec<Migrations>
 }
 
 fn vest_migrations(grouped_migrations: Vec<Migrations>) {
-	let biggest_time = grouped_migrations
-		.iter()
-		.map(|migrations| migrations.biggest_vesting_time())
-		.max()
-		.unwrap();
-	Penpal::execute_with(||{
+	let biggest_time = grouped_migrations.iter().map(|migrations| migrations.biggest_vesting_time()).max().unwrap();
+	Penpal::execute_with(|| {
 		PenpalSystem::set_block_number(biggest_time as u32);
 	});
 	for migration_group in grouped_migrations {
 		let user = migration_group.clone().inner()[0].origin.user;
-		assert!(migration_group.origins().iter().all(|origin|origin.user == user ));
+		assert!(migration_group.origins().iter().all(|origin| origin.user == user));
 
 		Penpal::execute_with(|| {
 			assert_ok!(pallet_vesting::Pallet::<PenpalRuntime>::vest(PenpalOrigin::signed(user.into())));
@@ -228,7 +232,7 @@ fn vest_migrations(grouped_migrations: Vec<Migrations>) {
 fn migrations_are_vested(grouped_migrations: Vec<Migrations>) {
 	for migration_group in grouped_migrations {
 		let user = migration_group.clone().inner()[0].origin.user;
-		assert!(migration_group.origins().iter().all(|origin|origin.user == user ));
+		assert!(migration_group.origins().iter().all(|origin| origin.user == user));
 		let total_ct = migration_group.total_ct_amount();
 		let user_info = Penpal::account_data_of(user.into());
 	}
@@ -408,8 +412,6 @@ fn vesting_over_several_blocks_on_project() {
 
 	assert_migration_is_ready(project_id);
 
-	let pre_migration_balance = Penpal::account_data_of(BUYER_1.into());
-
 	// Migrate is sent
 	let user_migrations = send_migrations(project_id, vec![BUYER_1.into()]);
 	let grouped_migrations = user_migrations.values().cloned().collect::<Vec<_>>();
@@ -453,5 +455,35 @@ fn disallow_duplicated_migrations_on_receiver_pallet() {
 
 	assert_migration_is_ready(project_id);
 
-	let migrations_sent = send_migrations(project_id, participants);
+	// Migrate is sent
+	let user_migrations = send_migrations(project_id, vec![BUYER_1.into()]);
+	let grouped_migrations = user_migrations.values().cloned().collect::<Vec<_>>();
+
+	migrations_are_executed(grouped_migrations.clone());
+
+	migrations_are_confirmed(project_id, grouped_migrations.clone());
+
+	vest_migrations(grouped_migrations.clone());
+
+	migrations_are_vested(grouped_migrations.clone());
+
+	// just any number that lets us execute our xcm's
+	for migrations in grouped_migrations {
+		for (_, xcm) in PolimecFundingPallet::construct_migration_xcm_messages(migrations) {
+			let call: <PolimecRuntime as pallet_funding::Config>::RuntimeCall =
+				pallet_funding::Call::confirm_migrations { query_id: Default::default(), response: Default::default() }.into();
+
+			let max_weight = Weight::from_parts(700_000_000, 10_000);
+			let mut instructions = xcm.into_inner();
+			instructions.push(ReportTransactStatus(QueryResponseInfo {
+				destination: ParentThen(X1(Parachain(Polimec::para_id().into()))).into(),
+				query_id: 69,
+				max_weight,
+			}));
+			let xcm = Xcm(instructions);
+			let project_multilocation = MultiLocation { parents: 1, interior: X1(Parachain(Penpal::para_id().into())) };
+
+			PolimecXcmPallet::send_xcm(Here, project_multilocation, xcm).unwrap();
+		}
+	}
 }

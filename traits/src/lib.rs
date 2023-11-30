@@ -129,7 +129,6 @@ pub mod migration_types {
 		Contribution,
 	}
 
-
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct MigrationInfo {
 		pub contribution_token_amount: u128,

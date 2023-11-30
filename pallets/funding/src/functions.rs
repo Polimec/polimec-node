@@ -2175,11 +2175,16 @@ impl<T: Config> Pallet<T> {
 			migrations.push(Migration::new(migration_origin, migration_info));
 		}
 
-		let constructed_migrations =
-			Self::construct_migration_xcm_messages(T::AccountId32Conversion::convert(participant.clone()), migrations);
+		let constructed_migrations = Self::construct_migration_xcm_messages(migrations);
 		for (migrations, xcm) in constructed_migrations {
 			let project_multilocation = MultiLocation { parents: 1, interior: X1(Parachain(project_para_id.into())) };
-			let project_migration_origins = ProjectMigrationOriginsOf::<T> { project_id, migration_origins: migrations.origins().try_into().expect("construct function uses same constraint T::MaxMigrationsPerXcm") };
+			let project_migration_origins = ProjectMigrationOriginsOf::<T> {
+				project_id,
+				migration_origins: migrations
+					.origins()
+					.try_into()
+					.expect("construct function uses same constraint T::MaxMigrationsPerXcm"),
+			};
 
 			let call: <T as Config>::RuntimeCall =
 				Call::confirm_migrations { query_id: Default::default(), response: Default::default() }.into();
@@ -2229,14 +2234,20 @@ impl<T: Config> Pallet<T> {
 		match response {
 			Response::DispatchResult(MaybeErrorCode::Success) => {
 				Self::mark_migrations_as_confirmed(unconfirmed_migrations.clone());
-				Self::deposit_event(Event::MigrationsConfirmed { project_id, migration_origins: unconfirmed_migrations.migration_origins });
+				Self::deposit_event(Event::MigrationsConfirmed {
+					project_id,
+					migration_origins: unconfirmed_migrations.migration_origins,
+				});
 				// Self::deposit_event(Event::MigrationsConfirmed { project_id });
 				Ok(())
 			},
 			Response::DispatchResult(MaybeErrorCode::Error(e)) |
 			Response::DispatchResult(MaybeErrorCode::TruncatedError(e)) => {
 				Self::mark_migrations_as_failed(unconfirmed_migrations.clone(), e);
-				Self::deposit_event(Event::MigrationsFailed { project_id, migration_origins: unconfirmed_migrations.migration_origins });
+				Self::deposit_event(Event::MigrationsFailed {
+					project_id,
+					migration_origins: unconfirmed_migrations.migration_origins,
+				});
 				// Self::deposit_event(Event::MigrationsFailed { project_id});
 				Ok(())
 			},
@@ -2790,10 +2801,7 @@ impl<T: Config> Pallet<T> {
 		output
 	}
 
-	pub fn construct_migration_xcm_messages(
-		user: [u8; 32],
-		migrations: Migrations,
-	) -> Vec<(Migrations, Xcm<()>)> {
+	pub fn construct_migration_xcm_messages(migrations: Migrations) -> Vec<(Migrations, Xcm<()>)> {
 		// TODO: adjust this as benchmarks for polimec-receiver are written
 		const MAX_WEIGHT: Weight = Weight::from_parts(10_000, 0);
 
