@@ -101,16 +101,23 @@ pub mod migration_types {
 	use super::*;
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum MigrationOrigin {
-		Evaluation { user: [u8; 32], id: u32 },
-		Bid { user: [u8; 32], id: u32 },
-		Contribution { user: [u8; 32], id: u32 },
+	pub struct MigrationOrigin {
+		pub user: [u8; 32],
+		pub id: u32,
+		pub participation_type: ParticipationType,
+	}
+
+	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum ParticipationType {
+		Evaluation,
+		Bid,
+		Contribution,
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct MigrationInfo {
-		contribution_token_amount: u128,
-		vesting_time: u64,
+		pub contribution_token_amount: u128,
+		pub vesting_time: u64,
 	}
 	impl From<(u128, u64)> for MigrationInfo {
 		fn from((contribution_token_amount, vesting_time): (u128, u64)) -> Self {
@@ -118,10 +125,42 @@ pub mod migration_types {
 		}
 	}
 
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct Migration {
-		origin: MigrationOrigin,
-		info: MigrationInfo
+		pub origin: MigrationOrigin,
+		pub info: MigrationInfo,
+	}
+	impl Migration {
+		pub fn new(origin: MigrationOrigin, info: MigrationInfo) -> Self {
+			Self { origin, info }
+		}
 	}
 
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo)]
 	pub struct Migrations(Vec<Migration>);
+	impl Migrations {
+		pub fn new() -> Self {
+			Self(Vec::new())
+		}
+
+		pub fn inner(self) -> Vec<Migration> {
+			self.0
+		}
+
+		pub fn push(&mut self, migration: Migration) {
+			self.0.push(migration)
+		}
+
+		pub fn from(migrations: Vec<Migration>) -> Self {
+			Self(migrations)
+		}
+
+		pub fn origins(&self) -> Vec<MigrationOrigin> {
+			self.0.iter().map(|migration| migration.origin.clone()).collect()
+		}
+
+		pub fn infos(&self) -> Vec<MigrationInfo> {
+			self.0.iter().map(|migration| migration.info.clone()).collect()
+		}
+	}
 }

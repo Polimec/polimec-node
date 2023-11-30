@@ -48,6 +48,7 @@ use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot, EnsureSigned,
 };
+use polimec_traits::migration_types::MigrationInfo;
 use smallvec::smallvec;
 use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -76,7 +77,6 @@ use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 // XCM Imports
 use frame_support::traits::WithdrawReasons;
 use parachains_common::{AccountId, Signature};
-use polimec_receiver::MigrationInfo;
 use sp_runtime::traits::Convert;
 use xcm::latest::prelude::BodyId;
 use xcm_executor::XcmExecutor;
@@ -584,11 +584,13 @@ impl Convert<MigrationInfo, Balance> for DivideBalanceByBlocks {
 parameter_types! {
 	pub PolimecParaId: ParaId = 3344u32.into();
 	pub GenesisMoment: BlockNumber = 0u32;
+	pub const MaxMigrations: u128 = 100000;
 }
 impl polimec_receiver::Config for Runtime {
 	type Balance = Balance;
 	type Balances = Balances;
 	type GenesisMoment = GenesisMoment;
+	type MaxMigrations = MaxMigrations;
 	type MigrationInfoToPerBlockBalance = DivideBalanceByBlocks;
 	type PolimecParaId = PolimecParaId;
 	type RuntimeEvent = RuntimeEvent;

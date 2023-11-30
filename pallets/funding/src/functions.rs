@@ -29,6 +29,7 @@ use frame_support::{
 		Get,
 	},
 };
+use itertools::Itertools;
 use sp_arithmetic::{
 	traits::{CheckedDiv, CheckedSub, Zero},
 	Percent, Perquintill,
@@ -41,7 +42,7 @@ use crate::ProjectStatus::FundingSuccessful;
 use polimec_traits::ReleaseSchedule;
 
 use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
-use polimec_traits::migration_types::{MigrationInfo, MigrationOrigin};
+use polimec_traits::migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
 
 use super::*;
 const POLIMEC_PARA_ID: u32 = 3344u32;
@@ -2135,38 +2136,43 @@ impl<T: Config> Pallet<T> {
 
 		// * Process Data *
 		// u128 is a balance, u64 is now a BlockNumber, but will be a Moment/Timestamp in the future
-		let mut migrations: Vec<(MigrationOrigin, MigrationInfo)> = Vec::new();
+		let mut migrations: Migrations = Migrations::new();
 		for evaluation in evaluations {
 			if let Some(RewardOrSlash::Reward(ct_amount)) = evaluation.rewarded_or_slashed {
 				let multiplier = MultiplierOf::<T>::try_from(1u8).map_err(|_| Error::<T>::BadConversion)?;
 				let vesting_duration = multiplier.calculate_vesting_duration::<T>();
 				let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);
-				let migration_origin = MigrationOrigin::Evaluation {
+				let migration_origin = MigrationOrigin {
 					user: <T as Config>::AccountId32Conversion::convert(evaluation.evaluator),
 					id: evaluation.id,
+					participation_type: ParticipationType::Evaluation,
 				};
 				let migration_info: MigrationInfo = (ct_amount.into(), vesting_duration_local_type.into()).into();
-				migrations.push((migration_origin, migration_info));
+				migrations.push(Migration::new(migration_origin, migration_info));
 			}
 		}
 		for contribution in contributions {
 			let vesting_duration = contribution.multiplier.calculate_vesting_duration::<T>();
 			let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);
-			let migration_origin = MigrationOrigin::Contribution {
+			let migration_origin = MigrationOrigin {
 				user: <T as Config>::AccountId32Conversion::convert(contribution.contributor),
 				id: contribution.id,
+				participation_type: ParticipationType::Contribution,
 			};
 			let migration_info: MigrationInfo =
 				(contribution.ct_amount.into(), vesting_duration_local_type.into()).into();
-			migrations.push((migration_origin, migration_info));
+			migrations.push(Migration::new(migration_origin, migration_info));
 		}
 		for bid in bids {
 			let vesting_duration = bid.multiplier.calculate_vesting_duration::<T>();
 			let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);
-			let migration_origin =
-				MigrationOrigin::Bid { user: <T as Config>::AccountId32Conversion::convert(bid.bidder), id: bid.id };
+			let migration_origin = MigrationOrigin {
+				user: <T as Config>::AccountId32Conversion::convert(bid.bidder),
+				id: bid.id,
+				participation_type: ParticipationType::Bid,
+			};
 			let migration_info: MigrationInfo = (bid.final_ct_amount.into(), vesting_duration_local_type.into()).into();
-			migrations.push((migration_origin, migration_info));
+			migrations.push(Migration::new(migration_origin, migration_info));
 		}
 
 		let constructed_migrations =
@@ -2784,7 +2790,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn construct_migration_xcm_messages(
 		user: [u8; 32],
-		migrations: Vec<(MigrationOrigin, MigrationInfo)>,
+		migrations: Migrations,
 	) -> Vec<(BoundedVec<MigrationOrigin, MaxMigrationsPerXcm<T>>, Xcm<()>)> {
 		// TODO: adjust this as benchmarks for polimec-receiver are written
 		const MAX_WEIGHT: Weight = Weight::from_parts(10_000, 0);
@@ -2794,12 +2800,12 @@ impl<T: Config> Pallet<T> {
 		// TODO: use the actual pallet index when the fields are not private anymore (https://github.com/paritytech/polkadot-sdk/pull/2231)
 		let mut output = Vec::new();
 
-		for migrations in migrations.chunks(MaxMigrationsPerXcm::<T>::get() as usize) {
-			let (migration_origins, migration_infos): (Vec<MigrationOrigin>, Vec<MigrationInfo>) =
-				migrations.to_vec().into_iter().unzip();
+		for migrations_slice in migrations.inner().chunks(MaxMigrationsPerXcm::<T>::get() as usize) {
+			let migrations_vec = migrations_slice.to_vec();
+			let migrations_item = Migrations::from(migrations_vec);
+
 			let mut encoded_call = vec![51u8, 0];
-			encoded_call.extend_from_slice(user.encode().as_slice());
-			encoded_call.extend_from_slice(migration_infos.encode().as_slice());
+			encoded_call.extend_from_slice(migrations_item.encode().as_slice());
 			let xcm: Xcm<()> = Xcm(vec![
 				UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
 				Transact {
@@ -2809,7 +2815,8 @@ impl<T: Config> Pallet<T> {
 				},
 				// ReportTransactStatus should be appended here after knowing the query_id
 			]);
-			output.push((migration_origins.try_into().expect("already split into max length chunks"), xcm));
+
+			output.push((migrations_item.origins().try_into().expect("already separated into allowed chunks"), xcm));
 		}
 
 		// TODO: we probably want to ensure we dont build too many messages to overflow the queue. Which we know from the parameter `T::RequiredMaxCapacity`.
@@ -2820,9 +2827,9 @@ impl<T: Config> Pallet<T> {
 	pub fn mark_migrations_as_sent(project_migration_origins: ProjectMigrationOriginsOf<T>, query_id: QueryId) {
 		let project_id = project_migration_origins.project_id;
 		let migration_origins = project_migration_origins.migration_origins;
-		for origin in migration_origins {
-			match origin {
-				MigrationOrigin::Evaluation { user, id } => {
+		for MigrationOrigin { user, id, participation_type } in migration_origins {
+			match participation_type {
+				ParticipationType::Evaluation => {
 					Evaluations::<T>::mutate(
 						(project_id, T::AccountId32Conversion::convert_back(user), id),
 						|maybe_evaluation| {
@@ -2832,14 +2839,14 @@ impl<T: Config> Pallet<T> {
 						},
 					);
 				},
-				MigrationOrigin::Bid { user, id } => {
+				ParticipationType::Bid => {
 					Bids::<T>::mutate((project_id, T::AccountId32Conversion::convert_back(user), id), |maybe_bid| {
 						if let Some(bid) = maybe_bid {
 							bid.ct_migration_status = MigrationStatus::Sent(query_id);
 						}
 					});
 				},
-				MigrationOrigin::Contribution { user, id } => {
+				ParticipationType::Contribution => {
 					Contributions::<T>::mutate(
 						(project_id, T::AccountId32Conversion::convert_back(user), id),
 						|maybe_contribution| {
@@ -2856,9 +2863,9 @@ impl<T: Config> Pallet<T> {
 	pub fn mark_migrations_as_confirmed(project_migration_origins: ProjectMigrationOriginsOf<T>) {
 		let project_id = project_migration_origins.project_id;
 		let migration_origins = project_migration_origins.migration_origins;
-		for origin in migration_origins {
-			match origin {
-				MigrationOrigin::Evaluation { user, id } => {
+		for MigrationOrigin { user, id, participation_type } in migration_origins {
+			match participation_type {
+				ParticipationType::Evaluation => {
 					Evaluations::<T>::mutate(
 						(project_id, T::AccountId32Conversion::convert_back(user), id),
 						|maybe_evaluation| {
@@ -2868,14 +2875,14 @@ impl<T: Config> Pallet<T> {
 						},
 					);
 				},
-				MigrationOrigin::Bid { user, id } => {
+				ParticipationType::Bid => {
 					Bids::<T>::mutate((project_id, T::AccountId32Conversion::convert_back(user), id), |maybe_bid| {
 						if let Some(bid) = maybe_bid {
 							bid.ct_migration_status = MigrationStatus::Confirmed;
 						}
 					});
 				},
-				MigrationOrigin::Contribution { user, id } => {
+				ParticipationType::Contribution => {
 					Contributions::<T>::mutate(
 						(project_id, T::AccountId32Conversion::convert_back(user), id),
 						|maybe_contribution| {
@@ -2895,9 +2902,9 @@ impl<T: Config> Pallet<T> {
 	) {
 		let project_id = project_migration_origins.project_id;
 		let migration_origins = project_migration_origins.migration_origins;
-		for origin in migration_origins {
-			match origin {
-				MigrationOrigin::Evaluation { user, id } => {
+		for MigrationOrigin { user, id, participation_type } in migration_origins {
+			match participation_type {
+				ParticipationType::Evaluation => {
 					Evaluations::<T>::mutate(
 						(project_id, T::AccountId32Conversion::convert_back(user), id),
 						|maybe_evaluation| {
@@ -2907,14 +2914,14 @@ impl<T: Config> Pallet<T> {
 						},
 					);
 				},
-				MigrationOrigin::Bid { user, id } => {
+				ParticipationType::Bid => {
 					Bids::<T>::mutate((project_id, T::AccountId32Conversion::convert_back(user), id), |maybe_bid| {
 						if let Some(bid) = maybe_bid {
 							bid.ct_migration_status = MigrationStatus::Failed(error.clone());
 						}
 					});
 				},
-				MigrationOrigin::Contribution { user, id } => {
+				ParticipationType::Contribution => {
 					Contributions::<T>::mutate(
 						(project_id, T::AccountId32Conversion::convert_back(user), id),
 						|maybe_contribution| {

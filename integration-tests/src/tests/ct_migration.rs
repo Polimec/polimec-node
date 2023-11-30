@@ -4,7 +4,7 @@ use pallet_funding::{
 	Multiplier, MultiplierOf, ProjectIdOf, RewardOrSlash,
 };
 use polimec_parachain_runtime::PolimecFunding;
-use polimec_receiver::MigrationInfo;
+use polimec_traits::migration_types::MigrationInfo;
 use sp_runtime::{FixedPointNumber, Perquintill};
 use std::collections::HashMap;
 use tests::defaults::*;
@@ -20,7 +20,7 @@ fn execute_cleaner(inst: &mut IntegrationInstantiator) {
 }
 fn mock_hrmp_establishment(project_id: u32) {
 	Polimec::execute_with(|| {
-		assert_ok!(PolimecFunding::do_set_para_id_for_project(&issuer(), project_id, ParaId::from(6969u32)));
+		assert_ok!(PolimecFunding::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32)));
 
 		let open_channel_message = xcm::v3::opaque::Instruction::HrmpNewChannelOpenRequest {
 			sender: 6969,
@@ -112,9 +112,17 @@ fn migrations_are_executed(migrations: impl Iterator<Item = (AccountId, Vec<Migr
 			assert_expected_events!(
 				Penpal,
 				vec![
-					PenpalEvent::PolimecReceiver(polimec_receiver::Event::MigrationsExecutedForUser{user, migrations}) => {
-						user: *user == account,
-						migrations: migrations.into_iter().map(|m|m.contribution_token_amount).sum::<u128>() == amount,
+					PenpalEvent::PolimecReceiver(polimec_receiver::Event::MigrationsExecuted{migrations}) => {
+						migrations: {
+							let origins = migrations.origins();
+							let infos = migrations.infos();
+							let mut migrations_come_from_same_user = origins.into_iter().map(|origin| {
+								let account: [u8; 32] = account.clone().into();
+								origin.user == account
+							});
+							migrations_come_from_same_user.all(|x|x) &&
+								infos.into_iter().map(|info| info.contribution_token_amount).sum::<u128>() == amount
+						},
 					},
 				]
 			);
@@ -156,8 +164,8 @@ fn migration_check() {
 	set_oracle_prices();
 	let project_id = Polimec::execute_with(|| {
 		let project_id = inst.create_finished_project(
-			default_project(issuer(), 0),
-			issuer(),
+			default_project(ISSUER.into(), 0),
+			ISSUER.into(),
 			default_evaluations(),
 			default_bids(),
 			default_community_contributions(),
@@ -180,26 +188,26 @@ fn migration_is_sent() {
 
 	let project_id = Polimec::execute_with(|| {
 		inst.create_finished_project(
-			default_project(issuer(), 0),
-			issuer(),
+			default_project(ISSUER.into(), 0),
+			ISSUER.into(),
 			vec![
-				UserToUSDBalance::new(eval_1(), 50_000 * PLMC),
-				UserToUSDBalance::new(eval_2(), 25_000 * PLMC),
-				UserToUSDBalance::new(eval_3(), 32_000 * PLMC),
+				UserToUSDBalance::new(EVAL_1.into(), 50_000 * PLMC),
+				UserToUSDBalance::new(EVAL_2.into(), 25_000 * PLMC),
+				UserToUSDBalance::new(EVAL_3.into(), 32_000 * PLMC),
 			],
 			IntegrationInstantiator::generate_bids_from_total_usd(
 				Perquintill::from_percent(40) *
 					(sp_runtime::FixedU128::from_float(1.0).checked_mul_int(100_000 * ASSET_UNIT).unwrap()),
 				sp_runtime::FixedU128::from_float(1.0),
 				default_weights(),
-				vec![eval_1(), bidder_2(), bidder_3(), bidder_4(), bidder_5()],
+				vec![EVAL_1.into(), BIDDER_1.into(), BIDDER_2.into(), BIDDER_3.into(), BIDDER_4.into()],
 			),
 			IntegrationInstantiator::generate_contributions_from_total_usd(
 				Perquintill::from_percent(50) *
 					(sp_runtime::FixedU128::from_float(1.0).checked_mul_int(100_000 * ASSET_UNIT).unwrap()),
 				sp_runtime::FixedU128::from_float(1.0),
 				default_weights(),
-				vec![eval_1(), buyer_2(), buyer_3(), buyer_4(), buyer_5()],
+				vec![EVAL_1.into(), BUYER_1.into(), BUYER_2.into(), BUYER_3.into(), BUYER_4.into()],
 			),
 			vec![],
 		)
@@ -213,7 +221,7 @@ fn migration_is_sent() {
 
 	assert_migration_is_ready(project_id);
 
-	send_migrations(project_id, vec![eval_1()]);
+	send_migrations(project_id, vec![EVAL_1.into()]);
 }
 
 #[test]
@@ -223,26 +231,26 @@ fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 
 	let project_id = Polimec::execute_with(|| {
 		inst.create_finished_project(
-			default_project(issuer(), 0),
-			issuer(),
+			default_project(ISSUER.into(), 0),
+			ISSUER.into(),
 			vec![
-				UserToUSDBalance::new(eval_1(), 50_000 * PLMC),
-				UserToUSDBalance::new(eval_2(), 25_000 * PLMC),
-				UserToUSDBalance::new(eval_3(), 32_000 * PLMC),
+				UserToUSDBalance::new(EVAL_1.into(), 50_000 * PLMC),
+				UserToUSDBalance::new(EVAL_2.into(), 25_000 * PLMC),
+				UserToUSDBalance::new(EVAL_3.into(), 32_000 * PLMC),
 			],
 			IntegrationInstantiator::generate_bids_from_total_usd(
 				Perquintill::from_percent(40) *
 					(sp_runtime::FixedU128::from_float(1.0).checked_mul_int(100_000 * ASSET_UNIT).unwrap()),
 				sp_runtime::FixedU128::from_float(1.0),
 				default_weights(),
-				vec![eval_1(), bidder_2(), bidder_3(), bidder_4(), bidder_5()],
+				vec![EVAL_1.into(), BIDDER_2.into(), BIDDER_3.into(), BIDDER_4.into(), BIDDER_5.into()],
 			),
 			IntegrationInstantiator::generate_contributions_from_total_usd(
 				Perquintill::from_percent(50) *
 					(sp_runtime::FixedU128::from_float(1.0).checked_mul_int(100_000 * ASSET_UNIT).unwrap()),
 				sp_runtime::FixedU128::from_float(1.0),
 				default_weights(),
-				vec![eval_1(), buyer_2(), buyer_3(), buyer_4(), buyer_5()],
+				vec![EVAL_1.into(), BUYER_2.into(), BUYER_3.into(), BUYER_4.into(), BUYER_5.into()],
 			),
 			vec![],
 		)
@@ -255,16 +263,16 @@ fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 
 	assert_migration_is_ready(project_id);
 
-	let pre_migration_balance = Penpal::account_data_of(eval_1());
+	let pre_migration_balance = Penpal::account_data_of(EVAL_1.into());
 
-	let migrations = send_migrations(project_id, vec![eval_1()]);
-	let eval_1_migrations = migrations[&eval_1()].clone();
+	let migrations = send_migrations(project_id, vec![EVAL_1.into()]);
+	let eval_1_migrations = migrations[&EVAL_1.into()].clone();
 
-	migrations_are_confirmed_for(project_id, vec![eval_1()]);
+	migrations_are_confirmed_for(project_id, vec![EVAL_1.into()]);
 	let eval_1_total_migrated_amount = calculate_total_ct_amount(eval_1_migrations.iter());
 
 	// Balance is there for the user after vesting (Multiplier 1, so no vesting)
-	let post_migration_balance = Penpal::account_data_of(eval_1());
+	let post_migration_balance = Penpal::account_data_of(EVAL_1.into());
 	assert_eq!(post_migration_balance.free - pre_migration_balance.free, eval_1_total_migrated_amount);
 }
 
@@ -278,21 +286,21 @@ fn vesting_over_several_blocks_on_project() {
 	let multiplier_for_vesting = MultiplierOf::<PolimecRuntime>::try_from(10u8).unwrap();
 
 	bids.push(BidParams {
-		bidder: buyer_1(),
+		bidder: BUYER_1.into(),
 		amount: 2_000 * ASSET_UNIT,
 		price: 12u128.into(),
 		multiplier: MultiplierOf::<PolimecRuntime>::try_from(10u8).unwrap(),
 		asset: AcceptedFundingAsset::USDT,
 	});
 	bids.push(BidParams {
-		bidder: bidder_1(),
+		bidder: BIDDER_1.into(),
 		amount: 20_000 * ASSET_UNIT,
 		price: 10u128.into(),
 		multiplier: multiplier_for_vesting,
 		asset: AcceptedFundingAsset::USDT,
 	});
 	bids.push(BidParams {
-		bidder: bidder_2(),
+		bidder: BIDDER_2.into(),
 		amount: 12_000 * ASSET_UNIT,
 		price: 11u128.into(),
 		multiplier: MultiplierOf::<PolimecRuntime>::try_from(10u8).unwrap(),
@@ -300,19 +308,19 @@ fn vesting_over_several_blocks_on_project() {
 	});
 
 	contributions.push(ContributionParams {
-		contributor: buyer_1(),
+		contributor: BUYER_1.into(),
 		amount: 10_250 * ASSET_UNIT,
 		multiplier: MultiplierOf::<PolimecRuntime>::try_from(1u8).unwrap(),
 		asset: AcceptedFundingAsset::USDT,
 	});
 	contributions.push(ContributionParams {
-		contributor: buyer_2(),
+		contributor: BUYER_2.into(),
 		amount: 5000 * ASSET_UNIT,
 		multiplier: MultiplierOf::<PolimecRuntime>::try_from(1u8).unwrap(),
 		asset: AcceptedFundingAsset::USDT,
 	});
 	contributions.push(ContributionParams {
-		contributor: buyer_3(),
+		contributor: BUYER_3.into(),
 		amount: 30000 * ASSET_UNIT,
 		multiplier: MultiplierOf::<PolimecRuntime>::try_from(1u8).unwrap(),
 		asset: AcceptedFundingAsset::USDT,
@@ -320,8 +328,8 @@ fn vesting_over_several_blocks_on_project() {
 
 	let project_id = Polimec::execute_with(|| {
 		inst.create_finished_project(
-			default_project(issuer(), 0),
-			issuer(),
+			default_project(ISSUER.into(), 0),
+			ISSUER.into(),
 			default_evaluations(),
 			bids,
 			contributions,
@@ -336,14 +344,14 @@ fn vesting_over_several_blocks_on_project() {
 
 	assert_migration_is_ready(project_id);
 
-	let pre_migration_balance = Penpal::account_data_of(buyer_1());
+	let pre_migration_balance = Penpal::account_data_of(BUYER_1.into());
 
 	// Migrate is sent
-	let migrations_sent = send_migrations(project_id, vec![buyer_1()]);
+	let migrations_sent = send_migrations(project_id, vec![BUYER_1.into()]);
 
 	migrations_are_executed(migrations_sent.into_iter());
 
-	let post_migration_balance = Penpal::account_data_of(buyer_1());
+	let post_migration_balance = Penpal::account_data_of(BUYER_1.into());
 
 	assert_close_enough!(
 		post_migration_balance.free -
@@ -354,15 +362,15 @@ fn vesting_over_several_blocks_on_project() {
 		Perquintill::from_parts(10_000_000_000u64)
 	);
 
-	migrations_are_confirmed_for(project_id, vec![buyer_1()]);
+	migrations_are_confirmed_for(project_id, vec![BUYER_1.into()]);
 
 	Penpal::execute_with(|| {
 		let unblock_time: u32 = multiplier_for_vesting.calculate_vesting_duration::<PolimecRuntime>();
 		PenpalSystem::set_block_number(unblock_time + 1u32);
-		assert_ok!(pallet_vesting::Pallet::<PenpalRuntime>::vest(PenpalOrigin::signed(buyer_1())));
+		assert_ok!(pallet_vesting::Pallet::<PenpalRuntime>::vest(PenpalOrigin::signed(BUYER_1.into())));
 	});
 
-	let post_vest_balance = Penpal::account_data_of(buyer_1());
+	let post_vest_balance = Penpal::account_data_of(BUYER_1.into());
 	assert_close_enough!(
 		post_vest_balance.free - post_vest_balance.frozen,
 		10_250 * ASSET_UNIT + 2000 * ASSET_UNIT,
@@ -371,4 +379,18 @@ fn vesting_over_several_blocks_on_project() {
 }
 
 #[test]
-fn disallow_duplicated_migrations_on_receiver_pallet() {}
+fn disallow_duplicated_migrations_on_receiver_pallet() {
+	let mut inst = IntegrationInstantiator::new(None);
+	set_oracle_prices();
+
+	let project_id = Polimec::execute_with(|| {
+		inst.create_finished_project(
+			default_project(ISSUER.into(), 0),
+			ISSUER.into(),
+			default_evaluations(),
+			default_bids(),
+			default_community_contributions(),
+			default_remainder_contributions(),
+		)
+	});
+}

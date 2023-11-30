@@ -46,12 +46,11 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, OpaqueKeys},
+	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, Convert, ConvertBack, ConvertInto, Identity, OpaqueKeys},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult,
 };
 pub use sp_runtime::{FixedU128, MultiAddress, Perbill, Permill};
-use sp_runtime::traits::{Convert, ConvertBack, Identity};
 
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -544,8 +543,8 @@ parameter_types! {
 	pub RequiredMaxMessageSize: u32 = 102_400;
 }
 pub struct ConvertSelf;
-impl Convert<AccountId, [u8;32]> for ConvertSelf {
-	fn convert(account_id: AccountId) -> [u8;32] {
+impl Convert<AccountId, [u8; 32]> for ConvertSelf {
+	fn convert(account_id: AccountId) -> [u8; 32] {
 		account_id.into()
 	}
 }
