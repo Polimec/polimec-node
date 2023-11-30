@@ -2177,9 +2177,9 @@ impl<T: Config> Pallet<T> {
 
 		let constructed_migrations =
 			Self::construct_migration_xcm_messages(T::AccountId32Conversion::convert(participant.clone()), migrations);
-		for (migration_origins, xcm) in constructed_migrations {
+		for (migrations, xcm) in constructed_migrations {
 			let project_multilocation = MultiLocation { parents: 1, interior: X1(Parachain(project_para_id.into())) };
-			let project_migration_origins = ProjectMigrationOriginsOf::<T> { project_id, migration_origins };
+			let project_migration_origins = ProjectMigrationOriginsOf::<T> { project_id, migration_origins: migrations.origins().try_into().expect("construct function uses same constraint T::MaxMigrationsPerXcm") };
 
 			let call: <T as Config>::RuntimeCall =
 				Call::confirm_migrations { query_id: Default::default(), response: Default::default() }.into();
@@ -2228,14 +2228,16 @@ impl<T: Config> Pallet<T> {
 
 		match response {
 			Response::DispatchResult(MaybeErrorCode::Success) => {
-				Self::mark_migrations_as_confirmed(unconfirmed_migrations);
-				Self::deposit_event(Event::MigrationsConfirmed { project_id, query_id });
+				Self::mark_migrations_as_confirmed(unconfirmed_migrations.clone());
+				Self::deposit_event(Event::MigrationsConfirmed { project_id, migration_origins: unconfirmed_migrations.migration_origins });
+				// Self::deposit_event(Event::MigrationsConfirmed { project_id });
 				Ok(())
 			},
 			Response::DispatchResult(MaybeErrorCode::Error(e)) |
 			Response::DispatchResult(MaybeErrorCode::TruncatedError(e)) => {
-				Self::mark_migrations_as_failed(unconfirmed_migrations, e);
-				Self::deposit_event(Event::MigrationsFailed { project_id, query_id });
+				Self::mark_migrations_as_failed(unconfirmed_migrations.clone(), e);
+				Self::deposit_event(Event::MigrationsFailed { project_id, migration_origins: unconfirmed_migrations.migration_origins });
+				// Self::deposit_event(Event::MigrationsFailed { project_id});
 				Ok(())
 			},
 			_ => Err(Error::<T>::NotAllowed.into()),
@@ -2791,7 +2793,7 @@ impl<T: Config> Pallet<T> {
 	pub fn construct_migration_xcm_messages(
 		user: [u8; 32],
 		migrations: Migrations,
-	) -> Vec<(BoundedVec<MigrationOrigin, MaxMigrationsPerXcm<T>>, Xcm<()>)> {
+	) -> Vec<(Migrations, Xcm<()>)> {
 		// TODO: adjust this as benchmarks for polimec-receiver are written
 		const MAX_WEIGHT: Weight = Weight::from_parts(10_000, 0);
 
@@ -2816,7 +2818,7 @@ impl<T: Config> Pallet<T> {
 				// ReportTransactStatus should be appended here after knowing the query_id
 			]);
 
-			output.push((migrations_item.origins().try_into().expect("already separated into allowed chunks"), xcm));
+			output.push((migrations_item, xcm));
 		}
 
 		// TODO: we probably want to ensure we dont build too many messages to overflow the queue. Which we know from the parameter `T::RequiredMaxCapacity`.

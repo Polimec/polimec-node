@@ -180,7 +180,7 @@ use frame_support::{
 	BoundedVec, PalletId,
 };
 pub use pallet::*;
-use polimec_traits::migration_types::{MigrationInfo, MigrationOrigin};
+use polimec_traits::migration_types::*;
 use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
@@ -812,11 +812,11 @@ pub mod pallet {
 		},
 		MigrationsConfirmed {
 			project_id: ProjectIdOf<T>,
-			query_id: QueryId,
+			migration_origins: BoundedVec<MigrationOrigin, MaxMigrationsPerXcm<T>>,
 		},
 		MigrationsFailed {
 			project_id: ProjectIdOf<T>,
-			query_id: QueryId,
+			migration_origins: BoundedVec<MigrationOrigin, MaxMigrationsPerXcm<T>>,
 		},
 	}
 

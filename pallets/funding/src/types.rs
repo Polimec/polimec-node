@@ -366,6 +366,7 @@ pub mod storage_types {
 pub mod inner_types {
 	use super::*;
 	use xcm::v3::MaxDispatchErrorLen;
+	use polimec_traits::migration_types::{MigrationOrigin, Migrations};
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
@@ -722,7 +723,7 @@ pub mod inner_types {
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct ProjectMigrationOrigins<ProjectId, MigrationOrigins> {
 		pub project_id: ProjectId,
-		pub migration_origins: MigrationOrigins,
+		pub migration_origins: MigrationOrigins
 	}
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub enum MigrationStatus {

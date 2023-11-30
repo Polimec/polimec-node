@@ -17,6 +17,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use frame_support::{pallet_prelude::*, traits::tokens::fungible, RuntimeDebug};
+use itertools::Itertools;
 use sp_std::prelude::*;
 
 /// A release schedule over a fungible. This allows a particular fungible to have release limits
@@ -106,13 +107,28 @@ pub mod migration_types {
 		pub id: u32,
 		pub participation_type: ParticipationType,
 	}
+	impl PartialOrd for MigrationOrigin {
+		fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+			Some(self.cmp(other))
+		}
+	}
+	impl Ord for MigrationOrigin {
+		fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+			if self.participation_type == other.participation_type {
+				self.id.cmp(&other.id)
+			} else {
+				self.participation_type.cmp(&other.participation_type)
+			}
+		}
+	}
 
-	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub enum ParticipationType {
 		Evaluation,
 		Bid,
 		Contribution,
 	}
+
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct MigrationInfo {
@@ -138,6 +154,12 @@ pub mod migration_types {
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo)]
 	pub struct Migrations(Vec<Migration>);
+	impl FromIterator<Migration> for Migrations {
+		fn from_iter<T: IntoIterator<Item = Migration>>(iter: T) -> Self {
+			Migrations::from(iter.into_iter().collect::<Vec<_>>())
+		}
+	}
+
 	impl Migrations {
 		pub fn new() -> Self {
 			Self(Vec::new())
@@ -161,6 +183,31 @@ pub mod migration_types {
 
 		pub fn infos(&self) -> Vec<MigrationInfo> {
 			self.0.iter().map(|migration| migration.info.clone()).collect()
+		}
+
+		pub fn group_by_user(self) -> Vec<([u8; 32], Vec<Migration>)> {
+			let mut migrations = self.0;
+			migrations.sort_by(|a, b| a.origin.user.cmp(&b.origin.user));
+			migrations
+				.into_iter()
+				.group_by(|migration| migration.origin.user)
+				.into_iter()
+				.map(|(user, migrations)| (user, migrations.collect::<Vec<_>>()))
+				.collect::<Vec<_>>()
+		}
+
+		pub fn sort_by_ct_amount(self) -> Migrations {
+			let mut migrations = self.0;
+			migrations.sort_by(|a, b| a.info.contribution_token_amount.cmp(&b.info.contribution_token_amount));
+			Migrations(migrations)
+		}
+
+		pub fn total_ct_amount(&self) -> u128 {
+			self.0.iter().map(|migration| migration.info.contribution_token_amount).sum()
+		}
+
+		pub fn biggest_vesting_time(&self) -> u64 {
+			self.0.iter().map(|migration| migration.info.vesting_time).max().unwrap_or(0)
 		}
 	}
 }

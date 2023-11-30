@@ -20,7 +20,7 @@ scale-info = { version = "2.9.0", default-features = false, features = [
 ] }
 log.workspace = true
 
-itertools = { version = "0.11.0", default-features = false }
+itertools.workspace = true
 
 # Substrate dependencies
 frame-benchmarking = {workspace = true, optional = true}

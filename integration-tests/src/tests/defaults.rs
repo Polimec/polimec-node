@@ -8,10 +8,10 @@ use sp_core::H256;
 use std::collections::HashMap;
 
 use crate::PolimecOrigin;
+use macros::generate_accounts;
 use polimec_parachain_runtime::AccountId;
 use sp_runtime::{traits::ConstU32, FixedPointNumber, Perquintill};
 use xcm_emulator::TestExt;
-use macros::generate_accounts;
 
 pub const METADATA: &str = r#"METADATA
         {
@@ -34,22 +34,9 @@ pub fn hashed(data: impl AsRef<[u8]>) -> sp_core::H256 {
 }
 
 generate_accounts!(
-	ISSUER,
-	EVAL_1,
-	EVAL_2,
-	EVAL_3,
-	BIDDER_1,
-	BIDDER_2,
-	BIDDER_3,
-	BIDDER_4,
-	BIDDER_5,
-	BUYER_1,
-	BUYER_2,
-	BUYER_3,
-	BUYER_4,
-	BUYER_5,
+	ISSUER, EVAL_1, EVAL_2, EVAL_3, EVAL_4, BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5, BIDDER_6, BUYER_1,
+	BUYER_2, BUYER_3, BUYER_4, BUYER_5, BUYER_6,
 );
-
 
 pub fn bounded_name() -> BoundedVec<u8, ConstU32<64>> {
 	BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap()
@@ -122,7 +109,7 @@ pub fn default_remainder_contributions() -> Vec<ContributionParams<PolimecRuntim
 	IntegrationInstantiator::generate_contributions_from_total_usd(
 		fifty_percent_funding_usd,
 		sp_runtime::FixedU128::from_float(1.0),
-		default_weights(),
+		vec![20u8, 15u8, 10u8, 25u8, 23u8, 7u8],
 		default_remainder_contributors(),
 	)
 }
@@ -131,7 +118,7 @@ pub fn default_community_contributors() -> Vec<AccountId> {
 }
 
 pub fn default_remainder_contributors() -> Vec<AccountId> {
-	vec![BUYER_1.into(), BUYER_2.into(), BUYER_3.into(), BUYER_4.into(), BUYER_5.into()]
+	vec![EVAL_4.into(), BUYER_6.into(), BIDDER_6.into(), EVAL_1.into(), BUYER_1.into(), BIDDER_1.into()]
 }
 
 use crate::{Polimec, PolimecRuntime, ALICE, BOB, CHARLIE};

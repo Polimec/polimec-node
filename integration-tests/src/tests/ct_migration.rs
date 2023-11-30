@@ -4,14 +4,10 @@ use pallet_funding::{
 	Multiplier, MultiplierOf, ProjectIdOf, RewardOrSlash,
 };
 use polimec_parachain_runtime::PolimecFunding;
-use polimec_traits::migration_types::MigrationInfo;
+use polimec_traits::migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
 use sp_runtime::{FixedPointNumber, Perquintill};
 use std::collections::HashMap;
 use tests::defaults::*;
-
-fn calculate_total_ct_amount<'a>(migrations: impl Iterator<Item = &'a MigrationInfo>) -> u128 {
-	migrations.into_iter().map(|m| m.contribution_token_amount).sum()
-}
 
 fn execute_cleaner(inst: &mut IntegrationInstantiator) {
 	Polimec::execute_with(|| {
@@ -49,7 +45,7 @@ fn assert_migration_is_ready(project_id: u32) {
 fn send_migrations(
 	project_id: ProjectIdOf<PolimecRuntime>,
 	accounts: Vec<AccountId>,
-) -> HashMap<AccountId, Vec<MigrationInfo>> {
+) -> HashMap<AccountId, Migrations> {
 	let mut output = HashMap::new();
 	for account in accounts {
 		let migrations = Polimec::execute_with(|| {
@@ -71,12 +67,19 @@ fn send_migrations(
 			let evaluation_migrations = user_evaluations.map(|evaluation| {
 				assert_eq!(evaluation.ct_migration_status, MigrationStatus::Sent(query_id));
 				if let Some(RewardOrSlash::Reward(amount)) = evaluation.rewarded_or_slashed {
-					MigrationInfo {
-						contribution_token_amount: amount,
-						vesting_time: Multiplier::new(1u8)
-							.unwrap()
-							.calculate_vesting_duration::<PolimecRuntime>()
-							.into(),
+					Migration {
+						info: MigrationInfo {
+							contribution_token_amount: amount,
+							vesting_time: Multiplier::new(1u8)
+								.unwrap()
+								.calculate_vesting_duration::<PolimecRuntime>()
+								.into(),
+						},
+						origin: MigrationOrigin {
+							user: account.clone().into(),
+							id: evaluation.id,
+							participation_type: ParticipationType::Evaluation,
+						},
 					}
 				} else {
 					panic!("should be rewarded")
@@ -84,78 +87,142 @@ fn send_migrations(
 			});
 			let bid_migrations = user_bids.map(|bid| {
 				assert_eq!(bid.ct_migration_status, MigrationStatus::Sent(query_id));
-				MigrationInfo {
-					contribution_token_amount: bid.final_ct_amount,
-					vesting_time: bid.multiplier.calculate_vesting_duration::<PolimecRuntime>().into(),
+				Migration {
+					info: MigrationInfo {
+						contribution_token_amount: bid.final_ct_amount,
+						vesting_time: bid.multiplier.calculate_vesting_duration::<PolimecRuntime>().into(),
+					},
+					origin: MigrationOrigin {
+						user: account.clone().into(),
+						id: bid.id,
+						participation_type: ParticipationType::Bid,
+					},
 				}
 			});
 			let contribution_ct_amount = user_contributions.map(|contribution| {
 				assert_eq!(contribution.ct_migration_status, MigrationStatus::Sent(query_id));
-				MigrationInfo {
-					contribution_token_amount: contribution.ct_amount,
-					vesting_time: contribution.multiplier.calculate_vesting_duration::<PolimecRuntime>().into(),
+				Migration {
+					info: MigrationInfo {
+						contribution_token_amount: contribution.ct_amount,
+						vesting_time: contribution.multiplier.calculate_vesting_duration::<PolimecRuntime>().into(),
+					},
+					origin: MigrationOrigin {
+						user: account.clone().into(),
+						id: contribution.id,
+						participation_type: ParticipationType::Contribution,
+					},
 				}
 			});
 
-			evaluation_migrations.chain(bid_migrations).chain(contribution_ct_amount).collect::<Vec<MigrationInfo>>()
+			evaluation_migrations.chain(bid_migrations).chain(contribution_ct_amount).collect::<Migrations>()
 		});
 		output.insert(account.clone(), migrations);
 	}
 	output
 }
 
-fn migrations_are_executed(migrations: impl Iterator<Item = (AccountId, Vec<MigrationInfo>)>) {
-	Penpal::execute_with(|| {
-		for (account, migrations) in migrations {
-			let amount = calculate_total_ct_amount(migrations.iter());
-
+fn migrations_are_executed(grouped_migrations: Vec<Migrations>) {
+	for migration_group in grouped_migrations {
+		let user = migration_group.clone().inner()[0].origin.user;
+		assert!(migration_group.origins().iter().all(|origin|origin.user == user ));
+		Penpal::execute_with(|| {
 			assert_expected_events!(
 				Penpal,
 				vec![
 					PenpalEvent::PolimecReceiver(polimec_receiver::Event::MigrationsExecuted{migrations}) => {
 						migrations: {
-							let origins = migrations.origins();
-							let infos = migrations.infos();
-							let mut migrations_come_from_same_user = origins.into_iter().map(|origin| {
-								let account: [u8; 32] = account.clone().into();
-								origin.user == account
-							});
-							migrations_come_from_same_user.all(|x|x) &&
-								infos.into_iter().map(|info| info.contribution_token_amount).sum::<u128>() == amount
+							migrations.clone().sort_by_ct_amount() == migration_group.clone().sort_by_ct_amount()
 						},
 					},
 				]
 			);
+		});
+
+		let user_info = Penpal::account_data_of(user.into());
+		assert_close_enough!(user_info.free, migration_group.total_ct_amount(), Perquintill::from_parts(10_000_000_000u64));
+
+		let vest_scheduled_cts = migration_group.inner().iter().filter_map(|migration| {
+			if migration.info.vesting_time > 1 {
+				Some(migration.info.contribution_token_amount)
+			} else {
+				None
+			}
+		}).sum::<u128>();
+		assert_close_enough!(user_info.frozen, vest_scheduled_cts, Perquintill::from_parts(1_000_000_000u64));
+	}
+}
+
+fn migrations_are_confirmed(project_id: u32, grouped_migrations: Vec<Migrations>) {
+	Polimec::execute_with(|| {
+		for migration_group in grouped_migrations {
+			assert_expected_events!(
+				Polimec,
+				vec![
+					PolimecEvent::PolimecFunding(pallet_funding::Event::MigrationsConfirmed{project_id, migration_origins}) => {
+						project_id: project_id == project_id,
+						migration_origins: {
+							let mut a = migration_group.origins().clone();
+							let mut b = migration_origins.to_vec().clone();
+							a.sort();
+							b.sort();
+							a == b
+						},
+					},
+				]
+			);
+			for migration_origin in migration_group.origins() {
+				match migration_origin.participation_type {
+					ParticipationType::Evaluation => {
+						let evaluation = pallet_funding::Evaluations::<PolimecRuntime>::get((
+							project_id,
+							AccountId::from(migration_origin.user),
+							migration_origin.id,
+						)
+						)
+						.unwrap();
+						assert_eq!(evaluation.ct_migration_status, MigrationStatus::Confirmed);
+					},
+					ParticipationType::Bid => {
+						let bid = pallet_funding::Bids::<PolimecRuntime>::get((
+							project_id,
+							AccountId::from(migration_origin.user),
+							migration_origin.id,
+						))
+						.unwrap();
+						assert_eq!(bid.ct_migration_status, MigrationStatus::Confirmed);
+					},
+					ParticipationType::Contribution => {
+						let contribution = pallet_funding::Contributions::<PolimecRuntime>::get((
+							project_id,
+							AccountId::from(migration_origin.user),
+							migration_origin.id,
+						))
+						.unwrap();
+						assert_eq!(contribution.ct_migration_status, MigrationStatus::Confirmed);
+					},
+				}
+			}
 		}
 	});
 }
 
-fn migrations_are_confirmed_for(project_id: u32, accounts: Vec<AccountId>) {
-	Polimec::execute_with(|| {
-		for account in accounts {
-			let mut user_evaluations =
-				pallet_funding::Evaluations::<PolimecRuntime>::iter_prefix_values((project_id, account.clone()));
-			let mut user_bids =
-				pallet_funding::Bids::<PolimecRuntime>::iter_prefix_values((project_id, account.clone()));
-			let mut user_contributions =
-				pallet_funding::Contributions::<PolimecRuntime>::iter_prefix_values((project_id, account.clone()));
+fn vest_migrations(grouped_migrations: Vec<Migrations>) {
+	for migration_group in grouped_migrations {
+		let user = migration_group.clone().inner()[0].origin.user;
+		assert!(migration_group.origins().iter().all(|origin|origin.user == user ));
 
-			assert!(user_evaluations.all(|bid| bid.ct_migration_status == MigrationStatus::Confirmed));
-			assert!(user_bids.all(|bid| bid.ct_migration_status == MigrationStatus::Confirmed));
-			assert!(
-				user_contributions.all(|contribution| contribution.ct_migration_status == MigrationStatus::Confirmed)
-			);
-
-			assert_expected_events!(
-				Polimec,
-				vec![
-					PolimecEvent::PolimecFunding(pallet_funding::Event::MigrationsConfirmed{project_id, ..}) => {
-						project_id: project_id == project_id,
-					},
-				]
-			);
-		}
-	});
+		Penpal::execute_with(|| {
+			assert_ok!(pallet_vesting::Pallet::<PenpalRuntime>::vest(PenpalOrigin::signed(user.into())));
+		});
+	}
+}
+fn migrations_are_vested(grouped_migrations: Vec<Migrations>) {
+	for migration_group in grouped_migrations {
+		let user = migration_group.clone().inner()[0].origin.user;
+		assert!(migration_group.origins().iter().all(|origin|origin.user == user ));
+		let total_ct = migration_group.total_ct_amount();
+		let user_info = Penpal::account_data_of(user.into());
+	}
 }
 
 #[test]
@@ -214,9 +281,6 @@ fn migration_is_sent() {
 	});
 	execute_cleaner(&mut inst);
 
-	let penpal_sov_acc = PolkadotRelay::sovereign_account_id_of(Parachain(Penpal::para_id().into()).into());
-	PolkadotRelay::fund_accounts(vec![(penpal_sov_acc, 100_0_000_000_000u128)]);
-
 	mock_hrmp_establishment(project_id);
 
 	assert_migration_is_ready(project_id);
@@ -256,24 +320,16 @@ fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 		)
 	});
 	execute_cleaner(&mut inst);
-	let penpal_sov_acc = PolkadotRelay::sovereign_account_id_of(Parachain(Penpal::para_id().into()).into());
-	PolkadotRelay::fund_accounts(vec![(penpal_sov_acc, 100_0_000_000_000u128)]);
 
 	mock_hrmp_establishment(project_id);
 
 	assert_migration_is_ready(project_id);
 
-	let pre_migration_balance = Penpal::account_data_of(EVAL_1.into());
+	let migrations_map = send_migrations(project_id, vec![EVAL_1.into()]);
+	let grouped_migrations = migrations_map.values().cloned().collect::<Vec<_>>();
 
-	let migrations = send_migrations(project_id, vec![EVAL_1.into()]);
-	let eval_1_migrations = migrations[&EVAL_1.into()].clone();
-
-	migrations_are_confirmed_for(project_id, vec![EVAL_1.into()]);
-	let eval_1_total_migrated_amount = calculate_total_ct_amount(eval_1_migrations.iter());
-
-	// Balance is there for the user after vesting (Multiplier 1, so no vesting)
-	let post_migration_balance = Penpal::account_data_of(EVAL_1.into());
-	assert_eq!(post_migration_balance.free - pre_migration_balance.free, eval_1_total_migrated_amount);
+	migrations_are_executed(grouped_migrations.clone());
+	migrations_are_confirmed(project_id, grouped_migrations.clone());
 }
 
 #[test]
@@ -337,8 +393,6 @@ fn vesting_over_several_blocks_on_project() {
 		)
 	});
 	execute_cleaner(&mut inst);
-	let penpal_sov_acc = PolkadotRelay::sovereign_account_id_of(Parachain(Penpal::para_id().into()).into());
-	PolkadotRelay::fund_accounts(vec![(penpal_sov_acc, 100_0_000_000_000u128)]);
 
 	mock_hrmp_establishment(project_id);
 
@@ -347,9 +401,10 @@ fn vesting_over_several_blocks_on_project() {
 	let pre_migration_balance = Penpal::account_data_of(BUYER_1.into());
 
 	// Migrate is sent
-	let migrations_sent = send_migrations(project_id, vec![BUYER_1.into()]);
+	let user_migrations = send_migrations(project_id, vec![BUYER_1.into()]);
+	let grouped_migrations = user_migrations.values().cloned().collect::<Vec<_>>();
 
-	migrations_are_executed(migrations_sent.into_iter());
+	migrations_are_executed(grouped_migrations.clone());
 
 	let post_migration_balance = Penpal::account_data_of(BUYER_1.into());
 
@@ -362,7 +417,7 @@ fn vesting_over_several_blocks_on_project() {
 		Perquintill::from_parts(10_000_000_000u64)
 	);
 
-	migrations_are_confirmed_for(project_id, vec![BUYER_1.into()]);
+	migrations_are_confirmed(project_id, grouped_migrations.clone());
 
 	Penpal::execute_with(|| {
 		let unblock_time: u32 = multiplier_for_vesting.calculate_vesting_duration::<PolimecRuntime>();
@@ -393,4 +448,20 @@ fn disallow_duplicated_migrations_on_receiver_pallet() {
 			default_remainder_contributions(),
 		)
 	});
+
+	let mut participants = vec![
+		EVAL_1, EVAL_2, EVAL_3, EVAL_4, BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5, BIDDER_6, BUYER_1, BUYER_2,
+		BUYER_3, BUYER_4, BUYER_5, BUYER_6,
+	]
+	.into_iter()
+	.map(|x| AccountId::from(x))
+	.collect::<Vec<_>>();
+
+	execute_cleaner(&mut inst);
+
+	mock_hrmp_establishment(project_id);
+
+	assert_migration_is_ready(project_id);
+
+	let migrations_sent = send_migrations(project_id, participants);
 }

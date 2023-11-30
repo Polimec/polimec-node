@@ -87,6 +87,7 @@ hex-literal = "0.3.4"
 serde = { version = "1.0.188", default-features = false }
 smallvec = "1.11.0"
 log = { version = "0.4.17", default-features = false }
+itertools = { version = "0.11.0", default-features = false, features = ["use_alloc"] }
 
 # Emulations
 xcm-emulator = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "release-v0.9.430" }
