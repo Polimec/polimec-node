@@ -1,7 +1,7 @@
 use crate::*;
 use pallet_funding::{
-	assert_close_enough, traits::VestingDurationCalculation, AcceptedFundingAsset, BidStatus, MigrationStatus,
-	Multiplier, MultiplierOf, ProjectIdOf, RewardOrSlash,
+	assert_close_enough, traits::VestingDurationCalculation, AcceptedFundingAsset, BidStatus, EvaluatorsOutcome,
+	MigrationStatus, Multiplier, MultiplierOf, ProjectIdOf, RewardOrSlash,
 };
 use polimec_parachain_runtime::PolimecFunding;
 use polimec_traits::migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
@@ -54,8 +54,6 @@ fn send_migrations(
 				project_id,
 				account.clone()
 			));
-			let (query_id, _migrations) =
-				pallet_funding::UnconfirmedMigrations::<PolimecRuntime>::iter().next().unwrap();
 
 			let user_evaluations =
 				pallet_funding::Evaluations::<PolimecRuntime>::iter_prefix_values((project_id, account.clone()));
@@ -65,7 +63,7 @@ fn send_migrations(
 				pallet_funding::Contributions::<PolimecRuntime>::iter_prefix_values((project_id, account.clone()));
 
 			let evaluation_migrations = user_evaluations.map(|evaluation| {
-				assert_eq!(evaluation.ct_migration_status, MigrationStatus::Sent(query_id));
+				assert!(matches!(evaluation.ct_migration_status, MigrationStatus::Sent(_)));
 				if let Some(RewardOrSlash::Reward(amount)) = evaluation.rewarded_or_slashed {
 					Migration {
 						info: MigrationInfo {
@@ -86,7 +84,7 @@ fn send_migrations(
 				}
 			});
 			let bid_migrations = user_bids.map(|bid| {
-				assert_eq!(bid.ct_migration_status, MigrationStatus::Sent(query_id));
+				assert!(matches!(bid.ct_migration_status, MigrationStatus::Sent(_)));
 				Migration {
 					info: MigrationInfo {
 						contribution_token_amount: bid.final_ct_amount,
@@ -100,7 +98,7 @@ fn send_migrations(
 				}
 			});
 			let contribution_ct_amount = user_contributions.map(|contribution| {
-				assert_eq!(contribution.ct_migration_status, MigrationStatus::Sent(query_id));
+				assert!(matches!(contribution.ct_migration_status, MigrationStatus::Sent(_)));
 				Migration {
 					info: MigrationInfo {
 						contribution_token_amount: contribution.ct_amount,
@@ -116,28 +114,32 @@ fn send_migrations(
 
 			evaluation_migrations.chain(bid_migrations).chain(contribution_ct_amount).collect::<Migrations>()
 		});
+		if migrations.clone().inner().is_empty() {
+			panic!("no migrations for account: {:?}", account)
+		}
 		output.insert(account.clone(), migrations);
 	}
 	output
 }
 
 fn migrations_are_executed(grouped_migrations: Vec<Migrations>) {
+	let all_migrations =
+		grouped_migrations.iter().flat_map(|migrations| migrations.clone().inner()).collect::<Vec<_>>();
+	Penpal::execute_with(|| {
+		assert_expected_events!(
+			Penpal,
+			vec![
+				PenpalEvent::PolimecReceiver(polimec_receiver::Event::MigrationExecuted{migration}) => {
+					migration: all_migrations.contains(&migration),
+				},
+			]
+		);
+	});
+
+	// since current way to migrate is by bundling each user's migrations into one, we can assume that all migrations in a group are from the same user
 	for migration_group in grouped_migrations {
 		let user = migration_group.clone().inner()[0].origin.user;
 		assert!(migration_group.origins().iter().all(|origin| origin.user == user));
-
-		for single_migration in migration_group.clone().inner() {
-			Penpal::execute_with(|| {
-				assert_expected_events!(
-					Penpal,
-					vec![
-						PenpalEvent::PolimecReceiver(polimec_receiver::Event::MigrationExecuted{migration}) => {
-							migration: *migration == single_migration,
-						},
-					]
-				);
-			});
-		}
 
 		let user_info = Penpal::account_data_of(user.into());
 		assert_close_enough!(
@@ -162,53 +164,60 @@ fn migrations_are_executed(grouped_migrations: Vec<Migrations>) {
 }
 
 fn migrations_are_confirmed(project_id: u32, grouped_migrations: Vec<Migrations>) {
+	let ordered_grouped_origins = grouped_migrations
+		.clone()
+		.into_iter()
+		.map(|group| {
+			let mut origins = group.origins();
+			origins.sort();
+			origins
+		})
+		.collect::<Vec<_>>();
 	Polimec::execute_with(|| {
-		for migration_group in grouped_migrations {
-			assert_expected_events!(
-				Polimec,
-				vec![
-					PolimecEvent::PolimecFunding(pallet_funding::Event::MigrationsConfirmed{project_id, migration_origins}) => {
-						project_id: project_id == project_id,
-						migration_origins: {
-							let mut a = migration_group.origins().clone();
-							let mut b = migration_origins.to_vec().clone();
-							a.sort();
-							b.sort();
-							a == b
-						},
+		assert_expected_events!(
+			Polimec,
+			vec![
+				PolimecEvent::PolimecFunding(pallet_funding::Event::MigrationsConfirmed{project_id, migration_origins}) => {
+					project_id: project_id == project_id,
+					migration_origins: {
+						let mut migration_origins = migration_origins.to_vec();
+						migration_origins.sort();
+						ordered_grouped_origins.contains(&migration_origins)
 					},
-				]
-			);
-			for migration_origin in migration_group.origins() {
-				match migration_origin.participation_type {
-					ParticipationType::Evaluation => {
-						let evaluation = pallet_funding::Evaluations::<PolimecRuntime>::get((
-							project_id,
-							AccountId::from(migration_origin.user),
-							migration_origin.id,
-						))
-						.unwrap();
-						assert_eq!(evaluation.ct_migration_status, MigrationStatus::Confirmed);
-					},
-					ParticipationType::Bid => {
-						let bid = pallet_funding::Bids::<PolimecRuntime>::get((
-							project_id,
-							AccountId::from(migration_origin.user),
-							migration_origin.id,
-						))
-						.unwrap();
-						assert_eq!(bid.ct_migration_status, MigrationStatus::Confirmed);
-					},
-					ParticipationType::Contribution => {
-						let contribution = pallet_funding::Contributions::<PolimecRuntime>::get((
-							project_id,
-							AccountId::from(migration_origin.user),
-							migration_origin.id,
-						))
-						.unwrap();
-						assert_eq!(contribution.ct_migration_status, MigrationStatus::Confirmed);
-					},
-				}
+				},
+			]
+		);
+		let all_migration_origins =
+			grouped_migrations.iter().flat_map(|migrations| migrations.clone().origins()).collect::<Vec<_>>();
+		for migration_origin in all_migration_origins {
+			match migration_origin.participation_type {
+				ParticipationType::Evaluation => {
+					let evaluation = pallet_funding::Evaluations::<PolimecRuntime>::get((
+						project_id,
+						AccountId::from(migration_origin.user),
+						migration_origin.id,
+					))
+					.unwrap();
+					assert_eq!(evaluation.ct_migration_status, MigrationStatus::Confirmed);
+				},
+				ParticipationType::Bid => {
+					let bid = pallet_funding::Bids::<PolimecRuntime>::get((
+						project_id,
+						AccountId::from(migration_origin.user),
+						migration_origin.id,
+					))
+					.unwrap();
+					assert_eq!(bid.ct_migration_status, MigrationStatus::Confirmed);
+				},
+				ParticipationType::Contribution => {
+					let contribution = pallet_funding::Contributions::<PolimecRuntime>::get((
+						project_id,
+						AccountId::from(migration_origin.user),
+						migration_origin.id,
+					))
+					.unwrap();
+					assert_eq!(contribution.ct_migration_status, MigrationStatus::Confirmed);
+				},
 			}
 		}
 	});
@@ -217,15 +226,18 @@ fn migrations_are_confirmed(project_id: u32, grouped_migrations: Vec<Migrations>
 fn vest_migrations(grouped_migrations: Vec<Migrations>) {
 	let biggest_time = grouped_migrations.iter().map(|migrations| migrations.biggest_vesting_time()).max().unwrap();
 	Penpal::execute_with(|| {
-		PenpalSystem::set_block_number(biggest_time as u32);
+		PenpalSystem::set_block_number(biggest_time as u32 + 1u32);
 	});
 	for migration_group in grouped_migrations {
 		let user = migration_group.clone().inner()[0].origin.user;
 		assert!(migration_group.origins().iter().all(|origin| origin.user == user));
-
-		Penpal::execute_with(|| {
-			assert_ok!(pallet_vesting::Pallet::<PenpalRuntime>::vest(PenpalOrigin::signed(user.into())));
-		});
+		// check if any vesting_time is bigger than 1, which means the balance was actually frozen
+		let has_frozen_balance = migration_group.inner().iter().any(|migration| migration.info.vesting_time > 1);
+		if has_frozen_balance {
+			Penpal::execute_with(|| {
+				assert_ok!(pallet_vesting::Pallet::<PenpalRuntime>::vest(PenpalOrigin::signed(user.into())));
+			});
+		}
 	}
 }
 
@@ -233,8 +245,8 @@ fn migrations_are_vested(grouped_migrations: Vec<Migrations>) {
 	for migration_group in grouped_migrations {
 		let user = migration_group.clone().inner()[0].origin.user;
 		assert!(migration_group.origins().iter().all(|origin| origin.user == user));
-		let total_ct = migration_group.total_ct_amount();
 		let user_info = Penpal::account_data_of(user.into());
+		assert_eq!(user_info.frozen, 0)
 	}
 }
 
@@ -265,7 +277,11 @@ fn migration_check() {
 fn migration_is_sent() {
 	let mut inst = IntegrationInstantiator::new(None);
 	set_oracle_prices();
-
+	let mut participants =
+		vec![EVAL_1, EVAL_2, EVAL_3, BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BUYER_1, BUYER_2, BUYER_3, BUYER_4]
+			.into_iter()
+			.map(|x| AccountId::from(x))
+			.collect::<Vec<_>>();
 	let project_id = Polimec::execute_with(|| {
 		inst.create_finished_project(
 			default_project(ISSUER.into(), 0),
@@ -281,6 +297,7 @@ fn migration_is_sent() {
 				sp_runtime::FixedU128::from_float(1.0),
 				default_weights(),
 				vec![EVAL_1.into(), BIDDER_1.into(), BIDDER_2.into(), BIDDER_3.into(), BIDDER_4.into()],
+				default_bidder_multipliers(),
 			),
 			IntegrationInstantiator::generate_contributions_from_total_usd(
 				Perquintill::from_percent(50) *
@@ -288,6 +305,7 @@ fn migration_is_sent() {
 				sp_runtime::FixedU128::from_float(1.0),
 				default_weights(),
 				vec![EVAL_1.into(), BUYER_1.into(), BUYER_2.into(), BUYER_3.into(), BUYER_4.into()],
+				default_contributor_multipliers(),
 			),
 			vec![],
 		)
@@ -298,14 +316,18 @@ fn migration_is_sent() {
 
 	assert_migration_is_ready(project_id);
 
-	send_migrations(project_id, vec![EVAL_1.into()]);
+	send_migrations(project_id, participants);
 }
 
 #[test]
 fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 	let mut inst = IntegrationInstantiator::new(None);
 	set_oracle_prices();
-
+	let mut participants =
+		vec![EVAL_1, EVAL_2, EVAL_3, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5, BUYER_2, BUYER_3, BUYER_4, BUYER_5]
+			.into_iter()
+			.map(|x| AccountId::from(x))
+			.collect::<Vec<_>>();
 	let project_id = Polimec::execute_with(|| {
 		inst.create_finished_project(
 			default_project(ISSUER.into(), 0),
@@ -321,6 +343,7 @@ fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 				sp_runtime::FixedU128::from_float(1.0),
 				default_weights(),
 				vec![EVAL_1.into(), BIDDER_2.into(), BIDDER_3.into(), BIDDER_4.into(), BIDDER_5.into()],
+				default_bidder_multipliers(),
 			),
 			IntegrationInstantiator::generate_contributions_from_total_usd(
 				Perquintill::from_percent(50) *
@@ -328,6 +351,7 @@ fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 				sp_runtime::FixedU128::from_float(1.0),
 				default_weights(),
 				vec![EVAL_1.into(), BUYER_2.into(), BUYER_3.into(), BUYER_4.into(), BUYER_5.into()],
+				default_contributor_multipliers(),
 			),
 			vec![],
 		)
@@ -338,7 +362,7 @@ fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 
 	assert_migration_is_ready(project_id);
 
-	let migrations_map = send_migrations(project_id, vec![EVAL_1.into()]);
+	let migrations_map = send_migrations(project_id, participants);
 	let grouped_migrations = migrations_map.values().cloned().collect::<Vec<_>>();
 
 	migrations_are_executed(grouped_migrations.clone());
@@ -350,7 +374,10 @@ fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 fn vesting_over_several_blocks_on_project() {
 	let mut inst = IntegrationInstantiator::new(None);
 	set_oracle_prices();
-
+	let mut participants = vec![EVAL_1, EVAL_2, EVAL_3, BIDDER_1, BIDDER_2, BUYER_1, BUYER_2, BUYER_3]
+		.into_iter()
+		.map(|x| AccountId::from(x))
+		.collect::<Vec<_>>();
 	let mut bids = Vec::new();
 	let mut contributions = Vec::new();
 	let multiplier_for_vesting = MultiplierOf::<PolimecRuntime>::try_from(10u8).unwrap();
@@ -359,7 +386,7 @@ fn vesting_over_several_blocks_on_project() {
 		bidder: BUYER_1.into(),
 		amount: 2_000 * ASSET_UNIT,
 		price: 12u128.into(),
-		multiplier: MultiplierOf::<PolimecRuntime>::try_from(10u8).unwrap(),
+		multiplier: MultiplierOf::<PolimecRuntime>::try_from(20u8).unwrap(),
 		asset: AcceptedFundingAsset::USDT,
 	});
 	bids.push(BidParams {
@@ -373,7 +400,7 @@ fn vesting_over_several_blocks_on_project() {
 		bidder: BIDDER_2.into(),
 		amount: 12_000 * ASSET_UNIT,
 		price: 11u128.into(),
-		multiplier: MultiplierOf::<PolimecRuntime>::try_from(10u8).unwrap(),
+		multiplier: MultiplierOf::<PolimecRuntime>::try_from(7u8).unwrap(),
 		asset: AcceptedFundingAsset::USDT,
 	});
 
@@ -386,13 +413,13 @@ fn vesting_over_several_blocks_on_project() {
 	contributions.push(ContributionParams {
 		contributor: BUYER_2.into(),
 		amount: 5000 * ASSET_UNIT,
-		multiplier: MultiplierOf::<PolimecRuntime>::try_from(1u8).unwrap(),
+		multiplier: MultiplierOf::<PolimecRuntime>::try_from(2u8).unwrap(),
 		asset: AcceptedFundingAsset::USDT,
 	});
 	contributions.push(ContributionParams {
 		contributor: BUYER_3.into(),
 		amount: 30000 * ASSET_UNIT,
-		multiplier: MultiplierOf::<PolimecRuntime>::try_from(1u8).unwrap(),
+		multiplier: MultiplierOf::<PolimecRuntime>::try_from(3u8).unwrap(),
 		asset: AcceptedFundingAsset::USDT,
 	});
 
@@ -413,7 +440,7 @@ fn vesting_over_several_blocks_on_project() {
 	assert_migration_is_ready(project_id);
 
 	// Migrate is sent
-	let user_migrations = send_migrations(project_id, vec![BUYER_1.into()]);
+	let user_migrations = send_migrations(project_id, participants);
 	let grouped_migrations = user_migrations.values().cloned().collect::<Vec<_>>();
 
 	migrations_are_executed(grouped_migrations.clone());
@@ -441,6 +468,13 @@ fn disallow_duplicated_migrations_on_receiver_pallet() {
 		)
 	});
 
+	let project_details = Polimec::execute_with(|| inst.get_project_details(project_id));
+	if let EvaluatorsOutcome::Rewarded(info) = project_details.evaluation_round_info.evaluators_outcome {
+		println!("rewarded: {:?}", info);
+	} else {
+		panic!("should be rewarded")
+	}
+
 	let mut participants = vec![
 		EVAL_1, EVAL_2, EVAL_3, EVAL_4, BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5, BIDDER_6, BUYER_1, BUYER_2,
 		BUYER_3, BUYER_4, BUYER_5, BUYER_6,
@@ -456,7 +490,7 @@ fn disallow_duplicated_migrations_on_receiver_pallet() {
 	assert_migration_is_ready(project_id);
 
 	// Migrate is sent
-	let user_migrations = send_migrations(project_id, vec![BUYER_1.into()]);
+	let user_migrations = send_migrations(project_id, participants);
 	let grouped_migrations = user_migrations.values().cloned().collect::<Vec<_>>();
 
 	migrations_are_executed(grouped_migrations.clone());
@@ -468,10 +502,11 @@ fn disallow_duplicated_migrations_on_receiver_pallet() {
 	migrations_are_vested(grouped_migrations.clone());
 
 	// just any number that lets us execute our xcm's
-	for migrations in grouped_migrations {
+	for migrations in grouped_migrations.clone() {
 		for (_, xcm) in PolimecFundingPallet::construct_migration_xcm_messages(migrations) {
 			let call: <PolimecRuntime as pallet_funding::Config>::RuntimeCall =
-				pallet_funding::Call::confirm_migrations { query_id: Default::default(), response: Default::default() }.into();
+				pallet_funding::Call::confirm_migrations { query_id: Default::default(), response: Default::default() }
+					.into();
 
 			let max_weight = Weight::from_parts(700_000_000, 10_000);
 			let mut instructions = xcm.into_inner();
@@ -483,7 +518,23 @@ fn disallow_duplicated_migrations_on_receiver_pallet() {
 			let xcm = Xcm(instructions);
 			let project_multilocation = MultiLocation { parents: 1, interior: X1(Parachain(Penpal::para_id().into())) };
 
-			PolimecXcmPallet::send_xcm(Here, project_multilocation, xcm).unwrap();
+			Polimec::execute_with(|| {
+				PolimecXcmPallet::send_xcm(Here, project_multilocation, xcm).unwrap();
+			});
 		}
 	}
+
+	// each duplicated migration was skipped (in this case we duplicated all of them)
+	let all_migrations =
+		grouped_migrations.iter().flat_map(|migrations| migrations.clone().inner()).collect::<Vec<_>>();
+	Penpal::execute_with(|| {
+		assert_expected_events!(
+			Penpal,
+			vec![
+				PenpalEvent::PolimecReceiver(polimec_receiver::Event::DuplicatedMigrationSkipped{migration}) => {
+					migration: all_migrations.contains(&migration),
+				},
+			]
+		);
+	});
 }

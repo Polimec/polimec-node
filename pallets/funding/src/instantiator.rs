@@ -739,15 +739,16 @@ impl<
 		min_price: PriceOf<T>,
 		weights: Vec<u8>,
 		bidders: Vec<AccountIdOf<T>>,
+		multipliers: Vec<u8>,
 	) -> Vec<BidParams<T>> {
 		assert_eq!(weights.len(), bidders.len(), "Should have enough weights for all the bidders");
 
-		zip(weights, bidders)
-			.map(|(weight, bidder)| {
+		zip(zip(weights, bidders), multipliers)
+			.map(|((weight, bidder), multiplier)| {
 				let ticket_size = Percent::from_percent(weight) * usd_amount;
 				let token_amount = min_price.reciprocal().unwrap().saturating_mul_int(ticket_size);
 
-				BidParams::new(bidder, token_amount, min_price, 1u8, AcceptedFundingAsset::USDT)
+				BidParams::new(bidder, token_amount, min_price, multiplier, AcceptedFundingAsset::USDT)
 			})
 			.collect()
 	}
@@ -757,9 +758,10 @@ impl<
 		final_price: PriceOf<T>,
 		weights: Vec<u8>,
 		contributors: Vec<AccountIdOf<T>>,
+		multipliers: Vec<u8>,
 	) -> Vec<ContributionParams<T>> {
-		zip(weights, contributors)
-			.map(|(weight, bidder)| {
+		zip(zip(weights, contributors), multipliers)
+			.map(|((weight, bidder), multiplier)| {
 				let ticket_size = Percent::from_percent(weight) * usd_amount;
 				let token_amount = final_price.reciprocal().unwrap().saturating_mul_int(ticket_size);
 

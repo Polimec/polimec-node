@@ -163,6 +163,9 @@ pub mod defaults {
 	pub fn default_bidders() -> Vec<AccountId> {
 		vec![BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5]
 	}
+	pub fn default_multipliers() -> Vec<u8> {
+		vec![1u8, 1u8, 1u8, 1u8, 1u8]
+	}
 
 	pub fn default_contributors() -> Vec<AccountId> {
 		vec![BUYER_1, BUYER_2, BUYER_3, BUYER_4, BUYER_5]
@@ -179,12 +182,14 @@ pub mod defaults {
 			min_price,
 			default_weights(),
 			default_bidders(),
+			default_multipliers(),
 		);
 		let contributions = MockInstantiator::generate_contributions_from_total_usd(
 			Percent::from_percent(50u8) * usd_to_reach,
 			min_price,
 			default_weights(),
 			default_contributors(),
+			default_multipliers(),
 		);
 		instantiator.create_finished_project(project_metadata, ISSUER, evaluations, bids, contributions, vec![])
 	}
@@ -1441,6 +1446,7 @@ mod auction_round_success {
 			project.minimum_price,
 			default_weights(),
 			default_bidders(),
+			default_multipliers(),
 		);
 		let community_contributions = vec![];
 		let remainder_contributions = vec![];
@@ -1518,6 +1524,7 @@ mod auction_round_success {
 			project.minimum_price,
 			default_weights(),
 			default_bidders(),
+			default_multipliers(),
 		);
 		let community_contributions = vec![];
 		let remainder_contributions = vec![];
@@ -1614,6 +1621,7 @@ mod auction_round_success {
 			project.minimum_price,
 			default_weights(),
 			default_bidders(),
+			default_multipliers(),
 		);
 		bids.remove(0);
 		let community_contributions = vec![];
@@ -1696,6 +1704,7 @@ mod auction_round_success {
 			project.minimum_price,
 			default_weights(),
 			default_bidders(),
+			default_multipliers(),
 		);
 		bids.remove(0);
 		let community_contributions = vec![];
@@ -1794,6 +1803,7 @@ mod auction_round_success {
 			project.minimum_price,
 			default_weights(),
 			default_bidders(),
+			default_multipliers(),
 		);
 		bids.remove(0);
 
@@ -1854,6 +1864,7 @@ mod auction_round_success {
 			project.minimum_price,
 			default_weights(),
 			default_bidders(),
+			default_multipliers(),
 		);
 		bids.remove(0);
 
@@ -3501,6 +3512,7 @@ mod community_round_failure {
 			project.minimum_price,
 			default_weights(),
 			default_bidders(),
+			default_multipliers(),
 		);
 
 		let community_contributions = vec![
@@ -3610,6 +3622,7 @@ mod community_round_failure {
 			project.minimum_price,
 			default_weights(),
 			default_bidders(),
+			default_multipliers(),
 		);
 
 		let community_contributions = vec![
@@ -3750,7 +3763,9 @@ mod community_round_failure {
 			project.minimum_price,
 			default_weights(),
 			default_bidders(),
+			default_multipliers(),
 		);
+
 
 		let community_contributions = vec![
 			ContributionParams::new(BUYER_1, 1_000 * ASSET_UNIT, 2u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
@@ -3832,6 +3847,7 @@ mod community_round_failure {
 			project.minimum_price,
 			default_weights(),
 			default_bidders(),
+			default_multipliers(),
 		);
 		bids.remove(0);
 
@@ -5123,6 +5139,7 @@ mod remainder_round_failure {
 			project.minimum_price,
 			default_weights(),
 			default_bidders(),
+			default_multipliers(),
 		);
 
 		let community_contributions = vec![
@@ -5223,6 +5240,7 @@ mod remainder_round_failure {
 			project.minimum_price,
 			default_weights(),
 			default_bidders(),
+			default_multipliers(),
 		);
 
 		let community_contributions = vec![
@@ -5353,6 +5371,7 @@ mod remainder_round_failure {
 			project.minimum_price,
 			default_weights(),
 			default_bidders(),
+			default_multipliers(),
 		);
 
 		let community_contributions = vec![
@@ -5465,6 +5484,7 @@ mod remainder_round_failure {
 			project.minimum_price,
 			default_weights(),
 			default_bidders(),
+			default_multipliers(),
 		);
 
 		let community_contributions = vec![
@@ -5638,12 +5658,14 @@ mod funding_end {
 				min_price,
 				default_weights(),
 				default_bidders(),
+				default_multipliers(),
 			);
 			let contributions = MockInstantiator::generate_contributions_from_total_usd(
 				Percent::from_percent(50u8) * twenty_percent_funding_usd,
 				min_price,
 				default_weights(),
 				default_contributors(),
+				default_multipliers(),
 			);
 			let project_id =
 				inst.create_finished_project(project_metadata, ISSUER, evaluations, bids, contributions, vec![]);
@@ -5665,12 +5687,14 @@ mod funding_end {
 				min_price,
 				default_weights(),
 				default_bidders(),
+				default_multipliers(),
 			);
 			let contributions = MockInstantiator::generate_contributions_from_total_usd(
 				Percent::from_percent(50u8) * twenty_percent_funding_usd,
 				min_price,
 				default_weights(),
 				default_contributors(),
+				default_multipliers(),
 			);
 			let project_id =
 				inst.create_finished_project(project_metadata, ISSUER, evaluations, bids, contributions, vec![]);
@@ -5692,12 +5716,14 @@ mod funding_end {
 				min_price,
 				default_weights(),
 				default_bidders(),
+				default_multipliers(),
 			);
 			let contributions = MockInstantiator::generate_contributions_from_total_usd(
 				Percent::from_percent(50u8) * twenty_percent_funding_usd,
 				min_price,
 				default_weights(),
 				default_contributors(),
+				default_multipliers(),
 			);
 			let project_id =
 				inst.create_finished_project(project_metadata, ISSUER, evaluations, bids, contributions, vec![]);
@@ -5718,12 +5744,14 @@ mod funding_end {
 			min_price,
 			default_weights(),
 			default_bidders(),
+			default_multipliers(),
 		);
 		let contributions = MockInstantiator::generate_contributions_from_total_usd(
 			Percent::from_percent(50u8) * twenty_percent_funding_usd,
 			min_price,
 			default_weights(),
 			default_contributors(),
+			default_multipliers(),
 		);
 		let project_id =
 			inst.create_finished_project(project_metadata, ISSUER, evaluations, bids, contributions, vec![]);
@@ -5762,12 +5790,14 @@ mod funding_end {
 			min_price,
 			default_weights(),
 			default_bidders(),
+			default_multipliers(),
 		);
 		let contributions = MockInstantiator::generate_contributions_from_total_usd(
 			Percent::from_percent(50u8) * twenty_percent_funding_usd,
 			min_price,
 			default_weights(),
 			default_contributors(),
+			default_multipliers(),
 		);
 		let project_id =
 			inst.create_finished_project(project_metadata, ISSUER, evaluations, bids, contributions, vec![]);
@@ -5810,12 +5840,14 @@ mod funding_end {
 			min_price,
 			default_weights(),
 			default_bidders(),
+			default_multipliers(),
 		);
 		let contributions = MockInstantiator::generate_contributions_from_total_usd(
 			Percent::from_percent(50u8) * twenty_percent_funding_usd,
 			min_price,
 			default_weights(),
 			default_contributors(),
+			default_multipliers(),
 		);
 		let project_id =
 			inst.create_finished_project(project_metadata, ISSUER, evaluations, bids, contributions, vec![]);

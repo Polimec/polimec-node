@@ -50,6 +50,12 @@ pub fn metadata_hash(nonce: u32) -> H256 {
 pub fn default_weights() -> Vec<u8> {
 	vec![20u8, 15u8, 10u8, 25u8, 30u8]
 }
+pub fn default_bidder_multipliers() -> Vec<u8> {
+	vec![1u8, 6u8, 20u8, 12u8, 3u8]
+}
+pub fn default_contributor_multipliers() -> Vec<u8> {
+	vec![1u8, 2u8, 1u8, 4u8, 1u8]
+}
 
 pub fn default_project(issuer: AccountId, nonce: u32) -> ProjectMetadataOf<polimec_parachain_runtime::Runtime> {
 	ProjectMetadata {
@@ -89,6 +95,7 @@ pub fn default_bids() -> Vec<BidParams<PolimecRuntime>> {
 		sp_runtime::FixedU128::from_float(1.0),
 		default_weights(),
 		default_bidders(),
+		default_bidder_multipliers(),
 	)
 }
 
@@ -100,6 +107,7 @@ pub fn default_community_contributions() -> Vec<ContributionParams<PolimecRuntim
 		sp_runtime::FixedU128::from_float(1.0),
 		default_weights(),
 		default_community_contributors(),
+		default_contributor_multipliers(),
 	)
 }
 
@@ -111,6 +119,7 @@ pub fn default_remainder_contributions() -> Vec<ContributionParams<PolimecRuntim
 		sp_runtime::FixedU128::from_float(1.0),
 		vec![20u8, 15u8, 10u8, 25u8, 23u8, 7u8],
 		default_remainder_contributors(),
+		vec![1u8, 2u8, 12u8, 1u8, 3u8, 10u8],
 	)
 }
 pub fn default_community_contributors() -> Vec<AccountId> {
