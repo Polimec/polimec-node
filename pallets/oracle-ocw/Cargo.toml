@@ -22,34 +22,39 @@ frame-system.workspace = true
 orml-oracle.workspace = true
 sp-core.workspace = true
 sp-io.workspace = true
-sp-keystore.workspace = true
 sp-runtime.workspace = true
 sp-std.workspace = true
 
 [dev-dependencies]
 pallet-balances = { workspace = true, features = ["std"] }
 sp-consensus-aura = { workspace = true, features = ["std"] }
+sp-keystore = { workspace = true, features = ["std"] }
 parking_lot = "0.12.1"
 
 [features]
-default = ["std"]
+default = [ "std" ]
 std = [
-	"parity-scale-codec/std",
-	"scale-info/std",
-	"log/std",
-	"serde/std",
-	"serde_json/std",
 	"frame-support/std",
 	"frame-system/std",
+	"log/std",
 	"orml-oracle/std",
+	"pallet-balances/std",
+	"parity-scale-codec/std",
+	"scale-info/std",
+	"serde/std",
+	"serde_json/std",
+	"sp-consensus-aura/std",
 	"sp-core/std",
 	"sp-io/std",
 	"sp-keystore/std",
 	"sp-runtime/std",
 	"sp-std/std",
 ]
-# try-runtime = [
-# 	"frame-support/try-runtime",
-# 	"frame-system/try-runtime",
-# 	"sp-runtime/try-runtime",
-# ]
+
+try-runtime = [
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"orml-oracle/try-runtime",
+	"pallet-balances/try-runtime",
+	"sp-runtime/try-runtime",
+]
