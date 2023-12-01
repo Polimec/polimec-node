@@ -2172,8 +2172,12 @@ impl<T: Config> Pallet<T> {
 
 			let call: <T as Config>::RuntimeCall =
 				Call::confirm_migrations { query_id: Default::default(), response: Default::default() }.into();
-			let transact_response_query_id =
-				pallet_xcm::Pallet::<T>::new_notify_query(project_multilocation, call.into(), now + 20u32.into(), Here);
+			let transact_response_query_id = pallet_xcm::Pallet::<T>::new_notify_query(
+				project_multilocation.clone(),
+				call.into(),
+				now + 20u32.into(),
+				Here,
+			);
 			// TODO: check these values
 			let max_weight = Weight::from_parts(700_000_000, 10_000);
 
@@ -2768,8 +2772,9 @@ impl<T: Config> Pallet<T> {
 
 		let available_bytes_for_migration_per_message =
 			T::RequiredMaxMessageSize::get().saturating_sub(xcm_size as u32);
+		let mut output = available_bytes_for_migration_per_message.saturating_div(one_migration_bytes);
 
-		available_bytes_for_migration_per_message.saturating_div(one_migration_bytes)
+		output
 	}
 
 	pub fn construct_migration_xcm_messages(
@@ -2778,6 +2783,7 @@ impl<T: Config> Pallet<T> {
 	) -> Vec<(BoundedVec<MigrationOriginOf<T>, MaxMigrationsPerXcm<T>>, Xcm<()>)> {
 		// TODO: adjust this as benchmarks for polimec-receiver are written
 		const MAX_WEIGHT: Weight = Weight::from_parts(10_000, 0);
+
 		// const MAX_WEIGHT: Weight = Weight::from_parts(100_003_000_000_000, 10_000_196_608);
 		let _polimec_receiver_info = T::PolimecReceiverInfo::get();
 		// TODO: use the actual pallet index when the fields are not private anymore (https://github.com/paritytech/polkadot-sdk/pull/2231)

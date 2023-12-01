@@ -425,7 +425,6 @@ fn ct_minted() {
 	});
 }
 
-#[ignore]
 #[test]
 fn ct_migrated() {
 	let mut inst = IntegrationInstantiator::new(None);
@@ -492,8 +491,8 @@ fn ct_migrated() {
 
 	let names = names();
 
-	Polimec::execute_with(|| {
-		for account in accounts {
+	for account in accounts {
+		Polimec::execute_with(|| {
 			assert_ok!(PolimecFunding::migrate_one_participant(
 				PolimecOrigin::signed(account.clone()),
 				project_id,
@@ -502,14 +501,11 @@ fn ct_migrated() {
 			let key: [u8; 32] = account.clone().into();
 			println!("Migrated CTs for {}", names[&key]);
 			inst.advance_time(1u32).unwrap();
-		}
-
-		// dbg!(Polimec::events());
-	});
+		});
+	}
 
 	Penpal::execute_with(|| {
 		dbg!(Penpal::events());
-		// <Penpal as Parachain>::XcmpMessageHandler
 	});
 
 	// Check balances after migration, before vesting
