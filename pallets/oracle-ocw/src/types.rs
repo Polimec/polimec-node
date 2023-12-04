@@ -14,13 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use super::*;
-use core::str::FromStr;
+use core::{str::FromStr, ops::Mul};
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use serde::Deserialize;
-use serde_json::Value;
 use sp_core::offchain::HttpRequestId as RequestId;
-use sp_runtime::Saturating;
+use sp_runtime::{Saturating, FixedPointNumber};
+use heapless::{Vec as HVec, LinearMap};
+use sp_std::vec::Vec;
+use substrate_fixed::{types::U100F28, traits::ToFixed};
+
 
 #[derive(Debug, Clone, Copy, Eq, Hash, PartialEq, PartialOrd, Ord, Encode, Decode, TypeInfo)]
 pub enum AssetName {
@@ -36,6 +39,7 @@ pub(crate) struct AssetRequest {
 	pub id: RequestId,
 }
 
+#[derive(Debug)]
 pub(crate) struct OpenCloseVolume {
 	pub open: FixedU128,
 	pub close: FixedU128,
@@ -48,36 +52,42 @@ impl OpenCloseVolume {
 		self.volume.saturating_mul(avg_price)
 	}
 
-	pub fn from_f64(open: f64, close: f64, volume: f64) -> Self {
+	pub fn from_u100f28(open: U100F28, close: U100F28, volume: U100F28) -> Self {
+		let open_as_fixedu128_inner: u128 = open.mul(U100F28::from_num(FixedU128::accuracy())).to_num::<u128>();
+		let close_as_fixedu128_inner: u128 = close.mul(U100F28::from_num(FixedU128::accuracy())).to_num::<u128>();
+		let volume_as_fixedu128_inner: u128 = volume.mul(U100F28::from_num(FixedU128::accuracy())).to_num::<u128>();
 		OpenCloseVolume {
-			open: FixedU128::from_float(open),
-			close: FixedU128::from_float(close),
-			volume: FixedU128::from_float(volume),
+			open: FixedU128::from_inner(open_as_fixedu128_inner),
+			close: FixedU128::from_inner(close_as_fixedu128_inner),
+			volume: FixedU128::from_inner(volume_as_fixedu128_inner),
 		}
 	}
 
-	pub fn from_str(open: &str, close: &str, volume: &str) -> Result<Self, <f64 as FromStr>::Err> {
-		let open = f64::from_str(open)?;
-		let close = f64::from_str(close)?;
-		let volume = f64::from_str(volume)?;
-		Ok(OpenCloseVolume::from_f64(open, close, volume))
+	pub fn from_f64(open: f64, close: f64, volume: f64) -> Result<Self, ()> {
+		let open = open.checked_to_fixed::<U100F28>().ok_or(())?;
+		let close = close.checked_to_fixed::<U100F28>().ok_or(())?;
+		let volume = volume.checked_to_fixed::<U100F28>().ok_or(())?;
+		Ok(Self::from_u100f28(open, close, volume))
+	}
+
+	pub fn from_str(open: &str, close: &str, volume: &str) -> Result<Self, <U100F28 as FromStr>::Err> {
+		let open = U100F28::from_str(open)?;
+		let close = U100F28::from_str(close)?;
+		let volume = U100F28::from_str(volume)?;
+		Ok(Self::from_u100f28(open, close, volume))
 	}
 }
+
+
 
 fn deserialize_hloc_kraken<'de, D>(deserializer: D) -> Result<Vec<OpenCloseVolume>, D::Error>
 where
 	D: serde::Deserializer<'de>,
 {
-	let data = Vec::<Vec<Value>>::deserialize(deserializer)?;
+	let data = HVec::<(u64, &str, &str, &str, &str, &str, &str, u64), 100>::deserialize(deserializer)?;
 	let mut result = Vec::<OpenCloseVolume>::with_capacity(data.len());
 	for row in data.into_iter() {
-		if row.len() < 8 {
-			return Err(serde::de::Error::custom("Row does not have enough data"))
-		}
-		let open = row[1].as_str().ok_or(serde::de::Error::custom("Could not parse value to str"))?;
-		let close = row[1].as_str().ok_or(serde::de::Error::custom("Could not parse value to str"))?;
-		let volume = row[1].as_str().ok_or(serde::de::Error::custom("Could not parse value to str"))?;
-		let ocv = OpenCloseVolume::from_str(open, close, volume)
+		let ocv = OpenCloseVolume::from_str(row.1, row.4, row.6)
 			.map_err(|_| serde::de::Error::custom("Error parsing float"))?;
 		result.push(ocv);
 	}
@@ -92,24 +102,24 @@ struct KrakenResult {
 	#[serde(deserialize_with = "deserialize_hloc_kraken")]
 	data: Vec<OpenCloseVolume>,
 	#[serde(skip)]
-	_last: String,
+	_last: Vec<u8>,
 }
 #[derive(Deserialize)]
 struct KrakenResponse {
 	#[serde(skip)]
-	_error: Vec<String>,
+	_error: Vec<u8>,
 	#[serde(default)]
 	result: KrakenResult,
 }
 pub(crate) struct KrakenFetcher;
 impl FetchPrice for KrakenFetcher {
 	fn parse_body(body: &str) -> Option<Vec<OpenCloseVolume>> {
-		let maybe_response = serde_json::from_str::<KrakenResponse>(body);
+		let maybe_response = serde_json_core::from_str::<KrakenResponse>(body);
 		if let Err(e) = maybe_response {
-			panic!("Error parsing response: {:?}", e);
+			panic!("Error parsing response: {}", e);
 		}
 		let response = maybe_response.ok()?;
-		Some(response.result.data.into_iter().rev().take(10).collect())
+		Some(response.0.result.data.into_iter().rev().take(10).collect())
 	}
 
 	fn get_url(name: AssetName) -> &'static str {
@@ -122,28 +132,23 @@ impl FetchPrice for KrakenFetcher {
 	}
 }
 
-#[derive(Default, Deserialize)]
-struct BitFinexOHLC {
-	_timestamp: u64,
-	pub open: f64,
-	pub close: f64,
-	_high: f64,
-	_low: f64,
-	pub volume: f64,
-}
 pub(crate) struct BitFinexFetcher;
 impl FetchPrice for BitFinexFetcher {
 	fn parse_body(body: &str) -> Option<Vec<OpenCloseVolume>> {
-		let maybe_response = serde_json::from_str::<Vec<BitFinexOHLC>>(body);
+		let maybe_response = serde_json_core::from_str::<HVec<(u64, f64, f64, f64, f64, f64), 10>>(body);
 		if let Err(e) = maybe_response {
 			panic!("Error parsing response: {:?}", e);
 		}
 		let response = maybe_response.ok()?;
-		if response.len() < 10 {
+
+		let data: Vec<OpenCloseVolume> = response.0.into_iter()
+			.filter_map(|r|
+				OpenCloseVolume::from_f64(r.1, r.2, r.5).ok()
+			).collect();
+		if data.len() < 10 {
 			return None
 		}
-
-		Some(response.into_iter().map(|r| OpenCloseVolume::from_f64(r.open, r.close, r.volume)).collect())
+		Some(data)
 	}
 
 	fn get_url(name: AssetName) -> &'static str {
@@ -160,15 +165,18 @@ fn deserialize_hloc_bitstamp<'de, D>(deserializer: D) -> Result<Vec<OpenCloseVol
 where
 	D: serde::Deserializer<'de>,
 {
-	let data = Vec::<BTreeMap<String, String>>::deserialize(deserializer)?;
+	let data = HVec::<LinearMap<&str, &str, 6>, 10>::deserialize(deserializer)?;
 	let mut result = Vec::<OpenCloseVolume>::with_capacity(data.len());
+	let open_str  = "open";
+	let close_str= "close";
+	let volume_str = "volume";
 	for row in data.into_iter() {
-		if !row.contains_key("open") && !row.contains_key("close") && !row.contains_key("volume") {
+		if !row.contains_key(&open_str) && !row.contains_key(&close_str) && !row.contains_key(&volume_str) {
 			return Err(serde::de::Error::custom("Row does not contain required data"))
 		}
-		let open = row.get("open").ok_or(serde::de::Error::custom("Could not parse value to str"))?;
-		let close = row.get("close").ok_or(serde::de::Error::custom("Could not parse value to str"))?;
-		let volume = row.get("volume").ok_or(serde::de::Error::custom("Could not parse value to str"))?;
+		let open = *row.get(&open_str).ok_or(serde::de::Error::custom("Could not parse value to str"))?;
+		let close = *row.get(&close_str).ok_or(serde::de::Error::custom("Could not parse value to str"))?;
+		let volume = *row.get(&volume_str).ok_or(serde::de::Error::custom("Could not parse value to str"))?;
 		let ocv = OpenCloseVolume::from_str(open, close, volume)
 			.map_err(|_| serde::de::Error::custom("Error parsing float"))?;
 		result.push(ocv);
@@ -181,7 +189,7 @@ struct BitStampResult {
 	#[serde(deserialize_with = "deserialize_hloc_bitstamp")]
 	ohlc: Vec<OpenCloseVolume>,
 	#[serde(skip)]
-	_pair: String,
+	_pair: Vec<u8>,
 }
 
 #[derive(Deserialize, Default)]
@@ -193,16 +201,16 @@ struct BitStampResponse {
 pub(crate) struct BitStampFetcher;
 impl FetchPrice for BitStampFetcher {
 	fn parse_body(body: &str) -> Option<Vec<OpenCloseVolume>> {
-		let maybe_response = serde_json::from_str::<BitStampResponse>(body);
+		let maybe_response = serde_json_core::from_str::<BitStampResponse>(body);
 		if let Err(e) = maybe_response {
 			panic!("Error parsing response: {:?}", e);
 		}
 		let response = maybe_response.ok()?;
-		if response.data.ohlc.len() < 10 {
+		if response.0.data.ohlc.len() < 10 {
 			return None
 		}
 
-		Some(response.data.ohlc.into_iter().rev().collect())
+		Some(response.0.data.ohlc.into_iter().rev().collect())
 	}
 
 	fn get_url(name: AssetName) -> &'static str {
@@ -215,28 +223,26 @@ impl FetchPrice for BitStampFetcher {
 	}
 }
 
-#[derive(Default, Deserialize)]
-struct CoinbaseOHLC {
-	_timestamp: u64,
-	_low: f64,
-	_high: f64,
-	pub open: f64,
-	pub close: f64,
-	pub volume: f64,
-}
 pub(crate) struct CoinbaseFetcher;
 impl FetchPrice for CoinbaseFetcher {
 	fn parse_body(body: &str) -> Option<Vec<OpenCloseVolume>> {
-		let maybe_response = serde_json::from_str::<Vec<CoinbaseOHLC>>(body);
+		let maybe_response = serde_json_core::from_str::<HVec<(u64, f64, f64, f64, f64, f64), 10>>(body);
 		if let Err(e) = maybe_response {
 			panic!("Error parsing response: {:?}", e);
 		}
 		let response = maybe_response.ok()?;
-		if response.len() < 10 {
+		if response.0.len() < 10 {
 			return None
 		}
 
-		Some(response.into_iter().map(|r| OpenCloseVolume::from_f64(r.open, r.close, r.volume)).collect())
+		let data: Vec<OpenCloseVolume> = response.0.into_iter().take(10)
+			.filter_map(|r|
+				OpenCloseVolume::from_f64(r.3, r.4, r.5).ok()
+			).collect();
+		if data.len() < 10 {
+			return None
+		}
+		Some(data)
 	}
 
 	fn get_url(name: AssetName) -> &'static str {

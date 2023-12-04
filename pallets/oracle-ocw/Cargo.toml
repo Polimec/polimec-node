@@ -15,7 +15,8 @@ targets = ["x86_64-unknown-linux-gnu"]
 parity-scale-codec = { workspace = true, features = ["derive"] }
 scale-info = { workspace = true, features = ["derive"] }
 serde = { workspace = true, features = ["derive"] }
-serde_json = { version = '1.0.108', default-features = false, features = ['alloc'] }
+serde-json-core = { version = '0.5.1', default-features = false }
+heapless = { version = "0.7", features = ["serde"] }
 log.workspace = true
 frame-support.workspace = true
 frame-system.workspace = true
@@ -24,6 +25,7 @@ sp-core.workspace = true
 sp-io.workspace = true
 sp-runtime.workspace = true
 sp-std.workspace = true
+substrate-fixed = {workspace = true}
 
 [dev-dependencies]
 pallet-balances = { workspace = true, features = ["std"] }
@@ -42,13 +44,13 @@ std = [
 	"parity-scale-codec/std",
 	"scale-info/std",
 	"serde/std",
-	"serde_json/std",
 	"sp-consensus-aura/std",
 	"sp-core/std",
 	"sp-io/std",
 	"sp-keystore/std",
 	"sp-runtime/std",
 	"sp-std/std",
+	"substrate-fixed/std",
 ]
 
 try-runtime = [

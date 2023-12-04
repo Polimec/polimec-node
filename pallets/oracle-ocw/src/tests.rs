@@ -16,9 +16,14 @@
 
 #![cfg(test)]
 
-use crate::mock::*;
+use crate::{
+	mock::*, 
+	types::{KrakenFetcher, BitFinexFetcher, BitStampFetcher, CoinbaseFetcher}, 
+	traits::FetchPrice
+};
 use parity_scale_codec::Decode;
 use sp_runtime::FixedU128;
+use substrate_fixed::{types::U100F28, traits::ToFixed};
 
 #[test]
 fn call_offchain_worker() {
@@ -35,7 +40,7 @@ fn call_offchain_worker() {
 			RuntimeCall::Oracle(orml_oracle::Call::feed_values { values }) =>
 				for (asset, price) in values {
 					match asset {
-						0 => assert_close_enough(price, FixedU128::from_float(5.519610553825360850)),
+						0 => assert_close_enough(price, FixedU128::from_float(5.517044975280664194)),
 						1984 => assert_close_enough(price, FixedU128::from_float(1.000692308098215370)),
 						420 => assert_close_enough(price, FixedU128::from_float(1.000198559694455204)),
 						_ => panic!("Unexpected asset"),
@@ -44,4 +49,40 @@ fn call_offchain_worker() {
 			_ => panic!("Unexpected call"),
 		}
 	});
+}
+
+#[test]
+fn kraken_parser() {
+	for (_, body_str) in KRAKEN_RESPONSES.iter() {
+		let body = std::str::from_utf8(body_str).unwrap();
+		let data = KrakenFetcher::parse_body(body);
+		assert!(data.is_some());
+	}
+}
+
+#[test]
+fn bitfinex_parser() {
+	for (_, body_str) in BITFINEX_RESPONSES.iter() {
+		let body = std::str::from_utf8(body_str).unwrap();
+		let data = BitFinexFetcher::parse_body(body);
+		assert!(data.is_some());
+	}
+}
+
+#[test]
+fn bitstamp_parser() {
+	for (_, body_str) in BITSTAMP_RESPONSES.iter() {
+		let body = std::str::from_utf8(body_str).unwrap();
+		let data = BitStampFetcher::parse_body(body);
+		assert!(data.is_some());
+	}
+}
+
+#[test]
+fn coinbase_parser() {
+	for (_, body_str) in COINBASE_RESPONSES.iter() {
+		let body = std::str::from_utf8(body_str).unwrap();
+		let data = CoinbaseFetcher::parse_body(body);
+		assert!(data.is_some());
+	}
 }
