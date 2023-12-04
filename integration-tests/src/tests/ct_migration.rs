@@ -246,7 +246,8 @@ fn migrations_are_vested(grouped_migrations: Vec<Migrations>) {
 		let user = migration_group.clone().inner()[0].origin.user;
 		assert!(migration_group.origins().iter().all(|origin| origin.user == user));
 		let user_info = Penpal::account_data_of(user.into());
-		assert_eq!(user_info.frozen, 0)
+		assert_eq!(user_info.frozen, 0);
+		assert_eq!(user_info.free, migration_group.total_ct_amount());
 	}
 }
 
@@ -537,4 +538,6 @@ fn disallow_duplicated_migrations_on_receiver_pallet() {
 			]
 		);
 	});
+
+	migrations_are_vested(grouped_migrations.clone());
 }

@@ -3766,7 +3766,6 @@ mod community_round_failure {
 			default_multipliers(),
 		);
 
-
 		let community_contributions = vec![
 			ContributionParams::new(BUYER_1, 1_000 * ASSET_UNIT, 2u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
 			ContributionParams::new(BUYER_2, 500 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
