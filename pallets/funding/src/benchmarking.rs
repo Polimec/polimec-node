@@ -26,7 +26,7 @@ use frame_benchmarking::v2::*;
 use frame_support::{dispatch::RawOrigin, traits::OriginTrait, Parameter};
 #[allow(unused_imports)]
 use pallet::Pallet as PalletFunding;
-use polimec_traits::ReleaseSchedule;
+use polimec_common::ReleaseSchedule;
 use scale_info::prelude::format;
 use sp_arithmetic::Percent;
 use sp_core::H256;

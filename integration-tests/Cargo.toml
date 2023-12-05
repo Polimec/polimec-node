@@ -20,7 +20,7 @@ scale-info = { workspace = true, features = ["derive"] }
 # Local
 polimec-receiver.workspace = true
 macros.workspace = true
-polimec-traits.workspace = true
+polimec-common.workspace = true
 
 sp-arithmetic.workspace = true
 frame-system.workspace = true

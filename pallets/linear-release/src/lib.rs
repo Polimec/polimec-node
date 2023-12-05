@@ -32,7 +32,7 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::*;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
-use polimec_traits::ReleaseSchedule;
+use polimec_common::ReleaseSchedule;
 use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{AtLeast32BitUnsigned, Bounded, Convert, One, Saturating, Zero},

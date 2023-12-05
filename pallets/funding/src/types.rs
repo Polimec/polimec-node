@@ -103,6 +103,9 @@ pub mod config_types {
 	pub enum LockType<ProjectId> {
 		Evaluation(ProjectId),
 		Participation(ProjectId),
+		// We require a PLMC deposit to create an account for minting the CTs to this user.
+		// Here we make sure the user has this amount before letting him participate.
+		FutureDeposit(ProjectId),
 	}
 
 	pub struct ConstPriceProvider<AssetId, Price, Mapping>(PhantomData<(AssetId, Price, Mapping)>);
@@ -365,7 +368,7 @@ pub mod storage_types {
 
 pub mod inner_types {
 	use super::*;
-	use polimec_traits::migration_types::{MigrationOrigin, Migrations};
+	use polimec_common::migration_types::{MigrationOrigin, Migrations};
 	use xcm::v3::MaxDispatchErrorLen;
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]

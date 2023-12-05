@@ -6,11 +6,12 @@ use frame_support::{
 			metadata::Inspect as MetadataInspect, roles::Inspect as RolesInspect, Inspect as FungiblesInspect,
 			Mutate as FungiblesMutate,
 		},
-		Get, OnFinalize, OnIdle, OnInitialize,
+		AccountTouch, Get, OnFinalize, OnIdle, OnInitialize,
 	},
 	weights::Weight,
 	Parameter,
 };
+use std::ops::Not;
 
 use sp_arithmetic::Perquintill;
 
@@ -43,6 +44,7 @@ use crate::{
 };
 
 pub use testing_macros::*;
+
 pub type RuntimeOriginOf<T> = <T as frame_system::Config>::RuntimeOrigin;
 
 pub struct BoxToFunction(pub Box<dyn FnOnce()>);
@@ -381,10 +383,20 @@ impl<
 		total_plmc_supply: BalanceOf<T>,
 	) {
 		let project_details = self.get_project_details(project_id);
+		let accounts = expected_reserved_plmc_balances.accounts();
+		let expected_ct_account_deposits = accounts
+			.into_iter()
+			.map(|account| UserToPLMCBalance {
+				account,
+				plmc_amount: <T as Config>::ContributionTokenCurrency::deposit_required(One::one()),
+			})
+			.collect::<Vec<UserToPLMCBalance<T>>>();
+
 		assert_eq!(project_details.status, ProjectStatus::EvaluationRound);
+		assert_eq!(self.get_plmc_total_supply(), total_plmc_supply);
 		self.do_free_plmc_assertions(expected_free_plmc_balances);
 		self.do_reserved_plmc_assertions(expected_reserved_plmc_balances, LockType::Evaluation(project_id));
-		assert_eq!(self.get_plmc_total_supply(), total_plmc_supply)
+		self.do_reserved_plmc_assertions(expected_ct_account_deposits, LockType::FutureDeposit(project_id));
 	}
 
 	#[allow(unused)]
@@ -912,6 +924,7 @@ impl<
 
 		let plmc_eval_deposits: Vec<UserToPLMCBalance<T>> = Self::calculate_evaluation_plmc_spent(evaluations.clone());
 		let plmc_existential_deposits: Vec<UserToPLMCBalance<T>> = evaluators.existential_deposits();
+		let plmc_ct_account_deposits: Vec<UserToPLMCBalance<T>> = evaluators.ct_account_deposits();
 
 		let expected_remaining_plmc: Vec<UserToPLMCBalance<T>> = Self::generic_map_operation(
 			vec![prev_plmc_balances.clone(), plmc_existential_deposits.clone()],
@@ -920,11 +933,15 @@ impl<
 
 		self.mint_plmc_to(plmc_eval_deposits.clone());
 		self.mint_plmc_to(plmc_existential_deposits.clone());
+		self.mint_plmc_to(plmc_ct_account_deposits.clone());
 
 		self.bond_for_users(project_id, evaluations).unwrap();
 
-		let expected_evaluator_balances =
-			Self::sum_balance_mappings(vec![plmc_eval_deposits.clone(), plmc_existential_deposits.clone()]);
+		let expected_evaluator_balances = Self::sum_balance_mappings(vec![
+			plmc_eval_deposits.clone(),
+			plmc_existential_deposits.clone(),
+			plmc_ct_account_deposits,
+		]);
 
 		let expected_total_supply = prev_supply + expected_evaluator_balances;
 
@@ -985,6 +1002,8 @@ impl<
 		let project_id = self.create_auctioning_project(project_metadata.clone(), issuer, evaluations.clone());
 		let bids = self.simulate_bids_with_bucket(bids, project_id);
 		let bidders = bids.accounts();
+		let bidders_non_evaluators =
+			bidders.clone().into_iter().filter(|account| evaluations.accounts().contains(account).not()).collect_vec();
 		let asset_id = bids[0].asset.to_statemint_id();
 		let prev_plmc_balances = self.get_free_plmc_balances_for(bidders.clone());
 		let prev_funding_asset_balances = self.get_free_statemint_asset_balances_for(asset_id, bidders.clone());
@@ -1005,10 +1024,14 @@ impl<
 		);
 		let total_plmc_participation_locked = plmc_bid_deposits;
 		let plmc_existential_deposits: Vec<UserToPLMCBalance<T>> = bidders.existential_deposits();
+		let plmc_ct_account_deposits: Vec<UserToPLMCBalance<T>> = bidders_non_evaluators.ct_account_deposits();
 		let funding_asset_deposits = Self::calculate_auction_funding_asset_spent(&bids, None);
 
-		let bidder_balances =
-			Self::sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
+		let bidder_balances = Self::sum_balance_mappings(vec![
+			necessary_plmc_mint.clone(),
+			plmc_existential_deposits.clone(),
+			plmc_ct_account_deposits.clone(),
+		]);
 
 		let expected_free_plmc_balances = Self::generic_map_operation(
 			vec![prev_plmc_balances.clone(), plmc_existential_deposits.clone()],
@@ -1020,6 +1043,7 @@ impl<
 
 		self.mint_plmc_to(necessary_plmc_mint.clone());
 		self.mint_plmc_to(plmc_existential_deposits.clone());
+		self.mint_plmc_to(plmc_ct_account_deposits.clone());
 		self.mint_statemint_asset_to(funding_asset_deposits.clone());
 
 		self.bid_for_users(project_id, bids.clone()).expect("Bidding should work");
@@ -1133,6 +1157,11 @@ impl<
 
 		let ct_price = self.get_project_details(project_id).weighted_average_price.unwrap();
 		let contributors = contributions.accounts();
+		let contributors_non_evaluators = contributors
+			.clone()
+			.into_iter()
+			.filter(|account| evaluations.accounts().contains(account).not())
+			.collect_vec();
 		let asset_id = contributions[0].asset.to_statemint_id();
 		let prev_plmc_balances = self.get_free_plmc_balances_for(contributors.clone());
 		let prev_funding_asset_balances = self.get_free_statemint_asset_balances_for(asset_id, contributors.clone());
@@ -1151,10 +1180,14 @@ impl<
 			MergeOperation::Add,
 		);
 		let plmc_existential_deposits = contributors.existential_deposits();
+		let plmc_ct_account_deposits = contributors_non_evaluators.ct_account_deposits();
 
 		let funding_asset_deposits = Self::calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
-		let contributor_balances =
-			Self::sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
+		let contributor_balances = Self::sum_balance_mappings(vec![
+			necessary_plmc_mint.clone(),
+			plmc_existential_deposits.clone(),
+			plmc_ct_account_deposits.clone(),
+		]);
 
 		let expected_free_plmc_balances = Self::generic_map_operation(
 			vec![prev_plmc_balances.clone(), plmc_existential_deposits.clone()],
@@ -1166,6 +1199,7 @@ impl<
 
 		self.mint_plmc_to(necessary_plmc_mint.clone());
 		self.mint_plmc_to(plmc_existential_deposits.clone());
+		self.mint_plmc_to(plmc_ct_account_deposits.clone());
 		self.mint_statemint_asset_to(funding_asset_deposits.clone());
 
 		self.contribute_for_users(project_id, contributions.clone()).expect("Contributing should work");
@@ -1214,6 +1248,15 @@ impl<
 
 		let ct_price = self.get_project_details(project_id).weighted_average_price.unwrap();
 		let contributors = remainder_contributions.accounts();
+		let new_contributors = contributors
+			.clone()
+			.into_iter()
+			.filter(|account| {
+				evaluations.accounts().contains(account).not() &&
+					bids.accounts().contains(account).not() &&
+					community_contributions.accounts().contains(account).not()
+			})
+			.collect_vec();
 		let asset_id = remainder_contributions[0].asset.to_statemint_id();
 		let prev_plmc_balances = self.get_free_plmc_balances_for(contributors.clone());
 		let prev_funding_asset_balances = self.get_free_statemint_asset_balances_for(asset_id, contributors.clone());
@@ -1234,11 +1277,15 @@ impl<
 			MergeOperation::Add,
 		);
 		let plmc_existential_deposits = contributors.existential_deposits();
+		let plmc_ct_account_deposits = new_contributors.ct_account_deposits();
 		let funding_asset_deposits =
 			Self::calculate_contributed_funding_asset_spent(remainder_contributions.clone(), ct_price);
 
-		let contributor_balances =
-			Self::sum_balance_mappings(vec![necessary_plmc_mint.clone(), plmc_existential_deposits.clone()]);
+		let contributor_balances = Self::sum_balance_mappings(vec![
+			necessary_plmc_mint.clone(),
+			plmc_existential_deposits.clone(),
+			plmc_ct_account_deposits.clone(),
+		]);
 
 		let expected_free_plmc_balances = Self::generic_map_operation(
 			vec![prev_plmc_balances.clone(), plmc_existential_deposits.clone()],
@@ -1250,6 +1297,7 @@ impl<
 
 		self.mint_plmc_to(necessary_plmc_mint.clone());
 		self.mint_plmc_to(plmc_existential_deposits.clone());
+		self.mint_plmc_to(plmc_ct_account_deposits.clone());
 		self.mint_statemint_asset_to(funding_asset_deposits.clone());
 
 		self.contribute_for_users(project_id, remainder_contributions.clone())
@@ -1351,14 +1399,26 @@ pub trait AccountMerge {
 	fn subtract_accounts(&self, other_list: Self) -> Self;
 }
 
-pub trait ExistentialDeposits<T: Config> {
+pub trait Deposits<T: Config> {
 	fn existential_deposits(&self) -> Vec<UserToPLMCBalance<T>>;
+	fn ct_account_deposits(&self) -> Vec<UserToPLMCBalance<T>>;
 }
 
-impl<T: Config + pallet_balances::Config> ExistentialDeposits<T> for Vec<AccountIdOf<T>> {
+impl<T: Config + pallet_balances::Config> Deposits<T> for Vec<AccountIdOf<T>> {
 	fn existential_deposits(&self) -> Vec<UserToPLMCBalance<T>> {
 		self.iter()
 			.map(|x| UserToPLMCBalance::new(x.clone(), <T as pallet_balances::Config>::ExistentialDeposit::get()))
+			.collect::<Vec<_>>()
+	}
+
+	fn ct_account_deposits(&self) -> Vec<UserToPLMCBalance<T>> {
+		self.iter()
+			.map(|x| {
+				UserToPLMCBalance::new(
+					x.clone(),
+					<T as crate::Config>::ContributionTokenCurrency::deposit_required(One::one()),
+				)
+			})
 			.collect::<Vec<_>>()
 	}
 }

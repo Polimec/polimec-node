@@ -175,12 +175,12 @@
 use frame_support::{
 	traits::{
 		tokens::{fungible, fungibles, Balance},
-		Randomness,
+		AccountTouch, ContainsPair, Randomness,
 	},
 	BoundedVec, PalletId,
 };
 pub use pallet::*;
-use polimec_traits::migration_types::*;
+use polimec_common::migration_types::*;
 use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
@@ -332,7 +332,9 @@ pub mod pallet {
 			+ fungibles::metadata::Inspect<AccountIdOf<Self>>
 			+ fungibles::metadata::Mutate<AccountIdOf<Self>>
 			+ fungibles::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>
-			+ fungibles::roles::Inspect<AccountIdOf<Self>>;
+			+ fungibles::roles::Inspect<AccountIdOf<Self>>
+			+ AccountTouch<Self::ProjectIdentifier, AccountIdOf<Self>, Balance = BalanceOf<Self>>
+			+ ContainsPair<Self::ProjectIdentifier, AccountIdOf<Self>>;
 
 		type PriceProvider: ProvideStatemintPrice<AssetId = u32, Price = Self::Price>;
 
@@ -402,7 +404,7 @@ pub mod pallet {
 
 		type EvaluationSuccessThreshold: Get<Percent>;
 
-		type Vesting: polimec_traits::ReleaseSchedule<
+		type Vesting: polimec_common::ReleaseSchedule<
 			AccountIdOf<Self>,
 			BondTypeOf<Self>,
 			Currency = Self::NativeCurrency,

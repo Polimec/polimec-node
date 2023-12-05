@@ -23,7 +23,7 @@ smallvec = "1.10.0"
 
 # Local
 polimec-receiver.workspace = true
-polimec-traits.workspace = true
+polimec-common.workspace = true
 
 # Substrate
 frame-benchmarking = { workspace = true, optional = true }

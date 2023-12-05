@@ -23,7 +23,7 @@ use frame_support::{
 	ensure,
 	pallet_prelude::*,
 	traits::{
-		fungible::MutateHold as FungibleMutateHold,
+		fungible::{InspectHold, MutateHold as FungibleMutateHold},
 		fungibles::{metadata::Mutate as MetadataMutate, Create, Inspect, Mutate as FungiblesMutate},
 		tokens::{Fortitude, Precision, Preservation, Restriction},
 		Get,
@@ -39,10 +39,10 @@ use sp_std::marker::PhantomData;
 use xcm::v3::MaxDispatchErrorLen;
 
 use crate::ProjectStatus::FundingSuccessful;
-use polimec_traits::ReleaseSchedule;
+use polimec_common::ReleaseSchedule;
 
 use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
-use polimec_traits::migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
+use polimec_common::migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
 
 use super::*;
 const POLIMEC_PARA_ID: u32 = 3344u32;
@@ -752,6 +752,7 @@ impl<T: Config> Pallet<T> {
 		let early_evaluation_reward_threshold_usd =
 			T::EvaluationSuccessThreshold::get() * project_details.fundraising_target;
 		let evaluation_round_info = &mut project_details.evaluation_round_info;
+		let ct_deposit = T::ContributionTokenCurrency::deposit_required(project_id);
 
 		// * Validity Checks *
 		ensure!(evaluator.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
@@ -791,6 +792,11 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// * Update Storage *
+		// Reserve plmc deposit to create a contribution token account for this project
+		if T::NativeCurrency::balance_on_hold(&LockType::FutureDeposit(project_id), &evaluator) < ct_deposit {
+			T::NativeCurrency::hold(&LockType::FutureDeposit(project_id), &evaluator, ct_deposit)?;
+		}
+
 		if caller_existing_evaluations.len() < T::MaxEvaluationsPerUser::get() as usize {
 			T::NativeCurrency::hold(&LockType::Evaluation(project_id), evaluator, plmc_bond)?;
 		} else {
@@ -812,7 +818,7 @@ impl<T: Config> Pallet<T> {
 				Precision::Exact,
 			)?;
 
-			T::NativeCurrency::hold(&LockType::Evaluation(project_id), evaluator, plmc_bond)?;
+			T::NativeCurrency::hold(&LockType::Evaluation(project_id), &evaluator, plmc_bond)?;
 
 			Evaluations::<T>::remove((project_id, evaluator, low_id));
 		}
@@ -850,17 +856,23 @@ impl<T: Config> Pallet<T> {
 		funding_asset: AcceptedFundingAsset,
 	) -> DispatchResult {
 		// * Get variables *
-		ensure!(ct_amount > Zero::zero(), Error::<T>::BidTooLow);
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PriceNotFound)?;
+		let ct_deposit = T::ContributionTokenCurrency::deposit_required(project_id);
 
 		// * Validity checks *
+		ensure!(ct_amount > Zero::zero(), Error::<T>::BidTooLow);
 		ensure!(bidder.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
 		ensure!(matches!(project_details.status, ProjectStatus::AuctionRound(_)), Error::<T>::AuctionNotStarted);
 		ensure!(funding_asset == project_metadata.participation_currencies, Error::<T>::FundingAssetNotAccepted);
 		// Note: We limit the CT Amount to the total allocation size, to avoid long running loops.
 		ensure!(ct_amount <= project_metadata.total_allocation_size.0, Error::<T>::NotAllowed);
+
+		// Reserve plmc deposit to create a contribution token account for this project
+		if T::NativeCurrency::balance_on_hold(&LockType::FutureDeposit(project_id), &bidder) < ct_deposit {
+			T::NativeCurrency::hold(&LockType::FutureDeposit(project_id), &bidder, ct_deposit)?;
+		}
 
 		// Fetch current bucket details and other required info
 		let mut current_bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
@@ -1011,6 +1023,7 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResultWithPostInfo {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let ct_deposit = T::ContributionTokenCurrency::deposit_required(project_id);
 
 		// * Validity checks *
 		ensure!(project_metadata.participation_currencies == asset, Error::<T>::FundingAssetNotAccepted);
@@ -1067,6 +1080,11 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// * Update storage *
+		// Reserve plmc deposit to create a contribution token account for this project
+		if T::NativeCurrency::balance_on_hold(&LockType::FutureDeposit(project_id), &contributor) < ct_deposit {
+			T::NativeCurrency::hold(&LockType::FutureDeposit(project_id), &contributor, ct_deposit)?;
+		}
+
 		// Try adding the new contribution to the system
 		let existing_contributions =
 			Contributions::<T>::iter_prefix_values((project_id, contributor)).collect::<Vec<_>>();
@@ -1211,6 +1229,15 @@ impl<T: Config> Pallet<T> {
 		bid.ct_minted = true;
 
 		// * Update storage *
+		if !T::ContributionTokenCurrency::contains(&project_id, &bid.bidder) {
+			T::NativeCurrency::release(
+				&LockType::FutureDeposit(project_id),
+				&bid.bidder,
+				T::ContributionTokenCurrency::deposit_required(project_id),
+				Precision::Exact,
+			)?;
+			T::ContributionTokenCurrency::touch(project_id, bid.bidder.clone(), bid.bidder.clone())?;
+		}
 		T::ContributionTokenCurrency::mint_into(project_id, &bid.bidder, ct_amount)?;
 		Bids::<T>::insert((project_id, bidder, bid_id), &bid);
 
@@ -1246,6 +1273,19 @@ impl<T: Config> Pallet<T> {
 		contribution.ct_minted = true;
 
 		// * Update storage *
+		if !T::ContributionTokenCurrency::contains(&project_id, &contribution.contributor) {
+			T::NativeCurrency::release(
+				&LockType::FutureDeposit(project_id),
+				&contribution.contributor,
+				T::ContributionTokenCurrency::deposit_required(project_id),
+				Precision::Exact,
+			)?;
+			T::ContributionTokenCurrency::touch(
+				project_id,
+				contribution.contributor.clone(),
+				contribution.contributor.clone(),
+			)?;
+		}
 		T::ContributionTokenCurrency::mint_into(project_id, &contribution.contributor, ct_amount)?;
 		Contributions::<T>::insert((project_id, contributor, contribution_id), contribution);
 
@@ -1343,6 +1383,19 @@ impl<T: Config> Pallet<T> {
 		let normal_evaluators_rewards = normal_reward_weight * reward_info.normal_evaluator_reward_pot;
 		let total_reward_amount = early_evaluators_rewards.saturating_add(normal_evaluators_rewards);
 		// * Update storage *
+		if !T::ContributionTokenCurrency::contains(&project_id, &evaluation.evaluator) {
+			T::NativeCurrency::release(
+				&LockType::FutureDeposit(project_id),
+				&evaluation.evaluator,
+				T::ContributionTokenCurrency::deposit_required(project_id),
+				Precision::Exact,
+			)?;
+			T::ContributionTokenCurrency::touch(
+				project_id,
+				evaluation.evaluator.clone(),
+				evaluation.evaluator.clone(),
+			)?;
+		}
 		T::ContributionTokenCurrency::mint_into(project_id, &evaluation.evaluator, total_reward_amount)?;
 		evaluation.rewarded_or_slashed = Some(RewardOrSlash::Reward(total_reward_amount));
 		Evaluations::<T>::insert((project_id, evaluator, evaluation_id), evaluation);

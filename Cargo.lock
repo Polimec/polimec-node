@@ -4164,9 +4164,9 @@ dependencies = [
  "parachains-common",
  "parity-scale-codec",
  "penpal-runtime",
+ "polimec-common",
  "polimec-parachain-runtime",
  "polimec-receiver",
- "polimec-traits",
  "polkadot-core-primitives",
  "polkadot-parachain",
  "polkadot-primitives",
@@ -6396,8 +6396,8 @@ dependencies = [
  "pallet-xcm",
  "parachains-common",
  "parity-scale-codec",
+ "polimec-common",
  "polimec-receiver",
- "polimec-traits",
  "polimec-xcm-executor",
  "polkadot-parachain",
  "polkadot-runtime",
@@ -6515,7 +6515,7 @@ dependencies = [
  "pallet-balances",
  "pallet-funding",
  "parity-scale-codec",
- "polimec-traits",
+ "polimec-common",
  "scale-info",
  "sp-core",
  "sp-io",
@@ -7454,8 +7454,8 @@ dependencies = [
  "parachain-info",
  "parachains-common",
  "parity-scale-codec",
+ "polimec-common",
  "polimec-receiver",
- "polimec-traits",
  "polkadot-parachain",
  "polkadot-primitives",
  "polkadot-runtime-common",
@@ -7705,6 +7705,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "polimec-common"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "itertools 0.11.0",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "polimec-parachain-node"
 version = "0.1.0"
 dependencies = [
@@ -7855,26 +7872,9 @@ dependencies = [
  "frame-support",
  "frame-system",
  "parity-scale-codec",
- "polimec-traits",
+ "polimec-common",
  "polkadot-parachain",
  "polkadot-runtime-parachains",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "polimec-traits"
-version = "0.1.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "itertools 0.11.0",
- "parity-scale-codec",
  "scale-info",
  "serde",
  "sp-core",

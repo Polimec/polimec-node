@@ -3,8 +3,8 @@ use pallet_funding::{
 	assert_close_enough, traits::VestingDurationCalculation, AcceptedFundingAsset, BidStatus, EvaluatorsOutcome,
 	MigrationStatus, Multiplier, MultiplierOf, ProjectIdOf, RewardOrSlash,
 };
+use polimec_common::migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
 use polimec_parachain_runtime::PolimecFunding;
-use polimec_traits::migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
 use sp_runtime::{FixedPointNumber, Perquintill};
 use std::collections::HashMap;
 use tests::defaults::*;
@@ -375,23 +375,24 @@ fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 fn vesting_over_several_blocks_on_project() {
 	let mut inst = IntegrationInstantiator::new(None);
 	set_oracle_prices();
-	let mut participants = vec![EVAL_1, EVAL_2, EVAL_3, BIDDER_1, BIDDER_2, BUYER_1, BUYER_2, BUYER_3]
+	let participants = vec![EVAL_1, EVAL_2, EVAL_3, BIDDER_1, BIDDER_2, BUYER_1, BUYER_2, BUYER_3]
 		.into_iter()
 		.map(|x| AccountId::from(x))
 		.collect::<Vec<_>>();
 	let mut bids = Vec::new();
-	let mut contributions = Vec::new();
+	let mut community_contributions = Vec::new();
+	let mut remainder_contributions = Vec::new();
 	let multiplier_for_vesting = MultiplierOf::<PolimecRuntime>::try_from(10u8).unwrap();
 
 	bids.push(BidParams {
-		bidder: BUYER_1.into(),
+		bidder: BIDDER_1.into(),
 		amount: 2_000 * ASSET_UNIT,
 		price: 12u128.into(),
 		multiplier: MultiplierOf::<PolimecRuntime>::try_from(20u8).unwrap(),
 		asset: AcceptedFundingAsset::USDT,
 	});
 	bids.push(BidParams {
-		bidder: BIDDER_1.into(),
+		bidder: BIDDER_2.into(),
 		amount: 20_000 * ASSET_UNIT,
 		price: 10u128.into(),
 		multiplier: multiplier_for_vesting,
@@ -405,21 +406,34 @@ fn vesting_over_several_blocks_on_project() {
 		asset: AcceptedFundingAsset::USDT,
 	});
 
-	contributions.push(ContributionParams {
+	community_contributions.push(ContributionParams {
 		contributor: BUYER_1.into(),
 		amount: 10_250 * ASSET_UNIT,
 		multiplier: MultiplierOf::<PolimecRuntime>::try_from(1u8).unwrap(),
 		asset: AcceptedFundingAsset::USDT,
 	});
-	contributions.push(ContributionParams {
+	community_contributions.push(ContributionParams {
 		contributor: BUYER_2.into(),
 		amount: 5000 * ASSET_UNIT,
 		multiplier: MultiplierOf::<PolimecRuntime>::try_from(2u8).unwrap(),
 		asset: AcceptedFundingAsset::USDT,
 	});
-	contributions.push(ContributionParams {
+	community_contributions.push(ContributionParams {
 		contributor: BUYER_3.into(),
 		amount: 30000 * ASSET_UNIT,
+		multiplier: MultiplierOf::<PolimecRuntime>::try_from(3u8).unwrap(),
+		asset: AcceptedFundingAsset::USDT,
+	});
+
+	remainder_contributions.push(ContributionParams {
+		contributor: BIDDER_1.into(),
+		amount: 5000 * ASSET_UNIT,
+		multiplier: MultiplierOf::<PolimecRuntime>::try_from(2u8).unwrap(),
+		asset: AcceptedFundingAsset::USDT,
+	});
+	remainder_contributions.push(ContributionParams {
+		contributor: EVAL_2.into(),
+		amount: 250 * ASSET_UNIT,
 		multiplier: MultiplierOf::<PolimecRuntime>::try_from(3u8).unwrap(),
 		asset: AcceptedFundingAsset::USDT,
 	});
@@ -430,8 +444,8 @@ fn vesting_over_several_blocks_on_project() {
 			ISSUER.into(),
 			default_evaluations(),
 			bids,
-			contributions,
-			vec![],
+			community_contributions,
+			remainder_contributions,
 		)
 	});
 	execute_cleaner(&mut inst);

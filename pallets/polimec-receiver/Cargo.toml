@@ -22,7 +22,7 @@ frame-system.workspace = true
 sp-std.workspace = true
 polkadot-runtime-parachains.workspace = true
 polkadot-parachain.workspace = true
-polimec-traits.workspace = true
+polimec-common.workspace = true
 sp-runtime.workspace = true
 
 [dev-dependencies]
@@ -39,7 +39,7 @@ runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
-	"polimec-traits/runtime-benchmarks",
+	"polimec-common/runtime-benchmarks",
 	"polkadot-parachain/runtime-benchmarks",
 	"polkadot-runtime-parachains/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
@@ -49,7 +49,7 @@ std = [
 	"frame-benchmarking/std",
 	"frame-support/std",
 	"frame-system/std",
-	"polimec-traits/std",
+	"polimec-common/std",
 	"polkadot-parachain/std",
 	"polkadot-runtime-parachains/std",
 	"scale-info/std",
@@ -61,7 +61,7 @@ std = [
 try-runtime = [
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
-	"polimec-traits/try-runtime",
+	"polimec-common/try-runtime",
 	"polkadot-runtime-parachains/try-runtime",
 	"sp-runtime/try-runtime",
 ]

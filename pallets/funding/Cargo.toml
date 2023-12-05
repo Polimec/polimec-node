@@ -29,7 +29,7 @@ frame-system.workspace = true
 sp-std.workspace = true
 sp-runtime.workspace = true
 sp-arithmetic.workspace = true
-polimec-traits.workspace = true
+polimec-common.workspace = true
 parachains-common.workspace = true
 sp-core.workspace = true
 pallet-balances.workspace = true
@@ -68,7 +68,7 @@ std = [
 	"parachains-common/std",
 	"parity-scale-codec/std",
 	"polimec-receiver/std",
-	"polimec-traits/std",
+	"polimec-common/std",
 	"polimec-xcm-executor/std",
 	"polkadot-parachain/std",
 	"polkadot-runtime-parachains/std",
@@ -95,7 +95,7 @@ runtime-benchmarks = [
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
 	"polimec-receiver/runtime-benchmarks",
-	"polimec-traits/runtime-benchmarks",
+	"polimec-common/runtime-benchmarks",
 	"polimec-xcm-executor/runtime-benchmarks",
 	"polkadot-parachain/runtime-benchmarks",
 	"polkadot-runtime-parachains/runtime-benchmarks",
@@ -115,7 +115,7 @@ try-runtime = [
 	"pallet-timestamp/try-runtime",
 	"pallet-xcm/try-runtime",
 	"polimec-receiver/try-runtime",
-	"polimec-traits/try-runtime",
+	"polimec-common/try-runtime",
 	"polkadot-runtime-parachains/try-runtime",
 	"polkadot-runtime/try-runtime",
 	"sp-runtime/try-runtime",
