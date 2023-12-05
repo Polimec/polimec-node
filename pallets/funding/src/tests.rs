@@ -495,9 +495,18 @@ mod evaluation_round_success {
 		let increased_amounts =
 			MockInstantiator::generic_map_operation(vec![post_free_plmc, prev_free_plmc], MergeOperation::Subtract);
 
+		let slashed_amounts = MockInstantiator::slash_evaluator_balances(MockInstantiator::calculate_evaluation_plmc_spent(evaluations));
+		let deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
+			ProjectIdOf<TestRuntime>,
+			AccountIdOf<TestRuntime>,
+		>>::deposit_required(project_id);
+
+		let expected_final_amounts = slashed_amounts.into_iter().map(|UserToPLMCBalance { account, plmc_amount }| UserToPLMCBalance::new(account, plmc_amount + deposit_required)).collect::<Vec<_>>();
+
+
 		assert_eq!(
 			increased_amounts,
-			MockInstantiator::slash_evaluator_balances(MockInstantiator::calculate_evaluation_plmc_spent(evaluations))
+			expected_final_amounts
 		)
 	}
 }
@@ -519,7 +528,7 @@ mod evaluation_round_failure {
 		let ct_account_deposits = plmc_eval_deposits.accounts().ct_account_deposits();
 
 		let expected_evaluator_balances = MockInstantiator::generic_map_operation(
-			vec![plmc_eval_deposits.clone(), plmc_existential_deposits.clone()],
+			vec![plmc_eval_deposits.clone(), plmc_existential_deposits.clone(), ct_account_deposits.clone()],
 			MergeOperation::Add,
 		);
 
@@ -5571,6 +5580,14 @@ mod remainder_round_failure {
 			],
 			MergeOperation::Add,
 		);
+		let deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
+			ProjectIdOf<TestRuntime>,
+			AccountIdOf<TestRuntime>,
+		>>::deposit_required(project_id);
+		let all_expected_payouts = all_expected_payouts
+			.into_iter()
+			.map(|UserToPLMCBalance{account, plmc_amount }| UserToPLMCBalance::new(account, plmc_amount + deposit_required))
+			.collect::<Vec<_>>();
 
 		let prev_issuer_funding_balance = inst.get_free_plmc_balances_for(vec![issuer.clone()])[0].plmc_amount;
 
@@ -5600,7 +5617,7 @@ mod remainder_round_failure {
 		let issuer_funding_delta = post_issuer_funding_balance - prev_issuer_funding_balance;
 
 		assert_eq!(issuer_funding_delta, 0);
-		assert_eq!(all_expected_payouts, all_participants_plmc_deltas);
+		assert_eq!(all_participants_plmc_deltas, all_expected_payouts);
 	}
 
 	#[test]
