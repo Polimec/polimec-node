@@ -28,7 +28,7 @@ use sp_runtime::{
 	traits::{Convert, Saturating, Zero},
 	FixedU128, RuntimeAppPublic,
 };
-use sp_std::{vec, vec::Vec, collections::btree_map::BTreeMap};
+use sp_std::{collections::btree_map::BTreeMap, vec, vec::Vec};
 
 mod mock;
 mod tests;
@@ -55,7 +55,6 @@ pub mod pallet {
 		},
 		traits::IdentifyAccount,
 	};
-	
 
 	const LOCK_TIMEOUT_EXPIRATION: u64 = 30_000; // 30 seconds
 
@@ -63,7 +62,8 @@ pub mod pallet {
 	pub type PublicOf<T> = <T as SigningTypes>::Public;
 	pub type SignatureOf<T> = <T as SigningTypes>::Signature;
 	pub type GenericPublicOf<T> = <<T as Config>::AppCrypto as AppCrypto<PublicOf<T>, SignatureOf<T>>>::GenericPublic;
-	pub type RuntimeAppPublicOf<T> = <<T as Config>::AppCrypto as AppCrypto<PublicOf<T>, SignatureOf<T>>>::RuntimeAppPublic;
+	pub type RuntimeAppPublicOf<T> =
+		<<T as Config>::AppCrypto as AppCrypto<PublicOf<T>, SignatureOf<T>>>::RuntimeAppPublic;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -75,12 +75,7 @@ pub mod pallet {
 		/// The overarching event type of the runtime.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-		type AuthorityId: Member
-			+ Parameter
-			+ RuntimeAppPublic
-			+ Ord
-			+ MaybeSerializeDeserialize
-			+ MaxEncodedLen;
+		type AuthorityId: Member + Parameter + RuntimeAppPublic + Ord + MaybeSerializeDeserialize + MaxEncodedLen;
 
 		type AppCrypto: AppCrypto<Self::Public, Self::Signature>;
 
@@ -124,7 +119,7 @@ pub mod pallet {
 				let account = public.clone().into_account();
 				if <T as pallet::Config>::Members::contains(&account) {
 					if let Ok(generic_public) = TryInto::<GenericPublicOf<T>>::try_into(public) {
-						return Some(generic_public.into());
+						return Some(generic_public.into())
 					}
 				}
 				None

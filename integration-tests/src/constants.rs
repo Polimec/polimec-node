@@ -7,11 +7,7 @@ use sc_consensus_grandpa::AuthorityId as GrandpaId;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::{sr25519, storage::Storage, Pair, Public};
-use sp_runtime::{
-	bounded_vec,
-	traits::Verify,
-	BuildStorage, MultiSignature, Perbill,
-};
+use sp_runtime::{bounded_vec, traits::Verify, BuildStorage, MultiSignature, Perbill};
 pub use xcm;
 use xcm_emulator::get_account_id_from_seed;
 

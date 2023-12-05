@@ -8,10 +8,7 @@ use sp_runtime::{bounded_vec, BoundedVec, FixedU128};
 
 fn values(
 	values: [f64; 4],
-) -> BoundedVec<
-	(u32, FixedU128),
-	<polimec_parachain_runtime::Runtime as orml_oracle::Config<()>>::MaxFeedValues,
-> {
+) -> BoundedVec<(u32, FixedU128), <polimec_parachain_runtime::Runtime as orml_oracle::Config<()>>::MaxFeedValues> {
 	let [dot, usdc, usdt, plmc] = values;
 	bounded_vec![
 		(0u32, FixedU128::from_float(dot)),

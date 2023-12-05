@@ -17,9 +17,9 @@
 #![cfg(test)]
 
 use crate::{
-	mock::*, 
-	types::{KrakenFetcher, BitFinexFetcher, BitStampFetcher, CoinbaseFetcher}, 
-	traits::FetchPrice
+	mock::*,
+	traits::FetchPrice,
+	types::{BitFinexFetcher, BitStampFetcher, CoinbaseFetcher, KrakenFetcher},
 };
 use parity_scale_codec::Decode;
 use sp_runtime::FixedU128;

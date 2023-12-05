@@ -14,16 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use super::*;
-use core::{str::FromStr, ops::Mul};
+use core::{ops::Mul, str::FromStr};
+use heapless::{LinearMap, Vec as HVec};
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use serde::Deserialize;
 use sp_core::offchain::HttpRequestId as RequestId;
-use sp_runtime::{Saturating, FixedPointNumber};
-use heapless::{Vec as HVec, LinearMap};
+use sp_runtime::{FixedPointNumber, Saturating};
 use sp_std::vec::Vec;
-use substrate_fixed::{types::U100F28, traits::ToFixed};
-
+use substrate_fixed::{traits::ToFixed, types::U100F28};
 
 #[derive(Debug, Clone, Copy, Eq, Hash, PartialEq, PartialOrd, Ord, Encode, Decode, TypeInfo)]
 pub enum AssetName {
@@ -77,8 +76,6 @@ impl OpenCloseVolume {
 		Ok(Self::from_u100f28(open, close, volume))
 	}
 }
-
-
 
 fn deserialize_hloc_kraken<'de, D>(deserializer: D) -> Result<Vec<OpenCloseVolume>, D::Error>
 where
@@ -143,10 +140,8 @@ impl FetchPrice for BitFinexFetcher {
 		}
 		let response = maybe_response.ok()?;
 
-		let data: Vec<OpenCloseVolume> = response.0.into_iter()
-			.filter_map(|r|
-				OpenCloseVolume::from_f64(r.1, r.2, r.5).ok()
-			).collect();
+		let data: Vec<OpenCloseVolume> =
+			response.0.into_iter().filter_map(|r| OpenCloseVolume::from_f64(r.1, r.2, r.5).ok()).collect();
 		if data.len() < 10 {
 			return None
 		}
@@ -169,8 +164,8 @@ where
 {
 	let data = HVec::<LinearMap<&str, &str, 6>, 10>::deserialize(deserializer)?;
 	let mut result = Vec::<OpenCloseVolume>::with_capacity(data.len());
-	let open_str  = "open";
-	let close_str= "close";
+	let open_str = "open";
+	let close_str = "close";
 	let volume_str = "volume";
 	for row in data.into_iter() {
 		if !row.contains_key(&open_str) && !row.contains_key(&close_str) && !row.contains_key(&volume_str) {
@@ -239,10 +234,8 @@ impl FetchPrice for CoinbaseFetcher {
 			return None
 		}
 
-		let data: Vec<OpenCloseVolume> = response.0.into_iter().take(10)
-			.filter_map(|r|
-				OpenCloseVolume::from_f64(r.3, r.4, r.5).ok()
-			).collect();
+		let data: Vec<OpenCloseVolume> =
+			response.0.into_iter().take(10).filter_map(|r| OpenCloseVolume::from_f64(r.3, r.4, r.5).ok()).collect();
 		if data.len() < 10 {
 			return None
 		}

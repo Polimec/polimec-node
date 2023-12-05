@@ -25,8 +25,9 @@ use polimec_parachain_runtime::{
 		InflationInfo, Range,
 	},
 	AccountId, AuraId as AuthorityId, Balance, BalancesConfig, CouncilConfig, GenesisConfig, LinearVestingConfig,
-	MinCandidateStk, OracleProvidersMembershipConfig, ParachainInfoConfig, ParachainStakingConfig, PolkadotXcmConfig, Runtime, SessionConfig,
-	StatemintAssetsConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, EXISTENTIAL_DEPOSIT, PLMC,
+	MinCandidateStk, OracleProvidersMembershipConfig, ParachainInfoConfig, ParachainStakingConfig, PolkadotXcmConfig,
+	Runtime, SessionConfig, StatemintAssetsConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
+	EXISTENTIAL_DEPOSIT, PLMC,
 };
 use sc_service::ChainType;
 use sp_core::{crypto::UncheckedInto, sr25519};
@@ -261,7 +262,10 @@ fn testnet_genesis(
 		technical_committee: TechnicalCommitteeConfig { members: accounts.clone(), phantom: Default::default() },
 		democracy: Default::default(),
 		linear_vesting: LinearVestingConfig { vesting: vec![] },
-		oracle_providers_membership: OracleProvidersMembershipConfig {members: initial_authorities.clone().try_into().expect("Too many Oracle Members"), phantom: Default::default()},
+		oracle_providers_membership: OracleProvidersMembershipConfig {
+			members: initial_authorities.clone().try_into().expect("Too many Oracle Members"),
+			phantom: Default::default(),
+		},
 	}
 }
 
