@@ -1820,6 +1820,39 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	pub fn do_release_future_ct_deposit_for(
+		caller: &AccountIdOf<T>,
+		project_id: T::ProjectIdentifier,
+		participant: &AccountIdOf<T>,
+	) -> DispatchResult {
+		// * Get variables *
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let held_plmc = T::NativeCurrency::balance_on_hold(&LockType::FutureDeposit(project_id), participant);
+		// * Validity checks *
+		ensure!(
+			matches!(project_details.status, ProjectStatus::EvaluationFailed | ProjectStatus::FundingFailed),
+			Error::<T>::NotAllowed
+		);
+		ensure!(held_plmc > Zero::zero(), Error::<T>::NoFutureDepositHeld);
+
+		// * Update storage *
+		T::NativeCurrency::release(
+			&LockType::FutureDeposit(project_id),
+			participant,
+			T::ContributionTokenCurrency::deposit_required(project_id),
+			Precision::Exact,
+		)?;
+
+		// * Emit events *
+		Self::deposit_event(Event::FutureCTDepositReleased {
+			project_id,
+			participant: participant.clone(),
+			caller: caller.clone(),
+		});
+
+		Ok(())
+	}
+
 	pub fn do_set_para_id_for_project(
 		caller: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,

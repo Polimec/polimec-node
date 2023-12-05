@@ -182,7 +182,14 @@ pub mod storage_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct ProjectDetails<AccountId, BlockNumber, Price: FixedPointNumber, Balance: BalanceT, EvaluationRoundInfo> {
+	pub struct ProjectDetails<
+		AccountId,
+		BlockNumber,
+		Price: FixedPointNumber,
+		Balance: BalanceT,
+		EvaluationRoundInfo,
+		AccountList,
+	> {
 		pub issuer: AccountId,
 		/// Whether the project is frozen, so no `metadata` changes are allowed.
 		pub is_frozen: bool,
@@ -199,7 +206,7 @@ pub mod storage_types {
 		/// Funding reached amount in USD equivalent
 		pub funding_amount_reached: Balance,
 		/// Cleanup operations remaining
-		pub cleanup: Cleaner,
+		pub cleanup: Cleaner<AccountList>,
 		/// Information about the total amount bonded, and the outcome in regards to reward/slash/nothing
 		pub evaluation_round_info: EvaluationRoundInfo,
 		/// When the Funding Round ends
@@ -369,6 +376,7 @@ pub mod storage_types {
 pub mod inner_types {
 	use super::*;
 	use polimec_common::migration_types::{MigrationOrigin, Migrations};
+	use sp_runtime::WeakBoundedVec;
 	use xcm::v3::MaxDispatchErrorLen;
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -610,7 +618,7 @@ pub mod inner_types {
 	pub struct Failure;
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum CleanerState<T> {
+	pub enum CleanerState<T, AccountList> {
 		Initialized(PhantomData<T>),
 		// Success or Failure
 		EvaluationRewardOrSlash(u64, PhantomData<T>),
@@ -628,18 +636,19 @@ pub mod inner_types {
 		BidUnbonding(u64, PhantomData<T>),
 		ContributionFundingRelease(u64, PhantomData<T>),
 		ContributionUnbonding(u64, PhantomData<T>),
+		FutureDepositRelease(AccountList, PhantomData<T>),
 		// Merge
 		// Success or Failure
 		Finished(PhantomData<T>),
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum Cleaner {
+	pub enum Cleaner<AccountList> {
 		NotReady,
-		Success(CleanerState<Success>),
-		Failure(CleanerState<Failure>),
+		Success(CleanerState<Success, AccountList>),
+		Failure(CleanerState<Failure, AccountList>),
 	}
-	impl TryFrom<ProjectStatus> for Cleaner {
+	impl<AccountList> TryFrom<ProjectStatus> for Cleaner<AccountList> {
 		type Error = ();
 
 		fn try_from(value: ProjectStatus) -> Result<Self, ()> {

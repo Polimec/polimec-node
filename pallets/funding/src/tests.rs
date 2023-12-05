@@ -583,8 +583,9 @@ mod evaluation_round_failure {
 				project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1,
 			);
 		let evaluation_fail_amount = evaluation_min_success_amount - 100 * ASSET_UNIT;
-		let evaluator_bond = evaluation_fail_amount / 3;
+		let evaluator_bond = evaluation_fail_amount / 4;
 		let evaluations = vec![
+			UserToUSDBalance::new(EVALUATOR_1, evaluator_bond),
 			UserToUSDBalance::new(EVALUATOR_1, evaluator_bond),
 			UserToUSDBalance::new(EVALUATOR_2, evaluator_bond),
 			UserToUSDBalance::new(EVALUATOR_3, evaluator_bond),
@@ -635,12 +636,10 @@ mod evaluation_round_failure {
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::EvaluationFailed);
 
-		let final_plmc_amounts = required_plmc_bonds
-			.into_iter()
-			.map(|UserToPLMCBalance { account, plmc_amount }| {
-				UserToPLMCBalance::new(account, plmc_amount + MockInstantiator::get_ed() + deposit_required)
-			})
-			.collect_vec();
+		let final_plmc_amounts = MockInstantiator::generic_map_operation(
+			vec![required_plmc_bonds, plmc_existential_deposits, plmc_ct_account_deposits],
+			MergeOperation::Add,
+		);
 		inst.do_free_plmc_assertions(final_plmc_amounts);
 		inst.do_reserved_plmc_assertions(
 			vec![

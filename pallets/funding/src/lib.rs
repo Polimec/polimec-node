@@ -172,6 +172,8 @@
 // we add more without this limit.
 #![cfg_attr(feature = "runtime-benchmarks", recursion_limit = "512")]
 
+use crate::traits::DoRemainingOperation;
+pub use crate::weights::WeightInfo;
 use frame_support::{
 	traits::{
 		tokens::{fungible, fungibles, Balance},
@@ -183,12 +185,11 @@ pub use pallet::*;
 use polimec_common::migration_types::*;
 use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
-use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
+use sp_core::ConstU32;
+use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128, WeakBoundedVec};
 use sp_std::{marker::PhantomData, prelude::*};
 pub use types::*;
 use xcm::v3::{opaque::Instruction, prelude::*, SendXcm};
-
-pub use crate::weights::WeightInfo;
 
 pub mod functions;
 pub mod types;
@@ -219,12 +220,20 @@ pub type HashOf<T> = <T as frame_system::Config>::Hash;
 pub type AssetIdOf<T> =
 	<<T as Config>::FundingCurrency as fungibles::Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
 pub type RewardInfoOf<T> = RewardInfo<BalanceOf<T>>;
+
+pub type AccountListOf<T> = WeakBoundedVec<AccountIdOf<T>, ConstU32<1000u32>>;
 pub type EvaluatorsOutcomeOf<T> = EvaluatorsOutcome<BalanceOf<T>>;
 
 pub type ProjectMetadataOf<T> =
 	ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, HashOf<T>>;
-pub type ProjectDetailsOf<T> =
-	ProjectDetails<AccountIdOf<T>, BlockNumberOf<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>;
+pub type ProjectDetailsOf<T> = ProjectDetails<
+	AccountIdOf<T>,
+	BlockNumberOf<T>,
+	PriceOf<T>,
+	BalanceOf<T>,
+	EvaluationRoundInfoOf<T>,
+	AccountListOf<T>,
+>;
 pub type EvaluationRoundInfoOf<T> = EvaluationRoundInfo<BalanceOf<T>>;
 pub type VestingInfoOf<T> = VestingInfo<BlockNumberOf<T>, BalanceOf<T>>;
 pub type EvaluationInfoOf<T> = EvaluationInfo<u32, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, BlockNumberOf<T>>;
@@ -478,12 +487,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn project_details)]
 	/// StorageMap containing additional information for the projects, relevant for correctness of the protocol
-	pub type ProjectsDetails<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		T::ProjectIdentifier,
-		ProjectDetails<AccountIdOf<T>, BlockNumberOf<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>,
-	>;
+	pub type ProjectsDetails<T: Config> = StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, ProjectDetailsOf<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn projects_to_update)]
@@ -820,6 +824,16 @@ pub mod pallet {
 			project_id: ProjectIdOf<T>,
 			migration_origins: BoundedVec<MigrationOrigin, MaxMigrationsPerXcm<T>>,
 		},
+		ReleaseFutureCTDepositFailed {
+			project_id: ProjectIdOf<T>,
+			participant: AccountIdOf<T>,
+			error: DispatchError,
+		},
+		FutureCTDepositReleased {
+			project_id: ProjectIdOf<T>,
+			participant: AccountIdOf<T>,
+			caller: AccountIdOf<T>,
+		},
 	}
 
 	#[pallet::error]
@@ -917,6 +931,8 @@ pub mod pallet {
 		XcmFailed,
 		// Tried to convert one type into another and failed. i.e try_into failed
 		BadConversion,
+		/// Tried to release the PLMC deposit held for a future CT mint, but there was nothing to release
+		NoFutureDepositHeld,
 	}
 
 	#[pallet::call]
@@ -1287,7 +1303,7 @@ pub mod pallet {
 
 			let projects_needing_cleanup = ProjectsDetails::<T>::iter()
 				.filter_map(|(project_id, info)| match info.cleanup {
-					cleaner if cleaner.has_remaining_operations() => Some((project_id, cleaner)),
+					cleaner if <Cleaner<AccountListOf<T>> as DoRemainingOperation<T>>::has_remaining_operations(&cleaner) => Some((project_id, cleaner)),
 					_ => None,
 				})
 				.collect::<Vec<_>>();
@@ -1306,7 +1322,7 @@ pub mod pallet {
 				// let mut consumed_weight = WeightInfoOf::<T>::insert_cleaned_project();
 				let mut consumed_weight = Weight::from_parts(6_034_000, 0);
 				while !consumed_weight.any_gt(max_weight_per_project) {
-					if let Ok(weight) = cleaner.do_one_operation::<T>(project_id) {
+					if let Ok(weight) = <Cleaner<AccountListOf<T>> as DoRemainingOperation<T>>::do_one_operation(&mut cleaner, project_id) {
 						consumed_weight.saturating_accrue(weight);
 					} else {
 						break
