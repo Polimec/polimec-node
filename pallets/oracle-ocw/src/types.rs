@@ -84,7 +84,7 @@ fn deserialize_hloc_kraken<'de, D>(deserializer: D) -> Result<Vec<OpenCloseVolum
 where
 	D: serde::Deserializer<'de>,
 {
-	let data = HVec::<(u64, &str, &str, &str, &str, &str, &str, u64), 100>::deserialize(deserializer)?;
+	let data = HVec::<(u64, &str, &str, &str, &str, &str, &str, u64), 720>::deserialize(deserializer)?;
 	let mut result = Vec::<OpenCloseVolume>::with_capacity(data.len());
 	for row in data.into_iter() {
 		let ocv = OpenCloseVolume::from_str(row.1, row.4, row.6)
@@ -116,7 +116,8 @@ impl FetchPrice for KrakenFetcher {
 	fn parse_body(body: &str) -> Option<Vec<OpenCloseVolume>> {
 		let maybe_response = serde_json_core::from_str::<KrakenResponse>(body);
 		if let Err(e) = maybe_response {
-			panic!("Error parsing response: {}", e);
+			log::error!(target: LOG_TARGET, "Error parsing response for Kraken: {:?}", e);
+			return None
 		}
 		let response = maybe_response.ok()?;
 		Some(response.0.result.data.into_iter().rev().take(10).collect())
@@ -124,9 +125,9 @@ impl FetchPrice for KrakenFetcher {
 
 	fn get_url(name: AssetName) -> &'static str {
 		match name {
-			AssetName::USDT => "https://api.kraken.com/0/public/OHLC?pair=USDTZUSD",
-			AssetName::DOT => "https://api.kraken.com/0/public/OHLC?pair=DOTUSD",
-			AssetName::USDC => "https://api.kraken.com/0/public/OHLC?pair=USDCUSD",
+			AssetName::USDT => "https://api.kraken.com/0/public/OHLC?pair=USDTZUSD&interval=1",
+			AssetName::DOT => "https://api.kraken.com/0/public/OHLC?pair=DOTUSD&interval=1",
+			AssetName::USDC => "https://api.kraken.com/0/public/OHLC?pair=USDCUSD&interval=1",
 			_ => "",
 		}
 	}
@@ -137,7 +138,8 @@ impl FetchPrice for BitFinexFetcher {
 	fn parse_body(body: &str) -> Option<Vec<OpenCloseVolume>> {
 		let maybe_response = serde_json_core::from_str::<HVec<(u64, f64, f64, f64, f64, f64), 10>>(body);
 		if let Err(e) = maybe_response {
-			panic!("Error parsing response: {:?}", e);
+			log::error!(target: LOG_TARGET, "Error parsing response for BitFinex: {:?}", e);
+			return None
 		}
 		let response = maybe_response.ok()?;
 
@@ -203,7 +205,8 @@ impl FetchPrice for BitStampFetcher {
 	fn parse_body(body: &str) -> Option<Vec<OpenCloseVolume>> {
 		let maybe_response = serde_json_core::from_str::<BitStampResponse>(body);
 		if let Err(e) = maybe_response {
-			panic!("Error parsing response: {:?}", e);
+			log::error!(target: LOG_TARGET, "Error parsing response for Bitstamp: {:?}", e);
+			return None
 		}
 		let response = maybe_response.ok()?;
 		if response.0.data.ohlc.len() < 10 {
@@ -228,7 +231,8 @@ impl FetchPrice for CoinbaseFetcher {
 	fn parse_body(body: &str) -> Option<Vec<OpenCloseVolume>> {
 		let maybe_response = serde_json_core::from_str::<HVec<(u64, f64, f64, f64, f64, f64), 10>>(body);
 		if let Err(e) = maybe_response {
-			panic!("Error parsing response: {:?}", e);
+			log::error!(target: LOG_TARGET, "Error parsing response for Coinbase: {:?}", e);
+			return None
 		}
 		let response = maybe_response.ok()?;
 		if response.0.len() < 10 {

@@ -133,6 +133,7 @@ parameter_types! {
 }
 impl Config for Test {
 	type AppCrypto = crate::crypto::PolimecCrypto;
+	type AuthorityId = crate::crypto::AuthorityId;
 	type ConvertAssetPricePair = AssetPriceConverter;
 	type GracePeriod = ConstU64<5u64>;
 	type Members = IsInVec<Members>;
@@ -206,7 +207,7 @@ pub fn price_oracle_response(state: &mut testing::OffchainState) {
 	for (asset, response) in KRAKEN_RESPONSES.iter() {
 		state.expect_request(testing::PendingRequest {
 			method: "GET".into(),
-			uri: format!("https://api.kraken.com/0/public/OHLC?pair={}", asset).into(),
+			uri: format!("https://api.kraken.com/0/public/OHLC?pair={}&interval=1", asset).into(),
 			response: Some(response.to_vec()),
 			sent: true,
 			..Default::default()

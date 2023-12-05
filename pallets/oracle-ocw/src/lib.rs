@@ -75,6 +75,13 @@ pub mod pallet {
 		/// The overarching event type of the runtime.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
+		type AuthorityId: Member
+			+ Parameter
+			+ RuntimeAppPublic
+			+ Ord
+			+ MaybeSerializeDeserialize
+			+ MaxEncodedLen;
+
 		type AppCrypto: AppCrypto<Self::Public, Self::Signature>;
 
 		type Members: frame_support::traits::Contains<Self::AccountId>;
@@ -106,15 +113,15 @@ pub mod pallet {
 		/// so the code should be able to handle that.
 		/// You can use `Local Storage` API to coordinate runs of the worker.
 		fn offchain_worker(block_number: BlockNumberFor<T>) {
+			log::trace!(target: LOG_TARGET, "Running offchain worker for block: {:?}", block_number);
 			let local_keys = RuntimeAppPublicOf::<T>::all();
-		
+			log::trace!(target: LOG_TARGET, "Num of Local keys: {:?}", local_keys.len());
 			// Check if Signing key is in the permissioned set of keys.
 			let maybe_key: Option<RuntimeAppPublicOf<T>> = local_keys.into_iter().find_map(|key| {
+				log::trace!(target: LOG_TARGET, "runtime key: {:?}", key.to_raw_vec());
 				let generic_public = GenericPublicOf::<T>::from(key);
-				
 				let public: T::Public = generic_public.into();
 				let account = public.clone().into_account();
-				
 				if <T as pallet::Config>::Members::contains(&account) {
 					if let Ok(generic_public) = TryInto::<GenericPublicOf<T>>::try_into(public) {
 						return Some(generic_public.into());
@@ -162,6 +169,13 @@ pub mod pallet {
 					log::trace!(target: LOG_TARGET, "Transaction grace period reached for assets {:?} in block {:?}", assets.clone(), block_number);
 
 					let prices = Self::fetch_prices(assets);
+					if prices.is_empty() {
+						return
+					}
+
+					for (asset_name, price) in prices.clone() {
+						log::trace!(target: LOG_TARGET, "Fetched price for {:?}: {}", asset_name, price);
+					}
 					let result = Self::send_signed_transaction(prices.clone());
 					if result.is_ok() {
 						for (asset_name, _) in prices {
@@ -233,7 +247,7 @@ pub mod pallet {
 			let result = signer.send_signed_transaction(|_account| call.clone());
 			match result {
 				Some((account, Ok(_))) => {
-					log::trace!(target: LOG_TARGET, "offchain tx sent with: {:?}", account.id);
+					log::trace!(target: LOG_TARGET, "offchain tx sent successfully");
 					return Ok(())
 				},
 				_ => {
@@ -243,4 +257,7 @@ pub mod pallet {
 			}
 		}
 	}
+}
+impl<T: Config> sp_runtime::BoundToRuntimeAppPublic for Pallet<T> {
+	type Public = T::AuthorityId;
 }

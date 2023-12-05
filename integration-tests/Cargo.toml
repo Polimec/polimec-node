@@ -55,7 +55,7 @@ pallet-staking.workspace = true
 pallet-message-queue.workspace = true
 pallet-membership.workspace = true
 orml-oracle.workspace = true
-
+pallet-oracle-ocw.workspace = true
 # Runtimes
 polkadot-runtime.workspace = true
 statemint-runtime.workspace = true
@@ -96,6 +96,7 @@ std = [
 	"pallet-funding/std",
 	"pallet-im-online/std",
 	"pallet-message-queue/std",
+	"pallet-oracle-ocw/std",
 	"pallet-staking/std",
 	"parachains-common/std",
 	"polkadot-primitives/std",

@@ -25,9 +25,11 @@ chain = "polimec-rococo-local"
 	[[parachains.collators]]
 	name = "collator1"
 	command = "./bin/polimec-parachain-node"
-	args = ["--offchain-worker when-authority"]
+	args = ["--offchain-worker when-authority --log ocw=trace"]
+	keystore_key_types = ["aura", "plmc_sr"]
 
 	[[parachains.collators]]
 	name = "collator2"
 	command = "./bin/polimec-parachain-node"
-	args = ["--offchain-worker when-authority"]
+	args = ["--offchain-worker when-authority --log ocw=trace"]
+	keystore_key_types = ["aura", "plmc_sr"]

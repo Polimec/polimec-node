@@ -54,7 +54,7 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-use pallet_oracle_ocw::types::AssetName;
+use pallet_oracle_ocw::{crypto::AuthorityId as OracleOcwId, types::AssetName};
 // XCM Imports
 use polimec_xcm_executor::XcmExecutor;
 pub use xcm_config::XcmConfig;
@@ -123,6 +123,7 @@ pub type Moment = u64;
 impl_opaque_keys! {
 	pub struct SessionKeys {
 		pub aura: Aura,
+		// pub pallet_oracle_ocw: OracleOffchainWorker,
 	}
 }
 
@@ -201,6 +202,8 @@ impl frame_system::Config for Runtime {
 	/// Runtime version.
 	type Version = Version;
 }
+
+
 
 impl pallet_timestamp::Config for Runtime {
 	type MinimumPeriod = MinimumPeriod;
@@ -626,11 +629,12 @@ impl Convert<(AssetName, FixedU128), (AssetId, Price)> for AssetPriceConverter {
 }
 
 parameter_types! {
-	pub const GracePeriod: u32 = 3;
+	pub const GracePeriod: u32 = 50;
 }
 
 impl pallet_oracle_ocw::Config for Runtime {
 	type AppCrypto = pallet_oracle_ocw::crypto::PolimecCrypto;
+	type AuthorityId = OracleOcwId;
 	type ConvertAssetPricePair = AssetPriceConverter;
 	type GracePeriod = GracePeriod;
 	type Members = OracleProvidersMembership;
