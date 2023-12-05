@@ -61,11 +61,13 @@ const ISSUER: AccountId = 10;
 const EVALUATOR_1: AccountId = 20;
 const EVALUATOR_2: AccountId = 21;
 const EVALUATOR_3: AccountId = 22;
+const EVALUATOR_4: AccountId = 23;
 const BIDDER_1: AccountId = 30;
 const BIDDER_2: AccountId = 31;
 const BIDDER_3: AccountId = 32;
 const BIDDER_4: AccountId = 33;
 const BIDDER_5: AccountId = 34;
+const BIDDER_6: AccountId = 35;
 const BUYER_1: AccountId = 40;
 const BUYER_2: AccountId = 41;
 const BUYER_3: AccountId = 42;
@@ -165,6 +167,12 @@ pub mod defaults {
 	}
 	pub fn default_multipliers() -> Vec<u8> {
 		vec![1u8, 1u8, 1u8, 1u8, 1u8]
+	}
+	pub fn default_bidder_multipliers() -> Vec<u8> {
+		vec![20u8, 3u8, 15u8, 13u8, 9u8]
+	}
+	pub fn default_contributor_multipliers() -> Vec<u8> {
+		vec![1u8, 5u8, 3u8, 1u8, 2u8]
 	}
 
 	pub fn default_contributors() -> Vec<AccountId> {
@@ -562,6 +570,86 @@ mod evaluation_round_failure {
 
 		let dispatch_error = inst.bond_for_users(project_id, evaluations);
 		assert_err!(dispatch_error, TokenError::FundsUnavailable)
+	}
+
+	#[test]
+	fn evaluation_ct_account_deposits_are_returned() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project(0, ISSUER);
+		let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER);
+		let evaluation_success_threshold = <TestRuntime as Config>::EvaluationSuccessThreshold::get();
+		let evaluation_min_success_amount = evaluation_success_threshold *
+			project_metadata.minimum_price.saturating_mul_int(
+				project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1,
+			);
+		let evaluation_fail_amount = evaluation_min_success_amount - 100 * ASSET_UNIT;
+		let evaluator_bond = evaluation_fail_amount / 3;
+		let evaluations = vec![
+			UserToUSDBalance::new(EVALUATOR_1, evaluator_bond),
+			UserToUSDBalance::new(EVALUATOR_2, evaluator_bond),
+			UserToUSDBalance::new(EVALUATOR_3, evaluator_bond),
+		];
+		let deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
+			ProjectIdOf<TestRuntime>,
+			AccountIdOf<TestRuntime>,
+		>>::deposit_required(project_id);
+		inst.do_free_plmc_assertions(vec![
+			UserToPLMCBalance::new(EVALUATOR_1, 0u128),
+			UserToPLMCBalance::new(EVALUATOR_2, 0u128),
+			UserToPLMCBalance::new(EVALUATOR_3, 0u128),
+		]);
+		inst.do_reserved_plmc_assertions(
+			vec![
+				UserToPLMCBalance::new(EVALUATOR_1, 0u128),
+				UserToPLMCBalance::new(EVALUATOR_2, 0u128),
+				UserToPLMCBalance::new(EVALUATOR_3, 0u128),
+			],
+			LockType::FutureDeposit(project_id),
+		);
+
+		let required_plmc_bonds = MockInstantiator::calculate_evaluation_plmc_spent(evaluations.clone());
+		let plmc_existential_deposits = required_plmc_bonds.accounts().existential_deposits();
+		let plmc_ct_account_deposits = required_plmc_bonds.accounts().ct_account_deposits();
+
+		inst.mint_plmc_to(required_plmc_bonds.clone());
+		inst.mint_plmc_to(plmc_existential_deposits.clone());
+		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
+
+		inst.bond_for_users(project_id, evaluations);
+
+		inst.do_free_plmc_assertions(vec![
+			UserToPLMCBalance::new(EVALUATOR_1, MockInstantiator::get_ed()),
+			UserToPLMCBalance::new(EVALUATOR_2, MockInstantiator::get_ed()),
+			UserToPLMCBalance::new(EVALUATOR_3, MockInstantiator::get_ed()),
+		]);
+		inst.do_reserved_plmc_assertions(
+			vec![
+				UserToPLMCBalance::new(EVALUATOR_1, deposit_required),
+				UserToPLMCBalance::new(EVALUATOR_2, deposit_required),
+				UserToPLMCBalance::new(EVALUATOR_3, deposit_required),
+			],
+			LockType::FutureDeposit(project_id),
+		);
+
+		inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
+		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::EvaluationFailed);
+
+		let final_plmc_amounts = required_plmc_bonds
+			.into_iter()
+			.map(|UserToPLMCBalance { account, plmc_amount }| {
+				UserToPLMCBalance::new(account, plmc_amount + MockInstantiator::get_ed() + deposit_required)
+			})
+			.collect_vec();
+		inst.do_free_plmc_assertions(final_plmc_amounts);
+		inst.do_reserved_plmc_assertions(
+			vec![
+				UserToPLMCBalance::new(EVALUATOR_1, 0u128),
+				UserToPLMCBalance::new(EVALUATOR_2, 0u128),
+				UserToPLMCBalance::new(EVALUATOR_3, 0u128),
+			],
+			LockType::FutureDeposit(project_id),
+		);
 	}
 }
 
@@ -6080,13 +6168,50 @@ mod funding_end {
 	}
 
 	// i.e consumer increase bug fixed with touch on pallet-assets
+	#[ignore]
 	#[test]
 	fn no_limit_on_project_contributions_per_user() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_metadata = default_project(inst.get_new_nonce(), ISSUER);
 		let (bidding_allocation, contributing_allocation) = project_metadata.total_allocation_size;
 		let evaluations = default_evaluations();
-		// let bids = MockInstantiator::generate_bids_from_total_usd((), (), vec![], vec![], vec![]);
+		let bids = MockInstantiator::generate_bids_from_total_usd(
+			bidding_allocation,
+			project_metadata.minimum_price,
+			default_weights(),
+			default_bidders(),
+			default_bidder_multipliers(),
+		);
+		let community_contributions = MockInstantiator::generate_contributions_from_total_usd(
+			contributing_allocation / 2,
+			project_metadata.minimum_price,
+			default_weights(),
+			default_contributors(),
+			default_contributor_multipliers(),
+		);
+		let remainder_contributions = MockInstantiator::generate_contributions_from_total_usd(
+			contributing_allocation / 2,
+			project_metadata.minimum_price,
+			default_weights(),
+			vec![EVALUATOR_1, EVALUATOR_4, BIDDER_6, BUYER_4, BUYER_7],
+			vec![2u8, 1u8, 11u8, 1u8, 3u8],
+		);
+		// try doing 1000 projects
+		use std::time::Instant;
+		for i in 0..10 {
+			let now = Instant::now();
+			let project_id = inst.create_finished_project(
+				default_project(inst.get_new_nonce(), ISSUER),
+				ISSUER,
+				evaluations.clone(),
+				bids.clone(),
+				community_contributions.clone(),
+				remainder_contributions.clone(),
+			);
+			inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
+			let elapsed = now.elapsed();
+			println!("Project number {} took {:?}", i, elapsed);
+		}
 	}
 }
 
