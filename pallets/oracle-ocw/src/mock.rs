@@ -133,7 +133,6 @@ parameter_types! {
 }
 impl Config for Test {
 	type AppCrypto = crate::crypto::PolimecCrypto;
-	type AuthorityId = crate::crypto::AuthorityId;
 	type ConvertAssetPricePair = AssetPriceConverter;
 	type GracePeriod = ConstU64<5u64>;
 	type Members = IsInVec<Members>;
@@ -264,7 +263,6 @@ where
 }
 
 pub fn assert_close_enough(a: FixedU128, b: FixedU128) {
-	println!("a: {:?}, b: {:?}", a, b);
 	match a > b {
 		true => assert!(a.saturating_sub(b) < FixedU128::from_float(0.001)),
 		false => assert!(b.saturating_sub(a) < FixedU128::from_float(0.001)),

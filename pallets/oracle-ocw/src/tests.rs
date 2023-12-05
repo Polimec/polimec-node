@@ -23,7 +23,6 @@ use crate::{
 };
 use parity_scale_codec::Decode;
 use sp_runtime::FixedU128;
-use substrate_fixed::{types::U100F28, traits::ToFixed};
 
 #[test]
 fn call_offchain_worker() {

@@ -21,7 +21,7 @@
 #[cfg(feature = "runtime-benchmarks")]
 #[macro_use]
 extern crate frame_benchmarking;
-
+use parity_scale_codec::Encode;
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime, parameter_types,
@@ -45,16 +45,16 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, OpaqueKeys},
+	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, Convert, ConvertInto, OpaqueKeys, Verify},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult,
+	ApplyExtrinsicResult, FixedU128, MultiAddress, SaturatedConversion
 };
-pub use sp_runtime::{FixedU128, MultiAddress, Perbill, Permill};
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
+use pallet_oracle_ocw::types::AssetName;
 // XCM Imports
 use polimec_xcm_executor::XcmExecutor;
 pub use xcm_config::XcmConfig;
@@ -613,6 +613,89 @@ impl orml_oracle::Config for Runtime {
 	type WeightInfo = ();
 }
 
+pub struct AssetPriceConverter;
+impl Convert<(AssetName, FixedU128), (AssetId, Price)> for AssetPriceConverter {
+	fn convert((asset, price): (AssetName, FixedU128)) -> (AssetId, Price) {
+		match asset {
+			AssetName::DOT => (0, price),
+			AssetName::USDC => (420, price),
+			AssetName::USDT => (1984, price),
+			AssetName::PLMC => (2069, price),
+		}
+	}
+}
+
+parameter_types! {
+	pub const GracePeriod: u32 = 3;
+}
+
+impl pallet_oracle_ocw::Config for Runtime {
+	type AppCrypto = pallet_oracle_ocw::crypto::PolimecCrypto;
+	type ConvertAssetPricePair = AssetPriceConverter;
+	type GracePeriod = GracePeriod;
+	type Members = OracleProvidersMembership;
+	type RuntimeEvent = RuntimeEvent;
+}
+
+impl frame_system::offchain::SigningTypes for Runtime {
+	type Public = <Signature as Verify>::Signer;
+	type Signature = Signature;
+}
+
+impl<LocalCall> frame_system::offchain::SendTransactionTypes<LocalCall> for Runtime
+where
+	RuntimeCall: From<LocalCall>,
+{
+	type Extrinsic = UncheckedExtrinsic;
+	type OverarchingCall = RuntimeCall;
+}
+
+impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
+where
+	RuntimeCall: From<LocalCall>,
+{
+	fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
+		call: RuntimeCall,
+		public: <Signature as Verify>::Signer,
+		account: AccountId,
+		nonce: <Runtime as frame_system::Config>::Index,
+	) -> Option<(
+		RuntimeCall,
+		<UncheckedExtrinsic as sp_runtime::traits::Extrinsic>::SignaturePayload,
+	)> {
+		use sp_runtime::traits::StaticLookup;
+		// take the biggest period possible.
+		let period =
+			BlockHashCount::get().checked_next_power_of_two().map(|c| c / 2).unwrap_or(2) as u64;
+
+		let current_block = System::block_number()
+			.saturated_into::<u64>()
+			// The `System::block_number` is initialized with `n+1`,
+			// so the actual block number is `n`.
+			.saturating_sub(1);
+		let tip = 0;
+		let extra: SignedExtra = (
+			frame_system::CheckNonZeroSender::<Runtime>::new(),
+			frame_system::CheckSpecVersion::<Runtime>::new(),
+			frame_system::CheckTxVersion::<Runtime>::new(),
+			frame_system::CheckGenesis::<Runtime>::new(),
+			frame_system::CheckEra::<Runtime>::from(generic::Era::mortal(period, current_block)),
+			frame_system::CheckNonce::<Runtime>::from(nonce),
+			frame_system::CheckWeight::<Runtime>::new(),
+			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
+		);
+		let raw_payload = generic::SignedPayload::new(call, extra)
+			.map_err(|e| {
+				log::warn!("Unable to create signed payload: {:?}", e);
+			})
+			.ok()?;
+		let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
+		let (call, extra, _) = raw_payload.deconstruct();
+		let address = <Runtime as frame_system::Config>::Lookup::unlookup(account);
+		Some((call, (address, signature, extra)))
+	}
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -661,7 +744,7 @@ construct_runtime!(
 		// Oracle
 		Oracle: orml_oracle::{Pallet, Call, Storage, Event<T>} = 70,
 		OracleProvidersMembership: pallet_membership::<Instance1> = 71,
-		// OracleOffchainWorker: pallet_oracle_owc::{Pallet, Call, Storage, Event<T>} = 72,
+		OracleOffchainWorker: pallet_oracle_ocw::{Pallet, Call, Storage, Event<T>} = 72,
 
 		// Among others: Send and receive DMP and XCMP messages.
 		ParachainSystem: cumulus_pallet_parachain_system = 80,

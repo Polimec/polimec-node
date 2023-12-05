@@ -35,9 +35,9 @@ mod tests;
 
 mod traits;
 
-mod types;
+pub mod types;
 
-mod crypto;
+pub mod crypto;
 
 const LOG_TARGET: &str = "ocw::oracle";
 
@@ -61,9 +61,9 @@ pub mod pallet {
 
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	pub type PublicOf<T> = <T as SigningTypes>::Public;
-	// pub type SignatureOf<T> = <T as SigningTypes>::Signature;
-	// pub type GenericPublicOf<T> = <<T as Config>::AppCrypto as AppCrypto<PublicOf<T>, SignatureOf<T>>>::GenericPublic;
-	// pub type RuntimeAppPublicOf<T> = <<T as Config>::AppCrypto as AppCrypto<PublicOf<T>, SignatureOf<T>>>::RuntimeAppPublic;
+	pub type SignatureOf<T> = <T as SigningTypes>::Signature;
+	pub type GenericPublicOf<T> = <<T as Config>::AppCrypto as AppCrypto<PublicOf<T>, SignatureOf<T>>>::GenericPublic;
+	pub type RuntimeAppPublicOf<T> = <<T as Config>::AppCrypto as AppCrypto<PublicOf<T>, SignatureOf<T>>>::RuntimeAppPublic;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -74,16 +74,6 @@ pub mod pallet {
 	{
 		/// The overarching event type of the runtime.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
-		/// An Identifying key for the offchain worker. Used to determine if the offchain
-		/// worker is authorized to submit price feeding transactions.
-		type AuthorityId: Member
-			+ Parameter
-			+ RuntimeAppPublic
-			+ Ord
-			+ MaybeSerializeDeserialize
-			+ MaxEncodedLen
-			+ Into<Self::Public>;
 
 		type AppCrypto: AppCrypto<Self::Public, Self::Signature>;
 
@@ -116,14 +106,21 @@ pub mod pallet {
 		/// so the code should be able to handle that.
 		/// You can use `Local Storage` API to coordinate runs of the worker.
 		fn offchain_worker(block_number: BlockNumberFor<T>) {
-			let local_keys = T::AuthorityId::all();
-			let maybe_key = local_keys.iter().find_map(|key| {
-				let account: AccountIdOf<T> = <PublicOf<T> as IdentifyAccount>::into_account(key.clone().into());
+			let local_keys = RuntimeAppPublicOf::<T>::all();
+		
+			// Check if Signing key is in the permissioned set of keys.
+			let maybe_key: Option<RuntimeAppPublicOf<T>> = local_keys.into_iter().find_map(|key| {
+				let generic_public = GenericPublicOf::<T>::from(key);
+				
+				let public: T::Public = generic_public.into();
+				let account = public.clone().into_account();
+				
 				if <T as pallet::Config>::Members::contains(&account) {
-					Some(key)
-				} else {
-					None
+					if let Ok(generic_public) = TryInto::<GenericPublicOf<T>>::try_into(public) {
+						return Some(generic_public.into());
+					}
 				}
+				None
 			});
 
 			if let Some(_authority_key) = maybe_key {
@@ -176,8 +173,7 @@ pub mod pallet {
 			}
 
 			// Todo:
-			// - Fetch price information for each asset
-			// - Fetch price information from different sources
+			// - Fetch price information for Polimec
 		}
 	}
 
