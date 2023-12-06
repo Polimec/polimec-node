@@ -63,7 +63,7 @@ pallet-vesting.workspace = true
 
 # Runtimes
 polkadot-runtime.workspace = true
-statemint-runtime.workspace = true
+asset-hub-polkadot-runtime.workspace = true
 polimec-parachain-runtime.workspace = true
 penpal-runtime = { path = "./penpal", default-features = false }
 itertools.workspace = true
@@ -109,7 +109,7 @@ std = [
 	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
-	"statemint-runtime/std",
+	"asset-hub-polkadot-runtime/std",
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
@@ -139,7 +139,7 @@ runtime-benchmarks = [
 	"polkadot-runtime/runtime-benchmarks",
 	"polkadot-service/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
-	"statemint-runtime/runtime-benchmarks",
+	"asset-hub-polkadot-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
 ]
