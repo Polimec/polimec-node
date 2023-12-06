@@ -1967,6 +1967,12 @@ mod auction_round_success {
 		let final_price = details.weighted_average_price.unwrap();
 		let mut plmc_locked_for_bids = MockInstantiator::calculate_auction_plmc_spent(&bids, Some(final_price));
 		plmc_locked_for_bids.sort_by_key(|item| item.account.clone());
+		let ct_deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
+			ProjectIdOf<TestRuntime>,
+			AccountIdOf<TestRuntime>,
+		>>::deposit_required(project_id);
+		plmc_locked_for_bids.iter_mut().for_each(|item| item.plmc_amount += ct_deposit_required );
+
 
 		assert_eq!(delta_bidders_plmc_balances, plmc_locked_for_bids);
 	}
@@ -3962,11 +3968,19 @@ mod community_round_failure {
 		delta_contributors_plmc_balances.sort_by_key(|item| item.account);
 
 		let final_price = details.weighted_average_price.unwrap();
+		let ct_deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
+			ProjectIdOf<TestRuntime>,
+			AccountIdOf<TestRuntime>,
+		>>::deposit_required(project_id);
+
 		let mut plmc_locked_for_bids = MockInstantiator::calculate_auction_plmc_spent(&bids, Some(final_price));
 		plmc_locked_for_bids.sort_by_key(|item| item.account);
+		plmc_locked_for_bids.iter_mut().for_each(|item| item.plmc_amount += ct_deposit_required);
+
 		let mut plmc_locked_for_contributions =
 			MockInstantiator::calculate_contributed_plmc_spent(community_contributions, final_price);
 		plmc_locked_for_contributions.sort_by_key(|item| item.account);
+		plmc_locked_for_contributions.iter_mut().for_each(|item| item.plmc_amount += ct_deposit_required);
 
 		assert_eq!(delta_bidders_plmc_balances, plmc_locked_for_bids);
 		assert_eq!(delta_contributors_plmc_balances, plmc_locked_for_contributions);
@@ -6100,10 +6114,16 @@ mod funding_end {
 		);
 
 		let slashed_evaluation_locked_plmc = MockInstantiator::slash_evaluator_balances(old_evaluation_locked_plmc);
-		let expected_evaluator_free_balances = MockInstantiator::generic_map_operation(
+		let mut expected_evaluator_free_balances = MockInstantiator::generic_map_operation(
 			vec![slashed_evaluation_locked_plmc, old_participation_locked_plmc, old_free_plmc],
 			MergeOperation::Add,
 		);
+		let ct_deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
+			ProjectIdOf<TestRuntime>,
+			AccountIdOf<TestRuntime>,
+		>>::deposit_required(project_id);
+		expected_evaluator_free_balances.iter_mut().for_each(|UserToPLMCBalance{plmc_amount, ..}| *plmc_amount += ct_deposit_required);
+
 
 		let actual_evaluator_free_balances = inst.get_free_plmc_balances_for(evaluators.clone());
 
@@ -6135,10 +6155,15 @@ mod funding_end {
 		);
 
 		let slashed_evaluation_locked_plmc = MockInstantiator::slash_evaluator_balances(old_evaluation_locked_plmc);
-		let expected_evaluator_free_balances = MockInstantiator::generic_map_operation(
+		let mut expected_evaluator_free_balances = MockInstantiator::generic_map_operation(
 			vec![slashed_evaluation_locked_plmc, old_participation_locked_plmc, old_free_plmc],
 			MergeOperation::Add,
 		);
+		let ct_deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
+			ProjectIdOf<TestRuntime>,
+			AccountIdOf<TestRuntime>,
+		>>::deposit_required(project_id);
+		expected_evaluator_free_balances.iter_mut().for_each(|UserToPLMCBalance{plmc_amount, ..}| *plmc_amount += ct_deposit_required);
 
 		let actual_evaluator_free_balances = inst.get_free_plmc_balances_for(evaluators.clone());
 

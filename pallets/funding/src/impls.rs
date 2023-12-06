@@ -171,14 +171,28 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Failure, AccountListOf<
 
 			CleanerState::EvaluationRewardOrSlash(remaining, PhantomData::<Failure>) =>
 				if *remaining == 0 {
-					*self = CleanerState::EvaluationUnbonding(
-						remaining_evaluations::<T>(project_id),
+					*self = CleanerState::FutureDepositRelease(
+						remaining_participants::<T>(project_id),
 						PhantomData::<Failure>,
 					);
 					Ok(base_weight)
 				} else {
 					let (consumed_weight, remaining_evaluators) = reward_or_slash_one_evaluation::<T>(project_id)?;
 					*self = CleanerState::EvaluationRewardOrSlash(remaining_evaluators, PhantomData);
+					Ok(consumed_weight)
+				},
+
+			CleanerState::FutureDepositRelease(remaining_participants, PhantomData::<Failure>) =>
+				if remaining_participants.is_empty() {
+					*self = CleanerState::EvaluationUnbonding(
+						remaining_evaluations::<T>(project_id),
+						PhantomData::<Failure>,
+					);
+					Ok(base_weight)
+				} else {
+					let (consumed_weight, remaining_participants) =
+						release_future_ct_deposit_one_participant::<T>(project_id, remaining_participants.clone());
+					*self = CleanerState::FutureDepositRelease(remaining_participants, PhantomData::<Failure>);
 					Ok(consumed_weight)
 				},
 
@@ -233,10 +247,7 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Failure, AccountListOf<
 
 			CleanerState::ContributionUnbonding(remaining, PhantomData::<Failure>) =>
 				if *remaining == 0 {
-					*self = CleanerState::FutureDepositRelease(
-						remaining_participants::<T>(project_id),
-						PhantomData::<Failure>,
-					);
+					*self = CleanerState::Finished(PhantomData::<Failure>);
 					Ok(base_weight)
 				} else {
 					let (consumed_weight, remaining_contributions) = unbond_one_contribution::<T>(project_id);
@@ -244,16 +255,7 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Failure, AccountListOf<
 					Ok(consumed_weight)
 				},
 
-			CleanerState::FutureDepositRelease(remaining_participants, PhantomData::<Failure>) =>
-				if remaining_participants.is_empty() {
-					*self = CleanerState::Finished(PhantomData::<Failure>);
-					Ok(base_weight)
-				} else {
-					let (consumed_weight, remaining_participants) =
-						release_future_ct_deposit_one_participant::<T>(project_id, remaining_participants.clone());
-					*self = CleanerState::FutureDepositRelease(remaining_participants, PhantomData::<Failure>);
-					Ok(consumed_weight)
-				},
+
 
 			CleanerState::Finished(PhantomData::<Failure>) => Err(Error::<T>::FinalizerFinished.into()),
 
