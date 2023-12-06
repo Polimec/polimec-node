@@ -6147,7 +6147,6 @@ dependencies = [
  "pallet-xcm",
  "parachains-common",
  "parity-scale-codec",
- "polimec-receiver",
  "polimec-traits",
  "polimec-xcm-executor",
  "polkadot-parachain",

@@ -67,6 +67,4 @@ try-runtime = [
 	"polimec-traits/try-runtime",
 	"sp-runtime/try-runtime",
 ]
-testing-node = [
-	"pallet-funding/testing-node"
-]
+testing-node = [ "pallet-funding/testing-node" ]

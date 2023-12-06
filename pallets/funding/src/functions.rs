@@ -29,6 +29,7 @@ use frame_support::{
 		Get,
 	},
 };
+use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
 use sp_arithmetic::{
 	traits::{CheckedDiv, CheckedSub, Zero},
@@ -910,7 +911,7 @@ impl<T: Config> Pallet<T> {
 		funding_asset: AcceptedFundingAsset,
 		project_ticket_size: TicketSize<BalanceOf<T>>,
 		bid_id: u32,
-		now: BlockNumberOf<T>,
+		now: BlockNumberFor<T>,
 		plmc_usd_price: T::Price,
 	) -> Result<BidInfoOf<T>, DispatchError> {
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
@@ -2268,10 +2269,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Adds a project to the ProjectsToUpdate storage, so it can be updated at some later point in time.
-	pub fn add_to_update_store(
-		block_number: <T as frame_system::Config>::BlockNumber,
-		store: (&T::ProjectIdentifier, UpdateType),
-	) {
+	pub fn add_to_update_store(block_number: BlockNumberFor<T>, store: (&T::ProjectIdentifier, UpdateType)) {
 		// Try to get the project into the earliest possible block to update.
 		// There is a limit for how many projects can update each block, so we need to make sure we don't exceed that limit
 		let mut block_number = block_number;
@@ -2327,9 +2325,9 @@ impl<T: Config> Pallet<T> {
 		_caller: &AccountIdOf<T>,
 		multiplier: MultiplierOf<T>,
 		bonded_amount: BalanceOf<T>,
-	) -> Result<VestingInfo<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>, DispatchError> {
+	) -> Result<VestingInfo<BlockNumberFor<T>, BalanceOf<T>>, DispatchError> {
 		// TODO: duration should depend on `_multiplier` and `_caller` credential
-		let duration: <T as frame_system::Config>::BlockNumber = multiplier.calculate_vesting_duration::<T>();
+		let duration: BlockNumberFor<T> = multiplier.calculate_vesting_duration::<T>();
 		let duration_as_balance = T::BlockNumberToBalance::convert(duration);
 		let amount_per_block = if duration_as_balance == Zero::zero() {
 			bonded_amount
@@ -2343,7 +2341,7 @@ impl<T: Config> Pallet<T> {
 	/// Calculates the price (in USD) of contribution tokens for the Community and Remainder Rounds
 	pub fn calculate_weighted_average_price(
 		project_id: T::ProjectIdentifier,
-		end_block: <T as frame_system::Config>::BlockNumber,
+		end_block: BlockNumberFor<T>,
 		total_allocation_size: BalanceOf<T>,
 	) -> DispatchResult {
 		// Get all the bids that were made before the end of the candle
@@ -2562,12 +2560,12 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn select_random_block(
-		candle_starting_block: <T as frame_system::Config>::BlockNumber,
-		candle_ending_block: <T as frame_system::Config>::BlockNumber,
-	) -> <T as frame_system::Config>::BlockNumber {
+		candle_starting_block: BlockNumberFor<T>,
+		candle_ending_block: BlockNumberFor<T>,
+	) -> BlockNumberFor<T> {
 		let nonce = Self::get_and_increment_nonce();
 		let (random_value, _known_since) = T::Randomness::random(&nonce);
-		let random_block = <<T as frame_system::Config>::BlockNumber>::decode(&mut random_value.as_ref())
+		let random_block = <BlockNumberFor<T>>::decode(&mut random_value.as_ref())
 			.expect("secure hashes should always be bigger than the block number; qed");
 		let block_range = candle_ending_block - candle_starting_block;
 
@@ -2742,7 +2740,7 @@ impl<T: Config> Pallet<T> {
 		project_id: T::ProjectIdentifier,
 		mut project_details: ProjectDetailsOf<T>,
 		reason: SuccessReason,
-		settlement_delta: <T as frame_system::Config>::BlockNumber,
+		settlement_delta: BlockNumberFor<T>,
 	) -> DispatchResult {
 		let now = <frame_system::Pallet<T>>::block_number();
 		project_details.status = ProjectStatus::FundingSuccessful;
@@ -2759,7 +2757,7 @@ impl<T: Config> Pallet<T> {
 		project_id: T::ProjectIdentifier,
 		mut project_details: ProjectDetailsOf<T>,
 		reason: FailureReason,
-		settlement_delta: <T as frame_system::Config>::BlockNumber,
+		settlement_delta: BlockNumberFor<T>,
 	) -> DispatchResult {
 		let now = <frame_system::Pallet<T>>::block_number();
 		project_details.status = ProjectStatus::FundingFailed;

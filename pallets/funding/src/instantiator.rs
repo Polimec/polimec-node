@@ -1,3 +1,11 @@
+use crate::{
+	traits::{BondingRequirementCalculation, ProvideStatemintPrice},
+	AcceptedFundingAsset, AccountIdOf, AssetIdOf, AuctionPhase, BalanceOf, BidInfoOf, BidStatus, Bids, BlockNumberPair,
+	BucketOf, Buckets, Cleaner, Config, Contributions, Error, EvaluationInfoOf, EvaluationRoundInfoOf,
+	EvaluatorsOutcome, Event, HRMPChannelStatus, LockType, MultiplierOf, NextProjectId, PhaseTransitionPoints, PriceOf,
+	ProjectDetailsOf, ProjectIdOf, ProjectMetadataOf, ProjectStatus, ProjectsDetails, ProjectsMetadata,
+	ProjectsToUpdate, RewardInfoOf, UpdateType, VestingInfoOf, PLMC_STATEMINT_ID,
+};
 use frame_support::{
 	pallet_prelude::*,
 	traits::{
@@ -11,14 +19,12 @@ use frame_support::{
 	weights::Weight,
 	Parameter,
 };
-
-use sp_arithmetic::Perquintill;
-
+use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
 use parity_scale_codec::Decode;
 use sp_arithmetic::{
 	traits::{SaturatedConversion, Saturating, Zero},
-	FixedPointNumber, Percent,
+	FixedPointNumber, Percent, Perquintill,
 };
 use sp_core::H256;
 use sp_runtime::{
@@ -33,15 +39,6 @@ use sp_std::{
 	prelude::*,
 };
 
-use crate::{
-	traits::{BondingRequirementCalculation, ProvideStatemintPrice},
-	AcceptedFundingAsset, AccountIdOf, AssetIdOf, AuctionPhase, BalanceOf, BidInfoOf, BidStatus, Bids, BlockNumberOf,
-	BlockNumberPair, BucketOf, Buckets, Cleaner, Config, Contributions, Error, EvaluationInfoOf, EvaluationRoundInfoOf,
-	EvaluatorsOutcome, Event, HRMPChannelStatus, LockType, MultiplierOf, NextProjectId, PhaseTransitionPoints, PriceOf,
-	ProjectDetailsOf, ProjectIdOf, ProjectMetadataOf, ProjectStatus, ProjectsDetails, ProjectsMetadata,
-	ProjectsToUpdate, RewardInfoOf, UpdateType, VestingInfoOf, PLMC_STATEMINT_ID,
-};
-
 pub use testing_macros::*;
 pub type RuntimeOriginOf<T> = <T as frame_system::Config>::RuntimeOrigin;
 
@@ -53,7 +50,7 @@ impl Default for BoxToFunction {
 }
 pub struct Instantiator<
 	T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-	AllPalletsWithoutSystem: OnFinalize<BlockNumberOf<T>> + OnIdle<BlockNumberOf<T>> + OnInitialize<BlockNumberOf<T>>,
+	AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 	RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 > {
 	#[cfg(all(feature = "std", not(feature = "testing-node")))]
@@ -67,7 +64,7 @@ pub struct Instantiator<
 // general chain interactions
 impl<
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		AllPalletsWithoutSystem: OnFinalize<BlockNumberOf<T>> + OnIdle<BlockNumberOf<T>> + OnInitialize<BlockNumberOf<T>>,
+		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
 {
@@ -212,28 +209,28 @@ impl<
 		});
 	}
 
-	pub fn current_block(&mut self) -> BlockNumberOf<T> {
+	pub fn current_block(&mut self) -> BlockNumberFor<T> {
 		self.execute(|| frame_system::Pallet::<T>::block_number())
 	}
 
-	pub fn advance_time(&mut self, amount: BlockNumberOf<T>) -> Result<(), DispatchError> {
+	pub fn advance_time(&mut self, amount: BlockNumberFor<T>) -> Result<(), DispatchError> {
 		self.execute(|| {
 			for _block in 0u32..amount.saturated_into() {
 				let mut current_block = frame_system::Pallet::<T>::block_number();
 
-				<AllPalletsWithoutSystem as OnFinalize<BlockNumberOf<T>>>::on_finalize(current_block);
-				<frame_system::Pallet<T> as OnFinalize<BlockNumberOf<T>>>::on_finalize(current_block);
+				<AllPalletsWithoutSystem as OnFinalize<BlockNumberFor<T>>>::on_finalize(current_block);
+				<frame_system::Pallet<T> as OnFinalize<BlockNumberFor<T>>>::on_finalize(current_block);
 
-				<AllPalletsWithoutSystem as OnIdle<BlockNumberOf<T>>>::on_idle(current_block, Weight::MAX);
-				<frame_system::Pallet<T> as OnIdle<BlockNumberOf<T>>>::on_idle(current_block, Weight::MAX);
+				<AllPalletsWithoutSystem as OnIdle<BlockNumberFor<T>>>::on_idle(current_block, Weight::MAX);
+				<frame_system::Pallet<T> as OnIdle<BlockNumberFor<T>>>::on_idle(current_block, Weight::MAX);
 
 				current_block += One::one();
 				frame_system::Pallet::<T>::set_block_number(current_block);
 
 				let pre_events = frame_system::Pallet::<T>::events();
 
-				<frame_system::Pallet<T> as OnInitialize<BlockNumberOf<T>>>::on_initialize(current_block);
-				<AllPalletsWithoutSystem as OnInitialize<BlockNumberOf<T>>>::on_initialize(current_block);
+				<frame_system::Pallet<T> as OnInitialize<BlockNumberFor<T>>>::on_initialize(current_block);
+				<AllPalletsWithoutSystem as OnInitialize<BlockNumberFor<T>>>::on_initialize(current_block);
 
 				let post_events = frame_system::Pallet::<T>::events();
 				if post_events.len() > pre_events.len() {
@@ -302,7 +299,7 @@ impl<
 // assertions
 impl<
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		AllPalletsWithoutSystem: OnFinalize<BlockNumberOf<T>> + OnIdle<BlockNumberOf<T>> + OnInitialize<BlockNumberOf<T>>,
+		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
 {
@@ -336,7 +333,7 @@ impl<
 		&mut self,
 		project_id: ProjectIdOf<T>,
 		expected_metadata: ProjectMetadataOf<T>,
-		creation_start_block: BlockNumberOf<T>,
+		creation_start_block: BlockNumberFor<T>,
 	) {
 		let metadata = self.get_project_metadata(project_id);
 		let details = self.get_project_details(project_id);
@@ -415,7 +412,7 @@ impl<
 // calculations
 impl<
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		AllPalletsWithoutSystem: OnFinalize<BlockNumberOf<T>> + OnIdle<BlockNumberOf<T>> + OnInitialize<BlockNumberOf<T>>,
+		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
 {
@@ -798,7 +795,7 @@ impl<
 // project chain interactions
 impl<
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		AllPalletsWithoutSystem: OnFinalize<BlockNumberOf<T>> + OnIdle<BlockNumberOf<T>> + OnInitialize<BlockNumberOf<T>>,
+		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
 {
@@ -814,7 +811,7 @@ impl<
 		self.execute(|| ProjectsDetails::<T>::get(project_id).expect("Project details exists"))
 	}
 
-	pub fn get_update_pair(&mut self, project_id: ProjectIdOf<T>) -> (BlockNumberOf<T>, UpdateType) {
+	pub fn get_update_pair(&mut self, project_id: ProjectIdOf<T>) -> (BlockNumberFor<T>, UpdateType) {
 		self.execute(|| {
 			ProjectsToUpdate::<T>::iter()
 				.find_map(|(block, update_vec)| {
@@ -1615,7 +1612,7 @@ pub struct BidInfoFilter<T: Config> {
 	pub multiplier: Option<MultiplierOf<T>>,
 	pub plmc_bond: Option<BalanceOf<T>>,
 	pub plmc_vesting_info: Option<Option<VestingInfoOf<T>>>,
-	pub when: Option<BlockNumberOf<T>>,
+	pub when: Option<BlockNumberFor<T>>,
 	pub funds_released: Option<bool>,
 	pub ct_minted: Option<bool>,
 }
