@@ -5584,6 +5584,7 @@ mod remainder_round_failure {
 			ProjectIdOf<TestRuntime>,
 			AccountIdOf<TestRuntime>,
 		>>::deposit_required(project_id);
+		let ed = MockInstantiator::get_ed();
 		let all_expected_payouts = all_expected_payouts
 			.into_iter()
 			.map(|UserToPLMCBalance{account, plmc_amount }| UserToPLMCBalance::new(account, plmc_amount + deposit_required))
@@ -5616,6 +5617,11 @@ mod remainder_round_failure {
 
 		let issuer_funding_delta = post_issuer_funding_balance - prev_issuer_funding_balance;
 
+		let participants = all_participants_plmc_deltas.accounts();
+		for participant in participants {
+			let future_deposit_reserved = inst.execute(||{<<TestRuntime as Config>::NativeCurrency as fungible::InspectHold<AccountIdOf<TestRuntime>>>::balance_on_hold(&LockType::FutureDeposit(project_id), &participant)});
+			dbg!("participant {:?} has future deposit reserved {:?}", participant, future_deposit_reserved);
+		}
 		assert_eq!(issuer_funding_delta, 0);
 		assert_eq!(all_participants_plmc_deltas, all_expected_payouts);
 	}
