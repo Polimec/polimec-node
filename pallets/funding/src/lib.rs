@@ -1410,8 +1410,6 @@ pub mod pallet {
 			}
 		}
 	}
-
-	// #[cfg(feature = "std")]
 	#[cfg(all(feature = "testing-node", feature = "std"))]
 	impl<T: Config> GenesisConfig<T>
 	where
