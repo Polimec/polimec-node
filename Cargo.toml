@@ -3,10 +3,10 @@ members = [
     "nodes/*",
     "runtimes/*",
     "pallets/*",
-    # "integration-tests",
-    # "integration-tests/penpal",
-    # "integration-tests/macros",
-    # "integration-tests/macros/tests",
+    "integration-tests",
+    "integration-tests/penpal",
+    "integration-tests/macros",
+    "integration-tests/macros/tests",
     "traits",
 ]
 
@@ -176,7 +176,7 @@ cumulus-primitives-utility = { git = "https://github.com/paritytech/cumulus", de
 pallet-collator-selection = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "release-v1.0.0" }
 parachain-info = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "release-v1.0.0" }
 parachains-common = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "release-v1.0.0" }
-asset-hub-polkadot-runtime = { git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, tag = 'v1.0.0' }
+asset-hub-polkadot-runtime = { git = 'https://github.com/paritytech/cumulus', default-features = false, branch = 'release-v1.0.0' }
 
 # Client-only (with default enabled)
 cumulus-client-cli = { git = "https://github.com/paritytech/cumulus", branch = "release-v1.0.0" }
