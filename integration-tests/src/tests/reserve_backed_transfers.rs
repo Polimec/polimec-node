@@ -327,7 +327,7 @@ fn polimec_to_reserve() {
 	);
 
 	assert!(
-	    statemint_delta_usdt_issuance <= statemint_runtime::constants::fee::WeightToFee::weight_to_fee(&max_weight),
+	    statemint_delta_usdt_issuance <= asset_hub_polkadot_runtime::constants::fee::WeightToFee::weight_to_fee(&max_weight),
 	    "Statemint's DOT issuance should not change, since it acts as a reserve for that asset (except for fees which are burnt)"
 	);
 }
