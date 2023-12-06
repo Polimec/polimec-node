@@ -27,7 +27,7 @@ use frame_support::{
 	traits::{
 		fungible::*,
 		tokens::{Balance, Precision},
-		Get, WithdrawReasons,
+		GenesisBuild, Get, WithdrawReasons,
 	},
 };
 use frame_system::pallet_prelude::*;
@@ -154,7 +154,7 @@ pub mod pallet {
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
-		pub vesting: Vec<(AccountIdOf<T>, T::BlockNumber, T::BlockNumber, BalanceOf<T>, ReasonOf<T>)>,
+		pub vesting: Vec<(AccountIdOf<T>, BlockNumberFor<T>, BlockNumberFor<T>, BalanceOf<T>, ReasonOf<T>)>,
 	}
 
 	#[cfg(feature = "std")]
