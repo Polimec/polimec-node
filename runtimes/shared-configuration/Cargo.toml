@@ -42,6 +42,4 @@ runtime-benchmarks = [
 	"pallet-funding/runtime-benchmarks",
 ]
 testing-node = [ "pallet-funding/testing-node" ]
-try-runtime = [
-	"pallet-funding/try-runtime"
-]
+try-runtime = [ "pallet-funding/try-runtime" ]

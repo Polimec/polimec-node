@@ -12,24 +12,24 @@ version = "0.1.0"
 rust-version = "1.69.0"
 
 [dependencies]
-parity-scale-codec = { version = "3.6.5", features = [
-    "derive",
-], default-features = false }
-scale-info = { version = "2.9.0", default-features = false, features = [
+parity-scale-codec = { workspace = true, features = [
     "derive",
 ] }
-serde = { version = "1.0", features = ["derive"], default-features = false }
-frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true, branch = "polkadot-v0.9.43" }
+scale-info = { workspace = true, features = [
+    "derive",
+] }
+serde = { workspace = true, features = ["derive"] }
+frame-benchmarking = { workspace = true,  optional = true }
 
-frame-support = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.43" }
-frame-system = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.43" }
-sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.43" }
-sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.43" }
+frame-support.workspace = true
+frame-system.workspace = true
+sp-std.workspace = true
+sp-runtime.workspace = true
 itertools.workspace = true
 
 [dev-dependencies]
-sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.43" }
-sp-io = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.43" }
+sp-core.workspace = true
+sp-io.workspace = true
 
 [features]
 default = [ "std" ]
@@ -37,6 +37,8 @@ std = [
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
+	"itertools/use_alloc",
+	"itertools/use_std",
 	"parity-scale-codec/std",
 	"scale-info/std",
 	"serde/std",
@@ -44,15 +46,13 @@ std = [
 	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
-	"itertools/use_std",
-	"itertools/use_alloc",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
-	"sp-runtime/runtime-benchmarks",
 	"itertools/use_alloc",
+	"sp-runtime/runtime-benchmarks",
 ]
 try-runtime = [
 	"frame-support/try-runtime",
