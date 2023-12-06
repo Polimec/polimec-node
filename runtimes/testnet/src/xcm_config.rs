@@ -40,8 +40,7 @@ use pallet_xcm::XcmPassthrough;
 use polimec_xcm_executor::XcmExecutor;
 use polkadot_parachain::primitives::Sibling;
 use polkadot_runtime_common::impls::ToAuthor;
-use sp_runtime::traits::Zero;
-use sp_runtime::traits::MaybeEquivalence;
+use sp_runtime::traits::{MaybeEquivalence, Zero};
 use xcm::latest::prelude::*;
 use xcm_builder::{
 	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses, AllowSubscriptionsFrom,
@@ -128,19 +127,20 @@ pub type StatemintFungiblesTransactor = FungiblesAdapter<
 // asset id "0" is reserved for relay chain native token in the pallet assets
 pub struct NativeToFungible;
 impl MaybeEquivalence<MultiLocation, AssetIdPalletAssets> for NativeToFungible {
-    fn convert(asset: &MultiLocation) -> Option<AssetIdPalletAssets> {
-        match asset {
-            MultiLocation { parents: 1, interior: Here } =>
-                Some(pallet_funding::types::AcceptedFundingAsset::DOT.to_statemint_id()),
-            _ => None,
-        }
-    }
-    fn convert_back(value: &AssetIdPalletAssets) -> Option<MultiLocation> {
-        if value.is_zero() {
-            return Some(MultiLocation { parents: 1, interior: Here })
-        }
-        None
-    }
+	fn convert(asset: &MultiLocation) -> Option<AssetIdPalletAssets> {
+		match asset {
+			MultiLocation { parents: 1, interior: Here } =>
+				Some(pallet_funding::types::AcceptedFundingAsset::DOT.to_statemint_id()),
+			_ => None,
+		}
+	}
+
+	fn convert_back(value: &AssetIdPalletAssets) -> Option<MultiLocation> {
+		if value.is_zero() {
+			return Some(MultiLocation { parents: 1, interior: Here })
+		}
+		None
+	}
 }
 
 // We need the matcher to return either `AssetNotFound` or `Unimplemented` so that the tuple impl of
