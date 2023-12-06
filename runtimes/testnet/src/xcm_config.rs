@@ -41,6 +41,7 @@ use polimec_xcm_executor::XcmExecutor;
 use polkadot_parachain::primitives::Sibling;
 use polkadot_runtime_common::impls::ToAuthor;
 use sp_runtime::traits::Zero;
+use sp_runtime::traits::MaybeEquivalence;
 use xcm::latest::prelude::*;
 use xcm_builder::{
 	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses, AllowSubscriptionsFrom,
@@ -126,22 +127,20 @@ pub type StatemintFungiblesTransactor = FungiblesAdapter<
 
 // asset id "0" is reserved for relay chain native token in the pallet assets
 pub struct NativeToFungible;
-impl Convert<MultiLocation, AssetIdPalletAssets> for NativeToFungible {
-	fn convert(asset: MultiLocation) -> Result<AssetIdPalletAssets, MultiLocation> {
-		match asset {
-			MultiLocation { parents: 1, interior: Here } =>
-				Ok(pallet_funding::types::AcceptedFundingAsset::DOT.to_statemint_id()),
-			_ => Err(asset),
-		}
-	}
-
-	fn reverse(value: AssetIdPalletAssets) -> Result<MultiLocation, AssetIdPalletAssets> {
-		if value == 0u32 {
-			Ok(MultiLocation { parents: 1, interior: Here })
-		} else {
-			Err(value)
-		}
-	}
+impl MaybeEquivalence<MultiLocation, AssetIdPalletAssets> for NativeToFungible {
+    fn convert(asset: &MultiLocation) -> Option<AssetIdPalletAssets> {
+        match asset {
+            MultiLocation { parents: 1, interior: Here } =>
+                Some(pallet_funding::types::AcceptedFundingAsset::DOT.to_statemint_id()),
+            _ => None,
+        }
+    }
+    fn convert_back(value: &AssetIdPalletAssets) -> Option<MultiLocation> {
+        if value.is_zero() {
+            return Some(MultiLocation { parents: 1, interior: Here })
+        }
+        None
+    }
 }
 
 // We need the matcher to return either `AssetNotFound` or `Unimplemented` so that the tuple impl of
@@ -152,8 +151,8 @@ pub struct NonBlockingConvertedConcreteId<AssetId, Balance, ConvertAssetId, Conv
 impl<
 		AssetId: Clone,
 		Balance: Clone,
-		ConvertAssetId: Convert<MultiLocation, AssetId>,
-		ConvertBalance: Convert<u128, Balance>,
+		ConvertAssetId: MaybeEquivalence<MultiLocation, AssetId>,
+		ConvertBalance: MaybeEquivalence<u128, Balance>,
 	> MatchesFungibles<AssetId, Balance>
 	for NonBlockingConvertedConcreteId<AssetId, Balance, ConvertAssetId, ConvertBalance>
 {
