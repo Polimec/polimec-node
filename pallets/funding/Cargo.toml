@@ -119,5 +119,6 @@ try-runtime = [
 	"polkadot-runtime-parachains/try-runtime",
 	"polkadot-runtime/try-runtime",
 	"sp-runtime/try-runtime",
+	"polimec-xcm-executor/try-runtime"
 ]
 testing-node = []

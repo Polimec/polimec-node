@@ -146,6 +146,12 @@ testing-node = [
 	"pallet-funding/testing-node",
 	"polimec-parachain-runtime/testing-node",
 ]
-try-runtime = []
+try-runtime = [
+	"pallet-funding/try-runtime",
+	"penpal-runtime/try-runtime",
+	"polimec-parachain-runtime/try-runtime",
+	"polimec-receiver/try-runtime",
+	"polimec-traits/try-runtime"
+]
 fast-gov = [ "polimec-parachain-runtime/fast-gov" ]
 

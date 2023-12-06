@@ -245,5 +245,7 @@ try-runtime = [
 	"parachain-info/try-runtime",
 	"polkadot-runtime-common/try-runtime",
 	"sp-runtime/try-runtime",
+	"polimec-xcm-executor/try-runtime",
+	"shared-configuration/try-runtime"
 ]
 testing-node = [ "pallet-funding/testing-node" ]
