@@ -1303,7 +1303,11 @@ pub mod pallet {
 
 			let projects_needing_cleanup = ProjectsDetails::<T>::iter()
 				.filter_map(|(project_id, info)| match info.cleanup {
-					cleaner if <Cleaner<AccountListOf<T>> as DoRemainingOperation<T>>::has_remaining_operations(&cleaner) => Some((project_id, cleaner)),
+					cleaner
+						if <Cleaner<AccountListOf<T>> as DoRemainingOperation<T>>::has_remaining_operations(
+							&cleaner,
+						) =>
+						Some((project_id, cleaner)),
 					_ => None,
 				})
 				.collect::<Vec<_>>();
@@ -1322,7 +1326,10 @@ pub mod pallet {
 				// let mut consumed_weight = WeightInfoOf::<T>::insert_cleaned_project();
 				let mut consumed_weight = Weight::from_parts(6_034_000, 0);
 				while !consumed_weight.any_gt(max_weight_per_project) {
-					if let Ok(weight) = <Cleaner<AccountListOf<T>> as DoRemainingOperation<T>>::do_one_operation(&mut cleaner, project_id) {
+					if let Ok(weight) = <Cleaner<AccountListOf<T>> as DoRemainingOperation<T>>::do_one_operation(
+						&mut cleaner,
+						project_id,
+					) {
 						consumed_weight.saturating_accrue(weight);
 					} else {
 						break

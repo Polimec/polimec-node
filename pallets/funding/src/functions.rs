@@ -592,7 +592,9 @@ impl<T: Config> Pallet<T> {
 		// * Calculate new variables *
 		let funding_target = project_metadata
 			.minimum_price
-			.checked_mul_int(project_metadata.total_allocation_size.0)
+			.checked_mul_int(
+				project_metadata.total_allocation_size.0.saturating_add(project_metadata.total_allocation_size.1),
+			)
 			.ok_or(Error::<T>::BadMath)?;
 		let funding_reached = project_details.funding_amount_reached;
 		let funding_ratio = Perquintill::from_rational(funding_reached, funding_target);

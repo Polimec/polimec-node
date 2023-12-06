@@ -1,9 +1,8 @@
-use sp_std::collections::btree_set::BTreeSet;
 use frame_support::{traits::Get, weights::Weight};
 use itertools::Itertools;
 use sp_arithmetic::traits::Zero;
 use sp_runtime::{traits::AccountIdConversion, DispatchError};
-use sp_std::marker::PhantomData;
+use sp_std::{collections::btree_set::BTreeSet, marker::PhantomData};
 
 use crate::{traits::DoRemainingOperation, *};
 
@@ -255,8 +254,6 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Failure, AccountListOf<
 					Ok(consumed_weight)
 				},
 
-
-
 			CleanerState::Finished(PhantomData::<Failure>) => Err(Error::<T>::FinalizerFinished.into()),
 
 			_ => Err(Error::<T>::ImpossibleState.into()),
@@ -346,9 +343,11 @@ fn remaining_participants<T: Config>(project_id: T::ProjectIdentifier) -> Accoun
 	let bidders = Bids::<T>::iter_key_prefix((project_id,)).map(|(bidder, bid_id)| bidder);
 	let contributors =
 		Contributions::<T>::iter_key_prefix((project_id,)).map(|(contributor, contribution_id)| contributor);
-	let all_participants =
-		evaluators.chain(bidders).chain(contributors).collect::<BTreeSet<AccountIdOf<T>>>();
-	AccountListOf::<T>::force_from(all_participants.into_iter().collect_vec(), Some("getting remaining participants in Cleaner"))
+	let all_participants = evaluators.chain(bidders).chain(contributors).collect::<BTreeSet<AccountIdOf<T>>>();
+	AccountListOf::<T>::force_from(
+		all_participants.into_iter().collect_vec(),
+		Some("getting remaining participants in Cleaner"),
+	)
 }
 
 fn remaining_bids_without_ct_minted<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
