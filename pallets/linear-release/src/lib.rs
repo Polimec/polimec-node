@@ -27,7 +27,7 @@ use frame_support::{
 	traits::{
 		fungible::*,
 		tokens::{Balance, Precision},
-		GenesisBuild, Get, WithdrawReasons,
+		Get, WithdrawReasons,
 	},
 };
 use frame_system::pallet_prelude::*;
@@ -165,7 +165,7 @@ pub mod pallet {
 	}
 
 	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
 			use sp_runtime::traits::Saturating;
 
