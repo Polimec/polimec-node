@@ -18,15 +18,15 @@
 
 //! Types for Funding pallet.
 
+pub use config_types::*;
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
 use frame_system::pallet_prelude::BlockNumberFor;
+pub use inner_types::*;
 use polkadot_parachain::primitives::Id as ParaId;
+use serde::{Deserialize, Serialize};
 use sp_arithmetic::{FixedPointNumber, FixedPointOperand};
 use sp_runtime::traits::CheckedDiv;
 use sp_std::{cmp::Eq, collections::btree_map::*, prelude::*};
-
-pub use config_types::*;
-pub use inner_types::*;
 pub use storage_types::*;
 
 use crate::{
@@ -43,8 +43,21 @@ pub mod config_types {
 
 	use super::*;
 
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
-	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	#[derive(
+		Clone,
+		Encode,
+		Decode,
+		Eq,
+		PartialEq,
+		RuntimeDebug,
+		TypeInfo,
+		MaxEncodedLen,
+		Copy,
+		Ord,
+		PartialOrd,
+		Serialize,
+		Deserialize,
+	)]
 	pub struct Multiplier(u8);
 
 	impl Multiplier {
@@ -98,9 +111,22 @@ pub mod config_types {
 	}
 
 	/// Enum used to identify PLMC holds.
-	/// It implements Serialize and Deserialize (only in the "std" feature set) to hold a fungible in the Genesis Configuration.
-	#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo, Ord, PartialOrd)]
-	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	/// It implements Serialize and Deserialize to hold a fungible in the Genesis Configuration.
+	#[derive(
+		Encode,
+		Decode,
+		Copy,
+		Clone,
+		PartialEq,
+		Eq,
+		RuntimeDebug,
+		MaxEncodedLen,
+		TypeInfo,
+		Ord,
+		PartialOrd,
+		Serialize,
+		Deserialize,
+	)]
 	pub enum LockType<ProjectId> {
 		Evaluation(ProjectId),
 		Participation(ProjectId),

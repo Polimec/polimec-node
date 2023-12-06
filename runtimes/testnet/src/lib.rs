@@ -34,7 +34,7 @@ use frame_support::{
 use frame_system::{EnsureRoot, EnsureSigned};
 pub use parachains_common::{
 	impls::DealWithFees, opaque, AccountId, AssetIdForTrustBackedAssets as AssetId, AuraId, Balance, BlockNumber, Hash,
-	Header, Index, Signature, AVERAGE_ON_INITIALIZE_RATIO, DAYS, HOURS, MAXIMUM_BLOCK_WEIGHT, MINUTES,
+	Header, Nonce, Signature, AVERAGE_ON_INITIALIZE_RATIO, DAYS, HOURS, MAXIMUM_BLOCK_WEIGHT, MINUTES,
 	NORMAL_DISPATCH_RATIO, SLOT_DURATION,
 };
 
@@ -197,12 +197,12 @@ impl frame_system::Config for Runtime {
 	type AccountId = AccountId;
 	/// The basic call filter to use in dispatchable.
 	type BaseCallFilter = Everything;
+	/// The block type.
+	type Block = Block;
 	/// Maximum number of block number to block hash mappings to keep (oldest pruned first).
 	type BlockHashCount = BlockHashCount;
 	/// The maximum length of a block (in bytes).
 	type BlockLength = RuntimeBlockLength;
-	/// The index type for blocks.
-	type BlockNumber = BlockNumber;
 	/// Block & extrinsics weights: base values and limits.
 	type BlockWeights = RuntimeBlockWeights;
 	/// The weight of database operations that the runtime can invoke.
@@ -211,13 +211,11 @@ impl frame_system::Config for Runtime {
 	type Hash = Hash;
 	/// The hashing algorithm used.
 	type Hashing = BlakeTwo256;
-	/// The header type.
-	type Header = Header;
-	/// The index type for storing how many extrinsics an account has signed.
-	type Index = Index;
 	/// The lookup mechanism to get account ID from whatever is passed in dispatchers.
 	type Lookup = AccountIdLookup<AccountId, ()>;
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	/// The index type for storing how many extrinsics an account has signed.
+	type Nonce = Nonce;
 	/// What to do if an account is fully reaped from the system.
 	type OnKilledAccount = ();
 	/// What to do if a new account is created.
@@ -260,13 +258,13 @@ impl pallet_balances::Config for Runtime {
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type FreezeIdentifier = ();
-	type HoldIdentifier = BondTypeOf<Runtime>;
 	type MaxFreezes = MaxReserves;
 	type MaxHolds = MaxLocks;
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = BondTypeOf<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeHoldReason = BondTypeOf<Runtime>;
 	type WeightInfo = ();
 }
 
@@ -341,6 +339,7 @@ impl pallet_session::Config for Runtime {
 }
 
 impl pallet_aura::Config for Runtime {
+	type AllowMultipleBlocksPerSlot = frame_support::traits::ConstBool<false>;
 	type AuthorityId = AuraId;
 	type DisabledValidators = ();
 	type MaxAuthorities = MaxAuthorities;
@@ -685,13 +684,10 @@ impl orml_oracle::Config<PolimecDataProvider> for Runtime {
 // Create the runtime by composing the FRAME pallets that were previously configured.
 
 construct_runtime!(
-	pub enum Runtime where
-		Block = Block,
-		NodeBlock = opaque::Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Runtime
 	{
 		// System support stuff.
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>} = 0,
+		System: frame_system::{Pallet, Call, Config<T>, Storage, Event<T>} = 0,
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 2,
 		Sudo: pallet_sudo = 4,
 		Utility: pallet_utility::{Pallet, Call, Event} = 5,
@@ -709,7 +705,7 @@ construct_runtime!(
 		Authorship: pallet_authorship::{Pallet, Storage} = 20,
 		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 22,
 		Aura: pallet_aura::{Pallet, Storage, Config<T>} = 23,
-		AuraExt: cumulus_pallet_aura_ext::{Pallet, Storage, Config} = 24,
+		AuraExt: cumulus_pallet_aura_ext::{Pallet, Storage, Config<T>} = 24,
 		ParachainStaking: pallet_parachain_staking::{Pallet, Call, Storage, Event<T>, Config<T>} = 25,
 
 
@@ -734,11 +730,11 @@ construct_runtime!(
 
 		// Among others: Send and receive DMP and XCMP messages.
 		ParachainSystem: cumulus_pallet_parachain_system = 80,
-		ParachainInfo: parachain_info::{Pallet, Storage, Config} = 81,
+		ParachainInfo: parachain_info::{Pallet, Storage, Config<T>} = 81,
 		// Wrap and unwrap XCMP messages to send and receive them. Queue them for later processing.
 		XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Call, Storage, Event<T>} = 82,
 		// Build XCM scripts.
-		PolkadotXcm: pallet_xcm::{Pallet, Call, Event<T>, Origin, Config} = 83,
+		PolkadotXcm: pallet_xcm::{Pallet, Call, Event<T>, Origin, Config<T>} = 83,
 		// Does nothing cool, just provides an origin.
 		CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 84,
 		// Queue and pass DMP messages on to be executed.
@@ -846,8 +842,8 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index> for Runtime {
-		fn account_nonce(account: AccountId) -> Index {
+	impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Nonce> for Runtime {
+		fn account_nonce(account: AccountId) -> Nonce {
 			System::account_nonce(account)
 		}
 	}
