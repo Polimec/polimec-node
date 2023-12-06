@@ -28,6 +28,7 @@ use sp_runtime::{
 	traits::{Convert, Saturating, Zero},
 	FixedU128, RuntimeAppPublic,
 };
+use core::ops::Rem;
 use sp_std::{collections::btree_map::BTreeMap, vec, vec::Vec};
 
 mod mock;
@@ -40,6 +41,8 @@ pub mod types;
 pub mod crypto;
 
 const LOG_TARGET: &str = "ocw::oracle";
+// Change values in Fetcher urls when changing this value
+pub(crate) const NUMBER_OF_CANDLES: usize = 15;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -53,7 +56,7 @@ pub mod pallet {
 			storage_lock::{StorageLock, Time},
 			Duration,
 		},
-		traits::IdentifyAccount,
+		traits::{IdentifyAccount, Zero},
 	};
 
 	const LOCK_TIMEOUT_EXPIRATION: u64 = 30_000; // 30 seconds
@@ -74,15 +77,21 @@ pub mod pallet {
 	{
 		/// The overarching event type of the runtime.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
-		type AuthorityId: Member + Parameter + RuntimeAppPublic + Ord + MaybeSerializeDeserialize + MaxEncodedLen;
-
+		/// The cryptographic interface for the offchain worker to sign transactions.
 		type AppCrypto: AppCrypto<Self::Public, Self::Signature>;
-
+		/// List of members that are allowed to send transactions.
 		type Members: frame_support::traits::Contains<Self::AccountId>;
-
-		type GracePeriod: Get<BlockNumberFor<Self>>;
-
+		/// Interval between price fetches in block numbers. 
+		/// The interval is started at block `n % FetchInterval == 0`
+		type FetchInterval: Get<BlockNumberFor<Self>>;
+		/// Window size for fetching prices. Ocw will try to successfully fetch the prices once in this window.
+		/// The window is started at block `n % FetchWindow == 0`
+		/// If the fetch is not successful, the ocw will try again on the next block in the window.
+		/// If the ocw is not successful in the window, it will try again in the next window.
+		/// Example: FetchInterval = 10, FetchWindow = 5 => Ocw will try to fetch prices once
+		/// for the next windows: [0, 5), [10, 15), [20, 25), ...
+		type FetchWindow: Get<BlockNumberFor<Self>>;		
+		/// Convert AssetName and FixedU128 to OracleKey and OracleValue
 		type ConvertAssetPricePair: Convert<(AssetName, FixedU128), (Self::OracleKey, Self::OracleValue)>;
 	}
 
@@ -150,7 +159,9 @@ pub mod pallet {
 					let assets = last_send_for_assets
 						.iter()
 						.filter_map(|(asset_name, last_send)| {
-							if block_number >= last_send.saturating_add(T::GracePeriod::get()) {
+							let window = T::FetchWindow::get();
+							let remainder = block_number.rem(T::FetchInterval::get());
+							if  remainder >= BlockNumberFor::<T>::zero() && remainder < window && last_send < &block_number.saturating_sub(window) {
 								return Some(*asset_name)
 							}
 							None
@@ -198,35 +209,31 @@ pub mod pallet {
 				CoinbaseFetcher::get_moving_average,
 			];
 
-			let mut aggr_prices: BTreeMap<AssetName, Vec<FixedU128>> = BTreeMap::new();
+			let mut aggr_prices: BTreeMap<AssetName, Vec<(FixedU128, FixedU128)>> = BTreeMap::new();
 			for fetcher in fetchers.into_iter() {
 				let fetcher_prices = fetcher(assets.clone(), 5000);
-				for (asset_name, price) in fetcher_prices {
-					aggr_prices.entry(asset_name).and_modify(|e| e.push(price)).or_insert(vec![price]);
+				for (asset_name, volume_price_sum, tot_vol) in fetcher_prices {
+					aggr_prices.entry(asset_name).and_modify(|e| e.push((volume_price_sum, tot_vol))).or_insert(vec![(volume_price_sum, tot_vol)]);
 				}
 			}
 
 			Self::combine_prices(aggr_prices)
 		}
 
-		fn combine_prices(prices: BTreeMap<AssetName, Vec<FixedU128>>) -> BTreeMap<AssetName, FixedU128> {
+		fn combine_prices(prices: BTreeMap<AssetName, Vec<(FixedU128, FixedU128)>>) -> BTreeMap<AssetName, FixedU128> {
 			prices
 				.into_iter()
-				.filter_map(|(key, mut price_list)| {
+				.filter_map(|(key, price_list)| {
 					if price_list.is_empty() {
 						return None
 					}
-					price_list.sort();
-					let combined_prices = match price_list.len() {
-						1 => price_list[0],
-						2 => price_list[0].saturating_add(price_list[1]) / FixedU128::from_u32(2u32),
-						len => {
-							// Remove the highest and lowest price
-							price_list[1..len - 1].iter().fold(FixedU128::from_u32(0), |acc, x| acc.saturating_add(*x)) /
-								FixedU128::from_u32((len - 2) as u32)
-						},
-					};
-					Some((key, combined_prices))
+					let combined_prices = price_list.into_iter().fold((FixedU128::zero(), FixedU128::zero()), |acc, (price, volume)| {
+						(acc.0 + price, acc.1 + volume)
+					});
+					if combined_prices.1.is_zero() {
+						return None
+					}
+					Some((key, combined_prices.0.div(combined_prices.1)))
 				})
 				.collect::<BTreeMap<AssetName, FixedU128>>()
 		}
@@ -241,7 +248,7 @@ pub mod pallet {
 			let call = OracleCall::<T, ()>::feed_values { values: BoundedVec::<_, _>::truncate_from(prices) };
 			let result = signer.send_signed_transaction(|_account| call.clone());
 			match result {
-				Some((account, Ok(_))) => {
+				Some((_, Ok(_))) => {
 					log::trace!(target: LOG_TARGET, "offchain tx sent successfully");
 					return Ok(())
 				},
@@ -252,7 +259,4 @@ pub mod pallet {
 			}
 		}
 	}
-}
-impl<T: Config> sp_runtime::BoundToRuntimeAppPublic for Pallet<T> {
-	type Public = T::AuthorityId;
 }

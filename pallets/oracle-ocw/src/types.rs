@@ -40,40 +40,45 @@ pub(crate) struct AssetRequest {
 
 #[derive(Debug)]
 pub(crate) struct OpenCloseVolume {
-	pub open: FixedU128,
+	pub high: FixedU128,
+	pub low: FixedU128,
 	pub close: FixedU128,
 	pub volume: FixedU128,
 }
 
 impl OpenCloseVolume {
 	pub fn vwp(&self) -> FixedU128 {
-		let avg_price = self.open.saturating_add(self.close) / FixedU128::from_u32(2u32);
+		let avg_price = (self.high.saturating_add(self.low).saturating_add(self.close)) / FixedU128::from_u32(3u32);
 		self.volume.saturating_mul(avg_price)
 	}
 
-	pub fn from_u100f28(open: U100F28, close: U100F28, volume: U100F28) -> Self {
-		let open_as_fixedu128_inner: u128 = open.mul(U100F28::from_num(FixedU128::accuracy())).to_num::<u128>();
+	pub fn from_u100f28(high: U100F28, low: U100F28, close: U100F28, volume: U100F28) -> Self {
+		let high_as_fixedu128_inner: u128 = high.mul(U100F28::from_num(FixedU128::accuracy())).to_num::<u128>();
+		let low_as_fixedu128_inner: u128 = low.mul(U100F28::from_num(FixedU128::accuracy())).to_num::<u128>();
 		let close_as_fixedu128_inner: u128 = close.mul(U100F28::from_num(FixedU128::accuracy())).to_num::<u128>();
 		let volume_as_fixedu128_inner: u128 = volume.mul(U100F28::from_num(FixedU128::accuracy())).to_num::<u128>();
 		OpenCloseVolume {
-			open: FixedU128::from_inner(open_as_fixedu128_inner),
+			high: FixedU128::from_inner(high_as_fixedu128_inner),
+			low: FixedU128::from_inner(low_as_fixedu128_inner),
 			close: FixedU128::from_inner(close_as_fixedu128_inner),
 			volume: FixedU128::from_inner(volume_as_fixedu128_inner),
 		}
 	}
 
-	pub fn from_f64(open: f64, close: f64, volume: f64) -> Result<Self, ()> {
-		let open = open.checked_to_fixed::<U100F28>().ok_or(())?;
+	pub fn from_f64(high: f64, low: f64, close: f64, volume: f64) -> Result<Self, ()> {
+		let high = high.checked_to_fixed::<U100F28>().ok_or(())?;
+		let low = low.checked_to_fixed::<U100F28>().ok_or(())?;
 		let close = close.checked_to_fixed::<U100F28>().ok_or(())?;
 		let volume = volume.checked_to_fixed::<U100F28>().ok_or(())?;
-		Ok(Self::from_u100f28(open, close, volume))
+		Ok(Self::from_u100f28(high, low, close, volume))
 	}
 
-	pub fn from_str(open: &str, close: &str, volume: &str) -> Result<Self, <U100F28 as FromStr>::Err> {
-		let open = U100F28::from_str(open)?;
+	pub fn from_str(high: &str, low: &str,  close: &str, volume: &str) -> Result<Self, <U100F28 as FromStr>::Err> {
+		let high = U100F28::from_str(high)?;
+		let low = U100F28::from_str(low)?;
 		let close = U100F28::from_str(close)?;
 		let volume = U100F28::from_str(volume)?;
-		Ok(Self::from_u100f28(open, close, volume))
+		Ok(Self::from_u100f28(high, low, close, volume))
 	}
 }
 
@@ -84,7 +89,7 @@ where
 	let data = HVec::<(u64, &str, &str, &str, &str, &str, &str, u64), 720>::deserialize(deserializer)?;
 	let mut result = Vec::<OpenCloseVolume>::with_capacity(data.len());
 	for row in data.into_iter() {
-		let ocv = OpenCloseVolume::from_str(row.1, row.4, row.6)
+		let ocv = OpenCloseVolume::from_str(row.2, row.3, row.4, row.6)
 			.map_err(|_| serde::de::Error::custom("Error parsing float"))?;
 		result.push(ocv);
 	}
@@ -117,7 +122,7 @@ impl FetchPrice for KrakenFetcher {
 			return None
 		}
 		let response = maybe_response.ok()?;
-		Some(response.0.result.data.into_iter().rev().take(10).collect())
+		Some(response.0.result.data.into_iter().rev().take(NUMBER_OF_CANDLES).collect())
 	}
 
 	fn get_url(name: AssetName) -> &'static str {
@@ -133,7 +138,7 @@ impl FetchPrice for KrakenFetcher {
 pub(crate) struct BitFinexFetcher;
 impl FetchPrice for BitFinexFetcher {
 	fn parse_body(body: &str) -> Option<Vec<OpenCloseVolume>> {
-		let maybe_response = serde_json_core::from_str::<HVec<(u64, f64, f64, f64, f64, f64), 10>>(body);
+		let maybe_response = serde_json_core::from_str::<HVec<(u64, f64, f64, f64, f64, f64), NUMBER_OF_CANDLES>>(body);
 		if let Err(e) = maybe_response {
 			log::error!(target: LOG_TARGET, "Error parsing response for BitFinex: {:?}", e);
 			return None
@@ -141,18 +146,19 @@ impl FetchPrice for BitFinexFetcher {
 		let response = maybe_response.ok()?;
 
 		let data: Vec<OpenCloseVolume> =
-			response.0.into_iter().filter_map(|r| OpenCloseVolume::from_f64(r.1, r.2, r.5).ok()).collect();
-		if data.len() < 10 {
+			response.0.into_iter().filter_map(|r| OpenCloseVolume::from_f64(r.3, r.4, r.2, r.5).ok()).collect();
+		if data.len() < NUMBER_OF_CANDLES {
 			return None
 		}
 		Some(data)
 	}
 
 	fn get_url(name: AssetName) -> &'static str {
+		
 		match name {
-			AssetName::USDT => "https://api-pub.bitfinex.com/v2/candles/trade%3A1m%3AtUSTUSD/hist?limit=10",
-			AssetName::DOT => "https://api-pub.bitfinex.com/v2/candles/trade%3A1m%3AtDOTUSD/hist?limit=10",
-			AssetName::USDC => "https://api-pub.bitfinex.com/v2/candles/trade%3A1m%3AtUDCUSD/hist?limit=10",
+			AssetName::USDT => "https://api-pub.bitfinex.com/v2/candles/trade%3A1m%3AtUSTUSD/hist?limit=15",
+			AssetName::DOT => "https://api-pub.bitfinex.com/v2/candles/trade%3A1m%3AtDOTUSD/hist?limit=15",
+			AssetName::USDC => "https://api-pub.bitfinex.com/v2/candles/trade%3A1m%3AtUDCUSD/hist?limit=15",
 			_ => "",
 		}
 	}
@@ -162,19 +168,21 @@ fn deserialize_hloc_bitstamp<'de, D>(deserializer: D) -> Result<Vec<OpenCloseVol
 where
 	D: serde::Deserializer<'de>,
 {
-	let data = HVec::<LinearMap<&str, &str, 6>, 10>::deserialize(deserializer)?;
+	let data = HVec::<LinearMap<&str, &str, 6>, NUMBER_OF_CANDLES>::deserialize(deserializer)?;
 	let mut result = Vec::<OpenCloseVolume>::with_capacity(data.len());
-	let open_str = "open";
+	let high_str = "high";
+	let low_str = "low";
 	let close_str = "close";
 	let volume_str = "volume";
 	for row in data.into_iter() {
-		if !row.contains_key(&open_str) && !row.contains_key(&close_str) && !row.contains_key(&volume_str) {
+		if !row.contains_key(&high_str) && !row.contains_key(&close_str) && !row.contains_key(&volume_str) {
 			return Err(serde::de::Error::custom("Row does not contain required data"))
 		}
-		let open = *row.get(&open_str).ok_or(serde::de::Error::custom("Could not parse value to str"))?;
+		let high = *row.get(&high_str).ok_or(serde::de::Error::custom("Could not parse value to str"))?;
+		let low = *row.get(&low_str).ok_or(serde::de::Error::custom("Could not parse value to str"))?;
 		let close = *row.get(&close_str).ok_or(serde::de::Error::custom("Could not parse value to str"))?;
 		let volume = *row.get(&volume_str).ok_or(serde::de::Error::custom("Could not parse value to str"))?;
-		let ocv = OpenCloseVolume::from_str(open, close, volume)
+		let ocv = OpenCloseVolume::from_str(high, low, close, volume)
 			.map_err(|_| serde::de::Error::custom("Error parsing float"))?;
 		result.push(ocv);
 	}
@@ -204,7 +212,7 @@ impl FetchPrice for BitStampFetcher {
 			return None
 		}
 		let response = maybe_response.ok()?;
-		if response.0.data.ohlc.len() < 10 {
+		if response.0.data.ohlc.len() < NUMBER_OF_CANDLES {
 			return None
 		}
 
@@ -213,9 +221,9 @@ impl FetchPrice for BitStampFetcher {
 
 	fn get_url(name: AssetName) -> &'static str {
 		match name {
-			AssetName::USDT => "https://www.bitstamp.net/api/v2/ohlc/usdtusd/?step=60&limit=10",
-			AssetName::DOT => "https://www.bitstamp.net/api/v2/ohlc/dotusd/?step=60&limit=10",
-			AssetName::USDC => "https://www.bitstamp.net/api/v2/ohlc/usdcusd/?step=60&limit=10",
+			AssetName::USDT => "https://www.bitstamp.net/api/v2/ohlc/usdtusd/?step=60&limit=15",
+			AssetName::DOT => "https://www.bitstamp.net/api/v2/ohlc/dotusd/?step=60&limit=15",
+			AssetName::USDC => "https://www.bitstamp.net/api/v2/ohlc/usdcusd/?step=60&limit=15",
 			_ => "",
 		}
 	}
@@ -224,19 +232,16 @@ impl FetchPrice for BitStampFetcher {
 pub(crate) struct CoinbaseFetcher;
 impl FetchPrice for CoinbaseFetcher {
 	fn parse_body(body: &str) -> Option<Vec<OpenCloseVolume>> {
-		let maybe_response = serde_json_core::from_str::<HVec<(u64, f64, f64, f64, f64, f64), 10>>(body);
+		let maybe_response = serde_json_core::from_str::<HVec<(u64, f64, f64, f64, f64, f64), 1000>>(body);
 		if let Err(e) = maybe_response {
 			log::error!(target: LOG_TARGET, "Error parsing response for Coinbase: {:?}", e);
 			return None
 		}
 		let response = maybe_response.ok()?;
-		if response.0.len() < 10 {
-			return None
-		}
 
 		let data: Vec<OpenCloseVolume> =
-			response.0.into_iter().take(10).filter_map(|r| OpenCloseVolume::from_f64(r.3, r.4, r.5).ok()).collect();
-		if data.len() < 10 {
+			response.0.into_iter().take(NUMBER_OF_CANDLES).filter_map(|r| OpenCloseVolume::from_f64(r.2, r.1, r.4, r.5).ok()).collect();
+		if data.len() < NUMBER_OF_CANDLES {
 			return None
 		}
 		Some(data)

@@ -24,7 +24,7 @@ use sp_runtime::{
 };
 
 pub(crate) trait FetchPrice {
-	fn get_moving_average(assets: Vec<AssetName>, timeout: u64) -> Vec<(AssetName, FixedU128)> {
+	fn get_moving_average(assets: Vec<AssetName>, timeout: u64) -> Vec<(AssetName, FixedU128, FixedU128)> {
 		let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(timeout));
 		let asset_requests = assets
 			.into_iter()
@@ -74,9 +74,9 @@ pub(crate) trait FetchPrice {
 				if total_vol.is_zero() {
 					return None
 				}
-				Some((asset, w_price_sum.div(total_vol)))
+				Some((asset, w_price_sum, total_vol))
 			})
-			.collect::<Vec<(AssetName, FixedU128)>>()
+			.collect::<Vec<(AssetName, FixedU128, FixedU128)>>()
 	}
 
 	fn parse_body(body: &str) -> Option<Vec<OpenCloseVolume>>;

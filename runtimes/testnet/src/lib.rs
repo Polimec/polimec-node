@@ -54,7 +54,7 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-use pallet_oracle_ocw::{crypto::AuthorityId as OracleOcwId, types::AssetName};
+use pallet_oracle_ocw::types::AssetName;
 // XCM Imports
 use polimec_xcm_executor::XcmExecutor;
 pub use xcm_config::XcmConfig;
@@ -594,7 +594,7 @@ impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 
 parameter_types! {
 	pub const MinimumCount: u32 = 3;
-	pub const ExpiresIn: Moment = 1000 * 60 * 20; // 20 mins
+	pub const ExpiresIn: Moment = 1000 * 60; // 1 mins
 	pub const MaxHasDispatchedSize: u32 = 20;
 	pub RootOperatorAccountId: AccountId = AccountId::from([0xffu8; 32]);
 	pub const MaxFeedValues: u32 = 4; // max 4 values allowd to feed in one call (USDT, USDC, DOT, PLMC).
@@ -627,14 +627,15 @@ impl Convert<(AssetName, FixedU128), (AssetId, Price)> for AssetPriceConverter {
 }
 
 parameter_types! {
-	pub const GracePeriod: u32 = 50;
+	pub const FetchInterval: u32 = 50;
+	pub const FetchWindow: u32 = 5;
 }
 
 impl pallet_oracle_ocw::Config for Runtime {
 	type AppCrypto = pallet_oracle_ocw::crypto::PolimecCrypto;
-	type AuthorityId = OracleOcwId;
 	type ConvertAssetPricePair = AssetPriceConverter;
-	type GracePeriod = GracePeriod;
+	type FetchInterval = FetchInterval;
+	type FetchWindow = FetchWindow;
 	type Members = OracleProvidersMembership;
 	type RuntimeEvent = RuntimeEvent;
 }

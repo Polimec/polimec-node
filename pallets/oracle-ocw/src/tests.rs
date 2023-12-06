@@ -39,9 +39,9 @@ fn call_offchain_worker() {
 			RuntimeCall::Oracle(orml_oracle::Call::feed_values { values }) =>
 				for (asset, price) in values {
 					match asset {
-						0 => assert_close_enough(price, FixedU128::from_float(5.517044975280664194)),
-						1984 => assert_close_enough(price, FixedU128::from_float(1.000692308098215370)),
-						420 => assert_close_enough(price, FixedU128::from_float(1.000198559694455204)),
+						0 => assert_close_enough(price, FixedU128::from_float(6.138485575453039783)),
+						1984 => assert_close_enough(price, FixedU128::from_float(1.000154206100002620)),
+						420 => assert_close_enough(price, FixedU128::from_float(1.000093378020633965)),
 						_ => panic!("Unexpected asset"),
 					}
 				},
