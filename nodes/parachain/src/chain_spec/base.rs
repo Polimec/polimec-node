@@ -31,15 +31,15 @@ use base_runtime::{
 		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
 		InflationInfo, Range,
 	},
-	AccountId, AuraId as AuthorityId, Balance, BalancesConfig, GenesisConfig, MinCandidateStk, ParachainInfoConfig,
-	ParachainStakingConfig, PolkadotXcmConfig, SessionConfig, SudoConfig, SystemConfig, PLMC,
+	AccountId, AuraId as AuthorityId, Balance, BalancesConfig, MinCandidateStk, ParachainInfoConfig,
+	ParachainStakingConfig, PolkadotXcmConfig, RuntimeGenesisConfig, SessionConfig, SudoConfig, SystemConfig, PLMC,
 };
 
 /// The default XCM version to set in genesis config.
 const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
 
 /// Specialized `ChainSpec` for the shell parachain runtime.
-pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
+pub type ChainSpec = sc_service::GenericChainSpec<RuntimeGenesisConfig, Extensions>;
 
 const COLLATOR_COMMISSION: Perbill = Perbill::from_percent(30);
 const PARACHAIN_BOND_RESERVE_PERCENT: Percent = Percent::from_percent(0);
@@ -163,11 +163,11 @@ fn base_testnet_genesis(
 	endowed_accounts: Vec<(AccountId, Balance)>,
 	sudo_account: AccountId,
 	id: ParaId,
-) -> GenesisConfig {
-	GenesisConfig {
-		system: SystemConfig { code: wasm_binary.to_vec() },
+) -> RuntimeGenesisConfig {
+	RuntimeGenesisConfig {
+		system: SystemConfig { code: wasm_binary.to_vec(), ..Default::default() },
 		balances: BalancesConfig { balances: endowed_accounts.clone() },
-		parachain_info: ParachainInfoConfig { parachain_id: id },
+		parachain_info: ParachainInfoConfig { parachain_id: id, ..Default::default() },
 		parachain_staking: ParachainStakingConfig {
 			candidates: stakers
 				.iter()
@@ -195,7 +195,7 @@ fn base_testnet_genesis(
 				})
 				.collect::<Vec<_>>(),
 		},
-		polkadot_xcm: PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION) },
+		polkadot_xcm: PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION), ..Default::default() },
 		sudo: SudoConfig { key: Some(sudo_account) },
 		transaction_payment: Default::default(),
 	}
