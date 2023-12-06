@@ -72,6 +72,7 @@ itertools.workspace = true
 default = [ "std" ]
 
 std = [
+	"asset-hub-polkadot-runtime/std",
 	"cumulus-pallet-xcm/std",
 	"cumulus-pallet-xcmp-queue/std",
 	"cumulus-primitives-core/std",
@@ -109,13 +110,13 @@ std = [
 	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
-	"asset-hub-polkadot-runtime/std",
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
 ]
 
 runtime-benchmarks = [
+	"asset-hub-polkadot-runtime/runtime-benchmarks",
 	"cumulus-pallet-xcmp-queue/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
@@ -139,7 +140,6 @@ runtime-benchmarks = [
 	"polkadot-runtime/runtime-benchmarks",
 	"polkadot-service/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
-	"asset-hub-polkadot-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
 ]
