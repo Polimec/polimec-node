@@ -1428,7 +1428,6 @@ pub mod pallet {
 		pub fn build(&self) {
 			<Self as BuildGenesisConfig>::build(self)
 		}
-
 	}
 }
 

@@ -1221,7 +1221,7 @@ mod benchmarks {
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
-			default_multipliers::<T>()
+			default_multipliers::<T>(),
 		);
 
 		let project_id =
@@ -1274,7 +1274,7 @@ mod benchmarks {
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
-			default_multipliers::<T>()
+			default_multipliers::<T>(),
 		);
 
 		let project_id =
@@ -1346,7 +1346,7 @@ mod benchmarks {
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
-			default_multipliers::<T>()
+			default_multipliers::<T>(),
 		);
 
 		let project_id =
@@ -1417,7 +1417,7 @@ mod benchmarks {
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
-			default_multipliers::<T>()
+			default_multipliers::<T>(),
 		);
 		let contributor = contributions[0].contributor.clone();
 		whitelist_account!(contributor);
@@ -1496,7 +1496,7 @@ mod benchmarks {
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
-			default_multipliers::<T>()
+			default_multipliers::<T>(),
 		);
 		let contributor = contributions[0].contributor.clone();
 		whitelist_account!(contributor);

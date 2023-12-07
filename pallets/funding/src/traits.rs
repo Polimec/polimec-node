@@ -1,7 +1,6 @@
 use crate::{BalanceOf, Config};
 use frame_support::weights::Weight;
 use frame_system::pallet_prelude::BlockNumberFor;
-use polimec_traits::migration_types::Migration;
 use sp_arithmetic::FixedPointNumber;
 use sp_runtime::DispatchError;
 
