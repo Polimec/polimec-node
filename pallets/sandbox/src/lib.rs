@@ -51,7 +51,7 @@ pub mod pallet {
 					});
 
 			ensure!(
-				project_contributions >= 5_000_000_000_000_000_u64.into(),
+				project_contributions >= 500_000_0_000_000_000u64.into(),
 				"Project did not achieve at least 500k USDT funding"
 			);
 
