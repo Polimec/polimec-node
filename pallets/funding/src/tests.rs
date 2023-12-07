@@ -1571,15 +1571,9 @@ mod auction_round_success {
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
-		let bids = MockInstantiator::generate_bids_from_total_usd(
-			project.total_allocation_size.0,
-			project.minimum_price,
-			default_weights(),
-			default_bidders(),
-			default_multipliers(),
-		);
-		let community_contributions = vec![];
-		let remainder_contributions = vec![];
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = default_remainder_buys();
 
 		let project_id = inst.create_finished_project(
 			project,
@@ -1589,6 +1583,7 @@ mod auction_round_success {
 			community_contributions,
 			remainder_contributions,
 		);
+
 		let final_bid_payouts = inst.execute(|| {
 			Bids::<TestRuntime>::iter_prefix_values((project_id,))
 				.map(|bid| {
@@ -1596,6 +1591,17 @@ mod auction_round_success {
 						bid.bidder,
 						bid.funding_asset_amount_locked,
 						bid.funding_asset.to_statemint_id(),
+					)
+				})
+				.collect::<Vec<UserToStatemintAsset<_>>>()
+		});
+		let final_contribution_payouts = inst.execute(|| {
+			Contributions::<TestRuntime>::iter_prefix_values((project_id,))
+				.map(|contribution| {
+					UserToStatemintAsset::<TestRuntime>::new(
+						contribution.contributor,
+						contribution.funding_asset_amount,
+						contribution.funding_asset.to_statemint_id(),
 					)
 				})
 				.collect::<Vec<UserToStatemintAsset<_>>>()
