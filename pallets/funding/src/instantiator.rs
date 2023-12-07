@@ -762,7 +762,7 @@ impl<
 				let ticket_size = Percent::from_percent(weight) * usd_amount;
 				let token_amount = final_price.reciprocal().unwrap().saturating_mul_int(ticket_size);
 
-				ContributionParams::new(bidder, token_amount, 1u8, AcceptedFundingAsset::USDT)
+				ContributionParams::new(bidder, token_amount, multiplier, AcceptedFundingAsset::USDT)
 			})
 			.collect()
 	}

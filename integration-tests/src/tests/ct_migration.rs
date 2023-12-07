@@ -278,7 +278,7 @@ fn migration_check() {
 fn migration_is_sent() {
 	let mut inst = IntegrationInstantiator::new(None);
 	set_oracle_prices();
-	let mut participants =
+	let participants =
 		vec![EVAL_1, EVAL_2, EVAL_3, BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BUYER_1, BUYER_2, BUYER_3, BUYER_4]
 			.into_iter()
 			.map(|x| AccountId::from(x))
@@ -324,7 +324,7 @@ fn migration_is_sent() {
 fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 	let mut inst = IntegrationInstantiator::new(None);
 	set_oracle_prices();
-	let mut participants =
+	let participants =
 		vec![EVAL_1, EVAL_2, EVAL_3, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5, BUYER_2, BUYER_3, BUYER_4, BUYER_5]
 			.into_iter()
 			.map(|x| AccountId::from(x))
@@ -375,7 +375,7 @@ fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 fn vesting_over_several_blocks_on_project() {
 	let mut inst = IntegrationInstantiator::new(None);
 	set_oracle_prices();
-	let mut participants = vec![EVAL_1, EVAL_2, EVAL_3, BIDDER_1, BIDDER_2, BUYER_1, BUYER_2, BUYER_3]
+	let participants = vec![EVAL_1, EVAL_2, EVAL_3, BIDDER_1, BIDDER_2, BUYER_1, BUYER_2, BUYER_3]
 		.into_iter()
 		.map(|x| AccountId::from(x))
 		.collect::<Vec<_>>();
@@ -476,7 +476,7 @@ fn disallow_duplicated_migrations_on_receiver_pallet() {
 		panic!("should be rewarded")
 	}
 
-	let mut participants = vec![
+	let participants = vec![
 		EVAL_1, EVAL_2, EVAL_3, EVAL_4, BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5, BIDDER_6, BUYER_1, BUYER_2,
 		BUYER_3, BUYER_4, BUYER_5, BUYER_6,
 	]
@@ -505,10 +505,6 @@ fn disallow_duplicated_migrations_on_receiver_pallet() {
 	// just any number that lets us execute our xcm's
 	for migrations in grouped_migrations.clone() {
 		for (_, xcm) in PolimecFundingPallet::construct_migration_xcm_messages(migrations) {
-			let call: <PolimecRuntime as pallet_funding::Config>::RuntimeCall =
-				pallet_funding::Call::confirm_migrations { query_id: Default::default(), response: Default::default() }
-					.into();
-
 			let max_weight = Weight::from_parts(700_000_000, 10_000);
 			let mut instructions = xcm.into_inner();
 			instructions.push(ReportTransactStatus(QueryResponseInfo {

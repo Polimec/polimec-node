@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use crate::PolimecOrigin;
 use macros::generate_accounts;
 use polimec_parachain_runtime::AccountId;
-use sp_runtime::{traits::ConstU32, FixedPointNumber, Perquintill};
+use sp_runtime::{traits::ConstU32, Perquintill};
 use xcm_emulator::TestExt;
 
 pub const METADATA: &str = r#"METADATA

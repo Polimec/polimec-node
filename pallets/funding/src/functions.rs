@@ -43,7 +43,7 @@ use crate::ProjectStatus::FundingSuccessful;
 use polimec_traits::ReleaseSchedule;
 
 use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
-use polimec_traits::migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
+use polimec_traits::migration_types::{MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
 
 use super::*;
 const POLIMEC_PARA_ID: u32 = 3344u32;
@@ -2136,10 +2136,7 @@ impl<T: Config> Pallet<T> {
 		let contribution_migrations =
 			user_contributions.filter_map(|contribution| MigrationGenerator::<T>::contribution_migration(contribution));
 
-		let migrations = evaluation_migrations
-			.chain(bid_migrations)
-			.chain(contribution_migrations)
-			.collect_vec();
+		let migrations = evaluation_migrations.chain(bid_migrations).chain(contribution_migrations).collect_vec();
 		let migrations = Migrations::from(migrations);
 
 		let constructed_migrations = Self::construct_migration_xcm_messages(migrations);

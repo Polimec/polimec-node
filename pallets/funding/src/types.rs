@@ -26,8 +26,8 @@ use polkadot_parachain::primitives::Id as ParaId;
 use serde::{Deserialize, Serialize};
 use sp_arithmetic::{FixedPointNumber, FixedPointOperand};
 use sp_runtime::traits::{CheckedDiv, Convert, Zero};
-use sp_std::{cmp::Eq, collections::btree_map::*, ops::Not, prelude::*};
 use polimec_traits::migration_types::{Migration, MigrationInfo, MigrationOrigin, ParticipationType};
+use sp_std::{cmp::Eq, collections::btree_map::*, prelude::*};
 
 pub use config_types::*;
 pub use inner_types::*;
@@ -35,7 +35,7 @@ pub use storage_types::*;
 
 use crate::{
 	traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation},
-	BalanceOf, BidInfoOf, Config, ContributionInfoOf, Error, EvaluationInfoOf, MultiplierOf,
+	BalanceOf, BidInfoOf, Config, ContributionInfoOf, EvaluationInfoOf, MultiplierOf,
 };
 
 pub mod config_types {
@@ -396,7 +396,6 @@ pub mod storage_types {
 
 pub mod inner_types {
 	use super::*;
-	use polimec_traits::migration_types::{MigrationOrigin, Migrations};
 	use xcm::v3::MaxDispatchErrorLen;
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
