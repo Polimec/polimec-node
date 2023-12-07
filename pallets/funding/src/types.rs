@@ -31,6 +31,7 @@ use sp_std::{cmp::Eq, collections::btree_map::*, prelude::*};
 
 pub use config_types::*;
 pub use inner_types::*;
+use polimec_traits::migration_types::{Migration, MigrationInfo, MigrationOrigin, ParticipationType};
 pub use storage_types::*;
 
 use crate::{

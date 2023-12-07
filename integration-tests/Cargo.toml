@@ -113,6 +113,7 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
+	"itertools/use_std"
 ]
 
 runtime-benchmarks = [
@@ -142,6 +143,8 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
+	"pallet-xcm/runtime-benchmarks",
+	"itertools/use_alloc",
 ]
 testing-node = [
 	"pallet-funding/testing-node",
