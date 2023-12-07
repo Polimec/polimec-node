@@ -35,7 +35,7 @@ pub mod pallet {
 			asset_id: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
 			let retail_user = ensure_signed(origin)?;
-			let project_id: <T as funding::Config>::ProjectIdentifier = project_id.into();
+			let project_id: <T as funding::Config>::ProjectIdentifier = project_id;
 			// Check project is in the community round
 			let project_info = funding::Pallet::<T>::project_details(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 			ensure!(

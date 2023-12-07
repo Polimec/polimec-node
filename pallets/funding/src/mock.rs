@@ -115,7 +115,7 @@ parameter_types! {
 parameter_types! {
 	pub UniversalLocation: InteriorMultiLocation = (
 		GlobalConsensus(Polkadot),
-		 Parachain(3344u32.into()),
+		 Parachain(3344u32),
 	).into();
 	pub const RelayNetwork: Option<NetworkId> = None;
 	pub UnitWeightCost: Weight = Weight::from_parts(1_000_000_000, 64 * 1024);
