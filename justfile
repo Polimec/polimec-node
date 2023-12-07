@@ -30,6 +30,10 @@ build-parachain-srtool:
 test-runtime-features:
 	cargo test --features runtime-benchmarks -p polimec-parachain-runtime
 
+# Run the integration tests
+test-integration:
+	cargo test -p integration-tests --features std,testing-node,fast-gov
+
 # Benchmark the "Testnet" Runtime
 benchmark-runtime-funding:
 	cargo run --features runtime-benchmarks --release -p polimec-parachain-node benchmark pallet \
