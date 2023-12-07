@@ -2152,12 +2152,8 @@ impl<T: Config> Pallet<T> {
 
 			let call: <T as Config>::RuntimeCall =
 				Call::confirm_migrations { query_id: Default::default(), response: Default::default() }.into();
-			let transact_response_query_id = pallet_xcm::Pallet::<T>::new_notify_query(
-				project_multilocation.clone(),
-				call.into(),
-				now + 20u32.into(),
-				Here,
-			);
+			let transact_response_query_id =
+				pallet_xcm::Pallet::<T>::new_notify_query(project_multilocation, call.into(), now + 20u32.into(), Here);
 			// TODO: check these values
 			let max_weight = Weight::from_parts(700_000_000, 10_000);
 
@@ -2757,9 +2753,8 @@ impl<T: Config> Pallet<T> {
 
 		let available_bytes_for_migration_per_message =
 			T::RequiredMaxMessageSize::get().saturating_sub(xcm_size as u32);
-		let output = available_bytes_for_migration_per_message.saturating_div(one_migration_bytes);
 
-		output
+		available_bytes_for_migration_per_message.saturating_div(one_migration_bytes)
 	}
 
 	pub fn construct_migration_xcm_messages(migrations: Migrations) -> Vec<(Migrations, Xcm<()>)> {

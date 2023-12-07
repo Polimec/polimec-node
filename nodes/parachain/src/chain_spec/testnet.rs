@@ -228,10 +228,7 @@ fn testnet_genesis(
 		},
 		parachain_info: ParachainInfoConfig { parachain_id: id, ..Default::default() },
 		parachain_staking: ParachainStakingConfig {
-			candidates: stakers
-				.iter()
-				.map(|(accunt, _, balance)| (accunt.clone(), balance.clone()))
-				.collect::<Vec<_>>(),
+			candidates: stakers.iter().map(|(accunt, _, balance)| (accunt.clone(), *balance)).collect::<Vec<_>>(),
 			inflation_config,
 			delegations: vec![],
 			collator_commission: COLLATOR_COMMISSION,
@@ -260,7 +257,7 @@ fn testnet_genesis(
 		treasury: Default::default(),
 		sudo: SudoConfig { key: Some(sudo_account) },
 		council: CouncilConfig { members: accounts.clone(), phantom: Default::default() },
-		technical_committee: TechnicalCommitteeConfig { members: accounts.clone(), phantom: Default::default() },
+		technical_committee: TechnicalCommitteeConfig { members: accounts, phantom: Default::default() },
 		democracy: Default::default(),
 		linear_vesting: LinearVestingConfig { vesting: vec![] },
 		oracle_providers_membership: OracleProvidersMembershipConfig {

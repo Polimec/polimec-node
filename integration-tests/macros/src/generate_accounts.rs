@@ -37,7 +37,7 @@ pub fn generate_accounts_impl(input: TokenStream) -> TokenStream {
 		let ident = format_ident!("{}", name);
 
 		// Convert the array into a tuple for the quote macro
-		let value_iter = value.clone().into_iter();
+		let value_iter = value.into_iter();
 
 		output.extend(quote! {
 			pub const #input: [u8; 32] = [#(#value_iter), *];

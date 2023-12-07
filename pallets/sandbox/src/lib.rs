@@ -35,7 +35,7 @@ pub mod pallet {
 			asset_id: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
 			let retail_user = ensure_signed(origin)?;
-			let project_id: <T as funding::Config>::ProjectIdentifier = project_id.into();
+			let project_id: <T as funding::Config>::ProjectIdentifier = project_id;
 			// Check project is in the community round
 			let project_info = funding::Pallet::<T>::project_details(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 			ensure!(
@@ -51,7 +51,7 @@ pub mod pallet {
 					});
 
 			ensure!(
-				project_contributions >= 500_000_0_000_000_000u64.into(),
+				project_contributions >= 5_000_000_000_000_000_u64.into(),
 				"Project did not achieve at least 500k USDT funding"
 			);
 

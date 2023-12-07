@@ -569,7 +569,7 @@ impl pallet_vesting::Config for Runtime {
 pub struct DivideBalanceByBlocks;
 impl Convert<MigrationInfo, Balance> for DivideBalanceByBlocks {
 	fn convert(migration_info: MigrationInfo) -> Balance {
-		let total_amount: Balance = migration_info.contribution_token_amount.into();
+		let total_amount: Balance = migration_info.contribution_token_amount;
 		// normally BlockNumber is u64 so we can use the safe .into()
 		let vesting_time_in_blocks: BlockNumber = migration_info.vesting_time.try_into().unwrap();
 		if vesting_time_in_blocks == 0u32 {
