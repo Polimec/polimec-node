@@ -67,11 +67,18 @@ pub use crate::xcm_config::*;
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 // Polimec Shared Imports
-#[cfg(feature = "runtime-benchmarks")]
-use pallet_funding::traits::SetPrices;
 use pallet_funding::{BondTypeOf, DaysToBlocks};
 pub use pallet_parachain_staking;
 pub use shared_configuration::*;
+
+#[cfg(feature = "runtime-benchmarks")]
+use pallet_funding::AcceptedFundingAsset;
+
+#[cfg(feature = "runtime-benchmarks")]
+use frame_support::BoundedVec;
+
+#[cfg(feature = "runtime-benchmarks")]
+use pallet_funding::traits::SetPrices;
 
 pub type NegativeImbalanceOf<T> =
 	<pallet_balances::Pallet<T> as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
