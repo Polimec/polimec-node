@@ -1,6 +1,5 @@
 use crate::{BalanceOf, Config};
 use frame_support::weights::Weight;
-use polimec_traits::migration_types::Migration;
 use sp_arithmetic::FixedPointNumber;
 use sp_runtime::DispatchError;
 

@@ -337,7 +337,7 @@ impl sp_runtime::traits::Convert<AccountId, [u8; 32]> for DummyConverter {
 }
 impl ConvertBack<AccountId, [u8; 32]> for DummyConverter {
 	fn convert_back(bytes: [u8; 32]) -> AccountId {
-		let mut account: [u8; 8] = bytes[0..7].try_into().unwrap();
+		let account: [u8; 8] = bytes[0..7].try_into().unwrap();
 		u64::from_le_bytes(account)
 	}
 }
