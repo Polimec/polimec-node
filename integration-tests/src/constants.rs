@@ -321,7 +321,7 @@ pub mod penpal {
 	pub fn genesis() -> Storage {
 		let mut funded_accounts = vec![
 			(Penpal::sovereign_account_id_of((Parent, Parachain(statemint::PARA_ID)).into()), INITIAL_DEPOSIT),
-			(Penpal::sovereign_account_id_of((Parent, Parachain(polimec::PARA_ID)).into()), 2_000_000_0_000_000_000), // i.e the CTs sold on polimec
+			(Penpal::sovereign_account_id_of((Parent, Parachain(polimec::PARA_ID)).into()), 2_000_000_0_000_000_000), /* i.e the CTs sold on polimec */
 		];
 		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
 

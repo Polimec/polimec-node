@@ -7,6 +7,8 @@ imports_granularity = "Crate"
 reorder_imports = true
 # Consistency
 newline_style = "Unix"
+normalize_comments = true
+format_code_in_doc_comments = true
 # Misc
 spaces_around_ranges = false
 binop_separator = "Back"

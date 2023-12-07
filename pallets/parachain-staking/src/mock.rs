@@ -364,11 +364,7 @@ macro_rules! assert_no_events {
 /// # Example
 ///
 /// ```
-/// assert_events_eq!(
-///		Foo { x: 1, y: 2 },
-///		Bar { value: "test" },
-///		Baz { a: 10, b: 20 },
-/// );
+/// assert_events_eq!(Foo { x: 1, y: 2 }, Bar { value: "test" }, Baz { a: 10, b: 20 },);
 /// ```
 #[macro_export]
 macro_rules! assert_events_eq {
@@ -385,10 +381,7 @@ macro_rules! assert_events_eq {
 /// # Example
 ///
 /// ```
-/// assert_events_emitted!(
-///		Foo { x: 1, y: 2 },
-///		Baz { a: 10, b: 20 },
-/// );
+/// assert_events_emitted!(Foo { x: 1, y: 2 }, Baz { a: 10, b: 20 },);
 /// ```
 #[macro_export]
 macro_rules! assert_events_emitted {
@@ -415,10 +408,7 @@ macro_rules! assert_events_emitted {
 /// # Example
 ///
 /// ```
-/// assert_events_not_emitted!(
-///		Foo { x: 1, y: 2 },
-///		Bar { value: "test" },
-/// );
+/// assert_events_not_emitted!(Foo { x: 1, y: 2 }, Bar { value: "test" },);
 /// ```
 #[macro_export]
 macro_rules! assert_events_not_emitted {
@@ -445,11 +435,7 @@ macro_rules! assert_events_not_emitted {
 /// # Example
 ///
 /// ```
-/// assert_events_eq_match!(
-///		Foo { x: 1, .. },
-///		Bar { .. },
-///		Baz { a: 10, b: 20 },
-/// );
+/// assert_events_eq_match!(Foo { x: 1, .. }, Bar { .. }, Baz { a: 10, b: 20 },);
 /// ```
 #[macro_export]
 macro_rules! assert_events_eq_match {
@@ -488,10 +474,7 @@ macro_rules! assert_events_eq_match {
 /// # Example
 ///
 /// ```
-/// assert_events_emitted_match!(
-///		Foo { x: 1, .. },
-///		Baz { a: 10, b: 20 },
-/// );
+/// assert_events_emitted_match!(Foo { x: 1, .. }, Baz { a: 10, b: 20 },);
 /// ```
 #[macro_export]
 macro_rules! assert_events_emitted_match {
@@ -516,10 +499,7 @@ macro_rules! assert_events_emitted_match {
 /// # Example
 ///
 /// ```
-/// assert_events_not_emitted_match!(
-///		Foo { x: 1, .. },
-///		Baz { a: 10, b: 20 },
-/// );
+/// assert_events_not_emitted_match!(Foo { x: 1, .. }, Baz { a: 10, b: 20 },);
 /// ```
 #[macro_export]
 macro_rules! assert_events_not_emitted_match {

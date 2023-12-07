@@ -563,7 +563,7 @@ impl<T: Config> Pallet<T> {
 	///
 	/// # Next step
 	/// If **successful**, bidders can claim:
-	///	* Contribution tokens with [`vested_contribution_token_bid_mint_for`](Self::vested_contribution_token_bid_mint_for)
+	/// 	* Contribution tokens with [`vested_contribution_token_bid_mint_for`](Self::vested_contribution_token_bid_mint_for)
 	/// * Bonded plmc with [`vested_plmc_bid_unbond_for`](Self::vested_plmc_bid_unbond_for)
 	///
 	/// And contributors can claim:

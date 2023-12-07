@@ -438,7 +438,6 @@ impl<
 	/// * `bids` - The bids to calculate the bonded PLMC amount for.
 	/// * `weighted_price` - Used to calculate the new PLMC bond after the weighted price has
 	///   been calculated (if the weighted price is lower than the bid price).
-	///
 	pub fn calculate_auction_plmc_spent(
 		bids: &Vec<BidParams<T>>,
 		weighted_price: Option<PriceOf<T>>,

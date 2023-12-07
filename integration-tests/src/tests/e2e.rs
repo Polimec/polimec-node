@@ -110,7 +110,7 @@ fn excel_contributions() -> Vec<ContributionParams<PolimecRuntime>> {
 		ContributionParams::from(LUCA.into(), 640 * US_DOLLAR),
 		// TODO: XI is a partipant in the Community Round AND an Evaluator. At the moment, this returns `InsufficientBalance` because it seems we don't mint to him enough USDT.
 		// To be addressed and tested in a separate PR.
-		//ContributionParams::from(XI, 588 * US_DOLLAR),
+		// ContributionParams::from(XI, 588 * US_DOLLAR),
 		ContributionParams::from(FLAVIO.into(), 792 * US_DOLLAR),
 		ContributionParams::from(FREDI.into(), 993 * US_DOLLAR),
 		ContributionParams::from(ALI.into(), 794 * US_DOLLAR),
@@ -263,7 +263,7 @@ fn auction_round_completed() {
 	set_oracle_prices();
 
 	Polimec::execute_with(|| {
-		//let filtered_bids = MockInstantiator::filter_bids_after_auction(bids.clone(), project.total_allocation_size.0);
+		// let filtered_bids = MockInstantiator::filter_bids_after_auction(bids.clone(), project.total_allocation_size.0);
 		let (project_id, _) = inst.create_community_contributing_project(project, issuer, evaluations, bids);
 		let wavgp_from_excel = 10.202357561;
 		// Convert the float to a FixedU128

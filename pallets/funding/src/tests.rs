@@ -2305,9 +2305,9 @@ mod community_round_success {
 		});
 
 		let total_contributed = MockInstantiator::calculate_contributed_funding_asset_spent(contributions, token_price)
-				.iter()
-				.map(|item| item.asset_amount)
-				.sum::<BalanceOf<TestRuntime>>();
+			.iter()
+			.map(|item| item.asset_amount)
+			.sum::<BalanceOf<TestRuntime>>();
 
 		assert_eq!(bob_total_contributions, total_contributed);
 	}
