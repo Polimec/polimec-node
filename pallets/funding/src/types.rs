@@ -747,7 +747,7 @@ pub struct MigrationGenerator<T: Config>(PhantomData<T>);
 
 impl<T: Config> MigrationGenerator<T> {
 	pub fn evaluation_migration(evaluation: EvaluationInfoOf<T>) -> Option<Migration> {
-		if matches!(evaluation.ct_migration_status, MigrationStatus::Confirmed | MigrationStatus::Sent(_)).not() {
+		if matches!(evaluation.ct_migration_status, MigrationStatus::Confirmed | MigrationStatus::Sent(_)) {
 			return None
 		}
 		if let Some(RewardOrSlash::Reward(ct_amount)) = evaluation.rewarded_or_slashed {
@@ -768,7 +768,7 @@ impl<T: Config> MigrationGenerator<T> {
 
 	pub fn bid_migration(bid: BidInfoOf<T>) -> Option<Migration> {
 		if bid.final_ct_amount == Zero::zero() ||
-			matches!(bid.ct_migration_status, MigrationStatus::Confirmed | MigrationStatus::Sent(_)).not()
+			matches!(bid.ct_migration_status, MigrationStatus::Confirmed | MigrationStatus::Sent(_))
 		{
 			return None
 		}
@@ -784,7 +784,7 @@ impl<T: Config> MigrationGenerator<T> {
 	}
 
 	pub fn contribution_migration(contribution: ContributionInfoOf<T>) -> Option<Migration> {
-		if matches!(contribution.ct_migration_status, MigrationStatus::Confirmed | MigrationStatus::Sent(_)).not() {
+		if matches!(contribution.ct_migration_status, MigrationStatus::Confirmed | MigrationStatus::Sent(_)) {
 			return None
 		}
 		let vesting_duration = contribution.multiplier.calculate_vesting_duration::<T>();
