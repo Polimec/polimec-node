@@ -115,11 +115,11 @@ pub fn get_chain_spec_testing() -> Result<ChainSpec, String> {
 }
 
 pub fn get_chain_spec_dev() -> Result<ChainSpec, String> {
-	let properties = get_properties("PLMC", 10, 41);
+	let properties = get_properties("RLMC", 10, 41);
 	let wasm = polimec_parachain_runtime::WASM_BINARY.ok_or("No WASM")?;
 
 	Ok(ChainSpec::from_genesis(
-		"Polimec Develop",
+		"Rolimec Develop",
 		"polimec",
 		ChainType::Local,
 		move || {

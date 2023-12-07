@@ -91,6 +91,7 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 		// Base runtime
 		"base-rococo-local" => Box::new(chain_spec::base::get_local_base_chain_spec()?),
 		"base-polkadot" => Box::new(chain_spec::base::get_polkadot_base_chain_spec()?),
+		"base-rococo" => Box::new(chain_spec::base::get_rococo_base_chain_spec()?),
 		// Testnet runtime
 		#[cfg(all(feature = "testing-node", feature = "std"))]
 		"polimec-testing" => Box::new(chain_spec::testnet::get_chain_spec_testing()?),
