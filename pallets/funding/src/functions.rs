@@ -2118,16 +2118,9 @@ impl<T: Config> Pallet<T> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let migration_readiness_check = project_details.migration_readiness_check.ok_or(Error::<T>::NotAllowed)?;
-		let evaluations =
-			Evaluations::<T>::iter_prefix_values((project_id, participant.clone())).filter(|evaluation| {
-				matches!(evaluation.ct_migration_status, MigrationStatus::NotStarted | MigrationStatus::Failed(_))
-			});
-		let bids = Bids::<T>::iter_prefix_values((project_id, participant.clone()))
-			.filter(|bid| matches!(bid.ct_migration_status, MigrationStatus::NotStarted | MigrationStatus::Failed(_)));
-		let contributions =
-			Contributions::<T>::iter_prefix_values((project_id, participant.clone())).filter(|contribution| {
-				matches!(contribution.ct_migration_status, MigrationStatus::NotStarted | MigrationStatus::Failed(_))
-			});
+		let user_evaluations = Evaluations::<T>::iter_prefix_values((project_id, participant.clone()));
+		let user_bids = Bids::<T>::iter_prefix_values((project_id, participant.clone()));
+		let user_contributions = Contributions::<T>::iter_prefix_values((project_id, participant.clone()));
 		let project_para_id = project_details.parachain_id.ok_or(Error::<T>::ImpossibleState)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 
@@ -2136,44 +2129,17 @@ impl<T: Config> Pallet<T> {
 
 		// * Process Data *
 		// u128 is a balance, u64 is now a BlockNumber, but will be a Moment/Timestamp in the future
-		let mut migrations: Migrations = Migrations::new();
-		for evaluation in evaluations {
-			if let Some(RewardOrSlash::Reward(ct_amount)) = evaluation.rewarded_or_slashed {
-				let multiplier = MultiplierOf::<T>::try_from(1u8).map_err(|_| Error::<T>::BadConversion)?;
-				let vesting_duration = multiplier.calculate_vesting_duration::<T>();
-				let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);
-				let migration_origin = MigrationOrigin {
-					user: <T as Config>::AccountId32Conversion::convert(evaluation.evaluator),
-					id: evaluation.id,
-					participation_type: ParticipationType::Evaluation,
-				};
-				let migration_info: MigrationInfo = (ct_amount.into(), vesting_duration_local_type.into()).into();
-				migrations.push(Migration::new(migration_origin, migration_info));
-			}
-		}
-		for contribution in contributions {
-			let vesting_duration = contribution.multiplier.calculate_vesting_duration::<T>();
-			let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);
-			let migration_origin = MigrationOrigin {
-				user: <T as Config>::AccountId32Conversion::convert(contribution.contributor),
-				id: contribution.id,
-				participation_type: ParticipationType::Contribution,
-			};
-			let migration_info: MigrationInfo =
-				(contribution.ct_amount.into(), vesting_duration_local_type.into()).into();
-			migrations.push(Migration::new(migration_origin, migration_info));
-		}
-		for bid in bids {
-			let vesting_duration = bid.multiplier.calculate_vesting_duration::<T>();
-			let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);
-			let migration_origin = MigrationOrigin {
-				user: <T as Config>::AccountId32Conversion::convert(bid.bidder),
-				id: bid.id,
-				participation_type: ParticipationType::Bid,
-			};
-			let migration_info: MigrationInfo = (bid.final_ct_amount.into(), vesting_duration_local_type.into()).into();
-			migrations.push(Migration::new(migration_origin, migration_info));
-		}
+		let evaluation_migrations =
+			user_evaluations.filter_map(|evaluation| MigrationGenerator::<T>::evaluation_migration(evaluation));
+		let bid_migrations = user_bids.filter_map(|bid| MigrationGenerator::<T>::bid_migration(bid));
+		let contribution_migrations =
+			user_contributions.filter_map(|contribution| MigrationGenerator::<T>::contribution_migration(contribution));
+
+		let migrations = evaluation_migrations
+			.chain(bid_migrations)
+			.chain(contribution_migrations)
+			.collect_vec();
+		let migrations = Migrations::from(migrations);
 
 		let constructed_migrations = Self::construct_migration_xcm_messages(migrations);
 		for (migrations, xcm) in constructed_migrations {
