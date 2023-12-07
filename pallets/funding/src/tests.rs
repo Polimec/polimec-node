@@ -3202,7 +3202,7 @@ mod community_round_success {
 		let evaluations = default_evaluations();
 		let bids = vec![
 			BidParams::new(BIDDER_1, 49_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_2, ASSET_UNIT, 1.into(), 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_2, ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
 		];
 		let community_contributions = default_community_buys();
 		let remainder_contributions = vec![];
@@ -3487,9 +3487,9 @@ mod community_round_failure {
 		);
 
 		let community_contributions = vec![
-			ContributionParams::new(BUYER_1, 1_000 * ASSET_UNIT, 2u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_2, 500 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_3, 73 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_1, 1_000 * ASSET_UNIT, 2u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_2, 500 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_3, 73 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 		let remainder_contributions = vec![];
 
@@ -3589,9 +3589,9 @@ mod community_round_failure {
 		);
 
 		let community_contributions = vec![
-			ContributionParams::new(BUYER_1, 1_000 * ASSET_UNIT, 2u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_2, 500 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_3, 73 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_1, 1_000 * ASSET_UNIT, 2u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_2, 500 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_3, 73 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 		let remainder_contributions = vec![];
 
@@ -3722,9 +3722,9 @@ mod community_round_failure {
 		);
 
 		let community_contributions = vec![
-			ContributionParams::new(BUYER_1, 1_000 * ASSET_UNIT, 2u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_2, 500 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_3, 73 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_1, 1_000 * ASSET_UNIT, 2u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_2, 500 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_3, 73 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 
 		let remainder_contributions = vec![];
@@ -5086,14 +5086,14 @@ mod remainder_round_failure {
 		);
 
 		let community_contributions = vec![
-			ContributionParams::new(BUYER_1, 1_000 * ASSET_UNIT, 2u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_2, 500 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_3, 73 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_1, 1_000 * ASSET_UNIT, 2u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_2, 500 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_3, 73 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 		let remainder_contributions = vec![
-			ContributionParams::new(EVALUATOR_1, 250 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			ContributionParams::new(BIDDER_1, 13_400 * ASSET_UNIT, 3u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_1, 42 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			ContributionParams::new(EVALUATOR_1, 250 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BIDDER_1, 13_400 * ASSET_UNIT, 3u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_1, 42 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 
 		let project_id = inst.create_finished_project(
@@ -5185,14 +5185,14 @@ mod remainder_round_failure {
 		);
 
 		let community_contributions = vec![
-			ContributionParams::new(BUYER_1, 1_000 * ASSET_UNIT, 2u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_2, 500 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_3, 73 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_1, 1_000 * ASSET_UNIT, 2u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_2, 500 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_3, 73 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 		let remainder_contributions = vec![
-			ContributionParams::new(EVALUATOR_1, 250 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			ContributionParams::new(BIDDER_1, 13_400 * ASSET_UNIT, 3u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_1, 42 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			ContributionParams::new(EVALUATOR_1, 250 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BIDDER_1, 13_400 * ASSET_UNIT, 3u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_1, 42 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 
 		let project_id = inst.create_finished_project(
@@ -5314,14 +5314,14 @@ mod remainder_round_failure {
 		);
 
 		let community_contributions = vec![
-			ContributionParams::new(BUYER_1, 1_000 * ASSET_UNIT, 2u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_2, 500 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_3, 73 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_1, 1_000 * ASSET_UNIT, 2u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_2, 500 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_3, 73 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 		let remainder_contributions = vec![
-			ContributionParams::new(EVALUATOR_1, 250 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			ContributionParams::new(BIDDER_1, 13_400 * ASSET_UNIT, 3u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_1, 42 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			ContributionParams::new(EVALUATOR_1, 250 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BIDDER_1, 13_400 * ASSET_UNIT, 3u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_1, 42 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 
 		let project_id = inst.create_finished_project(
@@ -5340,7 +5340,7 @@ mod remainder_round_failure {
 				vec![ContributionParams::new(
 					EVALUATOR_1,
 					250 * ASSET_UNIT,
-					1u8.try_into().unwrap(),
+					1u8,
 					AcceptedFundingAsset::USDT,
 				)],
 				final_price,
@@ -5360,10 +5360,10 @@ mod remainder_round_failure {
 				ContributionParams::new(
 					BIDDER_1,
 					13_400 * ASSET_UNIT,
-					3u8.try_into().unwrap(),
+					3u8,
 					AcceptedFundingAsset::USDT,
 				),
-				ContributionParams::new(BUYER_1, 42 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+				ContributionParams::new(BUYER_1, 42 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 			],
 			final_price,
 		);
@@ -5427,14 +5427,14 @@ mod remainder_round_failure {
 		);
 
 		let community_contributions = vec![
-			ContributionParams::new(BUYER_1, 1_000 * ASSET_UNIT, 2u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_2, 500 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_3, 73 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_1, 1_000 * ASSET_UNIT, 2u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_2, 500 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_3, 73 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 		let remainder_contributions = vec![
-			ContributionParams::new(EVALUATOR_1, 250 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			ContributionParams::new(BIDDER_1, 13_400 * ASSET_UNIT, 3u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			ContributionParams::new(BUYER_1, 42 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+			ContributionParams::new(EVALUATOR_1, 250 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BIDDER_1, 13_400 * ASSET_UNIT, 3u8, AcceptedFundingAsset::USDT),
+			ContributionParams::new(BUYER_1, 42 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 
 		let project_id = inst.create_finished_project(
@@ -5452,7 +5452,7 @@ mod remainder_round_failure {
 				vec![ContributionParams::new(
 					EVALUATOR_1,
 					250 * ASSET_UNIT,
-					1u8.try_into().unwrap(),
+					1u8,
 					AcceptedFundingAsset::USDT,
 				)],
 				final_price,
@@ -5466,10 +5466,10 @@ mod remainder_round_failure {
 				ContributionParams::new(
 					BIDDER_1,
 					13_400 * ASSET_UNIT,
-					3u8.try_into().unwrap(),
+					3u8,
 					AcceptedFundingAsset::USDT,
 				),
-				ContributionParams::new(BUYER_1, 42 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+				ContributionParams::new(BUYER_1, 42 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 			],
 			final_price,
 		);
