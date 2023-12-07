@@ -180,6 +180,7 @@ use frame_support::{
 	BoundedVec, PalletId,
 };
 pub use pallet::*;
+use polimec_traits::migration_types::*;
 use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
@@ -228,7 +229,6 @@ pub type EvaluationRoundInfoOf<T> = EvaluationRoundInfo<BalanceOf<T>>;
 pub type VestingInfoOf<T> = VestingInfo<BlockNumberOf<T>, BalanceOf<T>>;
 pub type EvaluationInfoOf<T> = EvaluationInfo<u32, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, BlockNumberOf<T>>;
 pub type BidInfoOf<T> = BidInfo<
-	u32,
 	ProjectIdOf<T>,
 	BalanceOf<T>,
 	PriceOf<T>,
@@ -240,9 +240,8 @@ pub type BidInfoOf<T> = BidInfo<
 pub type ContributionInfoOf<T> =
 	ContributionInfo<u32, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>, VestingInfoOf<T>>;
 
-pub type MigrationOriginOf<T> = MigrationOrigin<AccountIdOf<T>, u32>;
 pub type ProjectMigrationOriginsOf<T> =
-	ProjectMigrationOrigins<ProjectIdOf<T>, BoundedVec<MigrationOriginOf<T>, MaxMigrationsPerXcm<T>>>;
+	ProjectMigrationOrigins<ProjectIdOf<T>, BoundedVec<MigrationOrigin, MaxMigrationsPerXcm<T>>>;
 
 pub type BucketOf<T> = Bucket<BalanceOf<T>, PriceOf<T>>;
 pub type BondTypeOf<T> = LockType<ProjectIdOf<T>>;
@@ -255,7 +254,7 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use sp_arithmetic::Percent;
-	use sp_runtime::traits::Convert;
+	use sp_runtime::traits::{Convert, ConvertBack};
 
 	use local_macros::*;
 
@@ -286,7 +285,7 @@ pub mod pallet {
 		// TODO: our local BlockNumber should be removed once we move onto using Moment for time tracking
 		type BlockNumber: IsType<<Self as frame_system::Config>::BlockNumber> + Into<u64>;
 
-		type AccountId32Conversion: Convert<Self::AccountId, [u8; 32]>;
+		type AccountId32Conversion: ConvertBack<Self::AccountId, [u8; 32]>;
 
 		type RuntimeOrigin: IsType<<Self as frame_system::Config>::RuntimeOrigin>
 			+ Into<Result<pallet_xcm::Origin, <Self as Config>::RuntimeOrigin>>;
@@ -813,11 +812,11 @@ pub mod pallet {
 		},
 		MigrationsConfirmed {
 			project_id: ProjectIdOf<T>,
-			query_id: QueryId,
+			migration_origins: BoundedVec<MigrationOrigin, MaxMigrationsPerXcm<T>>,
 		},
 		MigrationsFailed {
 			project_id: ProjectIdOf<T>,
-			query_id: QueryId,
+			migration_origins: BoundedVec<MigrationOrigin, MaxMigrationsPerXcm<T>>,
 		},
 	}
 

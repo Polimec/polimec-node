@@ -29,7 +29,6 @@ use frame_support::{
 		AsEnsureOriginWithArg, ConstU32, Currency, EitherOfDiverse, EqualPrivilegeOnly, Everything, WithdrawReasons,
 	},
 	weights::{ConstantMultiplier, Weight},
-	BoundedVec,
 };
 use frame_system::{EnsureRoot, EnsureSigned};
 pub use parachains_common::{
@@ -46,7 +45,7 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, OpaqueKeys},
+	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, Convert, ConvertBack, ConvertInto, OpaqueKeys},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult,
 };
@@ -70,7 +69,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 // Polimec Shared Imports
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_funding::traits::SetPrices;
-use pallet_funding::{AcceptedFundingAsset, BondTypeOf, DaysToBlocks};
+use pallet_funding::{BondTypeOf, DaysToBlocks};
 pub use pallet_parachain_staking;
 pub use shared_configuration::*;
 
@@ -539,11 +538,22 @@ parameter_types! {
 	).unwrap();
 	pub MaxMessageSizeThresholds: (u32, u32) = (50000, 102_400);
 	pub MaxCapacityThresholds: (u32, u32) = (8, 1000);
-	pub RequiredMaxCapacity: u32 = 20;
+	pub RequiredMaxCapacity: u32 = 1000;
 	pub RequiredMaxMessageSize: u32 = 102_400;
 }
+pub struct ConvertSelf;
+impl Convert<AccountId, [u8; 32]> for ConvertSelf {
+	fn convert(account_id: AccountId) -> [u8; 32] {
+		account_id.into()
+	}
+}
+impl ConvertBack<AccountId, [u8; 32]> for ConvertSelf {
+	fn convert_back(bytes: [u8; 32]) -> AccountId {
+		bytes.into()
+	}
+}
 impl pallet_funding::Config for Runtime {
-	type AccountId32Conversion = ConvertInto;
+	type AccountId32Conversion = ConvertSelf;
 	type AllPalletsWithoutSystem = (Balances, LocalAssets, StatemintAssets, PolimecFunding, LinearVesting, Random);
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;

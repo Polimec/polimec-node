@@ -86,7 +86,7 @@ pub const fn free_deposit() -> Balance {
 use frame_support::traits::{Everything, OriginTrait};
 use frame_system::RawOrigin as SystemRawOrigin;
 use polkadot_parachain::primitives::Sibling;
-use sp_runtime::traits::Get;
+use sp_runtime::traits::{ConvertBack, Get};
 use xcm_builder::{EnsureXcmOrigin, FixedWeightBounds, ParentIsPreset, SiblingParachainConvertsVia};
 use xcm_executor::traits::Convert;
 
@@ -333,6 +333,12 @@ impl sp_runtime::traits::Convert<AccountId, [u8; 32]> for DummyConverter {
 		let mut account: [u8; 32] = [0u8; 32];
 		account[0..7].copy_from_slice(a.to_le_bytes().as_slice());
 		account
+	}
+}
+impl ConvertBack<AccountId, [u8; 32]> for DummyConverter {
+	fn convert_back(bytes: [u8; 32]) -> AccountId {
+		let account: [u8; 8] = bytes[0..7].try_into().unwrap();
+		u64::from_le_bytes(account)
 	}
 }
 

@@ -20,6 +20,7 @@ scale-info = { workspace = true, features = ["derive"] }
 # Local
 polimec-receiver.workspace = true
 macros.workspace = true
+polimec-traits.workspace = true
 
 sp-arithmetic.workspace = true
 frame-system.workspace = true
@@ -65,7 +66,7 @@ polkadot-runtime.workspace = true
 statemint-runtime.workspace = true
 polimec-parachain-runtime.workspace = true
 penpal-runtime = { path = "./penpal", default-features = false }
-itertools = "0.10.5"
+itertools.workspace = true
 
 [features]
 default = [ "std" ]
@@ -110,6 +111,7 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
+	"itertools/use_std"
 ]
 
 runtime-benchmarks = [
@@ -137,7 +139,8 @@ runtime-benchmarks = [
 	"statemint-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
-	"pallet-xcm/runtime-benchmarks"
+	"pallet-xcm/runtime-benchmarks",
+	"itertools/use_alloc",
 ]
 testing-node = [
 	"pallet-funding/testing-node",

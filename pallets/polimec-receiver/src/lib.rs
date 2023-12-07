@@ -1,7 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::{dispatch::TypeInfo, RuntimeDebug};
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// <https://docs.substrate.io/v3/runtime/frame>
@@ -9,12 +7,12 @@ pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use crate::MigrationInfo;
 	use frame_support::{
 		pallet_prelude::*,
 		traits::{tokens::Balance, Currency, ExistenceRequirement::KeepAlive, VestingSchedule},
 	};
 	use frame_system::pallet_prelude::*;
+	use polimec_traits::migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
 	use polkadot_parachain::primitives::{Id as ParaId, Sibling};
 	use polkadot_runtime_parachains::origin::{ensure_parachain, Origin as ParachainOrigin};
 	use sp_runtime::traits::{AccountIdConversion, Convert};
@@ -37,6 +35,7 @@ pub mod pallet {
 		type Balance: Balance + From<u128> + MaybeSerializeDeserialize;
 		type GenesisMoment: Get<MomentOf<Self>>;
 		type MigrationInfoToPerBlockBalance: Convert<MigrationInfo, Self::Balance>;
+		type MaxMigrations: Get<u128>;
 	}
 
 	#[pallet::pallet]
@@ -44,7 +43,17 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn something)]
-	pub type Something<T> = StorageValue<_, u32>;
+	// pub type ExecutedMigrations<T> = StorageNMap<_, BoundedVec<MigrationOrigin, T::MaxMigrations>>;
+	pub type ExecutedMigrations<T> = StorageNMap<
+		_,
+		(
+			NMapKey<Blake2_128Concat, [u8; 32]>,
+			NMapKey<Blake2_128Concat, ParticipationType>,
+			NMapKey<Blake2_128Concat, u32>,
+		),
+		bool,
+		ValueQuery,
+	>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -52,7 +61,10 @@ pub mod pallet {
 	where
 		T::AccountId: From<[u8; 32]>,
 	{
-		MigrationsExecutedForUser { user: T::AccountId, migrations: Vec<MigrationInfo> },
+		/// A Migration executed sucessfully
+		MigrationExecuted { migration: Migration },
+		/// A Migration was found which wa already executed, and was skipped.
+		DuplicatedMigrationSkipped { migration: Migration },
 	}
 
 	#[pallet::error]
@@ -71,42 +83,39 @@ pub mod pallet {
 	{
 		#[pallet::call_index(0)]
 		#[pallet::weight(Weight::from_parts(10_000, 0))]
-		pub fn migrate_for_user(
-			origin: OriginFor<T>,
-			user: [u8; 32],
-			migrations: Vec<MigrationInfo>,
-		) -> DispatchResult {
+		pub fn execute_migrations(origin: OriginFor<T>, migrations: Migrations) -> DispatchResult {
 			let para_id: ParaId = ensure_parachain(<T as Config>::RuntimeOrigin::from(origin))?;
-			let user: T::AccountId = user.into();
 			let polimec_id = T::PolimecParaId::get();
 			let polimec_soverign_account = Sibling(polimec_id).into_account_truncating();
 
 			ensure!(para_id == T::PolimecParaId::get(), "Only Polimec Parachain can call migrations");
-
-			for migration in migrations.clone() {
+			for migration @ Migration {
+				origin: MigrationOrigin { user, id, participation_type },
+				info: MigrationInfo { contribution_token_amount, .. },
+			} in migrations.clone().inner()
+			{
+				let already_executed = ExecutedMigrations::<T>::get((user, participation_type, id));
+				if already_executed {
+					Self::deposit_event(Event::DuplicatedMigrationSkipped { migration });
+					continue
+				}
 				T::Balances::transfer(
 					&polimec_soverign_account,
-					&user,
-					migration.contribution_token_amount.into(),
+					&user.into(),
+					contribution_token_amount.into(),
 					KeepAlive,
 				)?;
 				T::Vesting::add_vesting_schedule(
-					&user,
-					migration.contribution_token_amount.into(),
-					T::MigrationInfoToPerBlockBalance::convert(migration),
+					&user.into(),
+					contribution_token_amount.into(),
+					T::MigrationInfoToPerBlockBalance::convert(migration.info.clone()),
 					T::GenesisMoment::get(),
 				)?;
+				ExecutedMigrations::<T>::insert((user, participation_type, id), true);
+				Self::deposit_event(Event::MigrationExecuted { migration });
 			}
-
-			Self::deposit_event(Event::MigrationsExecutedForUser { user, migrations });
 
 			Ok(())
 		}
 	}
-}
-
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct MigrationInfo {
-	pub contribution_token_amount: u128,
-	pub vesting_time: u64,
 }

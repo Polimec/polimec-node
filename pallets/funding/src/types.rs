@@ -21,16 +21,17 @@
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
 use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::{FixedPointNumber, FixedPointOperand};
-use sp_runtime::traits::CheckedDiv;
+use sp_runtime::traits::{CheckedDiv, Convert, Zero};
 use sp_std::{cmp::Eq, collections::btree_map::*, prelude::*};
 
 pub use config_types::*;
 pub use inner_types::*;
+use polimec_traits::migration_types::{Migration, MigrationInfo, MigrationOrigin, ParticipationType};
 pub use storage_types::*;
 
 use crate::{
-	traits::{BondingRequirementCalculation, ProvideStatemintPrice},
-	BalanceOf,
+	traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation},
+	BalanceOf, BidInfoOf, Config, ContributionInfoOf, EvaluationInfoOf, MultiplierOf,
 };
 
 pub mod config_types {
@@ -239,7 +240,6 @@ pub mod storage_types {
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	pub struct BidInfo<
-		Id,
 		ProjectId,
 		Balance: BalanceT,
 		Price: FixedPointNumber,
@@ -248,7 +248,7 @@ pub mod storage_types {
 		Multiplier,
 		VestingInfo,
 	> {
-		pub id: Id,
+		pub id: u32,
 		pub project_id: ProjectId,
 		pub bidder: AccountId,
 		pub status: BidStatus<Balance>,
@@ -269,7 +269,6 @@ pub mod storage_types {
 	}
 
 	impl<
-			BidId: Eq + Ord,
 			ProjectId: Eq,
 			Balance: BalanceT + FixedPointOperand + Ord,
 			Price: FixedPointNumber,
@@ -277,7 +276,7 @@ pub mod storage_types {
 			BlockNumber: Eq + Ord,
 			Multiplier: Eq,
 			VestingInfo: Eq,
-		> Ord for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, Multiplier, VestingInfo>
+		> Ord for BidInfo<ProjectId, Balance, Price, AccountId, BlockNumber, Multiplier, VestingInfo>
 	{
 		fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
 			match self.original_ct_usd_price.cmp(&other.original_ct_usd_price) {
@@ -288,7 +287,6 @@ pub mod storage_types {
 	}
 
 	impl<
-			BidId: Eq + Ord,
 			ProjectId: Eq,
 			Balance: BalanceT + FixedPointOperand,
 			Price: FixedPointNumber,
@@ -296,7 +294,7 @@ pub mod storage_types {
 			BlockNumber: Eq + Ord,
 			Multiplier: Eq,
 			VestingInfo: Eq,
-		> PartialOrd for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, Multiplier, VestingInfo>
+		> PartialOrd for BidInfo<ProjectId, Balance, Price, AccountId, BlockNumber, Multiplier, VestingInfo>
 	{
 		fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
 			Some(self.cmp(other))
@@ -723,29 +721,10 @@ pub mod inner_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum MigrationOrigin<AccountId, Id> {
-		Evaluation { user: AccountId, id: Id },
-		Bid { user: AccountId, id: Id },
-		Contribution { user: AccountId, id: Id },
-	}
-
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct ProjectMigrationOrigins<ProjectId, MigrationOrigins> {
 		pub project_id: ProjectId,
 		pub migration_origins: MigrationOrigins,
 	}
-
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub struct MigrationInfo {
-		contribution_token_amount: u128,
-		vesting_time: u64,
-	}
-	impl From<(u128, u64)> for MigrationInfo {
-		fn from((contribution_token_amount, vesting_time): (u128, u64)) -> Self {
-			Self { contribution_token_amount, vesting_time }
-		}
-	}
-
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub enum MigrationStatus {
 		NotStarted,
@@ -760,5 +739,61 @@ pub mod inner_types {
 		fn get() -> u32 {
 			crate::Pallet::<T>::migrations_per_xcm_message_allowed()
 		}
+	}
+}
+
+pub struct MigrationGenerator<T: Config>(PhantomData<T>);
+
+impl<T: Config> MigrationGenerator<T> {
+	pub fn evaluation_migration(evaluation: EvaluationInfoOf<T>) -> Option<Migration> {
+		if matches!(evaluation.ct_migration_status, MigrationStatus::Confirmed | MigrationStatus::Sent(_)) {
+			return None
+		}
+		if let Some(RewardOrSlash::Reward(ct_amount)) = evaluation.rewarded_or_slashed {
+			let multiplier = MultiplierOf::<T>::try_from(1u8).ok()?;
+			let vesting_duration = multiplier.calculate_vesting_duration::<T>();
+			let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);
+			let migration_origin = MigrationOrigin {
+				user: T::AccountId32Conversion::convert(evaluation.evaluator),
+				id: evaluation.id,
+				participation_type: ParticipationType::Evaluation,
+			};
+			let migration_info: MigrationInfo = (ct_amount.into(), vesting_duration_local_type.into()).into();
+			Some(Migration::new(migration_origin, migration_info))
+		} else {
+			None
+		}
+	}
+
+	pub fn bid_migration(bid: BidInfoOf<T>) -> Option<Migration> {
+		if bid.final_ct_amount == Zero::zero() ||
+			matches!(bid.ct_migration_status, MigrationStatus::Confirmed | MigrationStatus::Sent(_))
+		{
+			return None
+		}
+		let vesting_duration = bid.multiplier.calculate_vesting_duration::<T>();
+		let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);
+		let migration_origin = MigrationOrigin {
+			user: <T as Config>::AccountId32Conversion::convert(bid.bidder),
+			id: bid.id,
+			participation_type: ParticipationType::Bid,
+		};
+		let migration_info: MigrationInfo = (bid.final_ct_amount.into(), vesting_duration_local_type.into()).into();
+		Some(Migration::new(migration_origin, migration_info))
+	}
+
+	pub fn contribution_migration(contribution: ContributionInfoOf<T>) -> Option<Migration> {
+		if matches!(contribution.ct_migration_status, MigrationStatus::Confirmed | MigrationStatus::Sent(_)) {
+			return None
+		}
+		let vesting_duration = contribution.multiplier.calculate_vesting_duration::<T>();
+		let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);
+		let migration_origin = MigrationOrigin {
+			user: <T as Config>::AccountId32Conversion::convert(contribution.contributor),
+			id: contribution.id,
+			participation_type: ParticipationType::Contribution,
+		};
+		let migration_info: MigrationInfo = (contribution.ct_amount.into(), vesting_duration_local_type.into()).into();
+		Some(Migration::new(migration_origin, migration_info))
 	}
 }

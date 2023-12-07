@@ -35,7 +35,7 @@ pub fn excel_project(nonce: u64) -> ProjectMetadataOf<PolimecRuntime> {
 		funding_thresholds: Default::default(),
 		conversion_rate: 1,
 		participation_currencies: AcceptedFundingAsset::USDT,
-		funding_destination_account: issuer(),
+		funding_destination_account: ISSUER.into(),
 		offchain_information_hash: Some(metadata_hash),
 	}
 }
@@ -242,7 +242,7 @@ fn excel_ct_amounts() -> UserToCTBalance {
 fn evaluation_round_completed() {
 	let mut inst = IntegrationInstantiator::new(None);
 
-	let issuer = issuer();
+	let issuer = ISSUER.into();
 	let project = excel_project(inst.get_new_nonce());
 	let evaluations = excel_evaluators();
 	set_oracle_prices();
@@ -256,7 +256,7 @@ fn evaluation_round_completed() {
 fn auction_round_completed() {
 	let mut inst = IntegrationInstantiator::new(None);
 
-	let issuer = issuer();
+	let issuer = ISSUER.into();
 	let project = excel_project(inst.get_new_nonce());
 	let evaluations = excel_evaluators();
 	let bids = excel_bidders();
@@ -297,7 +297,7 @@ fn community_round_completed() {
 	Polimec::execute_with(|| {
 		let _ = inst.create_remainder_contributing_project(
 			excel_project(0),
-			issuer(),
+			ISSUER.into(),
 			excel_evaluators(),
 			excel_bidders(),
 			excel_contributions(),
@@ -332,7 +332,7 @@ fn remainder_round_completed() {
 	Polimec::execute_with(|| {
 		let project_id = inst.create_finished_project(
 			excel_project(0),
-			issuer(),
+			ISSUER.into(),
 			excel_evaluators(),
 			excel_bidders(),
 			excel_contributions(),
@@ -378,7 +378,7 @@ fn funds_raised() {
 	Polimec::execute_with(|| {
 		let project_id = inst.create_finished_project(
 			excel_project(0),
-			issuer(),
+			ISSUER.into(),
 			excel_evaluators(),
 			excel_bidders(),
 			excel_contributions(),
@@ -407,7 +407,7 @@ fn ct_minted() {
 	Polimec::execute_with(|| {
 		let _ = inst.create_finished_project(
 			excel_project(0),
-			issuer(),
+			ISSUER.into(),
 			excel_evaluators(),
 			excel_bidders(),
 			excel_contributions(),
@@ -433,7 +433,7 @@ fn ct_migrated() {
 	let project_id = Polimec::execute_with(|| {
 		let project_id = inst.create_finished_project(
 			excel_project(0),
-			issuer(),
+			ISSUER.into(),
 			excel_evaluators(),
 			excel_bidders(),
 			excel_contributions(),
@@ -457,7 +457,7 @@ fn ct_migrated() {
 
 	// Mock HRMP establishment
 	Polimec::execute_with(|| {
-		assert_ok!(PolimecFunding::do_set_para_id_for_project(&issuer(), project_id, ParaId::from(6969u32)));
+		assert_ok!(PolimecFunding::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32)));
 
 		let open_channel_message = xcm::v3::opaque::Instruction::HrmpNewChannelOpenRequest {
 			sender: 6969,

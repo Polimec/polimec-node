@@ -101,8 +101,8 @@ fn pallet_funding_works() {
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(charlie.clone()), values([4.84, 1.0, 1.0, 0.4])));
 
 		let _project_id = inst.create_finished_project(
-			default_project(issuer(), 0),
-			issuer(),
+			default_project(ISSUER.into(), 0),
+			ISSUER.into(),
 			default_evaluations(),
 			default_bids(),
 			default_community_contributions(),

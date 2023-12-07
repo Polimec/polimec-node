@@ -8,8 +8,9 @@ use sp_core::H256;
 use std::collections::HashMap;
 
 use crate::PolimecOrigin;
+use macros::generate_accounts;
 use polimec_parachain_runtime::AccountId;
-use sp_runtime::{traits::ConstU32, FixedPointNumber, Perquintill};
+use sp_runtime::{traits::ConstU32, Perquintill};
 use xcm_emulator::TestExt;
 
 pub const METADATA: &str = r#"METADATA
@@ -31,48 +32,12 @@ pub type IntegrationInstantiator = pallet_funding::instantiator::Instantiator<
 pub fn hashed(data: impl AsRef<[u8]>) -> sp_core::H256 {
 	<sp_runtime::traits::BlakeTwo256 as sp_runtime::traits::Hash>::hash(data.as_ref())
 }
-pub fn issuer() -> AccountId {
-	Polimec::account_id_of("issuer")
-}
-pub fn eval_1() -> AccountId {
-	Polimec::account_id_of("eval_1")
-}
-pub fn eval_2() -> AccountId {
-	Polimec::account_id_of("eval_2")
-}
-pub fn eval_3() -> AccountId {
-	Polimec::account_id_of("eval_3")
-}
-pub fn bidder_1() -> AccountId {
-	Polimec::account_id_of("bidder_1")
-}
-pub fn bidder_2() -> AccountId {
-	Polimec::account_id_of("bidder_2")
-}
-pub fn bidder_3() -> AccountId {
-	Polimec::account_id_of("bidder_3")
-}
-pub fn bidder_4() -> AccountId {
-	Polimec::account_id_of("bidder_4")
-}
-pub fn bidder_5() -> AccountId {
-	Polimec::account_id_of("bidder_5")
-}
-pub fn buyer_1() -> AccountId {
-	Polimec::account_id_of("buyer_1")
-}
-pub fn buyer_2() -> AccountId {
-	Polimec::account_id_of("buyer_2")
-}
-pub fn buyer_3() -> AccountId {
-	Polimec::account_id_of("buyer_3")
-}
-pub fn buyer_4() -> AccountId {
-	Polimec::account_id_of("buyer_4")
-}
-pub fn buyer_5() -> AccountId {
-	Polimec::account_id_of("buyer_5")
-}
+
+generate_accounts!(
+	ISSUER, EVAL_1, EVAL_2, EVAL_3, EVAL_4, BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5, BIDDER_6, BUYER_1,
+	BUYER_2, BUYER_3, BUYER_4, BUYER_5, BUYER_6,
+);
+
 pub fn bounded_name() -> BoundedVec<u8, ConstU32<64>> {
 	BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap()
 }
@@ -84,6 +49,12 @@ pub fn metadata_hash(nonce: u32) -> H256 {
 }
 pub fn default_weights() -> Vec<u8> {
 	vec![20u8, 15u8, 10u8, 25u8, 30u8]
+}
+pub fn default_bidder_multipliers() -> Vec<u8> {
+	vec![1u8, 6u8, 20u8, 12u8, 3u8]
+}
+pub fn default_contributor_multipliers() -> Vec<u8> {
+	vec![1u8, 2u8, 1u8, 4u8, 1u8]
 }
 
 pub fn default_project(issuer: AccountId, nonce: u32) -> ProjectMetadataOf<polimec_parachain_runtime::Runtime> {
@@ -107,13 +78,13 @@ pub fn default_project(issuer: AccountId, nonce: u32) -> ProjectMetadataOf<polim
 }
 pub fn default_evaluations() -> Vec<UserToUSDBalance<polimec_parachain_runtime::Runtime>> {
 	vec![
-		UserToUSDBalance::new(eval_1(), 50_000 * PLMC),
-		UserToUSDBalance::new(eval_2(), 25_000 * PLMC),
-		UserToUSDBalance::new(eval_3(), 32_000 * PLMC),
+		UserToUSDBalance::new(EVAL_1.into(), 50_000 * PLMC),
+		UserToUSDBalance::new(EVAL_2.into(), 25_000 * PLMC),
+		UserToUSDBalance::new(EVAL_3.into(), 32_000 * PLMC),
 	]
 }
 pub fn default_bidders() -> Vec<AccountId> {
-	vec![bidder_1(), bidder_2(), bidder_3(), bidder_4(), bidder_5()]
+	vec![BIDDER_1.into(), BIDDER_2.into(), BIDDER_3.into(), BIDDER_4.into(), BIDDER_5.into()]
 }
 
 pub fn default_bids() -> Vec<BidParams<PolimecRuntime>> {
@@ -124,6 +95,7 @@ pub fn default_bids() -> Vec<BidParams<PolimecRuntime>> {
 		sp_runtime::FixedU128::from_float(1.0),
 		default_weights(),
 		default_bidders(),
+		default_bidder_multipliers(),
 	)
 }
 
@@ -134,11 +106,28 @@ pub fn default_community_contributions() -> Vec<ContributionParams<PolimecRuntim
 		fifty_percent_funding_usd,
 		sp_runtime::FixedU128::from_float(1.0),
 		default_weights(),
-		default_contributors(),
+		default_community_contributors(),
+		default_contributor_multipliers(),
 	)
 }
-pub fn default_contributors() -> Vec<AccountId> {
-	vec![buyer_1(), buyer_2(), buyer_3(), buyer_4(), buyer_5()]
+
+pub fn default_remainder_contributions() -> Vec<ContributionParams<PolimecRuntime>> {
+	let fifty_percent_funding_usd = Perquintill::from_percent(5) * 100_000 * ASSET_UNIT;
+
+	IntegrationInstantiator::generate_contributions_from_total_usd(
+		fifty_percent_funding_usd,
+		sp_runtime::FixedU128::from_float(1.0),
+		vec![20u8, 15u8, 10u8, 25u8, 23u8, 7u8],
+		default_remainder_contributors(),
+		vec![1u8, 2u8, 12u8, 1u8, 3u8, 10u8],
+	)
+}
+pub fn default_community_contributors() -> Vec<AccountId> {
+	vec![BUYER_1.into(), BUYER_2.into(), BUYER_3.into(), BUYER_4.into(), BUYER_5.into()]
+}
+
+pub fn default_remainder_contributors() -> Vec<AccountId> {
+	vec![EVAL_4.into(), BUYER_6.into(), BIDDER_6.into(), EVAL_1.into(), BUYER_1.into(), BIDDER_1.into()]
 }
 
 use crate::{Polimec, PolimecRuntime, ALICE, BOB, CHARLIE};
