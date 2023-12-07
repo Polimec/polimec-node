@@ -70,7 +70,7 @@ impl RuntimeResolver for PathBuf {
 }
 
 fn runtime(id: &str) -> Runtime {
-	let id = id.replace("_", "-");
+	let id = id.replace('_', "-");
 	if id.contains("base") {
 		Runtime::Base
 	} else if id.contains("polimec") {
@@ -277,10 +277,10 @@ pub fn run() -> Result<()> {
 				#[cfg(not(feature = "runtime-benchmarks"))]
 				BenchmarkCmd::Storage(_) =>
 					return Err(sc_cli::Error::Input(
-						"Compile with --features=runtime-benchmarks \
+					"Compile with --features=runtime-benchmarks \
 						to enable storage benchmarks."
-							.into(),
-					)
+						.into(),
+				)
 					.into()),
 				#[cfg(feature = "runtime-benchmarks")]
 				BenchmarkCmd::Storage(cmd) => runner.sync_run(|config| {

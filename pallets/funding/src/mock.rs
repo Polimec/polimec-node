@@ -271,7 +271,7 @@ parameter_types! {
 	pub const EnglishAuctionDuration: BlockNumber = (2 * HOURS) as BlockNumber;
 	pub const CandleAuctionDuration: BlockNumber = (3 * HOURS) as BlockNumber;
 	pub const CommunityRoundDuration: BlockNumber = (5 * HOURS) as BlockNumber;
-	pub const RemainderFundingDuration: BlockNumber = (1 * HOURS) as BlockNumber;
+	pub const RemainderFundingDuration: BlockNumber = HOURS as BlockNumber;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 	pub const ManualAcceptanceDuration: BlockNumber = (3 * HOURS) as BlockNumber;
 	pub const SuccessToSettlementTime: BlockNumber =(4 * HOURS) as BlockNumber;

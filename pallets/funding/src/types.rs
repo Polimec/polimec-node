@@ -392,7 +392,7 @@ pub mod storage_types {
 
 pub mod inner_types {
 	use super::*;
-	use polimec_traits::migration_types::{MigrationOrigin, Migrations};
+
 	use xcm::v3::MaxDispatchErrorLen;
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]

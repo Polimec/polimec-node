@@ -237,19 +237,19 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 
 	/// Get the amount that is possible to vest (i.e release) at this block.
 	fn vesting_balance(who: &T::AccountId, reason: ReasonOf<T>) -> Option<BalanceOf<T>> {
-		Self::vesting(who, reason).map_or(None, |v| {
+		Self::vesting(who, reason).map(|v| {
 			let now = <frame_system::Pallet<T>>::block_number();
 			let total_releasable = v.iter().fold(Zero::zero(), |total, schedule| {
 				schedule.releaseble_at::<T::BlockNumberToBalance>(now).saturating_add(total)
 			});
-			Some(total_releasable)
+			total_releasable
 		})
 	}
 
 	fn total_scheduled_amount(who: &T::AccountId, reason: ReasonOf<T>) -> Option<BalanceOf<T>> {
-		Self::vesting(who, reason).map_or(None, |v| {
+		Self::vesting(who, reason).map(|v| {
 			let total = v.iter().fold(Zero::zero(), |total, schedule| schedule.locked.saturating_add(total));
-			Some(total)
+			total
 		})
 	}
 
