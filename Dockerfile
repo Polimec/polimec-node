@@ -6,11 +6,11 @@ COPY . /polimec
 RUN cargo build --locked --release -p $PACKAGE 
 
 # This is the 2nd stage: a very small image where we copy the Polkadot binary."
-FROM gcr.io/distroless/cc
+FROM debian:bookworm-slim
 ARG PACKAGE
 COPY --from=builder /polimec/target/release/$PACKAGE /usr/local/bin/polimec
 
 EXPOSE 30333 9933 9944 9615
 VOLUME ["/data"]
 
-ENTRYPOINT ["/usr/local/bin/polimec"]
+ENTRYPOINT ["/usr/bin/bash"]
