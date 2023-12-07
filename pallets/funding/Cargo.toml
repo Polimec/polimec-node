@@ -19,7 +19,6 @@ scale-info = { version = "2.9.0", default-features = false, features = [
     "derive",
 ] }
 log.workspace = true
-
 itertools.workspace = true
 
 # Substrate dependencies
@@ -39,6 +38,7 @@ xcm-builder.workspace = true
 xcm.workspace = true
 polimec-xcm-executor.workspace = true
 pallet-xcm.workspace = true
+
 polkadot-runtime.workspace = true
 polkadot-runtime-parachains.workspace = true
 polkadot-parachain.workspace = true
@@ -50,6 +50,7 @@ pallet-linear-release.workspace = true
 assert_matches2.workspace = true
 xcm-builder.workspace = true
 xcm-executor.workspace = true
+
 [features]
 default = [ "std" ]
 std = [

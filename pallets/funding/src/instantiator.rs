@@ -751,7 +751,7 @@ impl<
 		multipliers: Vec<u8>,
 	) -> Vec<ContributionParams<T>> {
 		zip(zip(weights, contributors), multipliers)
-			.map(|((weight, bidder), _multiplier)| {
+			.map(|((weight, bidder), multiplier)| {
 				let ticket_size = Percent::from_percent(weight) * usd_amount;
 				let token_amount = final_price.reciprocal().unwrap().saturating_mul_int(ticket_size);
 
