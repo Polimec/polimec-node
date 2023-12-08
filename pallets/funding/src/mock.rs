@@ -115,7 +115,7 @@ parameter_types! {
 parameter_types! {
 	pub UniversalLocation: InteriorMultiLocation = (
 		GlobalConsensus(Polkadot),
-		 Parachain(3344u32.into()),
+		 Parachain(3344u32),
 	).into();
 	pub const RelayNetwork: Option<NetworkId> = None;
 	pub UnitWeightCost: Weight = Weight::from_parts(1_000_000_000, 64 * 1024);
@@ -271,7 +271,7 @@ parameter_types! {
 	pub const EnglishAuctionDuration: BlockNumber = (2 * HOURS) as BlockNumber;
 	pub const CandleAuctionDuration: BlockNumber = (3 * HOURS) as BlockNumber;
 	pub const CommunityRoundDuration: BlockNumber = (5 * HOURS) as BlockNumber;
-	pub const RemainderFundingDuration: BlockNumber = (1 * HOURS) as BlockNumber;
+	pub const RemainderFundingDuration: BlockNumber = HOURS as BlockNumber;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 	pub const ManualAcceptanceDuration: BlockNumber = (3 * HOURS) as BlockNumber;
 	pub const SuccessToSettlementTime: BlockNumber =(4 * HOURS) as BlockNumber;

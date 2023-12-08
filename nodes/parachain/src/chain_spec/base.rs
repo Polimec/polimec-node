@@ -210,13 +210,10 @@ fn base_testnet_genesis(
 ) -> RuntimeGenesisConfig {
 	RuntimeGenesisConfig {
 		system: SystemConfig { code: wasm_binary.to_vec(), ..Default::default() },
-		balances: BalancesConfig { balances: endowed_accounts.clone() },
+		balances: BalancesConfig { balances: endowed_accounts },
 		parachain_info: ParachainInfoConfig { parachain_id: id, ..Default::default() },
 		parachain_staking: ParachainStakingConfig {
-			candidates: stakers
-				.iter()
-				.map(|(accunt, _, balance)| (accunt.clone(), balance.clone()))
-				.collect::<Vec<_>>(),
+			candidates: stakers.iter().map(|(accunt, _, balance)| (accunt.clone(), *balance)).collect::<Vec<_>>(),
 			inflation_config,
 			delegations: vec![],
 			collator_commission: COLLATOR_COMMISSION,
