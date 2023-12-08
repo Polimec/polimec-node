@@ -177,6 +177,10 @@ pub fn default_contributors<T: Config>() -> Vec<AccountIdOf<T>> {
 	]
 }
 
+pub fn default_multipliers<T: Config>() -> Vec<u8> {
+	vec![1u8, 2u8, 12u8, 1u8, 3u8, 10u8]
+}
+
 #[benchmarks(
 	where
 	T: Config + frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent> + pallet_balances::Config<Balance = BalanceOf<T>>,
@@ -703,12 +707,14 @@ mod benchmarks {
 			10u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
+			default_multipliers::<T>(),
 		);
 		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
 			Percent::from_percent(10) * target_funding_amount,
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
+			default_multipliers::<T>(),
 		);
 
 		let project_id =
@@ -1206,6 +1212,7 @@ mod benchmarks {
 			1u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
+			default_multipliers::<T>(),
 		);
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size.1);
@@ -1214,6 +1221,7 @@ mod benchmarks {
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
+			default_multipliers::<T>(),
 		);
 
 		let project_id =
@@ -1257,6 +1265,7 @@ mod benchmarks {
 			10u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
+			default_multipliers::<T>(),
 		);
 		let bidder = bids[0].bidder.clone();
 		whitelist_account!(bidder);
@@ -1265,6 +1274,7 @@ mod benchmarks {
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
+			default_multipliers::<T>(),
 		);
 
 		let project_id =
@@ -1327,6 +1337,7 @@ mod benchmarks {
 			10u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
+			default_multipliers::<T>(),
 		);
 		let bidder = bids[0].bidder.clone();
 		whitelist_account!(bidder);
@@ -1335,6 +1346,7 @@ mod benchmarks {
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
+			default_multipliers::<T>(),
 		);
 
 		let project_id =
@@ -1398,12 +1410,14 @@ mod benchmarks {
 			1u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
+			default_multipliers::<T>(),
 		);
 		let contributions: Vec<ContributionParams<T>> = BenchInstantiator::generate_contributions_from_total_usd(
 			Percent::from_percent(10) * target_funding_amount,
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
+			default_multipliers::<T>(),
 		);
 		let contributor = contributions[0].contributor.clone();
 		whitelist_account!(contributor);
@@ -1475,12 +1489,14 @@ mod benchmarks {
 			1u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
+			default_multipliers::<T>(),
 		);
 		let contributions: Vec<ContributionParams<T>> = BenchInstantiator::generate_contributions_from_total_usd(
 			Percent::from_percent(10) * target_funding_amount,
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
+			default_multipliers::<T>(),
 		);
 		let contributor = contributions[0].contributor.clone();
 		whitelist_account!(contributor);

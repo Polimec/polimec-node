@@ -26,12 +26,12 @@ polimec-traits.workspace = true
 sp-runtime.workspace = true
 
 [dev-dependencies]
-serde = { version = "1.0.132" }
+serde.workspace = true
 
 # Substrate
-sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.43" }
-sp-io = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.43" }
-sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.43" }
+sp-core.workspace = true
+sp-io.workspace = true
+sp-runtime.workspace = true
 
 [features]
 default = [ "std" ]

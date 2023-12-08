@@ -13,7 +13,7 @@
 ### Step 1: Compile the relay chain and add it to $PATH
 
 - Clone the [Polkadot Repository](https://github.com/paritytech/polkadot)
-- Checkout the `release-v0.9.43` branch
+- Checkout the `release-v1.0.0` branch
 - Compile it using `cargo b -r -p polkadot`
 - Add the binary to your $PATH, e.g.
   `cp target/release/polkadot ~/.local/bin/polkadot`
@@ -42,29 +42,28 @@ $ cargo run --release -- --dev
 
 You can use [srtool](https://github.com/paritytech/srtool) to compile the
 runtime and generate the WASM blob.
-> TODO: Rust 1.69.0 broke `srtool` and `polkadot-v0.9.43` - we need to wait `polkadot-v0.9.43`. [src](https://github.com/paritytech/srtool/issues/62)
 
 ```
 == Compact
- Version          : polimec-node-1 (polimec-node-0.tx1.au1)
+ Version          : polimec-mainnet-2 (polimec-mainnet-0.tx1.au1)
  Metadata         : V14
- Size             : 3.04 MB (3192701 bytes)
- setCode          : 0x58fe8e8e8a2f18ada059ec4be28e9ae9e587c9d9030d131fd1490642430e210d
- authorizeUpgrade : 0x652e9ff841af94b66059ea5e824b707b143afd133059f3e668445ceef0d0adde
- IPFS             : QmV9JDMFT96ir1mWVXbTYsNRTGffzEpN7NtDBVsoCMDYhe
- BLAKE2_256       : 0x5a3305ff9dd3e1cee8686e6f2deacf8e4e44d8b09f8f37be91bdeb01b6a75d5f
- Wasm             : runtimes/testnet//target/srtool/production/wbuild/polimec-parachain-runtime/polimec_parachain_runtime.compact.wasm
+ Size             : 5.95 MB (6238415 bytes)
+ setCode          : 0x0582b7c4d42bb46593ac2788d17c3d083eedfbc9d8ef3fb0c912378189d44f94
+ authorizeUpgrade : 0xe8d26589c2c5257c3f52e21ba420eb0c6fd25fa5cee0878bc183ca0256dee9bc
+ IPFS             : Qmbi9ymmCdJVJCLsBAmYKWGYgYjGuHJLRdCPj9fvXQ3X9U
+ BLAKE2_256       : 0x7ac6016ddf9179bb2d6d0284df4d60323519f20016647ba887057756d131b51e
+ Wasm             : runtimes/testnet/target/srtool/release/wbuild/polimec-parachain-runtime/polimec_parachain_runtime.compact.wasm
 
 == Compressed
- Version          : polimec-node-1 (polimec-node-0.tx1.au1)
+ Version          : polimec-mainnet-2 (polimec-mainnet-0.tx1.au1)
  Metadata         : V14
- Size             : 761.35 KB (779620 bytes)
- Compression      : 75.59%
- setCode          : 0x552b913183ee59beca9bc1181dfeee1df8d7d0f3957d26a5dc0a0b3be51aeb22
- authorizeUpgrade : 0x17a8fb876f0762636da732a5675f8b2e8e45b2360e1706dc74e74e8efa0a43e1
- IPFS             : QmRSgzykaEhC5ADgtqVPHn1sUn1XXN2CmdDEopL4gw9LDe
- BLAKE2_256       : 0xe0b45ff9c7afaff573df61f5424f392ca1bb1e397d091424f5bf7b5b16fde16b
- Wasm             : runtimes/testnet//target/srtool/production/wbuild/polimec-parachain-runtime/polimec_parachain_runtime.compact.compressed.wasm
+ Size             : 1.20 MB (1255405 bytes)
+ Compression      : 79.88%
+ setCode          : 0x84730f2715acaba69361390edf28cc788e0ebdf491380d02764f78f0c702ecb9
+ authorizeUpgrade : 0x8dcd2827b4c86be23da13a93a8d63a38ad4952c1450738ed8471982bcb4fc714
+ IPFS             : QmPFr7QRFKM5jSuYfBNAg21dfiKEpvMxXMydLDZuW9yLFH
+ BLAKE2_256       : 0x7341cc921de52eaea99af5865c3e36562cf49158dcb961daef3c2e06f531ae00
+ Wasm             : runtimes/testnet/target/srtool/release/wbuild/polimec-parachain-runtime/polimec_parachain_runtime.compact.compressed.wasm
 ```
 
 - A collection of useful scripts are available in the `scripts` folder, there is

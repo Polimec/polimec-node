@@ -11,7 +11,7 @@ version = "0.1.0"
 rust-version = "1.69.0"
 
 [dependencies]
-serde = { version = "*", optional = true }
+serde = { workspace = true  }
 parity-scale-codec = { version = "3.6.5", features = [
     "derive",
 ], default-features = false }
@@ -42,7 +42,6 @@ pallet-xcm.workspace = true
 polkadot-runtime.workspace = true
 polkadot-runtime-parachains.workspace = true
 polkadot-parachain.workspace = true
-polimec-receiver.workspace = true
 
 [dev-dependencies]
 pallet-insecure-randomness-collective-flip.workspace = true
@@ -67,14 +66,13 @@ std = [
 	"pallet-xcm/std",
 	"parachains-common/std",
 	"parity-scale-codec/std",
-	"polimec-receiver/std",
 	"polimec-traits/std",
 	"polimec-xcm-executor/std",
 	"polkadot-parachain/std",
 	"polkadot-runtime-parachains/std",
 	"polkadot-runtime/std",
 	"scale-info/std",
-	"serde",
+	"serde/std",
 	"sp-arithmetic/std",
 	"sp-core/std",
 	"sp-io/std",
@@ -94,7 +92,6 @@ runtime-benchmarks = [
 	"pallet-linear-release/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
-	"polimec-receiver/runtime-benchmarks",
 	"polimec-traits/runtime-benchmarks",
 	"polimec-xcm-executor/runtime-benchmarks",
 	"polkadot-parachain/runtime-benchmarks",
@@ -103,7 +100,6 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
-	"pallet-xcm/runtime-benchmarks"
 ]
 try-runtime = [
 	"frame-support/try-runtime",
@@ -114,10 +110,10 @@ try-runtime = [
 	"pallet-linear-release/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"pallet-xcm/try-runtime",
-	"polimec-receiver/try-runtime",
 	"polimec-traits/try-runtime",
+	"polimec-xcm-executor/try-runtime",
 	"polkadot-runtime-parachains/try-runtime",
 	"polkadot-runtime/try-runtime",
 	"sp-runtime/try-runtime",
 ]
-testing-node = []
+testing-node = [ "pallet-linear-release/testing-node" ]
