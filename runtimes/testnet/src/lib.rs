@@ -86,15 +86,6 @@ pub type NegativeImbalanceOf<T> =
 /// The address format for describing accounts.
 pub type Address = MultiAddress<AccountId, ()>;
 
-// #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, MaxEncodedLen, TypeInfo, Debug)]
-// #[cfg_attr(feature = "std", derive(Hash))]
-// pub struct AccountId(pub [u8; 32]);
-// impl From<AccountId32> for AccountId {
-// 	fn from(account_id: AccountId32) -> Self {
-// 		Self(account_id)
-// 	}
-// }
-
 /// Block type as expected by this runtime.
 pub type Block = generic::Block<Header, UncheckedExtrinsic>;
 
