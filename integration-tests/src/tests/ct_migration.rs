@@ -7,6 +7,7 @@ use polimec_common::migration_types::{Migration, MigrationInfo, MigrationOrigin,
 use polimec_parachain_runtime::PolimecFunding;
 use sp_runtime::{FixedPointNumber, Perquintill};
 use std::collections::HashMap;
+use sp_runtime::traits::Convert;
 use tests::defaults::*;
 
 fn execute_cleaner(inst: &mut IntegrationInstantiator) {
@@ -63,7 +64,8 @@ fn send_migrations(
 				pallet_funding::Contributions::<PolimecRuntime>::iter_prefix_values((project_id, account.clone()));
 
 			let evaluation_migrations = user_evaluations.map(|evaluation| {
-				assert!(matches!(evaluation.ct_migration_status, MigrationStatus::Sent(_)));
+				let evaluator_bytes = <PolimecRuntime as pallet_funding::Config>::AccountId32Conversion::convert(evaluation.evaluator.clone());
+				assert!(matches!(evaluation.ct_migration_status, MigrationStatus::Sent(_)), "{:?}'s evaluation was not sent {:?}", names()[&evaluator_bytes], evaluation);
 				if let Some(RewardOrSlash::Reward(amount)) = evaluation.rewarded_or_slashed {
 					Migration {
 						info: MigrationInfo {
@@ -97,7 +99,7 @@ fn send_migrations(
 					},
 				}
 			});
-			let contribution_ct_amount = user_contributions.map(|contribution| {
+			let contribution_migrations = user_contributions.map(|contribution| {
 				assert!(matches!(contribution.ct_migration_status, MigrationStatus::Sent(_)));
 				Migration {
 					info: MigrationInfo {
@@ -112,7 +114,7 @@ fn send_migrations(
 				}
 			});
 
-			evaluation_migrations.chain(bid_migrations).chain(contribution_ct_amount).collect::<Migrations>()
+			evaluation_migrations.chain(bid_migrations).chain(contribution_migrations).collect::<Migrations>()
 		});
 		if migrations.clone().inner().is_empty() {
 			panic!("no migrations for account: {:?}", account)
@@ -324,7 +326,7 @@ fn migration_is_sent() {
 fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 	let mut inst = IntegrationInstantiator::new(None);
 	set_oracle_prices();
-	let mut participants =
+	let participants =
 		vec![EVAL_1, EVAL_2, EVAL_3, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5, BUYER_2, BUYER_3, BUYER_4, BUYER_5]
 			.into_iter()
 			.map(|x| AccountId::from(x))
@@ -386,7 +388,7 @@ fn vesting_over_several_blocks_on_project() {
 
 	bids.push(BidParams {
 		bidder: BIDDER_1.into(),
-		amount: 2_000 * ASSET_UNIT,
+		amount: 15_000 * ASSET_UNIT,
 		price: 12u128.into(),
 		multiplier: MultiplierOf::<PolimecRuntime>::try_from(20u8).unwrap(),
 		asset: AcceptedFundingAsset::USDT,

@@ -134,19 +134,19 @@ where
 	vec![
 		ContributionParams::new(
 			account::<AccountIdOf<T>>("contributor_1", 0, 0),
-			(100 * ASSET_UNIT).into(),
+			(10_000 * ASSET_UNIT).into(),
 			1u8,
 			AcceptedFundingAsset::USDT,
 		),
 		ContributionParams::new(
 			account::<AccountIdOf<T>>("contributor_2", 0, 0),
-			(200 * ASSET_UNIT).into(),
+			(6_000 * ASSET_UNIT).into(),
 			1u8,
 			AcceptedFundingAsset::USDT,
 		),
 		ContributionParams::new(
 			account::<AccountIdOf<T>>("contributor_3", 0, 0),
-			(2000 * ASSET_UNIT).into(),
+			(30_000 * ASSET_UNIT).into(),
 			1u8,
 			AcceptedFundingAsset::USDT,
 		),
@@ -175,6 +175,16 @@ pub fn default_contributors<T: Config>() -> Vec<AccountIdOf<T>> {
 		account::<AccountIdOf<T>>("contributor_4", 0, 0),
 		account::<AccountIdOf<T>>("contributor_5", 0, 0),
 	]
+}
+
+pub fn default_bidder_multipliers() -> Vec<u8> {
+	vec![20u8, 3u8, 15u8, 13u8, 9u8]
+}
+pub fn default_community_contributor_multipliers() -> Vec<u8> {
+	vec![1u8, 5u8, 3u8, 1u8, 2u8]
+}
+pub fn default_remainder_contributor_multipliers() -> Vec<u8> {
+	vec![1u8, 10u8, 3u8, 2u8, 4u8]
 }
 
 #[benchmarks(
@@ -313,8 +323,10 @@ mod benchmarks {
 
 		let plmc_for_evaluating = BenchInstantiator::<T>::calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
 		let existential_plmc: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().existential_deposits();
+		let ct_account_deposits: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().ct_account_deposits();
 
 		inst.mint_plmc_to(existential_plmc);
+		inst.mint_plmc_to(ct_account_deposits);
 		inst.mint_plmc_to(plmc_for_evaluating.clone());
 
 		inst.advance_time(One::one()).unwrap();
@@ -380,8 +392,10 @@ mod benchmarks {
 		let evaluations = default_evaluations();
 		let plmc_for_evaluating = BenchInstantiator::<T>::calculate_evaluation_plmc_spent(evaluations.clone());
 		let existential_plmc: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().existential_deposits();
+		let ct_account_deposits: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().ct_account_deposits();
 
 		inst.mint_plmc_to(existential_plmc);
+		inst.mint_plmc_to(ct_account_deposits);
 		inst.mint_plmc_to(plmc_for_evaluating);
 
 		inst.advance_time(One::one()).unwrap();
@@ -431,11 +445,13 @@ mod benchmarks {
 		let necessary_plmc: Vec<UserToPLMCBalance<T>> =
 			BenchInstantiator::<T>::calculate_auction_plmc_spent(&vec![bid_params.clone()], None);
 		let existential_deposits: Vec<UserToPLMCBalance<T>> = necessary_plmc.accounts().existential_deposits();
+		let ct_account_deposits = necessary_plmc.accounts().ct_account_deposits();
 		let necessary_usdt: Vec<UserToStatemintAsset<T>> =
 			BenchInstantiator::<T>::calculate_auction_funding_asset_spent(&vec![bid_params.clone()], None);
 
 		inst.mint_plmc_to(necessary_plmc.clone());
 		inst.mint_plmc_to(existential_deposits.clone());
+		inst.mint_plmc_to(ct_account_deposits.clone());
 		inst.mint_statemint_asset_to(necessary_usdt.clone());
 
 		#[extrinsic_call]
@@ -535,11 +551,13 @@ mod benchmarks {
 		let necessary_plmc =
 			BenchInstantiator::<T>::calculate_contributed_plmc_spent(vec![contribution_params.clone()], price);
 		let existential_deposits: Vec<UserToPLMCBalance<T>> = necessary_plmc.accounts().existential_deposits();
+		let ct_account_deposits: Vec<UserToPLMCBalance<T>> = necessary_plmc.accounts().ct_account_deposits();
 		let necessary_usdt =
 			BenchInstantiator::<T>::calculate_contributed_funding_asset_spent(vec![contribution_params.clone()], price);
 
 		inst.mint_plmc_to(necessary_plmc.clone());
 		inst.mint_plmc_to(existential_deposits.clone());
+		inst.mint_plmc_to(ct_account_deposits.clone());
 		inst.mint_statemint_asset_to(necessary_usdt.clone());
 
 		let contribution_id = NextContributionId::<T>::get();
@@ -635,6 +653,7 @@ mod benchmarks {
 		);
 
 		inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
+		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
 			Cleaner::Success(CleanerState::Initialized(PhantomData))
@@ -703,12 +722,14 @@ mod benchmarks {
 			10u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
+			default_bidder_multipliers()
 		);
 		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
 			Percent::from_percent(10) * target_funding_amount,
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
+			default_community_contributor_multipliers()
 		);
 
 		let project_id =
@@ -1206,6 +1227,7 @@ mod benchmarks {
 			1u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
+			default_bidder_multipliers()
 		);
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size.1);
@@ -1214,6 +1236,7 @@ mod benchmarks {
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
+			default_community_contributor_multipliers()
 		);
 
 		let project_id =
@@ -1257,6 +1280,7 @@ mod benchmarks {
 			10u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
+			default_bidder_multipliers()
 		);
 		let bidder = bids[0].bidder.clone();
 		whitelist_account!(bidder);
@@ -1265,6 +1289,7 @@ mod benchmarks {
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
+			default_community_contributor_multipliers()
 		);
 
 		let project_id =
@@ -1327,6 +1352,7 @@ mod benchmarks {
 			10u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
+			default_bidder_multipliers()
 		);
 		let bidder = bids[0].bidder.clone();
 		whitelist_account!(bidder);
@@ -1335,6 +1361,7 @@ mod benchmarks {
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
+			default_community_contributor_multipliers()
 		);
 
 		let project_id =
@@ -1398,12 +1425,14 @@ mod benchmarks {
 			1u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
+			default_bidder_multipliers()
 		);
 		let contributions: Vec<ContributionParams<T>> = BenchInstantiator::generate_contributions_from_total_usd(
 			Percent::from_percent(10) * target_funding_amount,
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
+			default_community_contributor_multipliers()
 		);
 		let contributor = contributions[0].contributor.clone();
 		whitelist_account!(contributor);
@@ -1475,12 +1504,14 @@ mod benchmarks {
 			1u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
+			default_bidder_multipliers()
 		);
 		let contributions: Vec<ContributionParams<T>> = BenchInstantiator::generate_contributions_from_total_usd(
 			Percent::from_percent(10) * target_funding_amount,
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
+			default_community_contributor_multipliers()
 		);
 		let contributor = contributions[0].contributor.clone();
 		whitelist_account!(contributor);

@@ -5202,12 +5202,6 @@ mod funding_end {
 				final_price,
 				true,
 			);
-		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect_vec());
-		let bids = stored_bids
-			.into_iter()
-			.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
-			.map(|bid| BidParams::from(bid.bidder, bid.final_ct_amount, bid.final_ct_usd_price))
-			.collect_vec();
 		let expected_bid_payouts = MockInstantiator::calculate_auction_plmc_spent(&bids.clone(), Some(final_price));
 		let expected_community_contribution_payouts =
 			MockInstantiator::calculate_contributed_plmc_spent(community_contributions.clone(), final_price);
@@ -5288,11 +5282,7 @@ mod funding_end {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
-		let evaluations = vec![
-			UserToUSDBalance::new(EVALUATOR_1, 50_000 * US_DOLLAR),
-			UserToUSDBalance::new(EVALUATOR_2, 25_000 * US_DOLLAR),
-			UserToUSDBalance::new(EVALUATOR_3, 32_000 * US_DOLLAR),
-		];
+		let evaluations = vec![UserToUSDBalance::new(EVALUATOR_1, 50_000 * US_DOLLAR)];
 		let bids = MockInstantiator::generate_bids_from_total_usd(
 			Percent::from_percent(50u8) * project.total_allocation_size.0,
 			project.minimum_price,
@@ -5325,44 +5315,49 @@ mod funding_end {
 			remainder_contributions.clone(),
 		);
 		let final_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
-		let expected_evaluator_contributor_return =
+
+		let expected_evaluators_and_contributors_payouts =
 			MockInstantiator::calculate_total_plmc_locked_from_evaluations_and_remainder_contributions(
-				vec![UserToUSDBalance::new(EVALUATOR_1, 50_000 * US_DOLLAR)],
-				vec![ContributionParams::new(
-					EVALUATOR_1,
-					250 * ASSET_UNIT,
-					1u8.try_into().unwrap(),
-					AcceptedFundingAsset::USDT,
-				)],
+				evaluations.clone(),
+				remainder_contributions.clone(),
 				final_price,
 				true,
 			);
 		let expected_bid_payouts = MockInstantiator::calculate_auction_plmc_spent(&bids.clone(), Some(final_price));
 		let expected_community_contribution_payouts =
 			MockInstantiator::calculate_contributed_plmc_spent(community_contributions.clone(), final_price);
-		let expected_remainder_contribution_payouts = MockInstantiator::calculate_contributed_plmc_spent(
-			vec![
-				ContributionParams::new(
-					BIDDER_1,
-					13_400 * ASSET_UNIT,
-					3u8.try_into().unwrap(),
-					AcceptedFundingAsset::USDT,
-				),
-				ContributionParams::new(BUYER_1, 42 * ASSET_UNIT, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
-			],
-			final_price,
-		);
 		let all_expected_payouts = MockInstantiator::generic_map_operation(
 			vec![
-				expected_evaluator_contributor_return,
+				expected_evaluators_and_contributors_payouts.clone(),
 				expected_bid_payouts.clone(),
 				expected_community_contribution_payouts,
-				expected_remainder_contribution_payouts,
 			],
 			MergeOperation::Add,
 		);
+		println!("all expected payouts {:?}", all_expected_payouts);
+		for payout in all_expected_payouts.clone() {
+			let evaluation_hold = inst.execute(|| {
+				<<TestRuntime as Config>::NativeCurrency as fungible::InspectHold<AccountIdOf<TestRuntime>>>::balance_on_hold(
+					&LockType::Evaluation(project_id),
+					&payout.account,
+				)
+			});
+			let participation_hold = inst.execute(|| {
+				<<TestRuntime as Config>::NativeCurrency as fungible::InspectHold<AccountIdOf<TestRuntime>>>::balance_on_hold(
+					&LockType::Participation(project_id),
+					&payout.account,
+				)
+			});
+			println!("account {:?} has evaluation hold {:?}", payout.account, evaluation_hold);
+			println!("account {:?} has participation hold {:?}", payout.account, participation_hold);
+		}
+		let deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
+			ProjectIdOf<TestRuntime>,
+			AccountIdOf<TestRuntime>,
+		>>::deposit_required(project_id);
 
 		let prev_issuer_funding_balance = inst.get_free_plmc_balances_for(vec![issuer.clone()])[0].plmc_amount;
+
 		let all_participants = all_expected_payouts.accounts();
 		let prev_participants_plmc_balances = inst.get_free_plmc_balances_for(all_participants.clone());
 
@@ -5375,10 +5370,7 @@ mod funding_end {
 			)
 		);
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
-		assert_eq!(
-			inst.get_project_details(project_id).cleanup,
-			Cleaner::Failure(CleanerState::Initialized(PhantomData))
-		);
+		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Failure(CleanerState::Initialized(PhantomData)));
 
 		let stored_evaluations =
 			inst.execute(|| Evaluations::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
@@ -5453,9 +5445,15 @@ mod funding_end {
 		);
 
 		let issuer_funding_delta = post_issuer_funding_balance - prev_issuer_funding_balance;
-
+		let participants = all_participants_plmc_deltas.accounts();
+		for participant in participants {
+			let future_deposit_reserved = inst.execute(||{<<TestRuntime as Config>::NativeCurrency as fungible::InspectHold<AccountIdOf<TestRuntime>>>::balance_on_hold(&LockType::FutureDeposit(project_id), &participant)});
+			println!("participant {:?} has future deposit reserved {:?}", participant, future_deposit_reserved);
+		}
+		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Failure(CleanerState::Initialized(PhantomData)));
 		assert_eq!(issuer_funding_delta, 0);
-		assert_eq!(all_expected_payouts, all_participants_plmc_deltas);
+		assert_eq!(all_participants_plmc_deltas, all_expected_payouts);
+
 	}
 
 	// i.e consumer increase bug fixed with touch on pallet-assets
@@ -5487,7 +5485,6 @@ mod funding_end {
 			vec![EVALUATOR_1, EVALUATOR_4, BIDDER_6, BUYER_4, BUYER_7],
 			vec![2u8, 1u8, 11u8, 1u8, 3u8],
 		);
-		// try doing 1000 projects
 		use std::time::Instant;
 		for i in 0..10 {
 			let now = Instant::now();

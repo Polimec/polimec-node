@@ -11,7 +11,7 @@ use frame_support::{
 	weights::Weight,
 	Parameter,
 };
-use std::ops::Not;
+use sp_std::ops::Not;
 
 use sp_arithmetic::Perquintill;
 
