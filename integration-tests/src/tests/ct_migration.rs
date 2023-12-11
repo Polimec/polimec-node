@@ -5,9 +5,8 @@ use pallet_funding::{
 };
 use polimec_common::migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
 use polimec_parachain_runtime::PolimecFunding;
-use sp_runtime::{FixedPointNumber, Perquintill};
+use sp_runtime::{traits::Convert, FixedPointNumber, Perquintill};
 use std::collections::HashMap;
-use sp_runtime::traits::Convert;
 use tests::defaults::*;
 
 fn execute_cleaner(inst: &mut IntegrationInstantiator) {
@@ -64,8 +63,15 @@ fn send_migrations(
 				pallet_funding::Contributions::<PolimecRuntime>::iter_prefix_values((project_id, account.clone()));
 
 			let evaluation_migrations = user_evaluations.map(|evaluation| {
-				let evaluator_bytes = <PolimecRuntime as pallet_funding::Config>::AccountId32Conversion::convert(evaluation.evaluator.clone());
-				assert!(matches!(evaluation.ct_migration_status, MigrationStatus::Sent(_)), "{:?}'s evaluation was not sent {:?}", names()[&evaluator_bytes], evaluation);
+				let evaluator_bytes = <PolimecRuntime as pallet_funding::Config>::AccountId32Conversion::convert(
+					evaluation.evaluator.clone(),
+				);
+				assert!(
+					matches!(evaluation.ct_migration_status, MigrationStatus::Sent(_)),
+					"{:?}'s evaluation was not sent {:?}",
+					names()[&evaluator_bytes],
+					evaluation
+				);
 				if let Some(RewardOrSlash::Reward(amount)) = evaluation.rewarded_or_slashed {
 					Migration {
 						info: MigrationInfo {

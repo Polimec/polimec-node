@@ -722,14 +722,14 @@ mod benchmarks {
 			10u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
-			default_bidder_multipliers()
+			default_bidder_multipliers(),
 		);
 		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
 			Percent::from_percent(10) * target_funding_amount,
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
-			default_community_contributor_multipliers()
+			default_community_contributor_multipliers(),
 		);
 
 		let project_id =
@@ -1227,7 +1227,7 @@ mod benchmarks {
 			1u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
-			default_bidder_multipliers()
+			default_bidder_multipliers(),
 		);
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size.1);
@@ -1236,7 +1236,7 @@ mod benchmarks {
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
-			default_community_contributor_multipliers()
+			default_community_contributor_multipliers(),
 		);
 
 		let project_id =
@@ -1280,7 +1280,7 @@ mod benchmarks {
 			10u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
-			default_bidder_multipliers()
+			default_bidder_multipliers(),
 		);
 		let bidder = bids[0].bidder.clone();
 		whitelist_account!(bidder);
@@ -1289,7 +1289,7 @@ mod benchmarks {
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
-			default_community_contributor_multipliers()
+			default_community_contributor_multipliers(),
 		);
 
 		let project_id =
@@ -1352,7 +1352,7 @@ mod benchmarks {
 			10u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
-			default_bidder_multipliers()
+			default_bidder_multipliers(),
 		);
 		let bidder = bids[0].bidder.clone();
 		whitelist_account!(bidder);
@@ -1361,7 +1361,7 @@ mod benchmarks {
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
-			default_community_contributor_multipliers()
+			default_community_contributor_multipliers(),
 		);
 
 		let project_id =
@@ -1425,14 +1425,14 @@ mod benchmarks {
 			1u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
-			default_bidder_multipliers()
+			default_bidder_multipliers(),
 		);
 		let contributions: Vec<ContributionParams<T>> = BenchInstantiator::generate_contributions_from_total_usd(
 			Percent::from_percent(10) * target_funding_amount,
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
-			default_community_contributor_multipliers()
+			default_community_contributor_multipliers(),
 		);
 		let contributor = contributions[0].contributor.clone();
 		whitelist_account!(contributor);
@@ -1504,14 +1504,14 @@ mod benchmarks {
 			1u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
-			default_bidder_multipliers()
+			default_bidder_multipliers(),
 		);
 		let contributions: Vec<ContributionParams<T>> = BenchInstantiator::generate_contributions_from_total_usd(
 			Percent::from_percent(10) * target_funding_amount,
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
-			default_community_contributor_multipliers()
+			default_community_contributor_multipliers(),
 		);
 		let contributor = contributions[0].contributor.clone();
 		whitelist_account!(contributor);

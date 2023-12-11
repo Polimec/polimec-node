@@ -5370,7 +5370,10 @@ mod funding_end {
 			)
 		);
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
-		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Failure(CleanerState::Initialized(PhantomData)));
+		assert_eq!(
+			inst.get_project_details(project_id).cleanup,
+			Cleaner::Failure(CleanerState::Initialized(PhantomData))
+		);
 
 		let stored_evaluations =
 			inst.execute(|| Evaluations::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
@@ -5450,10 +5453,12 @@ mod funding_end {
 			let future_deposit_reserved = inst.execute(||{<<TestRuntime as Config>::NativeCurrency as fungible::InspectHold<AccountIdOf<TestRuntime>>>::balance_on_hold(&LockType::FutureDeposit(project_id), &participant)});
 			println!("participant {:?} has future deposit reserved {:?}", participant, future_deposit_reserved);
 		}
-		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Failure(CleanerState::Initialized(PhantomData)));
+		assert_eq!(
+			inst.get_project_details(project_id).cleanup,
+			Cleaner::Failure(CleanerState::Initialized(PhantomData))
+		);
 		assert_eq!(issuer_funding_delta, 0);
 		assert_eq!(all_participants_plmc_deltas, all_expected_payouts);
-
 	}
 
 	// i.e consumer increase bug fixed with touch on pallet-assets
