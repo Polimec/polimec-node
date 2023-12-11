@@ -45,12 +45,12 @@ pallet-assets.workspace = true
 default = [ "std" ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
-	"pallet-funding/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"pallet-assets/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
-	"sp-runtime/runtime-benchmarks"
+	"pallet-funding/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
 ]
 std = [
 	"frame-benchmarking?/std",
@@ -78,6 +78,4 @@ try-runtime = [
 	"pallet-insecure-randomness-collective-flip/try-runtime",
 	"sp-runtime/try-runtime",
 ]
-testing-node = [
-	"pallet-funding/testing-node"
-]
+testing-node = [ "pallet-funding/testing-node" ]

@@ -18,7 +18,9 @@
 
 //! Test environment for Funding pallet.
 
+use super::*;
 use frame_support::{
+	pallet_prelude::Weight,
 	parameter_types,
 	traits::{AsEnsureOriginWithArg, ConstU16, ConstU32, WithdrawReasons},
 	PalletId,
@@ -28,18 +30,12 @@ use frame_system::EnsureRoot;
 use sp_arithmetic::Percent;
 use sp_core::H256;
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, ConvertInto, IdentityLookup},
 	BuildStorage,
 };
 use sp_std::collections::btree_map::BTreeMap;
 use system::EnsureSigned;
 
-use crate as pallet_funding;
-
-use super::*;
-
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<TestRuntime>;
 type Block = frame_system::mocking::MockBlock<TestRuntime>;
 
 // pub type AccountId = u64;
@@ -57,18 +53,16 @@ const US_DOLLAR: u128 = 1_0_000_000_000u128;
 
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
-	pub enum TestRuntime where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum TestRuntime
 	{
 		System: frame_system,
 		RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip,
 		Balances: pallet_balances,
-		FundingModule: pallet_funding,
+		FundingModule: crate,
 		Vesting: pallet_linear_release,
 		LocalAssets: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>},
 		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>},
+		PolkadotXcm: pallet_xcm,
 	}
 );
 
@@ -82,6 +76,84 @@ pub const fn deposit(items: u32, bytes: u32) -> Balance {
 
 pub const fn free_deposit() -> Balance {
 	0 * MICRO_PLMC
+}
+
+use frame_support::traits::{Everything, OriginTrait};
+use frame_system::RawOrigin as SystemRawOrigin;
+use polkadot_parachain::primitives::Sibling;
+use sp_runtime::traits::{ConvertBack, Get, TryConvert};
+use xcm_builder::{EnsureXcmOrigin, FixedWeightBounds, ParentIsPreset, SiblingParachainConvertsVia};
+
+pub struct SignedToAccountIndex<RuntimeOrigin, AccountId, Network>(PhantomData<(RuntimeOrigin, AccountId, Network)>);
+
+impl<RuntimeOrigin: OriginTrait + Clone, AccountId: Into<u64>, Network: Get<Option<NetworkId>>>
+	TryConvert<RuntimeOrigin, MultiLocation> for SignedToAccountIndex<RuntimeOrigin, AccountId, Network>
+where
+	RuntimeOrigin::PalletsOrigin:
+		From<SystemRawOrigin<AccountId>> + TryInto<SystemRawOrigin<AccountId>, Error = RuntimeOrigin::PalletsOrigin>,
+{
+	fn try_convert(o: RuntimeOrigin) -> Result<MultiLocation, RuntimeOrigin> {
+		o.try_with_caller(|caller| match caller.try_into() {
+			Ok(SystemRawOrigin::Signed(who)) =>
+				Ok(Junction::AccountIndex64 { network: Network::get(), index: who.into() }.into()),
+			Ok(other) => Err(other.into()),
+			Err(other) => Err(other),
+		})
+	}
+}
+pub type LocalOriginToLocation = SignedToAccountIndex<RuntimeOrigin, AccountId, RelayNetwork>;
+pub type LocationToAccountId = (
+	// The parent (Relay-chain) origin converts to the parent `AccountId`.
+	ParentIsPreset<AccountId>,
+	// Sibling parachain origins convert to AccountId via the `ParaId::into`.
+	SiblingParachainConvertsVia<Sibling, AccountId>,
+);
+#[cfg(feature = "runtime-benchmarks")]
+parameter_types! {
+	pub ReachableDest: Option<MultiLocation> = Some(Parent.into());
+}
+parameter_types! {
+	pub UniversalLocation: InteriorMultiLocation = (
+		GlobalConsensus(Polkadot),
+		 Parachain(3344u32),
+	).into();
+	pub const RelayNetwork: Option<NetworkId> = None;
+	pub UnitWeightCost: Weight = Weight::from_parts(1_000_000_000, 64 * 1024);
+	pub const MaxInstructions: u32 = 100;
+
+	pub const HereLocation: MultiLocation = MultiLocation::here();
+}
+impl pallet_xcm::Config for TestRuntime {
+	type AdminOrigin = EnsureRoot<AccountId>;
+	// ^ Override for AdvertisedXcmVersion default
+	type AdvertisedXcmVersion = pallet_xcm::CurrentXcmVersion;
+	type Currency = Balances;
+	type CurrencyMatcher = ();
+	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
+	type MaxLockers = ConstU32<8>;
+	type MaxRemoteLockConsumers = ConstU32<0>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type ReachableDest = ReachableDest;
+	type RemoteLockConsumerIdentifier = ();
+	type RuntimeCall = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeOrigin = RuntimeOrigin;
+	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
+	type SovereignAccountOf = LocationToAccountId;
+	type TrustedLockers = ();
+	type UniversalLocation = UniversalLocation;
+	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
+	type WeightInfo = pallet_xcm::TestWeightInfo;
+	// TODO: change back to `Nothing` once we add the xcm functionalities into a pallet
+	type XcmExecuteFilter = Everything;
+	// ^ Disable dispatchable execute on the XCM pallet.
+	// Needs to be `Everything` for local testing.
+	type XcmExecutor = ();
+	type XcmReserveTransferFilter = Everything;
+	type XcmRouter = ();
+	type XcmTeleportFilter = Everything;
+
+	const VERSION_DISCOVERY_QUEUE_SIZE: u32 = 100;
 }
 
 parameter_types! {
@@ -147,17 +219,16 @@ impl system::Config for TestRuntime {
 	type AccountData = pallet_balances::AccountData<Balance>;
 	type AccountId = AccountId;
 	type BaseCallFilter = frame_support::traits::Everything;
+	type Block = Block;
 	type BlockHashCount = BlockHashCount;
 	type BlockLength = ();
-	type BlockNumber = BlockNumber;
 	type BlockWeights = ();
 	type DbWeight = ();
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type Header = Header;
-	type Index = u64;
 	type Lookup = IdentityLookup<AccountId>;
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type Nonce = u64;
 	type OnKilledAccount = ();
 	type OnNewAccount = ();
 	type OnSetCode = ();
@@ -179,13 +250,13 @@ impl pallet_balances::Config for TestRuntime {
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type FreezeIdentifier = ();
-	type HoldIdentifier = LockType<u32>;
 	type MaxFreezes = ();
 	type MaxHolds = ConstU32<1024>;
 	type MaxLocks = frame_support::traits::ConstU32<1024>;
 	type MaxReserves = frame_support::traits::ConstU32<1024>;
 	type ReserveIdentifier = LockType<u32>;
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeHoldReason = LockType<u32>;
 	type WeightInfo = ();
 }
 
@@ -200,7 +271,7 @@ parameter_types! {
 	pub const EnglishAuctionDuration: BlockNumber = (2 * HOURS) as BlockNumber;
 	pub const CandleAuctionDuration: BlockNumber = (3 * HOURS) as BlockNumber;
 	pub const CommunityRoundDuration: BlockNumber = (5 * HOURS) as BlockNumber;
-	pub const RemainderFundingDuration: BlockNumber = (1 * HOURS) as BlockNumber;
+	pub const RemainderFundingDuration: BlockNumber = HOURS as BlockNumber;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 	pub const ManualAcceptanceDuration: BlockNumber = (3 * HOURS) as BlockNumber;
 	pub const SuccessToSettlementTime: BlockNumber =(4 * HOURS) as BlockNumber;
@@ -225,6 +296,9 @@ parameter_types! {
 	pub const MinVestedTransfer: u64 = 256 * 2;
 	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
 		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
+	pub PolimecReceiverInfo: xcm::v3::PalletInfo = xcm::v3::PalletInfo::new(
+		51, "PolimecReceiver".into(), "polimec_receiver".into(), 0, 1, 0
+	).unwrap();
 }
 impl pallet_linear_release::Config for TestRuntime {
 	type Balance = Balance;
@@ -239,11 +313,35 @@ impl pallet_linear_release::Config for TestRuntime {
 	const MAX_VESTING_SCHEDULES: u32 = 32;
 }
 
+parameter_types! {
+	pub MaxMessageSizeThresholds: (u32, u32) = (50000, 102_400);
+	pub MaxCapacityThresholds: (u32, u32) = (8, 1000);
+	pub RequiredMaxCapacity: u32 = 8;
+	pub RequiredMaxMessageSize: u32 = 102_400;
+
+}
+
+pub struct DummyConverter;
+impl sp_runtime::traits::Convert<AccountId, [u8; 32]> for DummyConverter {
+	fn convert(a: AccountId) -> [u8; 32] {
+		let mut account: [u8; 32] = [0u8; 32];
+		account[0..7].copy_from_slice(a.to_le_bytes().as_slice());
+		account
+	}
+}
+impl ConvertBack<AccountId, [u8; 32]> for DummyConverter {
+	fn convert_back(bytes: [u8; 32]) -> AccountId {
+		let account: [u8; 8] = bytes[0..7].try_into().unwrap();
+		u64::from_le_bytes(account)
+	}
+}
+
 impl Config for TestRuntime {
-	// #[cfg(feature = "runtime-benchmarks")]
+	type AccountId32Conversion = DummyConverter;
 	type AllPalletsWithoutSystem = AllPalletsWithoutSystem;
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;
+	type BlockNumber = BlockNumber;
 	type BlockNumberToBalance = ConvertInto;
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityFundingDuration = CommunityRoundDuration;
@@ -259,19 +357,28 @@ impl Config for TestRuntime {
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	// Low value to simplify the tests
 	type MaxBidsPerUser = ConstU32<4>;
+	type MaxCapacityThresholds = MaxCapacityThresholds;
 	type MaxContributionsPerUser = ConstU32<4>;
 	type MaxEvaluationsPerUser = ConstU32<4>;
+	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
 	type Multiplier = Multiplier;
 	type NativeCurrency = Balances;
 	type PalletId = FundingPalletId;
+	type PolimecReceiverInfo = PolimecReceiverInfo;
 	type PreImageLimit = ConstU32<1024>;
 	type Price = FixedU128;
 	type PriceProvider = ConstPriceProvider<AssetId, FixedU128, PriceMap>;
 	type ProjectIdentifier = Identifier;
 	type Randomness = RandomnessCollectiveFlip;
 	type RemainderFundingDuration = RemainderFundingDuration;
+	type RequiredMaxCapacity = RequiredMaxCapacity;
+	type RequiredMaxMessageSize = RequiredMaxMessageSize;
+	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeOrigin = RuntimeOrigin;
+	#[cfg(feature = "runtime-benchmarks")]
+	type SetPrices = ();
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type TreasuryAccount = TreasuryAccount;
@@ -281,7 +388,7 @@ impl Config for TestRuntime {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = frame_system::GenesisConfig::default().build_storage::<TestRuntime>().unwrap();
+	let mut t = frame_system::GenesisConfig::<TestRuntime>::default().build_storage().unwrap();
 
 	GenesisConfig {
 		balances: BalancesConfig {

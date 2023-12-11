@@ -5,6 +5,7 @@ use crate::*;
 use parity_scale_codec::alloc::collections::HashMap;
 use polimec_parachain_runtime::{Oracle, RuntimeOrigin};
 use sp_runtime::{bounded_vec, BoundedVec, FixedU128};
+use tests::defaults::*;
 
 fn values(
 	values: [f64; 4],
@@ -80,4 +81,29 @@ fn data_is_correctly_combined() {
 			assert_eq!(expected_values.get(&key).unwrap(), &value.unwrap().value);
 		}
 	})
+}
+
+#[test]
+fn pallet_funding_works() {
+	let mut inst = IntegrationInstantiator::new(None);
+
+	Polimec::execute_with(|| {
+		let alice = Polimec::account_id_of(ALICE);
+		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.clone()), values([4.84, 1.0, 1.0, 0.4])));
+
+		let bob = Polimec::account_id_of(BOB);
+		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(bob.clone()), values([4.84, 1.0, 1.0, 0.4])));
+
+		let charlie = Polimec::account_id_of(CHARLIE);
+		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(charlie.clone()), values([4.84, 1.0, 1.0, 0.4])));
+
+		let _project_id = inst.create_finished_project(
+			default_project(ISSUER.into(), 0),
+			ISSUER.into(),
+			default_evaluations(),
+			default_bids(),
+			default_community_contributions(),
+			vec![],
+		);
+	});
 }

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{currency::US_DOLLAR, Balance, BlockNumber, DAYS};
+use crate::{currency::US_DOLLAR, Balance, BlockNumber};
 use frame_support::{parameter_types, PalletId};
 use pallet_funding::types::AcceptedFundingAsset;
 use parachains_common::AssetIdForTrustBackedAssets;
@@ -24,47 +24,47 @@ use sp_std::{collections::btree_map::BTreeMap, vec, vec::Vec};
 #[cfg(feature = "fast-gov")]
 pub const EVALUATION_DURATION: BlockNumber = 28;
 #[cfg(not(feature = "fast-gov"))]
-pub const EVALUATION_DURATION: BlockNumber = 28 * DAYS;
+pub const EVALUATION_DURATION: BlockNumber = 28 * crate::DAYS;
 
 #[cfg(feature = "fast-gov")]
 pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 7;
 #[cfg(not(feature = "fast-gov"))]
-pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 7 * DAYS;
+pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 7 * crate::DAYS;
 
 #[cfg(feature = "fast-gov")]
 pub const ENGLISH_AUCTION_DURATION: BlockNumber = 10;
 #[cfg(not(feature = "fast-gov"))]
-pub const ENGLISH_AUCTION_DURATION: BlockNumber = 2 * DAYS;
+pub const ENGLISH_AUCTION_DURATION: BlockNumber = 2 * crate::DAYS;
 
 #[cfg(feature = "fast-gov")]
 pub const CANDLE_AUCTION_DURATION: BlockNumber = 5;
 #[cfg(not(feature = "fast-gov"))]
-pub const CANDLE_AUCTION_DURATION: BlockNumber = 3 * DAYS;
+pub const CANDLE_AUCTION_DURATION: BlockNumber = 3 * crate::DAYS;
 
 #[cfg(feature = "fast-gov")]
 pub const COMMUNITY_FUNDING_DURATION: BlockNumber = 10;
 #[cfg(not(feature = "fast-gov"))]
-pub const COMMUNITY_FUNDING_DURATION: BlockNumber = 5 * DAYS;
+pub const COMMUNITY_FUNDING_DURATION: BlockNumber = 5 * crate::DAYS;
 
 #[cfg(feature = "fast-gov")]
 pub const REMAINDER_FUNDING_DURATION: BlockNumber = 10;
 #[cfg(not(feature = "fast-gov"))]
-pub const REMAINDER_FUNDING_DURATION: BlockNumber = DAYS;
+pub const REMAINDER_FUNDING_DURATION: BlockNumber = crate::DAYS;
 
 #[cfg(feature = "fast-gov")]
 pub const CONTRIBUTION_VESTING_DURATION: BlockNumber = 365;
 #[cfg(not(feature = "fast-gov"))]
-pub const CONTRIBUTION_VESTING_DURATION: BlockNumber = 365 * DAYS;
+pub const CONTRIBUTION_VESTING_DURATION: BlockNumber = 365 * crate::DAYS;
 
 #[cfg(feature = "fast-gov")]
 pub const MANUAL_ACCEPTANCE_DURATION: BlockNumber = 3;
 #[cfg(not(feature = "fast-gov"))]
-pub const MANUAL_ACCEPTANCE_DURATION: BlockNumber = 3 * DAYS;
+pub const MANUAL_ACCEPTANCE_DURATION: BlockNumber = 3 * crate::DAYS;
 
 #[cfg(feature = "fast-gov")]
 pub const SUCCESS_TO_SETTLEMENT_TIME: BlockNumber = 4;
 #[cfg(not(feature = "fast-gov"))]
-pub const SUCCESS_TO_SETTLEMENT_TIME: BlockNumber = 4 * DAYS;
+pub const SUCCESS_TO_SETTLEMENT_TIME: BlockNumber = 4 * crate::DAYS;
 
 parameter_types! {
 	pub const EvaluationDuration: BlockNumber = EVALUATION_DURATION;
@@ -79,8 +79,8 @@ parameter_types! {
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 	pub PriceMap: BTreeMap<AssetIdForTrustBackedAssets, FixedU128> = BTreeMap::from_iter(vec![
 		(AcceptedFundingAsset::DOT.to_statemint_id(), FixedU128::from_rational(69, 1)), // DOT
-		(AcceptedFundingAsset::USDC.to_statemint_id(), FixedU128::from_rational(97, 100)), // USDC
-		(AcceptedFundingAsset::USDT.to_statemint_id(), FixedU128::from_rational(95, 100)), // USDT
+		(AcceptedFundingAsset::USDC.to_statemint_id(), FixedU128::from_rational(100, 100)), // USDC
+		(AcceptedFundingAsset::USDT.to_statemint_id(), FixedU128::from_rational(100, 100)), // USDT
 		(pallet_funding::PLMC_STATEMINT_ID, FixedU128::from_rational(840, 100)), // PLMC
 	]);
 	pub FeeBrackets: Vec<(Percent, Balance)> = vec![

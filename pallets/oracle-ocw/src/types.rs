@@ -73,7 +73,7 @@ impl OpenCloseVolume {
 		Ok(Self::from_u100f28(high, low, close, volume))
 	}
 
-	pub fn from_str(high: &str, low: &str,  close: &str, volume: &str) -> Result<Self, <U100F28 as FromStr>::Err> {
+	pub fn from_str(high: &str, low: &str, close: &str, volume: &str) -> Result<Self, <U100F28 as FromStr>::Err> {
 		let high = U100F28::from_str(high)?;
 		let low = U100F28::from_str(low)?;
 		let close = U100F28::from_str(close)?;
@@ -154,7 +154,6 @@ impl FetchPrice for BitFinexFetcher {
 	}
 
 	fn get_url(name: AssetName) -> &'static str {
-		
 		match name {
 			AssetName::USDT => "https://api-pub.bitfinex.com/v2/candles/trade%3A1m%3AtUSTUSD/hist?limit=15",
 			AssetName::DOT => "https://api-pub.bitfinex.com/v2/candles/trade%3A1m%3AtDOTUSD/hist?limit=15",
@@ -239,8 +238,12 @@ impl FetchPrice for CoinbaseFetcher {
 		}
 		let response = maybe_response.ok()?;
 
-		let data: Vec<OpenCloseVolume> =
-			response.0.into_iter().take(NUMBER_OF_CANDLES).filter_map(|r| OpenCloseVolume::from_f64(r.2, r.1, r.4, r.5).ok()).collect();
+		let data: Vec<OpenCloseVolume> = response
+			.0
+			.into_iter()
+			.take(NUMBER_OF_CANDLES)
+			.filter_map(|r| OpenCloseVolume::from_f64(r.2, r.1, r.4, r.5).ok())
+			.collect();
 		if data.len() < NUMBER_OF_CANDLES {
 			return None
 		}

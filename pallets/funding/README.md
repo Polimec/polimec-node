@@ -1,6 +1,6 @@
 # Funding Pallet
 
-Polimec's main business logic. It allows credentialised users to create,
+Polimec's main business logic. It allows credentialed users to create,
 evaluate, and fund projects.
 
 It rewards project evaluators and contributors with `Contribution Tokens`. These

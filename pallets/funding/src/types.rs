@@ -18,20 +18,22 @@
 
 //! Types for Funding pallet.
 
+use crate::{
+	traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation},
+	BalanceOf, BidInfoOf, Config, ContributionInfoOf, EvaluationInfoOf, MultiplierOf,
+};
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
+use frame_system::pallet_prelude::BlockNumberFor;
+use polimec_traits::migration_types::{Migration, MigrationInfo, MigrationOrigin, ParticipationType};
 use polkadot_parachain::primitives::Id as ParaId;
+use serde::{Deserialize, Serialize};
 use sp_arithmetic::{FixedPointNumber, FixedPointOperand};
-use sp_runtime::traits::CheckedDiv;
+use sp_runtime::traits::{CheckedDiv, Convert, Zero};
 use sp_std::{cmp::Eq, collections::btree_map::*, prelude::*};
 
 pub use config_types::*;
 pub use inner_types::*;
 pub use storage_types::*;
-
-use crate::{
-	traits::{BondingRequirementCalculation, ProvideStatemintPrice},
-	BalanceOf,
-};
 
 pub mod config_types {
 	use parachains_common::DAYS;
@@ -42,8 +44,21 @@ pub mod config_types {
 
 	use super::*;
 
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy, Ord, PartialOrd)]
-	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	#[derive(
+		Clone,
+		Encode,
+		Decode,
+		Eq,
+		PartialEq,
+		RuntimeDebug,
+		TypeInfo,
+		MaxEncodedLen,
+		Copy,
+		Ord,
+		PartialOrd,
+		Serialize,
+		Deserialize,
+	)]
 	pub struct Multiplier(u8);
 
 	impl Multiplier {
@@ -69,7 +84,7 @@ pub mod config_types {
 	}
 
 	impl VestingDurationCalculation for Multiplier {
-		fn calculate_vesting_duration<T: Config>(&self) -> T::BlockNumber {
+		fn calculate_vesting_duration<T: Config>(&self) -> BlockNumberFor<T> {
 			// gradient "m" of the linear curve function y = m*x + b where x is the multiplier and y is the number of weeks
 			const GRADIENT: FixedU128 = FixedU128::from_rational(2167u128, 1000u128);
 			// negative constant (because we cannot have negative values, so we take the negative and do "-b" instead of "+b") "b" of the linear curve function y = m*x + b
@@ -97,9 +112,22 @@ pub mod config_types {
 	}
 
 	/// Enum used to identify PLMC holds.
-	/// It implements Serialize and Deserialize (only in the "std" feature set) to hold a fungible in the Genesis Configuration.
-	#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo, Ord, PartialOrd)]
-	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	/// It implements Serialize and Deserialize to hold a fungible in the Genesis Configuration.
+	#[derive(
+		Encode,
+		Decode,
+		Copy,
+		Clone,
+		PartialEq,
+		Eq,
+		RuntimeDebug,
+		MaxEncodedLen,
+		TypeInfo,
+		Ord,
+		PartialOrd,
+		Serialize,
+		Deserialize,
+	)]
 	pub enum LockType<ProjectId> {
 		Evaluation(ProjectId),
 		Participation(ProjectId),
@@ -144,7 +172,7 @@ pub mod storage_types {
 		pub token_information: CurrencyMetadata<BoundedString>,
 		/// Mainnet Token Max Supply
 		pub mainnet_token_max_supply: Balance,
-		/// Total allocation of Contribution Tokens available for the Funding Round
+		/// Total allocation of Contribution Tokens available for the Funding Round. (Auction, Community)
 		pub total_allocation_size: (Balance, Balance),
 		/// Minimum price per Contribution Token
 		pub minimum_price: Price,
@@ -232,12 +260,13 @@ pub mod storage_types {
 		pub early_usd_amount: Balance,
 		pub late_usd_amount: Balance,
 		pub when: BlockNumber,
-		pub rewarded_or_slashed: bool,
+		// Will be Some after a reward of slash was made on this evaluation.
+		pub rewarded_or_slashed: Option<RewardOrSlash<Balance>>,
+		pub ct_migration_status: MigrationStatus,
 	}
 
-	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	pub struct BidInfo<
-		Id,
 		ProjectId,
 		Balance: BalanceT,
 		Price: FixedPointNumber,
@@ -246,7 +275,7 @@ pub mod storage_types {
 		Multiplier,
 		VestingInfo,
 	> {
-		pub id: Id,
+		pub id: u32,
 		pub project_id: ProjectId,
 		pub bidder: AccountId,
 		pub status: BidStatus<Balance>,
@@ -263,10 +292,10 @@ pub mod storage_types {
 		pub when: BlockNumber,
 		pub funds_released: bool,
 		pub ct_minted: bool,
+		pub ct_migration_status: MigrationStatus,
 	}
 
 	impl<
-			BidId: Eq + Ord,
 			ProjectId: Eq,
 			Balance: BalanceT + FixedPointOperand + Ord,
 			Price: FixedPointNumber,
@@ -274,7 +303,7 @@ pub mod storage_types {
 			BlockNumber: Eq + Ord,
 			Multiplier: Eq,
 			VestingInfo: Eq,
-		> Ord for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, Multiplier, VestingInfo>
+		> Ord for BidInfo<ProjectId, Balance, Price, AccountId, BlockNumber, Multiplier, VestingInfo>
 	{
 		fn cmp(&self, other: &Self) -> sp_std::cmp::Ordering {
 			match self.original_ct_usd_price.cmp(&other.original_ct_usd_price) {
@@ -285,7 +314,6 @@ pub mod storage_types {
 	}
 
 	impl<
-			BidId: Eq + Ord,
 			ProjectId: Eq,
 			Balance: BalanceT + FixedPointOperand,
 			Price: FixedPointNumber,
@@ -293,14 +321,14 @@ pub mod storage_types {
 			BlockNumber: Eq + Ord,
 			Multiplier: Eq,
 			VestingInfo: Eq,
-		> PartialOrd for BidInfo<BidId, ProjectId, Balance, Price, AccountId, BlockNumber, Multiplier, VestingInfo>
+		> PartialOrd for BidInfo<ProjectId, Balance, Price, AccountId, BlockNumber, Multiplier, VestingInfo>
 	{
 		fn partial_cmp(&self, other: &Self) -> Option<sp_std::cmp::Ordering> {
 			Some(self.cmp(other))
 		}
 	}
 
-	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	pub struct ContributionInfo<Id, ProjectId, AccountId, Balance, Multiplier, VestingInfo> {
 		pub id: Id,
 		pub project_id: ProjectId,
@@ -314,6 +342,7 @@ pub mod storage_types {
 		pub plmc_vesting_info: Option<VestingInfo>,
 		pub funds_released: bool,
 		pub ct_minted: bool,
+		pub ct_migration_status: MigrationStatus,
 	}
 
 	/// Represents a bucket that holds a specific amount of tokens at a given price.
@@ -364,6 +393,7 @@ pub mod storage_types {
 
 pub mod inner_types {
 	use super::*;
+	use xcm::v3::MaxDispatchErrorLen;
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
@@ -660,6 +690,12 @@ pub mod inner_types {
 		Slashed,
 	}
 
+	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, PartialOrd, Ord, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum RewardOrSlash<Balance> {
+		Reward(Balance),
+		Slash(Balance),
+	}
+
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct RewardInfo<Balance> {
 		// Total "Early Evaluators" rewards amount in Contribution Tokens
@@ -677,13 +713,22 @@ pub mod inner_types {
 	}
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum MigrationReadinessCheck {
-		/// Sent an xcm to the project to check if it is ready to migrate
-		QuerySent,
-		/// The response was satisfactory
-		CheckPassed,
-		/// The response was not satisfactory or timed out
-		CheckFailed,
+	pub struct MigrationReadinessCheck {
+		pub holding_check: (xcm::v3::QueryId, CheckOutcome),
+		pub pallet_check: (xcm::v3::QueryId, CheckOutcome),
+	}
+
+	impl MigrationReadinessCheck {
+		pub fn is_ready(&self) -> bool {
+			self.holding_check.1 == CheckOutcome::Passed && self.pallet_check.1 == CheckOutcome::Passed
+		}
+	}
+
+	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum CheckOutcome {
+		AwaitingResponse,
+		Passed,
+		Failed,
 	}
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -700,5 +745,82 @@ pub mod inner_types {
 		Open,
 		/// request for a hrmp channel was sent to the relay. Waiting for response.
 		AwaitingAcceptance,
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub struct ProjectMigrationOrigins<ProjectId, MigrationOrigins> {
+		pub project_id: ProjectId,
+		pub migration_origins: MigrationOrigins,
+	}
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum MigrationStatus {
+		NotStarted,
+		Sent(xcm::v3::QueryId),
+		Confirmed,
+		Failed(BoundedVec<u8, MaxDispatchErrorLen>),
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub struct MaxMigrationsPerXcm<T>(PhantomData<T>);
+	impl<T: crate::Config> Get<u32> for MaxMigrationsPerXcm<T> {
+		fn get() -> u32 {
+			crate::Pallet::<T>::migrations_per_xcm_message_allowed()
+		}
+	}
+}
+
+pub struct MigrationGenerator<T: Config>(PhantomData<T>);
+
+impl<T: Config> MigrationGenerator<T> {
+	pub fn evaluation_migration(evaluation: EvaluationInfoOf<T>) -> Option<Migration> {
+		if matches!(evaluation.ct_migration_status, MigrationStatus::Confirmed | MigrationStatus::Sent(_)) {
+			return None
+		}
+		if let Some(RewardOrSlash::Reward(ct_amount)) = evaluation.rewarded_or_slashed {
+			let multiplier = MultiplierOf::<T>::try_from(1u8).ok()?;
+			let vesting_duration = multiplier.calculate_vesting_duration::<T>();
+			let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);
+			let migration_origin = MigrationOrigin {
+				user: T::AccountId32Conversion::convert(evaluation.evaluator),
+				id: evaluation.id,
+				participation_type: ParticipationType::Evaluation,
+			};
+			let migration_info: MigrationInfo = (ct_amount.into(), vesting_duration_local_type.into()).into();
+			Some(Migration::new(migration_origin, migration_info))
+		} else {
+			None
+		}
+	}
+
+	pub fn bid_migration(bid: BidInfoOf<T>) -> Option<Migration> {
+		if bid.final_ct_amount == Zero::zero() ||
+			matches!(bid.ct_migration_status, MigrationStatus::Confirmed | MigrationStatus::Sent(_))
+		{
+			return None
+		}
+		let vesting_duration = bid.multiplier.calculate_vesting_duration::<T>();
+		let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);
+		let migration_origin = MigrationOrigin {
+			user: <T as Config>::AccountId32Conversion::convert(bid.bidder),
+			id: bid.id,
+			participation_type: ParticipationType::Bid,
+		};
+		let migration_info: MigrationInfo = (bid.final_ct_amount.into(), vesting_duration_local_type.into()).into();
+		Some(Migration::new(migration_origin, migration_info))
+	}
+
+	pub fn contribution_migration(contribution: ContributionInfoOf<T>) -> Option<Migration> {
+		if matches!(contribution.ct_migration_status, MigrationStatus::Confirmed | MigrationStatus::Sent(_)) {
+			return None
+		}
+		let vesting_duration = contribution.multiplier.calculate_vesting_duration::<T>();
+		let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);
+		let migration_origin = MigrationOrigin {
+			user: <T as Config>::AccountId32Conversion::convert(contribution.contributor),
+			id: contribution.id,
+			participation_type: ParticipationType::Contribution,
+		};
+		let migration_info: MigrationInfo = (contribution.ct_amount.into(), vesting_duration_local_type.into()).into();
+		Some(Migration::new(migration_origin, migration_info))
 	}
 }

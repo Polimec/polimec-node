@@ -28,7 +28,11 @@ build-parachain-srtool:
 
 # Test the runtimes features
 test-runtime-features:
-	cargo test --features runtime-benchmarks
+	cargo test --features runtime-benchmarks -p polimec-parachain-runtime
+
+# Run the integration tests
+test-integration:
+	cargo test -p integration-tests --features std,testing-node,fast-gov
 
 # Benchmark the "Testnet" Runtime
 benchmark-runtime-funding:
@@ -38,7 +42,6 @@ benchmark-runtime-funding:
 		--repeat=20 \
 		--pallet=pallet_funding \
 		--extrinsic '*' \
-		--execution=wasm \
 		--wasm-execution=compiled \
 		--heap-pages=4096 \
 		--output=runtimes/testnet/src/weights/pallet_funding.rs
@@ -51,7 +54,6 @@ benchmark-runtime-linear-release:
 		--repeat=20 \
 		--pallet=pallet_linear_release \
 		--extrinsic '*' \
-		--execution=wasm \
 		--wasm-execution=compiled \
 		--heap-pages=4096 \
 		--output=runtimes/testnet/src/weights/pallet_linear_release.rs
@@ -64,7 +66,6 @@ benchmark-pallet-funding:
 		--repeat=20 \
 		--pallet=pallet_funding \
 		--extrinsic '*' \
-		--execution=wasm \
 		--heap-pages=4096 \
 		--output=pallets/funding/src/weights-test.rs \
 		--template=./.maintain/frame-weight-template.hbs
@@ -76,7 +77,6 @@ benchmark-pallet-linear-release:
 		--repeat=20 \
 		--pallet=pallet_linear_release \
 		--extrinsic '*' \
-		--execution=wasm \
 		--heap-pages=4096 \
 		--output=pallets/linear-release/src/weights.rs \
 		--template=./.maintain/frame-weight-template.hbs

@@ -22,8 +22,8 @@ sp-std.workspace = true
 sp-runtime.workspace = true
 polimec-traits.workspace = true
 frame-benchmarking = { workspace = true, optional = true }
-pallet-funding = { workspace = true, optional = true }
 xcm-builder = { workspace = true, optional = true }
+pallet-funding = { workspace = true, optional = true }
 
 [dev-dependencies]
 sp-core.workspace = true
@@ -47,7 +47,7 @@ std = [
 	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
-	"xcm-builder?/std"
+	"xcm-builder?/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
@@ -55,10 +55,10 @@ runtime-benchmarks = [
 	"frame-system/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-funding",
+	"pallet-funding/runtime-benchmarks",
 	"polimec-traits/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
-	"pallet-funding?/runtime-benchmarks"
 ]
 try-runtime = [
 	"frame-support/try-runtime",
@@ -68,3 +68,4 @@ try-runtime = [
 	"polimec-traits/try-runtime",
 	"sp-runtime/try-runtime",
 ]
+testing-node = [ "pallet-funding/testing-node" ]

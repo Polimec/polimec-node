@@ -32,7 +32,7 @@ use frame_support::{
 use frame_system::{EnsureRoot, EnsureSigned};
 pub use parachains_common::{
 	impls::DealWithFees, opaque, AccountId, AssetIdForTrustBackedAssets as AssetId, AuraId, Balance, BlockNumber, Hash,
-	Header, Index, Signature, AVERAGE_ON_INITIALIZE_RATIO, DAYS, HOURS, MAXIMUM_BLOCK_WEIGHT, MINUTES,
+	Header, Nonce, Signature, AVERAGE_ON_INITIALIZE_RATIO, DAYS, HOURS, MAXIMUM_BLOCK_WEIGHT, MINUTES,
 	NORMAL_DISPATCH_RATIO, SLOT_DURATION,
 };
 use parity_scale_codec::Encode;
@@ -45,10 +45,11 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, Convert, ConvertInto, OpaqueKeys, Verify},
+	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, Convert, ConvertBack, ConvertInto, OpaqueKeys, Verify},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, FixedU128, MultiAddress, SaturatedConversion,
 };
+
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -66,24 +67,24 @@ pub use crate::xcm_config::*;
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 // Polimec Shared Imports
-use pallet_funding::{BondTypeOf, ConstPriceProvider, DaysToBlocks};
+use pallet_funding::{BondTypeOf, DaysToBlocks};
 pub use pallet_parachain_staking;
 pub use shared_configuration::*;
+
+#[cfg(feature = "runtime-benchmarks")]
+use pallet_funding::AcceptedFundingAsset;
+
+#[cfg(feature = "runtime-benchmarks")]
+use frame_support::BoundedVec;
+
+#[cfg(feature = "runtime-benchmarks")]
+use pallet_funding::traits::SetPrices;
 
 pub type NegativeImbalanceOf<T> =
 	<pallet_balances::Pallet<T> as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
 
 /// The address format for describing accounts.
 pub type Address = MultiAddress<AccountId, ()>;
-
-// #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, MaxEncodedLen, TypeInfo, Debug)]
-// #[cfg_attr(feature = "std", derive(Hash))]
-// pub struct AccountId(pub [u8; 32]);
-// impl From<AccountId32> for AccountId {
-// 	fn from(account_id: AccountId32) -> Self {
-// 		Self(account_id)
-// 	}
-// }
 
 /// Block type as expected by this runtime.
 pub type Block = generic::Block<Header, UncheckedExtrinsic>;
@@ -123,7 +124,6 @@ pub type Moment = u64;
 impl_opaque_keys! {
 	pub struct SessionKeys {
 		pub aura: Aura,
-		// pub pallet_oracle_ocw: OracleOffchainWorker,
 	}
 }
 
@@ -145,6 +145,41 @@ pub fn native_version() -> NativeVersion {
 	NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
 }
 
+#[cfg(feature = "runtime-benchmarks")]
+pub struct SetOraclePrices;
+#[cfg(feature = "runtime-benchmarks")]
+impl SetPrices for SetOraclePrices {
+	fn set_prices() {
+		let dot = (AcceptedFundingAsset::DOT.to_statemint_id(), FixedU128::from_rational(69, 1));
+		let usdc = (AcceptedFundingAsset::USDT.to_statemint_id(), FixedU128::from_rational(1, 1));
+		let usdt = (AcceptedFundingAsset::USDT.to_statemint_id(), FixedU128::from_rational(1, 1));
+		let plmc = (pallet_funding::PLMC_STATEMINT_ID, FixedU128::from_rational(840, 100));
+
+		let values: BoundedVec<
+			(u32, FixedU128),
+			<Runtime as orml_oracle::Config<orml_oracle::Instance1>>::MaxFeedValues,
+		> = vec![dot, usdc, usdt, plmc].try_into().expect("benchmarks can panic");
+		let alice: [u8; 32] = [
+			212, 53, 147, 199, 21, 253, 211, 28, 97, 20, 26, 189, 4, 169, 159, 214, 130, 44, 133, 88, 133, 76, 205,
+			227, 154, 86, 132, 231, 165, 109, 162, 125,
+		];
+		let bob: [u8; 32] = [
+			142, 175, 4, 21, 22, 135, 115, 99, 38, 201, 254, 161, 126, 37, 252, 82, 135, 97, 54, 147, 201, 18, 144,
+			156, 178, 38, 170, 71, 148, 242, 106, 72,
+		];
+		let charlie: [u8; 32] = [
+			144, 181, 171, 32, 92, 105, 116, 201, 234, 132, 27, 230, 136, 134, 70, 51, 220, 156, 168, 163, 87, 132, 62,
+			234, 207, 35, 20, 100, 153, 101, 254, 34,
+		];
+
+		frame_support::assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.clone().into()), values.clone()));
+
+		frame_support::assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(bob.clone().into()), values.clone()));
+
+		frame_support::assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(charlie.clone().into()), values.clone()));
+	}
+}
+
 parameter_types! {
 	pub const Version: RuntimeVersion = VERSION;
 	pub const SS58Prefix: u8 = 41;
@@ -159,12 +194,12 @@ impl frame_system::Config for Runtime {
 	type AccountId = AccountId;
 	/// The basic call filter to use in dispatchable.
 	type BaseCallFilter = Everything;
+	/// The block type.
+	type Block = Block;
 	/// Maximum number of block number to block hash mappings to keep (oldest pruned first).
 	type BlockHashCount = BlockHashCount;
 	/// The maximum length of a block (in bytes).
 	type BlockLength = RuntimeBlockLength;
-	/// The index type for blocks.
-	type BlockNumber = BlockNumber;
 	/// Block & extrinsics weights: base values and limits.
 	type BlockWeights = RuntimeBlockWeights;
 	/// The weight of database operations that the runtime can invoke.
@@ -173,13 +208,11 @@ impl frame_system::Config for Runtime {
 	type Hash = Hash;
 	/// The hashing algorithm used.
 	type Hashing = BlakeTwo256;
-	/// The header type.
-	type Header = Header;
-	/// The index type for storing how many extrinsics an account has signed.
-	type Index = Index;
 	/// The lookup mechanism to get account ID from whatever is passed in dispatchers.
 	type Lookup = AccountIdLookup<AccountId, ()>;
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	/// The index type for storing how many extrinsics an account has signed.
+	type Nonce = Nonce;
 	/// What to do if an account is fully reaped from the system.
 	type OnKilledAccount = ();
 	/// What to do if a new account is created.
@@ -222,13 +255,13 @@ impl pallet_balances::Config for Runtime {
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type FreezeIdentifier = ();
-	type HoldIdentifier = BondTypeOf<Runtime>;
 	type MaxFreezes = MaxReserves;
 	type MaxHolds = MaxLocks;
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = BondTypeOf<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeHoldReason = BondTypeOf<Runtime>;
 	type WeightInfo = ();
 }
 
@@ -303,6 +336,7 @@ impl pallet_session::Config for Runtime {
 }
 
 impl pallet_aura::Config for Runtime {
+	type AllowMultipleBlocksPerSlot = frame_support::traits::ConstBool<false>;
 	type AuthorityId = AuraId;
 	type DisabledValidators = ();
 	type MaxAuthorities = MaxAuthorities;
@@ -496,11 +530,31 @@ impl pallet_assets::Config<StatemintAssetsInstance> for Runtime {
 
 parameter_types! {
 	pub TreasuryAccount: AccountId = [69u8; 32].into();
+	pub PolimecReceiverInfo: xcm::v3::PalletInfo = xcm::v3::PalletInfo::new(
+		51, "PolimecReceiver".into(), "polimec_receiver".into(), 0, 1, 0
+	).unwrap();
+	pub MaxMessageSizeThresholds: (u32, u32) = (50000, 102_400);
+	pub MaxCapacityThresholds: (u32, u32) = (8, 1000);
+	pub RequiredMaxCapacity: u32 = 1000;
+	pub RequiredMaxMessageSize: u32 = 102_400;
+}
+pub struct ConvertSelf;
+impl Convert<AccountId, [u8; 32]> for ConvertSelf {
+	fn convert(account_id: AccountId) -> [u8; 32] {
+		account_id.into()
+	}
+}
+impl ConvertBack<AccountId, [u8; 32]> for ConvertSelf {
+	fn convert_back(bytes: [u8; 32]) -> AccountId {
+		bytes.into()
+	}
 }
 impl pallet_funding::Config for Runtime {
+	type AccountId32Conversion = ConvertSelf;
 	type AllPalletsWithoutSystem = (Balances, LocalAssets, StatemintAssets, PolimecFunding, LinearVesting, Random);
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;
+	type BlockNumber = BlockNumber;
 	type BlockNumberToBalance = ConvertInto;
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityFundingDuration = CommunityFundingDuration;
@@ -515,19 +569,28 @@ impl pallet_funding::Config for Runtime {
 	type FundingCurrency = StatemintAssets;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	type MaxBidsPerUser = ConstU32<256>;
+	type MaxCapacityThresholds = MaxCapacityThresholds;
 	type MaxContributionsPerUser = ConstU32<256>;
 	type MaxEvaluationsPerUser = ConstU32<256>;
+	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
 	type Multiplier = pallet_funding::types::Multiplier;
 	type NativeCurrency = Balances;
 	type PalletId = FundingPalletId;
+	type PolimecReceiverInfo = PolimecReceiverInfo;
 	type PreImageLimit = ConstU32<1024>;
 	type Price = Price;
-	type PriceProvider = ConstPriceProvider<AssetId, FixedU128, PriceMap>;
+	type PriceProvider = OraclePriceProvider<AssetId, FixedU128, Oracle>;
 	type ProjectIdentifier = u32;
 	type Randomness = Random;
 	type RemainderFundingDuration = RemainderFundingDuration;
+	type RequiredMaxCapacity = RequiredMaxCapacity;
+	type RequiredMaxMessageSize = RequiredMaxMessageSize;
+	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeOrigin = RuntimeOrigin;
+	#[cfg(feature = "runtime-benchmarks")]
+	type SetPrices = SetOraclePrices;
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type TreasuryAccount = TreasuryAccount;
@@ -536,7 +599,7 @@ impl pallet_funding::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MinVestedTransfer: Balance = 1 * PLMC;
+	pub const MinVestedTransfer: Balance = PLMC;
 	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
 		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
 }
@@ -661,7 +724,7 @@ where
 		call: RuntimeCall,
 		public: <Signature as Verify>::Signer,
 		account: AccountId,
-		nonce: <Runtime as frame_system::Config>::Index,
+		nonce: <Runtime as frame_system::Config>::Nonce,
 	) -> Option<(RuntimeCall, <UncheckedExtrinsic as sp_runtime::traits::Extrinsic>::SignaturePayload)> {
 		use sp_runtime::traits::StaticLookup;
 		// take the biggest period possible.
@@ -696,14 +759,12 @@ where
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
+
 construct_runtime!(
-	pub enum Runtime where
-		Block = Block,
-		NodeBlock = opaque::Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Runtime
 	{
 		// System support stuff.
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>} = 0,
+		System: frame_system::{Pallet, Call, Config<T>, Storage, Event<T>} = 0,
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 2,
 		Sudo: pallet_sudo = 4,
 		Utility: pallet_utility::{Pallet, Call, Event} = 5,
@@ -721,7 +782,7 @@ construct_runtime!(
 		Authorship: pallet_authorship::{Pallet, Storage} = 20,
 		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 22,
 		Aura: pallet_aura::{Pallet, Storage, Config<T>} = 23,
-		AuraExt: cumulus_pallet_aura_ext::{Pallet, Storage, Config} = 24,
+		AuraExt: cumulus_pallet_aura_ext::{Pallet, Storage, Config<T>} = 24,
 		ParachainStaking: pallet_parachain_staking::{Pallet, Call, Storage, Event<T>, Config<T>} = 25,
 
 
@@ -747,11 +808,11 @@ construct_runtime!(
 
 		// Among others: Send and receive DMP and XCMP messages.
 		ParachainSystem: cumulus_pallet_parachain_system = 80,
-		ParachainInfo: parachain_info::{Pallet, Storage, Config} = 81,
+		ParachainInfo: parachain_info::{Pallet, Storage, Config<T>} = 81,
 		// Wrap and unwrap XCMP messages to send and receive them. Queue them for later processing.
 		XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Call, Storage, Event<T>} = 82,
 		// Build XCM scripts.
-		PolkadotXcm: pallet_xcm::{Pallet, Call, Event<T>, Origin, Config} = 83,
+		PolkadotXcm: pallet_xcm::{Pallet, Call, Event<T>, Origin, Config<T>} = 83,
 		// Does nothing cool, just provides an origin.
 		CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 84,
 		// Queue and pass DMP messages on to be executed.
@@ -859,8 +920,8 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index> for Runtime {
-		fn account_nonce(account: AccountId) -> Index {
+	impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Nonce> for Runtime {
+		fn account_nonce(account: AccountId) -> Nonce {
 			System::account_nonce(account)
 		}
 	}

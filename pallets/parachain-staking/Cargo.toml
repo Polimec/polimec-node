@@ -11,8 +11,8 @@ repository.workspace = true
 version.workspace = true
 
 [dependencies]
-serde = { version = "1", default-features = false, optional = true }
-log = "0.4"
+serde = { workspace = true }
+log = { workspace = true }
 
 parity-scale-codec = { workspace = true, features = [
 	"derive",
@@ -70,7 +70,7 @@ runtime-benchmarks = [
 	"pallet-balances/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
-	"sp-staking/runtime-benchmarks"
+	"sp-staking/runtime-benchmarks",
 ]
 try-runtime = [
 	"frame-support/try-runtime",

@@ -22,13 +22,13 @@ use crate::{
 		AssetName, AssetRequest, BitFinexFetcher, BitStampFetcher, CoinbaseFetcher, KrakenFetcher, OpenCloseVolume,
 	},
 };
+use core::ops::Rem;
 use frame_system::offchain::{AppCrypto, CreateSignedTransaction, SendSignedTransaction, Signer};
 pub use pallet::*;
 use sp_runtime::{
 	traits::{Convert, Saturating, Zero},
 	FixedU128, RuntimeAppPublic,
 };
-use core::ops::Rem;
 use sp_std::{collections::btree_map::BTreeMap, vec, vec::Vec};
 
 mod mock;
@@ -81,7 +81,7 @@ pub mod pallet {
 		type AppCrypto: AppCrypto<Self::Public, Self::Signature>;
 		/// List of members that are allowed to send transactions.
 		type Members: frame_support::traits::Contains<Self::AccountId>;
-		/// Interval between price fetches in block numbers. 
+		/// Interval between price fetches in block numbers.
 		/// The interval is started at block `n % FetchInterval == 0`
 		type FetchInterval: Get<BlockNumberFor<Self>>;
 		/// Window size for fetching prices. Ocw will try to successfully fetch the prices once in this window.
@@ -90,7 +90,7 @@ pub mod pallet {
 		/// If the ocw is not successful in the window, it will try again in the next window.
 		/// Example: FetchInterval = 10, FetchWindow = 5 => Ocw will try to fetch prices once
 		/// for the next windows: [0, 5), [10, 15), [20, 25), ...
-		type FetchWindow: Get<BlockNumberFor<Self>>;		
+		type FetchWindow: Get<BlockNumberFor<Self>>;
 		/// Convert AssetName and FixedU128 to OracleKey and OracleValue
 		type ConvertAssetPricePair: Convert<(AssetName, FixedU128), (Self::OracleKey, Self::OracleValue)>;
 	}
@@ -161,7 +161,9 @@ pub mod pallet {
 						.filter_map(|(asset_name, last_send)| {
 							let window = T::FetchWindow::get();
 							let remainder = block_number.rem(T::FetchInterval::get());
-							if  remainder >= BlockNumberFor::<T>::zero() && remainder < window && last_send < &block_number.saturating_sub(window) {
+							if remainder >= BlockNumberFor::<T>::zero() &&
+								remainder < window && last_send < &block_number.saturating_sub(window)
+							{
 								return Some(*asset_name)
 							}
 							None
@@ -213,7 +215,10 @@ pub mod pallet {
 			for fetcher in fetchers.into_iter() {
 				let fetcher_prices = fetcher(assets.clone(), 5000);
 				for (asset_name, volume_price_sum, tot_vol) in fetcher_prices {
-					aggr_prices.entry(asset_name).and_modify(|e| e.push((volume_price_sum, tot_vol))).or_insert(vec![(volume_price_sum, tot_vol)]);
+					aggr_prices
+						.entry(asset_name)
+						.and_modify(|e| e.push((volume_price_sum, tot_vol)))
+						.or_insert(vec![(volume_price_sum, tot_vol)]);
 				}
 			}
 
@@ -227,9 +232,10 @@ pub mod pallet {
 					if price_list.is_empty() {
 						return None
 					}
-					let combined_prices = price_list.into_iter().fold((FixedU128::zero(), FixedU128::zero()), |acc, (price, volume)| {
-						(acc.0 + price, acc.1 + volume)
-					});
+					let combined_prices =
+						price_list.into_iter().fold((FixedU128::zero(), FixedU128::zero()), |acc, (price, volume)| {
+							(acc.0 + price, acc.1 + volume)
+						});
 					if combined_prices.1.is_zero() {
 						return None
 					}

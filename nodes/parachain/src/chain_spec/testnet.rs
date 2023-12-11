@@ -19,14 +19,15 @@
 //! Polimec Testnet chain specification
 
 use cumulus_primitives_core::ParaId;
+use frame_benchmarking::frame_support::bounded_vec;
 use polimec_parachain_runtime::{
 	pallet_parachain_staking::{
 		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
 		InflationInfo, Range,
 	},
-	AccountId, AuraId as AuthorityId, Balance, BalancesConfig, CouncilConfig, GenesisConfig, LinearVestingConfig,
-	MinCandidateStk, OracleProvidersMembershipConfig, ParachainInfoConfig, ParachainStakingConfig, PolkadotXcmConfig,
-	Runtime, SessionConfig, StatemintAssetsConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
+	AccountId, AuraId as AuthorityId, Balance, BalancesConfig, CouncilConfig, LinearVestingConfig, MinCandidateStk,
+	OracleProvidersMembershipConfig, ParachainInfoConfig, ParachainStakingConfig, PolkadotXcmConfig, Runtime,
+	RuntimeGenesisConfig, SessionConfig, StatemintAssetsConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
 	EXISTENTIAL_DEPOSIT, PLMC,
 };
 use sc_service::ChainType;
@@ -40,7 +41,7 @@ use super::{get_properties, Extensions};
 const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
-pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
+pub type ChainSpec = sc_service::GenericChainSpec<RuntimeGenesisConfig, Extensions>;
 
 const COLLATOR_COMMISSION: Perbill = Perbill::from_percent(30);
 const PARACHAIN_BOND_RESERVE_PERCENT: Percent = Percent::from_percent(0);
@@ -114,11 +115,11 @@ pub fn get_chain_spec_testing() -> Result<ChainSpec, String> {
 }
 
 pub fn get_chain_spec_dev() -> Result<ChainSpec, String> {
-	let properties = get_properties("PLMC", 10, 41);
+	let properties = get_properties("RLMC", 10, 41);
 	let wasm = polimec_parachain_runtime::WASM_BINARY.ok_or("No WASM")?;
 
 	Ok(ChainSpec::from_genesis(
-		"Polimec Develop",
+		"Rolimec Develop",
 		"polimec",
 		ChainType::Local,
 		move || {
@@ -207,12 +208,12 @@ fn testnet_genesis(
 	mut endowed_accounts: Vec<(AccountId, Balance)>,
 	sudo_account: AccountId,
 	id: ParaId,
-) -> GenesisConfig {
+) -> RuntimeGenesisConfig {
 	let accounts = endowed_accounts.iter().map(|(account, _)| account.clone()).collect::<Vec<_>>();
 	endowed_accounts
 		.push((<Runtime as pallet_funding::Config>::PalletId::get().into_account_truncating(), EXISTENTIAL_DEPOSIT));
-	GenesisConfig {
-		system: SystemConfig { code: wasm_binary.to_vec() },
+	RuntimeGenesisConfig {
+		system: SystemConfig { code: wasm_binary.to_vec(), ..Default::default() },
 		polimec_funding: Default::default(),
 		balances: BalancesConfig { balances: endowed_accounts.clone() },
 		statemint_assets: StatemintAssetsConfig {
@@ -225,12 +226,9 @@ fn testnet_genesis(
 			metadata: vec![],
 			accounts: vec![],
 		},
-		parachain_info: ParachainInfoConfig { parachain_id: id },
+		parachain_info: ParachainInfoConfig { parachain_id: id, ..Default::default() },
 		parachain_staking: ParachainStakingConfig {
-			candidates: stakers
-				.iter()
-				.map(|(accunt, _, balance)| (accunt.clone(), balance.clone()))
-				.collect::<Vec<_>>(),
+			candidates: stakers.iter().map(|(accunt, _, balance)| (accunt.clone(), *balance)).collect::<Vec<_>>(),
 			inflation_config,
 			delegations: vec![],
 			collator_commission: COLLATOR_COMMISSION,
@@ -255,15 +253,19 @@ fn testnet_genesis(
 				})
 				.collect::<Vec<_>>(),
 		},
-		polkadot_xcm: PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION) },
+		polkadot_xcm: PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION), ..Default::default() },
 		treasury: Default::default(),
 		sudo: SudoConfig { key: Some(sudo_account) },
 		council: CouncilConfig { members: accounts.clone(), phantom: Default::default() },
-		technical_committee: TechnicalCommitteeConfig { members: accounts.clone(), phantom: Default::default() },
+		technical_committee: TechnicalCommitteeConfig { members: accounts, phantom: Default::default() },
 		democracy: Default::default(),
 		linear_vesting: LinearVestingConfig { vesting: vec![] },
 		oracle_providers_membership: OracleProvidersMembershipConfig {
-			members: initial_authorities.clone().try_into().expect("Too many Oracle Members"),
+			members: bounded_vec![
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				get_account_id_from_seed::<sr25519::Public>("Bob"),
+				get_account_id_from_seed::<sr25519::Public>("Charlie"),
+			],
 			phantom: Default::default(),
 		},
 	}
@@ -451,7 +453,7 @@ fn testing_genesis(
 	endowed_accounts
 		.push((<Runtime as pallet_funding::Config>::PalletId::get().into_account_truncating(), EXISTENTIAL_DEPOSIT));
 	GenesisConfig {
-		system: SystemConfig { code: wasm_binary.to_vec() },
+		system: SystemConfig { code: wasm_binary.to_vec(), ..Default::default() },
 		polimec_funding: polimec_parachain_runtime::PolimecFundingConfig {
 			starting_projects: vec![pallet_funding::TestProject::<polimec_parachain_runtime::Runtime> {
 				expected_state: ProjectStatus::FundingSuccessful,

@@ -34,8 +34,9 @@ use sp_core::{
 };
 use sp_keystore::{testing::MemoryKeystore, Keystore, KeystoreExt};
 use sp_runtime::{
-	testing::{Header, TestXt},
+	testing::TestXt,
 	traits::{BlakeTwo256, Extrinsic as ExtrinsicT, IdentifyAccount, IdentityLookup, Verify},
+	BuildStorage,
 };
 use sp_std::cell::RefCell;
 use std::sync::Arc;
@@ -50,17 +51,16 @@ impl frame_system::Config for Test {
 	type AccountData = ();
 	type AccountId = sp_core::sr25519::Public;
 	type BaseCallFilter = Everything;
+	type Block = Block;
 	type BlockHashCount = ConstU64<250>;
 	type BlockLength = ();
-	type BlockNumber = u64;
 	type BlockWeights = ();
 	type DbWeight = ();
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type Header = Header;
-	type Index = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type MaxConsumers = ConstU32<16>;
+	type Nonce = u64;
 	type OnKilledAccount = ();
 	type OnNewAccount = ();
 	type OnSetCode = ();
@@ -167,16 +167,12 @@ where
 	}
 }
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 construct_runtime!(
-	pub enum Test where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	{
-		System: frame_system::{Pallet, Call, Storage, Config, Event<T>},
+		System: frame_system::{Pallet, Call, Storage, Config<T>, Event<T>},
 		Oracle: orml_oracle::{Pallet, Storage, Call, Event<T>},
 		OracleOcw: pallet_oracle_ocw::{Pallet, Storage, Call, Event<T>},
 
@@ -194,7 +190,7 @@ pub fn new_test_ext_with_offchain_storage(
 	let keystore = MemoryKeystore::new();
 	keystore.sr25519_generate_new(crate::crypto::POLIMEC_ORACLE, Some(&format!("{}", PHRASE))).unwrap();
 
-	let storage = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+	let storage = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 	let mut t: sp_io::TestExternalities = storage.into();
 	t.register_extension(OffchainWorkerExt::new(offchain.clone()));
 	t.register_extension(TransactionPoolExt::new(pool));

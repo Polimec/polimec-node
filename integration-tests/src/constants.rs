@@ -1,5 +1,5 @@
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
-pub use parachains_common::{AccountId, AuraId, Balance, BlockNumber, StatemintAuraId};
+pub use parachains_common::{AccountId, AssetHubPolkadotAuraId, AuraId, Balance, BlockNumber};
 use polkadot_primitives::{AssignmentId, ValidatorId};
 pub use polkadot_runtime_parachains::configuration::HostConfiguration;
 use polkadot_service::chain_spec::get_authority_keys_from_seed_no_beefy;
@@ -7,7 +7,8 @@ use sc_consensus_grandpa::AuthorityId as GrandpaId;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::{sr25519, storage::Storage, Pair, Public};
-use sp_runtime::{bounded_vec, traits::Verify, BuildStorage, MultiSignature, Perbill};
+use sp_runtime::{bounded_vec, BuildStorage, Perbill};
+
 pub use xcm;
 use xcm_emulator::get_account_id_from_seed;
 
@@ -16,8 +17,6 @@ pub const XCM_V3: u32 = 2;
 pub const REF_TIME_THRESHOLD: u64 = 33;
 pub const PROOF_SIZE_THRESHOLD: u64 = 33;
 pub const INITIAL_DEPOSIT: u128 = 420_0_000_000_000;
-
-type AccountPublic = <MultiSignature as Verify>::Signer;
 
 /// Helper function to generate a crypto pair from seed
 fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
@@ -60,10 +59,10 @@ pub mod accounts {
 pub mod collators {
 	use super::*;
 
-	pub fn invulnerables_statemint() -> Vec<(AccountId, StatemintAuraId)> {
+	pub fn invulnerables_statemint() -> Vec<(AccountId, AssetHubPolkadotAuraId)> {
 		vec![
-			(get_account_id_from_seed::<sr25519::Public>("Alice"), get_from_seed::<StatemintAuraId>("Alice")),
-			(get_account_id_from_seed::<sr25519::Public>("Bob"), get_from_seed::<StatemintAuraId>("Bob")),
+			(get_account_id_from_seed::<sr25519::Public>("Alice"), get_from_seed::<AssetHubPolkadotAuraId>("Alice")),
+			(get_account_id_from_seed::<sr25519::Public>("Bob"), get_from_seed::<AssetHubPolkadotAuraId>("Bob")),
 		]
 	}
 
@@ -118,8 +117,11 @@ pub mod polkadot {
 	}
 
 	pub fn genesis() -> Storage {
-		let genesis_config = polkadot_runtime::GenesisConfig {
-			system: polkadot_runtime::SystemConfig { code: polkadot_runtime::WASM_BINARY.unwrap().to_vec() },
+		let genesis_config = polkadot_runtime::RuntimeGenesisConfig {
+			system: polkadot_runtime::SystemConfig {
+				code: polkadot_runtime::WASM_BINARY.unwrap().to_vec(),
+				..Default::default()
+			},
 			balances: polkadot_runtime::BalancesConfig {
 				balances: accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)).collect(),
 			},
@@ -157,6 +159,7 @@ pub mod polkadot {
 			babe: polkadot_runtime::BabeConfig {
 				authorities: Default::default(),
 				epoch_config: Some(polkadot_runtime::BABE_GENESIS_EPOCH_CONFIG),
+				..Default::default()
 			},
 			configuration: polkadot_runtime::ConfigurationConfig { config: get_host_config() },
 			..Default::default()
@@ -173,7 +176,7 @@ pub mod statemint {
 	use xcm::{prelude::Parachain, v3::Parent};
 
 	pub const PARA_ID: u32 = 1000;
-	pub const ED: Balance = statemint_runtime::constants::currency::EXISTENTIAL_DEPOSIT;
+	pub const ED: Balance = asset_hub_polkadot_runtime::constants::currency::EXISTENTIAL_DEPOSIT;
 
 	pub fn genesis() -> Storage {
 		let mut funded_accounts = vec![
@@ -182,25 +185,31 @@ pub mod statemint {
 		];
 		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
 
-		let genesis_config = statemint_runtime::GenesisConfig {
-			system: statemint_runtime::SystemConfig {
-				code: statemint_runtime::WASM_BINARY.expect("WASM binary was not build, please build it!").to_vec(),
+		let genesis_config = asset_hub_polkadot_runtime::RuntimeGenesisConfig {
+			system: asset_hub_polkadot_runtime::SystemConfig {
+				code: asset_hub_polkadot_runtime::WASM_BINARY
+					.expect("WASM binary was not build, please build it!")
+					.to_vec(),
+				..Default::default()
 			},
-			balances: statemint_runtime::BalancesConfig { balances: funded_accounts },
-			parachain_info: statemint_runtime::ParachainInfoConfig { parachain_id: PARA_ID.into() },
-			collator_selection: statemint_runtime::CollatorSelectionConfig {
+			balances: asset_hub_polkadot_runtime::BalancesConfig { balances: funded_accounts },
+			parachain_info: asset_hub_polkadot_runtime::ParachainInfoConfig {
+				parachain_id: PARA_ID.into(),
+				..Default::default()
+			},
+			collator_selection: asset_hub_polkadot_runtime::CollatorSelectionConfig {
 				invulnerables: collators::invulnerables_statemint().iter().cloned().map(|(acc, _)| acc).collect(),
 				candidacy_bond: ED * 16,
 				..Default::default()
 			},
-			session: statemint_runtime::SessionConfig {
+			session: asset_hub_polkadot_runtime::SessionConfig {
 				keys: collators::invulnerables_statemint()
 					.into_iter()
 					.map(|(acc, aura)| {
 						(
-							acc.clone(),                             // account id
-							acc,                                     // validator id
-							statemint_runtime::SessionKeys { aura }, // session keys
+							acc.clone(),                                      // account id
+							acc,                                              // validator id
+							asset_hub_polkadot_runtime::SessionKeys { aura }, // session keys
 						)
 					})
 					.collect(),
@@ -208,7 +217,10 @@ pub mod statemint {
 			aura: Default::default(),
 			aura_ext: Default::default(),
 			parachain_system: Default::default(),
-			polkadot_xcm: statemint_runtime::PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION) },
+			polkadot_xcm: asset_hub_polkadot_runtime::PolkadotXcmConfig {
+				safe_xcm_version: Some(SAFE_XCM_VERSION),
+				..Default::default()
+			},
 		};
 
 		genesis_config.build_storage().unwrap()
@@ -237,15 +249,19 @@ pub mod polimec {
 		let charlie_account: AccountId = Polimec::account_id_of(accounts::CHARLIE);
 
 		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
-		let genesis_config = polimec_parachain_runtime::GenesisConfig {
+		let genesis_config = polimec_parachain_runtime::RuntimeGenesisConfig {
 			system: polimec_parachain_runtime::SystemConfig {
 				code: polimec_parachain_runtime::WASM_BINARY
 					.expect("WASM binary was not build, please build it!")
 					.to_vec(),
+				..Default::default()
 			},
 			polimec_funding: Default::default(),
 			balances: polimec_parachain_runtime::BalancesConfig { balances: funded_accounts },
-			parachain_info: polimec_parachain_runtime::ParachainInfoConfig { parachain_id: PARA_ID.into() },
+			parachain_info: polimec_parachain_runtime::ParachainInfoConfig {
+				parachain_id: PARA_ID.into(),
+				..Default::default()
+			},
 			session: polimec_parachain_runtime::SessionConfig {
 				keys: collators::invulnerables()
 					.into_iter()
@@ -261,7 +277,10 @@ pub mod polimec {
 			aura: Default::default(),
 			aura_ext: Default::default(),
 			parachain_system: Default::default(),
-			polkadot_xcm: polimec_parachain_runtime::PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION) },
+			polkadot_xcm: polimec_parachain_runtime::PolkadotXcmConfig {
+				safe_xcm_version: Some(SAFE_XCM_VERSION),
+				..Default::default()
+			},
 			sudo: polimec_parachain_runtime::SudoConfig {
 				key: Some(get_account_id_from_seed::<sr25519::Public>("Alice")),
 			},
@@ -295,18 +314,28 @@ pub mod polimec {
 // Penpal
 pub mod penpal {
 	use super::*;
+	use crate::{ParaId, Penpal};
+	use xcm::{prelude::Parachain, v3::Parent};
 	pub const PARA_ID: u32 = 6969;
 	pub const ED: Balance = penpal_runtime::EXISTENTIAL_DEPOSIT;
 
 	pub fn genesis() -> Storage {
-		let genesis_config = penpal_runtime::GenesisConfig {
+		let mut funded_accounts = vec![
+			(Penpal::sovereign_account_id_of((Parent, Parachain(statemint::PARA_ID)).into()), INITIAL_DEPOSIT),
+			(Penpal::sovereign_account_id_of((Parent, Parachain(polimec::PARA_ID)).into()), 2_000_000_0_000_000_000), // i.e the CTs sold on polimec
+		];
+		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
+
+		let genesis_config = penpal_runtime::RuntimeGenesisConfig {
 			system: penpal_runtime::SystemConfig {
 				code: penpal_runtime::WASM_BINARY.expect("WASM binary was not build, please build it!").to_vec(),
+				..Default::default()
 			},
-			balances: penpal_runtime::BalancesConfig {
-				balances: accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)).collect(),
+			balances: penpal_runtime::BalancesConfig { balances: funded_accounts },
+			parachain_info: penpal_runtime::ParachainInfoConfig {
+				parachain_id: ParaId::from(PARA_ID),
+				..Default::default()
 			},
-			parachain_info: penpal_runtime::ParachainInfoConfig { parachain_id: PARA_ID.into() },
 			collator_selection: penpal_runtime::CollatorSelectionConfig {
 				invulnerables: collators::invulnerables().iter().cloned().map(|(acc, _)| acc).collect(),
 				candidacy_bond: ED * 16,
@@ -327,8 +356,12 @@ pub mod penpal {
 			aura: Default::default(),
 			aura_ext: Default::default(),
 			parachain_system: Default::default(),
-			polkadot_xcm: penpal_runtime::PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION) },
+			polkadot_xcm: penpal_runtime::PolkadotXcmConfig {
+				safe_xcm_version: Some(SAFE_XCM_VERSION),
+				..Default::default()
+			},
 			sudo: penpal_runtime::SudoConfig { key: Some(get_account_id_from_seed::<sr25519::Public>("Alice")) },
+			..Default::default()
 		};
 
 		genesis_config.build_storage().unwrap()

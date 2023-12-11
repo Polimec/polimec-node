@@ -74,7 +74,7 @@ pub enum VestingAction {
 
 impl VestingAction {
 	/// Whether or not the filter says the schedule index should be removed.
-	fn should_remove(&self, index: usize) -> bool {
+	const fn should_remove(&self, index: usize) -> bool {
 		match self {
 			Self::Passive => false,
 			Self::Remove { index: index1 } => *index1 == index,
@@ -153,19 +153,13 @@ pub mod pallet {
 	}
 
 	#[pallet::genesis_config]
+	#[derive(frame_support::DefaultNoBound)]
 	pub struct GenesisConfig<T: Config> {
-		pub vesting: Vec<(AccountIdOf<T>, T::BlockNumber, T::BlockNumber, BalanceOf<T>, ReasonOf<T>)>,
-	}
-
-	#[cfg(feature = "std")]
-	impl<T: Config> Default for GenesisConfig<T> {
-		fn default() -> Self {
-			GenesisConfig { vesting: Default::default() }
-		}
+		pub vesting: Vec<(AccountIdOf<T>, BlockNumberFor<T>, BlockNumberFor<T>, BalanceOf<T>, ReasonOf<T>)>,
 	}
 
 	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
 			use sp_runtime::traits::Saturating;
 

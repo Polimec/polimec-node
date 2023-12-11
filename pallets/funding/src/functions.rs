@@ -29,20 +29,27 @@ use frame_support::{
 		Get,
 	},
 };
+use frame_system::pallet_prelude::BlockNumberFor;
+use itertools::Itertools;
 use sp_arithmetic::{
 	traits::{CheckedDiv, CheckedSub, Zero},
 	Percent, Perquintill,
 };
-use sp_runtime::traits::Convert;
+use sp_runtime::traits::{Convert, ConvertBack};
 use sp_std::marker::PhantomData;
+use xcm::v3::MaxDispatchErrorLen;
 
+use crate::ProjectStatus::FundingSuccessful;
 use polimec_traits::ReleaseSchedule;
 
 use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
+use polimec_traits::migration_types::{MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
 
 use super::*;
+const POLIMEC_PARA_ID: u32 = 3344u32;
+const QUERY_RESPONSE_TIME_WINDOW_BLOCKS: u32 = 20u32;
 
-// Round transition functions
+// Round transitions
 impl<T: Config> Pallet<T> {
 	/// Called by user extrinsic
 	/// Creates a project and assigns it to the `issuer` account.
@@ -64,7 +71,7 @@ impl<T: Config> Pallet<T> {
 	/// # Next step
 	/// The issuer will call an extrinsic to start the evaluation round of the project.
 	/// [`do_evaluation_start`](Self::do_evaluation_start) will be executed.
-	pub fn do_create(issuer: &AccountIdOf<T>, initial_metadata: ProjectMetadataOf<T>) -> Result<(), DispatchError> {
+	pub fn do_create(issuer: &AccountIdOf<T>, initial_metadata: ProjectMetadataOf<T>) -> DispatchResult {
 		// * Get variables *
 		let project_id = Self::next_project_id();
 
@@ -144,10 +151,10 @@ impl<T: Config> Pallet<T> {
 	/// # Next step
 	/// Users will pond PLMC for this project, and when the time comes, the project will be transitioned
 	/// to the next round by `on_initialize` using [`do_evaluation_end`](Self::do_evaluation_end)
-	pub fn do_evaluation_start(caller: AccountIdOf<T>, project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
+	pub fn do_evaluation_start(caller: AccountIdOf<T>, project_id: T::ProjectIdentifier) -> DispatchResult {
 		// * Get variables *
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 
 		// * Validity checks *
@@ -201,9 +208,9 @@ impl<T: Config> Pallet<T> {
 	///
 	/// * Bonding failed - `on_idle` at some point checks for failed evaluation projects, and
 	/// unbonds the evaluators funds.
-	pub fn do_evaluation_end(project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
+	pub fn do_evaluation_end(project_id: T::ProjectIdentifier) -> DispatchResult {
 		// * Get variables *
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let evaluation_end_block =
 			project_details.phase_transition_points.evaluation.end().ok_or(Error::<T>::FieldIsNone)?;
@@ -292,9 +299,9 @@ impl<T: Config> Pallet<T> {
 	/// Professional and Institutional users set bids for the project using the [`bid`](Self::bid) extrinsic.
 	/// Later on, `on_initialize` transitions the project into the candle auction round, by calling
 	/// [`do_candle_auction`](Self::do_candle_auction).
-	pub fn do_english_auction(caller: AccountIdOf<T>, project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
+	pub fn do_english_auction(caller: AccountIdOf<T>, project_id: T::ProjectIdentifier) -> DispatchResult {
 		// * Get variables *
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let auction_initialize_period_start_block = project_details
 			.phase_transition_points
@@ -367,9 +374,9 @@ impl<T: Config> Pallet<T> {
 	/// but now their bids are not guaranteed.
 	/// Later on, `on_initialize` ends the candle auction round and starts the community round,
 	/// by calling [`do_community_funding`](Self::do_community_funding).
-	pub fn do_candle_auction(project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
+	pub fn do_candle_auction(project_id: T::ProjectIdentifier) -> DispatchResult {
 		// * Get variables *
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let english_end_block =
 			project_details.phase_transition_points.english_auction.end().ok_or(Error::<T>::FieldIsNone)?;
@@ -420,10 +427,10 @@ impl<T: Config> Pallet<T> {
 	/// Retail users buy tokens at the price set on the auction round.
 	/// Later on, `on_initialize` ends the community round by calling [`do_remainder_funding`](Self::do_remainder_funding) and
 	/// starts the remainder round, where anyone can buy at that price point.
-	pub fn do_community_funding(project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
+	pub fn do_community_funding(project_id: T::ProjectIdentifier) -> DispatchResult {
 		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let auction_candle_start_block =
 			project_details.phase_transition_points.candle_auction.start().ok_or(Error::<T>::FieldIsNone)?;
@@ -445,7 +452,7 @@ impl<T: Config> Pallet<T> {
 		// * Update Storage *
 		let calculation_result =
 			Self::calculate_weighted_average_price(project_id, end_block, project_metadata.total_allocation_size.0);
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		match calculation_result {
 			Err(pallet_error) if pallet_error == Error::<T>::NoBidsFound.into() => {
 				project_details.status = ProjectStatus::FundingFailed;
@@ -504,9 +511,9 @@ impl<T: Config> Pallet<T> {
 	/// Any users can now buy tokens at the price set on the auction round.
 	/// Later on, `on_initialize` ends the remainder round, and finalizes the project funding, by calling
 	/// [`do_end_funding`](Self::do_end_funding).
-	pub fn do_remainder_funding(project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
+	pub fn do_remainder_funding(project_id: T::ProjectIdentifier) -> DispatchResult {
 		// * Get variables *
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let community_end_block =
 			project_details.phase_transition_points.community.end().ok_or(Error::<T>::FieldIsNone)?;
@@ -564,9 +571,9 @@ impl<T: Config> Pallet<T> {
 	/// * Bonded plmc with [`vested_plmc_purchase_unbond_for`](Self::vested_plmc_purchase_unbond_for)
 	///
 	/// If **unsuccessful**, users every user should have their PLMC vesting unbonded.
-	pub fn do_end_funding(project_id: T::ProjectIdentifier) -> Result<(), DispatchError> {
+	pub fn do_end_funding(project_id: T::ProjectIdentifier) -> DispatchResult {
 		// * Get variables *
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let remaining_cts = project_details
 			.remaining_contribution_tokens
@@ -627,7 +634,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_project_decision(project_id: T::ProjectIdentifier, decision: FundingOutcomeDecision) -> DispatchResult {
 		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
 		// * Update storage *
 		match decision {
@@ -654,7 +661,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_start_settlement(project_id: T::ProjectIdentifier) -> DispatchResult {
 		// * Get variables *
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let token_information =
 			ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?.token_information;
 		let now = <frame_system::Pallet<T>>::block_number();
@@ -690,7 +697,7 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-// Extrinsic functions (except round transitions)
+// Extrinsics and HRMP interactions
 impl<T: Config> Pallet<T> {
 	/// Change the metadata hash of a project
 	///
@@ -708,10 +715,10 @@ impl<T: Config> Pallet<T> {
 		issuer: AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		project_metadata_hash: T::Hash,
-	) -> Result<(), DispatchError> {
+	) -> DispatchResult {
 		// * Get variables *
 		let mut project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
 		// * Validity checks *
 		ensure!(project_details.issuer == issuer, Error::<T>::NotAllowed);
@@ -735,9 +742,9 @@ impl<T: Config> Pallet<T> {
 		evaluator: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		usd_amount: BalanceOf<T>,
-	) -> Result<(), DispatchError> {
+	) -> DispatchResult {
 		// * Get variables *
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let evaluation_id = Self::next_evaluation_id();
 		let caller_existing_evaluations: Vec<(u32, EvaluationInfoOf<T>)> =
@@ -780,7 +787,8 @@ impl<T: Config> Pallet<T> {
 			early_usd_amount,
 			late_usd_amount,
 			when: now,
-			rewarded_or_slashed: false,
+			rewarded_or_slashed: None,
+			ct_migration_status: MigrationStatus::NotStarted,
 		};
 
 		// * Update Storage *
@@ -841,10 +849,10 @@ impl<T: Config> Pallet<T> {
 		ct_amount: BalanceOf<T>,
 		multiplier: MultiplierOf<T>,
 		funding_asset: AcceptedFundingAsset,
-	) -> Result<(), DispatchError> {
+	) -> DispatchResult {
 		// * Get variables *
 		ensure!(ct_amount > Zero::zero(), Error::<T>::BidTooLow);
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PriceNotFound)?;
 
@@ -903,7 +911,7 @@ impl<T: Config> Pallet<T> {
 		funding_asset: AcceptedFundingAsset,
 		project_ticket_size: TicketSize<BalanceOf<T>>,
 		bid_id: u32,
-		now: BlockNumberOf<T>,
+		now: BlockNumberFor<T>,
 		plmc_usd_price: T::Price,
 	) -> Result<BidInfoOf<T>, DispatchError> {
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
@@ -944,6 +952,7 @@ impl<T: Config> Pallet<T> {
 			when: now,
 			funds_released: false,
 			ct_minted: false,
+			ct_migration_status: MigrationStatus::NotStarted,
 		};
 
 		// * Update storage *
@@ -1002,7 +1011,7 @@ impl<T: Config> Pallet<T> {
 		asset: AcceptedFundingAsset,
 	) -> DispatchResultWithPostInfo {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
 		// * Validity checks *
 		ensure!(project_metadata.participation_currencies == asset, Error::<T>::FundingAssetNotAccepted);
@@ -1055,6 +1064,7 @@ impl<T: Config> Pallet<T> {
 			plmc_vesting_info: None,
 			funds_released: false,
 			ct_minted: false,
+			ct_migration_status: MigrationStatus::NotStarted,
 		};
 
 		// * Update storage *
@@ -1165,7 +1175,7 @@ impl<T: Config> Pallet<T> {
 		decision: FundingOutcomeDecision,
 	) -> DispatchResult {
 		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 
 		// * Validity checks *
@@ -1256,16 +1266,17 @@ impl<T: Config> Pallet<T> {
 		project_id: T::ProjectIdentifier,
 		evaluator: &AccountIdOf<T>,
 		evaluation_id: u32,
-	) -> Result<(), DispatchError> {
+	) -> DispatchResult {
 		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
-		let released_evaluation =
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let mut released_evaluation =
 			Evaluations::<T>::get((project_id, evaluator, evaluation_id)).ok_or(Error::<T>::EvaluationNotFound)?;
+		let release_amount = released_evaluation.current_plmc_bond;
 
 		// * Validity checks *
 		ensure!(
 			(project_details.evaluation_round_info.evaluators_outcome == EvaluatorsOutcomeOf::<T>::Unchanged ||
-				released_evaluation.rewarded_or_slashed) &&
+				released_evaluation.rewarded_or_slashed.is_some()) &&
 				matches!(
 					project_details.status,
 					ProjectStatus::EvaluationFailed | ProjectStatus::FundingFailed | ProjectStatus::FundingSuccessful
@@ -1280,12 +1291,17 @@ impl<T: Config> Pallet<T> {
 			released_evaluation.current_plmc_bond,
 			Precision::Exact,
 		)?;
-		Evaluations::<T>::remove((project_id, evaluator, evaluation_id));
+
+		released_evaluation.current_plmc_bond = Zero::zero();
+		Evaluations::<T>::insert((project_id, evaluator, evaluation_id), released_evaluation);
+
+		// FIXME: same question as removing bid
+		// Evaluations::<T>::remove((project_id, evaluator, evaluation_id));
 
 		// * Emit events *
 		Self::deposit_event(Event::BondReleased {
 			project_id,
-			amount: released_evaluation.current_plmc_bond,
+			amount: release_amount,
 			bonder: evaluator.clone(),
 			releaser: releaser.clone(),
 		});
@@ -1298,9 +1314,9 @@ impl<T: Config> Pallet<T> {
 		project_id: T::ProjectIdentifier,
 		evaluator: &AccountIdOf<T>,
 		evaluation_id: u32,
-	) -> Result<(), DispatchError> {
+	) -> DispatchResult {
 		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let reward_info =
 			if let EvaluatorsOutcome::Rewarded(info) = project_details.evaluation_round_info.evaluators_outcome {
 				info
@@ -1312,7 +1328,8 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			!evaluation.rewarded_or_slashed && matches!(project_details.status, ProjectStatus::FundingSuccessful),
+			evaluation.rewarded_or_slashed.is_none() &&
+				matches!(project_details.status, ProjectStatus::FundingSuccessful),
 			Error::<T>::NotAllowed
 		);
 
@@ -1328,7 +1345,7 @@ impl<T: Config> Pallet<T> {
 		let total_reward_amount = early_evaluators_rewards.saturating_add(normal_evaluators_rewards);
 		// * Update storage *
 		T::ContributionTokenCurrency::mint_into(project_id, &evaluation.evaluator, total_reward_amount)?;
-		evaluation.rewarded_or_slashed = true;
+		evaluation.rewarded_or_slashed = Some(RewardOrSlash::Reward(total_reward_amount));
 		Evaluations::<T>::insert((project_id, evaluator, evaluation_id), evaluation);
 
 		// * Emit events *
@@ -1348,9 +1365,9 @@ impl<T: Config> Pallet<T> {
 		project_id: T::ProjectIdentifier,
 		evaluator: &AccountIdOf<T>,
 		evaluation_id: u32,
-	) -> Result<(), DispatchError> {
+	) -> DispatchResult {
 		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let slash_percentage = T::EvaluatorSlash::get();
 		let treasury_account = T::TreasuryAccount::get();
 
@@ -1359,7 +1376,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			!evaluation.rewarded_or_slashed &&
+			evaluation.rewarded_or_slashed.is_none() &&
 				matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Slashed),
 			Error::<T>::NotAllowed
 		);
@@ -1369,7 +1386,7 @@ impl<T: Config> Pallet<T> {
 		let slashed_amount = slash_percentage * evaluation.original_plmc_bond;
 
 		// * Update storage *
-		evaluation.rewarded_or_slashed = true;
+		evaluation.rewarded_or_slashed = Some(RewardOrSlash::Slash(slashed_amount));
 
 		T::NativeCurrency::transfer_on_hold(
 			&LockType::Evaluation(project_id),
@@ -1401,9 +1418,9 @@ impl<T: Config> Pallet<T> {
 		project_id: T::ProjectIdentifier,
 		bidder: &AccountIdOf<T>,
 		bid_id: u32,
-	) -> Result<(), DispatchError> {
+	) -> DispatchResult {
 		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let mut bid = Bids::<T>::get((project_id, bidder, bid_id)).ok_or(Error::<T>::BidNotFound)?;
 		let funding_end_block = project_details.funding_end_block.ok_or(Error::<T>::ImpossibleState)?;
 
@@ -1447,9 +1464,9 @@ impl<T: Config> Pallet<T> {
 		project_id: T::ProjectIdentifier,
 		contributor: &AccountIdOf<T>,
 		contribution_id: u32,
-	) -> Result<(), DispatchError> {
+	) -> DispatchResult {
 		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let mut contribution =
 			Contributions::<T>::get((project_id, contributor, contribution_id)).ok_or(Error::<T>::BidNotFound)?;
 		let funding_end_block = project_details.funding_end_block.ok_or(Error::<T>::ImpossibleState)?;
@@ -1493,7 +1510,7 @@ impl<T: Config> Pallet<T> {
 		participant: AccountIdOf<T>,
 	) -> DispatchResult {
 		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
 		// * Validity checks *
 		ensure!(matches!(project_details.status, ProjectStatus::FundingSuccessful), Error::<T>::NotAllowed);
@@ -1512,9 +1529,9 @@ impl<T: Config> Pallet<T> {
 		project_id: T::ProjectIdentifier,
 		bidder: &AccountIdOf<T>,
 		bid_id: u32,
-	) -> Result<(), DispatchError> {
+	) -> DispatchResult {
 		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let mut bid = Bids::<T>::get((project_id, bidder, bid_id)).ok_or(Error::<T>::BidNotFound)?;
 
 		// * Validity checks *
@@ -1552,14 +1569,16 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	// Unbond the PLMC of a bid instantly, following a failed funding outcome.
+	// Unbonding of PLMC in a successful funding outcome is handled by the vesting schedule.
 	pub fn do_bid_unbond_for(
 		caller: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		bidder: &AccountIdOf<T>,
 		bid_id: u32,
-	) -> Result<(), DispatchError> {
+	) -> DispatchResult {
 		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let bid = Bids::<T>::get((project_id, bidder, bid_id)).ok_or(Error::<T>::EvaluationNotFound)?;
 
 		// * Validity checks *
@@ -1572,6 +1591,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Update Storage *
 		T::NativeCurrency::release(&LockType::Participation(project_id), bidder, bid.plmc_bond, Precision::Exact)?;
+
 		Bids::<T>::remove((project_id, bidder, bid_id));
 
 		// * Emit events *
@@ -1590,9 +1610,9 @@ impl<T: Config> Pallet<T> {
 		project_id: T::ProjectIdentifier,
 		contributor: &AccountIdOf<T>,
 		contribution_id: u32,
-	) -> Result<(), DispatchError> {
+	) -> DispatchResult {
 		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let mut contribution = Contributions::<T>::get((project_id, contributor, contribution_id))
 			.ok_or(Error::<T>::ContributionNotFound)?;
 
@@ -1627,14 +1647,16 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	// Unbond the PLMC of a contribution instantly, following a failed funding outcome.
+	// Unbonding of PLMC in a successful funding outcome is handled by the vesting schedule.
 	pub fn do_contribution_unbond_for(
 		caller: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		contributor: &AccountIdOf<T>,
 		contribution_id: u32,
-	) -> Result<(), DispatchError> {
+	) -> DispatchResult {
 		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let bid = Contributions::<T>::get((project_id, contributor, contribution_id))
 			.ok_or(Error::<T>::EvaluationNotFound)?;
 
@@ -1643,6 +1665,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Update Storage *
 		T::NativeCurrency::release(&LockType::Participation(project_id), contributor, bid.plmc_bond, Precision::Exact)?;
+
 		Contributions::<T>::remove((project_id, contributor, contribution_id));
 
 		// * Emit events *
@@ -1661,9 +1684,9 @@ impl<T: Config> Pallet<T> {
 		project_id: T::ProjectIdentifier,
 		bidder: &AccountIdOf<T>,
 		bid_id: u32,
-	) -> Result<(), DispatchError> {
+	) -> DispatchResult {
 		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let mut bid = Bids::<T>::get((project_id, bidder, bid_id)).ok_or(Error::<T>::BidNotFound)?;
 
 		// * Validity checks *
@@ -1707,9 +1730,9 @@ impl<T: Config> Pallet<T> {
 		project_id: T::ProjectIdentifier,
 		contributor: &AccountIdOf<T>,
 		contribution_id: u32,
-	) -> Result<(), DispatchError> {
+	) -> DispatchResult {
 		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let mut contribution =
 			Contributions::<T>::get((project_id, contributor, contribution_id)).ok_or(Error::<T>::BidNotFound)?;
 
@@ -1749,9 +1772,9 @@ impl<T: Config> Pallet<T> {
 		caller: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
 		para_id: ParaId,
-	) -> Result<(), DispatchError> {
+	) -> DispatchResult {
 		// * Get variables *
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
 		// * Validity checks *
 		ensure!(&(project_details.issuer) == caller, Error::<T>::NotAllowed);
@@ -1766,11 +1789,148 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn start_migration_readiness_check(
+	pub fn do_handle_channel_open_request(message: Instruction) -> XcmResult {
+		// TODO: set these constants with a proper value
+		const EXECUTION_DOT: MultiAsset = MultiAsset {
+			id: Concrete(MultiLocation { parents: 0, interior: Here }),
+			fun: Fungible(1_0_000_000_000u128),
+		};
+		const MAX_WEIGHT: Weight = Weight::from_parts(20_000_000_000, 1_000_000);
+
+		let max_message_size_thresholds = T::MaxMessageSizeThresholds::get();
+		let max_capacity_thresholds = T::MaxCapacityThresholds::get();
+
+		log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest received: {:?}", message);
+
+		match message {
+			Instruction::HrmpNewChannelOpenRequest { sender, max_message_size, max_capacity }
+				if max_message_size >= max_message_size_thresholds.0 &&
+					max_message_size <= max_message_size_thresholds.1 &&
+					max_capacity >= max_capacity_thresholds.0 &&
+					max_capacity <= max_capacity_thresholds.1 =>
+			{
+				log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest accepted");
+
+				let (project_id, mut project_details) = ProjectsDetails::<T>::iter()
+					.find(|(_id, details)| {
+						details.parachain_id == Some(ParaId::from(sender)) && details.status == FundingSuccessful
+					})
+					.ok_or(XcmError::BadOrigin)?;
+
+				let accept_channel_relay_call =
+					polkadot_runtime::RuntimeCall::Hrmp(polkadot_runtime_parachains::hrmp::Call::<
+						polkadot_runtime::Runtime,
+					>::hrmp_accept_open_channel {
+						sender: ParaId::from(sender),
+					})
+					.encode();
+
+				let request_channel_relay_call =
+					polkadot_runtime::RuntimeCall::Hrmp(polkadot_runtime_parachains::hrmp::Call::<
+						polkadot_runtime::Runtime,
+					>::hrmp_init_open_channel {
+						recipient: ParaId::from(sender),
+						proposed_max_capacity: T::RequiredMaxCapacity::get(),
+						proposed_max_message_size: T::RequiredMaxMessageSize::get(),
+					})
+					.encode();
+
+				let xcm: Xcm<()> = Xcm(vec![
+					WithdrawAsset(vec![EXECUTION_DOT.clone()].into()),
+					BuyExecution { fees: EXECUTION_DOT.clone(), weight_limit: Unlimited },
+					Transact {
+						origin_kind: OriginKind::Native,
+						require_weight_at_most: MAX_WEIGHT,
+						call: accept_channel_relay_call.into(),
+					},
+					Transact {
+						origin_kind: OriginKind::Native,
+						require_weight_at_most: MAX_WEIGHT,
+						call: request_channel_relay_call.into(),
+					},
+					RefundSurplus,
+					DepositAsset {
+						assets: Wild(All),
+						beneficiary: MultiLocation { parents: 0, interior: X1(Parachain(POLIMEC_PARA_ID)) },
+					},
+				]);
+				let mut message = Some(xcm);
+
+				let dest_loc = MultiLocation { parents: 1, interior: Here };
+				let mut destination = Some(dest_loc);
+				let (ticket, _price) = T::XcmRouter::validate(&mut destination, &mut message)?;
+
+				match T::XcmRouter::deliver(ticket) {
+					Ok(_) => {
+						log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest: acceptance successfully sent");
+						project_details.hrmp_channel_status.project_to_polimec = ChannelStatus::Open;
+						project_details.hrmp_channel_status.polimec_to_project = ChannelStatus::AwaitingAcceptance;
+						ProjectsDetails::<T>::insert(project_id, project_details);
+
+						Pallet::<T>::deposit_event(Event::<T>::HrmpChannelAccepted {
+							project_id,
+							para_id: ParaId::from(sender),
+						});
+						Ok(())
+					},
+					Err(e) => {
+						log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest: acceptance sending failed - {:?}", e);
+						Err(XcmError::Unimplemented)
+					},
+				}
+			},
+			instr => {
+				log::trace!(target: "pallet_funding::hrmp", "Bad instruction: {:?}", instr);
+				Err(XcmError::Unimplemented)
+			},
+		}
+	}
+
+	pub fn do_handle_channel_accepted(message: Instruction) -> XcmResult {
+		match message {
+			Instruction::HrmpChannelAccepted { recipient } => {
+				log::trace!(target: "pallet_funding::hrmp", "HrmpChannelAccepted received: {:?}", message);
+				let (project_id, mut project_details) = ProjectsDetails::<T>::iter()
+					.find(|(_id, details)| {
+						details.parachain_id == Some(ParaId::from(recipient)) && details.status == FundingSuccessful
+					})
+					.ok_or(XcmError::BadOrigin)?;
+
+				project_details.hrmp_channel_status.polimec_to_project = ChannelStatus::Open;
+				ProjectsDetails::<T>::insert(project_id, project_details);
+				Pallet::<T>::deposit_event(Event::<T>::HrmpChannelEstablished {
+					project_id,
+					para_id: ParaId::from(recipient),
+				});
+
+				Pallet::<T>::do_start_migration_readiness_check(
+					&(T::PalletId::get().into_account_truncating()),
+					project_id,
+				)
+				.map_err(|_| XcmError::NoDeal)?;
+				Ok(())
+			},
+			instr => {
+				log::trace!(target: "pallet_funding::hrmp", "Bad instruction: {:?}", instr);
+				Err(XcmError::Unimplemented)
+			},
+		}
+	}
+
+	pub fn do_start_migration_readiness_check(
 		caller: &AccountIdOf<T>,
 		project_id: T::ProjectIdentifier,
-	) -> Result<(), DispatchError> {
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectInfoNotFound)?;
+	) -> DispatchResult {
+		// * Get variables *
+		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let parachain_id: u32 = project_details.parachain_id.ok_or(Error::<T>::ImpossibleState)?.into();
+		let project_multilocation = ParentThen(X1(Parachain(parachain_id)));
+		let now = <frame_system::Pallet<T>>::block_number();
+
+		// TODO: check these values
+		let max_weight = Weight::from_parts(700_000_000, 10_000);
+
+		// * Validity checks *
 		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::NotAllowed);
 		ensure!(
 			project_details.hrmp_channel_status ==
@@ -1782,28 +1942,277 @@ impl<T: Config> Pallet<T> {
 		);
 		if project_details.migration_readiness_check.is_none() {
 			ensure!(caller.clone() == T::PalletId::get().into_account_truncating(), Error::<T>::NotAllowed);
-		} else if project_details.migration_readiness_check == Some(MigrationReadinessCheck::CheckFailed) {
+		} else if matches!(
+			project_details.migration_readiness_check,
+			Some(MigrationReadinessCheck {
+				holding_check: (_, CheckOutcome::Failed),
+				pallet_check: (_, CheckOutcome::Failed),
+				..
+			})
+		) {
 			ensure!(caller == &project_details.issuer, Error::<T>::NotAllowed);
-		} else {
-			return Err(Error::<T>::NotAllowed.into())
 		}
 
-		project_details.migration_readiness_check = Some(MigrationReadinessCheck::QuerySent);
+		// * Update storage *
+		let call: <T as Config>::RuntimeCall =
+			Call::migration_check_response { query_id: Default::default(), response: Default::default() }.into();
+
+		let query_id_holdings = pallet_xcm::Pallet::<T>::new_notify_query(
+			project_multilocation.clone(),
+			call.clone().into(),
+			now + QUERY_RESPONSE_TIME_WINDOW_BLOCKS.into(),
+			Here,
+		);
+		let query_id_pallet = pallet_xcm::Pallet::<T>::new_notify_query(
+			project_multilocation.clone(),
+			call.into(),
+			now + QUERY_RESPONSE_TIME_WINDOW_BLOCKS.into(),
+			Here,
+		);
+
+		project_details.migration_readiness_check = Some(MigrationReadinessCheck {
+			holding_check: (query_id_holdings, CheckOutcome::AwaitingResponse),
+			pallet_check: (query_id_pallet, CheckOutcome::AwaitingResponse),
+		});
 		ProjectsDetails::<T>::insert(project_id, project_details);
 
-		// TODO: send message to polimec receiver pallet with query
+		// * Send the migration query *
+		let expected_tokens: MultiAsset =
+			(MultiLocation { parents: 0, interior: Here }, 1_000_000_0_000_000_000u128).into(); // 1MM units for migrations
+		let xcm = Xcm(vec![
+			UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
+			WithdrawAsset(vec![expected_tokens].into()),
+			ReportHolding {
+				response_info: QueryResponseInfo {
+					destination: ParentThen(Parachain(POLIMEC_PARA_ID).into()).into(),
+					query_id: 0,
+					max_weight,
+				},
+				assets: Wild(All),
+			},
+			QueryPallet {
+				module_name: Vec::from("polimec_receiver"),
+				response_info: QueryResponseInfo {
+					destination: ParentThen(Parachain(POLIMEC_PARA_ID).into()).into(),
+					query_id: 1,
+					max_weight,
+				},
+			},
+			DepositAsset { assets: Wild(All), beneficiary: ParentThen(Parachain(POLIMEC_PARA_ID).into()).into() },
+		]);
+		<pallet_xcm::Pallet<T>>::send_xcm(Here, project_multilocation, xcm).map_err(|_| Error::<T>::XcmFailed)?;
 
+		// * Emit events *
 		Self::deposit_event(Event::<T>::MigrationReadinessCheckStarted { project_id, caller: caller.clone() });
 
 		Ok(())
 	}
 
-	pub fn finish_migration_readiness_check(
-		_caller: ParaId,
-		_project_id: T::ProjectIdentifier,
-		_check_bytes: Vec<u8>,
-	) -> Result<(), DispatchError> {
+	pub fn do_migration_check_response(
+		location: MultiLocation,
+		query_id: xcm::v3::QueryId,
+		response: xcm::v3::Response,
+	) -> DispatchResult {
+		use xcm::v3::prelude::*;
+		// TODO: check if this is too low performance. Maybe we want a new map of query_id -> project_id
+		let (project_id, mut project_details, mut migration_check) = ProjectsDetails::<T>::iter()
+			.find_map(|(project_id, details)| {
+				if let Some(check @ MigrationReadinessCheck { holding_check, pallet_check }) =
+					details.migration_readiness_check
+				{
+					if holding_check.0 == query_id || pallet_check.0 == query_id {
+						return Some((project_id, details, check))
+					}
+				}
+				None
+			})
+			.ok_or(Error::<T>::NotAllowed)?;
+
+		let para_id = if let MultiLocation { parents: 1, interior: X1(Parachain(para_id)) } = location {
+			ParaId::from(para_id)
+		} else {
+			return Err(Error::<T>::NotAllowed.into())
+		};
+
+		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+		let contribution_tokens_sold = project_metadata
+			.total_allocation_size
+			.0
+			.saturating_add(project_metadata.total_allocation_size.1)
+			.saturating_sub(project_details.remaining_contribution_tokens.0)
+			.saturating_sub(project_details.remaining_contribution_tokens.1);
+
+		ensure!(project_details.parachain_id == Some(para_id), Error::<T>::NotAllowed);
+
+		match (response.clone(), migration_check) {
+			(
+				Response::Assets(assets),
+				MigrationReadinessCheck { holding_check: (_, CheckOutcome::AwaitingResponse), .. },
+			) => {
+				let ct_sold_as_u128: u128 = contribution_tokens_sold.try_into().map_err(|_| Error::<T>::BadMath)?;
+				let assets: Vec<MultiAsset> = assets.into_inner();
+				let asset_1 = assets[0].clone();
+				match asset_1 {
+					MultiAsset {
+						id: Concrete(MultiLocation { parents: 1, interior: X1(Parachain(pid)) }),
+						fun: Fungible(amount),
+					} if amount >= ct_sold_as_u128 && pid == u32::from(para_id) => {
+						migration_check.holding_check.1 = CheckOutcome::Passed;
+						Self::deposit_event(Event::<T>::MigrationCheckResponseAccepted {
+							project_id,
+							query_id,
+							response,
+						});
+					},
+					_ => {
+						migration_check.holding_check.1 = CheckOutcome::Failed;
+						Self::deposit_event(Event::<T>::MigrationCheckResponseRejected {
+							project_id,
+							query_id,
+							response,
+						});
+					},
+				}
+			},
+
+			(
+				Response::PalletsInfo(pallets_info),
+				MigrationReadinessCheck { pallet_check: (_, CheckOutcome::AwaitingResponse), .. },
+			) =>
+				if pallets_info.len() == 1 && pallets_info[0] == T::PolimecReceiverInfo::get() {
+					migration_check.pallet_check.1 = CheckOutcome::Passed;
+					Self::deposit_event(Event::<T>::MigrationCheckResponseAccepted { project_id, query_id, response });
+				} else {
+					migration_check.pallet_check.1 = CheckOutcome::Failed;
+					Self::deposit_event(Event::<T>::MigrationCheckResponseRejected { project_id, query_id, response });
+				},
+			_ => return Err(Error::<T>::NotAllowed.into()),
+		};
+
+		project_details.migration_readiness_check = Some(migration_check);
+		ProjectsDetails::<T>::insert(project_id, project_details);
 		Ok(())
+	}
+
+	pub fn do_start_migration(caller: &AccountIdOf<T>, project_id: T::ProjectIdentifier) -> DispatchResult {
+		// * Get variables *
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let migration_readiness_check = project_details.migration_readiness_check.ok_or(Error::<T>::NotAllowed)?;
+
+		// * Validity Checks *
+		ensure!(caller.clone() == project_details.issuer, Error::<T>::NotAllowed);
+		ensure!(migration_readiness_check.is_ready(), Error::<T>::NotAllowed);
+
+		// Start automated migration process
+
+		// * Emit events *
+		Self::deposit_event(Event::<T>::MigrationStarted { project_id });
+
+		Ok(())
+	}
+
+	pub fn do_migrate_one_participant(
+		caller: AccountIdOf<T>,
+		project_id: T::ProjectIdentifier,
+		participant: AccountIdOf<T>,
+	) -> DispatchResult {
+		// * Get variables *
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let migration_readiness_check = project_details.migration_readiness_check.ok_or(Error::<T>::NotAllowed)?;
+		let user_evaluations = Evaluations::<T>::iter_prefix_values((project_id, participant.clone()));
+		let user_bids = Bids::<T>::iter_prefix_values((project_id, participant.clone()));
+		let user_contributions = Contributions::<T>::iter_prefix_values((project_id, participant.clone()));
+		let project_para_id = project_details.parachain_id.ok_or(Error::<T>::ImpossibleState)?;
+		let now = <frame_system::Pallet<T>>::block_number();
+
+		// * Validity Checks *
+		ensure!(migration_readiness_check.is_ready(), Error::<T>::NotAllowed);
+
+		// * Process Data *
+		// u128 is a balance, u64 is now a BlockNumber, but will be a Moment/Timestamp in the future
+		let evaluation_migrations =
+			user_evaluations.filter_map(|evaluation| MigrationGenerator::<T>::evaluation_migration(evaluation));
+		let bid_migrations = user_bids.filter_map(|bid| MigrationGenerator::<T>::bid_migration(bid));
+		let contribution_migrations =
+			user_contributions.filter_map(|contribution| MigrationGenerator::<T>::contribution_migration(contribution));
+
+		let migrations = evaluation_migrations.chain(bid_migrations).chain(contribution_migrations).collect_vec();
+		let migrations = Migrations::from(migrations);
+
+		let constructed_migrations = Self::construct_migration_xcm_messages(migrations);
+		for (migrations, xcm) in constructed_migrations {
+			let project_multilocation = MultiLocation { parents: 1, interior: X1(Parachain(project_para_id.into())) };
+			let project_migration_origins = ProjectMigrationOriginsOf::<T> {
+				project_id,
+				migration_origins: migrations
+					.origins()
+					.try_into()
+					.expect("construct function uses same constraint T::MaxMigrationsPerXcm"),
+			};
+
+			let call: <T as Config>::RuntimeCall =
+				Call::confirm_migrations { query_id: Default::default(), response: Default::default() }.into();
+			let transact_response_query_id =
+				pallet_xcm::Pallet::<T>::new_notify_query(project_multilocation, call.into(), now + 20u32.into(), Here);
+			// TODO: check these values
+			let max_weight = Weight::from_parts(700_000_000, 10_000);
+
+			let mut instructions = xcm.into_inner();
+			instructions.push(ReportTransactStatus(QueryResponseInfo {
+				destination: ParentThen(X1(Parachain(POLIMEC_PARA_ID))).into(),
+				query_id: transact_response_query_id,
+				max_weight,
+			}));
+			let xcm = Xcm(instructions);
+
+			<pallet_xcm::Pallet<T>>::send_xcm(Here, project_multilocation, xcm).map_err(|_| Error::<T>::XcmFailed)?;
+			Self::mark_migrations_as_sent(project_migration_origins.clone(), transact_response_query_id);
+			UnconfirmedMigrations::<T>::insert(transact_response_query_id, project_migration_origins);
+
+			Self::deposit_event(Event::<T>::UserMigrationSent {
+				project_id,
+				caller: caller.clone(),
+				participant: participant.clone(),
+			});
+		}
+		Ok(())
+	}
+
+	pub fn do_confirm_migrations(location: MultiLocation, query_id: QueryId, response: Response) -> DispatchResult {
+		use xcm::v3::prelude::*;
+		let unconfirmed_migrations = UnconfirmedMigrations::<T>::take(query_id).ok_or(Error::<T>::NotAllowed)?;
+		let project_id = unconfirmed_migrations.project_id;
+		let para_id = if let MultiLocation { parents: 1, interior: X1(Parachain(para_id)) } = location {
+			ParaId::from(para_id)
+		} else {
+			return Err(Error::<T>::NotAllowed.into())
+		};
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+
+		ensure!(project_details.parachain_id == Some(para_id), Error::<T>::NotAllowed);
+
+		match response {
+			Response::DispatchResult(MaybeErrorCode::Success) => {
+				Self::mark_migrations_as_confirmed(unconfirmed_migrations.clone());
+				Self::deposit_event(Event::MigrationsConfirmed {
+					project_id,
+					migration_origins: unconfirmed_migrations.migration_origins,
+				});
+				// Self::deposit_event(Event::MigrationsConfirmed { project_id });
+				Ok(())
+			},
+			Response::DispatchResult(MaybeErrorCode::Error(e)) |
+			Response::DispatchResult(MaybeErrorCode::TruncatedError(e)) => {
+				Self::mark_migrations_as_failed(unconfirmed_migrations.clone(), e);
+				Self::deposit_event(Event::MigrationsFailed {
+					project_id,
+					migration_origins: unconfirmed_migrations.migration_origins,
+				});
+				// Self::deposit_event(Event::MigrationsFailed { project_id});
+				Ok(())
+			},
+			_ => Err(Error::<T>::NotAllowed.into()),
+		}
 	}
 }
 
@@ -1819,7 +2228,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Adds a project to the ProjectsToUpdate storage, so it can be updated at some later point in time.
-	pub fn add_to_update_store(block_number: T::BlockNumber, store: (&T::ProjectIdentifier, UpdateType)) {
+	pub fn add_to_update_store(block_number: BlockNumberFor<T>, store: (&T::ProjectIdentifier, UpdateType)) {
 		// Try to get the project into the earliest possible block to update.
 		// There is a limit for how many projects can update each block, so we need to make sure we don't exceed that limit
 		let mut block_number = block_number;
@@ -1829,7 +2238,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	pub fn remove_from_update_store(project_id: &T::ProjectIdentifier) -> Result<(), DispatchError> {
+	pub fn remove_from_update_store(project_id: &T::ProjectIdentifier) -> DispatchResult {
 		let (block_position, project_index) = ProjectsToUpdate::<T>::iter()
 			.find_map(|(block, project_vec)| {
 				let project_index = project_vec.iter().position(|(id, _update_type)| id == project_id)?;
@@ -1875,9 +2284,9 @@ impl<T: Config> Pallet<T> {
 		_caller: &AccountIdOf<T>,
 		multiplier: MultiplierOf<T>,
 		bonded_amount: BalanceOf<T>,
-	) -> Result<VestingInfo<T::BlockNumber, BalanceOf<T>>, DispatchError> {
+	) -> Result<VestingInfo<BlockNumberFor<T>, BalanceOf<T>>, DispatchError> {
 		// TODO: duration should depend on `_multiplier` and `_caller` credential
-		let duration: T::BlockNumber = multiplier.calculate_vesting_duration::<T>();
+		let duration: BlockNumberFor<T> = multiplier.calculate_vesting_duration::<T>();
 		let duration_as_balance = T::BlockNumberToBalance::convert(duration);
 		let amount_per_block = if duration_as_balance == Zero::zero() {
 			bonded_amount
@@ -1891,9 +2300,9 @@ impl<T: Config> Pallet<T> {
 	/// Calculates the price (in USD) of contribution tokens for the Community and Remainder Rounds
 	pub fn calculate_weighted_average_price(
 		project_id: T::ProjectIdentifier,
-		end_block: T::BlockNumber,
+		end_block: BlockNumberFor<T>,
 		total_allocation_size: BalanceOf<T>,
-	) -> Result<(), DispatchError> {
+	) -> DispatchResult {
 		// Get all the bids that were made before the end of the candle
 		let mut bids = Bids::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
 		// temp variable to store the sum of the bids
@@ -2070,7 +2479,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// Update storage
-		ProjectsDetails::<T>::mutate(project_id, |maybe_info| -> Result<(), DispatchError> {
+		ProjectsDetails::<T>::mutate(project_id, |maybe_info| -> DispatchResult {
 			if let Some(info) = maybe_info {
 				info.weighted_average_price = Some(weighted_token_price);
 				info.remaining_contribution_tokens.0.saturating_reduce(bid_token_amount_sum);
@@ -2110,12 +2519,12 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn select_random_block(
-		candle_starting_block: T::BlockNumber,
-		candle_ending_block: T::BlockNumber,
-	) -> T::BlockNumber {
+		candle_starting_block: BlockNumberFor<T>,
+		candle_ending_block: BlockNumberFor<T>,
+	) -> BlockNumberFor<T> {
 		let nonce = Self::get_and_increment_nonce();
 		let (random_value, _known_since) = T::Randomness::random(&nonce);
-		let random_block = <T::BlockNumber>::decode(&mut random_value.as_ref())
+		let random_block = <BlockNumberFor<T>>::decode(&mut random_value.as_ref())
 			.expect("secure hashes should always be bigger than the block number; qed");
 		let block_range = candle_ending_block - candle_starting_block;
 
@@ -2142,7 +2551,7 @@ impl<T: Config> Pallet<T> {
 		who: &T::AccountId,
 		project_id: T::ProjectIdentifier,
 		amount: BalanceOf<T>,
-	) -> Result<(), DispatchError> {
+	) -> DispatchResult {
 		// Check if the user has already locked tokens in the evaluation period
 		let user_evaluations = Evaluations::<T>::iter_prefix_values((project_id, who));
 
@@ -2174,7 +2583,7 @@ impl<T: Config> Pallet<T> {
 		project_id: T::ProjectIdentifier,
 		amount: BalanceOf<T>,
 		asset_id: AssetIdOf<T>,
-	) -> Result<(), DispatchError> {
+	) -> DispatchResult {
 		let fund_account = Self::fund_account_id(project_id);
 
 		T::FundingCurrency::transfer(asset_id, who, &fund_account, amount, Preservation::Expendable)?;
@@ -2290,7 +2699,7 @@ impl<T: Config> Pallet<T> {
 		project_id: T::ProjectIdentifier,
 		mut project_details: ProjectDetailsOf<T>,
 		reason: SuccessReason,
-		settlement_delta: T::BlockNumber,
+		settlement_delta: BlockNumberFor<T>,
 	) -> DispatchResult {
 		let now = <frame_system::Pallet<T>>::block_number();
 		project_details.status = ProjectStatus::FundingSuccessful;
@@ -2307,7 +2716,7 @@ impl<T: Config> Pallet<T> {
 		project_id: T::ProjectIdentifier,
 		mut project_details: ProjectDetailsOf<T>,
 		reason: FailureReason,
-		settlement_delta: T::BlockNumber,
+		settlement_delta: BlockNumberFor<T>,
 	) -> DispatchResult {
 		let now = <frame_system::Pallet<T>>::block_number();
 		project_details.status = ProjectStatus::FundingFailed;
@@ -2316,5 +2725,179 @@ impl<T: Config> Pallet<T> {
 		Self::add_to_update_store(now + settlement_delta, (&project_id, UpdateType::StartSettlement));
 		Self::deposit_event(Event::FundingEnded { project_id, outcome: FundingOutcome::Failure(reason) });
 		Ok(())
+	}
+
+	pub fn migrations_per_xcm_message_allowed() -> u32 {
+		const MAX_WEIGHT: Weight = Weight::from_parts(20_000_000_000, 1_000_000);
+
+		let one_migration_bytes = (0u128, 0u64).encode().len() as u32;
+
+		// our encoded call starts with pallet index 51, and call index 0
+		let mut encoded_call = vec![51u8, 0];
+		let encoded_first_param = [0u8; 32].encode();
+		let encoded_second_param = Vec::<MigrationInfo>::new().encode();
+		// we append the encoded parameters, with our migrations vec being empty for now
+		encoded_call.extend_from_slice(encoded_first_param.as_slice());
+		encoded_call.extend_from_slice(encoded_second_param.as_slice());
+
+		let base_xcm_message: Xcm<()> = Xcm(vec![
+			UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
+			Transact { origin_kind: OriginKind::Native, require_weight_at_most: MAX_WEIGHT, call: encoded_call.into() },
+			ReportTransactStatus(QueryResponseInfo {
+				destination: Parachain(3344).into(),
+				query_id: 0,
+				max_weight: MAX_WEIGHT,
+			}),
+		]);
+		let xcm_size = base_xcm_message.encode().len();
+
+		let available_bytes_for_migration_per_message =
+			T::RequiredMaxMessageSize::get().saturating_sub(xcm_size as u32);
+
+		available_bytes_for_migration_per_message.saturating_div(one_migration_bytes)
+	}
+
+	pub fn construct_migration_xcm_messages(migrations: Migrations) -> Vec<(Migrations, Xcm<()>)> {
+		// TODO: adjust this as benchmarks for polimec-receiver are written
+		const MAX_WEIGHT: Weight = Weight::from_parts(10_000, 0);
+
+		// const MAX_WEIGHT: Weight = Weight::from_parts(100_003_000_000_000, 10_000_196_608);
+		let _polimec_receiver_info = T::PolimecReceiverInfo::get();
+		// TODO: use the actual pallet index when the fields are not private anymore (https://github.com/paritytech/polkadot-sdk/pull/2231)
+		let mut output = Vec::new();
+
+		for migrations_slice in migrations.inner().chunks(MaxMigrationsPerXcm::<T>::get() as usize) {
+			let migrations_vec = migrations_slice.to_vec();
+			let migrations_item = Migrations::from(migrations_vec);
+
+			let mut encoded_call = vec![51u8, 0];
+			encoded_call.extend_from_slice(migrations_item.encode().as_slice());
+			let xcm: Xcm<()> = Xcm(vec![
+				UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
+				Transact {
+					origin_kind: OriginKind::Native,
+					require_weight_at_most: MAX_WEIGHT,
+					call: encoded_call.into(),
+				},
+				// ReportTransactStatus should be appended here after knowing the query_id
+			]);
+
+			output.push((migrations_item, xcm));
+		}
+
+		// TODO: we probably want to ensure we dont build too many messages to overflow the queue. Which we know from the parameter `T::RequiredMaxCapacity`.
+		// the problem is that we don't know the existing messages in the destination queue. So for now we assume all messages will succeed
+		output
+	}
+
+	pub fn mark_migrations_as_sent(project_migration_origins: ProjectMigrationOriginsOf<T>, query_id: QueryId) {
+		let project_id = project_migration_origins.project_id;
+		let migration_origins = project_migration_origins.migration_origins;
+		for MigrationOrigin { user, id, participation_type } in migration_origins {
+			match participation_type {
+				ParticipationType::Evaluation => {
+					Evaluations::<T>::mutate(
+						(project_id, T::AccountId32Conversion::convert_back(user), id),
+						|maybe_evaluation| {
+							if let Some(evaluation) = maybe_evaluation {
+								evaluation.ct_migration_status = MigrationStatus::Sent(query_id);
+							}
+						},
+					);
+				},
+				ParticipationType::Bid => {
+					Bids::<T>::mutate((project_id, T::AccountId32Conversion::convert_back(user), id), |maybe_bid| {
+						if let Some(bid) = maybe_bid {
+							bid.ct_migration_status = MigrationStatus::Sent(query_id);
+						}
+					});
+				},
+				ParticipationType::Contribution => {
+					Contributions::<T>::mutate(
+						(project_id, T::AccountId32Conversion::convert_back(user), id),
+						|maybe_contribution| {
+							if let Some(contribution) = maybe_contribution {
+								contribution.ct_migration_status = MigrationStatus::Sent(query_id);
+							}
+						},
+					);
+				},
+			}
+		}
+	}
+
+	pub fn mark_migrations_as_confirmed(project_migration_origins: ProjectMigrationOriginsOf<T>) {
+		let project_id = project_migration_origins.project_id;
+		let migration_origins = project_migration_origins.migration_origins;
+		for MigrationOrigin { user, id, participation_type } in migration_origins {
+			match participation_type {
+				ParticipationType::Evaluation => {
+					Evaluations::<T>::mutate(
+						(project_id, T::AccountId32Conversion::convert_back(user), id),
+						|maybe_evaluation| {
+							if let Some(evaluation) = maybe_evaluation {
+								evaluation.ct_migration_status = MigrationStatus::Confirmed;
+							}
+						},
+					);
+				},
+				ParticipationType::Bid => {
+					Bids::<T>::mutate((project_id, T::AccountId32Conversion::convert_back(user), id), |maybe_bid| {
+						if let Some(bid) = maybe_bid {
+							bid.ct_migration_status = MigrationStatus::Confirmed;
+						}
+					});
+				},
+				ParticipationType::Contribution => {
+					Contributions::<T>::mutate(
+						(project_id, T::AccountId32Conversion::convert_back(user), id),
+						|maybe_contribution| {
+							if let Some(contribution) = maybe_contribution {
+								contribution.ct_migration_status = MigrationStatus::Confirmed;
+							}
+						},
+					);
+				},
+			}
+		}
+	}
+
+	pub fn mark_migrations_as_failed(
+		project_migration_origins: ProjectMigrationOriginsOf<T>,
+		error: BoundedVec<u8, MaxDispatchErrorLen>,
+	) {
+		let project_id = project_migration_origins.project_id;
+		let migration_origins = project_migration_origins.migration_origins;
+		for MigrationOrigin { user, id, participation_type } in migration_origins {
+			match participation_type {
+				ParticipationType::Evaluation => {
+					Evaluations::<T>::mutate(
+						(project_id, T::AccountId32Conversion::convert_back(user), id),
+						|maybe_evaluation| {
+							if let Some(evaluation) = maybe_evaluation {
+								evaluation.ct_migration_status = MigrationStatus::Failed(error.clone());
+							}
+						},
+					);
+				},
+				ParticipationType::Bid => {
+					Bids::<T>::mutate((project_id, T::AccountId32Conversion::convert_back(user), id), |maybe_bid| {
+						if let Some(bid) = maybe_bid {
+							bid.ct_migration_status = MigrationStatus::Failed(error.clone());
+						}
+					});
+				},
+				ParticipationType::Contribution => {
+					Contributions::<T>::mutate(
+						(project_id, T::AccountId32Conversion::convert_back(user), id),
+						|maybe_contribution| {
+							if let Some(contribution) = maybe_contribution {
+								contribution.ct_migration_status = MigrationStatus::Failed(error.clone());
+							}
+						},
+					);
+				},
+			}
+		}
 	}
 }

@@ -38,7 +38,7 @@ chain = "statemint-local"
 
 
 [[parachains]]
-id = 3355
+id = 3344
 chain = "polimec-testing"
 	[[parachains.collators]]
 	name = "polimec-testing"

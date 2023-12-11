@@ -237,24 +237,60 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 
 	/// Get the amount that is possible to vest (i.e release) at this block.
 	fn vesting_balance(who: &T::AccountId, reason: ReasonOf<T>) -> Option<BalanceOf<T>> {
-		if let Some(v) = Self::vesting(who, reason) {
+		Self::vesting(who, reason).map(|v| {
 			let now = <frame_system::Pallet<T>>::block_number();
 			let total_releasable = v.iter().fold(Zero::zero(), |total, schedule| {
 				schedule.releaseble_at::<T::BlockNumberToBalance>(now).saturating_add(total)
 			});
-			Some(total_releasable)
-		} else {
-			None
-		}
+			total_releasable
+		})
 	}
 
 	fn total_scheduled_amount(who: &T::AccountId, reason: ReasonOf<T>) -> Option<BalanceOf<T>> {
-		if let Some(v) = Self::vesting(who, reason) {
+		Self::vesting(who, reason).map(|v| {
 			let total = v.iter().fold(Zero::zero(), |total, schedule| schedule.locked.saturating_add(total));
-			Some(total)
-		} else {
-			None
+			total
+		})
+	}
+
+	fn vest(
+		who: AccountIdOf<T>,
+		reason: ReasonOf<T>,
+	) -> Result<<Self::Currency as Inspect<T::AccountId>>::Balance, DispatchError> {
+		let prev_locked = T::Currency::balance_on_hold(&reason, &who);
+		Self::do_vest(who.clone(), reason)?;
+		let post_locked = T::Currency::balance_on_hold(&reason, &who);
+
+		Ok(prev_locked.saturating_sub(post_locked))
+	}
+
+	fn add_release_schedule(
+		who: &T::AccountId,
+		locked: <Self::Currency as frame_support::traits::fungible::Inspect<T::AccountId>>::Balance,
+		per_block: <Self::Currency as frame_support::traits::fungible::Inspect<T::AccountId>>::Balance,
+		starting_block: Self::Moment,
+		reason: ReasonOf<T>,
+	) -> DispatchResult {
+		if locked.is_zero() {
+			return Ok(())
 		}
+
+		let vesting_schedule = VestingInfo::new(locked, per_block, starting_block);
+		// Check for `per_block` or `locked` of 0.
+		if !vesting_schedule.is_valid() {
+			return Err(Error::<T>::InvalidScheduleParams.into())
+		};
+
+		let mut schedules = Self::vesting(who, reason).unwrap_or_default();
+
+		// NOTE: we must push the new schedule so that `exec_action`
+		// will give the correct new locked amount.
+		ensure!(schedules.try_push(vesting_schedule).is_ok(), Error::<T>::AtMaxVestingSchedules);
+
+		let (schedules, _) = Self::exec_action(schedules.to_vec(), VestingAction::Passive)?;
+
+		Self::write_vesting_schedule(who, schedules, reason)?;
+		Ok(())
 	}
 
 	/// Adds a vesting schedule to a given account.
@@ -321,35 +357,6 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 		Ok(())
 	}
 
-	fn add_release_schedule(
-		who: &T::AccountId,
-		locked: <Self::Currency as frame_support::traits::fungible::Inspect<T::AccountId>>::Balance,
-		per_block: <Self::Currency as frame_support::traits::fungible::Inspect<T::AccountId>>::Balance,
-		starting_block: Self::Moment,
-		reason: ReasonOf<T>,
-	) -> DispatchResult {
-		if locked.is_zero() {
-			return Ok(())
-		}
-
-		let vesting_schedule = VestingInfo::new(locked, per_block, starting_block);
-		// Check for `per_block` or `locked` of 0.
-		if !vesting_schedule.is_valid() {
-			return Err(Error::<T>::InvalidScheduleParams.into())
-		};
-
-		let mut schedules = Self::vesting(who, reason).unwrap_or_default();
-
-		// NOTE: we must push the new schedule so that `exec_action`
-		// will give the correct new locked amount.
-		ensure!(schedules.try_push(vesting_schedule).is_ok(), Error::<T>::AtMaxVestingSchedules);
-
-		let (schedules, _) = Self::exec_action(schedules.to_vec(), VestingAction::Passive)?;
-
-		Self::write_vesting_schedule(who, schedules, reason)?;
-		Ok(())
-	}
-
 	/// Remove a vesting schedule for a given account.
 	fn remove_vesting_schedule(who: &T::AccountId, schedule_index: u32, reason: ReasonOf<T>) -> DispatchResult {
 		let schedules = Self::vesting(who, reason).ok_or(Error::<T>::NotVesting)?;
@@ -373,16 +380,5 @@ impl<T: Config> ReleaseSchedule<AccountIdOf<T>, ReasonOf<T>> for Pallet<T> {
 		}
 
 		Ok(())
-	}
-
-	fn vest(
-		who: AccountIdOf<T>,
-		reason: ReasonOf<T>,
-	) -> Result<<Self::Currency as Inspect<T::AccountId>>::Balance, DispatchError> {
-		let prev_locked = T::Currency::balance_on_hold(&reason, &who);
-		Self::do_vest(who.clone(), reason)?;
-		let post_locked = T::Currency::balance_on_hold(&reason, &who);
-
-		Ok(prev_locked.saturating_sub(post_locked))
 	}
 }

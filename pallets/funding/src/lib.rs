@@ -173,15 +173,15 @@
 #![cfg_attr(feature = "runtime-benchmarks", recursion_limit = "512")]
 
 use frame_support::{
-	pallet_prelude::Weight,
 	traits::{
 		tokens::{fungible, fungibles, Balance},
 		Randomness,
 	},
 	BoundedVec, PalletId,
 };
+use frame_system::pallet_prelude::BlockNumberFor;
 pub use pallet::*;
-use parity_scale_codec::Encode;
+use polimec_traits::migration_types::*;
 use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
@@ -209,7 +209,6 @@ pub mod instantiator;
 pub mod traits;
 
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
-pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 pub type ProjectIdOf<T> = <T as Config>::ProjectIdentifier;
 pub type MultiplierOf<T> = <T as Config>::Multiplier;
 
@@ -225,22 +224,24 @@ pub type EvaluatorsOutcomeOf<T> = EvaluatorsOutcome<BalanceOf<T>>;
 pub type ProjectMetadataOf<T> =
 	ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, HashOf<T>>;
 pub type ProjectDetailsOf<T> =
-	ProjectDetails<AccountIdOf<T>, BlockNumberOf<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>;
+	ProjectDetails<AccountIdOf<T>, BlockNumberFor<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>;
 pub type EvaluationRoundInfoOf<T> = EvaluationRoundInfo<BalanceOf<T>>;
-pub type VestingInfoOf<T> = VestingInfo<BlockNumberOf<T>, BalanceOf<T>>;
-pub type EvaluationInfoOf<T> = EvaluationInfo<u32, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, BlockNumberOf<T>>;
+pub type VestingInfoOf<T> = VestingInfo<BlockNumberFor<T>, BalanceOf<T>>;
+pub type EvaluationInfoOf<T> = EvaluationInfo<u32, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, BlockNumberFor<T>>;
 pub type BidInfoOf<T> = BidInfo<
-	u32,
 	ProjectIdOf<T>,
 	BalanceOf<T>,
 	PriceOf<T>,
 	AccountIdOf<T>,
-	BlockNumberOf<T>,
+	BlockNumberFor<T>,
 	MultiplierOf<T>,
 	VestingInfoOf<T>,
 >;
 pub type ContributionInfoOf<T> =
 	ContributionInfo<u32, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>, VestingInfoOf<T>>;
+
+pub type ProjectMigrationOriginsOf<T> =
+	ProjectMigrationOrigins<ProjectIdOf<T>, BoundedVec<MigrationOrigin, MaxMigrationsPerXcm<T>>>;
 
 pub type BucketOf<T> = Bucket<BalanceOf<T>, PriceOf<T>>;
 pub type BondTypeOf<T> = LockType<ProjectIdOf<T>>;
@@ -253,7 +254,7 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use sp_arithmetic::Percent;
-	use sp_runtime::traits::Convert;
+	use sp_runtime::traits::{Convert, ConvertBack};
 
 	use local_macros::*;
 
@@ -265,17 +266,31 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_balances::Config<Balance = BalanceOf<Self>> {
-		/// Helper trait for benchmarks.
-		type AllPalletsWithoutSystem: frame_support::traits::OnFinalize<BlockNumberOf<Self>>
-			+ frame_support::traits::OnIdle<BlockNumberOf<Self>>
-			+ frame_support::traits::OnInitialize<BlockNumberOf<Self>>;
+	pub trait Config:
+		frame_system::Config + pallet_balances::Config<Balance = BalanceOf<Self>> + pallet_xcm::Config
+	{
+		#[cfg(feature = "runtime-benchmarks")]
+		type SetPrices: traits::SetPrices;
+
+		type AllPalletsWithoutSystem: frame_support::traits::OnFinalize<BlockNumberFor<Self>>
+			+ frame_support::traits::OnIdle<BlockNumberFor<Self>>
+			+ frame_support::traits::OnInitialize<BlockNumberFor<Self>>;
 
 		type RuntimeEvent: From<Event<Self>>
 			+ TryInto<Event<Self>>
 			+ IsType<<Self as frame_system::Config>::RuntimeEvent>
 			+ Parameter
 			+ Member;
+
+		// TODO: our local BlockNumber should be removed once we move onto using Moment for time tracking
+		type BlockNumber: IsType<BlockNumberFor<Self>> + Into<u64>;
+
+		type AccountId32Conversion: ConvertBack<Self::AccountId, [u8; 32]>;
+
+		type RuntimeOrigin: IsType<<Self as frame_system::Config>::RuntimeOrigin>
+			+ Into<Result<pallet_xcm::Origin, <Self as Config>::RuntimeOrigin>>;
+
+		type RuntimeCall: Parameter + IsType<<Self as frame_system::Config>::RuntimeCall> + From<Call<Self>>;
 
 		/// Global identifier for the projects.
 		type ProjectIdentifier: Parameter + Copy + Default + One + Saturating + From<u32> + Ord + MaxEncodedLen;
@@ -292,7 +307,7 @@ pub mod pallet {
 			+ MaybeSerializeDeserialize;
 
 		/// The inner balance type we will use for all of our outer currency types. (e.g native, funding, CTs)
-		type Balance: Balance + From<u64> + FixedPointOperand + MaybeSerializeDeserialize;
+		type Balance: Balance + From<u64> + FixedPointOperand + MaybeSerializeDeserialize + Into<u128>;
 
 		/// Represents the value of something in USD
 		type Price: FixedPointNumber + Parameter + Copy + MaxEncodedLen + MaybeSerializeDeserialize;
@@ -322,7 +337,7 @@ pub mod pallet {
 		type PriceProvider: ProvideStatemintPrice<AssetId = u32, Price = Self::Price>;
 
 		/// Something that provides randomness in the runtime.
-		type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
+		type Randomness: Randomness<Self::Hash, BlockNumberFor<Self>>;
 
 		/// The maximum length of data stored on-chain.
 		#[pallet::constant]
@@ -334,27 +349,27 @@ pub mod pallet {
 
 		/// The length (expressed in number of blocks) of the evaluation period.
 		#[pallet::constant]
-		type EvaluationDuration: Get<Self::BlockNumber>;
+		type EvaluationDuration: Get<BlockNumberFor<Self>>;
 
 		/// The time window (expressed in number of blocks) that an issuer has to start the auction round.
 		#[pallet::constant]
-		type AuctionInitializePeriodDuration: Get<Self::BlockNumber>;
+		type AuctionInitializePeriodDuration: Get<BlockNumberFor<Self>>;
 
 		/// The length (expressed in number of blocks) of the Auction Round, English period.
 		#[pallet::constant]
-		type EnglishAuctionDuration: Get<Self::BlockNumber>;
+		type EnglishAuctionDuration: Get<BlockNumberFor<Self>>;
 
 		/// The length (expressed in number of blocks) of the Auction Round, Candle period.
 		#[pallet::constant]
-		type CandleAuctionDuration: Get<Self::BlockNumber>;
+		type CandleAuctionDuration: Get<BlockNumberFor<Self>>;
 
 		/// The length (expressed in number of blocks) of the Community Round.
 		#[pallet::constant]
-		type CommunityFundingDuration: Get<Self::BlockNumber>;
+		type CommunityFundingDuration: Get<BlockNumberFor<Self>>;
 
 		/// The length (expressed in number of blocks) of the Remainder Round.
 		#[pallet::constant]
-		type RemainderFundingDuration: Get<Self::BlockNumber>;
+		type RemainderFundingDuration: Get<BlockNumberFor<Self>>;
 
 		/// `PalletId` for the funding pallet. An appropriate value could be
 		/// `PalletId(*b"py/cfund")`
@@ -391,21 +406,32 @@ pub mod pallet {
 			AccountIdOf<Self>,
 			BondTypeOf<Self>,
 			Currency = Self::NativeCurrency,
-			Moment = BlockNumberOf<Self>,
+			Moment = BlockNumberFor<Self>,
 		>;
 		/// For now we expect 3 days until the project is automatically accepted. Timeline decided by MiCA regulations.
-		type ManualAcceptanceDuration: Get<Self::BlockNumber>;
+		type ManualAcceptanceDuration: Get<BlockNumberFor<Self>>;
 		/// For now we expect 4 days from acceptance to settlement due to MiCA regulations.
-		type SuccessToSettlementTime: Get<Self::BlockNumber>;
+		type SuccessToSettlementTime: Get<BlockNumberFor<Self>>;
 
 		type EvaluatorSlash: Get<Percent>;
 
 		type TreasuryAccount: Get<AccountIdOf<Self>>;
 
 		/// Convert 24 hours as FixedU128, to the corresponding amount of blocks in the same type as frame_system
-		type DaysToBlocks: Convert<FixedU128, BlockNumberOf<Self>>;
+		type DaysToBlocks: Convert<FixedU128, BlockNumberFor<Self>>;
 
-		type BlockNumberToBalance: Convert<BlockNumberOf<Self>, BalanceOf<Self>>;
+		type BlockNumberToBalance: Convert<BlockNumberFor<Self>, BalanceOf<Self>>;
+
+		type PolimecReceiverInfo: Get<PalletInfo>;
+
+		/// Range of max_message_size values for the hrmp config where we accept the incoming channel request
+		type MaxMessageSizeThresholds: Get<(u32, u32)>;
+		/// Range of max_capacity_thresholds values for the hrmp config where we accept the incoming channel request
+		type MaxCapacityThresholds: Get<(u32, u32)>;
+		/// max_capacity config required for the channel from polimec to the project
+		type RequiredMaxCapacity: Get<u32>;
+		/// max_message_size config required for the channel from polimec to the project
+		type RequiredMaxMessageSize: Get<u32>;
 	}
 
 	#[pallet::storage]
@@ -454,7 +480,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		T::ProjectIdentifier,
-		ProjectDetails<AccountIdOf<T>, BlockNumberOf<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>,
+		ProjectDetails<AccountIdOf<T>, BlockNumberFor<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>,
 	>;
 
 	#[pallet::storage]
@@ -463,7 +489,7 @@ pub mod pallet {
 	pub type ProjectsToUpdate<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
-		T::BlockNumber,
+		BlockNumberFor<T>,
 		BoundedVec<(T::ProjectIdentifier, UpdateType), T::MaxProjectsToUpdatePerBlock>,
 		ValueQuery,
 	>;
@@ -507,6 +533,10 @@ pub mod pallet {
 		ContributionInfoOf<T>,
 	>;
 
+	#[pallet::storage]
+	/// Migrations sent and awaiting for confirmation
+	pub type UnconfirmedMigrations<T: Config> = StorageMap<_, Blake2_128Concat, QueryId, ProjectMigrationOriginsOf<T>>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -530,18 +560,18 @@ pub mod pallet {
 		/// The period an issuer has to start the auction phase of the project.
 		AuctionInitializePeriod {
 			project_id: T::ProjectIdentifier,
-			start_block: T::BlockNumber,
-			end_block: T::BlockNumber,
+			start_block: BlockNumberFor<T>,
+			end_block: BlockNumberFor<T>,
 		},
 		/// The auction round of a project started.
 		EnglishAuctionStarted {
 			project_id: T::ProjectIdentifier,
-			when: T::BlockNumber,
+			when: BlockNumberFor<T>,
 		},
 		/// The candle auction part of the auction started for a project
 		CandleAuctionStarted {
 			project_id: T::ProjectIdentifier,
-			when: T::BlockNumber,
+			when: BlockNumberFor<T>,
 		},
 		/// The auction round of a project ended.
 		AuctionFailed {
@@ -762,6 +792,32 @@ pub mod pallet {
 			project_id: T::ProjectIdentifier,
 			caller: T::AccountId,
 		},
+		MigrationCheckResponseAccepted {
+			project_id: ProjectIdOf<T>,
+			query_id: QueryId,
+			response: Response,
+		},
+		MigrationCheckResponseRejected {
+			project_id: ProjectIdOf<T>,
+			query_id: QueryId,
+			response: Response,
+		},
+		MigrationStarted {
+			project_id: T::ProjectIdentifier,
+		},
+		UserMigrationSent {
+			project_id: ProjectIdOf<T>,
+			caller: AccountIdOf<T>,
+			participant: AccountIdOf<T>,
+		},
+		MigrationsConfirmed {
+			project_id: ProjectIdOf<T>,
+			migration_origins: BoundedVec<MigrationOrigin, MaxMigrationsPerXcm<T>>,
+		},
+		MigrationsFailed {
+			project_id: ProjectIdOf<T>,
+			migration_origins: BoundedVec<MigrationOrigin, MaxMigrationsPerXcm<T>>,
+		},
 	}
 
 	#[pallet::error]
@@ -824,8 +880,8 @@ pub mod pallet {
 		TooEarlyForFundingEnd,
 		/// Checks for other projects not copying metadata of others
 		MetadataAlreadyExists,
-		/// The specified project info does not exist
-		ProjectInfoNotFound,
+		/// The specified project details does not exist
+		ProjectDetailsNotFound,
 		/// Tried to finish an evaluation before its target end block
 		EvaluationPeriodNotEnded,
 		/// Tried to access field that is not set
@@ -856,6 +912,9 @@ pub mod pallet {
 		ContributionNotFound,
 		/// Tried to start a migration check but the bidirectional channel is not yet open
 		CommsNotEstablished,
+		XcmFailed,
+		// Tried to convert one type into another and failed. i.e try_into failed
+		BadConversion,
 	}
 
 	#[pallet::call]
@@ -1117,11 +1176,60 @@ pub mod pallet {
 			let caller = ensure_signed(origin)?;
 			Self::do_set_para_id_for_project(&caller, project_id, para_id)
 		}
+
+		#[pallet::call_index(22)]
+		#[pallet::weight(Weight::from_parts(1000, 0))]
+		pub fn start_migration_readiness_check(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+		) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			Self::do_start_migration_readiness_check(&caller, project_id)
+		}
+
+		/// Called only by other chains through a query response xcm message
+		#[pallet::call_index(23)]
+		#[pallet::weight(Weight::from_parts(1000, 0))]
+		pub fn migration_check_response(
+			origin: OriginFor<T>,
+			query_id: xcm::v3::QueryId,
+			response: xcm::v3::Response,
+		) -> DispatchResult {
+			let location = ensure_response(<T as Config>::RuntimeOrigin::from(origin))?;
+
+			Self::do_migration_check_response(location, query_id, response)
+		}
+
+		#[pallet::call_index(24)]
+		#[pallet::weight(Weight::from_parts(1000, 0))]
+		pub fn start_migration(origin: OriginFor<T>, project_id: T::ProjectIdentifier) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			Self::do_start_migration(&caller, project_id)
+		}
+
+		#[pallet::call_index(25)]
+		#[pallet::weight(Weight::from_parts(1000, 0))]
+		pub fn migrate_one_participant(
+			origin: OriginFor<T>,
+			project_id: T::ProjectIdentifier,
+			participant: AccountIdOf<T>,
+		) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			Self::do_migrate_one_participant(caller, project_id, participant)
+		}
+
+		#[pallet::call_index(26)]
+		#[pallet::weight(Weight::from_parts(1000, 0))]
+		pub fn confirm_migrations(origin: OriginFor<T>, query_id: QueryId, response: Response) -> DispatchResult {
+			let location = ensure_response(<T as Config>::RuntimeOrigin::from(origin))?;
+
+			Self::do_confirm_migrations(location, query_id, response)
+		}
 	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(now: T::BlockNumber) -> Weight {
+		fn on_initialize(now: BlockNumberFor<T>) -> Weight {
 			// Get the projects that need to be updated on this block and update them
 			for (project_id, update_type) in ProjectsToUpdate::<T>::take(now) {
 				match update_type {
@@ -1172,7 +1280,7 @@ pub mod pallet {
 			Weight::from_parts(0, 0)
 		}
 
-		fn on_idle(_now: T::BlockNumber, max_weight: Weight) -> Weight {
+		fn on_idle(_now: BlockNumberFor<T>, max_weight: Weight) -> Weight {
 			let mut remaining_weight = max_weight;
 
 			let projects_needing_cleanup = ProjectsDetails::<T>::iter()
@@ -1220,6 +1328,7 @@ pub mod pallet {
 
 	#[cfg(all(feature = "testing-node", feature = "std"))]
 	use frame_support::traits::{OnFinalize, OnIdle, OnInitialize, OriginTrait};
+	use pallet_xcm::ensure_response;
 
 	#[cfg(all(feature = "testing-node", feature = "std"))]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
@@ -1250,9 +1359,8 @@ pub mod pallet {
 	where
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		T::AllPalletsWithoutSystem:
-			OnFinalize<BlockNumberOf<T>> + OnIdle<BlockNumberOf<T>> + OnInitialize<BlockNumberOf<T>>,
+			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
-		// AccountIdOf<T>: Into<<instantiator::RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
 	{
 		fn default() -> Self {
 			Self { starting_projects: vec![], phantom: PhantomData }
@@ -1268,16 +1376,16 @@ pub mod pallet {
 
 	#[pallet::genesis_build]
 	#[cfg(not(all(feature = "testing-node", feature = "std")))]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {}
 	}
 
 	#[cfg(all(feature = "testing-node", feature = "std"))]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig<T>
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T>
 	where
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		<T as Config>::AllPalletsWithoutSystem:
-			OnFinalize<BlockNumberOf<T>> + OnIdle<BlockNumberOf<T>> + OnInitialize<BlockNumberOf<T>>,
+			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 		// AccountIdOf<T>: Into<<instantiator::RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
@@ -1302,7 +1410,6 @@ pub mod pallet {
 			}
 		}
 	}
-
 	#[cfg(all(feature = "testing-node", feature = "std"))]
 	impl<T: Config> GenesisConfig<T>
 	where
@@ -1310,7 +1417,7 @@ pub mod pallet {
 			+ frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent>
 			+ pallet_balances::Config<Balance = BalanceOf<T>>,
 		T::AllPalletsWithoutSystem:
-			OnFinalize<BlockNumberOf<T>> + OnIdle<BlockNumberOf<T>> + OnInitialize<BlockNumberOf<T>>,
+			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 		AccountIdOf<T>: Into<<instantiator::RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
@@ -1318,150 +1425,23 @@ pub mod pallet {
 		/// Direct implementation of `GenesisBuild::build_storage`.
 		///
 		/// Kept in order not to break dependency.
-		pub fn build_storage(&self) -> Result<sp_runtime::Storage, String> {
-			<Self as GenesisBuild<T>>::build_storage(self)
-		}
-
-		/// Direct implementation of `GenesisBuild::assimilate_storage`.
-		///
-		/// Kept in order not to break dependency.
-		pub fn assimilate_storage(&self, storage: &mut sp_runtime::Storage) -> Result<(), String> {
-			<Self as GenesisBuild<T>>::assimilate_storage(self, storage)
+		pub fn build(&self) {
+			<Self as BuildGenesisConfig>::build(self)
 		}
 	}
 }
 
 pub mod xcm_executor_impl {
 	use super::*;
-	use crate::ProjectStatus::FundingSuccessful;
 
-	pub struct HrmpHandler<T: Config, XcmSender: SendXcm>(PhantomData<(T, XcmSender)>);
-	impl<T: Config, XcmSender: SendXcm> polimec_xcm_executor::HrmpHandler for HrmpHandler<T, XcmSender> {
+	pub struct HrmpHandler<T: Config>(PhantomData<T>);
+	impl<T: Config> polimec_xcm_executor::HrmpHandler for HrmpHandler<T> {
 		fn handle_channel_open_request(message: Instruction) -> XcmResult {
-			// TODO: set these constants with a proper value
-			const MAX_MESSAGE_SIZE_THRESHOLDS: (u32, u32) = (50000, 102_400);
-			const MAX_CAPACITY_THRESHOLDS: (u32, u32) = (8, 1000);
-			const REQUIRED_MAX_CAPACITY: u32 = 8u32;
-			const REQUIRED_MAX_MESSAGE_SIZE: u32 = 102_400u32;
-			const EXECUTION_DOT: MultiAsset = MultiAsset {
-				id: Concrete(MultiLocation { parents: 0, interior: Here }),
-				fun: Fungible(1_0_000_000_000u128),
-			};
-			const MAX_WEIGHT: Weight = Weight::from_parts(20_000_000_000, 1_000_000);
-			const POLIMEC_PARA_ID: u32 = 3355u32;
-
-			log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest received: {:?}", message);
-
-			match message {
-				Instruction::HrmpNewChannelOpenRequest { sender, max_message_size, max_capacity }
-					if max_message_size >= MAX_MESSAGE_SIZE_THRESHOLDS.0 &&
-						max_message_size <= MAX_MESSAGE_SIZE_THRESHOLDS.1 &&
-						max_capacity >= MAX_CAPACITY_THRESHOLDS.0 &&
-						max_capacity <= MAX_CAPACITY_THRESHOLDS.1 =>
-				{
-					log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest accepted");
-
-					let (project_id, mut project_details) = ProjectsDetails::<T>::iter()
-						.find(|(_id, details)| {
-							details.parachain_id == Some(ParaId::from(sender)) && details.status == FundingSuccessful
-						})
-						.ok_or(XcmError::BadOrigin)?;
-
-					let accept_channel_relay_call =
-						polkadot_runtime::RuntimeCall::Hrmp(polkadot_runtime_parachains::hrmp::Call::<
-							polkadot_runtime::Runtime,
-						>::hrmp_accept_open_channel {
-							sender: ParaId::from(sender),
-						})
-						.encode();
-
-					let request_channel_relay_call =
-						polkadot_runtime::RuntimeCall::Hrmp(polkadot_runtime_parachains::hrmp::Call::<
-							polkadot_runtime::Runtime,
-						>::hrmp_init_open_channel {
-							recipient: ParaId::from(sender),
-							proposed_max_capacity: REQUIRED_MAX_CAPACITY,
-							proposed_max_message_size: REQUIRED_MAX_MESSAGE_SIZE,
-						})
-						.encode();
-
-					let xcm: Xcm<()> = Xcm(vec![
-						WithdrawAsset(vec![EXECUTION_DOT.clone()].into()),
-						BuyExecution { fees: EXECUTION_DOT.clone(), weight_limit: Unlimited },
-						Transact {
-							origin_kind: OriginKind::Native,
-							require_weight_at_most: MAX_WEIGHT,
-							call: accept_channel_relay_call.into(),
-						},
-						Transact {
-							origin_kind: OriginKind::Native,
-							require_weight_at_most: MAX_WEIGHT,
-							call: request_channel_relay_call.into(),
-						},
-						RefundSurplus,
-						DepositAsset {
-							assets: Wild(All),
-							beneficiary: MultiLocation { parents: 0, interior: X1(Parachain(POLIMEC_PARA_ID)) },
-						},
-					]);
-					let mut message = Some(xcm);
-
-					let dest_loc = MultiLocation { parents: 1, interior: Here };
-					let mut destination = Some(dest_loc);
-					let (ticket, _price) = XcmSender::validate(&mut destination, &mut message)?;
-
-					match XcmSender::deliver(ticket) {
-						Ok(_) => {
-							log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest: acceptance successfully sent");
-							project_details.hrmp_channel_status.project_to_polimec = ChannelStatus::Open;
-							project_details.hrmp_channel_status.polimec_to_project = ChannelStatus::AwaitingAcceptance;
-							ProjectsDetails::<T>::insert(project_id, project_details);
-
-							Pallet::<T>::deposit_event(Event::<T>::HrmpChannelAccepted {
-								project_id,
-								para_id: ParaId::from(sender),
-							});
-							Ok(())
-						},
-						Err(e) => {
-							log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest: acceptance sending failed - {:?}", e);
-							Err(XcmError::Unimplemented)
-						},
-					}
-				},
-				instr @ _ => {
-					log::trace!(target: "pallet_funding::hrmp", "Bad instruction: {:?}", instr);
-					Err(XcmError::Unimplemented)
-				},
-			}
+			<Pallet<T>>::do_handle_channel_open_request(message)
 		}
 
 		fn handle_channel_accepted(message: Instruction) -> XcmResult {
-			log::trace!(target: "pallet_funding::hrmp", "Hrmp received: {:?}", message);
-
-			match message {
-				Instruction::HrmpChannelAccepted { recipient } => {
-					log::trace!(target: "pallet_funding::hrmp", "HrmpChannelAccepted received: {:?}", message);
-					let (project_id, mut project_details) = ProjectsDetails::<T>::iter()
-						.find(|(_id, details)| {
-							details.parachain_id == Some(ParaId::from(recipient)) && details.status == FundingSuccessful
-						})
-						.ok_or(XcmError::BadOrigin)?;
-
-					project_details.hrmp_channel_status.polimec_to_project = ChannelStatus::Open;
-					ProjectsDetails::<T>::insert(project_id, project_details);
-
-					Pallet::<T>::deposit_event(Event::<T>::HrmpChannelEstablished {
-						project_id,
-						para_id: ParaId::from(recipient),
-					});
-					Ok(())
-				},
-				instr @ _ => {
-					log::trace!(target: "pallet_funding::hrmp", "Bad instruction: {:?}", instr);
-					Err(XcmError::Unimplemented)
-				},
-			}
+			<Pallet<T>>::do_handle_channel_accepted(message)
 		}
 	}
 }
