@@ -403,8 +403,6 @@ pub mod storage_types {
 
 pub mod inner_types {
 	use super::*;
-	use polimec_common::migration_types::{MigrationOrigin, Migrations};
-	use sp_runtime::WeakBoundedVec;
 	use xcm::v3::MaxDispatchErrorLen;
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]

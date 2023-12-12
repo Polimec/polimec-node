@@ -263,7 +263,7 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Failure, AccountListOf<
 
 fn release_future_ct_deposit_one_participant<T: Config>(
 	project_id: <T as Config>::ProjectIdentifier,
-	mut remaining_participants: AccountListOf<T>,
+	remaining_participants: AccountListOf<T>,
 ) -> (Weight, AccountListOf<T>) {
 	let base_weight = Weight::from_parts(10_000_000, 0);
 	let mut iter_participants = remaining_participants.into_iter();
@@ -339,10 +339,10 @@ fn remaining_contributions<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
 }
 
 fn remaining_participants<T: Config>(project_id: T::ProjectIdentifier) -> AccountListOf<T> {
-	let evaluators = Evaluations::<T>::iter_key_prefix((project_id,)).map(|(evaluator, evaluation_id)| evaluator);
-	let bidders = Bids::<T>::iter_key_prefix((project_id,)).map(|(bidder, bid_id)| bidder);
+	let evaluators = Evaluations::<T>::iter_key_prefix((project_id,)).map(|(evaluator, _evaluation_id)| evaluator);
+	let bidders = Bids::<T>::iter_key_prefix((project_id,)).map(|(bidder, _bid_id)| bidder);
 	let contributors =
-		Contributions::<T>::iter_key_prefix((project_id,)).map(|(contributor, contribution_id)| contributor);
+		Contributions::<T>::iter_key_prefix((project_id,)).map(|(contributor, _contribution_id)| contributor);
 	let all_participants = evaluators.chain(bidders).chain(contributors).collect::<BTreeSet<AccountIdOf<T>>>();
 	AccountListOf::<T>::force_from(
 		all_participants.into_iter().collect_vec(),

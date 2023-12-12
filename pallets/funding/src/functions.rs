@@ -43,7 +43,7 @@ use crate::ProjectStatus::FundingSuccessful;
 use polimec_common::ReleaseSchedule;
 
 use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
-use polimec_common::migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
+use polimec_common::migration_types::{MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
 
 use super::*;
 const POLIMEC_PARA_ID: u32 = 3344u32;

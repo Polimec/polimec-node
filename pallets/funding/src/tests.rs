@@ -639,7 +639,7 @@ mod evaluation_round_failure {
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 
-		inst.bond_for_users(project_id, evaluations);
+		let _ = inst.bond_for_users(project_id, evaluations);
 
 		inst.do_free_plmc_assertions(vec![
 			UserToPLMCBalance::new(EVALUATOR_1, MockInstantiator::get_ed()),
@@ -1389,7 +1389,7 @@ mod auction_round_success {
 
 		let project_id = inst.create_auctioning_project(project, issuer, evaluations);
 
-		let mut bidders_plmc = MockInstantiator::calculate_auction_plmc_spent(&bids, None);
+		let bidders_plmc = MockInstantiator::calculate_auction_plmc_spent(&bids, None);
 		let bidders_existential_deposits = bidders_plmc.accounts().existential_deposits();
 		let bidders_ct_account_deposits = bidders_plmc.accounts().ct_account_deposits();
 		inst.mint_plmc_to(bidders_plmc.clone());
@@ -1403,7 +1403,7 @@ mod auction_round_success {
 
 		inst.start_community_funding(project_id).unwrap();
 		let final_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
-		let mut contributors_plmc =
+		let contributors_plmc =
 			MockInstantiator::calculate_contributed_plmc_spent(community_contributions.clone(), final_price);
 		let contributors_existential_deposits = contributors_plmc.accounts().existential_deposits();
 		let contributors_ct_account_deposits = contributors_plmc.accounts().ct_account_deposits();
@@ -2002,7 +2002,7 @@ mod auction_round_failure {
 
 		let (bid_in, bid_out) = (default_bids()[0].clone(), default_bids()[1].clone());
 
-		let mut plmc_fundings =
+		let plmc_fundings =
 			MockInstantiator::calculate_auction_plmc_spent(&vec![bid_in.clone(), bid_out.clone()], None);
 		let plmc_existential_amounts = plmc_fundings.accounts().existential_deposits();
 		let plmc_ct_account_deposits = plmc_fundings.accounts().ct_account_deposits();
@@ -2080,7 +2080,7 @@ mod auction_round_failure {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_metadata = default_project(0, ISSUER);
 		let automatic_fail_funding_percent = Percent::from_percent(30);
-		let (bid_allocation, contribution_allocation) = project_metadata.total_allocation_size;
+		let (bid_allocation, _contribution_allocation) = project_metadata.total_allocation_size;
 		let deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
 			ProjectIdOf<TestRuntime>,
 			AccountIdOf<TestRuntime>,
@@ -2208,7 +2208,7 @@ mod community_round_success {
 			ContributionParams::new(BOB, 4 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 
-		let mut plmc_funding = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), token_price);
+		let plmc_funding = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), token_price);
 		let plmc_existential_deposit = plmc_funding.accounts().existential_deposits();
 		let plmc_ct_account_deposits = plmc_funding.accounts().ct_account_deposits();
 		let statemint_funding =
@@ -2253,7 +2253,7 @@ mod community_round_success {
 		let ct_price = inst.get_project_details(project_id).weighted_average_price.expect("CT Price should exist");
 
 		let contributions = vec![ContributionParams::new(BOB, remaining_ct.1, 1u8, AcceptedFundingAsset::USDT)];
-		let mut plmc_fundings = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
+		let plmc_fundings = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 		let plmc_existential_deposits = plmc_fundings.accounts().existential_deposits();
 		let plmc_ct_account_deposits = plmc_fundings.accounts().ct_account_deposits();
 		let statemint_asset_fundings =
@@ -2331,7 +2331,7 @@ mod community_round_success {
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
 
 		let reserved_plmc = plmc_fundings.swap_remove(0).plmc_amount;
-		let remaining_plmc: BalanceOf<TestRuntime> =
+		let _remaining_plmc: BalanceOf<TestRuntime> =
 			plmc_fundings.iter().fold(0_u128, |acc, item| acc + item.plmc_amount);
 
 		let actual_funding_transferred = statemint_asset_fundings.swap_remove(0).asset_amount;
