@@ -93,7 +93,7 @@ pub mod pallet {
 				info: MigrationInfo { contribution_token_amount, .. },
 			} in migrations.clone().inner()
 			{
-				let already_executed = ExecutedMigrations::<T>::get((user.clone(), participation_type, id));
+				let already_executed = ExecutedMigrations::<T>::get((user, participation_type, id));
 				if already_executed {
 					Self::deposit_event(Event::DuplicatedMigrationSkipped { migration });
 					continue
@@ -110,7 +110,7 @@ pub mod pallet {
 					T::MigrationInfoToPerBlockBalance::convert(migration.info.clone()),
 					T::GenesisMoment::get(),
 				)?;
-				ExecutedMigrations::<T>::insert((user.clone(), participation_type, id), true);
+				ExecutedMigrations::<T>::insert((user, participation_type, id), true);
 				Self::deposit_event(Event::MigrationExecuted { migration });
 			}
 

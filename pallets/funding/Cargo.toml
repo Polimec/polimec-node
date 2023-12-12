@@ -11,7 +11,7 @@ version = "0.1.0"
 rust-version = "1.69.0"
 
 [dependencies]
-serde = { version = "*", optional = true }
+serde = { workspace = true  }
 parity-scale-codec = { version = "3.6.5", features = [
     "derive",
 ], default-features = false }
@@ -74,7 +74,7 @@ std = [
 	"polkadot-runtime-parachains/std",
 	"polkadot-runtime/std",
 	"scale-info/std",
-	"serde",
+	"serde/std",
 	"sp-arithmetic/std",
 	"sp-core/std",
 	"sp-io/std",
@@ -120,4 +120,4 @@ try-runtime = [
 	"polkadot-runtime/try-runtime",
 	"sp-runtime/try-runtime",
 ]
-testing-node = []
+testing-node = [ "pallet-linear-release/testing-node" ]

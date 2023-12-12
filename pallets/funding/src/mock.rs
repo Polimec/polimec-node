@@ -30,14 +30,12 @@ use frame_system::EnsureRoot;
 use sp_arithmetic::Percent;
 use sp_core::H256;
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, ConvertInto, IdentityLookup},
 	BuildStorage,
 };
 use sp_std::collections::btree_map::BTreeMap;
 use system::EnsureSigned;
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<TestRuntime>;
 type Block = frame_system::mocking::MockBlock<TestRuntime>;
 
 // pub type AccountId = u64;
@@ -55,10 +53,7 @@ const US_DOLLAR: u128 = 1_0_000_000_000u128;
 
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
-	pub enum TestRuntime where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum TestRuntime
 	{
 		System: frame_system,
 		RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip,
@@ -86,18 +81,18 @@ pub const fn free_deposit() -> Balance {
 use frame_support::traits::{Everything, OriginTrait};
 use frame_system::RawOrigin as SystemRawOrigin;
 use polkadot_parachain::primitives::Sibling;
-use sp_runtime::traits::{ConvertBack, Get};
+use sp_runtime::traits::{ConvertBack, Get, TryConvert};
 use xcm_builder::{EnsureXcmOrigin, FixedWeightBounds, ParentIsPreset, SiblingParachainConvertsVia};
-use xcm_executor::traits::Convert;
 
 pub struct SignedToAccountIndex<RuntimeOrigin, AccountId, Network>(PhantomData<(RuntimeOrigin, AccountId, Network)>);
+
 impl<RuntimeOrigin: OriginTrait + Clone, AccountId: Into<u64>, Network: Get<Option<NetworkId>>>
-	Convert<RuntimeOrigin, MultiLocation> for SignedToAccountIndex<RuntimeOrigin, AccountId, Network>
+	TryConvert<RuntimeOrigin, MultiLocation> for SignedToAccountIndex<RuntimeOrigin, AccountId, Network>
 where
 	RuntimeOrigin::PalletsOrigin:
 		From<SystemRawOrigin<AccountId>> + TryInto<SystemRawOrigin<AccountId>, Error = RuntimeOrigin::PalletsOrigin>,
 {
-	fn convert(o: RuntimeOrigin) -> Result<MultiLocation, RuntimeOrigin> {
+	fn try_convert(o: RuntimeOrigin) -> Result<MultiLocation, RuntimeOrigin> {
 		o.try_with_caller(|caller| match caller.try_into() {
 			Ok(SystemRawOrigin::Signed(who)) =>
 				Ok(Junction::AccountIndex64 { network: Network::get(), index: who.into() }.into()),
@@ -120,7 +115,7 @@ parameter_types! {
 parameter_types! {
 	pub UniversalLocation: InteriorMultiLocation = (
 		GlobalConsensus(Polkadot),
-		 Parachain(3344u32.into()),
+		 Parachain(3344u32),
 	).into();
 	pub const RelayNetwork: Option<NetworkId> = None;
 	pub UnitWeightCost: Weight = Weight::from_parts(1_000_000_000, 64 * 1024);
@@ -224,17 +219,16 @@ impl system::Config for TestRuntime {
 	type AccountData = pallet_balances::AccountData<Balance>;
 	type AccountId = AccountId;
 	type BaseCallFilter = frame_support::traits::Everything;
+	type Block = Block;
 	type BlockHashCount = BlockHashCount;
 	type BlockLength = ();
-	type BlockNumber = BlockNumber;
 	type BlockWeights = ();
 	type DbWeight = ();
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type Header = Header;
-	type Index = u64;
 	type Lookup = IdentityLookup<AccountId>;
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type Nonce = u64;
 	type OnKilledAccount = ();
 	type OnNewAccount = ();
 	type OnSetCode = ();
@@ -256,13 +250,13 @@ impl pallet_balances::Config for TestRuntime {
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type FreezeIdentifier = ();
-	type HoldIdentifier = LockType<u32>;
 	type MaxFreezes = ();
 	type MaxHolds = ConstU32<1024>;
 	type MaxLocks = frame_support::traits::ConstU32<1024>;
 	type MaxReserves = frame_support::traits::ConstU32<1024>;
 	type ReserveIdentifier = LockType<u32>;
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeHoldReason = LockType<u32>;
 	type WeightInfo = ();
 }
 
@@ -277,7 +271,7 @@ parameter_types! {
 	pub const EnglishAuctionDuration: BlockNumber = (2 * HOURS) as BlockNumber;
 	pub const CandleAuctionDuration: BlockNumber = (3 * HOURS) as BlockNumber;
 	pub const CommunityRoundDuration: BlockNumber = (5 * HOURS) as BlockNumber;
-	pub const RemainderFundingDuration: BlockNumber = (1 * HOURS) as BlockNumber;
+	pub const RemainderFundingDuration: BlockNumber = HOURS as BlockNumber;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 	pub const ManualAcceptanceDuration: BlockNumber = (3 * HOURS) as BlockNumber;
 	pub const SuccessToSettlementTime: BlockNumber =(4 * HOURS) as BlockNumber;
@@ -337,7 +331,7 @@ impl sp_runtime::traits::Convert<AccountId, [u8; 32]> for DummyConverter {
 }
 impl ConvertBack<AccountId, [u8; 32]> for DummyConverter {
 	fn convert_back(bytes: [u8; 32]) -> AccountId {
-		let mut account: [u8; 8] = bytes[0..7].try_into().unwrap();
+		let account: [u8; 8] = bytes[0..7].try_into().unwrap();
 		u64::from_le_bytes(account)
 	}
 }
@@ -394,7 +388,7 @@ impl Config for TestRuntime {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = frame_system::GenesisConfig::default().build_storage::<TestRuntime>().unwrap();
+	let mut t = frame_system::GenesisConfig::<TestRuntime>::default().build_storage().unwrap();
 
 	GenesisConfig {
 		balances: BalancesConfig {

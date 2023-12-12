@@ -181,6 +181,7 @@ use frame_support::{
 	},
 	BoundedVec, PalletId,
 };
+use frame_system::pallet_prelude::BlockNumberFor;
 pub use pallet::*;
 use polimec_common::migration_types::*;
 use polkadot_parachain::primitives::Id as ParaId;
@@ -209,7 +210,6 @@ pub mod instantiator;
 pub mod traits;
 
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
-pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 pub type ProjectIdOf<T> = <T as Config>::ProjectIdentifier;
 pub type MultiplierOf<T> = <T as Config>::Multiplier;
 
@@ -228,21 +228,21 @@ pub type ProjectMetadataOf<T> =
 	ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, HashOf<T>>;
 pub type ProjectDetailsOf<T> = ProjectDetails<
 	AccountIdOf<T>,
-	BlockNumberOf<T>,
+	BlockNumberFor<T>,
 	PriceOf<T>,
 	BalanceOf<T>,
 	EvaluationRoundInfoOf<T>,
 	AccountListOf<T>,
 >;
 pub type EvaluationRoundInfoOf<T> = EvaluationRoundInfo<BalanceOf<T>>;
-pub type VestingInfoOf<T> = VestingInfo<BlockNumberOf<T>, BalanceOf<T>>;
-pub type EvaluationInfoOf<T> = EvaluationInfo<u32, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, BlockNumberOf<T>>;
+pub type VestingInfoOf<T> = VestingInfo<BlockNumberFor<T>, BalanceOf<T>>;
+pub type EvaluationInfoOf<T> = EvaluationInfo<u32, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, BlockNumberFor<T>>;
 pub type BidInfoOf<T> = BidInfo<
 	ProjectIdOf<T>,
 	BalanceOf<T>,
 	PriceOf<T>,
 	AccountIdOf<T>,
-	BlockNumberOf<T>,
+	BlockNumberFor<T>,
 	MultiplierOf<T>,
 	VestingInfoOf<T>,
 >;
@@ -281,9 +281,9 @@ pub mod pallet {
 		#[cfg(feature = "runtime-benchmarks")]
 		type SetPrices: traits::SetPrices;
 
-		type AllPalletsWithoutSystem: frame_support::traits::OnFinalize<BlockNumberOf<Self>>
-			+ frame_support::traits::OnIdle<BlockNumberOf<Self>>
-			+ frame_support::traits::OnInitialize<BlockNumberOf<Self>>;
+		type AllPalletsWithoutSystem: frame_support::traits::OnFinalize<BlockNumberFor<Self>>
+			+ frame_support::traits::OnIdle<BlockNumberFor<Self>>
+			+ frame_support::traits::OnInitialize<BlockNumberFor<Self>>;
 
 		type RuntimeEvent: From<Event<Self>>
 			+ TryInto<Event<Self>>
@@ -292,7 +292,7 @@ pub mod pallet {
 			+ Member;
 
 		// TODO: our local BlockNumber should be removed once we move onto using Moment for time tracking
-		type BlockNumber: IsType<<Self as frame_system::Config>::BlockNumber> + Into<u64>;
+		type BlockNumber: IsType<BlockNumberFor<Self>> + Into<u64>;
 
 		type AccountId32Conversion: ConvertBack<Self::AccountId, [u8; 32]>;
 
@@ -348,7 +348,7 @@ pub mod pallet {
 		type PriceProvider: ProvideStatemintPrice<AssetId = u32, Price = Self::Price>;
 
 		/// Something that provides randomness in the runtime.
-		type Randomness: Randomness<Self::Hash, <Self as frame_system::Config>::BlockNumber>;
+		type Randomness: Randomness<Self::Hash, BlockNumberFor<Self>>;
 
 		/// The maximum length of data stored on-chain.
 		#[pallet::constant]
@@ -360,27 +360,27 @@ pub mod pallet {
 
 		/// The length (expressed in number of blocks) of the evaluation period.
 		#[pallet::constant]
-		type EvaluationDuration: Get<<Self as frame_system::Config>::BlockNumber>;
+		type EvaluationDuration: Get<BlockNumberFor<Self>>;
 
 		/// The time window (expressed in number of blocks) that an issuer has to start the auction round.
 		#[pallet::constant]
-		type AuctionInitializePeriodDuration: Get<<Self as frame_system::Config>::BlockNumber>;
+		type AuctionInitializePeriodDuration: Get<BlockNumberFor<Self>>;
 
 		/// The length (expressed in number of blocks) of the Auction Round, English period.
 		#[pallet::constant]
-		type EnglishAuctionDuration: Get<<Self as frame_system::Config>::BlockNumber>;
+		type EnglishAuctionDuration: Get<BlockNumberFor<Self>>;
 
 		/// The length (expressed in number of blocks) of the Auction Round, Candle period.
 		#[pallet::constant]
-		type CandleAuctionDuration: Get<<Self as frame_system::Config>::BlockNumber>;
+		type CandleAuctionDuration: Get<BlockNumberFor<Self>>;
 
 		/// The length (expressed in number of blocks) of the Community Round.
 		#[pallet::constant]
-		type CommunityFundingDuration: Get<<Self as frame_system::Config>::BlockNumber>;
+		type CommunityFundingDuration: Get<BlockNumberFor<Self>>;
 
 		/// The length (expressed in number of blocks) of the Remainder Round.
 		#[pallet::constant]
-		type RemainderFundingDuration: Get<<Self as frame_system::Config>::BlockNumber>;
+		type RemainderFundingDuration: Get<BlockNumberFor<Self>>;
 
 		/// `PalletId` for the funding pallet. An appropriate value could be
 		/// `PalletId(*b"py/cfund")`
@@ -417,21 +417,21 @@ pub mod pallet {
 			AccountIdOf<Self>,
 			BondTypeOf<Self>,
 			Currency = Self::NativeCurrency,
-			Moment = BlockNumberOf<Self>,
+			Moment = BlockNumberFor<Self>,
 		>;
 		/// For now we expect 3 days until the project is automatically accepted. Timeline decided by MiCA regulations.
-		type ManualAcceptanceDuration: Get<<Self as frame_system::Config>::BlockNumber>;
+		type ManualAcceptanceDuration: Get<BlockNumberFor<Self>>;
 		/// For now we expect 4 days from acceptance to settlement due to MiCA regulations.
-		type SuccessToSettlementTime: Get<<Self as frame_system::Config>::BlockNumber>;
+		type SuccessToSettlementTime: Get<BlockNumberFor<Self>>;
 
 		type EvaluatorSlash: Get<Percent>;
 
 		type TreasuryAccount: Get<AccountIdOf<Self>>;
 
 		/// Convert 24 hours as FixedU128, to the corresponding amount of blocks in the same type as frame_system
-		type DaysToBlocks: Convert<FixedU128, BlockNumberOf<Self>>;
+		type DaysToBlocks: Convert<FixedU128, BlockNumberFor<Self>>;
 
-		type BlockNumberToBalance: Convert<BlockNumberOf<Self>, BalanceOf<Self>>;
+		type BlockNumberToBalance: Convert<BlockNumberFor<Self>, BalanceOf<Self>>;
 
 		type PolimecReceiverInfo: Get<PalletInfo>;
 
@@ -495,7 +495,7 @@ pub mod pallet {
 	pub type ProjectsToUpdate<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
-		<T as frame_system::Config>::BlockNumber,
+		BlockNumberFor<T>,
 		BoundedVec<(T::ProjectIdentifier, UpdateType), T::MaxProjectsToUpdatePerBlock>,
 		ValueQuery,
 	>;
@@ -566,18 +566,18 @@ pub mod pallet {
 		/// The period an issuer has to start the auction phase of the project.
 		AuctionInitializePeriod {
 			project_id: T::ProjectIdentifier,
-			start_block: <T as frame_system::Config>::BlockNumber,
-			end_block: <T as frame_system::Config>::BlockNumber,
+			start_block: BlockNumberFor<T>,
+			end_block: BlockNumberFor<T>,
 		},
 		/// The auction round of a project started.
 		EnglishAuctionStarted {
 			project_id: T::ProjectIdentifier,
-			when: <T as frame_system::Config>::BlockNumber,
+			when: BlockNumberFor<T>,
 		},
 		/// The candle auction part of the auction started for a project
 		CandleAuctionStarted {
 			project_id: T::ProjectIdentifier,
-			when: <T as frame_system::Config>::BlockNumber,
+			when: BlockNumberFor<T>,
 		},
 		/// The auction round of a project ended.
 		AuctionFailed {
@@ -1247,7 +1247,7 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(now: <T as frame_system::Config>::BlockNumber) -> Weight {
+		fn on_initialize(now: BlockNumberFor<T>) -> Weight {
 			// Get the projects that need to be updated on this block and update them
 			for (project_id, update_type) in ProjectsToUpdate::<T>::take(now) {
 				match update_type {
@@ -1298,7 +1298,7 @@ pub mod pallet {
 			Weight::from_parts(0, 0)
 		}
 
-		fn on_idle(_now: <T as frame_system::Config>::BlockNumber, max_weight: Weight) -> Weight {
+		fn on_idle(_now: BlockNumberFor<T>, max_weight: Weight) -> Weight {
 			let mut remaining_weight = max_weight;
 
 			let projects_needing_cleanup = ProjectsDetails::<T>::iter()
@@ -1384,7 +1384,7 @@ pub mod pallet {
 	where
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		T::AllPalletsWithoutSystem:
-			OnFinalize<BlockNumberOf<T>> + OnIdle<BlockNumberOf<T>> + OnInitialize<BlockNumberOf<T>>,
+			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 	{
 		fn default() -> Self {
@@ -1401,16 +1401,16 @@ pub mod pallet {
 
 	#[pallet::genesis_build]
 	#[cfg(not(all(feature = "testing-node", feature = "std")))]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {}
 	}
 
 	#[cfg(all(feature = "testing-node", feature = "std"))]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig<T>
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T>
 	where
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		<T as Config>::AllPalletsWithoutSystem:
-			OnFinalize<BlockNumberOf<T>> + OnIdle<BlockNumberOf<T>> + OnInitialize<BlockNumberOf<T>>,
+			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 		// AccountIdOf<T>: Into<<instantiator::RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
@@ -1435,8 +1435,6 @@ pub mod pallet {
 			}
 		}
 	}
-
-	// #[cfg(feature = "std")]
 	#[cfg(all(feature = "testing-node", feature = "std"))]
 	impl<T: Config> GenesisConfig<T>
 	where
@@ -1444,7 +1442,7 @@ pub mod pallet {
 			+ frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent>
 			+ pallet_balances::Config<Balance = BalanceOf<T>>,
 		T::AllPalletsWithoutSystem:
-			OnFinalize<BlockNumberOf<T>> + OnIdle<BlockNumberOf<T>> + OnInitialize<BlockNumberOf<T>>,
+			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 		AccountIdOf<T>: Into<<instantiator::RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
@@ -1452,15 +1450,8 @@ pub mod pallet {
 		/// Direct implementation of `GenesisBuild::build_storage`.
 		///
 		/// Kept in order not to break dependency.
-		pub fn build_storage(&self) -> Result<sp_runtime::Storage, String> {
-			<Self as GenesisBuild<T>>::build_storage(self)
-		}
-
-		/// Direct implementation of `GenesisBuild::assimilate_storage`.
-		///
-		/// Kept in order not to break dependency.
-		pub fn assimilate_storage(&self, storage: &mut sp_runtime::Storage) -> Result<(), String> {
-			<Self as GenesisBuild<T>>::assimilate_storage(self, storage)
+		pub fn build(&self) {
+			<Self as BuildGenesisConfig>::build(self)
 		}
 	}
 }

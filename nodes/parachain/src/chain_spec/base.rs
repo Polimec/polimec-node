@@ -31,15 +31,15 @@ use base_runtime::{
 		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
 		InflationInfo, Range,
 	},
-	AccountId, AuraId as AuthorityId, Balance, BalancesConfig, GenesisConfig, MinCandidateStk, ParachainInfoConfig,
-	ParachainStakingConfig, PolkadotXcmConfig, SessionConfig, SudoConfig, SystemConfig, PLMC,
+	AccountId, AuraId as AuthorityId, Balance, BalancesConfig, MinCandidateStk, ParachainInfoConfig,
+	ParachainStakingConfig, PolkadotXcmConfig, RuntimeGenesisConfig, SessionConfig, SudoConfig, SystemConfig, PLMC,
 };
 
 /// The default XCM version to set in genesis config.
 const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
 
 /// Specialized `ChainSpec` for the shell parachain runtime.
-pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
+pub type ChainSpec = sc_service::GenericChainSpec<RuntimeGenesisConfig, Extensions>;
 
 const COLLATOR_COMMISSION: Perbill = Perbill::from_percent(30);
 const PARACHAIN_BOND_RESERVE_PERCENT: Percent = Percent::from_percent(0);
@@ -155,6 +155,50 @@ pub fn get_polkadot_base_chain_spec() -> Result<ChainSpec, String> {
 	))
 }
 
+pub fn get_rococo_base_chain_spec() -> Result<ChainSpec, String> {
+	let properties = get_properties("RLMC", 10, 41);
+	let wasm = base_runtime::WASM_BINARY.ok_or("No WASM")?;
+
+	let id: u32 = 3344;
+
+	const PLMC_SUDO_ACC: [u8; 32] =
+		hex_literal::hex!["d4192a54c9caa4a38eeb3199232ed0d8568b22956cafb76c7d5a1afbf4e2dc38"];
+	const PLMC_COL_ACC_1: [u8; 32] =
+		hex_literal::hex!["6603f63a4091ba074b4384e64c6bba1dd96f6af49331ebda686b0a0f27dd961c"];
+	const PLMC_COL_ACC_2: [u8; 32] =
+		hex_literal::hex!["ba48ab77461ef53f9ebfdc94a12c780b57354f986e31eb2504b9e3ed580fab51"];
+
+	Ok(ChainSpec::from_genesis(
+		"Rolimec Rococo",
+		"polimec-base",
+		ChainType::Live,
+		move || {
+			base_testnet_genesis(
+				wasm,
+				vec![
+					(PLMC_COL_ACC_1.into(), None, 2 * MinCandidateStk::get()),
+					(PLMC_COL_ACC_2.into(), None, 2 * MinCandidateStk::get()),
+				],
+				polimec_inflation_config(),
+				vec![(PLMC_COL_ACC_1.into()), (PLMC_COL_ACC_2.into())],
+				vec![
+					(PLMC_COL_ACC_1.into(), 4 * MinCandidateStk::get()),
+					(PLMC_COL_ACC_2.into(), 4 * MinCandidateStk::get()),
+					(PLMC_SUDO_ACC.into(), 4 * MinCandidateStk::get()),
+				],
+				PLMC_SUDO_ACC.into(),
+				id.into(),
+			)
+		},
+		vec![],
+		None,
+		Some("polimec"),
+		None,
+		Some(properties),
+		Extensions { relay_chain: "rococo".into(), para_id: id },
+	))
+}
+
 fn base_testnet_genesis(
 	wasm_binary: &[u8],
 	stakers: Vec<(AccountId, Option<AccountId>, Balance)>,
@@ -163,16 +207,13 @@ fn base_testnet_genesis(
 	endowed_accounts: Vec<(AccountId, Balance)>,
 	sudo_account: AccountId,
 	id: ParaId,
-) -> GenesisConfig {
-	GenesisConfig {
-		system: SystemConfig { code: wasm_binary.to_vec() },
-		balances: BalancesConfig { balances: endowed_accounts.clone() },
-		parachain_info: ParachainInfoConfig { parachain_id: id },
+) -> RuntimeGenesisConfig {
+	RuntimeGenesisConfig {
+		system: SystemConfig { code: wasm_binary.to_vec(), ..Default::default() },
+		balances: BalancesConfig { balances: endowed_accounts },
+		parachain_info: ParachainInfoConfig { parachain_id: id, ..Default::default() },
 		parachain_staking: ParachainStakingConfig {
-			candidates: stakers
-				.iter()
-				.map(|(accunt, _, balance)| (accunt.clone(), balance.clone()))
-				.collect::<Vec<_>>(),
+			candidates: stakers.iter().map(|(accunt, _, balance)| (accunt.clone(), *balance)).collect::<Vec<_>>(),
 			inflation_config,
 			delegations: vec![],
 			collator_commission: COLLATOR_COMMISSION,
@@ -195,7 +236,7 @@ fn base_testnet_genesis(
 				})
 				.collect::<Vec<_>>(),
 		},
-		polkadot_xcm: PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION) },
+		polkadot_xcm: PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION), ..Default::default() },
 		sudo: SudoConfig { key: Some(sudo_account) },
 		transaction_payment: Default::default(),
 	}

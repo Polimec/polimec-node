@@ -1,5 +1,6 @@
 use crate::{BalanceOf, Config};
 use frame_support::weights::Weight;
+use frame_system::pallet_prelude::BlockNumberFor;
 use sp_arithmetic::FixedPointNumber;
 use sp_runtime::DispatchError;
 
@@ -8,7 +9,7 @@ pub trait BondingRequirementCalculation {
 }
 
 pub trait VestingDurationCalculation {
-	fn calculate_vesting_duration<T: Config>(&self) -> <T as frame_system::Config>::BlockNumber;
+	fn calculate_vesting_duration<T: Config>(&self) -> BlockNumberFor<T>;
 }
 
 pub trait ProvideStatemintPrice {

@@ -63,7 +63,7 @@ pallet-vesting.workspace = true
 
 # Runtimes
 polkadot-runtime.workspace = true
-statemint-runtime.workspace = true
+asset-hub-polkadot-runtime.workspace = true
 polimec-parachain-runtime.workspace = true
 penpal-runtime = { path = "./penpal", default-features = false }
 itertools.workspace = true
@@ -72,11 +72,13 @@ itertools.workspace = true
 default = [ "std" ]
 
 std = [
+	"asset-hub-polkadot-runtime/std",
 	"cumulus-pallet-xcm/std",
 	"cumulus-pallet-xcmp-queue/std",
 	"cumulus-primitives-core/std",
 	"frame-support/std",
 	"frame-system/std",
+	"itertools/use_std",
 	"orml-oracle/std",
 	"pallet-assets/std",
 	"pallet-balances/std",
@@ -107,7 +109,6 @@ std = [
 	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
-	"statemint-runtime/std",
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
@@ -115,9 +116,11 @@ std = [
 ]
 
 runtime-benchmarks = [
+	"asset-hub-polkadot-runtime/runtime-benchmarks",
 	"cumulus-pallet-xcmp-queue/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
+	"itertools/use_alloc",
 	"pallet-assets/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-funding/runtime-benchmarks",
@@ -136,7 +139,6 @@ runtime-benchmarks = [
 	"polkadot-runtime/runtime-benchmarks",
 	"polkadot-service/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
-	"statemint-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
@@ -146,6 +148,12 @@ testing-node = [
 	"pallet-funding/testing-node",
 	"polimec-parachain-runtime/testing-node",
 ]
-try-runtime = []
+try-runtime = [
+	"pallet-funding/try-runtime",
+	"penpal-runtime/try-runtime",
+	"polimec-parachain-runtime/try-runtime",
+	"polimec-receiver/try-runtime",
+	"polimec-common/try-runtime",
+]
 fast-gov = [ "polimec-parachain-runtime/fast-gov" ]
 

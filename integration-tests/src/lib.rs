@@ -21,36 +21,38 @@ mod tests;
 
 pub use constants::{accounts::*, penpal, polimec, polkadot, statemint};
 pub use frame_support::{assert_noop, assert_ok, pallet_prelude::Weight, parameter_types, sp_io, sp_tracing};
-pub use parachains_common::{AccountId, AuraId, Balance, BlockNumber, StatemintAuraId};
+pub use parachains_common::{AccountId, AssetHubPolkadotAuraId, AuraId, Balance, BlockNumber};
 pub use sp_core::{sr25519, storage::Storage, Encode, Get};
 pub use xcm::prelude::*;
 pub use xcm_emulator::{
 	assert_expected_events, bx, decl_test_networks, decl_test_parachains, decl_test_relay_chains,
 	helpers::{weight_within_threshold, within_threshold},
-	Network, ParaId, Parachain, RelayChain, TestExt,
+	BridgeMessageHandler, Network, ParaId, Parachain, RelayChain, TestExt,
 };
-pub use xcm_executor::traits::Convert;
+use xcm_executor::traits::ConvertLocation;
 
 decl_test_relay_chains! {
+	#[api_version(5)]
 	pub struct PolkadotRelay {
-		genesis = polkadot::genesis(),
-		on_init = (),
-		runtime = {
-			Runtime: polkadot_runtime::Runtime,
-			RuntimeOrigin: polkadot_runtime::RuntimeOrigin,
-			RuntimeCall: polkadot_runtime::RuntimeCall,
-			RuntimeEvent: polkadot_runtime::RuntimeEvent,
-			MessageQueue: polkadot_runtime::MessageQueue,
-			XcmConfig: polkadot_runtime::xcm_config::XcmConfig,
-			SovereignAccountOf: polkadot_runtime::xcm_config::SovereignAccountOf,
-			System: polkadot_runtime::System,
-			Balances: polkadot_runtime::Balances,
-		},
-		pallets_extra = {
-			XcmPallet: polkadot_runtime::XcmPallet,
+			genesis = polkadot::genesis(),
+			on_init = (),
+			runtime = {
+				Runtime: polkadot_runtime::Runtime,
+				RuntimeOrigin: polkadot_runtime::RuntimeOrigin,
+				RuntimeCall: polkadot_runtime::RuntimeCall,
+				RuntimeEvent: polkadot_runtime::RuntimeEvent,
+				MessageQueue: polkadot_runtime::MessageQueue,
+				XcmConfig: polkadot_runtime::xcm_config::XcmConfig,
+				SovereignAccountOf: polkadot_runtime::xcm_config::SovereignAccountOf,
+				System: polkadot_runtime::System,
+				Balances: polkadot_runtime::Balances,
+			},
+			pallets_extra = {
+				XcmPallet: polkadot_runtime::XcmPallet,
+			}
 		}
-	}
 }
+
 decl_test_parachains! {
 	pub struct Penpal {
 		genesis = penpal::genesis(),
@@ -100,21 +102,21 @@ decl_test_parachains! {
 		genesis = statemint::genesis(),
 		on_init = (),
 		runtime = {
-			Runtime: statemint_runtime::Runtime,
-			RuntimeOrigin: statemint_runtime::RuntimeOrigin,
-			RuntimeCall: statemint_runtime::RuntimeCall,
-			RuntimeEvent: statemint_runtime::RuntimeEvent,
-			XcmpMessageHandler: statemint_runtime::XcmpQueue,
-			DmpMessageHandler: statemint_runtime::DmpQueue,
-			LocationToAccountId: statemint_runtime::xcm_config::LocationToAccountId,
-			System: statemint_runtime::System,
-			Balances: statemint_runtime::Balances,
-			ParachainSystem: statemint_runtime::ParachainSystem,
-			ParachainInfo: statemint_runtime::ParachainInfo,
+			Runtime: asset_hub_polkadot_runtime::Runtime,
+			RuntimeOrigin: asset_hub_polkadot_runtime::RuntimeOrigin,
+			RuntimeCall: asset_hub_polkadot_runtime::RuntimeCall,
+			RuntimeEvent: asset_hub_polkadot_runtime::RuntimeEvent,
+			XcmpMessageHandler: asset_hub_polkadot_runtime::XcmpQueue,
+			DmpMessageHandler: asset_hub_polkadot_runtime::DmpQueue,
+			LocationToAccountId: asset_hub_polkadot_runtime::xcm_config::LocationToAccountId,
+			System: asset_hub_polkadot_runtime::System,
+			Balances: asset_hub_polkadot_runtime::Balances,
+			ParachainSystem: asset_hub_polkadot_runtime::ParachainSystem,
+			ParachainInfo: asset_hub_polkadot_runtime::ParachainInfo,
 		},
 		pallets_extra = {
-			PolkadotXcm: statemint_runtime::PolkadotXcm,
-			LocalAssets: statemint_runtime::Assets,
+			PolkadotXcm: asset_hub_polkadot_runtime::PolkadotXcm,
+			LocalAssets: asset_hub_polkadot_runtime::Assets,
 		}
 	}
 }
@@ -126,6 +128,7 @@ decl_test_networks! {
 			Penpal,
 			Statemint,
 		],
+		bridge = ()
 	}
 }
 

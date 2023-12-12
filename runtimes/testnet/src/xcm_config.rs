@@ -21,6 +21,11 @@
 //! One of the main uses of the penpal chain will be to be a benefactor of reserve asset transfers
 //! with statemine as the reserve. At present no derivative tokens are minted on receipt of a
 //! ReserveAssetTransferDeposited message but that will but the intension will be to support this soon.
+use super::{
+	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances, EnsureRoot, ParachainInfo,
+	ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, StatemintAssets, WeightToFee,
+	XcmpQueue,
+};
 use core::marker::PhantomData;
 use frame_support::{
 	ensure, match_types, parameter_types,
@@ -32,27 +37,20 @@ use frame_support::{
 };
 use pallet_asset_tx_payment::HandleCredit;
 use pallet_xcm::XcmPassthrough;
-use parachains_common::xcm_config::{DenyReserveTransferToRelayChain, DenyThenTry};
 use polimec_xcm_executor::XcmExecutor;
 use polkadot_parachain::primitives::Sibling;
 use polkadot_runtime_common::impls::ToAuthor;
-use sp_runtime::traits::Zero;
+use sp_runtime::traits::{MaybeEquivalence, Zero};
 use xcm::latest::prelude::*;
 use xcm_builder::{
 	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses, AllowSubscriptionsFrom,
 	AllowTopLevelPaidExecutionFrom, AsPrefixedGeneralIndex, ConvertedConcreteId, CreateMatcher, CurrencyAdapter,
-	EnsureXcmOrigin, FixedRateOfFungible, FixedWeightBounds, FungiblesAdapter, IsConcrete, LocalMint, MatchXcm,
-	NativeAsset, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
-	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, UsingComponents,
-	WithComputedOrigin,
+	DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin, FixedRateOfFungible, FixedWeightBounds,
+	FungiblesAdapter, IsConcrete, LocalMint, MatchXcm, NativeAsset, ParentIsPreset, RelayChainAsNative,
+	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32,
+	SovereignSignedViaLocation, TakeWeightCredit, UsingComponents, WithComputedOrigin,
 };
-use xcm_executor::traits::{Convert, Error, JustTry, MatchesFungibles, ShouldExecute};
-
-use super::{
-	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances, EnsureRoot, ParachainInfo,
-	ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, StatemintAssets, WeightToFee,
-	XcmpQueue,
-};
+use xcm_executor::traits::{Error, JustTry, MatchesFungibles, Properties, ShouldExecute};
 // TODO: Check these numbers
 const DOT_ASSET_ID: AssetId = Concrete(RelayLocation::get());
 const DOT_PER_SECOND_EXECUTION: u128 = 0_0_000_001_000; // 0.0000001 DOT per second of execution time
@@ -128,21 +126,20 @@ pub type StatemintFungiblesTransactor = FungiblesAdapter<
 
 // asset id "0" is reserved for relay chain native token in the pallet assets
 pub struct NativeToFungible;
-impl Convert<MultiLocation, AssetIdPalletAssets> for NativeToFungible {
-	fn convert(asset: MultiLocation) -> Result<AssetIdPalletAssets, MultiLocation> {
+impl MaybeEquivalence<MultiLocation, AssetIdPalletAssets> for NativeToFungible {
+	fn convert(asset: &MultiLocation) -> Option<AssetIdPalletAssets> {
 		match asset {
 			MultiLocation { parents: 1, interior: Here } =>
-				Ok(pallet_funding::types::AcceptedFundingAsset::DOT.to_statemint_id()),
-			_ => Err(asset),
+				Some(pallet_funding::types::AcceptedFundingAsset::DOT.to_statemint_id()),
+			_ => None,
 		}
 	}
 
-	fn reverse(value: AssetIdPalletAssets) -> Result<MultiLocation, AssetIdPalletAssets> {
-		if value == 0u32 {
-			Ok(MultiLocation { parents: 1, interior: Here })
-		} else {
-			Err(value)
+	fn convert_back(value: &AssetIdPalletAssets) -> Option<MultiLocation> {
+		if value.is_zero() {
+			return Some(MultiLocation { parents: 1, interior: Here })
 		}
+		None
 	}
 }
 
@@ -154,8 +151,8 @@ pub struct NonBlockingConvertedConcreteId<AssetId, Balance, ConvertAssetId, Conv
 impl<
 		AssetId: Clone,
 		Balance: Clone,
-		ConvertAssetId: Convert<MultiLocation, AssetId>,
-		ConvertBalance: Convert<u128, Balance>,
+		ConvertAssetId: MaybeEquivalence<MultiLocation, AssetId>,
+		ConvertBalance: MaybeEquivalence<u128, Balance>,
 	> MatchesFungibles<AssetId, Balance>
 	for NonBlockingConvertedConcreteId<AssetId, Balance, ConvertAssetId, ConvertBalance>
 {
@@ -458,7 +455,7 @@ impl<T: Contains<MultiLocation>> ShouldExecute for AllowHrmpNotifications<T> {
 		origin: &MultiLocation,
 		instructions: &mut [Instruction<Call>],
 		max_weight: Weight,
-		_weight_credit: &mut Weight,
+		_weight_credit: &mut Properties,
 	) -> Result<(), ProcessMessageError> {
 		log::trace!(
 			target: "xcm::barriers",

@@ -184,6 +184,7 @@ try-runtime = [
 	"pallet-xcm/try-runtime",
 	"parachain-info/try-runtime",
 	"polkadot-runtime-common/try-runtime",
+	"shared-configuration/try-runtime",
 	"sp-runtime/try-runtime",
 ]
 testing-node = [ "shared-configuration/testing-node" ]

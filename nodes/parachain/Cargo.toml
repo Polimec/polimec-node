@@ -18,6 +18,7 @@ serde = { workspace = true, features = ["derive"] }
 jsonrpsee = { workspace = true, features = ["server"] }
 hex-literal.workspace = true
 color-print = "0.3.5"
+futures.workspace = true
 
 # Local
 polimec-parachain-runtime.workspace = true
@@ -33,6 +34,7 @@ sc-chain-spec.workspace = true
 sc-cli.workspace = true
 sc-client-api.workspace = true
 sc-consensus.workspace = true
+sc-offchain.workspace = true
 sc-executor.workspace = true
 sc-network.workspace = true
 sc-network-common.workspace = true
