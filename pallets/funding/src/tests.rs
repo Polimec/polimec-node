@@ -1917,7 +1917,7 @@ mod auction_round_failure {
 			vec![glutton_bid_1.clone(), rejected_bid.clone(), glutton_bid_2.clone()],
 			project_id,
 		);
-		let mut plmc_fundings = MockInstantiator::calculate_auction_plmc_spent(&bids, None);
+		let plmc_fundings = MockInstantiator::calculate_auction_plmc_spent(&bids, None);
 		let usdt_fundings = MockInstantiator::calculate_auction_funding_asset_spent(&bids, None);
 
 		let plmc_existential_amounnts = plmc_fundings.accounts().existential_deposits();
@@ -3296,7 +3296,7 @@ mod remainder_round_success {
 
 		let contributions =
 			vec![ContributionParams::new(BOB, remaining_ct.0 + remaining_ct.1, 1u8, AcceptedFundingAsset::USDT)];
-		let mut plmc_fundings = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
+		let plmc_fundings = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 		let plmc_existential_deposits = contributions.accounts().existential_deposits();
 		let plmc_ct_account_deposits = contributions.accounts().ct_account_deposits();
 		let statemint_asset_fundings =
@@ -3379,7 +3379,7 @@ mod remainder_round_success {
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
 
 		let reserved_plmc = plmc_fundings.swap_remove(0).plmc_amount;
-		let remaining_plmc: BalanceOf<TestRuntime> =
+		let _remaining_plmc: BalanceOf<TestRuntime> =
 			plmc_fundings.iter().fold(Zero::zero(), |acc, item| item.plmc_amount + acc);
 
 		let actual_funding_transferred = statemint_asset_fundings.swap_remove(0).asset_amount;
@@ -3654,7 +3654,7 @@ mod remainder_round_failure {
 			AccountIdOf<TestRuntime>,
 		>>::deposit_required(0);
 
-		let remainder_contributors = vec![EVALUATOR_1, BIDDER_3, BUYER_4, BUYER_6, BIDDER_6];
+		let _remainder_contributors = vec![EVALUATOR_1, BIDDER_3, BUYER_4, BUYER_6, BIDDER_6];
 
 		let desired_total_usd_amount_bid =
 			automatic_fail_funding_percent * project_metadata.minimum_price.saturating_mul_int(bid_allocation);
@@ -3719,7 +3719,7 @@ mod remainder_round_failure {
 			vec![bidder_plmc_bonds, community_contributor_plmc_bonds, evaluators_and_contributors_plmc_bonds],
 			MergeOperation::Add,
 		);
-		expected_final_plmc_balances.iter_mut().for_each(|UserToPLMCBalance { account, plmc_amount }| {
+		expected_final_plmc_balances.iter_mut().for_each(|UserToPLMCBalance { account: _, plmc_amount }| {
 			*plmc_amount += deposit_required;
 		});
 
@@ -5319,7 +5319,7 @@ mod funding_end {
 			println!("account {:?} has evaluation hold {:?}", payout.account, evaluation_hold);
 			println!("account {:?} has participation hold {:?}", payout.account, participation_hold);
 		}
-		let deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
+		let _deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
 			ProjectIdOf<TestRuntime>,
 			AccountIdOf<TestRuntime>,
 		>>::deposit_required(project_id);
@@ -5460,7 +5460,7 @@ mod funding_end {
 		use std::time::Instant;
 		for i in 0..10 {
 			let now = Instant::now();
-			let project_id = inst.create_finished_project(
+			let _project_id = inst.create_finished_project(
 				default_project(inst.get_new_nonce(), ISSUER),
 				ISSUER,
 				evaluations.clone(),
