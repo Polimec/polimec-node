@@ -333,6 +333,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(migration_readiness_check.is_ready(), Error::<T>::NotAllowed);
 
 		// Start automated migration process
+        // TODO: Actually start the migration process
 
 		// * Emit events *
 		Self::deposit_event(Event::<T>::MigrationStarted { project_id });
@@ -395,7 +396,7 @@ impl<T: Config> Pallet<T> {
 			let xcm = Xcm(instructions);
 
 			<pallet_xcm::Pallet<T>>::send_xcm(Here, project_multilocation, xcm).map_err(|_| Error::<T>::XcmFailed)?;
-			Self::mark_migrations_as_sent(project_migration_origins.clone(), transact_response_query_id);
+			Self::update_migration_status(project_migration_origins.clone(), MigrationStatus::Sent(transact_response_query_id));
 			UnconfirmedMigrations::<T>::insert(transact_response_query_id, project_migration_origins);
 
 			Self::deposit_event(Event::<T>::UserMigrationSent {
@@ -422,7 +423,7 @@ impl<T: Config> Pallet<T> {
 
 		match response {
 			Response::DispatchResult(MaybeErrorCode::Success) => {
-				Self::mark_migrations_as_confirmed(unconfirmed_migrations.clone());
+				Self::update_migration_status(unconfirmed_migrations.clone(), MigrationStatus::Confirmed);
 				Self::deposit_event(Event::MigrationsConfirmed {
 					project_id,
 					migration_origins: unconfirmed_migrations.migration_origins,
@@ -432,7 +433,7 @@ impl<T: Config> Pallet<T> {
 			},
 			Response::DispatchResult(MaybeErrorCode::Error(e)) |
 			Response::DispatchResult(MaybeErrorCode::TruncatedError(e)) => {
-				Self::mark_migrations_as_failed(unconfirmed_migrations.clone(), e);
+				Self::update_migration_status(unconfirmed_migrations.clone(), MigrationStatus::Failed(e));
 				Self::deposit_event(Event::MigrationsFailed {
 					project_id,
 					migration_origins: unconfirmed_migrations.migration_origins,
@@ -474,8 +475,9 @@ impl<T: Config> Pallet<T> {
 		available_bytes_for_migration_per_message.saturating_div(one_migration_bytes)
 	}
 
-    pub fn mark_migrations_as_sent(project_migration_origins: ProjectMigrationOriginsOf<T>, query_id: QueryId) {
-		let project_id = project_migration_origins.project_id;
+
+    pub fn update_migration_status(project_migration_origins: ProjectMigrationOriginsOf<T>, status: MigrationStatus) {
+        let project_id = project_migration_origins.project_id;
 		let migration_origins = project_migration_origins.migration_origins;
 		for MigrationOrigin { user, id, participation_type } in migration_origins {
 			match participation_type {
@@ -484,7 +486,7 @@ impl<T: Config> Pallet<T> {
 						(project_id, T::AccountId32Conversion::convert_back(user), id),
 						|maybe_evaluation| {
 							if let Some(evaluation) = maybe_evaluation {
-								evaluation.ct_migration_status = MigrationStatus::Sent(query_id);
+								evaluation.ct_migration_status = status.clone();
 							}
 						},
 					);
@@ -492,7 +494,7 @@ impl<T: Config> Pallet<T> {
 				ParticipationType::Bid => {
 					Bids::<T>::mutate((project_id, T::AccountId32Conversion::convert_back(user), id), |maybe_bid| {
 						if let Some(bid) = maybe_bid {
-							bid.ct_migration_status = MigrationStatus::Sent(query_id);
+							bid.ct_migration_status = status.clone();
 						}
 					});
 				},
@@ -501,88 +503,12 @@ impl<T: Config> Pallet<T> {
 						(project_id, T::AccountId32Conversion::convert_back(user), id),
 						|maybe_contribution| {
 							if let Some(contribution) = maybe_contribution {
-								contribution.ct_migration_status = MigrationStatus::Sent(query_id);
+								contribution.ct_migration_status = status.clone();
 							}
 						},
 					);
 				},
 			}
 		}
-	}
-
-	pub fn mark_migrations_as_confirmed(project_migration_origins: ProjectMigrationOriginsOf<T>) {
-		let project_id = project_migration_origins.project_id;
-		let migration_origins = project_migration_origins.migration_origins;
-		for MigrationOrigin { user, id, participation_type } in migration_origins {
-			match participation_type {
-				ParticipationType::Evaluation => {
-					Evaluations::<T>::mutate(
-						(project_id, T::AccountId32Conversion::convert_back(user), id),
-						|maybe_evaluation| {
-							if let Some(evaluation) = maybe_evaluation {
-								evaluation.ct_migration_status = MigrationStatus::Confirmed;
-							}
-						},
-					);
-				},
-				ParticipationType::Bid => {
-					Bids::<T>::mutate((project_id, T::AccountId32Conversion::convert_back(user), id), |maybe_bid| {
-						if let Some(bid) = maybe_bid {
-							bid.ct_migration_status = MigrationStatus::Confirmed;
-						}
-					});
-				},
-				ParticipationType::Contribution => {
-					Contributions::<T>::mutate(
-						(project_id, T::AccountId32Conversion::convert_back(user), id),
-						|maybe_contribution| {
-							if let Some(contribution) = maybe_contribution {
-								contribution.ct_migration_status = MigrationStatus::Confirmed;
-							}
-						},
-					);
-				},
-			}
-		}
-	}
-
-	pub fn mark_migrations_as_failed(
-		project_migration_origins: ProjectMigrationOriginsOf<T>,
-		error: BoundedVec<u8, MaxDispatchErrorLen>,
-	) {
-		let project_id = project_migration_origins.project_id;
-		let migration_origins = project_migration_origins.migration_origins;
-		for MigrationOrigin { user, id, participation_type } in migration_origins {
-			match participation_type {
-				ParticipationType::Evaluation => {
-					Evaluations::<T>::mutate(
-						(project_id, T::AccountId32Conversion::convert_back(user), id),
-						|maybe_evaluation| {
-							if let Some(evaluation) = maybe_evaluation {
-								evaluation.ct_migration_status = MigrationStatus::Failed(error.clone());
-							}
-						},
-					);
-				},
-				ParticipationType::Bid => {
-					Bids::<T>::mutate((project_id, T::AccountId32Conversion::convert_back(user), id), |maybe_bid| {
-						if let Some(bid) = maybe_bid {
-							bid.ct_migration_status = MigrationStatus::Failed(error.clone());
-						}
-					});
-				},
-				ParticipationType::Contribution => {
-					Contributions::<T>::mutate(
-						(project_id, T::AccountId32Conversion::convert_back(user), id),
-						|maybe_contribution| {
-							if let Some(contribution) = maybe_contribution {
-								contribution.ct_migration_status = MigrationStatus::Failed(error.clone());
-							}
-						},
-					);
-				},
-			}
-		}
-	}
-
+    }
 }

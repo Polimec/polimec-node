@@ -35,7 +35,6 @@ use sp_arithmetic::{
 };
 use sp_runtime::traits::{Convert, ConvertBack};
 use sp_std::marker::PhantomData;
-use xcm::v3::MaxDispatchErrorLen;
 
 use crate::ProjectStatus::FundingSuccessful;
 use polimec_traits::ReleaseSchedule;
