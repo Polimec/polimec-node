@@ -179,7 +179,7 @@ pub fn native_version() -> NativeVersion {
 
 parameter_types! {
 	pub const Version: RuntimeVersion = VERSION;
-	pub const SS58Prefix: u16 = 42;
+	pub const SS58Prefix: u16 = 41;
 }
 
 // Configure FRAME pallets to include in runtime.
