@@ -843,7 +843,6 @@ impl<
 			log::trace!("Last project metadata: {:?}", last_project_metadata);
 		});
 
-		self.advance_time(10u32.into()).unwrap();
 		let created_project_id = self.execute(|| NextProjectId::<T>::get().saturating_sub(One::one()));
 		self.creation_assertions(created_project_id, project_metadata, now);
 		created_project_id
@@ -1365,6 +1364,33 @@ impl<
 		}
 	}
 }
+//
+// // async instantiations for parallel testing
+// impl<
+// 	T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
+// 	AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
+// 	RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
+// > Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
+// {
+// 	pub async fn create_new_project(
+// 		&mut self,
+// 		project_metadata: ProjectMetadataOf<T>,
+// 		issuer: AccountIdOf<T>,
+// 	) -> ProjectIdOf<T> {
+// 		let now = self.current_block();
+// 		self.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), Self::get_ed())]);
+// 		self.execute(|| {
+// 			crate::Pallet::<T>::do_create(&issuer, project_metadata.clone()).unwrap();
+// 			let last_project_metadata = ProjectsMetadata::<T>::iter().last().unwrap();
+// 			log::trace!("Last project metadata: {:?}", last_project_metadata);
+// 		});
+//
+// 		self.advance_time(10u32.into()).unwrap();
+// 		let created_project_id = self.execute(|| NextProjectId::<T>::get().saturating_sub(One::one()));
+// 		self.creation_assertions(created_project_id, project_metadata, now);
+// 		created_project_id
+// 	}
+// }
 
 pub trait Accounts {
 	type Account;
