@@ -114,9 +114,22 @@ pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, RuntimeCall, 
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra>;
 
+pub type Migrations = migrations::Unreleased;
+
+/// The runtime migrations per release.
+#[allow(missing_docs)]
+pub mod migrations {
+    use super::*;
+    /// Unreleased migrations. Add new ones here:
+    pub type Unreleased = (
+		cumulus_pallet_xcmp_queue::migration::Migration<Runtime>,
+		cumulus_pallet_dmp_queue::migration::Migration<Runtime>,
+    );
+}
+
 /// Executive: handles dispatch to the various modules.
 pub type Executive =
-	frame_executive::Executive<Runtime, Block, frame_system::ChainContext<Runtime>, Runtime, AllPalletsWithSystem>;
+	frame_executive::Executive<Runtime, Block, frame_system::ChainContext<Runtime>, Runtime, AllPalletsWithSystem, Migrations>;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -151,7 +164,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("polimec-mainnet"),
 	impl_name: create_runtime_str!("polimec-mainnet"),
 	authoring_version: 1,
-	spec_version: 1,
+	spec_version: 2,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
