@@ -5846,3 +5846,67 @@ mod misc_features {
 		assert!(true);
 	}
 }
+
+mod async_tests {
+	use super::*;
+	use core::sync::atomic::Ordering;
+	use futures::FutureExt;
+	use instantiator::async_features::*;
+	use sp_std::sync::Arc;
+	use tokio::{
+		runtime::Runtime,
+		sync::{Mutex, Notify},
+	};
+
+	#[test]
+	fn sandbox() {
+		let tokio_runtime = Runtime::new().unwrap();
+		let inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+
+		let inst = tokio_runtime.block_on(async {
+			let block_orchestrator = Arc::new(BlockOrchestrator::new());
+			let mutex_inst = Arc::new(Mutex::new(inst));
+
+			let controller_handle = tokio::spawn(block_controller(block_orchestrator.clone(), mutex_inst.clone()));
+
+			let project_creations = vec![
+				async_create_new_project(mutex_inst.clone(), default_project(0, ISSUER), ISSUER).boxed(),
+				async_create_evaluating_project(mutex_inst.clone(), default_project(1, ISSUER), ISSUER).boxed(),
+				async_create_auctioning_project(
+					mutex_inst.clone(),
+					block_orchestrator.clone(),
+					default_project(2, ISSUER),
+					ISSUER,
+					default_evaluations(),
+				)
+				.boxed(),
+				// async_create_community_contributing_project(
+				// 	mutex_inst,
+				// 	block_orchestrator.clone(),
+				// 	default_project(inst.get_new_nonce(), ISSUER),
+				// 	ISSUER,
+				// 	default_evaluations(),
+				// 	default_bids(),
+				// )
+				// .boxed(),
+			];
+			// Wait for all project creation tasks to complete
+			futures::future::join_all(project_creations).await;
+
+			// Now that all projects have been set up, signal the block_controller to stop
+			block_orchestrator.should_continue.store(false, Ordering::SeqCst);
+
+			// Wait for the block controller to finish
+			controller_handle.await.unwrap();
+
+			let mut inst = mutex_inst.lock().await;
+			let events = inst.execute(|| {frame_system::Pallet::<TestRuntime>::events()});
+			dbg!(inst.get_project_details(0));
+			dbg!(inst.get_project_details(1));
+			dbg!(inst.get_project_details(2));
+
+		});
+
+
+	}
+}

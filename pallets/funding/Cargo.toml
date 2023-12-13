@@ -18,6 +18,9 @@ parity-scale-codec = { version = "3.6.5", features = [
 scale-info = { version = "2.9.0", default-features = false, features = [
     "derive",
 ] }
+tokio = { version = "1", features = ["full"], optional = true }
+futures = { version = "0.3.29", optional = true }
+
 log.workspace = true
 
 itertools.workspace = true
@@ -83,6 +86,8 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
+	"tokio",
+	"futures",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
