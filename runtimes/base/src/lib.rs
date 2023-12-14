@@ -116,9 +116,22 @@ pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, RuntimeCall, 
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra>;
 
+pub type Migrations = migrations::Unreleased;
+
+/// The runtime migrations per release.
+#[allow(missing_docs)]
+pub mod migrations {
+    use super::*;
+    /// Unreleased migrations. Add new ones here:
+    pub type Unreleased = (
+		cumulus_pallet_xcmp_queue::migration::Migration<Runtime>,
+		cumulus_pallet_dmp_queue::migration::Migration<Runtime>,
+    );
+}
+
 /// Executive: handles dispatch to the various modules.
 pub type Executive =
-	frame_executive::Executive<Runtime, Block, frame_system::ChainContext<Runtime>, Runtime, AllPalletsWithSystem>;
+	frame_executive::Executive<Runtime, Block, frame_system::ChainContext<Runtime>, Runtime, AllPalletsWithSystem, Migrations>;
 
 pub type Price = FixedU128;
 
@@ -157,7 +170,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("polimec-mainnet"),
 	impl_name: create_runtime_str!("polimec-mainnet"),
 	authoring_version: 1,
-	spec_version: 1,
+	spec_version: 2,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -172,7 +185,7 @@ pub fn native_version() -> NativeVersion {
 
 parameter_types! {
 	pub const Version: RuntimeVersion = VERSION;
-	pub const SS58Prefix: u16 = 42;
+	pub const SS58Prefix: u16 = 41;
 }
 
 // Configure FRAME pallets to include in runtime.
