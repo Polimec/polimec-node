@@ -1427,8 +1427,11 @@ pub mod async_features {
 		}
 
 		pub async fn add_awaiting_project(&self, block_number: BlockNumberFor<T>, notify: Arc<Notify>) {
+			println!("add_awaiting_project requesting lock");
 			let mut awaiting_projects = self.awaiting_projects.lock().await;
+			println!("add_awaiting_project lock given");
 			awaiting_projects.entry(block_number).or_default().push(notify);
+			drop(awaiting_projects);
 		}
 
 		pub async fn advance_to_next_target(
@@ -1437,13 +1440,14 @@ pub mod async_features {
 		) -> bool {
 			let awaiting_projects = self.awaiting_projects.lock().await;
 			if let Some(&next_block) = awaiting_projects.keys().min() {
-				// drop(awaiting_projects); // Drop the lock before sleeping
+				drop(awaiting_projects);
 				while self.get_current_block() < next_block {
 					let mut inst = instantiator.lock().await;
 					inst.advance_time(One::one()).unwrap();
-					self.current_block.fetch_add(1, Ordering::SeqCst);
+					let now = inst.current_block().try_into().unwrap_or_else(|_|panic!("Block number should fit into u32"));
+					self.current_block.store(now, Ordering::SeqCst);
 
-					println!("Advanced to block {}", self.get_current_block());
+					println!("Advanced to block {}", now);
 				}
 				true
 			} else {
@@ -1485,9 +1489,14 @@ pub mod async_features {
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
 	) -> ProjectIdOf<T> {
+		println!("async_create_new_project requesting lock");
 		let mut inst = instantiator.lock().await;
+		println!("async_create_new_project lock given");
 		let now = inst.current_block();
-		inst.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ed())]);
+		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
+			issuer.clone(),
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ed(),
+		)]);
 		inst.execute(|| {
 			crate::Pallet::<T>::do_create(&issuer, project_metadata.clone()).unwrap();
 			let last_project_metadata = ProjectsMetadata::<T>::iter().last().unwrap();
@@ -1508,8 +1517,12 @@ pub mod async_features {
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
 	) -> ProjectIdOf<T> {
+		println!("create new project inside evaluating");
+		let project_id = async_create_new_project(instantiator.clone(), project_metadata, issuer.clone()).await;
+		println!("done");
+		println!("async_create_evaluating_project requesting lock");
 		let mut inst = instantiator.lock().await;
-		let project_id = inst.create_new_project(project_metadata, issuer.clone());
+		println!("async_create_evaluating_project lock given");
 		inst.start_evaluation(project_id, issuer).unwrap();
 		project_id
 	}
@@ -1524,7 +1537,9 @@ pub mod async_features {
 		project_id: ProjectIdOf<T>,
 		caller: AccountIdOf<T>,
 	) -> Result<(), DispatchError> {
+		println!("async_start_auction requesting lock");
 		let mut inst = instantiator.lock().await;
+		println!("async_start_auction lock given");
 
 		let project_details = inst.get_project_details(project_id);
 
@@ -1533,13 +1548,23 @@ pub mod async_features {
 			let auction_start = evaluation_end.saturating_add(2u32.into());
 
 			let notify = Arc::new(Notify::new());
+			println!("async_start_auction adding to awaiting projects");
 			block_orchestrator.add_awaiting_project(auction_start, notify.clone()).await;
+			println!("async_start_auction awaiting projects added");
 			// Wait for the notification that our desired block was reached to continue
+
+			println!("async_start_auction dropping lock");
 			drop(inst);
+			println!("async_start_auction lock dropped");
+			println!("async_start_auction awaiting notification");
 			notify.notified().await;
+			println!("async_start_auction notification received");
+			println!("async_start_auction requesting lock");
 			inst = instantiator.lock().await;
+			println!("async_start_auction lock given");
 		};
 
+		println!("async_start_auction getting details");
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 
 		inst.execute(|| crate::Pallet::<T>::do_english_auction(caller, project_id))?;
@@ -1560,21 +1585,27 @@ pub mod async_features {
 		issuer: AccountIdOf<T>,
 		evaluations: Vec<UserToUSDBalance<T>>,
 	) -> ProjectIdOf<T> {
+		println!("creating evaluating project inside auctioning");
+		let project_id = async_create_evaluating_project(instantiator.clone(), project_metadata, issuer.clone()).await;
+		println!("async_create_auctioning_project requesting lock");
 		let mut inst = instantiator.lock().await;
-		let project_id = inst.create_evaluating_project(project_metadata, issuer.clone());
-
+		println!("async_create_auctioning_project lock given");
 		let evaluators = evaluations.accounts();
 		let prev_supply = inst.get_plmc_total_supply();
 		let prev_plmc_balances = inst.get_free_plmc_balances_for(evaluators.clone());
 
-		let plmc_eval_deposits: Vec<UserToPLMCBalance<T>> = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_evaluation_plmc_spent(evaluations.clone());
+		let plmc_eval_deposits: Vec<UserToPLMCBalance<T>> =
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_evaluation_plmc_spent(
+				evaluations.clone(),
+			);
 		let plmc_existential_deposits: Vec<UserToPLMCBalance<T>> = evaluators.existential_deposits();
 		let plmc_ct_account_deposits: Vec<UserToPLMCBalance<T>> = evaluators.ct_account_deposits();
 
-		let expected_remaining_plmc: Vec<UserToPLMCBalance<T>> = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::generic_map_operation(
-			vec![prev_plmc_balances, plmc_existential_deposits.clone()],
-			MergeOperation::Add,
-		);
+		let expected_remaining_plmc: Vec<UserToPLMCBalance<T>> =
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::generic_map_operation(
+				vec![prev_plmc_balances, plmc_existential_deposits.clone()],
+				MergeOperation::Add,
+			);
 
 		inst.mint_plmc_to(plmc_eval_deposits.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
@@ -1582,16 +1613,20 @@ pub mod async_features {
 
 		inst.bond_for_users(project_id, evaluations).unwrap();
 
-		let expected_evaluator_balances = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::sum_balance_mappings(vec![
-			plmc_eval_deposits.clone(),
-			plmc_existential_deposits.clone(),
-			plmc_ct_account_deposits,
-		]);
+		let expected_evaluator_balances =
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::sum_balance_mappings(vec![
+				plmc_eval_deposits.clone(),
+				plmc_existential_deposits.clone(),
+				plmc_ct_account_deposits,
+			]);
 
 		let expected_total_supply = prev_supply + expected_evaluator_balances;
 
 		inst.evaluation_assertions(project_id, expected_remaining_plmc, plmc_eval_deposits, expected_total_supply);
+		println!("async_create_auctioning_project dropping lock");
 		drop(inst);
+		println!("async_create_auctioning_project lock dropped");
+		println!("async_create_auctioning_project awaiting start auction");
 		async_start_auction(instantiator, block_orchestrator, project_id, issuer).await.unwrap();
 		project_id
 	}
@@ -1605,7 +1640,10 @@ pub mod async_features {
 		block_orchestrator: Arc<BlockOrchestrator<T, AllPalletsWithoutSystem, RuntimeEvent>>,
 		project_id: ProjectIdOf<T>,
 	) -> Result<(), DispatchError> {
+		println!("async_start_community_funding requesting lock");
 		let mut inst = instantiator.lock().await;
+		println!("async_start_community_funding lock given");
+
 		let english_end = inst
 			.get_project_details(project_id)
 			.phase_transition_points
@@ -1616,10 +1654,18 @@ pub mod async_features {
 		let candle_start = english_end + 2u32.into();
 
 		let notify = Arc::new(Notify::new());
+		println!("async_start_community_funding adding to awaiting projects");
 		block_orchestrator.add_awaiting_project(candle_start, notify.clone()).await;
+		println!("async_start_community_funding awaiting projects added");
 		// Wait for the notification that our desired block was reached to continue
+		println!("async_start_community_funding dropping lock");
+		drop(inst);
+		println!("async_start_community_funding lock dropped");
+		println!("async_start_community_funding awaiting notification");
 		notify.notified().await;
-
+		println!("async_start_community_funding notification received");
+		println!("async_start_community_funding requesting lock");
+		inst = instantiator.lock().await;
 		let candle_end = inst
 			.get_project_details(project_id)
 			.phase_transition_points
@@ -1630,9 +1676,19 @@ pub mod async_features {
 		let community_start = candle_end + 2u32.into();
 
 		let notify = Arc::new(Notify::new());
+		println!("async_start_community_funding adding to awaiting projects");
 		block_orchestrator.add_awaiting_project(community_start, notify.clone()).await;
 		// Wait for the notification that our desired block was reached to continue
+		println!("async_start_community_funding dropping lock");
+		drop(inst);
+		println!("async_start_community_funding lock dropped");
+		println!("async_start_community_funding awaiting notification");
 		notify.notified().await;
+		println!("async_start_community_funding notification received");
+
+		println!("async_start_community_funding requesting lock");
+		inst = instantiator.lock().await;
+		println!("async_start_community_funding lock given");
 
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::CommunityRound);
 
@@ -1654,8 +1710,11 @@ pub mod async_features {
 		if bids.is_empty() {
 			panic!("Cannot start community funding without bids")
 		}
+		println!("creating auctioning project inside community project");
+		let project_id = async_create_auctioning_project(instantiator.clone(), block_orchestrator.clone(), project_metadata.clone(), issuer, evaluations.clone()).await;
+		println!("requesting inst lock");
 		let mut inst = instantiator.lock().await;
-		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations.clone());
+		println!("lock given");
 		let bids = inst.simulate_bids_with_bucket(bids, project_id);
 		let bidders = bids.accounts();
 		let bidders_non_evaluators =
@@ -1663,8 +1722,10 @@ pub mod async_features {
 		let asset_id = bids[0].asset.to_statemint_id();
 		let prev_plmc_balances = inst.get_free_plmc_balances_for(bidders.clone());
 		let prev_funding_asset_balances = inst.get_free_statemint_asset_balances_for(asset_id, bidders.clone());
-		let plmc_evaluation_deposits: Vec<UserToPLMCBalance<T>> = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_evaluation_plmc_spent(evaluations);
-		let plmc_bid_deposits: Vec<UserToPLMCBalance<T>> = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_plmc_spent(&bids, None);
+		let plmc_evaluation_deposits: Vec<UserToPLMCBalance<T>> =
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_evaluation_plmc_spent(evaluations);
+		let plmc_bid_deposits: Vec<UserToPLMCBalance<T>> =
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_plmc_spent(&bids, None);
 		let participation_usable_evaluation_deposits = plmc_evaluation_deposits
 			.into_iter()
 			.map(|mut x| {
@@ -1679,7 +1740,10 @@ pub mod async_features {
 		let total_plmc_participation_locked = plmc_bid_deposits;
 		let plmc_existential_deposits: Vec<UserToPLMCBalance<T>> = bidders.existential_deposits();
 		let plmc_ct_account_deposits: Vec<UserToPLMCBalance<T>> = bidders_non_evaluators.ct_account_deposits();
-		let funding_asset_deposits = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_funding_asset_spent(&bids, None);
+		let funding_asset_deposits =
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_funding_asset_spent(
+				&bids, None,
+			);
 
 		let bidder_balances = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::sum_balance_mappings(vec![
 			necessary_plmc_mint.clone(),
@@ -1687,10 +1751,11 @@ pub mod async_features {
 			plmc_ct_account_deposits.clone(),
 		]);
 
-		let expected_free_plmc_balances = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::generic_map_operation(
-			vec![prev_plmc_balances, plmc_existential_deposits.clone()],
-			MergeOperation::Add,
-		);
+		let expected_free_plmc_balances =
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::generic_map_operation(
+				vec![prev_plmc_balances, plmc_existential_deposits.clone()],
+				MergeOperation::Add,
+			);
 
 		let prev_supply = inst.get_plmc_total_supply();
 		let post_supply = prev_supply + bidder_balances;
@@ -1719,7 +1784,10 @@ pub mod async_features {
 		let mut inst = instantiator.lock().await;
 
 		let weighted_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
-		let accepted_bids = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::filter_bids_after_auction(bids, project_metadata.total_allocation_size.0);
+		let accepted_bids = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::filter_bids_after_auction(
+			bids,
+			project_metadata.total_allocation_size.0,
+		);
 		let bid_expectations = accepted_bids
 			.iter()
 			.map(|bid| BidInfoFilter::<T> {
