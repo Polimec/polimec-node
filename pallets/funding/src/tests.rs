@@ -5870,58 +5870,112 @@ mod async_tests {
 			let controller_handle = tokio::spawn(block_controller(block_orchestrator.clone(), mutex_inst.clone()));
 
 			let project_creations = vec![
-				// async_create_new_project(mutex_inst.clone(), default_project(0, ISSUER), ISSUER).boxed(),
-				// async_create_evaluating_project(mutex_inst.clone(), default_project(1, ISSUER), ISSUER).boxed(),
-				// async_create_auctioning_project(
-				// 	mutex_inst.clone(),
-				// 	block_orchestrator.clone(),
-				// 	default_project(2, ISSUER),
-				// 	ISSUER,
-				// 	default_evaluations(),
-				// )
-				// .boxed(),
-				// async_create_community_contributing_project(
-				// 	mutex_inst.clone(),
-				// 	block_orchestrator.clone(),
-				// 	default_project(3, ISSUER),
-				// 	ISSUER,
-				// 	default_evaluations(),
-				// 	default_bids(),
-				// )
-				// .map(|(project_id, _)| project_id)
-				// .boxed(),
-				//
-
-				async_create_community_contributing_project(
-					mutex_inst.clone(),
-					block_orchestrator.clone(),
-					default_project(0, ISSUER),
-					ISSUER,
-					default_evaluations(),
-					default_bids(),
-				)
-					.map(|(project_id, _)| project_id)
-					.boxed(),
-				async_create_community_contributing_project(
-					mutex_inst.clone(),
-					block_orchestrator.clone(),
-					default_project(1, ISSUER),
-					ISSUER,
-					default_evaluations(),
-					default_bids(),
-				)
-					.map(|(project_id, _)| project_id)
-					.boxed(),
-				async_create_community_contributing_project(
+				async_create_new_project(mutex_inst.clone(), default_project(0, ISSUER), ISSUER).boxed(),
+				async_create_evaluating_project(mutex_inst.clone(), default_project(1, ISSUER), ISSUER).boxed(),
+				async_create_auctioning_project(
 					mutex_inst.clone(),
 					block_orchestrator.clone(),
 					default_project(2, ISSUER),
 					ISSUER,
 					default_evaluations(),
+				)
+				.boxed(),
+				async_create_community_contributing_project(
+					mutex_inst.clone(),
+					block_orchestrator.clone(),
+					default_project(3, ISSUER),
+					ISSUER,
+					default_evaluations(),
 					default_bids(),
 				)
-					.map(|(project_id, _)| project_id)
-					.boxed(),
+				.map(|(project_id, _)| project_id)
+				.boxed(),
+				async_create_community_contributing_project(
+					mutex_inst.clone(),
+					block_orchestrator.clone(),
+					default_project(4, ISSUER),
+					ISSUER,
+					default_evaluations(),
+					default_bids(),
+				)
+				.map(|(project_id, _)| project_id)
+				.boxed(),
+				async_create_community_contributing_project(
+					mutex_inst.clone(),
+					block_orchestrator.clone(),
+					default_project(5, ISSUER),
+					ISSUER,
+					default_evaluations(),
+					default_bids(),
+				)
+				.map(|(project_id, _)| project_id)
+				.boxed(),
+				async_create_remainder_contributing_project(
+					mutex_inst.clone(),
+					block_orchestrator.clone(),
+					default_project(6, ISSUER),
+					ISSUER,
+					default_evaluations(),
+					default_bids(),
+					default_community_buys(),
+				)
+				.map(|(project_id, _)| project_id)
+				.boxed(),
+				async_create_remainder_contributing_project(
+					mutex_inst.clone(),
+					block_orchestrator.clone(),
+					default_project(7, ISSUER),
+					ISSUER,
+					default_evaluations(),
+					default_bids(),
+					default_community_buys(),
+				)
+				.map(|(project_id, _)| project_id)
+				.boxed(),
+				async_create_remainder_contributing_project(
+					mutex_inst.clone(),
+					block_orchestrator.clone(),
+					default_project(8, ISSUER),
+					ISSUER,
+					default_evaluations(),
+					default_bids(),
+					default_community_buys(),
+				)
+				.map(|(project_id, _)| project_id)
+				.boxed(),
+				async_create_finished_project(
+					mutex_inst.clone(),
+					block_orchestrator.clone(),
+					default_project(9, ISSUER),
+					ISSUER,
+					default_evaluations(),
+					default_bids(),
+					default_community_buys(),
+					default_remainder_buys(),
+				)
+				.boxed(),
+				async_create_finished_project(
+					mutex_inst.clone(),
+					block_orchestrator.clone(),
+					default_project(10, ISSUER),
+					ISSUER,
+					default_evaluations(),
+					default_bids(),
+					default_community_buys(),
+					default_remainder_buys(),
+				)
+				.boxed(),
+				async_create_finished_project(
+					mutex_inst.clone(),
+					block_orchestrator.clone(),
+					default_project(11, ISSUER),
+					ISSUER,
+					default_evaluations(),
+					default_bids(),
+					default_community_buys(),
+					default_remainder_buys(),
+				)
+				.boxed(),
 			];
 			// Wait for all project creation tasks to complete
 			futures::future::join_all(project_creations).await;
@@ -5934,9 +5988,18 @@ mod async_tests {
 
 			let mut inst = mutex_inst.lock().await;
 			let events = inst.execute(|| frame_system::Pallet::<TestRuntime>::events());
-			dbg!(inst.get_project_details(0));
-			dbg!(inst.get_project_details(1));
-			dbg!(inst.get_project_details(2));
+			dbg!(inst.get_project_details(0).status);
+			dbg!(inst.get_project_details(1).status);
+			dbg!(inst.get_project_details(2).status);
+			dbg!(inst.get_project_details(3).status);
+			dbg!(inst.get_project_details(4).status);
+			dbg!(inst.get_project_details(5).status);
+			dbg!(inst.get_project_details(6).status);
+			dbg!(inst.get_project_details(7).status);
+			dbg!(inst.get_project_details(8).status);
+			dbg!(inst.get_project_details(9).status);
+			dbg!(inst.get_project_details(10).status);
+			dbg!(inst.get_project_details(11).status);
 		});
 	}
 }

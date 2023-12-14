@@ -247,6 +247,7 @@ impl<
 		for UserToPLMCBalance { account, plmc_amount } in correct_funds {
 			self.execute(|| {
 				let free = <T as Config>::NativeCurrency::balance(&account);
+				println!("account: {:?}, free: {:?}, plmc_amount: {:?}", account, free, plmc_amount);
 				assert_eq!(free, plmc_amount);
 			});
 		}
@@ -1444,7 +1445,8 @@ pub mod async_features {
 				while self.get_current_block() < next_block {
 					let mut inst = instantiator.lock().await;
 					inst.advance_time(One::one()).unwrap();
-					let now = inst.current_block().try_into().unwrap_or_else(|_|panic!("Block number should fit into u32"));
+					let now =
+						inst.current_block().try_into().unwrap_or_else(|_| panic!("Block number should fit into u32"));
 					self.current_block.store(now, Ordering::SeqCst);
 
 					println!("Advanced to block {}", now);
@@ -1492,6 +1494,11 @@ pub mod async_features {
 		println!("async_create_new_project requesting lock");
 		let mut inst = instantiator.lock().await;
 		println!("async_create_new_project lock given");
+		let asset_account_deposit =
+			inst.execute(|| <T as crate::Config>::ContributionTokenCurrency::deposit_required(One::one()));
+		let ed = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ed();
+		dbg!(asset_account_deposit);
+		dbg!(ed);
 		let now = inst.current_block();
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
 			issuer.clone(),
@@ -1711,7 +1718,14 @@ pub mod async_features {
 			panic!("Cannot start community funding without bids")
 		}
 		println!("creating auctioning project inside community project");
-		let project_id = async_create_auctioning_project(instantiator.clone(), block_orchestrator.clone(), project_metadata.clone(), issuer, evaluations.clone()).await;
+		let project_id = async_create_auctioning_project(
+			instantiator.clone(),
+			block_orchestrator.clone(),
+			project_metadata.clone(),
+			issuer,
+			evaluations.clone(),
+		)
+		.await;
 		println!("requesting inst lock");
 		let mut inst = instantiator.lock().await;
 		println!("lock given");
@@ -1803,6 +1817,366 @@ pub mod async_features {
 		inst.finalized_bids_assertions(project_id, bid_expectations, total_ct_sold);
 
 		(project_id, accepted_bids)
+	}
+
+	pub async fn async_start_remainder_or_end_funding<
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
+		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
+		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
+	>(
+		instantiator: Arc<Mutex<Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>>>,
+		block_orchestrator: Arc<BlockOrchestrator<T, AllPalletsWithoutSystem, RuntimeEvent>>,
+		project_id: ProjectIdOf<T>,
+	) -> Result<(), DispatchError> {
+		println!("async_start_remainder_or_end_funding requesting lock");
+		let mut inst = instantiator.lock().await;
+		println!("async_start_remainder_or_end_funding lock given");
+
+		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::CommunityRound);
+		let community_funding_end = inst
+			.get_project_details(project_id)
+			.phase_transition_points
+			.community
+			.end()
+			.expect("Community funding end point should exist");
+		let remainder_start = community_funding_end + 1u32.into();
+
+		let notify = Arc::new(Notify::new());
+		println!("async_start_remainder_or_end_funding adding to awaiting projects");
+		block_orchestrator.add_awaiting_project(remainder_start, notify.clone()).await;
+		println!("async_start_remainder_or_end_funding awaiting projects added");
+		// Wait for the notification that our desired block was reached to continue
+		println!("dropping inst lock");
+		drop(inst);
+		println!("inst lock dropped");
+		println!("async_start_remainder_or_end_funding awaiting notification");
+		notify.notified().await;
+		println!("async_start_remainder_or_end_funding notification received");
+
+		println!("async_start_remainder_or_end_funding requesting inst lock");
+		let mut inst = instantiator.lock().await;
+		println!("async_start_remainder_or_end_funding lock given");
+		match inst.get_project_details(project_id).status {
+			ProjectStatus::RemainderRound | ProjectStatus::FundingSuccessful => Ok(()),
+			_ => panic!("Bad state"),
+		}
+	}
+
+	pub async fn async_create_remainder_contributing_project<
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
+		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
+		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
+	>(
+		instantiator: Arc<Mutex<Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>>>,
+		block_orchestrator: Arc<BlockOrchestrator<T, AllPalletsWithoutSystem, RuntimeEvent>>,
+		project_metadata: ProjectMetadataOf<T>,
+		issuer: AccountIdOf<T>,
+		evaluations: Vec<UserToUSDBalance<T>>,
+		bids: Vec<BidParams<T>>,
+		contributions: Vec<ContributionParams<T>>,
+	) -> (ProjectIdOf<T>, Vec<BidParams<T>>) {
+		println!("creating community project inside remainder project");
+		let (project_id, accepted_bids) = async_create_community_contributing_project(
+			instantiator.clone(),
+			block_orchestrator.clone(),
+			project_metadata,
+			issuer,
+			evaluations.clone(),
+			bids,
+		)
+		.await;
+		println!("done");
+
+		if contributions.is_empty() {
+			async_start_remainder_or_end_funding(instantiator.clone(), block_orchestrator.clone(), project_id)
+				.await
+				.unwrap();
+			return (project_id, accepted_bids)
+		}
+
+		println!("requesting inst lock");
+		let mut inst = instantiator.lock().await;
+		println!("lock given");
+
+		let ct_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
+		let contributors = contributions.accounts();
+		let contributors_non_evaluators = contributors
+			.clone()
+			.into_iter()
+			.filter(|account| evaluations.accounts().contains(account).not())
+			.collect_vec();
+		let asset_id = contributions[0].asset.to_statemint_id();
+		let prev_plmc_balances = inst.get_free_plmc_balances_for(contributors.clone());
+		let prev_funding_asset_balances = inst.get_free_statemint_asset_balances_for(asset_id, contributors.clone());
+
+		let plmc_evaluation_deposits =
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_evaluation_plmc_spent(evaluations);
+		let plmc_bid_deposits = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_plmc_spent(
+			&accepted_bids,
+			Some(ct_price),
+		);
+
+		let plmc_contribution_deposits =
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_contributed_plmc_spent(
+				contributions.clone(),
+				ct_price,
+			);
+
+		let necessary_plmc_mint = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::generic_map_operation(
+			vec![plmc_contribution_deposits.clone(), plmc_evaluation_deposits],
+			MergeOperation::Subtract,
+		);
+		let total_plmc_participation_locked =
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::generic_map_operation(
+				vec![plmc_bid_deposits, plmc_contribution_deposits],
+				MergeOperation::Add,
+			);
+		let plmc_existential_deposits = contributors.existential_deposits();
+		let plmc_ct_account_deposits = contributors_non_evaluators.ct_account_deposits();
+
+		let funding_asset_deposits =
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_contributed_funding_asset_spent(
+				contributions.clone(),
+				ct_price,
+			);
+		let contributor_balances =
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::sum_balance_mappings(vec![
+				necessary_plmc_mint.clone(),
+				plmc_existential_deposits.clone(),
+				plmc_ct_account_deposits.clone(),
+			]);
+
+		let expected_free_plmc_balances =
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::generic_map_operation(
+				vec![prev_plmc_balances, plmc_existential_deposits.clone()],
+				MergeOperation::Add,
+			);
+
+		let prev_supply = inst.get_plmc_total_supply();
+		let post_supply = prev_supply + contributor_balances;
+
+		inst.mint_plmc_to(necessary_plmc_mint.clone());
+		inst.mint_plmc_to(plmc_existential_deposits.clone());
+		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
+		inst.mint_statemint_asset_to(funding_asset_deposits.clone());
+
+		inst.contribute_for_users(project_id, contributions).expect("Contributing should work");
+
+		inst.do_reserved_plmc_assertions(
+			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
+			LockType::Participation(project_id),
+		);
+		inst.do_contribution_transferred_statemint_asset_assertions(
+			funding_asset_deposits.merge_accounts(MergeOperation::Add),
+			project_id,
+		);
+		inst.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts(MergeOperation::Add));
+		inst.do_free_statemint_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
+		assert_eq!(inst.get_plmc_total_supply(), post_supply);
+		drop(inst);
+		async_start_remainder_or_end_funding(instantiator.clone(), block_orchestrator.clone(), project_id)
+			.await
+			.unwrap();
+		(project_id, accepted_bids)
+	}
+
+	pub async fn async_finish_funding<
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
+		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
+		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
+	>(
+		instantiator: Arc<Mutex<Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>>>,
+		block_orchestrator: Arc<BlockOrchestrator<T, AllPalletsWithoutSystem, RuntimeEvent>>,
+		project_id: ProjectIdOf<T>,
+	) -> Result<(), DispatchError> {
+		println!("async_finish_funding requesting lock");
+		let mut inst = instantiator.lock().await;
+		println!("async_finish_funding lock given");
+
+		let (update_block, _) = inst.get_update_pair(project_id);
+		let current_block = inst.current_block();
+		inst.advance_time(update_block.saturating_sub(current_block)).unwrap();
+		if inst.get_project_details(project_id).status == ProjectStatus::RemainderRound {
+			let (end_block, _) = inst.get_update_pair(project_id);
+			drop(inst);
+
+			let notify = Arc::new(Notify::new());
+			println!("async_finish_funding adding to awaiting projects");
+			block_orchestrator.add_awaiting_project(end_block, notify.clone()).await;
+			println!("async_finish_funding awaiting projects added");
+			// Wait for the notification that our desired block was reached to continue
+			println!("async_finish_funding awaiting notification");
+			notify.notified().await;
+			println!("async_finish_funding notification received");
+
+			println!("async_finish_funding requesting lock");
+			inst = instantiator.lock().await;
+			println!("async_finish_funding lock given");
+		}
+
+		let project_details = inst.get_project_details(project_id);
+		assert!(
+			matches!(
+				project_details.status,
+				ProjectStatus::FundingSuccessful |
+					ProjectStatus::FundingFailed |
+					ProjectStatus::AwaitingProjectDecision
+			),
+			"Project should be in Finished status"
+		);
+		Ok(())
+	}
+
+	pub async fn async_create_finished_project<
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
+		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
+		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
+	>(
+		instantiator: Arc<Mutex<Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>>>,
+		block_orchestrator: Arc<BlockOrchestrator<T, AllPalletsWithoutSystem, RuntimeEvent>>,
+		project_metadata: ProjectMetadataOf<T>,
+		issuer: AccountIdOf<T>,
+		evaluations: Vec<UserToUSDBalance<T>>,
+		bids: Vec<BidParams<T>>,
+		community_contributions: Vec<ContributionParams<T>>,
+		remainder_contributions: Vec<ContributionParams<T>>,
+	) -> ProjectIdOf<T> {
+		println!("creating remainder project inside finished project");
+		let (project_id, accepted_bids) = async_create_remainder_contributing_project(
+			instantiator.clone(),
+			block_orchestrator.clone(),
+			project_metadata.clone(),
+			issuer,
+			evaluations.clone(),
+			bids.clone(),
+			community_contributions.clone(),
+		)
+		.await;
+		println!("done");
+
+		println!("requesting inst lock");
+		let mut inst = instantiator.lock().await;
+		println!("lock given");
+
+		match inst.get_project_details(project_id).status {
+			ProjectStatus::FundingSuccessful => return project_id,
+			ProjectStatus::RemainderRound if remainder_contributions.is_empty() => {
+				inst.finish_funding(project_id).unwrap();
+				return project_id
+			},
+			_ => {},
+		};
+
+		let ct_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
+		let contributors = remainder_contributions.accounts();
+		let new_contributors = contributors
+			.clone()
+			.into_iter()
+			.filter(|account| {
+				evaluations.accounts().contains(account).not() &&
+					bids.accounts().contains(account).not() &&
+					community_contributions.accounts().contains(account).not()
+			})
+			.collect_vec();
+		let asset_id = remainder_contributions[0].asset.to_statemint_id();
+		let prev_plmc_balances = inst.get_free_plmc_balances_for(contributors.clone());
+		let prev_funding_asset_balances = inst.get_free_statemint_asset_balances_for(asset_id, contributors.clone());
+
+		let plmc_evaluation_deposits =
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_evaluation_plmc_spent(evaluations);
+		let plmc_bid_deposits = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_plmc_spent(
+			&accepted_bids,
+			Some(ct_price),
+		);
+		let plmc_community_contribution_deposits =
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_contributed_plmc_spent(
+				community_contributions.clone(),
+				ct_price,
+			);
+		let plmc_remainder_contribution_deposits =
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_contributed_plmc_spent(
+				remainder_contributions.clone(),
+				ct_price,
+			);
+
+		let necessary_plmc_mint = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::generic_map_operation(
+			vec![plmc_remainder_contribution_deposits.clone(), plmc_evaluation_deposits],
+			MergeOperation::Subtract,
+		);
+		let total_plmc_participation_locked =
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::generic_map_operation(
+				vec![plmc_bid_deposits, plmc_community_contribution_deposits, plmc_remainder_contribution_deposits],
+				MergeOperation::Add,
+			);
+		let plmc_existential_deposits = contributors.existential_deposits();
+		let plmc_ct_account_deposits = new_contributors.ct_account_deposits();
+		let funding_asset_deposits =
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_contributed_funding_asset_spent(
+				remainder_contributions.clone(),
+				ct_price,
+			);
+
+		let contributor_balances =
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::sum_balance_mappings(vec![
+				necessary_plmc_mint.clone(),
+				plmc_existential_deposits.clone(),
+				plmc_ct_account_deposits.clone(),
+			]);
+
+		let expected_free_plmc_balances =
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::generic_map_operation(
+				vec![prev_plmc_balances, plmc_existential_deposits.clone()],
+				MergeOperation::Add,
+			);
+
+		let prev_supply = inst.get_plmc_total_supply();
+		let post_supply = prev_supply + contributor_balances;
+
+		inst.mint_plmc_to(necessary_plmc_mint.clone());
+		inst.mint_plmc_to(plmc_existential_deposits.clone());
+		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
+		inst.mint_statemint_asset_to(funding_asset_deposits.clone());
+
+		inst.contribute_for_users(project_id, remainder_contributions.clone())
+			.expect("Remainder Contributing should work");
+
+		inst.do_reserved_plmc_assertions(
+			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
+			LockType::Participation(project_id),
+		);
+		inst.do_contribution_transferred_statemint_asset_assertions(
+			funding_asset_deposits.merge_accounts(MergeOperation::Add),
+			project_id,
+		);
+		inst.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts(MergeOperation::Add));
+		inst.do_free_statemint_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
+		assert_eq!(inst.get_plmc_total_supply(), post_supply);
+
+		drop(inst);
+		async_finish_funding(instantiator.clone(), block_orchestrator.clone(), project_id).await.unwrap();
+		let mut inst = instantiator.lock().await;
+
+		if inst.get_project_details(project_id).status == ProjectStatus::FundingSuccessful {
+			// Check that remaining CTs are updated
+			let project_details = inst.get_project_details(project_id);
+			let auction_bought_tokens =
+				accepted_bids.iter().map(|bid| bid.amount).fold(Zero::zero(), |acc, item| item + acc);
+			let community_bought_tokens =
+				community_contributions.iter().map(|cont| cont.amount).fold(Zero::zero(), |acc, item| item + acc);
+			let remainder_bought_tokens =
+				remainder_contributions.iter().map(|cont| cont.amount).fold(Zero::zero(), |acc, item| item + acc);
+
+			assert_eq!(
+				project_details.remaining_contribution_tokens.0 + project_details.remaining_contribution_tokens.1,
+				project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1 -
+					auction_bought_tokens -
+					community_bought_tokens -
+					remainder_bought_tokens,
+				"Remaining CTs are incorrect"
+			);
+		}
+
+		project_id
 	}
 }
 
