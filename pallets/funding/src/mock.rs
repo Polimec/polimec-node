@@ -266,15 +266,15 @@ pub const HOURS: BlockNumber = 300u64;
 
 // REMARK: In the production configuration we use DAYS instead of HOURS.
 parameter_types! {
-	pub const EvaluationDuration: BlockNumber = (28) as BlockNumber;
-	pub const AuctionInitializePeriodDuration: BlockNumber = (7) as BlockNumber;
-	pub const EnglishAuctionDuration: BlockNumber = (2) as BlockNumber;
-	pub const CandleAuctionDuration: BlockNumber = (3) as BlockNumber;
-	pub const CommunityRoundDuration: BlockNumber = (5) as BlockNumber;
+	pub const EvaluationDuration: BlockNumber = (28 * HOURS) as BlockNumber;
+	pub const AuctionInitializePeriodDuration: BlockNumber = (7 * HOURS) as BlockNumber;
+	pub const EnglishAuctionDuration: BlockNumber = (2 * HOURS) as BlockNumber;
+	pub const CandleAuctionDuration: BlockNumber = (3 * HOURS) as BlockNumber;
+	pub const CommunityRoundDuration: BlockNumber = (5 * HOURS) as BlockNumber;
 	pub const RemainderFundingDuration: BlockNumber = HOURS as BlockNumber;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
-	pub const ManualAcceptanceDuration: BlockNumber = (3) as BlockNumber;
-	pub const SuccessToSettlementTime: BlockNumber =(4) as BlockNumber;
+	pub const ManualAcceptanceDuration: BlockNumber = (3 * HOURS) as BlockNumber;
+	pub const SuccessToSettlementTime: BlockNumber =(4 * HOURS) as BlockNumber;
 	pub PriceMap: BTreeMap<AssetId, FixedU128> = BTreeMap::from_iter(vec![
 		(0u32, FixedU128::from_float(69f64)), // DOT
 		(420u32, FixedU128::from_float(0.97f64)), // USDC
