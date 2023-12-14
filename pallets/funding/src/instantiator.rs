@@ -50,6 +50,23 @@ impl Default for BoxToFunction {
 		BoxToFunction(Box::new(|| ()))
 	}
 }
+
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+	feature = "std",
+	serde(rename_all = "camelCase", deny_unknown_fields, bound(serialize = ""), bound(deserialize = ""))
+)]
+#[derive(Clone, PartialEq, Eq, Debug, Encode, Decode)]
+pub struct TestProjectParams<T: Config> {
+	pub expected_state: ProjectStatus,
+	pub metadata: ProjectMetadataOf<T>,
+	pub issuer: AccountIdOf<T>,
+	pub evaluations: Vec<UserToUSDBalance<T>>,
+	pub bids: Vec<BidParams<T>>,
+	pub community_contributions: Vec<ContributionParams<T>>,
+	pub remainder_contributions: Vec<ContributionParams<T>>,
+}
+
 pub struct Instantiator<
 	T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 	AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
@@ -1369,6 +1386,7 @@ impl<
 #[cfg(feature = "std")]
 pub mod async_features {
 	use super::*;
+	use futures::FutureExt;
 	use std::{
 		collections::HashMap,
 		sync::{
@@ -2177,6 +2195,79 @@ pub mod async_features {
 		}
 
 		project_id
+	}
+
+	pub async fn create_project_at<
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
+		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
+		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
+	>(
+		instantiator: Arc<Mutex<Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>>>,
+		block_orchestrator: Arc<BlockOrchestrator<T, AllPalletsWithoutSystem, RuntimeEvent>>,
+		test_project_params: TestProjectParams<T>,
+	) -> ProjectIdOf<T> {
+		match test_project_params.expected_state {
+			ProjectStatus::FundingSuccessful =>
+				async_create_finished_project(
+					instantiator,
+					block_orchestrator,
+					test_project_params.metadata,
+					test_project_params.issuer,
+					test_project_params.evaluations,
+					test_project_params.bids,
+					test_project_params.community_contributions,
+					test_project_params.remainder_contributions,
+				)
+				.await,
+			ProjectStatus::RemainderRound =>
+				async_create_remainder_contributing_project(
+					instantiator,
+					block_orchestrator,
+					test_project_params.metadata,
+					test_project_params.issuer,
+					test_project_params.evaluations,
+					test_project_params.bids,
+					test_project_params.community_contributions,
+				)
+				.map(|(project_id, _)| project_id)
+				.await,
+			ProjectStatus::CommunityRound =>
+				async_create_community_contributing_project(
+					instantiator,
+					block_orchestrator,
+					test_project_params.metadata,
+					test_project_params.issuer,
+					test_project_params.evaluations,
+					test_project_params.bids,
+				)
+				.map(|(project_id, _)| project_id)
+				.await,
+			ProjectStatus::AuctionRound(AuctionPhase::English) =>
+				async_create_auctioning_project(
+					instantiator,
+					block_orchestrator,
+					test_project_params.metadata,
+					test_project_params.issuer,
+					test_project_params.evaluations,
+				)
+				.await,
+			ProjectStatus::EvaluationRound =>
+				async_create_evaluating_project(instantiator, test_project_params.metadata, test_project_params.issuer)
+					.await,
+			ProjectStatus::Application =>
+				async_create_new_project(instantiator, test_project_params.metadata, test_project_params.issuer).await,
+			_ => panic!("unsupported project creation in that status"),
+		}
+	}
+
+	pub async fn create_multiple_projects_at<
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
+		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
+		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
+	>(
+		projects: Vec<TestProjectParams<T>>,
+	) {
+		todo!();
 	}
 }
 

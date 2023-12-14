@@ -1355,23 +1355,6 @@ pub mod pallet {
 	use frame_support::traits::{OnFinalize, OnIdle, OnInitialize, OriginTrait};
 	use pallet_xcm::ensure_response;
 
-	#[cfg(all(feature = "testing-node", feature = "std"))]
-	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-	#[cfg_attr(
-		feature = "std",
-		serde(rename_all = "camelCase", deny_unknown_fields, bound(serialize = ""), bound(deserialize = ""))
-	)]
-	#[derive(Clone, PartialEq, Eq, Debug, Encode, Decode)]
-	pub struct TestProject<T: Config> {
-		pub expected_state: ProjectStatus,
-		pub metadata: ProjectMetadataOf<T>,
-		pub issuer: AccountIdOf<T>,
-		pub evaluations: Vec<instantiator::UserToUSDBalance<T>>,
-		pub bids: Vec<instantiator::BidParams<T>>,
-		pub community_contributions: Vec<instantiator::ContributionParams<T>>,
-		pub remainder_contributions: Vec<instantiator::ContributionParams<T>>,
-	}
-
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
 		#[cfg(all(feature = "testing-node", feature = "std"))]
