@@ -174,7 +174,7 @@ construct_runtime!(
 	{
 		System: frame_system::{Pallet, Call, Storage, Config<T>, Event<T>},
 		Oracle: orml_oracle::{Pallet, Storage, Call, Event<T>},
-		OracleOcw: pallet_oracle_ocw::{Pallet, Storage, Call, Event<T>},
+		OracleOcw: pallet_oracle_ocw::{Pallet, Event<T>},
 
 	}
 );

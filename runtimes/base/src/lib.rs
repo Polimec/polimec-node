@@ -494,7 +494,7 @@ construct_runtime!(
 		// Oracle
 		Oracle: orml_oracle::{Pallet, Call, Storage, Event<T>} = 70,
 		OracleProvidersMembership: pallet_membership::<Instance1> = 71,
-		OracleOffchainWorker: pallet_oracle_ocw::{Pallet, Call, Storage, Event<T>} = 72,
+		OracleOffchainWorker: pallet_oracle_ocw::{Pallet, Event<T>} = 72,
 	}
 );
 

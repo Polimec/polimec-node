@@ -95,15 +95,8 @@ pub mod pallet {
 		type ConvertAssetPricePair: Convert<(AssetName, FixedU128), (Self::OracleKey, Self::OracleValue)>;
 	}
 
-	#[pallet::storage]
-	pub type DummyValue<T> = StorageValue<_, u32>;
-
 	#[pallet::event]
 	pub enum Event<T: Config> {}
-
-	// Errors inform users that something went wrong.
-	#[pallet::error]
-	pub enum Error<T> {}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
@@ -174,7 +167,7 @@ pub mod pallet {
 						return
 					}
 
-					log::trace!(target: LOG_TARGET, "Transaction grace period reached for assets {:?} in block {:?}", assets.clone(), block_number);
+					log::trace!(target: LOG_TARGET, "Transaction grace period reached for assets {:?} in block {:?}", assets, block_number);
 
 					let prices = Self::fetch_prices(assets);
 					if prices.is_empty() {
@@ -198,9 +191,6 @@ pub mod pallet {
 			// - Fetch price information for Polimec
 		}
 	}
-
-	#[pallet::call]
-	impl<T: Config> Pallet<T> {}
 
 	impl<T: Config> Pallet<T> {
 		fn fetch_prices(assets: Vec<AssetName>) -> BTreeMap<AssetName, FixedU128> {
