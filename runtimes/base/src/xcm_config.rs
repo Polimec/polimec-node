@@ -28,7 +28,7 @@ use polkadot_parachain::primitives::Sibling;
 use polkadot_runtime_common::impls::ToAuthor;
 use xcm::latest::prelude::*;
 use xcm_builder::{
-	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowTopLevelPaidExecutionFrom, CurrencyAdapter,
+	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom, CurrencyAdapter,
 	DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin, FixedWeightBounds, IsConcrete, NativeAsset,
 	ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
 	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, UsingComponents,
@@ -102,17 +102,25 @@ match_types! {
 		MultiLocation { parents: 1, interior: Here } |
 		MultiLocation { parents: 1, interior: X1(Plurality { id: BodyId::Executive, .. }) }
 	};
+	pub type ParentOrSiblings: impl Contains<MultiLocation> = {
+		MultiLocation { parents: 1, interior: Here } |
+		MultiLocation { parents: 1, interior: X1(Parachain(_)) }
+	};
 }
 
 pub type Barrier = DenyThenTry<
 	DenyReserveTransferToRelayChain,
 	(
 		TakeWeightCredit,
+		AllowKnownQueryResponses<PolkadotXcm>,
 		WithComputedOrigin<
 			(
 				AllowTopLevelPaidExecutionFrom<Everything>,
 				AllowExplicitUnpaidExecutionFrom<ParentOrParentsExecutivePlurality>,
 				// ^^^ Parent and its exec plurality get free execution
+				// TODO: Update ParentOrSibling to parity's ParentRelayOrSiblingParachains common impl in
+				// polkadot-sdk 1.5.0
+				AllowSubscriptionsFrom<ParentOrSiblings>,
 			),
 			UniversalLocation,
 			ConstU32<8>,
@@ -132,7 +140,7 @@ impl xcm_executor::Config for XcmConfig {
 	type Barrier = Barrier;
 	type CallDispatcher = RuntimeCall;
 	type FeeManager = ();
-	type IsReserve = NativeAsset;
+	type IsReserve = ();
 	type IsTeleporter = ();
 	type MaxAssetsIntoHolding = MaxAssetsIntoHolding;
 	type MessageExporter = ();
@@ -140,7 +148,7 @@ impl xcm_executor::Config for XcmConfig {
 	type PalletInstancesInfo = AllPalletsWithSystem;
 	type ResponseHandler = PolkadotXcm;
 	type RuntimeCall = RuntimeCall;
-	type SafeCallFilter = Everything;
+	type SafeCallFilter = Nothing;
 	type SubscriptionService = PolkadotXcm;
 	type Trader = UsingComponents<WeightToFee, RelayLocation, AccountId, Balances, ToAuthor<Runtime>>;
 	type UniversalAliases = Nothing;
