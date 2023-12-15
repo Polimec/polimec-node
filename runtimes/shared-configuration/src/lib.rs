@@ -23,6 +23,7 @@ pub mod funding;
 pub mod governance;
 pub mod staking;
 pub mod weights;
+pub mod proxy;
 
 /// Common types
 pub use parachains_common::{Balance, BlockNumber, DAYS};

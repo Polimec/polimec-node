@@ -25,7 +25,7 @@ extern crate frame_benchmarking;
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::Contains,
+	traits::{Contains, InstanceFilter},
 	weights::{ConstantMultiplier, Weight},
 };
 use frame_system::EnsureRoot;
@@ -52,7 +52,7 @@ use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
 use xcm_executor::XcmExecutor;
 
 // Polimec Shared Imports
-pub use shared_configuration::{currency::*, fee::*, governance::*, staking::*, weights::*};
+pub use shared_configuration::{currency::*, fee::*, governance::*, proxy::*, staking::*, weights::*};
 
 pub use pallet_parachain_staking;
 
@@ -197,6 +197,22 @@ impl Contains<RuntimeCall> for BaseCallFilter {
 				}
 			}
 			_ => true,
+		}
+	}
+}
+
+impl InstanceFilter<RuntimeCall> for ProxyType {
+	fn filter(&self, _: &RuntimeCall) -> bool {
+		match self {
+			ProxyType::Any => true,
+		}
+	}
+
+	fn is_superset(&self, o: &Self) -> bool {
+		match (self, o) {
+			(x, y) if x == y => true,
+			// "anything" always contains any subset
+			(ProxyType::Any, _) => true,
 		}
 	}
 }
@@ -373,6 +389,38 @@ impl pallet_parachain_staking::Config for Runtime {
 	type WeightInfo = pallet_parachain_staking::weights::SubstrateWeight<Runtime>;
 }
 
+impl pallet_utility::Config for Runtime {
+	type PalletsOrigin = OriginCaller;
+	type RuntimeCall = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+}
+
+impl pallet_multisig::Config for Runtime {
+	type Currency = Balances;
+	type DepositBase = DepositBase;
+	type DepositFactor = DepositFactor;
+	type MaxSignatories = MaxSignatories;
+	type RuntimeCall = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+}
+
+impl pallet_proxy::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
+	type Currency = Balances;
+	type ProxyType = ProxyType;
+	type ProxyDepositBase = ProxyDepositBase;
+	type ProxyDepositFactor = ProxyDepositFactor;
+	type MaxProxies = MaxProxies;
+	type WeightInfo = ();
+	type MaxPending = MaxPending;
+	type CallHasher = BlakeTwo256;
+	type AnnouncementDepositBase = AnnouncementDepositBase;
+	type AnnouncementDepositFactor = AnnouncementDepositFactor;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime
@@ -383,6 +431,9 @@ construct_runtime!(
 		Timestamp: pallet_timestamp = 2,
 		ParachainInfo: parachain_info = 3,
 		Sudo: pallet_sudo = 4,
+		Utility: pallet_utility::{Pallet, Call, Event} = 5,
+		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 6,
+		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 7,
 
 		// Monetary stuff.
 		Balances: pallet_balances = 10,
