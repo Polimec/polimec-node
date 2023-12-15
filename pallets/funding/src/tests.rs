@@ -5859,7 +5859,7 @@ mod async_tests {
 	};
 
 	#[test]
-	fn sandbox() {
+	fn prototype_1() {
 		let tokio_runtime = Runtime::new().unwrap();
 		let inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 
@@ -6001,5 +6001,76 @@ mod async_tests {
 			dbg!(inst.get_project_details(10).status);
 			dbg!(inst.get_project_details(11).status);
 		});
+	}
+
+	#[test]
+	fn prototype_2() {
+		let inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+
+		let project_params = vec![
+			TestProjectParams {
+				expected_state: ProjectStatus::Application,
+				metadata: default_project(inst.get_new_nonce(), ISSUER),
+				issuer: ISSUER,
+				evaluations: vec![],
+				bids: vec![],
+				community_contributions: vec![],
+				remainder_contributions: vec![],
+			},
+			TestProjectParams {
+				expected_state: ProjectStatus::EvaluationRound,
+				metadata: default_project(inst.get_new_nonce(), ISSUER),
+				issuer: ISSUER,
+				evaluations: vec![],
+				bids: vec![],
+				community_contributions: vec![],
+				remainder_contributions: vec![],
+			},
+			TestProjectParams {
+				expected_state: ProjectStatus::AuctionRound(AuctionPhase::English),
+				metadata: default_project(inst.get_new_nonce(), ISSUER),
+				issuer: ISSUER,
+				evaluations: default_evaluations(),
+				bids: vec![],
+				community_contributions: vec![],
+				remainder_contributions: vec![],
+			},
+			TestProjectParams {
+				expected_state: ProjectStatus::CommunityRound,
+				metadata: default_project(inst.get_new_nonce(), ISSUER),
+				issuer: ISSUER,
+				evaluations: default_evaluations(),
+				bids: default_bids(),
+				community_contributions: vec![],
+				remainder_contributions: vec![],
+			},
+			TestProjectParams {
+				expected_state: ProjectStatus::RemainderRound,
+				metadata: default_project(inst.get_new_nonce(), ISSUER),
+				issuer: ISSUER,
+				evaluations: default_evaluations(),
+				bids: default_bids(),
+				community_contributions: default_community_buys(),
+				remainder_contributions: vec![],
+			},
+			TestProjectParams {
+				expected_state: ProjectStatus::FundingSuccessful,
+				metadata: default_project(inst.get_new_nonce(), ISSUER),
+				issuer: ISSUER,
+				evaluations: default_evaluations(),
+				bids: default_bids(),
+				community_contributions: default_community_buys(),
+				remainder_contributions: default_remainder_buys(),
+			},
+		];
+
+		let mut inst = create_multiple_projects_at(inst, project_params);
+
+		dbg!(inst.get_project_details(0).status);
+		dbg!(inst.get_project_details(1).status);
+		dbg!(inst.get_project_details(2).status);
+		dbg!(inst.get_project_details(3).status);
+		dbg!(inst.get_project_details(4).status);
+		dbg!(inst.get_project_details(5).status);
 	}
 }

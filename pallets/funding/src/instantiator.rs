@@ -1386,6 +1386,7 @@ impl<
 #[cfg(feature = "std")]
 pub mod async_features {
 	use super::*;
+	use crate::mock::{BlockNumber, new_test_ext};
 	use futures::FutureExt;
 	use std::{
 		collections::HashMap,
@@ -1396,6 +1397,7 @@ pub mod async_features {
 		time::Duration,
 	};
 	use tokio::{
+		runtime::Runtime,
 		sync::{Mutex, Notify},
 		time::sleep,
 	};
@@ -1420,10 +1422,10 @@ pub mod async_features {
 				break
 			}
 
-			let has_targets = block_orchestrator.advance_to_next_target(instantiator.clone()).await;
+			let maybe_target_reached = block_orchestrator.advance_to_next_target(instantiator.clone()).await;
 
-			if has_targets {
-				block_orchestrator.execute_callbacks().await;
+			if let Some(target_reached) = maybe_target_reached {
+				block_orchestrator.execute_callbacks(target_reached).await;
 			}
 			// leaves some time for the projects to submit their targets to the orchestrator
 			sleep(Duration::from_millis(100)).await;
@@ -1449,6 +1451,7 @@ pub mod async_features {
 			println!("add_awaiting_project requesting lock");
 			let mut awaiting_projects = self.awaiting_projects.lock().await;
 			println!("add_awaiting_project lock given");
+			println!("adding project to block {}", block_number);
 			awaiting_projects.entry(block_number).or_default().push(notify);
 			drop(awaiting_projects);
 		}
@@ -1456,28 +1459,33 @@ pub mod async_features {
 		pub async fn advance_to_next_target(
 			&self,
 			instantiator: Arc<Mutex<Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>>>,
-		) -> bool {
+		) -> Option<BlockNumberFor<T>> {
+			let mut inst = instantiator.lock().await;
+			let now: u32 =
+				inst.current_block().try_into().unwrap_or_else(|_| panic!("Block number should fit into u32"));
+			self.current_block.store(now, Ordering::SeqCst);
+
 			let awaiting_projects = self.awaiting_projects.lock().await;
+
 			if let Some(&next_block) = awaiting_projects.keys().min() {
 				drop(awaiting_projects);
+				println!("advancing to block {}", next_block);
 				while self.get_current_block() < next_block {
-					let mut inst = instantiator.lock().await;
 					inst.advance_time(One::one()).unwrap();
-					let now =
-						inst.current_block().try_into().unwrap_or_else(|_| panic!("Block number should fit into u32"));
-					self.current_block.store(now, Ordering::SeqCst);
+					let current_block: u32 = self.get_current_block().try_into().unwrap_or_else(|_| panic!("Block number should fit into u32"));
+					self.current_block.store(current_block + 1u32, Ordering::SeqCst);
 
-					println!("Advanced to block {}", now);
+					println!("Advanced to block {}", current_block + 1u32);
 				}
-				true
+				Some(next_block)
 			} else {
-				false
+				None
 			}
 		}
 
-		pub async fn execute_callbacks(&self) {
+		pub async fn execute_callbacks(&self, block_number: BlockNumberFor<T>) {
 			let mut awaiting_projects = self.awaiting_projects.lock().await;
-			if let Some(notifies) = awaiting_projects.remove(&self.get_current_block()) {
+			if let Some(notifies) = awaiting_projects.remove(&block_number) {
 				for notify in notifies {
 					notify.notify_one();
 				}
@@ -2260,14 +2268,175 @@ pub mod async_features {
 		}
 	}
 
-	pub async fn create_multiple_projects_at<
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
+	pub async fn async_create_project_at<
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + std::marker::Sync + std::marker::Send,
+		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>>
+			+ OnIdle<BlockNumberFor<T>>
+			+ OnInitialize<BlockNumberFor<T>>
+			+ Sync
+			+ Send
+			+ 'static,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	>(
+		mutex_inst: Arc<Mutex<Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>>>,
+		block_orchestrator: Arc<BlockOrchestrator<T, AllPalletsWithoutSystem, RuntimeEvent>>,
+		test_project_params: TestProjectParams<T>,
+	) -> ProjectIdOf<T> {
+		let time_to_new_project: BlockNumberFor<T> = Zero::zero();
+		let time_to_evaluation: BlockNumberFor<T> = time_to_new_project + Zero::zero();
+		// we immediately start the auction, so we dont wait for T::AuctionInitializePeriodDuration.
+		let time_to_auction: BlockNumberFor<T> = time_to_evaluation + <T as Config>::EvaluationDuration::get();
+		let time_to_community: BlockNumberFor<T> = time_to_auction +
+			<T as Config>::EnglishAuctionDuration::get() +
+			<T as Config>::CandleAuctionDuration::get();
+		let time_to_remainder: BlockNumberFor<T> = time_to_community + <T as Config>::CommunityFundingDuration::get();
+		let time_to_finish: BlockNumberFor<T> = time_to_remainder + <T as Config>::RemainderFundingDuration::get();
+		let now = mutex_inst.lock().await.current_block();
+
+		match test_project_params.expected_state {
+			ProjectStatus::Application => {
+				println!("application project creation requested");
+				let notify = Arc::new(Notify::new());
+				block_orchestrator
+					.add_awaiting_project(now + time_to_finish - time_to_new_project, notify.clone())
+					.await;
+				// Wait for the notification that our desired block was reached to continue
+				notify.notified().await;
+				async_create_new_project(mutex_inst.clone(), test_project_params.metadata, test_project_params.issuer)
+					.await
+			},
+			ProjectStatus::EvaluationRound => {
+				println!("evaluation project creation requested");
+				let notify = Arc::new(Notify::new());
+				block_orchestrator
+					.add_awaiting_project(now + time_to_finish - time_to_evaluation, notify.clone())
+					.await;
+				// Wait for the notification that our desired block was reached to continue
+				notify.notified().await;
+				async_create_evaluating_project(
+					mutex_inst.clone(),
+					test_project_params.metadata,
+					test_project_params.issuer,
+				)
+				.await
+			},
+			ProjectStatus::AuctionRound(_) => {
+				println!("auction project creation requested");
+				let notify = Arc::new(Notify::new());
+				block_orchestrator.add_awaiting_project(now + time_to_finish - time_to_auction, notify.clone()).await;
+				// Wait for the notification that our desired block was reached to continue
+				notify.notified().await;
+				async_create_auctioning_project(
+					mutex_inst.clone(),
+					block_orchestrator.clone(),
+					test_project_params.metadata,
+					test_project_params.issuer,
+					test_project_params.evaluations,
+				)
+				.await
+			},
+			ProjectStatus::CommunityRound => {
+				println!("community project creation requested");
+				let notify = Arc::new(Notify::new());
+				block_orchestrator.add_awaiting_project(now + time_to_finish - time_to_community, notify.clone()).await;
+				// Wait for the notification that our desired block was reached to continue
+				notify.notified().await;
+				async_create_community_contributing_project(
+					mutex_inst.clone(),
+					block_orchestrator.clone(),
+					test_project_params.metadata,
+					test_project_params.issuer,
+					test_project_params.evaluations,
+					test_project_params.bids,
+				)
+				.map(|(project_id, _)| project_id)
+				.await
+			},
+			ProjectStatus::RemainderRound => {
+				println!("remainder project creation requested");
+				let notify = Arc::new(Notify::new());
+				block_orchestrator.add_awaiting_project(now + time_to_finish - time_to_remainder, notify.clone()).await;
+				// Wait for the notification that our desired block was reached to continue
+				notify.notified().await;
+				async_create_remainder_contributing_project(
+					mutex_inst.clone(),
+					block_orchestrator.clone(),
+					test_project_params.metadata,
+					test_project_params.issuer,
+					test_project_params.evaluations,
+					test_project_params.bids,
+					test_project_params.community_contributions,
+				)
+				.map(|(project_id, _)| project_id)
+				.await
+			},
+			ProjectStatus::FundingSuccessful => {
+				println!("finished project creation requested");
+				let notify = Arc::new(Notify::new());
+				block_orchestrator.add_awaiting_project(now + time_to_finish - time_to_finish, notify.clone()).await;
+				// Wait for the notification that our desired block was reached to continue
+				notify.notified().await;
+				async_create_finished_project(
+					mutex_inst.clone(),
+					block_orchestrator.clone(),
+					test_project_params.metadata,
+					test_project_params.issuer,
+					test_project_params.evaluations,
+					test_project_params.bids,
+					test_project_params.community_contributions,
+					test_project_params.remainder_contributions,
+				)
+				.await
+			},
+			_ => unimplemented!("Unsupported project creation in that status"),
+		}
+	}
+
+	pub fn create_multiple_projects_at<
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + std::marker::Sync + std::marker::Send,
+		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>>
+			+ OnIdle<BlockNumberFor<T>>
+			+ OnInitialize<BlockNumberFor<T>>
+			+ Sync
+			+ Send
+			+ 'static,
+		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
+	>(
+		instantiator: Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>,
 		projects: Vec<TestProjectParams<T>>,
-	) {
-		todo!();
+	) -> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
+	where
+		<T as Config>::ProjectIdentifier: Send + Sync,
+		<T as Config>::Balance: Send + Sync,
+		<T as Config>::Price: Send + Sync,
+		<T as Config>::StringLimit: Send + Sync,
+		<T as Config>::Multiplier: Send + Sync,
+	{
+		let tokio_runtime = Runtime::new().unwrap();
+
+		tokio_runtime.block_on(async {
+			let block_orchestrator = Arc::new(BlockOrchestrator::new());
+			let mutex_inst = Arc::new(Mutex::new(instantiator));
+
+			let project_futures = projects.into_iter().map(|project| {
+				let block_orchestrator = block_orchestrator.clone();
+				let mutex_inst = mutex_inst.clone();
+				tokio::spawn(async { async_create_project_at(mutex_inst, block_orchestrator, project).await })
+			});
+
+			// Wait for all project creation tasks to complete
+			let joined_project_futures = futures::future::join_all(project_futures);
+			let controller_handle = tokio::spawn(block_controller(block_orchestrator.clone(), mutex_inst.clone()));
+			joined_project_futures.await;
+
+			// Now that all projects have been set up, signal the block_controller to stop
+			block_orchestrator.should_continue.store(false, Ordering::SeqCst);
+
+			// Wait for the block controller to finish
+			controller_handle.await.unwrap();
+
+			Arc::try_unwrap(mutex_inst).unwrap_or_else(|_| panic!("mutex in use")).into_inner()
+		})
 	}
 }
 
