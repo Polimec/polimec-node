@@ -25,7 +25,7 @@ extern crate frame_benchmarking;
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::Everything,
+	traits::Contains,
 	weights::{ConstantMultiplier, Weight},
 };
 use frame_system::EnsureRoot;
@@ -182,6 +182,25 @@ parameter_types! {
 	pub const SS58Prefix: u16 = 41;
 }
 
+pub struct BaseCallFilter;
+impl Contains<RuntimeCall> for BaseCallFilter {
+	fn contains(c: &RuntimeCall) -> bool {
+		use pallet_balances::Call::*;
+		match c {
+			RuntimeCall::Balances(inner_call) => {
+				match inner_call {
+					transfer{ .. } => false,
+					transfer_all {..} => false,
+					transfer_keep_alive {..} => false,
+					transfer_allow_death {..} => false,
+					_ => true,
+				}
+			}
+			_ => true,
+		}
+	}
+}
+
 // Configure FRAME pallets to include in runtime.
 
 impl frame_system::Config for Runtime {
@@ -190,7 +209,7 @@ impl frame_system::Config for Runtime {
 	/// The identifier used to distinguish between accounts.
 	type AccountId = AccountId;
 	/// The basic call filter to use in dispatchable.
-	type BaseCallFilter = Everything;
+	type BaseCallFilter = BaseCallFilter;
 	/// The block type.
 	type Block = Block;
 	/// Maximum number of block number to block hash mappings to keep (oldest pruned first).
