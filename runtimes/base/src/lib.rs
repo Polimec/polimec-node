@@ -119,18 +119,24 @@ pub type Migrations = migrations::Unreleased;
 /// The runtime migrations per release.
 #[allow(missing_docs)]
 pub mod migrations {
-    use super::*;
-    /// Unreleased migrations. Add new ones here:
-    pub type Unreleased = (
+	use super::*;
+	/// Unreleased migrations. Add new ones here:
+	pub type Unreleased = (
 		cumulus_pallet_xcmp_queue::migration::Migration<Runtime>,
 		cumulus_pallet_dmp_queue::migration::Migration<Runtime>,
 		pallet_multisig::migrations::v1::MigrateToV1<Runtime>,
-    );
+	);
 }
 
 /// Executive: handles dispatch to the various modules.
-pub type Executive =
-	frame_executive::Executive<Runtime, Block, frame_system::ChainContext<Runtime>, Runtime, AllPalletsWithSystem, Migrations>;
+pub type Executive = frame_executive::Executive<
+	Runtime,
+	Block,
+	frame_system::ChainContext<Runtime>,
+	Runtime,
+	AllPalletsWithSystem,
+	Migrations,
+>;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -188,15 +194,13 @@ impl Contains<RuntimeCall> for BaseCallFilter {
 	fn contains(c: &RuntimeCall) -> bool {
 		use pallet_balances::Call::*;
 		match c {
-			RuntimeCall::Balances(inner_call) => {
-				match inner_call {
-					transfer{ .. } => false,
-					transfer_all {..} => false,
-					transfer_keep_alive {..} => false,
-					transfer_allow_death {..} => false,
-					_ => true,
-				}
-			}
+			RuntimeCall::Balances(inner_call) => match inner_call {
+				transfer { .. } => false,
+				transfer_all { .. } => false,
+				transfer_keep_alive { .. } => false,
+				transfer_allow_death { .. } => false,
+				_ => true,
+			},
 			_ => true,
 		}
 	}
@@ -408,18 +412,18 @@ impl pallet_multisig::Config for Runtime {
 }
 
 impl pallet_proxy::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type RuntimeCall = RuntimeCall;
-	type Currency = Balances;
-	type ProxyType = ProxyType;
-	type ProxyDepositBase = ProxyDepositBase;
-	type ProxyDepositFactor = ProxyDepositFactor;
-	type MaxProxies = MaxProxies;
-	type WeightInfo = ();
-	type MaxPending = MaxPending;
-	type CallHasher = BlakeTwo256;
 	type AnnouncementDepositBase = AnnouncementDepositBase;
 	type AnnouncementDepositFactor = AnnouncementDepositFactor;
+	type CallHasher = BlakeTwo256;
+	type Currency = Balances;
+	type MaxPending = MaxPending;
+	type MaxProxies = MaxProxies;
+	type ProxyDepositBase = ProxyDepositBase;
+	type ProxyDepositFactor = ProxyDepositFactor;
+	type ProxyType = ProxyType;
+	type RuntimeCall = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
