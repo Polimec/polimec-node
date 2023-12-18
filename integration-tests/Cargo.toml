@@ -31,6 +31,7 @@ sp-core.workspace = true
 sp-runtime.workspace = true
 sp-io.workspace = true
 pallet-funding.workspace = true
+pallet-linear-release.workspace = true
 xcm.workspace = true
 xcm-emulator.workspace = true
 xcm-executor.workspace = true
@@ -113,7 +114,8 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
-	"itertools/use_std"
+	"itertools/use_std",
+	"pallet-linear-release/std"
 ]
 
 runtime-benchmarks = [
@@ -145,6 +147,7 @@ runtime-benchmarks = [
 	"xcm-executor/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
 	"itertools/use_alloc",
+	"pallet-linear-release/runtime-benchmarks"
 ]
 testing-node = [
 	"pallet-funding/testing-node",
@@ -156,6 +159,26 @@ try-runtime = [
 	"polimec-parachain-runtime/try-runtime",
 	"polimec-receiver/try-runtime",
 	"polimec-traits/try-runtime",
+	"asset-hub-polkadot-runtime/try-runtime",
+	"cumulus-pallet-xcm/try-runtime",
+	"cumulus-pallet-xcmp-queue/try-runtime",
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"orml-oracle/try-runtime",
+	"pallet-assets/try-runtime",
+	"pallet-balances/try-runtime",
+	"pallet-im-online/try-runtime",
+	"pallet-linear-release/try-runtime",
+	"pallet-membership/try-runtime",
+	"pallet-message-queue/try-runtime",
+	"pallet-staking/try-runtime",
+	"pallet-vesting/try-runtime",
+	"pallet-xcm/try-runtime",
+	"parachain-info/try-runtime",
+	"polkadot-runtime/try-runtime",
+	"polkadot-runtime-parachains/try-runtime",
+	"polkadot-service/try-runtime",
+	"sp-runtime/try-runtime"
 ]
 fast-gov = [ "polimec-parachain-runtime/fast-gov" ]
 

@@ -42,4 +42,8 @@ runtime-benchmarks = [
 	"pallet-funding/runtime-benchmarks",
 ]
 testing-node = [ "pallet-funding/testing-node" ]
-try-runtime = [ "pallet-funding/try-runtime" ]
+try-runtime = [
+	"pallet-funding/try-runtime",
+	"frame-support/try-runtime",
+	"frame-system/try-runtime"
+]
