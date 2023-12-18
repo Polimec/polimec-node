@@ -71,13 +71,13 @@ use pallet_funding::{BondTypeOf, DaysToBlocks};
 pub use pallet_parachain_staking;
 pub use shared_configuration::*;
 
-#[cfg(feature = "runtime-benchmarks")]
+#[cfg(any(feature = "runtime-benchmarks", feature = "testing-node"))]
 use pallet_funding::AcceptedFundingAsset;
 
-#[cfg(feature = "runtime-benchmarks")]
+#[cfg(any(feature = "runtime-benchmarks", feature = "testing-node"))]
 use frame_support::BoundedVec;
 
-#[cfg(feature = "runtime-benchmarks")]
+#[cfg(any(feature = "runtime-benchmarks", feature = "testing-node"))]
 use pallet_funding::traits::SetPrices;
 
 pub type NegativeImbalanceOf<T> =
@@ -145,9 +145,9 @@ pub fn native_version() -> NativeVersion {
 	NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
 }
 
-#[cfg(feature = "runtime-benchmarks")]
+#[cfg(any(feature = "runtime-benchmarks", feature = "testing-node"))]
 pub struct SetOraclePrices;
-#[cfg(feature = "runtime-benchmarks")]
+#[cfg(any(feature = "runtime-benchmarks", feature = "testing-node"))]
 impl SetPrices for SetOraclePrices {
 	fn set_prices() {
 		let dot = (AcceptedFundingAsset::DOT.to_statemint_id(), FixedU128::from_rational(69, 1));
@@ -551,7 +551,8 @@ impl ConvertBack<AccountId, [u8; 32]> for ConvertSelf {
 }
 impl pallet_funding::Config for Runtime {
 	type AccountId32Conversion = ConvertSelf;
-	type AllPalletsWithoutSystem = (Balances, LocalAssets, StatemintAssets, PolimecFunding, LinearVesting, Random);
+	type AllPalletsWithoutSystem =
+		(Balances, LocalAssets, StatemintAssets, Oracle, PolimecFunding, LinearVesting, Random);
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;
 	type BlockNumber = BlockNumber;
@@ -589,7 +590,7 @@ impl pallet_funding::Config for Runtime {
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
-	#[cfg(feature = "runtime-benchmarks")]
+	#[cfg(any(feature = "runtime-benchmarks", feature = "testing-node"))]
 	type SetPrices = SetOraclePrices;
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
@@ -705,6 +706,9 @@ construct_runtime!(
 		AuraExt: cumulus_pallet_aura_ext::{Pallet, Storage, Config<T>} = 24,
 		ParachainStaking: pallet_parachain_staking::{Pallet, Call, Storage, Event<T>, Config<T>} = 25,
 
+		// Oracle
+		Oracle: orml_oracle::<Instance1> = 30,
+		OracleProvidersMembership: pallet_membership::<Instance1> = 31,
 
 		// Governance
 		Treasury: pallet_treasury = 40,
@@ -721,9 +725,7 @@ construct_runtime!(
 		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 61,
 		Random: pallet_insecure_randomness_collective_flip = 62,
 
-		// Oracle
-		Oracle: orml_oracle::<Instance1> = 70,
-		OracleProvidersMembership: pallet_membership::<Instance1> = 71,
+
 
 		// Among others: Send and receive DMP and XCMP messages.
 		ParachainSystem: cumulus_pallet_parachain_system = 80,

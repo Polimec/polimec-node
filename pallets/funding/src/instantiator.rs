@@ -264,7 +264,6 @@ impl<
 		for UserToPLMCBalance { account, plmc_amount } in correct_funds {
 			self.execute(|| {
 				let free = <T as Config>::NativeCurrency::balance(&account);
-				println!("account: {:?}, free: {:?}, plmc_amount: {:?}", account, free, plmc_amount);
 				assert_eq!(free, plmc_amount);
 			});
 		}

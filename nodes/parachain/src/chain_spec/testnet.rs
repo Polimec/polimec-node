@@ -279,10 +279,12 @@ use sp_runtime::BoundedVec;
 #[cfg(all(feature = "testing-node", feature = "std"))]
 mod testing_helpers {
 	use super::*;
+	use frame_benchmarking::frame_support::assert_ok;
 	use macros::generate_accounts;
-	use polimec_parachain_runtime::AccountId;
+	use polimec_parachain_runtime::{AccountId, FixedU128};
 	use sp_core::H256;
 	use sp_runtime::traits::ConstU32;
+	use std::collections::HashMap;
 
 	pub const METADATA: &str = r#"METADATA
             {
@@ -296,9 +298,10 @@ mod testing_helpers {
 	pub const ASSET_UNIT: u128 = 10_u128.pow(10 as u32);
 
 	generate_accounts!(
-		ISSUER, EVAL_1, EVAL_2, EVAL_3, EVAL_4, BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5, BIDDER_6, BUYER_1,
-		BUYER_2, BUYER_3, BUYER_4, BUYER_5, BUYER_6,
+		ALICE, BOB, CHARLIE, ISSUER, EVAL_1, EVAL_2, EVAL_3, EVAL_4, BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5,
+		BIDDER_6, BUYER_1, BUYER_2, BUYER_3, BUYER_4, BUYER_5, BUYER_6,
 	);
+
 	pub fn bounded_name() -> BoundedVec<u8, ConstU32<64>> {
 		BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap()
 	}
@@ -381,6 +384,7 @@ fn testing_genesis(
 	sudo_account: AccountId,
 	id: ParaId,
 ) -> RuntimeGenesisConfig {
+	use instantiator::TestProjectParams;
 	use sp_runtime::{traits::PhantomData, FixedPointNumber, Perquintill};
 	use testing_helpers::*;
 
@@ -389,7 +393,10 @@ fn testing_genesis(
 	let project_metadata = default_project(ISSUER.into(), 0u32);
 	let min_price = project_metadata.minimum_price;
 	let twenty_percent_funding_usd = Perquintill::from_percent(funding_percent) *
-		(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size.0).unwrap());
+		(project_metadata
+			.minimum_price
+			.checked_mul_int(project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1)
+			.unwrap());
 	let evaluations = default_evaluations();
 	let bids = GenesisInstantiator::generate_bids_from_total_usd(
 		Percent::from_percent(50u8) * twenty_percent_funding_usd,
@@ -412,25 +419,76 @@ fn testing_genesis(
 		default_remainder_contributors(),
 		default_remainder_contributor_multipliers(),
 	);
-	let test_balance = 5 * MinCandidateStk::get();
-	// for account in all_testing_accounts() {
-	// 	endowed_accounts.push((account, test_balance));
-	// }
 
 	let accounts = endowed_accounts.iter().map(|(account, _)| account.clone()).collect::<Vec<_>>();
 	endowed_accounts.push((<Runtime as Config>::PalletId::get().into_account_truncating(), EXISTENTIAL_DEPOSIT));
 	RuntimeGenesisConfig {
 		system: SystemConfig { code: wasm_binary.to_vec(), ..Default::default() },
+		oracle_providers_membership: OracleProvidersMembershipConfig {
+			members: bounded_vec![
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				get_account_id_from_seed::<sr25519::Public>("Bob"),
+				get_account_id_from_seed::<sr25519::Public>("Charlie"),
+			],
+			phantom: Default::default(),
+		},
 		polimec_funding: polimec_parachain_runtime::PolimecFundingConfig {
-			starting_projects: vec![instantiator::TestProjectParams::<Runtime> {
-				expected_state: ProjectStatus::FundingSuccessful,
-				metadata: default_project(ISSUER.into(), 0u32),
-				issuer: ISSUER.into(),
-				evaluations,
-				bids,
-				community_contributions,
-				remainder_contributions,
-			}],
+			starting_projects: vec![
+				TestProjectParams::<Runtime> {
+					expected_state: ProjectStatus::FundingSuccessful,
+					metadata: default_project(ISSUER.into(), 0u32),
+					issuer: ISSUER.into(),
+					evaluations: evaluations.clone(),
+					bids: bids.clone(),
+					community_contributions: community_contributions.clone(),
+					remainder_contributions: remainder_contributions.clone(),
+				},
+				TestProjectParams::<Runtime> {
+					expected_state: ProjectStatus::RemainderRound,
+					metadata: default_project(ISSUER.into(), 1u32),
+					issuer: ISSUER.into(),
+					evaluations: evaluations.clone(),
+					bids: bids.clone(),
+					community_contributions: community_contributions.clone(),
+					remainder_contributions: vec![],
+				},
+				TestProjectParams::<Runtime> {
+					expected_state: ProjectStatus::CommunityRound,
+					metadata: default_project(ISSUER.into(), 2u32),
+					issuer: ISSUER.into(),
+					evaluations: evaluations.clone(),
+					bids: bids.clone(),
+					community_contributions: vec![],
+					remainder_contributions: vec![],
+				},
+				TestProjectParams::<Runtime> {
+					expected_state: ProjectStatus::AuctionRound(AuctionPhase::English),
+					metadata: default_project(ISSUER.into(), 3u32),
+					issuer: ISSUER.into(),
+					evaluations: evaluations.clone(),
+					bids: vec![],
+					community_contributions: vec![],
+					remainder_contributions: vec![],
+				},
+				TestProjectParams::<Runtime> {
+					expected_state: ProjectStatus::EvaluationRound,
+					metadata: default_project(ISSUER.into(), 4u32),
+					issuer: ISSUER.into(),
+					evaluations: vec![],
+					bids: vec![],
+					community_contributions: vec![],
+					remainder_contributions: vec![],
+				},
+				TestProjectParams::<Runtime> {
+					expected_state: ProjectStatus::Application,
+					metadata: default_project(ISSUER.into(), 5u32),
+					issuer: ISSUER.into(),
+					evaluations: vec![],
+					bids: vec![],
+					community_contributions: vec![],
+					remainder_contributions: vec![],
+				},
+			],
 			phantom: PhantomData,
 		},
 		balances: BalancesConfig { balances: endowed_accounts.clone() },
@@ -478,13 +536,5 @@ fn testing_genesis(
 		technical_committee: TechnicalCommitteeConfig { members: accounts, phantom: Default::default() },
 		democracy: Default::default(),
 		linear_vesting: LinearVestingConfig { vesting: vec![] },
-		oracle_providers_membership: OracleProvidersMembershipConfig {
-			members: bounded_vec![
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-				get_account_id_from_seed::<sr25519::Public>("Bob"),
-				get_account_id_from_seed::<sr25519::Public>("Charlie"),
-			],
-			phantom: Default::default(),
-		},
 	}
 }

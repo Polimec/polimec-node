@@ -24,7 +24,11 @@ fn values(
 
 #[test]
 fn members_can_feed_data() {
+	let mut inst = IntegrationInstantiator::new(None);
+
 	Polimec::execute_with(|| {
+		// pallet_funding genesis builder already inputs prices, so we need to advance one block to feed new values.
+		inst.advance_time(1u32);
 		let alice = Polimec::account_id_of(ALICE);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.clone()), values([4.84, 1.0, 1.0, 0.4])));
 
@@ -61,7 +65,11 @@ fn non_members_cannot_feed_data() {
 
 #[test]
 fn data_is_correctly_combined() {
+	let mut inst = IntegrationInstantiator::new(None);
 	Polimec::execute_with(|| {
+		// pallet_funding genesis builder already inputs prices, so we need to advance one block to feed new values.
+		inst.advance_time(1u32);
+
 		let alice = Polimec::account_id_of(ALICE);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.clone()), values([1.0, 1.5, 1.1, 0.11111])));
 
@@ -91,6 +99,9 @@ fn pallet_funding_works() {
 	let mut inst = IntegrationInstantiator::new(None);
 
 	Polimec::execute_with(|| {
+		// pallet_funding genesis builder already inputs prices, so we need to advance one block to feed new values.
+		inst.advance_time(1u32);
+
 		let alice = Polimec::account_id_of(ALICE);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.clone()), values([4.84, 1.0, 1.0, 0.4])));
 

@@ -24,12 +24,12 @@ pub trait DoRemainingOperation<T: Config> {
 	fn do_one_operation(&mut self, project_id: T::ProjectIdentifier) -> Result<Weight, DispatchError>;
 }
 
-#[cfg(feature = "runtime-benchmarks")]
+#[cfg(any(feature = "runtime-benchmarks", feature = "testing-node"))]
 pub trait SetPrices {
 	fn set_prices();
 }
 
-#[cfg(feature = "runtime-benchmarks")]
+#[cfg(any(feature = "runtime-benchmarks", feature = "testing-node"))]
 impl SetPrices for () {
 	fn set_prices() {}
 }

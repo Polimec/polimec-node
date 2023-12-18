@@ -269,6 +269,9 @@ pub mod pallet {
 
 	use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
 
+	#[cfg(any(feature = "runtime-benchmarks", feature = "testing-node"))]
+	use crate::traits::SetPrices;
+
 	use super::*;
 
 	#[pallet::pallet]
@@ -278,8 +281,8 @@ pub mod pallet {
 	pub trait Config:
 		frame_system::Config + pallet_balances::Config<Balance = BalanceOf<Self>> + pallet_xcm::Config
 	{
-		#[cfg(feature = "runtime-benchmarks")]
-		type SetPrices: traits::SetPrices;
+		#[cfg(any(feature = "runtime-benchmarks", feature = "testing-node"))]
+		type SetPrices: SetPrices;
 
 		type AllPalletsWithoutSystem: frame_support::traits::OnFinalize<BlockNumberFor<Self>>
 			+ frame_support::traits::OnIdle<BlockNumberFor<Self>>
@@ -1351,6 +1354,7 @@ pub mod pallet {
 		}
 	}
 
+	use crate::instantiator::async_features::create_multiple_projects_at;
 	#[cfg(all(feature = "testing-node", feature = "std"))]
 	use crate::instantiator::TestProjectParams;
 	#[cfg(all(feature = "testing-node", feature = "std"))]
@@ -1391,46 +1395,51 @@ pub mod pallet {
 	}
 
 	#[cfg(all(feature = "testing-node", feature = "std"))]
-	impl<T: Config> BuildGenesisConfig for GenesisConfig<T>
+	impl<T: Config + Sync + Send> BuildGenesisConfig for GenesisConfig<T>
 	where
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		<T as Config>::AllPalletsWithoutSystem:
-			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + Sync + Send,
+		<T as Config>::AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>>
+			+ OnIdle<BlockNumberFor<T>>
+			+ OnInitialize<BlockNumberFor<T>>
+			+ Sync
+			+ Send
+			+ 'static,
 		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 		// AccountIdOf<T>: Into<<instantiator::RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
+		<T as Config>::ProjectIdentifier: Send + Sync,
+		<T as Config>::Balance: Send + Sync,
+		<T as Config>::Price: Send + Sync,
+		<T as Config>::StringLimit: Send + Sync,
+		<T as Config>::Multiplier: Send + Sync,
 	{
 		fn build(&self) {
 			{
 				type GenesisInstantiator<T> =
 					instantiator::Instantiator<T, <T as Config>::AllPalletsWithoutSystem, <T as Config>::RuntimeEvent>;
 				let mut inst = GenesisInstantiator::<T>::new(None);
-
-				for test_project in self.starting_projects.clone() {
-					inst.create_project_at(
-						test_project.expected_state,
-						test_project.metadata,
-						test_project.issuer,
-						test_project.evaluations,
-						test_project.bids,
-						test_project.community_contributions,
-						test_project.remainder_contributions,
-					);
-				}
+				<T as Config>::SetPrices::set_prices();
+				create_multiple_projects_at(inst, self.starting_projects.clone());
 			}
 		}
 	}
 	#[cfg(all(feature = "testing-node", feature = "std"))]
 	impl<T: Config> GenesisConfig<T>
 	where
-		T: Config
-			+ frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent>
-			+ pallet_balances::Config<Balance = BalanceOf<T>>,
-		T::AllPalletsWithoutSystem:
-			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + Sync + Send,
+		<T as Config>::AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>>
+			+ OnIdle<BlockNumberFor<T>>
+			+ OnInitialize<BlockNumberFor<T>>
+			+ Sync
+			+ Send
+			+ 'static,
 		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
-		AccountIdOf<T>: Into<<instantiator::RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
+		<T as Config>::ProjectIdentifier: Send + Sync,
+		<T as Config>::Balance: Send + Sync,
+		<T as Config>::Price: Send + Sync,
+		<T as Config>::StringLimit: Send + Sync,
+		<T as Config>::Multiplier: Send + Sync,
 	{
 		/// Direct implementation of `GenesisBuild::build_storage`.
 		///
