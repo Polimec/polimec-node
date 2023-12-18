@@ -279,9 +279,11 @@ use sp_runtime::BoundedVec;
 #[cfg(all(feature = "testing-node", feature = "std"))]
 mod testing_helpers {
 	use super::*;
+	use macros::generate_accounts;
 	use polimec_parachain_runtime::AccountId;
 	use sp_core::H256;
 	use sp_runtime::traits::ConstU32;
+
 	pub const METADATA: &str = r#"METADATA
             {
                 "whitepaper":"ipfs_url",
@@ -293,66 +295,10 @@ mod testing_helpers {
 	pub const ASSET_DECIMALS: u8 = 10;
 	pub const ASSET_UNIT: u128 = 10_u128.pow(10 as u32);
 
-	pub fn issuer() -> AccountId {
-		get_account_id_from_seed::<sr25519::Public>("issuer")
-	}
-	pub fn eval_1() -> AccountId {
-		get_account_id_from_seed::<sr25519::Public>("eval_1")
-	}
-	pub fn eval_2() -> AccountId {
-		get_account_id_from_seed::<sr25519::Public>("eval_2")
-	}
-	pub fn eval_3() -> AccountId {
-		get_account_id_from_seed::<sr25519::Public>("eval_3")
-	}
-	pub fn bidder_1() -> AccountId {
-		get_account_id_from_seed::<sr25519::Public>("bidder_1")
-	}
-	pub fn bidder_2() -> AccountId {
-		get_account_id_from_seed::<sr25519::Public>("bidder_2")
-	}
-	pub fn bidder_3() -> AccountId {
-		get_account_id_from_seed::<sr25519::Public>("bidder_3")
-	}
-	pub fn bidder_4() -> AccountId {
-		get_account_id_from_seed::<sr25519::Public>("bidder_4")
-	}
-	pub fn bidder_5() -> AccountId {
-		get_account_id_from_seed::<sr25519::Public>("bidder_5")
-	}
-	pub fn buyer_1() -> AccountId {
-		get_account_id_from_seed::<sr25519::Public>("buyer_1")
-	}
-	pub fn buyer_2() -> AccountId {
-		get_account_id_from_seed::<sr25519::Public>("buyer_2")
-	}
-	pub fn buyer_3() -> AccountId {
-		get_account_id_from_seed::<sr25519::Public>("buyer_3")
-	}
-	pub fn buyer_4() -> AccountId {
-		get_account_id_from_seed::<sr25519::Public>("buyer_4")
-	}
-	pub fn buyer_5() -> AccountId {
-		get_account_id_from_seed::<sr25519::Public>("buyer_5")
-	}
-	pub fn all_testing_accounts() -> Vec<AccountId> {
-		vec![
-			issuer(),
-			eval_1(),
-			eval_2(),
-			eval_3(),
-			bidder_1(),
-			bidder_2(),
-			bidder_3(),
-			bidder_4(),
-			bidder_5(),
-			buyer_1(),
-			buyer_2(),
-			buyer_3(),
-			buyer_4(),
-			buyer_5(),
-		]
-	}
+	generate_accounts!(
+		ISSUER, EVAL_1, EVAL_2, EVAL_3, EVAL_4, BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5, BIDDER_6, BUYER_1,
+		BUYER_2, BUYER_3, BUYER_4, BUYER_5, BUYER_6,
+	);
 	pub fn bounded_name() -> BoundedVec<u8, ConstU32<64>> {
 		BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap()
 	}
@@ -387,17 +333,30 @@ mod testing_helpers {
 	}
 	pub fn default_evaluations() -> Vec<UserToUSDBalance<polimec_parachain_runtime::Runtime>> {
 		vec![
-			UserToUSDBalance::new(eval_1(), 50_000 * PLMC),
-			UserToUSDBalance::new(eval_2(), 25_000 * PLMC),
-			UserToUSDBalance::new(eval_3(), 32_000 * PLMC),
+			UserToUSDBalance::new(EVAL_1.into(), 50_000 * PLMC),
+			UserToUSDBalance::new(EVAL_2.into(), 25_000 * PLMC),
+			UserToUSDBalance::new(EVAL_3.into(), 32_000 * PLMC),
 		]
 	}
 	pub fn default_bidders() -> Vec<AccountId> {
-		vec![bidder_1(), bidder_2(), bidder_3(), bidder_4(), bidder_5()]
+		vec![BIDDER_1.into(), BIDDER_2.into(), BIDDER_3.into(), BIDDER_4.into(), BIDDER_5.into()]
+	}
+	pub fn default_bidder_multipliers() -> Vec<u8> {
+		vec![20u8, 3u8, 15u8, 13u8, 9u8]
+	}
+	pub fn default_community_contributor_multipliers() -> Vec<u8> {
+		vec![1u8, 5u8, 3u8, 1u8, 2u8]
+	}
+	pub fn default_remainder_contributor_multipliers() -> Vec<u8> {
+		vec![1u8, 10u8, 3u8, 2u8, 4u8]
 	}
 
-	pub fn default_contributors() -> Vec<AccountId> {
-		vec![buyer_1(), buyer_2(), buyer_3(), buyer_4(), buyer_5()]
+	pub fn default_community_contributors() -> Vec<AccountId> {
+		vec![BUYER_1.into(), BUYER_2.into(), BUYER_3.into(), BUYER_4.into(), BUYER_5.into()]
+	}
+
+	pub fn default_remainder_contributors() -> Vec<AccountId> {
+		vec![EVAL_1.into(), BIDDER_3.into(), BUYER_4.into(), BUYER_6.into(), BIDDER_6.into()]
 	}
 	pub fn hashed(data: impl AsRef<[u8]>) -> sp_core::H256 {
 		<sp_runtime::traits::BlakeTwo256 as sp_runtime::traits::Hash>::hash(data.as_ref())
@@ -421,13 +380,13 @@ fn testing_genesis(
 	mut endowed_accounts: Vec<(AccountId, Balance)>,
 	sudo_account: AccountId,
 	id: ParaId,
-) -> GenesisConfig {
+) -> RuntimeGenesisConfig {
 	use sp_runtime::{traits::PhantomData, FixedPointNumber, Perquintill};
 	use testing_helpers::*;
 
 	// only used to generate some values, and not for chain interactions
 	let funding_percent = 93u64;
-	let project_metadata = default_project(issuer(), 69u32);
+	let project_metadata = default_project(ISSUER.into(), 0u32);
 	let min_price = project_metadata.minimum_price;
 	let twenty_percent_funding_usd = Perquintill::from_percent(funding_percent) *
 		(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size.0).unwrap());
@@ -437,32 +396,40 @@ fn testing_genesis(
 		min_price,
 		default_weights(),
 		default_bidders(),
+		default_bidder_multipliers(),
 	);
-	let contributions = GenesisInstantiator::generate_contributions_from_total_usd(
-		Percent::from_percent(50u8) * twenty_percent_funding_usd,
+	let community_contributions = GenesisInstantiator::generate_contributions_from_total_usd(
+		Percent::from_percent(30u8) * twenty_percent_funding_usd,
 		min_price,
 		default_weights(),
-		default_contributors(),
+		default_community_contributors(),
+		default_community_contributor_multipliers(),
+	);
+	let remainder_contributions = GenesisInstantiator::generate_contributions_from_total_usd(
+		Percent::from_percent(30u8) * twenty_percent_funding_usd,
+		min_price,
+		default_weights(),
+		default_remainder_contributors(),
+		default_remainder_contributor_multipliers(),
 	);
 	let test_balance = 5 * MinCandidateStk::get();
-	for account in all_testing_accounts() {
-		endowed_accounts.push((account, test_balance));
-	}
+	// for account in all_testing_accounts() {
+	// 	endowed_accounts.push((account, test_balance));
+	// }
 
 	let accounts = endowed_accounts.iter().map(|(account, _)| account.clone()).collect::<Vec<_>>();
-	endowed_accounts
-		.push((<Runtime as pallet_funding::Config>::PalletId::get().into_account_truncating(), EXISTENTIAL_DEPOSIT));
-	GenesisConfig {
+	endowed_accounts.push((<Runtime as Config>::PalletId::get().into_account_truncating(), EXISTENTIAL_DEPOSIT));
+	RuntimeGenesisConfig {
 		system: SystemConfig { code: wasm_binary.to_vec(), ..Default::default() },
 		polimec_funding: polimec_parachain_runtime::PolimecFundingConfig {
-			starting_projects: vec![pallet_funding::TestProject::<polimec_parachain_runtime::Runtime> {
+			starting_projects: vec![instantiator::TestProjectParams::<Runtime> {
 				expected_state: ProjectStatus::FundingSuccessful,
-				metadata: project_metadata,
-				issuer: issuer(),
+				metadata: default_project(ISSUER.into(), 0u32),
+				issuer: ISSUER.into(),
 				evaluations,
 				bids,
-				community_contributions: contributions,
-				remainder_contributions: vec![],
+				community_contributions,
+				remainder_contributions,
 			}],
 			phantom: PhantomData,
 		},
@@ -477,12 +444,9 @@ fn testing_genesis(
 			metadata: vec![],
 			accounts: vec![],
 		},
-		parachain_info: ParachainInfoConfig { parachain_id: id },
+		parachain_info: ParachainInfoConfig { parachain_id: id, ..Default::default() },
 		parachain_staking: ParachainStakingConfig {
-			candidates: stakers
-				.iter()
-				.map(|(accunt, _, balance)| (accunt.clone(), balance.clone()))
-				.collect::<Vec<_>>(),
+			candidates: stakers.iter().map(|(accunt, _, balance)| (accunt.clone(), *balance)).collect::<Vec<_>>(),
 			inflation_config,
 			delegations: vec![],
 			collator_commission: COLLATOR_COMMISSION,
@@ -507,12 +471,20 @@ fn testing_genesis(
 				})
 				.collect::<Vec<_>>(),
 		},
-		polkadot_xcm: PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION) },
+		polkadot_xcm: PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION), ..Default::default() },
 		treasury: Default::default(),
 		sudo: SudoConfig { key: Some(sudo_account) },
 		council: CouncilConfig { members: accounts.clone(), phantom: Default::default() },
-		technical_committee: TechnicalCommitteeConfig { members: accounts.clone(), phantom: Default::default() },
+		technical_committee: TechnicalCommitteeConfig { members: accounts, phantom: Default::default() },
 		democracy: Default::default(),
 		linear_vesting: LinearVestingConfig { vesting: vec![] },
+		oracle_providers_membership: OracleProvidersMembershipConfig {
+			members: bounded_vec![
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				get_account_id_from_seed::<sr25519::Public>("Bob"),
+				get_account_id_from_seed::<sr25519::Public>("Charlie"),
+			],
+			phantom: Default::default(),
+		},
 	}
 }

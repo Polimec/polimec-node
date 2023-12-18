@@ -1386,7 +1386,6 @@ impl<
 #[cfg(feature = "std")]
 pub mod async_features {
 	use super::*;
-	use crate::mock::{BlockNumber, new_test_ext};
 	use futures::FutureExt;
 	use std::{
 		collections::HashMap,
@@ -1472,7 +1471,10 @@ pub mod async_features {
 				println!("advancing to block {}", next_block);
 				while self.get_current_block() < next_block {
 					inst.advance_time(One::one()).unwrap();
-					let current_block: u32 = self.get_current_block().try_into().unwrap_or_else(|_| panic!("Block number should fit into u32"));
+					let current_block: u32 = self
+						.get_current_block()
+						.try_into()
+						.unwrap_or_else(|_| panic!("Block number should fit into u32"));
 					self.current_block.store(current_block + 1u32, Ordering::SeqCst);
 
 					println!("Advanced to block {}", current_block + 1u32);

@@ -1352,13 +1352,15 @@ pub mod pallet {
 	}
 
 	#[cfg(all(feature = "testing-node", feature = "std"))]
+	use crate::instantiator::TestProjectParams;
+	#[cfg(all(feature = "testing-node", feature = "std"))]
 	use frame_support::traits::{OnFinalize, OnIdle, OnInitialize, OriginTrait};
 	use pallet_xcm::ensure_response;
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
 		#[cfg(all(feature = "testing-node", feature = "std"))]
-		pub starting_projects: Vec<TestProject<T>>,
+		pub starting_projects: Vec<TestProjectParams<T>>,
 		pub phantom: PhantomData<T>,
 	}
 

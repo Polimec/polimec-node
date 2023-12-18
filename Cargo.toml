@@ -5,8 +5,8 @@ members = [
     "pallets/*",
     "integration-tests",
     "integration-tests/penpal",
-    "integration-tests/macros",
-    "integration-tests/macros/tests",
+    "macros",
+    "macros/tests",
     "polimec-common",
 ]
 
@@ -61,8 +61,8 @@ polimec-xcm-executor = { path = "pallets/xcm-executor", default-features = false
 polimec-receiver = { path = "pallets/polimec-receiver", default-features = false }
 
 # Internal macros
-macros = { path = "integration-tests/macros" }
-macros-tests = { path = "integration-tests/macros/tests" }
+macros = { path = "macros" }
+macros-tests = { path = "macros/tests" }
 
 
 # External pallets (with default disabled)

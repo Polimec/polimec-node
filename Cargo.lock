@@ -7434,6 +7434,7 @@ dependencies = [
  "hex-literal 0.3.4",
  "jsonrpsee",
  "log",
+ "macros",
  "pallet-funding",
  "pallet-transaction-payment-rpc",
  "parachains-common",
