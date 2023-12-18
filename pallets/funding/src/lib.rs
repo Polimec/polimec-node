@@ -264,6 +264,9 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use sp_arithmetic::Percent;
 	use sp_runtime::traits::{Convert, ConvertBack};
+	use frame_support::traits::OnFinalize;
+	use frame_support::traits::OnIdle;
+	use frame_support::traits::OnInitialize;
 
 	use local_macros::*;
 
@@ -279,14 +282,16 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config + pallet_balances::Config<Balance = BalanceOf<Self>> + pallet_xcm::Config
+		frame_system::Config + pallet_balances::Config<Balance = BalanceOf<Self>> + pallet_xcm::Config + Send + Sync
 	{
 		#[cfg(any(feature = "runtime-benchmarks", feature = "testing-node"))]
 		type SetPrices: SetPrices;
 
-		type AllPalletsWithoutSystem: frame_support::traits::OnFinalize<BlockNumberFor<Self>>
-			+ frame_support::traits::OnIdle<BlockNumberFor<Self>>
-			+ frame_support::traits::OnInitialize<BlockNumberFor<Self>>;
+		type AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<Self>>
+			+ OnIdle<BlockNumberFor<Self>>
+			+ OnInitialize<BlockNumberFor<Self>>
+			//testing-node
+			+ Send + Sync;
 
 		type RuntimeEvent: From<Event<Self>>
 			+ TryInto<Event<Self>>
@@ -305,7 +310,9 @@ pub mod pallet {
 		type RuntimeCall: Parameter + IsType<<Self as frame_system::Config>::RuntimeCall> + From<Call<Self>>;
 
 		/// Global identifier for the projects.
-		type ProjectIdentifier: Parameter + Copy + Default + One + Saturating + From<u32> + Ord + MaxEncodedLen;
+		type ProjectIdentifier: Parameter + Copy + Default + One + Saturating + From<u32> + Ord + MaxEncodedLen
+		//testing-node
+		+ Send + Sync;
 		// TODO: PLMC-153 + MaybeSerializeDeserialize: Maybe needed for JSON serialization @ Genesis: https://github.com/paritytech/substrate/issues/12738#issuecomment-1320921201
 
 		/// Multiplier that decides how much PLMC needs to be bonded for a token buy/bid
@@ -316,13 +323,19 @@ pub mod pallet {
 			+ Copy
 			+ TryFrom<u8>
 			+ MaxEncodedLen
-			+ MaybeSerializeDeserialize;
+			+ MaybeSerializeDeserialize
+			//testing-node
+			+ Send + Sync;
 
 		/// The inner balance type we will use for all of our outer currency types. (e.g native, funding, CTs)
-		type Balance: Balance + From<u64> + FixedPointOperand + MaybeSerializeDeserialize + Into<u128>;
+		type Balance: Balance + From<u64> + FixedPointOperand + MaybeSerializeDeserialize + Into<u128>
+		//testing-node
+		+ Send + Sync;
 
 		/// Represents the value of something in USD
-		type Price: FixedPointNumber + Parameter + Copy + MaxEncodedLen + MaybeSerializeDeserialize;
+		type Price: FixedPointNumber + Parameter + Copy + MaxEncodedLen + MaybeSerializeDeserialize
+		//testing-node
+		+ Send + Sync;
 
 		/// The chains native currency
 		type NativeCurrency: fungible::InspectHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
@@ -355,7 +368,9 @@ pub mod pallet {
 
 		/// The maximum length of data stored on-chain.
 		#[pallet::constant]
-		type StringLimit: Get<u32>;
+		type StringLimit: Get<u32>
+		//testing-node
+		+ Send + Sync;
 
 		/// The maximum size of a preimage allowed, expressed in bytes.
 		#[pallet::constant]
@@ -1354,16 +1369,49 @@ pub mod pallet {
 		}
 	}
 
+	#[cfg(all(feature = "testing-node", feature = "std"))]
 	use crate::instantiator::async_features::create_multiple_projects_at;
 	#[cfg(all(feature = "testing-node", feature = "std"))]
 	use crate::instantiator::TestProjectParams;
-	#[cfg(all(feature = "testing-node", feature = "std"))]
-	use frame_support::traits::{OnFinalize, OnIdle, OnInitialize, OriginTrait};
+
 	use pallet_xcm::ensure_response;
 
 	#[pallet::genesis_config]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	#[cfg_attr(
+	feature = "std",
+	serde(rename_all = "camelCase", deny_unknown_fields, bound(serialize = ""), bound(deserialize = ""))
+	)]
+	#[derive(Clone, PartialEq, Eq, Debug, Encode, Decode)]
+	#[cfg(not(all(feature = "testing-node", feature = "std")))]
 	pub struct GenesisConfig<T: Config> {
-		#[cfg(all(feature = "testing-node", feature = "std"))]
+		pub phantom: PhantomData<T>,
+	}
+
+	#[cfg(all(feature = "testing-node", feature = "std"))]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	#[cfg_attr(
+	feature = "std",
+	serde(rename_all = "camelCase", deny_unknown_fields, bound(serialize = ""), bound(deserialize = ""))
+	)]
+	#[derive(Clone, PartialEq, Eq, Debug, Encode, Decode)]
+	pub struct GenesisConfig<T: Config>
+	where
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
+		<T as Config>::AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>>
+			+ OnIdle<BlockNumberFor<T>>
+			+ OnInitialize<BlockNumberFor<T>>
+			+ Sync
+			+ Send
+			+ 'static,
+		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
+		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
+		<T as Config>::ProjectIdentifier: Send + Sync,
+		<T as Config>::Balance: Send + Sync,
+		<T as Config>::Price: Send + Sync,
+		<T as Config>::StringLimit: Send + Sync,
+		<T as Config>::Multiplier: Send + Sync,
+	{
 		pub starting_projects: Vec<TestProjectParams<T>>,
 		pub phantom: PhantomData<T>,
 	}
@@ -1372,9 +1420,20 @@ pub mod pallet {
 	impl<T: Config> Default for GenesisConfig<T>
 	where
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		T::AllPalletsWithoutSystem:
-			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
+		<T as Config>::AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>>
+			+ OnIdle<BlockNumberFor<T>>
+			+ OnInitialize<BlockNumberFor<T>>
+			+ Sync
+			+ Send
+			+ 'static,
 		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
+		// AccountIdOf<T>: Into<<instantiator::RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
+		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
+		<T as Config>::ProjectIdentifier: Send + Sync,
+		<T as Config>::Balance: Send + Sync,
+		<T as Config>::Price: Send + Sync,
+		<T as Config>::StringLimit: Send + Sync,
+		<T as Config>::Multiplier: Send + Sync,
 	{
 		fn default() -> Self {
 			Self { starting_projects: vec![], phantom: PhantomData }
@@ -1395,9 +1454,9 @@ pub mod pallet {
 	}
 
 	#[cfg(all(feature = "testing-node", feature = "std"))]
-	impl<T: Config + Sync + Send> BuildGenesisConfig for GenesisConfig<T>
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T>
 	where
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + Sync + Send,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		<T as Config>::AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>>
 			+ OnIdle<BlockNumberFor<T>>
 			+ OnInitialize<BlockNumberFor<T>>
@@ -1405,7 +1464,6 @@ pub mod pallet {
 			+ Send
 			+ 'static,
 		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
-		// AccountIdOf<T>: Into<<instantiator::RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 		<T as Config>::ProjectIdentifier: Send + Sync,
 		<T as Config>::Balance: Send + Sync,
@@ -1419,6 +1477,7 @@ pub mod pallet {
 					instantiator::Instantiator<T, <T as Config>::AllPalletsWithoutSystem, <T as Config>::RuntimeEvent>;
 				let mut inst = GenesisInstantiator::<T>::new(None);
 				<T as Config>::SetPrices::set_prices();
+				let current_block = <frame_system::Pallet<T>>::block_number();
 				create_multiple_projects_at(inst, self.starting_projects.clone());
 			}
 		}
@@ -1426,7 +1485,7 @@ pub mod pallet {
 	#[cfg(all(feature = "testing-node", feature = "std"))]
 	impl<T: Config> GenesisConfig<T>
 	where
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + Sync + Send,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		<T as Config>::AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>>
 			+ OnIdle<BlockNumberFor<T>>
 			+ OnInitialize<BlockNumberFor<T>>

@@ -2292,7 +2292,9 @@ pub mod async_features {
 			<T as Config>::CandleAuctionDuration::get();
 		let time_to_remainder: BlockNumberFor<T> = time_to_community + <T as Config>::CommunityFundingDuration::get();
 		let time_to_finish: BlockNumberFor<T> = time_to_remainder + <T as Config>::RemainderFundingDuration::get();
-		let now = mutex_inst.lock().await.current_block();
+		let mut inst = mutex_inst.lock().await;
+		let now = inst.current_block();
+		drop(inst);
 
 		match test_project_params.expected_state {
 			ProjectStatus::Application => {
