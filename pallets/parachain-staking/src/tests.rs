@@ -22,9 +22,9 @@
 //! 3. Public (Collator, Nominator)
 //! 4. Miscellaneous Property-Based Tests
 
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{assert_noop, assert_ok, traits::tokens::{Fortitude, Preservation, fungible::{Inspect, InspectHold}}};
 use sp_runtime::{traits::Zero, Perbill, Percent};
-
+use polimec_traits::locking::LockType;
 use crate::{
 	assert_events_emitted, assert_events_emitted_match, assert_events_eq, assert_no_events,
 	auto_compound::{AutoCompoundConfig, AutoCompoundDelegations},
@@ -2339,8 +2339,8 @@ fn can_execute_leave_candidates_if_revoking_candidate() {
 			// revocation executes during execute leave candidates (callable by anyone)
 			assert_ok!(ParachainStaking::execute_leave_candidates(RuntimeOrigin::signed(1), 1, 1));
 			assert!(!ParachainStaking::is_delegator(&2));
-			assert_eq!(Balances::reserved_balance(&2), 0);
-			assert_eq!(Balances::free_balance(&2), 10);
+			assert_eq!(Balances::balance_on_hold(&LockType::<()>::StakingDelegator, &2), 0);
+			assert_eq!(Balances::reducible_balance(&2, Preservation::Preserve, Fortitude::Force), 10);
 		});
 }
 
@@ -3045,8 +3045,8 @@ fn multiple_delegations() {
 			assert_eq!(ParachainStaking::delegator_state(7).unwrap().delegations.0.len(), 2usize);
 			assert_eq!(ParachainStaking::delegator_state(6).unwrap().total(), 40);
 			assert_eq!(ParachainStaking::delegator_state(6).unwrap().delegations.0.len(), 4usize);
-			assert_eq!(Balances::locks(&6)[0].amount, 40);
-			assert_eq!(Balances::locks(&7)[0].amount, 90);
+			assert_eq!(Balances::balance_on_hold(&LockType::<()>::StakingDelegator, &6), 40);
+			assert_eq!(Balances::balance_on_hold(&LockType::<()>::StakingDelegator, &7), 90);
 			assert_eq!(ParachainStaking::get_delegator_stakable_free_balance(&6), 60);
 			assert_eq!(ParachainStaking::get_delegator_stakable_free_balance(&7), 10);
 			roll_to_round_begin(8);
@@ -4329,24 +4329,6 @@ fn test_hotfix_remove_delegation_requests_exited_candidates_errors_when_candidat
 			ParachainStaking::hotfix_remove_delegation_requests_exited_candidates(RuntimeOrigin::signed(1), vec![1]),
 			<Error<Test>>::CandidateNotLeaving,
 		);
-	});
-}
-
-#[test]
-fn locking_zero_amount_removes_lock() {
-	use frame_support::traits::{LockableCurrency, WithdrawReasons};
-
-	// this test demonstrates the behavior of pallet Balance's `LockableCurrency` implementation of
-	// `set_locks()` when an amount of 0 is provided: any previous lock is removed
-
-	ExtBuilder::default().with_balances(vec![(1, 100)]).build().execute_with(|| {
-		assert_eq!(crate::mock::query_lock_amount(1, DELEGATOR_LOCK_ID), None);
-		Balances::set_lock(DELEGATOR_LOCK_ID, &1, 1, WithdrawReasons::all());
-		assert_eq!(crate::mock::query_lock_amount(1, DELEGATOR_LOCK_ID), Some(1));
-
-		Balances::set_lock(DELEGATOR_LOCK_ID, &1, 0, WithdrawReasons::all());
-		// Note that we tried to call `set_lock(0)` and the previous lock gets removed
-		assert_eq!(crate::mock::query_lock_amount(1, DELEGATOR_LOCK_ID), None);
 	});
 }
 

@@ -1367,10 +1367,17 @@ impl<
 			},
 			BondAdjust::Decrease => (), // do nothing on decrease
 		};
-
+		
 		let total_bonded = T::Currency::balance_on_hold(&LockType::<()>::StakingDelegator, &self.id.clone().into());
-		let to_be_released = total_bonded.saturating_sub(self.total.into());
-		T::Currency::release(&LockType::<()>::StakingDelegator, &self.id.clone().into(), to_be_released, Precision::Exact)?;
+		
+		if total_bonded > self.total.into() {
+			let to_be_released = total_bonded.saturating_sub(self.total.into());
+			T::Currency::release(&LockType::<()>::StakingDelegator, &self.id.clone().into(), to_be_released, Precision::Exact)?;
+		} else {
+			let additional_hold = Into::<T::Balance>::into(self.total).saturating_sub(total_bonded);
+			T::Currency::hold(&LockType::<()>::StakingDelegator, &self.id.clone().into(), additional_hold.into())?;
+		}
+		
 		Ok(())
 	}
 

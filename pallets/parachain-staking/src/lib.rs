@@ -88,7 +88,7 @@ pub mod pallet {
 		pallet_prelude::*,
 		traits::{
 			tokens::{Precision, Preservation, Fortitude, Balance},
-			fungible::{Balanced, Inspect, InspectHold, MutateHold}, 
+			fungible::{Balanced, Inspect, InspectHold, Mutate, MutateHold}, 
 			EstimateNextSessionRotation, Get, Imbalance, LockIdentifier,
 		},
 	};
@@ -123,6 +123,7 @@ pub mod pallet {
 		/// The currency type
 		type Currency: Inspect<AccountIdOf<Self>, Balance = BalanceOf<Self>>
 		+ Balanced<AccountIdOf<Self>> 
+		+ Mutate<AccountIdOf<Self>>
 		+ InspectHold<AccountIdOf<Self>>
 		+ MutateHold<AccountIdOf<Self>, Reason = LockType<()>>;
 
@@ -1369,7 +1370,6 @@ pub mod pallet {
 			// if let Some(state) = <DelegatorState<T>>::get(acc) {
 			// 	balance = balance.saturating_sub(state.total());
 			// }
-
 		}
 
 		/// Returns an account's free balance which is not locked in collator staking
@@ -1446,13 +1446,13 @@ pub mod pallet {
 			// reserve portion of issuance for parachain bond account
 			let bond_config = <ParachainBondInfo<T>>::get();
 			let parachain_bond_reserve = bond_config.percent * total_issuance;
-			if let Ok(imb) = T::Currency::deposit(&bond_config.account, parachain_bond_reserve, Precision::Exact) {
+			if let Ok(imb) = T::Currency::mint_into(&bond_config.account, parachain_bond_reserve) {
 				// update round issuance iff transfer succeeds
-				left_issuance = left_issuance.saturating_sub(imb.peek());
-				Self::deposit_event(Event::ReservedForParachainBond {
-					account: bond_config.account,
-					value: imb.peek(),
-				});
+				// left_issuance = left_issuance.saturating_sub(imb);
+				// Self::deposit_event(Event::ReservedForParachainBond {
+				// 	account: bond_config.account,
+				// 	value: imb,
+				// });
 			}
 
 			let payout = DelayedPayout {
