@@ -403,6 +403,7 @@ impl pallet_vesting::Config for Runtime {
 	type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
 
 	const MAX_VESTING_SCHEDULES: u32 = 12;
+}
 
 impl pallet_utility::Config for Runtime {
 	type PalletsOrigin = OriginCaller;
