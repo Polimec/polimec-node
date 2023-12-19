@@ -53,11 +53,11 @@ std = [
 	"polkadot-parachain/std",
 	"polkadot-runtime-parachains/std",
 	"scale-info/std",
+	"serde/std",
 	"sp-core/std",
 	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
-	"serde/std"
 ]
 try-runtime = [
 	"frame-support/try-runtime",
