@@ -22,7 +22,7 @@ use crate::{
 };
 use frame_support::{
 	pallet_prelude::*,
-	traits::{tokens::Precision, fungible::MutateHold},
+	traits::{tokens::Precision, fungible::{InspectHold, MutateHold}},
 };
 use parity_scale_codec::{Decode, Encode};
 use sp_runtime::{
@@ -454,7 +454,7 @@ impl<
 		// Arithmetic assumptions are self.bond > less && self.bond - less > CollatorMinBond
 		// (assumptions enforced by `schedule_bond_less`; if storage corrupts, must re-verify)
 		self.bond = self.bond.saturating_sub(request.amount);
-		T::Currency::hold(&LockType::<()>::StakingCollator, &who, self.bond.into())?;
+		T::Currency::release(&LockType::<()>::StakingCollator, &who, request.amount.into(), Precision::Exact)?;
 		self.total_counted = self.total_counted.saturating_sub(request.amount);
 		let event = Event::CandidateBondedLess {
 			candidate: who.clone(),
@@ -1368,15 +1368,9 @@ impl<
 			BondAdjust::Decrease => (), // do nothing on decrease
 		};
 
-		if self.total.is_zero() {
-			T::Currency::release(&LockType::<()>::StakingDelegator, &self.id.clone().into(), self.total.into(), Precision::Exact)?;
-		} else {
-			T::Currency::hold(
-				&LockType::<()>::StakingDelegator,
-				&self.id.clone().into(),
-				self.total.into(),
-			)?;
-		}
+		let total_bonded = T::Currency::balance_on_hold(&LockType::<()>::StakingDelegator, &self.id.clone().into());
+		let to_be_released = total_bonded.saturating_sub(self.total.into());
+		T::Currency::release(&LockType::<()>::StakingDelegator, &self.id.clone().into(), to_be_released, Precision::Exact)?;
 		Ok(())
 	}
 
