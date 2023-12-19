@@ -25,7 +25,7 @@ extern crate frame_benchmarking;
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::Everything,
+	traits::{Contains, InstanceFilter},
 	weights::{ConstantMultiplier, Weight},
 };
 use frame_system::EnsureRoot;
@@ -52,7 +52,7 @@ use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
 use xcm_executor::XcmExecutor;
 
 // Polimec Shared Imports
-pub use shared_configuration::{currency::*, fee::*, governance::*, staking::*, weights::*};
+pub use shared_configuration::{currency::*, fee::*, governance::*, proxy::*, staking::*, weights::*};
 
 pub use pallet_parachain_staking;
 
@@ -124,6 +124,7 @@ pub mod migrations {
 	pub type Unreleased = (
 		cumulus_pallet_xcmp_queue::migration::Migration<Runtime>,
 		cumulus_pallet_dmp_queue::migration::Migration<Runtime>,
+		pallet_multisig::migrations::v1::MigrateToV1<Runtime>,
 	);
 }
 
@@ -170,7 +171,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("polimec-mainnet"),
 	impl_name: create_runtime_str!("polimec-mainnet"),
 	authoring_version: 1,
-	spec_version: 2,
+	spec_version: 3,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -188,6 +189,39 @@ parameter_types! {
 	pub const SS58Prefix: u16 = 41;
 }
 
+pub struct BaseCallFilter;
+impl Contains<RuntimeCall> for BaseCallFilter {
+	fn contains(c: &RuntimeCall) -> bool {
+		use pallet_balances::Call::*;
+		match c {
+			RuntimeCall::Balances(inner_call) => match inner_call {
+				transfer { .. } => false,
+				transfer_all { .. } => false,
+				transfer_keep_alive { .. } => false,
+				transfer_allow_death { .. } => false,
+				_ => true,
+			},
+			_ => true,
+		}
+	}
+}
+
+impl InstanceFilter<RuntimeCall> for ProxyType {
+	fn filter(&self, _: &RuntimeCall) -> bool {
+		match self {
+			ProxyType::Any => true,
+		}
+	}
+
+	fn is_superset(&self, o: &Self) -> bool {
+		match (self, o) {
+			(x, y) if x == y => true,
+			// "anything" always contains any subset
+			(ProxyType::Any, _) => true,
+		}
+	}
+}
+
 // Configure FRAME pallets to include in runtime.
 
 impl frame_system::Config for Runtime {
@@ -196,7 +230,7 @@ impl frame_system::Config for Runtime {
 	/// The identifier used to distinguish between accounts.
 	type AccountId = AccountId;
 	/// The basic call filter to use in dispatchable.
-	type BaseCallFilter = Everything;
+	type BaseCallFilter = BaseCallFilter;
 	/// The block type.
 	type Block = Block;
 	/// Maximum number of block number to block hash mappings to keep (oldest pruned first).
@@ -369,6 +403,38 @@ impl pallet_vesting::Config for Runtime {
 	type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
 
 	const MAX_VESTING_SCHEDULES: u32 = 12;
+
+impl pallet_utility::Config for Runtime {
+	type PalletsOrigin = OriginCaller;
+	type RuntimeCall = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+}
+
+impl pallet_multisig::Config for Runtime {
+	type Currency = Balances;
+	type DepositBase = DepositBase;
+	type DepositFactor = DepositFactor;
+	type MaxSignatories = MaxSignatories;
+	type RuntimeCall = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+}
+
+impl pallet_proxy::Config for Runtime {
+	type AnnouncementDepositBase = AnnouncementDepositBase;
+	type AnnouncementDepositFactor = AnnouncementDepositFactor;
+	type CallHasher = BlakeTwo256;
+	type Currency = Balances;
+	type MaxPending = MaxPending;
+	type MaxProxies = MaxProxies;
+	type ProxyDepositBase = ProxyDepositBase;
+	type ProxyDepositFactor = ProxyDepositFactor;
+	type ProxyType = ProxyType;
+	type RuntimeCall = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -381,6 +447,9 @@ construct_runtime!(
 		Timestamp: pallet_timestamp = 2,
 		ParachainInfo: parachain_info = 3,
 		Sudo: pallet_sudo = 4,
+		Utility: pallet_utility::{Pallet, Call, Event} = 5,
+		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 6,
+		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 7,
 
 		// Monetary stuff.
 		Balances: pallet_balances = 10,
