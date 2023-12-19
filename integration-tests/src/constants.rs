@@ -358,7 +358,8 @@ pub mod polimec {
 			},
 			technical_committee: Default::default(),
 			treasury: Default::default(),
-			linear_vesting: Default::default(),
+			linear_release: Default::default(),
+			vesting: Default::default(),
 		};
 
 		genesis_config.build_storage().unwrap()
