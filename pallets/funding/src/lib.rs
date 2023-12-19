@@ -181,7 +181,8 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 pub use pallet::*;
-use polimec_traits::migration_types::*;
+
+use polimec_traits::{migration_types::*, locking::LockType};
 use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};

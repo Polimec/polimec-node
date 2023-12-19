@@ -19,6 +19,9 @@ parity-scale-codec = { workspace = true, features = [
 ] }
 scale-info = { workspace = true, features = ["derive"] }
 
+# Polimec
+polimec-traits.workspace = true
+
 # FRAME
 frame-benchmarking = { workspace = true, optional = true }
 frame-support.workspace = true

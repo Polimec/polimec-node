@@ -18,12 +18,11 @@
 
 use crate::{
 	auto_compound::AutoCompoundDelegations, set::OrderedSet, BalanceOf, BottomDelegations, CandidateInfo, Config,
-	DelegatorState, Error, Event, Pallet, Round, RoundIndex, TopDelegations, Total, COLLATOR_LOCK_ID,
-	DELEGATOR_LOCK_ID,
+	DelegatorState, Error, Event, Pallet, Round, RoundIndex, TopDelegations, Total,
 };
 use frame_support::{
 	pallet_prelude::*,
-	traits::{tokens::WithdrawReasons, LockableCurrency},
+	traits::{tokens::Precision, fungible::MutateHold},
 };
 use parity_scale_codec::{Decode, Encode};
 use sp_runtime::{
@@ -31,6 +30,7 @@ use sp_runtime::{
 	Perbill, Percent, RuntimeDebug,
 };
 use sp_std::{cmp::Ordering, collections::btree_map::BTreeMap, prelude::*};
+use polimec_traits::locking::LockType;
 
 pub struct CountedDelegations<T: Config> {
 	pub uncounted_stake: BalanceOf<T>,
@@ -415,7 +415,7 @@ impl<
 		let new_total = <Total<T>>::get().saturating_add(more.into());
 		<Total<T>>::put(new_total);
 		self.bond = self.bond.saturating_add(more);
-		T::Currency::set_lock(COLLATOR_LOCK_ID, &who, self.bond.into(), WithdrawReasons::all());
+		T::Currency::hold(&LockType::<()>::StakingCollator, &who, more.into())?;
 		self.total_counted = self.total_counted.saturating_add(more);
 		<Pallet<T>>::deposit_event(Event::CandidateBondedMore {
 			candidate: who,
@@ -454,7 +454,7 @@ impl<
 		// Arithmetic assumptions are self.bond > less && self.bond - less > CollatorMinBond
 		// (assumptions enforced by `schedule_bond_less`; if storage corrupts, must re-verify)
 		self.bond = self.bond.saturating_sub(request.amount);
-		T::Currency::set_lock(COLLATOR_LOCK_ID, &who, self.bond.into(), WithdrawReasons::all());
+		T::Currency::hold(&LockType::<()>::StakingCollator, &who, self.bond.into())?;
 		self.total_counted = self.total_counted.saturating_sub(request.amount);
 		let event = Event::CandidateBondedLess {
 			candidate: who.clone(),
@@ -1369,14 +1369,13 @@ impl<
 		};
 
 		if self.total.is_zero() {
-			T::Currency::remove_lock(DELEGATOR_LOCK_ID, &self.id.clone().into());
+			T::Currency::release(&LockType::<()>::StakingDelegator, &self.id.clone().into(), self.total.into(), Precision::Exact)?;
 		} else {
-			T::Currency::set_lock(
-				DELEGATOR_LOCK_ID,
+			T::Currency::hold(
+				&LockType::<()>::StakingDelegator,
 				&self.id.clone().into(),
 				self.total.into(),
-				WithdrawReasons::all(),
-			);
+			)?;
 		}
 		Ok(())
 	}

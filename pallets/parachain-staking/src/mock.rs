@@ -32,6 +32,7 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage, Perbill, Percent,
 };
+use polimec_traits::locking::LockType;
 
 pub type AccountId = u64;
 pub type Balance = u128;
@@ -86,6 +87,7 @@ impl frame_system::Config for Test {
 }
 parameter_types! {
 	pub const ExistentialDeposit: u128 = 1;
+	pub const MaxHolds: u32 = 10;
 }
 impl pallet_balances::Config for Test {
 	type AccountStore = System;
@@ -94,12 +96,12 @@ impl pallet_balances::Config for Test {
 	type ExistentialDeposit = ExistentialDeposit;
 	type FreezeIdentifier = ();
 	type MaxFreezes = ();
-	type MaxHolds = ();
+	type MaxHolds = MaxHolds;
 	type MaxLocks = ();
 	type MaxReserves = ();
 	type ReserveIdentifier = [u8; 4];
 	type RuntimeEvent = RuntimeEvent;
-	type RuntimeHoldReason = ();
+	type RuntimeHoldReason = LockType<()>;
 	type WeightInfo = ();
 }
 parameter_types! {
@@ -175,6 +177,7 @@ impl pallet_session::Config for Test {
 	type WeightInfo = ();
 }
 impl Config for Test {
+	type Balance = Balance;
 	type CandidateBondLessDelay = CandidateBondLessDelay;
 	type Currency = Balances;
 	type DelegationBondLessDelay = DelegationBondLessDelay;
@@ -268,8 +271,8 @@ impl ExtBuilder {
 		let mut t = frame_system::GenesisConfig::<Test>::default()
 			.build_storage()
 			.expect("Frame system builds valid default genesis config");
-
-		pallet_balances::GenesisConfig::<Test> { balances: self.balances }
+		let balances_with_ed = self.balances.into_iter().map(|(account, balance)| (account, balance + <Test as pallet_balances::Config>::ExistentialDeposit::get())).collect::<Vec<(AccountId, Balance)>>();
+		pallet_balances::GenesisConfig::<Test> { balances: balances_with_ed }
 			.assimilate_storage(&mut t)
 			.expect("Pallet balances storage can be assimilated");
 		pallet_parachain_staking::GenesisConfig::<Test> {

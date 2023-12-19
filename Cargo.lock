@@ -6445,6 +6445,7 @@ dependencies = [
  "pallet-session",
  "pallet-timestamp",
  "parity-scale-codec",
+ "polimec-traits",
  "scale-info",
  "serde",
  "similar-asserts",
