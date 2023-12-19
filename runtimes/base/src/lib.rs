@@ -435,7 +435,6 @@ impl pallet_proxy::Config for Runtime {
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
-
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
