@@ -20,7 +20,7 @@ use frame_support::{
 	parameter_types,
 	traits::{ConstU32, ConstU64, WithdrawReasons},
 };
-use pallet_funding::LockType;
+use polimec_traits::locking::LockType;
 use sp_core::H256;
 use sp_runtime::{
 	traits::{BlakeTwo256, Identity, IdentityLookup},

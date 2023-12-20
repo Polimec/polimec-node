@@ -415,7 +415,7 @@ impl<
 		let new_total = <Total<T>>::get().saturating_add(more.into());
 		<Total<T>>::put(new_total);
 		self.bond = self.bond.saturating_add(more);
-		T::Currency::hold(&LockType::<()>::StakingCollator, &who, more.into())?;
+		T::Currency::hold(&LockType::<T::ProjectIdentifier>::StakingCollator, &who, more.into())?;
 		self.total_counted = self.total_counted.saturating_add(more);
 		<Pallet<T>>::deposit_event(Event::CandidateBondedMore {
 			candidate: who,
@@ -454,7 +454,7 @@ impl<
 		// Arithmetic assumptions are self.bond > less && self.bond - less > CollatorMinBond
 		// (assumptions enforced by `schedule_bond_less`; if storage corrupts, must re-verify)
 		self.bond = self.bond.saturating_sub(request.amount);
-		T::Currency::release(&LockType::<()>::StakingCollator, &who, request.amount.into(), Precision::Exact)?;
+		T::Currency::release(&LockType::<T::ProjectIdentifier>::StakingCollator, &who, request.amount.into(), Precision::Exact)?;
 		self.total_counted = self.total_counted.saturating_sub(request.amount);
 		let event = Event::CandidateBondedLess {
 			candidate: who.clone(),
@@ -1368,14 +1368,14 @@ impl<
 			BondAdjust::Decrease => (), // do nothing on decrease
 		};
 		
-		let total_bonded = T::Currency::balance_on_hold(&LockType::<()>::StakingDelegator, &self.id.clone().into());
+		let total_bonded = T::Currency::balance_on_hold(&LockType::<T::ProjectIdentifier>::StakingDelegator, &self.id.clone().into());
 		
 		if total_bonded > self.total.into() {
 			let to_be_released = total_bonded.saturating_sub(self.total.into());
-			T::Currency::release(&LockType::<()>::StakingDelegator, &self.id.clone().into(), to_be_released, Precision::Exact)?;
+			T::Currency::release(&LockType::<T::ProjectIdentifier>::StakingDelegator, &self.id.clone().into(), to_be_released, Precision::Exact)?;
 		} else {
 			let additional_hold = Into::<T::Balance>::into(self.total).saturating_sub(total_bonded);
-			T::Currency::hold(&LockType::<()>::StakingDelegator, &self.id.clone().into(), additional_hold.into())?;
+			T::Currency::hold(&LockType::<T::ProjectIdentifier>::StakingDelegator, &self.id.clone().into(), additional_hold.into())?;
 		}
 		
 		Ok(())

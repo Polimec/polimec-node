@@ -100,7 +100,7 @@ impl pallet_balances::Config for Test {
 	type MaxReserves = ();
 	type ReserveIdentifier = [u8; 4];
 	type RuntimeEvent = RuntimeEvent;
-	type RuntimeHoldReason = LockType<()>;
+	type RuntimeHoldReason = LockType<u32>;
 	type WeightInfo = ();
 }
 parameter_types! {
@@ -181,6 +181,7 @@ impl Config for Test {
 	type PayMaster = PayMaster;
 	type CandidateBondLessDelay = CandidateBondLessDelay;
 	type Currency = Balances;
+	type ProjectIdentifier = u32;
 	type DelegationBondLessDelay = DelegationBondLessDelay;
 	type LeaveCandidatesDelay = LeaveCandidatesDelay;
 	type LeaveDelegatorsDelay = LeaveDelegatorsDelay;

@@ -245,7 +245,6 @@ pub type ProjectMigrationOriginsOf<T> =
 	ProjectMigrationOrigins<ProjectIdOf<T>, BoundedVec<MigrationOrigin, MaxMigrationsPerXcm<T>>>;
 
 pub type BucketOf<T> = Bucket<BalanceOf<T>, PriceOf<T>>;
-pub type BondTypeOf<T> = LockType<ProjectIdOf<T>>;
 pub type WeightInfoOf<T> = <T as Config>::WeightInfo;
 
 pub const PLMC_STATEMINT_ID: u32 = 2069;
@@ -315,7 +314,7 @@ pub mod pallet {
 
 		/// The chains native currency
 		type NativeCurrency: fungible::InspectHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
-			+ fungible::MutateHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, Reason = BondTypeOf<Self>>
+			+ fungible::MutateHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, Reason = LockType<Self::ProjectIdentifier>>
 			+ fungible::BalancedHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
 			+ fungible::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
 
@@ -405,7 +404,7 @@ pub mod pallet {
 
 		type Vesting: polimec_traits::ReleaseSchedule<
 			AccountIdOf<Self>,
-			BondTypeOf<Self>,
+			LockType<Self::ProjectIdentifier>,
 			Currency = Self::NativeCurrency,
 			Moment = BlockNumberFor<Self>,
 		>;

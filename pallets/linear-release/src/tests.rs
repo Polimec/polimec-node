@@ -23,8 +23,7 @@ use sp_runtime::{
 
 use super::{Vesting as VestingStorage, *};
 use crate::mock::{Balances, ExtBuilder, System, Test, Vesting};
-use pallet_funding::LockType;
-
+use polimec_traits::locking::LockType;
 /// A default existential deposit.
 const ED: u64 = 256;
 

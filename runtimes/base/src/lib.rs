@@ -24,7 +24,7 @@ extern crate frame_benchmarking;
 
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
-	construct_runtime, parameter_types,
+	construct_runtime, parameter_types, ord_parameter_types,
 	traits::{Contains, InstanceFilter},
 	weights::{ConstantMultiplier, Weight},
 };
@@ -37,7 +37,7 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, IdentifyAccount, OpaqueKeys, Verify},
+	traits::{AccountIdLookup, AccountIdConversion, BlakeTwo256, Block as BlockT, ConvertInto, IdentifyAccount, OpaqueKeys, Verify},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature,
 };
@@ -46,13 +46,14 @@ use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
+use polimec_traits::locking::LockType;
 
 // XCM Imports
 use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
 use xcm_executor::XcmExecutor;
 
 // Polimec Shared Imports
-pub use shared_configuration::{currency::*, fee::*, governance::*, proxy::*, staking::*, weights::*};
+pub use shared_configuration::{currency::*, fee::*, governance::*, proxy::*, staking::*, weights::*, funding::*};
 
 pub use pallet_parachain_staking;
 
@@ -297,7 +298,7 @@ impl pallet_balances::Config for Runtime {
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
 	type RuntimeEvent = RuntimeEvent;
-	type RuntimeHoldReason = ();
+	type RuntimeHoldReason = LockType<ProjectIdentifier>;
 	type WeightInfo = ();
 }
 
@@ -369,9 +370,17 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = ();
 }
 
+ord_parameter_types! {
+	pub const PayMaster: AccountId =
+		AccountIdConversion::<AccountId>::into_account_truncating(&StakingPalletId::get());
+}
+
 impl pallet_parachain_staking::Config for Runtime {
 	type CandidateBondLessDelay = CandidateBondLessDelay;
 	type Currency = Balances;
+	type Balance = Balance;
+	type PayMaster = PayMaster;
+	type ProjectIdentifier = ProjectIdentifier;
 	type DelegationBondLessDelay = DelegationBondLessDelay;
 	type LeaveCandidatesDelay = LeaveCandidatesDelay;
 	type LeaveDelegatorsDelay = LeaveDelegatorsDelay;

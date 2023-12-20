@@ -24,7 +24,7 @@ extern crate frame_benchmarking;
 
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
-	construct_runtime, parameter_types,
+	construct_runtime, parameter_types, ord_parameter_types,
 	traits::{
 		AsEnsureOriginWithArg, ConstU32, Currency, EitherOfDiverse, EqualPrivilegeOnly, Everything, WithdrawReasons,
 	},
@@ -45,7 +45,7 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, Convert, ConvertBack, ConvertInto, OpaqueKeys},
+	traits::{AccountIdLookup, AccountIdConversion, BlakeTwo256, Block as BlockT, Convert, ConvertBack, ConvertInto, OpaqueKeys},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult,
 };
@@ -55,7 +55,7 @@ use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
-
+use polimec_traits::locking::LockType;
 // XCM Imports
 use polimec_xcm_executor::XcmExecutor;
 pub use xcm_config::XcmConfig;
@@ -67,7 +67,7 @@ pub use crate::xcm_config::*;
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 // Polimec Shared Imports
-use pallet_funding::{BondTypeOf, DaysToBlocks};
+use pallet_funding::DaysToBlocks;
 pub use pallet_parachain_staking;
 pub use shared_configuration::*;
 
@@ -259,9 +259,9 @@ impl pallet_balances::Config for Runtime {
 	type MaxHolds = MaxLocks;
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
-	type ReserveIdentifier = BondTypeOf<Runtime>;
+	type ReserveIdentifier = LockType<ProjectIdentifier>;
 	type RuntimeEvent = RuntimeEvent;
-	type RuntimeHoldReason = BondTypeOf<Runtime>;
+	type RuntimeHoldReason = LockType<ProjectIdentifier>;
 	type WeightInfo = ();
 }
 
@@ -609,7 +609,7 @@ impl pallet_linear_release::Config for Runtime {
 	type BlockNumberToBalance = ConvertInto;
 	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;
-	type Reason = BondTypeOf<Runtime>;
+	type Reason = LockType<ProjectIdentifier>;
 	type RuntimeEvent = RuntimeEvent;
 	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
 	type WeightInfo = pallet_linear_release::weights::SubstrateWeight<Runtime>;
@@ -617,9 +617,17 @@ impl pallet_linear_release::Config for Runtime {
 	const MAX_VESTING_SCHEDULES: u32 = 12;
 }
 
+ord_parameter_types! {
+	pub const PayMaster: AccountId =
+		AccountIdConversion::<AccountId>::into_account_truncating(&StakingPalletId::get());
+}
+
 impl pallet_parachain_staking::Config for Runtime {
 	type CandidateBondLessDelay = CandidateBondLessDelay;
 	type Currency = Balances;
+	type Balance = Balance;
+	type ProjectIdentifier = ProjectIdentifier;
+	type PayMaster = PayMaster;
 	type DelegationBondLessDelay = DelegationBondLessDelay;
 	type LeaveCandidatesDelay = LeaveCandidatesDelay;
 	type LeaveDelegatorsDelay = LeaveDelegatorsDelay;
