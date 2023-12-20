@@ -182,7 +182,7 @@ use frame_support::{
 use frame_system::pallet_prelude::BlockNumberFor;
 pub use pallet::*;
 
-use polimec_traits::{migration_types::*, locking::LockType};
+use polimec_traits::{locking::LockType, migration_types::*};
 use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
@@ -314,8 +314,11 @@ pub mod pallet {
 
 		/// The chains native currency
 		type NativeCurrency: fungible::InspectHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
-			+ fungible::MutateHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, Reason = LockType<Self::ProjectIdentifier>>
-			+ fungible::BalancedHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
+			+ fungible::MutateHold<
+				AccountIdOf<Self>,
+				Balance = BalanceOf<Self>,
+				Reason = LockType<Self::ProjectIdentifier>,
+			> + fungible::BalancedHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
 			+ fungible::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
 
 		/// The currency used for funding projects in bids and contributions

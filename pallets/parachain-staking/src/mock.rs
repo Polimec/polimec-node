@@ -16,22 +16,20 @@
 
 //! Test utilities
 use crate as pallet_parachain_staking;
-use crate::{
-	pallet, AwardedPts, Config, Event as ParachainStakingEvent, InflationInfo, Points, Range,
-};
+use crate::{pallet, AwardedPts, Config, Event as ParachainStakingEvent, InflationInfo, Points, Range};
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{Everything, OnFinalize, OnInitialize},
 	weights::{constants::RocksDbWeight, Weight},
 };
 use frame_system::pallet_prelude::BlockNumberFor;
+use polimec_traits::locking::LockType;
 use sp_core::H256;
 use sp_io;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage, Perbill, Percent,
 };
-use polimec_traits::locking::LockType;
 
 pub type AccountId = u64;
 pub type Balance = u128;
@@ -178,10 +176,8 @@ impl pallet_session::Config for Test {
 }
 impl Config for Test {
 	type Balance = Balance;
-	type PayMaster = PayMaster;
 	type CandidateBondLessDelay = CandidateBondLessDelay;
 	type Currency = Balances;
-	type ProjectIdentifier = u32;
 	type DelegationBondLessDelay = DelegationBondLessDelay;
 	type LeaveCandidatesDelay = LeaveCandidatesDelay;
 	type LeaveDelegatorsDelay = LeaveDelegatorsDelay;
@@ -196,7 +192,9 @@ impl Config for Test {
 	type MonetaryGovernanceOrigin = frame_system::EnsureRoot<AccountId>;
 	type OnCollatorPayout = ();
 	type OnNewRound = ();
+	type PayMaster = PayMaster;
 	type PayoutCollatorReward = ();
+	type ProjectIdentifier = u32;
 	type RevokeDelegationDelay = RevokeDelegationDelay;
 	type RewardPaymentDelay = RewardPaymentDelay;
 	type RuntimeEvent = RuntimeEvent;
@@ -276,7 +274,11 @@ impl ExtBuilder {
 		let mut t = frame_system::GenesisConfig::<Test>::default()
 			.build_storage()
 			.expect("Frame system builds valid default genesis config");
-		let balances_with_ed = self.balances.into_iter().map(|(account, balance)| (account, balance + <Test as pallet_balances::Config>::ExistentialDeposit::get())).collect::<Vec<(AccountId, Balance)>>();
+		let balances_with_ed = self
+			.balances
+			.into_iter()
+			.map(|(account, balance)| (account, balance + <Test as pallet_balances::Config>::ExistentialDeposit::get()))
+			.collect::<Vec<(AccountId, Balance)>>();
 		pallet_balances::GenesisConfig::<Test> { balances: balances_with_ed }
 			.assimilate_storage(&mut t)
 			.expect("Pallet balances storage can be assimilated");
@@ -612,11 +614,11 @@ fn geneses() {
 			// collators
 			for x in 1..5 {
 				assert!(ParachainStaking::is_candidate(&x));
-				assert_eq!(Balances::reserved_balance( &x), 20);
+				assert_eq!(Balances::reserved_balance(&x), 20);
 				assert_eq!(ParachainStaking::get_collator_stakable_free_balance(&x), 80);
 			}
 			assert!(ParachainStaking::is_candidate(&5));
-			assert_eq!(Balances::reserved_balance( &5), 10);
+			assert_eq!(Balances::reserved_balance(&5), 10);
 			assert_eq!(ParachainStaking::get_collator_stakable_free_balance(&5), 90);
 			// delegators
 			for x in 6..11 {

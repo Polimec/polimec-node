@@ -18,8 +18,8 @@
 
 use frame_support::{pallet_prelude::*, traits::tokens::fungible, RuntimeDebug};
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use sp_std::prelude::*;
-use serde::{Serialize, Deserialize};
 
 /// A release schedule over a fungible. This allows a particular fungible to have release limits
 /// applied to it.
@@ -215,7 +215,21 @@ pub mod migration_types {
 pub mod locking {
 	use super::*;
 
-	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, PartialOrd, Ord, RuntimeDebug, TypeInfo, MaxEncodedLen, Serialize, Deserialize)]
+	#[derive(
+		Clone,
+		Copy,
+		Encode,
+		Decode,
+		Eq,
+		PartialEq,
+		PartialOrd,
+		Ord,
+		RuntimeDebug,
+		TypeInfo,
+		MaxEncodedLen,
+		Serialize,
+		Deserialize,
+	)]
 	pub enum LockType<ProjectId> {
 		Evaluation(ProjectId),
 		Participation(ProjectId),

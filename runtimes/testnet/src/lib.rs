@@ -24,7 +24,7 @@ extern crate frame_benchmarking;
 
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
-	construct_runtime, parameter_types, ord_parameter_types,
+	construct_runtime, ord_parameter_types, parameter_types,
 	traits::{
 		AsEnsureOriginWithArg, ConstU32, Currency, EitherOfDiverse, EqualPrivilegeOnly, Everything, WithdrawReasons,
 	},
@@ -45,17 +45,20 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, AccountIdConversion, BlakeTwo256, Block as BlockT, Convert, ConvertBack, ConvertInto, OpaqueKeys},
+	traits::{
+		AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, Convert, ConvertBack, ConvertInto,
+		OpaqueKeys,
+	},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult,
 };
 pub use sp_runtime::{FixedU128, MultiAddress, Perbill, Permill};
 
+use polimec_traits::locking::LockType;
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
-use polimec_traits::locking::LockType;
 // XCM Imports
 use polimec_xcm_executor::XcmExecutor;
 pub use xcm_config::XcmConfig;
@@ -623,11 +626,9 @@ ord_parameter_types! {
 }
 
 impl pallet_parachain_staking::Config for Runtime {
+	type Balance = Balance;
 	type CandidateBondLessDelay = CandidateBondLessDelay;
 	type Currency = Balances;
-	type Balance = Balance;
-	type ProjectIdentifier = ProjectIdentifier;
-	type PayMaster = PayMaster;
 	type DelegationBondLessDelay = DelegationBondLessDelay;
 	type LeaveCandidatesDelay = LeaveCandidatesDelay;
 	type LeaveDelegatorsDelay = LeaveDelegatorsDelay;
@@ -642,8 +643,10 @@ impl pallet_parachain_staking::Config for Runtime {
 	type MonetaryGovernanceOrigin = frame_system::EnsureRoot<AccountId>;
 	type OnCollatorPayout = ();
 	type OnNewRound = ();
+	type PayMaster = PayMaster;
 	// We use the default implementation, so we leave () here.
 	type PayoutCollatorReward = ();
+	type ProjectIdentifier = ProjectIdentifier;
 	type RevokeDelegationDelay = RevokeDelegationDelay;
 	type RewardPaymentDelay = RewardPaymentDelay;
 	type RuntimeEvent = RuntimeEvent;

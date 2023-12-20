@@ -22,9 +22,6 @@
 //! 3. Public (Collator, Nominator)
 //! 4. Miscellaneous Property-Based Tests
 
-use frame_support::{assert_noop, assert_ok, traits::tokens::{Fortitude, Preservation, fungible::{Inspect, InspectHold}}};
-use sp_runtime::{traits::Zero, Perbill, Percent};
-use polimec_traits::locking::LockType;
 use crate::{
 	assert_events_emitted, assert_events_emitted_match, assert_events_eq, assert_no_events,
 	auto_compound::{AutoCompoundConfig, AutoCompoundDelegations},
@@ -36,6 +33,15 @@ use crate::{
 	AtStake, Bond, CollatorStatus, DelegationScheduledRequests, DelegatorAdded, DelegatorState, DelegatorStatus, Error,
 	Event, Range,
 };
+use frame_support::{
+	assert_noop, assert_ok,
+	traits::tokens::{
+		fungible::{Inspect, InspectHold},
+		Fortitude, Preservation,
+	},
+};
+use polimec_traits::locking::LockType;
+use sp_runtime::{traits::Zero, Perbill, Percent};
 
 // ~~ ROOT ~~
 
@@ -2878,7 +2884,16 @@ fn collator_selection_chooses_top_candidates() {
 #[test]
 fn payout_distribution_to_solo_collators() {
 	ExtBuilder::default()
-		.with_balances(vec![(1, 1000), (2, 1000), (3, 1000), (4, 1000), (7, 33), (8, 33), (9, 33), (crate::mock::PayMaster::get(), 1000)])
+		.with_balances(vec![
+			(1, 1000),
+			(2, 1000),
+			(3, 1000),
+			(4, 1000),
+			(7, 33),
+			(8, 33),
+			(9, 33),
+			(crate::mock::PayMaster::get(), 1000),
+		])
 		.with_candidates(vec![(1, 100), (2, 90), (3, 80), (4, 70)])
 		.build()
 		.execute_with(|| {
@@ -3094,7 +3109,18 @@ fn execute_leave_candidate_removes_delegations() {
 #[test]
 fn payouts_follow_delegation_changes() {
 	ExtBuilder::default()
-		.with_balances(vec![(1, 100), (2, 100), (3, 100), (4, 100), (6, 100), (7, 100), (8, 100), (9, 100), (10, 100), (crate::mock::PayMaster::get(), 1000)])
+		.with_balances(vec![
+			(1, 100),
+			(2, 100),
+			(3, 100),
+			(4, 100),
+			(6, 100),
+			(7, 100),
+			(8, 100),
+			(9, 100),
+			(10, 100),
+			(crate::mock::PayMaster::get(), 1000),
+		])
 		.with_candidates(vec![(1, 20), (2, 20), (3, 20), (4, 20)])
 		.with_delegations(vec![(6, 1, 10), (7, 1, 10), (8, 2, 10), (9, 2, 10), (10, 1, 10)])
 		.build()
