@@ -88,8 +88,8 @@ pub mod pallet {
 		pallet_prelude::*,
 		traits::{
 			tokens::{Precision, Preservation, Fortitude, Balance},
-			fungible::{Balanced, Inspect, InspectHold, Mutate, MutateHold}, 
-			EstimateNextSessionRotation, Get, Imbalance, LockIdentifier,
+			fungible::{Balanced, Inspect, InspectHold, Mutate, MutateHold},
+			EstimateNextSessionRotation, Get,
 		},
 	};
 	use frame_system::pallet_prelude::*;
@@ -112,9 +112,6 @@ pub mod pallet {
 
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 
-	pub const COLLATOR_LOCK_ID: LockIdentifier = *b"stkngcol";
-	pub const DELEGATOR_LOCK_ID: LockIdentifier = *b"stkngdel";
-
 	/// Configuration trait of this pallet.
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -128,7 +125,8 @@ pub mod pallet {
 		+ MutateHold<AccountIdOf<Self>, Reason = LockType<()>>;
 
 		type Balance: Balance + MaybeSerializeDeserialize;
-
+		/// The account that will pay the collator rewards
+		type PayMaster: Get<Self::AccountId>;
 		/// The origin for monetary governance
 		type MonetaryGovernanceOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 		/// Minimum number of blocks per round
@@ -1442,22 +1440,28 @@ pub mod pallet {
 			}
 			let total_staked = <Staked<T>>::take(round_to_payout);
 			let total_issuance = Self::compute_issuance(total_staked);
-			let mut left_issuance = total_issuance;
-			// reserve portion of issuance for parachain bond account
-			let bond_config = <ParachainBondInfo<T>>::get();
-			let parachain_bond_reserve = bond_config.percent * total_issuance;
-			if let Ok(imb) = T::Currency::mint_into(&bond_config.account, parachain_bond_reserve) {
-				// update round issuance iff transfer succeeds
-				// left_issuance = left_issuance.saturating_sub(imb);
-				// Self::deposit_event(Event::ReservedForParachainBond {
-				// 	account: bond_config.account,
-				// 	value: imb,
-				// });
-			}
+
+			// reserve portion of issuance for parachain bond account. In our situation the
+			// percentage will be 0% as we don't want to reserve any issuance for parachain
+			// bond so the logic is commented out
+			
+			// let mut left_issuance = total_issuance;
+			// let bond_config = <ParachainBondInfo<T>>::get();
+			// let parachain_bond_reserve = bond_config.percent * total_issuance;
+			// if let Ok(amount_transferred) =
+			// 	T::Currency::transfer(&T::PayMaster::get(), &bond_config.account, parachain_bond_reserve, Preservation::Preserve)
+			// {
+			// 	// update round issuance iff transfer succeeds
+			// 	left_issuance = left_issuance.saturating_sub(amount_transferred);
+			// 	Self::deposit_event(Event::ReservedForParachainBond {
+			// 		account: bond_config.account,
+			// 		value: amount_transferred,
+			// 	});
+			// }
 
 			let payout = DelayedPayout {
 				round_issuance: total_issuance,
-				total_staking_reward: left_issuance,
+				total_staking_reward: total_issuance,
 				collator_commission: <CollatorCommission<T>>::get(),
 			};
 
@@ -1768,8 +1772,8 @@ pub mod pallet {
 
 		/// Mint a specified reward amount to the beneficiary account. Emits the [Rewarded] event.
 		pub fn mint(amt: BalanceOf<T>, to: T::AccountId) {
-			if let Ok(amount_transferred) = T::Currency::deposit(&to, amt, Precision::Exact) {
-				Self::deposit_event(Event::Rewarded { account: to.clone(), rewards: amount_transferred.peek() });
+			if let Ok(amount_transferred) = T::Currency::transfer(&T::PayMaster::get(), &to, amt, Preservation::Preserve) {
+				Self::deposit_event(Event::Rewarded { account: to.clone(), rewards: amount_transferred });
 			}
 		}
 
@@ -1779,10 +1783,10 @@ pub mod pallet {
 			collator_id: T::AccountId,
 			amt: BalanceOf<T>,
 		) -> Weight {
-			if let Ok(amount_transferred) = T::Currency::deposit(&collator_id, amt, Precision::Exact) {
+			if let Ok(amount_transferred) = T::Currency::transfer(&T::PayMaster::get(), &collator_id, amt, Preservation::Preserve) {
 				Self::deposit_event(Event::Rewarded {
 					account: collator_id.clone(),
-					rewards: amount_transferred.peek(),
+					rewards: amount_transferred,
 				});
 			}
 			T::WeightInfo::mint_collator_reward()
@@ -1799,10 +1803,10 @@ pub mod pallet {
 			delegator: T::AccountId,
 		) -> Weight {
 			let mut weight = T::WeightInfo::mint_collator_reward();
-			if let Ok(amount_transferred) = T::Currency::deposit(&delegator, amt, Precision::Exact) {
-				Self::deposit_event(Event::Rewarded { account: delegator.clone(), rewards: amount_transferred.peek() });
+			if let Ok(amount_transferred) = T::Currency::transfer(&T::PayMaster::get(), &delegator, amt, Preservation::Preserve) {
+				Self::deposit_event(Event::Rewarded { account: delegator.clone(), rewards: amount_transferred });
 
-				let compound_amount = compound_percent.mul_ceil(amount_transferred.peek());
+				let compound_amount = compound_percent.mul_ceil(amount_transferred);
 				if compound_amount.is_zero() {
 					return weight
 				}

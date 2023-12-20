@@ -17,12 +17,11 @@
 //! Test utilities
 use crate as pallet_parachain_staking;
 use crate::{
-	pallet, AwardedPts, Config, Event as ParachainStakingEvent, InflationInfo, Points, Range, COLLATOR_LOCK_ID,
-	DELEGATOR_LOCK_ID,
+	pallet, AwardedPts, Config, Event as ParachainStakingEvent, InflationInfo, Points, Range,
 };
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{Everything, LockIdentifier, OnFinalize, OnInitialize},
+	traits::{Everything, OnFinalize, OnInitialize},
 	weights::{constants::RocksDbWeight, Weight},
 };
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -133,7 +132,7 @@ impl pallet_timestamp::Config for Test {
 
 const GENESIS_BLOCKS_PER_ROUND: BlockNumber = 5;
 const GENESIS_COLLATOR_COMMISSION: Perbill = Perbill::from_percent(20);
-const GENESIS_PARACHAIN_BOND_RESERVE_PERCENT: Percent = Percent::from_percent(30);
+const GENESIS_PARACHAIN_BOND_RESERVE_PERCENT: Percent = Percent::from_percent(0);
 const GENESIS_NUM_SELECTED_CANDIDATES: u32 = 5;
 parameter_types! {
 	pub const MinBlocksPerRound: u32 = 3;
@@ -150,6 +149,7 @@ parameter_types! {
 	pub const MinCandidateStk: u128 = 10;
 	pub const MinDelegatorStk: u128 = 5;
 	pub const MinDelegation: u128 = 3;
+	pub const PayMaster: AccountId = 1337;
 }
 impl_opaque_keys! {
 	pub struct MockSessionKeys {
@@ -178,6 +178,7 @@ impl pallet_session::Config for Test {
 }
 impl Config for Test {
 	type Balance = Balance;
+	type PayMaster = PayMaster;
 	type CandidateBondLessDelay = CandidateBondLessDelay;
 	type Currency = Balances;
 	type DelegationBondLessDelay = DelegationBondLessDelay;
@@ -238,7 +239,10 @@ impl Default for ExtBuilder {
 }
 
 impl ExtBuilder {
-	pub(crate) fn with_balances(mut self, balances: Vec<(AccountId, Balance)>) -> Self {
+	pub(crate) fn with_balances(mut self, mut balances: Vec<(AccountId, Balance)>) -> Self {
+		if !balances.iter().any(|(acc, _)| *acc == PayMaster::get()) {
+			balances.push((PayMaster::get(), 300));
+		}
 		self.balances = balances;
 		self
 	}
@@ -546,16 +550,6 @@ macro_rules! assert_events_not_emitted_match {
 pub(crate) fn set_author(round: BlockNumber, acc: u64, pts: u32) {
 	<Points<Test>>::mutate(round, |p| *p += pts);
 	<AwardedPts<Test>>::mutate(round, acc, |p| *p += pts);
-}
-
-/// fn to query the lock amount
-pub(crate) fn query_lock_amount(account_id: u64, id: LockIdentifier) -> Option<Balance> {
-	for lock in Balances::locks(&account_id) {
-		if lock.id == id {
-			return Some(lock.amount)
-		}
-	}
-	None
 }
 
 #[test]
