@@ -58,7 +58,7 @@ mod types;
 // 2. type ReasonOf<T> = <<T as Config>::Currency as InspectHold<<T as frame_system::Config>::AccountId>>::Reason;
 // So we can remove the `Balance` and the `Reason` type from the pallet's config.
 pub type BalanceOf<T> = <T as Config>::Balance;
-pub type ReasonOf<T> = <T as Config>::Reason;
+pub type ReasonOf<T> = <T as Config>::RuntimeHoldReason;
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 
 /// Actions to take against a user's `Vesting` storage entry.
@@ -119,11 +119,11 @@ pub mod pallet {
 
 		type Balance: Balance + MaybeSerializeDeserialize + From<u64>;
 
-		// TODO: Still I dont-like this. I want to be able to use the `LockType` from the pallet_balances, without coupling it.
-		type Reason: Parameter + Copy + MaybeSerializeDeserialize;
+		/// Overarching hold reason.
+		type RuntimeHoldReason: Parameter + MaxEncodedLen  + Copy;
 
 		type Currency: InspectHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
-			+ MutateHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, Reason = ReasonOf<Self>>
+			+ MutateHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, Reason = Self::RuntimeHoldReason>
 			+ BalancedHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
 			+ Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
 
@@ -152,40 +152,35 @@ pub mod pallet {
 		}
 	}
 
-	#[pallet::genesis_config]
-	#[derive(frame_support::DefaultNoBound)]
-	pub struct GenesisConfig<T: Config> {
-		pub vesting: Vec<(AccountIdOf<T>, BlockNumberFor<T>, BlockNumberFor<T>, BalanceOf<T>, ReasonOf<T>)>,
-	}
 
-	#[pallet::genesis_build]
-	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
-		fn build(&self) {
-			use sp_runtime::traits::Saturating;
+	// #[pallet::genesis_build]
+	// impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
+	// 	fn build(&self) {
+	// 		use sp_runtime::traits::Saturating;
 
-			// Generate initial vesting configuration
-			// * who - Account which we are generating vesting configuration for
-			// * begin - Block when the account will start to vest
-			// * length - Number of blocks from `begin` until fully vested
-			// * liquid - Number of units which can be spent before vesting begins
-			for &(ref who, begin, length, liquid, reason) in self.vesting.iter() {
-				let balance = T::Currency::balance(who);
-				assert!(!balance.is_zero(), "Currencies must be init'd before vesting");
-				// Total genesis `balance` minus `liquid` equals funds locked for vesting
-				let locked = balance.saturating_sub(liquid);
-				let length_as_balance = T::BlockNumberToBalance::convert(length);
-				let per_block = locked / length_as_balance.max(sp_runtime::traits::One::one());
-				let vesting_info = VestingInfo::new(locked, per_block, begin);
-				if !vesting_info.is_valid() {
-					panic!("Invalid VestingInfo params at genesis")
-				};
+	// 		// Generate initial vesting configuration
+	// 		// * who - Account which we are generating vesting configuration for
+	// 		// * begin - Block when the account will start to vest
+	// 		// * length - Number of blocks from `begin` until fully vested
+	// 		// * liquid - Number of units which can be spent before vesting begins
+	// 		for &(ref who, begin, length, liquid, reason) in self.vesting.iter() {
+	// 			let balance = T::Currency::balance(who);
+	// 			assert!(!balance.is_zero(), "Currencies must be init'd before vesting");
+	// 			// Total genesis `balance` minus `liquid` equals funds locked for vesting
+	// 			let locked = balance.saturating_sub(liquid);
+	// 			let length_as_balance = T::BlockNumberToBalance::convert(length);
+	// 			let per_block = locked / length_as_balance.max(sp_runtime::traits::One::one());
+	// 			let vesting_info = VestingInfo::new(locked, per_block, begin);
+	// 			if !vesting_info.is_valid() {
+	// 				panic!("Invalid VestingInfo params at genesis")
+	// 			};
 
-				Vesting::<T>::try_append(who, reason, vesting_info).expect("Too many vesting schedules at genesis.");
+	// 			Vesting::<T>::try_append(who, reason, vesting_info).expect("Too many vesting schedules at genesis.");
 
-				T::Currency::hold(&reason, who, locked).map_err(|err| panic!("{:?}", err)).unwrap();
-			}
-		}
-	}
+	// 			T::Currency::hold(&reason, who, locked).map_err(|err| panic!("{:?}", err)).unwrap();
+	// 		}
+	// 	}
+	// }
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {

@@ -251,16 +251,22 @@ pub const PLMC_STATEMINT_ID: u32 = 2069;
 
 #[frame_support::pallet]
 pub mod pallet {
+	use super::*;
+	use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
+	use local_macros::*;
 	use sp_arithmetic::Percent;
 	use sp_runtime::traits::{Convert, ConvertBack};
 
-	use local_macros::*;
-
-	use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
-
-	use super::*;
+	/// A reason for the pallet parachain staking placing a hold on funds.
+	#[pallet::composite_enum]
+	pub enum HoldReason {
+		///
+		Evaluation(u32),
+		///
+		Participation(u32),
+	}
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -293,7 +299,15 @@ pub mod pallet {
 		type RuntimeCall: Parameter + IsType<<Self as frame_system::Config>::RuntimeCall> + From<Call<Self>>;
 
 		/// Global identifier for the projects.
-		type ProjectIdentifier: Parameter + Copy + Default + One + Saturating + From<u32> + Ord + MaxEncodedLen;
+		type ProjectIdentifier: Parameter
+			+ Copy
+			+ Default
+			+ One
+			+ Saturating
+			+ From<u32>
+			+ Into<u32>
+			+ Ord
+			+ MaxEncodedLen;
 		// TODO: PLMC-153 + MaybeSerializeDeserialize: Maybe needed for JSON serialization @ Genesis: https://github.com/paritytech/substrate/issues/12738#issuecomment-1320921201
 
 		/// Multiplier that decides how much PLMC needs to be bonded for a token buy/bid
@@ -312,12 +326,14 @@ pub mod pallet {
 		/// Represents the value of something in USD
 		type Price: FixedPointNumber + Parameter + Copy + MaxEncodedLen + MaybeSerializeDeserialize;
 
+		type RuntimeHoldReason: From<HoldReason>;
+
 		/// The chains native currency
 		type NativeCurrency: fungible::InspectHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
 			+ fungible::MutateHold<
 				AccountIdOf<Self>,
 				Balance = BalanceOf<Self>,
-				Reason = LockType<Self::ProjectIdentifier>,
+				Reason = <Self as Config>::RuntimeHoldReason,
 			> + fungible::BalancedHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
 			+ fungible::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
 
@@ -407,7 +423,7 @@ pub mod pallet {
 
 		type Vesting: polimec_traits::ReleaseSchedule<
 			AccountIdOf<Self>,
-			LockType<Self::ProjectIdentifier>,
+			<Self as Config>::RuntimeHoldReason,
 			Currency = Self::NativeCurrency,
 			Moment = BlockNumberFor<Self>,
 		>;

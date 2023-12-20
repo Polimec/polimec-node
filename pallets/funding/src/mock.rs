@@ -58,7 +58,7 @@ frame_support::construct_runtime!(
 		System: frame_system,
 		RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip,
 		Balances: pallet_balances,
-		FundingModule: crate,
+		FundingModule: crate::{Pallet, Call, Storage, Event<T>, Config<T>, HoldReason},
 		Vesting: pallet_linear_release,
 		LocalAssets: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>},
 		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>},
@@ -256,7 +256,7 @@ impl pallet_balances::Config for TestRuntime {
 	type MaxReserves = frame_support::traits::ConstU32<1024>;
 	type ReserveIdentifier = LockType<u32>;
 	type RuntimeEvent = RuntimeEvent;
-	type RuntimeHoldReason = LockType<u32>;
+	type RuntimeHoldReason = RuntimeHoldReason;
 	type WeightInfo = ();
 }
 
@@ -305,7 +305,7 @@ impl pallet_linear_release::Config for TestRuntime {
 	type BlockNumberToBalance = ConvertInto;
 	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;
-	type Reason = LockType<ProjectIdOf<Self>>;
+	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeEvent = RuntimeEvent;
 	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
 	type WeightInfo = ();

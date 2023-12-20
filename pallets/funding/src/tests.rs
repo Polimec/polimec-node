@@ -671,7 +671,7 @@ mod auction_round_success {
 
 		let evaluation_bonded = inst.execute(|| {
 			<TestRuntime as Config>::NativeCurrency::balance_on_hold(
-				&LockType::Evaluation(project_id),
+				&HoldReason::Evaluation(project_id.into()).into(),
 				&evaluator_bidder,
 			)
 		});
@@ -2469,7 +2469,7 @@ mod community_round_success {
 		assert_eq!(contributor_post_buy_statemint_asset_balance, 0);
 
 		let plmc_bond_stored = inst.execute(|| {
-			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&LockType::Participation(project_id), &CONTRIBUTOR)
+			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&HoldReason::Participation(project_id.into()).into(), &CONTRIBUTOR)
 		});
 		let statemint_asset_contributions_stored = inst.execute(|| {
 			Contributions::<TestRuntime>::iter_prefix_values((project_id, CONTRIBUTOR))
@@ -2512,7 +2512,7 @@ mod community_round_success {
 		);
 
 		let new_plmc_bond_stored = inst.execute(|| {
-			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&LockType::Participation(project_id), &CONTRIBUTOR)
+			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&HoldReason::Participation(project_id.into()).into(), &CONTRIBUTOR)
 		});
 		let new_statemint_asset_contributions_stored = inst.execute(|| {
 			Contributions::<TestRuntime>::iter_prefix_values((project_id, CONTRIBUTOR))
@@ -2577,7 +2577,7 @@ mod community_round_success {
 		assert_eq!(contributor_post_buy_statemint_asset_balance, 0);
 
 		let plmc_bond_stored = inst.execute(|| {
-			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&LockType::Participation(project_id), &CONTRIBUTOR)
+			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&HoldReason::Participation(project_id.into()).into(), &CONTRIBUTOR)
 		});
 		let statemint_asset_contributions_stored = inst.execute(|| {
 			Contributions::<TestRuntime>::iter_prefix_values((project_id, CONTRIBUTOR))
@@ -2620,7 +2620,7 @@ mod community_round_success {
 		);
 
 		let new_plmc_bond_stored = inst.execute(|| {
-			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&LockType::Participation(project_id), &CONTRIBUTOR)
+			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&HoldReason::Participation(project_id.into()).into(), &CONTRIBUTOR)
 		});
 		let new_statemint_asset_contributions_stored = inst.execute(|| {
 			Contributions::<TestRuntime>::iter_prefix_values((project_id, CONTRIBUTOR))
@@ -2736,7 +2736,7 @@ mod community_round_success {
 
 		let evaluation_bonded = inst.execute(|| {
 			<TestRuntime as Config>::NativeCurrency::balance_on_hold(
-				&LockType::Evaluation(project_id),
+				&HoldReason::Evaluation(project_id.into()).into(),
 				&evaluator_contributor,
 			)
 		});
@@ -4019,7 +4019,7 @@ mod remainder_round_success {
 
 		let evaluation_bonded = inst.execute(|| {
 			<TestRuntime as Config>::NativeCurrency::balance_on_hold(
-				&LockType::Evaluation(project_id),
+				&HoldReason::Evaluation(project_id.into()).into(),
 				&evaluator_contributor,
 			)
 		});

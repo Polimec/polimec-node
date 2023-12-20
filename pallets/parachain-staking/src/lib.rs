@@ -112,19 +112,28 @@ pub mod pallet {
 
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 
+	/// A reason for the pallet parachain staking placing a hold on funds.
+	#[pallet::composite_enum]
+	pub enum HoldReason {
+		///
+		StakingCollator,
+		///
+		StakingDelegator,
+	}
+
 	/// Configuration trait of this pallet.
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		/// Overarching event type
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+		/// Overarching hold reason.
+		type RuntimeHoldReason: From<HoldReason>;
 		/// The currency type
 		type Currency: Inspect<AccountIdOf<Self>, Balance = BalanceOf<Self>>
 			+ Balanced<AccountIdOf<Self>>
 			+ Mutate<AccountIdOf<Self>>
 			+ InspectHold<AccountIdOf<Self>>
-			+ MutateHold<AccountIdOf<Self>, Reason = LockType<Self::ProjectIdentifier>>;
-
-		type ProjectIdentifier: Parameter + Copy + Default + Saturating + From<u32> + Ord + MaxEncodedLen;
+			+ MutateHold<AccountIdOf<Self>, Reason = Self::RuntimeHoldReason>;
 
 		type Balance: Balance + MaybeSerializeDeserialize;
 		/// The account that will pay the collator rewards
@@ -901,7 +910,7 @@ pub mod pallet {
 			ensure!(candidate_count >= old_count, Error::<T>::TooLowCandidateCountWeightHintJoinCandidates);
 			ensure!(candidates.insert(Bond { owner: acc.clone(), amount: bond }), Error::<T>::CandidateExists);
 			ensure!(Self::get_collator_stakable_free_balance(&acc) >= bond, Error::<T>::InsufficientBalance,);
-			T::Currency::hold(&LockType::<T::ProjectIdentifier>::StakingCollator, &acc, bond)?;
+			T::Currency::hold(&HoldReason::StakingCollator.into(), &acc, bond)?;
 			let candidate = CandidateMetadata::new(bond);
 			<CandidateInfo<T>>::insert(&acc, candidate);
 			let empty_delegations: Delegations<T::AccountId, BalanceOf<T>> = Default::default();
@@ -977,11 +986,11 @@ pub mod pallet {
 						// last delegation was left.
 						<DelegatorState<T>>::remove(&bond.owner);
 						let total_bonded = T::Currency::balance_on_hold(
-							&LockType::<T::ProjectIdentifier>::StakingDelegator,
+							&HoldReason::StakingDelegator.into(),
 							&bond.owner,
 						);
 						T::Currency::release(
-							&LockType::<T::ProjectIdentifier>::StakingDelegator,
+							&HoldReason::StakingDelegator.into(),
 							&bond.owner,
 							total_bonded,
 							Precision::Exact,
@@ -993,9 +1002,9 @@ pub mod pallet {
 					// TODO: review. we assume here that this delegator has no remaining staked
 					// balance, so we ensure the lock is cleared
 					let total_bonded =
-						T::Currency::balance_on_hold(&LockType::<T::ProjectIdentifier>::StakingDelegator, &bond.owner);
+						T::Currency::balance_on_hold(&HoldReason::StakingDelegator.into(), &bond.owner);
 					T::Currency::release(
-						&LockType::<T::ProjectIdentifier>::StakingDelegator,
+						&HoldReason::StakingDelegator.into(),
 						&bond.owner,
 						total_bonded,
 						Precision::Exact,
@@ -1019,9 +1028,9 @@ pub mod pallet {
 			total_backing = total_backing.saturating_add(bottom_delegations.total);
 			// return stake to collator
 			let total_bonded =
-				T::Currency::balance_on_hold(&LockType::<T::ProjectIdentifier>::StakingCollator, &candidate);
+				T::Currency::balance_on_hold(&HoldReason::StakingCollator.into(), &candidate);
 			T::Currency::release(
-				&LockType::<T::ProjectIdentifier>::StakingCollator,
+				&HoldReason::StakingCollator.into(),
 				&candidate,
 				total_bonded,
 				Precision::Exact,

@@ -6221,6 +6221,7 @@ dependencies = [
  "parity-scale-codec",
  "polimec-traits",
  "scale-info",
+ "serde",
  "sp-core",
  "sp-io",
  "sp-runtime",

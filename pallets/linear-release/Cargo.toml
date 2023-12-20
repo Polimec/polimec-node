@@ -28,6 +28,7 @@ pallet-funding = { workspace = true, optional = true }
 [dev-dependencies]
 sp-core.workspace = true
 sp-io.workspace = true
+serde.workspace = true
 pallet-balances.workspace = true
 
 

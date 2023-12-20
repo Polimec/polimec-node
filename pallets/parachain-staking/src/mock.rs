@@ -45,7 +45,7 @@ construct_runtime!(
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		Aura: pallet_aura::{Pallet, Storage},
 		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
-		ParachainStaking: pallet_parachain_staking::{Pallet, Call, Storage, Config<T>, Event<T>},
+		ParachainStaking: pallet_parachain_staking::{Pallet, Call, Storage, Config<T>, Event<T>, HoldReason},
 		Authorship: pallet_authorship::{Pallet, Storage},
 	}
 );
@@ -98,7 +98,7 @@ impl pallet_balances::Config for Test {
 	type MaxReserves = ();
 	type ReserveIdentifier = [u8; 4];
 	type RuntimeEvent = RuntimeEvent;
-	type RuntimeHoldReason = LockType<u32>;
+	type RuntimeHoldReason = RuntimeHoldReason;
 	type WeightInfo = ();
 }
 parameter_types! {
@@ -194,7 +194,7 @@ impl Config for Test {
 	type OnNewRound = ();
 	type PayMaster = PayMaster;
 	type PayoutCollatorReward = ();
-	type ProjectIdentifier = u32;
+	type RuntimeHoldReason = RuntimeHoldReason;
 	type RevokeDelegationDelay = RevokeDelegationDelay;
 	type RewardPaymentDelay = RewardPaymentDelay;
 	type RuntimeEvent = RuntimeEvent;

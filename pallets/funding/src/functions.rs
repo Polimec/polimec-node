@@ -793,7 +793,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Update Storage *
 		if caller_existing_evaluations.len() < T::MaxEvaluationsPerUser::get() as usize {
-			T::NativeCurrency::hold(&LockType::Evaluation(project_id), evaluator, plmc_bond)?;
+			T::NativeCurrency::hold(&HoldReason::Evaluation(project_id.into()).into(), evaluator, plmc_bond)?;
 		} else {
 			let (low_id, lowest_evaluation) = caller_existing_evaluations
 				.iter()
@@ -807,13 +807,13 @@ impl<T: Config> Pallet<T> {
 			);
 
 			T::NativeCurrency::release(
-				&LockType::Evaluation(project_id),
+				&HoldReason::Evaluation(project_id.into()).into(),
 				&lowest_evaluation.evaluator,
 				lowest_evaluation.original_plmc_bond,
 				Precision::Exact,
 			)?;
 
-			T::NativeCurrency::hold(&LockType::Evaluation(project_id), evaluator, plmc_bond)?;
+			T::NativeCurrency::hold(&HoldReason::Evaluation(project_id.into()).into(), evaluator, plmc_bond)?;
 
 			Evaluations::<T>::remove((project_id, evaluator, low_id));
 		}
@@ -963,7 +963,7 @@ impl<T: Config> Pallet<T> {
 			// ensure!(new_bid.plmc_bond > lowest_bid.plmc_bond, Error::<T>::BidTooLow);
 
 			T::NativeCurrency::release(
-				&LockType::Participation(project_id),
+				&HoldReason::Participation(project_id.into()).into(),
 				&lowest_bid.bidder,
 				lowest_bid.plmc_bond,
 				Precision::Exact,
@@ -1083,7 +1083,7 @@ impl<T: Config> Pallet<T> {
 			ensure!(new_contribution.plmc_bond > lowest_contribution.plmc_bond, Error::<T>::ContributionTooLow);
 
 			T::NativeCurrency::release(
-				&LockType::Participation(project_id),
+				&HoldReason::Participation(project_id.into()).into(),
 				&lowest_contribution.contributor,
 				lowest_contribution.plmc_bond,
 				Precision::Exact,
@@ -1286,7 +1286,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Update Storage *
 		T::NativeCurrency::release(
-			&LockType::Evaluation(project_id),
+			&HoldReason::Evaluation(project_id.into()).into(),
 			evaluator,
 			released_evaluation.current_plmc_bond,
 			Precision::Exact,
@@ -1389,7 +1389,7 @@ impl<T: Config> Pallet<T> {
 		evaluation.rewarded_or_slashed = Some(RewardOrSlash::Slash(slashed_amount));
 
 		T::NativeCurrency::transfer_on_hold(
-			&LockType::Evaluation(project_id),
+			&HoldReason::Evaluation(project_id.into()).into(),
 			evaluator,
 			&treasury_account,
 			slashed_amount,
@@ -1443,7 +1443,7 @@ impl<T: Config> Pallet<T> {
 			vest_info.total_amount,
 			vest_info.amount_per_block,
 			funding_end_block,
-			LockType::Participation(project_id),
+			HoldReason::Participation(project_id.into()).into(),
 		)?;
 		Bids::<T>::insert((project_id, bidder, bid_id), bid);
 
@@ -1488,7 +1488,7 @@ impl<T: Config> Pallet<T> {
 			vest_info.total_amount,
 			vest_info.amount_per_block,
 			funding_end_block,
-			LockType::Participation(project_id),
+			HoldReason::Participation(project_id.into()).into(),
 		)?;
 		Contributions::<T>::insert((project_id, contributor, contribution_id), contribution);
 
@@ -1516,7 +1516,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(matches!(project_details.status, ProjectStatus::FundingSuccessful), Error::<T>::NotAllowed);
 
 		// * Update storage *
-		let vested_amount = T::Vesting::vest(participant.clone(), LockType::Participation(project_id))?;
+		let vested_amount = T::Vesting::vest(participant.clone(), HoldReason::Participation(project_id.into()).into())?;
 
 		// * Emit events *
 		Self::deposit_event(Event::ParticipantPlmcVested { project_id, participant, amount: vested_amount, caller });
@@ -1590,7 +1590,7 @@ impl<T: Config> Pallet<T> {
 		);
 
 		// * Update Storage *
-		T::NativeCurrency::release(&LockType::Participation(project_id), bidder, bid.plmc_bond, Precision::Exact)?;
+		T::NativeCurrency::release(&HoldReason::Participation(project_id.into()).into(), bidder, bid.plmc_bond, Precision::Exact)?;
 
 		Bids::<T>::remove((project_id, bidder, bid_id));
 
@@ -1664,7 +1664,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(project_details.status == ProjectStatus::FundingFailed, Error::<T>::NotAllowed);
 
 		// * Update Storage *
-		T::NativeCurrency::release(&LockType::Participation(project_id), contributor, bid.plmc_bond, Precision::Exact)?;
+		T::NativeCurrency::release(&HoldReason::Participation(project_id.into()).into(), contributor, bid.plmc_bond, Precision::Exact)?;
 
 		Contributions::<T>::remove((project_id, contributor, contribution_id));
 
@@ -2368,7 +2368,7 @@ impl<T: Config> Pallet<T> {
 							.checked_mul_int(usd_bond_needed)
 							.ok_or(Error::<T>::BadMath)?;
 						T::NativeCurrency::release(
-							&LockType::Participation(project_id),
+							&HoldReason::Participation(project_id.into()).into(),
 							&bid.bidder,
 							bid.plmc_bond.saturating_sub(plmc_bond_needed),
 							Precision::Exact,
@@ -2464,7 +2464,7 @@ impl<T: Config> Pallet<T> {
 					.ok_or(Error::<T>::BadMath)?;
 
 				T::NativeCurrency::release(
-					&LockType::Participation(project_id),
+					&HoldReason::Participation(project_id.into()).into(),
 					&bid.bidder,
 					bid.plmc_bond.saturating_sub(plmc_bond_needed),
 					Precision::Exact,
@@ -2511,7 +2511,7 @@ impl<T: Config> Pallet<T> {
 			bid.funding_asset_amount_locked,
 			Preservation::Preserve,
 		)?;
-		T::NativeCurrency::release(&LockType::Participation(project_id), &bid.bidder, bid.plmc_bond, Precision::Exact)?;
+		T::NativeCurrency::release(&HoldReason::Participation(project_id.into()).into(), &bid.bidder, bid.plmc_bond, Precision::Exact)?;
 		bid.funding_asset_amount_locked = Zero::zero();
 		bid.plmc_bond = Zero::zero();
 
@@ -2565,14 +2565,14 @@ impl<T: Config> Pallet<T> {
 			let converted = to_convert.min(available_to_convert);
 			evaluation.current_plmc_bond = evaluation.current_plmc_bond.saturating_sub(converted);
 			Evaluations::<T>::insert((project_id, who, evaluation.id), evaluation);
-			T::NativeCurrency::release(&LockType::Evaluation(project_id), who, converted, Precision::Exact)
+			T::NativeCurrency::release(&HoldReason::Evaluation(project_id.into()).into(), who, converted, Precision::Exact)
 				.map_err(|_| Error::<T>::ImpossibleState)?;
-			T::NativeCurrency::hold(&LockType::Participation(project_id), who, converted)
+			T::NativeCurrency::hold(&HoldReason::Participation(project_id.into()).into(), who, converted)
 				.map_err(|_| Error::<T>::ImpossibleState)?;
 			to_convert = to_convert.saturating_sub(converted)
 		}
 
-		T::NativeCurrency::hold(&LockType::Participation(project_id), who, to_convert)?;
+		T::NativeCurrency::hold(&HoldReason::Participation(project_id.into()).into(), who, to_convert)?;
 
 		Ok(())
 	}
