@@ -45,4 +45,4 @@ std = [
 	"xcm-executor/std",
 	"xcm/std",
 ]
-try-runtime = []
+try-runtime = [ "frame-support/try-runtime", "sp-runtime/try-runtime" ]

@@ -34,13 +34,13 @@ orml-traits.workspace = true
 default = [ "std" ]
 fast-gov = []
 std = [
-	"scale-info/std",
-	"parity-scale-codec/std",
 	"frame-support/std",
 	"frame-system/std",
 	"orml-traits/std",
 	"pallet-funding/std",
 	"parachains-common/std",
+	"parity-scale-codec/std",
+	"scale-info/std",
 	"sp-arithmetic/std",
 	"sp-std/std",
 ]
@@ -50,4 +50,8 @@ runtime-benchmarks = [
 	"pallet-funding/runtime-benchmarks",
 ]
 testing-node = [ "pallet-funding/testing-node" ]
-try-runtime = [ "pallet-funding/try-runtime" ]
+try-runtime = [
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"pallet-funding/try-runtime",
+]
