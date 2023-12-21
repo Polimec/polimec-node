@@ -29,6 +29,7 @@ parachains-common.workspace = true
 sp-std.workspace = true
 pallet-funding.workspace = true
 orml-traits.workspace = true
+pallet-transaction-payment.workspace = true
 
 [features]
 default = [ "std" ]

@@ -16,12 +16,24 @@
 
 use crate::{currency::MILLI_PLMC, Balance};
 use frame_support::{
+	pallet_prelude::{InvalidTransaction, TransactionValidityError},
 	parameter_types,
+	sp_runtime::traits::{DispatchInfoOf, PostDispatchInfoOf},
+	traits::{
+		fungible::{Balanced, Credit, Debt, Inspect},
+		tokens::Precision,
+		Imbalance, OnUnbalanced,
+	},
 	weights::{constants::ExtrinsicBaseWeight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial},
 };
+use pallet_transaction_payment::OnChargeTransaction;
 use parachains_common::SLOT_DURATION;
 use smallvec::smallvec;
-use sp_arithmetic::Perbill;
+use sp_arithmetic::{
+	traits::{Saturating, Zero},
+	Perbill,
+};
+use sp_std::marker::PhantomData;
 
 pub struct WeightToFee;
 impl WeightToFeePolynomial for WeightToFee {
@@ -43,4 +55,74 @@ impl WeightToFeePolynomial for WeightToFee {
 parameter_types! {
 	pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
 	pub const MaxAuthorities: u32 = 100_000;
+}
+
+/// Implements transaction payment for a pallet implementing the [`fungible`]
+/// trait (eg. pallet_balances) using an unbalance handler (implementing
+/// [`OnUnbalanced`]).
+///
+/// The unbalance handler is given 2 unbalanceds in [`OnUnbalanced::on_unbalanceds`]: `fee` and
+/// then `tip`.
+pub struct FungibleAdapter<F, OU>(PhantomData<(F, OU)>);
+
+impl<T, F, OU> OnChargeTransaction<T> for FungibleAdapter<F, OU>
+where
+	T: pallet_transaction_payment::Config,
+	F: Balanced<T::AccountId>,
+	OU: OnUnbalanced<Credit<T::AccountId, F>>,
+{
+	type Balance = <F as Inspect<<T as frame_system::Config>::AccountId>>::Balance;
+	type LiquidityInfo = Option<Credit<T::AccountId, F>>;
+
+	fn withdraw_fee(
+		who: &<T>::AccountId,
+		_call: &<T>::RuntimeCall,
+		_dispatch_info: &DispatchInfoOf<<T>::RuntimeCall>,
+		fee: Self::Balance,
+		_tip: Self::Balance,
+	) -> Result<Self::LiquidityInfo, TransactionValidityError> {
+		if fee.is_zero() {
+			return Ok(None)
+		}
+
+		match F::withdraw(
+			who,
+			fee,
+			Precision::Exact,
+			frame_support::traits::tokens::Preservation::Preserve,
+			frame_support::traits::tokens::Fortitude::Polite,
+		) {
+			Ok(imbalance) => Ok(Some(imbalance)),
+			Err(_) => Err(InvalidTransaction::Payment.into()),
+		}
+	}
+
+	fn correct_and_deposit_fee(
+		who: &<T>::AccountId,
+		_dispatch_info: &DispatchInfoOf<<T>::RuntimeCall>,
+		_post_info: &PostDispatchInfoOf<<T>::RuntimeCall>,
+		corrected_fee: Self::Balance,
+		tip: Self::Balance,
+		already_withdrawn: Self::LiquidityInfo,
+	) -> Result<(), TransactionValidityError> {
+		if let Some(paid) = already_withdrawn {
+			// Calculate how much refund we should return
+			let refund_amount = paid.peek().saturating_sub(corrected_fee);
+			// refund to the the account that paid the fees. If this fails, the
+			// account might have dropped below the existential balance. In
+			// that case we don't refund anything.
+			let refund_imbalance = F::deposit(who, refund_amount, Precision::BestEffort)
+				.unwrap_or_else(|_| Debt::<T::AccountId, F>::zero());
+			// merge the imbalance caused by paying the fees and refunding parts of it again.
+			let adjusted_paid: Credit<T::AccountId, F> = paid
+				.offset(refund_imbalance)
+				.same()
+				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+			// Call someone else to handle the imbalance (fee and tip separately)
+			let (tip, fee) = adjusted_paid.split(tip);
+			OU::on_unbalanceds(Some(fee).into_iter().chain(Some(tip)));
+		}
+
+		Ok(())
+	}
 }
