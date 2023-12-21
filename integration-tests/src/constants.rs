@@ -1,9 +1,17 @@
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 pub use parachains_common::{AccountId, AssetHubPolkadotAuraId, AuraId, Balance, BlockNumber};
+use polimec_parachain_runtime::{
+	pallet_parachain_staking::{
+		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
+		Range,
+	},
+	PLMC,
+};
 use polkadot_primitives::{AssignmentId, ValidatorId};
 pub use polkadot_runtime_parachains::configuration::HostConfiguration;
 use polkadot_service::chain_spec::get_authority_keys_from_seed_no_beefy;
 use sc_consensus_grandpa::AuthorityId as GrandpaId;
+use sp_arithmetic::Percent;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::{sr25519, storage::Storage, Pair, Public};
@@ -16,6 +24,29 @@ pub const XCM_V3: u32 = 2;
 pub const REF_TIME_THRESHOLD: u64 = 33;
 pub const PROOF_SIZE_THRESHOLD: u64 = 33;
 pub const INITIAL_DEPOSIT: u128 = 420_0_000_000_000;
+
+const BLOCKS_PER_ROUND: u32 = 6 * 100;
+
+fn polimec_inflation_config() -> polimec_parachain_runtime::pallet_parachain_staking::InflationInfo<Balance> {
+	fn to_round_inflation(annual: Range<Perbill>) -> Range<Perbill> {
+		perbill_annual_to_perbill_round(
+			annual,
+			// rounds per year
+			BLOCKS_PER_YEAR / BLOCKS_PER_ROUND,
+		)
+	}
+
+	let annual =
+		Range { min: Perbill::from_percent(2), ideal: Perbill::from_percent(3), max: Perbill::from_percent(3) };
+
+	polimec_parachain_runtime::pallet_parachain_staking::InflationInfo {
+		// staking expectations
+		expect: Range { min: 100_000 * PLMC, ideal: 200_000 * PLMC, max: 500_000 * PLMC },
+		// annual inflation
+		annual,
+		round: to_round_inflation(annual),
+	}
+}
 
 /// Helper function to generate a crypto pair from seed
 fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
@@ -69,6 +100,13 @@ pub mod collators {
 		vec![
 			(get_account_id_from_seed::<sr25519::Public>("Alice"), get_from_seed::<AuraId>("Alice")),
 			(get_account_id_from_seed::<sr25519::Public>("Bob"), get_from_seed::<AuraId>("Bob")),
+		]
+	}
+
+	pub fn initial_authorities() -> Vec<(AccountId, AuraId)> {
+		vec![
+			(get_account_id_from_seed::<sr25519::Public>("COLL_1"), get_from_seed::<AuraId>("COLL_1")),
+			(get_account_id_from_seed::<sr25519::Public>("COLL_2"), get_from_seed::<AuraId>("COLL_2")),
 		]
 	}
 }
@@ -236,6 +274,11 @@ pub mod polimec {
 	pub const PARA_ID: u32 = 3344;
 	pub const ED: Balance = polimec_parachain_runtime::EXISTENTIAL_DEPOSIT;
 
+	const GENESIS_BLOCKS_PER_ROUND: BlockNumber = 1800;
+	const GENESIS_COLLATOR_COMMISSION: Perbill = Perbill::from_percent(10);
+	const GENESIS_PARACHAIN_BOND_RESERVE_PERCENT: Percent = Percent::from_percent(0);
+	const GENESIS_NUM_SELECTED_CANDIDATES: u32 = 5;
+
 	pub fn genesis() -> Storage {
 		let dot_asset_id = AcceptedFundingAsset::DOT.to_statemint_id();
 		let usdt_asset_id = AcceptedFundingAsset::USDT.to_statemint_id();
@@ -248,6 +291,7 @@ pub mod polimec {
 		let charlie_account: AccountId = Polimec::account_id_of(accounts::CHARLIE);
 
 		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
+		funded_accounts.extend(collators::initial_authorities().iter().cloned().map(|(acc, _)| (acc, 20_005 * PLMC)));
 		let genesis_config = polimec_parachain_runtime::GenesisConfig {
 			system: polimec_parachain_runtime::SystemConfig {
 				code: polimec_parachain_runtime::WASM_BINARY
@@ -289,7 +333,18 @@ pub mod polimec {
 				members: bounded_vec![alice_account.clone(), bob_account, charlie_account],
 				..Default::default()
 			},
-			parachain_staking: Default::default(),
+			parachain_staking: polimec_parachain_runtime::ParachainStakingConfig {
+				candidates: collators::initial_authorities()
+					.iter()
+					.map(|(acc, _)| (acc.clone(), 20_000 * PLMC))
+					.collect(),
+				delegations: vec![],
+				inflation_config: polimec_inflation_config(),
+				collator_commission: GENESIS_COLLATOR_COMMISSION,
+				parachain_bond_reserve_percent: GENESIS_PARACHAIN_BOND_RESERVE_PERCENT,
+				blocks_per_round: GENESIS_BLOCKS_PER_ROUND,
+				num_selected_candidates: GENESIS_NUM_SELECTED_CANDIDATES,
+			},
 			statemint_assets: polimec_parachain_runtime::StatemintAssetsConfig {
 				assets: vec![
 					(dot_asset_id, alice_account.clone(), true, 0_0_010_000_000u128),
@@ -303,7 +358,8 @@ pub mod polimec {
 			},
 			technical_committee: Default::default(),
 			treasury: Default::default(),
-			linear_vesting: Default::default(),
+			linear_release: Default::default(),
+			vesting: Default::default(),
 		};
 
 		genesis_config.build_storage().unwrap()

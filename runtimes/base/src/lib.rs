@@ -271,7 +271,7 @@ impl frame_system::Config for Runtime {
 	/// This is used as an identifier of the chain. 42 is the generic substrate prefix.
 	type SS58Prefix = SS58Prefix;
 	/// Weight information for the extrinsics of this pallet.
-	type SystemWeightInfo = ();
+	type SystemWeightInfo = frame_system::weights::SubstrateWeight<Runtime>;
 	/// Runtime version.
 	type Version = Version;
 }
@@ -281,7 +281,7 @@ impl pallet_timestamp::Config for Runtime {
 	/// A timestamp: milliseconds since the unix epoch.
 	type Moment = u64;
 	type OnTimestampSet = Aura;
-	type WeightInfo = ();
+	type WeightInfo = pallet_timestamp::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_authorship::Config for Runtime {
@@ -302,7 +302,7 @@ impl pallet_balances::Config for Runtime {
 	type ReserveIdentifier = [u8; 8];
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeHoldReason = LockType<ProjectIdentifier>;
-	type WeightInfo = ();
+    type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_transaction_payment::Config for Runtime {
@@ -338,7 +338,7 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type PriceForSiblingDelivery = ();
 	type RuntimeEvent = RuntimeEvent;
 	type VersionWrapper = ();
-	type WeightInfo = ();
+	type WeightInfo = cumulus_pallet_xcmp_queue::weights::SubstrateWeight<Self>;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 }
 
@@ -357,7 +357,7 @@ impl pallet_session::Config for Runtime {
 	type ShouldEndSession = ParachainStaking;
 	type ValidatorId = AccountId;
 	type ValidatorIdOf = ConvertInto;
-	type WeightInfo = ();
+	type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_aura::Config for Runtime {
@@ -406,11 +406,22 @@ impl pallet_parachain_staking::Config for Runtime {
 	type WeightInfo = pallet_parachain_staking::weights::SubstrateWeight<Runtime>;
 }
 
+impl pallet_vesting::Config for Runtime {
+	type BlockNumberToBalance = ConvertInto;
+	type Currency = Balances;
+	type MinVestedTransfer = shared_configuration::vesting::MinVestedTransfer;
+	type RuntimeEvent = RuntimeEvent;
+	type UnvestedFundsAllowedWithdrawReasons = shared_configuration::vesting::UnvestedFundsAllowedWithdrawReasons;
+	type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
+
+	const MAX_VESTING_SCHEDULES: u32 = 12;
+}
+
 impl pallet_utility::Config for Runtime {
 	type PalletsOrigin = OriginCaller;
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = ();
+	type WeightInfo = pallet_utility::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_multisig::Config for Runtime {
@@ -420,7 +431,7 @@ impl pallet_multisig::Config for Runtime {
 	type MaxSignatories = MaxSignatories;
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = ();
+	type WeightInfo = pallet_multisig::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_proxy::Config for Runtime {
@@ -435,7 +446,7 @@ impl pallet_proxy::Config for Runtime {
 	type ProxyType = ProxyType;
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = ();
+	type WeightInfo = pallet_proxy::weights::SubstrateWeight<Runtime>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -455,6 +466,7 @@ construct_runtime!(
 		// Monetary stuff.
 		Balances: pallet_balances = 10,
 		TransactionPayment: pallet_transaction_payment = 11,
+		Vesting: pallet_vesting = 12,
 
 		// Collator support. the order of these 5 are important and shall not change.
 		Authorship: pallet_authorship::{Pallet, Storage} = 20,
