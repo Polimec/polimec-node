@@ -11266,6 +11266,7 @@ dependencies = [
  "frame-system",
  "orml-traits",
  "pallet-funding",
+ "pallet-transaction-payment",
  "parachains-common",
  "parity-scale-codec",
  "scale-info",
