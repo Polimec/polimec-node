@@ -31,7 +31,7 @@ use crate::{
 		ParachainStaking, RuntimeOrigin, Test,
 	},
 	AtStake, Bond, CollatorStatus, DelegationScheduledRequests, DelegatorAdded, DelegatorState, DelegatorStatus, Error,
-	Event, Range,
+	Event, HoldReason, Range,
 };
 use frame_support::{
 	assert_noop, assert_ok,
@@ -40,7 +40,6 @@ use frame_support::{
 		Fortitude, Preservation,
 	},
 };
-use polimec_traits::locking::LockType;
 use sp_runtime::{traits::Zero, Perbill, Percent};
 
 // ~~ ROOT ~~
@@ -2345,7 +2344,7 @@ fn can_execute_leave_candidates_if_revoking_candidate() {
 			// revocation executes during execute leave candidates (callable by anyone)
 			assert_ok!(ParachainStaking::execute_leave_candidates(RuntimeOrigin::signed(1), 1, 1));
 			assert!(!ParachainStaking::is_delegator(&2));
-			assert_eq!(Balances::balance_on_hold(&LockType::<u32>::StakingDelegator, &2), 0);
+			assert_eq!(Balances::balance_on_hold(&HoldReason::StakingDelegator.into(), &2), 0);
 			assert_eq!(Balances::reducible_balance(&2, Preservation::Preserve, Fortitude::Force), 10);
 		});
 }
@@ -3060,8 +3059,8 @@ fn multiple_delegations() {
 			assert_eq!(ParachainStaking::delegator_state(7).unwrap().delegations.0.len(), 2usize);
 			assert_eq!(ParachainStaking::delegator_state(6).unwrap().total(), 40);
 			assert_eq!(ParachainStaking::delegator_state(6).unwrap().delegations.0.len(), 4usize);
-			assert_eq!(Balances::balance_on_hold(&LockType::<u32>::StakingDelegator, &6), 40);
-			assert_eq!(Balances::balance_on_hold(&LockType::<u32>::StakingDelegator, &7), 90);
+			assert_eq!(Balances::balance_on_hold(&HoldReason::StakingDelegator.into(), &6), 40);
+			assert_eq!(Balances::balance_on_hold(&HoldReason::StakingDelegator.into(), &7), 90);
 			assert_eq!(ParachainStaking::get_delegator_stakable_free_balance(&6), 60);
 			assert_eq!(ParachainStaking::get_delegator_stakable_free_balance(&7), 10);
 			roll_to_round_begin(8);

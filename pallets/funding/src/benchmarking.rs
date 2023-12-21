@@ -350,9 +350,11 @@ mod benchmarks {
 		}
 
 		// Balances
-		let bonded_plmc = inst
-			.get_reserved_plmc_balances_for(vec![test_evaluator.clone()], LockType::Evaluation(test_project_id))[0]
-			.plmc_amount;
+		let bonded_plmc = inst.get_reserved_plmc_balances_for(
+			vec![test_evaluator.clone()],
+			HoldReason::Evaluation(test_project_id).into(),
+		)[0]
+		.plmc_amount;
 		assert_eq!(bonded_plmc, plmc_for_evaluating[0].plmc_amount);
 
 		// Events
@@ -489,7 +491,7 @@ mod benchmarks {
 
 		// Balances
 		let bonded_plmc = inst
-			.get_reserved_plmc_balances_for(vec![bidder.clone()], LockType::Participation(project_id))[0]
+			.get_reserved_plmc_balances_for(vec![bidder.clone()], HoldReason::Participation(project_id).into())[0]
 			.plmc_amount;
 		assert_eq!(bonded_plmc, necessary_plmc[0].plmc_amount);
 
@@ -592,7 +594,7 @@ mod benchmarks {
 
 		// Balances
 		let bonded_plmc = inst
-			.get_reserved_plmc_balances_for(vec![contributor.clone()], LockType::Participation(project_id))[0]
+			.get_reserved_plmc_balances_for(vec![contributor.clone()], HoldReason::Participation(project_id).into())[0]
 			.plmc_amount;
 		assert_eq!(bonded_plmc, necessary_plmc[0].plmc_amount);
 
@@ -668,7 +670,7 @@ mod benchmarks {
 		// * validity checks *
 		// Balance
 		let bonded_plmc = inst
-			.get_reserved_plmc_balances_for(vec![evaluator.clone()], LockType::Evaluation(project_id))[0]
+			.get_reserved_plmc_balances_for(vec![evaluator.clone()], HoldReason::Evaluation(project_id).into())[0]
 			.plmc_amount;
 		assert_eq!(bonded_plmc, 0.into());
 
@@ -749,7 +751,7 @@ mod benchmarks {
 		// Balance
 		let treasury_account = T::TreasuryAccount::get();
 		let bonded_plmc = inst
-			.get_reserved_plmc_balances_for(vec![evaluator.clone()], LockType::Evaluation(project_id))[0]
+			.get_reserved_plmc_balances_for(vec![evaluator.clone()], HoldReason::Evaluation(project_id).into())[0]
 			.plmc_amount;
 		assert_eq!(bonded_plmc, stored_evaluation.current_plmc_bond);
 		let free_treasury_plmc = inst.get_free_plmc_balances_for(vec![treasury_account])[0].plmc_amount;
@@ -990,7 +992,8 @@ mod benchmarks {
 		let stored_bid = Bids::<T>::get((project_id, bidder.clone(), bid_to_vest.id)).unwrap();
 		assert!(stored_bid.plmc_vesting_info.is_some());
 		let vest_info = stored_bid.plmc_vesting_info.unwrap();
-		let total_vested = T::Vesting::total_scheduled_amount(&bidder, LockType::Participation(project_id)).unwrap();
+		let total_vested =
+			T::Vesting::total_scheduled_amount(&bidder, HoldReason::Participation(project_id).into()).unwrap();
 		assert_eq!(vest_info.total_amount, total_vested);
 
 		// Events
@@ -1053,7 +1056,7 @@ mod benchmarks {
 		assert!(stored_contribution.plmc_vesting_info.is_some());
 		let vest_info = stored_contribution.plmc_vesting_info.unwrap();
 		let total_vested =
-			T::Vesting::total_scheduled_amount(&contributor, LockType::Participation(project_id)).unwrap();
+			T::Vesting::total_scheduled_amount(&contributor, HoldReason::Participation(project_id).into()).unwrap();
 		assert_eq!(vest_info.total_amount, total_vested);
 
 		// Events
@@ -1378,7 +1381,7 @@ mod benchmarks {
 		assert!(!Bids::<T>::contains_key((project_id, bidder.clone(), stored_bid.id)));
 		// Balances
 		let reserved_plmc = inst
-			.get_reserved_plmc_balances_for(vec![bidder.clone()], LockType::Participation(project_id))[0]
+			.get_reserved_plmc_balances_for(vec![bidder.clone()], HoldReason::Participation(project_id).into())[0]
 			.plmc_amount;
 		assert_eq!(reserved_plmc, 0.into());
 
@@ -1536,7 +1539,7 @@ mod benchmarks {
 		assert!(!Contributions::<T>::contains_key((project_id, contributor.clone(), stored_contribution.id)));
 		// Balances
 		let reserved_plmc = inst
-			.get_reserved_plmc_balances_for(vec![contributor.clone()], LockType::Participation(project_id))[0]
+			.get_reserved_plmc_balances_for(vec![contributor.clone()], HoldReason::Participation(project_id).into())[0]
 			.plmc_amount;
 		assert_eq!(reserved_plmc, 0.into());
 

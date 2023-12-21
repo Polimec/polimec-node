@@ -8,7 +8,7 @@ mod tests;
 #[cfg(test)]
 mod mock;
 
-use pallet_funding::{self as funding};
+use pallet_funding::{self as funding, ProjectId};
 
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
@@ -30,12 +30,12 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn buy_if_popular(
 			origin: OriginFor<T>,
-			project_id: <T as funding::Config>::ProjectIdentifier,
+			project_id: ProjectId,
 			amount: <T as funding::Config>::Balance,
 			asset_id: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
 			let retail_user = ensure_signed(origin)?;
-			let project_id: <T as funding::Config>::ProjectIdentifier = project_id;
+			let project_id: ProjectId = project_id;
 			// Check project is in the community round
 			let project_info = funding::Pallet::<T>::project_details(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 			ensure!(

@@ -1,11 +1,4 @@
-use crate::{
-	traits::{BondingRequirementCalculation, ProvideStatemintPrice},
-	AcceptedFundingAsset, AccountIdOf, AssetIdOf, AuctionPhase, BalanceOf, BidInfoOf, BidStatus, Bids, BlockNumberPair,
-	BucketOf, Buckets, Cleaner, Config, Contributions, Error, EvaluationInfoOf, EvaluationRoundInfoOf,
-	EvaluatorsOutcome, Event, HRMPChannelStatus, LockType, MultiplierOf, NextProjectId, PhaseTransitionPoints, PriceOf,
-	ProjectDetailsOf, ProjectIdOf, ProjectMetadataOf, ProjectStatus, ProjectsDetails, ProjectsMetadata,
-	ProjectsToUpdate, RewardInfoOf, UpdateType, VestingInfoOf, PLMC_STATEMINT_ID,
-};
+use crate::{*, traits::BondingRequirementCalculation};
 use frame_support::{
 	pallet_prelude::*,
 	traits::{
@@ -38,10 +31,10 @@ use sp_std::{
 	marker::PhantomData,
 	prelude::*,
 };
+use crate::traits::ProvideStatemintPrice;
 
 pub use testing_macros::*;
 pub type RuntimeOriginOf<T> = <T as frame_system::Config>::RuntimeOrigin;
-
 pub struct BoxToFunction(pub Box<dyn FnOnce()>);
 impl Default for BoxToFunction {
 	fn default() -> Self {
@@ -113,7 +106,7 @@ impl<
 	pub fn get_reserved_plmc_balances_for(
 		&mut self,
 		user_keys: Vec<AccountIdOf<T>>,
-		lock_type: LockType<ProjectIdOf<T>>,
+		lock_type: <T as Config>::RuntimeHoldReason,
 	) -> Vec<UserToPLMCBalance<T>> {
 		self.execute(|| {
 			let mut balances: Vec<UserToPLMCBalance<T>> = Vec::new();
@@ -144,7 +137,7 @@ impl<
 
 	pub fn get_ct_asset_balances_for(
 		&mut self,
-		project_id: ProjectIdOf<T>,
+		project_id: ProjectId,
 		user_keys: Vec<AccountIdOf<T>>,
 	) -> Vec<BalanceOf<T>> {
 		self.execute(|| {
@@ -162,10 +155,7 @@ impl<
 		self.get_free_plmc_balances_for(user_keys)
 	}
 
-	pub fn get_all_reserved_plmc_balances(
-		&mut self,
-		reserve_type: LockType<ProjectIdOf<T>>,
-	) -> Vec<UserToPLMCBalance<T>> {
+	pub fn get_all_reserved_plmc_balances(&mut self, reserve_type: <T as Config>::RuntimeHoldReason) -> Vec<UserToPLMCBalance<T>> {
 		let user_keys = self.execute(|| frame_system::Account::<T>::iter_keys().collect());
 		self.get_reserved_plmc_balances_for(user_keys, reserve_type)
 	}
@@ -182,7 +172,7 @@ impl<
 	pub fn do_reserved_plmc_assertions(
 		&mut self,
 		correct_funds: Vec<UserToPLMCBalance<T>>,
-		reserve_type: LockType<ProjectIdOf<T>>,
+		reserve_type: <T as Config>::RuntimeHoldReason,
 	) {
 		for UserToPLMCBalance { account, plmc_amount } in correct_funds {
 			self.execute(|| {
@@ -262,7 +252,7 @@ impl<
 	pub fn do_bid_transferred_statemint_asset_assertions(
 		&mut self,
 		correct_funds: Vec<UserToStatemintAsset<T>>,
-		project_id: ProjectIdOf<T>,
+		project_id: ProjectId,
 	) {
 		for UserToStatemintAsset { account, asset_amount, .. } in correct_funds {
 			self.execute(|| {
@@ -284,7 +274,7 @@ impl<
 	pub fn do_contribution_transferred_statemint_asset_assertions(
 		&mut self,
 		correct_funds: Vec<UserToStatemintAsset<T>>,
-		project_id: ProjectIdOf<T>,
+		project_id: ProjectId,
 	) {
 		for UserToStatemintAsset { account, asset_amount, .. } in correct_funds {
 			self.execute(|| {
@@ -303,7 +293,7 @@ impl<
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
 {
-	pub fn test_ct_created_for(&mut self, project_id: ProjectIdOf<T>) {
+	pub fn test_ct_created_for(&mut self, project_id: ProjectId) {
 		self.execute(|| {
 			let metadata = ProjectsMetadata::<T>::get(project_id).unwrap();
 			let details = ProjectsDetails::<T>::get(project_id).unwrap();
@@ -320,7 +310,7 @@ impl<
 		});
 	}
 
-	pub fn test_ct_not_created_for(&mut self, project_id: ProjectIdOf<T>) {
+	pub fn test_ct_not_created_for(&mut self, project_id: ProjectId) {
 		self.execute(|| {
 			assert!(
 				!<T as Config>::ContributionTokenCurrency::asset_exists(project_id),
@@ -331,7 +321,7 @@ impl<
 
 	pub fn creation_assertions(
 		&mut self,
-		project_id: ProjectIdOf<T>,
+		project_id: ProjectId,
 		expected_metadata: ProjectMetadataOf<T>,
 		creation_start_block: BlockNumberFor<T>,
 	) {
@@ -372,7 +362,7 @@ impl<
 
 	pub fn evaluation_assertions(
 		&mut self,
-		project_id: ProjectIdOf<T>,
+		project_id: ProjectId,
 		expected_free_plmc_balances: Vec<UserToPLMCBalance<T>>,
 		expected_reserved_plmc_balances: Vec<UserToPLMCBalance<T>>,
 		total_plmc_supply: BalanceOf<T>,
@@ -380,14 +370,14 @@ impl<
 		let project_details = self.get_project_details(project_id);
 		assert_eq!(project_details.status, ProjectStatus::EvaluationRound);
 		self.do_free_plmc_assertions(expected_free_plmc_balances);
-		self.do_reserved_plmc_assertions(expected_reserved_plmc_balances, LockType::Evaluation(project_id));
+		self.do_reserved_plmc_assertions(expected_reserved_plmc_balances, HoldReason::Evaluation(project_id).into());
 		assert_eq!(self.get_plmc_total_supply(), total_plmc_supply)
 	}
 
 	#[allow(unused)]
 	pub fn finalized_bids_assertions(
 		&mut self,
-		project_id: ProjectIdOf<T>,
+		project_id: ProjectId,
 		bid_expectations: Vec<BidInfoFilter<T>>,
 		expected_ct_sold: BalanceOf<T>,
 	) {
@@ -483,11 +473,7 @@ impl<
 		output
 	}
 
-	pub fn simulate_bids_with_bucket(
-		&mut self,
-		bids: Vec<BidParams<T>>,
-		project_id: T::ProjectIdentifier,
-	) -> Vec<BidParams<T>> {
+	pub fn simulate_bids_with_bucket(&mut self, bids: Vec<BidParams<T>>, project_id: ProjectId) -> Vec<BidParams<T>> {
 		let mut output = Vec::new();
 		let mut bucket: BucketOf<T> = self.execute(|| Buckets::<T>::get(project_id).unwrap());
 		for bid in bids {
@@ -793,19 +779,19 @@ impl<
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
 {
-	pub fn get_issuer(&mut self, project_id: ProjectIdOf<T>) -> AccountIdOf<T> {
+	pub fn get_issuer(&mut self, project_id: ProjectId) -> AccountIdOf<T> {
 		self.execute(|| ProjectsDetails::<T>::get(project_id).unwrap().issuer)
 	}
 
-	pub fn get_project_metadata(&mut self, project_id: ProjectIdOf<T>) -> ProjectMetadataOf<T> {
+	pub fn get_project_metadata(&mut self, project_id: ProjectId) -> ProjectMetadataOf<T> {
 		self.execute(|| ProjectsMetadata::<T>::get(project_id).expect("Project metadata exists"))
 	}
 
-	pub fn get_project_details(&mut self, project_id: ProjectIdOf<T>) -> ProjectDetailsOf<T> {
+	pub fn get_project_details(&mut self, project_id: ProjectId) -> ProjectDetailsOf<T> {
 		self.execute(|| ProjectsDetails::<T>::get(project_id).expect("Project details exists"))
 	}
 
-	pub fn get_update_pair(&mut self, project_id: ProjectIdOf<T>) -> (BlockNumberFor<T>, UpdateType) {
+	pub fn get_update_pair(&mut self, project_id: ProjectId) -> (BlockNumberFor<T>, UpdateType) {
 		self.execute(|| {
 			ProjectsToUpdate::<T>::iter()
 				.find_map(|(block, update_vec)| {
@@ -818,11 +804,7 @@ impl<
 		})
 	}
 
-	pub fn create_new_project(
-		&mut self,
-		project_metadata: ProjectMetadataOf<T>,
-		issuer: AccountIdOf<T>,
-	) -> ProjectIdOf<T> {
+	pub fn create_new_project(&mut self, project_metadata: ProjectMetadataOf<T>, issuer: AccountIdOf<T>) -> ProjectId {
 		let now = self.current_block();
 		self.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), Self::get_ed())]);
 		self.execute(|| {
@@ -837,11 +819,7 @@ impl<
 		created_project_id
 	}
 
-	pub fn start_evaluation(
-		&mut self,
-		project_id: ProjectIdOf<T>,
-		caller: AccountIdOf<T>,
-	) -> Result<(), DispatchError> {
+	pub fn start_evaluation(&mut self, project_id: ProjectId, caller: AccountIdOf<T>) -> Result<(), DispatchError> {
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::Application);
 		self.execute(|| crate::Pallet::<T>::do_evaluation_start(caller, project_id))?;
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::EvaluationRound);
@@ -853,7 +831,7 @@ impl<
 		&mut self,
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
-	) -> ProjectIdOf<T> {
+	) -> ProjectId {
 		let project_id = self.create_new_project(project_metadata, issuer.clone());
 		self.start_evaluation(project_id, issuer).unwrap();
 		project_id
@@ -861,7 +839,7 @@ impl<
 
 	pub fn bond_for_users(
 		&mut self,
-		project_id: ProjectIdOf<T>,
+		project_id: ProjectId,
 		bonds: Vec<UserToUSDBalance<T>>,
 	) -> Result<(), DispatchError> {
 		for UserToUSDBalance { account, usd_amount } in bonds {
@@ -870,7 +848,7 @@ impl<
 		Ok(())
 	}
 
-	pub fn start_auction(&mut self, project_id: ProjectIdOf<T>, caller: AccountIdOf<T>) -> Result<(), DispatchError> {
+	pub fn start_auction(&mut self, project_id: ProjectId, caller: AccountIdOf<T>) -> Result<(), DispatchError> {
 		let project_details = self.get_project_details(project_id);
 
 		if project_details.status == ProjectStatus::EvaluationRound {
@@ -894,7 +872,7 @@ impl<
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
 		evaluations: Vec<UserToUSDBalance<T>>,
-	) -> ProjectIdOf<T> {
+	) -> ProjectId {
 		let project_id = self.create_evaluating_project(project_metadata, issuer.clone());
 
 		let evaluators = evaluations.accounts();
@@ -925,7 +903,7 @@ impl<
 		project_id
 	}
 
-	pub fn bid_for_users(&mut self, project_id: ProjectIdOf<T>, bids: Vec<BidParams<T>>) -> Result<(), DispatchError> {
+	pub fn bid_for_users(&mut self, project_id: ProjectId, bids: Vec<BidParams<T>>) -> Result<(), DispatchError> {
 		for bid in bids {
 			self.execute(|| {
 				crate::Pallet::<T>::do_bid(&bid.bidder, project_id, bid.amount, bid.multiplier, bid.asset)
@@ -934,7 +912,7 @@ impl<
 		Ok(())
 	}
 
-	pub fn start_community_funding(&mut self, project_id: ProjectIdOf<T>) -> Result<(), DispatchError> {
+	pub fn start_community_funding(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
 		let english_end = self
 			.get_project_details(project_id)
 			.phase_transition_points
@@ -968,7 +946,7 @@ impl<
 		issuer: AccountIdOf<T>,
 		evaluations: Vec<UserToUSDBalance<T>>,
 		bids: Vec<BidParams<T>>,
-	) -> (ProjectIdOf<T>, Vec<BidParams<T>>) {
+	) -> (ProjectId, Vec<BidParams<T>>) {
 		if bids.is_empty() {
 			panic!("Cannot start community funding without bids")
 		}
@@ -1015,7 +993,7 @@ impl<
 
 		self.do_reserved_plmc_assertions(
 			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
-			LockType::Participation(project_id),
+			HoldReason::Participation(project_id).into(),
 		);
 		self.do_bid_transferred_statemint_asset_assertions(
 			funding_asset_deposits.merge_accounts(MergeOperation::Add),
@@ -1048,7 +1026,7 @@ impl<
 
 	pub fn contribute_for_users(
 		&mut self,
-		project_id: ProjectIdOf<T>,
+		project_id: ProjectId,
 		contributions: Vec<ContributionParams<T>>,
 	) -> DispatchResultWithPostInfo {
 		for cont in contributions {
@@ -1065,7 +1043,7 @@ impl<
 		Ok(().into())
 	}
 
-	pub fn start_remainder_or_end_funding(&mut self, project_id: ProjectIdOf<T>) -> Result<(), DispatchError> {
+	pub fn start_remainder_or_end_funding(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::CommunityRound);
 		let community_funding_end = self
 			.get_project_details(project_id)
@@ -1082,7 +1060,7 @@ impl<
 		}
 	}
 
-	pub fn finish_funding(&mut self, project_id: ProjectIdOf<T>) -> Result<(), DispatchError> {
+	pub fn finish_funding(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
 		let (update_block, _) = self.get_update_pair(project_id);
 		let current_block = self.current_block();
 		self.advance_time(update_block.saturating_sub(current_block)).unwrap();
@@ -1111,7 +1089,7 @@ impl<
 		evaluations: Vec<UserToUSDBalance<T>>,
 		bids: Vec<BidParams<T>>,
 		contributions: Vec<ContributionParams<T>>,
-	) -> (ProjectIdOf<T>, Vec<BidParams<T>>) {
+	) -> (ProjectId, Vec<BidParams<T>>) {
 		let (project_id, accepted_bids) =
 			self.create_community_contributing_project(project_metadata, issuer, evaluations.clone(), bids);
 
@@ -1159,7 +1137,7 @@ impl<
 
 		self.do_reserved_plmc_assertions(
 			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
-			LockType::Participation(project_id),
+			HoldReason::Participation(project_id).into(),
 		);
 		self.do_contribution_transferred_statemint_asset_assertions(
 			funding_asset_deposits.merge_accounts(MergeOperation::Add),
@@ -1181,7 +1159,7 @@ impl<
 		bids: Vec<BidParams<T>>,
 		community_contributions: Vec<ContributionParams<T>>,
 		remainder_contributions: Vec<ContributionParams<T>>,
-	) -> ProjectIdOf<T> {
+	) -> ProjectId {
 		let (project_id, accepted_bids) = self.create_remainder_contributing_project(
 			project_metadata.clone(),
 			issuer,
@@ -1244,7 +1222,7 @@ impl<
 
 		self.do_reserved_plmc_assertions(
 			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
-			LockType::Participation(project_id),
+			HoldReason::Participation(project_id).into(),
 		);
 		self.do_contribution_transferred_statemint_asset_assertions(
 			funding_asset_deposits.merge_accounts(MergeOperation::Add),
@@ -1288,7 +1266,7 @@ impl<
 		bids: Vec<BidParams<T>>,
 		community_contributions: Vec<ContributionParams<T>>,
 		remainder_contributions: Vec<ContributionParams<T>>,
-	) -> ProjectIdOf<T> {
+	) -> ProjectId {
 		match status {
 			ProjectStatus::FundingSuccessful => self.create_finished_project(
 				project_metadata,
@@ -1590,7 +1568,7 @@ impl<T: Config> Accounts for Vec<ContributionParams<T>> {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct BidInfoFilter<T: Config> {
 	pub id: Option<u32>,
-	pub project_id: Option<ProjectIdOf<T>>,
+	pub project_id: Option<ProjectId>,
 	pub bidder: Option<AccountIdOf<T>>,
 	pub status: Option<BidStatus<BalanceOf<T>>>,
 	pub original_ct_amount: Option<BalanceOf<T>>,

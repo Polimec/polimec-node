@@ -48,8 +48,8 @@ fn vested_can_stake() {
 
 		// Stake 60 PLMC from "new_account" to "COLL_1", it should go through since the account has 60 + ED free PLMC
 		assert_ok!(ParachainStaking::delegate(RuntimeOrigin::signed(new_account.clone()), coll_1, 60 * PLMC, 0, 0));
-		// "New Account" has stil 60 + ED free PLMC, using fungible::Inspect. Locked (overlapped) in both staking and vesting
-		assert_eq!(Balances::balance(&new_account), 60 * PLMC + ED);
+		// "New Account" only has ED free PLMC, using fungible::Inspect, since staking applies a `Hold` (which includes frozen balance)
+		assert_eq!(Balances::balance(&new_account), ED);
 
 		// Check that the staking state is correct
 		ParachainStaking::delegator_state(&new_account).map(|state| {

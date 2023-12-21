@@ -14,7 +14,7 @@ impl Cleaner {
 		}
 	}
 
-	pub fn do_one_operation<T: Config>(&mut self, project_id: T::ProjectIdentifier) -> Result<Weight, DispatchError> {
+	pub fn do_one_operation<T: Config>(&mut self, project_id: ProjectId) -> Result<Weight, DispatchError> {
 		match self {
 			Cleaner::NotReady => Err(DispatchError::Other("Cleaner not ready")),
 			Cleaner::Success(state) => state.do_one_operation::<T>(project_id),
@@ -28,7 +28,7 @@ impl DoRemainingOperation for CleanerState<Success> {
 		!matches!(self, CleanerState::Finished(_))
 	}
 
-	fn do_one_operation<T: Config>(&mut self, project_id: T::ProjectIdentifier) -> Result<Weight, DispatchError> {
+	fn do_one_operation<T: Config>(&mut self, project_id: ProjectId) -> Result<Weight, DispatchError> {
 		let evaluators_outcome = ProjectsDetails::<T>::get(project_id)
 			.ok_or(Error::<T>::ImpossibleState)?
 			.evaluation_round_info
@@ -143,7 +143,7 @@ impl DoRemainingOperation for CleanerState<Failure> {
 		!matches!(self, CleanerState::Finished(PhantomData::<Failure>))
 	}
 
-	fn do_one_operation<T: Config>(&mut self, project_id: T::ProjectIdentifier) -> Result<Weight, DispatchError> {
+	fn do_one_operation<T: Config>(&mut self, project_id: ProjectId) -> Result<Weight, DispatchError> {
 		let evaluators_outcome = ProjectsDetails::<T>::get(project_id)
 			.ok_or(Error::<T>::ImpossibleState)?
 			.evaluation_round_info
@@ -238,10 +238,7 @@ impl DoRemainingOperation for CleanerState<Failure> {
 	}
 }
 
-fn remaining_evaluators_to_reward_or_slash<T: Config>(
-	project_id: T::ProjectIdentifier,
-	outcome: EvaluatorsOutcomeOf<T>,
-) -> u64 {
+fn remaining_evaluators_to_reward_or_slash<T: Config>(project_id: ProjectId, outcome: EvaluatorsOutcomeOf<T>) -> u64 {
 	if outcome == EvaluatorsOutcomeOf::<T>::Unchanged {
 		0u64
 	} else {
@@ -251,52 +248,52 @@ fn remaining_evaluators_to_reward_or_slash<T: Config>(
 	}
 }
 
-fn remaining_evaluations<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
+fn remaining_evaluations<T: Config>(project_id: ProjectId) -> u64 {
 	Evaluations::<T>::iter_prefix_values((project_id,)).count() as u64
 }
 
-fn remaining_bids_to_release_funds<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
+fn remaining_bids_to_release_funds<T: Config>(project_id: ProjectId) -> u64 {
 	Bids::<T>::iter_prefix_values((project_id,)).filter(|bid| !bid.funds_released).count() as u64
 }
 
-fn remaining_bids<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
+fn remaining_bids<T: Config>(project_id: ProjectId) -> u64 {
 	Bids::<T>::iter_prefix_values((project_id,)).count() as u64
 }
 
-fn remaining_successful_bids<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
+fn remaining_successful_bids<T: Config>(project_id: ProjectId) -> u64 {
 	Bids::<T>::iter_prefix_values((project_id,))
 		.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
 		.count() as u64
 }
 
-fn remaining_contributions_to_release_funds<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
+fn remaining_contributions_to_release_funds<T: Config>(project_id: ProjectId) -> u64 {
 	Contributions::<T>::iter_prefix_values((project_id,)).filter(|contribution| !contribution.funds_released).count()
 		as u64
 }
 
-fn remaining_contributions<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
+fn remaining_contributions<T: Config>(project_id: ProjectId) -> u64 {
 	Contributions::<T>::iter_prefix_values((project_id,)).count() as u64
 }
 
-fn remaining_bids_without_ct_minted<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
+fn remaining_bids_without_ct_minted<T: Config>(project_id: ProjectId) -> u64 {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	project_bids.filter(|bid| !bid.ct_minted).count() as u64
 }
 
-fn remaining_contributions_without_ct_minted<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
+fn remaining_contributions_without_ct_minted<T: Config>(project_id: ProjectId) -> u64 {
 	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
 	project_contributions.filter(|contribution| !contribution.ct_minted).count() as u64
 }
 
-fn remaining_bids_without_issuer_payout<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
+fn remaining_bids_without_issuer_payout<T: Config>(project_id: ProjectId) -> u64 {
 	Bids::<T>::iter_prefix_values((project_id,)).filter(|bid| !bid.funds_released).count() as u64
 }
 
-fn remaining_contributions_without_issuer_payout<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
+fn remaining_contributions_without_issuer_payout<T: Config>(project_id: ProjectId) -> u64 {
 	Contributions::<T>::iter_prefix_values((project_id,)).filter(|bid| !bid.funds_released).count() as u64
 }
 
-fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> Result<(Weight, u64), DispatchError> {
+fn reward_or_slash_one_evaluation<T: Config>(project_id: ProjectId) -> Result<(Weight, u64), DispatchError> {
 	let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 	let project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,));
 	let mut remaining_evaluations = project_evaluations.filter(|evaluation| evaluation.rewarded_or_slashed.is_none());
@@ -355,7 +352,7 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -
 	}
 }
 
-fn unbond_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
+fn unbond_one_evaluation<T: Config>(project_id: ProjectId) -> (Weight, u64) {
 	let project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,));
 	let mut remaining_evaluations =
 		project_evaluations.filter(|evaluation| evaluation.current_plmc_bond > Zero::zero());
@@ -381,7 +378,7 @@ fn unbond_one_evaluation<T: Config>(project_id: T::ProjectIdentifier) -> (Weight
 	}
 }
 
-fn release_funds_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
+fn release_funds_one_bid<T: Config>(project_id: ProjectId) -> (Weight, u64) {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	let mut remaining_bids = project_bids.filter(|bid| !bid.funds_released);
 	let base_weight = Weight::from_parts(10_000_000, 0);
@@ -408,7 +405,7 @@ fn release_funds_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight
 	}
 }
 
-fn unbond_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
+fn unbond_one_bid<T: Config>(project_id: ProjectId) -> (Weight, u64) {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	let mut remaining_bids = project_bids.filter(|bid| bid.funds_released);
 	let base_weight = Weight::from_parts(10_000_000, 0);
@@ -434,7 +431,7 @@ fn unbond_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) 
 	}
 }
 
-fn release_funds_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
+fn release_funds_one_contribution<T: Config>(project_id: ProjectId) -> (Weight, u64) {
 	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
 	let mut remaining_contributions = project_contributions.filter(|contribution| !contribution.funds_released);
 	let base_weight = Weight::from_parts(10_000_000, 0);
@@ -464,7 +461,7 @@ fn release_funds_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -
 	}
 }
 
-fn unbond_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
+fn unbond_one_contribution<T: Config>(project_id: ProjectId) -> (Weight, u64) {
 	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
 
 	let mut remaining_contributions =
@@ -495,7 +492,7 @@ fn unbond_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weig
 	}
 }
 
-fn start_one_bid_vesting_schedule<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
+fn start_one_bid_vesting_schedule<T: Config>(project_id: ProjectId) -> (Weight, u64) {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	let mut unscheduled_bids = project_bids.filter(|bid| {
 		bid.plmc_vesting_info.is_none() && matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..))
@@ -530,7 +527,7 @@ fn start_one_bid_vesting_schedule<T: Config>(project_id: T::ProjectIdentifier) -
 	}
 }
 
-fn start_one_contribution_vesting_schedule<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
+fn start_one_contribution_vesting_schedule<T: Config>(project_id: ProjectId) -> (Weight, u64) {
 	let project_bids = Contributions::<T>::iter_prefix_values((project_id,));
 	let mut unscheduled_contributions = project_bids.filter(|contribution| contribution.plmc_vesting_info.is_none());
 	let base_weight = Weight::from_parts(10_000_000, 0);
@@ -561,7 +558,7 @@ fn start_one_contribution_vesting_schedule<T: Config>(project_id: T::ProjectIden
 	}
 }
 
-fn mint_ct_for_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
+fn mint_ct_for_one_bid<T: Config>(project_id: ProjectId) -> (Weight, u64) {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	let mut remaining_bids = project_bids
 		.filter(|bid| !bid.ct_minted && matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)));
@@ -588,7 +585,7 @@ fn mint_ct_for_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, 
 	}
 }
 
-fn mint_ct_for_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
+fn mint_ct_for_one_contribution<T: Config>(project_id: ProjectId) -> (Weight, u64) {
 	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
 	let mut remaining_contributions = project_contributions.filter(|contribution| !contribution.ct_minted);
 	let base_weight = Weight::from_parts(10_000_000, 0);
@@ -617,7 +614,7 @@ fn mint_ct_for_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> 
 	}
 }
 
-fn issuer_funding_payout_one_bid<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
+fn issuer_funding_payout_one_bid<T: Config>(project_id: ProjectId) -> (Weight, u64) {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 
 	let mut remaining_bids = project_bids.filter(|bid| {
@@ -646,7 +643,7 @@ fn issuer_funding_payout_one_bid<T: Config>(project_id: T::ProjectIdentifier) ->
 	}
 }
 
-fn issuer_funding_payout_one_contribution<T: Config>(project_id: T::ProjectIdentifier) -> (Weight, u64) {
+fn issuer_funding_payout_one_contribution<T: Config>(project_id: ProjectId) -> (Weight, u64) {
 	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
 
 	let mut remaining_contributions = project_contributions.filter(|contribution| !contribution.funds_released);
