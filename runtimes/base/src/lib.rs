@@ -24,11 +24,12 @@ extern crate frame_benchmarking;
 
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
-	construct_runtime, parameter_types,
+	construct_runtime, ord_parameter_types, parameter_types,
 	traits::{Contains, InstanceFilter},
 	weights::{ConstantMultiplier, Weight},
 };
 use frame_system::EnsureRoot;
+use polimec_traits::locking::LockType;
 use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
 use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -37,7 +38,10 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, IdentifyAccount, OpaqueKeys, Verify},
+	traits::{
+		AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, IdentifyAccount, OpaqueKeys,
+		Verify,
+	},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature,
 };
@@ -52,7 +56,7 @@ use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
 use xcm_executor::XcmExecutor;
 
 // Polimec Shared Imports
-pub use shared_configuration::{currency::*, fee::*, governance::*, proxy::*, staking::*, weights::*};
+pub use shared_configuration::{currency::*, fee::*, funding::*, governance::*, proxy::*, staking::*, weights::*};
 
 pub use pallet_parachain_staking;
 
@@ -297,7 +301,7 @@ impl pallet_balances::Config for Runtime {
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
 	type RuntimeEvent = RuntimeEvent;
-	type RuntimeHoldReason = ();
+	type RuntimeHoldReason = LockType<ProjectIdentifier>;
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 }
 
@@ -369,7 +373,13 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = ();
 }
 
+ord_parameter_types! {
+	pub const PayMaster: AccountId =
+		AccountIdConversion::<AccountId>::into_account_truncating(&StakingPalletId::get());
+}
+
 impl pallet_parachain_staking::Config for Runtime {
+	type Balance = Balance;
 	type CandidateBondLessDelay = CandidateBondLessDelay;
 	type Currency = Balances;
 	type DelegationBondLessDelay = DelegationBondLessDelay;
@@ -386,8 +396,10 @@ impl pallet_parachain_staking::Config for Runtime {
 	type MonetaryGovernanceOrigin = frame_system::EnsureRoot<AccountId>;
 	type OnCollatorPayout = ();
 	type OnNewRound = ();
+	type PayMaster = PayMaster;
 	// We use the default implementation, so we leave () here.
 	type PayoutCollatorReward = ();
+	type ProjectIdentifier = ProjectIdentifier;
 	type RevokeDelegationDelay = RevokeDelegationDelay;
 	type RewardPaymentDelay = RewardPaymentDelay;
 	type RuntimeEvent = RuntimeEvent;

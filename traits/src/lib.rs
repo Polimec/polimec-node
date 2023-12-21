@@ -18,6 +18,7 @@
 
 use frame_support::{pallet_prelude::*, traits::tokens::fungible, RuntimeDebug};
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use sp_std::prelude::*;
 
 /// A release schedule over a fungible. This allows a particular fungible to have release limits
@@ -208,5 +209,31 @@ pub mod migration_types {
 		pub fn biggest_vesting_time(&self) -> u64 {
 			self.0.iter().map(|migration| migration.info.vesting_time).max().unwrap_or(0)
 		}
+	}
+}
+
+pub mod locking {
+	use super::*;
+
+	#[derive(
+		Clone,
+		Copy,
+		Encode,
+		Decode,
+		Eq,
+		PartialEq,
+		PartialOrd,
+		Ord,
+		RuntimeDebug,
+		TypeInfo,
+		MaxEncodedLen,
+		Serialize,
+		Deserialize,
+	)]
+	pub enum LockType<ProjectId> {
+		Evaluation(ProjectId),
+		Participation(ProjectId),
+		StakingCollator,
+		StakingDelegator,
 	}
 }

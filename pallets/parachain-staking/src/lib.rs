@@ -87,11 +87,13 @@ pub mod pallet {
 	use frame_support::{
 		pallet_prelude::*,
 		traits::{
-			tokens::WithdrawReasons, Currency, EstimateNextSessionRotation, Get, Imbalance, LockIdentifier,
-			LockableCurrency, ReservableCurrency,
+			fungible::{Balanced, Inspect, InspectHold, Mutate, MutateHold},
+			tokens::{Balance, Fortitude, Precision, Preservation},
+			EstimateNextSessionRotation, Get,
 		},
 	};
 	use frame_system::pallet_prelude::*;
+	use polimec_traits::locking::LockType;
 	use sp_runtime::{
 		traits::{Saturating, Zero},
 		Perbill, Percent, Permill,
@@ -106,12 +108,9 @@ pub mod pallet {
 
 	pub type RoundIndex = u32;
 	type RewardPoint = u32;
-	pub type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+	pub type BalanceOf<T> = <T as Config>::Balance;
 
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
-
-	pub const COLLATOR_LOCK_ID: LockIdentifier = *b"stkngcol";
-	pub const DELEGATOR_LOCK_ID: LockIdentifier = *b"stkngdel";
 
 	/// Configuration trait of this pallet.
 	#[pallet::config]
@@ -119,9 +118,17 @@ pub mod pallet {
 		/// Overarching event type
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// The currency type
-		type Currency: Currency<Self::AccountId>
-			+ ReservableCurrency<Self::AccountId>
-			+ LockableCurrency<Self::AccountId>;
+		type Currency: Inspect<AccountIdOf<Self>, Balance = BalanceOf<Self>>
+			+ Balanced<AccountIdOf<Self>>
+			+ Mutate<AccountIdOf<Self>>
+			+ InspectHold<AccountIdOf<Self>>
+			+ MutateHold<AccountIdOf<Self>, Reason = LockType<Self::ProjectIdentifier>>;
+
+		type ProjectIdentifier: Parameter + Copy + Default + Saturating + From<u32> + Ord + MaxEncodedLen;
+
+		type Balance: Balance + MaybeSerializeDeserialize;
+		/// The account that will pay the collator rewards
+		type PayMaster: Get<Self::AccountId>;
 		/// The origin for monetary governance
 		type MonetaryGovernanceOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 		/// Minimum number of blocks per round
@@ -894,7 +901,7 @@ pub mod pallet {
 			ensure!(candidate_count >= old_count, Error::<T>::TooLowCandidateCountWeightHintJoinCandidates);
 			ensure!(candidates.insert(Bond { owner: acc.clone(), amount: bond }), Error::<T>::CandidateExists);
 			ensure!(Self::get_collator_stakable_free_balance(&acc) >= bond, Error::<T>::InsufficientBalance,);
-			T::Currency::set_lock(COLLATOR_LOCK_ID, &acc, bond, WithdrawReasons::all());
+			T::Currency::hold(&LockType::<T::ProjectIdentifier>::StakingCollator, &acc, bond)?;
 			let candidate = CandidateMetadata::new(bond);
 			<CandidateInfo<T>>::insert(&acc, candidate);
 			let empty_delegations: Delegations<T::AccountId, BalanceOf<T>> = Default::default();
@@ -969,14 +976,30 @@ pub mod pallet {
 						// since it is assumed that they were removed incrementally before only the
 						// last delegation was left.
 						<DelegatorState<T>>::remove(&bond.owner);
-						T::Currency::remove_lock(DELEGATOR_LOCK_ID, &bond.owner);
+						let total_bonded = T::Currency::balance_on_hold(
+							&LockType::<T::ProjectIdentifier>::StakingDelegator,
+							&bond.owner,
+						);
+						T::Currency::release(
+							&LockType::<T::ProjectIdentifier>::StakingDelegator,
+							&bond.owner,
+							total_bonded,
+							Precision::Exact,
+						)?;
 					} else {
 						<DelegatorState<T>>::insert(&bond.owner, delegator);
 					}
 				} else {
 					// TODO: review. we assume here that this delegator has no remaining staked
 					// balance, so we ensure the lock is cleared
-					T::Currency::remove_lock(DELEGATOR_LOCK_ID, &bond.owner);
+					let total_bonded =
+						T::Currency::balance_on_hold(&LockType::<T::ProjectIdentifier>::StakingDelegator, &bond.owner);
+					T::Currency::release(
+						&LockType::<T::ProjectIdentifier>::StakingDelegator,
+						&bond.owner,
+						total_bonded,
+						Precision::Exact,
+					)?;
 				}
 				Ok(())
 			};
@@ -995,7 +1018,14 @@ pub mod pallet {
 			}
 			total_backing = total_backing.saturating_add(bottom_delegations.total);
 			// return stake to collator
-			T::Currency::remove_lock(COLLATOR_LOCK_ID, &candidate);
+			let total_bonded =
+				T::Currency::balance_on_hold(&LockType::<T::ProjectIdentifier>::StakingCollator, &candidate);
+			T::Currency::release(
+				&LockType::<T::ProjectIdentifier>::StakingCollator,
+				&candidate,
+				total_bonded,
+				Precision::Exact,
+			)?;
 			<CandidateInfo<T>>::remove(&candidate);
 			<DelegationScheduledRequests<T>>::remove(&candidate);
 			<AutoCompoundingDelegations<T>>::remove(&candidate);
@@ -1356,20 +1386,18 @@ pub mod pallet {
 
 		/// Returns an account's free balance which is not locked in delegation staking
 		pub fn get_delegator_stakable_free_balance(acc: &T::AccountId) -> BalanceOf<T> {
-			let mut balance = T::Currency::free_balance(acc);
-			if let Some(state) = <DelegatorState<T>>::get(acc) {
-				balance = balance.saturating_sub(state.total());
-			}
-			balance
+			T::Currency::reducible_balance(acc, Preservation::Preserve, Fortitude::Force)
+			// if let Some(state) = <DelegatorState<T>>::get(acc) {
+			// 	balance = balance.saturating_sub(state.total());
+			// }
 		}
 
 		/// Returns an account's free balance which is not locked in collator staking
 		pub fn get_collator_stakable_free_balance(acc: &T::AccountId) -> BalanceOf<T> {
-			let mut balance = T::Currency::free_balance(acc);
-			if let Some(info) = <CandidateInfo<T>>::get(acc) {
-				balance = balance.saturating_sub(info.bond);
-			}
-			balance
+			T::Currency::reducible_balance(acc, Preservation::Preserve, Fortitude::Force)
+			// if let Some(info) = <CandidateInfo<T>>::get(acc) {
+			// 	balance = balance.saturating_sub(info.bond);
+			// }
 		}
 
 		/// Returns a delegations auto-compound value.
@@ -1434,22 +1462,28 @@ pub mod pallet {
 			}
 			let total_staked = <Staked<T>>::take(round_to_payout);
 			let total_issuance = Self::compute_issuance(total_staked);
-			let mut left_issuance = total_issuance;
-			// reserve portion of issuance for parachain bond account
-			let bond_config = <ParachainBondInfo<T>>::get();
-			let parachain_bond_reserve = bond_config.percent * total_issuance;
-			if let Ok(imb) = T::Currency::deposit_into_existing(&bond_config.account, parachain_bond_reserve) {
-				// update round issuance iff transfer succeeds
-				left_issuance = left_issuance.saturating_sub(imb.peek());
-				Self::deposit_event(Event::ReservedForParachainBond {
-					account: bond_config.account,
-					value: imb.peek(),
-				});
-			}
+
+			// reserve portion of issuance for parachain bond account. In our situation the
+			// percentage will be 0% as we don't want to reserve any issuance for parachain
+			// bond so the logic is commented out
+
+			// let mut left_issuance = total_issuance;
+			// let bond_config = <ParachainBondInfo<T>>::get();
+			// let parachain_bond_reserve = bond_config.percent * total_issuance;
+			// if let Ok(amount_transferred) =
+			// 	T::Currency::transfer(&T::PayMaster::get(), &bond_config.account, parachain_bond_reserve, Preservation::Preserve)
+			// {
+			// 	// update round issuance iff transfer succeeds
+			// 	left_issuance = left_issuance.saturating_sub(amount_transferred);
+			// 	Self::deposit_event(Event::ReservedForParachainBond {
+			// 		account: bond_config.account,
+			// 		value: amount_transferred,
+			// 	});
+			// }
 
 			let payout = DelayedPayout {
 				round_issuance: total_issuance,
-				total_staking_reward: left_issuance,
+				total_staking_reward: total_issuance,
 				collator_commission: <CollatorCommission<T>>::get(),
 			};
 
@@ -1760,8 +1794,10 @@ pub mod pallet {
 
 		/// Mint a specified reward amount to the beneficiary account. Emits the [Rewarded] event.
 		pub fn mint(amt: BalanceOf<T>, to: T::AccountId) {
-			if let Ok(amount_transferred) = T::Currency::deposit_into_existing(&to, amt) {
-				Self::deposit_event(Event::Rewarded { account: to.clone(), rewards: amount_transferred.peek() });
+			if let Ok(amount_transferred) =
+				T::Currency::transfer(&T::PayMaster::get(), &to, amt, Preservation::Preserve)
+			{
+				Self::deposit_event(Event::Rewarded { account: to.clone(), rewards: amount_transferred });
 			}
 		}
 
@@ -1771,11 +1807,10 @@ pub mod pallet {
 			collator_id: T::AccountId,
 			amt: BalanceOf<T>,
 		) -> Weight {
-			if let Ok(amount_transferred) = T::Currency::deposit_into_existing(&collator_id, amt) {
-				Self::deposit_event(Event::Rewarded {
-					account: collator_id.clone(),
-					rewards: amount_transferred.peek(),
-				});
+			if let Ok(amount_transferred) =
+				T::Currency::transfer(&T::PayMaster::get(), &collator_id, amt, Preservation::Preserve)
+			{
+				Self::deposit_event(Event::Rewarded { account: collator_id.clone(), rewards: amount_transferred });
 			}
 			T::WeightInfo::mint_collator_reward()
 		}
@@ -1791,10 +1826,12 @@ pub mod pallet {
 			delegator: T::AccountId,
 		) -> Weight {
 			let mut weight = T::WeightInfo::mint_collator_reward();
-			if let Ok(amount_transferred) = T::Currency::deposit_into_existing(&delegator, amt) {
-				Self::deposit_event(Event::Rewarded { account: delegator.clone(), rewards: amount_transferred.peek() });
+			if let Ok(amount_transferred) =
+				T::Currency::transfer(&T::PayMaster::get(), &delegator, amt, Preservation::Preserve)
+			{
+				Self::deposit_event(Event::Rewarded { account: delegator.clone(), rewards: amount_transferred });
 
-				let compound_amount = compound_percent.mul_ceil(amount_transferred.peek());
+				let compound_amount = compound_percent.mul_ceil(amount_transferred);
 				if compound_amount.is_zero() {
 					return weight
 				}

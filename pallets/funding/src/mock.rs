@@ -305,7 +305,7 @@ impl pallet_linear_release::Config for TestRuntime {
 	type BlockNumberToBalance = ConvertInto;
 	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;
-	type Reason = LockType<u32>;
+	type Reason = LockType<ProjectIdOf<Self>>;
 	type RuntimeEvent = RuntimeEvent;
 	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
 	type WeightInfo = ();
