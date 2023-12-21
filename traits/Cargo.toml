@@ -45,8 +45,6 @@ std = [
 	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
-	"itertools/use_std",
-	"itertools/use_alloc",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
@@ -54,7 +52,6 @@ runtime-benchmarks = [
 	"frame-system/runtime-benchmarks",
 	"itertools/use_alloc",
 	"sp-runtime/runtime-benchmarks",
-	"itertools/use_alloc",
 ]
 try-runtime = [
 	"frame-support/try-runtime",
