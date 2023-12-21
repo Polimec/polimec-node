@@ -23,7 +23,6 @@ use frame_support::{
 	weights::{constants::RocksDbWeight, Weight},
 };
 use frame_system::pallet_prelude::BlockNumberFor;
-use polimec_traits::locking::LockType;
 use sp_core::H256;
 use sp_io;
 use sp_runtime::{
