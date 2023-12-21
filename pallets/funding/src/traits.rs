@@ -21,8 +21,7 @@ pub trait ProvideStatemintPrice {
 pub trait DoRemainingOperation {
 	fn has_remaining_operations(&self) -> bool;
 
-	fn do_one_operation<T: crate::Config>(&mut self, project_id: ProjectId)
-		-> Result<Weight, DispatchError>;
+	fn do_one_operation<T: crate::Config>(&mut self, project_id: ProjectId) -> Result<Weight, DispatchError>;
 }
 
 #[cfg(feature = "runtime-benchmarks")]

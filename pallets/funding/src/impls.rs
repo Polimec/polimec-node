@@ -238,10 +238,7 @@ impl DoRemainingOperation for CleanerState<Failure> {
 	}
 }
 
-fn remaining_evaluators_to_reward_or_slash<T: Config>(
-	project_id: ProjectId,
-	outcome: EvaluatorsOutcomeOf<T>,
-) -> u64 {
+fn remaining_evaluators_to_reward_or_slash<T: Config>(project_id: ProjectId, outcome: EvaluatorsOutcomeOf<T>) -> u64 {
 	if outcome == EvaluatorsOutcomeOf::<T>::Unchanged {
 		0u64
 	} else {

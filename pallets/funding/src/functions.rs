@@ -738,11 +738,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	// Note: usd_amount needs to have the same amount of decimals as PLMC,, so when multiplied by the plmc-usd price, it gives us the PLMC amount with the decimals we wanted.
-	pub fn do_evaluate(
-		evaluator: &AccountIdOf<T>,
-		project_id: ProjectId,
-		usd_amount: BalanceOf<T>,
-	) -> DispatchResult {
+	pub fn do_evaluate(evaluator: &AccountIdOf<T>, project_id: ProjectId, usd_amount: BalanceOf<T>) -> DispatchResult {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
@@ -1590,7 +1586,12 @@ impl<T: Config> Pallet<T> {
 		);
 
 		// * Update Storage *
-		T::NativeCurrency::release(&HoldReason::Participation(project_id.into()).into(), bidder, bid.plmc_bond, Precision::Exact)?;
+		T::NativeCurrency::release(
+			&HoldReason::Participation(project_id.into()).into(),
+			bidder,
+			bid.plmc_bond,
+			Precision::Exact,
+		)?;
 
 		Bids::<T>::remove((project_id, bidder, bid_id));
 
@@ -1664,7 +1665,12 @@ impl<T: Config> Pallet<T> {
 		ensure!(project_details.status == ProjectStatus::FundingFailed, Error::<T>::NotAllowed);
 
 		// * Update Storage *
-		T::NativeCurrency::release(&HoldReason::Participation(project_id.into()).into(), contributor, bid.plmc_bond, Precision::Exact)?;
+		T::NativeCurrency::release(
+			&HoldReason::Participation(project_id.into()).into(),
+			contributor,
+			bid.plmc_bond,
+			Precision::Exact,
+		)?;
 
 		Contributions::<T>::remove((project_id, contributor, contribution_id));
 
@@ -1917,10 +1923,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	pub fn do_start_migration_readiness_check(
-		caller: &AccountIdOf<T>,
-		project_id: ProjectId,
-	) -> DispatchResult {
+	pub fn do_start_migration_readiness_check(caller: &AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let parachain_id: u32 = project_details.parachain_id.ok_or(Error::<T>::ImpossibleState)?.into();
@@ -2511,7 +2514,12 @@ impl<T: Config> Pallet<T> {
 			bid.funding_asset_amount_locked,
 			Preservation::Preserve,
 		)?;
-		T::NativeCurrency::release(&HoldReason::Participation(project_id.into()).into(), &bid.bidder, bid.plmc_bond, Precision::Exact)?;
+		T::NativeCurrency::release(
+			&HoldReason::Participation(project_id.into()).into(),
+			&bid.bidder,
+			bid.plmc_bond,
+			Precision::Exact,
+		)?;
 		bid.funding_asset_amount_locked = Zero::zero();
 		bid.plmc_bond = Zero::zero();
 
@@ -2565,8 +2573,13 @@ impl<T: Config> Pallet<T> {
 			let converted = to_convert.min(available_to_convert);
 			evaluation.current_plmc_bond = evaluation.current_plmc_bond.saturating_sub(converted);
 			Evaluations::<T>::insert((project_id, who, evaluation.id), evaluation);
-			T::NativeCurrency::release(&HoldReason::Evaluation(project_id.into()).into(), who, converted, Precision::Exact)
-				.map_err(|_| Error::<T>::ImpossibleState)?;
+			T::NativeCurrency::release(
+				&HoldReason::Evaluation(project_id.into()).into(),
+				who,
+				converted,
+				Precision::Exact,
+			)
+			.map_err(|_| Error::<T>::ImpossibleState)?;
 			T::NativeCurrency::hold(&HoldReason::Participation(project_id.into()).into(), who, converted)
 				.map_err(|_| Error::<T>::ImpossibleState)?;
 			to_convert = to_convert.saturating_sub(converted)
@@ -2631,9 +2644,7 @@ impl<T: Config> Pallet<T> {
 	///
 	/// Note: Consider refactoring the `RewardInfo` struct to make it more generic and
 	/// reusable, not just for evaluator rewards.
-	pub fn generate_evaluator_rewards_info(
-		project_id: ProjectId,
-	) -> Result<RewardInfoOf<T>, DispatchError> {
+	pub fn generate_evaluator_rewards_info(project_id: ProjectId) -> Result<RewardInfoOf<T>, DispatchError> {
 		// Fetching the necessary data for a specific project.
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;

@@ -984,10 +984,8 @@ pub mod pallet {
 						// since it is assumed that they were removed incrementally before only the
 						// last delegation was left.
 						<DelegatorState<T>>::remove(&bond.owner);
-						let total_bonded = T::Currency::balance_on_hold(
-							&HoldReason::StakingDelegator.into(),
-							&bond.owner,
-						);
+						let total_bonded =
+							T::Currency::balance_on_hold(&HoldReason::StakingDelegator.into(), &bond.owner);
 						T::Currency::release(
 							&HoldReason::StakingDelegator.into(),
 							&bond.owner,
@@ -1000,8 +998,7 @@ pub mod pallet {
 				} else {
 					// TODO: review. we assume here that this delegator has no remaining staked
 					// balance, so we ensure the lock is cleared
-					let total_bonded =
-						T::Currency::balance_on_hold(&HoldReason::StakingDelegator.into(), &bond.owner);
+					let total_bonded = T::Currency::balance_on_hold(&HoldReason::StakingDelegator.into(), &bond.owner);
 					T::Currency::release(
 						&HoldReason::StakingDelegator.into(),
 						&bond.owner,
@@ -1026,14 +1023,8 @@ pub mod pallet {
 			}
 			total_backing = total_backing.saturating_add(bottom_delegations.total);
 			// return stake to collator
-			let total_bonded =
-				T::Currency::balance_on_hold(&HoldReason::StakingCollator.into(), &candidate);
-			T::Currency::release(
-				&HoldReason::StakingCollator.into(),
-				&candidate,
-				total_bonded,
-				Precision::Exact,
-			)?;
+			let total_bonded = T::Currency::balance_on_hold(&HoldReason::StakingCollator.into(), &candidate);
+			T::Currency::release(&HoldReason::StakingCollator.into(), &candidate, total_bonded, Precision::Exact)?;
 			<CandidateInfo<T>>::remove(&candidate);
 			<DelegationScheduledRequests<T>>::remove(&candidate);
 			<AutoCompoundingDelegations<T>>::remove(&candidate);

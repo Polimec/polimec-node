@@ -112,11 +112,10 @@
 //! 		#[pallet::weight(0)]
 //! 		pub fn buy_if_popular(
 //! 			origin: OriginFor<T>,
-//! 			project_id: <T as pallet_funding::Config>::ProjectIdentifier,
+//! 			project_id: pallet_funding::ProjectId,
 //! 			amount: <T as pallet_funding::Config>::Balance
 //! 		) -> DispatchResultWithPostInfo {
 //! 			let retail_user = ensure_signed(origin)?;
-//! 			let project_id: <T as pallet_funding::Config>::ProjectIdentifier = project_id.into();
 //! 			// Check project is in the community round
 //! 			let project_details = pallet_funding::Pallet::<T>::project_details(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 //! 			ensure!(project_details.status == pallet_funding::ProjectStatus::CommunityRound, "Project is not in the community round");
@@ -182,7 +181,7 @@ use frame_support::{
 use frame_system::pallet_prelude::BlockNumberFor;
 pub use pallet::*;
 
-use polimec_traits::{migration_types::*};
+use polimec_traits::migration_types::*;
 use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
@@ -229,15 +228,8 @@ pub type ProjectDetailsOf<T> =
 pub type EvaluationRoundInfoOf<T> = EvaluationRoundInfo<BalanceOf<T>>;
 pub type VestingInfoOf<T> = VestingInfo<BlockNumberFor<T>, BalanceOf<T>>;
 pub type EvaluationInfoOf<T> = EvaluationInfo<u32, ProjectId, AccountIdOf<T>, BalanceOf<T>, BlockNumberFor<T>>;
-pub type BidInfoOf<T> = BidInfo<
-	ProjectId,
-	BalanceOf<T>,
-	PriceOf<T>,
-	AccountIdOf<T>,
-	BlockNumberFor<T>,
-	MultiplierOf<T>,
-	VestingInfoOf<T>,
->;
+pub type BidInfoOf<T> =
+	BidInfo<ProjectId, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, BlockNumberFor<T>, MultiplierOf<T>, VestingInfoOf<T>>;
 pub type ContributionInfoOf<T> =
 	ContributionInfo<u32, ProjectId, AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>, VestingInfoOf<T>>;
 
@@ -259,7 +251,6 @@ pub mod pallet {
 	use sp_arithmetic::Percent;
 	use sp_runtime::traits::{Convert, ConvertBack};
 
-	/// A reason for the pallet parachain staking placing a hold on funds.
 	#[pallet::composite_enum]
 	pub enum HoldReason {
 		Evaluation(u32),
@@ -1173,21 +1164,14 @@ pub mod pallet {
 
 		#[pallet::call_index(21)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
-		pub fn set_para_id_for_project(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-			para_id: ParaId,
-		) -> DispatchResult {
+		pub fn set_para_id_for_project(origin: OriginFor<T>, project_id: ProjectId, para_id: ParaId) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
 			Self::do_set_para_id_for_project(&caller, project_id, para_id)
 		}
 
 		#[pallet::call_index(22)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
-		pub fn start_migration_readiness_check(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-		) -> DispatchResult {
+		pub fn start_migration_readiness_check(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
 			Self::do_start_migration_readiness_check(&caller, project_id)
 		}

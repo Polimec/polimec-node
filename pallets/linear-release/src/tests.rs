@@ -22,7 +22,7 @@ use sp_runtime::{
 };
 
 use super::{Vesting as VestingStorage, *};
-use crate::mock::{Balances, ExtBuilder, System, Test, Vesting, MockRuntimeHoldReason};
+use crate::mock::{Balances, ExtBuilder, MockRuntimeHoldReason, System, Test, Vesting};
 /// A default existential deposit.
 const ED: u64 = 256;
 
@@ -124,9 +124,9 @@ fn check_vesting_status_for_multi_schedule_account() {
 		assert_eq!(Balances::balance_on_hold(&MockRuntimeHoldReason::Reason, &2), 20 * ED);
 		assert_ok!(Vesting::vested_transfer(Some(4).into(), 2, sched1, MockRuntimeHoldReason::Reason));
 		assert_eq!(Balances::balance_on_hold(&MockRuntimeHoldReason::Reason, &2), 29 * ED); // Why 29 and not 30? Because sched1 is already unlocking.
-																				 // Free balance is the one set in Genesis inside the Balances pallet
-																				 // + the one from the vested transfer.
-																				 // BUT NOT the one in sched0, since the vesting will start at block #10.
+																					// Free balance is the one set in Genesis inside the Balances pallet
+																					// + the one from the vested transfer.
+																					// BUT NOT the one in sched0, since the vesting will start at block #10.
 		let balance = Balances::balance(&2);
 		assert_eq!(balance, ED * (2));
 		// The most recently added schedule exists.
@@ -567,7 +567,13 @@ fn force_vested_transfer_correctly_fails() {
 		// `locked` is 0.
 		let schedule_locked_0 = VestingInfo::new(0, 1, 10);
 		assert_noop!(
-			Vesting::force_vested_transfer(RawOrigin::Root.into(), 3, 4, schedule_locked_0, MockRuntimeHoldReason::Reason),
+			Vesting::force_vested_transfer(
+				RawOrigin::Root.into(),
+				3,
+				4,
+				schedule_locked_0,
+				MockRuntimeHoldReason::Reason
+			),
 			Error::<Test>::AmountLow,
 		);
 
@@ -616,7 +622,10 @@ fn force_vested_transfer_allows_max_schedules() {
 
 		// Account 4 has fully vested when all the schedules end,
 		System::set_block_number(<Test as Config>::MinVestedTransfer::get() + 10);
-		assert_eq!(Vesting::vesting_balance(&4, MockRuntimeHoldReason::Reason), Some(sched.locked * max_schedules as u64));
+		assert_eq!(
+			Vesting::vesting_balance(&4, MockRuntimeHoldReason::Reason),
+			Some(sched.locked * max_schedules as u64)
+		);
 		// and after unlocking its schedules are removed from storage.
 		vest_and_assert_no_vesting::<Test>(4, MockRuntimeHoldReason::Reason);
 	});
@@ -981,7 +990,10 @@ fn merge_finished_and_yet_to_be_started_schedules() {
 		assert_eq!(Balances::balance(&2), ED + sched0.locked());
 		assert_eq!(Vesting::vesting_balance(&2, MockRuntimeHoldReason::Reason), Some(0));
 		System::set_block_number(75);
-		assert_eq!(Vesting::vesting_balance(&2, MockRuntimeHoldReason::Reason), Some(sched2.locked() + sched1.locked()));
+		assert_eq!(
+			Vesting::vesting_balance(&2, MockRuntimeHoldReason::Reason),
+			Some(sched2.locked() + sched1.locked())
+		);
 		vest_and_assert_no_vesting::<Test>(2, MockRuntimeHoldReason::Reason);
 	});
 }

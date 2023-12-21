@@ -350,9 +350,11 @@ mod benchmarks {
 		}
 
 		// Balances
-		let bonded_plmc = inst
-			.get_reserved_plmc_balances_for(vec![test_evaluator.clone()], HoldReason::Evaluation(test_project_id).into())[0]
-			.plmc_amount;
+		let bonded_plmc = inst.get_reserved_plmc_balances_for(
+			vec![test_evaluator.clone()],
+			HoldReason::Evaluation(test_project_id).into(),
+		)[0]
+		.plmc_amount;
 		assert_eq!(bonded_plmc, plmc_for_evaluating[0].plmc_amount);
 
 		// Events
@@ -990,7 +992,8 @@ mod benchmarks {
 		let stored_bid = Bids::<T>::get((project_id, bidder.clone(), bid_to_vest.id)).unwrap();
 		assert!(stored_bid.plmc_vesting_info.is_some());
 		let vest_info = stored_bid.plmc_vesting_info.unwrap();
-		let total_vested = T::Vesting::total_scheduled_amount(&bidder, HoldReason::Participation(project_id).into()).unwrap();
+		let total_vested =
+			T::Vesting::total_scheduled_amount(&bidder, HoldReason::Participation(project_id).into()).unwrap();
 		assert_eq!(vest_info.total_amount, total_vested);
 
 		// Events

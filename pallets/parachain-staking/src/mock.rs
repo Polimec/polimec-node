@@ -193,10 +193,10 @@ impl Config for Test {
 	type OnNewRound = ();
 	type PayMaster = PayMaster;
 	type PayoutCollatorReward = ();
-	type RuntimeHoldReason = RuntimeHoldReason;
 	type RevokeDelegationDelay = RevokeDelegationDelay;
 	type RewardPaymentDelay = RewardPaymentDelay;
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeHoldReason = RuntimeHoldReason;
 	type WeightInfo = ();
 }
 

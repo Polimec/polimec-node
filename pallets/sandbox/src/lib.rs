@@ -8,13 +8,11 @@ mod tests;
 #[cfg(test)]
 mod mock;
 
-use pallet_funding::{self as funding};
+use pallet_funding::{self as funding, ProjectId};
 
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
-	use pallet_funding::ProjectId;
-use crate::funding::ProjectId;
-use super::*;
+	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use funding::AcceptedFundingAsset;

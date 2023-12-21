@@ -120,7 +120,7 @@ pub mod pallet {
 		type Balance: Balance + MaybeSerializeDeserialize + From<u64>;
 
 		/// Overarching hold reason.
-		type RuntimeHoldReason: Parameter + MaxEncodedLen  + Copy;
+		type RuntimeHoldReason: Parameter + MaxEncodedLen + Copy;
 
 		type Currency: InspectHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
 			+ MutateHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, Reason = Self::RuntimeHoldReason>
@@ -151,7 +151,6 @@ pub mod pallet {
 			T::MAX_VESTING_SCHEDULES
 		}
 	}
-
 
 	// #[pallet::genesis_build]
 	// impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {

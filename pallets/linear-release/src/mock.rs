@@ -20,11 +20,10 @@ use frame_support::{
 	parameter_types,
 	traits::{ConstU32, ConstU64, WithdrawReasons},
 };
-use polimec_traits::locking::LockType;
 use sp_core::H256;
 use sp_runtime::{
 	traits::{BlakeTwo256, Identity, IdentityLookup},
-	BuildStorage, Serialize, Deserialize
+	BuildStorage, Deserialize, Serialize,
 };
 
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -76,12 +75,12 @@ impl pallet_balances::Config for Test {
 	type Balance = u64;
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
-	type FreezeIdentifier = LockType<u32>;
+	type FreezeIdentifier = RuntimeHoldReason;
 	type MaxFreezes = ConstU32<10>;
 	type MaxHolds = ConstU32<10>;
 	type MaxLocks = ConstU32<10>;
 	type MaxReserves = ConstU32<10>;
-	type ReserveIdentifier = LockType<u32>;
+	type ReserveIdentifier = RuntimeHoldReason;
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeHoldReason = MockRuntimeHoldReason;
 	type WeightInfo = ();
@@ -102,26 +101,24 @@ impl Config for Test {
 }
 
 #[derive(
-    Encode,
-    Decode,
-    Copy,
-    Clone,
-    PartialEq,
-    Eq,
-    RuntimeDebug,
-    MaxEncodedLen,
-    TypeInfo,
-    Ord,
-    PartialOrd,
-    Serialize,
-    Deserialize,
+	Encode,
+	Decode,
+	Copy,
+	Clone,
+	PartialEq,
+	Eq,
+	RuntimeDebug,
+	MaxEncodedLen,
+	TypeInfo,
+	Ord,
+	PartialOrd,
+	Serialize,
+	Deserialize,
 )]
 pub enum MockRuntimeHoldReason {
 	Reason,
-	Reason2
+	Reason2,
 }
-
-
 
 #[derive(Default)]
 pub struct ExtBuilder {
@@ -160,7 +157,7 @@ impl ExtBuilder {
 			} else {
 				vec![
 					(1, 0, 10, 5 * self.existential_deposit, MockRuntimeHoldReason::Reason),
-					(2, 10, 20, self.existential_deposit,MockRuntimeHoldReason::Reason),
+					(2, 10, 20, self.existential_deposit, MockRuntimeHoldReason::Reason),
 					(12, 10, 20, 5 * self.existential_deposit, MockRuntimeHoldReason::Reason),
 				]
 			};
@@ -176,7 +173,8 @@ impl ExtBuilder {
 					panic!("Invalid VestingInfo params at genesis")
 				};
 
-				crate::pallet::Vesting::<Test>::try_append(who, reason, vesting_info).expect("Too many vesting schedules at genesis.");
+				crate::pallet::Vesting::<Test>::try_append(who, reason, vesting_info)
+					.expect("Too many vesting schedules at genesis.");
 
 				Balances::hold(&reason, who, locked).map_err(|err| panic!("{:?}", err)).unwrap();
 			}
