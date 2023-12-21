@@ -1,10 +1,9 @@
-use crate::*;
+use crate::{polimec::ED, *};
 /// Tests for the oracle pallet integration.
 /// Alice, Bob, Charlie are members of the OracleProvidersMembers.
 /// Only members should be able to feed data into the oracle.
 use frame_support::traits::fungible::Inspect;
 use frame_support::traits::fungible::InspectHold;
-use crate::polimec::ED;
 use pallet_funding::LockType;
 use pallet_vesting::VestingInfo;
 use polimec_parachain_runtime::{Balances, LinearRelease, ParachainStaking, RuntimeOrigin, Vesting};
@@ -59,4 +58,3 @@ fn vested_can_stake() {
 		});
 	})
 }
-
