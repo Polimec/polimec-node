@@ -14,19 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use sp_std::marker::PhantomData;
 use crate::{currency::MILLI_PLMC, Balance};
 use frame_support::{
+	pallet_prelude::{InvalidTransaction, TransactionValidityError},
 	parameter_types,
+	sp_runtime::traits::{DispatchInfoOf, PostDispatchInfoOf},
+	traits::{
+		fungible::{Balanced, Credit, Debt, Inspect},
+		tokens::Precision,
+		Imbalance, OnUnbalanced,
+	},
 	weights::{constants::ExtrinsicBaseWeight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial},
 };
-use frame_support::pallet_prelude::TransactionValidityError;
-use frame_support::traits::fungible::{Balanced, Credit};
-use frame_support::traits::OnUnbalanced;
+use pallet_transaction_payment::OnChargeTransaction;
 use parachains_common::SLOT_DURATION;
 use smallvec::smallvec;
-use sp_arithmetic::Perbill;
-use pallet_transaction_payment::payment::OnChargeTransaction;
+use sp_arithmetic::{
+	traits::{Saturating, Zero},
+	Perbill,
+};
+use sp_std::marker::PhantomData;
 
 pub struct WeightToFee;
 impl WeightToFeePolynomial for WeightToFee {
@@ -58,15 +65,14 @@ parameter_types! {
 /// then `tip`.
 pub struct FungibleAdapter<F, OU>(PhantomData<(F, OU)>);
 
-
 impl<T, F, OU> OnChargeTransaction<T> for FungibleAdapter<F, OU>
-	where
-		T: pallet_transaction_payement::Config,
-		F: Balanced<T::AccountId>,
-		OU: OnUnbalanced<Credit<T::AccountId, F>>,
+where
+	T: pallet_transaction_payment::Config,
+	F: Balanced<T::AccountId>,
+	OU: OnUnbalanced<Credit<T::AccountId, F>>,
 {
-	type LiquidityInfo = Option<Credit<T::AccountId, F>>;
 	type Balance = <F as Inspect<<T as frame_system::Config>::AccountId>>::Balance;
+	type LiquidityInfo = Option<Credit<T::AccountId, F>>;
 
 	fn withdraw_fee(
 		who: &<T>::AccountId,

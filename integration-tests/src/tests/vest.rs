@@ -4,9 +4,9 @@ use crate::{polimec::ED, *};
 /// Only members should be able to feed data into the oracle.
 use frame_support::traits::fungible::Inspect;
 use frame_support::traits::fungible::InspectHold;
-use polimec_traits::locking::LockType;
 use pallet_vesting::VestingInfo;
 use polimec_parachain_runtime::{Balances, LinearRelease, ParachainStaking, RuntimeOrigin, Vesting};
+use polimec_traits::locking::LockType;
 use sp_runtime::{bounded_vec, BoundedVec, FixedU128};
 use tests::defaults::*;
 use xcm_emulator::get_account_id_from_seed;
