@@ -93,7 +93,6 @@ pub mod pallet {
 		},
 	};
 	use frame_system::pallet_prelude::*;
-	use polimec_traits::locking::LockType;
 	use sp_runtime::{
 		traits::{Saturating, Zero},
 		Perbill, Percent, Permill,

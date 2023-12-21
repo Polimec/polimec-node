@@ -7,7 +7,7 @@ use polimec_parachain_runtime::{PolimecFunding, US_DOLLAR};
 use sp_arithmetic::{FixedPointNumber, Perquintill};
 use sp_runtime::{traits::CheckedSub, FixedU128};
 
-type UserToCTBalance = Vec<(AccountId, BalanceOf<PolimecRuntime>, ProjectIdOf<PolimecRuntime>)>;
+type UserToCTBalance = Vec<(AccountId, BalanceOf<PolimecRuntime>, ProjectId;
 
 generate_accounts!(
 	LINA, MIA, ALEXEY, PAUL, MARIA, GEORGE, CLARA, RAMONA, PASCAL, EMMA, BIBI, AHMED, HERBERT, LENI, XI, TOM, ADAMS,

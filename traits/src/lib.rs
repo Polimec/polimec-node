@@ -211,29 +211,3 @@ pub mod migration_types {
 		}
 	}
 }
-
-pub mod locking {
-	use super::*;
-
-	#[derive(
-		Clone,
-		Copy,
-		Encode,
-		Decode,
-		Eq,
-		PartialEq,
-		PartialOrd,
-		Ord,
-		RuntimeDebug,
-		TypeInfo,
-		MaxEncodedLen,
-		Serialize,
-		Deserialize,
-	)]
-	pub enum LockType<ProjectId> {
-		Evaluation(ProjectId),
-		Participation(ProjectId),
-		StakingCollator,
-		StakingDelegator,
-	}
-}

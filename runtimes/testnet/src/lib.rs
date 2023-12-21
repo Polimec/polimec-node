@@ -54,7 +54,6 @@ use sp_runtime::{
 };
 pub use sp_runtime::{FixedU128, MultiAddress, Perbill, Permill};
 
-use polimec_traits::locking::LockType;
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -262,7 +261,7 @@ impl pallet_balances::Config for Runtime {
 	type MaxHolds = MaxLocks;
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
-	type ReserveIdentifier = LockType<ProjectIdentifier>;
+	type ReserveIdentifier = RuntimeHoldReason;
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type WeightInfo = ();
@@ -584,7 +583,6 @@ impl pallet_funding::Config for Runtime {
 	type PreImageLimit = ConstU32<1024>;
 	type Price = Price;
 	type PriceProvider = OraclePriceProvider<AssetId, FixedU128, Oracle>;
-	type ProjectIdentifier = u32;
 	type Randomness = Random;
 	type RemainderFundingDuration = RemainderFundingDuration;
 	type RequiredMaxCapacity = RequiredMaxCapacity;
@@ -647,7 +645,6 @@ impl pallet_parachain_staking::Config for Runtime {
 	type PayMaster = PayMaster;
 	// We use the default implementation, so we leave () here.
 	type PayoutCollatorReward = ();
-	type ProjectIdentifier = ProjectIdentifier;
 	type RevokeDelegationDelay = RevokeDelegationDelay;
 	type RewardPaymentDelay = RewardPaymentDelay;
 	type RuntimeEvent = RuntimeEvent;
@@ -738,7 +735,7 @@ construct_runtime!(
 
 		// Polimec Core
 		PolimecFunding: pallet_funding::{Pallet, Call, Storage, Event<T>, Config<T>, HoldReason}  = 52,
-		LinearRelease: pallet_linear_release::{Pallet, Call, Storage, Event<T>, Config<T>} = 53,
+		LinearRelease: pallet_linear_release::{Pallet, Call, Storage, Event<T>} = 53,
 		Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 54,
 
 		// Utilities

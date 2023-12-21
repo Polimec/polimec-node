@@ -151,7 +151,7 @@ impl<T: Config> Pallet<T> {
 	/// # Next step
 	/// Users will pond PLMC for this project, and when the time comes, the project will be transitioned
 	/// to the next round by `on_initialize` using [`do_evaluation_end`](Self::do_evaluation_end)
-	pub fn do_evaluation_start(caller: AccountIdOf<T>, project_id: T::ProjectIdentifier) -> DispatchResult {
+	pub fn do_evaluation_start(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -208,7 +208,7 @@ impl<T: Config> Pallet<T> {
 	///
 	/// * Bonding failed - `on_idle` at some point checks for failed evaluation projects, and
 	/// unbonds the evaluators funds.
-	pub fn do_evaluation_end(project_id: T::ProjectIdentifier) -> DispatchResult {
+	pub fn do_evaluation_end(project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
@@ -299,7 +299,7 @@ impl<T: Config> Pallet<T> {
 	/// Professional and Institutional users set bids for the project using the [`bid`](Self::bid) extrinsic.
 	/// Later on, `on_initialize` transitions the project into the candle auction round, by calling
 	/// [`do_candle_auction`](Self::do_candle_auction).
-	pub fn do_english_auction(caller: AccountIdOf<T>, project_id: T::ProjectIdentifier) -> DispatchResult {
+	pub fn do_english_auction(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
@@ -374,7 +374,7 @@ impl<T: Config> Pallet<T> {
 	/// but now their bids are not guaranteed.
 	/// Later on, `on_initialize` ends the candle auction round and starts the community round,
 	/// by calling [`do_community_funding`](Self::do_community_funding).
-	pub fn do_candle_auction(project_id: T::ProjectIdentifier) -> DispatchResult {
+	pub fn do_candle_auction(project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
@@ -427,7 +427,7 @@ impl<T: Config> Pallet<T> {
 	/// Retail users buy tokens at the price set on the auction round.
 	/// Later on, `on_initialize` ends the community round by calling [`do_remainder_funding`](Self::do_remainder_funding) and
 	/// starts the remainder round, where anyone can buy at that price point.
-	pub fn do_community_funding(project_id: T::ProjectIdentifier) -> DispatchResult {
+	pub fn do_community_funding(project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -511,7 +511,7 @@ impl<T: Config> Pallet<T> {
 	/// Any users can now buy tokens at the price set on the auction round.
 	/// Later on, `on_initialize` ends the remainder round, and finalizes the project funding, by calling
 	/// [`do_end_funding`](Self::do_end_funding).
-	pub fn do_remainder_funding(project_id: T::ProjectIdentifier) -> DispatchResult {
+	pub fn do_remainder_funding(project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
@@ -571,7 +571,7 @@ impl<T: Config> Pallet<T> {
 	/// * Bonded plmc with [`vested_plmc_purchase_unbond_for`](Self::vested_plmc_purchase_unbond_for)
 	///
 	/// If **unsuccessful**, users every user should have their PLMC vesting unbonded.
-	pub fn do_end_funding(project_id: T::ProjectIdentifier) -> DispatchResult {
+	pub fn do_end_funding(project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
@@ -632,7 +632,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	pub fn do_project_decision(project_id: T::ProjectIdentifier, decision: FundingOutcomeDecision) -> DispatchResult {
+	pub fn do_project_decision(project_id: ProjectId, decision: FundingOutcomeDecision) -> DispatchResult {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
@@ -659,7 +659,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn do_start_settlement(project_id: T::ProjectIdentifier) -> DispatchResult {
+	pub fn do_start_settlement(project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let token_information =
@@ -713,7 +713,7 @@ impl<T: Config> Pallet<T> {
 	/// * [`ProjectsMetadata`] - Update the metadata hash
 	pub fn do_edit_metadata(
 		issuer: AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		project_metadata_hash: T::Hash,
 	) -> DispatchResult {
 		// * Get variables *
@@ -740,7 +740,7 @@ impl<T: Config> Pallet<T> {
 	// Note: usd_amount needs to have the same amount of decimals as PLMC,, so when multiplied by the plmc-usd price, it gives us the PLMC amount with the decimals we wanted.
 	pub fn do_evaluate(
 		evaluator: &AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		usd_amount: BalanceOf<T>,
 	) -> DispatchResult {
 		// * Get variables *
@@ -845,7 +845,7 @@ impl<T: Config> Pallet<T> {
 	/// * [`Bids`] - Check previous bids by that user, and update the storage with the new bid
 	pub fn do_bid(
 		bidder: &AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		ct_amount: BalanceOf<T>,
 		multiplier: MultiplierOf<T>,
 		funding_asset: AcceptedFundingAsset,
@@ -904,7 +904,7 @@ impl<T: Config> Pallet<T> {
 
 	fn perform_do_bid(
 		bidder: &AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		ct_amount: BalanceOf<T>,
 		ct_usd_price: T::Price,
 		multiplier: MultiplierOf<T>,
@@ -1005,7 +1005,7 @@ impl<T: Config> Pallet<T> {
 	/// * [`T::NativeCurrency`] - Update the balance of the contributor and the project pot
 	pub fn do_contribute(
 		contributor: &AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		token_amount: BalanceOf<T>,
 		multiplier: MultiplierOf<T>,
 		asset: AcceptedFundingAsset,
@@ -1171,7 +1171,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_decide_project_outcome(
 		issuer: AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		decision: FundingOutcomeDecision,
 	) -> DispatchResult {
 		// * Get variables *
@@ -1193,7 +1193,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_bid_ct_mint_for(
 		releaser: &AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		bidder: &AccountIdOf<T>,
 		bid_id: u32,
 	) -> DispatchResult {
@@ -1228,7 +1228,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_contribution_ct_mint_for(
 		releaser: &AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		contributor: &AccountIdOf<T>,
 		contribution_id: u32,
 	) -> DispatchResult {
@@ -1263,7 +1263,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_evaluation_unbond_for(
 		releaser: &AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		evaluator: &AccountIdOf<T>,
 		evaluation_id: u32,
 	) -> DispatchResult {
@@ -1311,7 +1311,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_evaluation_reward_payout_for(
 		caller: &AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		evaluator: &AccountIdOf<T>,
 		evaluation_id: u32,
 	) -> DispatchResult {
@@ -1362,7 +1362,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_evaluation_slash_for(
 		caller: &AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		evaluator: &AccountIdOf<T>,
 		evaluation_id: u32,
 	) -> DispatchResult {
@@ -1415,7 +1415,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_start_bid_vesting_schedule_for(
 		caller: &AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		bidder: &AccountIdOf<T>,
 		bid_id: u32,
 	) -> DispatchResult {
@@ -1461,7 +1461,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_start_contribution_vesting_schedule_for(
 		caller: &AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		contributor: &AccountIdOf<T>,
 		contribution_id: u32,
 	) -> DispatchResult {
@@ -1506,7 +1506,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_vest_plmc_for(
 		caller: AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		participant: AccountIdOf<T>,
 	) -> DispatchResult {
 		// * Get variables *
@@ -1526,7 +1526,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_release_bid_funds_for(
 		caller: &AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		bidder: &AccountIdOf<T>,
 		bid_id: u32,
 	) -> DispatchResult {
@@ -1573,7 +1573,7 @@ impl<T: Config> Pallet<T> {
 	// Unbonding of PLMC in a successful funding outcome is handled by the vesting schedule.
 	pub fn do_bid_unbond_for(
 		caller: &AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		bidder: &AccountIdOf<T>,
 		bid_id: u32,
 	) -> DispatchResult {
@@ -1607,7 +1607,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_release_contribution_funds_for(
 		caller: &AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		contributor: &AccountIdOf<T>,
 		contribution_id: u32,
 	) -> DispatchResult {
@@ -1651,7 +1651,7 @@ impl<T: Config> Pallet<T> {
 	// Unbonding of PLMC in a successful funding outcome is handled by the vesting schedule.
 	pub fn do_contribution_unbond_for(
 		caller: &AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		contributor: &AccountIdOf<T>,
 		contribution_id: u32,
 	) -> DispatchResult {
@@ -1681,7 +1681,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_payout_bid_funds_for(
 		caller: &AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		bidder: &AccountIdOf<T>,
 		bid_id: u32,
 	) -> DispatchResult {
@@ -1727,7 +1727,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_payout_contribution_funds_for(
 		caller: &AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		contributor: &AccountIdOf<T>,
 		contribution_id: u32,
 	) -> DispatchResult {
@@ -1770,7 +1770,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_set_para_id_for_project(
 		caller: &AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		para_id: ParaId,
 	) -> DispatchResult {
 		// * Get variables *
@@ -1919,7 +1919,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_start_migration_readiness_check(
 		caller: &AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 	) -> DispatchResult {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -2094,7 +2094,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn do_start_migration(caller: &AccountIdOf<T>, project_id: T::ProjectIdentifier) -> DispatchResult {
+	pub fn do_start_migration(caller: &AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let migration_readiness_check = project_details.migration_readiness_check.ok_or(Error::<T>::NotAllowed)?;
@@ -2113,7 +2113,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_migrate_one_participant(
 		caller: AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		participant: AccountIdOf<T>,
 	) -> DispatchResult {
 		// * Get variables *
@@ -2223,12 +2223,12 @@ impl<T: Config> Pallet<T> {
 	/// This actually does computation. If you need to keep using it, then make sure you cache the
 	/// value and only call this once.
 	#[inline(always)]
-	pub fn fund_account_id(index: T::ProjectIdentifier) -> AccountIdOf<T> {
+	pub fn fund_account_id(index: ProjectId) -> AccountIdOf<T> {
 		T::PalletId::get().into_sub_account_truncating(index)
 	}
 
 	/// Adds a project to the ProjectsToUpdate storage, so it can be updated at some later point in time.
-	pub fn add_to_update_store(block_number: BlockNumberFor<T>, store: (&T::ProjectIdentifier, UpdateType)) {
+	pub fn add_to_update_store(block_number: BlockNumberFor<T>, store: (&ProjectId, UpdateType)) {
 		// Try to get the project into the earliest possible block to update.
 		// There is a limit for how many projects can update each block, so we need to make sure we don't exceed that limit
 		let mut block_number = block_number;
@@ -2238,7 +2238,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	pub fn remove_from_update_store(project_id: &T::ProjectIdentifier) -> DispatchResult {
+	pub fn remove_from_update_store(project_id: &ProjectId) -> DispatchResult {
 		let (block_position, project_index) = ProjectsToUpdate::<T>::iter()
 			.find_map(|(block, project_vec)| {
 				let project_index = project_vec.iter().position(|(id, _update_type)| id == project_id)?;
@@ -2299,7 +2299,7 @@ impl<T: Config> Pallet<T> {
 
 	/// Calculates the price (in USD) of contribution tokens for the Community and Remainder Rounds
 	pub fn calculate_weighted_average_price(
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		end_block: BlockNumberFor<T>,
 		total_allocation_size: BalanceOf<T>,
 	) -> DispatchResult {
@@ -2496,7 +2496,7 @@ impl<T: Config> Pallet<T> {
 	/// Refund a bid because of `reason`.
 	fn refund_bid<'a>(
 		bid: &'a mut BidInfoOf<T>,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		project_account: &'a AccountIdOf<T>,
 		reason: RejectionReason,
 	) -> Result<(), DispatchError> {
@@ -2549,7 +2549,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn try_plmc_participation_lock(
 		who: &T::AccountId,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		amount: BalanceOf<T>,
 	) -> DispatchResult {
 		// Check if the user has already locked tokens in the evaluation period
@@ -2580,7 +2580,7 @@ impl<T: Config> Pallet<T> {
 	// TODO(216): use the hold interface of the fungibles::MutateHold once its implemented on pallet_assets.
 	pub fn try_funding_asset_hold(
 		who: &T::AccountId,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		amount: BalanceOf<T>,
 		asset_id: AssetIdOf<T>,
 	) -> DispatchResult {
@@ -2632,7 +2632,7 @@ impl<T: Config> Pallet<T> {
 	/// Note: Consider refactoring the `RewardInfo` struct to make it more generic and
 	/// reusable, not just for evaluator rewards.
 	pub fn generate_evaluator_rewards_info(
-		project_id: <T as Config>::ProjectIdentifier,
+		project_id: ProjectId,
 	) -> Result<RewardInfoOf<T>, DispatchError> {
 		// Fetching the necessary data for a specific project.
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
@@ -2696,7 +2696,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn make_project_funding_successful(
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		mut project_details: ProjectDetailsOf<T>,
 		reason: SuccessReason,
 		settlement_delta: BlockNumberFor<T>,
@@ -2713,7 +2713,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn make_project_funding_fail(
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		mut project_details: ProjectDetailsOf<T>,
 		reason: FailureReason,
 		settlement_delta: BlockNumberFor<T>,

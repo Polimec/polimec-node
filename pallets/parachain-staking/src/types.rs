@@ -28,7 +28,6 @@ use frame_support::{
 	},
 };
 use parity_scale_codec::{Decode, Encode};
-use polimec_traits::locking::LockType;
 use sp_runtime::{
 	traits::{AtLeast32BitUnsigned, Saturating, Zero},
 	Perbill, Percent, RuntimeDebug,
