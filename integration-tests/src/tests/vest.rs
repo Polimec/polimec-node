@@ -72,7 +72,6 @@ generate_accounts!(
 fn can_withdraw_when_free_is_below_frozen_with_hold() {
 	Polimec::execute_with(|| {
 		let coll_1 = get_account_id_from_seed::<sr25519::Public>("COLL_1");
-
 		Balances::set_balance(&PEPE.into(), 20_000 * PLMC + ED * 2);
 		Balances::set_balance(&CARLOS.into(), 0);
 
