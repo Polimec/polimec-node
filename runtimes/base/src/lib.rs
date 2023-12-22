@@ -25,7 +25,10 @@ extern crate frame_benchmarking;
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime, ord_parameter_types, parameter_types,
-	traits::{Contains, InstanceFilter},
+	traits::{
+		fungible::{Balanced, Credit},
+		Contains, Imbalance, InstanceFilter, OnUnbalanced,
+	},
 	weights::{ConstantMultiplier, Weight},
 };
 use frame_system::EnsureRoot;
@@ -71,6 +74,8 @@ pub type Signature = MultiSignature;
 /// Some way of identifying an account on the chain. We intentionally make it equivalent
 /// to the public key of our transaction signing scheme.
 pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
+
+pub type CreditOf<T> = Credit<<T as frame_system::Config>::AccountId, pallet_balances::Pallet<T, ()>>;
 
 /// Balance of an account.
 pub type Balance = u128;
@@ -304,10 +309,46 @@ impl pallet_balances::Config for Runtime {
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 }
 
+/// Logic for the author to get a portion of fees.
+pub struct ToAuthor<R>(sp_std::marker::PhantomData<R>);
+impl<R> OnUnbalanced<Credit<R::AccountId, pallet_balances::Pallet<R>>> for ToAuthor<R>
+where
+	R: pallet_balances::Config + pallet_authorship::Config,
+	<R as frame_system::Config>::AccountId: From<AccountId>,
+	<R as frame_system::Config>::AccountId: Into<AccountId>,
+{
+	fn on_nonzero_unbalanced(amount: Credit<<R as frame_system::Config>::AccountId, pallet_balances::Pallet<R>>) {
+		if let Some(author) = <pallet_authorship::Pallet<R>>::author() {
+			let _ = <pallet_balances::Pallet<R>>::resolve(&author, amount);
+		}
+	}
+}
+
+pub struct DealWithFees<R>(sp_std::marker::PhantomData<R>);
+impl<R> OnUnbalanced<Credit<R::AccountId, pallet_balances::Pallet<R>>> for DealWithFees<R>
+where
+	R: pallet_balances::Config + pallet_authorship::Config + pallet_parachain_staking::Config,
+	<R as frame_system::Config>::AccountId: From<AccountId>,
+	<R as frame_system::Config>::AccountId: Into<AccountId>,
+{
+	fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = Credit<R::AccountId, pallet_balances::Pallet<R>>>) {
+		if let Some(fees) = fees_then_tips.next() {
+			// for fees, 100% to treasury, 0% to author
+			let mut split = fees.ration(100, 20);
+			if let Some(tips) = fees_then_tips.next() {
+				// for tips, if any, 100% to author
+				tips.merge_into(&mut split.1);
+			}
+			<ToStakingPot<R> as OnUnbalanced<_>>::on_unbalanced(split.0);
+			<ToAuthor<R> as OnUnbalanced<_>>::on_unbalanced(split.1);
+		}
+	}
+}
+
 impl pallet_transaction_payment::Config for Runtime {
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
-	type OnChargeTransaction = shared_configuration::fee::FungibleAdapter<Balances, ()>;
+	type OnChargeTransaction = shared_configuration::fee::FungibleAdapter<Balances, DealWithFees<Runtime>>;
 	type OperationalFeeMultiplier = frame_support::traits::ConstU8<5>;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightToFee = WeightToFee;
@@ -375,6 +416,22 @@ impl pallet_sudo::Config for Runtime {
 ord_parameter_types! {
 	pub const PayMaster: AccountId =
 		AccountIdConversion::<AccountId>::into_account_truncating(&StakingPalletId::get());
+}
+
+/// Implementation of `OnUnbalanced` that deposits the fees into  the "Blockchain Operation Treasury" for later payout.
+
+pub struct ToStakingPot<R>(sp_std::marker::PhantomData<R>);
+
+impl<R> OnUnbalanced<Credit<R::AccountId, pallet_balances::Pallet<R>>> for ToStakingPot<R>
+where
+	R: pallet_balances::Config + pallet_parachain_staking::Config,
+	<R as frame_system::Config>::AccountId: From<AccountId>,
+	<R as frame_system::Config>::AccountId: Into<AccountId>,
+{
+	fn on_nonzero_unbalanced(amount: Credit<<R as frame_system::Config>::AccountId, pallet_balances::Pallet<R>>) {
+		let staking_pot = PayMaster::get().into();
+		let _ = <pallet_balances::Pallet<R>>::resolve(&staking_pot, amount);
+	}
 }
 
 impl pallet_parachain_staking::Config for Runtime {

@@ -3,14 +3,14 @@ timeout = 1000
 provider = "native"
 
 [relaychain]
-default_command = "../polkadot/target/release/polkadot"
+default_command = "polkadot"
 chain = "rococo-local"
 
 	[[relaychain.nodes]]
-	name = "alice"
+	name = "eve"
 
 	[[relaychain.nodes]]
-	name = "bob"
+	name = "ferdie"
 
 	[[relaychain.nodes]]
 	name = "charlie"
@@ -20,12 +20,12 @@ chain = "rococo-local"
 
 [[parachains]]
 id = 2000
-chain = "base-polkadot"
+chain = "base-rococo-local"
 
 	[[parachains.collators]]
-	name = "collator1"
+	name = "alice"
 	command = "./target/release/polimec-parachain-node"
 
 	[[parachains.collators]]
-	name = "collator2"
+	name = "bob"
 	command = "./target/release/polimec-parachain-node"

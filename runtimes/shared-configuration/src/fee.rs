@@ -16,7 +16,7 @@
 
 use crate::{currency::MILLI_PLMC, Balance};
 use frame_support::{
-	pallet_prelude::{InvalidTransaction, TransactionValidityError},
+	pallet_prelude::{InvalidTransaction, PhantomData, TransactionValidityError},
 	parameter_types,
 	sp_runtime::traits::{DispatchInfoOf, PostDispatchInfoOf},
 	traits::{
@@ -33,7 +33,6 @@ use sp_arithmetic::{
 	traits::{Saturating, Zero},
 	Perbill,
 };
-use sp_std::marker::PhantomData;
 
 pub struct WeightToFee;
 impl WeightToFeePolynomial for WeightToFee {
@@ -54,7 +53,7 @@ impl WeightToFeePolynomial for WeightToFee {
 
 parameter_types! {
 	pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
-	pub const MaxAuthorities: u32 = 100_000;
+	pub const MaxAuthorities: u32 = 75;
 }
 
 /// Implements transaction payment for a pallet implementing the [`fungible`]
@@ -82,7 +81,7 @@ where
 		_tip: Self::Balance,
 	) -> Result<Self::LiquidityInfo, TransactionValidityError> {
 		if fee.is_zero() {
-			return Ok(None)
+			return Ok(None);
 		}
 
 		match F::withdraw(
