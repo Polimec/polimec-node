@@ -30,6 +30,9 @@ sp-std.workspace = true
 pallet-funding.workspace = true
 orml-traits.workspace = true
 pallet-transaction-payment.workspace = true
+pallet-balances.workspace = true
+pallet-authorship.workspace = true
+pallet-parachain-staking.workspace = true
 
 [features]
 default = [ "std" ]
@@ -38,7 +41,11 @@ std = [
 	"frame-support/std",
 	"frame-system/std",
 	"orml-traits/std",
+	"pallet-authorship/std",
+	"pallet-balances/std",
 	"pallet-funding/std",
+	"pallet-parachain-staking/std",
+	"pallet-transaction-payment/std",
 	"parachains-common/std",
 	"parity-scale-codec/std",
 	"scale-info/std",
@@ -48,11 +55,17 @@ std = [
 runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
+	"pallet-balances/runtime-benchmarks",
 	"pallet-funding/runtime-benchmarks",
+	"pallet-parachain-staking/runtime-benchmarks",
 ]
 testing-node = [ "pallet-funding/testing-node" ]
 try-runtime = [
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
+	"pallet-authorship/try-runtime",
+	"pallet-balances/try-runtime",
 	"pallet-funding/try-runtime",
+	"pallet-parachain-staking/try-runtime",
+	"pallet-transaction-payment/try-runtime",
 ]
