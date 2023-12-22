@@ -7,7 +7,6 @@ use frame_support::traits::fungible::{InspectHold, Mutate};
 use macros::generate_accounts;
 use pallet_funding::assert_close_enough;
 use pallet_vesting::VestingInfo;
-use penpal_runtime::System;
 use polimec_parachain_runtime::{Balances, LinearRelease, ParachainStaking, RuntimeOrigin, Vesting};
 use sp_runtime::{bounded_vec, BoundedVec, FixedU128};
 use tests::defaults::*;
@@ -79,7 +78,7 @@ fn can_withdraw_when_free_is_below_frozen_with_hold() {
 		assert_eq!(Balances::free_balance(&CARLOS.into()), 0);
 		// We need some free balance at the time of the vested transfer
 		// Otherwise the user will never have free balance to pay for the "vest" extrinsic
-		System::set_block_number(1u32);
+		PolimecSystem::set_block_number(1u32);
 
 		// The actual vested transfer
 		assert_ok!(Vesting::vested_transfer(
@@ -110,7 +109,7 @@ fn can_withdraw_when_free_is_below_frozen_with_hold() {
 		assert_eq!(Balances::usable_balance(&CARLOS.into()), 10 * PLMC);
 
 		// Be able to vest 10 more PLMC for this example description
-		System::set_block_number(2u32);
+		PolimecSystem::set_block_number(2u32);
 
 		// This should pass if the fee is correctly deducted with the new fee struct
 		assert_ok!(Vesting::vest(PolimecOrigin::signed(CARLOS.into())));
