@@ -20,11 +20,10 @@ use frame_support::{
 	parameter_types,
 	traits::{ConstU32, ConstU64, WithdrawReasons},
 };
-use polimec_traits::locking::LockType;
 use sp_core::H256;
 use sp_runtime::{
 	traits::{BlakeTwo256, Identity, IdentityLookup},
-	BuildStorage,
+	BuildStorage, Deserialize, Serialize,
 };
 
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -32,9 +31,9 @@ type Block = frame_system::mocking::MockBlock<Test>;
 frame_support::construct_runtime!(
 	pub enum Test
 	{
-		System: frame_system,
-		Balances: pallet_balances,
-		Vesting: pallet_vesting,
+		System: frame_system::{Call, Config<T>, Storage, Event<T>},
+		Balances: pallet_balances::{Call, Config<T>, Storage, Event<T>},
+		Vesting: pallet_vesting::{Call, Storage, Event<T>}
 	}
 );
 
@@ -76,14 +75,14 @@ impl pallet_balances::Config for Test {
 	type Balance = u64;
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
-	type FreezeIdentifier = LockType<u32>;
+	type FreezeIdentifier = RuntimeHoldReason;
 	type MaxFreezes = ConstU32<10>;
 	type MaxHolds = ConstU32<10>;
 	type MaxLocks = ConstU32<10>;
 	type MaxReserves = ConstU32<10>;
-	type ReserveIdentifier = LockType<u32>;
+	type ReserveIdentifier = RuntimeHoldReason;
 	type RuntimeEvent = RuntimeEvent;
-	type RuntimeHoldReason = LockType<u32>;
+	type RuntimeHoldReason = MockRuntimeHoldReason;
 	type WeightInfo = ();
 }
 
@@ -93,18 +92,38 @@ impl Config for Test {
 	type Currency = Balances;
 	// TODO: Use the type from Balances.
 	type MinVestedTransfer = MinVestedTransfer;
-	type Reason = LockType<u32>;
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeHoldReason = MockRuntimeHoldReason;
 	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
 	type WeightInfo = ();
 
 	const MAX_VESTING_SCHEDULES: u32 = 3;
 }
 
+#[derive(
+	Encode,
+	Decode,
+	Copy,
+	Clone,
+	PartialEq,
+	Eq,
+	RuntimeDebug,
+	MaxEncodedLen,
+	TypeInfo,
+	Ord,
+	PartialOrd,
+	Serialize,
+	Deserialize,
+)]
+pub enum MockRuntimeHoldReason {
+	Reason,
+	Reason2,
+}
+
 #[derive(Default)]
 pub struct ExtBuilder {
 	existential_deposit: u64,
-	vesting_genesis_config: Option<Vec<(u64, u64, u64, u64, LockType<u32>)>>,
+	vesting_genesis_config: Option<Vec<(u64, u64, u64, u64, MockRuntimeHoldReason)>>,
 }
 
 impl ExtBuilder {
@@ -130,19 +149,37 @@ impl ExtBuilder {
 		.assimilate_storage(&mut t)
 		.unwrap();
 
-		let vesting = if let Some(vesting_config) = self.vesting_genesis_config {
-			vesting_config
-		} else {
-			vec![
-				(1, 0, 10, 5 * self.existential_deposit, LockType::Participation(0)),
-				(2, 10, 20, self.existential_deposit, LockType::Participation(0)),
-				(12, 10, 20, 5 * self.existential_deposit, LockType::Participation(0)),
-			]
-		};
-
-		pallet_vesting::GenesisConfig::<Test> { vesting }.assimilate_storage(&mut t).unwrap();
 		let mut ext = sp_io::TestExternalities::new(t);
-		ext.execute_with(|| System::set_block_number(1));
+		ext.execute_with(|| {
+			System::set_block_number(1);
+			let vesting = if let Some(vesting_config) = self.vesting_genesis_config {
+				vesting_config
+			} else {
+				vec![
+					(1, 0, 10, 5 * self.existential_deposit, MockRuntimeHoldReason::Reason),
+					(2, 10, 20, self.existential_deposit, MockRuntimeHoldReason::Reason),
+					(12, 10, 20, 5 * self.existential_deposit, MockRuntimeHoldReason::Reason),
+				]
+			};
+			for &(ref who, begin, length, liquid, reason) in vesting.iter() {
+				let balance = Balances::balance(who);
+				assert!(!balance.is_zero(), "Currencies must be init'd before vesting");
+				// Total genesis `balance` minus `liquid` equals funds locked for vesting
+				let locked = balance.saturating_sub(liquid);
+				let length_as_balance = Identity::convert(length);
+				let per_block = locked / length_as_balance.max(sp_runtime::traits::One::one());
+				let vesting_info = VestingInfo::new(locked, per_block, begin);
+				if !vesting_info.is_valid() {
+					panic!("Invalid VestingInfo params at genesis")
+				};
+
+				crate::pallet::Vesting::<Test>::try_append(who, reason, vesting_info)
+					.expect("Too many vesting schedules at genesis.");
+
+				Balances::hold(&reason, who, locked).map_err(|err| panic!("{:?}", err)).unwrap();
+			}
+		});
+
 		ext
 	}
 }

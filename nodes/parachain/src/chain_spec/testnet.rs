@@ -25,7 +25,7 @@ use polimec_parachain_runtime::{
 		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
 		InflationInfo, Range,
 	},
-	AccountId, AuraId as AuthorityId, Balance, BalancesConfig, CouncilConfig, LinearReleaseConfig, MinCandidateStk,
+	AccountId, AuraId as AuthorityId, Balance, BalancesConfig, CouncilConfig, MinCandidateStk,
 	OracleProvidersMembershipConfig, ParachainInfoConfig, ParachainStakingConfig, PolkadotXcmConfig, Runtime,
 	RuntimeGenesisConfig, SessionConfig, StatemintAssetsConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
 	EXISTENTIAL_DEPOSIT, PLMC,
@@ -259,7 +259,6 @@ fn testnet_genesis(
 		council: CouncilConfig { members: accounts.clone(), phantom: Default::default() },
 		technical_committee: TechnicalCommitteeConfig { members: accounts, phantom: Default::default() },
 		democracy: Default::default(),
-		linear_release: LinearReleaseConfig { vesting: vec![] },
 		vesting: Default::default(),
 		oracle_providers_membership: OracleProvidersMembershipConfig {
 			members: bounded_vec![

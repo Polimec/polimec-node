@@ -23,7 +23,6 @@ use frame_support::{
 	weights::{constants::RocksDbWeight, Weight},
 };
 use frame_system::pallet_prelude::BlockNumberFor;
-use polimec_traits::locking::LockType;
 use sp_core::H256;
 use sp_io;
 use sp_runtime::{
@@ -45,7 +44,7 @@ construct_runtime!(
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		Aura: pallet_aura::{Pallet, Storage},
 		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
-		ParachainStaking: pallet_parachain_staking::{Pallet, Call, Storage, Config<T>, Event<T>},
+		ParachainStaking: pallet_parachain_staking::{Pallet, Call, Storage, Config<T>, Event<T>, HoldReason},
 		Authorship: pallet_authorship::{Pallet, Storage},
 	}
 );
@@ -98,7 +97,7 @@ impl pallet_balances::Config for Test {
 	type MaxReserves = ();
 	type ReserveIdentifier = [u8; 4];
 	type RuntimeEvent = RuntimeEvent;
-	type RuntimeHoldReason = LockType<u32>;
+	type RuntimeHoldReason = RuntimeHoldReason;
 	type WeightInfo = ();
 }
 parameter_types! {
@@ -194,10 +193,10 @@ impl Config for Test {
 	type OnNewRound = ();
 	type PayMaster = PayMaster;
 	type PayoutCollatorReward = ();
-	type ProjectIdentifier = u32;
 	type RevokeDelegationDelay = RevokeDelegationDelay;
 	type RewardPaymentDelay = RewardPaymentDelay;
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeHoldReason = RuntimeHoldReason;
 	type WeightInfo = ();
 }
 

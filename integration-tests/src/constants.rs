@@ -358,7 +358,6 @@ pub mod polimec {
 			},
 			technical_committee: Default::default(),
 			treasury: Default::default(),
-			linear_release: Default::default(),
 			vesting: Default::default(),
 		};
 
