@@ -61,6 +61,7 @@ pub use pallet_parachain_staking;
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 pub mod xcm_config;
+mod custom_migrations;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -126,7 +127,7 @@ pub mod migrations {
 	pub type Unreleased = (
 		cumulus_pallet_xcmp_queue::migration::Migration<Runtime>,
 		cumulus_pallet_dmp_queue::migration::Migration<Runtime>,
-		pallet_multisig::migrations::v1::MigrateToV1<Runtime>,
+		custom_migrations::CustomOnRuntimeUpgrade
 	);
 }
 
