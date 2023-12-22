@@ -45,6 +45,7 @@ const COLLATOR_COMMISSION: Perbill = Perbill::from_percent(10);
 const PARACHAIN_BOND_RESERVE_PERCENT: Percent = Percent::from_percent(0);
 const BLOCKS_PER_ROUND: u32 = 2 * 10;
 const NUM_SELECTED_CANDIDATES: u32 = 5;
+
 pub fn polimec_inflation_config() -> InflationInfo<Balance> {
 	fn to_round_inflation(annual: Range<Perbill>) -> Range<Perbill> {
 		perbill_annual_to_perbill_round(
@@ -73,7 +74,7 @@ pub fn get_base_session_keys(keys: AuthorityId) -> base_runtime::SessionKeys {
 pub fn get_local_base_chain_spec() -> Result<ChainSpec, String> {
 	let properties = get_properties("PLMC", 10, 41);
 	let wasm = base_runtime::WASM_BINARY.ok_or("No WASM")?;
-	const TREASURY: [u8; 32] = hex_literal::hex!["6d6f646c706c6d632f73746b0000000000000000000000000000000000000000"];
+	const BLOCKCHAIN_OPERATION_TREASURY: [u8; 32] = hex_literal::hex!["6d6f646c706c6d632f73746b0000000000000000000000000000000000000000"];
 
 	Ok(ChainSpec::from_genesis(
 		"Polimec Base Develop",
@@ -98,7 +99,7 @@ pub fn get_local_base_chain_spec() -> Result<ChainSpec, String> {
 					(get_account_id_from_seed::<sr25519::Public>("Dave"), 5 * MinCandidateStk::get()),
 					(get_account_id_from_seed::<sr25519::Public>("Eve"), 5 * MinCandidateStk::get()),
 					(get_account_id_from_seed::<sr25519::Public>("Ferdie"), 5 * MinCandidateStk::get()),
-					(TREASURY.into(), 10_000_000 * PLMC),
+					(BLOCKCHAIN_OPERATION_TREASURY.into(), 10_000_000 * PLMC),
 				],
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				DEFAULT_PARA_ID,
