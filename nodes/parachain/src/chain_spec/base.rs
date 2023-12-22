@@ -74,6 +74,10 @@ pub fn get_base_session_keys(keys: AuthorityId) -> base_runtime::SessionKeys {
 pub fn get_local_base_chain_spec() -> Result<ChainSpec, String> {
 	let properties = get_properties("PLMC", 10, 41);
 	let wasm = base_runtime::WASM_BINARY.ok_or("No WASM")?;
+	// This account is derived from PalletId("plmc/stk") in the pallet-parachain-staking runtime config.
+	// This operation can be done using https://www.shawntabrizi.com/substrate-js-utilities/
+	// 1. "Module ID" to Address plmc/stk -> 5EYCAe5ij8xKJ2biBy4zUGNwdNhpz3BaS5iiuseJqTEtWQTc
+	// 2. AccountId to Hex -> 0x6d6f646c706c6d632f73746b0000000000000000000000000000000000000000
 	const BLOCKCHAIN_OPERATION_TREASURY: [u8; 32] = hex_literal::hex!["6d6f646c706c6d632f73746b0000000000000000000000000000000000000000"];
 
 	Ok(ChainSpec::from_genesis(
