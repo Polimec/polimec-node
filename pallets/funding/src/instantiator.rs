@@ -1,4 +1,7 @@
-use crate::{*, traits::BondingRequirementCalculation};
+use crate::{
+	traits::{BondingRequirementCalculation, ProvideStatemintPrice},
+	*,
+};
 use frame_support::{
 	pallet_prelude::*,
 	traits::{
@@ -31,7 +34,6 @@ use sp_std::{
 	marker::PhantomData,
 	prelude::*,
 };
-use crate::traits::ProvideStatemintPrice;
 
 pub use testing_macros::*;
 pub type RuntimeOriginOf<T> = <T as frame_system::Config>::RuntimeOrigin;
@@ -156,7 +158,10 @@ impl<
 		self.get_free_plmc_balances_for(user_keys)
 	}
 
-	pub fn get_all_reserved_plmc_balances(&mut self, reserve_type: <T as Config>::RuntimeHoldReason) -> Vec<UserToPLMCBalance<T>> {
+	pub fn get_all_reserved_plmc_balances(
+		&mut self,
+		reserve_type: <T as Config>::RuntimeHoldReason,
+	) -> Vec<UserToPLMCBalance<T>> {
 		let user_keys = self.execute(|| frame_system::Account::<T>::iter_keys().collect());
 		self.get_reserved_plmc_balances_for(user_keys, reserve_type)
 	}
