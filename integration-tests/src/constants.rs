@@ -24,7 +24,6 @@ pub const XCM_V3: u32 = 2;
 pub const REF_TIME_THRESHOLD: u64 = 33;
 pub const PROOF_SIZE_THRESHOLD: u64 = 33;
 pub const INITIAL_DEPOSIT: u128 = 420_0_000_000_000;
-
 const BLOCKS_PER_ROUND: u32 = 6 * 100;
 
 fn polimec_inflation_config() -> polimec_parachain_runtime::pallet_parachain_staking::InflationInfo<Balance> {
@@ -292,6 +291,8 @@ pub mod polimec {
 
 		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
 		funded_accounts.extend(collators::initial_authorities().iter().cloned().map(|(acc, _)| (acc, 20_005 * PLMC)));
+		funded_accounts.push((get_account_id_from_seed::<sr25519::Public>("TREASURY_STASH"), 20_005 * PLMC));
+
 		let genesis_config = polimec_parachain_runtime::GenesisConfig {
 			system: polimec_parachain_runtime::SystemConfig {
 				code: polimec_parachain_runtime::WASM_BINARY
@@ -416,6 +417,86 @@ pub mod penpal {
 			},
 			sudo: penpal_runtime::SudoConfig { key: Some(get_account_id_from_seed::<sr25519::Public>("Alice")) },
 			..Default::default()
+		};
+
+		genesis_config.build_storage().unwrap()
+	}
+}
+
+// Polimec Base Runtime
+pub mod polimec_base {
+	use super::*;
+	use crate::PolimecBase;
+	use pallet_funding::AcceptedFundingAsset;
+	use xcm::{prelude::Parachain, v3::Parent};
+
+	pub const PARA_ID: u32 = 3344;
+	pub const ED: Balance = polimec_base_runtime::EXISTENTIAL_DEPOSIT;
+
+	const GENESIS_BLOCKS_PER_ROUND: BlockNumber = 1800;
+	const GENESIS_COLLATOR_COMMISSION: Perbill = Perbill::from_percent(10);
+	const GENESIS_PARACHAIN_BOND_RESERVE_PERCENT: Percent = Percent::from_percent(0);
+	const GENESIS_NUM_SELECTED_CANDIDATES: u32 = 5;
+
+	pub fn genesis() -> Storage {
+		let dot_asset_id = AcceptedFundingAsset::DOT.to_statemint_id();
+		let usdt_asset_id = AcceptedFundingAsset::USDT.to_statemint_id();
+		let mut funded_accounts = vec![
+			(PolimecBase::sovereign_account_id_of((Parent, Parachain(penpal::PARA_ID)).into()), INITIAL_DEPOSIT),
+			(PolimecBase::sovereign_account_id_of((Parent, Parachain(statemint::PARA_ID)).into()), INITIAL_DEPOSIT),
+		];
+		let alice_account = PolimecBase::account_id_of(accounts::ALICE);
+		let bob_account: AccountId = PolimecBase::account_id_of(accounts::BOB);
+		let charlie_account: AccountId = PolimecBase::account_id_of(accounts::CHARLIE);
+
+		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
+		funded_accounts.extend(collators::initial_authorities().iter().cloned().map(|(acc, _)| (acc, 20_005 * PLMC)));
+		funded_accounts.push((get_account_id_from_seed::<sr25519::Public>("TREASURY_STASH"), 20_005 * PLMC));
+
+		let genesis_config = polimec_base_runtime::GenesisConfig {
+			system: polimec_base_runtime::SystemConfig {
+				code: polimec_base_runtime::WASM_BINARY.expect("WASM binary was not build, please build it!").to_vec(),
+				..Default::default()
+			},
+			balances: polimec_base_runtime::BalancesConfig { balances: funded_accounts },
+			parachain_info: polimec_base_runtime::ParachainInfoConfig {
+				parachain_id: PARA_ID.into(),
+				..Default::default()
+			},
+			session: polimec_base_runtime::SessionConfig {
+				keys: collators::invulnerables()
+					.into_iter()
+					.map(|(acc, aura)| {
+						(
+							acc.clone(),                                // account id
+							acc,                                        // validator id
+							polimec_base_runtime::SessionKeys { aura }, // session keys
+						)
+					})
+					.collect(),
+			},
+			aura: Default::default(),
+			aura_ext: Default::default(),
+			parachain_system: Default::default(),
+			polkadot_xcm: polimec_base_runtime::PolkadotXcmConfig {
+				safe_xcm_version: Some(SAFE_XCM_VERSION),
+				..Default::default()
+			},
+			sudo: polimec_base_runtime::SudoConfig { key: Some(get_account_id_from_seed::<sr25519::Public>("Alice")) },
+			parachain_staking: polimec_base_runtime::ParachainStakingConfig {
+				candidates: collators::initial_authorities()
+					.iter()
+					.map(|(acc, _)| (acc.clone(), 20_000 * PLMC))
+					.collect(),
+				delegations: vec![],
+				inflation_config: polimec_inflation_config(),
+				collator_commission: GENESIS_COLLATOR_COMMISSION,
+				parachain_bond_reserve_percent: GENESIS_PARACHAIN_BOND_RESERVE_PERCENT,
+				blocks_per_round: GENESIS_BLOCKS_PER_ROUND,
+				num_selected_candidates: GENESIS_NUM_SELECTED_CANDIDATES,
+			},
+			vesting: Default::default(),
+			transaction_payment: Default::default(),
 		};
 
 		genesis_config.build_storage().unwrap()

@@ -60,15 +60,15 @@ pallet-message-queue.workspace = true
 pallet-membership.workspace = true
 orml-oracle.workspace = true
 pallet-parachain-staking.workspace = true
-
 pallet-vesting.workspace = true
+itertools.workspace = true
 
 # Runtimes
 polkadot-runtime.workspace = true
 asset-hub-polkadot-runtime.workspace = true
 polimec-parachain-runtime.workspace = true
+polimec-base-runtime.workspace = true
 penpal-runtime = { path = "./penpal", default-features = false }
-itertools.workspace = true
 
 [features]
 default = [ "std" ]
@@ -137,6 +137,7 @@ runtime-benchmarks = [
 	"pallet-vesting/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
 	"penpal-runtime/runtime-benchmarks",
+	"polimec-base-runtime/runtime-benchmarks",
 	"polimec-parachain-runtime/runtime-benchmarks",
 	"polimec-receiver/runtime-benchmarks",
 	"polimec-traits/runtime-benchmarks",
@@ -173,6 +174,7 @@ try-runtime = [
 	"pallet-xcm/try-runtime",
 	"parachain-info/try-runtime",
 	"penpal-runtime/try-runtime",
+	"polimec-base-runtime/try-runtime",
 	"polimec-parachain-runtime/try-runtime",
 	"polimec-receiver/try-runtime",
 	"polimec-traits/try-runtime",

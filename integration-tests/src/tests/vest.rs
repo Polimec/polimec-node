@@ -1,4 +1,4 @@
-use crate::{polimec::ED, *};
+use crate::{polimec_base::ED, *};
 /// Tests for the oracle pallet integration.
 /// Alice, Bob, Charlie are members of the OracleProvidersMembers.
 /// Only members should be able to feed data into the oracle.
@@ -7,18 +7,17 @@ use frame_support::traits::fungible::{InspectHold, Mutate};
 use macros::generate_accounts;
 use pallet_funding::assert_close_enough;
 use pallet_vesting::VestingInfo;
-use polimec_parachain_runtime::{Balances, LinearRelease, ParachainStaking, RuntimeOrigin, Vesting};
-use sp_runtime::{bounded_vec, BoundedVec, FixedU128};
+use polimec_base_runtime::{Balances, ParachainStaking, RuntimeOrigin, Vesting};
+use sp_runtime::{bounded_vec, BoundedVec, FixedU128, Perquintill};
 use tests::defaults::*;
 use xcm_emulator::get_account_id_from_seed;
-use sp_runtime::Perquintill;
 
 generate_accounts!(PEPE, CARLOS,);
 
 #[test]
-fn vested_can_stake() {
-	Polimec::execute_with(|| {
-		let alice = Polimec::account_id_of(ALICE);
+fn base_vested_can_stake() {
+	PolimecBase::execute_with(|| {
+		let alice = PolimecBase::account_id_of(ALICE);
 		let coll_1 = get_account_id_from_seed::<sr25519::Public>("COLL_1");
 		let new_account = get_account_id_from_seed::<sr25519::Public>("NEW_ACCOUNT");
 
@@ -66,8 +65,8 @@ fn vested_can_stake() {
 // It happened that the original struct that withdrew the free, didn't consider the held balance as part of the
 // total balance, so if the user had 20 free, 2000 frozen, 2000 held, then the user could only withdraw any amount over 2000.
 #[test]
-fn can_withdraw_when_free_is_below_frozen_with_hold() {
-	Polimec::execute_with(|| {
+fn base_can_withdraw_when_free_is_below_frozen_with_hold() {
+	PolimecBase::execute_with(|| {
 		let coll_1 = get_account_id_from_seed::<sr25519::Public>("COLL_1");
 		Balances::set_balance(&PEPE.into(), 2_020 * PLMC + ED * 2);
 		Balances::set_balance(&CARLOS.into(), 0);
@@ -82,7 +81,7 @@ fn can_withdraw_when_free_is_below_frozen_with_hold() {
 
 		// The actual vested transfer
 		assert_ok!(Vesting::vested_transfer(
-			PolimecOrigin::signed(PEPE.into()),
+			RuntimeOrigin::signed(PEPE.into()),
 			sp_runtime::MultiAddress::Id(CARLOS.into()),
 			vesting_schedule
 		));
@@ -93,7 +92,7 @@ fn can_withdraw_when_free_is_below_frozen_with_hold() {
 		let carlos_acc: PolimecAccountId = CARLOS.into();
 
 		// PEPE stakes his 20k PLMC, even if most of it is locked (frozen)
-		assert_ok!(ParachainStaking::delegate(PolimecOrigin::signed(CARLOS.into()), coll_1, 2_000 * PLMC, 0, 0));
+		assert_ok!(ParachainStaking::delegate(RuntimeOrigin::signed(CARLOS.into()), coll_1, 2_000 * PLMC, 0, 0));
 
 		// Check that the staking state is correct
 		ParachainStaking::delegator_state(carlos_acc).map(|state| {
@@ -112,14 +111,18 @@ fn can_withdraw_when_free_is_below_frozen_with_hold() {
 		PolimecSystem::set_block_number(2u32);
 
 		// This should pass if the fee is correctly deducted with the new fee struct
-		assert_ok!(Vesting::vest(PolimecOrigin::signed(CARLOS.into())));
+		assert_ok!(Vesting::vest(RuntimeOrigin::signed(CARLOS.into())));
 
 		let usable_balance = Balances::usable_balance(&CARLOS.into());
 		// we expect the real value to be at minimum 99% of the expected value, due to fees paid
 		assert_close_enough!(usable_balance, 20 * PLMC, Perquintill::from_percent(1));
 
 		// Test transfer of the usable balance out of CARLOS
-		assert_ok!(Balances::transfer_allow_death(PolimecOrigin::signed(CARLOS.into()), sp_runtime::MultiAddress::Id(PEPE.into()), usable_balance));
+		assert_ok!(Balances::transfer_allow_death(
+			RuntimeOrigin::signed(CARLOS.into()),
+			sp_runtime::MultiAddress::Id(PEPE.into()),
+			usable_balance
+		));
 		assert_eq!(Balances::usable_balance(&CARLOS.into()), 0);
 		assert_eq!(Balances::free_balance(&CARLOS.into()), ED);
 		assert_eq!(Balances::reserved_balance(&CARLOS.into()), 2_000 * PLMC);
