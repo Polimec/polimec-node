@@ -48,6 +48,7 @@ impl Default for BoxToFunction {
 		BoxToFunction(Box::new(|| ()))
 	}
 }
+
 pub struct Instantiator<
 	T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 	AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,

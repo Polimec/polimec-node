@@ -11,6 +11,7 @@ use sp_runtime::{bounded_vec, BoundedVec, FixedU128};
 use tests::defaults::*;
 use xcm_emulator::get_account_id_from_seed;
 use macros::generate_accounts;
+use pallet_funding::assert_close_enough;
 use penpal_runtime::System;
 
 generate_accounts!(
@@ -66,7 +67,7 @@ generate_accounts!(
 // 	})
 // }
 
-// It happened that the original the struct that withdrew the free, didn't consider the held balance as part of the
+// It happened that the original struct that withdrew the free, didn't consider the held balance as part of the
 // total balance, so if the user had 20 free, 2000 frozen, 2000 held, then the user could only withdraw any amount over 2000.
 #[test]
 fn can_withdraw_when_free_is_below_frozen_with_hold() {
@@ -75,18 +76,18 @@ fn can_withdraw_when_free_is_below_frozen_with_hold() {
 		Balances::set_balance(&PEPE.into(), 20_000 * PLMC + ED * 2);
 		Balances::set_balance(&CARLOS.into(), 0);
 
-		// Create a vesting schedule for 60 PLMC + ED over 60 blocks (~1 PLMC per block) to NEW_ACCOUNT
+		// Vesting schedule for PEPE of 20k PLMC + ED, which should have start date before it is applied
 		let vesting_schedule = VestingInfo::new(
 			20_000 * PLMC + ED,
-			1_000 * PLMC, // Vesting over 20 blocks
+			10 * PLMC,
 			0,
 		);
 
+		assert_eq!(Balances::free_balance(&CARLOS.into()), 0);
 		// We need some free balance at the time of the vested transfer
 		// Otherwise the user will never have free balance to pay for the "vest" extrinsic
 		System::set_block_number(5u32);
 
-		let pepe_acc: PolimecAccountId = PEPE.into();
 		// The actual vested transfer
 		assert_ok!(Vesting::vested_transfer(
 			PolimecOrigin::signed(PEPE.into()),
@@ -94,21 +95,38 @@ fn can_withdraw_when_free_is_below_frozen_with_hold() {
 			vesting_schedule
 		));
 
-		// Stake 60 PLMC from "new_account" to "COLL_1", it should go through since the account has 60 + ED free PLMC
+		// Vested transfer didnt start with the full amount locked, since start date was befire execution
+		assert_eq!(Balances::free_balance(&CARLOS.into(), 50 * PLMC));
+
+		let carlos_acc: PolimecAccountId = CARLOS.into();
+
+		// PEPE stakes his 20k PLMC, even if most of it is locked (frozen)
 		assert_ok!(ParachainStaking::delegate(PolimecOrigin::signed(CARLOS.into()), coll_1, 20_000 * PLMC, 0, 0));
 
 		// Check that the staking state is correct
-		ParachainStaking::delegator_state(pepe_acc).map(|state| {
+		ParachainStaking::delegator_state(carlos_acc).map(|state| {
 			assert_eq!(state.total, 20_000);
 			assert_eq!(state.delegations.0.len(), 1);
 		});
 
+
+		// Be able to stake 1k PLMC
+		System::set_block_number(100u32);
+
+		assert_ok!(Vesting::vest(PolimecOrigin::signed(CARLOS.into())));
+
 		let free_balance = Balances::free_balance(&CARLOS.into());
 		dbg!(free_balance);
+		// we expect the result to be at most 1% lower than expected due to fees paid
+		assert_close_enough!(free_balance, 1000 * PLMC + 50 * PLMC, Perquintill::from_percentage(1)));
+
+
+		// Since we are at it, try transferring the balance already vested out of CARLOS.
+		// This should fail because even if you vest the balance, it is still being used by the stake.
 		assert_ok!(pallet_balances::Pallet::<PolimecRuntime>::transfer_allow_death(
 			PolimecOrigin::signed(CARLOS.into()),
 			sp_runtime::MultiAddress::Id(PEPE.into()),
-			4999 * PLMC // we leave 1 PLMC to pay for the transaction
+			free_balance
 		));
 	})
 }
