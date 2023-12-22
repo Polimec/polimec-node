@@ -30,6 +30,8 @@ sp-std.workspace = true
 pallet-funding.workspace = true
 orml-traits.workspace = true
 pallet-transaction-payment.workspace = true
+pallet-balances.workspace = true
+pallet-authorship.workspace = true
 
 [features]
 default = [ "std" ]
