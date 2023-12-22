@@ -14,11 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{currency::MILLI_PLMC, Balance};
+use crate::{currency::MILLI_PLMC, Balance, StakingPalletId};
 use frame_support::{
+	ord_parameter_types,
 	pallet_prelude::{InvalidTransaction, PhantomData, TransactionValidityError},
 	parameter_types,
-	sp_runtime::traits::{DispatchInfoOf, PostDispatchInfoOf},
+	sp_runtime::traits::{AccountIdConversion, DispatchInfoOf, PostDispatchInfoOf},
 	traits::{
 		fungible::{Balanced, Credit, Debt, Inspect},
 		tokens::Precision,
@@ -27,12 +28,13 @@ use frame_support::{
 	weights::{constants::ExtrinsicBaseWeight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial},
 };
 use pallet_transaction_payment::OnChargeTransaction;
-use parachains_common::SLOT_DURATION;
+use parachains_common::{AccountId, SLOT_DURATION};
 use smallvec::smallvec;
 use sp_arithmetic::{
 	traits::{Saturating, Zero},
 	Perbill,
 };
+use sp_std::prelude::*;
 
 pub struct WeightToFee;
 impl WeightToFeePolynomial for WeightToFee {
@@ -54,6 +56,61 @@ impl WeightToFeePolynomial for WeightToFee {
 parameter_types! {
 	pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
 	pub const MaxAuthorities: u32 = 75;
+}
+
+ord_parameter_types! {
+	pub const PayMaster: AccountId =
+		AccountIdConversion::<AccountId>::into_account_truncating(&StakingPalletId::get());
+}
+
+/// Logic for the author to get a portion of fees.
+pub struct ToAuthor<R>(sp_std::marker::PhantomData<R>);
+impl<R> OnUnbalanced<Credit<R::AccountId, pallet_balances::Pallet<R>>> for ToAuthor<R>
+where
+	R: pallet_balances::Config + pallet_authorship::Config,
+	<R as frame_system::Config>::AccountId: From<AccountId>,
+	<R as frame_system::Config>::AccountId: Into<AccountId>,
+{
+	fn on_nonzero_unbalanced(amount: Credit<<R as frame_system::Config>::AccountId, pallet_balances::Pallet<R>>) {
+		if let Some(author) = <pallet_authorship::Pallet<R>>::author() {
+			let _ = <pallet_balances::Pallet<R>>::resolve(&author, amount);
+		}
+	}
+}
+
+/// Implementation of `OnUnbalanced` that deposits the fees into  the "Blockchain Operation Treasury" for later payout.
+pub struct ToStakingPot<R>(sp_std::marker::PhantomData<R>);
+impl<R> OnUnbalanced<Credit<R::AccountId, pallet_balances::Pallet<R>>> for ToStakingPot<R>
+where
+	R: pallet_balances::Config + pallet_parachain_staking::Config,
+	<R as frame_system::Config>::AccountId: From<AccountId>,
+	<R as frame_system::Config>::AccountId: Into<AccountId>,
+{
+	fn on_nonzero_unbalanced(amount: Credit<<R as frame_system::Config>::AccountId, pallet_balances::Pallet<R>>) {
+		let staking_pot = PayMaster::get().into();
+		let _ = <pallet_balances::Pallet<R>>::resolve(&staking_pot, amount);
+	}
+}
+
+pub struct DealWithFees<R>(sp_std::marker::PhantomData<R>);
+impl<R> OnUnbalanced<Credit<R::AccountId, pallet_balances::Pallet<R>>> for DealWithFees<R>
+where
+	R: pallet_balances::Config + pallet_authorship::Config + pallet_parachain_staking::Config,
+	<R as frame_system::Config>::AccountId: From<AccountId>,
+	<R as frame_system::Config>::AccountId: Into<AccountId>,
+{
+	fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = Credit<R::AccountId, pallet_balances::Pallet<R>>>) {
+		if let Some(fees) = fees_then_tips.next() {
+			// for fees, 100% to treasury, 0% to author
+			let mut split = fees.ration(100, 0);
+			if let Some(tips) = fees_then_tips.next() {
+				// for tips, if any, 100% to author
+				tips.merge_into(&mut split.1);
+			}
+			<ToStakingPot<R> as OnUnbalanced<_>>::on_unbalanced(split.0);
+			<ToAuthor<R> as OnUnbalanced<_>>::on_unbalanced(split.1);
+		}
+	}
 }
 
 /// Implements transaction payment for a pallet implementing the [`fungible`]
@@ -81,7 +138,7 @@ where
 		_tip: Self::Balance,
 	) -> Result<Self::LiquidityInfo, TransactionValidityError> {
 		if fee.is_zero() {
-			return Ok(None);
+			return Ok(None)
 		}
 
 		match F::withdraw(
