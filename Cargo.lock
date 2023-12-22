@@ -3909,6 +3909,7 @@ dependencies = [
  "parachains-common",
  "parity-scale-codec",
  "penpal-runtime",
+ "polimec-base-runtime",
  "polimec-parachain-runtime",
  "polimec-receiver",
  "polimec-traits",
