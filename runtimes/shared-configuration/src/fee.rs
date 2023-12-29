@@ -141,6 +141,14 @@ where
 			return Ok(None)
 		}
 
+		// TODO: This is a temporary workaround.
+		// As soon the linked PR is merged, the fungible trait will be updated and this can be safely removed.
+		// This will probably be included in v1.6 or 1.7.
+		// src: https://github.com/paritytech/polkadot-sdk/pull/2823
+		if F::can_withdraw(who, fee) != frame_support::traits::tokens::WithdrawConsequence::Success {
+			return Err(InvalidTransaction::Payment.into())
+		};
+
 		match F::withdraw(
 			who,
 			fee,
