@@ -141,6 +141,10 @@ where
 			return Ok(None)
 		}
 
+		if F::can_withdraw(who, fee) != frame_support::traits::tokens::WithdrawConsequence::Success {
+			return Err(InvalidTransaction::Payment.into())
+		};
+
 		match F::withdraw(
 			who,
 			fee,
