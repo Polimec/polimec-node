@@ -31,6 +31,7 @@ use sp_core::hexdisplay::HexDisplay;
 #[allow(unused_imports)]
 use sp_std::vec::Vec;
 
+// Lock Identifiers used in the old version of the pallet.
 const COLLATOR_LOCK_ID: LockIdentifier = *b"stkngcol";
 const DELEGATOR_LOCK_ID: LockIdentifier = *b"stkngdel";
 
@@ -61,7 +62,11 @@ where
 		for bond_info in active_collators {
 			let owner = bond_info.owner;
 			let balance = OldCurrency::free_balance(&owner);
-			log::info!("Collator: {:?} OldCurrency::free_balance pre_upgrade {:?}", HexDisplay::from(&owner.encode()), balance);
+			log::info!(
+				"Collator: {:?} OldCurrency::free_balance pre_upgrade {:?}",
+				HexDisplay::from(&owner.encode()),
+				balance
+			);
 		}
 
 		Ok(Vec::new())
@@ -74,7 +79,11 @@ where
 		for bond_info in active_collators {
 			let owner = bond_info.owner;
 			let balance = OldCurrency::free_balance(&owner);
-			log::info!("Collator: {:?} OldCurrency::free_balance post_upgrade {:?}", HexDisplay::from(&owner.encode()), balance);
+			log::info!(
+				"Collator: {:?} OldCurrency::free_balance post_upgrade {:?}",
+				HexDisplay::from(&owner.encode()),
+				balance
+			);
 		}
 
 		Ok(())
@@ -91,30 +100,32 @@ where
 
 		for bond_info in active_collators {
 			let owner = bond_info.owner;
-
 			log::info!("Parachain Staking: migrating collator {:?}", HexDisplay::from(&owner.encode()));
 
 			let candidate_info = CandidateInfo::<T>::get(&owner).unwrap();
-			read_ops += 1;
 			let bond_amount = candidate_info.bond;
+			read_ops += 1;
 			log::info!("Parachain Staking: bond_amount {:?}", bond_amount);
 
 			let already_held: <T as Config>::Balance =
 				T::Currency::balance_on_hold(&HoldReason::StakingCollator.into(), &owner);
 			read_ops += 1;
 
+			// Check if the lock is already held, to make migration idempotent
 			if already_held == bond_amount {
 				log::info!("Parachain Staking: already held {:?}", already_held);
 			} else {
+				// Remove the lock from the old currency
 				OldCurrency::remove_lock(COLLATOR_LOCK_ID, &owner);
 				write_ops += 1;
 
-				// Add the lock to the new currency
+				// Hold the new currency
 				T::Currency::hold(&HoldReason::StakingCollator.into(), &owner, bond_amount).unwrap_or_else(|err| {
 					log::error!("Failed to add lock to parachain staking currency: {:?}", err);
 				});
 				write_ops += 1;
 
+				// Get all the delegations for the collator
 				if let Some(delegations) = TopDelegations::<T>::get(&owner) {
 					read_ops += 1;
 					for delegation in delegations.delegations {
@@ -125,10 +136,11 @@ where
 							delegation.amount
 						);
 
+						// Remove the lock from the old currency
 						OldCurrency::remove_lock(DELEGATOR_LOCK_ID, &delegation.owner);
 						write_ops += 1;
 
-						// Add the lock to the new currency
+						// Hold the new currency
 						T::Currency::hold(&HoldReason::StakingDelegator.into(), &delegation.owner, delegation.amount)
 							.unwrap_or_else(|err| {
 								log::error!("Failed to add lock to parachain staking currency: {:?}", err);
