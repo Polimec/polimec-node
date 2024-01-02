@@ -128,6 +128,7 @@ pub mod migrations {
 		cumulus_pallet_xcmp_queue::migration::Migration<Runtime>,
 		cumulus_pallet_dmp_queue::migration::Migration<Runtime>,
 		custom_migrations::CustomOnRuntimeUpgrade,
+		pallet_parachain_staking::migrations::CustomOnRuntimeUpgrade<Runtime, Balances>,
 	);
 }
 
@@ -293,7 +294,7 @@ impl pallet_balances::Config for Runtime {
 	type Balance = Balance;
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
-	type FreezeIdentifier = ();
+	type FreezeIdentifier = RuntimeFreezeReason;
 	type MaxFreezes = MaxReserves;
 	type MaxHolds = MaxLocks;
 	type MaxLocks = MaxLocks;
