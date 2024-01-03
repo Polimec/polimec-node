@@ -214,7 +214,6 @@ fn testnet_genesis(
 		.push((<Runtime as pallet_funding::Config>::PalletId::get().into_account_truncating(), EXISTENTIAL_DEPOSIT));
 	RuntimeGenesisConfig {
 		system: SystemConfig { code: wasm_binary.to_vec(), ..Default::default() },
-		polimec_funding: Default::default(),
 		balances: BalancesConfig { balances: endowed_accounts.clone() },
 		statemint_assets: StatemintAssetsConfig {
 			assets: vec![(
@@ -236,6 +235,8 @@ fn testnet_genesis(
 			blocks_per_round: BLOCKS_PER_ROUND,
 			num_selected_candidates: NUM_SELECTED_CANDIDATES,
 		},
+		#[cfg(all(feature = "testing-node", feature = "std"))]
+		polimec_funding: Default::default(),
 		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
 		// of this.
 		aura: Default::default(),

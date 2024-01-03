@@ -191,11 +191,10 @@ use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperan
 use sp_std::{marker::PhantomData, prelude::*};
 pub use types::*;
 use xcm::v3::{opaque::Instruction, prelude::*, SendXcm};
-
+use frame_support::pallet_macros::*;
 pub mod functions;
 pub mod types;
 pub mod weights;
-
 #[cfg(test)]
 pub mod mock;
 
@@ -208,6 +207,7 @@ pub mod impls;
 #[cfg(any(feature = "runtime-benchmarks", test, all(feature = "testing-node", feature = "std")))]
 pub mod instantiator;
 pub mod traits;
+mod genesis_config;
 
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 pub type ProjectIdOf<T> = <T as Config>::ProjectIdentifier;
@@ -258,6 +258,7 @@ pub type WeightInfoOf<T> = <T as Config>::WeightInfo;
 
 pub const PLMC_STATEMINT_ID: u32 = 2069;
 
+#[import_section(genesis_config::genesis_config)]
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_support::pallet_prelude::*;
@@ -1368,145 +1369,8 @@ pub mod pallet {
 			max_weight.saturating_sub(remaining_weight)
 		}
 	}
-
-	#[cfg(all(feature = "testing-node", feature = "std"))]
-	use crate::instantiator::async_features::create_multiple_projects_at;
-	#[cfg(all(feature = "testing-node", feature = "std"))]
-	use crate::instantiator::TestProjectParams;
-
 	use pallet_xcm::ensure_response;
 
-	#[pallet::genesis_config]
-	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-	#[cfg_attr(
-	feature = "std",
-	serde(rename_all = "camelCase", deny_unknown_fields, bound(serialize = ""), bound(deserialize = ""))
-	)]
-	#[derive(Clone, PartialEq, Eq, Debug, Encode, Decode)]
-	#[cfg(not(all(feature = "testing-node", feature = "std")))]
-	pub struct GenesisConfig<T: Config> {
-		pub phantom: PhantomData<T>,
-	}
-
-	#[cfg(all(feature = "testing-node", feature = "std"))]
-	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-	#[cfg_attr(
-	feature = "std",
-	serde(rename_all = "camelCase", deny_unknown_fields, bound(serialize = ""), bound(deserialize = ""))
-	)]
-	#[derive(Clone, PartialEq, Eq, Debug, Encode, Decode)]
-	pub struct GenesisConfig<T: Config>
-	where
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		<T as Config>::AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>>
-			+ OnIdle<BlockNumberFor<T>>
-			+ OnInitialize<BlockNumberFor<T>>
-			+ Sync
-			+ Send
-			+ 'static,
-		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
-		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
-		<T as Config>::ProjectIdentifier: Send + Sync,
-		<T as Config>::Balance: Send + Sync,
-		<T as Config>::Price: Send + Sync,
-		<T as Config>::StringLimit: Send + Sync,
-		<T as Config>::Multiplier: Send + Sync,
-	{
-		pub starting_projects: Vec<TestProjectParams<T>>,
-		pub phantom: PhantomData<T>,
-	}
-
-	#[cfg(all(feature = "testing-node", feature = "std"))]
-	impl<T: Config> Default for GenesisConfig<T>
-	where
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		<T as Config>::AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>>
-			+ OnIdle<BlockNumberFor<T>>
-			+ OnInitialize<BlockNumberFor<T>>
-			+ Sync
-			+ Send
-			+ 'static,
-		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
-		// AccountIdOf<T>: Into<<instantiator::RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
-		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
-		<T as Config>::ProjectIdentifier: Send + Sync,
-		<T as Config>::Balance: Send + Sync,
-		<T as Config>::Price: Send + Sync,
-		<T as Config>::StringLimit: Send + Sync,
-		<T as Config>::Multiplier: Send + Sync,
-	{
-		fn default() -> Self {
-			Self { starting_projects: vec![], phantom: PhantomData }
-		}
-	}
-
-	#[cfg(not(all(feature = "testing-node", feature = "std")))]
-	impl<T: Config> Default for GenesisConfig<T> {
-		fn default() -> Self {
-			Self { phantom: PhantomData }
-		}
-	}
-
-	#[pallet::genesis_build]
-	#[cfg(not(all(feature = "testing-node", feature = "std")))]
-	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
-		fn build(&self) {}
-	}
-
-	#[cfg(all(feature = "testing-node", feature = "std"))]
-	impl<T: Config> BuildGenesisConfig for GenesisConfig<T>
-	where
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		<T as Config>::AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>>
-			+ OnIdle<BlockNumberFor<T>>
-			+ OnInitialize<BlockNumberFor<T>>
-			+ Sync
-			+ Send
-			+ 'static,
-		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
-		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
-		<T as Config>::ProjectIdentifier: Send + Sync,
-		<T as Config>::Balance: Send + Sync,
-		<T as Config>::Price: Send + Sync,
-		<T as Config>::StringLimit: Send + Sync,
-		<T as Config>::Multiplier: Send + Sync,
-	{
-		fn build(&self) {
-			{
-				type GenesisInstantiator<T> =
-					instantiator::Instantiator<T, <T as Config>::AllPalletsWithoutSystem, <T as Config>::RuntimeEvent>;
-				let mut inst = GenesisInstantiator::<T>::new(None);
-				<T as Config>::SetPrices::set_prices();
-				let current_block = <frame_system::Pallet<T>>::block_number();
-				create_multiple_projects_at(inst, self.starting_projects.clone());
-			}
-		}
-	}
-	#[cfg(all(feature = "testing-node", feature = "std"))]
-	impl<T: Config> GenesisConfig<T>
-	where
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		<T as Config>::AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>>
-			+ OnIdle<BlockNumberFor<T>>
-			+ OnInitialize<BlockNumberFor<T>>
-			+ Sync
-			+ Send
-			+ 'static,
-		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
-		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
-		<T as Config>::ProjectIdentifier: Send + Sync,
-		<T as Config>::Balance: Send + Sync,
-		<T as Config>::Price: Send + Sync,
-		<T as Config>::StringLimit: Send + Sync,
-		<T as Config>::Multiplier: Send + Sync,
-	{
-		/// Direct implementation of `GenesisBuild::build_storage`.
-		///
-		/// Kept in order not to break dependency.
-		pub fn build(&self) {
-			<Self as BuildGenesisConfig>::build(self)
-		}
-	}
 }
 
 pub mod xcm_executor_impl {
