@@ -28,6 +28,7 @@ frame-support.workspace = true
 frame-system.workspace = true
 sp-runtime.workspace = true
 sp-std.workspace = true
+sp-core.workspace = true
 substrate-fixed.workspace = true
 sp-staking.workspace = true
 pallet-authorship.workspace = true
@@ -38,7 +39,6 @@ pallet-balances.workspace = true
 pallet-aura.workspace = true
 pallet-timestamp.workspace = true
 similar-asserts = "1.1.0"
-sp-core.workspace = true
 sp-io.workspace = true
 sp-consensus-aura.workspace = true
 

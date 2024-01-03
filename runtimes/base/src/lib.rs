@@ -128,6 +128,7 @@ pub mod migrations {
 		cumulus_pallet_xcmp_queue::migration::Migration<Runtime>,
 		cumulus_pallet_dmp_queue::migration::Migration<Runtime>,
 		custom_migrations::CustomOnRuntimeUpgrade,
+		pallet_parachain_staking::migrations::CustomOnRuntimeUpgrade<Runtime, Balances>,
 	);
 }
 
@@ -197,12 +198,17 @@ impl Contains<RuntimeCall> for BaseCallFilter {
 	fn contains(c: &RuntimeCall) -> bool {
 		use pallet_balances::Call::*;
 		match c {
+			// Transferability lock.
 			RuntimeCall::Balances(inner_call) => match inner_call {
 				transfer { .. } => false,
 				transfer_all { .. } => false,
 				transfer_keep_alive { .. } => false,
 				transfer_allow_death { .. } => false,
 				_ => true,
+			},
+			// Staking "disabled" @ TGE.
+			RuntimeCall::ParachainStaking(inner_call) => match inner_call {
+				_ => false,
 			},
 			_ => true,
 		}
@@ -293,7 +299,7 @@ impl pallet_balances::Config for Runtime {
 	type Balance = Balance;
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
-	type FreezeIdentifier = ();
+	type FreezeIdentifier = RuntimeFreezeReason;
 	type MaxFreezes = MaxReserves;
 	type MaxHolds = MaxLocks;
 	type MaxLocks = MaxLocks;
