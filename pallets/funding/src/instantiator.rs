@@ -2068,6 +2068,7 @@ pub mod async_features {
 		community_contributions: Vec<ContributionParams<T>>,
 		remainder_contributions: Vec<ContributionParams<T>>,
 	) -> ProjectIdOf<T> {
+
 		println!("creating remainder project inside finished project");
 		let (project_id, accepted_bids) = async_create_remainder_contributing_project(
 			instantiator.clone(),
@@ -2084,6 +2085,18 @@ pub mod async_features {
 		println!("requesting inst lock");
 		let mut inst = instantiator.lock().await;
 		println!("lock given");
+
+		let real_bid_amounts = inst.simulate_bids_with_bucket(bids.clone(), project_id);
+		let total_ct_sold_in_bids = real_bid_amounts.iter().map(|bid| bid.amount).fold(Zero::zero(), |acc, item| item + acc);
+		let total_ct_sold_in_community_contributions = community_contributions.iter().map(|cont| cont.amount).fold(Zero::zero(), |acc, item| item + acc);
+		let total_ct_sold_in_remainder_contributions = remainder_contributions.iter().map(|cont| cont.amount).fold(Zero::zero(), |acc, item| item + acc);
+
+		let total_ct_sold = total_ct_sold_in_bids + total_ct_sold_in_community_contributions + total_ct_sold_in_remainder_contributions;
+		let total_ct_available = project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1;
+		assert!(
+			total_ct_sold <= total_ct_available,
+			"Some CT buys are getting less than expected due to running out of CTs. This is ok in the runtime, but likely unexpected from the parameters of this instantiation"
+		);
 
 		match inst.get_project_details(project_id).status {
 			ProjectStatus::FundingSuccessful => return project_id,
@@ -2167,10 +2180,13 @@ pub mod async_features {
 		inst.contribute_for_users(project_id, remainder_contributions.clone())
 			.expect("Remainder Contributing should work");
 
+		let merged = total_plmc_participation_locked.merge_accounts(MergeOperation::Add);
+
 		inst.do_reserved_plmc_assertions(
-			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
+			merged,
 			LockType::Participation(project_id),
 		);
+
 		inst.do_contribution_transferred_statemint_asset_assertions(
 			funding_asset_deposits.merge_accounts(MergeOperation::Add),
 			project_id,
@@ -2415,7 +2431,13 @@ pub mod async_features {
 		<T as Config>::StringLimit: Send + Sync,
 		<T as Config>::Multiplier: Send + Sync,
 	{
-		let tokio_runtime = Runtime::new().unwrap();
+		// let tokio_runtime = Runtime::new().unwrap();
+
+		use tokio::runtime::Builder;
+		let tokio_runtime = Builder::new_current_thread()
+			.enable_all()
+			.build()
+			.unwrap();
 
 		tokio_runtime.block_on(async {
 			let block_orchestrator = Arc::new(BlockOrchestrator::new());
