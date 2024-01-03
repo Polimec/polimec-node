@@ -198,12 +198,17 @@ impl Contains<RuntimeCall> for BaseCallFilter {
 	fn contains(c: &RuntimeCall) -> bool {
 		use pallet_balances::Call::*;
 		match c {
+			// Transferability lock.
 			RuntimeCall::Balances(inner_call) => match inner_call {
 				transfer { .. } => false,
 				transfer_all { .. } => false,
 				transfer_keep_alive { .. } => false,
 				transfer_allow_death { .. } => false,
 				_ => true,
+			},
+			// Staking "disabled" @ TGE.
+			RuntimeCall::ParachainStaking(inner_call) => match inner_call {
+				_ => false,
 			},
 			_ => true,
 		}
