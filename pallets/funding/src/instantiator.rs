@@ -84,16 +84,11 @@ impl<
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
 {
-	pub fn new(
-		ext: Option<RefCell<sp_io::TestExternalities>>,
-	) -> Self {
+	pub fn new(ext: Option<RefCell<sp_io::TestExternalities>>) -> Self {
 		Self { ext, nonce: RefCell::new(0u64), _marker: PhantomData }
 	}
 
-	pub fn set_ext(
-		&mut self,
-		ext: Option<RefCell<sp_io::TestExternalities>>,
-	) {
+	pub fn set_ext(&mut self, ext: Option<RefCell<sp_io::TestExternalities>>) {
 		self.ext = ext;
 	}
 
@@ -103,7 +98,6 @@ impl<
 		} else {
 			execution()
 		}
-
 	}
 
 	pub fn get_new_nonce(&self) -> u64 {
@@ -2281,9 +2275,7 @@ pub mod async_features {
 
 	pub async fn async_create_project_at<
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>>
-			+ OnIdle<BlockNumberFor<T>>
-			+ OnInitialize<BlockNumberFor<T>>,
+		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	>(
 		mutex_inst: Arc<Mutex<Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>>>,
@@ -2404,15 +2396,12 @@ pub mod async_features {
 
 	pub fn create_multiple_projects_at<
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>>
-			+ OnIdle<BlockNumberFor<T>>
-			+ OnInitialize<BlockNumberFor<T>> + 'static + 'static,
+		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>> + 'static + 'static,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	>(
 		instantiator: Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>,
 		projects: Vec<TestProjectParams<T>>,
-	) -> (Vec<ProjectIdOf<T>>, Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>)
-	{
+	) -> (Vec<ProjectIdOf<T>>, Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>) {
 		// let tokio_runtime = Runtime::new().unwrap();
 
 		use tokio::runtime::Builder;
@@ -2425,12 +2414,15 @@ pub mod async_features {
 			let project_futures = projects.into_iter().map(|project| {
 				let block_orchestrator = block_orchestrator.clone();
 				let mutex_inst = mutex_inst.clone();
-				tokio::task::spawn_local(async { async_create_project_at(mutex_inst, block_orchestrator, project).await })
+				tokio::task::spawn_local(async {
+					async_create_project_at(mutex_inst, block_orchestrator, project).await
+				})
 			});
 
 			// Wait for all project creation tasks to complete
 			let joined_project_futures = futures::future::join_all(project_futures);
-			let controller_handle = tokio::task::spawn_local(block_controller(block_orchestrator.clone(), mutex_inst.clone()));
+			let controller_handle =
+				tokio::task::spawn_local(block_controller(block_orchestrator.clone(), mutex_inst.clone()));
 			let projects = joined_project_futures.await;
 
 			// Now that all projects have been set up, signal the block_controller to stop

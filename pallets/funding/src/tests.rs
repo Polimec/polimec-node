@@ -5853,10 +5853,7 @@ mod async_tests {
 	use futures::FutureExt;
 	use instantiator::async_features::*;
 	use sp_std::sync::Arc;
-	use tokio::{
-		runtime::Runtime,
-		sync::{Mutex},
-	};
+	use tokio::{runtime::Runtime, sync::Mutex};
 
 	#[test]
 	fn prototype_1() {

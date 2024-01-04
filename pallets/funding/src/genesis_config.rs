@@ -1,11 +1,9 @@
 use frame_support::pallet_macros::pallet_section;
 
-#[cfg(feature = "std")]
 #[pallet_section]
 mod genesis_config {
 	use crate::{
-		instantiator,
-		instantiator::{async_features::create_multiple_projects_at, TestProjectParams},
+		instantiator::{Instantiator, TestProjectParams},
 		pallet, BalanceOf,
 	};
 	use frame_support::{
@@ -56,11 +54,11 @@ mod genesis_config {
 		fn build(&self) {
 			{
 				type GenesisInstantiator<T> =
-					instantiator::Instantiator<T, <T as Config>::AllPalletsWithoutSystem, <T as Config>::RuntimeEvent>;
+					Instantiator<T, <T as Config>::AllPalletsWithoutSystem, <T as Config>::RuntimeEvent>;
 				let mut inst = GenesisInstantiator::<T>::new(None);
 				<T as Config>::SetPrices::set_prices();
 				let current_block = <frame_system::Pallet<T>>::block_number();
-				create_multiple_projects_at(inst, self.starting_projects.clone());
+				instantiator::async_features::create_multiple_projects_at(inst, self.starting_projects.clone());
 			}
 		}
 	}

@@ -171,16 +171,16 @@
 // This recursion limit is needed because we have too many benchmarks and benchmarking will fail if
 // we add more without this limit.
 #![cfg_attr(feature = "runtime-benchmarks", recursion_limit = "512")]
-
-use crate::traits::DoRemainingOperation;
 pub use crate::weights::WeightInfo;
 use frame_support::{
+	dispatch::{Decode, Encode},
 	pallet_macros::*,
+	pallet_prelude::BuildGenesisConfig,
 	traits::{
 		tokens::{fungible, fungibles, Balance},
 		AccountTouch, ContainsPair, Randomness,
 	},
-	BoundedVec, PalletId,
+	BoundedVec, PalletId, Parameter,
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 pub use pallet::*;
@@ -188,8 +188,12 @@ use polimec_common::migration_types::*;
 use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
 use sp_core::ConstU32;
-use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128, WeakBoundedVec};
+use sp_runtime::{
+	traits::{AccountIdConversion, Member},
+	FixedPointNumber, FixedPointOperand, FixedU128, WeakBoundedVec,
+};
 use sp_std::{marker::PhantomData, prelude::*};
+use traits::DoRemainingOperation;
 pub use types::*;
 use xcm::v3::{opaque::Instruction, prelude::*, SendXcm};
 pub mod functions;
@@ -258,7 +262,6 @@ pub type WeightInfoOf<T> = <T as Config>::WeightInfo;
 
 pub const PLMC_STATEMINT_ID: u32 = 2069;
 
-#[import_section(genesis_config::genesis_config)]
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_support::{
@@ -1359,6 +1362,71 @@ pub mod pallet {
 		}
 	}
 	use pallet_xcm::ensure_response;
+
+	#[pallet::genesis_config]
+	#[derive(Clone, PartialEq, Eq, Debug, Encode, Decode)]
+	pub struct GenesisConfig<T: Config>
+	where
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
+		<T as Config>::AllPalletsWithoutSystem:
+			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
+		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
+		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
+	{
+		#[cfg(features = "std")]
+		pub starting_projects: Vec<TestProjectParams<T>>,
+		pub phantom: PhantomData<T>,
+	}
+
+	impl<T: Config> Default for GenesisConfig<T>
+	where
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
+		<T as Config>::AllPalletsWithoutSystem:
+			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
+		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
+		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
+	{
+		fn default() -> Self {
+			Self { starting_projects: vec![], phantom: PhantomData }
+		}
+	}
+
+	#[cfg(feature = "std")]
+	#[pallet::genesis_build]
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T>
+	where
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
+		<T as Config>::AllPalletsWithoutSystem:
+			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
+		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
+		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
+	{
+		fn build(&self) {
+			{
+				type GenesisInstantiator<T> =
+					instantiator::Instantiator<T, <T as Config>::AllPalletsWithoutSystem, <T as Config>::RuntimeEvent>;
+				let mut inst = GenesisInstantiator::<T>::new(None);
+				<T as Config>::SetPrices::set_prices();
+				let current_block = <frame_system::Pallet<T>>::block_number();
+				instantiator::async_features::create_multiple_projects_at(inst, self.starting_projects.clone());
+			}
+		}
+	}
+	impl<T: Config> GenesisConfig<T>
+	where
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
+		<T as Config>::AllPalletsWithoutSystem:
+			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
+		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
+		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
+	{
+		/// Direct implementation of `GenesisBuild::build_storage`.
+		///
+		/// Kept in order not to break dependency.
+		pub fn build(&self) {
+			<Self as BuildGenesisConfig>::build(self)
+		}
+	}
 }
 
 pub mod xcm_executor_impl {
