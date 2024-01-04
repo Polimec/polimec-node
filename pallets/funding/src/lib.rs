@@ -1373,8 +1373,8 @@ pub mod pallet {
 		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 	{
-		#[cfg(features = "std")]
-		pub starting_projects: Vec<TestProjectParams<T>>,
+		#[cfg(feature = "std")]
+		pub starting_projects: Vec<instantiator::TestProjectParams<T>>,
 		pub phantom: PhantomData<T>,
 	}
 
@@ -1387,11 +1387,14 @@ pub mod pallet {
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 	{
 		fn default() -> Self {
-			Self { starting_projects: vec![], phantom: PhantomData }
+			Self {
+				#[cfg(feature = "std")]
+				starting_projects: vec![],
+				phantom: PhantomData,
+			}
 		}
 	}
 
-	#[cfg(feature = "std")]
 	#[pallet::genesis_build]
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T>
 	where
@@ -1402,6 +1405,7 @@ pub mod pallet {
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 	{
 		fn build(&self) {
+			#[cfg(feature = "std")]
 			{
 				type GenesisInstantiator<T> =
 					instantiator::Instantiator<T, <T as Config>::AllPalletsWithoutSystem, <T as Config>::RuntimeEvent>;
@@ -1412,6 +1416,7 @@ pub mod pallet {
 			}
 		}
 	}
+	#[cfg(feature = "std")]
 	impl<T: Config> GenesisConfig<T>
 	where
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
