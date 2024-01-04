@@ -71,13 +71,13 @@ use pallet_funding::{BondTypeOf, DaysToBlocks};
 pub use pallet_parachain_staking;
 pub use shared_configuration::*;
 
-#[cfg(any(feature = "runtime-benchmarks", feature = "testing-node"))]
+#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 use pallet_funding::AcceptedFundingAsset;
 
-#[cfg(any(feature = "runtime-benchmarks", feature = "testing-node"))]
+#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 use frame_support::BoundedVec;
 
-#[cfg(any(feature = "runtime-benchmarks", feature = "testing-node"))]
+#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 use pallet_funding::traits::SetPrices;
 
 pub type NegativeImbalanceOf<T> =
@@ -145,9 +145,9 @@ pub fn native_version() -> NativeVersion {
 	NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
 }
 
-#[cfg(any(feature = "runtime-benchmarks", feature = "testing-node"))]
+#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 pub struct SetOraclePrices;
-#[cfg(any(feature = "runtime-benchmarks", feature = "testing-node"))]
+#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 impl SetPrices for SetOraclePrices {
 	fn set_prices() {
 		let dot = (AcceptedFundingAsset::DOT.to_statemint_id(), FixedU128::from_rational(69, 1));
@@ -590,7 +590,7 @@ impl pallet_funding::Config for Runtime {
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
-	#[cfg(any(feature = "runtime-benchmarks", feature = "testing-node"))]
+	#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 	type SetPrices = SetOraclePrices;
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;

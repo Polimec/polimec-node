@@ -387,7 +387,7 @@ impl Config for TestRuntime {
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
-	#[cfg(any(feature = "runtime-benchmarks", feature = "testing-node"))]
+	#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 	type SetPrices = ();
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;

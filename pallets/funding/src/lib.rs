@@ -204,7 +204,6 @@ pub mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 pub mod impls;
-#[cfg(any(feature = "runtime-benchmarks", test, all(feature = "testing-node", feature = "std")))]
 pub mod instantiator;
 pub mod traits;
 
@@ -274,7 +273,7 @@ pub mod pallet {
 
 	use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
 
-	#[cfg(any(feature = "runtime-benchmarks", feature = "testing-node"))]
+	#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 	use crate::traits::SetPrices;
 
 	use super::*;
@@ -286,7 +285,7 @@ pub mod pallet {
 	pub trait Config:
 		frame_system::Config + pallet_balances::Config<Balance = BalanceOf<Self>> + pallet_xcm::Config
 	{
-		#[cfg(any(feature = "runtime-benchmarks", feature = "testing-node"))]
+		#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 		type SetPrices: SetPrices;
 
 		type AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<Self>>
@@ -310,14 +309,7 @@ pub mod pallet {
 		type RuntimeCall: Parameter + IsType<<Self as frame_system::Config>::RuntimeCall> + From<Call<Self>>;
 
 		/// Global identifier for the projects.
-		type ProjectIdentifier: Parameter
-			+ Copy
-			+ Default
-			+ One
-			+ Saturating
-			+ From<u32>
-			+ Ord
-			+ MaxEncodedLen;
+		type ProjectIdentifier: Parameter + Copy + Default + One + Saturating + From<u32> + Ord + MaxEncodedLen;
 
 		// TODO: PLMC-153 + MaybeSerializeDeserialize: Maybe needed for JSON serialization @ Genesis: https://github.com/paritytech/substrate/issues/12738#issuecomment-1320921201
 
@@ -332,18 +324,10 @@ pub mod pallet {
 			+ MaybeSerializeDeserialize;
 
 		/// The inner balance type we will use for all of our outer currency types. (e.g native, funding, CTs)
-		type Balance: Balance
-			+ From<u64>
-			+ FixedPointOperand
-			+ MaybeSerializeDeserialize
-			+ Into<u128>;
+		type Balance: Balance + From<u64> + FixedPointOperand + MaybeSerializeDeserialize + Into<u128>;
 
 		/// Represents the value of something in USD
-		type Price: FixedPointNumber
-			+ Parameter
-			+ Copy
-			+ MaxEncodedLen
-			+ MaybeSerializeDeserialize;
+		type Price: FixedPointNumber + Parameter + Copy + MaxEncodedLen + MaybeSerializeDeserialize;
 
 		/// The chains native currency
 		type NativeCurrency: fungible::InspectHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>

@@ -72,7 +72,7 @@ pub fn get_testnet_session_keys(keys: AuthorityId) -> polimec_parachain_runtime:
 	polimec_parachain_runtime::SessionKeys { aura: keys }
 }
 
-#[cfg(all(feature = "testing-node", feature = "std"))]
+#[cfg(all(feature = "std"))]
 pub fn get_chain_spec_testing() -> Result<ChainSpec, String> {
 	let properties = get_properties("PLMC", 10, 41);
 	let wasm = polimec_parachain_runtime::WASM_BINARY.ok_or("No WASM")?;
@@ -271,12 +271,9 @@ fn testnet_genesis(
 	}
 }
 
-#[cfg(all(feature = "testing-node", feature = "std"))]
 use pallet_funding::{instantiator::UserToUSDBalance, *};
-#[cfg(all(feature = "testing-node", feature = "std"))]
 use sp_runtime::BoundedVec;
 
-#[cfg(all(feature = "testing-node", feature = "std"))]
 mod testing_helpers {
 	use super::*;
 	use frame_benchmarking::frame_support::assert_ok;
@@ -374,7 +371,6 @@ mod testing_helpers {
 }
 
 #[allow(clippy::too_many_arguments)]
-#[cfg(all(feature = "testing-node", feature = "std"))]
 fn testing_genesis(
 	wasm_binary: &[u8],
 	stakers: Vec<(AccountId, Option<AccountId>, Balance)>,

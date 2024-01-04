@@ -1,5 +1,6 @@
-use frame_support::pallet_macros::{pallet_section};
+use frame_support::pallet_macros::pallet_section;
 
+#[cfg(feature = "std")]
 #[pallet_section]
 mod genesis_config {
 	use crate::{
@@ -21,9 +22,8 @@ mod genesis_config {
 	pub struct GenesisConfig<T: Config>
 	where
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		<T as Config>::AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>>
-			+ OnIdle<BlockNumberFor<T>>
-			+ OnInitialize<BlockNumberFor<T>>,
+		<T as Config>::AllPalletsWithoutSystem:
+			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 	{
@@ -34,9 +34,8 @@ mod genesis_config {
 	impl<T: Config> Default for GenesisConfig<T>
 	where
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		<T as Config>::AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>>
-			+ OnIdle<BlockNumberFor<T>>
-			+ OnInitialize<BlockNumberFor<T>>,
+		<T as Config>::AllPalletsWithoutSystem:
+			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 	{
@@ -49,9 +48,8 @@ mod genesis_config {
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T>
 	where
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		<T as Config>::AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>>
-			+ OnIdle<BlockNumberFor<T>>
-			+ OnInitialize<BlockNumberFor<T>>,
+		<T as Config>::AllPalletsWithoutSystem:
+			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 	{
@@ -69,9 +67,8 @@ mod genesis_config {
 	impl<T: Config> GenesisConfig<T>
 	where
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		<T as Config>::AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>>
-			+ OnIdle<BlockNumberFor<T>>
-			+ OnInitialize<BlockNumberFor<T>>,
+		<T as Config>::AllPalletsWithoutSystem:
+			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 	{
