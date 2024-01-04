@@ -284,17 +284,14 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config + pallet_balances::Config<Balance = BalanceOf<Self>> + pallet_xcm::Config + Send + Sync
+		frame_system::Config + pallet_balances::Config<Balance = BalanceOf<Self>> + pallet_xcm::Config
 	{
 		#[cfg(any(feature = "runtime-benchmarks", feature = "testing-node"))]
 		type SetPrices: SetPrices;
 
 		type AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<Self>>
 			+ OnIdle<BlockNumberFor<Self>>
-			+ OnInitialize<BlockNumberFor<Self>>
-			//testing-node
-			+ Send
-			+ Sync;
+			+ OnInitialize<BlockNumberFor<Self>>;
 
 		type RuntimeEvent: From<Event<Self>>
 			+ TryInto<Event<Self>>
@@ -320,10 +317,8 @@ pub mod pallet {
 			+ Saturating
 			+ From<u32>
 			+ Ord
-			+ MaxEncodedLen
-			//testing-node
-			+ Send
-			+ Sync;
+			+ MaxEncodedLen;
+
 		// TODO: PLMC-153 + MaybeSerializeDeserialize: Maybe needed for JSON serialization @ Genesis: https://github.com/paritytech/substrate/issues/12738#issuecomment-1320921201
 
 		/// Multiplier that decides how much PLMC needs to be bonded for a token buy/bid
@@ -334,30 +329,21 @@ pub mod pallet {
 			+ Copy
 			+ TryFrom<u8>
 			+ MaxEncodedLen
-			+ MaybeSerializeDeserialize
-			//testing-node
-			+ Send
-			+ Sync;
+			+ MaybeSerializeDeserialize;
 
 		/// The inner balance type we will use for all of our outer currency types. (e.g native, funding, CTs)
 		type Balance: Balance
 			+ From<u64>
 			+ FixedPointOperand
 			+ MaybeSerializeDeserialize
-			+ Into<u128>
-			//testing-node
-			+ Send
-			+ Sync;
+			+ Into<u128>;
 
 		/// Represents the value of something in USD
 		type Price: FixedPointNumber
 			+ Parameter
 			+ Copy
 			+ MaxEncodedLen
-			+ MaybeSerializeDeserialize
-			//testing-node
-			+ Send
-			+ Sync;
+			+ MaybeSerializeDeserialize;
 
 		/// The chains native currency
 		type NativeCurrency: fungible::InspectHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
@@ -390,10 +376,7 @@ pub mod pallet {
 
 		/// The maximum length of data stored on-chain.
 		#[pallet::constant]
-		type StringLimit: Get<u32>
-			//testing-node
-			+ Send
-			+ Sync;
+		type StringLimit: Get<u32>;
 
 		/// The maximum size of a preimage allowed, expressed in bytes.
 		#[pallet::constant]

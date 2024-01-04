@@ -24,17 +24,9 @@ mod genesis_config {
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		<T as Config>::AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>>
 			+ OnIdle<BlockNumberFor<T>>
-			+ OnInitialize<BlockNumberFor<T>>
-			+ Sync
-			+ Send
-			+ 'static,
+			+ OnInitialize<BlockNumberFor<T>>,
 		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
-		<T as Config>::ProjectIdentifier: Send + Sync,
-		<T as Config>::Balance: Send + Sync,
-		<T as Config>::Price: Send + Sync,
-		<T as Config>::StringLimit: Send + Sync,
-		<T as Config>::Multiplier: Send + Sync,
 	{
 		pub starting_projects: Vec<TestProjectParams<T>>,
 		pub phantom: PhantomData<T>,
@@ -45,17 +37,9 @@ mod genesis_config {
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		<T as Config>::AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>>
 			+ OnIdle<BlockNumberFor<T>>
-			+ OnInitialize<BlockNumberFor<T>>
-			+ Sync
-			+ Send
-			+ 'static,
+			+ OnInitialize<BlockNumberFor<T>>,
 		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
-		<T as Config>::ProjectIdentifier: Send + Sync,
-		<T as Config>::Balance: Send + Sync,
-		<T as Config>::Price: Send + Sync,
-		<T as Config>::StringLimit: Send + Sync,
-		<T as Config>::Multiplier: Send + Sync,
 	{
 		fn default() -> Self {
 			Self { starting_projects: vec![], phantom: PhantomData }
@@ -68,17 +52,9 @@ mod genesis_config {
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		<T as Config>::AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>>
 			+ OnIdle<BlockNumberFor<T>>
-			+ OnInitialize<BlockNumberFor<T>>
-			+ Sync
-			+ Send
-			+ 'static,
+			+ OnInitialize<BlockNumberFor<T>>,
 		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
-		<T as Config>::ProjectIdentifier: Send + Sync,
-		<T as Config>::Balance: Send + Sync,
-		<T as Config>::Price: Send + Sync,
-		<T as Config>::StringLimit: Send + Sync,
-		<T as Config>::Multiplier: Send + Sync,
 	{
 		fn build(&self) {
 			{
@@ -96,17 +72,9 @@ mod genesis_config {
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		<T as Config>::AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>>
 			+ OnIdle<BlockNumberFor<T>>
-			+ OnInitialize<BlockNumberFor<T>>
-			+ Sync
-			+ Send
-			+ 'static,
+			+ OnInitialize<BlockNumberFor<T>>,
 		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
-		<T as Config>::ProjectIdentifier: Send + Sync,
-		<T as Config>::Balance: Send + Sync,
-		<T as Config>::Price: Send + Sync,
-		<T as Config>::StringLimit: Send + Sync,
-		<T as Config>::Multiplier: Send + Sync,
 	{
 		/// Direct implementation of `GenesisBuild::build_storage`.
 		///
