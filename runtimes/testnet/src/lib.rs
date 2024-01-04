@@ -680,7 +680,6 @@ impl orml_oracle::Config<PolimecDataProvider> for Runtime {
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
-// #[cfg(all(feature = "testing-node", feature = "std"))]
 construct_runtime!(
 	pub enum Runtime
 	{
@@ -740,67 +739,6 @@ construct_runtime!(
 		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 85,
 	}
 );
-
-// #[cfg(not(all(feature = "testing-node", feature = "std")))]
-// construct_runtime!(
-// 	pub enum Runtime
-// 	{
-// 		// System support stuff.
-// 		System: frame_system::{Pallet, Call, Config<T>, Storage, Event<T>} = 0,
-// 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 2,
-// 		Sudo: pallet_sudo = 4,
-// 		Utility: pallet_utility::{Pallet, Call, Event} = 5,
-// 		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 6,
-//
-// 		// Monetary stuff.
-// 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 10,
-// 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage, Event<T>} = 11,
-// 		AssetTxPayment: pallet_asset_tx_payment::{Pallet, Storage, Event<T>} = 12,
-// 		LocalAssets: pallet_assets::<Instance1>::{Pallet, Storage, Event<T>} = 13,
-// 		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Config<T>, Storage, Event<T>} = 14,
-//
-//
-// 		// Collator support. the order of these 5 are important and shall not change.
-// 		Authorship: pallet_authorship::{Pallet, Storage} = 20,
-// 		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 22,
-// 		Aura: pallet_aura::{Pallet, Storage, Config<T>} = 23,
-// 		AuraExt: cumulus_pallet_aura_ext::{Pallet, Storage, Config<T>} = 24,
-// 		ParachainStaking: pallet_parachain_staking::{Pallet, Call, Storage, Event<T>, Config<T>} = 25,
-//
-// 		// Oracle
-// 		Oracle: orml_oracle::<Instance1> = 30,
-// 		OracleProvidersMembership: pallet_membership::<Instance1> = 31,
-//
-// 		// Governance
-// 		Treasury: pallet_treasury = 40,
-// 		Democracy: pallet_democracy = 41,
-// 		Council: pallet_collective::<Instance1> = 42,
-// 		TechnicalCommittee: pallet_collective::<Instance2> = 43,
-// 		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 44,
-//
-// 		// Polimec Core
-// 		PolimecFunding: pallet_funding::{Pallet, Call, Storage, Event<T>}  = 52,
-// 		LinearVesting: pallet_linear_release::{Pallet, Call, Storage, Event<T>, Config<T>} = 53,
-//
-// 		// Utilities
-// 		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 61,
-// 		Random: pallet_insecure_randomness_collective_flip = 62,
-//
-//
-//
-// 		// Among others: Send and receive DMP and XCMP messages.
-// 		ParachainSystem: cumulus_pallet_parachain_system = 80,
-// 		ParachainInfo: parachain_info::{Pallet, Storage, Config<T>} = 81,
-// 		// Wrap and unwrap XCMP messages to send and receive them. Queue them for later processing.
-// 		XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Call, Storage, Event<T>} = 82,
-// 		// Build XCM scripts.
-// 		PolkadotXcm: pallet_xcm::{Pallet, Call, Event<T>, Origin, Config<T>} = 83,
-// 		// Does nothing cool, just provides an origin.
-// 		CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 84,
-// 		// Queue and pass DMP messages on to be executed.
-// 		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 85,
-// 	}
-// );
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {

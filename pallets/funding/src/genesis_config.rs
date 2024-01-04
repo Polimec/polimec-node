@@ -1,6 +1,5 @@
 use frame_support::pallet_macros::{pallet_section};
 
-#[cfg(all(feature = "testing-node", feature = "std"))]
 #[pallet_section]
 mod genesis_config {
 	use crate::{
@@ -85,23 +84,23 @@ mod genesis_config {
 	}
 }
 
-#[cfg(not(all(feature = "testing-node", feature = "std")))]
-#[pallet_section]
-mod genesis_config {
-	#[pallet::genesis_config]
-	pub struct GenesisConfig<T: Config> {
-        phantom: PhantomData<T>,
-    }
-
-	impl<T: Config> Default for GenesisConfig<T> {
-		fn default() -> Self {
-			Self {phantom: PhantomData}
-		}
-	}
-
-    #[pallet::genesis_build]
-    impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
-        fn build(&self) {}
-    }
-
-}
+// #[cfg(not(all(feature = "testing-node", feature = "std")))]
+// #[pallet_section]
+// mod genesis_config {
+// 	#[pallet::genesis_config]
+// 	pub struct GenesisConfig<T: Config> {
+//         phantom: PhantomData<T>,
+//     }
+//
+// 	impl<T: Config> Default for GenesisConfig<T> {
+// 		fn default() -> Self {
+// 			Self {phantom: PhantomData}
+// 		}
+// 	}
+//
+//     #[pallet::genesis_build]
+//     impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
+//         fn build(&self) {}
+//     }
+//
+// }

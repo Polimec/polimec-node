@@ -2406,7 +2406,7 @@ pub mod async_features {
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>>
 			+ OnIdle<BlockNumberFor<T>>
-			+ OnInitialize<BlockNumberFor<T>>,
+			+ OnInitialize<BlockNumberFor<T>> + 'static + 'static,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	>(
 		instantiator: Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>,
