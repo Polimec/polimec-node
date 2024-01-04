@@ -175,6 +175,7 @@
 use crate::traits::DoRemainingOperation;
 pub use crate::weights::WeightInfo;
 use frame_support::{
+	pallet_macros::*,
 	traits::{
 		tokens::{fungible, fungibles, Balance},
 		AccountTouch, ContainsPair, Randomness,
@@ -191,12 +192,11 @@ use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperan
 use sp_std::{marker::PhantomData, prelude::*};
 pub use types::*;
 use xcm::v3::{opaque::Instruction, prelude::*, SendXcm};
-use frame_support::pallet_macros::*;
 pub mod functions;
-pub mod types;
-pub mod weights;
 #[cfg(test)]
 pub mod mock;
+pub mod types;
+pub mod weights;
 
 #[cfg(test)]
 pub mod tests;
@@ -207,7 +207,6 @@ pub mod impls;
 #[cfg(any(feature = "runtime-benchmarks", test, all(feature = "testing-node", feature = "std")))]
 pub mod instantiator;
 pub mod traits;
-
 
 mod genesis_config;
 
@@ -263,13 +262,13 @@ pub const PLMC_STATEMINT_ID: u32 = 2069;
 #[import_section(genesis_config::genesis_config)]
 #[frame_support::pallet]
 pub mod pallet {
-	use frame_support::pallet_prelude::*;
+	use frame_support::{
+		pallet_prelude::*,
+		traits::{OnFinalize, OnIdle, OnInitialize},
+	};
 	use frame_system::pallet_prelude::*;
 	use sp_arithmetic::Percent;
 	use sp_runtime::traits::{Convert, ConvertBack};
-	use frame_support::traits::OnFinalize;
-	use frame_support::traits::OnIdle;
-	use frame_support::traits::OnInitialize;
 
 	use local_macros::*;
 
@@ -294,7 +293,8 @@ pub mod pallet {
 			+ OnIdle<BlockNumberFor<Self>>
 			+ OnInitialize<BlockNumberFor<Self>>
 			//testing-node
-			+ Send + Sync;
+			+ Send
+			+ Sync;
 
 		type RuntimeEvent: From<Event<Self>>
 			+ TryInto<Event<Self>>
@@ -313,9 +313,17 @@ pub mod pallet {
 		type RuntimeCall: Parameter + IsType<<Self as frame_system::Config>::RuntimeCall> + From<Call<Self>>;
 
 		/// Global identifier for the projects.
-		type ProjectIdentifier: Parameter + Copy + Default + One + Saturating + From<u32> + Ord + MaxEncodedLen
-		//testing-node
-		+ Send + Sync;
+		type ProjectIdentifier: Parameter
+			+ Copy
+			+ Default
+			+ One
+			+ Saturating
+			+ From<u32>
+			+ Ord
+			+ MaxEncodedLen
+			//testing-node
+			+ Send
+			+ Sync;
 		// TODO: PLMC-153 + MaybeSerializeDeserialize: Maybe needed for JSON serialization @ Genesis: https://github.com/paritytech/substrate/issues/12738#issuecomment-1320921201
 
 		/// Multiplier that decides how much PLMC needs to be bonded for a token buy/bid
@@ -328,17 +336,28 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ MaybeSerializeDeserialize
 			//testing-node
-			+ Send + Sync;
+			+ Send
+			+ Sync;
 
 		/// The inner balance type we will use for all of our outer currency types. (e.g native, funding, CTs)
-		type Balance: Balance + From<u64> + FixedPointOperand + MaybeSerializeDeserialize + Into<u128>
-		//testing-node
-		+ Send + Sync;
+		type Balance: Balance
+			+ From<u64>
+			+ FixedPointOperand
+			+ MaybeSerializeDeserialize
+			+ Into<u128>
+			//testing-node
+			+ Send
+			+ Sync;
 
 		/// Represents the value of something in USD
-		type Price: FixedPointNumber + Parameter + Copy + MaxEncodedLen + MaybeSerializeDeserialize
-		//testing-node
-		+ Send + Sync;
+		type Price: FixedPointNumber
+			+ Parameter
+			+ Copy
+			+ MaxEncodedLen
+			+ MaybeSerializeDeserialize
+			//testing-node
+			+ Send
+			+ Sync;
 
 		/// The chains native currency
 		type NativeCurrency: fungible::InspectHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
@@ -372,8 +391,9 @@ pub mod pallet {
 		/// The maximum length of data stored on-chain.
 		#[pallet::constant]
 		type StringLimit: Get<u32>
-		//testing-node
-		+ Send + Sync;
+			//testing-node
+			+ Send
+			+ Sync;
 
 		/// The maximum size of a preimage allowed, expressed in bytes.
 		#[pallet::constant]
@@ -1372,7 +1392,6 @@ pub mod pallet {
 		}
 	}
 	use pallet_xcm::ensure_response;
-
 }
 
 pub mod xcm_executor_impl {

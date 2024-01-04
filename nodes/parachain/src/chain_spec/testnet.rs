@@ -235,7 +235,6 @@ fn testnet_genesis(
 			blocks_per_round: BLOCKS_PER_ROUND,
 			num_selected_candidates: NUM_SELECTED_CANDIDATES,
 		},
-		#[cfg(all(feature = "testing-node", feature = "std"))]
 		polimec_funding: Default::default(),
 		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
 		// of this.
@@ -414,7 +413,7 @@ fn testing_genesis(
 		default_community_contributor_multipliers(),
 	);
 	let remainder_contributions = GenesisInstantiator::generate_contributions_from_total_usd(
-		Percent::from_percent(30u8) * twenty_percent_funding_usd,
+		Percent::from_percent(20u8) * twenty_percent_funding_usd,
 		min_price,
 		default_weights(),
 		default_remainder_contributors(),

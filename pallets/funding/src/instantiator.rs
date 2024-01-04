@@ -72,10 +72,7 @@ pub struct Instantiator<
 	AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 	RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 > {
-	#[cfg(all(feature = "std", not(feature = "testing-node")))]
 	ext: Option<RefCell<sp_io::TestExternalities>>,
-	#[cfg(not(all(feature = "std", not(feature = "testing-node"))))]
-	ext: Option<()>,
 	nonce: RefCell<u64>,
 	_marker: PhantomData<(T, AllPalletsWithoutSystem, RuntimeEvent)>,
 }
@@ -88,27 +85,25 @@ impl<
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
 {
 	pub fn new(
-		#[cfg(all(feature = "std", not(feature = "testing-node")))] ext: Option<RefCell<sp_io::TestExternalities>>,
-		#[cfg(not(all(feature = "std", not(feature = "testing-node"))))] ext: Option<()>,
+		ext: Option<RefCell<sp_io::TestExternalities>>,
 	) -> Self {
 		Self { ext, nonce: RefCell::new(0u64), _marker: PhantomData }
 	}
 
 	pub fn set_ext(
 		&mut self,
-		#[cfg(all(feature = "std", not(feature = "testing-node")))] ext: Option<RefCell<sp_io::TestExternalities>>,
-		#[cfg(not(all(feature = "std", not(feature = "testing-node"))))] ext: Option<()>,
+		ext: Option<RefCell<sp_io::TestExternalities>>,
 	) {
 		self.ext = ext;
 	}
 
 	pub fn execute<R>(&mut self, execution: impl FnOnce() -> R) -> R {
-		#[cfg(all(feature = "std", not(feature = "testing-node")))]
 		if let Some(ext) = &self.ext {
 			return ext.borrow_mut().execute_with(execution)
+		} else {
+			execution()
 		}
 
-		execution()
 	}
 
 	pub fn get_new_nonce(&self) -> u64 {
@@ -1395,7 +1390,6 @@ pub mod async_features {
 		time::Duration,
 	};
 	use tokio::{
-		runtime::Runtime,
 		sync::{Mutex, Notify},
 		time::sleep,
 	};
@@ -2068,7 +2062,6 @@ pub mod async_features {
 		community_contributions: Vec<ContributionParams<T>>,
 		remainder_contributions: Vec<ContributionParams<T>>,
 	) -> ProjectIdOf<T> {
-
 		println!("creating remainder project inside finished project");
 		let (project_id, accepted_bids) = async_create_remainder_contributing_project(
 			instantiator.clone(),
@@ -2087,11 +2080,15 @@ pub mod async_features {
 		println!("lock given");
 
 		let real_bid_amounts = inst.simulate_bids_with_bucket(bids.clone(), project_id);
-		let total_ct_sold_in_bids = real_bid_amounts.iter().map(|bid| bid.amount).fold(Zero::zero(), |acc, item| item + acc);
-		let total_ct_sold_in_community_contributions = community_contributions.iter().map(|cont| cont.amount).fold(Zero::zero(), |acc, item| item + acc);
-		let total_ct_sold_in_remainder_contributions = remainder_contributions.iter().map(|cont| cont.amount).fold(Zero::zero(), |acc, item| item + acc);
+		let total_ct_sold_in_bids =
+			real_bid_amounts.iter().map(|bid| bid.amount).fold(Zero::zero(), |acc, item| item + acc);
+		let total_ct_sold_in_community_contributions =
+			community_contributions.iter().map(|cont| cont.amount).fold(Zero::zero(), |acc, item| item + acc);
+		let total_ct_sold_in_remainder_contributions =
+			remainder_contributions.iter().map(|cont| cont.amount).fold(Zero::zero(), |acc, item| item + acc);
 
-		let total_ct_sold = total_ct_sold_in_bids + total_ct_sold_in_community_contributions + total_ct_sold_in_remainder_contributions;
+		let total_ct_sold =
+			total_ct_sold_in_bids + total_ct_sold_in_community_contributions + total_ct_sold_in_remainder_contributions;
 		let total_ct_available = project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1;
 		assert!(
 			total_ct_sold <= total_ct_available,
@@ -2182,10 +2179,7 @@ pub mod async_features {
 
 		let merged = total_plmc_participation_locked.merge_accounts(MergeOperation::Add);
 
-		inst.do_reserved_plmc_assertions(
-			merged,
-			LockType::Participation(project_id),
-		);
+		inst.do_reserved_plmc_assertions(merged, LockType::Participation(project_id));
 
 		inst.do_contribution_transferred_statemint_asset_assertions(
 			funding_asset_deposits.merge_accounts(MergeOperation::Add),
@@ -2423,7 +2417,7 @@ pub mod async_features {
 	>(
 		instantiator: Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>,
 		projects: Vec<TestProjectParams<T>>,
-	) -> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
+	) -> (Vec<ProjectIdOf<T>>, Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>)
 	where
 		<T as Config>::ProjectIdentifier: Send + Sync,
 		<T as Config>::Balance: Send + Sync,
@@ -2434,10 +2428,7 @@ pub mod async_features {
 		// let tokio_runtime = Runtime::new().unwrap();
 
 		use tokio::runtime::Builder;
-		let tokio_runtime = Builder::new_current_thread()
-			.enable_all()
-			.build()
-			.unwrap();
+		let tokio_runtime = Builder::new_current_thread().enable_all().build().unwrap();
 
 		tokio_runtime.block_on(async {
 			let block_orchestrator = Arc::new(BlockOrchestrator::new());
@@ -2452,7 +2443,7 @@ pub mod async_features {
 			// Wait for all project creation tasks to complete
 			let joined_project_futures = futures::future::join_all(project_futures);
 			let controller_handle = tokio::spawn(block_controller(block_orchestrator.clone(), mutex_inst.clone()));
-			joined_project_futures.await;
+			let projects = joined_project_futures.await;
 
 			// Now that all projects have been set up, signal the block_controller to stop
 			block_orchestrator.should_continue.store(false, Ordering::SeqCst);
@@ -2460,7 +2451,10 @@ pub mod async_features {
 			// Wait for the block controller to finish
 			controller_handle.await.unwrap();
 
-			Arc::try_unwrap(mutex_inst).unwrap_or_else(|_| panic!("mutex in use")).into_inner()
+			let inst = Arc::try_unwrap(mutex_inst).unwrap_or_else(|_| panic!("mutex in use")).into_inner();
+			let project_ids = projects.into_iter().map(|project| project.unwrap()).collect_vec();
+
+			(project_ids, inst)
 		})
 	}
 }

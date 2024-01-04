@@ -5988,6 +5988,7 @@ mod async_tests {
 
 			let mut inst = mutex_inst.lock().await;
 			let events = inst.execute(|| frame_system::Pallet::<TestRuntime>::events());
+			dbg!(events);
 			dbg!(inst.get_project_details(0).status);
 			dbg!(inst.get_project_details(1).status);
 			dbg!(inst.get_project_details(2).status);
@@ -6064,13 +6065,20 @@ mod async_tests {
 			},
 		];
 
-		let mut inst = create_multiple_projects_at(inst, project_params);
+		let (project_ids, mut inst) = create_multiple_projects_at(inst, project_params);
 
-		dbg!(inst.get_project_details(0).status);
-		dbg!(inst.get_project_details(1).status);
-		dbg!(inst.get_project_details(2).status);
-		dbg!(inst.get_project_details(3).status);
-		dbg!(inst.get_project_details(4).status);
-		dbg!(inst.get_project_details(5).status);
+		dbg!(inst.get_project_details(project_ids[0]).status);
+		dbg!(inst.get_project_details(project_ids[1]).status);
+		dbg!(inst.get_project_details(project_ids[2]).status);
+		dbg!(inst.get_project_details(project_ids[3]).status);
+		dbg!(inst.get_project_details(project_ids[4]).status);
+		dbg!(inst.get_project_details(project_ids[5]).status);
+
+		assert_eq!(inst.get_project_details(project_ids[0]).status, ProjectStatus::Application);
+		assert_eq!(inst.get_project_details(project_ids[1]).status, ProjectStatus::EvaluationRound);
+		assert_eq!(inst.get_project_details(project_ids[2]).status, ProjectStatus::AuctionRound(AuctionPhase::English));
+		assert_eq!(inst.get_project_details(project_ids[3]).status, ProjectStatus::CommunityRound);
+		assert_eq!(inst.get_project_details(project_ids[4]).status, ProjectStatus::RemainderRound);
+		assert_eq!(inst.get_project_details(project_ids[5]).status, ProjectStatus::FundingSuccessful);
 	}
 }
