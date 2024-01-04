@@ -28,12 +28,14 @@ use frame_support::{
 use itertools::Itertools;
 use parachains_common::DAYS;
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
+use sp_runtime::BuildStorage;
 use sp_std::{cell::RefCell, marker::PhantomData};
 use std::{cmp::min, iter::zip};
 
 use defaults::*;
 use polimec_common::ReleaseSchedule;
 
+use super::*;
 use crate::{
 	instantiator::*,
 	mock::*,
@@ -41,10 +43,6 @@ use crate::{
 	CurrencyMetadata, Error, ParticipantsSize, ProjectMetadata, TicketSize,
 	UpdateType::{CommunityFundingStart, RemainderFundingStart},
 };
-
-use mock::TestRuntime;
-
-use super::*;
 
 type MockInstantiator = Instantiator<TestRuntime, AllPalletsWithoutSystem, RuntimeEvent>;
 
@@ -1780,7 +1778,7 @@ mod auction_round_failure {
 		let project_id = inst.create_evaluating_project(default_project(0, ISSUER), ISSUER);
 		inst.execute(|| {
 			assert_noop!(
-				FundingModule::start_auction(RuntimeOrigin::signed(ISSUER), project_id),
+				PolimecFunding::start_auction(RuntimeOrigin::signed(ISSUER), project_id),
 				Error::<TestRuntime>::EvaluationPeriodNotEnded
 			);
 		});
@@ -1792,7 +1790,7 @@ mod auction_round_failure {
 		let _ = inst.create_evaluating_project(default_project(0, ISSUER), ISSUER);
 		inst.execute(|| {
 			assert_noop!(
-				FundingModule::bid(
+				PolimecFunding::bid(
 					RuntimeOrigin::signed(BIDDER_2),
 					0,
 					1,
@@ -1810,7 +1808,7 @@ mod auction_round_failure {
 		let project_id = inst.create_evaluating_project(default_project(0, ISSUER), ISSUER);
 		inst.execute(|| {
 			assert_noop!(
-				FundingModule::contribute(
+				PolimecFunding::contribute(
 					RuntimeOrigin::signed(BIDDER_1),
 					project_id,
 					100,
@@ -3876,7 +3874,7 @@ mod funding_end {
 
 		let project_id = project_id;
 		inst.execute(|| {
-			FundingModule::do_decide_project_outcome(ISSUER, project_id, FundingOutcomeDecision::AcceptFunding)
+			PolimecFunding::do_decide_project_outcome(ISSUER, project_id, FundingOutcomeDecision::AcceptFunding)
 		})
 		.unwrap();
 
@@ -3925,7 +3923,7 @@ mod funding_end {
 
 		let project_id = project_id;
 		inst.execute(|| {
-			FundingModule::do_decide_project_outcome(ISSUER, project_id, FundingOutcomeDecision::RejectFunding)
+			PolimecFunding::do_decide_project_outcome(ISSUER, project_id, FundingOutcomeDecision::RejectFunding)
 		})
 		.unwrap();
 
@@ -4014,7 +4012,7 @@ mod funding_end {
 
 		call_and_is_ok!(
 			inst,
-			FundingModule::do_decide_project_outcome(ISSUER, project_id, FundingOutcomeDecision::AcceptFunding)
+			PolimecFunding::do_decide_project_outcome(ISSUER, project_id, FundingOutcomeDecision::AcceptFunding)
 		);
 		inst.advance_time(1u64).unwrap();
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
@@ -4055,7 +4053,7 @@ mod funding_end {
 
 		call_and_is_ok!(
 			inst,
-			FundingModule::do_decide_project_outcome(ISSUER, project_id, FundingOutcomeDecision::RejectFunding)
+			PolimecFunding::do_decide_project_outcome(ISSUER, project_id, FundingOutcomeDecision::RejectFunding)
 		);
 		inst.advance_time(1u64).unwrap();
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
@@ -5790,16 +5788,16 @@ mod misc_features {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let now = inst.current_block();
 		inst.execute(|| {
-			FundingModule::add_to_update_store(now + 10u64, (&42u32, CommunityFundingStart));
-			FundingModule::add_to_update_store(now + 20u64, (&69u32, RemainderFundingStart));
-			FundingModule::add_to_update_store(now + 5u64, (&404u32, RemainderFundingStart));
+			PolimecFunding::add_to_update_store(now + 10u64, (&42u32, CommunityFundingStart));
+			PolimecFunding::add_to_update_store(now + 20u64, (&69u32, RemainderFundingStart));
+			PolimecFunding::add_to_update_store(now + 5u64, (&404u32, RemainderFundingStart));
 		});
 		inst.advance_time(2u64).unwrap();
 		inst.execute(|| {
 			let stored = ProjectsToUpdate::<TestRuntime>::iter_values().collect::<Vec<_>>();
 			assert_eq!(stored.len(), 3, "There should be 3 blocks scheduled for updating");
 
-			FundingModule::remove_from_update_store(&69u32).unwrap();
+			PolimecFunding::remove_from_update_store(&69u32).unwrap();
 
 			let stored = ProjectsToUpdate::<TestRuntime>::iter_values().collect::<Vec<_>>();
 			assert_eq!(stored[2], vec![], "Vector should be empty for that block after deletion");
@@ -6077,5 +6075,140 @@ mod async_tests {
 		assert_eq!(inst.get_project_details(project_ids[3]).status, ProjectStatus::CommunityRound);
 		assert_eq!(inst.get_project_details(project_ids[4]).status, ProjectStatus::RemainderRound);
 		assert_eq!(inst.get_project_details(project_ids[5]).status, ProjectStatus::FundingSuccessful);
+	}
+
+	#[test]
+	fn genesis_parallel_instantiaton() {
+		let mut t = frame_system::GenesisConfig::<TestRuntime>::default().build_storage().unwrap();
+
+		// only used to generate some values, and not for chain interactions
+		let funding_percent = 93u64;
+		let project_metadata = default_project(0u64, ISSUER.into());
+		let min_price = project_metadata.minimum_price;
+		let twenty_percent_funding_usd = Perquintill::from_percent(funding_percent) *
+			(project_metadata
+				.minimum_price
+				.checked_mul_int(project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1)
+				.unwrap());
+		let evaluations = default_evaluations();
+		let bids = MockInstantiator::generate_bids_from_total_usd(
+			Percent::from_percent(50u8) * twenty_percent_funding_usd,
+			min_price,
+			default_weights(),
+			default_bidders(),
+			default_bidder_multipliers(),
+		);
+		let community_contributions = MockInstantiator::generate_contributions_from_total_usd(
+			Percent::from_percent(30u8) * twenty_percent_funding_usd,
+			min_price,
+			default_weights(),
+			default_community_contributors(),
+			default_community_contributor_multipliers(),
+		);
+		let remainder_contributions = MockInstantiator::generate_contributions_from_total_usd(
+			Percent::from_percent(20u8) * twenty_percent_funding_usd,
+			min_price,
+			default_weights(),
+			default_remainder_contributors(),
+			default_remainder_contributor_multipliers(),
+		);
+		mock::RuntimeGenesisConfig {
+			balances: BalancesConfig {
+				balances: vec![(
+					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
+					<TestRuntime as pallet_balances::Config>::ExistentialDeposit::get(),
+				)],
+			},
+			statemint_assets: StatemintAssetsConfig {
+				assets: vec![(
+					AcceptedFundingAsset::USDT.to_statemint_id(),
+					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
+					false,
+					10,
+				)],
+				metadata: vec![],
+				accounts: vec![],
+			},
+			polimec_funding: PolimecFundingConfig {
+				starting_projects: vec![
+					TestProjectParams::<TestRuntime> {
+						expected_state: ProjectStatus::FundingSuccessful,
+						metadata: default_project(0u64, ISSUER.into()),
+						issuer: ISSUER.into(),
+						evaluations: evaluations.clone(),
+						bids: bids.clone(),
+						community_contributions: community_contributions.clone(),
+						remainder_contributions: remainder_contributions.clone(),
+					},
+					TestProjectParams::<TestRuntime> {
+						expected_state: ProjectStatus::RemainderRound,
+						metadata: default_project(1u64, ISSUER.into()),
+						issuer: ISSUER.into(),
+						evaluations: evaluations.clone(),
+						bids: bids.clone(),
+						community_contributions: community_contributions.clone(),
+						remainder_contributions: vec![],
+					},
+					TestProjectParams::<TestRuntime> {
+						expected_state: ProjectStatus::CommunityRound,
+						metadata: default_project(2u64, ISSUER.into()),
+						issuer: ISSUER.into(),
+						evaluations: evaluations.clone(),
+						bids: bids.clone(),
+						community_contributions: vec![],
+						remainder_contributions: vec![],
+					},
+					TestProjectParams::<TestRuntime> {
+						expected_state: ProjectStatus::AuctionRound(AuctionPhase::English),
+						metadata: default_project(3u64, ISSUER.into()),
+						issuer: ISSUER.into(),
+						evaluations: evaluations.clone(),
+						bids: vec![],
+						community_contributions: vec![],
+						remainder_contributions: vec![],
+					},
+					TestProjectParams::<TestRuntime> {
+						expected_state: ProjectStatus::EvaluationRound,
+						metadata: default_project(4u64, ISSUER.into()),
+						issuer: ISSUER.into(),
+						evaluations: vec![],
+						bids: vec![],
+						community_contributions: vec![],
+						remainder_contributions: vec![],
+					},
+					TestProjectParams::<TestRuntime> {
+						expected_state: ProjectStatus::Application,
+						metadata: default_project(5u64, ISSUER.into()),
+						issuer: ISSUER.into(),
+						evaluations: vec![],
+						bids: vec![],
+						community_contributions: vec![],
+						remainder_contributions: vec![],
+					},
+				],
+				phantom: PhantomData,
+			},
+
+			..Default::default()
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
+
+		let mut ext = sp_io::TestExternalities::new(t);
+		let mut inst = MockInstantiator::new(Some(RefCell::new(ext)));
+
+		dbg!(inst.get_project_details(0).status);
+		dbg!(inst.get_project_details(1).status);
+		dbg!(inst.get_project_details(2).status);
+		dbg!(inst.get_project_details(3).status);
+		dbg!(inst.get_project_details(4).status);
+		dbg!(inst.get_project_details(5).status);
+
+		assert_eq!(inst.get_project_details(5).status, ProjectStatus::Application);
+		assert_eq!(inst.get_project_details(4).status, ProjectStatus::EvaluationRound);
+		assert_eq!(inst.get_project_details(3).status, ProjectStatus::AuctionRound(AuctionPhase::English));
+		assert_eq!(inst.get_project_details(2).status, ProjectStatus::CommunityRound);
+		assert_eq!(inst.get_project_details(1).status, ProjectStatus::RemainderRound);
+		assert_eq!(inst.get_project_details(0).status, ProjectStatus::FundingSuccessful);
 	}
 }

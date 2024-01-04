@@ -17,9 +17,9 @@
 // 		let contributor = 4;
 
 // 		let project = default_project(0);
-// 		assert_ok!(FundingModule::create(RuntimeOrigin::signed(creator), project.clone(),));
-// 		assert_ok!(FundingModule::start_evaluation(RuntimeOrigin::signed(creator), 0));
-// 		assert_ok!(FundingModule::bond_evaluation(RuntimeOrigin::signed(evaluator), 0, 120_000 * PLMC));
+// 		assert_ok!(PolimecFunding::create(RuntimeOrigin::signed(creator), project.clone(),));
+// 		assert_ok!(PolimecFunding::start_evaluation(RuntimeOrigin::signed(creator), 0));
+// 		assert_ok!(PolimecFunding::bond_evaluation(RuntimeOrigin::signed(evaluator), 0, 120_000 * PLMC));
 
 // 		// advance time
 // 		for _block in 0..<TestRuntime as pallet_funding::Config>::EvaluationDuration::get() + 10 {
@@ -29,7 +29,7 @@
 // 			<AllPalletsWithSystem as OnInitialize<u64>>::on_initialize(System::block_number());
 // 		}
 
-// 		assert_ok!(FundingModule::start_auction(RuntimeOrigin::signed(creator), 0));
+// 		assert_ok!(PolimecFunding::start_auction(RuntimeOrigin::signed(creator), 0));
 
 // 		// advance time
 // 		for _block in 0..2 {
@@ -39,7 +39,7 @@
 // 			<AllPalletsWithSystem as OnInitialize<u64>>::on_initialize(System::block_number());
 // 		}
 
-// 		assert_ok!(FundingModule::bid(RuntimeOrigin::signed(bidder), 0, 1000, 100 * PLMC, None, 1984));
+// 		assert_ok!(PolimecFunding::bid(RuntimeOrigin::signed(bidder), 0, 1000, 100 * PLMC, None, 1984));
 
 // 		// advance time
 // 		for _block in 0..(<TestRuntime as pallet_funding::Config>::EnglishAuctionDuration::get() +
@@ -52,11 +52,11 @@
 // 			<AllPalletsWithSystem as OnInitialize<u64>>::on_initialize(System::block_number());
 // 		}
 
-// 		assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(contributor), 0, 1, None, 1984));
+// 		assert_ok!(PolimecFunding::contribute(RuntimeOrigin::signed(contributor), 0, 1, None, 1984));
 
 // 		assert!(Sandbox::buy_if_popular(RuntimeOrigin::signed(4), 0, 1000, 1984).is_err());
 
-// 		assert_ok!(FundingModule::contribute(RuntimeOrigin::signed(contributor), 0, 10000, None, 1984));
+// 		assert_ok!(PolimecFunding::contribute(RuntimeOrigin::signed(contributor), 0, 10000, None, 1984));
 
 // 		assert_ok!(Sandbox::buy_if_popular(RuntimeOrigin::signed(4), 0, 1000, 1984));
 // 	});

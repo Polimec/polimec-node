@@ -197,6 +197,7 @@ use traits::DoRemainingOperation;
 pub use types::*;
 use xcm::v3::{opaque::Instruction, prelude::*, SendXcm};
 pub mod functions;
+
 #[cfg(test)]
 pub mod mock;
 pub mod types;
@@ -208,6 +209,7 @@ pub mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 pub mod impls;
+#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 pub mod instantiator;
 pub mod traits;
 

@@ -19,7 +19,9 @@
 //! Test environment for Funding pallet.
 
 use super::*;
+use crate as pallet_funding;
 use frame_support::{
+	construct_runtime,
 	pallet_prelude::Weight,
 	parameter_types,
 	traits::{AsEnsureOriginWithArg, ConstU16, ConstU32, WithdrawReasons},
@@ -50,21 +52,6 @@ pub const MICRO_PLMC: Balance = 10u128.pow(4);
 pub const EXISTENTIAL_DEPOSIT: Balance = 10 * MILLI_PLMC;
 
 const US_DOLLAR: u128 = 1_0_000_000_000u128;
-
-// Configure a mock runtime to test the pallet.
-frame_support::construct_runtime!(
-	pub enum TestRuntime
-	{
-		System: frame_system,
-		RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip,
-		Balances: pallet_balances,
-		FundingModule: crate,
-		Vesting: pallet_linear_release,
-		LocalAssets: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>},
-		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>},
-		PolkadotXcm: pallet_xcm,
-	}
-);
 
 pub type LocalAssetsInstance = pallet_assets::Instance1;
 pub type StatemintAssetsInstance = pallet_assets::Instance2;
@@ -396,11 +383,26 @@ impl Config for TestRuntime {
 	type WeightInfo = weights::SubstrateWeight<TestRuntime>;
 }
 
+// Configure a mock runtime to test the pallet.
+construct_runtime!(
+	pub enum TestRuntime
+	{
+		System: frame_system,
+		RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip,
+		Balances: pallet_balances,
+		Vesting: pallet_linear_release,
+		LocalAssets: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>},
+		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>},
+		PolkadotXcm: pallet_xcm,
+		PolimecFunding: pallet_funding::{Pallet, Call, Storage, Event<T>, Config<T>}  = 52,
+	}
+);
+
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::<TestRuntime>::default().build_storage().unwrap();
 
-	GenesisConfig {
+	RuntimeGenesisConfig {
 		balances: BalancesConfig {
 			balances: vec![(
 				<TestRuntime as Config>::PalletId::get().into_account_truncating(),

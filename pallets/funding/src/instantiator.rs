@@ -1434,10 +1434,7 @@ pub mod async_features {
 		}
 
 		pub async fn add_awaiting_project(&self, block_number: BlockNumberFor<T>, notify: Arc<Notify>) {
-			println!("add_awaiting_project requesting lock");
 			let mut awaiting_projects = self.awaiting_projects.lock().await;
-			println!("add_awaiting_project lock given");
-			println!("adding project to block {}", block_number);
 			awaiting_projects.entry(block_number).or_default().push(notify);
 			drop(awaiting_projects);
 		}
@@ -1455,7 +1452,7 @@ pub mod async_features {
 
 			if let Some(&next_block) = awaiting_projects.keys().min() {
 				drop(awaiting_projects);
-				println!("advancing to block {}", next_block);
+
 				while self.get_current_block() < next_block {
 					inst.advance_time(One::one()).unwrap();
 					let current_block: u32 = self
@@ -1463,8 +1460,6 @@ pub mod async_features {
 						.try_into()
 						.unwrap_or_else(|_| panic!("Block number should fit into u32"));
 					self.current_block.store(current_block + 1u32, Ordering::SeqCst);
-
-					println!("Advanced to block {}", current_block + 1u32);
 				}
 				Some(next_block)
 			} else {
@@ -1506,9 +1501,8 @@ pub mod async_features {
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
 	) -> ProjectIdOf<T> {
-		println!("async_create_new_project requesting lock");
 		let mut inst = instantiator.lock().await;
-		println!("async_create_new_project lock given");
+
 		let asset_account_deposit =
 			inst.execute(|| <T as crate::Config>::ContributionTokenCurrency::deposit_required(One::one()));
 		let ed = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ed();
@@ -1539,12 +1533,10 @@ pub mod async_features {
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
 	) -> ProjectIdOf<T> {
-		println!("create new project inside evaluating");
 		let project_id = async_create_new_project(instantiator.clone(), project_metadata, issuer.clone()).await;
-		println!("done");
-		println!("async_create_evaluating_project requesting lock");
+
 		let mut inst = instantiator.lock().await;
-		println!("async_create_evaluating_project lock given");
+
 		inst.start_evaluation(project_id, issuer).unwrap();
 		project_id
 	}
@@ -1559,9 +1551,7 @@ pub mod async_features {
 		project_id: ProjectIdOf<T>,
 		caller: AccountIdOf<T>,
 	) -> Result<(), DispatchError> {
-		println!("async_start_auction requesting lock");
 		let mut inst = instantiator.lock().await;
-		println!("async_start_auction lock given");
 
 		let project_details = inst.get_project_details(project_id);
 
@@ -1570,23 +1560,18 @@ pub mod async_features {
 			let auction_start = evaluation_end.saturating_add(2u32.into());
 
 			let notify = Arc::new(Notify::new());
-			println!("async_start_auction adding to awaiting projects");
+
 			block_orchestrator.add_awaiting_project(auction_start, notify.clone()).await;
-			println!("async_start_auction awaiting projects added");
+
 			// Wait for the notification that our desired block was reached to continue
 
-			println!("async_start_auction dropping lock");
 			drop(inst);
-			println!("async_start_auction lock dropped");
-			println!("async_start_auction awaiting notification");
+
 			notify.notified().await;
-			println!("async_start_auction notification received");
-			println!("async_start_auction requesting lock");
+
 			inst = instantiator.lock().await;
-			println!("async_start_auction lock given");
 		};
 
-		println!("async_start_auction getting details");
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 
 		inst.execute(|| crate::Pallet::<T>::do_english_auction(caller, project_id))?;
@@ -1607,11 +1592,10 @@ pub mod async_features {
 		issuer: AccountIdOf<T>,
 		evaluations: Vec<UserToUSDBalance<T>>,
 	) -> ProjectIdOf<T> {
-		println!("creating evaluating project inside auctioning");
 		let project_id = async_create_evaluating_project(instantiator.clone(), project_metadata, issuer.clone()).await;
-		println!("async_create_auctioning_project requesting lock");
+
 		let mut inst = instantiator.lock().await;
-		println!("async_create_auctioning_project lock given");
+
 		let evaluators = evaluations.accounts();
 		let prev_supply = inst.get_plmc_total_supply();
 		let prev_plmc_balances = inst.get_free_plmc_balances_for(evaluators.clone());
@@ -1645,10 +1629,9 @@ pub mod async_features {
 		let expected_total_supply = prev_supply + expected_evaluator_balances;
 
 		inst.evaluation_assertions(project_id, expected_remaining_plmc, plmc_eval_deposits, expected_total_supply);
-		println!("async_create_auctioning_project dropping lock");
+
 		drop(inst);
-		println!("async_create_auctioning_project lock dropped");
-		println!("async_create_auctioning_project awaiting start auction");
+
 		async_start_auction(instantiator, block_orchestrator, project_id, issuer).await.unwrap();
 		project_id
 	}
@@ -1662,9 +1645,7 @@ pub mod async_features {
 		block_orchestrator: Arc<BlockOrchestrator<T, AllPalletsWithoutSystem, RuntimeEvent>>,
 		project_id: ProjectIdOf<T>,
 	) -> Result<(), DispatchError> {
-		println!("async_start_community_funding requesting lock");
 		let mut inst = instantiator.lock().await;
-		println!("async_start_community_funding lock given");
 
 		let english_end = inst
 			.get_project_details(project_id)
@@ -1676,17 +1657,15 @@ pub mod async_features {
 		let candle_start = english_end + 2u32.into();
 
 		let notify = Arc::new(Notify::new());
-		println!("async_start_community_funding adding to awaiting projects");
+
 		block_orchestrator.add_awaiting_project(candle_start, notify.clone()).await;
-		println!("async_start_community_funding awaiting projects added");
+
 		// Wait for the notification that our desired block was reached to continue
-		println!("async_start_community_funding dropping lock");
+
 		drop(inst);
-		println!("async_start_community_funding lock dropped");
-		println!("async_start_community_funding awaiting notification");
+
 		notify.notified().await;
-		println!("async_start_community_funding notification received");
-		println!("async_start_community_funding requesting lock");
+
 		inst = instantiator.lock().await;
 		let candle_end = inst
 			.get_project_details(project_id)
@@ -1698,19 +1677,15 @@ pub mod async_features {
 		let community_start = candle_end + 2u32.into();
 
 		let notify = Arc::new(Notify::new());
-		println!("async_start_community_funding adding to awaiting projects");
+
 		block_orchestrator.add_awaiting_project(community_start, notify.clone()).await;
 		// Wait for the notification that our desired block was reached to continue
-		println!("async_start_community_funding dropping lock");
-		drop(inst);
-		println!("async_start_community_funding lock dropped");
-		println!("async_start_community_funding awaiting notification");
-		notify.notified().await;
-		println!("async_start_community_funding notification received");
 
-		println!("async_start_community_funding requesting lock");
+		drop(inst);
+
+		notify.notified().await;
+
 		inst = instantiator.lock().await;
-		println!("async_start_community_funding lock given");
 
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::CommunityRound);
 
@@ -1732,7 +1707,7 @@ pub mod async_features {
 		if bids.is_empty() {
 			panic!("Cannot start community funding without bids")
 		}
-		println!("creating auctioning project inside community project");
+
 		let project_id = async_create_auctioning_project(
 			instantiator.clone(),
 			block_orchestrator.clone(),
@@ -1741,9 +1716,9 @@ pub mod async_features {
 			evaluations.clone(),
 		)
 		.await;
-		println!("requesting inst lock");
+
 		let mut inst = instantiator.lock().await;
-		println!("lock given");
+
 		let bids = inst.simulate_bids_with_bucket(bids, project_id);
 		let bidders = bids.accounts();
 		let bidders_non_evaluators =
@@ -1843,9 +1818,7 @@ pub mod async_features {
 		block_orchestrator: Arc<BlockOrchestrator<T, AllPalletsWithoutSystem, RuntimeEvent>>,
 		project_id: ProjectIdOf<T>,
 	) -> Result<(), DispatchError> {
-		println!("async_start_remainder_or_end_funding requesting lock");
 		let mut inst = instantiator.lock().await;
-		println!("async_start_remainder_or_end_funding lock given");
 
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::CommunityRound);
 		let community_funding_end = inst
@@ -1857,20 +1830,17 @@ pub mod async_features {
 		let remainder_start = community_funding_end + 1u32.into();
 
 		let notify = Arc::new(Notify::new());
-		println!("async_start_remainder_or_end_funding adding to awaiting projects");
-		block_orchestrator.add_awaiting_project(remainder_start, notify.clone()).await;
-		println!("async_start_remainder_or_end_funding awaiting projects added");
-		// Wait for the notification that our desired block was reached to continue
-		println!("dropping inst lock");
-		drop(inst);
-		println!("inst lock dropped");
-		println!("async_start_remainder_or_end_funding awaiting notification");
-		notify.notified().await;
-		println!("async_start_remainder_or_end_funding notification received");
 
-		println!("async_start_remainder_or_end_funding requesting inst lock");
+		block_orchestrator.add_awaiting_project(remainder_start, notify.clone()).await;
+
+		// Wait for the notification that our desired block was reached to continue
+
+		drop(inst);
+
+		notify.notified().await;
+
 		let mut inst = instantiator.lock().await;
-		println!("async_start_remainder_or_end_funding lock given");
+
 		match inst.get_project_details(project_id).status {
 			ProjectStatus::RemainderRound | ProjectStatus::FundingSuccessful => Ok(()),
 			_ => panic!("Bad state"),
@@ -1890,7 +1860,6 @@ pub mod async_features {
 		bids: Vec<BidParams<T>>,
 		contributions: Vec<ContributionParams<T>>,
 	) -> (ProjectIdOf<T>, Vec<BidParams<T>>) {
-		println!("creating community project inside remainder project");
 		let (project_id, accepted_bids) = async_create_community_contributing_project(
 			instantiator.clone(),
 			block_orchestrator.clone(),
@@ -1900,7 +1869,6 @@ pub mod async_features {
 			bids,
 		)
 		.await;
-		println!("done");
 
 		if contributions.is_empty() {
 			async_start_remainder_or_end_funding(instantiator.clone(), block_orchestrator.clone(), project_id)
@@ -1909,9 +1877,7 @@ pub mod async_features {
 			return (project_id, accepted_bids)
 		}
 
-		println!("requesting inst lock");
 		let mut inst = instantiator.lock().await;
-		println!("lock given");
 
 		let ct_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 		let contributors = contributions.accounts();
@@ -2004,9 +1970,7 @@ pub mod async_features {
 		block_orchestrator: Arc<BlockOrchestrator<T, AllPalletsWithoutSystem, RuntimeEvent>>,
 		project_id: ProjectIdOf<T>,
 	) -> Result<(), DispatchError> {
-		println!("async_finish_funding requesting lock");
 		let mut inst = instantiator.lock().await;
-		println!("async_finish_funding lock given");
 
 		let (update_block, _) = inst.get_update_pair(project_id);
 		let current_block = inst.current_block();
@@ -2016,17 +1980,14 @@ pub mod async_features {
 			drop(inst);
 
 			let notify = Arc::new(Notify::new());
-			println!("async_finish_funding adding to awaiting projects");
-			block_orchestrator.add_awaiting_project(end_block, notify.clone()).await;
-			println!("async_finish_funding awaiting projects added");
-			// Wait for the notification that our desired block was reached to continue
-			println!("async_finish_funding awaiting notification");
-			notify.notified().await;
-			println!("async_finish_funding notification received");
 
-			println!("async_finish_funding requesting lock");
+			block_orchestrator.add_awaiting_project(end_block, notify.clone()).await;
+
+			// Wait for the notification that our desired block was reached to continue
+
+			notify.notified().await;
+
 			inst = instantiator.lock().await;
-			println!("async_finish_funding lock given");
 		}
 
 		let project_details = inst.get_project_details(project_id);
@@ -2056,7 +2017,6 @@ pub mod async_features {
 		community_contributions: Vec<ContributionParams<T>>,
 		remainder_contributions: Vec<ContributionParams<T>>,
 	) -> ProjectIdOf<T> {
-		println!("creating remainder project inside finished project");
 		let (project_id, accepted_bids) = async_create_remainder_contributing_project(
 			instantiator.clone(),
 			block_orchestrator.clone(),
@@ -2067,11 +2027,8 @@ pub mod async_features {
 			community_contributions.clone(),
 		)
 		.await;
-		println!("done");
 
-		println!("requesting inst lock");
 		let mut inst = instantiator.lock().await;
-		println!("lock given");
 
 		let real_bid_amounts = inst.simulate_bids_with_bucket(bids.clone(), project_id);
 		let total_ct_sold_in_bids =
@@ -2297,7 +2254,6 @@ pub mod async_features {
 
 		match test_project_params.expected_state {
 			ProjectStatus::Application => {
-				println!("application project creation requested");
 				let notify = Arc::new(Notify::new());
 				block_orchestrator
 					.add_awaiting_project(now + time_to_finish - time_to_new_project, notify.clone())
@@ -2308,7 +2264,6 @@ pub mod async_features {
 					.await
 			},
 			ProjectStatus::EvaluationRound => {
-				println!("evaluation project creation requested");
 				let notify = Arc::new(Notify::new());
 				block_orchestrator
 					.add_awaiting_project(now + time_to_finish - time_to_evaluation, notify.clone())
@@ -2323,7 +2278,6 @@ pub mod async_features {
 				.await
 			},
 			ProjectStatus::AuctionRound(_) => {
-				println!("auction project creation requested");
 				let notify = Arc::new(Notify::new());
 				block_orchestrator.add_awaiting_project(now + time_to_finish - time_to_auction, notify.clone()).await;
 				// Wait for the notification that our desired block was reached to continue
@@ -2338,7 +2292,6 @@ pub mod async_features {
 				.await
 			},
 			ProjectStatus::CommunityRound => {
-				println!("community project creation requested");
 				let notify = Arc::new(Notify::new());
 				block_orchestrator.add_awaiting_project(now + time_to_finish - time_to_community, notify.clone()).await;
 				// Wait for the notification that our desired block was reached to continue
@@ -2355,7 +2308,6 @@ pub mod async_features {
 				.await
 			},
 			ProjectStatus::RemainderRound => {
-				println!("remainder project creation requested");
 				let notify = Arc::new(Notify::new());
 				block_orchestrator.add_awaiting_project(now + time_to_finish - time_to_remainder, notify.clone()).await;
 				// Wait for the notification that our desired block was reached to continue
@@ -2373,7 +2325,6 @@ pub mod async_features {
 				.await
 			},
 			ProjectStatus::FundingSuccessful => {
-				println!("finished project creation requested");
 				let notify = Arc::new(Notify::new());
 				block_orchestrator.add_awaiting_project(now + time_to_finish - time_to_finish, notify.clone()).await;
 				// Wait for the notification that our desired block was reached to continue
@@ -2866,7 +2817,7 @@ pub mod testing_macros {
 	//
 	// 			events.iter().find_map(|event_record| {
 	// 				if let frame_system::EventRecord {
-	// 					event: RuntimeEvent::FundingModule(desired_event @ $pattern),
+	// 					event: RuntimeEvent::PolimecFunding(desired_event @ $pattern),
 	// 					..
 	// 				} = event_record
 	// 				{
@@ -2886,7 +2837,8 @@ pub mod testing_macros {
 				let events = System::events();
 
 				events.iter().find_map(|event_record| {
-					if let frame_system::EventRecord { event: RuntimeEvent::FundingModule($pattern), .. } = event_record
+					if let frame_system::EventRecord { event: RuntimeEvent::PolimecFunding($pattern), .. } =
+						event_record
 					{
 						Some($field.clone())
 					} else {
