@@ -122,14 +122,11 @@ pub type Migrations = migrations::Unreleased;
 /// The runtime migrations per release.
 #[allow(missing_docs)]
 pub mod migrations {
+	// Not warn for unused imports in this module.
+	#![allow(unused_imports)]
 	use super::*;
 	/// Unreleased migrations. Add new ones here:
-	pub type Unreleased = (
-		cumulus_pallet_xcmp_queue::migration::Migration<Runtime>,
-		cumulus_pallet_dmp_queue::migration::Migration<Runtime>,
-		custom_migrations::CustomOnRuntimeUpgrade,
-		pallet_parachain_staking::migrations::CustomOnRuntimeUpgrade<Runtime, Balances>,
-	);
+	pub type Unreleased = ();
 }
 
 /// Executive: handles dispatch to the various modules.
@@ -175,7 +172,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("polimec-mainnet"),
 	impl_name: create_runtime_str!("polimec-mainnet"),
 	authoring_version: 1,
-	spec_version: 3,
+	spec_version: 0_003_001,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -197,6 +194,8 @@ pub struct BaseCallFilter;
 impl Contains<RuntimeCall> for BaseCallFilter {
 	fn contains(c: &RuntimeCall) -> bool {
 		use pallet_balances::Call::*;
+		use pallet_parachain_staking::Call::*;
+
 		match c {
 			// Transferability lock.
 			RuntimeCall::Balances(inner_call) => match inner_call {
@@ -208,6 +207,17 @@ impl Contains<RuntimeCall> for BaseCallFilter {
 			},
 			// Staking "disabled" @ TGE.
 			RuntimeCall::ParachainStaking(inner_call) => match inner_call {
+				cancel_candidate_bond_less { .. } => true,
+				execute_candidate_bond_less { .. } => true,
+				schedule_candidate_bond_less { .. } => true,
+				set_auto_compound { .. } => true,
+				set_blocks_per_round { .. } => true,
+				set_collator_commission { .. } => true,
+				set_inflation { .. } => true,
+				set_parachain_bond_account { .. } => true,
+				set_parachain_bond_reserve_percent { .. } => true,
+				set_staking_expectations { .. } => true,
+				set_total_selected { .. } => true,
 				_ => false,
 			},
 			_ => true,
