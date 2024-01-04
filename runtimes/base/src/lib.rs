@@ -208,7 +208,6 @@ impl Contains<RuntimeCall> for BaseCallFilter {
 			// Staking "disabled" @ TGE.
 			RuntimeCall::ParachainStaking(inner_call) => match inner_call {
 				cancel_candidate_bond_less { .. } => true,
-				cancel_leave_candidates { .. } => true,
 				execute_candidate_bond_less { .. } => true,
 				schedule_candidate_bond_less { .. } => true,
 				set_auto_compound { .. } => true,
