@@ -207,6 +207,10 @@ pub(crate) struct ExtBuilder {
 	collators: Vec<(AccountId, Balance)>,
 	// [delegator, collator, delegation_amount, auto_compound_percent]
 	delegations: Vec<(AccountId, AccountId, Balance, Percent)>,
+	// Number of blocks per round
+	round_len: BlockNumber,
+	// Collator commission
+	collator_commission: Perbill,
 	// inflation config
 	inflation: InflationInfo<Balance>,
 }
@@ -217,6 +221,8 @@ impl Default for ExtBuilder {
 			balances: vec![],
 			delegations: vec![],
 			collators: vec![],
+			round_len: GENESIS_BLOCKS_PER_ROUND,
+			collator_commission: GENESIS_COLLATOR_COMMISSION,
 			inflation: InflationInfo {
 				expect: Range { min: 700, ideal: 700, max: 700 },
 				// not used
@@ -264,8 +270,20 @@ impl ExtBuilder {
 	}
 
 	#[allow(dead_code)]
-	pub(crate) fn with_inflation(mut self, inflation: InflationInfo<Balance>) -> Self {
+	pub(crate) fn with_inflation(mut self, mut inflation: InflationInfo<Balance>, round_len: BlockNumber) -> Self {
+		assert_eq!(round_len, self.round_len);
+		inflation.reset_round(round_len);
 		self.inflation = inflation;
+		self
+	}
+
+	pub(crate) fn with_round_len(mut self, round_len: BlockNumber) -> Self {
+		self.round_len = round_len;
+		self
+	}
+
+	pub(crate) fn with_collator_commission(mut self, collator_commission: Perbill) -> Self {
+		self.collator_commission = collator_commission;
 		self
 	}
 
@@ -285,9 +303,9 @@ impl ExtBuilder {
 			candidates: self.collators,
 			delegations: self.delegations,
 			inflation_config: self.inflation,
-			collator_commission: GENESIS_COLLATOR_COMMISSION,
+			collator_commission: self.collator_commission,
 			parachain_bond_reserve_percent: GENESIS_PARACHAIN_BOND_RESERVE_PERCENT,
-			blocks_per_round: GENESIS_BLOCKS_PER_ROUND,
+			blocks_per_round: self.round_len,
 			num_selected_candidates: GENESIS_NUM_SELECTED_CANDIDATES,
 		}
 		.assimilate_storage(&mut t)
@@ -335,15 +353,20 @@ pub(crate) fn roll_blocks(num_blocks: u32) -> BlockNumber {
 /// This will complete the block in which the round change occurs.
 /// Returns the number of blocks played.
 pub(crate) fn roll_to_round_begin(round: BlockNumber) -> BlockNumber {
-	let block = (round - 1) * GENESIS_BLOCKS_PER_ROUND;
+	
+	let block = (round - 1) * blocks_per_round();
 	roll_to(block)
 }
 
 /// Rolls block-by-block to the end of the specified round.
 /// The block following will be the one in which the specified round change occurs.
 pub(crate) fn roll_to_round_end(round: BlockNumber) -> BlockNumber {
-	let block = round * GENESIS_BLOCKS_PER_ROUND - 1;
+	let block = round * blocks_per_round() - 1;
 	roll_to(block)
+}
+
+fn blocks_per_round() -> BlockNumber {
+	ParachainStaking::round().length
 }
 
 pub(crate) fn events() -> Vec<pallet::Event<Test>> {

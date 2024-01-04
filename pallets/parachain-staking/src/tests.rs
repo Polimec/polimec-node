@@ -5446,3 +5446,74 @@ fn test_compute_top_candidates_is_stable() {
 			assert_eq!(ParachainStaking::compute_top_candidates(), vec![2, 3, 4, 5, 6]);
 		});
 }
+
+
+mod integration_tests {
+	use super::*;
+	use crate::*;
+
+	const PLMC: u128 = 10u128.pow(10);
+	const ROUND_LEN: u32 = 1800;
+	const ED: u128 = <Test as pallet_balances::Config>::ExistentialDeposit::get();
+
+	fn inflation_rate() -> InflationInfo<u128> {
+		InflationInfo::<u128>{
+			expect: Range { min: 100_000 * PLMC, ideal: 200_000 * PLMC, max: 500_000 * PLMC },
+			annual: Range {
+				min: Perbill::from_perthousand(11),
+				ideal: Perbill::from_perthousand(11),
+				max: Perbill::from_perthousand(11),
+			},
+			// Is updated in set_inflation_rate
+			round: Range {
+				min: Perbill::from_perthousand(0),
+				ideal: Perbill::from_perthousand(0),
+				max: Perbill::from_perthousand(0),
+			},
+		}
+	}
+
+
+	#[test]
+	fn staking_collator_receive_2_5_percent_yearly() {
+		let set_round_points = |round: BlockNumber| {
+			set_author(round as BlockNumber, 1, 20);
+			set_author(round as BlockNumber, 2, 20);
+			set_author(round as BlockNumber, 3, 20);
+		};
+
+		ExtBuilder::default()
+		.with_balances(vec![(1337, 10_000_000 * PLMC), (1, 20000 * PLMC), (2, 20000 * PLMC), (3, 20000*PLMC), (4, 2500000 * PLMC), (5, 2440000 * PLMC), (6, 5000000 * PLMC), (69, 80000000*PLMC)])
+		.with_candidates(vec![(1, 20000 * PLMC), (2, 20000 * PLMC), (3, 20000*PLMC)])
+		.with_auto_compounding_delegations(vec![(4, 1, 2500000 * PLMC, Percent::from_percent(100)), (5, 2, 2440000 * PLMC, Percent::from_percent(100)), (6, 3, 5000000 * PLMC, Percent::from_percent(100))])
+		.with_round_len(ROUND_LEN)
+		.with_collator_commission(Perbill::from_percent(10))
+		.with_inflation(
+			inflation_rate(),
+			ROUND_LEN
+		)
+		.build()
+		.execute_with(|| {
+			// 1. Check starting state
+			assert_eq!(Balances::total_issuance(), 100_000_000 * PLMC + 8 * ED);
+			assert_eq!(Balances::total_balance(&1337), 10_000_000 * PLMC + ED);
+			assert_eq!(Balances::total_balance(&1), 20000 * PLMC + ED);
+			assert_eq!(Balances::total_balance(&2), 20000 * PLMC + ED);
+
+			for i in 0..50 {
+				set_round_points(i);
+			}
+
+			// // 2. Check state after n round
+			roll_to_round_end(30);
+			println!("total_issuance: {:?}", Balances::total_issuance());
+			println!("total staked: {:?}", CandidateInfo::<Test>::get(&1));
+			println!("total_balance: {:?}", Balances::total_balance(&1));
+			println!("total_balance: {:?}", Balances::total_balance(&2));
+			println!("total_balance: {:?}", Balances::total_balance(&3));
+			println!("total_balance: {:?}", Balances::total_balance(&4));
+			println!("total_balance: {:?}", Balances::total_balance(&5));
+			println!("total_balance: {:?}", Balances::total_balance(&6));
+		})
+	}
+}
