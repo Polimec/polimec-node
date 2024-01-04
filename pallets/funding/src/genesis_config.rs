@@ -1,4 +1,4 @@
-use frame_support::pallet_macros::{pallet_section, *};
+use frame_support::pallet_macros::{pallet_section};
 
 #[cfg(all(feature = "testing-node", feature = "std"))]
 #[pallet_section]

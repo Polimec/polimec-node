@@ -5855,7 +5855,7 @@ mod async_tests {
 	use sp_std::sync::Arc;
 	use tokio::{
 		runtime::Runtime,
-		sync::{Mutex, Notify},
+		sync::{Mutex},
 	};
 
 	#[test]
@@ -5863,7 +5863,7 @@ mod async_tests {
 		let tokio_runtime = Runtime::new().unwrap();
 		let inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 
-		let inst = tokio_runtime.block_on(async {
+		let _inst = tokio_runtime.block_on(async {
 			let block_orchestrator = Arc::new(BlockOrchestrator::new());
 			let mutex_inst = Arc::new(Mutex::new(inst));
 
