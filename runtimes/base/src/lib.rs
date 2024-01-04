@@ -122,14 +122,11 @@ pub type Migrations = migrations::Unreleased;
 /// The runtime migrations per release.
 #[allow(missing_docs)]
 pub mod migrations {
+	// Not warn for unused imports in this module.
+	#![allow(unused_imports)]
 	use super::*;
 	/// Unreleased migrations. Add new ones here:
-	pub type Unreleased = (
-		cumulus_pallet_xcmp_queue::migration::Migration<Runtime>,
-		cumulus_pallet_dmp_queue::migration::Migration<Runtime>,
-		custom_migrations::CustomOnRuntimeUpgrade,
-		pallet_parachain_staking::migrations::CustomOnRuntimeUpgrade<Runtime, Balances>,
-	);
+	pub type Unreleased = ();
 }
 
 /// Executive: handles dispatch to the various modules.
