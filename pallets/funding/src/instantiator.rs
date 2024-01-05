@@ -842,7 +842,8 @@ impl<
 		issuer: AccountIdOf<T>,
 	) -> ProjectIdOf<T> {
 		let now = self.current_block();
-		self.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), Self::get_ed())]);
+		// one ED for the issuer, one ED for the escrow account
+		self.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), Self::get_ed() * 2u64.into())]);
 		self.execute(|| {
 			crate::Pallet::<T>::do_create(&issuer, project_metadata.clone()).unwrap();
 			let last_project_metadata = ProjectsMetadata::<T>::iter().last().unwrap();
@@ -1509,9 +1510,10 @@ pub mod async_features {
 		dbg!(asset_account_deposit);
 		dbg!(ed);
 		let now = inst.current_block();
+		// One ED for the issuer, one for the escrow account
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
 			issuer.clone(),
-			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ed(),
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ed() * 2u64.into(),
 		)]);
 		inst.execute(|| {
 			crate::Pallet::<T>::do_create(&issuer, project_metadata.clone()).unwrap();
@@ -1673,7 +1675,7 @@ pub mod async_features {
 			.candle_auction
 			.end()
 			.expect("Candle end point should exist");
-
+		let prev = inst.current_block();
 		let community_start = candle_end + 2u32.into();
 
 		let notify = Arc::new(Notify::new());
@@ -1686,6 +1688,7 @@ pub mod async_features {
 		notify.notified().await;
 
 		inst = instantiator.lock().await;
+		let now = inst.current_block();
 
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::CommunityRound);
 
@@ -1783,6 +1786,7 @@ pub mod async_features {
 		inst.do_free_statemint_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
 		assert_eq!(inst.get_plmc_total_supply(), post_supply);
 
+		let details = inst.get_project_details(project_id);
 		drop(inst);
 		async_start_community_funding(instantiator.clone(), block_orchestrator, project_id).await.unwrap();
 		let mut inst = instantiator.lock().await;
@@ -1973,8 +1977,9 @@ pub mod async_features {
 		let mut inst = instantiator.lock().await;
 
 		let (update_block, _) = inst.get_update_pair(project_id);
-		let current_block = inst.current_block();
-		inst.advance_time(update_block.saturating_sub(current_block)).unwrap();
+
+		let notify = Arc::new(Notify::new());
+		block_orchestrator.add_awaiting_project(update_block, notify.clone()).await;
 		if inst.get_project_details(project_id).status == ProjectStatus::RemainderRound {
 			let (end_block, _) = inst.get_update_pair(project_id);
 			drop(inst);

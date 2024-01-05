@@ -21,7 +21,6 @@ scale-info = { workspace = true, features = ["derive"] }
 polimec-receiver.workspace = true
 macros.workspace = true
 polimec-common.workspace = true
-
 sp-arithmetic.workspace = true
 frame-system.workspace = true
 frame-support.workspace = true
@@ -112,7 +111,7 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
-	"itertools/use_std"
+	"itertools/use_std",
 ]
 
 runtime-benchmarks = [

@@ -26,15 +26,15 @@ chain = "rococo-local"
     [[relaychain.nodes]]
     name = "ferdie"
 
-#[[parachains]]
-#id = 1000
-#chain = "statemint-local"
-#
-#	[[parachains.collators]]
-#	name = "statemint-dev"
-#	command = "../cumulus/target/release/polkadot-parachain"
-#    args = ["-lerror", "-lxcm::process_instruction=trace", "-lxcm::execute_xcm_in_credit=trace", "-lxcm::barriers=trace", "-lpallet_funding::hrmp=trace", "-lpallet_funding::test=trace", "--execution=native", ]
-#    ws_port = 7777
+[[parachains]]
+id = 1000
+chain = "statemint-local"
+
+	[[parachains.collators]]
+	name = "statemint-dev"
+	command = "../cumulus/target/release/polkadot-parachain"
+    args = ["-lerror", "-lxcm::process_instruction=trace", "-lxcm::execute_xcm_in_credit=trace", "-lxcm::barriers=trace", "-lpallet_funding::hrmp=trace", "-lpallet_funding::test=trace", "--execution=native", ]
+    ws_port = 7777
 
 
 [[parachains]]
@@ -46,11 +46,11 @@ chain = "polimec-testing"
     args = ["-lerror", "-lxcm::process_instruction=trace", "-lxcm::execute_xcm_in_credit=trace", "-lxcm::barriers=trace", "-lpallet_funding::hrmp=trace", "-lpallet_funding::test=trace", "--execution=native", ]   
     ws_port = 8888
 
-#[[parachains]]
-#id = 3000
-#chain = "penpal-polkadot-3000"
-#	[[parachains.collators]]
-#	name = "penpal-collator"
-#	command = "../cumulus/target/release/polkadot-parachain"
-#    args = ["-lerror", "-lxcm::process_instruction=trace", "-lxcm::execute_xcm_in_credit=trace", "-lxcm::barriers=trace", "-lpallet_funding::hrmp=trace", "-lpallet_funding::test=trace", "--execution=native", ]
-#    ws_port = 9999
+[[parachains]]
+id = 3000
+chain = "penpal-polkadot-3000"
+	[[parachains.collators]]
+	name = "penpal-collator"
+	command = "../cumulus/target/release/polkadot-parachain"
+    args = ["-lerror", "-lxcm::process_instruction=trace", "-lxcm::execute_xcm_in_credit=trace", "-lxcm::barriers=trace", "-lpallet_funding::hrmp=trace", "-lpallet_funding::test=trace", "--execution=native", ]
+    ws_port = 9999

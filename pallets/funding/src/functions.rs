@@ -26,7 +26,7 @@ use frame_support::{
 		fungible::{InspectHold, MutateHold as FungibleMutateHold},
 		fungibles::{metadata::Mutate as MetadataMutate, Create, Inspect, Mutate as FungiblesMutate},
 		tokens::{Fortitude, Precision, Preservation, Restriction},
-		Get,
+		ExistenceRequirement, Get,
 	},
 };
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -43,6 +43,7 @@ use crate::ProjectStatus::FundingSuccessful;
 use polimec_common::ReleaseSchedule;
 
 use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
+use frame_support::traits::fungible::Mutate;
 use polimec_common::migration_types::{MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
 
 use super::*;
@@ -119,6 +120,18 @@ impl<T: Config> Pallet<T> {
 		};
 
 		let bucket: BucketOf<T> = Self::create_bucket_from_metadata(&initial_metadata)?;
+
+		// Each project needs an escrow system account to temporarily hold the USDT/USDC. We need to create it by depositing `ED` amount of PLMC into it.
+		// This should be paid by the issuer.
+		let escrow_account = Self::fund_account_id(project_id);
+		// transfer ED from issuer to escrow
+		T::NativeCurrency::transfer(
+			&issuer,
+			&escrow_account,
+			<T as pallet_balances::Config>::ExistentialDeposit::get(),
+			Preservation::Preserve,
+		)?;
+
 		// * Update storage *
 		ProjectsMetadata::<T>::insert(project_id, &initial_metadata);
 		ProjectsDetails::<T>::insert(project_id, project_details);
@@ -2312,7 +2325,8 @@ impl<T: Config> Pallet<T> {
 	/// value and only call this once.
 	#[inline(always)]
 	pub fn fund_account_id(index: T::ProjectIdentifier) -> AccountIdOf<T> {
-		T::PalletId::get().into_sub_account_truncating(index)
+		// since the project_id starts at 0, we need to add 1 to get a different sub_account than the pallet account.
+		T::PalletId::get().into_sub_account_truncating(index.saturating_add(One::one()))
 	}
 
 	/// Adds a project to the ProjectsToUpdate storage, so it can be updated at some later point in time.
@@ -2674,6 +2688,7 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		let fund_account = Self::fund_account_id(project_id);
 
+		// The USDT/USDC account should be created by using a provider reference (as opposed to a deposit with `touch()`), so we don't care if it gets destroyed now.
 		T::FundingCurrency::transfer(asset_id, who, &fund_account, amount, Preservation::Expendable)?;
 
 		Ok(())
