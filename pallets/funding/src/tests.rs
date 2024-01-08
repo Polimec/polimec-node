@@ -318,6 +318,19 @@ mod creation_round_failure {
 			inst.execute(|| Pallet::<TestRuntime>::create(RuntimeOrigin::signed(ISSUER), wrong_project).unwrap_err());
 		assert_eq!(project_err, Error::<TestRuntime>::TicketSizeError.into());
 	}
+
+	#[test]
+	fn issuer_cannot_pay_for_escrow_ed() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project(0, ISSUER);
+		let ed = MockInstantiator::get_ed();
+
+		inst.mint_plmc_to(vec![UserToPLMCBalance::new(ISSUER, ed)]);
+
+		let project_err = inst
+			.execute(|| Pallet::<TestRuntime>::create(RuntimeOrigin::signed(ISSUER), project_metadata).unwrap_err());
+		assert_eq!(project_err, Error::<TestRuntime>::NotEnoughFundsForEscrowCreation.into());
+	}
 }
 
 mod evaluation_round_success {

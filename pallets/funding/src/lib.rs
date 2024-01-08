@@ -937,6 +937,8 @@ pub mod pallet {
 		BadConversion,
 		/// Tried to release the PLMC deposit held for a future CT mint, but there was nothing to release
 		NoFutureDepositHeld,
+		/// The issuer doesn't have enough funds (ExistentialDeposit), to create the escrow account
+		NotEnoughFundsForEscrowCreation,
 	}
 
 	#[pallet::call]
