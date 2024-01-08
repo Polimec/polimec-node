@@ -533,7 +533,6 @@ fn testing_genesis(
 		council: CouncilConfig { members: accounts.clone(), phantom: Default::default() },
 		technical_committee: TechnicalCommitteeConfig { members: accounts, phantom: Default::default() },
 		democracy: Default::default(),
-		linear_release: LinearReleaseConfig { vesting: vec![] },
 		vesting: Default::default(),
 	}
 }

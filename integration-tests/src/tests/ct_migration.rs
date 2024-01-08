@@ -555,6 +555,7 @@ fn disallow_duplicated_migrations_on_receiver_pallet() {
 	migrations_are_vested(grouped_migrations.clone());
 }
 
+#[ignore]
 #[test]
 fn failing_bid_doesnt_get_migrated() {
 	todo!();

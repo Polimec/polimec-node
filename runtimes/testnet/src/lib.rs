@@ -553,7 +553,8 @@ impl ConvertBack<AccountId, [u8; 32]> for ConvertSelf {
 }
 impl pallet_funding::Config for Runtime {
 	type AccountId32Conversion = ConvertSelf;
-	type AllPalletsWithoutSystem = (Balances, LocalAssets, StatemintAssets, Oracle, PolimecFunding, LinearRelease, Random);
+	type AllPalletsWithoutSystem =
+		(Balances, LocalAssets, StatemintAssets, Oracle, PolimecFunding, LinearRelease, Random);
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;
 	type BlockNumber = BlockNumber;

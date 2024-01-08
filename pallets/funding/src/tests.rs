@@ -508,7 +508,7 @@ mod evaluation_round_success {
 		let slashed_amounts =
 			MockInstantiator::slash_evaluator_balances(MockInstantiator::calculate_evaluation_plmc_spent(evaluations));
 		let deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
-			ProjectIdOf<TestRuntime>,
+			ProjectId,
 			AccountIdOf<TestRuntime>,
 		>>::deposit_required(project_id);
 
@@ -612,7 +612,7 @@ mod evaluation_round_failure {
 			UserToUSDBalance::new(EVALUATOR_3, evaluator_bond),
 		];
 		let deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
-			ProjectIdOf<TestRuntime>,
+			ProjectId,
 			AccountIdOf<TestRuntime>,
 		>>::deposit_required(project_id);
 		inst.do_free_plmc_assertions(vec![
@@ -626,7 +626,7 @@ mod evaluation_round_failure {
 				UserToPLMCBalance::new(EVALUATOR_2, 0u128),
 				UserToPLMCBalance::new(EVALUATOR_3, 0u128),
 			],
-			LockType::FutureDeposit(project_id),
+			HoldReason::FutureDeposit(project_id).into(),
 		);
 
 		let required_plmc_bonds = MockInstantiator::calculate_evaluation_plmc_spent(evaluations.clone());
@@ -650,7 +650,7 @@ mod evaluation_round_failure {
 				UserToPLMCBalance::new(EVALUATOR_2, deposit_required),
 				UserToPLMCBalance::new(EVALUATOR_3, deposit_required),
 			],
-			LockType::FutureDeposit(project_id),
+			HoldReason::FutureDeposit(project_id).into(),
 		);
 
 		inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
@@ -668,7 +668,7 @@ mod evaluation_round_failure {
 				UserToPLMCBalance::new(EVALUATOR_2, 0u128),
 				UserToPLMCBalance::new(EVALUATOR_3, 0u128),
 			],
-			LockType::FutureDeposit(project_id),
+			HoldReason::FutureDeposit(project_id).into(),
 		);
 	}
 }
@@ -1685,7 +1685,7 @@ mod auction_round_success {
 		let mut plmc_locked_for_bids = MockInstantiator::calculate_auction_plmc_spent(&bids, Some(final_price));
 		plmc_locked_for_bids.sort_by_key(|item| item.account);
 		let ct_deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
-			ProjectIdOf<TestRuntime>,
+			ProjectId,
 			AccountIdOf<TestRuntime>,
 		>>::deposit_required(project_id);
 		plmc_locked_for_bids.iter_mut().for_each(|item| item.plmc_amount += ct_deposit_required);
@@ -2083,7 +2083,7 @@ mod auction_round_failure {
 		let automatic_fail_funding_percent = Percent::from_percent(30);
 		let (bid_allocation, _contribution_allocation) = project_metadata.total_allocation_size;
 		let deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
-			ProjectIdOf<TestRuntime>,
+			ProjectId,
 			AccountIdOf<TestRuntime>,
 		>>::deposit_required(0);
 
@@ -2101,7 +2101,7 @@ mod auction_round_failure {
 		let zero_balances =
 			bids.clone().accounts().into_iter().map(|acc| UserToPLMCBalance::new(acc, 0u128)).collect_vec();
 		inst.do_free_plmc_assertions(zero_balances.clone());
-		inst.do_reserved_plmc_assertions(zero_balances.clone(), LockType::FutureDeposit(0));
+		inst.do_reserved_plmc_assertions(zero_balances.clone(), HoldReason::FutureDeposit(0).into());
 
 		let required_plmc_bonds = MockInstantiator::calculate_auction_plmc_spent(&bids, None);
 		let plmc_existential_deposits = required_plmc_bonds.accounts().existential_deposits();
@@ -2121,7 +2121,7 @@ mod auction_round_failure {
 			.into_iter()
 			.map(|acc| UserToPLMCBalance::new(acc, deposit_required))
 			.collect_vec();
-		inst.do_reserved_plmc_assertions(ct_deposit_balances, LockType::FutureDeposit(project_id));
+		inst.do_reserved_plmc_assertions(ct_deposit_balances, HoldReason::FutureDeposit(project_id).into());
 
 		inst.advance_time(<TestRuntime as Config>::CommunityFundingDuration::get() + 1).unwrap();
 		inst.advance_time(<TestRuntime as Config>::RemainderFundingDuration::get() + 1).unwrap();
@@ -2136,7 +2136,7 @@ mod auction_round_failure {
 			MergeOperation::Add,
 		);
 		inst.do_free_plmc_assertions(final_plmc_amounts);
-		inst.do_reserved_plmc_assertions(zero_balances, LockType::FutureDeposit(project_id));
+		inst.do_reserved_plmc_assertions(zero_balances, HoldReason::FutureDeposit(project_id).into());
 	}
 }
 
@@ -3096,7 +3096,7 @@ mod community_round_failure {
 		let automatic_fail_funding_percent = Percent::from_percent(30);
 		let (bid_allocation, contribution_allocation) = project_metadata.total_allocation_size;
 		let deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
-			ProjectIdOf<TestRuntime>,
+			ProjectId,
 			AccountIdOf<TestRuntime>,
 		>>::deposit_required(0);
 
@@ -3128,7 +3128,7 @@ mod community_round_failure {
 			.map(|acc| UserToPLMCBalance::new(acc, 0u128))
 			.collect_vec();
 		inst.do_free_plmc_assertions(zero_balances.clone());
-		inst.do_reserved_plmc_assertions(zero_balances.clone(), LockType::FutureDeposit(0));
+		inst.do_reserved_plmc_assertions(zero_balances.clone(), HoldReason::FutureDeposit(0).into());
 
 		let (project_id, _) = inst.create_remainder_contributing_project(
 			project_metadata,
@@ -3156,7 +3156,7 @@ mod community_round_failure {
 			.into_iter()
 			.map(|acc| UserToPLMCBalance::new(acc, deposit_required))
 			.collect_vec();
-		inst.do_reserved_plmc_assertions(ct_deposit_balances, LockType::FutureDeposit(project_id));
+		inst.do_reserved_plmc_assertions(ct_deposit_balances, HoldReason::FutureDeposit(project_id).into());
 
 		inst.advance_time(<TestRuntime as Config>::RemainderFundingDuration::get() + 1).unwrap();
 
@@ -3170,7 +3170,7 @@ mod community_round_failure {
 			MergeOperation::Add,
 		);
 		inst.do_free_plmc_assertions(final_plmc_amounts);
-		inst.do_reserved_plmc_assertions(zero_balances, LockType::FutureDeposit(project_id));
+		inst.do_reserved_plmc_assertions(zero_balances, HoldReason::FutureDeposit(project_id).into());
 	}
 }
 
@@ -3669,7 +3669,7 @@ mod remainder_round_failure {
 		let automatic_fail_funding_percent = Percent::from_percent(30);
 		let (bid_allocation, contribution_allocation) = project_metadata.total_allocation_size;
 		let deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
-			ProjectIdOf<TestRuntime>,
+			ProjectId,
 			AccountIdOf<TestRuntime>,
 		>>::deposit_required(0);
 
@@ -3711,7 +3711,7 @@ mod remainder_round_failure {
 			.map(|acc| UserToPLMCBalance::new(acc, 0u128))
 			.collect_vec();
 		inst.do_free_plmc_assertions(zero_balances.clone());
-		inst.do_reserved_plmc_assertions(zero_balances.clone(), LockType::FutureDeposit(0));
+		inst.do_reserved_plmc_assertions(zero_balances.clone(), HoldReason::FutureDeposit(0).into());
 
 		let project_id = inst.create_finished_project(
 			project_metadata,
@@ -3748,7 +3748,7 @@ mod remainder_round_failure {
 			.into_iter()
 			.map(|acc| UserToPLMCBalance::new(acc, deposit_required))
 			.collect_vec();
-		inst.do_reserved_plmc_assertions(ct_deposit_balances, LockType::FutureDeposit(project_id));
+		inst.do_reserved_plmc_assertions(ct_deposit_balances, HoldReason::FutureDeposit(project_id).into());
 
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
@@ -3760,7 +3760,7 @@ mod remainder_round_failure {
 			MockInstantiator::generic_map_operation(vec![post_balances, prev_balances], MergeOperation::Subtract);
 
 		assert_eq!(plmc_deltas, expected_final_plmc_balances);
-		inst.do_reserved_plmc_assertions(zero_balances, LockType::FutureDeposit(project_id));
+		inst.do_reserved_plmc_assertions(zero_balances, HoldReason::FutureDeposit(project_id).into());
 	}
 }
 
@@ -4020,7 +4020,7 @@ mod funding_end {
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AwaitingProjectDecision);
 
 		let old_evaluation_locked_plmc = inst
-			.get_all_reserved_plmc_balances(LockType::Evaluation(project_id))
+			.get_all_reserved_plmc_balances(HoldReason::Evaluation(project_id).into())
 			.into_iter()
 			.filter(|item| item.plmc_amount > Zero::zero())
 			.collect::<Vec<UserToPLMCBalance<_>>>();
@@ -4028,7 +4028,7 @@ mod funding_end {
 		let evaluators = old_evaluation_locked_plmc.accounts();
 
 		let old_participation_locked_plmc =
-			inst.get_reserved_plmc_balances_for(evaluators.clone(), LockType::Participation(project_id));
+			inst.get_reserved_plmc_balances_for(evaluators.clone(), HoldReason::Participation(project_id).into());
 		let old_free_plmc = inst.get_free_plmc_balances_for(evaluators.clone());
 
 		call_and_is_ok!(
@@ -4061,7 +4061,7 @@ mod funding_end {
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AwaitingProjectDecision);
 
 		let old_evaluation_locked_plmc = inst
-			.get_all_reserved_plmc_balances(LockType::Evaluation(project_id))
+			.get_all_reserved_plmc_balances(HoldReason::Evaluation(project_id).into())
 			.into_iter()
 			.filter(|item| item.plmc_amount > Zero::zero())
 			.collect::<Vec<UserToPLMCBalance<_>>>();
@@ -4069,7 +4069,7 @@ mod funding_end {
 		let evaluators = old_evaluation_locked_plmc.accounts();
 
 		let old_participation_locked_plmc =
-			inst.get_reserved_plmc_balances_for(evaluators.clone(), LockType::Participation(project_id));
+			inst.get_reserved_plmc_balances_for(evaluators.clone(), HoldReason::Participation(project_id).into());
 		let old_free_plmc = inst.get_free_plmc_balances_for(evaluators.clone());
 
 		call_and_is_ok!(
@@ -4090,7 +4090,7 @@ mod funding_end {
 			MergeOperation::Add,
 		);
 		let ct_deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
-			ProjectIdOf<TestRuntime>,
+			ProjectId,
 			AccountIdOf<TestRuntime>,
 		>>::deposit_required(project_id);
 		expected_evaluator_free_balances
@@ -4109,7 +4109,7 @@ mod funding_end {
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
 
 		let old_evaluation_locked_plmc = inst
-			.get_all_reserved_plmc_balances(LockType::Evaluation(project_id))
+			.get_all_reserved_plmc_balances(HoldReason::Evaluation(project_id).into())
 			.into_iter()
 			.filter(|item| item.plmc_amount > Zero::zero())
 			.collect::<Vec<_>>();
@@ -4117,7 +4117,7 @@ mod funding_end {
 		let evaluators = old_evaluation_locked_plmc.accounts();
 
 		let old_participation_locked_plmc =
-			inst.get_reserved_plmc_balances_for(evaluators.clone(), LockType::Participation(project_id));
+			inst.get_reserved_plmc_balances_for(evaluators.clone(), HoldReason::Participation(project_id).into());
 		let old_free_plmc = inst.get_free_plmc_balances_for(evaluators.clone());
 
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 10u64).unwrap();
@@ -4132,7 +4132,7 @@ mod funding_end {
 			MergeOperation::Add,
 		);
 		let ct_deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
-			ProjectIdOf<TestRuntime>,
+			ProjectId,
 			AccountIdOf<TestRuntime>,
 		>>::deposit_required(project_id);
 		expected_evaluator_free_balances
@@ -5204,13 +5204,13 @@ mod funding_end {
 		for payout in all_expected_payouts.clone() {
 			let evaluation_hold = inst.execute(|| {
 				<<TestRuntime as Config>::NativeCurrency as fungible::InspectHold<AccountIdOf<TestRuntime>>>::balance_on_hold(
-					&LockType::Evaluation(project_id),
+					&HoldReason::Evaluation(project_id).into(),
 					&payout.account,
 				)
 			});
 			let participation_hold = inst.execute(|| {
 				<<TestRuntime as Config>::NativeCurrency as fungible::InspectHold<AccountIdOf<TestRuntime>>>::balance_on_hold(
-					&LockType::Participation(project_id),
+					&HoldReason::Participation(project_id).into(),
 					&payout.account,
 				)
 			});
@@ -5218,7 +5218,7 @@ mod funding_end {
 			println!("account {:?} has participation hold {:?}", payout.account, participation_hold);
 		}
 		let deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
-			ProjectIdOf<TestRuntime>,
+			ProjectId,
 			AccountIdOf<TestRuntime>,
 		>>::deposit_required(project_id);
 		let all_expected_payouts = all_expected_payouts
@@ -5257,7 +5257,7 @@ mod funding_end {
 
 		let participants = all_participants_plmc_deltas.accounts();
 		for participant in participants {
-			let future_deposit_reserved = inst.execute(||{<<TestRuntime as Config>::NativeCurrency as fungible::InspectHold<AccountIdOf<TestRuntime>>>::balance_on_hold(&LockType::FutureDeposit(project_id), &participant)});
+			let future_deposit_reserved = inst.execute(||{<<TestRuntime as Config>::NativeCurrency as fungible::InspectHold<AccountIdOf<TestRuntime>>>::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), &participant)});
 			println!("participant {:?} has future deposit reserved {:?}", participant, future_deposit_reserved);
 		}
 		assert_eq!(issuer_funding_delta, 0);
@@ -5325,13 +5325,13 @@ mod funding_end {
 		for payout in all_expected_payouts.clone() {
 			let evaluation_hold = inst.execute(|| {
 				<<TestRuntime as Config>::NativeCurrency as fungible::InspectHold<AccountIdOf<TestRuntime>>>::balance_on_hold(
-					&LockType::Evaluation(project_id),
+					&HoldReason::Evaluation(project_id).into(),
 					&payout.account,
 				)
 			});
 			let participation_hold = inst.execute(|| {
 				<<TestRuntime as Config>::NativeCurrency as fungible::InspectHold<AccountIdOf<TestRuntime>>>::balance_on_hold(
-					&LockType::Participation(project_id),
+					&HoldReason::Participation(project_id).into(),
 					&payout.account,
 				)
 			});
@@ -5339,7 +5339,7 @@ mod funding_end {
 			println!("account {:?} has participation hold {:?}", payout.account, participation_hold);
 		}
 		let _deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
-			ProjectIdOf<TestRuntime>,
+			ProjectId,
 			AccountIdOf<TestRuntime>,
 		>>::deposit_required(project_id);
 
@@ -5436,7 +5436,7 @@ mod funding_end {
 		let issuer_funding_delta = post_issuer_funding_balance - prev_issuer_funding_balance;
 		let participants = all_participants_plmc_deltas.accounts();
 		for participant in participants {
-			let future_deposit_reserved = inst.execute(||{<<TestRuntime as Config>::NativeCurrency as fungible::InspectHold<AccountIdOf<TestRuntime>>>::balance_on_hold(&LockType::FutureDeposit(project_id), &participant)});
+			let future_deposit_reserved = inst.execute(||{<<TestRuntime as Config>::NativeCurrency as fungible::InspectHold<AccountIdOf<TestRuntime>>>::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), &participant)});
 			println!("participant {:?} has future deposit reserved {:?}", participant, future_deposit_reserved);
 		}
 		assert_eq!(

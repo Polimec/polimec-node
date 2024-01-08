@@ -53,21 +53,6 @@ pub const EXISTENTIAL_DEPOSIT: Balance = 10 * MILLI_PLMC;
 
 const US_DOLLAR: u128 = 1_0_000_000_000u128;
 
-// Configure a mock runtime to test the pallet.
-frame_support::construct_runtime!(
-	pub enum TestRuntime
-	{
-		System: frame_system,
-		RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip,
-		Balances: pallet_balances,
-		FundingModule: crate::{Pallet, Call, Storage, Event<T>, Config<T>, HoldReason},
-		Vesting: pallet_linear_release,
-		LocalAssets: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>},
-		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>},
-		PolkadotXcm: pallet_xcm,
-	}
-);
-
 pub type LocalAssetsInstance = pallet_assets::Instance1;
 pub type StatemintAssetsInstance = pallet_assets::Instance2;
 
@@ -409,7 +394,7 @@ construct_runtime!(
 		LocalAssets: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>},
 		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>},
 		PolkadotXcm: pallet_xcm,
-		PolimecFunding: pallet_funding::{Pallet, Call, Storage, Event<T>, Config<T>}  = 52,
+		PolimecFunding: pallet_funding::{Pallet, Call, Storage, Event<T>, Config<T>, HoldReason}  = 52,
 	}
 );
 

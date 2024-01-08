@@ -805,8 +805,8 @@ impl<T: Config> Pallet<T> {
 
 		// * Update Storage *
 		// Reserve plmc deposit to create a contribution token account for this project
-		if T::NativeCurrency::balance_on_hold(&LockType::FutureDeposit(project_id), &evaluator) < ct_deposit {
-			T::NativeCurrency::hold(&LockType::FutureDeposit(project_id), &evaluator, ct_deposit)?;
+		if T::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), &evaluator) < ct_deposit {
+			T::NativeCurrency::hold(&HoldReason::FutureDeposit(project_id).into(), &evaluator, ct_deposit)?;
 		}
 
 		if caller_existing_evaluations.len() < T::MaxEvaluationsPerUser::get() as usize {
@@ -882,8 +882,8 @@ impl<T: Config> Pallet<T> {
 		ensure!(ct_amount <= project_metadata.total_allocation_size.0, Error::<T>::NotAllowed);
 
 		// Reserve plmc deposit to create a contribution token account for this project
-		if T::NativeCurrency::balance_on_hold(&LockType::FutureDeposit(project_id), &bidder) < ct_deposit {
-			T::NativeCurrency::hold(&LockType::FutureDeposit(project_id), &bidder, ct_deposit)?;
+		if T::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), &bidder) < ct_deposit {
+			T::NativeCurrency::hold(&HoldReason::FutureDeposit(project_id).into(), &bidder, ct_deposit)?;
 		}
 
 		// Fetch current bucket details and other required info
@@ -1093,8 +1093,9 @@ impl<T: Config> Pallet<T> {
 
 		// * Update storage *
 		// Reserve plmc deposit to create a contribution token account for this project
-		if T::NativeCurrency::balance_on_hold(&LockType::FutureDeposit(project_id), &contributor) < ct_deposit {
-			T::NativeCurrency::hold(&LockType::FutureDeposit(project_id), &contributor, ct_deposit)?;
+		if T::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), &contributor) < ct_deposit
+		{
+			T::NativeCurrency::hold(&HoldReason::FutureDeposit(project_id).into(), &contributor, ct_deposit)?;
 		}
 
 		// Try adding the new contribution to the system
@@ -1243,7 +1244,7 @@ impl<T: Config> Pallet<T> {
 		// * Update storage *
 		if !T::ContributionTokenCurrency::contains(&project_id, &bid.bidder) {
 			T::NativeCurrency::release(
-				&LockType::FutureDeposit(project_id),
+				&HoldReason::FutureDeposit(project_id).into(),
 				&bid.bidder,
 				T::ContributionTokenCurrency::deposit_required(project_id),
 				Precision::Exact,
@@ -1287,7 +1288,7 @@ impl<T: Config> Pallet<T> {
 		// * Update storage *
 		if !T::ContributionTokenCurrency::contains(&project_id, &contribution.contributor) {
 			T::NativeCurrency::release(
-				&LockType::FutureDeposit(project_id),
+				&HoldReason::FutureDeposit(project_id).into(),
 				&contribution.contributor,
 				T::ContributionTokenCurrency::deposit_required(project_id),
 				Precision::Exact,
@@ -1397,7 +1398,7 @@ impl<T: Config> Pallet<T> {
 		// * Update storage *
 		if !T::ContributionTokenCurrency::contains(&project_id, &evaluation.evaluator) {
 			T::NativeCurrency::release(
-				&LockType::FutureDeposit(project_id),
+				&HoldReason::FutureDeposit(project_id).into(),
 				&evaluation.evaluator,
 				T::ContributionTokenCurrency::deposit_required(project_id),
 				Precision::Exact,
@@ -1844,12 +1845,12 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_release_future_ct_deposit_for(
 		caller: &AccountIdOf<T>,
-		project_id: T::ProjectIdentifier,
+		project_id: ProjectId,
 		participant: &AccountIdOf<T>,
 	) -> DispatchResult {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		let held_plmc = T::NativeCurrency::balance_on_hold(&LockType::FutureDeposit(project_id), participant);
+		let held_plmc = T::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), participant);
 		// * Validity checks *
 		ensure!(
 			matches!(project_details.status, ProjectStatus::EvaluationFailed | ProjectStatus::FundingFailed),
@@ -1859,7 +1860,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Update storage *
 		T::NativeCurrency::release(
-			&LockType::FutureDeposit(project_id),
+			&HoldReason::FutureDeposit(project_id).into(),
 			participant,
 			T::ContributionTokenCurrency::deposit_required(project_id),
 			Precision::Exact,
@@ -2328,8 +2329,8 @@ impl<T: Config> Pallet<T> {
 	/// value and only call this once.
 	#[inline(always)]
 	pub fn fund_account_id(index: ProjectId) -> AccountIdOf<T> {
-	    // since the project_id starts at 0, we need to add 1 to get a different sub_account than the pallet account.
-        T::PalletId::get().into_sub_account_truncating(index.saturating_add(One::one()))
+		// since the project_id starts at 0, we need to add 1 to get a different sub_account than the pallet account.
+		T::PalletId::get().into_sub_account_truncating(index.saturating_add(One::one()))
 	}
 
 	/// Adds a project to the ProjectsToUpdate storage, so it can be updated at some later point in time.

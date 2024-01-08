@@ -265,11 +265,11 @@ pub mod pallet {
 	#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 	use crate::traits::SetPrices;
 
-    #[pallet::composite_enum]
+	#[pallet::composite_enum]
 	pub enum HoldReason {
 		Evaluation(ProjectId),
 		Participation(ProjectId),
-        // We require a PLMC deposit to create an account for minting the CTs to this user.
+		// We require a PLMC deposit to create an account for minting the CTs to this user.
 		// Here we make sure the user has this amount before letting him participate.
 		FutureDeposit(ProjectId),
 	}
@@ -346,8 +346,8 @@ pub mod pallet {
 			+ fungibles::metadata::Mutate<AccountIdOf<Self>>
 			+ fungibles::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>
 			+ fungibles::roles::Inspect<AccountIdOf<Self>>
-			+ AccountTouch<Self::ProjectIdentifier, AccountIdOf<Self>, Balance = BalanceOf<Self>>
-			+ ContainsPair<Self::ProjectIdentifier, AccountIdOf<Self>>;
+			+ AccountTouch<ProjectId, AccountIdOf<Self>, Balance = BalanceOf<Self>>
+			+ ContainsPair<ProjectId, AccountIdOf<Self>>;
 
 		type PriceProvider: ProvideStatemintPrice<AssetId = u32, Price = Self::Price>;
 
@@ -491,7 +491,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn project_details)]
 	/// StorageMap containing additional information for the projects, relevant for correctness of the protocol
-	pub type ProjectsDetails<T: Config> = StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, ProjectDetailsOf<T>>;
+	pub type ProjectsDetails<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, ProjectDetailsOf<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn projects_to_update)]
@@ -829,12 +829,12 @@ pub mod pallet {
 			migration_origins: BoundedVec<MigrationOrigin, MaxMigrationsPerXcm<T>>,
 		},
 		ReleaseFutureCTDepositFailed {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			participant: AccountIdOf<T>,
 			error: DispatchError,
 		},
 		FutureCTDepositReleased {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			participant: AccountIdOf<T>,
 			caller: AccountIdOf<T>,
 		},

@@ -17,7 +17,7 @@ impl<T: Config> DoRemainingOperation<T> for Cleaner<AccountListOf<T>> {
 		}
 	}
 
-	pub fn do_one_operation(&mut self, project_id: ProjectId) -> Result<Weight, DispatchError> {
+	fn do_one_operation(&mut self, project_id: ProjectId) -> Result<Weight, DispatchError> {
 		match self {
 			Cleaner::NotReady => Err(DispatchError::Other("Cleaner not ready")),
 			Cleaner::Success(state) =>
@@ -298,10 +298,7 @@ fn release_future_ct_deposit_one_participant<T: Config>(
 	return (base_weight, iter_participants.collect_vec().try_into().expect("Vec is equal or smaller, so has to fit"))
 }
 
-fn remaining_evaluators_to_reward_or_slash<T: Config>(
-	project_id: ProjectId,
-	outcome: EvaluatorsOutcomeOf<T>,
-) -> u64 {
+fn remaining_evaluators_to_reward_or_slash<T: Config>(project_id: ProjectId, outcome: EvaluatorsOutcomeOf<T>) -> u64 {
 	if outcome == EvaluatorsOutcomeOf::<T>::Unchanged {
 		0u64
 	} else {
@@ -338,7 +335,7 @@ fn remaining_contributions<T: Config>(project_id: ProjectId) -> u64 {
 	Contributions::<T>::iter_prefix_values((project_id,)).count() as u64
 }
 
-fn remaining_participants<T: Config>(project_id: T::ProjectIdentifier) -> AccountListOf<T> {
+fn remaining_participants<T: Config>(project_id: ProjectId) -> AccountListOf<T> {
 	let evaluators = Evaluations::<T>::iter_key_prefix((project_id,)).map(|(evaluator, _evaluation_id)| evaluator);
 	let bidders = Bids::<T>::iter_key_prefix((project_id,)).map(|(bidder, _bid_id)| bidder);
 	let contributors =
@@ -350,7 +347,7 @@ fn remaining_participants<T: Config>(project_id: T::ProjectIdentifier) -> Accoun
 	)
 }
 
-fn remaining_bids_without_ct_minted<T: Config>(project_id: T::ProjectIdentifier) -> u64 {
+fn remaining_bids_without_ct_minted<T: Config>(project_id: ProjectId) -> u64 {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	project_bids.filter(|bid| !bid.ct_minted).count() as u64
 }

@@ -393,7 +393,7 @@ impl<
 		assert_eq!(project_details.status, ProjectStatus::EvaluationRound);
 		assert_eq!(self.get_plmc_total_supply(), total_plmc_supply);
 		self.do_free_plmc_assertions(expected_free_plmc_balances);
-        self.do_reserved_plmc_assertions(expected_reserved_plmc_balances, HoldReason::Evaluation(project_id).into());
+		self.do_reserved_plmc_assertions(expected_reserved_plmc_balances, HoldReason::Evaluation(project_id).into());
 		self.do_reserved_plmc_assertions(expected_ct_account_deposits, HoldReason::FutureDeposit(project_id).into());
 	}
 
@@ -1484,7 +1484,7 @@ pub mod async_features {
 		instantiator: Arc<Mutex<Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>>>,
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
-	) -> ProjectIdOf<T> {
+	) -> ProjectId {
 		let mut inst = instantiator.lock().await;
 
 		let asset_account_deposit =
@@ -1517,7 +1517,7 @@ pub mod async_features {
 		instantiator: Arc<Mutex<Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>>>,
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
-	) -> ProjectIdOf<T> {
+	) -> ProjectId {
 		let project_id = async_create_new_project(instantiator.clone(), project_metadata, issuer.clone()).await;
 
 		let mut inst = instantiator.lock().await;
@@ -1533,7 +1533,7 @@ pub mod async_features {
 	>(
 		instantiator: Arc<Mutex<Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>>>,
 		block_orchestrator: Arc<BlockOrchestrator<T, AllPalletsWithoutSystem, RuntimeEvent>>,
-		project_id: ProjectIdOf<T>,
+		project_id: ProjectId,
 		caller: AccountIdOf<T>,
 	) -> Result<(), DispatchError> {
 		let mut inst = instantiator.lock().await;
@@ -1576,7 +1576,7 @@ pub mod async_features {
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
 		evaluations: Vec<UserToUSDBalance<T>>,
-	) -> ProjectIdOf<T> {
+	) -> ProjectId {
 		let project_id = async_create_evaluating_project(instantiator.clone(), project_metadata, issuer.clone()).await;
 
 		let mut inst = instantiator.lock().await;
@@ -1628,7 +1628,7 @@ pub mod async_features {
 	>(
 		instantiator: Arc<Mutex<Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>>>,
 		block_orchestrator: Arc<BlockOrchestrator<T, AllPalletsWithoutSystem, RuntimeEvent>>,
-		project_id: ProjectIdOf<T>,
+		project_id: ProjectId,
 	) -> Result<(), DispatchError> {
 		let mut inst = instantiator.lock().await;
 
@@ -1686,7 +1686,7 @@ pub mod async_features {
 		issuer: AccountIdOf<T>,
 		evaluations: Vec<UserToUSDBalance<T>>,
 		bids: Vec<BidParams<T>>,
-	) -> (ProjectIdOf<T>, Vec<BidParams<T>>) {
+	) -> (ProjectId, Vec<BidParams<T>>) {
 		if bids.is_empty() {
 			panic!("Cannot start community funding without bids")
 		}
@@ -1756,7 +1756,7 @@ pub mod async_features {
 
 		inst.do_reserved_plmc_assertions(
 			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
-			LockType::Participation(project_id),
+			HoldReason::Participation(project_id).into(),
 		);
 		inst.do_bid_transferred_statemint_asset_assertions(
 			funding_asset_deposits.merge_accounts(MergeOperation::Add),
@@ -1799,7 +1799,7 @@ pub mod async_features {
 	>(
 		instantiator: Arc<Mutex<Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>>>,
 		block_orchestrator: Arc<BlockOrchestrator<T, AllPalletsWithoutSystem, RuntimeEvent>>,
-		project_id: ProjectIdOf<T>,
+		project_id: ProjectId,
 	) -> Result<(), DispatchError> {
 		let mut inst = instantiator.lock().await;
 
@@ -1842,7 +1842,7 @@ pub mod async_features {
 		evaluations: Vec<UserToUSDBalance<T>>,
 		bids: Vec<BidParams<T>>,
 		contributions: Vec<ContributionParams<T>>,
-	) -> (ProjectIdOf<T>, Vec<BidParams<T>>) {
+	) -> (ProjectId, Vec<BidParams<T>>) {
 		let (project_id, accepted_bids) = async_create_community_contributing_project(
 			instantiator.clone(),
 			block_orchestrator.clone(),
@@ -1928,7 +1928,7 @@ pub mod async_features {
 
 		inst.do_reserved_plmc_assertions(
 			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
-			LockType::Participation(project_id),
+			HoldReason::Participation(project_id).into(),
 		);
 		inst.do_contribution_transferred_statemint_asset_assertions(
 			funding_asset_deposits.merge_accounts(MergeOperation::Add),
@@ -1951,7 +1951,7 @@ pub mod async_features {
 	>(
 		instantiator: Arc<Mutex<Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>>>,
 		block_orchestrator: Arc<BlockOrchestrator<T, AllPalletsWithoutSystem, RuntimeEvent>>,
-		project_id: ProjectIdOf<T>,
+		project_id: ProjectId,
 	) -> Result<(), DispatchError> {
 		let mut inst = instantiator.lock().await;
 
@@ -2000,7 +2000,7 @@ pub mod async_features {
 		bids: Vec<BidParams<T>>,
 		community_contributions: Vec<ContributionParams<T>>,
 		remainder_contributions: Vec<ContributionParams<T>>,
-	) -> ProjectIdOf<T> {
+	) -> ProjectId {
 		let (project_id, accepted_bids) = async_create_remainder_contributing_project(
 			instantiator.clone(),
 			block_orchestrator.clone(),
@@ -2114,7 +2114,7 @@ pub mod async_features {
 
 		let merged = total_plmc_participation_locked.merge_accounts(MergeOperation::Add);
 
-		inst.do_reserved_plmc_assertions(merged, LockType::Participation(project_id));
+		inst.do_reserved_plmc_assertions(merged, HoldReason::Participation(project_id).into());
 
 		inst.do_contribution_transferred_statemint_asset_assertions(
 			funding_asset_deposits.merge_accounts(MergeOperation::Add),
@@ -2159,7 +2159,7 @@ pub mod async_features {
 		instantiator: Arc<Mutex<Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>>>,
 		block_orchestrator: Arc<BlockOrchestrator<T, AllPalletsWithoutSystem, RuntimeEvent>>,
 		test_project_params: TestProjectParams<T>,
-	) -> ProjectIdOf<T> {
+	) -> ProjectId {
 		match test_project_params.expected_state {
 			ProjectStatus::FundingSuccessful =>
 				async_create_finished_project(
@@ -2222,7 +2222,7 @@ pub mod async_features {
 		mutex_inst: Arc<Mutex<Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>>>,
 		block_orchestrator: Arc<BlockOrchestrator<T, AllPalletsWithoutSystem, RuntimeEvent>>,
 		test_project_params: TestProjectParams<T>,
-	) -> ProjectIdOf<T> {
+	) -> ProjectId {
 		let time_to_new_project: BlockNumberFor<T> = Zero::zero();
 		let time_to_evaluation: BlockNumberFor<T> = time_to_new_project + Zero::zero();
 		// we immediately start the auction, so we dont wait for T::AuctionInitializePeriodDuration.
@@ -2336,7 +2336,7 @@ pub mod async_features {
 	>(
 		instantiator: Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>,
 		projects: Vec<TestProjectParams<T>>,
-	) -> (Vec<ProjectIdOf<T>>, Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>) {
+	) -> (Vec<ProjectId>, Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>) {
 		// let tokio_runtime = Runtime::new().unwrap();
 
 		use tokio::runtime::Builder;
