@@ -173,14 +173,11 @@
 #![cfg_attr(feature = "runtime-benchmarks", recursion_limit = "512")]
 pub use crate::weights::WeightInfo;
 use frame_support::{
-	dispatch::{Decode, Encode},
-	pallet_macros::*,
-	pallet_prelude::BuildGenesisConfig,
 	traits::{
 		tokens::{fungible, fungibles, Balance},
 		AccountTouch, ContainsPair, Randomness,
 	},
-	BoundedVec, PalletId, Parameter,
+	BoundedVec, PalletId,
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 pub use pallet::*;
@@ -188,10 +185,7 @@ use polimec_common::migration_types::*;
 use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
 use sp_core::ConstU32;
-use sp_runtime::{
-	traits::{AccountIdConversion, Member},
-	FixedPointNumber, FixedPointOperand, FixedU128, WeakBoundedVec,
-};
+use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128, WeakBoundedVec};
 use sp_std::{marker::PhantomData, prelude::*};
 use traits::DoRemainingOperation;
 pub use types::*;
@@ -1411,9 +1405,8 @@ pub mod pallet {
 			{
 				type GenesisInstantiator<T> =
 					instantiator::Instantiator<T, <T as Config>::AllPalletsWithoutSystem, <T as Config>::RuntimeEvent>;
-				let mut inst = GenesisInstantiator::<T>::new(None);
+				let inst = GenesisInstantiator::<T>::new(None);
 				<T as Config>::SetPrices::set_prices();
-				let current_block = <frame_system::Pallet<T>>::block_number();
 				instantiator::async_features::create_multiple_projects_at(inst, self.starting_projects.clone());
 			}
 		}

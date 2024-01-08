@@ -6194,7 +6194,7 @@ mod async_tests {
 		.assimilate_storage(&mut t)
 		.unwrap();
 
-		let mut ext = sp_io::TestExternalities::new(t);
+		let ext = sp_io::TestExternalities::new(t);
 		let mut inst = MockInstantiator::new(Some(RefCell::new(ext)));
 
 		dbg!(inst.get_project_details(0).status);

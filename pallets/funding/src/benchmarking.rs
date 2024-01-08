@@ -211,9 +211,11 @@ mod benchmarks {
 		<T as Config>::SetPrices::set_prices();
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
+		let ed = BenchInstantiator::<T>::get_ed();
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
+		inst.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), ed * 2u64.into())]);
 
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
 

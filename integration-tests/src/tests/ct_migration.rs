@@ -1,11 +1,11 @@
 use crate::*;
 use pallet_funding::{
-	assert_close_enough, traits::VestingDurationCalculation, AcceptedFundingAsset, BidStatus, EvaluatorsOutcome,
-	MigrationStatus, Multiplier, MultiplierOf, ProjectIdOf, RewardOrSlash,
+	assert_close_enough, traits::VestingDurationCalculation, BidStatus, EvaluatorsOutcome, MigrationStatus, Multiplier,
+	ProjectIdOf, RewardOrSlash,
 };
 use polimec_common::migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
 use polimec_parachain_runtime::PolimecFunding;
-use sp_runtime::{traits::Convert, FixedPointNumber, Perquintill};
+use sp_runtime::{traits::Convert, Perquintill};
 use std::collections::HashMap;
 use tests::defaults::*;
 
@@ -262,7 +262,6 @@ fn migrations_are_vested(grouped_migrations: Vec<Migrations>) {
 #[test]
 fn migration_check() {
 	let mut inst = IntegrationInstantiator::new(None);
-	set_oracle_prices();
 	let project_id = Polimec::execute_with(|| {
 		let project_id = inst.create_finished_project(
 			default_project(ISSUER.into(), 0),
@@ -285,7 +284,6 @@ fn migration_check() {
 #[test]
 fn migration_is_sent() {
 	let mut inst = IntegrationInstantiator::new(None);
-	set_oracle_prices();
 	let mut participants =
 		vec![EVAL_1, EVAL_2, EVAL_3, BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BUYER_1, BUYER_2, BUYER_3, BUYER_4]
 			.into_iter()
@@ -331,7 +329,6 @@ fn migration_is_sent() {
 #[test]
 fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 	let mut inst = IntegrationInstantiator::new(None);
-	set_oracle_prices();
 	let participants =
 		vec![EVAL_1, EVAL_2, EVAL_3, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5, BUYER_2, BUYER_3, BUYER_4, BUYER_5]
 			.into_iter()
@@ -382,7 +379,6 @@ fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 #[test]
 fn vesting_over_several_blocks_on_project() {
 	let mut inst = IntegrationInstantiator::new(None);
-	set_oracle_prices();
 	let participants = vec![EVAL_1, EVAL_2, EVAL_3, BIDDER_1, BIDDER_2, BUYER_1, BUYER_2, BUYER_3]
 		.into_iter()
 		.map(|x| AccountId::from(x))
@@ -478,7 +474,6 @@ fn vesting_over_several_blocks_on_project() {
 #[test]
 fn disallow_duplicated_migrations_on_receiver_pallet() {
 	let mut inst = IntegrationInstantiator::new(None);
-	set_oracle_prices();
 
 	let project_id = Polimec::execute_with(|| {
 		inst.create_finished_project(

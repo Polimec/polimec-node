@@ -274,6 +274,7 @@ fn testnet_genesis(
 use pallet_funding::{instantiator::UserToUSDBalance, *};
 use sp_runtime::BoundedVec;
 
+#[cfg(feature = "std")]
 mod testing_helpers {
 	use super::*;
 	use frame_benchmarking::frame_support::assert_ok;
@@ -370,6 +371,7 @@ mod testing_helpers {
 	>;
 }
 
+#[cfg(feature = "std")]
 #[allow(clippy::too_many_arguments)]
 fn testing_genesis(
 	wasm_binary: &[u8],

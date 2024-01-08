@@ -245,7 +245,6 @@ fn evaluation_round_completed() {
 	let issuer = ISSUER.into();
 	let project = excel_project(inst.get_new_nonce());
 	let evaluations = excel_evaluators();
-	set_oracle_prices();
 
 	Polimec::execute_with(|| {
 		inst.create_auctioning_project(project, issuer, evaluations);
@@ -260,7 +259,6 @@ fn auction_round_completed() {
 	let project = excel_project(inst.get_new_nonce());
 	let evaluations = excel_evaluators();
 	let bids = excel_bidders();
-	set_oracle_prices();
 
 	Polimec::execute_with(|| {
 		//let filtered_bids = MockInstantiator::filter_bids_after_auction(bids.clone(), project.total_allocation_size.0);
@@ -292,7 +290,6 @@ fn auction_round_completed() {
 #[test]
 fn community_round_completed() {
 	let mut inst = IntegrationInstantiator::new(None);
-	set_oracle_prices();
 
 	Polimec::execute_with(|| {
 		let _ = inst.create_remainder_contributing_project(
@@ -327,7 +324,6 @@ fn community_round_completed() {
 #[test]
 fn remainder_round_completed() {
 	let mut inst = IntegrationInstantiator::new(None);
-	set_oracle_prices();
 
 	Polimec::execute_with(|| {
 		let project_id = inst.create_finished_project(
@@ -373,7 +369,6 @@ fn remainder_round_completed() {
 #[test]
 fn funds_raised() {
 	let mut inst = IntegrationInstantiator::new(None);
-	set_oracle_prices();
 
 	Polimec::execute_with(|| {
 		let project_id = inst.create_finished_project(
@@ -402,7 +397,6 @@ fn funds_raised() {
 #[test]
 fn ct_minted() {
 	let mut inst = IntegrationInstantiator::new(None);
-	set_oracle_prices();
 
 	Polimec::execute_with(|| {
 		let _ = inst.create_finished_project(
@@ -428,7 +422,6 @@ fn ct_minted() {
 #[test]
 fn ct_migrated() {
 	let mut inst = IntegrationInstantiator::new(None);
-	set_oracle_prices();
 
 	let project_id = Polimec::execute_with(|| {
 		let project_id = inst.create_finished_project(

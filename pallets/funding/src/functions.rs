@@ -26,7 +26,7 @@ use frame_support::{
 		fungible::{InspectHold, MutateHold as FungibleMutateHold},
 		fungibles::{metadata::Mutate as MetadataMutate, Create, Inspect, Mutate as FungiblesMutate},
 		tokens::{Fortitude, Precision, Preservation, Restriction},
-		ExistenceRequirement, Get,
+		Get,
 	},
 };
 use frame_system::pallet_prelude::BlockNumberFor;

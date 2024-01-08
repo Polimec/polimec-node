@@ -1675,20 +1675,17 @@ pub mod async_features {
 			.candle_auction
 			.end()
 			.expect("Candle end point should exist");
-		let prev = inst.current_block();
 		let community_start = candle_end + 2u32.into();
 
 		let notify = Arc::new(Notify::new());
 
 		block_orchestrator.add_awaiting_project(community_start, notify.clone()).await;
-		// Wait for the notification that our desired block was reached to continue
 
 		drop(inst);
 
 		notify.notified().await;
 
 		inst = instantiator.lock().await;
-		let now = inst.current_block();
 
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::CommunityRound);
 
@@ -1786,7 +1783,6 @@ pub mod async_features {
 		inst.do_free_statemint_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
 		assert_eq!(inst.get_plmc_total_supply(), post_supply);
 
-		let details = inst.get_project_details(project_id);
 		drop(inst);
 		async_start_community_funding(instantiator.clone(), block_orchestrator, project_id).await.unwrap();
 		let mut inst = instantiator.lock().await;
