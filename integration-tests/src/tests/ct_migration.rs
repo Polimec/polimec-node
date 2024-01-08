@@ -1,14 +1,13 @@
 use crate::*;
 use pallet_funding::{
-	assert_close_enough, traits::VestingDurationCalculation, BidStatus, EvaluatorsOutcome, MigrationStatus, Multiplier,
-	ProjectIdOf, RewardOrSlash,
+	assert_close_enough, traits::VestingDurationCalculation, AcceptedFundingAsset, BidStatus, EvaluatorsOutcome,
+	MigrationStatus, Multiplier, MultiplierOf, ProjectIdOf, RewardOrSlash,
 };
 use polimec_common::migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
 use polimec_parachain_runtime::PolimecFunding;
-use sp_runtime::{traits::Convert, Perquintill};
+use sp_runtime::{traits::Convert, FixedPointNumber, Perquintill};
 use std::collections::HashMap;
 use tests::defaults::*;
-
 fn execute_cleaner(inst: &mut IntegrationInstantiator) {
 	Polimec::execute_with(|| {
 		inst.advance_time(<PolimecRuntime as pallet_funding::Config>::SuccessToSettlementTime::get() + 1u32).unwrap();
