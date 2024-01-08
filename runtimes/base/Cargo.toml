@@ -27,6 +27,7 @@ smallvec = "1.11.0"
 # Local
 pallet-parachain-staking.workspace = true
 shared-configuration.workspace = true
+polimec-traits.workspace = true
 
 # Substrate
 frame-benchmarking = { workspace = true, optional = true }
@@ -39,12 +40,16 @@ frame-try-runtime = { workspace = true, optional = true }
 pallet-aura.workspace = true
 pallet-authorship.workspace = true
 pallet-balances.workspace = true
+pallet-multisig.workspace = true
+pallet-proxy.workspace = true
 pallet-session.workspace = true
 pallet-treasury.workspace = true
 pallet-sudo.workspace = true
 pallet-timestamp.workspace = true
 pallet-transaction-payment.workspace = true
 pallet-transaction-payment-rpc-runtime-api.workspace = true
+pallet-vesting.workspace = true
+pallet-utility.workspace = true
 sp-arithmetic.workspace = true
 sp-api.workspace = true
 sp-block-builder.workspace = true
@@ -105,17 +110,22 @@ std = [
 	"pallet-aura/std",
 	"pallet-authorship/std",
 	"pallet-balances/std",
+	"pallet-multisig/std",
 	"pallet-parachain-staking/std",
+	"pallet-proxy/std",
 	"pallet-session/std",
 	"pallet-sudo/std",
 	"pallet-timestamp/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
 	"pallet-treasury/std",
+	"pallet-utility/std",
+	"pallet-vesting/std",
 	"pallet-xcm/std",
 	"parachain-info/std",
 	"parachains-common/std",
 	"parity-scale-codec/std",
+	"polimec-traits/std",
 	"polkadot-parachain/std",
 	"polkadot-primitives/std",
 	"polkadot-runtime-common/std",
@@ -148,11 +158,16 @@ runtime-benchmarks = [
 	"frame-system/runtime-benchmarks",
 	"hex-literal",
 	"pallet-balances/runtime-benchmarks",
+	"pallet-multisig/runtime-benchmarks",
 	"pallet-parachain-staking/runtime-benchmarks",
+	"pallet-proxy/runtime-benchmarks",
 	"pallet-sudo/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-treasury/runtime-benchmarks",
+	"pallet-utility/runtime-benchmarks",
+	"pallet-vesting/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
+	"polimec-traits/runtime-benchmarks",
 	"polkadot-parachain/runtime-benchmarks",
 	"polkadot-primitives/runtime-benchmarks",
 	"polkadot-runtime-common/runtime-benchmarks",
@@ -175,14 +190,19 @@ try-runtime = [
 	"pallet-aura/try-runtime",
 	"pallet-authorship/try-runtime",
 	"pallet-balances/try-runtime",
+	"pallet-multisig/try-runtime",
 	"pallet-parachain-staking/try-runtime",
+	"pallet-proxy/try-runtime",
 	"pallet-session/try-runtime",
 	"pallet-sudo/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"pallet-transaction-payment/try-runtime",
 	"pallet-treasury/try-runtime",
+	"pallet-utility/try-runtime",
+	"pallet-vesting/try-runtime",
 	"pallet-xcm/try-runtime",
 	"parachain-info/try-runtime",
+	"polimec-traits/try-runtime",
 	"polkadot-runtime-common/try-runtime",
 	"shared-configuration/try-runtime",
 	"sp-runtime/try-runtime",

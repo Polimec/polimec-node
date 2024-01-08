@@ -1,4 +1,4 @@
-use crate::{BalanceOf, Config};
+use crate::{BalanceOf, Config, ProjectId};
 use frame_support::weights::Weight;
 use frame_system::pallet_prelude::BlockNumberFor;
 use sp_arithmetic::FixedPointNumber;
@@ -21,7 +21,7 @@ pub trait ProvideStatemintPrice {
 pub trait DoRemainingOperation<T: Config> {
 	fn has_remaining_operations(&self) -> bool;
 
-	fn do_one_operation(&mut self, project_id: T::ProjectIdentifier) -> Result<Weight, DispatchError>;
+	fn do_one_operation(&mut self, project_id: ProjectId) -> Result<Weight, DispatchError>;
 }
 
 #[cfg(any(feature = "runtime-benchmarks", feature = "std"))]

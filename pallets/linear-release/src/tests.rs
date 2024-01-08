@@ -22,22 +22,20 @@ use sp_runtime::{
 };
 
 use super::{Vesting as VestingStorage, *};
-use crate::mock::{Balances, ExtBuilder, System, Test, Vesting};
-use pallet_funding::LockType;
-
+use crate::mock::{Balances, ExtBuilder, MockRuntimeHoldReason, System, Test, Vesting};
 /// A default existential deposit.
 const ED: u64 = 256;
 
 /// Calls vest, and asserts that there is no entry for `account`
 /// in the `Vesting` storage item.
-fn vest_and_assert_no_vesting<T>(account: u64, reason: LockType<u32>)
+fn vest_and_assert_no_vesting<T>(account: u64, reason: MockRuntimeHoldReason)
 where
 	u64: EncodeLike<AccountIdOf<T>>,
-	LockType<u32>: EncodeLike<ReasonOf<T>>,
+	MockRuntimeHoldReason: EncodeLike<ReasonOf<T>>,
 	T: pallet::Config,
 {
 	// Its ok for this to fail because the user may already have no schedules.
-	let _result: Result<(), DispatchError> = Vesting::vest(Some(account).into(), LockType::Participation(0));
+	let _result: Result<(), DispatchError> = Vesting::vest(Some(account).into(), MockRuntimeHoldReason::Reason);
 	assert!(!<VestingStorage<T>>::contains_key(account, reason));
 }
 
@@ -65,38 +63,38 @@ fn check_vesting_status() {
 			64, // Vesting over 20 blocks
 			10,
 		);
-		assert_eq!(Vesting::vesting(1, LockType::Participation(0)).unwrap(), vec![user1_vesting_schedule]); // Account 1 has a vesting schedule
-		assert_eq!(Vesting::vesting(2, LockType::Participation(0)).unwrap(), vec![user2_vesting_schedule]); // Account 2 has a vesting schedule
-		assert_eq!(Vesting::vesting(12, LockType::Participation(0)).unwrap(), vec![user12_vesting_schedule]); // Account 12 has a vesting schedule
+		assert_eq!(Vesting::vesting(1, MockRuntimeHoldReason::Reason).unwrap(), vec![user1_vesting_schedule]); // Account 1 has a vesting schedule
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason).unwrap(), vec![user2_vesting_schedule]); // Account 2 has a vesting schedule
+		assert_eq!(Vesting::vesting(12, MockRuntimeHoldReason::Reason).unwrap(), vec![user12_vesting_schedule]); // Account 12 has a vesting schedule
 
 		// Account 1 has only 128 units vested from their illiquid ED * 5 units at block 1
-		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(128));
+		assert_eq!(Vesting::vesting_balance(&1, MockRuntimeHoldReason::Reason), Some(128));
 		// Account 2 has their full balance locked
-		assert_eq!(Vesting::vesting_balance(&2, LockType::Participation(0)), Some(0));
+		assert_eq!(Vesting::vesting_balance(&2, MockRuntimeHoldReason::Reason), Some(0));
 		// Account 12 has only their illiquid funds locked
-		assert_eq!(Vesting::vesting_balance(&12, LockType::Participation(0)), Some(0));
+		assert_eq!(Vesting::vesting_balance(&12, MockRuntimeHoldReason::Reason), Some(0));
 
 		System::set_block_number(10);
 		assert_eq!(System::block_number(), 10);
 
 		// Account 1 has fully vested by block 10
-		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(ED * 5));
+		assert_eq!(Vesting::vesting_balance(&1, MockRuntimeHoldReason::Reason), Some(ED * 5));
 		// Account 2 has started vesting by block 10
-		assert_eq!(Vesting::vesting_balance(&2, LockType::Participation(0)), Some(0));
+		assert_eq!(Vesting::vesting_balance(&2, MockRuntimeHoldReason::Reason), Some(0));
 		// Account 12 has started vesting by block 10
-		assert_eq!(Vesting::vesting_balance(&12, LockType::Participation(0)), Some(0));
+		assert_eq!(Vesting::vesting_balance(&12, MockRuntimeHoldReason::Reason), Some(0));
 
 		System::set_block_number(30);
 		assert_eq!(System::block_number(), 30);
 
-		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(ED * 5)); // Account 1 is still fully vested, and not negative
-		assert_eq!(Vesting::vesting_balance(&2, LockType::Participation(0)), Some(ED * 20)); // Account 2 has fully vested by block 30
-		assert_eq!(Vesting::vesting_balance(&12, LockType::Participation(0)), Some(ED * 5)); // Account 2 has fully vested by block 30
+		assert_eq!(Vesting::vesting_balance(&1, MockRuntimeHoldReason::Reason), Some(ED * 5)); // Account 1 is still fully vested, and not negative
+		assert_eq!(Vesting::vesting_balance(&2, MockRuntimeHoldReason::Reason), Some(ED * 20)); // Account 2 has fully vested by block 30
+		assert_eq!(Vesting::vesting_balance(&12, MockRuntimeHoldReason::Reason), Some(ED * 5)); // Account 2 has fully vested by block 30
 
 		// Once we unlock the funds, they are removed from storage.
-		vest_and_assert_no_vesting::<Test>(1, LockType::Participation(0));
-		vest_and_assert_no_vesting::<Test>(2, LockType::Participation(0));
-		vest_and_assert_no_vesting::<Test>(12, LockType::Participation(0));
+		vest_and_assert_no_vesting::<Test>(1, MockRuntimeHoldReason::Reason);
+		vest_and_assert_no_vesting::<Test>(2, MockRuntimeHoldReason::Reason);
+		vest_and_assert_no_vesting::<Test>(12, MockRuntimeHoldReason::Reason);
 	});
 }
 
@@ -110,12 +108,12 @@ fn check_vesting_status_for_multi_schedule_account() {
 			10,
 		);
 		// Account 2 already has a vesting schedule.
-		assert_eq!(Vesting::vesting(2, LockType::Participation(0)).unwrap(), vec![sched0]);
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason).unwrap(), vec![sched0]);
 
 		// Account 2's free balance is the one set in Genesis inside the Balances pallet.
 		let balance = Balances::balance(&2);
 		assert_eq!(balance, ED);
-		assert_eq!(Vesting::vesting_balance(&2, LockType::Participation(0)), Some(0));
+		assert_eq!(Vesting::vesting_balance(&2, MockRuntimeHoldReason::Reason), Some(0));
 
 		// Add a 2nd schedule that is already unlocking by block #1.
 		let sched1 = VestingInfo::new(
@@ -123,16 +121,16 @@ fn check_vesting_status_for_multi_schedule_account() {
 			ED, // Vesting over 10 blocks
 			0,
 		);
-		assert_eq!(Balances::balance_on_hold(&LockType::Participation(0), &2), 20 * ED);
-		assert_ok!(Vesting::vested_transfer(Some(4).into(), 2, sched1, LockType::Participation(0)));
-		assert_eq!(Balances::balance_on_hold(&LockType::Participation(0), &2), 29 * ED); // Why 29 and not 30? Because sched1 is already unlocking.
-																				 // Free balance is the one set in Genesis inside the Balances pallet
-																				 // + the one from the vested transfer.
-																				 // BUT NOT the one in sched0, since the vesting will start at block #10.
+		assert_eq!(Balances::balance_on_hold(&MockRuntimeHoldReason::Reason, &2), 20 * ED);
+		assert_ok!(Vesting::vested_transfer(Some(4).into(), 2, sched1, MockRuntimeHoldReason::Reason));
+		assert_eq!(Balances::balance_on_hold(&MockRuntimeHoldReason::Reason, &2), 29 * ED); // Why 29 and not 30? Because sched1 is already unlocking.
+																					// Free balance is the one set in Genesis inside the Balances pallet
+																					// + the one from the vested transfer.
+																					// BUT NOT the one in sched0, since the vesting will start at block #10.
 		let balance = Balances::balance(&2);
 		assert_eq!(balance, ED * (2));
 		// The most recently added schedule exists.
-		assert_eq!(Vesting::vesting(2, LockType::Participation(0)).unwrap(), vec![sched0, sched1]);
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason).unwrap(), vec![sched0, sched1]);
 
 		// Add a 3rd schedule.
 		let sched2 = VestingInfo::new(
@@ -140,8 +138,8 @@ fn check_vesting_status_for_multi_schedule_account() {
 			ED, // Vesting over 30 blocks
 			5,
 		);
-		assert_ok!(Vesting::vested_transfer(Some(4).into(), 2, sched2, LockType::Participation(0)));
-		assert_eq!(Balances::balance_on_hold(&LockType::Participation(0), &2), 15104); // 59 * ED
+		assert_ok!(Vesting::vested_transfer(Some(4).into(), 2, sched2, MockRuntimeHoldReason::Reason));
+		assert_eq!(Balances::balance_on_hold(&MockRuntimeHoldReason::Reason, &2), 15104); // 59 * ED
 
 		System::set_block_number(9);
 		assert_eq!(System::block_number(), 9);
@@ -150,42 +148,42 @@ fn check_vesting_status_for_multi_schedule_account() {
 		let balance = Balances::balance(&2);
 		assert_eq!(balance, ED * (2));
 		// Let's release some funds from sched1 and sched2.
-		assert_ok!(Vesting::vest(Some(2).into(), LockType::Participation(0)));
+		assert_ok!(Vesting::vest(Some(2).into(), MockRuntimeHoldReason::Reason));
 		let balance = Balances::balance(&2);
 		assert_eq!(balance, ED * (1 + 9 + 4)); // 1 from Genesis + 9 from sched1 + 4 from sched2
-		assert_eq!(Balances::balance_on_hold(&LockType::Participation(0), &2), 12032); // 47 * ED
+		assert_eq!(Balances::balance_on_hold(&MockRuntimeHoldReason::Reason, &2), 12032); // 47 * ED
 
 		// sched1 and sched2 are freeing funds at block #9, but sched0 is not.
 		assert_eq!(
-			Vesting::vesting_balance(&2, LockType::Participation(0)),
+			Vesting::vesting_balance(&2, MockRuntimeHoldReason::Reason),
 			Some(sched1.per_block() * System::block_number() + sched2.per_block() * 4)
 		);
 
 		System::set_block_number(20);
 		// At block #20 sched1 is fully unlocked while sched2 and sched0 are partially unlocked.
 		assert_eq!(
-			Vesting::vesting_balance(&2, LockType::Participation(0)),
+			Vesting::vesting_balance(&2, MockRuntimeHoldReason::Reason),
 			Some(sched1.locked() + sched0.per_block() * 10 + sched2.per_block() * 15)
 		);
 
 		System::set_block_number(30);
 		// At block #30 sched0 and sched1 are fully unlocked while sched2 is partially unlocked.
 		assert_eq!(
-			Vesting::vesting_balance(&2, LockType::Participation(0)),
+			Vesting::vesting_balance(&2, MockRuntimeHoldReason::Reason),
 			Some(sched0.locked() + sched1.locked() + sched2.per_block() * 25)
 		);
 
 		// At block #35 sched2 fully unlocks and thus all schedules funds are unlocked.
 		System::set_block_number(35);
 		assert_eq!(
-			Vesting::vesting_balance(&2, LockType::Participation(0)),
+			Vesting::vesting_balance(&2, MockRuntimeHoldReason::Reason),
 			Some(sched0.locked() + sched1.locked() + sched2.locked())
 		);
 		// Since we have not called any extrinsics that would unlock funds the schedules
 		// are still in storage,
-		assert_eq!(Vesting::vesting(2, LockType::Participation(0)).unwrap(), vec![sched0, sched1, sched2]);
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason).unwrap(), vec![sched0, sched1, sched2]);
 		// but once we unlock the funds, they are removed from storage.
-		vest_and_assert_no_vesting::<Test>(2, LockType::Participation(0));
+		vest_and_assert_no_vesting::<Test>(2, MockRuntimeHoldReason::Reason);
 	});
 }
 
@@ -195,7 +193,7 @@ fn unvested_balance_should_not_transfer() {
 		let user1_free_balance = Balances::free_balance(1);
 		assert_eq!(user1_free_balance, 50); // Account 1 has free balance
 									// Account 1 has only 5 units vested at block 1 (plus 50 unvested)
-		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(5)); // Account 1 cannot send more than vested amount...
+		assert_eq!(Vesting::vesting_balance(&1, MockRuntimeHoldReason::Reason), Some(5)); // Account 1 cannot send more than vested amount...
 		assert_noop!(Balances::transfer_allow_death(Some(1).into(), 2, 56), TokenError::FundsUnavailable);
 	});
 }
@@ -207,9 +205,9 @@ fn vested_balance_should_transfer() {
 		let user1_free_balance = Balances::free_balance(1);
 		assert_eq!(user1_free_balance, 50); // Account 1 has free balance
 									// Account 1 has only 5 units vested at block 1 (plus 50 unvested)
-		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(5));
+		assert_eq!(Vesting::vesting_balance(&1, MockRuntimeHoldReason::Reason), Some(5));
 		assert_noop!(Balances::transfer_allow_death(Some(1).into(), 2, 45), TokenError::Frozen); // Account 1 free balance - ED is < 45
-		assert_ok!(Vesting::vest(Some(1).into(), LockType::Participation(0)));
+		assert_ok!(Vesting::vest(Some(1).into(), MockRuntimeHoldReason::Reason));
 		let user1_free_balance = Balances::free_balance(1);
 		assert_eq!(user1_free_balance, 55); // Account 1 has free balance
 									// Account 1 has vested 1 unit at block 1 (plus 50 unvested)
@@ -230,18 +228,18 @@ fn vested_balance_should_transfer_with_multi_sched() {
 		let user13_initial_free_balance = Balances::balance(&13);
 		// Amount set in Genesis
 		assert_eq!(user13_initial_free_balance, 2559744);
-		assert_ok!(Vesting::vested_transfer(Some(13).into(), 1, sched0, LockType::Participation(0)));
+		assert_ok!(Vesting::vested_transfer(Some(13).into(), 1, sched0, MockRuntimeHoldReason::Reason));
 		let user13_free_balance = Balances::balance(&13);
 		assert_eq!(user13_free_balance, user13_initial_free_balance - sched0.locked());
 
 		// Account "1" has 2 release schedule applied now: one from the Genesis and one from the transfer
-		assert_eq!(Vesting::vesting(1, LockType::Participation(0)).unwrap(), vec![sched0, sched0]);
+		assert_eq!(Vesting::vesting(1, MockRuntimeHoldReason::Reason).unwrap(), vec![sched0, sched0]);
 		let user1_free_balance = Balances::free_balance(1);
 		assert_eq!(user1_free_balance, user1_initial_free_balance + (2 * sched0.per_block()));
 
 		// Account "1" has only 256 units (1 ED) unlocking at block 1 (plus 1280 already free).
-		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(ED));
-		assert_ok!(Vesting::vest(Some(1).into(), LockType::Participation(0)));
+		assert_eq!(Vesting::vesting_balance(&1, MockRuntimeHoldReason::Reason), Some(ED));
+		assert_ok!(Vesting::vest(Some(1).into(), MockRuntimeHoldReason::Reason));
 		let user1_free_balance = Balances::balance(&1);
 		assert_ok!(Balances::transfer_allow_death(Some(1).into(), 2, user1_free_balance - ED));
 	});
@@ -250,8 +248,8 @@ fn vested_balance_should_transfer_with_multi_sched() {
 #[test]
 fn non_vested_cannot_vest() {
 	ExtBuilder::default().existential_deposit(ED).build().execute_with(|| {
-		assert!(!<VestingStorage<Test>>::contains_key(4, LockType::Participation(0)));
-		assert_noop!(Vesting::vest(Some(4).into(), LockType::Participation(0)), Error::<Test>::NotVesting);
+		assert!(!<VestingStorage<Test>>::contains_key(4, MockRuntimeHoldReason::Reason));
+		assert_noop!(Vesting::vest(Some(4).into(), MockRuntimeHoldReason::Reason), Error::<Test>::NotVesting);
 	});
 }
 
@@ -261,8 +259,8 @@ fn vested_balance_should_transfer_using_vest_other() {
 		let user1_free_balance = Balances::free_balance(1);
 		assert_eq!(user1_free_balance, 50); // Account 1 has free balance
 									// Account 1 has only 5 units vested at block 1 (plus 50 unvested)
-		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(5));
-		assert_ok!(Vesting::vest_other(Some(2).into(), 1, LockType::Participation(0)));
+		assert_eq!(Vesting::vesting_balance(&1, MockRuntimeHoldReason::Reason), Some(5));
+		assert_ok!(Vesting::vest_other(Some(2).into(), 1, MockRuntimeHoldReason::Reason));
 		assert_ok!(Balances::transfer_allow_death(Some(1).into(), 2, 55 - 10));
 	});
 }
@@ -271,16 +269,16 @@ fn vested_balance_should_transfer_using_vest_other() {
 fn vested_balance_should_transfer_using_vest_other_with_multi_sched() {
 	ExtBuilder::default().existential_deposit(ED).build().execute_with(|| {
 		let sched0 = VestingInfo::new(5 * ED, 128, 0);
-		assert_ok!(Vesting::vested_transfer(Some(13).into(), 1, sched0, LockType::Participation(0)));
+		assert_ok!(Vesting::vested_transfer(Some(13).into(), 1, sched0, MockRuntimeHoldReason::Reason));
 		// Total of 10*ED of locked for all the schedules.
-		assert_eq!(Vesting::vesting(1, LockType::Participation(0)).unwrap(), vec![sched0, sched0]);
+		assert_eq!(Vesting::vesting(1, MockRuntimeHoldReason::Reason).unwrap(), vec![sched0, sched0]);
 
 		let user1_free_balance = Balances::free_balance(1);
 		assert_eq!(user1_free_balance, 1536); // Account 1 has free balance
 
 		// Account 1 has only 256 units (1 ED) unlocking at block 1 (plus 1280 already free).
-		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(ED));
-		assert_ok!(Vesting::vest_other(Some(2).into(), 1, LockType::Participation(0)));
+		assert_eq!(Vesting::vesting_balance(&1, MockRuntimeHoldReason::Reason), Some(ED));
+		assert_ok!(Vesting::vest_other(Some(2).into(), 1, MockRuntimeHoldReason::Reason));
 		assert_ok!(Balances::transfer_allow_death(Some(1).into(), 2, 1536 - ED));
 	});
 }
@@ -288,8 +286,8 @@ fn vested_balance_should_transfer_using_vest_other_with_multi_sched() {
 #[test]
 fn non_vested_cannot_vest_other() {
 	ExtBuilder::default().existential_deposit(ED).build().execute_with(|| {
-		assert!(!<VestingStorage<Test>>::contains_key(4, LockType::Participation(0)));
-		assert_noop!(Vesting::vest_other(Some(3).into(), 4, LockType::Participation(0)), Error::<Test>::NotVesting);
+		assert!(!<VestingStorage<Test>>::contains_key(4, MockRuntimeHoldReason::Reason));
+		assert_noop!(Vesting::vest_other(Some(3).into(), 4, MockRuntimeHoldReason::Reason), Error::<Test>::NotVesting);
 	});
 }
 
@@ -310,8 +308,8 @@ fn extra_balance_should_transfer() {
 		assert_eq!(user2_free_balance, 110); // Account 2 has 100 more free balance than normal
 
 		// Account 1 has only 5 units vested at block 1 (plus 150 unvested)
-		assert_eq!(Vesting::vesting_balance(&1, LockType::Participation(0)), Some(5));
-		assert_ok!(Vesting::vest(Some(1).into(), LockType::Participation(0)));
+		assert_eq!(Vesting::vesting_balance(&1, MockRuntimeHoldReason::Reason), Some(5));
+		assert_ok!(Vesting::vest(Some(1).into(), MockRuntimeHoldReason::Reason));
 		let user1_free_balance2 = Balances::free_balance(1);
 		assert_eq!(user1_free_balance2, 155); // Account 1 has 100 more free balance than normal
 		assert_ok!(Balances::transfer_allow_death(Some(1).into(), 3, 155 - 10)); // Account 1 can send extra units gained
@@ -329,7 +327,7 @@ fn liquid_funds_should_transfer_with_delayed_vesting() {
 
 		assert_eq!(user12_free_balance, 1280); // Account 12 has free balance
 									   // Account 12 has liquid funds
-		assert_eq!(Vesting::vesting_balance(&12, LockType::Participation(0)), Some(0));
+		assert_eq!(Vesting::vesting_balance(&12, MockRuntimeHoldReason::Reason), Some(0));
 
 		// Account 12 has delayed vesting
 		let user12_vesting_schedule = VestingInfo::new(
@@ -337,7 +335,7 @@ fn liquid_funds_should_transfer_with_delayed_vesting() {
 			64, // Vesting over 20 blocks
 			10,
 		);
-		assert_eq!(Vesting::vesting(12, LockType::Participation(0)).unwrap(), vec![user12_vesting_schedule]);
+		assert_eq!(Vesting::vesting(12, MockRuntimeHoldReason::Reason).unwrap(), vec![user12_vesting_schedule]);
 
 		// Account 12 can still send liquid funds
 		assert_ok!(Balances::transfer_allow_death(Some(12).into(), 3, 256 * 5 - 256));
@@ -352,37 +350,37 @@ fn vested_transfer_works() {
 		assert_eq!(user3_free_balance, 256 * 30);
 		assert_eq!(user4_free_balance, 256 * 40);
 		// Account 4 should not have any vesting yet.
-		assert_eq!(Vesting::vesting(4, LockType::Participation(0)), None);
+		assert_eq!(Vesting::vesting(4, MockRuntimeHoldReason::Reason), None);
 		// Make the schedule for the new transfer.
 		let new_vesting_schedule = VestingInfo::new(
 			256 * 5,
 			64, // Vesting over 20 blocks
 			10,
 		);
-		assert_ok!(Vesting::vested_transfer(Some(3).into(), 4, new_vesting_schedule, LockType::Participation(0)));
+		assert_ok!(Vesting::vested_transfer(Some(3).into(), 4, new_vesting_schedule, MockRuntimeHoldReason::Reason));
 		// Now account 4 should have vesting.
-		assert_eq!(Vesting::vesting(4, LockType::Participation(0)).unwrap(), vec![new_vesting_schedule]);
+		assert_eq!(Vesting::vesting(4, MockRuntimeHoldReason::Reason).unwrap(), vec![new_vesting_schedule]);
 		// Ensure the transfer happened correctly.
 		let user3_free_balance_updated = Balances::free_balance(3);
 		assert_eq!(user3_free_balance_updated, 256 * 25);
 		let user4_free_balance_updated = Balances::free_balance(4);
 		assert_eq!(user4_free_balance_updated, 256 * 40);
 		// Account 4 has 5 * 256 locked.
-		assert_eq!(Vesting::vesting_balance(&4, LockType::Participation(0)), Some(0));
+		assert_eq!(Vesting::vesting_balance(&4, MockRuntimeHoldReason::Reason), Some(0));
 
 		System::set_block_number(20);
 		assert_eq!(System::block_number(), 20);
 
 		// Account 4 has 5 * 64 units vested by block 20.
-		assert_eq!(Vesting::vesting_balance(&4, LockType::Participation(0)), Some(10 * 64));
+		assert_eq!(Vesting::vesting_balance(&4, MockRuntimeHoldReason::Reason), Some(10 * 64));
 
 		System::set_block_number(30);
 		assert_eq!(System::block_number(), 30);
 
 		// Account 4 has fully vested,
-		assert_eq!(Vesting::vesting_balance(&4, LockType::Participation(0)), Some(new_vesting_schedule.locked()));
+		assert_eq!(Vesting::vesting_balance(&4, MockRuntimeHoldReason::Reason), Some(new_vesting_schedule.locked()));
 		// and after unlocking its schedules are removed from storage.
-		vest_and_assert_no_vesting::<Test>(4, LockType::Participation(0));
+		vest_and_assert_no_vesting::<Test>(4, MockRuntimeHoldReason::Reason);
 	});
 }
 
@@ -400,26 +398,26 @@ fn vested_transfer_correctly_fails() {
 			ED, // Vesting over 20 blocks
 			10,
 		);
-		assert_eq!(Vesting::vesting(2, LockType::Participation(0)).unwrap(), vec![user2_vesting_schedule]);
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason).unwrap(), vec![user2_vesting_schedule]);
 
 		// Fails due to too low transfer amount.
 		let new_vesting_schedule_too_low = VestingInfo::new(<Test as Config>::MinVestedTransfer::get() - 1, 64, 10);
 		assert_noop!(
-			Vesting::vested_transfer(Some(3).into(), 4, new_vesting_schedule_too_low, LockType::Participation(0)),
+			Vesting::vested_transfer(Some(3).into(), 4, new_vesting_schedule_too_low, MockRuntimeHoldReason::Reason),
 			Error::<Test>::AmountLow,
 		);
 
 		// `per_block` is 0, which would result in a schedule with infinite duration.
 		let schedule_per_block_0 = VestingInfo::new(<Test as Config>::MinVestedTransfer::get(), 0, 10);
 		assert_noop!(
-			Vesting::vested_transfer(Some(13).into(), 4, schedule_per_block_0, LockType::Participation(0)),
+			Vesting::vested_transfer(Some(13).into(), 4, schedule_per_block_0, MockRuntimeHoldReason::Reason),
 			Error::<Test>::InvalidScheduleParams,
 		);
 
 		// `locked` is 0.
 		let schedule_locked_0 = VestingInfo::new(0, 1, 10);
 		assert_noop!(
-			Vesting::vested_transfer(Some(3).into(), 4, schedule_locked_0, LockType::Participation(0)),
+			Vesting::vested_transfer(Some(3).into(), 4, schedule_locked_0, MockRuntimeHoldReason::Reason),
 			Error::<Test>::AmountLow,
 		);
 
@@ -427,7 +425,7 @@ fn vested_transfer_correctly_fails() {
 		assert_eq!(user2_free_balance, Balances::free_balance(2));
 		assert_eq!(user4_free_balance, Balances::free_balance(4));
 		// Account 4 has no schedules.
-		vest_and_assert_no_vesting::<Test>(4, LockType::Participation(0));
+		vest_and_assert_no_vesting::<Test>(4, MockRuntimeHoldReason::Reason);
 	});
 }
 
@@ -444,17 +442,17 @@ fn vested_transfer_allows_max_schedules() {
 
 		// Add max amount schedules to user 4.
 		for _ in 0..max_schedules {
-			assert_ok!(Vesting::vested_transfer(Some(13).into(), 4, sched, LockType::Participation(0)));
+			assert_ok!(Vesting::vested_transfer(Some(13).into(), 4, sched, MockRuntimeHoldReason::Reason));
 		}
 
 		// The schedules count towards vesting balance
-		assert_eq!(Vesting::vesting_balance(&4, LockType::Participation(0)), Some(0));
+		assert_eq!(Vesting::vesting_balance(&4, MockRuntimeHoldReason::Reason), Some(0));
 		// BUT NOT the free balance.
 		assert_eq!(Balances::free_balance(4), user_4_free_balance);
 
 		// Cannot insert a 4th vesting schedule when `MaxVestingSchedules` === 3,
 		assert_noop!(
-			Vesting::vested_transfer(Some(3).into(), 4, sched, LockType::Participation(0)),
+			Vesting::vested_transfer(Some(3).into(), 4, sched, MockRuntimeHoldReason::Reason),
 			Error::<Test>::AtMaxVestingSchedules,
 		);
 		// so the free balance does not change.
@@ -463,11 +461,11 @@ fn vested_transfer_allows_max_schedules() {
 		// Account 4 has fully vested when all the schedules end,
 		System::set_block_number(<Test as Config>::MinVestedTransfer::get() + sched.starting_block());
 		assert_eq!(
-			Vesting::vesting_balance(&4, LockType::Participation(0)),
+			Vesting::vesting_balance(&4, MockRuntimeHoldReason::Reason),
 			Some(sched.locked() * max_schedules as u64)
 		);
 		// and after unlocking its schedules are removed from storage.
-		vest_and_assert_no_vesting::<Test>(4, LockType::Participation(0));
+		vest_and_assert_no_vesting::<Test>(4, MockRuntimeHoldReason::Reason);
 	});
 }
 
@@ -479,7 +477,7 @@ fn force_vested_transfer_works() {
 		assert_eq!(user3_free_balance, ED * 30);
 		assert_eq!(user4_free_balance, ED * 40);
 		// Account 4 should not have any vesting yet.
-		assert_eq!(Vesting::vesting(4, LockType::Participation(0)), None);
+		assert_eq!(Vesting::vesting(4, MockRuntimeHoldReason::Reason), None);
 		// Make the schedule for the new transfer.
 		let new_vesting_schedule = VestingInfo::new(
 			ED * 5,
@@ -488,7 +486,7 @@ fn force_vested_transfer_works() {
 		);
 
 		assert_noop!(
-			Vesting::force_vested_transfer(Some(4).into(), 3, 4, new_vesting_schedule, LockType::Participation(0)),
+			Vesting::force_vested_transfer(Some(4).into(), 3, 4, new_vesting_schedule, MockRuntimeHoldReason::Reason),
 			BadOrigin
 		);
 		assert_ok!(Vesting::force_vested_transfer(
@@ -496,32 +494,32 @@ fn force_vested_transfer_works() {
 			3,
 			4,
 			new_vesting_schedule,
-			LockType::Participation(0)
+			MockRuntimeHoldReason::Reason
 		));
 		// Now account 4 should have vesting.
-		assert_eq!(Vesting::vesting(4, LockType::Participation(0)).unwrap()[0], new_vesting_schedule);
-		assert_eq!(Vesting::vesting(4, LockType::Participation(0)).unwrap().len(), 1);
+		assert_eq!(Vesting::vesting(4, MockRuntimeHoldReason::Reason).unwrap()[0], new_vesting_schedule);
+		assert_eq!(Vesting::vesting(4, MockRuntimeHoldReason::Reason).unwrap().len(), 1);
 		// Ensure the transfer happened correctly.
 		let user3_free_balance_updated = Balances::free_balance(3);
 		assert_eq!(user3_free_balance_updated, ED * 25);
 		let user4_free_balance_updated = Balances::free_balance(4);
 		assert_eq!(user4_free_balance_updated, ED * 40);
 		// Account 4 has 5 * ED locked.
-		assert_eq!(Vesting::vesting_balance(&4, LockType::Participation(0)), Some(0));
+		assert_eq!(Vesting::vesting_balance(&4, MockRuntimeHoldReason::Reason), Some(0));
 
 		System::set_block_number(20);
 		assert_eq!(System::block_number(), 20);
 
 		// Account 4 has 5 * 64 units vested by block 20.
-		assert_eq!(Vesting::vesting_balance(&4, LockType::Participation(0)), Some(10 * 64));
+		assert_eq!(Vesting::vesting_balance(&4, MockRuntimeHoldReason::Reason), Some(10 * 64));
 
 		System::set_block_number(30);
 		assert_eq!(System::block_number(), 30);
 
 		// Account 4 has fully vested,
-		assert_eq!(Vesting::vesting_balance(&4, LockType::Participation(0)), Some(new_vesting_schedule.locked()));
+		assert_eq!(Vesting::vesting_balance(&4, MockRuntimeHoldReason::Reason), Some(new_vesting_schedule.locked()));
 		// and after unlocking its schedules are removed from storage.
-		vest_and_assert_no_vesting::<Test>(4, LockType::Participation(0));
+		vest_and_assert_no_vesting::<Test>(4, MockRuntimeHoldReason::Reason);
 	});
 }
 
@@ -538,7 +536,7 @@ fn force_vested_transfer_correctly_fails() {
 			ED, // Vesting over 20 blocks
 			10,
 		);
-		assert_eq!(Vesting::vesting(2, LockType::Participation(0)).unwrap(), vec![user2_vesting_schedule]);
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason).unwrap(), vec![user2_vesting_schedule]);
 
 		// Too low transfer amount.
 		let new_vesting_schedule_too_low = VestingInfo::new(<Test as Config>::MinVestedTransfer::get() - 1, 64, 10);
@@ -548,7 +546,7 @@ fn force_vested_transfer_correctly_fails() {
 				3,
 				4,
 				new_vesting_schedule_too_low,
-				LockType::Participation(0)
+				MockRuntimeHoldReason::Reason
 			),
 			Error::<Test>::AmountLow,
 		);
@@ -561,7 +559,7 @@ fn force_vested_transfer_correctly_fails() {
 				13,
 				4,
 				schedule_per_block_0,
-				LockType::Participation(0)
+				MockRuntimeHoldReason::Reason
 			),
 			Error::<Test>::InvalidScheduleParams,
 		);
@@ -569,7 +567,13 @@ fn force_vested_transfer_correctly_fails() {
 		// `locked` is 0.
 		let schedule_locked_0 = VestingInfo::new(0, 1, 10);
 		assert_noop!(
-			Vesting::force_vested_transfer(RawOrigin::Root.into(), 3, 4, schedule_locked_0, LockType::Participation(0)),
+			Vesting::force_vested_transfer(
+				RawOrigin::Root.into(),
+				3,
+				4,
+				schedule_locked_0,
+				MockRuntimeHoldReason::Reason
+			),
 			Error::<Test>::AmountLow,
 		);
 
@@ -577,7 +581,7 @@ fn force_vested_transfer_correctly_fails() {
 		assert_eq!(user2_free_balance, Balances::free_balance(2));
 		assert_eq!(user4_free_balance, Balances::free_balance(4));
 		// Account 4 has no schedules.
-		vest_and_assert_no_vesting::<Test>(4, LockType::Participation(0));
+		vest_and_assert_no_vesting::<Test>(4, MockRuntimeHoldReason::Reason);
 	});
 }
 
@@ -599,18 +603,18 @@ fn force_vested_transfer_allows_max_schedules() {
 				13,
 				4,
 				sched,
-				LockType::Participation(0)
+				MockRuntimeHoldReason::Reason
 			));
 		}
 
 		// The schedules count towards vesting balance.
-		assert_eq!(Vesting::vesting_balance(&4, LockType::Participation(0)), Some(0));
+		assert_eq!(Vesting::vesting_balance(&4, MockRuntimeHoldReason::Reason), Some(0));
 		// but NOT free balance.
 		assert_eq!(Balances::free_balance(4), user_4_free_balance);
 
 		// Cannot insert a 4th vesting schedule when `MaxVestingSchedules` === 3
 		assert_noop!(
-			Vesting::force_vested_transfer(RawOrigin::Root.into(), 3, 4, sched, LockType::Participation(0)),
+			Vesting::force_vested_transfer(RawOrigin::Root.into(), 3, 4, sched, MockRuntimeHoldReason::Reason),
 			Error::<Test>::AtMaxVestingSchedules,
 		);
 		// so the free balance does not change.
@@ -618,9 +622,12 @@ fn force_vested_transfer_allows_max_schedules() {
 
 		// Account 4 has fully vested when all the schedules end,
 		System::set_block_number(<Test as Config>::MinVestedTransfer::get() + 10);
-		assert_eq!(Vesting::vesting_balance(&4, LockType::Participation(0)), Some(sched.locked * max_schedules as u64));
+		assert_eq!(
+			Vesting::vesting_balance(&4, MockRuntimeHoldReason::Reason),
+			Some(sched.locked * max_schedules as u64)
+		);
 		// and after unlocking its schedules are removed from storage.
-		vest_and_assert_no_vesting::<Test>(4, LockType::Participation(0));
+		vest_and_assert_no_vesting::<Test>(4, MockRuntimeHoldReason::Reason);
 	});
 }
 
@@ -633,14 +640,14 @@ fn merge_schedules_that_have_not_started() {
 			ED, // Vest over 20 blocks.
 			10,
 		);
-		assert_eq!(Vesting::vesting(2, LockType::Participation(0)).unwrap(), vec![sched0]);
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason).unwrap(), vec![sched0]);
 		assert_eq!(Balances::balance(&2), ED);
 
 		// Add a schedule that is identical to the one that already exists.
-		assert_ok!(Vesting::vested_transfer(Some(3).into(), 2, sched0, LockType::Participation(0)));
-		assert_eq!(Vesting::vesting(2, LockType::Participation(0)).unwrap(), vec![sched0, sched0]);
+		assert_ok!(Vesting::vested_transfer(Some(3).into(), 2, sched0, MockRuntimeHoldReason::Reason));
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason).unwrap(), vec![sched0, sched0]);
 		assert_eq!(Balances::balance(&2), ED);
-		assert_ok!(Vesting::merge_schedules(Some(2).into(), 0, 1, LockType::Participation(0)));
+		assert_ok!(Vesting::merge_schedules(Some(2).into(), 0, 1, MockRuntimeHoldReason::Reason));
 
 		// Since we merged identical schedules, the new schedule finishes at the same
 		// time as the original, just with double the amount.
@@ -649,7 +656,7 @@ fn merge_schedules_that_have_not_started() {
 			sched0.per_block() * 2,
 			10, // Starts at the block the schedules are merged/
 		);
-		assert_eq!(Vesting::vesting(2, LockType::Participation(0)).unwrap(), vec![sched1]);
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason).unwrap(), vec![sched1]);
 
 		assert_eq!(Balances::balance(&2), ED);
 	});
@@ -665,15 +672,15 @@ fn merge_ongoing_schedules() {
 			ED, // Vest over 20 blocks.
 			10,
 		);
-		assert_eq!(Vesting::vesting(2, LockType::Participation(0)).unwrap(), vec![sched0]);
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason).unwrap(), vec![sched0]);
 
 		let sched1 = VestingInfo::new(
 			ED * 10,
 			ED,                          // Vest over 10 blocks.
 			sched0.starting_block() + 5, // Start at block 15.
 		);
-		assert_ok!(Vesting::vested_transfer(Some(4).into(), 2, sched1, LockType::Participation(0)));
-		assert_eq!(Vesting::vesting(2, LockType::Participation(0)).unwrap(), vec![sched0, sched1]);
+		assert_ok!(Vesting::vested_transfer(Some(4).into(), 2, sched1, MockRuntimeHoldReason::Reason));
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason).unwrap(), vec![sched0, sched1]);
 
 		// Got to half way through the second schedule where both schedules are actively vesting.
 		let cur_block = 20;
@@ -683,7 +690,7 @@ fn merge_ongoing_schedules() {
 		// with `vest` yet.
 		assert_eq!(Balances::balance(&2), ED);
 
-		assert_ok!(Vesting::merge_schedules(Some(2).into(), 0, 1, LockType::Participation(0)));
+		assert_ok!(Vesting::merge_schedules(Some(2).into(), 0, 1, MockRuntimeHoldReason::Reason));
 
 		// Merging schedules un-vests all pre-existing schedules prior to merging, which is
 		// reflected in account 2's updated usable balance.
@@ -702,11 +709,11 @@ fn merge_ongoing_schedules() {
 		let sched2_per_block = sched2_locked / sched2_duration;
 
 		let sched2 = VestingInfo::new(sched2_locked, sched2_per_block, cur_block);
-		assert_eq!(Vesting::vesting(2, LockType::Participation(0)).unwrap(), vec![sched2]);
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason).unwrap(), vec![sched2]);
 
 		// And just to double check, we assert the new merged schedule we be cleaned up as expected.
 		System::set_block_number(30);
-		vest_and_assert_no_vesting::<Test>(2, LockType::Participation(0));
+		vest_and_assert_no_vesting::<Test>(2, MockRuntimeHoldReason::Reason);
 	});
 }
 
@@ -732,7 +739,7 @@ fn merging_shifts_other_schedules_index() {
 		);
 
 		// Account 3 starts out with no schedules,
-		assert_eq!(Vesting::vesting(3, LockType::Participation(0)), None);
+		assert_eq!(Vesting::vesting(3, MockRuntimeHoldReason::Reason), None);
 		// and some free balance.
 		let free_balance = Balances::balance(&3);
 
@@ -740,16 +747,16 @@ fn merging_shifts_other_schedules_index() {
 		assert_eq!(System::block_number(), cur_block);
 
 		// Transfer the above 3 schedules to account 3.
-		assert_ok!(Vesting::vested_transfer(Some(4).into(), 3, sched0, LockType::Participation(0)));
-		assert_ok!(Vesting::vested_transfer(Some(4).into(), 3, sched1, LockType::Participation(0)));
-		assert_ok!(Vesting::vested_transfer(Some(4).into(), 3, sched2, LockType::Participation(0)));
+		assert_ok!(Vesting::vested_transfer(Some(4).into(), 3, sched0, MockRuntimeHoldReason::Reason));
+		assert_ok!(Vesting::vested_transfer(Some(4).into(), 3, sched1, MockRuntimeHoldReason::Reason));
+		assert_ok!(Vesting::vested_transfer(Some(4).into(), 3, sched2, MockRuntimeHoldReason::Reason));
 
 		// With no schedules vested or merged they are in the order they are created
-		assert_eq!(Vesting::vesting(3, LockType::Participation(0)).unwrap(), vec![sched0, sched1, sched2]);
+		assert_eq!(Vesting::vesting(3, MockRuntimeHoldReason::Reason).unwrap(), vec![sched0, sched1, sched2]);
 		// and the free balance has not changed.
 		assert_eq!(free_balance, Balances::balance(&3));
 
-		assert_ok!(Vesting::merge_schedules(Some(3).into(), 0, 2, LockType::Participation(0)));
+		assert_ok!(Vesting::merge_schedules(Some(3).into(), 0, 2, MockRuntimeHoldReason::Reason));
 
 		// Create the merged schedule of sched0 & sched2.
 		// The merged schedule will have the max possible starting block,
@@ -763,7 +770,7 @@ fn merging_shifts_other_schedules_index() {
 		let sched3 = VestingInfo::new(sched3_locked, sched3_per_block, sched3_start);
 
 		// The not touched schedule moves left and the new merged schedule is appended.
-		assert_eq!(Vesting::vesting(3, LockType::Participation(0)).unwrap(), vec![sched1, sched3]);
+		assert_eq!(Vesting::vesting(3, MockRuntimeHoldReason::Reason).unwrap(), vec![sched1, sched3]);
 		// The usable balance hasn't changed since none of the schedules have started.
 		assert_eq!(Balances::balance(&3), free_balance);
 	});
@@ -780,7 +787,7 @@ fn merge_ongoing_and_yet_to_be_started_schedules() {
 			ED, // Vesting over 20 blocks
 			10,
 		);
-		assert_eq!(Vesting::vesting(2, LockType::Participation(0)).unwrap(), vec![sched0]);
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason).unwrap(), vec![sched0]);
 
 		// Fast forward to half way through the life of sched1.
 		let mut cur_block = (sched0.starting_block() + sched0.ending_block_as_balance::<Identity>()) / 2;
@@ -791,7 +798,7 @@ fn merge_ongoing_and_yet_to_be_started_schedules() {
 		let mut balance = ED;
 		assert_eq!(Balances::balance(&2), balance);
 		// Vest the current schedules (which is just sched0 now).
-		Vesting::vest(Some(2).into(), LockType::Participation(0)).unwrap();
+		Vesting::vest(Some(2).into(), MockRuntimeHoldReason::Reason).unwrap();
 
 		// After vesting the usable balance increases by the unlocked amount.
 		let sched0_vested_now = sched0.locked() - sched0.locked_at::<Identity>(cur_block);
@@ -808,10 +815,10 @@ fn merge_ongoing_and_yet_to_be_started_schedules() {
 			1, // Vesting over 256 * 10 (2560) blocks
 			cur_block + 1,
 		);
-		assert_ok!(Vesting::vested_transfer(Some(4).into(), 2, sched1, LockType::Participation(0)));
+		assert_ok!(Vesting::vested_transfer(Some(4).into(), 2, sched1, MockRuntimeHoldReason::Reason));
 
 		// Merge the schedules before sched1 starts.
-		assert_ok!(Vesting::merge_schedules(Some(2).into(), 0, 1, LockType::Participation(0)));
+		assert_ok!(Vesting::merge_schedules(Some(2).into(), 0, 1, MockRuntimeHoldReason::Reason));
 		// After merging, the usable balance only changes by the amount sched0 vested since we
 		// last called `vest` (which is just 1 block). The usable balance is not affected by
 		// sched1 because it has not started yet.
@@ -828,7 +835,7 @@ fn merge_ongoing_and_yet_to_be_started_schedules() {
 		let sched2_per_block = sched2_locked / sched2_duration;
 
 		let sched2 = VestingInfo::new(sched2_locked, sched2_per_block, sched2_start);
-		assert_eq!(Vesting::vesting(2, LockType::Participation(0)).unwrap(), vec![sched2]);
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason).unwrap(), vec![sched2]);
 	});
 }
 
@@ -843,14 +850,14 @@ fn merge_finished_and_ongoing_schedules() {
 			ED, // Vesting over 20 blocks.
 			10,
 		);
-		assert_eq!(Vesting::vesting(2, LockType::Participation(0)).unwrap(), vec![sched0]);
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason).unwrap(), vec![sched0]);
 
 		let sched1 = VestingInfo::new(
 			ED * 40,
 			ED, // Vesting over 40 blocks.
 			10,
 		);
-		assert_ok!(Vesting::vested_transfer(Some(4).into(), 2, sched1, LockType::Participation(0)));
+		assert_ok!(Vesting::vested_transfer(Some(4).into(), 2, sched1, MockRuntimeHoldReason::Reason));
 
 		// Transfer a 3rd schedule, so we can demonstrate how schedule indices change.
 		// (We are not merging this schedule.)
@@ -859,10 +866,10 @@ fn merge_finished_and_ongoing_schedules() {
 			ED, // Vesting over 30 blocks.
 			10,
 		);
-		assert_ok!(Vesting::vested_transfer(Some(3).into(), 2, sched2, LockType::Participation(0)));
+		assert_ok!(Vesting::vested_transfer(Some(3).into(), 2, sched2, MockRuntimeHoldReason::Reason));
 
 		// The schedules are in expected order prior to merging.
-		assert_eq!(Vesting::vesting(2, LockType::Participation(0)).unwrap(), vec![sched0, sched1, sched2]);
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason).unwrap(), vec![sched0, sched1, sched2]);
 
 		// Fast forward to sched0's end block.
 		let cur_block = sched0.ending_block_as_balance::<Identity>();
@@ -872,12 +879,12 @@ fn merge_finished_and_ongoing_schedules() {
 		// Prior to `merge_schedules` and with no vest/vest_other called the user has no usable
 		// balance.
 		assert_eq!(Balances::balance(&2), ED);
-		assert_ok!(Vesting::merge_schedules(Some(2).into(), 0, 1, LockType::Participation(0)));
+		assert_ok!(Vesting::merge_schedules(Some(2).into(), 0, 1, MockRuntimeHoldReason::Reason));
 
 		// sched2 is now the first, since sched0 & sched1 get filtered out while "merging".
 		// sched1 gets treated like the new merged schedule by getting pushed onto back
 		// of the vesting schedules vec. Note: sched0 finished at the current block.
-		assert_eq!(Vesting::vesting(2, LockType::Participation(0)).unwrap(), vec![sched2, sched1]);
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason).unwrap(), vec![sched2, sched1]);
 
 		// sched0 has finished, so its funds are fully unlocked.
 		let sched0_unlocked_now = sched0.locked();
@@ -902,7 +909,7 @@ fn merge_finishing_schedules_does_not_create_a_new_one() {
 			ED, // 20 block duration.
 			10,
 		);
-		assert_eq!(Vesting::vesting(2, LockType::Participation(0)).unwrap(), vec![sched0]);
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason).unwrap(), vec![sched0]);
 
 		// Create sched1 and transfer it to account 2.
 		let sched1 = VestingInfo::new(
@@ -910,8 +917,8 @@ fn merge_finishing_schedules_does_not_create_a_new_one() {
 			ED, // 30 block duration.
 			10,
 		);
-		assert_ok!(Vesting::vested_transfer(Some(3).into(), 2, sched1, LockType::Participation(0)));
-		assert_eq!(Vesting::vesting(2, LockType::Participation(0)).unwrap(), vec![sched0, sched1]);
+		assert_ok!(Vesting::vested_transfer(Some(3).into(), 2, sched1, MockRuntimeHoldReason::Reason));
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason).unwrap(), vec![sched0, sched1]);
 
 		let all_scheds_end =
 			sched0.ending_block_as_balance::<Identity>().max(sched1.ending_block_as_balance::<Identity>());
@@ -924,10 +931,10 @@ fn merge_finishing_schedules_does_not_create_a_new_one() {
 		assert_eq!(Balances::balance(&2), ED);
 
 		// Merge schedule 0 and 1.
-		assert_ok!(Vesting::merge_schedules(Some(2).into(), 0, 1, LockType::Participation(0)));
+		assert_ok!(Vesting::merge_schedules(Some(2).into(), 0, 1, MockRuntimeHoldReason::Reason));
 		// The user no longer has any more vesting schedules because they both ended at the
 		// block they where merged,
-		assert!(!<VestingStorage<Test>>::contains_key(2, LockType::Participation(0)));
+		assert!(!<VestingStorage<Test>>::contains_key(2, MockRuntimeHoldReason::Reason));
 		// and their usable balance has increased by the total amount locked in the merged
 		// schedules.
 		assert_eq!(Balances::balance(&2), ED + sched0.locked() + sched1.locked());
@@ -943,15 +950,15 @@ fn merge_finished_and_yet_to_be_started_schedules() {
 			ED, // 20 block duration.
 			10, // Ends at block 30
 		);
-		assert_eq!(Vesting::vesting(2, LockType::Participation(0)).unwrap(), vec![sched0]);
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason).unwrap(), vec![sched0]);
 
 		let sched1 = VestingInfo::new(
 			ED * 30,
 			ED * 2, // 30 block duration.
 			35,
 		);
-		assert_ok!(Vesting::vested_transfer(Some(13).into(), 2, sched1, LockType::Participation(0)));
-		assert_eq!(Vesting::vesting(2, LockType::Participation(0)).unwrap(), vec![sched0, sched1]);
+		assert_ok!(Vesting::vested_transfer(Some(13).into(), 2, sched1, MockRuntimeHoldReason::Reason));
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason).unwrap(), vec![sched0, sched1]);
 
 		let sched2 = VestingInfo::new(
 			ED * 40,
@@ -959,32 +966,35 @@ fn merge_finished_and_yet_to_be_started_schedules() {
 			30,
 		);
 		// Add a 3rd schedule to demonstrate how sched1 shifts.
-		assert_ok!(Vesting::vested_transfer(Some(13).into(), 2, sched2, LockType::Participation(0)));
-		assert_eq!(Vesting::vesting(2, LockType::Participation(0)).unwrap(), vec![sched0, sched1, sched2]);
+		assert_ok!(Vesting::vested_transfer(Some(13).into(), 2, sched2, MockRuntimeHoldReason::Reason));
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason).unwrap(), vec![sched0, sched1, sched2]);
 
-		assert_eq!(Vesting::vesting_balance(&2, LockType::Participation(0)), Some(0));
+		assert_eq!(Vesting::vesting_balance(&2, MockRuntimeHoldReason::Reason), Some(0));
 
 		System::set_block_number(30);
 
 		// At block 30, sched0 has finished unlocking while sched1 and sched2 are still fully
 		// locked,
-		assert_eq!(Vesting::vesting_balance(&2, LockType::Participation(0)), Some(sched0.locked()));
+		assert_eq!(Vesting::vesting_balance(&2, MockRuntimeHoldReason::Reason), Some(sched0.locked()));
 		// but since we have not vested usable balance is still 0.
 		assert_eq!(Balances::balance(&2), ED);
 
 		// Merge schedule 0 and 1.
-		assert_ok!(Vesting::merge_schedules(Some(2).into(), 0, 1, LockType::Participation(0)));
+		assert_ok!(Vesting::merge_schedules(Some(2).into(), 0, 1, MockRuntimeHoldReason::Reason));
 
 		// sched0 is removed since it finished, and sched1 is removed and then pushed on the back
 		// because it is treated as the merged schedule
-		assert_eq!(Vesting::vesting(2, LockType::Participation(0)).unwrap(), vec![sched2, sched1]);
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason).unwrap(), vec![sched2, sched1]);
 
 		// The usable balance is updated because merging fully unlocked sched0.
 		assert_eq!(Balances::balance(&2), ED + sched0.locked());
-		assert_eq!(Vesting::vesting_balance(&2, LockType::Participation(0)), Some(0));
+		assert_eq!(Vesting::vesting_balance(&2, MockRuntimeHoldReason::Reason), Some(0));
 		System::set_block_number(75);
-		assert_eq!(Vesting::vesting_balance(&2, LockType::Participation(0)), Some(sched2.locked() + sched1.locked()));
-		vest_and_assert_no_vesting::<Test>(2, LockType::Participation(0));
+		assert_eq!(
+			Vesting::vesting_balance(&2, MockRuntimeHoldReason::Reason),
+			Some(sched2.locked() + sched1.locked())
+		);
+		vest_and_assert_no_vesting::<Test>(2, MockRuntimeHoldReason::Reason);
 	});
 }
 
@@ -997,31 +1007,31 @@ fn merge_schedules_throws_proper_errors() {
 			ED, // 20 block duration.
 			10,
 		);
-		assert_eq!(Vesting::vesting(2, LockType::Participation(0)).unwrap(), vec![sched0]);
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason).unwrap(), vec![sched0]);
 
 		// Account 2 only has 1 vesting schedule.
 		assert_noop!(
-			Vesting::merge_schedules(Some(2).into(), 0, 1, LockType::Participation(0)),
+			Vesting::merge_schedules(Some(2).into(), 0, 1, MockRuntimeHoldReason::Reason),
 			Error::<Test>::ScheduleIndexOutOfBounds
 		);
 
 		// Account 4 has 0 vesting schedules.
-		assert_eq!(Vesting::vesting(4, LockType::Participation(0)), None);
+		assert_eq!(Vesting::vesting(4, MockRuntimeHoldReason::Reason), None);
 		assert_noop!(
-			Vesting::merge_schedules(Some(4).into(), 0, 1, LockType::Participation(0)),
+			Vesting::merge_schedules(Some(4).into(), 0, 1, MockRuntimeHoldReason::Reason),
 			Error::<Test>::NotVesting
 		);
 
 		// There are enough schedules to merge but an index is non-existent.
-		assert_ok!(Vesting::vested_transfer(Some(3).into(), 2, sched0, LockType::Participation(0)));
-		assert_eq!(Vesting::vesting(2, LockType::Participation(0)).unwrap(), vec![sched0, sched0]);
+		assert_ok!(Vesting::vested_transfer(Some(3).into(), 2, sched0, MockRuntimeHoldReason::Reason));
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason).unwrap(), vec![sched0, sched0]);
 		assert_noop!(
-			Vesting::merge_schedules(Some(2).into(), 0, 2, LockType::Participation(0)),
+			Vesting::merge_schedules(Some(2).into(), 0, 2, MockRuntimeHoldReason::Reason),
 			Error::<Test>::ScheduleIndexOutOfBounds
 		);
 
 		// It is a storage noop with no errors if the indexes are the same.
-		assert_storage_noop!(Vesting::merge_schedules(Some(2).into(), 0, 0, LockType::Participation(0)).unwrap());
+		assert_storage_noop!(Vesting::merge_schedules(Some(2).into(), 0, 0, MockRuntimeHoldReason::Reason).unwrap());
 	});
 }
 
@@ -1106,12 +1116,12 @@ fn vested_transfer_less_than_existential_deposit_fails() {
 
 		// vested_transfer fails.
 		assert_noop!(
-			Vesting::vested_transfer(Some(3).into(), 99, sched, LockType::Participation(0)),
+			Vesting::vested_transfer(Some(3).into(), 99, sched, MockRuntimeHoldReason::Reason),
 			TokenError::CannotCreateHold,
 		);
 		// force_vested_transfer fails.
 		assert_noop!(
-			Vesting::force_vested_transfer(RawOrigin::Root.into(), 3, 99, sched, LockType::Participation(0)),
+			Vesting::force_vested_transfer(RawOrigin::Root.into(), 3, 99, sched, MockRuntimeHoldReason::Reason),
 			TokenError::CannotCreateHold,
 		);
 	});
@@ -1126,19 +1136,19 @@ fn set_release_schedule() {
 		assert_eq!(user_3_free_balance, 30 * ED); // 7680 ED
 		let user_3_reserved_balance = Balances::reserved_balance(3);
 		assert_eq!(user_3_reserved_balance, 0);
-		let user_3_on_hold_balance = Balances::balance_on_hold(&LockType::Participation(0), &3);
+		let user_3_on_hold_balance = Balances::balance_on_hold(&MockRuntimeHoldReason::Reason, &3);
 		assert_eq!(user_3_on_hold_balance, 0);
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), None);
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason), None);
 
 		// Hold 15 ED
-		assert_ok!(Balances::hold(&LockType::Participation(0), &3, 15 * ED));
+		assert_ok!(Balances::hold(&MockRuntimeHoldReason::Reason, &3, 15 * ED));
 		let user_3_free_balance = Balances::free_balance(3);
 		assert_eq!(user_3_free_balance, 15 * ED);
-		let user_3_on_hold_balance = Balances::balance_on_hold(&LockType::Participation(0), &3);
+		let user_3_on_hold_balance = Balances::balance_on_hold(&MockRuntimeHoldReason::Reason, &3);
 		assert_eq!(user_3_on_hold_balance, 15 * ED);
 		let user_3_reserved_balance = Balances::reserved_balance(3);
 		assert_eq!(user_3_reserved_balance, 15 * ED);
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), None);
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason), None);
 
 		// Set release schedule to release the locked amount, starting from now, one ED per block.
 		let user3_vesting_schedule = VestingInfo::new(user_3_on_hold_balance, ED, System::block_number());
@@ -1147,32 +1157,32 @@ fn set_release_schedule() {
 			user3_vesting_schedule.locked,
 			user3_vesting_schedule.per_block(),
 			user3_vesting_schedule.starting_block,
-			LockType::Participation(0)
+			MockRuntimeHoldReason::Reason
 		));
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(0));
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason), Some(0));
 
 		// 1 ED can be "released", we need to call vest to release it.
 		System::set_block_number(2);
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(ED));
-		assert_ok!(Vesting::vest(Some(3).into(), LockType::Participation(0)));
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason), Some(ED));
+		assert_ok!(Vesting::vest(Some(3).into(), MockRuntimeHoldReason::Reason));
 		let user_3_free_balance = Balances::free_balance(3);
 		assert_eq!(user_3_free_balance, 16 * ED);
 
 		// 2 ED can be "released"
 		System::set_block_number(3);
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(2 * ED));
-		assert_ok!(Vesting::vest(Some(3).into(), LockType::Participation(0)));
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason), Some(2 * ED));
+		assert_ok!(Vesting::vest(Some(3).into(), MockRuntimeHoldReason::Reason));
 		let user_3_free_balance = Balances::free_balance(3);
 		assert_eq!(user_3_free_balance, 17 * ED);
 
 		// Go to the end of the schedule
 		System::set_block_number(16);
 		assert_eq!(System::block_number(), 16);
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(user3_vesting_schedule.locked));
-		vest_and_assert_no_vesting::<Test>(3, LockType::Participation(0));
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason), Some(user3_vesting_schedule.locked));
+		vest_and_assert_no_vesting::<Test>(3, MockRuntimeHoldReason::Reason);
 		let user_3_free_balance = Balances::free_balance(3);
 		assert_eq!(user_3_free_balance, 30 * ED);
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), None);
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason), None);
 	});
 }
 
@@ -1185,19 +1195,19 @@ fn cannot_release_different_reason() {
 		assert_eq!(user_3_free_balance, 30 * ED); // 7680 ED
 		let user_3_reserved_balance = Balances::reserved_balance(3);
 		assert_eq!(user_3_reserved_balance, 0);
-		let user_3_on_hold_balance = Balances::balance_on_hold(&LockType::Participation(0), &3);
+		let user_3_on_hold_balance = Balances::balance_on_hold(&MockRuntimeHoldReason::Reason, &3);
 		assert_eq!(user_3_on_hold_balance, 0);
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), None);
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason), None);
 
 		// Hold 15 ED
-		assert_ok!(Balances::hold(&LockType::Participation(0), &3, 15 * ED));
+		assert_ok!(Balances::hold(&MockRuntimeHoldReason::Reason, &3, 15 * ED));
 		let user_3_free_balance = Balances::free_balance(3);
 		assert_eq!(user_3_free_balance, 15 * ED);
-		let user_3_on_hold_balance = Balances::balance_on_hold(&LockType::Participation(0), &3);
+		let user_3_on_hold_balance = Balances::balance_on_hold(&MockRuntimeHoldReason::Reason, &3);
 		assert_eq!(user_3_on_hold_balance, 15 * ED);
 		let user_3_reserved_balance = Balances::reserved_balance(3);
 		assert_eq!(user_3_reserved_balance, 15 * ED);
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), None);
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason), None);
 
 		// Set release schedule to release the locked amount, starting from now, one ED per block.
 		let user3_vesting_schedule = VestingInfo::new(user_3_on_hold_balance, ED, System::block_number());
@@ -1206,14 +1216,14 @@ fn cannot_release_different_reason() {
 			user3_vesting_schedule.locked,
 			user3_vesting_schedule.per_block(),
 			user3_vesting_schedule.starting_block,
-			LockType::Participation(0)
+			MockRuntimeHoldReason::Reason
 		));
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(0));
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason), Some(0));
 
 		// 1 ED can be "released", we need to call vest to release it.
 		System::set_block_number(2);
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(ED));
-		assert_ok!(Vesting::vest(Some(3).into(), LockType::Participation(0)));
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason), Some(ED));
+		assert_ok!(Vesting::vest(Some(3).into(), MockRuntimeHoldReason::Reason));
 		let user_3_free_balance = Balances::free_balance(3);
 		assert_eq!(user_3_free_balance, 16 * ED);
 	});
@@ -1228,19 +1238,19 @@ fn multile_holds_release_schedule() {
 		assert_eq!(user_3_free_balance, 30 * ED); // 7680 ED
 		let user_3_reserved_balance = Balances::reserved_balance(3);
 		assert_eq!(user_3_reserved_balance, 0);
-		let user_3_on_hold_balance = Balances::balance_on_hold(&LockType::Participation(0), &3);
+		let user_3_on_hold_balance = Balances::balance_on_hold(&MockRuntimeHoldReason::Reason, &3);
 		assert_eq!(user_3_on_hold_balance, 0);
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), None);
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason), None);
 
 		// Hold 15 ED
-		assert_ok!(Balances::hold(&LockType::Participation(0), &3, 15 * ED));
+		assert_ok!(Balances::hold(&MockRuntimeHoldReason::Reason, &3, 15 * ED));
 		let user_3_free_balance = Balances::free_balance(3);
 		assert_eq!(user_3_free_balance, 15 * ED);
-		let user_3_on_hold_balance = Balances::balance_on_hold(&LockType::Participation(0), &3);
+		let user_3_on_hold_balance = Balances::balance_on_hold(&MockRuntimeHoldReason::Reason, &3);
 		assert_eq!(user_3_on_hold_balance, 15 * ED);
 		let user_3_reserved_balance = Balances::reserved_balance(3);
 		assert_eq!(user_3_reserved_balance, 15 * ED);
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), None);
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason), None);
 
 		// Set release schedule to release the locked amount, starting from now, one ED per block.
 		let user3_vesting_schedule = VestingInfo::new(user_3_on_hold_balance, ED, 1);
@@ -1249,15 +1259,15 @@ fn multile_holds_release_schedule() {
 			user3_vesting_schedule.locked,
 			user3_vesting_schedule.per_block,
 			user3_vesting_schedule.starting_block,
-			LockType::Participation(0)
+			MockRuntimeHoldReason::Reason
 		));
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(0));
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason), Some(0));
 
 		// Hold 7 ED more
-		assert_ok!(Balances::hold(&LockType::Participation(1), &3, 7 * ED));
+		assert_ok!(Balances::hold(&MockRuntimeHoldReason::Reason2, &3, 7 * ED));
 		let user_3_free_balance = Balances::free_balance(3);
 		assert_eq!(user_3_free_balance, 8 * ED);
-		let user_3_on_hold_balance = Balances::balance_on_hold(&LockType::Participation(1), &3);
+		let user_3_on_hold_balance = Balances::balance_on_hold(&MockRuntimeHoldReason::Reason2, &3);
 		assert_eq!(user_3_on_hold_balance, 7 * ED);
 		let user_3_reserved_balance = Balances::reserved_balance(3);
 		assert_eq!(user_3_reserved_balance, 22 * ED);
@@ -1269,20 +1279,20 @@ fn multile_holds_release_schedule() {
 			user3_vesting_schedule.locked,
 			user3_vesting_schedule.per_block,
 			user3_vesting_schedule.starting_block,
-			LockType::Participation(1)
+			MockRuntimeHoldReason::Reason2
 		));
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(0));
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(1)), Some(0));
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason), Some(0));
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason2), Some(0));
 
 		System::set_block_number(16);
-		assert_ok!(Vesting::vest(Some(3).into(), LockType::Participation(0)));
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), None);
+		assert_ok!(Vesting::vest(Some(3).into(), MockRuntimeHoldReason::Reason));
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason), None);
 		let user_3_free_balance = Balances::free_balance(3);
 		assert_eq!(user_3_free_balance, 23 * ED);
 
 		System::set_block_number(100);
-		assert_ok!(Vesting::vest(Some(3).into(), LockType::Participation(1)));
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(1)), None);
+		assert_ok!(Vesting::vest(Some(3).into(), MockRuntimeHoldReason::Reason2));
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason2), None);
 		let user_3_free_balance = Balances::free_balance(3);
 		assert_eq!(user_3_free_balance, 30 * ED);
 	});
@@ -1298,18 +1308,18 @@ fn merge_schedules_different_reason() {
 			10,
 		);
 		assert_eq!(Balances::balance(&2), ED);
-		assert_eq!(Vesting::vesting(2, LockType::Participation(0)).unwrap(), vec![sched0]);
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason).unwrap(), vec![sched0]);
 
 		// Add a schedule that is identical to the one that already exists.
-		assert_ok!(Vesting::vested_transfer(Some(14).into(), 2, sched0, LockType::Participation(1)));
-		assert_ok!(Vesting::vested_transfer(Some(14).into(), 2, sched0, LockType::Participation(1)));
-		assert_eq!(Vesting::vesting(2, LockType::Participation(1)).unwrap(), vec![sched0, sched0]);
+		assert_ok!(Vesting::vested_transfer(Some(14).into(), 2, sched0, MockRuntimeHoldReason::Reason2));
+		assert_ok!(Vesting::vested_transfer(Some(14).into(), 2, sched0, MockRuntimeHoldReason::Reason2));
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason2).unwrap(), vec![sched0, sched0]);
 		assert_eq!(Balances::balance(&2), ED);
 		assert_noop!(
-			Vesting::merge_schedules(Some(2).into(), 0, 1, LockType::Participation(0)),
+			Vesting::merge_schedules(Some(2).into(), 0, 1, MockRuntimeHoldReason::Reason),
 			Error::<Test>::ScheduleIndexOutOfBounds
 		);
-		assert_ok!(Vesting::merge_schedules(Some(2).into(), 0, 1, LockType::Participation(1)));
+		assert_ok!(Vesting::merge_schedules(Some(2).into(), 0, 1, MockRuntimeHoldReason::Reason2));
 
 		// Since we merged identical schedules, the new schedule finishes at the same
 		// time as the original, just with double the amount.
@@ -1318,7 +1328,7 @@ fn merge_schedules_different_reason() {
 			sched0.per_block() * 2,
 			10, // Starts at the block the schedules are merged/
 		);
-		assert_eq!(Vesting::vesting(2, LockType::Participation(1)).unwrap(), vec![sched1]);
+		assert_eq!(Vesting::vesting(2, MockRuntimeHoldReason::Reason2).unwrap(), vec![sched1]);
 
 		assert_eq!(Balances::balance(&2), ED);
 	});
@@ -1333,19 +1343,19 @@ fn vest_all_different_reason() {
 		assert_eq!(user_3_free_balance, 30 * ED); // 7680 ED
 		let user_3_reserved_balance = Balances::reserved_balance(3);
 		assert_eq!(user_3_reserved_balance, 0);
-		let user_3_on_hold_balance = Balances::balance_on_hold(&LockType::Participation(0), &3);
+		let user_3_on_hold_balance = Balances::balance_on_hold(&MockRuntimeHoldReason::Reason, &3);
 		assert_eq!(user_3_on_hold_balance, 0);
-		// assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), None);
+		// assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason), None);
 
 		// Hold 15 ED
-		assert_ok!(Balances::hold(&LockType::Participation(0), &3, 15 * ED));
+		assert_ok!(Balances::hold(&MockRuntimeHoldReason::Reason, &3, 15 * ED));
 		let user_3_free_balance = Balances::free_balance(3);
 		assert_eq!(user_3_free_balance, 15 * ED);
-		let user_3_on_hold_balance = Balances::balance_on_hold(&LockType::Participation(0), &3);
+		let user_3_on_hold_balance = Balances::balance_on_hold(&MockRuntimeHoldReason::Reason, &3);
 		assert_eq!(user_3_on_hold_balance, 15 * ED);
 		let user_3_reserved_balance = Balances::reserved_balance(3);
 		assert_eq!(user_3_reserved_balance, 15 * ED);
-		// assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), None);
+		// assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason), None);
 
 		// Set release schedule to release the locked amount, starting from now, one ED per block.
 		let user3_vesting_schedule = VestingInfo::new(user_3_on_hold_balance, ED, 0);
@@ -1354,19 +1364,19 @@ fn vest_all_different_reason() {
 			user3_vesting_schedule.locked,
 			user3_vesting_schedule.per_block,
 			user3_vesting_schedule.starting_block,
-			LockType::Participation(0)
+			MockRuntimeHoldReason::Reason
 		));
 
-		assert_eq!(Vesting::vesting(3, LockType::Participation(0)).unwrap(), vec![user3_vesting_schedule]);
-		let user_3_on_hold_balance = Balances::balance_on_hold(&LockType::Participation(0), &3);
+		assert_eq!(Vesting::vesting(3, MockRuntimeHoldReason::Reason).unwrap(), vec![user3_vesting_schedule]);
+		let user_3_on_hold_balance = Balances::balance_on_hold(&MockRuntimeHoldReason::Reason, &3);
 		assert_eq!(user_3_on_hold_balance, 15 * ED);
-		// assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(1 * ED));
+		// assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason), Some(1 * ED));
 
 		// Hold 7 ED more
-		assert_ok!(Balances::hold(&LockType::Participation(1), &3, 7 * ED));
+		assert_ok!(Balances::hold(&MockRuntimeHoldReason::Reason2, &3, 7 * ED));
 		let user_3_free_balance = Balances::free_balance(3);
 		assert_eq!(user_3_free_balance, 8 * ED);
-		let user_3_on_hold_balance = Balances::balance_on_hold(&LockType::Participation(1), &3);
+		let user_3_on_hold_balance = Balances::balance_on_hold(&MockRuntimeHoldReason::Reason2, &3);
 		assert_eq!(user_3_on_hold_balance, 7 * ED);
 		let user_3_reserved_balance = Balances::reserved_balance(3);
 		assert_eq!(user_3_reserved_balance, 22 * ED);
@@ -1378,18 +1388,18 @@ fn vest_all_different_reason() {
 			user3_vesting_schedule.locked,
 			user3_vesting_schedule.per_block,
 			user3_vesting_schedule.starting_block,
-			LockType::Participation(1)
+			MockRuntimeHoldReason::Reason2
 		));
-		assert_eq!(Vesting::vesting(3, LockType::Participation(1)).unwrap(), vec![user3_vesting_schedule]);
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(1)), Some(0));
+		assert_eq!(Vesting::vesting(3, MockRuntimeHoldReason::Reason2).unwrap(), vec![user3_vesting_schedule]);
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason2), Some(0));
 
 		System::set_block_number(101);
 		assert_eq!(System::block_number(), 101);
-		assert_eq!(Vesting::vesting(3, LockType::Participation(1)).unwrap(), vec![user3_vesting_schedule]);
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(15 * ED));
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(1)), Some(7 * ED));
+		assert_eq!(Vesting::vesting(3, MockRuntimeHoldReason::Reason2).unwrap(), vec![user3_vesting_schedule]);
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason), Some(15 * ED));
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason2), Some(7 * ED));
 		assert_ok!(Vesting::vest_all(Some(3).into()));
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(1)), None);
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason2), None);
 		let user_3_free_balance = Balances::free_balance(3);
 		assert_eq!(user_3_free_balance, 30 * ED);
 	});
@@ -1404,19 +1414,19 @@ fn manual_vest_all_different_reason() {
 		assert_eq!(user_3_initial_free_balance, 30 * ED); // 7680 ED
 		let user_3_reserved_balance = Balances::reserved_balance(3);
 		assert_eq!(user_3_reserved_balance, 0);
-		let user_3_on_hold_balance = Balances::balance_on_hold(&LockType::Participation(0), &3);
+		let user_3_on_hold_balance = Balances::balance_on_hold(&MockRuntimeHoldReason::Reason, &3);
 		assert_eq!(user_3_on_hold_balance, 0);
-		// assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), None);
+		// assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason), None);
 
 		// Hold 15 ED
-		assert_ok!(Balances::hold(&LockType::Participation(0), &3, 15 * ED));
+		assert_ok!(Balances::hold(&MockRuntimeHoldReason::Reason, &3, 15 * ED));
 		let user_3_free_balance = Balances::free_balance(3);
 		assert_eq!(user_3_free_balance, 15 * ED);
-		let user_3_on_hold_balance = Balances::balance_on_hold(&LockType::Participation(0), &3);
+		let user_3_on_hold_balance = Balances::balance_on_hold(&MockRuntimeHoldReason::Reason, &3);
 		assert_eq!(user_3_on_hold_balance, 15 * ED);
 		let user_3_reserved_balance = Balances::reserved_balance(3);
 		assert_eq!(user_3_reserved_balance, 15 * ED);
-		// assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), None);
+		// assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason), None);
 
 		// Set release schedule to release the locked amount, starting from now, one ED per block.
 		let user3_vesting_schedule = VestingInfo::new(user_3_on_hold_balance, ED, 0);
@@ -1425,19 +1435,19 @@ fn manual_vest_all_different_reason() {
 			user3_vesting_schedule.locked,
 			user3_vesting_schedule.per_block,
 			user3_vesting_schedule.starting_block,
-			LockType::Participation(0)
+			MockRuntimeHoldReason::Reason
 		));
 
-		assert_eq!(Vesting::vesting(3, LockType::Participation(0)).unwrap(), vec![user3_vesting_schedule]);
-		let user_3_on_hold_balance = Balances::balance_on_hold(&LockType::Participation(0), &3);
+		assert_eq!(Vesting::vesting(3, MockRuntimeHoldReason::Reason).unwrap(), vec![user3_vesting_schedule]);
+		let user_3_on_hold_balance = Balances::balance_on_hold(&MockRuntimeHoldReason::Reason, &3);
 		assert_eq!(user_3_on_hold_balance, 15 * ED);
-		// assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(1 * ED));
+		// assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason), Some(1 * ED));
 
 		// Hold 7 ED more
-		assert_ok!(Balances::hold(&LockType::Participation(1), &3, 7 * ED));
+		assert_ok!(Balances::hold(&MockRuntimeHoldReason::Reason2, &3, 7 * ED));
 		let user_3_free_balance = Balances::free_balance(3);
 		assert_eq!(user_3_free_balance, 8 * ED);
-		let user_3_on_hold_balance = Balances::balance_on_hold(&LockType::Participation(1), &3);
+		let user_3_on_hold_balance = Balances::balance_on_hold(&MockRuntimeHoldReason::Reason2, &3);
 		assert_eq!(user_3_on_hold_balance, 7 * ED);
 		let user_3_reserved_balance = Balances::reserved_balance(3);
 		assert_eq!(user_3_reserved_balance, 22 * ED);
@@ -1449,26 +1459,26 @@ fn manual_vest_all_different_reason() {
 			user3_vesting_schedule.locked,
 			user3_vesting_schedule.per_block,
 			user3_vesting_schedule.starting_block,
-			LockType::Participation(1)
+			MockRuntimeHoldReason::Reason2
 		));
-		assert_eq!(Vesting::vesting(3, LockType::Participation(1)).unwrap(), vec![user3_vesting_schedule]);
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(1)), Some(0));
+		assert_eq!(Vesting::vesting(3, MockRuntimeHoldReason::Reason2).unwrap(), vec![user3_vesting_schedule]);
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason2), Some(0));
 
 		System::set_block_number(101);
 		assert_eq!(System::block_number(), 101);
-		assert_eq!(Vesting::vesting(3, LockType::Participation(1)).unwrap(), vec![user3_vesting_schedule]);
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), Some(15 * ED));
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(1)), Some(7 * ED));
-		assert_ok!(Vesting::vest(Some(3).into(), LockType::Participation(0)));
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(0)), None);
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(1)), Some(7 * ED));
+		assert_eq!(Vesting::vesting(3, MockRuntimeHoldReason::Reason2).unwrap(), vec![user3_vesting_schedule]);
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason), Some(15 * ED));
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason2), Some(7 * ED));
+		assert_ok!(Vesting::vest(Some(3).into(), MockRuntimeHoldReason::Reason));
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason), None);
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason2), Some(7 * ED));
 		let user_3_free_balance = Balances::free_balance(3);
 		assert_eq!(
 			user_3_free_balance,
-			user_3_initial_free_balance - Vesting::vesting_balance(&3, LockType::Participation(1)).unwrap()
+			user_3_initial_free_balance - Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason2).unwrap()
 		);
-		assert_ok!(Vesting::vest(Some(3).into(), LockType::Participation(1)));
-		assert_eq!(Vesting::vesting_balance(&3, LockType::Participation(1)), None);
+		assert_ok!(Vesting::vest(Some(3).into(), MockRuntimeHoldReason::Reason2));
+		assert_eq!(Vesting::vesting_balance(&3, MockRuntimeHoldReason::Reason2), None);
 		let user_3_free_balance = Balances::free_balance(3);
 		assert_eq!(user_3_free_balance, 30 * ED);
 	});

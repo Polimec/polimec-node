@@ -128,13 +128,6 @@ pub mod config_types {
 		Serialize,
 		Deserialize,
 	)]
-	pub enum LockType<ProjectId> {
-		Evaluation(ProjectId),
-		Participation(ProjectId),
-		// We require a PLMC deposit to create an account for minting the CTs to this user.
-		// Here we make sure the user has this amount before letting him participate.
-		FutureDeposit(ProjectId),
-	}
 
 	pub struct ConstPriceProvider<AssetId, Price, Mapping>(PhantomData<(AssetId, Price, Mapping)>);
 	impl<AssetId: Ord, Price: FixedPointNumber + Clone, Mapping: Get<BTreeMap<AssetId, Price>>> ProvideStatemintPrice

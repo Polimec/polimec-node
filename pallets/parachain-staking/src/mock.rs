@@ -16,13 +16,10 @@
 
 //! Test utilities
 use crate as pallet_parachain_staking;
-use crate::{
-	pallet, AwardedPts, Config, Event as ParachainStakingEvent, InflationInfo, Points, Range, COLLATOR_LOCK_ID,
-	DELEGATOR_LOCK_ID,
-};
+use crate::{pallet, AwardedPts, Config, Event as ParachainStakingEvent, InflationInfo, Points, Range};
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{Everything, LockIdentifier, OnFinalize, OnInitialize},
+	traits::{Everything, OnFinalize, OnInitialize},
 	weights::{constants::RocksDbWeight, Weight},
 };
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -47,7 +44,7 @@ construct_runtime!(
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		Aura: pallet_aura::{Pallet, Storage},
 		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
-		ParachainStaking: pallet_parachain_staking::{Pallet, Call, Storage, Config<T>, Event<T>},
+		ParachainStaking: pallet_parachain_staking::{Pallet, Call, Storage, Config<T>, Event<T>, HoldReason},
 		Authorship: pallet_authorship::{Pallet, Storage},
 	}
 );
@@ -86,6 +83,7 @@ impl frame_system::Config for Test {
 }
 parameter_types! {
 	pub const ExistentialDeposit: u128 = 1;
+	pub const MaxHolds: u32 = 10;
 }
 impl pallet_balances::Config for Test {
 	type AccountStore = System;
@@ -94,12 +92,12 @@ impl pallet_balances::Config for Test {
 	type ExistentialDeposit = ExistentialDeposit;
 	type FreezeIdentifier = ();
 	type MaxFreezes = ();
-	type MaxHolds = ();
+	type MaxHolds = MaxHolds;
 	type MaxLocks = ();
 	type MaxReserves = ();
 	type ReserveIdentifier = [u8; 4];
 	type RuntimeEvent = RuntimeEvent;
-	type RuntimeHoldReason = ();
+	type RuntimeHoldReason = RuntimeHoldReason;
 	type WeightInfo = ();
 }
 parameter_types! {
@@ -131,7 +129,7 @@ impl pallet_timestamp::Config for Test {
 
 const GENESIS_BLOCKS_PER_ROUND: BlockNumber = 5;
 const GENESIS_COLLATOR_COMMISSION: Perbill = Perbill::from_percent(20);
-const GENESIS_PARACHAIN_BOND_RESERVE_PERCENT: Percent = Percent::from_percent(30);
+const GENESIS_PARACHAIN_BOND_RESERVE_PERCENT: Percent = Percent::from_percent(0);
 const GENESIS_NUM_SELECTED_CANDIDATES: u32 = 5;
 parameter_types! {
 	pub const MinBlocksPerRound: u32 = 3;
@@ -148,6 +146,7 @@ parameter_types! {
 	pub const MinCandidateStk: u128 = 10;
 	pub const MinDelegatorStk: u128 = 5;
 	pub const MinDelegation: u128 = 3;
+	pub const PayMaster: AccountId = 1337;
 }
 impl_opaque_keys! {
 	pub struct MockSessionKeys {
@@ -175,6 +174,7 @@ impl pallet_session::Config for Test {
 	type WeightInfo = ();
 }
 impl Config for Test {
+	type Balance = Balance;
 	type CandidateBondLessDelay = CandidateBondLessDelay;
 	type Currency = Balances;
 	type DelegationBondLessDelay = DelegationBondLessDelay;
@@ -191,10 +191,12 @@ impl Config for Test {
 	type MonetaryGovernanceOrigin = frame_system::EnsureRoot<AccountId>;
 	type OnCollatorPayout = ();
 	type OnNewRound = ();
+	type PayMaster = PayMaster;
 	type PayoutCollatorReward = ();
 	type RevokeDelegationDelay = RevokeDelegationDelay;
 	type RewardPaymentDelay = RewardPaymentDelay;
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeHoldReason = RuntimeHoldReason;
 	type WeightInfo = ();
 }
 
@@ -235,7 +237,10 @@ impl Default for ExtBuilder {
 }
 
 impl ExtBuilder {
-	pub(crate) fn with_balances(mut self, balances: Vec<(AccountId, Balance)>) -> Self {
+	pub(crate) fn with_balances(mut self, mut balances: Vec<(AccountId, Balance)>) -> Self {
+		if !balances.iter().any(|(acc, _)| *acc == PayMaster::get()) {
+			balances.push((PayMaster::get(), 300));
+		}
 		self.balances = balances;
 		self
 	}
@@ -268,8 +273,12 @@ impl ExtBuilder {
 		let mut t = frame_system::GenesisConfig::<Test>::default()
 			.build_storage()
 			.expect("Frame system builds valid default genesis config");
-
-		pallet_balances::GenesisConfig::<Test> { balances: self.balances }
+		let balances_with_ed = self
+			.balances
+			.into_iter()
+			.map(|(account, balance)| (account, balance + <Test as pallet_balances::Config>::ExistentialDeposit::get()))
+			.collect::<Vec<(AccountId, Balance)>>();
+		pallet_balances::GenesisConfig::<Test> { balances: balances_with_ed }
 			.assimilate_storage(&mut t)
 			.expect("Pallet balances storage can be assimilated");
 		pallet_parachain_staking::GenesisConfig::<Test> {
@@ -545,16 +554,6 @@ pub(crate) fn set_author(round: BlockNumber, acc: u64, pts: u32) {
 	<AwardedPts<Test>>::mutate(round, acc, |p| *p += pts);
 }
 
-/// fn to query the lock amount
-pub(crate) fn query_lock_amount(account_id: u64, id: LockIdentifier) -> Option<Balance> {
-	for lock in Balances::locks(&account_id) {
-		if lock.id == id {
-			return Some(lock.amount)
-		}
-	}
-	None
-}
-
 #[test]
 fn geneses() {
 	ExtBuilder::default()
@@ -566,27 +565,27 @@ fn geneses() {
 			assert!(System::events().is_empty());
 			// collators
 			assert_eq!(ParachainStaking::get_collator_stakable_free_balance(&1), 500);
-			assert_eq!(query_lock_amount(1, COLLATOR_LOCK_ID), Some(500));
+			assert_eq!(Balances::reserved_balance(&1), 500);
 			assert!(ParachainStaking::is_candidate(&1));
-			assert_eq!(query_lock_amount(2, COLLATOR_LOCK_ID), Some(200));
+			assert_eq!(Balances::reserved_balance(&2), 200);
 			assert_eq!(ParachainStaking::get_collator_stakable_free_balance(&2), 100);
 			assert!(ParachainStaking::is_candidate(&2));
 			// delegators
 			for x in 3..7 {
 				assert!(ParachainStaking::is_delegator(&x));
 				assert_eq!(ParachainStaking::get_delegator_stakable_free_balance(&x), 0);
-				assert_eq!(query_lock_amount(x, DELEGATOR_LOCK_ID), Some(100));
+				assert_eq!(Balances::reserved_balance(&x), 100);
 			}
 			// uninvolved
 			for x in 7..10 {
 				assert!(!ParachainStaking::is_delegator(&x));
 			}
 			// no delegator staking locks
-			assert_eq!(query_lock_amount(7, DELEGATOR_LOCK_ID), None);
+			assert_eq!(Balances::reserved_balance(&7), 0);
 			assert_eq!(ParachainStaking::get_delegator_stakable_free_balance(&7), 100);
-			assert_eq!(query_lock_amount(8, DELEGATOR_LOCK_ID), None);
+			assert_eq!(Balances::reserved_balance(&8), 0);
 			assert_eq!(ParachainStaking::get_delegator_stakable_free_balance(&8), 9);
-			assert_eq!(query_lock_amount(9, DELEGATOR_LOCK_ID), None);
+			assert_eq!(Balances::reserved_balance(&9), 0);
 			assert_eq!(ParachainStaking::get_delegator_stakable_free_balance(&9), 4);
 			// no collator staking locks
 			assert_eq!(ParachainStaking::get_collator_stakable_free_balance(&7), 100);
@@ -614,16 +613,16 @@ fn geneses() {
 			// collators
 			for x in 1..5 {
 				assert!(ParachainStaking::is_candidate(&x));
-				assert_eq!(query_lock_amount(x, COLLATOR_LOCK_ID), Some(20));
+				assert_eq!(Balances::reserved_balance(&x), 20);
 				assert_eq!(ParachainStaking::get_collator_stakable_free_balance(&x), 80);
 			}
 			assert!(ParachainStaking::is_candidate(&5));
-			assert_eq!(query_lock_amount(5, COLLATOR_LOCK_ID), Some(10));
+			assert_eq!(Balances::reserved_balance(&5), 10);
 			assert_eq!(ParachainStaking::get_collator_stakable_free_balance(&5), 90);
 			// delegators
 			for x in 6..11 {
 				assert!(ParachainStaking::is_delegator(&x));
-				assert_eq!(query_lock_amount(x, DELEGATOR_LOCK_ID), Some(10));
+				assert_eq!(Balances::reserved_balance(&x), 10);
 				assert_eq!(ParachainStaking::get_delegator_stakable_free_balance(&x), 90);
 			}
 		});

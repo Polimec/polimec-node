@@ -184,7 +184,7 @@ pub mod defaults {
 		vec![EVALUATOR_1, BIDDER_3, BUYER_4, BUYER_6, BIDDER_6]
 	}
 
-	pub fn project_from_funding_reached(instantiator: &mut MockInstantiator, percent: u64) -> ProjectIdOf<TestRuntime> {
+	pub fn project_from_funding_reached(instantiator: &mut MockInstantiator, percent: u64) -> ProjectId {
 		let project_metadata = default_project(instantiator.get_new_nonce(), ISSUER);
 		let min_price = project_metadata.minimum_price;
 		let usd_to_reach = Perquintill::from_percent(percent) *
@@ -444,7 +444,7 @@ mod evaluation_round_success {
 		);
 
 		let prev_reserved_plmc =
-			inst.get_reserved_plmc_balances_for(evaluators.clone(), LockType::Evaluation(project_id));
+			inst.get_reserved_plmc_balances_for(evaluators.clone(), HoldReason::Evaluation(project_id).into());
 
 		let prev_free_plmc = inst.get_free_plmc_balances_for(evaluators.clone());
 
@@ -459,8 +459,8 @@ mod evaluation_round_success {
 			.map(|UserToPLMCBalance { account, .. }| UserToPLMCBalance::new(*account, Zero::zero()))
 			.collect();
 
-		inst.do_reserved_plmc_assertions(post_unbond_amounts.clone(), LockType::Evaluation(project_id));
-		inst.do_reserved_plmc_assertions(post_unbond_amounts, LockType::Participation(project_id));
+		inst.do_reserved_plmc_assertions(post_unbond_amounts.clone(), HoldReason::Evaluation(project_id).into());
+		inst.do_reserved_plmc_assertions(post_unbond_amounts, HoldReason::Participation(project_id).into());
 
 		let post_free_plmc = inst.get_free_plmc_balances_for(evaluators);
 
@@ -485,7 +485,7 @@ mod evaluation_round_success {
 		);
 
 		let prev_reserved_plmc =
-			inst.get_reserved_plmc_balances_for(evaluators.clone(), LockType::Evaluation(project_id));
+			inst.get_reserved_plmc_balances_for(evaluators.clone(), HoldReason::Evaluation(project_id).into());
 		let prev_free_plmc = inst.get_free_plmc_balances_for(evaluators.clone());
 
 		inst.finish_funding(project_id).unwrap();
@@ -497,8 +497,8 @@ mod evaluation_round_success {
 			.map(|UserToPLMCBalance { account, .. }| UserToPLMCBalance::new(*account, Zero::zero()))
 			.collect();
 
-		inst.do_reserved_plmc_assertions(post_unbond_amounts.clone(), LockType::Evaluation(project_id));
-		inst.do_reserved_plmc_assertions(post_unbond_amounts, LockType::Participation(project_id));
+		inst.do_reserved_plmc_assertions(post_unbond_amounts.clone(), HoldReason::Evaluation(project_id).into());
+		inst.do_reserved_plmc_assertions(post_unbond_amounts, HoldReason::Participation(project_id).into());
 
 		let post_free_plmc = inst.get_free_plmc_balances_for(evaluators);
 
@@ -560,7 +560,7 @@ mod evaluation_round_failure {
 		inst.bond_for_users(project_id, default_failing_evaluations()).expect("Bonding should work");
 
 		inst.do_free_plmc_assertions(plmc_existential_deposits);
-		inst.do_reserved_plmc_assertions(plmc_eval_deposits, LockType::Evaluation(project_id));
+		inst.do_reserved_plmc_assertions(plmc_eval_deposits, HoldReason::Evaluation(project_id).into());
 
 		inst.advance_time(evaluation_end - now + 1).unwrap();
 
@@ -784,7 +784,7 @@ mod auction_round_success {
 
 		let evaluation_bonded = inst.execute(|| {
 			<TestRuntime as Config>::NativeCurrency::balance_on_hold(
-				&LockType::Evaluation(project_id),
+				&HoldReason::Evaluation(project_id.into()).into(),
 				&evaluator_bidder,
 			)
 		});
@@ -1217,7 +1217,10 @@ mod auction_round_success {
 
 		for UserToPLMCBalance { account, plmc_amount } in plmc_locked_for_bids {
 			let schedule = inst.execute(|| {
-				<TestRuntime as Config>::Vesting::total_scheduled_amount(&account, LockType::Participation(project_id))
+				<TestRuntime as Config>::Vesting::total_scheduled_amount(
+					&account,
+					HoldReason::Participation(project_id).into(),
+				)
 			});
 
 			assert_close_enough!(schedule.unwrap(), plmc_amount, Perquintill::from_parts(10_000_000_000u64));
@@ -1265,7 +1268,7 @@ mod auction_round_success {
 			let schedule = inst.execute(|| {
 				<TestRuntime as Config>::Vesting::total_scheduled_amount(
 					&bid.bidder,
-					LockType::Participation(project_id),
+					HoldReason::Participation(project_id).into(),
 				)
 			});
 
@@ -1430,7 +1433,7 @@ mod auction_round_success {
 		let schedule = inst.execute(|| {
 			<TestRuntime as Config>::Vesting::total_scheduled_amount(
 				&accepted_user,
-				LockType::Participation(project_id),
+				HoldReason::Participation(project_id).into(),
 			)
 		});
 		assert_eq!(schedule.unwrap(), accepted_plmc_amount);
@@ -1440,7 +1443,7 @@ mod auction_round_success {
 			.execute(|| {
 				<TestRuntime as Config>::Vesting::total_scheduled_amount(
 					&rejected_user,
-					LockType::Participation(project_id),
+					HoldReason::Participation(project_id).into(),
 				)
 			})
 			.is_some();
@@ -1936,7 +1939,7 @@ mod auction_round_failure {
 				UserToPLMCBalance::new(BIDDER_1, plmc_fundings[0].plmc_amount + plmc_fundings[2].plmc_amount),
 				UserToPLMCBalance::new(BIDDER_2, plmc_fundings[1].plmc_amount),
 			],
-			LockType::Participation(project_id),
+			HoldReason::Participation(project_id).into(),
 		);
 		inst.do_bid_transferred_statemint_asset_assertions(
 			vec![
@@ -1977,7 +1980,7 @@ mod auction_round_failure {
 				),
 				UserToPLMCBalance::new(BIDDER_2, 0),
 			],
-			LockType::Participation(project_id),
+			HoldReason::Participation(project_id).into(),
 		);
 
 		inst.do_bid_transferred_statemint_asset_assertions(
@@ -2032,7 +2035,7 @@ mod auction_round_failure {
 				UserToPLMCBalance::new(BIDDER_1, plmc_fundings[0].plmc_amount),
 				UserToPLMCBalance::new(BIDDER_2, plmc_fundings[1].plmc_amount),
 			],
-			LockType::Participation(project_id),
+			HoldReason::Participation(project_id).into(),
 		);
 		inst.do_bid_transferred_statemint_asset_assertions(
 			vec![
@@ -2057,7 +2060,7 @@ mod auction_round_failure {
 
 		inst.do_reserved_plmc_assertions(
 			vec![UserToPLMCBalance::new(BIDDER_1, plmc_fundings[0].plmc_amount), UserToPLMCBalance::new(BIDDER_2, 0)],
-			LockType::Participation(project_id),
+			HoldReason::Participation(project_id).into(),
 		);
 
 		inst.do_bid_transferred_statemint_asset_assertions(
@@ -2282,7 +2285,7 @@ mod community_round_success {
 			0_u128,
 			AcceptedFundingAsset::USDT.to_statemint_id(),
 		)]);
-		inst.do_reserved_plmc_assertions(vec![plmc_fundings[0].clone()], LockType::Participation(project_id));
+		inst.do_reserved_plmc_assertions(vec![plmc_fundings[0].clone()], HoldReason::Participation(project_id).into());
 		inst.do_contribution_transferred_statemint_asset_assertions(statemint_asset_fundings, project_id);
 	}
 
@@ -2344,7 +2347,7 @@ mod community_round_success {
 		)]);
 		inst.do_reserved_plmc_assertions(
 			vec![UserToPLMCBalance::new(BOB, reserved_plmc)],
-			LockType::Participation(project_id),
+			HoldReason::Participation(project_id).into(),
 		);
 		inst.do_contribution_transferred_statemint_asset_assertions(
 			vec![UserToStatemintAsset::<TestRuntime>::new(
@@ -2403,7 +2406,10 @@ mod community_round_success {
 		assert_eq!(contributor_post_buy_statemint_asset_balance, 0);
 
 		let plmc_bond_stored = inst.execute(|| {
-			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&LockType::Participation(project_id), &CONTRIBUTOR)
+			<TestRuntime as Config>::NativeCurrency::balance_on_hold(
+				&HoldReason::Participation(project_id.into()).into(),
+				&CONTRIBUTOR,
+			)
 		});
 		let statemint_asset_contributions_stored = inst.execute(|| {
 			Contributions::<TestRuntime>::iter_prefix_values((project_id, CONTRIBUTOR))
@@ -2446,7 +2452,10 @@ mod community_round_success {
 		);
 
 		let new_plmc_bond_stored = inst.execute(|| {
-			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&LockType::Participation(project_id), &CONTRIBUTOR)
+			<TestRuntime as Config>::NativeCurrency::balance_on_hold(
+				&HoldReason::Participation(project_id.into()).into(),
+				&CONTRIBUTOR,
+			)
 		});
 		let new_statemint_asset_contributions_stored = inst.execute(|| {
 			Contributions::<TestRuntime>::iter_prefix_values((project_id, CONTRIBUTOR))
@@ -2513,7 +2522,10 @@ mod community_round_success {
 		assert_eq!(contributor_post_buy_statemint_asset_balance, 0);
 
 		let plmc_bond_stored = inst.execute(|| {
-			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&LockType::Participation(project_id), &CONTRIBUTOR)
+			<TestRuntime as Config>::NativeCurrency::balance_on_hold(
+				&HoldReason::Participation(project_id.into()).into(),
+				&CONTRIBUTOR,
+			)
 		});
 		let statemint_asset_contributions_stored = inst.execute(|| {
 			Contributions::<TestRuntime>::iter_prefix_values((project_id, CONTRIBUTOR))
@@ -2556,7 +2568,10 @@ mod community_round_success {
 		);
 
 		let new_plmc_bond_stored = inst.execute(|| {
-			<TestRuntime as Config>::NativeCurrency::balance_on_hold(&LockType::Participation(project_id), &CONTRIBUTOR)
+			<TestRuntime as Config>::NativeCurrency::balance_on_hold(
+				&HoldReason::Participation(project_id.into()).into(),
+				&CONTRIBUTOR,
+			)
 		});
 		let new_statemint_asset_contributions_stored = inst.execute(|| {
 			Contributions::<TestRuntime>::iter_prefix_values((project_id, CONTRIBUTOR))
@@ -2672,7 +2687,7 @@ mod community_round_success {
 
 		let evaluation_bonded = inst.execute(|| {
 			<TestRuntime as Config>::NativeCurrency::balance_on_hold(
-				&LockType::Evaluation(project_id),
+				&HoldReason::Evaluation(project_id.into()).into(),
 				&evaluator_contributor,
 			)
 		});
@@ -2759,10 +2774,10 @@ mod community_round_success {
 
 		inst.contribute_for_users(project_id, vec![contribution]).unwrap();
 		let evaluation_locked = inst
-			.get_reserved_plmc_balances_for(vec![evaluator_contributor], LockType::Evaluation(project_id))[0]
+			.get_reserved_plmc_balances_for(vec![evaluator_contributor], HoldReason::Evaluation(project_id).into())[0]
 			.plmc_amount;
 		let participation_locked = inst
-			.get_reserved_plmc_balances_for(vec![evaluator_contributor], LockType::Participation(project_id))[0]
+			.get_reserved_plmc_balances_for(vec![evaluator_contributor], HoldReason::Participation(project_id).into())[0]
 			.plmc_amount;
 
 		assert_eq!(evaluation_locked, <TestRuntime as Config>::EvaluatorSlash::get() * plmc_evaluation_amount);
@@ -2908,7 +2923,10 @@ mod community_round_success {
 
 		for UserToPLMCBalance { account: user, plmc_amount: amount } in contribution_locked_plmc {
 			let schedule = inst.execute(|| {
-				<TestRuntime as Config>::Vesting::total_scheduled_amount(&user, LockType::Participation(project_id))
+				<TestRuntime as Config>::Vesting::total_scheduled_amount(
+					&user,
+					HoldReason::Participation(project_id).into(),
+				)
 			});
 
 			assert_eq!(schedule.unwrap(), amount);
@@ -2958,7 +2976,7 @@ mod community_round_success {
 			let schedule = inst.execute(|| {
 				<TestRuntime as Config>::Vesting::total_scheduled_amount(
 					&contribution.contributor,
-					LockType::Participation(project_id),
+					HoldReason::Participation(project_id).into(),
 				)
 			});
 
@@ -3270,7 +3288,7 @@ mod remainder_round_success {
 
 		let evaluation_bonded = inst.execute(|| {
 			<TestRuntime as Config>::NativeCurrency::balance_on_hold(
-				&LockType::Evaluation(project_id),
+				&HoldReason::Evaluation(project_id.into()).into(),
 				&evaluator_contributor,
 			)
 		});
@@ -3327,7 +3345,7 @@ mod remainder_round_success {
 			0_u128,
 			AcceptedFundingAsset::USDT.to_statemint_id(),
 		)]);
-		inst.do_reserved_plmc_assertions(vec![plmc_fundings[0].clone()], LockType::Participation(project_id));
+		inst.do_reserved_plmc_assertions(vec![plmc_fundings[0].clone()], HoldReason::Participation(project_id).into());
 		inst.do_contribution_transferred_statemint_asset_assertions(statemint_asset_fundings, project_id);
 	}
 
@@ -3392,7 +3410,7 @@ mod remainder_round_success {
 		)]);
 		inst.do_reserved_plmc_assertions(
 			vec![UserToPLMCBalance::new(BOB, reserved_plmc)],
-			LockType::Participation(project_id),
+			HoldReason::Participation(project_id).into(),
 		);
 		inst.do_contribution_transferred_statemint_asset_assertions(
 			vec![UserToStatemintAsset::new(
@@ -3444,7 +3462,10 @@ mod remainder_round_success {
 
 		for UserToPLMCBalance { account, plmc_amount } in all_plmc_locks {
 			let schedule = inst.execute(|| {
-				<TestRuntime as Config>::Vesting::total_scheduled_amount(&account, LockType::Participation(project_id))
+				<TestRuntime as Config>::Vesting::total_scheduled_amount(
+					&account,
+					HoldReason::Participation(project_id).into(),
+				)
 			});
 
 			assert_eq!(schedule.unwrap(), plmc_amount);
@@ -3485,7 +3506,7 @@ mod remainder_round_success {
 				.execute(|| {
 					<TestRuntime as Config>::Vesting::total_scheduled_amount(
 						&contribution.contributor,
-						LockType::Participation(project_id),
+						HoldReason::Participation(project_id).into(),
 					)
 				})
 				.unwrap_or(Zero::zero());
@@ -3504,7 +3525,7 @@ mod remainder_round_success {
 				.execute(|| {
 					<TestRuntime as Config>::Vesting::total_scheduled_amount(
 						&contribution.contributor,
-						LockType::Participation(project_id),
+						HoldReason::Participation(project_id).into(),
 					)
 				})
 				.unwrap();

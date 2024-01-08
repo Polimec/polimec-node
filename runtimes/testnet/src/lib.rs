@@ -24,7 +24,7 @@ extern crate frame_benchmarking;
 
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
-	construct_runtime, parameter_types,
+	construct_runtime, ord_parameter_types, parameter_types,
 	traits::{
 		AsEnsureOriginWithArg, ConstU32, Currency, EitherOfDiverse, EqualPrivilegeOnly, Everything, WithdrawReasons,
 	},
@@ -45,7 +45,10 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, Convert, ConvertBack, ConvertInto, OpaqueKeys},
+	traits::{
+		AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, Convert, ConvertBack, ConvertInto,
+		OpaqueKeys,
+	},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult,
 };
@@ -55,7 +58,6 @@ use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
-
 // XCM Imports
 use polimec_xcm_executor::XcmExecutor;
 pub use xcm_config::XcmConfig;
@@ -67,7 +69,7 @@ pub use crate::xcm_config::*;
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 // Polimec Shared Imports
-use pallet_funding::{BondTypeOf, DaysToBlocks};
+use pallet_funding::DaysToBlocks;
 pub use pallet_parachain_staking;
 pub use shared_configuration::*;
 
@@ -259,9 +261,9 @@ impl pallet_balances::Config for Runtime {
 	type MaxHolds = MaxLocks;
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
-	type ReserveIdentifier = BondTypeOf<Runtime>;
+	type ReserveIdentifier = RuntimeHoldReason;
 	type RuntimeEvent = RuntimeEvent;
-	type RuntimeHoldReason = BondTypeOf<Runtime>;
+	type RuntimeHoldReason = RuntimeHoldReason;
 	type WeightInfo = ();
 }
 
@@ -551,8 +553,7 @@ impl ConvertBack<AccountId, [u8; 32]> for ConvertSelf {
 }
 impl pallet_funding::Config for Runtime {
 	type AccountId32Conversion = ConvertSelf;
-	type AllPalletsWithoutSystem =
-		(Balances, LocalAssets, StatemintAssets, Oracle, PolimecFunding, LinearVesting, Random);
+	type AllPalletsWithoutSystem = (Balances, LocalAssets, StatemintAssets, Oracle, PolimecFunding, LinearRelease, Random);
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;
 	type BlockNumber = BlockNumber;
@@ -582,20 +583,20 @@ impl pallet_funding::Config for Runtime {
 	type PreImageLimit = ConstU32<1024>;
 	type Price = Price;
 	type PriceProvider = OraclePriceProvider<AssetId, FixedU128, Oracle>;
-	type ProjectIdentifier = u32;
 	type Randomness = Random;
 	type RemainderFundingDuration = RemainderFundingDuration;
 	type RequiredMaxCapacity = RequiredMaxCapacity;
 	type RequiredMaxMessageSize = RequiredMaxMessageSize;
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeOrigin = RuntimeOrigin;
 	#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 	type SetPrices = SetOraclePrices;
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type TreasuryAccount = TreasuryAccount;
-	type Vesting = LinearVesting;
+	type Vesting = LinearRelease;
 	type WeightInfo = pallet_funding::weights::SubstrateWeight<Runtime>;
 }
 
@@ -610,15 +611,21 @@ impl pallet_linear_release::Config for Runtime {
 	type BlockNumberToBalance = ConvertInto;
 	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;
-	type Reason = BondTypeOf<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeHoldReason = RuntimeHoldReason;
 	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
 	type WeightInfo = pallet_linear_release::weights::SubstrateWeight<Runtime>;
 
 	const MAX_VESTING_SCHEDULES: u32 = 12;
 }
 
+ord_parameter_types! {
+	pub const PayMaster: AccountId =
+		AccountIdConversion::<AccountId>::into_account_truncating(&StakingPalletId::get());
+}
+
 impl pallet_parachain_staking::Config for Runtime {
+	type Balance = Balance;
 	type CandidateBondLessDelay = CandidateBondLessDelay;
 	type Currency = Balances;
 	type DelegationBondLessDelay = DelegationBondLessDelay;
@@ -635,11 +642,13 @@ impl pallet_parachain_staking::Config for Runtime {
 	type MonetaryGovernanceOrigin = frame_system::EnsureRoot<AccountId>;
 	type OnCollatorPayout = ();
 	type OnNewRound = ();
+	type PayMaster = PayMaster;
 	// We use the default implementation, so we leave () here.
 	type PayoutCollatorReward = ();
 	type RevokeDelegationDelay = RevokeDelegationDelay;
 	type RewardPaymentDelay = RewardPaymentDelay;
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeHoldReason = RuntimeHoldReason;
 	type WeightInfo = pallet_parachain_staking::weights::SubstrateWeight<Runtime>;
 }
 
@@ -679,6 +688,17 @@ impl orml_oracle::Config<PolimecDataProvider> for Runtime {
 	type WeightInfo = ();
 }
 
+impl pallet_vesting::Config for Runtime {
+	type BlockNumberToBalance = ConvertInto;
+	type Currency = Balances;
+	type MinVestedTransfer = MinVestedTransfer;
+	type RuntimeEvent = RuntimeEvent;
+	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
+	type WeightInfo = ();
+
+	const MAX_VESTING_SCHEDULES: u32 = 12;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime
@@ -703,7 +723,7 @@ construct_runtime!(
 		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 22,
 		Aura: pallet_aura::{Pallet, Storage, Config<T>} = 23,
 		AuraExt: cumulus_pallet_aura_ext::{Pallet, Storage, Config<T>} = 24,
-		ParachainStaking: pallet_parachain_staking::{Pallet, Call, Storage, Event<T>, Config<T>} = 25,
+		ParachainStaking: pallet_parachain_staking::{Pallet, Call, Storage, Event<T>, Config<T>, HoldReason} = 25,
 
 		// Oracle
 		Oracle: orml_oracle::<Instance1> = 30,
@@ -717,8 +737,9 @@ construct_runtime!(
 		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 44,
 
 		// Polimec Core
-		PolimecFunding: pallet_funding::{Pallet, Call, Storage, Event<T>, Config<T>}  = 52,
-		LinearVesting: pallet_linear_release::{Pallet, Call, Storage, Event<T>, Config<T>} = 53,
+		PolimecFunding: pallet_funding::{Pallet, Call, Storage, Event<T>, Config<T>, HoldReason}  = 52,
+		LinearRelease: pallet_linear_release::{Pallet, Call, Storage, Event<T>} = 53,
+		Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 54,
 
 		// Utilities
 		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 61,
@@ -749,7 +770,7 @@ mod benches {
 		[pallet_timestamp, Timestamp]
 		[cumulus_pallet_xcmp_queue, XcmpQueue]
 		[pallet_funding, PolimecFunding]
-		[pallet_linear_release, LinearVesting]
+		[pallet_linear_release, LinearRelease]
 	);
 }
 

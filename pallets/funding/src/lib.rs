@@ -112,11 +112,10 @@
 //! 		#[pallet::weight(0)]
 //! 		pub fn buy_if_popular(
 //! 			origin: OriginFor<T>,
-//! 			project_id: <T as pallet_funding::Config>::ProjectIdentifier,
+//! 			project_id: pallet_funding::ProjectId,
 //! 			amount: <T as pallet_funding::Config>::Balance
 //! 		) -> DispatchResultWithPostInfo {
 //! 			let retail_user = ensure_signed(origin)?;
-//! 			let project_id: <T as pallet_funding::Config>::ProjectIdentifier = project_id.into();
 //! 			// Check project is in the community round
 //! 			let project_details = pallet_funding::Pallet::<T>::project_details(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 //! 			ensure!(project_details.status == pallet_funding::ProjectStatus::CommunityRound, "Project is not in the community round");
@@ -210,7 +209,7 @@ pub mod traits;
 mod genesis_config;
 
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
-pub type ProjectIdOf<T> = <T as Config>::ProjectIdentifier;
+pub type ProjectId = u32;
 pub type MultiplierOf<T> = <T as Config>::Multiplier;
 
 pub type BalanceOf<T> = <T as Config>::Balance;
@@ -236,46 +235,44 @@ pub type ProjectDetailsOf<T> = ProjectDetails<
 >;
 pub type EvaluationRoundInfoOf<T> = EvaluationRoundInfo<BalanceOf<T>>;
 pub type VestingInfoOf<T> = VestingInfo<BlockNumberFor<T>, BalanceOf<T>>;
-pub type EvaluationInfoOf<T> = EvaluationInfo<u32, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, BlockNumberFor<T>>;
-pub type BidInfoOf<T> = BidInfo<
-	ProjectIdOf<T>,
-	BalanceOf<T>,
-	PriceOf<T>,
-	AccountIdOf<T>,
-	BlockNumberFor<T>,
-	MultiplierOf<T>,
-	VestingInfoOf<T>,
->;
+pub type EvaluationInfoOf<T> = EvaluationInfo<u32, ProjectId, AccountIdOf<T>, BalanceOf<T>, BlockNumberFor<T>>;
+pub type BidInfoOf<T> =
+	BidInfo<ProjectId, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, BlockNumberFor<T>, MultiplierOf<T>, VestingInfoOf<T>>;
 pub type ContributionInfoOf<T> =
-	ContributionInfo<u32, ProjectIdOf<T>, AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>, VestingInfoOf<T>>;
+	ContributionInfo<u32, ProjectId, AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>, VestingInfoOf<T>>;
 
 pub type ProjectMigrationOriginsOf<T> =
-	ProjectMigrationOrigins<ProjectIdOf<T>, BoundedVec<MigrationOrigin, MaxMigrationsPerXcm<T>>>;
+	ProjectMigrationOrigins<ProjectId, BoundedVec<MigrationOrigin, MaxMigrationsPerXcm<T>>>;
 
 pub type BucketOf<T> = Bucket<BalanceOf<T>, PriceOf<T>>;
-pub type BondTypeOf<T> = LockType<ProjectIdOf<T>>;
 pub type WeightInfoOf<T> = <T as Config>::WeightInfo;
 
 pub const PLMC_STATEMINT_ID: u32 = 2069;
 
 #[frame_support::pallet]
 pub mod pallet {
+	use super::*;
+	use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
 	use frame_support::{
 		pallet_prelude::*,
 		traits::{OnFinalize, OnIdle, OnInitialize},
 	};
 	use frame_system::pallet_prelude::*;
+	use local_macros::*;
 	use sp_arithmetic::Percent;
 	use sp_runtime::traits::{Convert, ConvertBack};
-
-	use local_macros::*;
-
-	use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
 
 	#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 	use crate::traits::SetPrices;
 
-	use super::*;
+    #[pallet::composite_enum]
+	pub enum HoldReason {
+		Evaluation(ProjectId),
+		Participation(ProjectId),
+        // We require a PLMC deposit to create an account for minting the CTs to this user.
+		// Here we make sure the user has this amount before letting him participate.
+		FutureDeposit(ProjectId),
+	}
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -307,11 +304,6 @@ pub mod pallet {
 
 		type RuntimeCall: Parameter + IsType<<Self as frame_system::Config>::RuntimeCall> + From<Call<Self>>;
 
-		/// Global identifier for the projects.
-		type ProjectIdentifier: Parameter + Copy + Default + One + Saturating + From<u32> + Ord + MaxEncodedLen;
-
-		// TODO: PLMC-153 + MaybeSerializeDeserialize: Maybe needed for JSON serialization @ Genesis: https://github.com/paritytech/substrate/issues/12738#issuecomment-1320921201
-
 		/// Multiplier that decides how much PLMC needs to be bonded for a token buy/bid
 		type Multiplier: Parameter
 			+ BondingRequirementCalculation
@@ -328,10 +320,15 @@ pub mod pallet {
 		/// Represents the value of something in USD
 		type Price: FixedPointNumber + Parameter + Copy + MaxEncodedLen + MaybeSerializeDeserialize;
 
+		type RuntimeHoldReason: From<HoldReason>;
+
 		/// The chains native currency
 		type NativeCurrency: fungible::InspectHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
-			+ fungible::MutateHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, Reason = BondTypeOf<Self>>
-			+ fungible::BalancedHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
+			+ fungible::MutateHold<
+				AccountIdOf<Self>,
+				Balance = BalanceOf<Self>,
+				Reason = <Self as Config>::RuntimeHoldReason,
+			> + fungible::BalancedHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
 			+ fungible::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
 
 		/// The currency used for funding projects in bids and contributions
@@ -342,8 +339,8 @@ pub mod pallet {
 			+ fungibles::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
 
 		/// The currency used for minting contribution tokens as fungible assets (i.e pallet-assets)
-		type ContributionTokenCurrency: fungibles::Create<AccountIdOf<Self>, AssetId = Self::ProjectIdentifier, Balance = BalanceOf<Self>>
-			+ fungibles::Destroy<AccountIdOf<Self>, AssetId = Self::ProjectIdentifier, Balance = BalanceOf<Self>>
+		type ContributionTokenCurrency: fungibles::Create<AccountIdOf<Self>, AssetId = ProjectId, Balance = BalanceOf<Self>>
+			+ fungibles::Destroy<AccountIdOf<Self>, AssetId = ProjectId, Balance = BalanceOf<Self>>
 			+ fungibles::InspectEnumerable<AccountIdOf<Self>, Balance = BalanceOf<Self>>
 			+ fungibles::metadata::Inspect<AccountIdOf<Self>>
 			+ fungibles::metadata::Mutate<AccountIdOf<Self>>
@@ -422,7 +419,7 @@ pub mod pallet {
 
 		type Vesting: polimec_common::ReleaseSchedule<
 			AccountIdOf<Self>,
-			BondTypeOf<Self>,
+			<Self as Config>::RuntimeHoldReason,
 			Currency = Self::NativeCurrency,
 			Moment = BlockNumberFor<Self>,
 		>;
@@ -456,7 +453,7 @@ pub mod pallet {
 	#[pallet::getter(fn next_project_id)]
 	/// A global counter for indexing the projects
 	/// OnEmpty in this case is GetDefault, so 0.
-	pub type NextProjectId<T: Config> = StorageValue<_, T::ProjectIdentifier, ValueQuery>;
+	pub type NextProjectId<T: Config> = StorageValue<_, ProjectId, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn next_evaluation_id)]
@@ -485,11 +482,11 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn projects_metadata)]
 	/// A StorageMap containing the primary project information of projects
-	pub type ProjectsMetadata<T: Config> = StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, ProjectMetadataOf<T>>;
+	pub type ProjectsMetadata<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, ProjectMetadataOf<T>>;
 
 	#[pallet::storage]
 	/// A StorageMap containing the primary project information of projects
-	pub type Buckets<T: Config> = StorageMap<_, Blake2_128Concat, T::ProjectIdentifier, BucketOf<T>>;
+	pub type Buckets<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, BucketOf<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn project_details)]
@@ -503,7 +500,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		BlockNumberFor<T>,
-		BoundedVec<(T::ProjectIdentifier, UpdateType), T::MaxProjectsToUpdatePerBlock>,
+		BoundedVec<(ProjectId, UpdateType), T::MaxProjectsToUpdatePerBlock>,
 		ValueQuery,
 	>;
 
@@ -513,7 +510,7 @@ pub mod pallet {
 	pub type Evaluations<T: Config> = StorageNMap<
 		_,
 		(
-			NMapKey<Blake2_128Concat, T::ProjectIdentifier>,
+			NMapKey<Blake2_128Concat, ProjectId>,
 			NMapKey<Blake2_128Concat, AccountIdOf<T>>,
 			NMapKey<Blake2_128Concat, u32>,
 		),
@@ -526,7 +523,7 @@ pub mod pallet {
 	pub type Bids<T: Config> = StorageNMap<
 		_,
 		(
-			NMapKey<Blake2_128Concat, T::ProjectIdentifier>,
+			NMapKey<Blake2_128Concat, ProjectId>,
 			NMapKey<Blake2_128Concat, AccountIdOf<T>>,
 			NMapKey<Blake2_128Concat, u32>,
 		),
@@ -539,7 +536,7 @@ pub mod pallet {
 	pub type Contributions<T: Config> = StorageNMap<
 		_,
 		(
-			NMapKey<Blake2_128Concat, T::ProjectIdentifier>,
+			NMapKey<Blake2_128Concat, ProjectId>,
 			NMapKey<Blake2_128Concat, AccountIdOf<T>>,
 			NMapKey<Blake2_128Concat, u32>,
 		),
@@ -555,89 +552,89 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// A project was created.
 		ProjectCreated {
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			issuer: T::AccountId,
 		},
 		/// The metadata of a project was modified.
 		MetadataEdited {
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 		},
 		/// The evaluation phase of a project started.
 		EvaluationStarted {
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 		},
 		/// The evaluation phase of a project ended without reaching the minimum threshold of evaluation bonds.
 		EvaluationFailed {
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 		},
 		/// The period an issuer has to start the auction phase of the project.
 		AuctionInitializePeriod {
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			start_block: BlockNumberFor<T>,
 			end_block: BlockNumberFor<T>,
 		},
 		/// The auction round of a project started.
 		EnglishAuctionStarted {
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			when: BlockNumberFor<T>,
 		},
 		/// The candle auction part of the auction started for a project
 		CandleAuctionStarted {
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			when: BlockNumberFor<T>,
 		},
 		/// The auction round of a project ended.
 		AuctionFailed {
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 		},
 		/// A `bonder` bonded an `amount` of PLMC for `project_id`.
 		FundsBonded {
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			amount: BalanceOf<T>,
 			bonder: AccountIdOf<T>,
 		},
 		/// Someone paid for the release of a user's PLMC bond for a project.
 		BondReleased {
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			amount: BalanceOf<T>,
 			bonder: AccountIdOf<T>,
 			releaser: AccountIdOf<T>,
 		},
 		/// A bid was made for a project
 		Bid {
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			amount: BalanceOf<T>,
 			price: T::Price,
 			multiplier: MultiplierOf<T>,
 		},
 		/// A contribution was made for a project. i.e token purchase
 		Contribution {
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			contributor: AccountIdOf<T>,
 			amount: BalanceOf<T>,
 			multiplier: MultiplierOf<T>,
 		},
 		/// A project is now in its community funding round
 		CommunityFundingStarted {
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 		},
 		/// A project is now in the remainder funding round
 		RemainderFundingStarted {
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 		},
 		/// A project has now finished funding
 		FundingEnded {
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			outcome: FundingOutcome,
 		},
 		/// Something was not properly initialized. Most likely due to dev error manually calling do_* functions or updating storage
 		TransitionError {
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			error: DispatchError,
 		},
 		/// Something terribly wrong happened where the bond could not be unbonded. Most likely a programming error
 		EvaluationUnbondFailed {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			evaluator: AccountIdOf<T>,
 			id: u32,
 			error: DispatchError,
@@ -645,7 +642,7 @@ pub mod pallet {
 		/// Contribution tokens were minted to a user
 		ContributionTokenMinted {
 			releaser: AccountIdOf<T>,
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			claimer: AccountIdOf<T>,
 			amount: BalanceOf<T>,
 		},
@@ -654,181 +651,181 @@ pub mod pallet {
 			error: DispatchError,
 		},
 		EvaluationRewardFailed {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			evaluator: AccountIdOf<T>,
 			id: u32,
 			error: DispatchError,
 		},
 		EvaluationSlashFailed {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			evaluator: AccountIdOf<T>,
 			id: u32,
 			error: DispatchError,
 		},
 		ReleaseBidFundsFailed {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			bidder: AccountIdOf<T>,
 			id: u32,
 			error: DispatchError,
 		},
 		BidUnbondFailed {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			bidder: AccountIdOf<T>,
 			id: u32,
 			error: DispatchError,
 		},
 		ReleaseContributionFundsFailed {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			contributor: AccountIdOf<T>,
 			id: u32,
 			error: DispatchError,
 		},
 		ContributionUnbondFailed {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			contributor: AccountIdOf<T>,
 			id: u32,
 			error: DispatchError,
 		},
 		PayoutContributionFundsFailed {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			contributor: AccountIdOf<T>,
 			id: u32,
 			error: DispatchError,
 		},
 		PayoutBidFundsFailed {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			bidder: AccountIdOf<T>,
 			id: u32,
 			error: DispatchError,
 		},
 		EvaluationRewarded {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			evaluator: AccountIdOf<T>,
 			id: u32,
 			amount: BalanceOf<T>,
 			caller: AccountIdOf<T>,
 		},
 		EvaluationSlashed {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			evaluator: AccountIdOf<T>,
 			id: u32,
 			amount: BalanceOf<T>,
 			caller: AccountIdOf<T>,
 		},
 		CTMintFailed {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			claimer: AccountIdOf<T>,
 			id: u32,
 			error: DispatchError,
 		},
 		StartBidderVestingScheduleFailed {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			bidder: AccountIdOf<T>,
 			id: u32,
 			error: DispatchError,
 		},
 		StartContributionVestingScheduleFailed {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			contributor: AccountIdOf<T>,
 			id: u32,
 			error: DispatchError,
 		},
 		BidPlmcVestingScheduled {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			bidder: AccountIdOf<T>,
 			id: u32,
 			amount: BalanceOf<T>,
 			caller: AccountIdOf<T>,
 		},
 		ContributionPlmcVestingScheduled {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			contributor: AccountIdOf<T>,
 			id: u32,
 			amount: BalanceOf<T>,
 			caller: AccountIdOf<T>,
 		},
 		ParticipantPlmcVested {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			participant: AccountIdOf<T>,
 			amount: BalanceOf<T>,
 			caller: AccountIdOf<T>,
 		},
 		BidFundingPaidOut {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			bidder: AccountIdOf<T>,
 			id: u32,
 			amount: BalanceOf<T>,
 			caller: AccountIdOf<T>,
 		},
 		ContributionFundingPaidOut {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			contributor: AccountIdOf<T>,
 			id: u32,
 			amount: BalanceOf<T>,
 			caller: AccountIdOf<T>,
 		},
 		BidFundingReleased {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			bidder: AccountIdOf<T>,
 			id: u32,
 			amount: BalanceOf<T>,
 			caller: AccountIdOf<T>,
 		},
 		ContributionFundingReleased {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			contributor: AccountIdOf<T>,
 			id: u32,
 			amount: BalanceOf<T>,
 			caller: AccountIdOf<T>,
 		},
 		ProjectOutcomeDecided {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			decision: FundingOutcomeDecision,
 		},
 		ProjectParaIdSet {
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			para_id: ParaId,
 			caller: T::AccountId,
 		},
 		/// A channel was accepted from a parachain to Polimec belonging to a project. A request has been sent to the relay for a Polimec->project channel
 		HrmpChannelAccepted {
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			para_id: ParaId,
 		},
 		/// A channel was established from Polimec to a project. The relay has notified us of their acceptance of our request
 		HrmpChannelEstablished {
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			para_id: ParaId,
 		},
 		/// Started a migration readiness check
 		MigrationReadinessCheckStarted {
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			caller: T::AccountId,
 		},
 		MigrationCheckResponseAccepted {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			query_id: QueryId,
 			response: Response,
 		},
 		MigrationCheckResponseRejected {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			query_id: QueryId,
 			response: Response,
 		},
 		MigrationStarted {
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 		},
 		UserMigrationSent {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			caller: AccountIdOf<T>,
 			participant: AccountIdOf<T>,
 		},
 		MigrationsConfirmed {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			migration_origins: BoundedVec<MigrationOrigin, MaxMigrationsPerXcm<T>>,
 		},
 		MigrationsFailed {
-			project_id: ProjectIdOf<T>,
+			project_id: ProjectId,
 			migration_origins: BoundedVec<MigrationOrigin, MaxMigrationsPerXcm<T>>,
 		},
 		ReleaseFutureCTDepositFailed {
@@ -958,7 +955,7 @@ pub mod pallet {
 		#[pallet::weight(WeightInfoOf::<T>::edit_metadata())]
 		pub fn edit_metadata(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			project_metadata_hash: T::Hash,
 		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
@@ -968,7 +965,7 @@ pub mod pallet {
 		/// Starts the evaluation round of a project. It needs to be called by the project issuer.
 		#[pallet::call_index(2)]
 		#[pallet::weight(WeightInfoOf::<T>::start_evaluation())]
-		pub fn start_evaluation(origin: OriginFor<T>, project_id: T::ProjectIdentifier) -> DispatchResult {
+		pub fn start_evaluation(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 			Self::do_evaluation_start(issuer, project_id)
 		}
@@ -978,7 +975,7 @@ pub mod pallet {
 		/// Any bids from this point until the candle_auction starts, will be considered as valid.
 		#[pallet::call_index(3)]
 		#[pallet::weight(WeightInfoOf::<T>::start_auction())]
-		pub fn start_auction(origin: OriginFor<T>, project_id: T::ProjectIdentifier) -> DispatchResult {
+		pub fn start_auction(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
 			Self::do_english_auction(issuer, project_id)
 		}
@@ -988,7 +985,7 @@ pub mod pallet {
 		#[pallet::weight(WeightInfoOf::<T>::bond_evaluation())]
 		pub fn bond_evaluation(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			#[pallet::compact] usd_amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let evaluator = ensure_signed(origin)?;
@@ -1000,7 +997,7 @@ pub mod pallet {
 		#[pallet::weight(WeightInfoOf::<T>::bid())]
 		pub fn bid(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			#[pallet::compact] amount: BalanceOf<T>,
 			multiplier: T::Multiplier,
 			asset: AcceptedFundingAsset,
@@ -1014,7 +1011,7 @@ pub mod pallet {
 		#[pallet::weight(WeightInfoOf::<T>::contribute())]
 		pub fn contribute(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			#[pallet::compact] amount: BalanceOf<T>,
 			multiplier: MultiplierOf<T>,
 			asset: AcceptedFundingAsset,
@@ -1028,7 +1025,7 @@ pub mod pallet {
 		#[pallet::weight(WeightInfoOf::<T>::evaluation_unbond_for())]
 		pub fn evaluation_unbond_for(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			evaluator: AccountIdOf<T>,
 			bond_id: u32,
 		) -> DispatchResult {
@@ -1040,7 +1037,7 @@ pub mod pallet {
 		#[pallet::weight(WeightInfoOf::<T>::evaluation_slash_for())]
 		pub fn evaluation_slash_for(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			evaluator: AccountIdOf<T>,
 			bond_id: u32,
 		) -> DispatchResult {
@@ -1052,7 +1049,7 @@ pub mod pallet {
 		#[pallet::weight(WeightInfoOf::<T>::evaluation_reward_payout_for())]
 		pub fn evaluation_reward_payout_for(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			evaluator: AccountIdOf<T>,
 			bond_id: u32,
 		) -> DispatchResult {
@@ -1064,7 +1061,7 @@ pub mod pallet {
 		#[pallet::weight(WeightInfoOf::<T>::bid_ct_mint_for())]
 		pub fn bid_ct_mint_for(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			bidder: AccountIdOf<T>,
 			bid_id: u32,
 		) -> DispatchResult {
@@ -1076,7 +1073,7 @@ pub mod pallet {
 		#[pallet::weight(WeightInfoOf::<T>::contribution_ct_mint_for())]
 		pub fn contribution_ct_mint_for(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			contributor: AccountIdOf<T>,
 			contribution_id: u32,
 		) -> DispatchResult {
@@ -1088,7 +1085,7 @@ pub mod pallet {
 		#[pallet::weight(WeightInfoOf::<T>::start_bid_vesting_schedule_for())]
 		pub fn start_bid_vesting_schedule_for(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			bidder: AccountIdOf<T>,
 			bid_id: u32,
 		) -> DispatchResult {
@@ -1100,7 +1097,7 @@ pub mod pallet {
 		#[pallet::weight(WeightInfoOf::<T>::start_contribution_vesting_schedule_for())]
 		pub fn start_contribution_vesting_schedule_for(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			contributor: AccountIdOf<T>,
 			contribution_id: u32,
 		) -> DispatchResult {
@@ -1112,7 +1109,7 @@ pub mod pallet {
 		#[pallet::weight(WeightInfoOf::<T>::payout_bid_funds_for())]
 		pub fn payout_bid_funds_for(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			bidder: AccountIdOf<T>,
 			bid_id: u32,
 		) -> DispatchResult {
@@ -1124,7 +1121,7 @@ pub mod pallet {
 		#[pallet::weight(WeightInfoOf::<T>::payout_contribution_funds_for())]
 		pub fn payout_contribution_funds_for(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			contributor: AccountIdOf<T>,
 			contribution_id: u32,
 		) -> DispatchResult {
@@ -1136,7 +1133,7 @@ pub mod pallet {
 		#[pallet::weight(WeightInfoOf::<T>::decide_project_outcome())]
 		pub fn decide_project_outcome(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			outcome: FundingOutcomeDecision,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
@@ -1147,7 +1144,7 @@ pub mod pallet {
 		#[pallet::weight(WeightInfoOf::<T>::release_bid_funds_for())]
 		pub fn release_bid_funds_for(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			bidder: AccountIdOf<T>,
 			bid_id: u32,
 		) -> DispatchResult {
@@ -1159,7 +1156,7 @@ pub mod pallet {
 		#[pallet::weight(WeightInfoOf::<T>::bid_unbond_for())]
 		pub fn bid_unbond_for(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			bidder: AccountIdOf<T>,
 			bid_id: u32,
 		) -> DispatchResult {
@@ -1171,7 +1168,7 @@ pub mod pallet {
 		#[pallet::weight(WeightInfoOf::<T>::release_contribution_funds_for())]
 		pub fn release_contribution_funds_for(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			contributor: AccountIdOf<T>,
 			contribution_id: u32,
 		) -> DispatchResult {
@@ -1183,7 +1180,7 @@ pub mod pallet {
 		#[pallet::weight(WeightInfoOf::<T>::contribution_unbond_for())]
 		pub fn contribution_unbond_for(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			contributor: AccountIdOf<T>,
 			contribution_id: u32,
 		) -> DispatchResult {
@@ -1193,21 +1190,14 @@ pub mod pallet {
 
 		#[pallet::call_index(21)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
-		pub fn set_para_id_for_project(
-			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
-			para_id: ParaId,
-		) -> DispatchResult {
+		pub fn set_para_id_for_project(origin: OriginFor<T>, project_id: ProjectId, para_id: ParaId) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
 			Self::do_set_para_id_for_project(&caller, project_id, para_id)
 		}
 
 		#[pallet::call_index(22)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
-		pub fn start_migration_readiness_check(
-			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
-		) -> DispatchResult {
+		pub fn start_migration_readiness_check(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
 			Self::do_start_migration_readiness_check(&caller, project_id)
 		}
@@ -1227,7 +1217,7 @@ pub mod pallet {
 
 		#[pallet::call_index(24)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
-		pub fn start_migration(origin: OriginFor<T>, project_id: T::ProjectIdentifier) -> DispatchResult {
+		pub fn start_migration(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
 			Self::do_start_migration(&caller, project_id)
 		}
@@ -1236,7 +1226,7 @@ pub mod pallet {
 		#[pallet::weight(Weight::from_parts(1000, 0))]
 		pub fn migrate_one_participant(
 			origin: OriginFor<T>,
-			project_id: T::ProjectIdentifier,
+			project_id: ProjectId,
 			participant: AccountIdOf<T>,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;

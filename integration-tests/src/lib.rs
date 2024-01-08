@@ -17,7 +17,7 @@ pub mod constants;
 
 mod tests;
 
-pub use constants::{accounts::*, penpal, polimec, polkadot, statemint};
+pub use constants::{accounts::*, penpal, polimec, polimec_base, polkadot, statemint};
 pub use frame_support::{assert_noop, assert_ok, pallet_prelude::Weight, parameter_types, sp_io, sp_tracing};
 pub use parachains_common::{AccountId, AssetHubPolkadotAuraId, AuraId, Balance, BlockNumber};
 pub use sp_core::{sr25519, storage::Storage, Encode, Get};
@@ -116,8 +116,29 @@ decl_test_parachains! {
 			PolkadotXcm: asset_hub_polkadot_runtime::PolkadotXcm,
 			LocalAssets: asset_hub_polkadot_runtime::Assets,
 		}
+	},
+	pub struct PolimecBase {
+		genesis = polimec_base::genesis(),
+		on_init = (),
+		runtime = {
+			Runtime: polimec_base_runtime::Runtime,
+			RuntimeOrigin: polimec_base_runtime::RuntimeOrigin,
+			RuntimeCall: polimec_base_runtime::RuntimeCall,
+			RuntimeEvent: polimec_base_runtime::RuntimeEvent,
+			XcmpMessageHandler: polimec_base_runtime::XcmpQueue,
+			DmpMessageHandler: polimec_base_runtime::DmpQueue,
+			LocationToAccountId: polimec_base_runtime::xcm_config::LocationToAccountId,
+			System: polimec_base_runtime::System,
+			Balances: polimec_base_runtime::Balances,
+			ParachainSystem: polimec_base_runtime::ParachainSystem,
+			ParachainInfo: polimec_base_runtime::ParachainInfo,
+		},
+		pallets_extra = {
+			PolkadotXcm: polimec_base_runtime::PolkadotXcm,
+		}
 	}
 }
+
 decl_test_networks! {
 	pub struct PolkadotNet {
 		relay_chain = PolkadotRelay,
@@ -125,6 +146,7 @@ decl_test_networks! {
 			Polimec,
 			Penpal,
 			Statemint,
+			PolimecBase,
 		],
 		bridge = ()
 	}
@@ -133,27 +155,31 @@ decl_test_networks! {
 /// Shortcuts to reduce boilerplate on runtime types
 pub mod shortcuts {
 	use super::{
-		Parachain, Penpal, Polimec, PolimecPallet, PolkadotRelay as Polkadot, PolkadotRelayPallet as PolkadotPallet,
-		RelayChain, Statemint, StatemintPallet,
+		Parachain, Penpal, Polimec, PolimecBase, PolimecBasePallet, PolimecPallet, PolkadotRelay as Polkadot,
+		PolkadotRelayPallet as PolkadotPallet, RelayChain, Statemint, StatemintPallet,
 	};
 	use crate::PenpalPallet;
 
 	pub type PolimecFundingPallet = <Polimec as PolimecPallet>::FundingPallet;
+
 	pub type PolkadotRuntime = <Polkadot as RelayChain>::Runtime;
 	pub type PolimecRuntime = <Polimec as Parachain>::Runtime;
 	pub type PenpalRuntime = <Penpal as Parachain>::Runtime;
 	pub type StatemintRuntime = <Statemint as Parachain>::Runtime;
+	pub type BaseRuntime = <PolimecBase as Parachain>::Runtime;
 
 	pub type PolkadotXcmPallet = <Polkadot as PolkadotPallet>::XcmPallet;
 	pub type PolimecXcmPallet = <Polimec as PolimecPallet>::PolkadotXcm;
 	pub type PenpalXcmPallet = <Penpal as PenpalPallet>::PolkadotXcm;
 	pub type StatemintXcmPallet = <Statemint as StatemintPallet>::PolkadotXcm;
-	//
+	pub type BaseXcmPallet = <PolimecBase as PolimecBasePallet>::PolkadotXcm;
+
 	pub type PolkadotBalances = <Polkadot as RelayChain>::Balances;
 	pub type PolimecBalances = <Polimec as Parachain>::Balances;
 	pub type PenpalBalances = <Penpal as Parachain>::Balances;
 	pub type StatemintBalances = <Statemint as Parachain>::Balances;
-	//
+	pub type BaseBalances = <PolimecBase as Parachain>::Balances;
+
 	pub type PolimecLocalAssets = <Polimec as PolimecPallet>::LocalAssets;
 	pub type PolimecStatemintAssets = <Polimec as PolimecPallet>::StatemintAssets;
 	pub type PenpalAssets = <Penpal as PenpalPallet>::Assets;
@@ -163,25 +189,30 @@ pub mod shortcuts {
 	pub type PolimecOrigin = <Polimec as Parachain>::RuntimeOrigin;
 	pub type PenpalOrigin = <Penpal as Parachain>::RuntimeOrigin;
 	pub type StatemintOrigin = <Statemint as Parachain>::RuntimeOrigin;
+	pub type BaseOrigin = <PolimecBase as Parachain>::RuntimeOrigin;
 
 	pub type PolkadotCall = <Polkadot as RelayChain>::RuntimeCall;
 	pub type PolimecCall = <Polimec as Parachain>::RuntimeCall;
 	pub type PenpalCall = <Penpal as Parachain>::RuntimeCall;
 	pub type StatemintCall = <Statemint as Parachain>::RuntimeCall;
+	pub type BaseCall = <PolimecBase as Parachain>::RuntimeCall;
 
 	pub type PolkadotAccountId = <PolkadotRuntime as frame_system::Config>::AccountId;
 	pub type PolimecAccountId = <PolimecRuntime as frame_system::Config>::AccountId;
 	pub type PenpalAccountId = <PenpalRuntime as frame_system::Config>::AccountId;
 	pub type StatemintAccountId = <StatemintRuntime as frame_system::Config>::AccountId;
+	pub type BaseAccountId = <PolimecBase as frame_system::Config>::AccountId;
 
 	pub type PolkadotEvent = <Polkadot as RelayChain>::RuntimeEvent;
 	pub type PolimecEvent = <Polimec as Parachain>::RuntimeEvent;
 	pub type PenpalEvent = <Penpal as Parachain>::RuntimeEvent;
 	pub type StatemintEvent = <Statemint as Parachain>::RuntimeEvent;
+	pub type BaseEvent = <PolimecBase as Parachain>::RuntimeEvent;
 
 	pub type PolkadotSystem = <Polkadot as RelayChain>::System;
 	pub type PolimecSystem = <Polimec as Parachain>::System;
 	pub type PenpalSystem = <Penpal as Parachain>::System;
 	pub type StatemintSystem = <Statemint as Parachain>::System;
+	pub type BaseSystem = <PolimecBase as Parachain>::System;
 }
 pub use shortcuts::*;
