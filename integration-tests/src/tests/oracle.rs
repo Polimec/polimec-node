@@ -28,7 +28,7 @@ fn members_can_feed_data() {
 
 	Polimec::execute_with(|| {
 		// pallet_funding genesis builder already inputs prices, so we need to advance one block to feed new values.
-		inst.advance_time(1u32);
+		inst.advance_time(1u32).unwrap();
 		let alice = Polimec::account_id_of(ALICE);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.clone()), values([4.84, 1.0, 1.0, 0.4])));
 

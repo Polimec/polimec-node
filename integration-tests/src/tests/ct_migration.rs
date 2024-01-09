@@ -489,7 +489,7 @@ fn disallow_duplicated_migrations_on_receiver_pallet() {
 		panic!("should be rewarded")
 	}
 
-	let mut participants = vec![
+	let participants = vec![
 		EVAL_1, EVAL_2, EVAL_3, EVAL_4, BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5, BIDDER_6, BUYER_1, BUYER_2,
 		BUYER_3, BUYER_4, BUYER_5, BUYER_6,
 	]
