@@ -79,7 +79,6 @@ mod genesis_config {
 	}
 }
 
-// #[cfg(not(all(feature = "testing-node", feature = "std")))]
 // #[pallet_section]
 // mod genesis_config {
 // 	#[pallet::genesis_config]

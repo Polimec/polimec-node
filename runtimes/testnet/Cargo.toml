@@ -252,8 +252,3 @@ try-runtime = [
 	"shared-configuration/try-runtime",
 	"sp-runtime/try-runtime",
 ]
-testing-node = [
-	"pallet-funding/testing-node",
-	"pallet-linear-release/testing-node",
-	"shared-configuration/testing-node",
-]

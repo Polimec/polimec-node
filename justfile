@@ -32,7 +32,7 @@ test-runtime-features:
 
 # Run the integration tests
 test-integration:
-	cargo test -p integration-tests --features std,testing-node,fast-gov
+	cargo test -p integration-tests --features std,fast-gov
 
 # Benchmark the "Testnet" Runtime
 benchmark-runtime-funding:

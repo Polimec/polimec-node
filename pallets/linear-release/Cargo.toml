@@ -69,4 +69,3 @@ try-runtime = [
 	"polimec-common/try-runtime",
 	"sp-runtime/try-runtime",
 ]
-testing-node = [ "pallet-funding/testing-node" ]

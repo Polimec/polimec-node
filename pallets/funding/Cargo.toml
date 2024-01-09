@@ -134,11 +134,3 @@ try-runtime = [
 	"polkadot-runtime/try-runtime",
 	"sp-runtime/try-runtime",
 ]
-testing-node = [ "pallet-linear-release/testing-node" ]
-cargo-expand-visible = [
-	# "pallet-insecure-randomness-collective-flip",
-	# "pallet-assets",
-	# "pallet-linear-release",
-	# "assert_matches2",
-	# "xcm-executor",
-]

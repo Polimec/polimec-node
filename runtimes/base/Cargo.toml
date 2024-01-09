@@ -207,4 +207,3 @@ try-runtime = [
 	"shared-configuration/try-runtime",
 	"sp-runtime/try-runtime",
 ]
-testing-node = [ "shared-configuration/testing-node" ]

@@ -147,10 +147,6 @@ runtime-benchmarks = [
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
 ]
-testing-node = [
-	"pallet-funding/testing-node",
-	"polimec-parachain-runtime/testing-node",
-]
 try-runtime = [
 	"asset-hub-polkadot-runtime/try-runtime",
 	"cumulus-pallet-xcm/try-runtime",
