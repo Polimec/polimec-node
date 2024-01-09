@@ -62,7 +62,6 @@ assert_matches2.workspace = true
 xcm-executor.workspace = true
 
 [features]
-default = [ "std", "cargo-expand-visible" ]
 std = [
 	"frame-benchmarking?/std",
 	"frame-support/std",
@@ -95,8 +94,6 @@ std = [
 	"xcm/std",
 	"tokio",
 	"futures",
-	"cargo-expand-visible",
-
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",

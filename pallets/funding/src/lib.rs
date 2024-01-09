@@ -206,8 +206,6 @@ pub mod impls;
 pub mod instantiator;
 pub mod traits;
 
-mod genesis_config;
-
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 pub type ProjectId = u32;
 pub type MultiplierOf<T> = <T as Config>::Multiplier;
