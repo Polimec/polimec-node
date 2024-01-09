@@ -68,7 +68,7 @@ fn data_is_correctly_combined() {
 	let mut inst = IntegrationInstantiator::new(None);
 	Polimec::execute_with(|| {
 		// pallet_funding genesis builder already inputs prices, so we need to advance one block to feed new values.
-		inst.advance_time(1u32);
+		inst.advance_time(1u32).unwrap();
 
 		let alice = Polimec::account_id_of(ALICE);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.clone()), values([1.0, 1.5, 1.1, 0.11111])));

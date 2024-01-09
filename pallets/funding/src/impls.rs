@@ -274,6 +274,7 @@ fn release_future_ct_deposit_one_participant<T: Config>(
 			project_id,
 			&account,
 		) {
+			// TODO: replace when benchmark is done
 			// Ok(_) => return (base_weight.saturating_add(WeightInfoOf::<T>::release_future_ct_deposit_for()), iter_participants.collect_vec()),
 			Ok(_) =>
 				return (
