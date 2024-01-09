@@ -280,7 +280,7 @@ fn migration_check() {
 #[test]
 fn migration_is_sent() {
 	let mut inst = IntegrationInstantiator::new(None);
-	let mut participants =
+	let participants =
 		vec![EVAL_1, EVAL_2, EVAL_3, BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BUYER_1, BUYER_2, BUYER_3, BUYER_4]
 			.into_iter()
 			.map(|x| AccountId::from(x))
