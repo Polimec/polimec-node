@@ -183,8 +183,7 @@ pub use pallet::*;
 use polimec_common::migration_types::*;
 use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
-use sp_core::ConstU32;
-use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128, WeakBoundedVec};
+use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
 use sp_std::{marker::PhantomData, prelude::*};
 use traits::DoRemainingOperation;
 pub use types::*;
@@ -217,20 +216,12 @@ pub type HashOf<T> = <T as frame_system::Config>::Hash;
 pub type AssetIdOf<T> =
 	<<T as Config>::FundingCurrency as fungibles::Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
 pub type RewardInfoOf<T> = RewardInfo<BalanceOf<T>>;
-
-pub type AccountListOf<T> = WeakBoundedVec<AccountIdOf<T>, ConstU32<1000u32>>;
 pub type EvaluatorsOutcomeOf<T> = EvaluatorsOutcome<BalanceOf<T>>;
 
 pub type ProjectMetadataOf<T> =
 	ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, HashOf<T>>;
-pub type ProjectDetailsOf<T> = ProjectDetails<
-	AccountIdOf<T>,
-	BlockNumberFor<T>,
-	PriceOf<T>,
-	BalanceOf<T>,
-	EvaluationRoundInfoOf<T>,
-	AccountListOf<T>,
->;
+pub type ProjectDetailsOf<T> =
+	ProjectDetails<AccountIdOf<T>, BlockNumberFor<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>;
 pub type EvaluationRoundInfoOf<T> = EvaluationRoundInfo<BalanceOf<T>>;
 pub type VestingInfoOf<T> = VestingInfo<BlockNumberFor<T>, BalanceOf<T>>;
 pub type EvaluationInfoOf<T> = EvaluationInfo<u32, ProjectId, AccountIdOf<T>, BalanceOf<T>, BlockNumberFor<T>>;
@@ -1300,10 +1291,7 @@ pub mod pallet {
 
 			let projects_needing_cleanup = ProjectsDetails::<T>::iter()
 				.filter_map(|(project_id, info)| match info.cleanup {
-					cleaner
-						if <Cleaner<AccountListOf<T>> as DoRemainingOperation<T>>::has_remaining_operations(
-							&cleaner,
-						) =>
+					cleaner if <Cleaner as DoRemainingOperation<T>>::has_remaining_operations(&cleaner) =>
 						Some((project_id, cleaner)),
 					_ => None,
 				})
@@ -1323,10 +1311,8 @@ pub mod pallet {
 				// let mut consumed_weight = WeightInfoOf::<T>::insert_cleaned_project();
 				let mut consumed_weight = Weight::from_parts(6_034_000, 0);
 				while !consumed_weight.any_gt(max_weight_per_project) {
-					if let Ok(weight) = <Cleaner<AccountListOf<T>> as DoRemainingOperation<T>>::do_one_operation(
-						&mut cleaner,
-						project_id,
-					) {
+					if let Ok(weight) = <Cleaner as DoRemainingOperation<T>>::do_one_operation(&mut cleaner, project_id)
+					{
 						consumed_weight.saturating_accrue(weight);
 					} else {
 						break

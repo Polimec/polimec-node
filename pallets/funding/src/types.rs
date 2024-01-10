@@ -203,14 +203,7 @@ pub mod storage_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct ProjectDetails<
-		AccountId,
-		BlockNumber,
-		Price: FixedPointNumber,
-		Balance: BalanceT,
-		EvaluationRoundInfo,
-		AccountList,
-	> {
+	pub struct ProjectDetails<AccountId, BlockNumber, Price: FixedPointNumber, Balance: BalanceT, EvaluationRoundInfo> {
 		pub issuer: AccountId,
 		/// Whether the project is frozen, so no `metadata` changes are allowed.
 		pub is_frozen: bool,
@@ -227,7 +220,7 @@ pub mod storage_types {
 		/// Funding reached amount in USD equivalent
 		pub funding_amount_reached: Balance,
 		/// Cleanup operations remaining
-		pub cleanup: Cleaner<AccountList>,
+		pub cleanup: Cleaner,
 		/// Information about the total amount bonded, and the outcome in regards to reward/slash/nothing
 		pub evaluation_round_info: EvaluationRoundInfo,
 		/// When the Funding Round ends
@@ -637,7 +630,7 @@ pub mod inner_types {
 	pub struct Failure;
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum CleanerState<T, AccountList> {
+	pub enum CleanerState<T> {
 		Initialized(PhantomData<T>),
 		// Success or Failure
 		EvaluationRewardOrSlash(u64, PhantomData<T>),
@@ -655,19 +648,19 @@ pub mod inner_types {
 		BidUnbonding(u64, PhantomData<T>),
 		ContributionFundingRelease(u64, PhantomData<T>),
 		ContributionUnbonding(u64, PhantomData<T>),
-		FutureDepositRelease(AccountList, PhantomData<T>),
+		FutureDepositRelease(u64, PhantomData<T>),
 		// Merge
 		// Success or Failure
 		Finished(PhantomData<T>),
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum Cleaner<AccountList> {
+	pub enum Cleaner {
 		NotReady,
-		Success(CleanerState<Success, AccountList>),
-		Failure(CleanerState<Failure, AccountList>),
+		Success(CleanerState<Success>),
+		Failure(CleanerState<Failure>),
 	}
-	impl<AccountList> TryFrom<ProjectStatus> for Cleaner<AccountList> {
+	impl TryFrom<ProjectStatus> for Cleaner {
 		type Error = ();
 
 		fn try_from(value: ProjectStatus) -> Result<Self, ()> {
