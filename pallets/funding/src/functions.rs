@@ -2703,7 +2703,10 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		let fund_account = Self::fund_account_id(project_id);
 
-		// The USDT/USDC account should be created by using a provider reference (as opposed to a deposit with `touch()`), so we don't care if it gets destroyed now.
+		// Why `Preservation::Expendable`?
+		// the min_balance of funding assets (e.g USDT) are low enough so we don't expect users to care about their balance being dusted.
+		// We do think the UX would be bad if they cannot use all of their available tokens.
+		// Specially since a new funding asset account can be easily created by increasing the provider reference
 		T::FundingCurrency::transfer(asset_id, who, &fund_account, amount, Preservation::Expendable)?;
 
 		Ok(())
