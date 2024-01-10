@@ -172,7 +172,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("polimec-mainnet"),
 	impl_name: create_runtime_str!("polimec-mainnet"),
 	authoring_version: 1,
-	spec_version: 0_003_001,
+	spec_version: 0_003_002,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -194,7 +194,7 @@ pub struct BaseCallFilter;
 impl Contains<RuntimeCall> for BaseCallFilter {
 	fn contains(c: &RuntimeCall) -> bool {
 		use pallet_balances::Call::*;
-		use pallet_parachain_staking::Call::*;
+		use pallet_vesting::Call::*;
 
 		match c {
 			// Transferability lock.
@@ -205,20 +205,10 @@ impl Contains<RuntimeCall> for BaseCallFilter {
 				transfer_allow_death { .. } => false,
 				_ => true,
 			},
-			// Staking "disabled" @ TGE.
-			RuntimeCall::ParachainStaking(inner_call) => match inner_call {
-				cancel_candidate_bond_less { .. } => true,
-				execute_candidate_bond_less { .. } => true,
-				schedule_candidate_bond_less { .. } => true,
-				set_auto_compound { .. } => true,
-				set_blocks_per_round { .. } => true,
-				set_collator_commission { .. } => true,
-				set_inflation { .. } => true,
-				set_parachain_bond_account { .. } => true,
-				set_parachain_bond_reserve_percent { .. } => true,
-				set_staking_expectations { .. } => true,
-				set_total_selected { .. } => true,
-				_ => false,
+			RuntimeCall::Vesting(inner_call) => match inner_call {
+				// Vested transfes are not allowed.
+				vested_transfer { .. } => false,
+				_ => true,
 			},
 			_ => true,
 		}
