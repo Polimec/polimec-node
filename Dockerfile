@@ -9,7 +9,7 @@ RUN cargo build --locked --release -p $PACKAGE
 FROM debian:bookworm-slim
 ARG PACKAGE
 COPY --from=builder /polimec/target/release/$PACKAGE /usr/local/bin/polimec
-COPY --from=builder /polimec/chain-specs/polimec-raw-chain-spec.json /root
+COPY --from=builder /polimec/chain-specs/polimec-raw-chain-spec.json /data
 
 # 30333 for parachain p2p
 # 30334 for relaychain p2p
