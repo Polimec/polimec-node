@@ -1401,22 +1401,6 @@ pub mod pallet {
 			}
 		}
 	}
-	#[cfg(feature = "std")]
-	impl<T: Config> GenesisConfig<T>
-	where
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		<T as Config>::AllPalletsWithoutSystem:
-			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
-		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
-		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
-	{
-		/// Direct implementation of `GenesisBuild::build_storage`.
-		///
-		/// Kept in order not to break dependency.
-		pub fn build(&self) {
-			<Self as BuildGenesisConfig>::build(self)
-		}
-	}
 }
 
 pub mod xcm_executor_impl {
