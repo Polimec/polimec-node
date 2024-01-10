@@ -2,7 +2,10 @@
   "name": "Polimec Polkadot",
   "id": "polimec-base",
   "chainType": "Live",
-  "bootNodes": [],
+  "bootNodes": [
+    "/ip4/141.95.47.7/tcp/30333/p2p/12D3KooWSCjh8tN5yzmLgxWR4kauD5NmCmP2ymc3D5WubvMETg6b",
+    "/ip4/57.128.20.108/tcp/30333/p2p/12D3KooWEe7ps1v1mfhjMNaSaukgxsFVL6cqeEQudqZ5t3oQiXNL"
+  ],
   "telemetryEndpoints": null,
   "protocolId": "polimec",
   "properties": {
