@@ -90,9 +90,8 @@ impl<
 	pub fn execute<R>(&mut self, execution: impl FnOnce() -> R) -> R {
 		if let Some(ext) = &self.ext {
 			return ext.borrow_mut().execute_with(execution)
-		} else {
-			execution()
 		}
+		execution()
 	}
 
 	pub fn get_new_nonce(&self) -> u64 {
