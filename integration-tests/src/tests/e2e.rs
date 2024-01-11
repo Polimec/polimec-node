@@ -254,7 +254,6 @@ fn evaluation_round_completed() {
 #[test]
 fn auction_round_completed() {
 	let mut inst = IntegrationInstantiator::new(None);
-
 	let issuer = ISSUER.into();
 	let project = excel_project(inst.get_new_nonce());
 	let evaluations = excel_evaluators();
