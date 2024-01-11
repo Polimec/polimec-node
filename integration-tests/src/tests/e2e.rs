@@ -285,7 +285,7 @@ fn auction_round_completed() {
 		})
 	});
 }
-
+//
 #[test]
 fn community_round_completed() {
 	let mut inst = IntegrationInstantiator::new(None);
