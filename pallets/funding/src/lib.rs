@@ -185,7 +185,7 @@ use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
 use sp_std::{marker::PhantomData, prelude::*};
-use traits::DoRemainingOperation;
+use traits::CleanerOperations;
 pub use types::*;
 use xcm::v3::{opaque::Instruction, prelude::*, SendXcm};
 pub mod functions;
@@ -222,6 +222,12 @@ pub type ProjectMetadataOf<T> =
 	ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, HashOf<T>>;
 pub type ProjectDetailsOf<T> =
 	ProjectDetails<AccountIdOf<T>, BlockNumberFor<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>;
+
+pub type CleanerQueueOf<T> = CleanerQueueWith<EvaluationInfoOf<T>, AccountIdOf<T>, BidInfoOf<T>, ContributionInfoOf<T>>;
+pub type SuccessCleanerQueueOf<T> =
+	SuccessCleanerQueueWith<EvaluationInfoOf<T>, AccountIdOf<T>, BidInfoOf<T>, ContributionInfoOf<T>>;
+pub type FailedCleanerQueueOf<T> =
+	FailureCleanerQueueWith<EvaluationInfoOf<T>, AccountIdOf<T>, BidInfoOf<T>, ContributionInfoOf<T>>;
 pub type EvaluationRoundInfoOf<T> = EvaluationRoundInfo<BalanceOf<T>>;
 pub type VestingInfoOf<T> = VestingInfo<BlockNumberFor<T>, BalanceOf<T>>;
 pub type EvaluationInfoOf<T> = EvaluationInfo<u32, ProjectId, AccountIdOf<T>, BalanceOf<T>, BlockNumberFor<T>>;
@@ -481,6 +487,10 @@ pub mod pallet {
 	#[pallet::getter(fn project_details)]
 	/// StorageMap containing additional information for the projects, relevant for correctness of the protocol
 	pub type ProjectsDetails<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, ProjectDetailsOf<T>>;
+
+	#[pallet::storage]
+	/// StorageMap containing the remaining items that need to be processed in the cleaner of each project
+	pub type CleanerQueue<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, CleanerQueueOf<T>, OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn projects_to_update)]
@@ -1291,7 +1301,7 @@ pub mod pallet {
 
 			let projects_needing_cleanup = ProjectsDetails::<T>::iter()
 				.filter_map(|(project_id, info)| match info.cleanup {
-					cleaner if <Cleaner as DoRemainingOperation<T>>::has_remaining_operations(&cleaner) =>
+					cleaner if <Cleaner as CleanerOperations<T>>::has_remaining_operations(&cleaner) =>
 						Some((project_id, cleaner)),
 					_ => None,
 				})
@@ -1311,8 +1321,7 @@ pub mod pallet {
 				// let mut consumed_weight = WeightInfoOf::<T>::insert_cleaned_project();
 				let mut consumed_weight = Weight::from_parts(6_034_000, 0);
 				while !consumed_weight.any_gt(max_weight_per_project) {
-					if let Ok(weight) = <Cleaner as DoRemainingOperation<T>>::do_one_operation(&mut cleaner, project_id)
-					{
+					if let Ok(weight) = <Cleaner as CleanerOperations<T>>::do_one_operation(&mut cleaner, project_id) {
 						consumed_weight.saturating_accrue(weight);
 					} else {
 						break

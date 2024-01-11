@@ -7,16 +7,16 @@ use sp_arithmetic::traits::Zero;
 use sp_runtime::{traits::AccountIdConversion, DispatchError};
 use sp_std::{collections::btree_set::BTreeSet, marker::PhantomData};
 
-use crate::{traits::DoRemainingOperation, *};
+use crate::{traits::CleanerOperations, *};
 
-impl<T: Config> DoRemainingOperation<T> for Cleaner {
+impl<T: Config> CleanerOperations<T> for Cleaner {
 	fn has_remaining_operations(&self) -> bool {
 		match self {
 			Cleaner::NotReady => false,
 			Cleaner::Success(state) =>
-				<CleanerState<Success> as DoRemainingOperation<T>>::has_remaining_operations(state),
+				<CleanerState<Success> as CleanerOperations<T>>::has_remaining_operations(state),
 			Cleaner::Failure(state) =>
-				<CleanerState<Failure> as DoRemainingOperation<T>>::has_remaining_operations(state),
+				<CleanerState<Failure> as CleanerOperations<T>>::has_remaining_operations(state),
 		}
 	}
 
@@ -24,14 +24,14 @@ impl<T: Config> DoRemainingOperation<T> for Cleaner {
 		match self {
 			Cleaner::NotReady => Err(DispatchError::Other("Cleaner not ready")),
 			Cleaner::Success(state) =>
-				<CleanerState<Success> as DoRemainingOperation<T>>::do_one_operation(state, project_id),
+				<CleanerState<Success> as CleanerOperations<T>>::do_one_operation(state, project_id),
 			Cleaner::Failure(state) =>
-				<CleanerState<Failure> as DoRemainingOperation<T>>::do_one_operation(state, project_id),
+				<CleanerState<Failure> as CleanerOperations<T>>::do_one_operation(state, project_id),
 		}
 	}
 }
 
-impl<T: Config> DoRemainingOperation<T> for CleanerState<Success> {
+impl<T: Config> CleanerOperations<T> for CleanerState<Success> {
 	fn has_remaining_operations(&self) -> bool {
 		!matches!(self, CleanerState::Finished(_))
 	}
@@ -45,13 +45,19 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Success> {
 
 		match self {
 			CleanerState::Initialized(PhantomData) => {
+				let remaining = CleanerQueueOf::<T>::Success(
+					SuccessCleanerQueueOf::<T>::EvaluationRewardsOrSlashes(
+						remaining_evaluations_to_reward_or_slash::<T>(project_id, evaluators_outcome),
+					),
+				);
+				CleanerQueue::<T>::insert(project_id, remaining);
 				*self = Self::EvaluationRewardOrSlash(
-					remaining_evaluators_to_reward_or_slash::<T>(project_id, evaluators_outcome),
 					PhantomData,
 				);
 				Ok(base_weight)
 			},
-			CleanerState::EvaluationRewardOrSlash(remaining, PhantomData) =>
+			CleanerState::EvaluationRewardOrSlash(PhantomData) =>
+				let remaining_evaluations =
 				if *remaining == 0 {
 					*self = Self::EvaluationUnbonding(remaining_evaluations::<T>(project_id), PhantomData);
 					Ok(base_weight)
@@ -60,7 +66,7 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Success> {
 					*self = CleanerState::EvaluationRewardOrSlash(remaining_evaluations, PhantomData);
 					Ok(consumed_weight)
 				},
-			CleanerState::EvaluationUnbonding(remaining, PhantomData) =>
+			CleanerState::EvaluationUnbonding(PhantomData) =>
 				if *remaining == 0 {
 					*self = CleanerState::StartBidderVestingSchedule(
 						remaining_successful_bids::<T>(project_id),
@@ -72,7 +78,7 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Success> {
 					*self = CleanerState::EvaluationUnbonding(remaining_evaluations, PhantomData);
 					Ok(consumed_weight)
 				},
-			CleanerState::StartBidderVestingSchedule(remaining, PhantomData) =>
+			CleanerState::StartBidderVestingSchedule(PhantomData) =>
 				if *remaining == 0 {
 					*self = CleanerState::StartContributorVestingSchedule(
 						remaining_contributions::<T>(project_id),
@@ -84,7 +90,7 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Success> {
 					*self = CleanerState::StartBidderVestingSchedule(remaining_evaluations, PhantomData);
 					Ok(consumed_weight)
 				},
-			CleanerState::StartContributorVestingSchedule(remaining, PhantomData) =>
+			CleanerState::StartContributorVestingSchedule(PhantomData) =>
 				if *remaining == 0 {
 					*self = CleanerState::BidCTMint(remaining_bids_without_ct_minted::<T>(project_id), PhantomData);
 					Ok(base_weight)
@@ -94,7 +100,7 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Success> {
 					*self = CleanerState::StartContributorVestingSchedule(remaining_evaluations, PhantomData);
 					Ok(consumed_weight)
 				},
-			CleanerState::BidCTMint(remaining, PhantomData) =>
+			CleanerState::BidCTMint(PhantomData) =>
 				if *remaining == 0 {
 					*self = CleanerState::ContributionCTMint(
 						remaining_contributions_without_ct_minted::<T>(project_id),
@@ -106,7 +112,7 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Success> {
 					*self = CleanerState::BidCTMint(remaining_bids, PhantomData);
 					Ok(consumed_weight)
 				},
-			CleanerState::ContributionCTMint(remaining, PhantomData) =>
+			CleanerState::ContributionCTMint(PhantomData) =>
 				if *remaining == 0 {
 					*self = CleanerState::BidFundingPayout(
 						remaining_bids_without_issuer_payout::<T>(project_id),
@@ -118,7 +124,7 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Success> {
 					*self = CleanerState::ContributionCTMint(remaining_contributions, PhantomData);
 					Ok(consumed_weight)
 				},
-			CleanerState::BidFundingPayout(remaining, PhantomData) =>
+			CleanerState::BidFundingPayout(PhantomData) =>
 				if *remaining == 0 {
 					*self = CleanerState::ContributionFundingPayout(
 						remaining_contributions_without_issuer_payout::<T>(project_id),
@@ -130,7 +136,7 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Success> {
 					*self = CleanerState::BidFundingPayout(remaining_contributions, PhantomData);
 					Ok(consumed_weight)
 				},
-			CleanerState::ContributionFundingPayout(remaining, PhantomData) =>
+			CleanerState::ContributionFundingPayout(PhantomData) =>
 				if *remaining == 0 {
 					*self = CleanerState::Finished(PhantomData);
 					Ok(base_weight)
@@ -146,7 +152,7 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Success> {
 		}
 	}
 }
-impl<T: Config> DoRemainingOperation<T> for CleanerState<Failure> {
+impl<T: Config> CleanerOperations<T> for CleanerState<Failure> {
 	fn has_remaining_operations(&self) -> bool {
 		!matches!(self, CleanerState::Finished(PhantomData::<Failure>))
 	}
@@ -160,19 +166,14 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Failure> {
 
 		match self {
 			CleanerState::Initialized(PhantomData::<Failure>) => {
-				*self = CleanerState::EvaluationRewardOrSlash(
-					remaining_evaluators_to_reward_or_slash::<T>(project_id, evaluators_outcome),
-					PhantomData::<Failure>,
-				);
+				*self = CleanerState::EvaluationRewardOrSlash(PhantomData::<Failure>);
+				CleanerQueue::<T>::remove(project_id);
 				Ok(base_weight)
 			},
 
-			CleanerState::EvaluationRewardOrSlash(remaining, PhantomData::<Failure>) =>
+			CleanerState::EvaluationRewardOrSlash(PhantomData::<Failure>) =>
 				if *remaining == 0 {
-					*self = CleanerState::FutureDepositRelease(
-						remaining_participants_with_future_ct_deposit::<T>(project_id),
-						PhantomData::<Failure>,
-					);
+					*self = CleanerState::FutureDepositRelease(PhantomData::<Failure>);
 					Ok(base_weight)
 				} else {
 					let (consumed_weight, remaining_evaluators) = reward_or_slash_one_evaluation::<T>(project_id)?;
@@ -180,12 +181,9 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Failure> {
 					Ok(consumed_weight)
 				},
 
-			CleanerState::FutureDepositRelease(remaining, PhantomData::<Failure>) =>
+			CleanerState::FutureDepositRelease(PhantomData::<Failure>) =>
 				if *remaining == 0 {
-					*self = CleanerState::EvaluationUnbonding(
-						remaining_evaluations::<T>(project_id),
-						PhantomData::<Failure>,
-					);
+					*self = CleanerState::EvaluationUnbonding(PhantomData::<Failure>);
 					Ok(base_weight)
 				} else {
 					let (consumed_weight, remaining_participants) =
@@ -194,7 +192,7 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Failure> {
 					Ok(consumed_weight)
 				},
 
-			CleanerState::EvaluationUnbonding(remaining, PhantomData::<Failure>) =>
+			CleanerState::EvaluationUnbonding(PhantomData::<Failure>) =>
 				if *remaining == 0 {
 					*self = CleanerState::BidFundingRelease(
 						remaining_bids_to_release_funds::<T>(project_id),
@@ -207,7 +205,7 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Failure> {
 					Ok(consumed_weight)
 				},
 
-			CleanerState::BidFundingRelease(remaining, PhantomData::<Failure>) =>
+			CleanerState::BidFundingRelease(PhantomData::<Failure>) =>
 				if *remaining == 0 {
 					*self = CleanerState::BidUnbonding(remaining_bids::<T>(project_id), PhantomData::<Failure>);
 					Ok(base_weight)
@@ -217,7 +215,7 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Failure> {
 					Ok(consumed_weight)
 				},
 
-			CleanerState::BidUnbonding(remaining, PhantomData::<Failure>) =>
+			CleanerState::BidUnbonding(PhantomData::<Failure>) =>
 				if *remaining == 0 {
 					*self = CleanerState::ContributionFundingRelease(
 						remaining_contributions_to_release_funds::<T>(project_id),
@@ -230,7 +228,7 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Failure> {
 					Ok(consumed_weight)
 				},
 
-			CleanerState::ContributionFundingRelease(remaining, PhantomData::<Failure>) =>
+			CleanerState::ContributionFundingRelease(PhantomData::<Failure>) =>
 				if *remaining == 0 {
 					*self = CleanerState::ContributionUnbonding(
 						remaining_contributions::<T>(project_id),
@@ -243,7 +241,7 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Failure> {
 					Ok(consumed_weight)
 				},
 
-			CleanerState::ContributionUnbonding(remaining, PhantomData::<Failure>) =>
+			CleanerState::ContributionUnbonding(PhantomData::<Failure>) =>
 				if *remaining == 0 {
 					*self = CleanerState::Finished(PhantomData::<Failure>);
 					Ok(base_weight)
@@ -260,74 +258,90 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Failure> {
 	}
 }
 
-fn remaining_evaluators_to_reward_or_slash<T: Config>(project_id: ProjectId, outcome: EvaluatorsOutcomeOf<T>) -> u64 {
+fn remaining_evaluations_to_reward_or_slash<T: Config>(
+	project_id: ProjectId,
+	outcome: EvaluatorsOutcomeOf<T>,
+) -> Vec<EvaluationInfoOf<T>> {
 	if outcome == EvaluatorsOutcomeOf::<T>::Unchanged {
-		0u64
+		vec![]
 	} else {
-		Evaluations::<T>::iter_prefix_values((project_id,))
+		let output = Evaluations::<T>::iter_prefix_values((project_id,))
 			.filter(|evaluation| evaluation.rewarded_or_slashed.is_none())
-			.count() as u64
+			.collect_vec();
+		output
 	}
 }
 
-fn remaining_evaluations<T: Config>(project_id: ProjectId) -> u64 {
-	Evaluations::<T>::iter_prefix_values((project_id,)).count() as u64
+fn remaining_evaluations<T: Config>(project_id: ProjectId) -> Vec<EvaluationInfoOf<T>> {
+	let output = Evaluations::<T>::iter_prefix_values((project_id,)).collect_vec();
+	output
 }
 
-fn remaining_bids_to_release_funds<T: Config>(project_id: ProjectId) -> u64 {
-	Bids::<T>::iter_prefix_values((project_id,)).filter(|bid| !bid.funds_released).count() as u64
+fn remaining_bids_to_release_funds<T: Config>(project_id: ProjectId) -> Vec<BidInfoOf<T>> {
+	let output = Bids::<T>::iter_prefix_values((project_id,)).filter(|bid| !bid.funds_released).collect_vec();
+	output
 }
 
-fn remaining_bids<T: Config>(project_id: ProjectId) -> u64 {
-	Bids::<T>::iter_prefix_values((project_id,)).count() as u64
+fn remaining_bids<T: Config>(project_id: ProjectId) -> Vec<BidInfoOf<T>> {
+	let output = Bids::<T>::iter_prefix_values((project_id,)).collect_vec();
+	output
 }
 
-fn remaining_successful_bids<T: Config>(project_id: ProjectId) -> u64 {
-	Bids::<T>::iter_prefix_values((project_id,))
+fn remaining_successful_bids<T: Config>(project_id: ProjectId) -> Vec<BidInfoOf<T>> {
+	let output = Bids::<T>::iter_prefix_values((project_id,))
 		.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
-		.count() as u64
+		.collect_vec();
+	output
 }
 
-fn remaining_contributions_to_release_funds<T: Config>(project_id: ProjectId) -> u64 {
-	Contributions::<T>::iter_prefix_values((project_id,)).filter(|contribution| !contribution.funds_released).count()
-		as u64
+fn remaining_contributions_to_release_funds<T: Config>(project_id: ProjectId) -> Vec<ContributionInfoOf<T>> {
+	let output = Contributions::<T>::iter_prefix_values((project_id,))
+		.filter(|contribution| !contribution.funds_released)
+		.collect_vec();
+	output
 }
 
-fn remaining_contributions<T: Config>(project_id: ProjectId) -> u64 {
-	Contributions::<T>::iter_prefix_values((project_id,)).count() as u64
+fn remaining_contributions<T: Config>(project_id: ProjectId) -> Vec<ContributionInfoOf<T>> {
+	let output = Contributions::<T>::iter_prefix_values((project_id,)).collect_vec();
+	output
 }
 
-fn remaining_bids_without_ct_minted<T: Config>(project_id: ProjectId) -> u64 {
+fn remaining_bids_without_ct_minted<T: Config>(project_id: ProjectId) -> Vec<BidInfoOf<T>> {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
-	project_bids.filter(|bid| !bid.ct_minted).count() as u64
+	let output = project_bids.filter(|bid| !bid.ct_minted).collect_vec();
+	output
 }
 
-fn remaining_contributions_without_ct_minted<T: Config>(project_id: ProjectId) -> u64 {
+fn remaining_contributions_without_ct_minted<T: Config>(project_id: ProjectId) -> Vec<ContributionInfoOf<T>> {
 	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
-	project_contributions.filter(|contribution| !contribution.ct_minted).count() as u64
+	let output = project_contributions.filter(|contribution| !contribution.ct_minted).collect_vec();
+	output
 }
 
-fn remaining_bids_without_issuer_payout<T: Config>(project_id: ProjectId) -> u64 {
-	Bids::<T>::iter_prefix_values((project_id,)).filter(|bid| !bid.funds_released).count() as u64
+fn remaining_bids_without_issuer_payout<T: Config>(project_id: ProjectId) -> Vec<BidInfoOf<T>> {
+	let output = Bids::<T>::iter_prefix_values((project_id,)).filter(|bid| !bid.funds_released).collect_vec();
+	output
 }
 
-fn remaining_contributions_without_issuer_payout<T: Config>(project_id: ProjectId) -> u64 {
-	Contributions::<T>::iter_prefix_values((project_id,)).filter(|bid| !bid.funds_released).count() as u64
+fn remaining_contributions_without_issuer_payout<T: Config>(project_id: ProjectId) -> Vec<ContributionInfoOf<T>> {
+	let output = Contributions::<T>::iter_prefix_values((project_id,)).filter(|bid| !bid.funds_released).collect_vec();
+	output
 }
 
-fn remaining_participants_with_future_ct_deposit<T: Config>(project_id: ProjectId) -> u64 {
+fn remaining_participants_with_future_ct_deposit<T: Config>(project_id: ProjectId) -> Vec<AccountIdOf<T>> {
 	let evaluators = Evaluations::<T>::iter_key_prefix((project_id,)).map(|(evaluator, _evaluation_id)| evaluator);
 	let bidders = Bids::<T>::iter_key_prefix((project_id,)).map(|(bidder, _bid_id)| bidder);
 	let contributors =
 		Contributions::<T>::iter_key_prefix((project_id,)).map(|(contributor, _contribution_id)| contributor);
 	let all_participants = evaluators.chain(bidders).chain(contributors).collect::<BTreeSet<AccountIdOf<T>>>();
-	all_participants
+	let output = all_participants
 		.into_iter()
 		.filter(|account| {
 			<T as Config>::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), account) >
 				Zero::zero()
 		})
-		.count() as u64
+		.collect_vec();
+	output
 }
 
 fn reward_or_slash_one_evaluation<T: Config>(project_id: ProjectId) -> Result<(Weight, u64), DispatchError> {

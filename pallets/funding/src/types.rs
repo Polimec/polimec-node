@@ -385,6 +385,35 @@ pub mod storage_types {
 			self.current_price = self.current_price.saturating_add(self.delta_price);
 		}
 	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub enum FailureCleanerQueueWith<EvaluationInfo, AccountId, BidInfo, ContributionInfo> {
+		EvaluationRewardOrSlashes(Vec<EvaluationInfo>),
+		FutureDeposits(Vec<AccountId>),
+		EvaluationBonds(Vec<EvaluationInfo>),
+		BidFundingReleases(Vec<BidInfo>),
+		BidUnbonds(Vec<BidInfo>),
+		ContributionFundingReleases(Vec<ContributionInfo>),
+		ContributionUnbonds(Vec<ContributionInfo>),
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub enum SuccessCleanerQueueWith<EvaluationInfo, AccountId, BidInfo, ContributionInfo> {
+		EvaluationRewardsOrSlashes(Vec<EvaluationInfo>),
+		EvaluationUnbonds(Vec<EvaluationInfo>),
+		BidVestingSchedules(Vec<BidInfo>),
+		ContributionVestingSchedules(Vec<ContributionInfo>),
+		BidCTMints(Vec<ContributionInfo>),
+		ContributionCTMints(Vec<ContributionInfo>),
+		BidFundingPayouts(Vec<BidInfo>),
+		ContributionFundingPayouts(Vec<ContributionInfo>),
+	}
+
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub enum CleanerQueueWith<EvaluationInfo, AccountId, BidInfo, ContributionInfo> {
+		Success(SuccessCleanerQueueWith<EvaluationInfo, AccountId, BidInfo, ContributionInfo>),
+		Failure(FailureCleanerQueueWith<EvaluationInfo, AccountId, BidInfo, ContributionInfo>),
+	}
 }
 
 pub mod inner_types {
@@ -633,22 +662,22 @@ pub mod inner_types {
 	pub enum CleanerState<T> {
 		Initialized(PhantomData<T>),
 		// Success or Failure
-		EvaluationRewardOrSlash(u64, PhantomData<T>),
-		EvaluationUnbonding(u64, PhantomData<T>),
+		EvaluationRewardOrSlash(PhantomData<T>),
+		EvaluationUnbonding(PhantomData<T>),
 		// Branch
 		// A. Success only
-		BidCTMint(u64, PhantomData<T>),
-		ContributionCTMint(u64, PhantomData<T>),
-		StartBidderVestingSchedule(u64, PhantomData<T>),
-		StartContributorVestingSchedule(u64, PhantomData<T>),
-		BidFundingPayout(u64, PhantomData<T>),
-		ContributionFundingPayout(u64, PhantomData<T>),
+		BidCTMint(PhantomData<T>),
+		ContributionCTMint(PhantomData<T>),
+		StartBidderVestingSchedule(PhantomData<T>),
+		StartContributorVestingSchedule(PhantomData<T>),
+		BidFundingPayout(PhantomData<T>),
+		ContributionFundingPayout(PhantomData<T>),
 		// B. Failure only
-		BidFundingRelease(u64, PhantomData<T>),
-		BidUnbonding(u64, PhantomData<T>),
-		ContributionFundingRelease(u64, PhantomData<T>),
-		ContributionUnbonding(u64, PhantomData<T>),
-		FutureDepositRelease(u64, PhantomData<T>),
+		BidFundingRelease(PhantomData<T>),
+		BidUnbonding(PhantomData<T>),
+		ContributionFundingRelease(PhantomData<T>),
+		ContributionUnbonding(PhantomData<T>),
+		FutureDepositRelease(PhantomData<T>),
 		// Merge
 		// Success or Failure
 		Finished(PhantomData<T>),
