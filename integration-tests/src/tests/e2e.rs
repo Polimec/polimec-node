@@ -250,7 +250,7 @@ fn evaluation_round_completed() {
 		inst.create_auctioning_project(project, issuer, evaluations);
 	});
 }
-
+//
 #[test]
 fn auction_round_completed() {
 	let mut inst = IntegrationInstantiator::new(None);
