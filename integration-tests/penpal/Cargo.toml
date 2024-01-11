@@ -137,6 +137,7 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
+	"polimec-common/std"
 ]
 
 runtime-benchmarks = [
@@ -164,6 +165,7 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
+	"polimec-common/runtime-benchmarks"
 ]
 
 try-runtime = [

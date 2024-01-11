@@ -64,6 +64,7 @@ std = [
 	"sp-staking/std",
 	"sp-std/std",
 	"substrate-fixed/std",
+	"polimec-common/std"
 ]
 runtime-benchmarks = [
 	"frame-benchmarking",
@@ -74,6 +75,7 @@ runtime-benchmarks = [
 	"pallet-timestamp/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"sp-staking/runtime-benchmarks",
+	"polimec-common/runtime-benchmarks"
 ]
 try-runtime = [
 	"frame-support/try-runtime",

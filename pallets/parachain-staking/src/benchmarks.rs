@@ -22,11 +22,10 @@ use crate::{
 	ParachainBondInfo, Points, Range, RewardPayment, Round, ScheduledRequest, Staked, TopDelegations,
 };
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite, vec};
-use frame_support::traits::{Currency, Get, OnFinalize, OnInitialize};
+use frame_support::traits::{fungible::Balanced, Currency, Get, OnFinalize, OnInitialize};
 use frame_system::{pallet_prelude::BlockNumberFor, RawOrigin};
 use sp_runtime::{Perbill, Percent};
 use sp_std::vec::Vec;
-
 /// Minimum collator candidate stake
 fn min_candidate_stk<T: Config>() -> BalanceOf<T> {
 	<<T as Config>::MinCandidateStk as Get<BalanceOf<T>>>::get()
