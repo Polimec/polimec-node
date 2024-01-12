@@ -25,12 +25,11 @@ use frame_support::{
 	traits::{tokens::Preservation::Expendable, OriginTrait},
 };
 use frame_system::{pallet_prelude::BlockNumberFor, Pallet as System, RawOrigin};
-use pallet_funding::LockType;
+use pallet_funding::HoldReason;
 use sp_runtime::traits::{CheckedDiv, CheckedMul};
-
 const SEED: u32 = 0;
 
-fn add_holds<T: Config<Reason = LockType<u32>>>(who: &T::AccountId, n: u32) {
+fn add_holds<T: Config<RuntimeHoldReason = pallet_funding::HoldReason>>(who: &T::AccountId, n: u32) {
 	for id in 0..n {
 		let locked = 256u32;
 		let reason: ReasonOf<T> = HoldReason::Participation(id).into();
@@ -70,7 +69,7 @@ fn add_vesting_schedules<T: Config>(
 
 #[benchmarks(
 	where
-	T: Config + frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent> + crate::Config<Reason = LockType<u32>>,
+	T: Config + frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent> + crate::Config<RuntimeHoldReason = HoldReason>,
     <T as frame_system::Config>::AccountId: Into<<<T as frame_system::Config>::RuntimeOrigin as OriginTrait>::AccountId> + sp_std::fmt::Debug,
 )]
 mod benches {
