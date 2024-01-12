@@ -46,6 +46,7 @@ benchmark-runtime-funding:
 		--heap-pages=4096 \
 		--output=runtimes/testnet/src/weights/pallet_funding.rs
 
+
 # Benchmark the "Testnet" Runtime
 benchmark-runtime-linear-release:
 	cargo run --features runtime-benchmarks --release -p polimec-parachain-node benchmark pallet \

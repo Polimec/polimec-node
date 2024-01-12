@@ -21,8 +21,10 @@ use crate::{
 	AwardedPts, BalanceOf, Call, CandidateBondLessRequest, Config, DelegationAction, Pallet, ParachainBondConfig,
 	ParachainBondInfo, Points, Range, RewardPayment, Round, ScheduledRequest, Staked, TopDelegations,
 };
+use frame_support::traits::fungible::{Inspect, Mutate};
+
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite, vec};
-use frame_support::traits::{fungible::Balanced, Currency, Get, OnFinalize, OnInitialize};
+use frame_support::traits::{fungible::Balanced, Get, OnFinalize, OnInitialize};
 use frame_system::{pallet_prelude::BlockNumberFor, RawOrigin};
 use sp_runtime::{Perbill, Percent};
 use sp_std::vec::Vec;
@@ -44,7 +46,7 @@ fn create_funded_user<T: Config>(string: &'static str, n: u32, extra: BalanceOf<
 	let user = account(string, n, SEED);
 	let min_candidate_stk = min_candidate_stk::<T>();
 	let total = min_candidate_stk + extra;
-	T::Currency::make_free_balance_be(&user, total);
+	T::Currency::set_balance(&user, total);
 	T::Currency::issue(total);
 	(user, total)
 }
@@ -1022,13 +1024,13 @@ benchmarks! {
 	verify {
 		// collator should have been paid
 		assert!(
-			T::Currency::free_balance(&sole_collator) > initial_stake_amount,
+			T::Currency::balance(&sole_collator) > initial_stake_amount,
 			"collator should have been paid in pay_one_collator_reward"
 		);
 		// nominators should have been paid
 		for delegator in &delegators {
 			assert!(
-				T::Currency::free_balance(&delegator) > initial_stake_amount,
+				T::Currency::balance(&delegator) > initial_stake_amount,
 				"delegator should have been paid in pay_one_collator_reward"
 			);
 		}
@@ -1248,12 +1250,12 @@ benchmarks! {
 			true,
 			1,
 		)?;
-		let original_free_balance = T::Currency::free_balance(&collator);
+		let original_free_balance = T::Currency::balance(&collator);
 	}: {
 		Pallet::<T>::mint_collator_reward(1u32.into(), collator.clone(), 50u32.into())
 	}
 	verify {
-		assert_eq!(T::Currency::free_balance(&collator), original_free_balance + 50u32.into());
+		assert_eq!(T::Currency::balance(&collator), original_free_balance + 50u32.into());
 	}
 }
 

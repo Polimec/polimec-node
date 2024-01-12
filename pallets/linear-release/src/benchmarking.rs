@@ -29,7 +29,10 @@ use pallet_funding::HoldReason;
 use sp_runtime::traits::{CheckedDiv, CheckedMul};
 const SEED: u32 = 0;
 
-fn add_holds<T: Config<RuntimeHoldReason = pallet_funding::HoldReason>>(who: &T::AccountId, n: u32) {
+fn add_holds<T: Config>(who: &T::AccountId, n: u32)
+where
+	<T as Config>::RuntimeHoldReason: From<HoldReason>,
+{
 	for id in 0..n {
 		let locked = 256u32;
 		let reason: ReasonOf<T> = HoldReason::Participation(id).into();
@@ -69,8 +72,9 @@ fn add_vesting_schedules<T: Config>(
 
 #[benchmarks(
 	where
-	T: Config + frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent> + crate::Config<RuntimeHoldReason = HoldReason>,
+	T: Config + frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent> + crate::Config,
     <T as frame_system::Config>::AccountId: Into<<<T as frame_system::Config>::RuntimeOrigin as OriginTrait>::AccountId> + sp_std::fmt::Debug,
+	<T as Config>::RuntimeHoldReason: From<HoldReason>,
 )]
 mod benches {
 	use super::*;

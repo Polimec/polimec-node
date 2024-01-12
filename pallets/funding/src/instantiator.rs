@@ -61,12 +61,18 @@ pub struct TestProjectParams<T: Config> {
 	pub remainder_contributions: Vec<ContributionParams<T>>,
 }
 
+#[cfg(feature = "std")]
+type OptionalExternalities = Option<RefCell<sp_io::TestExternalities>>;
+
+#[cfg(not(feature = "std"))]
+type OptionalExternalities = Option<()>;
+
 pub struct Instantiator<
 	T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 	AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 	RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 > {
-	ext: Option<RefCell<sp_io::TestExternalities>>,
+	ext: OptionalExternalities,
 	nonce: RefCell<u64>,
 	_marker: PhantomData<(T, AllPalletsWithoutSystem, RuntimeEvent)>,
 }
@@ -78,15 +84,16 @@ impl<
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
 {
-	pub fn new(ext: Option<RefCell<sp_io::TestExternalities>>) -> Self {
+	pub fn new(ext: OptionalExternalities) -> Self {
 		Self { ext, nonce: RefCell::new(0u64), _marker: PhantomData }
 	}
 
-	pub fn set_ext(&mut self, ext: Option<RefCell<sp_io::TestExternalities>>) {
+	pub fn set_ext(&mut self, ext: OptionalExternalities) {
 		self.ext = ext;
 	}
 
 	pub fn execute<R>(&mut self, execution: impl FnOnce() -> R) -> R {
+		#[cfg(feature = "std")]
 		if let Some(ext) = &self.ext {
 			return ext.borrow_mut().execute_with(execution)
 		}
