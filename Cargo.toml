@@ -54,6 +54,7 @@ substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", bran
 
 # Internal pallets (with default disabled)
 pallet-funding = { path = "pallets/funding", default-features = false }
+pallet-oracle-ocw = { path = "pallets/oracle-ocw", default-features = false }
 pallet-sandbox = { path = "pallets/sandbox", default-features = false }
 pallet-parachain-staking = { path = "pallets/parachain-staking", default-features = false }
 pallet-linear-release = { path = "pallets/linear-release", default-features = false }

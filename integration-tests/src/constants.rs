@@ -16,6 +16,7 @@ use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::{sr25519, storage::Storage, Pair, Public};
 use sp_runtime::{bounded_vec, BuildStorage, Perbill};
+
 pub use xcm;
 use xcm_emulator::get_account_id_from_seed;
 
@@ -153,7 +154,7 @@ pub mod polkadot {
 	}
 
 	pub fn genesis() -> Storage {
-		let genesis_config = polkadot_runtime::GenesisConfig {
+		let genesis_config = polkadot_runtime::RuntimeGenesisConfig {
 			system: polkadot_runtime::SystemConfig {
 				code: polkadot_runtime::WASM_BINARY.unwrap().to_vec(),
 				..Default::default()
@@ -221,7 +222,7 @@ pub mod statemint {
 		];
 		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
 
-		let genesis_config = asset_hub_polkadot_runtime::GenesisConfig {
+		let genesis_config = asset_hub_polkadot_runtime::RuntimeGenesisConfig {
 			system: asset_hub_polkadot_runtime::SystemConfig {
 				code: asset_hub_polkadot_runtime::WASM_BINARY
 					.expect("WASM binary was not build, please build it!")
@@ -381,7 +382,7 @@ pub mod penpal {
 		];
 		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
 
-		let genesis_config = penpal_runtime::GenesisConfig {
+		let genesis_config = penpal_runtime::RuntimeGenesisConfig {
 			system: penpal_runtime::SystemConfig {
 				code: penpal_runtime::WASM_BINARY.expect("WASM binary was not build, please build it!").to_vec(),
 				..Default::default()
@@ -494,6 +495,10 @@ pub mod polimec_base {
 				parachain_bond_reserve_percent: GENESIS_PARACHAIN_BOND_RESERVE_PERCENT,
 				blocks_per_round: GENESIS_BLOCKS_PER_ROUND,
 				num_selected_candidates: GENESIS_NUM_SELECTED_CANDIDATES,
+			},
+			oracle_providers_membership: polimec_base_runtime::OracleProvidersMembershipConfig {
+				members: bounded_vec![alice_account.clone(), bob_account, charlie_account],
+				..Default::default()
 			},
 			vesting: Default::default(),
 			transaction_payment: Default::default(),

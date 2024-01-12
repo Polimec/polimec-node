@@ -9,10 +9,7 @@ use tests::defaults::*;
 
 fn values(
 	values: [f64; 4],
-) -> BoundedVec<
-	(u32, FixedU128),
-	<polimec_parachain_runtime::Runtime as orml_oracle::Config<orml_oracle::Instance1>>::MaxFeedValues,
-> {
+) -> BoundedVec<(u32, FixedU128), <polimec_parachain_runtime::Runtime as orml_oracle::Config<()>>::MaxFeedValues> {
 	let [dot, usdc, usdt, plmc] = values;
 	bounded_vec![
 		(0u32, FixedU128::from_float(dot)),
@@ -54,7 +51,7 @@ fn non_members_cannot_feed_data() {
 		let dave = Polimec::account_id_of(DAVE);
 		assert_noop!(
 			Oracle::feed_values(RuntimeOrigin::signed(dave.clone()), values([4.84, 1.0, 1.0, 0.4])),
-			orml_oracle::Error::<polimec_parachain_runtime::Runtime, orml_oracle::Instance1>::NoPermission
+			orml_oracle::Error::<polimec_parachain_runtime::Runtime, ()>::NoPermission
 		);
 	});
 }
