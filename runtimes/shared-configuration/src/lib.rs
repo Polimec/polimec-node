@@ -21,6 +21,7 @@ pub mod currency;
 pub mod fee;
 pub mod funding;
 pub mod governance;
+pub mod proxy;
 pub mod staking;
 pub mod weights;
 

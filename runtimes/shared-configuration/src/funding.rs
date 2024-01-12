@@ -66,6 +66,8 @@ pub const SUCCESS_TO_SETTLEMENT_TIME: BlockNumber = 4;
 #[cfg(not(feature = "fast-gov"))]
 pub const SUCCESS_TO_SETTLEMENT_TIME: BlockNumber = 4 * crate::DAYS;
 
+pub type ProjectIdentifier = u32;
+
 parameter_types! {
 	pub const EvaluationDuration: BlockNumber = EVALUATION_DURATION;
 	pub const AuctionInitializePeriodDuration: BlockNumber = AUCTION_INITIALIZE_PERIOD_DURATION;

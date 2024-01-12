@@ -14,6 +14,12 @@ version.workspace = true
 
 [dependencies]
 smallvec.workspace = true
+parity-scale-codec = { version = "3.6.5", default-features = false, features = [
+	"derive",
+] }
+scale-info = { version = "2.9.0", default-features = false, features = [
+	"derive",
+] }
 
 # FRAME
 frame-system.workspace = true
@@ -23,6 +29,10 @@ parachains-common.workspace = true
 sp-std.workspace = true
 pallet-funding.workspace = true
 orml-traits.workspace = true
+pallet-transaction-payment.workspace = true
+pallet-balances.workspace = true
+pallet-authorship.workspace = true
+pallet-parachain-staking.workspace = true
 
 [features]
 default = [ "std" ]
@@ -31,15 +41,31 @@ std = [
 	"frame-support/std",
 	"frame-system/std",
 	"orml-traits/std",
+	"pallet-authorship/std",
+	"pallet-balances/std",
 	"pallet-funding/std",
+	"pallet-parachain-staking/std",
+	"pallet-transaction-payment/std",
 	"parachains-common/std",
+	"parity-scale-codec/std",
+	"scale-info/std",
 	"sp-arithmetic/std",
 	"sp-std/std",
 ]
 runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
+	"pallet-balances/runtime-benchmarks",
 	"pallet-funding/runtime-benchmarks",
+	"pallet-parachain-staking/runtime-benchmarks",
 ]
 testing-node = [ "pallet-funding/testing-node" ]
-try-runtime = [ "pallet-funding/try-runtime" ]
+try-runtime = [
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"pallet-authorship/try-runtime",
+	"pallet-balances/try-runtime",
+	"pallet-funding/try-runtime",
+	"pallet-parachain-staking/try-runtime",
+	"pallet-transaction-payment/try-runtime",
+]

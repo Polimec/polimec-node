@@ -18,12 +18,14 @@
 
 use crate::{
 	auto_compound::AutoCompoundDelegations, set::OrderedSet, BalanceOf, BottomDelegations, CandidateInfo, Config,
-	DelegatorState, Error, Event, Pallet, Round, RoundIndex, TopDelegations, Total, COLLATOR_LOCK_ID,
-	DELEGATOR_LOCK_ID,
+	DelegatorState, Error, Event, HoldReason, Pallet, Round, RoundIndex, TopDelegations, Total,
 };
 use frame_support::{
 	pallet_prelude::*,
-	traits::{tokens::WithdrawReasons, LockableCurrency},
+	traits::{
+		fungible::{InspectHold, MutateHold},
+		tokens::Precision,
+	},
 };
 use parity_scale_codec::{Decode, Encode};
 use sp_runtime::{
@@ -415,7 +417,7 @@ impl<
 		let new_total = <Total<T>>::get().saturating_add(more.into());
 		<Total<T>>::put(new_total);
 		self.bond = self.bond.saturating_add(more);
-		T::Currency::set_lock(COLLATOR_LOCK_ID, &who, self.bond.into(), WithdrawReasons::all());
+		T::Currency::hold(&HoldReason::StakingCollator.into(), &who, more.into())?;
 		self.total_counted = self.total_counted.saturating_add(more);
 		<Pallet<T>>::deposit_event(Event::CandidateBondedMore {
 			candidate: who,
@@ -454,7 +456,7 @@ impl<
 		// Arithmetic assumptions are self.bond > less && self.bond - less > CollatorMinBond
 		// (assumptions enforced by `schedule_bond_less`; if storage corrupts, must re-verify)
 		self.bond = self.bond.saturating_sub(request.amount);
-		T::Currency::set_lock(COLLATOR_LOCK_ID, &who, self.bond.into(), WithdrawReasons::all());
+		T::Currency::release(&HoldReason::StakingCollator.into(), &who, request.amount.into(), Precision::Exact)?;
 		self.total_counted = self.total_counted.saturating_sub(request.amount);
 		let event = Event::CandidateBondedLess {
 			candidate: who.clone(),
@@ -1368,16 +1370,21 @@ impl<
 			BondAdjust::Decrease => (), // do nothing on decrease
 		};
 
-		if self.total.is_zero() {
-			T::Currency::remove_lock(DELEGATOR_LOCK_ID, &self.id.clone().into());
-		} else {
-			T::Currency::set_lock(
-				DELEGATOR_LOCK_ID,
+		let total_bonded = T::Currency::balance_on_hold(&HoldReason::StakingDelegator.into(), &self.id.clone().into());
+
+		if total_bonded > self.total.into() {
+			let to_be_released = total_bonded.saturating_sub(self.total.into());
+			T::Currency::release(
+				&HoldReason::StakingDelegator.into(),
 				&self.id.clone().into(),
-				self.total.into(),
-				WithdrawReasons::all(),
-			);
+				to_be_released,
+				Precision::Exact,
+			)?;
+		} else {
+			let additional_hold = Into::<T::Balance>::into(self.total).saturating_sub(total_bonded);
+			T::Currency::hold(&HoldReason::StakingDelegator.into(), &self.id.clone().into(), additional_hold.into())?;
 		}
+
 		Ok(())
 	}
 

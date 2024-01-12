@@ -217,6 +217,10 @@ match_types! {
 	pub type CommonGoodAssetsParachain: impl Contains<MultiLocation> = {
 		MultiLocation { parents: 1, interior: X1(Parachain(1000)) }
 	};
+	pub type ParentOrSiblings: impl Contains<MultiLocation> = {
+		MultiLocation { parents: 1, interior: Here } |
+		MultiLocation { parents: 1, interior: X1(Parachain(_)) }
+	};
 }
 
 pub type Barrier = DenyThenTry<
@@ -235,7 +239,7 @@ pub type Barrier = DenyThenTry<
 				// Common Good Assets parachain, parent and its exec plurality get free execution
 				AllowExplicitUnpaidExecutionFrom<(CommonGoodAssetsParachain, ParentOrParentsExecutivePlurality)>,
 				// Subscriptions for version tracking are OK.
-				AllowSubscriptionsFrom<Everything>,
+				AllowSubscriptionsFrom<ParentOrSiblings>,
 			),
 			UniversalLocation,
 			ConstU32<8>,

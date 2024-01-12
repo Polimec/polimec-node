@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::currency::PLMC;
-use frame_support::parameter_types;
+use frame_support::{parameter_types, PalletId};
 
 // Since a Round is 6 hours, one week, expresses as `RoundIndex` is 4 * 7
 const WEEK_IN_ROUNDS: u32 = 4 * 7;
@@ -35,4 +35,5 @@ parameter_types! {
 	pub const MinCandidateStk: u128 = 20_000 * PLMC;
 	pub const MinDelegatorStk: u128 = 50 * PLMC;
 	pub const MinDelegation: u128 = 50 * PLMC;
+	pub const StakingPalletId: PalletId = PalletId(*b"plmc/stk");
 }

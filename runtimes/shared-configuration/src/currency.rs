@@ -59,7 +59,7 @@ pub mod vesting {
 	use super::*;
 
 	parameter_types! {
-		pub const MinVestedTransfer: Balance = MICRO_PLMC;
+		pub const MinVestedTransfer: Balance = PLMC;
 		pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
 			WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
 	}

@@ -1,7 +1,7 @@
 use crate::*;
 use pallet_funding::{
 	assert_close_enough, traits::VestingDurationCalculation, AcceptedFundingAsset, BidStatus, EvaluatorsOutcome,
-	MigrationStatus, Multiplier, MultiplierOf, ProjectIdOf, RewardOrSlash,
+	MigrationStatus, Multiplier, MultiplierOf, ProjectId, RewardOrSlash,
 };
 use polimec_parachain_runtime::PolimecFunding;
 use polimec_traits::migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
@@ -42,10 +42,7 @@ fn assert_migration_is_ready(project_id: u32) {
 	});
 }
 
-fn send_migrations(
-	project_id: ProjectIdOf<PolimecRuntime>,
-	accounts: Vec<AccountId>,
-) -> HashMap<AccountId, Migrations> {
+fn send_migrations(project_id: ProjectId, accounts: Vec<AccountId>) -> HashMap<AccountId, Migrations> {
 	let mut output = HashMap::new();
 	for account in accounts {
 		let migrations = Polimec::execute_with(|| {

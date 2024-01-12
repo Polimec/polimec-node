@@ -299,6 +299,7 @@ dependencies = [
  "frame-system",
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
+ "frame-try-runtime",
  "hex-literal 0.4.1",
  "log",
  "pallet-asset-tx-payment",
@@ -3920,7 +3921,7 @@ dependencies = [
 
 [[package]]
 name = "integration-tests"
-version = "0.1.0"
+version = "0.3.2"
 dependencies = [
  "asset-hub-polkadot-runtime",
  "cumulus-pallet-xcm",
@@ -3935,8 +3936,10 @@ dependencies = [
  "pallet-balances",
  "pallet-funding",
  "pallet-im-online",
+ "pallet-linear-release",
  "pallet-membership",
  "pallet-message-queue",
+ "pallet-parachain-staking",
  "pallet-staking",
  "pallet-vesting",
  "pallet-xcm",
@@ -3944,6 +3947,7 @@ dependencies = [
  "parachains-common",
  "parity-scale-codec",
  "penpal-runtime",
+ "polimec-base-runtime",
  "polimec-parachain-runtime",
  "polimec-receiver",
  "polimec-traits",
@@ -6259,6 +6263,7 @@ dependencies = [
  "parity-scale-codec",
  "polimec-traits",
  "scale-info",
+ "serde",
  "sp-core",
  "sp-io",
  "sp-runtime",
@@ -6495,7 +6500,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-parachain-staking"
-version = "0.1.0"
+version = "0.3.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6507,6 +6512,7 @@ dependencies = [
  "pallet-session",
  "pallet-timestamp",
  "parity-scale-codec",
+ "polimec-traits",
  "scale-info",
  "serde",
  "similar-asserts",
@@ -7396,7 +7402,7 @@ dependencies = [
 
 [[package]]
 name = "polimec-base-runtime"
-version = "0.1.0"
+version = "0.3.2"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -7421,18 +7427,23 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-membership",
+ "pallet-multisig",
  "pallet-oracle-ocw",
  "pallet-parachain-staking",
+ "pallet-proxy",
  "pallet-session",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
+ "pallet-utility",
+ "pallet-vesting",
  "pallet-xcm",
  "parachain-info",
  "parachains-common",
  "parity-scale-codec",
+ "polimec-traits",
  "polkadot-parachain",
  "polkadot-primitives",
  "polkadot-runtime-common",
@@ -7459,7 +7470,7 @@ dependencies = [
 
 [[package]]
 name = "polimec-parachain-node"
-version = "0.1.0"
+version = "0.3.2"
 dependencies = [
  "clap",
  "color-print",
@@ -7528,7 +7539,7 @@ dependencies = [
 
 [[package]]
 name = "polimec-parachain-runtime"
-version = "0.1.0"
+version = "0.3.2"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -7577,6 +7588,7 @@ dependencies = [
  "parachain-info",
  "parachains-common",
  "parity-scale-codec",
+ "polimec-traits",
  "polimec-xcm-executor",
  "polkadot-parachain",
  "polkadot-primitives",
@@ -7641,7 +7653,7 @@ dependencies = [
 
 [[package]]
 name = "polimec-xcm-executor"
-version = "0.1.0"
+version = "0.3.2"
 dependencies = [
  "environmental",
  "frame-benchmarking",
@@ -11326,13 +11338,19 @@ dependencies = [
 
 [[package]]
 name = "shared-configuration"
-version = "0.1.0"
+version = "0.3.2"
 dependencies = [
  "frame-support",
  "frame-system",
  "orml-traits",
+ "pallet-authorship",
+ "pallet-balances",
  "pallet-funding",
+ "pallet-parachain-staking",
+ "pallet-transaction-payment",
  "parachains-common",
+ "parity-scale-codec",
+ "scale-info",
  "smallvec",
  "sp-arithmetic",
  "sp-std",

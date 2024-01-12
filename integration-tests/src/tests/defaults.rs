@@ -138,7 +138,7 @@ pub fn set_oracle_prices() {
 			values: [f64; 4],
 		) -> BoundedVec<
 			(u32, FixedU128),
-			<polimec_parachain_runtime::Runtime as orml_oracle::Config<orml_oracle::Instance1>>::MaxFeedValues,
+			<polimec_parachain_runtime::Runtime as orml_oracle::Config>::MaxFeedValues,
 		> {
 			let [dot, usdc, usdt, plmc] = values;
 			bounded_vec![

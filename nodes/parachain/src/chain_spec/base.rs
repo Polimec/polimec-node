@@ -41,10 +41,11 @@ const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
 /// Specialized `ChainSpec` for the shell parachain runtime.
 pub type ChainSpec = sc_service::GenericChainSpec<RuntimeGenesisConfig, Extensions>;
 
-const COLLATOR_COMMISSION: Perbill = Perbill::from_percent(30);
+const COLLATOR_COMMISSION: Perbill = Perbill::from_percent(10);
 const PARACHAIN_BOND_RESERVE_PERCENT: Percent = Percent::from_percent(0);
-const BLOCKS_PER_ROUND: u32 = 2 * 100;
+const BLOCKS_PER_ROUND: u32 = 2 * 10;
 const NUM_SELECTED_CANDIDATES: u32 = 5;
+
 pub fn polimec_inflation_config() -> InflationInfo<Balance> {
 	fn to_round_inflation(annual: Range<Perbill>) -> Range<Perbill> {
 		perbill_annual_to_perbill_round(
@@ -73,6 +74,11 @@ pub fn get_base_session_keys(keys: AuthorityId) -> base_runtime::SessionKeys {
 pub fn get_local_base_chain_spec() -> Result<ChainSpec, String> {
 	let properties = get_properties("PLMC", 10, 41);
 	let wasm = base_runtime::WASM_BINARY.ok_or("No WASM")?;
+	// This account is derived from PalletId("plmc/stk") in the pallet-parachain-staking runtime config.
+	// This operation can be done using https://www.shawntabrizi.com/substrate-js-utilities/
+	// 1. "Module ID" to Address plmc/stk -> 5EYCAe5ij8xKJ2biBy4zUGNwdNhpz3BaS5iiuseJqTEtWQTc
+	// 2. AccountId to Hex -> 0x6d6f646c706c6d632f73746b0000000000000000000000000000000000000000
+	const BLOCKCHAIN_OPERATION_TREASURY: [u8; 32] = hex_literal::hex!["6d6f646c706c6d632f73746b0000000000000000000000000000000000000000"];
 
 	Ok(ChainSpec::from_genesis(
 		"Polimec Base Develop",
@@ -82,8 +88,8 @@ pub fn get_local_base_chain_spec() -> Result<ChainSpec, String> {
 			base_testnet_genesis(
 				wasm,
 				vec![
-					(get_account_id_from_seed::<sr25519::Public>("Alice"), None, 2 * MinCandidateStk::get()),
-					(get_account_id_from_seed::<sr25519::Public>("Bob"), None, 2 * MinCandidateStk::get()),
+					(get_account_id_from_seed::<sr25519::Public>("Alice"), None, MinCandidateStk::get()),
+					(get_account_id_from_seed::<sr25519::Public>("Bob"), None, MinCandidateStk::get()),
 				],
 				polimec_inflation_config(),
 				vec![
@@ -97,6 +103,7 @@ pub fn get_local_base_chain_spec() -> Result<ChainSpec, String> {
 					(get_account_id_from_seed::<sr25519::Public>("Dave"), 5 * MinCandidateStk::get()),
 					(get_account_id_from_seed::<sr25519::Public>("Eve"), 5 * MinCandidateStk::get()),
 					(get_account_id_from_seed::<sr25519::Public>("Ferdie"), 5 * MinCandidateStk::get()),
+					(BLOCKCHAIN_OPERATION_TREASURY.into(), 10_000_000 * PLMC),
 				],
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				DEFAULT_PARA_ID,
@@ -243,5 +250,6 @@ fn base_testnet_genesis(
 			members: BoundedVec::truncate_from(initial_authorities),
 			..Default::default()
 		},
+		vesting: Default::default(),
 	}
 }
