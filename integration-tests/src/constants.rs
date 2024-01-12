@@ -295,7 +295,6 @@ pub mod polimec {
 		funded_accounts.push((get_account_id_from_seed::<sr25519::Public>("TREASURY_STASH"), 20_005 * PLMC));
 
 		let genesis_config = polimec_parachain_runtime::GenesisConfig {
-
 			system: polimec_parachain_runtime::SystemConfig {
 				code: polimec_parachain_runtime::WASM_BINARY
 					.expect("WASM binary was not build, please build it!")

@@ -23,7 +23,7 @@ use cumulus_primitives_core::ParaId;
 use polimec_base_runtime as base_runtime;
 use sc_service::ChainType;
 use sp_core::{crypto::UncheckedInto, sr25519};
-use sp_runtime::{Perbill, Percent, BoundedVec};
+use sp_runtime::{BoundedVec, Perbill, Percent};
 
 use crate::chain_spec::{get_account_id_from_seed, get_properties, DEFAULT_PARA_ID};
 use base_runtime::{
@@ -78,7 +78,8 @@ pub fn get_local_base_chain_spec() -> Result<ChainSpec, String> {
 	// This operation can be done using https://www.shawntabrizi.com/substrate-js-utilities/
 	// 1. "Module ID" to Address plmc/stk -> 5EYCAe5ij8xKJ2biBy4zUGNwdNhpz3BaS5iiuseJqTEtWQTc
 	// 2. AccountId to Hex -> 0x6d6f646c706c6d632f73746b0000000000000000000000000000000000000000
-	const BLOCKCHAIN_OPERATION_TREASURY: [u8; 32] = hex_literal::hex!["6d6f646c706c6d632f73746b0000000000000000000000000000000000000000"];
+	const BLOCKCHAIN_OPERATION_TREASURY: [u8; 32] =
+		hex_literal::hex!["6d6f646c706c6d632f73746b0000000000000000000000000000000000000000"];
 
 	Ok(ChainSpec::from_genesis(
 		"Polimec Base Develop",

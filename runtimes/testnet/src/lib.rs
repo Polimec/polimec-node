@@ -47,17 +47,17 @@ use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
 		AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, Convert, ConvertBack, ConvertInto,
-		OpaqueKeys, Verify
+		OpaqueKeys, Verify,
 	},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, FixedU128, MultiAddress, SaturatedConversion,
 };
 
+use pallet_oracle_ocw::types::AssetName;
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
-use pallet_oracle_ocw::types::AssetName;
 
 // XCM Imports
 use polimec_xcm_executor::XcmExecutor;
@@ -158,10 +158,8 @@ impl SetPrices for SetOraclePrices {
 		let usdt = (AcceptedFundingAsset::USDT.to_statemint_id(), FixedU128::from_rational(1, 1));
 		let plmc = (pallet_funding::PLMC_STATEMINT_ID, FixedU128::from_rational(840, 100));
 
-		let values: BoundedVec<
-			(u32, FixedU128),
-			<Runtime as orml_oracle::Config>::MaxFeedValues,
-		> = vec![dot, usdc, usdt, plmc].try_into().expect("benchmarks can panic");
+		let values: BoundedVec<(u32, FixedU128), <Runtime as orml_oracle::Config>::MaxFeedValues> =
+			vec![dot, usdc, usdt, plmc].try_into().expect("benchmarks can panic");
 		let alice: [u8; 32] = [
 			212, 53, 147, 199, 21, 253, 211, 28, 97, 20, 26, 189, 4, 169, 159, 214, 130, 44, 133, 88, 133, 76, 205,
 			227, 154, 86, 132, 231, 165, 109, 162, 125,
@@ -688,7 +686,6 @@ impl orml_oracle::Config for Runtime {
 	type WeightInfo = ();
 }
 
-
 pub struct AssetPriceConverter;
 impl Convert<(AssetName, FixedU128), (AssetId, Price)> for AssetPriceConverter {
 	fn convert((asset, price): (AssetName, FixedU128)) -> (AssetId, Price) {
@@ -776,6 +773,7 @@ impl pallet_vesting::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
 	type WeightInfo = ();
+
 	const MAX_VESTING_SCHEDULES: u32 = 12;
 }
 

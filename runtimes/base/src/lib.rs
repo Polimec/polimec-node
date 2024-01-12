@@ -21,14 +21,16 @@
 #[cfg(feature = "runtime-benchmarks")]
 #[macro_use]
 extern crate frame_benchmarking;
-use parity_scale_codec::Encode;
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{fungible::Credit, Contains, InstanceFilter, ConstU32},
+	traits::{fungible::Credit, ConstU32, Contains, InstanceFilter},
 	weights::{ConstantMultiplier, Weight},
 };
 use frame_system::EnsureRoot;
+use pallet_oracle_ocw::types::AssetName;
+use parachains_common::AssetIdForTrustBackedAssets as AssetId;
+use parity_scale_codec::Encode;
 use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
 use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -37,7 +39,9 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, Convert, ConvertInto, IdentifyAccount, OpaqueKeys, Verify},
+	traits::{
+		AccountIdLookup, BlakeTwo256, Block as BlockT, Convert, ConvertInto, IdentifyAccount, OpaqueKeys, Verify,
+	},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, FixedU128, MultiSignature, SaturatedConversion,
 };
@@ -46,8 +50,6 @@ use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
-use pallet_oracle_ocw::types::AssetName;
-use parachains_common::AssetIdForTrustBackedAssets as AssetId;
 
 // XCM Imports
 use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
