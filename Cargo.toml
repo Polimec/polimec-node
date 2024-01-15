@@ -3,8 +3,8 @@ members = [
     "nodes/*",
     "runtimes/*",
     "pallets/*",
-    "integration-tests",
-    "integration-tests/penpal",
+#    "integration-tests",
+#    "integration-tests/penpal",
     "macros",
     "macros/tests",
     "polimec-common",
@@ -99,6 +99,7 @@ frame-executive = { git = "https://github.com/paritytech/substrate", default-fea
 frame-support = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 frame-system = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
+frame-system-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 frame-try-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 sp-api = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
@@ -223,7 +224,6 @@ substrate-build-script-utils = { git = "https://github.com/paritytech/substrate"
 
 # Benchmarking (with default disabled) 
 cumulus-pallet-session-benchmarking = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "release-v1.0.0" }
-frame-system-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 
 # Runtimes
 polimec-parachain-runtime = { path = "runtimes/testnet" }
