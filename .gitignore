@@ -18,3 +18,4 @@ genesis-wasm
 
 *.log
 fly.toml
+bin/

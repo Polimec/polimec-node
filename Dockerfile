@@ -9,8 +9,14 @@ RUN cargo build --locked --release -p $PACKAGE
 FROM debian:bookworm-slim
 ARG PACKAGE
 COPY --from=builder /polimec/target/release/$PACKAGE /usr/local/bin/polimec
+COPY --from=builder /polimec/chain-specs/polimec-raw-chain-spec.json /data
 
-EXPOSE 30333 9933 9944 9615
+# 30333 for parachain p2p
+# 30334 for relaychain p2p
+# 9944 for Websocket & RPC call
+# 9615 for Prometheus (metrics)
+EXPOSE 30333 30334 9944 9615
+
 VOLUME ["/data"]
 
-ENTRYPOINT ["/usr/bin/bash"]
+ENTRYPOINT ["/usr/local/bin/polimec"]

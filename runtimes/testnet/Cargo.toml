@@ -18,11 +18,12 @@ parity-scale-codec = { workspace = true, features = ["derive"] }
 log = { workspace = true }
 scale-info = { workspace = true, features = ["derive"] }
 hex-literal = { workspace = true, optional = true }
-serde = { workspace = true, optional = true, features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
 smallvec.workspace = true
 
 # Polimec specific
 pallet-funding.workspace = true
+pallet-oracle-ocw.workspace = true
 pallet-linear-release.workspace = true
 shared-configuration.workspace = true
 polimec-common.workspace = true
@@ -131,6 +132,7 @@ std = [
 	"pallet-linear-release/std",
 	"pallet-membership/std",
 	"pallet-multisig/std",
+	"pallet-oracle-ocw/std",
 	"pallet-parachain-staking/std",
 	"pallet-preimage/std",
 	"pallet-scheduler/std",
@@ -152,8 +154,7 @@ std = [
 	"polkadot-runtime-common/std",
 	"polimec-common/std",
 	"scale-info/std",
-	"serde",
-	"serde?/std",
+	"serde/std",
 	"shared-configuration/std",
 	"sp-api/std",
 	"sp-block-builder/std",
@@ -234,6 +235,7 @@ try-runtime = [
 	"pallet-linear-release/try-runtime",
 	"pallet-membership/try-runtime",
 	"pallet-multisig/try-runtime",
+	"pallet-oracle-ocw/try-runtime",
 	"pallet-parachain-staking/try-runtime",
 	"pallet-preimage/try-runtime",
 	"pallet-scheduler/try-runtime",
