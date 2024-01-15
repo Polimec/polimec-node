@@ -29,13 +29,10 @@ use pallet_funding::HoldReason;
 use sp_runtime::traits::{CheckedDiv, CheckedMul};
 const SEED: u32 = 0;
 
-fn add_holds<T: Config>(who: &T::AccountId, n: u32)
-where
-	<T as Config>::RuntimeHoldReason: From<HoldReason>,
-{
+fn add_holds<T: Config>(who: &T::AccountId, n: u32) {
 	for id in 0..n {
 		let locked = 256u32;
-		let reason: ReasonOf<T> = HoldReason::Participation(id).into();
+		let reason: ReasonOf<T> = T::BenchmarkReason::get();
 		let _ = T::Currency::hold(&reason, who, locked.into());
 	}
 }
@@ -74,7 +71,6 @@ fn add_vesting_schedules<T: Config>(
 	where
 	T: Config + frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent> + crate::Config,
     <T as frame_system::Config>::AccountId: Into<<<T as frame_system::Config>::RuntimeOrigin as OriginTrait>::AccountId> + sp_std::fmt::Debug,
-	<T as Config>::RuntimeHoldReason: From<HoldReason>,
 )]
 mod benches {
 	use super::*;
@@ -93,7 +89,7 @@ mod benches {
 		T::Currency::set_balance(&caller, T::Currency::minimum_balance().saturating_add(1024u32.into()));
 
 		add_holds::<T>(&caller, l);
-		let reason = HoldReason::Participation(l).into();
+		let reason: ReasonOf<T> = T::BenchmarkReason::get();
 		let _ = add_vesting_schedules::<T>(caller.clone(), s, reason)?;
 
 		// At block zero, everything is vested.
@@ -123,7 +119,7 @@ mod benches {
 		T::Currency::set_balance(&caller, T::Currency::minimum_balance().saturating_add(1024u32.into()));
 
 		add_holds::<T>(&caller, l);
-		let reason = HoldReason::Participation(l).into();
+		let reason: ReasonOf<T> = T::BenchmarkReason::get();
 		let held = add_vesting_schedules::<T>(caller.clone(), s, reason)?;
 
 		// At block 21, everything is unlocked.
@@ -157,7 +153,7 @@ mod benches {
 
 		T::Currency::set_balance(&other, T::Currency::minimum_balance().saturating_add(1024u32.into()));
 		add_holds::<T>(&other, l);
-		let reason = HoldReason::Participation(l).into();
+		let reason: ReasonOf<T> = T::BenchmarkReason::get();
 		let _ = add_vesting_schedules::<T>(other.clone(), s, reason)?;
 
 		// At block zero, everything is vested.
@@ -190,7 +186,7 @@ mod benches {
 
 		T::Currency::set_balance(&other, T::Currency::minimum_balance().saturating_add(1024u32.into()));
 		add_holds::<T>(&other, l);
-		let reason = HoldReason::Participation(l).into();
+		let reason: ReasonOf<T> = T::BenchmarkReason::get();
 		let held = add_vesting_schedules::<T>(other.clone(), s, reason)?;
 
 		// At block 21 everything is unlocked.
@@ -220,7 +216,7 @@ mod benches {
 		add_holds::<T>(&target, l);
 
 		// Add one vesting schedules.
-		let reason = HoldReason::Participation(l).into();
+		let reason: ReasonOf<T> = T::BenchmarkReason::get();
 		let mut expected_balance = add_vesting_schedules::<T>(target.clone(), s, reason)?;
 
 		let transfer_amount = T::MinVestedTransfer::get();
@@ -254,7 +250,7 @@ mod benches {
 		add_holds::<T>(&target, l);
 
 		// Add one less than max vesting schedules
-		let reason = HoldReason::Participation(l).into();
+		let reason: ReasonOf<T> = T::BenchmarkReason::get();
 		let mut expected_balance = add_vesting_schedules::<T>(target.clone(), s, reason)?;
 
 		let transfer_amount = T::MinVestedTransfer::get();
@@ -285,7 +281,7 @@ mod benches {
 		T::Currency::set_balance(&caller, T::Currency::minimum_balance().saturating_add(1024u32.into()));
 		add_holds::<T>(&caller, l);
 		// Add max vesting schedules.
-		let reason = HoldReason::Participation(l).into();
+		let reason: ReasonOf<T> = T::BenchmarkReason::get();
 		let _ = add_vesting_schedules::<T>(caller.clone(), s, reason)?;
 
 		// Schedules are not vesting at block 0.
@@ -338,7 +334,7 @@ mod benches {
 		T::Currency::set_balance(&caller, T::Currency::minimum_balance().saturating_add(1024u32.into()));
 		add_holds::<T>(&caller, l);
 		// Add max vesting schedules.
-		let reason = HoldReason::Participation(l).into();
+		let reason: ReasonOf<T> = T::BenchmarkReason::get();
 		let held = add_vesting_schedules::<T>(caller.clone(), s, reason)?;
 
 		// Go to about half way through all the schedules duration. (They all start at 1, and have a duration of 10 or 11).
@@ -392,7 +388,7 @@ mod benches {
 		add_holds::<T>(&caller, l);
 		// At block zero, everything is vested.
 		assert_eq!(System::<T>::block_number(), BlockNumberFor::<T>::zero());
-		let reason = HoldReason::Participation(l).into();
+		let reason: ReasonOf<T> = T::BenchmarkReason::get();
 		let _ = add_vesting_schedules::<T>(caller.clone(), s, reason)?;
 		assert_eq!(
 			PalletLinearRelease::<T>::vesting_balance(&caller, reason),
@@ -404,7 +400,7 @@ mod benches {
 		vest_all(RawOrigin::Signed(caller.clone()));
 
 		for _ in 0..l {
-			let reason = HoldReason::Participation(l).into();
+			let reason: ReasonOf<T> = T::BenchmarkReason::get();
 			// Nothing happened since everything is still vested.
 			assert_eq!(
 				PalletLinearRelease::<T>::vesting_balance(&caller, reason),
@@ -423,7 +419,7 @@ mod benches {
 
 		T::Currency::set_balance(&other, T::Currency::minimum_balance().saturating_add(1024u32.into()));
 		add_holds::<T>(&other, l);
-		let reason = HoldReason::Participation(l).into();
+		let reason: ReasonOf<T> = T::BenchmarkReason::get();
 		let _ = add_vesting_schedules::<T>(other.clone(), s, reason)?;
 
 		// At block zero, everything is vested.

@@ -604,10 +604,14 @@ parameter_types! {
 	pub const MinVestedTransfer: Balance = PLMC;
 	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
 		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
+	#[cfg(feature = "runtime-benchmarks")]
+	pub BenchmarkReason: RuntimeHoldReason = RuntimeHoldReason::PolimecFunding(pallet_funding::HoldReason::Participation(0));
 }
 
 impl pallet_linear_release::Config for Runtime {
 	type Balance = Balance;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkReason = BenchmarkReason;
 	type BlockNumberToBalance = ConvertInto;
 	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;

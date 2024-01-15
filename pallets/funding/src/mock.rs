@@ -287,9 +287,13 @@ parameter_types! {
 	pub PolimecReceiverInfo: xcm::v3::PalletInfo = xcm::v3::PalletInfo::new(
 		51, "PolimecReceiver".into(), "polimec_receiver".into(), 0, 1, 0
 	).unwrap();
+	#[cfg(feature = "runtime-benchmarks")]
+	pub BenchmarkReason: RuntimeHoldReason = RuntimeHoldReason::PolimecFunding(crate::HoldReason::Participation(0));
 }
 impl pallet_linear_release::Config for TestRuntime {
 	type Balance = Balance;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkReason = BenchmarkReason;
 	type BlockNumberToBalance = ConvertInto;
 	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;

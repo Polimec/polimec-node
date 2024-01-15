@@ -908,6 +908,7 @@ pub mod pallet {
 			let old_count = candidates.0.len() as u32;
 			ensure!(candidate_count >= old_count, Error::<T>::TooLowCandidateCountWeightHintJoinCandidates);
 			ensure!(candidates.insert(Bond { owner: acc.clone(), amount: bond }), Error::<T>::CandidateExists);
+			let dbg = Self::get_collator_stakable_free_balance(&acc);
 			ensure!(Self::get_collator_stakable_free_balance(&acc) >= bond, Error::<T>::InsufficientBalance,);
 			T::Currency::hold(&HoldReason::StakingCollator.into(), &acc, bond)?;
 			let candidate = CandidateMetadata::new(bond);

@@ -26,8 +26,11 @@ use frame_support::traits::fungible::{Inspect, Mutate};
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite, vec};
 use frame_support::traits::{fungible::Balanced, Get, OnFinalize, OnInitialize};
 use frame_system::{pallet_prelude::BlockNumberFor, RawOrigin};
+#[cfg(feature = "std")]
+use sp_runtime::BuildStorage;
 use sp_runtime::{Perbill, Percent};
-use sp_std::vec::Vec;
+use sp_std::{default::Default, vec::Vec};
+
 /// Minimum collator candidate stake
 fn min_candidate_stk<T: Config>() -> BalanceOf<T> {
 	<<T as Config>::MinCandidateStk as Get<BalanceOf<T>>>::get()
@@ -46,8 +49,7 @@ fn create_funded_user<T: Config>(string: &'static str, n: u32, extra: BalanceOf<
 	let user = account(string, n, SEED);
 	let min_candidate_stk = min_candidate_stk::<T>();
 	let total = min_candidate_stk + extra;
-	T::Currency::set_balance(&user, total);
-	T::Currency::issue(total);
+	T::Currency::set_balance(&user, total + 1u32.into());
 	(user, total)
 }
 
@@ -1246,11 +1248,14 @@ benchmarks! {
 		let collator = create_funded_collator::<T>(
 			"collator",
 			seed.take(),
-			0u32.into(),
+			1u32.into(),
 			true,
 			1,
 		)?;
 		let original_free_balance = T::Currency::balance(&collator);
+		let pay_master = T::PayMaster::get();
+		T::Currency::set_balance(&pay_master, 100u32.into());
+
 	}: {
 		Pallet::<T>::mint_collator_reward(1u32.into(), collator.clone(), 50u32.into())
 	}
@@ -1266,7 +1271,7 @@ mod tests {
 	use sp_io::TestExternalities;
 
 	pub fn new_test_ext() -> TestExternalities {
-		let t = frame_system::GenesisConfig::default().build_storage::().unwrap();
+		let t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 		TestExternalities::new(t)
 	}
 
