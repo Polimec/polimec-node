@@ -805,9 +805,9 @@ construct_runtime!(
 		ParachainStaking: pallet_parachain_staking::{Pallet, Call, Storage, Event<T>, Config<T>, HoldReason} = 25,
 
 		// Oracle
-		Oracle: orml_oracle::<Instance1> = 30,
+		Oracle: orml_oracle::{Pallet, Call, Storage, Event<T>} = 30,
 		OracleProvidersMembership: pallet_membership::<Instance1> = 31,
-        OracleOffchainWorker: pallet_oracle_ocw::{Pallet, Event<T>} = 32,
+		OracleOffchainWorker: pallet_oracle_ocw::{Pallet, Event<T>} = 32,
 
 		// Governance
 		Treasury: pallet_treasury = 40,

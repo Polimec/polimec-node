@@ -24,7 +24,7 @@ fn build_spec_testing_node() {
 	assert_eq!(
 		output.status.success(),
 		true,
-		"Make sure you compile the node with \"std\" and \"fast-gov\" feature enabled before running this test."
+		"Make sure you compile the polimec-parachain-node with \"--release\" and \"--features std,fast-gov\" before running this test."
 	);
 
 	dbg!(output);
