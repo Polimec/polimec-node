@@ -21,7 +21,6 @@
 #[cfg(feature = "runtime-benchmarks")]
 #[macro_use]
 extern crate frame_benchmarking;
-
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime, ord_parameter_types, parameter_types,
@@ -36,6 +35,7 @@ pub use parachains_common::{
 	Header, Nonce, Signature, AVERAGE_ON_INITIALIZE_RATIO, DAYS, HOURS, MAXIMUM_BLOCK_WEIGHT, MINUTES,
 	NORMAL_DISPATCH_RATIO, SLOT_DURATION,
 };
+use parity_scale_codec::Encode;
 
 // Polkadot imports
 use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
@@ -47,17 +47,18 @@ use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
 		AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, Convert, ConvertBack, ConvertInto,
-		OpaqueKeys,
+		OpaqueKeys, Verify,
 	},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult,
+	ApplyExtrinsicResult, FixedU128, MultiAddress, SaturatedConversion,
 };
-pub use sp_runtime::{FixedU128, MultiAddress, Perbill, Permill};
 
+use pallet_oracle_ocw::types::AssetName;
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
+
 // XCM Imports
 use polimec_xcm_executor::XcmExecutor;
 pub use xcm_config::XcmConfig;
@@ -157,10 +158,8 @@ impl SetPrices for SetOraclePrices {
 		let usdt = (AcceptedFundingAsset::USDT.to_statemint_id(), FixedU128::from_rational(1, 1));
 		let plmc = (pallet_funding::PLMC_STATEMINT_ID, FixedU128::from_rational(840, 100));
 
-		let values: BoundedVec<
-			(u32, FixedU128),
-			<Runtime as orml_oracle::Config<orml_oracle::Instance1>>::MaxFeedValues,
-		> = vec![dot, usdc, usdt, plmc].try_into().expect("benchmarks can panic");
+		let values: BoundedVec<(u32, FixedU128), <Runtime as orml_oracle::Config>::MaxFeedValues> =
+			vec![dot, usdc, usdt, plmc].try_into().expect("benchmarks can panic");
 		let alice: [u8; 32] = [
 			212, 53, 147, 199, 21, 253, 211, 28, 97, 20, 26, 189, 4, 169, 159, 214, 130, 44, 133, 88, 133, 76, 205,
 			227, 154, 86, 132, 231, 165, 109, 162, 125,
@@ -668,14 +667,13 @@ impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 
 parameter_types! {
 	pub const MinimumCount: u32 = 3;
-	pub const ExpiresIn: Moment = 1000 * 60 * 20; // 20 mins
+	pub const ExpiresIn: Moment = 1000 * 60; // 1 mins
 	pub const MaxHasDispatchedSize: u32 = 20;
 	pub RootOperatorAccountId: AccountId = AccountId::from([0xffu8; 32]);
 	pub const MaxFeedValues: u32 = 4; // max 4 values allowd to feed in one call (USDT, USDC, DOT, PLMC).
 }
-type PolimecDataProvider = orml_oracle::Instance1;
-impl orml_oracle::Config<PolimecDataProvider> for Runtime {
-	type CombineData = orml_oracle::DefaultCombineData<Runtime, MinimumCount, ExpiresIn, PolimecDataProvider>;
+impl orml_oracle::Config for Runtime {
+	type CombineData = orml_oracle::DefaultCombineData<Runtime, MinimumCount, ExpiresIn, ()>;
 	type MaxFeedValues = MaxFeedValues;
 	type MaxHasDispatchedSize = MaxHasDispatchedSize;
 	type Members = OracleProvidersMembership;
@@ -689,6 +687,86 @@ impl orml_oracle::Config<PolimecDataProvider> for Runtime {
 	type WeightInfo = ();
 }
 
+pub struct AssetPriceConverter;
+impl Convert<(AssetName, FixedU128), (AssetId, Price)> for AssetPriceConverter {
+	fn convert((asset, price): (AssetName, FixedU128)) -> (AssetId, Price) {
+		match asset {
+			AssetName::DOT => (0, price),
+			AssetName::USDC => (420, price),
+			AssetName::USDT => (1984, price),
+			AssetName::PLMC => (2069, price),
+		}
+	}
+}
+
+parameter_types! {
+	pub const FetchInterval: u32 = 50;
+	pub const FetchWindow: u32 = 5;
+}
+
+impl pallet_oracle_ocw::Config for Runtime {
+	type AppCrypto = pallet_oracle_ocw::crypto::PolimecCrypto;
+	type ConvertAssetPricePair = AssetPriceConverter;
+	type FetchInterval = FetchInterval;
+	type FetchWindow = FetchWindow;
+	type Members = OracleProvidersMembership;
+	type RuntimeEvent = RuntimeEvent;
+}
+
+impl frame_system::offchain::SigningTypes for Runtime {
+	type Public = <Signature as Verify>::Signer;
+	type Signature = Signature;
+}
+
+impl<LocalCall> frame_system::offchain::SendTransactionTypes<LocalCall> for Runtime
+where
+	RuntimeCall: From<LocalCall>,
+{
+	type Extrinsic = UncheckedExtrinsic;
+	type OverarchingCall = RuntimeCall;
+}
+
+impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
+where
+	RuntimeCall: From<LocalCall>,
+{
+	fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
+		call: RuntimeCall,
+		public: <Signature as Verify>::Signer,
+		account: AccountId,
+		nonce: <Runtime as frame_system::Config>::Nonce,
+	) -> Option<(RuntimeCall, <UncheckedExtrinsic as sp_runtime::traits::Extrinsic>::SignaturePayload)> {
+		use sp_runtime::traits::StaticLookup;
+		// take the biggest period possible.
+		let period = BlockHashCount::get().checked_next_power_of_two().map(|c| c / 2).unwrap_or(2) as u64;
+
+		let current_block = System::block_number()
+			.saturated_into::<u64>()
+			// The `System::block_number` is initialized with `n+1`,
+			// so the actual block number is `n`.
+			.saturating_sub(1);
+		let tip = 0;
+		let extra: SignedExtra = (
+			frame_system::CheckNonZeroSender::<Runtime>::new(),
+			frame_system::CheckSpecVersion::<Runtime>::new(),
+			frame_system::CheckTxVersion::<Runtime>::new(),
+			frame_system::CheckGenesis::<Runtime>::new(),
+			frame_system::CheckEra::<Runtime>::from(generic::Era::mortal(period, current_block)),
+			frame_system::CheckNonce::<Runtime>::from(nonce),
+			frame_system::CheckWeight::<Runtime>::new(),
+			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
+		);
+		let raw_payload = generic::SignedPayload::new(call, extra)
+			.map_err(|e| {
+				log::warn!("Unable to create signed payload: {:?}", e);
+			})
+			.ok()?;
+		let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
+		let (call, extra, _) = raw_payload.deconstruct();
+		let address = <Runtime as frame_system::Config>::Lookup::unlookup(account);
+		Some((call, (address, signature, extra)))
+	}
+}
 impl pallet_vesting::Config for Runtime {
 	type BlockNumberToBalance = ConvertInto;
 	type Currency = Balances;
@@ -729,6 +807,7 @@ construct_runtime!(
 		// Oracle
 		Oracle: orml_oracle::<Instance1> = 30,
 		OracleProvidersMembership: pallet_membership::<Instance1> = 31,
+        OracleOffchainWorker: pallet_oracle_ocw::{Pallet, Event<T>} = 32,
 
 		// Governance
 		Treasury: pallet_treasury = 40,

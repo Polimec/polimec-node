@@ -26,6 +26,7 @@ smallvec = "1.11.0"
 
 # Local
 pallet-parachain-staking.workspace = true
+pallet-oracle-ocw.workspace = true
 shared-configuration.workspace = true
 polimec-common.workspace = true
 
@@ -40,14 +41,15 @@ frame-try-runtime = { workspace = true, optional = true }
 pallet-aura.workspace = true
 pallet-authorship.workspace = true
 pallet-balances.workspace = true
+pallet-membership.workspace = true
 pallet-multisig.workspace = true
 pallet-proxy.workspace = true
 pallet-session.workspace = true
-pallet-treasury.workspace = true
 pallet-sudo.workspace = true
 pallet-timestamp.workspace = true
 pallet-transaction-payment.workspace = true
 pallet-transaction-payment-rpc-runtime-api.workspace = true
+pallet-treasury.workspace = true
 pallet-vesting.workspace = true
 pallet-utility.workspace = true
 sp-arithmetic.workspace = true
@@ -85,6 +87,8 @@ parachain-info.workspace = true
 parachains-common.workspace = true
 polkadot-primitives.workspace = true
 
+# ORML
+orml-oracle.workspace = true
 
 [features]
 default = [ "std" ]
@@ -107,9 +111,12 @@ std = [
 	"frame-system/std",
 	"frame-try-runtime?/std",
 	"log/std",
+	"orml-oracle/std",
 	"pallet-aura/std",
 	"pallet-authorship/std",
 	"pallet-balances/std",
+	"pallet-membership/std",
+	"pallet-oracle-ocw/std",
 	"pallet-multisig/std",
 	"pallet-parachain-staking/std",
 	"pallet-proxy/std",
@@ -158,6 +165,7 @@ runtime-benchmarks = [
 	"frame-system/runtime-benchmarks",
 	"hex-literal",
 	"pallet-balances/runtime-benchmarks",
+	"pallet-membership/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",
 	"pallet-parachain-staking/runtime-benchmarks",
 	"pallet-proxy/runtime-benchmarks",
@@ -187,9 +195,12 @@ try-runtime = [
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
 	"frame-try-runtime/try-runtime",
+	"orml-oracle/try-runtime",
 	"pallet-aura/try-runtime",
 	"pallet-authorship/try-runtime",
 	"pallet-balances/try-runtime",
+	"pallet-membership/try-runtime",
+	"pallet-oracle-ocw/try-runtime",
 	"pallet-multisig/try-runtime",
 	"pallet-parachain-staking/try-runtime",
 	"pallet-proxy/try-runtime",
