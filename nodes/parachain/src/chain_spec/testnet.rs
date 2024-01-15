@@ -279,9 +279,9 @@ mod testing_helpers {
 	use super::*;
 	use frame_benchmarking::frame_support::assert_ok;
 	use macros::generate_accounts;
-	use polimec_parachain_runtime::{AccountId, FixedU128};
+	use polimec_parachain_runtime::AccountId;
 	use sp_core::H256;
-	use sp_runtime::traits::ConstU32;
+	use sp_runtime::{traits::ConstU32, FixedU128};
 	use std::collections::HashMap;
 
 	pub const METADATA: &str = r#"METADATA
