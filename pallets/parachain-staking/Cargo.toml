@@ -20,7 +20,7 @@ parity-scale-codec = { workspace = true, features = [
 scale-info = { workspace = true, features = ["derive"] }
 
 # Polimec
-polimec-traits.workspace = true
+polimec-common.workspace = true
 
 # FRAME
 frame-benchmarking = { workspace = true, optional = true }

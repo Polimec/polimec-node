@@ -3948,9 +3948,9 @@ dependencies = [
  "parity-scale-codec",
  "penpal-runtime",
  "polimec-base-runtime",
+ "polimec-common",
  "polimec-parachain-runtime",
  "polimec-receiver",
- "polimec-traits",
  "polkadot-core-primitives",
  "polkadot-parachain",
  "polkadot-primitives",
@@ -6115,6 +6115,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "futures",
  "itertools 0.11.0",
  "log",
  "pallet-assets",
@@ -6125,7 +6126,8 @@ dependencies = [
  "pallet-xcm",
  "parachains-common",
  "parity-scale-codec",
- "polimec-traits",
+ "polimec-common",
+ "polimec-receiver",
  "polimec-xcm-executor",
  "polkadot-parachain",
  "polkadot-runtime",
@@ -6137,6 +6139,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "tokio",
  "xcm",
  "xcm-builder",
  "xcm-executor",
@@ -6261,7 +6264,7 @@ dependencies = [
  "pallet-balances",
  "pallet-funding",
  "parity-scale-codec",
- "polimec-traits",
+ "polimec-common",
  "scale-info",
  "serde",
  "sp-core",
@@ -6512,7 +6515,7 @@ dependencies = [
  "pallet-session",
  "pallet-timestamp",
  "parity-scale-codec",
- "polimec-traits",
+ "polimec-common",
  "scale-info",
  "serde",
  "similar-asserts",
@@ -7226,8 +7229,8 @@ dependencies = [
  "parachain-info",
  "parachains-common",
  "parity-scale-codec",
+ "polimec-common",
  "polimec-receiver",
- "polimec-traits",
  "polkadot-parachain",
  "polkadot-primitives",
  "polkadot-runtime-common",
@@ -7443,7 +7446,7 @@ dependencies = [
  "parachain-info",
  "parachains-common",
  "parity-scale-codec",
- "polimec-traits",
+ "polimec-common",
  "polkadot-parachain",
  "polkadot-primitives",
  "polkadot-runtime-common",
@@ -7469,6 +7472,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "polimec-common"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "itertools 0.11.0",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "polimec-parachain-node"
 version = "0.3.2"
 dependencies = [
@@ -7490,6 +7510,7 @@ dependencies = [
  "hex-literal 0.3.4",
  "jsonrpsee",
  "log",
+ "macros",
  "pallet-funding",
  "pallet-transaction-payment-rpc",
  "parachains-common",
@@ -7588,7 +7609,7 @@ dependencies = [
  "parachain-info",
  "parachains-common",
  "parity-scale-codec",
- "polimec-traits",
+ "polimec-common",
  "polimec-xcm-executor",
  "polkadot-parachain",
  "polkadot-primitives",
@@ -7623,26 +7644,9 @@ dependencies = [
  "frame-support",
  "frame-system",
  "parity-scale-codec",
- "polimec-traits",
+ "polimec-common",
  "polkadot-parachain",
  "polkadot-runtime-parachains",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "polimec-traits"
-version = "0.1.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "itertools 0.11.0",
- "parity-scale-codec",
  "scale-info",
  "serde",
  "sp-core",

@@ -13,10 +13,8 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
 pub mod constants;
 
-#[cfg(all(test, feature = "std", feature = "testing-node"))]
 mod tests;
 
 pub use constants::{accounts::*, penpal, polimec, polimec_base, polkadot, statemint};

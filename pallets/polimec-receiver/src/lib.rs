@@ -1,5 +1,4 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// <https://docs.substrate.io/v3/runtime/frame>
@@ -12,7 +11,7 @@ pub mod pallet {
 		traits::{tokens::Balance, Currency, ExistenceRequirement::KeepAlive, VestingSchedule},
 	};
 	use frame_system::pallet_prelude::*;
-	use polimec_traits::migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
+	use polimec_common::migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
 	use polkadot_parachain::primitives::{Id as ParaId, Sibling};
 	use polkadot_runtime_parachains::origin::{ensure_parachain, Origin as ParachainOrigin};
 	use sp_runtime::traits::{AccountIdConversion, Convert};

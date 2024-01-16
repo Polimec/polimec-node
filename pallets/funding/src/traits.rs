@@ -18,18 +18,18 @@ pub trait ProvideStatemintPrice {
 	fn get_price(asset_id: Self::AssetId) -> Option<Self::Price>;
 }
 
-pub trait DoRemainingOperation {
+pub trait DoRemainingOperation<T: Config> {
 	fn has_remaining_operations(&self) -> bool;
 
-	fn do_one_operation<T: crate::Config>(&mut self, project_id: ProjectId) -> Result<Weight, DispatchError>;
+	fn do_one_operation(&mut self, project_id: ProjectId) -> Result<Weight, DispatchError>;
 }
 
-#[cfg(feature = "runtime-benchmarks")]
+#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 pub trait SetPrices {
 	fn set_prices();
 }
 
-#[cfg(feature = "runtime-benchmarks")]
+#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 impl SetPrices for () {
 	fn set_prices() {}
 }

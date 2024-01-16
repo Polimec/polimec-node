@@ -28,7 +28,7 @@ smallvec = "1.11.0"
 pallet-parachain-staking.workspace = true
 pallet-oracle-ocw.workspace = true
 shared-configuration.workspace = true
-polimec-traits.workspace = true
+polimec-common.workspace = true
 
 # Substrate
 frame-benchmarking = { workspace = true, optional = true }
@@ -132,7 +132,7 @@ std = [
 	"parachain-info/std",
 	"parachains-common/std",
 	"parity-scale-codec/std",
-	"polimec-traits/std",
+	"polimec-common/std",
 	"polkadot-parachain/std",
 	"polkadot-primitives/std",
 	"polkadot-runtime-common/std",
@@ -175,7 +175,7 @@ runtime-benchmarks = [
 	"pallet-utility/runtime-benchmarks",
 	"pallet-vesting/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
-	"polimec-traits/runtime-benchmarks",
+	"polimec-common/runtime-benchmarks",
 	"polkadot-parachain/runtime-benchmarks",
 	"polkadot-primitives/runtime-benchmarks",
 	"polkadot-runtime-common/runtime-benchmarks",
@@ -213,9 +213,8 @@ try-runtime = [
 	"pallet-vesting/try-runtime",
 	"pallet-xcm/try-runtime",
 	"parachain-info/try-runtime",
-	"polimec-traits/try-runtime",
+	"polimec-common/try-runtime",
 	"polkadot-runtime-common/try-runtime",
 	"shared-configuration/try-runtime",
 	"sp-runtime/try-runtime",
 ]
-testing-node = [ "shared-configuration/testing-node" ]

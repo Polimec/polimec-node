@@ -24,7 +24,7 @@ use crate::{
 };
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
 use frame_system::pallet_prelude::BlockNumberFor;
-use polimec_traits::migration_types::{Migration, MigrationInfo, MigrationOrigin, ParticipationType};
+use polimec_common::migration_types::{Migration, MigrationInfo, MigrationOrigin, ParticipationType};
 use polkadot_parachain::primitives::Id as ParaId;
 use serde::{Deserialize, Serialize};
 use sp_arithmetic::{FixedPointNumber, FixedPointOperand};
@@ -648,6 +648,7 @@ pub mod inner_types {
 		BidUnbonding(u64, PhantomData<T>),
 		ContributionFundingRelease(u64, PhantomData<T>),
 		ContributionUnbonding(u64, PhantomData<T>),
+		FutureDepositRelease(u64, PhantomData<T>),
 		// Merge
 		// Success or Failure
 		Finished(PhantomData<T>),

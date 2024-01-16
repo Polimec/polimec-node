@@ -23,7 +23,7 @@ smallvec = "1.10.0"
 
 # Local
 polimec-receiver.workspace = true
-polimec-traits.workspace = true
+polimec-common.workspace = true
 
 # Substrate
 frame-benchmarking = { workspace = true, optional = true }
@@ -117,7 +117,6 @@ std = [
 	"parachain-info/std",
 	"parachains-common/std",
 	"polimec-receiver/std",
-	"polimec-traits/std",
 	"polkadot-parachain/std",
 	"polkadot-primitives/std",
 	"polkadot-runtime-common/std",
@@ -158,7 +157,6 @@ runtime-benchmarks = [
 	"pallet-vesting/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
 	"polimec-receiver/runtime-benchmarks",
-	"polimec-traits/runtime-benchmarks",
 	"polkadot-parachain/runtime-benchmarks",
 	"polkadot-primitives/runtime-benchmarks",
 	"polkadot-runtime-common/runtime-benchmarks",
@@ -192,7 +190,6 @@ try-runtime = [
 	"pallet-xcm/try-runtime",
 	"parachain-info/try-runtime",
 	"polimec-receiver/try-runtime",
-	"polimec-traits/try-runtime",
 	"polkadot-runtime-common/try-runtime",
 	"polkadot-runtime-parachains/try-runtime",
 	"sp-runtime/try-runtime",

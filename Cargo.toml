@@ -5,9 +5,9 @@ members = [
     "pallets/*",
     "integration-tests",
     "integration-tests/penpal",
-    "integration-tests/macros",
-    "integration-tests/macros/tests",
-    "traits",
+    "macros",
+    "macros/tests",
+    "polimec-common",
 ]
 
 resolver = "2"
@@ -62,8 +62,8 @@ polimec-xcm-executor = { path = "pallets/xcm-executor", default-features = false
 polimec-receiver = { path = "pallets/polimec-receiver", default-features = false }
 
 # Internal macros
-macros = { path = "integration-tests/macros" }
-macros-tests = { path = "integration-tests/macros/tests" }
+macros = { path = "macros" }
+macros-tests = { path = "macros/tests" }
 
 
 # External pallets (with default disabled)
@@ -71,7 +71,7 @@ orml-oracle = {git = "https://github.com/open-web3-stack/open-runtime-module-lib
 orml-traits = {git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v1.0.0", default-features = false}
 # Internal support (with default disabled)
 shared-configuration = { path = "runtimes/shared-configuration", default-features = false }
-polimec-traits = { path = "traits", default-features = false }
+polimec-common = { path = "polimec-common", default-features = false }
 
 # External support (with default disabled)
 substrate-fixed = { git = "https://github.com/encointer/substrate-fixed", default-features = false }
