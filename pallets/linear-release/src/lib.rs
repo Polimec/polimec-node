@@ -142,6 +142,10 @@ pub mod pallet {
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
+
+		/// Reason used when running benchmarks
+		#[cfg(feature = "runtime-benchmarks")]
+		type BenchmarkReason: Get<Self::RuntimeHoldReason>;
 	}
 
 	#[pallet::extra_constants]

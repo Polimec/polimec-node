@@ -6262,7 +6262,6 @@ dependencies = [
  "frame-system",
  "log",
  "pallet-balances",
- "pallet-funding",
  "parity-scale-codec",
  "polimec-common",
  "scale-info",
