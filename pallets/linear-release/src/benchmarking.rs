@@ -25,7 +25,6 @@ use frame_support::{
 	traits::{tokens::Preservation::Expendable, OriginTrait},
 };
 use frame_system::{pallet_prelude::BlockNumberFor, Pallet as System, RawOrigin};
-use pallet_funding::HoldReason;
 use sp_runtime::traits::{CheckedDiv, CheckedMul};
 const SEED: u32 = 0;
 
