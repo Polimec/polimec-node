@@ -2342,8 +2342,6 @@ pub mod async_features {
 		instantiator: Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>,
 		projects: Vec<TestProjectParams<T>>,
 	) -> (Vec<ProjectId>, Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>) {
-		// let tokio_runtime = Runtime::new().unwrap();
-
 		use tokio::runtime::Builder;
 		let tokio_runtime = Builder::new_current_thread().enable_all().build().unwrap();
 		let local = tokio::task::LocalSet::new();

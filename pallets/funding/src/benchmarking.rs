@@ -18,24 +18,24 @@
 
 //! Benchmarking setup for Funding pallet
 
-#![cfg(feature = "runtime-benchmarks")]
+use sp_runtime::traits::TrailingZeroInput;
 
 use super::*;
-use crate::{
-	instantiator::*,
-	mock::{new_test_ext, TestRuntime},
-	traits::SetPrices,
-};
+use crate::{instantiator::*, traits::SetPrices};
+
 use frame_benchmarking::v2::*;
 use frame_support::{assert_ok, dispatch::RawOrigin, traits::OriginTrait, Parameter};
 #[allow(unused_imports)]
 use pallet::Pallet as PalletFunding;
+use parity_scale_codec::{Decode, Encode};
 use polimec_common::ReleaseSchedule;
 use scale_info::prelude::format;
 use sp_arithmetic::Percent;
 use sp_core::H256;
+use sp_io::hashing::blake2_256;
 use sp_runtime::traits::{BlakeTwo256, Get, Member};
-use sp_std::marker::PhantomData;
+use sp_std::prelude::*;
+
 const METADATA: &str = r#"
 {
     "whitepaper":"ipfs_url",
@@ -58,6 +58,7 @@ const EDITED_METADATA: &str = r#"
 const ASSET_DECIMALS: u8 = 10;
 const US_DOLLAR: u128 = 1_0_000_000_000u128;
 const ASSET_UNIT: u128 = 1_0_000_000_000u128;
+type BenchInstantiator<T> = Instantiator<T, <T as Config>::AllPalletsWithoutSystem, <T as Config>::RuntimeEvent>;
 
 pub fn usdt_id() -> u32 {
 	AcceptedFundingAsset::USDT.to_statemint_id()
@@ -157,6 +158,33 @@ where
 	]
 }
 
+pub fn default_remainder_contributions<T: Config>() -> Vec<ContributionParams<T>>
+where
+	<T as Config>::Price: From<u128>,
+	<T as Config>::Balance: From<u128>,
+{
+	vec![
+		ContributionParams::new(
+			account::<AccountIdOf<T>>("contributor_1", 0, 0),
+			(10 * ASSET_UNIT).into(),
+			1u8,
+			AcceptedFundingAsset::USDT,
+		),
+		ContributionParams::new(
+			account::<AccountIdOf<T>>("bidder_1", 0, 0),
+			(60 * ASSET_UNIT).into(),
+			1u8,
+			AcceptedFundingAsset::USDT,
+		),
+		ContributionParams::new(
+			account::<AccountIdOf<T>>("evaluator_1", 0, 0),
+			(30 * ASSET_UNIT).into(),
+			1u8,
+			AcceptedFundingAsset::USDT,
+		),
+	]
+}
+
 pub fn default_weights() -> Vec<u8> {
 	vec![20u8, 15u8, 10u8, 25u8, 30u8]
 }
@@ -191,6 +219,64 @@ pub fn default_remainder_contributor_multipliers() -> Vec<u8> {
 	vec![1u8, 10u8, 3u8, 2u8, 4u8]
 }
 
+/// Grab an account, seeded by a name and index.
+pub fn string_account<AccountId: Decode>(
+	name: scale_info::prelude::string::String,
+	index: u32,
+	seed: u32,
+) -> AccountId {
+	let entropy = (name, index, seed).using_encoded(blake2_256);
+	Decode::decode(&mut TrailingZeroInput::new(entropy.as_ref()))
+		.expect("infinite length input; no invalid inputs for type; qed")
+}
+
+#[cfg(feature = "std")]
+pub fn populate_with_projects<T: Config>(amount: u32, inst: BenchInstantiator<T>) -> BenchInstantiator<T>
+where
+	T: Config
+		+ frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent>
+		+ pallet_balances::Config<Balance = BalanceOf<T>>,
+	<T as Config>::RuntimeEvent: TryInto<Event<T>> + Parameter + Member,
+	<T as Config>::Price: From<u128>,
+	<T as Config>::Balance: From<u128>,
+	T::Hash: From<H256>,
+	<T as frame_system::Config>::AccountId:
+		Into<<<T as frame_system::Config>::RuntimeOrigin as OriginTrait>::AccountId> + sp_std::fmt::Debug,
+	<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
+{
+	let states = vec![
+		ProjectStatus::Application,
+		ProjectStatus::EvaluationRound,
+		ProjectStatus::AuctionRound(AuctionPhase::English),
+		ProjectStatus::CommunityRound,
+		ProjectStatus::RemainderRound,
+		ProjectStatus::FundingSuccessful,
+	]
+	.into_iter()
+	.cycle()
+	.take(amount as usize);
+
+	let instantiation_details = states
+		.map(|state| {
+			let nonce = inst.get_new_nonce();
+			let issuer_name: String = format!("issuer_{}", nonce);
+
+			let issuer = string_account::<AccountIdOf<T>>(issuer_name, 0, 0);
+			TestProjectParams::<T> {
+				expected_state: state,
+				metadata: default_project::<T>(inst.get_new_nonce(), issuer.clone()),
+				issuer: issuer.clone(),
+				evaluations: default_evaluations::<T>(),
+				bids: default_bids::<T>(),
+				community_contributions: default_community_contributions::<T>(),
+				remainder_contributions: default_remainder_contributions::<T>(),
+			}
+		})
+		.collect::<Vec<TestProjectParams<T>>>();
+
+	async_features::create_multiple_projects_at(inst, instantiation_details).1
+}
+
 #[benchmarks(
 	where
 	T: Config + frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent> + pallet_balances::Config<Balance = BalanceOf<T>>,
@@ -205,15 +291,20 @@ mod benchmarks {
 	use super::*;
 	use itertools::Itertools;
 
-	impl_benchmark_test_suite!(PalletFunding, super::new_test_ext(), super::TestRuntime);
+	impl_benchmark_test_suite!(PalletFunding, crate::mock::new_test_ext(), crate::mock::TestRuntime);
 
-	type BenchInstantiator<T> = Instantiator<T, <T as Config>::AllPalletsWithoutSystem, <T as Config>::RuntimeEvent>;
 	#[benchmark]
-	fn create() {
+	fn create(x: Linear<1, 10>) {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
+
+		#[cfg(feature = "std")]
+		let mut inst = populate_with_projects(x, inst);
+
+		let projects_details_count = ProjectsDetails::<T>::iter().count();
+
 		let ed = BenchInstantiator::<T>::get_ed();
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
@@ -1604,6 +1695,7 @@ mod benchmarks {
 	#[cfg(test)]
 	mod tests {
 		use super::*;
+		use crate::mock::{new_test_ext, TestRuntime};
 
 		#[test]
 		fn bench_create() {
