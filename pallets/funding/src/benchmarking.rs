@@ -718,14 +718,14 @@ mod benchmarks {
 	fn contribute(
 		// Existing projects count
 		a: Linear<1, 10>,
-		// Evaluations count
-		b: Linear<1, 10>,
-		// Bids count
-		c: Linear<1, 10>,
-		// Community contributions count
-		d: Linear<1, 10>,
-		// User contributions count
-		e: Linear<1, 10>,
+		// // Evaluations count
+		// b: Linear<1, 10>,
+		// // Bids count
+		// c: Linear<1, 10>,
+		// // Community contributions count
+		// d: Linear<1, 10>,
+		// // User contributions count
+		// e: Linear<1, 10>,
 	) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
