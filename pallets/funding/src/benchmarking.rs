@@ -21,9 +21,13 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
-use crate::{instantiator::*, traits::SetPrices};
+use crate::{
+	instantiator::*,
+	mock::{new_test_ext, TestRuntime},
+	traits::SetPrices,
+};
 use frame_benchmarking::v2::*;
-use frame_support::{dispatch::RawOrigin, traits::OriginTrait, Parameter};
+use frame_support::{assert_ok, dispatch::RawOrigin, traits::OriginTrait, Parameter};
 #[allow(unused_imports)]
 use pallet::Pallet as PalletFunding;
 use polimec_common::ReleaseSchedule;
@@ -201,7 +205,7 @@ mod benchmarks {
 	use super::*;
 	use itertools::Itertools;
 
-	impl_benchmark_test_suite!(PalletFunding, crate::mock::new_test_ext(), crate::mock::TestRuntime);
+	impl_benchmark_test_suite!(PalletFunding, super::new_test_ext(), super::TestRuntime);
 
 	type BenchInstantiator<T> = Instantiator<T, <T as Config>::AllPalletsWithoutSystem, <T as Config>::RuntimeEvent>;
 	#[benchmark]
@@ -1319,78 +1323,6 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn bid_unbond_for() {
-		// setup
-		let mut inst = BenchInstantiator::<T>::new(None);
-
-		// real benchmark starts at block 0, and we can't call `events()` at block 0
-		inst.advance_time(1u32.into()).unwrap();
-
-		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-		let evaluations = default_evaluations::<T>();
-
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
-		let target_funding_amount: BalanceOf<T> =
-			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size.0);
-
-		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
-			Percent::from_percent(15) * target_funding_amount,
-			10u128.into(),
-			default_weights(),
-			default_bidders::<T>(),
-			default_bidder_multipliers(),
-		);
-		let bidder = bids[0].bidder.clone();
-		whitelist_account!(bidder);
-		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
-			Percent::from_percent(10) * target_funding_amount,
-			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
-			default_weights(),
-			default_contributors::<T>(),
-			default_community_contributor_multipliers(),
-		);
-
-		let project_id =
-			inst.create_finished_project(project_metadata, issuer, evaluations, bids, contributions, vec![]);
-
-		inst.advance_time(One::one()).unwrap();
-		assert_eq!(
-			inst.get_project_details(project_id).cleanup,
-			Cleaner::Failure(CleanerState::Initialized(PhantomData))
-		);
-
-		let stored_bid = inst.execute(|| Bids::<T>::iter_prefix_values((project_id, bidder.clone())).next().unwrap());
-
-		inst.execute(|| {
-			PalletFunding::<T>::release_bid_funds_for(
-				<T as frame_system::Config>::RuntimeOrigin::signed(bidder.clone().into()),
-				project_id,
-				bidder.clone(),
-				stored_bid.id,
-			)
-			.expect("Funds are released")
-		});
-
-		#[extrinsic_call]
-		bid_unbond_for(RawOrigin::Signed(bidder.clone()), project_id, bidder.clone(), stored_bid.id);
-
-		// * validity checks *
-		// Storage
-		assert!(!Bids::<T>::contains_key((project_id, bidder.clone(), stored_bid.id)));
-		// Balances
-		let reserved_plmc = inst
-			.get_reserved_plmc_balances_for(vec![bidder.clone()], HoldReason::Participation(project_id).into())[0]
-			.plmc_amount;
-		assert_eq!(reserved_plmc, 0.into());
-
-		// Events
-		frame_system::Pallet::<T>::assert_last_event(
-			Event::BondReleased { project_id, amount: stored_bid.plmc_bond, bonder: bidder.clone(), releaser: bidder }
-				.into(),
-		);
-	}
-
-	#[benchmark]
 	fn release_contribution_funds_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
@@ -1465,6 +1397,78 @@ mod benchmarks {
 				caller: contributor,
 			}
 			.into(),
+		);
+	}
+
+	#[benchmark]
+	fn bid_unbond_for() {
+		// setup
+		let mut inst = BenchInstantiator::<T>::new(None);
+
+		// real benchmark starts at block 0, and we can't call `events()` at block 0
+		inst.advance_time(1u32.into()).unwrap();
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+		let evaluations = default_evaluations::<T>();
+
+		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let target_funding_amount: BalanceOf<T> =
+			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size.0);
+
+		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
+			Percent::from_percent(15) * target_funding_amount,
+			10u128.into(),
+			default_weights(),
+			default_bidders::<T>(),
+			default_bidder_multipliers(),
+		);
+		let bidder = bids[0].bidder.clone();
+		whitelist_account!(bidder);
+		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
+			Percent::from_percent(10) * target_funding_amount,
+			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
+			default_weights(),
+			default_contributors::<T>(),
+			default_community_contributor_multipliers(),
+		);
+
+		let project_id =
+			inst.create_finished_project(project_metadata, issuer, evaluations, bids, contributions, vec![]);
+
+		inst.advance_time(One::one()).unwrap();
+		assert_eq!(
+			inst.get_project_details(project_id).cleanup,
+			Cleaner::Failure(CleanerState::Initialized(PhantomData))
+		);
+
+		let stored_bid = inst.execute(|| Bids::<T>::iter_prefix_values((project_id, bidder.clone())).next().unwrap());
+
+		inst.execute(|| {
+			PalletFunding::<T>::release_bid_funds_for(
+				<T as frame_system::Config>::RuntimeOrigin::signed(bidder.clone().into()),
+				project_id,
+				bidder.clone(),
+				stored_bid.id,
+			)
+			.expect("Funds are released")
+		});
+
+		#[extrinsic_call]
+		bid_unbond_for(RawOrigin::Signed(bidder.clone()), project_id, bidder.clone(), stored_bid.id);
+
+		// * validity checks *
+		// Storage
+		assert!(!Bids::<T>::contains_key((project_id, bidder.clone(), stored_bid.id)));
+		// Balances
+		let reserved_plmc = inst
+			.get_reserved_plmc_balances_for(vec![bidder.clone()], HoldReason::Participation(project_id).into())[0]
+			.plmc_amount;
+		assert_eq!(reserved_plmc, 0.into());
+
+		// Events
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::BondReleased { project_id, amount: stored_bid.plmc_bond, bonder: bidder.clone(), releaser: bidder }
+				.into(),
 		);
 	}
 
@@ -1595,5 +1599,157 @@ mod benchmarks {
 				})
 			})
 		};
+	}
+
+	#[cfg(test)]
+	mod tests {
+		use super::*;
+
+		#[test]
+		fn bench_create() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_create());
+			});
+		}
+
+		#[test]
+		fn bench_edit_metadata() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_edit_metadata());
+			});
+		}
+
+		#[test]
+		fn bench_start_evaluation() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_start_evaluation());
+			});
+		}
+
+		#[test]
+		fn bench_bond_evaluation() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_bond_evaluation());
+			});
+		}
+
+		#[test]
+		fn bench_start_auction() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_start_auction());
+			});
+		}
+
+		#[test]
+		fn bench_bid() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_bid());
+			});
+		}
+
+		#[test]
+		fn bench_contribute() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_contribute());
+			});
+		}
+
+		#[test]
+		fn bench_evaluation_unbond_for() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_evaluation_unbond_for());
+			});
+		}
+
+		#[test]
+		fn bench_evaluation_slash_for() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_evaluation_slash_for());
+			});
+		}
+
+		#[test]
+		fn bench_evaluation_reward_payout_for() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_evaluation_reward_payout_for());
+			});
+		}
+
+		#[test]
+		fn bench_bid_ct_mint_for() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_bid_ct_mint_for());
+			});
+		}
+
+		#[test]
+		fn bench_contribution_ct_mint_for() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_contribution_ct_mint_for());
+			});
+		}
+
+		#[test]
+		fn bench_start_bid_vesting_schedule_for() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_start_bid_vesting_schedule_for());
+			});
+		}
+
+		#[test]
+		fn bench_start_contribution_vesting_schedule_for() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_start_contribution_vesting_schedule_for());
+			});
+		}
+
+		#[test]
+		fn bench_payout_bid_funds_for() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_payout_bid_funds_for());
+			});
+		}
+
+		#[test]
+		fn bench_payout_contribution_funds_for() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_payout_contribution_funds_for());
+			});
+		}
+
+		#[test]
+		fn bench_decide_project_outcome() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_decide_project_outcome());
+			});
+		}
+
+		#[test]
+		fn bench_release_bid_funds_for() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_release_bid_funds_for());
+			});
+		}
+
+		#[test]
+		fn bench_release_contribution_funds_for() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_release_contribution_funds_for());
+			});
+		}
+
+		#[test]
+		fn bench_bid_unbond_for() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_bid_unbond_for());
+			});
+		}
+
+		#[test]
+		fn bench_contribution_unbond_for() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_contribution_unbond_for());
+			});
+		}
 	}
 }
