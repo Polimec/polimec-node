@@ -1495,8 +1495,6 @@ pub mod async_features {
 		let asset_account_deposit =
 			inst.execute(|| <T as crate::Config>::ContributionTokenCurrency::deposit_required(One::one()));
 		let ed = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ed();
-		dbg!(asset_account_deposit);
-		dbg!(ed);
 		let now = inst.current_block();
 		// One ED for the issuer, one for the escrow account
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(

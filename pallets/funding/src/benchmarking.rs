@@ -277,6 +277,88 @@ where
 	async_features::create_multiple_projects_at(inst, instantiation_details).1
 }
 
+pub fn generate_evaluations(amount: u32) -> Vec<UserToUSDBalance<TestRuntime>>
+where
+	<TestRuntime as Config>::Balance: From<u128>,
+{
+	const TARGET_USD: u128 = 107_000u128 * US_DOLLAR;
+	let amount_per_participant = TARGET_USD / amount as u128;
+	let mut evaluations = Vec::new();
+	for i in 0..amount {
+		let evaluator_name: String = format!("evaluator_{}", i);
+		let evaluator = string_account::<AccountIdOf<TestRuntime>>(evaluator_name, 0, 0);
+		evaluations.push(UserToUSDBalance::new(evaluator, (amount_per_participant).into()));
+	}
+	evaluations
+}
+
+pub fn generate_bids(amount: u32) -> Vec<BidParams<TestRuntime>>
+where
+	<TestRuntime as Config>::Price: From<u128>,
+	<TestRuntime as Config>::Balance: From<u128>,
+{
+	const TARGET_USD: u128 = 45_000 * US_DOLLAR;
+	let amount_per_participant = TARGET_USD / amount as u128;
+	let mut bids = Vec::new();
+	for i in 0..amount {
+		let bidder_name: String = format!("bidder_{}", i);
+		let bidder = string_account::<AccountIdOf<TestRuntime>>(bidder_name, 0, 0);
+		bids.push(BidParams::new(
+			bidder,
+			(amount_per_participant).into(),
+			1_u128.into(),
+			1u8,
+			AcceptedFundingAsset::USDT,
+		));
+	}
+	bids
+}
+
+pub fn generate_community_contributions(amount: u32) -> Vec<ContributionParams<TestRuntime>>
+where
+	<TestRuntime as Config>::Price: From<u128>,
+	<TestRuntime as Config>::Balance: From<u128>,
+{
+	const TARGET_USD: u128 = 46_000 * US_DOLLAR;
+	let amount_per_participant = TARGET_USD / amount as u128;
+	let mut contributions = Vec::new();
+	for i in 0..amount {
+		let contributor_name: String = format!("contributor_{}", i);
+		let contributor = string_account::<AccountIdOf<TestRuntime>>(contributor_name, 0, 0);
+		contributions.push(ContributionParams::new(
+			contributor,
+			(amount_per_participant).into(),
+			1u8,
+			AcceptedFundingAsset::USDT,
+		));
+	}
+	contributions
+}
+
+pub fn generate_remainder_contributions(amount: u32) -> Vec<ContributionParams<TestRuntime>>
+where
+	<TestRuntime as Config>::Price: From<u128>,
+	<TestRuntime as Config>::Balance: From<u128>,
+{
+	const TARGET_USD: u128 = 100 * US_DOLLAR;
+	let amount_per_participant = TARGET_USD / amount as u128;
+	let mut contributions = Vec::new();
+	let mut user_kind = vec!["evaluator", "bidder", "contributor"].into_iter().cycle();
+	let mut counters = vec![0, 0, 0];
+	for i in 0..amount {
+		let kind = user_kind.next().unwrap();
+		let contributor_name: String = match kind {};
+		let contributor = string_account::<AccountIdOf<TestRuntime>>(contributor_name, 0, 0);
+		contributions.push(ContributionParams::new(
+			contributor,
+			(amount_per_participant).into(),
+			1u8,
+			AcceptedFundingAsset::USDT,
+		));
+	}
+	contributions
+}
+
 #[benchmarks(
 	where
 	T: Config + frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent> + pallet_balances::Config<Balance = BalanceOf<T>>,
@@ -294,7 +376,7 @@ mod benchmarks {
 	impl_benchmark_test_suite!(PalletFunding, crate::mock::new_test_ext(), crate::mock::TestRuntime);
 
 	#[benchmark]
-	fn create(x: Linear<1, 10>) {
+	fn create(x: Linear<1, 20>) {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
@@ -332,12 +414,15 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn edit_metadata() {
+	fn edit_metadata(x: Linear<1, 20>) {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
+
+		#[cfg(feature = "std")]
+		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
@@ -361,12 +446,15 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn start_evaluation() {
+	fn start_evaluation(x: Linear<1, 20>) {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
+
+		#[cfg(feature = "std")]
+		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
@@ -398,12 +486,15 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn bond_evaluation() {
+	fn bond_evaluation(x: Linear<1, 20>) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
+
+		#[cfg(feature = "std")]
+		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let test_evaluator = account::<AccountIdOf<T>>("evaluator", 0, 0);
@@ -470,12 +561,15 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn start_auction() {
+	fn start_auction(x: Linear<1, 20>) {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
+
+		#[cfg(feature = "std")]
+		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
@@ -512,12 +606,15 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn bid() {
+	fn bid(x: Linear<1, 20>) {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
+
+		#[cfg(feature = "std")]
+		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let bidder = account::<AccountIdOf<T>>("bidder", 0, 0);
@@ -617,11 +714,26 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn contribute() {
+	// assume for now community contribution
+	fn contribute(
+		// Existing projects count
+		a: Linear<1, 10>,
+		// Evaluations count
+		b: Linear<1, 10>,
+		// Bids count
+		c: Linear<1, 10>,
+		// Community contributions count
+		d: Linear<1, 10>,
+		// User contributions count
+		e: Linear<1, 10>,
+	) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
+
+		#[cfg(feature = "std")]
+		let mut inst = populate_with_projects(a, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let contributor = account::<AccountIdOf<T>>("contributor", 0, 0);
@@ -722,12 +834,15 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn evaluation_unbond_for() {
+	fn evaluation_unbond_for(x: Linear<1, 20>) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
+
+		#[cfg(feature = "std")]
+		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let evaluations = default_evaluations::<T>();
@@ -791,12 +906,15 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn evaluation_slash_for() {
+	fn evaluation_slash_for(x: Linear<1, 20>) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
+
+		#[cfg(feature = "std")]
+		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let evaluations = default_evaluations::<T>();
@@ -874,12 +992,15 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn evaluation_reward_payout_for() {
+	fn evaluation_reward_payout_for(x: Linear<1, 20>) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
+
+		#[cfg(feature = "std")]
+		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let evaluations = default_evaluations::<T>();
@@ -943,12 +1064,15 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn bid_ct_mint_for() {
+	fn bid_ct_mint_for(x: Linear<1, 20>) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
+
+		#[cfg(feature = "std")]
+		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let bids = default_bids::<T>();
@@ -993,12 +1117,15 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn contribution_ct_mint_for() {
+	fn contribution_ct_mint_for(x: Linear<1, 20>) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
+
+		#[cfg(feature = "std")]
+		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let contributions = default_community_contributions::<T>();
@@ -1054,12 +1181,15 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn start_bid_vesting_schedule_for() {
+	fn start_bid_vesting_schedule_for(x: Linear<1, 20>) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
+
+		#[cfg(feature = "std")]
+		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let bids = default_bids::<T>();
@@ -1109,12 +1239,15 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn start_contribution_vesting_schedule_for() {
+	fn start_contribution_vesting_schedule_for(x: Linear<1, 20>) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
+
+		#[cfg(feature = "std")]
+		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let contributions = default_community_contributions::<T>();
@@ -1171,12 +1304,15 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn payout_bid_funds_for() {
+	fn payout_bid_funds_for(x: Linear<1, 20>) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
+
+		#[cfg(feature = "std")]
+		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let bids = default_bids::<T>();
@@ -1224,12 +1360,15 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn payout_contribution_funds_for() {
+	fn payout_contribution_funds_for(x: Linear<1, 20>) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
+
+		#[cfg(feature = "std")]
+		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let contributions = default_community_contributions::<T>();
@@ -1289,12 +1428,15 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn decide_project_outcome() {
+	fn decide_project_outcome(x: Linear<1, 20>) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
+
+		#[cfg(feature = "std")]
+		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let evaluations = default_evaluations::<T>();
@@ -1343,12 +1485,15 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn release_bid_funds_for() {
+	fn release_bid_funds_for(x: Linear<1, 20>) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
+
+		#[cfg(feature = "std")]
+		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let evaluations = default_evaluations::<T>();
@@ -1414,12 +1559,15 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn release_contribution_funds_for() {
+	fn release_contribution_funds_for(x: Linear<1, 20>) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
+
+		#[cfg(feature = "std")]
+		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let evaluations = default_evaluations::<T>();
@@ -1492,12 +1640,15 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn bid_unbond_for() {
+	fn bid_unbond_for(x: Linear<1, 20>) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
+
+		#[cfg(feature = "std")]
+		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let evaluations = default_evaluations::<T>();
@@ -1564,12 +1715,15 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn contribution_unbond_for() {
+	fn contribution_unbond_for(x: Linear<1, 20>) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
+
+		#[cfg(feature = "std")]
+		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let evaluations = default_evaluations::<T>();
