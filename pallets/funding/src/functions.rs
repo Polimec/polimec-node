@@ -2335,14 +2335,18 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Adds a project to the ProjectsToUpdate storage, so it can be updated at some later point in time.
-	pub fn add_to_update_store(block_number: BlockNumberFor<T>, store: (&ProjectId, UpdateType)) {
+	pub fn add_to_update_store(block_number: BlockNumberFor<T>, store: (&ProjectId, UpdateType)) -> DispatchResult {
 		// Try to get the project into the earliest possible block to update.
 		// There is a limit for how many projects can update each block, so we need to make sure we don't exceed that limit
 		let mut block_number = block_number;
-		while ProjectsToUpdate::<T>::try_append(block_number, store.clone()).is_err() {
-			// TODO: Should we end the loop if we iterated over too many blocks?
-			block_number += 1u32.into();
+		for _ in T::MaxProjectToUpdateInsertionAttempts::get() {
+			if ProjectsToUpdate::<T>::try_append(block_number, store.clone()).is_err() {
+				block_number += 1u32.into();
+			} else {
+				return Ok(())
+			}
 		}
+		return Err(Error::<T>::TooManyInsertionAttempts.into())
 	}
 
 	pub fn remove_from_update_store(project_id: &ProjectId) -> DispatchResult {

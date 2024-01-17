@@ -436,6 +436,8 @@ pub mod pallet {
 		type RequiredMaxCapacity: Get<u32>;
 		/// max_message_size config required for the channel from polimec to the project
 		type RequiredMaxMessageSize: Get<u32>;
+		/// max iterations for trying to insert a project into the projects_to_update storage
+		type MaxProjectToUpdateInsertionAttempts: Get<u32>;
 	}
 
 	#[pallet::storage]
@@ -928,6 +930,8 @@ pub mod pallet {
 		NoFutureDepositHeld,
 		/// The issuer doesn't have enough funds (ExistentialDeposit), to create the escrow account
 		NotEnoughFundsForEscrowCreation,
+		/// Too many attempts to insert project in to ProjectsToUpdate storage
+		TooManyInsertionAttempts,
 	}
 
 	#[pallet::call]
