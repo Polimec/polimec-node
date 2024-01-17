@@ -27,8 +27,8 @@ impl frame_support::traits::OnRuntimeUpgrade for CustomOnRuntimeUpgrade {
 	fn pre_upgrade() -> Result<Vec<u8>, DispatchError> {
 		use frame_support::pallet_prelude::StorageVersion;
 
-		let mebership_pallet_version = StorageVersion::get::<OracleProvidersMembership>();
-		log::info!("OracleProvidersMembership migrating from {:#?}", mebership_pallet_version);
+		let membership_pallet_version = StorageVersion::get::<OracleProvidersMembership>();
+		log::info!("OracleProvidersMembership migrating from {:#?}", membership_pallet_version);
 		Ok(Vec::new())
 	}
 
@@ -36,8 +36,8 @@ impl frame_support::traits::OnRuntimeUpgrade for CustomOnRuntimeUpgrade {
 	fn post_upgrade(_state: Vec<u8>) -> Result<(), DispatchError> {
 		use frame_support::pallet_prelude::StorageVersion;
 
-		let mebership_pallet_version = StorageVersion::get::<OracleProvidersMembership>();
-		log::info!("OracleProvidersMembership migrated to {:#?}", mebership_pallet_version);
+		let membership_pallet_version = StorageVersion::get::<OracleProvidersMembership>();
+		log::info!("OracleProvidersMembership migrated to {:#?}", membership_pallet_version);
 		Ok(())
 	}
 
@@ -53,10 +53,10 @@ fn migrate() -> frame_support::weights::Weight {
 	// Some pallets are added on chain after the migration.
 	// Thus, they never required the migration and we just missed to set the correct
 	// `StorageVersion`.
-	let mebership_pallet_version = StorageVersion::get::<OracleProvidersMembership>();
-	log::info!("OracleProvidersMembership migrating from {:#?}", mebership_pallet_version);
+	let membership_pallet_version = StorageVersion::get::<OracleProvidersMembership>();
+	log::info!("OracleProvidersMembership migrating from {:#?}", membership_pallet_version);
 
-	if mebership_pallet_version < 4 {
+	if membership_pallet_version < 4 {
 		StorageVersion::new(4).put::<OracleProvidersMembership>();
 	}
 
