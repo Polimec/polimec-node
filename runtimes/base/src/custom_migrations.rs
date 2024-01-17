@@ -25,11 +25,19 @@ pub struct CustomOnRuntimeUpgrade;
 impl frame_support::traits::OnRuntimeUpgrade for CustomOnRuntimeUpgrade {
 	#[cfg(feature = "try-runtime")]
 	fn pre_upgrade() -> Result<Vec<u8>, DispatchError> {
+		use frame_support::pallet_prelude::StorageVersion;
+
+		let membership_pallet_version = StorageVersion::get::<OracleProvidersMembership>();
+		log::info!("OracleProvidersMembership migrating from {:#?}", membership_pallet_version);
 		Ok(Vec::new())
 	}
 
 	#[cfg(feature = "try-runtime")]
 	fn post_upgrade(_state: Vec<u8>) -> Result<(), DispatchError> {
+		use frame_support::pallet_prelude::StorageVersion;
+
+		let membership_pallet_version = StorageVersion::get::<OracleProvidersMembership>();
+		log::info!("OracleProvidersMembership migrated to {:#?}", membership_pallet_version);
 		Ok(())
 	}
 
@@ -45,13 +53,15 @@ fn migrate() -> frame_support::weights::Weight {
 	// Some pallets are added on chain after the migration.
 	// Thus, they never required the migration and we just missed to set the correct
 	// `StorageVersion`.
-	let old_version = StorageVersion::get::<Multisig>();
-	log::info!("Multisig migrating from {:#?}", old_version);
+	let membership_pallet_version = StorageVersion::get::<OracleProvidersMembership>();
+	log::info!("OracleProvidersMembership migrating from {:#?}", membership_pallet_version);
 
-	StorageVersion::new(1).put::<Multisig>();
+	if membership_pallet_version < 4 {
+		StorageVersion::new(4).put::<OracleProvidersMembership>();
+	}
 
-	let new_version = StorageVersion::get::<Multisig>();
-	log::info!("Multisig migrated to {:#?}", new_version);
+	let new_version = StorageVersion::get::<OracleProvidersMembership>();
+	log::info!("OracleProvidersMembership migrated to {:#?}", new_version);
 
 	<Runtime as frame_system::Config>::DbWeight::get().reads_writes(0, 1)
 }

@@ -604,7 +604,10 @@ parameter_types! {
 	pub const MinVestedTransfer: Balance = PLMC;
 	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
 		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
-	#[cfg(feature = "runtime-benchmarks")]
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+parameter_types! {
 	pub BenchmarkReason: RuntimeHoldReason = RuntimeHoldReason::PolimecFunding(pallet_funding::HoldReason::Participation(0));
 }
 
