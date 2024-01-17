@@ -3921,7 +3921,7 @@ dependencies = [
 
 [[package]]
 name = "integration-tests"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "asset-hub-polkadot-runtime",
  "cumulus-pallet-xcm",
@@ -6502,7 +6502,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-parachain-staking"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7404,7 +7404,7 @@ dependencies = [
 
 [[package]]
 name = "polimec-base-runtime"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -7489,7 +7489,7 @@ dependencies = [
 
 [[package]]
 name = "polimec-parachain-node"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "clap",
  "color-print",
@@ -7559,7 +7559,7 @@ dependencies = [
 
 [[package]]
 name = "polimec-parachain-runtime"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -7656,7 +7656,7 @@ dependencies = [
 
 [[package]]
 name = "polimec-xcm-executor"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "environmental",
  "frame-benchmarking",
@@ -11341,7 +11341,7 @@ dependencies = [
 
 [[package]]
 name = "shared-configuration"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "frame-support",
  "frame-system",
