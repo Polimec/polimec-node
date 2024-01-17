@@ -335,29 +335,29 @@ where
 	contributions
 }
 
-pub fn generate_remainder_contributions(amount: u32) -> Vec<ContributionParams<TestRuntime>>
-where
-	<TestRuntime as Config>::Price: From<u128>,
-	<TestRuntime as Config>::Balance: From<u128>,
-{
-	const TARGET_USD: u128 = 100 * US_DOLLAR;
-	let amount_per_participant = TARGET_USD / amount as u128;
-	let mut contributions = Vec::new();
-	let mut user_kind = vec!["evaluator", "bidder", "contributor"].into_iter().cycle();
-	let mut counters = vec![0, 0, 0];
-	for i in 0..amount {
-		let kind = user_kind.next().unwrap();
-		let contributor_name: String = match kind {};
-		let contributor = string_account::<AccountIdOf<TestRuntime>>(contributor_name, 0, 0);
-		contributions.push(ContributionParams::new(
-			contributor,
-			(amount_per_participant).into(),
-			1u8,
-			AcceptedFundingAsset::USDT,
-		));
-	}
-	contributions
-}
+// pub fn generate_remainder_contributions(amount: u32) -> Vec<ContributionParams<TestRuntime>>
+// where
+// 	<TestRuntime as Config>::Price: From<u128>,
+// 	<TestRuntime as Config>::Balance: From<u128>,
+// {
+// 	const TARGET_USD: u128 = 100 * US_DOLLAR;
+// 	let amount_per_participant = TARGET_USD / amount as u128;
+// 	let mut contributions = Vec::new();
+// 	let mut user_kind = vec!["evaluator", "bidder", "contributor"].into_iter().cycle();
+// 	let mut counters = vec![0, 0, 0];
+// 	for i in 0..amount {
+// 		let kind = user_kind.next().unwrap();
+// 		let contributor_name: String = match kind {};
+// 		let contributor = string_account::<AccountIdOf<TestRuntime>>(contributor_name, 0, 0);
+// 		contributions.push(ContributionParams::new(
+// 			contributor,
+// 			(amount_per_participant).into(),
+// 			1u8,
+// 			AcceptedFundingAsset::USDT,
+// 		));
+// 	}
+// 	contributions
+// }
 
 #[benchmarks(
 	where
@@ -376,14 +376,11 @@ mod benchmarks {
 	impl_benchmark_test_suite!(PalletFunding, crate::mock::new_test_ext(), crate::mock::TestRuntime);
 
 	#[benchmark]
-	fn create(x: Linear<1, 20>) {
+	fn create() {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
-
-		#[cfg(feature = "std")]
-		let mut inst = populate_with_projects(x, inst);
 
 		let projects_details_count = ProjectsDetails::<T>::iter().count();
 
@@ -414,15 +411,12 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn edit_metadata(x: Linear<1, 20>) {
+	fn edit_metadata() {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
-
-		#[cfg(feature = "std")]
-		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
