@@ -5822,9 +5822,9 @@ mod misc_features {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let now = inst.current_block();
 		inst.execute(|| {
-			PolimecFunding::add_to_update_store(now + 10u64, (&42u32, CommunityFundingStart));
-			PolimecFunding::add_to_update_store(now + 20u64, (&69u32, RemainderFundingStart));
-			PolimecFunding::add_to_update_store(now + 5u64, (&404u32, RemainderFundingStart));
+			assert_ok!(PolimecFunding::add_to_update_store(now + 10u64, (&42u32, CommunityFundingStart)));
+			assert_ok!(PolimecFunding::add_to_update_store(now + 20u64, (&69u32, RemainderFundingStart)));
+			assert_ok!(PolimecFunding::add_to_update_store(now + 5u64, (&404u32, RemainderFundingStart)));
 		});
 		inst.advance_time(2u64).unwrap();
 		inst.execute(|| {
@@ -6244,5 +6244,17 @@ mod async_tests {
 		assert_eq!(inst.get_project_details(2).status, ProjectStatus::CommunityRound);
 		assert_eq!(inst.get_project_details(1).status, ProjectStatus::RemainderRound);
 		assert_eq!(inst.get_project_details(0).status, ProjectStatus::FundingSuccessful);
+	}
+}
+
+mod draft_tests {
+	#[test]
+	fn transition_failed_too_many_insertion_tries() {
+		todo!()
+	}
+
+	#[test]
+	fn transition_can_happen_after_too_many_insertions_error() {
+		todo!()
 	}
 }

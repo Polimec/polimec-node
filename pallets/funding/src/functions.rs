@@ -186,7 +186,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Update storage *
 		ProjectsDetails::<T>::insert(project_id, project_details);
-		Self::add_to_update_store(evaluation_end_block + 1u32.into(), (&project_id, UpdateType::EvaluationEnd));
+		Self::add_to_update_store(evaluation_end_block + 1u32.into(), (&project_id, UpdateType::EvaluationEnd))?;
 
 		// * Emit events *
 		Self::deposit_event(Event::EvaluationStarted { project_id });
@@ -268,7 +268,7 @@ impl<T: Config> Pallet<T> {
 			Self::add_to_update_store(
 				auction_initialize_period_end_block + 1u32.into(),
 				(&project_id, UpdateType::EnglishAuctionStart),
-			);
+			)?;
 
 			// * Emit events *
 			Self::deposit_event(Event::AuctionInitializePeriod {
@@ -357,7 +357,7 @@ impl<T: Config> Pallet<T> {
 			Self::remove_from_update_store(&project_id)?;
 		}
 		// Schedule for automatic transition to candle auction round
-		Self::add_to_update_store(english_end_block + 1u32.into(), (&project_id, UpdateType::CandleAuctionStart));
+		Self::add_to_update_store(english_end_block + 1u32.into(), (&project_id, UpdateType::CandleAuctionStart))?;
 
 		// * Emit events *
 		Self::deposit_event(Event::EnglishAuctionStarted { project_id, when: now });
@@ -411,7 +411,7 @@ impl<T: Config> Pallet<T> {
 		project_details.status = ProjectStatus::AuctionRound(AuctionPhase::Candle);
 		ProjectsDetails::<T>::insert(project_id, project_details);
 		// Schedule for automatic check by on_initialize. Success depending on enough funding reached
-		Self::add_to_update_store(candle_end_block + 1u32.into(), (&project_id, UpdateType::CommunityFundingStart));
+		Self::add_to_update_store(candle_end_block + 1u32.into(), (&project_id, UpdateType::CommunityFundingStart))?;
 
 		// * Emit events *
 		Self::deposit_event(Event::CandleAuctionStarted { project_id, when: now });
@@ -474,7 +474,7 @@ impl<T: Config> Pallet<T> {
 				Self::add_to_update_store(
 					<frame_system::Pallet<T>>::block_number() + 1u32.into(),
 					(&project_id, UpdateType::FundingEnd),
-				);
+				)?;
 
 				// * Emit events *
 				Self::deposit_event(Event::AuctionFailed { project_id });
@@ -494,7 +494,7 @@ impl<T: Config> Pallet<T> {
 				Self::add_to_update_store(
 					community_end_block + 1u32.into(),
 					(&project_id, UpdateType::RemainderFundingStart),
-				);
+				)?;
 
 				// * Emit events *
 				Self::deposit_event(Event::CommunityFundingStarted { project_id });
@@ -548,7 +548,7 @@ impl<T: Config> Pallet<T> {
 		project_details.status = ProjectStatus::RemainderRound;
 		ProjectsDetails::<T>::insert(project_id, project_details);
 		// Schedule for automatic transition by `on_initialize`
-		Self::add_to_update_store(remainder_end_block + 1u32.into(), (&project_id, UpdateType::FundingEnd));
+		Self::add_to_update_store(remainder_end_block + 1u32.into(), (&project_id, UpdateType::FundingEnd))?;
 
 		// * Emit events *
 		Self::deposit_event(Event::RemainderFundingStarted { project_id });
@@ -624,7 +624,7 @@ impl<T: Config> Pallet<T> {
 			Self::add_to_update_store(
 				now + T::ManualAcceptanceDuration::get() + 1u32.into(),
 				(&project_id, UpdateType::ProjectDecision(FundingOutcomeDecision::AcceptFunding)),
-			);
+			)?;
 			ProjectsDetails::<T>::insert(project_id, project_details);
 			Ok(())
 		} else if funding_ratio < Perquintill::from_percent(90u64) {
@@ -633,7 +633,7 @@ impl<T: Config> Pallet<T> {
 			Self::add_to_update_store(
 				now + T::ManualAcceptanceDuration::get() + 1u32.into(),
 				(&project_id, UpdateType::ProjectDecision(FundingOutcomeDecision::AcceptFunding)),
-			);
+			)?;
 			ProjectsDetails::<T>::insert(project_id, project_details);
 			Ok(())
 		} else {
@@ -1162,7 +1162,7 @@ impl<T: Config> Pallet<T> {
 		// If no CTs remain, end the funding phase
 		if remaining_cts_after_purchase.is_zero() {
 			Self::remove_from_update_store(&project_id)?;
-			Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::FundingEnd));
+			Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::FundingEnd))?;
 		}
 
 		// * Emit events *
@@ -1215,7 +1215,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Update storage *
 		Self::remove_from_update_store(&project_id)?;
-		Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::ProjectDecision(decision)));
+		Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::ProjectDecision(decision)))?;
 
 		Self::deposit_event(Event::ProjectOutcomeDecided { project_id, decision });
 
@@ -2339,7 +2339,7 @@ impl<T: Config> Pallet<T> {
 		// Try to get the project into the earliest possible block to update.
 		// There is a limit for how many projects can update each block, so we need to make sure we don't exceed that limit
 		let mut block_number = block_number;
-		for _ in T::MaxProjectToUpdateInsertionAttempts::get() {
+		for _ in 0..T::MaxProjectToUpdateInsertionAttempts::get() {
 			if ProjectsToUpdate::<T>::try_append(block_number, store.clone()).is_err() {
 				block_number += 1u32.into();
 			} else {
@@ -2828,7 +2828,7 @@ impl<T: Config> Pallet<T> {
 		project_details.status = ProjectStatus::FundingSuccessful;
 		ProjectsDetails::<T>::insert(project_id, project_details);
 
-		Self::add_to_update_store(now + settlement_delta, (&project_id, UpdateType::StartSettlement));
+		Self::add_to_update_store(now + settlement_delta, (&project_id, UpdateType::StartSettlement))?;
 
 		Self::deposit_event(Event::FundingEnded { project_id, outcome: FundingOutcome::Success(reason) });
 
@@ -2845,7 +2845,7 @@ impl<T: Config> Pallet<T> {
 		project_details.status = ProjectStatus::FundingFailed;
 		ProjectsDetails::<T>::insert(project_id, project_details);
 
-		Self::add_to_update_store(now + settlement_delta, (&project_id, UpdateType::StartSettlement));
+		Self::add_to_update_store(now + settlement_delta, (&project_id, UpdateType::StartSettlement))?;
 		Self::deposit_event(Event::FundingEnded { project_id, outcome: FundingOutcome::Failure(reason) });
 		Ok(())
 	}
