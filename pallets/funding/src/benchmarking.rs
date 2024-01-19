@@ -277,63 +277,63 @@ where
 	async_features::create_multiple_projects_at(inst, instantiation_details).1
 }
 
-pub fn generate_evaluations(amount: u32) -> Vec<UserToUSDBalance<TestRuntime>>
-where
-	<TestRuntime as Config>::Balance: From<u128>,
-{
-	const TARGET_USD: u128 = 107_000u128 * US_DOLLAR;
-	let amount_per_participant = TARGET_USD / amount as u128;
-	let mut evaluations = Vec::new();
-	for i in 0..amount {
-		let evaluator_name: String = format!("evaluator_{}", i);
-		let evaluator = string_account::<AccountIdOf<TestRuntime>>(evaluator_name, 0, 0);
-		evaluations.push(UserToUSDBalance::new(evaluator, (amount_per_participant).into()));
-	}
-	evaluations
-}
-
-pub fn generate_bids(amount: u32) -> Vec<BidParams<TestRuntime>>
-where
-	<TestRuntime as Config>::Price: From<u128>,
-	<TestRuntime as Config>::Balance: From<u128>,
-{
-	const TARGET_USD: u128 = 45_000 * US_DOLLAR;
-	let amount_per_participant = TARGET_USD / amount as u128;
-	let mut bids = Vec::new();
-	for i in 0..amount {
-		let bidder_name: String = format!("bidder_{}", i);
-		let bidder = string_account::<AccountIdOf<TestRuntime>>(bidder_name, 0, 0);
-		bids.push(BidParams::new(
-			bidder,
-			(amount_per_participant).into(),
-			1_u128.into(),
-			1u8,
-			AcceptedFundingAsset::USDT,
-		));
-	}
-	bids
-}
-
-pub fn generate_community_contributions(amount: u32) -> Vec<ContributionParams<TestRuntime>>
-where
-	<TestRuntime as Config>::Price: From<u128>,
-	<TestRuntime as Config>::Balance: From<u128>,
-{
-	const TARGET_USD: u128 = 46_000 * US_DOLLAR;
-	let amount_per_participant = TARGET_USD / amount as u128;
-	let mut contributions = Vec::new();
-	for i in 0..amount {
-		let contributor_name: String = format!("contributor_{}", i);
-		let contributor = string_account::<AccountIdOf<TestRuntime>>(contributor_name, 0, 0);
-		contributions.push(ContributionParams::new(
-			contributor,
-			(amount_per_participant).into(),
-			1u8,
-			AcceptedFundingAsset::USDT,
-		));
-	}
-	contributions
-}
+// pub fn generate_evaluations<T: Config>(amount: u32) -> Vec<UserToUSDBalance<T>>
+// where
+// 	<T as Config>::Balance: From<u128>,
+// {
+// 	const TARGET_USD: u128 = 107_000u128 * US_DOLLAR;
+// 	let amount_per_participant = TARGET_USD / amount as u128;
+// 	let mut evaluations = Vec::new();
+// 	for i in 0..amount {
+// 		let evaluator_name: String = format!("evaluator_{}", i);
+// 		let evaluator = string_account::<AccountIdOf<T>>(evaluator_name, 0, 0);
+// 		evaluations.push(UserToUSDBalance::new(evaluator, (amount_per_participant).into()));
+// 	}
+// 	evaluations
+// }
+//
+// pub fn generate_bids<T: Config>(amount: u32) -> Vec<BidParams<T>>
+// where
+// 	<T as Config>::Price: From<u128>,
+// 	<T as Config>::Balance: From<u128>,
+// {
+// 	const TARGET_USD: u128 = 45_000 * US_DOLLAR;
+// 	let amount_per_participant = TARGET_USD / amount as u128;
+// 	let mut bids = Vec::new();
+// 	for i in 0..amount {
+// 		let bidder_name: String = format!("bidder_{}", i);
+// 		let bidder = string_account::<AccountIdOf<T>>(bidder_name, 0, 0);
+// 		bids.push(BidParams::new(
+// 			bidder,
+// 			(amount_per_participant).into(),
+// 			1_u128.into(),
+// 			1u8,
+// 			AcceptedFundingAsset::USDT,
+// 		));
+// 	}
+// 	bids
+// }
+//
+// pub fn generate_community_contributions<T: Config>(amount: u32) -> Vec<ContributionParams<T>>
+// where
+// 	<T as Config>::Price: From<u128>,
+// 	<T as Config>::Balance: From<u128>,
+// {
+// 	const TARGET_USD: u128 = 46_000 * US_DOLLAR;
+// 	let amount_per_participant = TARGET_USD / amount as u128;
+// 	let mut contributions = Vec::new();
+// 	for i in 0..amount {
+// 		let contributor_name: String = format!("contributor_{}", i);
+// 		let contributor = string_account::<AccountIdOf<T>>(contributor_name, 0, 0);
+// 		contributions.push(ContributionParams::new(
+// 			contributor,
+// 			(amount_per_participant).into(),
+// 			1u8,
+// 			AcceptedFundingAsset::USDT,
+// 		));
+// 	}
+// 	contributions
+// }
 
 // pub fn generate_remainder_contributions(amount: u32) -> Vec<ContributionParams<TestRuntime>>
 // where
@@ -440,21 +440,31 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn start_evaluation(x: Linear<1, 20>) {
+	fn start_evaluation(
+		// insertion attempts in add_to_update_store.
+		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() }>,
+	) {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
-		#[cfg(feature = "std")]
-		let mut inst = populate_with_projects(x, inst);
-
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
 
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
 		let project_id = inst.create_new_project(project_metadata, issuer.clone());
+
+		let mut block_number: BlockNumberFor<T> = 1u32.into();
+
+		// fill the `ProjectsToUpdate` vectors from @ block_number to @ block_number+x, to benchmark all the failed insertion attempts
+		for _ in 0..x {
+			while ProjectsToUpdate::<T>::try_append(block_number, (&69u32, UpdateType::EvaluationEnd)).is_ok() {
+				continue
+			}
+			block_number += 1u32.into();
+		}
 
 		#[extrinsic_call]
 		start_evaluation(RawOrigin::Signed(issuer), project_id);

@@ -437,7 +437,7 @@ pub mod pallet {
 		/// max_message_size config required for the channel from polimec to the project
 		type RequiredMaxMessageSize: Get<u32>;
 		/// max iterations for trying to insert a project into the projects_to_update storage
-		type MaxProjectToUpdateInsertionAttempts: Get<u32>;
+		type MaxProjectsToUpdateInsertionAttempts: Get<u32>;
 	}
 
 	#[pallet::storage]
@@ -962,7 +962,7 @@ pub mod pallet {
 		#[pallet::weight(WeightInfoOf::<T>::start_evaluation())]
 		pub fn start_evaluation(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
-			Self::do_evaluation_start(issuer, project_id)
+			Self::do_start_evaluation(issuer, project_id)
 		}
 
 		/// Starts the auction round for a project. From the next block forward, any professional or

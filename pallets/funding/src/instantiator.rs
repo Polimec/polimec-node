@@ -849,7 +849,7 @@ impl<
 
 	pub fn start_evaluation(&mut self, project_id: ProjectId, caller: AccountIdOf<T>) -> Result<(), DispatchError> {
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::Application);
-		self.execute(|| crate::Pallet::<T>::do_evaluation_start(caller, project_id))?;
+		self.execute(|| crate::Pallet::<T>::do_start_evaluation(caller, project_id))?;
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::EvaluationRound);
 
 		Ok(())

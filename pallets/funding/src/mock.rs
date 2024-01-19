@@ -356,7 +356,7 @@ impl Config for TestRuntime {
 	type MaxContributionsPerUser = ConstU32<4>;
 	type MaxEvaluationsPerUser = ConstU32<4>;
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
-	type MaxProjectToUpdateInsertionAttempts = ConstU32<100>;
+	type MaxProjectsToUpdateInsertionAttempts = ConstU32<100>;
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
 	type Multiplier = Multiplier;
 	type NativeCurrency = Balances;

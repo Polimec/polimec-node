@@ -71,7 +71,7 @@ impl<T: Config> Pallet<T> {
 	///
 	/// # Next step
 	/// The issuer will call an extrinsic to start the evaluation round of the project.
-	/// [`do_evaluation_start`](Self::do_evaluation_start) will be executed.
+	/// [`do_start_evaluation`](Self::do_start_evaluation) will be executed.
 	pub fn do_create(issuer: &AccountIdOf<T>, initial_metadata: ProjectMetadataOf<T>) -> DispatchResult {
 		// * Get variables *
 		let project_id = Self::next_project_id();
@@ -165,7 +165,7 @@ impl<T: Config> Pallet<T> {
 	/// # Next step
 	/// Users will pond PLMC for this project, and when the time comes, the project will be transitioned
 	/// to the next round by `on_initialize` using [`do_evaluation_end`](Self::do_evaluation_end)
-	pub fn do_evaluation_start(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
+	pub fn do_start_evaluation(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -2335,15 +2335,18 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Adds a project to the ProjectsToUpdate storage, so it can be updated at some later point in time.
-	pub fn add_to_update_store(block_number: BlockNumberFor<T>, store: (&ProjectId, UpdateType)) -> DispatchResult {
+	pub fn add_to_update_store(
+		block_number: BlockNumberFor<T>,
+		store: (&ProjectId, UpdateType),
+	) -> Result<u32, DispatchError> {
 		// Try to get the project into the earliest possible block to update.
 		// There is a limit for how many projects can update each block, so we need to make sure we don't exceed that limit
 		let mut block_number = block_number;
-		for _ in 0..T::MaxProjectToUpdateInsertionAttempts::get() {
+		for i in 1..T::MaxProjectsToUpdateInsertionAttempts::get() + 1 {
 			if ProjectsToUpdate::<T>::try_append(block_number, store.clone()).is_err() {
 				block_number += 1u32.into();
 			} else {
-				return Ok(())
+				return Ok(i)
 			}
 		}
 		return Err(Error::<T>::TooManyInsertionAttempts.into())
