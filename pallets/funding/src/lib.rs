@@ -243,13 +243,17 @@ pub mod pallet {
 	use super::*;
 	use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
 	use frame_support::{
+		dispatch::PostDispatchInfo,
 		pallet_prelude::*,
 		traits::{OnFinalize, OnIdle, OnInitialize},
 	};
 	use frame_system::pallet_prelude::*;
 	use local_macros::*;
 	use sp_arithmetic::Percent;
-	use sp_runtime::traits::{Convert, ConvertBack};
+	use sp_runtime::{
+		traits::{Convert, ConvertBack},
+		DispatchErrorWithPostInfo,
+	};
 
 	#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 	use crate::traits::SetPrices;
@@ -436,7 +440,7 @@ pub mod pallet {
 		type RequiredMaxCapacity: Get<u32>;
 		/// max_message_size config required for the channel from polimec to the project
 		type RequiredMaxMessageSize: Get<u32>;
-		/// max iterations for trying to insert a project into the projects_to_update storage
+		/// max iterations for trying to insert a project on the projects_to_update storage
 		type MaxProjectsToUpdateInsertionAttempts: Get<u32>;
 	}
 
@@ -959,8 +963,8 @@ pub mod pallet {
 
 		/// Starts the evaluation round of a project. It needs to be called by the project issuer.
 		#[pallet::call_index(2)]
-		#[pallet::weight(WeightInfoOf::<T>::start_evaluation())]
-		pub fn start_evaluation(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
+		#[pallet::weight(WeightInfoOf::<T>::start_evaluation(<T as Config>::MaxProjectsToUpdateInsertionAttempts::get()))]
+		pub fn start_evaluation(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 			let issuer = ensure_signed(origin)?;
 			Self::do_start_evaluation(issuer, project_id)
 		}
@@ -969,8 +973,8 @@ pub mod pallet {
 		/// institutional user can set bids for a token_amount/token_price pair.
 		/// Any bids from this point until the candle_auction starts, will be considered as valid.
 		#[pallet::call_index(3)]
-		#[pallet::weight(WeightInfoOf::<T>::start_auction())]
-		pub fn start_auction(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
+		#[pallet::weight(WeightInfoOf::<T>::start_auction_manually(0u32, 0u32, 0u32))]
+		pub fn start_auction(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 			let issuer = ensure_signed(origin)?;
 			Self::do_english_auction(issuer, project_id)
 		}
@@ -1245,7 +1249,7 @@ pub mod pallet {
 				match update_type {
 					// EvaluationRound -> AuctionInitializePeriod | EvaluationFailed
 					UpdateType::EvaluationEnd => {
-						unwrap_result_or_skip!(Self::do_evaluation_end(project_id), project_id);
+						unwrap_result_or_skip!(Self::do_evaluation_end(project_id), project_id, |e| e);
 					},
 
 					// AuctionInitializePeriod -> AuctionRound(AuctionPhase::English)
@@ -1253,36 +1257,37 @@ pub mod pallet {
 					UpdateType::EnglishAuctionStart => {
 						unwrap_result_or_skip!(
 							Self::do_english_auction(T::PalletId::get().into_account_truncating(), project_id),
-							project_id
+							project_id,
+							|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
 						);
 					},
 
 					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
 					UpdateType::CandleAuctionStart => {
-						unwrap_result_or_skip!(Self::do_candle_auction(project_id), project_id);
+						unwrap_result_or_skip!(Self::do_candle_auction(project_id), project_id, |e| e);
 					},
 
 					// AuctionRound(AuctionPhase::Candle) -> CommunityRound
 					UpdateType::CommunityFundingStart => {
-						unwrap_result_or_skip!(Self::do_community_funding(project_id), project_id);
+						unwrap_result_or_skip!(Self::do_community_funding(project_id), project_id, |e| e);
 					},
 
 					// CommunityRound -> RemainderRound
 					UpdateType::RemainderFundingStart => {
-						unwrap_result_or_skip!(Self::do_remainder_funding(project_id), project_id)
+						unwrap_result_or_skip!(Self::do_remainder_funding(project_id), project_id, |e| e)
 					},
 
 					// CommunityRound || RemainderRound -> FundingEnded
 					UpdateType::FundingEnd => {
-						unwrap_result_or_skip!(Self::do_end_funding(project_id), project_id)
+						unwrap_result_or_skip!(Self::do_end_funding(project_id), project_id, |e| e)
 					},
 
 					UpdateType::ProjectDecision(decision) => {
-						unwrap_result_or_skip!(Self::do_project_decision(project_id, decision), project_id)
+						unwrap_result_or_skip!(Self::do_project_decision(project_id, decision), project_id, |e| e)
 					},
 
 					UpdateType::StartSettlement => {
-						unwrap_result_or_skip!(Self::do_start_settlement(project_id), project_id)
+						unwrap_result_or_skip!(Self::do_start_settlement(project_id), project_id, |e| e)
 					},
 				}
 			}
@@ -1430,11 +1435,11 @@ pub mod local_macros {
 	/// used to unwrap storage values that can be Err in places where an error cannot be returned,
 	/// but an event should be emitted, and skip to the next iteration of a loop
 	macro_rules! unwrap_result_or_skip {
-		($option:expr, $project_id:expr) => {
+		($option:expr, $project_id:expr, $error_handler:expr) => {
 			match $option {
 				Ok(val) => val,
 				Err(err) => {
-					Self::deposit_event(Event::TransitionError { project_id: $project_id, error: err });
+					Self::deposit_event(Event::TransitionError { project_id: $project_id, error: $error_handler(err) });
 					continue
 				},
 			}

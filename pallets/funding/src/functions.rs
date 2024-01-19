@@ -18,6 +18,8 @@
 
 //! Functions for the Funding pallet.
 
+use frame_support::dispatch::{DispatchErrorWithPostInfo, DispatchResultWithPostInfo, PostDispatchInfo};
+
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
@@ -45,6 +47,7 @@ use polimec_common::ReleaseSchedule;
 use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
 use frame_support::traits::fungible::Mutate;
 use polimec_common::migration_types::{MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
+use sp_runtime::DispatchResultWithInfo;
 
 use super::*;
 const POLIMEC_PARA_ID: u32 = 3344u32;
@@ -165,7 +168,7 @@ impl<T: Config> Pallet<T> {
 	/// # Next step
 	/// Users will pond PLMC for this project, and when the time comes, the project will be transitioned
 	/// to the next round by `on_initialize` using [`do_evaluation_end`](Self::do_evaluation_end)
-	pub fn do_start_evaluation(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
+	pub fn do_start_evaluation(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -186,12 +189,28 @@ impl<T: Config> Pallet<T> {
 
 		// * Update storage *
 		ProjectsDetails::<T>::insert(project_id, project_details);
-		Self::add_to_update_store(evaluation_end_block + 1u32.into(), (&project_id, UpdateType::EvaluationEnd))?;
+		let actual_insertion_attempts = match Self::add_to_update_store(
+			evaluation_end_block + 1u32.into(),
+			(&project_id, UpdateType::EvaluationEnd),
+		) {
+			Ok(insertions) => insertions,
+			Err(insertions) =>
+				return Err(DispatchErrorWithPostInfo {
+					post_info: PostDispatchInfo {
+						actual_weight: Some(WeightInfoOf::<T>::start_evaluation(insertions)),
+						pays_fee: Pays::Yes,
+					},
+					error: Error::<T>::TooManyInsertionAttempts.into(),
+				}),
+		};
 
 		// * Emit events *
 		Self::deposit_event(Event::EvaluationStarted { project_id });
 
-		Ok(())
+		Ok(PostDispatchInfo {
+			actual_weight: Some(WeightInfoOf::<T>::start_evaluation(actual_insertion_attempts)),
+			pays_fee: Pays::Yes,
+		})
 	}
 
 	/// Called automatically by on_initialize.
@@ -265,10 +284,14 @@ impl<T: Config> Pallet<T> {
 				.update(Some(auction_initialize_period_start_block), Some(auction_initialize_period_end_block));
 			project_details.status = ProjectStatus::AuctionInitializePeriod;
 			ProjectsDetails::<T>::insert(project_id, project_details);
-			Self::add_to_update_store(
+			// TODO: return real weights
+			let insertions_attempts = match Self::add_to_update_store(
 				auction_initialize_period_end_block + 1u32.into(),
 				(&project_id, UpdateType::EnglishAuctionStart),
-			)?;
+			) {
+				Ok(insertions) => insertions,
+				Err(insertions) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
+			};
 
 			// * Emit events *
 			Self::deposit_event(Event::AuctionInitializePeriod {
@@ -313,7 +336,7 @@ impl<T: Config> Pallet<T> {
 	/// Professional and Institutional users set bids for the project using the [`bid`](Self::bid) extrinsic.
 	/// Later on, `on_initialize` transitions the project into the candle auction round, by calling
 	/// [`do_candle_auction`](Self::do_candle_auction).
-	pub fn do_english_auction(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
+	pub fn do_english_auction(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
@@ -353,16 +376,64 @@ impl<T: Config> Pallet<T> {
 
 		// If this function was called inside the period, then it was called by the extrinsic and we need to
 		// remove the scheduled automatic transition
+		let mut remove_attempts: u32 = 0u32;
+		let mut average_vec_passes: u32 = 0u32;
+		let mut insertion_attempts: u32 = 0u32;
 		if now <= auction_initialize_period_end_block {
-			Self::remove_from_update_store(&project_id)?;
+			match Self::remove_from_update_store(&project_id) {
+				Ok(iterations) => {
+					remove_attempts = iterations.0;
+					average_vec_passes = iterations.1
+				},
+				Err(iterations) =>
+					return Err(DispatchErrorWithPostInfo {
+						post_info: PostDispatchInfo {
+							actual_weight: Some(WeightInfoOf::<T>::start_auction_manually(
+								0u32,
+								iterations.0,
+								iterations.1,
+							)),
+							pays_fee: Pays::Yes,
+						},
+						error: Error::<T>::ProjectNotInUpdateStore.into(),
+					}),
+			}
 		}
 		// Schedule for automatic transition to candle auction round
-		Self::add_to_update_store(english_end_block + 1u32.into(), (&project_id, UpdateType::CandleAuctionStart))?;
+		match Self::add_to_update_store(english_end_block + 1u32.into(), (&project_id, UpdateType::CandleAuctionStart))
+		{
+			Ok(iterations) => {
+				insertion_attempts = iterations;
+			},
+			Err(insertion_attempts) =>
+				return Err(DispatchErrorWithPostInfo {
+					post_info: PostDispatchInfo {
+						actual_weight: if remove_attempts == 0u32 {
+							Some(WeightInfoOf::<T>::start_auction_automatically(insertion_attempts))
+						} else {
+							Some(WeightInfoOf::<T>::start_auction_manually(
+								insertion_attempts,
+								remove_attempts,
+								average_vec_passes,
+							))
+						},
+						pays_fee: Pays::Yes,
+					},
+					error: Error::<T>::ProjectNotInUpdateStore.into(),
+				}),
+		};
 
 		// * Emit events *
 		Self::deposit_event(Event::EnglishAuctionStarted { project_id, when: now });
 
-		Ok(())
+		Ok(PostDispatchInfo {
+			actual_weight: if remove_attempts == 0u32 {
+				Some(WeightInfoOf::<T>::start_auction_automatically(insertion_attempts))
+			} else {
+				Some(WeightInfoOf::<T>::start_auction_manually(insertion_attempts, remove_attempts, average_vec_passes))
+			},
+			pays_fee: Pays::Yes,
+		})
 	}
 
 	/// Called automatically by on_initialize
@@ -411,7 +482,14 @@ impl<T: Config> Pallet<T> {
 		project_details.status = ProjectStatus::AuctionRound(AuctionPhase::Candle);
 		ProjectsDetails::<T>::insert(project_id, project_details);
 		// Schedule for automatic check by on_initialize. Success depending on enough funding reached
-		Self::add_to_update_store(candle_end_block + 1u32.into(), (&project_id, UpdateType::CommunityFundingStart))?;
+		// TODO: return real weights
+		let iterations = match Self::add_to_update_store(
+			candle_end_block + 1u32.into(),
+			(&project_id, UpdateType::CommunityFundingStart),
+		) {
+			Ok(iterations) => iterations,
+			Err(iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
+		};
 
 		// * Emit events *
 		Self::deposit_event(Event::CandleAuctionStarted { project_id, when: now });
@@ -471,10 +549,14 @@ impl<T: Config> Pallet<T> {
 			Err(pallet_error) if pallet_error == Error::<T>::NoBidsFound.into() => {
 				project_details.status = ProjectStatus::FundingFailed;
 				ProjectsDetails::<T>::insert(project_id, project_details);
-				Self::add_to_update_store(
+				// TODO: return real weights
+				let iterations = match Self::add_to_update_store(
 					<frame_system::Pallet<T>>::block_number() + 1u32.into(),
 					(&project_id, UpdateType::FundingEnd),
-				)?;
+				) {
+					Ok(iterations) => iterations,
+					Err(iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
+				};
 
 				// * Emit events *
 				Self::deposit_event(Event::AuctionFailed { project_id });
@@ -491,10 +573,14 @@ impl<T: Config> Pallet<T> {
 					.update(Some(community_start_block), Some(community_end_block));
 				project_details.status = ProjectStatus::CommunityRound;
 				ProjectsDetails::<T>::insert(project_id, project_details);
-				Self::add_to_update_store(
+				// TODO: return real weights
+				let iterations = match Self::add_to_update_store(
 					community_end_block + 1u32.into(),
 					(&project_id, UpdateType::RemainderFundingStart),
-				)?;
+				) {
+					Ok(iterations) => iterations,
+					Err(iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
+				};
 
 				// * Emit events *
 				Self::deposit_event(Event::CommunityFundingStarted { project_id });
@@ -548,7 +634,12 @@ impl<T: Config> Pallet<T> {
 		project_details.status = ProjectStatus::RemainderRound;
 		ProjectsDetails::<T>::insert(project_id, project_details);
 		// Schedule for automatic transition by `on_initialize`
-		Self::add_to_update_store(remainder_end_block + 1u32.into(), (&project_id, UpdateType::FundingEnd))?;
+		// TODO: return real weights
+		let iterations =
+			match Self::add_to_update_store(remainder_end_block + 1u32.into(), (&project_id, UpdateType::FundingEnd)) {
+				Ok(iterations) => iterations,
+				Err(iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
+			};
 
 		// * Emit events *
 		Self::deposit_event(Event::RemainderFundingStarted { project_id });
@@ -621,19 +712,27 @@ impl<T: Config> Pallet<T> {
 		} else if funding_ratio <= Perquintill::from_percent(75u64) {
 			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Slashed;
 			project_details.status = ProjectStatus::AwaitingProjectDecision;
-			Self::add_to_update_store(
+			// TODO: return real weights
+			let iterations = match Self::add_to_update_store(
 				now + T::ManualAcceptanceDuration::get() + 1u32.into(),
 				(&project_id, UpdateType::ProjectDecision(FundingOutcomeDecision::AcceptFunding)),
-			)?;
+			) {
+				Ok(iterations) => iterations,
+				Err(iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
+			};
 			ProjectsDetails::<T>::insert(project_id, project_details);
 			Ok(())
 		} else if funding_ratio < Perquintill::from_percent(90u64) {
 			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Unchanged;
 			project_details.status = ProjectStatus::AwaitingProjectDecision;
-			Self::add_to_update_store(
+			// TODO: return real weights
+			let iterations = match Self::add_to_update_store(
 				now + T::ManualAcceptanceDuration::get() + 1u32.into(),
 				(&project_id, UpdateType::ProjectDecision(FundingOutcomeDecision::AcceptFunding)),
-			)?;
+			) {
+				Ok(iterations) => iterations,
+				Err(iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
+			};
 			ProjectsDetails::<T>::insert(project_id, project_details);
 			Ok(())
 		} else {
@@ -1161,8 +1260,15 @@ impl<T: Config> Pallet<T> {
 		ProjectsDetails::<T>::insert(project_id, project_details);
 		// If no CTs remain, end the funding phase
 		if remaining_cts_after_purchase.is_zero() {
-			Self::remove_from_update_store(&project_id)?;
-			Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::FundingEnd))?;
+			// TODO: return real weights
+			let iterations = match Self::remove_from_update_store(&project_id) {
+				Ok(iterations) => iterations,
+				Err(iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
+			};
+			let iterations = match Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::FundingEnd)) {
+				Ok(iterations) => iterations,
+				Err(iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
+			};
 		}
 
 		// * Emit events *
@@ -1214,8 +1320,16 @@ impl<T: Config> Pallet<T> {
 		ensure!(project_details.status == ProjectStatus::AwaitingProjectDecision, Error::<T>::NotAllowed);
 
 		// * Update storage *
-		Self::remove_from_update_store(&project_id)?;
-		Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::ProjectDecision(decision)))?;
+		// TODO: return real weights
+		let iterations = match Self::remove_from_update_store(&project_id) {
+			Ok(iterations) => iterations,
+			Err(iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
+		};
+		let iterations =
+			match Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::ProjectDecision(decision))) {
+				Ok(iterations) => iterations,
+				Err(iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
+			};
 
 		Self::deposit_event(Event::ProjectOutcomeDecided { project_id, decision });
 
@@ -2335,10 +2449,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Adds a project to the ProjectsToUpdate storage, so it can be updated at some later point in time.
-	pub fn add_to_update_store(
-		block_number: BlockNumberFor<T>,
-		store: (&ProjectId, UpdateType),
-	) -> Result<u32, DispatchError> {
+	pub fn add_to_update_store(block_number: BlockNumberFor<T>, store: (&ProjectId, UpdateType)) -> Result<u32, u32> {
 		// Try to get the project into the earliest possible block to update.
 		// There is a limit for how many projects can update each block, so we need to make sure we don't exceed that limit
 		let mut block_number = block_number;
@@ -2349,22 +2460,43 @@ impl<T: Config> Pallet<T> {
 				return Ok(i)
 			}
 		}
-		return Err(Error::<T>::TooManyInsertionAttempts.into())
+		return Err(T::MaxProjectsToUpdateInsertionAttempts::get())
 	}
 
-	pub fn remove_from_update_store(project_id: &ProjectId) -> DispatchResult {
+	fn average_u32(numbers: Vec<u32>) -> u32 {
+		if numbers.is_empty() {
+			return 0
+		}
+
+		// Use u64 for the sum to prevent overflow.
+		let sum: u64 = numbers.iter().map(|&x| x as u64).sum();
+		let count = numbers.len() as u64;
+
+		// Perform the division in u64, then cast back to u32.
+		// This will naturally floor the division result.
+		sum.saturating_div(count) as u32
+	}
+
+	// returns the actual iterations for weight calculation either as an Err type or Ok type so the caller can add that
+	// to the corresponding weight function.
+	pub fn remove_from_update_store(project_id: &ProjectId) -> Result<(u32, u32), (u32, u32)> {
+		// used for extrinsic weight calculation
+		let mut total_iterations = 0u32;
+		let mut project_vec_lengths: Vec<u32> = Vec::new();
 		let (block_position, project_index) = ProjectsToUpdate::<T>::iter()
 			.find_map(|(block, project_vec)| {
+				total_iterations += 1;
+				project_vec_lengths.push(project_vec.len() as u32);
 				let project_index = project_vec.iter().position(|(id, _update_type)| id == project_id)?;
 				Some((block, project_index))
 			})
-			.ok_or(Error::<T>::ProjectNotInUpdateStore)?;
+			.ok_or((total_iterations, Self::average_u32(project_vec_lengths.clone())))?;
 
 		ProjectsToUpdate::<T>::mutate(block_position, |project_vec| {
 			project_vec.remove(project_index);
 		});
 
-		Ok(())
+		Ok((total_iterations, Self::average_u32(project_vec_lengths)))
 	}
 
 	pub fn create_bucket_from_metadata(metadata: &ProjectMetadataOf<T>) -> Result<BucketOf<T>, DispatchError> {
@@ -2831,7 +2963,12 @@ impl<T: Config> Pallet<T> {
 		project_details.status = ProjectStatus::FundingSuccessful;
 		ProjectsDetails::<T>::insert(project_id, project_details);
 
-		Self::add_to_update_store(now + settlement_delta, (&project_id, UpdateType::StartSettlement))?;
+		// TODO: add real weights
+		let iterations =
+			match Self::add_to_update_store(now + settlement_delta, (&project_id, UpdateType::StartSettlement)) {
+				Ok(iterations) => iterations,
+				Err(iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
+			};
 
 		Self::deposit_event(Event::FundingEnded { project_id, outcome: FundingOutcome::Success(reason) });
 
@@ -2848,7 +2985,12 @@ impl<T: Config> Pallet<T> {
 		project_details.status = ProjectStatus::FundingFailed;
 		ProjectsDetails::<T>::insert(project_id, project_details);
 
-		Self::add_to_update_store(now + settlement_delta, (&project_id, UpdateType::StartSettlement))?;
+		// TODO: add real weights
+		let iterations =
+			match Self::add_to_update_store(now + settlement_delta, (&project_id, UpdateType::StartSettlement)) {
+				Ok(iterations) => iterations,
+				Err(iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
+			};
 		Self::deposit_event(Event::FundingEnded { project_id, outcome: FundingOutcome::Failure(reason) });
 		Ok(())
 	}

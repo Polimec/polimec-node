@@ -456,8 +456,8 @@ mod benchmarks {
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
 		let project_id = inst.create_new_project(project_metadata, issuer.clone());
 
-		let mut block_number: BlockNumberFor<T> = 1u32.into();
-
+		// start_evaluation fn will try to add an automatic transition 1 block after the last evaluation block
+		let mut block_number: BlockNumberFor<T> = inst.current_block() + T::EvaluationDuration::get() + One::one();
 		// fill the `ProjectsToUpdate` vectors from @ block_number to @ block_number+x, to benchmark all the failed insertion attempts
 		for _ in 0..x {
 			while ProjectsToUpdate::<T>::try_append(block_number, (&69u32, UpdateType::EvaluationEnd)).is_ok() {
@@ -487,6 +487,71 @@ mod benchmarks {
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(Event::EvaluationStarted { project_id }.into())
+	}
+
+	#[benchmark]
+	// it will also iterate through the `ProjectsToUpdate` vector, to remove the automatic transition scheduled.
+	fn start_auction_manually(
+		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`
+		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() }>,
+		// Total amount of storage items iterated through in `ProjectsToUpdate` when trying to remove our project in `remove_from_update_store`.
+		// We assume an upper bound of 10_000 projects at one time in storage waiting to update, and in different blocks.
+		y: Linear<1, 10_000>,
+		// The average amount of projects in each update block iterated through in remove_from_update_store when looking for our project
+		z: Linear<1, { <T as Config>::MaxProjectsToUpdatePerBlock::get() }>,
+	) {
+		// * setup *
+		let mut inst = BenchInstantiator::<T>::new(None);
+
+		// real benchmark starts at block 0, and we can't call `events()` at block 0
+		inst.advance_time(1u32.into()).unwrap();
+
+		#[cfg(feature = "std")]
+		let mut inst = populate_with_projects(x, inst);
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+		whitelist_account!(issuer);
+
+		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_id = inst.create_evaluating_project(project_metadata, issuer.clone());
+
+		let evaluations = default_evaluations();
+		let plmc_for_evaluating = BenchInstantiator::<T>::calculate_evaluation_plmc_spent(evaluations.clone());
+		let existential_plmc: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().existential_deposits();
+		let ct_account_deposits: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().ct_account_deposits();
+
+		inst.mint_plmc_to(existential_plmc);
+		inst.mint_plmc_to(ct_account_deposits);
+		inst.mint_plmc_to(plmc_for_evaluating);
+
+		inst.advance_time(One::one()).unwrap();
+		inst.bond_for_users(project_id, evaluations).expect("All evaluations are accepted");
+
+		inst.advance_time(<T as Config>::EvaluationDuration::get() + One::one()).unwrap();
+		let block_number = frame_system::Pallet::<T>::block_number();
+
+		// start_evaluation fn will try to add an automatic transition 1 block after the last evaluation block
+		let mut block_number: BlockNumberFor<T> =
+			inst.current_block() + T::EvaluationDuration::get() + T::EnglishAuctionDuration::get() + One::one();
+		// fill the `ProjectsToUpdate` vectors from @ block_number to @ block_number+x, to benchmark all the failed insertion attempts
+		for _ in 0..x {
+			while ProjectsToUpdate::<T>::try_append(block_number, (&69u32, UpdateType::EvaluationEnd)).is_ok() {
+				continue
+			}
+			block_number += 1u32.into();
+		}
+		#[extrinsic_call]
+		start_auction(RawOrigin::Signed(issuer), project_id);
+
+		// * validity checks *
+		// Storage
+		let stored_details = ProjectsDetails::<T>::get(project_id).unwrap();
+		assert_eq!(stored_details.status, ProjectStatus::AuctionRound(AuctionPhase::English));
+
+		// Events
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::<T>::EnglishAuctionStarted { project_id, when: block_number.into() }.into(),
+		);
 	}
 
 	#[benchmark]
@@ -561,51 +626,6 @@ mod benchmarks {
 				bonder: test_evaluator.clone(),
 			}
 			.into(),
-		);
-	}
-
-	#[benchmark]
-	fn start_auction(x: Linear<1, 20>) {
-		// * setup *
-		let mut inst = BenchInstantiator::<T>::new(None);
-
-		// real benchmark starts at block 0, and we can't call `events()` at block 0
-		inst.advance_time(1u32.into()).unwrap();
-
-		#[cfg(feature = "std")]
-		let mut inst = populate_with_projects(x, inst);
-
-		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-		whitelist_account!(issuer);
-
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
-		let project_id = inst.create_evaluating_project(project_metadata, issuer.clone());
-
-		let evaluations = default_evaluations();
-		let plmc_for_evaluating = BenchInstantiator::<T>::calculate_evaluation_plmc_spent(evaluations.clone());
-		let existential_plmc: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().existential_deposits();
-		let ct_account_deposits: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().ct_account_deposits();
-
-		inst.mint_plmc_to(existential_plmc);
-		inst.mint_plmc_to(ct_account_deposits);
-		inst.mint_plmc_to(plmc_for_evaluating);
-
-		inst.advance_time(One::one()).unwrap();
-		inst.bond_for_users(project_id, evaluations).expect("All evaluations are accepted");
-
-		inst.advance_time(<T as Config>::EvaluationDuration::get() + One::one()).unwrap();
-		let block_number = frame_system::Pallet::<T>::block_number();
-		#[extrinsic_call]
-		start_auction(RawOrigin::Signed(issuer), project_id);
-
-		// * validity checks *
-		// Storage
-		let stored_details = ProjectsDetails::<T>::get(project_id).unwrap();
-		assert_eq!(stored_details.status, ProjectStatus::AuctionRound(AuctionPhase::English));
-
-		// Events
-		frame_system::Pallet::<T>::assert_last_event(
-			Event::<T>::EnglishAuctionStarted { project_id, when: block_number.into() }.into(),
 		);
 	}
 
@@ -1884,11 +1904,18 @@ mod benchmarks {
 		}
 
 		#[test]
-		fn bench_start_auction() {
+		fn bench_start_auction_manually() {
 			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_start_auction());
+				assert_ok!(PalletFunding::<TestRuntime>::test_start_auction_manually());
 			});
 		}
+
+		// #[test]
+		// fn bench_start_auction_automatically() {
+		// 	new_test_ext().execute_with(|| {
+		// 		assert_ok!(PalletFunding::<TestRuntime>::test_start_auction_automatically());
+		// 	});
+		// }
 
 		#[test]
 		fn bench_bid() {

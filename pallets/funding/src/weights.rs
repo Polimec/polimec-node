@@ -45,6 +45,7 @@
 #![allow(unused_imports)]
 #![allow(missing_docs)]
 
+use sp_arithmetic::traits::Zero;
 use frame_support::{traits::Get, weights::{Weight, constants::RocksDbWeight}};
 use core::marker::PhantomData;
 
@@ -52,8 +53,9 @@ use core::marker::PhantomData;
 pub trait WeightInfo {
 	fn create() -> Weight;
 	fn edit_metadata() -> Weight;
-	fn start_evaluation() -> Weight;
-	fn start_auction() -> Weight;
+	fn start_evaluation(x: u32) -> Weight;
+	fn start_auction_manually(x: u32, y: u32, z: u32) -> Weight;
+	fn start_auction_automatically(x: u32) -> Weight;
 	fn bond_evaluation() -> Weight;
 	fn bid() -> Weight;
 	fn contribute() -> Weight;
@@ -114,7 +116,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Proof Skipped: PolimecFunding ProjectsDetails (max_values: None, max_size: None, mode: Measured)
 	/// Storage: PolimecFunding ProjectsToUpdate (r:1 w:1)
 	/// Proof Skipped: PolimecFunding ProjectsToUpdate (max_values: None, max_size: None, mode: Measured)
-	fn start_evaluation() -> Weight {
+	fn start_evaluation(x: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `467`
 		//  Estimated: `3932`
@@ -123,18 +125,12 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(3_u64))
 			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
-	/// Storage: PolimecFunding ProjectsDetails (r:1 w:1)
-	/// Proof Skipped: PolimecFunding ProjectsDetails (max_values: None, max_size: None, mode: Measured)
-	/// Storage: PolimecFunding ProjectsToUpdate (r:3 w:2)
-	/// Proof Skipped: PolimecFunding ProjectsToUpdate (max_values: None, max_size: None, mode: Measured)
-	fn start_auction() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `380`
-		//  Estimated: `8795`
-		// Minimum execution time: 33_000_000 picoseconds.
-		Weight::from_parts(37_000_000, 8795)
-			.saturating_add(T::DbWeight::get().reads(4_u64))
-			.saturating_add(T::DbWeight::get().writes(3_u64))
+	fn start_auction_manually(x: u32, y: u32, z: u32) -> Weight {
+		Zero::zero()
+	}
+
+	fn start_auction_automatically(x: u32) -> Weight {
+		Zero::zero()
 	}
 	/// Storage: PolimecFunding ProjectsDetails (r:1 w:1)
 	/// Proof Skipped: PolimecFunding ProjectsDetails (max_values: None, max_size: None, mode: Measured)
@@ -433,4 +429,6 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(3_u64))
 			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
+
+
 }

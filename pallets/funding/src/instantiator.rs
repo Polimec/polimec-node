@@ -849,7 +849,7 @@ impl<
 
 	pub fn start_evaluation(&mut self, project_id: ProjectId, caller: AccountIdOf<T>) -> Result<(), DispatchError> {
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::Application);
-		self.execute(|| crate::Pallet::<T>::do_start_evaluation(caller, project_id))?;
+		self.execute(|| crate::Pallet::<T>::do_start_evaluation(caller, project_id).unwrap());
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::EvaluationRound);
 
 		Ok(())
@@ -888,7 +888,7 @@ impl<
 
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 
-		self.execute(|| crate::Pallet::<T>::do_english_auction(caller, project_id))?;
+		self.execute(|| crate::Pallet::<T>::do_english_auction(caller, project_id).unwrap());
 
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionRound(AuctionPhase::English));
 
@@ -1562,7 +1562,7 @@ pub mod async_features {
 
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 
-		inst.execute(|| crate::Pallet::<T>::do_english_auction(caller, project_id))?;
+		inst.execute(|| crate::Pallet::<T>::do_english_auction(caller, project_id).unwrap());
 
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionRound(AuctionPhase::English));
 
