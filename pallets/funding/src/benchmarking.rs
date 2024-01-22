@@ -490,25 +490,16 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	// it will also iterate through the `ProjectsToUpdate` vector, to remove the automatic transition scheduled.
 	fn start_auction_manually(
 		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the extrinsic pass
 		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
 		// Total amount of storage items iterated through in `ProjectsToUpdate` when trying to remove our project in `remove_from_update_store`.
-		// We assume an upper bound of 10_000 projects at one time in storage waiting to update, and in different blocks.
+		// Upper bound is assumed to be enough
 		y: Linear<1, 10_000>,
-		// The average amount of projects in each update block iterated through in remove_from_update_store when looking for our project
-		z: Linear<1, { <T as Config>::MaxProjectsToUpdatePerBlock::get() }>,
 	) {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
-		// println!("------");
-		// dbg!(x);
-		// dbg!(y);
-		// dbg!(z);
-		// println!("------");
-		// println!("\n");
-		// real benchmark starts at block 0, and we can't call `events()` at block 0
+
 		// We need to leave enough block numbers to fill `ProjectsToUpdate` before our project insertion
 		let u32_remaining_vecs: u32 = y.saturating_sub(x).into();
 		let time_advance: u32 = 1 + u32_remaining_vecs + 1;
@@ -539,7 +530,6 @@ mod benchmarks {
 		let insertion_block_number: BlockNumberFor<T> = current_block + T::EnglishAuctionDuration::get() + One::one();
 		let mut block_number = insertion_block_number;
 
-		// dbg!(ProjectsToUpdate::<T>::iter().collect::<Vec<_>>());
 		// fill the `ProjectsToUpdate` vectors from @ block_number to @ block_number+x, to benchmark all the failed insertion attempts
 		for _ in 0..x {
 			while ProjectsToUpdate::<T>::try_append(block_number, (&69u32, UpdateType::EvaluationEnd)).is_ok() {
@@ -547,23 +537,18 @@ mod benchmarks {
 			}
 			block_number += 1u32.into();
 		}
-		// dbg!(ProjectsToUpdate::<T>::iter().collect::<Vec<_>>());
 
-		// fill `ProjectsToUpdate` with `y` different BlockNumber->Vec(len=`z`) items to benchmark deletion of our project from the map
+		// fill `ProjectsToUpdate` with `y` different BlockNumber->Vec items to benchmark deletion of our project from the map
 		// We keep in mind that we already filled `x` amount of vecs to max capacity
 		let remaining_vecs = y.saturating_sub(x);
 		if remaining_vecs > 0 {
-			let vec_limit = <T as Config>::MaxProjectsToUpdatePerBlock::get();
-			let added_total_items = x * vec_limit;
-			let desired_total_items = y * z;
-			let remaining_total_items = desired_total_items.saturating_sub(added_total_items);
-			// if we surpassed the desired items, we still need at least 1 per vec to test for iterating over different vecs for removal
-			let remaining_items_per_vec = (remaining_total_items / remaining_vecs).max(1u32);
+			// we benchmarked this with different values and it had no impact on the weight, so we use a low value to speed up the benchmark
+			let items_per_vec = 5u32;
 			let mut block_number = insertion_block_number - One::one();
 			for _ in 0..remaining_vecs {
 				// To iterate over all expected items when looking to remove, we need to insert everything _before_ our project's block_number
 				let mut vec: Vec<(ProjectId, UpdateType)> = ProjectsToUpdate::<T>::get(block_number).to_vec();
-				let items_to_fill = remaining_items_per_vec - vec.len() as u32;
+				let items_to_fill = items_per_vec - vec.len() as u32;
 				for _ in 0..items_to_fill {
 					vec.push((69u32, UpdateType::EvaluationEnd));
 				}
@@ -589,7 +574,87 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn bond_evaluation(x: Linear<1, 20>) {
+	fn start_auction_automatically(
+		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the extrinsic pass
+		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
+		// No `y` param because we don't need to remove the automatic transition from storage
+	) {
+		// * setup *
+		let mut inst = BenchInstantiator::<T>::new(None);
+
+		// real benchmark starts at block 0, and we can't call `events()` at block 0
+		inst.advance_time(1u32.into()).unwrap();
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+		whitelist_account!(issuer);
+
+		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_id = inst.create_evaluating_project(project_metadata, issuer.clone());
+
+		let evaluations = default_evaluations();
+		let plmc_for_evaluating = BenchInstantiator::<T>::calculate_evaluation_plmc_spent(evaluations.clone());
+		let existential_plmc: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().existential_deposits();
+		let ct_account_deposits: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().ct_account_deposits();
+
+		inst.mint_plmc_to(existential_plmc);
+		inst.mint_plmc_to(ct_account_deposits);
+		inst.mint_plmc_to(plmc_for_evaluating);
+
+		inst.advance_time(One::one()).unwrap();
+		inst.bond_for_users(project_id, evaluations).expect("All evaluations are accepted");
+
+		inst.advance_time(<T as Config>::EvaluationDuration::get() + One::one()).unwrap();
+
+		let current_block = inst.current_block();
+		// `do_english_auction` fn will try to add an automatic transition 1 block after the last english round block
+		let insertion_block_number: BlockNumberFor<T> = current_block + T::EnglishAuctionDuration::get() + One::one();
+		let mut block_number = insertion_block_number;
+
+		// fill the `ProjectsToUpdate` vectors from @ block_number to @ block_number+x, to benchmark all the failed insertion attempts
+		for _ in 0..x {
+			while ProjectsToUpdate::<T>::try_append(block_number, (&69u32, UpdateType::EvaluationEnd)).is_ok() {
+				continue
+			}
+			block_number += 1u32.into();
+		}
+
+		// fill `ProjectsToUpdate` with `y` different BlockNumber->Vec items to benchmark deletion of our project from the map
+		// We keep in mind that we already filled `x` amount of vecs to max capacity
+		let remaining_vecs = y.saturating_sub(x);
+		if remaining_vecs > 0 {
+			// we benchmarked this with different values and it had no impact on the weight, so we use a low value to speed up the benchmark
+			let items_per_vec = 5u32;
+			let mut block_number = insertion_block_number - One::one();
+			for _ in 0..remaining_vecs {
+				// To iterate over all expected items when looking to remove, we need to insert everything _before_ our project's block_number
+				let mut vec: Vec<(ProjectId, UpdateType)> = ProjectsToUpdate::<T>::get(block_number).to_vec();
+				let items_to_fill = items_per_vec - vec.len() as u32;
+				for _ in 0..items_to_fill {
+					vec.push((69u32, UpdateType::EvaluationEnd));
+				}
+				let bounded_vec: BoundedVec<(ProjectId, UpdateType), T::MaxProjectsToUpdatePerBlock> =
+					vec.try_into().unwrap();
+				ProjectsToUpdate::<T>::insert(block_number, bounded_vec);
+				block_number -= One::one();
+			}
+		}
+
+		#[extrinsic_call]
+		start_auction(RawOrigin::Signed(issuer), project_id);
+
+		// * validity checks *
+		// Storage
+		let stored_details = ProjectsDetails::<T>::get(project_id).unwrap();
+		assert_eq!(stored_details.status, ProjectStatus::AuctionRound(AuctionPhase::English));
+
+		// Events
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::<T>::EnglishAuctionStarted { project_id, when: current_block.into() }.into(),
+		);
+	}
+
+	#[benchmark]
+	fn evaluate(x: Linear<1, 20>) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 

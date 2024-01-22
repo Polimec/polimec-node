@@ -56,7 +56,7 @@ pub trait WeightInfo {
 	fn start_evaluation(x: u32) -> Weight;
 	fn start_auction_manually(x: u32, y: u32, z: u32) -> Weight;
 	fn start_auction_automatically(x: u32) -> Weight;
-	fn bond_evaluation() -> Weight;
+	fn evaluate() -> Weight;
 	fn bid() -> Weight;
 	fn contribute() -> Weight;
 	fn evaluation_unbond_for() -> Weight;
