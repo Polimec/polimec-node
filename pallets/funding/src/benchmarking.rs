@@ -442,7 +442,7 @@ mod benchmarks {
 	#[benchmark]
 	fn start_evaluation(
 		// insertion attempts in add_to_update_store.
-		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() }>,
+		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
 	) {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
@@ -493,7 +493,7 @@ mod benchmarks {
 	// it will also iterate through the `ProjectsToUpdate` vector, to remove the automatic transition scheduled.
 	fn start_auction_manually(
 		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`
-		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() }>,
+		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
 		// Total amount of storage items iterated through in `ProjectsToUpdate` when trying to remove our project in `remove_from_update_store`.
 		// We assume an upper bound of 10_000 projects at one time in storage waiting to update, and in different blocks.
 		y: Linear<1, 10_000>,
@@ -528,7 +528,7 @@ mod benchmarks {
 		inst.bond_for_users(project_id, evaluations).expect("All evaluations are accepted");
 
 		inst.advance_time(<T as Config>::EvaluationDuration::get() + One::one()).unwrap();
-		let block_number = frame_system::Pallet::<T>::block_number();
+		let start_block_number = frame_system::Pallet::<T>::block_number();
 
 		// start_evaluation fn will try to add an automatic transition 1 block after the last evaluation block
 		let mut block_number: BlockNumberFor<T> =
@@ -550,7 +550,7 @@ mod benchmarks {
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(
-			Event::<T>::EnglishAuctionStarted { project_id, when: block_number.into() }.into(),
+			Event::<T>::EnglishAuctionStarted { project_id, when: start_block_number.into() }.into(),
 		);
 	}
 
