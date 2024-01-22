@@ -419,7 +419,7 @@ impl<T: Config> Pallet<T> {
 						},
 						pays_fee: Pays::Yes,
 					},
-					error: Error::<T>::ProjectNotInUpdateStore.into(),
+					error: Error::<T>::TooManyInsertionAttempts.into(),
 				}),
 		};
 
