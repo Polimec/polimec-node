@@ -606,8 +606,10 @@ mod benchmarks {
 		inst.advance_time(<T as Config>::EvaluationDuration::get() + One::one()).unwrap();
 
 		let current_block = inst.current_block();
-		// `do_english_auction` fn will try to add an automatic transition 1 block after the last english round block
-		let insertion_block_number: BlockNumberFor<T> = current_block + T::EnglishAuctionDuration::get() + One::one();
+		let automatic_transition_block =
+			current_block + <T as Config>::AuctionInitializePeriodDuration::get() + One::one();
+		let insertion_block_number: BlockNumberFor<T> =
+			automatic_transition_block + T::EnglishAuctionDuration::get() + One::one();
 		let mut block_number = insertion_block_number;
 
 		// fill the `ProjectsToUpdate` vectors from @ block_number to @ block_number+x, to benchmark all the failed insertion attempts
@@ -618,26 +620,12 @@ mod benchmarks {
 			block_number += 1u32.into();
 		}
 
-		// fill `ProjectsToUpdate` with `y` different BlockNumber->Vec items to benchmark deletion of our project from the map
-		// We keep in mind that we already filled `x` amount of vecs to max capacity
-		let remaining_vecs = y.saturating_sub(x);
-		if remaining_vecs > 0 {
-			// we benchmarked this with different values and it had no impact on the weight, so we use a low value to speed up the benchmark
-			let items_per_vec = 5u32;
-			let mut block_number = insertion_block_number - One::one();
-			for _ in 0..remaining_vecs {
-				// To iterate over all expected items when looking to remove, we need to insert everything _before_ our project's block_number
-				let mut vec: Vec<(ProjectId, UpdateType)> = ProjectsToUpdate::<T>::get(block_number).to_vec();
-				let items_to_fill = items_per_vec - vec.len() as u32;
-				for _ in 0..items_to_fill {
-					vec.push((69u32, UpdateType::EvaluationEnd));
-				}
-				let bounded_vec: BoundedVec<(ProjectId, UpdateType), T::MaxProjectsToUpdatePerBlock> =
-					vec.try_into().unwrap();
-				ProjectsToUpdate::<T>::insert(block_number, bounded_vec);
-				block_number -= One::one();
-			}
-		}
+		let now = inst.current_block();
+		inst.advance_time(automatic_transition_block - now - One::one()).unwrap();
+		let now = inst.current_block();
+		// we don't use advance time to avoid triggering on_initialize. This benchmark should only measure the extrinsic
+		// weight and not the whole on_initialize call weight
+		frame_system::Pallet::<T>::set_block_number(now + One::one());
 
 		#[extrinsic_call]
 		start_auction(RawOrigin::Signed(issuer), project_id);
@@ -648,6 +636,7 @@ mod benchmarks {
 		assert_eq!(stored_details.status, ProjectStatus::AuctionRound(AuctionPhase::English));
 
 		// Events
+		let current_block = inst.current_block();
 		frame_system::Pallet::<T>::assert_last_event(
 			Event::<T>::EnglishAuctionStarted { project_id, when: current_block.into() }.into(),
 		);
@@ -684,7 +673,7 @@ mod benchmarks {
 		inst.advance_time(One::one()).unwrap();
 
 		#[extrinsic_call]
-		bond_evaluation(RawOrigin::Signed(test_evaluator.clone()), test_project_id, evaluation.usd_amount);
+		evaluate(RawOrigin::Signed(test_evaluator.clone()), test_project_id, evaluation.usd_amount);
 
 		// * validity checks *
 		// Storage
@@ -1996,9 +1985,9 @@ mod benchmarks {
 		}
 
 		#[test]
-		fn bench_bond_evaluation() {
+		fn bench_evaluate() {
 			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_bond_evaluation());
+				assert_ok!(PalletFunding::<TestRuntime>::test_evaluate());
 			});
 		}
 
@@ -2009,12 +1998,12 @@ mod benchmarks {
 			});
 		}
 
-		// #[test]
-		// fn bench_start_auction_automatically() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_start_auction_automatically());
-		// 	});
-		// }
+		#[test]
+		fn bench_start_auction_automatically() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_start_auction_automatically());
+			});
+		}
 
 		#[test]
 		fn bench_bid() {

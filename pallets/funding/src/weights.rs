@@ -140,7 +140,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Proof Skipped: PolimecFunding Evaluations (max_values: None, max_size: None, mode: Measured)
 	/// Storage: Balances Holds (r:1 w:1)
 	/// Proof: Balances Holds (max_values: None, max_size: Some(1099), added: 3574, mode: MaxEncodedLen)
-	fn bond_evaluation() -> Weight {
+	fn evaluate() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `428`
 		//  Estimated: `4564`
