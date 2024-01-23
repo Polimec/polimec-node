@@ -54,9 +54,11 @@ pub trait WeightInfo {
 	fn create() -> Weight;
 	fn edit_metadata() -> Weight;
 	fn start_evaluation(x: u32) -> Weight;
-	fn start_auction_manually(x: u32, y: u32, z: u32) -> Weight;
-	fn start_auction_automatically(x: u32) -> Weight;
-	fn evaluate() -> Weight;
+	fn start_auction_manually(x: u32, y: u32) -> Weight;
+	fn start_auction_automatically() -> Weight;
+	fn first_evaluation() -> Weight;
+	fn second_to_limit_evaluation(x: u32) -> Weight;
+	fn evaluation_over_limit() -> Weight;
 	fn bid() -> Weight;
 	fn contribute() -> Weight;
 	fn evaluation_unbond_for() -> Weight;
@@ -125,30 +127,23 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(3_u64))
 			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
-	fn start_auction_manually(x: u32, y: u32, z: u32) -> Weight {
+	fn start_auction_manually(x: u32, y: u32) -> Weight {
 		Zero::zero()
 	}
 
-	fn start_auction_automatically(x: u32) -> Weight {
+	fn start_auction_automatically() -> Weight {
 		Zero::zero()
 	}
-	/// Storage: PolimecFunding ProjectsDetails (r:1 w:1)
-	/// Proof Skipped: PolimecFunding ProjectsDetails (max_values: None, max_size: None, mode: Measured)
-	/// Storage: PolimecFunding NextEvaluationId (r:1 w:1)
-	/// Proof Skipped: PolimecFunding NextEvaluationId (max_values: Some(1), max_size: None, mode: Measured)
-	/// Storage: PolimecFunding Evaluations (r:1 w:1)
-	/// Proof Skipped: PolimecFunding Evaluations (max_values: None, max_size: None, mode: Measured)
-	/// Storage: Balances Holds (r:1 w:1)
-	/// Proof: Balances Holds (max_values: None, max_size: Some(1099), added: 3574, mode: MaxEncodedLen)
-	fn evaluate() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `428`
-		//  Estimated: `4564`
-		// Minimum execution time: 53_000_000 picoseconds.
-		Weight::from_parts(58_000_000, 4564)
-			.saturating_add(T::DbWeight::get().reads(4_u64))
-			.saturating_add(T::DbWeight::get().writes(4_u64))
-	}
+
+	fn first_evaluation() -> Weight {
+		Weight::from_parts(20_000_000, 3932)	}
+
+	fn second_to_limit_evaluation(x: u32) -> Weight {
+		Weight::from_parts(20_000_000, 3932)	}
+
+	fn evaluation_over_limit() -> Weight {
+		Weight::from_parts(20_000_000, 3932)	}
+
 	/// Storage: PolimecFunding ProjectsMetadata (r:1 w:0)
 	/// Proof Skipped: PolimecFunding ProjectsMetadata (max_values: None, max_size: None, mode: Measured)
 	/// Storage: PolimecFunding ProjectsDetails (r:1 w:0)

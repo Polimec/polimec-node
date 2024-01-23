@@ -377,22 +377,16 @@ impl<T: Config> Pallet<T> {
 		// If this function was called inside the period, then it was called by the extrinsic and we need to
 		// remove the scheduled automatic transition
 		let mut remove_attempts: u32 = 0u32;
-		let mut average_vec_passes: u32 = 0u32;
 		let mut insertion_attempts: u32 = 0u32;
 		if now <= auction_initialize_period_end_block {
 			match Self::remove_from_update_store(&project_id) {
 				Ok(iterations) => {
-					remove_attempts = iterations.0;
-					average_vec_passes = iterations.1
+					remove_attempts = iterations;
 				},
 				Err(iterations) =>
 					return Err(DispatchErrorWithPostInfo {
 						post_info: PostDispatchInfo {
-							actual_weight: Some(WeightInfoOf::<T>::start_auction_manually(
-								0u32,
-								iterations.0,
-								iterations.1,
-							)),
+							actual_weight: Some(WeightInfoOf::<T>::start_auction_manually(0u32, iterations)),
 							pays_fee: Pays::Yes,
 						},
 						error: Error::<T>::ProjectNotInUpdateStore.into(),
@@ -409,13 +403,9 @@ impl<T: Config> Pallet<T> {
 				return Err(DispatchErrorWithPostInfo {
 					post_info: PostDispatchInfo {
 						actual_weight: if remove_attempts == 0u32 {
-							Some(WeightInfoOf::<T>::start_auction_automatically(insertion_attempts))
+							Some(WeightInfoOf::<T>::start_auction_automatically())
 						} else {
-							Some(WeightInfoOf::<T>::start_auction_manually(
-								insertion_attempts,
-								remove_attempts,
-								average_vec_passes,
-							))
+							Some(WeightInfoOf::<T>::start_auction_manually(insertion_attempts, remove_attempts))
 						},
 						pays_fee: Pays::Yes,
 					},
@@ -428,9 +418,9 @@ impl<T: Config> Pallet<T> {
 
 		Ok(PostDispatchInfo {
 			actual_weight: if remove_attempts == 0u32 {
-				Some(WeightInfoOf::<T>::start_auction_automatically(insertion_attempts))
+				Some(WeightInfoOf::<T>::start_auction_automatically())
 			} else {
-				Some(WeightInfoOf::<T>::start_auction_manually(insertion_attempts, remove_attempts, average_vec_passes))
+				Some(WeightInfoOf::<T>::start_auction_manually(insertion_attempts, remove_attempts))
 			},
 			pays_fee: Pays::Yes,
 		})
@@ -853,7 +843,11 @@ impl<T: Config> Pallet<T> {
 	}
 
 	// Note: usd_amount needs to have the same amount of decimals as PLMC,, so when multiplied by the plmc-usd price, it gives us the PLMC amount with the decimals we wanted.
-	pub fn do_evaluate(evaluator: &AccountIdOf<T>, project_id: ProjectId, usd_amount: BalanceOf<T>) -> DispatchResult {
+	pub fn do_evaluate(
+		evaluator: &AccountIdOf<T>,
+		project_id: ProjectId,
+		usd_amount: BalanceOf<T>,
+	) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
@@ -910,6 +904,9 @@ impl<T: Config> Pallet<T> {
 		}
 
 		if caller_existing_evaluations.len() < T::MaxEvaluationsPerUser::get() as usize {
+			use frame_support::traits::fungible::Inspect;
+
+			let dbg = T::NativeCurrency::balance(evaluator);
 			T::NativeCurrency::hold(&HoldReason::Evaluation(project_id.into()).into(), evaluator, plmc_bond)?;
 		} else {
 			let (low_id, lowest_evaluation) = caller_existing_evaluations
@@ -944,7 +941,16 @@ impl<T: Config> Pallet<T> {
 		// * Emit events *
 		Self::deposit_event(Event::FundsBonded { project_id, amount: plmc_bond, bonder: evaluator.clone() });
 
-		Ok(())
+		let existing_evaluations_count = caller_existing_evaluations.len() as u32;
+		let actual_weight = if existing_evaluations_count == 0 {
+			WeightInfoOf::<T>::first_evaluation()
+		} else if existing_evaluations_count < T::MaxEvaluationsPerUser::get() {
+			WeightInfoOf::<T>::second_to_limit_evaluation(existing_evaluations_count)
+		} else {
+			WeightInfoOf::<T>::evaluation_over_limit()
+		};
+
+		Ok(PostDispatchInfo { actual_weight: Some(actual_weight), pays_fee: Pays::Yes })
 	}
 
 	/// Bid for a project in the bidding stage.
@@ -2463,40 +2469,24 @@ impl<T: Config> Pallet<T> {
 		return Err(T::MaxProjectsToUpdateInsertionAttempts::get())
 	}
 
-	fn average_u32(numbers: Vec<u32>) -> u32 {
-		if numbers.is_empty() {
-			return 0
-		}
-
-		// Use u64 for the sum to prevent overflow.
-		let sum: u64 = numbers.iter().map(|&x| x as u64).sum();
-		let count = numbers.len() as u64;
-
-		// Perform the division in u64, then cast back to u32.
-		// This will naturally floor the division result.
-		sum.saturating_div(count) as u32
-	}
-
 	// returns the actual iterations for weight calculation either as an Err type or Ok type so the caller can add that
 	// to the corresponding weight function.
-	pub fn remove_from_update_store(project_id: &ProjectId) -> Result<(u32, u32), (u32, u32)> {
+	pub fn remove_from_update_store(project_id: &ProjectId) -> Result<u32, u32> {
 		// used for extrinsic weight calculation
 		let mut total_iterations = 0u32;
-		let mut project_vec_lengths: Vec<u32> = Vec::new();
 		let (block_position, project_index) = ProjectsToUpdate::<T>::iter()
 			.find_map(|(block, project_vec)| {
 				total_iterations += 1;
-				project_vec_lengths.push(project_vec.len() as u32);
 				let project_index = project_vec.iter().position(|(id, _update_type)| id == project_id)?;
 				Some((block, project_index))
 			})
-			.ok_or((total_iterations, Self::average_u32(project_vec_lengths.clone())))?;
+			.ok_or(total_iterations)?;
 
 		ProjectsToUpdate::<T>::mutate(block_position, |project_vec| {
 			project_vec.remove(project_index);
 		});
 
-		Ok((total_iterations, Self::average_u32(project_vec_lengths)))
+		Ok(total_iterations)
 	}
 
 	pub fn create_bucket_from_metadata(metadata: &ProjectMetadataOf<T>) -> Result<BucketOf<T>, DispatchError> {

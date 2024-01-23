@@ -642,16 +642,26 @@ mod benchmarks {
 		);
 	}
 
-	#[benchmark]
-	fn evaluate(x: Linear<1, 20>) {
+	// possible branches:
+	// - pays ct account deposit
+	//      - we know this happens only if param x = 0, but we cannot fit it in the linear regression
+	// - is over max evals per user, and needs to unbond the lowest evaluation
+	// 		- this case, we know they paid already for ct account deposit
+
+	fn evaluation_setup<T: Config>(
+		x: u32,
+	) -> (BenchInstantiator<T>, ProjectId, UserToUSDBalance<T>, BalanceOf<T>, BalanceOf<T>)
+	where
+		<T as Config>::Balance: From<u128>,
+		<T as Config>::Price: From<u128>,
+		T::Hash: From<H256>,
+		<T as frame_system::Config>::RuntimeEvent: From<pallet::Event<T>>,
+	{
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
-
-		#[cfg(feature = "std")]
-		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let test_evaluator = account::<AccountIdOf<T>>("evaluator", 0, 0);
@@ -660,24 +670,58 @@ mod benchmarks {
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
 		let test_project_id = inst.create_evaluating_project(project_metadata, issuer);
 
-		let evaluation = UserToUSDBalance::new(test_evaluator.clone(), (50_000 * US_DOLLAR).into());
+		let existing_evaluation = UserToUSDBalance::new(test_evaluator.clone(), (100 * US_DOLLAR).into());
+		let extrinsic_evaluation = UserToUSDBalance::new(test_evaluator.clone(), (1_000 * US_DOLLAR).into());
+		let existing_evaluations = vec![existing_evaluation; x as usize];
 
-		let plmc_for_evaluating = BenchInstantiator::<T>::calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
-		let existential_plmc: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().existential_deposits();
-		let ct_account_deposits: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().ct_account_deposits();
+		let plmc_for_existing_evaluations =
+			BenchInstantiator::<T>::calculate_evaluation_plmc_spent(existing_evaluations.clone());
+		let plmc_for_extrinsic_evaluation =
+			BenchInstantiator::<T>::calculate_evaluation_plmc_spent(vec![extrinsic_evaluation.clone()]);
+		let existential_plmc: Vec<UserToPLMCBalance<T>> =
+			plmc_for_extrinsic_evaluation.accounts().existential_deposits();
+		let ct_account_deposits: Vec<UserToPLMCBalance<T>> =
+			plmc_for_extrinsic_evaluation.accounts().ct_account_deposits();
 
 		inst.mint_plmc_to(existential_plmc);
 		inst.mint_plmc_to(ct_account_deposits);
-		inst.mint_plmc_to(plmc_for_evaluating.clone());
+		inst.mint_plmc_to(plmc_for_existing_evaluations.clone());
+		inst.mint_plmc_to(plmc_for_extrinsic_evaluation.clone());
 
 		inst.advance_time(One::one()).unwrap();
 
-		#[extrinsic_call]
-		evaluate(RawOrigin::Signed(test_evaluator.clone()), test_project_id, evaluation.usd_amount);
+		// do "x" evaluations for this user
+		inst.bond_for_users(test_project_id, existing_evaluations).expect("All evaluations are accepted");
 
+		let extrinsic_plmc_bonded = plmc_for_extrinsic_evaluation[0].plmc_amount;
+		let mut total_expected_plmc_bonded = BenchInstantiator::<T>::sum_balance_mappings(vec![
+			plmc_for_existing_evaluations.clone(),
+			plmc_for_extrinsic_evaluation.clone(),
+		]);
+
+		// if we are going to unbond evaluations due to being over the limit per user, then deduct them from the total expected plmc bond
+		if x >= <T as Config>::MaxEvaluationsPerUser::get() {
+			total_expected_plmc_bonded -= plmc_for_existing_evaluations[0].plmc_amount *
+				(x as u128 - <T as Config>::MaxEvaluationsPerUser::get() as u128 + 1u128).into();
+		}
+
+		(inst, test_project_id, extrinsic_evaluation, extrinsic_plmc_bonded, total_expected_plmc_bonded)
+	}
+	fn evaluation_verification<T: Config>(
+		mut inst: BenchInstantiator<T>,
+		project_id: ProjectId,
+		evaluation: UserToUSDBalance<T>,
+		extrinsic_plmc_bonded: BalanceOf<T>,
+		total_expected_plmc_bonded: BalanceOf<T>,
+	) where
+		<T as Config>::Balance: From<u128>,
+		<T as Config>::Price: From<u128>,
+		T::Hash: From<H256>,
+		<T as frame_system::Config>::RuntimeEvent: From<pallet::Event<T>>,
+	{
 		// * validity checks *
 		// Storage
-		let stored_evaluation = Evaluations::<T>::iter_prefix_values((test_project_id, test_evaluator.clone()))
+		let stored_evaluation = Evaluations::<T>::iter_prefix_values((project_id, evaluation.account.clone()))
 			.sorted_by(|a, b| a.id.cmp(&b.id))
 			.last()
 			.unwrap();
@@ -691,29 +735,92 @@ mod benchmarks {
 				rewarded_or_slashed,
 				..
 			} if project_id == project_id &&
-				evaluator == test_evaluator.clone() &&
-				original_plmc_bond == plmc_for_evaluating[0].plmc_amount &&
-				current_plmc_bond == plmc_for_evaluating[0].plmc_amount &&
+				evaluator == evaluation.account.clone() &&
+				original_plmc_bond == extrinsic_plmc_bonded &&
+				current_plmc_bond == extrinsic_plmc_bonded &&
 				rewarded_or_slashed.is_none() => {},
 			_ => assert!(false, "Evaluation is not stored correctly"),
 		}
 
 		// Balances
 		let bonded_plmc = inst.get_reserved_plmc_balances_for(
-			vec![test_evaluator.clone()],
-			HoldReason::Evaluation(test_project_id).into(),
+			vec![evaluation.account.clone()],
+			HoldReason::Evaluation(project_id).into(),
 		)[0]
 		.plmc_amount;
-		assert_eq!(bonded_plmc, plmc_for_evaluating[0].plmc_amount);
+		assert_eq!(bonded_plmc, total_expected_plmc_bonded);
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(
-			Event::<T>::FundsBonded {
-				project_id: test_project_id,
-				amount: plmc_for_evaluating[0].plmc_amount,
-				bonder: test_evaluator.clone(),
-			}
-			.into(),
+			Event::<T>::FundsBonded { project_id, amount: extrinsic_plmc_bonded, bonder: evaluation.account.clone() }
+				.into(),
+		);
+	}
+
+	// - We know how many iterations it does in storage
+	// - We know that it requires a ct deposit
+	// - We know that it does not require to unbond the lowest evaluation
+	#[benchmark]
+	fn first_evaluation() {
+		// How many other evaluations the user did for that same project
+		let x = 0;
+		let (inst, project_id, extrinsic_evaluation, extrinsic_plmc_bonded, total_expected_plmc_bonded) =
+			evaluation_setup::<T>(x);
+
+		#[extrinsic_call]
+		evaluate(RawOrigin::Signed(extrinsic_evaluation.account.clone()), project_id, extrinsic_evaluation.usd_amount);
+
+		evaluation_verification::<T>(
+			inst,
+			project_id,
+			extrinsic_evaluation,
+			extrinsic_plmc_bonded,
+			total_expected_plmc_bonded,
+		);
+	}
+
+	// - We know that it does not require a ct deposit
+	// - We know that it does not require to unbond the lowest evaluation.
+	// - We don't know how many iterations it does in storage (i.e "x")
+	#[benchmark]
+	fn second_to_limit_evaluation(
+		// How many other evaluations the user did for that same project
+		x: Linear<1, { T::MaxEvaluationsPerUser::get() - 1 }>,
+	) {
+		let (inst, project_id, extrinsic_evaluation, extrinsic_plmc_bonded, total_expected_plmc_bonded) =
+			evaluation_setup::<T>(x);
+
+		#[extrinsic_call]
+		evaluate(RawOrigin::Signed(extrinsic_evaluation.account.clone()), project_id, extrinsic_evaluation.usd_amount);
+
+		evaluation_verification::<T>(
+			inst,
+			project_id,
+			extrinsic_evaluation,
+			extrinsic_plmc_bonded,
+			total_expected_plmc_bonded,
+		);
+	}
+
+	// - We know how many iterations it does in storage
+	// - We know that it does not require a ct deposit
+	// - We know that it requires to unbond the lowest evaluation
+	#[benchmark]
+	fn evaluation_over_limit() {
+		// How many other evaluations the user did for that same project
+		let x = <T as Config>::MaxEvaluationsPerUser::get();
+		let (inst, project_id, extrinsic_evaluation, extrinsic_plmc_bonded, total_expected_plmc_bonded) =
+			evaluation_setup::<T>(x);
+
+		#[extrinsic_call]
+		evaluate(RawOrigin::Signed(extrinsic_evaluation.account.clone()), project_id, extrinsic_evaluation.usd_amount);
+
+		evaluation_verification::<T>(
+			inst,
+			project_id,
+			extrinsic_evaluation,
+			extrinsic_plmc_bonded,
+			total_expected_plmc_bonded,
 		);
 	}
 
@@ -1985,9 +2092,22 @@ mod benchmarks {
 		}
 
 		#[test]
-		fn bench_evaluate() {
+		fn bench_first_evaluation() {
 			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_evaluate());
+				assert_ok!(PalletFunding::<TestRuntime>::test_first_evaluation());
+			});
+		}
+		#[test]
+		fn bench_second_to_limit_evaluation() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_second_to_limit_evaluation());
+			});
+		}
+
+		#[test]
+		fn bench_evaluation_over_limit() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_evaluation_over_limit());
 			});
 		}
 

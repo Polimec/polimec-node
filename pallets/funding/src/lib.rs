@@ -973,7 +973,7 @@ pub mod pallet {
 		/// institutional user can set bids for a token_amount/token_price pair.
 		/// Any bids from this point until the candle_auction starts, will be considered as valid.
 		#[pallet::call_index(3)]
-		#[pallet::weight(WeightInfoOf::<T>::start_auction_manually(0u32, 0u32, 0u32))]
+		#[pallet::weight(WeightInfoOf::<T>::start_auction_manually(<T as Config>::MaxProjectsToUpdateInsertionAttempts::get(), 10_000u32))]
 		pub fn start_auction(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 			let issuer = ensure_signed(origin)?;
 			Self::do_english_auction(issuer, project_id)
@@ -981,12 +981,12 @@ pub mod pallet {
 
 		/// Bond PLMC for a project in the evaluation stage
 		#[pallet::call_index(4)]
-		#[pallet::weight(WeightInfoOf::<T>::evaluate())]
+		#[pallet::weight(WeightInfoOf::<T>::evaluation_over_limit())]
 		pub fn evaluate(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			#[pallet::compact] usd_amount: BalanceOf<T>,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let evaluator = ensure_signed(origin)?;
 			Self::do_evaluate(&evaluator, project_id, usd_amount)
 		}

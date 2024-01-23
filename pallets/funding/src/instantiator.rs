@@ -869,11 +869,11 @@ impl<
 		&mut self,
 		project_id: ProjectId,
 		bonds: Vec<UserToUSDBalance<T>>,
-	) -> Result<(), DispatchError> {
+	) -> DispatchResultWithPostInfo {
 		for UserToUSDBalance { account, usd_amount } in bonds {
 			self.execute(|| crate::Pallet::<T>::do_evaluate(&account, project_id, usd_amount))?;
 		}
-		Ok(())
+		Ok(().into())
 	}
 
 	pub fn start_auction(&mut self, project_id: ProjectId, caller: AccountIdOf<T>) -> Result<(), DispatchError> {
