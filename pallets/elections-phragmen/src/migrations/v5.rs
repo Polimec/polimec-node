@@ -29,16 +29,17 @@ pub fn migrate<T: Config>(to_migrate: Vec<T::AccountId>) -> Weight {
 
 	for who in to_migrate.iter() {
 		if let Ok(mut voter) = Voting::<T>::try_get(who) {
-			let free_balance = T::Currency::free_balance(who);
+			let total_balance = T::Currency::total_balance(who);
 
 			weight = weight.saturating_add(T::DbWeight::get().reads(2));
 
-			if voter.stake > free_balance {
-				voter.stake = free_balance;
+			if voter.stake > total_balance {
+				voter.stake = total_balance;
 				Voting::<T>::insert(&who, voter);
 
-				let pallet_id = T::PalletId::get();
-				T::Currency::set_lock(pallet_id, who, free_balance, WithdrawReasons::all());
+				if T::Currency::set_freeze(&FreezeReason::Voting.into(), who, total_balance).is_err() {
+					log::error!("elections-phragmen: failed to set freeze for {:?}", who);
+				}
 
 				weight = weight.saturating_add(T::DbWeight::get().writes(2));
 			}
@@ -55,12 +56,11 @@ pub fn pre_migrate_fn<T: Config>(to_migrate: Vec<T::AccountId>) -> Box<dyn Fn() 
 	Box::new(move || {
 		for who in to_migrate.iter() {
 			if let Ok(voter) = Voting::<T>::try_get(who) {
-				let free_balance = T::Currency::free_balance(who);
-
-				if voter.stake > free_balance {
-					// all good
+				let total_balance = T::Currency::total_balance(who);
+				if voter.stake > total_balance {
+					log::warn!("pre-migrate elections-phragmen: voter={:?} has more stake then total balance", who);
 				} else {
-					log::warn!("pre-migrate elections-phragmen: voter={:?} has less stake then free balance", who);
+					// all good
 				}
 			} else {
 				log::warn!("pre-migrate elections-phragmen: cannot find voter={:?}", who);
@@ -76,9 +76,9 @@ pub fn pre_migrate_fn<T: Config>(to_migrate: Vec<T::AccountId>) -> Box<dyn Fn() 
 /// Panics if anything goes wrong.
 pub fn post_migrate<T: crate::Config>() {
 	for (who, voter) in Voting::<T>::iter() {
-		let free_balance = T::Currency::free_balance(&who);
+		let total_balance = T::Currency::total_balance(&who);
 
-		assert!(voter.stake <= free_balance, "migration should have made locked <= free_balance");
+		assert!(voter.stake <= total_balance, "migration should have made locked <= total_balance");
 		// Ideally we would also check that the locks and AccountData.misc_frozen where correctly
 		// updated, but since both of those are generic we can't do that without further bounding T.
 	}
