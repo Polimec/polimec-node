@@ -1,3 +1,6 @@
+// Polimec Blockchain – https://www.polimec.org/
+// Copyright (C) Polimec 2022. All rights reserved.
+
 // Copyright (C) Parity Technologies (UK) Ltd.
 // This file is part of Polkadot.
 
