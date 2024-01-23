@@ -86,4 +86,5 @@ try-runtime = [
 	"pallet-session/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"sp-runtime/try-runtime",
+	"polimec-common/try-runtime"
 ]

@@ -2,7 +2,12 @@
 name = "polimec-xcm-executor"
 description = "An abstract and configurable XCM message executor."
 authors.workspace = true
+documentation.workspace = true
 edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+readme.workspace = true
+repository.workspace = true
 version.workspace = true
 
 [dependencies]

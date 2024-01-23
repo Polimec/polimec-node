@@ -6109,7 +6109,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-funding"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "assert_matches2",
  "frame-benchmarking",
@@ -6255,7 +6255,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-linear-release"
-version = "4.0.0-dev"
+version = "0.4.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6478,7 +6478,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-oracle-ocw"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "frame-support",
  "frame-system",
