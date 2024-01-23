@@ -497,6 +497,7 @@ pub mod polimec_base {
 			},
 			vesting: Default::default(),
 			transaction_payment: Default::default(),
+			growth_treasury: Default::default(),
 		};
 
 		genesis_config.build_storage().unwrap()

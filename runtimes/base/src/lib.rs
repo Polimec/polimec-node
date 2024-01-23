@@ -388,6 +388,26 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = ();
 }
 
+impl pallet_treasury::Config for Runtime {
+	// TODO: Use the Council instead of Root!
+	type ApproveOrigin = EnsureRoot<AccountId>;
+	type Burn = Burn;
+	type BurnDestination = ();
+	type Currency = Balances;
+	type MaxApprovals = MaxApprovals;
+	type OnSlash = GrowthTreasury;
+	type PalletId = TreasuryId;
+	type ProposalBond = ProposalBond;
+	type ProposalBondMaximum = ();
+	type ProposalBondMinimum = ProposalBondMinimum;
+	type RejectOrigin = EnsureRoot<AccountId>;
+	type RuntimeEvent = RuntimeEvent;
+	type SpendFunds = ();
+	type SpendOrigin = frame_support::traits::NeverEnsureOrigin<Balance>;
+	type SpendPeriod = SpendPeriod;
+	type WeightInfo = ();
+}
+
 impl pallet_parachain_staking::Config for Runtime {
 	type Balance = Balance;
 	type CandidateBondLessDelay = CandidateBondLessDelay;
@@ -490,6 +510,9 @@ construct_runtime!(
 		PolkadotXcm: pallet_xcm = 31,
 		CumulusXcm: cumulus_pallet_xcm = 32,
 		DmpQueue: cumulus_pallet_dmp_queue = 33,
+
+		// Governance
+		GrowthTreasury: pallet_treasury = 40,
 	}
 );
 

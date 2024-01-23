@@ -54,9 +54,9 @@ pub const COOLOFF_PERIOD: BlockNumber = 7 * MINUTES;
 pub const COOLOFF_PERIOD: BlockNumber = 7 * DAYS;
 
 #[cfg(feature = "fast-gov")]
-pub const SPEND_PERIOD: BlockNumber = 6 * MINUTES;
+pub const SPEND_PERIOD: BlockNumber = 7 * MINUTES;
 #[cfg(not(feature = "fast-gov"))]
-pub const SPEND_PERIOD: BlockNumber = 6 * DAYS;
+pub const SPEND_PERIOD: BlockNumber = 7 * DAYS;
 
 #[cfg(feature = "fast-gov")]
 pub const ROTATION_PERIOD: BlockNumber = 80 * MINUTES;
@@ -101,7 +101,7 @@ parameter_types! {
 	pub const MaxProposals: u32 = 100;
 	//Treasury
 	pub const ProposalBond: Permill = Permill::from_percent(5);
-	pub const ProposalBondMinimum: Balance = 20 * PLMC;
+	pub const ProposalBondMinimum: Balance = 50 * PLMC;
 	pub const SpendPeriod: BlockNumber = SPEND_PERIOD;
 	pub const Burn: Permill = Permill::zero();
 	pub const MaxApprovals: u32 = 100;
