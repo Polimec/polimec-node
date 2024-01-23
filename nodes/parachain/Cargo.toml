@@ -24,6 +24,7 @@ futures.workspace = true
 polimec-parachain-runtime.workspace = true
 polimec-base-runtime.workspace = true
 pallet-funding.workspace = true
+macros = { workspace = true }
 
 # Substrate
 frame-benchmarking.workspace = true
@@ -87,6 +88,10 @@ substrate-build-script-utils.workspace = true
 
 [features]
 default = []
+fast-mode = [
+	"polimec-base-runtime/fast-mode",
+	"polimec-parachain-runtime/fast-mode",
+]
 runtime-benchmarks = [
 	"frame-benchmarking-cli/runtime-benchmarks",
 	"frame-benchmarking/runtime-benchmarks",
@@ -109,10 +114,6 @@ try-runtime = [
 	"try-runtime-cli",
 	"try-runtime-cli?/try-runtime",
 ]
-fast-gov = [
-	"polimec-base-runtime/fast-gov",
-	"polimec-parachain-runtime/fast-gov",
-]
 std = [
 	"cumulus-primitives-core/std",
 	"frame-benchmarking/std",
@@ -132,9 +133,4 @@ std = [
 	"sp-session/std",
 	"sp-transaction-pool/std",
 	"xcm/std",
-]
-testing-node = [
-	"pallet-funding/testing-node",
-	"polimec-base-runtime/testing-node",
-	"polimec-parachain-runtime/testing-node",
 ]

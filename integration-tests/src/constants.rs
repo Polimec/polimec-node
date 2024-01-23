@@ -1,3 +1,19 @@
+// Polimec Blockchain – https://www.polimec.org/
+// Copyright (C) Polimec 2022. All rights reserved.
+
+// The Polimec Blockchain is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// The Polimec Blockchain is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 pub use parachains_common::{AccountId, AssetHubPolkadotAuraId, AuraId, Balance, BlockNumber};
 use polimec_parachain_runtime::{
@@ -16,6 +32,7 @@ use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::{sr25519, storage::Storage, Pair, Public};
 use sp_runtime::{bounded_vec, BuildStorage, Perbill};
+
 pub use xcm;
 use xcm_emulator::get_account_id_from_seed;
 
@@ -153,7 +170,7 @@ pub mod polkadot {
 	}
 
 	pub fn genesis() -> Storage {
-		let genesis_config = polkadot_runtime::GenesisConfig {
+		let genesis_config = polkadot_runtime::RuntimeGenesisConfig {
 			system: polkadot_runtime::SystemConfig {
 				code: polkadot_runtime::WASM_BINARY.unwrap().to_vec(),
 				..Default::default()
@@ -221,7 +238,7 @@ pub mod statemint {
 		];
 		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
 
-		let genesis_config = asset_hub_polkadot_runtime::GenesisConfig {
+		let genesis_config = asset_hub_polkadot_runtime::RuntimeGenesisConfig {
 			system: asset_hub_polkadot_runtime::SystemConfig {
 				code: asset_hub_polkadot_runtime::WASM_BINARY
 					.expect("WASM binary was not build, please build it!")
@@ -288,19 +305,20 @@ pub mod polimec {
 		let alice_account = Polimec::account_id_of(accounts::ALICE);
 		let bob_account: AccountId = Polimec::account_id_of(accounts::BOB);
 		let charlie_account: AccountId = Polimec::account_id_of(accounts::CHARLIE);
+		let dave_account: AccountId = Polimec::account_id_of(accounts::DAVE);
+		let eve_account: AccountId = Polimec::account_id_of(accounts::EVE);
 
 		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
 		funded_accounts.extend(collators::initial_authorities().iter().cloned().map(|(acc, _)| (acc, 20_005 * PLMC)));
 		funded_accounts.push((get_account_id_from_seed::<sr25519::Public>("TREASURY_STASH"), 20_005 * PLMC));
 
-		let genesis_config = polimec_parachain_runtime::GenesisConfig {
+		let genesis_config = polimec_parachain_runtime::RuntimeGenesisConfig {
 			system: polimec_parachain_runtime::SystemConfig {
 				code: polimec_parachain_runtime::WASM_BINARY
 					.expect("WASM binary was not build, please build it!")
 					.to_vec(),
 				..Default::default()
 			},
-			polimec_funding: Default::default(),
 			balances: polimec_parachain_runtime::BalancesConfig { balances: funded_accounts },
 			parachain_info: polimec_parachain_runtime::ParachainInfoConfig {
 				parachain_id: PARA_ID.into(),
@@ -330,6 +348,27 @@ pub mod polimec {
 			},
 			council: Default::default(),
 			democracy: Default::default(),
+			growth_treasury: Default::default(),
+			technical_committee: polimec_parachain_runtime::TechnicalCommitteeConfig {
+				members: vec![
+					alice_account.clone(),
+					bob_account.clone(),
+					charlie_account.clone(),
+					dave_account.clone(),
+					eve_account.clone(),
+				],
+				..Default::default()
+			},
+			elections: polimec_parachain_runtime::ElectionsConfig {
+				members: vec![
+					(alice_account.clone(), 0),
+					(bob_account.clone(), 0),
+					(charlie_account.clone(), 0),
+					(dave_account.clone(), 0),
+					(eve_account.clone(), 0),
+				],
+				..Default::default()
+			},
 			oracle_providers_membership: polimec_parachain_runtime::OracleProvidersMembershipConfig {
 				members: bounded_vec![alice_account.clone(), bob_account, charlie_account],
 				..Default::default()
@@ -357,8 +396,12 @@ pub mod polimec {
 				],
 				accounts: vec![],
 			},
+<<<<<<< HEAD
+=======
 			technical_committee: Default::default(),
 			treasury: Default::default(),
+			polimec_funding: Default::default(),
+>>>>>>> b107139 (Feature/plmc 391 allow parallel instantiaton of projects (#130))
 			vesting: Default::default(),
 		};
 
@@ -381,7 +424,7 @@ pub mod penpal {
 		];
 		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
 
-		let genesis_config = penpal_runtime::GenesisConfig {
+		let genesis_config = penpal_runtime::RuntimeGenesisConfig {
 			system: penpal_runtime::SystemConfig {
 				code: penpal_runtime::WASM_BINARY.expect("WASM binary was not build, please build it!").to_vec(),
 				..Default::default()
@@ -427,7 +470,6 @@ pub mod penpal {
 pub mod polimec_base {
 	use super::*;
 	use crate::PolimecBase;
-	use pallet_funding::AcceptedFundingAsset;
 	use xcm::{prelude::Parachain, v3::Parent};
 
 	pub const PARA_ID: u32 = 3344;
@@ -439,8 +481,6 @@ pub mod polimec_base {
 	const GENESIS_NUM_SELECTED_CANDIDATES: u32 = 5;
 
 	pub fn genesis() -> Storage {
-		let dot_asset_id = AcceptedFundingAsset::DOT.to_statemint_id();
-		let usdt_asset_id = AcceptedFundingAsset::USDT.to_statemint_id();
 		let mut funded_accounts = vec![
 			(PolimecBase::sovereign_account_id_of((Parent, Parachain(penpal::PARA_ID)).into()), INITIAL_DEPOSIT),
 			(PolimecBase::sovereign_account_id_of((Parent, Parachain(statemint::PARA_ID)).into()), INITIAL_DEPOSIT),
@@ -448,12 +488,14 @@ pub mod polimec_base {
 		let alice_account = PolimecBase::account_id_of(accounts::ALICE);
 		let bob_account: AccountId = PolimecBase::account_id_of(accounts::BOB);
 		let charlie_account: AccountId = PolimecBase::account_id_of(accounts::CHARLIE);
+		let dave_account: AccountId = PolimecBase::account_id_of(accounts::DAVE);
+		let eve_account: AccountId = PolimecBase::account_id_of(accounts::EVE);
 
 		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
 		funded_accounts.extend(collators::initial_authorities().iter().cloned().map(|(acc, _)| (acc, 20_005 * PLMC)));
 		funded_accounts.push((get_account_id_from_seed::<sr25519::Public>("TREASURY_STASH"), 20_005 * PLMC));
 
-		let genesis_config = polimec_base_runtime::GenesisConfig {
+		let genesis_config = polimec_base_runtime::RuntimeGenesisConfig {
 			system: polimec_base_runtime::SystemConfig {
 				code: polimec_base_runtime::WASM_BINARY.expect("WASM binary was not build, please build it!").to_vec(),
 				..Default::default()
@@ -477,6 +519,28 @@ pub mod polimec_base {
 			},
 			aura: Default::default(),
 			aura_ext: Default::default(),
+			council: Default::default(),
+			technical_committee: polimec_base_runtime::TechnicalCommitteeConfig {
+				members: vec![
+					alice_account.clone(),
+					bob_account.clone(),
+					charlie_account.clone(),
+					dave_account.clone(),
+					eve_account.clone(),
+				],
+				..Default::default()
+			},
+			elections: polimec_base_runtime::ElectionsConfig {
+				members: vec![
+					(alice_account.clone(), 0),
+					(bob_account.clone(), 0),
+					(charlie_account.clone(), 0),
+					(dave_account.clone(), 0),
+					(eve_account.clone(), 0),
+				],
+				..Default::default()
+			},
+			democracy: Default::default(),
 			parachain_system: Default::default(),
 			polkadot_xcm: polimec_base_runtime::PolkadotXcmConfig {
 				safe_xcm_version: Some(SAFE_XCM_VERSION),
@@ -495,8 +559,13 @@ pub mod polimec_base {
 				blocks_per_round: GENESIS_BLOCKS_PER_ROUND,
 				num_selected_candidates: GENESIS_NUM_SELECTED_CANDIDATES,
 			},
+			oracle_providers_membership: polimec_base_runtime::OracleProvidersMembershipConfig {
+				members: bounded_vec![alice_account.clone(), bob_account, charlie_account],
+				..Default::default()
+			},
 			vesting: Default::default(),
 			transaction_payment: Default::default(),
+			growth_treasury: Default::default(),
 		};
 
 		genesis_config.build_storage().unwrap()

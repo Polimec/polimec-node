@@ -26,8 +26,9 @@ smallvec = "1.11.0"
 
 # Local
 pallet-parachain-staking.workspace = true
+pallet-oracle-ocw.workspace = true
 shared-configuration.workspace = true
-polimec-traits.workspace = true
+polimec-common.workspace = true
 
 # Substrate
 frame-benchmarking = { workspace = true, optional = true }
@@ -40,16 +41,29 @@ frame-try-runtime = { workspace = true, optional = true }
 pallet-aura.workspace = true
 pallet-authorship.workspace = true
 pallet-balances.workspace = true
+<<<<<<< HEAD
+pallet-collective.workspace = true
+pallet-democracy.workspace = true
+pallet-elections-phragmen.workspace = true
+=======
+pallet-membership.workspace = true
+>>>>>>> aaf91f5 (Feature/plmc 350 setup offchain worker for price injection with first usdxusd (#118))
 pallet-multisig.workspace = true
+pallet-preimage.workspace = true
 pallet-proxy.workspace = true
+pallet-scheduler.workspace = true
 pallet-session.workspace = true
-pallet-treasury.workspace = true
 pallet-sudo.workspace = true
 pallet-timestamp.workspace = true
 pallet-transaction-payment.workspace = true
 pallet-transaction-payment-rpc-runtime-api.workspace = true
+pallet-treasury.workspace = true
+<<<<<<< HEAD
+=======
 pallet-vesting.workspace = true
+>>>>>>> aaf91f5 (Feature/plmc 350 setup offchain worker for price injection with first usdxusd (#118))
 pallet-utility.workspace = true
+pallet-vesting.workspace = true
 sp-arithmetic.workspace = true
 sp-api.workspace = true
 sp-block-builder.workspace = true
@@ -85,10 +99,13 @@ parachain-info.workspace = true
 parachains-common.workspace = true
 polkadot-primitives.workspace = true
 
+# ORML
+orml-oracle.workspace = true
 
 [features]
 default = [ "std" ]
-fast-gov = [ "shared-configuration/fast-gov" ]
+fast-mode = [ "shared-configuration/fast-mode" ]
+instant-mode = [ "shared-configuration/instant-mode" ]
 std = [
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-dmp-queue/std",
@@ -107,12 +124,27 @@ std = [
 	"frame-system/std",
 	"frame-try-runtime?/std",
 	"log/std",
+	"orml-oracle/std",
 	"pallet-aura/std",
 	"pallet-authorship/std",
 	"pallet-balances/std",
+<<<<<<< HEAD
+	"pallet-collective/std",
+	"pallet-democracy/std",
+	"pallet-elections-phragmen/std",
+=======
+	"pallet-membership/std",
+<<<<<<< HEAD
+	"pallet-oracle-ocw/std",
+>>>>>>> aaf91f5 (Feature/plmc 350 setup offchain worker for price injection with first usdxusd (#118))
+=======
+>>>>>>> 68ea0b3 (Chore/optimize size (#151))
 	"pallet-multisig/std",
+	"pallet-oracle-ocw/std",
 	"pallet-parachain-staking/std",
+	"pallet-preimage/std",
 	"pallet-proxy/std",
+	"pallet-scheduler/std",
 	"pallet-session/std",
 	"pallet-sudo/std",
 	"pallet-timestamp/std",
@@ -125,7 +157,7 @@ std = [
 	"parachain-info/std",
 	"parachains-common/std",
 	"parity-scale-codec/std",
-	"polimec-traits/std",
+	"polimec-common/std",
 	"polkadot-parachain/std",
 	"polkadot-primitives/std",
 	"polkadot-runtime-common/std",
@@ -158,16 +190,25 @@ runtime-benchmarks = [
 	"frame-system/runtime-benchmarks",
 	"hex-literal",
 	"pallet-balances/runtime-benchmarks",
+<<<<<<< HEAD
+	"pallet-collective/runtime-benchmarks",
+	"pallet-democracy/runtime-benchmarks",
+	"pallet-elections-phragmen/runtime-benchmarks",
+=======
+	"pallet-membership/runtime-benchmarks",
+>>>>>>> aaf91f5 (Feature/plmc 350 setup offchain worker for price injection with first usdxusd (#118))
 	"pallet-multisig/runtime-benchmarks",
 	"pallet-parachain-staking/runtime-benchmarks",
+	"pallet-preimage/runtime-benchmarks",
 	"pallet-proxy/runtime-benchmarks",
 	"pallet-sudo/runtime-benchmarks",
+	"pallet-scheduler/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-treasury/runtime-benchmarks",
 	"pallet-utility/runtime-benchmarks",
 	"pallet-vesting/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
-	"polimec-traits/runtime-benchmarks",
+	"polimec-common/runtime-benchmarks",
 	"polkadot-parachain/runtime-benchmarks",
 	"polkadot-primitives/runtime-benchmarks",
 	"polkadot-runtime-common/runtime-benchmarks",
@@ -175,6 +216,7 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
+	"pallet-oracle-ocw/runtime-benchmarks"
 ]
 
 try-runtime = [
@@ -187,12 +229,27 @@ try-runtime = [
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
 	"frame-try-runtime/try-runtime",
+	"orml-oracle/try-runtime",
 	"pallet-aura/try-runtime",
 	"pallet-authorship/try-runtime",
 	"pallet-balances/try-runtime",
+<<<<<<< HEAD
+	"pallet-collective/try-runtime",
+	"pallet-democracy/try-runtime",
+	"pallet-elections-phragmen/try-runtime",
+=======
+	"pallet-membership/try-runtime",
+<<<<<<< HEAD
+	"pallet-oracle-ocw/try-runtime",
+>>>>>>> aaf91f5 (Feature/plmc 350 setup offchain worker for price injection with first usdxusd (#118))
+=======
+>>>>>>> 68ea0b3 (Chore/optimize size (#151))
 	"pallet-multisig/try-runtime",
+	"pallet-oracle-ocw/try-runtime",
 	"pallet-parachain-staking/try-runtime",
+	"pallet-preimage/try-runtime",
 	"pallet-proxy/try-runtime",
+	"pallet-scheduler/try-runtime",
 	"pallet-session/try-runtime",
 	"pallet-sudo/try-runtime",
 	"pallet-timestamp/try-runtime",
@@ -202,9 +259,13 @@ try-runtime = [
 	"pallet-vesting/try-runtime",
 	"pallet-xcm/try-runtime",
 	"parachain-info/try-runtime",
-	"polimec-traits/try-runtime",
+	"polimec-common/try-runtime",
 	"polkadot-runtime-common/try-runtime",
 	"shared-configuration/try-runtime",
 	"sp-runtime/try-runtime",
 ]
-testing-node = [ "shared-configuration/testing-node" ]
+
+# A feature that should be enabled when the runtime should be built for on-chain
+# deployment. This will disable stuff that shouldn't be part of the on-chain wasm
+# to make it smaller, like logging for example.
+on-chain-release-build = [ "sp-api/disable-logging" ]

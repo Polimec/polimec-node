@@ -23,7 +23,7 @@ use frame_support::{
 	ensure,
 	pallet_prelude::*,
 	traits::{
-		fungible::MutateHold as FungibleMutateHold,
+		fungible::{InspectHold, MutateHold as FungibleMutateHold},
 		fungibles::{metadata::Mutate as MetadataMutate, Create, Inspect, Mutate as FungiblesMutate},
 		tokens::{Fortitude, Precision, Preservation, Restriction},
 		Get,
@@ -40,10 +40,11 @@ use sp_std::marker::PhantomData;
 use xcm::v3::MaxDispatchErrorLen;
 
 use crate::ProjectStatus::FundingSuccessful;
-use polimec_traits::ReleaseSchedule;
+use polimec_common::ReleaseSchedule;
 
 use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
-use polimec_traits::migration_types::{MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
+use frame_support::traits::fungible::Mutate;
+use polimec_common::migration_types::{MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
 
 use super::*;
 const POLIMEC_PARA_ID: u32 = 3344u32;
@@ -119,6 +120,19 @@ impl<T: Config> Pallet<T> {
 		};
 
 		let bucket: BucketOf<T> = Self::create_bucket_from_metadata(&initial_metadata)?;
+
+		// Each project needs an escrow system account to temporarily hold the USDT/USDC. We need to create it by depositing `ED` amount of PLMC into it.
+		// This should be paid by the issuer.
+		let escrow_account = Self::fund_account_id(project_id);
+		// transfer ED from issuer to escrow
+		T::NativeCurrency::transfer(
+			&issuer,
+			&escrow_account,
+			<T as pallet_balances::Config>::ExistentialDeposit::get(),
+			Preservation::Preserve,
+		)
+		.map_err(|_| Error::<T>::NotEnoughFundsForEscrowCreation)?;
+
 		// * Update storage *
 		ProjectsMetadata::<T>::insert(project_id, &initial_metadata);
 		ProjectsDetails::<T>::insert(project_id, project_details);
@@ -593,7 +607,9 @@ impl<T: Config> Pallet<T> {
 		// * Calculate new variables *
 		let funding_target = project_metadata
 			.minimum_price
-			.checked_mul_int(project_metadata.total_allocation_size.0)
+			.checked_mul_int(
+				project_metadata.total_allocation_size.0.saturating_add(project_metadata.total_allocation_size.1),
+			)
 			.ok_or(Error::<T>::BadMath)?;
 		let funding_reached = project_details.funding_amount_reached;
 		let funding_ratio = Perquintill::from_rational(funding_reached, funding_target);
@@ -749,6 +765,7 @@ impl<T: Config> Pallet<T> {
 		let early_evaluation_reward_threshold_usd =
 			T::EvaluationSuccessThreshold::get() * project_details.fundraising_target;
 		let evaluation_round_info = &mut project_details.evaluation_round_info;
+		let ct_deposit = T::ContributionTokenCurrency::deposit_required(project_id);
 
 		// * Validity Checks *
 		ensure!(evaluator.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
@@ -788,6 +805,11 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// * Update Storage *
+		// Reserve plmc deposit to create a contribution token account for this project
+		if T::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), &evaluator) < ct_deposit {
+			T::NativeCurrency::hold(&HoldReason::FutureDeposit(project_id).into(), &evaluator, ct_deposit)?;
+		}
+
 		if caller_existing_evaluations.len() < T::MaxEvaluationsPerUser::get() as usize {
 			T::NativeCurrency::hold(&HoldReason::Evaluation(project_id.into()).into(), evaluator, plmc_bond)?;
 		} else {
@@ -847,17 +869,23 @@ impl<T: Config> Pallet<T> {
 		funding_asset: AcceptedFundingAsset,
 	) -> DispatchResult {
 		// * Get variables *
-		ensure!(ct_amount > Zero::zero(), Error::<T>::BidTooLow);
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PriceNotFound)?;
+		let ct_deposit = T::ContributionTokenCurrency::deposit_required(project_id);
 
 		// * Validity checks *
+		ensure!(ct_amount > Zero::zero(), Error::<T>::BidTooLow);
 		ensure!(bidder.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
 		ensure!(matches!(project_details.status, ProjectStatus::AuctionRound(_)), Error::<T>::AuctionNotStarted);
 		ensure!(funding_asset == project_metadata.participation_currencies, Error::<T>::FundingAssetNotAccepted);
 		// Note: We limit the CT Amount to the total allocation size, to avoid long running loops.
 		ensure!(ct_amount <= project_metadata.total_allocation_size.0, Error::<T>::NotAllowed);
+
+		// Reserve plmc deposit to create a contribution token account for this project
+		if T::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), &bidder) < ct_deposit {
+			T::NativeCurrency::hold(&HoldReason::FutureDeposit(project_id).into(), &bidder, ct_deposit)?;
+		}
 
 		// Fetch current bucket details and other required info
 		let mut current_bucket = Buckets::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
@@ -1008,6 +1036,7 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResultWithPostInfo {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let ct_deposit = T::ContributionTokenCurrency::deposit_required(project_id);
 
 		// * Validity checks *
 		ensure!(project_metadata.participation_currencies == asset, Error::<T>::FundingAssetNotAccepted);
@@ -1064,6 +1093,12 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// * Update storage *
+		// Reserve plmc deposit to create a contribution token account for this project
+		if T::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), &contributor) < ct_deposit
+		{
+			T::NativeCurrency::hold(&HoldReason::FutureDeposit(project_id).into(), &contributor, ct_deposit)?;
+		}
+
 		// Try adding the new contribution to the system
 		let existing_contributions =
 			Contributions::<T>::iter_prefix_values((project_id, contributor)).collect::<Vec<_>>();
@@ -1208,6 +1243,15 @@ impl<T: Config> Pallet<T> {
 		bid.ct_minted = true;
 
 		// * Update storage *
+		if !T::ContributionTokenCurrency::contains(&project_id, &bid.bidder) {
+			T::NativeCurrency::release(
+				&HoldReason::FutureDeposit(project_id).into(),
+				&bid.bidder,
+				T::ContributionTokenCurrency::deposit_required(project_id),
+				Precision::Exact,
+			)?;
+			T::ContributionTokenCurrency::touch(project_id, bid.bidder.clone(), bid.bidder.clone())?;
+		}
 		T::ContributionTokenCurrency::mint_into(project_id, &bid.bidder, ct_amount)?;
 		Bids::<T>::insert((project_id, bidder, bid_id), &bid);
 
@@ -1243,6 +1287,19 @@ impl<T: Config> Pallet<T> {
 		contribution.ct_minted = true;
 
 		// * Update storage *
+		if !T::ContributionTokenCurrency::contains(&project_id, &contribution.contributor) {
+			T::NativeCurrency::release(
+				&HoldReason::FutureDeposit(project_id).into(),
+				&contribution.contributor,
+				T::ContributionTokenCurrency::deposit_required(project_id),
+				Precision::Exact,
+			)?;
+			T::ContributionTokenCurrency::touch(
+				project_id,
+				contribution.contributor.clone(),
+				contribution.contributor.clone(),
+			)?;
+		}
 		T::ContributionTokenCurrency::mint_into(project_id, &contribution.contributor, ct_amount)?;
 		Contributions::<T>::insert((project_id, contributor, contribution_id), contribution);
 
@@ -1340,6 +1397,19 @@ impl<T: Config> Pallet<T> {
 		let normal_evaluators_rewards = normal_reward_weight * reward_info.normal_evaluator_reward_pot;
 		let total_reward_amount = early_evaluators_rewards.saturating_add(normal_evaluators_rewards);
 		// * Update storage *
+		if !T::ContributionTokenCurrency::contains(&project_id, &evaluation.evaluator) {
+			T::NativeCurrency::release(
+				&HoldReason::FutureDeposit(project_id).into(),
+				&evaluation.evaluator,
+				T::ContributionTokenCurrency::deposit_required(project_id),
+				Precision::Exact,
+			)?;
+			T::ContributionTokenCurrency::touch(
+				project_id,
+				evaluation.evaluator.clone(),
+				evaluation.evaluator.clone(),
+			)?;
+		}
 		T::ContributionTokenCurrency::mint_into(project_id, &evaluation.evaluator, total_reward_amount)?;
 		evaluation.rewarded_or_slashed = Some(RewardOrSlash::Reward(total_reward_amount));
 		Evaluations::<T>::insert((project_id, evaluator, evaluation_id), evaluation);
@@ -1768,6 +1838,39 @@ impl<T: Config> Pallet<T> {
 			contributor: contributor.clone(),
 			id: contribution_id,
 			amount: payout_amount,
+			caller: caller.clone(),
+		});
+
+		Ok(())
+	}
+
+	pub fn do_release_future_ct_deposit_for(
+		caller: &AccountIdOf<T>,
+		project_id: ProjectId,
+		participant: &AccountIdOf<T>,
+	) -> DispatchResult {
+		// * Get variables *
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		let held_plmc = T::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), participant);
+		// * Validity checks *
+		ensure!(
+			matches!(project_details.status, ProjectStatus::EvaluationFailed | ProjectStatus::FundingFailed),
+			Error::<T>::NotAllowed
+		);
+		ensure!(held_plmc > Zero::zero(), Error::<T>::NoFutureDepositHeld);
+
+		// * Update storage *
+		T::NativeCurrency::release(
+			&HoldReason::FutureDeposit(project_id).into(),
+			participant,
+			T::ContributionTokenCurrency::deposit_required(project_id),
+			Precision::Exact,
+		)?;
+
+		// * Emit events *
+		Self::deposit_event(Event::FutureCTDepositReleased {
+			project_id,
+			participant: participant.clone(),
 			caller: caller.clone(),
 		});
 
@@ -2227,7 +2330,8 @@ impl<T: Config> Pallet<T> {
 	/// value and only call this once.
 	#[inline(always)]
 	pub fn fund_account_id(index: ProjectId) -> AccountIdOf<T> {
-		T::PalletId::get().into_sub_account_truncating(index)
+		// since the project_id starts at 0, we need to add 1 to get a different sub_account than the pallet account.
+		T::PalletId::get().into_sub_account_truncating(index.saturating_add(One::one()))
 	}
 
 	/// Adds a project to the ProjectsToUpdate storage, so it can be updated at some later point in time.
@@ -2599,6 +2703,10 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		let fund_account = Self::fund_account_id(project_id);
 
+		// Why `Preservation::Expendable`?
+		// the min_balance of funding assets (e.g USDT) are low enough so we don't expect users to care about their balance being dusted.
+		// We do think the UX would be bad if they cannot use all of their available tokens.
+		// Specially since a new funding asset account can be easily created by increasing the provider reference
 		T::FundingCurrency::transfer(asset_id, who, &fund_account, amount, Preservation::Expendable)?;
 
 		Ok(())

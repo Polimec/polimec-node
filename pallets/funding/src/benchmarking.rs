@@ -26,7 +26,7 @@ use frame_benchmarking::v2::*;
 use frame_support::{dispatch::RawOrigin, traits::OriginTrait, Parameter};
 #[allow(unused_imports)]
 use pallet::Pallet as PalletFunding;
-use polimec_traits::ReleaseSchedule;
+use polimec_common::ReleaseSchedule;
 use scale_info::prelude::format;
 use sp_arithmetic::Percent;
 use sp_core::H256;
@@ -134,19 +134,19 @@ where
 	vec![
 		ContributionParams::new(
 			account::<AccountIdOf<T>>("contributor_1", 0, 0),
-			(100 * ASSET_UNIT).into(),
+			(10_000 * ASSET_UNIT).into(),
 			1u8,
 			AcceptedFundingAsset::USDT,
 		),
 		ContributionParams::new(
 			account::<AccountIdOf<T>>("contributor_2", 0, 0),
-			(200 * ASSET_UNIT).into(),
+			(6_000 * ASSET_UNIT).into(),
 			1u8,
 			AcceptedFundingAsset::USDT,
 		),
 		ContributionParams::new(
 			account::<AccountIdOf<T>>("contributor_3", 0, 0),
-			(2000 * ASSET_UNIT).into(),
+			(30_000 * ASSET_UNIT).into(),
 			1u8,
 			AcceptedFundingAsset::USDT,
 		),
@@ -177,8 +177,14 @@ pub fn default_contributors<T: Config>() -> Vec<AccountIdOf<T>> {
 	]
 }
 
-pub fn default_multipliers<T: Config>() -> Vec<u8> {
-	vec![1u8, 2u8, 12u8, 1u8, 3u8, 10u8]
+pub fn default_bidder_multipliers() -> Vec<u8> {
+	vec![20u8, 3u8, 15u8, 13u8, 9u8]
+}
+pub fn default_community_contributor_multipliers() -> Vec<u8> {
+	vec![1u8, 5u8, 3u8, 1u8, 2u8]
+}
+pub fn default_remainder_contributor_multipliers() -> Vec<u8> {
+	vec![1u8, 10u8, 3u8, 2u8, 4u8]
 }
 
 #[benchmarks(
@@ -202,12 +208,13 @@ mod benchmarks {
 	fn create() {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
-		<T as Config>::SetPrices::set_prices();
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
+		let ed = BenchInstantiator::<T>::get_ed();
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
+		inst.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), ed * 2u64.into())]);
 
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
 
@@ -233,7 +240,6 @@ mod benchmarks {
 	fn edit_metadata() {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
-		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -263,7 +269,6 @@ mod benchmarks {
 	fn start_evaluation() {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
-		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -301,7 +306,6 @@ mod benchmarks {
 	fn bond_evaluation() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
-		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -317,8 +321,10 @@ mod benchmarks {
 
 		let plmc_for_evaluating = BenchInstantiator::<T>::calculate_evaluation_plmc_spent(vec![evaluation.clone()]);
 		let existential_plmc: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().existential_deposits();
+		let ct_account_deposits: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().ct_account_deposits();
 
 		inst.mint_plmc_to(existential_plmc);
+		inst.mint_plmc_to(ct_account_deposits);
 		inst.mint_plmc_to(plmc_for_evaluating.clone());
 
 		inst.advance_time(One::one()).unwrap();
@@ -372,7 +378,6 @@ mod benchmarks {
 	fn start_auction() {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
-		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -386,8 +391,10 @@ mod benchmarks {
 		let evaluations = default_evaluations();
 		let plmc_for_evaluating = BenchInstantiator::<T>::calculate_evaluation_plmc_spent(evaluations.clone());
 		let existential_plmc: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().existential_deposits();
+		let ct_account_deposits: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().ct_account_deposits();
 
 		inst.mint_plmc_to(existential_plmc);
+		inst.mint_plmc_to(ct_account_deposits);
 		inst.mint_plmc_to(plmc_for_evaluating);
 
 		inst.advance_time(One::one()).unwrap();
@@ -413,7 +420,6 @@ mod benchmarks {
 	fn bid() {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
-		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -437,11 +443,13 @@ mod benchmarks {
 		let necessary_plmc: Vec<UserToPLMCBalance<T>> =
 			BenchInstantiator::<T>::calculate_auction_plmc_spent(&vec![bid_params.clone()], None);
 		let existential_deposits: Vec<UserToPLMCBalance<T>> = necessary_plmc.accounts().existential_deposits();
+		let ct_account_deposits = necessary_plmc.accounts().ct_account_deposits();
 		let necessary_usdt: Vec<UserToStatemintAsset<T>> =
 			BenchInstantiator::<T>::calculate_auction_funding_asset_spent(&vec![bid_params.clone()], None);
 
 		inst.mint_plmc_to(necessary_plmc.clone());
 		inst.mint_plmc_to(existential_deposits.clone());
+		inst.mint_plmc_to(ct_account_deposits.clone());
 		inst.mint_statemint_asset_to(necessary_usdt.clone());
 
 		#[extrinsic_call]
@@ -517,7 +525,6 @@ mod benchmarks {
 	fn contribute() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
-		<T as Config>::SetPrices::set_prices();
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
@@ -541,11 +548,13 @@ mod benchmarks {
 		let necessary_plmc =
 			BenchInstantiator::<T>::calculate_contributed_plmc_spent(vec![contribution_params.clone()], price);
 		let existential_deposits: Vec<UserToPLMCBalance<T>> = necessary_plmc.accounts().existential_deposits();
+		let ct_account_deposits: Vec<UserToPLMCBalance<T>> = necessary_plmc.accounts().ct_account_deposits();
 		let necessary_usdt =
 			BenchInstantiator::<T>::calculate_contributed_funding_asset_spent(vec![contribution_params.clone()], price);
 
 		inst.mint_plmc_to(necessary_plmc.clone());
 		inst.mint_plmc_to(existential_deposits.clone());
+		inst.mint_plmc_to(ct_account_deposits.clone());
 		inst.mint_statemint_asset_to(necessary_usdt.clone());
 
 		let contribution_id = NextContributionId::<T>::get();
@@ -621,7 +630,6 @@ mod benchmarks {
 	fn evaluation_unbond_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
-		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -641,6 +649,7 @@ mod benchmarks {
 		);
 
 		inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
+		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
 			Cleaner::Success(CleanerState::Initialized(PhantomData))
@@ -690,7 +699,6 @@ mod benchmarks {
 	fn evaluation_slash_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
-		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -709,14 +717,14 @@ mod benchmarks {
 			10u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
-			default_multipliers::<T>(),
+			default_bidder_multipliers(),
 		);
 		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
 			Percent::from_percent(10) * target_funding_amount,
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
-			default_multipliers::<T>(),
+			default_community_contributor_multipliers(),
 		);
 
 		let project_id =
@@ -774,7 +782,6 @@ mod benchmarks {
 	fn evaluation_reward_payout_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
-		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -844,7 +851,6 @@ mod benchmarks {
 	fn bid_ct_mint_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
-		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -895,7 +901,6 @@ mod benchmarks {
 	fn contribution_ct_mint_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
-		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -957,7 +962,6 @@ mod benchmarks {
 	fn start_bid_vesting_schedule_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
-		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -1013,7 +1017,6 @@ mod benchmarks {
 	fn start_contribution_vesting_schedule_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
-		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -1076,7 +1079,6 @@ mod benchmarks {
 	fn payout_bid_funds_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
-		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -1130,7 +1132,6 @@ mod benchmarks {
 	fn payout_contribution_funds_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
-		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -1196,7 +1197,6 @@ mod benchmarks {
 	fn decide_project_outcome() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
-		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -1215,7 +1215,7 @@ mod benchmarks {
 			1u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
-			default_multipliers::<T>(),
+			default_bidder_multipliers(),
 		);
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size.1);
@@ -1224,7 +1224,7 @@ mod benchmarks {
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
-			default_multipliers::<T>(),
+			default_community_contributor_multipliers(),
 		);
 
 		let project_id =
@@ -1251,7 +1251,6 @@ mod benchmarks {
 	fn release_bid_funds_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
-		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -1268,7 +1267,7 @@ mod benchmarks {
 			10u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
-			default_multipliers::<T>(),
+			default_bidder_multipliers(),
 		);
 		let bidder = bids[0].bidder.clone();
 		whitelist_account!(bidder);
@@ -1277,7 +1276,7 @@ mod benchmarks {
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
-			default_multipliers::<T>(),
+			default_community_contributor_multipliers(),
 		);
 
 		let project_id =
@@ -1323,7 +1322,6 @@ mod benchmarks {
 	fn bid_unbond_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
-		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -1340,7 +1338,7 @@ mod benchmarks {
 			10u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
-			default_multipliers::<T>(),
+			default_bidder_multipliers(),
 		);
 		let bidder = bids[0].bidder.clone();
 		whitelist_account!(bidder);
@@ -1349,7 +1347,7 @@ mod benchmarks {
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
-			default_multipliers::<T>(),
+			default_community_contributor_multipliers(),
 		);
 
 		let project_id =
@@ -1396,7 +1394,6 @@ mod benchmarks {
 	fn release_contribution_funds_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
-		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -1413,14 +1410,14 @@ mod benchmarks {
 			1u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
-			default_multipliers::<T>(),
+			default_bidder_multipliers(),
 		);
 		let contributions: Vec<ContributionParams<T>> = BenchInstantiator::generate_contributions_from_total_usd(
 			Percent::from_percent(10) * target_funding_amount,
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
-			default_multipliers::<T>(),
+			default_community_contributor_multipliers(),
 		);
 		let contributor = contributions[0].contributor.clone();
 		whitelist_account!(contributor);
@@ -1475,7 +1472,6 @@ mod benchmarks {
 	fn contribution_unbond_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
-		<T as Config>::SetPrices::set_prices();
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
@@ -1492,14 +1488,14 @@ mod benchmarks {
 			1u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
-			default_multipliers::<T>(),
+			default_bidder_multipliers(),
 		);
 		let contributions: Vec<ContributionParams<T>> = BenchInstantiator::generate_contributions_from_total_usd(
 			Percent::from_percent(10) * target_funding_amount,
 			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
 			default_weights(),
 			default_contributors::<T>(),
-			default_multipliers::<T>(),
+			default_community_contributor_multipliers(),
 		);
 		let contributor = contributions[0].contributor.clone();
 		whitelist_account!(contributor);
@@ -1579,24 +1575,25 @@ mod benchmarks {
 	// 	);
 	// }
 
-	// #[macro_export]
-	// macro_rules! find_event {
-	// 	($env: expr, $pattern:pat) => {
-	// 		$env.execute(|| {
-	// 			let events: Vec<frame_system::EventRecord<<T as Config>::RuntimeEvent, T::Hash>> = frame_system::Pallet::<T>::events();
-	//
-	// 			events.iter().find_map(|event_record| {
-	// 				let runtime_event = event_record.event.clone();
-	// 				if let Ok(eve) = runtime_event.try_into() {
-	// 					if let $pattern = &eve {
-	// 						return Some(Rc::new(eve))
-	// 					} else {
-	// 						return None
-	// 					}
-	// 				}
-	// 				return None
-	// 			})
-	// 		})
-	// 	};
-	// }
+	#[macro_export]
+	macro_rules! find_event {
+		($env: expr, $pattern:pat) => {
+			$env.execute(|| {
+				let events: Vec<frame_system::EventRecord<<T as Config>::RuntimeEvent, T::Hash>> =
+					frame_system::Pallet::<T>::events();
+
+				events.iter().find_map(|event_record| {
+					let runtime_event = event_record.event.clone();
+					if let Ok(eve) = runtime_event.try_into() {
+						if let $pattern = &eve {
+							return Some(Rc::new(eve))
+						} else {
+							return None
+						}
+					}
+					return None
+				})
+			})
+		};
+	}
 }

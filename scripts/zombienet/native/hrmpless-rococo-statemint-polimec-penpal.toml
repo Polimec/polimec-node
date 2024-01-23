@@ -33,7 +33,7 @@ chain = "statemint-local"
 	[[parachains.collators]]
 	name = "statemint-dev"
 	command = "../cumulus/target/release/polkadot-parachain"
-    args = ["-lerror", "-lxcm::process_instruction=trace", "-lxcm::execute_xcm_in_credit=trace", "-lxcm::barriers=trace", "-lpallet_funding::hrmp=trace", "-lpallet_funding::test=trace", "--execution=native", ]   
+    args = ["-lerror", "-lxcm::process_instruction=trace", "-lxcm::execute_xcm_in_credit=trace", "-lxcm::barriers=trace", "-lpallet_funding::hrmp=trace", "-lpallet_funding::test=trace", "--execution=native", ]
     ws_port = 7777
 
 
@@ -52,5 +52,5 @@ chain = "penpal-polkadot-3000"
 	[[parachains.collators]]
 	name = "penpal-collator"
 	command = "../cumulus/target/release/polkadot-parachain"
-    args = ["-lerror", "-lxcm::process_instruction=trace", "-lxcm::execute_xcm_in_credit=trace", "-lxcm::barriers=trace", "-lpallet_funding::hrmp=trace", "-lpallet_funding::test=trace", "--execution=native", ]   
+    args = ["-lerror", "-lxcm::process_instruction=trace", "-lxcm::execute_xcm_in_credit=trace", "-lxcm::barriers=trace", "-lpallet_funding::hrmp=trace", "-lpallet_funding::test=trace", "--execution=native", ]
     ws_port = 9999

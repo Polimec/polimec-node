@@ -170,33 +170,30 @@
 // This recursion limit is needed because we have too many benchmarks and benchmarking will fail if
 // we add more without this limit.
 #![cfg_attr(feature = "runtime-benchmarks", recursion_limit = "512")]
-
+pub use crate::weights::WeightInfo;
 use frame_support::{
 	traits::{
 		tokens::{fungible, fungibles, Balance},
-		Randomness,
+		AccountTouch, ContainsPair, Randomness,
 	},
 	BoundedVec, PalletId,
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 pub use pallet::*;
-
-use polimec_traits::migration_types::*;
+use polimec_common::migration_types::*;
 use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
 use sp_std::{marker::PhantomData, prelude::*};
+use traits::DoRemainingOperation;
 pub use types::*;
 use xcm::v3::{opaque::Instruction, prelude::*, SendXcm};
-
-pub use crate::weights::WeightInfo;
-
 pub mod functions;
-pub mod types;
-pub mod weights;
 
 #[cfg(test)]
 pub mod mock;
+pub mod types;
+pub mod weights;
 
 #[cfg(test)]
 pub mod tests;
@@ -204,7 +201,7 @@ pub mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 pub mod impls;
-#[cfg(any(feature = "runtime-benchmarks", test, all(feature = "testing-node", feature = "std")))]
+#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 pub mod instantiator;
 pub mod traits;
 
@@ -245,16 +242,25 @@ pub const PLMC_STATEMINT_ID: u32 = 2069;
 pub mod pallet {
 	use super::*;
 	use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
-	use frame_support::pallet_prelude::*;
+	use frame_support::{
+		pallet_prelude::*,
+		traits::{OnFinalize, OnIdle, OnInitialize},
+	};
 	use frame_system::pallet_prelude::*;
 	use local_macros::*;
 	use sp_arithmetic::Percent;
 	use sp_runtime::traits::{Convert, ConvertBack};
 
+	#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
+	use crate::traits::SetPrices;
+
 	#[pallet::composite_enum]
 	pub enum HoldReason {
-		Evaluation(u32),
-		Participation(u32),
+		Evaluation(ProjectId),
+		Participation(ProjectId),
+		// We require a PLMC deposit to create an account for minting the CTs to this user.
+		// Here we make sure the user has this amount before letting him participate.
+		FutureDeposit(ProjectId),
 	}
 
 	#[pallet::pallet]
@@ -264,12 +270,12 @@ pub mod pallet {
 	pub trait Config:
 		frame_system::Config + pallet_balances::Config<Balance = BalanceOf<Self>> + pallet_xcm::Config
 	{
-		#[cfg(feature = "runtime-benchmarks")]
-		type SetPrices: traits::SetPrices;
+		#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
+		type SetPrices: SetPrices;
 
-		type AllPalletsWithoutSystem: frame_support::traits::OnFinalize<BlockNumberFor<Self>>
-			+ frame_support::traits::OnIdle<BlockNumberFor<Self>>
-			+ frame_support::traits::OnInitialize<BlockNumberFor<Self>>;
+		type AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<Self>>
+			+ OnIdle<BlockNumberFor<Self>>
+			+ OnInitialize<BlockNumberFor<Self>>;
 
 		type RuntimeEvent: From<Event<Self>>
 			+ TryInto<Event<Self>>
@@ -328,7 +334,9 @@ pub mod pallet {
 			+ fungibles::metadata::Inspect<AccountIdOf<Self>>
 			+ fungibles::metadata::Mutate<AccountIdOf<Self>>
 			+ fungibles::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>
-			+ fungibles::roles::Inspect<AccountIdOf<Self>>;
+			+ fungibles::roles::Inspect<AccountIdOf<Self>>
+			+ AccountTouch<ProjectId, AccountIdOf<Self>, Balance = BalanceOf<Self>>
+			+ ContainsPair<ProjectId, AccountIdOf<Self>>;
 
 		type PriceProvider: ProvideStatemintPrice<AssetId = u32, Price = Self::Price>;
 
@@ -398,7 +406,7 @@ pub mod pallet {
 
 		type EvaluationSuccessThreshold: Get<Percent>;
 
-		type Vesting: polimec_traits::ReleaseSchedule<
+		type Vesting: polimec_common::ReleaseSchedule<
 			AccountIdOf<Self>,
 			<Self as Config>::RuntimeHoldReason,
 			Currency = Self::NativeCurrency,
@@ -472,12 +480,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn project_details)]
 	/// StorageMap containing additional information for the projects, relevant for correctness of the protocol
-	pub type ProjectsDetails<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		ProjectId,
-		ProjectDetails<AccountIdOf<T>, BlockNumberFor<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>,
-	>;
+	pub type ProjectsDetails<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, ProjectDetailsOf<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn projects_to_update)]
@@ -814,6 +817,16 @@ pub mod pallet {
 			project_id: ProjectId,
 			migration_origins: BoundedVec<MigrationOrigin, MaxMigrationsPerXcm<T>>,
 		},
+		ReleaseFutureCTDepositFailed {
+			project_id: ProjectId,
+			participant: AccountIdOf<T>,
+			error: DispatchError,
+		},
+		FutureCTDepositReleased {
+			project_id: ProjectId,
+			participant: AccountIdOf<T>,
+			caller: AccountIdOf<T>,
+		},
 	}
 
 	#[pallet::error]
@@ -911,6 +924,10 @@ pub mod pallet {
 		XcmFailed,
 		// Tried to convert one type into another and failed. i.e try_into failed
 		BadConversion,
+		/// Tried to release the PLMC deposit held for a future CT mint, but there was nothing to release
+		NoFutureDepositHeld,
+		/// The issuer doesn't have enough funds (ExistentialDeposit), to create the escrow account
+		NotEnoughFundsForEscrowCreation,
 	}
 
 	#[pallet::call]
@@ -1274,7 +1291,8 @@ pub mod pallet {
 
 			let projects_needing_cleanup = ProjectsDetails::<T>::iter()
 				.filter_map(|(project_id, info)| match info.cleanup {
-					cleaner if cleaner.has_remaining_operations() => Some((project_id, cleaner)),
+					cleaner if <Cleaner as DoRemainingOperation<T>>::has_remaining_operations(&cleaner) =>
+						Some((project_id, cleaner)),
 					_ => None,
 				})
 				.collect::<Vec<_>>();
@@ -1293,7 +1311,8 @@ pub mod pallet {
 				// let mut consumed_weight = WeightInfoOf::<T>::insert_cleaned_project();
 				let mut consumed_weight = Weight::from_parts(6_034_000, 0);
 				while !consumed_weight.any_gt(max_weight_per_project) {
-					if let Ok(weight) = cleaner.do_one_operation::<T>(project_id) {
+					if let Ok(weight) = <Cleaner as DoRemainingOperation<T>>::do_one_operation(&mut cleaner, project_id)
+					{
 						consumed_weight.saturating_accrue(weight);
 					} else {
 						break
@@ -1314,108 +1333,60 @@ pub mod pallet {
 			max_weight.saturating_sub(remaining_weight)
 		}
 	}
-
-	#[cfg(all(feature = "testing-node", feature = "std"))]
-	use frame_support::traits::{OnFinalize, OnIdle, OnInitialize, OriginTrait};
 	use pallet_xcm::ensure_response;
 
-	#[cfg(all(feature = "testing-node", feature = "std"))]
-	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-	#[cfg_attr(
-		feature = "std",
-		serde(rename_all = "camelCase", deny_unknown_fields, bound(serialize = ""), bound(deserialize = ""))
-	)]
-	#[derive(Clone, PartialEq, Eq, Debug, Encode, Decode)]
-	pub struct TestProject<T: Config> {
-		pub expected_state: ProjectStatus,
-		pub metadata: ProjectMetadataOf<T>,
-		pub issuer: AccountIdOf<T>,
-		pub evaluations: Vec<instantiator::UserToUSDBalance<T>>,
-		pub bids: Vec<instantiator::BidParams<T>>,
-		pub community_contributions: Vec<instantiator::ContributionParams<T>>,
-		pub remainder_contributions: Vec<instantiator::ContributionParams<T>>,
-	}
-
 	#[pallet::genesis_config]
-	pub struct GenesisConfig<T: Config> {
-		#[cfg(all(feature = "testing-node", feature = "std"))]
-		pub starting_projects: Vec<TestProject<T>>,
+	#[derive(Clone, PartialEq, Eq, Debug, Encode, Decode)]
+	pub struct GenesisConfig<T: Config>
+	where
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
+		<T as Config>::AllPalletsWithoutSystem:
+			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
+		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
+		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
+	{
+		#[cfg(feature = "std")]
+		pub starting_projects: Vec<instantiator::TestProjectParams<T>>,
 		pub phantom: PhantomData<T>,
 	}
 
-	#[cfg(all(feature = "testing-node", feature = "std"))]
 	impl<T: Config> Default for GenesisConfig<T>
 	where
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		T::AllPalletsWithoutSystem:
+		<T as Config>::AllPalletsWithoutSystem:
 			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
+		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 	{
 		fn default() -> Self {
-			Self { starting_projects: vec![], phantom: PhantomData }
-		}
-	}
-
-	#[cfg(not(all(feature = "testing-node", feature = "std")))]
-	impl<T: Config> Default for GenesisConfig<T> {
-		fn default() -> Self {
-			Self { phantom: PhantomData }
+			Self {
+				#[cfg(feature = "std")]
+				starting_projects: vec![],
+				phantom: PhantomData,
+			}
 		}
 	}
 
 	#[pallet::genesis_build]
-	#[cfg(not(all(feature = "testing-node", feature = "std")))]
-	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
-		fn build(&self) {}
-	}
-
-	#[cfg(all(feature = "testing-node", feature = "std"))]
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T>
 	where
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		<T as Config>::AllPalletsWithoutSystem:
 			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
-		// AccountIdOf<T>: Into<<instantiator::RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 	{
 		fn build(&self) {
+			#[cfg(feature = "std")]
 			{
 				type GenesisInstantiator<T> =
 					instantiator::Instantiator<T, <T as Config>::AllPalletsWithoutSystem, <T as Config>::RuntimeEvent>;
-				let mut inst = GenesisInstantiator::<T>::new(None);
+				let inst = GenesisInstantiator::<T>::new(None);
+				<T as Config>::SetPrices::set_prices();
+				instantiator::async_features::create_multiple_projects_at(inst, self.starting_projects.clone());
 
-				for test_project in self.starting_projects.clone() {
-					inst.create_project_at(
-						test_project.expected_state,
-						test_project.metadata,
-						test_project.issuer,
-						test_project.evaluations,
-						test_project.bids,
-						test_project.community_contributions,
-						test_project.remainder_contributions,
-					);
-				}
+				frame_system::Pallet::<T>::set_block_number(0u32.into());
 			}
-		}
-	}
-	#[cfg(all(feature = "testing-node", feature = "std"))]
-	impl<T: Config> GenesisConfig<T>
-	where
-		T: Config
-			+ frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent>
-			+ pallet_balances::Config<Balance = BalanceOf<T>>,
-		T::AllPalletsWithoutSystem:
-			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
-		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
-		AccountIdOf<T>: Into<<instantiator::RuntimeOriginOf<T> as OriginTrait>::AccountId> + sp_std::fmt::Debug,
-		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
-	{
-		/// Direct implementation of `GenesisBuild::build_storage`.
-		///
-		/// Kept in order not to break dependency.
-		pub fn build(&self) {
-			<Self as BuildGenesisConfig>::build(self)
 		}
 	}
 }

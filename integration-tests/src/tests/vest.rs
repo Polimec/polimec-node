@@ -1,14 +1,30 @@
+// Polimec Blockchain – https://www.polimec.org/
+// Copyright (C) Polimec 2022. All rights reserved.
+
+// The Polimec Blockchain is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// The Polimec Blockchain is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 use crate::{polimec_base::ED, *};
 /// Tests for the oracle pallet integration.
 /// Alice, Bob, Charlie are members of the OracleProvidersMembers.
 /// Only members should be able to feed data into the oracle.
 use frame_support::traits::fungible::Inspect;
-use frame_support::traits::fungible::{InspectHold, Mutate};
+use frame_support::traits::fungible::Mutate;
 use macros::generate_accounts;
 use pallet_funding::assert_close_enough;
 use pallet_vesting::VestingInfo;
 use polimec_base_runtime::{Balances, ParachainStaking, RuntimeOrigin, Vesting};
-use sp_runtime::{bounded_vec, BoundedVec, FixedU128, Perquintill};
+use sp_runtime::Perquintill;
 use tests::defaults::*;
 use xcm_emulator::get_account_id_from_seed;
 

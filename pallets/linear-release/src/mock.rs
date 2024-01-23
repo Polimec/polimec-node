@@ -86,8 +86,13 @@ impl pallet_balances::Config for Test {
 	type WeightInfo = ();
 }
 
+parameter_types! {
+	pub BenchmarkReason: MockRuntimeHoldReason = MockRuntimeHoldReason::Reason;
+}
 impl Config for Test {
 	type Balance = u64;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkReason = BenchmarkReason;
 	type BlockNumberToBalance = Identity;
 	type Currency = Balances;
 	// TODO: Use the type from Balances.

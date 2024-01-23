@@ -19,7 +19,9 @@
 //! Test environment for Funding pallet.
 
 use super::*;
+use crate as pallet_funding;
 use frame_support::{
+	construct_runtime,
 	pallet_prelude::Weight,
 	parameter_types,
 	traits::{AsEnsureOriginWithArg, ConstU16, ConstU32, WithdrawReasons},
@@ -50,21 +52,6 @@ pub const MICRO_PLMC: Balance = 10u128.pow(4);
 pub const EXISTENTIAL_DEPOSIT: Balance = 10 * MILLI_PLMC;
 
 const US_DOLLAR: u128 = 1_0_000_000_000u128;
-
-// Configure a mock runtime to test the pallet.
-frame_support::construct_runtime!(
-	pub enum TestRuntime
-	{
-		System: frame_system,
-		RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip,
-		Balances: pallet_balances,
-		FundingModule: crate::{Pallet, Call, Storage, Event<T>, Config<T>, HoldReason},
-		Vesting: pallet_linear_release,
-		LocalAssets: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>},
-		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>},
-		PolkadotXcm: pallet_xcm,
-	}
-);
 
 pub type LocalAssetsInstance = pallet_assets::Instance1;
 pub type StatemintAssetsInstance = pallet_assets::Instance2;
@@ -271,10 +258,11 @@ parameter_types! {
 	pub const EnglishAuctionDuration: BlockNumber = (2 * HOURS) as BlockNumber;
 	pub const CandleAuctionDuration: BlockNumber = (3 * HOURS) as BlockNumber;
 	pub const CommunityRoundDuration: BlockNumber = (5 * HOURS) as BlockNumber;
-	pub const RemainderFundingDuration: BlockNumber = HOURS as BlockNumber;
-	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
+	pub const RemainderFundingDuration: BlockNumber = (1 * HOURS) as BlockNumber;
 	pub const ManualAcceptanceDuration: BlockNumber = (3 * HOURS) as BlockNumber;
 	pub const SuccessToSettlementTime: BlockNumber =(4 * HOURS) as BlockNumber;
+
+	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 	pub PriceMap: BTreeMap<AssetId, FixedU128> = BTreeMap::from_iter(vec![
 		(0u32, FixedU128::from_float(69f64)), // DOT
 		(420u32, FixedU128::from_float(0.97f64)), // USDC
@@ -299,9 +287,13 @@ parameter_types! {
 	pub PolimecReceiverInfo: xcm::v3::PalletInfo = xcm::v3::PalletInfo::new(
 		51, "PolimecReceiver".into(), "polimec_receiver".into(), 0, 1, 0
 	).unwrap();
+	#[cfg(feature = "runtime-benchmarks")]
+	pub BenchmarkReason: RuntimeHoldReason = RuntimeHoldReason::PolimecFunding(crate::HoldReason::Participation(0));
 }
 impl pallet_linear_release::Config for TestRuntime {
 	type Balance = Balance;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkReason = BenchmarkReason;
 	type BlockNumberToBalance = ConvertInto;
 	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;
@@ -377,7 +369,7 @@ impl Config for TestRuntime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeOrigin = RuntimeOrigin;
-	#[cfg(feature = "runtime-benchmarks")]
+	#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 	type SetPrices = ();
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
@@ -386,11 +378,26 @@ impl Config for TestRuntime {
 	type WeightInfo = weights::SubstrateWeight<TestRuntime>;
 }
 
+// Configure a mock runtime to test the pallet.
+construct_runtime!(
+	pub enum TestRuntime
+	{
+		System: frame_system,
+		RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip,
+		Balances: pallet_balances,
+		Vesting: pallet_linear_release,
+		LocalAssets: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>},
+		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>},
+		PolkadotXcm: pallet_xcm,
+		PolimecFunding: pallet_funding::{Pallet, Call, Storage, Event<T>, Config<T>, HoldReason}  = 52,
+	}
+);
+
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::<TestRuntime>::default().build_storage().unwrap();
 
-	GenesisConfig {
+	RuntimeGenesisConfig {
 		balances: BalancesConfig {
 			balances: vec![(
 				<TestRuntime as Config>::PalletId::get().into_account_truncating(),

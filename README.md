@@ -1,47 +1,53 @@
-# Polimec Parachain <!-- omit in toc -->
+# Polimec
 
-> **Warning** Under HEAVY development
+> **Warning**: This project is under HEAVY development.
 
-## How to run it (Parachain Mode using Zombienet)
+Polimec is a blockchain platform built on Substrate, designed for robustness and scalability. This README provides guidelines for setting up and running Polimec as a Parachain using Zombienet.
 
-### Requirements
+## Table of Contents
+1. [Requirements](#requirements)
+2. [Installation Guide](#installation-guide)
+   - [Setting up the Relay Chain](#setting-up-the-relay-chain)
+   - [Setting up Polimec](#setting-up-polimec)
+   - [Running the Network](#running-the-network)
+3. [Additional Resources](#additional-resources)
+4. [Contributing](#contributing)
 
-- [Rust](https://rustup.rs/)
-- [Zombienet](https://github.com/paritytech/zombienet), install guide
-  [here](https://paritytech.github.io/zombienet/install.html)
+## Requirements
 
-### Step 1: Compile the relay chain and add it to $PATH
+- [Rust Programming Language](https://rustup.rs/) - Ensure you have the version defined in the `rust-toolchain.toml`.
+- [Zombienet](https://github.com/paritytech/zombienet) - For network simulation and testing. Installation guide can be found [here](https://paritytech.github.io/zombienet/install.html).
 
-- Clone the [Polkadot Repository](https://github.com/paritytech/polkadot)
-- Checkout the `release-v1.0.0` branch
-- Compile it using `cargo b -r -p polkadot`
-- Add the binary to your $PATH, e.g.
-  `cp target/release/polkadot ~/.local/bin/polkadot`
+## Installation Guide
 
-### Step 2: Compile Polimec and add it to $PATH
+### Setting up the Relay Chain
 
-- Clone this repository
-- Compile it using `cargo b -r -p polimec-parachain-node`
-- Add the binary to your $PATH, e.g.
-  `cp target/release/polimec-parachain-node ~/.local/bin/polimec`
+1. **Clone the Polkadot Repository**: 
+   `git clone https://github.com/paritytech/polkadot`
+2. **Checkout the specific branch**: 
+   `git checkout release-v1.0.0`
+3. **Compile the source**: 
+   `cargo build --release --package polkadot`
+4. **Add the Polkadot binary to your PATH**: 
+   `cp target/release/polkadot ~/.local/bin/polkadot`
 
-### Step 3: Run the network using Zombienet
+### Setting up Polimec
 
-- Use the `zombienet` command to run the network, e.g.
-  `zombienet spawn scripts/local_parachain.toml -p native`
+1. **Clone the Polimec Repository**: 
+   `git clone <Polimec Repository URL>`
+2. **Compile the source**: 
+   `cargo build --release --package polimec-parachain-node`
+3. **Add the Polimec node binary to your PATH**: 
+   `cp target/release/polimec-parachain-node ~/.local/bin/polimec`
 
-## How to run it (Standalone Mode)
+### Running the Network
 
-```
-$ cargo build --release
-```
+1. **Launch the network with Zombienet**:
+   `zombienet spawn scripts/local_parachain.toml -p native`
 
-```
-$ cargo run --release -- --dev
-```
+## Additional Resources
 
-You can use [srtool](https://github.com/paritytech/srtool) to compile the
-runtime and generate the WASM blob.
+- **Compilation of the Runtime**: Use [srtool](https://github.com/paritytech/srtool) for compiling the runtime and generating the WASM blob.
 
 ```
 == Compact
@@ -65,10 +71,7 @@ runtime and generate the WASM blob.
  BLAKE2_256       : 0x7341cc921de52eaea99af5865c3e36562cf49158dcb961daef3c2e06f531ae00
  Wasm             : runtimes/testnet/target/srtool/release/wbuild/polimec-parachain-runtime/polimec_parachain_runtime.compact.compressed.wasm
 ```
-
-- A collection of useful scripts are available in the `scripts` folder, there is
-  also a `justfile` to launch the scripts using
-  [just](https://github.com/casey/just), e.g. `$ just build-parachain-node`
+- **Utility Scripts**: Check the `scripts` directory for useful scripts. Use [just](https://github.com/casey/just) for executing scripts, e.g., `$ just build-parachain-node`.
 
 ```
 Available recipes:
@@ -88,3 +91,9 @@ Available recipes:
   test-runtime-features     # Test the runtimes features
   zombienet path_to_file="scripts/zombienet/native/base-rococo-local.toml" # Use zombienet to spawn rococo + polimec testnet
 ```
+
+
+## Contributing
+
+We welcome contributions! Feel free to raise issues or submit pull requests. Your feedback and contributions are valued as we develop Polimec into a robust and versatile software.
+

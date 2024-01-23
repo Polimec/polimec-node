@@ -1,6 +1,6 @@
 [package]
-name = 'polimec-traits'
-description = 'Common traits for Polimec pallets'
+name = 'polimec-common'
+description = 'Common types, traits, and impls for Polimec and Projects'
 authors = ['Polimec Foundation <info@polimec.org>']
 documentation = "https://wiki.polimec.org/"
 edition = "2021"

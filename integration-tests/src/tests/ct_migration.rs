@@ -1,14 +1,29 @@
+// Polimec Blockchain – https://www.polimec.org/
+// Copyright (C) Polimec 2022. All rights reserved.
+
+// The Polimec Blockchain is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// The Polimec Blockchain is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 use crate::*;
 use pallet_funding::{
 	assert_close_enough, traits::VestingDurationCalculation, AcceptedFundingAsset, BidStatus, EvaluatorsOutcome,
 	MigrationStatus, Multiplier, MultiplierOf, ProjectId, RewardOrSlash,
 };
+use polimec_common::migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
 use polimec_parachain_runtime::PolimecFunding;
-use polimec_traits::migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
-use sp_runtime::{FixedPointNumber, Perquintill};
+use sp_runtime::{traits::Convert, FixedPointNumber, Perquintill};
 use std::collections::HashMap;
 use tests::defaults::*;
-
 fn execute_cleaner(inst: &mut IntegrationInstantiator) {
 	Polimec::execute_with(|| {
 		inst.advance_time(<PolimecRuntime as pallet_funding::Config>::SuccessToSettlementTime::get() + 1u32).unwrap();
@@ -60,7 +75,15 @@ fn send_migrations(project_id: ProjectId, accounts: Vec<AccountId>) -> HashMap<A
 				pallet_funding::Contributions::<PolimecRuntime>::iter_prefix_values((project_id, account.clone()));
 
 			let evaluation_migrations = user_evaluations.map(|evaluation| {
-				assert!(matches!(evaluation.ct_migration_status, MigrationStatus::Sent(_)));
+				let evaluator_bytes = <PolimecRuntime as pallet_funding::Config>::AccountId32Conversion::convert(
+					evaluation.evaluator.clone(),
+				);
+				assert!(
+					matches!(evaluation.ct_migration_status, MigrationStatus::Sent(_)),
+					"{:?}'s evaluation was not sent {:?}",
+					names()[&evaluator_bytes],
+					evaluation
+				);
 				if let Some(RewardOrSlash::Reward(amount)) = evaluation.rewarded_or_slashed {
 					Migration {
 						info: MigrationInfo {
@@ -94,7 +117,7 @@ fn send_migrations(project_id: ProjectId, accounts: Vec<AccountId>) -> HashMap<A
 					},
 				}
 			});
-			let contribution_ct_amount = user_contributions.map(|contribution| {
+			let contribution_migrations = user_contributions.map(|contribution| {
 				assert!(matches!(contribution.ct_migration_status, MigrationStatus::Sent(_)));
 				Migration {
 					info: MigrationInfo {
@@ -109,7 +132,7 @@ fn send_migrations(project_id: ProjectId, accounts: Vec<AccountId>) -> HashMap<A
 				}
 			});
 
-			evaluation_migrations.chain(bid_migrations).chain(contribution_ct_amount).collect::<Migrations>()
+			evaluation_migrations.chain(bid_migrations).chain(contribution_migrations).collect::<Migrations>()
 		});
 		if migrations.clone().inner().is_empty() {
 			panic!("no migrations for account: {:?}", account)
@@ -251,7 +274,6 @@ fn migrations_are_vested(grouped_migrations: Vec<Migrations>) {
 #[test]
 fn migration_check() {
 	let mut inst = IntegrationInstantiator::new(None);
-	set_oracle_prices();
 	let project_id = Polimec::execute_with(|| {
 		let project_id = inst.create_finished_project(
 			default_project(ISSUER.into(), 0),
@@ -274,7 +296,6 @@ fn migration_check() {
 #[test]
 fn migration_is_sent() {
 	let mut inst = IntegrationInstantiator::new(None);
-	set_oracle_prices();
 	let participants =
 		vec![EVAL_1, EVAL_2, EVAL_3, BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BUYER_1, BUYER_2, BUYER_3, BUYER_4]
 			.into_iter()
@@ -320,7 +341,6 @@ fn migration_is_sent() {
 #[test]
 fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 	let mut inst = IntegrationInstantiator::new(None);
-	set_oracle_prices();
 	let participants =
 		vec![EVAL_1, EVAL_2, EVAL_3, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5, BUYER_2, BUYER_3, BUYER_4, BUYER_5]
 			.into_iter()
@@ -371,24 +391,24 @@ fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 #[test]
 fn vesting_over_several_blocks_on_project() {
 	let mut inst = IntegrationInstantiator::new(None);
-	set_oracle_prices();
 	let participants = vec![EVAL_1, EVAL_2, EVAL_3, BIDDER_1, BIDDER_2, BUYER_1, BUYER_2, BUYER_3]
 		.into_iter()
 		.map(|x| AccountId::from(x))
 		.collect::<Vec<_>>();
 	let mut bids = Vec::new();
-	let mut contributions = Vec::new();
+	let mut community_contributions = Vec::new();
+	let mut remainder_contributions = Vec::new();
 	let multiplier_for_vesting = MultiplierOf::<PolimecRuntime>::try_from(10u8).unwrap();
 
 	bids.push(BidParams {
-		bidder: BUYER_1.into(),
-		amount: 2_000 * ASSET_UNIT,
+		bidder: BIDDER_1.into(),
+		amount: 15_000 * ASSET_UNIT,
 		price: 12u128.into(),
 		multiplier: MultiplierOf::<PolimecRuntime>::try_from(20u8).unwrap(),
 		asset: AcceptedFundingAsset::USDT,
 	});
 	bids.push(BidParams {
-		bidder: BIDDER_1.into(),
+		bidder: BIDDER_2.into(),
 		amount: 20_000 * ASSET_UNIT,
 		price: 10u128.into(),
 		multiplier: multiplier_for_vesting,
@@ -402,21 +422,34 @@ fn vesting_over_several_blocks_on_project() {
 		asset: AcceptedFundingAsset::USDT,
 	});
 
-	contributions.push(ContributionParams {
+	community_contributions.push(ContributionParams {
 		contributor: BUYER_1.into(),
 		amount: 10_250 * ASSET_UNIT,
 		multiplier: MultiplierOf::<PolimecRuntime>::try_from(1u8).unwrap(),
 		asset: AcceptedFundingAsset::USDT,
 	});
-	contributions.push(ContributionParams {
+	community_contributions.push(ContributionParams {
 		contributor: BUYER_2.into(),
 		amount: 5000 * ASSET_UNIT,
 		multiplier: MultiplierOf::<PolimecRuntime>::try_from(2u8).unwrap(),
 		asset: AcceptedFundingAsset::USDT,
 	});
-	contributions.push(ContributionParams {
+	community_contributions.push(ContributionParams {
 		contributor: BUYER_3.into(),
 		amount: 30000 * ASSET_UNIT,
+		multiplier: MultiplierOf::<PolimecRuntime>::try_from(3u8).unwrap(),
+		asset: AcceptedFundingAsset::USDT,
+	});
+
+	remainder_contributions.push(ContributionParams {
+		contributor: BIDDER_1.into(),
+		amount: 5000 * ASSET_UNIT,
+		multiplier: MultiplierOf::<PolimecRuntime>::try_from(2u8).unwrap(),
+		asset: AcceptedFundingAsset::USDT,
+	});
+	remainder_contributions.push(ContributionParams {
+		contributor: EVAL_2.into(),
+		amount: 250 * ASSET_UNIT,
 		multiplier: MultiplierOf::<PolimecRuntime>::try_from(3u8).unwrap(),
 		asset: AcceptedFundingAsset::USDT,
 	});
@@ -427,8 +460,8 @@ fn vesting_over_several_blocks_on_project() {
 			ISSUER.into(),
 			default_evaluations(),
 			bids,
-			contributions,
-			vec![],
+			community_contributions,
+			remainder_contributions,
 		)
 	});
 	execute_cleaner(&mut inst);
@@ -453,7 +486,6 @@ fn vesting_over_several_blocks_on_project() {
 #[test]
 fn disallow_duplicated_migrations_on_receiver_pallet() {
 	let mut inst = IntegrationInstantiator::new(None);
-	set_oracle_prices();
 
 	let project_id = Polimec::execute_with(|| {
 		inst.create_finished_project(
@@ -502,6 +534,10 @@ fn disallow_duplicated_migrations_on_receiver_pallet() {
 	// just any number that lets us execute our xcm's
 	for migrations in grouped_migrations.clone() {
 		for (_, xcm) in PolimecFundingPallet::construct_migration_xcm_messages(migrations) {
+			let call: <PolimecRuntime as pallet_funding::Config>::RuntimeCall =
+				pallet_funding::Call::confirm_migrations { query_id: Default::default(), response: Default::default() }
+					.into();
+
 			let max_weight = Weight::from_parts(700_000_000, 10_000);
 			let mut instructions = xcm.into_inner();
 			instructions.push(ReportTransactStatus(QueryResponseInfo {
@@ -533,4 +569,10 @@ fn disallow_duplicated_migrations_on_receiver_pallet() {
 	});
 
 	migrations_are_vested(grouped_migrations.clone());
+}
+
+#[ignore]
+#[test]
+fn failing_bid_doesnt_get_migrated() {
+	todo!();
 }

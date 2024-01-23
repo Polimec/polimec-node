@@ -1,3 +1,19 @@
+// Polimec Blockchain – https://www.polimec.org/
+// Copyright (C) Polimec 2022. All rights reserved.
+
+// The Polimec Blockchain is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// The Polimec Blockchain is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 use crate::{tests::defaults::*, *};
 use frame_support::BoundedVec;
 use itertools::Itertools;
@@ -245,7 +261,6 @@ fn evaluation_round_completed() {
 	let issuer = ISSUER.into();
 	let project = excel_project(inst.get_new_nonce());
 	let evaluations = excel_evaluators();
-	set_oracle_prices();
 
 	Polimec::execute_with(|| {
 		inst.create_auctioning_project(project, issuer, evaluations);
@@ -260,7 +275,6 @@ fn auction_round_completed() {
 	let project = excel_project(inst.get_new_nonce());
 	let evaluations = excel_evaluators();
 	let bids = excel_bidders();
-	set_oracle_prices();
 
 	Polimec::execute_with(|| {
 		//let filtered_bids = MockInstantiator::filter_bids_after_auction(bids.clone(), project.total_allocation_size.0);
@@ -292,7 +306,6 @@ fn auction_round_completed() {
 #[test]
 fn community_round_completed() {
 	let mut inst = IntegrationInstantiator::new(None);
-	set_oracle_prices();
 
 	Polimec::execute_with(|| {
 		let _ = inst.create_remainder_contributing_project(
@@ -327,7 +340,6 @@ fn community_round_completed() {
 #[test]
 fn remainder_round_completed() {
 	let mut inst = IntegrationInstantiator::new(None);
-	set_oracle_prices();
 
 	Polimec::execute_with(|| {
 		let project_id = inst.create_finished_project(
@@ -373,7 +385,6 @@ fn remainder_round_completed() {
 #[test]
 fn funds_raised() {
 	let mut inst = IntegrationInstantiator::new(None);
-	set_oracle_prices();
 
 	Polimec::execute_with(|| {
 		let project_id = inst.create_finished_project(
@@ -402,7 +413,6 @@ fn funds_raised() {
 #[test]
 fn ct_minted() {
 	let mut inst = IntegrationInstantiator::new(None);
-	set_oracle_prices();
 
 	Polimec::execute_with(|| {
 		let _ = inst.create_finished_project(
@@ -428,7 +438,6 @@ fn ct_minted() {
 #[test]
 fn ct_migrated() {
 	let mut inst = IntegrationInstantiator::new(None);
-	set_oracle_prices();
 
 	let project_id = Polimec::execute_with(|| {
 		let project_id = inst.create_finished_project(

@@ -5,11 +5,11 @@ members = [
     "pallets/*",
     "integration-tests",
     "integration-tests/penpal",
-    "integration-tests/macros",
-    "integration-tests/macros/tests",
-    "traits",
+    "macros",
+    "macros/tests",
+    "polimec-common",
 ]
-
+default-members = ["nodes/*"]
 resolver = "2"
 
 [workspace.package]
@@ -20,12 +20,14 @@ homepage = "https://www.polimec.org/"
 license-file = "LICENSE"
 readme = "README.md"
 repository = "https://github.com/Polimec/polimec-node"
-version = "0.1.0"
+version = "0.4.0"
 
 [profile.release]
 # Substrate runtime requires unwinding.
 panic = "unwind"
 opt-level = 3
+strip = "debuginfo"
+
 
 [profile.dev]
 split-debuginfo = "unpacked"
@@ -54,6 +56,12 @@ substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", bran
 
 # Internal pallets (with default disabled)
 pallet-funding = { path = "pallets/funding", default-features = false }
+<<<<<<< HEAD
+pallet-democracy = { path = "pallets/democracy", default-features = false }
+pallet-elections-phragmen = { path = "pallets/elections-phragmen", default-features = false }
+=======
+pallet-oracle-ocw = { path = "pallets/oracle-ocw", default-features = false }
+>>>>>>> aaf91f5 (Feature/plmc 350 setup offchain worker for price injection with first usdxusd (#118))
 pallet-sandbox = { path = "pallets/sandbox", default-features = false }
 pallet-parachain-staking = { path = "pallets/parachain-staking", default-features = false }
 pallet-linear-release = { path = "pallets/linear-release", default-features = false }
@@ -61,8 +69,8 @@ polimec-xcm-executor = { path = "pallets/xcm-executor", default-features = false
 polimec-receiver = { path = "pallets/polimec-receiver", default-features = false }
 
 # Internal macros
-macros = { path = "integration-tests/macros" }
-macros-tests = { path = "integration-tests/macros/tests" }
+macros = { path = "macros" }
+macros-tests = { path = "macros/tests" }
 
 
 # External pallets (with default disabled)
@@ -70,7 +78,7 @@ orml-oracle = {git = "https://github.com/open-web3-stack/open-runtime-module-lib
 orml-traits = {git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v1.0.0", default-features = false}
 # Internal support (with default disabled)
 shared-configuration = { path = "runtimes/shared-configuration", default-features = false }
-polimec-traits = { path = "traits", default-features = false }
+polimec-common = { path = "polimec-common", default-features = false }
 
 # External support (with default disabled)
 substrate-fixed = { git = "https://github.com/encointer/substrate-fixed", default-features = false }
@@ -99,6 +107,7 @@ frame-executive = { git = "https://github.com/paritytech/substrate", default-fea
 frame-support = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 frame-system = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
+frame-system-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 frame-try-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 sp-api = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
@@ -117,6 +126,8 @@ sp-transaction-pool = { git = "https://github.com/paritytech/substrate", default
 sp-trie = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 sp-version = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 sp-consensus-grandpa = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
+sp-npos-elections = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
+sp-tracing = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 try-runtime-cli = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 pallet-im-online = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0" }
 sp-authority-discovery = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0" }
@@ -134,7 +145,6 @@ pallet-session = { git = "https://github.com/paritytech/substrate", default-feat
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 pallet-asset-tx-payment = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 pallet-collective = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
-pallet-democracy = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 pallet-scheduler = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 pallet-sudo = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
@@ -220,11 +230,11 @@ sc-transaction_pool-api = { git = "https://github.com/paritytech/substrate", bra
 substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0" }
 substrate-prometheus-endpoint = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0" }
 substrate-build-script-utils = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0" }
+substrate-test-utils = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0" }
 
 # Benchmarking (with default disabled) 
 cumulus-pallet-session-benchmarking = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "release-v1.0.0" }
-frame-system-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 
 # Runtimes
-polimec-parachain-runtime = { path = "runtimes/testnet" }
+polimec-parachain-runtime = { path = "runtimes/testnet"}
 polimec-base-runtime = { path = "runtimes/base" }

@@ -78,4 +78,3 @@ try-runtime = [
 	"pallet-insecure-randomness-collective-flip/try-runtime",
 	"sp-runtime/try-runtime",
 ]
-testing-node = [ "pallet-funding/testing-node" ]
