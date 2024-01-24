@@ -19,7 +19,6 @@ log = { workspace = true }
 scale-info = { workspace = true, features = ["derive"] }
 hex-literal = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
-smallvec.workspace = true
 
 # Polimec specific
 pallet-funding.workspace = true

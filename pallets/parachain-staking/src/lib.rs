@@ -16,7 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
 //! # Parachain Staking
 //! Minimal staking pallet that implements collator selection by total backed stake.
 //! The main difference between this pallet and `frame/pallet-staking` is that this pallet
