@@ -938,7 +938,8 @@ mod benchmarks {
 
 	fn contribution_setup<T: Config>(
 		x: u32,
-	) -> (BenchInstantiator<T>, ProjectId, UserToUSDBalance<T>, BalanceOf<T>, BalanceOf<T>)
+		ends_round: bool,
+	) -> (BenchInstantiator<T>, ProjectId, ProjectMetadataOf<T>, ContributionParams<T>, BalanceOf<T>, BalanceOf<T>)
 	where
 		<T as Config>::Balance: From<u128>,
 		<T as Config>::Price: From<u128>,
@@ -965,10 +966,16 @@ mod benchmarks {
 
 		let price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
+		let existing_amount: BalanceOf<T> = (50 * ASSET_UNIT).into();
+		let extrinsic_amount: BalanceOf<T> = if ends_round {
+			project_metadata.total_allocation_size.0 - existing_amount * (x as u128).into()
+		} else {
+			(100 * ASSET_UNIT).into()
+		};
 		let existing_contribution =
-			ContributionParams::new(contributor.clone(), (50 * ASSET_UNIT).into(), 1u8, AcceptedFundingAsset::USDT);
+			ContributionParams::new(contributor.clone(), existing_amount, 1u8, AcceptedFundingAsset::USDT);
 		let extrinsic_contribution =
-			ContributionParams::new(contributor.clone(), (100 * ASSET_UNIT).into(), 1u8, AcceptedFundingAsset::USDT);
+			ContributionParams::new(contributor.clone(), extrinsic_amount, 1u8, AcceptedFundingAsset::USDT);
 		let existing_contributions = vec![existing_contribution; x as usize];
 
 		let plmc_for_existing_contributions =
@@ -995,23 +1002,24 @@ mod benchmarks {
 		inst.mint_statemint_asset_to(usdt_for_extrinsic_contribution.clone());
 
 		// do "x" contributions for this user
-		inst.bond_for_users(project_id, existing_contributions).expect("All evaluations are accepted");
+		inst.contribute_for_users(project_id, existing_contributions).expect("All evaluations are accepted");
 
 		let total_plmc_bonded = BenchInstantiator::<T>::sum_balance_mappings(vec![
 			plmc_for_existing_contributions.clone(),
 			plmc_for_extrinsic_contribution.clone(),
 		]);
-		let total_usdt_locked = BenchInstantiator::<T>::sum_balance_mappings(vec![
+		let total_usdt_locked = BenchInstantiator::<T>::sum_statemint_mappings(vec![
 			usdt_for_existing_contributions.clone(),
 			usdt_for_extrinsic_contribution.clone(),
 		]);
 
-		(inst, project_id, extrinsic_contribution, total_plmc_bonded, total_usdt_locked)
+		(inst, project_id, project_metadata, extrinsic_contribution, total_plmc_bonded, total_usdt_locked)
 	}
 
 	fn contribution_verification<T: Config>(
 		mut inst: BenchInstantiator<T>,
 		project_id: ProjectId,
+		project_metadata: ProjectMetadataOf<T>,
 		extrinsic_contribution: ContributionParams<T>,
 		total_plmc_bonded: BalanceOf<T>,
 		total_usdt_locked: BalanceOf<T>,
@@ -1051,7 +1059,7 @@ mod benchmarks {
 		assert_eq!(bonded_plmc, total_plmc_bonded);
 
 		let free_plmc = inst.get_free_plmc_balances_for(vec![contributor.clone()])[0].plmc_amount;
-		assert_eq!(free_plmc, existential_deposits[0].plmc_amount);
+		assert_eq!(free_plmc, Zero::zero());
 
 		let escrow_account = Pallet::<T>::fund_account_id(project_id);
 		let locked_usdt =
@@ -1060,7 +1068,7 @@ mod benchmarks {
 
 		let free_usdt =
 			inst.get_free_statemint_asset_balances_for(usdt_id(), vec![contributor.clone()])[0].asset_amount;
-		assert_eq!(free_usdt, 0.into());
+		assert_eq!(free_usdt, Zero::zero());
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(
@@ -1074,25 +1082,178 @@ mod benchmarks {
 		);
 	}
 
+	#[benchmark]
+	fn first_contribution() {
+		// How many other contributions the user did for that same project
+		let x = 0;
+		let ends_round = false;
+
+		let (inst, project_id, project_metadata, extrinsic_contribution, total_plmc_bonded, total_usdt_locked) =
+			contribution_setup::<T>(x, ends_round);
+
+		#[extrinsic_call]
+		contribute(
+			RawOrigin::Signed(extrinsic_contribution.contributor.clone()),
+			project_id,
+			extrinsic_contribution.amount,
+			extrinsic_contribution.multiplier,
+			extrinsic_contribution.asset,
+		);
+
+		contribution_verification::<T>(
+			inst,
+			project_id,
+			project_metadata,
+			extrinsic_contribution,
+			total_plmc_bonded,
+			total_usdt_locked,
+		);
+	}
+	#[benchmark]
+	fn first_contribution_ends_round() {
+		// How many other contributions the user did for that same project
+		let x = 0;
+		let ends_round = true;
+		let (inst, project_id, project_metadata, extrinsic_contribution, total_plmc_bonded, total_usdt_locked) =
+			contribution_setup::<T>(x, ends_round);
+
+		#[extrinsic_call]
+		contribute(
+			RawOrigin::Signed(extrinsic_contribution.contributor.clone()),
+			project_id,
+			extrinsic_contribution.amount,
+			extrinsic_contribution.multiplier,
+			extrinsic_contribution.asset,
+		);
+
+		contribution_verification::<T>(
+			inst,
+			project_id,
+			project_metadata,
+			extrinsic_contribution,
+			total_plmc_bonded,
+			total_usdt_locked,
+		);
+	}
+
+	#[benchmark]
+	fn second_to_limit_contribution(
+		// How many other contributions the user did for that same project
+		x: Linear<1, { T::MaxContributionsPerUser::get() - 1 }>,
+	) {
+		let ends_round = false;
+
+		let (inst, project_id, project_metadata, extrinsic_contribution, total_plmc_bonded, total_usdt_locked) =
+			contribution_setup::<T>(x, ends_round);
+
+		#[extrinsic_call]
+		contribute(
+			RawOrigin::Signed(extrinsic_contribution.contributor.clone()),
+			project_id,
+			extrinsic_contribution.amount,
+			extrinsic_contribution.multiplier,
+			extrinsic_contribution.asset,
+		);
+
+		contribution_verification::<T>(
+			inst,
+			project_id,
+			project_metadata,
+			extrinsic_contribution,
+			total_plmc_bonded,
+			total_usdt_locked,
+		);
+	}
+
+	#[benchmark]
+	fn second_to_limit_contribution_ends_round(
+		// How many other contributions the user did for that same project
+		x: Linear<1, { T::MaxContributionsPerUser::get() - 1 }>,
+	) {
+		let ends_round = true;
+
+		let (inst, project_id, project_metadata, extrinsic_contribution, total_plmc_bonded, total_usdt_locked) =
+			contribution_setup::<T>(x, ends_round);
+
+		#[extrinsic_call]
+		contribute(
+			RawOrigin::Signed(extrinsic_contribution.contributor.clone()),
+			project_id,
+			extrinsic_contribution.amount,
+			extrinsic_contribution.multiplier,
+			extrinsic_contribution.asset,
+		);
+
+		contribution_verification::<T>(
+			inst,
+			project_id,
+			project_metadata,
+			extrinsic_contribution,
+			total_plmc_bonded,
+			total_usdt_locked,
+		);
+	}
+
+	#[benchmark]
+	fn contribution_over_limit() {
+		// How many other contributions the user did for that same project
+		let x = <T as Config>::MaxContributionsPerUser::get();
+		let ends_round = false;
+
+		let (inst, project_id, project_metadata, extrinsic_contribution, total_plmc_bonded, total_usdt_locked) =
+			contribution_setup::<T>(x, ends_round);
+
+		#[extrinsic_call]
+		contribute(
+			RawOrigin::Signed(extrinsic_contribution.contributor.clone()),
+			project_id,
+			extrinsic_contribution.amount,
+			extrinsic_contribution.multiplier,
+			extrinsic_contribution.asset,
+		);
+
+		contribution_verification::<T>(
+			inst,
+			project_id,
+			project_metadata,
+			extrinsic_contribution,
+			total_plmc_bonded,
+			total_usdt_locked,
+		);
+	}
+
+	#[benchmark]
+	fn contribution_over_limit_ends_round() {
+		// How many other contributions the user did for that same project
+		let x = <T as Config>::MaxContributionsPerUser::get();
+		let ends_round = true;
+
+		let (inst, project_id, project_metadata, extrinsic_contribution, total_plmc_bonded, total_usdt_locked) =
+			contribution_setup::<T>(x, ends_round);
+
+		#[extrinsic_call]
+		contribute(
+			RawOrigin::Signed(extrinsic_contribution.contributor.clone()),
+			project_id,
+			extrinsic_contribution.amount,
+			extrinsic_contribution.multiplier,
+			extrinsic_contribution.asset,
+		);
+
+		contribution_verification::<T>(
+			inst,
+			project_id,
+			project_metadata,
+			extrinsic_contribution,
+			total_plmc_bonded,
+			total_usdt_locked,
+		);
+	}
+
 	// branches:
 	// - ct account deposit
 	// - contribution over limit
 	// - if last ct sold, automatic transition to failed removed, and automatic transition to success inserted
-	#[benchmark]
-	// assume for now community contribution
-	fn contribute(
-		// How many other contributions the user did for that same project
-		x: Linear<1, { T::MaxContributionsPerUser::get() - 1 }>,
-	) {
-		#[extrinsic_call]
-		contribute(
-			RawOrigin::Signed(contributor.clone()),
-			project_id,
-			contribution_params.amount,
-			contribution_params.multiplier,
-			contribution_params.asset,
-		);
-	}
 
 	#[benchmark]
 	fn evaluation_unbond_for(x: Linear<1, 20>) {

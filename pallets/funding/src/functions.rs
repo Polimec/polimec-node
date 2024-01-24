@@ -1210,7 +1210,7 @@ impl<T: Config> Pallet<T> {
 			Self::try_plmc_participation_lock(contributor, project_id, plmc_bond)?;
 			Self::try_funding_asset_hold(contributor, project_id, funding_asset_amount, asset_id)?;
 		} else {
-			let lowest_contribution = existing_contributions
+			let lowest_contribution = caller_existing_contributions
 				.iter()
 				.min_by_key(|contribution| contribution.plmc_bond)
 				.ok_or(Error::<T>::ImpossibleState)?;
