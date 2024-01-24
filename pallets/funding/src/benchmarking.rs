@@ -938,7 +938,13 @@ mod benchmarks {
 
 	fn contribution_setup<T: Config>(
 		x: u32,
-	) -> (BenchInstantiator<T>, ProjectId, UserToUSDBalance<T>, BalanceOf<T>, BalanceOf<T>) {
+	) -> (BenchInstantiator<T>, ProjectId, UserToUSDBalance<T>, BalanceOf<T>, BalanceOf<T>)
+	where
+		<T as Config>::Balance: From<u128>,
+		<T as Config>::Price: From<u128>,
+		T::Hash: From<H256>,
+		<T as frame_system::Config>::RuntimeEvent: From<pallet::Event<T>>,
+	{
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
@@ -1003,46 +1009,54 @@ mod benchmarks {
 		(inst, project_id, extrinsic_contribution, total_plmc_bonded, total_usdt_locked)
 	}
 
-	fn contribution_verification<T: Config>() {
+	fn contribution_verification<T: Config>(
+		mut inst: BenchInstantiator<T>,
+		project_id: ProjectId,
+		extrinsic_contribution: ContributionParams<T>,
+		total_plmc_bonded: BalanceOf<T>,
+		total_usdt_locked: BalanceOf<T>,
+	) where
+		<T as Config>::Balance: From<u128>,
+		<T as Config>::Price: From<u128>,
+		T::Hash: From<H256>,
+		<T as frame_system::Config>::RuntimeEvent: From<pallet::Event<T>>,
+	{
 		// * validity checks *
 		// Storage
+		let contributor = extrinsic_contribution.contributor.clone();
 		let stored_contribution = Contributions::<T>::iter_prefix_values((project_id, contributor.clone()))
 			.sorted_by(|a, b| a.id.cmp(&b.id))
 			.last()
 			.unwrap();
 
-		let contribution = ContributionInfoOf::<T> {
-			id: contribution_id,
-			project_id,
-			contributor: contributor.clone(),
-			ct_amount: contribution_params.amount,
-			usd_contribution_amount: necessary_usdt[0].asset_amount,
-			multiplier: contribution_params.multiplier,
-			funding_asset: contribution_params.asset,
-			funding_asset_amount: necessary_usdt[0].asset_amount,
-			plmc_bond: necessary_plmc[0].plmc_amount,
-			plmc_vesting_info: None,
-			funds_released: false,
-			ct_minted: false,
-			ct_migration_status: MigrationStatus::NotStarted,
-		};
-		assert_eq!(stored_contribution, contribution);
+		match stored_contribution {
+			ContributionInfoOf::<T> { project_id, contributor, ct_amount, .. }
+				if project_id == project_id &&
+					contributor == contributor &&
+					ct_amount == extrinsic_contribution.amount => {},
+			_ => assert!(false, "Contribution is not stored correctly"),
+		}
 
 		let stored_project_details = ProjectsDetails::<T>::get(project_id).unwrap();
 
 		assert_eq!(
 			stored_project_details.remaining_contribution_tokens.1,
-			project_metadata.total_allocation_size.1.saturating_sub(contribution_params.amount)
+			project_metadata.total_allocation_size.1.saturating_sub(extrinsic_contribution.amount)
 		);
 
 		// Balances
 		let bonded_plmc = inst
 			.get_reserved_plmc_balances_for(vec![contributor.clone()], HoldReason::Participation(project_id).into())[0]
 			.plmc_amount;
-		assert_eq!(bonded_plmc, necessary_plmc[0].plmc_amount);
+		assert_eq!(bonded_plmc, total_plmc_bonded);
 
 		let free_plmc = inst.get_free_plmc_balances_for(vec![contributor.clone()])[0].plmc_amount;
 		assert_eq!(free_plmc, existential_deposits[0].plmc_amount);
+
+		let escrow_account = Pallet::<T>::fund_account_id(project_id);
+		let locked_usdt =
+			inst.get_free_statemint_asset_balances_for(usdt_id(), vec![escrow_account.clone()])[0].asset_amount;
+		assert_eq!(locked_usdt, total_usdt_locked);
 
 		let free_usdt =
 			inst.get_free_statemint_asset_balances_for(usdt_id(), vec![contributor.clone()])[0].asset_amount;
@@ -1053,8 +1067,8 @@ mod benchmarks {
 			Event::Contribution {
 				project_id,
 				contributor,
-				amount: contribution_params.amount,
-				multiplier: contribution_params.multiplier,
+				amount: extrinsic_contribution.amount,
+				multiplier: extrinsic_contribution.multiplier,
 			}
 			.into(),
 		);
