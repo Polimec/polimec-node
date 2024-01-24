@@ -1,12 +1,14 @@
 [package]
 name = "pallet-oracle-ocw"
-version = "0.1.0"
 description = "Offchain worker pallet for fetching price data and feeding prices to oracle pallet. Only authorised nodes can feed prices."
-authors = ["Parity Technologies <admin@parity.io>"]
-homepage = "https://polkadot.network/"
-edition = "2021"
-license = "Apache-2.0"
-repository = "https://github.com/paritytech/polkadot-sdk.git"
+authors.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+readme.workspace = true
+repository.workspace = true
+version.workspace = true
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
@@ -51,6 +53,7 @@ std = [
 	"sp-runtime/std",
 	"sp-std/std",
 	"substrate-fixed/std",
+	"serde-json-core/std"
 ]
 
 try-runtime = [
@@ -59,4 +62,10 @@ try-runtime = [
 	"orml-oracle/try-runtime",
 	"pallet-balances/try-runtime",
 	"sp-runtime/try-runtime",
+]
+runtime-benchmarks = [
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+	"pallet-balances/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks"
 ]
