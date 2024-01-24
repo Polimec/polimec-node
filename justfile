@@ -20,7 +20,7 @@ build-parachain-node:
 
 # Build the "Base" Runtime using srtool
 build-base-srtool:
-	srtool build --root -p polimec-base-runtime --runtime-dir runtimes/base
+	srtool build --root -p polimec-base-runtime --runtime-dir runtimes/base --build-opts="--features=on-chain-release-build"
 
 # Build the "Testnet" Runtime using srtool
 build-parachain-srtool:
