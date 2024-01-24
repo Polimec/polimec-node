@@ -287,9 +287,13 @@ parameter_types! {
 	pub PolimecReceiverInfo: xcm::v3::PalletInfo = xcm::v3::PalletInfo::new(
 		51, "PolimecReceiver".into(), "polimec_receiver".into(), 0, 1, 0
 	).unwrap();
-	#[cfg(feature = "runtime-benchmarks")]
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+parameter_types! {
 	pub BenchmarkReason: RuntimeHoldReason = RuntimeHoldReason::PolimecFunding(crate::HoldReason::Participation(0));
 }
+
 impl pallet_linear_release::Config for TestRuntime {
 	type Balance = Balance;
 	#[cfg(feature = "runtime-benchmarks")]
@@ -310,6 +314,10 @@ parameter_types! {
 	pub MaxCapacityThresholds: (u32, u32) = (8, 1000);
 	pub RequiredMaxCapacity: u32 = 8;
 	pub RequiredMaxMessageSize: u32 = 102_400;
+	pub VerifierPublicKey: [u8; 32] = [
+		32, 118, 30, 171, 58, 212, 197, 27, 146, 122, 255, 243, 34, 245, 90, 244, 221, 37, 253,
+		195, 18, 202, 111, 55, 39, 48, 123, 17, 101, 78, 215, 94,
+	];
 
 }
 
@@ -376,6 +384,7 @@ impl Config for TestRuntime {
 	type TreasuryAccount = TreasuryAccount;
 	type Vesting = Vesting;
 	type WeightInfo = weights::SubstrateWeight<TestRuntime>;
+	type VerifierPublicKey = VerifierPublicKey;
 }
 
 // Configure a mock runtime to test the pallet.

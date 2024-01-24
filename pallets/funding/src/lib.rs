@@ -399,6 +399,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type ContributionVesting: Get<u32>;
 
+		/// The Ed25519 Verifier Public Key
+		#[pallet::constant]
+		type VerifierPublicKey: Get<[u8; 32]>;
+
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: weights::WeightInfo;
 
@@ -935,8 +939,11 @@ pub mod pallet {
 		/// Creates a project and assigns it to the `issuer` account.
 		#[pallet::call_index(0)]
 		#[pallet::weight(WeightInfoOf::<T>::create())]
-		pub fn create(origin: OriginFor<T>, project: ProjectMetadataOf<T>) -> DispatchResult {
+		pub fn create(origin: OriginFor<T>, project: ProjectMetadataOf<T>, jwt: scale_info::prelude::string::String) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
+			//let jwt: &str = "eyJhbGciOiJFZERTQSJ9.eyJpbnZlc3RvclR5cGUiOiJSZXRhaWwiLCJpYXQiOjE3MDYxMDQ5MDYsImlzcyI6ImRpZDpraWx0OnZlcmlmaWVyZGlkIiwic3ViIjoiZGlkOmtpbHQ6dXNlcmRpZCIsImV4cCI6MTcwNjExMjEwNn0.NWGShrTe1DkZxuteSj5f0TqxhLURCVkEuUHFdfmu99T05f_txvlPM6yzdZrYVZY5fjwzJUdnn2zKJze9Vp2fCA";
+			let claims = Self::verify_jwt(&jwt, T::VerifierPublicKey::get()).expect("JWT verification failed");
+			ensure!(claims.investor_type == "Retail", Error::<T>::NotAllowed);
 			log::trace!(target: "pallet_funding::test", "in create");
 			Self::do_create(&issuer, project)
 		}

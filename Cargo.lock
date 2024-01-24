@@ -2505,6 +2505,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ed25519-compact"
+version = "2.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a667e6426df16c2ac478efa4a439d0e674cba769c5556e8cf221739251640c8c"
+
+[[package]]
 name = "ed25519-dalek"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4204,6 +4210,24 @@ dependencies = [
  "jsonrpsee-client-transport",
  "jsonrpsee-core",
  "jsonrpsee-types",
+]
+
+[[package]]
+name = "jwt-compact"
+version = "0.8.0"
+source = "git+https://github.com/lrazovic/jwt-compact#79761e4c113f2971bc6d8202dd683b54fe95e285"
+dependencies = [
+ "anyhow",
+ "base64ct",
+ "chrono",
+ "ed25519-compact",
+ "hmac 0.12.1",
+ "serde",
+ "serde_json",
+ "sha2 0.10.8",
+ "smallvec",
+ "subtle",
+ "zeroize",
 ]
 
 [[package]]
@@ -6117,6 +6141,7 @@ dependencies = [
  "frame-system",
  "futures",
  "itertools 0.11.0",
+ "jwt-compact",
  "log",
  "pallet-assets",
  "pallet-balances",
@@ -7422,7 +7447,6 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
- "hex-literal 0.3.4",
  "log",
  "orml-oracle",
  "pallet-aura",
@@ -7445,15 +7469,11 @@ dependencies = [
  "parachain-info",
  "parachains-common",
  "parity-scale-codec",
- "polimec-common",
  "polkadot-parachain",
- "polkadot-primitives",
  "polkadot-runtime-common",
  "scale-info",
  "shared-configuration",
- "smallvec",
  "sp-api",
- "sp-arithmetic",
  "sp-block-builder",
  "sp-consensus-aura",
  "sp-core",
@@ -7616,7 +7636,6 @@ dependencies = [
  "scale-info",
  "serde",
  "shared-configuration",
- "smallvec",
  "sp-api",
  "sp-block-builder",
  "sp-consensus-aura",
