@@ -26,9 +26,6 @@ use parachains_common::MINUTES;
 use parachains_common::{DAYS, HOURS};
 use sp_arithmetic::Permill;
 
-
-pub const MIN_DEPOSIT: Balance = PLMC;
-
 #[cfg(feature = "fast-gov")]
 pub const LAUNCH_PERIOD: BlockNumber = 7 * MINUTES;
 #[cfg(not(feature = "fast-gov"))]
@@ -45,14 +42,14 @@ pub const FAST_TRACK_VOTING_PERIOD: BlockNumber = 3 * MINUTES;
 pub const FAST_TRACK_VOTING_PERIOD: BlockNumber = 3 * HOURS;
 
 #[cfg(feature = "fast-gov")]
-pub const ENACTMENT_PERIOD: BlockNumber = 8 * MINUTES;
+pub const ENACTMENT_PERIOD: BlockNumber = 7 * MINUTES;
 #[cfg(not(feature = "fast-gov"))]
-pub const ENACTMENT_PERIOD: BlockNumber = DAYS;
+pub const ENACTMENT_PERIOD: BlockNumber = 7 * DAYS;
 
 #[cfg(feature = "fast-gov")]
 pub const COOLOFF_PERIOD: BlockNumber = 7 * MINUTES;
 #[cfg(not(feature = "fast-gov"))]
-pub const COOLOFF_PERIOD: BlockNumber = 7 * DAYS;
+pub const COOLOFF_PERIOD: BlockNumber = 28 * DAYS;
 
 #[cfg(feature = "fast-gov")]
 pub const SPEND_PERIOD: BlockNumber = 7 * MINUTES;
@@ -72,35 +69,35 @@ pub const TERM_DURATION: BlockNumber = 14 * DAYS;
 #[cfg(feature = "fast-gov")]
 pub const COUNCIL_MOTION_DURATION: BlockNumber = 4 * MINUTES;
 #[cfg(not(feature = "fast-gov"))]
-pub const COUNCIL_MOTION_DURATION: BlockNumber = 3 * DAYS;
+pub const COUNCIL_MOTION_DURATION: BlockNumber = 7 * DAYS;
 
 #[cfg(feature = "fast-gov")]
 pub const TECHNICAL_MOTION_DURATION: BlockNumber = 4 * MINUTES;
 #[cfg(not(feature = "fast-gov"))]
-pub const TECHNICAL_MOTION_DURATION: BlockNumber = 3 * DAYS;
+pub const TECHNICAL_MOTION_DURATION: BlockNumber = 7 * DAYS;
 
 parameter_types! {
 	// Democracy Pallet
 	pub const LaunchPeriod: BlockNumber = LAUNCH_PERIOD;
 	pub const VotingPeriod: BlockNumber = VOTING_PERIOD;
 	pub const FastTrackVotingPeriod: BlockNumber = FAST_TRACK_VOTING_PERIOD;
-	pub const MinimumDeposit: Balance = MIN_DEPOSIT;
+	pub const MinimumDeposit: Balance = 100 * PLMC;
 	pub const EnactmentPeriod: BlockNumber = ENACTMENT_PERIOD;
 	pub const CooloffPeriod: BlockNumber = COOLOFF_PERIOD;
 	// Council Pallet
 	pub const CouncilMotionDuration: BlockNumber = COUNCIL_MOTION_DURATION;
-	pub const CouncilMaxProposals: u32 = 100;
-	pub const CouncilMaxMembers: u32 = 100;
+	pub const CouncilMaxProposals: u32 = 20;
+	pub const CouncilMaxMembers: u32 = 20;
 	// Technical Committee
 	pub const TechnicalMotionDuration: BlockNumber = TECHNICAL_MOTION_DURATION;
-	pub const TechnicalMaxProposals: u32 = 100;
-	pub const TechnicalMaxMembers: u32 = 100;
-	// Tipper Group
-	pub const TipperMaxMembers: u32 = 21;
+	pub const TechnicalMaxProposals: u32 = 20;
+	pub const TechnicalMaxMembers: u32 = 5;
 	// Extras
 	pub const PreimageBaseDeposit: Balance = deposit(2, 64);
-	pub const MaxProposals: u32 = 100;
+	pub const MaxProposals: u32 = 10;
 	pub const MaxVotes: u32 = 128;
+	pub const MaxBlacklisted: u32 = 100;
+	pub const MaxDeposits: u32 = 100;
 	//Treasury
 	pub const ProposalBond: Permill = Permill::from_percent(5);
 	pub const ProposalBondMinimum: Balance = 50 * PLMC;

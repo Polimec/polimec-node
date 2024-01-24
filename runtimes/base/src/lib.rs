@@ -399,8 +399,10 @@ impl tokens::imbalance::OnUnbalanced<CreditOf<Runtime>> for ToGrowthTreasury {
 }
 
 impl pallet_treasury::Config for Runtime {
-	// TODO: Use the Council instead of Root!
-	type ApproveOrigin = EnsureRoot<AccountId>;
+	type ApproveOrigin = EitherOfDiverse<
+		EnsureRoot<AccountId>, 
+		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 1>
+	>;
 	type Burn = Burn;
 	type BurnDestination = ();
 	type Currency = Balances;
@@ -415,12 +417,12 @@ impl pallet_treasury::Config for Runtime {
 	type SpendFunds = ();
 	type SpendOrigin = frame_support::traits::NeverEnsureOrigin<Balance>;
 	type SpendPeriod = SpendPeriod;
-	type WeightInfo = ();
+	type WeightInfo = pallet_treasury::weights::SubstrateWeight<Runtime>;
 }
 
 type CouncilCollective = pallet_collective::Instance1;
 impl pallet_collective::Config<CouncilCollective> for Runtime {
-	type DefaultVote = pallet_collective::PrimeDefaultVote;
+	type DefaultVote = pallet_collective::MoreThanMajorityThenPrimeDefaultVote;
 	type MaxMembers = CouncilMaxMembers;
 	type MaxProposalWeight = MaxCollectivesProposalWeight;
 	type MaxProposals = CouncilMaxProposals;
@@ -434,7 +436,7 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 
 type TechnicalCollective = pallet_collective::Instance2;
 impl pallet_collective::Config<TechnicalCollective> for Runtime {
-	type DefaultVote = pallet_collective::PrimeDefaultVote;
+	type DefaultVote = pallet_collective::MoreThanMajorityThenPrimeDefaultVote;
 	type MaxMembers = TechnicalMaxMembers;
 	type MaxProposalWeight = MaxCollectivesProposalWeight;
 	type MaxProposals = TechnicalMaxProposals;
@@ -442,8 +444,38 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type Proposal = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
-	type SetMembersOrigin = EnsureRoot<AccountId>;
+	type SetMembersOrigin = EitherOfDiverse<
+		EnsureRoot<AccountId>,
+		// TODO: Check if 1/2 Council is enough to prevent a governance attack.
+		pallet_collective::EnsureProportionMoreThan<AccountId, CouncilCollective, 1, 2>,
+	>;
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+}
+
+impl pallet_elections_phragmen::Config for Runtime {
+	type Balance = Balance;
+	/// How much should be locked up in order to submit one's candidacy.
+	type CandidacyBond = CandidacyBond;
+	type ChangeMembers = Council;
+	type Currency = Balances;
+	type CurrencyToVote = CurrencyToVote;
+	/// Number of members to elect.
+	type DesiredMembers = DesiredMembers;
+	/// Number of runners_up to keep.
+	type DesiredRunnersUp = DesiredRunnersUp;
+	type InitializeMembers = Council;
+	type LoserCandidate = ToGrowthTreasury;
+	type MaxCandidates = MaxCandidates;
+	type MaxVoters = MaxVoters;
+	type MaxVotesPerVoter = MaxVotesPerVoter;
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeFreezeReason = RuntimeFreezeReason;
+	type RuntimeHoldReason = RuntimeHoldReason;
+	/// How long each seat is kept. This defines the next block number at which
+	/// an election round will happen. If set to zero, no elections are ever
+	/// triggered and the module will be in passive mode.
+	type TermDuration = TermDuration;
+	type WeightInfo = pallet_elections_phragmen::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_democracy::Config for Runtime {
@@ -465,18 +497,18 @@ impl pallet_democracy::Config for Runtime {
 	/// (NTB) vote.
 	type ExternalDefaultOrigin = pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 1>;
 	/// A super-majority can have the next scheduled referendum be a straight majority-carries vote.
-	type ExternalMajorityOrigin = pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 3, 4>;
+	type ExternalMajorityOrigin = pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 3, 5>;
 	/// A straight majority of the council can decide what their next motion is.
 	type ExternalOrigin = pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 2>;
 	/// Two thirds of the technical committee can have an ExternalMajority/ExternalDefault vote
 	/// be tabled immediately and with a shorter voting/enactment period.
-	type FastTrackOrigin = pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 2, 3>;
+	type FastTrackOrigin = pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 3, 5>;
 	type FastTrackVotingPeriod = FastTrackVotingPeriod;
 	type InstantAllowed = frame_support::traits::ConstBool<true>;
 	type InstantOrigin = pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 1>;
 	type LaunchPeriod = LaunchPeriod;
-	type MaxBlacklisted = ();
-	type MaxDeposits = ();
+	type MaxBlacklisted = MaxBlacklisted;
+	type MaxDeposits = MaxDeposits;
 	type MaxProposals = MaxProposals;
 	type MaxVotes = MaxVotes;
 	// Same as EnactmentPeriod
@@ -524,38 +556,13 @@ impl pallet_scheduler::Config for Runtime {
 }
 
 impl pallet_preimage::Config for Runtime {
+	// TODO: Check this base deposit value.
 	type BaseDeposit = PreimageBaseDeposit;
 	type ByteDeposit = ();
 	type Currency = Balances;
 	type ManagerOrigin = EnsureRoot<AccountId>;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
-}
-
-impl pallet_elections_phragmen::Config for Runtime {
-	type Balance = Balance;
-	/// How much should be locked up in order to submit one's candidacy.
-	type CandidacyBond = CandidacyBond;
-	type ChangeMembers = Council;
-	type Currency = Balances;
-	type CurrencyToVote = CurrencyToVote;
-	/// Number of members to elect.
-	type DesiredMembers = DesiredMembers;
-	/// Number of runners_up to keep.
-	type DesiredRunnersUp = DesiredRunnersUp;
-	type InitializeMembers = Council;
-	type LoserCandidate = ToGrowthTreasury;
-	type MaxCandidates = MaxCandidates;
-	type MaxVoters = MaxVoters;
-	type MaxVotesPerVoter = MaxVotesPerVoter;
-	type RuntimeEvent = RuntimeEvent;
-	type RuntimeFreezeReason = RuntimeFreezeReason;
-	type RuntimeHoldReason = RuntimeHoldReason;
-	/// How long each seat is kept. This defines the next block number at which
-	/// an election round will happen. If set to zero, no elections are ever
-	/// triggered and the module will be in passive mode.
-	type TermDuration = TermDuration;
-	type WeightInfo = pallet_elections_phragmen::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_parachain_staking::Config for Runtime {
