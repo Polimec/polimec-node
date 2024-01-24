@@ -213,10 +213,6 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-		/// Identifier for the elections-phragmen pallet's lock
-		#[pallet::constant]
-		type PalletId: Get<LockIdentifier>;
-
 		type Currency: Inspect<AccountIdOf<Self>, Balance = BalanceOf<Self>>
 			+ Balanced<AccountIdOf<Self>>
 			+ Mutate<AccountIdOf<Self>>
@@ -1402,13 +1398,11 @@ mod tests {
 	}
 
 	parameter_types! {
-		pub const ElectionsPhragmenPalletId: LockIdentifier = *b"phrelect";
 		pub const PhragmenMaxVoters: u32 = 1000;
 		pub const PhragmenMaxCandidates: u32 = 100;
 	}
 
 	impl Config for Test {
-		type PalletId = ElectionsPhragmenPalletId;
 		type RuntimeEvent = RuntimeEvent;
 		type Currency = Balances;
 		type Balance = u64;

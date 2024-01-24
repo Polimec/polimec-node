@@ -40,16 +40,21 @@ frame-try-runtime = { workspace = true, optional = true }
 pallet-aura.workspace = true
 pallet-authorship.workspace = true
 pallet-balances.workspace = true
+pallet-collective.workspace = true
+pallet-democracy.workspace = true
+pallet-elections-phragmen.workspace = true
 pallet-multisig.workspace = true
+pallet-preimage.workspace = true
 pallet-proxy.workspace = true
+pallet-scheduler.workspace = true
 pallet-session.workspace = true
-pallet-treasury.workspace = true
 pallet-sudo.workspace = true
 pallet-timestamp.workspace = true
 pallet-transaction-payment.workspace = true
 pallet-transaction-payment-rpc-runtime-api.workspace = true
-pallet-vesting.workspace = true
+pallet-treasury.workspace = true
 pallet-utility.workspace = true
+pallet-vesting.workspace = true
 sp-arithmetic.workspace = true
 sp-api.workspace = true
 sp-block-builder.workspace = true
@@ -110,9 +115,14 @@ std = [
 	"pallet-aura/std",
 	"pallet-authorship/std",
 	"pallet-balances/std",
+	"pallet-collective/std",
+	"pallet-democracy/std",
+	"pallet-elections-phragmen/std",
 	"pallet-multisig/std",
 	"pallet-parachain-staking/std",
+	"pallet-preimage/std",
 	"pallet-proxy/std",
+	"pallet-scheduler/std",
 	"pallet-session/std",
 	"pallet-sudo/std",
 	"pallet-timestamp/std",
@@ -158,10 +168,15 @@ runtime-benchmarks = [
 	"frame-system/runtime-benchmarks",
 	"hex-literal",
 	"pallet-balances/runtime-benchmarks",
+	"pallet-collective/runtime-benchmarks",
+	"pallet-democracy/runtime-benchmarks",
+	"pallet-elections-phragmen/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",
 	"pallet-parachain-staking/runtime-benchmarks",
+	"pallet-preimage/runtime-benchmarks",
 	"pallet-proxy/runtime-benchmarks",
 	"pallet-sudo/runtime-benchmarks",
+	"pallet-scheduler/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-treasury/runtime-benchmarks",
 	"pallet-utility/runtime-benchmarks",
@@ -190,9 +205,14 @@ try-runtime = [
 	"pallet-aura/try-runtime",
 	"pallet-authorship/try-runtime",
 	"pallet-balances/try-runtime",
+	"pallet-collective/try-runtime",
+	"pallet-democracy/try-runtime",
+	"pallet-elections-phragmen/try-runtime",
 	"pallet-multisig/try-runtime",
 	"pallet-parachain-staking/try-runtime",
+	"pallet-preimage/try-runtime",
 	"pallet-proxy/try-runtime",
+	"pallet-scheduler/try-runtime",
 	"pallet-session/try-runtime",
 	"pallet-sudo/try-runtime",
 	"pallet-timestamp/try-runtime",

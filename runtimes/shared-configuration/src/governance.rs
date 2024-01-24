@@ -26,6 +26,7 @@ use parachains_common::MINUTES;
 use parachains_common::{DAYS, HOURS};
 use sp_arithmetic::Permill;
 
+
 pub const MIN_DEPOSIT: Balance = PLMC;
 
 #[cfg(feature = "fast-gov")]
@@ -66,7 +67,7 @@ pub const ROTATION_PERIOD: BlockNumber = 80 * HOURS;
 #[cfg(feature = "fast-gov")]
 pub const TERM_DURATION: BlockNumber = 15 * MINUTES;
 #[cfg(not(feature = "fast-gov"))]
-pub const TERM_DURATION: BlockNumber = DAYS;
+pub const TERM_DURATION: BlockNumber = 14 * DAYS;
 
 #[cfg(feature = "fast-gov")]
 pub const COUNCIL_MOTION_DURATION: BlockNumber = 4 * MINUTES;
@@ -99,6 +100,7 @@ parameter_types! {
 	// Extras
 	pub const PreimageBaseDeposit: Balance = deposit(2, 64);
 	pub const MaxProposals: u32 = 100;
+	pub const MaxVotes: u32 = 128;
 	//Treasury
 	pub const ProposalBond: Permill = Permill::from_percent(5);
 	pub const ProposalBondMinimum: Balance = 50 * PLMC;
@@ -106,4 +108,13 @@ parameter_types! {
 	pub const Burn: Permill = Permill::zero();
 	pub const MaxApprovals: u32 = 100;
 	pub const TreasuryId: PalletId = PalletId(*b"plmc/tsy");
+
+	// Elections phragmen
+	pub const CandidacyBond: Balance = 100 * PLMC;
+	pub TermDuration: BlockNumber = TERM_DURATION;
+	pub const DesiredMembers: u32 = 9;
+	pub const DesiredRunnersUp: u32 = 20;
+	pub const MaxCandidates: u32 = 1000;
+	pub const MaxVoters: u32 = 10000;
+	pub const MaxVotesPerVoter: u32 = 8;
 }
