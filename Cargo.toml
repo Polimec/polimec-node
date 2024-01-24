@@ -54,6 +54,7 @@ substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", bran
 
 # Internal pallets (with default disabled)
 pallet-funding = { path = "pallets/funding", default-features = false }
+pallet-democracy = { path = "pallets/democracy", default-features = false }
 pallet-elections-phragmen = { path = "pallets/elections-phragmen", default-features = false }
 pallet-sandbox = { path = "pallets/sandbox", default-features = false }
 pallet-parachain-staking = { path = "pallets/parachain-staking", default-features = false }
@@ -137,7 +138,6 @@ pallet-session = { git = "https://github.com/paritytech/substrate", default-feat
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 pallet-asset-tx-payment = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 pallet-collective = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
-pallet-democracy = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 pallet-scheduler = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 pallet-sudo = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }

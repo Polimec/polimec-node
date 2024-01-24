@@ -19,7 +19,7 @@
 
 use super::super::LOG_TARGET;
 use crate::{Config, Pallet};
-use codec::{Decode, Encode, FullCodec};
+use parity_scale_codec::{Decode, Encode, FullCodec};
 use frame_support::{
 	pallet_prelude::ValueQuery, traits::StorageVersion, weights::Weight, Twox64Concat,
 };

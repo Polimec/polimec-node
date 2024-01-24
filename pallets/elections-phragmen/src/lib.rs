@@ -98,17 +98,17 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Decode, Encode};
+use parity_scale_codec::{Decode, Encode};
 use frame_support::{
 	traits::{
 		defensive_prelude::*, ChangeMembers, Contains, ContainsLengthBound, Get,
-		InitializeMembers, LockIdentifier, OnUnbalanced,
+		InitializeMembers,
 		SortedMembers,
 		fungible::{
 			Credit, hold::Balanced, Inspect, InspectHold,
 			Mutate, MutateFreeze, MutateHold,
 		},
-		tokens::{Balance, Precision},
+		tokens::{Balance, Precision, imbalance::OnUnbalanced},
 	},
 	weights::Weight,
 	pallet_prelude::DispatchResult,

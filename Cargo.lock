@@ -4216,7 +4216,7 @@ dependencies = [
  "pallet-child-bounties",
  "pallet-collective",
  "pallet-conviction-voting",
- "pallet-democracy",
+ "pallet-democracy 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v1.0.0)",
  "pallet-election-provider-multi-phase",
  "pallet-election-provider-support-benchmarking",
  "pallet-elections-phragmen 5.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v1.0.0)",
@@ -5980,6 +5980,26 @@ dependencies = [
 [[package]]
 name = "pallet-democracy"
 version = "4.0.0-dev"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-balances",
+ "pallet-preimage",
+ "pallet-scheduler",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-democracy"
+version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v1.0.0#948fbd2fd1233dc26dbb9f9bbc1d2cca2c03945d"
 dependencies = [
  "frame-benchmarking",
@@ -7385,7 +7405,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-collective",
- "pallet-democracy",
+ "pallet-democracy 4.0.0-dev",
  "pallet-elections-phragmen 5.0.0-dev",
  "pallet-multisig",
  "pallet-parachain-staking",
@@ -7527,7 +7547,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-collective",
- "pallet-democracy",
+ "pallet-democracy 4.0.0-dev",
  "pallet-funding",
  "pallet-insecure-randomness-collective-flip",
  "pallet-linear-release",
@@ -8481,7 +8501,7 @@ dependencies = [
  "pallet-child-bounties",
  "pallet-collective",
  "pallet-conviction-voting",
- "pallet-democracy",
+ "pallet-democracy 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v1.0.0)",
  "pallet-election-provider-multi-phase",
  "pallet-election-provider-support-benchmarking",
  "pallet-elections-phragmen 5.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v1.0.0)",
@@ -9618,7 +9638,7 @@ dependencies = [
  "pallet-bounties",
  "pallet-child-bounties",
  "pallet-collective",
- "pallet-democracy",
+ "pallet-democracy 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v1.0.0)",
  "pallet-elections-phragmen 5.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v1.0.0)",
  "pallet-grandpa",
  "pallet-identity",
@@ -13737,7 +13757,7 @@ dependencies = [
  "pallet-bags-list",
  "pallet-balances",
  "pallet-collective",
- "pallet-democracy",
+ "pallet-democracy 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v1.0.0)",
  "pallet-election-provider-multi-phase",
  "pallet-election-provider-support-benchmarking",
  "pallet-elections-phragmen 5.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v1.0.0)",

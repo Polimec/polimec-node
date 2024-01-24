@@ -25,7 +25,7 @@ extern crate frame_benchmarking;
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{fungible::Credit, Contains, EitherOfDiverse, InstanceFilter, PrivilegeCmp},
+	traits::{fungible::Credit, tokens, Contains, EitherOfDiverse, InstanceFilter, PrivilegeCmp},
 	weights::{ConstantMultiplier, Weight},
 };
 use frame_system::{EnsureRoot, EnsureSigned};
@@ -389,6 +389,15 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = ();
 }
 
+pub struct ToGrowthTreasury;
+
+impl tokens::imbalance::OnUnbalanced<CreditOf<Runtime>> for ToGrowthTreasury {
+	fn on_nonzero_unbalanced(amount: CreditOf<Runtime>) {
+		let treasury_account = GrowthTreasury::account_id();
+		let _ = <Balances as tokens::fungible::Balanced<AccountId>>::resolve(&treasury_account, amount);
+	}
+}
+
 impl pallet_treasury::Config for Runtime {
 	// TODO: Use the Council instead of Root!
 	type ApproveOrigin = EnsureRoot<AccountId>;
@@ -448,7 +457,9 @@ impl pallet_democracy::Config for Runtime {
 	// To cancel a proposal which has been passed, 2/3 of the council must agree to it.
 	type CancellationOrigin = pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 2, 3>;
 	type CooloffPeriod = CooloffPeriod;
-	type Currency = Balances;
+	type Fungible = Balances;
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type EnactmentPeriod = EnactmentPeriod;
 	/// A unanimous council can have the next scheduled referendum be a straight default-carries
 	/// (NTB) vote.
@@ -474,7 +485,7 @@ impl pallet_democracy::Config for Runtime {
 	type Preimages = Preimage;
 	type RuntimeEvent = RuntimeEvent;
 	type Scheduler = Scheduler;
-	type Slash = ();
+	type Slash = ToGrowthTreasury;
 	type SubmitOrigin = EnsureSigned<AccountId>;
 	// Any single technical committee member may veto a coming council proposal, however they can
 	// only do it once and it lasts only for the cool-off period.
@@ -533,7 +544,7 @@ impl pallet_elections_phragmen::Config for Runtime {
 	/// Number of runners_up to keep.
 	type DesiredRunnersUp = DesiredRunnersUp;
 	type InitializeMembers = Council;
-	type LoserCandidate = GrowthTreasury;
+	type LoserCandidate = ToGrowthTreasury;
 	type MaxCandidates = MaxCandidates;
 	type MaxVoters = MaxVoters;
 	type MaxVotesPerVoter = MaxVotesPerVoter;
@@ -652,10 +663,10 @@ construct_runtime!(
 
 		// Governance
 		GrowthTreasury: pallet_treasury = 40,
-		Democracy: pallet_democracy = 41,
+		Democracy: pallet_democracy::{Pallet, Call, Storage, Event<T>, Config<T>, HoldReason, FreezeReason} = 41,
 		Council: pallet_collective::<Instance1> = 42,
 		TechnicalCommittee: pallet_collective::<Instance2> = 43,
-		Elections: pallet_elections_phragmen = 44,
+		Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>, HoldReason, FreezeReason} = 44,
 		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 45,
 		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 46,
 	}

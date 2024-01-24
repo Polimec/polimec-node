@@ -1,16 +1,13 @@
 [package]
-name = "pallet-elections-phragmen"
-version = "5.0.0-dev"
+name = "pallet-democracy"
+version = "4.0.0-dev"
 authors.workspace = true
 edition.workspace = true
 license = "Apache-2.0"
 homepage = "https://substrate.io"
 repository.workspace = true
-description = "FRAME pallet based on seq-Phragmén election method."
+description = "FRAME pallet for democracy"
 readme = "README.md"
-
-[lints]
-workspace = true
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
@@ -18,52 +15,53 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 parity-scale-codec = { workspace = true, features = ["derive"] }
 scale-info = { workspace = true, features = ["derive"] }
-log.workspace = true
+serde = {workspace = true, features = ["derive"], optional = true}
 frame-benchmarking = { workspace = true, optional = true }
 frame-support.workspace = true
 frame-system.workspace = true
-sp-core.workspace = true
 sp-io.workspace = true
-sp-npos-elections.workspace = true
+pallet-balances.workspace = true
 sp-runtime.workspace = true
 sp-std.workspace = true
-sp-staking.workspace = true
+sp-core.workspace = true
+log.workspace = true
 
 [dev-dependencies]
 pallet-balances.workspace = true
-sp-core.workspace = true
-sp-tracing.workspace = true
-substrate-test-utils.workspace = true
+pallet-scheduler.workspace = true
+pallet-preimage.workspace = true
 
 [features]
-default = ["std"]
+default = [ "std" ]
 std = [
 	"parity-scale-codec/std",
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
-	"log/std",
 	"pallet-balances/std",
+	"pallet-preimage/std",
+	"pallet-scheduler/std",
 	"scale-info/std",
+	"serde",
 	"sp-core/std",
 	"sp-io/std",
-	"sp-npos-elections/std",
 	"sp-runtime/std",
-	"sp-staking/std",
 	"sp-std/std",
-	"sp-tracing/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
+	"pallet-preimage/runtime-benchmarks",
+	"pallet-scheduler/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
-	"sp-staking/runtime-benchmarks",
 ]
 try-runtime = [
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
 	"pallet-balances/try-runtime",
+	"pallet-preimage/try-runtime",
+	"pallet-scheduler/try-runtime",
 	"sp-runtime/try-runtime",
 ]
