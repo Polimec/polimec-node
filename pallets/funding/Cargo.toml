@@ -62,11 +62,12 @@ assert_matches2.workspace = true
 xcm-executor.workspace = true
 
 [features]
-default = ["std"]
+default = [ "std" ]
 std = [
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
+	"futures",
 	"itertools/use_std",
 	"log/std",
 	"pallet-assets/std",
@@ -77,8 +78,8 @@ std = [
 	"pallet-xcm/std",
 	"parachains-common/std",
 	"parity-scale-codec/std",
-	"polimec-receiver/std",
 	"polimec-common/std",
+	"polimec-receiver/std",
 	"polimec-xcm-executor/std",
 	"polkadot-parachain/std",
 	"polkadot-runtime-parachains/std",
@@ -90,11 +91,10 @@ std = [
 	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
+	"tokio",
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
-	"tokio",
-	"futures",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
@@ -106,8 +106,8 @@ runtime-benchmarks = [
 	"pallet-linear-release/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
-	"polimec-receiver/runtime-benchmarks",
 	"polimec-common/runtime-benchmarks",
+	"polimec-receiver/runtime-benchmarks",
 	"polimec-xcm-executor/runtime-benchmarks",
 	"polkadot-parachain/runtime-benchmarks",
 	"polkadot-runtime-parachains/runtime-benchmarks",
@@ -115,7 +115,6 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
-	"pallet-xcm/runtime-benchmarks"
 ]
 try-runtime = [
 	"frame-support/try-runtime",
@@ -126,8 +125,8 @@ try-runtime = [
 	"pallet-linear-release/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"pallet-xcm/try-runtime",
-	"polimec-receiver/try-runtime",
 	"polimec-common/try-runtime",
+	"polimec-receiver/try-runtime",
 	"polkadot-runtime-parachains/try-runtime",
 	"polkadot-runtime/try-runtime",
 	"sp-runtime/try-runtime",
