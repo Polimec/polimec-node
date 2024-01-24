@@ -906,7 +906,6 @@ impl<T: Config> Pallet<T> {
 		if caller_existing_evaluations.len() < T::MaxEvaluationsPerUser::get() as usize {
 			use frame_support::traits::fungible::Inspect;
 
-			let dbg = T::NativeCurrency::balance(evaluator);
 			T::NativeCurrency::hold(&HoldReason::Evaluation(project_id.into()).into(), evaluator, plmc_bond)?;
 		} else {
 			let (low_id, lowest_evaluation) = caller_existing_evaluations
@@ -949,7 +948,7 @@ impl<T: Config> Pallet<T> {
 		} else {
 			WeightInfoOf::<T>::evaluation_over_limit()
 		};
-
+		//
 		Ok(PostDispatchInfo { actual_weight: Some(actual_weight), pays_fee: Pays::Yes })
 	}
 
@@ -978,6 +977,7 @@ impl<T: Config> Pallet<T> {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PriceNotFound)?;
 		let ct_deposit = T::ContributionTokenCurrency::deposit_required(project_id);
+		// benchmark variables
 
 		// * Validity checks *
 		ensure!(ct_amount > Zero::zero(), Error::<T>::BidTooLow);
@@ -1142,7 +1142,8 @@ impl<T: Config> Pallet<T> {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let ct_deposit = T::ContributionTokenCurrency::deposit_required(project_id);
-
+		let caller_existing_contributions =
+			Contributions::<T>::iter_prefix_values((project_id, contributor)).collect::<Vec<_>>();
 		// * Validity checks *
 		ensure!(project_metadata.participation_currencies == asset, Error::<T>::FundingAssetNotAccepted);
 		ensure!(contributor.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
@@ -1205,9 +1206,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// Try adding the new contribution to the system
-		let existing_contributions =
-			Contributions::<T>::iter_prefix_values((project_id, contributor)).collect::<Vec<_>>();
-		if existing_contributions.len() < T::MaxContributionsPerUser::get() as usize {
+		if caller_existing_contributions.len() < T::MaxContributionsPerUser::get() as usize {
 			Self::try_plmc_participation_lock(contributor, project_id, plmc_bond)?;
 			Self::try_funding_asset_hold(contributor, project_id, funding_asset_amount, asset_id)?;
 		} else {
@@ -1267,6 +1266,7 @@ impl<T: Config> Pallet<T> {
 		// If no CTs remain, end the funding phase
 		if remaining_cts_after_purchase.is_zero() {
 			// TODO: return real weights
+			// remove the remainder transition or the funding failed transition
 			let iterations = match Self::remove_from_update_store(&project_id) {
 				Ok(iterations) => iterations,
 				Err(iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),

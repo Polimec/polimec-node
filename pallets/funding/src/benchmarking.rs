@@ -824,6 +824,10 @@ mod benchmarks {
 		);
 	}
 
+	// branches:
+	// - ct account deposit
+	// - amount of times where `perform_bid` is called (i.e how many buckets)
+	// - reached max bids and needs to unbond one
 	#[benchmark]
 	fn bid(x: Linear<1, 20>) {
 		// * setup *
@@ -932,27 +936,13 @@ mod benchmarks {
 		);
 	}
 
-	#[benchmark]
-	// assume for now community contribution
-	fn contribute(
-		// Existing projects count
-		a: Linear<1, 10>,
-		// // Evaluations count
-		// b: Linear<1, 10>,
-		// // Bids count
-		// c: Linear<1, 10>,
-		// // Community contributions count
-		// d: Linear<1, 10>,
-		// // User contributions count
-		// e: Linear<1, 10>,
-	) {
+	fn contribution_setup<T: Config>(
+		x: u32,
+	) -> (BenchInstantiator<T>, ProjectId, UserToUSDBalance<T>, BalanceOf<T>, BalanceOf<T>) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
-
-		#[cfg(feature = "std")]
-		let mut inst = populate_with_projects(a, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let contributor = account::<AccountIdOf<T>>("contributor", 0, 0);
@@ -969,31 +959,51 @@ mod benchmarks {
 
 		let price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
-		let contribution_params =
+		let existing_contribution =
+			ContributionParams::new(contributor.clone(), (50 * ASSET_UNIT).into(), 1u8, AcceptedFundingAsset::USDT);
+		let extrinsic_contribution =
 			ContributionParams::new(contributor.clone(), (100 * ASSET_UNIT).into(), 1u8, AcceptedFundingAsset::USDT);
-		let necessary_plmc =
-			BenchInstantiator::<T>::calculate_contributed_plmc_spent(vec![contribution_params.clone()], price);
-		let existential_deposits: Vec<UserToPLMCBalance<T>> = necessary_plmc.accounts().existential_deposits();
-		let ct_account_deposits: Vec<UserToPLMCBalance<T>> = necessary_plmc.accounts().ct_account_deposits();
-		let necessary_usdt =
-			BenchInstantiator::<T>::calculate_contributed_funding_asset_spent(vec![contribution_params.clone()], price);
+		let existing_contributions = vec![existing_contribution; x as usize];
 
-		inst.mint_plmc_to(necessary_plmc.clone());
-		inst.mint_plmc_to(existential_deposits.clone());
-		inst.mint_plmc_to(ct_account_deposits.clone());
-		inst.mint_statemint_asset_to(necessary_usdt.clone());
-
-		let contribution_id = NextContributionId::<T>::get();
-
-		#[extrinsic_call]
-		contribute(
-			RawOrigin::Signed(contributor.clone()),
-			project_id,
-			contribution_params.amount,
-			contribution_params.multiplier,
-			contribution_params.asset,
+		let plmc_for_existing_contributions =
+			BenchInstantiator::<T>::calculate_contributed_plmc_spent(existing_contributions.clone(), price);
+		let plmc_for_extrinsic_contribution =
+			BenchInstantiator::<T>::calculate_contributed_plmc_spent(vec![extrinsic_contribution.clone()], price);
+		let usdt_for_existing_contributions =
+			BenchInstantiator::<T>::calculate_contributed_funding_asset_spent(existing_contributions.clone(), price);
+		let usdt_for_extrinsic_contribution = BenchInstantiator::<T>::calculate_contributed_funding_asset_spent(
+			vec![extrinsic_contribution.clone()],
+			price,
 		);
 
+		let existential_deposits: Vec<UserToPLMCBalance<T>> =
+			plmc_for_extrinsic_contribution.accounts().existential_deposits();
+		let ct_account_deposits: Vec<UserToPLMCBalance<T>> =
+			plmc_for_extrinsic_contribution.accounts().ct_account_deposits();
+
+		inst.mint_plmc_to(plmc_for_existing_contributions.clone());
+		inst.mint_plmc_to(plmc_for_extrinsic_contribution.clone());
+		inst.mint_plmc_to(existential_deposits.clone());
+		inst.mint_plmc_to(ct_account_deposits.clone());
+		inst.mint_statemint_asset_to(usdt_for_existing_contributions.clone());
+		inst.mint_statemint_asset_to(usdt_for_extrinsic_contribution.clone());
+
+		// do "x" contributions for this user
+		inst.bond_for_users(project_id, existing_contributions).expect("All evaluations are accepted");
+
+		let total_plmc_bonded = BenchInstantiator::<T>::sum_balance_mappings(vec![
+			plmc_for_existing_contributions.clone(),
+			plmc_for_extrinsic_contribution.clone(),
+		]);
+		let total_usdt_locked = BenchInstantiator::<T>::sum_balance_mappings(vec![
+			usdt_for_existing_contributions.clone(),
+			usdt_for_extrinsic_contribution.clone(),
+		]);
+
+		(inst, project_id, extrinsic_contribution, total_plmc_bonded, total_usdt_locked)
+	}
+
+	fn contribution_verification<T: Config>() {
 		// * validity checks *
 		// Storage
 		let stored_contribution = Contributions::<T>::iter_prefix_values((project_id, contributor.clone()))
@@ -1017,8 +1027,6 @@ mod benchmarks {
 			ct_migration_status: MigrationStatus::NotStarted,
 		};
 		assert_eq!(stored_contribution, contribution);
-
-		assert_eq!(NextContributionId::<T>::get(), contribution_id.saturating_add(One::one()));
 
 		let stored_project_details = ProjectsDetails::<T>::get(project_id).unwrap();
 
@@ -1049,6 +1057,26 @@ mod benchmarks {
 				multiplier: contribution_params.multiplier,
 			}
 			.into(),
+		);
+	}
+
+	// branches:
+	// - ct account deposit
+	// - contribution over limit
+	// - if last ct sold, automatic transition to failed removed, and automatic transition to success inserted
+	#[benchmark]
+	// assume for now community contribution
+	fn contribute(
+		// How many other contributions the user did for that same project
+		x: Linear<1, { T::MaxContributionsPerUser::get() - 1 }>,
+	) {
+		#[extrinsic_call]
+		contribute(
+			RawOrigin::Signed(contributor.clone()),
+			project_id,
+			contribution_params.amount,
+			contribution_params.multiplier,
+			contribution_params.asset,
 		);
 	}
 
