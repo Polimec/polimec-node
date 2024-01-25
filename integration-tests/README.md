@@ -14,5 +14,5 @@ with the latest chain specs to provide a realistic testing environment.
 
 ```bash
 $ cd polimec-node/integration-tests/
-$ cargo test --features std,testing-node,fast-gov
+$ cargo test --features std,testing-node,fast-mode
 ```

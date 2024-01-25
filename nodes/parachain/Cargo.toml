@@ -109,9 +109,9 @@ try-runtime = [
 	"try-runtime-cli",
 	"try-runtime-cli?/try-runtime",
 ]
-fast-gov = [
-	"polimec-base-runtime/fast-gov",
-	"polimec-parachain-runtime/fast-gov",
+fast-mode = [
+	"polimec-base-runtime/fast-mode",
+	"polimec-parachain-runtime/fast-mode",
 ]
 std = [
 	"cumulus-primitives-core/std",

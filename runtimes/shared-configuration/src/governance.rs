@@ -20,55 +20,55 @@ use crate::{
 };
 use frame_support::{parameter_types, PalletId};
 use parachains_common::BlockNumber;
-#[cfg(feature = "fast-gov")]
+#[cfg(feature = "fast-mode")]
 use parachains_common::MINUTES;
-#[cfg(not(feature = "fast-gov"))]
+#[cfg(not(feature = "fast-mode"))]
 use parachains_common::{DAYS, HOURS};
 use sp_arithmetic::Permill;
 
-#[cfg(feature = "fast-gov")]
+#[cfg(feature = "fast-mode")]
 pub const LAUNCH_PERIOD: BlockNumber = 7 * MINUTES;
-#[cfg(not(feature = "fast-gov"))]
+#[cfg(not(feature = "fast-mode"))]
 pub const LAUNCH_PERIOD: BlockNumber = 7 * DAYS;
 
-#[cfg(feature = "fast-gov")]
+#[cfg(feature = "fast-mode")]
 pub const VOTING_PERIOD: BlockNumber = 7 * MINUTES;
-#[cfg(not(feature = "fast-gov"))]
+#[cfg(not(feature = "fast-mode"))]
 pub const VOTING_PERIOD: BlockNumber = 7 * DAYS;
 
-#[cfg(feature = "fast-gov")]
+#[cfg(feature = "fast-mode")]
 pub const FAST_TRACK_VOTING_PERIOD: BlockNumber = 3 * MINUTES;
-#[cfg(not(feature = "fast-gov"))]
+#[cfg(not(feature = "fast-mode"))]
 pub const FAST_TRACK_VOTING_PERIOD: BlockNumber = 3 * HOURS;
 
-#[cfg(feature = "fast-gov")]
+#[cfg(feature = "fast-mode")]
 pub const ENACTMENT_PERIOD: BlockNumber = 7 * MINUTES;
-#[cfg(not(feature = "fast-gov"))]
+#[cfg(not(feature = "fast-mode"))]
 pub const ENACTMENT_PERIOD: BlockNumber = 7 * DAYS;
 
-#[cfg(feature = "fast-gov")]
+#[cfg(feature = "fast-mode")]
 pub const COOLOFF_PERIOD: BlockNumber = 7 * MINUTES;
-#[cfg(not(feature = "fast-gov"))]
+#[cfg(not(feature = "fast-mode"))]
 pub const COOLOFF_PERIOD: BlockNumber = 28 * DAYS;
 
-#[cfg(feature = "fast-gov")]
+#[cfg(feature = "fast-mode")]
 pub const SPEND_PERIOD: BlockNumber = 7 * MINUTES;
-#[cfg(not(feature = "fast-gov"))]
+#[cfg(not(feature = "fast-mode"))]
 pub const SPEND_PERIOD: BlockNumber = 7 * DAYS;
 
-#[cfg(feature = "fast-gov")]
+#[cfg(feature = "fast-mode")]
 pub const TERM_DURATION: BlockNumber = 15 * MINUTES;
-#[cfg(not(feature = "fast-gov"))]
+#[cfg(not(feature = "fast-mode"))]
 pub const TERM_DURATION: BlockNumber = 14 * DAYS;
 
-#[cfg(feature = "fast-gov")]
+#[cfg(feature = "fast-mode")]
 pub const COUNCIL_MOTION_DURATION: BlockNumber = 4 * MINUTES;
-#[cfg(not(feature = "fast-gov"))]
+#[cfg(not(feature = "fast-mode"))]
 pub const COUNCIL_MOTION_DURATION: BlockNumber = 7 * DAYS;
 
-#[cfg(feature = "fast-gov")]
+#[cfg(feature = "fast-mode")]
 pub const TECHNICAL_MOTION_DURATION: BlockNumber = 4 * MINUTES;
-#[cfg(not(feature = "fast-gov"))]
+#[cfg(not(feature = "fast-mode"))]
 pub const TECHNICAL_MOTION_DURATION: BlockNumber = 7 * DAYS;
 
 parameter_types! {
