@@ -761,7 +761,7 @@ mod benchmarks {
 	// - We know that it requires a ct deposit
 	// - We know that it does not require to unbond the lowest evaluation
 	#[benchmark]
-	fn first_evaluation() {
+	pub fn first_evaluation() {
 		// How many other evaluations the user did for that same project
 		let x = 0;
 		let (inst, project_id, extrinsic_evaluation, extrinsic_plmc_bonded, total_expected_plmc_bonded) =
@@ -939,7 +939,17 @@ mod benchmarks {
 	fn contribution_setup<T: Config>(
 		x: u32,
 		ends_round: bool,
-	) -> (BenchInstantiator<T>, ProjectId, ProjectMetadataOf<T>, ContributionParams<T>, BalanceOf<T>, BalanceOf<T>)
+	) -> (
+		BenchInstantiator<T>,
+		ProjectId,
+		ProjectMetadataOf<T>,
+		ContributionParams<T>,
+		BalanceOf<T>,
+		BalanceOf<T>,
+		BalanceOf<T>,
+		BalanceOf<T>,
+		BalanceOf<T>,
+	)
 	where
 		<T as Config>::Balance: From<u128>,
 		<T as Config>::Price: From<u128>,
@@ -978,6 +988,8 @@ mod benchmarks {
 			ContributionParams::new(contributor.clone(), extrinsic_amount, 1u8, AcceptedFundingAsset::USDT);
 		let existing_contributions = vec![existing_contribution; x as usize];
 
+		let mut total_ct_sold: BalanceOf<T> = existing_amount * (x as u128).into() + extrinsic_amount;
+
 		let plmc_for_existing_contributions =
 			BenchInstantiator::<T>::calculate_contributed_plmc_spent(existing_contributions.clone(), price);
 		let plmc_for_extrinsic_contribution =
@@ -994,6 +1006,10 @@ mod benchmarks {
 		let ct_account_deposits: Vec<UserToPLMCBalance<T>> =
 			plmc_for_extrinsic_contribution.accounts().ct_account_deposits();
 
+		let escrow_account = Pallet::<T>::fund_account_id(project_id);
+		let prev_total_usdt_locked =
+			inst.get_free_statemint_asset_balances_for(usdt_id(), vec![escrow_account.clone()]);
+
 		inst.mint_plmc_to(plmc_for_existing_contributions.clone());
 		inst.mint_plmc_to(plmc_for_extrinsic_contribution.clone());
 		inst.mint_plmc_to(existential_deposits.clone());
@@ -1004,16 +1020,43 @@ mod benchmarks {
 		// do "x" contributions for this user
 		inst.contribute_for_users(project_id, existing_contributions).expect("All evaluations are accepted");
 
-		let total_plmc_bonded = BenchInstantiator::<T>::sum_balance_mappings(vec![
+		let mut total_plmc_bonded = BenchInstantiator::<T>::sum_balance_mappings(vec![
 			plmc_for_existing_contributions.clone(),
 			plmc_for_extrinsic_contribution.clone(),
 		]);
-		let total_usdt_locked = BenchInstantiator::<T>::sum_statemint_mappings(vec![
+		let mut total_usdt_locked = BenchInstantiator::<T>::sum_statemint_mappings(vec![
+			prev_total_usdt_locked,
 			usdt_for_existing_contributions.clone(),
 			usdt_for_extrinsic_contribution.clone(),
 		]);
 
-		(inst, project_id, project_metadata, extrinsic_contribution, total_plmc_bonded, total_usdt_locked)
+		let over_limit_count = x.saturating_sub(<T as Config>::MaxContributionsPerUser::get() - 1);
+
+		let mut total_free_plmc = existential_deposits[0].plmc_amount;
+		let mut total_free_usdt = Zero::zero();
+
+		if x > 0 {
+			let plmc_returned = plmc_for_existing_contributions[0].plmc_amount * (over_limit_count as u128).into();
+			total_plmc_bonded -= plmc_returned;
+
+			let usdt_returned = usdt_for_existing_contributions[0].asset_amount * (over_limit_count as u128).into();
+			total_usdt_locked -= usdt_returned;
+			total_ct_sold -= existing_amount * (over_limit_count as u128).into();
+			total_free_plmc += plmc_returned;
+			total_free_usdt += usdt_returned;
+		}
+
+		(
+			inst,
+			project_id,
+			project_metadata,
+			extrinsic_contribution,
+			total_free_plmc,
+			total_plmc_bonded,
+			total_free_usdt,
+			total_usdt_locked,
+			total_ct_sold,
+		)
 	}
 
 	fn contribution_verification<T: Config>(
@@ -1021,8 +1064,11 @@ mod benchmarks {
 		project_id: ProjectId,
 		project_metadata: ProjectMetadataOf<T>,
 		extrinsic_contribution: ContributionParams<T>,
+		total_free_plmc: BalanceOf<T>,
 		total_plmc_bonded: BalanceOf<T>,
+		total_free_usdt: BalanceOf<T>,
 		total_usdt_locked: BalanceOf<T>,
+		total_ct_sold: BalanceOf<T>,
 	) where
 		<T as Config>::Balance: From<u128>,
 		<T as Config>::Price: From<u128>,
@@ -1049,7 +1095,7 @@ mod benchmarks {
 
 		assert_eq!(
 			stored_project_details.remaining_contribution_tokens.1,
-			project_metadata.total_allocation_size.1.saturating_sub(extrinsic_contribution.amount)
+			project_metadata.total_allocation_size.1.saturating_sub(total_ct_sold)
 		);
 
 		// Balances
@@ -1059,7 +1105,7 @@ mod benchmarks {
 		assert_eq!(bonded_plmc, total_plmc_bonded);
 
 		let free_plmc = inst.get_free_plmc_balances_for(vec![contributor.clone()])[0].plmc_amount;
-		assert_eq!(free_plmc, Zero::zero());
+		assert_eq!(free_plmc, total_free_plmc);
 
 		let escrow_account = Pallet::<T>::fund_account_id(project_id);
 		let locked_usdt =
@@ -1068,7 +1114,7 @@ mod benchmarks {
 
 		let free_usdt =
 			inst.get_free_statemint_asset_balances_for(usdt_id(), vec![contributor.clone()])[0].asset_amount;
-		assert_eq!(free_usdt, Zero::zero());
+		assert_eq!(free_usdt, total_free_usdt);
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(
@@ -1088,8 +1134,17 @@ mod benchmarks {
 		let x = 0;
 		let ends_round = false;
 
-		let (inst, project_id, project_metadata, extrinsic_contribution, total_plmc_bonded, total_usdt_locked) =
-			contribution_setup::<T>(x, ends_round);
+		let (
+			inst,
+			project_id,
+			project_metadata,
+			extrinsic_contribution,
+			total_free_plmc,
+			total_plmc_bonded,
+			total_free_usdt,
+			total_usdt_locked,
+			total_ct_sold,
+		) = contribution_setup::<T>(x, ends_round);
 
 		#[extrinsic_call]
 		contribute(
@@ -1105,8 +1160,11 @@ mod benchmarks {
 			project_id,
 			project_metadata,
 			extrinsic_contribution,
+			total_free_plmc,
 			total_plmc_bonded,
+			total_free_usdt,
 			total_usdt_locked,
+			total_ct_sold,
 		);
 	}
 	#[benchmark]
@@ -1114,8 +1172,17 @@ mod benchmarks {
 		// How many other contributions the user did for that same project
 		let x = 0;
 		let ends_round = true;
-		let (inst, project_id, project_metadata, extrinsic_contribution, total_plmc_bonded, total_usdt_locked) =
-			contribution_setup::<T>(x, ends_round);
+		let (
+			inst,
+			project_id,
+			project_metadata,
+			extrinsic_contribution,
+			total_free_plmc,
+			total_plmc_bonded,
+			total_free_usdt,
+			total_usdt_locked,
+			total_ct_sold,
+		) = contribution_setup::<T>(x, ends_round);
 
 		#[extrinsic_call]
 		contribute(
@@ -1131,8 +1198,11 @@ mod benchmarks {
 			project_id,
 			project_metadata,
 			extrinsic_contribution,
+			total_free_plmc,
 			total_plmc_bonded,
+			total_free_usdt,
 			total_usdt_locked,
+			total_ct_sold,
 		);
 	}
 
@@ -1143,8 +1213,17 @@ mod benchmarks {
 	) {
 		let ends_round = false;
 
-		let (inst, project_id, project_metadata, extrinsic_contribution, total_plmc_bonded, total_usdt_locked) =
-			contribution_setup::<T>(x, ends_round);
+		let (
+			inst,
+			project_id,
+			project_metadata,
+			extrinsic_contribution,
+			total_free_plmc,
+			total_plmc_bonded,
+			total_free_usdt,
+			total_usdt_locked,
+			total_ct_sold,
+		) = contribution_setup::<T>(x, ends_round);
 
 		#[extrinsic_call]
 		contribute(
@@ -1160,8 +1239,11 @@ mod benchmarks {
 			project_id,
 			project_metadata,
 			extrinsic_contribution,
+			total_free_plmc,
 			total_plmc_bonded,
+			total_free_usdt,
 			total_usdt_locked,
+			total_ct_sold,
 		);
 	}
 
@@ -1172,8 +1254,17 @@ mod benchmarks {
 	) {
 		let ends_round = true;
 
-		let (inst, project_id, project_metadata, extrinsic_contribution, total_plmc_bonded, total_usdt_locked) =
-			contribution_setup::<T>(x, ends_round);
+		let (
+			inst,
+			project_id,
+			project_metadata,
+			extrinsic_contribution,
+			total_free_plmc,
+			total_plmc_bonded,
+			total_free_usdt,
+			total_usdt_locked,
+			total_ct_sold,
+		) = contribution_setup::<T>(x, ends_round);
 
 		#[extrinsic_call]
 		contribute(
@@ -1189,8 +1280,11 @@ mod benchmarks {
 			project_id,
 			project_metadata,
 			extrinsic_contribution,
+			total_free_plmc,
 			total_plmc_bonded,
+			total_free_usdt,
 			total_usdt_locked,
+			total_ct_sold,
 		);
 	}
 
@@ -1200,8 +1294,17 @@ mod benchmarks {
 		let x = <T as Config>::MaxContributionsPerUser::get();
 		let ends_round = false;
 
-		let (inst, project_id, project_metadata, extrinsic_contribution, total_plmc_bonded, total_usdt_locked) =
-			contribution_setup::<T>(x, ends_round);
+		let (
+			inst,
+			project_id,
+			project_metadata,
+			extrinsic_contribution,
+			total_free_plmc,
+			total_plmc_bonded,
+			total_free_usdt,
+			total_usdt_locked,
+			total_ct_sold,
+		) = contribution_setup::<T>(x, ends_round);
 
 		#[extrinsic_call]
 		contribute(
@@ -1217,8 +1320,11 @@ mod benchmarks {
 			project_id,
 			project_metadata,
 			extrinsic_contribution,
+			total_free_plmc,
 			total_plmc_bonded,
+			total_free_usdt,
 			total_usdt_locked,
+			total_ct_sold,
 		);
 	}
 
@@ -1228,8 +1334,17 @@ mod benchmarks {
 		let x = <T as Config>::MaxContributionsPerUser::get();
 		let ends_round = true;
 
-		let (inst, project_id, project_metadata, extrinsic_contribution, total_plmc_bonded, total_usdt_locked) =
-			contribution_setup::<T>(x, ends_round);
+		let (
+			inst,
+			project_id,
+			project_metadata,
+			extrinsic_contribution,
+			total_free_plmc,
+			total_plmc_bonded,
+			total_free_usdt,
+			total_usdt_locked,
+			total_ct_sold,
+		) = contribution_setup::<T>(x, ends_round);
 
 		#[extrinsic_call]
 		contribute(
@@ -1245,8 +1360,11 @@ mod benchmarks {
 			project_id,
 			project_metadata,
 			extrinsic_contribution,
+			total_free_plmc,
 			total_plmc_bonded,
+			total_free_usdt,
 			total_usdt_locked,
+			total_ct_sold,
 		);
 	}
 
@@ -2336,9 +2454,44 @@ mod benchmarks {
 		}
 
 		#[test]
-		fn bench_contribute() {
+		fn bench_first_contribution() {
 			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_contribute());
+				assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution());
+			});
+		}
+
+		#[test]
+		fn bench_first_contribution_ends_round() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution_ends_round());
+			});
+		}
+
+		#[test]
+		fn bench_second_to_limit_contribution() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_second_to_limit_contribution());
+			});
+		}
+
+		#[test]
+		fn bench_second_to_limit_contribution_ends_round() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_second_to_limit_contribution_ends_round());
+			});
+		}
+
+		#[test]
+		fn bench_contribution_over_limit() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_contribution_over_limit());
+			});
+		}
+
+		#[test]
+		fn bench_contribution_over_limit_ends_round() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_contribution_over_limit_ends_round());
 			});
 		}
 
