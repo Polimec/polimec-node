@@ -7548,6 +7548,7 @@ dependencies = [
  "pallet-balances",
  "pallet-collective",
  "pallet-democracy 4.0.0-dev",
+ "pallet-elections-phragmen 5.0.0-dev",
  "pallet-funding",
  "pallet-insecure-randomness-collective-flip",
  "pallet-linear-release",

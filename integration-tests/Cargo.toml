@@ -71,7 +71,7 @@ polimec-base-runtime.workspace = true
 penpal-runtime = { path = "./penpal", default-features = false }
 
 [features]
-default = [ "std" ]
+default = [ "std", "testing-node", "fast-gov" ]
 
 std = [
 	"asset-hub-polkadot-runtime/std",
@@ -153,6 +153,7 @@ runtime-benchmarks = [
 testing-node = [
 	"pallet-funding/testing-node",
 	"polimec-parachain-runtime/testing-node",
+	"polimec-base-runtime/testing-node",
 ]
 try-runtime = [
 	"asset-hub-polkadot-runtime/try-runtime",

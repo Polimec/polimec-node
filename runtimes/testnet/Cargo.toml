@@ -42,6 +42,7 @@ pallet-authorship.workspace = true
 pallet-balances.workspace = true
 pallet-collective.workspace = true
 pallet-democracy.workspace = true
+pallet-elections-phragmen.workspace = true
 pallet-membership.workspace = true
 pallet-scheduler.workspace = true
 pallet-session.workspace = true
@@ -126,6 +127,7 @@ std = [
 	"pallet-balances/std",
 	"pallet-collective/std",
 	"pallet-democracy/std",
+	"pallet-elections-phragmen/std",
 	"pallet-funding/std",
 	"pallet-insecure-randomness-collective-flip/std",
 	"pallet-linear-release/std",
@@ -186,6 +188,7 @@ runtime-benchmarks = [
 	"pallet-balances/runtime-benchmarks",
 	"pallet-collective/runtime-benchmarks",
 	"pallet-democracy/runtime-benchmarks",
+	"pallet-elections-phragmen/runtime-benchmarks",
 	"pallet-funding/runtime-benchmarks",
 	"pallet-linear-release/runtime-benchmarks",
 	"pallet-membership/runtime-benchmarks",
@@ -229,6 +232,7 @@ try-runtime = [
 	"pallet-balances/try-runtime",
 	"pallet-collective/try-runtime",
 	"pallet-democracy/try-runtime",
+	"pallet-elections-phragmen/try-runtime",
 	"pallet-funding/try-runtime",
 	"pallet-insecure-randomness-collective-flip/try-runtime",
 	"pallet-linear-release/try-runtime",

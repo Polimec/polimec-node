@@ -57,11 +57,6 @@ pub const SPEND_PERIOD: BlockNumber = 7 * MINUTES;
 pub const SPEND_PERIOD: BlockNumber = 7 * DAYS;
 
 #[cfg(feature = "fast-gov")]
-pub const ROTATION_PERIOD: BlockNumber = 80 * MINUTES;
-#[cfg(not(feature = "fast-gov"))]
-pub const ROTATION_PERIOD: BlockNumber = 80 * HOURS;
-
-#[cfg(feature = "fast-gov")]
 pub const TERM_DURATION: BlockNumber = 15 * MINUTES;
 #[cfg(not(feature = "fast-gov"))]
 pub const TERM_DURATION: BlockNumber = 14 * DAYS;
