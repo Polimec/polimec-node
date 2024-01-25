@@ -130,8 +130,6 @@ mod benchmarking;
 pub mod weights;
 pub use weights::WeightInfo;
 
-/// All migrations.
-pub mod migrations;
 
 const LOG_TARGET: &str = "runtime::elections-phragmen";
 

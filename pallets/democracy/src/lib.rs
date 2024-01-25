@@ -194,7 +194,6 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 
-pub mod migrations;
 
 pub(crate) const DEMOCRACY_ID: LockIdentifier = *b"democrac";
 
