@@ -377,6 +377,42 @@ where
 // 	contributions
 // }
 
+// IMPORTANT: make sure your project starts at (block 1 + `total_vecs_in_storage` - `fully_filled_vecs_from_insertion`) to always have room to insert new vecs
+pub fn fill_projects_to_update<T: Config>(
+	fully_filled_vecs_from_insertion: u32,
+	mut expected_insertion_block: BlockNumberFor<T>,
+	total_vecs_in_storage: u32,
+) {
+	// fill the `ProjectsToUpdate` vectors from @ expected_insertion_block to @ expected_insertion_block+x, to benchmark all the failed insertion attempts
+	for _ in 0..fully_filled_vecs_from_insertion {
+		while ProjectsToUpdate::<T>::try_append(expected_insertion_block, (&69u32, UpdateType::EvaluationEnd)).is_ok() {
+			continue
+		}
+		expected_insertion_block += 1u32.into();
+	}
+
+	// fill `ProjectsToUpdate` with `y` different BlockNumber->Vec items to benchmark deletion of our project from the map
+	// We keep in mind that we already filled `x` amount of vecs to max capacity
+	let remaining_vecs = total_vecs_in_storage.saturating_sub(fully_filled_vecs_from_insertion);
+	if remaining_vecs > 0 {
+		// we benchmarked this with different values, and it had no impact on the weight, so we use a low value to speed up the benchmark
+		let items_per_vec = 5u32;
+		let mut block_number: BlockNumberFor<T> = Zero::zero();
+		for _ in 0..remaining_vecs {
+			// To iterate over all expected items when looking to remove, we need to insert everything _before_ our already stored project's block_number
+			let mut vec: Vec<(ProjectId, UpdateType)> = ProjectsToUpdate::<T>::get(block_number).to_vec();
+			let items_to_fill = items_per_vec - vec.len() as u32;
+			for _ in 0..items_to_fill {
+				vec.push((69u32, UpdateType::EvaluationEnd));
+			}
+			let bounded_vec: BoundedVec<(ProjectId, UpdateType), T::MaxProjectsToUpdatePerBlock> =
+				vec.try_into().unwrap();
+			ProjectsToUpdate::<T>::insert(block_number, bounded_vec);
+			block_number += 1u32.into();
+		}
+	}
+}
+
 #[benchmarks(
 	where
 	T: Config + frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent> + pallet_balances::Config<Balance = BalanceOf<T>>,
@@ -956,7 +992,7 @@ mod benchmarks {
 
 	fn contribution_setup<T: Config>(
 		x: u32,
-		ends_round: bool,
+		ends_round: Option<(u32, u32)>,
 	) -> (
 		BenchInstantiator<T>,
 		ProjectId,
@@ -976,8 +1012,14 @@ mod benchmarks {
 	{
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
-		// real benchmark starts at block 0, and we can't call `events()` at block 0
-		inst.advance_time(1u32.into()).unwrap();
+
+		// We need to leave enough block numbers to fill `ProjectsToUpdate` before our project insertion
+		let mut time_advance: u32 = 1;
+		if let Some((y, z)) = ends_round {
+			let u32_remaining_vecs: u32 = z.saturating_sub(y).into();
+			time_advance += u32_remaining_vecs + 1;
+		}
+		inst.advance_time(time_advance.into()).unwrap();
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let contributor = account::<AccountIdOf<T>>("contributor", 0, 0);
@@ -995,7 +1037,7 @@ mod benchmarks {
 		let price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
 		let existing_amount: BalanceOf<T> = (50 * ASSET_UNIT).into();
-		let extrinsic_amount: BalanceOf<T> = if ends_round {
+		let extrinsic_amount: BalanceOf<T> = if let Some(_) = ends_round {
 			project_metadata.total_allocation_size.0 -
 				existing_amount * (x.min(<T as Config>::MaxContributionsPerUser::get() - 1) as u128).into()
 		} else {
@@ -1063,6 +1105,16 @@ mod benchmarks {
 			total_ct_sold -= existing_amount * (over_limit_count as u128).into();
 			total_free_plmc += plmc_returned;
 			total_free_usdt += usdt_returned;
+		}
+
+		if let Some((fully_filled_vecs_from_insertion, total_vecs_in_storage)) = ends_round {
+			// if all CTs are sold, next round is scheduled for next block (either remainder or success)
+			let expected_insertion_block = inst.current_block() + One::one();
+			fill_projects_to_update::<T>(
+				fully_filled_vecs_from_insertion,
+				expected_insertion_block,
+				total_vecs_in_storage,
+			);
 		}
 
 		(
@@ -1153,7 +1205,7 @@ mod benchmarks {
 	fn first_contribution() {
 		// How many other contributions the user did for that same project
 		let x = 0;
-		let ends_round = false;
+		let ends_round = None;
 
 		let (
 			inst,
@@ -1189,10 +1241,16 @@ mod benchmarks {
 		);
 	}
 	#[benchmark]
-	fn first_contribution_ends_round() {
+	fn first_contribution_ends_round(
+		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the extrinsic pass
+		y: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
+		// Total amount of storage items iterated through in `ProjectsToUpdate` when trying to remove our project in `remove_from_update_store`.
+		// Upper bound is assumed to be enough
+		z: Linear<1, 10_000>,
+	) {
 		// How many other contributions the user did for that same project
 		let x = 0;
-		let ends_round = true;
+		let ends_round = Some((y, z));
 		let (
 			inst,
 			project_id,
@@ -1232,7 +1290,7 @@ mod benchmarks {
 		// How many other contributions the user did for that same project
 		x: Linear<1, { T::MaxContributionsPerUser::get() - 1 }>,
 	) {
-		let ends_round = false;
+		let ends_round = None;
 
 		let (
 			inst,
@@ -1272,8 +1330,13 @@ mod benchmarks {
 	fn second_to_limit_contribution_ends_round(
 		// How many other contributions the user did for that same project
 		x: Linear<1, { T::MaxContributionsPerUser::get() - 1 }>,
+		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the extrinsic pass
+		y: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
+		// Total amount of storage items iterated through in `ProjectsToUpdate` when trying to remove our project in `remove_from_update_store`.
+		// Upper bound is assumed to be enough
+		z: Linear<1, 10_000>,
 	) {
-		let ends_round = true;
+		let ends_round = Some((y, z));
 
 		let (
 			inst,
@@ -1313,7 +1376,7 @@ mod benchmarks {
 	fn contribution_over_limit() {
 		// How many other contributions the user did for that same project
 		let x = <T as Config>::MaxContributionsPerUser::get();
-		let ends_round = false;
+		let ends_round = None;
 
 		let (
 			inst,
@@ -2316,30 +2379,6 @@ mod benchmarks {
 		);
 	}
 
-	// #[benchmark]
-	// fn test(){
-	// 	let mut inst = BenchInstantiator::<T>::new(None);
-	// 	inst.advance_time(5u32.into()).unwrap();
-	// 	let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-	// 	frame_system::Pallet::<T>::remark_with_event(RawOrigin::Signed(issuer.clone()).into(), vec![1u8,2u8,3u8,4u8]);
-	//
-	// 	let debug_events = frame_system::Pallet::<T>::events();
-	// 	if debug_events.len() == 0 {
-	// 		panic!("events in store: {:?}", debug_events.len());
-	// 	}
-	//
-	// 	#[block]
-	// 	{
-	//
-	// 	}
-	//
-	// 	let debug_events = frame_system::Pallet::<T>::events();
-	// 	log::info!(
-	// 		"frame system default events {:?}",
-	// 		debug_events
-	// 	);
-	// }
-
 	#[macro_export]
 	macro_rules! find_event {
 		($env: expr, $pattern:pat) => {
@@ -2461,13 +2500,6 @@ mod benchmarks {
 		fn bench_contribution_over_limit() {
 			new_test_ext().execute_with(|| {
 				assert_ok!(PalletFunding::<TestRuntime>::test_contribution_over_limit());
-			});
-		}
-
-		#[test]
-		fn bench_contribution_over_limit_ends_round() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_contribution_over_limit_ends_round());
 			});
 		}
 
