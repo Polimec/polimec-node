@@ -131,6 +131,24 @@ where
 	]
 }
 
+pub fn full_bids<T: Config>() -> Vec<BidParams<T>>
+where
+	<T as Config>::Price: From<u128>,
+	<T as Config>::Balance: From<u128>,
+	T::Hash: From<H256>,
+{
+	let default_project = default_project::<T>(0, account::<AccountIdOf<T>>("issuer", 0, 0));
+	let total_ct_for_bids = default_project.total_allocation_size.0;
+	let total_usd_for_bids = default_project.minimum_price.checked_mul_int(total_ct_for_bids).unwrap();
+	BenchInstantiator::<T>::generate_bids_from_total_usd(
+		total_usd_for_bids,
+		default_project.minimum_price,
+		default_weights(),
+		default_bidders::<T>(),
+		default_bidder_multipliers(),
+	)
+}
+
 pub fn default_community_contributions<T: Config>() -> Vec<ContributionParams<T>>
 where
 	<T as Config>::Price: From<u128>,
@@ -971,20 +989,21 @@ mod benchmarks {
 			project_metadata.clone(),
 			issuer,
 			default_evaluations::<T>(),
-			default_bids::<T>(),
+			full_bids::<T>(),
 		);
 
 		let price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
 		let existing_amount: BalanceOf<T> = (50 * ASSET_UNIT).into();
 		let extrinsic_amount: BalanceOf<T> = if ends_round {
-			project_metadata.total_allocation_size.0 - existing_amount * (x as u128).into()
+			project_metadata.total_allocation_size.0 -
+				existing_amount * (x.min(<T as Config>::MaxContributionsPerUser::get() - 1) as u128).into()
 		} else {
 			(100 * ASSET_UNIT).into()
 		};
 		let existing_contribution =
 			ContributionParams::new(contributor.clone(), existing_amount, 1u8, AcceptedFundingAsset::USDT);
-		let extrinsic_contribution =
+		let mut extrinsic_contribution =
 			ContributionParams::new(contributor.clone(), extrinsic_amount, 1u8, AcceptedFundingAsset::USDT);
 		let existing_contributions = vec![existing_contribution; x as usize];
 
@@ -1088,7 +1107,9 @@ mod benchmarks {
 				if project_id == project_id &&
 					contributor == contributor &&
 					ct_amount == extrinsic_contribution.amount => {},
-			_ => assert!(false, "Contribution is not stored correctly"),
+			_ => {
+				assert!(false, "Contribution is not stored correctly")
+			},
 		}
 
 		let stored_project_details = ProjectsDetails::<T>::get(project_id).unwrap();
@@ -1327,51 +1348,6 @@ mod benchmarks {
 			total_ct_sold,
 		);
 	}
-
-	#[benchmark]
-	fn contribution_over_limit_ends_round() {
-		// How many other contributions the user did for that same project
-		let x = <T as Config>::MaxContributionsPerUser::get();
-		let ends_round = true;
-
-		let (
-			inst,
-			project_id,
-			project_metadata,
-			extrinsic_contribution,
-			total_free_plmc,
-			total_plmc_bonded,
-			total_free_usdt,
-			total_usdt_locked,
-			total_ct_sold,
-		) = contribution_setup::<T>(x, ends_round);
-
-		#[extrinsic_call]
-		contribute(
-			RawOrigin::Signed(extrinsic_contribution.contributor.clone()),
-			project_id,
-			extrinsic_contribution.amount,
-			extrinsic_contribution.multiplier,
-			extrinsic_contribution.asset,
-		);
-
-		contribution_verification::<T>(
-			inst,
-			project_id,
-			project_metadata,
-			extrinsic_contribution,
-			total_free_plmc,
-			total_plmc_bonded,
-			total_free_usdt,
-			total_usdt_locked,
-			total_ct_sold,
-		);
-	}
-
-	// branches:
-	// - ct account deposit
-	// - contribution over limit
-	// - if last ct sold, automatic transition to failed removed, and automatic transition to success inserted
 
 	#[benchmark]
 	fn evaluation_unbond_for(x: Linear<1, 20>) {
