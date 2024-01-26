@@ -25,53 +25,32 @@ generate_accounts!(PEPE, CARLOS,);
 fn locks_holds_work_together() {
 	PolimecBase::execute_with(|| {
 		let alice = PolimecBase::account_id_of(ALICE);
-		let new_account = get_account_id_from_seed::<sr25519::Public>("NEW_ACCOUNT");
-
-		// Initially the NEW_ACCOUNT has no PLMC
-		assert_eq!(Balances::balance(&new_account), 0 * PLMC);
-
-
-		// Create a vesting schedule for 200 PLMC + ED over 60 blocks (~1 PLMC per block) to NEW_ACCOUNT
-		let vesting_schedule = VestingInfo::new(
-			200 * PLMC + ED,
-			PLMC, // Vesting over 60 blocks
-			1,
-		);
-		// The actual vested transfer
-		assert_ok!(Vesting::vested_transfer(
-			RuntimeOrigin::signed(alice.clone()),
-			sp_runtime::MultiAddress::Id(new_account.clone()),
-			vesting_schedule
-		));
+		let new_account = create_vested_account();
 
 		// Alice now has 360 PLMC left
-		assert_eq!(Balances::balance(&alice), 360 * PLMC - ED);
+		assert_eq!(Balances::balance(&alice), 220 * PLMC - ED);
 
 		// "New Account" has 60 free PLMC, using fungible::Inspect
-		assert_eq!(Balances::balance(&new_account), 60 * PLMC + ED);
+		assert_eq!(Balances::balance(&new_account), 200 * PLMC + ED);
 
 		// "New Account" only has ED free PLMC, using fungible::Inspect, since staking applies a `Hold` (which includes frozen balance)
-		assert_eq!(Balances::balance(&new_account), 60*PLMC + ED);
+		assert_eq!(Balances::balance(&new_account), 200 * PLMC + ED);
 
-        assert_ok!(Balances::hold(&polimec_base_runtime::RuntimeHoldReason::ParachainStaking(pallet_parachain_staking::HoldReason::StakingCollator), &new_account, 60 * PLMC));
+        assert_ok!(Balances::hold(&polimec_base_runtime::RuntimeHoldReason::ParachainStaking(pallet_parachain_staking::HoldReason::StakingCollator), &new_account, 200 * PLMC));
 
 
-		Balances::set_lock(*b"plmc/gov", &new_account, 60 * PLMC + ED, WithdrawReasons::all());
+		Balances::set_lock(*b"plmc/gov", &new_account, 200 * PLMC + ED, WithdrawReasons::all());
 
-        assert_ok!(Balances::release(&polimec_base_runtime::RuntimeHoldReason::ParachainStaking(pallet_parachain_staking::HoldReason::StakingCollator), &new_account, 60 * PLMC, Precision::Exact));
+        assert_ok!(Balances::release(&polimec_base_runtime::RuntimeHoldReason::ParachainStaking(pallet_parachain_staking::HoldReason::StakingCollator), &new_account, 200 * PLMC, Precision::Exact));
 
-        assert_noop!(Balances::reserve(&new_account, 60 * PLMC), pallet_balances::Error::<polimec_base_runtime::Runtime>::LiquidityRestrictions);
+        assert_noop!(Balances::reserve(&new_account, 200 * PLMC), pallet_balances::Error::<polimec_base_runtime::Runtime>::LiquidityRestrictions);
 
-        assert_ok!(Balances::hold(&polimec_base_runtime::RuntimeHoldReason::ParachainStaking(pallet_parachain_staking::HoldReason::StakingCollator), &new_account, 60 * PLMC));
+        assert_ok!(Balances::hold(&polimec_base_runtime::RuntimeHoldReason::ParachainStaking(pallet_parachain_staking::HoldReason::StakingCollator), &new_account, 200 * PLMC));
 
 
         
-        let slashed = Balances::slash(&polimec_base_runtime::RuntimeHoldReason::ParachainStaking(pallet_parachain_staking::HoldReason::StakingCollator), &new_account, 60 * PLMC);
-        assert_eq!(slashed.0.peek(), 60 * PLMC);
-
-        println!("{:?}", Balances::locks(&new_account));
-        println!("{:?}", Balances::reserved_balance(&new_account));
-        println!("{:?}", Balances::free_balance(&new_account));
+        let slashed = Balances::slash(&polimec_base_runtime::RuntimeHoldReason::ParachainStaking(pallet_parachain_staking::HoldReason::StakingCollator), &new_account, 200 * PLMC);
+        assert_eq!(slashed.0.peek(), 200 * PLMC);
 
 	})
 }

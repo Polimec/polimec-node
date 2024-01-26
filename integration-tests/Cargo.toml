@@ -71,8 +71,13 @@ polimec-base-runtime.workspace = true
 penpal-runtime = { path = "./penpal", default-features = false }
 
 [features]
-default = [ "std", "testing-node", "fast-mode" ]
-
+default = [ "std", "testing-node", "instant-mode" ]
+instant-mode = [ "polimec-parachain-runtime/instant-mode", "polimec-base-runtime/instant-mode" ]
+testing-node = [
+	"pallet-funding/testing-node",
+	"polimec-parachain-runtime/testing-node",
+	"polimec-base-runtime/testing-node",
+]
 std = [
 	"asset-hub-polkadot-runtime/std",
 	"cumulus-pallet-xcm/std",
@@ -118,7 +123,6 @@ std = [
 	"xcm-executor/std",
 	"xcm/std",
 ]
-
 runtime-benchmarks = [
 	"asset-hub-polkadot-runtime/runtime-benchmarks",
 	"cumulus-pallet-xcmp-queue/runtime-benchmarks",
@@ -150,11 +154,6 @@ runtime-benchmarks = [
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
 ]
-testing-node = [
-	"pallet-funding/testing-node",
-	"polimec-parachain-runtime/testing-node",
-	"polimec-base-runtime/testing-node",
-]
 try-runtime = [
 	"asset-hub-polkadot-runtime/try-runtime",
 	"cumulus-pallet-xcm/try-runtime",
@@ -184,5 +183,4 @@ try-runtime = [
 	"polkadot-service/try-runtime",
 	"sp-runtime/try-runtime",
 ]
-fast-mode = [ "polimec-parachain-runtime/fast-mode" ]
 

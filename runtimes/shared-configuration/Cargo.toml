@@ -37,6 +37,7 @@ pallet-parachain-staking.workspace = true
 [features]
 default = [ "std" ]
 fast-mode = []
+instant-mode = []
 std = [
 	"frame-support/std",
 	"frame-system/std",

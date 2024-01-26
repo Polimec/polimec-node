@@ -94,6 +94,7 @@ polkadot-primitives.workspace = true
 [features]
 default = [ "std" ]
 fast-mode = [ "shared-configuration/fast-mode" ]
+instant-mode = [ "shared-configuration/instant-mode" ]
 std = [
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-dmp-queue/std",
