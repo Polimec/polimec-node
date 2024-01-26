@@ -60,8 +60,15 @@ pub trait WeightInfo {
 	fn second_to_limit_evaluation(x: u32) -> Weight;
 	fn evaluation_over_limit() -> Weight;
 	fn bid() -> Weight;
-	fn contribute() -> Weight;
-	fn evaluation_unbond_for() -> Weight;
+
+	fn first_contribution() -> Weight;
+	fn first_contribution_ends_round(y: u32, z: u32, ) -> Weight;
+	fn second_to_limit_contribution(x: u32, ) -> Weight;
+	fn second_to_limit_contribution_ends_round(x: u32, y: u32, z: u32, ) -> Weight;
+	fn contribution_over_limit() -> Weight;
+
+
+		fn evaluation_unbond_for() -> Weight;
 	fn evaluation_slash_for() -> Weight;
 	fn evaluation_reward_payout_for() -> Weight;
 	fn bid_ct_mint_for() -> Weight;

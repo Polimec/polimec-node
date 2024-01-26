@@ -963,7 +963,7 @@ pub mod pallet {
 
 		/// Starts the evaluation round of a project. It needs to be called by the project issuer.
 		#[pallet::call_index(2)]
-		#[pallet::weight(WeightInfoOf::<T>::start_evaluation(<T as Config>::MaxProjectsToUpdateInsertionAttempts::get()))]
+		#[pallet::weight(WeightInfoOf::<T>::start_evaluation(<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1))]
 		pub fn start_evaluation(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 			let issuer = ensure_signed(origin)?;
 			Self::do_start_evaluation(issuer, project_id)
@@ -973,7 +973,7 @@ pub mod pallet {
 		/// institutional user can set bids for a token_amount/token_price pair.
 		/// Any bids from this point until the candle_auction starts, will be considered as valid.
 		#[pallet::call_index(3)]
-		#[pallet::weight(WeightInfoOf::<T>::start_auction_manually(<T as Config>::MaxProjectsToUpdateInsertionAttempts::get(), 10_000u32))]
+		#[pallet::weight(WeightInfoOf::<T>::start_auction_manually(<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1, 10_000u32))]
 		pub fn start_auction(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 			let issuer = ensure_signed(origin)?;
 			Self::do_english_auction(issuer, project_id)
@@ -1007,7 +1007,14 @@ pub mod pallet {
 
 		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
 		#[pallet::call_index(6)]
-		#[pallet::weight(WeightInfoOf::<T>::contribute())]
+		#[pallet::weight(WeightInfoOf::<T>::second_to_limit_contribution_ends_round(
+			// Last contribution possible before having to remove an old lower one
+			<T as Config>::MaxContributionsPerUser::get() -1,
+			// Since we didn't remove any previous lower contribution, we can buy all remaining CTs and try to move to the next phase
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			// Assumed upper bound for deletion attempts for the previous scheduled transition
+			10_000u32,
+		))]
 		pub fn contribute(
 			origin: OriginFor<T>,
 			project_id: ProjectId,

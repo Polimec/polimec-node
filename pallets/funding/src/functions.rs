@@ -1144,6 +1144,28 @@ impl<T: Config> Pallet<T> {
 		let ct_deposit = T::ContributionTokenCurrency::deposit_required(project_id);
 		let caller_existing_contributions =
 			Contributions::<T>::iter_prefix_values((project_id, contributor)).collect::<Vec<_>>();
+
+		// Weight flags
+		enum WeightContributionFlag {
+			FirstContribution,
+			SecondToLimitContribution,
+			OverLimitContribution,
+		}
+		struct WeightRoundEndFlag {
+			fully_filled_vecs_from_insertion: u32,
+			total_vecs_in_storage: u32,
+		}
+		let mut weight_contribution_flag: WeightContributionFlag;
+		let mut weight_round_end_flag: Option<WeightRoundEndFlag> = None;
+
+		if caller_existing_contributions.len() == 0 {
+			weight_contribution_flag = WeightContributionFlag::FirstContribution;
+		} else if caller_existing_contributions.len() < T::MaxContributionsPerUser::get() as usize {
+			weight_contribution_flag = WeightContributionFlag::SecondToLimitContribution;
+		} else {
+			weight_contribution_flag = WeightContributionFlag::OverLimitContribution;
+		}
+
 		// * Validity checks *
 		ensure!(project_metadata.participation_currencies == asset, Error::<T>::FundingAssetNotAccepted);
 		ensure!(contributor.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
@@ -1206,7 +1228,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// Try adding the new contribution to the system
-		if caller_existing_contributions.len() < T::MaxContributionsPerUser::get() as usize {
+		if matches!(weight_contribution_flag, Some(WeightContributionFlag::OverLimitContribution)).not() {
 			Self::try_plmc_participation_lock(contributor, project_id, plmc_bond)?;
 			Self::try_funding_asset_hold(contributor, project_id, funding_asset_amount, asset_id)?;
 		} else {
@@ -1264,17 +1286,21 @@ impl<T: Config> Pallet<T> {
 		project_details.funding_amount_reached.saturating_accrue(new_contribution.usd_contribution_amount);
 		ProjectsDetails::<T>::insert(project_id, project_details);
 		// If no CTs remain, end the funding phase
+
 		if remaining_cts_after_purchase.is_zero() {
-			// TODO: return real weights
 			// remove the remainder transition or the funding failed transition
-			let iterations = match Self::remove_from_update_store(&project_id) {
+			let total_vecs_in_storage = match Self::remove_from_update_store(&project_id) {
 				Ok(iterations) => iterations,
-				Err(iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
+				Err(_iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
 			};
-			let iterations = match Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::FundingEnd)) {
-				Ok(iterations) => iterations,
-				Err(iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
-			};
+			let fully_filled_vecs_from_insertion =
+				match Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::FundingEnd)) {
+					Ok(iterations) => iterations,
+					Err(_iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
+				};
+
+			weight_round_end_flag =
+				Some(WeightRoundEndFlag { fully_filled_vecs_from_insertion, total_vecs_in_storage });
 		}
 
 		// * Emit events *
@@ -1285,7 +1311,47 @@ impl<T: Config> Pallet<T> {
 			multiplier,
 		});
 
-		Ok(Pays::No.into())
+		// return correct weight function
+		match (weight_contribution_flag, weight_round_end_flag) {
+			(WeightContributionFlag::FirstContribution, None) => Ok(PostDispatchInfo {
+				actual_weight: Some(WeightInfoOf::<T>::first_contribution()),
+				pays_fee: Pays::Yes,
+			}),
+			(
+				WeightContributionFlag::FirstContribution,
+				Some(WeightRoundEndFlag { fully_filled_vecs_from_insertion, total_vecs_in_storage }),
+			) => Ok(PostDispatchInfo {
+				actual_weight: Some(WeightInfoOf::<T>::first_contribution_ends_round(
+					fully_filled_vecs_from_insertion,
+					total_vecs_in_storage,
+				)),
+				pays_fee: Pays::Yes,
+			}),
+
+			(WeightContributionFlag::SecondToLimitContribution, None) => Ok(PostDispatchInfo {
+				actual_weight: Some(WeightInfoOf::<T>::second_to_limit_contribution(
+					caller_existing_contributions.len() as u32,
+				)),
+				pays_fee: Pays::Yes,
+			}),
+			(
+				WeightContributionFlag::SecondToLimitContribution,
+				Some(WeightRoundEndFlag { fully_filled_vecs_from_insertion, total_vecs_in_storage }),
+			) => Ok(PostDispatchInfo {
+				actual_weight: Some(WeightInfoOf::<T>::second_to_limit_contribution_ends_round(
+					caller_existing_contributions.len() as u32,
+					fully_filled_vecs_from_insertion,
+					total_vecs_in_storage,
+				)),
+				pays_fee: Pays::Yes,
+			}),
+
+			// a contribution over the limit means removing an existing contribution, therefore you cannot have a round end
+			(WeightContributionFlag::OverLimitContribution, _) => Ok(PostDispatchInfo {
+				actual_weight: Some(WeightInfoOf::<T>::contribution_over_limit()),
+				pays_fee: Pays::Yes,
+			}),
+		}
 	}
 
 	fn calculate_buyable_amount(
