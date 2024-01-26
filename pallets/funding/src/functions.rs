@@ -3022,14 +3022,16 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	pub fn verify_jwt(token: &str, raw_public_key: [u8; 32]) -> Result<SampleClaims, ()>{
+	pub fn verify_jwt(
+		token: jwt_compact::UntrustedToken,
+		raw_public_key: [u8; 32],
+	) -> Result<SampleClaims, ()> {
 		use jwt_compact::alg::Ed25519;
 		use jwt_compact::Algorithm;
 
 		let token_checker = TokenChecker::new();
 		// Convert the raw public key to a VerifyingKey
-		let signing_key =
-			<<Ed25519 as Algorithm>::VerifyingKey>::from_slice(&raw_public_key).unwrap();
+		let signing_key = <<Ed25519 as Algorithm>::VerifyingKey>::from_slice(&raw_public_key).unwrap();
 		// Verify the token and extract the claims
 		Ok(token_checker.verify_token(&Ed25519, token, &signing_key).unwrap())
 	}

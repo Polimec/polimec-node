@@ -770,15 +770,12 @@ pub mod inner_types {
 
 	/// Sample token claims.
 	/// "sub" and "iss" are from the JWT standard.
-	#[derive(
-		Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, Deserialize,
-	)]
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, Deserialize)]
 	pub struct SampleClaims {
 		#[serde(rename = "sub")]
 		pub subject: scale_info::prelude::string::String,
 		#[serde(rename = "iss")]
 		pub issuer: scale_info::prelude::string::String,
-		#[serde(rename = "investorType")]
 		pub investor_type: scale_info::prelude::string::String,
 	}
 	#[derive(
@@ -796,10 +793,12 @@ pub mod inner_types {
 		pub fn verify_token<T: jwt_compact::Algorithm>(
 			&self,
 			alg: &T,
-			token: &str,
+			token: jwt_compact::prelude::UntrustedToken,
 			verifying_key: &T::VerifyingKey,
 		) -> Result<SampleClaims, ()> {
-			let token = jwt_compact::UntrustedToken::new(token).unwrap();
+			// TBD: If we want/have to pass the token as Vec<u8> we need to convert it to String
+			// let token_str = String::from_utf8_lossy(&token).into_owned();
+			// let token = jwt_compact::UntrustedToken::new(&token_str).unwrap();
 			let token = alg.validator::<SampleClaims>(verifying_key).validate(&token).unwrap();
 			let claims = self.extract_claims(&token)?;
 			Ok(claims.clone())

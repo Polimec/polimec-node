@@ -939,11 +939,14 @@ pub mod pallet {
 		/// Creates a project and assigns it to the `issuer` account.
 		#[pallet::call_index(0)]
 		#[pallet::weight(WeightInfoOf::<T>::create())]
-		pub fn create(origin: OriginFor<T>, project: ProjectMetadataOf<T>, jwt: scale_info::prelude::string::String) -> DispatchResult {
+		pub fn create(
+			origin: OriginFor<T>,
+			project: ProjectMetadataOf<T>,
+			jwt: jwt_compact::prelude::UntrustedToken,
+		) -> DispatchResult {
 			let issuer = ensure_signed(origin)?;
-			//let jwt: &str = "eyJhbGciOiJFZERTQSJ9.eyJpbnZlc3RvclR5cGUiOiJSZXRhaWwiLCJpYXQiOjE3MDYxMDQ5MDYsImlzcyI6ImRpZDpraWx0OnZlcmlmaWVyZGlkIiwic3ViIjoiZGlkOmtpbHQ6dXNlcmRpZCIsImV4cCI6MTcwNjExMjEwNn0.NWGShrTe1DkZxuteSj5f0TqxhLURCVkEuUHFdfmu99T05f_txvlPM6yzdZrYVZY5fjwzJUdnn2zKJze9Vp2fCA";
-			let claims = Self::verify_jwt(&jwt, T::VerifierPublicKey::get()).expect("JWT verification failed");
-			ensure!(claims.investor_type == "Retail", Error::<T>::NotAllowed);
+			let claims = Self::verify_jwt(jwt, T::VerifierPublicKey::get()).expect("JWT verification failed");
+			ensure!(claims.investor_type == "institutional", Error::<T>::NotAllowed);
 			log::trace!(target: "pallet_funding::test", "in create");
 			Self::do_create(&issuer, project)
 		}
@@ -1298,15 +1301,16 @@ pub mod pallet {
 
 			let projects_needing_cleanup = ProjectsDetails::<T>::iter()
 				.filter_map(|(project_id, info)| match info.cleanup {
-					cleaner if <Cleaner as DoRemainingOperation<T>>::has_remaining_operations(&cleaner) =>
-						Some((project_id, cleaner)),
+					cleaner if <Cleaner as DoRemainingOperation<T>>::has_remaining_operations(&cleaner) => {
+						Some((project_id, cleaner))
+					},
 					_ => None,
 				})
 				.collect::<Vec<_>>();
 
 			let projects_amount = projects_needing_cleanup.len() as u64;
 			if projects_amount == 0 {
-				return max_weight
+				return max_weight;
 			}
 
 			let mut max_weight_per_project = remaining_weight.saturating_div(projects_amount);
@@ -1322,7 +1326,7 @@ pub mod pallet {
 					{
 						consumed_weight.saturating_accrue(weight);
 					} else {
-						break
+						break;
 					}
 				}
 
@@ -1426,7 +1430,7 @@ pub mod local_macros {
 						project_id: $project_id,
 						error: Error::<T>::FieldIsNone.into(),
 					});
-					continue
+					continue;
 				},
 			}
 		};
@@ -1440,7 +1444,7 @@ pub mod local_macros {
 				Ok(val) => val,
 				Err(err) => {
 					Self::deposit_event(Event::TransitionError { project_id: $project_id, error: err });
-					continue
+					continue;
 				},
 			}
 		};
