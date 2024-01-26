@@ -18,10 +18,8 @@
 
 //! Functions for the Funding pallet.
 
-use frame_support::dispatch::{DispatchErrorWithPostInfo, DispatchResultWithPostInfo, PostDispatchInfo};
-
 use frame_support::{
-	dispatch::DispatchResult,
+	dispatch::{DispatchErrorWithPostInfo, DispatchResult, DispatchResultWithPostInfo, PostDispatchInfo},
 	ensure,
 	pallet_prelude::*,
 	traits::{
@@ -38,7 +36,7 @@ use sp_arithmetic::{
 	Percent, Perquintill,
 };
 use sp_runtime::traits::{Convert, ConvertBack};
-use sp_std::marker::PhantomData;
+use sp_std::{marker::PhantomData, ops::Not};
 use xcm::v3::MaxDispatchErrorLen;
 
 use crate::ProjectStatus::FundingSuccessful;
@@ -1228,7 +1226,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// Try adding the new contribution to the system
-		if matches!(weight_contribution_flag, Some(WeightContributionFlag::OverLimitContribution)).not() {
+		if matches!(weight_contribution_flag, WeightContributionFlag::OverLimitContribution).not() {
 			Self::try_plmc_participation_lock(contributor, project_id, plmc_bond)?;
 			Self::try_funding_asset_hold(contributor, project_id, funding_asset_amount, asset_id)?;
 		} else {

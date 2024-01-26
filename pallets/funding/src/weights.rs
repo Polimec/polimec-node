@@ -178,6 +178,32 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(10_u64))
 			.saturating_add(T::DbWeight::get().writes(7_u64))
 	}
+
+	fn first_contribution() -> Weight {
+				Weight::from_parts(140_000_000, 6208)
+
+	}
+
+	fn first_contribution_ends_round(y: u32, z: u32) -> Weight {
+				Weight::from_parts(140_000_000, 6208)
+
+	}
+
+	fn second_to_limit_contribution(x: u32) -> Weight {
+				Weight::from_parts(140_000_000, 6208)
+
+	}
+
+	fn second_to_limit_contribution_ends_round(x: u32, y: u32, z: u32) -> Weight {
+				Weight::from_parts(140_000_000, 6208)
+
+	}
+
+	fn contribution_over_limit() -> Weight {
+				Weight::from_parts(140_000_000, 6208)
+
+	}
+
 	/// Storage: PolimecFunding ProjectsMetadata (r:1 w:0)
 	/// Proof Skipped: PolimecFunding ProjectsMetadata (max_values: None, max_size: None, mode: Measured)
 	/// Storage: PolimecFunding ProjectsDetails (r:1 w:1)
@@ -194,15 +220,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Proof: StatemintAssets Asset (max_values: None, max_size: Some(210), added: 2685, mode: MaxEncodedLen)
 	/// Storage: StatemintAssets Account (r:2 w:2)
 	/// Proof: StatemintAssets Account (max_values: None, max_size: Some(134), added: 2609, mode: MaxEncodedLen)
-	fn contribute() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1682`
-		//  Estimated: `6208`
-		// Minimum execution time: 122_000_000 picoseconds.
-		Weight::from_parts(131_000_000, 6208)
-			.saturating_add(T::DbWeight::get().reads(9_u64))
-			.saturating_add(T::DbWeight::get().writes(7_u64))
-	}
+
 	/// Storage: PolimecFunding ProjectsDetails (r:1 w:0)
 	/// Proof Skipped: PolimecFunding ProjectsDetails (max_values: None, max_size: None, mode: Measured)
 	/// Storage: PolimecFunding Evaluations (r:1 w:1)

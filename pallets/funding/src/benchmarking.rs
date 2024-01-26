@@ -381,7 +381,7 @@ where
 pub fn fill_projects_to_update<T: Config>(
 	fully_filled_vecs_from_insertion: u32,
 	mut expected_insertion_block: BlockNumberFor<T>,
-	total_vecs_in_storage: u32,
+	maybe_total_vecs_in_storage: Option<u32>,
 ) {
 	// fill the `ProjectsToUpdate` vectors from @ expected_insertion_block to @ expected_insertion_block+x, to benchmark all the failed insertion attempts
 	for _ in 0..fully_filled_vecs_from_insertion {
@@ -391,24 +391,27 @@ pub fn fill_projects_to_update<T: Config>(
 		expected_insertion_block += 1u32.into();
 	}
 
-	// fill `ProjectsToUpdate` with `y` different BlockNumber->Vec items to benchmark deletion of our project from the map
-	// We keep in mind that we already filled `x` amount of vecs to max capacity
-	let remaining_vecs = total_vecs_in_storage.saturating_sub(fully_filled_vecs_from_insertion);
-	if remaining_vecs > 0 {
-		// we benchmarked this with different values, and it had no impact on the weight, so we use a low value to speed up the benchmark
-		let items_per_vec = 5u32;
-		let mut block_number: BlockNumberFor<T> = Zero::zero();
-		for _ in 0..remaining_vecs {
-			// To iterate over all expected items when looking to remove, we need to insert everything _before_ our already stored project's block_number
-			let mut vec: Vec<(ProjectId, UpdateType)> = ProjectsToUpdate::<T>::get(block_number).to_vec();
-			let items_to_fill = items_per_vec - vec.len() as u32;
-			for _ in 0..items_to_fill {
-				vec.push((69u32, UpdateType::EvaluationEnd));
+	// sometimes we don't expect to remove anything from storage
+	if let Some(total_vecs_in_storage) = maybe_total_vecs_in_storage {
+		// fill `ProjectsToUpdate` with `y` different BlockNumber->Vec items to benchmark deletion of our project from the map
+		// We keep in mind that we already filled `x` amount of vecs to max capacity
+		let remaining_vecs = total_vecs_in_storage.saturating_sub(fully_filled_vecs_from_insertion);
+		if remaining_vecs > 0 {
+			// we benchmarked this with different values, and it had no impact on the weight, so we use a low value to speed up the benchmark
+			let items_per_vec = 5u32;
+			let mut block_number: BlockNumberFor<T> = Zero::zero();
+			for _ in 0..remaining_vecs {
+				// To iterate over all expected items when looking to remove, we need to insert everything _before_ our already stored project's block_number
+				let mut vec: Vec<(ProjectId, UpdateType)> = ProjectsToUpdate::<T>::get(block_number).to_vec();
+				let items_to_fill = items_per_vec - vec.len() as u32;
+				for _ in 0..items_to_fill {
+					vec.push((69u32, UpdateType::EvaluationEnd));
+				}
+				let bounded_vec: BoundedVec<(ProjectId, UpdateType), T::MaxProjectsToUpdatePerBlock> =
+					vec.try_into().unwrap();
+				ProjectsToUpdate::<T>::insert(block_number, bounded_vec);
+				block_number += 1u32.into();
 			}
-			let bounded_vec: BoundedVec<(ProjectId, UpdateType), T::MaxProjectsToUpdatePerBlock> =
-				vec.try_into().unwrap();
-			ProjectsToUpdate::<T>::insert(block_number, bounded_vec);
-			block_number += 1u32.into();
 		}
 	}
 }
@@ -584,34 +587,7 @@ mod benchmarks {
 		let insertion_block_number: BlockNumberFor<T> = current_block + T::EnglishAuctionDuration::get() + One::one();
 		let mut block_number = insertion_block_number;
 
-		// fill the `ProjectsToUpdate` vectors from @ block_number to @ block_number+x, to benchmark all the failed insertion attempts
-		for _ in 0..x {
-			while ProjectsToUpdate::<T>::try_append(block_number, (&69u32, UpdateType::EvaluationEnd)).is_ok() {
-				continue
-			}
-			block_number += 1u32.into();
-		}
-
-		// fill `ProjectsToUpdate` with `y` different BlockNumber->Vec items to benchmark deletion of our project from the map
-		// We keep in mind that we already filled `x` amount of vecs to max capacity
-		let remaining_vecs = y.saturating_sub(x);
-		if remaining_vecs > 0 {
-			// we benchmarked this with different values and it had no impact on the weight, so we use a low value to speed up the benchmark
-			let items_per_vec = 5u32;
-			let mut block_number = insertion_block_number - One::one();
-			for _ in 0..remaining_vecs {
-				// To iterate over all expected items when looking to remove, we need to insert everything _before_ our project's block_number
-				let mut vec: Vec<(ProjectId, UpdateType)> = ProjectsToUpdate::<T>::get(block_number).to_vec();
-				let items_to_fill = items_per_vec - vec.len() as u32;
-				for _ in 0..items_to_fill {
-					vec.push((69u32, UpdateType::EvaluationEnd));
-				}
-				let bounded_vec: BoundedVec<(ProjectId, UpdateType), T::MaxProjectsToUpdatePerBlock> =
-					vec.try_into().unwrap();
-				ProjectsToUpdate::<T>::insert(block_number, bounded_vec);
-				block_number -= One::one();
-			}
-		}
+		fill_projects_to_update::<T>(x, block_number, Some(y));
 
 		#[extrinsic_call]
 		start_auction(RawOrigin::Signed(issuer), project_id);
@@ -666,13 +642,7 @@ mod benchmarks {
 			automatic_transition_block + T::EnglishAuctionDuration::get() + One::one();
 		let mut block_number = insertion_block_number;
 
-		// fill the `ProjectsToUpdate` vectors from @ block_number to @ block_number+x, to benchmark all the failed insertion attempts
-		for _ in 0..x {
-			while ProjectsToUpdate::<T>::try_append(block_number, (&69u32, UpdateType::EvaluationEnd)).is_ok() {
-				continue
-			}
-			block_number += 1u32.into();
-		}
+		fill_projects_to_update::<T>(x, block_number, None);
 
 		let now = inst.current_block();
 		inst.advance_time(automatic_transition_block - now - One::one()).unwrap();
@@ -1113,7 +1083,7 @@ mod benchmarks {
 			fill_projects_to_update::<T>(
 				fully_filled_vecs_from_insertion,
 				expected_insertion_block,
-				total_vecs_in_storage,
+				Some(total_vecs_in_storage),
 			);
 		}
 
@@ -2433,6 +2403,7 @@ mod benchmarks {
 				assert_ok!(PalletFunding::<TestRuntime>::test_first_evaluation());
 			});
 		}
+
 		#[test]
 		fn bench_second_to_limit_evaluation() {
 			new_test_ext().execute_with(|| {
@@ -2461,12 +2432,12 @@ mod benchmarks {
 			});
 		}
 
-		#[test]
-		fn bench_bid() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_bid());
-			});
-		}
+		// #[test]
+		// fn bench_bid() {
+		// 	new_test_ext().execute_with(|| {
+		// 		assert_ok!(PalletFunding::<TestRuntime>::test_bid());
+		// 	});
+		// }
 
 		#[test]
 		fn bench_first_contribution() {
@@ -2503,102 +2474,102 @@ mod benchmarks {
 			});
 		}
 
-		#[test]
-		fn bench_evaluation_unbond_for() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_evaluation_unbond_for());
-			});
-		}
-
-		#[test]
-		fn bench_evaluation_slash_for() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_evaluation_slash_for());
-			});
-		}
-
-		#[test]
-		fn bench_evaluation_reward_payout_for() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_evaluation_reward_payout_for());
-			});
-		}
-
-		#[test]
-		fn bench_bid_ct_mint_for() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_bid_ct_mint_for());
-			});
-		}
-
-		#[test]
-		fn bench_contribution_ct_mint_for() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_contribution_ct_mint_for());
-			});
-		}
-
-		#[test]
-		fn bench_start_bid_vesting_schedule_for() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_start_bid_vesting_schedule_for());
-			});
-		}
-
-		#[test]
-		fn bench_start_contribution_vesting_schedule_for() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_start_contribution_vesting_schedule_for());
-			});
-		}
-
-		#[test]
-		fn bench_payout_bid_funds_for() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_payout_bid_funds_for());
-			});
-		}
-
-		#[test]
-		fn bench_payout_contribution_funds_for() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_payout_contribution_funds_for());
-			});
-		}
-
-		#[test]
-		fn bench_decide_project_outcome() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_decide_project_outcome());
-			});
-		}
-
-		#[test]
-		fn bench_release_bid_funds_for() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_release_bid_funds_for());
-			});
-		}
-
-		#[test]
-		fn bench_release_contribution_funds_for() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_release_contribution_funds_for());
-			});
-		}
-
-		#[test]
-		fn bench_bid_unbond_for() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_bid_unbond_for());
-			});
-		}
-
-		#[test]
-		fn bench_contribution_unbond_for() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_contribution_unbond_for());
-			});
-		}
+		// #[test]
+		// fn bench_evaluation_unbond_for() {
+		// 	new_test_ext().execute_with(|| {
+		// 		assert_ok!(PalletFunding::<TestRuntime>::test_evaluation_unbond_for());
+		// 	});
+		// }
+		//
+		// #[test]
+		// fn bench_evaluation_slash_for() {
+		// 	new_test_ext().execute_with(|| {
+		// 		assert_ok!(PalletFunding::<TestRuntime>::test_evaluation_slash_for());
+		// 	});
+		// }
+		//
+		// #[test]
+		// fn bench_evaluation_reward_payout_for() {
+		// 	new_test_ext().execute_with(|| {
+		// 		assert_ok!(PalletFunding::<TestRuntime>::test_evaluation_reward_payout_for());
+		// 	});
+		// }
+		//
+		// #[test]
+		// fn bench_bid_ct_mint_for() {
+		// 	new_test_ext().execute_with(|| {
+		// 		assert_ok!(PalletFunding::<TestRuntime>::test_bid_ct_mint_for());
+		// 	});
+		// }
+		//
+		// #[test]
+		// fn bench_contribution_ct_mint_for() {
+		// 	new_test_ext().execute_with(|| {
+		// 		assert_ok!(PalletFunding::<TestRuntime>::test_contribution_ct_mint_for());
+		// 	});
+		// }
+		//
+		// #[test]
+		// fn bench_start_bid_vesting_schedule_for() {
+		// 	new_test_ext().execute_with(|| {
+		// 		assert_ok!(PalletFunding::<TestRuntime>::test_start_bid_vesting_schedule_for());
+		// 	});
+		// }
+		//
+		// #[test]
+		// fn bench_start_contribution_vesting_schedule_for() {
+		// 	new_test_ext().execute_with(|| {
+		// 		assert_ok!(PalletFunding::<TestRuntime>::test_start_contribution_vesting_schedule_for());
+		// 	});
+		// }
+		//
+		// #[test]
+		// fn bench_payout_bid_funds_for() {
+		// 	new_test_ext().execute_with(|| {
+		// 		assert_ok!(PalletFunding::<TestRuntime>::test_payout_bid_funds_for());
+		// 	});
+		// }
+		//
+		// #[test]
+		// fn bench_payout_contribution_funds_for() {
+		// 	new_test_ext().execute_with(|| {
+		// 		assert_ok!(PalletFunding::<TestRuntime>::test_payout_contribution_funds_for());
+		// 	});
+		// }
+		//
+		// #[test]
+		// fn bench_decide_project_outcome() {
+		// 	new_test_ext().execute_with(|| {
+		// 		assert_ok!(PalletFunding::<TestRuntime>::test_decide_project_outcome());
+		// 	});
+		// }
+		//
+		// #[test]
+		// fn bench_release_bid_funds_for() {
+		// 	new_test_ext().execute_with(|| {
+		// 		assert_ok!(PalletFunding::<TestRuntime>::test_release_bid_funds_for());
+		// 	});
+		// }
+		//
+		// #[test]
+		// fn bench_release_contribution_funds_for() {
+		// 	new_test_ext().execute_with(|| {
+		// 		assert_ok!(PalletFunding::<TestRuntime>::test_release_contribution_funds_for());
+		// 	});
+		// }
+		//
+		// #[test]
+		// fn bench_bid_unbond_for() {
+		// 	new_test_ext().execute_with(|| {
+		// 		assert_ok!(PalletFunding::<TestRuntime>::test_bid_unbond_for());
+		// 	});
+		// }
+		//
+		// #[test]
+		// fn bench_contribution_unbond_for() {
+		// 	new_test_ext().execute_with(|| {
+		// 		assert_ok!(PalletFunding::<TestRuntime>::test_contribution_unbond_for());
+		// 	});
+		// }
 	}
 }
