@@ -29,7 +29,7 @@ use frame_support::{
 	weights::{ConstantMultiplier, Weight},
 };
 use frame_system::{EnsureRoot, EnsureSigned};
-use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate, CurrencyToVote};
+use polkadot_runtime_common::{BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate};
 use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
@@ -42,7 +42,7 @@ use sp_runtime::{
 	ApplyExtrinsicResult, MultiSignature,
 };
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
-use sp_std::{prelude::*, cmp::Ordering};
+use sp_std::{cmp::Ordering, prelude::*};
 
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -400,8 +400,8 @@ impl tokens::imbalance::OnUnbalanced<CreditOf<Runtime>> for ToGrowthTreasury {
 
 impl pallet_treasury::Config for Runtime {
 	type ApproveOrigin = EitherOfDiverse<
-		EnsureRoot<AccountId>, 
-		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 1>
+		EnsureRoot<AccountId>,
+		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 1>,
 	>;
 	type Burn = Burn;
 	type BurnDestination = ();
@@ -489,9 +489,6 @@ impl pallet_democracy::Config for Runtime {
 	// To cancel a proposal which has been passed, 2/3 of the council must agree to it.
 	type CancellationOrigin = pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 2, 3>;
 	type CooloffPeriod = CooloffPeriod;
-	type Fungible = Balances;
-	type RuntimeHoldReason = RuntimeHoldReason;
-	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type EnactmentPeriod = EnactmentPeriod;
 	/// A unanimous council can have the next scheduled referendum be a straight default-carries
 	/// (NTB) vote.
@@ -504,6 +501,7 @@ impl pallet_democracy::Config for Runtime {
 	/// be tabled immediately and with a shorter voting/enactment period.
 	type FastTrackOrigin = pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 3, 5>;
 	type FastTrackVotingPeriod = FastTrackVotingPeriod;
+	type Fungible = Balances;
 	type InstantAllowed = frame_support::traits::ConstBool<true>;
 	type InstantOrigin = pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 1>;
 	type LaunchPeriod = LaunchPeriod;
@@ -516,6 +514,8 @@ impl pallet_democracy::Config for Runtime {
 	type PalletsOrigin = OriginCaller;
 	type Preimages = Preimage;
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeFreezeReason = RuntimeFreezeReason;
+	type RuntimeHoldReason = RuntimeHoldReason;
 	type Scheduler = Scheduler;
 	type Slash = ToGrowthTreasury;
 	type SubmitOrigin = EnsureSigned<AccountId>;

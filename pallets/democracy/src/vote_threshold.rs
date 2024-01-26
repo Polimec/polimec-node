@@ -26,9 +26,7 @@ use sp_runtime::traits::{IntegerSquareRoot, Zero};
 use sp_std::ops::{Add, Div, Mul, Rem};
 
 /// A means of determining if a vote is past pass threshold.
-#[derive(
-	Clone, Copy, PartialEq, Eq, Encode, MaxEncodedLen, Decode, sp_runtime::RuntimeDebug, TypeInfo,
-)]
+#[derive(Clone, Copy, PartialEq, Eq, Encode, MaxEncodedLen, Decode, sp_runtime::RuntimeDebug, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum VoteThreshold {
 	/// A supermajority of approvals is needed to pass this vote.
@@ -46,9 +44,7 @@ pub trait Approved<Balance> {
 }
 
 /// Return `true` iff `n1 / d1 < n2 / d2`. `d1` and `d2` may not be zero.
-fn compare_rationals<
-	T: Zero + Mul<T, Output = T> + Div<T, Output = T> + Rem<T, Output = T> + Ord + Copy,
->(
+fn compare_rationals<T: Zero + Mul<T, Output = T> + Div<T, Output = T> + Rem<T, Output = T> + Ord + Copy>(
 	mut n1: T,
 	mut d1: T,
 	mut n2: T,
@@ -113,9 +109,7 @@ mod tests {
 
 	#[test]
 	fn should_work() {
-		assert!(!VoteThreshold::SuperMajorityApprove
-			.approved(Tally { ayes: 60, nays: 50, turnout: 110 }, 210));
-		assert!(VoteThreshold::SuperMajorityApprove
-			.approved(Tally { ayes: 100, nays: 50, turnout: 150 }, 210));
+		assert!(!VoteThreshold::SuperMajorityApprove.approved(Tally { ayes: 60, nays: 50, turnout: 110 }, 210));
+		assert!(VoteThreshold::SuperMajorityApprove.approved(Tally { ayes: 100, nays: 50, turnout: 150 }, 210));
 	}
 }

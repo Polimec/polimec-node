@@ -18,8 +18,8 @@
 //! The vote datatype.
 
 use crate::{Conviction, Delegations, ReferendumIndex};
-use parity_scale_codec::{Decode, Encode, EncodeLike, Input, MaxEncodedLen, Output};
 use frame_support::traits::Get;
+use parity_scale_codec::{Decode, Encode, EncodeLike, Input, MaxEncodedLen, Output};
 use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{Saturating, Zero},
@@ -63,12 +63,10 @@ impl TypeInfo for Vote {
 	type Identity = Self;
 
 	fn type_info() -> scale_info::Type {
-		scale_info::Type::builder()
-			.path(scale_info::Path::new("Vote", module_path!()))
-			.composite(
-				scale_info::build::Fields::unnamed()
-					.field(|f| f.ty::<u8>().docs(&["Raw vote byte, encodes aye + conviction"])),
-			)
+		scale_info::Type::builder().path(scale_info::Path::new("Vote", module_path!())).composite(
+			scale_info::build::Fields::unnamed()
+				.field(|f| f.ty::<u8>().docs(&["Raw vote byte, encodes aye + conviction"])),
+		)
 	}
 }
 
@@ -114,18 +112,7 @@ impl<Balance: Saturating> AccountVote<Balance> {
 
 /// A "prior" lock, i.e. a lock for some now-forgotten reason.
 #[derive(
-	Encode,
-	MaxEncodedLen,
-	Decode,
-	Default,
-	Copy,
-	Clone,
-	Eq,
-	PartialEq,
-	Ord,
-	PartialOrd,
-	RuntimeDebug,
-	TypeInfo,
+	Encode, MaxEncodedLen, Decode, Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo,
 )]
 pub struct PriorLock<BlockNumber, Balance>(BlockNumber, Balance);
 
@@ -187,12 +174,8 @@ impl<Balance: Default, AccountId, BlockNumber: Zero, MaxVotes: Get<u32>> Default
 	}
 }
 
-impl<
-		Balance: Saturating + Ord + Zero + Copy,
-		BlockNumber: Ord + Copy + Zero,
-		AccountId,
-		MaxVotes: Get<u32>,
-	> Voting<Balance, AccountId, BlockNumber, MaxVotes>
+impl<Balance: Saturating + Ord + Zero + Copy, BlockNumber: Ord + Copy + Zero, AccountId, MaxVotes: Get<u32>>
+	Voting<Balance, AccountId, BlockNumber, MaxVotes>
 {
 	pub fn rejig(&mut self, now: BlockNumber) {
 		match self {
@@ -211,11 +194,7 @@ impl<
 		}
 	}
 
-	pub fn set_common(
-		&mut self,
-		delegations: Delegations<Balance>,
-		prior: PriorLock<BlockNumber, Balance>,
-	) {
+	pub fn set_common(&mut self, delegations: Delegations<Balance>, prior: PriorLock<BlockNumber, Balance>) {
 		let (d, p) = match self {
 			Voting::Direct { ref mut delegations, ref mut prior, .. } => (delegations, prior),
 			Voting::Delegating { ref mut delegations, ref mut prior, .. } => (delegations, prior),

@@ -334,11 +334,23 @@ pub mod polimec {
 			democracy: Default::default(),
 			growth_treasury: Default::default(),
 			technical_committee: polimec_parachain_runtime::TechnicalCommitteeConfig {
-				members: vec![alice_account.clone(), bob_account.clone(), charlie_account.clone(), dave_account.clone(), eve_account.clone()],
+				members: vec![
+					alice_account.clone(),
+					bob_account.clone(),
+					charlie_account.clone(),
+					dave_account.clone(),
+					eve_account.clone(),
+				],
 				..Default::default()
 			},
 			elections: polimec_parachain_runtime::ElectionsConfig {
-				members: vec![(alice_account.clone(), 0), (bob_account.clone(), 0), (charlie_account.clone(), 0), (dave_account.clone(), 0), (eve_account.clone(), 0)],
+				members: vec![
+					(alice_account.clone(), 0),
+					(bob_account.clone(), 0),
+					(charlie_account.clone(), 0),
+					(dave_account.clone(), 0),
+					(eve_account.clone(), 0),
+				],
 				..Default::default()
 			},
 			oracle_providers_membership: polimec_parachain_runtime::OracleProvidersMembershipConfig {
@@ -487,11 +499,23 @@ pub mod polimec_base {
 			aura_ext: Default::default(),
 			council: Default::default(),
 			technical_committee: polimec_base_runtime::TechnicalCommitteeConfig {
-				members: vec![alice_account.clone(), bob_account.clone(), charlie_account.clone(), dave_account.clone(), eve_account.clone()],
+				members: vec![
+					alice_account.clone(),
+					bob_account.clone(),
+					charlie_account.clone(),
+					dave_account.clone(),
+					eve_account.clone(),
+				],
 				..Default::default()
 			},
 			elections: polimec_base_runtime::ElectionsConfig {
-				members: vec![(alice_account.clone(), 0), (bob_account.clone(), 0), (charlie_account.clone(), 0), (dave_account.clone(), 0), (eve_account.clone(), 0)],
+				members: vec![
+					(alice_account.clone(), 0),
+					(bob_account.clone(), 0),
+					(charlie_account.clone(), 0),
+					(dave_account.clone(), 0),
+					(eve_account.clone(), 0),
+				],
 				..Default::default()
 			},
 			democracy: Default::default(),

@@ -43,9 +43,7 @@ pub struct Tally<Balance> {
 }
 
 /// Amount of votes and capital placed in delegation for an account.
-#[derive(
-	Encode, MaxEncodedLen, Decode, Default, Copy, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo,
-)]
+#[derive(Encode, MaxEncodedLen, Decode, Default, Copy, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo)]
 pub struct Delegations<Balance> {
 	/// The number of votes (this is post-conviction).
 	pub votes: Balance,
@@ -55,24 +53,15 @@ pub struct Delegations<Balance> {
 
 impl<Balance: Saturating> Saturating for Delegations<Balance> {
 	fn saturating_add(self, o: Self) -> Self {
-		Self {
-			votes: self.votes.saturating_add(o.votes),
-			capital: self.capital.saturating_add(o.capital),
-		}
+		Self { votes: self.votes.saturating_add(o.votes), capital: self.capital.saturating_add(o.capital) }
 	}
 
 	fn saturating_sub(self, o: Self) -> Self {
-		Self {
-			votes: self.votes.saturating_sub(o.votes),
-			capital: self.capital.saturating_sub(o.capital),
-		}
+		Self { votes: self.votes.saturating_sub(o.votes), capital: self.capital.saturating_sub(o.capital) }
 	}
 
 	fn saturating_mul(self, o: Self) -> Self {
-		Self {
-			votes: self.votes.saturating_mul(o.votes),
-			capital: self.capital.saturating_mul(o.capital),
-		}
+		Self { votes: self.votes.saturating_mul(o.votes), capital: self.capital.saturating_mul(o.capital) }
 	}
 
 	fn saturating_pow(self, exp: usize) -> Self {
@@ -80,17 +69,8 @@ impl<Balance: Saturating> Saturating for Delegations<Balance> {
 	}
 }
 
-impl<
-		Balance: From<u8>
-			+ Zero
-			+ Copy
-			+ CheckedAdd
-			+ CheckedSub
-			+ CheckedMul
-			+ CheckedDiv
-			+ Bounded
-			+ Saturating,
-	> Tally<Balance>
+impl<Balance: From<u8> + Zero + Copy + CheckedAdd + CheckedSub + CheckedMul + CheckedDiv + Bounded + Saturating>
+	Tally<Balance>
 {
 	/// Create a new tally.
 	pub fn new(vote: Vote, balance: Balance) -> Self {
@@ -193,12 +173,7 @@ pub enum ReferendumInfo<BlockNumber, Proposal, Balance> {
 
 impl<BlockNumber, Proposal, Balance: Default> ReferendumInfo<BlockNumber, Proposal, Balance> {
 	/// Create a new instance.
-	pub fn new(
-		end: BlockNumber,
-		proposal: Proposal,
-		threshold: VoteThreshold,
-		delay: BlockNumber,
-	) -> Self {
+	pub fn new(end: BlockNumber, proposal: Proposal, threshold: VoteThreshold, delay: BlockNumber) -> Self {
 		let s = ReferendumStatus { end, proposal, threshold, delay, tally: Tally::default() };
 		ReferendumInfo::Ongoing(s)
 	}

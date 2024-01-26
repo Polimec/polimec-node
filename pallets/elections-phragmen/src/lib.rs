@@ -98,22 +98,18 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use parity_scale_codec::{Decode, Encode};
 use frame_support::{
+	pallet_prelude::DispatchResult,
 	traits::{
-		defensive_prelude::*, ChangeMembers, Contains, ContainsLengthBound, Get,
-		InitializeMembers,
-		SortedMembers,
-		fungible::{
-			Credit, hold::Balanced, Inspect, InspectHold,
-			Mutate, MutateFreeze, MutateHold,
-		},
-		tokens::{Balance, Precision, imbalance::OnUnbalanced},
+		defensive_prelude::*,
+		fungible::{hold::Balanced, Credit, Inspect, InspectHold, Mutate, MutateFreeze, MutateHold},
+		tokens::{imbalance::OnUnbalanced, Balance, Precision},
+		ChangeMembers, Contains, ContainsLengthBound, Get, InitializeMembers, SortedMembers,
 	},
 	weights::Weight,
-	pallet_prelude::DispatchResult,
 };
 use log;
+use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use sp_npos_elections::{ElectionResult, ExtendedBalance};
 use sp_runtime::{
@@ -129,7 +125,6 @@ use sp_runtime::TryRuntimeError;
 mod benchmarking;
 pub mod weights;
 pub use weights::WeightInfo;
-
 
 const LOG_TARGET: &str = "runtime::elections-phragmen";
 
@@ -178,7 +173,6 @@ pub struct SeatHolder<AccountId, Balance> {
 }
 
 pub use pallet::*;
-
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -309,10 +303,8 @@ pub mod pallet {
 				T::MaxVotesPerVoter::get() * T::MaxVoters::get(),
 			);
 
-			let to_seconds = |w: &Weight| {
-				w.ref_time() as f32 /
-					frame_support::weights::constants::WEIGHT_REF_TIME_PER_SECOND as f32
-			};
+			let to_seconds =
+				|w: &Weight| w.ref_time() as f32 / frame_support::weights::constants::WEIGHT_REF_TIME_PER_SECOND as f32;
 
 			log::debug!(
 				target: LOG_TARGET,
@@ -375,10 +367,7 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 
-			ensure!(
-				votes.len() <= T::MaxVotesPerVoter::get() as usize,
-				Error::<T>::MaximumVotesExceeded
-			);
+			ensure!(votes.len() <= T::MaxVotesPerVoter::get() as usize, Error::<T>::MaximumVotesExceeded);
 			ensure!(!votes.is_empty(), Error::<T>::NoVotes);
 
 			let candidates_count = <Candidates<T>>::decode_len().unwrap_or(0);
@@ -388,8 +377,7 @@ pub mod pallet {
 			// can never submit a vote of there are no members, and cannot submit more votes than
 			// all potential vote targets.
 			// addition is valid: candidates, members and runners-up will never overlap.
-			let allowed_votes =
-				candidates_count.saturating_add(members_count).saturating_add(runners_up_count);
+			let allowed_votes = candidates_count.saturating_add(members_count).saturating_add(runners_up_count);
 			ensure!(!allowed_votes.is_zero(), Error::<T>::UnableToVote);
 			ensure!(votes.len() <= allowed_votes, Error::<T>::TooManyVotes);
 
@@ -434,25 +422,19 @@ pub mod pallet {
 		/// O(C + log(C)) where C is candidate_count.
 		#[pallet::call_index(2)]
 		#[pallet::weight(T::WeightInfo::submit_candidacy(*candidate_count))]
-		pub fn submit_candidacy(
-			origin: OriginFor<T>,
-			#[pallet::compact] candidate_count: u32,
-		) -> DispatchResult {
+		pub fn submit_candidacy(origin: OriginFor<T>, #[pallet::compact] candidate_count: u32) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			let actual_count = <Candidates<T>>::decode_len().unwrap_or(0) as u32;
 			ensure!(actual_count <= candidate_count, Error::<T>::InvalidWitnessData);
-			ensure!(
-				actual_count <= <T as Config>::MaxCandidates::get(),
-				Error::<T>::TooManyCandidates
-			);
+			ensure!(actual_count <= <T as Config>::MaxCandidates::get(), Error::<T>::TooManyCandidates);
 
 			let index = Self::is_candidate(&who).err().ok_or(Error::<T>::DuplicatedCandidate)?;
 
 			ensure!(!Self::is_member(&who), Error::<T>::MemberSubmit);
 			ensure!(!Self::is_runner_up(&who), Error::<T>::RunnerUpSubmit);
 
-			T::Currency::hold(&HoldReason::Candidacy.into() ,&who, T::CandidacyBond::get())
+			T::Currency::hold(&HoldReason::Candidacy.into(), &who, T::CandidacyBond::get())
 				.map_err(|_| Error::<T>::InsufficientCandidateFunds)?;
 
 			<Candidates<T>>::mutate(|c| c.insert(index, (who, T::CandidacyBond::get())));
@@ -489,8 +471,7 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			match renouncing {
 				Renouncing::Member => {
-					Self::remove_and_replace_member(&who, false)
-						.map_err(|_| Error::<T>::InvalidRenouncing)?;
+					Self::remove_and_replace_member(&who, false).map_err(|_| Error::<T>::InvalidRenouncing)?;
 					Self::deposit_event(Event::Renounced { candidate: who });
 				},
 				Renouncing::RunnerUp => {
@@ -501,7 +482,8 @@ pub mod pallet {
 							.ok_or(Error::<T>::InvalidRenouncing)?;
 						// can't fail anymore.
 						let SeatHolder { deposit, .. } = runners_up.remove(index);
-						T::Currency::release(&HoldReason::Candidacy.into() , &who, deposit, Precision::Exact).map_err(|_| Error::<T>::UnableToReleaseBond)?;
+						T::Currency::release(&HoldReason::Candidacy.into(), &who, deposit, Precision::Exact)
+							.map_err(|_| Error::<T>::UnableToReleaseBond)?;
 						Self::deposit_event(Event::Renounced { candidate: who });
 						Ok(())
 					})?;
@@ -513,7 +495,8 @@ pub mod pallet {
 							.binary_search_by(|(c, _)| c.cmp(&who))
 							.map_err(|_| Error::<T>::InvalidRenouncing)?;
 						let (_, deposit) = candidates.remove(index);
-						T::Currency::release(&HoldReason::Candidacy.into() , &who, deposit, Precision::Exact).map_err(|_| Error::<T>::UnableToReleaseBond)?;
+						T::Currency::release(&HoldReason::Candidacy.into(), &who, deposit, Precision::Exact)
+							.map_err(|_| Error::<T>::UnableToReleaseBond)?;
 						Self::deposit_event(Event::Renounced { candidate: who });
 						Ok(())
 					})?;
@@ -575,11 +558,7 @@ pub mod pallet {
 		/// - Check is_defunct_voter() details.
 		#[pallet::call_index(5)]
 		#[pallet::weight(T::WeightInfo::clean_defunct_voters(*num_voters, *num_defunct))]
-		pub fn clean_defunct_voters(
-			origin: OriginFor<T>,
-			num_voters: u32,
-			num_defunct: u32,
-		) -> DispatchResult {
+		pub fn clean_defunct_voters(origin: OriginFor<T>, num_voters: u32, num_defunct: u32) -> DispatchResult {
 			let _ = ensure_root(origin)?;
 
 			<Voting<T>>::iter()
@@ -617,10 +596,7 @@ pub mod pallet {
 		/// Note that old members and runners-up are also candidates.
 		CandidateSlashed { candidate: <T as frame_system::Config>::AccountId, amount: BalanceOf<T> },
 		/// A seat holder was slashed by amount by being forcefully removed from the set.
-		SeatHolderSlashed {
-			seat_holder: <T as frame_system::Config>::AccountId,
-			amount: BalanceOf<T>,
-		},
+		SeatHolderSlashed { seat_holder: <T as frame_system::Config>::AccountId, amount: BalanceOf<T> },
 	}
 
 	#[pallet::error]
@@ -660,7 +636,7 @@ pub mod pallet {
 		/// Prediction regarding replacement after member removal is wrong.
 		InvalidReplacement,
 		/// Unable to release held funds.
-		UnableToReleaseBond
+		UnableToReleaseBond,
 	}
 
 	/// The current elected members.
@@ -668,8 +644,7 @@ pub mod pallet {
 	/// Invariant: Always sorted based on account id.
 	#[pallet::storage]
 	#[pallet::getter(fn members)]
-	pub type Members<T: Config> =
-		StorageValue<_, Vec<SeatHolder<T::AccountId, BalanceOf<T>>>, ValueQuery>;
+	pub type Members<T: Config> = StorageValue<_, Vec<SeatHolder<T::AccountId, BalanceOf<T>>>, ValueQuery>;
 
 	/// The current reserved runners-up.
 	///
@@ -677,8 +652,7 @@ pub mod pallet {
 	/// last (i.e. _best_) runner-up will be replaced.
 	#[pallet::storage]
 	#[pallet::getter(fn runners_up)]
-	pub type RunnersUp<T: Config> =
-		StorageValue<_, Vec<SeatHolder<T::AccountId, BalanceOf<T>>>, ValueQuery>;
+	pub type RunnersUp<T: Config> = StorageValue<_, Vec<SeatHolder<T::AccountId, BalanceOf<T>>>, ValueQuery>;
 
 	/// The present candidate list. A current member or runner-up can never enter this vector
 	/// and is always implicitly assumed to be a candidate.
@@ -721,42 +695,25 @@ pub mod pallet {
 				.iter()
 				.map(|(ref member, ref stake)| {
 					// make sure they have enough stake.
-					assert!(
-						T::Currency::balance(member) >= *stake,
-						"Genesis member does not have enough stake.",
-					);
+					assert!(T::Currency::balance(member) >= *stake, "Genesis member does not have enough stake.",);
 
 					// Note: all members will only vote for themselves, hence they must be given
 					// exactly their own stake as total backing. Any sane election should behave as
 					// such. Nonetheless, stakes will be updated for term 1 onwards according to the
 					// election.
-					Members::<T>::mutate(|members| {
-						match members.binary_search_by(|m| m.who.cmp(member)) {
-							Ok(_) => {
-								panic!(
-									"Duplicate member in elections-phragmen genesis: {:?}",
-									member
-								)
-							},
-							Err(pos) => members.insert(
-								pos,
-								SeatHolder {
-									who: member.clone(),
-									stake: *stake,
-									deposit: Zero::zero(),
-								},
-							),
-						}
+					Members::<T>::mutate(|members| match members.binary_search_by(|m| m.who.cmp(member)) {
+						Ok(_) => {
+							panic!("Duplicate member in elections-phragmen genesis: {:?}", member)
+						},
+						Err(pos) => members
+							.insert(pos, SeatHolder { who: member.clone(), stake: *stake, deposit: Zero::zero() }),
 					});
 
 					// set self-votes to make persistent. Genesis voters don't have any bond, nor do
 					// they have any lock. NOTE: this means that we will still try to remove a lock
 					// once this genesis voter is removed, and for now it is okay because
 					// remove_lock is noop if lock is not there.
-					<Voting<T>>::insert(
-						&member,
-						Voter { votes: vec![member.clone()], stake: *stake },
-					);
+					<Voting<T>>::insert(&member, Voter { votes: vec![member.clone()], stake: *stake });
 
 					member.clone()
 				})
@@ -769,7 +726,6 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-
 	/// Attempts to remove a member `who`. If a runner-up exists, it is used as the replacement.
 	///
 	/// Returns:
@@ -792,9 +748,7 @@ impl<T: Config> Pallet<T> {
 		// - `Ok(None)` if member was removed but no replacement was found
 		// - `Err(_)` if who is not a member.
 		let maybe_replacement = <Members<T>>::try_mutate::<_, Error<T>, _>(|members| {
-			let remove_index = members
-				.binary_search_by(|m| m.who.cmp(who))
-				.map_err(|_| Error::<T>::NotMember)?;
+			let remove_index = members.binary_search_by(|m| m.who.cmp(who)).map_err(|_| Error::<T>::NotMember)?;
 			// we remove the member anyhow, regardless of having a runner-up or not.
 			let removed = members.remove(remove_index);
 
@@ -803,12 +757,10 @@ impl<T: Config> Pallet<T> {
 				let (imbalance, _remainder) = T::Currency::slash(&HoldReason::Candidacy.into(), who, removed.deposit);
 				debug_assert!(_remainder.is_zero());
 				T::LoserCandidate::on_unbalanced(imbalance);
-				Self::deposit_event(Event::SeatHolderSlashed {
-					seat_holder: who.clone(),
-					amount: removed.deposit,
-				});
+				Self::deposit_event(Event::SeatHolderSlashed { seat_holder: who.clone(), amount: removed.deposit });
 			} else {
-				T::Currency::release(&HoldReason::Candidacy.into(), who, removed.deposit, Precision::Exact).map_err(|_| Error::<T>::UnableToReleaseBond)?;
+				T::Currency::release(&HoldReason::Candidacy.into(), who, removed.deposit, Precision::Exact)
+					.map_err(|_| Error::<T>::UnableToReleaseBond)?;
 			}
 
 			let maybe_next_best = <RunnersUp<T>>::mutate(|r| r.pop()).map(|next_best| {
@@ -826,26 +778,17 @@ impl<T: Config> Pallet<T> {
 			Ok(maybe_next_best)
 		})?;
 
-		let remaining_member_ids_sorted =
-			Self::members().into_iter().map(|x| x.who).collect::<Vec<_>>();
+		let remaining_member_ids_sorted = Self::members().into_iter().map(|x| x.who).collect::<Vec<_>>();
 		let outgoing = &[who.clone()];
 		let maybe_current_prime = T::ChangeMembers::get_prime();
 		let return_value = match maybe_replacement {
 			// member ids are already sorted, other two elements have one item.
 			Some(incoming) => {
-				T::ChangeMembers::change_members_sorted(
-					&[incoming.who],
-					outgoing,
-					&remaining_member_ids_sorted[..],
-				);
+				T::ChangeMembers::change_members_sorted(&[incoming.who], outgoing, &remaining_member_ids_sorted[..]);
 				true
 			},
 			None => {
-				T::ChangeMembers::change_members_sorted(
-					&[],
-					outgoing,
-					&remaining_member_ids_sorted[..],
-				);
+				T::ChangeMembers::change_members_sorted(&[], outgoing, &remaining_member_ids_sorted[..]);
 				false
 			},
 		};
@@ -905,9 +848,7 @@ impl<T: Config> Pallet<T> {
 	/// O(NLogM) with M candidates and `who` having voted for `N` of them.
 	/// Reads Members, RunnersUp, Candidates and Voting(who) from database.
 	fn is_defunct_voter(votes: &[T::AccountId]) -> bool {
-		votes.iter().all(|v| {
-			!Self::is_member(v) && !Self::is_runner_up(v) && Self::is_candidate(v).is_err()
-		})
+		votes.iter().all(|v| !Self::is_member(v) && !Self::is_runner_up(v) && Self::is_candidate(v).is_err())
 	}
 
 	/// Remove a certain someone as a voter.
@@ -937,8 +878,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// All of the new winners that come out of phragmen will thus have a deposit recorded.
-		let candidate_ids =
-			candidates_and_deposit.iter().map(|(x, _)| x).cloned().collect::<Vec<_>>();
+		let candidate_ids = candidates_and_deposit.iter().map(|(x, _)| x).cloned().collect::<Vec<_>>();
 
 		// helper closures to deal with balance/stake.
 		let total_issuance = T::Currency::total_issuance();
@@ -986,23 +926,17 @@ impl<T: Config> Pallet<T> {
 			sp_npos_elections::seq_phragmen(num_to_elect, candidate_ids, voters_and_votes, None)
 				.map(|ElectionResult::<T::AccountId, Perbill> { winners, assignments: _ }| {
 					// this is already sorted by id.
-					let old_members_ids_sorted = <Members<T>>::take()
-						.into_iter()
-						.map(|m| m.who)
-						.collect::<Vec<T::AccountId>>();
+					let old_members_ids_sorted =
+						<Members<T>>::take().into_iter().map(|m| m.who).collect::<Vec<T::AccountId>>();
 					// this one needs a sort by id.
-					let mut old_runners_up_ids_sorted = <RunnersUp<T>>::take()
-						.into_iter()
-						.map(|r| r.who)
-						.collect::<Vec<T::AccountId>>();
+					let mut old_runners_up_ids_sorted =
+						<RunnersUp<T>>::take().into_iter().map(|r| r.who).collect::<Vec<T::AccountId>>();
 					old_runners_up_ids_sorted.sort();
 
 					// filter out those who end up with no backing stake.
 					let mut new_set_with_stake = winners
 						.into_iter()
-						.filter_map(
-							|(m, b)| if b.is_zero() { None } else { Some((m, to_balance(b))) },
-						)
+						.filter_map(|(m, b)| if b.is_zero() { None } else { Some((m, to_balance(b))) })
 						.collect::<Vec<(T::AccountId, BalanceOf<T>)>>();
 
 					// OPTIMIZATION NOTE: we could bail out here if `new_set.len() == 0`. There
@@ -1012,17 +946,14 @@ impl<T: Config> Pallet<T> {
 
 					// split new set into winners and runners up.
 					let split_point = desired_seats.min(new_set_with_stake.len());
-					let mut new_members_sorted_by_id =
-						new_set_with_stake.drain(..split_point).collect::<Vec<_>>();
+					let mut new_members_sorted_by_id = new_set_with_stake.drain(..split_point).collect::<Vec<_>>();
 					new_members_sorted_by_id.sort_by(|i, j| i.0.cmp(&j.0));
 
 					// all the rest will be runners-up
 					new_set_with_stake.reverse();
 					let new_runners_up_sorted_by_rank = new_set_with_stake;
-					let mut new_runners_up_ids_sorted = new_runners_up_sorted_by_rank
-						.iter()
-						.map(|(r, _)| r.clone())
-						.collect::<Vec<_>>();
+					let mut new_runners_up_ids_sorted =
+						new_runners_up_sorted_by_rank.iter().map(|(r, _)| r.clone()).collect::<Vec<_>>();
 					new_runners_up_ids_sorted.sort();
 
 					// Now we select a prime member using a [Borda
@@ -1030,19 +961,15 @@ impl<T: Config> Pallet<T> {
 					// that new member by a multiplier based on the order of the votes. i.e. the
 					// first person a voter votes for gets a 16x multiplier, the next person gets a
 					// 15x multiplier, an so on... (assuming `T::MaxVotesPerVoter` = 16)
-					let mut prime_votes = new_members_sorted_by_id
-						.iter()
-						.map(|c| (&c.0, BalanceOf::<T>::zero()))
-						.collect::<Vec<_>>();
+					let mut prime_votes =
+						new_members_sorted_by_id.iter().map(|c| (&c.0, BalanceOf::<T>::zero())).collect::<Vec<_>>();
 					for (_, stake, votes) in voters_and_stakes.into_iter() {
-						for (vote_multiplier, who) in
-							votes.iter().enumerate().map(|(vote_position, who)| {
-								((T::MaxVotesPerVoter::get() as usize - vote_position) as u32, who)
-							}) {
+						for (vote_multiplier, who) in votes.iter().enumerate().map(|(vote_position, who)| {
+							((T::MaxVotesPerVoter::get() as usize - vote_position) as u32, who)
+						}) {
 							if let Ok(i) = prime_votes.binary_search_by_key(&who, |k| k.0) {
-								prime_votes[i].1 = prime_votes[i]
-									.1
-									.saturating_add(stake.saturating_mul(vote_multiplier.into()));
+								prime_votes[i].1 =
+									prime_votes[i].1.saturating_add(stake.saturating_mul(vote_multiplier.into()));
 							}
 						}
 					}
@@ -1052,21 +979,13 @@ impl<T: Config> Pallet<T> {
 					let prime = prime_votes.into_iter().max_by_key(|x| x.1).map(|x| x.0.clone());
 
 					// new_members_sorted_by_id is sorted by account id.
-					let new_members_ids_sorted = new_members_sorted_by_id
-						.iter()
-						.map(|(m, _)| m.clone())
-						.collect::<Vec<T::AccountId>>();
+					let new_members_ids_sorted =
+						new_members_sorted_by_id.iter().map(|(m, _)| m.clone()).collect::<Vec<T::AccountId>>();
 
 					// report member changes. We compute diff because we need the outgoing list.
-					let (incoming, outgoing) = T::ChangeMembers::compute_members_diff_sorted(
-						&new_members_ids_sorted,
-						&old_members_ids_sorted,
-					);
-					T::ChangeMembers::change_members_sorted(
-						&incoming,
-						&outgoing,
-						&new_members_ids_sorted,
-					);
+					let (incoming, outgoing) =
+						T::ChangeMembers::compute_members_diff_sorted(&new_members_ids_sorted, &old_members_ids_sorted);
+					T::ChangeMembers::change_members_sorted(&incoming, &outgoing, &new_members_ids_sorted);
 					T::ChangeMembers::set_prime(prime);
 
 					// All candidates/members/runners-up who are no longer retaining a position as a
@@ -1077,10 +996,7 @@ impl<T: Config> Pallet<T> {
 						{
 							let (imbalance, _) = T::Currency::slash(&HoldReason::Candidacy.into(), c, *d);
 							T::LoserCandidate::on_unbalanced(imbalance);
-							Self::deposit_event(Event::CandidateSlashed {
-								candidate: c.clone(),
-								amount: *d,
-							});
+							Self::deposit_event(Event::CandidateSlashed { candidate: c.clone(), amount: *d });
 						}
 					});
 
@@ -1110,11 +1026,7 @@ impl<T: Config> Pallet<T> {
 					<RunnersUp<T>>::put(
 						new_runners_up_sorted_by_rank
 							.into_iter()
-							.map(|(who, stake)| SeatHolder {
-								deposit: deposit_of_candidate(&who),
-								who,
-								stake,
-							})
+							.map(|(who, stake)| SeatHolder { deposit: deposit_of_candidate(&who), who, stake })
 							.collect::<Vec<_>>(),
 					);
 
@@ -1155,11 +1067,7 @@ impl<T: Config> SortedMembers<T::AccountId> for Pallet<T> {
 		Members::<T>::mutate(|members| match members.binary_search_by(|m| m.who.cmp(who)) {
 			Ok(_) => (),
 			Err(pos) => {
-				let s = SeatHolder {
-					who: who.clone(),
-					stake: Default::default(),
-					deposit: Default::default(),
-				};
+				let s = SeatHolder { who: who.clone(), stake: Default::default(), deposit: Default::default() };
 				members.insert(pos, s)
 			},
 		})
@@ -1211,8 +1119,7 @@ impl<T: Config> Pallet<T> {
 		if RunnersUp::<T>::get() == sorted {
 			Ok(())
 		} else {
-			Err("try_state checks: Runners Up must always be sorted by stake (worst to best)"
-				.into())
+			Err("try_state checks: Runners Up must always be sorted by stake (worst to best)".into())
 		}
 	}
 
@@ -1228,6 +1135,7 @@ impl<T: Config> Pallet<T> {
 			Err("try_state checks: Candidates must be always sorted by account ID".into())
 		}
 	}
+
 	// [`Candidates`] and [`RunnersUp`] state checks. Invariants:
 	//  - Candidates and runners-ups sets are disjoint.
 	fn try_state_candidates_runners_up_disjoint() -> Result<(), TryRuntimeError> {
@@ -1244,8 +1152,7 @@ impl<T: Config> Pallet<T> {
 		match Self::intersects(&Pallet::<T>::members_ids(), &Self::candidates_ids()) &&
 			Self::intersects(&Pallet::<T>::members_ids(), &Self::runners_up_ids())
 		{
-			true =>
-				Err("Members set should be disjoint from candidates and runners-up sets".into()),
+			true => Err("Members set should be disjoint from candidates and runners-up sets".into()),
 			false => Ok(()),
 		}
 	}
@@ -1254,10 +1161,7 @@ impl<T: Config> Pallet<T> {
 	// - Selected members should have approval stake;
 	// - Selected RunnersUp should have approval stake.
 	fn try_state_members_approval_stake() -> Result<(), TryRuntimeError> {
-		match Members::<T>::get()
-			.iter()
-			.chain(RunnersUp::<T>::get().iter())
-			.all(|s| s.stake != BalanceOf::<T>::zero())
+		match Members::<T>::get().iter().chain(RunnersUp::<T>::get().iter()).all(|s| s.stake != BalanceOf::<T>::zero())
 		{
 			true => Ok(()),
 			false => Err("Members and RunnersUp must have approval stake".into()),
@@ -1285,10 +1189,7 @@ mod tests {
 		assert_noop, assert_ok, derive_impl,
 		dispatch::DispatchResultWithPostInfo,
 		parameter_types,
-		traits::{
-			ConstU32, ConstU64, OnInitialize,
-			fungible::InspectFreeze,
-		},
+		traits::{fungible::InspectFreeze, ConstU32, ConstU64, OnInitialize},
 	};
 	use frame_system::ensure_signed;
 	use sp_core::H256;
@@ -1301,45 +1202,45 @@ mod tests {
 
 	#[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
 	impl frame_system::Config for Test {
+		type AccountData = pallet_balances::AccountData<u64>;
+		type AccountId = u64;
 		type BaseCallFilter = frame_support::traits::Everything;
-		type BlockWeights = ();
+		type Block = Block;
+		type BlockHashCount = ConstU64<250>;
 		type BlockLength = ();
+		type BlockWeights = ();
 		type DbWeight = ();
-		type RuntimeOrigin = RuntimeOrigin;
-		type Nonce = u64;
-		type RuntimeCall = RuntimeCall;
 		type Hash = H256;
 		type Hashing = BlakeTwo256;
-		type AccountId = u64;
 		type Lookup = IdentityLookup<Self::AccountId>;
-		type Block = Block;
-		type RuntimeEvent = RuntimeEvent;
-		type BlockHashCount = ConstU64<250>;
-		type Version = ();
-		type PalletInfo = PalletInfo;
-		type AccountData = pallet_balances::AccountData<u64>;
-		type OnNewAccount = ();
-		type OnKilledAccount = ();
-		type SystemWeightInfo = ();
-		type SS58Prefix = ();
-		type OnSetCode = ();
 		type MaxConsumers = ConstU32<16>;
+		type Nonce = u64;
+		type OnKilledAccount = ();
+		type OnNewAccount = ();
+		type OnSetCode = ();
+		type PalletInfo = PalletInfo;
+		type RuntimeCall = RuntimeCall;
+		type RuntimeEvent = RuntimeEvent;
+		type RuntimeOrigin = RuntimeOrigin;
+		type SS58Prefix = ();
+		type SystemWeightInfo = ();
+		type Version = ();
 	}
 
 	impl pallet_balances::Config for Test {
+		type AccountStore = frame_system::Pallet<Test>;
 		type Balance = u64;
-		type RuntimeEvent = RuntimeEvent;
 		type DustRemoval = ();
 		type ExistentialDeposit = ConstU64<1>;
-		type AccountStore = frame_system::Pallet<Test>;
+		type FreezeIdentifier = RuntimeFreezeReason;
+		type MaxFreezes = ConstU32<10>;
+		type MaxHolds = ConstU32<10>;
 		type MaxLocks = ();
 		type MaxReserves = ();
 		type ReserveIdentifier = [u8; 8];
-		type WeightInfo = ();
-		type FreezeIdentifier = RuntimeFreezeReason;
-		type MaxFreezes = ConstU32<10>;
+		type RuntimeEvent = RuntimeEvent;
 		type RuntimeHoldReason = RuntimeHoldReason;
-		type MaxHolds = ConstU32<10>;
+		type WeightInfo = ();
 	}
 
 	frame_support::parameter_types! {
@@ -1401,28 +1302,27 @@ mod tests {
 	}
 
 	impl Config for Test {
-		type RuntimeEvent = RuntimeEvent;
-		type Currency = Balances;
 		type Balance = u64;
-		type CurrencyToVote = ();
-		type ChangeMembers = TestChangeMembers;
-		type InitializeMembers = ();
 		type CandidacyBond = CandidacyBond;
-		type TermDuration = TermDuration;
+		type ChangeMembers = TestChangeMembers;
+		type Currency = Balances;
+		type CurrencyToVote = ();
 		type DesiredMembers = DesiredMembers;
 		type DesiredRunnersUp = DesiredRunnersUp;
+		type InitializeMembers = ();
 		type LoserCandidate = ();
-		type WeightInfo = ();
+		type MaxCandidates = PhragmenMaxCandidates;
 		type MaxVoters = PhragmenMaxVoters;
 		type MaxVotesPerVoter = ConstU32<16>;
-		type MaxCandidates = PhragmenMaxCandidates;
+		type RuntimeEvent = RuntimeEvent;
 		type RuntimeFreezeReason = RuntimeFreezeReason;
 		type RuntimeHoldReason = RuntimeHoldReason;
+		type TermDuration = TermDuration;
+		type WeightInfo = ();
 	}
 
 	pub type Block = sp_runtime::generic::Block<Header, UncheckedExtrinsic>;
-	pub type UncheckedExtrinsic =
-		sp_runtime::generic::UncheckedExtrinsic<u32, u64, RuntimeCall, ()>;
+	pub type UncheckedExtrinsic = sp_runtime::generic::UncheckedExtrinsic<u32, u64, RuntimeCall, ()>;
 
 	frame_support::construct_runtime!(
 		pub enum Test
@@ -1449,28 +1349,31 @@ mod tests {
 			DESIRED_RUNNERS_UP.with(|v| *v.borrow_mut() = count);
 			self
 		}
+
 		pub fn term_duration(self, duration: u64) -> Self {
 			TERM_DURATION.with(|v| *v.borrow_mut() = duration);
 			self
 		}
+
 		pub fn genesis_members(mut self, members: Vec<(u64, u64)>) -> Self {
 			MEMBERS.with(|m| *m.borrow_mut() = members.iter().map(|(m, _)| *m).collect::<Vec<_>>());
 			self.genesis_members = members;
 			self
 		}
+
 		pub fn desired_members(self, count: u32) -> Self {
 			DESIRED_MEMBERS.with(|m| *m.borrow_mut() = count);
 			self
 		}
+
 		pub fn balance_factor(mut self, factor: u64) -> Self {
 			self.balance_factor = factor;
 			self
 		}
+
 		pub fn build_and_execute(self, test: impl FnOnce() -> ()) {
 			sp_tracing::try_init_simple();
-			MEMBERS.with(|m| {
-				*m.borrow_mut() = self.genesis_members.iter().map(|(m, _)| *m).collect::<Vec<_>>()
-			});
+			MEMBERS.with(|m| *m.borrow_mut() = self.genesis_members.iter().map(|(m, _)| *m).collect::<Vec<_>>());
 			let mut ext: sp_io::TestExternalities = RuntimeGenesisConfig {
 				system: frame_system::GenesisConfig::default(),
 				balances: pallet_balances::GenesisConfig::<Test> {
@@ -1483,9 +1386,7 @@ mod tests {
 						(6, 60 * self.balance_factor),
 					],
 				},
-				elections: elections_phragmen::GenesisConfig::<Test> {
-					members: self.genesis_members,
-				},
+				elections: elections_phragmen::GenesisConfig::<Test> { members: self.genesis_members },
 			}
 			.build_storage()
 			.unwrap()
@@ -1495,9 +1396,7 @@ mod tests {
 
 			#[cfg(feature = "try-runtime")]
 			ext.execute_with(|| {
-				assert_ok!(<Elections as frame_support::traits::Hooks<u64>>::try_state(
-					System::block_number()
-				));
+				assert_ok!(<Elections as frame_support::traits::Hooks<u64>>::try_state(System::block_number()));
 			});
 		}
 	}
@@ -1526,10 +1425,7 @@ mod tests {
 	}
 
 	fn runners_up_and_stake() -> Vec<(u64, u64)> {
-		Elections::runners_up()
-			.into_iter()
-			.map(|r| (r.who, r.stake))
-			.collect::<Vec<_>>()
+		Elections::runners_up().into_iter().map(|r| (r.who, r.stake)).collect::<Vec<_>>()
 	}
 
 	fn all_voters() -> Vec<u64> {
@@ -1592,97 +1488,65 @@ mod tests {
 
 	#[test]
 	fn genesis_members_should_work() {
-		ExtBuilder::default()
-			.genesis_members(vec![(1, 10), (2, 20)])
-			.build_and_execute(|| {
-				System::set_block_number(1);
-				assert_eq!(
-					Elections::members(),
-					vec![
-						SeatHolder { who: 1, stake: 10, deposit: 0 },
-						SeatHolder { who: 2, stake: 20, deposit: 0 }
-					]
-				);
+		ExtBuilder::default().genesis_members(vec![(1, 10), (2, 20)]).build_and_execute(|| {
+			System::set_block_number(1);
+			assert_eq!(
+				Elections::members(),
+				vec![SeatHolder { who: 1, stake: 10, deposit: 0 }, SeatHolder { who: 2, stake: 20, deposit: 0 }]
+			);
 
-				assert_eq!(
-					Elections::voting(1),
-					Voter { stake: 10u64, votes: vec![1] }
-				);
-				assert_eq!(
-					Elections::voting(2),
-					Voter { stake: 20u64, votes: vec![2] }
-				);
+			assert_eq!(Elections::voting(1), Voter { stake: 10u64, votes: vec![1] });
+			assert_eq!(Elections::voting(2), Voter { stake: 20u64, votes: vec![2] });
 
-				// they will persist since they have self vote.
-				System::set_block_number(5);
-				Elections::on_initialize(System::block_number());
+			// they will persist since they have self vote.
+			System::set_block_number(5);
+			Elections::on_initialize(System::block_number());
 
-				assert_eq!(members_ids(), vec![1, 2]);
-			})
+			assert_eq!(members_ids(), vec![1, 2]);
+		})
 	}
 
 	#[test]
 	fn genesis_voters_can_remove_lock() {
-		ExtBuilder::default()
-			.genesis_members(vec![(1, 10), (2, 20)])
-			.build_and_execute(|| {
-				System::set_block_number(1);
+		ExtBuilder::default().genesis_members(vec![(1, 10), (2, 20)]).build_and_execute(|| {
+			System::set_block_number(1);
 
-				assert_eq!(
-					Elections::voting(1),
-					Voter { stake: 10u64, votes: vec![1] }
-				);
-				assert_eq!(
-					Elections::voting(2),
-					Voter { stake: 20u64, votes: vec![2] }
-				);
+			assert_eq!(Elections::voting(1), Voter { stake: 10u64, votes: vec![1] });
+			assert_eq!(Elections::voting(2), Voter { stake: 20u64, votes: vec![2] });
 
-				assert_ok!(Elections::remove_voter(RuntimeOrigin::signed(1)));
-				assert_ok!(Elections::remove_voter(RuntimeOrigin::signed(2)));
+			assert_ok!(Elections::remove_voter(RuntimeOrigin::signed(1)));
+			assert_ok!(Elections::remove_voter(RuntimeOrigin::signed(2)));
 
-				assert_eq!(Elections::voting(1), Default::default());
-				assert_eq!(Elections::voting(2), Default::default());
-			})
+			assert_eq!(Elections::voting(1), Default::default());
+			assert_eq!(Elections::voting(2), Default::default());
+		})
 	}
 
 	#[test]
 	fn genesis_members_unsorted_should_work() {
-		ExtBuilder::default()
-			.genesis_members(vec![(2, 20), (1, 10)])
-			.build_and_execute(|| {
-				System::set_block_number(1);
-				assert_eq!(
-					Elections::members(),
-					vec![
-						SeatHolder { who: 1, stake: 10, deposit: 0 },
-						SeatHolder { who: 2, stake: 20, deposit: 0 },
-					]
-				);
+		ExtBuilder::default().genesis_members(vec![(2, 20), (1, 10)]).build_and_execute(|| {
+			System::set_block_number(1);
+			assert_eq!(
+				Elections::members(),
+				vec![SeatHolder { who: 1, stake: 10, deposit: 0 }, SeatHolder { who: 2, stake: 20, deposit: 0 },]
+			);
 
-				assert_eq!(
-					Elections::voting(1),
-					Voter { stake: 10u64, votes: vec![1] }
-				);
-				assert_eq!(
-					Elections::voting(2),
-					Voter { stake: 20u64, votes: vec![2] }
-				);
+			assert_eq!(Elections::voting(1), Voter { stake: 10u64, votes: vec![1] });
+			assert_eq!(Elections::voting(2), Voter { stake: 20u64, votes: vec![2] });
 
-				// they will persist since they have self vote.
-				System::set_block_number(5);
-				Elections::on_initialize(System::block_number());
+			// they will persist since they have self vote.
+			System::set_block_number(5);
+			Elections::on_initialize(System::block_number());
 
-				assert_eq!(members_ids(), vec![1, 2]);
-			})
+			assert_eq!(members_ids(), vec![1, 2]);
+		})
 	}
 
 	#[test]
 	#[should_panic = "Genesis member does not have enough stake"]
 	fn genesis_members_cannot_over_stake_0() {
 		// 10 cannot lock 20 as their stake and extra genesis will panic.
-		ExtBuilder::default()
-			.genesis_members(vec![(1, 20), (2, 20)])
-			.build_and_execute(|| {});
+		ExtBuilder::default().genesis_members(vec![(1, 20), (2, 20)]).build_and_execute(|| {});
 	}
 
 	#[test]
@@ -1776,10 +1640,7 @@ mod tests {
 			assert_eq!(balances(&5), (47, 3));
 			assert_eq!(
 				Elections::members(),
-				vec![
-					SeatHolder { who: 4, stake: 40, deposit: 4 },
-					SeatHolder { who: 5, stake: 50, deposit: 3 },
-				]
+				vec![SeatHolder { who: 4, stake: 40, deposit: 4 }, SeatHolder { who: 5, stake: 50, deposit: 3 },]
 			);
 		})
 	}
@@ -1806,10 +1667,7 @@ mod tests {
 			assert_eq!(candidate_ids(), Vec::<u64>::new());
 			assert_ok!(submit_candidacy(RuntimeOrigin::signed(1)));
 			assert_eq!(candidate_ids(), vec![1]);
-			assert_noop!(
-				submit_candidacy(RuntimeOrigin::signed(1)),
-				Error::<Test>::DuplicatedCandidate
-			);
+			assert_noop!(submit_candidacy(RuntimeOrigin::signed(1)), Error::<Test>::DuplicatedCandidate);
 		});
 	}
 
@@ -1855,10 +1713,7 @@ mod tests {
 	fn poor_candidate_submission_should_not_work() {
 		ExtBuilder::default().build_and_execute(|| {
 			assert_eq!(candidate_ids(), Vec::<u64>::new());
-			assert_noop!(
-				submit_candidacy(RuntimeOrigin::signed(7)),
-				Error::<Test>::InsufficientCandidateFunds,
-			);
+			assert_noop!(submit_candidacy(RuntimeOrigin::signed(7)), Error::<Test>::InsufficientCandidateFunds,);
 		});
 	}
 
@@ -2013,10 +1868,7 @@ mod tests {
 			assert_ok!(vote(RuntimeOrigin::signed(4), vec![4], 40));
 			assert_ok!(vote(RuntimeOrigin::signed(5), vec![5], 50));
 
-			assert_ok!(Elections::renounce_candidacy(
-				RuntimeOrigin::signed(4),
-				Renouncing::Candidate(3)
-			));
+			assert_ok!(Elections::renounce_candidacy(RuntimeOrigin::signed(4), Renouncing::Candidate(3)));
 
 			System::set_block_number(5);
 			Elections::on_initialize(System::block_number());
@@ -2072,37 +1924,34 @@ mod tests {
 
 	#[test]
 	fn cannot_vote_for_more_than_candidates_and_members_and_runners() {
-		ExtBuilder::default()
-			.desired_runners_up(1)
-			.balance_factor(10)
-			.build_and_execute(|| {
-				// when we have only candidates
-				assert_ok!(submit_candidacy(RuntimeOrigin::signed(5)));
-				assert_ok!(submit_candidacy(RuntimeOrigin::signed(4)));
-				assert_ok!(submit_candidacy(RuntimeOrigin::signed(3)));
+		ExtBuilder::default().desired_runners_up(1).balance_factor(10).build_and_execute(|| {
+			// when we have only candidates
+			assert_ok!(submit_candidacy(RuntimeOrigin::signed(5)));
+			assert_ok!(submit_candidacy(RuntimeOrigin::signed(4)));
+			assert_ok!(submit_candidacy(RuntimeOrigin::signed(3)));
 
-				assert_noop!(
-					// content of the vote is irrelevant.
-					vote(RuntimeOrigin::signed(1), vec![9, 99, 999, 9999], 5),
-					Error::<Test>::TooManyVotes,
-				);
+			assert_noop!(
+				// content of the vote is irrelevant.
+				vote(RuntimeOrigin::signed(1), vec![9, 99, 999, 9999], 5),
+				Error::<Test>::TooManyVotes,
+			);
 
-				assert_ok!(vote(RuntimeOrigin::signed(3), vec![3], 30));
-				assert_ok!(vote(RuntimeOrigin::signed(4), vec![4], 40));
-				assert_ok!(vote(RuntimeOrigin::signed(5), vec![5], 50));
+			assert_ok!(vote(RuntimeOrigin::signed(3), vec![3], 30));
+			assert_ok!(vote(RuntimeOrigin::signed(4), vec![4], 40));
+			assert_ok!(vote(RuntimeOrigin::signed(5), vec![5], 50));
 
-				System::set_block_number(5);
-				Elections::on_initialize(System::block_number());
+			System::set_block_number(5);
+			Elections::on_initialize(System::block_number());
 
-				// now we have 2 members, 1 runner-up, and 1 new candidate
-				assert_ok!(submit_candidacy(RuntimeOrigin::signed(2)));
+			// now we have 2 members, 1 runner-up, and 1 new candidate
+			assert_ok!(submit_candidacy(RuntimeOrigin::signed(2)));
 
-				assert_ok!(vote(RuntimeOrigin::signed(1), vec![9, 99, 999, 9999], 5));
-				assert_noop!(
-					vote(RuntimeOrigin::signed(1), vec![9, 99, 999, 9_999, 99_999], 5),
-					Error::<Test>::TooManyVotes,
-				);
-			});
+			assert_ok!(vote(RuntimeOrigin::signed(1), vec![9, 99, 999, 9999], 5));
+			assert_noop!(
+				vote(RuntimeOrigin::signed(1), vec![9, 99, 999, 9_999, 99_999], 5),
+				Error::<Test>::TooManyVotes,
+			);
+		});
 	}
 
 	#[test]
@@ -2161,10 +2010,7 @@ mod tests {
 	#[test]
 	fn non_voter_remove_should_not_work() {
 		ExtBuilder::default().build_and_execute(|| {
-			assert_noop!(
-				Elections::remove_voter(RuntimeOrigin::signed(3)),
-				Error::<Test>::MustBeVoter
-			);
+			assert_noop!(Elections::remove_voter(RuntimeOrigin::signed(3)), Error::<Test>::MustBeVoter);
 		});
 	}
 
@@ -2177,10 +2023,7 @@ mod tests {
 			assert_ok!(Elections::remove_voter(RuntimeOrigin::signed(2)));
 			assert!(all_voters().is_empty());
 
-			assert_noop!(
-				Elections::remove_voter(RuntimeOrigin::signed(2)),
-				Error::<Test>::MustBeVoter
-			);
+			assert_noop!(Elections::remove_voter(RuntimeOrigin::signed(2)), Error::<Test>::MustBeVoter);
 		});
 	}
 
@@ -2279,9 +2122,7 @@ mod tests {
 			System::set_block_number(10);
 			Elections::on_initialize(System::block_number());
 
-			System::assert_last_event(RuntimeEvent::Elections(super::Event::NewTerm {
-				new_members: vec![],
-			}));
+			System::assert_last_event(RuntimeEvent::Elections(super::Event::NewTerm { new_members: vec![] }));
 
 			// outgoing have lost their bond.
 			assert_eq!(balances(&4), (37, 0));
@@ -2351,9 +2192,7 @@ mod tests {
 			assert_eq!(Elections::election_rounds(), 1);
 			assert!(members_ids().is_empty());
 
-			System::assert_last_event(RuntimeEvent::Elections(super::Event::NewTerm {
-				new_members: vec![],
-			}));
+			System::assert_last_event(RuntimeEvent::Elections(super::Event::NewTerm { new_members: vec![] }));
 		});
 	}
 
@@ -2795,10 +2634,7 @@ mod tests {
 			assert_eq!(members_ids(), vec![4, 5]);
 			assert_eq!(runners_up_ids(), vec![2, 3]);
 
-			assert_ok!(Elections::renounce_candidacy(
-				RuntimeOrigin::signed(3),
-				Renouncing::RunnerUp
-			));
+			assert_ok!(Elections::renounce_candidacy(RuntimeOrigin::signed(3), Renouncing::RunnerUp));
 			assert_eq!(balances(&3), (30, 0)); // 2 is voting bond.
 
 			assert_eq!(members_ids(), vec![4, 5]);
@@ -2824,10 +2660,7 @@ mod tests {
 
 			assert_eq!(members_ids(), vec![2, 4]);
 			assert_eq!(runners_up_ids(), vec![5, 3]);
-			assert_ok!(Elections::renounce_candidacy(
-				RuntimeOrigin::signed(3),
-				Renouncing::RunnerUp
-			));
+			assert_ok!(Elections::renounce_candidacy(RuntimeOrigin::signed(3), Renouncing::RunnerUp));
 			assert_eq!(members_ids(), vec![2, 4]);
 			assert_eq!(runners_up_ids(), vec![5]);
 		});
@@ -2840,10 +2673,7 @@ mod tests {
 			assert_eq!(balances(&5), (47, 3));
 			assert_eq!(candidate_ids(), vec![5]);
 
-			assert_ok!(Elections::renounce_candidacy(
-				RuntimeOrigin::signed(5),
-				Renouncing::Candidate(1)
-			));
+			assert_ok!(Elections::renounce_candidacy(RuntimeOrigin::signed(5), Renouncing::Candidate(1)));
 			assert_eq!(balances(&5), (50, 0));
 			assert!(candidate_ids().is_empty());
 		})
@@ -2927,10 +2757,7 @@ mod tests {
 				Error::<Test>::InvalidWitnessData,
 			);
 
-			assert_ok!(Elections::renounce_candidacy(
-				RuntimeOrigin::signed(4),
-				Renouncing::Candidate(3)
-			));
+			assert_ok!(Elections::renounce_candidacy(RuntimeOrigin::signed(4), Renouncing::Candidate(3)));
 		})
 	}
 
@@ -2941,133 +2768,121 @@ mod tests {
 			assert_ok!(submit_candidacy(RuntimeOrigin::signed(4)));
 			assert_ok!(submit_candidacy(RuntimeOrigin::signed(3)));
 			// while we have only 3 candidates.
-			assert_ok!(Elections::renounce_candidacy(
-				RuntimeOrigin::signed(4),
-				Renouncing::Candidate(4)
-			));
+			assert_ok!(Elections::renounce_candidacy(RuntimeOrigin::signed(4), Renouncing::Candidate(4)));
 		})
 	}
 
 	#[test]
 	fn unsorted_runners_up_are_detected() {
-		ExtBuilder::default()
-			.desired_runners_up(2)
-			.desired_members(1)
-			.build_and_execute(|| {
-				assert_ok!(submit_candidacy(RuntimeOrigin::signed(5)));
-				assert_ok!(submit_candidacy(RuntimeOrigin::signed(4)));
-				assert_ok!(submit_candidacy(RuntimeOrigin::signed(3)));
+		ExtBuilder::default().desired_runners_up(2).desired_members(1).build_and_execute(|| {
+			assert_ok!(submit_candidacy(RuntimeOrigin::signed(5)));
+			assert_ok!(submit_candidacy(RuntimeOrigin::signed(4)));
+			assert_ok!(submit_candidacy(RuntimeOrigin::signed(3)));
 
-				assert_ok!(vote(RuntimeOrigin::signed(5), vec![5], 50));
-				assert_ok!(vote(RuntimeOrigin::signed(4), vec![4], 5));
-				assert_ok!(vote(RuntimeOrigin::signed(3), vec![3], 15));
+			assert_ok!(vote(RuntimeOrigin::signed(5), vec![5], 50));
+			assert_ok!(vote(RuntimeOrigin::signed(4), vec![4], 5));
+			assert_ok!(vote(RuntimeOrigin::signed(3), vec![3], 15));
 
-				System::set_block_number(5);
-				Elections::on_initialize(System::block_number());
+			System::set_block_number(5);
+			Elections::on_initialize(System::block_number());
 
-				assert_eq!(members_ids(), vec![5]);
-				assert_eq!(runners_up_ids(), vec![4, 3]);
+			assert_eq!(members_ids(), vec![5]);
+			assert_eq!(runners_up_ids(), vec![4, 3]);
 
-				assert_ok!(submit_candidacy(RuntimeOrigin::signed(2)));
-				assert_ok!(vote(RuntimeOrigin::signed(2), vec![2], 10));
+			assert_ok!(submit_candidacy(RuntimeOrigin::signed(2)));
+			assert_ok!(vote(RuntimeOrigin::signed(2), vec![2], 10));
 
-				System::set_block_number(10);
-				Elections::on_initialize(System::block_number());
+			System::set_block_number(10);
+			Elections::on_initialize(System::block_number());
 
-				assert_eq!(members_ids(), vec![5]);
-				assert_eq!(runners_up_ids(), vec![2, 3]);
+			assert_eq!(members_ids(), vec![5]);
+			assert_eq!(runners_up_ids(), vec![2, 3]);
 
-				// 4 is outgoing runner-up. Slash candidacy bond.
-				assert_eq!(balances(&4), (37, 0));
-				// 3 stays.
-				assert_eq!(balances(&3), (27, 3));
-			})
+			// 4 is outgoing runner-up. Slash candidacy bond.
+			assert_eq!(balances(&4), (37, 0));
+			// 3 stays.
+			assert_eq!(balances(&3), (27, 3));
+		})
 	}
 
 	#[test]
 	fn member_to_runner_up_wont_slash() {
-		ExtBuilder::default()
-			.desired_runners_up(2)
-			.desired_members(1)
-			.build_and_execute(|| {
-				assert_ok!(submit_candidacy(RuntimeOrigin::signed(4)));
-				assert_ok!(submit_candidacy(RuntimeOrigin::signed(3)));
-				assert_ok!(submit_candidacy(RuntimeOrigin::signed(2)));
+		ExtBuilder::default().desired_runners_up(2).desired_members(1).build_and_execute(|| {
+			assert_ok!(submit_candidacy(RuntimeOrigin::signed(4)));
+			assert_ok!(submit_candidacy(RuntimeOrigin::signed(3)));
+			assert_ok!(submit_candidacy(RuntimeOrigin::signed(2)));
 
-				assert_ok!(vote(RuntimeOrigin::signed(4), vec![4], 40));
-				assert_ok!(vote(RuntimeOrigin::signed(3), vec![3], 30));
-				assert_ok!(vote(RuntimeOrigin::signed(2), vec![2], 20));
+			assert_ok!(vote(RuntimeOrigin::signed(4), vec![4], 40));
+			assert_ok!(vote(RuntimeOrigin::signed(3), vec![3], 30));
+			assert_ok!(vote(RuntimeOrigin::signed(2), vec![2], 20));
 
-				System::set_block_number(5);
-				Elections::on_initialize(System::block_number());
+			System::set_block_number(5);
+			Elections::on_initialize(System::block_number());
 
-				assert_eq!(members_ids(), vec![4]);
-				assert_eq!(runners_up_ids(), vec![2, 3]);
+			assert_eq!(members_ids(), vec![4]);
+			assert_eq!(runners_up_ids(), vec![2, 3]);
 
-				assert_eq!(balances(&4), (37, 3));
-				assert_eq!(balances(&3), (27, 3));
-				assert_eq!(balances(&2), (17, 3));
+			assert_eq!(balances(&4), (37, 3));
+			assert_eq!(balances(&3), (27, 3));
+			assert_eq!(balances(&2), (17, 3));
 
-				// this guy will shift everyone down.
-				assert_ok!(submit_candidacy(RuntimeOrigin::signed(5)));
-				assert_ok!(vote(RuntimeOrigin::signed(5), vec![5], 50));
+			// this guy will shift everyone down.
+			assert_ok!(submit_candidacy(RuntimeOrigin::signed(5)));
+			assert_ok!(vote(RuntimeOrigin::signed(5), vec![5], 50));
 
-				System::set_block_number(10);
-				Elections::on_initialize(System::block_number());
+			System::set_block_number(10);
+			Elections::on_initialize(System::block_number());
 
-				assert_eq!(members_ids(), vec![5]);
-				assert_eq!(runners_up_ids(), vec![3, 4]);
+			assert_eq!(members_ids(), vec![5]);
+			assert_eq!(runners_up_ids(), vec![3, 4]);
 
-				// 4 went from member to runner-up -- don't slash.
-				assert_eq!(balances(&4), (37, 3));
-				// 3 stayed runner-up -- don't slash.
-				assert_eq!(balances(&3), (27, 3));
-				// 2 was removed -- slash.
-				assert_eq!(balances(&2), (17, 0));
-			});
+			// 4 went from member to runner-up -- don't slash.
+			assert_eq!(balances(&4), (37, 3));
+			// 3 stayed runner-up -- don't slash.
+			assert_eq!(balances(&3), (27, 3));
+			// 2 was removed -- slash.
+			assert_eq!(balances(&2), (17, 0));
+		});
 	}
 
 	#[test]
 	fn runner_up_to_member_wont_slash() {
-		ExtBuilder::default()
-			.desired_runners_up(2)
-			.desired_members(1)
-			.build_and_execute(|| {
-				assert_ok!(submit_candidacy(RuntimeOrigin::signed(4)));
-				assert_ok!(submit_candidacy(RuntimeOrigin::signed(3)));
-				assert_ok!(submit_candidacy(RuntimeOrigin::signed(2)));
+		ExtBuilder::default().desired_runners_up(2).desired_members(1).build_and_execute(|| {
+			assert_ok!(submit_candidacy(RuntimeOrigin::signed(4)));
+			assert_ok!(submit_candidacy(RuntimeOrigin::signed(3)));
+			assert_ok!(submit_candidacy(RuntimeOrigin::signed(2)));
 
-				assert_ok!(vote(RuntimeOrigin::signed(4), vec![4], 40));
-				assert_ok!(vote(RuntimeOrigin::signed(3), vec![3], 30));
-				assert_ok!(vote(RuntimeOrigin::signed(2), vec![2], 20));
+			assert_ok!(vote(RuntimeOrigin::signed(4), vec![4], 40));
+			assert_ok!(vote(RuntimeOrigin::signed(3), vec![3], 30));
+			assert_ok!(vote(RuntimeOrigin::signed(2), vec![2], 20));
 
-				System::set_block_number(5);
-				Elections::on_initialize(System::block_number());
+			System::set_block_number(5);
+			Elections::on_initialize(System::block_number());
 
-				assert_eq!(members_ids(), vec![4]);
-				assert_eq!(runners_up_ids(), vec![2, 3]);
+			assert_eq!(members_ids(), vec![4]);
+			assert_eq!(runners_up_ids(), vec![2, 3]);
 
-				assert_eq!(balances(&4), (37, 3));
-				assert_eq!(balances(&3), (27, 3));
-				assert_eq!(balances(&2), (17, 3));
+			assert_eq!(balances(&4), (37, 3));
+			assert_eq!(balances(&3), (27, 3));
+			assert_eq!(balances(&2), (17, 3));
 
-				// swap some votes.
-				assert_ok!(vote(RuntimeOrigin::signed(4), vec![2], 40));
-				assert_ok!(vote(RuntimeOrigin::signed(2), vec![4], 20));
+			// swap some votes.
+			assert_ok!(vote(RuntimeOrigin::signed(4), vec![2], 40));
+			assert_ok!(vote(RuntimeOrigin::signed(2), vec![4], 20));
 
-				System::set_block_number(10);
-				Elections::on_initialize(System::block_number());
+			System::set_block_number(10);
+			Elections::on_initialize(System::block_number());
 
-				assert_eq!(members_ids(), vec![2]);
-				assert_eq!(runners_up_ids(), vec![4, 3]);
+			assert_eq!(members_ids(), vec![2]);
+			assert_eq!(runners_up_ids(), vec![4, 3]);
 
-				// 2 went from runner to member, don't slash
-				assert_eq!(balances(&2), (17, 3));
-				// 4 went from member to runner, don't slash
-				assert_eq!(balances(&4), (37, 3));
-				// 3 stayed the same
-				assert_eq!(balances(&3), (27, 3));
-			});
+			// 2 went from runner to member, don't slash
+			assert_eq!(balances(&2), (17, 3));
+			// 4 went from member to runner, don't slash
+			assert_eq!(balances(&4), (37, 3));
+			// 3 stayed the same
+			assert_eq!(balances(&3), (27, 3));
+		});
 	}
 
 	#[test]
@@ -3100,10 +2915,7 @@ mod tests {
 		// member removed, no replacement found.
 		ExtBuilder::default().desired_runners_up(1).build_and_execute(|| {
 			setup();
-			assert_ok!(Elections::renounce_candidacy(
-				RuntimeOrigin::signed(3),
-				Renouncing::RunnerUp
-			));
+			assert_ok!(Elections::renounce_candidacy(RuntimeOrigin::signed(3), Renouncing::RunnerUp));
 			assert_eq!(Elections::remove_and_replace_member(&4, false), Ok(false));
 
 			assert_eq!(members_ids(), vec![5]);
@@ -3120,82 +2932,73 @@ mod tests {
 	#[test]
 	fn no_desired_members() {
 		// not interested in anything
-		ExtBuilder::default()
-			.desired_members(0)
-			.desired_runners_up(0)
-			.build_and_execute(|| {
-				assert_eq!(Elections::candidates().len(), 0);
+		ExtBuilder::default().desired_members(0).desired_runners_up(0).build_and_execute(|| {
+			assert_eq!(Elections::candidates().len(), 0);
 
-				assert_ok!(submit_candidacy(RuntimeOrigin::signed(4)));
-				assert_ok!(submit_candidacy(RuntimeOrigin::signed(3)));
-				assert_ok!(submit_candidacy(RuntimeOrigin::signed(2)));
+			assert_ok!(submit_candidacy(RuntimeOrigin::signed(4)));
+			assert_ok!(submit_candidacy(RuntimeOrigin::signed(3)));
+			assert_ok!(submit_candidacy(RuntimeOrigin::signed(2)));
 
-				assert_eq!(Elections::candidates().len(), 3);
+			assert_eq!(Elections::candidates().len(), 3);
 
-				assert_ok!(vote(RuntimeOrigin::signed(4), vec![4], 40));
-				assert_ok!(vote(RuntimeOrigin::signed(3), vec![3], 30));
-				assert_ok!(vote(RuntimeOrigin::signed(2), vec![2], 20));
+			assert_ok!(vote(RuntimeOrigin::signed(4), vec![4], 40));
+			assert_ok!(vote(RuntimeOrigin::signed(3), vec![3], 30));
+			assert_ok!(vote(RuntimeOrigin::signed(2), vec![2], 20));
 
-				System::set_block_number(5);
-				Elections::on_initialize(System::block_number());
+			System::set_block_number(5);
+			Elections::on_initialize(System::block_number());
 
-				assert_eq!(members_ids().len(), 0);
-				assert_eq!(runners_up_ids().len(), 0);
-				assert_eq!(all_voters().len(), 3);
-				assert_eq!(Elections::candidates().len(), 0);
-			});
+			assert_eq!(members_ids().len(), 0);
+			assert_eq!(runners_up_ids().len(), 0);
+			assert_eq!(all_voters().len(), 3);
+			assert_eq!(Elections::candidates().len(), 0);
+		});
 
 		// not interested in members
-		ExtBuilder::default()
-			.desired_members(0)
-			.desired_runners_up(2)
-			.build_and_execute(|| {
-				assert_eq!(Elections::candidates().len(), 0);
+		ExtBuilder::default().desired_members(0).desired_runners_up(2).build_and_execute(|| {
+			assert_eq!(Elections::candidates().len(), 0);
 
-				assert_ok!(submit_candidacy(RuntimeOrigin::signed(4)));
-				assert_ok!(submit_candidacy(RuntimeOrigin::signed(3)));
-				assert_ok!(submit_candidacy(RuntimeOrigin::signed(2)));
+			assert_ok!(submit_candidacy(RuntimeOrigin::signed(4)));
+			assert_ok!(submit_candidacy(RuntimeOrigin::signed(3)));
+			assert_ok!(submit_candidacy(RuntimeOrigin::signed(2)));
 
-				assert_eq!(Elections::candidates().len(), 3);
+			assert_eq!(Elections::candidates().len(), 3);
 
-				assert_ok!(vote(RuntimeOrigin::signed(4), vec![4], 40));
-				assert_ok!(vote(RuntimeOrigin::signed(3), vec![3], 30));
-				assert_ok!(vote(RuntimeOrigin::signed(2), vec![2], 20));
+			assert_ok!(vote(RuntimeOrigin::signed(4), vec![4], 40));
+			assert_ok!(vote(RuntimeOrigin::signed(3), vec![3], 30));
+			assert_ok!(vote(RuntimeOrigin::signed(2), vec![2], 20));
 
-				System::set_block_number(5);
-				Elections::on_initialize(System::block_number());
+			System::set_block_number(5);
+			Elections::on_initialize(System::block_number());
 
-				assert_eq!(members_ids().len(), 0);
-				assert_eq!(runners_up_ids(), vec![3, 4]);
-				assert_eq!(all_voters().len(), 3);
-				assert_eq!(Elections::candidates().len(), 0);
-			});
+			assert_eq!(members_ids().len(), 0);
+			assert_eq!(runners_up_ids(), vec![3, 4]);
+			assert_eq!(all_voters().len(), 3);
+			assert_eq!(Elections::candidates().len(), 0);
+		});
 
 		// not interested in runners-up
-		ExtBuilder::default()
-			.desired_members(2)
-			.desired_runners_up(0)
-			.build_and_execute(|| {
-				assert_eq!(Elections::candidates().len(), 0);
+		ExtBuilder::default().desired_members(2).desired_runners_up(0).build_and_execute(|| {
+			assert_eq!(Elections::candidates().len(), 0);
 
-				assert_ok!(submit_candidacy(RuntimeOrigin::signed(4)));
-				assert_ok!(submit_candidacy(RuntimeOrigin::signed(3)));
-				assert_ok!(submit_candidacy(RuntimeOrigin::signed(2)));
+			assert_ok!(submit_candidacy(RuntimeOrigin::signed(4)));
+			assert_ok!(submit_candidacy(RuntimeOrigin::signed(3)));
+			assert_ok!(submit_candidacy(RuntimeOrigin::signed(2)));
 
-				assert_eq!(Elections::candidates().len(), 3);
+			assert_eq!(Elections::candidates().len(), 3);
 
-				assert_ok!(vote(RuntimeOrigin::signed(4), vec![4], 40));
-				assert_ok!(vote(RuntimeOrigin::signed(3), vec![3], 30));
-				assert_ok!(vote(RuntimeOrigin::signed(2), vec![2], 20));
+			assert_ok!(vote(RuntimeOrigin::signed(4), vec![4], 40));
+			assert_ok!(vote(RuntimeOrigin::signed(3), vec![3], 30));
+			assert_ok!(vote(RuntimeOrigin::signed(2), vec![2], 20));
 
-				System::set_block_number(5);
-				Elections::on_initialize(System::block_number());
+			System::set_block_number(5);
+			Elections::on_initialize(System::block_number());
 
-				assert_eq!(members_ids(), vec![3, 4]);
-				assert_eq!(runners_up_ids().len(), 0);
-				assert_eq!(all_voters().len(), 3);
-				assert_eq!(Elections::candidates().len(), 0);
-			});
+			assert_eq!(members_ids(), vec![3, 4]);
+			assert_eq!(runners_up_ids().len(), 0);
+			assert_eq!(all_voters().len(), 3);
+			assert_eq!(Elections::candidates().len(), 0);
+		});
 	}
 
 	#[test]
@@ -3236,18 +3039,9 @@ mod tests {
 			// ok
 			assert_ok!(vote(RuntimeOrigin::signed(2), vec![3, 4], 5));
 
-			assert_ok!(Elections::renounce_candidacy(
-				RuntimeOrigin::signed(5),
-				Renouncing::Candidate(3)
-			));
-			assert_ok!(Elections::renounce_candidacy(
-				RuntimeOrigin::signed(4),
-				Renouncing::Candidate(2)
-			));
-			assert_ok!(Elections::renounce_candidacy(
-				RuntimeOrigin::signed(3),
-				Renouncing::Candidate(1)
-			));
+			assert_ok!(Elections::renounce_candidacy(RuntimeOrigin::signed(5), Renouncing::Candidate(3)));
+			assert_ok!(Elections::renounce_candidacy(RuntimeOrigin::signed(4), Renouncing::Candidate(2)));
+			assert_ok!(Elections::renounce_candidacy(RuntimeOrigin::signed(3), Renouncing::Candidate(1)));
 
 			assert_ok!(Elections::clean_defunct_voters(RuntimeOrigin::root(), 4, 2));
 		})

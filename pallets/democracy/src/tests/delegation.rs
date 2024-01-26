@@ -63,10 +63,7 @@ fn single_proposal_should_work_with_delegation() {
 #[test]
 fn self_delegation_not_allowed() {
 	new_test_ext().execute_with(|| {
-		assert_noop!(
-			Democracy::delegate(RuntimeOrigin::signed(1), 1, Conviction::None, 10),
-			Error::<Test>::Nonsense,
-		);
+		assert_noop!(Democracy::delegate(RuntimeOrigin::signed(1), 1, Conviction::None, 10), Error::<Test>::Nonsense,);
 	});
 }
 
@@ -172,11 +169,7 @@ fn split_vote_delegation_should_be_ignored() {
 	new_test_ext().execute_with(|| {
 		let r = begin_referendum();
 		assert_ok!(Democracy::delegate(RuntimeOrigin::signed(2), 1, Conviction::Locked6x, 20));
-		assert_ok!(Democracy::vote(
-			RuntimeOrigin::signed(1),
-			r,
-			AccountVote::Split { aye: 10, nay: 0 }
-		));
+		assert_ok!(Democracy::vote(RuntimeOrigin::signed(1), r, AccountVote::Split { aye: 10, nay: 0 }));
 		// Delegated vote is huge.
 		assert_eq!(tally(r), Tally { ayes: 1, nays: 0, turnout: 10 });
 	});

@@ -90,19 +90,13 @@ fn cancel_proposal_should_work() {
 		assert_ok!(propose_set_balance(1, 4, 4));
 		assert_noop!(Democracy::cancel_proposal(RuntimeOrigin::signed(1), 0), BadOrigin);
 		let hash = note_preimage(1);
-		assert_ok!(Democracy::set_metadata(
-			RuntimeOrigin::signed(1),
-			MetadataOwner::Proposal(0),
-			Some(hash)
-		));
+		assert_ok!(Democracy::set_metadata(RuntimeOrigin::signed(1), MetadataOwner::Proposal(0), Some(hash)));
 		assert!(<MetadataOf<Test>>::get(MetadataOwner::Proposal(0)).is_some());
 		assert_ok!(Democracy::cancel_proposal(RuntimeOrigin::root(), 0));
 		// metadata cleared, preimage unrequested.
 		assert!(<MetadataOf<Test>>::get(MetadataOwner::Proposal(0)).is_none());
 		System::assert_has_event(crate::Event::ProposalCanceled { prop_index: 0 }.into());
-		System::assert_last_event(
-			crate::Event::MetadataCleared { owner: MetadataOwner::Proposal(0), hash }.into(),
-		);
+		System::assert_last_event(crate::Event::MetadataCleared { owner: MetadataOwner::Proposal(0), hash }.into());
 		assert_eq!(Democracy::backing_for(0), None);
 		assert_eq!(Democracy::backing_for(1), Some(4));
 	});

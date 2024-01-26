@@ -20,29 +20,18 @@
 use super::*;
 
 fn aye(x: u8, balance: u64) -> AccountVote<u64> {
-	AccountVote::Standard {
-		vote: Vote { aye: true, conviction: Conviction::try_from(x).unwrap() },
-		balance,
-	}
+	AccountVote::Standard { vote: Vote { aye: true, conviction: Conviction::try_from(x).unwrap() }, balance }
 }
 
 fn nay(x: u8, balance: u64) -> AccountVote<u64> {
-	AccountVote::Standard {
-		vote: Vote { aye: false, conviction: Conviction::try_from(x).unwrap() },
-		balance,
-	}
+	AccountVote::Standard { vote: Vote { aye: false, conviction: Conviction::try_from(x).unwrap() }, balance }
 }
 
 #[test]
 fn lock_voting_should_work() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(0);
-		let r = Democracy::inject_referendum(
-			2,
-			set_balance_proposal(2),
-			VoteThreshold::SuperMajorityApprove,
-			0,
-		);
+		let r = Democracy::inject_referendum(2, set_balance_proposal(2), VoteThreshold::SuperMajorityApprove, 0);
 		assert_ok!(Democracy::vote(RuntimeOrigin::signed(1), r, nay(5, 10)));
 		assert_ok!(Democracy::vote(RuntimeOrigin::signed(2), r, aye(4, 20)));
 		assert_ok!(Democracy::vote(RuntimeOrigin::signed(3), r, aye(3, 30)));
@@ -65,10 +54,7 @@ fn lock_voting_should_work() {
 		assert_ok!(Democracy::unlock(RuntimeOrigin::signed(2), 5));
 
 		// 2, 3, 4 got their way with the vote, so they cannot be reaped by others.
-		assert_noop!(
-			Democracy::remove_other_vote(RuntimeOrigin::signed(1), 2, r),
-			Error::<Test>::NoPermission
-		);
+		assert_noop!(Democracy::remove_other_vote(RuntimeOrigin::signed(1), 2, r), Error::<Test>::NoPermission);
 		// However, they can be unvoted by the owner, though it will make no difference to the lock.
 		assert_ok!(Democracy::remove_vote(RuntimeOrigin::signed(2), r));
 		assert_ok!(Democracy::unlock(RuntimeOrigin::signed(2), 2));
@@ -82,10 +68,7 @@ fn lock_voting_should_work() {
 
 		fast_forward_to(7);
 		// No change yet...
-		assert_noop!(
-			Democracy::remove_other_vote(RuntimeOrigin::signed(1), 4, r),
-			Error::<Test>::NoPermission
-		);
+		assert_noop!(Democracy::remove_other_vote(RuntimeOrigin::signed(1), 4, r), Error::<Test>::NoPermission);
 		assert_ok!(Democracy::unlock(RuntimeOrigin::signed(1), 4));
 		assert_eq!(balance_frozen_of(4), 40);
 		fast_forward_to(8);
@@ -95,10 +78,7 @@ fn lock_voting_should_work() {
 		assert_eq!(Balances::locks(4), vec![]);
 
 		fast_forward_to(13);
-		assert_noop!(
-			Democracy::remove_other_vote(RuntimeOrigin::signed(1), 3, r),
-			Error::<Test>::NoPermission
-		);
+		assert_noop!(Democracy::remove_other_vote(RuntimeOrigin::signed(1), 3, r), Error::<Test>::NoPermission);
 		assert_ok!(Democracy::unlock(RuntimeOrigin::signed(1), 3));
 		assert_eq!(balance_frozen_of(3), 30);
 		fast_forward_to(14);
@@ -120,12 +100,7 @@ fn lock_voting_should_work() {
 fn no_locks_without_conviction_should_work() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(0);
-		let r = Democracy::inject_referendum(
-			2,
-			set_balance_proposal(2),
-			VoteThreshold::SuperMajorityApprove,
-			0,
-		);
+		let r = Democracy::inject_referendum(2, set_balance_proposal(2), VoteThreshold::SuperMajorityApprove, 0);
 		assert_ok!(Democracy::vote(RuntimeOrigin::signed(1), r, aye(0, 10)));
 
 		fast_forward_to(3);
@@ -140,12 +115,7 @@ fn no_locks_without_conviction_should_work() {
 #[test]
 fn lock_voting_should_work_with_delegation() {
 	new_test_ext().execute_with(|| {
-		let r = Democracy::inject_referendum(
-			2,
-			set_balance_proposal(2),
-			VoteThreshold::SuperMajorityApprove,
-			0,
-		);
+		let r = Democracy::inject_referendum(2, set_balance_proposal(2), VoteThreshold::SuperMajorityApprove, 0);
 		assert_ok!(Democracy::vote(RuntimeOrigin::signed(1), r, nay(5, 10)));
 		assert_ok!(Democracy::vote(RuntimeOrigin::signed(2), r, aye(4, 20)));
 		assert_ok!(Democracy::vote(RuntimeOrigin::signed(3), r, aye(3, 30)));
@@ -163,16 +133,13 @@ fn lock_voting_should_work_with_delegation() {
 
 fn setup_three_referenda() -> (u32, u32, u32) {
 	System::set_block_number(0);
-	let r1 =
-		Democracy::inject_referendum(2, set_balance_proposal(2), VoteThreshold::SimpleMajority, 0);
+	let r1 = Democracy::inject_referendum(2, set_balance_proposal(2), VoteThreshold::SimpleMajority, 0);
 	assert_ok!(Democracy::vote(RuntimeOrigin::signed(5), r1, aye(4, 10)));
 
-	let r2 =
-		Democracy::inject_referendum(2, set_balance_proposal(2), VoteThreshold::SimpleMajority, 0);
+	let r2 = Democracy::inject_referendum(2, set_balance_proposal(2), VoteThreshold::SimpleMajority, 0);
 	assert_ok!(Democracy::vote(RuntimeOrigin::signed(5), r2, aye(3, 20)));
 
-	let r3 =
-		Democracy::inject_referendum(2, set_balance_proposal(2), VoteThreshold::SimpleMajority, 0);
+	let r3 = Democracy::inject_referendum(2, set_balance_proposal(2), VoteThreshold::SimpleMajority, 0);
 	assert_ok!(Democracy::vote(RuntimeOrigin::signed(5), r3, aye(2, 50)));
 
 	fast_forward_to(2);
@@ -189,10 +156,7 @@ fn prior_lockvotes_should_be_enforced() {
 		// r.2 locked 50 until 2 + 2 * 3 = #8
 
 		fast_forward_to(7);
-		assert_noop!(
-			Democracy::remove_other_vote(RuntimeOrigin::signed(1), 5, r.2),
-			Error::<Test>::NoPermission
-		);
+		assert_noop!(Democracy::remove_other_vote(RuntimeOrigin::signed(1), 5, r.2), Error::<Test>::NoPermission);
 		assert_ok!(Democracy::unlock(RuntimeOrigin::signed(5), 5));
 		assert_eq!(balance_frozen_of(5), 50);
 		fast_forward_to(8);
@@ -200,10 +164,7 @@ fn prior_lockvotes_should_be_enforced() {
 		assert_ok!(Democracy::unlock(RuntimeOrigin::signed(5), 5));
 		assert_eq!(balance_frozen_of(5), 20);
 		fast_forward_to(13);
-		assert_noop!(
-			Democracy::remove_other_vote(RuntimeOrigin::signed(1), 5, r.1),
-			Error::<Test>::NoPermission
-		);
+		assert_noop!(Democracy::remove_other_vote(RuntimeOrigin::signed(1), 5, r.1), Error::<Test>::NoPermission);
 		assert_ok!(Democracy::unlock(RuntimeOrigin::signed(5), 5));
 		assert_eq!(balance_frozen_of(5), 20);
 		fast_forward_to(14);
@@ -211,10 +172,7 @@ fn prior_lockvotes_should_be_enforced() {
 		assert_ok!(Democracy::unlock(RuntimeOrigin::signed(5), 5));
 		assert_eq!(balance_frozen_of(5), 10);
 		fast_forward_to(25);
-		assert_noop!(
-			Democracy::remove_other_vote(RuntimeOrigin::signed(1), 5, r.0),
-			Error::<Test>::NoPermission
-		);
+		assert_noop!(Democracy::remove_other_vote(RuntimeOrigin::signed(1), 5, r.0), Error::<Test>::NoPermission);
 		assert_ok!(Democracy::unlock(RuntimeOrigin::signed(5), 5));
 		assert_eq!(balance_frozen_of(5), 10);
 		fast_forward_to(26);
@@ -288,12 +246,7 @@ fn multi_consolidation_of_lockvotes_should_be_conservative() {
 fn locks_should_persist_from_voting_to_delegation() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(0);
-		let r = Democracy::inject_referendum(
-			2,
-			set_balance_proposal(2),
-			VoteThreshold::SimpleMajority,
-			0,
-		);
+		let r = Democracy::inject_referendum(2, set_balance_proposal(2), VoteThreshold::SimpleMajority, 0);
 		assert_ok!(Democracy::vote(RuntimeOrigin::signed(5), r, aye(4, 10)));
 		fast_forward_to(2);
 		assert_ok!(Democracy::remove_vote(RuntimeOrigin::signed(5), r));

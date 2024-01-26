@@ -22,9 +22,8 @@ use crate as pallet_democracy;
 use frame_support::{
 	assert_noop, assert_ok, ord_parameter_types, parameter_types,
 	traits::{
-		ConstU32, ConstU64, Contains, EqualPrivilegeOnly, OnInitialize, SortedMembers,
-		StorePreimage, 
-		fungible::InspectFreeze,
+		fungible::InspectFreeze, ConstU32, ConstU64, Contains, EqualPrivilegeOnly, OnInitialize, SortedMembers,
+		StorePreimage,
 	},
 	weights::Weight,
 };
@@ -78,70 +77,70 @@ parameter_types! {
 		);
 }
 impl frame_system::Config for Test {
+	type AccountData = pallet_balances::AccountData<u64>;
+	type AccountId = u64;
 	type BaseCallFilter = BaseFilter;
-	type BlockWeights = BlockWeights;
+	type Block = Block;
+	type BlockHashCount = ConstU64<250>;
 	type BlockLength = ();
+	type BlockWeights = BlockWeights;
 	type DbWeight = ();
-	type RuntimeOrigin = RuntimeOrigin;
-	type Nonce = u64;
-	type RuntimeCall = RuntimeCall;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Block = Block;
-	type RuntimeEvent = RuntimeEvent;
-	type BlockHashCount = ConstU64<250>;
-	type Version = ();
-	type PalletInfo = PalletInfo;
-	type AccountData = pallet_balances::AccountData<u64>;
-	type OnNewAccount = ();
-	type OnKilledAccount = ();
-	type SystemWeightInfo = ();
-	type SS58Prefix = ();
-	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type Nonce = u64;
+	type OnKilledAccount = ();
+	type OnNewAccount = ();
+	type OnSetCode = ();
+	type PalletInfo = PalletInfo;
+	type RuntimeCall = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeOrigin = RuntimeOrigin;
+	type SS58Prefix = ();
+	type SystemWeightInfo = ();
+	type Version = ();
 }
 parameter_types! {
 	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * BlockWeights::get().max_block;
 }
 
 impl pallet_preimage::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = ();
-	type Currency = Balances;
-	type ManagerOrigin = EnsureRoot<u64>;
 	type BaseDeposit = ();
 	type ByteDeposit = ();
+	type Currency = Balances;
+	type ManagerOrigin = EnsureRoot<u64>;
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
 }
 
 impl pallet_scheduler::Config for Test {
+	type MaxScheduledPerBlock = ConstU32<100>;
+	type MaximumWeight = MaximumSchedulerWeight;
+	type OriginPrivilegeCmp = EqualPrivilegeOnly;
+	type PalletsOrigin = OriginCaller;
+	type Preimages = ();
+	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
-	type PalletsOrigin = OriginCaller;
-	type RuntimeCall = RuntimeCall;
-	type MaximumWeight = MaximumSchedulerWeight;
 	type ScheduleOrigin = EnsureRoot<u64>;
-	type MaxScheduledPerBlock = ConstU32<100>;
 	type WeightInfo = ();
-	type OriginPrivilegeCmp = EqualPrivilegeOnly;
-	type Preimages = ();
 }
 
 impl pallet_balances::Config for Test {
-	type MaxReserves = ();
-	type ReserveIdentifier = [u8; 8];
-	type MaxLocks = ConstU32<10>;
+	type AccountStore = System;
 	type Balance = u64;
-	type RuntimeEvent = RuntimeEvent;
 	type DustRemoval = ();
 	type ExistentialDeposit = ConstU64<1>;
-	type AccountStore = System;
-	type WeightInfo = ();
 	type FreezeIdentifier = RuntimeFreezeReason;
 	type MaxFreezes = ConstU32<10>;
-	type RuntimeHoldReason = RuntimeHoldReason;
 	type MaxHolds = ConstU32<10>;
+	type MaxLocks = ConstU32<10>;
+	type MaxReserves = ();
+	type ReserveIdentifier = [u8; 8];
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type WeightInfo = ();
 }
 parameter_types! {
 	pub static PreimageByteDeposit: u64 = 0;
@@ -160,54 +159,51 @@ impl SortedMembers<u64> for OneToFive {
 	fn sorted_members() -> Vec<u64> {
 		vec![1, 2, 3, 4, 5]
 	}
+
 	#[cfg(feature = "runtime-benchmarks")]
 	fn add(_m: &u64) {}
 }
 
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type RuntimeHoldReason = RuntimeHoldReason;
-	type RuntimeFreezeReason = RuntimeFreezeReason;
-	type Fungible = Balances;
-	type EnactmentPeriod = ConstU64<2>;
-	type LaunchPeriod = ConstU64<2>;
-	type VotingPeriod = ConstU64<2>;
-	type VoteLockingPeriod = ConstU64<3>;
-	type FastTrackVotingPeriod = ConstU64<2>;
-	type MinimumDeposit = ConstU64<1>;
-	type MaxDeposits = ConstU32<1000>;
-	type MaxBlacklisted = ConstU32<5>;
-	type SubmitOrigin = EnsureSigned<Self::AccountId>;
-	type ExternalOrigin = EnsureSignedBy<Two, u64>;
-	type ExternalMajorityOrigin = EnsureSignedBy<Three, u64>;
-	type ExternalDefaultOrigin = EnsureSignedBy<One, u64>;
-	type FastTrackOrigin = EnsureSignedBy<Five, u64>;
-	type CancellationOrigin = EnsureSignedBy<Four, u64>;
 	type BlacklistOrigin = EnsureRoot<u64>;
 	type CancelProposalOrigin = EnsureRoot<u64>;
-	type VetoOrigin = EnsureSignedBy<OneToFive, u64>;
+	type CancellationOrigin = EnsureSignedBy<Four, u64>;
 	type CooloffPeriod = ConstU64<2>;
-	type Slash = ();
-	type InstantOrigin = EnsureSignedBy<Six, u64>;
+	type EnactmentPeriod = ConstU64<2>;
+	type ExternalDefaultOrigin = EnsureSignedBy<One, u64>;
+	type ExternalMajorityOrigin = EnsureSignedBy<Three, u64>;
+	type ExternalOrigin = EnsureSignedBy<Two, u64>;
+	type FastTrackOrigin = EnsureSignedBy<Five, u64>;
+	type FastTrackVotingPeriod = ConstU64<2>;
+	type Fungible = Balances;
 	type InstantAllowed = InstantAllowed;
-	type Scheduler = Scheduler;
-	type MaxVotes = ConstU32<100>;
-	type PalletsOrigin = OriginCaller;
-	type WeightInfo = ();
+	type InstantOrigin = EnsureSignedBy<Six, u64>;
+	type LaunchPeriod = ConstU64<2>;
+	type MaxBlacklisted = ConstU32<5>;
+	type MaxDeposits = ConstU32<1000>;
 	type MaxProposals = ConstU32<100>;
+	type MaxVotes = ConstU32<100>;
+	type MinimumDeposit = ConstU64<1>;
+	type PalletsOrigin = OriginCaller;
 	type Preimages = Preimage;
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeFreezeReason = RuntimeFreezeReason;
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type Scheduler = Scheduler;
+	type Slash = ();
+	type SubmitOrigin = EnsureSigned<Self::AccountId>;
+	type VetoOrigin = EnsureSignedBy<OneToFive, u64>;
+	type VoteLockingPeriod = ConstU64<3>;
+	type VotingPeriod = ConstU64<2>;
+	type WeightInfo = ();
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
-	pallet_balances::GenesisConfig::<Test> {
-		balances: vec![(1, 10), (2, 20), (3, 30), (4, 40), (5, 50), (6, 60)],
-	}
-	.assimilate_storage(&mut t)
-	.unwrap();
-	pallet_democracy::GenesisConfig::<Test>::default()
+	pallet_balances::GenesisConfig::<Test> { balances: vec![(1, 10), (2, 20), (3, 30), (4, 40), (5, 50), (6, 60)] }
 		.assimilate_storage(&mut t)
 		.unwrap();
+	pallet_democracy::GenesisConfig::<Test>::default().assimilate_storage(&mut t).unwrap();
 	let mut ext = sp_io::TestExternalities::new(t);
 	ext.execute_with(|| System::set_block_number(1));
 	ext

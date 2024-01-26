@@ -60,18 +60,12 @@ fn candidate_count<T: Config>() -> u32 {
 }
 
 /// Add `c` new candidates.
-fn submit_candidates<T: Config>(
-	c: u32,
-	prefix: &'static str,
-) -> Result<Vec<T::AccountId>, &'static str> {
+fn submit_candidates<T: Config>(c: u32, prefix: &'static str) -> Result<Vec<T::AccountId>, &'static str> {
 	(0..c)
 		.map(|i| {
 			let account = endowed_account::<T>(prefix, i);
-			<Elections<T>>::submit_candidacy(
-				RawOrigin::Signed(account.clone()).into(),
-				candidate_count::<T>(),
-			)
-			.map_err(|_| "failed to submit candidacy")?;
+			<Elections<T>>::submit_candidacy(RawOrigin::Signed(account.clone()).into(), candidate_count::<T>())
+				.map_err(|_| "failed to submit candidacy")?;
 			Ok(account)
 		})
 		.collect::<Result<_, _>>()
@@ -84,9 +78,7 @@ fn submit_candidates_with_self_vote<T: Config>(
 ) -> Result<Vec<T::AccountId>, &'static str> {
 	let candidates = submit_candidates::<T>(c, prefix)?;
 	let stake = default_stake::<T>(c);
-	let _ = candidates
-		.iter()
-		.try_for_each(|c| submit_voter::<T>(c.clone(), vec![c.clone()], stake).map(|_| ()))?;
+	let _ = candidates.iter().try_for_each(|c| submit_voter::<T>(c.clone(), vec![c.clone()], stake).map(|_| ()))?;
 	Ok(candidates)
 }
 

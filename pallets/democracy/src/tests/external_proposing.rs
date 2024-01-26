@@ -49,10 +49,7 @@ fn veto_external_works() {
 		assert!(<NextExternal<Test>>::exists());
 
 		// 3 can't veto the same thing twice.
-		assert_noop!(
-			Democracy::veto_external(RuntimeOrigin::signed(3), h),
-			Error::<Test>::AlreadyVetoed
-		);
+		assert_noop!(Democracy::veto_external(RuntimeOrigin::signed(3), h), Error::<Test>::AlreadyVetoed);
 
 		// 4 vetoes.
 		assert_ok!(Democracy::veto_external(RuntimeOrigin::signed(4), h));
@@ -94,10 +91,7 @@ fn external_blacklisting_should_work() {
 fn external_referendum_works() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(0);
-		assert_noop!(
-			Democracy::external_propose(RuntimeOrigin::signed(1), set_balance_proposal(2),),
-			BadOrigin,
-		);
+		assert_noop!(Democracy::external_propose(RuntimeOrigin::signed(1), set_balance_proposal(2),), BadOrigin,);
 		assert_ok!(Democracy::external_propose(RuntimeOrigin::signed(2), set_balance_proposal(2),));
 		assert_noop!(
 			Democracy::external_propose(RuntimeOrigin::signed(2), set_balance_proposal(1),),
@@ -125,10 +119,7 @@ fn external_majority_referendum_works() {
 			Democracy::external_propose_majority(RuntimeOrigin::signed(1), set_balance_proposal(2)),
 			BadOrigin,
 		);
-		assert_ok!(Democracy::external_propose_majority(
-			RuntimeOrigin::signed(3),
-			set_balance_proposal(2)
-		));
+		assert_ok!(Democracy::external_propose_majority(RuntimeOrigin::signed(3), set_balance_proposal(2)));
 		fast_forward_to(2);
 		assert_eq!(
 			Democracy::referendum_status(0),
@@ -147,14 +138,8 @@ fn external_majority_referendum_works() {
 fn external_default_referendum_works() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(0);
-		assert_noop!(
-			Democracy::external_propose_default(RuntimeOrigin::signed(3), set_balance_proposal(2)),
-			BadOrigin,
-		);
-		assert_ok!(Democracy::external_propose_default(
-			RuntimeOrigin::signed(1),
-			set_balance_proposal(2)
-		));
+		assert_noop!(Democracy::external_propose_default(RuntimeOrigin::signed(3), set_balance_proposal(2)), BadOrigin,);
+		assert_ok!(Democracy::external_propose_default(RuntimeOrigin::signed(1), set_balance_proposal(2)));
 		fast_forward_to(2);
 		assert_eq!(
 			Democracy::referendum_status(0),

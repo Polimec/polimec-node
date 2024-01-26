@@ -32,10 +32,7 @@ use sp_runtime::{traits::Bounded, BoundedVec};
 const REFERENDUM_COUNT_HINT: u32 = 10;
 const SEED: u32 = 0;
 
-fn funded_account<T: Config + pallet_balances::Config>(
-	name: &'static str,
-	index: u32,
-) -> T::AccountId {
+fn funded_account<T: Config + pallet_balances::Config>(name: &'static str, index: u32) -> T::AccountId {
 	let caller: T::AccountId = account(name, index, SEED);
 	// Minting can overflow, so we can't abuse of the funding. This value happens to be big enough,
 	// but not too big to make the total supply overflow.
@@ -61,12 +58,7 @@ fn add_referendum<T: Config>(n: u32) -> (ReferendumIndex, H256, PreimageHash) {
 	let vote_threshold = VoteThreshold::SimpleMajority;
 	let proposal = make_proposal::<T>(n);
 	let hash = proposal.hash();
-	let index = Democracy::<T>::inject_referendum(
-		T::LaunchPeriod::get(),
-		proposal,
-		vote_threshold,
-		0u32.into(),
-	);
+	let index = Democracy::<T>::inject_referendum(T::LaunchPeriod::get(), proposal, vote_threshold, 0u32.into());
 	let preimage_hash = note_preimage::<T>();
 	MetadataOf::<T>::insert(crate::MetadataOwner::Referendum(index), preimage_hash.clone());
 	(index, hash, preimage_hash)
