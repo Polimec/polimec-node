@@ -1,4 +1,11 @@
 # Phragmén Election Module
+This repository contains a modified version of Parity's 'elections_phragmen' Substrate Pallet. The original version can be found [here](https://github.com/paritytech/polkadot-sdk/tree/master/substrate/frame/elections-phragmen).
+
+## Modifications
+The modifications to the original pallet include the following:
+1. Currency traits have been replaced by the Fungibles traits.
+2. Deposit requirement for voters has been removed
+3. Voters can vote with their full balance (placing a lock over both free and reserved balance)
 
 An election module based on sequential phragmen.
 
