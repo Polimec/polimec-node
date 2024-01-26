@@ -62,6 +62,9 @@ orml-oracle.workspace = true
 pallet-parachain-staking.workspace = true
 pallet-vesting.workspace = true
 itertools.workspace = true
+pallet-democracy.workspace = true
+pallet-scheduler.workspace = true
+pallet-treasury.workspace = true
 
 # Runtimes
 polkadot-runtime.workspace = true
@@ -89,6 +92,9 @@ std = [
 	"orml-oracle/std",
 	"pallet-assets/std",
 	"pallet-balances/std",
+	"pallet-democracy/std",
+	"pallet-treasury/std",
+	"pallet-scheduler/std",
 	"pallet-funding/std",
 	"pallet-im-online/std",
 	"pallet-linear-release/std",
@@ -131,6 +137,7 @@ runtime-benchmarks = [
 	"itertools/use_alloc",
 	"pallet-assets/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
+	"pallet-democracy/runtime-benchmarks",
 	"pallet-funding/runtime-benchmarks",
 	"pallet-im-online/runtime-benchmarks",
 	"pallet-linear-release/runtime-benchmarks",
@@ -163,6 +170,7 @@ try-runtime = [
 	"orml-oracle/try-runtime",
 	"pallet-assets/try-runtime",
 	"pallet-balances/try-runtime",
+	"pallet-democracy/try-runtime",
 	"pallet-funding/try-runtime",
 	"pallet-im-online/try-runtime",
 	"pallet-linear-release/try-runtime",

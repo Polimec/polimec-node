@@ -153,7 +153,7 @@ pub mod polkadot {
 	}
 
 	pub fn genesis() -> Storage {
-		let genesis_config = polkadot_runtime::GenesisConfig {
+		let genesis_config = polkadot_runtime::RuntimeGenesisConfig {
 			system: polkadot_runtime::SystemConfig {
 				code: polkadot_runtime::WASM_BINARY.unwrap().to_vec(),
 				..Default::default()
@@ -221,7 +221,7 @@ pub mod statemint {
 		];
 		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
 
-		let genesis_config = asset_hub_polkadot_runtime::GenesisConfig {
+		let genesis_config = asset_hub_polkadot_runtime::RuntimeGenesisConfig {
 			system: asset_hub_polkadot_runtime::SystemConfig {
 				code: asset_hub_polkadot_runtime::WASM_BINARY
 					.expect("WASM binary was not build, please build it!")
@@ -295,7 +295,7 @@ pub mod polimec {
 		funded_accounts.extend(collators::initial_authorities().iter().cloned().map(|(acc, _)| (acc, 20_005 * PLMC)));
 		funded_accounts.push((get_account_id_from_seed::<sr25519::Public>("TREASURY_STASH"), 20_005 * PLMC));
 
-		let genesis_config = polimec_parachain_runtime::GenesisConfig {
+		let genesis_config = polimec_parachain_runtime::RuntimeGenesisConfig {
 			system: polimec_parachain_runtime::SystemConfig {
 				code: polimec_parachain_runtime::WASM_BINARY
 					.expect("WASM binary was not build, please build it!")
@@ -390,7 +390,7 @@ pub mod penpal {
 		];
 		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
 
-		let genesis_config = penpal_runtime::GenesisConfig {
+		let genesis_config = penpal_runtime::RuntimeGenesisConfig {
 			system: penpal_runtime::SystemConfig {
 				code: penpal_runtime::WASM_BINARY.expect("WASM binary was not build, please build it!").to_vec(),
 				..Default::default()
@@ -461,7 +461,7 @@ pub mod polimec_base {
 		funded_accounts.extend(collators::initial_authorities().iter().cloned().map(|(acc, _)| (acc, 20_005 * PLMC)));
 		funded_accounts.push((get_account_id_from_seed::<sr25519::Public>("TREASURY_STASH"), 20_005 * PLMC));
 
-		let genesis_config = polimec_base_runtime::GenesisConfig {
+		let genesis_config = polimec_base_runtime::RuntimeGenesisConfig {
 			system: polimec_base_runtime::SystemConfig {
 				code: polimec_base_runtime::WASM_BINARY.expect("WASM binary was not build, please build it!").to_vec(),
 				..Default::default()
