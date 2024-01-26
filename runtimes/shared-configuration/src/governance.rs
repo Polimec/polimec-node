@@ -59,7 +59,7 @@ pub const COOLOFF_PERIOD: BlockNumber = 2;
 #[cfg(feature = "fast-mode")]
 pub const COOLOFF_PERIOD: BlockNumber = 7 * MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
-pub const COOLOFF_PERIOD: BlockNumber = 28 * DAYS;
+pub const COOLOFF_PERIOD: BlockNumber = 7 * DAYS;
 
 #[cfg(feature = "instant-mode")]
 pub const SPEND_PERIOD: BlockNumber = 2;
@@ -99,16 +99,16 @@ parameter_types! {
 	pub const CooloffPeriod: BlockNumber = COOLOFF_PERIOD;
 	// Council Pallet
 	pub const CouncilMotionDuration: BlockNumber = COUNCIL_MOTION_DURATION;
-	pub const CouncilMaxProposals: u32 = 20;
+	pub const CouncilMaxProposals: u32 = 7;
 	pub const CouncilMaxMembers: u32 = 20;
 	// Technical Committee
 	pub const TechnicalMotionDuration: BlockNumber = TECHNICAL_MOTION_DURATION;
-	pub const TechnicalMaxProposals: u32 = 20;
+	pub const TechnicalMaxProposals: u32 = 7;
 	pub const TechnicalMaxMembers: u32 = 5;
 	// Extras
 	pub const PreimageBaseDeposit: Balance = deposit(2, 64);
 	pub const MaxProposals: u32 = 10;
-	pub const MaxVotes: u32 = 128;
+	pub const MaxVotes: u32 = 100;
 	pub const MaxBlacklisted: u32 = 100;
 	pub const MaxDeposits: u32 = 100;
 	//Treasury
@@ -120,7 +120,7 @@ parameter_types! {
 	pub const TreasuryId: PalletId = PalletId(*b"plmc/tsy");
 
 	// Elections phragmen
-	pub const CandidacyBond: Balance = 100 * PLMC;
+	pub const CandidacyBond: Balance = 1000 * PLMC;
 	pub TermDuration: BlockNumber = TERM_DURATION;
 	pub const DesiredMembers: u32 = 9;
 	pub const DesiredRunnersUp: u32 = 20;
