@@ -45,6 +45,7 @@ std = [
 	"pallet-balances/std",
 	"parity-scale-codec/std",
 	"scale-info/std",
+	"serde-json-core/std",
 	"serde/std",
 	"sp-consensus-aura/std",
 	"sp-core/std",
@@ -53,7 +54,6 @@ std = [
 	"sp-runtime/std",
 	"sp-std/std",
 	"substrate-fixed/std",
-	"serde-json-core/std"
 ]
 
 try-runtime = [
@@ -67,5 +67,5 @@ runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
-	"sp-runtime/runtime-benchmarks"
+	"sp-runtime/runtime-benchmarks",
 ]

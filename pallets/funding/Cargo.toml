@@ -12,17 +12,16 @@ version.workspace = true
 
 [dependencies]
 serde = { workspace = true }
-parity-scale-codec = { version = "3.6.5", features = [
+parity-scale-codec = { workspace = true, features = [
 	"derive",
 ], default-features = false }
-scale-info = { version = "2.9.0", default-features = false, features = [
-	"derive",
-] }
+scale-info = { workspace = true, features = ["derive"] }
 tokio = { version = "1", features = ["full"], optional = true }
 futures = { version = "0.3.29", optional = true }
 log.workspace = true
-itertools.workspace = true 
+itertools.workspace = true
 jwt-compact = { workspace = true, features = ["ed25519-compact"] }
+
 # Substrate dependencies
 frame-benchmarking = { workspace = true, optional = true }
 frame-support.workspace = true
@@ -68,6 +67,7 @@ std = [
 	"frame-system/std",
 	"futures",
 	"itertools/use_std",
+	"jwt-compact/std",
 	"log/std",
 	"pallet-assets/std",
 	"pallet-balances/std",
@@ -126,8 +126,8 @@ try-runtime = [
 	"pallet-xcm/try-runtime",
 	"polimec-common/try-runtime",
 	"polimec-receiver/try-runtime",
+	"polimec-xcm-executor/try-runtime",
 	"polkadot-runtime-parachains/try-runtime",
 	"polkadot-runtime/try-runtime",
 	"sp-runtime/try-runtime",
-	"polimec-xcm-executor/try-runtime",
 ]

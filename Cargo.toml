@@ -60,7 +60,7 @@ pallet-oracle-ocw = { path = "pallets/oracle-ocw", default-features = false }
 pallet-sandbox = { path = "pallets/sandbox", default-features = false }
 pallet-parachain-staking = { path = "pallets/parachain-staking", default-features = false }
 pallet-linear-release = { path = "pallets/linear-release", default-features = false }
-polimec-xcm-executor = { path = "pallets/xcm-executor", default-features = false}
+polimec-xcm-executor = { path = "pallets/xcm-executor", default-features = false }
 polimec-receiver = { path = "pallets/polimec-receiver", default-features = false }
 
 # Internal macros
@@ -69,8 +69,8 @@ macros-tests = { path = "macros/tests" }
 
 
 # External pallets (with default disabled)
-orml-oracle = {git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v1.0.0", default-features = false}
-orml-traits = {git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v1.0.0", default-features = false}
+orml-oracle = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v1.0.0", default-features = false }
+orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v1.0.0", default-features = false }
 # Internal support (with default disabled)
 shared-configuration = { path = "runtimes/shared-configuration", default-features = false }
 polimec-common = { path = "polimec-common", default-features = false }
@@ -80,10 +80,10 @@ substrate-fixed = { git = "https://github.com/encointer/substrate-fixed", defaul
 
 # External (without extra features and with default disabled if necessary)
 parity-scale-codec = { version = "3.6.5", default-features = false }
-jwt-compact = {git = "https://github.com/lrazovic/jwt-compact", default-features = false}
+jwt-compact = { git = "https://github.com/lrazovic/jwt-compact", default-features = false }
 clap = { version = "4.3.24" }
 futures = { version = "0.3.28", features = ["thread-pool"] }
-scale-info = { version = "2.9.0", default-features = false, features = [
+scale-info = { version = "2.10.0", default-features = false, features = [
     "derive",
 ] }
 jsonrpsee = { version = "0.16.3", features = ["server"] }
@@ -91,7 +91,9 @@ hex-literal = "0.3.4"
 serde = { version = "1.0.188", default-features = false }
 smallvec = "1.11.0"
 log = { version = "0.4.17", default-features = false }
-itertools = { version = "0.11.0", default-features = false, features = ["use_alloc"] }
+itertools = { version = "0.11.0", default-features = false, features = [
+    "use_alloc",
+] }
 
 # Emulations
 xcm-emulator = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "release-v1.0.0" }
@@ -202,7 +204,7 @@ sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "pol
 sc-consensus = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0" }
 sc-consensus-aura = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0" }
 sc-network = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0" }
-sc-offchain  = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0" }
+sc-offchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0" }
 sc-network-sync = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0" }
 sc-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0" }
 sc-executor = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0" }
