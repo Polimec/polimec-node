@@ -5812,24 +5812,6 @@ mod test_helper_functions {
 
 		assert_eq!(price_in_10_decimals, 16_3_333_333_333_u128);
 	}
-
-	#[test]
-	fn reverse_simulate_bids_with_bucket() {
-		let desired_buckets = 8;
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let project_metadata = default_project(inst.get_new_nonce(), ISSUER);
-		let project_id = inst.create_auctioning_project(project_metadata, ISSUER, default_evaluations());
-
-		let bucket = Buckets::<TestRuntime>::get(project_id).unwrap();
-		// make sure base assumptions are valid:
-		assert_eq!(bucket.amount_left, 50_000 * ASSET_UNIT);
-		assert_eq!(bucket.current_price, 1u128.into());
-		assert_eq!(bucket.delta_price, FixedU128::from_float(0.1));
-		assert_eq!(bucket.delta_amount, 5_000 & ASSET_UNIT);
-
-		let ct_amount = inst.reverse_simulate_bids_with_bucket(project_id, desired_buckets);
-		assert_eq!(ct_amount, 50_000 * ASSET_UNIT);
-	}
 }
 
 mod misc_features {

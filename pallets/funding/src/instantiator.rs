@@ -523,23 +523,6 @@ impl<
 		output
 	}
 
-	// Gives the ct_amount that would internally be split up in `desired_buckets` amount of bids.
-	// NOTE: buckets have increments of 10% of max allocation. And a bidder cannot bid for more CTs than the allocation size.
-	// This means that the amount of buckets in a single bid extrinsic is limited to 10.
-	pub fn reverse_simulate_bids_with_bucket(&mut self, project_id: ProjectId, desired_buckets: u32) -> BalanceOf<T> {
-		let mut bucket: BucketOf<T> = self.execute(|| Buckets::<T>::get(project_id).unwrap());
-		let mut amount = Zero::zero();
-		let mut buckets_increased = 0;
-
-		while buckets_increased < desired_buckets {
-			amount += bucket.amount_left;
-			bucket.update(bucket.amount_left);
-			buckets_increased += 1;
-		}
-
-		amount
-	}
-
 	/// Filters the bids that would be rejected after the auction ends.
 	pub fn filter_bids_after_auction(bids: Vec<BidParams<T>>, total_cts: BalanceOf<T>) -> Vec<BidParams<T>> {
 		let mut filtered_bids: Vec<BidParams<T>> = Vec::new();
