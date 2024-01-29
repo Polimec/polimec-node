@@ -22,9 +22,16 @@ use sp_runtime::traits::TrailingZeroInput;
 
 use super::*;
 use crate::{instantiator::*, traits::SetPrices};
-
 use frame_benchmarking::v2::*;
-use frame_support::{assert_ok, dispatch::RawOrigin, traits::OriginTrait, Parameter};
+use frame_support::{
+	assert_ok,
+	dispatch::RawOrigin,
+	traits::{
+		fungible::{InspectHold, Mutate, MutateHold},
+		OriginTrait,
+	},
+	Parameter,
+};
 #[allow(unused_imports)]
 use pallet::Pallet as PalletFunding;
 use parity_scale_codec::{Decode, Encode};
@@ -413,6 +420,15 @@ pub fn fill_projects_to_update<T: Config>(
 				block_number += 1u32.into();
 			}
 		}
+	}
+}
+
+// returns how much PLMC was minted and held to the user
+pub fn make_ct_deposit_for<T: Config>(user: AccountIdOf<T>, project_id: ProjectId) {
+	let ct_deposit = T::ContributionTokenCurrency::deposit_required(project_id);
+	// Reserve plmc deposit to create a contribution token account for this project
+	if T::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), &user) < ct_deposit {
+		T::NativeCurrency::hold(&HoldReason::FutureDeposit(project_id).into(), &user, ct_deposit).unwrap();
 	}
 }
 
@@ -1171,8 +1187,12 @@ mod benchmarks {
 		);
 	}
 
+	// - We know how many iterations it does in storage
+	// - We know it requires no CT deposit (remainder round only)
+	// - We know that it does not require to unbond the lowest contribution
+	// - We know it doesn't end the round
 	#[benchmark]
-	fn first_contribution() {
+	fn first_contribution_no_ct_deposit() {
 		// How many other contributions the user did for that same project
 		let x = 0;
 		let ends_round = None;
@@ -1210,8 +1230,54 @@ mod benchmarks {
 			total_ct_sold,
 		);
 	}
+
+	// - We know how many iterations it does in storage
+	// - We know it requires a CT deposit
+	// - We know that it does not require to unbond the lowest contribution
+	// - We know it doesn't end the round
 	#[benchmark]
-	fn first_contribution_ends_round(
+	fn first_contribution_with_ct_deposit() {
+		// How many other contributions the user did for that same project
+		let x = 0;
+		let ends_round = None;
+
+		let (
+			inst,
+			project_id,
+			project_metadata,
+			extrinsic_contribution,
+			total_free_plmc,
+			total_plmc_bonded,
+			total_free_usdt,
+			total_usdt_locked,
+			total_ct_sold,
+		) = contribution_setup::<T>(x, ends_round);
+
+		let _new_plmc_minted = make_ct_deposit_for::<T>(extrinsic_contribution.contributor.clone(), project_id);
+
+		#[extrinsic_call]
+		contribute(
+			RawOrigin::Signed(extrinsic_contribution.contributor.clone()),
+			project_id,
+			extrinsic_contribution.amount,
+			extrinsic_contribution.multiplier,
+			extrinsic_contribution.asset,
+		);
+
+		contribution_verification::<T>(
+			inst,
+			project_id,
+			project_metadata,
+			extrinsic_contribution,
+			total_free_plmc,
+			total_plmc_bonded,
+			total_free_usdt,
+			total_usdt_locked,
+			total_ct_sold,
+		);
+	}
+	#[benchmark]
+	fn first_contribution_ends_round_no_ct_deposit(
 		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the extrinsic pass
 		y: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
 		// Total amount of storage items iterated through in `ProjectsToUpdate` when trying to remove our project in `remove_from_update_store`.
@@ -1232,6 +1298,53 @@ mod benchmarks {
 			total_usdt_locked,
 			total_ct_sold,
 		) = contribution_setup::<T>(x, ends_round);
+
+		#[extrinsic_call]
+		contribute(
+			RawOrigin::Signed(extrinsic_contribution.contributor.clone()),
+			project_id,
+			extrinsic_contribution.amount,
+			extrinsic_contribution.multiplier,
+			extrinsic_contribution.asset,
+		);
+
+		contribution_verification::<T>(
+			inst,
+			project_id,
+			project_metadata,
+			extrinsic_contribution,
+			total_free_plmc,
+			total_plmc_bonded,
+			total_free_usdt,
+			total_usdt_locked,
+			total_ct_sold,
+		);
+	}
+
+	#[benchmark]
+	fn first_contribution_ends_round_with_ct_deposit(
+		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the extrinsic pass
+		y: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
+		// Total amount of storage items iterated through in `ProjectsToUpdate` when trying to remove our project in `remove_from_update_store`.
+		// Upper bound is assumed to be enough
+		z: Linear<1, 10_000>,
+	) {
+		// How many other contributions the user did for that same project
+		let x = 0;
+		let ends_round = Some((y, z));
+		let (
+			inst,
+			project_id,
+			project_metadata,
+			extrinsic_contribution,
+			total_free_plmc,
+			total_plmc_bonded,
+			total_free_usdt,
+			total_usdt_locked,
+			total_ct_sold,
+		) = contribution_setup::<T>(x, ends_round);
+
+		let _new_plmc_minter = make_ct_deposit_for::<T>(extrinsic_contribution.contributor.clone(), project_id);
 
 		#[extrinsic_call]
 		contribute(

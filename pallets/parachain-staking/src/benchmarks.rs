@@ -21,10 +21,11 @@ use crate::{
 	AwardedPts, BalanceOf, Call, CandidateBondLessRequest, Config, DelegationAction, Pallet, ParachainBondConfig,
 	ParachainBondInfo, Points, Range, RewardPayment, Round, ScheduledRequest, Staked, TopDelegations,
 };
-use frame_support::traits::fungible::{Inspect, Mutate};
-
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite, vec};
-use frame_support::traits::{fungible::Balanced, Get, OnFinalize, OnInitialize};
+use frame_support::traits::{
+	fungible::{Inspect, Mutate, MutateHold},
+	Get, OnFinalize, OnInitialize,
+};
 use frame_system::{pallet_prelude::BlockNumberFor, RawOrigin};
 #[cfg(feature = "std")]
 use sp_runtime::BuildStorage;
