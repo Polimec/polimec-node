@@ -73,13 +73,8 @@ polimec-base-runtime.workspace = true
 penpal-runtime = { path = "./penpal", default-features = false }
 
 [features]
-default = [ "std", "testing-node", "instant-mode" ]
+default = [ "std", "instant-mode" ]
 instant-mode = [ "polimec-parachain-runtime/instant-mode", "polimec-base-runtime/instant-mode" ]
-testing-node = [
-	"pallet-funding/testing-node",
-	"polimec-parachain-runtime/testing-node",
-	"polimec-base-runtime/testing-node",
-]
 std = [
 	"asset-hub-polkadot-runtime/std",
 	"cumulus-pallet-xcm/std",

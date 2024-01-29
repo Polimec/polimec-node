@@ -24,7 +24,7 @@ extern crate frame_benchmarking;
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{fungible::Credit, ConstU32, Contains, InstanceFilter},
+	traits::{fungible::Credit, ConstU32, Contains, EitherOfDiverse, InstanceFilter, PrivilegeCmp, tokens},
 	weights::{ConstantMultiplier, Weight},
 };
 use frame_system::{EnsureRoot, EnsureSigned};
