@@ -865,12 +865,14 @@ mod benchmarks {
 	}
 
 	fn bid_setup<T: Config>(
-		x: u32,
+		existing_bids_count: u32,
+		do_perform_bid_calls: u32,
 	) -> (
 		BenchInstantiator<T>,
 		ProjectId,
 		ProjectMetadataOf<T>,
 		BidParams<T>,
+		Option<BidParams<T>>,
 		Vec<BidParams<T>>,
 		Vec<BidParams<T>>,
 		BalanceOf<T>,
@@ -905,7 +907,7 @@ mod benchmarks {
 			5u8,
 			AcceptedFundingAsset::USDT,
 		);
-		let existing_bids = vec![existing_bid; x as usize];
+		let existing_bids = vec![existing_bid; existing_bids_count as usize];
 		let existing_bids_post_bucketing = inst.simulate_bids_with_bucket(existing_bids.clone(), project_id);
 		let plmc_for_existing_bids =
 			BenchInstantiator::<T>::calculate_auction_plmc_spent(&existing_bids_post_bucketing, None);
@@ -927,17 +929,53 @@ mod benchmarks {
 		// do "x" contributions for this user
 		inst.bid_for_users(project_id, existing_bids_post_bucketing.clone()).expect("All bids are accepted");
 
-		let extrinsic_bid = BidParams::new(
-			bidder.clone(),
-			(1000u128 * ASSET_UNIT).into(),
-			1_u128.into(),
-			1u8,
-			AcceptedFundingAsset::USDT,
-		);
+		// to call do_perform_bid several times, we need the bucket to reach its limit. You can only bid over 10 buckets
+		// in a single bid, since the increase delta is 10% of the total allocation, and you cannot bid more than the allocation.
+		let mut ct_amount = (1000u128 * ASSET_UNIT).into();
+		let mut maybe_filler_bid = None;
+		let new_bidder = account::<AccountIdOf<T>>("new_bidder", 0, 0);
+
+		let mut usdt_for_filler_bidder = vec![UserToStatemintAsset::<T>::new(
+			new_bidder.clone(),
+			Zero::zero(),
+			AcceptedFundingAsset::USDT.to_statemint_id(),
+		)];
+		if do_perform_bid_calls > 0 {
+			let current_bucket = Buckets::<T>::get(project_id).unwrap();
+			// first lets bring the bucket to almost its limit with another bidder:
+			assert!(new_bidder.clone() != bidder.clone());
+			let mut bid_params = BidParams::new(
+				new_bidder,
+				current_bucket.amount_left,
+				// not used atm
+				1_u128.into(),
+				1u8,
+				AcceptedFundingAsset::USDT,
+			);
+			maybe_filler_bid = Some(bid_params.clone());
+			let plmc_for_new_bidder =
+				BenchInstantiator::<T>::calculate_auction_plmc_spent(&vec![bid_params.clone()], None);
+			let plmc_ed = plmc_for_new_bidder.accounts().existential_deposits();
+			let plmc_ct_deposit = plmc_for_new_bidder.accounts().ct_account_deposits();
+			let usdt_for_new_bidder =
+				BenchInstantiator::<T>::calculate_auction_funding_asset_spent(&vec![bid_params.clone()], None);
+
+			inst.mint_plmc_to(plmc_for_new_bidder);
+			inst.mint_plmc_to(plmc_ed);
+			inst.mint_plmc_to(plmc_ct_deposit);
+			inst.mint_statemint_asset_to(usdt_for_new_bidder.clone());
+
+			inst.bid_for_users(project_id, vec![bid_params]).expect("new bidder can bid");
+
+			ct_amount = Percent::from_percent(10) *
+				(project_metadata.total_allocation_size.0 * (do_perform_bid_calls as u128).into());
+			usdt_for_filler_bidder = usdt_for_new_bidder;
+		}
+		let extrinsic_bid = BidParams::new(bidder.clone(), ct_amount, 1_u128.into(), 1u8, AcceptedFundingAsset::USDT);
 		let original_extrinsic_bid = extrinsic_bid.clone();
 		// we need to call this after bidding `x` amount of times, to get the latest bucket from storage
 		let extrinsic_bids_post_bucketing = inst.simulate_bids_with_bucket(vec![extrinsic_bid], project_id);
-
+		assert_eq!(extrinsic_bids_post_bucketing.len(), (do_perform_bid_calls as usize).max(1usize));
 		let plmc_for_extrinsic_bids: Vec<UserToPLMCBalance<T>> =
 			BenchInstantiator::<T>::calculate_auction_plmc_spent(&extrinsic_bids_post_bucketing, None);
 		let usdt_for_extrinsic_bids: Vec<UserToStatemintAsset<T>> =
@@ -955,6 +993,7 @@ mod benchmarks {
 			prev_total_escrow_usdt_locked.clone(),
 			usdt_for_extrinsic_bids.clone(),
 			usdt_for_existing_bids.clone(),
+			usdt_for_filler_bidder.clone(),
 		]);
 
 		(
@@ -962,6 +1001,7 @@ mod benchmarks {
 			project_id,
 			project_metadata,
 			original_extrinsic_bid,
+			maybe_filler_bid,
 			extrinsic_bids_post_bucketing,
 			existing_bids_post_bucketing,
 			total_free_plmc,
@@ -975,6 +1015,7 @@ mod benchmarks {
 		mut inst: BenchInstantiator<T>,
 		project_id: ProjectId,
 		project_metadata: ProjectMetadataOf<T>,
+		maybe_filler_bid: Option<BidParams<T>>,
 		extrinsic_bids_post_bucketing: Vec<BidParams<T>>,
 		existing_bids_post_bucketing: Vec<BidParams<T>>,
 		total_free_plmc: BalanceOf<T>,
@@ -1030,6 +1071,9 @@ mod benchmarks {
 		for bid_params in existing_bids_post_bucketing.clone() {
 			starting_bucket.update(bid_params.amount);
 		}
+		if let Some(bid_params) = maybe_filler_bid {
+			starting_bucket.update(bid_params.amount);
+		}
 		for bid_params in extrinsic_bids_post_bucketing.clone() {
 			starting_bucket.update(bid_params.amount);
 		}
@@ -1056,7 +1100,7 @@ mod benchmarks {
 
 		// Events
 		for bid_params in extrinsic_bids_post_bucketing {
-			frame_system::Pallet::<T>::assert_last_event(
+			frame_system::Pallet::<T>::assert_has_event(
 				Event::Bid {
 					project_id,
 					amount: bid_params.amount,
@@ -1071,19 +1115,20 @@ mod benchmarks {
 	// - ct account deposit
 	// - amount of times where `perform_bid` is called (i.e how many buckets)
 	#[benchmark]
-	fn bid(x: Linear<0, { T::MaxBidsPerUser::get() - 1 }>) {
+	fn bid(x: Linear<0, { T::MaxBidsPerUser::get() - 1 }>, y: Linear<0, 10>) {
 		let (
 			mut inst,
 			project_id,
 			project_metadata,
 			original_extrinsic_bid,
+			maybe_filler_bid,
 			extrinsic_bids_post_bucketing,
 			existing_bids_post_bucketing,
 			total_free_plmc,
 			total_plmc_bonded,
 			total_free_usdt,
 			total_usdt_locked,
-		) = bid_setup::<T>(x);
+		) = bid_setup::<T>(x, y);
 
 		#[extrinsic_call]
 		bid(
@@ -1098,6 +1143,7 @@ mod benchmarks {
 			inst,
 			project_id,
 			project_metadata,
+			maybe_filler_bid,
 			extrinsic_bids_post_bucketing,
 			existing_bids_post_bucketing,
 			total_free_plmc,
