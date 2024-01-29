@@ -864,19 +864,30 @@ mod benchmarks {
 		);
 	}
 
-	// branches:
-	// - ct account deposit
-	// - amount of times where `perform_bid` is called (i.e how many buckets)
-	#[benchmark]
-	fn bid(x: Linear<1, 20>) {
+	fn bid_setup<T: Config>(
+		x: u32,
+	) -> (
+		BenchInstantiator<T>,
+		ProjectId,
+		ProjectMetadataOf<T>,
+		BidParams<T>,
+		Vec<BidParams<T>>,
+		BalanceOf<T>,
+		BalanceOf<T>,
+		BalanceOf<T>,
+		BalanceOf<T>,
+	)
+	where
+		<T as Config>::Balance: From<u128>,
+		<T as Config>::Price: From<u128>,
+		T::Hash: From<H256>,
+		<T as frame_system::Config>::RuntimeEvent: From<pallet::Event<T>>,
+	{
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
-
-		#[cfg(feature = "std")]
-		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let bidder = account::<AccountIdOf<T>>("bidder", 0, 0);
@@ -893,47 +904,88 @@ mod benchmarks {
 			1u8,
 			AcceptedFundingAsset::USDT,
 		);
-		let bid_params = inst.simulate_bids_with_bucket(vec![bid_params], project_id)[0].clone();
+		let original_extrinsic_bid = bid_params.clone();
+		let extrinsic_bids_post_bucketing = inst.simulate_bids_with_bucket(vec![bid_params], project_id);
 		let necessary_plmc: Vec<UserToPLMCBalance<T>> =
-			BenchInstantiator::<T>::calculate_auction_plmc_spent(&vec![bid_params.clone()], None);
+			BenchInstantiator::<T>::calculate_auction_plmc_spent(&extrinsic_bids_post_bucketing, None);
 		let existential_deposits: Vec<UserToPLMCBalance<T>> = necessary_plmc.accounts().existential_deposits();
 		let ct_account_deposits = necessary_plmc.accounts().ct_account_deposits();
 		let necessary_usdt: Vec<UserToStatemintAsset<T>> =
-			BenchInstantiator::<T>::calculate_auction_funding_asset_spent(&vec![bid_params.clone()], None);
+			BenchInstantiator::<T>::calculate_auction_funding_asset_spent(&extrinsic_bids_post_bucketing, None);
+		let escrow_account = Pallet::<T>::fund_account_id(project_id);
+		let prev_total_escrow_usdt_locked =
+			inst.get_free_statemint_asset_balances_for(usdt_id(), vec![escrow_account.clone()]);
 
 		inst.mint_plmc_to(necessary_plmc.clone());
 		inst.mint_plmc_to(existential_deposits.clone());
 		inst.mint_plmc_to(ct_account_deposits.clone());
 		inst.mint_statemint_asset_to(necessary_usdt.clone());
 
-		#[extrinsic_call]
-		bid(RawOrigin::Signed(bidder.clone()), project_id, bid_params.amount, bid_params.multiplier, bid_params.asset);
+		let mut total_free_plmc = existential_deposits[0].plmc_amount;
+		let total_plmc_participation_bonded =
+			BenchInstantiator::<T>::sum_balance_mappings(vec![necessary_plmc.clone()]);
+		let mut total_free_usdt = Zero::zero();
+		let total_escrow_usdt_locked = BenchInstantiator::<T>::sum_statemint_mappings(vec![
+			necessary_usdt.clone(),
+			prev_total_escrow_usdt_locked.clone(),
+		]);
 
+		(
+			inst,
+			project_id,
+			project_metadata,
+			original_extrinsic_bid,
+			extrinsic_bids_post_bucketing,
+			total_free_plmc,
+			total_plmc_participation_bonded,
+			total_free_usdt,
+			total_escrow_usdt_locked,
+		)
+	}
+
+	fn bid_verification<T: Config>(
+		mut inst: BenchInstantiator<T>,
+		project_id: ProjectId,
+		project_metadata: ProjectMetadataOf<T>,
+		extrinsic_bids_post_bucketing: Vec<BidParams<T>>,
+		total_free_plmc: BalanceOf<T>,
+		total_plmc_bonded: BalanceOf<T>,
+		total_free_usdt: BalanceOf<T>,
+		total_usdt_locked: BalanceOf<T>,
+	) -> ()
+	where
+		<T as Config>::Balance: From<u128>,
+		<T as Config>::Price: From<u128>,
+		T::Hash: From<H256>,
+		<T as frame_system::Config>::RuntimeEvent: From<pallet::Event<T>>,
+	{
 		// * validity checks *
+
+		let bidder = extrinsic_bids_post_bucketing[0].bidder.clone();
 		// Storage
-		let stored_bid = Bids::<T>::iter_prefix_values((project_id, bidder.clone()))
-			.sorted_by(|a, b| a.id.cmp(&b.id))
-			.last()
-			.unwrap();
-		let bid_filter = BidInfoFilter::<T> {
-			id: None,
-			project_id: Some(project_id),
-			bidder: Some(bidder.clone()),
-			status: Some(BidStatus::YetUnknown),
-			original_ct_amount: Some(bid_params.amount),
-			original_ct_usd_price: Some(bid_params.price),
-			final_ct_amount: Some(bid_params.amount),
-			final_ct_usd_price: Some(bid_params.price),
-			funding_asset: Some(AcceptedFundingAsset::USDT),
-			funding_asset_amount_locked: Some(necessary_usdt[0].asset_amount),
-			multiplier: Some(bid_params.multiplier),
-			plmc_bond: Some(necessary_plmc[0].plmc_amount),
-			plmc_vesting_info: Some(None),
-			when: None,
-			funds_released: Some(false),
-			ct_minted: Some(false),
-		};
-		assert!(bid_filter.matches_bid(&stored_bid));
+		for bid_params in extrinsic_bids_post_bucketing.clone() {
+			let bid_filter = BidInfoFilter::<T> {
+				id: None,
+				project_id: Some(project_id),
+				bidder: Some(bidder.clone()),
+				status: Some(BidStatus::YetUnknown),
+				original_ct_amount: Some(bid_params.amount),
+				original_ct_usd_price: Some(bid_params.price),
+				final_ct_amount: Some(bid_params.amount),
+				final_ct_usd_price: Some(bid_params.price),
+				funding_asset: Some(AcceptedFundingAsset::USDT),
+				funding_asset_amount_locked: None,
+				multiplier: Some(bid_params.multiplier),
+				plmc_bond: None,
+				plmc_vesting_info: Some(None),
+				when: None,
+				funds_released: Some(false),
+				ct_minted: Some(false),
+			};
+			Bids::<T>::iter_prefix_values((project_id, bidder.clone()))
+				.find(|stored_bid| bid_filter.matches_bid(stored_bid))
+				.expect("bid not found");
+		}
 
 		// Bucket Storage Check
 		let bucket_delta_amount = Percent::from_percent(10) * project_metadata.total_allocation_size.0;
@@ -946,7 +998,9 @@ mod benchmarks {
 			bucket_delta_amount,
 		);
 
-		starting_bucket.update(bid_params.amount);
+		for bid_params in extrinsic_bids_post_bucketing.clone() {
+			starting_bucket.update(bid_params.amount);
+		}
 
 		let current_bucket = Buckets::<T>::get(project_id).unwrap();
 		assert_eq!(current_bucket, starting_bucket);
@@ -955,23 +1009,67 @@ mod benchmarks {
 		let bonded_plmc = inst
 			.get_reserved_plmc_balances_for(vec![bidder.clone()], HoldReason::Participation(project_id).into())[0]
 			.plmc_amount;
-		assert_eq!(bonded_plmc, necessary_plmc[0].plmc_amount);
+		assert_eq!(bonded_plmc, total_plmc_bonded);
 
 		let free_plmc = inst.get_free_plmc_balances_for(vec![bidder.clone()])[0].plmc_amount;
-		assert_eq!(free_plmc, existential_deposits[0].plmc_amount);
+		assert_eq!(free_plmc, total_free_plmc);
+
+		let escrow_account = Pallet::<T>::fund_account_id(project_id);
+		let locked_usdt =
+			inst.get_free_statemint_asset_balances_for(usdt_id(), vec![escrow_account.clone()])[0].asset_amount;
+		assert_eq!(locked_usdt, total_usdt_locked);
 
 		let free_usdt = inst.get_free_statemint_asset_balances_for(usdt_id(), vec![bidder])[0].asset_amount;
-		assert_eq!(free_usdt, 0.into());
+		assert_eq!(free_usdt, total_free_usdt);
 
 		// Events
-		frame_system::Pallet::<T>::assert_last_event(
-			Event::Bid {
-				project_id,
-				amount: bid_params.amount,
-				price: bid_params.price,
-				multiplier: bid_params.multiplier,
-			}
-			.into(),
+		for bid_params in extrinsic_bids_post_bucketing {
+			frame_system::Pallet::<T>::assert_last_event(
+				Event::Bid {
+					project_id,
+					amount: bid_params.amount,
+					price: bid_params.price,
+					multiplier: bid_params.multiplier,
+				}
+				.into(),
+			);
+		}
+	}
+	// branches:
+	// - ct account deposit
+	// - amount of times where `perform_bid` is called (i.e how many buckets)
+	#[benchmark]
+	fn bid(x: Linear<1, 20>) {
+		let (
+			mut inst,
+			project_id,
+			project_metadata,
+			original_extrinsic_bid,
+			extrinsic_bids_post_bucketing,
+			total_free_plmc,
+			total_plmc_bonded,
+			total_free_usdt,
+			total_usdt_locked,
+		) = bid_setup::<T>(x);
+
+		#[extrinsic_call]
+		bid(
+			RawOrigin::Signed(original_extrinsic_bid.bidder.clone()),
+			project_id,
+			original_extrinsic_bid.amount,
+			original_extrinsic_bid.multiplier,
+			original_extrinsic_bid.asset,
+		);
+
+		bid_verification::<T>(
+			inst,
+			project_id,
+			project_metadata,
+			extrinsic_bids_post_bucketing,
+			total_free_plmc,
+			total_plmc_bonded,
+			total_free_usdt,
+			total_usdt_locked,
 		);
 	}
 
@@ -2544,12 +2642,12 @@ mod benchmarks {
 			});
 		}
 
-		// #[test]
-		// fn bench_bid() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_bid());
-		// 	});
-		// }
+		#[test]
+		fn bench_bid() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_bid());
+			});
+		}
 
 		#[test]
 		fn bench_first_contribution_no_ct_deposit() {
