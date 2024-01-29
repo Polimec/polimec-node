@@ -1155,6 +1155,7 @@ impl<T: Config> Pallet<T> {
 		}
 		let mut weight_contribution_flag: WeightContributionFlag;
 		let mut weight_round_end_flag: Option<WeightRoundEndFlag> = None;
+		let mut weight_ct_account_deposit = false;
 
 		if caller_existing_contributions.len() == 0 {
 			weight_contribution_flag = WeightContributionFlag::FirstContribution;
@@ -1222,6 +1223,7 @@ impl<T: Config> Pallet<T> {
 		// Reserve plmc deposit to create a contribution token account for this project
 		if T::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), &contributor) < ct_deposit
 		{
+			weight_ct_account_deposit = true;
 			T::NativeCurrency::hold(&HoldReason::FutureDeposit(project_id).into(), &contributor, ct_deposit)?;
 		}
 
@@ -1310,23 +1312,39 @@ impl<T: Config> Pallet<T> {
 		});
 
 		// return correct weight function
-		match (weight_contribution_flag, weight_round_end_flag) {
-			(WeightContributionFlag::FirstContribution, None) => Ok(PostDispatchInfo {
-				actual_weight: Some(WeightInfoOf::<T>::first_contribution()),
+		match (weight_contribution_flag, weight_round_end_flag, weight_ct_account_deposit) {
+			(WeightContributionFlag::FirstContribution, None, false) => Ok(PostDispatchInfo {
+				actual_weight: Some(WeightInfoOf::<T>::first_contribution_no_ct_deposit()),
+				pays_fee: Pays::Yes,
+			}),
+			(WeightContributionFlag::FirstContribution, None, true) => Ok(PostDispatchInfo {
+				actual_weight: Some(WeightInfoOf::<T>::first_contribution_with_ct_deposit()),
 				pays_fee: Pays::Yes,
 			}),
 			(
 				WeightContributionFlag::FirstContribution,
 				Some(WeightRoundEndFlag { fully_filled_vecs_from_insertion, total_vecs_in_storage }),
+				false,
 			) => Ok(PostDispatchInfo {
-				actual_weight: Some(WeightInfoOf::<T>::first_contribution_ends_round(
+				actual_weight: Some(WeightInfoOf::<T>::first_contribution_ends_round_no_ct_deposit(
+					fully_filled_vecs_from_insertion,
+					total_vecs_in_storage,
+				)),
+				pays_fee: Pays::Yes,
+			}),
+			(
+				WeightContributionFlag::FirstContribution,
+				Some(WeightRoundEndFlag { fully_filled_vecs_from_insertion, total_vecs_in_storage }),
+				true,
+			) => Ok(PostDispatchInfo {
+				actual_weight: Some(WeightInfoOf::<T>::first_contribution_ends_round_with_ct_deposit(
 					fully_filled_vecs_from_insertion,
 					total_vecs_in_storage,
 				)),
 				pays_fee: Pays::Yes,
 			}),
 
-			(WeightContributionFlag::SecondToLimitContribution, None) => Ok(PostDispatchInfo {
+			(WeightContributionFlag::SecondToLimitContribution, None, _) => Ok(PostDispatchInfo {
 				actual_weight: Some(WeightInfoOf::<T>::second_to_limit_contribution(
 					caller_existing_contributions.len() as u32,
 				)),
@@ -1335,6 +1353,7 @@ impl<T: Config> Pallet<T> {
 			(
 				WeightContributionFlag::SecondToLimitContribution,
 				Some(WeightRoundEndFlag { fully_filled_vecs_from_insertion, total_vecs_in_storage }),
+				_,
 			) => Ok(PostDispatchInfo {
 				actual_weight: Some(WeightInfoOf::<T>::second_to_limit_contribution_ends_round(
 					caller_existing_contributions.len() as u32,
@@ -1345,7 +1364,7 @@ impl<T: Config> Pallet<T> {
 			}),
 
 			// a contribution over the limit means removing an existing contribution, therefore you cannot have a round end
-			(WeightContributionFlag::OverLimitContribution, _) => Ok(PostDispatchInfo {
+			(WeightContributionFlag::OverLimitContribution, _, _) => Ok(PostDispatchInfo {
 				actual_weight: Some(WeightInfoOf::<T>::contribution_over_limit()),
 				pays_fee: Pays::Yes,
 			}),

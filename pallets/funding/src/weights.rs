@@ -61,8 +61,11 @@ pub trait WeightInfo {
 	fn evaluation_over_limit() -> Weight;
 	fn bid() -> Weight;
 
-	fn first_contribution() -> Weight;
-	fn first_contribution_ends_round(y: u32, z: u32, ) -> Weight;
+	fn first_contribution_with_ct_deposit() -> Weight;
+	fn first_contribution_no_ct_deposit() -> Weight;
+
+	fn first_contribution_ends_round_with_ct_deposit(y: u32, z: u32, ) -> Weight;
+	fn first_contribution_ends_round_no_ct_deposit(y: u32, z: u32, ) -> Weight;
 	fn second_to_limit_contribution(x: u32, ) -> Weight;
 	fn second_to_limit_contribution_ends_round(x: u32, y: u32, z: u32, ) -> Weight;
 	fn contribution_over_limit() -> Weight;
@@ -179,13 +182,22 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(7_u64))
 	}
 
-	fn first_contribution() -> Weight {
+	fn first_contribution_no_ct_deposit() -> Weight {
 				Weight::from_parts(140_000_000, 6208)
 
 	}
 
-	fn first_contribution_ends_round(y: u32, z: u32) -> Weight {
+	fn first_contribution_with_ct_deposit() -> Weight {
+		Weight::from_parts(140_000_000, 6208)
+
+	}
+
+	fn first_contribution_ends_round_no_ct_deposit(y: u32, z: u32) -> Weight {
 				Weight::from_parts(140_000_000, 6208)
+
+	}
+	fn first_contribution_ends_round_with_ct_deposit(y: u32, z: u32) -> Weight {
+		Weight::from_parts(140_000_000, 6208)
 
 	}
 
