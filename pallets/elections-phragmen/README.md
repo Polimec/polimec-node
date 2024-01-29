@@ -6,6 +6,7 @@ The modifications to the original pallet include the following:
 1. Currency traits have been replaced by the Fungibles traits.
 2. Deposit requirement for voters has been removed
 3. Voters can vote with their full balance (placing a lock over both free and reserved balance)
+4. Voters tokens are locked up for the duration of `VotingLockPeriod`. 
 
 An election module based on sequential phragmen.
 

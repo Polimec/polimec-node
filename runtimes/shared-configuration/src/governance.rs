@@ -73,7 +73,14 @@ pub const TERM_DURATION: BlockNumber = 5;
 #[cfg(feature = "fast-mode")]
 pub const TERM_DURATION: BlockNumber = 15 * MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
-pub const TERM_DURATION: BlockNumber = 14 * DAYS;
+pub const TERM_DURATION: BlockNumber = 28 * DAYS;
+
+#[cfg(feature = "instant-mode")]
+pub const ELECTION_VOTING_LOCK_DURATION: BlockNumber = 5;
+#[cfg(feature = "fast-mode")]
+pub const ELECTION_VOTING_LOCK_DURATION: BlockNumber = 15 * MINUTES;
+#[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
+pub const ELECTION_VOTING_LOCK_DURATION: BlockNumber = 28 * DAYS;
 
 #[cfg(feature = "instant-mode")]
 pub const COUNCIL_MOTION_DURATION: BlockNumber = 2;
@@ -122,6 +129,7 @@ parameter_types! {
 	// Elections phragmen
 	pub const CandidacyBond: Balance = 1000 * PLMC;
 	pub TermDuration: BlockNumber = TERM_DURATION;
+	pub VotingLockPeriod: BlockNumber = ELECTION_VOTING_LOCK_DURATION;
 	pub const DesiredMembers: u32 = 9;
 	pub const DesiredRunnersUp: u32 = 20;
 	pub const MaxCandidates: u32 = 1000;
