@@ -140,16 +140,18 @@ pub enum Renouncing {
 
 /// An active voter.
 #[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, TypeInfo)]
-pub struct Voter<AccountId, Balance> {
+pub struct Voter<AccountId, Balance, BlockNumber> {
 	/// The members being backed.
 	pub votes: Vec<AccountId>,
 	/// The amount of stake placed on this vote.
 	pub stake: Balance,
+	/// The block number at which the voter can unlock their stake.
+	pub lockup_till: BlockNumber,
 }
 
-impl<AccountId, Balance: Default> Default for Voter<AccountId, Balance> {
+impl<AccountId, Balance: Default, BlockNumber: Default> Default for Voter<AccountId, Balance, BlockNumber> {
 	fn default() -> Self {
-		Self { votes: vec![], stake: Default::default() }
+		Self { votes: vec![], stake: Default::default(), lockup_till: Default::default() }
 	}
 }
 
@@ -244,6 +246,11 @@ pub mod pallet {
 		/// be in passive mode.
 		#[pallet::constant]
 		type TermDuration: Get<BlockNumberFor<Self>>;
+
+		/// How long the voting lock is in effect after voting or changing vote. If set to
+		/// zero, no lock is enforced.
+		#[pallet::constant]
+		type VotingLockPeriod: Get<BlockNumberFor<Self>>;
 
 		/// The maximum number of candidates in a phragmen election.
 		///
@@ -380,8 +387,8 @@ pub mod pallet {
 			// Amount to be locked up.
 			let locked_stake = value.min(T::Currency::total_balance(&who));
 			T::Currency::set_freeze(&FreezeReason::Voting.into(), &who, locked_stake)?;
-
-			Voting::<T>::insert(&who, Voter { votes, stake: locked_stake });
+			let current_block = <frame_system::Pallet<T>>::block_number();
+			Voting::<T>::insert(&who, Voter { votes, stake: locked_stake, lockup_till: current_block + T::VotingLockPeriod::get() });
 			Ok(None::<Weight>.into())
 		}
 
@@ -395,6 +402,7 @@ pub mod pallet {
 		pub fn remove_voter(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			ensure!(Self::is_voter(&who), Error::<T>::MustBeVoter);
+			ensure!(Self::can_unlock(&who), Error::<T>::VotingPeriodNotEnded);
 			Self::do_remove_voter(&who)?;
 			Ok(())
 		}
@@ -609,6 +617,8 @@ pub mod pallet {
 		UnableToPayBond,
 		/// Must be a voter.
 		MustBeVoter,
+		// Voting period is not ended.
+		VotingPeriodNotEnded,
 		/// Duplicated candidate submission.
 		DuplicatedCandidate,
 		/// Too many candidates have been created.
@@ -669,7 +679,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn voting)]
 	pub type Voting<T: Config> =
-		StorageMap<_, Twox64Concat, T::AccountId, Voter<T::AccountId, BalanceOf<T>>, ValueQuery>;
+		StorageMap<_, Twox64Concat, T::AccountId, Voter<T::AccountId, BalanceOf<T>, BlockNumberFor<T>>, ValueQuery>;
 
 	#[pallet::genesis_config]
 	#[derive(frame_support::DefaultNoBound)]
@@ -707,7 +717,7 @@ pub mod pallet {
 					// they have any lock. NOTE: this means that we will still try to remove a lock
 					// once this genesis voter is removed, and for now it is okay because
 					// remove_lock is noop if lock is not there.
-					<Voting<T>>::insert(&member, Voter { votes: vec![member.clone()], stake: *stake });
+					<Voting<T>>::insert(&member, Voter { votes: vec![member.clone()], stake: *stake, lockup_till: T::VotingLockPeriod::get() });
 
 					member.clone()
 				})
@@ -809,6 +819,12 @@ impl<T: Config> Pallet<T> {
 		Voting::<T>::contains_key(who)
 	}
 
+	/// Check if `who`'s voting lock duration has passed. 
+	fn can_unlock(who: &T::AccountId) -> bool {
+		let current_block = <frame_system::Pallet<T>>::block_number();
+		Voting::<T>::get(who).lockup_till <= current_block
+	}
+
 	/// Check if `who` is currently an active member.
 	fn is_member(who: &T::AccountId) -> bool {
 		Self::members().binary_search_by(|m| m.who.cmp(who)).is_ok()
@@ -884,7 +900,7 @@ impl<T: Config> Pallet<T> {
 		let max_voters = <T as Config>::MaxVoters::get() as usize;
 		// used for prime election.
 		let mut voters_and_stakes = Vec::new();
-		match Voting::<T>::iter().try_for_each(|(voter, Voter { stake, votes })| {
+		match Voting::<T>::iter().try_for_each(|(voter, Voter { stake, votes, .. })| {
 			if voters_and_stakes.len() < max_voters {
 				voters_and_stakes.push((voter, stake, votes));
 				Ok(())
@@ -1242,6 +1258,7 @@ mod tests {
 		pub static DesiredMembers: u32 = 2;
 		pub static DesiredRunnersUp: u32 = 0;
 		pub static TermDuration: u64 = 5;
+		pub static VotingLockPeriod: u64 = 2;
 		pub static Members: Vec<u64> = vec![];
 		pub static Prime: Option<u64> = None;
 	}
@@ -1312,6 +1329,7 @@ mod tests {
 		type RuntimeFreezeReason = RuntimeFreezeReason;
 		type RuntimeHoldReason = RuntimeHoldReason;
 		type TermDuration = TermDuration;
+		type VotingLockPeriod = VotingLockPeriod;
 		type WeightInfo = ();
 	}
 
@@ -1489,8 +1507,8 @@ mod tests {
 				vec![SeatHolder { who: 1, stake: 10, deposit: 0 }, SeatHolder { who: 2, stake: 20, deposit: 0 }]
 			);
 
-			assert_eq!(Elections::voting(1), Voter { stake: 10u64, votes: vec![1] });
-			assert_eq!(Elections::voting(2), Voter { stake: 20u64, votes: vec![2] });
+			assert_eq!(Elections::voting(1), Voter { stake: 10u64, votes: vec![1], lockup_till: 2 });
+			assert_eq!(Elections::voting(2), Voter { stake: 20u64, votes: vec![2], lockup_till: 2 });
 
 			// they will persist since they have self vote.
 			System::set_block_number(5);
@@ -1505,9 +1523,9 @@ mod tests {
 		ExtBuilder::default().genesis_members(vec![(1, 10), (2, 20)]).build_and_execute(|| {
 			System::set_block_number(1);
 
-			assert_eq!(Elections::voting(1), Voter { stake: 10u64, votes: vec![1] });
-			assert_eq!(Elections::voting(2), Voter { stake: 20u64, votes: vec![2] });
-
+			assert_eq!(Elections::voting(1), Voter { stake: 10u64, votes: vec![1], lockup_till: 2 });
+			assert_eq!(Elections::voting(2), Voter { stake: 20u64, votes: vec![2], lockup_till: 2 });
+			System::set_block_number(2);
 			assert_ok!(Elections::remove_voter(RuntimeOrigin::signed(1)));
 			assert_ok!(Elections::remove_voter(RuntimeOrigin::signed(2)));
 
@@ -1525,8 +1543,8 @@ mod tests {
 				vec![SeatHolder { who: 1, stake: 10, deposit: 0 }, SeatHolder { who: 2, stake: 20, deposit: 0 },]
 			);
 
-			assert_eq!(Elections::voting(1), Voter { stake: 10u64, votes: vec![1] });
-			assert_eq!(Elections::voting(2), Voter { stake: 20u64, votes: vec![2] });
+			assert_eq!(Elections::voting(1), Voter { stake: 10u64, votes: vec![1], lockup_till: 2 });
+			assert_eq!(Elections::voting(2), Voter { stake: 20u64, votes: vec![2], lockup_till: 2 });
 
 			// they will persist since they have self vote.
 			System::set_block_number(5);
@@ -1989,7 +2007,9 @@ mod tests {
 			assert_eq!(locked_stake_of(&3), 30);
 			assert_eq!(votes_of(&2), vec![5]);
 			assert_eq!(votes_of(&3), vec![5]);
-
+			
+			assert_noop!(Elections::remove_voter(RuntimeOrigin::signed(2)), Error::<Test>::VotingPeriodNotEnded);
+			System::set_block_number(3);
 			assert_ok!(Elections::remove_voter(RuntimeOrigin::signed(2)));
 
 			assert_eq_uvec!(all_voters(), vec![3]);
@@ -2013,7 +2033,7 @@ mod tests {
 		ExtBuilder::default().build_and_execute(|| {
 			assert_ok!(submit_candidacy(RuntimeOrigin::signed(5)));
 			assert_ok!(vote(RuntimeOrigin::signed(2), vec![5], 20));
-
+			System::set_block_number(5);
 			assert_ok!(Elections::remove_voter(RuntimeOrigin::signed(2)));
 			assert!(all_voters().is_empty());
 
@@ -2031,7 +2051,7 @@ mod tests {
 			assert_ok!(vote(RuntimeOrigin::signed(5), vec![5], 50));
 			assert_ok!(vote(RuntimeOrigin::signed(4), vec![4], 40));
 			assert_ok!(vote(RuntimeOrigin::signed(3), vec![3], 30));
-
+			System::set_block_number(3);
 			assert_ok!(Elections::remove_voter(RuntimeOrigin::signed(4)));
 
 			System::set_block_number(5);
@@ -2330,7 +2350,7 @@ mod tests {
 
 			assert_ok!(vote(RuntimeOrigin::signed(4), vec![4], 40));
 			assert_ok!(vote(RuntimeOrigin::signed(5), vec![5], 50));
-
+			println!("{:?}", Elections::voting(4));
 			System::set_block_number(5);
 			Elections::on_initialize(System::block_number());
 

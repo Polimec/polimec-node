@@ -24,7 +24,7 @@ extern crate frame_benchmarking;
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{fungible::Credit, ConstU32, Contains, InstanceFilter},
+	traits::{fungible::Credit, ConstU32, Contains, EitherOfDiverse, InstanceFilter, PrivilegeCmp, tokens},
 	weights::{ConstantMultiplier, Weight},
 };
 use frame_system::{EnsureRoot, EnsureSigned};
@@ -410,7 +410,10 @@ impl pallet_treasury::Config for Runtime {
 	type ProposalBond = ProposalBond;
 	type ProposalBondMaximum = ();
 	type ProposalBondMinimum = ProposalBondMinimum;
-	type RejectOrigin = EnsureRoot<AccountId>;
+	type RejectOrigin = EitherOfDiverse<
+		EnsureRoot<AccountId>,
+		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 2>,
+	>;
 	type RuntimeEvent = RuntimeEvent;
 	type SpendFunds = ();
 	type SpendOrigin = frame_support::traits::NeverEnsureOrigin<Balance>;
@@ -473,6 +476,7 @@ impl pallet_elections_phragmen::Config for Runtime {
 	/// an election round will happen. If set to zero, no elections are ever
 	/// triggered and the module will be in passive mode.
 	type TermDuration = TermDuration;
+	type VotingLockPeriod = VotingLockPeriod;
 	type WeightInfo = pallet_elections_phragmen::weights::SubstrateWeight<Runtime>;
 }
 

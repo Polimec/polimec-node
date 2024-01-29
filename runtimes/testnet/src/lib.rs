@@ -433,6 +433,7 @@ impl pallet_elections_phragmen::Config for Runtime {
 	/// an election round will happen. If set to zero, no elections are ever
 	/// triggered and the module will be in passive mode.
 	type TermDuration = TermDuration;
+	type VotingLockPeriod = VotingPeriod;
 	type WeightInfo = pallet_elections_phragmen::weights::SubstrateWeight<Runtime>;
 }
 

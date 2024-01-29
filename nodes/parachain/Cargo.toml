@@ -88,6 +88,10 @@ substrate-build-script-utils.workspace = true
 
 [features]
 default = []
+fast-mode = [
+	"polimec-base-runtime/fast-mode",
+	"polimec-parachain-runtime/fast-mode",
+]
 runtime-benchmarks = [
 	"frame-benchmarking-cli/runtime-benchmarks",
 	"frame-benchmarking/runtime-benchmarks",
@@ -109,10 +113,6 @@ try-runtime = [
 	"sp-runtime/try-runtime",
 	"try-runtime-cli",
 	"try-runtime-cli?/try-runtime",
-]
-fast-mode = [
-	"polimec-base-runtime/fast-mode",
-	"polimec-parachain-runtime/fast-mode",
 ]
 std = [
 	"cumulus-primitives-core/std",

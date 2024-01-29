@@ -16,7 +16,7 @@
 use super::*;
 
 use frame_benchmarking::v1::{account, benchmarks, whitelist, BenchmarkError, BenchmarkResult};
-use frame_support::{dispatch::DispatchResultWithPostInfo, traits::OnInitialize};
+use frame_support::{dispatch::DispatchResultWithPostInfo, traits::{OnInitialize, fungible::Balanced}};
 use frame_system::RawOrigin;
 
 use crate::Pallet as Elections;
@@ -43,9 +43,9 @@ fn as_lookup<T: Config>(account: T::AccountId) -> AccountIdLookupOf<T> {
 }
 
 /// Get a reasonable amount of stake based on the execution trait's configuration
-fn default_stake<T: Config>(num_votes: u32) -> BalanceOf<T> {
+fn default_stake<T: Config>(_num_votes: u32) -> BalanceOf<T> {
 	let min = T::Currency::minimum_balance();
-	Elections::<T>::deposit_of(num_votes as usize).max(min)
+	min * 100u32.into()
 }
 
 /// Get the current number of candidates.
@@ -208,7 +208,9 @@ benchmarks! {
 
 		let stake = default_stake::<T>(v);
 		submit_voter::<T>(caller.clone(), all_candidates, stake)?;
-
+		<frame_system::Pallet<T>>::set_block_number(
+			T::VotingLockPeriod::get() + 1u32.into()
+		);
 		whitelist!(caller);
 	}: _(RawOrigin::Signed(caller))
 
