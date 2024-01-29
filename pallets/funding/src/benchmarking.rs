@@ -1192,7 +1192,7 @@ mod benchmarks {
 	// - We know that it does not require to unbond the lowest contribution
 	// - We know it doesn't end the round
 	#[benchmark]
-	fn first_contribution_no_ct_deposit() {
+	fn first_contribution_with_ct_deposit() {
 		// How many other contributions the user did for that same project
 		let x = 0;
 		let ends_round = None;
@@ -1236,7 +1236,7 @@ mod benchmarks {
 	// - We know that it does not require to unbond the lowest contribution
 	// - We know it doesn't end the round
 	#[benchmark]
-	fn first_contribution_with_ct_deposit() {
+	fn first_contribution_no_ct_deposit() {
 		// How many other contributions the user did for that same project
 		let x = 0;
 		let ends_round = None;
@@ -1277,7 +1277,7 @@ mod benchmarks {
 		);
 	}
 	#[benchmark]
-	fn first_contribution_ends_round_no_ct_deposit(
+	fn first_contribution_ends_round_with_ct_deposit(
 		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the extrinsic pass
 		y: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
 		// Total amount of storage items iterated through in `ProjectsToUpdate` when trying to remove our project in `remove_from_update_store`.
@@ -1322,7 +1322,7 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn first_contribution_ends_round_with_ct_deposit(
+	fn first_contribution_ends_round_no_ct_deposit(
 		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the extrinsic pass
 		y: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
 		// Total amount of storage items iterated through in `ProjectsToUpdate` when trying to remove our project in `remove_from_update_store`.
@@ -2553,16 +2553,30 @@ mod benchmarks {
 		// }
 
 		#[test]
-		fn bench_first_contribution() {
+		fn bench_first_contribution_no_ct_deposit() {
 			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution());
+				assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution_no_ct_deposit());
 			});
 		}
 
 		#[test]
-		fn bench_first_contribution_ends_round() {
+		fn bench_first_contribution_with_ct_deposit() {
 			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution_ends_round());
+				assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution_with_ct_deposit());
+			});
+		}
+
+		#[test]
+		fn bench_first_contribution_ends_round_no_ct_deposit() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution_ends_round_no_ct_deposit());
+			});
+		}
+
+		#[test]
+		fn bench_first_contribution_ends_round_with_ct_deposit() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution_ends_round_with_ct_deposit());
 			});
 		}
 
