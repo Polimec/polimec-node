@@ -33,12 +33,15 @@ chain = "statemint-local"
 	name = "statemint-collator"
 	command = "polkadot-parachain"
 
-[[parachains]]
-id = 2000
 
-	[[parachains.collators]]
-	name = "polimec-collator"
-	command = "polimec-parachain-node"
+[[parachains]]
+id = 3344
+chain = "polimec-testing"
+[[parachains.collators]]
+name = "polimec-testing"
+command = "./target/release/polimec-parachain-node"
+args = ["-lerror", "-lxcm::process_instruction=trace", "-lxcm::execute_xcm_in_credit=trace", "-lxcm::barriers=trace", "-lpallet_funding::hrmp=trace", "-lpallet_funding::test=trace", "--execution=native", ]
+ws_port = 8888
 
 [[parachains]]
 id = 3000

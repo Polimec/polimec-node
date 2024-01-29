@@ -1,3 +1,19 @@
+// Polimec Blockchain – https://www.polimec.org/
+// Copyright (C) Polimec 2022. All rights reserved.
+
+// The Polimec Blockchain is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// The Polimec Blockchain is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 pub use parachains_common::{AccountId, AssetHubPolkadotAuraId, AuraId, Balance, BlockNumber};
 use polimec_parachain_runtime::{
@@ -16,6 +32,7 @@ use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::{sr25519, storage::Storage, Pair, Public};
 use sp_runtime::{bounded_vec, BuildStorage, Perbill};
+
 pub use xcm;
 use xcm_emulator::get_account_id_from_seed;
 
@@ -302,7 +319,6 @@ pub mod polimec {
 					.to_vec(),
 				..Default::default()
 			},
-			polimec_funding: Default::default(),
 			balances: polimec_parachain_runtime::BalancesConfig { balances: funded_accounts },
 			parachain_info: polimec_parachain_runtime::ParachainInfoConfig {
 				parachain_id: PARA_ID.into(),
@@ -380,6 +396,7 @@ pub mod polimec {
 				],
 				accounts: vec![],
 			},
+			polimec_funding: Default::default(),
 			vesting: Default::default(),
 		};
 
@@ -536,6 +553,10 @@ pub mod polimec_base {
 				parachain_bond_reserve_percent: GENESIS_PARACHAIN_BOND_RESERVE_PERCENT,
 				blocks_per_round: GENESIS_BLOCKS_PER_ROUND,
 				num_selected_candidates: GENESIS_NUM_SELECTED_CANDIDATES,
+			},
+			oracle_providers_membership: polimec_base_runtime::OracleProvidersMembershipConfig {
+				members: bounded_vec![alice_account.clone(), bob_account, charlie_account],
+				..Default::default()
 			},
 			vesting: Default::default(),
 			transaction_payment: Default::default(),

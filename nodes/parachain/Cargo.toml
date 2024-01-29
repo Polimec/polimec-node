@@ -24,6 +24,7 @@ futures.workspace = true
 polimec-parachain-runtime.workspace = true
 polimec-base-runtime.workspace = true
 pallet-funding.workspace = true
+macros = { workspace = true }
 
 # Substrate
 frame-benchmarking.workspace = true
@@ -132,9 +133,4 @@ std = [
 	"sp-session/std",
 	"sp-transaction-pool/std",
 	"xcm/std",
-]
-testing-node = [
-	"pallet-funding/testing-node",
-	"polimec-base-runtime/testing-node",
-	"polimec-parachain-runtime/testing-node",
 ]

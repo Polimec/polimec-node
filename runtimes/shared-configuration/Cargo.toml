@@ -60,7 +60,6 @@ runtime-benchmarks = [
 	"pallet-funding/runtime-benchmarks",
 	"pallet-parachain-staking/runtime-benchmarks",
 ]
-testing-node = [ "pallet-funding/testing-node" ]
 try-runtime = [
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",

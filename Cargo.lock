@@ -456,6 +456,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "atomic-polyfill"
+version = "0.1.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3ff7eb3f316534d83a8a2c3d1674ace8a5a71198eba31e2e2b597833f699b28"
+dependencies = [
+ "critical-section",
+]
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1335,6 +1344,12 @@ dependencies = [
  "cast",
  "itertools 0.10.5",
 ]
+
+[[package]]
+name = "critical-section"
+version = "1.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7059fff8937831a9ae6f0fe4d658ffabf58f2ca96aa9dec1c889f936f705f216"
 
 [[package]]
 name = "crossbeam-deque"
@@ -3503,6 +3518,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "hash32"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0c35f58762feb77d74ebe43bdbc3210f09be9fe6742234d573bacc26ed92b67"
+dependencies = [
+ "byteorder",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3525,6 +3549,20 @@ name = "hashbrown"
 version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "290f1a1d9242c78d09ce40a5e87e7554ee637af1351968159f4952f028f75604"
+
+[[package]]
+name = "heapless"
+version = "0.7.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "db04bc24a18b9ea980628ecf00e6c0264f3c1426dac36c00cb49b6fbad8b0743"
+dependencies = [
+ "atomic-polyfill",
+ "hash32",
+ "rustc_version 0.4.0",
+ "serde",
+ "spin 0.9.8",
+ "stable_deref_trait",
+]
 
 [[package]]
 name = "heck"
@@ -3883,7 +3921,7 @@ dependencies = [
 
 [[package]]
 name = "integration-tests"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "asset-hub-polkadot-runtime",
  "cumulus-pallet-xcm",
@@ -3913,9 +3951,9 @@ dependencies = [
  "parity-scale-codec",
  "penpal-runtime",
  "polimec-base-runtime",
+ "polimec-common",
  "polimec-parachain-runtime",
  "polimec-receiver",
- "polimec-traits",
  "polkadot-core-primitives",
  "polkadot-parachain",
  "polkadot-primitives",
@@ -6115,12 +6153,13 @@ dependencies = [
 
 [[package]]
 name = "pallet-funding"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "assert_matches2",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "futures",
  "itertools 0.11.0",
  "log",
  "pallet-assets",
@@ -6131,7 +6170,8 @@ dependencies = [
  "pallet-xcm",
  "parachains-common",
  "parity-scale-codec",
- "polimec-traits",
+ "polimec-common",
+ "polimec-receiver",
  "polimec-xcm-executor",
  "polkadot-parachain",
  "polkadot-runtime",
@@ -6143,6 +6183,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "tokio",
  "xcm",
  "xcm-builder",
  "xcm-executor",
@@ -6258,16 +6299,15 @@ dependencies = [
 
 [[package]]
 name = "pallet-linear-release"
-version = "4.0.0-dev"
+version = "0.4.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
  "pallet-balances",
- "pallet-funding",
  "parity-scale-codec",
- "polimec-traits",
+ "polimec-common",
  "scale-info",
  "serde",
  "sp-core",
@@ -6481,8 +6521,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-oracle-ocw"
+version = "0.4.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "heapless",
+ "log",
+ "orml-oracle",
+ "pallet-balances",
+ "parity-scale-codec",
+ "parking_lot 0.12.1",
+ "scale-info",
+ "serde",
+ "serde-json-core",
+ "sp-consensus-aura",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "substrate-fixed",
+]
+
+[[package]]
 name = "pallet-parachain-staking"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6494,7 +6558,7 @@ dependencies = [
  "pallet-session",
  "pallet-timestamp",
  "parity-scale-codec",
- "polimec-traits",
+ "polimec-common",
  "scale-info",
  "serde",
  "similar-asserts",
@@ -7208,8 +7272,8 @@ dependencies = [
  "parachain-info",
  "parachains-common",
  "parity-scale-codec",
+ "polimec-common",
  "polimec-receiver",
- "polimec-traits",
  "polkadot-parachain",
  "polkadot-primitives",
  "polkadot-runtime-common",
@@ -7384,7 +7448,7 @@ dependencies = [
 
 [[package]]
 name = "polimec-base-runtime"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -7404,13 +7468,16 @@ dependencies = [
  "frame-try-runtime",
  "hex-literal 0.3.4",
  "log",
+ "orml-oracle",
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
  "pallet-collective",
  "pallet-democracy 4.0.0-dev",
  "pallet-elections-phragmen 5.0.0-dev",
+ "pallet-membership",
  "pallet-multisig",
+ "pallet-oracle-ocw",
  "pallet-parachain-staking",
  "pallet-preimage",
  "pallet-proxy",
@@ -7427,7 +7494,7 @@ dependencies = [
  "parachain-info",
  "parachains-common",
  "parity-scale-codec",
- "polimec-traits",
+ "polimec-common",
  "polkadot-parachain",
  "polkadot-primitives",
  "polkadot-runtime-common",
@@ -7453,8 +7520,25 @@ dependencies = [
 ]
 
 [[package]]
-name = "polimec-parachain-node"
+name = "polimec-common"
 version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "itertools 0.11.0",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "polimec-parachain-node"
+version = "0.4.0"
 dependencies = [
  "clap",
  "color-print",
@@ -7474,6 +7558,7 @@ dependencies = [
  "hex-literal 0.3.4",
  "jsonrpsee",
  "log",
+ "macros",
  "pallet-funding",
  "pallet-transaction-payment-rpc",
  "parachains-common",
@@ -7523,7 +7608,7 @@ dependencies = [
 
 [[package]]
 name = "polimec-parachain-runtime"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -7557,6 +7642,7 @@ dependencies = [
  "pallet-linear-release",
  "pallet-membership",
  "pallet-multisig",
+ "pallet-oracle-ocw",
  "pallet-parachain-staking",
  "pallet-preimage",
  "pallet-scheduler",
@@ -7572,7 +7658,7 @@ dependencies = [
  "parachain-info",
  "parachains-common",
  "parity-scale-codec",
- "polimec-traits",
+ "polimec-common",
  "polimec-xcm-executor",
  "polkadot-parachain",
  "polkadot-primitives",
@@ -7607,7 +7693,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "parity-scale-codec",
- "polimec-traits",
+ "polimec-common",
  "polkadot-parachain",
  "polkadot-runtime-parachains",
  "scale-info",
@@ -7619,25 +7705,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "polimec-traits"
-version = "0.1.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "itertools 0.11.0",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "polimec-xcm-executor"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "environmental",
  "frame-benchmarking",
@@ -11212,6 +11281,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-json-core"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c9e1ab533c0bc414c34920ec7e5f097101d126ed5eac1a1aac711222e0bbb33"
+dependencies = [
+ "ryu",
+ "serde",
+]
+
+[[package]]
 name = "serde_derive"
 version = "1.0.193"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11312,7 +11391,7 @@ dependencies = [
 
 [[package]]
 name = "shared-configuration"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -12224,6 +12303,9 @@ name = "spin"
 version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
+dependencies = [
+ "lock_api",
+]
 
 [[package]]
 name = "spinners"

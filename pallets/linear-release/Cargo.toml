@@ -1,13 +1,14 @@
 [package]
 name = "pallet-linear-release"
-version = "4.0.0-dev"
-authors = ["Parity Technologies <admin@parity.io>"]
-edition = "2021"
-license = "MIT-0"
-homepage = "https://substrate.io"
-repository = "https://github.com/paritytech/substrate/"
-description = "FRAME example pallet"
-readme = "README.md"
+description = "It allows to set a Release Schedule using the new `fungible::Hold` API."
+authors.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+readme.workspace = true
+repository.workspace = true
+version.workspace = true
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
@@ -20,10 +21,9 @@ frame-support.workspace = true
 frame-system.workspace = true
 sp-std.workspace = true
 sp-runtime.workspace = true
-polimec-traits.workspace = true
+polimec-common.workspace = true
 frame-benchmarking = { workspace = true, optional = true }
 xcm-builder = { workspace = true, optional = true }
-pallet-funding = { workspace = true, optional = true }
 
 [dev-dependencies]
 sp-core.workspace = true
@@ -40,10 +40,10 @@ std = [
 	"frame-system/std",
 	"log/std",
 	"pallet-balances/std",
-	"pallet-funding/std",
 	"parity-scale-codec/std",
-	"polimec-traits/std",
+	"polimec-common/std",
 	"scale-info/std",
+	"serde/std",
 	"sp-core/std",
 	"sp-io/std",
 	"sp-runtime/std",
@@ -55,9 +55,7 @@ runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
-	"pallet-funding",
-	"pallet-funding/runtime-benchmarks",
-	"polimec-traits/runtime-benchmarks",
+	"polimec-common/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 ]
@@ -65,8 +63,6 @@ try-runtime = [
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
 	"pallet-balances/try-runtime",
-	"pallet-funding/try-runtime",
-	"polimec-traits/try-runtime",
+	"polimec-common/try-runtime",
 	"sp-runtime/try-runtime",
 ]
-testing-node = [ "pallet-funding/testing-node" ]

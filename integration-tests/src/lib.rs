@@ -16,7 +16,6 @@
 
 pub mod constants;
 
-#[cfg(all(test, feature = "std", feature = "testing-node"))]
 mod tests;
 
 pub use constants::{accounts::*, penpal, polimec, polimec_base, polkadot, statemint};

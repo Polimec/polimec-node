@@ -1,3 +1,19 @@
+// Polimec Blockchain – https://www.polimec.org/
+// Copyright (C) Polimec 2022. All rights reserved.
+
+// The Polimec Blockchain is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// The Polimec Blockchain is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 use crate::*;
 /// Tests for the oracle pallet integration.
 /// Alice, Bob, Charlie are members of the OracleProvidersMembers.
@@ -9,10 +25,7 @@ use tests::defaults::*;
 
 fn values(
 	values: [f64; 4],
-) -> BoundedVec<
-	(u32, FixedU128),
-	<polimec_parachain_runtime::Runtime as orml_oracle::Config<orml_oracle::Instance1>>::MaxFeedValues,
-> {
+) -> BoundedVec<(u32, FixedU128), <polimec_parachain_runtime::Runtime as orml_oracle::Config<()>>::MaxFeedValues> {
 	let [dot, usdc, usdt, plmc] = values;
 	bounded_vec![
 		(0u32, FixedU128::from_float(dot)),
@@ -24,7 +37,11 @@ fn values(
 
 #[test]
 fn members_can_feed_data() {
+	let mut inst = IntegrationInstantiator::new(None);
+
 	Polimec::execute_with(|| {
+		// pallet_funding genesis builder already inputs prices, so we need to advance one block to feed new values.
+		inst.advance_time(1u32).unwrap();
 		let alice = Polimec::account_id_of(ALICE);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.clone()), values([4.84, 1.0, 1.0, 0.4])));
 
@@ -54,14 +71,18 @@ fn non_members_cannot_feed_data() {
 		let dave = Polimec::account_id_of(DAVE);
 		assert_noop!(
 			Oracle::feed_values(RuntimeOrigin::signed(dave.clone()), values([4.84, 1.0, 1.0, 0.4])),
-			orml_oracle::Error::<polimec_parachain_runtime::Runtime, orml_oracle::Instance1>::NoPermission
+			orml_oracle::Error::<polimec_parachain_runtime::Runtime, ()>::NoPermission
 		);
 	});
 }
 
 #[test]
 fn data_is_correctly_combined() {
+	let mut inst = IntegrationInstantiator::new(None);
 	Polimec::execute_with(|| {
+		// pallet_funding genesis builder already inputs prices, so we need to advance one block to feed new values.
+		inst.advance_time(1u32).unwrap();
+
 		let alice = Polimec::account_id_of(ALICE);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.clone()), values([1.0, 1.5, 1.1, 0.11111])));
 
@@ -91,6 +112,9 @@ fn pallet_funding_works() {
 	let mut inst = IntegrationInstantiator::new(None);
 
 	Polimec::execute_with(|| {
+		// pallet_funding genesis builder already inputs prices, so we need to advance one block to feed new values.
+		inst.advance_time(1u32).unwrap();
+
 		let alice = Polimec::account_id_of(ALICE);
 		assert_ok!(Oracle::feed_values(RuntimeOrigin::signed(alice.clone()), values([4.84, 1.0, 1.0, 0.4])));
 

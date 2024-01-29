@@ -20,8 +20,7 @@ scale-info = { workspace = true, features = ["derive"] }
 # Local
 polimec-receiver.workspace = true
 macros.workspace = true
-polimec-traits.workspace = true
-
+polimec-common.workspace = true
 sp-arithmetic.workspace = true
 frame-system.workspace = true
 frame-support.workspace = true
@@ -108,9 +107,9 @@ std = [
 	"parachains-common/std",
 	"parity-scale-codec/std",
 	"penpal-runtime/std",
+	"polimec-common/std",
 	"polimec-parachain-runtime/std",
 	"polimec-receiver/std",
-	"polimec-traits/std",
 	"polkadot-core-primitives/std",
 	"polkadot-parachain/std",
 	"polkadot-primitives/std",
@@ -149,9 +148,9 @@ runtime-benchmarks = [
 	"pallet-xcm/runtime-benchmarks",
 	"penpal-runtime/runtime-benchmarks",
 	"polimec-base-runtime/runtime-benchmarks",
+	"polimec-common/runtime-benchmarks",
 	"polimec-parachain-runtime/runtime-benchmarks",
 	"polimec-receiver/runtime-benchmarks",
-	"polimec-traits/runtime-benchmarks",
 	"polkadot-parachain/runtime-benchmarks",
 	"polkadot-primitives/runtime-benchmarks",
 	"polkadot-runtime-parachains/runtime-benchmarks",
@@ -183,9 +182,9 @@ try-runtime = [
 	"parachain-info/try-runtime",
 	"penpal-runtime/try-runtime",
 	"polimec-base-runtime/try-runtime",
+	"polimec-common/try-runtime",
 	"polimec-parachain-runtime/try-runtime",
 	"polimec-receiver/try-runtime",
-	"polimec-traits/try-runtime",
 	"polkadot-runtime-parachains/try-runtime",
 	"polkadot-runtime/try-runtime",
 	"polkadot-service/try-runtime",

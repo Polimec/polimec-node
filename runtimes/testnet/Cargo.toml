@@ -18,14 +18,15 @@ parity-scale-codec = { workspace = true, features = ["derive"] }
 log = { workspace = true }
 scale-info = { workspace = true, features = ["derive"] }
 hex-literal = { workspace = true, optional = true }
-serde = { workspace = true, optional = true, features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
 smallvec.workspace = true
 
 # Polimec specific
 pallet-funding.workspace = true
+pallet-oracle-ocw.workspace = true
 pallet-linear-release.workspace = true
 shared-configuration.workspace = true
-polimec-traits.workspace = true
+polimec-common.workspace = true
 
 # FRAME
 frame-benchmarking = { workspace = true, optional = true }
@@ -134,6 +135,7 @@ std = [
 	"pallet-linear-release/std",
 	"pallet-membership/std",
 	"pallet-multisig/std",
+	"pallet-oracle-ocw/std",
 	"pallet-parachain-staking/std",
 	"pallet-preimage/std",
 	"pallet-scheduler/std",
@@ -149,14 +151,13 @@ std = [
 	"parachain-info/std",
 	"parachains-common/std",
 	"parity-scale-codec/std",
+	"polimec-common/std",
 	"polimec-xcm-executor/std",
 	"polkadot-parachain/std",
 	"polkadot-primitives/std",
 	"polkadot-runtime-common/std",
-	"polimec-traits/std",
 	"scale-info/std",
-	"serde",
-	"serde?/std",
+	"serde/std",
 	"shared-configuration/std",
 	"sp-api/std",
 	"sp-block-builder/std",
@@ -203,15 +204,16 @@ runtime-benchmarks = [
 	"pallet-utility/runtime-benchmarks",
 	"pallet-vesting/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
+	"polimec-common/runtime-benchmarks",
 	"polimec-xcm-executor/runtime-benchmarks",
 	"polkadot-parachain/runtime-benchmarks",
 	"polkadot-primitives/runtime-benchmarks",
 	"polkadot-runtime-common/runtime-benchmarks",
-	"polimec-traits/runtime-benchmarks",
 	"shared-configuration/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
+	"pallet-oracle-ocw/runtime-benchmarks"
 ]
 
 try-runtime = [
@@ -239,6 +241,7 @@ try-runtime = [
 	"pallet-linear-release/try-runtime",
 	"pallet-membership/try-runtime",
 	"pallet-multisig/try-runtime",
+	"pallet-oracle-ocw/try-runtime",
 	"pallet-parachain-staking/try-runtime",
 	"pallet-preimage/try-runtime",
 	"pallet-scheduler/try-runtime",
@@ -251,14 +254,9 @@ try-runtime = [
 	"pallet-vesting/try-runtime",
 	"pallet-xcm/try-runtime",
 	"parachain-info/try-runtime",
+	"polimec-common/try-runtime",
 	"polimec-xcm-executor/try-runtime",
 	"polkadot-runtime-common/try-runtime",
-	"polimec-traits/try-runtime",
 	"shared-configuration/try-runtime",
 	"sp-runtime/try-runtime",
-]
-testing-node = [
-	"pallet-funding/testing-node",
-	"pallet-linear-release/testing-node",
-	"shared-configuration/testing-node",
 ]

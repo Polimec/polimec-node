@@ -1,18 +1,21 @@
 // Copyright 2019-2022 PureStake Inc.
-// This file is part of Moonbeam.
 
-// Moonbeam is free software: you can redistribute it and/or modify
+// Polimec Blockchain – https://www.polimec.org/
+// Copyright (C) Polimec 2022. All rights reserved.
+
+// The Polimec Blockchain is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Moonbeam is distributed in the hope that it will be useful,
+// The Polimec Blockchain is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Moonbeam.  If not, see <http://www.gnu.org/licenses/>.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 
 #![cfg(feature = "runtime-benchmarks")]
 
@@ -21,11 +24,15 @@ use crate::{
 	AwardedPts, BalanceOf, Call, CandidateBondLessRequest, Config, DelegationAction, Pallet, ParachainBondConfig,
 	ParachainBondInfo, Points, Range, RewardPayment, Round, ScheduledRequest, Staked, TopDelegations,
 };
+use frame_support::traits::fungible::{Inspect, Mutate};
+
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite, vec};
-use frame_support::traits::{Currency, Get, OnFinalize, OnInitialize};
+use frame_support::traits::{fungible::Balanced, Get, OnFinalize, OnInitialize};
 use frame_system::{pallet_prelude::BlockNumberFor, RawOrigin};
+#[cfg(feature = "std")]
+use sp_runtime::BuildStorage;
 use sp_runtime::{Perbill, Percent};
-use sp_std::vec::Vec;
+use sp_std::{default::Default, vec::Vec};
 
 /// Minimum collator candidate stake
 fn min_candidate_stk<T: Config>() -> BalanceOf<T> {
@@ -45,8 +52,7 @@ fn create_funded_user<T: Config>(string: &'static str, n: u32, extra: BalanceOf<
 	let user = account(string, n, SEED);
 	let min_candidate_stk = min_candidate_stk::<T>();
 	let total = min_candidate_stk + extra;
-	T::Currency::make_free_balance_be(&user, total);
-	T::Currency::issue(total);
+	T::Currency::set_balance(&user, total + 1u32.into());
 	(user, total)
 }
 
@@ -1023,13 +1029,13 @@ benchmarks! {
 	verify {
 		// collator should have been paid
 		assert!(
-			T::Currency::free_balance(&sole_collator) > initial_stake_amount,
+			T::Currency::balance(&sole_collator) > initial_stake_amount,
 			"collator should have been paid in pay_one_collator_reward"
 		);
 		// nominators should have been paid
 		for delegator in &delegators {
 			assert!(
-				T::Currency::free_balance(&delegator) > initial_stake_amount,
+				T::Currency::balance(&delegator) > initial_stake_amount,
 				"delegator should have been paid in pay_one_collator_reward"
 			);
 		}
@@ -1245,16 +1251,19 @@ benchmarks! {
 		let collator = create_funded_collator::<T>(
 			"collator",
 			seed.take(),
-			0u32.into(),
+			1u32.into(),
 			true,
 			1,
 		)?;
-		let original_free_balance = T::Currency::free_balance(&collator);
+		let original_free_balance = T::Currency::balance(&collator);
+		let pay_master = T::PayMaster::get();
+		T::Currency::set_balance(&pay_master, 100u32.into());
+
 	}: {
 		Pallet::<T>::mint_collator_reward(1u32.into(), collator.clone(), 50u32.into())
 	}
 	verify {
-		assert_eq!(T::Currency::free_balance(&collator), original_free_balance + 50u32.into());
+		assert_eq!(T::Currency::balance(&collator), original_free_balance + 50u32.into());
 	}
 }
 
@@ -1265,7 +1274,7 @@ mod tests {
 	use sp_io::TestExternalities;
 
 	pub fn new_test_ext() -> TestExternalities {
-		let t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		let t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 		TestExternalities::new(t)
 	}
 

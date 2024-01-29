@@ -1,3 +1,19 @@
+// Polimec Blockchain – https://www.polimec.org/
+// Copyright (C) Polimec 2022. All rights reserved.
+
+// The Polimec Blockchain is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// The Polimec Blockchain is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 use crate::{BalanceOf, Config, ProjectId};
 use frame_support::weights::Weight;
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -18,18 +34,18 @@ pub trait ProvideStatemintPrice {
 	fn get_price(asset_id: Self::AssetId) -> Option<Self::Price>;
 }
 
-pub trait DoRemainingOperation {
+pub trait DoRemainingOperation<T: Config> {
 	fn has_remaining_operations(&self) -> bool;
 
-	fn do_one_operation<T: crate::Config>(&mut self, project_id: ProjectId) -> Result<Weight, DispatchError>;
+	fn do_one_operation(&mut self, project_id: ProjectId) -> Result<Weight, DispatchError>;
 }
 
-#[cfg(feature = "runtime-benchmarks")]
+#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 pub trait SetPrices {
 	fn set_prices();
 }
 
-#[cfg(feature = "runtime-benchmarks")]
+#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 impl SetPrices for () {
 	fn set_prices() {}
 }

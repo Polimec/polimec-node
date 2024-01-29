@@ -53,7 +53,7 @@
 // 		RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip,
 // 		Assets: pallet_assets,
 // 		Balances: pallet_balances,
-// 		FundingModule: pallet_funding,
+// 		PolimecFunding: pallet_funding,
 // 		Sandbox: crate,
 // 	}
 // );

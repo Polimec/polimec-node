@@ -20,7 +20,7 @@ build-parachain-node:
 
 # Build the "Base" Runtime using srtool
 build-base-srtool:
-	srtool build --root -p polimec-base-runtime --runtime-dir runtimes/base
+	srtool build --root -p polimec-base-runtime --runtime-dir runtimes/base --build-opts="--features=on-chain-release-build"
 
 # Build the "Testnet" Runtime using srtool
 build-parachain-srtool:
@@ -34,6 +34,7 @@ test-runtime-features:
 test-integration:
 	cargo test -p integration-tests
 
+
 # Benchmark the "Testnet" Runtime
 benchmark-runtime-funding:
 	cargo run --features runtime-benchmarks --release -p polimec-parachain-node benchmark pallet \
@@ -45,6 +46,7 @@ benchmark-runtime-funding:
 		--wasm-execution=compiled \
 		--heap-pages=4096 \
 		--output=runtimes/testnet/src/weights/pallet_funding.rs
+
 
 # Benchmark the "Testnet" Runtime
 benchmark-runtime-linear-release:
@@ -82,10 +84,8 @@ benchmark-pallet-linear-release:
 		--template=./.maintain/frame-weight-template.hbs
 
 benchmarks-test:
-	cargo run --features runtime-benchmarks,fast-mode -p polimec-parachain-node benchmark pallet \
-		--chain=polimec-rococo-local \
-		--pallet="pallet_funding" \
-		--extrinsic="*"
+    cargo test --features runtime-benchmarks -p pallet-funding benchmarks
+
 
 # Build the Node Docker Image
 docker-build tag = "latest" package= "polimec-parachain-node":

@@ -1,14 +1,14 @@
 [package]
 name = 'pallet-funding'
-authors = ['Polimec Foundation <info@polimec.org>']
-documentation = "https://wiki.polimec.org/"
-edition = "2021"
-homepage = "https://www.polimec.org/"
-license-file = "LICENSE"
-readme = "README.md"
-repository = "https://github.com/Polimec/polimec-node"
-version = "0.1.0"
-rust-version = "1.69.0"
+description = "Funding logic. It allows credentialed users to create, evaluate, and fund projects."
+authors.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+readme.workspace = true
+repository.workspace = true
+version.workspace = true
 
 [dependencies]
 serde = { workspace = true  }
@@ -18,6 +18,9 @@ parity-scale-codec = { version = "3.6.5", features = [
 scale-info = { version = "2.9.0", default-features = false, features = [
     "derive",
 ] }
+tokio = { version = "1", features = ["full"], optional = true }
+futures = { version = "0.3.29", optional = true }
+
 log.workspace = true
 
 itertools.workspace = true
@@ -29,7 +32,7 @@ frame-system.workspace = true
 sp-std.workspace = true
 sp-runtime.workspace = true
 sp-arithmetic.workspace = true
-polimec-traits.workspace = true
+polimec-common.workspace = true
 parachains-common.workspace = true
 sp-core.workspace = true
 pallet-balances.workspace = true
@@ -42,20 +45,29 @@ pallet-xcm.workspace = true
 polkadot-runtime.workspace = true
 polkadot-runtime-parachains.workspace = true
 polkadot-parachain.workspace = true
+polimec-receiver.workspace = true
+
+# cargo expand visibility
+# pallet-insecure-randomness-collective-flip.workspace = { workspace = true, optional = true }
+# pallet-assets.workspace = { workspace = true, optional = true }
+# pallet-linear-release.workspace = { workspace = true, optional = true }
+# assert_matches2.workspace = { workspace = true, optional = true }
+# xcm-executor.workspace = { workspace = true, optional = true }
 
 [dev-dependencies]
 pallet-insecure-randomness-collective-flip.workspace = true
 pallet-assets.workspace = true
 pallet-linear-release.workspace = true
 assert_matches2.workspace = true
-xcm-builder.workspace = true
 xcm-executor.workspace = true
+
 [features]
 default = [ "std" ]
 std = [
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
+	"futures",
 	"itertools/use_std",
 	"log/std",
 	"pallet-assets/std",
@@ -66,7 +78,8 @@ std = [
 	"pallet-xcm/std",
 	"parachains-common/std",
 	"parity-scale-codec/std",
-	"polimec-traits/std",
+	"polimec-common/std",
+	"polimec-receiver/std",
 	"polimec-xcm-executor/std",
 	"polkadot-parachain/std",
 	"polkadot-runtime-parachains/std",
@@ -78,6 +91,7 @@ std = [
 	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
+	"tokio",
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
@@ -92,7 +106,8 @@ runtime-benchmarks = [
 	"pallet-linear-release/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
-	"polimec-traits/runtime-benchmarks",
+	"polimec-common/runtime-benchmarks",
+	"polimec-receiver/runtime-benchmarks",
 	"polimec-xcm-executor/runtime-benchmarks",
 	"polkadot-parachain/runtime-benchmarks",
 	"polkadot-runtime-parachains/runtime-benchmarks",
@@ -110,10 +125,11 @@ try-runtime = [
 	"pallet-linear-release/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"pallet-xcm/try-runtime",
-	"polimec-traits/try-runtime",
-	"polimec-xcm-executor/try-runtime",
+	"polimec-common/try-runtime",
+	"polimec-receiver/try-runtime",
 	"polkadot-runtime-parachains/try-runtime",
 	"polkadot-runtime/try-runtime",
 	"sp-runtime/try-runtime",
+	"polimec-xcm-executor/try-runtime"
 ]
-testing-node = [ "pallet-linear-release/testing-node" ]
+
