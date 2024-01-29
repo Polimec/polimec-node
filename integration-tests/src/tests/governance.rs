@@ -200,6 +200,32 @@ fn treasury_proposal_accepted_by_council() {
 	});
 }
 
+#[test]
+fn slashed_treasury_proposal_funds_send_to_treasury() {
+	let alice = PolimecBase::account_id_of(ALICE);
+	PolimecBase::execute_with(|| {
+		// 0. Set the treasury balance to 1000 PLMC
+		assert_ok!(Balances::write_balance(&GrowthTreasury::account_id(), 1000 * PLMC));
+		let alice_balance = Balances::balance(&alice);
+		// 1. Create treasury proposal for 100 PLMC
+		assert_ok!(GrowthTreasury::propose_spend(
+			RuntimeOrigin::signed(alice.clone()),
+			100 * PLMC,
+			get_account_id_from_seed::<sr25519::Public>("Beneficiary").into()
+		));
+
+		// 2. Reject treasury proposal
+		assert_ok!(GrowthTreasury::reject_proposal(
+			pallet_collective::RawOrigin::<AccountId, pallet_collective::Instance1>::Members(5, 9).into(),
+			0u32,
+		));
+
+		// 3. See that the funds are slashed and sent to treasury
+		assert_eq!(Balances::balance(&GrowthTreasury::account_id()), 1050 * PLMC);
+		assert_eq!(Balances::balance(&alice), alice_balance - 50 * PLMC);
+	});
+}
+
 fn assert_same_members(expected: Vec<AccountId>, actual: &Vec<AccountId>) {
 	assert_eq!(expected.len(), actual.len());
 	for member in expected {

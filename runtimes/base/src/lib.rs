@@ -410,7 +410,10 @@ impl pallet_treasury::Config for Runtime {
 	type ProposalBond = ProposalBond;
 	type ProposalBondMaximum = ();
 	type ProposalBondMinimum = ProposalBondMinimum;
-	type RejectOrigin = EnsureRoot<AccountId>;
+	type RejectOrigin = EitherOfDiverse<
+		EnsureRoot<AccountId>,
+		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 2>,
+	>;
 	type RuntimeEvent = RuntimeEvent;
 	type SpendFunds = ();
 	type SpendOrigin = frame_support::traits::NeverEnsureOrigin<Balance>;
