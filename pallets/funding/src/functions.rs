@@ -975,6 +975,8 @@ impl<T: Config> Pallet<T> {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PriceNotFound)?;
 		let ct_deposit = T::ContributionTokenCurrency::deposit_required(project_id);
+		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder)).collect::<Vec<_>>();
+
 		// benchmark variables
 
 		// * Validity checks *
@@ -984,6 +986,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(funding_asset == project_metadata.participation_currencies, Error::<T>::FundingAssetNotAccepted);
 		// Note: We limit the CT Amount to the total allocation size, to avoid long running loops.
 		ensure!(ct_amount <= project_metadata.total_allocation_size.0, Error::<T>::NotAllowed);
+		ensure!(existing_bids.len() < T::MaxBidsPerUser::get() as usize, Error::<T>::TooManyBids);
 
 		// Reserve plmc deposit to create a contribution token account for this project
 		if T::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), &bidder) < ct_deposit {
@@ -1044,7 +1047,6 @@ impl<T: Config> Pallet<T> {
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
 		let funding_asset_usd_price =
 			T::PriceProvider::get_price(funding_asset.to_statemint_id()).ok_or(Error::<T>::PriceNotFound)?;
-		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder)).collect::<Vec<_>>();
 
 		if let Some(minimum_ticket_size) = project_ticket_size.minimum {
 			// Make sure the bid amount is greater than the minimum specified by the issuer
@@ -1081,29 +1083,6 @@ impl<T: Config> Pallet<T> {
 			ct_minted: false,
 			ct_migration_status: MigrationStatus::NotStarted,
 		};
-
-		// * Update storage *
-		if existing_bids.len() >= T::MaxBidsPerUser::get() as usize {
-			let lowest_bid = existing_bids.iter().min_by_key(|bid| &bid.id).ok_or(Error::<T>::ImpossibleState)?;
-
-			// TODO: Check how to handle this
-			// ensure!(new_bid.plmc_bond > lowest_bid.plmc_bond, Error::<T>::BidTooLow);
-
-			T::NativeCurrency::release(
-				&HoldReason::Participation(project_id.into()).into(),
-				&lowest_bid.bidder,
-				lowest_bid.plmc_bond,
-				Precision::Exact,
-			)?;
-			T::FundingCurrency::transfer(
-				asset_id,
-				&Self::fund_account_id(project_id),
-				&lowest_bid.bidder,
-				lowest_bid.funding_asset_amount_locked,
-				Preservation::Expendable,
-			)?;
-			Bids::<T>::remove((project_id, &lowest_bid.bidder, lowest_bid.id));
-		}
 
 		Self::try_plmc_participation_lock(bidder, project_id, plmc_bond)?;
 		Self::try_funding_asset_hold(bidder, project_id, funding_asset_amount_locked, asset_id)?;

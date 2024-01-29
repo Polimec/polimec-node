@@ -867,7 +867,6 @@ mod benchmarks {
 	// branches:
 	// - ct account deposit
 	// - amount of times where `perform_bid` is called (i.e how many buckets)
-	// - reached max bids and needs to unbond one
 	#[benchmark]
 	fn bid(x: Linear<1, 20>) {
 		// * setup *

@@ -936,6 +936,8 @@ pub mod pallet {
 		NotEnoughFundsForEscrowCreation,
 		/// Too many attempts to insert project in to ProjectsToUpdate storage
 		TooManyInsertionAttempts,
+		/// Reached bid limit for this user on this project
+		TooManyBids,
 	}
 
 	#[pallet::call]
