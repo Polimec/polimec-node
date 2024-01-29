@@ -525,11 +525,12 @@ fn testing_genesis(
 				.collect::<Vec<_>>(),
 		},
 		polkadot_xcm: PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION), ..Default::default() },
-		treasury: Default::default(),
+		growth_treasury: Default::default(),
 		sudo: SudoConfig { key: Some(sudo_account) },
 		council: CouncilConfig { members: accounts.clone(), phantom: Default::default() },
 		technical_committee: TechnicalCommitteeConfig { members: accounts, phantom: Default::default() },
 		democracy: Default::default(),
+		elections: Default::default(),
 		vesting: Default::default(),
 	}
 }

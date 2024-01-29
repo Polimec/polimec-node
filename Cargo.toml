@@ -9,7 +9,7 @@ members = [
     "macros/tests",
     "polimec-common",
 ]
-
+default-members = ["nodes/*"]
 resolver = "2"
 
 [workspace.package]
@@ -233,5 +233,5 @@ substrate-test-utils = { git = "https://github.com/paritytech/substrate", branch
 cumulus-pallet-session-benchmarking = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "release-v1.0.0" }
 
 # Runtimes
-polimec-parachain-runtime = { path = "runtimes/testnet" }
+polimec-parachain-runtime = { path = "runtimes/testnet"}
 polimec-base-runtime = { path = "runtimes/base" }
