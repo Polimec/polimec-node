@@ -447,8 +447,6 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type RuntimeOrigin = RuntimeOrigin;
 	type SetMembersOrigin = EitherOfDiverse<
 		EnsureRoot<AccountId>,
-		// TODO: Check if 1/2 Council is enough to prevent a governance attack.
-		pallet_collective::EnsureProportionMoreThan<AccountId, CouncilCollective, 1, 2>,
 	>;
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
 }
