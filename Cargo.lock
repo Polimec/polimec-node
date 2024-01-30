@@ -7468,13 +7468,10 @@ dependencies = [
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
-<<<<<<< HEAD
  "pallet-collective",
  "pallet-democracy 4.0.0-dev",
  "pallet-elections-phragmen 5.0.0-dev",
-=======
  "pallet-membership",
->>>>>>> aaf91f5 (Feature/plmc 350 setup offchain worker for price injection with first usdxusd (#118))
  "pallet-multisig",
  "pallet-oracle-ocw",
  "pallet-parachain-staking",

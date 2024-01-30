@@ -24,26 +24,14 @@ extern crate frame_benchmarking;
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime, parameter_types,
-<<<<<<< HEAD
-<<<<<<< HEAD
-	traits::{fungible::Credit, tokens, Contains, EitherOfDiverse, InstanceFilter, PrivilegeCmp},
-=======
 	traits::{fungible::Credit, ConstU32, Contains, EitherOfDiverse, InstanceFilter, PrivilegeCmp, tokens},
->>>>>>> 272e6aa (fix integration tests)
 	weights::{ConstantMultiplier, Weight},
 };
 use frame_system::{EnsureRoot, EnsureSigned};
 use polkadot_runtime_common::{BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate};
-=======
-	traits::{fungible::Credit, ConstU32, Contains, InstanceFilter},
-	weights::{ConstantMultiplier, Weight},
-};
-use frame_system::EnsureRoot;
 use pallet_oracle_ocw::types::AssetName;
 use parachains_common::AssetIdForTrustBackedAssets as AssetId;
 use parity_scale_codec::Encode;
-use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
->>>>>>> aaf91f5 (Feature/plmc 350 setup offchain worker for price injection with first usdxusd (#118))
 use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
@@ -798,7 +786,6 @@ construct_runtime!(
 		CumulusXcm: cumulus_pallet_xcm = 32,
 		DmpQueue: cumulus_pallet_dmp_queue = 33,
 
-<<<<<<< HEAD
 		// Governance
 		GrowthTreasury: pallet_treasury = 40,
 		Democracy: pallet_democracy::{Pallet, Call, Storage, Event<T>, Config<T>, HoldReason, FreezeReason} = 41,
@@ -807,12 +794,10 @@ construct_runtime!(
 		Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>, HoldReason, FreezeReason} = 44,
 		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 45,
 		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 46,
-=======
 		// Oracle
 		Oracle: orml_oracle::{Pallet, Call, Storage, Event<T>} = 70,
 		OracleProvidersMembership: pallet_membership::<Instance1> = 71,
 		OracleOffchainWorker: pallet_oracle_ocw::{Pallet, Event<T>} = 72,
->>>>>>> aaf91f5 (Feature/plmc 350 setup offchain worker for price injection with first usdxusd (#118))
 	}
 );
 

@@ -41,13 +41,10 @@ frame-try-runtime = { workspace = true, optional = true }
 pallet-aura.workspace = true
 pallet-authorship.workspace = true
 pallet-balances.workspace = true
-<<<<<<< HEAD
 pallet-collective.workspace = true
 pallet-democracy.workspace = true
 pallet-elections-phragmen.workspace = true
-=======
 pallet-membership.workspace = true
->>>>>>> aaf91f5 (Feature/plmc 350 setup offchain worker for price injection with first usdxusd (#118))
 pallet-multisig.workspace = true
 pallet-preimage.workspace = true
 pallet-proxy.workspace = true
@@ -58,10 +55,6 @@ pallet-timestamp.workspace = true
 pallet-transaction-payment.workspace = true
 pallet-transaction-payment-rpc-runtime-api.workspace = true
 pallet-treasury.workspace = true
-<<<<<<< HEAD
-=======
-pallet-vesting.workspace = true
->>>>>>> aaf91f5 (Feature/plmc 350 setup offchain worker for price injection with first usdxusd (#118))
 pallet-utility.workspace = true
 pallet-vesting.workspace = true
 sp-arithmetic.workspace = true
@@ -128,17 +121,11 @@ std = [
 	"pallet-aura/std",
 	"pallet-authorship/std",
 	"pallet-balances/std",
-<<<<<<< HEAD
 	"pallet-collective/std",
 	"pallet-democracy/std",
 	"pallet-elections-phragmen/std",
-=======
 	"pallet-membership/std",
-<<<<<<< HEAD
 	"pallet-oracle-ocw/std",
->>>>>>> aaf91f5 (Feature/plmc 350 setup offchain worker for price injection with first usdxusd (#118))
-=======
->>>>>>> 68ea0b3 (Chore/optimize size (#151))
 	"pallet-multisig/std",
 	"pallet-oracle-ocw/std",
 	"pallet-parachain-staking/std",
@@ -190,13 +177,10 @@ runtime-benchmarks = [
 	"frame-system/runtime-benchmarks",
 	"hex-literal",
 	"pallet-balances/runtime-benchmarks",
-<<<<<<< HEAD
 	"pallet-collective/runtime-benchmarks",
 	"pallet-democracy/runtime-benchmarks",
 	"pallet-elections-phragmen/runtime-benchmarks",
-=======
 	"pallet-membership/runtime-benchmarks",
->>>>>>> aaf91f5 (Feature/plmc 350 setup offchain worker for price injection with first usdxusd (#118))
 	"pallet-multisig/runtime-benchmarks",
 	"pallet-parachain-staking/runtime-benchmarks",
 	"pallet-preimage/runtime-benchmarks",
@@ -233,17 +217,10 @@ try-runtime = [
 	"pallet-aura/try-runtime",
 	"pallet-authorship/try-runtime",
 	"pallet-balances/try-runtime",
-<<<<<<< HEAD
 	"pallet-collective/try-runtime",
 	"pallet-democracy/try-runtime",
 	"pallet-elections-phragmen/try-runtime",
-=======
 	"pallet-membership/try-runtime",
-<<<<<<< HEAD
-	"pallet-oracle-ocw/try-runtime",
->>>>>>> aaf91f5 (Feature/plmc 350 setup offchain worker for price injection with first usdxusd (#118))
-=======
->>>>>>> 68ea0b3 (Chore/optimize size (#151))
 	"pallet-multisig/try-runtime",
 	"pallet-oracle-ocw/try-runtime",
 	"pallet-parachain-staking/try-runtime",

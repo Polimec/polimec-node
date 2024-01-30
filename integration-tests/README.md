@@ -14,9 +14,5 @@ with the latest chain specs to provide a realistic testing environment.
 
 ```bash
 $ cd polimec-node/integration-tests/
-<<<<<<< HEAD
 $ cargo test
-=======
-$ cargo test --features std,fast-gov
->>>>>>> b107139 (Feature/plmc 391 allow parallel instantiaton of projects (#130))
 ```

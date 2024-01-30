@@ -9,7 +9,7 @@ members = [
     "macros/tests",
     "polimec-common",
 ]
-default-members = ["nodes/*"]
+default-members = ["nodes/*", "pallets/*",]
 resolver = "2"
 
 [workspace.package]
@@ -56,12 +56,9 @@ substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", bran
 
 # Internal pallets (with default disabled)
 pallet-funding = { path = "pallets/funding", default-features = false }
-<<<<<<< HEAD
 pallet-democracy = { path = "pallets/democracy", default-features = false }
 pallet-elections-phragmen = { path = "pallets/elections-phragmen", default-features = false }
-=======
 pallet-oracle-ocw = { path = "pallets/oracle-ocw", default-features = false }
->>>>>>> aaf91f5 (Feature/plmc 350 setup offchain worker for price injection with first usdxusd (#118))
 pallet-sandbox = { path = "pallets/sandbox", default-features = false }
 pallet-parachain-staking = { path = "pallets/parachain-staking", default-features = false }
 pallet-linear-release = { path = "pallets/linear-release", default-features = false }

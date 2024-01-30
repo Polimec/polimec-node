@@ -396,12 +396,7 @@ pub mod polimec {
 				],
 				accounts: vec![],
 			},
-<<<<<<< HEAD
-=======
-			technical_committee: Default::default(),
-			treasury: Default::default(),
 			polimec_funding: Default::default(),
->>>>>>> b107139 (Feature/plmc 391 allow parallel instantiaton of projects (#130))
 			vesting: Default::default(),
 		};
 
