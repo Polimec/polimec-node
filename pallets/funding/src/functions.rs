@@ -969,7 +969,7 @@ impl<T: Config> Pallet<T> {
 		ct_amount: BalanceOf<T>,
 		multiplier: MultiplierOf<T>,
 		funding_asset: AcceptedFundingAsset,
-	) -> DispatchResult {
+	) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
@@ -978,6 +978,9 @@ impl<T: Config> Pallet<T> {
 		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder)).collect::<Vec<_>>();
 
 		// benchmark variables
+		let mut perform_bid_calls = 0;
+		let mut ct_deposit_required = false;
+		let existing_bids_amount = existing_bids.len() as u32;
 
 		// * Validity checks *
 		ensure!(ct_amount > Zero::zero(), Error::<T>::BidTooLow);
@@ -991,6 +994,7 @@ impl<T: Config> Pallet<T> {
 		// Reserve plmc deposit to create a contribution token account for this project
 		if T::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), &bidder) < ct_deposit {
 			T::NativeCurrency::hold(&HoldReason::FutureDeposit(project_id).into(), &bidder, ct_deposit)?;
+			ct_deposit_required = true
 		}
 
 		// Fetch current bucket details and other required info
@@ -1021,6 +1025,9 @@ impl<T: Config> Pallet<T> {
 				now,
 				plmc_usd_price,
 			)?;
+
+			perform_bid_calls += 1;
+
 			// Update current bucket, and reduce the amount to bid by the amount we just bid
 			current_bucket.update(bid_amount);
 			amount_to_bid.saturating_reduce(bid_amount);
@@ -1029,7 +1036,18 @@ impl<T: Config> Pallet<T> {
 		// Note: If the bucket has been exhausted, the 'update' function has already made the 'current_bucket' point to the next one.
 		Buckets::<T>::insert(project_id, current_bucket);
 
-		Ok(())
+		// if ct deposit was required, we already know it can only be the first bid, so existing_bids_amount == 0
+		if ct_deposit_required {
+			Ok(PostDispatchInfo {
+				actual_weight: Some(WeightInfoOf::<T>::bid_with_ct_deposit(perform_bid_calls)),
+				pays_fee: Pays::Yes,
+			})
+		} else {
+			Ok(PostDispatchInfo {
+				actual_weight: Some(WeightInfoOf::<T>::bid_no_ct_deposit(existing_bids_amount, perform_bid_calls)),
+				pays_fee: Pays::Yes,
+			})
+		}
 	}
 
 	fn perform_do_bid(

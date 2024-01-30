@@ -936,13 +936,11 @@ impl<
 		project_id
 	}
 
-	pub fn bid_for_users(&mut self, project_id: ProjectId, bids: Vec<BidParams<T>>) -> Result<(), DispatchError> {
+	pub fn bid_for_users(&mut self, project_id: ProjectId, bids: Vec<BidParams<T>>) {
 		for bid in bids {
-			self.execute(|| {
-				crate::Pallet::<T>::do_bid(&bid.bidder, project_id, bid.amount, bid.multiplier, bid.asset)
-			})?;
+			self.execute(|| crate::Pallet::<T>::do_bid(&bid.bidder, project_id, bid.amount, bid.multiplier, bid.asset))
+				.unwrap();
 		}
-		Ok(())
 	}
 
 	pub fn start_community_funding(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
@@ -1029,7 +1027,7 @@ impl<
 		self.mint_plmc_to(plmc_ct_account_deposits.clone());
 		self.mint_statemint_asset_to(funding_asset_deposits.clone());
 
-		self.bid_for_users(project_id, bids.clone()).expect("Bidding should work");
+		self.bid_for_users(project_id, bids.clone());
 
 		self.do_reserved_plmc_assertions(
 			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
@@ -1755,7 +1753,7 @@ pub mod async_features {
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 		inst.mint_statemint_asset_to(funding_asset_deposits.clone());
 
-		inst.bid_for_users(project_id, bids.clone()).expect("Bidding should work");
+		inst.bid_for_users(project_id, bids.clone());
 
 		inst.do_reserved_plmc_assertions(
 			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),

@@ -927,7 +927,7 @@ mod benchmarks {
 		inst.mint_statemint_asset_to(usdt_for_existing_bids.clone());
 
 		// do "x" contributions for this user
-		inst.bid_for_users(project_id, existing_bids_post_bucketing.clone()).expect("All bids are accepted");
+		inst.bid_for_users(project_id, existing_bids_post_bucketing.clone());
 
 		// to call do_perform_bid several times, we need the bucket to reach its limit. You can only bid over 10 buckets
 		// in a single bid, since the increase delta is 10% of the total allocation, and you cannot bid more than the allocation.
@@ -965,7 +965,7 @@ mod benchmarks {
 			inst.mint_plmc_to(plmc_ct_deposit);
 			inst.mint_statemint_asset_to(usdt_for_new_bidder.clone());
 
-			inst.bid_for_users(project_id, vec![bid_params]).expect("new bidder can bid");
+			inst.bid_for_users(project_id, vec![bid_params]);
 
 			ct_amount = Percent::from_percent(10) *
 				(project_metadata.total_allocation_size.0 * (do_perform_bid_calls as u128).into());

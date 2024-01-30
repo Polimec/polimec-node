@@ -995,14 +995,20 @@ pub mod pallet {
 
 		/// Bid for a project in the Auction round
 		#[pallet::call_index(5)]
-		#[pallet::weight(WeightInfoOf::<T>::bid())]
+		#[pallet::weight(WeightInfoOf::<T>::bid_no_ct_deposit(
+			// Last bid possible
+			<T as Config>::MaxBidsPerUser::get() - 1,
+			// Assuming the current bucket is full, and has a price higher than the minimum.
+			// This user is buying 100% of the bid allocation, since each bucket has 10% of the allocation at a 10% increase
+			10,
+		))]
 		pub fn bid(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			#[pallet::compact] amount: BalanceOf<T>,
 			multiplier: T::Multiplier,
 			asset: AcceptedFundingAsset,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let bidder = ensure_signed(origin)?;
 			Self::do_bid(&bidder, project_id, amount, multiplier, asset)
 		}

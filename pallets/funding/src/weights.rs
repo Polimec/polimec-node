@@ -59,7 +59,8 @@ pub trait WeightInfo {
 	fn first_evaluation() -> Weight;
 	fn second_to_limit_evaluation(x: u32) -> Weight;
 	fn evaluation_over_limit() -> Weight;
-	fn bid() -> Weight;
+	fn bid_with_ct_deposit(y: u32) -> Weight;
+	fn bid_no_ct_deposit(x: u32, y: u32) -> Weight;
 
 	fn first_contribution_with_ct_deposit() -> Weight;
 	fn first_contribution_no_ct_deposit() -> Weight;
@@ -172,14 +173,12 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Proof: StatemintAssets Account (max_values: None, max_size: Some(134), added: 2609, mode: MaxEncodedLen)
 	/// Storage: System Account (r:1 w:1)
 	/// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	fn bid() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1555`
-		//  Estimated: `6208`
-		// Minimum execution time: 130_000_000 picoseconds.
+	fn bid_with_ct_deposit(y: u32) -> Weight {
 		Weight::from_parts(140_000_000, 6208)
-			.saturating_add(T::DbWeight::get().reads(10_u64))
-			.saturating_add(T::DbWeight::get().writes(7_u64))
+	}
+
+	fn bid_no_ct_deposit(x: u32, y: u32) -> Weight {
+		Weight::from_parts(140_000_000, 6208)
 	}
 
 	fn first_contribution_no_ct_deposit() -> Weight {
