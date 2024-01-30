@@ -16,7 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
 //! Test utilities
 use crate as pallet_parachain_staking;
 use crate::{pallet, AwardedPts, Config, Event as ParachainStakingEvent, InflationInfo, Points, Range};

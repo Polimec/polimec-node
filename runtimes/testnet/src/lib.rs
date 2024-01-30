@@ -54,8 +54,8 @@ use sp_runtime::{
 	ApplyExtrinsicResult, FixedU128, MultiAddress, SaturatedConversion,
 };
 
-use sp_std::{cmp::Ordering, prelude::*};
 use pallet_oracle_ocw::types::AssetName;
+use sp_std::{cmp::Ordering, prelude::*};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;

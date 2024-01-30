@@ -16,7 +16,10 @@
 use super::*;
 
 use frame_benchmarking::v1::{account, benchmarks, whitelist, BenchmarkError, BenchmarkResult};
-use frame_support::{dispatch::DispatchResultWithPostInfo, traits::{OnInitialize, fungible::Balanced}};
+use frame_support::{
+	dispatch::DispatchResultWithPostInfo,
+	traits::{fungible::Balanced, OnInitialize},
+};
 use frame_system::RawOrigin;
 
 use crate::Pallet as Elections;

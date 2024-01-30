@@ -24,14 +24,14 @@ extern crate frame_benchmarking;
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{fungible::Credit, ConstU32, Contains, EitherOfDiverse, InstanceFilter, PrivilegeCmp, tokens},
+	traits::{fungible::Credit, tokens, ConstU32, Contains, EitherOfDiverse, InstanceFilter, PrivilegeCmp},
 	weights::{ConstantMultiplier, Weight},
 };
 use frame_system::{EnsureRoot, EnsureSigned};
-use polkadot_runtime_common::{BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate};
 use pallet_oracle_ocw::types::AssetName;
 use parachains_common::AssetIdForTrustBackedAssets as AssetId;
 use parity_scale_codec::Encode;
+use polkadot_runtime_common::{BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate};
 use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};

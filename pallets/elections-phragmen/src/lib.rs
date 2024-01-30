@@ -388,7 +388,10 @@ pub mod pallet {
 			let locked_stake = value.min(T::Currency::total_balance(&who));
 			T::Currency::set_freeze(&FreezeReason::Voting.into(), &who, locked_stake)?;
 			let current_block = <frame_system::Pallet<T>>::block_number();
-			Voting::<T>::insert(&who, Voter { votes, stake: locked_stake, lockup_till: current_block + T::VotingLockPeriod::get() });
+			Voting::<T>::insert(
+				&who,
+				Voter { votes, stake: locked_stake, lockup_till: current_block + T::VotingLockPeriod::get() },
+			);
 			Ok(None::<Weight>.into())
 		}
 
@@ -717,7 +720,10 @@ pub mod pallet {
 					// they have any lock. NOTE: this means that we will still try to remove a lock
 					// once this genesis voter is removed, and for now it is okay because
 					// remove_lock is noop if lock is not there.
-					<Voting<T>>::insert(&member, Voter { votes: vec![member.clone()], stake: *stake, lockup_till: T::VotingLockPeriod::get() });
+					<Voting<T>>::insert(
+						&member,
+						Voter { votes: vec![member.clone()], stake: *stake, lockup_till: T::VotingLockPeriod::get() },
+					);
 
 					member.clone()
 				})
@@ -819,7 +825,7 @@ impl<T: Config> Pallet<T> {
 		Voting::<T>::contains_key(who)
 	}
 
-	/// Check if `who`'s voting lock duration has passed. 
+	/// Check if `who`'s voting lock duration has passed.
 	fn can_unlock(who: &T::AccountId) -> bool {
 		let current_block = <frame_system::Pallet<T>>::block_number();
 		Voting::<T>::get(who).lockup_till <= current_block
@@ -2007,7 +2013,7 @@ mod tests {
 			assert_eq!(locked_stake_of(&3), 30);
 			assert_eq!(votes_of(&2), vec![5]);
 			assert_eq!(votes_of(&3), vec![5]);
-			
+
 			assert_noop!(Elections::remove_voter(RuntimeOrigin::signed(2)), Error::<Test>::VotingPeriodNotEnded);
 			System::set_block_number(3);
 			assert_ok!(Elections::remove_voter(RuntimeOrigin::signed(2)));
