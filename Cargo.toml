@@ -9,7 +9,7 @@ members = [
     "macros/tests",
     "polimec-common",
 ]
-default-members = ["nodes/*"]
+default-members = ["nodes/*", "pallets/*"]
 resolver = "2"
 
 [workspace.package]
