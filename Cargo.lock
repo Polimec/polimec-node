@@ -5719,6 +5719,7 @@ dependencies = [
  "futures",
  "itertools 0.11.0",
  "log",
+ "macros",
  "pallet-assets",
  "pallet-balances",
  "pallet-insecure-randomness-collective-flip",

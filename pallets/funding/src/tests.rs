@@ -838,54 +838,57 @@ mod auction_round_success {
 
 	#[test]
 	fn price_calculation_2() {
-		// From the knowledge hub
+		// From the knowledge hub: https://hub.polimec.org/learn/calculation-example#auction-round-calculation-example
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		// let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
-		// let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
-		// let metadata_hash = hashed(format!("{}-{}", METADATA, inst.get_new_nonce()));
-		// let project_metadata = ProjectMetadata {
-		// 	token_information: CurrencyMetadata {
-		// 		name: bounded_name,
-		// 		symbol: bounded_symbol,
-		// 		decimals: ASSET_DECIMALS,
-		// 	},
-		// 	mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
-		// 	total_allocation_size: (50_000 * ASSET_UNIT, 50_000 * ASSET_UNIT),
-		// 	minimum_price: PriceOf::<TestRuntime>::from_float(1.0),
-		// 	ticket_size: TicketSize { minimum: Some(1), maximum: None },
-		// 	participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-		// 	funding_thresholds: Default::default(),
-		// 	conversion_rate: 0,
-		// 	participation_currencies: AcceptedFundingAsset::USDT,
-		// 	funding_destination_account: ISSUER,
-		// 	offchain_information_hash: Some(metadata_hash),
-		// };
+
+		const ADAM: u64 = 60;
+		const TOM: u64 = 61;
+		const SOFIA: u64 = 62;
+		const FRED: u64 = 63;
+		const ANNA: u64 = 64;
+		const DAMIAN: u64 = 65;
+
+		let accounts = vec![ADAM, TOM, SOFIA, FRED, ANNA, DAMIAN];
+
+		// overfund with plmc
+		let plmc_fundings = accounts
+			.iter()
+			.map(|acc| UserToPLMCBalance { account: acc.clone(), plmc_amount: PLMC * 1_000_000 })
+			.collect_vec();
+		let usdt_fundings = accounts
+			.iter()
+			.map(|acc| UserToStatemintAsset {
+				account: acc.clone(),
+				asset_amount: US_DOLLAR * 1_000_000,
+				asset_id: AcceptedFundingAsset::USDT.to_statemint_id(),
+			})
+			.collect_vec();
+		inst.mint_plmc_to(plmc_fundings);
+		inst.mint_statemint_asset_to(usdt_fundings);
+
 		let project_metadata = default_project(inst.get_new_nonce(), ISSUER);
 		let project_id = inst.create_auctioning_project(project_metadata, ISSUER, default_evaluations());
+
 		let bids = vec![
-			BidParams::new(BIDDER_1, 10_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_2, 40_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_3, 35_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(ADAM, 10_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(TOM, 20_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(SOFIA, 20_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(FRED, 10_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(ANNA, 5_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(DAMIAN, 5_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
 		];
-
-		let statemint_funding = MockInstantiator::calculate_auction_funding_asset_spent(&bids, None);
-		let plmc_funding = MockInstantiator::calculate_auction_plmc_spent(&bids, None);
-		let ed_funding = plmc_funding.accounts().existential_deposits();
-		let ct_account_deposits = plmc_funding.accounts().ct_account_deposits();
-
-		inst.mint_plmc_to(ed_funding);
-		inst.mint_plmc_to(plmc_funding.clone());
-		inst.mint_plmc_to(plmc_funding.clone());
-		inst.mint_plmc_to(ct_account_deposits);
-		inst.mint_statemint_asset_to(statemint_funding.clone());
-		inst.mint_statemint_asset_to(statemint_funding.clone());
 
 		inst.bid_for_users(project_id, bids);
 
 		inst.start_community_funding(project_id).unwrap();
-		let token_price = inst.get_project_details(project_id).weighted_average_price.unwrap().to_float();
 
-		assert_eq!(token_price, 1.283606557377049);
+		let bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect_vec());
+		let token_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
+		let token_price_as_usdt = token_price.saturating_mul_int(ASSET_UNIT);
+
+		let current_bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id).unwrap());
+
+		assert_eq!(token_price_as_usdt, ASSET_UNIT * 11);
 	}
 
 	#[test]
