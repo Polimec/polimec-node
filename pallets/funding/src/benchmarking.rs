@@ -1115,7 +1115,9 @@ mod benchmarks {
 	// - ct account deposit
 	// - amount of times where `perform_bid` is called (i.e how many buckets)
 	#[benchmark]
-	fn bid(x: Linear<0, { T::MaxBidsPerUser::get() - 1 }>, y: Linear<0, 10>) {
+	fn bid_with_ct_deposit(y: Linear<0, 10>) {
+		// if x were > 0, then the ct deposit would already be paid
+		let x = 0;
 		let (
 			mut inst,
 			project_id,
@@ -1129,6 +1131,47 @@ mod benchmarks {
 			total_free_usdt,
 			total_usdt_locked,
 		) = bid_setup::<T>(x, y);
+
+		#[extrinsic_call]
+		bid(
+			RawOrigin::Signed(original_extrinsic_bid.bidder.clone()),
+			project_id,
+			original_extrinsic_bid.amount,
+			original_extrinsic_bid.multiplier,
+			original_extrinsic_bid.asset,
+		);
+
+		bid_verification::<T>(
+			inst,
+			project_id,
+			project_metadata,
+			maybe_filler_bid,
+			extrinsic_bids_post_bucketing,
+			existing_bids_post_bucketing,
+			total_free_plmc,
+			total_plmc_bonded,
+			total_free_usdt,
+			total_usdt_locked,
+		);
+	}
+
+	#[benchmark]
+	fn bid_no_ct_deposit(x: Linear<0, { T::MaxBidsPerUser::get() - 1 }>, y: Linear<0, 10>) {
+		let (
+			mut inst,
+			project_id,
+			project_metadata,
+			original_extrinsic_bid,
+			maybe_filler_bid,
+			extrinsic_bids_post_bucketing,
+			existing_bids_post_bucketing,
+			total_free_plmc,
+			total_plmc_bonded,
+			total_free_usdt,
+			total_usdt_locked,
+		) = bid_setup::<T>(x, y);
+
+		let _new_plmc_minted = make_ct_deposit_for::<T>(original_extrinsic_bid.bidder.clone(), project_id);
 
 		#[extrinsic_call]
 		bid(
@@ -2723,9 +2766,16 @@ mod benchmarks {
 		}
 
 		#[test]
-		fn bench_bid() {
+		fn bench_bid_with_ct_deposit() {
 			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_bid());
+				assert_ok!(PalletFunding::<TestRuntime>::test_bid_with_ct_deposit());
+			});
+		}
+
+		#[test]
+		fn bench_bid_no_ct_deposit() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_bid_no_ct_deposit());
 			});
 		}
 
