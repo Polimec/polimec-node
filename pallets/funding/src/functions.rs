@@ -1427,11 +1427,14 @@ impl<T: Config> Pallet<T> {
 		project_id: ProjectId,
 		bidder: &AccountIdOf<T>,
 		bid_id: u32,
-	) -> DispatchResult {
+	) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut bid = Bids::<T>::get((project_id, bidder, bid_id)).ok_or(Error::<T>::BidNotFound)?;
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let ct_amount = bid.final_ct_amount;
+
+		// Benchmark variables
+		let mut ct_account_created = false;
 
 		// * Validity checks *
 		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::NotAllowed);
@@ -1444,6 +1447,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Update storage *
 		if !T::ContributionTokenCurrency::contains(&project_id, &bid.bidder) {
+			ct_account_created = true;
 			T::NativeCurrency::release(
 				&HoldReason::FutureDeposit(project_id).into(),
 				&bid.bidder,
@@ -1463,7 +1467,14 @@ impl<T: Config> Pallet<T> {
 			amount: ct_amount,
 		});
 
-		Ok(())
+		Ok(PostDispatchInfo {
+			actual_weight: Some(if ct_account_created {
+				WeightInfoOf::<T>::bid_ct_mint_for_with_ct_account_creation()
+			} else {
+				WeightInfoOf::<T>::bid_ct_mint_for_no_ct_account_creation()
+			}),
+			pays_fee: Pays::Yes,
+		})
 	}
 
 	pub fn do_contribution_ct_mint_for(

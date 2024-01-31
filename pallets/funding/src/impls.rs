@@ -676,10 +676,13 @@ fn mint_ct_for_one_bid<T: Config>(project_id: ProjectId) -> (Weight, u64) {
 				project_id: bid.project_id,
 				claimer: bid.bidder.clone(),
 				id: bid.id,
-				error: e,
+				error: e.error,
 			}),
 		};
-		(base_weight.saturating_add(WeightInfoOf::<T>::bid_ct_mint_for()), remaining_bids.count() as u64)
+		(
+			base_weight.saturating_add(WeightInfoOf::<T>::bid_ct_mint_for_with_ct_account_creation()),
+			remaining_bids.count() as u64,
+		)
 	} else {
 		(base_weight, 0u64)
 	}

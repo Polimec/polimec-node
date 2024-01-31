@@ -1072,13 +1072,13 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(10)]
-		#[pallet::weight(WeightInfoOf::<T>::bid_ct_mint_for())]
+		#[pallet::weight(WeightInfoOf::<T>::bid_ct_mint_for_with_ct_account_creation())]
 		pub fn bid_ct_mint_for(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			bidder: AccountIdOf<T>,
 			bid_id: u32,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let caller = ensure_signed(origin)?;
 			Self::do_bid_ct_mint_for(&caller, project_id, &bidder, bid_id)
 		}

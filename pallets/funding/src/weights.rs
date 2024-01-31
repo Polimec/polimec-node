@@ -79,7 +79,10 @@ pub trait WeightInfo {
 	fn evaluation_reward_payout_for_no_ct_account_creation() -> Weight;
 
 	fn evaluation_slash_for() -> Weight;
-	fn bid_ct_mint_for() -> Weight;
+	fn bid_ct_mint_for_with_ct_account_creation() -> Weight;
+	fn bid_ct_mint_for_no_ct_account_creation() -> Weight;
+
+
 	fn contribution_ct_mint_for() -> Weight;
 	fn start_bid_vesting_schedule_for() -> Weight;
 	fn start_contribution_vesting_schedule_for() -> Weight;
@@ -302,7 +305,17 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Proof: LocalAssets Asset (max_values: None, max_size: Some(210), added: 2685, mode: MaxEncodedLen)
 	/// Storage: LocalAssets Account (r:1 w:1)
 	/// Proof: LocalAssets Account (max_values: None, max_size: Some(134), added: 2609, mode: MaxEncodedLen)
-	fn bid_ct_mint_for() -> Weight {
+	fn bid_ct_mint_for_with_ct_account_creation() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1215`
+		//  Estimated: `4680`
+		// Minimum execution time: 65_000_000 picoseconds.
+		Weight::from_parts(71_000_000, 4680)
+			.saturating_add(T::DbWeight::get().reads(4_u64))
+			.saturating_add(T::DbWeight::get().writes(3_u64))
+	}
+
+	fn bid_ct_mint_for_no_ct_account_creation() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1215`
 		//  Estimated: `4680`

@@ -2027,15 +2027,12 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn bid_ct_mint_for(x: Linear<1, 20>) {
+	fn bid_ct_mint_for_with_ct_account_creation() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
-
-		#[cfg(feature = "std")]
-		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let bids = default_bids::<T>();
@@ -2076,6 +2073,86 @@ mod benchmarks {
 		frame_system::Pallet::<T>::assert_last_event(
 			Event::ContributionTokenMinted { releaser: bidder.clone(), project_id, claimer: bidder, amount: ct_amount }
 				.into(),
+		);
+	}
+
+	#[benchmark]
+	fn bid_ct_mint_for_no_ct_account_creation() {
+		// setup
+		let mut inst = BenchInstantiator::<T>::new(None);
+
+		// real benchmark starts at block 0, and we can't call `events()` at block 0
+		inst.advance_time(1u32.into()).unwrap();
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+		let bids: Vec<BidParams<T>> = vec![
+			BidParams::new(
+				account::<AccountIdOf<T>>("bidder_1", 0, 0),
+				(40_000 * ASSET_UNIT).into(),
+				1_u128.into(),
+				1u8,
+				AcceptedFundingAsset::USDT,
+			),
+			BidParams::new(
+				account::<AccountIdOf<T>>("bidder_1", 0, 0),
+				(5_000 * ASSET_UNIT).into(),
+				1_u128.into(),
+				7u8,
+				AcceptedFundingAsset::USDT,
+			),
+		];
+		let bidder = bids[0].bidder.clone();
+		whitelist_account!(bidder);
+
+		let project_id = inst.create_finished_project(
+			default_project::<T>(inst.get_new_nonce(), issuer.clone()),
+			issuer,
+			default_evaluations::<T>(),
+			bids,
+			default_community_contributions::<T>(),
+			vec![],
+		);
+
+		inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
+		assert_eq!(
+			inst.get_project_details(project_id).cleanup,
+			Cleaner::Success(CleanerState::Initialized(PhantomData))
+		);
+
+		let mut bids_to_mint_ct = inst.execute(|| Bids::<T>::iter_prefix_values((project_id, bidder.clone())));
+
+		let pre_bid_to_mint_ct = bids_to_mint_ct.next().unwrap();
+		let bench_bid_to_mint_ct = bids_to_mint_ct.next().unwrap();
+
+		Pallet::<T>::bid_ct_mint_for(
+			RawOrigin::Signed(bidder.clone()).into(),
+			project_id,
+			bidder.clone(),
+			pre_bid_to_mint_ct.id,
+		)
+		.unwrap();
+
+		#[extrinsic_call]
+		bid_ct_mint_for(RawOrigin::Signed(bidder.clone()), project_id, bidder.clone(), bench_bid_to_mint_ct.id);
+
+		// * validity checks *
+		// Storage
+		let stored_bid = Bids::<T>::get((project_id, bidder.clone(), bench_bid_to_mint_ct.id)).unwrap();
+		assert!(stored_bid.ct_minted);
+
+		// Balances
+		let ct_amount = inst.get_ct_asset_balances_for(project_id, vec![bidder.clone()])[0];
+		assert_eq!(ct_amount, pre_bid_to_mint_ct.final_ct_amount + stored_bid.final_ct_amount);
+
+		// Events
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::ContributionTokenMinted {
+				releaser: bidder.clone(),
+				project_id,
+				claimer: bidder,
+				amount: bench_bid_to_mint_ct.final_ct_amount,
+			}
+			.into(),
 		);
 	}
 
@@ -2937,13 +3014,20 @@ mod benchmarks {
 			});
 		}
 
-		// #[test]
-		// fn bench_bid_ct_mint_for() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_bid_ct_mint_for());
-		// 	});
-		// }
-		//
+		#[test]
+		fn bench_bid_ct_mint_for_with_ct_account_creation() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_bid_ct_mint_for_with_ct_account_creation());
+			});
+		}
+
+		#[test]
+		fn bench_bid_ct_mint_for_no_ct_account_creation() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_bid_ct_mint_for_no_ct_account_creation());
+			});
+		}
+
 		// #[test]
 		// fn bench_contribution_ct_mint_for() {
 		// 	new_test_ext().execute_with(|| {
