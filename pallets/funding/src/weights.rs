@@ -56,15 +56,16 @@ pub trait WeightInfo {
 	fn start_evaluation(x: u32) -> Weight;
 	fn start_auction_manually(x: u32, y: u32) -> Weight;
 	fn start_auction_automatically() -> Weight;
+
 	fn first_evaluation() -> Weight;
 	fn second_to_limit_evaluation(x: u32) -> Weight;
 	fn evaluation_over_limit() -> Weight;
+
 	fn bid_with_ct_deposit(y: u32) -> Weight;
 	fn bid_no_ct_deposit(x: u32, y: u32) -> Weight;
 
 	fn first_contribution_with_ct_deposit() -> Weight;
 	fn first_contribution_no_ct_deposit() -> Weight;
-
 	fn first_contribution_ends_round_with_ct_deposit(y: u32, z: u32, ) -> Weight;
 	fn first_contribution_ends_round_no_ct_deposit(y: u32, z: u32, ) -> Weight;
 	fn second_to_limit_contribution(x: u32, ) -> Weight;
@@ -72,9 +73,12 @@ pub trait WeightInfo {
 	fn contribution_over_limit() -> Weight;
 
 
-		fn evaluation_unbond_for() -> Weight;
+	fn evaluation_unbond_for() -> Weight;
+
+	fn evaluation_reward_payout_for_with_ct_account_creation() -> Weight;
+	fn evaluation_reward_payout_for_no_ct_account_creation() -> Weight;
+
 	fn evaluation_slash_for() -> Weight;
-	fn evaluation_reward_payout_for() -> Weight;
 	fn bid_ct_mint_for() -> Weight;
 	fn contribution_ct_mint_for() -> Weight;
 	fn start_bid_vesting_schedule_for() -> Weight;
@@ -272,7 +276,16 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Proof: LocalAssets Asset (max_values: None, max_size: Some(210), added: 2685, mode: MaxEncodedLen)
 	/// Storage: LocalAssets Account (r:1 w:1)
 	/// Proof: LocalAssets Account (max_values: None, max_size: Some(134), added: 2609, mode: MaxEncodedLen)
-	fn evaluation_reward_payout_for() -> Weight {
+	fn evaluation_reward_payout_for_with_ct_account_creation() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1245`
+		//  Estimated: `4710`
+		// Minimum execution time: 63_000_000 picoseconds.
+		Weight::from_parts(71_000_000, 4710)
+			.saturating_add(T::DbWeight::get().reads(4_u64))
+			.saturating_add(T::DbWeight::get().writes(3_u64))
+	}
+	fn evaluation_reward_payout_for_no_ct_account_creation() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1245`
 		//  Estimated: `4710`

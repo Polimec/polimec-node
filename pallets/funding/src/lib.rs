@@ -1066,7 +1066,7 @@ pub mod pallet {
 			project_id: ProjectId,
 			evaluator: AccountIdOf<T>,
 			bond_id: u32,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let caller = ensure_signed(origin)?;
 			Self::do_evaluation_reward_payout_for(&caller, project_id, &evaluator, bond_id)
 		}

@@ -1567,7 +1567,7 @@ impl<T: Config> Pallet<T> {
 		project_id: ProjectId,
 		evaluator: &AccountIdOf<T>,
 		evaluation_id: u32,
-	) -> DispatchResult {
+	) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let reward_info =
@@ -1578,6 +1578,9 @@ impl<T: Config> Pallet<T> {
 			};
 		let mut evaluation =
 			Evaluations::<T>::get((project_id, evaluator, evaluation_id)).ok_or(Error::<T>::EvaluationNotFound)?;
+
+		// Benchmark variables
+		let mut ct_account_created = false;
 
 		// * Validity checks *
 		ensure!(
@@ -1599,6 +1602,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Update storage *
 		if !T::ContributionTokenCurrency::contains(&project_id, &evaluation.evaluator) {
+			ct_account_created = true;
 			T::NativeCurrency::release(
 				&HoldReason::FutureDeposit(project_id).into(),
 				&evaluation.evaluator,
@@ -1624,7 +1628,17 @@ impl<T: Config> Pallet<T> {
 			caller: caller.clone(),
 		});
 
-		Ok(())
+		Ok(if ct_account_created {
+			PostDispatchInfo {
+				actual_weight: Some(WeightInfoOf::<T>::evaluation_reward_payout_for_with_ct_account_creation()),
+				pays_fee: Pays::Yes,
+			}
+		} else {
+			PostDispatchInfo {
+				actual_weight: Some(WeightInfoOf::<T>::evaluation_reward_payout_for_no_ct_account_creation()),
+				pays_fee: Pays::Yes,
+			}
+		})
 	}
 
 	pub fn do_evaluation_slash_for(
