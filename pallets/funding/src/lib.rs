@@ -1144,12 +1144,15 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(16)]
-		#[pallet::weight(WeightInfoOf::<T>::decide_project_outcome())]
+		#[pallet::weight(WeightInfoOf::<T>::decide_project_outcome(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			10_000u32
+		))]
 		pub fn decide_project_outcome(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			outcome: FundingOutcomeDecision,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let caller = ensure_signed(origin)?;
 			Self::do_decide_project_outcome(caller, project_id, outcome)
 		}

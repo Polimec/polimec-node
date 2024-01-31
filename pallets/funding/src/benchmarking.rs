@@ -601,9 +601,8 @@ mod benchmarks {
 		let current_block = inst.current_block();
 		// `do_english_auction` fn will try to add an automatic transition 1 block after the last english round block
 		let insertion_block_number: BlockNumberFor<T> = current_block + T::EnglishAuctionDuration::get() + One::one();
-		let mut block_number = insertion_block_number;
 
-		fill_projects_to_update::<T>(x, block_number, Some(y));
+		fill_projects_to_update::<T>(x, insertion_block_number, Some(y));
 
 		#[extrinsic_call]
 		start_auction(RawOrigin::Signed(issuer), project_id);
@@ -2425,7 +2424,6 @@ mod benchmarks {
 		);
 	}
 
-	// remaining
 	#[benchmark]
 	fn payout_bid_funds_for() {
 		// setup
@@ -2545,15 +2543,20 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn decide_project_outcome(x: Linear<1, 20>) {
+	fn decide_project_outcome(
+		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the extrinsic pass
+		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
+		// Total amount of storage items iterated through in `ProjectsToUpdate` when trying to remove our project in `remove_from_update_store`.
+		// Upper bound is assumed to be enough
+		y: Linear<1, 10_000>,
+	) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
-		// real benchmark starts at block 0, and we can't call `events()` at block 0
-		inst.advance_time(1u32.into()).unwrap();
-
-		#[cfg(feature = "std")]
-		let mut inst = populate_with_projects(x, inst);
+		// We need to leave enough block numbers to fill `ProjectsToUpdate` before our project insertion
+		let u32_remaining_vecs: u32 = y.saturating_sub(x).into();
+		let time_advance: u32 = 1 + u32_remaining_vecs + 1;
+		inst.advance_time(time_advance.into()).unwrap();
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let evaluations = default_evaluations::<T>();
@@ -2586,6 +2589,11 @@ mod benchmarks {
 
 		inst.advance_time(One::one()).unwrap();
 
+		let current_block = inst.current_block();
+		let insertion_block_number: BlockNumberFor<T> = current_block + One::one();
+
+		fill_projects_to_update::<T>(x, insertion_block_number, Some(y));
+
 		#[extrinsic_call]
 		decide_project_outcome(RawOrigin::Signed(issuer), project_id, FundingOutcomeDecision::AcceptFunding);
 
@@ -2602,15 +2610,12 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn release_bid_funds_for(x: Linear<1, 20>) {
+	fn release_bid_funds_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
-
-		#[cfg(feature = "std")]
-		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let evaluations = default_evaluations::<T>();
@@ -2676,15 +2681,12 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn release_contribution_funds_for(x: Linear<1, 20>) {
+	fn release_contribution_funds_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
-
-		#[cfg(feature = "std")]
-		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let evaluations = default_evaluations::<T>();
@@ -2757,15 +2759,12 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn bid_unbond_for(x: Linear<1, 20>) {
+	fn bid_unbond_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
-
-		#[cfg(feature = "std")]
-		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let evaluations = default_evaluations::<T>();
@@ -2832,15 +2831,12 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn contribution_unbond_for(x: Linear<1, 20>) {
+	fn contribution_unbond_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
-
-		#[cfg(feature = "std")]
-		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let evaluations = default_evaluations::<T>();
@@ -3147,39 +3143,39 @@ mod benchmarks {
 			});
 		}
 
-		// #[test]
-		// fn bench_decide_project_outcome() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_decide_project_outcome());
-		// 	});
-		// }
+		#[test]
+		fn bench_decide_project_outcome() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_decide_project_outcome());
+			});
+		}
 
-		// #[test]
-		// fn bench_release_bid_funds_for() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_release_bid_funds_for());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_release_contribution_funds_for() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_release_contribution_funds_for());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_bid_unbond_for() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_bid_unbond_for());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_contribution_unbond_for() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_contribution_unbond_for());
-		// 	});
-		// }
+		#[test]
+		fn bench_release_bid_funds_for() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_release_bid_funds_for());
+			});
+		}
+
+		#[test]
+		fn bench_release_contribution_funds_for() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_release_contribution_funds_for());
+			});
+		}
+
+		#[test]
+		fn bench_bid_unbond_for() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_bid_unbond_for());
+			});
+		}
+
+		#[test]
+		fn bench_contribution_unbond_for() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_contribution_unbond_for());
+			});
+		}
 	}
 }

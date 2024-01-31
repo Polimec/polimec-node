@@ -89,7 +89,7 @@ pub trait WeightInfo {
 	fn start_contribution_vesting_schedule_for() -> Weight;
 	fn payout_bid_funds_for() -> Weight;
 	fn payout_contribution_funds_for() -> Weight;
-	fn decide_project_outcome() -> Weight;
+	fn decide_project_outcome(x: u32, y:u32) -> Weight;
 	fn release_bid_funds_for() -> Weight;
 	fn bid_unbond_for() -> Weight;
 	fn release_contribution_funds_for() -> Weight;
@@ -415,7 +415,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Proof Skipped: PolimecFunding ProjectsDetails (max_values: None, max_size: None, mode: Measured)
 	/// Storage: PolimecFunding ProjectsToUpdate (r:3 w:2)
 	/// Proof Skipped: PolimecFunding ProjectsToUpdate (max_values: None, max_size: None, mode: Measured)
-	fn decide_project_outcome() -> Weight {
+	fn decide_project_outcome(x: u32, y: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `515`
 		//  Estimated: `8930`

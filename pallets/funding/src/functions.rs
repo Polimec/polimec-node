@@ -1396,7 +1396,7 @@ impl<T: Config> Pallet<T> {
 		issuer: AccountIdOf<T>,
 		project_id: ProjectId,
 		decision: FundingOutcomeDecision,
-	) -> DispatchResult {
+	) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
@@ -1406,20 +1406,38 @@ impl<T: Config> Pallet<T> {
 		ensure!(project_details.status == ProjectStatus::AwaitingProjectDecision, Error::<T>::NotAllowed);
 
 		// * Update storage *
-		// TODO: return real weights
-		let iterations = match Self::remove_from_update_store(&project_id) {
-			Ok(iterations) => iterations,
-			Err(iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
+		let mut remove_attempts: u32 = 0u32;
+		let mut insertion_attempts: u32 = 0u32;
+
+		match Self::remove_from_update_store(&project_id) {
+			Ok(iterations) => remove_attempts = iterations,
+			Err(iterations) =>
+				return Err(DispatchErrorWithPostInfo {
+					post_info: PostDispatchInfo {
+						actual_weight: Some(WeightInfoOf::<T>::decide_project_outcome(insertion_attempts, iterations)),
+						pays_fee: Pays::Yes,
+					},
+					error: Error::<T>::TooManyInsertionAttempts.into(),
+				}),
 		};
-		let iterations =
-			match Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::ProjectDecision(decision))) {
-				Ok(iterations) => iterations,
-				Err(iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
-			};
+		match Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::ProjectDecision(decision))) {
+			Ok(iterations) => insertion_attempts = iterations,
+			Err(iterations) =>
+				return Err(DispatchErrorWithPostInfo {
+					post_info: PostDispatchInfo {
+						actual_weight: Some(WeightInfoOf::<T>::decide_project_outcome(iterations, remove_attempts)),
+						pays_fee: Pays::Yes,
+					},
+					error: Error::<T>::TooManyInsertionAttempts.into(),
+				}),
+		};
 
 		Self::deposit_event(Event::ProjectOutcomeDecided { project_id, decision });
 
-		Ok(())
+		Ok(PostDispatchInfo {
+			actual_weight: Some(WeightInfoOf::<T>::decide_project_outcome(insertion_attempts, remove_attempts)),
+			pays_fee: Pays::Yes,
+		})
 	}
 
 	pub fn do_bid_ct_mint_for(
