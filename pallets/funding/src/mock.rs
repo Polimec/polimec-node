@@ -382,9 +382,9 @@ impl Config for TestRuntime {
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type TreasuryAccount = TreasuryAccount;
+	type VerifierPublicKey = VerifierPublicKey;
 	type Vesting = Vesting;
 	type WeightInfo = weights::SubstrateWeight<TestRuntime>;
-	type VerifierPublicKey = VerifierPublicKey;
 }
 
 // Configure a mock runtime to test the pallet.

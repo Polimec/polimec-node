@@ -600,9 +600,9 @@ impl pallet_funding::Config for Runtime {
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type TreasuryAccount = TreasuryAccount;
+	type VerifierPublicKey = VerifierPublicKey;
 	type Vesting = LinearRelease;
 	type WeightInfo = pallet_funding::weights::SubstrateWeight<Runtime>;
-	type VerifierPublicKey = VerifierPublicKey;
 }
 
 parameter_types! {

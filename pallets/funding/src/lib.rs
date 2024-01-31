@@ -936,6 +936,14 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		#[pallet::call_index(69)]
+		#[pallet::weight(WeightInfoOf::<T>::create())]
+		pub fn verify(origin: OriginFor<T>, jwt: jwt_compact::prelude::UntrustedToken) -> DispatchResult {
+			//let issuer = ensure_institutional(origin, jwt)?;
+			log::trace!(target: "pallet_funding::test", "in create");
+			Ok(())
+		}
+
 		/// Creates a project and assigns it to the `issuer` account.
 		#[pallet::call_index(0)]
 		#[pallet::weight(WeightInfoOf::<T>::create())]
@@ -1301,9 +1309,8 @@ pub mod pallet {
 
 			let projects_needing_cleanup = ProjectsDetails::<T>::iter()
 				.filter_map(|(project_id, info)| match info.cleanup {
-					cleaner if <Cleaner as DoRemainingOperation<T>>::has_remaining_operations(&cleaner) => {
-						Some((project_id, cleaner))
-					},
+					cleaner if <Cleaner as DoRemainingOperation<T>>::has_remaining_operations(&cleaner) =>
+						Some((project_id, cleaner)),
 					_ => None,
 				})
 				.collect::<Vec<_>>();

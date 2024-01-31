@@ -19,3 +19,4 @@ id = 3344
 	[[parachains.collators]]
 	name = "alice"
 	command = "./target/release/polimec-parachain-node"
+    ws_port = 8080
