@@ -2427,15 +2427,12 @@ mod benchmarks {
 
 	// remaining
 	#[benchmark]
-	fn payout_bid_funds_for(x: Linear<1, 20>) {
+	fn payout_bid_funds_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
-
-		#[cfg(feature = "std")]
-		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let bids = default_bids::<T>();
@@ -2483,15 +2480,12 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn payout_contribution_funds_for(x: Linear<1, 20>) {
+	fn payout_contribution_funds_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
-
-		#[cfg(feature = "std")]
-		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let contributions = default_community_contributions::<T>();
@@ -3146,20 +3140,20 @@ mod benchmarks {
 			});
 		}
 
-		// #[test]
-		// fn bench_payout_contribution_funds_for() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_payout_contribution_funds_for());
-		// 	});
-		// }
-		//
+		#[test]
+		fn bench_payout_contribution_funds_for() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_payout_contribution_funds_for());
+			});
+		}
+
 		// #[test]
 		// fn bench_decide_project_outcome() {
 		// 	new_test_ext().execute_with(|| {
 		// 		assert_ok!(PalletFunding::<TestRuntime>::test_decide_project_outcome());
 		// 	});
 		// }
-		//
+
 		// #[test]
 		// fn bench_release_bid_funds_for() {
 		// 	new_test_ext().execute_with(|| {
