@@ -1084,13 +1084,13 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(11)]
-		#[pallet::weight(WeightInfoOf::<T>::contribution_ct_mint_for())]
+		#[pallet::weight(WeightInfoOf::<T>::contribution_ct_mint_for_with_ct_account_creation())]
 		pub fn contribution_ct_mint_for(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			contributor: AccountIdOf<T>,
 			contribution_id: u32,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let caller = ensure_signed(origin)?;
 			Self::do_contribution_ct_mint_for(&caller, project_id, &contributor, contribution_id)
 		}

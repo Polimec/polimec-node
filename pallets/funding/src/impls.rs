@@ -705,11 +705,11 @@ fn mint_ct_for_one_contribution<T: Config>(project_id: ProjectId) -> (Weight, u6
 				project_id: contribution.project_id,
 				claimer: contribution.contributor.clone(),
 				id: contribution.id,
-				error: e,
+				error: e.error,
 			}),
 		};
 		(
-			base_weight.saturating_add(WeightInfoOf::<T>::contribution_ct_mint_for()),
+			base_weight.saturating_add(WeightInfoOf::<T>::contribution_ct_mint_for_with_ct_account_creation()),
 			remaining_contributions.count() as u64,
 		)
 	} else {

@@ -1482,7 +1482,7 @@ impl<T: Config> Pallet<T> {
 		project_id: ProjectId,
 		contributor: &AccountIdOf<T>,
 		contribution_id: u32,
-	) -> DispatchResult {
+	) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut contribution =
 			Contributions::<T>::get((project_id, contributor, contribution_id)).ok_or(Error::<T>::BidNotFound)?;
@@ -1526,7 +1526,14 @@ impl<T: Config> Pallet<T> {
 			amount: ct_amount,
 		});
 
-		Ok(())
+		Ok(PostDispatchInfo {
+			actual_weight: Some(if ct_account_created {
+				WeightInfoOf::<T>::contribution_ct_mint_for_with_ct_account_creation()
+			} else {
+				WeightInfoOf::<T>::contribution_ct_mint_for_no_ct_account_creation()
+			}),
+			pays_fee: Pays::Yes,
+		})
 	}
 
 	pub fn do_evaluation_unbond_for(

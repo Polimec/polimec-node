@@ -83,7 +83,8 @@ pub trait WeightInfo {
 	fn bid_ct_mint_for_no_ct_account_creation() -> Weight;
 
 
-	fn contribution_ct_mint_for() -> Weight;
+	fn contribution_ct_mint_for_with_ct_account_creation() -> Weight;
+	fn contribution_ct_mint_for_no_ct_account_creation() -> Weight;
 	fn start_bid_vesting_schedule_for() -> Weight;
 	fn start_contribution_vesting_schedule_for() -> Weight;
 	fn payout_bid_funds_for() -> Weight;
@@ -324,20 +325,21 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(4_u64))
 			.saturating_add(T::DbWeight::get().writes(3_u64))
 	}
-	/// Storage: PolimecFunding Contributions (r:1 w:1)
-	/// Proof Skipped: PolimecFunding Contributions (max_values: None, max_size: None, mode: Measured)
-	/// Storage: PolimecFunding ProjectsDetails (r:1 w:0)
-	/// Proof Skipped: PolimecFunding ProjectsDetails (max_values: None, max_size: None, mode: Measured)
-	/// Storage: LocalAssets Asset (r:1 w:1)
-	/// Proof: LocalAssets Asset (max_values: None, max_size: Some(210), added: 2685, mode: MaxEncodedLen)
-	/// Storage: LocalAssets Account (r:1 w:1)
-	/// Proof: LocalAssets Account (max_values: None, max_size: Some(134), added: 2609, mode: MaxEncodedLen)
-	fn contribution_ct_mint_for() -> Weight {
+	fn contribution_ct_mint_for_with_ct_account_creation() -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `1205`
-		//  Estimated: `4670`
-		// Minimum execution time: 64_000_000 picoseconds.
-		Weight::from_parts(69_000_000, 4670)
+		//  Measured:  `1215`
+		//  Estimated: `4680`
+		// Minimum execution time: 65_000_000 picoseconds.
+		Weight::from_parts(71_000_000, 4680)
+			.saturating_add(T::DbWeight::get().reads(4_u64))
+			.saturating_add(T::DbWeight::get().writes(3_u64))
+	}
+	fn contribution_ct_mint_for_no_ct_account_creation() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1215`
+		//  Estimated: `4680`
+		// Minimum execution time: 65_000_000 picoseconds.
+		Weight::from_parts(71_000_000, 4680)
 			.saturating_add(T::DbWeight::get().reads(4_u64))
 			.saturating_add(T::DbWeight::get().writes(3_u64))
 	}
