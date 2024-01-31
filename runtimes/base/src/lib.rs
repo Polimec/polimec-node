@@ -131,7 +131,15 @@ pub mod migrations {
 	#![allow(unused_imports)]
 	use super::*;
 	/// Unreleased migrations. Add new ones here:
-	pub type Unreleased = custom_migrations::CustomOnRuntimeUpgrade;
+	pub type Unreleased = (
+		custom_migrations::InitializePallet<OracleProvidersMembership>,
+		custom_migrations::InitializePallet<Democracy>,
+		custom_migrations::InitializePallet<Council>,
+		custom_migrations::InitializePallet<TechnicalCommittee>,
+		custom_migrations::InitializePallet<Elections>,
+		custom_migrations::InitializePallet<Preimage>,
+		custom_migrations::InitializePallet<Scheduler>,
+	);
 }
 
 /// Executive: handles dispatch to the various modules.
