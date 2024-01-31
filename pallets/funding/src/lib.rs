@@ -1060,7 +1060,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(9)]
-		#[pallet::weight(WeightInfoOf::<T>::evaluation_reward_payout_for())]
+		#[pallet::weight(WeightInfoOf::<T>::evaluation_reward_payout_for_with_ct_account_creation())]
 		pub fn evaluation_reward_payout_for(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
