@@ -1489,6 +1489,9 @@ impl<T: Config> Pallet<T> {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let ct_amount = contribution.ct_amount;
 
+		// Benchmark variables
+		let mut ct_account_created = false;
+
 		// * Validity checks *
 		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::NotAllowed);
 		ensure!(!contribution.ct_minted, Error::<T>::NotAllowed);
@@ -1499,6 +1502,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Update storage *
 		if !T::ContributionTokenCurrency::contains(&project_id, &contribution.contributor) {
+			ct_account_created = true;
 			T::NativeCurrency::release(
 				&HoldReason::FutureDeposit(project_id).into(),
 				&contribution.contributor,

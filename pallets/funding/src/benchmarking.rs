@@ -2157,15 +2157,12 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn contribution_ct_mint_for(x: Linear<1, 20>) {
+	fn contribution_ct_mint_for_with_ct_account_creation() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
-
-		#[cfg(feature = "std")]
-		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let contributions = default_community_contributions::<T>();
@@ -2220,6 +2217,98 @@ mod benchmarks {
 		);
 	}
 
+	#[benchmark]
+	fn contribution_ct_mint_for_no_ct_account_creation() {
+		// setup
+		let mut inst = BenchInstantiator::<T>::new(None);
+
+		// real benchmark starts at block 0, and we can't call `events()` at block 0
+		inst.advance_time(1u32.into()).unwrap();
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+		let contributions: Vec<ContributionParams<T>> = vec![
+			ContributionParams::new(
+				account::<AccountIdOf<T>>("contributor_1", 0, 0),
+				(10_000 * ASSET_UNIT).into(),
+				1u8,
+				AcceptedFundingAsset::USDT,
+			),
+			ContributionParams::new(
+				account::<AccountIdOf<T>>("contributor_1", 0, 0),
+				(6_000 * ASSET_UNIT).into(),
+				1u8,
+				AcceptedFundingAsset::USDT,
+			),
+			ContributionParams::new(
+				account::<AccountIdOf<T>>("contributor_3", 0, 0),
+				(30_000 * ASSET_UNIT).into(),
+				1u8,
+				AcceptedFundingAsset::USDT,
+			),
+		];
+		let contributor = contributions[0].contributor.clone();
+		whitelist_account!(contributor);
+
+		let project_id = inst.create_finished_project(
+			default_project::<T>(inst.get_new_nonce(), issuer.clone()),
+			issuer,
+			default_evaluations::<T>(),
+			default_bids::<T>(),
+			contributions,
+			vec![],
+		);
+
+		inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
+		assert_eq!(
+			inst.get_project_details(project_id).cleanup,
+			Cleaner::Success(CleanerState::Initialized(PhantomData))
+		);
+
+		let mut contributions_to_mint_ct =
+			inst.execute(|| Contributions::<T>::iter_prefix_values((project_id, contributor.clone())));
+
+		let pre_contribution_to_mint_ct = contributions_to_mint_ct.next().unwrap();
+		let bench_contribution_to_mint_ct = contributions_to_mint_ct.next().unwrap();
+
+		Pallet::<T>::contribution_ct_mint_for(
+			RawOrigin::Signed(contributor.clone()).into(),
+			project_id,
+			contributor.clone(),
+			pre_contribution_to_mint_ct.id,
+		)
+		.unwrap();
+
+		#[extrinsic_call]
+		contribution_ct_mint_for(
+			RawOrigin::Signed(contributor.clone()),
+			project_id,
+			contributor.clone(),
+			bench_contribution_to_mint_ct.id,
+		);
+
+		// * validity checks *
+		// Storage
+		let stored_contribution =
+			Contributions::<T>::get((project_id, contributor.clone(), bench_contribution_to_mint_ct.id)).unwrap();
+		assert!(stored_contribution.ct_minted);
+
+		// Balances
+		let ct_amount = inst.get_ct_asset_balances_for(project_id, vec![contributor.clone()])[0];
+		assert_eq!(ct_amount, pre_contribution_to_mint_ct.ct_amount + bench_contribution_to_mint_ct.ct_amount);
+
+		// Events
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::ContributionTokenMinted {
+				releaser: contributor.clone(),
+				project_id,
+				claimer: contributor,
+				amount: bench_contribution_to_mint_ct.ct_amount,
+			}
+			.into(),
+		);
+	}
+
+	// remaining
 	#[benchmark]
 	fn start_bid_vesting_schedule_for(x: Linear<1, 20>) {
 		// setup
@@ -3028,13 +3117,20 @@ mod benchmarks {
 			});
 		}
 
-		// #[test]
-		// fn bench_contribution_ct_mint_for() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_contribution_ct_mint_for());
-		// 	});
-		// }
-		//
+		#[test]
+		fn bench_contribution_ct_mint_for_with_ct_account_creation() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_contribution_ct_mint_for_with_ct_account_creation());
+			});
+		}
+
+		#[test]
+		fn bench_contribution_ct_mint_for_no_ct_account_creation() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_contribution_ct_mint_for_no_ct_account_creation());
+			});
+		}
+
 		// #[test]
 		// fn bench_start_bid_vesting_schedule_for() {
 		// 	new_test_ext().execute_with(|| {

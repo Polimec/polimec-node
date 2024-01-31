@@ -1193,10 +1193,7 @@ impl<
 			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
 			HoldReason::Participation(project_id).into(),
 		);
-		self.do_contribution_transferred_statemint_asset_assertions(
-			funding_asset_deposits.merge_accounts(MergeOperation::Add),
-			project_id,
-		);
+		self.do_contribution_transferred_statemint_asset_assertions(funding_asset_deposits, project_id);
 		self.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts(MergeOperation::Add));
 		self.do_free_statemint_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
 		assert_eq!(self.get_plmc_total_supply(), post_supply);
