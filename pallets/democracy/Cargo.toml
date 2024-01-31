@@ -34,13 +34,13 @@ pallet-preimage.workspace = true
 [features]
 default = [ "std" ]
 std = [
-	"parity-scale-codec/std",
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
 	"pallet-balances/std",
 	"pallet-preimage/std",
 	"pallet-scheduler/std",
+	"parity-scale-codec/std",
 	"scale-info/std",
 	"serde",
 	"sp-core/std",

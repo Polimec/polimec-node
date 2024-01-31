@@ -75,8 +75,11 @@ polimec-base-runtime.workspace = true
 penpal-runtime = { path = "./penpal", default-features = false }
 
 [features]
-default = [ "std", "instant-mode" ]
-instant-mode = [ "polimec-parachain-runtime/instant-mode", "polimec-base-runtime/instant-mode" ]
+default = [ "instant-mode", "std" ]
+instant-mode = [
+	"polimec-base-runtime/instant-mode",
+	"polimec-parachain-runtime/instant-mode",
+]
 std = [
 	"asset-hub-polkadot-runtime/std",
 	"cumulus-pallet-xcm/std",
@@ -91,15 +94,15 @@ std = [
 	"pallet-collective/std",
 	"pallet-democracy/std",
 	"pallet-elections-phragmen/std",
-	"pallet-treasury/std",
-	"pallet-scheduler/std",
 	"pallet-funding/std",
 	"pallet-im-online/std",
 	"pallet-linear-release/std",
 	"pallet-membership/std",
 	"pallet-message-queue/std",
 	"pallet-parachain-staking/std",
+	"pallet-scheduler/std",
 	"pallet-staking/std",
+	"pallet-treasury/std",
 	"pallet-vesting/std",
 	"pallet-xcm/std",
 	"parachain-info/std",
