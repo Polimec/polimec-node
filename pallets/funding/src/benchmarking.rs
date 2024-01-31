@@ -2308,17 +2308,13 @@ mod benchmarks {
 		);
 	}
 
-	// remaining
 	#[benchmark]
-	fn start_bid_vesting_schedule_for(x: Linear<1, 20>) {
+	fn start_bid_vesting_schedule_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
-
-		#[cfg(feature = "std")]
-		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let bids = default_bids::<T>();
@@ -2368,15 +2364,12 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn start_contribution_vesting_schedule_for(x: Linear<1, 20>) {
+	fn start_contribution_vesting_schedule_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
-
-		#[cfg(feature = "std")]
-		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let contributions = default_community_contributions::<T>();
@@ -2432,6 +2425,7 @@ mod benchmarks {
 		);
 	}
 
+	// remaining
 	#[benchmark]
 	fn payout_bid_funds_for(x: Linear<1, 20>) {
 		// setup
@@ -3131,27 +3125,27 @@ mod benchmarks {
 			});
 		}
 
-		// #[test]
-		// fn bench_start_bid_vesting_schedule_for() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_start_bid_vesting_schedule_for());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_start_contribution_vesting_schedule_for() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_start_contribution_vesting_schedule_for());
-		// 	});
-		// }
-		//
-		// #[test]
-		// fn bench_payout_bid_funds_for() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_payout_bid_funds_for());
-		// 	});
-		// }
-		//
+		#[test]
+		fn bench_start_bid_vesting_schedule_for() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_start_bid_vesting_schedule_for());
+			});
+		}
+
+		#[test]
+		fn bench_start_contribution_vesting_schedule_for() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_start_contribution_vesting_schedule_for());
+			});
+		}
+
+		#[test]
+		fn bench_payout_bid_funds_for() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_payout_bid_funds_for());
+			});
+		}
+
 		// #[test]
 		// fn bench_payout_contribution_funds_for() {
 		// 	new_test_ext().execute_with(|| {
