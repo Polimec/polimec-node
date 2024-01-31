@@ -4,7 +4,7 @@ use crate::{polimec_base::ED, *};
 /// Only members should be able to feed data into the oracle.
 use frame_support::traits::fungible::Inspect;
 use frame_support::traits::{
-	fungible::{BalancedHold, MutateHold, Unbalanced},
+	fungible::{BalancedHold, MutateHold, MutateFreeze, Unbalanced},
 	OnInitialize, WithdrawReasons,
 };
 use macros::generate_accounts;
@@ -19,7 +19,7 @@ use frame_support::{
 use pallet_democracy::{AccountVote, Conviction, ReferendumInfo, Vote};
 use pallet_vesting::VestingInfo;
 use polimec_base_runtime::{
-	Balances, Council, Democracy, GrowthTreasury, Preimage, RuntimeOrigin, TechnicalCommittee, Vesting,
+	Balances, Council, Democracy, Elections, GrowthTreasury, ParachainStaking, Preimage, RuntimeOrigin, TechnicalCommittee, Vesting,
 };
 use tests::defaults::*;
 use xcm_emulator::get_account_id_from_seed;
@@ -90,6 +90,23 @@ fn vested_tokens_and_reserves_dont_work_together() {
 }
 
 #[test]
+fn lock_and_freeze_after_reserve_does_work() {
+	PolimecBase::execute_with(|| {
+		let alice = PolimecBase::account_id_of(ALICE);
+		
+		assert_ok!(Balances::reserve(&alice, 400 * PLMC));
+		assert_ok!(Balances::set_freeze(
+			&polimec_base_runtime::RuntimeFreezeReason::Democracy(
+				pallet_democracy::FreezeReason::Vote
+			),
+			&alice,
+			400 * PLMC
+		));
+		Balances::set_lock(*b"py/trsry", &alice, 400 * PLMC, WithdrawReasons::all());
+	});
+}
+
+#[test]
 fn council_and_technical_committee_members_set_correctly() {
 	let alice = PolimecBase::account_id_of(ALICE);
 	let bob = PolimecBase::account_id_of(BOB);
@@ -150,6 +167,49 @@ fn democracy_works() {
 	PolimecBase::execute_with(|| {
 		assert_eq!(Balances::balance(&get_account_id_from_seed::<sr25519::Public>("NEW_ACCOUNT")), 1000u128 * PLMC);
 	});
+}
+
+#[test]
+fn user_can_vote_with_staked_balance() {
+	// 1. Create a proposal to set the the balance of `account` to 1000 PLMC
+	// 2. Account stakes 100 PLMC.
+	PolimecBase::execute_with(|| {
+		let account = create_vested_account();
+		let bounded_call = Preimage::bound(<PolimecBase as xcm_emulator::Parachain>::RuntimeCall::Balances(
+			pallet_balances::Call::force_set_balance { who: account.clone().into(), new_free: 1000u128 * PLMC },
+		))
+		.unwrap();
+		assert_ok!(Democracy::propose(RuntimeOrigin::signed(account.clone()), bounded_call, 100 * PLMC));
+
+		assert_ok!(ParachainStaking::delegate(RuntimeOrigin::signed(account.clone()), get_account_id_from_seed::<sr25519::Public>("COLL_1"), 100 * PLMC, 0, 0));
+
+		// Total PLMC reserved for staking (100) + creating proposal (100) = 200
+		assert_eq!(
+			Balances::reserved_balance(&account),
+			200 * PLMC
+		)
+	});
+
+	run_gov_n_blocks(1);
+	// 3. User votes on the proposal with 200 PLMC
+	PolimecBase::execute_with(|| {
+		let account = get_account_id_from_seed::<sr25519::Public>("NEW_ACCOUNT");
+		assert_eq!(
+			Balances::balance_frozen(
+				&polimec_base_runtime::RuntimeFreezeReason::Democracy(pallet_democracy::FreezeReason::Vote),
+				&account
+			),
+			0
+		);
+		do_vote(account.clone(), 0, true, 200 * PLMC);
+		assert_eq!(
+			Balances::balance_frozen(
+				&polimec_base_runtime::RuntimeFreezeReason::Democracy(pallet_democracy::FreezeReason::Vote),
+				&account
+			),
+			200 * PLMC
+		);
+	})
 }
 
 #[test]
@@ -223,6 +283,107 @@ fn slashed_treasury_proposal_funds_send_to_treasury() {
 		// 3. See that the funds are slashed and sent to treasury
 		assert_eq!(Balances::balance(&GrowthTreasury::account_id()), 1050 * PLMC);
 		assert_eq!(Balances::balance(&alice), alice_balance - 50 * PLMC);
+	});
+}
+
+#[test]
+fn user_can_vote_in_election_with_staked_balance() {
+	let alice = PolimecBase::account_id_of(ALICE);
+	PolimecBase::execute_with(|| {
+		let account = create_vested_account();
+		
+		assert_ok!(ParachainStaking::delegate(RuntimeOrigin::signed(account.clone()), get_account_id_from_seed::<sr25519::Public>("COLL_1"), 200 * PLMC, 0, 0));
+
+		// Total PLMC reserved for staking (100) + creating proposal (100) = 200
+		assert_eq!(
+			Balances::reserved_balance(&account),
+			200 * PLMC
+		);
+
+		assert_ok!(Elections::vote(
+			RuntimeOrigin::signed(account.clone()),
+			vec![alice],
+			200 * PLMC,
+		));
+
+		assert_eq!(
+			Balances::balance_frozen(
+				&polimec_base_runtime::RuntimeFreezeReason::Elections(pallet_elections_phragmen::FreezeReason::Voting),
+				&account
+			),
+			200 * PLMC
+		);
+
+		assert_noop!(Elections::remove_voter(RuntimeOrigin::signed(account.clone())), pallet_elections_phragmen::Error::<polimec_base_runtime::Runtime>::VotingPeriodNotEnded);
+	});
+
+	run_gov_n_blocks(5);
+
+	PolimecBase::execute_with(|| {
+		let account = get_account_id_from_seed::<sr25519::Public>("NEW_ACCOUNT");
+
+		assert_ok!(Elections::remove_voter(RuntimeOrigin::signed(account.clone())));
+		assert_eq!(
+			Balances::balance_frozen(
+				&polimec_base_runtime::RuntimeFreezeReason::Elections(pallet_elections_phragmen::FreezeReason::Voting),
+				&account
+			),
+			0
+		);
+	});
+}
+
+/// Tests that the election works as expected.
+/// 1. Register 32 candidates
+/// 2. 8 accounts vote for 8 candidates
+/// 3. Run the election
+/// 4. Check that the 9 candidates with the most votes are elected
+/// 5. Check that the 6 candidates with the next most votes are runners up
+/// 6. Check that the remaining candidates have their funds slashed as they did not receive any votes
+#[test]
+fn election_phragmen_works() {
+	let candidates = (1..=32).into_iter().map(|i| get_account_id_from_seed::<sr25519::Public>(format!("CANDIDATE_{}", i).as_str())).collect::<Vec<AccountId>>();
+	// 1. Register candidates for the election.
+	PolimecBase::execute_with(|| {
+		assert_eq!(Elections::candidates().len(), 0);
+		// Alice .. Eve already selected members
+		assert_eq!(Elections::members().len(), 5);
+		assert_eq!(Elections::runners_up().len(), 0);
+
+		for (i, candidate) in candidates.iter().enumerate() {
+			assert_ok!(Balances::write_balance(&candidate, 1000 * PLMC + ED));
+			assert_ok!(Elections::submit_candidacy(RuntimeOrigin::signed((*candidate).clone()), i as u32));
+		}
+
+		assert_eq!(Elections::candidates().len(), 32);
+
+		for (i, voter) in vec![ALICE, BOB, CHARLIE, DAVE, EVE, FERDIE, ALICE_STASH, BOB_STASH].into_iter().enumerate() {
+			let voter = PolimecBase::account_id_of(voter);
+			assert_ok!(Elections::vote(
+				RuntimeOrigin::signed(voter.clone()),
+				candidates[i..(i+8)].to_vec(),
+				200 * PLMC,
+			));
+		}
+	});
+
+	run_gov_n_blocks(5);
+
+	PolimecBase::execute_with(|| {
+		assert_eq!(Elections::candidates().len(), 0);
+		assert_eq!(Elections::members().len(), 9);
+		assert_eq!(Elections::runners_up().len(), 6);
+		
+		let expected_runners_up = candidates[0..3].iter().cloned().chain(candidates[12..15].iter().cloned()).collect();
+		assert_same_members(Elections::members().into_iter().map(|m| m.who).collect(), &(candidates[3..12].to_vec()));
+		assert_same_members(Elections::runners_up().into_iter().map(|m| m.who).collect(), &expected_runners_up);
+		
+		// Check that the candidates that were not elected have their funds slashed
+		for candidate in &candidates[15..32] {
+			assert_eq!(Balances::total_balance(candidate), ED);
+		}
+		assert_eq!(Balances::balance(&GrowthTreasury::account_id()), 17 * 1000 * PLMC + ED)
+		
 	});
 }
 

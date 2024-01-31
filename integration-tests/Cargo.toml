@@ -41,6 +41,7 @@ polkadot-core-primitives.workspace = true
 polkadot-runtime-parachains.workspace = true
 polkadot-parachain.workspace = true
 pallet-collective.workspace = true
+pallet-elections-phragmen.workspace = true
 
 cumulus-primitives-core.workspace = true
 cumulus-pallet-xcm.workspace = true
@@ -89,6 +90,7 @@ std = [
 	"pallet-balances/std",
 	"pallet-collective/std",
 	"pallet-democracy/std",
+	"pallet-elections-phragmen/std",
 	"pallet-treasury/std",
 	"pallet-scheduler/std",
 	"pallet-funding/std",

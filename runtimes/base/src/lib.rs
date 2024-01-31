@@ -445,9 +445,7 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type Proposal = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
-	type SetMembersOrigin = EitherOfDiverse<
-		EnsureRoot<AccountId>,
-	>;
+	type SetMembersOrigin = EnsureRoot<AccountId>;
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
 }
 
