@@ -1,4 +1,5 @@
 use frame_support::{
+	dispatch::{DispatchErrorWithPostInfo, GetDispatchInfo},
 	traits::{fungible::InspectHold, Get},
 	weights::Weight,
 };
@@ -56,7 +57,8 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Success> {
 					*self = Self::EvaluationUnbonding(remaining_evaluations::<T>(project_id), PhantomData);
 					Ok(base_weight)
 				} else {
-					let (consumed_weight, remaining_evaluations) = reward_or_slash_one_evaluation::<T>(project_id)?;
+					let (consumed_weight, remaining_evaluations) =
+						reward_or_slash_one_evaluation::<T>(project_id).map_err(|error_info| error_info.error)?;
 					*self = CleanerState::EvaluationRewardOrSlash(remaining_evaluations, PhantomData);
 					Ok(consumed_weight)
 				},
@@ -175,7 +177,8 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Failure> {
 					);
 					Ok(base_weight)
 				} else {
-					let (consumed_weight, remaining_evaluators) = reward_or_slash_one_evaluation::<T>(project_id)?;
+					let (consumed_weight, remaining_evaluators) =
+						reward_or_slash_one_evaluation::<T>(project_id).map_err(|error_info| error_info.error)?;
 					*self = CleanerState::EvaluationRewardOrSlash(remaining_evaluators, PhantomData);
 					Ok(consumed_weight)
 				},
@@ -330,7 +333,9 @@ fn remaining_participants_with_future_ct_deposit<T: Config>(project_id: ProjectI
 		.count() as u64
 }
 
-fn reward_or_slash_one_evaluation<T: Config>(project_id: ProjectId) -> Result<(Weight, u64), DispatchError> {
+fn reward_or_slash_one_evaluation<T: Config>(
+	project_id: ProjectId,
+) -> Result<(Weight, u64), DispatchErrorWithPostInfo> {
 	let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 	let project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,));
 	let mut remaining_evaluations = project_evaluations.filter(|evaluation| evaluation.rewarded_or_slashed.is_none());
@@ -339,25 +344,41 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: ProjectId) -> Result<(W
 	if let Some(evaluation) = remaining_evaluations.next() {
 		// TODO: This base weight and the one in all other functions below should be calculated with a benchmark
 		let remaining = remaining_evaluations.count() as u64;
-
 		match project_details.evaluation_round_info.evaluators_outcome {
 			EvaluatorsOutcome::Rewarded(_) => {
+				let mut weight_consumed = crate::Call::<T>::evaluation_reward_payout_for {
+					project_id: evaluation.project_id,
+					evaluator: evaluation.evaluator.clone(),
+					bond_id: evaluation.id,
+				}
+				.get_dispatch_info()
+				.weight;
+
 				match Pallet::<T>::do_evaluation_reward_payout_for(
 					&T::PalletId::get().into_account_truncating(),
 					evaluation.project_id,
 					&evaluation.evaluator,
 					evaluation.id,
 				) {
-					Ok(_) => (),
-					Err(e) => Pallet::<T>::deposit_event(Event::EvaluationRewardFailed {
-						project_id: evaluation.project_id,
-						evaluator: evaluation.evaluator.clone(),
-						id: evaluation.id,
-						error: e,
-					}),
+					Ok(result) => {
+						if let Some(weight) = result.actual_weight {
+							weight_consumed = weight
+						};
+					},
+					Err(e) => {
+						if let Some(weight) = e.post_info.actual_weight {
+							weight_consumed = weight
+						};
+						Pallet::<T>::deposit_event(Event::EvaluationRewardFailed {
+							project_id: evaluation.project_id,
+							evaluator: evaluation.evaluator.clone(),
+							id: evaluation.id,
+							error: e.error,
+						})
+					},
 				};
 
-				Ok((base_weight.saturating_add(WeightInfoOf::<T>::evaluation_reward_payout_for()), remaining))
+				Ok((base_weight.saturating_add(weight_consumed), remaining))
 			},
 			EvaluatorsOutcome::Slashed => {
 				match Pallet::<T>::do_evaluation_slash_for(

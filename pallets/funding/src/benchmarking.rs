@@ -2930,14 +2930,13 @@ mod benchmarks {
 			});
 		}
 
-		// #[test]
-		// fn bench_evaluation_slash_for() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_evaluation_slash_for());
-		// 	});
-		// }
-		//
-		//
+		#[test]
+		fn bench_evaluation_slash_for() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_evaluation_slash_for());
+			});
+		}
+
 		// #[test]
 		// fn bench_bid_ct_mint_for() {
 		// 	new_test_ext().execute_with(|| {
