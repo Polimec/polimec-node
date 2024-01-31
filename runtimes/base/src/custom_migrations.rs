@@ -25,13 +25,13 @@ pub struct InitializePallet<Pallet: GetStorageVersion<CurrentStorageVersion = St
 impl<Pallet: GetStorageVersion<CurrentStorageVersion = StorageVersion> + PalletInfoAccess> frame_support::traits::OnRuntimeUpgrade for InitializePallet<Pallet> {
 	#[cfg(feature = "try-runtime")]
 	fn pre_upgrade() -> Result<Vec<u8>, DispatchError> {
-		log::info!("Elections migrating from {:#?}", Pallet::on_chain_storage_version());
+		log::info!("{} migrating from {:#?}", Pallet::name(), Pallet::on_chain_storage_version());
 		Ok(Vec::new())
 	}
 
 	#[cfg(feature = "try-runtime")]
 	fn post_upgrade(_state: Vec<u8>) -> Result<(), DispatchError> {
-		log::info!("Elections migrated to {:#?}", Pallet::on_chain_storage_version());
+		log::info!("{} migrated to {:#?}", Pallet::name(), Pallet::on_chain_storage_version());
 		Ok(())
 	}
 
