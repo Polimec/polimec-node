@@ -348,7 +348,7 @@ pub mod polimec {
 			},
 			council: Default::default(),
 			democracy: Default::default(),
-			growth_treasury: Default::default(),
+			treasury: Default::default(),
 			technical_committee: polimec_parachain_runtime::TechnicalCommitteeConfig {
 				members: vec![
 					alice_account.clone(),
@@ -560,7 +560,7 @@ pub mod polimec_base {
 			},
 			vesting: Default::default(),
 			transaction_payment: Default::default(),
-			growth_treasury: Default::default(),
+			treasury: Default::default(),
 		};
 
 		genesis_config.build_storage().unwrap()

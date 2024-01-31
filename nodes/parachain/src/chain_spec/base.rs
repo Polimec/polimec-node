@@ -255,7 +255,7 @@ fn base_testnet_genesis(
 		technical_committee: Default::default(),
 		democracy: Default::default(),
 		elections: Default::default(),
-		growth_treasury: Default::default(),
+		treasury: Default::default(),
 		vesting: Default::default(),
 	}
 }

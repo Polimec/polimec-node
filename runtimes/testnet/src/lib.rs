@@ -347,11 +347,11 @@ impl pallet_aura::Config for Runtime {
 
 impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
 
-pub struct ToGrowthTreasury;
+pub struct ToTreasury;
 
-impl tokens::imbalance::OnUnbalanced<CreditOf<Runtime>> for ToGrowthTreasury {
+impl tokens::imbalance::OnUnbalanced<CreditOf<Runtime>> for ToTreasury {
 	fn on_nonzero_unbalanced(amount: CreditOf<Runtime>) {
-		let treasury_account = GrowthTreasury::account_id();
+		let treasury_account = Treasury::account_id();
 		let _ = <Balances as tokens::fungible::Balanced<AccountId>>::resolve(&treasury_account, amount);
 	}
 }
@@ -365,7 +365,7 @@ impl pallet_treasury::Config for Runtime {
 	type BurnDestination = ();
 	type Currency = Balances;
 	type MaxApprovals = MaxApprovals;
-	type OnSlash = GrowthTreasury;
+	type OnSlash = Treasury;
 	type PalletId = TreasuryId;
 	type ProposalBond = ProposalBond;
 	type ProposalBondMaximum = ();
@@ -418,7 +418,7 @@ impl pallet_elections_phragmen::Config for Runtime {
 	/// Number of runners_up to keep.
 	type DesiredRunnersUp = DesiredRunnersUp;
 	type InitializeMembers = Council;
-	type LoserCandidate = ToGrowthTreasury;
+	type LoserCandidate = ToTreasury;
 	type MaxCandidates = MaxCandidates;
 	type MaxVoters = MaxVoters;
 	type MaxVotesPerVoter = MaxVotesPerVoter;
@@ -472,7 +472,7 @@ impl pallet_democracy::Config for Runtime {
 	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type Scheduler = Scheduler;
-	type Slash = ToGrowthTreasury;
+	type Slash = ToTreasury;
 	type SubmitOrigin = EnsureSigned<AccountId>;
 	// Any single technical committee member may veto a coming council proposal, however they can
 	// only do it once and it lasts only for the cool-off period.
@@ -874,7 +874,7 @@ construct_runtime!(
 		OracleOffchainWorker: pallet_oracle_ocw::{Pallet, Event<T>} = 32,
 
 		// Governance
-		GrowthTreasury: pallet_treasury = 40,
+		Treasury: pallet_treasury = 40,
 		Democracy: pallet_democracy::{Pallet, Call, Storage, Event<T>, Config<T>, HoldReason, FreezeReason} = 41,
 		Council: pallet_collective::<Instance1> = 42,
 		TechnicalCommittee: pallet_collective::<Instance2> = 43,
