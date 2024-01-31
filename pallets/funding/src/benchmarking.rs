@@ -1785,6 +1785,165 @@ mod benchmarks {
 	}
 
 	#[benchmark]
+	fn evaluation_reward_payout_for_with_ct_account_creation() {
+		// setup
+		let mut inst = BenchInstantiator::<T>::new(None);
+
+		// real benchmark starts at block 0, and we can't call `events()` at block 0
+		inst.advance_time(1u32.into()).unwrap();
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+		let evaluations: Vec<UserToUSDBalance<T>> = vec![
+			UserToUSDBalance::new(account::<AccountIdOf<T>>("evaluator_bench", 0, 0), (50_000 * US_DOLLAR).into()),
+			UserToUSDBalance::new(account::<AccountIdOf<T>>("evaluator_bench", 0, 0), (25_000 * US_DOLLAR).into()),
+			UserToUSDBalance::new(account::<AccountIdOf<T>>("evaluator_3", 0, 0), (32_000 * US_DOLLAR).into()),
+		];
+		let evaluator: AccountIdOf<T> = evaluations[0].account.clone();
+		whitelist_account!(evaluator);
+
+		let project_id = inst.create_finished_project(
+			default_project::<T>(inst.get_new_nonce(), issuer.clone()),
+			issuer,
+			evaluations,
+			default_bids::<T>(),
+			default_community_contributions::<T>(),
+			vec![],
+		);
+
+		inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
+		assert_eq!(
+			inst.get_project_details(project_id).cleanup,
+			Cleaner::Success(CleanerState::Initialized(PhantomData))
+		);
+
+		let evaluation_to_unbond =
+			inst.execute(|| Evaluations::<T>::iter_prefix_values((project_id, evaluator.clone())).next().unwrap());
+
+		#[extrinsic_call]
+		evaluation_reward_payout_for(
+			RawOrigin::Signed(evaluator.clone()),
+			project_id,
+			evaluator.clone(),
+			evaluation_to_unbond.id,
+		);
+
+		// * validity checks *
+		// Storage
+		let stored_evaluation =
+			Evaluations::<T>::get((project_id, evaluator.clone(), evaluation_to_unbond.id)).unwrap();
+		assert!(stored_evaluation.rewarded_or_slashed.is_some());
+
+		// Balances
+		let project_details = ProjectsDetails::<T>::get(project_id).unwrap();
+		let reward_info = match project_details.evaluation_round_info.evaluators_outcome {
+			EvaluatorsOutcome::Rewarded(reward_info) => reward_info,
+			_ => panic!("EvaluatorsOutcome should be Rewarded"),
+		};
+		let total_reward =
+			BenchInstantiator::<T>::calculate_total_reward_for_evaluation(stored_evaluation.clone(), reward_info);
+		let ct_amount = inst.get_ct_asset_balances_for(project_id, vec![evaluator.clone()])[0];
+		assert_eq!(ct_amount, total_reward);
+
+		// Events
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::EvaluationRewarded {
+				project_id,
+				evaluator: evaluator.clone(),
+				id: stored_evaluation.id,
+				amount: total_reward,
+				caller: evaluator,
+			}
+			.into(),
+		);
+	}
+
+	#[benchmark]
+	fn evaluation_reward_payout_for_no_ct_account_creation() {
+		// setup
+		let mut inst = BenchInstantiator::<T>::new(None);
+
+		// real benchmark starts at block 0, and we can't call `events()` at block 0
+		inst.advance_time(1u32.into()).unwrap();
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+		let evaluations: Vec<UserToUSDBalance<T>> = vec![
+			UserToUSDBalance::new(account::<AccountIdOf<T>>("evaluator_1", 0, 0), (50_000 * US_DOLLAR).into()),
+			UserToUSDBalance::new(account::<AccountIdOf<T>>("evaluator_1", 0, 0), (25_000 * US_DOLLAR).into()),
+			UserToUSDBalance::new(account::<AccountIdOf<T>>("evaluator_3", 0, 0), (32_000 * US_DOLLAR).into()),
+		];
+		let evaluator: AccountIdOf<T> = evaluations[0].account.clone();
+		whitelist_account!(evaluator);
+
+		let project_id = inst.create_finished_project(
+			default_project::<T>(inst.get_new_nonce(), issuer.clone()),
+			issuer,
+			evaluations,
+			default_bids::<T>(),
+			default_community_contributions::<T>(),
+			vec![],
+		);
+
+		inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
+		assert_eq!(
+			inst.get_project_details(project_id).cleanup,
+			Cleaner::Success(CleanerState::Initialized(PhantomData))
+		);
+
+		let mut evaluations_to_unbond =
+			inst.execute(|| Evaluations::<T>::iter_prefix_values((project_id, evaluator.clone())));
+
+		let pre_evaluation = evaluations_to_unbond.next().unwrap();
+		let bench_evaluation = evaluations_to_unbond.next().unwrap();
+
+		Pallet::<T>::evaluation_reward_payout_for(
+			RawOrigin::Signed(evaluator.clone()).into(),
+			project_id,
+			evaluator.clone(),
+			pre_evaluation.id,
+		)
+		.unwrap();
+
+		#[extrinsic_call]
+		evaluation_reward_payout_for(
+			RawOrigin::Signed(evaluator.clone()),
+			project_id,
+			evaluator.clone(),
+			bench_evaluation.id,
+		);
+
+		// * validity checks *
+		// Storage
+		let stored_evaluation = Evaluations::<T>::get((project_id, evaluator.clone(), bench_evaluation.id)).unwrap();
+		assert!(stored_evaluation.rewarded_or_slashed.is_some());
+
+		// Balances
+		let project_details = ProjectsDetails::<T>::get(project_id).unwrap();
+		let reward_info = match project_details.evaluation_round_info.evaluators_outcome {
+			EvaluatorsOutcome::Rewarded(reward_info) => reward_info,
+			_ => panic!("EvaluatorsOutcome should be Rewarded"),
+		};
+
+		let pre_reward =
+			BenchInstantiator::<T>::calculate_total_reward_for_evaluation(pre_evaluation.clone(), reward_info.clone());
+		let bench_reward =
+			BenchInstantiator::<T>::calculate_total_reward_for_evaluation(bench_evaluation.clone(), reward_info);
+		let ct_amount = inst.get_ct_asset_balances_for(project_id, vec![evaluator.clone()])[0];
+		assert_eq!(ct_amount, pre_reward + bench_reward);
+
+		// Events
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::EvaluationRewarded {
+				project_id,
+				evaluator: evaluator.clone(),
+				id: stored_evaluation.id,
+				amount: bench_reward,
+				caller: evaluator,
+			}
+			.into(),
+		);
+	}
+
+	#[benchmark]
 	fn evaluation_slash_for(x: Linear<1, 20>) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
@@ -1864,78 +2023,6 @@ mod benchmarks {
 				evaluator: evaluator.clone(),
 				id: stored_evaluation.id,
 				amount: slashed_amount,
-				caller: evaluator,
-			}
-			.into(),
-		);
-	}
-
-	#[benchmark]
-	fn evaluation_reward_payout_for(x: Linear<1, 20>) {
-		// setup
-		let mut inst = BenchInstantiator::<T>::new(None);
-
-		// real benchmark starts at block 0, and we can't call `events()` at block 0
-		inst.advance_time(1u32.into()).unwrap();
-
-		#[cfg(feature = "std")]
-		let mut inst = populate_with_projects(x, inst);
-
-		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-		let evaluations = default_evaluations::<T>();
-		let evaluator = evaluations[0].account.clone();
-		whitelist_account!(evaluator);
-
-		let project_id = inst.create_finished_project(
-			default_project::<T>(inst.get_new_nonce(), issuer.clone()),
-			issuer,
-			evaluations,
-			default_bids::<T>(),
-			default_community_contributions::<T>(),
-			vec![],
-		);
-
-		inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
-		assert_eq!(
-			inst.get_project_details(project_id).cleanup,
-			Cleaner::Success(CleanerState::Initialized(PhantomData))
-		);
-
-		let evaluation_to_unbond =
-			inst.execute(|| Evaluations::<T>::iter_prefix_values((project_id, evaluator.clone())).next().unwrap());
-
-		#[extrinsic_call]
-		evaluation_reward_payout_for(
-			RawOrigin::Signed(evaluator.clone()),
-			project_id,
-			evaluator.clone(),
-			evaluation_to_unbond.id,
-		);
-
-		// * validity checks *
-		// Storage
-		let stored_evaluation =
-			Evaluations::<T>::get((project_id, evaluator.clone(), evaluation_to_unbond.id)).unwrap();
-		assert!(stored_evaluation.rewarded_or_slashed.is_some());
-
-		// Balances
-		let project_details = ProjectsDetails::<T>::get(project_id).unwrap();
-		let reward_info = match project_details.evaluation_round_info.evaluators_outcome {
-			EvaluatorsOutcome::Rewarded(reward_info) => reward_info,
-			_ => panic!("EvaluatorsOutcome should be Rewarded"),
-		};
-		let total_reward =
-			BenchInstantiator::<T>::calculate_total_reward_for_evaluation(stored_evaluation.clone(), reward_info);
-		let ct_amount = inst.get_ct_asset_balances_for(project_id, vec![evaluator.clone()])[0];
-		assert_eq!(ct_amount, total_reward);
-
-		// Events
-		frame_system::Pallet::<T>::assert_last_event(
-			Event::EvaluationRewarded {
-				project_id,
-				evaluator: evaluator.clone(),
-				id: stored_evaluation.id,
-				amount: total_reward,
 				caller: evaluator,
 			}
 			.into(),
@@ -2825,13 +2912,27 @@ mod benchmarks {
 			});
 		}
 
-		// #[test]
-		// fn bench_evaluation_unbond_for() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_evaluation_unbond_for());
-		// 	});
-		// }
-		//
+		#[test]
+		fn bench_evaluation_unbond_for() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_evaluation_unbond_for());
+			});
+		}
+
+		#[test]
+		fn bench_evaluation_reward_payout_for_with_ct_account_creation() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_evaluation_reward_payout_for_with_ct_account_creation());
+			});
+		}
+
+		#[test]
+		fn bench_evaluation_reward_payout_for_no_ct_account_creation() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_evaluation_reward_payout_for_no_ct_account_creation());
+			});
+		}
+
 		// #[test]
 		// fn bench_evaluation_slash_for() {
 		// 	new_test_ext().execute_with(|| {
@@ -2839,12 +2940,6 @@ mod benchmarks {
 		// 	});
 		// }
 		//
-		// #[test]
-		// fn bench_evaluation_reward_payout_for() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_evaluation_reward_payout_for());
-		// 	});
-		// }
 		//
 		// #[test]
 		// fn bench_bid_ct_mint_for() {

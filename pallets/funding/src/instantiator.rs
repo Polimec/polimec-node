@@ -385,6 +385,12 @@ impl<
 		expected_reserved_plmc_balances: Vec<UserToPLMCBalance<T>>,
 		total_plmc_supply: BalanceOf<T>,
 	) {
+		// just in case we forgot to merge accounts:
+		let expected_free_plmc_balances =
+			Self::generic_map_operation(vec![expected_free_plmc_balances], MergeOperation::Add);
+		let expected_reserved_plmc_balances =
+			Self::generic_map_operation(vec![expected_reserved_plmc_balances], MergeOperation::Add);
+
 		let project_details = self.get_project_details(project_id);
 		let accounts = expected_reserved_plmc_balances.accounts();
 		let expected_ct_account_deposits = accounts

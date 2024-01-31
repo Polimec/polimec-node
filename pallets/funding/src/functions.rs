@@ -1596,6 +1596,7 @@ impl<T: Config> Pallet<T> {
 		let early_evaluators_rewards = early_reward_weight * reward_info.early_evaluator_reward_pot;
 		let normal_evaluators_rewards = normal_reward_weight * reward_info.normal_evaluator_reward_pot;
 		let total_reward_amount = early_evaluators_rewards.saturating_add(normal_evaluators_rewards);
+
 		// * Update storage *
 		if !T::ContributionTokenCurrency::contains(&project_id, &evaluation.evaluator) {
 			T::NativeCurrency::release(
