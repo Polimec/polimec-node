@@ -4,7 +4,7 @@ This repository contains a modified version of Parity's 'democracy' Substrate Pa
 ## Modifications
 The modifications to the original pallet include the following:
 1. Currency traits have been replaced by the Fungibles traits.
-3. Voters can vote with their full balance (placing a lock over both free and reserved balance)
+2. Voters can vote with their full balance (placing a lock over both free and reserved balance)
 
 - [`democracy::Config`](https://docs.rs/pallet-democracy/latest/pallet_democracy/trait.Config.html)
 - [`Call`](https://docs.rs/pallet-democracy/latest/pallet_democracy/enum.Call.html)
