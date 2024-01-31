@@ -1,5 +1,5 @@
 # Phragmén Election Module
-This repository contains a modified version of Parity's 'elections_phragmen' Substrate Pallet. The original version can be found [here](https://github.com/paritytech/polkadot-sdk/tree/master/substrate/frame/elections-phragmen).
+This repository contains a modified version of Parity's 'elections_phragmen' Substrate Pallet. The original version can be found [here](https://github.com/paritytech/polkadot-sdk/tree/481165d92297d7dfd5eaf9c7f442441761fc0a12/substrate/frame/elections-phragmen).
 
 ## Modifications
 The modifications to the original pallet include the following:

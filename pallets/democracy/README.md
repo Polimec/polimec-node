@@ -1,5 +1,5 @@
 # Democracy Pallet
-This repository contains a modified version of Parity's 'democracy' Substrate Pallet. The original version can be found [here](https://github.com/paritytech/polkadot-sdk/tree/master/substrate/frame/democracy).
+This repository contains a modified version of Parity's 'democracy' Substrate Pallet. The original version can be found [here](https://github.com/paritytech/polkadot-sdk/tree/68ac55caee5c726e8b7ef66314beb5013a38be73/substrate/frame/democracy).
 
 ## Modifications
 The modifications to the original pallet include the following:
