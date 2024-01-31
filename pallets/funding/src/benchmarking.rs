@@ -1716,15 +1716,12 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn evaluation_unbond_for(x: Linear<1, 20>) {
+	fn evaluation_unbond_for() {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
-
-		#[cfg(feature = "std")]
-		let mut inst = populate_with_projects(x, inst);
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let evaluations = default_evaluations::<T>();
