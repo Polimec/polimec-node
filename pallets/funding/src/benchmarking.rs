@@ -21,7 +21,7 @@
 use sp_runtime::traits::TrailingZeroInput;
 
 use super::*;
-use crate::{instantiator::*, traits::SetPrices};
+use crate::instantiator::*;
 use frame_benchmarking::v2::*;
 use frame_support::{
 	assert_ok,

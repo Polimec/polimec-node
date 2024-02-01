@@ -137,7 +137,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Proof Skipped: PolimecFunding ProjectsDetails (max_values: None, max_size: None, mode: Measured)
 	/// Storage: PolimecFunding ProjectsToUpdate (r:1 w:1)
 	/// Proof Skipped: PolimecFunding ProjectsToUpdate (max_values: None, max_size: None, mode: Measured)
-	fn start_evaluation(x: u32) -> Weight {
+	fn start_evaluation(_x: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `467`
 		//  Estimated: `3932`
@@ -146,7 +146,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(3_u64))
 			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
-	fn start_auction_manually(x: u32, y: u32) -> Weight {
+	fn start_auction_manually(_x: u32, _y: u32) -> Weight {
 		Zero::zero()
 	}
 
@@ -157,7 +157,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	fn first_evaluation() -> Weight {
 		Weight::from_parts(20_000_000, 3932)	}
 
-	fn second_to_limit_evaluation(x: u32) -> Weight {
+	fn second_to_limit_evaluation(_x: u32) -> Weight {
 		Weight::from_parts(20_000_000, 3932)	}
 
 	fn evaluation_over_limit() -> Weight {
@@ -181,11 +181,11 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Proof: StatemintAssets Account (max_values: None, max_size: Some(134), added: 2609, mode: MaxEncodedLen)
 	/// Storage: System Account (r:1 w:1)
 	/// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	fn bid_with_ct_deposit(y: u32) -> Weight {
+	fn bid_with_ct_deposit(_y: u32) -> Weight {
 		Weight::from_parts(140_000_000, 6208)
 	}
 
-	fn bid_no_ct_deposit(x: u32, y: u32) -> Weight {
+	fn bid_no_ct_deposit(_x: u32, _y: u32) -> Weight {
 		Weight::from_parts(140_000_000, 6208)
 	}
 
@@ -199,21 +199,21 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 
 	}
 
-	fn first_contribution_ends_round_no_ct_deposit(y: u32, z: u32) -> Weight {
+	fn first_contribution_ends_round_no_ct_deposit(_y: u32, _z: u32) -> Weight {
 				Weight::from_parts(140_000_000, 6208)
 
 	}
-	fn first_contribution_ends_round_with_ct_deposit(y: u32, z: u32) -> Weight {
+	fn first_contribution_ends_round_with_ct_deposit(_y: u32, _z: u32) -> Weight {
 		Weight::from_parts(140_000_000, 6208)
 
 	}
 
-	fn second_to_limit_contribution(x: u32) -> Weight {
+	fn second_to_limit_contribution(_x: u32) -> Weight {
 				Weight::from_parts(140_000_000, 6208)
 
 	}
 
-	fn second_to_limit_contribution_ends_round(x: u32, y: u32, z: u32) -> Weight {
+	fn second_to_limit_contribution_ends_round(_x: u32, _y: u32, _z: u32) -> Weight {
 				Weight::from_parts(140_000_000, 6208)
 
 	}
@@ -415,7 +415,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Proof Skipped: PolimecFunding ProjectsDetails (max_values: None, max_size: None, mode: Measured)
 	/// Storage: PolimecFunding ProjectsToUpdate (r:3 w:2)
 	/// Proof Skipped: PolimecFunding ProjectsToUpdate (max_values: None, max_size: None, mode: Measured)
-	fn decide_project_outcome(x: u32, y: u32) -> Weight {
+	fn decide_project_outcome(_x: u32, _y: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `515`
 		//  Estimated: `8930`

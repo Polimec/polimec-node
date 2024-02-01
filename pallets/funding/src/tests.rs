@@ -437,8 +437,7 @@ mod evaluation_round_success {
 
 		for (real, desired) in zip(actual_reward_balances.iter(), expected_ct_rewards.iter()) {
 			assert_eq!(real.0, desired.0, "bad accounts order");
-			// 0.01 parts of a Perbill
-			assert_close_enough!(real.1, desired.1, Perquintill::from_parts(10_000_000u64));
+			assert_close_enough!(real.1, desired.1, Perquintill::from_float(0.001));
 		}
 	}
 
@@ -887,7 +886,6 @@ mod auction_round_success {
 		inst.mint_plmc_to(plmc_fundings);
 		inst.mint_statemint_asset_to(usdt_fundings);
 
-		// let project_metadata = default_project(inst.get_new_nonce(), ISSUER);
 		let project_id = inst.create_auctioning_project(project_metadata, ISSUER, default_evaluations());
 
 		let bids = vec![

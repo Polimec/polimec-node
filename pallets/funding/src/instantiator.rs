@@ -1493,9 +1493,6 @@ pub mod async_features {
 	) -> ProjectId {
 		let mut inst = instantiator.lock().await;
 
-		let asset_account_deposit =
-			inst.execute(|| <T as crate::Config>::ContributionTokenCurrency::deposit_required(One::one()));
-		let ed = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ed();
 		let now = inst.current_block();
 		// One ED for the issuer, one for the escrow account
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
