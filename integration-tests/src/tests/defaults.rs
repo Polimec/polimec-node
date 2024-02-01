@@ -14,17 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{Polimec, PolimecRuntime, ALICE, BOB, CHARLIE};
-use frame_support::{assert_ok, bounded_vec, BoundedVec};
+use crate::PolimecRuntime;
+use frame_support::BoundedVec;
 pub use pallet_funding::instantiator::{BidParams, ContributionParams, UserToPLMCBalance, UserToUSDBalance};
 use pallet_funding::{
 	AcceptedFundingAsset, CurrencyMetadata, ParticipantsSize, ProjectMetadata, ProjectMetadataOf, TicketSize,
 };
-use sp_arithmetic::FixedU128;
 use sp_core::H256;
-use std::collections::HashMap;
 
-use crate::PolimecOrigin;
 use macros::generate_accounts;
 use polimec_parachain_runtime::AccountId;
 use sp_runtime::{traits::ConstU32, Perquintill};

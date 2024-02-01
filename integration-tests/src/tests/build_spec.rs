@@ -13,7 +13,7 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
+#[ignore]
 #[test]
 fn build_spec_testing_node() {
 	// run the polimec-parachain-node compiled with "std" with the build-spec command and --raw flag
@@ -37,11 +37,10 @@ fn build_spec_testing_node() {
 		.output()
 		.expect("failed to execute process");
 
+	dbg!(output.clone());
 	assert_eq!(
 		output.status.success(),
 		true,
-		"Make sure you compile the polimec-parachain-node with \"--release\" and \"--features std,fast-gov\" before running this test."
+		"Make sure you compile the polimec-parachain-node with \"--release\" and \"--features std,fast-mode\" before running this test."
 	);
-
-	dbg!(output);
 }

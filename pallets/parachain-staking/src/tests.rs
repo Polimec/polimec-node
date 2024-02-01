@@ -16,7 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
 //! # Staking Pallet Unit Tests
 //! The unit tests are organized by the call they test. The order matches the order
 //! of the calls in the `lib.rs`.

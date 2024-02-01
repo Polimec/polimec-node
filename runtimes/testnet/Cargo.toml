@@ -43,6 +43,7 @@ pallet-authorship.workspace = true
 pallet-balances.workspace = true
 pallet-collective.workspace = true
 pallet-democracy.workspace = true
+pallet-elections-phragmen.workspace = true
 pallet-membership.workspace = true
 pallet-scheduler.workspace = true
 pallet-session.workspace = true
@@ -100,7 +101,8 @@ orml-oracle.workspace = true
 
 [features]
 default = [ "std" ]
-fast-gov = [ "shared-configuration/fast-gov" ]
+fast-mode = [ "shared-configuration/fast-mode" ]
+instant-mode = [ "shared-configuration/instant-mode" ]
 std = [
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-dmp-queue/std",
@@ -127,6 +129,7 @@ std = [
 	"pallet-balances/std",
 	"pallet-collective/std",
 	"pallet-democracy/std",
+	"pallet-elections-phragmen/std",
 	"pallet-funding/std",
 	"pallet-insecure-randomness-collective-flip/std",
 	"pallet-linear-release/std",
@@ -187,10 +190,12 @@ runtime-benchmarks = [
 	"pallet-balances/runtime-benchmarks",
 	"pallet-collective/runtime-benchmarks",
 	"pallet-democracy/runtime-benchmarks",
+	"pallet-elections-phragmen/runtime-benchmarks",
 	"pallet-funding/runtime-benchmarks",
 	"pallet-linear-release/runtime-benchmarks",
 	"pallet-membership/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",
+	"pallet-oracle-ocw/runtime-benchmarks",
 	"pallet-parachain-staking/runtime-benchmarks",
 	"pallet-preimage/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
@@ -209,7 +214,6 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
-	"pallet-oracle-ocw/runtime-benchmarks"
 ]
 
 try-runtime = [
@@ -231,6 +235,7 @@ try-runtime = [
 	"pallet-balances/try-runtime",
 	"pallet-collective/try-runtime",
 	"pallet-democracy/try-runtime",
+	"pallet-elections-phragmen/try-runtime",
 	"pallet-funding/try-runtime",
 	"pallet-insecure-randomness-collective-flip/try-runtime",
 	"pallet-linear-release/try-runtime",

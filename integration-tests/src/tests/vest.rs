@@ -19,12 +19,12 @@ use crate::{polimec_base::ED, *};
 /// Alice, Bob, Charlie are members of the OracleProvidersMembers.
 /// Only members should be able to feed data into the oracle.
 use frame_support::traits::fungible::Inspect;
-use frame_support::traits::fungible::{InspectHold, Mutate};
+use frame_support::traits::fungible::Mutate;
 use macros::generate_accounts;
 use pallet_funding::assert_close_enough;
 use pallet_vesting::VestingInfo;
 use polimec_base_runtime::{Balances, ParachainStaking, RuntimeOrigin, Vesting};
-use sp_runtime::{bounded_vec, BoundedVec, FixedU128, Perquintill};
+use sp_runtime::Perquintill;
 use tests::defaults::*;
 use xcm_emulator::get_account_id_from_seed;
 

@@ -257,8 +257,12 @@ fn testnet_genesis(
 		treasury: Default::default(),
 		sudo: SudoConfig { key: Some(sudo_account) },
 		council: CouncilConfig { members: accounts.clone(), phantom: Default::default() },
-		technical_committee: TechnicalCommitteeConfig { members: accounts, phantom: Default::default() },
+		technical_committee: TechnicalCommitteeConfig {
+			members: accounts.clone().into_iter().take(5).collect(),
+			phantom: Default::default(),
+		},
 		democracy: Default::default(),
+		elections: Default::default(),
 		vesting: Default::default(),
 		oracle_providers_membership: OracleProvidersMembershipConfig {
 			members: bounded_vec![
@@ -527,8 +531,12 @@ fn testing_genesis(
 		treasury: Default::default(),
 		sudo: SudoConfig { key: Some(sudo_account) },
 		council: CouncilConfig { members: accounts.clone(), phantom: Default::default() },
-		technical_committee: TechnicalCommitteeConfig { members: accounts, phantom: Default::default() },
+		technical_committee: TechnicalCommitteeConfig {
+			members: accounts.clone().into_iter().take(5).collect(),
+			phantom: Default::default(),
+		},
 		democracy: Default::default(),
+		elections: Default::default(),
 		vesting: Default::default(),
 	}
 }

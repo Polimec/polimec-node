@@ -251,6 +251,11 @@ fn base_testnet_genesis(
 			members: BoundedVec::truncate_from(initial_authorities),
 			..Default::default()
 		},
+		council: Default::default(),
+		technical_committee: Default::default(),
+		democracy: Default::default(),
+		elections: Default::default(),
+		treasury: Default::default(),
 		vesting: Default::default(),
 	}
 }

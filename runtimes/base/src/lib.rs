@@ -24,14 +24,14 @@ extern crate frame_benchmarking;
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{fungible::Credit, ConstU32, Contains, InstanceFilter},
+	traits::{fungible::Credit, tokens, ConstU32, Contains, EitherOfDiverse, InstanceFilter, PrivilegeCmp},
 	weights::{ConstantMultiplier, Weight},
 };
-use frame_system::EnsureRoot;
+use frame_system::{EnsureRoot, EnsureSigned};
 use pallet_oracle_ocw::types::AssetName;
 use parachains_common::AssetIdForTrustBackedAssets as AssetId;
 use parity_scale_codec::Encode;
-use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
+use polkadot_runtime_common::{BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate};
 use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
@@ -46,7 +46,8 @@ use sp_runtime::{
 	ApplyExtrinsicResult, FixedU128, MultiSignature, SaturatedConversion,
 };
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
-use sp_std::prelude::*;
+use sp_std::{cmp::Ordering, prelude::*};
+
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
@@ -130,7 +131,15 @@ pub mod migrations {
 	#![allow(unused_imports)]
 	use super::*;
 	/// Unreleased migrations. Add new ones here:
-	pub type Unreleased = custom_migrations::CustomOnRuntimeUpgrade;
+	pub type Unreleased = (
+		custom_migrations::InitializePallet<OracleProvidersMembership>,
+		custom_migrations::InitializePallet<Democracy>,
+		custom_migrations::InitializePallet<Council>,
+		custom_migrations::InitializePallet<TechnicalCommittee>,
+		custom_migrations::InitializePallet<Elections>,
+		custom_migrations::InitializePallet<Preimage>,
+		custom_migrations::InitializePallet<Scheduler>,
+	);
 }
 
 /// Executive: handles dispatch to the various modules.
@@ -386,6 +395,182 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = ();
 }
 
+pub struct ToTreasury;
+
+impl tokens::imbalance::OnUnbalanced<CreditOf<Runtime>> for ToTreasury {
+	fn on_nonzero_unbalanced(amount: CreditOf<Runtime>) {
+		let treasury_account = Treasury::account_id();
+		let _ = <Balances as tokens::fungible::Balanced<AccountId>>::resolve(&treasury_account, amount);
+	}
+}
+
+impl pallet_treasury::Config for Runtime {
+	type ApproveOrigin = EitherOfDiverse<
+		EnsureRoot<AccountId>,
+		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 1>,
+	>;
+	type Burn = Burn;
+	type BurnDestination = ();
+	type Currency = Balances;
+	type MaxApprovals = MaxApprovals;
+	type OnSlash = Treasury;
+	type PalletId = TreasuryId;
+	type ProposalBond = ProposalBond;
+	type ProposalBondMaximum = ();
+	type ProposalBondMinimum = ProposalBondMinimum;
+	type RejectOrigin = EitherOfDiverse<
+		EnsureRoot<AccountId>,
+		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 2>,
+	>;
+	type RuntimeEvent = RuntimeEvent;
+	type SpendFunds = ();
+	type SpendOrigin = frame_support::traits::NeverEnsureOrigin<Balance>;
+	type SpendPeriod = SpendPeriod;
+	type WeightInfo = pallet_treasury::weights::SubstrateWeight<Runtime>;
+}
+
+type CouncilCollective = pallet_collective::Instance1;
+impl pallet_collective::Config<CouncilCollective> for Runtime {
+	type DefaultVote = pallet_collective::MoreThanMajorityThenPrimeDefaultVote;
+	type MaxMembers = CouncilMaxMembers;
+	type MaxProposalWeight = MaxCollectivesProposalWeight;
+	type MaxProposals = CouncilMaxProposals;
+	type MotionDuration = CouncilMotionDuration;
+	type Proposal = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeOrigin = RuntimeOrigin;
+	type SetMembersOrigin = EnsureRoot<AccountId>;
+	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+}
+
+type TechnicalCollective = pallet_collective::Instance2;
+impl pallet_collective::Config<TechnicalCollective> for Runtime {
+	type DefaultVote = pallet_collective::MoreThanMajorityThenPrimeDefaultVote;
+	type MaxMembers = TechnicalMaxMembers;
+	type MaxProposalWeight = MaxCollectivesProposalWeight;
+	type MaxProposals = TechnicalMaxProposals;
+	type MotionDuration = TechnicalMotionDuration;
+	type Proposal = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeOrigin = RuntimeOrigin;
+	type SetMembersOrigin = EnsureRoot<AccountId>;
+	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+}
+
+impl pallet_elections_phragmen::Config for Runtime {
+	type Balance = Balance;
+	/// How much should be locked up in order to submit one's candidacy.
+	type CandidacyBond = CandidacyBond;
+	type ChangeMembers = Council;
+	type Currency = Balances;
+	type CurrencyToVote = CurrencyToVote;
+	/// Number of members to elect.
+	type DesiredMembers = DesiredMembers;
+	/// Number of runners_up to keep.
+	type DesiredRunnersUp = DesiredRunnersUp;
+	type InitializeMembers = Council;
+	type LoserCandidate = ToTreasury;
+	type MaxCandidates = MaxCandidates;
+	type MaxVoters = MaxVoters;
+	type MaxVotesPerVoter = MaxVotesPerVoter;
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeFreezeReason = RuntimeFreezeReason;
+	type RuntimeHoldReason = RuntimeHoldReason;
+	/// How long each seat is kept. This defines the next block number at which
+	/// an election round will happen. If set to zero, no elections are ever
+	/// triggered and the module will be in passive mode.
+	type TermDuration = TermDuration;
+	type VotingLockPeriod = VotingLockPeriod;
+	type WeightInfo = pallet_elections_phragmen::weights::SubstrateWeight<Runtime>;
+}
+
+impl pallet_democracy::Config for Runtime {
+	type BlacklistOrigin = EnsureRoot<AccountId>;
+	// To cancel a proposal before it has been passed, the technical committee must be unanimous or
+	// Root must agree.
+	type CancelProposalOrigin = EitherOfDiverse<
+		EnsureRoot<AccountId>,
+		pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 1>,
+	>;
+	// To cancel a proposal which has been passed, 2/3 of the council must agree to it.
+	type CancellationOrigin = pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 2, 3>;
+	type CooloffPeriod = CooloffPeriod;
+	type EnactmentPeriod = EnactmentPeriod;
+	/// A unanimous council can have the next scheduled referendum be a straight default-carries
+	/// (NTB) vote.
+	type ExternalDefaultOrigin = pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 1>;
+	/// A super-majority can have the next scheduled referendum be a straight majority-carries vote.
+	type ExternalMajorityOrigin = pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 3, 5>;
+	/// A straight majority of the council can decide what their next motion is.
+	type ExternalOrigin = pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 2>;
+	/// Two thirds of the technical committee can have an ExternalMajority/ExternalDefault vote
+	/// be tabled immediately and with a shorter voting/enactment period.
+	type FastTrackOrigin = pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 3, 5>;
+	type FastTrackVotingPeriod = FastTrackVotingPeriod;
+	type Fungible = Balances;
+	type InstantAllowed = frame_support::traits::ConstBool<true>;
+	type InstantOrigin = pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 1>;
+	type LaunchPeriod = LaunchPeriod;
+	type MaxBlacklisted = MaxBlacklisted;
+	type MaxDeposits = MaxDeposits;
+	type MaxProposals = MaxProposals;
+	type MaxVotes = MaxVotes;
+	// Same as EnactmentPeriod
+	type MinimumDeposit = MinimumDeposit;
+	type PalletsOrigin = OriginCaller;
+	type Preimages = Preimage;
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeFreezeReason = RuntimeFreezeReason;
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type Scheduler = Scheduler;
+	type Slash = ToTreasury;
+	type SubmitOrigin = EnsureSigned<AccountId>;
+	// Any single technical committee member may veto a coming council proposal, however they can
+	// only do it once and it lasts only for the cool-off period.
+	type VetoOrigin = pallet_collective::EnsureMember<AccountId, TechnicalCollective>;
+	type VoteLockingPeriod = EnactmentPeriod;
+	type VotingPeriod = VotingPeriod;
+	type WeightInfo = pallet_democracy::weights::SubstrateWeight<Runtime>;
+}
+
+pub struct EqualOrGreatestRootCmp;
+
+impl PrivilegeCmp<OriginCaller> for EqualOrGreatestRootCmp {
+	fn cmp_privilege(left: &OriginCaller, right: &OriginCaller) -> Option<Ordering> {
+		if left == right {
+			return Some(Ordering::Equal)
+		}
+		match (left, right) {
+			// Root is greater than anything.
+			(OriginCaller::system(frame_system::RawOrigin::Root), _) => Some(Ordering::Greater),
+			_ => None,
+		}
+	}
+}
+
+impl pallet_scheduler::Config for Runtime {
+	type MaxScheduledPerBlock = MaxScheduledPerBlock;
+	type MaximumWeight = MaximumSchedulerWeight;
+	type OriginPrivilegeCmp = EqualOrGreatestRootCmp;
+	type PalletsOrigin = OriginCaller;
+	type Preimages = Preimage;
+	type RuntimeCall = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeOrigin = RuntimeOrigin;
+	type ScheduleOrigin = EnsureRoot<AccountId>;
+	type WeightInfo = ();
+}
+
+impl pallet_preimage::Config for Runtime {
+	// TODO: Check this base deposit value.
+	type BaseDeposit = PreimageBaseDeposit;
+	type ByteDeposit = ();
+	type Currency = Balances;
+	type ManagerOrigin = EnsureRoot<AccountId>;
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+}
+
 impl pallet_parachain_staking::Config for Runtime {
 	type Balance = Balance;
 	type CandidateBondLessDelay = CandidateBondLessDelay;
@@ -604,6 +789,15 @@ construct_runtime!(
 		PolkadotXcm: pallet_xcm = 31,
 		CumulusXcm: cumulus_pallet_xcm = 32,
 		DmpQueue: cumulus_pallet_dmp_queue = 33,
+
+		// Governance
+		Treasury: pallet_treasury = 40,
+		Democracy: pallet_democracy::{Pallet, Call, Storage, Event<T>, Config<T>, HoldReason, FreezeReason} = 41,
+		Council: pallet_collective::<Instance1> = 42,
+		TechnicalCommittee: pallet_collective::<Instance2> = 43,
+		Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>, HoldReason, FreezeReason} = 44,
+		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 45,
+		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 46,
 
 		// Oracle
 		Oracle: orml_oracle::{Pallet, Call, Storage, Event<T>} = 70,

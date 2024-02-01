@@ -32,7 +32,8 @@ test-runtime-features:
 
 # Run the integration tests
 test-integration:
-	cargo test -p integration-tests --features std,fast-gov
+	cargo test -p integration-tests
+
 
 # Benchmark the "Testnet" Runtime
 benchmark-runtime-funding:
@@ -61,7 +62,7 @@ benchmark-runtime-linear-release:
 
 # Benchmark the "Testnet" Runtime
 benchmark-pallet-funding:
-	cargo run --features runtime-benchmarks,fast-gov --release -p polimec-parachain-node benchmark pallet \
+	cargo run --features runtime-benchmarks,fast-mode --release -p polimec-parachain-node benchmark pallet \
 		--chain=polimec-rococo-local \
 		--steps=50 \
 		--repeat=20 \
@@ -72,7 +73,7 @@ benchmark-pallet-funding:
 		--template=./.maintain/frame-weight-template.hbs
 
 benchmark-pallet-linear-release:
-	cargo run --features runtime-benchmarks,fast-gov --release -p polimec-parachain-node benchmark pallet \
+	cargo run --features runtime-benchmarks,fast-mode --release -p polimec-parachain-node benchmark pallet \
 		--chain=polimec-rococo-local \
 		--steps=50 \
 		--repeat=20 \
@@ -84,6 +85,7 @@ benchmark-pallet-linear-release:
 
 benchmarks-test:
     cargo test --features runtime-benchmarks -p pallet-funding benchmarks
+
 
 # Build the Node Docker Image
 docker-build tag = "latest" package= "polimec-parachain-node":
