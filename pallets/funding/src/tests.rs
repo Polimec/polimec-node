@@ -6304,15 +6304,3 @@ mod async_tests {
 		assert_eq!(inst.get_project_details(0).status, ProjectStatus::FundingSuccessful);
 	}
 }
-
-mod draft_tests {
-	#[test]
-	fn transition_failed_too_many_insertion_tries() {
-		todo!()
-	}
-
-	#[test]
-	fn transition_can_happen_after_too_many_insertions_error() {
-		todo!()
-	}
-}

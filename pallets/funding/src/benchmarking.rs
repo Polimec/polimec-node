@@ -23,11 +23,12 @@ use sp_runtime::traits::TrailingZeroInput;
 use super::*;
 use crate::instantiator::*;
 use frame_benchmarking::v2::*;
+#[cfg(test)]
+use frame_support::assert_ok;
 use frame_support::{
-	assert_ok,
 	dispatch::RawOrigin,
 	traits::{
-		fungible::{InspectHold, Mutate, MutateHold},
+		fungible::{InspectHold, MutateHold},
 		OriginTrait,
 	},
 	Parameter,
@@ -41,7 +42,6 @@ use sp_arithmetic::Percent;
 use sp_core::H256;
 use sp_io::hashing::blake2_256;
 use sp_runtime::traits::{BlakeTwo256, Get, Member};
-use sp_std::prelude::*;
 
 const METADATA: &str = r#"
 {
@@ -455,8 +455,6 @@ mod benchmarks {
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
-		let projects_details_count = ProjectsDetails::<T>::iter().count();
-
 		let ed = BenchInstantiator::<T>::get_ed();
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
@@ -655,7 +653,7 @@ mod benchmarks {
 			current_block + <T as Config>::AuctionInitializePeriodDuration::get() + One::one();
 		let insertion_block_number: BlockNumberFor<T> =
 			automatic_transition_block + T::EnglishAuctionDuration::get() + One::one();
-		let mut block_number = insertion_block_number;
+		let block_number = insertion_block_number;
 
 		fill_projects_to_update::<T>(x, block_number, None);
 
@@ -943,7 +941,7 @@ mod benchmarks {
 			let current_bucket = Buckets::<T>::get(project_id).unwrap();
 			// first lets bring the bucket to almost its limit with another bidder:
 			assert!(new_bidder.clone() != bidder.clone());
-			let mut bid_params = BidParams::new(
+			let bid_params = BidParams::new(
 				new_bidder,
 				current_bucket.amount_left,
 				// not used atm
@@ -982,12 +980,12 @@ mod benchmarks {
 		inst.mint_plmc_to(plmc_for_extrinsic_bids.clone());
 		inst.mint_statemint_asset_to(usdt_for_extrinsic_bids.clone());
 
-		let mut total_free_plmc = existential_deposits[0].plmc_amount;
+		let total_free_plmc = existential_deposits[0].plmc_amount;
 		let total_plmc_participation_bonded = BenchInstantiator::<T>::sum_balance_mappings(vec![
 			plmc_for_extrinsic_bids.clone(),
 			plmc_for_existing_bids.clone(),
 		]);
-		let mut total_free_usdt = Zero::zero();
+		let total_free_usdt = Zero::zero();
 		let total_escrow_usdt_locked = BenchInstantiator::<T>::sum_statemint_mappings(vec![
 			prev_total_escrow_usdt_locked.clone(),
 			usdt_for_extrinsic_bids.clone(),
@@ -1118,7 +1116,7 @@ mod benchmarks {
 		// if x were > 0, then the ct deposit would already be paid
 		let x = 0;
 		let (
-			mut inst,
+			inst,
 			project_id,
 			project_metadata,
 			original_extrinsic_bid,
@@ -1157,7 +1155,7 @@ mod benchmarks {
 	#[benchmark]
 	fn bid_no_ct_deposit(x: Linear<0, { T::MaxBidsPerUser::get() - 1 }>, y: Linear<0, 10>) {
 		let (
-			mut inst,
+			inst,
 			project_id,
 			project_metadata,
 			original_extrinsic_bid,
@@ -1250,7 +1248,7 @@ mod benchmarks {
 		};
 		let existing_contribution =
 			ContributionParams::new(contributor.clone(), existing_amount, 1u8, AcceptedFundingAsset::USDT);
-		let mut extrinsic_contribution =
+		let extrinsic_contribution =
 			ContributionParams::new(contributor.clone(), extrinsic_amount, 1u8, AcceptedFundingAsset::USDT);
 		let existing_contributions = vec![existing_contribution; x as usize];
 

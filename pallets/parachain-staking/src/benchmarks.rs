@@ -23,11 +23,11 @@ use crate::{
 };
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite, vec};
 use frame_support::traits::{
-	fungible::{Inspect, Mutate, MutateHold},
+	fungible::{Inspect, Mutate},
 	Get, OnFinalize, OnInitialize,
 };
 use frame_system::{pallet_prelude::BlockNumberFor, RawOrigin};
-#[cfg(feature = "std")]
+#[cfg(test)]
 use sp_runtime::BuildStorage;
 use sp_runtime::{Perbill, Percent};
 use sp_std::{default::Default, vec::Vec};
