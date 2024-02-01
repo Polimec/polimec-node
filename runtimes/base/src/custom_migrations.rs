@@ -19,10 +19,19 @@ use crate::*;
 
 // Substrate
 #[allow(unused_imports)]
-use frame_support::{dispatch::DispatchError, log, migration, storage::unhashed, traits::{GetStorageVersion, StorageVersion, PalletInfoAccess}};
+use frame_support::{
+	dispatch::DispatchError,
+	log, migration,
+	storage::unhashed,
+	traits::{GetStorageVersion, PalletInfoAccess, StorageVersion},
+};
 
-pub struct InitializePallet<Pallet: GetStorageVersion<CurrentStorageVersion = StorageVersion> + PalletInfoAccess>(sp_std::marker::PhantomData<Pallet>);
-impl<Pallet: GetStorageVersion<CurrentStorageVersion = StorageVersion> + PalletInfoAccess> frame_support::traits::OnRuntimeUpgrade for InitializePallet<Pallet> {
+pub struct InitializePallet<Pallet: GetStorageVersion<CurrentStorageVersion = StorageVersion> + PalletInfoAccess>(
+	sp_std::marker::PhantomData<Pallet>,
+);
+impl<Pallet: GetStorageVersion<CurrentStorageVersion = StorageVersion> + PalletInfoAccess>
+	frame_support::traits::OnRuntimeUpgrade for InitializePallet<Pallet>
+{
 	#[cfg(feature = "try-runtime")]
 	fn pre_upgrade() -> Result<Vec<u8>, DispatchError> {
 		log::info!("{} migrating from {:#?}", Pallet::name(), Pallet::on_chain_storage_version());

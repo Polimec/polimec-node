@@ -36,7 +36,7 @@ fn build_spec_testing_node() {
 		.arg("--raw")
 		.output()
 		.expect("failed to execute process");
-	
+
 	dbg!(output.clone());
 	assert_eq!(
 		output.status.success(),

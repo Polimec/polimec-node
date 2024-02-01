@@ -4,7 +4,7 @@ use crate::{polimec_base::ED, *};
 /// Only members should be able to feed data into the oracle.
 use frame_support::traits::fungible::Inspect;
 use frame_support::traits::{
-	fungible::{BalancedHold, MutateHold, MutateFreeze, Unbalanced},
+	fungible::{BalancedHold, MutateFreeze, MutateHold, Unbalanced},
 	OnInitialize, WithdrawReasons,
 };
 use macros::generate_accounts;
@@ -19,7 +19,8 @@ use frame_support::{
 use pallet_democracy::{AccountVote, Conviction, ReferendumInfo, Vote};
 use pallet_vesting::VestingInfo;
 use polimec_base_runtime::{
-	Balances, Council, Democracy, Elections, Treasury, ParachainStaking, Preimage, RuntimeOrigin, TechnicalCommittee, Vesting,
+	Balances, Council, Democracy, Elections, ParachainStaking, Preimage, RuntimeOrigin, TechnicalCommittee, Treasury,
+	Vesting,
 };
 use tests::defaults::*;
 use xcm_emulator::get_account_id_from_seed;
@@ -97,12 +98,10 @@ fn vested_tokens_and_reserves_dont_work_together() {
 fn lock_and_freeze_after_reserve_does_work() {
 	PolimecBase::execute_with(|| {
 		let alice = PolimecBase::account_id_of(ALICE);
-		
+
 		assert_ok!(Balances::reserve(&alice, 400 * PLMC));
 		assert_ok!(Balances::set_freeze(
-			&polimec_base_runtime::RuntimeFreezeReason::Democracy(
-				pallet_democracy::FreezeReason::Vote
-			),
+			&polimec_base_runtime::RuntimeFreezeReason::Democracy(pallet_democracy::FreezeReason::Vote),
 			&alice,
 			400 * PLMC
 		));
@@ -125,7 +124,7 @@ fn council_and_technical_committee_members_set_correctly() {
 	});
 }
 
-/// Test that basic democracy works correctly. 
+/// Test that basic democracy works correctly.
 /// 1. Public proposal is created.
 /// 2. Public votes on the proposal.
 /// 3. Proposal is approved.
@@ -192,13 +191,16 @@ fn user_can_vote_with_staked_balance() {
 		.unwrap();
 		assert_ok!(Democracy::propose(RuntimeOrigin::signed(account.clone()), bounded_call, 100 * PLMC));
 
-		assert_ok!(ParachainStaking::delegate(RuntimeOrigin::signed(account.clone()), get_account_id_from_seed::<sr25519::Public>("COLL_1"), 100 * PLMC, 0, 0));
+		assert_ok!(ParachainStaking::delegate(
+			RuntimeOrigin::signed(account.clone()),
+			get_account_id_from_seed::<sr25519::Public>("COLL_1"),
+			100 * PLMC,
+			0,
+			0
+		));
 
 		// Total PLMC reserved for staking (100) + creating proposal (100) = 200
-		assert_eq!(
-			Balances::reserved_balance(&account),
-			200 * PLMC
-		)
+		assert_eq!(Balances::reserved_balance(&account), 200 * PLMC)
 	});
 
 	run_gov_n_blocks(1);
@@ -245,9 +247,8 @@ fn treasury_proposal_accepted_by_council() {
 		assert_eq!(Treasury::proposal_count(), 1);
 
 		// 2. Council will vote on the proposal
-		let proposal = polimec_base_runtime::RuntimeCall::Treasury(pallet_treasury::Call::approve_proposal {
-			proposal_id: 0,
-		});
+		let proposal =
+			polimec_base_runtime::RuntimeCall::Treasury(pallet_treasury::Call::approve_proposal { proposal_id: 0 });
 		assert_ok!(Council::propose(RuntimeOrigin::signed(alice.clone()), 5, Box::new(proposal.clone()), 100,));
 
 		// 3. Council votes on the proposal
@@ -300,26 +301,25 @@ fn slashed_treasury_proposal_funds_send_to_treasury() {
 	});
 }
 
-/// Test that users can vote in the election-phragmen pallet with their staked balance. 
+/// Test that users can vote in the election-phragmen pallet with their staked balance.
 #[test]
 fn user_can_vote_in_election_with_staked_balance() {
 	let alice = PolimecBase::account_id_of(ALICE);
 	PolimecBase::execute_with(|| {
 		let account = create_vested_account();
-		
-		assert_ok!(ParachainStaking::delegate(RuntimeOrigin::signed(account.clone()), get_account_id_from_seed::<sr25519::Public>("COLL_1"), 200 * PLMC, 0, 0));
+
+		assert_ok!(ParachainStaking::delegate(
+			RuntimeOrigin::signed(account.clone()),
+			get_account_id_from_seed::<sr25519::Public>("COLL_1"),
+			200 * PLMC,
+			0,
+			0
+		));
 
 		// Total PLMC reserved for staking (100) + creating proposal (100) = 200
-		assert_eq!(
-			Balances::reserved_balance(&account),
-			200 * PLMC
-		);
+		assert_eq!(Balances::reserved_balance(&account), 200 * PLMC);
 
-		assert_ok!(Elections::vote(
-			RuntimeOrigin::signed(account.clone()),
-			vec![alice],
-			200 * PLMC,
-		));
+		assert_ok!(Elections::vote(RuntimeOrigin::signed(account.clone()), vec![alice], 200 * PLMC,));
 
 		assert_eq!(
 			Balances::balance_frozen(
@@ -329,7 +329,10 @@ fn user_can_vote_in_election_with_staked_balance() {
 			200 * PLMC
 		);
 
-		assert_noop!(Elections::remove_voter(RuntimeOrigin::signed(account.clone())), pallet_elections_phragmen::Error::<polimec_base_runtime::Runtime>::VotingPeriodNotEnded);
+		assert_noop!(
+			Elections::remove_voter(RuntimeOrigin::signed(account.clone())),
+			pallet_elections_phragmen::Error::<polimec_base_runtime::Runtime>::VotingPeriodNotEnded
+		);
 	});
 
 	run_gov_n_blocks(5);
@@ -357,7 +360,10 @@ fn user_can_vote_in_election_with_staked_balance() {
 /// 6. Check that the remaining candidates have their funds slashed as they did not receive any votes
 #[test]
 fn election_phragmen_works() {
-	let candidates = (1..=32).into_iter().map(|i| get_account_id_from_seed::<sr25519::Public>(format!("CANDIDATE_{}", i).as_str())).collect::<Vec<AccountId>>();
+	let candidates = (1..=32)
+		.into_iter()
+		.map(|i| get_account_id_from_seed::<sr25519::Public>(format!("CANDIDATE_{}", i).as_str()))
+		.collect::<Vec<AccountId>>();
 	// 1. Register candidates for the election.
 	PolimecBase::execute_with(|| {
 		assert_eq!(Elections::candidates().len(), 0);
@@ -376,7 +382,7 @@ fn election_phragmen_works() {
 			let voter = PolimecBase::account_id_of(voter);
 			assert_ok!(Elections::vote(
 				RuntimeOrigin::signed(voter.clone()),
-				candidates[i..(i+8)].to_vec(),
+				candidates[i..(i + 8)].to_vec(),
 				200 * PLMC,
 			));
 		}
@@ -388,17 +394,16 @@ fn election_phragmen_works() {
 		assert_eq!(Elections::candidates().len(), 0);
 		assert_eq!(Elections::members().len(), 9);
 		assert_eq!(Elections::runners_up().len(), 6);
-		
+
 		let expected_runners_up = candidates[0..3].iter().cloned().chain(candidates[12..15].iter().cloned()).collect();
 		assert_same_members(Elections::members().into_iter().map(|m| m.who).collect(), &(candidates[3..12].to_vec()));
 		assert_same_members(Elections::runners_up().into_iter().map(|m| m.who).collect(), &expected_runners_up);
-		
+
 		// Check that the candidates that were not elected have their funds slashed
 		for candidate in &candidates[15..32] {
 			assert_eq!(Balances::total_balance(candidate), ED);
 		}
 		assert_eq!(Balances::balance(&Treasury::account_id()), 17 * 1000 * PLMC + ED)
-		
 	});
 }
 
