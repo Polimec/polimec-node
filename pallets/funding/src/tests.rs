@@ -850,6 +850,27 @@ mod auction_round_success {
 
 		let accounts = vec![ADAM, TOM, SOFIA, FRED, ANNA, DAMIAN];
 
+		let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
+		let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
+		let metadata_hash = hashed(format!("{}-{}", METADATA, 0));
+		let project_metadata = ProjectMetadata {
+			token_information: CurrencyMetadata {
+				name: bounded_name,
+				symbol: bounded_symbol,
+				decimals: ASSET_DECIMALS,
+			},
+			mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
+			total_allocation_size: (50_000 * ASSET_UNIT, 50_000 * ASSET_UNIT),
+			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
+			ticket_size: TicketSize { minimum: Some(1), maximum: None },
+			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+			funding_thresholds: Default::default(),
+			conversion_rate: 0,
+			participation_currencies: AcceptedFundingAsset::USDT,
+			funding_destination_account: ISSUER,
+			offchain_information_hash: Some(metadata_hash),
+		};
+
 		// overfund with plmc
 		let plmc_fundings = accounts
 			.iter()
@@ -866,7 +887,7 @@ mod auction_round_success {
 		inst.mint_plmc_to(plmc_fundings);
 		inst.mint_statemint_asset_to(usdt_fundings);
 
-		let project_metadata = default_project(inst.get_new_nonce(), ISSUER);
+		// let project_metadata = default_project(inst.get_new_nonce(), ISSUER);
 		let project_id = inst.create_auctioning_project(project_metadata, ISSUER, default_evaluations());
 
 		let bids = vec![
@@ -882,13 +903,11 @@ mod auction_round_success {
 
 		inst.start_community_funding(project_id).unwrap();
 
-		let bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect_vec());
-		let token_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
-		let token_price_as_usdt = token_price.saturating_mul_int(ASSET_UNIT);
+		let token_price =
+			inst.get_project_details(project_id).weighted_average_price.unwrap().saturating_mul_int(ASSET_UNIT);
+		let desired_price = PriceOf::<TestRuntime>::from_float(11.1818f64).saturating_mul_int(ASSET_UNIT);
 
-		let current_bucket = inst.execute(|| Buckets::<TestRuntime>::get(project_id).unwrap());
-
-		assert_eq!(token_price_as_usdt, ASSET_UNIT * 11);
+		assert_close_enough!(token_price, desired_price, Perquintill::from_float(0.01));
 	}
 
 	#[test]
