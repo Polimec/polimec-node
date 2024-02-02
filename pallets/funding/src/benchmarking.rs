@@ -302,88 +302,6 @@ where
 	async_features::create_multiple_projects_at(inst, instantiation_details).1
 }
 
-// pub fn generate_evaluations<T: Config>(amount: u32) -> Vec<UserToUSDBalance<T>>
-// where
-// 	<T as Config>::Balance: From<u128>,
-// {
-// 	const TARGET_USD: u128 = 107_000u128 * US_DOLLAR;
-// 	let amount_per_participant = TARGET_USD / amount as u128;
-// 	let mut evaluations = Vec::new();
-// 	for i in 0..amount {
-// 		let evaluator_name: String = format!("evaluator_{}", i);
-// 		let evaluator = string_account::<AccountIdOf<T>>(evaluator_name, 0, 0);
-// 		evaluations.push(UserToUSDBalance::new(evaluator, (amount_per_participant).into()));
-// 	}
-// 	evaluations
-// }
-//
-// pub fn generate_bids<T: Config>(amount: u32) -> Vec<BidParams<T>>
-// where
-// 	<T as Config>::Price: From<u128>,
-// 	<T as Config>::Balance: From<u128>,
-// {
-// 	const TARGET_USD: u128 = 45_000 * US_DOLLAR;
-// 	let amount_per_participant = TARGET_USD / amount as u128;
-// 	let mut bids = Vec::new();
-// 	for i in 0..amount {
-// 		let bidder_name: String = format!("bidder_{}", i);
-// 		let bidder = string_account::<AccountIdOf<T>>(bidder_name, 0, 0);
-// 		bids.push(BidParams::new(
-// 			bidder,
-// 			(amount_per_participant).into(),
-// 			1_u128.into(),
-// 			1u8,
-// 			AcceptedFundingAsset::USDT,
-// 		));
-// 	}
-// 	bids
-// }
-//
-// pub fn generate_community_contributions<T: Config>(amount: u32) -> Vec<ContributionParams<T>>
-// where
-// 	<T as Config>::Price: From<u128>,
-// 	<T as Config>::Balance: From<u128>,
-// {
-// 	const TARGET_USD: u128 = 46_000 * US_DOLLAR;
-// 	let amount_per_participant = TARGET_USD / amount as u128;
-// 	let mut contributions = Vec::new();
-// 	for i in 0..amount {
-// 		let contributor_name: String = format!("contributor_{}", i);
-// 		let contributor = string_account::<AccountIdOf<T>>(contributor_name, 0, 0);
-// 		contributions.push(ContributionParams::new(
-// 			contributor,
-// 			(amount_per_participant).into(),
-// 			1u8,
-// 			AcceptedFundingAsset::USDT,
-// 		));
-// 	}
-// 	contributions
-// }
-
-// pub fn generate_remainder_contributions(amount: u32) -> Vec<ContributionParams<TestRuntime>>
-// where
-// 	<TestRuntime as Config>::Price: From<u128>,
-// 	<TestRuntime as Config>::Balance: From<u128>,
-// {
-// 	const TARGET_USD: u128 = 100 * US_DOLLAR;
-// 	let amount_per_participant = TARGET_USD / amount as u128;
-// 	let mut contributions = Vec::new();
-// 	let mut user_kind = vec!["evaluator", "bidder", "contributor"].into_iter().cycle();
-// 	let mut counters = vec![0, 0, 0];
-// 	for i in 0..amount {
-// 		let kind = user_kind.next().unwrap();
-// 		let contributor_name: String = match kind {};
-// 		let contributor = string_account::<AccountIdOf<TestRuntime>>(contributor_name, 0, 0);
-// 		contributions.push(ContributionParams::new(
-// 			contributor,
-// 			(amount_per_participant).into(),
-// 			1u8,
-// 			AcceptedFundingAsset::USDT,
-// 		));
-// 	}
-// 	contributions
-// }
-
 // IMPORTANT: make sure your project starts at (block 1 + `total_vecs_in_storage` - `fully_filled_vecs_from_insertion`) to always have room to insert new vecs
 pub fn fill_projects_to_update<T: Config>(
 	fully_filled_vecs_from_insertion: u32,
@@ -1108,13 +1026,14 @@ mod benchmarks {
 			);
 		}
 	}
-	// branches:
-	// - ct account deposit
-	// - amount of times where `perform_bid` is called (i.e how many buckets)
+
 	#[benchmark]
-	fn bid_with_ct_deposit(y: Linear<0, 10>) {
-		// if x were > 0, then the ct deposit would already be paid
-		let x = 0;
+	fn bid_no_ct_deposit(
+		// amount of already made bids by the same user
+		x: Linear<0, { T::MaxBidsPerUser::get() - 1 }>,
+		// amount of times where `perform_bid` is called (i.e how many buckets)
+		y: Linear<0, 10>,
+	) {
 		let (
 			inst,
 			project_id,
@@ -1128,6 +1047,8 @@ mod benchmarks {
 			total_free_usdt,
 			total_usdt_locked,
 		) = bid_setup::<T>(x, y);
+
+		let _new_plmc_minted = make_ct_deposit_for::<T>(original_extrinsic_bid.bidder.clone(), project_id);
 
 		#[extrinsic_call]
 		bid(
@@ -1153,7 +1074,12 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn bid_no_ct_deposit(x: Linear<0, { T::MaxBidsPerUser::get() - 1 }>, y: Linear<0, 10>) {
+	fn bid_with_ct_deposit(
+		// amount of times where `perform_bid` is called (i.e how many buckets)
+		y: Linear<0, 10>,
+	) {
+		// if x were > 0, then the ct deposit would already be paid
+		let x = 0;
 		let (
 			inst,
 			project_id,
@@ -1167,8 +1093,6 @@ mod benchmarks {
 			total_free_usdt,
 			total_usdt_locked,
 		) = bid_setup::<T>(x, y);
-
-		let _new_plmc_minted = make_ct_deposit_for::<T>(original_extrinsic_bid.bidder.clone(), project_id);
 
 		#[extrinsic_call]
 		bid(
