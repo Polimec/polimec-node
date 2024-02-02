@@ -403,7 +403,7 @@ impl<T: Config> Pallet<T> {
 				return Err(DispatchErrorWithPostInfo {
 					post_info: PostDispatchInfo {
 						actual_weight: if remove_attempts == 0u32 {
-							Some(WeightInfoOf::<T>::start_auction_automatically())
+							Some(WeightInfoOf::<T>::start_auction_automatically(insertion_attempts))
 						} else {
 							Some(WeightInfoOf::<T>::start_auction_manually(insertion_attempts, remove_attempts))
 						},
@@ -418,7 +418,7 @@ impl<T: Config> Pallet<T> {
 
 		Ok(PostDispatchInfo {
 			actual_weight: if remove_attempts == 0u32 {
-				Some(WeightInfoOf::<T>::start_auction_automatically())
+				Some(WeightInfoOf::<T>::start_auction_automatically(insertion_attempts))
 			} else {
 				Some(WeightInfoOf::<T>::start_auction_manually(insertion_attempts, remove_attempts))
 			},

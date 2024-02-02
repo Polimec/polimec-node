@@ -6204,3 +6204,47 @@ mod async_tests {
 		assert_eq!(inst.get_project_details(0).status, ProjectStatus::FundingSuccessful);
 	}
 }
+
+// Want to make sure the correct weights are returned depending on the logic path and complexity params
+// We only test extrinsics that return `DispatchResultWithPostInfo`
+mod benchmark_tests {
+	use super::*;
+
+	// test that it returns higher weight if it has to try more times to insert the project into the `ProjectsToUpdate` storage
+	#[test]
+	fn start_evaluation() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+
+		let max_project_per_block: u32 = <TestRuntime as Config>::MaxProjectsToUpdatePerBlock::get();
+
+		let project_1 = inst.create_new_project(knowledge_hub_project(inst.get_new_nonce()), ISSUER);
+		let weight_1 = inst
+			.execute(|| {
+				crate::Pallet::<TestRuntime>::start_evaluation(RuntimeOrigin::signed(ISSUER), project_1).unwrap()
+			})
+			.actual_weight
+			.unwrap();
+		dbg!(weight_1);
+
+		// fill the `ProjectsToUpdate` storage for this block
+		for _ in 0..max_project_per_block {
+			let project_id = inst.create_new_project(knowledge_hub_project(inst.get_new_nonce()), ISSUER);
+			inst.execute(|| {
+				crate::Pallet::<TestRuntime>::start_evaluation(RuntimeOrigin::signed(ISSUER), project_id).unwrap()
+			});
+		}
+
+		let project_2 = inst.create_new_project(knowledge_hub_project(inst.get_new_nonce()), ISSUER);
+		let weight_2 = inst
+			.execute(|| {
+				crate::Pallet::<TestRuntime>::start_evaluation(RuntimeOrigin::signed(ISSUER), project_2).unwrap()
+			})
+			.actual_weight
+			.unwrap();
+		dbg!(weight_2);
+
+		assert!(weight_2.all_gt(weight_1));
+		assert_eq!(weight_1, <TestRuntime as Config>::WeightInfo::start_evaluation(1));
+		assert_eq!(weight_2, <TestRuntime as Config>::WeightInfo::start_evaluation(2));
+	}
+}
