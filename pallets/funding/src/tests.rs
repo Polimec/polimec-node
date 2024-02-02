@@ -761,65 +761,6 @@ mod auction_round_success {
 		inst.bid_for_users(project_id, vec![evaluator_bid]);
 	}
 
-	// TODO: remove?
-	#[ignore]
-	#[test]
-	fn evaluation_bond_counts_towards_bid_vec_full() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
-		let mut evaluations = default_evaluations();
-		let evaluator_bidder = 69;
-		let evaluator_bid =
-			BidParams::new(evaluator_bidder, 600 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT);
-
-		let mut bids = Vec::new();
-		for _ in 0..<TestRuntime as Config>::MaxBidsPerUser::get() {
-			bids.push(BidParams::new(evaluator_bidder, 100 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT));
-		}
-
-		let fill_necessary_plmc_for_bids = MockInstantiator::calculate_auction_plmc_spent(&bids.clone(), None);
-		let fill_necessary_usdt_for_bids = MockInstantiator::calculate_auction_funding_asset_spent(&bids, None);
-
-		let bid_necessary_plmc = MockInstantiator::calculate_auction_plmc_spent(&vec![evaluator_bid.clone()], None);
-		let bid_necessary_usdt =
-			MockInstantiator::calculate_auction_funding_asset_spent(&vec![evaluator_bid.clone()], None);
-
-		let evaluation_bond =
-			MockInstantiator::sum_balance_mappings(vec![fill_necessary_plmc_for_bids, bid_necessary_plmc]);
-		let plmc_available_for_participation =
-			evaluation_bond - <TestRuntime as Config>::EvaluatorSlash::get() * evaluation_bond;
-
-		let evaluation_usd_amount = <TestRuntime as Config>::PriceProvider::get_price(PLMC_STATEMINT_ID)
-			.unwrap()
-			.saturating_mul_int(evaluation_bond);
-		evaluations.push(UserToUSDBalance::new(evaluator_bidder, evaluation_usd_amount));
-
-		let project_id = inst.create_auctioning_project(project, issuer, evaluations);
-
-		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
-			evaluator_bidder,
-			evaluation_bond - plmc_available_for_participation,
-		)]);
-		inst.mint_statemint_asset_to(fill_necessary_usdt_for_bids);
-		inst.mint_statemint_asset_to(bid_necessary_usdt);
-
-		inst.bid_for_users(project_id, bids);
-		inst.bid_for_users(project_id, vec![evaluator_bid]);
-
-		let evaluation_bonded = inst.execute(|| {
-			<TestRuntime as Config>::NativeCurrency::balance_on_hold(
-				&HoldReason::Evaluation(project_id.into()).into(),
-				&evaluator_bidder,
-			)
-		});
-		assert_close_enough!(
-			evaluation_bonded,
-			<TestRuntime as Config>::EvaluatorSlash::get() * evaluation_bond,
-			Perquintill::from_parts(1_000_000_000)
-		);
-	}
-
 	#[test]
 	fn price_calculation_1() {
 		// TODO: Update this test to use the knowledge hub values (when they are available)
@@ -1882,47 +1823,6 @@ mod auction_round_failure {
 				),
 				Error::<TestRuntime>::AuctionNotStarted
 			);
-		});
-	}
-
-	// TODO: remove?
-	#[ignore]
-	#[test]
-	fn bids_overflow() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let project_id = inst.create_auctioning_project(default_project(0, ISSUER), ISSUER, default_evaluations());
-		const DAVE: AccountId = 42;
-		let bids: Vec<BidParams<_>> = vec![
-			BidParams::new(DAVE, 10_000 * USDT_UNIT, 2_u128.into(), 1u8, AcceptedFundingAsset::USDT), // 20k
-			BidParams::new(DAVE, 12_000 * USDT_UNIT, 8_u128.into(), 1u8, AcceptedFundingAsset::USDT), // 96k
-			BidParams::new(DAVE, 15_000 * USDT_UNIT, 5_u128.into(), 1u8, AcceptedFundingAsset::USDT), // 75k
-			// Bid with lowest PLMC bonded gets dropped
-			BidParams::new(DAVE, 1_000 * USDT_UNIT, 7_u128.into(), 1u8, AcceptedFundingAsset::USDT), // 7k
-			BidParams::new(DAVE, 20_000 * USDT_UNIT, 5_u128.into(), 1u8, AcceptedFundingAsset::USDT), // 100k
-		];
-
-		let mut plmc_fundings = MockInstantiator::calculate_auction_plmc_spent(&bids, None);
-		// Existential deposit on DAVE
-		plmc_fundings.push(UserToPLMCBalance::new(DAVE, MockInstantiator::get_ed()));
-
-		let statemint_asset_fundings = MockInstantiator::calculate_auction_funding_asset_spent(&bids, None);
-
-		// Fund enough for all PLMC bonds for the bids (multiplier of 1)
-		inst.mint_plmc_to(plmc_fundings);
-
-		// Fund enough for all bids
-		inst.mint_statemint_asset_to(statemint_asset_fundings);
-
-		inst.bid_for_users(project_id, bids);
-
-		inst.execute(|| {
-			let mut stored_bids = Bids::<TestRuntime>::iter_prefix_values((project_id, DAVE)).collect::<Vec<_>>();
-			assert_eq!(stored_bids.len(), 4);
-			stored_bids.sort();
-			assert_eq!(stored_bids[0].original_ct_usd_price.to_float(), 1.0);
-			assert_eq!(stored_bids[1].original_ct_usd_price.to_float(), 1.0);
-			assert_eq!(stored_bids[2].original_ct_usd_price.to_float(), 1.1);
-			assert_eq!(stored_bids[3].original_ct_usd_price.to_float(), 1.2);
 		});
 	}
 
