@@ -990,6 +990,7 @@ impl<T: Config> Pallet<T> {
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PriceNotFound)?;
 		let ct_deposit = T::ContributionTokenCurrency::deposit_required(project_id);
 		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder)).collect::<Vec<_>>();
+		let bid_count = BidCounts::<T>::get(project_id);
 
 		// benchmark variables
 		let mut perform_bid_calls = 0;
@@ -998,6 +999,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(ct_amount > Zero::zero(), Error::<T>::BidTooLow);
+		ensure!(bid_count < T::MaxBidsPerProject::get(), Error::<T>::TooManyBids);
 		ensure!(bidder.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
 		ensure!(matches!(project_details.status, ProjectStatus::AuctionRound(_)), Error::<T>::AuctionNotStarted);
 		ensure!(funding_asset == project_metadata.participation_currencies, Error::<T>::FundingAssetNotAccepted);
@@ -1121,6 +1123,7 @@ impl<T: Config> Pallet<T> {
 
 		Bids::<T>::insert((project_id, bidder, bid_id), &new_bid);
 		NextBidId::<T>::set(bid_id.saturating_add(One::one()));
+		BidCounts::<T>::mutate(project_id, |c| *c += 1);
 
 		Self::deposit_event(Event::Bid { project_id, amount: ct_amount, price: ct_usd_price, multiplier });
 
@@ -2716,50 +2719,45 @@ impl<T: Config> Pallet<T> {
 					bid_usd_value_sum.saturating_accrue(ticket_size);
 					bid.status = BidStatus::Accepted;
 				} else {
-					let maybe_ticket_size = bid.original_ct_usd_price.checked_mul_int(buyable_amount);
-					if let Some(ticket_size) = maybe_ticket_size {
-						bid_usd_value_sum.saturating_accrue(ticket_size);
-						bid_token_amount_sum.saturating_accrue(buyable_amount);
-						bid.status = BidStatus::PartiallyAccepted(buyable_amount, RejectionReason::NoTokensLeft);
-						bid.final_ct_amount = buyable_amount;
+					let ticket_size = bid.original_ct_usd_price.saturating_mul_int(buyable_amount);
+					bid_usd_value_sum.saturating_accrue(ticket_size);
+					bid_token_amount_sum.saturating_accrue(buyable_amount);
+					bid.status = BidStatus::PartiallyAccepted(buyable_amount, RejectionReason::NoTokensLeft);
+					bid.final_ct_amount = buyable_amount;
 
-						let funding_asset_price = T::PriceProvider::get_price(bid.funding_asset.to_statemint_id())
-							.ok_or(Error::<T>::PriceNotFound)?;
-						let funding_asset_amount_needed = funding_asset_price
-							.reciprocal()
-							.ok_or(Error::<T>::BadMath)?
-							.checked_mul_int(ticket_size)
-							.ok_or(Error::<T>::BadMath)?;
-						T::FundingCurrency::transfer(
-							bid.funding_asset.to_statemint_id(),
-							&project_account,
-							&bid.bidder,
-							bid.funding_asset_amount_locked.saturating_sub(funding_asset_amount_needed),
-							Preservation::Preserve,
-						)?;
+					let funding_asset_price = T::PriceProvider::get_price(bid.funding_asset.to_statemint_id())
+						.ok_or(Error::<T>::PriceNotFound)?;
+					let funding_asset_amount_needed = funding_asset_price
+						.reciprocal()
+						.ok_or(Error::<T>::BadMath)?
+						.checked_mul_int(ticket_size)
+						.ok_or(Error::<T>::BadMath)?;
+					T::FundingCurrency::transfer(
+						bid.funding_asset.to_statemint_id(),
+						&project_account,
+						&bid.bidder,
+						bid.funding_asset_amount_locked.saturating_sub(funding_asset_amount_needed),
+						Preservation::Preserve,
+					)?;
 
-						let usd_bond_needed = bid
-							.multiplier
-							.calculate_bonding_requirement::<T>(ticket_size)
-							.map_err(|_| Error::<T>::BadMath)?;
-						let plmc_bond_needed = plmc_price
-							.reciprocal()
-							.ok_or(Error::<T>::BadMath)?
-							.checked_mul_int(usd_bond_needed)
-							.ok_or(Error::<T>::BadMath)?;
-						T::NativeCurrency::release(
-							&HoldReason::Participation(project_id.into()).into(),
-							&bid.bidder,
-							bid.plmc_bond.saturating_sub(plmc_bond_needed),
-							Precision::Exact,
-						)?;
+					let usd_bond_needed = bid
+						.multiplier
+						.calculate_bonding_requirement::<T>(ticket_size)
+						.map_err(|_| Error::<T>::BadMath)?;
+					let plmc_bond_needed = plmc_price
+						.reciprocal()
+						.ok_or(Error::<T>::BadMath)?
+						.checked_mul_int(usd_bond_needed)
+						.ok_or(Error::<T>::BadMath)?;
+					T::NativeCurrency::release(
+						&HoldReason::Participation(project_id.into()).into(),
+						&bid.bidder,
+						bid.plmc_bond.saturating_sub(plmc_bond_needed),
+						Precision::Exact,
+					)?;
 
-						bid.funding_asset_amount_locked = funding_asset_amount_needed;
-						bid.plmc_bond = plmc_bond_needed;
-					} else {
-						return Self::refund_bid(&mut bid, project_id, &project_account, RejectionReason::BadMath)
-							.and(Ok(bid))
-					}
+					bid.funding_asset_amount_locked = funding_asset_amount_needed;
+					bid.plmc_bond = plmc_bond_needed;
 				}
 
 				Ok(bid)

@@ -442,6 +442,8 @@ pub mod pallet {
 		type RequiredMaxMessageSize: Get<u32>;
 		/// max iterations for trying to insert a project on the projects_to_update storage
 		type MaxProjectsToUpdateInsertionAttempts: Get<u32>;
+		/// max individual bids per project. Used to estimate worst case weight for price calculation
+		type MaxBidsPerProject: Get<u32>;
 	}
 
 	#[pallet::storage]
@@ -461,6 +463,9 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn next_contribution_id)]
 	pub type NextContributionId<T: Config> = StorageValue<_, u32, ValueQuery>;
+
+	#[pallet::storage]
+	pub type BidCounts<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, u32, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn nonce)]

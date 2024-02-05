@@ -3002,10 +3002,10 @@ mod benchmarks {
 	fn start_community_funding_success(
 		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the fn succeed
 		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
-		// Total bids made
-		y: Linear<1, 100_000>,
-		// Refunded bids (i.e failed bids)
-		z: Linear<1, 100_000>,
+		// Accepted Bids
+		y: Linear<1, { <T as Config>::MaxBidsPerProject::get() / 2 }>,
+		// Failed Bids
+		z: Linear<0, { <T as Config>::MaxBidsPerProject::get() / 2 }>,
 	) {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
@@ -3015,24 +3015,95 @@ mod benchmarks {
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
+		let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
+		let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
+		let metadata_hash = hashed(format!("{}-{}", METADATA, 69));
+		// default has 50k allocated for bidding, so we cannot test the cap of bidding (100k bids) with it, since the ticket size is 1.
+		let project_metadata = ProjectMetadata {
+			token_information: CurrencyMetadata {
+				name: bounded_name,
+				symbol: bounded_symbol,
+				decimals: ASSET_DECIMALS,
+			},
+			mainnet_token_max_supply: BalanceOf::<T>::try_from(8_000_000_0_000_000_000u128)
+				.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+			total_allocation_size: (
+				BalanceOf::<T>::try_from((10 * (y + z) + 1) as u128 * ASSET_UNIT)
+					.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+				BalanceOf::<T>::try_from(50_000u128 * ASSET_UNIT)
+					.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+			),
+			minimum_price: 1u128.into(),
+			ticket_size: TicketSize {
+				minimum: Some(1u128.try_into().unwrap_or_else(|_| panic!("Failed to create BalanceOf"))),
+				maximum: None,
+			},
+			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+			funding_thresholds: Default::default(),
+			conversion_rate: 0,
+			participation_currencies: AcceptedFundingAsset::USDT,
+			funding_destination_account: issuer.clone(),
+			offchain_information_hash: Some(metadata_hash.into()),
+		};
+		let project_id =
+			inst.create_auctioning_project(project_metadata.clone(), issuer.clone(), default_evaluations());
 
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
-		let project_id = inst.create_auctioning_project(project_metadata, issuer.clone(), default_evaluations());
+		let accepted_bids = (0..y)
+			.map(|i| {
+				BidParams::<T>::new(
+					account::<AccountIdOf<T>>("bidder", 0, i),
+					(10u128 * ASSET_UNIT).into(),
+					project_metadata.minimum_price,
+					1u8,
+					AcceptedFundingAsset::USDT,
+				)
+			})
+			.collect_vec();
 
-		let bids = default_bids::<T>();
-		let plmc_needed_for_bids = BenchInstantiator::<T>::calculate_auction_plmc_spent(&bids, None);
-		let plmc_ed = bids.accounts().existential_deposits();
-		let plmc_ct_account_deposit = bids.accounts().ct_account_deposits();
-		let funding_asset_needed_for_bids = BenchInstantiator::<T>::calculate_auction_funding_asset_spent(&bids, None);
+		let plmc_needed_for_bids = BenchInstantiator::<T>::calculate_auction_plmc_spent(&accepted_bids, None);
+		let plmc_ed = accepted_bids.accounts().existential_deposits();
+		let plmc_ct_account_deposit = accepted_bids.accounts().ct_account_deposits();
+		let funding_asset_needed_for_bids =
+			BenchInstantiator::<T>::calculate_auction_funding_asset_spent(&accepted_bids, None);
 
 		inst.mint_plmc_to(plmc_needed_for_bids);
 		inst.mint_plmc_to(plmc_ed);
 		inst.mint_plmc_to(plmc_ct_account_deposit);
 		inst.mint_statemint_asset_to(funding_asset_needed_for_bids);
 
-		inst.bid_for_users(project_id, bids);
+		inst.bid_for_users(project_id, accepted_bids);
 
 		inst.advance_time(<T as Config>::EnglishAuctionDuration::get() + One::one()).unwrap();
+
+		// testing always produced this random ending
+		let random_ending: BlockNumberFor<T> = 9176u32.into();
+		let now = inst.current_block();
+		inst.advance_time(random_ending - now + 2u32.into()).unwrap();
+
+		let rejected_bids = (0..y)
+			.map(|i| {
+				BidParams::<T>::new(
+					account::<AccountIdOf<T>>("bidder", 0, i),
+					(10u128 * ASSET_UNIT).into(),
+					project_metadata.minimum_price,
+					1u8,
+					AcceptedFundingAsset::USDT,
+				)
+			})
+			.collect_vec();
+
+		let plmc_needed_for_bids = BenchInstantiator::<T>::calculate_auction_plmc_spent(&rejected_bids, None);
+		let plmc_ed = rejected_bids.accounts().existential_deposits();
+		let plmc_ct_account_deposit = rejected_bids.accounts().ct_account_deposits();
+		let funding_asset_needed_for_bids =
+			BenchInstantiator::<T>::calculate_auction_funding_asset_spent(&rejected_bids, None);
+
+		inst.mint_plmc_to(plmc_needed_for_bids);
+		inst.mint_plmc_to(plmc_ed);
+		inst.mint_plmc_to(plmc_ct_account_deposit);
+		inst.mint_statemint_asset_to(funding_asset_needed_for_bids);
+
+		inst.bid_for_users(project_id, rejected_bids);
 
 		let auction_candle_end_block =
 			inst.get_project_details(project_id).phase_transition_points.candle_auction.end().unwrap();
@@ -3048,13 +3119,20 @@ mod benchmarks {
 
 		#[block]
 		{
-			Pallet::<T>::do_community_funding(project_id);
+			Pallet::<T>::do_community_funding(project_id).unwrap();
 		}
 
 		// * validity checks *
 		// Storage
 		let stored_details = ProjectsDetails::<T>::get(project_id).unwrap();
 		assert_eq!(stored_details.status, ProjectStatus::CommunityRound);
+
+		let accepted_bids_count =
+			Bids::<T>::iter_prefix_values((project_id,)).filter(|b| matches!(b.status, BidStatus::Accepted)).count();
+		let rejected_bids_count =
+			Bids::<T>::iter_prefix_values((project_id,)).filter(|b| matches!(b.status, BidStatus::Rejected(_))).count();
+		assert_eq!(rejected_bids_count, z as usize);
+		assert_eq!(accepted_bids_count, y as usize);
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(Event::<T>::CommunityFundingStarted { project_id }.into());

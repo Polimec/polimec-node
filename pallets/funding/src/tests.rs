@@ -1774,6 +1774,11 @@ mod auction_round_success {
 
 		assert_eq!(delta_bidders_plmc_balances, plmc_locked_for_bids);
 	}
+
+	#[test]
+	pub fn cannot_bid_more_than_project_limit_count() {
+		todo!()
+	}
 }
 
 mod auction_round_failure {
