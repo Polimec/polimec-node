@@ -2954,9 +2954,46 @@ mod benchmarks {
 
 	// do_candle_auction
 	#[benchmark]
-	fn start_candle_phase() {
+	fn start_candle_phase(
+		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the fn succeed
+		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
+	) {
+		// * setup *
+		let mut inst = BenchInstantiator::<T>::new(None);
+
+		// real benchmark starts at block 0, and we can't call `events()` at block 0
+		inst.advance_time(1u32.into()).unwrap();
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+		whitelist_account!(issuer);
+
+		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_id = inst.create_auctioning_project(project_metadata, issuer.clone(), default_evaluations());
+
+		let english_end_block =
+			inst.get_project_details(project_id).phase_transition_points.english_auction.end().unwrap();
+		// we don't use advance time to avoid triggering on_initialize. This benchmark should only measure the extrinsic
+		// weight and not the whole on_initialize call weight
+		frame_system::Pallet::<T>::set_block_number(english_end_block + One::one());
+
+		let insertion_block_number = inst.current_block() + T::CandleAuctionDuration::get() + One::one();
+
+		fill_projects_to_update::<T>(x, insertion_block_number, None);
+
 		#[block]
-		{}
+		{
+			Pallet::<T>::do_candle_auction(project_id);
+		}
+		// * validity checks *
+		// Storage
+		let stored_details = ProjectsDetails::<T>::get(project_id).unwrap();
+		assert_eq!(stored_details.status, ProjectStatus::AuctionRound(AuctionPhase::Candle));
+
+		// Events
+		let current_block = inst.current_block();
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::<T>::CandleAuctionStarted { project_id, when: current_block.into() }.into(),
+		);
 	}
 
 	// do_community_funding
@@ -3271,6 +3308,13 @@ mod benchmarks {
 		fn bench_end_evaluation_failure() {
 			new_test_ext().execute_with(|| {
 				assert_ok!(PalletFunding::<TestRuntime>::test_end_evaluation_failure());
+			});
+		}
+
+		#[test]
+		fn bench_start_candle_phase() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_start_candle_phase());
 			});
 		}
 	}

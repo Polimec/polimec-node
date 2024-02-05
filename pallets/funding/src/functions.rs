@@ -238,7 +238,7 @@ impl<T: Config> Pallet<T> {
 	///
 	/// * Bonding failed - `on_idle` at some point checks for failed evaluation projects, and
 	/// unbonds the evaluators funds.
-	pub fn do_evaluation_end(project_id: ProjectId) -> DispatchResult {
+	pub fn do_evaluation_end(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
@@ -282,7 +282,7 @@ impl<T: Config> Pallet<T> {
 			project_details.status = ProjectStatus::AuctionInitializePeriod;
 			ProjectsDetails::<T>::insert(project_id, project_details);
 			// TODO: return real weights
-			let _insertions_attempts = match Self::add_to_update_store(
+			let insertion_attempts = match Self::add_to_update_store(
 				auction_initialize_period_end_block + 1u32.into(),
 				(&project_id, UpdateType::EnglishAuctionStart),
 			) {
@@ -297,6 +297,11 @@ impl<T: Config> Pallet<T> {
 				end_block: auction_initialize_period_end_block,
 			});
 
+			return Ok(PostDispatchInfo {
+				actual_weight: Some(WeightInfoOf::<T>::end_evaluation_success(insertion_attempts)),
+				pays_fee: Pays::Yes,
+			})
+
 		// Unsuccessful path
 		} else {
 			// * Update storage *
@@ -306,9 +311,11 @@ impl<T: Config> Pallet<T> {
 
 			// * Emit events *
 			Self::deposit_event(Event::EvaluationFailed { project_id });
+			return Ok(PostDispatchInfo {
+				actual_weight: Some(WeightInfoOf::<T>::end_evaluation_failure()),
+				pays_fee: Pays::Yes,
+			})
 		}
-
-		Ok(())
 	}
 
 	/// Called by user extrinsic
@@ -449,7 +456,7 @@ impl<T: Config> Pallet<T> {
 	/// but now their bids are not guaranteed.
 	/// Later on, `on_initialize` ends the candle auction round and starts the community round,
 	/// by calling [`do_community_funding`](Self::do_community_funding).
-	pub fn do_candle_auction(project_id: ProjectId) -> DispatchResult {
+	pub fn do_candle_auction(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
@@ -472,8 +479,7 @@ impl<T: Config> Pallet<T> {
 		project_details.status = ProjectStatus::AuctionRound(AuctionPhase::Candle);
 		ProjectsDetails::<T>::insert(project_id, project_details);
 		// Schedule for automatic check by on_initialize. Success depending on enough funding reached
-		// TODO: return real weights
-		let _iterations = match Self::add_to_update_store(
+		let insertion_iterations = match Self::add_to_update_store(
 			candle_end_block + 1u32.into(),
 			(&project_id, UpdateType::CommunityFundingStart),
 		) {
@@ -484,7 +490,10 @@ impl<T: Config> Pallet<T> {
 		// * Emit events *
 		Self::deposit_event(Event::CandleAuctionStarted { project_id, when: now });
 
-		Ok(())
+		Ok(PostDispatchInfo {
+			actual_weight: Some(WeightInfoOf::<T>::start_candle_phase(insertion_iterations)),
+			pays_fee: Pays::Yes,
+		})
 	}
 
 	/// Called automatically by on_initialize

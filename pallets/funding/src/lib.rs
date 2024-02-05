@@ -1267,7 +1267,11 @@ pub mod pallet {
 				match update_type {
 					// EvaluationRound -> AuctionInitializePeriod | EvaluationFailed
 					UpdateType::EvaluationEnd => {
-						unwrap_result_or_skip!(Self::do_evaluation_end(project_id), project_id, |e| e);
+						unwrap_result_or_skip!(
+							Self::do_evaluation_end(project_id),
+							project_id,
+							|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+						);
 					},
 
 					// AuctionInitializePeriod -> AuctionRound(AuctionPhase::English)
