@@ -814,6 +814,7 @@ mod benches {
 		[pallet_session, SessionBench::<Runtime>]
 		[pallet_timestamp, Timestamp]
 		[cumulus_pallet_xcmp_queue, XcmpQueue]
+		[pallet_elections_phragmen, Elections]
 	);
 }
 
