@@ -548,8 +548,7 @@ impl<T: Config> Pallet<T> {
 			Err(pallet_error) if pallet_error == Error::<T>::NoBidsFound.into() => {
 				project_details.status = ProjectStatus::FundingFailed;
 				ProjectsDetails::<T>::insert(project_id, project_details);
-				// TODO: return real weights
-				let _iterations = match Self::add_to_update_store(
+				let insertion_iterations = match Self::add_to_update_store(
 					<frame_system::Pallet<T>>::block_number() + 1u32.into(),
 					(&project_id, UpdateType::FundingEnd),
 				) {

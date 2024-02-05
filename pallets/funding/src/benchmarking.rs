@@ -2997,10 +2997,63 @@ mod benchmarks {
 	}
 
 	// do_community_funding
+	// Should be complex due to calling `calculate_weighted_average_price`
 	#[benchmark]
-	fn start_community_funding() {
+	fn start_community_funding_success(
+		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the fn succeed
+		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
+	) {
+		// * setup *
+		let mut inst = BenchInstantiator::<T>::new(None);
+
+		// real benchmark starts at block 0, and we can't call `events()` at block 0
+		inst.advance_time(1u32.into()).unwrap();
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+		whitelist_account!(issuer);
+
+		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_id = inst.create_auctioning_project(project_metadata, issuer.clone(), default_evaluations());
+
+		let bids = default_bids::<T>();
+		let plmc_needed_for_bids = BenchInstantiator::<T>::calculate_auction_plmc_spent(&bids, None);
+		let plmc_ed = bids.accounts().existential_deposits();
+		let plmc_ct_account_deposit = bids.accounts().ct_account_deposits();
+		let funding_asset_needed_for_bids = BenchInstantiator::<T>::calculate_auction_funding_asset_spent(&bids, None);
+
+		inst.mint_plmc_to(plmc_needed_for_bids);
+		inst.mint_plmc_to(plmc_ed);
+		inst.mint_plmc_to(plmc_ct_account_deposit);
+		inst.mint_statemint_asset_to(funding_asset_needed_for_bids);
+
+		inst.bid_for_users(project_id, bids);
+
+		inst.advance_time(<T as Config>::EnglishAuctionDuration::get() + One::one()).unwrap();
+
+		let auction_candle_end_block =
+			inst.get_project_details(project_id).phase_transition_points.candle_auction.end().unwrap();
+		// we don't use advance time to avoid triggering on_initialize. This benchmark should only measure the fn
+		// weight and not the whole on_initialize call weight
+		frame_system::Pallet::<T>::set_block_number(auction_candle_end_block + One::one());
+		let now = inst.current_block();
+
+		let community_end_block = now + T::CommunityFundingDuration::get();
+
+		let insertion_block_number = community_end_block + One::one();
+		fill_projects_to_update::<T>(x, insertion_block_number, None);
+
 		#[block]
-		{}
+		{
+			Pallet::<T>::do_community_funding(project_id);
+		}
+
+		// * validity checks *
+		// Storage
+		let stored_details = ProjectsDetails::<T>::get(project_id).unwrap();
+		assert_eq!(stored_details.status, ProjectStatus::CommunityRound);
+
+		// Events
+		frame_system::Pallet::<T>::assert_last_event(Event::<T>::CommunityFundingStarted { project_id }.into());
 	}
 
 	// do_remainder_funding
@@ -3315,6 +3368,13 @@ mod benchmarks {
 		fn bench_start_candle_phase() {
 			new_test_ext().execute_with(|| {
 				assert_ok!(PalletFunding::<TestRuntime>::test_start_candle_phase());
+			});
+		}
+
+		#[test]
+		fn bench_start_community_funding_success() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_start_community_funding_success());
 			});
 		}
 	}

@@ -1286,7 +1286,11 @@ pub mod pallet {
 
 					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
 					UpdateType::CandleAuctionStart => {
-						unwrap_result_or_skip!(Self::do_candle_auction(project_id), project_id, |e| e);
+						unwrap_result_or_skip!(
+							Self::do_candle_auction(project_id),
+							project_id,
+							|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+						);
 					},
 
 					// AuctionRound(AuctionPhase::Candle) -> CommunityRound
