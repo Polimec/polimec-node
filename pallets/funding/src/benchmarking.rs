@@ -3080,7 +3080,7 @@ mod benchmarks {
 		let now = inst.current_block();
 		inst.advance_time(random_ending - now + 2u32.into()).unwrap();
 
-		let rejected_bids = (0..y)
+		let rejected_bids = (0..z)
 			.map(|i| {
 				BidParams::<T>::new(
 					account::<AccountIdOf<T>>("bidder", 0, i),
