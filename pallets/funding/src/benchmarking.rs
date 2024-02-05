@@ -366,6 +366,9 @@ mod benchmarks {
 
 	impl_benchmark_test_suite!(PalletFunding, crate::mock::new_test_ext(), crate::mock::TestRuntime);
 
+	//
+	// Extrinsics
+	//
 	#[benchmark]
 	fn create() {
 		// * setup *
@@ -529,69 +532,6 @@ mod benchmarks {
 		assert_eq!(stored_details.status, ProjectStatus::AuctionRound(AuctionPhase::English));
 
 		// Events
-		frame_system::Pallet::<T>::assert_last_event(
-			Event::<T>::EnglishAuctionStarted { project_id, when: current_block.into() }.into(),
-		);
-	}
-
-	#[benchmark]
-	fn start_auction_automatically(
-		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the extrinsic pass
-		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
-		// No `y` param because we don't need to remove the automatic transition from storage
-	) {
-		// * setup *
-		let mut inst = BenchInstantiator::<T>::new(None);
-
-		// real benchmark starts at block 0, and we can't call `events()` at block 0
-		inst.advance_time(1u32.into()).unwrap();
-
-		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-		whitelist_account!(issuer);
-
-		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
-		let project_id = inst.create_evaluating_project(project_metadata, issuer.clone());
-
-		let evaluations = default_evaluations();
-		let plmc_for_evaluating = BenchInstantiator::<T>::calculate_evaluation_plmc_spent(evaluations.clone());
-		let existential_plmc: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().existential_deposits();
-		let ct_account_deposits: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().ct_account_deposits();
-
-		inst.mint_plmc_to(existential_plmc);
-		inst.mint_plmc_to(ct_account_deposits);
-		inst.mint_plmc_to(plmc_for_evaluating);
-
-		inst.advance_time(One::one()).unwrap();
-		inst.bond_for_users(project_id, evaluations).expect("All evaluations are accepted");
-
-		inst.advance_time(<T as Config>::EvaluationDuration::get() + One::one()).unwrap();
-
-		let current_block = inst.current_block();
-		let automatic_transition_block =
-			current_block + <T as Config>::AuctionInitializePeriodDuration::get() + One::one();
-		let insertion_block_number: BlockNumberFor<T> =
-			automatic_transition_block + T::EnglishAuctionDuration::get() + One::one();
-		let block_number = insertion_block_number;
-
-		fill_projects_to_update::<T>(x, block_number, None);
-
-		let now = inst.current_block();
-		inst.advance_time(automatic_transition_block - now - One::one()).unwrap();
-		let now = inst.current_block();
-		// we don't use advance time to avoid triggering on_initialize. This benchmark should only measure the extrinsic
-		// weight and not the whole on_initialize call weight
-		frame_system::Pallet::<T>::set_block_number(now + One::one());
-
-		#[extrinsic_call]
-		start_auction(RawOrigin::Signed(issuer), project_id);
-
-		// * validity checks *
-		// Storage
-		let stored_details = ProjectsDetails::<T>::get(project_id).unwrap();
-		assert_eq!(stored_details.status, ProjectStatus::AuctionRound(AuctionPhase::English));
-
-		// Events
-		let current_block = inst.current_block();
 		frame_system::Pallet::<T>::assert_last_event(
 			Event::<T>::EnglishAuctionStarted { project_id, when: current_block.into() }.into(),
 		);
@@ -2465,7 +2405,7 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn decide_project_outcome(
+	fn decide_project_outcome_manually(
 		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the extrinsic pass
 		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
 		// Total amount of storage items iterated through in `ProjectsToUpdate` when trying to remove our project in `remove_from_update_store`.
@@ -2835,6 +2775,228 @@ mod benchmarks {
 		);
 	}
 
+	//
+	// on_initialize
+	//
+
+	//do_evaluation_end
+	#[benchmark]
+	fn end_evaluation_success(
+		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the fn succeed
+		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
+	) {
+		// * setup *
+		let mut inst = BenchInstantiator::<T>::new(None);
+
+		// real benchmark starts at block 0, and we can't call `events()` at block 0
+		inst.advance_time(1u32.into()).unwrap();
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+		whitelist_account!(issuer);
+
+		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_id = inst.create_evaluating_project(project_metadata, issuer.clone());
+
+		let evaluations = default_evaluations();
+		let plmc_for_evaluating = BenchInstantiator::<T>::calculate_evaluation_plmc_spent(evaluations.clone());
+		let existential_plmc: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().existential_deposits();
+		let ct_account_deposits: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().ct_account_deposits();
+
+		inst.mint_plmc_to(existential_plmc);
+		inst.mint_plmc_to(ct_account_deposits);
+		inst.mint_plmc_to(plmc_for_evaluating);
+
+		inst.advance_time(One::one()).unwrap();
+		inst.bond_for_users(project_id, evaluations).expect("All evaluations are accepted");
+
+		let evaluation_end_block =
+			inst.get_project_details(project_id).phase_transition_points.evaluation.end().unwrap();
+		// move block manually without calling any hooks, to avoid triggering the transition outside the benchmarking context
+		frame_system::Pallet::<T>::set_block_number(evaluation_end_block + One::one());
+
+		let insertion_block_number =
+			inst.current_block() + One::one() + <T as Config>::AuctionInitializePeriodDuration::get();
+		fill_projects_to_update::<T>(x, insertion_block_number, None);
+
+		// Instead of advancing in time for the automatic `do_evaluation_end` call in on_initialize, we call it directly to benchmark it
+		#[block]
+		{
+			Pallet::<T>::do_evaluation_end(project_id);
+		}
+
+		// * validity checks *
+		let project_details = inst.get_project_details(project_id);
+		assert_eq!(project_details.status, ProjectStatus::AuctionInitializePeriod);
+	}
+
+	#[benchmark]
+	fn end_evaluation_failure() {
+		// * setup *
+		let mut inst = BenchInstantiator::<T>::new(None);
+
+		// real benchmark starts at block 0, and we can't call `events()` at block 0
+		inst.advance_time(1u32.into()).unwrap();
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+		whitelist_account!(issuer);
+
+		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_id = inst.create_evaluating_project(project_metadata, issuer.clone());
+		let project_details = inst.get_project_details(project_id);
+
+		let evaluation_usd_target =
+			<T as Config>::EvaluationSuccessThreshold::get() * project_details.fundraising_target;
+		// we only fund 50% of the minimum threshold for the evaluation round, since we want it to fail
+		let evaluations = vec![
+			UserToUSDBalance::new(
+				account::<AccountIdOf<T>>("evaluator_1", 0, 0),
+				(Percent::from_percent(5) * evaluation_usd_target).into(),
+			),
+			UserToUSDBalance::new(
+				account::<AccountIdOf<T>>("evaluator_2", 0, 0),
+				(Percent::from_percent(20) * evaluation_usd_target).into(),
+			),
+			UserToUSDBalance::new(
+				account::<AccountIdOf<T>>("evaluator_3", 0, 0),
+				(Percent::from_percent(25) * evaluation_usd_target).into(),
+			),
+		];
+		let plmc_for_evaluating = BenchInstantiator::<T>::calculate_evaluation_plmc_spent(evaluations.clone());
+		let existential_plmc: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().existential_deposits();
+		let ct_account_deposits: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().ct_account_deposits();
+
+		inst.mint_plmc_to(existential_plmc);
+		inst.mint_plmc_to(ct_account_deposits);
+		inst.mint_plmc_to(plmc_for_evaluating);
+
+		inst.advance_time(One::one()).unwrap();
+		inst.bond_for_users(project_id, evaluations).expect("All evaluations are accepted");
+
+		let evaluation_end_block =
+			inst.get_project_details(project_id).phase_transition_points.evaluation.end().unwrap();
+		// move block manually without calling any hooks, to avoid triggering the transition outside the benchmarking context
+		frame_system::Pallet::<T>::set_block_number(evaluation_end_block + One::one());
+
+		let insertion_block_number =
+			inst.current_block() + One::one() + <T as Config>::AuctionInitializePeriodDuration::get();
+
+		// Instead of advancing in time for the automatic `do_evaluation_end` call in on_initialize, we call it directly to benchmark it
+		#[block]
+		{
+			Pallet::<T>::do_evaluation_end(project_id);
+		}
+
+		// * validity checks *
+		let project_details = inst.get_project_details(project_id);
+		assert_eq!(project_details.status, ProjectStatus::EvaluationFailed);
+	}
+
+	//do_english_auction
+	#[benchmark]
+	fn start_auction_automatically(
+		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the extrinsic pass
+		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
+		// No `y` param because we don't need to remove the automatic transition from storage
+	) {
+		// * setup *
+		let mut inst = BenchInstantiator::<T>::new(None);
+
+		// real benchmark starts at block 0, and we can't call `events()` at block 0
+		inst.advance_time(1u32.into()).unwrap();
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+		whitelist_account!(issuer);
+
+		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_id = inst.create_evaluating_project(project_metadata, issuer.clone());
+
+		let evaluations = default_evaluations();
+		let plmc_for_evaluating = BenchInstantiator::<T>::calculate_evaluation_plmc_spent(evaluations.clone());
+		let existential_plmc: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().existential_deposits();
+		let ct_account_deposits: Vec<UserToPLMCBalance<T>> = plmc_for_evaluating.accounts().ct_account_deposits();
+
+		inst.mint_plmc_to(existential_plmc);
+		inst.mint_plmc_to(ct_account_deposits);
+		inst.mint_plmc_to(plmc_for_evaluating);
+
+		inst.advance_time(One::one()).unwrap();
+		inst.bond_for_users(project_id, evaluations).expect("All evaluations are accepted");
+
+		inst.advance_time(<T as Config>::EvaluationDuration::get() + One::one()).unwrap();
+
+		let current_block = inst.current_block();
+		let automatic_transition_block =
+			current_block + <T as Config>::AuctionInitializePeriodDuration::get() + One::one();
+		let insertion_block_number: BlockNumberFor<T> =
+			automatic_transition_block + T::EnglishAuctionDuration::get() + One::one();
+		let block_number = insertion_block_number;
+
+		fill_projects_to_update::<T>(x, block_number, None);
+
+		let now = inst.current_block();
+		inst.advance_time(automatic_transition_block - now - One::one()).unwrap();
+		let now = inst.current_block();
+		// we don't use advance time to avoid triggering on_initialize. This benchmark should only measure the extrinsic
+		// weight and not the whole on_initialize call weight
+		frame_system::Pallet::<T>::set_block_number(now + One::one());
+
+		#[extrinsic_call]
+		start_auction(RawOrigin::Signed(issuer), project_id);
+
+		// * validity checks *
+		// Storage
+		let stored_details = ProjectsDetails::<T>::get(project_id).unwrap();
+		assert_eq!(stored_details.status, ProjectStatus::AuctionRound(AuctionPhase::English));
+
+		// Events
+		let current_block = inst.current_block();
+		frame_system::Pallet::<T>::assert_last_event(
+			Event::<T>::EnglishAuctionStarted { project_id, when: current_block.into() }.into(),
+		);
+	}
+
+	// do_candle_auction
+	#[benchmark]
+	fn start_candle_phase() {
+		#[block]
+		{}
+	}
+
+	// do_community_funding
+	#[benchmark]
+	fn start_community_funding() {
+		#[block]
+		{}
+	}
+
+	// do_remainder_funding
+	#[benchmark]
+	fn start_remainder_funding() {
+		#[block]
+		{}
+	}
+
+	// do_end_funding
+	#[benchmark]
+	fn end_funding() {
+		#[block]
+		{}
+	}
+
+	// do_project_decision
+	#[benchmark]
+	fn decide_project_outcome_automatically() {
+		#[block]
+		{}
+	}
+
+	// do_start_settlement
+	#[benchmark]
+	fn start_settlement() {
+		#[block]
+		{}
+	}
+
 	#[macro_export]
 	macro_rules! find_event {
 		($env: expr, $pattern:pat) => {
@@ -3066,9 +3228,9 @@ mod benchmarks {
 		}
 
 		#[test]
-		fn bench_decide_project_outcome() {
+		fn bench_decide_project_outcome_manually() {
 			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_decide_project_outcome());
+				assert_ok!(PalletFunding::<TestRuntime>::test_decide_project_outcome_manually());
 			});
 		}
 
@@ -3097,6 +3259,21 @@ mod benchmarks {
 		fn bench_contribution_unbond_for() {
 			new_test_ext().execute_with(|| {
 				assert_ok!(PalletFunding::<TestRuntime>::test_contribution_unbond_for());
+			});
+		}
+
+		// on_initialize benches
+		#[test]
+		fn bench_end_evaluation_success() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_end_evaluation_success());
+			});
+		}
+
+		#[test]
+		fn bench_end_evaluation_failure() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_end_evaluation_failure());
 			});
 		}
 	}
