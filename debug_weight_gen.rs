@@ -15,7 +15,7 @@
 // --steps=10
 // --repeat=5
 // --pallet=pallet_funding
-// --extrinsic=start_candle_phase
+// --extrinsic=start_community_funding_failure
 // --output
 // ./debug_weight_gen.rs
 
@@ -32,21 +32,31 @@ pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_funding::WeightInfo for WeightInfo<T> {
 	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
 	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:100 w:1)
+	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
+	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::Nonce` (r:1 w:1)
+	/// Proof: `PolimecFunding::Nonce` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `Random::RandomMaterial` (r:1 w:0)
+	/// Proof: `Random::RandomMaterial` (`max_values`: Some(1), `max_size`: Some(2594), added: 3089, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::Bids` (r:1 w:0)
+	/// Proof: `PolimecFunding::Bids` (`max_values`: None, `max_size`: Some(418), added: 2893, mode: `MaxEncodedLen`)
+	/// Storage: `Oracle::Values` (r:1 w:0)
+	/// Proof: `Oracle::Values` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::Buckets` (r:1 w:0)
+	/// Proof: `PolimecFunding::Buckets` (`max_values`: None, `max_size`: Some(100), added: 2575, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:1 w:1)
 	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
 	/// The range of component `x` is `[1, 99]`.
-	fn start_candle_phase(x: u32, ) -> Weight {
+	fn start_community_funding_failure(x: u32, ) -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `445 + x * (529 ±0)`
-		//  Estimated: `4087 + x * (3097 ±0)`
-		// Minimum execution time: 241_000_000 picoseconds.
-		Weight::from_parts(229_863_239, 0)
+		//  Measured:  `2654 + x * (4 ±0)`
+		//  Estimated: `4087`
+		// Minimum execution time: 1_453_000_000 picoseconds.
+		Weight::from_parts(1_487_504_532, 0)
 			.saturating_add(Weight::from_parts(0, 4087))
-			// Standard Error: 186_038
-			.saturating_add(Weight::from_parts(36_067_945, 0).saturating_mul(x.into()))
-			.saturating_add(T::DbWeight::get().reads(2))
-			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(x.into())))
-			.saturating_add(T::DbWeight::get().writes(2))
-			.saturating_add(Weight::from_parts(0, 3097).saturating_mul(x.into()))
+			// Standard Error: 177_339
+			.saturating_add(Weight::from_parts(731_091, 0).saturating_mul(x.into()))
+			.saturating_add(T::DbWeight::get().reads(8))
+			.saturating_add(T::DbWeight::get().writes(3))
 	}
 }

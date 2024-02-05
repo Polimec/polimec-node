@@ -1295,7 +1295,11 @@ pub mod pallet {
 
 					// AuctionRound(AuctionPhase::Candle) -> CommunityRound
 					UpdateType::CommunityFundingStart => {
-						unwrap_result_or_skip!(Self::do_community_funding(project_id), project_id, |e| e);
+						unwrap_result_or_skip!(
+							Self::do_community_funding(project_id),
+							project_id,
+							|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+						);
 					},
 
 					// CommunityRound -> RemainderRound

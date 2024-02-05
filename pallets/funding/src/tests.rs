@@ -298,6 +298,7 @@ mod creation_round_success {
 		for _ in 0..512 {
 			let project = default_project(inst.get_new_nonce(), issuer);
 			inst.create_evaluating_project(project, issuer);
+			inst.advance_time(1u64).unwrap();
 		}
 	}
 

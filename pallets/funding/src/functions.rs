@@ -518,7 +518,7 @@ impl<T: Config> Pallet<T> {
 	/// Retail users buy tokens at the price set on the auction round.
 	/// Later on, `on_initialize` ends the community round by calling [`do_remainder_funding`](Self::do_remainder_funding) and
 	/// starts the remainder round, where anyone can buy at that price point.
-	pub fn do_community_funding(project_id: ProjectId) -> DispatchResult {
+	pub fn do_community_funding(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -559,9 +559,12 @@ impl<T: Config> Pallet<T> {
 				// * Emit events *
 				Self::deposit_event(Event::AuctionFailed { project_id });
 
-				Ok(())
+				Ok(PostDispatchInfo {
+					actual_weight: Some(WeightInfoOf::<T>::start_community_funding_failure(insertion_iterations)),
+					pays_fee: Pays::Yes,
+				})
 			},
-			e @ Err(_) => e,
+			Err(e) => return Err(DispatchErrorWithPostInfo { post_info: ().into(), error: e }),
 			Ok(()) => {
 				// Get info again after updating it with new price.
 				project_details.phase_transition_points.random_candle_ending = Some(end_block);
@@ -572,7 +575,7 @@ impl<T: Config> Pallet<T> {
 				project_details.status = ProjectStatus::CommunityRound;
 				ProjectsDetails::<T>::insert(project_id, project_details);
 				// TODO: return real weights
-				let _iterations = match Self::add_to_update_store(
+				let insertion_iterations = match Self::add_to_update_store(
 					community_end_block + 1u32.into(),
 					(&project_id, UpdateType::RemainderFundingStart),
 				) {
@@ -583,7 +586,10 @@ impl<T: Config> Pallet<T> {
 				// * Emit events *
 				Self::deposit_event(Event::CommunityFundingStarted { project_id });
 
-				Ok(())
+				Ok(PostDispatchInfo {
+					actual_weight: Some(WeightInfoOf::<T>::start_community_funding_success(insertion_iterations)),
+					pays_fee: Pays::Yes,
+				})
 			},
 		}
 	}
@@ -2705,15 +2711,10 @@ impl<T: Config> Pallet<T> {
 					return Self::refund_bid(&mut bid, project_id, &project_account, RejectionReason::NoTokensLeft)
 						.and(Ok(bid))
 				} else if bid.original_ct_amount <= buyable_amount {
-					let maybe_ticket_size = bid.original_ct_usd_price.checked_mul_int(bid.original_ct_amount);
-					if let Some(ticket_size) = maybe_ticket_size {
-						bid_token_amount_sum.saturating_accrue(bid.original_ct_amount);
-						bid_usd_value_sum.saturating_accrue(ticket_size);
-						bid.status = BidStatus::Accepted;
-					} else {
-						return Self::refund_bid(&mut bid, project_id, &project_account, RejectionReason::BadMath)
-							.and(Ok(bid))
-					}
+					let ticket_size = bid.original_ct_usd_price.saturating_mul_int(bid.original_ct_amount);
+					bid_token_amount_sum.saturating_accrue(bid.original_ct_amount);
+					bid_usd_value_sum.saturating_accrue(ticket_size);
+					bid.status = BidStatus::Accepted;
 				} else {
 					let maybe_ticket_size = bid.original_ct_usd_price.checked_mul_int(buyable_amount);
 					if let Some(ticket_size) = maybe_ticket_size {

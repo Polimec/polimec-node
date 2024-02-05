@@ -87,6 +87,26 @@ pub trait WeightInfo {
 	fn end_evaluation_success(x: u32, ) -> Weight;
 	fn end_evaluation_failure() -> Weight;
 	fn start_candle_phase(x: u32, ) -> Weight;
+
+	fn start_community_funding_success(x: u32, ) -> Weight;
+	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
+	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::Nonce` (r:1 w:1)
+	/// Proof: `PolimecFunding::Nonce` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `Random::RandomMaterial` (r:1 w:0)
+	/// Proof: `Random::RandomMaterial` (`max_values`: Some(1), `max_size`: Some(2594), added: 3089, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::Bids` (r:1 w:0)
+	/// Proof: `PolimecFunding::Bids` (`max_values`: None, `max_size`: Some(418), added: 2893, mode: `MaxEncodedLen`)
+	/// Storage: `Oracle::Values` (r:1 w:0)
+	/// Proof: `Oracle::Values` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::Buckets` (r:1 w:0)
+	/// Proof: `PolimecFunding::Buckets` (`max_values`: None, `max_size`: Some(100), added: 2575, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
+	/// The range of component `x` is `[1, 99]`.
+	fn start_community_funding_failure(x: u32, ) -> Weight;
 }
 
 /// Weights for `pallet_funding` using the Substrate node and recommended hardware.
@@ -905,6 +925,68 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(x.into())))
 			.saturating_add(T::DbWeight::get().writes(2))
 			.saturating_add(Weight::from_parts(0, 3097).saturating_mul(x.into()))
+	}
+
+	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
+	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::Nonce` (r:1 w:1)
+	/// Proof: `PolimecFunding::Nonce` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `Random::RandomMaterial` (r:1 w:0)
+	/// Proof: `Random::RandomMaterial` (`max_values`: Some(1), `max_size`: Some(2594), added: 3089, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::Bids` (r:3 w:2)
+	/// Proof: `PolimecFunding::Bids` (`max_values`: None, `max_size`: Some(418), added: 2893, mode: `MaxEncodedLen`)
+	/// Storage: `Oracle::Values` (r:1 w:0)
+	/// Proof: `Oracle::Values` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::Buckets` (r:1 w:0)
+	/// Proof: `PolimecFunding::Buckets` (`max_values`: None, `max_size`: Some(100), added: 2575, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:100 w:1)
+	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
+	/// The range of component `x` is `[1, 99]`.
+	fn start_community_funding_success(x: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `2882 + x * (529 ±0)`
+		//  Estimated: `9669 + x * (3097 ±0)`
+		// Minimum execution time: 1_763_000_000 picoseconds.
+		Weight::from_parts(1_776_970_836, 0)
+			.saturating_add(Weight::from_parts(0, 9669))
+			// Standard Error: 483_296
+			.saturating_add(Weight::from_parts(38_180_695, 0).saturating_mul(x.into()))
+			.saturating_add(T::DbWeight::get().reads(10))
+			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(x.into())))
+			.saturating_add(T::DbWeight::get().writes(5))
+			.saturating_add(Weight::from_parts(0, 3097).saturating_mul(x.into()))
+	}
+
+	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
+	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::Nonce` (r:1 w:1)
+	/// Proof: `PolimecFunding::Nonce` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `Random::RandomMaterial` (r:1 w:0)
+	/// Proof: `Random::RandomMaterial` (`max_values`: Some(1), `max_size`: Some(2594), added: 3089, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::Bids` (r:1 w:0)
+	/// Proof: `PolimecFunding::Bids` (`max_values`: None, `max_size`: Some(418), added: 2893, mode: `MaxEncodedLen`)
+	/// Storage: `Oracle::Values` (r:1 w:0)
+	/// Proof: `Oracle::Values` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::Buckets` (r:1 w:0)
+	/// Proof: `PolimecFunding::Buckets` (`max_values`: None, `max_size`: Some(100), added: 2575, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
+	/// The range of component `x` is `[1, 99]`.
+	fn start_community_funding_failure(x: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `2654 + x * (4 ±0)`
+		//  Estimated: `4087`
+		// Minimum execution time: 1_453_000_000 picoseconds.
+		Weight::from_parts(1_487_504_532, 0)
+			.saturating_add(Weight::from_parts(0, 4087))
+			// Standard Error: 177_339
+			.saturating_add(Weight::from_parts(731_091, 0).saturating_mul(x.into()))
+			.saturating_add(T::DbWeight::get().reads(8))
+			.saturating_add(T::DbWeight::get().writes(3))
 	}
 }
 
@@ -1727,5 +1809,67 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads((1_u64).saturating_mul(x.into())))
 			.saturating_add(RocksDbWeight::get().writes(2))
 			.saturating_add(Weight::from_parts(0, 3097).saturating_mul(x.into()))
+	}
+
+	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
+	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::Nonce` (r:1 w:1)
+	/// Proof: `PolimecFunding::Nonce` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `Random::RandomMaterial` (r:1 w:0)
+	/// Proof: `Random::RandomMaterial` (`max_values`: Some(1), `max_size`: Some(2594), added: 3089, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::Bids` (r:3 w:2)
+	/// Proof: `PolimecFunding::Bids` (`max_values`: None, `max_size`: Some(418), added: 2893, mode: `MaxEncodedLen`)
+	/// Storage: `Oracle::Values` (r:1 w:0)
+	/// Proof: `Oracle::Values` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::Buckets` (r:1 w:0)
+	/// Proof: `PolimecFunding::Buckets` (`max_values`: None, `max_size`: Some(100), added: 2575, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:100 w:1)
+	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
+	/// The range of component `x` is `[1, 99]`.
+	fn start_community_funding_success(x: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `2882 + x * (529 ±0)`
+		//  Estimated: `9669 + x * (3097 ±0)`
+		// Minimum execution time: 1_763_000_000 picoseconds.
+		Weight::from_parts(1_776_970_836, 0)
+			.saturating_add(Weight::from_parts(0, 9669))
+			// Standard Error: 483_296
+			.saturating_add(Weight::from_parts(38_180_695, 0).saturating_mul(x.into()))
+			.saturating_add(RocksDbWeight::get().reads(10))
+			.saturating_add(RocksDbWeight::get().reads((1_u64).saturating_mul(x.into())))
+			.saturating_add(RocksDbWeight::get().writes(5))
+			.saturating_add(Weight::from_parts(0, 3097).saturating_mul(x.into()))
+	}
+
+	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
+	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::Nonce` (r:1 w:1)
+	/// Proof: `PolimecFunding::Nonce` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `Random::RandomMaterial` (r:1 w:0)
+	/// Proof: `Random::RandomMaterial` (`max_values`: Some(1), `max_size`: Some(2594), added: 3089, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::Bids` (r:1 w:0)
+	/// Proof: `PolimecFunding::Bids` (`max_values`: None, `max_size`: Some(418), added: 2893, mode: `MaxEncodedLen`)
+	/// Storage: `Oracle::Values` (r:1 w:0)
+	/// Proof: `Oracle::Values` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::Buckets` (r:1 w:0)
+	/// Proof: `PolimecFunding::Buckets` (`max_values`: None, `max_size`: Some(100), added: 2575, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
+	/// The range of component `x` is `[1, 99]`.
+	fn start_community_funding_failure(x: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `2654 + x * (4 ±0)`
+		//  Estimated: `4087`
+		// Minimum execution time: 1_453_000_000 picoseconds.
+		Weight::from_parts(1_487_504_532, 0)
+			.saturating_add(Weight::from_parts(0, 4087))
+			// Standard Error: 177_339
+			.saturating_add(Weight::from_parts(731_091, 0).saturating_mul(x.into()))
+			.saturating_add(RocksDbWeight::get().reads(8))
+			.saturating_add(RocksDbWeight::get().writes(3))
 	}
 }
