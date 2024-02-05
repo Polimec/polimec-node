@@ -2877,9 +2877,6 @@ mod benchmarks {
 		// move block manually without calling any hooks, to avoid triggering the transition outside the benchmarking context
 		frame_system::Pallet::<T>::set_block_number(evaluation_end_block + One::one());
 
-		let insertion_block_number =
-			inst.current_block() + One::one() + <T as Config>::AuctionInitializePeriodDuration::get();
-
 		// Instead of advancing in time for the automatic `do_evaluation_end` call in on_initialize, we call it directly to benchmark it
 		#[block]
 		{
