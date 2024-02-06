@@ -15,7 +15,7 @@
 // --steps=20
 // --repeat=10
 // --pallet=pallet_funding
-// --extrinsic=start_remainder_funding
+// --extrinsic=project_decision_reject_funding, project_decision_accept_funding
 // --output
 // ./debug_weight_gen.rs
 
@@ -32,21 +32,30 @@ pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_funding::WeightInfo for WeightInfo<T> {
 	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
 	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:100 w:1)
+	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:1 w:1)
 	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
-	/// The range of component `x` is `[1, 99]`.
-	fn start_remainder_funding(x: u32, ) -> Weight {
+	fn project_decision_accept_funding() -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `510 + x * (529 ±0)`
-		//  Estimated: `4087 + x * (3097 ±0)`
-		// Minimum execution time: 242_000_000 picoseconds.
-		Weight::from_parts(227_535_753, 0)
+		//  Measured:  `535`
+		//  Estimated: `4087`
+		// Minimum execution time: 200_000_000 picoseconds.
+		Weight::from_parts(207_000_000, 0)
 			.saturating_add(Weight::from_parts(0, 4087))
-			// Standard Error: 174_777
-			.saturating_add(Weight::from_parts(37_767_357, 0).saturating_mul(x.into()))
 			.saturating_add(T::DbWeight::get().reads(2))
-			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(x.into())))
 			.saturating_add(T::DbWeight::get().writes(2))
-			.saturating_add(Weight::from_parts(0, 3097).saturating_mul(x.into()))
+	}
+	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
+	fn project_decision_reject_funding() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `535`
+		//  Estimated: `4087`
+		// Minimum execution time: 200_000_000 picoseconds.
+		Weight::from_parts(203_000_000, 0)
+			.saturating_add(Weight::from_parts(0, 4087))
+			.saturating_add(T::DbWeight::get().reads(2))
+			.saturating_add(T::DbWeight::get().writes(2))
 	}
 }

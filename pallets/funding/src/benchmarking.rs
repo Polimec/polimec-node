@@ -2405,7 +2405,7 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn decide_project_outcome_manually(
+	fn decide_project_outcome(
 		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the extrinsic pass
 		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
 		// Total amount of storage items iterated through in `ProjectsToUpdate` when trying to remove our project in `remove_from_update_store`.
@@ -2421,14 +2421,13 @@ mod benchmarks {
 		inst.advance_time(time_advance.into()).unwrap();
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-		let evaluations = default_evaluations::<T>();
-		let evaluator = evaluations[0].account.clone();
-		whitelist_account!(evaluator);
+		whitelist_account!(issuer);
 
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
 		let target_funding_amount: BalanceOf<T> =
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size.0);
 
+		let evaluations = default_evaluations::<T>();
 		let bids = BenchInstantiator::generate_bids_from_total_usd(
 			Percent::from_percent(40) * target_funding_amount,
 			1u128.into(),
@@ -3223,7 +3222,7 @@ mod benchmarks {
 
 		#[block]
 		{
-			Pallet::<T>::do_remainder_funding(project_id).unwrap()
+			Pallet::<T>::do_remainder_funding(project_id).unwrap();
 		}
 
 		// * validity checks *
@@ -3245,16 +3244,177 @@ mod benchmarks {
 
 	// do_project_decision
 	#[benchmark]
-	fn decide_project_outcome_automatically() {
+	fn project_decision_accept_funding() {
+		// setup
+		let mut inst = BenchInstantiator::<T>::new(None);
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+
+		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let target_funding_amount: BalanceOf<T> = project_metadata
+			.minimum_price
+			.saturating_mul_int(project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1);
+		let manual_outcome_threshold = Percent::from_percent(50);
+
+		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
+			(manual_outcome_threshold * target_funding_amount) / 2.into(),
+			project_metadata.minimum_price,
+			default_weights(),
+			default_bidders::<T>(),
+			default_bidder_multipliers(),
+		);
+		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
+			(manual_outcome_threshold * target_funding_amount) / 2.into(),
+			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
+			default_weights(),
+			default_contributors::<T>(),
+			default_community_contributor_multipliers(),
+		);
+
+		let project_id = inst.create_finished_project(
+			project_metadata,
+			issuer.clone(),
+			default_evaluations::<T>(),
+			bids,
+			contributions,
+			vec![],
+		);
+
+		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AwaitingProjectDecision);
+
 		#[block]
-		{}
+		{
+			Pallet::<T>::do_project_decision(project_id, FundingOutcomeDecision::AcceptFunding);
+		}
+
+		// * validity checks *
+		let project_details = inst.get_project_details(project_id);
+		assert_eq!(project_details.status, ProjectStatus::FundingSuccessful);
+	}
+
+	#[benchmark]
+	fn project_decision_reject_funding() {
+		// setup
+		let mut inst = BenchInstantiator::<T>::new(None);
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+
+		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let target_funding_amount: BalanceOf<T> = project_metadata
+			.minimum_price
+			.saturating_mul_int(project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1);
+		let manual_outcome_threshold = Percent::from_percent(50);
+
+		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
+			(manual_outcome_threshold * target_funding_amount) / 2.into(),
+			project_metadata.minimum_price,
+			default_weights(),
+			default_bidders::<T>(),
+			default_bidder_multipliers(),
+		);
+		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
+			(manual_outcome_threshold * target_funding_amount) / 2.into(),
+			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
+			default_weights(),
+			default_contributors::<T>(),
+			default_community_contributor_multipliers(),
+		);
+
+		let project_id = inst.create_finished_project(
+			project_metadata,
+			issuer.clone(),
+			default_evaluations::<T>(),
+			bids,
+			contributions,
+			vec![],
+		);
+
+		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AwaitingProjectDecision);
+
+		#[block]
+		{
+			Pallet::<T>::do_project_decision(project_id, FundingOutcomeDecision::RejectFunding);
+		}
+
+		// * validity checks *
+		let project_details = inst.get_project_details(project_id);
+		assert_eq!(project_details.status, ProjectStatus::FundingFailed);
 	}
 
 	// do_start_settlement
 	#[benchmark]
-	fn start_settlement() {
+	fn start_settlement_funding_success() {
+		// setup
+		let mut inst = BenchInstantiator::<T>::new(None);
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+
+		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let project_id = inst.create_finished_project(
+			project_metadata,
+			issuer.clone(),
+			default_evaluations::<T>(),
+			default_bids::<T>(),
+			default_community_contributions::<T>(),
+			vec![],
+		);
+
 		#[block]
-		{}
+		{
+			Pallet::<T>::do_start_settlement(project_id);
+		}
+
+		// * validity checks *
+		let project_details = inst.get_project_details(project_id);
+		assert_eq!(project_details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
+	}
+
+	#[benchmark]
+	fn start_settlement_funding_failure() {
+		// setup
+		let mut inst = BenchInstantiator::<T>::new(None);
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+
+		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let target_funding_amount: BalanceOf<T> = project_metadata
+			.minimum_price
+			.saturating_mul_int(project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1);
+
+		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
+			Percent::from_percent(15) * target_funding_amount,
+			10u128.into(),
+			default_weights(),
+			default_bidders::<T>(),
+			default_bidder_multipliers(),
+		);
+		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
+			Percent::from_percent(10) * target_funding_amount,
+			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
+			default_weights(),
+			default_contributors::<T>(),
+			default_community_contributor_multipliers(),
+		);
+
+		let project_id = inst.create_finished_project(
+			project_metadata,
+			issuer.clone(),
+			default_evaluations::<T>(),
+			bids,
+			contributions,
+			vec![],
+		);
+
+		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
+
+		#[block]
+		{
+			Pallet::<T>::do_start_settlement(project_id);
+		}
+
+		// * validity checks *
+		let project_details = inst.get_project_details(project_id);
+		assert_eq!(project_details.cleanup, Cleaner::Failure(CleanerState::Initialized(PhantomData)));
 	}
 
 	#[macro_export]
@@ -3488,9 +3648,9 @@ mod benchmarks {
 		}
 
 		#[test]
-		fn bench_decide_project_outcome_manually() {
+		fn bench_decide_project_outcome() {
 			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_decide_project_outcome_manually());
+				assert_ok!(PalletFunding::<TestRuntime>::test_decide_project_outcome());
 			});
 		}
 
@@ -3562,6 +3722,34 @@ mod benchmarks {
 		fn bench_start_remainder_funding() {
 			new_test_ext().execute_with(|| {
 				assert_ok!(PalletFunding::<TestRuntime>::test_start_remainder_funding());
+			});
+		}
+
+		#[test]
+		fn bench_start_settlement_funding_success() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_start_settlement_funding_success());
+			});
+		}
+
+		#[test]
+		fn bench_start_settlement_funding_failure() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_start_settlement_funding_failure());
+			});
+		}
+
+		#[test]
+		fn bench_project_decision_accept_funding() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_project_decision_accept_funding());
+			});
+		}
+
+		#[test]
+		fn bench_project_decision_reject_funding() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_project_decision_reject_funding());
 			});
 		}
 	}

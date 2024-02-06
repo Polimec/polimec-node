@@ -1309,20 +1309,36 @@ pub mod pallet {
 
 					// CommunityRound -> RemainderRound
 					UpdateType::RemainderFundingStart => {
-						unwrap_result_or_skip!(Self::do_remainder_funding(project_id), project_id, |e| e)
+						unwrap_result_or_skip!(
+							Self::do_remainder_funding(project_id),
+							project_id,
+							|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+						);
 					},
 
 					// CommunityRound || RemainderRound -> FundingEnded
 					UpdateType::FundingEnd => {
-						unwrap_result_or_skip!(Self::do_end_funding(project_id), project_id, |e| e)
+						unwrap_result_or_skip!(
+							Self::do_end_funding(project_id),
+							project_id,
+							|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+						);
 					},
 
 					UpdateType::ProjectDecision(decision) => {
-						unwrap_result_or_skip!(Self::do_project_decision(project_id, decision), project_id, |e| e)
+						unwrap_result_or_skip!(
+							Self::do_project_decision(project_id, decision),
+							project_id,
+							|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+						);
 					},
 
 					UpdateType::StartSettlement => {
-						unwrap_result_or_skip!(Self::do_start_settlement(project_id), project_id, |e| e)
+						unwrap_result_or_skip!(
+							Self::do_start_settlement(project_id),
+							project_id,
+							|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+						);
 					},
 				}
 			}

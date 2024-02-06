@@ -619,7 +619,7 @@ impl<T: Config> Pallet<T> {
 	/// Any users can now buy tokens at the price set on the auction round.
 	/// Later on, `on_initialize` ends the remainder round, and finalizes the project funding, by calling
 	/// [`do_end_funding`](Self::do_end_funding).
-	pub fn do_remainder_funding(project_id: ProjectId) -> DispatchResult {
+	pub fn do_remainder_funding(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
@@ -651,7 +651,10 @@ impl<T: Config> Pallet<T> {
 		// * Emit events *
 		Self::deposit_event(Event::RemainderFundingStarted { project_id });
 
-		Ok(())
+		Ok(PostDispatchInfo {
+			actual_weight: Some(WeightInfoOf::<T>::start_remainder_funding(insertion_iterations)),
+			pays_fee: Pays::Yes,
+		})
 	}
 
 	/// Called automatically by on_initialize
@@ -683,7 +686,7 @@ impl<T: Config> Pallet<T> {
 	/// * Bonded plmc with [`vested_plmc_purchase_unbond_for`](Self::vested_plmc_purchase_unbond_for)
 	///
 	/// If **unsuccessful**, users every user should have their PLMC vesting unbonded.
-	pub fn do_end_funding(project_id: ProjectId) -> DispatchResult {
+	pub fn do_end_funding(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
@@ -715,7 +718,16 @@ impl<T: Config> Pallet<T> {
 		// * Update Storage *
 		if funding_ratio <= Perquintill::from_percent(33u64) {
 			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Slashed;
-			Self::make_project_funding_fail(project_id, project_details, FailureReason::TargetNotReached, 1u32.into())
+			let result = Self::make_project_funding_fail(
+				project_id,
+				project_details,
+				FailureReason::TargetNotReached,
+				1u32.into(),
+			);
+			return Ok(PostDispatchInfo {
+				actual_weight: Some(WeightInfoOf::<T>::end_funding_failure()),
+				pays_fee: Pays::Yes,
+			})
 		} else if funding_ratio <= Perquintill::from_percent(75u64) {
 			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Slashed;
 			project_details.status = ProjectStatus::AwaitingProjectDecision;
@@ -728,7 +740,10 @@ impl<T: Config> Pallet<T> {
 				Err(_iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
 			};
 			ProjectsDetails::<T>::insert(project_id, project_details);
-			Ok(())
+			Ok(PostDispatchInfo {
+				actual_weight: Some(WeightInfoOf::<T>::end_funding_awaiting_decision()),
+				pays_fee: Pays::Yes,
+			})
 		} else if funding_ratio < Perquintill::from_percent(90u64) {
 			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Unchanged;
 			project_details.status = ProjectStatus::AwaitingProjectDecision;
@@ -741,20 +756,27 @@ impl<T: Config> Pallet<T> {
 				Err(_iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
 			};
 			ProjectsDetails::<T>::insert(project_id, project_details);
-			Ok(())
+			Ok(PostDispatchInfo {
+				actual_weight: Some(WeightInfoOf::<T>::end_funding_awaiting_decision()),
+				pays_fee: Pays::Yes,
+			})
 		} else {
 			let reward_info = Self::generate_evaluator_rewards_info(project_id)?;
 			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Rewarded(reward_info);
-			Self::make_project_funding_successful(
+			let result = Self::make_project_funding_successful(
 				project_id,
 				project_details,
 				SuccessReason::ReachedTarget,
 				T::SuccessToSettlementTime::get(),
-			)
+			);
+			return Ok(PostDispatchInfo {
+				actual_weight: Some(WeightInfoOf::<T>::end_funding_success()),
+				pays_fee: Pays::Yes,
+			})
 		}
 	}
 
-	pub fn do_project_decision(project_id: ProjectId, decision: FundingOutcomeDecision) -> DispatchResult {
+	pub fn do_project_decision(project_id: ProjectId, decision: FundingOutcomeDecision) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
@@ -778,10 +800,10 @@ impl<T: Config> Pallet<T> {
 			},
 		}
 
-		Ok(())
+		Ok(PostDispatchInfo { actual_weight: Some(WeightInfoOf::<T>::project_decision()), pays_fee: Pays::Yes })
 	}
 
-	pub fn do_start_settlement(project_id: ProjectId) -> DispatchResult {
+	pub fn do_start_settlement(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let token_information =
@@ -801,7 +823,6 @@ impl<T: Config> Pallet<T> {
 		project_details.funding_end_block = Some(now);
 
 		// * Update storage *
-
 		ProjectsDetails::<T>::insert(project_id, &project_details);
 
 		if project_details.status == ProjectStatus::FundingSuccessful {
@@ -813,9 +834,17 @@ impl<T: Config> Pallet<T> {
 				token_information.symbol.into(),
 				token_information.decimals,
 			)?;
-		}
 
-		Ok(())
+			Ok(PostDispatchInfo {
+				actual_weight: Some(WeightInfoOf::<T>::start_settlement_funding_success()),
+				pays_fee: Pays::Yes,
+			})
+		} else {
+			Ok(PostDispatchInfo {
+				actual_weight: Some(WeightInfoOf::<T>::start_settlement_funding_failure()),
+				pays_fee: Pays::Yes,
+			})
+		}
 	}
 }
 
