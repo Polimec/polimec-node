@@ -18,9 +18,9 @@ test-integration:
 
 # Run the Runtime benchmarks
 # src: https://github.com/polkadot-fellows/runtimes/blob/48ccfae6141d2924f579d81e8b1877efd208693f/system-parachains/asset-hubs/asset-hub-polkadot/src/weights/cumulus_pallet_xcmp_queue.rs
-benchmark-runtime pallet="pallet-linear-release" features="runtime-benchmarks":
+benchmark-runtime pallet="pallet-elections-phragmen" features="runtime-benchmarks":
     cargo run --features {{ features }} --release -p polimec-parachain-node benchmark pallet \
-      --chain=polimec-rococo-local \
+      --chain=base-polkadot \
       --steps=50 \
       --repeat=20 \
       --pallet={{ pallet }} \
@@ -31,9 +31,9 @@ benchmark-runtime pallet="pallet-linear-release" features="runtime-benchmarks":
 
 # Benchmark the "Testnet" Runtime
 # src: https://github.com/paritytech/polkadot-sdk/blob/bc2e5e1fe26e2c2c8ee766ff9fe7be7e212a0c62/substrate/frame/nfts/src/weights.rs
-benchmark-pallet pallet="pallet-linear-release" features="runtime-benchmarks":
+benchmark-pallet pallet="pallet-elections-phragmen" features="runtime-benchmarks":
     cargo run --features {{ features }} --release -p polimec-parachain-node benchmark pallet \
-      --chain=polimec-rococo-local \
+      --chain=base-polkadot \
       --steps=50 \
       --repeat=20 \
       --pallet={{ pallet }}  \
