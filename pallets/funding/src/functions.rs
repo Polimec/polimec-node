@@ -565,7 +565,7 @@ impl<T: Config> Pallet<T> {
 				})
 			},
 			Err(e) => return Err(DispatchErrorWithPostInfo { post_info: ().into(), error: e }),
-			Ok(()) => {
+			Ok((accepted_bids_count, rejected_bids_count)) => {
 				// Get info again after updating it with new price.
 				project_details.phase_transition_points.random_candle_ending = Some(end_block);
 				project_details
@@ -587,7 +587,11 @@ impl<T: Config> Pallet<T> {
 				Self::deposit_event(Event::CommunityFundingStarted { project_id });
 
 				Ok(PostDispatchInfo {
-					actual_weight: Some(WeightInfoOf::<T>::start_community_funding_success(insertion_iterations)),
+					actual_weight: Some(WeightInfoOf::<T>::start_community_funding_success(
+						insertion_iterations,
+						accepted_bids_count,
+						rejected_bids_count,
+					)),
 					pays_fee: Pays::Yes,
 				})
 			},
@@ -638,8 +642,7 @@ impl<T: Config> Pallet<T> {
 		project_details.status = ProjectStatus::RemainderRound;
 		ProjectsDetails::<T>::insert(project_id, project_details);
 		// Schedule for automatic transition by `on_initialize`
-		// TODO: return real weights
-		let _iterations =
+		let insertion_iterations =
 			match Self::add_to_update_store(remainder_end_block + 1u32.into(), (&project_id, UpdateType::FundingEnd)) {
 				Ok(iterations) => iterations,
 				Err(_iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
@@ -2689,15 +2692,21 @@ impl<T: Config> Pallet<T> {
 		project_id: ProjectId,
 		end_block: BlockNumberFor<T>,
 		total_allocation_size: BalanceOf<T>,
-	) -> DispatchResult {
+	) -> Result<(u32, u32), DispatchError> {
 		// Get all the bids that were made before the end of the candle
 		let mut bids = Bids::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
+		let debug_total_bids = bids.len() as u32;
 		// temp variable to store the sum of the bids
 		let mut bid_token_amount_sum = Zero::zero();
 		// temp variable to store the total value of the bids (i.e price * amount = Cumulative Ticket Size)
 		let mut bid_usd_value_sum = BalanceOf::<T>::zero();
 		let project_account = Self::fund_account_id(project_id);
 		let plmc_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
+
+		// Weight calculation variables
+		let mut accepted_bids_count = 0u32;
+		let mut rejected_bids_count = 0u32;
+
 		// sort bids by price, and equal prices sorted by id
 		bids.sort_by(|a, b| b.cmp(a));
 		// accept only bids that were made before `end_block` i.e end of candle auction
@@ -2705,19 +2714,23 @@ impl<T: Config> Pallet<T> {
 			.into_iter()
 			.map(|mut bid| {
 				if bid.when > end_block {
+					rejected_bids_count += 1;
 					return Self::refund_bid(&mut bid, project_id, &project_account, RejectionReason::AfterCandleEnd)
 						.and(Ok(bid))
 				}
 				let buyable_amount = total_allocation_size.saturating_sub(bid_token_amount_sum);
 				if buyable_amount.is_zero() {
+					rejected_bids_count += 1;
 					return Self::refund_bid(&mut bid, project_id, &project_account, RejectionReason::NoTokensLeft)
 						.and(Ok(bid))
 				} else if bid.original_ct_amount <= buyable_amount {
+					accepted_bids_count += 1;
 					let ticket_size = bid.original_ct_usd_price.saturating_mul_int(bid.original_ct_amount);
 					bid_token_amount_sum.saturating_accrue(bid.original_ct_amount);
 					bid_usd_value_sum.saturating_accrue(ticket_size);
 					bid.status = BidStatus::Accepted;
 				} else {
+					accepted_bids_count += 1;
 					let ticket_size = bid.original_ct_usd_price.saturating_mul_int(buyable_amount);
 					bid_usd_value_sum.saturating_accrue(ticket_size);
 					bid_token_amount_sum.saturating_accrue(buyable_amount);
@@ -2867,7 +2880,9 @@ impl<T: Config> Pallet<T> {
 			}
 		})?;
 
-		Ok(())
+		#[cfg(test)]
+		assert_eq!(accepted_bids_count + rejected_bids_count, debug_total_bids);
+		Ok((accepted_bids_count, rejected_bids_count))
 	}
 
 	/// Refund a bid because of `reason`.

@@ -15,7 +15,7 @@
 // --steps=20
 // --repeat=10
 // --pallet=pallet_funding
-// --extrinsic=start_community_funding_success
+// --extrinsic=start_remainder_funding
 // --output
 // ./debug_weight_gen.rs
 
@@ -32,51 +32,21 @@ pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_funding::WeightInfo for WeightInfo<T> {
 	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
 	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Nonce` (r:1 w:1)
-	/// Proof: `PolimecFunding::Nonce` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `Random::RandomMaterial` (r:1 w:0)
-	/// Proof: `Random::RandomMaterial` (`max_values`: Some(1), `max_size`: Some(2594), added: 3089, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Bids` (r:2049 w:2048)
-	/// Proof: `PolimecFunding::Bids` (`max_values`: None, `max_size`: Some(418), added: 2893, mode: `MaxEncodedLen`)
-	/// Storage: `Oracle::Values` (r:1 w:0)
-	/// Proof: `Oracle::Values` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Asset` (r:1 w:1)
-	/// Proof: `StatemintAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Account` (r:1025 w:1025)
-	/// Proof: `StatemintAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	/// Storage: `System::Account` (r:1024 w:1024)
-	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Holds` (r:1024 w:1024)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Buckets` (r:1 w:0)
-	/// Proof: `PolimecFunding::Buckets` (`max_values`: None, `max_size`: Some(100), added: 2575, mode: `MaxEncodedLen`)
 	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:100 w:1)
 	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
 	/// The range of component `x` is `[1, 99]`.
-	/// The range of component `y` is `[1, 1024]`.
-	/// The range of component `z` is `[0, 1024]`.
-	fn start_community_funding_success(x: u32, y: u32, z: u32, ) -> Weight {
+	fn start_remainder_funding(x: u32, ) -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `91678 + x * (529 ±0) + y * (167 ±0) + z * (364 ±0)`
-		//  Estimated: `4087 + x * (3097 ±0) + y * (2893 ±0) + z * (3624 ±0)`
-		// Minimum execution time: 139_251_000_000 picoseconds.
-		Weight::from_parts(6_810_381_680, 0)
+		//  Measured:  `510 + x * (529 ±0)`
+		//  Estimated: `4087 + x * (3097 ±0)`
+		// Minimum execution time: 242_000_000 picoseconds.
+		Weight::from_parts(227_535_753, 0)
 			.saturating_add(Weight::from_parts(0, 4087))
-			// Standard Error: 2_917_537
-			.saturating_add(Weight::from_parts(143_813_813, 0).saturating_mul(y.into()))
-			// Standard Error: 2_914_495
-			.saturating_add(Weight::from_parts(1_093_099_600, 0).saturating_mul(z.into()))
-			.saturating_add(T::DbWeight::get().reads(10))
+			// Standard Error: 174_777
+			.saturating_add(Weight::from_parts(37_767_357, 0).saturating_mul(x.into()))
+			.saturating_add(T::DbWeight::get().reads(2))
 			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(x.into())))
-			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(y.into())))
-			.saturating_add(T::DbWeight::get().reads((4_u64).saturating_mul(z.into())))
-			.saturating_add(T::DbWeight::get().writes(5))
-			.saturating_add(T::DbWeight::get().writes((1_u64).saturating_mul(y.into())))
-			.saturating_add(T::DbWeight::get().writes((4_u64).saturating_mul(z.into())))
+			.saturating_add(T::DbWeight::get().writes(2))
 			.saturating_add(Weight::from_parts(0, 3097).saturating_mul(x.into()))
-			.saturating_add(Weight::from_parts(0, 2893).saturating_mul(y.into()))
-			.saturating_add(Weight::from_parts(0, 3624).saturating_mul(z.into()))
 	}
 }
