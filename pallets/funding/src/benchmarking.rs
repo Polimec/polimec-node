@@ -3009,7 +3009,10 @@ mod benchmarks {
 	) {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
-
+		dbg!(x);
+		dbg!(y);
+		dbg!(z);
+		println!("\n--------");
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 

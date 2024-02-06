@@ -350,13 +350,13 @@ impl Config for TestRuntime {
 	type FeeBrackets = FeeBrackets;
 	type FundingCurrency = StatemintAssets;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
-	type MaxBidsPerProject = ConstU32<20>;
+	type MaxBidsPerProject = ConstU32<100_000>;
 	type MaxBidsPerUser = ConstU32<4>;
 	type MaxCapacityThresholds = MaxCapacityThresholds;
 	type MaxContributionsPerUser = ConstU32<4>;
 	type MaxEvaluationsPerUser = ConstU32<4>;
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
-	type MaxProjectsToUpdateInsertionAttempts = ConstU32<10>;
+	type MaxProjectsToUpdateInsertionAttempts = ConstU32<100>;
 	type MaxProjectsToUpdatePerBlock = ConstU32<5>;
 	type Multiplier = Multiplier;
 	type NativeCurrency = Balances;
