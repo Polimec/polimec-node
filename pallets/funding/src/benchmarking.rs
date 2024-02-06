@@ -3237,9 +3237,214 @@ mod benchmarks {
 
 	// do_end_funding
 	#[benchmark]
-	fn end_funding() {
+	fn end_funding_automatically_rejected_evaluators_slashed() {
+		// setup
+		let mut inst = BenchInstantiator::<T>::new(None);
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+
+		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let target_funding_amount: BalanceOf<T> = project_metadata
+			.minimum_price
+			.saturating_mul_int(project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1);
+
+		let automatically_rejected_threshold = Percent::from_percent(33);
+
+		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
+			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
+			project_metadata.minimum_price,
+			default_weights(),
+			default_bidders::<T>(),
+			default_bidder_multipliers(),
+		);
+		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
+			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
+			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
+			default_weights(),
+			default_contributors::<T>(),
+			default_community_contributor_multipliers(),
+		);
+
+		let (project_id, _) = inst.create_remainder_contributing_project(
+			project_metadata,
+			issuer.clone(),
+			default_evaluations::<T>(),
+			bids,
+			contributions,
+		);
+
+		let project_details = inst.get_project_details(project_id);
+		assert_eq!(project_details.status, ProjectStatus::RemainderRound);
+		let last_funding_block = project_details.phase_transition_points.remainder.end().unwrap();
+
+		frame_system::Pallet::<T>::set_block_number(last_funding_block + 1u32.into());
+
 		#[block]
-		{}
+		{
+			Pallet::<T>::do_end_funding(project_id).unwrap();
+		}
+
+		// * validity checks *
+		let project_details = inst.get_project_details(project_id);
+		assert_eq!(project_details.status, ProjectStatus::FundingFailed);
+	}
+	#[benchmark]
+	fn end_funding_awaiting_decision_evaluators_slashed() {
+		// setup
+		let mut inst = BenchInstantiator::<T>::new(None);
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+
+		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let target_funding_amount: BalanceOf<T> = project_metadata
+			.minimum_price
+			.saturating_mul_int(project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1);
+
+		let automatically_rejected_threshold = Percent::from_percent(75);
+
+		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
+			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
+			project_metadata.minimum_price,
+			default_weights(),
+			default_bidders::<T>(),
+			default_bidder_multipliers(),
+		);
+		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
+			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
+			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
+			default_weights(),
+			default_contributors::<T>(),
+			default_community_contributor_multipliers(),
+		);
+
+		let (project_id, _) = inst.create_remainder_contributing_project(
+			project_metadata,
+			issuer.clone(),
+			default_evaluations::<T>(),
+			bids,
+			contributions,
+		);
+
+		let project_details = inst.get_project_details(project_id);
+		assert_eq!(project_details.status, ProjectStatus::RemainderRound);
+		let last_funding_block = project_details.phase_transition_points.remainder.end().unwrap();
+
+		frame_system::Pallet::<T>::set_block_number(last_funding_block + 1u32.into());
+
+		#[block]
+		{
+			Pallet::<T>::do_end_funding(project_id).unwrap();
+		}
+
+		// * validity checks *
+		let project_details = inst.get_project_details(project_id);
+		assert_eq!(project_details.status, ProjectStatus::AwaitingProjectDecision);
+		assert_eq!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Slashed)
+	}
+	#[benchmark]
+	fn end_funding_awaiting_decision_evaluators_unchanged() {
+		// setup
+		let mut inst = BenchInstantiator::<T>::new(None);
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+
+		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let target_funding_amount: BalanceOf<T> = project_metadata
+			.minimum_price
+			.saturating_mul_int(project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1);
+
+		let automatically_rejected_threshold = Percent::from_percent(89);
+
+		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
+			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
+			project_metadata.minimum_price,
+			default_weights(),
+			default_bidders::<T>(),
+			default_bidder_multipliers(),
+		);
+		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
+			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
+			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
+			default_weights(),
+			default_contributors::<T>(),
+			default_community_contributor_multipliers(),
+		);
+
+		let (project_id, _) = inst.create_remainder_contributing_project(
+			project_metadata,
+			issuer.clone(),
+			default_evaluations::<T>(),
+			bids,
+			contributions,
+		);
+
+		let project_details = inst.get_project_details(project_id);
+		assert_eq!(project_details.status, ProjectStatus::RemainderRound);
+		let last_funding_block = project_details.phase_transition_points.remainder.end().unwrap();
+
+		frame_system::Pallet::<T>::set_block_number(last_funding_block + 1u32.into());
+
+		#[block]
+		{
+			Pallet::<T>::do_end_funding(project_id).unwrap();
+		}
+
+		// * validity checks *
+		let project_details = inst.get_project_details(project_id);
+		assert_eq!(project_details.status, ProjectStatus::AwaitingProjectDecision);
+		assert_eq!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Unchanged)
+	}
+	#[benchmark]
+	fn end_funding_automatically_accepted_evaluators_rewarded() {
+		// setup
+		let mut inst = BenchInstantiator::<T>::new(None);
+
+		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
+
+		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+		let target_funding_amount: BalanceOf<T> = project_metadata
+			.minimum_price
+			.saturating_mul_int(project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1);
+
+		let automatically_rejected_threshold = Percent::from_percent(91);
+
+		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
+			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
+			project_metadata.minimum_price,
+			default_weights(),
+			default_bidders::<T>(),
+			default_bidder_multipliers(),
+		);
+		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
+			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
+			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
+			default_weights(),
+			default_contributors::<T>(),
+			default_community_contributor_multipliers(),
+		);
+
+		let (project_id, _) = inst.create_remainder_contributing_project(
+			project_metadata,
+			issuer.clone(),
+			default_evaluations::<T>(),
+			bids,
+			contributions,
+		);
+
+		let project_details = inst.get_project_details(project_id);
+		assert_eq!(project_details.status, ProjectStatus::RemainderRound);
+		let last_funding_block = project_details.phase_transition_points.remainder.end().unwrap();
+
+		frame_system::Pallet::<T>::set_block_number(last_funding_block + 1u32.into());
+
+		#[block]
+		{
+			Pallet::<T>::do_end_funding(project_id).unwrap();
+		}
+
+		// * validity checks *
+		let project_details = inst.get_project_details(project_id);
+		assert_eq!(project_details.status, ProjectStatus::FundingSuccessful);
 	}
 
 	// do_project_decision
@@ -3383,7 +3588,7 @@ mod benchmarks {
 
 		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
 			Percent::from_percent(15) * target_funding_amount,
-			10u128.into(),
+			1u128.into(),
 			default_weights(),
 			default_bidders::<T>(),
 			default_bidder_multipliers(),
@@ -3750,6 +3955,34 @@ mod benchmarks {
 		fn bench_project_decision_reject_funding() {
 			new_test_ext().execute_with(|| {
 				assert_ok!(PalletFunding::<TestRuntime>::test_project_decision_reject_funding());
+			});
+		}
+
+		#[test]
+		fn bench_end_funding_automatically_rejected_evaluators_slashed() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_end_funding_automatically_rejected_evaluators_slashed());
+			});
+		}
+
+		#[test]
+		fn bench_end_funding_automatically_accepted_evaluators_rewarded() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_end_funding_automatically_accepted_evaluators_rewarded());
+			});
+		}
+
+		#[test]
+		fn bench_end_funding_awaiting_decision_evaluators_unchanged() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_end_funding_awaiting_decision_evaluators_unchanged());
+			});
+		}
+
+		#[test]
+		fn bench_end_funding_awaiting_decision_evaluators_slashed() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_end_funding_awaiting_decision_evaluators_slashed());
 			});
 		}
 	}

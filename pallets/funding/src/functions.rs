@@ -789,6 +789,10 @@ impl<T: Config> Pallet<T> {
 					SuccessReason::ProjectDecision,
 					T::SuccessToSettlementTime::get(),
 				)?;
+				Ok(PostDispatchInfo {
+					actual_weight: Some(WeightInfoOf::<T>::project_decision_accept_funding()),
+					pays_fee: Pays::Yes,
+				})
 			},
 			FundingOutcomeDecision::RejectFunding => {
 				Self::make_project_funding_fail(
@@ -797,10 +801,12 @@ impl<T: Config> Pallet<T> {
 					FailureReason::ProjectDecision,
 					T::SuccessToSettlementTime::get(),
 				)?;
+				Ok(PostDispatchInfo {
+					actual_weight: Some(WeightInfoOf::<T>::project_decision_reject_funding()),
+					pays_fee: Pays::Yes,
+				})
 			},
 		}
-
-		Ok(PostDispatchInfo { actual_weight: Some(WeightInfoOf::<T>::project_decision()), pays_fee: Pays::Yes })
 	}
 
 	pub fn do_start_settlement(project_id: ProjectId) -> DispatchResultWithPostInfo {

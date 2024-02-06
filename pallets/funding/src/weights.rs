@@ -116,7 +116,6 @@ pub trait WeightInfo {
 	fn end_funding_success() -> Weight;
 	fn end_funding_failure() -> Weight;
 	fn end_funding_awaiting_decision() -> Weight;
-	fn project_decision() -> Weight;
 	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
 	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
 	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
@@ -133,6 +132,16 @@ pub trait WeightInfo {
 	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
 	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
 	fn start_settlement_funding_failure() -> Weight;
+	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
+	fn project_decision_accept_funding() -> Weight;
+	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
+	fn project_decision_reject_funding() -> Weight;
 }
 
 /// Weights for `pallet_funding` using the Substrate node and recommended hardware.
@@ -1065,9 +1074,6 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 		Weight::from_parts(227_535_753, 0)
 	}
 
-	fn project_decision() -> Weight {
-		Weight::from_parts(227_535_753, 0)
-	}
 
 	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
 	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
@@ -1102,6 +1108,34 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(Weight::from_parts(0, 3814))
 			.saturating_add(T::DbWeight::get().reads(2))
 			.saturating_add(T::DbWeight::get().writes(1))
+	}
+	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
+	fn project_decision_accept_funding() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `535`
+		//  Estimated: `4087`
+		// Minimum execution time: 200_000_000 picoseconds.
+		Weight::from_parts(207_000_000, 0)
+			.saturating_add(Weight::from_parts(0, 4087))
+			.saturating_add(T::DbWeight::get().reads(2))
+			.saturating_add(T::DbWeight::get().writes(2))
+	}
+	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
+	fn project_decision_reject_funding() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `535`
+		//  Estimated: `4087`
+		// Minimum execution time: 200_000_000 picoseconds.
+		Weight::from_parts(203_000_000, 0)
+			.saturating_add(Weight::from_parts(0, 4087))
+			.saturating_add(T::DbWeight::get().reads(2))
+			.saturating_add(T::DbWeight::get().writes(2))
 	}
 }
 
@@ -2038,9 +2072,6 @@ impl WeightInfo for () {
 		Weight::from_parts(227_535_753, 0)
 	}
 
-	fn project_decision() -> Weight {
-		Weight::from_parts(227_535_753, 0)
-	}
 
 	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
 	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
@@ -2075,5 +2106,33 @@ impl WeightInfo for () {
 			.saturating_add(Weight::from_parts(0, 3814))
 			.saturating_add(RocksDbWeight::get().reads(2))
 			.saturating_add(RocksDbWeight::get().writes(1))
+	}
+	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
+	fn project_decision_accept_funding() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `535`
+		//  Estimated: `4087`
+		// Minimum execution time: 200_000_000 picoseconds.
+		Weight::from_parts(207_000_000, 0)
+			.saturating_add(Weight::from_parts(0, 4087))
+			.saturating_add(RocksDbWeight::get().reads(2))
+			.saturating_add(RocksDbWeight::get().writes(2))
+	}
+	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
+	fn project_decision_reject_funding() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `535`
+		//  Estimated: `4087`
+		// Minimum execution time: 200_000_000 picoseconds.
+		Weight::from_parts(203_000_000, 0)
+			.saturating_add(Weight::from_parts(0, 4087))
+			.saturating_add(RocksDbWeight::get().reads(2))
+			.saturating_add(RocksDbWeight::get().writes(2))
 	}
 }
