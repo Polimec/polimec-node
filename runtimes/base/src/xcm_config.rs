@@ -14,34 +14,61 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+//! Holds the XCM specific configuration that would otherwise be in lib.rs
+//!
+//! This configuration dictates how the Penpal chain will communicate with other chains.
+//!
+//! One of the main uses of the penpal chain will be to be a benefactor of reserve asset transfers
+//! with statemine as the reserve. At present no derivative tokens are minted on receipt of a
+//! ReserveAssetTransferDeposited message but that will but the intension will be to support this soon.
 use super::{
-	AccountId, AllPalletsWithSystem, Balances, EnsureRoot, ParachainInfo, ParachainSystem, PolkadotXcm, Runtime,
-	RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmpQueue,
+	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances, EnsureRoot, ParachainInfo,
+	ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, ForeignAssetsInstance, ForeignAssets, WeightToFee,
+	XcmpQueue,
 };
+use core::marker::PhantomData;
 use frame_support::{
-	match_types, parameter_types,
-	traits::{ConstU32, Everything, Nothing},
+	ensure, match_types, parameter_types,
+	traits::{
+		fungibles::{self, Balanced, Credit},
+		ConstU32, Contains, ContainsPair, Everything, Get, Nothing, ProcessMessageError,
+	},
 	weights::Weight,
 };
+use pallet_asset_tx_payment::HandleCredit;
 use pallet_xcm::XcmPassthrough;
+use polimec_xcm_executor::XcmExecutor;
 use polkadot_parachain::primitives::Sibling;
 use polkadot_runtime_common::impls::ToAuthor;
+use sp_runtime::traits::{MaybeEquivalence, Zero};
 use xcm::latest::prelude::*;
 use xcm_builder::{
-	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses, AllowSubscriptionsFrom,
-	AllowTopLevelPaidExecutionFrom, CurrencyAdapter, DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin,
-	FixedWeightBounds, IsConcrete, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
-	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation,
-	TakeWeightCredit, UsingComponents, WithComputedOrigin,
+	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom, AsPrefixedGeneralIndex, ConvertedConcreteId, CreateMatcher, CurrencyAdapter, DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin, FixedRateOfFungible, FixedWeightBounds, FungiblesAdapter, IsConcrete, LocalMint, MatchXcm, NativeAsset, NoChecking, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, UsingComponents, WithComputedOrigin
 };
-use xcm_executor::XcmExecutor;
+use xcm_executor::traits::{Error, JustTry, MatchesFungibles, Properties, ShouldExecute};
+// TODO: Check these numbers
+const DOT_ASSET_ID: AssetId = Concrete(RelayLocation::get());
+const DOT_PER_SECOND_EXECUTION: u128 = 0_0_000_001_000; // 0.0000001 DOT per second of execution time
+const DOT_PER_MB_PROOF: u128 = 0_0_000_001_000; // 0.0000001 DOT per Megabyte of proof size
+
+const USDT_ASSET_ID: AssetId =
+	Concrete(MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1984)) });
+#[allow(unused)]
+const USDT_PER_SECOND_EXECUTION: u128 = 0_0_000_001_000; // 0.0000001 USDT per second of execution time
+const USDT_PER_MB_PROOF: u128 = 0_0_000_001_000; // 0.0000001 DOT per Megabyte of proof size
 
 parameter_types! {
-	pub const HereLocation: MultiLocation = MultiLocation::here();
 	pub const RelayLocation: MultiLocation = MultiLocation::parent();
 	pub const RelayNetwork: Option<NetworkId> = None;
 	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
-	pub UniversalLocation: InteriorMultiLocation = Parachain(ParachainInfo::parachain_id().into()).into();
+	pub UniversalLocation: InteriorMultiLocation = (
+		GlobalConsensus(Polkadot),
+		 Parachain(ParachainInfo::parachain_id().into()),
+	).into();
+	pub const HereLocation: MultiLocation = MultiLocation::here();
+
+	pub const DotTraderParams: (AssetId, u128, u128) = (DOT_ASSET_ID, DOT_PER_SECOND_EXECUTION, DOT_PER_MB_PROOF);
+	pub const UsdtTraderParams: (AssetId, u128, u128) = (USDT_ASSET_ID, USDT_PER_SECOND_EXECUTION, USDT_PER_MB_PROOF);
 }
 
 /// Type for specifying how a `MultiLocation` can be converted into an `AccountId`. This is used
@@ -57,7 +84,7 @@ pub type LocationToAccountId = (
 );
 
 /// Means for transacting assets on this chain.
-pub type LocalAssetTransactor = CurrencyAdapter<
+pub type CurrencyTransactor = CurrencyAdapter<
 	// Use this currency:
 	Balances,
 	// Use this currency when it is a fungible asset matching the given location or name:
@@ -66,9 +93,88 @@ pub type LocalAssetTransactor = CurrencyAdapter<
 	LocationToAccountId,
 	// Our chain's account ID type (we can't get away without mentioning it explicitly):
 	AccountId,
-	// We don't track any teleports.
+	// TODO: Check teleport accounting once we enable PLMC teleports
 	(),
 >;
+
+/// Means for transacting assets besides the native currency on this chain.
+pub type ForeignAssetsAdapter = FungiblesAdapter<
+	// Use this fungibles implementation:
+	ForeignAssets,
+	// Use this currency when it is a fungible asset matching the given location or name:
+	MatchedConvertedConcreteId<
+		AssetIdPalletAssets,
+		Balance,
+		(), // TODO write Matcher
+		AsPrefixedGeneralIndex<CommonGoodAssetsPalletLocation, AssetIdPalletAssets, JustTry>,
+		JustTry,
+	>,
+	// Convert an XCM MultiLocation into a local account id:
+	LocationToAccountId,
+	// Our chain's account ID type (we can't get away without mentioning it explicitly):
+	AccountId,
+	// We do not allow teleportation of foreign assets. We only allow the reserve-based
+	// transfer of USDT, USDC and DOT.
+	NoChecking,
+	// The account to use for tracking teleports.
+	(),
+>;
+
+// asset id "0" is reserved for relay chain native token in the pallet assets
+pub struct NativeToFungible;
+impl MaybeEquivalence<MultiLocation, AssetIdPalletAssets> for NativeToFungible {
+	fn convert(asset: &MultiLocation) -> Option<AssetIdPalletAssets> {
+		match asset {
+			MultiLocation { parents: 1, interior: Here } =>
+				Some(pallet_funding::types::AcceptedFundingAsset::DOT.to_assethub_id()),
+			_ => None,
+		}
+	}
+
+	fn convert_back(value: &AssetIdPalletAssets) -> Option<MultiLocation> {
+		if value.is_zero() {
+			return Some(MultiLocation { parents: 1, interior: Here })
+		}
+		None
+	}
+}
+
+// We need the matcher to return either `AssetNotFound` or `Unimplemented` so that the tuple impl of
+// TransactAsset will move on to the next struct.
+pub struct NonBlockingConvertedConcreteId<AssetId, Balance, ConvertAssetId, ConvertOther>(
+	PhantomData<(AssetId, Balance, ConvertAssetId, ConvertOther)>,
+);
+impl<
+		AssetId: Clone,
+		Balance: Clone,
+		ConvertAssetId: MaybeEquivalence<MultiLocation, AssetId>,
+		ConvertBalance: MaybeEquivalence<u128, Balance>,
+	> MatchesFungibles<AssetId, Balance>
+	for NonBlockingConvertedConcreteId<AssetId, Balance, ConvertAssetId, ConvertBalance>
+{
+	fn matches_fungibles(a: &MultiAsset) -> Result<(AssetId, Balance), Error> {
+		ConvertedConcreteId::<AssetId, Balance, ConvertAssetId, ConvertBalance>::matches_fungibles(a)
+			.map_err(|_| Error::AssetNotHandled)
+	}
+}
+
+pub type StatemintDotTransactor = FungiblesAdapter<
+	// Use this fungibles implementation:
+	ForeignAssets,
+	// Use this currency when it is a fungible asset matching the given location or name:
+	NonBlockingConvertedConcreteId<AssetIdPalletAssets, Balance, NativeToFungible, JustTry>,
+	// Convert an XCM MultiLocation into a local account id:
+	LocationToAccountId,
+	// Our chain's account ID type (we can't get away without mentioning it explicitly):
+	AccountId,
+	// We do not require Teleport checking, as the 
+	NoChecking,
+	// The account to use for tracking teleports.
+	CheckingAccount,
+>;
+
+/// Means for transacting assets on this chain.
+pub type AssetTransactors = (CurrencyTransactor, ForeignAssetsAdapter);
 
 /// This is the type we use to convert an (incoming) XCM origin into a local `Origin` instance,
 /// ready for dispatching a transaction with Xcm's `Transact`. There is an `OriginKind` which can
@@ -103,6 +209,9 @@ match_types! {
 		MultiLocation { parents: 1, interior: Here } |
 		MultiLocation { parents: 1, interior: X1(Plurality { id: BodyId::Executive, .. }) }
 	};
+	pub type CommonGoodAssetsParachain: impl Contains<MultiLocation> = {
+		MultiLocation { parents: 1, interior: X1(Parachain(1000)) }
+	};
 	pub type ParentOrSiblings: impl Contains<MultiLocation> = {
 		MultiLocation { parents: 1, interior: Here } |
 		MultiLocation { parents: 1, interior: X1(Parachain(_)) }
@@ -113,14 +222,18 @@ pub type Barrier = DenyThenTry<
 	DenyReserveTransferToRelayChain,
 	(
 		TakeWeightCredit,
+		// Expected responses are OK.
 		AllowKnownQueryResponses<PolkadotXcm>,
+		// Allow XCMs with some computed origins to pass through.
 		WithComputedOrigin<
 			(
+				// HRMP notifications from relay get free pass
+				AllowHrmpNotifications<ParentOrParentsExecutivePlurality>,
+				// If the message is one that immediately attemps to pay for execution, then allow it.
 				AllowTopLevelPaidExecutionFrom<Everything>,
-				AllowExplicitUnpaidExecutionFrom<ParentOrParentsExecutivePlurality>,
-				// ^^^ Parent and its exec plurality get free execution
-				// TODO: Update ParentOrSibling to parity's ParentRelayOrSiblingParachains common impl in
-				// polkadot-sdk 1.5.0
+				// Common Good Assets parachain, parent and its exec plurality get free execution
+				AllowExplicitUnpaidExecutionFrom<(CommonGoodAssetsParachain, ParentOrParentsExecutivePlurality)>,
+				// Subscriptions for version tracking are OK.
 				AllowSubscriptionsFrom<ParentOrSiblings>,
 			),
 			UniversalLocation,
@@ -129,19 +242,118 @@ pub type Barrier = DenyThenTry<
 	),
 >;
 
+/// Type alias to conveniently refer to `frame_system`'s `Config::AccountId`.
+pub type AccountIdOf<R> = <R as frame_system::Config>::AccountId;
+
+/// Asset filter that allows all assets from a certain location.
+pub struct AssetsFrom<T>(PhantomData<T>);
+
+pub struct StatemintAssetsFilter;
+impl ContainsPair<MultiAsset, MultiLocation> for StatemintAssetsFilter {
+	fn contains(asset: &MultiAsset, origin: &MultiLocation) -> bool {
+		// location must be the statemint parachain
+		let loc = MultiLocation::new(1, X1(Parachain(1000)));
+		// asset must be either a fungible asset from `pallet_assets` or the native token of the relay chain
+		&loc == origin &&
+			match asset {
+				MultiAsset {
+					id:
+						Concrete(MultiLocation {
+							parents: 1,
+							interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(_)),
+						}),
+					..
+				} => true,
+				MultiAsset { id: Concrete(MultiLocation { parents: 1, interior: Here }), .. } => true,
+
+				_ => false,
+			}
+	}
+}
+
+impl<T: Get<MultiLocation>> ContainsPair<MultiAsset, MultiLocation> for AssetsFrom<T> {
+	fn contains(asset: &MultiAsset, origin: &MultiLocation) -> bool {
+		let loc = T::get();
+		&loc == origin &&
+			matches!(asset, MultiAsset { id: AssetId::Concrete(asset_loc), fun: Fungible(_a) }
+			if asset_loc.match_and_split(&loc).is_some())
+	}
+}
+
+/// Allow checking in assets that have issuance > 0.
+pub struct NonZeroIssuance<AccountId, Assets>(PhantomData<(AccountId, Assets)>);
+impl<AccountId, Assets> Contains<<Assets as fungibles::Inspect<AccountId>>::AssetId>
+	for NonZeroIssuance<AccountId, Assets>
+where
+	Assets: fungibles::Inspect<AccountId>,
+{
+	fn contains(id: &<Assets as fungibles::Inspect<AccountId>>::AssetId) -> bool {
+		!Assets::total_issuance(id.clone()).is_zero()
+	}
+}
+
+pub trait Reserve {
+	/// Returns assets reserve location.
+	fn reserve(&self) -> Option<MultiLocation>;
+}
+
+// Takes the chain part of a MultiAsset
+impl Reserve for MultiAsset {
+	fn reserve(&self) -> Option<MultiLocation> {
+		if let AssetId::Concrete(location) = self.id {
+			let first_interior = location.first_interior();
+			let parents = location.parent_count();
+			match (parents, first_interior) {
+				(0, Some(Parachain(id))) => Some(MultiLocation::new(0, X1(Parachain(*id)))),
+				(1, Some(Parachain(id))) => Some(MultiLocation::new(1, X1(Parachain(*id)))),
+				(1, _) => Some(MultiLocation::parent()),
+				_ => None,
+			}
+		} else {
+			None
+		}
+	}
+}
+
+/// A `FilterAssetLocation` implementation. Filters multi native assets whose
+/// reserve is same with `origin`.
+pub struct MultiNativeAsset;
+impl ContainsPair<MultiAsset, MultiLocation> for MultiNativeAsset {
+	fn contains(asset: &MultiAsset, origin: &MultiLocation) -> bool {
+		if let Some(ref reserve) = asset.reserve() {
+			if reserve == origin {
+				return true
+			}
+		}
+		false
+	}
+}
+
+parameter_types! {
+	pub CommonGoodAssetsLocation: MultiLocation = MultiLocation::new(1, X1(Parachain(1000)));
+	// ALWAYS ensure that the index in PalletInstance stays up-to-date with
+	// Statemint's Assets pallet index
+	pub CommonGoodAssetsPalletLocation: MultiLocation =
+		MultiLocation::new(1, X2(Parachain(1000), PalletInstance(50)));
+	pub CheckingAccount: AccountId = PolkadotXcm::check_account();
+}
+
+pub type Reserves = StatemintAssetsFilter;
+
 pub struct XcmConfig;
-impl xcm_executor::Config for XcmConfig {
-	type Aliasers = Nothing;
+
+impl polimec_xcm_executor::Config for XcmConfig {
 	type AssetClaims = PolkadotXcm;
 	type AssetExchanger = ();
 	type AssetLocker = ();
 	// How to withdraw and deposit an asset.
-	type AssetTransactor = LocalAssetTransactor;
+	type AssetTransactor = AssetTransactors;
 	type AssetTrap = PolkadotXcm;
 	type Barrier = Barrier;
 	type CallDispatcher = RuntimeCall;
 	type FeeManager = ();
-	type IsReserve = ();
+	type HrmpHandler = ();
+	type IsReserve = Reserves;
 	type IsTeleporter = ();
 	type MaxAssetsIntoHolding = MaxAssetsIntoHolding;
 	type MessageExporter = ();
@@ -149,11 +361,16 @@ impl xcm_executor::Config for XcmConfig {
 	type PalletInstancesInfo = AllPalletsWithSystem;
 	type ResponseHandler = PolkadotXcm;
 	type RuntimeCall = RuntimeCall;
-	type SafeCallFilter = Nothing;
+	// TODO: Restrict this to a subset of allowed `RuntimeCall`.
+	type SafeCallFilter = Everything;
 	type SubscriptionService = PolkadotXcm;
-	type Trader = UsingComponents<WeightToFee, RelayLocation, AccountId, Balances, ToAuthor<Runtime>>;
+	type Trader = (
+		// TODO: weight to fee has to be carefully considered. For now use default
+		UsingComponents<WeightToFee, HereLocation, AccountId, Balances, ToAuthor<Runtime>>,
+		FixedRateOfFungible<UsdtTraderParams, ()>,
+		FixedRateOfFungible<DotTraderParams, ()>,
+	);
 	type UniversalAliases = Nothing;
-	// Teleporting is disabled.
 	type UniversalLocation = UniversalLocation;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
 	type XcmSender = XcmRouter;
@@ -166,7 +383,7 @@ pub type LocalOriginToLocation = SignedToAccountId32<RuntimeOrigin, AccountId, R
 /// queues.
 pub type XcmRouter = (
 	// Two routers - use UMP to communicate with the relay chain:
-	cumulus_primitives_utility::ParentAsUmp<ParachainSystem, (), ()>,
+	cumulus_primitives_utility::ParentAsUmp<ParachainSystem, PolkadotXcm, ()>,
 	// ..and XCMP to communicate with the sibling chains.
 	XcmpQueue,
 );
@@ -197,11 +414,12 @@ impl pallet_xcm::Config for Runtime {
 	type UniversalLocation = UniversalLocation;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
 	type WeightInfo = pallet_xcm::TestWeightInfo;
-	type XcmExecuteFilter = Nothing;
+	// TODO: change back to `Nothing` once we add the xcm functionalities into a pallet
+	type XcmExecuteFilter = Everything;
 	// ^ Disable dispatchable execute on the XCM pallet.
 	// Needs to be `Everything` for local testing.
 	type XcmExecutor = XcmExecutor<XcmConfig>;
-	type XcmReserveTransferFilter = Nothing;
+	type XcmReserveTransferFilter = Everything;
 	type XcmRouter = XcmRouter;
 	type XcmTeleportFilter = Everything;
 
@@ -211,4 +429,28 @@ impl pallet_xcm::Config for Runtime {
 impl cumulus_pallet_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
+}
+
+pub struct AllowHrmpNotifications<T>(PhantomData<T>);
+impl<T: Contains<MultiLocation>> ShouldExecute for AllowHrmpNotifications<T> {
+	fn should_execute<Call>(
+		origin: &MultiLocation,
+		instructions: &mut [Instruction<Call>],
+		max_weight: Weight,
+		_weight_credit: &mut Properties,
+	) -> Result<(), ProcessMessageError> {
+		log::trace!(
+			target: "xcm::barriers",
+			"AllowHrmpNotifications origin: {:?}, instructions: {:?}, max_weight: {:?}, weight_credit: {:?}",
+			origin, instructions, max_weight, _weight_credit,
+		);
+		ensure!(T::contains(origin), ProcessMessageError::Unsupported);
+		instructions.matcher().assert_remaining_insts(1)?.match_next_inst(|inst| match inst {
+			HrmpNewChannelOpenRequest { .. } => Ok(()),
+			HrmpChannelAccepted { .. } => Ok(()),
+			HrmpChannelClosing { .. } => Ok(()),
+			_ => Err(ProcessMessageError::Unsupported),
+		})?;
+		Ok(())
+	}
 }

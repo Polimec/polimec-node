@@ -217,7 +217,7 @@ fn testnet_genesis(
 		balances: BalancesConfig { balances: endowed_accounts.clone() },
 		statemint_assets: StatemintAssetsConfig {
 			assets: vec![(
-				pallet_funding::types::AcceptedFundingAsset::USDT.to_statemint_id(),
+				pallet_funding::types::AcceptedFundingAsset::USDT.to_assethub_id(),
 				<Runtime as pallet_funding::Config>::PalletId::get().into_account_truncating(),
 				false,
 				10,
@@ -492,7 +492,7 @@ fn testing_genesis(
 		balances: BalancesConfig { balances: endowed_accounts.clone() },
 		statemint_assets: StatemintAssetsConfig {
 			assets: vec![(
-				pallet_funding::types::AcceptedFundingAsset::USDT.to_statemint_id(),
+				pallet_funding::types::AcceptedFundingAsset::USDT.to_assethub_id(),
 				<Runtime as pallet_funding::Config>::PalletId::get().into_account_truncating(),
 				false,
 				10,

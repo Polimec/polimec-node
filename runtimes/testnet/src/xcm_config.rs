@@ -130,7 +130,7 @@ impl MaybeEquivalence<MultiLocation, AssetIdPalletAssets> for NativeToFungible {
 	fn convert(asset: &MultiLocation) -> Option<AssetIdPalletAssets> {
 		match asset {
 			MultiLocation { parents: 1, interior: Here } =>
-				Some(pallet_funding::types::AcceptedFundingAsset::DOT.to_statemint_id()),
+				Some(pallet_funding::types::AcceptedFundingAsset::DOT.to_assethub_id()),
 			_ => None,
 		}
 	}

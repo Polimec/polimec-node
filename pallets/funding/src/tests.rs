@@ -924,7 +924,7 @@ mod auction_round_success {
 			inst.mint_statemint_asset_to(vec![UserToStatemintAsset::new(
 				bidding_account,
 				statemint_asset_necessary_funding,
-				bid_info.asset.to_statemint_id(),
+				bid_info.asset.to_assethub_id(),
 			)]);
 			let bids: Vec<BidParams<_>> = vec![BidParams {
 				bidder: bidding_account,
@@ -1494,7 +1494,7 @@ mod auction_round_success {
 					UserToStatemintAsset::<TestRuntime>::new(
 						bid.bidder,
 						bid.funding_asset_amount_locked,
-						bid.funding_asset.to_statemint_id(),
+						bid.funding_asset.to_assethub_id(),
 					)
 				})
 				.sorted_by_key(|item| item.account)
@@ -1577,7 +1577,7 @@ mod auction_round_success {
 					UserToStatemintAsset::<TestRuntime>::new(
 						bid.bidder,
 						bid.funding_asset_amount_locked,
-						bid.funding_asset.to_statemint_id(),
+						bid.funding_asset.to_assethub_id(),
 					)
 				})
 				.sorted_by_key(|item| item.account)
@@ -1959,12 +1959,12 @@ mod auction_round_failure {
 				UserToStatemintAsset::<TestRuntime>::new(
 					BIDDER_1,
 					usdt_fundings[0].asset_amount + usdt_fundings[2].asset_amount,
-					AcceptedFundingAsset::USDT.to_statemint_id(),
+					AcceptedFundingAsset::USDT.to_assethub_id(),
 				),
 				UserToStatemintAsset::<TestRuntime>::new(
 					BIDDER_2,
 					usdt_fundings[1].asset_amount,
-					AcceptedFundingAsset::USDT.to_statemint_id(),
+					AcceptedFundingAsset::USDT.to_assethub_id(),
 				),
 			],
 			project_id,
@@ -2001,9 +2001,9 @@ mod auction_round_failure {
 				UserToStatemintAsset::new(
 					BIDDER_1,
 					usdt_fundings_after_round[0].asset_amount + usdt_fundings_after_round[2].asset_amount,
-					AcceptedFundingAsset::USDT.to_statemint_id(),
+					AcceptedFundingAsset::USDT.to_assethub_id(),
 				),
-				UserToStatemintAsset::new(BIDDER_2, 0, AcceptedFundingAsset::USDT.to_statemint_id()),
+				UserToStatemintAsset::new(BIDDER_2, 0, AcceptedFundingAsset::USDT.to_assethub_id()),
 			],
 			project_id,
 		);
@@ -2055,12 +2055,12 @@ mod auction_round_failure {
 				UserToStatemintAsset::<TestRuntime>::new(
 					BIDDER_1,
 					usdt_fundings[0].asset_amount,
-					AcceptedFundingAsset::USDT.to_statemint_id(),
+					AcceptedFundingAsset::USDT.to_assethub_id(),
 				),
 				UserToStatemintAsset::<TestRuntime>::new(
 					BIDDER_2,
 					usdt_fundings[1].asset_amount,
-					AcceptedFundingAsset::USDT.to_statemint_id(),
+					AcceptedFundingAsset::USDT.to_assethub_id(),
 				),
 			],
 			project_id,
@@ -2081,9 +2081,9 @@ mod auction_round_failure {
 				UserToStatemintAsset::<TestRuntime>::new(
 					BIDDER_1,
 					usdt_fundings[0].asset_amount,
-					AcceptedFundingAsset::USDT.to_statemint_id(),
+					AcceptedFundingAsset::USDT.to_assethub_id(),
 				),
-				UserToStatemintAsset::<TestRuntime>::new(BIDDER_2, 0, AcceptedFundingAsset::USDT.to_statemint_id()),
+				UserToStatemintAsset::<TestRuntime>::new(BIDDER_2, 0, AcceptedFundingAsset::USDT.to_assethub_id()),
 			],
 			project_id,
 		);
@@ -2296,7 +2296,7 @@ mod community_round_success {
 		inst.do_free_statemint_asset_assertions(vec![UserToStatemintAsset::<TestRuntime>::new(
 			BOB,
 			0_u128,
-			AcceptedFundingAsset::USDT.to_statemint_id(),
+			AcceptedFundingAsset::USDT.to_assethub_id(),
 		)]);
 		inst.do_reserved_plmc_assertions(vec![plmc_fundings[0].clone()], HoldReason::Participation(project_id).into());
 		inst.do_contribution_transferred_statemint_asset_assertions(statemint_asset_fundings, project_id);
@@ -2356,7 +2356,7 @@ mod community_round_success {
 		inst.do_free_statemint_asset_assertions(vec![UserToStatemintAsset::<TestRuntime>::new(
 			BOB,
 			remaining_statemint_assets,
-			AcceptedFundingAsset::USDT.to_statemint_id(),
+			AcceptedFundingAsset::USDT.to_assethub_id(),
 		)]);
 		inst.do_reserved_plmc_assertions(
 			vec![UserToPLMCBalance::new(BOB, reserved_plmc)],
@@ -2366,7 +2366,7 @@ mod community_round_success {
 			vec![UserToStatemintAsset::<TestRuntime>::new(
 				BOB,
 				actual_funding_transferred,
-				AcceptedFundingAsset::USDT.to_statemint_id(),
+				AcceptedFundingAsset::USDT.to_assethub_id(),
 			)],
 			project_id,
 		);
@@ -3356,7 +3356,7 @@ mod remainder_round_success {
 		inst.do_free_statemint_asset_assertions(vec![UserToStatemintAsset::<TestRuntime>::new(
 			BOB,
 			0_u128,
-			AcceptedFundingAsset::USDT.to_statemint_id(),
+			AcceptedFundingAsset::USDT.to_assethub_id(),
 		)]);
 		inst.do_reserved_plmc_assertions(vec![plmc_fundings[0].clone()], HoldReason::Participation(project_id).into());
 		inst.do_contribution_transferred_statemint_asset_assertions(statemint_asset_fundings, project_id);
@@ -3419,7 +3419,7 @@ mod remainder_round_success {
 		inst.do_free_statemint_asset_assertions(vec![UserToStatemintAsset::<TestRuntime>::new(
 			BOB,
 			remaining_statemint_assets,
-			AcceptedFundingAsset::USDT.to_statemint_id(),
+			AcceptedFundingAsset::USDT.to_assethub_id(),
 		)]);
 		inst.do_reserved_plmc_assertions(
 			vec![UserToPLMCBalance::new(BOB, reserved_plmc)],
@@ -3429,7 +3429,7 @@ mod remainder_round_success {
 			vec![UserToStatemintAsset::new(
 				BOB,
 				actual_funding_transferred,
-				AcceptedFundingAsset::USDT.to_statemint_id(),
+				AcceptedFundingAsset::USDT.to_assethub_id(),
 			)],
 			project_id,
 		);
@@ -4757,7 +4757,7 @@ mod funding_end {
 					UserToStatemintAsset::new(
 						bid.bidder,
 						bid.funding_asset_amount_locked,
-						bid.funding_asset.to_statemint_id(),
+						bid.funding_asset.to_assethub_id(),
 					)
 				})
 				.collect::<Vec<UserToStatemintAsset<TestRuntime>>>()
@@ -4770,7 +4770,7 @@ mod funding_end {
 					UserToStatemintAsset::new(
 						contribution.contributor,
 						contribution.funding_asset_amount,
-						contribution.funding_asset.to_statemint_id(),
+						contribution.funding_asset.to_assethub_id(),
 					)
 				})
 				.collect::<Vec<UserToStatemintAsset<TestRuntime>>>()
@@ -4862,7 +4862,7 @@ mod funding_end {
 					UserToStatemintAsset::new(
 						bid.bidder,
 						bid.funding_asset_amount_locked,
-						bid.funding_asset.to_statemint_id(),
+						bid.funding_asset.to_assethub_id(),
 					)
 				})
 				.collect::<Vec<UserToStatemintAsset<TestRuntime>>>()
@@ -4873,7 +4873,7 @@ mod funding_end {
 					UserToStatemintAsset::new(
 						contribution.contributor,
 						contribution.funding_asset_amount,
-						contribution.funding_asset.to_statemint_id(),
+						contribution.funding_asset.to_assethub_id(),
 					)
 				})
 				.collect::<Vec<UserToStatemintAsset<TestRuntime>>>()
@@ -4963,7 +4963,7 @@ mod funding_end {
 					UserToStatemintAsset::<TestRuntime>::new(
 						bid.bidder,
 						bid.funding_asset_amount_locked,
-						bid.funding_asset.to_statemint_id(),
+						bid.funding_asset.to_assethub_id(),
 					)
 				})
 				.sorted_by_key(|bid| bid.account)
@@ -5066,7 +5066,7 @@ mod funding_end {
 					UserToStatemintAsset::<TestRuntime>::new(
 						bid.bidder,
 						bid.funding_asset_amount_locked,
-						bid.funding_asset.to_statemint_id(),
+						bid.funding_asset.to_assethub_id(),
 					)
 				})
 				.sorted_by_key(|item| item.account)
@@ -6155,7 +6155,7 @@ mod async_tests {
 			},
 			statemint_assets: StatemintAssetsConfig {
 				assets: vec![(
-					AcceptedFundingAsset::USDT.to_statemint_id(),
+					AcceptedFundingAsset::USDT.to_assethub_id(),
 					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
 					false,
 					10,

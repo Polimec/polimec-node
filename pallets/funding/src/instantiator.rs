@@ -505,13 +505,13 @@ impl<
 				Some(p) => p,
 				None => bid.price,
 			};
-			let asset_price = T::PriceProvider::get_price(bid.asset.to_statemint_id()).unwrap();
+			let asset_price = T::PriceProvider::get_price(bid.asset.to_assethub_id()).unwrap();
 			let usd_ticket_size = final_price.saturating_mul_int(bid.amount);
 			let funding_asset_spent = asset_price.reciprocal().unwrap().saturating_mul_int(usd_ticket_size);
 			output.push(UserToStatemintAsset::new(
 				bid.bidder.clone(),
 				funding_asset_spent,
-				bid.asset.to_statemint_id(),
+				bid.asset.to_assethub_id(),
 			));
 		}
 		output
@@ -625,10 +625,10 @@ impl<
 	) -> Vec<UserToStatemintAsset<T>> {
 		let mut output = Vec::new();
 		for cont in contributions {
-			let asset_price = T::PriceProvider::get_price(cont.asset.to_statemint_id()).unwrap();
+			let asset_price = T::PriceProvider::get_price(cont.asset.to_assethub_id()).unwrap();
 			let usd_ticket_size = token_usd_price.saturating_mul_int(cont.amount);
 			let funding_asset_spent = asset_price.reciprocal().unwrap().saturating_mul_int(usd_ticket_size);
-			output.push(UserToStatemintAsset::new(cont.contributor, funding_asset_spent, cont.asset.to_statemint_id()));
+			output.push(UserToStatemintAsset::new(cont.contributor, funding_asset_spent, cont.asset.to_assethub_id()));
 		}
 		output
 	}
@@ -1005,7 +1005,7 @@ impl<
 		let bidders = bids.accounts();
 		let bidders_non_evaluators =
 			bidders.clone().into_iter().filter(|account| evaluations.accounts().contains(account).not()).collect_vec();
-		let asset_id = bids[0].asset.to_statemint_id();
+		let asset_id = bids[0].asset.to_assethub_id();
 		let prev_plmc_balances = self.get_free_plmc_balances_for(bidders.clone());
 		let prev_funding_asset_balances = self.get_free_statemint_asset_balances_for(asset_id, bidders.clone());
 		let plmc_evaluation_deposits: Vec<UserToPLMCBalance<T>> = Self::calculate_evaluation_plmc_spent(evaluations);
@@ -1161,7 +1161,7 @@ impl<
 			.into_iter()
 			.filter(|account| evaluations.accounts().contains(account).not())
 			.collect_vec();
-		let asset_id = contributions[0].asset.to_statemint_id();
+		let asset_id = contributions[0].asset.to_assethub_id();
 		let prev_plmc_balances = self.get_free_plmc_balances_for(contributors.clone());
 		let prev_funding_asset_balances = self.get_free_statemint_asset_balances_for(asset_id, contributors.clone());
 
@@ -1254,7 +1254,7 @@ impl<
 					community_contributions.accounts().contains(account).not()
 			})
 			.collect_vec();
-		let asset_id = remainder_contributions[0].asset.to_statemint_id();
+		let asset_id = remainder_contributions[0].asset.to_assethub_id();
 		let prev_plmc_balances = self.get_free_plmc_balances_for(contributors.clone());
 		let prev_funding_asset_balances = self.get_free_statemint_asset_balances_for(asset_id, contributors.clone());
 
@@ -1727,7 +1727,7 @@ pub mod async_features {
 		let bidders = bids.accounts();
 		let bidders_non_evaluators =
 			bidders.clone().into_iter().filter(|account| evaluations.accounts().contains(account).not()).collect_vec();
-		let asset_id = bids[0].asset.to_statemint_id();
+		let asset_id = bids[0].asset.to_assethub_id();
 		let prev_plmc_balances = inst.get_free_plmc_balances_for(bidders.clone());
 		let prev_funding_asset_balances = inst.get_free_statemint_asset_balances_for(asset_id, bidders.clone());
 		let plmc_evaluation_deposits: Vec<UserToPLMCBalance<T>> =
@@ -1890,7 +1890,7 @@ pub mod async_features {
 			.into_iter()
 			.filter(|account| evaluations.accounts().contains(account).not())
 			.collect_vec();
-		let asset_id = contributions[0].asset.to_statemint_id();
+		let asset_id = contributions[0].asset.to_assethub_id();
 		let prev_plmc_balances = inst.get_free_plmc_balances_for(contributors.clone());
 		let prev_funding_asset_balances = inst.get_free_statemint_asset_balances_for(asset_id, contributors.clone());
 
@@ -2071,7 +2071,7 @@ pub mod async_features {
 					community_contributions.accounts().contains(account).not()
 			})
 			.collect_vec();
-		let asset_id = remainder_contributions[0].asset.to_statemint_id();
+		let asset_id = remainder_contributions[0].asset.to_assethub_id();
 		let prev_plmc_balances = inst.get_free_plmc_balances_for(contributors.clone());
 		let prev_funding_asset_balances = inst.get_free_statemint_asset_balances_for(asset_id, contributors.clone());
 

@@ -24,10 +24,10 @@ extern crate frame_benchmarking;
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{fungible::Credit, tokens, ConstU32, Contains, EitherOfDiverse, InstanceFilter, PrivilegeCmp},
+	traits::{fungible::Credit, tokens, AsEnsureOriginWithArg, ConstU32, Contains, EitherOfDiverse, InstanceFilter, PrivilegeCmp},
 	weights::{ConstantMultiplier, Weight},
 };
-use frame_system::{EnsureRoot, EnsureSigned};
+use frame_system::{EnsureSigned, EnsureRoot};
 use pallet_oracle_ocw::types::AssetName;
 use parachains_common::AssetIdForTrustBackedAssets as AssetId;
 use parity_scale_codec::Encode;
@@ -57,7 +57,7 @@ use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
 use xcm_executor::XcmExecutor;
 
 // Polimec Shared Imports
-pub use shared_configuration::{currency::*, fee::*, funding::*, governance::*, proxy::*, staking::*, weights::*};
+pub use shared_configuration::{assets::*, currency::*, fee::*, funding::*, governance::*, proxy::*, staking::*, weights::*};
 
 pub use pallet_parachain_staking;
 
@@ -334,6 +334,32 @@ impl pallet_transaction_payment::Config for Runtime {
 	type OperationalFeeMultiplier = frame_support::traits::ConstU8<5>;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightToFee = WeightToFee;
+}
+
+pub type ForeignAssetsInstance = pallet_assets::Instance2;
+
+impl pallet_assets::Config<ForeignAssetsInstance> for Runtime {
+	type ApprovalDeposit = ExistentialDeposit;
+	type AssetAccountDeposit = AssetAccountDeposit;
+	type AssetDeposit = AssetDeposit;
+	type AssetId = AssetId;
+	type AssetIdParameter = parity_scale_codec::Compact<AssetId>;
+	type Balance = Balance;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
+	type CallbackHandle = ();
+	// TODO Check Creation Origin
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
+	type Currency = Balances;
+	type Extra = ();
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type Freezer = ();
+	type MetadataDepositBase = MetadataDepositBase;
+	type MetadataDepositPerByte = MetadataDepositPerByte;
+	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
+	type RuntimeEvent = RuntimeEvent;
+	type StringLimit = AssetsStringLimit;
+	type WeightInfo = ();
 }
 
 impl cumulus_pallet_parachain_system::Config for Runtime {
@@ -639,7 +665,7 @@ impl Convert<(AssetName, FixedU128), (AssetId, Price)> for AssetPriceConverter {
 	fn convert((asset, price): (AssetName, FixedU128)) -> (AssetId, Price) {
 		match asset {
 			AssetName::DOT => (0, price),
-			AssetName::USDC => (420, price),
+			AssetName::USDC => (1337, price),
 			AssetName::USDT => (1984, price),
 			AssetName::PLMC => (2069, price),
 		}
@@ -776,6 +802,8 @@ construct_runtime!(
 		Balances: pallet_balances = 10,
 		TransactionPayment: pallet_transaction_payment = 11,
 		Vesting: pallet_vesting = 12,
+		// Leave room for LocalAssets = 13
+		ForeignAssets: pallet_assets::<Instance2> = 14,
 
 		// Collator support. the order of these 5 are important and shall not change.
 		Authorship: pallet_authorship::{Pallet, Storage} = 20,

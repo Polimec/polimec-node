@@ -38,6 +38,7 @@ frame-system.workspace = true
 frame-system-benchmarking = { workspace = true, optional = true }
 frame-system-rpc-runtime-api.workspace = true
 frame-try-runtime = { workspace = true, optional = true }
+pallet-assets.workspace = true
 pallet-aura.workspace = true
 pallet-authorship.workspace = true
 pallet-balances.workspace = true
@@ -76,7 +77,7 @@ polkadot-parachain.workspace = true
 polkadot-runtime-common.workspace = true
 xcm.workspace = true
 xcm-builder.workspace = true
-xcm-executor.workspace = true
+polimec-xcm-executor.workspace = true
 
 # Cumulus
 cumulus-pallet-aura-ext.workspace = true
@@ -118,6 +119,7 @@ std = [
 	"frame-try-runtime?/std",
 	"log/std",
 	"orml-oracle/std",
+	"pallet-assets/std",
 	"pallet-aura/std",
 	"pallet-authorship/std",
 	"pallet-balances/std",
@@ -162,7 +164,7 @@ std = [
 	"sp-transaction-pool/std",
 	"sp-version/std",
 	"xcm-builder/std",
-	"xcm-executor/std",
+	"polimec-xcm-executor/std",
 	"xcm/std",
 ]
 
@@ -175,6 +177,7 @@ runtime-benchmarks = [
 	"frame-system-benchmarking/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"hex-literal",
+	"pallet-assets/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-collective/runtime-benchmarks",
 	"pallet-democracy/runtime-benchmarks",
@@ -199,7 +202,7 @@ runtime-benchmarks = [
 	"shared-configuration/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
-	"xcm-executor/runtime-benchmarks",
+	"polimec-xcm-executor/runtime-benchmarks",
 ]
 
 try-runtime = [
@@ -213,6 +216,7 @@ try-runtime = [
 	"frame-system/try-runtime",
 	"frame-try-runtime/try-runtime",
 	"orml-oracle/try-runtime",
+	"pallet-assets/try-runtime",
 	"pallet-aura/try-runtime",
 	"pallet-authorship/try-runtime",
 	"pallet-balances/try-runtime",

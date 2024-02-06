@@ -7466,6 +7466,7 @@ dependencies = [
  "hex-literal 0.3.4",
  "log",
  "orml-oracle",
+ "pallet-assets",
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
@@ -7492,6 +7493,7 @@ dependencies = [
  "parachains-common",
  "parity-scale-codec",
  "polimec-common",
+ "polimec-xcm-executor",
  "polkadot-parachain",
  "polkadot-primitives",
  "polkadot-runtime-common",
@@ -7513,7 +7515,6 @@ dependencies = [
  "substrate-wasm-builder",
  "xcm",
  "xcm-builder",
- "xcm-executor",
 ]
 
 [[package]]

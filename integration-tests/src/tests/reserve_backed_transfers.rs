@@ -32,7 +32,7 @@ fn create_usdt_on_statemint() {
 	Statemint::execute_with(|| {
 		assert_ok!(StatemintAssets::create(
 			StatemintOrigin::signed(usdt_admin_account.clone()),
-			AcceptedFundingAsset::USDT.to_statemint_id().into(),
+			AcceptedFundingAsset::USDT.to_assethub_id().into(),
 			sp_runtime::MultiAddress::Id(usdt_admin_account.clone()),
 			0_0_010_000_000u128
 		));
@@ -41,7 +41,7 @@ fn create_usdt_on_statemint() {
 
 fn mint_usdt_on_statemint_to(recipient: &StatemintAccountId, amount: u128) {
 	Statemint::execute_with(|| {
-		assert_ok!(StatemintAssets::mint_into(AcceptedFundingAsset::USDT.to_statemint_id(), recipient, amount,));
+		assert_ok!(StatemintAssets::mint_into(AcceptedFundingAsset::USDT.to_assethub_id(), recipient, amount,));
 	});
 }
 
@@ -50,7 +50,7 @@ fn reserve_to_polimec() {
 	create_usdt_on_statemint();
 	let usdt_on_statemint: MultiLocation = (
 		PalletInstance(StatemintAssets::index() as u8),
-		GeneralIndex(AcceptedFundingAsset::USDT.to_statemint_id() as u128),
+		GeneralIndex(AcceptedFundingAsset::USDT.to_assethub_id() as u128),
 	)
 		.into();
 
@@ -70,9 +70,9 @@ fn reserve_to_polimec() {
 		polimec_prev_plmc_issuance,
 	) = Polimec::execute_with(|| {
 		(
-			PolimecStatemintAssets::balance(AcceptedFundingAsset::USDT.to_statemint_id(), alice_account.clone()),
+			PolimecStatemintAssets::balance(AcceptedFundingAsset::USDT.to_assethub_id(), alice_account.clone()),
 			PolimecBalances::free_balance(alice_account.clone()),
-			PolimecStatemintAssets::total_issuance(AcceptedFundingAsset::USDT.to_statemint_id()),
+			PolimecStatemintAssets::total_issuance(AcceptedFundingAsset::USDT.to_assethub_id()),
 			PolimecBalances::total_issuance(),
 		)
 	});
@@ -81,9 +81,9 @@ fn reserve_to_polimec() {
 	let (statemint_prev_alice_usdt_balance, statemint_prev_polimec_usdt_balance, statemint_prev_usdt_issuance) =
 		Statemint::execute_with(|| {
 			(
-				StatemintAssets::balance(AcceptedFundingAsset::USDT.to_statemint_id(), alice_account.clone()),
-				StatemintAssets::balance(AcceptedFundingAsset::USDT.to_statemint_id(), polimec_sibling_account.clone()),
-				StatemintAssets::total_issuance(AcceptedFundingAsset::USDT.to_statemint_id()),
+				StatemintAssets::balance(AcceptedFundingAsset::USDT.to_assethub_id(), alice_account.clone()),
+				StatemintAssets::balance(AcceptedFundingAsset::USDT.to_assethub_id(), polimec_sibling_account.clone()),
+				StatemintAssets::total_issuance(AcceptedFundingAsset::USDT.to_assethub_id()),
 			)
 		});
 
@@ -131,9 +131,9 @@ fn reserve_to_polimec() {
 		polimec_post_plmc_issuance,
 	) = Polimec::execute_with(|| {
 		(
-			PolimecStatemintAssets::balance(AcceptedFundingAsset::USDT.to_statemint_id(), alice_account.clone()),
+			PolimecStatemintAssets::balance(AcceptedFundingAsset::USDT.to_assethub_id(), alice_account.clone()),
 			PolimecBalances::free_balance(alice_account.clone()),
-			PolimecStatemintAssets::total_issuance(AcceptedFundingAsset::USDT.to_statemint_id()),
+			PolimecStatemintAssets::total_issuance(AcceptedFundingAsset::USDT.to_assethub_id()),
 			PolimecBalances::total_issuance(),
 		)
 	});
@@ -142,9 +142,9 @@ fn reserve_to_polimec() {
 	let (statemint_post_alice_usdt_balance, statemint_post_polimec_usdt_balance, statemint_post_usdt_issuance) =
 		Statemint::execute_with(|| {
 			(
-				StatemintAssets::balance(AcceptedFundingAsset::USDT.to_statemint_id(), alice_account.clone()),
-				StatemintAssets::balance(AcceptedFundingAsset::USDT.to_statemint_id(), polimec_sibling_account.clone()),
-				StatemintAssets::total_issuance(AcceptedFundingAsset::USDT.to_statemint_id()),
+				StatemintAssets::balance(AcceptedFundingAsset::USDT.to_assethub_id(), alice_account.clone()),
+				StatemintAssets::balance(AcceptedFundingAsset::USDT.to_assethub_id(), polimec_sibling_account.clone()),
+				StatemintAssets::total_issuance(AcceptedFundingAsset::USDT.to_assethub_id()),
 			)
 		});
 
@@ -201,7 +201,7 @@ fn polimec_to_reserve() {
 	let usdt_on_statemint: MultiLocation = ParentThen(X3(
 		Parachain(Statemint::para_id().into()),
 		PalletInstance(StatemintAssets::index() as u8),
-		GeneralIndex(AcceptedFundingAsset::USDT.to_statemint_id() as u128),
+		GeneralIndex(AcceptedFundingAsset::USDT.to_assethub_id() as u128),
 	))
 	.into();
 	let alice_account = Polimec::account_id_of(ALICE.clone());
@@ -214,12 +214,12 @@ fn polimec_to_reserve() {
 	// Represent that usdt just minted in Polimec, by minting to Alice
 	Polimec::execute_with(|| {
 		assert_ok!(PolimecStatemintAssets::mint_into(
-			AcceptedFundingAsset::USDT.to_statemint_id(),
+			AcceptedFundingAsset::USDT.to_assethub_id(),
 			&alice_account,
 			RESERVE_TRANSFER_AMOUNT * 3
 		));
 		assert_ok!(PolimecStatemintAssets::mint_into(
-			AcceptedFundingAsset::DOT.to_statemint_id(),
+			AcceptedFundingAsset::DOT.to_assethub_id(),
 			&alice_account,
 			RESERVE_TRANSFER_AMOUNT * 3
 		));
@@ -233,9 +233,9 @@ fn polimec_to_reserve() {
 		polimec_prev_plmc_issuance,
 	) = Polimec::execute_with(|| {
 		(
-			PolimecStatemintAssets::balance(AcceptedFundingAsset::USDT.to_statemint_id(), alice_account.clone()),
+			PolimecStatemintAssets::balance(AcceptedFundingAsset::USDT.to_assethub_id(), alice_account.clone()),
 			PolimecBalances::free_balance(alice_account.clone()),
-			PolimecStatemintAssets::total_issuance(AcceptedFundingAsset::USDT.to_statemint_id()),
+			PolimecStatemintAssets::total_issuance(AcceptedFundingAsset::USDT.to_assethub_id()),
 			PolimecBalances::total_issuance(),
 		)
 	});
@@ -243,8 +243,8 @@ fn polimec_to_reserve() {
 	// check Statemint's pre transfer balances and issuance
 	let (statemint_prev_alice_usdt_balance, statemint_prev_usdt_issuance) = Statemint::execute_with(|| {
 		(
-			StatemintAssets::balance(AcceptedFundingAsset::USDT.to_statemint_id(), alice_account.clone()),
-			StatemintAssets::total_issuance(AcceptedFundingAsset::USDT.to_statemint_id()),
+			StatemintAssets::balance(AcceptedFundingAsset::USDT.to_assethub_id(), alice_account.clone()),
+			StatemintAssets::total_issuance(AcceptedFundingAsset::USDT.to_assethub_id()),
 		)
 	});
 
@@ -296,9 +296,9 @@ fn polimec_to_reserve() {
 		polimec_post_plmc_issuance,
 	) = Polimec::execute_with(|| {
 		(
-			PolimecStatemintAssets::balance(AcceptedFundingAsset::USDT.to_statemint_id(), alice_account.clone()),
+			PolimecStatemintAssets::balance(AcceptedFundingAsset::USDT.to_assethub_id(), alice_account.clone()),
 			PolimecBalances::free_balance(alice_account.clone()),
-			PolimecStatemintAssets::total_issuance(AcceptedFundingAsset::USDT.to_statemint_id()),
+			PolimecStatemintAssets::total_issuance(AcceptedFundingAsset::USDT.to_assethub_id()),
 			PolimecBalances::total_issuance(),
 		)
 	});
@@ -306,8 +306,8 @@ fn polimec_to_reserve() {
 	// check Statemint's post transfer balances and issuance
 	let (statemint_post_alice_usdt_balance, statemint_post_usdt_issuance) = Statemint::execute_with(|| {
 		(
-			StatemintAssets::balance(AcceptedFundingAsset::USDT.to_statemint_id(), alice_account.clone()),
-			StatemintAssets::total_issuance(AcceptedFundingAsset::USDT.to_statemint_id()),
+			StatemintAssets::balance(AcceptedFundingAsset::USDT.to_assethub_id(), alice_account.clone()),
+			StatemintAssets::total_issuance(AcceptedFundingAsset::USDT.to_assethub_id()),
 		)
 	});
 

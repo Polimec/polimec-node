@@ -155,9 +155,9 @@ pub struct SetOraclePrices;
 #[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 impl SetPrices for SetOraclePrices {
 	fn set_prices() {
-		let dot = (AcceptedFundingAsset::DOT.to_statemint_id(), FixedU128::from_rational(69, 1));
-		let usdc = (AcceptedFundingAsset::USDT.to_statemint_id(), FixedU128::from_rational(1, 1));
-		let usdt = (AcceptedFundingAsset::USDT.to_statemint_id(), FixedU128::from_rational(1, 1));
+		let dot = (AcceptedFundingAsset::DOT.to_assethub_id(), FixedU128::from_rational(69, 1));
+		let usdc = (AcceptedFundingAsset::USDT.to_assethub_id(), FixedU128::from_rational(1, 1));
+		let usdt = (AcceptedFundingAsset::USDT.to_assethub_id(), FixedU128::from_rational(1, 1));
 		let plmc = (pallet_funding::PLMC_STATEMINT_ID, FixedU128::from_rational(840, 100));
 
 		let values: BoundedVec<(u32, FixedU128), <Runtime as orml_oracle::Config>::MaxFeedValues> =
@@ -756,7 +756,7 @@ impl Convert<(AssetName, FixedU128), (AssetId, Price)> for AssetPriceConverter {
 	fn convert((asset, price): (AssetName, FixedU128)) -> (AssetId, Price) {
 		match asset {
 			AssetName::DOT => (0, price),
-			AssetName::USDC => (420, price),
+			AssetName::USDC => (1337, price),
 			AssetName::USDT => (1984, price),
 			AssetName::PLMC => (2069, price),
 		}

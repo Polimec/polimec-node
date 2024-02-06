@@ -468,11 +468,11 @@ pub mod inner_types {
 		DOT,
 	}
 	impl AcceptedFundingAsset {
-		pub const fn to_statemint_id(&self) -> u32 {
+		pub const fn to_assethub_id(&self) -> u32 {
 			match self {
 				AcceptedFundingAsset::USDT => 1984,
 				AcceptedFundingAsset::DOT => 0,
-				AcceptedFundingAsset::USDC => 420,
+				AcceptedFundingAsset::USDC => 1337,
 			}
 		}
 	}

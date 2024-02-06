@@ -940,7 +940,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<BidInfoOf<T>, DispatchError> {
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
 		let funding_asset_usd_price =
-			T::PriceProvider::get_price(funding_asset.to_statemint_id()).ok_or(Error::<T>::PriceNotFound)?;
+			T::PriceProvider::get_price(funding_asset.to_assethub_id()).ok_or(Error::<T>::PriceNotFound)?;
 		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder)).collect::<Vec<_>>();
 
 		if let Some(minimum_ticket_size) = project_ticket_size.minimum {
@@ -957,7 +957,7 @@ impl<T: Config> Pallet<T> {
 
 		let funding_asset_amount_locked =
 			funding_asset_usd_price.reciprocal().ok_or(Error::<T>::BadMath)?.saturating_mul_int(ticket_size);
-		let asset_id = funding_asset.to_statemint_id();
+		let asset_id = funding_asset.to_assethub_id();
 
 		let new_bid = BidInfoOf::<T> {
 			id: bid_id,
@@ -1052,7 +1052,7 @@ impl<T: Config> Pallet<T> {
 		let ct_usd_price = project_details.weighted_average_price.ok_or(Error::<T>::AuctionNotStarted)?;
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PriceNotFound)?;
 		let funding_asset_usd_price =
-			T::PriceProvider::get_price(asset.to_statemint_id()).ok_or(Error::<T>::PriceNotFound)?;
+			T::PriceProvider::get_price(asset.to_assethub_id()).ok_or(Error::<T>::PriceNotFound)?;
 
 		// * Calculate variables *
 		let buyable_tokens = Self::calculate_buyable_amount(
@@ -1073,7 +1073,7 @@ impl<T: Config> Pallet<T> {
 		let plmc_bond = Self::calculate_plmc_bond(ticket_size, multiplier, plmc_usd_price)?;
 		let funding_asset_amount =
 			funding_asset_usd_price.reciprocal().ok_or(Error::<T>::BadMath)?.saturating_mul_int(ticket_size);
-		let asset_id = asset.to_statemint_id();
+		let asset_id = asset.to_assethub_id();
 
 		let contribution_id = Self::next_contribution_id();
 		let new_contribution = ContributionInfoOf::<T> {
@@ -1614,7 +1614,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Update storage *
 		T::FundingCurrency::transfer(
-			payout_asset.to_statemint_id(),
+			payout_asset.to_assethub_id(),
 			&project_pot,
 			bidder,
 			payout_amount,
@@ -1697,7 +1697,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Update storage *
 		T::FundingCurrency::transfer(
-			payout_asset.to_statemint_id(),
+			payout_asset.to_assethub_id(),
 			&project_pot,
 			contributor,
 			payout_amount,
@@ -1780,7 +1780,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Update storage *
 		T::FundingCurrency::transfer(
-			payout_asset.to_statemint_id(),
+			payout_asset.to_assethub_id(),
 			&project_pot,
 			&issuer,
 			payout_amount,
@@ -1823,7 +1823,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Update storage *
 		T::FundingCurrency::transfer(
-			payout_asset.to_statemint_id(),
+			payout_asset.to_assethub_id(),
 			&project_pot,
 			&issuer,
 			payout_amount,
@@ -2450,7 +2450,7 @@ impl<T: Config> Pallet<T> {
 						bid.status = BidStatus::PartiallyAccepted(buyable_amount, RejectionReason::NoTokensLeft);
 						bid.final_ct_amount = buyable_amount;
 
-						let funding_asset_price = T::PriceProvider::get_price(bid.funding_asset.to_statemint_id())
+						let funding_asset_price = T::PriceProvider::get_price(bid.funding_asset.to_assethub_id())
 							.ok_or(Error::<T>::PriceNotFound)?;
 						let funding_asset_amount_needed = funding_asset_price
 							.reciprocal()
@@ -2458,7 +2458,7 @@ impl<T: Config> Pallet<T> {
 							.checked_mul_int(ticket_size)
 							.ok_or(Error::<T>::BadMath)?;
 						T::FundingCurrency::transfer(
-							bid.funding_asset.to_statemint_id(),
+							bid.funding_asset.to_assethub_id(),
 							&project_account,
 							&bid.bidder,
 							bid.funding_asset_amount_locked.saturating_sub(funding_asset_amount_needed),
@@ -2542,7 +2542,7 @@ impl<T: Config> Pallet<T> {
 				let new_ticket_size =
 					weighted_token_price.checked_mul_int(bid.final_ct_amount).ok_or(Error::<T>::BadMath)?;
 
-				let funding_asset_price = T::PriceProvider::get_price(bid.funding_asset.to_statemint_id())
+				let funding_asset_price = T::PriceProvider::get_price(bid.funding_asset.to_assethub_id())
 					.ok_or(Error::<T>::PriceNotFound)?;
 				let funding_asset_amount_needed = funding_asset_price
 					.reciprocal()
@@ -2551,7 +2551,7 @@ impl<T: Config> Pallet<T> {
 					.ok_or(Error::<T>::BadMath)?;
 
 				T::FundingCurrency::transfer(
-					bid.funding_asset.to_statemint_id(),
+					bid.funding_asset.to_assethub_id(),
 					&project_account,
 					&bid.bidder,
 					bid.funding_asset_amount_locked.saturating_sub(funding_asset_amount_needed),
@@ -2612,7 +2612,7 @@ impl<T: Config> Pallet<T> {
 		bid.final_ct_usd_price = Zero::zero();
 
 		T::FundingCurrency::transfer(
-			bid.funding_asset.to_statemint_id(),
+			bid.funding_asset.to_assethub_id(),
 			project_account,
 			&bid.bidder,
 			bid.funding_asset_amount_locked,

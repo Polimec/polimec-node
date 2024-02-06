@@ -56,7 +56,7 @@ const US_DOLLAR: u128 = 1_0_000_000_000u128;
 const ASSET_UNIT: u128 = 1_0_000_000_000u128;
 
 pub fn usdt_id() -> u32 {
-	AcceptedFundingAsset::USDT.to_statemint_id()
+	AcceptedFundingAsset::USDT.to_assethub_id()
 }
 pub fn hashed(data: impl AsRef<[u8]>) -> H256 {
 	<BlakeTwo256 as sp_runtime::traits::Hash>::hash(data.as_ref())
@@ -1115,7 +1115,7 @@ mod benchmarks {
 		assert!(stored_bid.funds_released);
 
 		// Balances
-		let asset = stored_bid.funding_asset.to_statemint_id();
+		let asset = stored_bid.funding_asset.to_assethub_id();
 		let project_details = ProjectsDetails::<T>::get(project_id).unwrap();
 		let free_assets =
 			inst.get_free_statemint_asset_balances_for(asset, vec![project_details.issuer])[0].asset_amount;
@@ -1174,7 +1174,7 @@ mod benchmarks {
 		assert!(stored_contribution.funds_released);
 
 		// Balances
-		let asset = stored_contribution.funding_asset.to_statemint_id();
+		let asset = stored_contribution.funding_asset.to_assethub_id();
 		let project_details = ProjectsDetails::<T>::get(project_id).unwrap();
 		let free_assets =
 			inst.get_free_statemint_asset_balances_for(asset, vec![project_details.issuer])[0].asset_amount;
@@ -1290,7 +1290,7 @@ mod benchmarks {
 
 		let bid_to_payout =
 			inst.execute(|| Bids::<T>::iter_prefix_values((project_id, bidder.clone())).next().unwrap());
-		let asset = bid_to_payout.funding_asset.to_statemint_id();
+		let asset = bid_to_payout.funding_asset.to_assethub_id();
 		let free_assets_before =
 			inst.get_free_statemint_asset_balances_for(asset, vec![bidder.clone()])[0].asset_amount;
 		#[extrinsic_call]
@@ -1434,7 +1434,7 @@ mod benchmarks {
 		let contribution_to_payout =
 			inst.execute(|| Contributions::<T>::iter_prefix_values((project_id, contributor.clone())).next().unwrap());
 
-		let asset = contribution_to_payout.funding_asset.to_statemint_id();
+		let asset = contribution_to_payout.funding_asset.to_assethub_id();
 		let free_assets_before =
 			inst.get_free_statemint_asset_balances_for(asset, vec![contributor.clone()])[0].asset_amount;
 		#[extrinsic_call]
