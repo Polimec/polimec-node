@@ -104,20 +104,24 @@ parameter_types! {
 	pub const MinimumDeposit: Balance = 100 * PLMC;
 	pub const EnactmentPeriod: BlockNumber = ENACTMENT_PERIOD;
 	pub const CooloffPeriod: BlockNumber = COOLOFF_PERIOD;
+
 	// Council Pallet
 	pub const CouncilMotionDuration: BlockNumber = COUNCIL_MOTION_DURATION;
 	pub const CouncilMaxProposals: u32 = 7;
 	pub const CouncilMaxMembers: u32 = 20;
+	
 	// Technical Committee
 	pub const TechnicalMotionDuration: BlockNumber = TECHNICAL_MOTION_DURATION;
 	pub const TechnicalMaxProposals: u32 = 7;
 	pub const TechnicalMaxMembers: u32 = 5;
+	
 	// Extras
 	pub const PreimageBaseDeposit: Balance = deposit(2, 64);
 	pub const MaxProposals: u32 = 10;
 	pub const MaxVotes: u32 = 100;
 	pub const MaxBlacklisted: u32 = 100;
 	pub const MaxDeposits: u32 = 100;
+	
 	//Treasury
 	pub const ProposalBond: Permill = Permill::from_percent(5);
 	pub const ProposalBondMinimum: Balance = 50 * PLMC;
