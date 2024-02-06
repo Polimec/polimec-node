@@ -3009,10 +3009,6 @@ mod benchmarks {
 	) {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
-		dbg!(x);
-		dbg!(y);
-		dbg!(z);
-		println!("\n--------");
 		// real benchmark starts at block 0, and we can't call `events()` at block 0
 		inst.advance_time(1u32.into()).unwrap();
 
@@ -3076,12 +3072,14 @@ mod benchmarks {
 
 		inst.bid_for_users(project_id, accepted_bids);
 
-		inst.advance_time(<T as Config>::EnglishAuctionDuration::get() + One::one()).unwrap();
+		let now = inst.current_block();
+		frame_system::Pallet::<T>::set_block_number(now + <T as Config>::EnglishAuctionDuration::get());
+		// automatic transition to candle
+		inst.advance_time(1u32.into()).unwrap();
 
 		// testing always produced this random ending
 		let random_ending: BlockNumberFor<T> = 9176u32.into();
-		let now = inst.current_block();
-		inst.advance_time(random_ending - now + 2u32.into()).unwrap();
+		frame_system::Pallet::<T>::set_block_number(random_ending + 2u32.into());
 
 		let rejected_bids = (0..z)
 			.map(|i| {

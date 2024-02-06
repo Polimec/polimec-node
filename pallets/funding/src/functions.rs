@@ -991,7 +991,6 @@ impl<T: Config> Pallet<T> {
 		let ct_deposit = T::ContributionTokenCurrency::deposit_required(project_id);
 		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder)).collect::<Vec<_>>();
 		let bid_count = BidCounts::<T>::get(project_id);
-
 		// benchmark variables
 		let mut perform_bid_calls = 0;
 		let mut ct_deposit_required = false;

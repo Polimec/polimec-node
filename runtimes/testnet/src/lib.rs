@@ -570,8 +570,8 @@ impl pallet_funding::Config for Runtime {
 	type FeeBrackets = FeeBrackets;
 	type FundingCurrency = StatemintAssets;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
-	type MaxBidsPerProject = ConstU32<20_000>;
-	type MaxBidsPerUser = ConstU32<256>;
+	type MaxBidsPerProject = ConstU32<2048>;
+	type MaxBidsPerUser = ConstU32<128>;
 	type MaxCapacityThresholds = MaxCapacityThresholds;
 	type MaxContributionsPerUser = ConstU32<256>;
 	type MaxEvaluationsPerUser = ConstU32<256>;
