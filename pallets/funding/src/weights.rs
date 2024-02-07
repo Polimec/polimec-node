@@ -113,9 +113,12 @@ pub trait WeightInfo {
 	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
 	/// The range of component `x` is `[1, 99]`.
 	fn start_remainder_funding(x: u32, ) -> Weight;
-	fn end_funding_success() -> Weight;
-	fn end_funding_failure() -> Weight;
-	fn end_funding_awaiting_decision() -> Weight;
+	fn end_funding_automatically_rejected_evaluators_slashed(x: u32) -> Weight;
+	fn end_funding_awaiting_decision_evaluators_slashed(x: u32) -> Weight;
+	fn end_funding_awaiting_decision_evaluators_unchanged(x: u32) -> Weight;
+	fn end_funding_automatically_accepted_evaluators_rewarded(x: u32, y: u32) -> Weight;
+
+
 	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
 	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
 	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
@@ -1062,19 +1065,6 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(Weight::from_parts(0, 3097).saturating_mul(x.into()))
 	}
 
-	fn end_funding_success() -> Weight {
-		Weight::from_parts(227_535_753, 0)
-	}
-
-	fn end_funding_failure() -> Weight {
-		Weight::from_parts(227_535_753, 0)
-	}
-
-	fn end_funding_awaiting_decision() -> Weight {
-		Weight::from_parts(227_535_753, 0)
-	}
-
-
 	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
 	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
 	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
@@ -1136,6 +1126,22 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(Weight::from_parts(0, 4087))
 			.saturating_add(T::DbWeight::get().reads(2))
 			.saturating_add(T::DbWeight::get().writes(2))
+	}
+
+	fn end_funding_automatically_rejected_evaluators_slashed(x: u32) -> Weight {
+		Weight::from_parts(203_000_000, 0)
+	}
+
+	fn end_funding_awaiting_decision_evaluators_slashed(x: u32) -> Weight {
+		Weight::from_parts(203_000_000, 0)
+	}
+
+	fn end_funding_awaiting_decision_evaluators_unchanged(x: u32) -> Weight {
+		Weight::from_parts(203_000_000, 0)
+	}
+
+	fn end_funding_automatically_accepted_evaluators_rewarded(x: u32, y: u32) -> Weight {
+		Weight::from_parts(203_000_000, 0)
 	}
 }
 
@@ -2060,19 +2066,6 @@ impl WeightInfo for () {
 			.saturating_add(Weight::from_parts(0, 3097).saturating_mul(x.into()))
 	}
 
-	fn end_funding_success() -> Weight {
-		Weight::from_parts(227_535_753, 0)
-	}
-
-	fn end_funding_failure() -> Weight {
-		Weight::from_parts(227_535_753, 0)
-	}
-
-	fn end_funding_awaiting_decision() -> Weight {
-		Weight::from_parts(227_535_753, 0)
-	}
-
-
 	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
 	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
 	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
@@ -2134,5 +2127,21 @@ impl WeightInfo for () {
 			.saturating_add(Weight::from_parts(0, 4087))
 			.saturating_add(RocksDbWeight::get().reads(2))
 			.saturating_add(RocksDbWeight::get().writes(2))
+	}
+
+	fn end_funding_automatically_rejected_evaluators_slashed(x: u32) -> Weight {
+		Weight::from_parts(203_000_000, 0)
+	}
+
+	fn end_funding_awaiting_decision_evaluators_slashed(x: u32) -> Weight {
+		Weight::from_parts(203_000_000, 0)
+	}
+
+	fn end_funding_awaiting_decision_evaluators_unchanged(x: u32) -> Weight {
+		Weight::from_parts(203_000_000, 0)
+	}
+
+	fn end_funding_automatically_accepted_evaluators_rewarded(x: u32, y: u32) -> Weight {
+		Weight::from_parts(203_000_000, 0)
 	}
 }

@@ -695,6 +695,11 @@ mod evaluation_round_failure {
 			HoldReason::FutureDeposit(project_id).into(),
 		);
 	}
+
+	#[test]
+	fn cannot_evaluate_more_than_project_limit() {
+		todo!()
+	}
 }
 
 mod auction_round_success {

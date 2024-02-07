@@ -3237,7 +3237,10 @@ mod benchmarks {
 
 	// do_end_funding
 	#[benchmark]
-	fn end_funding_automatically_rejected_evaluators_slashed() {
+	fn end_funding_automatically_rejected_evaluators_slashed(
+		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the fn succeed
+		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
+	) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
@@ -3279,6 +3282,9 @@ mod benchmarks {
 
 		frame_system::Pallet::<T>::set_block_number(last_funding_block + 1u32.into());
 
+		let insertion_block_number = inst.current_block() + 1u32.into();
+		fill_projects_to_update::<T>(x, insertion_block_number, None);
+
 		#[block]
 		{
 			Pallet::<T>::do_end_funding(project_id).unwrap();
@@ -3289,7 +3295,10 @@ mod benchmarks {
 		assert_eq!(project_details.status, ProjectStatus::FundingFailed);
 	}
 	#[benchmark]
-	fn end_funding_awaiting_decision_evaluators_slashed() {
+	fn end_funding_awaiting_decision_evaluators_slashed(
+		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the fn succeed
+		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
+	) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
@@ -3331,6 +3340,9 @@ mod benchmarks {
 
 		frame_system::Pallet::<T>::set_block_number(last_funding_block + 1u32.into());
 
+		let insertion_block_number = inst.current_block() + T::ManualAcceptanceDuration::get().into() + 1u32.into();
+		fill_projects_to_update::<T>(x, insertion_block_number, None);
+
 		#[block]
 		{
 			Pallet::<T>::do_end_funding(project_id).unwrap();
@@ -3342,7 +3354,10 @@ mod benchmarks {
 		assert_eq!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Slashed)
 	}
 	#[benchmark]
-	fn end_funding_awaiting_decision_evaluators_unchanged() {
+	fn end_funding_awaiting_decision_evaluators_unchanged(
+		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the fn succeed
+		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
+	) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
@@ -3384,6 +3399,9 @@ mod benchmarks {
 
 		frame_system::Pallet::<T>::set_block_number(last_funding_block + 1u32.into());
 
+		let insertion_block_number = inst.current_block() + T::ManualAcceptanceDuration::get().into() + 1u32.into();
+		fill_projects_to_update::<T>(x, insertion_block_number, None);
+
 		#[block]
 		{
 			Pallet::<T>::do_end_funding(project_id).unwrap();
@@ -3395,9 +3413,14 @@ mod benchmarks {
 		assert_eq!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Unchanged)
 	}
 	#[benchmark]
-	fn end_funding_automatically_accepted_evaluators_rewarded() {
+	fn end_funding_automatically_accepted_evaluators_rewarded(
+		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the fn succeed
+		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
+		y: Linear<1, { <T as Config>::MaxEvaluationsPerProject::get() }>,
+	) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
+		println!("here");
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
@@ -3407,6 +3430,26 @@ mod benchmarks {
 			.saturating_mul_int(project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1);
 
 		let automatically_rejected_threshold = Percent::from_percent(91);
+
+		let mut evaluations = (0..y.saturating_sub(1))
+			.map(|i| {
+				UserToUSDBalance::<T>::new(account::<AccountIdOf<T>>("evaluator", 0, i), (10u128 * ASSET_UNIT).into())
+			})
+			.collect_vec();
+
+		let evaluation_target_usd = <T as Config>::EvaluationSuccessThreshold::get() * target_funding_amount;
+		evaluations.push(UserToUSDBalance::<T>::new(
+			account::<AccountIdOf<T>>("evaluator_success", 0, 69420),
+			evaluation_target_usd,
+		));
+
+		let plmc_needed_for_evaluating = BenchInstantiator::<T>::calculate_evaluation_plmc_spent(evaluations.clone());
+		let plmc_ed = evaluations.accounts().existential_deposits();
+		let plmc_ct_account_deposit = evaluations.accounts().ct_account_deposits();
+
+		inst.mint_plmc_to(plmc_needed_for_evaluating);
+		inst.mint_plmc_to(plmc_ed);
+		inst.mint_plmc_to(plmc_ct_account_deposit);
 
 		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
 			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
@@ -3426,7 +3469,7 @@ mod benchmarks {
 		let (project_id, _) = inst.create_remainder_contributing_project(
 			project_metadata,
 			issuer.clone(),
-			default_evaluations::<T>(),
+			evaluations,
 			bids,
 			contributions,
 		);
@@ -3436,6 +3479,9 @@ mod benchmarks {
 		let last_funding_block = project_details.phase_transition_points.remainder.end().unwrap();
 
 		frame_system::Pallet::<T>::set_block_number(last_funding_block + 1u32.into());
+
+		let insertion_block_number = inst.current_block() + T::SuccessToSettlementTime::get().into();
+		fill_projects_to_update::<T>(x, insertion_block_number, None);
 
 		#[block]
 		{

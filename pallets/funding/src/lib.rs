@@ -444,6 +444,7 @@ pub mod pallet {
 		type MaxProjectsToUpdateInsertionAttempts: Get<u32>;
 		/// max individual bids per project. Used to estimate worst case weight for price calculation
 		type MaxBidsPerProject: Get<u32>;
+		type MaxEvaluationsPerProject: Get<u32>;
 	}
 
 	#[pallet::storage]
@@ -466,6 +467,9 @@ pub mod pallet {
 
 	#[pallet::storage]
 	pub type BidCounts<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, u32, ValueQuery>;
+
+	#[pallet::storage]
+	pub type EvaluationCounts<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, u32, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn nonce)]
@@ -942,7 +946,11 @@ pub mod pallet {
 		/// Too many attempts to insert project in to ProjectsToUpdate storage
 		TooManyInsertionAttempts,
 		/// Reached bid limit for this user on this project
-		TooManyBids,
+		TooManyBidsForUser,
+		/// Reached bid limit for this project
+		TooManyBidsForProject,
+		/// Reached evaluation limit for this project
+		TooManyEvaluationsForProject,
 	}
 
 	#[pallet::call]

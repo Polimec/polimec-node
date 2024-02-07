@@ -223,7 +223,11 @@ impl<
 
 	pub fn advance_time(&mut self, amount: BlockNumberFor<T>) -> Result<(), DispatchError> {
 		self.execute(|| {
+			// time performance
+			use std::time::Instant;
+			let now = Instant::now();
 			for _block in 0u32..amount.saturated_into() {
+				println!("advancing block {}/{}", _block, amount);
 				let mut current_block = frame_system::Pallet::<T>::block_number();
 
 				<AllPalletsWithoutSystem as OnFinalize<BlockNumberFor<T>>>::on_finalize(current_block);
@@ -245,6 +249,9 @@ impl<
 					Self::err_if_on_initialize_failed(post_events)?;
 				}
 			}
+			println!("advancing {amount} blocks took {:?}", now.elapsed());
+			// time per block
+			println!("time per block: {:?}", now.elapsed() / amount.saturated_into());
 			Ok(())
 		})
 	}

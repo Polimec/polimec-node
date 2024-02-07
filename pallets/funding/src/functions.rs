@@ -718,21 +718,22 @@ impl<T: Config> Pallet<T> {
 		// * Update Storage *
 		if funding_ratio <= Perquintill::from_percent(33u64) {
 			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Slashed;
-			let result = Self::make_project_funding_fail(
+			let insertion_iterations = Self::make_project_funding_fail(
 				project_id,
 				project_details,
 				FailureReason::TargetNotReached,
 				1u32.into(),
-			);
+			)?;
 			return Ok(PostDispatchInfo {
-				actual_weight: Some(WeightInfoOf::<T>::end_funding_failure()),
+				actual_weight: Some(WeightInfoOf::<T>::end_funding_automatically_rejected_evaluators_slashed(
+					insertion_iterations,
+				)),
 				pays_fee: Pays::Yes,
 			})
 		} else if funding_ratio <= Perquintill::from_percent(75u64) {
 			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Slashed;
 			project_details.status = ProjectStatus::AwaitingProjectDecision;
-			// TODO: return real weights
-			let _iterations = match Self::add_to_update_store(
+			let insertion_iterations = match Self::add_to_update_store(
 				now + T::ManualAcceptanceDuration::get() + 1u32.into(),
 				(&project_id, UpdateType::ProjectDecision(FundingOutcomeDecision::AcceptFunding)),
 			) {
@@ -741,14 +742,15 @@ impl<T: Config> Pallet<T> {
 			};
 			ProjectsDetails::<T>::insert(project_id, project_details);
 			Ok(PostDispatchInfo {
-				actual_weight: Some(WeightInfoOf::<T>::end_funding_awaiting_decision()),
+				actual_weight: Some(WeightInfoOf::<T>::end_funding_awaiting_decision_evaluators_slashed(
+					insertion_iterations,
+				)),
 				pays_fee: Pays::Yes,
 			})
 		} else if funding_ratio < Perquintill::from_percent(90u64) {
 			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Unchanged;
 			project_details.status = ProjectStatus::AwaitingProjectDecision;
-			// TODO: return real weights
-			let _iterations = match Self::add_to_update_store(
+			let insertion_iterations = match Self::add_to_update_store(
 				now + T::ManualAcceptanceDuration::get() + 1u32.into(),
 				(&project_id, UpdateType::ProjectDecision(FundingOutcomeDecision::AcceptFunding)),
 			) {
@@ -757,20 +759,25 @@ impl<T: Config> Pallet<T> {
 			};
 			ProjectsDetails::<T>::insert(project_id, project_details);
 			Ok(PostDispatchInfo {
-				actual_weight: Some(WeightInfoOf::<T>::end_funding_awaiting_decision()),
+				actual_weight: Some(WeightInfoOf::<T>::end_funding_awaiting_decision_evaluators_unchanged(
+					insertion_iterations,
+				)),
 				pays_fee: Pays::Yes,
 			})
 		} else {
-			let reward_info = Self::generate_evaluator_rewards_info(project_id)?;
+			let (reward_info, evaluations_count) = Self::generate_evaluator_rewards_info(project_id)?;
 			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Rewarded(reward_info);
-			let result = Self::make_project_funding_successful(
+			let insertion_iterations = Self::make_project_funding_successful(
 				project_id,
 				project_details,
 				SuccessReason::ReachedTarget,
 				T::SuccessToSettlementTime::get(),
-			);
+			)?;
 			return Ok(PostDispatchInfo {
-				actual_weight: Some(WeightInfoOf::<T>::end_funding_success()),
+				actual_weight: Some(WeightInfoOf::<T>::end_funding_automatically_accepted_evaluators_rewarded(
+					insertion_iterations,
+					evaluations_count,
+				)),
 				pays_fee: Pays::Yes,
 			})
 		}
@@ -894,13 +901,14 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	// Note: usd_amount needs to have the same amount of decimals as PLMC,, so when multiplied by the plmc-usd price, it gives us the PLMC amount with the decimals we wanted.
+	// Note: usd_amount needs to have the same amount of decimals as PLMC, so when multiplied by the plmc-usd price, it gives us the PLMC amount with the decimals we wanted.
 	pub fn do_evaluate(
 		evaluator: &AccountIdOf<T>,
 		project_id: ProjectId,
 		usd_amount: BalanceOf<T>,
 	) -> DispatchResultWithPostInfo {
 		// * Get variables *
+		println!("do_evaluate {}", evaluator);
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let evaluation_id = Self::next_evaluation_id();
@@ -911,10 +919,12 @@ impl<T: Config> Pallet<T> {
 			T::EvaluationSuccessThreshold::get() * project_details.fundraising_target;
 		let evaluation_round_info = &mut project_details.evaluation_round_info;
 		let ct_deposit = T::ContributionTokenCurrency::deposit_required(project_id);
+		let evaluations_count = EvaluationCounts::<T>::get(project_id);
 
 		// * Validity Checks *
 		ensure!(evaluator.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
 		ensure!(project_details.status == ProjectStatus::EvaluationRound, Error::<T>::EvaluationNotStarted);
+		ensure!(evaluations_count < T::MaxBidsPerProject::get(), Error::<T>::TooManyEvaluationsForProject);
 
 		// * Calculate new variables *
 		let plmc_bond = plmc_usd_price
@@ -979,6 +989,7 @@ impl<T: Config> Pallet<T> {
 			T::NativeCurrency::hold(&HoldReason::Evaluation(project_id.into()).into(), evaluator, plmc_bond)?;
 
 			Evaluations::<T>::remove((project_id, evaluator, low_id));
+			EvaluationCounts::<T>::mutate(project_id, |c| *c -= 1);
 		}
 
 		Evaluations::<T>::insert((project_id, evaluator, evaluation_id), new_evaluation);
@@ -986,6 +997,7 @@ impl<T: Config> Pallet<T> {
 		evaluation_round_info.total_bonded_usd += usd_amount;
 		evaluation_round_info.total_bonded_plmc += plmc_bond;
 		ProjectsDetails::<T>::insert(project_id, project_details);
+		EvaluationCounts::<T>::mutate(project_id, |c| *c += 1);
 
 		// * Emit events *
 		Self::deposit_event(Event::FundsBonded { project_id, amount: plmc_bond, bonder: evaluator.clone() });
@@ -998,7 +1010,7 @@ impl<T: Config> Pallet<T> {
 		} else {
 			WeightInfoOf::<T>::evaluation_over_limit()
 		};
-		//
+
 		Ok(PostDispatchInfo { actual_weight: Some(actual_weight), pays_fee: Pays::Yes })
 	}
 
@@ -1036,13 +1048,13 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(ct_amount > Zero::zero(), Error::<T>::BidTooLow);
-		ensure!(bid_count < T::MaxBidsPerProject::get(), Error::<T>::TooManyBids);
+		ensure!(bid_count < T::MaxBidsPerProject::get(), Error::<T>::TooManyBidsForProject);
 		ensure!(bidder.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
 		ensure!(matches!(project_details.status, ProjectStatus::AuctionRound(_)), Error::<T>::AuctionNotStarted);
 		ensure!(funding_asset == project_metadata.participation_currencies, Error::<T>::FundingAssetNotAccepted);
 		// Note: We limit the CT Amount to the total allocation size, to avoid long running loops.
 		ensure!(ct_amount <= project_metadata.total_allocation_size.0, Error::<T>::NotAllowed);
-		ensure!(existing_bids.len() < T::MaxBidsPerUser::get() as usize, Error::<T>::TooManyBids);
+		ensure!(existing_bids.len() < T::MaxBidsPerUser::get() as usize, Error::<T>::TooManyBidsForUser);
 
 		// Reserve plmc deposit to create a contribution token account for this project
 		if T::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), &bidder) < ct_deposit {
@@ -3072,11 +3084,13 @@ impl<T: Config> Pallet<T> {
 	///
 	/// Note: Consider refactoring the `RewardInfo` struct to make it more generic and
 	/// reusable, not just for evaluator rewards.
-	pub fn generate_evaluator_rewards_info(project_id: ProjectId) -> Result<RewardInfoOf<T>, DispatchError> {
+	pub fn generate_evaluator_rewards_info(project_id: ProjectId) -> Result<(RewardInfoOf<T>, u32), DispatchError> {
 		// Fetching the necessary data for a specific project.
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let evaluations = Evaluations::<T>::iter_prefix((project_id,)).collect::<Vec<_>>();
+		// used for weight calculation
+		let evaluations_count = evaluations.len() as u32;
 
 		// Determine how much funding has been achieved.
 		let funding_amount_reached = project_details.funding_amount_reached;
@@ -3131,7 +3145,7 @@ impl<T: Config> Pallet<T> {
 			normal_evaluator_total_bonded_usd,
 		};
 
-		Ok(reward_info)
+		Ok((reward_info, evaluations_count))
 	}
 
 	pub fn make_project_funding_successful(
@@ -3139,13 +3153,13 @@ impl<T: Config> Pallet<T> {
 		mut project_details: ProjectDetailsOf<T>,
 		reason: SuccessReason,
 		settlement_delta: BlockNumberFor<T>,
-	) -> DispatchResult {
+	) -> Result<u32, DispatchError> {
 		let now = <frame_system::Pallet<T>>::block_number();
 		project_details.status = ProjectStatus::FundingSuccessful;
 		ProjectsDetails::<T>::insert(project_id, project_details);
 
 		// TODO: add real weights
-		let _iterations =
+		let insertion_iterations =
 			match Self::add_to_update_store(now + settlement_delta, (&project_id, UpdateType::StartSettlement)) {
 				Ok(iterations) => iterations,
 				Err(_iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
@@ -3153,7 +3167,7 @@ impl<T: Config> Pallet<T> {
 
 		Self::deposit_event(Event::FundingEnded { project_id, outcome: FundingOutcome::Success(reason) });
 
-		Ok(())
+		Ok(insertion_iterations)
 	}
 
 	pub fn make_project_funding_fail(
@@ -3161,19 +3175,18 @@ impl<T: Config> Pallet<T> {
 		mut project_details: ProjectDetailsOf<T>,
 		reason: FailureReason,
 		settlement_delta: BlockNumberFor<T>,
-	) -> DispatchResult {
+	) -> Result<u32, DispatchError> {
 		let now = <frame_system::Pallet<T>>::block_number();
 		project_details.status = ProjectStatus::FundingFailed;
 		ProjectsDetails::<T>::insert(project_id, project_details);
 
-		// TODO: add real weights
-		let _iterations =
+		let insertion_iterations =
 			match Self::add_to_update_store(now + settlement_delta, (&project_id, UpdateType::StartSettlement)) {
 				Ok(iterations) => iterations,
 				Err(_iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
 			};
 		Self::deposit_event(Event::FundingEnded { project_id, outcome: FundingOutcome::Failure(reason) });
-		Ok(())
+		Ok(insertion_iterations)
 	}
 
 	pub fn migrations_per_xcm_message_allowed() -> u32 {
