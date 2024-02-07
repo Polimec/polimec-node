@@ -225,33 +225,48 @@ impl<
 		self.execute(|| {
 			// time performance
 			use std::time::Instant;
-			let now = Instant::now();
+			let outer_now = Instant::now();
+			println!("advancing {amount} blocks");
 			for _block in 0u32..amount.saturated_into() {
-				println!("advancing block {}/{}", _block, amount);
 				let mut current_block = frame_system::Pallet::<T>::block_number();
 
+				let now = Instant::now();
 				<AllPalletsWithoutSystem as OnFinalize<BlockNumberFor<T>>>::on_finalize(current_block);
-				<frame_system::Pallet<T> as OnFinalize<BlockNumberFor<T>>>::on_finalize(current_block);
+				println!("AllPalletsWithoutSystem OnFinalize took {:?}", now.elapsed());
 
+				let now = Instant::now();
+				<frame_system::Pallet<T> as OnFinalize<BlockNumberFor<T>>>::on_finalize(current_block);
+				println!("system OnFinalize took {:?}", now.elapsed());
+
+				let now = Instant::now();
 				<AllPalletsWithoutSystem as OnIdle<BlockNumberFor<T>>>::on_idle(current_block, Weight::MAX);
+				println!("AllPalletsWithoutSystem OnIdle took {:?}", now.elapsed());
+
+				let now = Instant::now();
 				<frame_system::Pallet<T> as OnIdle<BlockNumberFor<T>>>::on_idle(current_block, Weight::MAX);
+				println!("system OnIdle took {:?}", now.elapsed());
 
 				current_block += One::one();
 				frame_system::Pallet::<T>::set_block_number(current_block);
 
 				let pre_events = frame_system::Pallet::<T>::events();
 
+				let now = Instant::now();
 				<frame_system::Pallet<T> as OnInitialize<BlockNumberFor<T>>>::on_initialize(current_block);
+				println!("system OnInitialize took {:?}", now.elapsed());
+
+				let now = Instant::now();
 				<AllPalletsWithoutSystem as OnInitialize<BlockNumberFor<T>>>::on_initialize(current_block);
+				println!("AllPalletsWithoutSystem OnInitialize took {:?}", now.elapsed());
 
 				let post_events = frame_system::Pallet::<T>::events();
 				if post_events.len() > pre_events.len() {
 					Self::err_if_on_initialize_failed(post_events)?;
 				}
 			}
-			println!("advancing {amount} blocks took {:?}", now.elapsed());
+			println!("advancing {amount} blocks took {:?}", outer_now.elapsed());
 			// time per block
-			println!("time per block: {:?}", now.elapsed() / amount.saturated_into());
+			println!("time per block: {:?}", outer_now.elapsed() / amount.saturated_into());
 			Ok(())
 		})
 	}

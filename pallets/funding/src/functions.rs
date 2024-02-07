@@ -908,7 +908,6 @@ impl<T: Config> Pallet<T> {
 		usd_amount: BalanceOf<T>,
 	) -> DispatchResultWithPostInfo {
 		// * Get variables *
-		println!("do_evaluate {}", evaluator);
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 		let evaluation_id = Self::next_evaluation_id();
@@ -924,7 +923,7 @@ impl<T: Config> Pallet<T> {
 		// * Validity Checks *
 		ensure!(evaluator.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
 		ensure!(project_details.status == ProjectStatus::EvaluationRound, Error::<T>::EvaluationNotStarted);
-		ensure!(evaluations_count < T::MaxBidsPerProject::get(), Error::<T>::TooManyEvaluationsForProject);
+		ensure!(evaluations_count < T::MaxEvaluationsPerProject::get(), Error::<T>::TooManyEvaluationsForProject);
 
 		// * Calculate new variables *
 		let plmc_bond = plmc_usd_price

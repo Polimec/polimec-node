@@ -3416,6 +3416,7 @@ mod benchmarks {
 	fn end_funding_automatically_accepted_evaluators_rewarded(
 		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the fn succeed
 		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
+		// How many evaluations have been made. Used when calculating evaluator rewards
 		y: Linear<1, { <T as Config>::MaxEvaluationsPerProject::get() }>,
 	) {
 		// setup
@@ -3442,6 +3443,9 @@ mod benchmarks {
 			account::<AccountIdOf<T>>("evaluator_success", 0, 69420),
 			evaluation_target_usd,
 		));
+
+		dbg!(y);
+		dbg!(evaluations.len());
 
 		let plmc_needed_for_evaluating = BenchInstantiator::<T>::calculate_evaluation_plmc_spent(evaluations.clone());
 		let plmc_ed = evaluations.accounts().existential_deposits();

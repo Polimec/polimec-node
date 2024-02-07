@@ -1276,7 +1276,10 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(now: BlockNumberFor<T>) -> Weight {
 			// Get the projects that need to be updated on this block and update them
+			use std::time::Instant;
+			let time_now = Instant::now();
 			for (project_id, update_type) in ProjectsToUpdate::<T>::take(now) {
+				println!("took something");
 				match update_type {
 					// EvaluationRound -> AuctionInitializePeriod | EvaluationFailed
 					UpdateType::EvaluationEnd => {
@@ -1350,11 +1353,15 @@ pub mod pallet {
 					},
 				}
 			}
+			let elapsed = time_now.elapsed();
+			println!("Funding on_initialize elapsed: {:?}", elapsed);
 			// TODO: PLMC-127. Set a proper weight
 			Weight::from_parts(0, 0)
 		}
 
 		fn on_idle(_now: BlockNumberFor<T>, max_weight: Weight) -> Weight {
+			use std::time::Instant;
+			let now = Instant::now();
 			let mut remaining_weight = max_weight;
 
 			let projects_needing_cleanup = ProjectsDetails::<T>::iter()
@@ -1398,6 +1405,8 @@ pub mod pallet {
 				}
 			}
 
+			let elapsed = now.elapsed();
+			println!("Funding on_idle elapsed: {:?}", elapsed);
 			max_weight.saturating_sub(remaining_weight)
 		}
 	}
