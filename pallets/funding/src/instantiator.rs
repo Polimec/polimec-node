@@ -909,9 +909,12 @@ impl<
 
 		if project_details.status == ProjectStatus::EvaluationRound {
 			let evaluation_end = project_details.phase_transition_points.evaluation.end().unwrap();
-			let auction_start = evaluation_end.saturating_add(2u32.into());
-			let blocks_to_start = auction_start.saturating_sub(self.current_block());
-			self.advance_time(blocks_to_start).unwrap();
+			frame_system::Pallet::<T>::set_block_number(evaluation_end);
+			// run on_initialize for evaluation end
+			self.advance_time(1u32.into()).unwrap();
+			let auction_initialize_period_start =
+				self.get_project_details(project_id).phase_transition_points.auction_initialize_period.start().unwrap();
+			frame_system::Pallet::<T>::set_block_number(auction_initialize_period_start);
 		};
 
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
@@ -979,9 +982,10 @@ impl<
 			.end()
 			.expect("English end point should exist");
 
-		let candle_start = english_end + 2u32.into();
-		let current_block = self.current_block();
-		self.advance_time(candle_start.saturating_sub(current_block)).unwrap();
+		frame_system::Pallet::<T>::set_block_number(english_end);
+		// run on_initialize
+		self.advance_time(1u32.into()).unwrap();
+
 		let candle_end = self
 			.get_project_details(project_id)
 			.phase_transition_points
@@ -989,10 +993,9 @@ impl<
 			.end()
 			.expect("Candle end point should exist");
 
-		let community_start = candle_end + 2u32.into();
-
-		let current_block = self.current_block();
-		self.advance_time(community_start.saturating_sub(current_block)).unwrap();
+		frame_system::Pallet::<T>::set_block_number(candle_end);
+		// run on_initialize
+		self.advance_time(1u32.into()).unwrap();
 
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::CommunityRound);
 
@@ -1119,7 +1122,8 @@ impl<
 			.expect("Community funding end point should exist");
 		let remainder_start = community_funding_end + 1u32.into();
 		let current_block = self.current_block();
-		self.advance_time(remainder_start.saturating_sub(current_block)).unwrap();
+		frame_system::Pallet::<T>::set_block_number(remainder_start - One::one());
+		self.advance_time(1u32.into()).unwrap();
 		match self.get_project_details(project_id).status {
 			ProjectStatus::RemainderRound | ProjectStatus::FundingSuccessful => Ok(()),
 			_ => panic!("Bad state"),
@@ -1128,12 +1132,12 @@ impl<
 
 	pub fn finish_funding(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
 		let (update_block, _) = self.get_update_pair(project_id);
-		let current_block = self.current_block();
-		self.advance_time(update_block.saturating_sub(current_block)).unwrap();
+		frame_system::Pallet::<T>::set_block_number(update_block - One::one());
+		self.advance_time(1u32.into()).unwrap();
 		if self.get_project_details(project_id).status == ProjectStatus::RemainderRound {
 			let (end_block, _) = self.get_update_pair(project_id);
-			let current_block = self.current_block();
-			self.advance_time(end_block.saturating_sub(current_block)).unwrap();
+			frame_system::Pallet::<T>::set_block_number(end_block - 1u32.into());
+			self.advance_time(1u32.into()).unwrap();
 		}
 		let project_details = self.get_project_details(project_id);
 		assert!(

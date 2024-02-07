@@ -354,7 +354,7 @@ impl Config for TestRuntime {
 	type MaxBidsPerUser = ConstU32<4>;
 	type MaxCapacityThresholds = MaxCapacityThresholds;
 	type MaxContributionsPerUser = ConstU32<4>;
-	type MaxEvaluationsPerProject = ConstU32<4096>;
+	type MaxEvaluationsPerProject = ConstU32<2048>;
 	type MaxEvaluationsPerUser = ConstU32<4>;
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
 	type MaxProjectsToUpdateInsertionAttempts = ConstU32<100>;

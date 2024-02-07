@@ -495,7 +495,7 @@ mod benchmarks {
 		// We need to leave enough block numbers to fill `ProjectsToUpdate` before our project insertion
 		let u32_remaining_vecs: u32 = y.saturating_sub(x).into();
 		let time_advance: u32 = 1 + u32_remaining_vecs + 1;
-		inst.advance_time(time_advance.into()).unwrap();
+		frame_system::Pallet::<T>::set_block_number(time_advance.into());
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
@@ -515,7 +515,11 @@ mod benchmarks {
 		inst.advance_time(One::one()).unwrap();
 		inst.bond_for_users(project_id, evaluations).expect("All evaluations are accepted");
 
-		inst.advance_time(<T as Config>::EvaluationDuration::get() + One::one()).unwrap();
+		let (evaluation_end_block, _) = inst.get_update_pair(project_id);
+		frame_system::Pallet::<T>::set_block_number(evaluation_end_block - 1u32.into());
+		inst.advance_time(2u32.into()).unwrap();
+
+		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 
 		let current_block = inst.current_block();
 		// `do_english_auction` fn will try to add an automatic transition 1 block after the last english round block
@@ -1086,7 +1090,7 @@ mod benchmarks {
 			let u32_remaining_vecs: u32 = z.saturating_sub(y).into();
 			time_advance += u32_remaining_vecs + 1;
 		}
-		inst.advance_time(time_advance.into()).unwrap();
+		frame_system::Pallet::<T>::set_block_number(time_advance.into());
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		let contributor = account::<AccountIdOf<T>>("contributor", 0, 0);
@@ -1598,7 +1602,9 @@ mod benchmarks {
 			vec![],
 		);
 
-		inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
+		let (settlement_block, _) = inst.get_update_pair(project_id);
+		frame_system::Pallet::<T>::set_block_number(settlement_block - 1u32.into());
+		inst.advance_time(1u32.into()).unwrap();
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
@@ -1671,7 +1677,9 @@ mod benchmarks {
 			vec![],
 		);
 
-		inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
+		let (update_block, _) = inst.get_update_pair(project_id);
+		frame_system::Pallet::<T>::set_block_number(update_block - 1u32.into());
+		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
 			Cleaner::Success(CleanerState::Initialized(PhantomData))
@@ -1744,7 +1752,9 @@ mod benchmarks {
 			vec![],
 		);
 
-		inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
+		let (update_block, _) = inst.get_update_pair(project_id);
+		frame_system::Pallet::<T>::set_block_number(update_block - 1u32.into());
+		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
 			Cleaner::Success(CleanerState::Initialized(PhantomData))
@@ -1909,7 +1919,9 @@ mod benchmarks {
 			vec![],
 		);
 
-		inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
+		let (update_block, _) = inst.get_update_pair(project_id);
+		frame_system::Pallet::<T>::set_block_number(update_block - 1u32.into());
+		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
 			Cleaner::Success(CleanerState::Initialized(PhantomData))
@@ -1974,7 +1986,9 @@ mod benchmarks {
 			vec![],
 		);
 
-		inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
+		let (update_block, _) = inst.get_update_pair(project_id);
+		frame_system::Pallet::<T>::set_block_number(update_block - 1u32.into());
+		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
 			Cleaner::Success(CleanerState::Initialized(PhantomData))
@@ -2039,7 +2053,9 @@ mod benchmarks {
 			vec![],
 		);
 
-		inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
+		let (update_block, _) = inst.get_update_pair(project_id);
+		frame_system::Pallet::<T>::set_block_number(update_block - 1u32.into());
+		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
 			Cleaner::Success(CleanerState::Initialized(PhantomData))
@@ -2119,7 +2135,9 @@ mod benchmarks {
 			vec![],
 		);
 
-		inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
+		let (update_block, _) = inst.get_update_pair(project_id);
+		frame_system::Pallet::<T>::set_block_number(update_block - 1u32.into());
+		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
 			Cleaner::Success(CleanerState::Initialized(PhantomData))
@@ -2191,7 +2209,9 @@ mod benchmarks {
 			vec![],
 		);
 
-		inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
+		let (update_block, _) = inst.get_update_pair(project_id);
+		frame_system::Pallet::<T>::set_block_number(update_block - 1u32.into());
+		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
 			Cleaner::Success(CleanerState::Initialized(PhantomData))
@@ -2246,7 +2266,9 @@ mod benchmarks {
 			vec![],
 		);
 
-		inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
+		let (update_block, _) = inst.get_update_pair(project_id);
+		frame_system::Pallet::<T>::set_block_number(update_block - 1u32.into());
+		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
 			Cleaner::Success(CleanerState::Initialized(PhantomData))
@@ -2308,7 +2330,9 @@ mod benchmarks {
 			vec![],
 		);
 
-		inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
+		let (update_block, _) = inst.get_update_pair(project_id);
+		frame_system::Pallet::<T>::set_block_number(update_block - 1u32.into());
+		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
 			Cleaner::Success(CleanerState::Initialized(PhantomData))
@@ -2361,7 +2385,9 @@ mod benchmarks {
 			vec![],
 		);
 
-		inst.advance_time(<T as Config>::SuccessToSettlementTime::get()).unwrap();
+		let (update_block, _) = inst.get_update_pair(project_id);
+		frame_system::Pallet::<T>::set_block_number(update_block - 1u32.into());
+		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
 			Cleaner::Success(CleanerState::Initialized(PhantomData))
@@ -2418,7 +2444,7 @@ mod benchmarks {
 		// We need to leave enough block numbers to fill `ProjectsToUpdate` before our project insertion
 		let u32_remaining_vecs: u32 = y.saturating_sub(x).into();
 		let time_advance: u32 = 1 + u32_remaining_vecs + 1;
-		inst.advance_time(time_advance.into()).unwrap();
+		frame_system::Pallet::<T>::set_block_number(time_advance.into());
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
@@ -2918,7 +2944,9 @@ mod benchmarks {
 		inst.advance_time(One::one()).unwrap();
 		inst.bond_for_users(project_id, evaluations).expect("All evaluations are accepted");
 
-		inst.advance_time(<T as Config>::EvaluationDuration::get() + One::one()).unwrap();
+		let (evaluation_end_block, _) = inst.get_update_pair(project_id);
+		frame_system::Pallet::<T>::set_block_number(evaluation_end_block - 1u32.into());
+		inst.advance_time(One::one()).unwrap();
 
 		let current_block = inst.current_block();
 		let automatic_transition_block =
@@ -2929,12 +2957,11 @@ mod benchmarks {
 
 		fill_projects_to_update::<T>(x, block_number, None);
 
-		let now = inst.current_block();
-		inst.advance_time(automatic_transition_block - now - One::one()).unwrap();
-		let now = inst.current_block();
 		// we don't use advance time to avoid triggering on_initialize. This benchmark should only measure the extrinsic
 		// weight and not the whole on_initialize call weight
-		frame_system::Pallet::<T>::set_block_number(now + One::one());
+		frame_system::Pallet::<T>::set_block_number(automatic_transition_block);
+
+		dbg!(inst.get_project_details(project_id).status);
 
 		#[extrinsic_call]
 		start_auction(RawOrigin::Signed(issuer), project_id);
@@ -3156,8 +3183,9 @@ mod benchmarks {
 		let project_id = inst.create_auctioning_project(project_metadata, issuer.clone(), default_evaluations());
 
 		// no bids are made, so the project fails
-
-		inst.advance_time(<T as Config>::EnglishAuctionDuration::get() + One::one()).unwrap();
+		let (update_block, _) = inst.get_update_pair(project_id);
+		frame_system::Pallet::<T>::set_block_number(update_block - 1u32.into());
+		inst.advance_time(One::one()).unwrap();
 
 		let auction_candle_end_block =
 			inst.get_project_details(project_id).phase_transition_points.candle_auction.end().unwrap();

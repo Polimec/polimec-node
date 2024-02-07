@@ -575,7 +575,7 @@ impl pallet_funding::Config for Runtime {
 	type MaxCapacityThresholds = MaxCapacityThresholds;
 	type MaxContributionsPerUser = ConstU32<256>;
 	type MaxEvaluationsPerProject = ConstU32<2048>;
-	type MaxEvaluationsPerUser = ConstU32<256>;
+	type MaxEvaluationsPerUser = ConstU32<16>;
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
 	type MaxProjectsToUpdateInsertionAttempts = ConstU32<100>;
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
