@@ -1121,7 +1121,6 @@ impl<
 			.end()
 			.expect("Community funding end point should exist");
 		let remainder_start = community_funding_end + 1u32.into();
-		let current_block = self.current_block();
 		frame_system::Pallet::<T>::set_block_number(remainder_start - One::one());
 		self.advance_time(1u32.into()).unwrap();
 		match self.get_project_details(project_id).status {

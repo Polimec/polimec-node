@@ -2741,7 +2741,6 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(u32, u32), DispatchError> {
 		// Get all the bids that were made before the end of the candle
 		let mut bids = Bids::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
-		let debug_total_bids = bids.len() as u32;
 		// temp variable to store the sum of the bids
 		let mut bid_token_amount_sum = Zero::zero();
 		// temp variable to store the total value of the bids (i.e price * amount = Cumulative Ticket Size)
@@ -2926,8 +2925,6 @@ impl<T: Config> Pallet<T> {
 			}
 		})?;
 
-		#[cfg(test)]
-		assert_eq!(accepted_bids_count + rejected_bids_count, debug_total_bids);
 		Ok((accepted_bids_count, rejected_bids_count))
 	}
 

@@ -2846,7 +2846,7 @@ mod benchmarks {
 		// Instead of advancing in time for the automatic `do_evaluation_end` call in on_initialize, we call it directly to benchmark it
 		#[block]
 		{
-			Pallet::<T>::do_evaluation_end(project_id);
+			Pallet::<T>::do_evaluation_end(project_id).unwrap();
 		}
 
 		// * validity checks *
@@ -2905,7 +2905,7 @@ mod benchmarks {
 		// Instead of advancing in time for the automatic `do_evaluation_end` call in on_initialize, we call it directly to benchmark it
 		#[block]
 		{
-			Pallet::<T>::do_evaluation_end(project_id);
+			Pallet::<T>::do_evaluation_end(project_id).unwrap();
 		}
 
 		// * validity checks *
@@ -3006,7 +3006,7 @@ mod benchmarks {
 
 		#[block]
 		{
-			Pallet::<T>::do_candle_auction(project_id);
+			Pallet::<T>::do_candle_auction(project_id).unwrap();
 		}
 		// * validity checks *
 		// Storage
@@ -3199,7 +3199,7 @@ mod benchmarks {
 
 		#[block]
 		{
-			Pallet::<T>::do_community_funding(project_id);
+			Pallet::<T>::do_community_funding(project_id).unwrap();
 		}
 
 		// * validity checks *
@@ -3257,7 +3257,6 @@ mod benchmarks {
 		assert_eq!(stored_details.status, ProjectStatus::RemainderRound);
 
 		// Events
-		let current_block = inst.current_block();
 		frame_system::Pallet::<T>::assert_last_event(Event::<T>::RemainderFundingStarted { project_id }.into());
 	}
 
@@ -3561,7 +3560,7 @@ mod benchmarks {
 
 		#[block]
 		{
-			Pallet::<T>::do_project_decision(project_id, FundingOutcomeDecision::AcceptFunding);
+			Pallet::<T>::do_project_decision(project_id, FundingOutcomeDecision::AcceptFunding).unwrap();
 		}
 
 		// * validity checks *
@@ -3610,7 +3609,7 @@ mod benchmarks {
 
 		#[block]
 		{
-			Pallet::<T>::do_project_decision(project_id, FundingOutcomeDecision::RejectFunding);
+			Pallet::<T>::do_project_decision(project_id, FundingOutcomeDecision::RejectFunding).unwrap();
 		}
 
 		// * validity checks *
@@ -3638,7 +3637,7 @@ mod benchmarks {
 
 		#[block]
 		{
-			Pallet::<T>::do_start_settlement(project_id);
+			Pallet::<T>::do_start_settlement(project_id).unwrap();
 		}
 
 		// * validity checks *
@@ -3686,7 +3685,7 @@ mod benchmarks {
 
 		#[block]
 		{
-			Pallet::<T>::do_start_settlement(project_id);
+			Pallet::<T>::do_start_settlement(project_id).unwrap();
 		}
 
 		// * validity checks *
