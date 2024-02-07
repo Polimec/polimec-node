@@ -2961,8 +2961,6 @@ mod benchmarks {
 		// weight and not the whole on_initialize call weight
 		frame_system::Pallet::<T>::set_block_number(automatic_transition_block);
 
-		dbg!(inst.get_project_details(project_id).status);
-
 		#[extrinsic_call]
 		start_auction(RawOrigin::Signed(issuer), project_id);
 
@@ -3449,7 +3447,6 @@ mod benchmarks {
 	) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
-		println!("here");
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
@@ -3471,9 +3468,6 @@ mod benchmarks {
 			account::<AccountIdOf<T>>("evaluator_success", 0, 69420),
 			evaluation_target_usd,
 		));
-
-		dbg!(y);
-		dbg!(evaluations.len());
 
 		let plmc_needed_for_evaluating = BenchInstantiator::<T>::calculate_evaluation_plmc_spent(evaluations.clone());
 		let plmc_ed = evaluations.accounts().existential_deposits();
