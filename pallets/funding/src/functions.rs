@@ -977,7 +977,7 @@ impl<T: Config> Pallet<T> {
 		let ct_deposit = T::ContributionTokenCurrency::deposit_required(project_id);
 		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder)).collect::<Vec<_>>();
 
-		// benchmark variables
+		// weight return variables
 		let mut perform_bid_calls = 0;
 		let mut ct_deposit_required = false;
 		let existing_bids_amount = existing_bids.len() as u32;
@@ -1451,7 +1451,7 @@ impl<T: Config> Pallet<T> {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let ct_amount = bid.final_ct_amount;
 
-		// Benchmark variables
+		// weight return variables
 		let mut ct_account_created = false;
 
 		// * Validity checks *
@@ -1507,7 +1507,7 @@ impl<T: Config> Pallet<T> {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let ct_amount = contribution.ct_amount;
 
-		// Benchmark variables
+		// weight return variables
 		let mut ct_account_created = false;
 
 		// * Validity checks *
@@ -1619,7 +1619,7 @@ impl<T: Config> Pallet<T> {
 		let mut evaluation =
 			Evaluations::<T>::get((project_id, evaluator, evaluation_id)).ok_or(Error::<T>::EvaluationNotFound)?;
 
-		// Benchmark variables
+		// weight return variables
 		let mut ct_account_created = false;
 
 		// * Validity checks *
