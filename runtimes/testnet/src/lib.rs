@@ -158,7 +158,7 @@ impl SetPrices for SetOraclePrices {
 		let dot = (AcceptedFundingAsset::DOT.to_assethub_id(), FixedU128::from_rational(69, 1));
 		let usdc = (AcceptedFundingAsset::USDT.to_assethub_id(), FixedU128::from_rational(1, 1));
 		let usdt = (AcceptedFundingAsset::USDT.to_assethub_id(), FixedU128::from_rational(1, 1));
-		let plmc = (pallet_funding::PLMC_STATEMINT_ID, FixedU128::from_rational(840, 100));
+		let plmc = (pallet_funding::PLMC_FOREIGN_ID, FixedU128::from_rational(840, 100));
 
 		let values: BoundedVec<(u32, FixedU128), <Runtime as orml_oracle::Config>::MaxFeedValues> =
 			vec![dot, usdc, usdt, plmc].try_into().expect("benchmarks can panic");

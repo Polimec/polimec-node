@@ -229,6 +229,7 @@ fn base_testnet_genesis(
 			blocks_per_round: BLOCKS_PER_ROUND,
 			num_selected_candidates: NUM_SELECTED_CANDIDATES,
 		},
+		foreign_assets: Default::default(),
 		aura: Default::default(),
 		aura_ext: Default::default(),
 		parachain_system: Default::default(),

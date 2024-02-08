@@ -28,7 +28,7 @@ pub trait VestingDurationCalculation {
 	fn calculate_vesting_duration<T: Config>(&self) -> BlockNumberFor<T>;
 }
 
-pub trait ProvideStatemintPrice {
+pub trait ProvideAssetPrice {
 	type AssetId;
 	type Price: FixedPointNumber;
 	fn get_price(asset_id: Self::AssetId) -> Option<Self::Price>;

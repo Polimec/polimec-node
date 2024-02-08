@@ -39,7 +39,7 @@ use super::*;
 use crate::{
 	instantiator::*,
 	mock::*,
-	traits::{ProvideStatemintPrice, VestingDurationCalculation},
+	traits::{ProvideAssetPrice, VestingDurationCalculation},
 	CurrencyMetadata, Error, ParticipantsSize, ProjectMetadata, TicketSize,
 	UpdateType::{CommunityFundingStart, RemainderFundingStart},
 };
@@ -76,7 +76,7 @@ const BUYER_7: AccountId = 46;
 
 const ASSET_UNIT: u128 = 10_u128.pow(10u32);
 
-const USDT_STATEMINT_ID: crate::mock::AssetId = 1984u32;
+const USDT_FOREIGN_ID: crate::mock::AssetId = 1984u32;
 const USDT_UNIT: u128 = 10_000_000_000_u128;
 
 pub const US_DOLLAR: u128 = 1_0_000_000_000;
@@ -418,7 +418,7 @@ mod evaluation_round_success {
 		inst.mint_plmc_to(plmc_deposits);
 		inst.mint_plmc_to(existential_deposits);
 		inst.mint_plmc_to(ct_account_deposits);
-		inst.mint_statemint_asset_to(funding_deposits);
+		inst.mint_foreign_asset_to(funding_deposits);
 
 		inst.contribute_for_users(project_id, contributions).unwrap();
 		inst.finish_funding(project_id).unwrap();
@@ -746,7 +746,7 @@ mod auction_round_success {
 			evaluator_bidder,
 			necessary_plmc_for_bid - usable_evaluation_plmc,
 		)]);
-		inst.mint_statemint_asset_to(necessary_usdt_for_bid);
+		inst.mint_foreign_asset_to(necessary_usdt_for_bid);
 
 		inst.bid_for_users(project_id, vec![evaluator_bid]).unwrap();
 	}
@@ -778,7 +778,7 @@ mod auction_round_success {
 		let plmc_available_for_participation =
 			evaluation_bond - <TestRuntime as Config>::EvaluatorSlash::get() * evaluation_bond;
 
-		let evaluation_usd_amount = <TestRuntime as Config>::PriceProvider::get_price(PLMC_STATEMINT_ID)
+		let evaluation_usd_amount = <TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID)
 			.unwrap()
 			.saturating_mul_int(evaluation_bond);
 		evaluations.push(UserToUSDBalance::new(evaluator_bidder, evaluation_usd_amount));
@@ -789,8 +789,8 @@ mod auction_round_success {
 			evaluator_bidder,
 			evaluation_bond - plmc_available_for_participation,
 		)]);
-		inst.mint_statemint_asset_to(fill_necessary_usdt_for_bids);
-		inst.mint_statemint_asset_to(bid_necessary_usdt);
+		inst.mint_foreign_asset_to(fill_necessary_usdt_for_bids);
+		inst.mint_foreign_asset_to(bid_necessary_usdt);
 
 		inst.bid_for_users(project_id, bids).unwrap();
 		inst.bid_for_users(project_id, vec![evaluator_bid]).unwrap();
@@ -821,13 +821,13 @@ mod auction_round_success {
 			1u8,
 			AcceptedFundingAsset::USDT,
 		)];
-		let statemint_funding = MockInstantiator::calculate_auction_funding_asset_spent(&bids, None);
+		let foreign_funding = MockInstantiator::calculate_auction_funding_asset_spent(&bids, None);
 		let plmc_funding = MockInstantiator::calculate_auction_plmc_spent(&bids, None);
 		let ed_funding = plmc_funding.accounts().existential_deposits();
 
 		inst.mint_plmc_to(ed_funding);
 		inst.mint_plmc_to(plmc_funding);
-		inst.mint_statemint_asset_to(statemint_funding);
+		inst.mint_foreign_asset_to(foreign_funding);
 
 		inst.bid_for_users(project_id, bids).unwrap();
 
@@ -852,7 +852,7 @@ mod auction_round_success {
 			BidParams::new(BIDDER_3, 35_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
 		];
 
-		let statemint_funding = MockInstantiator::calculate_auction_funding_asset_spent(&bids, None);
+		let foreign_funding = MockInstantiator::calculate_auction_funding_asset_spent(&bids, None);
 		let plmc_funding = MockInstantiator::calculate_auction_plmc_spent(&bids, None);
 		let ed_funding = plmc_funding.accounts().existential_deposits();
 		let ct_account_deposits = plmc_funding.accounts().ct_account_deposits();
@@ -860,7 +860,7 @@ mod auction_round_success {
 		inst.mint_plmc_to(ed_funding);
 		inst.mint_plmc_to(plmc_funding);
 		inst.mint_plmc_to(ct_account_deposits);
-		inst.mint_statemint_asset_to(statemint_funding);
+		inst.mint_foreign_asset_to(foreign_funding);
 
 		inst.bid_for_users(project_id, bids).unwrap();
 
@@ -905,7 +905,7 @@ mod auction_round_success {
 		);
 		let plmc_necessary_funding =
 			MockInstantiator::calculate_auction_plmc_spent(&vec![bid_info.clone()], None)[0].plmc_amount;
-		let statemint_asset_necessary_funding =
+		let foreign_asset_necessary_funding =
 			MockInstantiator::calculate_auction_funding_asset_spent(&vec![bid_info.clone()], None)[0].asset_amount;
 
 		let mut bids_made: Vec<BidParams<TestRuntime>> = vec![];
@@ -921,9 +921,9 @@ mod auction_round_success {
 			inst.mint_plmc_to(vec![bidding_account].existential_deposits());
 			inst.mint_plmc_to(vec![bidding_account].ct_account_deposits());
 
-			inst.mint_statemint_asset_to(vec![UserToStatemintAsset::new(
+			inst.mint_foreign_asset_to(vec![UserToForeignAssets::new(
 				bidding_account,
-				statemint_asset_necessary_funding,
+				foreign_asset_necessary_funding,
 				bid_info.asset.to_assethub_id(),
 			)]);
 			let bids: Vec<BidParams<_>> = vec![BidParams {
@@ -1411,7 +1411,7 @@ mod auction_round_success {
 		inst.mint_plmc_to(bidders_ct_account_deposits);
 
 		let bidders_funding_assets = MockInstantiator::calculate_auction_funding_asset_spent(&bids, None);
-		inst.mint_statemint_asset_to(bidders_funding_assets);
+		inst.mint_foreign_asset_to(bidders_funding_assets);
 
 		inst.bid_for_users(project_id, bids).unwrap();
 
@@ -1427,7 +1427,7 @@ mod auction_round_success {
 
 		let contributors_funding_assets =
 			MockInstantiator::calculate_contributed_funding_asset_spent(community_contributions.clone(), final_price);
-		inst.mint_statemint_asset_to(contributors_funding_assets);
+		inst.mint_foreign_asset_to(contributors_funding_assets);
 
 		inst.contribute_for_users(project_id, community_contributions).unwrap();
 		inst.finish_funding(project_id).unwrap();
@@ -1491,22 +1491,22 @@ mod auction_round_success {
 		let final_bid_payouts = inst.execute(|| {
 			Bids::<TestRuntime>::iter_prefix_values((project_id,))
 				.map(|bid| {
-					UserToStatemintAsset::<TestRuntime>::new(
+					UserToForeignAssets::<TestRuntime>::new(
 						bid.bidder,
 						bid.funding_asset_amount_locked,
 						bid.funding_asset.to_assethub_id(),
 					)
 				})
 				.sorted_by_key(|item| item.account)
-				.collect::<Vec<UserToStatemintAsset<_>>>()
+				.collect::<Vec<UserToForeignAssets<_>>>()
 		});
 		let total_expected_bid_payout =
 			final_bid_payouts.iter().map(|bid| bid.asset_amount).sum::<BalanceOf<TestRuntime>>();
 
 		let prev_issuer_funding_balance =
-			inst.get_free_statemint_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
+			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
 		let prev_bidders_funding_balances =
-			inst.get_free_statemint_asset_balances_for(final_bid_payouts[0].asset_id, final_bid_payouts.accounts());
+			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, final_bid_payouts.accounts());
 		let prev_total_bidder_balance =
 			prev_bidders_funding_balances.iter().map(|item| item.asset_amount).sum::<BalanceOf<TestRuntime>>();
 
@@ -1524,12 +1524,12 @@ mod auction_round_success {
 		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Failure(CleanerState::Finished(PhantomData)));
 
 		let post_issuer_funding_balance =
-			inst.get_free_statemint_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
+			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
 		let post_bidders_funding_balances =
-			inst.get_free_statemint_asset_balances_for(final_bid_payouts[0].asset_id, final_bid_payouts.accounts());
+			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, final_bid_payouts.accounts());
 		let post_total_bidder_balance =
 			post_bidders_funding_balances.iter().map(|item| item.asset_amount).sum::<BalanceOf<TestRuntime>>();
-		let post_project_pot_funding_balance = inst.get_free_statemint_asset_balances_for(
+		let post_project_pot_funding_balance = inst.get_free_foreign_asset_balances_for(
 			final_bid_payouts[0].asset_id,
 			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
 		)[0]
@@ -1574,22 +1574,22 @@ mod auction_round_success {
 		let final_bid_payouts = inst.execute(|| {
 			Bids::<TestRuntime>::iter_prefix_values((project_id,))
 				.map(|bid| {
-					UserToStatemintAsset::<TestRuntime>::new(
+					UserToForeignAssets::<TestRuntime>::new(
 						bid.bidder,
 						bid.funding_asset_amount_locked,
 						bid.funding_asset.to_assethub_id(),
 					)
 				})
 				.sorted_by_key(|item| item.account)
-				.collect::<Vec<UserToStatemintAsset<_>>>()
+				.collect::<Vec<UserToForeignAssets<_>>>()
 		});
 		let total_expected_bid_payout =
 			final_bid_payouts.iter().map(|bid| bid.asset_amount).sum::<BalanceOf<TestRuntime>>();
 
 		let prev_issuer_funding_balance =
-			inst.get_free_statemint_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
+			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
 		let prev_bidders_funding_balances =
-			inst.get_free_statemint_asset_balances_for(final_bid_payouts[0].asset_id, final_bid_payouts.accounts());
+			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, final_bid_payouts.accounts());
 		let prev_total_bidder_balance =
 			prev_bidders_funding_balances.iter().map(|item| item.asset_amount).sum::<BalanceOf<TestRuntime>>();
 
@@ -1620,12 +1620,12 @@ mod auction_round_success {
 		}
 
 		let post_issuer_funding_balance =
-			inst.get_free_statemint_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
+			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
 		let post_bidders_funding_balances =
-			inst.get_free_statemint_asset_balances_for(final_bid_payouts[0].asset_id, final_bid_payouts.accounts());
+			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, final_bid_payouts.accounts());
 		let post_total_bidder_balance =
 			post_bidders_funding_balances.iter().map(|item| item.asset_amount).sum::<BalanceOf<TestRuntime>>();
-		let post_project_pot_funding_balance = inst.get_free_statemint_asset_balances_for(
+		let post_project_pot_funding_balance = inst.get_free_foreign_asset_balances_for(
 			final_bid_payouts[0].asset_id,
 			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
 		)[0]
@@ -1854,13 +1854,13 @@ mod auction_round_failure {
 		// Existential deposit on DAVE
 		plmc_fundings.push(UserToPLMCBalance::new(DAVE, MockInstantiator::get_ed()));
 
-		let statemint_asset_fundings = MockInstantiator::calculate_auction_funding_asset_spent(&bids, None);
+		let foreign_asset_fundings = MockInstantiator::calculate_auction_funding_asset_spent(&bids, None);
 
 		// Fund enough for all PLMC bonds for the bids (multiplier of 1)
 		inst.mint_plmc_to(plmc_fundings);
 
 		// Fund enough for all bids
-		inst.mint_statemint_asset_to(statemint_asset_fundings);
+		inst.mint_foreign_asset_to(foreign_asset_fundings);
 
 		inst.bid_for_users(project_id, bids).expect("Bids should pass");
 
@@ -1939,7 +1939,7 @@ mod auction_round_failure {
 		inst.mint_plmc_to(plmc_fundings.clone());
 		inst.mint_plmc_to(plmc_existential_amounnts.clone());
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
-		inst.mint_statemint_asset_to(usdt_fundings.clone());
+		inst.mint_foreign_asset_to(usdt_fundings.clone());
 
 		inst.bid_for_users(project_id, vec![glutton_bid_1, rejected_bid, glutton_bid_2]).expect("Bids should pass");
 
@@ -1954,14 +1954,14 @@ mod auction_round_failure {
 			],
 			HoldReason::Participation(project_id).into(),
 		);
-		inst.do_bid_transferred_statemint_asset_assertions(
+		inst.do_bid_transferred_foreign_asset_assertions(
 			vec![
-				UserToStatemintAsset::<TestRuntime>::new(
+				UserToForeignAssets::<TestRuntime>::new(
 					BIDDER_1,
 					usdt_fundings[0].asset_amount + usdt_fundings[2].asset_amount,
 					AcceptedFundingAsset::USDT.to_assethub_id(),
 				),
-				UserToStatemintAsset::<TestRuntime>::new(
+				UserToForeignAssets::<TestRuntime>::new(
 					BIDDER_2,
 					usdt_fundings[1].asset_amount,
 					AcceptedFundingAsset::USDT.to_assethub_id(),
@@ -1996,14 +1996,14 @@ mod auction_round_failure {
 			HoldReason::Participation(project_id).into(),
 		);
 
-		inst.do_bid_transferred_statemint_asset_assertions(
+		inst.do_bid_transferred_foreign_asset_assertions(
 			vec![
-				UserToStatemintAsset::new(
+				UserToForeignAssets::new(
 					BIDDER_1,
 					usdt_fundings_after_round[0].asset_amount + usdt_fundings_after_round[2].asset_amount,
 					AcceptedFundingAsset::USDT.to_assethub_id(),
 				),
-				UserToStatemintAsset::new(BIDDER_2, 0, AcceptedFundingAsset::USDT.to_assethub_id()),
+				UserToForeignAssets::new(BIDDER_2, 0, AcceptedFundingAsset::USDT.to_assethub_id()),
 			],
 			project_id,
 		);
@@ -2027,7 +2027,7 @@ mod auction_round_failure {
 		inst.mint_plmc_to(plmc_fundings.clone());
 		inst.mint_plmc_to(plmc_existential_amounts.clone());
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
-		inst.mint_statemint_asset_to(usdt_fundings.clone());
+		inst.mint_foreign_asset_to(usdt_fundings.clone());
 
 		inst.bid_for_users(project_id, vec![bid_in]).expect("Bids should pass");
 		inst.advance_time(
@@ -2050,14 +2050,14 @@ mod auction_round_failure {
 			],
 			HoldReason::Participation(project_id).into(),
 		);
-		inst.do_bid_transferred_statemint_asset_assertions(
+		inst.do_bid_transferred_foreign_asset_assertions(
 			vec![
-				UserToStatemintAsset::<TestRuntime>::new(
+				UserToForeignAssets::<TestRuntime>::new(
 					BIDDER_1,
 					usdt_fundings[0].asset_amount,
 					AcceptedFundingAsset::USDT.to_assethub_id(),
 				),
-				UserToStatemintAsset::<TestRuntime>::new(
+				UserToForeignAssets::<TestRuntime>::new(
 					BIDDER_2,
 					usdt_fundings[1].asset_amount,
 					AcceptedFundingAsset::USDT.to_assethub_id(),
@@ -2076,14 +2076,14 @@ mod auction_round_failure {
 			HoldReason::Participation(project_id).into(),
 		);
 
-		inst.do_bid_transferred_statemint_asset_assertions(
+		inst.do_bid_transferred_foreign_asset_assertions(
 			vec![
-				UserToStatemintAsset::<TestRuntime>::new(
+				UserToForeignAssets::<TestRuntime>::new(
 					BIDDER_1,
 					usdt_fundings[0].asset_amount,
 					AcceptedFundingAsset::USDT.to_assethub_id(),
 				),
-				UserToStatemintAsset::<TestRuntime>::new(BIDDER_2, 0, AcceptedFundingAsset::USDT.to_assethub_id()),
+				UserToForeignAssets::<TestRuntime>::new(BIDDER_2, 0, AcceptedFundingAsset::USDT.to_assethub_id()),
 			],
 			project_id,
 		);
@@ -2225,13 +2225,13 @@ mod community_round_success {
 		let plmc_funding = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), token_price);
 		let plmc_existential_deposit = plmc_funding.accounts().existential_deposits();
 		let plmc_ct_account_deposits = plmc_funding.accounts().ct_account_deposits();
-		let statemint_funding =
+		let foreign_funding =
 			MockInstantiator::calculate_contributed_funding_asset_spent(contributions.clone(), token_price);
 
 		inst.mint_plmc_to(plmc_funding);
 		inst.mint_plmc_to(plmc_existential_deposit);
 		inst.mint_plmc_to(plmc_ct_account_deposits);
-		inst.mint_statemint_asset_to(statemint_funding);
+		inst.mint_foreign_asset_to(foreign_funding);
 
 		inst.contribute_for_users(project_id, vec![contributions[0].clone()])
 			.expect("The Buyer should be able to buy multiple times");
@@ -2270,13 +2270,13 @@ mod community_round_success {
 		let plmc_fundings = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 		let plmc_existential_deposits = plmc_fundings.accounts().existential_deposits();
 		let plmc_ct_account_deposits = plmc_fundings.accounts().ct_account_deposits();
-		let statemint_asset_fundings =
+		let foreign_asset_fundings =
 			MockInstantiator::calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
 
 		inst.mint_plmc_to(plmc_fundings.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
-		inst.mint_statemint_asset_to(statemint_asset_fundings.clone());
+		inst.mint_foreign_asset_to(foreign_asset_fundings.clone());
 
 		// Buy remaining CTs
 		inst.contribute_for_users(project_id, contributions)
@@ -2293,13 +2293,13 @@ mod community_round_success {
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
 
 		inst.do_free_plmc_assertions(plmc_existential_deposits);
-		inst.do_free_statemint_asset_assertions(vec![UserToStatemintAsset::<TestRuntime>::new(
+		inst.do_free_foreign_asset_assertions(vec![UserToForeignAssets::<TestRuntime>::new(
 			BOB,
 			0_u128,
 			AcceptedFundingAsset::USDT.to_assethub_id(),
 		)]);
 		inst.do_reserved_plmc_assertions(vec![plmc_fundings[0].clone()], HoldReason::Participation(project_id).into());
-		inst.do_contribution_transferred_statemint_asset_assertions(statemint_asset_fundings, project_id);
+		inst.do_contribution_transferred_foreign_asset_assertions(foreign_asset_fundings, project_id);
 	}
 
 	#[test]
@@ -2321,13 +2321,13 @@ mod community_round_success {
 		let mut plmc_fundings = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 		let plmc_existential_deposits = plmc_fundings.accounts().existential_deposits();
 		let plmc_ct_account_deposits = plmc_fundings.accounts().ct_account_deposits();
-		let mut statemint_asset_fundings =
+		let mut foreign_asset_fundings =
 			MockInstantiator::calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
 
 		inst.mint_plmc_to(plmc_fundings.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
-		inst.mint_statemint_asset_to(statemint_asset_fundings.clone());
+		inst.mint_foreign_asset_to(foreign_asset_fundings.clone());
 
 		// Buy remaining CTs
 		inst.contribute_for_users(project_id, contributions)
@@ -2348,22 +2348,22 @@ mod community_round_success {
 		let _remaining_plmc: BalanceOf<TestRuntime> =
 			plmc_fundings.iter().fold(0_u128, |acc, item| acc + item.plmc_amount);
 
-		let actual_funding_transferred = statemint_asset_fundings.swap_remove(0).asset_amount;
-		let remaining_statemint_assets: BalanceOf<TestRuntime> =
-			statemint_asset_fundings.iter().fold(0_u128, |acc, item| acc + item.asset_amount);
+		let actual_funding_transferred = foreign_asset_fundings.swap_remove(0).asset_amount;
+		let remaining_foreign_assets: BalanceOf<TestRuntime> =
+			foreign_asset_fundings.iter().fold(0_u128, |acc, item| acc + item.asset_amount);
 
 		inst.do_free_plmc_assertions(plmc_existential_deposits);
-		inst.do_free_statemint_asset_assertions(vec![UserToStatemintAsset::<TestRuntime>::new(
+		inst.do_free_foreign_asset_assertions(vec![UserToForeignAssets::<TestRuntime>::new(
 			BOB,
-			remaining_statemint_assets,
+			remaining_foreign_assets,
 			AcceptedFundingAsset::USDT.to_assethub_id(),
 		)]);
 		inst.do_reserved_plmc_assertions(
 			vec![UserToPLMCBalance::new(BOB, reserved_plmc)],
 			HoldReason::Participation(project_id).into(),
 		);
-		inst.do_contribution_transferred_statemint_asset_assertions(
-			vec![UserToStatemintAsset::<TestRuntime>::new(
+		inst.do_contribution_transferred_foreign_asset_assertions(
+			vec![UserToForeignAssets::<TestRuntime>::new(
 				BOB,
 				actual_funding_transferred,
 				AcceptedFundingAsset::USDT.to_assethub_id(),
@@ -2397,14 +2397,14 @@ mod community_round_success {
 		let plmc_existential_deposits = plmc_funding.accounts().existential_deposits();
 		let plmc_ct_account_deposits = plmc_funding.accounts().ct_account_deposits();
 
-		let statemint_funding =
+		let foreign_funding =
 			MockInstantiator::calculate_contributed_funding_asset_spent(contributions.clone(), token_price);
 
 		inst.mint_plmc_to(plmc_funding.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 
-		inst.mint_statemint_asset_to(statemint_funding.clone());
+		inst.mint_foreign_asset_to(foreign_funding.clone());
 
 		// Reach the limit of contributions for a user-project
 		inst.contribute_for_users(project_id, contributions).unwrap();
@@ -2412,11 +2412,11 @@ mod community_round_success {
 		// Check that the right amount of PLMC is bonded, and funding currency is transferred
 		let contributor_post_buy_plmc_balance =
 			inst.execute(|| <TestRuntime as Config>::NativeCurrency::balance(&CONTRIBUTOR));
-		let contributor_post_buy_statemint_asset_balance =
-			inst.execute(|| <TestRuntime as Config>::FundingCurrency::balance(USDT_STATEMINT_ID, CONTRIBUTOR));
+		let contributor_post_buy_foreign_asset_balance =
+			inst.execute(|| <TestRuntime as Config>::FundingCurrency::balance(USDT_FOREIGN_ID, CONTRIBUTOR));
 
 		assert_eq!(contributor_post_buy_plmc_balance, MockInstantiator::get_ed());
-		assert_eq!(contributor_post_buy_statemint_asset_balance, 0);
+		assert_eq!(contributor_post_buy_foreign_asset_balance, 0);
 
 		let plmc_bond_stored = inst.execute(|| {
 			<TestRuntime as Config>::NativeCurrency::balance_on_hold(
@@ -2424,7 +2424,7 @@ mod community_round_success {
 				&CONTRIBUTOR,
 			)
 		});
-		let statemint_asset_contributions_stored = inst.execute(|| {
+		let foreign_asset_contributions_stored = inst.execute(|| {
 			Contributions::<TestRuntime>::iter_prefix_values((project_id, CONTRIBUTOR))
 				.map(|c| c.funding_asset_amount)
 				.sum::<BalanceOf<TestRuntime>>()
@@ -2432,8 +2432,8 @@ mod community_round_success {
 
 		assert_eq!(plmc_bond_stored, MockInstantiator::sum_balance_mappings(vec![plmc_funding.clone()]));
 		assert_eq!(
-			statemint_asset_contributions_stored,
-			MockInstantiator::sum_statemint_mappings(vec![statemint_funding.clone()])
+			foreign_asset_contributions_stored,
+			MockInstantiator::sum_foreign_mappings(vec![foreign_funding.clone()])
 		);
 
 		let new_token_amount: BalanceOf<TestRuntime> = 2 * ASSET_UNIT;
@@ -2442,26 +2442,26 @@ mod community_round_success {
 
 		let new_plmc_funding =
 			MockInstantiator::calculate_contributed_plmc_spent(new_contribution.clone(), token_price);
-		let new_statemint_funding =
+		let new_foreign_funding =
 			MockInstantiator::calculate_contributed_funding_asset_spent(new_contribution.clone(), token_price);
 
 		inst.mint_plmc_to(new_plmc_funding.clone());
-		inst.mint_statemint_asset_to(new_statemint_funding.clone());
+		inst.mint_foreign_asset_to(new_foreign_funding.clone());
 
 		inst.contribute_for_users(project_id, new_contribution).unwrap();
 
 		let contributor_post_return_plmc_balance =
 			inst.execute(|| <TestRuntime as Config>::NativeCurrency::free_balance(CONTRIBUTOR));
-		let contributor_post_return_statemint_asset_balance =
-			inst.execute(|| <TestRuntime as Config>::FundingCurrency::balance(USDT_STATEMINT_ID, CONTRIBUTOR));
+		let contributor_post_return_foreign_asset_balance =
+			inst.execute(|| <TestRuntime as Config>::FundingCurrency::balance(USDT_FOREIGN_ID, CONTRIBUTOR));
 
 		assert_eq!(
 			contributor_post_return_plmc_balance,
 			contributor_post_buy_plmc_balance + plmc_funding[0].plmc_amount
 		);
 		assert_eq!(
-			contributor_post_return_statemint_asset_balance,
-			contributor_post_buy_statemint_asset_balance + statemint_funding[0].asset_amount
+			contributor_post_return_foreign_asset_balance,
+			contributor_post_buy_foreign_asset_balance + foreign_funding[0].asset_amount
 		);
 
 		let new_plmc_bond_stored = inst.execute(|| {
@@ -2470,7 +2470,7 @@ mod community_round_success {
 				&CONTRIBUTOR,
 			)
 		});
-		let new_statemint_asset_contributions_stored = inst.execute(|| {
+		let new_foreign_asset_contributions_stored = inst.execute(|| {
 			Contributions::<TestRuntime>::iter_prefix_values((project_id, CONTRIBUTOR))
 				.map(|c| c.funding_asset_amount)
 				.sum::<BalanceOf<TestRuntime>>()
@@ -2483,10 +2483,10 @@ mod community_round_success {
 		);
 
 		assert_eq!(
-			new_statemint_asset_contributions_stored,
-			statemint_asset_contributions_stored +
-				MockInstantiator::sum_statemint_mappings(vec![new_statemint_funding]) -
-				statemint_funding[0].asset_amount
+			new_foreign_asset_contributions_stored,
+			foreign_asset_contributions_stored +
+				MockInstantiator::sum_foreign_mappings(vec![new_foreign_funding]) -
+				foreign_funding[0].asset_amount
 		);
 	}
 
@@ -2514,13 +2514,13 @@ mod community_round_success {
 		let plmc_funding = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), token_price);
 		let plmc_existential_deposits = plmc_funding.accounts().existential_deposits();
 		let plmc_ct_account_deposits = plmc_funding.accounts().ct_account_deposits();
-		let statemint_funding =
+		let foreign_funding =
 			MockInstantiator::calculate_contributed_funding_asset_spent(contributions.clone(), token_price);
 
 		inst.mint_plmc_to(plmc_funding.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
-		inst.mint_statemint_asset_to(statemint_funding.clone());
+		inst.mint_foreign_asset_to(foreign_funding.clone());
 
 		// Reach the limit of contributions for a user-project
 		inst.contribute_for_users(project_id, contributions).unwrap();
@@ -2528,11 +2528,11 @@ mod community_round_success {
 		// Check that the right amount of PLMC is bonded, and funding currency is transferred
 		let contributor_post_buy_plmc_balance =
 			inst.execute(|| <TestRuntime as Config>::NativeCurrency::free_balance(CONTRIBUTOR));
-		let contributor_post_buy_statemint_asset_balance =
-			inst.execute(|| <TestRuntime as Config>::FundingCurrency::balance(USDT_STATEMINT_ID, CONTRIBUTOR));
+		let contributor_post_buy_foreign_asset_balance =
+			inst.execute(|| <TestRuntime as Config>::FundingCurrency::balance(USDT_FOREIGN_ID, CONTRIBUTOR));
 
 		assert_eq!(contributor_post_buy_plmc_balance, MockInstantiator::get_ed());
-		assert_eq!(contributor_post_buy_statemint_asset_balance, 0);
+		assert_eq!(contributor_post_buy_foreign_asset_balance, 0);
 
 		let plmc_bond_stored = inst.execute(|| {
 			<TestRuntime as Config>::NativeCurrency::balance_on_hold(
@@ -2540,7 +2540,7 @@ mod community_round_success {
 				&CONTRIBUTOR,
 			)
 		});
-		let statemint_asset_contributions_stored = inst.execute(|| {
+		let foreign_asset_contributions_stored = inst.execute(|| {
 			Contributions::<TestRuntime>::iter_prefix_values((project_id, CONTRIBUTOR))
 				.map(|c| c.funding_asset_amount)
 				.sum::<BalanceOf<TestRuntime>>()
@@ -2548,8 +2548,8 @@ mod community_round_success {
 
 		assert_eq!(plmc_bond_stored, MockInstantiator::sum_balance_mappings(vec![plmc_funding.clone()]));
 		assert_eq!(
-			statemint_asset_contributions_stored,
-			MockInstantiator::sum_statemint_mappings(vec![statemint_funding.clone()])
+			foreign_asset_contributions_stored,
+			MockInstantiator::sum_foreign_mappings(vec![foreign_funding.clone()])
 		);
 
 		let new_token_amount: BalanceOf<TestRuntime> = 10 * ASSET_UNIT;
@@ -2558,26 +2558,26 @@ mod community_round_success {
 
 		let new_plmc_funding =
 			MockInstantiator::calculate_contributed_plmc_spent(new_contribution.clone(), token_price);
-		let new_statemint_funding =
+		let new_foreign_funding =
 			MockInstantiator::calculate_contributed_funding_asset_spent(new_contribution.clone(), token_price);
 
 		inst.mint_plmc_to(new_plmc_funding.clone());
-		inst.mint_statemint_asset_to(new_statemint_funding.clone());
+		inst.mint_foreign_asset_to(new_foreign_funding.clone());
 
 		inst.contribute_for_users(project_id, new_contribution).unwrap();
 
 		let contributor_post_return_plmc_balance =
 			inst.execute(|| <TestRuntime as Config>::NativeCurrency::free_balance(CONTRIBUTOR));
-		let contributor_post_return_statemint_asset_balance =
-			inst.execute(|| <TestRuntime as Config>::FundingCurrency::balance(USDT_STATEMINT_ID, CONTRIBUTOR));
+		let contributor_post_return_foreign_asset_balance =
+			inst.execute(|| <TestRuntime as Config>::FundingCurrency::balance(USDT_FOREIGN_ID, CONTRIBUTOR));
 
 		assert_eq!(
 			contributor_post_return_plmc_balance,
 			contributor_post_buy_plmc_balance + plmc_funding[0].plmc_amount
 		);
 		assert_eq!(
-			contributor_post_return_statemint_asset_balance,
-			contributor_post_buy_statemint_asset_balance + statemint_funding[0].asset_amount
+			contributor_post_return_foreign_asset_balance,
+			contributor_post_buy_foreign_asset_balance + foreign_funding[0].asset_amount
 		);
 
 		let new_plmc_bond_stored = inst.execute(|| {
@@ -2586,7 +2586,7 @@ mod community_round_success {
 				&CONTRIBUTOR,
 			)
 		});
-		let new_statemint_asset_contributions_stored = inst.execute(|| {
+		let new_foreign_asset_contributions_stored = inst.execute(|| {
 			Contributions::<TestRuntime>::iter_prefix_values((project_id, CONTRIBUTOR))
 				.map(|c| c.funding_asset_amount)
 				.sum::<BalanceOf<TestRuntime>>()
@@ -2599,10 +2599,10 @@ mod community_round_success {
 		);
 
 		assert_eq!(
-			new_statemint_asset_contributions_stored,
-			statemint_asset_contributions_stored +
-				MockInstantiator::sum_statemint_mappings(vec![new_statemint_funding]) -
-				statemint_funding[0].asset_amount
+			new_foreign_asset_contributions_stored,
+			foreign_asset_contributions_stored +
+				MockInstantiator::sum_foreign_mappings(vec![new_foreign_funding]) -
+				foreign_funding[0].asset_amount
 		);
 	}
 
@@ -2637,7 +2637,7 @@ mod community_round_success {
 			evaluator_contributor,
 			necessary_plmc_for_contribution - plmc_available_for_participating,
 		)]);
-		inst.mint_statemint_asset_to(necessary_usdt_for_contribution);
+		inst.mint_foreign_asset_to(necessary_usdt_for_contribution);
 
 		inst.contribute_for_users(project_id, vec![contribution]).unwrap();
 	}
@@ -2681,7 +2681,7 @@ mod community_round_success {
 		let plmc_available_for_participating =
 			evaluation_bond - <TestRuntime as Config>::EvaluatorSlash::get() * evaluation_bond;
 
-		let evaluation_usd_amount = <TestRuntime as Config>::PriceProvider::get_price(PLMC_STATEMINT_ID)
+		let evaluation_usd_amount = <TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID)
 			.unwrap()
 			.saturating_mul_int(evaluation_bond);
 		evaluations.push(UserToUSDBalance::new(evaluator_contributor, evaluation_usd_amount));
@@ -2692,8 +2692,8 @@ mod community_round_success {
 			evaluator_contributor,
 			evaluation_bond - plmc_available_for_participating,
 		)]);
-		inst.mint_statemint_asset_to(fill_necessary_usdt);
-		inst.mint_statemint_asset_to(overflow_necessary_usdt);
+		inst.mint_foreign_asset_to(fill_necessary_usdt);
+		inst.mint_foreign_asset_to(overflow_necessary_usdt);
 
 		inst.contribute_for_users(project_id, fill_contributions).unwrap();
 		inst.contribute_for_users(project_id, vec![overflow_contribution]).unwrap();
@@ -2742,7 +2742,7 @@ mod community_round_success {
 		let necessary_usdt_for_contribution =
 			MockInstantiator::calculate_contributed_funding_asset_spent(vec![contribution.clone()], ct_price);
 
-		inst.mint_statemint_asset_to(necessary_usdt_for_contribution);
+		inst.mint_foreign_asset_to(necessary_usdt_for_contribution);
 
 		assert_matches!(inst.contribute_for_users(project_id, vec![contribution]), Err(_));
 	}
@@ -2783,7 +2783,7 @@ mod community_round_success {
 			evaluator_contributor,
 			necessary_plmc_for_contribution - plmc_available_for_participating,
 		)]);
-		inst.mint_statemint_asset_to(necessary_usdt_for_contribution);
+		inst.mint_foreign_asset_to(necessary_usdt_for_contribution);
 
 		inst.contribute_for_users(project_id, vec![contribution]).unwrap();
 		let evaluation_locked = inst
@@ -3237,7 +3237,7 @@ mod remainder_round_success {
 			evaluator_contributor,
 			necessary_plmc_for_buy - plmc_available_for_contribution,
 		)]);
-		inst.mint_statemint_asset_to(necessary_usdt_for_buy);
+		inst.mint_foreign_asset_to(necessary_usdt_for_buy);
 
 		inst.contribute_for_users(project_id, vec![remainder_contribution]).unwrap();
 	}
@@ -3281,7 +3281,7 @@ mod remainder_round_success {
 		let plmc_available_for_participating =
 			evaluation_bond - <TestRuntime as Config>::EvaluatorSlash::get() * evaluation_bond;
 
-		let evaluation_usd_amount = <TestRuntime as Config>::PriceProvider::get_price(PLMC_STATEMINT_ID)
+		let evaluation_usd_amount = <TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID)
 			.unwrap()
 			.saturating_mul_int(evaluation_bond);
 		evaluations.push(UserToUSDBalance::new(evaluator_contributor, evaluation_usd_amount));
@@ -3293,8 +3293,8 @@ mod remainder_round_success {
 			evaluator_contributor,
 			evaluation_bond - plmc_available_for_participating,
 		)]);
-		inst.mint_statemint_asset_to(fill_necessary_usdt_for_bids);
-		inst.mint_statemint_asset_to(overflow_necessary_usdt);
+		inst.mint_foreign_asset_to(fill_necessary_usdt_for_bids);
+		inst.mint_foreign_asset_to(overflow_necessary_usdt);
 
 		inst.contribute_for_users(project_id, fill_contributions).unwrap();
 		inst.contribute_for_users(project_id, vec![overflow_contribution]).unwrap();
@@ -3328,13 +3328,13 @@ mod remainder_round_success {
 		let plmc_fundings = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 		let plmc_existential_deposits = contributions.accounts().existential_deposits();
 		let plmc_ct_account_deposits = contributions.accounts().ct_account_deposits();
-		let statemint_asset_fundings =
+		let foreign_asset_fundings =
 			MockInstantiator::calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
 
 		inst.mint_plmc_to(plmc_fundings.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
-		inst.mint_statemint_asset_to(statemint_asset_fundings.clone());
+		inst.mint_foreign_asset_to(foreign_asset_fundings.clone());
 
 		// Buy remaining CTs
 		inst.contribute_for_users(project_id, contributions)
@@ -3353,13 +3353,13 @@ mod remainder_round_success {
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
 
 		inst.do_free_plmc_assertions(plmc_existential_deposits);
-		inst.do_free_statemint_asset_assertions(vec![UserToStatemintAsset::<TestRuntime>::new(
+		inst.do_free_foreign_asset_assertions(vec![UserToForeignAssets::<TestRuntime>::new(
 			BOB,
 			0_u128,
 			AcceptedFundingAsset::USDT.to_assethub_id(),
 		)]);
 		inst.do_reserved_plmc_assertions(vec![plmc_fundings[0].clone()], HoldReason::Participation(project_id).into());
-		inst.do_contribution_transferred_statemint_asset_assertions(statemint_asset_fundings, project_id);
+		inst.do_contribution_transferred_foreign_asset_assertions(foreign_asset_fundings, project_id);
 	}
 
 	#[test]
@@ -3383,13 +3383,13 @@ mod remainder_round_success {
 		let mut plmc_fundings = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 		let plmc_existential_deposits = contributions.accounts().existential_deposits();
 		let plmc_ct_account_deposits = contributions.accounts().ct_account_deposits();
-		let mut statemint_asset_fundings =
+		let mut foreign_asset_fundings =
 			MockInstantiator::calculate_contributed_funding_asset_spent(contributions.clone(), ct_price);
 
 		inst.mint_plmc_to(plmc_fundings.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
-		inst.mint_statemint_asset_to(statemint_asset_fundings.clone());
+		inst.mint_foreign_asset_to(foreign_asset_fundings.clone());
 
 		// Buy remaining CTs
 		inst.contribute_for_users(project_id, contributions)
@@ -3411,22 +3411,22 @@ mod remainder_round_success {
 		let _remaining_plmc: BalanceOf<TestRuntime> =
 			plmc_fundings.iter().fold(Zero::zero(), |acc, item| item.plmc_amount + acc);
 
-		let actual_funding_transferred = statemint_asset_fundings.swap_remove(0).asset_amount;
-		let remaining_statemint_assets: BalanceOf<TestRuntime> =
-			statemint_asset_fundings.iter().fold(Zero::zero(), |acc, item| item.asset_amount + acc);
+		let actual_funding_transferred = foreign_asset_fundings.swap_remove(0).asset_amount;
+		let remaining_foreign_assets: BalanceOf<TestRuntime> =
+			foreign_asset_fundings.iter().fold(Zero::zero(), |acc, item| item.asset_amount + acc);
 
 		inst.do_free_plmc_assertions(plmc_existential_deposits);
-		inst.do_free_statemint_asset_assertions(vec![UserToStatemintAsset::<TestRuntime>::new(
+		inst.do_free_foreign_asset_assertions(vec![UserToForeignAssets::<TestRuntime>::new(
 			BOB,
-			remaining_statemint_assets,
+			remaining_foreign_assets,
 			AcceptedFundingAsset::USDT.to_assethub_id(),
 		)]);
 		inst.do_reserved_plmc_assertions(
 			vec![UserToPLMCBalance::new(BOB, reserved_plmc)],
 			HoldReason::Participation(project_id).into(),
 		);
-		inst.do_contribution_transferred_statemint_asset_assertions(
-			vec![UserToStatemintAsset::new(
+		inst.do_contribution_transferred_foreign_asset_assertions(
+			vec![UserToForeignAssets::new(
 				BOB,
 				actual_funding_transferred,
 				AcceptedFundingAsset::USDT.to_assethub_id(),
@@ -4754,26 +4754,26 @@ mod funding_end {
 			Bids::<TestRuntime>::iter_prefix_values((project_id,))
 				.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
 				.map(|bid| {
-					UserToStatemintAsset::new(
+					UserToForeignAssets::new(
 						bid.bidder,
 						bid.funding_asset_amount_locked,
 						bid.funding_asset.to_assethub_id(),
 					)
 				})
-				.collect::<Vec<UserToStatemintAsset<TestRuntime>>>()
+				.collect::<Vec<UserToForeignAssets<TestRuntime>>>()
 		});
 		let final_contributions =
 			inst.execute(|| Contributions::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
 		let final_contribution_payouts = inst.execute(|| {
 			Contributions::<TestRuntime>::iter_prefix_values((project_id,))
 				.map(|contribution| {
-					UserToStatemintAsset::new(
+					UserToForeignAssets::new(
 						contribution.contributor,
 						contribution.funding_asset_amount,
 						contribution.funding_asset.to_assethub_id(),
 					)
 				})
-				.collect::<Vec<UserToStatemintAsset<TestRuntime>>>()
+				.collect::<Vec<UserToForeignAssets<TestRuntime>>>()
 		});
 
 		let total_expected_bid_payout =
@@ -4784,9 +4784,9 @@ mod funding_end {
 			.sum::<BalanceOf<TestRuntime>>();
 
 		let prev_issuer_funding_balance =
-			inst.get_free_statemint_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
+			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
 
-		let prev_project_pot_funding_balance = inst.get_free_statemint_asset_balances_for(
+		let prev_project_pot_funding_balance = inst.get_free_foreign_asset_balances_for(
 			final_bid_payouts[0].asset_id,
 			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
 		)[0]
@@ -4820,9 +4820,9 @@ mod funding_end {
 			.unwrap();
 		}
 		let post_issuer_funding_balance =
-			inst.get_free_statemint_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
+			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
 
-		let post_project_pot_funding_balance = inst.get_free_statemint_asset_balances_for(
+		let post_project_pot_funding_balance = inst.get_free_foreign_asset_balances_for(
 			final_bid_payouts[0].asset_id,
 			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
 		)[0]
@@ -4859,24 +4859,24 @@ mod funding_end {
 			Bids::<TestRuntime>::iter_prefix_values((project_id,))
 				.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
 				.map(|bid| {
-					UserToStatemintAsset::new(
+					UserToForeignAssets::new(
 						bid.bidder,
 						bid.funding_asset_amount_locked,
 						bid.funding_asset.to_assethub_id(),
 					)
 				})
-				.collect::<Vec<UserToStatemintAsset<TestRuntime>>>()
+				.collect::<Vec<UserToForeignAssets<TestRuntime>>>()
 		});
 		let final_contribution_payouts = inst.execute(|| {
 			Contributions::<TestRuntime>::iter_prefix_values((project_id,))
 				.map(|contribution| {
-					UserToStatemintAsset::new(
+					UserToForeignAssets::new(
 						contribution.contributor,
 						contribution.funding_asset_amount,
 						contribution.funding_asset.to_assethub_id(),
 					)
 				})
-				.collect::<Vec<UserToStatemintAsset<TestRuntime>>>()
+				.collect::<Vec<UserToForeignAssets<TestRuntime>>>()
 		});
 
 		let total_expected_bid_payout =
@@ -4887,9 +4887,9 @@ mod funding_end {
 			.sum::<BalanceOf<TestRuntime>>();
 
 		let prev_issuer_funding_balance =
-			inst.get_free_statemint_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
+			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
 
-		let prev_project_pot_funding_balance = inst.get_free_statemint_asset_balances_for(
+		let prev_project_pot_funding_balance = inst.get_free_foreign_asset_balances_for(
 			final_bid_payouts[0].asset_id,
 			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
 		)[0]
@@ -4904,9 +4904,9 @@ mod funding_end {
 		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
 
 		let post_issuer_funding_balance =
-			inst.get_free_statemint_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
+			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
 
-		let post_project_pot_funding_balance = inst.get_free_statemint_asset_balances_for(
+		let post_project_pot_funding_balance = inst.get_free_foreign_asset_balances_for(
 			final_bid_payouts[0].asset_id,
 			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
 		)[0]
@@ -4960,14 +4960,14 @@ mod funding_end {
 		let expected_bid_payouts = inst.execute(|| {
 			Bids::<TestRuntime>::iter_prefix_values((project_id,))
 				.map(|bid| {
-					UserToStatemintAsset::<TestRuntime>::new(
+					UserToForeignAssets::<TestRuntime>::new(
 						bid.bidder,
 						bid.funding_asset_amount_locked,
 						bid.funding_asset.to_assethub_id(),
 					)
 				})
 				.sorted_by_key(|bid| bid.account)
-				.collect::<Vec<UserToStatemintAsset<TestRuntime>>>()
+				.collect::<Vec<UserToForeignAssets<TestRuntime>>>()
 		});
 		let expected_community_contribution_payouts =
 			MockInstantiator::calculate_contributed_funding_asset_spent(community_contributions, final_price);
@@ -4983,10 +4983,10 @@ mod funding_end {
 		);
 
 		let prev_issuer_funding_balance =
-			inst.get_free_statemint_asset_balances_for(expected_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
+			inst.get_free_foreign_asset_balances_for(expected_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
 		let all_participants = all_expected_payouts.accounts();
 		let prev_participants_funding_balances =
-			inst.get_free_statemint_asset_balances_for(expected_bid_payouts[0].asset_id, all_participants.clone());
+			inst.get_free_foreign_asset_balances_for(expected_bid_payouts[0].asset_id, all_participants.clone());
 
 		call_and_is_ok!(
 			inst,
@@ -5001,10 +5001,10 @@ mod funding_end {
 		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Failure(CleanerState::Finished(PhantomData)));
 
 		let post_issuer_funding_balance =
-			inst.get_free_statemint_asset_balances_for(expected_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
+			inst.get_free_foreign_asset_balances_for(expected_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
 		let post_participants_funding_balances =
-			inst.get_free_statemint_asset_balances_for(expected_bid_payouts[0].asset_id, all_participants);
-		let post_project_pot_funding_balance = inst.get_free_statemint_asset_balances_for(
+			inst.get_free_foreign_asset_balances_for(expected_bid_payouts[0].asset_id, all_participants);
+		let post_project_pot_funding_balance = inst.get_free_foreign_asset_balances_for(
 			expected_bid_payouts[0].asset_id,
 			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
 		)[0]
@@ -5063,14 +5063,14 @@ mod funding_end {
 		let expected_bid_payouts = inst.execute(|| {
 			Bids::<TestRuntime>::iter_prefix_values((project_id,))
 				.map(|bid| {
-					UserToStatemintAsset::<TestRuntime>::new(
+					UserToForeignAssets::<TestRuntime>::new(
 						bid.bidder,
 						bid.funding_asset_amount_locked,
 						bid.funding_asset.to_assethub_id(),
 					)
 				})
 				.sorted_by_key(|item| item.account)
-				.collect::<Vec<UserToStatemintAsset<TestRuntime>>>()
+				.collect::<Vec<UserToForeignAssets<TestRuntime>>>()
 		});
 		let expected_community_contribution_payouts =
 			MockInstantiator::calculate_contributed_funding_asset_spent(community_contributions, final_price);
@@ -5086,10 +5086,10 @@ mod funding_end {
 		);
 
 		let prev_issuer_funding_balance =
-			inst.get_free_statemint_asset_balances_for(expected_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
+			inst.get_free_foreign_asset_balances_for(expected_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
 		let all_participants = all_expected_payouts.accounts();
 		let prev_participants_funding_balances =
-			inst.get_free_statemint_asset_balances_for(expected_bid_payouts[0].asset_id, all_participants.clone());
+			inst.get_free_foreign_asset_balances_for(expected_bid_payouts[0].asset_id, all_participants.clone());
 
 		call_and_is_ok!(
 			inst,
@@ -5135,10 +5135,10 @@ mod funding_end {
 		}
 
 		let post_issuer_funding_balance =
-			inst.get_free_statemint_asset_balances_for(expected_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
+			inst.get_free_foreign_asset_balances_for(expected_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
 		let post_participants_funding_balances =
-			inst.get_free_statemint_asset_balances_for(expected_bid_payouts[0].asset_id, all_participants);
-		let post_project_pot_funding_balance = inst.get_free_statemint_asset_balances_for(
+			inst.get_free_foreign_asset_balances_for(expected_bid_payouts[0].asset_id, all_participants);
+		let post_project_pot_funding_balance = inst.get_free_foreign_asset_balances_for(
 			expected_bid_payouts[0].asset_id,
 			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
 		)[0]
@@ -5617,7 +5617,7 @@ mod test_helper_functions {
 		const PLMC_PRICE: f64 = 8.4f64;
 
 		assert_eq!(
-			<TestRuntime as Config>::PriceProvider::get_price(PLMC_STATEMINT_ID).unwrap(),
+			<TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap(),
 			PriceOf::<TestRuntime>::from_float(PLMC_PRICE)
 		);
 
@@ -5683,7 +5683,7 @@ mod test_helper_functions {
 		const PLMC_PRICE: f64 = 8.4f64;
 
 		assert_eq!(
-			<TestRuntime as Config>::PriceProvider::get_price(PLMC_STATEMINT_ID).unwrap(),
+			<TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap(),
 			PriceOf::<TestRuntime>::from_float(PLMC_PRICE)
 		);
 
@@ -5773,7 +5773,7 @@ mod test_helper_functions {
 		const EXPECTED_PLMC_AMOUNT_5: u128 = 0_0_239_554_285_u128;
 
 		assert_eq!(
-			<TestRuntime as Config>::PriceProvider::get_price(PLMC_STATEMINT_ID).unwrap(),
+			<TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap(),
 			PriceOf::<TestRuntime>::from_float(PLMC_PRICE)
 		);
 
@@ -6153,7 +6153,7 @@ mod async_tests {
 					<TestRuntime as pallet_balances::Config>::ExistentialDeposit::get(),
 				)],
 			},
-			statemint_assets: StatemintAssetsConfig {
+			foreign_assets: ForeignAssetsConfig {
 				assets: vec![(
 					AcceptedFundingAsset::USDT.to_assethub_id(),
 					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
