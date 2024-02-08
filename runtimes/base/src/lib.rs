@@ -24,7 +24,7 @@ extern crate frame_benchmarking;
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{fungible::Credit, tokens, ConstU32, Contains, EitherOfDiverse, InstanceFilter, PrivilegeCmp},
+	traits::{fungible::{Credit, Inspect}, tokens, ConstU32, Contains, EitherOfDiverse, InstanceFilter, PrivilegeCmp},
 	weights::{ConstantMultiplier, Weight},
 };
 use frame_system::{EnsureRoot, EnsureSigned};
@@ -489,8 +489,8 @@ pub struct Electorate;
 impl GetElectorate<Balance> for Electorate {
 	fn get_electorate() -> Balance {
 		let total_issuance = Balances::total_issuance();
-		let growth_treasury_balance = Balances::free_balance(Treasury::account_id());
-		let protocol_treasury_balance = Balances::free_balance(PayMaster::get());
+		let growth_treasury_balance = Balances::balance(&Treasury::account_id());
+		let protocol_treasury_balance = Balances::balance(&PayMaster::get());
 		total_issuance.saturating_sub(growth_treasury_balance).saturating_sub(protocol_treasury_balance)
 	}
 }

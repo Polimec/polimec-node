@@ -25,7 +25,7 @@ use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime, ord_parameter_types, parameter_types,
 	traits::{
-		fungible::Credit, tokens, AsEnsureOriginWithArg, ConstU32, Currency, EitherOfDiverse, Everything, PrivilegeCmp,
+		fungible::{Credit, Inspect}, tokens, AsEnsureOriginWithArg, ConstU32, Currency, EitherOfDiverse, Everything, PrivilegeCmp,
 		WithdrawReasons,
 	},
 	weights::{ConstantMultiplier, Weight},
@@ -438,8 +438,8 @@ pub struct Electorate;
 impl GetElectorate<Balance> for Electorate {
 	fn get_electorate() -> Balance {
 		let total_issuance = Balances::total_issuance();
-		let growth_treasury_balance = Balances::free_balance(Treasury::account_id());
-		let protocol_treasury_balance = Balances::free_balance(PayMaster::get());
+		let growth_treasury_balance = Balances::balance(&Treasury::account_id());
+		let protocol_treasury_balance = Balances::balance(&PayMaster::get());
 		total_issuance.saturating_sub(growth_treasury_balance).saturating_sub(protocol_treasury_balance)
 	}
 }
