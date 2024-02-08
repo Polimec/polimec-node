@@ -3640,7 +3640,7 @@ mod benchmarks {
 
 		#[block]
 		{
-			let result = Pallet::<T>::do_start_settlement(project_id).unwrap();
+			Pallet::<T>::do_start_settlement(project_id).unwrap();
 		}
 
 		// * validity checks *

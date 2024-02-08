@@ -5,7 +5,7 @@ use crate::{
 use frame_support::{
 	pallet_prelude::*,
 	traits::{
-		fungible::{Inspect as FungibleInspect, InspectHold as FungibleInspectHold, Mutate as FungibleMutate, Mutate},
+		fungible::{Inspect as FungibleInspect, InspectHold as FungibleInspectHold, Mutate as FungibleMutate},
 		fungibles::{
 			metadata::{Inspect as MetadataInspect, MetadataDeposit},
 			roles::Inspect as RolesInspect,

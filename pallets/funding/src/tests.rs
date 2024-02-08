@@ -818,7 +818,7 @@ mod auction_round_success {
 		inst.mint_plmc_to(plmc_funding);
 		inst.mint_statemint_asset_to(statemint_funding);
 
-		inst.bid_for_users(project_id, bids);
+		inst.bid_for_users(project_id, bids).unwrap();
 
 		inst.start_community_funding(project_id).unwrap();
 	}
