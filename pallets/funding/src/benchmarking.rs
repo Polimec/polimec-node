@@ -321,8 +321,7 @@ pub fn fill_projects_to_update<T: Config>(
 		// We keep in mind that we already filled `x` amount of vecs to max capacity
 		let remaining_vecs = total_vecs_in_storage.saturating_sub(fully_filled_vecs_from_insertion);
 		if remaining_vecs > 0 {
-			// we benchmarked this with different values, and it had no impact on the weight, so we use a low value to speed up the benchmark
-			let items_per_vec = 5u32;
+			let items_per_vec = T::MaxProjectsToUpdatePerBlock::get();
 			let mut block_number: BlockNumberFor<T> = Zero::zero();
 			for _ in 0..remaining_vecs {
 				// To iterate over all expected items when looking to remove, we need to insert everything _before_ our already stored project's block_number
