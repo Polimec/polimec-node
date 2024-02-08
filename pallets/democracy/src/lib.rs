@@ -346,7 +346,7 @@ pub mod pallet {
 		/// Handler for the unbalanced reduction when slashing a preimage deposit.
 		type Slash: OnUnbalanced<CreditOf<Self>>;
 
-		/// List of treasury Accounts used for electorate calculations.
+		/// Type returning the total electorate.
 		type Electorate: GetElectorate<BalanceOf<Self>>;
 	}
 
