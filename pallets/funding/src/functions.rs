@@ -1154,7 +1154,7 @@ impl<T: Config> Pallet<T> {
 		let mut weight_round_end_flag: Option<WeightRoundEndFlag> = None;
 		let mut weight_ct_account_deposit = false;
 
-		if caller_existing_contributions.len() == 0 {
+		if caller_existing_contributions.is_empty() {
 			weight_contribution_flag = WeightContributionFlag::FirstContribution;
 		} else if caller_existing_contributions.len() < T::MaxContributionsPerUser::get() as usize {
 			weight_contribution_flag = WeightContributionFlag::SecondToLimitContribution;
