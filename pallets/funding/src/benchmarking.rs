@@ -18,8 +18,6 @@
 
 //! Benchmarking setup for Funding pallet
 
-use sp_runtime::traits::TrailingZeroInput;
-
 use super::*;
 use crate::instantiator::*;
 use frame_benchmarking::v2::*;
@@ -29,6 +27,7 @@ use frame_support::{
 	dispatch::RawOrigin,
 	traits::{
 		fungible::{InspectHold, MutateHold},
+		fungibles::metadata::MetadataDeposit,
 		OriginTrait,
 	},
 	Parameter,
@@ -41,7 +40,7 @@ use scale_info::prelude::format;
 use sp_arithmetic::Percent;
 use sp_core::H256;
 use sp_io::hashing::blake2_256;
-use sp_runtime::traits::{BlakeTwo256, Get, Member};
+use sp_runtime::traits::{BlakeTwo256, Get, Member, TrailingZeroInput};
 
 const METADATA: &str = r#"
 {
@@ -380,9 +379,13 @@ mod benchmarks {
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 		whitelist_account!(issuer);
-		inst.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), ed * 2u64.into())]);
-
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
+
+		let metadata_deposit = T::ContributionTokenCurrency::calc_metadata_deposit(
+			project_metadata.token_information.name.as_slice(),
+			project_metadata.token_information.symbol.as_slice(),
+		);
+		inst.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), ed * 2u64.into() + metadata_deposit)]);
 
 		#[extrinsic_call]
 		create(RawOrigin::Signed(issuer.clone()), project_metadata.clone());

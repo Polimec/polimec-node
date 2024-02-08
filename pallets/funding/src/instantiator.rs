@@ -337,12 +337,13 @@ impl<
 	pub fn test_ct_created_for(&mut self, project_id: ProjectId) {
 		self.execute(|| {
 			let metadata = ProjectsMetadata::<T>::get(project_id).unwrap();
-			let details = ProjectsDetails::<T>::get(project_id).unwrap();
 			assert_eq!(
 				<T as Config>::ContributionTokenCurrency::name(project_id),
 				metadata.token_information.name.to_vec()
 			);
-			assert_eq!(<T as Config>::ContributionTokenCurrency::admin(project_id).unwrap(), details.issuer);
+			let escrow_account = Pallet::<T>::fund_account_id(project_id);
+
+			assert_eq!(<T as Config>::ContributionTokenCurrency::admin(project_id).unwrap(), escrow_account);
 			assert_eq!(
 				<T as Config>::ContributionTokenCurrency::total_issuance(project_id),
 				0u32.into(),
@@ -863,11 +864,11 @@ impl<
 
 	pub fn create_new_project(&mut self, project_metadata: ProjectMetadataOf<T>, issuer: AccountIdOf<T>) -> ProjectId {
 		let now = self.current_block();
-		// one ED for the issuer, one ED for the escrow account
 		let metadata_deposit = T::ContributionTokenCurrency::calc_metadata_deposit(
 			project_metadata.token_information.name.as_slice(),
 			project_metadata.token_information.symbol.as_slice(),
 		);
+		// one ED for the issuer, one ED for the escrow account
 		self.mint_plmc_to(vec![UserToPLMCBalance::new(
 			issuer.clone(),
 			Self::get_ed() * 2u64.into() + metadata_deposit,

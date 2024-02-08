@@ -390,6 +390,7 @@ pub mod pallet {
 		type MaxProjectsToUpdatePerBlock: Get<u32>;
 
 		/// How many distinct evaluations per user per project
+		#[pallet::constant]
 		type MaxEvaluationsPerUser: Get<u32>;
 
 		/// The maximum number of bids per user per project
@@ -407,8 +408,10 @@ pub mod pallet {
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: weights::WeightInfo;
 
+		#[pallet::constant]
 		type FeeBrackets: Get<Vec<(Percent, <Self as Config>::Balance)>>;
 
+		#[pallet::constant]
 		type EvaluationSuccessThreshold: Get<Percent>;
 
 		type Vesting: polimec_common::ReleaseSchedule<
@@ -417,13 +420,19 @@ pub mod pallet {
 			Currency = Self::NativeCurrency,
 			Moment = BlockNumberFor<Self>,
 		>;
+
 		/// For now we expect 3 days until the project is automatically accepted. Timeline decided by MiCA regulations.
+		#[pallet::constant]
 		type ManualAcceptanceDuration: Get<BlockNumberFor<Self>>;
+
 		/// For now we expect 4 days from acceptance to settlement due to MiCA regulations.
+		#[pallet::constant]
 		type SuccessToSettlementTime: Get<BlockNumberFor<Self>>;
 
+		#[pallet::constant]
 		type EvaluatorSlash: Get<Percent>;
 
+		#[pallet::constant]
 		type TreasuryAccount: Get<AccountIdOf<Self>>;
 
 		/// Convert 24 hours as FixedU128, to the corresponding amount of blocks in the same type as frame_system
@@ -431,20 +440,34 @@ pub mod pallet {
 
 		type BlockNumberToBalance: Convert<BlockNumberFor<Self>, BalanceOf<Self>>;
 
+		#[pallet::constant]
 		type PolimecReceiverInfo: Get<PalletInfo>;
 
 		/// Range of max_message_size values for the hrmp config where we accept the incoming channel request
+		#[pallet::constant]
 		type MaxMessageSizeThresholds: Get<(u32, u32)>;
+
 		/// Range of max_capacity_thresholds values for the hrmp config where we accept the incoming channel request
+		#[pallet::constant]
 		type MaxCapacityThresholds: Get<(u32, u32)>;
+
 		/// max_capacity config required for the channel from polimec to the project
+		#[pallet::constant]
 		type RequiredMaxCapacity: Get<u32>;
+
 		/// max_message_size config required for the channel from polimec to the project
+		#[pallet::constant]
 		type RequiredMaxMessageSize: Get<u32>;
+
 		/// max iterations for trying to insert a project on the projects_to_update storage
+		#[pallet::constant]
 		type MaxProjectsToUpdateInsertionAttempts: Get<u32>;
+
 		/// max individual bids per project. Used to estimate worst case weight for price calculation
+		#[pallet::constant]
 		type MaxBidsPerProject: Get<u32>;
+
+		#[pallet::constant]
 		type MaxEvaluationsPerProject: Get<u32>;
 	}
 
