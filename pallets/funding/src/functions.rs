@@ -939,7 +939,7 @@ impl<T: Config> Pallet<T> {
 		Self::deposit_event(Event::FundsBonded { project_id, amount: plmc_bond, bonder: evaluator.clone() });
 
 		let existing_evaluations_count = caller_existing_evaluations.len() as u32;
-		let actual_weight = if existing_evaluations_count == 0 {
+  let actual_weight = if existing_evaluations_count.is_zero()
 			WeightInfoOf::<T>::first_evaluation()
 		} else if existing_evaluations_count < T::MaxEvaluationsPerUser::get() {
 			WeightInfoOf::<T>::second_to_limit_evaluation(existing_evaluations_count)
