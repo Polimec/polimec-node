@@ -786,7 +786,7 @@ mod benchmarks {
 		inst.mint_statemint_asset_to(usdt_for_existing_bids.clone());
 
 		// do "x" contributions for this user
-		inst.bid_for_users(project_id, existing_bids_post_bucketing.clone());
+		inst.bid_for_users(project_id, existing_bids_post_bucketing.clone()).unwrap();
 
 		// to call do_perform_bid several times, we need the bucket to reach its limit. You can only bid over 10 buckets
 		// in a single bid, since the increase delta is 10% of the total allocation, and you cannot bid more than the allocation.
@@ -824,7 +824,7 @@ mod benchmarks {
 			inst.mint_plmc_to(plmc_ct_deposit);
 			inst.mint_statemint_asset_to(usdt_for_new_bidder.clone());
 
-			inst.bid_for_users(project_id, vec![bid_params]);
+			inst.bid_for_users(project_id, vec![bid_params]).unwrap();
 
 			ct_amount = Percent::from_percent(10) *
 				(project_metadata.total_allocation_size.0 * (do_perform_bid_calls as u128).into());
@@ -3094,7 +3094,7 @@ mod benchmarks {
 		inst.mint_plmc_to(plmc_ct_account_deposit);
 		inst.mint_statemint_asset_to(funding_asset_needed_for_bids);
 
-		inst.bid_for_users(project_id, accepted_bids);
+		inst.bid_for_users(project_id, accepted_bids).unwrap();
 
 		let now = inst.current_block();
 		frame_system::Pallet::<T>::set_block_number(now + <T as Config>::EnglishAuctionDuration::get());
@@ -3128,7 +3128,7 @@ mod benchmarks {
 		inst.mint_plmc_to(plmc_ct_account_deposit);
 		inst.mint_statemint_asset_to(funding_asset_needed_for_bids);
 
-		inst.bid_for_users(project_id, rejected_bids);
+		inst.bid_for_users(project_id, rejected_bids).unwrap();
 
 		let auction_candle_end_block =
 			inst.get_project_details(project_id).phase_transition_points.candle_auction.end().unwrap();
@@ -3635,9 +3635,12 @@ mod benchmarks {
 			vec![],
 		);
 
+		// let issuer_mint = UserToPLMCBalance::<T>::new(issuer.clone(), (100 * ASSET_UNIT).into());
+		// inst.mint_plmc_to(vec![issuer_mint]);
+
 		#[block]
 		{
-			Pallet::<T>::do_start_settlement(project_id).unwrap();
+			let result = Pallet::<T>::do_start_settlement(project_id).unwrap();
 		}
 
 		// * validity checks *

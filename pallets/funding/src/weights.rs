@@ -1128,20 +1128,96 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(2))
 	}
 
-	fn end_funding_automatically_rejected_evaluators_slashed(x: u32) -> Weight {
-		Weight::from_parts(203_000_000, 0)
+	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
+	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:100 w:1)
+	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
+	/// The range of component `x` is `[1, 99]`.
+	fn end_funding_automatically_rejected_evaluators_slashed(x: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `822 + x * (529 ±0)`
+		//  Estimated: `4087 + x * (3097 ±0)`
+		// Minimum execution time: 296_000_000 picoseconds.
+		Weight::from_parts(284_006_640, 0)
+			.saturating_add(Weight::from_parts(0, 4087))
+			// Standard Error: 85_755
+			.saturating_add(Weight::from_parts(36_442_516, 0).saturating_mul(x.into()))
+			.saturating_add(T::DbWeight::get().reads(3))
+			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(x.into())))
+			.saturating_add(T::DbWeight::get().writes(2))
+			.saturating_add(Weight::from_parts(0, 3097).saturating_mul(x.into()))
 	}
-
-	fn end_funding_awaiting_decision_evaluators_slashed(x: u32) -> Weight {
-		Weight::from_parts(203_000_000, 0)
+	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
+	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:100 w:1)
+	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
+	/// The range of component `x` is `[1, 99]`.
+	fn end_funding_awaiting_decision_evaluators_slashed(x: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `822 + x * (529 ±0)`
+		//  Estimated: `4087 + x * (3097 ±0)`
+		// Minimum execution time: 233_000_000 picoseconds.
+		Weight::from_parts(213_045_370, 0)
+			.saturating_add(Weight::from_parts(0, 4087))
+			// Standard Error: 117_943
+			.saturating_add(Weight::from_parts(36_217_046, 0).saturating_mul(x.into()))
+			.saturating_add(T::DbWeight::get().reads(3))
+			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(x.into())))
+			.saturating_add(T::DbWeight::get().writes(2))
+			.saturating_add(Weight::from_parts(0, 3097).saturating_mul(x.into()))
 	}
-
-	fn end_funding_awaiting_decision_evaluators_unchanged(x: u32) -> Weight {
-		Weight::from_parts(203_000_000, 0)
+	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
+	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:100 w:1)
+	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
+	/// The range of component `x` is `[1, 99]`.
+	fn end_funding_awaiting_decision_evaluators_unchanged(x: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `822 + x * (529 ±0)`
+		//  Estimated: `4087 + x * (3097 ±0)`
+		// Minimum execution time: 236_000_000 picoseconds.
+		Weight::from_parts(245_084_435, 0)
+			.saturating_add(Weight::from_parts(0, 4087))
+			// Standard Error: 136_756
+			.saturating_add(Weight::from_parts(35_663_280, 0).saturating_mul(x.into()))
+			.saturating_add(T::DbWeight::get().reads(3))
+			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(x.into())))
+			.saturating_add(T::DbWeight::get().writes(2))
+			.saturating_add(Weight::from_parts(0, 3097).saturating_mul(x.into()))
 	}
-
-	fn end_funding_automatically_accepted_evaluators_rewarded(x: u32, y: u32) -> Weight {
-		Weight::from_parts(203_000_000, 0)
+	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
+	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::Evaluations` (r:2049 w:0)
+	/// Proof: `PolimecFunding::Evaluations` (`max_values`: None, `max_size`: Some(345), added: 2820, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:100 w:1)
+	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
+	/// The range of component `x` is `[1, 99]`.
+	/// The range of component `y` is `[1, 2048]`.
+	fn end_funding_automatically_accepted_evaluators_rewarded(x: u32, y: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1199 + x * (529 ±0) + y * (187 ±0)`
+		//  Estimated: `4087 + x * (3097 ±0) + y * (2820 ±0)`
+		// Minimum execution time: 4_119_000_000 picoseconds.
+		Weight::from_parts(4_122_000_000, 0)
+			.saturating_add(Weight::from_parts(0, 4087))
+			// Standard Error: 13_179_751
+			.saturating_add(Weight::from_parts(37_293_090, 0).saturating_mul(x.into()))
+			// Standard Error: 636_741
+			.saturating_add(Weight::from_parts(74_778_225, 0).saturating_mul(y.into()))
+			.saturating_add(T::DbWeight::get().reads(4))
+			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(x.into())))
+			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(y.into())))
+			.saturating_add(T::DbWeight::get().writes(2))
+			.saturating_add(Weight::from_parts(0, 3097).saturating_mul(x.into()))
+			.saturating_add(Weight::from_parts(0, 2820).saturating_mul(y.into()))
 	}
 }
 
@@ -2128,20 +2204,95 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(2))
 			.saturating_add(RocksDbWeight::get().writes(2))
 	}
-
-	fn end_funding_automatically_rejected_evaluators_slashed(x: u32) -> Weight {
-		Weight::from_parts(203_000_000, 0)
+	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
+	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:100 w:1)
+	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
+	/// The range of component `x` is `[1, 99]`.
+	fn end_funding_automatically_rejected_evaluators_slashed(x: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `822 + x * (529 ±0)`
+		//  Estimated: `4087 + x * (3097 ±0)`
+		// Minimum execution time: 296_000_000 picoseconds.
+		Weight::from_parts(284_006_640, 0)
+			.saturating_add(Weight::from_parts(0, 4087))
+			// Standard Error: 85_755
+			.saturating_add(Weight::from_parts(36_442_516, 0).saturating_mul(x.into()))
+			.saturating_add(RocksDbWeight::get().reads(3))
+			.saturating_add(RocksDbWeight::get().reads((1_u64).saturating_mul(x.into())))
+			.saturating_add(RocksDbWeight::get().writes(2))
+			.saturating_add(Weight::from_parts(0, 3097).saturating_mul(x.into()))
 	}
-
-	fn end_funding_awaiting_decision_evaluators_slashed(x: u32) -> Weight {
-		Weight::from_parts(203_000_000, 0)
+	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
+	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:100 w:1)
+	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
+	/// The range of component `x` is `[1, 99]`.
+	fn end_funding_awaiting_decision_evaluators_slashed(x: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `822 + x * (529 ±0)`
+		//  Estimated: `4087 + x * (3097 ±0)`
+		// Minimum execution time: 233_000_000 picoseconds.
+		Weight::from_parts(213_045_370, 0)
+			.saturating_add(Weight::from_parts(0, 4087))
+			// Standard Error: 117_943
+			.saturating_add(Weight::from_parts(36_217_046, 0).saturating_mul(x.into()))
+			.saturating_add(RocksDbWeight::get().reads(3))
+			.saturating_add(RocksDbWeight::get().reads((1_u64).saturating_mul(x.into())))
+			.saturating_add(RocksDbWeight::get().writes(2))
+			.saturating_add(Weight::from_parts(0, 3097).saturating_mul(x.into()))
 	}
-
-	fn end_funding_awaiting_decision_evaluators_unchanged(x: u32) -> Weight {
-		Weight::from_parts(203_000_000, 0)
+	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
+	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:100 w:1)
+	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
+	/// The range of component `x` is `[1, 99]`.
+	fn end_funding_awaiting_decision_evaluators_unchanged(x: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `822 + x * (529 ±0)`
+		//  Estimated: `4087 + x * (3097 ±0)`
+		// Minimum execution time: 236_000_000 picoseconds.
+		Weight::from_parts(245_084_435, 0)
+			.saturating_add(Weight::from_parts(0, 4087))
+			// Standard Error: 136_756
+			.saturating_add(Weight::from_parts(35_663_280, 0).saturating_mul(x.into()))
+			.saturating_add(RocksDbWeight::get().reads(3))
+			.saturating_add(RocksDbWeight::get().reads((1_u64).saturating_mul(x.into())))
+			.saturating_add(RocksDbWeight::get().writes(2))
+			.saturating_add(Weight::from_parts(0, 3097).saturating_mul(x.into()))
 	}
-
-	fn end_funding_automatically_accepted_evaluators_rewarded(x: u32, y: u32) -> Weight {
-		Weight::from_parts(203_000_000, 0)
+	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
+	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
+	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::Evaluations` (r:2049 w:0)
+	/// Proof: `PolimecFunding::Evaluations` (`max_values`: None, `max_size`: Some(345), added: 2820, mode: `MaxEncodedLen`)
+	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:100 w:1)
+	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
+	/// The range of component `x` is `[1, 99]`.
+	/// The range of component `y` is `[1, 2048]`.
+	fn end_funding_automatically_accepted_evaluators_rewarded(x: u32, y: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1199 + x * (529 ±0) + y * (187 ±0)`
+		//  Estimated: `4087 + x * (3097 ±0) + y * (2820 ±0)`
+		// Minimum execution time: 4_119_000_000 picoseconds.
+		Weight::from_parts(4_122_000_000, 0)
+			.saturating_add(Weight::from_parts(0, 4087))
+			// Standard Error: 13_179_751
+			.saturating_add(Weight::from_parts(37_293_090, 0).saturating_mul(x.into()))
+			// Standard Error: 636_741
+			.saturating_add(Weight::from_parts(74_778_225, 0).saturating_mul(y.into()))
+			.saturating_add(RocksDbWeight::get().reads(4))
+			.saturating_add(RocksDbWeight::get().reads((1_u64).saturating_mul(x.into())))
+			.saturating_add(RocksDbWeight::get().reads((1_u64).saturating_mul(y.into())))
+			.saturating_add(RocksDbWeight::get().writes(2))
+			.saturating_add(Weight::from_parts(0, 3097).saturating_mul(x.into()))
+			.saturating_add(Weight::from_parts(0, 2820).saturating_mul(y.into()))
 	}
 }

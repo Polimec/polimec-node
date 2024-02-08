@@ -578,7 +578,7 @@ impl pallet_funding::Config for Runtime {
 	type MaxEvaluationsPerUser = ConstU32<16>;
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
 	type MaxProjectsToUpdateInsertionAttempts = ConstU32<100>;
-	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
+	type MaxProjectsToUpdatePerBlock = ConstU32<1>;
 	type Multiplier = pallet_funding::types::Multiplier;
 	type NativeCurrency = Balances;
 	type PalletId = FundingPalletId;

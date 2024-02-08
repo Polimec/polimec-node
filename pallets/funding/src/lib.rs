@@ -337,6 +337,7 @@ pub mod pallet {
 			+ fungibles::InspectEnumerable<AccountIdOf<Self>, Balance = BalanceOf<Self>>
 			+ fungibles::metadata::Inspect<AccountIdOf<Self>>
 			+ fungibles::metadata::Mutate<AccountIdOf<Self>>
+			+ fungibles::metadata::MetadataDeposit<BalanceOf<Self>>
 			+ fungibles::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>
 			+ fungibles::roles::Inspect<AccountIdOf<Self>>
 			+ AccountTouch<ProjectId, AccountIdOf<Self>, Balance = BalanceOf<Self>>
@@ -943,6 +944,8 @@ pub mod pallet {
 		NoFutureDepositHeld,
 		/// The issuer doesn't have enough funds (ExistentialDeposit), to create the escrow account
 		NotEnoughFundsForEscrowCreation,
+		/// The issuer doesn't have enough funds to pay for the metadata of their contribution token
+		NotEnoughFundsForCTMetadata,
 		/// Too many attempts to insert project in to ProjectsToUpdate storage
 		TooManyInsertionAttempts,
 		/// Reached bid limit for this user on this project
@@ -1299,108 +1302,118 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(now: BlockNumberFor<T>) -> Weight {
 			// Get the projects that need to be updated on this block and update them
-			// use std::time::Instant;
-			// let time_now = Instant::now();
 			let mut used_weight = Weight::from_parts(0, 0);
 			for (project_id, update_type) in ProjectsToUpdate::<T>::take(now) {
-				// println!("took something");
 				match update_type {
 					// EvaluationRound -> AuctionInitializePeriod | EvaluationFailed
 					UpdateType::EvaluationEnd => {
-						used_weight.saturating_add(
+						used_weight = used_weight.saturating_add(
 							unwrap_result_or_skip!(
 								Self::do_evaluation_end(project_id),
 								project_id,
 								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
 							)
-							.calc_actual_weight(),
+							.actual_weight
+							.unwrap_or_default(),
 						);
 					},
 
 					// AuctionInitializePeriod -> AuctionRound(AuctionPhase::English)
 					// Only if it wasn't first handled by user extrinsic
 					UpdateType::EnglishAuctionStart => {
-						used_weight.saturating_add(
+						used_weight = used_weight.saturating_add(
 							unwrap_result_or_skip!(
 								Self::do_english_auction(T::PalletId::get().into_account_truncating(), project_id),
 								project_id,
 								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
 							)
-							.calc_actual_weight(),
+							.actual_weight
+							.unwrap_or_default(),
 						);
 					},
 
 					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
 					UpdateType::CandleAuctionStart => {
-						used_weight.saturating_add(
+						used_weight = used_weight.saturating_add(
 							unwrap_result_or_skip!(
 								Self::do_candle_auction(project_id),
 								project_id,
 								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
 							)
-							.calc_actual_weight(),
+							.actual_weight
+							.unwrap_or_default(),
 						);
 					},
 
 					// AuctionRound(AuctionPhase::Candle) -> CommunityRound
 					UpdateType::CommunityFundingStart => {
-						used_weight.saturating_add(
+						used_weight = used_weight.saturating_add(
 							unwrap_result_or_skip!(
 								Self::do_community_funding(project_id),
 								project_id,
 								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
 							)
-							.calc_actual_weight(),
+							.actual_weight
+							.unwrap_or_default(),
 						);
 					},
 
 					// CommunityRound -> RemainderRound
 					UpdateType::RemainderFundingStart => {
-						used_weight.saturating_add(
+						used_weight = used_weight.saturating_add(
 							unwrap_result_or_skip!(
 								Self::do_remainder_funding(project_id),
 								project_id,
 								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
 							)
-							.calc_actual_weight(),
+							.actual_weight
+							.unwrap_or_default(),
 						);
 					},
 
 					// CommunityRound || RemainderRound -> FundingEnded
 					UpdateType::FundingEnd => {
-						unwrap_result_or_skip!(
-							Self::do_end_funding(project_id),
-							project_id,
-							|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+						used_weight = used_weight.saturating_add(
+							unwrap_result_or_skip!(
+								Self::do_end_funding(project_id),
+								project_id,
+								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+							)
+							.actual_weight
+							.unwrap_or_default(),
 						);
 					},
 
 					UpdateType::ProjectDecision(decision) => {
-						unwrap_result_or_skip!(
-							Self::do_project_decision(project_id, decision),
-							project_id,
-							|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+						used_weight = used_weight.saturating_add(
+							unwrap_result_or_skip!(
+								Self::do_project_decision(project_id, decision),
+								project_id,
+								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+							)
+							.actual_weight
+							.unwrap_or_default(),
 						);
 					},
 
 					UpdateType::StartSettlement => {
-						unwrap_result_or_skip!(
-							Self::do_start_settlement(project_id),
-							project_id,
-							|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+						used_weight = used_weight.saturating_add(
+							unwrap_result_or_skip!(
+								Self::do_start_settlement(project_id),
+								project_id,
+								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+							)
+							.actual_weight
+							.unwrap_or_default(),
 						);
 					},
 				}
 			}
-			// let elapsed = time_now.elapsed();
-			// println!("Funding on_initialize elapsed: {:?}", elapsed);
-			// TODO: PLMC-127. Set a proper weight
-			Weight::from_parts(0, 0)
+
+			used_weight
 		}
 
 		fn on_idle(_now: BlockNumberFor<T>, max_weight: Weight) -> Weight {
-			// use std::time::Instant;
-			// let now = Instant::now();
 			let mut remaining_weight = max_weight;
 
 			let projects_needing_cleanup = ProjectsDetails::<T>::iter()
@@ -1444,8 +1457,6 @@ pub mod pallet {
 				}
 			}
 
-			// let elapsed = now.elapsed();
-			// println!("Funding on_idle elapsed: {:?}", elapsed);
 			max_weight.saturating_sub(remaining_weight)
 		}
 	}

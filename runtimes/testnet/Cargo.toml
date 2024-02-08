@@ -21,6 +21,9 @@ hex-literal = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 smallvec.workspace = true
 
+# Uncomment this to see variables instead of <wasm:stripped> in the console output
+#sp-debug-derive = { workspace = true, features = ["force-debug"]}
+
 # Polimec specific
 pallet-funding.workspace = true
 pallet-oracle-ocw.workspace = true

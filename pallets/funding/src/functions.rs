@@ -17,20 +17,24 @@
 // If you feel like getting in touch with us, you can do so at info@polimec.org
 
 //! Functions for the Funding pallet.
-
+use crate::ProjectStatus::FundingSuccessful;
 use frame_support::{
 	dispatch::{DispatchErrorWithPostInfo, DispatchResult, DispatchResultWithPostInfo, PostDispatchInfo},
 	ensure,
 	pallet_prelude::*,
 	traits::{
-		fungible::{InspectHold, MutateHold as FungibleMutateHold},
-		fungibles::{metadata::Mutate as MetadataMutate, Create, Inspect, Mutate as FungiblesMutate},
+		fungible::{InspectHold, Mutate, MutateHold as FungibleMutateHold},
+		fungibles::{
+			metadata::{MetadataDeposit, Mutate as MetadataMutate},
+			Create, Inspect, Mutate as FungiblesMutate,
+		},
 		tokens::{Fortitude, Precision, Preservation, Restriction},
 		Get,
 	},
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
+use polimec_common::ReleaseSchedule;
 use sp_arithmetic::{
 	traits::{CheckedDiv, CheckedSub, Zero},
 	Percent, Perquintill,
@@ -39,11 +43,7 @@ use sp_runtime::traits::{Convert, ConvertBack};
 use sp_std::{marker::PhantomData, ops::Not};
 use xcm::v3::MaxDispatchErrorLen;
 
-use crate::ProjectStatus::FundingSuccessful;
-use polimec_common::ReleaseSchedule;
-
 use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
-use frame_support::traits::fungible::Mutate;
 use polimec_common::migration_types::{MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
 
 use super::*;
@@ -132,6 +132,16 @@ impl<T: Config> Pallet<T> {
 			Preservation::Preserve,
 		)
 		.map_err(|_| Error::<T>::NotEnoughFundsForEscrowCreation)?;
+
+		// Each project needs a new token type to be created (i.e contribution token).
+		// This creation is done automatically in the project transition on success, but someone needs to pay for the storage
+		// of the metadata associated with it.
+		let metadata_deposit = T::ContributionTokenCurrency::calc_metadata_deposit(
+			initial_metadata.token_information.name.as_slice(),
+			initial_metadata.token_information.symbol.as_slice(),
+		);
+		T::NativeCurrency::transfer(&issuer, &escrow_account, metadata_deposit, Preservation::Preserve)
+			.map_err(|_| Error::<T>::NotEnoughFundsForCTMetadata)?;
 
 		// * Update storage *
 		ProjectsMetadata::<T>::insert(project_id, &initial_metadata);
@@ -838,11 +848,12 @@ impl<T: Config> Pallet<T> {
 		// * Update storage *
 		ProjectsDetails::<T>::insert(project_id, &project_details);
 
+		let escrow_account = Self::fund_account_id(project_id);
 		if project_details.status == ProjectStatus::FundingSuccessful {
-			T::ContributionTokenCurrency::create(project_id, project_details.issuer.clone(), false, 1_u32.into())?;
+			T::ContributionTokenCurrency::create(project_id, escrow_account.clone(), false, 1_u32.into())?;
 			T::ContributionTokenCurrency::set(
 				project_id,
-				&project_details.issuer,
+				&escrow_account.clone(),
 				token_information.name.into(),
 				token_information.symbol.into(),
 				token_information.decimals,

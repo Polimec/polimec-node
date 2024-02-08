@@ -18,8 +18,9 @@
 
 //! Tests for Funding pallet.
 use assert_matches2::assert_matches;
+use defaults::*;
 use frame_support::{
-	assert_noop, assert_ok,
+	assert_err, assert_noop, assert_ok,
 	traits::{
 		fungible::{Inspect as FungibleInspect, InspectHold as FungibleInspectHold},
 		Get,
@@ -27,13 +28,11 @@ use frame_support::{
 };
 use itertools::Itertools;
 use parachains_common::DAYS;
+use polimec_common::ReleaseSchedule;
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::BuildStorage;
 use sp_std::{cell::RefCell, marker::PhantomData};
 use std::{cmp::min, iter::zip};
-
-use defaults::*;
-use polimec_common::ReleaseSchedule;
 
 use super::*;
 use crate::{
@@ -698,7 +697,38 @@ mod evaluation_round_failure {
 
 	#[test]
 	fn cannot_evaluate_more_than_project_limit() {
-		todo!()
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project(0, ISSUER);
+		let evaluations = (0u32..<TestRuntime as Config>::MaxEvaluationsPerProject::get())
+			.map(|i| UserToUSDBalance::<TestRuntime>::new(i as u64 + 420u64, (10u128 * ASSET_UNIT).into()))
+			.collect_vec();
+		let failing_evaluation = UserToUSDBalance::new(EVALUATOR_1, 1000 * ASSET_UNIT);
+
+		let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER);
+
+		let plmc_for_evaluating = MockInstantiator::calculate_evaluation_plmc_spent(evaluations.clone());
+		let plmc_existential_deposits = evaluations.accounts().existential_deposits();
+		let plmc_ct_account_deposits = evaluations.accounts().ct_account_deposits();
+
+		inst.mint_plmc_to(plmc_for_evaluating.clone());
+		inst.mint_plmc_to(plmc_existential_deposits.clone());
+		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
+
+		inst.bond_for_users(project_id, evaluations.clone()).unwrap();
+
+		let plmc_for_failing_evaluating =
+			MockInstantiator::calculate_evaluation_plmc_spent(vec![failing_evaluation.clone()]);
+		let plmc_existential_deposits = plmc_for_failing_evaluating.accounts().existential_deposits();
+		let plmc_ct_account_deposits = plmc_for_failing_evaluating.accounts().ct_account_deposits();
+
+		inst.mint_plmc_to(plmc_for_failing_evaluating.clone());
+		inst.mint_plmc_to(plmc_existential_deposits.clone());
+		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
+
+		assert_err!(
+			inst.bond_for_users(project_id, vec![failing_evaluation]),
+			Error::<TestRuntime>::TooManyEvaluationsForProject
+		);
 	}
 }
 
@@ -764,7 +794,7 @@ mod auction_round_success {
 		)]);
 		inst.mint_statemint_asset_to(necessary_usdt_for_bid);
 
-		inst.bid_for_users(project_id, vec![evaluator_bid]);
+		inst.bid_for_users(project_id, vec![evaluator_bid]).unwrap();
 	}
 
 	#[test]
@@ -855,7 +885,7 @@ mod auction_round_success {
 			BidParams::new(DAMIAN, 5_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
 		];
 
-		inst.bid_for_users(project_id, bids);
+		inst.bid_for_users(project_id, bids).unwrap();
 
 		inst.start_community_funding(project_id).unwrap();
 
@@ -929,7 +959,7 @@ mod auction_round_success {
 				multiplier: bid_info.multiplier,
 				asset: bid_info.asset,
 			}];
-			inst.bid_for_users(project_id, bids.clone());
+			inst.bid_for_users(project_id, bids.clone()).unwrap();
 
 			bids_made.push(bids[0].clone());
 			bidding_account += 1;
@@ -1409,7 +1439,7 @@ mod auction_round_success {
 		let bidders_funding_assets = MockInstantiator::calculate_auction_funding_asset_spent(&bids, None);
 		inst.mint_statemint_asset_to(bidders_funding_assets);
 
-		inst.bid_for_users(project_id, bids);
+		inst.bid_for_users(project_id, bids).unwrap();
 
 		inst.start_community_funding(project_id).unwrap();
 		let final_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
@@ -1779,11 +1809,6 @@ mod auction_round_success {
 
 		assert_eq!(delta_bidders_plmc_balances, plmc_locked_for_bids);
 	}
-
-	#[test]
-	pub fn cannot_bid_more_than_project_limit_count() {
-		todo!()
-	}
 }
 
 mod auction_round_failure {
@@ -1817,6 +1842,52 @@ mod auction_round_failure {
 				Error::<TestRuntime>::AuctionNotStarted
 			);
 		});
+	}
+
+	#[test]
+	pub fn cannot_bid_more_than_project_limit_count() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project(0, ISSUER);
+		let bids = (0u32..<TestRuntime as Config>::MaxBidsPerProject::get())
+			.map(|i| {
+				BidParams::<TestRuntime>::new(
+					i as u64 + 420u64,
+					10 * ASSET_UNIT,
+					1_u128.into(),
+					1u8,
+					AcceptedFundingAsset::USDT,
+				)
+			})
+			.collect_vec();
+		let failing_bid =
+			BidParams::<TestRuntime>::new(BIDDER_1, 10 * ASSET_UNIT, 1_u128.into(), 1u8, AcceptedFundingAsset::USDT);
+
+		let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER, default_evaluations());
+
+		let plmc_for_bidding = MockInstantiator::calculate_auction_plmc_spent(&bids.clone(), None);
+		let plmc_existential_deposits = bids.accounts().existential_deposits();
+		let plmc_ct_account_deposits = bids.accounts().ct_account_deposits();
+		let usdt_for_bidding = MockInstantiator::calculate_auction_funding_asset_spent(&bids.clone(), None);
+
+		inst.mint_plmc_to(plmc_for_bidding.clone());
+		inst.mint_plmc_to(plmc_existential_deposits.clone());
+		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
+		inst.mint_statemint_asset_to(usdt_for_bidding.clone());
+
+		inst.bid_for_users(project_id, bids.clone()).unwrap();
+
+		let plmc_for_failing_bid = MockInstantiator::calculate_auction_plmc_spent(&vec![failing_bid.clone()], None);
+		let plmc_existential_deposits = plmc_for_failing_bid.accounts().existential_deposits();
+		let plmc_ct_account_deposits = plmc_for_failing_bid.accounts().ct_account_deposits();
+		let usdt_for_bidding =
+			MockInstantiator::calculate_auction_funding_asset_spent(&vec![failing_bid.clone()], None);
+
+		inst.mint_plmc_to(plmc_for_failing_bid.clone());
+		inst.mint_plmc_to(plmc_existential_deposits.clone());
+		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
+		inst.mint_statemint_asset_to(usdt_for_bidding.clone());
+
+		assert_err!(inst.bid_for_users(project_id, vec![failing_bid]), Error::<TestRuntime>::TooManyBidsForProject);
 	}
 
 	#[test]
@@ -1910,7 +1981,7 @@ mod auction_round_failure {
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 		inst.mint_statemint_asset_to(usdt_fundings.clone());
 
-		inst.bid_for_users(project_id, vec![glutton_bid_1, rejected_bid, glutton_bid_2]);
+		inst.bid_for_users(project_id, vec![glutton_bid_1, rejected_bid, glutton_bid_2]).unwrap();
 
 		inst.do_free_plmc_assertions(vec![
 			UserToPLMCBalance::new(BIDDER_1, MockInstantiator::get_ed()),
@@ -1998,7 +2069,7 @@ mod auction_round_failure {
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 		inst.mint_statemint_asset_to(usdt_fundings.clone());
 
-		inst.bid_for_users(project_id, vec![bid_in]);
+		inst.bid_for_users(project_id, vec![bid_in]).unwrap();
 		inst.advance_time(
 			<TestRuntime as Config>::EnglishAuctionDuration::get() +
 				<TestRuntime as Config>::CandleAuctionDuration::get() -
@@ -2006,7 +2077,7 @@ mod auction_round_failure {
 		)
 		.unwrap();
 
-		inst.bid_for_users(project_id, vec![bid_out]);
+		inst.bid_for_users(project_id, vec![bid_out]).unwrap();
 
 		inst.do_free_plmc_assertions(vec![
 			UserToPLMCBalance::new(BIDDER_1, MockInstantiator::get_ed()),
@@ -5850,157 +5921,7 @@ mod misc_features {
 
 mod async_tests {
 	use super::*;
-	use core::sync::atomic::Ordering;
-	use futures::FutureExt;
 	use instantiator::async_features::*;
-	use sp_std::sync::Arc;
-	use tokio::{runtime::Runtime, sync::Mutex};
-
-	#[test]
-	fn prototype_1() {
-		let tokio_runtime = Runtime::new().unwrap();
-		let inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-
-		let _inst = tokio_runtime.block_on(async {
-			let block_orchestrator = Arc::new(BlockOrchestrator::new());
-			let mutex_inst = Arc::new(Mutex::new(inst));
-
-			let controller_handle = tokio::spawn(block_controller(block_orchestrator.clone(), mutex_inst.clone()));
-
-			let project_creations = vec![
-				async_create_new_project(mutex_inst.clone(), default_project(0, ISSUER), ISSUER).boxed(),
-				async_create_evaluating_project(mutex_inst.clone(), default_project(1, ISSUER), ISSUER).boxed(),
-				async_create_auctioning_project(
-					mutex_inst.clone(),
-					block_orchestrator.clone(),
-					default_project(2, ISSUER),
-					ISSUER,
-					default_evaluations(),
-				)
-				.boxed(),
-				async_create_community_contributing_project(
-					mutex_inst.clone(),
-					block_orchestrator.clone(),
-					default_project(3, ISSUER),
-					ISSUER,
-					default_evaluations(),
-					default_bids(),
-				)
-				.map(|(project_id, _)| project_id)
-				.boxed(),
-				async_create_community_contributing_project(
-					mutex_inst.clone(),
-					block_orchestrator.clone(),
-					default_project(4, ISSUER),
-					ISSUER,
-					default_evaluations(),
-					default_bids(),
-				)
-				.map(|(project_id, _)| project_id)
-				.boxed(),
-				async_create_community_contributing_project(
-					mutex_inst.clone(),
-					block_orchestrator.clone(),
-					default_project(5, ISSUER),
-					ISSUER,
-					default_evaluations(),
-					default_bids(),
-				)
-				.map(|(project_id, _)| project_id)
-				.boxed(),
-				async_create_remainder_contributing_project(
-					mutex_inst.clone(),
-					block_orchestrator.clone(),
-					default_project(6, ISSUER),
-					ISSUER,
-					default_evaluations(),
-					default_bids(),
-					default_community_buys(),
-				)
-				.map(|(project_id, _)| project_id)
-				.boxed(),
-				async_create_remainder_contributing_project(
-					mutex_inst.clone(),
-					block_orchestrator.clone(),
-					default_project(7, ISSUER),
-					ISSUER,
-					default_evaluations(),
-					default_bids(),
-					default_community_buys(),
-				)
-				.map(|(project_id, _)| project_id)
-				.boxed(),
-				async_create_remainder_contributing_project(
-					mutex_inst.clone(),
-					block_orchestrator.clone(),
-					default_project(8, ISSUER),
-					ISSUER,
-					default_evaluations(),
-					default_bids(),
-					default_community_buys(),
-				)
-				.map(|(project_id, _)| project_id)
-				.boxed(),
-				async_create_finished_project(
-					mutex_inst.clone(),
-					block_orchestrator.clone(),
-					default_project(9, ISSUER),
-					ISSUER,
-					default_evaluations(),
-					default_bids(),
-					default_community_buys(),
-					default_remainder_buys(),
-				)
-				.boxed(),
-				async_create_finished_project(
-					mutex_inst.clone(),
-					block_orchestrator.clone(),
-					default_project(10, ISSUER),
-					ISSUER,
-					default_evaluations(),
-					default_bids(),
-					default_community_buys(),
-					default_remainder_buys(),
-				)
-				.boxed(),
-				async_create_finished_project(
-					mutex_inst.clone(),
-					block_orchestrator.clone(),
-					default_project(11, ISSUER),
-					ISSUER,
-					default_evaluations(),
-					default_bids(),
-					default_community_buys(),
-					default_remainder_buys(),
-				)
-				.boxed(),
-			];
-			// Wait for all project creation tasks to complete
-			futures::future::join_all(project_creations).await;
-
-			// Now that all projects have been set up, signal the block_controller to stop
-			block_orchestrator.should_continue.store(false, Ordering::SeqCst);
-
-			// Wait for the block controller to finish
-			controller_handle.await.unwrap();
-
-			let mut inst = mutex_inst.lock().await;
-			let events = inst.execute(|| frame_system::Pallet::<TestRuntime>::events());
-			dbg!(events);
-			dbg!(inst.get_project_details(0).status);
-			dbg!(inst.get_project_details(1).status);
-			dbg!(inst.get_project_details(2).status);
-			dbg!(inst.get_project_details(3).status);
-			dbg!(inst.get_project_details(4).status);
-			dbg!(inst.get_project_details(5).status);
-			dbg!(inst.get_project_details(6).status);
-			dbg!(inst.get_project_details(7).status);
-			dbg!(inst.get_project_details(8).status);
-			dbg!(inst.get_project_details(9).status);
-			dbg!(inst.get_project_details(10).status);
-			dbg!(inst.get_project_details(11).status);
-		});
-	}
 
 	#[test]
 	fn prototype_2() {

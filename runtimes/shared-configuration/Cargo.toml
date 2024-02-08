@@ -34,6 +34,7 @@ pallet-balances.workspace = true
 pallet-authorship.workspace = true
 pallet-parachain-staking.workspace = true
 
+
 [features]
 default = [ "std" ]
 fast-gov = []
