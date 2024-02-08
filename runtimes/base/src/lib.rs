@@ -28,6 +28,7 @@ use frame_support::{
 	weights::{ConstantMultiplier, Weight},
 };
 use frame_system::{EnsureRoot, EnsureSigned};
+use pallet_democracy::GetElectorate;
 use pallet_oracle_ocw::types::AssetName;
 use parachains_common::AssetIdForTrustBackedAssets as AssetId;
 use parity_scale_codec::Encode;
@@ -484,6 +485,16 @@ impl pallet_elections_phragmen::Config for Runtime {
 	type WeightInfo = pallet_elections_phragmen::weights::SubstrateWeight<Runtime>;
 }
 
+pub struct Electorate;
+impl GetElectorate<Balance> for Electorate {
+	fn get_electorate() -> Balance {
+		let total_issuance = Balances::total_issuance();
+		let growth_treasury_balance = Balances::free_balance(Treasury::account_id());
+		let protocol_treasury_balance = Balances::free_balance(PayMaster::get());
+		total_issuance.saturating_sub(growth_treasury_balance).saturating_sub(protocol_treasury_balance)
+	}
+}
+
 impl pallet_democracy::Config for Runtime {
 	type BlacklistOrigin = EnsureRoot<AccountId>;
 	// To cancel a proposal before it has been passed, the technical committee must be unanimous or
@@ -495,6 +506,7 @@ impl pallet_democracy::Config for Runtime {
 	// To cancel a proposal which has been passed, 2/3 of the council must agree to it.
 	type CancellationOrigin = pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 2, 3>;
 	type CooloffPeriod = CooloffPeriod;
+	type Electorate = Electorate;
 	type EnactmentPeriod = EnactmentPeriod;
 	/// A unanimous council can have the next scheduled referendum be a straight default-carries
 	/// (NTB) vote.

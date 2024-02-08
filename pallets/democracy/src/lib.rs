@@ -169,6 +169,7 @@ use sp_std::prelude::*;
 
 mod conviction;
 mod types;
+mod traits;
 mod vote;
 mod vote_threshold;
 pub mod weights;
@@ -177,6 +178,7 @@ pub use pallet::*;
 pub use types::{
 	Delegations, MetadataOwner, PropIndex, ReferendumIndex, ReferendumInfo, ReferendumStatus, Tally, UnvoteScope,
 };
+pub use traits::GetElectorate;
 pub use vote::{AccountVote, Vote, Voting};
 pub use vote_threshold::{Approved, VoteThreshold};
 pub use weights::WeightInfo;
@@ -343,6 +345,9 @@ pub mod pallet {
 
 		/// Handler for the unbalanced reduction when slashing a preimage deposit.
 		type Slash: OnUnbalanced<CreditOf<Self>>;
+
+		/// List of treasury Accounts used for electorate calculations.
+		type Electorate: GetElectorate<BalanceOf<Self>>;
 	}
 
 	/// The number of (public) proposals that have been made so far.
@@ -1516,7 +1521,7 @@ impl<T: Config> Pallet<T> {
 		index: ReferendumIndex,
 		status: ReferendumStatus<BlockNumberFor<T>, BoundedCallOf<T>, BalanceOf<T>>,
 	) -> bool {
-		let total_issuance = T::Fungible::total_issuance();
+		let total_issuance = T::Electorate::get_electorate();
 		let approved = status.threshold.approved(status.tally, total_issuance);
 
 		if approved {
