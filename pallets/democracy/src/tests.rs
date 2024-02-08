@@ -158,11 +158,19 @@ impl SortedMembers<u64> for OneToFive {
 	fn add(_m: &u64) {}
 }
 
+pub struct Electorate;
+impl GetElectorate<BalanceOf<Test>> for Electorate {
+	fn get_electorate() -> BalanceOf<Test> {
+		Balances::total_issuance()
+	}
+}
+
 impl Config for Test {
 	type BlacklistOrigin = EnsureRoot<u64>;
 	type CancelProposalOrigin = EnsureRoot<u64>;
 	type CancellationOrigin = EnsureSignedBy<Four, u64>;
 	type CooloffPeriod = ConstU64<2>;
+	type Electorate = Electorate;
 	type EnactmentPeriod = ConstU64<2>;
 	type ExternalDefaultOrigin = EnsureSignedBy<One, u64>;
 	type ExternalMajorityOrigin = EnsureSignedBy<Three, u64>;
