@@ -93,7 +93,7 @@ decl_test_parachains! {
 		pallets_extra = {
 			PolkadotXcm: polimec_parachain_runtime::PolkadotXcm,
 			LocalAssets: polimec_parachain_runtime::LocalAssets,
-			StatemintAssets: polimec_parachain_runtime::StatemintAssets,
+			ForeignAssets: polimec_parachain_runtime::ForeignAssets,
 			FundingPallet: polimec_parachain_runtime::PolimecFunding,
 		}
 	},
@@ -183,7 +183,7 @@ pub mod shortcuts {
 	pub type BaseBalances = <PolimecBase as Parachain>::Balances;
 
 	pub type PolimecLocalAssets = <Polimec as PolimecPallet>::LocalAssets;
-	pub type PolimecAssetHubAssets = <Polimec as PolimecPallet>::StatemintAssets;
+	pub type PolimecForeignAssets = <Polimec as PolimecPallet>::ForeignAssets;
 	pub type PenpalAssets = <Penpal as PenpalPallet>::Assets;
 	pub type AssetHubAssets = <AssetHub as AssetHubPallet>::LocalAssets;
 	pub type BaseForeignAssets = <PolimecBase as PolimecBasePallet>::ForeignAssets;

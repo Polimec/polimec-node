@@ -278,10 +278,10 @@ impl pallet_transaction_payment::Config for Runtime {
 }
 
 impl pallet_asset_tx_payment::Config for Runtime {
-	type Fungibles = StatemintAssets;
+	type Fungibles = ForeignAssets;
 	type OnChargeAssetTransaction = pallet_asset_tx_payment::FungiblesAdapter<
-		pallet_assets::BalanceToAssetBalance<Balances, Runtime, ConvertInto, StatemintAssetsInstance>,
-		xcm_config::AssetsToBlockAuthor<Runtime, StatemintAssetsInstance>,
+		pallet_assets::BalanceToAssetBalance<Balances, Runtime, ConvertInto, ForeignAssetsInstance>,
+		xcm_config::AssetsToBlockAuthor<Runtime, ForeignAssetsInstance>,
 	>;
 	type RuntimeEvent = RuntimeEvent;
 }
@@ -538,7 +538,7 @@ impl pallet_multisig::Config for Runtime {
 }
 
 pub type LocalAssetsInstance = pallet_assets::Instance1;
-pub type StatemintAssetsInstance = pallet_assets::Instance2;
+pub type ForeignAssetsInstance = pallet_assets::Instance2;
 
 impl pallet_assets::Config<LocalAssetsInstance> for Runtime {
 	type ApprovalDeposit = ExistentialDeposit;
@@ -563,7 +563,7 @@ impl pallet_assets::Config<LocalAssetsInstance> for Runtime {
 	type WeightInfo = ();
 }
 
-impl pallet_assets::Config<StatemintAssetsInstance> for Runtime {
+impl pallet_assets::Config<ForeignAssetsInstance> for Runtime {
 	type ApprovalDeposit = ExistentialDeposit;
 	type AssetAccountDeposit = AssetAccountDeposit;
 	type AssetDeposit = AssetDeposit;
@@ -610,7 +610,7 @@ impl ConvertBack<AccountId, [u8; 32]> for ConvertSelf {
 impl pallet_funding::Config for Runtime {
 	type AccountId32Conversion = ConvertSelf;
 	type AllPalletsWithoutSystem =
-		(Balances, LocalAssets, StatemintAssets, Oracle, PolimecFunding, LinearRelease, Random);
+		(Balances, LocalAssets, ForeignAssets, Oracle, PolimecFunding, LinearRelease, Random);
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;
 	type BlockNumber = BlockNumber;
@@ -625,7 +625,7 @@ impl pallet_funding::Config for Runtime {
 	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
 	type EvaluatorSlash = EvaluatorSlash;
 	type FeeBrackets = FeeBrackets;
-	type FundingCurrency = StatemintAssets;
+	type FundingCurrency = ForeignAssets;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	type MaxBidsPerUser = ConstU32<256>;
 	type MaxCapacityThresholds = MaxCapacityThresholds;
@@ -858,7 +858,7 @@ construct_runtime!(
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage, Event<T>} = 11,
 		AssetTxPayment: pallet_asset_tx_payment::{Pallet, Storage, Event<T>} = 12,
 		LocalAssets: pallet_assets::<Instance1>::{Pallet, Storage, Event<T>} = 13,
-		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Config<T>, Storage, Event<T>} = 14,
+		ForeignAssets: pallet_assets::<Instance2>::{Pallet, Call, Config<T>, Storage, Event<T>} = 14,
 
 
 		// Collator support. the order of these 5 are important and shall not change.

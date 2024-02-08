@@ -385,7 +385,7 @@ pub mod polimec {
 				blocks_per_round: GENESIS_BLOCKS_PER_ROUND,
 				num_selected_candidates: GENESIS_NUM_SELECTED_CANDIDATES,
 			},
-			statemint_assets: polimec_parachain_runtime::StatemintAssetsConfig {
+			foreign_assets: polimec_parachain_runtime::ForeignAssetsConfig {
 				assets: vec![
 					(dot_asset_id, alice_account.clone(), true, 0_0_010_000_000u128),
 					(usdt_asset_id, alice_account.clone(), true, 0_0_010_000_000u128),

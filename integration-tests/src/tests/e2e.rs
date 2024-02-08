@@ -399,7 +399,7 @@ fn funds_raised() {
 		inst.execute(|| {
 			let project_specific_account: AccountId = PolimecFunding::fund_account_id(project_id);
 			let funding =
-				PolimecAssetHubAssets::balance(AcceptedFundingAsset::USDT.to_assethub_id(), project_specific_account);
+				PolimecForeignAssets::balance(AcceptedFundingAsset::USDT.to_assethub_id(), project_specific_account);
 			let fund_raised_from_excel = 1005361.955;
 			let fund_raised_to_substrate = FixedU128::from_float(fund_raised_from_excel);
 			let fund_raised_as_fixed = FixedU128::from_rational(funding, ASSET_UNIT);

@@ -27,7 +27,7 @@ use polimec_parachain_runtime::{
 	},
 	AccountId, AuraId as AuthorityId, Balance, BalancesConfig, CouncilConfig, MinCandidateStk,
 	OracleProvidersMembershipConfig, ParachainInfoConfig, ParachainStakingConfig, PolkadotXcmConfig, Runtime,
-	RuntimeGenesisConfig, SessionConfig, StatemintAssetsConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
+	RuntimeGenesisConfig, SessionConfig, ForeignAssetsConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
 	EXISTENTIAL_DEPOSIT, PLMC,
 };
 use sc_service::ChainType;
@@ -215,7 +215,7 @@ fn testnet_genesis(
 	RuntimeGenesisConfig {
 		system: SystemConfig { code: wasm_binary.to_vec(), ..Default::default() },
 		balances: BalancesConfig { balances: endowed_accounts.clone() },
-		statemint_assets: StatemintAssetsConfig {
+		statemint_assets: ForeignAssetsConfig {
 			assets: vec![(
 				pallet_funding::types::AcceptedFundingAsset::USDT.to_assethub_id(),
 				<Runtime as pallet_funding::Config>::PalletId::get().into_account_truncating(),
@@ -490,7 +490,7 @@ fn testing_genesis(
 			phantom: PhantomData,
 		},
 		balances: BalancesConfig { balances: endowed_accounts.clone() },
-		statemint_assets: StatemintAssetsConfig {
+		statemint_assets: ForeignAssetsConfig {
 			assets: vec![(
 				pallet_funding::types::AcceptedFundingAsset::USDT.to_assethub_id(),
 				<Runtime as pallet_funding::Config>::PalletId::get().into_account_truncating(),

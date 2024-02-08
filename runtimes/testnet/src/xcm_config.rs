@@ -14,16 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! Holds the XCM specific configuration that would otherwise be in lib.rs
-//!
-//! This configuration dictates how the Penpal chain will communicate with other chains.
-//!
-//! One of the main uses of the penpal chain will be to be a benefactor of reserve asset transfers
-//! with statemine as the reserve. At present no derivative tokens are minted on receipt of a
-//! ReserveAssetTransferDeposited message but that will but the intension will be to support this soon.
 use super::{
 	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances, EnsureRoot, ParachainInfo,
-	ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, StatemintAssets, WeightToFee,
+	ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, ForeignAssets, WeightToFee,
 	XcmpQueue,
 };
 use core::marker::PhantomData;
@@ -105,7 +98,7 @@ pub type CurrencyTransactor = CurrencyAdapter<
 /// Means for transacting assets besides the native currency on this chain.
 pub type StatemintFungiblesTransactor = FungiblesAdapter<
 	// Use this fungibles implementation:
-	StatemintAssets,
+	ForeignAssets,
 	// Use this currency when it is a fungible asset matching the given location or name:
 	ConvertedConcreteId<
 		AssetIdPalletAssets,
@@ -119,7 +112,7 @@ pub type StatemintFungiblesTransactor = FungiblesAdapter<
 	AccountId,
 	// We only want to allow teleports of known assets. We use non-zero issuance as an indication
 	// that this asset is known.
-	LocalMint<NonZeroIssuance<AccountId, StatemintAssets>>,
+	LocalMint<NonZeroIssuance<AccountId, ForeignAssets>>,
 	// The account to use for tracking teleports.
 	CheckingAccount,
 >;
@@ -164,7 +157,7 @@ impl<
 
 pub type StatemintDotTransactor = FungiblesAdapter<
 	// Use this fungibles implementation:
-	StatemintAssets,
+	ForeignAssets,
 	// Use this currency when it is a fungible asset matching the given location or name:
 	NonBlockingConvertedConcreteId<AssetIdPalletAssets, Balance, NativeToFungible, JustTry>,
 	// Convert an XCM MultiLocation into a local account id:
@@ -173,7 +166,7 @@ pub type StatemintDotTransactor = FungiblesAdapter<
 	AccountId,
 	// We only want to allow teleports of known assets. We use non-zero issuance as an indication
 	// that this asset is known.
-	LocalMint<NonZeroIssuance<AccountId, StatemintAssets>>,
+	LocalMint<NonZeroIssuance<AccountId, ForeignAssets>>,
 	// The account to use for tracking teleports.
 	CheckingAccount,
 >;
@@ -253,10 +246,10 @@ pub type AccountIdOf<R> = <R as frame_system::Config>::AccountId;
 /// Asset filter that allows all assets from a certain location.
 pub struct AssetsFrom<T>(PhantomData<T>);
 
-pub struct StatemintAssetsFilter;
-impl ContainsPair<MultiAsset, MultiLocation> for StatemintAssetsFilter {
+pub struct ForeignAssetsFilter;
+impl ContainsPair<MultiAsset, MultiLocation> for ForeignAssetsFilter {
 	fn contains(asset: &MultiAsset, origin: &MultiLocation) -> bool {
-		// location must be the statemint parachain
+		// location must be the AssetHub parachain
 		let loc = MultiLocation::new(1, X1(Parachain(1000)));
 		// asset must be either a fungible asset from `pallet_assets` or the native token of the relay chain
 		&loc == origin &&
@@ -354,13 +347,13 @@ impl ContainsPair<MultiAsset, MultiLocation> for MultiNativeAsset {
 parameter_types! {
 	pub CommonGoodAssetsLocation: MultiLocation = MultiLocation::new(1, X1(Parachain(1000)));
 	// ALWAYS ensure that the index in PalletInstance stays up-to-date with
-	// Statemint's Assets pallet index
+	// AssetHub's Assets pallet index
 	pub CommonGoodAssetsPalletLocation: MultiLocation =
 		MultiLocation::new(1, X2(Parachain(1000), PalletInstance(50)));
 	pub CheckingAccount: AccountId = PolkadotXcm::check_account();
 }
 
-pub type Reserves = (NativeAsset, StatemintAssetsFilter);
+pub type Reserves = (NativeAsset, ForeignAssetsFilter);
 
 pub struct XcmConfig;
 
