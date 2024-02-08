@@ -54,7 +54,7 @@ use sp_version::RuntimeVersion;
 
 // XCM Imports
 use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
-use xcm_executor::XcmExecutor;
+use polimec_xcm_executor::XcmExecutor;
 
 // Polimec Shared Imports
 pub use shared_configuration::{assets::*, currency::*, fee::*, funding::*, governance::*, proxy::*, staking::*, weights::*};

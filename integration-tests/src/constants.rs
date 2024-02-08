@@ -105,7 +105,7 @@ pub mod accounts {
 pub mod collators {
 	use super::*;
 
-	pub fn invulnerables_statemint() -> Vec<(AccountId, AssetHubPolkadotAuraId)> {
+	pub fn invulnerables_asset_hub() -> Vec<(AccountId, AssetHubPolkadotAuraId)> {
 		vec![
 			(get_account_id_from_seed::<sr25519::Public>("Alice"), get_from_seed::<AssetHubPolkadotAuraId>("Alice")),
 			(get_account_id_from_seed::<sr25519::Public>("Bob"), get_from_seed::<AssetHubPolkadotAuraId>("Bob")),
@@ -222,10 +222,10 @@ pub mod polkadot {
 	}
 }
 
-// Statemint
-pub mod statemint {
+// AssetHub
+pub mod asset_hub {
 	use super::*;
-	use crate::Statemint;
+	use crate::AssetHub;
 	use xcm::{prelude::Parachain, v3::Parent};
 
 	pub const PARA_ID: u32 = 1000;
@@ -233,8 +233,8 @@ pub mod statemint {
 
 	pub fn genesis() -> Storage {
 		let mut funded_accounts = vec![
-			(Statemint::sovereign_account_id_of((Parent, Parachain(penpal::PARA_ID)).into()), INITIAL_DEPOSIT),
-			(Statemint::sovereign_account_id_of((Parent, Parachain(polimec::PARA_ID)).into()), INITIAL_DEPOSIT),
+			(AssetHub::sovereign_account_id_of((Parent, Parachain(penpal::PARA_ID)).into()), INITIAL_DEPOSIT),
+			(AssetHub::sovereign_account_id_of((Parent, Parachain(polimec::PARA_ID)).into()), INITIAL_DEPOSIT),
 		];
 		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
 
@@ -251,12 +251,12 @@ pub mod statemint {
 				..Default::default()
 			},
 			collator_selection: asset_hub_polkadot_runtime::CollatorSelectionConfig {
-				invulnerables: collators::invulnerables_statemint().iter().cloned().map(|(acc, _)| acc).collect(),
+				invulnerables: collators::invulnerables_asset_hub().iter().cloned().map(|(acc, _)| acc).collect(),
 				candidacy_bond: ED * 16,
 				..Default::default()
 			},
 			session: asset_hub_polkadot_runtime::SessionConfig {
-				keys: collators::invulnerables_statemint()
+				keys: collators::invulnerables_asset_hub()
 					.into_iter()
 					.map(|(acc, aura)| {
 						(
@@ -296,11 +296,11 @@ pub mod polimec {
 	const GENESIS_NUM_SELECTED_CANDIDATES: u32 = 5;
 
 	pub fn genesis() -> Storage {
-		let dot_asset_id = AcceptedFundingAsset::DOT.to_statemint_id();
-		let usdt_asset_id = AcceptedFundingAsset::USDT.to_statemint_id();
+		let dot_asset_id = AcceptedFundingAsset::DOT.to_assethub_id();
+		let usdt_asset_id = AcceptedFundingAsset::USDT.to_assethub_id();
 		let mut funded_accounts = vec![
 			(Polimec::sovereign_account_id_of((Parent, Parachain(penpal::PARA_ID)).into()), INITIAL_DEPOSIT),
-			(Polimec::sovereign_account_id_of((Parent, Parachain(statemint::PARA_ID)).into()), INITIAL_DEPOSIT),
+			(Polimec::sovereign_account_id_of((Parent, Parachain(asset_hub::PARA_ID)).into()), INITIAL_DEPOSIT),
 		];
 		let alice_account = Polimec::account_id_of(accounts::ALICE);
 		let bob_account: AccountId = Polimec::account_id_of(accounts::BOB);
@@ -414,7 +414,7 @@ pub mod penpal {
 
 	pub fn genesis() -> Storage {
 		let mut funded_accounts = vec![
-			(Penpal::sovereign_account_id_of((Parent, Parachain(statemint::PARA_ID)).into()), INITIAL_DEPOSIT),
+			(Penpal::sovereign_account_id_of((Parent, Parachain(asset_hub::PARA_ID)).into()), INITIAL_DEPOSIT),
 			(Penpal::sovereign_account_id_of((Parent, Parachain(polimec::PARA_ID)).into()), 2_000_000_0_000_000_000), // i.e the CTs sold on polimec
 		];
 		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
@@ -465,6 +465,7 @@ pub mod penpal {
 pub mod polimec_base {
 	use super::*;
 	use crate::PolimecBase;
+	use pallet_funding::AcceptedFundingAsset;
 	use xcm::{prelude::Parachain, v3::Parent};
 
 	pub const PARA_ID: u32 = 3344;
@@ -476,9 +477,11 @@ pub mod polimec_base {
 	const GENESIS_NUM_SELECTED_CANDIDATES: u32 = 5;
 
 	pub fn genesis() -> Storage {
+		let dot_asset_id = AcceptedFundingAsset::DOT.to_assethub_id();
+		let usdt_asset_id = AcceptedFundingAsset::USDT.to_assethub_id();
 		let mut funded_accounts = vec![
 			(PolimecBase::sovereign_account_id_of((Parent, Parachain(penpal::PARA_ID)).into()), INITIAL_DEPOSIT),
-			(PolimecBase::sovereign_account_id_of((Parent, Parachain(statemint::PARA_ID)).into()), INITIAL_DEPOSIT),
+			(PolimecBase::sovereign_account_id_of((Parent, Parachain(asset_hub::PARA_ID)).into()), INITIAL_DEPOSIT),
 		];
 		let alice_account = PolimecBase::account_id_of(accounts::ALICE);
 		let bob_account: AccountId = PolimecBase::account_id_of(accounts::BOB);
@@ -496,6 +499,17 @@ pub mod polimec_base {
 				..Default::default()
 			},
 			balances: polimec_base_runtime::BalancesConfig { balances: funded_accounts },
+			foreign_assets: polimec_base_runtime::ForeignAssetsConfig {
+				assets: vec![
+					(dot_asset_id, alice_account.clone(), true, 0_0_010_000_000u128),
+					(usdt_asset_id, alice_account.clone(), true, 0_0_010_000_000u128),
+				],
+				metadata: vec![
+					(dot_asset_id, "Local DOT".as_bytes().to_vec(), "DOT".as_bytes().to_vec(), 12),
+					(usdt_asset_id, "Local USDT".as_bytes().to_vec(), "USDT".as_bytes().to_vec(), 12),
+				],
+				accounts: vec![],
+			},
 			parachain_info: polimec_base_runtime::ParachainInfoConfig {
 				parachain_id: PARA_ID.into(),
 				..Default::default()
