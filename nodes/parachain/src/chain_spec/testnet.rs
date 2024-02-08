@@ -279,11 +279,9 @@ fn testnet_genesis(
 mod testing_helpers {
 	use super::*;
 	use macros::generate_accounts;
-	pub use pallet_funding::{instantiator::UserToUSDBalance, *};
 	use pallet_funding::{instantiator::UserToUSDBalance, *};
 	use polimec_parachain_runtime::AccountId;
 	use sp_core::H256;
-	use sp_runtime::BoundedVec;
 	pub use sp_runtime::{traits::ConstU32, BoundedVec, FixedU128};
 	pub const METADATA: &str = r#"METADATA
             {
