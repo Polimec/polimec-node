@@ -311,7 +311,7 @@ pub fn fill_projects_to_update<T: Config>(
 	// fill the `ProjectsToUpdate` vectors from @ expected_insertion_block to @ expected_insertion_block+x, to benchmark all the failed insertion attempts
 	for _ in 0..fully_filled_vecs_from_insertion {
 		while ProjectsToUpdate::<T>::try_append(expected_insertion_block, (&69u32, UpdateType::EvaluationEnd)).is_ok() {
-			continue
+			continue;
 		}
 		expected_insertion_block += 1u32.into();
 	}
@@ -450,7 +450,7 @@ mod benchmarks {
 		// fill the `ProjectsToUpdate` vectors from @ block_number to @ block_number+x, to benchmark all the failed insertion attempts
 		for _ in 0..x {
 			while ProjectsToUpdate::<T>::try_append(block_number, (&69u32, UpdateType::EvaluationEnd)).is_ok() {
-				continue
+				continue;
 			}
 			block_number += 1u32.into();
 		}
@@ -490,7 +490,7 @@ mod benchmarks {
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// We need to leave enough block numbers to fill `ProjectsToUpdate` before our project insertion
-		let u32_remaining_vecs: u32 = y.saturating_sub(x).into();
+		let u32_remaining_vecs: u32 = y.saturating_sub(x);
 		let time_advance: u32 = 1 + u32_remaining_vecs + 1;
 		inst.advance_time(time_advance.into()).unwrap();
 
@@ -530,7 +530,7 @@ mod benchmarks {
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(
-			Event::<T>::EnglishAuctionStarted { project_id, when: current_block.into() }.into(),
+			Event::<T>::EnglishAuctionStarted { project_id, when: current_block }.into(),
 		);
 	}
 
@@ -593,7 +593,7 @@ mod benchmarks {
 		// Events
 		let current_block = inst.current_block();
 		frame_system::Pallet::<T>::assert_last_event(
-			Event::<T>::EnglishAuctionStarted { project_id, when: current_block.into() }.into(),
+			Event::<T>::EnglishAuctionStarted { project_id, when: current_block }.into(),
 		);
 	}
 
@@ -656,8 +656,8 @@ mod benchmarks {
 
 		// if we are going to unbond evaluations due to being over the limit per user, then deduct them from the total expected plmc bond
 		if x >= <T as Config>::MaxEvaluationsPerUser::get() {
-			total_expected_plmc_bonded -= plmc_for_existing_evaluations[0].plmc_amount *
-				(x as u128 - <T as Config>::MaxEvaluationsPerUser::get() as u128 + 1u128).into();
+			total_expected_plmc_bonded -= plmc_for_existing_evaluations[0].plmc_amount
+				* (x as u128 - <T as Config>::MaxEvaluationsPerUser::get() as u128 + 1u128).into();
 		}
 
 		(inst, test_project_id, extrinsic_evaluation, extrinsic_plmc_bonded, total_expected_plmc_bonded)
@@ -689,11 +689,11 @@ mod benchmarks {
 				current_plmc_bond,
 				rewarded_or_slashed,
 				..
-			} if project_id == project_id &&
-				evaluator == evaluation.account.clone() &&
-				original_plmc_bond == extrinsic_plmc_bonded &&
-				current_plmc_bond == extrinsic_plmc_bonded &&
-				rewarded_or_slashed.is_none() => {},
+			} if project_id == project_id
+				&& evaluator == evaluation.account.clone()
+				&& original_plmc_bond == extrinsic_plmc_bonded
+				&& current_plmc_bond == extrinsic_plmc_bonded
+				&& rewarded_or_slashed.is_none() => {},
 			_ => assert!(false, "Evaluation is not stored correctly"),
 		}
 
@@ -882,8 +882,8 @@ mod benchmarks {
 
 			inst.bid_for_users(project_id, vec![bid_params]);
 
-			ct_amount = Percent::from_percent(10) *
-				(project_metadata.total_allocation_size.0 * (do_perform_bid_calls as u128).into());
+			ct_amount = Percent::from_percent(10)
+				* (project_metadata.total_allocation_size.0 * (do_perform_bid_calls as u128).into());
 			usdt_for_filler_bidder = usdt_for_new_bidder;
 		}
 		let extrinsic_bid = BidParams::new(bidder.clone(), ct_amount, 1_u128.into(), 1u8, AcceptedFundingAsset::USDT);
@@ -937,8 +937,7 @@ mod benchmarks {
 		total_plmc_bonded: BalanceOf<T>,
 		total_free_usdt: BalanceOf<T>,
 		total_usdt_locked: BalanceOf<T>,
-	) -> ()
-	where
+	) where
 		<T as Config>::Balance: From<u128>,
 		<T as Config>::Price: From<u128>,
 		T::Hash: From<H256>,
@@ -1048,7 +1047,7 @@ mod benchmarks {
 			total_usdt_locked,
 		) = bid_setup::<T>(x, y);
 
-		let _new_plmc_minted = make_ct_deposit_for::<T>(original_extrinsic_bid.bidder.clone(), project_id);
+		make_ct_deposit_for::<T>(original_extrinsic_bid.bidder.clone(), project_id);
 
 		#[extrinsic_call]
 		bid(
@@ -1143,7 +1142,7 @@ mod benchmarks {
 		// We need to leave enough block numbers to fill `ProjectsToUpdate` before our project insertion
 		let mut time_advance: u32 = 1;
 		if let Some((y, z)) = ends_round {
-			let u32_remaining_vecs: u32 = z.saturating_sub(y).into();
+			let u32_remaining_vecs: u32 = z.saturating_sub(y);
 			time_advance += u32_remaining_vecs + 1;
 		}
 		inst.advance_time(time_advance.into()).unwrap();
@@ -1164,9 +1163,9 @@ mod benchmarks {
 		let price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
 		let existing_amount: BalanceOf<T> = (50 * ASSET_UNIT).into();
-		let extrinsic_amount: BalanceOf<T> = if let Some(_) = ends_round {
-			project_metadata.total_allocation_size.0 -
-				existing_amount * (x.min(<T as Config>::MaxContributionsPerUser::get() - 1) as u128).into()
+		let extrinsic_amount: BalanceOf<T> = if ends_round.is_some() {
+			project_metadata.total_allocation_size.0
+				- existing_amount * (x.min(<T as Config>::MaxContributionsPerUser::get() - 1) as u128).into()
 		} else {
 			(100 * ASSET_UNIT).into()
 		};
@@ -1283,9 +1282,9 @@ mod benchmarks {
 
 		match stored_contribution {
 			ContributionInfoOf::<T> { project_id, contributor, ct_amount, .. }
-				if project_id == project_id &&
-					contributor == contributor &&
-					ct_amount == extrinsic_contribution.amount => {},
+				if project_id == project_id
+					&& contributor == contributor
+					&& ct_amount == extrinsic_contribution.amount => {},
 			_ => {
 				assert!(false, "Contribution is not stored correctly")
 			},
@@ -1394,7 +1393,7 @@ mod benchmarks {
 			total_ct_sold,
 		) = contribution_setup::<T>(x, ends_round);
 
-		let _new_plmc_minted = make_ct_deposit_for::<T>(extrinsic_contribution.contributor.clone(), project_id);
+		make_ct_deposit_for::<T>(extrinsic_contribution.contributor.clone(), project_id);
 
 		#[extrinsic_call]
 		contribute(
@@ -1485,7 +1484,7 @@ mod benchmarks {
 			total_ct_sold,
 		) = contribution_setup::<T>(x, ends_round);
 
-		let _new_plmc_minter = make_ct_deposit_for::<T>(extrinsic_contribution.contributor.clone(), project_id);
+		make_ct_deposit_for::<T>(extrinsic_contribution.contributor.clone(), project_id);
 
 		#[extrinsic_call]
 		contribute(
@@ -1670,7 +1669,7 @@ mod benchmarks {
 
 		inst.execute(|| {
 			PalletFunding::<T>::evaluation_reward_payout_for(
-				<T as frame_system::Config>::RuntimeOrigin::signed(evaluator.clone().into()),
+				<T as frame_system::Config>::RuntimeOrigin::signed(evaluator.clone()),
 				project_id,
 				evaluator.clone(),
 				evaluation_to_unbond.id,
@@ -2476,7 +2475,7 @@ mod benchmarks {
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// We need to leave enough block numbers to fill `ProjectsToUpdate` before our project insertion
-		let u32_remaining_vecs: u32 = y.saturating_sub(x).into();
+		let u32_remaining_vecs: u32 = y.saturating_sub(x);
 		let time_advance: u32 = 1 + u32_remaining_vecs + 1;
 		inst.advance_time(time_advance.into()).unwrap();
 
@@ -2725,7 +2724,7 @@ mod benchmarks {
 
 		inst.execute(|| {
 			PalletFunding::<T>::release_bid_funds_for(
-				<T as frame_system::Config>::RuntimeOrigin::signed(bidder.clone().into()),
+				<T as frame_system::Config>::RuntimeOrigin::signed(bidder.clone()),
 				project_id,
 				bidder.clone(),
 				stored_bid.id,
@@ -2798,7 +2797,7 @@ mod benchmarks {
 
 		inst.execute(|| {
 			PalletFunding::<T>::release_contribution_funds_for(
-				<T as frame_system::Config>::RuntimeOrigin::signed(contributor.clone().into()),
+				<T as frame_system::Config>::RuntimeOrigin::signed(contributor.clone()),
 				project_id,
 				contributor.clone(),
 				stored_contribution.id,
@@ -2846,12 +2845,12 @@ mod benchmarks {
 					let runtime_event = event_record.event.clone();
 					if let Ok(eve) = runtime_event.try_into() {
 						if let $pattern = &eve {
-							return Some(Rc::new(eve))
+							return Some(Rc::new(eve));
 						} else {
-							return None
+							return None;
 						}
 					}
-					return None
+					return None;
 				})
 			})
 		};
