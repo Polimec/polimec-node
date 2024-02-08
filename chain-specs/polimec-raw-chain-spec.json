@@ -4,7 +4,9 @@
   "chainType": "Live",
   "bootNodes": [
     "/ip4/141.95.47.7/tcp/30333/p2p/12D3KooWSCjh8tN5yzmLgxWR4kauD5NmCmP2ymc3D5WubvMETg6b",
-    "/ip4/57.128.20.108/tcp/30333/p2p/12D3KooWEe7ps1v1mfhjMNaSaukgxsFVL6cqeEQudqZ5t3oQiXNL"
+    "/ip4/57.128.20.108/tcp/30333/p2p/12D3KooWEe7ps1v1mfhjMNaSaukgxsFVL6cqeEQudqZ5t3oQiXNL",
+    "/dns4/boot.helikon.io/tcp/15320/p2p/12D3KooWT2y3C2nzKGJV1Jss3EyCcwGWeroDFfFdJ5CUVz3iQGJD",
+    "/dns4/boot.helikon.io/tcp/15324/wss/p2p/12D3KooWT2y3C2nzKGJV1Jss3EyCcwGWeroDFfFdJ5CUVz3iQGJD"
   ],
   "telemetryEndpoints": null,
   "protocolId": "polimec",

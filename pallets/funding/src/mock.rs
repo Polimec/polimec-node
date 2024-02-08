@@ -293,6 +293,7 @@ parameter_types! {
 parameter_types! {
 	pub BenchmarkReason: RuntimeHoldReason = RuntimeHoldReason::PolimecFunding(crate::HoldReason::Participation(0));
 }
+
 impl pallet_linear_release::Config for TestRuntime {
 	type Balance = Balance;
 	#[cfg(feature = "runtime-benchmarks")]

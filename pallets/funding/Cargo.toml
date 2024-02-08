@@ -1,14 +1,14 @@
 [package]
 name = 'pallet-funding'
-authors = ['Polimec Foundation <info@polimec.org>']
-documentation = "https://wiki.polimec.org/"
-edition = "2021"
-homepage = "https://www.polimec.org/"
-license-file = "LICENSE"
-readme = "README.md"
-repository = "https://github.com/Polimec/polimec-node"
-version = "0.1.0"
-rust-version = "1.69.0"
+description = "Funding logic. It allows credentialed users to create, evaluate, and fund projects."
+authors.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+readme.workspace = true
+repository.workspace = true
+version.workspace = true
 
 [dependencies]
 serde = { workspace = true  }
@@ -63,11 +63,12 @@ xcm-executor.workspace = true
 macros.workspace = true
 
 [features]
-default = ["std"]
+default = [ "std" ]
 std = [
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
+	"futures",
 	"itertools/use_std",
 	"log/std",
 	"pallet-assets/std",
@@ -78,8 +79,8 @@ std = [
 	"pallet-xcm/std",
 	"parachains-common/std",
 	"parity-scale-codec/std",
-	"polimec-receiver/std",
 	"polimec-common/std",
+	"polimec-receiver/std",
 	"polimec-xcm-executor/std",
 	"polkadot-parachain/std",
 	"polkadot-runtime-parachains/std",
@@ -91,11 +92,10 @@ std = [
 	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
+	"tokio",
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
-	"tokio",
-	"futures",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
@@ -107,8 +107,8 @@ runtime-benchmarks = [
 	"pallet-linear-release/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
-	"polimec-receiver/runtime-benchmarks",
 	"polimec-common/runtime-benchmarks",
+	"polimec-receiver/runtime-benchmarks",
 	"polimec-xcm-executor/runtime-benchmarks",
 	"polkadot-parachain/runtime-benchmarks",
 	"polkadot-runtime-parachains/runtime-benchmarks",
@@ -116,7 +116,6 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
-	"pallet-xcm/runtime-benchmarks"
 ]
 try-runtime = [
 	"frame-support/try-runtime",
@@ -127,8 +126,9 @@ try-runtime = [
 	"pallet-linear-release/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"pallet-xcm/try-runtime",
-	"polimec-receiver/try-runtime",
 	"polimec-common/try-runtime",
+	"polimec-receiver/try-runtime",
+	"polimec-xcm-executor/try-runtime",
 	"polkadot-runtime-parachains/try-runtime",
 	"polkadot-runtime/try-runtime",
 	"sp-runtime/try-runtime",

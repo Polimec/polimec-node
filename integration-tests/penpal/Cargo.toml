@@ -116,6 +116,7 @@ std = [
 	"pallet-xcm/std",
 	"parachain-info/std",
 	"parachains-common/std",
+	"polimec-common/std",
 	"polimec-receiver/std",
 	"polkadot-parachain/std",
 	"polkadot-primitives/std",
@@ -137,7 +138,6 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
-	"polimec-common/std"
 ]
 
 runtime-benchmarks = [
@@ -157,6 +157,7 @@ runtime-benchmarks = [
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-vesting/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
+	"polimec-common/runtime-benchmarks",
 	"polimec-receiver/runtime-benchmarks",
 	"polkadot-parachain/runtime-benchmarks",
 	"polkadot-primitives/runtime-benchmarks",
@@ -165,7 +166,6 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
-	"polimec-common/runtime-benchmarks"
 ]
 
 try-runtime = [
@@ -191,6 +191,7 @@ try-runtime = [
 	"pallet-vesting/try-runtime",
 	"pallet-xcm/try-runtime",
 	"parachain-info/try-runtime",
+	"polimec-common/try-runtime",
 	"polimec-receiver/try-runtime",
 	"polkadot-runtime-common/try-runtime",
 	"polkadot-runtime-parachains/try-runtime",
