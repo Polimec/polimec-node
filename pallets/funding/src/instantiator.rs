@@ -111,7 +111,7 @@ impl<
 	pub fn execute<R>(&mut self, execution: impl FnOnce() -> R) -> R {
 		#[cfg(feature = "std")]
 		if let Some(ext) = &self.ext {
-			return ext.borrow_mut().execute_with(execution)
+			return ext.borrow_mut().execute_with(execution);
 		}
 		execution()
 	}
@@ -737,10 +737,8 @@ impl<
 		let last_event_record = events.into_iter().last().expect("No events found for this action.");
 		let last_event = last_event_record.event;
 		let maybe_funding_event = last_event.try_into();
-		if let Ok(funding_event) = maybe_funding_event {
-			if let Event::TransitionError { project_id, error } = funding_event {
-				panic!("Project {:?} transition failed in on_initialize: {:?}", project_id, error);
-			}
+		if let Ok(Event::TransitionError { project_id, error }) = maybe_funding_event {
+			panic!("Project {:?} transition failed in on_initialize: {:?}", project_id, error);
 		}
 	}
 
@@ -751,11 +749,10 @@ impl<
 		let last_event = last_event_record.event;
 		let maybe_funding_event = <T as Config>::RuntimeEvent::from(last_event).try_into();
 		if let Ok(funding_event) = maybe_funding_event {
-			if let Event::TransitionError { project_id: _, error } = funding_event {
-				if let DispatchError::Module(module_error) = error {
-					let pallet_error: Error<T> = Decode::decode(&mut &module_error.error[..]).unwrap();
-					return Err(pallet_error)
-				}
+			if let Event::TransitionError { project_id: _, error: DispatchError::Module(module_error) } = funding_event
+			{
+				let pallet_error: Error<T> = Decode::decode(&mut &module_error.error[..]).unwrap();
+				return Err(pallet_error);
 			}
 		}
 		Ok(())
@@ -1133,9 +1130,9 @@ impl<
 		assert!(
 			matches!(
 				project_details.status,
-				ProjectStatus::FundingSuccessful |
-					ProjectStatus::FundingFailed |
-					ProjectStatus::AwaitingProjectDecision
+				ProjectStatus::FundingSuccessful
+					| ProjectStatus::FundingFailed
+					| ProjectStatus::AwaitingProjectDecision
 			),
 			"Project should be in Finished status"
 		);
@@ -1155,7 +1152,7 @@ impl<
 
 		if contributions.is_empty() {
 			self.start_remainder_or_end_funding(project_id).unwrap();
-			return (project_id, accepted_bids)
+			return (project_id, accepted_bids);
 		}
 
 		let ct_price = self.get_project_details(project_id).weighted_average_price.unwrap();
@@ -1239,7 +1236,7 @@ impl<
 			ProjectStatus::FundingSuccessful => return project_id,
 			ProjectStatus::RemainderRound if remainder_contributions.is_empty() => {
 				self.finish_funding(project_id).unwrap();
-				return project_id
+				return project_id;
 			},
 			_ => {},
 		};
@@ -1250,9 +1247,9 @@ impl<
 			.clone()
 			.into_iter()
 			.filter(|account| {
-				evaluations.accounts().contains(account).not() &&
-					bids.accounts().contains(account).not() &&
-					community_contributions.accounts().contains(account).not()
+				evaluations.accounts().contains(account).not()
+					&& bids.accounts().contains(account).not()
+					&& community_contributions.accounts().contains(account).not()
 			})
 			.collect_vec();
 		let asset_id = remainder_contributions[0].asset.to_statemint_id();
@@ -1327,10 +1324,10 @@ impl<
 
 			assert_eq!(
 				project_details.remaining_contribution_tokens.0 + project_details.remaining_contribution_tokens.1,
-				project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1 -
-					auction_bought_tokens -
-					community_bought_tokens -
-					remainder_bought_tokens,
+				project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1
+					- auction_bought_tokens
+					- community_bought_tokens
+					- remainder_bought_tokens,
 				"Remaining CTs are incorrect"
 			);
 		}
@@ -1357,7 +1354,7 @@ impl<
 				community_contributions,
 				remainder_contributions,
 			),
-			ProjectStatus::RemainderRound =>
+			ProjectStatus::RemainderRound => {
 				self.create_remainder_contributing_project(
 					project_metadata,
 					issuer,
@@ -1365,11 +1362,14 @@ impl<
 					bids,
 					community_contributions,
 				)
-				.0,
-			ProjectStatus::CommunityRound =>
-				self.create_community_contributing_project(project_metadata, issuer, evaluations, bids).0,
-			ProjectStatus::AuctionRound(AuctionPhase::English) =>
-				self.create_auctioning_project(project_metadata, issuer, evaluations),
+				.0
+			},
+			ProjectStatus::CommunityRound => {
+				self.create_community_contributing_project(project_metadata, issuer, evaluations, bids).0
+			},
+			ProjectStatus::AuctionRound(AuctionPhase::English) => {
+				self.create_auctioning_project(project_metadata, issuer, evaluations)
+			},
 			ProjectStatus::EvaluationRound => self.create_evaluating_project(project_metadata, issuer),
 			ProjectStatus::Application => self.create_new_project(project_metadata, issuer),
 			_ => panic!("unsupported project creation in that status"),
@@ -1411,7 +1411,7 @@ pub mod async_features {
 	) {
 		loop {
 			if !block_orchestrator.continue_running() {
-				break
+				break;
 			}
 
 			let maybe_target_reached = block_orchestrator.advance_to_next_target(instantiator.clone()).await;
@@ -1421,6 +1421,17 @@ pub mod async_features {
 			}
 			// leaves some time for the projects to submit their targets to the orchestrator
 			sleep(Duration::from_millis(100)).await;
+		}
+	}
+
+	impl<
+			T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
+			AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
+			RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
+		> Default for BlockOrchestrator<T, AllPalletsWithoutSystem, RuntimeEvent>
+	{
+		fn default() -> Self {
+			Self::new()
 		}
 	}
 
@@ -1874,7 +1885,7 @@ pub mod async_features {
 			async_start_remainder_or_end_funding(instantiator.clone(), block_orchestrator.clone(), project_id)
 				.await
 				.unwrap();
-			return (project_id, accepted_bids)
+			return (project_id, accepted_bids);
 		}
 
 		let mut inst = instantiator.lock().await;
@@ -1995,9 +2006,9 @@ pub mod async_features {
 		assert!(
 			matches!(
 				project_details.status,
-				ProjectStatus::FundingSuccessful |
-					ProjectStatus::FundingFailed |
-					ProjectStatus::AwaitingProjectDecision
+				ProjectStatus::FundingSuccessful
+					| ProjectStatus::FundingFailed
+					| ProjectStatus::AwaitingProjectDecision
 			),
 			"Project should be in Finished status"
 		);
@@ -2051,7 +2062,7 @@ pub mod async_features {
 			ProjectStatus::FundingSuccessful => return project_id,
 			ProjectStatus::RemainderRound if remainder_contributions.is_empty() => {
 				inst.finish_funding(project_id).unwrap();
-				return project_id
+				return project_id;
 			},
 			_ => {},
 		};
@@ -2062,9 +2073,9 @@ pub mod async_features {
 			.clone()
 			.into_iter()
 			.filter(|account| {
-				evaluations.accounts().contains(account).not() &&
-					bids.accounts().contains(account).not() &&
-					community_contributions.accounts().contains(account).not()
+				evaluations.accounts().contains(account).not()
+					&& bids.accounts().contains(account).not()
+					&& community_contributions.accounts().contains(account).not()
 			})
 			.collect_vec();
 		let asset_id = remainder_contributions[0].asset.to_statemint_id();
@@ -2157,10 +2168,10 @@ pub mod async_features {
 
 			assert_eq!(
 				project_details.remaining_contribution_tokens.0 + project_details.remaining_contribution_tokens.1,
-				project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1 -
-					auction_bought_tokens -
-					community_bought_tokens -
-					remainder_bought_tokens,
+				project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1
+					- auction_bought_tokens
+					- community_bought_tokens
+					- remainder_bought_tokens,
 				"Remaining CTs are incorrect"
 			);
 		}
@@ -2178,7 +2189,7 @@ pub mod async_features {
 		test_project_params: TestProjectParams<T>,
 	) -> ProjectId {
 		match test_project_params.expected_state {
-			ProjectStatus::FundingSuccessful =>
+			ProjectStatus::FundingSuccessful => {
 				async_create_finished_project(
 					instantiator,
 					block_orchestrator,
@@ -2189,8 +2200,9 @@ pub mod async_features {
 					test_project_params.community_contributions,
 					test_project_params.remainder_contributions,
 				)
-				.await,
-			ProjectStatus::RemainderRound =>
+				.await
+			},
+			ProjectStatus::RemainderRound => {
 				async_create_remainder_contributing_project(
 					instantiator,
 					block_orchestrator,
@@ -2201,8 +2213,9 @@ pub mod async_features {
 					test_project_params.community_contributions,
 				)
 				.map(|(project_id, _)| project_id)
-				.await,
-			ProjectStatus::CommunityRound =>
+				.await
+			},
+			ProjectStatus::CommunityRound => {
 				async_create_community_contributing_project(
 					instantiator,
 					block_orchestrator,
@@ -2212,8 +2225,9 @@ pub mod async_features {
 					test_project_params.bids,
 				)
 				.map(|(project_id, _)| project_id)
-				.await,
-			ProjectStatus::AuctionRound(AuctionPhase::English) =>
+				.await
+			},
+			ProjectStatus::AuctionRound(AuctionPhase::English) => {
 				async_create_auctioning_project(
 					instantiator,
 					block_orchestrator,
@@ -2221,12 +2235,15 @@ pub mod async_features {
 					test_project_params.issuer,
 					test_project_params.evaluations,
 				)
-				.await,
-			ProjectStatus::EvaluationRound =>
+				.await
+			},
+			ProjectStatus::EvaluationRound => {
 				async_create_evaluating_project(instantiator, test_project_params.metadata, test_project_params.issuer)
-					.await,
-			ProjectStatus::Application =>
-				async_create_new_project(instantiator, test_project_params.metadata, test_project_params.issuer).await,
+					.await
+			},
+			ProjectStatus::Application => {
+				async_create_new_project(instantiator, test_project_params.metadata, test_project_params.issuer).await
+			},
 			_ => panic!("unsupported project creation in that status"),
 		}
 	}
@@ -2244,9 +2261,9 @@ pub mod async_features {
 		let time_to_evaluation: BlockNumberFor<T> = time_to_new_project + Zero::zero();
 		// we immediately start the auction, so we dont wait for T::AuctionInitializePeriodDuration.
 		let time_to_auction: BlockNumberFor<T> = time_to_evaluation + <T as Config>::EvaluationDuration::get();
-		let time_to_community: BlockNumberFor<T> = time_to_auction +
-			<T as Config>::EnglishAuctionDuration::get() +
-			<T as Config>::CandleAuctionDuration::get();
+		let time_to_community: BlockNumberFor<T> = time_to_auction
+			+ <T as Config>::EnglishAuctionDuration::get()
+			+ <T as Config>::CandleAuctionDuration::get();
 		let time_to_remainder: BlockNumberFor<T> = time_to_community + <T as Config>::CommunityFundingDuration::get();
 		let time_to_finish: BlockNumberFor<T> = time_to_remainder + <T as Config>::RemainderFundingDuration::get();
 		let mut inst = mutex_inst.lock().await;
@@ -2693,54 +2710,54 @@ pub struct BidInfoFilter<T: Config> {
 impl<T: Config> BidInfoFilter<T> {
 	pub(crate) fn matches_bid(&self, bid: &BidInfoOf<T>) -> bool {
 		if self.id.is_some() && self.id.unwrap() != bid.id {
-			return false
+			return false;
 		}
 		if self.project_id.is_some() && self.project_id.unwrap() != bid.project_id {
-			return false
+			return false;
 		}
 		if self.bidder.is_some() && self.bidder.clone().unwrap() != bid.bidder.clone() {
-			return false
+			return false;
 		}
 		if self.status.is_some() && self.status.as_ref().unwrap() != &bid.status {
-			return false
+			return false;
 		}
 		if self.original_ct_amount.is_some() && self.original_ct_amount.unwrap() != bid.original_ct_amount {
-			return false
+			return false;
 		}
 		if self.original_ct_usd_price.is_some() && self.original_ct_usd_price.unwrap() != bid.original_ct_usd_price {
-			return false
+			return false;
 		}
 		if self.final_ct_amount.is_some() && self.final_ct_amount.unwrap() != bid.final_ct_amount {
-			return false
+			return false;
 		}
 		if self.final_ct_usd_price.is_some() && self.final_ct_usd_price.unwrap() != bid.final_ct_usd_price {
-			return false
+			return false;
 		}
 		if self.funding_asset.is_some() && self.funding_asset.unwrap() != bid.funding_asset {
-			return false
+			return false;
 		}
-		if self.funding_asset_amount_locked.is_some() &&
-			self.funding_asset_amount_locked.unwrap() != bid.funding_asset_amount_locked
+		if self.funding_asset_amount_locked.is_some()
+			&& self.funding_asset_amount_locked.unwrap() != bid.funding_asset_amount_locked
 		{
-			return false
+			return false;
 		}
 		if self.multiplier.is_some() && self.multiplier.unwrap() != bid.multiplier {
-			return false
+			return false;
 		}
 		if self.plmc_bond.is_some() && self.plmc_bond.unwrap() != bid.plmc_bond {
-			return false
+			return false;
 		}
 		if self.plmc_vesting_info.is_some() && self.plmc_vesting_info.unwrap() != bid.plmc_vesting_info {
-			return false
+			return false;
 		}
 		if self.when.is_some() && self.when.unwrap() != bid.when {
-			return false
+			return false;
 		}
 		if self.funds_released.is_some() && self.funds_released.unwrap() != bid.funds_released {
-			return false
+			return false;
 		}
 		if self.ct_minted.is_some() && self.ct_minted.unwrap() != bid.ct_minted {
-			return false
+			return false;
 		}
 
 		true
