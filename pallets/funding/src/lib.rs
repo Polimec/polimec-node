@@ -1534,6 +1534,8 @@ pub mod pallet {
 				let inst = GenesisInstantiator::<T>::new(None);
 				<T as Config>::SetPrices::set_prices();
 				instantiator::async_features::create_multiple_projects_at(inst, self.starting_projects.clone());
+
+				frame_system::Pallet::<T>::set_block_number(0u32.into());
 			}
 		}
 	}

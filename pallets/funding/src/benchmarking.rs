@@ -3709,12 +3709,12 @@ mod benchmarks {
 					let runtime_event = event_record.event.clone();
 					if let Ok(eve) = runtime_event.try_into() {
 						if let $pattern = &eve {
-							return Some(Rc::new(eve))
+							return Some(Rc::new(eve));
 						} else {
-							return None
+							return None;
 						}
 					}
-					return None
+					return None;
 				})
 			})
 		};

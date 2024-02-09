@@ -19,49 +19,35 @@ use crate::*;
 
 // Substrate
 #[allow(unused_imports)]
-use frame_support::{dispatch::DispatchError, log, migration, storage::unhashed};
+use frame_support::{
+	dispatch::DispatchError,
+	log, migration,
+	storage::unhashed,
+	traits::{GetStorageVersion, PalletInfoAccess, StorageVersion},
+};
 
-pub struct CustomOnRuntimeUpgrade;
-impl frame_support::traits::OnRuntimeUpgrade for CustomOnRuntimeUpgrade {
+pub struct InitializePallet<Pallet: GetStorageVersion<CurrentStorageVersion = StorageVersion> + PalletInfoAccess>(
+	sp_std::marker::PhantomData<Pallet>,
+);
+impl<Pallet: GetStorageVersion<CurrentStorageVersion = StorageVersion> + PalletInfoAccess>
+	frame_support::traits::OnRuntimeUpgrade for InitializePallet<Pallet>
+{
 	#[cfg(feature = "try-runtime")]
 	fn pre_upgrade() -> Result<Vec<u8>, DispatchError> {
-		use frame_support::pallet_prelude::StorageVersion;
-
-		let membership_pallet_version = StorageVersion::get::<OracleProvidersMembership>();
-		log::info!("OracleProvidersMembership migrating from {:#?}", membership_pallet_version);
+		log::info!("{} migrating from {:#?}", Pallet::name(), Pallet::on_chain_storage_version());
 		Ok(Vec::new())
 	}
 
 	#[cfg(feature = "try-runtime")]
 	fn post_upgrade(_state: Vec<u8>) -> Result<(), DispatchError> {
-		use frame_support::pallet_prelude::StorageVersion;
-
-		let membership_pallet_version = StorageVersion::get::<OracleProvidersMembership>();
-		log::info!("OracleProvidersMembership migrated to {:#?}", membership_pallet_version);
+		log::info!("{} migrated to {:#?}", Pallet::name(), Pallet::on_chain_storage_version());
 		Ok(())
 	}
 
 	fn on_runtime_upgrade() -> frame_support::weights::Weight {
-		migrate()
+		if Pallet::on_chain_storage_version() == StorageVersion::new(0) {
+			Pallet::current_storage_version().put::<Pallet>();
+		}
+		<Runtime as frame_system::Config>::DbWeight::get().reads_writes(1, 1)
 	}
-}
-
-fn migrate() -> frame_support::weights::Weight {
-	// Substrate
-	use frame_support::traits::StorageVersion;
-
-	// Some pallets are added on chain after the migration.
-	// Thus, they never required the migration and we just missed to set the correct
-	// `StorageVersion`.
-	let membership_pallet_version = StorageVersion::get::<OracleProvidersMembership>();
-	log::info!("OracleProvidersMembership migrating from {:#?}", membership_pallet_version);
-
-	if membership_pallet_version < 4 {
-		StorageVersion::new(4).put::<OracleProvidersMembership>();
-	}
-
-	let new_version = StorageVersion::get::<OracleProvidersMembership>();
-	log::info!("OracleProvidersMembership migrated to {:#?}", new_version);
-
-	<Runtime as frame_system::Config>::DbWeight::get().reads_writes(0, 1)
 }

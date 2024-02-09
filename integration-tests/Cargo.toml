@@ -40,6 +40,8 @@ pallet-assets.workspace = true
 polkadot-core-primitives.workspace = true
 polkadot-runtime-parachains.workspace = true
 polkadot-parachain.workspace = true
+pallet-collective.workspace = true
+pallet-elections-phragmen.workspace = true
 
 cumulus-primitives-core.workspace = true
 cumulus-pallet-xcm.workspace = true
@@ -61,6 +63,9 @@ orml-oracle.workspace = true
 pallet-parachain-staking.workspace = true
 pallet-vesting.workspace = true
 itertools.workspace = true
+pallet-democracy.workspace = true
+pallet-scheduler.workspace = true
+pallet-treasury.workspace = true
 
 # Runtimes
 polkadot-runtime.workspace = true
@@ -70,8 +75,11 @@ polimec-base-runtime.workspace = true
 penpal-runtime = { path = "./penpal", default-features = false }
 
 [features]
-default = [ "std" ]
-
+default = [ "instant-mode", "std" ]
+instant-mode = [
+	"polimec-base-runtime/instant-mode",
+	"polimec-parachain-runtime/instant-mode",
+]
 std = [
 	"asset-hub-polkadot-runtime/std",
 	"cumulus-pallet-xcm/std",
@@ -83,19 +91,25 @@ std = [
 	"orml-oracle/std",
 	"pallet-assets/std",
 	"pallet-balances/std",
+	"pallet-collective/std",
+	"pallet-democracy/std",
+	"pallet-elections-phragmen/std",
 	"pallet-funding/std",
 	"pallet-im-online/std",
 	"pallet-linear-release/std",
 	"pallet-membership/std",
 	"pallet-message-queue/std",
 	"pallet-parachain-staking/std",
+	"pallet-scheduler/std",
 	"pallet-staking/std",
+	"pallet-treasury/std",
 	"pallet-vesting/std",
 	"pallet-xcm/std",
 	"parachain-info/std",
 	"parachains-common/std",
 	"parity-scale-codec/std",
 	"penpal-runtime/std",
+	"polimec-common/std",
 	"polimec-parachain-runtime/std",
 	"polimec-receiver/std",
 	"polkadot-core-primitives/std",
@@ -115,68 +129,5 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
-	"polimec-common/std"
 ]
-
-runtime-benchmarks = [
-	"asset-hub-polkadot-runtime/runtime-benchmarks",
-	"cumulus-pallet-xcmp-queue/runtime-benchmarks",
-	"frame-support/runtime-benchmarks",
-	"frame-system/runtime-benchmarks",
-	"itertools/use_alloc",
-	"pallet-assets/runtime-benchmarks",
-	"pallet-balances/runtime-benchmarks",
-	"pallet-funding/runtime-benchmarks",
-	"pallet-im-online/runtime-benchmarks",
-	"pallet-linear-release/runtime-benchmarks",
-	"pallet-membership/runtime-benchmarks",
-	"pallet-message-queue/runtime-benchmarks",
-	"pallet-parachain-staking/runtime-benchmarks",
-	"pallet-staking/runtime-benchmarks",
-	"pallet-vesting/runtime-benchmarks",
-	"pallet-xcm/runtime-benchmarks",
-	"penpal-runtime/runtime-benchmarks",
-	"polimec-base-runtime/runtime-benchmarks",
-	"polimec-parachain-runtime/runtime-benchmarks",
-	"polimec-receiver/runtime-benchmarks",
-	"polkadot-parachain/runtime-benchmarks",
-	"polkadot-primitives/runtime-benchmarks",
-	"polkadot-runtime-parachains/runtime-benchmarks",
-	"polkadot-runtime/runtime-benchmarks",
-	"polkadot-service/runtime-benchmarks",
-	"sp-runtime/runtime-benchmarks",
-	"xcm-builder/runtime-benchmarks",
-	"xcm-executor/runtime-benchmarks",
-	"polimec-common/runtime-benchmarks"
-]
-try-runtime = [
-	"asset-hub-polkadot-runtime/try-runtime",
-	"cumulus-pallet-xcm/try-runtime",
-	"cumulus-pallet-xcmp-queue/try-runtime",
-	"frame-support/try-runtime",
-	"frame-system/try-runtime",
-	"orml-oracle/try-runtime",
-	"pallet-assets/try-runtime",
-	"pallet-balances/try-runtime",
-	"pallet-funding/try-runtime",
-	"pallet-im-online/try-runtime",
-	"pallet-linear-release/try-runtime",
-	"pallet-membership/try-runtime",
-	"pallet-message-queue/try-runtime",
-	"pallet-parachain-staking/try-runtime",
-	"pallet-staking/try-runtime",
-	"pallet-vesting/try-runtime",
-	"pallet-xcm/try-runtime",
-	"parachain-info/try-runtime",
-	"penpal-runtime/try-runtime",
-	"polimec-base-runtime/try-runtime",
-	"polimec-parachain-runtime/try-runtime",
-	"polimec-receiver/try-runtime",
-	"polimec-common/try-runtime",
-	"polkadot-runtime-parachains/try-runtime",
-	"polkadot-runtime/try-runtime",
-	"polkadot-service/try-runtime",
-	"sp-runtime/try-runtime",
-]
-fast-gov = [ "polimec-parachain-runtime/fast-gov" ]
 

@@ -21,49 +21,67 @@ use parachains_common::AssetIdForTrustBackedAssets;
 use sp_arithmetic::{FixedU128, Percent};
 use sp_std::{collections::btree_map::BTreeMap, vec, vec::Vec};
 
-#[cfg(feature = "fast-gov")]
+#[cfg(feature = "instant-mode")]
+pub const EVALUATION_DURATION: BlockNumber = 1;
+#[cfg(feature = "fast-mode")]
 pub const EVALUATION_DURATION: BlockNumber = 28;
-#[cfg(not(feature = "fast-gov"))]
+#[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const EVALUATION_DURATION: BlockNumber = 28 * crate::DAYS;
 
-#[cfg(feature = "fast-gov")]
+#[cfg(feature = "instant-mode")]
+pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 1;
+#[cfg(feature = "fast-mode")]
 pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 7;
-#[cfg(not(feature = "fast-gov"))]
+#[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 7 * crate::DAYS;
 
-#[cfg(feature = "fast-gov")]
+#[cfg(feature = "instant-mode")]
+pub const ENGLISH_AUCTION_DURATION: BlockNumber = 1;
+#[cfg(feature = "fast-mode")]
 pub const ENGLISH_AUCTION_DURATION: BlockNumber = 10;
-#[cfg(not(feature = "fast-gov"))]
+#[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const ENGLISH_AUCTION_DURATION: BlockNumber = 2 * crate::DAYS;
 
-#[cfg(feature = "fast-gov")]
+#[cfg(feature = "instant-mode")]
+pub const CANDLE_AUCTION_DURATION: BlockNumber = 2;
+#[cfg(feature = "fast-mode")]
 pub const CANDLE_AUCTION_DURATION: BlockNumber = 5;
-#[cfg(not(feature = "fast-gov"))]
+#[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const CANDLE_AUCTION_DURATION: BlockNumber = 3 * crate::DAYS;
 
-#[cfg(feature = "fast-gov")]
+#[cfg(feature = "instant-mode")]
+pub const COMMUNITY_FUNDING_DURATION: BlockNumber = 1;
+#[cfg(feature = "fast-mode")]
 pub const COMMUNITY_FUNDING_DURATION: BlockNumber = 10;
-#[cfg(not(feature = "fast-gov"))]
+#[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const COMMUNITY_FUNDING_DURATION: BlockNumber = 5 * crate::DAYS;
 
-#[cfg(feature = "fast-gov")]
+#[cfg(feature = "instant-mode")]
+pub const REMAINDER_FUNDING_DURATION: BlockNumber = 1;
+#[cfg(feature = "fast-mode")]
 pub const REMAINDER_FUNDING_DURATION: BlockNumber = 10;
-#[cfg(not(feature = "fast-gov"))]
+#[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const REMAINDER_FUNDING_DURATION: BlockNumber = crate::DAYS;
 
-#[cfg(feature = "fast-gov")]
+#[cfg(feature = "instant-mode")]
+pub const CONTRIBUTION_VESTING_DURATION: BlockNumber = 5;
+#[cfg(feature = "fast-mode")]
 pub const CONTRIBUTION_VESTING_DURATION: BlockNumber = 365;
-#[cfg(not(feature = "fast-gov"))]
+#[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const CONTRIBUTION_VESTING_DURATION: BlockNumber = 365 * crate::DAYS;
 
-#[cfg(feature = "fast-gov")]
+#[cfg(feature = "instant-mode")]
+pub const MANUAL_ACCEPTANCE_DURATION: BlockNumber = 1;
+#[cfg(feature = "fast-mode")]
 pub const MANUAL_ACCEPTANCE_DURATION: BlockNumber = 3;
-#[cfg(not(feature = "fast-gov"))]
+#[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const MANUAL_ACCEPTANCE_DURATION: BlockNumber = 3 * crate::DAYS;
 
-#[cfg(feature = "fast-gov")]
+#[cfg(feature = "instant-mode")]
+pub const SUCCESS_TO_SETTLEMENT_TIME: BlockNumber = 1;
+#[cfg(feature = "fast-mode")]
 pub const SUCCESS_TO_SETTLEMENT_TIME: BlockNumber = 4;
-#[cfg(not(feature = "fast-gov"))]
+#[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const SUCCESS_TO_SETTLEMENT_TIME: BlockNumber = 4 * crate::DAYS;
 
 pub type ProjectIdentifier = u32;

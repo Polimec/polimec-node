@@ -31,7 +31,7 @@ use base_runtime::{
 		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
 		InflationInfo, Range,
 	},
-	AccountId, AuraId as AuthorityId, Balance, BalancesConfig, MinCandidateStk, ParachainInfoConfig,
+	AccountId, AuraId as AuthorityId, Balance, BalancesConfig, ElectionsConfig, MinCandidateStk, ParachainInfoConfig,
 	ParachainStakingConfig, PolkadotXcmConfig, RuntimeGenesisConfig, SessionConfig, SudoConfig, SystemConfig, PLMC,
 };
 
@@ -216,9 +216,12 @@ fn base_testnet_genesis(
 	sudo_account: AccountId,
 	id: ParaId,
 ) -> RuntimeGenesisConfig {
+	const ENDOWMENT: Balance = 10_000_000 * PLMC;
+	const STASH: Balance = ENDOWMENT / 1000;
+
 	RuntimeGenesisConfig {
 		system: SystemConfig { code: wasm_binary.to_vec(), ..Default::default() },
-		balances: BalancesConfig { balances: endowed_accounts },
+		balances: BalancesConfig { balances: endowed_accounts.clone() },
 		parachain_info: ParachainInfoConfig { parachain_id: id, ..Default::default() },
 		parachain_staking: ParachainStakingConfig {
 			candidates: stakers.iter().map(|(accunt, _, balance)| (accunt.clone(), *balance)).collect::<Vec<_>>(),
@@ -251,6 +254,19 @@ fn base_testnet_genesis(
 			members: BoundedVec::truncate_from(initial_authorities),
 			..Default::default()
 		},
+		council: Default::default(),
+		technical_committee: Default::default(),
+		democracy: Default::default(),
+		elections: ElectionsConfig {
+			members: endowed_accounts
+				.iter()
+				.map(|(member, _)| member)
+				.take((endowed_accounts.len() + 1) / 2)
+				.cloned()
+				.map(|member| (member, STASH))
+				.collect(),
+		},
+		treasury: Default::default(),
 		vesting: Default::default(),
 	}
 }

@@ -257,8 +257,12 @@ fn testnet_genesis(
 		treasury: Default::default(),
 		sudo: SudoConfig { key: Some(sudo_account) },
 		council: CouncilConfig { members: accounts.clone(), phantom: Default::default() },
-		technical_committee: TechnicalCommitteeConfig { members: accounts, phantom: Default::default() },
+		technical_committee: TechnicalCommitteeConfig {
+			members: accounts.clone().into_iter().take(5).collect(),
+			phantom: Default::default(),
+		},
 		democracy: Default::default(),
+		elections: Default::default(),
 		vesting: Default::default(),
 		oracle_providers_membership: OracleProvidersMembershipConfig {
 			members: bounded_vec![
@@ -275,7 +279,7 @@ fn testnet_genesis(
 mod testing_helpers {
 	use super::*;
 	use macros::generate_accounts;
-	pub use pallet_funding::{instantiator::UserToUSDBalance, *};
+	use pallet_funding::{instantiator::UserToUSDBalance, *};
 	use polimec_parachain_runtime::AccountId;
 	use sp_core::H256;
 	pub use sp_runtime::{traits::ConstU32, BoundedVec, FixedU128};
@@ -526,8 +530,12 @@ fn testing_genesis(
 		treasury: Default::default(),
 		sudo: SudoConfig { key: Some(sudo_account) },
 		council: CouncilConfig { members: accounts.clone(), phantom: Default::default() },
-		technical_committee: TechnicalCommitteeConfig { members: accounts, phantom: Default::default() },
+		technical_committee: TechnicalCommitteeConfig {
+			members: accounts.clone().into_iter().take(5).collect(),
+			phantom: Default::default(),
+		},
 		democracy: Default::default(),
+		elections: Default::default(),
 		vesting: Default::default(),
 	}
 }

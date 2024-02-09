@@ -1,14 +1,27 @@
-use crate::{Polimec, PolimecRuntime, ALICE, BOB, CHARLIE};
-use frame_support::{assert_ok, bounded_vec, BoundedVec};
+// Polimec Blockchain – https://www.polimec.org/
+// Copyright (C) Polimec 2022. All rights reserved.
+
+// The Polimec Blockchain is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// The Polimec Blockchain is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+use crate::PolimecRuntime;
+use frame_support::BoundedVec;
 pub use pallet_funding::instantiator::{BidParams, ContributionParams, UserToPLMCBalance, UserToUSDBalance};
 use pallet_funding::{
 	AcceptedFundingAsset, CurrencyMetadata, ParticipantsSize, ProjectMetadata, ProjectMetadataOf, TicketSize,
 };
-use sp_arithmetic::FixedU128;
 use sp_core::H256;
-use std::collections::HashMap;
 
-use crate::PolimecOrigin;
 use macros::generate_accounts;
 use polimec_parachain_runtime::AccountId;
 use sp_runtime::{traits::ConstU32, Perquintill};
