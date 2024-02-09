@@ -29,7 +29,7 @@ use sp_runtime::traits::{CheckedDiv, CheckedMul};
 const SEED: u32 = 0;
 
 fn add_holds<T: Config>(who: &T::AccountId, n: u32) {
-	for id in 0..n {
+	for _id in 0..n {
 		let locked = 256u32;
 		let reason: ReasonOf<T> = T::BenchmarkReason::get();
 		let _ = T::Currency::hold(&reason, who, locked.into());

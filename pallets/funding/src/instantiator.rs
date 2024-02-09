@@ -111,7 +111,7 @@ impl<
 	pub fn execute<R>(&mut self, execution: impl FnOnce() -> R) -> R {
 		#[cfg(feature = "std")]
 		if let Some(ext) = &self.ext {
-			return ext.borrow_mut().execute_with(execution)
+			return ext.borrow_mut().execute_with(execution);
 		}
 		execution()
 	}
@@ -401,6 +401,12 @@ impl<
 		expected_reserved_plmc_balances: Vec<UserToPLMCBalance<T>>,
 		total_plmc_supply: BalanceOf<T>,
 	) {
+		// just in case we forgot to merge accounts:
+		let expected_free_plmc_balances =
+			Self::generic_map_operation(vec![expected_free_plmc_balances], MergeOperation::Add);
+		let expected_reserved_plmc_balances =
+			Self::generic_map_operation(vec![expected_reserved_plmc_balances], MergeOperation::Add);
+
 		let project_details = self.get_project_details(project_id);
 		let accounts = expected_reserved_plmc_balances.accounts();
 		let expected_ct_account_deposits = accounts
@@ -731,10 +737,8 @@ impl<
 		let last_event_record = events.into_iter().last().expect("No events found for this action.");
 		let last_event = last_event_record.event;
 		let maybe_funding_event = last_event.try_into();
-		if let Ok(funding_event) = maybe_funding_event {
-			if let Event::TransitionError { project_id, error } = funding_event {
-				panic!("Project {:?} transition failed in on_initialize: {:?}", project_id, error);
-			}
+		if let Ok(Event::TransitionError { project_id, error }) = maybe_funding_event {
+			panic!("Project {:?} transition failed in on_initialize: {:?}", project_id, error);
 		}
 	}
 
@@ -745,11 +749,10 @@ impl<
 		let last_event = last_event_record.event;
 		let maybe_funding_event = <T as Config>::RuntimeEvent::from(last_event).try_into();
 		if let Ok(funding_event) = maybe_funding_event {
-			if let Event::TransitionError { project_id: _, error } = funding_event {
-				if let DispatchError::Module(module_error) = error {
-					let pallet_error: Error<T> = Decode::decode(&mut &module_error.error[..]).unwrap();
-					return Err(pallet_error)
-				}
+			if let Event::TransitionError { project_id: _, error: DispatchError::Module(module_error) } = funding_event
+			{
+				let pallet_error: Error<T> = Decode::decode(&mut &module_error.error[..]).unwrap();
+				return Err(pallet_error);
 			}
 		}
 		Ok(())
@@ -865,7 +868,7 @@ impl<
 
 	pub fn start_evaluation(&mut self, project_id: ProjectId, caller: AccountIdOf<T>) -> Result<(), DispatchError> {
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::Application);
-		self.execute(|| crate::Pallet::<T>::do_evaluation_start(caller, project_id))?;
+		self.execute(|| crate::Pallet::<T>::do_start_evaluation(caller, project_id).unwrap());
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::EvaluationRound);
 
 		Ok(())
@@ -885,11 +888,11 @@ impl<
 		&mut self,
 		project_id: ProjectId,
 		bonds: Vec<UserToUSDBalance<T>>,
-	) -> Result<(), DispatchError> {
+	) -> DispatchResultWithPostInfo {
 		for UserToUSDBalance { account, usd_amount } in bonds {
 			self.execute(|| crate::Pallet::<T>::do_evaluate(&account, project_id, usd_amount))?;
 		}
-		Ok(())
+		Ok(().into())
 	}
 
 	pub fn start_auction(&mut self, project_id: ProjectId, caller: AccountIdOf<T>) -> Result<(), DispatchError> {
@@ -904,7 +907,7 @@ impl<
 
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 
-		self.execute(|| crate::Pallet::<T>::do_english_auction(caller, project_id))?;
+		self.execute(|| crate::Pallet::<T>::do_english_auction(caller, project_id).unwrap());
 
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionRound(AuctionPhase::English));
 
@@ -952,13 +955,11 @@ impl<
 		project_id
 	}
 
-	pub fn bid_for_users(&mut self, project_id: ProjectId, bids: Vec<BidParams<T>>) -> Result<(), DispatchError> {
+	pub fn bid_for_users(&mut self, project_id: ProjectId, bids: Vec<BidParams<T>>) {
 		for bid in bids {
-			self.execute(|| {
-				crate::Pallet::<T>::do_bid(&bid.bidder, project_id, bid.amount, bid.multiplier, bid.asset)
-			})?;
+			self.execute(|| crate::Pallet::<T>::do_bid(&bid.bidder, project_id, bid.amount, bid.multiplier, bid.asset))
+				.unwrap();
 		}
-		Ok(())
 	}
 
 	pub fn start_community_funding(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
@@ -1045,7 +1046,7 @@ impl<
 		self.mint_plmc_to(plmc_ct_account_deposits.clone());
 		self.mint_statemint_asset_to(funding_asset_deposits.clone());
 
-		self.bid_for_users(project_id, bids.clone()).expect("Bidding should work");
+		self.bid_for_users(project_id, bids.clone());
 
 		self.do_reserved_plmc_assertions(
 			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
@@ -1129,9 +1130,9 @@ impl<
 		assert!(
 			matches!(
 				project_details.status,
-				ProjectStatus::FundingSuccessful |
-					ProjectStatus::FundingFailed |
-					ProjectStatus::AwaitingProjectDecision
+				ProjectStatus::FundingSuccessful
+					| ProjectStatus::FundingFailed
+					| ProjectStatus::AwaitingProjectDecision
 			),
 			"Project should be in Finished status"
 		);
@@ -1151,7 +1152,7 @@ impl<
 
 		if contributions.is_empty() {
 			self.start_remainder_or_end_funding(project_id).unwrap();
-			return (project_id, accepted_bids)
+			return (project_id, accepted_bids);
 		}
 
 		let ct_price = self.get_project_details(project_id).weighted_average_price.unwrap();
@@ -1205,10 +1206,7 @@ impl<
 			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
 			HoldReason::Participation(project_id).into(),
 		);
-		self.do_contribution_transferred_statemint_asset_assertions(
-			funding_asset_deposits.merge_accounts(MergeOperation::Add),
-			project_id,
-		);
+		self.do_contribution_transferred_statemint_asset_assertions(funding_asset_deposits, project_id);
 		self.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts(MergeOperation::Add));
 		self.do_free_statemint_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
 		assert_eq!(self.get_plmc_total_supply(), post_supply);
@@ -1238,7 +1236,7 @@ impl<
 			ProjectStatus::FundingSuccessful => return project_id,
 			ProjectStatus::RemainderRound if remainder_contributions.is_empty() => {
 				self.finish_funding(project_id).unwrap();
-				return project_id
+				return project_id;
 			},
 			_ => {},
 		};
@@ -1249,9 +1247,9 @@ impl<
 			.clone()
 			.into_iter()
 			.filter(|account| {
-				evaluations.accounts().contains(account).not() &&
-					bids.accounts().contains(account).not() &&
-					community_contributions.accounts().contains(account).not()
+				evaluations.accounts().contains(account).not()
+					&& bids.accounts().contains(account).not()
+					&& community_contributions.accounts().contains(account).not()
 			})
 			.collect_vec();
 		let asset_id = remainder_contributions[0].asset.to_statemint_id();
@@ -1326,10 +1324,10 @@ impl<
 
 			assert_eq!(
 				project_details.remaining_contribution_tokens.0 + project_details.remaining_contribution_tokens.1,
-				project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1 -
-					auction_bought_tokens -
-					community_bought_tokens -
-					remainder_bought_tokens,
+				project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1
+					- auction_bought_tokens
+					- community_bought_tokens
+					- remainder_bought_tokens,
 				"Remaining CTs are incorrect"
 			);
 		}
@@ -1356,7 +1354,7 @@ impl<
 				community_contributions,
 				remainder_contributions,
 			),
-			ProjectStatus::RemainderRound =>
+			ProjectStatus::RemainderRound => {
 				self.create_remainder_contributing_project(
 					project_metadata,
 					issuer,
@@ -1364,11 +1362,14 @@ impl<
 					bids,
 					community_contributions,
 				)
-				.0,
-			ProjectStatus::CommunityRound =>
-				self.create_community_contributing_project(project_metadata, issuer, evaluations, bids).0,
-			ProjectStatus::AuctionRound(AuctionPhase::English) =>
-				self.create_auctioning_project(project_metadata, issuer, evaluations),
+				.0
+			},
+			ProjectStatus::CommunityRound => {
+				self.create_community_contributing_project(project_metadata, issuer, evaluations, bids).0
+			},
+			ProjectStatus::AuctionRound(AuctionPhase::English) => {
+				self.create_auctioning_project(project_metadata, issuer, evaluations)
+			},
 			ProjectStatus::EvaluationRound => self.create_evaluating_project(project_metadata, issuer),
 			ProjectStatus::Application => self.create_new_project(project_metadata, issuer),
 			_ => panic!("unsupported project creation in that status"),
@@ -1410,7 +1411,7 @@ pub mod async_features {
 	) {
 		loop {
 			if !block_orchestrator.continue_running() {
-				break
+				break;
 			}
 
 			let maybe_target_reached = block_orchestrator.advance_to_next_target(instantiator.clone()).await;
@@ -1420,6 +1421,17 @@ pub mod async_features {
 			}
 			// leaves some time for the projects to submit their targets to the orchestrator
 			sleep(Duration::from_millis(100)).await;
+		}
+	}
+
+	impl<
+			T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
+			AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
+			RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
+		> Default for BlockOrchestrator<T, AllPalletsWithoutSystem, RuntimeEvent>
+	{
+		fn default() -> Self {
+			Self::new()
 		}
 	}
 
@@ -1508,11 +1520,6 @@ pub mod async_features {
 	) -> ProjectId {
 		let mut inst = instantiator.lock().await;
 
-		let asset_account_deposit =
-			inst.execute(|| <T as crate::Config>::ContributionTokenCurrency::deposit_required(One::one()));
-		let ed = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ed();
-		dbg!(asset_account_deposit);
-		dbg!(ed);
 		let now = inst.current_block();
 		// One ED for the issuer, one for the escrow account
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
@@ -1580,7 +1587,7 @@ pub mod async_features {
 
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 
-		inst.execute(|| crate::Pallet::<T>::do_english_auction(caller, project_id))?;
+		inst.execute(|| crate::Pallet::<T>::do_english_auction(caller, project_id).unwrap());
 
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionRound(AuctionPhase::English));
 
@@ -1773,7 +1780,7 @@ pub mod async_features {
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 		inst.mint_statemint_asset_to(funding_asset_deposits.clone());
 
-		inst.bid_for_users(project_id, bids.clone()).expect("Bidding should work");
+		inst.bid_for_users(project_id, bids.clone());
 
 		inst.do_reserved_plmc_assertions(
 			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
@@ -1878,7 +1885,7 @@ pub mod async_features {
 			async_start_remainder_or_end_funding(instantiator.clone(), block_orchestrator.clone(), project_id)
 				.await
 				.unwrap();
-			return (project_id, accepted_bids)
+			return (project_id, accepted_bids);
 		}
 
 		let mut inst = instantiator.lock().await;
@@ -1999,9 +2006,9 @@ pub mod async_features {
 		assert!(
 			matches!(
 				project_details.status,
-				ProjectStatus::FundingSuccessful |
-					ProjectStatus::FundingFailed |
-					ProjectStatus::AwaitingProjectDecision
+				ProjectStatus::FundingSuccessful
+					| ProjectStatus::FundingFailed
+					| ProjectStatus::AwaitingProjectDecision
 			),
 			"Project should be in Finished status"
 		);
@@ -2055,7 +2062,7 @@ pub mod async_features {
 			ProjectStatus::FundingSuccessful => return project_id,
 			ProjectStatus::RemainderRound if remainder_contributions.is_empty() => {
 				inst.finish_funding(project_id).unwrap();
-				return project_id
+				return project_id;
 			},
 			_ => {},
 		};
@@ -2066,9 +2073,9 @@ pub mod async_features {
 			.clone()
 			.into_iter()
 			.filter(|account| {
-				evaluations.accounts().contains(account).not() &&
-					bids.accounts().contains(account).not() &&
-					community_contributions.accounts().contains(account).not()
+				evaluations.accounts().contains(account).not()
+					&& bids.accounts().contains(account).not()
+					&& community_contributions.accounts().contains(account).not()
 			})
 			.collect_vec();
 		let asset_id = remainder_contributions[0].asset.to_statemint_id();
@@ -2161,10 +2168,10 @@ pub mod async_features {
 
 			assert_eq!(
 				project_details.remaining_contribution_tokens.0 + project_details.remaining_contribution_tokens.1,
-				project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1 -
-					auction_bought_tokens -
-					community_bought_tokens -
-					remainder_bought_tokens,
+				project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1
+					- auction_bought_tokens
+					- community_bought_tokens
+					- remainder_bought_tokens,
 				"Remaining CTs are incorrect"
 			);
 		}
@@ -2182,7 +2189,7 @@ pub mod async_features {
 		test_project_params: TestProjectParams<T>,
 	) -> ProjectId {
 		match test_project_params.expected_state {
-			ProjectStatus::FundingSuccessful =>
+			ProjectStatus::FundingSuccessful => {
 				async_create_finished_project(
 					instantiator,
 					block_orchestrator,
@@ -2193,8 +2200,9 @@ pub mod async_features {
 					test_project_params.community_contributions,
 					test_project_params.remainder_contributions,
 				)
-				.await,
-			ProjectStatus::RemainderRound =>
+				.await
+			},
+			ProjectStatus::RemainderRound => {
 				async_create_remainder_contributing_project(
 					instantiator,
 					block_orchestrator,
@@ -2205,8 +2213,9 @@ pub mod async_features {
 					test_project_params.community_contributions,
 				)
 				.map(|(project_id, _)| project_id)
-				.await,
-			ProjectStatus::CommunityRound =>
+				.await
+			},
+			ProjectStatus::CommunityRound => {
 				async_create_community_contributing_project(
 					instantiator,
 					block_orchestrator,
@@ -2216,8 +2225,9 @@ pub mod async_features {
 					test_project_params.bids,
 				)
 				.map(|(project_id, _)| project_id)
-				.await,
-			ProjectStatus::AuctionRound(AuctionPhase::English) =>
+				.await
+			},
+			ProjectStatus::AuctionRound(AuctionPhase::English) => {
 				async_create_auctioning_project(
 					instantiator,
 					block_orchestrator,
@@ -2225,12 +2235,15 @@ pub mod async_features {
 					test_project_params.issuer,
 					test_project_params.evaluations,
 				)
-				.await,
-			ProjectStatus::EvaluationRound =>
+				.await
+			},
+			ProjectStatus::EvaluationRound => {
 				async_create_evaluating_project(instantiator, test_project_params.metadata, test_project_params.issuer)
-					.await,
-			ProjectStatus::Application =>
-				async_create_new_project(instantiator, test_project_params.metadata, test_project_params.issuer).await,
+					.await
+			},
+			ProjectStatus::Application => {
+				async_create_new_project(instantiator, test_project_params.metadata, test_project_params.issuer).await
+			},
 			_ => panic!("unsupported project creation in that status"),
 		}
 	}
@@ -2248,9 +2261,9 @@ pub mod async_features {
 		let time_to_evaluation: BlockNumberFor<T> = time_to_new_project + Zero::zero();
 		// we immediately start the auction, so we dont wait for T::AuctionInitializePeriodDuration.
 		let time_to_auction: BlockNumberFor<T> = time_to_evaluation + <T as Config>::EvaluationDuration::get();
-		let time_to_community: BlockNumberFor<T> = time_to_auction +
-			<T as Config>::EnglishAuctionDuration::get() +
-			<T as Config>::CandleAuctionDuration::get();
+		let time_to_community: BlockNumberFor<T> = time_to_auction
+			+ <T as Config>::EnglishAuctionDuration::get()
+			+ <T as Config>::CandleAuctionDuration::get();
 		let time_to_remainder: BlockNumberFor<T> = time_to_community + <T as Config>::CommunityFundingDuration::get();
 		let time_to_finish: BlockNumberFor<T> = time_to_remainder + <T as Config>::RemainderFundingDuration::get();
 		let mut inst = mutex_inst.lock().await;
@@ -2358,8 +2371,6 @@ pub mod async_features {
 		instantiator: Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>,
 		projects: Vec<TestProjectParams<T>>,
 	) -> (Vec<ProjectId>, Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>) {
-		// let tokio_runtime = Runtime::new().unwrap();
-
 		use tokio::runtime::Builder;
 		let tokio_runtime = Builder::new_current_thread().enable_all().build().unwrap();
 		let local = tokio::task::LocalSet::new();
@@ -2699,54 +2710,54 @@ pub struct BidInfoFilter<T: Config> {
 impl<T: Config> BidInfoFilter<T> {
 	pub(crate) fn matches_bid(&self, bid: &BidInfoOf<T>) -> bool {
 		if self.id.is_some() && self.id.unwrap() != bid.id {
-			return false
+			return false;
 		}
 		if self.project_id.is_some() && self.project_id.unwrap() != bid.project_id {
-			return false
+			return false;
 		}
 		if self.bidder.is_some() && self.bidder.clone().unwrap() != bid.bidder.clone() {
-			return false
+			return false;
 		}
 		if self.status.is_some() && self.status.as_ref().unwrap() != &bid.status {
-			return false
+			return false;
 		}
 		if self.original_ct_amount.is_some() && self.original_ct_amount.unwrap() != bid.original_ct_amount {
-			return false
+			return false;
 		}
 		if self.original_ct_usd_price.is_some() && self.original_ct_usd_price.unwrap() != bid.original_ct_usd_price {
-			return false
+			return false;
 		}
 		if self.final_ct_amount.is_some() && self.final_ct_amount.unwrap() != bid.final_ct_amount {
-			return false
+			return false;
 		}
 		if self.final_ct_usd_price.is_some() && self.final_ct_usd_price.unwrap() != bid.final_ct_usd_price {
-			return false
+			return false;
 		}
 		if self.funding_asset.is_some() && self.funding_asset.unwrap() != bid.funding_asset {
-			return false
+			return false;
 		}
-		if self.funding_asset_amount_locked.is_some() &&
-			self.funding_asset_amount_locked.unwrap() != bid.funding_asset_amount_locked
+		if self.funding_asset_amount_locked.is_some()
+			&& self.funding_asset_amount_locked.unwrap() != bid.funding_asset_amount_locked
 		{
-			return false
+			return false;
 		}
 		if self.multiplier.is_some() && self.multiplier.unwrap() != bid.multiplier {
-			return false
+			return false;
 		}
 		if self.plmc_bond.is_some() && self.plmc_bond.unwrap() != bid.plmc_bond {
-			return false
+			return false;
 		}
 		if self.plmc_vesting_info.is_some() && self.plmc_vesting_info.unwrap() != bid.plmc_vesting_info {
-			return false
+			return false;
 		}
 		if self.when.is_some() && self.when.unwrap() != bid.when {
-			return false
+			return false;
 		}
 		if self.funds_released.is_some() && self.funds_released.unwrap() != bid.funds_released {
-			return false
+			return false;
 		}
 		if self.ct_minted.is_some() && self.ct_minted.unwrap() != bid.ct_minted {
-			return false
+			return false;
 		}
 
 		true
@@ -2778,17 +2789,42 @@ impl<T: Config> Default for BidInfoFilter<T> {
 pub mod testing_macros {
 
 	#[macro_export]
+	/// Example:
+	/// ```
+	/// use pallet_funding::assert_close_enough;
+	/// use sp_arithmetic::Perquintill;
+	///
+	/// let real = 98u64;
+	/// let desired = 100u64;
+	/// assert_close_enough!(real, desired, Perquintill::from_float(0.02));
+	/// // This would fail
+	/// // assert_close_enough!(real, desired, Perquintill::from_float(0.01));
+	/// ```
+	///
+	/// - Use this macro when you deal with operations with lots of decimals, and you are ok with the real value being an approximation of the desired one.
+	/// - The max_approximation should be an upper bound such that 1-real/desired <= approximation in the case where the desired is smaller than the real,
+	/// and 1-desired/real <= approximation in the case where the real is bigger than the desired.
+	/// - You probably should define the max_approximation from a float number or a percentage, like in the example.
 	macro_rules! assert_close_enough {
 		// Match when a message is provided
 		($real:expr, $desired:expr, $max_approximation:expr, $msg:expr) => {
-			let real_parts = Perquintill::from_rational($real, $desired);
+			if $real <= $desired {
+				let real_parts = Perquintill::from_rational($real, $desired);
+			} else {
+				let real_parts = Perquintill::from_rational($desired, $real);
+			}
 			let one = Perquintill::from_percent(100u64);
 			let real_approximation = one - real_parts;
 			assert!(real_approximation <= $max_approximation, $msg);
 		};
 		// Match when no message is provided
 		($real:expr, $desired:expr, $max_approximation:expr) => {
-			let real_parts = Perquintill::from_rational($real, $desired);
+			let real_parts;
+			if $real <= $desired {
+				real_parts = Perquintill::from_rational($real, $desired);
+			} else {
+				real_parts = Perquintill::from_rational($desired, $real);
+			}
 			let one = Perquintill::from_percent(100u64);
 			let real_approximation = one - real_parts;
 			assert!(
