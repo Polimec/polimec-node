@@ -119,7 +119,7 @@ impl FetchPrice for KrakenFetcher {
 		let maybe_response = serde_json_core::from_str::<KrakenResponse>(body);
 		if let Err(e) = maybe_response {
 			log::error!(target: LOG_TARGET, "Error parsing response for Kraken: {:?}", e);
-			return None
+			return None;
 		}
 		let response = maybe_response.ok()?;
 		Some(response.0.result.data.into_iter().rev().take(NUMBER_OF_CANDLES).collect())
@@ -141,14 +141,14 @@ impl FetchPrice for BitFinexFetcher {
 		let maybe_response = serde_json_core::from_str::<HVec<(u64, f64, f64, f64, f64, f64), NUMBER_OF_CANDLES>>(body);
 		if let Err(e) = maybe_response {
 			log::error!(target: LOG_TARGET, "Error parsing response for BitFinex: {:?}", e);
-			return None
+			return None;
 		}
 		let response = maybe_response.ok()?;
 
 		let data: Vec<OpenCloseVolume> =
 			response.0.into_iter().filter_map(|r| OpenCloseVolume::from_f64(r.3, r.4, r.2, r.5).ok()).collect();
 		if data.len() < NUMBER_OF_CANDLES {
-			return None
+			return None;
 		}
 		Some(data)
 	}
@@ -175,7 +175,7 @@ where
 	let volume_str = "volume";
 	for row in data.into_iter() {
 		if !row.contains_key(&high_str) && !row.contains_key(&close_str) && !row.contains_key(&volume_str) {
-			return Err(serde::de::Error::custom("Row does not contain required data"))
+			return Err(serde::de::Error::custom("Row does not contain required data"));
 		}
 		let high = *row.get(&high_str).ok_or(serde::de::Error::custom("Could not parse value to str"))?;
 		let low = *row.get(&low_str).ok_or(serde::de::Error::custom("Could not parse value to str"))?;
@@ -208,11 +208,11 @@ impl FetchPrice for BitStampFetcher {
 		let maybe_response = serde_json_core::from_str::<BitStampResponse>(body);
 		if let Err(e) = maybe_response {
 			log::error!(target: LOG_TARGET, "Error parsing response for Bitstamp: {:?}", e);
-			return None
+			return None;
 		}
 		let response = maybe_response.ok()?;
 		if response.0.data.ohlc.len() < NUMBER_OF_CANDLES {
-			return None
+			return None;
 		}
 
 		Some(response.0.data.ohlc.into_iter().rev().collect())
@@ -234,7 +234,7 @@ impl FetchPrice for CoinbaseFetcher {
 		let maybe_response = serde_json_core::from_str::<HVec<(u64, f64, f64, f64, f64, f64), 1000>>(body);
 		if let Err(e) = maybe_response {
 			log::error!(target: LOG_TARGET, "Error parsing response for Coinbase: {:?}", e);
-			return None
+			return None;
 		}
 		let response = maybe_response.ok()?;
 
@@ -245,7 +245,7 @@ impl FetchPrice for CoinbaseFetcher {
 			.filter_map(|r| OpenCloseVolume::from_f64(r.2, r.1, r.4, r.5).ok())
 			.collect();
 		if data.len() < NUMBER_OF_CANDLES {
-			return None
+			return None;
 		}
 		Some(data)
 	}

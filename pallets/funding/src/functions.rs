@@ -201,14 +201,15 @@ impl<T: Config> Pallet<T> {
 			(&project_id, UpdateType::EvaluationEnd),
 		) {
 			Ok(insertions) => insertions,
-			Err(insertions) =>
+			Err(insertions) => {
 				return Err(DispatchErrorWithPostInfo {
 					post_info: PostDispatchInfo {
 						actual_weight: Some(WeightInfoOf::<T>::start_evaluation(insertions)),
 						pays_fee: Pays::Yes,
 					},
 					error: Error::<T>::TooManyInsertionAttempts.into(),
-				}),
+				})
+			},
 		};
 
 		// * Emit events *
@@ -310,7 +311,7 @@ impl<T: Config> Pallet<T> {
 			return Ok(PostDispatchInfo {
 				actual_weight: Some(WeightInfoOf::<T>::end_evaluation_success(insertion_attempts)),
 				pays_fee: Pays::Yes,
-			})
+			});
 
 		// Unsuccessful path
 		} else {
@@ -324,7 +325,7 @@ impl<T: Config> Pallet<T> {
 			return Ok(PostDispatchInfo {
 				actual_weight: Some(WeightInfoOf::<T>::end_evaluation_failure()),
 				pays_fee: Pays::Yes,
-			})
+			});
 		}
 	}
 
@@ -397,7 +398,7 @@ impl<T: Config> Pallet<T> {
 				Ok(iterations) => {
 					remove_attempts = iterations;
 				},
-				Err(iterations) =>
+				Err(iterations) => {
 					return Err(DispatchErrorWithPostInfo {
 						post_info: PostDispatchInfo {
 							actual_weight: Some(WeightInfoOf::<T>::start_auction_manually(
@@ -407,7 +408,8 @@ impl<T: Config> Pallet<T> {
 							pays_fee: Pays::Yes,
 						},
 						error: Error::<T>::ProjectNotInUpdateStore.into(),
-					}),
+					})
+				},
 			}
 		}
 		// Schedule for automatic transition to candle auction round
@@ -416,7 +418,7 @@ impl<T: Config> Pallet<T> {
 			Ok(iterations) => {
 				insertion_attempts = iterations;
 			},
-			Err(insertion_attempts) =>
+			Err(insertion_attempts) => {
 				return Err(DispatchErrorWithPostInfo {
 					post_info: PostDispatchInfo {
 						actual_weight: if remove_attempts == 0u32 {
@@ -427,7 +429,8 @@ impl<T: Config> Pallet<T> {
 						pays_fee: Pays::Yes,
 					},
 					error: Error::<T>::TooManyInsertionAttempts.into(),
-				}),
+				})
+			},
 		};
 
 		// * Emit events *
@@ -709,9 +712,9 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			remaining_cts == Zero::zero() ||
-				project_details.status == ProjectStatus::FundingFailed ||
-				matches!(remainder_end_block, Some(end_block) if now > end_block),
+			remaining_cts == Zero::zero()
+				|| project_details.status == ProjectStatus::FundingFailed
+				|| matches!(remainder_end_block, Some(end_block) if now > end_block),
 			Error::<T>::TooEarlyForFundingEnd
 		);
 
@@ -739,7 +742,7 @@ impl<T: Config> Pallet<T> {
 					insertion_iterations,
 				)),
 				pays_fee: Pays::Yes,
-			})
+			});
 		} else if funding_ratio <= Perquintill::from_percent(75u64) {
 			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Slashed;
 			project_details.status = ProjectStatus::AwaitingProjectDecision;
@@ -789,7 +792,7 @@ impl<T: Config> Pallet<T> {
 					evaluations_count,
 				)),
 				pays_fee: Pays::Yes,
-			})
+			});
 		}
 	}
 
@@ -835,8 +838,8 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			project_details.status == ProjectStatus::FundingSuccessful ||
-				project_details.status == ProjectStatus::FundingFailed,
+			project_details.status == ProjectStatus::FundingSuccessful
+				|| project_details.status == ProjectStatus::FundingFailed,
 			Error::<T>::NotAllowed
 		);
 
@@ -1218,30 +1221,6 @@ impl<T: Config> Pallet<T> {
 
 		// Weight flags
 		enum WeightContributionFlag {
-			FirstContribution,
-			SecondToLimitContribution,
-			OverLimitContribution,
-		}
-		struct WeightRoundEndFlag {
-			fully_filled_vecs_from_insertion: u32,
-			total_vecs_in_storage: u32,
-		}
-		let weight_contribution_flag: WeightContributionFlag;
-		let mut weight_round_end_flag: Option<WeightRoundEndFlag> = None;
-		let mut weight_ct_account_deposit = false;
-
-		if caller_existing_contributions.len() == 0 {
-			weight_contribution_flag = WeightContributionFlag::FirstContribution;
-		} else if caller_existing_contributions.len() < T::MaxContributionsPerUser::get() as usize {
-			weight_contribution_flag = WeightContributionFlag::SecondToLimitContribution;
-		} else {
-			weight_contribution_flag = WeightContributionFlag::OverLimitContribution;
-		}
-		let caller_existing_contributions =
-			Contributions::<T>::iter_prefix_values((project_id, contributor)).collect::<Vec<_>>();
-
-		// Weight flags
-		enum WeightContributionFlag {
 			First,
 			SecondToLimit,
 			OverLimit,
@@ -1322,13 +1301,13 @@ impl<T: Config> Pallet<T> {
 		{
 			weight_ct_account_deposit = true;
 			T::NativeCurrency::hold(&HoldReason::FutureDeposit(project_id).into(), &contributor, ct_deposit)?;
+		}
 		if T::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), contributor) < ct_deposit {
 			weight_ct_account_deposit = true;
 			T::NativeCurrency::hold(&HoldReason::FutureDeposit(project_id).into(), contributor, ct_deposit)?;
 		}
 
 		// Try adding the new contribution to the system
-		if matches!(weight_contribution_flag, WeightContributionFlag::OverLimitContribution).not() {
 		if matches!(weight_contribution_flag, WeightContributionFlag::OverLimit).not() {
 			Self::try_plmc_participation_lock(contributor, project_id, plmc_bond)?;
 			Self::try_funding_asset_hold(contributor, project_id, funding_asset_amount, asset_id)?;
@@ -1412,7 +1391,7 @@ impl<T: Config> Pallet<T> {
 			multiplier,
 		});
 
-			// return correct weight function
+		// return correct weight function
 		match (weight_contribution_flag, weight_round_end_flag, weight_ct_account_deposit) {
 			(WeightContributionFlag::First, None, false) => Ok(PostDispatchInfo {
 				actual_weight: Some(WeightInfoOf::<T>::first_contribution_no_ct_deposit()),
@@ -1470,6 +1449,7 @@ impl<T: Config> Pallet<T> {
 				pays_fee: Pays::Yes,
 			}),
 		}
+	}
 
 	fn calculate_buyable_amount(
 		status: &ProjectStatus,
@@ -1515,25 +1495,27 @@ impl<T: Config> Pallet<T> {
 
 		match Self::remove_from_update_store(&project_id) {
 			Ok(iterations) => remove_attempts = iterations,
-			Err(iterations) =>
+			Err(iterations) => {
 				return Err(DispatchErrorWithPostInfo {
 					post_info: PostDispatchInfo {
 						actual_weight: Some(WeightInfoOf::<T>::decide_project_outcome(insertion_attempts, iterations)),
 						pays_fee: Pays::Yes,
 					},
 					error: Error::<T>::TooManyInsertionAttempts.into(),
-				}),
+				})
+			},
 		};
 		match Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::ProjectDecision(decision))) {
 			Ok(iterations) => insertion_attempts = iterations,
-			Err(iterations) =>
+			Err(iterations) => {
 				return Err(DispatchErrorWithPostInfo {
 					post_info: PostDispatchInfo {
 						actual_weight: Some(WeightInfoOf::<T>::decide_project_outcome(iterations, remove_attempts)),
 						pays_fee: Pays::Yes,
 					},
 					error: Error::<T>::TooManyInsertionAttempts.into(),
-				}),
+				})
+			},
 		};
 
 		Self::deposit_event(Event::ProjectOutcomeDecided { project_id, decision });
@@ -2703,10 +2685,10 @@ impl<T: Config> Pallet<T> {
 			if ProjectsToUpdate::<T>::try_append(block_number, store.clone()).is_err() {
 				block_number += 1u32.into();
 			} else {
-				return Ok(i)
+				return Ok(i);
 			}
 		}
-		return Err(T::MaxProjectsToUpdateInsertionAttempts::get())
+		return Err(T::MaxProjectsToUpdateInsertionAttempts::get());
 	}
 
 	// returns the actual iterations for weight calculation either as an Err type or Ok type so the caller can add that

@@ -81,8 +81,9 @@ where
 {
 	fn try_convert(o: RuntimeOrigin) -> Result<MultiLocation, RuntimeOrigin> {
 		o.try_with_caller(|caller| match caller.try_into() {
-			Ok(SystemRawOrigin::Signed(who)) =>
-				Ok(Junction::AccountIndex64 { network: Network::get(), index: who.into() }.into()),
+			Ok(SystemRawOrigin::Signed(who)) => {
+				Ok(Junction::AccountIndex64 { network: Network::get(), index: who.into() }.into())
+			},
 			Ok(other) => Err(other.into()),
 			Err(other) => Err(other),
 		})

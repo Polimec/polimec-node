@@ -1161,9 +1161,9 @@ impl<
 		assert!(
 			matches!(
 				project_details.status,
-				ProjectStatus::FundingSuccessful |
-					ProjectStatus::FundingFailed |
-					ProjectStatus::AwaitingProjectDecision
+				ProjectStatus::FundingSuccessful
+					| ProjectStatus::FundingFailed
+					| ProjectStatus::AwaitingProjectDecision
 			),
 			"Project should be in Finished status"
 		);

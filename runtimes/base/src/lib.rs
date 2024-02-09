@@ -24,7 +24,10 @@ extern crate frame_benchmarking;
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{fungible::{Credit, Inspect}, tokens, ConstU32, Contains, EitherOfDiverse, InstanceFilter, PrivilegeCmp},
+	traits::{
+		fungible::{Credit, Inspect},
+		tokens, ConstU32, Contains, EitherOfDiverse, InstanceFilter, PrivilegeCmp,
+	},
 	weights::{ConstantMultiplier, Weight},
 };
 use frame_system::{EnsureRoot, EnsureSigned};
@@ -550,7 +553,7 @@ pub struct EqualOrGreatestRootCmp;
 impl PrivilegeCmp<OriginCaller> for EqualOrGreatestRootCmp {
 	fn cmp_privilege(left: &OriginCaller, right: &OriginCaller) -> Option<Ordering> {
 		if left == right {
-			return Some(Ordering::Equal)
+			return Some(Ordering::Equal);
 		}
 		match (left, right) {
 			// Root is greater than anything.
@@ -832,11 +835,11 @@ mod benches {
 		// Monetary stuff.
 		[pallet_balances, Balances]
 		[pallet_vesting, Vesting]
-		
+
 		// Collator support.
 		[pallet_session, SessionBench::<Runtime>]
 		[pallet_parachain_staking, ParachainStaking]
-		
+
 		// XCM helpers.
 		[cumulus_pallet_xcmp_queue, XcmpQueue]
 		[pallet_xcm, PolkadotXcm]

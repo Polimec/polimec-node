@@ -168,17 +168,17 @@ use sp_runtime::{
 use sp_std::prelude::*;
 
 mod conviction;
-mod types;
 mod traits;
+mod types;
 mod vote;
 mod vote_threshold;
 pub mod weights;
 pub use conviction::Conviction;
 pub use pallet::*;
+pub use traits::GetElectorate;
 pub use types::{
 	Delegations, MetadataOwner, PropIndex, ReferendumIndex, ReferendumInfo, ReferendumStatus, Tally, UnvoteScope,
 };
-pub use traits::GetElectorate;
 pub use vote::{AccountVote, Vote, Voting};
 pub use vote_threshold::{Approved, VoteThreshold};
 pub use weights::WeightInfo;
@@ -813,7 +813,7 @@ pub mod pallet {
 			if let Some((ext_proposal, _)) = NextExternal::<T>::get() {
 				ensure!(proposal_hash == ext_proposal.hash(), Error::<T>::ProposalMissing);
 			} else {
-				return Err(Error::<T>::NoProposal.into())
+				return Err(Error::<T>::NoProposal.into());
 			}
 
 			let mut existing_vetoers = <Blacklist<T>>::get(&proposal_hash).map(|pair| pair.1).unwrap_or_default();
@@ -1482,7 +1482,7 @@ impl<T: Config> Pallet<T> {
 			Self::transfer_metadata(MetadataOwner::External, MetadataOwner::Referendum(ref_index));
 			Ok(())
 		} else {
-			return Err(Error::<T>::NoneWaiting.into())
+			return Err(Error::<T>::NoneWaiting.into());
 		}
 	}
 
@@ -1512,7 +1512,7 @@ impl<T: Config> Pallet<T> {
 			}
 			Ok(())
 		} else {
-			return Err(Error::<T>::NoneWaiting.into())
+			return Err(Error::<T>::NoneWaiting.into());
 		}
 	}
 
@@ -1591,8 +1591,8 @@ impl<T: Config> Pallet<T> {
 		//   of unbaked referendum is bounded by this number. In case those number have changed in a
 		//   runtime upgrade the formula should be adjusted but the bound should still be sensible.
 		<LowestUnbaked<T>>::mutate(|ref_index| {
-			while *ref_index < last &&
-				Self::referendum_info(*ref_index)
+			while *ref_index < last
+				&& Self::referendum_info(*ref_index)
 					.map_or(true, |info| matches!(info, ReferendumInfo::Finished { .. }))
 			{
 				*ref_index += 1

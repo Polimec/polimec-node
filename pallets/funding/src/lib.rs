@@ -1441,15 +1441,16 @@ pub mod pallet {
 
 			let projects_needing_cleanup = ProjectsDetails::<T>::iter()
 				.filter_map(|(project_id, info)| match info.cleanup {
-					cleaner if <Cleaner as DoRemainingOperation<T>>::has_remaining_operations(&cleaner) =>
-						Some((project_id, cleaner)),
+					cleaner if <Cleaner as DoRemainingOperation<T>>::has_remaining_operations(&cleaner) => {
+						Some((project_id, cleaner))
+					},
 					_ => None,
 				})
 				.collect::<Vec<_>>();
 
 			let projects_amount = projects_needing_cleanup.len() as u64;
 			if projects_amount == 0 {
-				return max_weight
+				return max_weight;
 			}
 
 			let mut max_weight_per_project = remaining_weight.saturating_div(projects_amount);
@@ -1465,7 +1466,7 @@ pub mod pallet {
 					{
 						consumed_weight.saturating_accrue(weight);
 					} else {
-						break
+						break;
 					}
 				}
 
@@ -1569,7 +1570,7 @@ pub mod local_macros {
 						project_id: $project_id,
 						error: Error::<T>::FieldIsNone.into(),
 					});
-					continue
+					continue;
 				},
 			}
 		};
@@ -1583,7 +1584,7 @@ pub mod local_macros {
 				Ok(val) => val,
 				Err(err) => {
 					Self::deposit_event(Event::TransitionError { project_id: $project_id, error: $error_handler(err) });
-					continue
+					continue;
 				},
 			}
 		};

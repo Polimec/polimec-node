@@ -371,7 +371,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			if schedule1_index == schedule2_index {
-				return Ok(())
+				return Ok(());
 			};
 			let schedule1_index = schedule1_index as usize;
 			let schedule2_index = schedule2_index as usize;

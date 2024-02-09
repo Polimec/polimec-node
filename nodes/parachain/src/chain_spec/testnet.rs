@@ -389,8 +389,8 @@ fn testing_genesis(
 	let funding_percent = 93u64;
 	let project_metadata = default_project(ISSUER.into(), 0u32);
 	let min_price = project_metadata.minimum_price;
-	let twenty_percent_funding_usd = Perquintill::from_percent(funding_percent) *
-		(project_metadata
+	let twenty_percent_funding_usd = Perquintill::from_percent(funding_percent)
+		* (project_metadata
 			.minimum_price
 			.checked_mul_int(project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1)
 			.unwrap());

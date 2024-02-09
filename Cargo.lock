@@ -3879,10 +3879,10 @@ dependencies = [
  "pallet-child-bounties",
  "pallet-collective",
  "pallet-conviction-voting",
- "pallet-democracy",
+ "pallet-democracy 4.0.0-dev",
  "pallet-election-provider-multi-phase",
  "pallet-election-provider-support-benchmarking",
- "pallet-elections-phragmen",
+ "pallet-elections-phragmen 5.0.0-dev",
  "pallet-fast-unstake",
  "pallet-grandpa",
  "pallet-identity",
@@ -5618,6 +5618,26 @@ dependencies = [
 
 [[package]]
 name = "pallet-democracy"
+version = "0.4.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-balances",
+ "pallet-preimage",
+ "pallet-scheduler",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-democracy"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v1.0.0#948fbd2fd1233dc26dbb9f9bbc1d2cca2c03945d"
 dependencies = [
@@ -5672,6 +5692,27 @@ dependencies = [
 
 [[package]]
 name = "pallet-elections-phragmen"
+version = "0.4.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-npos-elections",
+ "sp-runtime",
+ "sp-staking",
+ "sp-std",
+ "sp-tracing",
+ "substrate-test-utils",
+]
+
+[[package]]
+name = "pallet-elections-phragmen"
 version = "5.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v1.0.0#948fbd2fd1233dc26dbb9f9bbc1d2cca2c03945d"
 dependencies = [
@@ -5710,7 +5751,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-funding"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "assert_matches2",
  "frame-benchmarking",
@@ -5839,7 +5880,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-linear-release"
-version = "4.0.0-dev"
+version = "0.4.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6033,7 +6074,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-oracle-ocw"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -6877,11 +6918,16 @@ dependencies = [
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
+ "pallet-collective",
+ "pallet-democracy 0.4.0",
+ "pallet-elections-phragmen 0.4.0",
  "pallet-membership",
  "pallet-multisig",
  "pallet-oracle-ocw",
  "pallet-parachain-staking",
+ "pallet-preimage",
  "pallet-proxy",
+ "pallet-scheduler",
  "pallet-session",
  "pallet-sudo",
  "pallet-timestamp",
@@ -7035,7 +7081,8 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-collective",
- "pallet-democracy",
+ "pallet-democracy 0.4.0",
+ "pallet-elections-phragmen 0.4.0",
  "pallet-funding",
  "pallet-insecure-randomness-collective-flip",
  "pallet-linear-release",
@@ -7974,10 +8021,10 @@ dependencies = [
  "pallet-child-bounties",
  "pallet-collective",
  "pallet-conviction-voting",
- "pallet-democracy",
+ "pallet-democracy 4.0.0-dev",
  "pallet-election-provider-multi-phase",
  "pallet-election-provider-support-benchmarking",
- "pallet-elections-phragmen",
+ "pallet-elections-phragmen 5.0.0-dev",
  "pallet-fast-unstake",
  "pallet-grandpa",
  "pallet-identity",
@@ -8999,8 +9046,8 @@ dependencies = [
  "pallet-bounties",
  "pallet-child-bounties",
  "pallet-collective",
- "pallet-democracy",
- "pallet-elections-phragmen",
+ "pallet-democracy 4.0.0-dev",
+ "pallet-elections-phragmen 5.0.0-dev",
  "pallet-grandpa",
  "pallet-identity",
  "pallet-im-online",
@@ -11809,6 +11856,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "substrate-test-utils"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate?branch=polkadot-v1.0.0#948fbd2fd1233dc26dbb9f9bbc1d2cca2c03945d"
+dependencies = [
+ "futures",
+ "substrate-test-utils-derive",
+ "tokio",
+]
+
+[[package]]
+name = "substrate-test-utils-derive"
+version = "0.10.0-dev"
+source = "git+https://github.com/paritytech/substrate?branch=polkadot-v1.0.0#948fbd2fd1233dc26dbb9f9bbc1d2cca2c03945d"
+dependencies = [
+ "proc-macro-crate 1.3.1",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.48",
+]
+
+[[package]]
 name = "substrate-typenum"
 version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13060,10 +13128,10 @@ dependencies = [
  "pallet-bags-list",
  "pallet-balances",
  "pallet-collective",
- "pallet-democracy",
+ "pallet-democracy 4.0.0-dev",
  "pallet-election-provider-multi-phase",
  "pallet-election-provider-support-benchmarking",
- "pallet-elections-phragmen",
+ "pallet-elections-phragmen 5.0.0-dev",
  "pallet-fast-unstake",
  "pallet-grandpa",
  "pallet-identity",

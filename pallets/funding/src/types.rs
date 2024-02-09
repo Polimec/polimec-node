@@ -194,7 +194,7 @@ pub mod storage_types {
 		// TODO: PLMC-162. Perform a REAL validity check
 		pub fn validity_check(&self) -> Result<(), ValidityError> {
 			if self.minimum_price == Price::zero() {
-				return Err(ValidityError::PriceTooLow)
+				return Err(ValidityError::PriceTooLow);
 			}
 			self.ticket_size.is_valid()?;
 			self.participants_size.is_valid()?;
@@ -411,10 +411,10 @@ pub mod inner_types {
 	impl<Balance: BalanceT + Copy> TicketSize<Balance> {
 		pub(crate) fn is_valid(&self) -> Result<(), ValidityError> {
 			if self.minimum.is_some() && self.maximum.is_some() {
-				return if self.minimum < self.maximum { Ok(()) } else { Err(ValidityError::TicketSizeError) }
+				return if self.minimum < self.maximum { Ok(()) } else { Err(ValidityError::TicketSizeError) };
 			}
 			if self.minimum.is_some() || self.maximum.is_some() {
-				return Ok(())
+				return Ok(());
 			}
 
 			Err(ValidityError::TicketSizeError)
@@ -430,18 +430,20 @@ pub mod inner_types {
 	impl ParticipantsSize {
 		pub(crate) const fn is_valid(&self) -> Result<(), ValidityError> {
 			match (self.minimum, self.maximum) {
-				(Some(min), Some(max)) =>
+				(Some(min), Some(max)) => {
 					if min < max && min > 0 && max > 0 {
 						Ok(())
 					} else {
 						Err(ValidityError::ParticipantsSizeError)
-					},
-				(Some(elem), None) | (None, Some(elem)) =>
+					}
+				},
+				(Some(elem), None) | (None, Some(elem)) => {
 					if elem > 0 {
 						Ok(())
 					} else {
 						Err(ValidityError::ParticipantsSizeError)
-					},
+					}
+				},
 				(None, None) => Err(ValidityError::ParticipantsSizeError),
 			}
 		}
@@ -666,8 +668,9 @@ pub mod inner_types {
 		fn try_from(value: ProjectStatus) -> Result<Self, ()> {
 			match value {
 				ProjectStatus::FundingSuccessful => Ok(Cleaner::Success(CleanerState::Initialized(PhantomData))),
-				ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed =>
-					Ok(Cleaner::Failure(CleanerState::Initialized(PhantomData))),
+				ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed => {
+					Ok(Cleaner::Failure(CleanerState::Initialized(PhantomData)))
+				},
 				_ => Err(()),
 			}
 		}
@@ -771,7 +774,7 @@ pub struct MigrationGenerator<T: Config>(PhantomData<T>);
 impl<T: Config> MigrationGenerator<T> {
 	pub fn evaluation_migration(evaluation: EvaluationInfoOf<T>) -> Option<Migration> {
 		if matches!(evaluation.ct_migration_status, MigrationStatus::Confirmed | MigrationStatus::Sent(_)) {
-			return None
+			return None;
 		}
 		if let Some(RewardOrSlash::Reward(ct_amount)) = evaluation.rewarded_or_slashed {
 			let multiplier = MultiplierOf::<T>::try_from(1u8).ok()?;
@@ -790,10 +793,10 @@ impl<T: Config> MigrationGenerator<T> {
 	}
 
 	pub fn bid_migration(bid: BidInfoOf<T>) -> Option<Migration> {
-		if bid.final_ct_amount == Zero::zero() ||
-			matches!(bid.ct_migration_status, MigrationStatus::Confirmed | MigrationStatus::Sent(_))
+		if bid.final_ct_amount == Zero::zero()
+			|| matches!(bid.ct_migration_status, MigrationStatus::Confirmed | MigrationStatus::Sent(_))
 		{
-			return None
+			return None;
 		}
 		let vesting_duration = bid.multiplier.calculate_vesting_duration::<T>();
 		let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);
@@ -808,7 +811,7 @@ impl<T: Config> MigrationGenerator<T> {
 
 	pub fn contribution_migration(contribution: ContributionInfoOf<T>) -> Option<Migration> {
 		if matches!(contribution.ct_migration_status, MigrationStatus::Confirmed | MigrationStatus::Sent(_)) {
-			return None
+			return None;
 		}
 		let vesting_duration = contribution.multiplier.calculate_vesting_duration::<T>();
 		let vesting_duration_local_type = <T as Config>::BlockNumber::from(vesting_duration);

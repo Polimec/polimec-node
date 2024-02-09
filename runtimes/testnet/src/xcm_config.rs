@@ -129,15 +129,16 @@ pub struct NativeToFungible;
 impl MaybeEquivalence<MultiLocation, AssetIdPalletAssets> for NativeToFungible {
 	fn convert(asset: &MultiLocation) -> Option<AssetIdPalletAssets> {
 		match asset {
-			MultiLocation { parents: 1, interior: Here } =>
-				Some(pallet_funding::types::AcceptedFundingAsset::DOT.to_statemint_id()),
+			MultiLocation { parents: 1, interior: Here } => {
+				Some(pallet_funding::types::AcceptedFundingAsset::DOT.to_statemint_id())
+			},
 			_ => None,
 		}
 	}
 
 	fn convert_back(value: &AssetIdPalletAssets) -> Option<MultiLocation> {
 		if value.is_zero() {
-			return Some(MultiLocation { parents: 1, interior: Here })
+			return Some(MultiLocation { parents: 1, interior: Here });
 		}
 		None
 	}
@@ -259,8 +260,8 @@ impl ContainsPair<MultiAsset, MultiLocation> for StatemintAssetsFilter {
 		// location must be the statemint parachain
 		let loc = MultiLocation::new(1, X1(Parachain(1000)));
 		// asset must be either a fungible asset from `pallet_assets` or the native token of the relay chain
-		&loc == origin &&
-			match asset {
+		&loc == origin
+			&& match asset {
 				MultiAsset {
 					id:
 						Concrete(MultiLocation {
@@ -279,8 +280,8 @@ impl ContainsPair<MultiAsset, MultiLocation> for StatemintAssetsFilter {
 impl<T: Get<MultiLocation>> ContainsPair<MultiAsset, MultiLocation> for AssetsFrom<T> {
 	fn contains(asset: &MultiAsset, origin: &MultiLocation) -> bool {
 		let loc = T::get();
-		&loc == origin &&
-			matches!(asset, MultiAsset { id: AssetId::Concrete(asset_loc), fun: Fungible(_a) }
+		&loc == origin
+			&& matches!(asset, MultiAsset { id: AssetId::Concrete(asset_loc), fun: Fungible(_a) }
 			if asset_loc.match_and_split(&loc).is_some())
 	}
 }
@@ -344,7 +345,7 @@ impl ContainsPair<MultiAsset, MultiLocation> for MultiNativeAsset {
 	fn contains(asset: &MultiAsset, origin: &MultiLocation) -> bool {
 		if let Some(ref reserve) = asset.reserve() {
 			if reserve == origin {
-				return true
+				return true;
 			}
 		}
 		false

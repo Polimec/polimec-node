@@ -242,8 +242,8 @@ pub mod defaults {
 	pub fn project_from_funding_reached(instantiator: &mut MockInstantiator, percent: u64) -> ProjectId {
 		let project_metadata = default_project(instantiator.get_new_nonce(), ISSUER);
 		let min_price = project_metadata.minimum_price;
-		let usd_to_reach = Perquintill::from_percent(percent) *
-			(project_metadata
+		let usd_to_reach = Perquintill::from_percent(percent)
+			* (project_metadata
 				.minimum_price
 				.checked_mul_int(project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1)
 				.unwrap());
@@ -622,8 +622,8 @@ mod evaluation_round_failure {
 		let project_metadata = default_project(0, ISSUER);
 		let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER);
 		let evaluation_success_threshold = <TestRuntime as Config>::EvaluationSuccessThreshold::get();
-		let evaluation_min_success_amount = evaluation_success_threshold *
-			project_metadata.minimum_price.saturating_mul_int(
+		let evaluation_min_success_amount = evaluation_success_threshold
+			* project_metadata.minimum_price.saturating_mul_int(
 				project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1,
 			);
 		let evaluation_fail_amount = evaluation_min_success_amount - 100 * ASSET_UNIT;
@@ -2071,9 +2071,9 @@ mod auction_round_failure {
 
 		inst.bid_for_users(project_id, vec![bid_in]).unwrap();
 		inst.advance_time(
-			<TestRuntime as Config>::EnglishAuctionDuration::get() +
-				<TestRuntime as Config>::CandleAuctionDuration::get() -
-				1,
+			<TestRuntime as Config>::EnglishAuctionDuration::get()
+				+ <TestRuntime as Config>::CandleAuctionDuration::get()
+				- 1,
 		)
 		.unwrap();
 
@@ -2518,15 +2518,15 @@ mod community_round_success {
 
 		assert_eq!(
 			new_plmc_bond_stored,
-			plmc_bond_stored + MockInstantiator::sum_balance_mappings(vec![new_plmc_funding]) -
-				plmc_funding[0].plmc_amount
+			plmc_bond_stored + MockInstantiator::sum_balance_mappings(vec![new_plmc_funding])
+				- plmc_funding[0].plmc_amount
 		);
 
 		assert_eq!(
 			new_statemint_asset_contributions_stored,
-			statemint_asset_contributions_stored +
-				MockInstantiator::sum_statemint_mappings(vec![new_statemint_funding]) -
-				statemint_funding[0].asset_amount
+			statemint_asset_contributions_stored
+				+ MockInstantiator::sum_statemint_mappings(vec![new_statemint_funding])
+				- statemint_funding[0].asset_amount
 		);
 	}
 
@@ -2634,15 +2634,15 @@ mod community_round_success {
 
 		assert_eq!(
 			new_plmc_bond_stored,
-			plmc_bond_stored + MockInstantiator::sum_balance_mappings(vec![new_plmc_funding]) -
-				plmc_funding[0].plmc_amount
+			plmc_bond_stored + MockInstantiator::sum_balance_mappings(vec![new_plmc_funding])
+				- plmc_funding[0].plmc_amount
 		);
 
 		assert_eq!(
 			new_statemint_asset_contributions_stored,
-			statemint_asset_contributions_stored +
-				MockInstantiator::sum_statemint_mappings(vec![new_statemint_funding]) -
-				statemint_funding[0].asset_amount
+			statemint_asset_contributions_stored
+				+ MockInstantiator::sum_statemint_mappings(vec![new_statemint_funding])
+				- statemint_funding[0].asset_amount
 		);
 	}
 
@@ -2772,8 +2772,8 @@ mod community_round_success {
 		let plmc_available_for_participating =
 			plmc_evaluation_amount - <TestRuntime as Config>::EvaluatorSlash::get() * plmc_evaluation_amount;
 		assert!(
-			necessary_plmc_for_contribution > plmc_available_for_participating &&
-				necessary_plmc_for_contribution < plmc_evaluation_amount
+			necessary_plmc_for_contribution > plmc_available_for_participating
+				&& necessary_plmc_for_contribution < plmc_evaluation_amount
 		);
 		println!(
 			"Plmc contr: {:?}, plmc eval: {:?}, plmc avail: {:?}",
@@ -2813,8 +2813,8 @@ mod community_round_success {
 		let plmc_available_for_participating =
 			plmc_evaluation_amount - <TestRuntime as Config>::EvaluatorSlash::get() * plmc_evaluation_amount;
 		assert!(
-			necessary_plmc_for_contribution > plmc_available_for_participating &&
-				necessary_plmc_for_contribution < plmc_evaluation_amount
+			necessary_plmc_for_contribution > plmc_available_for_participating
+				&& necessary_plmc_for_contribution < plmc_evaluation_amount
 		);
 		let necessary_usdt_for_contribution =
 			MockInstantiator::calculate_contributed_funding_asset_spent(vec![contribution.clone()], ct_price);
@@ -3383,8 +3383,8 @@ mod remainder_round_success {
 
 		// Check remaining CTs is 0
 		assert_eq!(
-			inst.get_project_details(project_id).remaining_contribution_tokens.0 +
-				inst.get_project_details(project_id).remaining_contribution_tokens.1,
+			inst.get_project_details(project_id).remaining_contribution_tokens.0
+				+ inst.get_project_details(project_id).remaining_contribution_tokens.1,
 			0,
 			"There are still remaining CTs"
 		);
@@ -3414,8 +3414,8 @@ mod remainder_round_success {
 		);
 		const BOB: AccountId = 808;
 
-		let remaining_ct = inst.get_project_details(project_id).remaining_contribution_tokens.0 +
-			inst.get_project_details(project_id).remaining_contribution_tokens.1;
+		let remaining_ct = inst.get_project_details(project_id).remaining_contribution_tokens.0
+			+ inst.get_project_details(project_id).remaining_contribution_tokens.1;
 
 		let ct_price = inst.get_project_details(project_id).weighted_average_price.expect("CT Price should exist");
 
@@ -3438,8 +3438,8 @@ mod remainder_round_success {
 
 		// Check remaining CTs is 0
 		assert_eq!(
-			inst.get_project_details(project_id).remaining_contribution_tokens.0 +
-				inst.get_project_details(project_id).remaining_contribution_tokens.1,
+			inst.get_project_details(project_id).remaining_contribution_tokens.0
+				+ inst.get_project_details(project_id).remaining_contribution_tokens.1,
 			0,
 			"There are still remaining CTs"
 		);
@@ -3826,8 +3826,8 @@ mod funding_end {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project(inst.get_new_nonce(), ISSUER);
 			let min_price = project_metadata.minimum_price;
-			let twenty_percent_funding_usd = Perquintill::from_percent(funding_percent) *
-				(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size.0).unwrap());
+			let twenty_percent_funding_usd = Perquintill::from_percent(funding_percent)
+				* (project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size.0).unwrap());
 			let evaluations = default_evaluations();
 			let bids = MockInstantiator::generate_bids_from_total_usd(
 				Percent::from_percent(50u8) * twenty_percent_funding_usd,
@@ -3855,8 +3855,8 @@ mod funding_end {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project(inst.get_new_nonce(), ISSUER);
 			let min_price = project_metadata.minimum_price;
-			let twenty_percent_funding_usd = Perquintill::from_percent(funding_percent) *
-				(project_metadata
+			let twenty_percent_funding_usd = Perquintill::from_percent(funding_percent)
+				* (project_metadata
 					.minimum_price
 					.checked_mul_int(
 						project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1,
@@ -3889,8 +3889,8 @@ mod funding_end {
 			let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 			let project_metadata = default_project(inst.get_new_nonce(), ISSUER);
 			let min_price = project_metadata.minimum_price;
-			let twenty_percent_funding_usd = Perquintill::from_percent(funding_percent) *
-				(project_metadata
+			let twenty_percent_funding_usd = Perquintill::from_percent(funding_percent)
+				* (project_metadata
 					.minimum_price
 					.checked_mul_int(
 						project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1,
@@ -3922,8 +3922,8 @@ mod funding_end {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_metadata = default_project(inst.get_new_nonce(), ISSUER);
 		let min_price = project_metadata.minimum_price;
-		let twenty_percent_funding_usd = Perquintill::from_percent(55) *
-			(project_metadata
+		let twenty_percent_funding_usd = Perquintill::from_percent(55)
+			* (project_metadata
 				.minimum_price
 				.checked_mul_int(project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1)
 				.unwrap());
@@ -3971,8 +3971,8 @@ mod funding_end {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_metadata = default_project(inst.get_new_nonce(), ISSUER);
 		let min_price = project_metadata.minimum_price;
-		let twenty_percent_funding_usd = Perquintill::from_percent(55) *
-			(project_metadata
+		let twenty_percent_funding_usd = Perquintill::from_percent(55)
+			* (project_metadata
 				.minimum_price
 				.checked_mul_int(project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1)
 				.unwrap());
@@ -4024,8 +4024,8 @@ mod funding_end {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_metadata = default_project(inst.get_new_nonce(), ISSUER);
 		let min_price = project_metadata.minimum_price;
-		let twenty_percent_funding_usd = Perquintill::from_percent(55) *
-			(project_metadata
+		let twenty_percent_funding_usd = Perquintill::from_percent(55)
+			* (project_metadata
 				.minimum_price
 				.checked_mul_int(project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1)
 				.unwrap());
@@ -6009,8 +6009,8 @@ mod async_tests {
 		let funding_percent = 93u64;
 		let project_metadata = default_project(0u64, ISSUER.into());
 		let min_price = project_metadata.minimum_price;
-		let twenty_percent_funding_usd = Perquintill::from_percent(funding_percent) *
-			(project_metadata
+		let twenty_percent_funding_usd = Perquintill::from_percent(funding_percent)
+			* (project_metadata
 				.minimum_price
 				.checked_mul_int(project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1)
 				.unwrap());
