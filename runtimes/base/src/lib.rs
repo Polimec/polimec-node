@@ -821,11 +821,38 @@ construct_runtime!(
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {
 	frame_benchmarking::define_benchmarks!(
+		// System support stuff.
 		[frame_system, SystemBench::<Runtime>]
-		[pallet_balances, Balances]
-		[pallet_session, SessionBench::<Runtime>]
 		[pallet_timestamp, Timestamp]
+		[pallet_sudo, Sudo]
+		[pallet_utility, Utility]
+		[pallet_multisig, Multisig]
+		[pallet_proxy, Proxy]
+
+		// Monetary stuff.
+		[pallet_balances, Balances]
+		[pallet_vesting, Vesting]
+		
+		// Collator support.
+		[pallet_session, SessionBench::<Runtime>]
+		[pallet_parachain_staking, ParachainStaking]
+		
+		// XCM helpers.
 		[cumulus_pallet_xcmp_queue, XcmpQueue]
+		[pallet_xcm, PolkadotXcm]
+
+		// Governance
+		[pallet_treasury, Treasury]
+		[pallet_democracy, Democracy]
+		[pallet_collective, Council]
+		[pallet_collective, TechnicalCommittee]
+		[pallet_elections_phragmen, Elections]
+		[pallet_preimage, Preimage]
+		[pallet_scheduler, Scheduler]
+
+		// Oracle
+		[pallet_membership, OracleProvidersMembership]
+		//[orml_oracle, Oracle]
 	);
 }
 
