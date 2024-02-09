@@ -30,7 +30,7 @@ use frame_support::{
 	},
 	weights::{ConstantMultiplier, Weight},
 };
-use frame_system::{EnsureRoot, EnsureSigned};
+use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSigned};
 pub use parachains_common::{
 	impls::DealWithFees, opaque, AccountId, AssetIdForTrustBackedAssets as AssetId, AuraId, Balance, BlockNumber, Hash,
 	Header, Nonce, Signature, AVERAGE_ON_INITIALIZE_RATIO, DAYS, HOURS, MAXIMUM_BLOCK_WEIGHT, MINUTES,
@@ -573,7 +573,7 @@ impl pallet_assets::Config<ForeignAssetsInstance> for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 	type CallbackHandle = ();
-	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureRootWithSuccess<AccountId, RootOperatorAccountId>>;
 	type Currency = Balances;
 	type Extra = ();
 	type ForceOrigin = EnsureRoot<AccountId>;

@@ -27,7 +27,7 @@ use frame_support::{
 	traits::{fungible::Credit, tokens, AsEnsureOriginWithArg, ConstU32, Contains, EitherOfDiverse, InstanceFilter, PrivilegeCmp},
 	weights::{ConstantMultiplier, Weight},
 };
-use frame_system::{EnsureSigned, EnsureRoot};
+use frame_system::{EnsureSigned, EnsureRoot, EnsureRootWithSuccess};
 use pallet_oracle_ocw::types::AssetName;
 use parachains_common::AssetIdForTrustBackedAssets as AssetId;
 use parity_scale_codec::Encode;
@@ -349,7 +349,7 @@ impl pallet_assets::Config<ForeignAssetsInstance> for Runtime {
 	type BenchmarkHelper = ();
 	type CallbackHandle = ();
 	// TODO Check Creation Origin
-	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureRootWithSuccess<AccountId, RootOperatorAccountId>>;
 	type Currency = Balances;
 	type Extra = ();
 	type ForceOrigin = EnsureRoot<AccountId>;
