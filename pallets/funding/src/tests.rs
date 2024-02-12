@@ -6145,7 +6145,7 @@ mod async_tests {
 			.map(|i| {
 				instantiator::BidParams::<TestRuntime>::new(
 					(i + 69).into(),
-					(10u128 * ASSET_UNIT).into(),≠
+					(10u128 * ASSET_UNIT).into(),
 					project_metadata.minimum_price,
 					1u8,
 					AcceptedFundingAsset::USDT,
