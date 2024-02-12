@@ -479,6 +479,7 @@ pub mod polimec_base {
 	pub fn genesis() -> Storage {
 		let dot_asset_id = AcceptedFundingAsset::DOT.to_assethub_id();
 		let usdt_asset_id = AcceptedFundingAsset::USDT.to_assethub_id();
+		let usdc_asset_id = AcceptedFundingAsset::USDC.to_assethub_id();
 		let mut funded_accounts = vec![
 			(PolimecBase::sovereign_account_id_of((Parent, Parachain(penpal::PARA_ID)).into()), INITIAL_DEPOSIT),
 			(PolimecBase::sovereign_account_id_of((Parent, Parachain(asset_hub::PARA_ID)).into()), INITIAL_DEPOSIT),
@@ -503,10 +504,12 @@ pub mod polimec_base {
 				assets: vec![
 					(dot_asset_id, alice_account.clone(), true, 0_0_010_000_000u128),
 					(usdt_asset_id, alice_account.clone(), true, 0_0_010_000_000u128),
+					(usdc_asset_id, alice_account.clone(), true, 0_0_010_000_000u128),
 				],
 				metadata: vec![
 					(dot_asset_id, "Local DOT".as_bytes().to_vec(), "DOT".as_bytes().to_vec(), 12),
-					(usdt_asset_id, "Local USDT".as_bytes().to_vec(), "USDT".as_bytes().to_vec(), 12),
+					(usdt_asset_id, "Local USDT".as_bytes().to_vec(), "USDT".as_bytes().to_vec(), 6),
+					(usdc_asset_id, "Local USDT".as_bytes().to_vec(), "USDT".as_bytes().to_vec(), 6),
 				],
 				accounts: vec![],
 			},
