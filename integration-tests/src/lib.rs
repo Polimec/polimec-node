@@ -18,7 +18,7 @@ pub mod constants;
 
 mod tests;
 
-pub use constants::{accounts::*, penpal, polimec, polimec_base, polkadot, asset_hub};
+pub use constants::{accounts::*, asset_hub, penpal, polimec, polimec_base, polkadot};
 pub use frame_support::{assert_noop, assert_ok, pallet_prelude::Weight, parameter_types, sp_io, sp_tracing};
 pub use parachains_common::{AccountId, AssetHubPolkadotAuraId, AuraId, Balance, BlockNumber};
 pub use sp_core::{sr25519, storage::Storage, Encode, Get};
@@ -157,8 +157,8 @@ decl_test_networks! {
 /// Shortcuts to reduce boilerplate on runtime types
 pub mod shortcuts {
 	use super::{
-		Parachain, Penpal, Polimec, PolimecBase, PolimecBasePallet, PolimecPallet, PolkadotRelay as Polkadot,
-		PolkadotRelayPallet as PolkadotPallet, RelayChain, AssetHub, AssetHubPallet,
+		AssetHub, AssetHubPallet, Parachain, Penpal, Polimec, PolimecBase, PolimecBasePallet, PolimecPallet,
+		PolkadotRelay as Polkadot, PolkadotRelayPallet as PolkadotPallet, RelayChain,
 	};
 	use crate::PenpalPallet;
 

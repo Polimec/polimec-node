@@ -2484,8 +2484,7 @@ mod community_round_success {
 
 		assert_eq!(
 			new_foreign_asset_contributions_stored,
-			foreign_asset_contributions_stored +
-				MockInstantiator::sum_foreign_mappings(vec![new_foreign_funding]) -
+			foreign_asset_contributions_stored + MockInstantiator::sum_foreign_mappings(vec![new_foreign_funding]) -
 				foreign_funding[0].asset_amount
 		);
 	}
@@ -2600,8 +2599,7 @@ mod community_round_success {
 
 		assert_eq!(
 			new_foreign_asset_contributions_stored,
-			foreign_asset_contributions_stored +
-				MockInstantiator::sum_foreign_mappings(vec![new_foreign_funding]) -
+			foreign_asset_contributions_stored + MockInstantiator::sum_foreign_mappings(vec![new_foreign_funding]) -
 				foreign_funding[0].asset_amount
 		);
 	}

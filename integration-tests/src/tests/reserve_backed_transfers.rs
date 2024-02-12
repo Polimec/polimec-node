@@ -17,8 +17,8 @@
 use crate::*;
 use frame_support::{
 	traits::{
-		fungibles::{Inspect, Mutate},
 		fungible::{Inspect as FungibleInspect, Unbalanced},
+		fungibles::{Inspect, Mutate},
 		PalletInfoAccess,
 	},
 	weights::WeightToFee,
@@ -50,10 +50,10 @@ fn mint_asset_on_asset_hub_to(asset_id: u32, recipient: &AssetHubAccountId, amou
 		match asset_id {
 			0 => {
 				assert_ok!(AssetHubBalances::write_balance(recipient, amount));
-			}
+			},
 			_ => {
 				assert_ok!(AssetHubAssets::mint_into(asset_id, recipient, amount));
-			}
+			},
 		}
 		AssetHubSystem::reset_events();
 	});
@@ -94,7 +94,7 @@ fn test_reserve_to_polimec(asset_id: u32) {
 	create_asset_on_asset_hub(asset_id);
 	let asset_hub_asset_id: MultiLocation = match asset_id {
 		0 => Parent.into(),
-		_ => (PalletInstance(AssetHubAssets::index() as u8), GeneralIndex(asset_id as u128)).into()
+		_ => (PalletInstance(AssetHubAssets::index() as u8), GeneralIndex(asset_id as u128)).into(),
 	};
 
 	let alice_account = PolimecBase::account_id_of(ALICE.clone());
@@ -114,14 +114,14 @@ fn test_reserve_to_polimec(asset_id: u32) {
 	// check AssetHub's pre transfer balances and issuance
 	let (asset_hub_prev_alice_asset_balance, asset_hub_prev_polimec_asset_balance, asset_hub_prev_asset_issuance) =
 		get_asset_hub_balances(asset_id, alice_account.clone(), polimec_sibling_account.clone());
-		
 
 	AssetHub::execute_with(|| {
 		let asset_transfer: MultiAsset = (asset_hub_asset_id, RESERVE_TRANSFER_AMOUNT).into();
 		let origin = AssetHubOrigin::signed(alice_account.clone());
 		let dest: VersionedMultiLocation = ParentThen(X1(Parachain(PolimecBase::para_id().into()))).into();
 
-		let beneficiary: VersionedMultiLocation = AccountId32 { network: None, id: alice_account.clone().into() }.into();
+		let beneficiary: VersionedMultiLocation =
+			AccountId32 { network: None, id: alice_account.clone().into() }.into();
 		let assets: VersionedMultiAssets = asset_transfer.into();
 		let fee_asset_item = 0;
 		let weight_limit = Unlimited;
@@ -147,7 +147,6 @@ fn test_reserve_to_polimec(asset_id: u32) {
 		);
 	});
 
-	
 	let (
 		polimec_post_alice_asset_balance,
 		polimec_post_alice_plmc_balance,
@@ -158,13 +157,14 @@ fn test_reserve_to_polimec(asset_id: u32) {
 	let (asset_hub_post_alice_asset_balance, asset_hub_post_polimec_asset_balance, asset_hub_post_asset_issuance) =
 		get_asset_hub_balances(asset_id, alice_account.clone(), polimec_sibling_account.clone());
 
-	
 	let polimec_delta_alice_asset_balance = polimec_post_alice_asset_balance.abs_diff(polimec_prev_alice_asset_balance);
 	let polimec_delta_alice_plmc_balance = polimec_post_alice_plmc_balance.abs_diff(polimec_prev_alice_plmc_balance);
 	let polimec_delta_asset_issuance = polimec_post_asset_issuance.abs_diff(polimec_prev_asset_issuance);
 	let polimec_delta_plmc_issuance = polimec_post_plmc_issuance.abs_diff(polimec_prev_plmc_issuance);
-	let asset_hub_delta_alice_asset_balance = asset_hub_post_alice_asset_balance.abs_diff(asset_hub_prev_alice_asset_balance);
-	let asset_hub_delta_polimec_asset_balance = asset_hub_post_polimec_asset_balance.abs_diff(asset_hub_prev_polimec_asset_balance);
+	let asset_hub_delta_alice_asset_balance =
+		asset_hub_post_alice_asset_balance.abs_diff(asset_hub_prev_alice_asset_balance);
+	let asset_hub_delta_polimec_asset_balance =
+		asset_hub_post_polimec_asset_balance.abs_diff(asset_hub_prev_polimec_asset_balance);
 	let asset_hub_delta_asset_issuance = asset_hub_post_asset_issuance.abs_diff(asset_hub_prev_asset_issuance);
 
 	assert!(
@@ -207,7 +207,12 @@ fn test_polimec_to_reserve(asset_id: u32) {
 	create_asset_on_asset_hub(asset_id);
 	let asset_hub_asset_id: MultiLocation = match asset_id {
 		0 => Parent.into(),
-		_ => ParentThen(X3(Parachain(AssetHub::para_id().into()), PalletInstance(AssetHubAssets::index() as u8), GeneralIndex(asset_id as u128))).into()
+		_ => ParentThen(X3(
+			Parachain(AssetHub::para_id().into()),
+			PalletInstance(AssetHubAssets::index() as u8),
+			GeneralIndex(asset_id as u128),
+		))
+		.into(),
 	};
 
 	let alice_account = PolimecBase::account_id_of(ALICE.clone());
@@ -218,11 +223,7 @@ fn test_polimec_to_reserve(asset_id: u32) {
 	mint_asset_on_asset_hub_to(asset_id, &polimec_sibling_account, RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000);
 
 	PolimecBase::execute_with(|| {
-		assert_ok!(BaseForeignAssets::mint_into(
-			asset_id,
-			&alice_account,
-			RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000
-		));
+		assert_ok!(BaseForeignAssets::mint_into(asset_id, &alice_account, RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000));
 	});
 
 	let (
@@ -236,12 +237,10 @@ fn test_polimec_to_reserve(asset_id: u32) {
 	let (asset_hub_prev_alice_asset_balance, asset_hub_prev_polimec_asset_balance, asset_hub_prev_asset_issuance) =
 		get_asset_hub_balances(asset_id, alice_account.clone(), polimec_sibling_account.clone());
 
-	let transferable_asset_plus_exec_fee: MultiAsset = (asset_hub_asset_id, RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000).into();
+	let transferable_asset_plus_exec_fee: MultiAsset =
+		(asset_hub_asset_id, RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000).into();
 	let mut asset_hub_exec_fee: MultiAsset = (asset_hub_asset_id.clone(), 1_0_000_000_000u128).into();
-	asset_hub_exec_fee.reanchor(
-		&(ParentThen(X1(Parachain(AssetHub::para_id().into()))).into()),
-		Here
-	).unwrap();
+	asset_hub_exec_fee.reanchor(&(ParentThen(X1(Parachain(AssetHub::para_id().into()))).into()), Here).unwrap();
 	// let dot_for_xcm_execution: MultiAsset = (PolimecBase::parent_location(), 1_0_000_000_000u128).into();
 
 	// construct the XCM to transfer from Polimec to AssetHub's reserve
@@ -279,7 +278,7 @@ fn test_polimec_to_reserve(asset_id: u32) {
 			]
 		);
 	});
-	
+
 	let (
 		polimec_post_alice_asset_balance,
 		polimec_post_alice_plmc_balance,
@@ -290,13 +289,14 @@ fn test_polimec_to_reserve(asset_id: u32) {
 	let (asset_hub_post_alice_asset_balance, asset_hub_post_polimec_asset_balance, asset_hub_post_asset_issuance) =
 		get_asset_hub_balances(asset_id, alice_account.clone(), polimec_sibling_account.clone());
 
-	
 	let polimec_delta_alice_asset_balance = polimec_post_alice_asset_balance.abs_diff(polimec_prev_alice_asset_balance);
 	let polimec_delta_alice_plmc_balance = polimec_post_alice_plmc_balance.abs_diff(polimec_prev_alice_plmc_balance);
 	let polimec_delta_asset_issuance = polimec_post_asset_issuance.abs_diff(polimec_prev_asset_issuance);
 	let polimec_delta_plmc_issuance = polimec_post_plmc_issuance.abs_diff(polimec_prev_plmc_issuance);
-	let asset_hub_delta_alice_asset_balance = asset_hub_post_alice_asset_balance.abs_diff(asset_hub_prev_alice_asset_balance);
-	let asset_hub_delta_polimec_asset_balance = asset_hub_post_polimec_asset_balance.abs_diff(asset_hub_prev_polimec_asset_balance);
+	let asset_hub_delta_alice_asset_balance =
+		asset_hub_post_alice_asset_balance.abs_diff(asset_hub_prev_alice_asset_balance);
+	let asset_hub_delta_polimec_asset_balance =
+		asset_hub_post_polimec_asset_balance.abs_diff(asset_hub_prev_polimec_asset_balance);
 	let asset_hub_delta_asset_issuance = asset_hub_post_asset_issuance.abs_diff(asset_hub_prev_asset_issuance);
 
 	assert_eq!(
@@ -322,10 +322,9 @@ fn test_polimec_to_reserve(asset_id: u32) {
 	);
 
 	assert!(
-	    asset_hub_delta_polimec_asset_balance >=
-	        RESERVE_TRANSFER_AMOUNT &&
-	        asset_hub_delta_polimec_asset_balance <= RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000,
-	    "Polimecs sovereign account on asset hub should have transferred Asset amount to Alice"
+		asset_hub_delta_polimec_asset_balance >= RESERVE_TRANSFER_AMOUNT &&
+			asset_hub_delta_polimec_asset_balance <= RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000,
+		"Polimecs sovereign account on asset hub should have transferred Asset amount to Alice"
 	);
 
 	assert!(
@@ -394,7 +393,8 @@ fn test_user_cannot_create_foreign_asset_on_polimec() {
 				69.into(),
 				sp_runtime::MultiAddress::Id(admin),
 				0_0_010_000_000u128,
-			), 
-		DispatchError::BadOrigin);
+			),
+			DispatchError::BadOrigin
+		);
 	});
 }

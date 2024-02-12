@@ -610,8 +610,7 @@ mod benchmarks {
 		let free_plmc = inst.get_free_plmc_balances_for(vec![contributor.clone()])[0].plmc_amount;
 		assert_eq!(free_plmc, existential_deposits[0].plmc_amount);
 
-		let free_usdt =
-			inst.get_free_foreign_asset_balances_for(usdt_id(), vec![contributor.clone()])[0].asset_amount;
+		let free_usdt = inst.get_free_foreign_asset_balances_for(usdt_id(), vec![contributor.clone()])[0].asset_amount;
 		assert_eq!(free_usdt, 0.into());
 
 		// Events
@@ -1117,8 +1116,7 @@ mod benchmarks {
 		// Balances
 		let asset = stored_bid.funding_asset.to_assethub_id();
 		let project_details = ProjectsDetails::<T>::get(project_id).unwrap();
-		let free_assets =
-			inst.get_free_foreign_asset_balances_for(asset, vec![project_details.issuer])[0].asset_amount;
+		let free_assets = inst.get_free_foreign_asset_balances_for(asset, vec![project_details.issuer])[0].asset_amount;
 		assert_eq!(free_assets, stored_bid.funding_asset_amount_locked);
 
 		// Events
@@ -1176,8 +1174,7 @@ mod benchmarks {
 		// Balances
 		let asset = stored_contribution.funding_asset.to_assethub_id();
 		let project_details = ProjectsDetails::<T>::get(project_id).unwrap();
-		let free_assets =
-			inst.get_free_foreign_asset_balances_for(asset, vec![project_details.issuer])[0].asset_amount;
+		let free_assets = inst.get_free_foreign_asset_balances_for(asset, vec![project_details.issuer])[0].asset_amount;
 		assert_eq!(free_assets, stored_contribution.funding_asset_amount);
 
 		// Events
@@ -1291,8 +1288,7 @@ mod benchmarks {
 		let bid_to_payout =
 			inst.execute(|| Bids::<T>::iter_prefix_values((project_id, bidder.clone())).next().unwrap());
 		let asset = bid_to_payout.funding_asset.to_assethub_id();
-		let free_assets_before =
-			inst.get_free_foreign_asset_balances_for(asset, vec![bidder.clone()])[0].asset_amount;
+		let free_assets_before = inst.get_free_foreign_asset_balances_for(asset, vec![bidder.clone()])[0].asset_amount;
 		#[extrinsic_call]
 		release_bid_funds_for(RawOrigin::Signed(issuer.clone()), project_id, bidder.clone(), bid_to_payout.id);
 

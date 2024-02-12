@@ -15,30 +15,37 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use super::{
-	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances, EnsureRoot, ParachainInfo,
-	ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, ForeignAssets, WeightToFee,
+	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances, EnsureRoot, ForeignAssets,
+	ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee,
 	XcmpQueue,
 };
 use core::marker::PhantomData;
 use frame_support::{
 	ensure, match_types, parameter_types,
 	traits::{
-        fungibles::{Balanced, Credit},
+		fungibles::{Balanced, Credit},
 		ConstU32, Contains, ContainsPair, Everything, Nothing, ProcessMessageError,
 	},
 	weights::Weight,
 };
+use pallet_asset_tx_payment::HandleCredit;
 use pallet_xcm::XcmPassthrough;
-use polimec_xcm_executor::XcmExecutor;
+use polimec_xcm_executor::{
+	polimec_traits::{JustTry, Properties, ShouldExecute},
+	XcmExecutor,
+};
 use polkadot_parachain::primitives::Sibling;
 use polkadot_runtime_common::impls::ToAuthor;
 use sp_runtime::traits::MaybeEquivalence;
 use xcm::latest::prelude::*;
 use xcm_builder::{
-	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom, CreateMatcher, CurrencyAdapter, DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin, FixedRateOfFungible, FixedWeightBounds, FungiblesAdapter, IsConcrete, MatchXcm, MatchedConvertedConcreteId, MintLocation, NoChecking, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, UsingComponents, WithComputedOrigin
+	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses, AllowSubscriptionsFrom,
+	AllowTopLevelPaidExecutionFrom, CreateMatcher, CurrencyAdapter, DenyReserveTransferToRelayChain, DenyThenTry,
+	EnsureXcmOrigin, FixedRateOfFungible, FixedWeightBounds, FungiblesAdapter, IsConcrete, MatchXcm,
+	MatchedConvertedConcreteId, MintLocation, NoChecking, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
+	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation,
+	TakeWeightCredit, UsingComponents, WithComputedOrigin,
 };
-use polimec_xcm_executor::polimec_traits::{JustTry, Properties, ShouldExecute};
-use pallet_asset_tx_payment::HandleCredit;
 // TODO: Check these numbers
 const DOT_ASSET_ID: AssetId = Concrete(RelayLocation::get());
 const DOT_PER_SECOND_EXECUTION: u128 = 0_0_000_001_000; // 0.0000001 DOT per second of execution time
@@ -114,8 +121,7 @@ match_types! {
 impl MaybeEquivalence<MultiLocation, AssetIdPalletAssets> for SupportedAssets {
 	fn convert(asset: &MultiLocation) -> Option<AssetIdPalletAssets> {
 		match asset {
-			MultiLocation { parents: 1, interior: Here } =>
-				Some(0),
+			MultiLocation { parents: 1, interior: Here } => Some(0),
 			MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1337)) } =>
 				Some(1337),
 			MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1984)) } =>
@@ -127,26 +133,26 @@ impl MaybeEquivalence<MultiLocation, AssetIdPalletAssets> for SupportedAssets {
 	fn convert_back(value: &AssetIdPalletAssets) -> Option<MultiLocation> {
 		match value {
 			0 => Some(MultiLocation { parents: 1, interior: Here }),
-			1337 => Some(MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1337)) }),
-			1984 => Some(MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1984)) }),
+			1337 => Some(MultiLocation {
+				parents: 1,
+				interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1337)),
+			}),
+			1984 => Some(MultiLocation {
+				parents: 1,
+				interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1984)),
+			}),
 			_ => None,
 		}
 	}
 }
 
 /// Foreign assets adapter for supporting assets from other chains. Currently the only
-/// supported assets are DOT, USDT, and USDC. 
+/// supported assets are DOT, USDT, and USDC.
 pub type ForeignAssetsAdapter = FungiblesAdapter<
 	// Use this fungibles implementation:
 	ForeignAssets,
 	// Use this currency when it is a fungible asset matching the given location or name:
-	MatchedConvertedConcreteId<
-		AssetIdPalletAssets,
-		Balance,
-		SupportedAssets,
-		SupportedAssets,
-		JustTry,
-	>,
+	MatchedConvertedConcreteId<AssetIdPalletAssets, Balance, SupportedAssets, SupportedAssets, JustTry>,
 	// Convert an XCM MultiLocation into a local account id:
 	LocationToAccountId,
 	// Our chain's account ID type (we can't get away without mentioning it explicitly):
@@ -168,9 +174,8 @@ impl ContainsPair<MultiAsset, MultiLocation> for AssetHubAssetsAsReserve {
 		}
 		match asset.id {
 			Concrete(id) => SupportedAssets::contains(&id),
-			_ => false, 
+			_ => false,
 		}
-		
 	}
 }
 
@@ -272,7 +277,7 @@ impl polimec_xcm_executor::Config for XcmConfig {
 	type PalletInstancesInfo = AllPalletsWithSystem;
 	type ResponseHandler = PolkadotXcm;
 	type RuntimeCall = RuntimeCall;
-	// Do not allow any Transact instructions to be executed on our chain. 
+	// Do not allow any Transact instructions to be executed on our chain.
 	type SafeCallFilter = Nothing;
 	type SubscriptionService = PolkadotXcm;
 	type Trader = (
@@ -309,13 +314,9 @@ pub struct XcmExecuteFilter;
 impl Contains<(MultiLocation, Xcm<RuntimeCall>)> for XcmExecuteFilter {
 	fn contains(item_call_pair: &(MultiLocation, Xcm<RuntimeCall>)) -> bool {
 		let (origin, xcm) = item_call_pair;
-		let allowed_origin = matches!(origin, MultiLocation { parents: 0, interior: X1(AccountId32 {..} ) });
+		let allowed_origin = matches!(origin, MultiLocation { parents: 0, interior: X1(AccountId32 { .. }) });
 		let allowed_xcm = match xcm.0[..] {
-			[
-				WithdrawAsset {..}, 
-				BuyExecution {..}, 
-				InitiateReserveWithdraw { reserve, .. }
-			] => {
+			[WithdrawAsset { .. }, BuyExecution { .. }, InitiateReserveWithdraw { reserve, .. }] => {
 				matches!(reserve, MultiLocation { parents: 1, interior: X1(Parachain(1000)) })
 			},
 			_ => false,
@@ -352,7 +353,7 @@ impl pallet_xcm::Config for Runtime {
 	// We do not support Reserve-based transfers with Polimec as Reserve.
 	type XcmReserveTransferFilter = Nothing;
 	type XcmRouter = XcmRouter;
-	// We do not allow teleportation of PLMC or other assets. 
+	// We do not allow teleportation of PLMC or other assets.
 	// TODO: change this once we enable PLMC teleports
 	type XcmTeleportFilter = Nothing;
 
@@ -388,7 +389,6 @@ impl<T: Contains<MultiLocation>> ShouldExecute for AllowHrmpNotifications<T> {
 	}
 }
 
-
 /// Type alias to conveniently refer to `frame_system`'s `Config::AccountId`.
 pub type AccountIdOf<R> = <R as frame_system::Config>::AccountId;
 // TODO: This is a temporary implementation. We need to carefully consider where to send the
@@ -409,4 +409,3 @@ where
 		}
 	}
 }
-

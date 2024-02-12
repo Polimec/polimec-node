@@ -508,11 +508,7 @@ impl<
 			let asset_price = T::PriceProvider::get_price(bid.asset.to_assethub_id()).unwrap();
 			let usd_ticket_size = final_price.saturating_mul_int(bid.amount);
 			let funding_asset_spent = asset_price.reciprocal().unwrap().saturating_mul_int(usd_ticket_size);
-			output.push(UserToForeignAssets::new(
-				bid.bidder.clone(),
-				funding_asset_spent,
-				bid.asset.to_assethub_id(),
-			));
+			output.push(UserToForeignAssets::new(bid.bidder.clone(), funding_asset_spent, bid.asset.to_assethub_id()));
 		}
 		output
 	}

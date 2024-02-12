@@ -24,10 +24,13 @@ extern crate frame_benchmarking;
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{fungible::Credit, tokens, AsEnsureOriginWithArg, ConstU32, Contains, EitherOfDiverse, InstanceFilter, PrivilegeCmp},
+	traits::{
+		fungible::Credit, tokens, AsEnsureOriginWithArg, ConstU32, Contains, EitherOfDiverse, InstanceFilter,
+		PrivilegeCmp,
+	},
 	weights::{ConstantMultiplier, Weight},
 };
-use frame_system::{EnsureSigned, EnsureRoot, EnsureRootWithSuccess};
+use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSigned};
 use pallet_oracle_ocw::types::AssetName;
 use parachains_common::AssetIdForTrustBackedAssets as AssetId;
 use parity_scale_codec::Encode;
@@ -53,11 +56,13 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 // XCM Imports
-use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
 use polimec_xcm_executor::XcmExecutor;
+use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
 
 // Polimec Shared Imports
-pub use shared_configuration::{assets::*, currency::*, fee::*, funding::*, governance::*, proxy::*, staking::*, weights::*};
+pub use shared_configuration::{
+	assets::*, currency::*, fee::*, funding::*, governance::*, proxy::*, staking::*, weights::*,
+};
 
 pub use pallet_parachain_staking;
 

@@ -25,10 +25,9 @@ use polimec_parachain_runtime::{
 		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
 		InflationInfo, Range,
 	},
-	AccountId, AuraId as AuthorityId, Balance, BalancesConfig, CouncilConfig, MinCandidateStk,
+	AccountId, AuraId as AuthorityId, Balance, BalancesConfig, CouncilConfig, ForeignAssetsConfig, MinCandidateStk,
 	OracleProvidersMembershipConfig, ParachainInfoConfig, ParachainStakingConfig, PolkadotXcmConfig, Runtime,
-	RuntimeGenesisConfig, SessionConfig, ForeignAssetsConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
-	EXISTENTIAL_DEPOSIT, PLMC,
+	RuntimeGenesisConfig, SessionConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, EXISTENTIAL_DEPOSIT, PLMC,
 };
 use sc_service::ChainType;
 use sp_core::{crypto::UncheckedInto, sr25519};

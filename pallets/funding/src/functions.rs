@@ -2542,8 +2542,8 @@ impl<T: Config> Pallet<T> {
 				let new_ticket_size =
 					weighted_token_price.checked_mul_int(bid.final_ct_amount).ok_or(Error::<T>::BadMath)?;
 
-				let funding_asset_price = T::PriceProvider::get_price(bid.funding_asset.to_assethub_id())
-					.ok_or(Error::<T>::PriceNotFound)?;
+				let funding_asset_price =
+					T::PriceProvider::get_price(bid.funding_asset.to_assethub_id()).ok_or(Error::<T>::PriceNotFound)?;
 				let funding_asset_amount_needed = funding_asset_price
 					.reciprocal()
 					.ok_or(Error::<T>::BadMath)?
