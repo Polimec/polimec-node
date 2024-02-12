@@ -10728,6 +10728,7 @@ dependencies = [
  "orml-traits",
  "pallet-authorship",
  "pallet-balances",
+ "pallet-funding",
  "pallet-parachain-staking",
  "pallet-transaction-payment",
  "parachains-common",
