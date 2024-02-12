@@ -475,7 +475,10 @@ mod evaluation_round_success {
 		inst.advance_time(<TestRuntime as Config>::ManualAcceptanceDuration::get() + 1).unwrap();
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
-		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		assert_eq!(
+			inst.get_project_details(project_id).cleanup,
+			SettlementMachine::Success(SettlementType::Finished(PhantomData))
+		);
 		inst.advance_time(10).unwrap();
 		let post_unbond_amounts: Vec<UserToPLMCBalance<_>> = prev_reserved_plmc
 			.iter()
@@ -1130,12 +1133,12 @@ mod auction_round_success {
 		);
 		let details = inst.get_project_details(project_id);
 		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
-		assert_eq!(details.cleanup, Cleaner::NotReady);
+		assert_eq!(details.cleanup, SettlementMachine::NotReady);
 		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
 
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
+		assert_eq!(details.cleanup, SettlementMachine::Success(SettlementType::Initialized(PhantomData)));
 
 		for bid in stored_bids {
 			inst.execute(|| {
@@ -1180,12 +1183,12 @@ mod auction_round_success {
 		);
 		let details = inst.get_project_details(project_id);
 		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
-		assert_eq!(details.cleanup, Cleaner::NotReady);
+		assert_eq!(details.cleanup, SettlementMachine::NotReady);
 
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		inst.advance_time(10u64).unwrap();
 		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		assert_eq!(details.cleanup, SettlementMachine::Success(SettlementType::Finished(PhantomData)));
 
 		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
 		assert_eq!(stored_bids.len(), bids.len());
@@ -1249,7 +1252,7 @@ mod auction_round_success {
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		inst.advance_time(10u64).unwrap();
 		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		assert_eq!(details.cleanup, SettlementMachine::Success(SettlementType::Finished(PhantomData)));
 
 		let final_price = details.weighted_average_price.unwrap();
 		let plmc_locked_for_bids = MockInstantiator::calculate_auction_plmc_spent(&new_bids, Some(final_price));
@@ -1287,10 +1290,10 @@ mod auction_round_success {
 
 		let details = inst.get_project_details(project_id);
 		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
-		assert_eq!(details.cleanup, Cleaner::NotReady);
+		assert_eq!(details.cleanup, SettlementMachine::NotReady);
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
+		assert_eq!(details.cleanup, SettlementMachine::Success(SettlementType::Initialized(PhantomData)));
 
 		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
 		for bid in stored_bids {
@@ -1338,7 +1341,7 @@ mod auction_round_success {
 
 		inst.advance_time(10u64).unwrap();
 		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		assert_eq!(details.cleanup, SettlementMachine::Success(SettlementType::Finished(PhantomData)));
 
 		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
 
@@ -1381,7 +1384,7 @@ mod auction_round_success {
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		inst.advance_time(15u64).unwrap();
 		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		assert_eq!(details.cleanup, SettlementMachine::Success(SettlementType::Finished(PhantomData)));
 		let vest_start_block = details.funding_end_block.unwrap();
 		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
 
@@ -1460,7 +1463,7 @@ mod auction_round_success {
 
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
 		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		assert_eq!(details.cleanup, SettlementMachine::Success(SettlementType::Finished(PhantomData)));
 
 		let plmc_locked_for_accepted_bid =
 			MockInstantiator::calculate_auction_plmc_spent(&accepted_bid, Some(final_price));
@@ -1547,7 +1550,10 @@ mod auction_round_success {
 		);
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		inst.advance_time(10).unwrap();
-		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Failure(CleanerState::Finished(PhantomData)));
+		assert_eq!(
+			inst.get_project_details(project_id).cleanup,
+			SettlementMachine::Failure(SettlementType::Finished(PhantomData))
+		);
 
 		let post_issuer_funding_balance =
 			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
@@ -1630,7 +1636,7 @@ mod auction_round_success {
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Failure(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Failure(SettlementType::Initialized(PhantomData))
 		);
 
 		for bid in final_winning_bids {
@@ -1706,11 +1712,11 @@ mod auction_round_success {
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Failure(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Failure(SettlementType::Initialized(PhantomData))
 		);
 		inst.advance_time(10u64).unwrap();
 		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Failure(CleanerState::Finished(PhantomData)));
+		assert_eq!(details.cleanup, SettlementMachine::Failure(SettlementType::Finished(PhantomData)));
 
 		let post_bidders_plmc_balances = inst.get_free_plmc_balances_for(bids.accounts());
 
@@ -1773,7 +1779,7 @@ mod auction_round_success {
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Failure(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Failure(SettlementType::Initialized(PhantomData))
 		);
 
 		for bid in final_winning_bids {
@@ -2182,7 +2188,10 @@ mod auction_round_failure {
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
 
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
-		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Failure(CleanerState::Finished(PhantomData)));
+		assert_eq!(
+			inst.get_project_details(project_id).cleanup,
+			SettlementMachine::Failure(SettlementType::Finished(PhantomData))
+		);
 
 		let final_plmc_amounts = MockInstantiator::generic_map_operation(
 			vec![required_plmc_bonds, plmc_existential_deposits, plmc_ct_account_deposits],
@@ -2855,13 +2864,13 @@ mod community_round_success {
 		);
 		let details = inst.get_project_details(project_id);
 		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
-		assert_eq!(details.cleanup, Cleaner::NotReady);
+		assert_eq!(details.cleanup, SettlementMachine::NotReady);
 		let stored_contributions =
 			inst.execute(|| Contributions::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
 		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
+		assert_eq!(details.cleanup, SettlementMachine::Success(SettlementType::Initialized(PhantomData)));
 
 		for contribution in stored_contributions {
 			inst.execute(|| {
@@ -2906,12 +2915,12 @@ mod community_round_success {
 		);
 		let details = inst.get_project_details(project_id);
 		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
-		assert_eq!(details.cleanup, Cleaner::NotReady);
+		assert_eq!(details.cleanup, SettlementMachine::NotReady);
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
 		inst.advance_time(10u64).unwrap();
 		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		assert_eq!(details.cleanup, SettlementMachine::Success(SettlementType::Finished(PhantomData)));
 
 		let stored_contributions =
 			inst.execute(|| Contributions::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
@@ -2970,7 +2979,7 @@ mod community_round_success {
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		inst.advance_time(10u64).unwrap();
 		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		assert_eq!(details.cleanup, SettlementMachine::Success(SettlementType::Finished(PhantomData)));
 
 		for UserToPLMCBalance { account: user, plmc_amount: amount } in contribution_locked_plmc {
 			let schedule = inst.execute(|| {
@@ -3005,11 +3014,11 @@ mod community_round_success {
 
 		let details = inst.get_project_details(project_id);
 		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
-		assert_eq!(details.cleanup, Cleaner::NotReady);
+		assert_eq!(details.cleanup, SettlementMachine::NotReady);
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
 		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
+		assert_eq!(details.cleanup, SettlementMachine::Success(SettlementType::Initialized(PhantomData)));
 
 		let contributions =
 			inst.execute(|| Contributions::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
@@ -3060,7 +3069,7 @@ mod community_round_success {
 
 		inst.advance_time(10u64).unwrap();
 		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		assert_eq!(details.cleanup, SettlementMachine::Success(SettlementType::Finished(PhantomData)));
 
 		let stored_contributions =
 			inst.execute(|| Contributions::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
@@ -3110,7 +3119,7 @@ mod community_round_success {
 
 		inst.advance_time(15u64).unwrap();
 		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		assert_eq!(details.cleanup, SettlementMachine::Success(SettlementType::Finished(PhantomData)));
 		let vest_start_block = details.funding_end_block.unwrap();
 		let stored_contributions =
 			inst.execute(|| Contributions::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
@@ -3214,7 +3223,10 @@ mod community_round_failure {
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
 
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
-		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Failure(CleanerState::Finished(PhantomData)));
+		assert_eq!(
+			inst.get_project_details(project_id).cleanup,
+			SettlementMachine::Failure(SettlementType::Finished(PhantomData))
+		);
 
 		let final_plmc_amounts = MockInstantiator::generic_map_operation(
 			vec![required_plmc_bonds, plmc_existential_deposits, plmc_ct_account_deposits],
@@ -3509,7 +3521,7 @@ mod remainder_round_success {
 
 		inst.advance_time(10u64).unwrap();
 		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		assert_eq!(details.cleanup, SettlementMachine::Success(SettlementType::Finished(PhantomData)));
 
 		for UserToPLMCBalance { account, plmc_amount } in all_plmc_locks {
 			let schedule = inst.execute(|| {
@@ -3544,11 +3556,11 @@ mod remainder_round_success {
 
 		let details = inst.get_project_details(project_id);
 		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
-		assert_eq!(details.cleanup, Cleaner::NotReady);
+		assert_eq!(details.cleanup, SettlementMachine::NotReady);
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
 		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
+		assert_eq!(details.cleanup, SettlementMachine::Success(SettlementType::Initialized(PhantomData)));
 
 		let contributions =
 			inst.execute(|| Contributions::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
@@ -3612,7 +3624,7 @@ mod remainder_round_success {
 
 		inst.advance_time(10u64).unwrap();
 		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		assert_eq!(details.cleanup, SettlementMachine::Success(SettlementType::Finished(PhantomData)));
 
 		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
 		let stored_contributions =
@@ -3664,7 +3676,7 @@ mod remainder_round_success {
 
 		inst.advance_time(15u64).unwrap();
 		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		assert_eq!(details.cleanup, SettlementMachine::Success(SettlementType::Finished(PhantomData)));
 		let vest_start_block = details.funding_end_block.unwrap();
 
 		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
@@ -3803,7 +3815,10 @@ mod remainder_round_failure {
 
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
-		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Failure(CleanerState::Finished(PhantomData)));
+		assert_eq!(
+			inst.get_project_details(project_id).cleanup,
+			SettlementMachine::Failure(SettlementType::Finished(PhantomData))
+		);
 
 		let post_balances = inst.get_free_plmc_balances_for(expected_final_plmc_balances.accounts());
 
@@ -3954,13 +3969,16 @@ mod funding_end {
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
-		assert_matches!(inst.get_project_details(project_id).cleanup, Cleaner::Success(CleanerState::Initialized(_)));
+		assert_matches!(
+			inst.get_project_details(project_id).cleanup,
+			SettlementMachine::Success(SettlementType::Initialized(_))
+		);
 		inst.test_ct_created_for(project_id);
 
 		inst.advance_time(10u64).unwrap();
 		assert_matches!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Success(CleanerState::Finished(PhantomData))
+			SettlementMachine::Success(SettlementType::Finished(PhantomData))
 		);
 	}
 
@@ -4005,7 +4023,7 @@ mod funding_end {
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		assert_matches!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Failure(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Failure(SettlementType::Initialized(PhantomData))
 		);
 
 		inst.test_ct_not_created_for(project_id);
@@ -4013,7 +4031,7 @@ mod funding_end {
 		inst.advance_time(10u64).unwrap();
 		assert_matches!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Failure(CleanerState::Finished(PhantomData))
+			SettlementMachine::Failure(SettlementType::Finished(PhantomData))
 		);
 	}
 
@@ -4053,14 +4071,14 @@ mod funding_end {
 
 		assert_matches!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Success(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
 		);
 		inst.test_ct_created_for(project_id);
 
 		inst.advance_time(10u64).unwrap();
 		assert_matches!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Success(CleanerState::Finished(PhantomData))
+			SettlementMachine::Success(SettlementType::Finished(PhantomData))
 		);
 	}
 
@@ -4091,7 +4109,7 @@ mod funding_end {
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 10u64).unwrap();
 		assert_matches!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Success(CleanerState::Finished(PhantomData))
+			SettlementMachine::Success(SettlementType::Finished(PhantomData))
 		);
 
 		let slashed_evaluation_locked_plmc = MockInstantiator::slash_evaluator_balances(old_evaluation_locked_plmc);
@@ -4132,7 +4150,7 @@ mod funding_end {
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 10u64).unwrap();
 		assert_matches!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Failure(CleanerState::Finished(PhantomData))
+			SettlementMachine::Failure(SettlementType::Finished(PhantomData))
 		);
 
 		let slashed_evaluation_locked_plmc = MockInstantiator::slash_evaluator_balances(old_evaluation_locked_plmc);
@@ -4174,7 +4192,7 @@ mod funding_end {
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 10u64).unwrap();
 		assert_matches!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Failure(CleanerState::Finished(PhantomData))
+			SettlementMachine::Failure(SettlementType::Finished(PhantomData))
 		);
 
 		let slashed_evaluation_locked_plmc = MockInstantiator::slash_evaluator_balances(old_evaluation_locked_plmc);
@@ -4215,12 +4233,12 @@ mod funding_end {
 		);
 		let details = inst.get_project_details(project_id);
 		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
-		assert_eq!(details.cleanup, Cleaner::NotReady);
+		assert_eq!(details.cleanup, SettlementMachine::NotReady);
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 
 		inst.advance_time(10u64).unwrap();
 		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		assert_eq!(details.cleanup, SettlementMachine::Success(SettlementType::Finished(PhantomData)));
 
 		let evaluators = evaluations.accounts();
 		let evaluator_ct_amounts = evaluators
@@ -4307,12 +4325,12 @@ mod funding_end {
 		);
 		let details = inst.get_project_details(project_id);
 		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
-		assert_eq!(details.cleanup, Cleaner::NotReady);
+		assert_eq!(details.cleanup, SettlementMachine::NotReady);
 		// do_end_funding
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Success(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
 		);
 
 		let evaluators = evaluations.accounts();
@@ -4416,7 +4434,7 @@ mod funding_end {
 
 		let details = inst.get_project_details(project_id);
 		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
+		assert_eq!(details.cleanup, SettlementMachine::Success(SettlementType::Initialized(PhantomData)));
 	}
 
 	#[test]
@@ -4439,12 +4457,12 @@ mod funding_end {
 		);
 		let details = inst.get_project_details(project_id);
 		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
-		assert_eq!(details.cleanup, Cleaner::NotReady);
+		assert_eq!(details.cleanup, SettlementMachine::NotReady);
 		// do_end_funding
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Success(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
 		);
 
 		let evaluators = evaluations.accounts();
@@ -4579,7 +4597,7 @@ mod funding_end {
 
 		let details = inst.get_project_details(project_id);
 		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
+		assert_eq!(details.cleanup, SettlementMachine::Success(SettlementType::Initialized(PhantomData)));
 	}
 
 	#[test]
@@ -4602,14 +4620,17 @@ mod funding_end {
 		);
 		let details = inst.get_project_details(project_id);
 		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
-		assert_eq!(details.cleanup, Cleaner::NotReady);
+		assert_eq!(details.cleanup, SettlementMachine::NotReady);
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Success(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
 		);
 		inst.advance_time(1).unwrap();
-		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		assert_eq!(
+			inst.get_project_details(project_id).cleanup,
+			SettlementMachine::Success(SettlementType::Finished(PhantomData))
+		);
 
 		let evaluators = evaluations.accounts();
 		let evaluator_ct_amounts = evaluators
@@ -4746,7 +4767,7 @@ mod funding_end {
 
 		inst.advance_time(10u64).unwrap();
 		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		assert_eq!(details.cleanup, SettlementMachine::Success(SettlementType::Finished(PhantomData)));
 
 		let mut stored_bids =
 			inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
@@ -4833,7 +4854,7 @@ mod funding_end {
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Success(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
 		);
 		for bid in final_winning_bids {
 			inst.execute(|| {
@@ -4936,10 +4957,13 @@ mod funding_end {
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Success(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
 		);
 		inst.advance_time(1u64).unwrap();
-		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		assert_eq!(
+			inst.get_project_details(project_id).cleanup,
+			SettlementMachine::Success(SettlementType::Finished(PhantomData))
+		);
 
 		let post_issuer_funding_balance =
 			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
@@ -5036,7 +5060,10 @@ mod funding_end {
 		);
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		inst.advance_time(10).unwrap();
-		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Failure(CleanerState::Finished(PhantomData)));
+		assert_eq!(
+			inst.get_project_details(project_id).cleanup,
+			SettlementMachine::Failure(SettlementType::Finished(PhantomData))
+		);
 
 		let post_issuer_funding_balance =
 			inst.get_free_foreign_asset_balances_for(expected_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
@@ -5294,7 +5321,10 @@ mod funding_end {
 		);
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
 		inst.advance_time(10).unwrap();
-		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Failure(CleanerState::Finished(PhantomData)));
+		assert_eq!(
+			inst.get_project_details(project_id).cleanup,
+			SettlementMachine::Failure(SettlementType::Finished(PhantomData))
+		);
 
 		let post_issuer_funding_balance = inst.get_free_plmc_balances_for(vec![issuer])[0].plmc_amount;
 		let post_participants_plmc_balances = inst.get_free_plmc_balances_for(all_participants);
@@ -5409,7 +5439,7 @@ mod funding_end {
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Failure(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Failure(SettlementType::Initialized(PhantomData))
 		);
 
 		let stored_evaluations =
@@ -5492,7 +5522,7 @@ mod funding_end {
 		}
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Failure(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Failure(SettlementType::Initialized(PhantomData))
 		);
 		assert_eq!(issuer_funding_delta, 0);
 		assert_eq!(all_participants_plmc_deltas, all_expected_payouts);
@@ -5562,7 +5592,7 @@ mod ct_migration {
 		);
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 20u64).unwrap();
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		assert_eq!(project_details.cleanup, SettlementMachine::Success(SettlementType::Finished(PhantomData)));
 
 		inst.execute(|| {
 			assert_ok!(crate::Pallet::<TestRuntime>::set_para_id_for_project(
@@ -5588,7 +5618,7 @@ mod ct_migration {
 		);
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 20u64).unwrap();
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		assert_eq!(project_details.cleanup, SettlementMachine::Success(SettlementType::Finished(PhantomData)));
 
 		inst.execute(|| {
 			assert_err!(

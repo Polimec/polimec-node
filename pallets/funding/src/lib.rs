@@ -185,7 +185,7 @@ use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
 use sp_std::{marker::PhantomData, prelude::*};
-use traits::DoRemainingOperation;
+use traits::SettlementOperations;
 pub use types::*;
 use xcm::v3::{opaque::Instruction, prelude::*, SendXcm};
 pub mod functions;
@@ -252,7 +252,7 @@ pub mod pallet {
 	use sp_arithmetic::Percent;
 	use sp_runtime::{
 		traits::{Convert, ConvertBack, Get},
-		DispatchErrorWithPostInfo,
+		DispatchErrorWithPostInfo, WeakBoundedVec,
 	};
 
 	#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
@@ -469,6 +469,10 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type MaxEvaluationsPerProject: Get<u32>;
+
+		#[pallet::constant]
+		// maybe 128
+		type MaxProjectsInSettlement: Get<u32>;
 	}
 
 	#[pallet::storage]
@@ -520,6 +524,10 @@ pub mod pallet {
 	#[pallet::getter(fn project_details)]
 	/// StorageMap containing additional information for the projects, relevant for correctness of the protocol
 	pub type ProjectsDetails<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, ProjectDetailsOf<T>>;
+
+	#[pallet::storage]
+	pub type ProjectSettlements<T: Config> =
+		StorageValue<_, WeakBoundedVec<(ProjectId, SettlementMachine), T::MaxProjectsInSettlement>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn projects_to_update)]
@@ -865,6 +873,10 @@ pub mod pallet {
 			project_id: ProjectId,
 			participant: AccountIdOf<T>,
 			caller: AccountIdOf<T>,
+		},
+		SettlementError {
+			project_id: ProjectId,
+			error: DispatchError,
 		},
 	}
 
@@ -1422,7 +1434,7 @@ pub mod pallet {
 					UpdateType::StartSettlement => {
 						used_weight = used_weight.saturating_add(
 							unwrap_result_or_skip!(
-								Self::do_start_settlement(project_id),
+								Self::add_to_settlement_queue(project_id),
 								project_id,
 								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
 							)
@@ -1439,45 +1451,30 @@ pub mod pallet {
 		fn on_idle(_now: BlockNumberFor<T>, max_weight: Weight) -> Weight {
 			let mut remaining_weight = max_weight;
 
-			let projects_needing_cleanup = ProjectsDetails::<T>::iter()
-				.filter_map(|(project_id, info)| match info.cleanup {
-					cleaner if <Cleaner as DoRemainingOperation<T>>::has_remaining_operations(&cleaner) =>
-						Some((project_id, cleaner)),
-					_ => None,
-				})
-				.collect::<Vec<_>>();
+			let mut settlement_queue = ProjectSettlements::<T>::get();
+			settlement_queue.sort_by_key(|(project_id, _)| project_id);
+			remaining_weight = remaining_weight.saturating_sub(<T as frame_system::Config>::DbWeight::get().reads(1));
 
-			let projects_amount = projects_needing_cleanup.len() as u64;
-			if projects_amount == 0 {
-				return max_weight;
+			let settlement_queue = settlement_queue.into_iter();
+			let (project_id, mut cleaner) = settlement_queue.next().unwrap_or_else(|| return remaining_weight);
+			let settlement_queue = settlement_queue.collect::<Vec<_>>();
+			let settlement_queue = WeakBoundedVec::<_, T::MaxProjectsInSettlement>::force_from(settlement_queue);
+
+			const LOWEST_OPERATION_WEIGHT: Weight = Weight::from_parts(100_000, 3_000);
+			while remaining_weight > LOWEST_OPERATION_WEIGHT {
+				match <SettlementMachine as SettlementOperations<T>>::do_one_operation(&mut cleaner, project_id) {
+					Ok(weight) => {
+						remaining_weight = remaining_weight.saturating_sub(weight);
+					},
+					Err(err) => {
+						Self::deposit_event(Event::<T>::SettlementError { project_id: *project_id, error: err.into() });
+						break;
+					},
+				}
 			}
 
-			let mut max_weight_per_project = remaining_weight.saturating_div(projects_amount);
-
-			for (remaining_projects, (project_id, mut cleaner)) in
-				projects_needing_cleanup.into_iter().enumerate().rev()
-			{
-				// TODO: Create this benchmark
-				// let mut consumed_weight = WeightInfoOf::<T>::insert_cleaned_project();
-				let mut consumed_weight = Weight::from_parts(6_034_000, 0);
-				while !consumed_weight.any_gt(max_weight_per_project) {
-					if let Ok(weight) = <Cleaner as DoRemainingOperation<T>>::do_one_operation(&mut cleaner, project_id)
-					{
-						consumed_weight.saturating_accrue(weight);
-					} else {
-						break;
-					}
-				}
-
-				let mut details =
-					if let Some(details) = ProjectsDetails::<T>::get(project_id) { details } else { continue };
-				details.cleanup = cleaner;
-				ProjectsDetails::<T>::insert(project_id, details);
-
-				remaining_weight = remaining_weight.saturating_sub(consumed_weight);
-				if remaining_projects > 0 {
-					max_weight_per_project = remaining_weight.saturating_div(remaining_projects as u64);
-				}
+			if <SettlementMachine as SettlementOperations<T>>::has_remaining_operations(&cleaner) {
+				settlement_queue.push((project_id, cleaner));
 			}
 
 			max_weight.saturating_sub(remaining_weight)

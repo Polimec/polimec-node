@@ -103,7 +103,6 @@ impl<T: Config> Pallet<T> {
 			phase_transition_points: PhaseTransitionPoints::new(now),
 			remaining_contribution_tokens: initial_metadata.total_allocation_size,
 			funding_amount_reached: BalanceOf::<T>::zero(),
-			cleanup: Cleaner::NotReady,
 			evaluation_round_info: EvaluationRoundInfoOf::<T> {
 				total_bonded_usd: Zero::zero(),
 				total_bonded_plmc: Zero::zero(),
@@ -282,7 +281,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Branch in possible project paths *
 		// Successful path
-		if is_funded {
+		return if is_funded {
 			// * Update storage *
 			project_details
 				.phase_transition_points
@@ -290,7 +289,6 @@ impl<T: Config> Pallet<T> {
 				.update(Some(auction_initialize_period_start_block), Some(auction_initialize_period_end_block));
 			project_details.status = ProjectStatus::AuctionInitializePeriod;
 			ProjectsDetails::<T>::insert(project_id, project_details);
-			// TODO: return real weights
 			let insertion_attempts = match Self::add_to_update_store(
 				auction_initialize_period_end_block + 1u32.into(),
 				(&project_id, UpdateType::EnglishAuctionStart),
@@ -306,24 +304,25 @@ impl<T: Config> Pallet<T> {
 				end_block: auction_initialize_period_end_block,
 			});
 
-			return Ok(PostDispatchInfo {
+			Ok(PostDispatchInfo {
 				actual_weight: Some(WeightInfoOf::<T>::end_evaluation_success(insertion_attempts)),
 				pays_fee: Pays::Yes,
-			});
+			})
 
 		// Unsuccessful path
 		} else {
 			// * Update storage *
 			project_details.status = ProjectStatus::EvaluationFailed;
-			project_details.cleanup = Cleaner::Failure(CleanerState::Initialized(PhantomData::<Failure>));
+			let cleaner = SettlementMachine::NotReady;
+			ProjectSettlements::<T>::append((project_id, cleaner));
 			ProjectsDetails::<T>::insert(project_id, project_details);
 
 			// * Emit events *
 			Self::deposit_event(Event::EvaluationFailed { project_id });
-			return Ok(PostDispatchInfo {
+			Ok(PostDispatchInfo {
 				actual_weight: Some(WeightInfoOf::<T>::end_evaluation_failure()),
 				pays_fee: Pays::Yes,
-			});
+			})
 		}
 	}
 
@@ -583,7 +582,7 @@ impl<T: Config> Pallet<T> {
 					.update(Some(community_start_block), Some(community_end_block));
 				project_details.status = ProjectStatus::CommunityRound;
 				ProjectsDetails::<T>::insert(project_id, project_details);
-				// TODO: return real weights
+
 				let insertion_iterations = match Self::add_to_update_store(
 					community_end_block + 1u32.into(),
 					(&project_id, UpdateType::RemainderFundingStart),
@@ -825,7 +824,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	pub fn do_start_settlement(project_id: ProjectId) -> DispatchResultWithPostInfo {
+	pub fn add_to_settlement_queue(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let token_information =
@@ -840,8 +839,8 @@ impl<T: Config> Pallet<T> {
 		);
 
 		// * Calculate new variables *
-		project_details.cleanup =
-			Cleaner::try_from(project_details.status.clone()).map_err(|_| Error::<T>::NotAllowed)?;
+		let cleaner = SettlementMachine::NotReady;
+		ProjectSettlements::<T>::append((project_id, cleaner));
 		project_details.funding_end_block = Some(now);
 
 		// * Update storage *

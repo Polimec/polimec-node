@@ -219,8 +219,6 @@ pub mod storage_types {
 		pub remaining_contribution_tokens: (Balance, Balance),
 		/// Funding reached amount in USD equivalent
 		pub funding_amount_reached: Balance,
-		/// Cleanup operations remaining
-		pub cleanup: Cleaner,
 		/// Information about the total amount bonded, and the outcome in regards to reward/slash/nothing
 		pub evaluation_round_info: EvaluationRoundInfo,
 		/// When the Funding Round ends
@@ -491,6 +489,10 @@ pub mod inner_types {
 		FundingFailed,
 		AwaitingProjectDecision,
 		FundingSuccessful,
+		SuccessSettlementOngoing,
+		FailureSettlementOngoing,
+		SuccessSettlementFinished,
+		FailureSettlementFinished,
 		ReadyToStartMigration,
 		MigrationCompleted,
 	}
@@ -630,47 +632,35 @@ pub mod inner_types {
 	pub struct Failure;
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum CleanerState<T> {
+	pub enum SettlementType<T> {
 		Initialized(PhantomData<T>),
 		// Success or Failure
-		EvaluationRewardOrSlash(u64, PhantomData<T>),
-		EvaluationUnbonding(u64, PhantomData<T>),
+		EvaluationRewardOrSlash(PhantomData<T>),
+		EvaluationUnbonding(PhantomData<T>),
 		// Branch
 		// A. Success only
-		BidCTMint(u64, PhantomData<T>),
-		ContributionCTMint(u64, PhantomData<T>),
-		StartBidderVestingSchedule(u64, PhantomData<T>),
-		StartContributorVestingSchedule(u64, PhantomData<T>),
-		BidFundingPayout(u64, PhantomData<T>),
-		ContributionFundingPayout(u64, PhantomData<T>),
+		BidCTMint(PhantomData<T>),
+		ContributionCTMint(PhantomData<T>),
+		StartBidderVestingSchedule(PhantomData<T>),
+		StartContributorVestingSchedule(PhantomData<T>),
+		BidFundingPayout(PhantomData<T>),
+		ContributionFundingPayout(PhantomData<T>),
 		// B. Failure only
-		BidFundingRelease(u64, PhantomData<T>),
-		BidUnbonding(u64, PhantomData<T>),
-		ContributionFundingRelease(u64, PhantomData<T>),
-		ContributionUnbonding(u64, PhantomData<T>),
-		FutureDepositRelease(u64, PhantomData<T>),
+		BidFundingRelease(PhantomData<T>),
+		BidUnbonding(PhantomData<T>),
+		ContributionFundingRelease(PhantomData<T>),
+		ContributionUnbonding(PhantomData<T>),
+		FutureDepositRelease(PhantomData<T>),
 		// Merge
 		// Success or Failure
 		Finished(PhantomData<T>),
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub enum Cleaner {
+	pub enum SettlementMachine {
 		NotReady,
-		Success(CleanerState<Success>),
-		Failure(CleanerState<Failure>),
-	}
-	impl TryFrom<ProjectStatus> for Cleaner {
-		type Error = ();
-
-		fn try_from(value: ProjectStatus) -> Result<Self, ()> {
-			match value {
-				ProjectStatus::FundingSuccessful => Ok(Cleaner::Success(CleanerState::Initialized(PhantomData))),
-				ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed =>
-					Ok(Cleaner::Failure(CleanerState::Initialized(PhantomData))),
-				_ => Err(()),
-			}
-		}
+		Success(SettlementType<Success>),
+		Failure(SettlementType<Failure>),
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]

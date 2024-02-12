@@ -1609,7 +1609,7 @@ mod benchmarks {
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Success(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
 		);
 
 		let evaluation_to_unbond =
@@ -1683,7 +1683,7 @@ mod benchmarks {
 		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Success(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
 		);
 
 		let evaluation_to_unbond =
@@ -1758,7 +1758,7 @@ mod benchmarks {
 		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Success(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
 		);
 
 		let mut evaluations_to_unbond =
@@ -1853,7 +1853,7 @@ mod benchmarks {
 		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Failure(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Failure(SettlementType::Initialized(PhantomData))
 		);
 
 		let evaluation_to_unbond =
@@ -1925,7 +1925,7 @@ mod benchmarks {
 		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Success(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
 		);
 
 		let bid_to_mint_ct =
@@ -1992,7 +1992,7 @@ mod benchmarks {
 		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Success(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
 		);
 
 		let mut bids_to_mint_ct = inst.execute(|| Bids::<T>::iter_prefix_values((project_id, bidder.clone())));
@@ -2059,7 +2059,7 @@ mod benchmarks {
 		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Success(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
 		);
 
 		let contribution_to_mint_ct =
@@ -2141,7 +2141,7 @@ mod benchmarks {
 		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Success(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
 		);
 
 		let mut contributions_to_mint_ct =
@@ -2215,7 +2215,7 @@ mod benchmarks {
 		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Success(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
 		);
 
 		let bid_to_vest = inst.execute(|| Bids::<T>::iter_prefix_values((project_id, bidder.clone())).next().unwrap());
@@ -2272,7 +2272,7 @@ mod benchmarks {
 		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Success(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
 		);
 
 		let contribution_to_vest =
@@ -2336,7 +2336,7 @@ mod benchmarks {
 		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Success(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
 		);
 
 		let bid_to_payout =
@@ -2390,7 +2390,7 @@ mod benchmarks {
 		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Success(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
 		);
 
 		let contribution_to_payout =
@@ -2533,7 +2533,7 @@ mod benchmarks {
 		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Failure(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Failure(SettlementType::Initialized(PhantomData))
 		);
 
 		let bid_to_payout =
@@ -2603,7 +2603,7 @@ mod benchmarks {
 		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Failure(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Failure(SettlementType::Initialized(PhantomData))
 		);
 
 		let contribution_to_payout =
@@ -2681,7 +2681,7 @@ mod benchmarks {
 		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Failure(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Failure(SettlementType::Initialized(PhantomData))
 		);
 
 		let stored_bid = inst.execute(|| Bids::<T>::iter_prefix_values((project_id, bidder.clone())).next().unwrap());
@@ -2753,7 +2753,7 @@ mod benchmarks {
 		inst.advance_time(One::one()).unwrap();
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
-			Cleaner::Failure(CleanerState::Initialized(PhantomData))
+			SettlementMachine::Failure(SettlementType::Initialized(PhantomData))
 		);
 
 		let stored_contribution =
@@ -3638,12 +3638,12 @@ mod benchmarks {
 
 		#[block]
 		{
-			Pallet::<T>::do_start_settlement(project_id).unwrap();
+			Pallet::<T>::add_to_settlement_queue(project_id).unwrap();
 		}
 
 		// * validity checks *
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
+		assert_eq!(project_details.cleanup, SettlementMachine::Success(SettlementType::Initialized(PhantomData)));
 	}
 
 	#[benchmark]
@@ -3686,12 +3686,12 @@ mod benchmarks {
 
 		#[block]
 		{
-			Pallet::<T>::do_start_settlement(project_id).unwrap();
+			Pallet::<T>::add_to_settlement_queue(project_id).unwrap();
 		}
 
 		// * validity checks *
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.cleanup, Cleaner::Failure(CleanerState::Initialized(PhantomData)));
+		assert_eq!(project_details.cleanup, SettlementMachine::Failure(SettlementType::Initialized(PhantomData)));
 	}
 
 	#[macro_export]

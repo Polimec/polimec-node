@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{BalanceOf, Config, ProjectId};
+use crate::{AccountIdOf, BalanceOf, BidInfoOf, Config, ContributionInfoOf, EvaluationInfoOf, ProjectId};
 use frame_support::weights::Weight;
 use frame_system::pallet_prelude::BlockNumberFor;
 use sp_arithmetic::FixedPointNumber;
@@ -34,10 +34,34 @@ pub trait ProvideAssetPrice {
 	fn get_price(asset_id: Self::AssetId) -> Option<Self::Price>;
 }
 
-pub trait DoRemainingOperation<T: Config> {
+pub trait SettlementOperations<T: Config> {
 	fn has_remaining_operations(&self) -> bool;
 
-	fn do_one_operation(&mut self, project_id: ProjectId) -> Result<Weight, DispatchError>;
+	fn do_one_operation(
+		&mut self,
+		project_id: ProjectId,
+		target: &mut impl Iterator<Item = SettlementTarget<T>>,
+	) -> Result<(impl Iterator, Weight), DispatchError>;
+
+	fn update_target(
+		&self,
+		project_id: ProjectId,
+		target: &mut impl Iterator<Item = SettlementTarget<T>>,
+	) -> Vec<AccountIdOf<T>>;
+
+	fn execute_with_given_weight(
+		&mut self,
+		weight: Weight,
+		project_id: ProjectId,
+		target: &mut impl Iterator<Item = SettlementTarget<T>>,
+	) -> Result<Weight, DispatchError>;
+}
+
+pub enum SettlementTarget<T: Config> {
+	Accounts(Vec<AccountIdOf<T>>),
+	Evaluations(Vec<EvaluationInfoOf<T>>),
+	Bids(Vec<BidInfoOf<T>>),
+	Contributions(Vec<ContributionInfoOf<T>>),
 }
 
 #[cfg(any(feature = "runtime-benchmarks", feature = "std"))]

@@ -398,7 +398,7 @@ impl<
 				.unwrap(),
 			remaining_contribution_tokens: expected_metadata.total_allocation_size,
 			funding_amount_reached: BalanceOf::<T>::zero(),
-			cleanup: Cleaner::NotReady,
+			cleanup: SettlementMachine::NotReady,
 			evaluation_round_info: EvaluationRoundInfoOf::<T> {
 				total_bonded_usd: Zero::zero(),
 				total_bonded_plmc: Zero::zero(),

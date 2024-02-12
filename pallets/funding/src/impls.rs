@@ -24,337 +24,387 @@ use sp_arithmetic::traits::Zero;
 use sp_runtime::{traits::AccountIdConversion, DispatchError};
 use sp_std::{collections::btree_set::BTreeSet, marker::PhantomData};
 
-use crate::{traits::DoRemainingOperation, *};
+use crate::{traits::SettlementOperations, *};
 
-impl<T: Config> DoRemainingOperation<T> for Cleaner {
+impl<T: Config> SettlementOperations<T> for SettlementMachine {
 	fn has_remaining_operations(&self) -> bool {
 		match self {
-			Cleaner::NotReady => false,
-			Cleaner::Success(state) =>
-				<CleanerState<Success> as DoRemainingOperation<T>>::has_remaining_operations(state),
-			Cleaner::Failure(state) =>
-				<CleanerState<Failure> as DoRemainingOperation<T>>::has_remaining_operations(state),
+			SettlementMachine::NotReady => false,
+			SettlementMachine::Success(state) =>
+				<SettlementType<Success> as SettlementOperations<T>>::has_remaining_operations(state),
+			SettlementMachine::Failure(state) =>
+				<SettlementType<Failure> as SettlementOperations<T>>::has_remaining_operations(state),
 		}
 	}
 
-	fn do_one_operation(&mut self, project_id: ProjectId) -> Result<Weight, DispatchError> {
+	fn do_one_operation(
+		&mut self,
+		project_id: ProjectId,
+		target: &mut impl Iterator,
+	) -> Result<(impl Iterator, Weight), DispatchError> {
 		match self {
-			Cleaner::NotReady => Err(DispatchError::Other("Cleaner not ready")),
-			Cleaner::Success(state) =>
-				<CleanerState<Success> as DoRemainingOperation<T>>::do_one_operation(state, project_id),
-			Cleaner::Failure(state) =>
-				<CleanerState<Failure> as DoRemainingOperation<T>>::do_one_operation(state, project_id),
+			SettlementMachine::NotReady => Err(DispatchError::Other("Cleaner not ready")),
+			SettlementMachine::Success(state) =>
+				<SettlementType<Success> as SettlementOperations<T>>::do_one_operation(state, project_id, target),
+			SettlementMachine::Failure(state) =>
+				<SettlementType<Failure> as SettlementOperations<T>>::do_one_operation(state, project_id, target),
+		}
+	}
+
+	fn get_new_accounts_on_target(&self, project_id: ProjectId, target: &mut impl Iterator) -> Vec<AccountIdOf<T>> {
+		match self {
+			SettlementMachine::NotReady => Err(DispatchError::Other("Cleaner not ready")),
+			SettlementMachine::Success(state) =>
+				<SettlementType<Success> as SettlementOperations<T>>::get_new_accounts_on_target(
+					state, project_id, target,
+				),
+			SettlementMachine::Failure(state) =>
+				<SettlementType<Failure> as SettlementOperations<T>>::get_new_accounts_on_target(
+					state, project_id, target,
+				),
 		}
 	}
 }
 
-impl<T: Config> DoRemainingOperation<T> for CleanerState<Success> {
+impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 	fn has_remaining_operations(&self) -> bool {
-		!matches!(self, CleanerState::Finished(_))
+		!matches!(self, SettlementType::Finished(_))
 	}
 
-	fn do_one_operation(&mut self, project_id: ProjectId) -> Result<Weight, DispatchError> {
-		let evaluators_outcome = ProjectsDetails::<T>::get(project_id)
-			.ok_or(Error::<T>::ImpossibleState)?
-			.evaluation_round_info
-			.evaluators_outcome;
-		let base_weight = Weight::from_parts(10_000_000, 0);
-
+	fn do_one_operation(
+		&mut self,
+		project_id: ProjectId,
+		target: &mut impl Iterator,
+	) -> Result<(impl Iterator, Weight), DispatchError> {
 		match self {
-			CleanerState::Initialized(PhantomData) => {
-				*self = Self::EvaluationRewardOrSlash(
-					remaining_evaluators_to_reward_or_slash::<T>(project_id, evaluators_outcome),
-					PhantomData,
-				);
-				Ok(base_weight)
+			SettlementType::Initialized(PhantomData::<Success>) => {
+				*self = Self::EvaluationRewardOrSlash(PhantomData);
+				Ok(Weight::zero())
 			},
-			CleanerState::EvaluationRewardOrSlash(remaining, PhantomData) =>
-				if *remaining == 0 {
-					*self = Self::EvaluationUnbonding(remaining_evaluations::<T>(project_id), PhantomData);
-					Ok(base_weight)
+			SettlementType::EvaluationRewardOrSlash(PhantomData::<Success>) =>
+				if target.is_empty() {
+					*self = Self::EvaluationUnbonding(PhantomData);
+					let consumed_weight = self.get_new_accounts_on_target(project_id, target);
+					Ok(consumed_weight)
 				} else {
-					let (consumed_weight, remaining_evaluations) =
-						reward_or_slash_one_evaluation::<T>(project_id).map_err(|error_info| error_info.error)?;
-					*self = CleanerState::EvaluationRewardOrSlash(remaining_evaluations, PhantomData);
+					let (consumed_weight, remaining_accounts) = reward_or_slash_one_evaluation::<T>(project_id, target)
+						.map_err(|error_info| error_info.error)?;
 					Ok(consumed_weight)
 				},
-			CleanerState::EvaluationUnbonding(remaining, PhantomData) =>
-				if *remaining == 0 {
-					*self = CleanerState::StartBidderVestingSchedule(
-						remaining_successful_bids::<T>(project_id),
-						PhantomData,
-					);
-					Ok(base_weight)
+			SettlementType::EvaluationUnbonding(PhantomData::<Success>) =>
+				if target.is_empty() {
+					*self = SettlementType::StartBidderVestingSchedule(PhantomData);
+					let consumed_weight = self.get_new_accounts_on_target(project_id, target);
+					Ok(consumed_weight)
 				} else {
-					let (consumed_weight, remaining_evaluations) = unbond_one_evaluation::<T>(project_id);
-					*self = CleanerState::EvaluationUnbonding(remaining_evaluations, PhantomData);
+					let consumed_weight = unbond_one_evaluation::<T>(project_id, target);
+
 					Ok(consumed_weight)
 				},
-			CleanerState::StartBidderVestingSchedule(remaining, PhantomData) =>
-				if *remaining == 0 {
-					*self = CleanerState::StartContributorVestingSchedule(
-						remaining_contributions::<T>(project_id),
-						PhantomData,
-					);
-					Ok(base_weight)
+			SettlementType::StartBidderVestingSchedule(PhantomData::<Success>) =>
+				if target.is_empty() {
+					*self = SettlementType::StartContributorVestingSchedule(PhantomData);
+					let consumed_weight = self.get_new_accounts_on_target(project_id, target);
+					Ok(consumed_weight)
 				} else {
-					let (consumed_weight, remaining_evaluations) = start_one_bid_vesting_schedule::<T>(project_id);
-					*self = CleanerState::StartBidderVestingSchedule(remaining_evaluations, PhantomData);
+					let consumed_weight = start_one_bid_vesting_schedule::<T>(project_id, target);
+
 					Ok(consumed_weight)
 				},
-			CleanerState::StartContributorVestingSchedule(remaining, PhantomData) =>
-				if *remaining == 0 {
-					*self = CleanerState::BidCTMint(remaining_bids_without_ct_minted::<T>(project_id), PhantomData);
-					Ok(base_weight)
+			SettlementType::StartContributorVestingSchedule(PhantomData::<Success>) =>
+				if target.is_empty() {
+					*self = SettlementType::BidCTMint(PhantomData);
+					let consumed_weight = self.get_new_accounts_on_target(project_id, target);
+					Ok(consumed_weight)
 				} else {
-					let (consumed_weight, remaining_evaluations) =
-						start_one_contribution_vesting_schedule::<T>(project_id);
-					*self = CleanerState::StartContributorVestingSchedule(remaining_evaluations, PhantomData);
+					let consumed_weight = start_one_contribution_vesting_schedule::<T>(project_id, target);
 					Ok(consumed_weight)
 				},
-			CleanerState::BidCTMint(remaining, PhantomData) =>
-				if *remaining == 0 {
-					*self = CleanerState::ContributionCTMint(
-						remaining_contributions_without_ct_minted::<T>(project_id),
-						PhantomData,
-					);
-					Ok(base_weight)
+			SettlementType::BidCTMint(PhantomData::<Success>) =>
+				if target.is_empty() {
+					*self = SettlementType::ContributionCTMint(PhantomData);
+					let consumed_weight = self.get_new_accounts_on_target(project_id, target);
+					Ok(consumed_weight)
 				} else {
-					let (consumed_weight, remaining_bids) = mint_ct_for_one_bid::<T>(project_id);
-					*self = CleanerState::BidCTMint(remaining_bids, PhantomData);
+					let consumed_weight = mint_ct_for_one_bid::<T>(project_id, target);
 					Ok(consumed_weight)
 				},
-			CleanerState::ContributionCTMint(remaining, PhantomData) =>
-				if *remaining == 0 {
-					*self = CleanerState::BidFundingPayout(
-						remaining_bids_without_issuer_payout::<T>(project_id),
-						PhantomData,
-					);
-					Ok(base_weight)
+			SettlementType::ContributionCTMint(PhantomData::<Success>) =>
+				if target.is_empty() {
+					*self = SettlementType::BidFundingPayout(PhantomData);
+					let consumed_weight = self.get_new_accounts_on_target(project_id, target);
+					Ok(consumed_weight)
 				} else {
-					let (consumed_weight, remaining_contributions) = mint_ct_for_one_contribution::<T>(project_id);
-					*self = CleanerState::ContributionCTMint(remaining_contributions, PhantomData);
+					let consumed_weight = mint_ct_for_one_contribution::<T>(project_id, target);
+
 					Ok(consumed_weight)
 				},
-			CleanerState::BidFundingPayout(remaining, PhantomData) =>
-				if *remaining == 0 {
-					*self = CleanerState::ContributionFundingPayout(
-						remaining_contributions_without_issuer_payout::<T>(project_id),
-						PhantomData,
-					);
-					Ok(base_weight)
+			SettlementType::BidFundingPayout(PhantomData::<Success>) =>
+				if target.is_empty() {
+					*self = SettlementType::ContributionFundingPayout(PhantomData);
+					let consumed_weight = self.get_new_accounts_on_target(project_id, target);
+					Ok(consumed_weight)
 				} else {
-					let (consumed_weight, remaining_contributions) = issuer_funding_payout_one_bid::<T>(project_id);
-					*self = CleanerState::BidFundingPayout(remaining_contributions, PhantomData);
+					let consumed_weight = issuer_funding_payout_one_bid::<T>(project_id, target);
+
 					Ok(consumed_weight)
 				},
-			CleanerState::ContributionFundingPayout(remaining, PhantomData) =>
-				if *remaining == 0 {
-					*self = CleanerState::Finished(PhantomData);
-					Ok(base_weight)
+			SettlementType::ContributionFundingPayout(PhantomData::<Success>) =>
+				if target.is_empty() {
+					*self = SettlementType::Finished(PhantomData);
+					let consumed_weight = self.get_new_accounts_on_target(project_id, target);
+					Ok(consumed_weight)
 				} else {
-					let (consumed_weight, remaining_contributions) =
-						issuer_funding_payout_one_contribution::<T>(project_id);
-					*self = CleanerState::ContributionFundingPayout(remaining_contributions, PhantomData);
+					let consumed_weight = issuer_funding_payout_one_contribution::<T>(project_id, target);
 					Ok(consumed_weight)
 				},
-			CleanerState::Finished(PhantomData) => Err(Error::<T>::FinalizerFinished.into()),
+			SettlementType::Finished(PhantomData::<Success>) => Err(Error::<T>::FinalizerFinished.into()),
+
+			// Transitions enforced by the type system
+			_ => Err(Error::<T>::ImpossibleState.into()),
+		}
+	}
+
+	fn get_new_accounts_on_target(&self, project_id: ProjectId, target: &mut impl Iterator) -> Weight {
+		match self {
+			SettlementType::Initialized(_) => {
+				*target = vec![];
+				Weight::zero()
+			},
+			SettlementType::EvaluationRewardOrSlash(_) => {
+				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
+				Weight::zero()
+			},
+			SettlementType::EvaluationUnbonding(_) => {
+				*target = remaining_evaluations::<T>(project_id);
+				Weight::zero()
+			},
+			SettlementType::BidCTMint(_) => {
+				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
+				Weight::zero()
+			},
+			SettlementType::ContributionCTMint(_) => {
+				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
+				Weight::zero()
+			},
+			SettlementType::StartBidderVestingSchedule(_) => {
+				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
+				Weight::zero()
+			},
+			SettlementType::StartContributorVestingSchedule(_) => {
+				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
+				Weight::zero()
+			},
+			SettlementType::BidFundingPayout(_) => {
+				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
+				Weight::zero()
+			},
+			SettlementType::ContributionFundingPayout(_) => {
+				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
+				Weight::zero()
+			},
+			SettlementType::BidFundingRelease(_) => {
+				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
+				Weight::zero()
+			},
+			SettlementType::BidUnbonding(_) => {
+				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
+				Weight::zero()
+			},
+			SettlementType::ContributionFundingRelease(_) => {
+				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
+				Weight::zero()
+			},
+			SettlementType::ContributionUnbonding(_) => {
+				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
+				Weight::zero()
+			},
+			SettlementType::FutureDepositRelease(_) => {
+				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
+				Weight::zero()
+			},
+			SettlementType::Finished(_) => {
+				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
+				Weight::zero()
+			},
+		}
+	}
+}
+impl<T: Config> SettlementOperations<T> for SettlementType<Failure> {
+	fn has_remaining_operations(&self) -> bool {
+		!matches!(self, SettlementType::Finished(PhantomData::<Failure>))
+	}
+
+	fn do_one_operation(
+		&mut self,
+		project_id: ProjectId,
+		target: impl Iterator,
+	) -> Result<(impl Iterator, Weight), DispatchError> {
+		match self {
+			SettlementType::Initialized(PhantomData::<Failure>) => {
+				*self = SettlementType::EvaluationRewardOrSlash(PhantomData::<Failure>);
+				Ok(Weight::zero())
+			},
+
+			SettlementType::EvaluationRewardOrSlash(PhantomData::<Failure>) =>
+				if target.is_empty() {
+					*self = SettlementType::FutureDepositRelease(PhantomData::<Failure>);
+					Ok(base_weight)
+				} else {
+					let consumed_weight = reward_or_slash_one_evaluation::<T>(project_id, target)
+						.map_err(|error_info| error_info.error)?;
+					*self = SettlementType::EvaluationRewardOrSlash(PhantomData);
+					Ok(consumed_weight)
+				},
+			SettlementType::FutureDepositRelease(PhantomData::<Failure>) =>
+				if target.is_empty() {
+					*self = SettlementType::EvaluationUnbonding(PhantomData::<Failure>);
+					Ok(base_weight)
+				} else {
+					let consumed_weight = release_future_ct_deposit_one_participant::<T>(project_id, target);
+					*self = SettlementType::FutureDepositRelease(PhantomData::<Failure>);
+					Ok(consumed_weight)
+				},
+			SettlementType::EvaluationUnbonding(PhantomData::<Failure>) =>
+				if target.is_empty() {
+					*self = SettlementType::BidFundingRelease(PhantomData::<Failure>);
+					Ok(base_weight)
+				} else {
+					let consumed_weight = unbond_one_evaluation::<T>(project_id, target);
+					*self = SettlementType::EvaluationUnbonding(PhantomData);
+					Ok(consumed_weight)
+				},
+			SettlementType::BidFundingRelease(PhantomData::<Failure>) =>
+				if target.is_empty() {
+					*self = SettlementType::BidUnbonding(PhantomData::<Failure>);
+					Ok(base_weight)
+				} else {
+					let consumed_weight = release_funds_one_bid::<T>(project_id, target);
+					*self = SettlementType::BidFundingRelease(PhantomData);
+					Ok(consumed_weight)
+				},
+			SettlementType::BidUnbonding(PhantomData::<Failure>) =>
+				if target.is_empty() {
+					*self = SettlementType::ContributionFundingRelease(PhantomData::<Failure>);
+					Ok(base_weight)
+				} else {
+					let consumed_weight = unbond_one_bid::<T>(project_id, target);
+					*self = SettlementType::BidUnbonding(PhantomData::<Failure>);
+					Ok(consumed_weight)
+				},
+			SettlementType::ContributionFundingRelease(PhantomData::<Failure>) =>
+				if target.is_empty() {
+					*self = SettlementType::ContributionUnbonding(PhantomData::<Failure>);
+					Ok(base_weight)
+				} else {
+					let consumed_weight = release_funds_one_contribution::<T>(project_id, target);
+					*self = SettlementType::ContributionFundingRelease(PhantomData::<Failure>);
+					Ok(consumed_weight)
+				},
+			SettlementType::ContributionUnbonding(PhantomData::<Failure>) =>
+				if target.is_empty() {
+					*self = SettlementType::Finished(PhantomData::<Failure>);
+					Ok(base_weight)
+				} else {
+					let consumed_weight = unbond_one_contribution::<T>(project_id, target);
+					*self = SettlementType::ContributionUnbonding(PhantomData::<Failure>);
+					Ok(consumed_weight)
+				},
+			SettlementType::Finished(PhantomData::<Failure>) => Err(Error::<T>::FinalizerFinished.into()),
 
 			_ => Err(Error::<T>::ImpossibleState.into()),
 		}
 	}
-}
-impl<T: Config> DoRemainingOperation<T> for CleanerState<Failure> {
-	fn has_remaining_operations(&self) -> bool {
-		!matches!(self, CleanerState::Finished(PhantomData::<Failure>))
-	}
 
-	fn do_one_operation(&mut self, project_id: ProjectId) -> Result<Weight, DispatchError> {
-		let evaluators_outcome = ProjectsDetails::<T>::get(project_id)
-			.ok_or(Error::<T>::ImpossibleState)?
-			.evaluation_round_info
-			.evaluators_outcome;
-		let base_weight = Weight::from_parts(10_000_000, 0);
-
-		match self {
-			CleanerState::Initialized(PhantomData::<Failure>) => {
-				*self = CleanerState::EvaluationRewardOrSlash(
-					remaining_evaluators_to_reward_or_slash::<T>(project_id, evaluators_outcome),
-					PhantomData::<Failure>,
-				);
-				Ok(base_weight)
-			},
-
-			CleanerState::EvaluationRewardOrSlash(remaining, PhantomData::<Failure>) =>
-				if *remaining == 0 {
-					*self = CleanerState::FutureDepositRelease(
-						remaining_participants_with_future_ct_deposit::<T>(project_id),
-						PhantomData::<Failure>,
-					);
-					Ok(base_weight)
-				} else {
-					let (consumed_weight, remaining_evaluators) =
-						reward_or_slash_one_evaluation::<T>(project_id).map_err(|error_info| error_info.error)?;
-					*self = CleanerState::EvaluationRewardOrSlash(remaining_evaluators, PhantomData);
-					Ok(consumed_weight)
-				},
-
-			CleanerState::FutureDepositRelease(remaining, PhantomData::<Failure>) =>
-				if *remaining == 0 {
-					*self = CleanerState::EvaluationUnbonding(
-						remaining_evaluations::<T>(project_id),
-						PhantomData::<Failure>,
-					);
-					Ok(base_weight)
-				} else {
-					let (consumed_weight, remaining_participants) =
-						release_future_ct_deposit_one_participant::<T>(project_id);
-					*self = CleanerState::FutureDepositRelease(remaining_participants, PhantomData::<Failure>);
-					Ok(consumed_weight)
-				},
-
-			CleanerState::EvaluationUnbonding(remaining, PhantomData::<Failure>) =>
-				if *remaining == 0 {
-					*self = CleanerState::BidFundingRelease(
-						remaining_bids_to_release_funds::<T>(project_id),
-						PhantomData::<Failure>,
-					);
-					Ok(base_weight)
-				} else {
-					let (consumed_weight, remaining_evaluators) = unbond_one_evaluation::<T>(project_id);
-					*self = CleanerState::EvaluationUnbonding(remaining_evaluators, PhantomData);
-					Ok(consumed_weight)
-				},
-
-			CleanerState::BidFundingRelease(remaining, PhantomData::<Failure>) =>
-				if *remaining == 0 {
-					*self = CleanerState::BidUnbonding(remaining_bids::<T>(project_id), PhantomData::<Failure>);
-					Ok(base_weight)
-				} else {
-					let (consumed_weight, remaining_bids) = release_funds_one_bid::<T>(project_id);
-					*self = CleanerState::BidFundingRelease(remaining_bids, PhantomData);
-					Ok(consumed_weight)
-				},
-
-			CleanerState::BidUnbonding(remaining, PhantomData::<Failure>) =>
-				if *remaining == 0 {
-					*self = CleanerState::ContributionFundingRelease(
-						remaining_contributions_to_release_funds::<T>(project_id),
-						PhantomData::<Failure>,
-					);
-					Ok(base_weight)
-				} else {
-					let (consumed_weight, remaining_bids) = unbond_one_bid::<T>(project_id);
-					*self = CleanerState::BidUnbonding(remaining_bids, PhantomData::<Failure>);
-					Ok(consumed_weight)
-				},
-
-			CleanerState::ContributionFundingRelease(remaining, PhantomData::<Failure>) =>
-				if *remaining == 0 {
-					*self = CleanerState::ContributionUnbonding(
-						remaining_contributions::<T>(project_id),
-						PhantomData::<Failure>,
-					);
-					Ok(base_weight)
-				} else {
-					let (consumed_weight, remaining_contributions) = release_funds_one_contribution::<T>(project_id);
-					*self = CleanerState::ContributionFundingRelease(remaining_contributions, PhantomData::<Failure>);
-					Ok(consumed_weight)
-				},
-
-			CleanerState::ContributionUnbonding(remaining, PhantomData::<Failure>) =>
-				if *remaining == 0 {
-					*self = CleanerState::Finished(PhantomData::<Failure>);
-					Ok(base_weight)
-				} else {
-					let (consumed_weight, remaining_contributions) = unbond_one_contribution::<T>(project_id);
-					*self = CleanerState::ContributionUnbonding(remaining_contributions, PhantomData::<Failure>);
-					Ok(consumed_weight)
-				},
-
-			CleanerState::Finished(PhantomData::<Failure>) => Err(Error::<T>::FinalizerFinished.into()),
-
-			_ => Err(Error::<T>::ImpossibleState.into()),
-		}
+	fn get_new_accounts_on_target(&self, project_id: ProjectId, target: &mut impl Iterator) -> Vec<AccountIdOf<T>> {
+		todo!()
 	}
 }
 
-fn remaining_evaluators_to_reward_or_slash<T: Config>(project_id: ProjectId, outcome: EvaluatorsOutcomeOf<T>) -> u64 {
-	if outcome == EvaluatorsOutcomeOf::<T>::Unchanged {
-		0u64
+fn remaining_evaluators_to_reward_or_slash<T: Config>(
+	project_id: ProjectId,
+) -> impl Iterator<Item = EvaluationInfoOf<T>> {
+	let evaluators_outcome = ProjectsDetails::<T>::get(project_id)
+		.ok_or(Error::<T>::ImpossibleState)?
+		.evaluation_round_info
+		.evaluators_outcome;
+	if evaluators_outcome == EvaluatorsOutcomeOf::<T>::Unchanged {
+		vec![].into_iter()
 	} else {
 		Evaluations::<T>::iter_prefix_values((project_id,))
 			.filter(|evaluation| evaluation.rewarded_or_slashed.is_none())
-			.count() as u64
 	}
 }
 
-fn remaining_evaluations<T: Config>(project_id: ProjectId) -> u64 {
-	Evaluations::<T>::iter_prefix_values((project_id,)).count() as u64
+fn remaining_evaluations<T: Config>(project_id: ProjectId) -> impl Iterator<Item = EvaluationInfoOf<T>> {
+	Evaluations::<T>::iter_prefix_values((project_id,))
 }
 
-fn remaining_bids_to_release_funds<T: Config>(project_id: ProjectId) -> u64 {
-	Bids::<T>::iter_prefix_values((project_id,)).filter(|bid| !bid.funds_released).count() as u64
+fn remaining_bids_to_release_funds<T: Config>(project_id: ProjectId) -> impl Iterator<Item = BidInfoOf<T>> {
+	Bids::<T>::iter_prefix_values((project_id,)).filter(|bid| !bid.funds_released)
 }
 
-fn remaining_bids<T: Config>(project_id: ProjectId) -> u64 {
-	Bids::<T>::iter_prefix_values((project_id,)).count() as u64
+fn remaining_bids<T: Config>(project_id: ProjectId) -> impl Iterator<Item = BidInfoOf<T>> {
+	Bids::<T>::iter_prefix_values((project_id,))
 }
 
-fn remaining_successful_bids<T: Config>(project_id: ProjectId) -> u64 {
+fn remaining_successful_bids<T: Config>(project_id: ProjectId) -> impl Iterator<Item = BidInfoOf<T>> {
 	Bids::<T>::iter_prefix_values((project_id,))
 		.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
-		.count() as u64
 }
 
-fn remaining_contributions_to_release_funds<T: Config>(project_id: ProjectId) -> u64 {
-	Contributions::<T>::iter_prefix_values((project_id,)).filter(|contribution| !contribution.funds_released).count()
-		as u64
+fn remaining_contributions_to_release_funds<T: Config>(
+	project_id: ProjectId,
+) -> impl Iterator<Item = ContributionInfoOf<T>> {
+	Contributions::<T>::iter_prefix_values((project_id,)).filter(|contribution| !contribution.funds_released)
 }
 
-fn remaining_contributions<T: Config>(project_id: ProjectId) -> u64 {
-	Contributions::<T>::iter_prefix_values((project_id,)).count() as u64
+fn remaining_contributions<T: Config>(project_id: ProjectId) -> impl Iterator<Item = ContributionInfoOf<T>> {
+	Contributions::<T>::iter_prefix_values((project_id,))
 }
 
-fn remaining_bids_without_ct_minted<T: Config>(project_id: ProjectId) -> u64 {
+fn remaining_bids_without_ct_minted<T: Config>(project_id: ProjectId) -> impl Iterator<Item = BidInfoOf<T>> {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
-	project_bids.filter(|bid| !bid.ct_minted).count() as u64
+	project_bids.filter(|bid| !bid.ct_minted)
 }
 
-fn remaining_contributions_without_ct_minted<T: Config>(project_id: ProjectId) -> u64 {
+fn remaining_contributions_without_ct_minted<T: Config>(
+	project_id: ProjectId,
+) -> impl Iterator<Item = ContributionInfoOf<T>> {
 	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
-	project_contributions.filter(|contribution| !contribution.ct_minted).count() as u64
+	project_contributions.filter(|contribution| !contribution.ct_minted)
 }
 
-fn remaining_bids_without_issuer_payout<T: Config>(project_id: ProjectId) -> u64 {
-	Bids::<T>::iter_prefix_values((project_id,)).filter(|bid| !bid.funds_released).count() as u64
+fn remaining_bids_without_issuer_payout<T: Config>(project_id: ProjectId) -> impl Iterator<Item = BidInfoOf<T>> {
+	Bids::<T>::iter_prefix_values((project_id,)).filter(|bid| !bid.funds_released)
 }
 
-fn remaining_contributions_without_issuer_payout<T: Config>(project_id: ProjectId) -> u64 {
-	Contributions::<T>::iter_prefix_values((project_id,)).filter(|bid| !bid.funds_released).count() as u64
+fn remaining_contributions_without_issuer_payout<T: Config>(
+	project_id: ProjectId,
+) -> impl Iterator<Item = ContributionInfoOf<T>> {
+	Contributions::<T>::iter_prefix_values((project_id,)).filter(|bid| !bid.funds_released)
 }
 
-fn remaining_participants_with_future_ct_deposit<T: Config>(project_id: ProjectId) -> u64 {
+fn remaining_participants_with_future_ct_deposit<T: Config>(
+	project_id: ProjectId,
+) -> impl Iterator<Item = AccountIdOf<T>> {
 	let evaluators = Evaluations::<T>::iter_key_prefix((project_id,)).map(|(evaluator, _evaluation_id)| evaluator);
 	let bidders = Bids::<T>::iter_key_prefix((project_id,)).map(|(bidder, _bid_id)| bidder);
 	let contributors =
 		Contributions::<T>::iter_key_prefix((project_id,)).map(|(contributor, _contribution_id)| contributor);
 	let all_participants = evaluators.chain(bidders).chain(contributors).collect::<BTreeSet<AccountIdOf<T>>>();
-	all_participants
-		.into_iter()
-		.filter(|account| {
-			<T as Config>::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), account) >
-				Zero::zero()
-		})
-		.count() as u64
+	all_participants.into_iter().filter(|account| {
+		<T as Config>::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), account) >
+			Zero::zero()
+	})
 }
 
 fn reward_or_slash_one_evaluation<T: Config>(
 	project_id: ProjectId,
-) -> Result<(Weight, u64), DispatchErrorWithPostInfo> {
+	target: &mut impl Iterator<Item = AccountIdOf<T>>,
+) -> Result<Weight, DispatchErrorWithPostInfo> {
 	let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-	let project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,));
-	let mut remaining_evaluations = project_evaluations.filter(|evaluation| evaluation.rewarded_or_slashed.is_none());
+	let mut remaining_evaluations = *target;
 	let base_weight = Weight::from_parts(10_000_000, 0);
 
 	if let Some(evaluation) = remaining_evaluations.next() {
@@ -426,7 +476,10 @@ fn reward_or_slash_one_evaluation<T: Config>(
 	}
 }
 
-fn unbond_one_evaluation<T: Config>(project_id: ProjectId) -> (Weight, u64) {
+fn unbond_one_evaluation<T: Config>(
+	project_id: ProjectId,
+	target: &mut impl Iterator<Item = AccountIdOf<T>>,
+) -> Weight {
 	let project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,));
 	let mut remaining_evaluations =
 		project_evaluations.filter(|evaluation| evaluation.current_plmc_bond > Zero::zero());
@@ -452,7 +505,10 @@ fn unbond_one_evaluation<T: Config>(project_id: ProjectId) -> (Weight, u64) {
 	}
 }
 
-fn release_funds_one_bid<T: Config>(project_id: ProjectId) -> (Weight, u64) {
+fn release_funds_one_bid<T: Config>(
+	project_id: ProjectId,
+	target: &mut impl Iterator<Item = AccountIdOf<T>>,
+) -> Weight {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	let mut remaining_bids = project_bids.filter(|bid| !bid.funds_released);
 	let base_weight = Weight::from_parts(10_000_000, 0);
@@ -479,7 +535,7 @@ fn release_funds_one_bid<T: Config>(project_id: ProjectId) -> (Weight, u64) {
 	}
 }
 
-fn unbond_one_bid<T: Config>(project_id: ProjectId) -> (Weight, u64) {
+fn unbond_one_bid<T: Config>(project_id: ProjectId, target: &mut impl Iterator<Item = AccountIdOf<T>>) -> Weight {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	let mut remaining_bids = project_bids.filter(|bid| bid.funds_released);
 	let base_weight = Weight::from_parts(10_000_000, 0);
@@ -505,7 +561,10 @@ fn unbond_one_bid<T: Config>(project_id: ProjectId) -> (Weight, u64) {
 	}
 }
 
-fn release_future_ct_deposit_one_participant<T: Config>(project_id: ProjectId) -> (Weight, u64) {
+fn release_future_ct_deposit_one_participant<T: Config>(
+	project_id: ProjectId,
+	target: &mut impl Iterator<Item = AccountIdOf<T>>,
+) -> Weight {
 	let base_weight = Weight::from_parts(10_000_000, 0);
 	let evaluators = Evaluations::<T>::iter_key_prefix((project_id,)).map(|(evaluator, _evaluation_id)| evaluator);
 	let bidders = Bids::<T>::iter_key_prefix((project_id,)).map(|(bidder, _bid_id)| bidder);
@@ -547,7 +606,10 @@ fn release_future_ct_deposit_one_participant<T: Config>(project_id: ProjectId) -
 	(base_weight, 0u64)
 }
 
-fn release_funds_one_contribution<T: Config>(project_id: ProjectId) -> (Weight, u64) {
+fn release_funds_one_contribution<T: Config>(
+	project_id: ProjectId,
+	target: &mut impl Iterator<Item = AccountIdOf<T>>,
+) -> Weight {
 	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
 	let mut remaining_contributions = project_contributions.filter(|contribution| !contribution.funds_released);
 	let base_weight = Weight::from_parts(10_000_000, 0);
@@ -577,7 +639,10 @@ fn release_funds_one_contribution<T: Config>(project_id: ProjectId) -> (Weight, 
 	}
 }
 
-fn unbond_one_contribution<T: Config>(project_id: ProjectId) -> (Weight, u64) {
+fn unbond_one_contribution<T: Config>(
+	project_id: ProjectId,
+	target: &mut impl Iterator<Item = AccountIdOf<T>>,
+) -> Weight {
 	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
 
 	let mut remaining_contributions =
@@ -608,7 +673,10 @@ fn unbond_one_contribution<T: Config>(project_id: ProjectId) -> (Weight, u64) {
 	}
 }
 
-fn start_one_bid_vesting_schedule<T: Config>(project_id: ProjectId) -> (Weight, u64) {
+fn start_one_bid_vesting_schedule<T: Config>(
+	project_id: ProjectId,
+	target: &mut impl Iterator<Item = AccountIdOf<T>>,
+) -> Weight {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	let mut unscheduled_bids = project_bids.filter(|bid| {
 		bid.plmc_vesting_info.is_none() && matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..))
@@ -643,7 +711,10 @@ fn start_one_bid_vesting_schedule<T: Config>(project_id: ProjectId) -> (Weight, 
 	}
 }
 
-fn start_one_contribution_vesting_schedule<T: Config>(project_id: ProjectId) -> (Weight, u64) {
+fn start_one_contribution_vesting_schedule<T: Config>(
+	project_id: ProjectId,
+	target: &mut impl Iterator<Item = AccountIdOf<T>>,
+) -> Weight {
 	let project_bids = Contributions::<T>::iter_prefix_values((project_id,));
 	let mut unscheduled_contributions = project_bids.filter(|contribution| contribution.plmc_vesting_info.is_none());
 	let base_weight = Weight::from_parts(10_000_000, 0);
@@ -674,7 +745,7 @@ fn start_one_contribution_vesting_schedule<T: Config>(project_id: ProjectId) -> 
 	}
 }
 
-fn mint_ct_for_one_bid<T: Config>(project_id: ProjectId) -> (Weight, u64) {
+fn mint_ct_for_one_bid<T: Config>(project_id: ProjectId, target: &mut impl Iterator<Item = AccountIdOf<T>>) -> Weight {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	let mut remaining_bids = project_bids
 		.filter(|bid| !bid.ct_minted && matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)));
@@ -704,7 +775,10 @@ fn mint_ct_for_one_bid<T: Config>(project_id: ProjectId) -> (Weight, u64) {
 	}
 }
 
-fn mint_ct_for_one_contribution<T: Config>(project_id: ProjectId) -> (Weight, u64) {
+fn mint_ct_for_one_contribution<T: Config>(
+	project_id: ProjectId,
+	target: &mut impl Iterator<Item = AccountIdOf<T>>,
+) -> Weight {
 	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
 	let mut remaining_contributions = project_contributions.filter(|contribution| !contribution.ct_minted);
 	let base_weight = Weight::from_parts(10_000_000, 0);
@@ -733,7 +807,10 @@ fn mint_ct_for_one_contribution<T: Config>(project_id: ProjectId) -> (Weight, u6
 	}
 }
 
-fn issuer_funding_payout_one_bid<T: Config>(project_id: ProjectId) -> (Weight, u64) {
+fn issuer_funding_payout_one_bid<T: Config>(
+	project_id: ProjectId,
+	target: &mut impl Iterator<Item = AccountIdOf<T>>,
+) -> Weight {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 
 	let mut remaining_bids = project_bids.filter(|bid| {
@@ -762,7 +839,10 @@ fn issuer_funding_payout_one_bid<T: Config>(project_id: ProjectId) -> (Weight, u
 	}
 }
 
-fn issuer_funding_payout_one_contribution<T: Config>(project_id: ProjectId) -> (Weight, u64) {
+fn issuer_funding_payout_one_contribution<T: Config>(
+	project_id: ProjectId,
+	target: &mut impl Iterator<Item = AccountIdOf<T>>,
+) -> Weight {
 	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
 
 	let mut remaining_contributions = project_contributions.filter(|contribution| !contribution.funds_released);
