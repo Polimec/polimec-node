@@ -43,7 +43,7 @@ pub const VOTING_PERIOD: BlockNumber = 7 * DAYS;
 #[cfg(feature = "instant-mode")]
 pub const FAST_TRACK_VOTING_PERIOD: BlockNumber = 2;
 #[cfg(feature = "fast-mode")]
-pub const FAST_TRACK_VOTING_PERIOD: BlockNumber = 15 * MINUTES;
+pub const FAST_TRACK_VOTING_PERIOD: BlockNumber = 20 * MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const FAST_TRACK_VOTING_PERIOD: BlockNumber = 3 * HOURS;
 
