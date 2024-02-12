@@ -1845,7 +1845,7 @@ mod auction_round_failure {
 	}
 
 	#[test]
-	pub fn cannot_bid_more_than_project_limit_count() {
+	fn cannot_bid_more_than_project_limit_count() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_metadata = default_project(0, ISSUER);
 		let bids = (0u32..<TestRuntime as Config>::MaxBidsPerProject::get())
