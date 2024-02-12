@@ -432,18 +432,6 @@ fn testing_genesis(
 		})
 		.collect_vec();
 
-	let max_bids = (0..<Runtime as pallet_funding::Config>::MaxBidsPerProject::get())
-		.map(|i| {
-			instantiator::BidParams::<Runtime>::new(
-				get_account_id_from_seed::<sr25519::Public>(format!("bidder_{}", i)),
-				(10u128 * ASSET_UNIT).into(),
-				project_metadata.minimum_price,
-				1u8,
-				pallet_funding::AcceptedFundingAsset::USDT,
-			)
-		})
-		.collect_vec();
-
 	let accounts = endowed_accounts.iter().map(|(account, _)| account.clone()).collect::<Vec<_>>();
 	endowed_accounts
 		.push((<Runtime as pallet_funding::Config>::PalletId::get().into_account_truncating(), EXISTENTIAL_DEPOSIT));
