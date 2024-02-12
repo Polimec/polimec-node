@@ -6133,4 +6133,68 @@ mod async_tests {
 		assert_eq!(inst.get_project_details(1).status, ProjectStatus::RemainderRound);
 		assert_eq!(inst.get_project_details(0).status, ProjectStatus::FundingSuccessful);
 	}
+
+	#[test]
+	fn starting_auction_round_with_bids() {
+		let mut t = frame_system::GenesisConfig::<TestRuntime>::default().build_storage().unwrap();
+
+		// only used to generate some values, and not for chain interactions
+		let project_metadata = default_project(0u64, ISSUER.into());
+		let evaluations = default_evaluations();
+		let max_bids = (0..<TestRuntime as Config>::MaxBidsPerProject::get())
+			.map(|i| {
+				instantiator::BidParams::<TestRuntime>::new(
+					(i + 69).into(),
+					(10u128 * ASSET_UNIT).into(),
+					project_metadata.minimum_price,
+					1u8,
+					AcceptedFundingAsset::USDT,
+				)
+			})
+			.collect_vec();
+
+		mock::RuntimeGenesisConfig {
+			balances: BalancesConfig {
+				balances: vec![(
+					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
+					<TestRuntime as pallet_balances::Config>::ExistentialDeposit::get(),
+				)],
+			},
+			statemint_assets: StatemintAssetsConfig {
+				assets: vec![(
+					AcceptedFundingAsset::USDT.to_statemint_id(),
+					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
+					false,
+					10,
+				)],
+				metadata: vec![],
+				accounts: vec![],
+			},
+			polimec_funding: PolimecFundingConfig {
+				starting_projects: vec![TestProjectParams::<TestRuntime> {
+					expected_state: ProjectStatus::AuctionRound(AuctionPhase::English),
+					metadata: default_project(0u64, ISSUER.into()),
+					issuer: ISSUER.into(),
+					evaluations: evaluations.clone(),
+					bids: max_bids.clone(),
+					community_contributions: vec![],
+					remainder_contributions: vec![],
+				}],
+				phantom: PhantomData,
+			},
+
+			..Default::default()
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
+
+		let ext = sp_io::TestExternalities::new(t);
+		let mut inst = MockInstantiator::new(Some(RefCell::new(ext)));
+
+		dbg!(inst.get_project_details(0).status);
+		assert_eq!(inst.get_project_details(0).status, ProjectStatus::AuctionRound(AuctionPhase::English));
+		let max_bids_per_project: u32 = <TestRuntime as Config>::MaxBidsPerProject::get();
+		let total_bids_count = inst.execute(|| Bids::<TestRuntime>::iter_values().collect_vec().len());
+		assert_eq!(total_bids_count, max_bids_per_project as usize);
+	}
 }

@@ -640,11 +640,11 @@ impl pallet_funding::Config for Runtime {
 	type FundingCurrency = ForeignAssets;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	type MaxBidsPerProject = ConstU32<2048>;
-	type MaxBidsPerUser = ConstU32<128>;
+	type MaxBidsPerUser = ConstU32<32>;
 	type MaxCapacityThresholds = MaxCapacityThresholds;
-	type MaxContributionsPerUser = ConstU32<256>;
+	type MaxContributionsPerUser = ConstU32<32>;
 	type MaxEvaluationsPerProject = ConstU32<2048>;
-	type MaxEvaluationsPerUser = ConstU32<16>;
+	type MaxEvaluationsPerUser = ConstU32<32>;
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
 	type MaxProjectsToUpdateInsertionAttempts = ConstU32<100>;
 	type MaxProjectsToUpdatePerBlock = ConstU32<1>;

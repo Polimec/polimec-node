@@ -358,7 +358,7 @@ impl Config for TestRuntime {
 	type MaxEvaluationsPerUser = ConstU32<4>;
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
 	type MaxProjectsToUpdateInsertionAttempts = ConstU32<100>;
-	type MaxProjectsToUpdatePerBlock = ConstU32<5>;
+	type MaxProjectsToUpdatePerBlock = ConstU32<1>;
 	type Multiplier = Multiplier;
 	type NativeCurrency = Balances;
 	type PalletId = FundingPalletId;

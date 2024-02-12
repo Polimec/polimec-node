@@ -19,6 +19,7 @@ jsonrpsee = { workspace = true, features = ["server"] }
 hex-literal.workspace = true
 color-print = "0.3.5"
 futures.workspace = true
+itertools = { workspace = true, optional = true}
 
 # Local
 polimec-parachain-runtime.workspace = true
@@ -92,6 +93,10 @@ fast-mode = [
 	"polimec-base-runtime/fast-mode",
 	"polimec-parachain-runtime/fast-mode",
 ]
+instant-mode = [
+	"polimec-base-runtime/instant-mode",
+	"polimec-parachain-runtime/instant-mode",
+]
 runtime-benchmarks = [
 	"frame-benchmarking-cli/runtime-benchmarks",
 	"frame-benchmarking/runtime-benchmarks",
@@ -133,4 +138,5 @@ std = [
 	"sp-session/std",
 	"sp-transaction-pool/std",
 	"xcm/std",
+	"itertools",
 ]
