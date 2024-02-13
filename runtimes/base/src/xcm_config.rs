@@ -51,7 +51,7 @@ const USDT_ASSET_ID: AssetId =
 	Concrete(MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1984)) });
 #[allow(unused)]
 const USDT_PER_SECOND_EXECUTION: u128 = 0_0_000_001_000; // 0.0000001 USDT per second of execution time
-const USDT_PER_MB_PROOF: u128 = 0_0_000_001_000; // 0.0000001 DOT per Megabyte of proof size
+const USDT_PER_MB_PROOF: u128 = 0_0_000_001_000; // 0.0000001 USDT per Megabyte of proof size
 
 const USDC_ASSET_ID: AssetId =
 	Concrete(MultiLocation { parents: 1, interior: X3(Parachain(1000), PalletInstance(50), GeneralIndex(1337)) });
