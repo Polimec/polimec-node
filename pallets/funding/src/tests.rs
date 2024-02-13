@@ -6160,9 +6160,9 @@ mod async_tests {
 					<TestRuntime as pallet_balances::Config>::ExistentialDeposit::get(),
 				)],
 			},
-			statemint_assets: StatemintAssetsConfig {
+			foreign_assets: ForeignAssetsConfig {
 				assets: vec![(
-					AcceptedFundingAsset::USDT.to_statemint_id(),
+					AcceptedFundingAsset::USDT.to_assethub_id(),
 					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
 					false,
 					10,

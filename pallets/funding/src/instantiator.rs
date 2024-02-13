@@ -1687,7 +1687,7 @@ pub mod async_features {
 		inst.mint_plmc_to(plmc_for_bids.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
-		inst.mint_statemint_asset_to(usdt_for_bids.clone());
+		inst.mint_foreign_asset_to(usdt_for_bids.clone());
 
 		inst.bid_for_users(project_id, bids).unwrap();
 
