@@ -1872,7 +1872,7 @@ mod auction_round_failure {
 		inst.mint_plmc_to(plmc_for_bidding.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
-		inst.mint_statemint_asset_to(usdt_for_bidding.clone());
+		inst.mint_foreign_asset_to(usdt_for_bidding.clone());
 
 		inst.bid_for_users(project_id, bids.clone()).unwrap();
 
@@ -1885,7 +1885,7 @@ mod auction_round_failure {
 		inst.mint_plmc_to(plmc_for_failing_bid.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
-		inst.mint_statemint_asset_to(usdt_for_bidding.clone());
+		inst.mint_foreign_asset_to(usdt_for_bidding.clone());
 
 		assert_err!(inst.bid_for_users(project_id, vec![failing_bid]), Error::<TestRuntime>::TooManyBidsForProject);
 	}

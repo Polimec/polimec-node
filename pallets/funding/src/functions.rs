@@ -43,14 +43,9 @@ use sp_runtime::traits::{Convert, ConvertBack};
 use sp_std::{marker::PhantomData, ops::Not};
 use xcm::v3::MaxDispatchErrorLen;
 
-use crate::ProjectStatus::FundingSuccessful;
-use polimec_common::ReleaseSchedule;
-
-use crate::traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation};
-use frame_support::traits::fungible::Mutate;
-use polimec_common::migration_types::{MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
-
 use super::*;
+use crate::traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation};
+use polimec_common::migration_types::{MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
 const POLIMEC_PARA_ID: u32 = 3344u32;
 const QUERY_RESPONSE_TIME_WINDOW_BLOCKS: u32 = 20u32;
 

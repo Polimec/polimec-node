@@ -40,7 +40,7 @@ use scale_info::prelude::format;
 use sp_arithmetic::Percent;
 use sp_core::H256;
 use sp_io::hashing::blake2_256;
-use sp_runtime::traits::{BlakeTwo256, Get, Member};
+use sp_runtime::traits::{BlakeTwo256, Get, Member, TrailingZeroInput};
 
 const METADATA: &str = r#"
 {
@@ -825,7 +825,7 @@ mod benchmarks {
 			inst.mint_plmc_to(plmc_for_new_bidder);
 			inst.mint_plmc_to(plmc_ed);
 			inst.mint_plmc_to(plmc_ct_deposit);
-			inst.mint_statemint_asset_to(usdt_for_new_bidder.clone());
+			inst.mint_foreign_asset_to(usdt_for_new_bidder.clone());
 
 			inst.bid_for_users(project_id, vec![bid_params]).unwrap();
 
@@ -843,7 +843,7 @@ mod benchmarks {
 		let usdt_for_extrinsic_bids: Vec<UserToForeignAssets<T>> =
 			BenchInstantiator::<T>::calculate_auction_funding_asset_spent(&extrinsic_bids_post_bucketing, None);
 		inst.mint_plmc_to(plmc_for_extrinsic_bids.clone());
-		inst.mint_statemint_asset_to(usdt_for_extrinsic_bids.clone());
+		inst.mint_foreign_asset_to(usdt_for_extrinsic_bids.clone());
 
 		let total_free_plmc = existential_deposits[0].plmc_amount;
 		let total_plmc_participation_bonded = BenchInstantiator::<T>::sum_balance_mappings(vec![
@@ -851,7 +851,7 @@ mod benchmarks {
 			plmc_for_existing_bids.clone(),
 		]);
 		let total_free_usdt = Zero::zero();
-		let total_escrow_usdt_locked = BenchInstantiator::<T>::sum_statemint_mappings(vec![
+		let total_escrow_usdt_locked = BenchInstantiator::<T>::sum_foreign_mappings(vec![
 			prev_total_escrow_usdt_locked.clone(),
 			usdt_for_extrinsic_bids.clone(),
 			usdt_for_existing_bids.clone(),
@@ -1148,8 +1148,8 @@ mod benchmarks {
 		inst.mint_plmc_to(plmc_for_extrinsic_contribution.clone());
 		inst.mint_plmc_to(existential_deposits.clone());
 		inst.mint_plmc_to(ct_account_deposits.clone());
-		inst.mint_statemint_asset_to(usdt_for_existing_contributions.clone());
-		inst.mint_statemint_asset_to(usdt_for_extrinsic_contribution.clone());
+		inst.mint_foreign_asset_to(usdt_for_existing_contributions.clone());
+		inst.mint_foreign_asset_to(usdt_for_extrinsic_contribution.clone());
 
 		// do "x" contributions for this user
 		inst.contribute_for_users(project_id, existing_contributions).expect("All contributions are accepted");
@@ -1158,7 +1158,7 @@ mod benchmarks {
 			plmc_for_existing_contributions.clone(),
 			plmc_for_extrinsic_contribution.clone(),
 		]);
-		let mut total_usdt_locked = BenchInstantiator::<T>::sum_statemint_mappings(vec![
+		let mut total_usdt_locked = BenchInstantiator::<T>::sum_foreign_mappings(vec![
 			prev_total_usdt_locked,
 			usdt_for_existing_contributions.clone(),
 			usdt_for_extrinsic_contribution.clone(),
@@ -3090,7 +3090,7 @@ mod benchmarks {
 		inst.mint_plmc_to(plmc_needed_for_bids);
 		inst.mint_plmc_to(plmc_ed);
 		inst.mint_plmc_to(plmc_ct_account_deposit);
-		inst.mint_statemint_asset_to(funding_asset_needed_for_bids);
+		inst.mint_foreign_asset_to(funding_asset_needed_for_bids);
 
 		inst.bid_for_users(project_id, accepted_bids).unwrap();
 
@@ -3124,7 +3124,7 @@ mod benchmarks {
 		inst.mint_plmc_to(plmc_needed_for_bids);
 		inst.mint_plmc_to(plmc_ed);
 		inst.mint_plmc_to(plmc_ct_account_deposit);
-		inst.mint_statemint_asset_to(funding_asset_needed_for_bids);
+		inst.mint_foreign_asset_to(funding_asset_needed_for_bids);
 
 		inst.bid_for_users(project_id, rejected_bids).unwrap();
 

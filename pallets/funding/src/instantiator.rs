@@ -52,8 +52,6 @@ use sp_std::{
 	ops::Not,
 };
 
-pub use testing_macros::*;
-
 pub type RuntimeOriginOf<T> = <T as frame_system::Config>::RuntimeOrigin;
 pub struct BoxToFunction(pub Box<dyn FnOnce()>);
 impl Default for BoxToFunction {
