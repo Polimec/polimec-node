@@ -33,12 +33,12 @@ fn create_asset_on_asset_hub(asset_id: u32) {
 	if asset_id == 0 {
 		return;
 	}
-	let usdt_admin_account = AssetHub::account_id_of(FERDIE);
+	let admin_account = AssetHub::account_id_of(FERDIE);
 	AssetHub::execute_with(|| {
 		assert_ok!(AssetHubAssets::force_create(
 			AssetHubOrigin::root(),
 			asset_id.into(),
-			sp_runtime::MultiAddress::Id(usdt_admin_account.clone()),
+			sp_runtime::MultiAddress::Id(admin_account.clone()),
 			true,
 			0_0_010_000_000u128
 		));
@@ -63,7 +63,7 @@ fn get_polimec_balances(asset_id: u32, user_account: AccountId) -> (u128, u128, 
 	PolimecBase::execute_with(|| {
 		(
 			BaseForeignAssets::balance(asset_id, user_account.clone()),
-			BaseBalances::free_balance(user_account.clone()),
+			BaseBalances::balance(&user_account.clone()),
 			BaseForeignAssets::total_issuance(asset_id),
 			BaseBalances::total_issuance(),
 		)
@@ -97,7 +97,7 @@ fn test_reserve_to_polimec(asset_id: u32) {
 		_ => (PalletInstance(AssetHubAssets::index() as u8), GeneralIndex(asset_id as u128)).into(),
 	};
 
-	let alice_account = PolimecBase::account_id_of(ALICE.clone());
+	let alice_account = PolimecBase::account_id_of(ALICE);
 	let polimec_sibling_account =
 		AssetHub::sovereign_account_id_of((Parent, Parachain(PolimecBase::para_id().into())).into());
 	let max_weight = Weight::from_parts(MAX_REF_TIME, MAX_PROOF_SIZE);
@@ -215,7 +215,7 @@ fn test_polimec_to_reserve(asset_id: u32) {
 		.into(),
 	};
 
-	let alice_account = PolimecBase::account_id_of(ALICE.clone());
+	let alice_account = PolimecBase::account_id_of(ALICE);
 	let polimec_sibling_account =
 		AssetHub::sovereign_account_id_of((Parent, Parachain(PolimecBase::para_id().into())).into());
 	let max_weight = Weight::from_parts(MAX_REF_TIME, MAX_PROOF_SIZE);
@@ -239,9 +239,8 @@ fn test_polimec_to_reserve(asset_id: u32) {
 
 	let transferable_asset_plus_exec_fee: MultiAsset =
 		(asset_hub_asset_id, RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000).into();
-	let mut asset_hub_exec_fee: MultiAsset = (asset_hub_asset_id.clone(), 1_0_000_000_000u128).into();
+	let mut asset_hub_exec_fee: MultiAsset = (asset_hub_asset_id, 1_0_000_000_000u128).into();
 	asset_hub_exec_fee.reanchor(&(ParentThen(X1(Parachain(AssetHub::para_id().into()))).into()), Here).unwrap();
-	// let dot_for_xcm_execution: MultiAsset = (PolimecBase::parent_location(), 1_0_000_000_000u128).into();
 
 	// construct the XCM to transfer from Polimec to AssetHub's reserve
 	let transfer_xcm: Xcm<BaseCall> = Xcm(vec![

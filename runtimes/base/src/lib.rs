@@ -365,7 +365,7 @@ impl pallet_assets::Config<ForeignAssetsInstance> for Runtime {
 	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
 	type RuntimeEvent = RuntimeEvent;
 	type StringLimit = AssetsStringLimit;
-	type WeightInfo = ();
+	type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
 }
 
 impl cumulus_pallet_parachain_system::Config for Runtime {
