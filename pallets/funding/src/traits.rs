@@ -41,7 +41,7 @@ pub trait SettlementOperations<T: Config> {
 		&mut self,
 		project_id: ProjectId,
 		target: &mut impl Iterator<Item = SettlementTarget<T>>,
-	) -> Result<(impl Iterator, Weight), DispatchError>;
+	) -> Result<(impl Iterator<Item = SettlementTarget<T>>, Weight), DispatchError>;
 
 	fn update_target(
 		&self,
