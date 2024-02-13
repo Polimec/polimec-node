@@ -29,7 +29,7 @@ fn values(
 	let [dot, usdc, usdt, plmc] = values;
 	bounded_vec![
 		(0u32, FixedU128::from_float(dot)),
-		(420u32, FixedU128::from_float(usdc)),
+		(1337u32, FixedU128::from_float(usdc)),
 		(1984u32, FixedU128::from_float(usdt)),
 		(2069u32, FixedU128::from_float(plmc))
 	]
@@ -53,7 +53,7 @@ fn members_can_feed_data() {
 
 		let expected_values = HashMap::from([
 			(0u32, FixedU128::from_float(4.84)),
-			(420u32, FixedU128::from_float(1.0)),
+			(1337u32, FixedU128::from_float(1.0)),
 			(1984u32, FixedU128::from_float(1.0)),
 			(2069u32, FixedU128::from_float(0.4)),
 		]);
@@ -95,7 +95,7 @@ fn data_is_correctly_combined() {
 		// Default CombineData implementation is the median value
 		let expected_values = HashMap::from([
 			(0u32, FixedU128::from_float(2.0)),
-			(420u32, FixedU128::from_float(1.0)),
+			(1337u32, FixedU128::from_float(1.0)),
 			(1984u32, FixedU128::from_float(1.1)),
 			(2069u32, FixedU128::from_float(0.22222)),
 		]);

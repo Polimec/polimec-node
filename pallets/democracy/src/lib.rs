@@ -168,17 +168,17 @@ use sp_runtime::{
 use sp_std::prelude::*;
 
 mod conviction;
-mod types;
 mod traits;
+mod types;
 mod vote;
 mod vote_threshold;
 pub mod weights;
 pub use conviction::Conviction;
 pub use pallet::*;
+pub use traits::GetElectorate;
 pub use types::{
 	Delegations, MetadataOwner, PropIndex, ReferendumIndex, ReferendumInfo, ReferendumStatus, Tally, UnvoteScope,
 };
-pub use traits::GetElectorate;
 pub use vote::{AccountVote, Vote, Voting};
 pub use vote_threshold::{Approved, VoteThreshold};
 pub use weights::WeightInfo;

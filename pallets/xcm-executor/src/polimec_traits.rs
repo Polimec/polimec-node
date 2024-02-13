@@ -19,6 +19,8 @@ use xcm::v3::{
 	prelude::{XcmError, XcmResult},
 };
 
+pub use xcm_executor::traits::*;
+
 pub trait HrmpHandler {
 	fn handle_channel_open_request(message: Instruction) -> XcmResult;
 	fn handle_channel_accepted(message: Instruction) -> XcmResult;

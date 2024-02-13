@@ -236,12 +236,12 @@ pub type ProjectMigrationOriginsOf<T> =
 pub type BucketOf<T> = Bucket<BalanceOf<T>, PriceOf<T>>;
 pub type WeightInfoOf<T> = <T as Config>::WeightInfo;
 
-pub const PLMC_STATEMINT_ID: u32 = 2069;
+pub const PLMC_FOREIGN_ID: u32 = 2069;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
+	use crate::traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation};
 	use frame_support::{
 		dispatch::PostDispatchInfo,
 		pallet_prelude::*,
@@ -342,7 +342,7 @@ pub mod pallet {
 			+ AccountTouch<ProjectId, AccountIdOf<Self>, Balance = BalanceOf<Self>>
 			+ ContainsPair<ProjectId, AccountIdOf<Self>>;
 
-		type PriceProvider: ProvideStatemintPrice<AssetId = u32, Price = Self::Price>;
+		type PriceProvider: ProvideAssetPrice<AssetId = u32, Price = Self::Price>;
 
 		/// Something that provides randomness in the runtime.
 		type Randomness: Randomness<Self::Hash, BlockNumberFor<Self>>;

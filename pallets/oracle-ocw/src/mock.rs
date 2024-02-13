@@ -117,7 +117,7 @@ impl Convert<(AssetName, FixedU128), (OracleKey, OracleValue)> for AssetPriceCon
 	fn convert((asset, price): (AssetName, FixedU128)) -> (OracleKey, OracleValue) {
 		match asset {
 			AssetName::DOT => (0, price),
-			AssetName::USDC => (420, price),
+			AssetName::USDC => (1337, price),
 			AssetName::USDT => (1984, price),
 			AssetName::PLMC => (2069, price),
 		}

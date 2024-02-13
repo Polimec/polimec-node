@@ -38,7 +38,7 @@ use xcm_executor::traits::{
 
 use xcm_executor::Assets;
 mod config;
-mod polimec_traits;
+pub mod polimec_traits;
 
 pub use config::Config;
 pub use polimec_traits::HrmpHandler;

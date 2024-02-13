@@ -68,7 +68,7 @@ const ASSET_UNIT: u128 = 1_0_000_000_000u128;
 type BenchInstantiator<T> = Instantiator<T, <T as Config>::AllPalletsWithoutSystem, <T as Config>::RuntimeEvent>;
 
 pub fn usdt_id() -> u32 {
-	AcceptedFundingAsset::USDT.to_statemint_id()
+	AcceptedFundingAsset::USDT.to_assethub_id()
 }
 pub fn hashed(data: impl AsRef<[u8]>) -> H256 {
 	<BlakeTwo256 as sp_runtime::traits::Hash>::hash(data.as_ref())
@@ -656,8 +656,8 @@ mod benchmarks {
 
 		// if we are going to unbond evaluations due to being over the limit per user, then deduct them from the total expected plmc bond
 		if x >= <T as Config>::MaxEvaluationsPerUser::get() {
-			total_expected_plmc_bonded -= plmc_for_existing_evaluations[0].plmc_amount
-				* (x as u128 - <T as Config>::MaxEvaluationsPerUser::get() as u128 + 1u128).into();
+			total_expected_plmc_bonded -= plmc_for_existing_evaluations[0].plmc_amount *
+				(x as u128 - <T as Config>::MaxEvaluationsPerUser::get() as u128 + 1u128).into();
 		}
 
 		(inst, test_project_id, extrinsic_evaluation, extrinsic_plmc_bonded, total_expected_plmc_bonded)
@@ -689,11 +689,11 @@ mod benchmarks {
 				current_plmc_bond,
 				rewarded_or_slashed,
 				..
-			} if project_id == project_id
-				&& evaluator == evaluation.account.clone()
-				&& original_plmc_bond == extrinsic_plmc_bonded
-				&& current_plmc_bond == extrinsic_plmc_bonded
-				&& rewarded_or_slashed.is_none() => {},
+			} if project_id == project_id &&
+				evaluator == evaluation.account.clone() &&
+				original_plmc_bond == extrinsic_plmc_bonded &&
+				current_plmc_bond == extrinsic_plmc_bonded &&
+				rewarded_or_slashed.is_none() => {},
 			_ => assert!(false, "Evaluation is not stored correctly"),
 		}
 
@@ -822,6 +822,7 @@ mod benchmarks {
 			5u8,
 			AcceptedFundingAsset::USDT,
 		);
+
 		let existing_bids = vec![existing_bid; existing_bids_count as usize];
 		let existing_bids_post_bucketing = inst.simulate_bids_with_bucket(existing_bids.clone(), project_id);
 		let plmc_for_existing_bids =
@@ -839,7 +840,7 @@ mod benchmarks {
 		inst.mint_plmc_to(plmc_for_existing_bids.clone());
 		inst.mint_plmc_to(existential_deposits.clone());
 		inst.mint_plmc_to(ct_account_deposits.clone());
-		inst.mint_statemint_asset_to(usdt_for_existing_bids.clone());
+		inst.mint_foreign_asset_to(usdt_for_existing_bids.clone());
 
 		// do "x" contributions for this user
 		inst.bid_for_users(project_id, existing_bids_post_bucketing.clone());
@@ -882,8 +883,8 @@ mod benchmarks {
 
 			inst.bid_for_users(project_id, vec![bid_params]);
 
-			ct_amount = Percent::from_percent(10)
-				* (project_metadata.total_allocation_size.0 * (do_perform_bid_calls as u128).into());
+			ct_amount = Percent::from_percent(10) *
+				(project_metadata.total_allocation_size.0 * (do_perform_bid_calls as u128).into());
 			usdt_for_filler_bidder = usdt_for_new_bidder;
 		}
 		let extrinsic_bid = BidParams::new(bidder.clone(), ct_amount, 1_u128.into(), 1u8, AcceptedFundingAsset::USDT);
@@ -1009,7 +1010,7 @@ mod benchmarks {
 			inst.get_free_statemint_asset_balances_for(usdt_id(), vec![escrow_account.clone()])[0].asset_amount;
 		assert_eq!(locked_usdt, total_usdt_locked);
 
-		let free_usdt = inst.get_free_statemint_asset_balances_for(usdt_id(), vec![bidder])[0].asset_amount;
+		let free_usdt = inst.get_free_foreign_asset_balances_for(usdt_id(), vec![bidder])[0].asset_amount;
 		assert_eq!(free_usdt, total_free_usdt);
 
 		// Events
@@ -1164,8 +1165,8 @@ mod benchmarks {
 
 		let existing_amount: BalanceOf<T> = (50 * ASSET_UNIT).into();
 		let extrinsic_amount: BalanceOf<T> = if ends_round.is_some() {
-			project_metadata.total_allocation_size.0
-				- existing_amount * (x.min(<T as Config>::MaxContributionsPerUser::get() - 1) as u128).into()
+			project_metadata.total_allocation_size.0 -
+				existing_amount * (x.min(<T as Config>::MaxContributionsPerUser::get() - 1) as u128).into()
 		} else {
 			(100 * ASSET_UNIT).into()
 		};
@@ -1282,9 +1283,9 @@ mod benchmarks {
 
 		match stored_contribution {
 			ContributionInfoOf::<T> { project_id, contributor, ct_amount, .. }
-				if project_id == project_id
-					&& contributor == contributor
-					&& ct_amount == extrinsic_contribution.amount => {},
+				if project_id == project_id &&
+					contributor == contributor &&
+					ct_amount == extrinsic_contribution.amount => {},
 			_ => {
 				assert!(false, "Contribution is not stored correctly")
 			},
@@ -1311,8 +1312,7 @@ mod benchmarks {
 			inst.get_free_statemint_asset_balances_for(usdt_id(), vec![escrow_account.clone()])[0].asset_amount;
 		assert_eq!(locked_usdt, total_usdt_locked);
 
-		let free_usdt =
-			inst.get_free_statemint_asset_balances_for(usdt_id(), vec![contributor.clone()])[0].asset_amount;
+		let free_usdt = inst.get_free_foreign_asset_balances_for(usdt_id(), vec![contributor.clone()])[0].asset_amount;
 		assert_eq!(free_usdt, total_free_usdt);
 
 		// Events
@@ -2385,10 +2385,9 @@ mod benchmarks {
 		assert!(stored_bid.funds_released);
 
 		// Balances
-		let asset = stored_bid.funding_asset.to_statemint_id();
+		let asset = stored_bid.funding_asset.to_assethub_id();
 		let project_details = ProjectsDetails::<T>::get(project_id).unwrap();
-		let free_assets =
-			inst.get_free_statemint_asset_balances_for(asset, vec![project_details.issuer])[0].asset_amount;
+		let free_assets = inst.get_free_foreign_asset_balances_for(asset, vec![project_details.issuer])[0].asset_amount;
 		assert_eq!(free_assets, stored_bid.funding_asset_amount_locked);
 
 		// Events
@@ -2444,10 +2443,9 @@ mod benchmarks {
 		assert!(stored_contribution.funds_released);
 
 		// Balances
-		let asset = stored_contribution.funding_asset.to_statemint_id();
+		let asset = stored_contribution.funding_asset.to_assethub_id();
 		let project_details = ProjectsDetails::<T>::get(project_id).unwrap();
-		let free_assets =
-			inst.get_free_statemint_asset_balances_for(asset, vec![project_details.issuer])[0].asset_amount;
+		let free_assets = inst.get_free_foreign_asset_balances_for(asset, vec![project_details.issuer])[0].asset_amount;
 		assert_eq!(free_assets, stored_contribution.funding_asset_amount);
 
 		// Events
@@ -2573,9 +2571,8 @@ mod benchmarks {
 
 		let bid_to_payout =
 			inst.execute(|| Bids::<T>::iter_prefix_values((project_id, bidder.clone())).next().unwrap());
-		let asset = bid_to_payout.funding_asset.to_statemint_id();
-		let free_assets_before =
-			inst.get_free_statemint_asset_balances_for(asset, vec![bidder.clone()])[0].asset_amount;
+		let asset = bid_to_payout.funding_asset.to_assethub_id();
+		let free_assets_before = inst.get_free_foreign_asset_balances_for(asset, vec![bidder.clone()])[0].asset_amount;
 		#[extrinsic_call]
 		release_bid_funds_for(RawOrigin::Signed(issuer.clone()), project_id, bidder.clone(), bid_to_payout.id);
 
@@ -2585,7 +2582,7 @@ mod benchmarks {
 		assert!(stored_bid.funds_released);
 
 		// Balances
-		let free_assets = inst.get_free_statemint_asset_balances_for(asset, vec![bidder.clone()])[0].asset_amount;
+		let free_assets = inst.get_free_foreign_asset_balances_for(asset, vec![bidder.clone()])[0].asset_amount;
 		assert_eq!(free_assets, stored_bid.funding_asset_amount_locked + free_assets_before);
 
 		// Events
@@ -2645,9 +2642,9 @@ mod benchmarks {
 		let contribution_to_payout =
 			inst.execute(|| Contributions::<T>::iter_prefix_values((project_id, contributor.clone())).next().unwrap());
 
-		let asset = contribution_to_payout.funding_asset.to_statemint_id();
+		let asset = contribution_to_payout.funding_asset.to_assethub_id();
 		let free_assets_before =
-			inst.get_free_statemint_asset_balances_for(asset, vec![contributor.clone()])[0].asset_amount;
+			inst.get_free_foreign_asset_balances_for(asset, vec![contributor.clone()])[0].asset_amount;
 		#[extrinsic_call]
 		release_contribution_funds_for(
 			RawOrigin::Signed(contributor.clone()),
@@ -2663,7 +2660,7 @@ mod benchmarks {
 		assert!(stored_contribution.funds_released);
 
 		// Balances
-		let free_assets = inst.get_free_statemint_asset_balances_for(asset, vec![contributor.clone()])[0].asset_amount;
+		let free_assets = inst.get_free_foreign_asset_balances_for(asset, vec![contributor.clone()])[0].asset_amount;
 		assert_eq!(free_assets, stored_contribution.funding_asset_amount + free_assets_before);
 
 		// Events

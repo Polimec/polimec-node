@@ -42,7 +42,7 @@ use xcm::v3::MaxDispatchErrorLen;
 use crate::ProjectStatus::FundingSuccessful;
 use polimec_common::ReleaseSchedule;
 
-use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
+use crate::traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation};
 use frame_support::traits::fungible::Mutate;
 use polimec_common::migration_types::{MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
 
@@ -191,15 +191,14 @@ impl<T: Config> Pallet<T> {
 			(&project_id, UpdateType::EvaluationEnd),
 		) {
 			Ok(insertions) => insertions,
-			Err(insertions) => {
+			Err(insertions) =>
 				return Err(DispatchErrorWithPostInfo {
 					post_info: PostDispatchInfo {
 						actual_weight: Some(WeightInfoOf::<T>::start_evaluation(insertions)),
 						pays_fee: Pays::Yes,
 					},
 					error: Error::<T>::TooManyInsertionAttempts.into(),
-				})
-			},
+				}),
 		};
 
 		// * Emit events *
@@ -247,7 +246,7 @@ impl<T: Config> Pallet<T> {
 			project_details.phase_transition_points.evaluation.end().ok_or(Error::<T>::FieldIsNone)?;
 		let fundraising_target_usd = project_details.fundraising_target;
 		let current_plmc_price =
-			T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
+			T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
 
 		// * Validity checks *
 		ensure!(project_details.status == ProjectStatus::EvaluationRound, Error::<T>::ProjectNotInEvaluationRound);
@@ -381,7 +380,7 @@ impl<T: Config> Pallet<T> {
 				Ok(iterations) => {
 					remove_attempts = iterations;
 				},
-				Err(iterations) => {
+				Err(iterations) =>
 					return Err(DispatchErrorWithPostInfo {
 						post_info: PostDispatchInfo {
 							actual_weight: Some(WeightInfoOf::<T>::start_auction_manually(
@@ -391,8 +390,7 @@ impl<T: Config> Pallet<T> {
 							pays_fee: Pays::Yes,
 						},
 						error: Error::<T>::ProjectNotInUpdateStore.into(),
-					})
-				},
+					}),
 			}
 		}
 		// Schedule for automatic transition to candle auction round
@@ -401,7 +399,7 @@ impl<T: Config> Pallet<T> {
 			Ok(iterations) => {
 				insertion_attempts = iterations;
 			},
-			Err(insertion_attempts) => {
+			Err(insertion_attempts) =>
 				return Err(DispatchErrorWithPostInfo {
 					post_info: PostDispatchInfo {
 						actual_weight: if remove_attempts == 0u32 {
@@ -412,8 +410,7 @@ impl<T: Config> Pallet<T> {
 						pays_fee: Pays::Yes,
 					},
 					error: Error::<T>::TooManyInsertionAttempts.into(),
-				})
-			},
+				}),
 		};
 
 		// * Emit events *
@@ -682,9 +679,9 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			remaining_cts == Zero::zero()
-				|| project_details.status == ProjectStatus::FundingFailed
-				|| matches!(remainder_end_block, Some(end_block) if now > end_block),
+			remaining_cts == Zero::zero() ||
+				project_details.status == ProjectStatus::FundingFailed ||
+				matches!(remainder_end_block, Some(end_block) if now > end_block),
 			Error::<T>::TooEarlyForFundingEnd
 		);
 
@@ -776,8 +773,8 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			project_details.status == ProjectStatus::FundingSuccessful
-				|| project_details.status == ProjectStatus::FundingFailed,
+			project_details.status == ProjectStatus::FundingSuccessful ||
+				project_details.status == ProjectStatus::FundingFailed,
 			Error::<T>::NotAllowed
 		);
 
@@ -857,7 +854,7 @@ impl<T: Config> Pallet<T> {
 		let evaluation_id = Self::next_evaluation_id();
 		let caller_existing_evaluations: Vec<(u32, EvaluationInfoOf<T>)> =
 			Evaluations::<T>::iter_prefix((project_id, evaluator)).collect();
-		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
+		let plmc_usd_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
 		let early_evaluation_reward_threshold_usd =
 			T::EvaluationSuccessThreshold::get() * project_details.fundraising_target;
 		let evaluation_round_info = &mut project_details.evaluation_round_info;
@@ -976,7 +973,7 @@ impl<T: Config> Pallet<T> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PriceNotFound)?;
+		let plmc_usd_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PriceNotFound)?;
 		let ct_deposit = T::ContributionTokenCurrency::deposit_required(project_id);
 		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder)).collect::<Vec<_>>();
 
@@ -1067,7 +1064,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<BidInfoOf<T>, DispatchError> {
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
 		let funding_asset_usd_price =
-			T::PriceProvider::get_price(funding_asset.to_statemint_id()).ok_or(Error::<T>::PriceNotFound)?;
+			T::PriceProvider::get_price(funding_asset.to_assethub_id()).ok_or(Error::<T>::PriceNotFound)?;
 
 		if let Some(minimum_ticket_size) = project_ticket_size.minimum {
 			// Make sure the bid amount is greater than the minimum specified by the issuer
@@ -1083,7 +1080,7 @@ impl<T: Config> Pallet<T> {
 
 		let funding_asset_amount_locked =
 			funding_asset_usd_price.reciprocal().ok_or(Error::<T>::BadMath)?.saturating_mul_int(ticket_size);
-		let asset_id = funding_asset.to_statemint_id();
+		let asset_id = funding_asset.to_assethub_id();
 
 		let new_bid = BidInfoOf::<T> {
 			id: bid_id,
@@ -1169,17 +1166,17 @@ impl<T: Config> Pallet<T> {
 		ensure!(project_metadata.participation_currencies == asset, Error::<T>::FundingAssetNotAccepted);
 		ensure!(contributor.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
 		ensure!(
-			project_details.status == ProjectStatus::CommunityRound
-				|| project_details.status == ProjectStatus::RemainderRound,
+			project_details.status == ProjectStatus::CommunityRound ||
+				project_details.status == ProjectStatus::RemainderRound,
 			Error::<T>::AuctionNotStarted
 		);
 
 		let now = <frame_system::Pallet<T>>::block_number();
 
 		let ct_usd_price = project_details.weighted_average_price.ok_or(Error::<T>::AuctionNotStarted)?;
-		let plmc_usd_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PriceNotFound)?;
+		let plmc_usd_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PriceNotFound)?;
 		let funding_asset_usd_price =
-			T::PriceProvider::get_price(asset.to_statemint_id()).ok_or(Error::<T>::PriceNotFound)?;
+			T::PriceProvider::get_price(asset.to_assethub_id()).ok_or(Error::<T>::PriceNotFound)?;
 
 		// * Calculate variables *
 		let buyable_tokens = Self::calculate_buyable_amount(
@@ -1200,7 +1197,7 @@ impl<T: Config> Pallet<T> {
 		let plmc_bond = Self::calculate_plmc_bond(ticket_size, multiplier, plmc_usd_price)?;
 		let funding_asset_amount =
 			funding_asset_usd_price.reciprocal().ok_or(Error::<T>::BadMath)?.saturating_mul_int(ticket_size);
-		let asset_id = asset.to_statemint_id();
+		let asset_id = asset.to_assethub_id();
 
 		let contribution_id = Self::next_contribution_id();
 		let new_contribution = ContributionInfoOf::<T> {
@@ -1376,13 +1373,12 @@ impl<T: Config> Pallet<T> {
 		remaining_contribution_tokens: (BalanceOf<T>, BalanceOf<T>),
 	) -> BalanceOf<T> {
 		match status {
-			ProjectStatus::CommunityRound => {
+			ProjectStatus::CommunityRound =>
 				if amount <= remaining_contribution_tokens.1 {
 					amount
 				} else {
 					remaining_contribution_tokens.1
-				}
-			},
+				},
 			ProjectStatus::RemainderRound => {
 				let sum = remaining_contribution_tokens.0.saturating_add(remaining_contribution_tokens.1);
 				if sum >= amount {
@@ -1414,27 +1410,25 @@ impl<T: Config> Pallet<T> {
 
 		let remove_attempts: u32 = match Self::remove_from_update_store(&project_id) {
 			Ok(iterations) => iterations,
-			Err(iterations) => {
+			Err(iterations) =>
 				return Err(DispatchErrorWithPostInfo {
 					post_info: PostDispatchInfo {
 						actual_weight: Some(WeightInfoOf::<T>::decide_project_outcome(insertion_attempts, iterations)),
 						pays_fee: Pays::Yes,
 					},
 					error: Error::<T>::TooManyInsertionAttempts.into(),
-				})
-			},
+				}),
 		};
 		match Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::ProjectDecision(decision))) {
 			Ok(iterations) => insertion_attempts = iterations,
-			Err(iterations) => {
+			Err(iterations) =>
 				return Err(DispatchErrorWithPostInfo {
 					post_info: PostDispatchInfo {
 						actual_weight: Some(WeightInfoOf::<T>::decide_project_outcome(iterations, remove_attempts)),
 						pays_fee: Pays::Yes,
 					},
 					error: Error::<T>::TooManyInsertionAttempts.into(),
-				})
-			},
+				}),
 		};
 
 		Self::deposit_event(Event::ProjectOutcomeDecided { project_id, decision });
@@ -1573,9 +1567,9 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			(project_details.evaluation_round_info.evaluators_outcome == EvaluatorsOutcomeOf::<T>::Unchanged
-				|| released_evaluation.rewarded_or_slashed.is_some())
-				&& matches!(
+			(project_details.evaluation_round_info.evaluators_outcome == EvaluatorsOutcomeOf::<T>::Unchanged ||
+				released_evaluation.rewarded_or_slashed.is_some()) &&
+				matches!(
 					project_details.status,
 					ProjectStatus::EvaluationFailed | ProjectStatus::FundingFailed | ProjectStatus::FundingSuccessful
 				),
@@ -1629,8 +1623,8 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			evaluation.rewarded_or_slashed.is_none()
-				&& matches!(project_details.status, ProjectStatus::FundingSuccessful),
+			evaluation.rewarded_or_slashed.is_none() &&
+				matches!(project_details.status, ProjectStatus::FundingSuccessful),
 			Error::<T>::NotAllowed
 		);
 
@@ -1702,8 +1696,8 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			evaluation.rewarded_or_slashed.is_none()
-				&& matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Slashed),
+			evaluation.rewarded_or_slashed.is_none() &&
+				matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Slashed),
 			Error::<T>::NotAllowed
 		);
 
@@ -1752,9 +1746,9 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			bid.plmc_vesting_info.is_none()
-				&& project_details.status == ProjectStatus::FundingSuccessful
-				&& matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)),
+			bid.plmc_vesting_info.is_none() &&
+				project_details.status == ProjectStatus::FundingSuccessful &&
+				matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)),
 			Error::<T>::NotAllowed
 		);
 
@@ -1862,8 +1856,8 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			project_details.status == ProjectStatus::FundingFailed
-				&& matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)),
+			project_details.status == ProjectStatus::FundingFailed &&
+				matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)),
 			Error::<T>::NotAllowed
 		);
 
@@ -1874,7 +1868,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Update storage *
 		T::FundingCurrency::transfer(
-			payout_asset.to_statemint_id(),
+			payout_asset.to_assethub_id(),
 			&project_pot,
 			bidder,
 			payout_amount,
@@ -1909,9 +1903,9 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			project_details.status == ProjectStatus::FundingFailed
-				&& matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..))
-				&& bid.funds_released,
+			project_details.status == ProjectStatus::FundingFailed &&
+				matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)) &&
+				bid.funds_released,
 			Error::<T>::NotAllowed
 		);
 
@@ -1957,7 +1951,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Update storage *
 		T::FundingCurrency::transfer(
-			payout_asset.to_statemint_id(),
+			payout_asset.to_assethub_id(),
 			&project_pot,
 			contributor,
 			payout_amount,
@@ -2027,8 +2021,8 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			project_details.status == ProjectStatus::FundingSuccessful
-				&& matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)),
+			project_details.status == ProjectStatus::FundingSuccessful &&
+				matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)),
 			Error::<T>::NotAllowed
 		);
 
@@ -2040,7 +2034,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Update storage *
 		T::FundingCurrency::transfer(
-			payout_asset.to_statemint_id(),
+			payout_asset.to_assethub_id(),
 			&project_pot,
 			&issuer,
 			payout_amount,
@@ -2083,7 +2077,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Update storage *
 		T::FundingCurrency::transfer(
-			payout_asset.to_statemint_id(),
+			payout_asset.to_assethub_id(),
 			&project_pot,
 			&issuer,
 			payout_amount,
@@ -2173,10 +2167,10 @@ impl<T: Config> Pallet<T> {
 
 		match message {
 			Instruction::HrmpNewChannelOpenRequest { sender, max_message_size, max_capacity }
-				if max_message_size >= max_message_size_thresholds.0
-					&& max_message_size <= max_message_size_thresholds.1
-					&& max_capacity >= max_capacity_thresholds.0
-					&& max_capacity <= max_capacity_thresholds.1 =>
+				if max_message_size >= max_message_size_thresholds.0 &&
+					max_message_size <= max_message_size_thresholds.1 &&
+					max_capacity >= max_capacity_thresholds.0 &&
+					max_capacity <= max_capacity_thresholds.1 =>
 			{
 				log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest accepted");
 
@@ -2299,8 +2293,8 @@ impl<T: Config> Pallet<T> {
 		// * Validity checks *
 		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::NotAllowed);
 		ensure!(
-			project_details.hrmp_channel_status
-				== HRMPChannelStatus {
+			project_details.hrmp_channel_status ==
+				HRMPChannelStatus {
 					project_to_polimec: ChannelStatus::Open,
 					polimec_to_project: ChannelStatus::Open
 				},
@@ -2444,15 +2438,14 @@ impl<T: Config> Pallet<T> {
 			(
 				Response::PalletsInfo(pallets_info),
 				MigrationReadinessCheck { pallet_check: (_, CheckOutcome::AwaitingResponse), .. },
-			) => {
+			) =>
 				if pallets_info.len() == 1 && pallets_info[0] == T::PolimecReceiverInfo::get() {
 					migration_check.pallet_check.1 = CheckOutcome::Passed;
 					Self::deposit_event(Event::<T>::MigrationCheckResponseAccepted { project_id, query_id, response });
 				} else {
 					migration_check.pallet_check.1 = CheckOutcome::Failed;
 					Self::deposit_event(Event::<T>::MigrationCheckResponseRejected { project_id, query_id, response });
-				}
-			},
+				},
 			_ => return Err(Error::<T>::NotAllowed.into()),
 		};
 
@@ -2568,8 +2561,8 @@ impl<T: Config> Pallet<T> {
 				// Self::deposit_event(Event::MigrationsConfirmed { project_id });
 				Ok(())
 			},
-			Response::DispatchResult(MaybeErrorCode::Error(e))
-			| Response::DispatchResult(MaybeErrorCode::TruncatedError(e)) => {
+			Response::DispatchResult(MaybeErrorCode::Error(e)) |
+			Response::DispatchResult(MaybeErrorCode::TruncatedError(e)) => {
 				Self::mark_migrations_as_failed(unconfirmed_migrations.clone(), e);
 				Self::deposit_event(Event::MigrationsFailed {
 					project_id,
@@ -2687,7 +2680,7 @@ impl<T: Config> Pallet<T> {
 		// temp variable to store the total value of the bids (i.e price * amount = Cumulative Ticket Size)
 		let mut bid_usd_value_sum = BalanceOf::<T>::zero();
 		let project_account = Self::fund_account_id(project_id);
-		let plmc_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
+		let plmc_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
 		// sort bids by price, and equal prices sorted by id
 		bids.sort_by(|a, b| b.cmp(a));
 		// accept only bids that were made before `end_block` i.e end of candle auction
@@ -2720,7 +2713,7 @@ impl<T: Config> Pallet<T> {
 						bid.status = BidStatus::PartiallyAccepted(buyable_amount, RejectionReason::NoTokensLeft);
 						bid.final_ct_amount = buyable_amount;
 
-						let funding_asset_price = T::PriceProvider::get_price(bid.funding_asset.to_statemint_id())
+						let funding_asset_price = T::PriceProvider::get_price(bid.funding_asset.to_assethub_id())
 							.ok_or(Error::<T>::PriceNotFound)?;
 						let funding_asset_amount_needed = funding_asset_price
 							.reciprocal()
@@ -2728,7 +2721,7 @@ impl<T: Config> Pallet<T> {
 							.checked_mul_int(ticket_size)
 							.ok_or(Error::<T>::BadMath)?;
 						T::FundingCurrency::transfer(
-							bid.funding_asset.to_statemint_id(),
+							bid.funding_asset.to_assethub_id(),
 							&project_account,
 							&bid.bidder,
 							bid.funding_asset_amount_locked.saturating_sub(funding_asset_amount_needed),
@@ -2812,8 +2805,8 @@ impl<T: Config> Pallet<T> {
 				let new_ticket_size =
 					weighted_token_price.checked_mul_int(bid.final_ct_amount).ok_or(Error::<T>::BadMath)?;
 
-				let funding_asset_price = T::PriceProvider::get_price(bid.funding_asset.to_statemint_id())
-					.ok_or(Error::<T>::PriceNotFound)?;
+				let funding_asset_price =
+					T::PriceProvider::get_price(bid.funding_asset.to_assethub_id()).ok_or(Error::<T>::PriceNotFound)?;
 				let funding_asset_amount_needed = funding_asset_price
 					.reciprocal()
 					.ok_or(Error::<T>::BadMath)?
@@ -2821,7 +2814,7 @@ impl<T: Config> Pallet<T> {
 					.ok_or(Error::<T>::BadMath)?;
 
 				T::FundingCurrency::transfer(
-					bid.funding_asset.to_statemint_id(),
+					bid.funding_asset.to_assethub_id(),
 					&project_account,
 					&bid.bidder,
 					bid.funding_asset_amount_locked.saturating_sub(funding_asset_amount_needed),
@@ -2882,7 +2875,7 @@ impl<T: Config> Pallet<T> {
 		bid.final_ct_usd_price = Zero::zero();
 
 		T::FundingCurrency::transfer(
-			bid.funding_asset.to_statemint_id(),
+			bid.funding_asset.to_assethub_id(),
 			project_account,
 			&bid.bidder,
 			bid.funding_asset_amount_locked,

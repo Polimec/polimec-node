@@ -21,7 +21,7 @@ use crate::{
 use core::marker::PhantomData;
 use frame_support::parameter_types;
 use orml_traits::DataProvider;
-use pallet_funding::traits::ProvideStatemintPrice;
+use pallet_funding::traits::ProvideAssetPrice;
 use sp_arithmetic::FixedPointNumber;
 
 parameter_types! {
@@ -36,7 +36,7 @@ parameter_types! {
 
 pub struct OraclePriceProvider<AssetId, Price, Oracle>(PhantomData<(AssetId, Price, Oracle)>);
 
-impl<AssetId, Price, Oracle> ProvideStatemintPrice for OraclePriceProvider<AssetId, Price, Oracle>
+impl<AssetId, Price, Oracle> ProvideAssetPrice for OraclePriceProvider<AssetId, Price, Oracle>
 where
 	Price: FixedPointNumber,
 	Oracle: DataProvider<AssetId, Price>,

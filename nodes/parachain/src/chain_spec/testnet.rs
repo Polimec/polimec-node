@@ -25,10 +25,9 @@ use polimec_parachain_runtime::{
 		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
 		InflationInfo, Range,
 	},
-	AccountId, AuraId as AuthorityId, Balance, BalancesConfig, CouncilConfig, MinCandidateStk,
+	AccountId, AuraId as AuthorityId, Balance, BalancesConfig, CouncilConfig, ForeignAssetsConfig, MinCandidateStk,
 	OracleProvidersMembershipConfig, ParachainInfoConfig, ParachainStakingConfig, PolkadotXcmConfig, Runtime,
-	RuntimeGenesisConfig, SessionConfig, StatemintAssetsConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
-	EXISTENTIAL_DEPOSIT, PLMC,
+	RuntimeGenesisConfig, SessionConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, EXISTENTIAL_DEPOSIT, PLMC,
 };
 use sc_service::ChainType;
 use sp_core::{crypto::UncheckedInto, sr25519};
@@ -215,9 +214,9 @@ fn testnet_genesis(
 	RuntimeGenesisConfig {
 		system: SystemConfig { code: wasm_binary.to_vec(), ..Default::default() },
 		balances: BalancesConfig { balances: endowed_accounts.clone() },
-		statemint_assets: StatemintAssetsConfig {
+		foreign_assets: ForeignAssetsConfig {
 			assets: vec![(
-				pallet_funding::types::AcceptedFundingAsset::USDT.to_statemint_id(),
+				pallet_funding::types::AcceptedFundingAsset::USDT.to_assethub_id(),
 				<Runtime as pallet_funding::Config>::PalletId::get().into_account_truncating(),
 				false,
 				10,
@@ -489,9 +488,9 @@ fn testing_genesis(
 			phantom: PhantomData,
 		},
 		balances: BalancesConfig { balances: endowed_accounts.clone() },
-		statemint_assets: StatemintAssetsConfig {
+		foreign_assets: ForeignAssetsConfig {
 			assets: vec![(
-				pallet_funding::types::AcceptedFundingAsset::USDT.to_statemint_id(),
+				pallet_funding::types::AcceptedFundingAsset::USDT.to_assethub_id(),
 				<Runtime as pallet_funding::Config>::PalletId::get().into_account_truncating(),
 				false,
 				10,

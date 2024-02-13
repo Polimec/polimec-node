@@ -6914,6 +6914,7 @@ dependencies = [
  "frame-try-runtime",
  "log",
  "orml-oracle",
+ "pallet-assets",
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
@@ -6940,6 +6941,7 @@ dependencies = [
  "parachains-common",
  "parity-scale-codec",
  "polimec-common",
+ "polimec-xcm-executor",
  "polkadot-parachain",
  "polkadot-runtime-common",
  "scale-info",
@@ -6958,7 +6960,6 @@ dependencies = [
  "substrate-wasm-builder",
  "xcm",
  "xcm-builder",
- "xcm-executor",
 ]
 
 [[package]]

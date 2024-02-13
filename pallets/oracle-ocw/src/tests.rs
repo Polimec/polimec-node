@@ -41,7 +41,7 @@ fn call_offchain_worker() {
 					match asset {
 						0 => assert_close_enough(price, FixedU128::from_float(6.138485575453039783)),
 						1984 => assert_close_enough(price, FixedU128::from_float(1.000154206100002620)),
-						420 => assert_close_enough(price, FixedU128::from_float(1.000093378020633965)),
+						1337 => assert_close_enough(price, FixedU128::from_float(1.000093378020633965)),
 						_ => panic!("Unexpected asset"),
 					}
 				},

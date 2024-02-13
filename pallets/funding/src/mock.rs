@@ -54,7 +54,7 @@ pub const EXISTENTIAL_DEPOSIT: Balance = 10 * MILLI_PLMC;
 const US_DOLLAR: u128 = 1_0_000_000_000u128;
 
 pub type LocalAssetsInstance = pallet_assets::Instance1;
-pub type StatemintAssetsInstance = pallet_assets::Instance2;
+pub type ForeignAssetsInstance = pallet_assets::Instance2;
 
 pub type AssetId = u32;
 pub const fn deposit(items: u32, bytes: u32) -> Balance {
@@ -176,7 +176,7 @@ impl pallet_assets::Config<LocalAssetsInstance> for TestRuntime {
 	type WeightInfo = ();
 }
 
-impl pallet_assets::Config<StatemintAssetsInstance> for TestRuntime {
+impl pallet_assets::Config<ForeignAssetsInstance> for TestRuntime {
 	type ApprovalDeposit = ApprovalDeposit;
 	type AssetAccountDeposit = AssetAccountDeposit;
 	type AssetDeposit = AssetDeposit;
@@ -265,7 +265,7 @@ parameter_types! {
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");
 	pub PriceMap: BTreeMap<AssetId, FixedU128> = BTreeMap::from_iter(vec![
 		(0u32, FixedU128::from_float(69f64)), // DOT
-		(420u32, FixedU128::from_float(0.97f64)), // USDC
+		(1337u32, FixedU128::from_float(0.97f64)), // USDC
 		(1984u32, FixedU128::from_float(1.0f64)), // USDT
 		(2069u32, FixedU128::from_float(8.4f64)), // PLMC
 	]);
@@ -349,7 +349,7 @@ impl Config for TestRuntime {
 	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
 	type EvaluatorSlash = EvaluatorSlash;
 	type FeeBrackets = FeeBrackets;
-	type FundingCurrency = StatemintAssets;
+	type FundingCurrency = ForeignAssets;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	type MaxBidsPerUser = ConstU32<4>;
 	type MaxCapacityThresholds = MaxCapacityThresholds;
@@ -391,7 +391,7 @@ construct_runtime!(
 		Balances: pallet_balances,
 		Vesting: pallet_linear_release,
 		LocalAssets: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>},
-		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>},
+		ForeignAssets: pallet_assets::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>},
 		PolkadotXcm: pallet_xcm,
 		PolimecFunding: pallet_funding::{Pallet, Call, Storage, Event<T>, Config<T>, HoldReason}  = 52,
 	}
@@ -408,9 +408,9 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 				<TestRuntime as pallet_balances::Config>::ExistentialDeposit::get(),
 			)],
 		},
-		statemint_assets: StatemintAssetsConfig {
+		foreign_assets: ForeignAssetsConfig {
 			assets: vec![(
-				AcceptedFundingAsset::USDT.to_statemint_id(),
+				AcceptedFundingAsset::USDT.to_assethub_id(),
 				<TestRuntime as Config>::PalletId::get().into_account_truncating(),
 				false,
 				10,
