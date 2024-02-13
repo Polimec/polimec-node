@@ -1069,12 +1069,12 @@ impl<
 // Temporary manual implementation for migration testing purposes
 impl<A: PartialEq, B: PartialEq> PartialEq for CollatorCandidate<A, B> {
 	fn eq(&self, other: &Self) -> bool {
-		let must_be_true = self.id == other.id
-			&& self.bond == other.bond
-			&& self.total_counted == other.total_counted
-			&& self.total_backing == other.total_backing
-			&& self.request == other.request
-			&& self.state == other.state;
+		let must_be_true = self.id == other.id &&
+			self.bond == other.bond &&
+			self.total_counted == other.total_counted &&
+			self.total_backing == other.total_backing &&
+			self.request == other.request &&
+			self.state == other.state;
 		if !must_be_true {
 			return false;
 		}
@@ -1161,10 +1161,10 @@ pub struct Delegator<AccountId, Balance> {
 // Temporary manual implementation for migration testing purposes
 impl<A: PartialEq, B: PartialEq> PartialEq for Delegator<A, B> {
 	fn eq(&self, other: &Self) -> bool {
-		let must_be_true = self.id == other.id
-			&& self.total == other.total
-			&& self.less_total == other.less_total
-			&& self.status == other.status;
+		let must_be_true = self.id == other.id &&
+			self.total == other.total &&
+			self.less_total == other.less_total &&
+			self.status == other.status;
 		if !must_be_true {
 			return false;
 		}

@@ -364,11 +364,10 @@ impl<Config: config::Config> XcmExecutor<Config> {
 						*r = Err(ExecutorError { index: i as u32, xcm_error: e, weight: Weight::zero() });
 					}
 				},
-				Err(ref mut error) => {
+				Err(ref mut error) =>
 					if let Ok(x) = Config::Weigher::instr_weight(&instr) {
 						error.weight.saturating_accrue(x)
-					}
-				},
+					},
 			}
 		}
 		result

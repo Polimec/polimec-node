@@ -430,20 +430,18 @@ pub mod inner_types {
 	impl ParticipantsSize {
 		pub(crate) const fn is_valid(&self) -> Result<(), ValidityError> {
 			match (self.minimum, self.maximum) {
-				(Some(min), Some(max)) => {
+				(Some(min), Some(max)) =>
 					if min < max && min > 0 && max > 0 {
 						Ok(())
 					} else {
 						Err(ValidityError::ParticipantsSizeError)
-					}
-				},
-				(Some(elem), None) | (None, Some(elem)) => {
+					},
+				(Some(elem), None) | (None, Some(elem)) =>
 					if elem > 0 {
 						Ok(())
 					} else {
 						Err(ValidityError::ParticipantsSizeError)
-					}
-				},
+					},
 				(None, None) => Err(ValidityError::ParticipantsSizeError),
 			}
 		}
@@ -668,9 +666,8 @@ pub mod inner_types {
 		fn try_from(value: ProjectStatus) -> Result<Self, ()> {
 			match value {
 				ProjectStatus::FundingSuccessful => Ok(Cleaner::Success(CleanerState::Initialized(PhantomData))),
-				ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed => {
-					Ok(Cleaner::Failure(CleanerState::Initialized(PhantomData)))
-				},
+				ProjectStatus::FundingFailed | ProjectStatus::EvaluationFailed =>
+					Ok(Cleaner::Failure(CleanerState::Initialized(PhantomData))),
 				_ => Err(()),
 			}
 		}
@@ -793,8 +790,8 @@ impl<T: Config> MigrationGenerator<T> {
 	}
 
 	pub fn bid_migration(bid: BidInfoOf<T>) -> Option<Migration> {
-		if bid.final_ct_amount == Zero::zero()
-			|| matches!(bid.ct_migration_status, MigrationStatus::Confirmed | MigrationStatus::Sent(_))
+		if bid.final_ct_amount == Zero::zero() ||
+			matches!(bid.ct_migration_status, MigrationStatus::Confirmed | MigrationStatus::Sent(_))
 		{
 			return None;
 		}

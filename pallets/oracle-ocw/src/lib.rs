@@ -154,8 +154,8 @@ pub mod pallet {
 						.filter_map(|(asset_name, last_send)| {
 							let window = T::FetchWindow::get();
 							let remainder = block_number.rem(T::FetchInterval::get());
-							if remainder >= BlockNumberFor::<T>::zero()
-								&& remainder < window && last_send < &block_number.saturating_sub(window)
+							if remainder >= BlockNumberFor::<T>::zero() &&
+								remainder < window && last_send < &block_number.saturating_sub(window)
 							{
 								return Some(*asset_name);
 							}

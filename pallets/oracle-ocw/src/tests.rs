@@ -36,7 +36,7 @@ fn call_offchain_worker() {
 		assert_eq!(tx.signature.unwrap().0, 0);
 
 		match tx.call {
-			RuntimeCall::Oracle(orml_oracle::Call::feed_values { values }) => {
+			RuntimeCall::Oracle(orml_oracle::Call::feed_values { values }) =>
 				for (asset, price) in values {
 					match asset {
 						0 => assert_close_enough(price, FixedU128::from_float(6.138485575453039783)),
@@ -44,8 +44,7 @@ fn call_offchain_worker() {
 						1337 => assert_close_enough(price, FixedU128::from_float(1.000093378020633965)),
 						_ => panic!("Unexpected asset"),
 					}
-				}
-			},
+				},
 			_ => panic!("Unexpected call"),
 		}
 	});

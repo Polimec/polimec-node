@@ -602,8 +602,8 @@ mod benchmarks {
 
 		// if we are going to unbond evaluations due to being over the limit per user, then deduct them from the total expected plmc bond
 		if x >= <T as Config>::MaxEvaluationsPerUser::get() {
-			total_expected_plmc_bonded -= plmc_for_existing_evaluations[0].plmc_amount
-				* (x as u128 - <T as Config>::MaxEvaluationsPerUser::get() as u128 + 1u128).into();
+			total_expected_plmc_bonded -= plmc_for_existing_evaluations[0].plmc_amount *
+				(x as u128 - <T as Config>::MaxEvaluationsPerUser::get() as u128 + 1u128).into();
 		}
 
 		(inst, test_project_id, extrinsic_evaluation, extrinsic_plmc_bonded, total_expected_plmc_bonded)
@@ -635,11 +635,11 @@ mod benchmarks {
 				current_plmc_bond,
 				rewarded_or_slashed,
 				..
-			} if project_id == project_id
-				&& evaluator == evaluation.account.clone()
-				&& original_plmc_bond == extrinsic_plmc_bonded
-				&& current_plmc_bond == extrinsic_plmc_bonded
-				&& rewarded_or_slashed.is_none() => {},
+			} if project_id == project_id &&
+				evaluator == evaluation.account.clone() &&
+				original_plmc_bond == extrinsic_plmc_bonded &&
+				current_plmc_bond == extrinsic_plmc_bonded &&
+				rewarded_or_slashed.is_none() => {},
 			_ => assert!(false, "Evaluation is not stored correctly"),
 		}
 
@@ -829,8 +829,8 @@ mod benchmarks {
 
 			inst.bid_for_users(project_id, vec![bid_params]).unwrap();
 
-			ct_amount = Percent::from_percent(10)
-				* (project_metadata.total_allocation_size.0 * (do_perform_bid_calls as u128).into());
+			ct_amount = Percent::from_percent(10) *
+				(project_metadata.total_allocation_size.0 * (do_perform_bid_calls as u128).into());
 			usdt_for_filler_bidder = usdt_for_new_bidder;
 		}
 		let extrinsic_bid = BidParams::new(bidder.clone(), ct_amount, 1_u128.into(), 1u8, AcceptedFundingAsset::USDT);
@@ -1112,8 +1112,8 @@ mod benchmarks {
 
 		let existing_amount: BalanceOf<T> = (50 * ASSET_UNIT).into();
 		let extrinsic_amount: BalanceOf<T> = if ends_round.is_some() {
-			project_metadata.total_allocation_size.0
-				- existing_amount * (x.min(<T as Config>::MaxContributionsPerUser::get() - 1) as u128).into()
+			project_metadata.total_allocation_size.0 -
+				existing_amount * (x.min(<T as Config>::MaxContributionsPerUser::get() - 1) as u128).into()
 		} else {
 			(100 * ASSET_UNIT).into()
 		};
@@ -1230,9 +1230,9 @@ mod benchmarks {
 
 		match stored_contribution {
 			ContributionInfoOf::<T> { project_id, contributor, ct_amount, .. }
-				if project_id == project_id
-					&& contributor == contributor
-					&& ct_amount == extrinsic_contribution.amount => {},
+				if project_id == project_id &&
+					contributor == contributor &&
+					ct_amount == extrinsic_contribution.amount => {},
 			_ => {
 				assert!(false, "Contribution is not stored correctly")
 			},

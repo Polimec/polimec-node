@@ -1441,9 +1441,8 @@ pub mod pallet {
 
 			let projects_needing_cleanup = ProjectsDetails::<T>::iter()
 				.filter_map(|(project_id, info)| match info.cleanup {
-					cleaner if <Cleaner as DoRemainingOperation<T>>::has_remaining_operations(&cleaner) => {
-						Some((project_id, cleaner))
-					},
+					cleaner if <Cleaner as DoRemainingOperation<T>>::has_remaining_operations(&cleaner) =>
+						Some((project_id, cleaner)),
 					_ => None,
 				})
 				.collect::<Vec<_>>();

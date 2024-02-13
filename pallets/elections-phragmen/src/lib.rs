@@ -1007,8 +1007,8 @@ impl<T: Config> Pallet<T> {
 					// All candidates/members/runners-up who are no longer retaining a position as a
 					// seat holder will lose their bond.
 					candidates_and_deposit.iter().for_each(|(c, d)| {
-						if new_members_ids_sorted.binary_search(c).is_err()
-							&& new_runners_up_ids_sorted.binary_search(c).is_err()
+						if new_members_ids_sorted.binary_search(c).is_err() &&
+							new_runners_up_ids_sorted.binary_search(c).is_err()
 						{
 							let (imbalance, _) = T::Currency::slash(&HoldReason::Candidacy.into(), c, *d);
 							T::LoserCandidate::on_unbalanced(imbalance);
@@ -1165,8 +1165,8 @@ impl<T: Config> Pallet<T> {
 	//  - Members and candidates sets are disjoint;
 	//  - Members and runners-ups sets are disjoint.
 	fn try_state_members_disjoint() -> Result<(), TryRuntimeError> {
-		match Self::intersects(&Pallet::<T>::members_ids(), &Self::candidates_ids())
-			&& Self::intersects(&Pallet::<T>::members_ids(), &Self::runners_up_ids())
+		match Self::intersects(&Pallet::<T>::members_ids(), &Self::candidates_ids()) &&
+			Self::intersects(&Pallet::<T>::members_ids(), &Self::runners_up_ids())
 		{
 			true => Err("Members set should be disjoint from candidates and runners-up sets".into()),
 			false => Ok(()),
