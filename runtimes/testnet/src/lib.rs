@@ -30,7 +30,7 @@ use frame_support::{
 	},
 	weights::{ConstantMultiplier, Weight},
 };
-use frame_system::{EnsureRoot, EnsureSigned};
+use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSigned};
 pub use parachains_common::{
 	impls::DealWithFees, opaque, AccountId, AssetIdForTrustBackedAssets as AssetId, AuraId, Balance, BlockNumber, Hash,
 	Header, Nonce, Signature, AVERAGE_ON_INITIALIZE_RATIO, DAYS, HOURS, MAXIMUM_BLOCK_WEIGHT, MINUTES,
@@ -156,10 +156,10 @@ pub struct SetOraclePrices;
 #[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 impl SetPrices for SetOraclePrices {
 	fn set_prices() {
-		let dot = (AcceptedFundingAsset::DOT.to_statemint_id(), FixedU128::from_rational(69, 1));
-		let usdc = (AcceptedFundingAsset::USDT.to_statemint_id(), FixedU128::from_rational(1, 1));
-		let usdt = (AcceptedFundingAsset::USDT.to_statemint_id(), FixedU128::from_rational(1, 1));
-		let plmc = (pallet_funding::PLMC_STATEMINT_ID, FixedU128::from_rational(840, 100));
+		let dot = (AcceptedFundingAsset::DOT.to_assethub_id(), FixedU128::from_rational(69, 1));
+		let usdc = (AcceptedFundingAsset::USDT.to_assethub_id(), FixedU128::from_rational(1, 1));
+		let usdt = (AcceptedFundingAsset::USDT.to_assethub_id(), FixedU128::from_rational(1, 1));
+		let plmc = (pallet_funding::PLMC_FOREIGN_ID, FixedU128::from_rational(840, 100));
 
 		let values: BoundedVec<(u32, FixedU128), <Runtime as orml_oracle::Config>::MaxFeedValues> =
 			vec![dot, usdc, usdt, plmc].try_into().expect("benchmarks can panic");
@@ -279,10 +279,10 @@ impl pallet_transaction_payment::Config for Runtime {
 }
 
 impl pallet_asset_tx_payment::Config for Runtime {
-	type Fungibles = StatemintAssets;
+	type Fungibles = ForeignAssets;
 	type OnChargeAssetTransaction = pallet_asset_tx_payment::FungiblesAdapter<
-		pallet_assets::BalanceToAssetBalance<Balances, Runtime, ConvertInto, StatemintAssetsInstance>,
-		xcm_config::AssetsToBlockAuthor<Runtime, StatemintAssetsInstance>,
+		pallet_assets::BalanceToAssetBalance<Balances, Runtime, ConvertInto, ForeignAssetsInstance>,
+		xcm_config::AssetsToBlockAuthor<Runtime, ForeignAssetsInstance>,
 	>;
 	type RuntimeEvent = RuntimeEvent;
 }
@@ -550,7 +550,7 @@ impl pallet_multisig::Config for Runtime {
 }
 
 pub type LocalAssetsInstance = pallet_assets::Instance1;
-pub type StatemintAssetsInstance = pallet_assets::Instance2;
+pub type ForeignAssetsInstance = pallet_assets::Instance2;
 
 impl pallet_assets::Config<LocalAssetsInstance> for Runtime {
 	type ApprovalDeposit = ExistentialDeposit;
@@ -575,7 +575,7 @@ impl pallet_assets::Config<LocalAssetsInstance> for Runtime {
 	type WeightInfo = ();
 }
 
-impl pallet_assets::Config<StatemintAssetsInstance> for Runtime {
+impl pallet_assets::Config<ForeignAssetsInstance> for Runtime {
 	type ApprovalDeposit = ExistentialDeposit;
 	type AssetAccountDeposit = AssetAccountDeposit;
 	type AssetDeposit = AssetDeposit;
@@ -585,7 +585,7 @@ impl pallet_assets::Config<StatemintAssetsInstance> for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 	type CallbackHandle = ();
-	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureRootWithSuccess<AccountId, RootOperatorAccountId>>;
 	type Currency = Balances;
 	type Extra = ();
 	type ForceOrigin = EnsureRoot<AccountId>;
@@ -622,7 +622,7 @@ impl ConvertBack<AccountId, [u8; 32]> for ConvertSelf {
 impl pallet_funding::Config for Runtime {
 	type AccountId32Conversion = ConvertSelf;
 	type AllPalletsWithoutSystem =
-		(Balances, LocalAssets, StatemintAssets, Oracle, PolimecFunding, LinearRelease, Random);
+		(Balances, LocalAssets, ForeignAssets, Oracle, PolimecFunding, LinearRelease, Random);
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;
 	type BlockNumber = BlockNumber;
@@ -637,7 +637,7 @@ impl pallet_funding::Config for Runtime {
 	type EvaluationSuccessThreshold = EarlyEvaluationThreshold;
 	type EvaluatorSlash = EvaluatorSlash;
 	type FeeBrackets = FeeBrackets;
-	type FundingCurrency = StatemintAssets;
+	type FundingCurrency = ForeignAssets;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	type MaxBidsPerProject = ConstU32<2048>;
 	type MaxBidsPerUser = ConstU32<128>;
@@ -771,7 +771,7 @@ impl Convert<(AssetName, FixedU128), (AssetId, Price)> for AssetPriceConverter {
 	fn convert((asset, price): (AssetName, FixedU128)) -> (AssetId, Price) {
 		match asset {
 			AssetName::DOT => (0, price),
-			AssetName::USDC => (420, price),
+			AssetName::USDC => (1337, price),
 			AssetName::USDT => (1984, price),
 			AssetName::PLMC => (2069, price),
 		}
@@ -873,7 +873,7 @@ construct_runtime!(
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage, Event<T>} = 11,
 		AssetTxPayment: pallet_asset_tx_payment::{Pallet, Storage, Event<T>} = 12,
 		LocalAssets: pallet_assets::<Instance1>::{Pallet, Storage, Event<T>} = 13,
-		StatemintAssets: pallet_assets::<Instance2>::{Pallet, Call, Config<T>, Storage, Event<T>} = 14,
+		ForeignAssets: pallet_assets::<Instance2>::{Pallet, Call, Config<T>, Storage, Event<T>} = 14,
 
 
 		// Collator support. the order of these 5 are important and shall not change.

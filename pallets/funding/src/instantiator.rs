@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{
-	traits::{BondingRequirementCalculation, ProvideStatemintPrice},
+	traits::{BondingRequirementCalculation, ProvideAssetPrice},
 	*,
 };
 use frame_support::{
@@ -151,16 +151,16 @@ impl<
 		})
 	}
 
-	pub fn get_free_statemint_asset_balances_for(
+	pub fn get_free_foreign_asset_balances_for(
 		&mut self,
 		asset_id: AssetIdOf<T>,
 		user_keys: Vec<AccountIdOf<T>>,
-	) -> Vec<UserToStatemintAsset<T>> {
+	) -> Vec<UserToForeignAssets<T>> {
 		self.execute(|| {
-			let mut balances: Vec<UserToStatemintAsset<T>> = Vec::new();
+			let mut balances: Vec<UserToForeignAssets<T>> = Vec::new();
 			for account in user_keys {
 				let asset_amount = <T as Config>::FundingCurrency::balance(asset_id, &account);
-				balances.push(UserToStatemintAsset { account, asset_amount, asset_id });
+				balances.push(UserToForeignAssets { account, asset_amount, asset_id });
 			}
 			balances.sort_by(|a, b| a.account.cmp(&b.account));
 			balances
@@ -195,9 +195,9 @@ impl<
 		self.get_reserved_plmc_balances_for(user_keys, reserve_type)
 	}
 
-	pub fn get_all_free_statemint_asset_balances(&mut self, asset_id: AssetIdOf<T>) -> Vec<UserToStatemintAsset<T>> {
+	pub fn get_all_free_foreign_asset_balances(&mut self, asset_id: AssetIdOf<T>) -> Vec<UserToForeignAssets<T>> {
 		let user_keys = self.execute(|| frame_system::Account::<T>::iter_keys().collect());
-		self.get_free_statemint_asset_balances_for(asset_id, user_keys)
+		self.get_free_foreign_asset_balances_for(asset_id, user_keys)
 	}
 
 	pub fn get_plmc_total_supply(&mut self) -> BalanceOf<T> {
@@ -225,9 +225,9 @@ impl<
 		});
 	}
 
-	pub fn mint_statemint_asset_to(&mut self, mapping: Vec<UserToStatemintAsset<T>>) {
+	pub fn mint_foreign_asset_to(&mut self, mapping: Vec<UserToForeignAssets<T>>) {
 		self.execute(|| {
-			for UserToStatemintAsset { account, asset_amount, asset_id } in mapping {
+			for UserToForeignAssets { account, asset_amount, asset_id } in mapping {
 				<T as Config>::FundingCurrency::mint_into(asset_id, &account, asset_amount)
 					.expect("Minting should work");
 			}
@@ -297,21 +297,21 @@ impl<
 		}
 	}
 
-	pub fn do_free_statemint_asset_assertions(&mut self, correct_funds: Vec<UserToStatemintAsset<T>>) {
-		for UserToStatemintAsset { account, asset_amount, asset_id } in correct_funds {
+	pub fn do_free_foreign_asset_assertions(&mut self, correct_funds: Vec<UserToForeignAssets<T>>) {
+		for UserToForeignAssets { account, asset_amount, asset_id } in correct_funds {
 			self.execute(|| {
 				let real_amount = <T as Config>::FundingCurrency::balance(asset_id, &account);
-				assert_eq!(asset_amount, real_amount, "Wrong statemint asset balance expected for user {:?}", account);
+				assert_eq!(asset_amount, real_amount, "Wrong foreign asset balance expected for user {:?}", account);
 			});
 		}
 	}
 
-	pub fn do_bid_transferred_statemint_asset_assertions(
+	pub fn do_bid_transferred_foreign_asset_assertions(
 		&mut self,
-		correct_funds: Vec<UserToStatemintAsset<T>>,
+		correct_funds: Vec<UserToForeignAssets<T>>,
 		project_id: ProjectId,
 	) {
-		for UserToStatemintAsset { account, asset_amount, .. } in correct_funds {
+		for UserToForeignAssets { account, asset_amount, .. } in correct_funds {
 			self.execute(|| {
 				// total amount of contributions for this user for this project stored in the mapping
 				let contribution_total: <T as Config>::Balance =
@@ -320,7 +320,7 @@ impl<
 						.fold(Zero::zero(), |a, b| a + b);
 				assert_eq!(
 					contribution_total, asset_amount,
-					"Wrong statemint asset balance expected for stored auction info on user {:?}",
+					"Wrong foreign asset balance expected for stored auction info on user {:?}",
 					account
 				);
 			});
@@ -328,12 +328,12 @@ impl<
 	}
 
 	// Check if a Contribution storage item exists for the given funding asset transfer
-	pub fn do_contribution_transferred_statemint_asset_assertions(
+	pub fn do_contribution_transferred_foreign_asset_assertions(
 		&mut self,
-		correct_funds: Vec<UserToStatemintAsset<T>>,
+		correct_funds: Vec<UserToForeignAssets<T>>,
 		project_id: ProjectId,
 	) {
-		for UserToStatemintAsset { account, asset_amount, .. } in correct_funds {
+		for UserToForeignAssets { account, asset_amount, .. } in correct_funds {
 			self.execute(|| {
 				Contributions::<T>::iter_prefix_values((project_id, account.clone()))
 					.find(|c| c.funding_asset_amount == asset_amount)
@@ -485,7 +485,7 @@ impl<
 	}
 
 	pub fn calculate_evaluation_plmc_spent(evaluations: Vec<UserToUSDBalance<T>>) -> Vec<UserToPLMCBalance<T>> {
-		let plmc_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).unwrap();
+		let plmc_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap();
 		let mut output = Vec::new();
 		for eval in evaluations {
 			let usd_bond = eval.usd_amount;
@@ -507,7 +507,7 @@ impl<
 		bids: &Vec<BidParams<T>>,
 		weighted_price: Option<PriceOf<T>>,
 	) -> Vec<UserToPLMCBalance<T>> {
-		let plmc_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).unwrap();
+		let plmc_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap();
 		let mut output = Vec::new();
 		for bid in bids {
 			let final_price = match weighted_price {
@@ -527,7 +527,7 @@ impl<
 	pub fn calculate_auction_funding_asset_spent(
 		bids: &Vec<BidParams<T>>,
 		weighted_price: Option<PriceOf<T>>,
-	) -> Vec<UserToStatemintAsset<T>> {
+	) -> Vec<UserToForeignAssets<T>> {
 		let mut output = Vec::new();
 		for bid in bids {
 			let final_price = match weighted_price {
@@ -535,14 +535,10 @@ impl<
 				Some(p) => p,
 				None => bid.price,
 			};
-			let asset_price = T::PriceProvider::get_price(bid.asset.to_statemint_id()).unwrap();
+			let asset_price = T::PriceProvider::get_price(bid.asset.to_assethub_id()).unwrap();
 			let usd_ticket_size = final_price.saturating_mul_int(bid.amount);
 			let funding_asset_spent = asset_price.reciprocal().unwrap().saturating_mul_int(usd_ticket_size);
-			output.push(UserToStatemintAsset::new(
-				bid.bidder.clone(),
-				funding_asset_spent,
-				bid.asset.to_statemint_id(),
-			));
+			output.push(UserToForeignAssets::new(bid.bidder.clone(), funding_asset_spent, bid.asset.to_assethub_id()));
 		}
 		output
 	}
@@ -597,7 +593,7 @@ impl<
 		contributions: Vec<ContributionParams<T>>,
 		token_usd_price: PriceOf<T>,
 	) -> Vec<UserToPLMCBalance<T>> {
-		let plmc_price = T::PriceProvider::get_price(PLMC_STATEMINT_ID).unwrap();
+		let plmc_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap();
 		let mut output = Vec::new();
 		for cont in contributions {
 			let usd_ticket_size = token_usd_price.saturating_mul_int(cont.amount);
@@ -652,13 +648,13 @@ impl<
 	pub fn calculate_contributed_funding_asset_spent(
 		contributions: Vec<ContributionParams<T>>,
 		token_usd_price: PriceOf<T>,
-	) -> Vec<UserToStatemintAsset<T>> {
+	) -> Vec<UserToForeignAssets<T>> {
 		let mut output = Vec::new();
 		for cont in contributions {
-			let asset_price = T::PriceProvider::get_price(cont.asset.to_statemint_id()).unwrap();
+			let asset_price = T::PriceProvider::get_price(cont.asset.to_assethub_id()).unwrap();
 			let usd_ticket_size = token_usd_price.saturating_mul_int(cont.amount);
 			let funding_asset_spent = asset_price.reciprocal().unwrap().saturating_mul_int(usd_ticket_size);
-			output.push(UserToStatemintAsset::new(cont.contributor, funding_asset_spent, cont.asset.to_statemint_id()));
+			output.push(UserToForeignAssets::new(cont.contributor, funding_asset_spent, cont.asset.to_assethub_id()));
 		}
 		output
 	}
@@ -724,7 +720,7 @@ impl<
 		output
 	}
 
-	pub fn sum_statemint_mappings(mut mappings: Vec<Vec<UserToStatemintAsset<T>>>) -> BalanceOf<T> {
+	pub fn sum_foreign_mappings(mut mappings: Vec<Vec<UserToForeignAssets<T>>>) -> BalanceOf<T> {
 		let mut output = mappings
 			.swap_remove(0)
 			.into_iter()
@@ -1043,9 +1039,9 @@ impl<
 		let bidders = bids.accounts();
 		let bidders_non_evaluators =
 			bidders.clone().into_iter().filter(|account| evaluations.accounts().contains(account).not()).collect_vec();
-		let asset_id = bids[0].asset.to_statemint_id();
+		let asset_id = bids[0].asset.to_assethub_id();
 		let prev_plmc_balances = self.get_free_plmc_balances_for(bidders.clone());
-		let prev_funding_asset_balances = self.get_free_statemint_asset_balances_for(asset_id, bidders.clone());
+		let prev_funding_asset_balances = self.get_free_foreign_asset_balances_for(asset_id, bidders.clone());
 		let plmc_evaluation_deposits: Vec<UserToPLMCBalance<T>> = Self::calculate_evaluation_plmc_spent(evaluations);
 		let plmc_bid_deposits: Vec<UserToPLMCBalance<T>> = Self::calculate_auction_plmc_spent(&bids, None);
 		let participation_usable_evaluation_deposits = plmc_evaluation_deposits
@@ -1081,7 +1077,7 @@ impl<
 		self.mint_plmc_to(necessary_plmc_mint.clone());
 		self.mint_plmc_to(plmc_existential_deposits.clone());
 		self.mint_plmc_to(plmc_ct_account_deposits.clone());
-		self.mint_statemint_asset_to(funding_asset_deposits.clone());
+		self.mint_foreign_asset_to(funding_asset_deposits.clone());
 
 		self.bid_for_users(project_id, bids.clone()).unwrap();
 
@@ -1089,12 +1085,12 @@ impl<
 			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
 			HoldReason::Participation(project_id).into(),
 		);
-		self.do_bid_transferred_statemint_asset_assertions(
+		self.do_bid_transferred_foreign_asset_assertions(
 			funding_asset_deposits.merge_accounts(MergeOperation::Add),
 			project_id,
 		);
 		self.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts(MergeOperation::Add));
-		self.do_free_statemint_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
+		self.do_free_foreign_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
 		assert_eq!(self.get_plmc_total_supply(), post_supply);
 
 		self.start_community_funding(project_id).unwrap();
@@ -1161,9 +1157,9 @@ impl<
 		assert!(
 			matches!(
 				project_details.status,
-				ProjectStatus::FundingSuccessful
-					| ProjectStatus::FundingFailed
-					| ProjectStatus::AwaitingProjectDecision
+				ProjectStatus::FundingSuccessful |
+					ProjectStatus::FundingFailed |
+					ProjectStatus::AwaitingProjectDecision
 			),
 			"Project should be in Finished status"
 		);
@@ -1193,9 +1189,9 @@ impl<
 			.into_iter()
 			.filter(|account| evaluations.accounts().contains(account).not())
 			.collect_vec();
-		let asset_id = contributions[0].asset.to_statemint_id();
+		let asset_id = contributions[0].asset.to_assethub_id();
 		let prev_plmc_balances = self.get_free_plmc_balances_for(contributors.clone());
-		let prev_funding_asset_balances = self.get_free_statemint_asset_balances_for(asset_id, contributors.clone());
+		let prev_funding_asset_balances = self.get_free_foreign_asset_balances_for(asset_id, contributors.clone());
 
 		let plmc_evaluation_deposits = Self::calculate_evaluation_plmc_spent(evaluations);
 		let plmc_bid_deposits = Self::calculate_auction_plmc_spent(&accepted_bids, Some(ct_price));
@@ -1229,7 +1225,7 @@ impl<
 		self.mint_plmc_to(necessary_plmc_mint.clone());
 		self.mint_plmc_to(plmc_existential_deposits.clone());
 		self.mint_plmc_to(plmc_ct_account_deposits.clone());
-		self.mint_statemint_asset_to(funding_asset_deposits.clone());
+		self.mint_foreign_asset_to(funding_asset_deposits.clone());
 
 		self.contribute_for_users(project_id, contributions).expect("Contributing should work");
 
@@ -1237,9 +1233,11 @@ impl<
 			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
 			HoldReason::Participation(project_id).into(),
 		);
-		self.do_contribution_transferred_statemint_asset_assertions(funding_asset_deposits, project_id);
+
+		self.do_contribution_transferred_foreign_asset_assertions(funding_asset_deposits, project_id);
+
 		self.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts(MergeOperation::Add));
-		self.do_free_statemint_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
+		self.do_free_foreign_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
 		assert_eq!(self.get_plmc_total_supply(), post_supply);
 
 		self.start_remainder_or_end_funding(project_id).unwrap();
@@ -1278,14 +1276,14 @@ impl<
 			.clone()
 			.into_iter()
 			.filter(|account| {
-				evaluations.accounts().contains(account).not()
-					&& bids.accounts().contains(account).not()
-					&& community_contributions.accounts().contains(account).not()
+				evaluations.accounts().contains(account).not() &&
+					bids.accounts().contains(account).not() &&
+					community_contributions.accounts().contains(account).not()
 			})
 			.collect_vec();
-		let asset_id = remainder_contributions[0].asset.to_statemint_id();
+		let asset_id = remainder_contributions[0].asset.to_assethub_id();
 		let prev_plmc_balances = self.get_free_plmc_balances_for(contributors.clone());
-		let prev_funding_asset_balances = self.get_free_statemint_asset_balances_for(asset_id, contributors.clone());
+		let prev_funding_asset_balances = self.get_free_foreign_asset_balances_for(asset_id, contributors.clone());
 
 		let plmc_evaluation_deposits = Self::calculate_evaluation_plmc_spent(evaluations);
 		let plmc_bid_deposits = Self::calculate_auction_plmc_spent(&accepted_bids, Some(ct_price));
@@ -1324,7 +1322,7 @@ impl<
 		self.mint_plmc_to(necessary_plmc_mint.clone());
 		self.mint_plmc_to(plmc_existential_deposits.clone());
 		self.mint_plmc_to(plmc_ct_account_deposits.clone());
-		self.mint_statemint_asset_to(funding_asset_deposits.clone());
+		self.mint_foreign_asset_to(funding_asset_deposits.clone());
 
 		self.contribute_for_users(project_id, remainder_contributions.clone())
 			.expect("Remainder Contributing should work");
@@ -1333,12 +1331,12 @@ impl<
 			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
 			HoldReason::Participation(project_id).into(),
 		);
-		self.do_contribution_transferred_statemint_asset_assertions(
+		self.do_contribution_transferred_foreign_asset_assertions(
 			funding_asset_deposits.merge_accounts(MergeOperation::Add),
 			project_id,
 		);
 		self.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts(MergeOperation::Add));
-		self.do_free_statemint_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
+		self.do_free_foreign_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
 		assert_eq!(self.get_plmc_total_supply(), post_supply);
 
 		self.finish_funding(project_id).unwrap();
@@ -1355,10 +1353,10 @@ impl<
 
 			assert_eq!(
 				project_details.remaining_contribution_tokens.0 + project_details.remaining_contribution_tokens.1,
-				project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1
-					- auction_bought_tokens
-					- community_bought_tokens
-					- remainder_bought_tokens,
+				project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1 -
+					auction_bought_tokens -
+					community_bought_tokens -
+					remainder_bought_tokens,
 				"Remaining CTs are incorrect"
 			);
 		}
@@ -1385,7 +1383,7 @@ impl<
 				community_contributions,
 				remainder_contributions,
 			),
-			ProjectStatus::RemainderRound => {
+			ProjectStatus::RemainderRound =>
 				self.create_remainder_contributing_project(
 					project_metadata,
 					issuer,
@@ -1393,14 +1391,11 @@ impl<
 					bids,
 					community_contributions,
 				)
-				.0
-			},
-			ProjectStatus::CommunityRound => {
-				self.create_community_contributing_project(project_metadata, issuer, evaluations, bids).0
-			},
-			ProjectStatus::AuctionRound(AuctionPhase::English) => {
-				self.create_auctioning_project(project_metadata, issuer, evaluations)
-			},
+				.0,
+			ProjectStatus::CommunityRound =>
+				self.create_community_contributing_project(project_metadata, issuer, evaluations, bids).0,
+			ProjectStatus::AuctionRound(AuctionPhase::English) =>
+				self.create_auctioning_project(project_metadata, issuer, evaluations),
 			ProjectStatus::EvaluationRound => self.create_evaluating_project(project_metadata, issuer),
 			ProjectStatus::Application => self.create_new_project(project_metadata, issuer),
 			_ => panic!("unsupported project creation in that status"),
@@ -1765,9 +1760,9 @@ pub mod async_features {
 		let bidders = bids.accounts();
 		let bidders_non_evaluators =
 			bidders.clone().into_iter().filter(|account| evaluations.accounts().contains(account).not()).collect_vec();
-		let asset_id = bids[0].asset.to_statemint_id();
+		let asset_id = bids[0].asset.to_assethub_id();
 		let prev_plmc_balances = inst.get_free_plmc_balances_for(bidders.clone());
-		let prev_funding_asset_balances = inst.get_free_statemint_asset_balances_for(asset_id, bidders.clone());
+		let prev_funding_asset_balances = inst.get_free_foreign_asset_balances_for(asset_id, bidders.clone());
 		let plmc_evaluation_deposits: Vec<UserToPLMCBalance<T>> =
 			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_evaluation_plmc_spent(evaluations);
 		let plmc_bid_deposits: Vec<UserToPLMCBalance<T>> =
@@ -1809,7 +1804,7 @@ pub mod async_features {
 		inst.mint_plmc_to(necessary_plmc_mint.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
-		inst.mint_statemint_asset_to(funding_asset_deposits.clone());
+		inst.mint_foreign_asset_to(funding_asset_deposits.clone());
 
 		inst.bid_for_users(project_id, bids.clone()).unwrap();
 
@@ -1817,12 +1812,12 @@ pub mod async_features {
 			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
 			HoldReason::Participation(project_id).into(),
 		);
-		inst.do_bid_transferred_statemint_asset_assertions(
+		inst.do_bid_transferred_foreign_asset_assertions(
 			funding_asset_deposits.merge_accounts(MergeOperation::Add),
 			project_id,
 		);
 		inst.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts(MergeOperation::Add));
-		inst.do_free_statemint_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
+		inst.do_free_foreign_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
 		assert_eq!(inst.get_plmc_total_supply(), post_supply);
 
 		drop(inst);
@@ -1928,9 +1923,9 @@ pub mod async_features {
 			.into_iter()
 			.filter(|account| evaluations.accounts().contains(account).not())
 			.collect_vec();
-		let asset_id = contributions[0].asset.to_statemint_id();
+		let asset_id = contributions[0].asset.to_assethub_id();
 		let prev_plmc_balances = inst.get_free_plmc_balances_for(contributors.clone());
-		let prev_funding_asset_balances = inst.get_free_statemint_asset_balances_for(asset_id, contributors.clone());
+		let prev_funding_asset_balances = inst.get_free_foreign_asset_balances_for(asset_id, contributors.clone());
 
 		let plmc_evaluation_deposits =
 			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_evaluation_plmc_spent(evaluations);
@@ -1981,7 +1976,7 @@ pub mod async_features {
 		inst.mint_plmc_to(necessary_plmc_mint.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
-		inst.mint_statemint_asset_to(funding_asset_deposits.clone());
+		inst.mint_foreign_asset_to(funding_asset_deposits.clone());
 
 		inst.contribute_for_users(project_id, contributions).expect("Contributing should work");
 
@@ -1989,12 +1984,12 @@ pub mod async_features {
 			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
 			HoldReason::Participation(project_id).into(),
 		);
-		inst.do_contribution_transferred_statemint_asset_assertions(
+		inst.do_contribution_transferred_foreign_asset_assertions(
 			funding_asset_deposits.merge_accounts(MergeOperation::Add),
 			project_id,
 		);
 		inst.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts(MergeOperation::Add));
-		inst.do_free_statemint_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
+		inst.do_free_foreign_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
 		assert_eq!(inst.get_plmc_total_supply(), post_supply);
 		drop(inst);
 		async_start_remainder_or_end_funding(instantiator.clone(), block_orchestrator.clone(), project_id)
@@ -2037,9 +2032,9 @@ pub mod async_features {
 		assert!(
 			matches!(
 				project_details.status,
-				ProjectStatus::FundingSuccessful
-					| ProjectStatus::FundingFailed
-					| ProjectStatus::AwaitingProjectDecision
+				ProjectStatus::FundingSuccessful |
+					ProjectStatus::FundingFailed |
+					ProjectStatus::AwaitingProjectDecision
 			),
 			"Project should be in Finished status"
 		);
@@ -2104,14 +2099,14 @@ pub mod async_features {
 			.clone()
 			.into_iter()
 			.filter(|account| {
-				evaluations.accounts().contains(account).not()
-					&& bids.accounts().contains(account).not()
-					&& community_contributions.accounts().contains(account).not()
+				evaluations.accounts().contains(account).not() &&
+					bids.accounts().contains(account).not() &&
+					community_contributions.accounts().contains(account).not()
 			})
 			.collect_vec();
-		let asset_id = remainder_contributions[0].asset.to_statemint_id();
+		let asset_id = remainder_contributions[0].asset.to_assethub_id();
 		let prev_plmc_balances = inst.get_free_plmc_balances_for(contributors.clone());
-		let prev_funding_asset_balances = inst.get_free_statemint_asset_balances_for(asset_id, contributors.clone());
+		let prev_funding_asset_balances = inst.get_free_foreign_asset_balances_for(asset_id, contributors.clone());
 
 		let plmc_evaluation_deposits =
 			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_evaluation_plmc_spent(evaluations);
@@ -2166,7 +2161,7 @@ pub mod async_features {
 		inst.mint_plmc_to(necessary_plmc_mint.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
-		inst.mint_statemint_asset_to(funding_asset_deposits.clone());
+		inst.mint_foreign_asset_to(funding_asset_deposits.clone());
 
 		inst.contribute_for_users(project_id, remainder_contributions.clone())
 			.expect("Remainder Contributing should work");
@@ -2175,12 +2170,12 @@ pub mod async_features {
 
 		inst.do_reserved_plmc_assertions(merged, HoldReason::Participation(project_id).into());
 
-		inst.do_contribution_transferred_statemint_asset_assertions(
+		inst.do_contribution_transferred_foreign_asset_assertions(
 			funding_asset_deposits.merge_accounts(MergeOperation::Add),
 			project_id,
 		);
 		inst.do_free_plmc_assertions(expected_free_plmc_balances.merge_accounts(MergeOperation::Add));
-		inst.do_free_statemint_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
+		inst.do_free_foreign_asset_assertions(prev_funding_asset_balances.merge_accounts(MergeOperation::Add));
 		assert_eq!(inst.get_plmc_total_supply(), post_supply);
 
 		drop(inst);
@@ -2199,10 +2194,10 @@ pub mod async_features {
 
 			assert_eq!(
 				project_details.remaining_contribution_tokens.0 + project_details.remaining_contribution_tokens.1,
-				project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1
-					- auction_bought_tokens
-					- community_bought_tokens
-					- remainder_bought_tokens,
+				project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1 -
+					auction_bought_tokens -
+					community_bought_tokens -
+					remainder_bought_tokens,
 				"Remaining CTs are incorrect"
 			);
 		}
@@ -2220,7 +2215,7 @@ pub mod async_features {
 		test_project_params: TestProjectParams<T>,
 	) -> ProjectId {
 		match test_project_params.expected_state {
-			ProjectStatus::FundingSuccessful => {
+			ProjectStatus::FundingSuccessful =>
 				async_create_finished_project(
 					instantiator,
 					block_orchestrator,
@@ -2231,9 +2226,8 @@ pub mod async_features {
 					test_project_params.community_contributions,
 					test_project_params.remainder_contributions,
 				)
-				.await
-			},
-			ProjectStatus::RemainderRound => {
+				.await,
+			ProjectStatus::RemainderRound =>
 				async_create_remainder_contributing_project(
 					instantiator,
 					block_orchestrator,
@@ -2244,9 +2238,8 @@ pub mod async_features {
 					test_project_params.community_contributions,
 				)
 				.map(|(project_id, _)| project_id)
-				.await
-			},
-			ProjectStatus::CommunityRound => {
+				.await,
+			ProjectStatus::CommunityRound =>
 				async_create_community_contributing_project(
 					instantiator,
 					block_orchestrator,
@@ -2256,9 +2249,8 @@ pub mod async_features {
 					test_project_params.bids,
 				)
 				.map(|(project_id, _)| project_id)
-				.await
-			},
-			ProjectStatus::AuctionRound(AuctionPhase::English) => {
+				.await,
+			ProjectStatus::AuctionRound(AuctionPhase::English) =>
 				async_create_auctioning_project(
 					instantiator,
 					block_orchestrator,
@@ -2266,15 +2258,12 @@ pub mod async_features {
 					test_project_params.issuer,
 					test_project_params.evaluations,
 				)
-				.await
-			},
-			ProjectStatus::EvaluationRound => {
+				.await,
+			ProjectStatus::EvaluationRound =>
 				async_create_evaluating_project(instantiator, test_project_params.metadata, test_project_params.issuer)
-					.await
-			},
-			ProjectStatus::Application => {
-				async_create_new_project(instantiator, test_project_params.metadata, test_project_params.issuer).await
-			},
+					.await,
+			ProjectStatus::Application =>
+				async_create_new_project(instantiator, test_project_params.metadata, test_project_params.issuer).await,
 			_ => panic!("unsupported project creation in that status"),
 		}
 	}
@@ -2292,9 +2281,9 @@ pub mod async_features {
 		let time_to_evaluation: BlockNumberFor<T> = time_to_new_project + Zero::zero();
 		// we immediately start the auction, so we dont wait for T::AuctionInitializePeriodDuration.
 		let time_to_auction: BlockNumberFor<T> = time_to_evaluation + <T as Config>::EvaluationDuration::get();
-		let time_to_community: BlockNumberFor<T> = time_to_auction
-			+ <T as Config>::EnglishAuctionDuration::get()
-			+ <T as Config>::CandleAuctionDuration::get();
+		let time_to_community: BlockNumberFor<T> = time_to_auction +
+			<T as Config>::EnglishAuctionDuration::get() +
+			<T as Config>::CandleAuctionDuration::get();
 		let time_to_remainder: BlockNumberFor<T> = time_to_community + <T as Config>::CommunityFundingDuration::get();
 		let time_to_finish: BlockNumberFor<T> = time_to_remainder + <T as Config>::RemainderFundingDuration::get();
 		let mut inst = mutex_inst.lock().await;
@@ -2585,33 +2574,33 @@ impl<T: Config> AccountMerge for Vec<UserToUSDBalance<T>> {
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct UserToStatemintAsset<T: Config> {
+pub struct UserToForeignAssets<T: Config> {
 	pub account: AccountIdOf<T>,
 	pub asset_amount: BalanceOf<T>,
 	pub asset_id: AssetIdOf<T>,
 }
-impl<T: Config> UserToStatemintAsset<T> {
+impl<T: Config> UserToForeignAssets<T> {
 	pub fn new(account: AccountIdOf<T>, asset_amount: BalanceOf<T>, asset_id: AssetIdOf<T>) -> Self {
 		Self { account, asset_amount, asset_id }
 	}
 }
-impl<T: Config> Accounts for Vec<UserToStatemintAsset<T>> {
+impl<T: Config> Accounts for Vec<UserToForeignAssets<T>> {
 	type Account = AccountIdOf<T>;
 
 	fn accounts(&self) -> Vec<Self::Account> {
 		let mut btree = BTreeSet::new();
-		for UserToStatemintAsset { account, .. } in self.iter() {
+		for UserToForeignAssets { account, .. } in self.iter() {
 			btree.insert(account.clone());
 		}
 		btree.into_iter().collect_vec()
 	}
 }
-impl<T: Config> AccountMerge for Vec<UserToStatemintAsset<T>> {
-	type Inner = UserToStatemintAsset<T>;
+impl<T: Config> AccountMerge for Vec<UserToForeignAssets<T>> {
+	type Inner = UserToForeignAssets<T>;
 
 	fn merge_accounts(&self, ops: MergeOperation) -> Self {
 		let mut btree = BTreeMap::new();
-		for UserToStatemintAsset { account, asset_amount, asset_id } in self.iter() {
+		for UserToForeignAssets { account, asset_amount, asset_id } in self.iter() {
 			btree
 				.entry(account.clone())
 				.and_modify(|e: &mut (BalanceOf<T>, u32)| {
@@ -2622,7 +2611,7 @@ impl<T: Config> AccountMerge for Vec<UserToStatemintAsset<T>> {
 				})
 				.or_insert((*asset_amount, *asset_id));
 		}
-		btree.into_iter().map(|(account, info)| UserToStatemintAsset::new(account, info.0, info.1)).collect()
+		btree.into_iter().map(|(account, info)| UserToForeignAssets::new(account, info.0, info.1)).collect()
 	}
 
 	fn subtract_accounts(&self, other_list: Self) -> Self {
@@ -2767,8 +2756,8 @@ impl<T: Config> BidInfoFilter<T> {
 		if self.funding_asset.is_some() && self.funding_asset.unwrap() != bid.funding_asset {
 			return false;
 		}
-		if self.funding_asset_amount_locked.is_some()
-			&& self.funding_asset_amount_locked.unwrap() != bid.funding_asset_amount_locked
+		if self.funding_asset_amount_locked.is_some() &&
+			self.funding_asset_amount_locked.unwrap() != bid.funding_asset_amount_locked
 		{
 			return false;
 		}

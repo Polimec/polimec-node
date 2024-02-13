@@ -20,79 +20,79 @@ use crate::{
 };
 use frame_support::{parameter_types, PalletId};
 use parachains_common::BlockNumber;
-#[cfg(feature = "fast-mode")]
-use parachains_common::MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 use parachains_common::{DAYS, HOURS};
+#[cfg(feature = "fast-mode")]
+use parachains_common::{HOURS, MINUTES};
 use sp_arithmetic::Permill;
 
 #[cfg(feature = "instant-mode")]
 pub const LAUNCH_PERIOD: BlockNumber = 2;
 #[cfg(feature = "fast-mode")]
-pub const LAUNCH_PERIOD: BlockNumber = 7 * MINUTES;
+pub const LAUNCH_PERIOD: BlockNumber = 15 * MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const LAUNCH_PERIOD: BlockNumber = 7 * DAYS;
 
 #[cfg(feature = "instant-mode")]
 pub const VOTING_PERIOD: BlockNumber = 2;
 #[cfg(feature = "fast-mode")]
-pub const VOTING_PERIOD: BlockNumber = 7 * MINUTES;
+pub const VOTING_PERIOD: BlockNumber = 30 * MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const VOTING_PERIOD: BlockNumber = 7 * DAYS;
 
 #[cfg(feature = "instant-mode")]
 pub const FAST_TRACK_VOTING_PERIOD: BlockNumber = 2;
 #[cfg(feature = "fast-mode")]
-pub const FAST_TRACK_VOTING_PERIOD: BlockNumber = 3 * MINUTES;
+pub const FAST_TRACK_VOTING_PERIOD: BlockNumber = 20 * MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const FAST_TRACK_VOTING_PERIOD: BlockNumber = 3 * HOURS;
 
 #[cfg(feature = "instant-mode")]
 pub const ENACTMENT_PERIOD: BlockNumber = 2;
 #[cfg(feature = "fast-mode")]
-pub const ENACTMENT_PERIOD: BlockNumber = 7 * MINUTES;
+pub const ENACTMENT_PERIOD: BlockNumber = 10 * MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const ENACTMENT_PERIOD: BlockNumber = 7 * DAYS;
 
 #[cfg(feature = "instant-mode")]
 pub const COOLOFF_PERIOD: BlockNumber = 2;
 #[cfg(feature = "fast-mode")]
-pub const COOLOFF_PERIOD: BlockNumber = 7 * MINUTES;
+pub const COOLOFF_PERIOD: BlockNumber = 15 * MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const COOLOFF_PERIOD: BlockNumber = 7 * DAYS;
 
 #[cfg(feature = "instant-mode")]
 pub const SPEND_PERIOD: BlockNumber = 2;
 #[cfg(feature = "fast-mode")]
-pub const SPEND_PERIOD: BlockNumber = 7 * MINUTES;
+pub const SPEND_PERIOD: BlockNumber = 1 * HOURS;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const SPEND_PERIOD: BlockNumber = 7 * DAYS;
 
 #[cfg(feature = "instant-mode")]
 pub const TERM_DURATION: BlockNumber = 5;
 #[cfg(feature = "fast-mode")]
-pub const TERM_DURATION: BlockNumber = 15 * MINUTES;
+pub const TERM_DURATION: BlockNumber = 4 * HOURS;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const TERM_DURATION: BlockNumber = 28 * DAYS;
 
 #[cfg(feature = "instant-mode")]
 pub const ELECTION_VOTING_LOCK_DURATION: BlockNumber = 5;
 #[cfg(feature = "fast-mode")]
-pub const ELECTION_VOTING_LOCK_DURATION: BlockNumber = 15 * MINUTES;
+pub const ELECTION_VOTING_LOCK_DURATION: BlockNumber = 30 * MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const ELECTION_VOTING_LOCK_DURATION: BlockNumber = 28 * DAYS;
 
 #[cfg(feature = "instant-mode")]
 pub const COUNCIL_MOTION_DURATION: BlockNumber = 2;
 #[cfg(feature = "fast-mode")]
-pub const COUNCIL_MOTION_DURATION: BlockNumber = 4 * MINUTES;
+pub const COUNCIL_MOTION_DURATION: BlockNumber = 30 * MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const COUNCIL_MOTION_DURATION: BlockNumber = 7 * DAYS;
 
 #[cfg(feature = "instant-mode")]
 pub const TECHNICAL_MOTION_DURATION: BlockNumber = 2;
 #[cfg(feature = "fast-mode")]
-pub const TECHNICAL_MOTION_DURATION: BlockNumber = 4 * MINUTES;
+pub const TECHNICAL_MOTION_DURATION: BlockNumber = 30 * MINUTES;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
 pub const TECHNICAL_MOTION_DURATION: BlockNumber = 7 * DAYS;
 

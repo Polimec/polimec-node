@@ -14,10 +14,10 @@ version.workspace = true
 
 [dependencies]
 smallvec.workspace = true
-parity-scale-codec = { version = "3.6.5", default-features = false, features = [
+parity-scale-codec = { workspace = true , default-features = false, features = [
 	"derive",
 ] }
-scale-info = { version = "2.9.0", default-features = false, features = [
+scale-info = { workspace = true , default-features = false, features = [
 	"derive",
 ] }
 

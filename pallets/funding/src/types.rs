@@ -19,7 +19,7 @@
 //! Types for Funding pallet.
 
 use crate::{
-	traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation},
+	traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation},
 	BalanceOf, BidInfoOf, Config, ContributionInfoOf, EvaluationInfoOf, MultiplierOf,
 };
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
@@ -130,7 +130,7 @@ pub mod config_types {
 	)]
 
 	pub struct ConstPriceProvider<AssetId, Price, Mapping>(PhantomData<(AssetId, Price, Mapping)>);
-	impl<AssetId: Ord, Price: FixedPointNumber + Clone, Mapping: Get<BTreeMap<AssetId, Price>>> ProvideStatemintPrice
+	impl<AssetId: Ord, Price: FixedPointNumber + Clone, Mapping: Get<BTreeMap<AssetId, Price>>> ProvideAssetPrice
 		for ConstPriceProvider<AssetId, Price, Mapping>
 	{
 		type AssetId = AssetId;
@@ -470,11 +470,11 @@ pub mod inner_types {
 		DOT,
 	}
 	impl AcceptedFundingAsset {
-		pub const fn to_statemint_id(&self) -> u32 {
+		pub const fn to_assethub_id(&self) -> u32 {
 			match self {
 				AcceptedFundingAsset::USDT => 1984,
 				AcceptedFundingAsset::DOT => 0,
-				AcceptedFundingAsset::USDC => 420,
+				AcceptedFundingAsset::USDC => 1337,
 			}
 		}
 	}
