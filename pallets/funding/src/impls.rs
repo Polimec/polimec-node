@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use frame_support::{
+	dispatch::{DispatchErrorWithPostInfo, GetDispatchInfo},
 	traits::{fungible::InspectHold, Get},
 	weights::Weight,
 };
@@ -29,20 +30,24 @@ impl<T: Config> DoRemainingOperation<T> for Cleaner {
 	fn has_remaining_operations(&self) -> bool {
 		match self {
 			Cleaner::NotReady => false,
-			Cleaner::Success(state) =>
-				<CleanerState<Success> as DoRemainingOperation<T>>::has_remaining_operations(state),
-			Cleaner::Failure(state) =>
-				<CleanerState<Failure> as DoRemainingOperation<T>>::has_remaining_operations(state),
+			Cleaner::Success(state) => {
+				<CleanerState<Success> as DoRemainingOperation<T>>::has_remaining_operations(state)
+			},
+			Cleaner::Failure(state) => {
+				<CleanerState<Failure> as DoRemainingOperation<T>>::has_remaining_operations(state)
+			},
 		}
 	}
 
 	fn do_one_operation(&mut self, project_id: ProjectId) -> Result<Weight, DispatchError> {
 		match self {
 			Cleaner::NotReady => Err(DispatchError::Other("Cleaner not ready")),
-			Cleaner::Success(state) =>
-				<CleanerState<Success> as DoRemainingOperation<T>>::do_one_operation(state, project_id),
-			Cleaner::Failure(state) =>
-				<CleanerState<Failure> as DoRemainingOperation<T>>::do_one_operation(state, project_id),
+			Cleaner::Success(state) => {
+				<CleanerState<Success> as DoRemainingOperation<T>>::do_one_operation(state, project_id)
+			},
+			Cleaner::Failure(state) => {
+				<CleanerState<Failure> as DoRemainingOperation<T>>::do_one_operation(state, project_id)
+			},
 		}
 	}
 }
@@ -67,16 +72,18 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Success> {
 				);
 				Ok(base_weight)
 			},
-			CleanerState::EvaluationRewardOrSlash(remaining, PhantomData) =>
+			CleanerState::EvaluationRewardOrSlash(remaining, PhantomData) => {
 				if *remaining == 0 {
 					*self = Self::EvaluationUnbonding(remaining_evaluations::<T>(project_id), PhantomData);
 					Ok(base_weight)
 				} else {
-					let (consumed_weight, remaining_evaluations) = reward_or_slash_one_evaluation::<T>(project_id)?;
+					let (consumed_weight, remaining_evaluations) =
+						reward_or_slash_one_evaluation::<T>(project_id).map_err(|error_info| error_info.error)?;
 					*self = CleanerState::EvaluationRewardOrSlash(remaining_evaluations, PhantomData);
 					Ok(consumed_weight)
-				},
-			CleanerState::EvaluationUnbonding(remaining, PhantomData) =>
+				}
+			},
+			CleanerState::EvaluationUnbonding(remaining, PhantomData) => {
 				if *remaining == 0 {
 					*self = CleanerState::StartBidderVestingSchedule(
 						remaining_successful_bids::<T>(project_id),
@@ -87,8 +94,9 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Success> {
 					let (consumed_weight, remaining_evaluations) = unbond_one_evaluation::<T>(project_id);
 					*self = CleanerState::EvaluationUnbonding(remaining_evaluations, PhantomData);
 					Ok(consumed_weight)
-				},
-			CleanerState::StartBidderVestingSchedule(remaining, PhantomData) =>
+				}
+			},
+			CleanerState::StartBidderVestingSchedule(remaining, PhantomData) => {
 				if *remaining == 0 {
 					*self = CleanerState::StartContributorVestingSchedule(
 						remaining_contributions::<T>(project_id),
@@ -99,8 +107,9 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Success> {
 					let (consumed_weight, remaining_evaluations) = start_one_bid_vesting_schedule::<T>(project_id);
 					*self = CleanerState::StartBidderVestingSchedule(remaining_evaluations, PhantomData);
 					Ok(consumed_weight)
-				},
-			CleanerState::StartContributorVestingSchedule(remaining, PhantomData) =>
+				}
+			},
+			CleanerState::StartContributorVestingSchedule(remaining, PhantomData) => {
 				if *remaining == 0 {
 					*self = CleanerState::BidCTMint(remaining_bids_without_ct_minted::<T>(project_id), PhantomData);
 					Ok(base_weight)
@@ -109,8 +118,9 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Success> {
 						start_one_contribution_vesting_schedule::<T>(project_id);
 					*self = CleanerState::StartContributorVestingSchedule(remaining_evaluations, PhantomData);
 					Ok(consumed_weight)
-				},
-			CleanerState::BidCTMint(remaining, PhantomData) =>
+				}
+			},
+			CleanerState::BidCTMint(remaining, PhantomData) => {
 				if *remaining == 0 {
 					*self = CleanerState::ContributionCTMint(
 						remaining_contributions_without_ct_minted::<T>(project_id),
@@ -121,8 +131,9 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Success> {
 					let (consumed_weight, remaining_bids) = mint_ct_for_one_bid::<T>(project_id);
 					*self = CleanerState::BidCTMint(remaining_bids, PhantomData);
 					Ok(consumed_weight)
-				},
-			CleanerState::ContributionCTMint(remaining, PhantomData) =>
+				}
+			},
+			CleanerState::ContributionCTMint(remaining, PhantomData) => {
 				if *remaining == 0 {
 					*self = CleanerState::BidFundingPayout(
 						remaining_bids_without_issuer_payout::<T>(project_id),
@@ -133,8 +144,9 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Success> {
 					let (consumed_weight, remaining_contributions) = mint_ct_for_one_contribution::<T>(project_id);
 					*self = CleanerState::ContributionCTMint(remaining_contributions, PhantomData);
 					Ok(consumed_weight)
-				},
-			CleanerState::BidFundingPayout(remaining, PhantomData) =>
+				}
+			},
+			CleanerState::BidFundingPayout(remaining, PhantomData) => {
 				if *remaining == 0 {
 					*self = CleanerState::ContributionFundingPayout(
 						remaining_contributions_without_issuer_payout::<T>(project_id),
@@ -145,8 +157,9 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Success> {
 					let (consumed_weight, remaining_contributions) = issuer_funding_payout_one_bid::<T>(project_id);
 					*self = CleanerState::BidFundingPayout(remaining_contributions, PhantomData);
 					Ok(consumed_weight)
-				},
-			CleanerState::ContributionFundingPayout(remaining, PhantomData) =>
+				}
+			},
+			CleanerState::ContributionFundingPayout(remaining, PhantomData) => {
 				if *remaining == 0 {
 					*self = CleanerState::Finished(PhantomData);
 					Ok(base_weight)
@@ -155,7 +168,8 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Success> {
 						issuer_funding_payout_one_contribution::<T>(project_id);
 					*self = CleanerState::ContributionFundingPayout(remaining_contributions, PhantomData);
 					Ok(consumed_weight)
-				},
+				}
+			},
 			CleanerState::Finished(PhantomData) => Err(Error::<T>::FinalizerFinished.into()),
 
 			_ => Err(Error::<T>::ImpossibleState.into()),
@@ -183,7 +197,7 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Failure> {
 				Ok(base_weight)
 			},
 
-			CleanerState::EvaluationRewardOrSlash(remaining, PhantomData::<Failure>) =>
+			CleanerState::EvaluationRewardOrSlash(remaining, PhantomData::<Failure>) => {
 				if *remaining == 0 {
 					*self = CleanerState::FutureDepositRelease(
 						remaining_participants_with_future_ct_deposit::<T>(project_id),
@@ -191,12 +205,14 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Failure> {
 					);
 					Ok(base_weight)
 				} else {
-					let (consumed_weight, remaining_evaluators) = reward_or_slash_one_evaluation::<T>(project_id)?;
+					let (consumed_weight, remaining_evaluators) =
+						reward_or_slash_one_evaluation::<T>(project_id).map_err(|error_info| error_info.error)?;
 					*self = CleanerState::EvaluationRewardOrSlash(remaining_evaluators, PhantomData);
 					Ok(consumed_weight)
-				},
+				}
+			},
 
-			CleanerState::FutureDepositRelease(remaining, PhantomData::<Failure>) =>
+			CleanerState::FutureDepositRelease(remaining, PhantomData::<Failure>) => {
 				if *remaining == 0 {
 					*self = CleanerState::EvaluationUnbonding(
 						remaining_evaluations::<T>(project_id),
@@ -208,9 +224,10 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Failure> {
 						release_future_ct_deposit_one_participant::<T>(project_id);
 					*self = CleanerState::FutureDepositRelease(remaining_participants, PhantomData::<Failure>);
 					Ok(consumed_weight)
-				},
+				}
+			},
 
-			CleanerState::EvaluationUnbonding(remaining, PhantomData::<Failure>) =>
+			CleanerState::EvaluationUnbonding(remaining, PhantomData::<Failure>) => {
 				if *remaining == 0 {
 					*self = CleanerState::BidFundingRelease(
 						remaining_bids_to_release_funds::<T>(project_id),
@@ -221,9 +238,10 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Failure> {
 					let (consumed_weight, remaining_evaluators) = unbond_one_evaluation::<T>(project_id);
 					*self = CleanerState::EvaluationUnbonding(remaining_evaluators, PhantomData);
 					Ok(consumed_weight)
-				},
+				}
+			},
 
-			CleanerState::BidFundingRelease(remaining, PhantomData::<Failure>) =>
+			CleanerState::BidFundingRelease(remaining, PhantomData::<Failure>) => {
 				if *remaining == 0 {
 					*self = CleanerState::BidUnbonding(remaining_bids::<T>(project_id), PhantomData::<Failure>);
 					Ok(base_weight)
@@ -231,9 +249,10 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Failure> {
 					let (consumed_weight, remaining_bids) = release_funds_one_bid::<T>(project_id);
 					*self = CleanerState::BidFundingRelease(remaining_bids, PhantomData);
 					Ok(consumed_weight)
-				},
+				}
+			},
 
-			CleanerState::BidUnbonding(remaining, PhantomData::<Failure>) =>
+			CleanerState::BidUnbonding(remaining, PhantomData::<Failure>) => {
 				if *remaining == 0 {
 					*self = CleanerState::ContributionFundingRelease(
 						remaining_contributions_to_release_funds::<T>(project_id),
@@ -244,9 +263,10 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Failure> {
 					let (consumed_weight, remaining_bids) = unbond_one_bid::<T>(project_id);
 					*self = CleanerState::BidUnbonding(remaining_bids, PhantomData::<Failure>);
 					Ok(consumed_weight)
-				},
+				}
+			},
 
-			CleanerState::ContributionFundingRelease(remaining, PhantomData::<Failure>) =>
+			CleanerState::ContributionFundingRelease(remaining, PhantomData::<Failure>) => {
 				if *remaining == 0 {
 					*self = CleanerState::ContributionUnbonding(
 						remaining_contributions::<T>(project_id),
@@ -257,9 +277,10 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Failure> {
 					let (consumed_weight, remaining_contributions) = release_funds_one_contribution::<T>(project_id);
 					*self = CleanerState::ContributionFundingRelease(remaining_contributions, PhantomData::<Failure>);
 					Ok(consumed_weight)
-				},
+				}
+			},
 
-			CleanerState::ContributionUnbonding(remaining, PhantomData::<Failure>) =>
+			CleanerState::ContributionUnbonding(remaining, PhantomData::<Failure>) => {
 				if *remaining == 0 {
 					*self = CleanerState::Finished(PhantomData::<Failure>);
 					Ok(base_weight)
@@ -267,7 +288,8 @@ impl<T: Config> DoRemainingOperation<T> for CleanerState<Failure> {
 					let (consumed_weight, remaining_contributions) = unbond_one_contribution::<T>(project_id);
 					*self = CleanerState::ContributionUnbonding(remaining_contributions, PhantomData::<Failure>);
 					Ok(consumed_weight)
-				},
+				}
+			},
 
 			CleanerState::Finished(PhantomData::<Failure>) => Err(Error::<T>::FinalizerFinished.into()),
 
@@ -340,13 +362,15 @@ fn remaining_participants_with_future_ct_deposit<T: Config>(project_id: ProjectI
 	all_participants
 		.into_iter()
 		.filter(|account| {
-			<T as Config>::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), account) >
-				Zero::zero()
+			<T as Config>::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), account)
+				> Zero::zero()
 		})
 		.count() as u64
 }
 
-fn reward_or_slash_one_evaluation<T: Config>(project_id: ProjectId) -> Result<(Weight, u64), DispatchError> {
+fn reward_or_slash_one_evaluation<T: Config>(
+	project_id: ProjectId,
+) -> Result<(Weight, u64), DispatchErrorWithPostInfo> {
 	let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 	let project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,));
 	let mut remaining_evaluations = project_evaluations.filter(|evaluation| evaluation.rewarded_or_slashed.is_none());
@@ -355,25 +379,41 @@ fn reward_or_slash_one_evaluation<T: Config>(project_id: ProjectId) -> Result<(W
 	if let Some(evaluation) = remaining_evaluations.next() {
 		// TODO: This base weight and the one in all other functions below should be calculated with a benchmark
 		let remaining = remaining_evaluations.count() as u64;
-
 		match project_details.evaluation_round_info.evaluators_outcome {
 			EvaluatorsOutcome::Rewarded(_) => {
+				let mut weight_consumed = crate::Call::<T>::evaluation_reward_payout_for {
+					project_id: evaluation.project_id,
+					evaluator: evaluation.evaluator.clone(),
+					bond_id: evaluation.id,
+				}
+				.get_dispatch_info()
+				.weight;
+
 				match Pallet::<T>::do_evaluation_reward_payout_for(
 					&T::PalletId::get().into_account_truncating(),
 					evaluation.project_id,
 					&evaluation.evaluator,
 					evaluation.id,
 				) {
-					Ok(_) => (),
-					Err(e) => Pallet::<T>::deposit_event(Event::EvaluationRewardFailed {
-						project_id: evaluation.project_id,
-						evaluator: evaluation.evaluator.clone(),
-						id: evaluation.id,
-						error: e,
-					}),
+					Ok(result) => {
+						if let Some(weight) = result.actual_weight {
+							weight_consumed = weight
+						};
+					},
+					Err(e) => {
+						if let Some(weight) = e.post_info.actual_weight {
+							weight_consumed = weight
+						};
+						Pallet::<T>::deposit_event(Event::EvaluationRewardFailed {
+							project_id: evaluation.project_id,
+							evaluator: evaluation.evaluator.clone(),
+							id: evaluation.id,
+							error: e.error,
+						})
+					},
 				};
 
-				Ok((base_weight.saturating_add(WeightInfoOf::<T>::evaluation_reward_payout_for()), remaining))
+				Ok((base_weight.saturating_add(weight_consumed), remaining))
 			},
 			EvaluatorsOutcome::Slashed => {
 				match Pallet::<T>::do_evaluation_slash_for(
@@ -494,8 +534,8 @@ fn release_future_ct_deposit_one_participant<T: Config>(project_id: ProjectId) -
 	let remaining_participants = all_participants
 		.into_iter()
 		.filter(|account| {
-			<T as Config>::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), account) >
-				Zero::zero()
+			<T as Config>::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), account)
+				> Zero::zero()
 		})
 		.collect_vec();
 	let mut iter_participants = remaining_participants.into_iter();
@@ -519,11 +559,11 @@ fn release_future_ct_deposit_one_participant<T: Config>(project_id: ProjectId) -
 				});
 				// TODO: replace when benchmark is done
 				// return (base_weight.saturating_add(WeightInfoOf::<T>::release_future_ct_deposit_for()), iter_participants.collect_vec());
-				return (base_weight, iter_participants.count() as u64)
+				return (base_weight, iter_participants.count() as u64);
 			},
 		};
 	}
-	return (base_weight, 0u64)
+	(base_weight, 0u64)
 }
 
 fn release_funds_one_contribution<T: Config>(project_id: ProjectId) -> (Weight, u64) {
@@ -671,10 +711,13 @@ fn mint_ct_for_one_bid<T: Config>(project_id: ProjectId) -> (Weight, u64) {
 				project_id: bid.project_id,
 				claimer: bid.bidder.clone(),
 				id: bid.id,
-				error: e,
+				error: e.error,
 			}),
 		};
-		(base_weight.saturating_add(WeightInfoOf::<T>::bid_ct_mint_for()), remaining_bids.count() as u64)
+		(
+			base_weight.saturating_add(WeightInfoOf::<T>::bid_ct_mint_for_with_ct_account_creation()),
+			remaining_bids.count() as u64,
+		)
 	} else {
 		(base_weight, 0u64)
 	}
@@ -697,11 +740,11 @@ fn mint_ct_for_one_contribution<T: Config>(project_id: ProjectId) -> (Weight, u6
 				project_id: contribution.project_id,
 				claimer: contribution.contributor.clone(),
 				id: contribution.id,
-				error: e,
+				error: e.error,
 			}),
 		};
 		(
-			base_weight.saturating_add(WeightInfoOf::<T>::contribution_ct_mint_for()),
+			base_weight.saturating_add(WeightInfoOf::<T>::contribution_ct_mint_for_with_ct_account_creation()),
 			remaining_contributions.count() as u64,
 		)
 	} else {

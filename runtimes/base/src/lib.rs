@@ -21,25 +21,24 @@
 #[cfg(feature = "runtime-benchmarks")]
 #[macro_use]
 extern crate frame_benchmarking;
+
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
-		fungible::Credit, tokens, AsEnsureOriginWithArg, ConstU32, Contains, EitherOfDiverse, InstanceFilter,
+		fungible::{Credit, Inspect}, tokens, AsEnsureOriginWithArg, ConstU32, Contains, EitherOfDiverse, InstanceFilter,
 		PrivilegeCmp,
 	},
 	weights::{ConstantMultiplier, Weight},
 };
 use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSigned};
+use pallet_democracy::GetElectorate;
 use pallet_oracle_ocw::types::AssetName;
 use parachains_common::AssetIdForTrustBackedAssets as AssetId;
 use parity_scale_codec::Encode;
 use polkadot_runtime_common::{BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate};
 use sp_api::impl_runtime_apis;
-pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
-#[cfg(any(feature = "std", test))]
-pub use sp_runtime::BuildStorage;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
@@ -48,29 +47,31 @@ use sp_runtime::{
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, FixedU128, MultiSignature, SaturatedConversion,
 };
-pub use sp_runtime::{MultiAddress, Perbill, Permill};
 use sp_std::{cmp::Ordering, prelude::*};
-
-#[cfg(feature = "std")]
-use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 // XCM Imports
 use polimec_xcm_executor::XcmExecutor;
 use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
 
-// Polimec Shared Imports
-pub use shared_configuration::{
-	assets::*, currency::*, fee::*, funding::*, governance::*, proxy::*, staking::*, weights::*,
-};
-
 pub use pallet_parachain_staking;
+// Polimec Shared Imports
+pub use shared_configuration::{assets::*, currency::*, fee::*, funding::*, governance::*, proxy::*, staking::*, weights::*};
+pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+pub use sp_runtime::{MultiAddress, Perbill, Permill};
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+#[cfg(feature = "std")]
+use sp_version::NativeVersion;
+
+#[cfg(any(feature = "std", test))]
+pub use sp_runtime::BuildStorage;
+
 mod custom_migrations;
+mod weights;
 pub mod xcm_config;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
@@ -194,7 +195,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("polimec-mainnet"),
 	impl_name: create_runtime_str!("polimec-mainnet"),
 	authoring_version: 1,
-	spec_version: 0_004_000,
+	spec_version: 0_005_001,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -512,7 +513,17 @@ impl pallet_elections_phragmen::Config for Runtime {
 	/// triggered and the module will be in passive mode.
 	type TermDuration = TermDuration;
 	type VotingLockPeriod = VotingLockPeriod;
-	type WeightInfo = pallet_elections_phragmen::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = weights::pallet_elections_phragmen::WeightInfo<Runtime>;
+}
+
+pub struct Electorate;
+impl GetElectorate<Balance> for Electorate {
+	fn get_electorate() -> Balance {
+		let total_issuance = Balances::total_issuance();
+		let growth_treasury_balance = Balances::balance(&Treasury::account_id());
+		let protocol_treasury_balance = Balances::balance(&PayMaster::get());
+		total_issuance.saturating_sub(growth_treasury_balance).saturating_sub(protocol_treasury_balance)
+	}
 }
 
 impl pallet_democracy::Config for Runtime {
@@ -526,6 +537,7 @@ impl pallet_democracy::Config for Runtime {
 	// To cancel a proposal which has been passed, 2/3 of the council must agree to it.
 	type CancellationOrigin = pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 2, 3>;
 	type CooloffPeriod = CooloffPeriod;
+	type Electorate = Electorate;
 	type EnactmentPeriod = EnactmentPeriod;
 	/// A unanimous council can have the next scheduled referendum be a straight default-carries
 	/// (NTB) vote.
@@ -569,7 +581,7 @@ pub struct EqualOrGreatestRootCmp;
 impl PrivilegeCmp<OriginCaller> for EqualOrGreatestRootCmp {
 	fn cmp_privilege(left: &OriginCaller, right: &OriginCaller) -> Option<Ordering> {
 		if left == right {
-			return Some(Ordering::Equal)
+			return Some(Ordering::Equal);
 		}
 		match (left, right) {
 			// Root is greater than anything.
@@ -842,11 +854,38 @@ construct_runtime!(
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {
 	frame_benchmarking::define_benchmarks!(
+		// System support stuff.
 		[frame_system, SystemBench::<Runtime>]
-		[pallet_balances, Balances]
-		[pallet_session, SessionBench::<Runtime>]
 		[pallet_timestamp, Timestamp]
+		[pallet_sudo, Sudo]
+		[pallet_utility, Utility]
+		[pallet_multisig, Multisig]
+		[pallet_proxy, Proxy]
+
+		// Monetary stuff.
+		[pallet_balances, Balances]
+		[pallet_vesting, Vesting]
+
+		// Collator support.
+		[pallet_session, SessionBench::<Runtime>]
+		[pallet_parachain_staking, ParachainStaking]
+
+		// XCM helpers.
 		[cumulus_pallet_xcmp_queue, XcmpQueue]
+		[pallet_xcm, PolkadotXcm]
+
+		// Governance
+		[pallet_treasury, Treasury]
+		[pallet_democracy, Democracy]
+		[pallet_collective, Council]
+		[pallet_collective, TechnicalCommittee]
+		[pallet_elections_phragmen, Elections]
+		[pallet_preimage, Preimage]
+		[pallet_scheduler, Scheduler]
+
+		// Oracle
+		[pallet_membership, OracleProvidersMembership]
+		//[orml_oracle, Oracle]
 	);
 }
 

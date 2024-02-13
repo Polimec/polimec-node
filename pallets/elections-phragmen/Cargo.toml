@@ -1,10 +1,10 @@
 [package]
 name = "pallet-elections-phragmen"
-version = "5.0.0-dev"
+version.workspace = true
 authors.workspace = true
 edition.workspace = true
-license = "Apache-2.0"
-homepage = "https://substrate.io"
+license-file.workspace = true
+homepage.workspace = true
 repository.workspace = true
 description = "FRAME pallet based on seq-Phragmén election method."
 readme = "README.md"

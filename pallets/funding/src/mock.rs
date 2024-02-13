@@ -351,13 +351,13 @@ impl Config for TestRuntime {
 	type FeeBrackets = FeeBrackets;
 	type FundingCurrency = ForeignAssets;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
-	// Low value to simplify the tests
 	type MaxBidsPerUser = ConstU32<4>;
 	type MaxCapacityThresholds = MaxCapacityThresholds;
 	type MaxContributionsPerUser = ConstU32<4>;
 	type MaxEvaluationsPerUser = ConstU32<4>;
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
-	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
+	type MaxProjectsToUpdateInsertionAttempts = ConstU32<10>;
+	type MaxProjectsToUpdatePerBlock = ConstU32<5>;
 	type Multiplier = Multiplier;
 	type NativeCurrency = Balances;
 	type PalletId = FundingPalletId;

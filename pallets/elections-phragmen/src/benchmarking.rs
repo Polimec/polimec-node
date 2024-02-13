@@ -24,14 +24,12 @@ use frame_system::RawOrigin;
 
 use crate::Pallet as Elections;
 
-const BALANCE_FACTOR: u32 = 250;
-
 /// grab new account with infinite balance.
 fn endowed_account<T: Config>(name: &'static str, index: u32) -> T::AccountId {
 	let account: T::AccountId = account(name, index, 0);
 	// Fund each account with at-least their stake but still a sane amount as to not mess up
 	// the vote calculation.
-	let amount = default_stake::<T>(T::MaxVoters::get()) * BalanceOf::<T>::from(BALANCE_FACTOR);
+	let amount = default_stake::<T>(T::MaxVoters::get()) * T::CandidacyBond::get();
 	let _ = T::Currency::set_balance(&account, amount);
 	// important to increase the total issuance since T::CurrencyToVote will need it to be sane for
 	// phragmen to work.

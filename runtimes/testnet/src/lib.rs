@@ -25,7 +25,7 @@ use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime, ord_parameter_types, parameter_types,
 	traits::{
-		fungible::Credit, tokens, AsEnsureOriginWithArg, ConstU32, Currency, EitherOfDiverse, Everything, PrivilegeCmp,
+		fungible::{Credit, Inspect}, tokens, AsEnsureOriginWithArg, ConstU32, Currency, EitherOfDiverse, Everything, PrivilegeCmp,
 		WithdrawReasons,
 	},
 	weights::{ConstantMultiplier, Weight},
@@ -55,6 +55,7 @@ use sp_runtime::{
 };
 
 use pallet_oracle_ocw::types::AssetName;
+use pallet_democracy::GetElectorate;
 use sp_std::{cmp::Ordering, prelude::*};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -433,6 +434,16 @@ impl pallet_elections_phragmen::Config for Runtime {
 	type WeightInfo = pallet_elections_phragmen::weights::SubstrateWeight<Runtime>;
 }
 
+pub struct Electorate;
+impl GetElectorate<Balance> for Electorate {
+	fn get_electorate() -> Balance {
+		let total_issuance = Balances::total_issuance();
+		let growth_treasury_balance = Balances::balance(&Treasury::account_id());
+		let protocol_treasury_balance = Balances::balance(&PayMaster::get());
+		total_issuance.saturating_sub(growth_treasury_balance).saturating_sub(protocol_treasury_balance)
+	}
+}
+
 impl pallet_democracy::Config for Runtime {
 	type BlacklistOrigin = EnsureRoot<AccountId>;
 	// To cancel a proposal before it has been passed, the technical committee must be unanimous or
@@ -444,6 +455,7 @@ impl pallet_democracy::Config for Runtime {
 	// To cancel a proposal which has been passed, 2/3 of the council must agree to it.
 	type CancellationOrigin = pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 2, 3>;
 	type CooloffPeriod = CooloffPeriod;
+	type Electorate = Electorate;
 	type EnactmentPeriod = EnactmentPeriod;
 	/// A unanimous council can have the next scheduled referendum be a straight default-carries
 	/// (NTB) vote.
@@ -632,6 +644,7 @@ impl pallet_funding::Config for Runtime {
 	type MaxContributionsPerUser = ConstU32<256>;
 	type MaxEvaluationsPerUser = ConstU32<256>;
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
+	type MaxProjectsToUpdateInsertionAttempts = ConstU32<100>;
 	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
 	type Multiplier = pallet_funding::types::Multiplier;
 	type NativeCurrency = Balances;

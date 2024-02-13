@@ -45,7 +45,7 @@
 //! |---------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------|
 //! | Creation                  | Issuer creates a project with the [`create()`](Pallet::create) extrinsic.                                                                                                                                                                                                                                                                                                                                   | [`Application`](ProjectStatus::Application)                         |
 //! | Evaluation Start          | Issuer starts the evaluation round with the [`start_evaluation()`](Pallet::start_evaluation) extrinsic.                                                                                                                                                                                                                                                                                                     | [`EvaluationRound`](ProjectStatus::EvaluationRound)                 |
-//! | Evaluation Submissions    | Evaluators assess the project information, and if they think it is good enough to get funding, they bond Polimec's native token PLMC with [`bond_evaluation()`](Pallet::bond_evaluation)                                                                                                                                                                                                                    | [`EvaluationRound`](ProjectStatus::EvaluationRound)                 |
+//! | Evaluation Submissions    | Evaluators assess the project information, and if they think it is good enough to get funding, they bond Polimec's native token PLMC with [`bond_evaluation()`](Pallet::evaluate)                                                                                                                                                                                                                    | [`EvaluationRound`](ProjectStatus::EvaluationRound)                 |
 //! | Evaluation End            | Evaluation round ends automatically after the [`Config::EvaluationDuration`] has passed. This is achieved by the [`on_initialize()`](Pallet::on_initialize) function.                                                                                                                                                                                                                                       | [`AuctionInitializePeriod`](ProjectStatus::AuctionInitializePeriod) |
 //! | Auction Start             | Issuer starts the auction round within the [`Config::AuctionInitializePeriodDuration`], by calling the extrinsic [`start_auction()`](Pallet::start_auction)                                                                                                                                                                                                                                                 | [`AuctionRound(English)`](ProjectStatus::AuctionRound)              |
 //! | Bid Submissions           | Institutional and Professional users can place bids with [`bid()`](Pallet::bid) by choosing their desired token price, amount, and multiplier (for vesting). Their bids are guaranteed to be considered                                                                                                                                                                                                     | [`AuctionRound(English)`](ProjectStatus::AuctionRound)              |                                                                                                                                                                                                                |                                                                     |
@@ -66,7 +66,7 @@
 //! * [`edit_metadata`](Pallet::edit_metadata) : Submit a new Hash of the project metadata.
 //! * [`start_evaluation`](Pallet::start_evaluation) : Start the Evaluation round of a project.
 //! * [`start_auction`](Pallet::start_auction) : Start the English Auction round of a project.
-//! * [`bond_evaluation`](Pallet::bond_evaluation) : Bond PLMC on a project in the evaluation stage. A sort of "bet" that you think the project will be funded
+//! * [`bond_evaluation`](Pallet::evaluate) : Bond PLMC on a project in the evaluation stage. A sort of "bet" that you think the project will be funded
 //! * [`failed_evaluation_unbond_for`](Pallet::failed_evaluation_unbond_for) : Unbond the PLMC bonded on a project's evaluation round for any user, if the project failed the evaluation.
 //! * [`bid`](Pallet::bid) : Perform a bid during the English or Candle Auction Round.
 //! * [`contribute`](Pallet::contribute) : Buy contribution tokens if a project during the Community or Remainder round
@@ -243,13 +243,17 @@ pub mod pallet {
 	use super::*;
 	use crate::traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation};
 	use frame_support::{
+		dispatch::PostDispatchInfo,
 		pallet_prelude::*,
 		traits::{OnFinalize, OnIdle, OnInitialize},
 	};
 	use frame_system::pallet_prelude::*;
 	use local_macros::*;
 	use sp_arithmetic::Percent;
-	use sp_runtime::traits::{Convert, ConvertBack};
+	use sp_runtime::{
+		traits::{Convert, ConvertBack},
+		DispatchErrorWithPostInfo,
+	};
 
 	#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 	use crate::traits::SetPrices;
@@ -385,6 +389,7 @@ pub mod pallet {
 		type MaxProjectsToUpdatePerBlock: Get<u32>;
 
 		/// How many distinct evaluations per user per project
+		#[pallet::constant]
 		type MaxEvaluationsPerUser: Get<u32>;
 
 		/// The maximum number of bids per user per project
@@ -402,8 +407,10 @@ pub mod pallet {
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: weights::WeightInfo;
 
+		#[pallet::constant]
 		type FeeBrackets: Get<Vec<(Percent, <Self as Config>::Balance)>>;
 
+		#[pallet::constant]
 		type EvaluationSuccessThreshold: Get<Percent>;
 
 		type Vesting: polimec_common::ReleaseSchedule<
@@ -413,12 +420,16 @@ pub mod pallet {
 			Moment = BlockNumberFor<Self>,
 		>;
 		/// For now we expect 3 days until the project is automatically accepted. Timeline decided by MiCA regulations.
+		#[pallet::constant]
 		type ManualAcceptanceDuration: Get<BlockNumberFor<Self>>;
 		/// For now we expect 4 days from acceptance to settlement due to MiCA regulations.
+		#[pallet::constant]
 		type SuccessToSettlementTime: Get<BlockNumberFor<Self>>;
 
+		#[pallet::constant]
 		type EvaluatorSlash: Get<Percent>;
 
+		#[pallet::constant]
 		type TreasuryAccount: Get<AccountIdOf<Self>>;
 
 		/// Convert 24 hours as FixedU128, to the corresponding amount of blocks in the same type as frame_system
@@ -426,16 +437,28 @@ pub mod pallet {
 
 		type BlockNumberToBalance: Convert<BlockNumberFor<Self>, BalanceOf<Self>>;
 
+		#[pallet::constant]
 		type PolimecReceiverInfo: Get<PalletInfo>;
 
 		/// Range of max_message_size values for the hrmp config where we accept the incoming channel request
+		#[pallet::constant]
 		type MaxMessageSizeThresholds: Get<(u32, u32)>;
+
 		/// Range of max_capacity_thresholds values for the hrmp config where we accept the incoming channel request
+		#[pallet::constant]
 		type MaxCapacityThresholds: Get<(u32, u32)>;
+
 		/// max_capacity config required for the channel from polimec to the project
+		#[pallet::constant]
 		type RequiredMaxCapacity: Get<u32>;
+
 		/// max_message_size config required for the channel from polimec to the project
+		#[pallet::constant]
 		type RequiredMaxMessageSize: Get<u32>;
+
+		/// max iterations for trying to insert a project on the projects_to_update storage
+		#[pallet::constant]
+		type MaxProjectsToUpdateInsertionAttempts: Get<u32>;
 	}
 
 	#[pallet::storage]
@@ -928,6 +951,10 @@ pub mod pallet {
 		NoFutureDepositHeld,
 		/// The issuer doesn't have enough funds (ExistentialDeposit), to create the escrow account
 		NotEnoughFundsForEscrowCreation,
+		/// Too many attempts to insert project in to ProjectsToUpdate storage
+		TooManyInsertionAttempts,
+		/// Reached bid limit for this user on this project
+		TooManyBids,
 	}
 
 	#[pallet::call]
@@ -955,51 +982,64 @@ pub mod pallet {
 
 		/// Starts the evaluation round of a project. It needs to be called by the project issuer.
 		#[pallet::call_index(2)]
-		#[pallet::weight(WeightInfoOf::<T>::start_evaluation())]
-		pub fn start_evaluation(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
+		#[pallet::weight(WeightInfoOf::<T>::start_evaluation(<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1))]
+		pub fn start_evaluation(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 			let issuer = ensure_signed(origin)?;
-			Self::do_evaluation_start(issuer, project_id)
+			Self::do_start_evaluation(issuer, project_id)
 		}
 
 		/// Starts the auction round for a project. From the next block forward, any professional or
 		/// institutional user can set bids for a token_amount/token_price pair.
 		/// Any bids from this point until the candle_auction starts, will be considered as valid.
 		#[pallet::call_index(3)]
-		#[pallet::weight(WeightInfoOf::<T>::start_auction())]
-		pub fn start_auction(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
+		#[pallet::weight(WeightInfoOf::<T>::start_auction_manually(<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1, 10_000u32))]
+		pub fn start_auction(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 			let issuer = ensure_signed(origin)?;
 			Self::do_english_auction(issuer, project_id)
 		}
 
 		/// Bond PLMC for a project in the evaluation stage
 		#[pallet::call_index(4)]
-		#[pallet::weight(WeightInfoOf::<T>::bond_evaluation())]
-		pub fn bond_evaluation(
+		#[pallet::weight(WeightInfoOf::<T>::evaluation_over_limit())]
+		pub fn evaluate(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			#[pallet::compact] usd_amount: BalanceOf<T>,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let evaluator = ensure_signed(origin)?;
 			Self::do_evaluate(&evaluator, project_id, usd_amount)
 		}
 
 		/// Bid for a project in the Auction round
 		#[pallet::call_index(5)]
-		#[pallet::weight(WeightInfoOf::<T>::bid())]
+		#[pallet::weight(WeightInfoOf::<T>::bid_no_ct_deposit(
+			// Last bid possible
+			<T as Config>::MaxBidsPerUser::get() - 1,
+			// Assuming the current bucket is full, and has a price higher than the minimum.
+			// This user is buying 100% of the bid allocation, since each bucket has 10% of the allocation at a 10% increase
+			10,
+		))]
 		pub fn bid(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			#[pallet::compact] amount: BalanceOf<T>,
 			multiplier: T::Multiplier,
 			asset: AcceptedFundingAsset,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let bidder = ensure_signed(origin)?;
 			Self::do_bid(&bidder, project_id, amount, multiplier, asset)
 		}
 
 		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
 		#[pallet::call_index(6)]
-		#[pallet::weight(WeightInfoOf::<T>::contribute())]
+		#[pallet::weight(WeightInfoOf::<T>::second_to_limit_contribution_ends_round(
+			// Last contribution possible before having to remove an old lower one
+			<T as Config>::MaxContributionsPerUser::get() -1,
+			// Since we didn't remove any previous lower contribution, we can buy all remaining CTs and try to move to the next phase
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			// Assumed upper bound for deletion attempts for the previous scheduled transition
+			10_000u32,
+		))]
 		pub fn contribute(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
@@ -1037,37 +1077,37 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(9)]
-		#[pallet::weight(WeightInfoOf::<T>::evaluation_reward_payout_for())]
+		#[pallet::weight(WeightInfoOf::<T>::evaluation_reward_payout_for_with_ct_account_creation())]
 		pub fn evaluation_reward_payout_for(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			evaluator: AccountIdOf<T>,
 			bond_id: u32,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let caller = ensure_signed(origin)?;
 			Self::do_evaluation_reward_payout_for(&caller, project_id, &evaluator, bond_id)
 		}
 
 		#[pallet::call_index(10)]
-		#[pallet::weight(WeightInfoOf::<T>::bid_ct_mint_for())]
+		#[pallet::weight(WeightInfoOf::<T>::bid_ct_mint_for_with_ct_account_creation())]
 		pub fn bid_ct_mint_for(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			bidder: AccountIdOf<T>,
 			bid_id: u32,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let caller = ensure_signed(origin)?;
 			Self::do_bid_ct_mint_for(&caller, project_id, &bidder, bid_id)
 		}
 
 		#[pallet::call_index(11)]
-		#[pallet::weight(WeightInfoOf::<T>::contribution_ct_mint_for())]
+		#[pallet::weight(WeightInfoOf::<T>::contribution_ct_mint_for_with_ct_account_creation())]
 		pub fn contribution_ct_mint_for(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			contributor: AccountIdOf<T>,
 			contribution_id: u32,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let caller = ensure_signed(origin)?;
 			Self::do_contribution_ct_mint_for(&caller, project_id, &contributor, contribution_id)
 		}
@@ -1121,12 +1161,15 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(16)]
-		#[pallet::weight(WeightInfoOf::<T>::decide_project_outcome())]
+		#[pallet::weight(WeightInfoOf::<T>::decide_project_outcome(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			10_000u32
+		))]
 		pub fn decide_project_outcome(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			outcome: FundingOutcomeDecision,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let caller = ensure_signed(origin)?;
 			Self::do_decide_project_outcome(caller, project_id, outcome)
 		}
@@ -1241,7 +1284,7 @@ pub mod pallet {
 				match update_type {
 					// EvaluationRound -> AuctionInitializePeriod | EvaluationFailed
 					UpdateType::EvaluationEnd => {
-						unwrap_result_or_skip!(Self::do_evaluation_end(project_id), project_id);
+						unwrap_result_or_skip!(Self::do_evaluation_end(project_id), project_id, |e| e);
 					},
 
 					// AuctionInitializePeriod -> AuctionRound(AuctionPhase::English)
@@ -1249,36 +1292,37 @@ pub mod pallet {
 					UpdateType::EnglishAuctionStart => {
 						unwrap_result_or_skip!(
 							Self::do_english_auction(T::PalletId::get().into_account_truncating(), project_id),
-							project_id
+							project_id,
+							|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
 						);
 					},
 
 					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
 					UpdateType::CandleAuctionStart => {
-						unwrap_result_or_skip!(Self::do_candle_auction(project_id), project_id);
+						unwrap_result_or_skip!(Self::do_candle_auction(project_id), project_id, |e| e);
 					},
 
 					// AuctionRound(AuctionPhase::Candle) -> CommunityRound
 					UpdateType::CommunityFundingStart => {
-						unwrap_result_or_skip!(Self::do_community_funding(project_id), project_id);
+						unwrap_result_or_skip!(Self::do_community_funding(project_id), project_id, |e| e);
 					},
 
 					// CommunityRound -> RemainderRound
 					UpdateType::RemainderFundingStart => {
-						unwrap_result_or_skip!(Self::do_remainder_funding(project_id), project_id)
+						unwrap_result_or_skip!(Self::do_remainder_funding(project_id), project_id, |e| e)
 					},
 
 					// CommunityRound || RemainderRound -> FundingEnded
 					UpdateType::FundingEnd => {
-						unwrap_result_or_skip!(Self::do_end_funding(project_id), project_id)
+						unwrap_result_or_skip!(Self::do_end_funding(project_id), project_id, |e| e)
 					},
 
 					UpdateType::ProjectDecision(decision) => {
-						unwrap_result_or_skip!(Self::do_project_decision(project_id, decision), project_id)
+						unwrap_result_or_skip!(Self::do_project_decision(project_id, decision), project_id, |e| e)
 					},
 
 					UpdateType::StartSettlement => {
-						unwrap_result_or_skip!(Self::do_start_settlement(project_id), project_id)
+						unwrap_result_or_skip!(Self::do_start_settlement(project_id), project_id, |e| e)
 					},
 				}
 			}
@@ -1428,11 +1472,11 @@ pub mod local_macros {
 	/// used to unwrap storage values that can be Err in places where an error cannot be returned,
 	/// but an event should be emitted, and skip to the next iteration of a loop
 	macro_rules! unwrap_result_or_skip {
-		($option:expr, $project_id:expr) => {
+		($option:expr, $project_id:expr, $error_handler:expr) => {
 			match $option {
 				Ok(val) => val,
 				Err(err) => {
-					Self::deposit_event(Event::TransitionError { project_id: $project_id, error: err });
+					Self::deposit_event(Event::TransitionError { project_id: $project_id, error: $error_handler(err) });
 					continue
 				},
 			}
