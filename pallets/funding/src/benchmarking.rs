@@ -777,11 +777,11 @@ mod benchmarks {
 		let existential_deposits: Vec<UserToPLMCBalance<T>> = vec![bidder.clone()].existential_deposits();
 		let ct_account_deposits = vec![bidder.clone()].ct_account_deposits();
 
-		let usdt_for_existing_bids: Vec<UserToStatemintAsset<T>> =
+		let usdt_for_existing_bids: Vec<UserToForeignAssets<T>> =
 			BenchInstantiator::<T>::calculate_auction_funding_asset_spent(&existing_bids_post_bucketing, None);
 		let escrow_account = Pallet::<T>::fund_account_id(project_id);
 		let prev_total_escrow_usdt_locked =
-			inst.get_free_statemint_asset_balances_for(usdt_id(), vec![escrow_account.clone()]);
+			inst.get_free_foreign_asset_balances_for(usdt_id(), vec![escrow_account.clone()]);
 
 		inst.mint_plmc_to(plmc_for_existing_bids.clone());
 		inst.mint_plmc_to(existential_deposits.clone());
@@ -797,10 +797,10 @@ mod benchmarks {
 		let mut maybe_filler_bid = None;
 		let new_bidder = account::<AccountIdOf<T>>("new_bidder", 0, 0);
 
-		let mut usdt_for_filler_bidder = vec![UserToStatemintAsset::<T>::new(
+		let mut usdt_for_filler_bidder = vec![UserToForeignAssets::<T>::new(
 			new_bidder.clone(),
 			Zero::zero(),
-			AcceptedFundingAsset::USDT.to_statemint_id(),
+			AcceptedFundingAsset::USDT.to_assethub_id(),
 		)];
 		if do_perform_bid_calls > 0 {
 			let current_bucket = Buckets::<T>::get(project_id).unwrap();
@@ -840,7 +840,7 @@ mod benchmarks {
 		assert_eq!(extrinsic_bids_post_bucketing.len(), (do_perform_bid_calls as usize).max(1usize));
 		let plmc_for_extrinsic_bids: Vec<UserToPLMCBalance<T>> =
 			BenchInstantiator::<T>::calculate_auction_plmc_spent(&extrinsic_bids_post_bucketing, None);
-		let usdt_for_extrinsic_bids: Vec<UserToStatemintAsset<T>> =
+		let usdt_for_extrinsic_bids: Vec<UserToForeignAssets<T>> =
 			BenchInstantiator::<T>::calculate_auction_funding_asset_spent(&extrinsic_bids_post_bucketing, None);
 		inst.mint_plmc_to(plmc_for_extrinsic_bids.clone());
 		inst.mint_statemint_asset_to(usdt_for_extrinsic_bids.clone());
@@ -954,7 +954,7 @@ mod benchmarks {
 
 		let escrow_account = Pallet::<T>::fund_account_id(project_id);
 		let locked_usdt =
-			inst.get_free_statemint_asset_balances_for(usdt_id(), vec![escrow_account.clone()])[0].asset_amount;
+			inst.get_free_foreign_asset_balances_for(usdt_id(), vec![escrow_account.clone()])[0].asset_amount;
 		assert_eq!(locked_usdt, total_usdt_locked);
 
 		let free_usdt = inst.get_free_foreign_asset_balances_for(usdt_id(), vec![bidder])[0].asset_amount;
@@ -1142,8 +1142,7 @@ mod benchmarks {
 			plmc_for_extrinsic_contribution.accounts().ct_account_deposits();
 
 		let escrow_account = Pallet::<T>::fund_account_id(project_id);
-		let prev_total_usdt_locked =
-			inst.get_free_statemint_asset_balances_for(usdt_id(), vec![escrow_account.clone()]);
+		let prev_total_usdt_locked = inst.get_free_foreign_asset_balances_for(usdt_id(), vec![escrow_account.clone()]);
 
 		inst.mint_plmc_to(plmc_for_existing_contributions.clone());
 		inst.mint_plmc_to(plmc_for_extrinsic_contribution.clone());
@@ -1256,7 +1255,7 @@ mod benchmarks {
 
 		let escrow_account = Pallet::<T>::fund_account_id(project_id);
 		let locked_usdt =
-			inst.get_free_statemint_asset_balances_for(usdt_id(), vec![escrow_account.clone()])[0].asset_amount;
+			inst.get_free_foreign_asset_balances_for(usdt_id(), vec![escrow_account.clone()])[0].asset_amount;
 		assert_eq!(locked_usdt, total_usdt_locked);
 
 		let free_usdt = inst.get_free_foreign_asset_balances_for(usdt_id(), vec![contributor.clone()])[0].asset_amount;
