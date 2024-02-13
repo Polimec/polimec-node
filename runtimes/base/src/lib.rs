@@ -26,8 +26,8 @@ use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
-		fungible::{Credit, Inspect}, tokens, AsEnsureOriginWithArg, ConstU32, Contains, EitherOfDiverse, InstanceFilter,
-		PrivilegeCmp,
+		fungible::{Credit, Inspect},
+		tokens, AsEnsureOriginWithArg, ConstU32, Contains, EitherOfDiverse, InstanceFilter, PrivilegeCmp,
 	},
 	weights::{ConstantMultiplier, Weight},
 };
@@ -56,7 +56,9 @@ use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
 
 pub use pallet_parachain_staking;
 // Polimec Shared Imports
-pub use shared_configuration::{assets::*, currency::*, fee::*, funding::*, governance::*, proxy::*, staking::*, weights::*};
+pub use shared_configuration::{
+	assets::*, currency::*, fee::*, funding::*, governance::*, proxy::*, staking::*, weights::*,
+};
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
 

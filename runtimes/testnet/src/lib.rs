@@ -25,8 +25,8 @@ use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime, ord_parameter_types, parameter_types,
 	traits::{
-		fungible::{Credit, Inspect}, tokens, AsEnsureOriginWithArg, ConstU32, Currency, EitherOfDiverse, Everything, PrivilegeCmp,
-		WithdrawReasons,
+		fungible::{Credit, Inspect},
+		tokens, AsEnsureOriginWithArg, ConstU32, Currency, EitherOfDiverse, Everything, PrivilegeCmp, WithdrawReasons,
 	},
 	weights::{ConstantMultiplier, Weight},
 };
@@ -54,8 +54,8 @@ use sp_runtime::{
 	ApplyExtrinsicResult, FixedU128, MultiAddress, SaturatedConversion,
 };
 
-use pallet_oracle_ocw::types::AssetName;
 use pallet_democracy::GetElectorate;
+use pallet_oracle_ocw::types::AssetName;
 use sp_std::{cmp::Ordering, prelude::*};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;

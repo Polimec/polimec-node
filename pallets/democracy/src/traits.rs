@@ -10,9 +10,9 @@
 // whichever suits your needs.
 
 pub trait GetElectorate<Balance> {
-    /// Calculate the total size of the electorate (tokens in circulation that might be used
-    /// for voting) in terms of total Balance.
-    /// Used for the referendum approval threshold calculation.
-    /// Example: Total number of tokens in the system - total number of tokens in the treasury.
-    fn get_electorate() -> Balance;
+	/// Calculate the total size of the electorate (tokens in circulation that might be used
+	/// for voting) in terms of total Balance.
+	/// Used for the referendum approval threshold calculation.
+	/// Example: Total number of tokens in the system - total number of tokens in the treasury.
+	fn get_electorate() -> Balance;
 }

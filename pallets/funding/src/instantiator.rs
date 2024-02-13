@@ -1126,9 +1126,9 @@ impl<
 		assert!(
 			matches!(
 				project_details.status,
-				ProjectStatus::FundingSuccessful
-					| ProjectStatus::FundingFailed
-					| ProjectStatus::AwaitingProjectDecision
+				ProjectStatus::FundingSuccessful |
+					ProjectStatus::FundingFailed |
+					ProjectStatus::AwaitingProjectDecision
 			),
 			"Project should be in Finished status"
 		);
@@ -1245,9 +1245,9 @@ impl<
 			.clone()
 			.into_iter()
 			.filter(|account| {
-				evaluations.accounts().contains(account).not()
-					&& bids.accounts().contains(account).not()
-					&& community_contributions.accounts().contains(account).not()
+				evaluations.accounts().contains(account).not() &&
+					bids.accounts().contains(account).not() &&
+					community_contributions.accounts().contains(account).not()
 			})
 			.collect_vec();
 		let asset_id = remainder_contributions[0].asset.to_assethub_id();
@@ -1322,10 +1322,10 @@ impl<
 
 			assert_eq!(
 				project_details.remaining_contribution_tokens.0 + project_details.remaining_contribution_tokens.1,
-				project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1
-					- auction_bought_tokens
-					- community_bought_tokens
-					- remainder_bought_tokens,
+				project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1 -
+					auction_bought_tokens -
+					community_bought_tokens -
+					remainder_bought_tokens,
 				"Remaining CTs are incorrect"
 			);
 		}
@@ -1352,7 +1352,7 @@ impl<
 				community_contributions,
 				remainder_contributions,
 			),
-			ProjectStatus::RemainderRound => {
+			ProjectStatus::RemainderRound =>
 				self.create_remainder_contributing_project(
 					project_metadata,
 					issuer,
@@ -1360,14 +1360,11 @@ impl<
 					bids,
 					community_contributions,
 				)
-				.0
-			},
-			ProjectStatus::CommunityRound => {
-				self.create_community_contributing_project(project_metadata, issuer, evaluations, bids).0
-			},
-			ProjectStatus::AuctionRound(AuctionPhase::English) => {
-				self.create_auctioning_project(project_metadata, issuer, evaluations)
-			},
+				.0,
+			ProjectStatus::CommunityRound =>
+				self.create_community_contributing_project(project_metadata, issuer, evaluations, bids).0,
+			ProjectStatus::AuctionRound(AuctionPhase::English) =>
+				self.create_auctioning_project(project_metadata, issuer, evaluations),
 			ProjectStatus::EvaluationRound => self.create_evaluating_project(project_metadata, issuer),
 			ProjectStatus::Application => self.create_new_project(project_metadata, issuer),
 			_ => panic!("unsupported project creation in that status"),
@@ -2004,9 +2001,9 @@ pub mod async_features {
 		assert!(
 			matches!(
 				project_details.status,
-				ProjectStatus::FundingSuccessful
-					| ProjectStatus::FundingFailed
-					| ProjectStatus::AwaitingProjectDecision
+				ProjectStatus::FundingSuccessful |
+					ProjectStatus::FundingFailed |
+					ProjectStatus::AwaitingProjectDecision
 			),
 			"Project should be in Finished status"
 		);
@@ -2071,9 +2068,9 @@ pub mod async_features {
 			.clone()
 			.into_iter()
 			.filter(|account| {
-				evaluations.accounts().contains(account).not()
-					&& bids.accounts().contains(account).not()
-					&& community_contributions.accounts().contains(account).not()
+				evaluations.accounts().contains(account).not() &&
+					bids.accounts().contains(account).not() &&
+					community_contributions.accounts().contains(account).not()
 			})
 			.collect_vec();
 		let asset_id = remainder_contributions[0].asset.to_assethub_id();
@@ -2166,10 +2163,10 @@ pub mod async_features {
 
 			assert_eq!(
 				project_details.remaining_contribution_tokens.0 + project_details.remaining_contribution_tokens.1,
-				project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1
-					- auction_bought_tokens
-					- community_bought_tokens
-					- remainder_bought_tokens,
+				project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1 -
+					auction_bought_tokens -
+					community_bought_tokens -
+					remainder_bought_tokens,
 				"Remaining CTs are incorrect"
 			);
 		}
@@ -2187,7 +2184,7 @@ pub mod async_features {
 		test_project_params: TestProjectParams<T>,
 	) -> ProjectId {
 		match test_project_params.expected_state {
-			ProjectStatus::FundingSuccessful => {
+			ProjectStatus::FundingSuccessful =>
 				async_create_finished_project(
 					instantiator,
 					block_orchestrator,
@@ -2198,9 +2195,8 @@ pub mod async_features {
 					test_project_params.community_contributions,
 					test_project_params.remainder_contributions,
 				)
-				.await
-			},
-			ProjectStatus::RemainderRound => {
+				.await,
+			ProjectStatus::RemainderRound =>
 				async_create_remainder_contributing_project(
 					instantiator,
 					block_orchestrator,
@@ -2211,9 +2207,8 @@ pub mod async_features {
 					test_project_params.community_contributions,
 				)
 				.map(|(project_id, _)| project_id)
-				.await
-			},
-			ProjectStatus::CommunityRound => {
+				.await,
+			ProjectStatus::CommunityRound =>
 				async_create_community_contributing_project(
 					instantiator,
 					block_orchestrator,
@@ -2223,9 +2218,8 @@ pub mod async_features {
 					test_project_params.bids,
 				)
 				.map(|(project_id, _)| project_id)
-				.await
-			},
-			ProjectStatus::AuctionRound(AuctionPhase::English) => {
+				.await,
+			ProjectStatus::AuctionRound(AuctionPhase::English) =>
 				async_create_auctioning_project(
 					instantiator,
 					block_orchestrator,
@@ -2233,15 +2227,12 @@ pub mod async_features {
 					test_project_params.issuer,
 					test_project_params.evaluations,
 				)
-				.await
-			},
-			ProjectStatus::EvaluationRound => {
+				.await,
+			ProjectStatus::EvaluationRound =>
 				async_create_evaluating_project(instantiator, test_project_params.metadata, test_project_params.issuer)
-					.await
-			},
-			ProjectStatus::Application => {
-				async_create_new_project(instantiator, test_project_params.metadata, test_project_params.issuer).await
-			},
+					.await,
+			ProjectStatus::Application =>
+				async_create_new_project(instantiator, test_project_params.metadata, test_project_params.issuer).await,
 			_ => panic!("unsupported project creation in that status"),
 		}
 	}
@@ -2259,9 +2250,9 @@ pub mod async_features {
 		let time_to_evaluation: BlockNumberFor<T> = time_to_new_project + Zero::zero();
 		// we immediately start the auction, so we dont wait for T::AuctionInitializePeriodDuration.
 		let time_to_auction: BlockNumberFor<T> = time_to_evaluation + <T as Config>::EvaluationDuration::get();
-		let time_to_community: BlockNumberFor<T> = time_to_auction
-			+ <T as Config>::EnglishAuctionDuration::get()
-			+ <T as Config>::CandleAuctionDuration::get();
+		let time_to_community: BlockNumberFor<T> = time_to_auction +
+			<T as Config>::EnglishAuctionDuration::get() +
+			<T as Config>::CandleAuctionDuration::get();
 		let time_to_remainder: BlockNumberFor<T> = time_to_community + <T as Config>::CommunityFundingDuration::get();
 		let time_to_finish: BlockNumberFor<T> = time_to_remainder + <T as Config>::RemainderFundingDuration::get();
 		let mut inst = mutex_inst.lock().await;
@@ -2734,8 +2725,8 @@ impl<T: Config> BidInfoFilter<T> {
 		if self.funding_asset.is_some() && self.funding_asset.unwrap() != bid.funding_asset {
 			return false;
 		}
-		if self.funding_asset_amount_locked.is_some()
-			&& self.funding_asset_amount_locked.unwrap() != bid.funding_asset_amount_locked
+		if self.funding_asset_amount_locked.is_some() &&
+			self.funding_asset_amount_locked.unwrap() != bid.funding_asset_amount_locked
 		{
 			return false;
 		}

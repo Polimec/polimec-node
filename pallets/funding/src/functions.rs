@@ -191,15 +191,14 @@ impl<T: Config> Pallet<T> {
 			(&project_id, UpdateType::EvaluationEnd),
 		) {
 			Ok(insertions) => insertions,
-			Err(insertions) => {
+			Err(insertions) =>
 				return Err(DispatchErrorWithPostInfo {
 					post_info: PostDispatchInfo {
 						actual_weight: Some(WeightInfoOf::<T>::start_evaluation(insertions)),
 						pays_fee: Pays::Yes,
 					},
 					error: Error::<T>::TooManyInsertionAttempts.into(),
-				})
-			},
+				}),
 		};
 
 		// * Emit events *
@@ -381,7 +380,7 @@ impl<T: Config> Pallet<T> {
 				Ok(iterations) => {
 					remove_attempts = iterations;
 				},
-				Err(iterations) => {
+				Err(iterations) =>
 					return Err(DispatchErrorWithPostInfo {
 						post_info: PostDispatchInfo {
 							actual_weight: Some(WeightInfoOf::<T>::start_auction_manually(
@@ -391,8 +390,7 @@ impl<T: Config> Pallet<T> {
 							pays_fee: Pays::Yes,
 						},
 						error: Error::<T>::ProjectNotInUpdateStore.into(),
-					})
-				},
+					}),
 			}
 		}
 		// Schedule for automatic transition to candle auction round
@@ -401,7 +399,7 @@ impl<T: Config> Pallet<T> {
 			Ok(iterations) => {
 				insertion_attempts = iterations;
 			},
-			Err(insertion_attempts) => {
+			Err(insertion_attempts) =>
 				return Err(DispatchErrorWithPostInfo {
 					post_info: PostDispatchInfo {
 						actual_weight: if remove_attempts == 0u32 {
@@ -412,8 +410,7 @@ impl<T: Config> Pallet<T> {
 						pays_fee: Pays::Yes,
 					},
 					error: Error::<T>::TooManyInsertionAttempts.into(),
-				})
-			},
+				}),
 		};
 
 		// * Emit events *
@@ -682,9 +679,9 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			remaining_cts == Zero::zero()
-				|| project_details.status == ProjectStatus::FundingFailed
-				|| matches!(remainder_end_block, Some(end_block) if now > end_block),
+			remaining_cts == Zero::zero() ||
+				project_details.status == ProjectStatus::FundingFailed ||
+				matches!(remainder_end_block, Some(end_block) if now > end_block),
 			Error::<T>::TooEarlyForFundingEnd
 		);
 
@@ -776,8 +773,8 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			project_details.status == ProjectStatus::FundingSuccessful
-				|| project_details.status == ProjectStatus::FundingFailed,
+			project_details.status == ProjectStatus::FundingSuccessful ||
+				project_details.status == ProjectStatus::FundingFailed,
 			Error::<T>::NotAllowed
 		);
 
@@ -1069,7 +1066,6 @@ impl<T: Config> Pallet<T> {
 		let funding_asset_usd_price =
 			T::PriceProvider::get_price(funding_asset.to_assethub_id()).ok_or(Error::<T>::PriceNotFound)?;
 
-
 		if let Some(minimum_ticket_size) = project_ticket_size.minimum {
 			// Make sure the bid amount is greater than the minimum specified by the issuer
 			ensure!(ticket_size >= minimum_ticket_size, Error::<T>::BidTooLow);
@@ -1170,8 +1166,8 @@ impl<T: Config> Pallet<T> {
 		ensure!(project_metadata.participation_currencies == asset, Error::<T>::FundingAssetNotAccepted);
 		ensure!(contributor.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
 		ensure!(
-			project_details.status == ProjectStatus::CommunityRound
-				|| project_details.status == ProjectStatus::RemainderRound,
+			project_details.status == ProjectStatus::CommunityRound ||
+				project_details.status == ProjectStatus::RemainderRound,
 			Error::<T>::AuctionNotStarted
 		);
 
@@ -1377,13 +1373,12 @@ impl<T: Config> Pallet<T> {
 		remaining_contribution_tokens: (BalanceOf<T>, BalanceOf<T>),
 	) -> BalanceOf<T> {
 		match status {
-			ProjectStatus::CommunityRound => {
+			ProjectStatus::CommunityRound =>
 				if amount <= remaining_contribution_tokens.1 {
 					amount
 				} else {
 					remaining_contribution_tokens.1
-				}
-			},
+				},
 			ProjectStatus::RemainderRound => {
 				let sum = remaining_contribution_tokens.0.saturating_add(remaining_contribution_tokens.1);
 				if sum >= amount {
@@ -1415,27 +1410,25 @@ impl<T: Config> Pallet<T> {
 
 		let remove_attempts: u32 = match Self::remove_from_update_store(&project_id) {
 			Ok(iterations) => iterations,
-			Err(iterations) => {
+			Err(iterations) =>
 				return Err(DispatchErrorWithPostInfo {
 					post_info: PostDispatchInfo {
 						actual_weight: Some(WeightInfoOf::<T>::decide_project_outcome(insertion_attempts, iterations)),
 						pays_fee: Pays::Yes,
 					},
 					error: Error::<T>::TooManyInsertionAttempts.into(),
-				})
-			},
+				}),
 		};
 		match Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::ProjectDecision(decision))) {
 			Ok(iterations) => insertion_attempts = iterations,
-			Err(iterations) => {
+			Err(iterations) =>
 				return Err(DispatchErrorWithPostInfo {
 					post_info: PostDispatchInfo {
 						actual_weight: Some(WeightInfoOf::<T>::decide_project_outcome(iterations, remove_attempts)),
 						pays_fee: Pays::Yes,
 					},
 					error: Error::<T>::TooManyInsertionAttempts.into(),
-				})
-			},
+				}),
 		};
 
 		Self::deposit_event(Event::ProjectOutcomeDecided { project_id, decision });
@@ -1574,9 +1567,9 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			(project_details.evaluation_round_info.evaluators_outcome == EvaluatorsOutcomeOf::<T>::Unchanged
-				|| released_evaluation.rewarded_or_slashed.is_some())
-				&& matches!(
+			(project_details.evaluation_round_info.evaluators_outcome == EvaluatorsOutcomeOf::<T>::Unchanged ||
+				released_evaluation.rewarded_or_slashed.is_some()) &&
+				matches!(
 					project_details.status,
 					ProjectStatus::EvaluationFailed | ProjectStatus::FundingFailed | ProjectStatus::FundingSuccessful
 				),
@@ -1630,8 +1623,8 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			evaluation.rewarded_or_slashed.is_none()
-				&& matches!(project_details.status, ProjectStatus::FundingSuccessful),
+			evaluation.rewarded_or_slashed.is_none() &&
+				matches!(project_details.status, ProjectStatus::FundingSuccessful),
 			Error::<T>::NotAllowed
 		);
 
@@ -1703,8 +1696,8 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			evaluation.rewarded_or_slashed.is_none()
-				&& matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Slashed),
+			evaluation.rewarded_or_slashed.is_none() &&
+				matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Slashed),
 			Error::<T>::NotAllowed
 		);
 
@@ -1753,9 +1746,9 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			bid.plmc_vesting_info.is_none()
-				&& project_details.status == ProjectStatus::FundingSuccessful
-				&& matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)),
+			bid.plmc_vesting_info.is_none() &&
+				project_details.status == ProjectStatus::FundingSuccessful &&
+				matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)),
 			Error::<T>::NotAllowed
 		);
 
@@ -1863,8 +1856,8 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			project_details.status == ProjectStatus::FundingFailed
-				&& matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)),
+			project_details.status == ProjectStatus::FundingFailed &&
+				matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)),
 			Error::<T>::NotAllowed
 		);
 
@@ -1910,9 +1903,9 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			project_details.status == ProjectStatus::FundingFailed
-				&& matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..))
-				&& bid.funds_released,
+			project_details.status == ProjectStatus::FundingFailed &&
+				matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)) &&
+				bid.funds_released,
 			Error::<T>::NotAllowed
 		);
 
@@ -2028,8 +2021,8 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			project_details.status == ProjectStatus::FundingSuccessful
-				&& matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)),
+			project_details.status == ProjectStatus::FundingSuccessful &&
+				matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)),
 			Error::<T>::NotAllowed
 		);
 
@@ -2174,10 +2167,10 @@ impl<T: Config> Pallet<T> {
 
 		match message {
 			Instruction::HrmpNewChannelOpenRequest { sender, max_message_size, max_capacity }
-				if max_message_size >= max_message_size_thresholds.0
-					&& max_message_size <= max_message_size_thresholds.1
-					&& max_capacity >= max_capacity_thresholds.0
-					&& max_capacity <= max_capacity_thresholds.1 =>
+				if max_message_size >= max_message_size_thresholds.0 &&
+					max_message_size <= max_message_size_thresholds.1 &&
+					max_capacity >= max_capacity_thresholds.0 &&
+					max_capacity <= max_capacity_thresholds.1 =>
 			{
 				log::trace!(target: "pallet_funding::hrmp", "HrmpNewChannelOpenRequest accepted");
 
@@ -2300,8 +2293,8 @@ impl<T: Config> Pallet<T> {
 		// * Validity checks *
 		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::NotAllowed);
 		ensure!(
-			project_details.hrmp_channel_status
-				== HRMPChannelStatus {
+			project_details.hrmp_channel_status ==
+				HRMPChannelStatus {
 					project_to_polimec: ChannelStatus::Open,
 					polimec_to_project: ChannelStatus::Open
 				},
@@ -2445,15 +2438,14 @@ impl<T: Config> Pallet<T> {
 			(
 				Response::PalletsInfo(pallets_info),
 				MigrationReadinessCheck { pallet_check: (_, CheckOutcome::AwaitingResponse), .. },
-			) => {
+			) =>
 				if pallets_info.len() == 1 && pallets_info[0] == T::PolimecReceiverInfo::get() {
 					migration_check.pallet_check.1 = CheckOutcome::Passed;
 					Self::deposit_event(Event::<T>::MigrationCheckResponseAccepted { project_id, query_id, response });
 				} else {
 					migration_check.pallet_check.1 = CheckOutcome::Failed;
 					Self::deposit_event(Event::<T>::MigrationCheckResponseRejected { project_id, query_id, response });
-				}
-			},
+				},
 			_ => return Err(Error::<T>::NotAllowed.into()),
 		};
 
@@ -2569,8 +2561,8 @@ impl<T: Config> Pallet<T> {
 				// Self::deposit_event(Event::MigrationsConfirmed { project_id });
 				Ok(())
 			},
-			Response::DispatchResult(MaybeErrorCode::Error(e))
-			| Response::DispatchResult(MaybeErrorCode::TruncatedError(e)) => {
+			Response::DispatchResult(MaybeErrorCode::Error(e)) |
+			Response::DispatchResult(MaybeErrorCode::TruncatedError(e)) => {
 				Self::mark_migrations_as_failed(unconfirmed_migrations.clone(), e);
 				Self::deposit_event(Event::MigrationsFailed {
 					project_id,

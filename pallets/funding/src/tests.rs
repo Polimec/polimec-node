@@ -851,7 +851,6 @@ mod auction_round_success {
 
 		inst.bid_for_users(project_id, bids);
 
-
 		inst.start_community_funding(project_id).unwrap();
 
 		let token_price =
