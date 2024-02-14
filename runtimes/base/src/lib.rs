@@ -813,8 +813,8 @@ impl pallet_identity::Config for Runtime {
 	type MaxAdditionalFields = MaxAdditionalFields;
 	type MaxRegistrars = MaxRegistrars;
 	type Slashed = Treasury;
-	type ForceOrigin = EnsureSigned<AccountId>;
-	type RegistrarOrigin = EnsureSigned<AccountId>;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type RegistrarOrigin = EnsureRoot<AccountId>;
 	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
 }
 
