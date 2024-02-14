@@ -269,25 +269,21 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			ProxyType::Governance => matches!(
 				c,
 				RuntimeCall::Treasury(..) |
-				RuntimeCall::Democracy(..) |
-				RuntimeCall::Council(..) |
-				RuntimeCall::TechnicalCommittee(..) |
-				RuntimeCall::Elections(..) |
-				RuntimeCall::Preimage(..) |
-				RuntimeCall::Scheduler(..)
+					RuntimeCall::Democracy(..) |
+					RuntimeCall::Council(..) |
+					RuntimeCall::TechnicalCommittee(..) |
+					RuntimeCall::Elections(..) |
+					RuntimeCall::Preimage(..) |
+					RuntimeCall::Scheduler(..)
 			),
 			ProxyType::Staking => {
-				matches!(
-					c,
-					RuntimeCall::ParachainStaking(..)
-				)
+				matches!(c, RuntimeCall::ParachainStaking(..))
 			},
-			ProxyType::IdentityJudgement => matches!(
-				c,
-				RuntimeCall::Identity(pallet_identity::Call::provide_judgement { .. })
-			),
+			ProxyType::IdentityJudgement =>
+				matches!(c, RuntimeCall::Identity(pallet_identity::Call::provide_judgement { .. })),
 		}
 	}
+
 	fn is_superset(&self, o: &Self) -> bool {
 		match (self, o) {
 			(x, y) if x == y => true,
