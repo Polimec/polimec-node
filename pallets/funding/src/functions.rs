@@ -18,12 +18,17 @@
 
 //! Functions for the Funding pallet.
 
+use super::*;
+use crate::{
+	traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation},
+	ProjectStatus::FundingSuccessful,
+};
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
 	pallet_prelude::*,
 	traits::{
-		fungible::{InspectHold, MutateHold as FungibleMutateHold},
+		fungible::{InspectHold, Mutate, MutateHold as FungibleMutateHold},
 		fungibles::{metadata::Mutate as MetadataMutate, Create, Inspect, Mutate as FungiblesMutate},
 		tokens::{Fortitude, Precision, Preservation, Restriction},
 		Get,
@@ -31,6 +36,11 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
+use jwt_compact::alg::VerifyingKey;
+use polimec_common::{
+	migration_types::{MigrationInfo, MigrationOrigin, Migrations, ParticipationType},
+	ReleaseSchedule,
+};
 use sp_arithmetic::{
 	traits::{CheckedDiv, CheckedSub, Zero},
 	Percent, Perquintill,
@@ -38,15 +48,6 @@ use sp_arithmetic::{
 use sp_runtime::traits::{Convert, ConvertBack};
 use sp_std::marker::PhantomData;
 use xcm::v3::MaxDispatchErrorLen;
-
-use crate::ProjectStatus::FundingSuccessful;
-use polimec_common::ReleaseSchedule;
-
-use crate::traits::{BondingRequirementCalculation, ProvideStatemintPrice, VestingDurationCalculation};
-use frame_support::traits::fungible::Mutate;
-use polimec_common::migration_types::{MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
-
-use super::*;
 const POLIMEC_PARA_ID: u32 = 3344u32;
 const QUERY_RESPONSE_TIME_WINDOW_BLOCKS: u32 = 20u32;
 

@@ -291,6 +291,8 @@ pub mod pallet {
 		type RuntimeOrigin: IsType<<Self as frame_system::Config>::RuntimeOrigin>
 			+ Into<Result<pallet_xcm::Origin, <Self as Config>::RuntimeOrigin>>;
 
+		type PermissionedOrigin: EnsureOrigin<Self::Origin>;
+
 		type RuntimeCall: Parameter + IsType<<Self as frame_system::Config>::RuntimeCall> + From<Call<Self>>;
 
 		/// Multiplier that decides how much PLMC needs to be bonded for a token buy/bid
@@ -934,12 +936,37 @@ pub mod pallet {
 		NotEnoughFundsForEscrowCreation,
 	}
 
+	use parachains_common::AccountId;
+	use sp_runtime::traits::BadOrigin;
+
+	/// Origin for the parachains module.
+	#[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, RuntimeDebug, MaxEncodedLen)]
+	#[pallet::origin]
+	pub enum Origin {
+		/// It comes from
+		Institutional(AccountId),
+		/// It comes from
+		Retail(AccountId),
+	}
+
+	/// Ensure that the origin `o` represents a sibling parachain.
+	/// Returns `Ok` with the parachain ID of the sibling or an `Err` otherwise.
+	pub fn ensure_institutional<OuterOrigin>(o: OuterOrigin) -> Result<AccountId, BadOrigin>
+	where
+		OuterOrigin: Into<Result<Origin, OuterOrigin>>,
+	{
+		match o.into() {
+			Ok(Origin::Institutional(t)) => Ok(t),
+			_ => Err(BadOrigin),
+		}
+	}
+
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(69)]
 		#[pallet::weight(WeightInfoOf::<T>::create())]
 		pub fn verify(origin: OriginFor<T>, jwt: jwt_compact::prelude::UntrustedToken) -> DispatchResult {
-			//let issuer = ensure_institutional(origin, jwt)?;
+			let issuer = ensure_institutional(origin)?;
 			log::trace!(target: "pallet_funding::test", "in create");
 			Ok(())
 		}
