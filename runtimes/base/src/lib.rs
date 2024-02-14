@@ -57,7 +57,7 @@ use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
 pub use pallet_parachain_staking;
 // Polimec Shared Imports
 pub use shared_configuration::{
-	assets::*, currency::*, fee::*, funding::*, governance::*, proxy::*, staking::*, weights::*,
+	assets::*, currency::*, fee::*, funding::*, governance::*, identity::*, proxy::*, staking::*, weights::*,
 };
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
@@ -803,6 +803,21 @@ impl pallet_proxy::Config for Runtime {
 	type WeightInfo = pallet_proxy::weights::SubstrateWeight<Runtime>;
 }
 
+impl pallet_identity::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type BasicDeposit = BasicDeposit;
+	type FieldDeposit = FieldDeposit;
+	type SubAccountDeposit = SubAccountDeposit;
+	type MaxSubAccounts = MaxSubAccounts;
+	type MaxAdditionalFields = MaxAdditionalFields;
+	type MaxRegistrars = MaxRegistrars;
+	type Slashed = Treasury;
+	type ForceOrigin = EnsureSigned<AccountId>;
+	type RegistrarOrigin = EnsureSigned<AccountId>;
+	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime
@@ -816,6 +831,7 @@ construct_runtime!(
 		Utility: pallet_utility::{Pallet, Call, Event} = 5,
 		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 6,
 		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 7,
+		Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 8,
 
 		// Monetary stuff.
 		Balances: pallet_balances = 10,
