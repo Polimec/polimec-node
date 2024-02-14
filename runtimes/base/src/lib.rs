@@ -147,6 +147,7 @@ pub mod migrations {
 		custom_migrations::InitializePallet<Elections>,
 		custom_migrations::InitializePallet<Preimage>,
 		custom_migrations::InitializePallet<Scheduler>,
+		custom_migrations::InitializePallet<ForeignAssets>,
 	);
 }
 
