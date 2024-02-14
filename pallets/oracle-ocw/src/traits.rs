@@ -31,12 +31,12 @@ pub(crate) trait FetchPrice {
 			.filter_map(|asset| {
 				let url = Self::get_url(asset);
 				if url.is_empty() {
-					return None
+					return None;
 				}
 				let request = http::Request::get(url);
 
 				if let Ok(req) = request.deadline(deadline).send() {
-					return Some(AssetRequest { asset, id: req.id })
+					return Some(AssetRequest { asset, id: req.id });
 				}
 				None
 			})
@@ -51,9 +51,9 @@ pub(crate) trait FetchPrice {
 			.filter_map(|(maybe_response, asset)| {
 				if let Ok(Ok(response)) = maybe_response {
 					if response.code != 200 {
-						return None
+						return None;
 					}
-					return Some((asset, response))
+					return Some((asset, response));
 				}
 				None
 			})
@@ -61,7 +61,7 @@ pub(crate) trait FetchPrice {
 				let body = response.body().collect::<Vec<u8>>();
 				if let Ok(body_str) = sp_std::str::from_utf8(&body) {
 					if let Some(ocv_data) = Self::parse_body(body_str) {
-						return Some((asset, ocv_data))
+						return Some((asset, ocv_data));
 					}
 				}
 				None
@@ -72,7 +72,7 @@ pub(crate) trait FetchPrice {
 						(w_price_sum + ocv.vwp(), vol_sum.saturating_add(ocv.volume))
 					});
 				if total_vol.is_zero() {
-					return None
+					return None;
 				}
 				Some((asset, w_price_sum, total_vol))
 			})

@@ -23,8 +23,9 @@ use frame_support::{
 	traits::{
 		fungible::{Inspect as FungibleInspect, InspectHold as FungibleInspectHold, Mutate as FungibleMutate},
 		fungibles::{
-			metadata::Inspect as MetadataInspect, roles::Inspect as RolesInspect, Inspect as FungiblesInspect,
-			Mutate as FungiblesMutate,
+			metadata::{Inspect as MetadataInspect, MetadataDeposit},
+			roles::Inspect as RolesInspect,
+			Inspect as FungiblesInspect, Mutate as FungiblesMutate,
 		},
 		AccountTouch, Get, OnFinalize, OnIdle, OnInitialize,
 	},
@@ -50,8 +51,6 @@ use sp_std::{
 	marker::PhantomData,
 	ops::Not,
 };
-
-pub use testing_macros::*;
 
 pub type RuntimeOriginOf<T> = <T as frame_system::Config>::RuntimeOrigin;
 pub struct BoxToFunction(pub Box<dyn FnOnce()>);
@@ -243,9 +242,11 @@ impl<
 				let mut current_block = frame_system::Pallet::<T>::block_number();
 
 				<AllPalletsWithoutSystem as OnFinalize<BlockNumberFor<T>>>::on_finalize(current_block);
+
 				<frame_system::Pallet<T> as OnFinalize<BlockNumberFor<T>>>::on_finalize(current_block);
 
 				<AllPalletsWithoutSystem as OnIdle<BlockNumberFor<T>>>::on_idle(current_block, Weight::MAX);
+
 				<frame_system::Pallet<T> as OnIdle<BlockNumberFor<T>>>::on_idle(current_block, Weight::MAX);
 
 				current_block += One::one();
@@ -254,6 +255,7 @@ impl<
 				let pre_events = frame_system::Pallet::<T>::events();
 
 				<frame_system::Pallet<T> as OnInitialize<BlockNumberFor<T>>>::on_initialize(current_block);
+
 				<AllPalletsWithoutSystem as OnInitialize<BlockNumberFor<T>>>::on_initialize(current_block);
 
 				let post_events = frame_system::Pallet::<T>::events();
@@ -330,12 +332,13 @@ impl<
 	pub fn test_ct_created_for(&mut self, project_id: ProjectId) {
 		self.execute(|| {
 			let metadata = ProjectsMetadata::<T>::get(project_id).unwrap();
-			let details = ProjectsDetails::<T>::get(project_id).unwrap();
 			assert_eq!(
 				<T as Config>::ContributionTokenCurrency::name(project_id),
 				metadata.token_information.name.to_vec()
 			);
-			assert_eq!(<T as Config>::ContributionTokenCurrency::admin(project_id).unwrap(), details.issuer);
+			let escrow_account = Pallet::<T>::fund_account_id(project_id);
+
+			assert_eq!(<T as Config>::ContributionTokenCurrency::admin(project_id).unwrap(), escrow_account);
 			assert_eq!(
 				<T as Config>::ContributionTokenCurrency::total_issuance(project_id),
 				0u32.into(),
@@ -849,8 +852,16 @@ impl<
 
 	pub fn create_new_project(&mut self, project_metadata: ProjectMetadataOf<T>, issuer: AccountIdOf<T>) -> ProjectId {
 		let now = self.current_block();
+		let metadata_deposit = T::ContributionTokenCurrency::calc_metadata_deposit(
+			project_metadata.token_information.name.as_slice(),
+			project_metadata.token_information.symbol.as_slice(),
+		);
 		// one ED for the issuer, one ED for the escrow account
-		self.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), Self::get_ed() * 2u64.into())]);
+		self.mint_plmc_to(vec![UserToPLMCBalance::new(
+			issuer.clone(),
+			Self::get_ed() * 2u64.into() + metadata_deposit,
+		)]);
+
 		self.execute(|| {
 			crate::Pallet::<T>::do_create(&issuer, project_metadata.clone()).unwrap();
 			let last_project_metadata = ProjectsMetadata::<T>::iter().last().unwrap();
@@ -896,9 +907,12 @@ impl<
 
 		if project_details.status == ProjectStatus::EvaluationRound {
 			let evaluation_end = project_details.phase_transition_points.evaluation.end().unwrap();
-			let auction_start = evaluation_end.saturating_add(2u32.into());
-			let blocks_to_start = auction_start.saturating_sub(self.current_block());
-			self.advance_time(blocks_to_start).unwrap();
+			self.execute(|| frame_system::Pallet::<T>::set_block_number(evaluation_end));
+			// run on_initialize for evaluation end
+			self.advance_time(1u32.into()).unwrap();
+			let auction_initialize_period_start =
+				self.get_project_details(project_id).phase_transition_points.auction_initialize_period.start().unwrap();
+			self.execute(|| frame_system::Pallet::<T>::set_block_number(auction_initialize_period_start));
 		};
 
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
@@ -951,11 +965,13 @@ impl<
 		project_id
 	}
 
-	pub fn bid_for_users(&mut self, project_id: ProjectId, bids: Vec<BidParams<T>>) {
+	pub fn bid_for_users(&mut self, project_id: ProjectId, bids: Vec<BidParams<T>>) -> DispatchResultWithPostInfo {
 		for bid in bids {
-			self.execute(|| crate::Pallet::<T>::do_bid(&bid.bidder, project_id, bid.amount, bid.multiplier, bid.asset))
-				.unwrap();
+			self.execute(|| {
+				crate::Pallet::<T>::do_bid(&bid.bidder, project_id, bid.amount, bid.multiplier, bid.asset)
+			})?;
 		}
+		Ok(().into())
 	}
 
 	pub fn start_community_funding(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
@@ -966,9 +982,10 @@ impl<
 			.end()
 			.expect("English end point should exist");
 
-		let candle_start = english_end + 2u32.into();
-		let current_block = self.current_block();
-		self.advance_time(candle_start.saturating_sub(current_block)).unwrap();
+		self.execute(|| frame_system::Pallet::<T>::set_block_number(english_end));
+		// run on_initialize
+		self.advance_time(1u32.into()).unwrap();
+
 		let candle_end = self
 			.get_project_details(project_id)
 			.phase_transition_points
@@ -976,10 +993,9 @@ impl<
 			.end()
 			.expect("Candle end point should exist");
 
-		let community_start = candle_end + 2u32.into();
-
-		let current_block = self.current_block();
-		self.advance_time(community_start.saturating_sub(current_block)).unwrap();
+		self.execute(|| frame_system::Pallet::<T>::set_block_number(candle_end));
+		// run on_initialize
+		self.advance_time(1u32.into()).unwrap();
 
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::CommunityRound);
 
@@ -1042,7 +1058,7 @@ impl<
 		self.mint_plmc_to(plmc_ct_account_deposits.clone());
 		self.mint_foreign_asset_to(funding_asset_deposits.clone());
 
-		self.bid_for_users(project_id, bids.clone());
+		self.bid_for_users(project_id, bids.clone()).unwrap();
 
 		self.do_reserved_plmc_assertions(
 			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
@@ -1098,15 +1114,9 @@ impl<
 
 	pub fn start_remainder_or_end_funding(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::CommunityRound);
-		let community_funding_end = self
-			.get_project_details(project_id)
-			.phase_transition_points
-			.community
-			.end()
-			.expect("Community funding end point should exist");
-		let remainder_start = community_funding_end + 1u32.into();
-		let current_block = self.current_block();
-		self.advance_time(remainder_start.saturating_sub(current_block)).unwrap();
+		let (transition_block, _) = self.get_update_pair(project_id);
+		self.execute(|| frame_system::Pallet::<T>::set_block_number(transition_block - One::one()));
+		self.advance_time(1u32.into()).unwrap();
 		match self.get_project_details(project_id).status {
 			ProjectStatus::RemainderRound | ProjectStatus::FundingSuccessful => Ok(()),
 			_ => panic!("Bad state"),
@@ -1115,12 +1125,12 @@ impl<
 
 	pub fn finish_funding(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
 		let (update_block, _) = self.get_update_pair(project_id);
-		let current_block = self.current_block();
-		self.advance_time(update_block.saturating_sub(current_block)).unwrap();
+		self.execute(|| frame_system::Pallet::<T>::set_block_number(update_block - One::one()));
+		self.advance_time(1u32.into()).unwrap();
 		if self.get_project_details(project_id).status == ProjectStatus::RemainderRound {
 			let (end_block, _) = self.get_update_pair(project_id);
-			let current_block = self.current_block();
-			self.advance_time(end_block.saturating_sub(current_block)).unwrap();
+			self.execute(|| frame_system::Pallet::<T>::set_block_number(end_block - 1u32.into()));
+			self.advance_time(1u32.into()).unwrap();
 		}
 		let project_details = self.get_project_details(project_id);
 		assert!(
@@ -1775,7 +1785,7 @@ pub mod async_features {
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 		inst.mint_foreign_asset_to(funding_asset_deposits.clone());
 
-		inst.bid_for_users(project_id, bids.clone());
+		inst.bid_for_users(project_id, bids.clone()).unwrap();
 
 		inst.do_reserved_plmc_assertions(
 			total_plmc_participation_locked.merge_accounts(MergeOperation::Add),
@@ -2797,10 +2807,11 @@ pub mod testing_macros {
 	macro_rules! assert_close_enough {
 		// Match when a message is provided
 		($real:expr, $desired:expr, $max_approximation:expr, $msg:expr) => {
+			let real_parts;
 			if $real <= $desired {
-				let real_parts = Perquintill::from_rational($real, $desired);
+				real_parts = Perquintill::from_rational($real, $desired);
 			} else {
-				let real_parts = Perquintill::from_rational($desired, $real);
+				real_parts = Perquintill::from_rational($desired, $real);
 			}
 			let one = Perquintill::from_percent(100u64);
 			let real_approximation = one - real_parts;

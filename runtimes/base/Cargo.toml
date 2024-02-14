@@ -194,6 +194,7 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"polimec-xcm-executor/runtime-benchmarks",
+	"pallet-assets/runtime-benchmarks"
 ]
 
 try-runtime = [

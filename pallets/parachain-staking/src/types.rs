@@ -134,7 +134,7 @@ impl<A: PartialEq, B: PartialEq> PartialEq for CollatorSnapshot<A, B> {
 	fn eq(&self, other: &Self) -> bool {
 		let must_be_true = self.bond == other.bond && self.total == other.total;
 		if !must_be_true {
-			return false
+			return false;
 		}
 		for (
 			BondWithAutoCompound { owner: o1, amount: a1, auto_compound: c1 },
@@ -142,7 +142,7 @@ impl<A: PartialEq, B: PartialEq> PartialEq for CollatorSnapshot<A, B> {
 		) in self.delegations.iter().zip(other.delegations.iter())
 		{
 			if o1 != o2 || a1 != a2 || c1 != c2 {
-				return false
+				return false;
 			}
 		}
 		true
@@ -264,7 +264,7 @@ impl<AccountId, Balance: Copy + Ord + sp_std::ops::AddAssign + Zero + Saturating
 			if self.delegations[self.delegations.len() - 1].amount == delegation.amount {
 				self.delegations.push(delegation);
 				// early return
-				return
+				return;
 			}
 		}
 		// else binary search insertion
@@ -278,7 +278,7 @@ impl<AccountId, Balance: Copy + Ord + sp_std::ops::AddAssign + Zero + Saturating
 						new_index = new_index.saturating_add(1);
 					} else {
 						self.delegations.insert(new_index, delegation);
-						return
+						return;
 					}
 				}
 				self.delegations.push(delegation)
@@ -1076,25 +1076,25 @@ impl<A: PartialEq, B: PartialEq> PartialEq for CollatorCandidate<A, B> {
 			self.request == other.request &&
 			self.state == other.state;
 		if !must_be_true {
-			return false
+			return false;
 		}
 		for (x, y) in self.delegators.0.iter().zip(other.delegators.0.iter()) {
 			if x != y {
-				return false
+				return false;
 			}
 		}
 		for (Bond { owner: o1, amount: a1 }, Bond { owner: o2, amount: a2 }) in
 			self.top_delegations.iter().zip(other.top_delegations.iter())
 		{
 			if o1 != o2 || a1 != a2 {
-				return false
+				return false;
 			}
 		}
 		for (Bond { owner: o1, amount: a1 }, Bond { owner: o2, amount: a2 }) in
 			self.bottom_delegations.iter().zip(other.bottom_delegations.iter())
 		{
 			if o1 != o2 || a1 != a2 {
-				return false
+				return false;
 			}
 		}
 		true
@@ -1166,13 +1166,13 @@ impl<A: PartialEq, B: PartialEq> PartialEq for Delegator<A, B> {
 			self.less_total == other.less_total &&
 			self.status == other.status;
 		if !must_be_true {
-			return false
+			return false;
 		}
 		for (Bond { owner: o1, amount: a1 }, Bond { owner: o2, amount: a2 }) in
 			self.delegations.0.iter().zip(other.delegations.0.iter())
 		{
 			if o1 != o2 || a1 != a2 {
-				return false
+				return false;
 			}
 		}
 		true
@@ -1337,7 +1337,7 @@ impl<
 				<Total<T>>::put(new_total_staked);
 				let nom_st: Delegator<T::AccountId, BalanceOf<T>> = self.clone().into();
 				<DelegatorState<T>>::insert(&delegator_id, nom_st);
-				return Ok(in_top)
+				return Ok(in_top);
 			}
 		}
 		Err(Error::<T>::DelegationDNE.into())
@@ -1366,7 +1366,7 @@ impl<
 				// additional sanity check: shouldn't ever want to lock more than total
 				if amount > self.total {
 					log::warn!("LOGIC ERROR: request to reserve more than bond total");
-					return Err(DispatchError::Other("Invalid additional_required_balance"))
+					return Err(DispatchError::Other("Invalid additional_required_balance"));
 				}
 			},
 			BondAdjust::Decrease => (), // do nothing on decrease
@@ -1496,13 +1496,13 @@ pub mod deprecated {
 		fn eq(&self, other: &Self) -> bool {
 			let must_be_true = self.bond == other.bond && self.total == other.total;
 			if !must_be_true {
-				return false
+				return false;
 			}
 			for (Bond { owner: o1, amount: a1 }, Bond { owner: o2, amount: a2 }) in
 				self.delegations.iter().zip(other.delegations.iter())
 			{
 				if o1 != o2 || a1 != a2 {
-					return false
+					return false;
 				}
 			}
 			true

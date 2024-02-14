@@ -499,7 +499,7 @@ pub struct EqualOrGreatestRootCmp;
 impl PrivilegeCmp<OriginCaller> for EqualOrGreatestRootCmp {
 	fn cmp_privilege(left: &OriginCaller, right: &OriginCaller) -> Option<Ordering> {
 		if left == right {
-			return Some(Ordering::Equal)
+			return Some(Ordering::Equal);
 		}
 		match (left, right) {
 			// Root is greater than anything.
@@ -639,13 +639,15 @@ impl pallet_funding::Config for Runtime {
 	type FeeBrackets = FeeBrackets;
 	type FundingCurrency = ForeignAssets;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
-	type MaxBidsPerUser = ConstU32<256>;
+	type MaxBidsPerProject = ConstU32<2048>;
+	type MaxBidsPerUser = ConstU32<128>;
 	type MaxCapacityThresholds = MaxCapacityThresholds;
 	type MaxContributionsPerUser = ConstU32<256>;
-	type MaxEvaluationsPerUser = ConstU32<256>;
+	type MaxEvaluationsPerProject = ConstU32<2048>;
+	type MaxEvaluationsPerUser = ConstU32<16>;
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
 	type MaxProjectsToUpdateInsertionAttempts = ConstU32<100>;
-	type MaxProjectsToUpdatePerBlock = ConstU32<100>;
+	type MaxProjectsToUpdatePerBlock = ConstU32<1>;
 	type Multiplier = pallet_funding::types::Multiplier;
 	type NativeCurrency = Balances;
 	type PalletId = FundingPalletId;

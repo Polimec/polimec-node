@@ -121,7 +121,7 @@ pub mod pallet {
 				let account = public.clone().into_account();
 				if <T as pallet::Config>::Members::contains(&account) {
 					if let Ok(generic_public) = TryInto::<GenericPublicOf<T>>::try_into(public) {
-						return Some(generic_public.into())
+						return Some(generic_public.into());
 					}
 				}
 				None
@@ -157,21 +157,21 @@ pub mod pallet {
 							if remainder >= BlockNumberFor::<T>::zero() &&
 								remainder < window && last_send < &block_number.saturating_sub(window)
 							{
-								return Some(*asset_name)
+								return Some(*asset_name);
 							}
 							None
 						})
 						.collect::<Vec<AssetName>>();
 
 					if assets.is_empty() {
-						return
+						return;
 					}
 
 					log::trace!(target: LOG_TARGET, "Transaction grace period reached for assets {:?} in block {:?}", assets, block_number);
 
 					let prices = Self::fetch_prices(assets);
 					if prices.is_empty() {
-						return
+						return;
 					}
 
 					for (asset_name, price) in prices.clone() {
@@ -220,14 +220,14 @@ pub mod pallet {
 				.into_iter()
 				.filter_map(|(key, price_list)| {
 					if price_list.is_empty() {
-						return None
+						return None;
 					}
 					let combined_prices =
 						price_list.into_iter().fold((FixedU128::zero(), FixedU128::zero()), |acc, (price, volume)| {
 							(acc.0 + price, acc.1 + volume)
 						});
 					if combined_prices.1.is_zero() {
-						return None
+						return None;
 					}
 					Some((key, combined_prices.0.div(combined_prices.1)))
 				})
@@ -246,11 +246,11 @@ pub mod pallet {
 			match result {
 				Some((_, Ok(_))) => {
 					log::trace!(target: LOG_TARGET, "offchain tx sent successfully");
-					return Ok(())
+					return Ok(());
 				},
 				_ => {
 					log::trace!(target: LOG_TARGET, "failure: offchain_signed_tx");
-					return Err(())
+					return Err(());
 				},
 			}
 		}

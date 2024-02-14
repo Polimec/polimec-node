@@ -112,7 +112,7 @@ pub mod pallet {
 				let already_executed = ExecutedMigrations::<T>::get((user, participation_type, id));
 				if already_executed {
 					Self::deposit_event(Event::DuplicatedMigrationSkipped { migration });
-					continue
+					continue;
 				}
 				T::Balances::transfer(
 					&polimec_soverign_account,

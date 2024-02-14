@@ -246,7 +246,7 @@ impl<Config: config::Config> ExecuteXcm<Config::RuntimeCall> for XcmExecutor<Con
 				message,
 				properties,
 			);
-			return Outcome::Error(XcmError::Barrier)
+			return Outcome::Error(XcmError::Barrier);
 		}
 
 		*id = properties.message_id.unwrap_or(*id);
@@ -341,7 +341,7 @@ impl<Config: config::Config> XcmExecutor<Config> {
 					let inst_res = recursion_count::using_once(&mut 1, || {
 						recursion_count::with(|count| {
 							if *count > RECURSION_LIMIT {
-								return Err(XcmError::ExceedsStackLimit)
+								return Err(XcmError::ExceedsStackLimit);
 							}
 							*count = count.saturating_add(1);
 							Ok(())
@@ -895,7 +895,7 @@ impl<Config: config::Config> XcmExecutor<Config> {
 
 	fn take_fee(&mut self, fee: MultiAssets, reason: FeeReason) -> XcmResult {
 		if Config::FeeManager::is_waived(self.origin_ref(), reason) {
-			return Ok(())
+			return Ok(());
 		}
 		let paid = if self.fees_mode.jit_withdraw {
 			let origin = self.origin_ref().ok_or(XcmError::BadOrigin)?;

@@ -1454,12 +1454,12 @@ pub mod pallet {
 			// payout is now - delay rounds ago => now - delay > 0 else return early
 			let delay = T::RewardPaymentDelay::get();
 			if now <= delay {
-				return Weight::zero()
+				return Weight::zero();
 			}
 			let round_to_payout = now.saturating_sub(delay);
 			let total_points = <Points<T>>::get(round_to_payout);
 			if total_points.is_zero() {
-				return Weight::zero()
+				return Weight::zero();
 			}
 			let total_staked = <Staked<T>>::take(round_to_payout);
 			let total_issuance = Self::compute_issuance(total_staked);
@@ -1501,7 +1501,7 @@ pub mod pallet {
 
 			// don't underflow uint
 			if now < delay {
-				return Weight::from_parts(0u64, 0)
+				return Weight::from_parts(0u64, 0);
 			}
 
 			let paid_for_round = now.saturating_sub(delay);
@@ -1544,7 +1544,7 @@ pub mod pallet {
 				// 2. we called pay_one_collator_reward when we were actually done with deferred
 				//    payouts
 				log::warn!("pay_one_collator_reward called with no <Points<T>> for the round!");
-				return (RewardPayment::Finished, early_weight)
+				return (RewardPayment::Finished, early_weight);
 			}
 
 			let collator_fee = payout_info.collator_commission;
@@ -1559,7 +1559,7 @@ pub mod pallet {
 				// read and kill AwardedPts
 				early_weight = early_weight.saturating_add(T::DbWeight::get().reads_writes(1, 1));
 				if pts == 0 {
-					return (RewardPayment::Skipped, early_weight)
+					return (RewardPayment::Skipped, early_weight);
 				}
 
 				// 'extra_weight' tracks weight returned from fns that we delegate to which can't be
@@ -1631,7 +1631,7 @@ pub mod pallet {
 		pub fn compute_top_candidates() -> Vec<T::AccountId> {
 			let top_n = <TotalSelected<T>>::get() as usize;
 			if top_n == 0 {
-				return vec![]
+				return vec![];
 			}
 
 			let mut candidates = <CandidatePool<T>>::get().0;
@@ -1690,7 +1690,7 @@ pub mod pallet {
 					})
 				}
 				let weight = T::WeightInfo::select_top_candidates(0, 0);
-				return (weight, collator_count, delegation_count, total)
+				return (weight, collator_count, delegation_count, total);
 			}
 
 			// snapshot exposure for round for weighting reward distribution
@@ -1834,7 +1834,7 @@ pub mod pallet {
 
 				let compound_amount = compound_percent.mul_ceil(amount_transferred);
 				if compound_amount.is_zero() {
-					return weight
+					return weight;
 				}
 
 				if let Err(err) =
@@ -1846,7 +1846,7 @@ pub mod pallet {
 						delegator,
 						err
 					);
-					return weight
+					return weight;
 				};
 				weight = weight.saturating_add(T::WeightInfo::delegator_bond_more());
 

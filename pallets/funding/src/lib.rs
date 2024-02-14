@@ -337,6 +337,7 @@ pub mod pallet {
 			+ fungibles::InspectEnumerable<AccountIdOf<Self>, Balance = BalanceOf<Self>>
 			+ fungibles::metadata::Inspect<AccountIdOf<Self>>
 			+ fungibles::metadata::Mutate<AccountIdOf<Self>>
+			+ fungibles::metadata::MetadataDeposit<BalanceOf<Self>>
 			+ fungibles::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>
 			+ fungibles::roles::Inspect<AccountIdOf<Self>>
 			+ AccountTouch<ProjectId, AccountIdOf<Self>, Balance = BalanceOf<Self>>
@@ -419,9 +420,11 @@ pub mod pallet {
 			Currency = Self::NativeCurrency,
 			Moment = BlockNumberFor<Self>,
 		>;
+
 		/// For now we expect 3 days until the project is automatically accepted. Timeline decided by MiCA regulations.
 		#[pallet::constant]
 		type ManualAcceptanceDuration: Get<BlockNumberFor<Self>>;
+
 		/// For now we expect 4 days from acceptance to settlement due to MiCA regulations.
 		#[pallet::constant]
 		type SuccessToSettlementTime: Get<BlockNumberFor<Self>>;
@@ -459,6 +462,13 @@ pub mod pallet {
 		/// max iterations for trying to insert a project on the projects_to_update storage
 		#[pallet::constant]
 		type MaxProjectsToUpdateInsertionAttempts: Get<u32>;
+
+		/// max individual bids per project. Used to estimate worst case weight for price calculation
+		#[pallet::constant]
+		type MaxBidsPerProject: Get<u32>;
+
+		#[pallet::constant]
+		type MaxEvaluationsPerProject: Get<u32>;
 	}
 
 	#[pallet::storage]
@@ -478,6 +488,12 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn next_contribution_id)]
 	pub type NextContributionId<T: Config> = StorageValue<_, u32, ValueQuery>;
+
+	#[pallet::storage]
+	pub type BidCounts<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, u32, ValueQuery>;
+
+	#[pallet::storage]
+	pub type EvaluationCounts<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, u32, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn nonce)]
@@ -951,10 +967,16 @@ pub mod pallet {
 		NoFutureDepositHeld,
 		/// The issuer doesn't have enough funds (ExistentialDeposit), to create the escrow account
 		NotEnoughFundsForEscrowCreation,
+		/// The issuer doesn't have enough funds to pay for the metadata of their contribution token
+		NotEnoughFundsForCTMetadata,
 		/// Too many attempts to insert project in to ProjectsToUpdate storage
 		TooManyInsertionAttempts,
 		/// Reached bid limit for this user on this project
-		TooManyBids,
+		TooManyBidsForUser,
+		/// Reached bid limit for this project
+		TooManyBidsForProject,
+		/// Reached evaluation limit for this project
+		TooManyEvaluationsForProject,
 	}
 
 	#[pallet::call]
@@ -1000,7 +1022,11 @@ pub mod pallet {
 
 		/// Bond PLMC for a project in the evaluation stage
 		#[pallet::call_index(4)]
-		#[pallet::weight(WeightInfoOf::<T>::evaluation_over_limit())]
+		#[pallet::weight(
+			WeightInfoOf::<T>::first_evaluation()
+			.max(WeightInfoOf::<T>::second_to_limit_evaluation(T::MaxEvaluationsPerUser::get() - 1))
+			.max(WeightInfoOf::<T>::evaluation_over_limit())
+		)]
 		pub fn evaluate(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
@@ -1012,13 +1038,15 @@ pub mod pallet {
 
 		/// Bid for a project in the Auction round
 		#[pallet::call_index(5)]
-		#[pallet::weight(WeightInfoOf::<T>::bid_no_ct_deposit(
-			// Last bid possible
-			<T as Config>::MaxBidsPerUser::get() - 1,
-			// Assuming the current bucket is full, and has a price higher than the minimum.
-			// This user is buying 100% of the bid allocation, since each bucket has 10% of the allocation at a 10% increase
-			10,
-		))]
+		#[pallet::weight(
+			WeightInfoOf::<T>::bid_no_ct_deposit(
+				<T as Config>::MaxBidsPerUser::get() - 1,
+				// Assuming the current bucket is full, and has a price higher than the minimum.
+				// This user is buying 100% of the bid allocation.
+				// Since each bucket has 10% of the allocation, one bid can be split into a max of 10
+				10
+			)
+			.max(WeightInfoOf::<T>::bid_with_ct_deposit(10)))]
 		pub fn bid(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
@@ -1032,14 +1060,22 @@ pub mod pallet {
 
 		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
 		#[pallet::call_index(6)]
-		#[pallet::weight(WeightInfoOf::<T>::second_to_limit_contribution_ends_round(
+		#[pallet::weight(
+			WeightInfoOf::<T>::first_contribution_with_ct_deposit()
+			.max(WeightInfoOf::<T>::first_contribution_no_ct_deposit())
+			.max(WeightInfoOf::<T>::first_contribution_ends_round_with_ct_deposit(<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1, 10_000))
+			.max(WeightInfoOf::<T>::first_contribution_ends_round_no_ct_deposit(<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1, 10_000))
+			.max(WeightInfoOf::<T>::second_to_limit_contribution(T::MaxContributionsPerUser::get() - 1))
+			.max(WeightInfoOf::<T>::second_to_limit_contribution_ends_round(
 			// Last contribution possible before having to remove an old lower one
 			<T as Config>::MaxContributionsPerUser::get() -1,
 			// Since we didn't remove any previous lower contribution, we can buy all remaining CTs and try to move to the next phase
 			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
 			// Assumed upper bound for deletion attempts for the previous scheduled transition
 			10_000u32,
-		))]
+			))
+			.max(WeightInfoOf::<T>::contribution_over_limit())
+		)]
 		pub fn contribute(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
@@ -1077,7 +1113,10 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(9)]
-		#[pallet::weight(WeightInfoOf::<T>::evaluation_reward_payout_for_with_ct_account_creation())]
+		#[pallet::weight(
+			WeightInfoOf::<T>::evaluation_reward_payout_for_with_ct_account_creation()
+			.max(WeightInfoOf::<T>::evaluation_reward_payout_for_no_ct_account_creation())
+		)]
 		pub fn evaluation_reward_payout_for(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
@@ -1089,7 +1128,10 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(10)]
-		#[pallet::weight(WeightInfoOf::<T>::bid_ct_mint_for_with_ct_account_creation())]
+		#[pallet::weight(
+			WeightInfoOf::<T>::bid_ct_mint_for_with_ct_account_creation()
+			.max(WeightInfoOf::<T>::bid_ct_mint_for_no_ct_account_creation())
+		)]
 		pub fn bid_ct_mint_for(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
@@ -1101,7 +1143,10 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(11)]
-		#[pallet::weight(WeightInfoOf::<T>::contribution_ct_mint_for_with_ct_account_creation())]
+		#[pallet::weight(
+			WeightInfoOf::<T>::contribution_ct_mint_for_with_ct_account_creation()
+			.max(WeightInfoOf::<T>::contribution_ct_mint_for_no_ct_account_creation())
+		)]
 		pub fn contribution_ct_mint_for(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
@@ -1280,54 +1325,160 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(now: BlockNumberFor<T>) -> Weight {
 			// Get the projects that need to be updated on this block and update them
+			let mut used_weight = Weight::from_parts(0, 0);
 			for (project_id, update_type) in ProjectsToUpdate::<T>::take(now) {
 				match update_type {
 					// EvaluationRound -> AuctionInitializePeriod | EvaluationFailed
 					UpdateType::EvaluationEnd => {
-						unwrap_result_or_skip!(Self::do_evaluation_end(project_id), project_id, |e| e);
+						used_weight = used_weight.saturating_add(
+							unwrap_result_or_skip!(
+								Self::do_evaluation_end(project_id),
+								project_id,
+								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+							)
+							.actual_weight
+							.unwrap_or(WeightInfoOf::<T>::end_evaluation_success(
+								<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+							)),
+						);
 					},
 
 					// AuctionInitializePeriod -> AuctionRound(AuctionPhase::English)
 					// Only if it wasn't first handled by user extrinsic
 					UpdateType::EnglishAuctionStart => {
-						unwrap_result_or_skip!(
-							Self::do_english_auction(T::PalletId::get().into_account_truncating(), project_id),
-							project_id,
-							|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+						used_weight = used_weight.saturating_add(
+							unwrap_result_or_skip!(
+								Self::do_english_auction(T::PalletId::get().into_account_truncating(), project_id),
+								project_id,
+								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+							)
+							.actual_weight
+							.unwrap_or(WeightInfoOf::<T>::start_auction_manually(
+								<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+								10_000,
+							)),
 						);
 					},
 
 					// AuctionRound(AuctionPhase::English) -> AuctionRound(AuctionPhase::Candle)
 					UpdateType::CandleAuctionStart => {
-						unwrap_result_or_skip!(Self::do_candle_auction(project_id), project_id, |e| e);
+						used_weight = used_weight.saturating_add(
+							unwrap_result_or_skip!(
+								Self::do_candle_auction(project_id),
+								project_id,
+								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+							)
+							.actual_weight
+							.unwrap_or(WeightInfoOf::<T>::start_candle_phase(
+								<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+							)),
+						);
 					},
 
 					// AuctionRound(AuctionPhase::Candle) -> CommunityRound
 					UpdateType::CommunityFundingStart => {
-						unwrap_result_or_skip!(Self::do_community_funding(project_id), project_id, |e| e);
+						used_weight = used_weight.saturating_add(
+							unwrap_result_or_skip!(
+								Self::do_community_funding(project_id),
+								project_id,
+								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+							)
+							.actual_weight
+							.unwrap_or(
+								WeightInfoOf::<T>::start_community_funding_success(
+									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+									<T as Config>::MaxBidsPerProject::get() / 2,
+									<T as Config>::MaxBidsPerProject::get() / 2,
+								)
+								.max(WeightInfoOf::<T>::start_community_funding_success(
+									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+									<T as Config>::MaxBidsPerProject::get(),
+									0u32,
+								))
+								.max(WeightInfoOf::<T>::start_community_funding_success(
+									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+									0u32,
+									<T as Config>::MaxBidsPerProject::get(),
+								)),
+							),
+						);
 					},
 
 					// CommunityRound -> RemainderRound
 					UpdateType::RemainderFundingStart => {
-						unwrap_result_or_skip!(Self::do_remainder_funding(project_id), project_id, |e| e)
+						used_weight = used_weight.saturating_add(
+							unwrap_result_or_skip!(
+								Self::do_remainder_funding(project_id),
+								project_id,
+								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+							)
+							.actual_weight
+							.unwrap_or(WeightInfoOf::<T>::start_remainder_funding(
+								<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+							)),
+						);
 					},
 
 					// CommunityRound || RemainderRound -> FundingEnded
 					UpdateType::FundingEnd => {
-						unwrap_result_or_skip!(Self::do_end_funding(project_id), project_id, |e| e)
+						used_weight = used_weight.saturating_add(
+							unwrap_result_or_skip!(
+								Self::do_end_funding(project_id),
+								project_id,
+								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+							)
+							.actual_weight
+							.unwrap_or(
+								WeightInfoOf::<T>::end_funding_automatically_rejected_evaluators_slashed(
+									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+								)
+								.max(WeightInfoOf::<T>::end_funding_awaiting_decision_evaluators_slashed(
+									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+								))
+								.max(WeightInfoOf::<T>::end_funding_awaiting_decision_evaluators_unchanged(
+									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+								))
+								.max(WeightInfoOf::<T>::end_funding_automatically_accepted_evaluators_rewarded(
+									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+									<T as Config>::MaxEvaluationsPerProject::get(),
+								)),
+							),
+						);
 					},
 
 					UpdateType::ProjectDecision(decision) => {
-						unwrap_result_or_skip!(Self::do_project_decision(project_id, decision), project_id, |e| e)
+						used_weight = used_weight.saturating_add(
+							unwrap_result_or_skip!(
+								Self::do_project_decision(project_id, decision),
+								project_id,
+								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+							)
+							.actual_weight
+							.unwrap_or(
+								WeightInfoOf::<T>::project_decision_accept_funding()
+									.max(WeightInfoOf::<T>::project_decision_reject_funding()),
+							),
+						);
 					},
 
 					UpdateType::StartSettlement => {
-						unwrap_result_or_skip!(Self::do_start_settlement(project_id), project_id, |e| e)
+						used_weight = used_weight.saturating_add(
+							unwrap_result_or_skip!(
+								Self::do_start_settlement(project_id),
+								project_id,
+								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
+							)
+							.actual_weight
+							.unwrap_or(
+								WeightInfoOf::<T>::start_settlement_funding_success()
+									.max(WeightInfoOf::<T>::start_settlement_funding_failure()),
+							),
+						);
 					},
 				}
 			}
-			// TODO: PLMC-127. Set a proper weight
-			Weight::from_parts(0, 0)
+
+			used_weight
 		}
 
 		fn on_idle(_now: BlockNumberFor<T>, max_weight: Weight) -> Weight {
@@ -1343,7 +1494,7 @@ pub mod pallet {
 
 			let projects_amount = projects_needing_cleanup.len() as u64;
 			if projects_amount == 0 {
-				return max_weight
+				return max_weight;
 			}
 
 			let mut max_weight_per_project = remaining_weight.saturating_div(projects_amount);
@@ -1359,7 +1510,7 @@ pub mod pallet {
 					{
 						consumed_weight.saturating_accrue(weight);
 					} else {
-						break
+						break;
 					}
 				}
 
@@ -1463,7 +1614,7 @@ pub mod local_macros {
 						project_id: $project_id,
 						error: Error::<T>::FieldIsNone.into(),
 					});
-					continue
+					continue;
 				},
 			}
 		};
@@ -1477,7 +1628,7 @@ pub mod local_macros {
 				Ok(val) => val,
 				Err(err) => {
 					Self::deposit_event(Event::TransitionError { project_id: $project_id, error: $error_handler(err) });
-					continue
+					continue;
 				},
 			}
 		};

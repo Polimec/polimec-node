@@ -287,7 +287,7 @@ impl<T: Config> Pallet<T> {
 						} else {
 							// must rm entire delegation if bond.amount <= less or cancel request
 							Err(<Error<T>>::DelegationBelowMin.into())
-						}
+						};
 					}
 				}
 				Err(<Error<T>>::DelegationDNE.into())
@@ -338,7 +338,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		if existing_revoke_count == state.delegations.0.len() {
-			return Err(<Error<T>>::DelegatorAlreadyLeaving.into())
+			return Err(<Error<T>>::DelegatorAlreadyLeaving.into());
 		}
 
 		updated_scheduled_requests.into_iter().for_each(|(collator, scheduled_requests)| {
@@ -363,7 +363,7 @@ impl<T: Config> Pallet<T> {
 			state.status = DelegatorStatus::Active;
 			<DelegatorState<T>>::insert(delegator.clone(), state.clone());
 			Self::deposit_event(Event::DelegatorExitCancelled { delegator });
-			return Ok(().into())
+			return Ok(().into());
 		}
 
 		// pre-validate that all delegations have a Revoke request.
@@ -424,7 +424,7 @@ impl<T: Config> Pallet<T> {
 			}
 			<DelegatorState<T>>::remove(&delegator);
 			Self::deposit_event(Event::DelegatorLeft { delegator, unstaked_amount: state.total });
-			return Ok(().into())
+			return Ok(().into());
 		}
 
 		let mut validated_scheduled_requests = vec![];
