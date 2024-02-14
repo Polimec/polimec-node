@@ -6191,7 +6191,6 @@ mod async_tests {
 		let ext = sp_io::TestExternalities::new(t);
 		let mut inst = MockInstantiator::new(Some(RefCell::new(ext)));
 
-		dbg!(inst.get_project_details(0).status);
 		assert_eq!(inst.get_project_details(0).status, ProjectStatus::AuctionRound(AuctionPhase::English));
 		let max_bids_per_project: u32 = <TestRuntime as Config>::MaxBidsPerProject::get();
 		let total_bids_count = inst.execute(|| Bids::<TestRuntime>::iter_values().collect_vec().len());
