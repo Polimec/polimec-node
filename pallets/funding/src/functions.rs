@@ -583,7 +583,7 @@ impl<T: Config> Pallet<T> {
 					.update(Some(community_start_block), Some(community_end_block));
 				project_details.status = ProjectStatus::CommunityRound;
 				ProjectsDetails::<T>::insert(project_id, project_details);
-				// TODO: return real weights
+
 				let insertion_iterations = match Self::add_to_update_store(
 					community_end_block + 1u32.into(),
 					(&project_id, UpdateType::RemainderFundingStart),
@@ -3163,7 +3163,6 @@ impl<T: Config> Pallet<T> {
 		project_details.status = ProjectStatus::FundingSuccessful;
 		ProjectsDetails::<T>::insert(project_id, project_details);
 
-		// TODO: add real weights
 		let insertion_iterations =
 			match Self::add_to_update_store(now + settlement_delta, (&project_id, UpdateType::StartSettlement)) {
 				Ok(iterations) => iterations,

@@ -3633,9 +3633,6 @@ mod benchmarks {
 			vec![],
 		);
 
-		// let issuer_mint = UserToPLMCBalance::<T>::new(issuer.clone(), (100 * ASSET_UNIT).into());
-		// inst.mint_plmc_to(vec![issuer_mint]);
-
 		#[block]
 		{
 			Pallet::<T>::do_start_settlement(project_id).unwrap();
