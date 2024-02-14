@@ -18,19 +18,19 @@ use crate::{Balance, MILLI_PLMC, PLMC};
 use frame_support::parameter_types;
 
 parameter_types! {
-    /// The basic deposit to create an identity.
+	/// The basic deposit to create an identity.
 	pub const BasicDeposit: Balance = 20 * PLMC;
-    /// Deposit for each additional field.
-    pub const FieldDeposit: Balance = 200 * MILLI_PLMC;
-    /// The deposit needed to create a sub-account.
-    /// We do not allow sub-accounts so can be 0.
-    /// Should be set to a non-zero value if sub-accounts are allowed.
-    pub const SubAccountDeposit: Balance = 0;
-    /// Max number of sub-accounts that can be created.
-    /// We do not allow sub-accounts so set to 0.
+	/// Deposit for each additional field.
+	pub const FieldDeposit: Balance = 200 * MILLI_PLMC;
+	/// The deposit needed to create a sub-account.
+	/// We do not allow sub-accounts so can be 0.
+	/// Should be set to a non-zero value if sub-accounts are allowed.
+	pub const SubAccountDeposit: Balance = 0;
+	/// Max number of sub-accounts that can be created.
+	/// We do not allow sub-accounts so set to 0.
 	pub const MaxSubAccounts: u32 = 0;
-    /// Max number of additional fields that can be created.
+	/// Max number of additional fields that can be created.
 	pub const MaxAdditionalFields: u32 = 100;
-    /// Max number of registrars that can be set.
+	/// Max number of registrars that can be set.
 	pub const MaxRegistrars: u32 = 3;
 }

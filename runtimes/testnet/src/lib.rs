@@ -550,17 +550,17 @@ impl pallet_multisig::Config for Runtime {
 }
 
 impl pallet_identity::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
 	type BasicDeposit = BasicDeposit;
+	type Currency = Balances;
 	type FieldDeposit = FieldDeposit;
-	type SubAccountDeposit = SubAccountDeposit;
-	type MaxSubAccounts = MaxSubAccounts;
+	type ForceOrigin = EnsureRoot<AccountId>;
 	type MaxAdditionalFields = MaxAdditionalFields;
 	type MaxRegistrars = MaxRegistrars;
-	type Slashed = Treasury;
-	type ForceOrigin = EnsureRoot<AccountId>;
+	type MaxSubAccounts = MaxSubAccounts;
 	type RegistrarOrigin = EnsureRoot<AccountId>;
+	type RuntimeEvent = RuntimeEvent;
+	type Slashed = Treasury;
+	type SubAccountDeposit = SubAccountDeposit;
 	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
 }
 
