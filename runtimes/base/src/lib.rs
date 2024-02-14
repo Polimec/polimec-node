@@ -264,7 +264,7 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 				RuntimeCall::Preimage(..) |
 				RuntimeCall::Scheduler(..) |
 				RuntimeCall::Oracle(..) |
-				RuntimeCall::OracleProvidersMembership(..) |
+				RuntimeCall::OracleProvidersMembership(..)
 			),
 			ProxyType::Governance => matches!(
 				c,
