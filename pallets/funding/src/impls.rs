@@ -476,28 +476,21 @@ fn reward_or_slash_one_evaluation<T: Config>(
 	project_id: ProjectId,
 	target: &mut SettlementTarget<T>,
 ) -> Result<Weight, (Weight, DispatchError)> {
-	// let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+	// let project_details = ProjectsDetails::<T>::get(project_id).ok_or((<T as frame_system::Config>::DbWeight::get().reads(1), Error::<T>::ProjectNotFound))?;
 	// let mut remaining_evaluations: Vec<EvaluationInfoOf<T>> =
 	// 	if let SettlementTarget::Evaluations(evaluations) = *target {
 	// 		evaluations
 	// 	} else {
+	// 		#[cfg(debug_assertions)]
+	// 		unreachable!("Expected evaluations at settlement target");
+	// 		#[cfg(not(debug_assertions))]
 	// 		return Err("Expected evaluations at settlement target".into());
 	// 	};
-	// let base_weight = Weight::from_parts(10_000_000, 0);
 	//
 	// if let Some(evaluation) = remaining_evaluations.next() {
-	// 	// TODO: This base weight and the one in all other functions below should be calculated with a benchmark
 	// 	let remaining = remaining_evaluations.count() as u64;
 	// 	match project_details.evaluation_round_info.evaluators_outcome {
 	// 		EvaluatorsOutcome::Rewarded(_) => {
-	// 			let mut weight_consumed = crate::Call::<T>::evaluation_reward_payout_for {
-	// 				project_id: evaluation.project_id,
-	// 				evaluator: evaluation.evaluator.clone(),
-	// 				bond_id: evaluation.id,
-	// 			}
-	// 			.get_dispatch_info()
-	// 			.weight;
-	//
 	// 			match Pallet::<T>::do_evaluation_reward_payout_for(
 	// 				&T::PalletId::get().into_account_truncating(),
 	// 				evaluation.project_id,
@@ -551,9 +544,7 @@ fn reward_or_slash_one_evaluation<T: Config>(
 	// 	}
 	// } else {
 	// 	Ok((base_weight, 0u64))
-	// }
-
-	todo!();
+	todo!()
 }
 
 fn unbond_one_evaluation<T: Config>(

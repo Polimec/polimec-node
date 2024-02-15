@@ -1479,7 +1479,7 @@ pub mod pallet {
 					UpdateType::StartSettlement => {
 						used_weight = used_weight.saturating_add(
 							unwrap_result_or_skip!(
-								Self::do_start_settlement(project_id),
+								Self::add_to_settlement_queue(project_id),
 								project_id,
 								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
 							)
