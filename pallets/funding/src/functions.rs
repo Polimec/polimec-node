@@ -314,7 +314,7 @@ impl<T: Config> Pallet<T> {
 			// * Update storage *
 			project_details.status = ProjectStatus::EvaluationFailed;
 			let cleaner = SettlementMachine::NotReady;
-			ProjectSettlements::<T>::append((project_id, cleaner));
+			ProjectSettlements::<T>::mutate(|project_settlements| project_settlements.push((project_id, cleaner)));
 			ProjectsDetails::<T>::insert(project_id, project_details);
 
 			// * Emit events *
@@ -840,7 +840,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Calculate new variables *
 		let cleaner = SettlementMachine::NotReady;
-		ProjectSettlements::<T>::append((project_id, cleaner));
+		ProjectSettlements::<T>::mutate(|project_settlements| project_settlements.push((project_id, cleaner)));
 		project_details.funding_end_block = Some(now);
 
 		// * Update storage *

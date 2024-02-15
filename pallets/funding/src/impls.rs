@@ -24,7 +24,10 @@ use sp_arithmetic::traits::Zero;
 use sp_runtime::{traits::AccountIdConversion, DispatchError};
 use sp_std::{collections::btree_set::BTreeSet, marker::PhantomData};
 
-use crate::{traits::SettlementOperations, *};
+use crate::{
+	traits::{SettlementOperations, SettlementTarget},
+	*,
+};
 
 impl<T: Config> SettlementOperations<T> for SettlementMachine {
 	fn has_remaining_operations(&self) -> bool {
@@ -40,8 +43,8 @@ impl<T: Config> SettlementOperations<T> for SettlementMachine {
 	fn do_one_operation(
 		&mut self,
 		project_id: ProjectId,
-		target: &mut impl Iterator,
-	) -> Result<(impl Iterator, Weight), DispatchError> {
+		target: &mut SettlementTarget<T>,
+	) -> Result<Weight, DispatchError> {
 		match self {
 			SettlementMachine::NotReady => Err(DispatchError::Other("Cleaner not ready")),
 			SettlementMachine::Success(state) =>
@@ -51,16 +54,31 @@ impl<T: Config> SettlementOperations<T> for SettlementMachine {
 		}
 	}
 
-	fn get_new_accounts_on_target(&self, project_id: ProjectId, target: &mut impl Iterator) -> Vec<AccountIdOf<T>> {
+	fn update_target(&self, project_id: ProjectId, target: &mut SettlementTarget<T>) -> Weight {
 		match self {
-			SettlementMachine::NotReady => Err(DispatchError::Other("Cleaner not ready")),
+			SettlementMachine::NotReady => Weight::zero(),
 			SettlementMachine::Success(state) =>
-				<SettlementType<Success> as SettlementOperations<T>>::get_new_accounts_on_target(
-					state, project_id, target,
+				<SettlementType<Success> as SettlementOperations<T>>::update_target(state, project_id, target),
+			SettlementMachine::Failure(state) =>
+				<SettlementType<Failure> as SettlementOperations<T>>::update_target(state, project_id, target),
+		}
+	}
+
+	fn execute_with_given_weight(
+		&mut self,
+		weight: Weight,
+		project_id: ProjectId,
+		target: &mut SettlementTarget<T>,
+	) -> Result<Weight, (Weight, DispatchError)> {
+		match self {
+			SettlementMachine::NotReady => Err(DispatchError::Other("SettlementMachine not ready")),
+			SettlementMachine::Success(state) =>
+				<SettlementType<Success> as SettlementOperations<T>>::execute_with_given_weight(
+					state, weight, project_id, target,
 				),
 			SettlementMachine::Failure(state) =>
-				<SettlementType<Failure> as SettlementOperations<T>>::get_new_accounts_on_target(
-					state, project_id, target,
+				<SettlementType<Failure> as SettlementOperations<T>>::execute_with_given_weight(
+					state, weight, project_id, target,
 				),
 		}
 	}
@@ -74,8 +92,8 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 	fn do_one_operation(
 		&mut self,
 		project_id: ProjectId,
-		target: &mut impl Iterator,
-	) -> Result<(impl Iterator, Weight), DispatchError> {
+		target: &mut SettlementTarget<T>,
+	) -> Result<Weight, DispatchError> {
 		match self {
 			SettlementType::Initialized(PhantomData::<Success>) => {
 				*self = Self::EvaluationRewardOrSlash(PhantomData);
@@ -84,17 +102,17 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 			SettlementType::EvaluationRewardOrSlash(PhantomData::<Success>) =>
 				if target.is_empty() {
 					*self = Self::EvaluationUnbonding(PhantomData);
-					let consumed_weight = self.get_new_accounts_on_target(project_id, target);
+					let consumed_weight = self.update_target(project_id, target);
 					Ok(consumed_weight)
 				} else {
-					let (consumed_weight, remaining_accounts) = reward_or_slash_one_evaluation::<T>(project_id, target)
+					let consumed_weight = reward_or_slash_one_evaluation::<T>(project_id, target)
 						.map_err(|error_info| error_info.error)?;
 					Ok(consumed_weight)
 				},
 			SettlementType::EvaluationUnbonding(PhantomData::<Success>) =>
 				if target.is_empty() {
 					*self = SettlementType::StartBidderVestingSchedule(PhantomData);
-					let consumed_weight = self.get_new_accounts_on_target(project_id, target);
+					let consumed_weight = self.update_target(project_id, target);
 					Ok(consumed_weight)
 				} else {
 					let consumed_weight = unbond_one_evaluation::<T>(project_id, target);
@@ -104,7 +122,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 			SettlementType::StartBidderVestingSchedule(PhantomData::<Success>) =>
 				if target.is_empty() {
 					*self = SettlementType::StartContributorVestingSchedule(PhantomData);
-					let consumed_weight = self.get_new_accounts_on_target(project_id, target);
+					let consumed_weight = self.update_target(project_id, target);
 					Ok(consumed_weight)
 				} else {
 					let consumed_weight = start_one_bid_vesting_schedule::<T>(project_id, target);
@@ -114,7 +132,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 			SettlementType::StartContributorVestingSchedule(PhantomData::<Success>) =>
 				if target.is_empty() {
 					*self = SettlementType::BidCTMint(PhantomData);
-					let consumed_weight = self.get_new_accounts_on_target(project_id, target);
+					let consumed_weight = self.update_target(project_id, target);
 					Ok(consumed_weight)
 				} else {
 					let consumed_weight = start_one_contribution_vesting_schedule::<T>(project_id, target);
@@ -123,7 +141,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 			SettlementType::BidCTMint(PhantomData::<Success>) =>
 				if target.is_empty() {
 					*self = SettlementType::ContributionCTMint(PhantomData);
-					let consumed_weight = self.get_new_accounts_on_target(project_id, target);
+					let consumed_weight = self.update_target(project_id, target);
 					Ok(consumed_weight)
 				} else {
 					let consumed_weight = mint_ct_for_one_bid::<T>(project_id, target);
@@ -132,7 +150,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 			SettlementType::ContributionCTMint(PhantomData::<Success>) =>
 				if target.is_empty() {
 					*self = SettlementType::BidFundingPayout(PhantomData);
-					let consumed_weight = self.get_new_accounts_on_target(project_id, target);
+					let consumed_weight = self.update_target(project_id, target);
 					Ok(consumed_weight)
 				} else {
 					let consumed_weight = mint_ct_for_one_contribution::<T>(project_id, target);
@@ -142,7 +160,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 			SettlementType::BidFundingPayout(PhantomData::<Success>) =>
 				if target.is_empty() {
 					*self = SettlementType::ContributionFundingPayout(PhantomData);
-					let consumed_weight = self.get_new_accounts_on_target(project_id, target);
+					let consumed_weight = self.update_target(project_id, target);
 					Ok(consumed_weight)
 				} else {
 					let consumed_weight = issuer_funding_payout_one_bid::<T>(project_id, target);
@@ -152,7 +170,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 			SettlementType::ContributionFundingPayout(PhantomData::<Success>) =>
 				if target.is_empty() {
 					*self = SettlementType::Finished(PhantomData);
-					let consumed_weight = self.get_new_accounts_on_target(project_id, target);
+					let consumed_weight = self.update_target(project_id, target);
 					Ok(consumed_weight)
 				} else {
 					let consumed_weight = issuer_funding_payout_one_contribution::<T>(project_id, target);
@@ -165,12 +183,9 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 		}
 	}
 
-	fn get_new_accounts_on_target(&self, project_id: ProjectId, target: &mut impl Iterator) -> Weight {
+	fn update_target(&self, project_id: ProjectId, target: &mut SettlementTarget<T>) -> Weight {
 		match self {
-			SettlementType::Initialized(_) => {
-				*target = vec![];
-				Weight::zero()
-			},
+			SettlementType::Initialized(_) => Weight::zero(),
 			SettlementType::EvaluationRewardOrSlash(_) => {
 				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
 				Weight::zero()
@@ -229,6 +244,22 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 			},
 		}
 	}
+
+	fn execute_with_given_weight(
+		&mut self,
+		weight: Weight,
+		project_id: ProjectId,
+		target: &mut SettlementTarget<T>,
+	) -> Result<Weight, DispatchError> {
+		let mut remaining_weight = weight;
+		let has_remaining_operations =
+			<SettlementType<Success> as SettlementOperations<T>>::has_remaining_operations(self);
+		while has_remaining_operations && remaining_weight.all_gt(Weight::zero()) {
+			let consumed_weight = self.do_one_operation(project_id, target)?;
+			remaining_weight = remaining_weight.saturating_sub(consumed_weight);
+		}
+		Ok(remaining_weight)
+	}
 }
 impl<T: Config> SettlementOperations<T> for SettlementType<Failure> {
 	fn has_remaining_operations(&self) -> bool {
@@ -238,8 +269,9 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Failure> {
 	fn do_one_operation(
 		&mut self,
 		project_id: ProjectId,
-		target: impl Iterator,
-	) -> Result<(impl Iterator, Weight), DispatchError> {
+		target: &mut SettlementTarget<T>,
+	) -> Result<Weight, DispatchError> {
+		let base_weight = Weight::from_parts(10_000_000, 0);
 		match self {
 			SettlementType::Initialized(PhantomData::<Failure>) => {
 				*self = SettlementType::EvaluationRewardOrSlash(PhantomData::<Failure>);
@@ -316,78 +348,80 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Failure> {
 		}
 	}
 
-	fn get_new_accounts_on_target(&self, project_id: ProjectId, target: &mut impl Iterator) -> Vec<AccountIdOf<T>> {
+	fn update_target(&self, project_id: ProjectId, target: &mut SettlementTarget<T>) -> Weight {
+		todo!()
+	}
+
+	fn execute_with_given_weight(
+		&mut self,
+		weight: Weight,
+		project_id: ProjectId,
+		target: &mut SettlementTarget<T>,
+	) -> Result<Weight, DispatchError> {
 		todo!()
 	}
 }
 
-fn remaining_evaluators_to_reward_or_slash<T: Config>(
-	project_id: ProjectId,
-) -> impl Iterator<Item = EvaluationInfoOf<T>> {
+fn remaining_evaluators_to_reward_or_slash<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
 	let evaluators_outcome = ProjectsDetails::<T>::get(project_id)
 		.ok_or(Error::<T>::ImpossibleState)?
 		.evaluation_round_info
 		.evaluators_outcome;
 	if evaluators_outcome == EvaluatorsOutcomeOf::<T>::Unchanged {
-		vec![].into_iter()
+		SettlementTarget::Evaluations(vec![])
 	} else {
-		Evaluations::<T>::iter_prefix_values((project_id,))
-			.filter(|evaluation| evaluation.rewarded_or_slashed.is_none())
+		SettlementTarget::Evaluations(
+			Evaluations::<T>::iter_prefix_values((project_id,))
+				.filter(|evaluation| evaluation.rewarded_or_slashed.is_none())
+				.to_vec(),
+		)
 	}
 }
 
-fn remaining_evaluations<T: Config>(project_id: ProjectId) -> impl Iterator<Item = EvaluationInfoOf<T>> {
+fn remaining_evaluations<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
 	Evaluations::<T>::iter_prefix_values((project_id,))
 }
 
-fn remaining_bids_to_release_funds<T: Config>(project_id: ProjectId) -> impl Iterator<Item = BidInfoOf<T>> {
+fn remaining_bids_to_release_funds<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
 	Bids::<T>::iter_prefix_values((project_id,)).filter(|bid| !bid.funds_released)
 }
 
-fn remaining_bids<T: Config>(project_id: ProjectId) -> impl Iterator<Item = BidInfoOf<T>> {
+fn remaining_bids<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
 	Bids::<T>::iter_prefix_values((project_id,))
 }
 
-fn remaining_successful_bids<T: Config>(project_id: ProjectId) -> impl Iterator<Item = BidInfoOf<T>> {
+fn remaining_successful_bids<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
 	Bids::<T>::iter_prefix_values((project_id,))
 		.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
 }
 
-fn remaining_contributions_to_release_funds<T: Config>(
-	project_id: ProjectId,
-) -> impl Iterator<Item = ContributionInfoOf<T>> {
+fn remaining_contributions_to_release_funds<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
 	Contributions::<T>::iter_prefix_values((project_id,)).filter(|contribution| !contribution.funds_released)
 }
 
-fn remaining_contributions<T: Config>(project_id: ProjectId) -> impl Iterator<Item = ContributionInfoOf<T>> {
+fn remaining_contributions<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
 	Contributions::<T>::iter_prefix_values((project_id,))
 }
 
-fn remaining_bids_without_ct_minted<T: Config>(project_id: ProjectId) -> impl Iterator<Item = BidInfoOf<T>> {
+fn remaining_bids_without_ct_minted<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	project_bids.filter(|bid| !bid.ct_minted)
 }
 
-fn remaining_contributions_without_ct_minted<T: Config>(
-	project_id: ProjectId,
-) -> impl Iterator<Item = ContributionInfoOf<T>> {
+fn remaining_contributions_without_ct_minted<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
 	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
 	project_contributions.filter(|contribution| !contribution.ct_minted)
 }
 
-fn remaining_bids_without_issuer_payout<T: Config>(project_id: ProjectId) -> impl Iterator<Item = BidInfoOf<T>> {
+fn remaining_bids_without_issuer_payout<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
 	Bids::<T>::iter_prefix_values((project_id,)).filter(|bid| !bid.funds_released)
 }
 
-fn remaining_contributions_without_issuer_payout<T: Config>(
-	project_id: ProjectId,
-) -> impl Iterator<Item = ContributionInfoOf<T>> {
+fn remaining_contributions_without_issuer_payout<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
 	Contributions::<T>::iter_prefix_values((project_id,)).filter(|bid| !bid.funds_released)
 }
 
-fn remaining_participants_with_future_ct_deposit<T: Config>(
-	project_id: ProjectId,
-) -> impl Iterator<Item = AccountIdOf<T>> {
+fn remaining_participants_with_future_ct_deposit<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
 	let evaluators = Evaluations::<T>::iter_key_prefix((project_id,)).map(|(evaluator, _evaluation_id)| evaluator);
 	let bidders = Bids::<T>::iter_key_prefix((project_id,)).map(|(bidder, _bid_id)| bidder);
 	let contributors =
@@ -401,10 +435,15 @@ fn remaining_participants_with_future_ct_deposit<T: Config>(
 
 fn reward_or_slash_one_evaluation<T: Config>(
 	project_id: ProjectId,
-	target: &mut impl Iterator<Item = AccountIdOf<T>>,
+	target: &mut SettlementTarget<T>,
 ) -> Result<Weight, DispatchErrorWithPostInfo> {
 	let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-	let mut remaining_evaluations = *target;
+	let mut remaining_evaluations: Vec<EvaluationInfoOf<T>> =
+		if let SettlementTarget::Evaluations(evaluations) = *target {
+			evaluations
+		} else {
+			return Err("Expected evaluations at settlement target".into());
+		};
 	let base_weight = Weight::from_parts(10_000_000, 0);
 
 	if let Some(evaluation) = remaining_evaluations.next() {
@@ -476,10 +515,7 @@ fn reward_or_slash_one_evaluation<T: Config>(
 	}
 }
 
-fn unbond_one_evaluation<T: Config>(
-	project_id: ProjectId,
-	target: &mut impl Iterator<Item = AccountIdOf<T>>,
-) -> Weight {
+fn unbond_one_evaluation<T: Config>(project_id: ProjectId, target: &mut SettlementTarget<T>) -> Weight {
 	let project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,));
 	let mut remaining_evaluations =
 		project_evaluations.filter(|evaluation| evaluation.current_plmc_bond > Zero::zero());
@@ -505,10 +541,7 @@ fn unbond_one_evaluation<T: Config>(
 	}
 }
 
-fn release_funds_one_bid<T: Config>(
-	project_id: ProjectId,
-	target: &mut impl Iterator<Item = AccountIdOf<T>>,
-) -> Weight {
+fn release_funds_one_bid<T: Config>(project_id: ProjectId, target: &mut SettlementTarget<T>) -> Weight {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	let mut remaining_bids = project_bids.filter(|bid| !bid.funds_released);
 	let base_weight = Weight::from_parts(10_000_000, 0);
@@ -535,7 +568,7 @@ fn release_funds_one_bid<T: Config>(
 	}
 }
 
-fn unbond_one_bid<T: Config>(project_id: ProjectId, target: &mut impl Iterator<Item = AccountIdOf<T>>) -> Weight {
+fn unbond_one_bid<T: Config>(project_id: ProjectId, target: &mut SettlementTarget<T>) -> Weight {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	let mut remaining_bids = project_bids.filter(|bid| bid.funds_released);
 	let base_weight = Weight::from_parts(10_000_000, 0);
@@ -563,7 +596,7 @@ fn unbond_one_bid<T: Config>(project_id: ProjectId, target: &mut impl Iterator<I
 
 fn release_future_ct_deposit_one_participant<T: Config>(
 	project_id: ProjectId,
-	target: &mut impl Iterator<Item = AccountIdOf<T>>,
+	target: &mut SettlementTarget<T>,
 ) -> Weight {
 	let base_weight = Weight::from_parts(10_000_000, 0);
 	let evaluators = Evaluations::<T>::iter_key_prefix((project_id,)).map(|(evaluator, _evaluation_id)| evaluator);
@@ -606,10 +639,7 @@ fn release_future_ct_deposit_one_participant<T: Config>(
 	(base_weight, 0u64)
 }
 
-fn release_funds_one_contribution<T: Config>(
-	project_id: ProjectId,
-	target: &mut impl Iterator<Item = AccountIdOf<T>>,
-) -> Weight {
+fn release_funds_one_contribution<T: Config>(project_id: ProjectId, target: &mut SettlementTarget<T>) -> Weight {
 	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
 	let mut remaining_contributions = project_contributions.filter(|contribution| !contribution.funds_released);
 	let base_weight = Weight::from_parts(10_000_000, 0);
@@ -639,10 +669,7 @@ fn release_funds_one_contribution<T: Config>(
 	}
 }
 
-fn unbond_one_contribution<T: Config>(
-	project_id: ProjectId,
-	target: &mut impl Iterator<Item = AccountIdOf<T>>,
-) -> Weight {
+fn unbond_one_contribution<T: Config>(project_id: ProjectId, target: &mut SettlementTarget<T>) -> Weight {
 	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
 
 	let mut remaining_contributions =
@@ -673,10 +700,7 @@ fn unbond_one_contribution<T: Config>(
 	}
 }
 
-fn start_one_bid_vesting_schedule<T: Config>(
-	project_id: ProjectId,
-	target: &mut impl Iterator<Item = AccountIdOf<T>>,
-) -> Weight {
+fn start_one_bid_vesting_schedule<T: Config>(project_id: ProjectId, target: &mut SettlementTarget<T>) -> Weight {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	let mut unscheduled_bids = project_bids.filter(|bid| {
 		bid.plmc_vesting_info.is_none() && matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..))
@@ -713,7 +737,7 @@ fn start_one_bid_vesting_schedule<T: Config>(
 
 fn start_one_contribution_vesting_schedule<T: Config>(
 	project_id: ProjectId,
-	target: &mut impl Iterator<Item = AccountIdOf<T>>,
+	target: &mut SettlementTarget<T>,
 ) -> Weight {
 	let project_bids = Contributions::<T>::iter_prefix_values((project_id,));
 	let mut unscheduled_contributions = project_bids.filter(|contribution| contribution.plmc_vesting_info.is_none());
@@ -745,7 +769,7 @@ fn start_one_contribution_vesting_schedule<T: Config>(
 	}
 }
 
-fn mint_ct_for_one_bid<T: Config>(project_id: ProjectId, target: &mut impl Iterator<Item = AccountIdOf<T>>) -> Weight {
+fn mint_ct_for_one_bid<T: Config>(project_id: ProjectId, target: &mut SettlementTarget<T>) -> Weight {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	let mut remaining_bids = project_bids
 		.filter(|bid| !bid.ct_minted && matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)));
@@ -775,10 +799,7 @@ fn mint_ct_for_one_bid<T: Config>(project_id: ProjectId, target: &mut impl Itera
 	}
 }
 
-fn mint_ct_for_one_contribution<T: Config>(
-	project_id: ProjectId,
-	target: &mut impl Iterator<Item = AccountIdOf<T>>,
-) -> Weight {
+fn mint_ct_for_one_contribution<T: Config>(project_id: ProjectId, target: &mut SettlementTarget<T>) -> Weight {
 	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
 	let mut remaining_contributions = project_contributions.filter(|contribution| !contribution.ct_minted);
 	let base_weight = Weight::from_parts(10_000_000, 0);
@@ -807,10 +828,7 @@ fn mint_ct_for_one_contribution<T: Config>(
 	}
 }
 
-fn issuer_funding_payout_one_bid<T: Config>(
-	project_id: ProjectId,
-	target: &mut impl Iterator<Item = AccountIdOf<T>>,
-) -> Weight {
+fn issuer_funding_payout_one_bid<T: Config>(project_id: ProjectId, target: &mut SettlementTarget<T>) -> Weight {
 	let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 
 	let mut remaining_bids = project_bids.filter(|bid| {
@@ -841,7 +859,7 @@ fn issuer_funding_payout_one_bid<T: Config>(
 
 fn issuer_funding_payout_one_contribution<T: Config>(
 	project_id: ProjectId,
-	target: &mut impl Iterator<Item = AccountIdOf<T>>,
+	target: &mut SettlementTarget<T>,
 ) -> Weight {
 	let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
 

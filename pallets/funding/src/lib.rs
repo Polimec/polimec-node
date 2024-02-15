@@ -241,7 +241,9 @@ pub const PLMC_FOREIGN_ID: u32 = 2069;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation};
+	use crate::traits::{
+		BondingRequirementCalculation, ProvideAssetPrice, SettlementTarget, VestingDurationCalculation,
+	};
 	use frame_support::{
 		dispatch::PostDispatchInfo,
 		pallet_prelude::*,
@@ -1449,35 +1451,40 @@ pub mod pallet {
 		}
 
 		fn on_idle(_now: BlockNumberFor<T>, max_weight: Weight) -> Weight {
-			let mut remaining_weight = max_weight;
+			let weight_consumed: Weight;
+			let mut available_weight = max_weight;
 
-			let mut settlement_queue = ProjectSettlements::<T>::get();
+			let mut settlement_queue = ProjectSettlements::<T>::get().into_iter();
 			settlement_queue.sort_by_key(|(project_id, _)| project_id);
-			remaining_weight = remaining_weight.saturating_sub(<T as frame_system::Config>::DbWeight::get().reads(1));
+			available_weight = available_weight.saturating_sub(<T as frame_system::Config>::DbWeight::get().reads(1));
 
-			let settlement_queue = settlement_queue.into_iter();
-			let (project_id, mut cleaner) = settlement_queue.next().unwrap_or_else(|| return remaining_weight);
-			let settlement_queue = settlement_queue.collect::<Vec<_>>();
-			let settlement_queue = WeakBoundedVec::<_, T::MaxProjectsInSettlement>::force_from(settlement_queue);
+			let (project_id, mut settlement_machine) =
+				settlement_queue.next().unwrap_or_else(|| return max_weight.saturating_sub(available_weight));
+			let settlement_queue =
+				WeakBoundedVec::<_, T::MaxProjectsInSettlement>::force_from(settlement_queue.collect_vec(), None);
 
-			const LOWEST_OPERATION_WEIGHT: Weight = Weight::from_parts(100_000, 3_000);
-			while remaining_weight > LOWEST_OPERATION_WEIGHT {
-				match <SettlementMachine as SettlementOperations<T>>::do_one_operation(&mut cleaner, project_id) {
-					Ok(weight) => {
-						remaining_weight = remaining_weight.saturating_sub(weight);
-					},
-					Err(err) => {
-						Self::deposit_event(Event::<T>::SettlementError { project_id: *project_id, error: err.into() });
-						break;
-					},
-				}
+			let mut target: SettlementTarget<T>;
+			match settlement_machine.execute_with_given_weight(available_weight, project_id, &mut target) {
+				Ok(weight) => {
+					weight_consumed = weight;
+					if <SettlementMachine as SettlementOperations<T>>::has_remaining_operations(&settlement_machine) {
+						settlement_queue.push((project_id, settlement_machine));
+					}
+				},
+				Err((weight, err)) => {
+					weight_consumed = weight;
+					// An error shouldn't normally occur. So if one does happen, we won't add the settlement machine back to the queue.
+					#[cfg(debug_assertions)]
+					panic!("Error in settlement machine: {:?}", err);
+					#[cfg(not(debug_assertions))]
+					Self::deposit_event(Event::SettlementError { project_id, error: err });
+				},
 			}
 
-			if <SettlementMachine as SettlementOperations<T>>::has_remaining_operations(&cleaner) {
-				settlement_queue.push((project_id, cleaner));
-			}
+			ProjectSettlements::<T>::put(settlement_queue);
+			weight_consumed = weight_consumed.saturating_add(<T as frame_system::Config>::DbWeight::get().writes(1));
 
-			max_weight.saturating_sub(remaining_weight)
+			weight_consumed
 		}
 	}
 	use pallet_xcm::ensure_response;

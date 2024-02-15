@@ -40,20 +40,16 @@ pub trait SettlementOperations<T: Config> {
 	fn do_one_operation(
 		&mut self,
 		project_id: ProjectId,
-		target: &mut impl Iterator<Item = SettlementTarget<T>>,
-	) -> Result<(impl Iterator<Item = SettlementTarget<T>>, Weight), DispatchError>;
+		target: &mut SettlementTarget<T>,
+	) -> Result<Weight, DispatchError>;
 
-	fn update_target(
-		&self,
-		project_id: ProjectId,
-		target: &mut impl Iterator<Item = SettlementTarget<T>>,
-	) -> Vec<AccountIdOf<T>>;
+	fn update_target(&self, project_id: ProjectId, target: &mut SettlementTarget<T>) -> Weight;
 
 	fn execute_with_given_weight(
 		&mut self,
 		weight: Weight,
 		project_id: ProjectId,
-		target: &mut impl Iterator<Item = SettlementTarget<T>>,
+		target: &mut SettlementTarget<T>,
 	) -> Result<Weight, DispatchError>;
 }
 
@@ -62,6 +58,16 @@ pub enum SettlementTarget<T: Config> {
 	Evaluations(Vec<EvaluationInfoOf<T>>),
 	Bids(Vec<BidInfoOf<T>>),
 	Contributions(Vec<ContributionInfoOf<T>>),
+}
+impl<T: Config> SettlementTarget<T> {
+	pub fn is_empty(&self) -> bool {
+		match self {
+			Self::Accounts(accounts) => accounts.is_empty(),
+			Self::Evaluations(evaluations) => evaluations.is_empty(),
+			Self::Bids(bids) => bids.is_empty(),
+			Self::Contributions(contributions) => contributions.is_empty(),
+		}
+	}
 }
 
 #[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
