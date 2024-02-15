@@ -1109,10 +1109,10 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			evaluator: AccountIdOf<T>,
-			bond_id: u32,
+			evaluation_id: u32,
 		) -> DispatchResult {
 			let releaser = ensure_signed(origin)?;
-			Self::do_evaluation_unbond_for(&releaser, project_id, &evaluator, bond_id)
+			Self::do_evaluation_unbond_for(&releaser, project_id, &evaluator, evaluation_id)
 		}
 
 		#[pallet::call_index(8)]
@@ -1121,10 +1121,10 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			evaluator: AccountIdOf<T>,
-			bond_id: u32,
+			evaluation_id: u32,
 		) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
-			Self::do_evaluation_slash_for(&caller, project_id, &evaluator, bond_id)
+			Self::do_evaluation_slash_for(&caller, project_id, &evaluator, evaluation_id)
 		}
 
 		#[pallet::call_index(9)]
@@ -1136,10 +1136,10 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			evaluator: AccountIdOf<T>,
-			bond_id: u32,
+			evaluation_id: u32,
 		) -> DispatchResultWithPostInfo {
 			let caller = ensure_signed(origin)?;
-			Self::do_evaluation_reward_payout_for(&caller, project_id, &evaluator, bond_id)
+			Self::do_evaluation_reward_payout_for(&caller, project_id, &evaluator, evaluation_id)
 		}
 
 		#[pallet::call_index(10)]

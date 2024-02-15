@@ -58,6 +58,7 @@ pub trait SettlementOperations<T: Config> {
 	) -> Result<Weight, (Weight, DispatchError)>;
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SettlementTarget<T: Config> {
 	Empty,
 	Accounts(Vec<AccountIdOf<T>>),

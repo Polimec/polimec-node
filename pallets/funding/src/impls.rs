@@ -15,9 +15,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use frame_support::{
-	dispatch::{DispatchErrorWithPostInfo, GetDispatchInfo},
 	traits::{fungible::InspectHold, Get},
-	weights::Weight,
+	weights::{GetDispatchInfo, Weight},
 };
 use itertools::Itertools;
 use sp_arithmetic::traits::Zero;
@@ -476,137 +475,171 @@ fn reward_or_slash_one_evaluation<T: Config>(
 	project_id: ProjectId,
 	target: &mut SettlementTarget<T>,
 ) -> Result<Weight, (Weight, DispatchError)> {
-	// let project_details = ProjectsDetails::<T>::get(project_id).ok_or((<T as frame_system::Config>::DbWeight::get().reads(1), Error::<T>::ProjectNotFound))?;
-	// let mut remaining_evaluations: Vec<EvaluationInfoOf<T>> =
-	// 	if let SettlementTarget::Evaluations(evaluations) = *target {
-	// 		evaluations
-	// 	} else {
-	// 		#[cfg(debug_assertions)]
-	// 		unreachable!("Expected evaluations at settlement target");
-	// 		#[cfg(not(debug_assertions))]
-	// 		return Err("Expected evaluations at settlement target".into());
-	// 	};
-	//
-	// if let Some(evaluation) = remaining_evaluations.next() {
-	// 	let remaining = remaining_evaluations.count() as u64;
-	// 	match project_details.evaluation_round_info.evaluators_outcome {
-	// 		EvaluatorsOutcome::Rewarded(_) => {
-	// 			match Pallet::<T>::do_evaluation_reward_payout_for(
-	// 				&T::PalletId::get().into_account_truncating(),
-	// 				evaluation.project_id,
-	// 				&evaluation.evaluator,
-	// 				evaluation.id,
-	// 			) {
-	// 				Ok(result) => {
-	// 					if let Some(weight) = result.actual_weight {
-	// 						weight_consumed = weight
-	// 					};
-	// 				},
-	// 				Err(e) => {
-	// 					if let Some(weight) = e.post_info.actual_weight {
-	// 						weight_consumed = weight
-	// 					};
-	// 					Pallet::<T>::deposit_event(Event::EvaluationRewardFailed {
-	// 						project_id: evaluation.project_id,
-	// 						evaluator: evaluation.evaluator.clone(),
-	// 						id: evaluation.id,
-	// 						error: e.error,
-	// 					})
-	// 				},
-	// 			};
-	//
-	// 			Ok((base_weight.saturating_add(weight_consumed), remaining))
-	// 		},
-	// 		EvaluatorsOutcome::Slashed => {
-	// 			match Pallet::<T>::do_evaluation_slash_for(
-	// 				&T::PalletId::get().into_account_truncating(),
-	// 				evaluation.project_id,
-	// 				&evaluation.evaluator,
-	// 				evaluation.id,
-	// 			) {
-	// 				Ok(_) => (),
-	// 				Err(e) => Pallet::<T>::deposit_event(Event::EvaluationSlashFailed {
-	// 					project_id: evaluation.project_id,
-	// 					evaluator: evaluation.evaluator.clone(),
-	// 					id: evaluation.id,
-	// 					error: e,
-	// 				}),
-	// 			};
-	//
-	// 			Ok((base_weight.saturating_add(WeightInfoOf::<T>::evaluation_slash_for()), remaining))
-	// 		},
-	// 		_ => {
-	// 			#[cfg(debug_assertions)]
-	// 			unreachable!("EvaluatorsOutcome should be either Slashed or Rewarded if this function is called");
-	// 			#[cfg(not(debug_assertions))]
-	// 			Err(Error::<T>::ImpossibleState.into())
-	// 		},
-	// 	}
-	// } else {
-	// 	Ok((base_weight, 0u64))
-	todo!()
+	let mut consumed_weight = <T as frame_system::Config>::DbWeight::get().reads(1);
+	let project_details =
+		ProjectsDetails::<T>::get(project_id).ok_or((consumed_weight, Error::<T>::ProjectNotFound.into()))?;
+	let mut remaining_evaluations = if let SettlementTarget::Evaluations(evaluations) = target.clone() {
+		evaluations.into_iter()
+	} else {
+		#[cfg(debug_assertions)]
+		unreachable!("Expected evaluations at settlement target");
+		#[cfg(not(debug_assertions))]
+		return Err((consumed_weight, "Expected evaluations at settlement target".into()));
+	};
+
+	if let Some(evaluation) = remaining_evaluations.next() {
+		match project_details.evaluation_round_info.evaluators_outcome {
+			EvaluatorsOutcome::Rewarded(_) => {
+				match Pallet::<T>::do_evaluation_reward_payout_for(
+					&T::PalletId::get().into_account_truncating(),
+					evaluation.project_id,
+					&evaluation.evaluator,
+					evaluation.id,
+				) {
+					Ok(result) => {
+						if let Some(weight) = result.actual_weight {
+							consumed_weight = consumed_weight.saturating_add(weight)
+						};
+					},
+					Err(e) => {
+						if let Some(weight) = e.post_info.actual_weight {
+							consumed_weight = consumed_weight.saturating_add(weight)
+						};
+						Pallet::<T>::deposit_event(Event::EvaluationRewardFailed {
+							project_id: evaluation.project_id,
+							evaluator: evaluation.evaluator.clone(),
+							id: evaluation.id,
+							error: e.error,
+						})
+					},
+				};
+
+				consumed_weight = consumed_weight.saturating_add(
+					crate::Call::<T>::evaluation_reward_payout_for {
+						project_id: evaluation.project_id,
+						evaluator: evaluation.evaluator.clone(),
+						evaluation_id: evaluation.id,
+					}
+					.get_dispatch_info()
+					.weight,
+				)
+			},
+
+			EvaluatorsOutcome::Slashed => {
+				match Pallet::<T>::do_evaluation_slash_for(
+					&T::PalletId::get().into_account_truncating(),
+					evaluation.project_id,
+					&evaluation.evaluator,
+					evaluation.id,
+				) {
+					Ok(_) => {},
+					Err(e) => Pallet::<T>::deposit_event(Event::EvaluationSlashFailed {
+						project_id: evaluation.project_id,
+						evaluator: evaluation.evaluator.clone(),
+						id: evaluation.id,
+						error: e,
+					}),
+				};
+
+				consumed_weight = consumed_weight.saturating_add(
+					crate::Call::<T>::evaluation_slash_for {
+						project_id: evaluation.project_id,
+						evaluator: evaluation.evaluator,
+						evaluation_id: evaluation.id,
+					}
+					.get_dispatch_info()
+					.weight,
+				)
+			},
+			_ => {
+				#[cfg(debug_assertions)]
+				unreachable!("EvaluatorsOutcome should be either Slashed or Rewarded if this function is called");
+				#[cfg(not(debug_assertions))]
+				return Err((consumed_weight, Error::<T>::ImpossibleState.into()))
+			},
+		}
+	}
+
+	*target = SettlementTarget::Evaluations(remaining_evaluations.collect_vec());
+
+	Ok(consumed_weight)
 }
 
-fn unbond_one_evaluation<T: Config>(
-	project_id: ProjectId,
-	target: &mut SettlementTarget<T>,
-) -> Result<Weight, (Weight, DispatchError)> {
-	// let project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,));
-	// let mut remaining_evaluations =
-	// 	project_evaluations.filter(|evaluation| evaluation.current_plmc_bond > Zero::zero());
-	// let base_weight = Weight::from_parts(10_000_000, 0);
-	// if let Some(evaluation) = remaining_evaluations.next() {
-	// 	match Pallet::<T>::do_evaluation_unbond_for(
-	// 		&T::PalletId::get().into_account_truncating(),
-	// 		evaluation.project_id,
-	// 		&evaluation.evaluator,
-	// 		evaluation.id,
-	// 	) {
-	// 		Ok(_) => (),
-	// 		Err(e) => Pallet::<T>::deposit_event(Event::EvaluationUnbondFailed {
-	// 			project_id: evaluation.project_id,
-	// 			evaluator: evaluation.evaluator.clone(),
-	// 			id: evaluation.id,
-	// 			error: e,
-	// 		}),
-	// 	};
-	// 	(base_weight.saturating_add(WeightInfoOf::<T>::evaluation_unbond_for()), remaining_evaluations.count() as u64)
-	// } else {
-	// 	(base_weight, 0u64)
-	// }
-	todo!()
+fn unbond_one_evaluation<T: Config>(target: &mut SettlementTarget<T>) -> Result<Weight, (Weight, DispatchError)> {
+	let mut consumed_weight = Weight::zero();
+	let mut remaining_evaluations = if let SettlementTarget::Evaluations(evaluations) = target.clone() {
+		evaluations.into_iter()
+	} else {
+		#[cfg(debug_assertions)]
+		unreachable!("Expected evaluations at settlement target");
+		#[cfg(not(debug_assertions))]
+		return Err((consumed_weight, "Expected evaluations at settlement target".into()));
+	};
+	if let Some(evaluation) = remaining_evaluations.next() {
+		match Pallet::<T>::do_evaluation_unbond_for(
+			&T::PalletId::get().into_account_truncating(),
+			evaluation.project_id,
+			&evaluation.evaluator,
+			evaluation.id,
+		) {
+			Ok(_) => (),
+			Err(e) => Pallet::<T>::deposit_event(Event::EvaluationUnbondFailed {
+				project_id: evaluation.project_id,
+				evaluator: evaluation.evaluator.clone(),
+				id: evaluation.id,
+				error: e,
+			}),
+		};
+		consumed_weight = consumed_weight.saturating_add(
+			crate::Call::<T>::evaluation_unbond_for {
+				project_id: evaluation.project_id,
+				evaluator: evaluation.evaluator,
+				evaluation_id: evaluation.id,
+			}
+			.get_dispatch_info()
+			.weight,
+		);
+	}
+
+	*target = SettlementTarget::Evaluations(remaining_evaluations.collect_vec());
+
+	Ok(consumed_weight)
 }
 
 fn release_funds_one_bid<T: Config>(
 	project_id: ProjectId,
 	target: &mut SettlementTarget<T>,
 ) -> Result<Weight, (Weight, DispatchError)> {
-	// let project_bids = Bids::<T>::iter_prefix_values((project_id,));
-	// let mut remaining_bids = project_bids.filter(|bid| !bid.funds_released);
-	// let base_weight = Weight::from_parts(10_000_000, 0);
-	//
-	// if let Some(bid) = remaining_bids.next() {
-	// 	match Pallet::<T>::do_release_bid_funds_for(
-	// 		&T::PalletId::get().into_account_truncating(),
-	// 		bid.project_id,
-	// 		&bid.bidder,
-	// 		bid.id,
-	// 	) {
-	// 		Ok(_) => (),
-	// 		Err(e) => Pallet::<T>::deposit_event(Event::ReleaseBidFundsFailed {
-	// 			project_id: bid.project_id,
-	// 			bidder: bid.bidder.clone(),
-	// 			id: bid.id,
-	// 			error: e,
-	// 		}),
-	// 	};
-	//
-	// 	(base_weight.saturating_add(WeightInfoOf::<T>::release_bid_funds_for()), remaining_bids.count() as u64)
-	// } else {
-	// 	(base_weight, 0u64)
-	// }
+	let mut consumed_weight = Weight::zero();
+	let mut remaining_bids = if let SettlementTarget::Bids(bids) = target.clone() {
+		bids.into_iter()
+	} else {
+		#[cfg(debug_assertions)]
+		unreachable!("Expected bids at settlement target");
+		#[cfg(not(debug_assertions))]
+		return Err((consumed_weight, "Expected bids at settlement target".into()));
+	};
 
-	todo!()
+	if let Some(bid) = remaining_bids.next() {
+		match Pallet::<T>::do_release_bid_funds_for(
+			&T::PalletId::get().into_account_truncating(),
+			bid.project_id,
+			&bid.bidder,
+			bid.id,
+		) {
+			Ok(_) => (),
+			Err(e) => Pallet::<T>::deposit_event(Event::ReleaseBidFundsFailed {
+				project_id: bid.project_id,
+				bidder: bid.bidder.clone(),
+				id: bid.id,
+				error: e,
+			}),
+		};
+
+		(base_weight.saturating_add(WeightInfoOf::<T>::release_bid_funds_for()), remaining_bids.count() as u64)
+	} else {
+		(base_weight, 0u64)
+	}
 }
 
 fn unbond_one_bid<T: Config>(
