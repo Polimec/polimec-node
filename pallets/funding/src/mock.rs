@@ -313,6 +313,10 @@ parameter_types! {
 	pub MaxCapacityThresholds: (u32, u32) = (8, 1000);
 	pub RequiredMaxCapacity: u32 = 8;
 	pub RequiredMaxMessageSize: u32 = 102_400;
+	pub VerifierPublicKey: [u8; 32] = [
+		32, 118, 30, 171, 58, 212, 197, 27, 146, 122, 255, 243, 34, 245, 90, 244, 221, 37, 253,
+		195, 18, 202, 111, 55, 39, 48, 123, 17, 101, 78, 215, 94,
+	];
 
 }
 
@@ -379,6 +383,7 @@ impl Config for TestRuntime {
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type TreasuryAccount = TreasuryAccount;
+	type VerifierPublicKey = VerifierPublicKey;
 	type Vesting = Vesting;
 	type WeightInfo = weights::SubstrateWeight<TestRuntime>;
 }

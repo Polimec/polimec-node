@@ -80,6 +80,34 @@ const USDT_UNIT: u128 = 10_000_000_000_u128;
 
 pub const US_DOLLAR: u128 = 1_0_000_000_000;
 
+// TODO: Placeholders: probably we need to move this to a separate module
+enum InvestorType {
+	Retail,
+	Professional,
+	Instiutional,
+}
+
+impl InvestorType {
+	fn as_str(&self) -> &'static str {
+		match self {
+			InvestorType::Retail => "retail",
+			InvestorType::Professional => "professional",
+			InvestorType::Instiutional => "institutional",
+		}
+	}
+}
+
+/// Fetches a JWT from a dummy Polimec JWT producer that will return a JWT with the specified investor type
+fn get_jwt(investor_type: InvestorType) -> jwt_compact::UntrustedToken {
+	let jwt = reqwest::blocking::get(format!("https://jws-producer.polimec.workers.dev/{}", investor_type.as_str()))
+		.expect("Failed to perform the HTTP GET")
+		.text()
+		.expect("Failed to get the response body (jwt) from the specified endpoint");
+	dbg!(&jwt);
+	let res = jwt_compact::UntrustedToken::new(&jwt).expect("Failed to parse the JWT");
+	res
+}
+
 pub mod defaults {
 	use super::*;
 
@@ -268,6 +296,22 @@ pub mod defaults {
 
 mod creation_round_success {
 	use super::*;
+
+	#[test]
+	fn jwt_check_instiutional() {
+		new_test_ext().execute_with(|| {
+			let jwt = get_jwt(InvestorType::Instiutional);
+			assert_ok!(PolimecFunding::verify(RuntimeOrigin::signed(ISSUER), jwt));
+		});
+	}
+
+	#[test]
+	fn jwt_reject_retail() {
+		new_test_ext().execute_with(|| {
+			let jwt = get_jwt(InvestorType::Retail);
+			assert_err!(PolimecFunding::verify(RuntimeOrigin::signed(ISSUER), jwt), Error::<TestRuntime>::NotAllowed);
+		});
+	}
 
 	#[test]
 	fn basic_plmc_transfer_works() {

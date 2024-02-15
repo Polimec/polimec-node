@@ -24,6 +24,7 @@ use crate::{
 };
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
 use frame_system::pallet_prelude::BlockNumberFor;
+use jwt_compact::AlgorithmExt;
 use polimec_common::migration_types::{Migration, MigrationInfo, MigrationOrigin, ParticipationType};
 use polkadot_parachain::primitives::Id as ParaId;
 use serde::{Deserialize, Serialize};
@@ -819,5 +820,52 @@ impl<T: Config> MigrationGenerator<T> {
 		};
 		let migration_info: MigrationInfo = (contribution.ct_amount.into(), vesting_duration_local_type.into()).into();
 		Some(Migration::new(migration_origin, migration_info))
+	}
+}
+
+/// Sample token claims.
+// TODO/TBD: Should this belong to here - or should this some sort of Config type?
+/// "sub" and "iss" are from the JWT standard.
+#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, Deserialize)]
+pub struct SampleClaims {
+	#[serde(rename = "sub")]
+	pub subject: scale_info::prelude::string::String,
+	#[serde(rename = "iss")]
+	pub issuer: scale_info::prelude::string::String,
+	pub investor_type: scale_info::prelude::string::String,
+}
+
+
+// TODO/TBD: Should this belong to here - or should this some sort of Config type?
+#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, MaxEncodedLen, Deserialize)]
+pub struct TokenChecker {}
+
+impl TokenChecker {
+	fn extract_claims<'a>(&self, token: &'a jwt_compact::Token<SampleClaims>) -> Result<&'a SampleClaims, ()> {
+		Ok(&token.claims().custom)
+	}
+
+	pub fn verify_token<T: jwt_compact::Algorithm>(
+		&self,
+		alg: &T,
+		token: jwt_compact::prelude::UntrustedToken,
+		verifying_key: &T::VerifyingKey,
+	) -> Result<SampleClaims, ()> {
+		// Validate if the untrustworthy token is signed by the Verifier
+		// TODO: Handle the unwrap
+		let token = alg.validator::<SampleClaims>(verifying_key).validate(&token).unwrap();
+		// We now know that the token is signed by the Verifier
+		// So we can extract the claims from the token
+		let claims = self.extract_claims(&token)?;
+		// TODO: We have to check if the subject (a ss58 address) is the extrinsic signer
+		// TODO: We have to check if the issuer is a known issuer
+		// TODO: We have to check if the investor_type is a known investor_type
+		// TODO: We have to check if the token is not expired
+		// At the moment we just return all the claims
+		Ok(claims.clone())
+	}
+
+	pub fn new() -> Self {
+		Self {}
 	}
 }

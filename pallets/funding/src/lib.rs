@@ -469,6 +469,10 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type MaxEvaluationsPerProject: Get<u32>;
+
+		/// The Ed25519 Verifier Public Key
+		#[pallet::constant]
+		type VerifierPublicKey: Get<[u8; 32]>;
 	}
 
 	#[pallet::storage]
@@ -981,6 +985,22 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		#[pallet::call_index(69)]
+		#[pallet::weight(WeightInfoOf::<T>::create())]
+		/// A new dummy extrinsic to test the verification of the JWT - to avoid to break all the tests
+		/// This extrinsic is not supposed to be used in production
+		/// TODO: Other 'protected' extrinsics will have to be updated to receive an extra parameter `jwt: jwt_compact::prelude::UntrustedToken`, as in this example.
+
+		pub fn verify(origin: OriginFor<T>, jwt: jwt_compact::prelude::UntrustedToken) -> DispatchResult {
+			// TODO: I would love to create custom origins for this, with a syntax like `ensure_ROLE(origin, jwt)` or `ensure_permissioned(origin, jwt, ROLE)`.
+
+			// let caller = ensure_institutional(origin, jwt)?;
+			let _caller = ensure_signed(origin)?;
+			let claims = Self::verify_jwt(jwt, T::VerifierPublicKey::get()).expect("JWT verification failed");
+			ensure!(claims.investor_type == "institutional", Error::<T>::NotAllowed);
+			Ok(())
+		}
+
 		/// Creates a project and assigns it to the `issuer` account.
 		#[pallet::call_index(0)]
 		#[pallet::weight(WeightInfoOf::<T>::create())]
