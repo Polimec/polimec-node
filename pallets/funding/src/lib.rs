@@ -1352,7 +1352,9 @@ pub mod pallet {
 								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
 							)
 							.actual_weight
-							.unwrap_or_default(),
+							.unwrap_or(WeightInfoOf::<T>::end_evaluation_success(
+								<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+							)),
 						);
 					},
 
@@ -1366,7 +1368,10 @@ pub mod pallet {
 								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
 							)
 							.actual_weight
-							.unwrap_or_default(),
+							.unwrap_or(WeightInfoOf::<T>::start_auction_manually(
+								<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+								10_000,
+							)),
 						);
 					},
 
@@ -1379,7 +1384,9 @@ pub mod pallet {
 								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
 							)
 							.actual_weight
-							.unwrap_or_default(),
+							.unwrap_or(WeightInfoOf::<T>::start_candle_phase(
+								<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+							)),
 						);
 					},
 
@@ -1392,7 +1399,23 @@ pub mod pallet {
 								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
 							)
 							.actual_weight
-							.unwrap_or_default(),
+							.unwrap_or(
+								WeightInfoOf::<T>::start_community_funding_success(
+									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+									<T as Config>::MaxBidsPerProject::get() / 2,
+									<T as Config>::MaxBidsPerProject::get() / 2,
+								)
+								.max(WeightInfoOf::<T>::start_community_funding_success(
+									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+									<T as Config>::MaxBidsPerProject::get(),
+									0u32,
+								))
+								.max(WeightInfoOf::<T>::start_community_funding_success(
+									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+									0u32,
+									<T as Config>::MaxBidsPerProject::get(),
+								)),
+							),
 						);
 					},
 
@@ -1405,7 +1428,9 @@ pub mod pallet {
 								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
 							)
 							.actual_weight
-							.unwrap_or_default(),
+							.unwrap_or(WeightInfoOf::<T>::start_remainder_funding(
+								<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+							)),
 						);
 					},
 
@@ -1418,7 +1443,21 @@ pub mod pallet {
 								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
 							)
 							.actual_weight
-							.unwrap_or_default(),
+							.unwrap_or(
+								WeightInfoOf::<T>::end_funding_automatically_rejected_evaluators_slashed(
+									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+								)
+								.max(WeightInfoOf::<T>::end_funding_awaiting_decision_evaluators_slashed(
+									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+								))
+								.max(WeightInfoOf::<T>::end_funding_awaiting_decision_evaluators_unchanged(
+									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+								))
+								.max(WeightInfoOf::<T>::end_funding_automatically_accepted_evaluators_rewarded(
+									<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+									<T as Config>::MaxEvaluationsPerProject::get(),
+								)),
+							),
 						);
 					},
 
@@ -1430,19 +1469,25 @@ pub mod pallet {
 								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
 							)
 							.actual_weight
-							.unwrap_or_default(),
+							.unwrap_or(
+								WeightInfoOf::<T>::project_decision_accept_funding()
+									.max(WeightInfoOf::<T>::project_decision_reject_funding()),
+							),
 						);
 					},
 
 					UpdateType::StartSettlement => {
 						used_weight = used_weight.saturating_add(
 							unwrap_result_or_skip!(
-								Self::add_to_settlement_queue(project_id),
+								Self::do_start_settlement(project_id),
 								project_id,
 								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
 							)
 							.actual_weight
-							.unwrap_or_default(),
+							.unwrap_or(
+								WeightInfoOf::<T>::start_settlement_funding_success()
+									.max(WeightInfoOf::<T>::start_settlement_funding_failure()),
+							),
 						);
 					},
 				}

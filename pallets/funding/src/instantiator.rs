@@ -1405,6 +1405,7 @@ pub mod async_features {
 	use super::*;
 	use assert_matches2::assert_matches;
 	use futures::FutureExt;
+    use assert_matches2::assert_matches;
 	use std::{
 		collections::HashMap,
 		sync::{

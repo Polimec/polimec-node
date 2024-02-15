@@ -305,10 +305,10 @@ impl<T: Config> Pallet<T> {
 				end_block: auction_initialize_period_end_block,
 			});
 
-			Ok(PostDispatchInfo {
+			return Ok(PostDispatchInfo {
 				actual_weight: Some(WeightInfoOf::<T>::end_evaluation_success(insertion_attempts)),
 				pays_fee: Pays::Yes,
-			})
+			});
 
 		// Unsuccessful path
 		} else {
@@ -331,10 +331,10 @@ impl<T: Config> Pallet<T> {
 
 			// * Emit events *
 			Self::deposit_event(Event::EvaluationFailed { project_id });
-			Ok(PostDispatchInfo {
+			return Ok(PostDispatchInfo {
 				actual_weight: Some(WeightInfoOf::<T>::end_evaluation_failure()),
 				pays_fee: Pays::Yes,
-			})
+			});
 		}
 	}
 
