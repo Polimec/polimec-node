@@ -41,16 +41,20 @@ pub trait SettlementOperations<T: Config> {
 		&mut self,
 		project_id: ProjectId,
 		target: &mut SettlementTarget<T>,
-	) -> Result<Weight, DispatchError>;
+	) -> Result<Weight, (Weight, DispatchError)>;
 
-	fn update_target(&self, project_id: ProjectId, target: &mut SettlementTarget<T>) -> Weight;
+	fn update_target(
+		&self,
+		project_id: ProjectId,
+		target: &mut SettlementTarget<T>,
+	) -> Result<Weight, (Weight, DispatchError)>;
 
 	fn execute_with_given_weight(
 		&mut self,
 		weight: Weight,
 		project_id: ProjectId,
 		target: &mut SettlementTarget<T>,
-	) -> Result<Weight, DispatchError>;
+	) -> Result<Weight, (Weight, DispatchError)>;
 }
 
 pub enum SettlementTarget<T: Config> {
