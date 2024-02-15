@@ -3163,7 +3163,6 @@ impl<T: Config> Pallet<T> {
 		project_details.status = ProjectStatus::FundingSuccessful;
 		ProjectsDetails::<T>::insert(project_id, project_details);
 
-		// TODO: add real weights
 		let insertion_iterations =
 			match Self::add_to_update_store(now + settlement_delta, (&project_id, UpdateType::StartSettlement)) {
 				Ok(iterations) => iterations,

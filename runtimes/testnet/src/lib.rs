@@ -639,11 +639,11 @@ impl pallet_funding::Config for Runtime {
 	type FeeBrackets = FeeBrackets;
 	type FundingCurrency = ForeignAssets;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
-	type MaxBidsPerProject = ConstU32<2048>;
+	type MaxBidsPerProject = ConstU32<1024>;
 	type MaxBidsPerUser = ConstU32<32>;
 	type MaxCapacityThresholds = MaxCapacityThresholds;
 	type MaxContributionsPerUser = ConstU32<32>;
-	type MaxEvaluationsPerProject = ConstU32<2048>;
+	type MaxEvaluationsPerProject = ConstU32<1024>;
 	type MaxEvaluationsPerUser = ConstU32<32>;
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
 	type MaxProjectsToUpdateInsertionAttempts = ConstU32<100>;
