@@ -382,12 +382,20 @@ pub mod pallet {
 			ensure!(!allowed_votes.is_zero(), Error::<T>::UnableToVote);
 			ensure!(votes.len() <= allowed_votes, Error::<T>::TooManyVotes);
 
-			ensure!(value > T::Currency::minimum_balance(), Error::<T>::LowBalance);
+			// Cannot vote with a value lower than the current lockup or the minimum balance if
+			// no lockup is in place.
+			let current_block = <frame_system::Pallet<T>>::block_number();
+			// Default voter value if no active vote is present.
+			let voter = Voting::<T>::get(&who);
+			if current_block < voter.lockup_till {
+				ensure!(value >= voter.stake, Error::<T>::LowBalance);
+			} else {
+				ensure!(value > T::Currency::minimum_balance(), Error::<T>::LowBalance);
+			};
 
 			// Amount to be locked up.
 			let locked_stake = value.min(T::Currency::total_balance(&who));
 			T::Currency::set_freeze(&FreezeReason::Voting.into(), &who, locked_stake)?;
-			let current_block = <frame_system::Pallet<T>>::block_number();
 			Voting::<T>::insert(
 				&who,
 				Voter { votes, stake: locked_stake, lockup_till: current_block + T::VotingLockPeriod::get() },
@@ -1767,17 +1775,33 @@ mod tests {
 	fn can_update_votes_and_stake() {
 		ExtBuilder::default().build_and_execute(|| {
 			assert_eq!(balances(&2), (20, 0));
-
 			assert_ok!(submit_candidacy(RuntimeOrigin::signed(5)));
 			assert_ok!(submit_candidacy(RuntimeOrigin::signed(4)));
-			assert_ok!(vote(RuntimeOrigin::signed(2), vec![5], 20));
+			assert_ok!(vote(RuntimeOrigin::signed(2), vec![5], 15));
 
 			// User only locks up to their free balance.
+			assert_eq!(balances(&2), (20, 0));
+			assert_eq!(has_lock(&2), 15);
+			assert_eq!(locked_stake_of(&2), 15);
+
+			// can update; different votes; same stake.
+			assert_ok!(vote(RuntimeOrigin::signed(2), vec![5, 4], 15));
+			assert_eq!(balances(&2), (20, 0));
+			assert_eq!(has_lock(&2), 15);
+			assert_eq!(locked_stake_of(&2), 15);
+
+			// can update; same votes; higher stake.
+			assert_ok!(vote(RuntimeOrigin::signed(2), vec![5, 4], 20));
 			assert_eq!(balances(&2), (20, 0));
 			assert_eq!(has_lock(&2), 20);
 			assert_eq!(locked_stake_of(&2), 20);
 
-			// can update; different stake; different lock and reserve.
+			// cannot update; same votes; lower stake in lock period.
+			assert_noop!(vote(RuntimeOrigin::signed(2), vec![5, 4], 15), Error::<Test>::LowBalance);
+
+			System::set_block_number(3);
+
+			// can update; same votes; lower stake after lock period.
 			assert_ok!(vote(RuntimeOrigin::signed(2), vec![5, 4], 15));
 			assert_eq!(balances(&2), (20, 0));
 			assert_eq!(has_lock(&2), 15);
@@ -1801,7 +1825,7 @@ mod tests {
 			assert_eq!(has_lock(&2), 10);
 			assert_eq!(locked_stake_of(&2), 10);
 
-			// can update; different stake; different lock and reserve.
+			// can update; different stake; different lock.
 			assert_ok!(vote(RuntimeOrigin::signed(2), vec![5, 4], 15));
 			// 2 + 2
 			assert_eq!(balances(&2), (20, 0));
@@ -1815,12 +1839,8 @@ mod tests {
 			assert_eq!(has_lock(&2), 18);
 			assert_eq!(locked_stake_of(&2), 18);
 
-			// back to 1 vote.
-			assert_ok!(vote(RuntimeOrigin::signed(2), vec![4], 12));
-			// 2 + 1
-			assert_eq!(balances(&2), (20, 0));
-			assert_eq!(has_lock(&2), 12);
-			assert_eq!(locked_stake_of(&2), 12);
+			// Cannot vote lower than the current active lock.
+			assert_noop!(vote(RuntimeOrigin::signed(2), vec![5, 3], 12), Error::<Test>::LowBalance);
 		});
 	}
 
