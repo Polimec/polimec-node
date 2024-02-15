@@ -46,19 +46,13 @@ polkadot-runtime.workspace = true
 polkadot-runtime-parachains.workspace = true
 polkadot-parachain.workspace = true
 polimec-receiver.workspace = true
+assert_matches2 = { workspace = true, optional = true}
 
-# cargo expand visibility
-# pallet-insecure-randomness-collective-flip.workspace = { workspace = true, optional = true }
-# pallet-assets.workspace = { workspace = true, optional = true }
-# pallet-linear-release.workspace = { workspace = true, optional = true }
-# assert_matches2.workspace = { workspace = true, optional = true }
-# xcm-executor.workspace = { workspace = true, optional = true }
 
 [dev-dependencies]
 pallet-insecure-randomness-collective-flip.workspace = true
 pallet-assets.workspace = true
 pallet-linear-release.workspace = true
-assert_matches2.workspace = true
 xcm-executor.workspace = true
 macros.workspace = true
 
@@ -96,6 +90,7 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
+	"assert_matches2",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",

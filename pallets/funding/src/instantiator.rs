@@ -242,11 +242,9 @@ impl<
 				let mut current_block = frame_system::Pallet::<T>::block_number();
 
 				<AllPalletsWithoutSystem as OnFinalize<BlockNumberFor<T>>>::on_finalize(current_block);
-
 				<frame_system::Pallet<T> as OnFinalize<BlockNumberFor<T>>>::on_finalize(current_block);
 
 				<AllPalletsWithoutSystem as OnIdle<BlockNumberFor<T>>>::on_idle(current_block, Weight::MAX);
-
 				<frame_system::Pallet<T> as OnIdle<BlockNumberFor<T>>>::on_idle(current_block, Weight::MAX);
 
 				current_block += One::one();
@@ -255,7 +253,6 @@ impl<
 				let pre_events = frame_system::Pallet::<T>::events();
 
 				<frame_system::Pallet<T> as OnInitialize<BlockNumberFor<T>>>::on_initialize(current_block);
-
 				<AllPalletsWithoutSystem as OnInitialize<BlockNumberFor<T>>>::on_initialize(current_block);
 
 				let post_events = frame_system::Pallet::<T>::events();
@@ -907,12 +904,9 @@ impl<
 
 		if project_details.status == ProjectStatus::EvaluationRound {
 			let evaluation_end = project_details.phase_transition_points.evaluation.end().unwrap();
-			self.execute(|| frame_system::Pallet::<T>::set_block_number(evaluation_end));
-			// run on_initialize for evaluation end
-			self.advance_time(1u32.into()).unwrap();
-			let auction_initialize_period_start =
-				self.get_project_details(project_id).phase_transition_points.auction_initialize_period.start().unwrap();
-			self.execute(|| frame_system::Pallet::<T>::set_block_number(auction_initialize_period_start));
+			let auction_start = evaluation_end.saturating_add(2u32.into());
+			let blocks_to_start = auction_start.saturating_sub(self.current_block());
+			self.advance_time(blocks_to_start).unwrap();
 		};
 
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
@@ -1386,6 +1380,7 @@ impl<
 pub mod async_features {
 	use super::*;
 	use futures::FutureExt;
+    use assert_matches2::assert_matches;
 	use std::{
 		collections::HashMap,
 		sync::{
@@ -1526,10 +1521,14 @@ pub mod async_features {
 		let mut inst = instantiator.lock().await;
 
 		let now = inst.current_block();
+		let metadata_deposit = T::ContributionTokenCurrency::calc_metadata_deposit(
+			project_metadata.token_information.name.as_slice(),
+			project_metadata.token_information.symbol.as_slice(),
+		);
 		// One ED for the issuer, one for the escrow account
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
 			issuer.clone(),
-			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ed() * 2u64.into(),
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ed() * 2u64.into() + metadata_deposit,
 		)]);
 		inst.execute(|| {
 			crate::Pallet::<T>::do_create(&issuer, project_metadata.clone()).unwrap();
@@ -1574,15 +1573,12 @@ pub mod async_features {
 		let project_details = inst.get_project_details(project_id);
 
 		if project_details.status == ProjectStatus::EvaluationRound {
-			let evaluation_end = project_details.phase_transition_points.evaluation.end().unwrap();
-			let auction_start = evaluation_end.saturating_add(2u32.into());
-
+			let (update_block, update_type) = inst.get_update_pair(project_id);
+			assert_eq!(update_type, UpdateType::EvaluationEnd);
 			let notify = Arc::new(Notify::new());
-
-			block_orchestrator.add_awaiting_project(auction_start, notify.clone()).await;
+			block_orchestrator.add_awaiting_project(update_block + 1u32.into(), notify.clone()).await;
 
 			// Wait for the notification that our desired block was reached to continue
-
 			drop(inst);
 
 			notify.notified().await;
@@ -1609,6 +1605,7 @@ pub mod async_features {
 		project_metadata: ProjectMetadataOf<T>,
 		issuer: AccountIdOf<T>,
 		evaluations: Vec<UserToUSDBalance<T>>,
+		bids: Vec<BidParams<T>>,
 	) -> ProjectId {
 		let project_id = async_create_evaluating_project(instantiator.clone(), project_metadata, issuer.clone()).await;
 
@@ -1650,7 +1647,25 @@ pub mod async_features {
 
 		drop(inst);
 
-		async_start_auction(instantiator, block_orchestrator, project_id, issuer).await.unwrap();
+		async_start_auction(instantiator.clone(), block_orchestrator, project_id, issuer).await.unwrap();
+
+		inst = instantiator.lock().await;
+		let plmc_for_bids =
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_plmc_spent(&bids, None);
+		let plmc_existential_deposits: Vec<UserToPLMCBalance<T>> = bids.accounts().existential_deposits();
+		let plmc_ct_account_deposits: Vec<UserToPLMCBalance<T>> = bids.accounts().ct_account_deposits();
+		let usdt_for_bids =
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_funding_asset_spent(
+				&bids, None,
+			);
+
+		inst.mint_plmc_to(plmc_for_bids.clone());
+		inst.mint_plmc_to(plmc_existential_deposits.clone());
+		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
+		inst.mint_foreign_asset_to(usdt_for_bids.clone());
+
+		inst.bid_for_users(project_id, bids).unwrap();
+
 		project_id
 	}
 
@@ -1665,14 +1680,10 @@ pub mod async_features {
 	) -> Result<(), DispatchError> {
 		let mut inst = instantiator.lock().await;
 
-		let english_end = inst
-			.get_project_details(project_id)
-			.phase_transition_points
-			.english_auction
-			.end()
-			.expect("English end point should exist");
+		let (update_block, update_type) = inst.get_update_pair(project_id);
+		assert_eq!(update_type, UpdateType::CandleAuctionStart);
 
-		let candle_start = english_end + 2u32.into();
+		let candle_start = update_block + 1u32.into();
 
 		let notify = Arc::new(Notify::new());
 
@@ -1685,13 +1696,9 @@ pub mod async_features {
 		notify.notified().await;
 
 		inst = instantiator.lock().await;
-		let candle_end = inst
-			.get_project_details(project_id)
-			.phase_transition_points
-			.candle_auction
-			.end()
-			.expect("Candle end point should exist");
-		let community_start = candle_end + 2u32.into();
+		let (update_block, update_type) = inst.get_update_pair(project_id);
+		assert_eq!(update_type, UpdateType::CommunityFundingStart);
+		let community_start = update_block + 1u32.into();
 
 		let notify = Arc::new(Notify::new());
 
@@ -1730,6 +1737,7 @@ pub mod async_features {
 			project_metadata.clone(),
 			issuer,
 			evaluations.clone(),
+			vec![],
 		)
 		.await;
 
@@ -1837,13 +1845,10 @@ pub mod async_features {
 		let mut inst = instantiator.lock().await;
 
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::CommunityRound);
-		let community_funding_end = inst
-			.get_project_details(project_id)
-			.phase_transition_points
-			.community
-			.end()
-			.expect("Community funding end point should exist");
-		let remainder_start = community_funding_end + 1u32.into();
+
+		let (update_block, transition_type) = inst.get_update_pair(project_id);
+		assert_eq!(transition_type, UpdateType::RemainderFundingStart);
+		let remainder_start = update_block + 1u32.into();
 
 		let notify = Arc::new(Notify::new());
 
@@ -1857,10 +1862,11 @@ pub mod async_features {
 
 		let mut inst = instantiator.lock().await;
 
-		match inst.get_project_details(project_id).status {
-			ProjectStatus::RemainderRound | ProjectStatus::FundingSuccessful => Ok(()),
-			_ => panic!("Bad state"),
-		}
+		assert_matches!(
+			inst.get_project_details(project_id).status,
+			(ProjectStatus::RemainderRound | ProjectStatus::FundingSuccessful)
+		);
+		Ok(())
 	}
 
 	pub async fn async_create_remainder_contributing_project<
@@ -1991,14 +1997,14 @@ pub mod async_features {
 		let (update_block, _) = inst.get_update_pair(project_id);
 
 		let notify = Arc::new(Notify::new());
-		block_orchestrator.add_awaiting_project(update_block, notify.clone()).await;
+		block_orchestrator.add_awaiting_project(update_block + 1u32.into(), notify.clone()).await;
 		if inst.get_project_details(project_id).status == ProjectStatus::RemainderRound {
 			let (end_block, _) = inst.get_update_pair(project_id);
 			drop(inst);
 
 			let notify = Arc::new(Notify::new());
 
-			block_orchestrator.add_awaiting_project(end_block, notify.clone()).await;
+			block_orchestrator.add_awaiting_project(end_block + 1u32.into(), notify.clone()).await;
 
 			// Wait for the notification that our desired block was reached to continue
 
@@ -2236,6 +2242,7 @@ pub mod async_features {
 					test_project_params.metadata,
 					test_project_params.issuer,
 					test_project_params.evaluations,
+					test_project_params.bids,
 				)
 				.await,
 			ProjectStatus::EvaluationRound =>
@@ -2305,6 +2312,7 @@ pub mod async_features {
 					test_project_params.metadata,
 					test_project_params.issuer,
 					test_project_params.evaluations,
+					test_project_params.bids,
 				)
 				.await
 			},
