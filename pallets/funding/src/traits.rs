@@ -19,6 +19,7 @@ use frame_support::weights::Weight;
 use frame_system::pallet_prelude::BlockNumberFor;
 use sp_arithmetic::FixedPointNumber;
 use sp_runtime::DispatchError;
+use sp_std::prelude::*;
 
 pub trait BondingRequirementCalculation {
 	fn calculate_bonding_requirement<T: Config>(&self, ticket_size: BalanceOf<T>) -> Result<BalanceOf<T>, ()>;
