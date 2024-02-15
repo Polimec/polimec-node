@@ -3,8 +3,8 @@ members = [
     "nodes/*",
     "runtimes/*",
     "pallets/*",
-#    "integration-tests",
-#    "integration-tests/penpal",
+    "integration-tests",
+    "integration-tests/penpal",
     "macros",
     "macros/tests",
     "polimec-common",
@@ -148,6 +148,7 @@ pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/substrat
 pallet-vesting = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 pallet-staking = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 pallet-proxy = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
+pallet-identity = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
 
 # Polkadot (with default disabled)
 pallet-xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v1.0.0" }
