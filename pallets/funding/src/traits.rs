@@ -58,6 +58,7 @@ pub trait SettlementOperations<T: Config> {
 }
 
 pub enum SettlementTarget<T: Config> {
+	Empty,
 	Accounts(Vec<AccountIdOf<T>>),
 	Evaluations(Vec<EvaluationInfoOf<T>>),
 	Bids(Vec<BidInfoOf<T>>),
@@ -66,6 +67,7 @@ pub enum SettlementTarget<T: Config> {
 impl<T: Config> SettlementTarget<T> {
 	pub fn is_empty(&self) -> bool {
 		match self {
+			Self::Empty => true,
 			Self::Accounts(accounts) => accounts.is_empty(),
 			Self::Evaluations(evaluations) => evaluations.is_empty(),
 			Self::Bids(bids) => bids.is_empty(),

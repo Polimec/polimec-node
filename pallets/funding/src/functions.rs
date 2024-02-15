@@ -39,6 +39,7 @@ use sp_arithmetic::{
 	traits::{CheckedDiv, CheckedSub, Zero},
 	Percent, Perquintill,
 };
+use sp_core::bounded::WeakBoundedVec;
 use sp_runtime::traits::{Convert, ConvertBack};
 use sp_std::{marker::PhantomData, ops::Not};
 use xcm::v3::MaxDispatchErrorLen;
@@ -313,8 +314,19 @@ impl<T: Config> Pallet<T> {
 		} else {
 			// * Update storage *
 			project_details.status = ProjectStatus::EvaluationFailed;
-			let cleaner = SettlementMachine::NotReady;
-			ProjectSettlements::<T>::mutate(|project_settlements| project_settlements.push((project_id, cleaner)));
+			let settlement_machine = SettlementMachine::NotReady;
+
+			ProjectSettlements::<T>::mutate(|project_settlements| {
+				let mut vec_project_settlements = project_settlements.to_vec();
+				vec_project_settlements.push((project_id, settlement_machine));
+				// we don't care if the project inserted exceeds the WeakBoundedVec limit. We only expect it to normally not exceed that limit.
+				*project_settlements =
+					WeakBoundedVec::<(ProjectId, SettlementMachine), T::MaxProjectsInSettlement>::force_from(
+						vec_project_settlements,
+						None,
+					);
+			});
+
 			ProjectsDetails::<T>::insert(project_id, project_details);
 
 			// * Emit events *
@@ -839,8 +851,19 @@ impl<T: Config> Pallet<T> {
 		);
 
 		// * Calculate new variables *
-		let cleaner = SettlementMachine::NotReady;
-		ProjectSettlements::<T>::mutate(|project_settlements| project_settlements.push((project_id, cleaner)));
+		let settlement_machine = SettlementMachine::NotReady;
+
+		ProjectSettlements::<T>::mutate(|project_settlements| {
+			let mut vec_project_settlements = project_settlements.to_vec();
+			vec_project_settlements.push((project_id, settlement_machine));
+			// we don't care if the project inserted exceeds the WeakBoundedVec limit. We only expect it to normally not exceed that limit.
+			*project_settlements =
+				WeakBoundedVec::<(ProjectId, SettlementMachine), T::MaxProjectsInSettlement>::force_from(
+					vec_project_settlements,
+					None,
+				);
+		});
+
 		project_details.funding_end_block = Some(now);
 
 		// * Update storage *

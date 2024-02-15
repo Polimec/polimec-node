@@ -118,7 +118,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 					let consumed_weight = self.update_target(project_id, target)?;
 					Ok(consumed_weight)
 				} else {
-					let consumed_weight = unbond_one_evaluation::<T>(project_id, target);
+					let consumed_weight = unbond_one_evaluation::<T>(project_id, target)?;
 
 					Ok(consumed_weight)
 				},
@@ -128,7 +128,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 					let consumed_weight = self.update_target(project_id, target)?;
 					Ok(consumed_weight)
 				} else {
-					let consumed_weight = start_one_bid_vesting_schedule::<T>(project_id, target);
+					let consumed_weight = start_one_bid_vesting_schedule::<T>(project_id, target)?;
 
 					Ok(consumed_weight)
 				},
@@ -138,7 +138,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 					let consumed_weight = self.update_target(project_id, target)?;
 					Ok(consumed_weight)
 				} else {
-					let consumed_weight = start_one_contribution_vesting_schedule::<T>(project_id, target);
+					let consumed_weight = start_one_contribution_vesting_schedule::<T>(project_id, target)?;
 					Ok(consumed_weight)
 				},
 			SettlementType::BidCTMint(PhantomData::<Success>) =>
@@ -147,7 +147,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 					let consumed_weight = self.update_target(project_id, target)?;
 					Ok(consumed_weight)
 				} else {
-					let consumed_weight = mint_ct_for_one_bid::<T>(project_id, target);
+					let consumed_weight = mint_ct_for_one_bid::<T>(project_id, target)?;
 					Ok(consumed_weight)
 				},
 			SettlementType::ContributionCTMint(PhantomData::<Success>) =>
@@ -156,7 +156,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 					let consumed_weight = self.update_target(project_id, target)?;
 					Ok(consumed_weight)
 				} else {
-					let consumed_weight = mint_ct_for_one_contribution::<T>(project_id, target);
+					let consumed_weight = mint_ct_for_one_contribution::<T>(project_id, target)?;
 
 					Ok(consumed_weight)
 				},
@@ -166,7 +166,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 					let consumed_weight = self.update_target(project_id, target)?;
 					Ok(consumed_weight)
 				} else {
-					let consumed_weight = issuer_funding_payout_one_bid::<T>(project_id, target);
+					let consumed_weight = issuer_funding_payout_one_bid::<T>(project_id, target)?;
 
 					Ok(consumed_weight)
 				},
@@ -176,13 +176,14 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 					let consumed_weight = self.update_target(project_id, target)?;
 					Ok(consumed_weight)
 				} else {
-					let consumed_weight = issuer_funding_payout_one_contribution::<T>(project_id, target);
+					let consumed_weight = issuer_funding_payout_one_contribution::<T>(project_id, target)?;
 					Ok(consumed_weight)
 				},
-			SettlementType::Finished(PhantomData::<Success>) => Err(Error::<T>::FinalizerFinished.into()),
+			SettlementType::Finished(PhantomData::<Success>) =>
+				Err((Weight::zero(), "Cannot operate on finished settlement machine".into())),
 
 			// Transitions enforced by the type system
-			_ => Err(Error::<T>::ImpossibleState.into()),
+			_ => Err((Weight::zero(), Error::<T>::ImpossibleState.into())),
 		}
 	}
 
@@ -192,62 +193,62 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 		target: &mut SettlementTarget<T>,
 	) -> Result<Weight, (Weight, DispatchError)> {
 		match self {
-			SettlementType::Initialized(_) => Weight::zero(),
+			SettlementType::Initialized(_) => Ok(Weight::zero()),
 			SettlementType::EvaluationRewardOrSlash(_) => {
 				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
-				Weight::zero()
+				Ok(Weight::zero())
 			},
 			SettlementType::EvaluationUnbonding(_) => {
 				*target = remaining_evaluations::<T>(project_id);
-				Weight::zero()
+				Ok(Weight::zero())
 			},
 			SettlementType::BidCTMint(_) => {
 				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
-				Weight::zero()
+				Ok(Weight::zero())
 			},
 			SettlementType::ContributionCTMint(_) => {
 				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
-				Weight::zero()
+				Ok(Weight::zero())
 			},
 			SettlementType::StartBidderVestingSchedule(_) => {
 				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
-				Weight::zero()
+				Ok(Weight::zero())
 			},
 			SettlementType::StartContributorVestingSchedule(_) => {
 				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
-				Weight::zero()
+				Ok(Weight::zero())
 			},
 			SettlementType::BidFundingPayout(_) => {
 				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
-				Weight::zero()
+				Ok(Weight::zero())
 			},
 			SettlementType::ContributionFundingPayout(_) => {
 				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
-				Weight::zero()
+				Ok(Weight::zero())
 			},
 			SettlementType::BidFundingRelease(_) => {
 				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
-				Weight::zero()
+				Ok(Weight::zero())
 			},
 			SettlementType::BidUnbonding(_) => {
 				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
-				Weight::zero()
+				Ok(Weight::zero())
 			},
 			SettlementType::ContributionFundingRelease(_) => {
 				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
-				Weight::zero()
+				Ok(Weight::zero())
 			},
 			SettlementType::ContributionUnbonding(_) => {
 				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
-				Weight::zero()
+				Ok(Weight::zero())
 			},
 			SettlementType::FutureDepositRelease(_) => {
 				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
-				Weight::zero()
+				Ok(Weight::zero())
 			},
 			SettlementType::Finished(_) => {
 				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
-				Weight::zero()
+				Ok(Weight::zero())
 			},
 		}
 	}
@@ -288,81 +289,82 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Failure> {
 		project_id: ProjectId,
 		target: &mut SettlementTarget<T>,
 	) -> Result<Weight, (Weight, DispatchError)> {
-		let base_weight = Weight::from_parts(10_000_000, 0);
-		match self {
-			SettlementType::Initialized(PhantomData::<Failure>) => {
-				*self = SettlementType::EvaluationRewardOrSlash(PhantomData::<Failure>);
-				Ok(Weight::zero())
-			},
-
-			SettlementType::EvaluationRewardOrSlash(PhantomData::<Failure>) =>
-				if target.is_empty() {
-					*self = SettlementType::FutureDepositRelease(PhantomData::<Failure>);
-					Ok(base_weight)
-				} else {
-					let consumed_weight = reward_or_slash_one_evaluation::<T>(project_id, target)
-						.map_err(|error_info| error_info.error)?;
-					*self = SettlementType::EvaluationRewardOrSlash(PhantomData);
-					Ok(consumed_weight)
-				},
-			SettlementType::FutureDepositRelease(PhantomData::<Failure>) =>
-				if target.is_empty() {
-					*self = SettlementType::EvaluationUnbonding(PhantomData::<Failure>);
-					Ok(base_weight)
-				} else {
-					let consumed_weight = release_future_ct_deposit_one_participant::<T>(project_id, target);
-					*self = SettlementType::FutureDepositRelease(PhantomData::<Failure>);
-					Ok(consumed_weight)
-				},
-			SettlementType::EvaluationUnbonding(PhantomData::<Failure>) =>
-				if target.is_empty() {
-					*self = SettlementType::BidFundingRelease(PhantomData::<Failure>);
-					Ok(base_weight)
-				} else {
-					let consumed_weight = unbond_one_evaluation::<T>(project_id, target);
-					*self = SettlementType::EvaluationUnbonding(PhantomData);
-					Ok(consumed_weight)
-				},
-			SettlementType::BidFundingRelease(PhantomData::<Failure>) =>
-				if target.is_empty() {
-					*self = SettlementType::BidUnbonding(PhantomData::<Failure>);
-					Ok(base_weight)
-				} else {
-					let consumed_weight = release_funds_one_bid::<T>(project_id, target);
-					*self = SettlementType::BidFundingRelease(PhantomData);
-					Ok(consumed_weight)
-				},
-			SettlementType::BidUnbonding(PhantomData::<Failure>) =>
-				if target.is_empty() {
-					*self = SettlementType::ContributionFundingRelease(PhantomData::<Failure>);
-					Ok(base_weight)
-				} else {
-					let consumed_weight = unbond_one_bid::<T>(project_id, target);
-					*self = SettlementType::BidUnbonding(PhantomData::<Failure>);
-					Ok(consumed_weight)
-				},
-			SettlementType::ContributionFundingRelease(PhantomData::<Failure>) =>
-				if target.is_empty() {
-					*self = SettlementType::ContributionUnbonding(PhantomData::<Failure>);
-					Ok(base_weight)
-				} else {
-					let consumed_weight = release_funds_one_contribution::<T>(project_id, target);
-					*self = SettlementType::ContributionFundingRelease(PhantomData::<Failure>);
-					Ok(consumed_weight)
-				},
-			SettlementType::ContributionUnbonding(PhantomData::<Failure>) =>
-				if target.is_empty() {
-					*self = SettlementType::Finished(PhantomData::<Failure>);
-					Ok(base_weight)
-				} else {
-					let consumed_weight = unbond_one_contribution::<T>(project_id, target);
-					*self = SettlementType::ContributionUnbonding(PhantomData::<Failure>);
-					Ok(consumed_weight)
-				},
-			SettlementType::Finished(PhantomData::<Failure>) => Err(Error::<T>::FinalizerFinished.into()),
-
-			_ => Err(Error::<T>::ImpossibleState.into()),
-		}
+		todo!()
+		// let base_weight = Weight::from_parts(10_000_000, 0);
+		// match self {
+		// 	SettlementType::Initialized(PhantomData::<Failure>) => {
+		// 		*self = SettlementType::EvaluationRewardOrSlash(PhantomData::<Failure>);
+		// 		Ok(Weight::zero())
+		// 	},
+		//
+		// 	SettlementType::EvaluationRewardOrSlash(PhantomData::<Failure>) =>
+		// 		if target.is_empty() {
+		// 			*self = SettlementType::FutureDepositRelease(PhantomData::<Failure>);
+		// 			Ok(base_weight)
+		// 		} else {
+		// 			let consumed_weight = reward_or_slash_one_evaluation::<T>(project_id, target)
+		// 				.map_err(|error_info| error_info.error)?;
+		// 			*self = SettlementType::EvaluationRewardOrSlash(PhantomData);
+		// 			Ok(consumed_weight)
+		// 		},
+		// 	SettlementType::FutureDepositRelease(PhantomData::<Failure>) =>
+		// 		if target.is_empty() {
+		// 			*self = SettlementType::EvaluationUnbonding(PhantomData::<Failure>);
+		// 			Ok(base_weight)
+		// 		} else {
+		// 			let consumed_weight = release_future_ct_deposit_one_participant::<T>(project_id, target);
+		// 			*self = SettlementType::FutureDepositRelease(PhantomData::<Failure>);
+		// 			Ok(consumed_weight)
+		// 		},
+		// 	SettlementType::EvaluationUnbonding(PhantomData::<Failure>) =>
+		// 		if target.is_empty() {
+		// 			*self = SettlementType::BidFundingRelease(PhantomData::<Failure>);
+		// 			Ok(base_weight)
+		// 		} else {
+		// 			let consumed_weight = unbond_one_evaluation::<T>(project_id, target);
+		// 			*self = SettlementType::EvaluationUnbonding(PhantomData);
+		// 			Ok(consumed_weight)
+		// 		},
+		// 	SettlementType::BidFundingRelease(PhantomData::<Failure>) =>
+		// 		if target.is_empty() {
+		// 			*self = SettlementType::BidUnbonding(PhantomData::<Failure>);
+		// 			Ok(base_weight)
+		// 		} else {
+		// 			let consumed_weight = release_funds_one_bid::<T>(project_id, target);
+		// 			*self = SettlementType::BidFundingRelease(PhantomData);
+		// 			Ok(consumed_weight)
+		// 		},
+		// 	SettlementType::BidUnbonding(PhantomData::<Failure>) =>
+		// 		if target.is_empty() {
+		// 			*self = SettlementType::ContributionFundingRelease(PhantomData::<Failure>);
+		// 			Ok(base_weight)
+		// 		} else {
+		// 			let consumed_weight = unbond_one_bid::<T>(project_id, target);
+		// 			*self = SettlementType::BidUnbonding(PhantomData::<Failure>);
+		// 			Ok(consumed_weight)
+		// 		},
+		// 	SettlementType::ContributionFundingRelease(PhantomData::<Failure>) =>
+		// 		if target.is_empty() {
+		// 			*self = SettlementType::ContributionUnbonding(PhantomData::<Failure>);
+		// 			Ok(base_weight)
+		// 		} else {
+		// 			let consumed_weight = release_funds_one_contribution::<T>(project_id, target);
+		// 			*self = SettlementType::ContributionFundingRelease(PhantomData::<Failure>);
+		// 			Ok(consumed_weight)
+		// 		},
+		// 	SettlementType::ContributionUnbonding(PhantomData::<Failure>) =>
+		// 		if target.is_empty() {
+		// 			*self = SettlementType::Finished(PhantomData::<Failure>);
+		// 			Ok(base_weight)
+		// 		} else {
+		// 			let consumed_weight = unbond_one_contribution::<T>(project_id, target);
+		// 			*self = SettlementType::ContributionUnbonding(PhantomData::<Failure>);
+		// 			Ok(consumed_weight)
+		// 		},
+		// 	SettlementType::Finished(PhantomData::<Failure>) => Err(Error::<T>::FinalizerFinished.into()),
+		//
+		// 	_ => Err(Error::<T>::ImpossibleState.into()),
+		// }
 	}
 
 	fn update_target(
@@ -554,7 +556,10 @@ fn reward_or_slash_one_evaluation<T: Config>(
 	todo!();
 }
 
-fn unbond_one_evaluation<T: Config>(project_id: ProjectId, target: &mut SettlementTarget<T>) -> Weight {
+fn unbond_one_evaluation<T: Config>(
+	project_id: ProjectId,
+	target: &mut SettlementTarget<T>,
+) -> Result<Weight, (Weight, DispatchError)> {
 	// let project_evaluations = Evaluations::<T>::iter_prefix_values((project_id,));
 	// let mut remaining_evaluations =
 	// 	project_evaluations.filter(|evaluation| evaluation.current_plmc_bond > Zero::zero());
@@ -581,7 +586,10 @@ fn unbond_one_evaluation<T: Config>(project_id: ProjectId, target: &mut Settleme
 	todo!()
 }
 
-fn release_funds_one_bid<T: Config>(project_id: ProjectId, target: &mut SettlementTarget<T>) -> Weight {
+fn release_funds_one_bid<T: Config>(
+	project_id: ProjectId,
+	target: &mut SettlementTarget<T>,
+) -> Result<Weight, (Weight, DispatchError)> {
 	// let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	// let mut remaining_bids = project_bids.filter(|bid| !bid.funds_released);
 	// let base_weight = Weight::from_parts(10_000_000, 0);
@@ -610,7 +618,10 @@ fn release_funds_one_bid<T: Config>(project_id: ProjectId, target: &mut Settleme
 	todo!()
 }
 
-fn unbond_one_bid<T: Config>(project_id: ProjectId, target: &mut SettlementTarget<T>) -> Weight {
+fn unbond_one_bid<T: Config>(
+	project_id: ProjectId,
+	target: &mut SettlementTarget<T>,
+) -> Result<Weight, (Weight, DispatchError)> {
 	// let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	// let mut remaining_bids = project_bids.filter(|bid| bid.funds_released);
 	// let base_weight = Weight::from_parts(10_000_000, 0);
@@ -641,7 +652,7 @@ fn unbond_one_bid<T: Config>(project_id: ProjectId, target: &mut SettlementTarge
 fn release_future_ct_deposit_one_participant<T: Config>(
 	project_id: ProjectId,
 	target: &mut SettlementTarget<T>,
-) -> Weight {
+) -> Result<Weight, (Weight, DispatchError)> {
 	// let base_weight = Weight::from_parts(10_000_000, 0);
 	// let evaluators = Evaluations::<T>::iter_key_prefix((project_id,)).map(|(evaluator, _evaluation_id)| evaluator);
 	// let bidders = Bids::<T>::iter_key_prefix((project_id,)).map(|(bidder, _bid_id)| bidder);
@@ -685,7 +696,10 @@ fn release_future_ct_deposit_one_participant<T: Config>(
 	todo!()
 }
 
-fn release_funds_one_contribution<T: Config>(project_id: ProjectId, target: &mut SettlementTarget<T>) -> Weight {
+fn release_funds_one_contribution<T: Config>(
+	project_id: ProjectId,
+	target: &mut SettlementTarget<T>,
+) -> Result<Weight, (Weight, DispatchError)> {
 	// let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
 	// let mut remaining_contributions = project_contributions.filter(|contribution| !contribution.funds_released);
 	// let base_weight = Weight::from_parts(10_000_000, 0);
@@ -717,7 +731,10 @@ fn release_funds_one_contribution<T: Config>(project_id: ProjectId, target: &mut
 	todo!()
 }
 
-fn unbond_one_contribution<T: Config>(project_id: ProjectId, target: &mut SettlementTarget<T>) -> Weight {
+fn unbond_one_contribution<T: Config>(
+	project_id: ProjectId,
+	target: &mut SettlementTarget<T>,
+) -> Result<Weight, (Weight, DispatchError)> {
 	// let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
 	//
 	// let mut remaining_contributions =
@@ -750,7 +767,10 @@ fn unbond_one_contribution<T: Config>(project_id: ProjectId, target: &mut Settle
 	todo!()
 }
 
-fn start_one_bid_vesting_schedule<T: Config>(project_id: ProjectId, target: &mut SettlementTarget<T>) -> Weight {
+fn start_one_bid_vesting_schedule<T: Config>(
+	project_id: ProjectId,
+	target: &mut SettlementTarget<T>,
+) -> Result<Weight, (Weight, DispatchError)> {
 	// let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	// let mut unscheduled_bids = project_bids.filter(|bid| {
 	// 	bid.plmc_vesting_info.is_none() && matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..))
@@ -790,7 +810,7 @@ fn start_one_bid_vesting_schedule<T: Config>(project_id: ProjectId, target: &mut
 fn start_one_contribution_vesting_schedule<T: Config>(
 	project_id: ProjectId,
 	target: &mut SettlementTarget<T>,
-) -> Weight {
+) -> Result<Weight, (Weight, DispatchError)> {
 	// let project_bids = Contributions::<T>::iter_prefix_values((project_id,));
 	// let mut unscheduled_contributions = project_bids.filter(|contribution| contribution.plmc_vesting_info.is_none());
 	// let base_weight = Weight::from_parts(10_000_000, 0);
@@ -823,7 +843,10 @@ fn start_one_contribution_vesting_schedule<T: Config>(
 	todo!()
 }
 
-fn mint_ct_for_one_bid<T: Config>(project_id: ProjectId, target: &mut SettlementTarget<T>) -> Weight {
+fn mint_ct_for_one_bid<T: Config>(
+	project_id: ProjectId,
+	target: &mut SettlementTarget<T>,
+) -> Result<Weight, (Weight, DispatchError)> {
 	// let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	// let mut remaining_bids = project_bids
 	// 	.filter(|bid| !bid.ct_minted && matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)));
@@ -855,7 +878,10 @@ fn mint_ct_for_one_bid<T: Config>(project_id: ProjectId, target: &mut Settlement
 	todo!()
 }
 
-fn mint_ct_for_one_contribution<T: Config>(project_id: ProjectId, target: &mut SettlementTarget<T>) -> Weight {
+fn mint_ct_for_one_contribution<T: Config>(
+	project_id: ProjectId,
+	target: &mut SettlementTarget<T>,
+) -> Result<Weight, (Weight, DispatchError)> {
 	// let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
 	// let mut remaining_contributions = project_contributions.filter(|contribution| !contribution.ct_minted);
 	// let base_weight = Weight::from_parts(10_000_000, 0);
@@ -886,7 +912,10 @@ fn mint_ct_for_one_contribution<T: Config>(project_id: ProjectId, target: &mut S
 	todo!()
 }
 
-fn issuer_funding_payout_one_bid<T: Config>(project_id: ProjectId, target: &mut SettlementTarget<T>) -> Weight {
+fn issuer_funding_payout_one_bid<T: Config>(
+	project_id: ProjectId,
+	target: &mut SettlementTarget<T>,
+) -> Result<Weight, (Weight, DispatchError)> {
 	// let project_bids = Bids::<T>::iter_prefix_values((project_id,));
 	//
 	// let mut remaining_bids = project_bids.filter(|bid| {
@@ -920,7 +949,7 @@ fn issuer_funding_payout_one_bid<T: Config>(project_id: ProjectId, target: &mut 
 fn issuer_funding_payout_one_contribution<T: Config>(
 	project_id: ProjectId,
 	target: &mut SettlementTarget<T>,
-) -> Weight {
+) -> Result<Weight, (Weight, DispatchError)> {
 	// let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
 	//
 	// let mut remaining_contributions = project_contributions.filter(|contribution| !contribution.funds_released);

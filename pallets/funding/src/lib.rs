@@ -250,6 +250,7 @@ pub mod pallet {
 		traits::{OnFinalize, OnIdle, OnInitialize},
 	};
 	use frame_system::pallet_prelude::*;
+	use itertools::Itertools;
 	use local_macros::*;
 	use sp_arithmetic::Percent;
 	use sp_runtime::{
@@ -1451,19 +1452,22 @@ pub mod pallet {
 		}
 
 		fn on_idle(_now: BlockNumberFor<T>, max_weight: Weight) -> Weight {
-			let weight_consumed: Weight;
+			let mut weight_consumed: Weight;
 			let mut available_weight = max_weight;
 
-			let mut settlement_queue = ProjectSettlements::<T>::get().into_iter();
-			settlement_queue.sort_by_key(|(project_id, _)| project_id);
+			let mut settlement_queue =
+				ProjectSettlements::<T>::get().into_iter().sorted_by_key(|(project_id, _)| *project_id);
 			available_weight = available_weight.saturating_sub(<T as frame_system::Config>::DbWeight::get().reads(1));
 
 			let (project_id, mut settlement_machine) =
-				settlement_queue.next().unwrap_or_else(|| return max_weight.saturating_sub(available_weight));
-			let settlement_queue =
-				WeakBoundedVec::<_, T::MaxProjectsInSettlement>::force_from(settlement_queue.collect_vec(), None);
+				if let Some((project_id, settlement_machine)) = settlement_queue.next() {
+					(project_id, settlement_machine)
+				} else {
+					return max_weight.saturating_sub(available_weight);
+				};
 
-			let mut target: SettlementTarget<T>;
+			let mut settlement_queue = settlement_queue.collect_vec();
+			let mut target = SettlementTarget::<T>::Empty;
 			match settlement_machine.execute_with_given_weight(available_weight, project_id, &mut target) {
 				Ok(weight) => {
 					weight_consumed = weight;
@@ -1481,7 +1485,10 @@ pub mod pallet {
 				},
 			}
 
-			ProjectSettlements::<T>::put(settlement_queue);
+			ProjectSettlements::<T>::put(WeakBoundedVec::<_, T::MaxProjectsInSettlement>::force_from(
+				settlement_queue,
+				None,
+			));
 			weight_consumed = weight_consumed.saturating_add(<T as frame_system::Config>::DbWeight::get().writes(1));
 
 			weight_consumed
