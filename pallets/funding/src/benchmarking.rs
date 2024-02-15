@@ -348,6 +348,19 @@ pub fn make_ct_deposit_for<T: Config>(user: AccountIdOf<T>, project_id: ProjectI
 	}
 }
 
+pub fn run_blocks_to_execute_next_transition<T: Config>(
+	project_id: ProjectId,
+	maybe_update_type: Option<UpdateType>,
+	inst: &mut BenchInstantiator<T>,
+) {
+	let (update_block, stored_update_type) = inst.get_update_pair(project_id);
+	if let Some(expected_update_type) = maybe_update_type {
+		assert_eq!(stored_update_type, expected_update_type);
+	}
+	frame_system::Pallet::<T>::set_block_number(update_block - 1u32.into());
+	inst.advance_time(One::one()).unwrap();
+}
+
 #[benchmarks(
 	where
 	T: Config + frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent> + pallet_balances::Config<Balance = BalanceOf<T>>,
@@ -517,9 +530,8 @@ mod benchmarks {
 		inst.advance_time(One::one()).unwrap();
 		inst.bond_for_users(project_id, evaluations).expect("All evaluations are accepted");
 
-		let (evaluation_end_block, _) = inst.get_update_pair(project_id);
-		frame_system::Pallet::<T>::set_block_number(evaluation_end_block - 1u32.into());
-		inst.advance_time(2u32.into()).unwrap();
+		run_blocks_to_execute_next_transition(project_id, Some(UpdateType::EvaluationEnd), &mut inst);
+		inst.advance_time(1u32.into()).unwrap();
 
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 
@@ -1603,9 +1615,8 @@ mod benchmarks {
 			vec![],
 		);
 
-		let (settlement_block, _) = inst.get_update_pair(project_id);
-		frame_system::Pallet::<T>::set_block_number(settlement_block - 1u32.into());
-		inst.advance_time(1u32.into()).unwrap();
+		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
+
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
@@ -1678,9 +1689,8 @@ mod benchmarks {
 			vec![],
 		);
 
-		let (update_block, _) = inst.get_update_pair(project_id);
-		frame_system::Pallet::<T>::set_block_number(update_block - 1u32.into());
-		inst.advance_time(One::one()).unwrap();
+		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
+
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
 			Cleaner::Success(CleanerState::Initialized(PhantomData))
@@ -1753,9 +1763,8 @@ mod benchmarks {
 			vec![],
 		);
 
-		let (update_block, _) = inst.get_update_pair(project_id);
-		frame_system::Pallet::<T>::set_block_number(update_block - 1u32.into());
-		inst.advance_time(One::one()).unwrap();
+		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
+
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
 			Cleaner::Success(CleanerState::Initialized(PhantomData))
@@ -1920,9 +1929,8 @@ mod benchmarks {
 			vec![],
 		);
 
-		let (update_block, _) = inst.get_update_pair(project_id);
-		frame_system::Pallet::<T>::set_block_number(update_block - 1u32.into());
-		inst.advance_time(One::one()).unwrap();
+		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
+
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
 			Cleaner::Success(CleanerState::Initialized(PhantomData))
@@ -1987,9 +1995,8 @@ mod benchmarks {
 			vec![],
 		);
 
-		let (update_block, _) = inst.get_update_pair(project_id);
-		frame_system::Pallet::<T>::set_block_number(update_block - 1u32.into());
-		inst.advance_time(One::one()).unwrap();
+		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
+
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
 			Cleaner::Success(CleanerState::Initialized(PhantomData))
@@ -2054,9 +2061,8 @@ mod benchmarks {
 			vec![],
 		);
 
-		let (update_block, _) = inst.get_update_pair(project_id);
-		frame_system::Pallet::<T>::set_block_number(update_block - 1u32.into());
-		inst.advance_time(One::one()).unwrap();
+		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
+
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
 			Cleaner::Success(CleanerState::Initialized(PhantomData))
@@ -2136,9 +2142,8 @@ mod benchmarks {
 			vec![],
 		);
 
-		let (update_block, _) = inst.get_update_pair(project_id);
-		frame_system::Pallet::<T>::set_block_number(update_block - 1u32.into());
-		inst.advance_time(One::one()).unwrap();
+		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
+
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
 			Cleaner::Success(CleanerState::Initialized(PhantomData))
@@ -2210,9 +2215,8 @@ mod benchmarks {
 			vec![],
 		);
 
-		let (update_block, _) = inst.get_update_pair(project_id);
-		frame_system::Pallet::<T>::set_block_number(update_block - 1u32.into());
-		inst.advance_time(One::one()).unwrap();
+		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
+
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
 			Cleaner::Success(CleanerState::Initialized(PhantomData))
@@ -2267,9 +2271,8 @@ mod benchmarks {
 			vec![],
 		);
 
-		let (update_block, _) = inst.get_update_pair(project_id);
-		frame_system::Pallet::<T>::set_block_number(update_block - 1u32.into());
-		inst.advance_time(One::one()).unwrap();
+		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
+
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
 			Cleaner::Success(CleanerState::Initialized(PhantomData))
@@ -2331,9 +2334,8 @@ mod benchmarks {
 			vec![],
 		);
 
-		let (update_block, _) = inst.get_update_pair(project_id);
-		frame_system::Pallet::<T>::set_block_number(update_block - 1u32.into());
-		inst.advance_time(One::one()).unwrap();
+		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
+
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
 			Cleaner::Success(CleanerState::Initialized(PhantomData))
@@ -2385,9 +2387,8 @@ mod benchmarks {
 			vec![],
 		);
 
-		let (update_block, _) = inst.get_update_pair(project_id);
-		frame_system::Pallet::<T>::set_block_number(update_block - 1u32.into());
-		inst.advance_time(One::one()).unwrap();
+		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
+
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
 			Cleaner::Success(CleanerState::Initialized(PhantomData))
@@ -2942,9 +2943,7 @@ mod benchmarks {
 		inst.advance_time(One::one()).unwrap();
 		inst.bond_for_users(project_id, evaluations).expect("All evaluations are accepted");
 
-		let (evaluation_end_block, _) = inst.get_update_pair(project_id);
-		frame_system::Pallet::<T>::set_block_number(evaluation_end_block - 1u32.into());
-		inst.advance_time(One::one()).unwrap();
+		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
 
 		let current_block = inst.current_block();
 		let automatic_transition_block =
@@ -3179,9 +3178,7 @@ mod benchmarks {
 		let project_id = inst.create_auctioning_project(project_metadata, issuer.clone(), default_evaluations());
 
 		// no bids are made, so the project fails
-		let (update_block, _) = inst.get_update_pair(project_id);
-		frame_system::Pallet::<T>::set_block_number(update_block - 1u32.into());
-		inst.advance_time(One::one()).unwrap();
+		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
 
 		let auction_candle_end_block =
 			inst.get_project_details(project_id).phase_transition_points.candle_auction.end().unwrap();
