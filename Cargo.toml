@@ -64,6 +64,8 @@ macros-tests = { path = "macros/tests" }
 # External pallets (with default disabled)
 orml-oracle = {git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v1.0.0", default-features = false}
 orml-traits = {git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v1.0.0", default-features = false}
+jwt-compact = { git = "https://github.com/lrazovic/jwt-compact", default-features = false }
+
 # Internal support (with default disabled)
 shared-configuration = { path = "runtimes/shared-configuration", default-features = false }
 polimec-common = { path = "polimec-common", default-features = false }
