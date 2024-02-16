@@ -1526,7 +1526,7 @@ pub mod pallet {
 				ProjectSettlements::<T>::get().into_iter().sorted_by_key(|(project_id, _)| *project_id);
 			weight_consumed = weight_consumed.saturating_add(<T as frame_system::Config>::DbWeight::get().reads(1));
 
-			let current_project_id: ProjectId;
+			let mut current_project_id = None;
 			let mut current_settlement_machine = None;
 			while let Some((project_id, settlement_machine)) = settlement_queue.next() {
 				match (project_id, settlement_machine) {
@@ -1606,7 +1606,7 @@ pub mod pallet {
 						});
 
 						if settlement_machine.is_some() {
-							current_project_id = project_id;
+							current_project_id = Some(project_id);
 							current_settlement_machine = settlement_machine;
 							break
 						} else {
@@ -1615,14 +1615,18 @@ pub mod pallet {
 					},
 
 					(project_id, settlement_machine) => {
-						current_project_id = project_id;
+						current_project_id = Some(project_id);
 						current_settlement_machine = Some(settlement_machine)
 					},
 				}
 			}
 
-			let current_settlement_machine =
-				if let Some(machine) = current_settlement_machine { machine } else { return weight_consumed };
+			let (mut current_settlement_machine, current_project_id) =
+				if let (Some(machine), Some(p_id)) = (current_settlement_machine, current_project_id) {
+					(machine, p_id)
+				} else {
+					return weight_consumed
+				};
 
 			let mut settlement_queue = settlement_queue.collect_vec();
 
@@ -1647,7 +1651,7 @@ pub mod pallet {
 					#[cfg(debug_assertions)]
 					panic!("Error in settlement machine: {:?}", err);
 					#[cfg(not(debug_assertions))]
-					Self::deposit_event(Event::SettlementError { project_id, error: err });
+					Self::deposit_event(Event::SettlementError { project_id: current_project_id, error: err });
 				},
 			}
 

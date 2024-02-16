@@ -64,9 +64,9 @@ pub struct SettlementParticipants<Evaluations, Bids, Contributions> {
 	pub contributions: Contributions,
 }
 
-pub type SettlementParticipantsOf<T: Config> = SettlementParticipants<
-	WeakBoundedVec<EvaluationInfoOf<T>, T::MaxEvaluationsPerProject>,
-	WeakBoundedVec<BidInfoOf<T>, T::MaxBidsPerProject>,
+pub type SettlementParticipantsOf<T> = SettlementParticipants<
+	WeakBoundedVec<EvaluationInfoOf<T>, <T as Config>::MaxEvaluationsPerProject>,
+	WeakBoundedVec<BidInfoOf<T>, <T as Config>::MaxBidsPerProject>,
 	WeakBoundedVec<ContributionInfoOf<T>, ConstU32<20_000>>,
 >;
 
