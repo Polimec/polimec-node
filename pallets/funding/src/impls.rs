@@ -381,51 +381,6 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Failure> {
 	}
 }
 
-fn project_evaluations<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
-	let evaluations = Evaluations::<T>::iter_prefix_values((project_id,)).collect_vec();
-	SettlementTarget::Evaluations(evaluations)
-}
-fn project_evaluations_to_reward_or_slash<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
-	let evaluators_outcome = ProjectsDetails::<T>::get(project_id)
-		.ok_or(Error::<T>::ImpossibleState)?
-		.evaluation_round_info
-		.evaluators_outcome;
-	if evaluators_outcome == EvaluatorsOutcomeOf::<T>::Unchanged {
-		SettlementTarget::Evaluations(vec![])
-	} else {
-		project_evaluations(project_id)
-	}
-}
-
-fn project_bids<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
-	let bids = Bids::<T>::iter_prefix_values((project_id,)).filter(|bid| !bid.funds_released).collect_vec();
-	SettlementTarget::Bids(bids)
-}
-
-fn project_successful_bids<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
-	let bids = Bids::<T>::iter_prefix_values((project_id,))
-		.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
-		.collect_vec();
-	SettlementTarget::Bids(bids)
-}
-
-fn project_contributions<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
-	let contributions = Contributions::<T>::iter_prefix_values((project_id,))
-		.filter(|contribution| !contribution.funds_released)
-		.collect_vec();
-	SettlementTarget::Contributions(contributions)
-}
-
-fn project_participants<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
-	let evaluators = Evaluations::<T>::iter_key_prefix((project_id,)).map(|(evaluator, _evaluation_id)| evaluator);
-	let bidders = Bids::<T>::iter_key_prefix((project_id,)).map(|(bidder, _bid_id)| bidder);
-	let contributors =
-		Contributions::<T>::iter_key_prefix((project_id,)).map(|(contributor, _contribution_id)| contributor);
-	let participants =
-		evaluators.chain(bidders).chain(contributors).collect::<BTreeSet<AccountIdOf<T>>>().iter().collect_vec();
-	SettlementTarget::Accounts(participants)
-}
-
 fn reward_or_slash_one_evaluation<T: Config>(
 	target: &mut SettlementTarget<T>,
 ) -> Result<Weight, (Weight, DispatchError)> {
