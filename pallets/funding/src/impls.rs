@@ -86,6 +86,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 		match self {
 			SettlementType::Initialized(PhantomData::<Success>) => {
 				*self = Self::EvaluationRewardOrSlash(PhantomData);
+				*target = CurrentSettlementParticipations::<T>::get().evaluations();
 				Ok(Weight::zero())
 			},
 
@@ -110,66 +111,68 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 			SettlementType::EvaluationUnbonding(PhantomData::<Success>) =>
 				if target.is_empty() {
 					*self = SettlementType::StartBidderVestingSchedule(PhantomData);
-					*target = CurrentSettlementParticipations::<T>::get().evaluations();
+					*target = CurrentSettlementParticipations::<T>::get().bidders();
 					Ok(Weight::zero())
 				} else {
 					let consumed_weight = unbond_one_evaluation::<T>(target)?;
-
 					Ok(consumed_weight)
 				},
+
 			SettlementType::StartBidderVestingSchedule(PhantomData::<Success>) =>
 				if target.is_empty() {
 					*self = SettlementType::StartContributorVestingSchedule(PhantomData);
-					let consumed_weight = self.update_target(project_id, target)?;
-					Ok(consumed_weight)
+					*target = CurrentSettlementParticipations::<T>::get().contributions();
+					Ok(Weight::zero())
 				} else {
 					let consumed_weight = start_one_bid_vesting_schedule::<T>(target)?;
-
 					Ok(consumed_weight)
 				},
+
 			SettlementType::StartContributorVestingSchedule(PhantomData::<Success>) =>
 				if target.is_empty() {
 					*self = SettlementType::BidCTMint(PhantomData);
-					let consumed_weight = self.update_target(project_id, target)?;
-					Ok(consumed_weight)
+					*target = CurrentSettlementParticipations::<T>::get().bids();
+					Ok(Weight::zero())
 				} else {
 					let consumed_weight = start_one_contribution_vesting_schedule::<T>(target)?;
 					Ok(consumed_weight)
 				},
+
 			SettlementType::BidCTMint(PhantomData::<Success>) =>
 				if target.is_empty() {
 					*self = SettlementType::ContributionCTMint(PhantomData);
-					let consumed_weight = self.update_target(project_id, target)?;
-					Ok(consumed_weight)
+					*target = CurrentSettlementParticipations::<T>::get().contributions();
+					Ok(Weight::zero())
 				} else {
 					let consumed_weight = mint_ct_for_one_bid::<T>(target)?;
 					Ok(consumed_weight)
 				},
+
 			SettlementType::ContributionCTMint(PhantomData::<Success>) =>
 				if target.is_empty() {
 					*self = SettlementType::BidFundingPayout(PhantomData);
-					let consumed_weight = self.update_target(project_id, target)?;
-					Ok(consumed_weight)
+					*target = CurrentSettlementParticipations::<T>::get().bids();
+					Ok(Weight::zero())
 				} else {
 					let consumed_weight = mint_ct_for_one_contribution::<T>(target)?;
-
 					Ok(consumed_weight)
 				},
+
 			SettlementType::BidFundingPayout(PhantomData::<Success>) =>
 				if target.is_empty() {
 					*self = SettlementType::ContributionFundingPayout(PhantomData);
-					let consumed_weight = self.update_target(project_id, target)?;
-					Ok(consumed_weight)
+					*target = CurrentSettlementParticipations::<T>::get().contributions();
+					Ok(Weight::zero())
 				} else {
 					let consumed_weight = issuer_funding_payout_one_bid::<T>(target)?;
-
 					Ok(consumed_weight)
 				},
+
 			SettlementType::ContributionFundingPayout(PhantomData::<Success>) =>
 				if target.is_empty() {
 					*self = SettlementType::Finished(PhantomData);
-					let consumed_weight = self.update_target(project_id, target)?;
-					Ok(consumed_weight)
+					*target = SettlementTarget::Empty;
+					Ok(Weight::zero())
 				} else {
 					let consumed_weight = issuer_funding_payout_one_contribution::<T>(target)?;
 					Ok(consumed_weight)
