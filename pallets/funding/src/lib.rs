@@ -242,7 +242,8 @@ pub const PLMC_FOREIGN_ID: u32 = 2069;
 pub mod pallet {
 	use super::*;
 	use crate::traits::{
-		BondingRequirementCalculation, ProvideAssetPrice, SettlementTarget, VestingDurationCalculation,
+		BondingRequirementCalculation, ProvideAssetPrice, SettlementParticipants, SettlementTarget,
+		VestingDurationCalculation,
 	};
 	use frame_support::{
 		dispatch::PostDispatchInfo,
@@ -531,6 +532,9 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type ProjectSettlements<T: Config> =
 		StorageValue<_, WeakBoundedVec<(ProjectId, SettlementMachine), T::MaxProjectsInSettlement>, ValueQuery>;
+
+	#[pallet::storage]
+	pub type CurrentSettlementParticipations<T: Config> = StorageValue<_, SettlementParticipants<T>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn projects_to_update)]
@@ -1523,6 +1527,13 @@ pub mod pallet {
 				};
 
 			let mut settlement_queue = settlement_queue.collect_vec();
+			let settlement_participations = if let Some(participations) = CurrentSettlementParticipations::<T>::get() {
+				participations
+			} else {
+				weight_consumed =
+					weight_consumed.saturating_add(Self::update_current_settlement_participations(project_id));
+			};
+
 			let mut target = SettlementTarget::<T>::Empty;
 			match settlement_machine.execute_with_given_weight(available_weight, project_id, &mut target) {
 				Ok(weight) => {

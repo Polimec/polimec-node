@@ -47,6 +47,7 @@ use xcm::v3::MaxDispatchErrorLen;
 use super::*;
 use crate::traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation};
 use polimec_common::migration_types::{MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
+use traits::SettlementParticipants;
 const POLIMEC_PARA_ID: u32 = 3344u32;
 const QUERY_RESPONSE_TIME_WINDOW_BLOCKS: u32 = 20u32;
 
@@ -3214,6 +3215,20 @@ impl<T: Config> Pallet<T> {
 			};
 		Self::deposit_event(Event::FundingEnded { project_id, outcome: FundingOutcome::Failure(reason) });
 		Ok(insertion_iterations)
+	}
+
+	pub fn update_current_settlement_participations(project_id: ProjectId) -> Weight {
+		let evaluations = Evaluations::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
+		let bids = Bids::<T>::iter_prefix_values((project_id,))
+			.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
+			.collect::<Vec<_>>();
+		let contributions = Contributions::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
+
+		let settlement_participants = SettlementParticipants::<T> { evaluations, bids, contributions };
+
+		CurrentSettlementParticipations::<T>::put(settlement_participants);
+
+		WeightInfoOf::<T>::update_current_settlement_participations()
 	}
 
 	pub fn migrations_per_xcm_message_allowed() -> u32 {

@@ -17,6 +17,7 @@
 use crate::{AccountIdOf, BalanceOf, BidInfoOf, Config, ContributionInfoOf, EvaluationInfoOf, ProjectId};
 use frame_support::weights::Weight;
 use frame_system::pallet_prelude::BlockNumberFor;
+use itertools::Itertools;
 use sp_arithmetic::FixedPointNumber;
 use sp_runtime::DispatchError;
 use sp_std::prelude::*;
@@ -44,12 +45,6 @@ pub trait SettlementOperations<T: Config> {
 		target: &mut SettlementTarget<T>,
 	) -> Result<Weight, (Weight, DispatchError)>;
 
-	fn update_target(
-		&self,
-		project_id: ProjectId,
-		target: &mut SettlementTarget<T>,
-	) -> Result<Weight, (Weight, DispatchError)>;
-
 	fn execute_with_given_weight(
 		&mut self,
 		weight: Weight,
@@ -59,18 +54,31 @@ pub trait SettlementOperations<T: Config> {
 }
 
 /// The original participants of a project that need some settlements (i.e extrinsics) to be done by the chain.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct SettlementParticipants<T: Config> {
-	pub evaluations: Vec<EvaluationInfoOf<T>>,
-	pub bids: Vec<BidInfoOf<T>>,
-	pub contributions: Vec<ContributionInfoOf<T>>,
+	evaluations: Vec<EvaluationInfoOf<T>>,
+	bids: Vec<BidInfoOf<T>>,
+	contributions: Vec<ContributionInfoOf<T>>,
 }
 impl<T: Config> SettlementParticipants<T> {
-	pub fn accounts(&self) -> Vec<AccountIdOf<T>> {
+	pub fn evaluations(&self) -> SettlementTarget<T> {
+		SettlementTarget::Evaluations(self.evaluations)
+	}
+
+	pub fn bids(&self) -> SettlementTarget<T> {
+		SettlementTarget::Bids(self.bids)
+	}
+
+	pub fn contributions(&self) -> SettlementTarget<T> {
+		SettlementTarget::Contributions(self.contributions)
+	}
+
+	pub fn accounts(&self) -> SettlementTarget<T> {
 		let evaluators = self.evaluations.into_iter().map(|e| e.evaluator);
 		let bidders = self.bids.into_iter().map(|b| b.bidder);
 		let contributors = self.contributions.into_iter().map(|c| c.contributor);
-		evaluators.chain(bidders).chain(contributors).collect_vec()
+		let participants = evaluators.chain(bidders).chain(contributors).collect_vec();
+		SettlementTarget::Accounts(participants)
 	}
 }
 

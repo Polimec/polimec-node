@@ -53,20 +53,6 @@ impl<T: Config> SettlementOperations<T> for SettlementMachine {
 		}
 	}
 
-	fn update_target(
-		&self,
-		project_id: ProjectId,
-		target: &mut SettlementTarget<T>,
-	) -> Result<Weight, (Weight, DispatchError)> {
-		match self {
-			SettlementMachine::NotReady => Err((Weight::zero(), "SettlementMachine not ready for operations".into())),
-			SettlementMachine::Success(state) =>
-				<SettlementType<Success> as SettlementOperations<T>>::update_target(state, project_id, target),
-			SettlementMachine::Failure(state) =>
-				<SettlementType<Failure> as SettlementOperations<T>>::update_target(state, project_id, target),
-		}
-	}
-
 	fn execute_with_given_weight(
 		&mut self,
 		weight: Weight,
@@ -102,20 +88,30 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 				*self = Self::EvaluationRewardOrSlash(PhantomData);
 				Ok(Weight::zero())
 			},
+
 			SettlementType::EvaluationRewardOrSlash(PhantomData::<Success>) =>
 				if target.is_empty() {
 					*self = Self::EvaluationUnbonding(PhantomData);
-					let consumed_weight = self.update_target(project_id, target)?;
-					Ok(consumed_weight)
+					let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ImpossibleState)?;
+					if project_details.evaluation_round_info.evaluators_outcome == EvaluatorsOutcome::Unchanged {
+						*target = SettlementTarget::Evaluations(vec![]);
+					}
+					// TODO: Is this assumption true?
+					// We read/created this storage in on_idle, which calls this function. This value should be cached and
+					// therefore not imply a new read.
+					*target = CurrentSettlementParticipations::<T>::get().evaluations();
+					// TODO: benchmark this code
+					Ok(T::DbWeight::get().reads(1))
 				} else {
 					let consumed_weight = reward_or_slash_one_evaluation::<T>(target)?;
 					Ok(consumed_weight)
 				},
+
 			SettlementType::EvaluationUnbonding(PhantomData::<Success>) =>
 				if target.is_empty() {
 					*self = SettlementType::StartBidderVestingSchedule(PhantomData);
-					let consumed_weight = self.update_target(project_id, target)?;
-					Ok(consumed_weight)
+					*target = CurrentSettlementParticipations::<T>::get().evaluations();
+					Ok(Weight::zero())
 				} else {
 					let consumed_weight = unbond_one_evaluation::<T>(target)?;
 
@@ -186,69 +182,6 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 		}
 	}
 
-	fn update_target(
-		&self,
-		project_id: ProjectId,
-		target: &mut SettlementTarget<T>,
-	) -> Result<Weight, (Weight, DispatchError)> {
-		match self {
-			SettlementType::Initialized(_) => Ok(Weight::zero()),
-			SettlementType::EvaluationRewardOrSlash(_) => {
-				*target = project_evaluations_to_reward_or_slash::<T>(project_id);
-				Ok(Weight::zero())
-			},
-			SettlementType::EvaluationUnbonding(_) => {
-				*target = project_evaluations::<T>(project_id);
-				Ok(Weight::zero())
-			},
-			SettlementType::BidCTMint(_) => {
-				*target = project_successful_bids::<T>(project_id);
-				Ok(Weight::zero())
-			},
-			SettlementType::ContributionCTMint(_) => {
-				*target = project_contributions::<T>(project_id);
-				Ok(Weight::zero())
-			},
-			SettlementType::StartBidderVestingSchedule(_) => {
-				*target = project_successful_bids::<T>(project_id);
-				Ok(Weight::zero())
-			},
-			SettlementType::StartContributorVestingSchedule(_) => {
-				*target = project_contributions::<T>(project_id);
-				Ok(Weight::zero())
-			},
-			SettlementType::BidFundingPayout(_) => {
-				*target = project_successful_bids::<T>(project_id);
-				Ok(Weight::zero())
-			},
-			SettlementType::ContributionFundingPayout(_) => {
-				*target = project_contributions::<T>(project_id);
-				Ok(Weight::zero())
-			},
-			SettlementType::BidFundingRelease(_) => {
-				*target = project_successful_bids::<T>(project_id);
-				Ok(Weight::zero())
-			},
-			SettlementType::BidUnbonding(_) => {
-				*target = project_successful_bids::<T>(project_id);
-				Ok(Weight::zero())
-			},
-			SettlementType::ContributionFundingRelease(_) => {
-				*target = project_contributions::<T>(project_id);
-				Ok(Weight::zero())
-			},
-			SettlementType::ContributionUnbonding(_) => {
-				*target = project_contributions::<T>(project_id);
-				Ok(Weight::zero())
-			},
-			SettlementType::FutureDepositRelease(_) => {
-				*target = project_participants::<T>(project_id);
-				Ok(Weight::zero())
-			},
-			SettlementType::Finished(_) => Ok(Weight::zero()),
-		}
-	}
-
 	fn execute_with_given_weight(
 		&mut self,
 		weight: Weight,
@@ -256,7 +189,6 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 		target: &mut SettlementTarget<T>,
 	) -> Result<Weight, (Weight, DispatchError)> {
 		let mut remaining_weight = weight;
-		let mut used_weight = Weight::zero();
 		let has_remaining_operations =
 			<SettlementType<Success> as SettlementOperations<T>>::has_remaining_operations(self);
 
@@ -361,14 +293,6 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Failure> {
 		//
 		// 	_ => Err(Error::<T>::ImpossibleState.into()),
 		// }
-	}
-
-	fn update_target(
-		&self,
-		project_id: ProjectId,
-		target: &mut SettlementTarget<T>,
-	) -> Result<Weight, (Weight, DispatchError)> {
-		todo!()
 	}
 
 	fn execute_with_given_weight(

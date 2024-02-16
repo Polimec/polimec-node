@@ -98,6 +98,7 @@ pub trait WeightInfo {
 	fn project_decision_reject_funding() -> Weight;
 	fn start_settlement_funding_success() -> Weight;
 	fn start_settlement_funding_failure() -> Weight;
+	fn update_current_settlement_participations() -> Weight;
 }
 
 /// Weights for `pallet_funding` using the Substrate node and recommended hardware.
@@ -1171,6 +1172,9 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+	fn update_current_settlement_participations() -> Weight {
+		Weight::from_parts(70_000_000, 6208)
+	}
 }
 
 // For backwards compatibility and tests.
@@ -2242,5 +2246,9 @@ impl WeightInfo for () {
 		Weight::from_parts(70_000_000, 6208)
 			.saturating_add(RocksDbWeight::get().reads(5_u64))
 			.saturating_add(RocksDbWeight::get().writes(4_u64))
+	}
+
+	fn update_current_settlement_participations() -> Weight {
+		Weight::from_parts(70_000_000, 6208)
 	}
 }
