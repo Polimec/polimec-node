@@ -18,8 +18,11 @@ use crate::{AccountIdOf, BalanceOf, BidInfoOf, Config, ContributionInfoOf, Evalu
 use frame_support::weights::Weight;
 use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
+use parity_scale_codec::{Decode, Encode};
+use scale_info::TypeInfo;
 use sp_arithmetic::FixedPointNumber;
-use sp_runtime::DispatchError;
+use sp_core::MaxEncodedLen;
+use sp_runtime::{DispatchError, RuntimeDebug};
 use sp_std::prelude::*;
 
 pub trait BondingRequirementCalculation {
@@ -54,12 +57,13 @@ pub trait SettlementOperations<T: Config> {
 }
 
 /// The original participants of a project that need some settlements (i.e extrinsics) to be done by the chain.
-#[derive(Clone, Debug, PartialEq, Eq, Default)]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Default)]
 pub struct SettlementParticipants<T: Config> {
-	evaluations: Vec<EvaluationInfoOf<T>>,
-	bids: Vec<BidInfoOf<T>>,
-	contributions: Vec<ContributionInfoOf<T>>,
+	pub evaluations: Vec<EvaluationInfoOf<T>>,
+	pub bids: Vec<BidInfoOf<T>>,
+	pub contributions: Vec<ContributionInfoOf<T>>,
 }
+
 impl<T: Config> SettlementParticipants<T> {
 	pub fn evaluations(&self) -> SettlementTarget<T> {
 		SettlementTarget::Evaluations(self.evaluations)
@@ -83,7 +87,7 @@ impl<T: Config> SettlementParticipants<T> {
 }
 
 /// The current participants that are awaiting a specific settlement to be done by the chain.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub enum SettlementTarget<T: Config> {
 	Empty,
 	Accounts(Vec<AccountIdOf<T>>),

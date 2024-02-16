@@ -185,9 +185,11 @@ use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
 use sp_std::{marker::PhantomData, prelude::*};
+use std::ops::Not;
 use traits::SettlementOperations;
 pub use types::*;
 use xcm::v3::{opaque::Instruction, prelude::*, SendXcm};
+
 pub mod functions;
 
 #[cfg(test)]
@@ -258,6 +260,7 @@ pub mod pallet {
 		traits::{Convert, ConvertBack, Get},
 		DispatchErrorWithPostInfo, WeakBoundedVec,
 	};
+	use std::ops::ControlFlow;
 
 	#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 	use crate::traits::SetPrices;
@@ -880,6 +883,12 @@ pub mod pallet {
 			project_id: ProjectId,
 			participant: AccountIdOf<T>,
 			caller: AccountIdOf<T>,
+		},
+		SettlementStarted {
+			project_id: ProjectId,
+		},
+		SettlementFinished {
+			project_id: ProjectId,
 		},
 		SettlementError {
 			project_id: ProjectId,
@@ -1512,34 +1521,109 @@ pub mod pallet {
 		}
 
 		fn on_idle(_now: BlockNumberFor<T>, max_weight: Weight) -> Weight {
-			let mut weight_consumed: Weight;
-			let mut available_weight = max_weight;
+			let mut weight_consumed: Weight = Weight::zero();
 
 			let mut settlement_queue =
 				ProjectSettlements::<T>::get().into_iter().sorted_by_key(|(project_id, _)| *project_id);
-			available_weight = available_weight.saturating_sub(<T as frame_system::Config>::DbWeight::get().reads(1));
+			weight_consumed = weight_consumed.saturating_add(<T as frame_system::Config>::DbWeight::get().reads(1));
 
-			let (project_id, mut settlement_machine) =
-				if let Some((project_id, settlement_machine)) = settlement_queue.next() {
-					(project_id, settlement_machine)
-				} else {
-					return max_weight.saturating_sub(available_weight);
-				};
+			let current_project_id: ProjectId;
+			let mut current_settlement_machine = None;
+			while settlement_queue.is_empty().not() {
+				match settlement_queue.next() {
+					Some((project_id, settlement_machine)) if settlement_machine.has_remaining_operations().not() => {
+						weight_consumed = weight_consumed
+							.saturating_add(<T as frame_system::Config>::DbWeight::get().reads_writes(1, 1));
+						ProjectsDetails::<T>::mutate(project_id, |maybe_project| {
+							if let Some(project) = maybe_project {
+								if project.status == ProjectStatus::SuccessSettlementOngoing {
+									project.status = ProjectStatus::SuccessSettlementFinished;
+								} else if project.status == ProjectStatus::FailureSettlementOngoing {
+									project.status = ProjectStatus::FailureSettlementFinished;
+								} else {
+									#[cfg(debug_assertions)]
+									panic!("Settlement machine finished, but project status has invalid state");
+									#[cfg(not(debug_assertions))]
+									{
+										log::error!(
+											"Settlement machine finished, but project status has invalid state"
+										);
+									}
+								}
+							}
+
+							Self::deposit_event(Event::SettlementFinished { project_id })
+						});
+					},
+
+					Some((project_id, SettlementMachine::NotReady)) => {
+						weight_consumed =
+							weight_consumed.saturating_add(Self::update_current_settlement_participations(project_id));
+						weight_consumed = weight_consumed
+							.saturating_add(<T as frame_system::Config>::DbWeight::get().reads_writes(1, 1));
+
+						let settlement_machine = ProjectsDetails::<T>::mutate(project_id, |maybe_project| {
+							if let Some(project) = maybe_project {
+								if matches!(project.status, ProjectStatus::FundingSuccessful) {
+									project.status = ProjectStatus::SuccessSettlementOngoing;
+									Some(SettlementMachine::Success(SettlementType::Initialized::<PhantomData>))
+								} else if matches!(
+									project.status,
+									ProjectStatus::EvaluationFailed | ProjectStatus::FundingFailed
+								) {
+									project.status = ProjectStatus::FailureSettlementOngoing;
+									Some(SettlementMachine::Failure(SettlementType::Initialized::<PhantomData>))
+								} else {
+									#[cfg(debug_assertions)]
+									panic!("Settlement machine tried to start, but project status has invalid state");
+									#[cfg(not(debug_assertions))]
+									{
+										log::error!(
+											"Settlement machine not ready, but project status has invalid state"
+										);
+									}
+									project.status = ProjectStatus::Panicked;
+									None
+								}
+							}
+						});
+
+						if settlement_machine.is_some() {
+							current_project_id = project_id;
+							current_settlement_machine = settlement_machine;
+							break
+						} else {
+							continue
+						}
+					},
+
+					Some((project_id, settlement_machine)) => {
+						current_project_id = project_id;
+						current_settlement_machine = Some(settlement_machine)
+					},
+
+					None => unreachable!("is_empty is false, therefore we cannot have None here"),
+				}
+			}
+
+			let current_settlement_machine =
+				if let Some(machine) = current_settlement_machine { machine } else { return weight_consumed };
 
 			let mut settlement_queue = settlement_queue.collect_vec();
-			let settlement_participations = if let Some(participations) = CurrentSettlementParticipations::<T>::get() {
-				participations
-			} else {
-				weight_consumed =
-					weight_consumed.saturating_add(Self::update_current_settlement_participations(project_id));
-			};
+			let settlement_participations = CurrentSettlementParticipations::<T>::get();
 
 			let mut target = SettlementTarget::<T>::Empty;
-			match settlement_machine.execute_with_given_weight(available_weight, project_id, &mut target) {
+			match current_settlement_machine.execute_with_given_weight(
+				max_weight.saturating_sub(weight_consumed),
+				current_project_id,
+				&mut target,
+			) {
 				Ok(weight) => {
 					weight_consumed = weight;
-					if <SettlementMachine as SettlementOperations<T>>::has_remaining_operations(&settlement_machine) {
-						settlement_queue.push((project_id, settlement_machine));
+					if <SettlementMachine as SettlementOperations<T>>::has_remaining_operations(
+						&current_settlement_machine,
+					) {
+						settlement_queue.push((current_project_id, current_settlement_machine));
 					}
 				},
 				Err((weight, err)) => {

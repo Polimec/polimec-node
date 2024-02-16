@@ -495,6 +495,8 @@ pub mod inner_types {
 		FailureSettlementFinished,
 		ReadyToStartMigration,
 		MigrationCompleted,
+		// Something went wrong in the logic of the program. Should never get here
+		Panicked,
 	}
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]

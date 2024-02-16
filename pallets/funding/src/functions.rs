@@ -3226,7 +3226,7 @@ impl<T: Config> Pallet<T> {
 
 		let settlement_participants = SettlementParticipants::<T> { evaluations, bids, contributions };
 
-		CurrentSettlementParticipations::<T>::put(settlement_participants);
+		CurrentSettlementParticipations::<T>::set(settlement_participants);
 
 		WeightInfoOf::<T>::update_current_settlement_participations()
 	}

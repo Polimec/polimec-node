@@ -191,11 +191,11 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 		project_id: ProjectId,
 		target: &mut SettlementTarget<T>,
 	) -> Result<Weight, (Weight, DispatchError)> {
-		let mut remaining_weight = weight;
+		let mut used_weight = Weight::zero();
 		let has_remaining_operations =
 			<SettlementType<Success> as SettlementOperations<T>>::has_remaining_operations(self);
 
-		while has_remaining_operations && remaining_weight.all_gt(Weight::zero()) {
+		while has_remaining_operations && weight.saturating_sub(used_weight).all_gt(Weight::zero()) {
 			match self.do_one_operation(project_id, target) {
 				Ok(weight) => {
 					used_weight = used_weight.saturating_add(weight);
