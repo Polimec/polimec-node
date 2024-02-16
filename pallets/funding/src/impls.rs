@@ -24,11 +24,11 @@ use sp_runtime::{traits::AccountIdConversion, DispatchError};
 use sp_std::{collections::btree_set::BTreeSet, marker::PhantomData};
 
 use crate::{
-	traits::{SettlementOperations, SettlementParticipants, SettlementTarget},
+	traits::{ParticipantExtractor, SettlementOperations, SettlementParticipantsOf, SettlementTarget},
 	*,
 };
 
-fn get_current_settlement_participants<T: Config>() -> Result<SettlementParticipants<T>, (Weight, DispatchError)> {
+fn get_current_settlement_participants<T: Config>() -> Result<SettlementParticipantsOf<T>, (Weight, DispatchError)> {
 	if let Some(participations) = CurrentSettlementParticipations::<T>::get() {
 		Ok(participations)
 	} else {
@@ -99,7 +99,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 				*self = Self::EvaluationRewardOrSlash(PhantomData);
 				let current_settlement_participations = get_current_settlement_participants::<T>()?;
 
-				*target = current_settlement_participations.evaluations();
+				*target = ParticipantExtractor::evaluations(current_settlement_participations);
 				Ok(T::DbWeight::get().reads(1))
 			},
 
@@ -115,7 +115,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 
 					let current_settlement_participations = get_current_settlement_participants::<T>()?;
 
-					*target = current_settlement_participations.evaluations();
+					*target = ParticipantExtractor::evaluations(current_settlement_participations);
 					Ok(T::DbWeight::get().reads(1))
 				} else {
 					let consumed_weight = reward_or_slash_one_evaluation::<T>(target)?;
@@ -127,7 +127,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 					*self = SettlementType::StartBidderVestingSchedule(PhantomData);
 					let current_settlement_participations = get_current_settlement_participants::<T>()?;
 
-					*target = current_settlement_participations.bids();
+					*target = ParticipantExtractor::bids(current_settlement_participations);
 					Ok(T::DbWeight::get().reads(1))
 				} else {
 					let consumed_weight = unbond_one_evaluation::<T>(target)?;
@@ -139,7 +139,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 					*self = SettlementType::StartContributorVestingSchedule(PhantomData);
 					let current_settlement_participations = get_current_settlement_participants::<T>()?;
 
-					*target = current_settlement_participations.contributions();
+					*target = ParticipantExtractor::contributions(current_settlement_participations);
 					Ok(T::DbWeight::get().reads(1))
 				} else {
 					let consumed_weight = start_one_bid_vesting_schedule::<T>(target)?;
@@ -151,7 +151,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 					*self = SettlementType::BidCTMint(PhantomData);
 					let current_settlement_participations = get_current_settlement_participants::<T>()?;
 
-					*target = current_settlement_participations.bids();
+					*target = ParticipantExtractor::bids(current_settlement_participations);
 					Ok(T::DbWeight::get().reads(1))
 				} else {
 					let consumed_weight = start_one_contribution_vesting_schedule::<T>(target)?;
@@ -163,7 +163,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 					*self = SettlementType::ContributionCTMint(PhantomData);
 					let current_settlement_participations = get_current_settlement_participants::<T>()?;
 
-					*target = current_settlement_participations.contributions();
+					*target = ParticipantExtractor::contributions(current_settlement_participations);
 					Ok(T::DbWeight::get().reads(1))
 				} else {
 					let consumed_weight = mint_ct_for_one_bid::<T>(target)?;
@@ -175,7 +175,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 					*self = SettlementType::BidFundingPayout(PhantomData);
 					let current_settlement_participations = get_current_settlement_participants::<T>()?;
 
-					*target = current_settlement_participations.bids();
+					*target = ParticipantExtractor::bids(current_settlement_participations);
 					Ok(T::DbWeight::get().reads(1))
 				} else {
 					let consumed_weight = mint_ct_for_one_contribution::<T>(target)?;
@@ -187,7 +187,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 					*self = SettlementType::ContributionFundingPayout(PhantomData);
 					let current_settlement_participations = get_current_settlement_participants::<T>()?;
 
-					*target = current_settlement_participations.bids();
+					*target = ParticipantExtractor::bids(current_settlement_participations);
 					Ok(T::DbWeight::get().reads(1))
 				} else {
 					let consumed_weight = issuer_funding_payout_one_bid::<T>(target)?;

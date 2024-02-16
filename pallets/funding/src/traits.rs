@@ -15,15 +15,15 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{AccountIdOf, BalanceOf, BidInfoOf, Config, ContributionInfoOf, EvaluationInfoOf, ProjectId};
-use frame_support::weights::Weight;
+use frame_support::{weights::Weight, WeakBoundedVec};
 use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use sp_arithmetic::FixedPointNumber;
-use sp_core::MaxEncodedLen;
+use sp_core::{ConstU32, Get, MaxEncodedLen};
 use sp_runtime::{DispatchError, RuntimeDebug};
-use sp_std::prelude::*;
+use sp_std::{marker::PhantomData, prelude::*};
 
 pub trait BondingRequirementCalculation {
 	fn calculate_bonding_requirement<T: Config>(&self, ticket_size: BalanceOf<T>) -> Result<BalanceOf<T>, ()>;
@@ -58,31 +58,38 @@ pub trait SettlementOperations<T: Config> {
 
 /// The original participants of a project that need some settlements (i.e extrinsics) to be done by the chain.
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Default)]
-pub struct SettlementParticipants<T: Config> {
-	pub evaluations: Vec<EvaluationInfoOf<T>>,
-	pub bids: Vec<BidInfoOf<T>>,
-	pub contributions: Vec<ContributionInfoOf<T>>,
+pub struct SettlementParticipants<Evaluations, Bids, Contributions> {
+	pub evaluations: Evaluations,
+	pub bids: Bids,
+	pub contributions: Contributions,
 }
 
-impl<T: Config> SettlementParticipants<T> {
-	pub fn evaluations(&self) -> SettlementTarget<T> {
-		SettlementTarget::Evaluations(self.evaluations)
+pub type SettlementParticipantsOf<T: Config> = SettlementParticipants<
+	WeakBoundedVec<EvaluationInfoOf<T>, T::MaxEvaluationsPerProject>,
+	WeakBoundedVec<BidInfoOf<T>, T::MaxBidsPerProject>,
+	WeakBoundedVec<ContributionInfoOf<T>, ConstU32<20_000>>,
+>;
+
+pub struct ParticipantExtractor<T: Config>(PhantomData<T>);
+impl<T: Config> ParticipantExtractor<T> {
+	pub fn evaluations(settlement_participants: SettlementParticipantsOf<T>) -> SettlementTarget<T> {
+		SettlementTarget::<T>::Evaluations(settlement_participants.evaluations.to_vec())
 	}
 
-	pub fn bids(&self) -> SettlementTarget<T> {
-		SettlementTarget::Bids(self.bids)
+	pub fn bids(settlement_participants: SettlementParticipantsOf<T>) -> SettlementTarget<T> {
+		SettlementTarget::<T>::Bids(settlement_participants.bids.to_vec())
 	}
 
-	pub fn contributions(&self) -> SettlementTarget<T> {
-		SettlementTarget::Contributions(self.contributions)
+	pub fn contributions(settlement_participants: SettlementParticipantsOf<T>) -> SettlementTarget<T> {
+		SettlementTarget::<T>::Contributions(settlement_participants.contributions.to_vec())
 	}
 
-	pub fn accounts(&self) -> SettlementTarget<T> {
-		let evaluators = self.evaluations.into_iter().map(|e| e.evaluator);
-		let bidders = self.bids.into_iter().map(|b| b.bidder);
-		let contributors = self.contributions.into_iter().map(|c| c.contributor);
+	pub fn accounts(settlement_participants: SettlementParticipantsOf<T>) -> SettlementTarget<T> {
+		let evaluators = settlement_participants.evaluations.into_iter().map(|e| e.evaluator);
+		let bidders = settlement_participants.bids.into_iter().map(|b| b.bidder);
+		let contributors = settlement_participants.contributions.into_iter().map(|c| c.contributor);
 		let participants = evaluators.chain(bidders).chain(contributors).collect_vec();
-		SettlementTarget::Accounts(participants)
+		SettlementTarget::<T>::Accounts(participants)
 	}
 }
 

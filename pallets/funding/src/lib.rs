@@ -184,8 +184,7 @@ use polimec_common::migration_types::*;
 use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
-use sp_std::{marker::PhantomData, prelude::*};
-use std::ops::Not;
+use sp_std::{marker::PhantomData, ops::Not, prelude::*};
 use traits::SettlementOperations;
 pub use types::*;
 use xcm::v3::{opaque::Instruction, prelude::*, SendXcm};
@@ -244,7 +243,7 @@ pub const PLMC_FOREIGN_ID: u32 = 2069;
 pub mod pallet {
 	use super::*;
 	use crate::traits::{
-		BondingRequirementCalculation, ProvideAssetPrice, SettlementParticipants, SettlementTarget,
+		BondingRequirementCalculation, ProvideAssetPrice, SettlementParticipantsOf, SettlementTarget,
 		VestingDurationCalculation,
 	};
 	use frame_support::{
@@ -260,7 +259,7 @@ pub mod pallet {
 		traits::{Convert, ConvertBack, Get},
 		DispatchErrorWithPostInfo, WeakBoundedVec,
 	};
-	use std::ops::ControlFlow;
+	use sp_std::ops::ControlFlow;
 
 	#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 	use crate::traits::SetPrices;
@@ -537,7 +536,7 @@ pub mod pallet {
 		StorageValue<_, WeakBoundedVec<(ProjectId, SettlementMachine), T::MaxProjectsInSettlement>, ValueQuery>;
 
 	#[pallet::storage]
-	pub type CurrentSettlementParticipations<T: Config> = StorageValue<_, SettlementParticipants<T>>;
+	pub type CurrentSettlementParticipations<T: Config> = StorageValue<_, SettlementParticipantsOf<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn projects_to_update)]
@@ -1531,31 +1530,35 @@ pub mod pallet {
 			let mut current_settlement_machine = None;
 			while let Some((project_id, settlement_machine)) = settlement_queue.next() {
 				match (project_id, settlement_machine) {
-					(project_id, settlement_machine @ SettlementMachine::Success(machine))
-						if machine.has_remaining_operations().not() =>
+					(project_id, settlement_machine)
+						if <SettlementMachine as SettlementOperations<T>>::has_remaining_operations(
+							&settlement_machine,
+						)
+						.not() =>
 					{
 						CurrentSettlementParticipations::<T>::set(None);
 						weight_consumed = weight_consumed
 							.saturating_add(<T as frame_system::Config>::DbWeight::get().reads_writes(1, 2));
 						ProjectsDetails::<T>::mutate(project_id, |maybe_project| {
 							if let Some(project) = maybe_project {
-								project.status = ProjectStatus::SuccessSettlementFinished;
+								if project.status == ProjectStatus::SuccessSettlementOngoing {
+									project.status = ProjectStatus::SuccessSettlementFinished;
+								} else if project.status == ProjectStatus::FailureSettlementOngoing {
+									project.status = ProjectStatus::FailureSettlementFinished;
+								} else {
+									#[cfg(debug_assertions)]
+									panic!("Settlement machine finished, but project status has invalid state");
+									#[cfg(not(debug_assertions))]
+									{
+										log::error!(
+											"Settlement machine finished, but project status has invalid state"
+										);
+									}
+								}
 							}
+
+							Self::deposit_event(Event::SettlementFinished { project_id })
 						});
-						Self::deposit_event(Event::SettlementFinished { project_id })
-					},
-					(project_id, settlement_machine @ SettlementMachine::Failure(machine))
-						if machine.has_remaining_operations().not() =>
-					{
-						CurrentSettlementParticipations::<T>::set(None);
-						weight_consumed = weight_consumed
-							.saturating_add(<T as frame_system::Config>::DbWeight::get().reads_writes(1, 2));
-						ProjectsDetails::<T>::mutate(project_id, |maybe_project| {
-							if let Some(project) = maybe_project {
-								project.status = ProjectStatus::FailureSettlementFinished;
-							}
-						});
-						Self::deposit_event(Event::SettlementFinished { project_id })
 					},
 
 					(project_id, SettlementMachine::NotReady) => {

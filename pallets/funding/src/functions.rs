@@ -17,7 +17,11 @@
 // If you feel like getting in touch with us, you can do so at info@polimec.org
 
 //! Functions for the Funding pallet.
-use crate::ProjectStatus::FundingSuccessful;
+use super::*;
+use crate::{
+	traits::{BondingRequirementCalculation, ProvideAssetPrice, SettlementParticipantsOf, VestingDurationCalculation},
+	ProjectStatus::FundingSuccessful,
+};
 use frame_support::{
 	dispatch::{DispatchErrorWithPostInfo, DispatchResult, DispatchResultWithPostInfo, PostDispatchInfo},
 	ensure,
@@ -34,7 +38,10 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
-use polimec_common::ReleaseSchedule;
+use polimec_common::{
+	migration_types::{MigrationInfo, MigrationOrigin, Migrations, ParticipationType},
+	ReleaseSchedule,
+};
 use sp_arithmetic::{
 	traits::{CheckedDiv, CheckedSub, Zero},
 	Percent, Perquintill,
@@ -42,12 +49,8 @@ use sp_arithmetic::{
 use sp_core::bounded::WeakBoundedVec;
 use sp_runtime::traits::{Convert, ConvertBack};
 use sp_std::{marker::PhantomData, ops::Not};
-use xcm::v3::MaxDispatchErrorLen;
-
-use super::*;
-use crate::traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation};
-use polimec_common::migration_types::{MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
 use traits::SettlementParticipants;
+use xcm::v3::MaxDispatchErrorLen;
 const POLIMEC_PARA_ID: u32 = 3344u32;
 const QUERY_RESPONSE_TIME_WINDOW_BLOCKS: u32 = 20u32;
 
@@ -3224,7 +3227,14 @@ impl<T: Config> Pallet<T> {
 			.collect::<Vec<_>>();
 		let contributions = Contributions::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
 
-		let settlement_participants = SettlementParticipants::<T> { evaluations, bids, contributions };
+		let settlement_participants = SettlementParticipantsOf::<T> {
+			evaluations: WeakBoundedVec::<EvaluationInfoOf<T>, T::MaxEvaluationsPerProject>::force_from(
+				evaluations,
+				None,
+			),
+			bids: WeakBoundedVec::<BidInfoOf<T>, T::MaxBidsPerProject>::force_from(bids, None),
+			contributions: WeakBoundedVec::<ContributionInfoOf<T>, ConstU32<20_000>>::force_from(contributions, None),
+		};
 
 		CurrentSettlementParticipations::<T>::set(Some(settlement_participants));
 
