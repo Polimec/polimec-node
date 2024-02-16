@@ -32,6 +32,9 @@ strip = "debuginfo"
 [profile.dev.package.backtrace]
 inherits = "release"
 
+[profile.dev]
+split-debuginfo = "unpacked"
+
 [profile.production]
 inherits = "release"
 lto = true

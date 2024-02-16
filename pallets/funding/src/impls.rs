@@ -117,7 +117,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 					let consumed_weight = self.update_target(project_id, target)?;
 					Ok(consumed_weight)
 				} else {
-					let consumed_weight = unbond_one_evaluation::<T>(project_id, target)?;
+					let consumed_weight = unbond_one_evaluation::<T>(target)?;
 
 					Ok(consumed_weight)
 				},
@@ -338,7 +338,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Failure> {
 		// 			*self = SettlementType::ContributionFundingRelease(PhantomData::<Failure>);
 		// 			Ok(base_weight)
 		// 		} else {
-		// 			let consumed_weight = unbond_one_bid::<T>(project_id, target);
+		// 			let consumed_weight = unbond_one_bid::<T>(target);
 		// 			*self = SettlementType::BidUnbonding(PhantomData::<Failure>);
 		// 			Ok(consumed_weight)
 		// 		},
@@ -606,10 +606,7 @@ fn unbond_one_evaluation<T: Config>(target: &mut SettlementTarget<T>) -> Result<
 	Ok(consumed_weight)
 }
 
-fn release_funds_one_bid<T: Config>(
-	project_id: ProjectId,
-	target: &mut SettlementTarget<T>,
-) -> Result<Weight, (Weight, DispatchError)> {
+fn release_funds_one_bid<T: Config>(target: &mut SettlementTarget<T>) -> Result<Weight, (Weight, DispatchError)> {
 	let mut consumed_weight = Weight::zero();
 	let mut remaining_bids = if let SettlementTarget::Bids(bids) = target.clone() {
 		bids.into_iter()
@@ -636,88 +633,88 @@ fn release_funds_one_bid<T: Config>(
 			}),
 		};
 
-		(base_weight.saturating_add(WeightInfoOf::<T>::release_bid_funds_for()), remaining_bids.count() as u64)
-	} else {
-		(base_weight, 0u64)
+		consumed_weight = consumed_weight.saturating_add(
+			crate::Call::<T>::release_bid_funds_for { project_id: bid.project_id, bidder: bid.bidder, bid_id: bid.id }
+				.get_dispatch_info()
+				.weight,
+		);
 	}
+	*target = SettlementTarget::Bids(remaining_bids.collect_vec());
+	Ok(consumed_weight)
 }
 
-fn unbond_one_bid<T: Config>(
-	project_id: ProjectId,
-	target: &mut SettlementTarget<T>,
-) -> Result<Weight, (Weight, DispatchError)> {
-	// let project_bids = Bids::<T>::iter_prefix_values((project_id,));
-	// let mut remaining_bids = project_bids.filter(|bid| bid.funds_released);
-	// let base_weight = Weight::from_parts(10_000_000, 0);
-	//
-	// if let Some(bid) = remaining_bids.next() {
-	// 	match Pallet::<T>::do_bid_unbond_for(
-	// 		&T::PalletId::get().into_account_truncating(),
-	// 		bid.project_id,
-	// 		&bid.bidder,
-	// 		bid.id,
-	// 	) {
-	// 		Ok(_) => (),
-	// 		Err(e) => Pallet::<T>::deposit_event(Event::BidUnbondFailed {
-	// 			project_id: bid.project_id,
-	// 			bidder: bid.bidder.clone(),
-	// 			id: bid.id,
-	// 			error: e,
-	// 		}),
-	// 	};
-	// 	(base_weight.saturating_add(WeightInfoOf::<T>::bid_unbond_for()), remaining_bids.count() as u64)
-	// } else {
-	// 	(base_weight, 0u64)
-	// }
+fn unbond_one_bid<T: Config>(target: &mut SettlementTarget<T>) -> Result<Weight, (Weight, DispatchError)> {
+	let mut consumed_weight = Weight::zero();
 
-	todo!()
+	let mut remaining_bids = if let SettlementTarget::Bids(bids) = target.clone() {
+		bids.into_iter()
+	} else {
+		#[cfg(debug_assertions)]
+		unreachable!("Expected bids at settlement target");
+		#[cfg(not(debug_assertions))]
+		return Err((consumed_weight, "Expected bids at settlement target".into()));
+	};
+
+	if let Some(bid) = remaining_bids.next() {
+		match Pallet::<T>::do_bid_unbond_for(
+			&T::PalletId::get().into_account_truncating(),
+			bid.project_id,
+			&bid.bidder,
+			bid.id,
+		) {
+			Ok(_) => (),
+			Err(e) => Pallet::<T>::deposit_event(Event::BidUnbondFailed {
+				project_id: bid.project_id,
+				bidder: bid.bidder.clone(),
+				id: bid.id,
+				error: e,
+			}),
+		};
+	}
+
+	*target = SettlementTarget::Bids(remaining_bids.collect_vec());
+	Ok(consumed_weight)
 }
 
 fn release_future_ct_deposit_one_participant<T: Config>(
 	project_id: ProjectId,
 	target: &mut SettlementTarget<T>,
 ) -> Result<Weight, (Weight, DispatchError)> {
-	// let base_weight = Weight::from_parts(10_000_000, 0);
-	// let evaluators = Evaluations::<T>::iter_key_prefix((project_id,)).map(|(evaluator, _evaluation_id)| evaluator);
-	// let bidders = Bids::<T>::iter_key_prefix((project_id,)).map(|(bidder, _bid_id)| bidder);
-	// let contributors =
-	// 	Contributions::<T>::iter_key_prefix((project_id,)).map(|(contributor, _contribution_id)| contributor);
-	// let all_participants = evaluators.chain(bidders).chain(contributors).collect::<BTreeSet<AccountIdOf<T>>>();
-	// let remaining_participants = all_participants
-	// 	.into_iter()
-	// 	.filter(|account| {
-	// 		<T as Config>::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), account) >
-	// 			Zero::zero()
-	// 	})
-	// 	.collect_vec();
-	// let mut iter_participants = remaining_participants.into_iter();
-	//
-	// if let Some(account) = iter_participants.next() {
-	// 	match Pallet::<T>::do_release_future_ct_deposit_for(
-	// 		&T::PalletId::get().into_account_truncating(),
-	// 		project_id,
-	// 		&account,
-	// 	) {
-	// 		// TODO: replace when benchmark is done
-	// 		// Ok(_) => return (base_weight.saturating_add(WeightInfoOf::<T>::release_future_ct_deposit_for()), iter_participants.collect_vec()),
-	// 		Ok(_) => return (base_weight, iter_participants.count() as u64),
-	// 		// TODO: use when storing remaining accounts in outer function calling do_one_operation https://linear.app/polimec/issue/PLMC-410/cleaner-remaining-users-calculation
-	// 		// Err(e) if e == Error::<T>::NoFutureDepositHeld.into() => continue,
-	// 		Err(e) => {
-	// 			Pallet::<T>::deposit_event(Event::ReleaseFutureCTDepositFailed {
-	// 				project_id,
-	// 				participant: account.clone(),
-	// 				error: e,
-	// 			});
-	// 			// TODO: replace when benchmark is done
-	// 			// return (base_weight.saturating_add(WeightInfoOf::<T>::release_future_ct_deposit_for()), iter_participants.collect_vec());
-	// 			return (base_weight, iter_participants.count() as u64);
-	// 		},
-	// 	};
-	// }
-	// (base_weight, 0u64)
+	let mut consumed_weight = Weight::zero();
+	let mut remaining_participants = if let SettlementTarget::Accounts(accounts) = target.clone() {
+		accounts.into_iter()
+	} else {
+		#[cfg(debug_assertions)]
+		unreachable!("Expected evaluations at settlement target");
+		#[cfg(not(debug_assertions))]
+		return Err((consumed_weight, "Expected evaluations at settlement target".into()));
+	};
 
-	todo!()
+	if let Some(account) = remaining_participants.next() {
+		match Pallet::<T>::do_release_future_ct_deposit_for(
+			&T::PalletId::get().into_account_truncating(),
+			project_id,
+			&account,
+		) {
+			Ok(_) => (),
+			Err(e) => {
+				Pallet::<T>::deposit_event(Event::ReleaseFutureCTDepositFailed {
+					project_id,
+					participant: account.clone(),
+					error: e,
+				});
+			},
+		};
+
+		consumed_weight = consumed_weight.saturating_add(
+			crate::Call::<T>::release_future_ct_deposit_for { project_id, participant: account }
+				.get_dispatch_info()
+				.weight,
+		);
+	}
+
+	*target = SettlementTarget::Accounts(remaining_participants.collect_vec());
+	Ok(consumed_weight)
 }
 
 fn release_funds_one_contribution<T: Config>(

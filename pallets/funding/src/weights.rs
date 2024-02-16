@@ -78,6 +78,7 @@ pub trait WeightInfo {
 	fn payout_bid_funds_for() -> Weight;
 	fn payout_contribution_funds_for() -> Weight;
 	fn decide_project_outcome(x: u32, y: u32, ) -> Weight;
+	fn release_future_ct_deposit_for() -> Weight;
 	fn release_bid_funds_for() -> Weight;
 	fn release_contribution_funds_for() -> Weight;
 	fn bid_unbond_for() -> Weight;
@@ -784,6 +785,15 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 			.saturating_add(Weight::from_parts(0, 3946).saturating_mul(x.into()))
 			.saturating_add(Weight::from_parts(0, 1161).saturating_mul(y.into()))
+	}
+	fn release_future_ct_deposit_for() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1514`
+		//  Estimated: `6208`
+		// Minimum execution time: 65_000_000 picoseconds.
+		Weight::from_parts(70_000_000, 6208)
+			.saturating_add(T::DbWeight::get().reads(5_u64))
+			.saturating_add(T::DbWeight::get().writes(4_u64))
 	}
 	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
 	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
@@ -2223,5 +2233,14 @@ impl WeightInfo for () {
 		Weight::from_parts(12_000_000, 3814)
 			.saturating_add(RocksDbWeight::get().reads(2_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	fn release_future_ct_deposit_for() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1514`
+		//  Estimated: `6208`
+		// Minimum execution time: 65_000_000 picoseconds.
+		Weight::from_parts(70_000_000, 6208)
+			.saturating_add(RocksDbWeight::get().reads(5_u64))
+			.saturating_add(RocksDbWeight::get().writes(4_u64))
 	}
 }

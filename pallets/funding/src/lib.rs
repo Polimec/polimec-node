@@ -1235,6 +1235,17 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(17)]
+		#[pallet::weight(WeightInfoOf::<T>::release_future_ct_deposit_for())]
+		pub fn release_future_ct_deposit_for(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+			participant: AccountIdOf<T>,
+		) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			Self::do_release_future_ct_deposit_for(&caller, project_id, &participant)
+		}
+
+		#[pallet::call_index(18)]
 		#[pallet::weight(WeightInfoOf::<T>::release_bid_funds_for())]
 		pub fn release_bid_funds_for(
 			origin: OriginFor<T>,
@@ -1246,7 +1257,7 @@ pub mod pallet {
 			Self::do_release_bid_funds_for(&caller, project_id, &bidder, bid_id)
 		}
 
-		#[pallet::call_index(18)]
+		#[pallet::call_index(19)]
 		#[pallet::weight(WeightInfoOf::<T>::bid_unbond_for())]
 		pub fn bid_unbond_for(
 			origin: OriginFor<T>,
@@ -1258,7 +1269,7 @@ pub mod pallet {
 			Self::do_bid_unbond_for(&caller, project_id, &bidder, bid_id)
 		}
 
-		#[pallet::call_index(19)]
+		#[pallet::call_index(20)]
 		#[pallet::weight(WeightInfoOf::<T>::release_contribution_funds_for())]
 		pub fn release_contribution_funds_for(
 			origin: OriginFor<T>,
@@ -1270,7 +1281,7 @@ pub mod pallet {
 			Self::do_release_contribution_funds_for(&caller, project_id, &contributor, contribution_id)
 		}
 
-		#[pallet::call_index(20)]
+		#[pallet::call_index(21)]
 		#[pallet::weight(WeightInfoOf::<T>::contribution_unbond_for())]
 		pub fn contribution_unbond_for(
 			origin: OriginFor<T>,
@@ -1282,14 +1293,14 @@ pub mod pallet {
 			Self::do_contribution_unbond_for(&caller, project_id, &contributor, contribution_id)
 		}
 
-		#[pallet::call_index(21)]
+		#[pallet::call_index(22)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
 		pub fn set_para_id_for_project(origin: OriginFor<T>, project_id: ProjectId, para_id: ParaId) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
 			Self::do_set_para_id_for_project(&caller, project_id, para_id)
 		}
 
-		#[pallet::call_index(22)]
+		#[pallet::call_index(23)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
 		pub fn start_migration_readiness_check(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
@@ -1297,7 +1308,7 @@ pub mod pallet {
 		}
 
 		/// Called only by other chains through a query response xcm message
-		#[pallet::call_index(23)]
+		#[pallet::call_index(24)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
 		pub fn migration_check_response(
 			origin: OriginFor<T>,
@@ -1309,14 +1320,14 @@ pub mod pallet {
 			Self::do_migration_check_response(location, query_id, response)
 		}
 
-		#[pallet::call_index(24)]
+		#[pallet::call_index(25)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
 		pub fn start_migration(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
 			Self::do_start_migration(&caller, project_id)
 		}
 
-		#[pallet::call_index(25)]
+		#[pallet::call_index(26)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
 		pub fn migrate_one_participant(
 			origin: OriginFor<T>,
@@ -1327,7 +1338,7 @@ pub mod pallet {
 			Self::do_migrate_one_participant(caller, project_id, participant)
 		}
 
-		#[pallet::call_index(26)]
+		#[pallet::call_index(27)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
 		pub fn confirm_migrations(origin: OriginFor<T>, query_id: QueryId, response: Response) -> DispatchResult {
 			let location = ensure_response(<T as Config>::RuntimeOrigin::from(origin))?;
