@@ -98,7 +98,6 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 			SettlementType::Initialized(PhantomData::<Success>) => {
 				*self = Self::EvaluationRewardOrSlash(PhantomData);
 				let current_settlement_participations = get_current_settlement_participants::<T>()?;
-
 				*target = ParticipantExtractor::evaluations(current_settlement_participations);
 				Ok(T::DbWeight::get().reads(1))
 			},
@@ -112,9 +111,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 						*target = SettlementTarget::Evaluations(vec![]);
 						return Ok(T::DbWeight::get().reads(1))
 					}
-
 					let current_settlement_participations = get_current_settlement_participants::<T>()?;
-
 					*target = ParticipantExtractor::evaluations(current_settlement_participations);
 					Ok(T::DbWeight::get().reads(1))
 				} else {
@@ -126,7 +123,6 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 				if target.is_empty() {
 					*self = SettlementType::StartBidderVestingSchedule(PhantomData);
 					let current_settlement_participations = get_current_settlement_participants::<T>()?;
-
 					*target = ParticipantExtractor::bids(current_settlement_participations);
 					Ok(T::DbWeight::get().reads(1))
 				} else {
@@ -138,7 +134,6 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 				if target.is_empty() {
 					*self = SettlementType::StartContributorVestingSchedule(PhantomData);
 					let current_settlement_participations = get_current_settlement_participants::<T>()?;
-
 					*target = ParticipantExtractor::contributions(current_settlement_participations);
 					Ok(T::DbWeight::get().reads(1))
 				} else {
@@ -150,7 +145,6 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 				if target.is_empty() {
 					*self = SettlementType::BidCTMint(PhantomData);
 					let current_settlement_participations = get_current_settlement_participants::<T>()?;
-
 					*target = ParticipantExtractor::bids(current_settlement_participations);
 					Ok(T::DbWeight::get().reads(1))
 				} else {
@@ -162,7 +156,6 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 				if target.is_empty() {
 					*self = SettlementType::ContributionCTMint(PhantomData);
 					let current_settlement_participations = get_current_settlement_participants::<T>()?;
-
 					*target = ParticipantExtractor::contributions(current_settlement_participations);
 					Ok(T::DbWeight::get().reads(1))
 				} else {
@@ -174,7 +167,6 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 				if target.is_empty() {
 					*self = SettlementType::BidFundingPayout(PhantomData);
 					let current_settlement_participations = get_current_settlement_participants::<T>()?;
-
 					*target = ParticipantExtractor::bids(current_settlement_participations);
 					Ok(T::DbWeight::get().reads(1))
 				} else {
@@ -186,7 +178,6 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 				if target.is_empty() {
 					*self = SettlementType::ContributionFundingPayout(PhantomData);
 					let current_settlement_participations = get_current_settlement_participants::<T>()?;
-
 					*target = ParticipantExtractor::bids(current_settlement_participations);
 					Ok(T::DbWeight::get().reads(1))
 				} else {
@@ -246,82 +237,96 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Failure> {
 		project_id: ProjectId,
 		target: &mut SettlementTarget<T>,
 	) -> Result<Weight, (Weight, DispatchError)> {
-		todo!()
-		// let base_weight = Weight::from_parts(10_000_000, 0);
-		// match self {
-		// 	SettlementType::Initialized(PhantomData::<Failure>) => {
-		// 		*self = SettlementType::EvaluationRewardOrSlash(PhantomData::<Failure>);
-		// 		Ok(Weight::zero())
-		// 	},
-		//
-		// 	SettlementType::EvaluationRewardOrSlash(PhantomData::<Failure>) =>
-		// 		if target.is_empty() {
-		// 			*self = SettlementType::FutureDepositRelease(PhantomData::<Failure>);
-		// 			Ok(base_weight)
-		// 		} else {
-		// 			let consumed_weight = reward_or_slash_one_evaluation::<T>(project_id, target)
-		// 				.map_err(|error_info| error_info.error)?;
-		// 			*self = SettlementType::EvaluationRewardOrSlash(PhantomData);
-		// 			Ok(consumed_weight)
-		// 		},
-		// 	SettlementType::FutureDepositRelease(PhantomData::<Failure>) =>
-		// 		if target.is_empty() {
-		// 			*self = SettlementType::EvaluationUnbonding(PhantomData::<Failure>);
-		// 			Ok(base_weight)
-		// 		} else {
-		// 			let consumed_weight = release_future_ct_deposit_one_participant::<T>(project_id, target);
-		// 			*self = SettlementType::FutureDepositRelease(PhantomData::<Failure>);
-		// 			Ok(consumed_weight)
-		// 		},
-		// 	SettlementType::EvaluationUnbonding(PhantomData::<Failure>) =>
-		// 		if target.is_empty() {
-		// 			*self = SettlementType::BidFundingRelease(PhantomData::<Failure>);
-		// 			Ok(base_weight)
-		// 		} else {
-		// 			let consumed_weight = unbond_one_evaluation::<T>(project_id, target);
-		// 			*self = SettlementType::EvaluationUnbonding(PhantomData);
-		// 			Ok(consumed_weight)
-		// 		},
-		// 	SettlementType::BidFundingRelease(PhantomData::<Failure>) =>
-		// 		if target.is_empty() {
-		// 			*self = SettlementType::BidUnbonding(PhantomData::<Failure>);
-		// 			Ok(base_weight)
-		// 		} else {
-		// 			let consumed_weight = release_funds_one_bid::<T>(project_id, target);
-		// 			*self = SettlementType::BidFundingRelease(PhantomData);
-		// 			Ok(consumed_weight)
-		// 		},
-		// 	SettlementType::BidUnbonding(PhantomData::<Failure>) =>
-		// 		if target.is_empty() {
-		// 			*self = SettlementType::ContributionFundingRelease(PhantomData::<Failure>);
-		// 			Ok(base_weight)
-		// 		} else {
-		// 			let consumed_weight = unbond_one_bid::<T>(target);
-		// 			*self = SettlementType::BidUnbonding(PhantomData::<Failure>);
-		// 			Ok(consumed_weight)
-		// 		},
-		// 	SettlementType::ContributionFundingRelease(PhantomData::<Failure>) =>
-		// 		if target.is_empty() {
-		// 			*self = SettlementType::ContributionUnbonding(PhantomData::<Failure>);
-		// 			Ok(base_weight)
-		// 		} else {
-		// 			let consumed_weight = release_funds_one_contribution::<T>(project_id, target);
-		// 			*self = SettlementType::ContributionFundingRelease(PhantomData::<Failure>);
-		// 			Ok(consumed_weight)
-		// 		},
-		// 	SettlementType::ContributionUnbonding(PhantomData::<Failure>) =>
-		// 		if target.is_empty() {
-		// 			*self = SettlementType::Finished(PhantomData::<Failure>);
-		// 			Ok(base_weight)
-		// 		} else {
-		// 			let consumed_weight = unbond_one_contribution::<T>(project_id, target);
-		// 			*self = SettlementType::ContributionUnbonding(PhantomData::<Failure>);
-		// 			Ok(consumed_weight)
-		// 		},
-		// 	SettlementType::Finished(PhantomData::<Failure>) => Err(Error::<T>::FinalizerFinished.into()),
-		//
-		// 	_ => Err(Error::<T>::ImpossibleState.into()),
-		// }
+		match self {
+			SettlementType::Initialized(PhantomData::<Failure>) => {
+				*self = SettlementType::EvaluationRewardOrSlash(PhantomData::<Failure>);
+				let current_settlement_participations = get_current_settlement_participants::<T>()?;
+				*target = ParticipantExtractor::evaluations(current_settlement_participations);
+				Ok(T::DbWeight::get().reads(1))
+			},
+
+			SettlementType::EvaluationRewardOrSlash(PhantomData::<Failure>) =>
+				if target.is_empty() {
+					*self = SettlementType::FutureDepositRelease(PhantomData::<Failure>);
+					let current_settlement_participations = get_current_settlement_participants::<T>()?;
+					*target = ParticipantExtractor::accounts(current_settlement_participations);
+					Ok(T::DbWeight::get().reads(1))
+				} else {
+					let consumed_weight = reward_or_slash_one_evaluation::<T>(target)?;
+					*self = SettlementType::EvaluationRewardOrSlash(PhantomData);
+					Ok(consumed_weight)
+				},
+
+			SettlementType::FutureDepositRelease(PhantomData::<Failure>) =>
+				if target.is_empty() {
+					*self = SettlementType::EvaluationUnbonding(PhantomData::<Failure>);
+					let current_settlement_participations = get_current_settlement_participants::<T>()?;
+					*target = ParticipantExtractor::evaluations(current_settlement_participations);
+					Ok(T::DbWeight::get().reads(1))
+				} else {
+					let consumed_weight = release_future_ct_deposit_one_participant::<T>(project_id, target)?;
+					*self = SettlementType::FutureDepositRelease(PhantomData::<Failure>);
+					Ok(consumed_weight)
+				},
+			SettlementType::EvaluationUnbonding(PhantomData::<Failure>) =>
+				if target.is_empty() {
+					*self = SettlementType::BidFundingRelease(PhantomData::<Failure>);
+					let current_settlement_participations = get_current_settlement_participants::<T>()?;
+					*target = ParticipantExtractor::bids(current_settlement_participations);
+					Ok(T::DbWeight::get().reads(1))
+				} else {
+					let consumed_weight = unbond_one_evaluation::<T>(target)?;
+					*self = SettlementType::EvaluationUnbonding(PhantomData);
+					Ok(consumed_weight)
+				},
+			SettlementType::BidFundingRelease(PhantomData::<Failure>) =>
+				if target.is_empty() {
+					*self = SettlementType::BidUnbonding(PhantomData::<Failure>);
+					let current_settlement_participations = get_current_settlement_participants::<T>()?;
+					*target = ParticipantExtractor::bids(current_settlement_participations);
+					Ok(T::DbWeight::get().reads(1))
+				} else {
+					let consumed_weight = release_funds_one_bid::<T>(target)?;
+					*self = SettlementType::BidFundingRelease(PhantomData);
+					Ok(consumed_weight)
+				},
+			SettlementType::BidUnbonding(PhantomData::<Failure>) =>
+				if target.is_empty() {
+					*self = SettlementType::ContributionFundingRelease(PhantomData::<Failure>);
+					let current_settlement_participations = get_current_settlement_participants::<T>()?;
+					*target = ParticipantExtractor::contributions(current_settlement_participations);
+					Ok(T::DbWeight::get().reads(1))
+				} else {
+					let consumed_weight = unbond_one_bid::<T>(target)?;
+					*self = SettlementType::BidUnbonding(PhantomData::<Failure>);
+					Ok(consumed_weight)
+				},
+			SettlementType::ContributionFundingRelease(PhantomData::<Failure>) =>
+				if target.is_empty() {
+					*self = SettlementType::ContributionUnbonding(PhantomData::<Failure>);
+					let current_settlement_participations = get_current_settlement_participants::<T>()?;
+					*target = ParticipantExtractor::contributions(current_settlement_participations);
+					Ok(T::DbWeight::get().reads(1))
+				} else {
+					let consumed_weight = release_funds_one_contribution::<T>(target)?;
+					*self = SettlementType::ContributionFundingRelease(PhantomData::<Failure>);
+					Ok(consumed_weight)
+				},
+			SettlementType::ContributionUnbonding(PhantomData::<Failure>) =>
+				if target.is_empty() {
+					*self = SettlementType::Finished(PhantomData::<Failure>);
+					*target = SettlementTarget::Empty;
+					Ok(Weight::zero())
+				} else {
+					let consumed_weight = unbond_one_contribution::<T>(target)?;
+					*self = SettlementType::ContributionUnbonding(PhantomData::<Failure>);
+					Ok(consumed_weight)
+				},
+			SettlementType::Finished(PhantomData::<Failure>) =>
+				Err((Weight::zero(), Error::<T>::FinalizerFinished.into())),
+
+			_ => Err((Weight::zero(), Error::<T>::ImpossibleState.into())),
+		}
 	}
 
 	fn execute_with_given_weight(

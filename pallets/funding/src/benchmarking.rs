@@ -1618,10 +1618,6 @@ mod benchmarks {
 		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
 
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
-		assert_eq!(
-			inst.get_project_details(project_id).cleanup,
-			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
-		);
 
 		let evaluation_to_unbond =
 			inst.execute(|| Evaluations::<T>::iter_prefix_values((project_id, evaluator.clone())).next().unwrap());
@@ -1691,11 +1687,6 @@ mod benchmarks {
 
 		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
 
-		assert_eq!(
-			inst.get_project_details(project_id).cleanup,
-			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
-		);
-
 		let evaluation_to_unbond =
 			inst.execute(|| Evaluations::<T>::iter_prefix_values((project_id, evaluator.clone())).next().unwrap());
 
@@ -1764,11 +1755,6 @@ mod benchmarks {
 		);
 
 		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
-
-		assert_eq!(
-			inst.get_project_details(project_id).cleanup,
-			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
-		);
 
 		let mut evaluations_to_unbond =
 			inst.execute(|| Evaluations::<T>::iter_prefix_values((project_id, evaluator.clone())));
@@ -1860,10 +1846,6 @@ mod benchmarks {
 			inst.create_finished_project(project_metadata, issuer, evaluations, bids, contributions, vec![]);
 
 		inst.advance_time(One::one()).unwrap();
-		assert_eq!(
-			inst.get_project_details(project_id).cleanup,
-			SettlementMachine::Failure(SettlementType::Initialized(PhantomData))
-		);
 
 		let evaluation_to_unbond =
 			inst.execute(|| Evaluations::<T>::iter_prefix_values((project_id, evaluator.clone())).next().unwrap());
@@ -1931,11 +1913,6 @@ mod benchmarks {
 
 		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
 
-		assert_eq!(
-			inst.get_project_details(project_id).cleanup,
-			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
-		);
-
 		let bid_to_mint_ct =
 			inst.execute(|| Bids::<T>::iter_prefix_values((project_id, bidder.clone())).next().unwrap());
 
@@ -1997,11 +1974,6 @@ mod benchmarks {
 
 		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
 
-		assert_eq!(
-			inst.get_project_details(project_id).cleanup,
-			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
-		);
-
 		let mut bids_to_mint_ct = inst.execute(|| Bids::<T>::iter_prefix_values((project_id, bidder.clone())));
 
 		let pre_bid_to_mint_ct = bids_to_mint_ct.next().unwrap();
@@ -2062,11 +2034,6 @@ mod benchmarks {
 		);
 
 		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
-
-		assert_eq!(
-			inst.get_project_details(project_id).cleanup,
-			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
-		);
 
 		let contribution_to_mint_ct =
 			inst.execute(|| Contributions::<T>::iter_prefix_values((project_id, contributor.clone())).next().unwrap());
@@ -2144,11 +2111,6 @@ mod benchmarks {
 
 		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
 
-		assert_eq!(
-			inst.get_project_details(project_id).cleanup,
-			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
-		);
-
 		let mut contributions_to_mint_ct =
 			inst.execute(|| Contributions::<T>::iter_prefix_values((project_id, contributor.clone())));
 
@@ -2217,11 +2179,6 @@ mod benchmarks {
 
 		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
 
-		assert_eq!(
-			inst.get_project_details(project_id).cleanup,
-			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
-		);
-
 		let bid_to_vest = inst.execute(|| Bids::<T>::iter_prefix_values((project_id, bidder.clone())).next().unwrap());
 
 		#[extrinsic_call]
@@ -2272,11 +2229,6 @@ mod benchmarks {
 		);
 
 		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
-
-		assert_eq!(
-			inst.get_project_details(project_id).cleanup,
-			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
-		);
 
 		let contribution_to_vest =
 			inst.execute(|| Contributions::<T>::iter_prefix_values((project_id, contributor.clone())).next().unwrap());
@@ -2336,11 +2288,6 @@ mod benchmarks {
 
 		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
 
-		assert_eq!(
-			inst.get_project_details(project_id).cleanup,
-			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
-		);
-
 		let bid_to_payout =
 			inst.execute(|| Bids::<T>::iter_prefix_values((project_id, bidder.clone())).next().unwrap());
 
@@ -2388,11 +2335,6 @@ mod benchmarks {
 		);
 
 		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
-
-		assert_eq!(
-			inst.get_project_details(project_id).cleanup,
-			SettlementMachine::Success(SettlementType::Initialized(PhantomData))
-		);
 
 		let contribution_to_payout =
 			inst.execute(|| Contributions::<T>::iter_prefix_values((project_id, contributor.clone())).next().unwrap());
@@ -2532,10 +2474,6 @@ mod benchmarks {
 			inst.create_finished_project(project_metadata, issuer.clone(), evaluations, bids, contributions, vec![]);
 
 		inst.advance_time(One::one()).unwrap();
-		assert_eq!(
-			inst.get_project_details(project_id).cleanup,
-			SettlementMachine::Failure(SettlementType::Initialized(PhantomData))
-		);
 
 		let bid_to_payout =
 			inst.execute(|| Bids::<T>::iter_prefix_values((project_id, bidder.clone())).next().unwrap());
@@ -2602,10 +2540,6 @@ mod benchmarks {
 			inst.create_finished_project(project_metadata, issuer, evaluations, bids, contributions, vec![]);
 
 		inst.advance_time(One::one()).unwrap();
-		assert_eq!(
-			inst.get_project_details(project_id).cleanup,
-			SettlementMachine::Failure(SettlementType::Initialized(PhantomData))
-		);
 
 		let contribution_to_payout =
 			inst.execute(|| Contributions::<T>::iter_prefix_values((project_id, contributor.clone())).next().unwrap());
@@ -2680,10 +2614,6 @@ mod benchmarks {
 			inst.create_finished_project(project_metadata, issuer, evaluations, bids, contributions, vec![]);
 
 		inst.advance_time(One::one()).unwrap();
-		assert_eq!(
-			inst.get_project_details(project_id).cleanup,
-			SettlementMachine::Failure(SettlementType::Initialized(PhantomData))
-		);
 
 		let stored_bid = inst.execute(|| Bids::<T>::iter_prefix_values((project_id, bidder.clone())).next().unwrap());
 
@@ -2752,10 +2682,6 @@ mod benchmarks {
 			inst.create_finished_project(project_metadata, issuer.clone(), evaluations, bids, contributions, vec![]);
 
 		inst.advance_time(One::one()).unwrap();
-		assert_eq!(
-			inst.get_project_details(project_id).cleanup,
-			SettlementMachine::Failure(SettlementType::Initialized(PhantomData))
-		);
 
 		let stored_contribution =
 			inst.execute(|| Contributions::<T>::iter_prefix_values((project_id, contributor.clone())).next().unwrap());
@@ -3640,7 +3566,6 @@ mod benchmarks {
 
 		// * validity checks *
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.cleanup, SettlementMachine::Success(SettlementType::Initialized(PhantomData)));
 	}
 
 	#[benchmark]
@@ -3688,7 +3613,6 @@ mod benchmarks {
 
 		// * validity checks *
 		let project_details = inst.get_project_details(project_id);
-		assert_eq!(project_details.cleanup, SettlementMachine::Failure(SettlementType::Initialized(PhantomData)));
 	}
 
 	#[macro_export]
