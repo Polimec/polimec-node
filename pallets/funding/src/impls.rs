@@ -108,7 +108,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 					let consumed_weight = self.update_target(project_id, target)?;
 					Ok(consumed_weight)
 				} else {
-					let consumed_weight = reward_or_slash_one_evaluation::<T>(project_id, target)?;
+					let consumed_weight = reward_or_slash_one_evaluation::<T>(target)?;
 					Ok(consumed_weight)
 				},
 			SettlementType::EvaluationUnbonding(PhantomData::<Success>) =>
@@ -127,7 +127,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 					let consumed_weight = self.update_target(project_id, target)?;
 					Ok(consumed_weight)
 				} else {
-					let consumed_weight = start_one_bid_vesting_schedule::<T>(project_id, target)?;
+					let consumed_weight = start_one_bid_vesting_schedule::<T>(target)?;
 
 					Ok(consumed_weight)
 				},
@@ -137,7 +137,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 					let consumed_weight = self.update_target(project_id, target)?;
 					Ok(consumed_weight)
 				} else {
-					let consumed_weight = start_one_contribution_vesting_schedule::<T>(project_id, target)?;
+					let consumed_weight = start_one_contribution_vesting_schedule::<T>(target)?;
 					Ok(consumed_weight)
 				},
 			SettlementType::BidCTMint(PhantomData::<Success>) =>
@@ -146,7 +146,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 					let consumed_weight = self.update_target(project_id, target)?;
 					Ok(consumed_weight)
 				} else {
-					let consumed_weight = mint_ct_for_one_bid::<T>(project_id, target)?;
+					let consumed_weight = mint_ct_for_one_bid::<T>(target)?;
 					Ok(consumed_weight)
 				},
 			SettlementType::ContributionCTMint(PhantomData::<Success>) =>
@@ -155,7 +155,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 					let consumed_weight = self.update_target(project_id, target)?;
 					Ok(consumed_weight)
 				} else {
-					let consumed_weight = mint_ct_for_one_contribution::<T>(project_id, target)?;
+					let consumed_weight = mint_ct_for_one_contribution::<T>(target)?;
 
 					Ok(consumed_weight)
 				},
@@ -165,7 +165,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 					let consumed_weight = self.update_target(project_id, target)?;
 					Ok(consumed_weight)
 				} else {
-					let consumed_weight = issuer_funding_payout_one_bid::<T>(project_id, target)?;
+					let consumed_weight = issuer_funding_payout_one_bid::<T>(target)?;
 
 					Ok(consumed_weight)
 				},
@@ -175,7 +175,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 					let consumed_weight = self.update_target(project_id, target)?;
 					Ok(consumed_weight)
 				} else {
-					let consumed_weight = issuer_funding_payout_one_contribution::<T>(project_id, target)?;
+					let consumed_weight = issuer_funding_payout_one_contribution::<T>(target)?;
 					Ok(consumed_weight)
 				},
 			SettlementType::Finished(PhantomData::<Success>) =>
@@ -194,61 +194,58 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 		match self {
 			SettlementType::Initialized(_) => Ok(Weight::zero()),
 			SettlementType::EvaluationRewardOrSlash(_) => {
-				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
+				*target = project_evaluations_to_reward_or_slash::<T>(project_id);
 				Ok(Weight::zero())
 			},
 			SettlementType::EvaluationUnbonding(_) => {
-				*target = remaining_evaluations::<T>(project_id);
+				*target = project_evaluations::<T>(project_id);
 				Ok(Weight::zero())
 			},
 			SettlementType::BidCTMint(_) => {
-				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
+				*target = project_successful_bids::<T>(project_id);
 				Ok(Weight::zero())
 			},
 			SettlementType::ContributionCTMint(_) => {
-				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
+				*target = project_contributions::<T>(project_id);
 				Ok(Weight::zero())
 			},
 			SettlementType::StartBidderVestingSchedule(_) => {
-				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
+				*target = project_successful_bids::<T>(project_id);
 				Ok(Weight::zero())
 			},
 			SettlementType::StartContributorVestingSchedule(_) => {
-				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
+				*target = project_contributions::<T>(project_id);
 				Ok(Weight::zero())
 			},
 			SettlementType::BidFundingPayout(_) => {
-				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
+				*target = project_successful_bids::<T>(project_id);
 				Ok(Weight::zero())
 			},
 			SettlementType::ContributionFundingPayout(_) => {
-				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
+				*target = project_contributions::<T>(project_id);
 				Ok(Weight::zero())
 			},
 			SettlementType::BidFundingRelease(_) => {
-				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
+				*target = project_successful_bids::<T>(project_id);
 				Ok(Weight::zero())
 			},
 			SettlementType::BidUnbonding(_) => {
-				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
+				*target = project_successful_bids::<T>(project_id);
 				Ok(Weight::zero())
 			},
 			SettlementType::ContributionFundingRelease(_) => {
-				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
+				*target = project_contributions::<T>(project_id);
 				Ok(Weight::zero())
 			},
 			SettlementType::ContributionUnbonding(_) => {
-				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
+				*target = project_contributions::<T>(project_id);
 				Ok(Weight::zero())
 			},
 			SettlementType::FutureDepositRelease(_) => {
-				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
+				*target = project_participants::<T>(project_id);
 				Ok(Weight::zero())
 			},
-			SettlementType::Finished(_) => {
-				*target = remaining_evaluators_to_reward_or_slash::<T>(project_id);
-				Ok(Weight::zero())
-			},
+			SettlementType::Finished(_) => Ok(Weight::zero()),
 		}
 	}
 
@@ -384,100 +381,10 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Failure> {
 	}
 }
 
-fn remaining_evaluators_to_reward_or_slash<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
-	// let evaluators_outcome = ProjectsDetails::<T>::get(project_id)
-	// 	.ok_or(Error::<T>::ImpossibleState)?
-	// 	.evaluation_round_info
-	// 	.evaluators_outcome;
-	// if evaluators_outcome == EvaluatorsOutcomeOf::<T>::Unchanged {
-	// 	SettlementTarget::Evaluations(vec![])
-	// } else {
-	// 	SettlementTarget::Evaluations(
-	// 		Evaluations::<T>::iter_prefix_values((project_id,))
-	// 			.filter(|evaluation| evaluation.rewarded_or_slashed.is_none())
-	// 			.to_vec(),
-	// 	)
-	// }
-	todo!()
-}
-
-fn remaining_evaluations<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
-	// Evaluations::<T>::iter_prefix_values((project_id,))
-	todo!()
-}
-
-fn remaining_bids_to_release_funds<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
-	// Bids::<T>::iter_prefix_values((project_id,)).filter(|bid| !bid.funds_released)
-	todo!()
-}
-
-fn remaining_bids<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
-	// Bids::<T>::iter_prefix_values((project_id,))
-	todo!()
-}
-
-fn remaining_successful_bids<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
-	// Bids::<T>::iter_prefix_values((project_id,))
-	// 	.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
-	todo!()
-}
-
-fn remaining_contributions_to_release_funds<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
-	// Contributions::<T>::iter_prefix_values((project_id,)).filter(|contribution| !contribution.funds_released)
-	todo!()
-}
-
-fn remaining_contributions<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
-	// Contributions::<T>::iter_prefix_values((project_id,))
-	todo!()
-}
-
-fn remaining_bids_without_ct_minted<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
-	// let project_bids = Bids::<T>::iter_prefix_values((project_id,));
-	// project_bids.filter(|bid| !bid.ct_minted)
-	todo!()
-}
-
-fn remaining_contributions_without_ct_minted<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
-	// let project_contributions = Contributions::<T>::iter_prefix_values((project_id,));
-	// project_contributions.filter(|contribution| !contribution.ct_minted)
-	//
-	todo!()
-}
-
-fn remaining_bids_without_issuer_payout<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
-	// Bids::<T>::iter_prefix_values((project_id,)).filter(|bid| !bid.funds_released)
-
-	todo!()
-}
-
-fn remaining_contributions_without_issuer_payout<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
-	// Contributions::<T>::iter_prefix_values((project_id,)).filter(|bid| !bid.funds_released)
-
-	todo!()
-}
-
-fn remaining_participants_with_future_ct_deposit<T: Config>(project_id: ProjectId) -> SettlementTarget<T> {
-	// let evaluators = Evaluations::<T>::iter_key_prefix((project_id,)).map(|(evaluator, _evaluation_id)| evaluator);
-	// let bidders = Bids::<T>::iter_key_prefix((project_id,)).map(|(bidder, _bid_id)| bidder);
-	// let contributors =
-	// 	Contributions::<T>::iter_key_prefix((project_id,)).map(|(contributor, _contribution_id)| contributor);
-	// let all_participants = evaluators.chain(bidders).chain(contributors).collect::<BTreeSet<AccountIdOf<T>>>();
-	// all_participants.into_iter().filter(|account| {
-	// 	<T as Config>::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), account) >
-	// 		Zero::zero()
-	// })
-
-	todo!()
-}
-
 fn reward_or_slash_one_evaluation<T: Config>(
-	project_id: ProjectId,
 	target: &mut SettlementTarget<T>,
 ) -> Result<Weight, (Weight, DispatchError)> {
-	let mut consumed_weight = <T as frame_system::Config>::DbWeight::get().reads(1);
-	let project_details =
-		ProjectsDetails::<T>::get(project_id).ok_or((consumed_weight, Error::<T>::ProjectNotFound.into()))?;
+	let mut consumed_weight = Weight::zero();
 	let mut remaining_evaluations = if let SettlementTarget::Evaluations(evaluations) = target.clone() {
 		evaluations.into_iter()
 	} else {
@@ -488,6 +395,10 @@ fn reward_or_slash_one_evaluation<T: Config>(
 	};
 
 	if let Some(evaluation) = remaining_evaluations.next() {
+		let project_id = evaluation.project_id;
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ImpossibleState)?;
+		consumed_weight = consumed_weight.saturating_add(T::DbWeight::get().reads(1));
+
 		match project_details.evaluation_round_info.evaluators_outcome {
 			EvaluatorsOutcome::Rewarded(_) => {
 				match Pallet::<T>::do_evaluation_reward_payout_for(

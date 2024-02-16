@@ -58,6 +58,23 @@ pub trait SettlementOperations<T: Config> {
 	) -> Result<Weight, (Weight, DispatchError)>;
 }
 
+/// The original participants of a project that need some settlements (i.e extrinsics) to be done by the chain.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SettlementParticipants<T: Config> {
+	pub evaluations: Vec<EvaluationInfoOf<T>>,
+	pub bids: Vec<BidInfoOf<T>>,
+	pub contributions: Vec<ContributionInfoOf<T>>,
+}
+impl<T: Config> SettlementParticipants<T> {
+	pub fn accounts(&self) -> Vec<AccountIdOf<T>> {
+		let evaluators = self.evaluations.into_iter().map(|e| e.evaluator);
+		let bidders = self.bids.into_iter().map(|b| b.bidder);
+		let contributors = self.contributions.into_iter().map(|c| c.contributor);
+		evaluators.chain(bidders).chain(contributors).collect_vec()
+	}
+}
+
+/// The current participants that are awaiting a specific settlement to be done by the chain.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SettlementTarget<T: Config> {
 	Empty,
