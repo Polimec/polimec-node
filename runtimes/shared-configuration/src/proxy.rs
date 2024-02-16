@@ -24,6 +24,10 @@ use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 pub enum ProxyType {
 	/// Fully permissioned proxy. Can execute any call on behalf of _proxied_.
 	Any,
+	NonTransfer,
+	Governance,
+	Staking,
+	IdentityJudgement,
 }
 impl Default for ProxyType {
 	fn default() -> Self {

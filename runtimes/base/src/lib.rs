@@ -242,17 +242,56 @@ impl Contains<RuntimeCall> for BaseCallFilter {
 }
 
 impl InstanceFilter<RuntimeCall> for ProxyType {
-	fn filter(&self, _: &RuntimeCall) -> bool {
+	fn filter(&self, c: &RuntimeCall) -> bool {
 		match self {
 			ProxyType::Any => true,
+			ProxyType::NonTransfer => matches!(
+				c,
+				RuntimeCall::System(..) |
+				RuntimeCall::ParachainSystem(..) |
+				RuntimeCall::Timestamp(..) |
+				RuntimeCall::Utility(..) |
+				RuntimeCall::Multisig(..) |
+				RuntimeCall::Proxy(..) |
+				// Specifically omitting Vesting `vested_transfer`, and `force_vested_transfer`
+				RuntimeCall::Vesting(pallet_vesting::Call::vest {..}) |
+				RuntimeCall::Vesting(pallet_vesting::Call::vest_other {..}) |
+				RuntimeCall::ParachainStaking(..) |
+				RuntimeCall::Treasury(..) |
+				RuntimeCall::Democracy(..) |
+				RuntimeCall::Council(..) |
+				RuntimeCall::TechnicalCommittee(..) |
+				RuntimeCall::Elections(..) |
+				RuntimeCall::Preimage(..) |
+				RuntimeCall::Scheduler(..) |
+				RuntimeCall::Oracle(..) |
+				RuntimeCall::OracleProvidersMembership(..)
+			),
+			ProxyType::Governance => matches!(
+				c,
+				RuntimeCall::Treasury(..) |
+					RuntimeCall::Democracy(..) |
+					RuntimeCall::Council(..) |
+					RuntimeCall::TechnicalCommittee(..) |
+					RuntimeCall::Elections(..) |
+					RuntimeCall::Preimage(..) |
+					RuntimeCall::Scheduler(..)
+			),
+			ProxyType::Staking => {
+				matches!(c, RuntimeCall::ParachainStaking(..))
+			},
+			ProxyType::IdentityJudgement =>
+				matches!(c, RuntimeCall::Identity(pallet_identity::Call::provide_judgement { .. })),
 		}
 	}
 
 	fn is_superset(&self, o: &Self) -> bool {
 		match (self, o) {
 			(x, y) if x == y => true,
-			// "anything" always contains any subset
 			(ProxyType::Any, _) => true,
+			(_, ProxyType::Any) => false,
+			(ProxyType::NonTransfer, _) => true,
+			_ => false,
 		}
 	}
 }
