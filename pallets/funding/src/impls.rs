@@ -24,9 +24,20 @@ use sp_runtime::{traits::AccountIdConversion, DispatchError};
 use sp_std::{collections::btree_set::BTreeSet, marker::PhantomData};
 
 use crate::{
-	traits::{SettlementOperations, SettlementTarget},
+	traits::{SettlementOperations, SettlementParticipants, SettlementTarget},
 	*,
 };
+
+fn get_current_settlement_participants<T: Config>() -> Result<SettlementParticipants<T>, (Weight, DispatchError)> {
+	if let Some(participations) = CurrentSettlementParticipations::<T>::get() {
+		Ok(participations)
+	} else {
+		#[cfg(debug_assertions)]
+		unreachable!("Expected current settlement participations to be set");
+		#[cfg(not(debug_assertions))]
+		return Err((Weight::zero(), "Expected current settlement participations to be set".into()));
+	}
+}
 
 impl<T: Config> SettlementOperations<T> for SettlementMachine {
 	fn has_remaining_operations(&self) -> bool {
@@ -86,22 +97,25 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 		match self {
 			SettlementType::Initialized(PhantomData::<Success>) => {
 				*self = Self::EvaluationRewardOrSlash(PhantomData);
-				*target = CurrentSettlementParticipations::<T>::get().evaluations();
-				Ok(Weight::zero())
+				let current_settlement_participations = get_current_settlement_participants::<T>()?;
+
+				*target = current_settlement_participations.evaluations();
+				Ok(T::DbWeight::get().reads(1))
 			},
 
 			SettlementType::EvaluationRewardOrSlash(PhantomData::<Success>) =>
 				if target.is_empty() {
 					*self = Self::EvaluationUnbonding(PhantomData);
-					let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ImpossibleState)?;
+					let project_details = ProjectsDetails::<T>::get(project_id)
+						.ok_or((T::DbWeight::get().reads(1), Error::<T>::ImpossibleState.into()))?;
 					if project_details.evaluation_round_info.evaluators_outcome == EvaluatorsOutcome::Unchanged {
 						*target = SettlementTarget::Evaluations(vec![]);
+						return Ok(T::DbWeight::get().reads(1))
 					}
-					// TODO: Is this assumption true?
-					// We read/created this storage in on_idle, which calls this function. This value should be cached and
-					// therefore not imply a new read.
-					*target = CurrentSettlementParticipations::<T>::get().evaluations();
-					// TODO: benchmark this code
+
+					let current_settlement_participations = get_current_settlement_participants::<T>()?;
+
+					*target = current_settlement_participations.evaluations();
 					Ok(T::DbWeight::get().reads(1))
 				} else {
 					let consumed_weight = reward_or_slash_one_evaluation::<T>(target)?;
@@ -111,8 +125,10 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 			SettlementType::EvaluationUnbonding(PhantomData::<Success>) =>
 				if target.is_empty() {
 					*self = SettlementType::StartBidderVestingSchedule(PhantomData);
-					*target = CurrentSettlementParticipations::<T>::get().bidders();
-					Ok(Weight::zero())
+					let current_settlement_participations = get_current_settlement_participants::<T>()?;
+
+					*target = current_settlement_participations.bids();
+					Ok(T::DbWeight::get().reads(1))
 				} else {
 					let consumed_weight = unbond_one_evaluation::<T>(target)?;
 					Ok(consumed_weight)
@@ -121,8 +137,10 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 			SettlementType::StartBidderVestingSchedule(PhantomData::<Success>) =>
 				if target.is_empty() {
 					*self = SettlementType::StartContributorVestingSchedule(PhantomData);
-					*target = CurrentSettlementParticipations::<T>::get().contributions();
-					Ok(Weight::zero())
+					let current_settlement_participations = get_current_settlement_participants::<T>()?;
+
+					*target = current_settlement_participations.contributions();
+					Ok(T::DbWeight::get().reads(1))
 				} else {
 					let consumed_weight = start_one_bid_vesting_schedule::<T>(target)?;
 					Ok(consumed_weight)
@@ -131,8 +149,10 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 			SettlementType::StartContributorVestingSchedule(PhantomData::<Success>) =>
 				if target.is_empty() {
 					*self = SettlementType::BidCTMint(PhantomData);
-					*target = CurrentSettlementParticipations::<T>::get().bids();
-					Ok(Weight::zero())
+					let current_settlement_participations = get_current_settlement_participants::<T>()?;
+
+					*target = current_settlement_participations.bids();
+					Ok(T::DbWeight::get().reads(1))
 				} else {
 					let consumed_weight = start_one_contribution_vesting_schedule::<T>(target)?;
 					Ok(consumed_weight)
@@ -141,8 +161,10 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 			SettlementType::BidCTMint(PhantomData::<Success>) =>
 				if target.is_empty() {
 					*self = SettlementType::ContributionCTMint(PhantomData);
-					*target = CurrentSettlementParticipations::<T>::get().contributions();
-					Ok(Weight::zero())
+					let current_settlement_participations = get_current_settlement_participants::<T>()?;
+
+					*target = current_settlement_participations.contributions();
+					Ok(T::DbWeight::get().reads(1))
 				} else {
 					let consumed_weight = mint_ct_for_one_bid::<T>(target)?;
 					Ok(consumed_weight)
@@ -151,8 +173,10 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 			SettlementType::ContributionCTMint(PhantomData::<Success>) =>
 				if target.is_empty() {
 					*self = SettlementType::BidFundingPayout(PhantomData);
-					*target = CurrentSettlementParticipations::<T>::get().bids();
-					Ok(Weight::zero())
+					let current_settlement_participations = get_current_settlement_participants::<T>()?;
+
+					*target = current_settlement_participations.bids();
+					Ok(T::DbWeight::get().reads(1))
 				} else {
 					let consumed_weight = mint_ct_for_one_contribution::<T>(target)?;
 					Ok(consumed_weight)
@@ -161,8 +185,10 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 			SettlementType::BidFundingPayout(PhantomData::<Success>) =>
 				if target.is_empty() {
 					*self = SettlementType::ContributionFundingPayout(PhantomData);
-					*target = CurrentSettlementParticipations::<T>::get().contributions();
-					Ok(Weight::zero())
+					let current_settlement_participations = get_current_settlement_participants::<T>()?;
+
+					*target = current_settlement_participations.bids();
+					Ok(T::DbWeight::get().reads(1))
 				} else {
 					let consumed_weight = issuer_funding_payout_one_bid::<T>(target)?;
 					Ok(consumed_weight)
@@ -323,7 +349,8 @@ fn reward_or_slash_one_evaluation<T: Config>(
 
 	if let Some(evaluation) = remaining_evaluations.next() {
 		let project_id = evaluation.project_id;
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ImpossibleState)?;
+		let project_details = ProjectsDetails::<T>::get(project_id)
+			.ok_or((consumed_weight.saturating_add(T::DbWeight::get().reads(1)), Error::<T>::ImpossibleState.into()))?;
 		consumed_weight = consumed_weight.saturating_add(T::DbWeight::get().reads(1));
 
 		match project_details.evaluation_round_info.evaluators_outcome {
@@ -898,4 +925,5 @@ fn issuer_funding_payout_one_contribution<T: Config>(
 	}
 
 	*target = SettlementTarget::Contributions(remaining_contributions.collect_vec());
+	Ok(consumed_weight)
 }

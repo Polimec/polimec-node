@@ -537,7 +537,7 @@ pub mod pallet {
 		StorageValue<_, WeakBoundedVec<(ProjectId, SettlementMachine), T::MaxProjectsInSettlement>, ValueQuery>;
 
 	#[pallet::storage]
-	pub type CurrentSettlementParticipations<T: Config> = StorageValue<_, SettlementParticipants<T>, ValueQuery>;
+	pub type CurrentSettlementParticipations<T: Config> = StorageValue<_, SettlementParticipants<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn projects_to_update)]
@@ -1529,34 +1529,36 @@ pub mod pallet {
 
 			let current_project_id: ProjectId;
 			let mut current_settlement_machine = None;
-			while settlement_queue.is_empty().not() {
-				match settlement_queue.next() {
-					Some((project_id, settlement_machine)) if settlement_machine.has_remaining_operations().not() => {
+			while let Some((project_id, settlement_machine)) = settlement_queue.next() {
+				match (project_id, settlement_machine) {
+					(project_id, settlement_machine @ SettlementMachine::Success(machine))
+						if machine.has_remaining_operations().not() =>
+					{
+						CurrentSettlementParticipations::<T>::set(None);
 						weight_consumed = weight_consumed
-							.saturating_add(<T as frame_system::Config>::DbWeight::get().reads_writes(1, 1));
+							.saturating_add(<T as frame_system::Config>::DbWeight::get().reads_writes(1, 2));
 						ProjectsDetails::<T>::mutate(project_id, |maybe_project| {
 							if let Some(project) = maybe_project {
-								if project.status == ProjectStatus::SuccessSettlementOngoing {
-									project.status = ProjectStatus::SuccessSettlementFinished;
-								} else if project.status == ProjectStatus::FailureSettlementOngoing {
-									project.status = ProjectStatus::FailureSettlementFinished;
-								} else {
-									#[cfg(debug_assertions)]
-									panic!("Settlement machine finished, but project status has invalid state");
-									#[cfg(not(debug_assertions))]
-									{
-										log::error!(
-											"Settlement machine finished, but project status has invalid state"
-										);
-									}
-								}
+								project.status = ProjectStatus::SuccessSettlementFinished;
 							}
-
-							Self::deposit_event(Event::SettlementFinished { project_id })
 						});
+						Self::deposit_event(Event::SettlementFinished { project_id })
+					},
+					(project_id, settlement_machine @ SettlementMachine::Failure(machine))
+						if machine.has_remaining_operations().not() =>
+					{
+						CurrentSettlementParticipations::<T>::set(None);
+						weight_consumed = weight_consumed
+							.saturating_add(<T as frame_system::Config>::DbWeight::get().reads_writes(1, 2));
+						ProjectsDetails::<T>::mutate(project_id, |maybe_project| {
+							if let Some(project) = maybe_project {
+								project.status = ProjectStatus::FailureSettlementFinished;
+							}
+						});
+						Self::deposit_event(Event::SettlementFinished { project_id })
 					},
 
-					Some((project_id, SettlementMachine::NotReady)) => {
+					(project_id, SettlementMachine::NotReady) => {
 						weight_consumed =
 							weight_consumed.saturating_add(Self::update_current_settlement_participations(project_id));
 						weight_consumed = weight_consumed
@@ -1566,13 +1568,17 @@ pub mod pallet {
 							if let Some(project) = maybe_project {
 								if matches!(project.status, ProjectStatus::FundingSuccessful) {
 									project.status = ProjectStatus::SuccessSettlementOngoing;
-									Some(SettlementMachine::Success(SettlementType::Initialized::<PhantomData>))
+									Some(SettlementMachine::Success(SettlementType::<Success>::Initialized(
+										PhantomData,
+									)))
 								} else if matches!(
 									project.status,
 									ProjectStatus::EvaluationFailed | ProjectStatus::FundingFailed
 								) {
 									project.status = ProjectStatus::FailureSettlementOngoing;
-									Some(SettlementMachine::Failure(SettlementType::Initialized::<PhantomData>))
+									Some(SettlementMachine::Failure(SettlementType::<Failure>::Initialized(
+										PhantomData,
+									)))
 								} else {
 									#[cfg(debug_assertions)]
 									panic!("Settlement machine tried to start, but project status has invalid state");
@@ -1585,6 +1591,14 @@ pub mod pallet {
 									project.status = ProjectStatus::Panicked;
 									None
 								}
+							} else {
+								#[cfg(debug_assertions)]
+								panic!("Settlement machine tried to start, but project does not exist");
+								#[cfg(not(debug_assertions))]
+								{
+									log::error!("Settlement machine not ready, but project does not exist");
+								}
+								None
 							}
 						});
 
@@ -1597,12 +1611,10 @@ pub mod pallet {
 						}
 					},
 
-					Some((project_id, settlement_machine)) => {
+					(project_id, settlement_machine) => {
 						current_project_id = project_id;
 						current_settlement_machine = Some(settlement_machine)
 					},
-
-					None => unreachable!("is_empty is false, therefore we cannot have None here"),
 				}
 			}
 
@@ -1610,8 +1622,8 @@ pub mod pallet {
 				if let Some(machine) = current_settlement_machine { machine } else { return weight_consumed };
 
 			let mut settlement_queue = settlement_queue.collect_vec();
-			let settlement_participations = CurrentSettlementParticipations::<T>::get();
 
+			let settlement_participations = CurrentSettlementParticipations::<T>::get();
 			let mut target = SettlementTarget::<T>::Empty;
 			match current_settlement_machine.execute_with_given_weight(
 				max_weight.saturating_sub(weight_consumed),
