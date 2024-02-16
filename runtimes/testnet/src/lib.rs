@@ -72,7 +72,7 @@ pub use crate::xcm_config::*;
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 // Polimec Shared Imports
-use pallet_funding::DaysToBlocks;
+use pallet_funding::{DaysToBlocks, InvestorType, EnsureInvestor};
 pub use pallet_parachain_staking;
 pub use shared_configuration::*;
 
@@ -611,6 +611,7 @@ parameter_types! {
 		32, 118, 30, 171, 58, 212, 197, 27, 146, 122, 255, 243, 34, 245, 90, 244, 221, 37, 253,
 		195, 18, 202, 111, 55, 39, 48, 123, 17, 101, 78, 215, 94,
 	];
+	pub const Retail: InvestorType = InvestorType::Retail;
 }
 pub struct ConvertSelf;
 impl Convert<AccountId, [u8; 32]> for ConvertSelf {
@@ -675,6 +676,7 @@ impl pallet_funding::Config for Runtime {
 	type VerifierPublicKey = VerifierPublicKey;
 	type Vesting = LinearRelease;
 	type WeightInfo = pallet_funding::weights::SubstrateWeight<Runtime>;
+	type RetailOrigin = EnsureInvestor<Runtime, (), Retail, Runtime>;
 }
 
 parameter_types! {

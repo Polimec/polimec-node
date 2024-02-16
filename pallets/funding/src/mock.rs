@@ -24,7 +24,7 @@ use frame_support::{
 	construct_runtime,
 	pallet_prelude::Weight,
 	parameter_types,
-	traits::{AsEnsureOriginWithArg, ConstU16, ConstU32, WithdrawReasons},
+	traits::{AsEnsureOriginWithArg, ConstU16, ConstU32, ConstU64, WithdrawReasons},
 	PalletId,
 };
 use frame_system as system;
@@ -249,6 +249,14 @@ impl pallet_balances::Config for TestRuntime {
 
 impl pallet_insecure_randomness_collective_flip::Config for TestRuntime {}
 
+
+impl pallet_timestamp::Config for TestRuntime {
+	type Moment = u64;
+	type OnTimestampSet = ();
+	type MinimumPeriod = ConstU64<5>;
+	type WeightInfo = ();
+}
+
 pub const HOURS: BlockNumber = 300u64;
 
 // REMARK: In the production configuration we use DAYS instead of HOURS.
@@ -318,6 +326,8 @@ parameter_types! {
 		195, 18, 202, 111, 55, 39, 48, 123, 17, 101, 78, 215, 94,
 	];
 
+	pub const Retail: InvestorType = InvestorType::Retail;
+
 }
 
 pub struct DummyConverter;
@@ -386,6 +396,7 @@ impl Config for TestRuntime {
 	type VerifierPublicKey = VerifierPublicKey;
 	type Vesting = Vesting;
 	type WeightInfo = weights::SubstrateWeight<TestRuntime>;
+	type RetailOrigin = EnsureInvestor<TestRuntime, (), Retail, TestRuntime>;
 }
 
 // Configure a mock runtime to test the pallet.
@@ -393,6 +404,7 @@ construct_runtime!(
 	pub enum TestRuntime
 	{
 		System: frame_system,
+		Timestamp: pallet_timestamp,
 		RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip,
 		Balances: pallet_balances,
 		Vesting: pallet_linear_release,

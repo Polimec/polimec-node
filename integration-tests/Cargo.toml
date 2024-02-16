@@ -14,8 +14,11 @@ version.workspace = true
 substrate-wasm-builder.workspace = true
 
 [dependencies]
+serde = { workspace = true  }
 parity-scale-codec = { workspace = true, features = ["derive"] }
 scale-info = { workspace = true, features = ["derive"] }
+reqwest = { version = "0.11.4", features = ["blocking"] }
+jwt-compact = { workspace = true, features = ["ed25519-dalek"] }
 
 # Local
 polimec-receiver.workspace = true
@@ -119,6 +122,7 @@ std = [
 	"polkadot-runtime-parachains/std",
 	"polkadot-runtime/std",
 	"scale-info/std",
+	"serde/std",
 	"sp-arithmetic/std",
 	"sp-authority-discovery/std",
 	"sp-consensus-babe/std",

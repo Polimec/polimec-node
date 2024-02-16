@@ -34,7 +34,6 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
-use jwt_compact::alg::VerifyingKey;
 use polimec_common::ReleaseSchedule;
 use sp_arithmetic::{
 	traits::{CheckedDiv, CheckedSub, Zero},
@@ -3366,17 +3365,5 @@ impl<T: Config> Pallet<T> {
 				},
 			}
 		}
-	}
-
-	pub fn verify_jwt(token: jwt_compact::UntrustedToken, raw_public_key: [u8; 32]) -> Result<SampleClaims, ()> {
-		use jwt_compact::{alg::Ed25519, Algorithm};
-
-		let token_checker = TokenChecker::new();
-		// Convert the raw public key to a VerifyingKey
-		// TODO: Handle the unwrap
-		let signing_key = <<Ed25519 as Algorithm>::VerifyingKey>::from_slice(&raw_public_key).unwrap();
-		// Verify the token and extract the claims
-		// TODO: Handle the unwrap
-		Ok(token_checker.verify_token(&Ed25519, token, &signing_key).unwrap())
 	}
 }

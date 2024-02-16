@@ -473,6 +473,8 @@ pub mod pallet {
 		/// The Ed25519 Verifier Public Key
 		#[pallet::constant]
 		type VerifierPublicKey: Get<[u8; 32]>;
+
+		type RetailOrigin: EnsureOriginWithCredentials<<Self as frame_system::Config>::RuntimeOrigin>;
 	}
 
 	#[pallet::storage]
@@ -993,11 +995,11 @@ pub mod pallet {
 
 		pub fn verify(origin: OriginFor<T>, jwt: jwt_compact::prelude::UntrustedToken) -> DispatchResult {
 			// TODO: I would love to create custom origins for this, with a syntax like `ensure_ROLE(origin, jwt)` or `ensure_permissioned(origin, jwt, ROLE)`.
-
+			let caller = T::RetailOrigin::ensure_origin(origin, jwt, T::VerifierPublicKey::get())?;
 			// let caller = ensure_institutional(origin, jwt)?;
-			let _caller = ensure_signed(origin)?;
-			let claims = Self::verify_jwt(jwt, T::VerifierPublicKey::get()).expect("JWT verification failed");
-			ensure!(claims.investor_type == "institutional", Error::<T>::NotAllowed);
+			// let _caller = ensure_signed(origin)?;
+			// let claims = Self::verify_jwt(jwt, T::VerifierPublicKey::get()).expect("JWT verification failed");
+			// ensure!(claims.investor_type == "institutional", Error::<T>::NotAllowed);
 			Ok(())
 		}
 

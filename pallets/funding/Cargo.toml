@@ -55,6 +55,7 @@ polimec-receiver.workspace = true
 
 [dev-dependencies]
 pallet-insecure-randomness-collective-flip.workspace = true
+pallet-timestamp.workspace = true
 pallet-assets.workspace = true
 pallet-linear-release.workspace = true
 assert_matches2.workspace = true

@@ -18,18 +18,21 @@
 
 //! Types for Funding pallet.
 
+use core::fmt::Debug;
+use core::format_args;
 use crate::{
 	traits::{BondingRequirementCalculation, ProvideAssetPrice, VestingDurationCalculation},
 	BalanceOf, BidInfoOf, Config, ContributionInfoOf, EvaluationInfoOf, MultiplierOf,
 };
-use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
-use frame_system::pallet_prelude::BlockNumberFor;
-use jwt_compact::AlgorithmExt;
+use frame_support::{pallet_prelude::*, parameter_types, traits::{OriginTrait, tokens::Balance as BalanceT}};
+use frame_system::{pallet_prelude::BlockNumberFor};
+use jwt_compact::{alg::{Ed25519, VerifyingKey}, Algorithm, AlgorithmExt, Claims as StandardClaims};
+use pallet_timestamp::Now;
 use polimec_common::migration_types::{Migration, MigrationInfo, MigrationOrigin, ParticipationType};
 use polkadot_parachain::primitives::Id as ParaId;
 use serde::{Deserialize, Serialize};
 use sp_arithmetic::{FixedPointNumber, FixedPointOperand};
-use sp_runtime::traits::{CheckedDiv, Convert, Zero};
+use sp_runtime::{traits::{BadOrigin, CheckedDiv, Convert, Zero}, DeserializeOwned};
 use sp_std::{cmp::Eq, collections::btree_map::*, prelude::*};
 
 pub use config_types::*;
@@ -823,49 +826,132 @@ impl<T: Config> MigrationGenerator<T> {
 	}
 }
 
+#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum InvestorType {
+	Retail,
+	Professional,
+	Institutional,
+}
+
+impl InvestorType {
+	pub fn as_str(&self) -> &'static str {
+		match self {
+			InvestorType::Retail => "retail",
+			InvestorType::Professional => "professional",
+			InvestorType::Institutional => "institutional",
+		}
+	}
+}
+
+
+// pub fn ensure_retail<'de, T, I, Timestamp>(origin: T::RuntimeOrigin, token: jwt_compact::prelude::UntrustedToken, verifying_key: [u8; 32], current_block: BlockNumberFor<T>) -> Result<T::AccountId, BadOrigin> 
+// where 
+// 	T: frame_system::Config,
+// 	I: 'static,
+// {
+// 	EnsureInvestor::<T, I, Retail>::ensure_origin(origin, token, verifying_key, current_block)
+// }
+
+// pub fn ensure_institutional<'de, T, I >(origin: T::RuntimeOrigin, token: jwt_compact::prelude::UntrustedToken, verifying_key: [u8; 32], current_block: BlockNumberFor<T>) -> Result<T::AccountId, BadOrigin> 
+// where 
+// 	T: frame_system::Config,
+// 	I: 'static,
+// {
+// 	EnsureInvestor::<T, I, Institutional>::ensure_origin(origin, token, verifying_key, current_block)
+// }
+
+// pub fn ensure_professional<'de, T, I >(origin: T::RuntimeOrigin, token: jwt_compact::prelude::UntrustedToken, verifying_key: [u8; 32], current_block: BlockNumberFor<T>) -> Result<T::AccountId, BadOrigin> 
+// where 
+// 	T: frame_system::Config,
+// 	I: 'static,
+// {
+// 	EnsureInvestor::<T, I, Professional>::ensure_origin(origin, token, verifying_key, current_block)
+// }
 /// Sample token claims.
 // TODO/TBD: Should this belong to here - or should this some sort of Config type?
 /// "sub" and "iss" are from the JWT standard.
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, Deserialize)]
-pub struct SampleClaims {
+pub struct SampleClaims<AccountId> {
 	#[serde(rename = "sub")]
-	pub subject: scale_info::prelude::string::String,
+	pub subject: AccountId,
 	#[serde(rename = "iss")]
 	pub issuer: scale_info::prelude::string::String,
-	pub investor_type: scale_info::prelude::string::String,
+	pub investor_type: InvestorType,
+	pub exp: u64,
 }
 
+parameter_types! {
+	pub const Retail: InvestorType = InvestorType::Retail;
+	pub const Professional: InvestorType = InvestorType::Professional;
+	pub const Institutional: InvestorType = InvestorType::Institutional;
+}
 
-// TODO/TBD: Should this belong to here - or should this some sort of Config type?
-#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, MaxEncodedLen, Deserialize)]
-pub struct TokenChecker {}
+pub struct EnsureInvestor<T, I, Type, Timestamp>(sp_std::marker::PhantomData<(T, I, Type, Timestamp)>);
+impl<'de, T, I, Type, Timestamp> EnsureOriginWithCredentials<T::RuntimeOrigin> for EnsureInvestor<T, I, Type, Timestamp> 
+where 
+	T: frame_system::Config,
+	I: 'static,
+	Type: Get<InvestorType>,
+	Timestamp: pallet_timestamp::Config,
+{
+	type Success = T::AccountId;
+	type Claims = SampleClaims<T::AccountId>;
 
-impl TokenChecker {
-	fn extract_claims<'a>(&self, token: &'a jwt_compact::Token<SampleClaims>) -> Result<&'a SampleClaims, ()> {
+	fn try_origin(origin: T::RuntimeOrigin, token: jwt_compact::prelude::UntrustedToken, verifying_key: [u8; 32]) -> Result<Self::Success, T::RuntimeOrigin> {
+		if let Ok(claims) = Self::verify_token(token, verifying_key) {
+			if let Some(who) = origin.clone().into_signer() {
+					
+				if let Ok(now) = Now::<Timestamp>::get().try_into() {
+					if claims.exp < now {
+						return Err(origin);
+					}
+
+					if claims.investor_type == Type::get()
+						&& claims.subject == who
+					{
+						return Ok(who);
+					}
+				}
+				
+			}
+		} 
+		Err(origin)
+	}
+}
+
+pub trait EnsureOriginWithCredentials<OuterOrigin> where
+	OuterOrigin: OriginTrait,
+{
+	type Success;
+	type Claims: Clone + Encode + Decode + Eq + PartialEq + Ord + PartialOrd + TypeInfo + DeserializeOwned;
+
+	fn try_origin(origin: OuterOrigin, token: jwt_compact::prelude::UntrustedToken, verifying_key: [u8; 32]) -> Result<Self::Success, OuterOrigin>;
+
+	fn ensure_origin(origin: OuterOrigin, token: jwt_compact::prelude::UntrustedToken, verifying_key: [u8; 32]) -> Result<Self::Success, BadOrigin> {
+		Self::try_origin(origin, token, verifying_key).map_err(|_| BadOrigin)
+	}
+
+	fn extract_claims<'a>(token: &'a jwt_compact::Token<Self::Claims>) -> Result<&'a Self::Claims, ()> {
 		Ok(&token.claims().custom)
 	}
 
-	pub fn verify_token<T: jwt_compact::Algorithm>(
-		&self,
-		alg: &T,
+	fn verify_token(
 		token: jwt_compact::prelude::UntrustedToken,
-		verifying_key: &T::VerifyingKey,
-	) -> Result<SampleClaims, ()> {
+		verifying_key: [u8; 32],
+	) -> Result<Self::Claims, ()> {
+
+		let signing_key = <<Ed25519 as Algorithm>::VerifyingKey>::from_slice(&verifying_key).unwrap();
 		// Validate if the untrustworthy token is signed by the Verifier
 		// TODO: Handle the unwrap
-		let token = alg.validator::<SampleClaims>(verifying_key).validate(&token).unwrap();
+		
+		let token = &jwt_compact::alg::Ed25519.validator::<Self::Claims>(&signing_key).validate(&token).unwrap();
 		// We now know that the token is signed by the Verifier
 		// So we can extract the claims from the token
-		let claims = self.extract_claims(&token)?;
-		// TODO: We have to check if the subject (a ss58 address) is the extrinsic signer
-		// TODO: We have to check if the issuer is a known issuer
-		// TODO: We have to check if the investor_type is a known investor_type
-		// TODO: We have to check if the token is not expired
+		let claims = Self::extract_claims(&token)?;
+
 		// At the moment we just return all the claims
 		Ok(claims.clone())
 	}
-
-	pub fn new() -> Self {
-		Self {}
-	}
+	
 }
