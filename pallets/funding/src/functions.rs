@@ -3368,7 +3368,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	pub fn verify_jwt(token: jwt_compact::UntrustedToken, raw_public_key: [u8; 32]) -> Result<SampleClaims, ()> {
+	pub fn verify_jwt(token: jwt_compact::UntrustedToken, raw_public_key: [u8; 32]) -> Result<types::FullClaim, ()> {
 		use jwt_compact::{alg::Ed25519, Algorithm};
 
 		let token_checker = TokenChecker::new();

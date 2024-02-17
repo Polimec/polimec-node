@@ -997,7 +997,7 @@ pub mod pallet {
 			// let caller = ensure_institutional(origin, jwt)?;
 			let _caller = ensure_signed(origin)?;
 			let claims = Self::verify_jwt(jwt, T::VerifierPublicKey::get()).expect("JWT verification failed");
-			ensure!(claims.investor_type == "institutional", Error::<T>::NotAllowed);
+			ensure!(claims.custom.investor_type == "institutional", Error::<T>::NotAllowed);
 			Ok(())
 		}
 

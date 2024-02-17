@@ -835,14 +835,15 @@ pub struct SampleClaims {
 	pub investor_type: scale_info::prelude::string::String,
 }
 
-
 // TODO/TBD: Should this belong to here - or should this some sort of Config type?
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, MaxEncodedLen, Deserialize)]
 pub struct TokenChecker {}
 
+pub type FullClaim = jwt_compact::Claims<SampleClaims>;
+
 impl TokenChecker {
-	fn extract_claims<'a>(&self, token: &'a jwt_compact::Token<SampleClaims>) -> Result<&'a SampleClaims, ()> {
-		Ok(&token.claims().custom)
+	fn extract_claims<'a>(&self, token: &'a jwt_compact::Token<SampleClaims>) -> Result<&'a FullClaim, ()> {
+		Ok(&token.claims())
 	}
 
 	pub fn verify_token<T: jwt_compact::Algorithm>(
@@ -850,7 +851,7 @@ impl TokenChecker {
 		alg: &T,
 		token: jwt_compact::prelude::UntrustedToken,
 		verifying_key: &T::VerifyingKey,
-	) -> Result<SampleClaims, ()> {
+	) -> Result<FullClaim, ()> {
 		// Validate if the untrustworthy token is signed by the Verifier
 		// TODO: Handle the unwrap
 		let token = alg.validator::<SampleClaims>(verifying_key).validate(&token).unwrap();
@@ -861,6 +862,7 @@ impl TokenChecker {
 		// TODO: We have to check if the issuer is a known issuer
 		// TODO: We have to check if the investor_type is a known investor_type
 		// TODO: We have to check if the token is not expired
+		assert!(claims.expiration.is_some());
 		// At the moment we just return all the claims
 		Ok(claims.clone())
 	}
