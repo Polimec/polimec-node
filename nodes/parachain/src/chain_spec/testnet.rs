@@ -20,6 +20,7 @@
 
 use cumulus_primitives_core::ParaId;
 use frame_benchmarking::frame_support::bounded_vec;
+use pallet_funding::{instantiator, AuctionPhase, ProjectStatus};
 use polimec_parachain_runtime::{
 	pallet_parachain_staking::{
 		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
@@ -31,7 +32,10 @@ use polimec_parachain_runtime::{
 };
 use sc_service::ChainType;
 use sp_core::{crypto::UncheckedInto, sr25519};
-use sp_runtime::{traits::AccountIdConversion, Perbill, Percent};
+use sp_runtime::{
+	traits::{AccountIdConversion, Get},
+	Perbill, Percent,
+};
 
 use crate::chain_spec::{get_account_id_from_seed, DEFAULT_PARA_ID};
 
@@ -381,6 +385,7 @@ fn testing_genesis(
 	id: ParaId,
 ) -> RuntimeGenesisConfig {
 	use instantiator::TestProjectParams;
+	use itertools::Itertools;
 	use sp_runtime::{traits::PhantomData, FixedPointNumber, Perquintill};
 	use testing_helpers::*;
 
@@ -415,9 +420,21 @@ fn testing_genesis(
 		default_remainder_contributors(),
 		default_remainder_contributor_multipliers(),
 	);
+	let max_bids = (0..<Runtime as pallet_funding::Config>::MaxBidsPerProject::get())
+		.map(|i| {
+			instantiator::BidParams::<Runtime>::new(
+				get_account_id_from_seed::<sr25519::Public>(format!("bidder_{}", i).as_str()),
+				(10u128 * ASSET_UNIT).into(),
+				project_metadata.minimum_price,
+				1u8,
+				pallet_funding::AcceptedFundingAsset::USDT,
+			)
+		})
+		.collect_vec();
 
 	let accounts = endowed_accounts.iter().map(|(account, _)| account.clone()).collect::<Vec<_>>();
-	endowed_accounts.push((<Runtime as Config>::PalletId::get().into_account_truncating(), EXISTENTIAL_DEPOSIT));
+	endowed_accounts
+		.push((<Runtime as pallet_funding::Config>::PalletId::get().into_account_truncating(), EXISTENTIAL_DEPOSIT));
 	RuntimeGenesisConfig {
 		system: SystemConfig { code: wasm_binary.to_vec(), ..Default::default() },
 		oracle_providers_membership: OracleProvidersMembershipConfig {
@@ -462,7 +479,7 @@ fn testing_genesis(
 					metadata: default_project(ISSUER.into(), 3u32),
 					issuer: ISSUER.into(),
 					evaluations: evaluations.clone(),
-					bids: vec![],
+					bids: max_bids,
 					community_contributions: vec![],
 					remainder_contributions: vec![],
 				},

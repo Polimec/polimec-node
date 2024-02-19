@@ -16,10 +16,11 @@ use frame_support::{
 		fungible::InspectFreeze, tokens::Precision, Imbalance, LockableCurrency, ReservableCurrency, StorePreimage,
 	},
 };
-use pallet_democracy::{AccountVote, Conviction, ReferendumInfo, Vote, GetElectorate};
+use pallet_democracy::{AccountVote, Conviction, GetElectorate, ReferendumInfo, Vote};
 use pallet_vesting::VestingInfo;
 use polimec_base_runtime::{
-	Balances, Council, Democracy, Elections, ParachainStaking, PayMaster, Preimage, RuntimeOrigin, TechnicalCommittee, Treasury, Vesting
+	Balances, Council, Democracy, Elections, ParachainStaking, PayMaster, Preimage, RuntimeOrigin, TechnicalCommittee,
+	Treasury, Vesting,
 };
 use tests::defaults::*;
 use xcm_emulator::get_account_id_from_seed;
@@ -184,8 +185,14 @@ fn electorate_calculates_correctly() {
 	PolimecBase::execute_with(|| {
 		let total_issuance = Balances::total_issuance();
 		assert_ok!(Balances::write_balance(&Treasury::account_id(), 1000 * PLMC));
-		assert_ok!(Balances::write_balance(&<polimec_base_runtime::Runtime as pallet_parachain_staking::Config>::PayMaster::get(), 1000 * PLMC));
-		assert_eq!(<polimec_base_runtime::Runtime as pallet_democracy::Config>::Electorate::get_electorate(), total_issuance - 2000 * PLMC);
+		assert_ok!(Balances::write_balance(
+			&<polimec_base_runtime::Runtime as pallet_parachain_staking::Config>::PayMaster::get(),
+			1000 * PLMC
+		));
+		assert_eq!(
+			<polimec_base_runtime::Runtime as pallet_democracy::Config>::Electorate::get_electorate(),
+			total_issuance - 2000 * PLMC
+		);
 	})
 }
 

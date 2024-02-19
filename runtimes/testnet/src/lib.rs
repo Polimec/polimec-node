@@ -550,6 +550,21 @@ impl pallet_multisig::Config for Runtime {
 	type WeightInfo = ();
 }
 
+impl pallet_identity::Config for Runtime {
+	type BasicDeposit = BasicDeposit;
+	type Currency = Balances;
+	type FieldDeposit = FieldDeposit;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type MaxAdditionalFields = MaxAdditionalFields;
+	type MaxRegistrars = MaxRegistrars;
+	type MaxSubAccounts = MaxSubAccounts;
+	type RegistrarOrigin = EnsureRoot<AccountId>;
+	type RuntimeEvent = RuntimeEvent;
+	type Slashed = Treasury;
+	type SubAccountDeposit = SubAccountDeposit;
+	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
+}
+
 pub type LocalAssetsInstance = pallet_assets::Instance1;
 pub type ForeignAssetsInstance = pallet_assets::Instance2;
 
@@ -645,12 +660,12 @@ impl pallet_funding::Config for Runtime {
 	type FeeBrackets = FeeBrackets;
 	type FundingCurrency = ForeignAssets;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
-	type MaxBidsPerProject = ConstU32<2048>;
-	type MaxBidsPerUser = ConstU32<128>;
+	type MaxBidsPerProject = ConstU32<1024>;
+	type MaxBidsPerUser = ConstU32<32>;
 	type MaxCapacityThresholds = MaxCapacityThresholds;
-	type MaxContributionsPerUser = ConstU32<256>;
-	type MaxEvaluationsPerProject = ConstU32<2048>;
-	type MaxEvaluationsPerUser = ConstU32<16>;
+	type MaxContributionsPerUser = ConstU32<32>;
+	type MaxEvaluationsPerProject = ConstU32<1024>;
+	type MaxEvaluationsPerUser = ConstU32<32>;
 	type MaxMessageSizeThresholds = MaxMessageSizeThresholds;
 	type MaxProjectsToUpdateInsertionAttempts = ConstU32<100>;
 	type MaxProjectsToUpdatePerBlock = ConstU32<1>;
@@ -875,6 +890,7 @@ construct_runtime!(
 		Sudo: pallet_sudo = 4,
 		Utility: pallet_utility::{Pallet, Call, Event} = 5,
 		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 6,
+		Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 8,
 
 		// Monetary stuff.
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 10,

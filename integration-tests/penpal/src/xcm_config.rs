@@ -252,7 +252,7 @@ impl ContainsPair<MultiAsset, MultiLocation> for MultiNativeAsset {
 	fn contains(asset: &MultiAsset, origin: &MultiLocation) -> bool {
 		if let Some(ref reserve) = asset.reserve() {
 			if reserve == origin {
-				return true
+				return true;
 			}
 		}
 		false

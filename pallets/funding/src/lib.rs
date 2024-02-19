@@ -254,7 +254,7 @@ pub mod pallet {
 	use local_macros::*;
 	use sp_arithmetic::Percent;
 	use sp_runtime::{
-		traits::{Convert, ConvertBack},
+		traits::{Convert, ConvertBack, Get},
 		DispatchErrorWithPostInfo,
 	};
 

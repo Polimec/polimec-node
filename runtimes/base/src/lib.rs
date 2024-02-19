@@ -57,7 +57,7 @@ use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
 pub use pallet_parachain_staking;
 // Polimec Shared Imports
 pub use shared_configuration::{
-	assets::*, currency::*, fee::*, funding::*, governance::*, proxy::*, staking::*, weights::*,
+	assets::*, currency::*, fee::*, funding::*, governance::*, identity::*, proxy::*, staking::*, weights::*,
 };
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
@@ -147,6 +147,7 @@ pub mod migrations {
 		custom_migrations::InitializePallet<Elections>,
 		custom_migrations::InitializePallet<Preimage>,
 		custom_migrations::InitializePallet<Scheduler>,
+		custom_migrations::InitializePallet<ForeignAssets>,
 	);
 }
 
@@ -241,17 +242,56 @@ impl Contains<RuntimeCall> for BaseCallFilter {
 }
 
 impl InstanceFilter<RuntimeCall> for ProxyType {
-	fn filter(&self, _: &RuntimeCall) -> bool {
+	fn filter(&self, c: &RuntimeCall) -> bool {
 		match self {
 			ProxyType::Any => true,
+			ProxyType::NonTransfer => matches!(
+				c,
+				RuntimeCall::System(..) |
+				RuntimeCall::ParachainSystem(..) |
+				RuntimeCall::Timestamp(..) |
+				RuntimeCall::Utility(..) |
+				RuntimeCall::Multisig(..) |
+				RuntimeCall::Proxy(..) |
+				// Specifically omitting Vesting `vested_transfer`, and `force_vested_transfer`
+				RuntimeCall::Vesting(pallet_vesting::Call::vest {..}) |
+				RuntimeCall::Vesting(pallet_vesting::Call::vest_other {..}) |
+				RuntimeCall::ParachainStaking(..) |
+				RuntimeCall::Treasury(..) |
+				RuntimeCall::Democracy(..) |
+				RuntimeCall::Council(..) |
+				RuntimeCall::TechnicalCommittee(..) |
+				RuntimeCall::Elections(..) |
+				RuntimeCall::Preimage(..) |
+				RuntimeCall::Scheduler(..) |
+				RuntimeCall::Oracle(..) |
+				RuntimeCall::OracleProvidersMembership(..)
+			),
+			ProxyType::Governance => matches!(
+				c,
+				RuntimeCall::Treasury(..) |
+					RuntimeCall::Democracy(..) |
+					RuntimeCall::Council(..) |
+					RuntimeCall::TechnicalCommittee(..) |
+					RuntimeCall::Elections(..) |
+					RuntimeCall::Preimage(..) |
+					RuntimeCall::Scheduler(..)
+			),
+			ProxyType::Staking => {
+				matches!(c, RuntimeCall::ParachainStaking(..))
+			},
+			ProxyType::IdentityJudgement =>
+				matches!(c, RuntimeCall::Identity(pallet_identity::Call::provide_judgement { .. })),
 		}
 	}
 
 	fn is_superset(&self, o: &Self) -> bool {
 		match (self, o) {
 			(x, y) if x == y => true,
-			// "anything" always contains any subset
 			(ProxyType::Any, _) => true,
+			(_, ProxyType::Any) => false,
+			(ProxyType::NonTransfer, _) => true,
+			_ => false,
 		}
 	}
 }
@@ -803,6 +843,21 @@ impl pallet_proxy::Config for Runtime {
 	type WeightInfo = pallet_proxy::weights::SubstrateWeight<Runtime>;
 }
 
+impl pallet_identity::Config for Runtime {
+	type BasicDeposit = BasicDeposit;
+	type Currency = Balances;
+	type FieldDeposit = FieldDeposit;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type MaxAdditionalFields = MaxAdditionalFields;
+	type MaxRegistrars = MaxRegistrars;
+	type MaxSubAccounts = MaxSubAccounts;
+	type RegistrarOrigin = EnsureRoot<AccountId>;
+	type RuntimeEvent = RuntimeEvent;
+	type Slashed = Treasury;
+	type SubAccountDeposit = SubAccountDeposit;
+	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime
@@ -816,6 +871,7 @@ construct_runtime!(
 		Utility: pallet_utility::{Pallet, Call, Event} = 5,
 		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 6,
 		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 7,
+		Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 8,
 
 		// Monetary stuff.
 		Balances: pallet_balances = 10,
