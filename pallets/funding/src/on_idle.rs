@@ -57,27 +57,19 @@ impl<T: Config> SettlementOperations<T> for SettlementMachine {
 	) -> Result<Weight, (Weight, DispatchError)> {
 		match self {
 			SettlementMachine::NotReady => {
+				let mut weight_consumed = crate::Pallet::<T>::update_current_settlement_participations(project_id);
 				let mut project_details = ProjectsDetails::<T>::get(project_id)
 					.ok_or((Weight::zero(), Error::<T>::ImpossibleState.into()))?;
+				weight_consumed = weight_consumed.saturating_add(T::DbWeight::get().reads(1));
 
-				let mut weight_consumed = crate::Pallet::<T>::update_current_settlement_participations(project_id);
-
-				if matches!(project_details.status, ProjectStatus::FundingSuccessful) {
-					project_details.status = ProjectStatus::SuccessSettlementOngoing;
+				if matches!(project_details.status, ProjectStatus::SuccessSettlementOngoing) {
 					*self = SettlementMachine::Success(SettlementType::<Success>::Initialized(PhantomData));
-				} else if matches!(
-					project_details.status,
-					ProjectStatus::EvaluationFailed | ProjectStatus::FundingFailed
-				) {
-					project_details.status = ProjectStatus::FailureSettlementOngoing;
+				} else if matches!(project_details.status, ProjectStatus::FailureSettlementOngoing) {
 					*self = SettlementMachine::Failure(SettlementType::<Failure>::Initialized(PhantomData));
 				} else {
-					return Err((T::DbWeight::get().reads(1), Error::<T>::ImpossibleState.into()))
+					return Err((weight_consumed, Error::<T>::ImpossibleState.into()))
 				}
 
-				ProjectsDetails::<T>::insert(project_id, project_details);
-
-				weight_consumed = weight_consumed.saturating_add(T::DbWeight::get().writes(1));
 				Ok(weight_consumed)
 			},
 			SettlementMachine::Success(state) =>

@@ -1543,6 +1543,8 @@ mod auction_round_success {
 		inst.advance_time(10).unwrap();
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FailureSettlementFinished);
 
+		dbg!(inst.execute(|| frame_system::Pallet::<TestRuntime>::events()));
+
 		let post_issuer_funding_balance =
 			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
 		let post_bidders_funding_balances =
@@ -1621,7 +1623,7 @@ mod auction_round_success {
 				FundingOutcomeDecision::RejectFunding
 			)
 		);
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 3).unwrap();
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FailureSettlementFinished);
 
 		for bid in final_winning_bids {

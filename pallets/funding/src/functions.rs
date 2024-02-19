@@ -869,6 +869,11 @@ impl<T: Config> Pallet<T> {
 		});
 
 		project_details.funding_end_block = Some(now);
+		if project_details.status == ProjectStatus::FundingSuccessful {
+			project_details.status = ProjectStatus::SuccessSettlementOngoing;
+		} else {
+			project_details.status = ProjectStatus::FailureSettlementOngoing;
+		}
 
 		// * Update storage *
 		ProjectsDetails::<T>::insert(project_id, &project_details);
@@ -1560,7 +1565,7 @@ impl<T: Config> Pallet<T> {
 		let mut ct_account_created = false;
 
 		// * Validity checks *
-		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::NotAllowed);
+		ensure!(matches!(project_details.status, ProjectStatus::SuccessSettlementOngoing), Error::<T>::NotAllowed);
 		ensure!(!bid.ct_minted, Error::<T>::NotAllowed);
 		ensure!(matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)), Error::<T>::NotAllowed);
 		ensure!(T::ContributionTokenCurrency::asset_exists(project_id), Error::<T>::CannotClaimYet);
@@ -1616,7 +1621,7 @@ impl<T: Config> Pallet<T> {
 		let mut ct_account_created = false;
 
 		// * Validity checks *
-		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::NotAllowed);
+		ensure!(project_details.status == ProjectStatus::SuccessSettlementOngoing, Error::<T>::NotAllowed);
 		ensure!(!contribution.ct_minted, Error::<T>::NotAllowed);
 		ensure!(T::ContributionTokenCurrency::asset_exists(project_id), Error::<T>::CannotClaimYet);
 
@@ -1677,7 +1682,7 @@ impl<T: Config> Pallet<T> {
 				released_evaluation.rewarded_or_slashed.is_some()) &&
 				matches!(
 					project_details.status,
-					ProjectStatus::EvaluationFailed | ProjectStatus::FundingFailed | ProjectStatus::FundingSuccessful
+					ProjectStatus::FailureSettlementOngoing | ProjectStatus::SuccessSettlementOngoing
 				),
 			Error::<T>::NotAllowed
 		);
@@ -1730,7 +1735,7 @@ impl<T: Config> Pallet<T> {
 		// * Validity checks *
 		ensure!(
 			evaluation.rewarded_or_slashed.is_none() &&
-				matches!(project_details.status, ProjectStatus::FundingSuccessful),
+				matches!(project_details.status, ProjectStatus::SuccessSettlementOngoing),
 			Error::<T>::NotAllowed
 		);
 
@@ -1853,7 +1858,7 @@ impl<T: Config> Pallet<T> {
 		// * Validity checks *
 		ensure!(
 			bid.plmc_vesting_info.is_none() &&
-				project_details.status == ProjectStatus::FundingSuccessful &&
+				matches!(project_details.status, ProjectStatus::SuccessSettlementOngoing) &&
 				matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)),
 			Error::<T>::NotAllowed
 		);
@@ -1899,7 +1904,8 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			contribution.plmc_vesting_info.is_none() && project_details.status == ProjectStatus::FundingSuccessful,
+			contribution.plmc_vesting_info.is_none() &&
+				matches!(project_details.status, ProjectStatus::SuccessSettlementOngoing),
 			Error::<T>::NotAllowed
 		);
 
@@ -1935,12 +1941,6 @@ impl<T: Config> Pallet<T> {
 		project_id: ProjectId,
 		participant: AccountIdOf<T>,
 	) -> DispatchResult {
-		// * Get variables *
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-
-		// * Validity checks *
-		ensure!(matches!(project_details.status, ProjectStatus::FundingSuccessful), Error::<T>::NotAllowed);
-
 		// * Update storage *
 		let vested_amount = T::Vesting::vest(participant.clone(), HoldReason::Participation(project_id).into())?;
 
@@ -1962,7 +1962,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			project_details.status == ProjectStatus::FundingFailed &&
+			matches!(project_details.status, ProjectStatus::FailureSettlementOngoing) &&
 				matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)),
 			Error::<T>::NotAllowed
 		);
@@ -2009,7 +2009,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			project_details.status == ProjectStatus::FundingFailed &&
+			matches!(project_details.status, ProjectStatus::FailureSettlementOngoing) &&
 				matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)) &&
 				bid.funds_released,
 			Error::<T>::NotAllowed
@@ -2048,7 +2048,7 @@ impl<T: Config> Pallet<T> {
 			.ok_or(Error::<T>::ContributionNotFound)?;
 
 		// * Validity checks *
-		ensure!(project_details.status == ProjectStatus::FundingFailed, Error::<T>::NotAllowed);
+		ensure!(matches!(project_details.status, ProjectStatus::FailureSettlementOngoing), Error::<T>::NotAllowed);
 
 		// * Calculate variables *
 		let project_pot = Self::fund_account_id(project_id);
@@ -2092,7 +2092,7 @@ impl<T: Config> Pallet<T> {
 			.ok_or(Error::<T>::EvaluationNotFound)?;
 
 		// * Validity checks *
-		ensure!(project_details.status == ProjectStatus::FundingFailed, Error::<T>::NotAllowed);
+		ensure!(matches!(project_details.status, ProjectStatus::FailureSettlementOngoing), Error::<T>::NotAllowed);
 
 		// * Update Storage *
 		T::NativeCurrency::release(
@@ -2127,7 +2127,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			project_details.status == ProjectStatus::FundingSuccessful &&
+			matches!(project_details.status, ProjectStatus::SuccessSettlementOngoing) &&
 				matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)),
 			Error::<T>::NotAllowed
 		);
@@ -2173,7 +2173,7 @@ impl<T: Config> Pallet<T> {
 			Contributions::<T>::get((project_id, contributor, contribution_id)).ok_or(Error::<T>::BidNotFound)?;
 
 		// * Validity checks *
-		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::NotAllowed);
+		ensure!(matches!(project_details.status, ProjectStatus::SuccessSettlementOngoing), Error::<T>::NotAllowed);
 
 		// * Calculate variables *
 		let issuer = project_details.issuer;
@@ -2213,10 +2213,7 @@ impl<T: Config> Pallet<T> {
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let held_plmc = T::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), participant);
 		// * Validity checks *
-		ensure!(
-			matches!(project_details.status, ProjectStatus::EvaluationFailed | ProjectStatus::FundingFailed),
-			Error::<T>::NotAllowed
-		);
+		ensure!(matches!(project_details.status, ProjectStatus::FailureSettlementOngoing), Error::<T>::NotAllowed);
 		ensure!(held_plmc > Zero::zero(), Error::<T>::NoFutureDepositHeld);
 
 		// * Update storage *
@@ -2397,7 +2394,7 @@ impl<T: Config> Pallet<T> {
 		let max_weight = Weight::from_parts(700_000_000, 10_000);
 
 		// * Validity checks *
-		ensure!(project_details.status == ProjectStatus::FundingSuccessful, Error::<T>::NotAllowed);
+		ensure!(project_details.status == ProjectStatus::SuccessSettlementFinished, Error::<T>::NotAllowed);
 		ensure!(
 			project_details.hrmp_channel_status ==
 				HRMPChannelStatus {

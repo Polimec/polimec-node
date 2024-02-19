@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{AccountIdOf, BalanceOf, BidInfoOf, Config, ContributionInfoOf, EvaluationInfoOf, ProjectId};
+use crate::{AccountIdOf, BalanceOf, BidInfoOf, BidStatus, Config, ContributionInfoOf, EvaluationInfoOf, ProjectId};
 use frame_support::{weights::Weight, WeakBoundedVec};
 use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
@@ -77,7 +77,14 @@ impl<T: Config> ParticipantExtractor<T> {
 	}
 
 	pub fn successful_bids(settlement_participants: SettlementParticipantsOf<T>) -> SettlementTarget<T> {
-		SettlementTarget::<T>::Bids(settlement_participants.successful_bids.to_vec())
+		SettlementTarget::<T>::Bids(
+			settlement_participants
+				.successful_bids
+				.to_vec()
+				.into_iter()
+				.filter(|b| matches!(b.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
+				.collect_vec(),
+		)
 	}
 
 	pub fn contributions(settlement_participants: SettlementParticipantsOf<T>) -> SettlementTarget<T> {
