@@ -56,7 +56,30 @@ impl<T: Config> SettlementOperations<T> for SettlementMachine {
 		target: &mut SettlementTarget<T>,
 	) -> Result<Weight, (Weight, DispatchError)> {
 		match self {
-			SettlementMachine::NotReady => Err((Weight::zero(), "SettlementMachine not ready for operations".into())),
+			SettlementMachine::NotReady => {
+				let mut project_details = ProjectsDetails::<T>::get(project_id)
+					.ok_or((Weight::zero(), Error::<T>::ImpossibleState.into()))?;
+
+				let mut weight_consumed = crate::Pallet::<T>::update_current_settlement_participations(project_id);
+
+				if matches!(project_details.status, ProjectStatus::FundingSuccessful) {
+					project_details.status = ProjectStatus::SuccessSettlementOngoing;
+					*self = SettlementMachine::Success(SettlementType::<Success>::Initialized(PhantomData));
+				} else if matches!(
+					project_details.status,
+					ProjectStatus::EvaluationFailed | ProjectStatus::FundingFailed
+				) {
+					project_details.status = ProjectStatus::FailureSettlementOngoing;
+					*self = SettlementMachine::Failure(SettlementType::<Failure>::Initialized(PhantomData));
+				} else {
+					return Err((T::DbWeight::get().reads(1), Error::<T>::ImpossibleState.into()))
+				}
+
+				ProjectsDetails::<T>::insert(project_id, project_details);
+
+				weight_consumed = weight_consumed.saturating_add(T::DbWeight::get().writes(1));
+				Ok(weight_consumed)
+			},
 			SettlementMachine::Success(state) =>
 				<SettlementType<Success> as SettlementOperations<T>>::do_one_operation(state, project_id, target),
 			SettlementMachine::Failure(state) =>
@@ -71,7 +94,7 @@ impl<T: Config> SettlementOperations<T> for SettlementMachine {
 		target: &mut SettlementTarget<T>,
 	) -> Result<Weight, (Weight, DispatchError)> {
 		match self {
-			SettlementMachine::NotReady => Err((Weight::zero(), "SettlementMachine not ready for operations".into())),
+			SettlementMachine::NotReady => self.do_one_operation(project_id, target),
 			SettlementMachine::Success(state) =>
 				<SettlementType<Success> as SettlementOperations<T>>::execute_with_given_weight(
 					state, weight, project_id, target,
@@ -123,7 +146,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 				if target.is_empty() {
 					*self = SettlementType::StartBidderVestingSchedule(PhantomData);
 					let current_settlement_participations = get_current_settlement_participants::<T>()?;
-					*target = ParticipantExtractor::bids(current_settlement_participations);
+					*target = ParticipantExtractor::successful_bids(current_settlement_participations);
 					Ok(T::DbWeight::get().reads(1))
 				} else {
 					let consumed_weight = unbond_one_evaluation::<T>(target)?;
@@ -145,7 +168,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 				if target.is_empty() {
 					*self = SettlementType::BidCTMint(PhantomData);
 					let current_settlement_participations = get_current_settlement_participants::<T>()?;
-					*target = ParticipantExtractor::bids(current_settlement_participations);
+					*target = ParticipantExtractor::successful_bids(current_settlement_participations);
 					Ok(T::DbWeight::get().reads(1))
 				} else {
 					let consumed_weight = start_one_contribution_vesting_schedule::<T>(target)?;
@@ -167,7 +190,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 				if target.is_empty() {
 					*self = SettlementType::BidFundingPayout(PhantomData);
 					let current_settlement_participations = get_current_settlement_participants::<T>()?;
-					*target = ParticipantExtractor::bids(current_settlement_participations);
+					*target = ParticipantExtractor::successful_bids(current_settlement_participations);
 					Ok(T::DbWeight::get().reads(1))
 				} else {
 					let consumed_weight = mint_ct_for_one_contribution::<T>(target)?;
@@ -178,7 +201,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 				if target.is_empty() {
 					*self = SettlementType::ContributionFundingPayout(PhantomData);
 					let current_settlement_participations = get_current_settlement_participants::<T>()?;
-					*target = ParticipantExtractor::bids(current_settlement_participations);
+					*target = ParticipantExtractor::contributions(current_settlement_participations);
 					Ok(T::DbWeight::get().reads(1))
 				} else {
 					let consumed_weight = issuer_funding_payout_one_bid::<T>(target)?;
@@ -188,8 +211,13 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 			SettlementType::ContributionFundingPayout(PhantomData::<Success>) =>
 				if target.is_empty() {
 					*self = SettlementType::Finished(PhantomData);
-					*target = SettlementTarget::Empty;
-					Ok(Weight::zero())
+
+					let mut project_details = ProjectsDetails::<T>::get(project_id)
+						.ok_or((T::DbWeight::get().reads(1), Error::<T>::ImpossibleState.into()))?;
+					project_details.status = ProjectStatus::SuccessSettlementFinished;
+					ProjectsDetails::<T>::insert(project_id, project_details);
+
+					Ok(T::DbWeight::get().reads_writes(1, 1))
 				} else {
 					let consumed_weight = issuer_funding_payout_one_contribution::<T>(target)?;
 					Ok(consumed_weight)
@@ -212,7 +240,10 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Success> {
 		let has_remaining_operations =
 			<SettlementType<Success> as SettlementOperations<T>>::has_remaining_operations(self);
 
-		while has_remaining_operations && weight.saturating_sub(used_weight).all_gt(Weight::zero()) {
+		while has_remaining_operations &&
+			weight.saturating_sub(used_weight).all_gt(Weight::zero()) &&
+			*self != SettlementType::Finished(PhantomData::<Success>)
+		{
 			match self.do_one_operation(project_id, target) {
 				Ok(weight) => {
 					used_weight = used_weight.saturating_add(weight);
@@ -272,7 +303,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Failure> {
 				if target.is_empty() {
 					*self = SettlementType::BidFundingRelease(PhantomData::<Failure>);
 					let current_settlement_participations = get_current_settlement_participants::<T>()?;
-					*target = ParticipantExtractor::bids(current_settlement_participations);
+					*target = ParticipantExtractor::successful_bids(current_settlement_participations);
 					Ok(T::DbWeight::get().reads(1))
 				} else {
 					let consumed_weight = unbond_one_evaluation::<T>(target)?;
@@ -283,7 +314,7 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Failure> {
 				if target.is_empty() {
 					*self = SettlementType::BidUnbonding(PhantomData::<Failure>);
 					let current_settlement_participations = get_current_settlement_participants::<T>()?;
-					*target = ParticipantExtractor::bids(current_settlement_participations);
+					*target = ParticipantExtractor::successful_bids(current_settlement_participations);
 					Ok(T::DbWeight::get().reads(1))
 				} else {
 					let consumed_weight = release_funds_one_bid::<T>(target)?;
@@ -315,8 +346,13 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Failure> {
 			SettlementType::ContributionUnbonding(PhantomData::<Failure>) =>
 				if target.is_empty() {
 					*self = SettlementType::Finished(PhantomData::<Failure>);
-					*target = SettlementTarget::Empty;
-					Ok(Weight::zero())
+
+					let mut project_details = ProjectsDetails::<T>::get(project_id)
+						.ok_or((T::DbWeight::get().reads(1), Error::<T>::ImpossibleState.into()))?;
+					project_details.status = ProjectStatus::FailureSettlementFinished;
+					ProjectsDetails::<T>::insert(project_id, project_details);
+
+					Ok(T::DbWeight::get().reads_writes(1, 1))
 				} else {
 					let consumed_weight = unbond_one_contribution::<T>(target)?;
 					*self = SettlementType::ContributionUnbonding(PhantomData::<Failure>);
@@ -335,7 +371,26 @@ impl<T: Config> SettlementOperations<T> for SettlementType<Failure> {
 		project_id: ProjectId,
 		target: &mut SettlementTarget<T>,
 	) -> Result<Weight, (Weight, DispatchError)> {
-		todo!()
+		let mut used_weight = Weight::zero();
+		let has_remaining_operations =
+			<SettlementType<Failure> as SettlementOperations<T>>::has_remaining_operations(self);
+
+		while has_remaining_operations &&
+			weight.saturating_sub(used_weight).all_gt(Weight::zero()) &&
+			*self != SettlementType::Finished(PhantomData::<Failure>)
+		{
+			match self.do_one_operation(project_id, target) {
+				Ok(weight) => {
+					used_weight = used_weight.saturating_add(weight);
+				},
+				Err((weight, err)) => {
+					used_weight = used_weight.saturating_add(weight);
+					return Err((used_weight, err));
+				},
+			}
+		}
+
+		Ok(used_weight)
 	}
 }
 

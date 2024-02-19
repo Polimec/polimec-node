@@ -60,7 +60,7 @@ pub trait SettlementOperations<T: Config> {
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Default)]
 pub struct SettlementParticipants<Evaluations, Bids, Contributions> {
 	pub evaluations: Evaluations,
-	pub bids: Bids,
+	pub successful_bids: Bids,
 	pub contributions: Contributions,
 }
 
@@ -76,8 +76,8 @@ impl<T: Config> ParticipantExtractor<T> {
 		SettlementTarget::<T>::Evaluations(settlement_participants.evaluations.to_vec())
 	}
 
-	pub fn bids(settlement_participants: SettlementParticipantsOf<T>) -> SettlementTarget<T> {
-		SettlementTarget::<T>::Bids(settlement_participants.bids.to_vec())
+	pub fn successful_bids(settlement_participants: SettlementParticipantsOf<T>) -> SettlementTarget<T> {
+		SettlementTarget::<T>::Bids(settlement_participants.successful_bids.to_vec())
 	}
 
 	pub fn contributions(settlement_participants: SettlementParticipantsOf<T>) -> SettlementTarget<T> {
@@ -86,7 +86,7 @@ impl<T: Config> ParticipantExtractor<T> {
 
 	pub fn accounts(settlement_participants: SettlementParticipantsOf<T>) -> SettlementTarget<T> {
 		let evaluators = settlement_participants.evaluations.into_iter().map(|e| e.evaluator);
-		let bidders = settlement_participants.bids.into_iter().map(|b| b.bidder);
+		let bidders = settlement_participants.successful_bids.into_iter().map(|b| b.bidder);
 		let contributors = settlement_participants.contributions.into_iter().map(|c| c.contributor);
 		let participants = evaluators.chain(bidders).chain(contributors).collect_vec();
 		SettlementTarget::<T>::Accounts(participants)

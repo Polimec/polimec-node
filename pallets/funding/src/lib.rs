@@ -201,9 +201,9 @@ pub mod tests;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
-pub mod impls;
 #[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 pub mod instantiator;
+pub mod on_idle;
 pub mod traits;
 
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
@@ -1526,132 +1526,34 @@ pub mod pallet {
 				ProjectSettlements::<T>::get().into_iter().sorted_by_key(|(project_id, _)| *project_id);
 			weight_consumed = weight_consumed.saturating_add(<T as frame_system::Config>::DbWeight::get().reads(1));
 
-			let mut current_project_id = None;
-			let mut current_settlement_machine = None;
-			while let Some((project_id, settlement_machine)) = settlement_queue.next() {
-				match (project_id, settlement_machine) {
+			let (project_id, mut settlement_machine) =
+				if let Some((project_id, mut settlement_machine)) = settlement_queue.next() {
 					(project_id, settlement_machine)
-						if <SettlementMachine as SettlementOperations<T>>::has_remaining_operations(
-							&settlement_machine,
-						)
-						.not() =>
-					{
-						CurrentSettlementParticipations::<T>::set(None);
-						weight_consumed = weight_consumed
-							.saturating_add(<T as frame_system::Config>::DbWeight::get().reads_writes(1, 2));
-						ProjectsDetails::<T>::mutate(project_id, |maybe_project| {
-							if let Some(project) = maybe_project {
-								if project.status == ProjectStatus::SuccessSettlementOngoing {
-									project.status = ProjectStatus::SuccessSettlementFinished;
-								} else if project.status == ProjectStatus::FailureSettlementOngoing {
-									project.status = ProjectStatus::FailureSettlementFinished;
-								} else {
-									#[cfg(debug_assertions)]
-									panic!("Settlement machine finished, but project status has invalid state");
-									#[cfg(not(debug_assertions))]
-									{
-										log::error!(
-											"Settlement machine finished, but project status has invalid state"
-										);
-									}
-								}
-							}
-
-							Self::deposit_event(Event::SettlementFinished { project_id })
-						});
-					},
-
-					(project_id, SettlementMachine::NotReady) => {
-						weight_consumed =
-							weight_consumed.saturating_add(Self::update_current_settlement_participations(project_id));
-						weight_consumed = weight_consumed
-							.saturating_add(<T as frame_system::Config>::DbWeight::get().reads_writes(1, 1));
-
-						let settlement_machine = ProjectsDetails::<T>::mutate(project_id, |maybe_project| {
-							if let Some(project) = maybe_project {
-								if matches!(project.status, ProjectStatus::FundingSuccessful) {
-									project.status = ProjectStatus::SuccessSettlementOngoing;
-									Some(SettlementMachine::Success(SettlementType::<Success>::Initialized(
-										PhantomData,
-									)))
-								} else if matches!(
-									project.status,
-									ProjectStatus::EvaluationFailed | ProjectStatus::FundingFailed
-								) {
-									project.status = ProjectStatus::FailureSettlementOngoing;
-									Some(SettlementMachine::Failure(SettlementType::<Failure>::Initialized(
-										PhantomData,
-									)))
-								} else {
-									#[cfg(debug_assertions)]
-									panic!("Settlement machine tried to start, but project status has invalid state");
-									#[cfg(not(debug_assertions))]
-									{
-										log::error!(
-											"Settlement machine not ready, but project status has invalid state"
-										);
-									}
-									project.status = ProjectStatus::Panicked;
-									None
-								}
-							} else {
-								#[cfg(debug_assertions)]
-								panic!("Settlement machine tried to start, but project does not exist");
-								#[cfg(not(debug_assertions))]
-								{
-									log::error!("Settlement machine not ready, but project does not exist");
-								}
-								None
-							}
-						});
-
-						if settlement_machine.is_some() {
-							current_project_id = Some(project_id);
-							current_settlement_machine = settlement_machine;
-							break
-						} else {
-							continue
-						}
-					},
-
-					(project_id, settlement_machine) => {
-						current_project_id = Some(project_id);
-						current_settlement_machine = Some(settlement_machine)
-					},
-				}
-			}
-
-			let (mut current_settlement_machine, current_project_id) =
-				if let (Some(machine), Some(p_id)) = (current_settlement_machine, current_project_id) {
-					(machine, p_id)
 				} else {
 					return weight_consumed
 				};
 
 			let mut settlement_queue = settlement_queue.collect_vec();
 
-			let settlement_participations = CurrentSettlementParticipations::<T>::get();
 			let mut target = SettlementTarget::<T>::Empty;
-			match current_settlement_machine.execute_with_given_weight(
+			match settlement_machine.execute_with_given_weight(
 				max_weight.saturating_sub(weight_consumed),
-				current_project_id,
+				project_id,
 				&mut target,
 			) {
 				Ok(weight) => {
-					weight_consumed = weight;
-					if <SettlementMachine as SettlementOperations<T>>::has_remaining_operations(
-						&current_settlement_machine,
-					) {
-						settlement_queue.push((current_project_id, current_settlement_machine));
+					weight_consumed = weight_consumed.saturating_add(weight);
+					if <SettlementMachine as SettlementOperations<T>>::has_remaining_operations(&settlement_machine) {
+						settlement_queue.push((project_id, settlement_machine));
 					}
 				},
 				Err((weight, err)) => {
-					weight_consumed = weight;
+					weight_consumed = weight_consumed.saturating_add(weight);
 					// An error shouldn't normally occur. So if one does happen, we won't add the settlement machine back to the queue.
 					#[cfg(debug_assertions)]
-					panic!("Error in settlement machine: {:?}", err);
+					panic!("Error in settlement machine operation `execute_with_given_weight`: {:?}", err);
 					#[cfg(not(debug_assertions))]
-					Self::deposit_event(Event::SettlementError { project_id: current_project_id, error: err });
+					Self::deposit_event(Event::SettlementError { project_id, error: err });
 				},
 			}
 

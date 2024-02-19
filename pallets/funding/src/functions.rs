@@ -2992,6 +2992,19 @@ impl<T: Config> Pallet<T> {
 			bid.plmc_bond,
 			Precision::Exact,
 		)?;
+
+		// Refund ct account deposit if it's still locked
+		let deposit_held =
+			T::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), &bid.bidder);
+		if deposit_held > Zero::zero() {
+			T::NativeCurrency::release(
+				&HoldReason::FutureDeposit(project_id).into(),
+				&bid.bidder,
+				deposit_held,
+				Precision::BestEffort,
+			)?;
+		}
+
 		bid.funding_asset_amount_locked = Zero::zero();
 		bid.plmc_bond = Zero::zero();
 
@@ -3232,7 +3245,7 @@ impl<T: Config> Pallet<T> {
 				evaluations,
 				None,
 			),
-			bids: WeakBoundedVec::<BidInfoOf<T>, T::MaxBidsPerProject>::force_from(bids, None),
+			successful_bids: WeakBoundedVec::<BidInfoOf<T>, T::MaxBidsPerProject>::force_from(bids, None),
 			contributions: WeakBoundedVec::<ContributionInfoOf<T>, ConstU32<20_000>>::force_from(contributions, None),
 		};
 
