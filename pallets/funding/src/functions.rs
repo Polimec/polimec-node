@@ -3232,7 +3232,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn update_current_settlement_participations(project_id: ProjectId) -> Weight {
 		let evaluations = Evaluations::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
-		let bids = Bids::<T>::iter_prefix_values((project_id,))
+		let successful_bids = Bids::<T>::iter_prefix_values((project_id,))
 			.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
 			.collect::<Vec<_>>();
 		let contributions = Contributions::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
@@ -3242,7 +3242,7 @@ impl<T: Config> Pallet<T> {
 				evaluations,
 				None,
 			),
-			successful_bids: WeakBoundedVec::<BidInfoOf<T>, T::MaxBidsPerProject>::force_from(bids, None),
+			successful_bids: WeakBoundedVec::<BidInfoOf<T>, T::MaxBidsPerProject>::force_from(successful_bids, None),
 			contributions: WeakBoundedVec::<ContributionInfoOf<T>, ConstU32<20_000>>::force_from(contributions, None),
 		};
 
