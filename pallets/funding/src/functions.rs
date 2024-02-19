@@ -1565,8 +1565,8 @@ impl<T: Config> Pallet<T> {
 		let mut ct_account_created = false;
 
 		// * Validity checks *
-		ensure!(matches!(project_details.status, ProjectStatus::SuccessSettlementOngoing), Error::<T>::NotAllowed);
 		ensure!(!bid.ct_minted, Error::<T>::NotAllowed);
+		ensure!(matches!(project_details.status, ProjectStatus::SuccessSettlementOngoing), Error::<T>::NotAllowed);
 		ensure!(matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)), Error::<T>::NotAllowed);
 		ensure!(T::ContributionTokenCurrency::asset_exists(project_id), Error::<T>::CannotClaimYet);
 

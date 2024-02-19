@@ -5834,7 +5834,13 @@ mod misc_features {
 
 	#[test]
 	fn sandbox() {
-		assert!(true);
+		use parity_scale_codec::MaxEncodedLen;
+		type X = EvaluationInfoOf<TestRuntime>;
+		type Y = BidInfoOf<TestRuntime>;
+		type Z = ContributionInfoOf<TestRuntime>;
+		let max_size_bytes = X::max_encoded_len() * 1024 + Y::max_encoded_len() * 1024 + Z::max_encoded_len() * 20_000;
+		dbg!(max_size_bytes);
+		// 5_684_224
 	}
 }
 

@@ -146,6 +146,8 @@ pub mod migration_types {
 		pub origin: MigrationOrigin,
 		pub info: MigrationInfo,
 	}
+
+	//NMAP(project_id, account_id, participation_type, participation_id) -> VestingInfo
 	impl Migration {
 		pub fn new(origin: MigrationOrigin, info: MigrationInfo) -> Self {
 			Self { origin, info }
