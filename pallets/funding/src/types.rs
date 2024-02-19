@@ -878,7 +878,6 @@ pub struct SampleClaims<AccountId> {
 	#[serde(rename = "iss")]
 	pub issuer: scale_info::prelude::string::String,
 	pub investor_type: InvestorType,
-	pub exp: u64,
 }
 
 parameter_types! {
@@ -903,17 +902,18 @@ where
 			if let Some(who) = origin.clone().into_signer() {
 					
 				if let Ok(now) = Now::<Timestamp>::get().try_into() {
-					if claims.exp < now {
-						return Err(origin);
-					}
-
-					if claims.investor_type == Type::get()
-						&& claims.subject == who
-					{
-						return Ok(who);
+					if let Some(date_time) = claims.expiration {
+						if (date_time.timestamp() as u64) < now {
+							return Err(origin);
+						}
+	
+						if claims.custom.investor_type == Type::get()
+							&& claims.custom.subject == who
+						{
+							return Ok(who);
+						}
 					}
 				}
-				
 			}
 		} 
 		Err(origin)
@@ -932,23 +932,23 @@ pub trait EnsureOriginWithCredentials<OuterOrigin> where
 		Self::try_origin(origin, token, verifying_key).map_err(|_| BadOrigin)
 	}
 
-	fn extract_claims<'a>(token: &'a jwt_compact::Token<Self::Claims>) -> Result<&'a Self::Claims, ()> {
-		Ok(&token.claims().custom)
+	fn extract_claims<'a>(token: &'a jwt_compact::Token<Self::Claims>) -> Result<&'a StandardClaims<Self::Claims>, ()> {
+		Ok(&token.claims())
 	}
 
 	fn verify_token(
 		token: jwt_compact::prelude::UntrustedToken,
 		verifying_key: [u8; 32],
-	) -> Result<Self::Claims, ()> {
+	) -> Result<StandardClaims<Self::Claims>, ()> {
 
 		let signing_key = <<Ed25519 as Algorithm>::VerifyingKey>::from_slice(&verifying_key).unwrap();
-		// Validate if the untrustworthy token is signed by the Verifier
-		// TODO: Handle the unwrap
 		
-		let token = &jwt_compact::alg::Ed25519.validator::<Self::Claims>(&signing_key).validate(&token).unwrap();
+		let token = &
+		jwt_compact::alg::Ed25519.validator::<Self::Claims>(&signing_key).validate(&token).unwrap();
+		
 		// We now know that the token is signed by the Verifier
 		// So we can extract the claims from the token
-		let claims = Self::extract_claims(&token)?;
+		let claims = Self::extract_claims(token)?;
 
 		// At the moment we just return all the claims
 		Ok(claims.clone())
