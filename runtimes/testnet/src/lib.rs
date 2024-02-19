@@ -37,6 +37,7 @@ pub use parachains_common::{
 	NORMAL_DISPATCH_RATIO, SLOT_DURATION,
 };
 use parity_scale_codec::Encode;
+use polimec_common::credentials::{InvestorType, EnsureInvestor};
 
 // Polkadot imports
 use polkadot_runtime_common::{BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate};
@@ -72,7 +73,7 @@ pub use crate::xcm_config::*;
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 // Polimec Shared Imports
-use pallet_funding::{DaysToBlocks, InvestorType, EnsureInvestor};
+use pallet_funding::DaysToBlocks;
 pub use pallet_parachain_staking;
 pub use shared_configuration::*;
 

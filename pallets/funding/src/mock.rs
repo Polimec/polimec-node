@@ -37,6 +37,7 @@ use sp_runtime::{
 };
 use sp_std::collections::btree_map::BTreeMap;
 use system::EnsureSigned;
+use polimec_common::credentials::{EnsureInvestor, Retail};
 
 type Block = frame_system::mocking::MockBlock<TestRuntime>;
 
@@ -325,9 +326,6 @@ parameter_types! {
 		32, 118, 30, 171, 58, 212, 197, 27, 146, 122, 255, 243, 34, 245, 90, 244, 221, 37, 253,
 		195, 18, 202, 111, 55, 39, 48, 123, 17, 101, 78, 215, 94,
 	];
-
-	pub const Retail: InvestorType = InvestorType::Retail;
-
 }
 
 pub struct DummyConverter;

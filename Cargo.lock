@@ -3956,7 +3956,6 @@ dependencies = [
  "frame-support",
  "frame-system",
  "itertools 0.11.0",
- "jwt-compact",
  "macros",
  "orml-oracle",
  "pallet-assets",
@@ -3981,6 +3980,7 @@ dependencies = [
  "penpal-runtime",
  "polimec-base-runtime",
  "polimec-common",
+ "polimec-common-test-utils",
  "polimec-parachain-runtime",
  "polimec-receiver",
  "polkadot-core-primitives",
@@ -3990,7 +3990,6 @@ dependencies = [
  "polkadot-runtime-constants",
  "polkadot-runtime-parachains",
  "polkadot-service",
- "reqwest",
  "sc-consensus-grandpa",
  "scale-info",
  "serde",
@@ -6273,7 +6272,6 @@ dependencies = [
  "frame-system",
  "futures",
  "itertools 0.11.0",
- "jwt-compact",
  "log",
  "macros",
  "pallet-assets",
@@ -6285,12 +6283,12 @@ dependencies = [
  "parachains-common",
  "parity-scale-codec",
  "polimec-common",
+ "polimec-common-test-utils",
  "polimec-receiver",
  "polimec-xcm-executor",
  "polkadot-parachain",
  "polkadot-runtime",
  "polkadot-runtime-parachains",
- "reqwest",
  "scale-info",
  "serde",
  "sp-arithmetic",
@@ -7640,12 +7638,23 @@ dependencies = [
  "frame-support",
  "frame-system",
  "itertools 0.11.0",
+ "jwt-compact",
+ "pallet-timestamp",
  "parity-scale-codec",
+ "reqwest",
  "scale-info",
  "serde",
- "sp-core",
- "sp-io",
  "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "polimec-common-test-utils"
+version = "0.1.0"
+dependencies = [
+ "jwt-compact",
+ "polimec-common",
+ "reqwest",
  "sp-std",
 ]
 

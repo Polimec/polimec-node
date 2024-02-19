@@ -17,13 +17,12 @@ substrate-wasm-builder.workspace = true
 serde = { workspace = true  }
 parity-scale-codec = { workspace = true, features = ["derive"] }
 scale-info = { workspace = true, features = ["derive"] }
-reqwest = { version = "0.11.4", features = ["blocking"] }
-jwt-compact = { workspace = true, features = ["ed25519-dalek"] }
 
 # Local
 polimec-receiver.workspace = true
 macros.workspace = true
 polimec-common.workspace = true
+polimec-common-test-utils.workspace = true
 sp-arithmetic.workspace = true
 frame-system.workspace = true
 frame-support.workspace = true
@@ -113,6 +112,7 @@ std = [
 	"parity-scale-codec/std",
 	"penpal-runtime/std",
 	"polimec-common/std",
+	"polimec-common-test-utils/std",
 	"polimec-parachain-runtime/std",
 	"polimec-receiver/std",
 	"polkadot-core-primitives/std",

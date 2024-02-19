@@ -17,7 +17,7 @@
 use crate::*;
 use pallet_funding::{
 	assert_close_enough, traits::VestingDurationCalculation, AcceptedFundingAsset, BidStatus, EvaluatorsOutcome,
-	MigrationStatus, Multiplier, MultiplierOf, ProjectId, RewardOrSlash, InvestorType,
+	MigrationStatus, Multiplier, MultiplierOf, ProjectId, RewardOrSlash,
 };
 use polimec_common::migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
 use polimec_parachain_runtime::PolimecFunding;
@@ -569,28 +569,6 @@ fn disallow_duplicated_migrations_on_receiver_pallet() {
 	});
 
 	migrations_are_vested(grouped_migrations.clone());
-}
-
-/// Fetches a JWT from a dummy Polimec JWT producer that will return a JWT with the specified investor type
-fn get_jwt(account_id: PolimecAccountId, investor_type: InvestorType) -> jwt_compact::UntrustedToken {
-	println!("{}", format!("https://jws-producer.polimec.workers.dev/mock/{}/{}", account_id, investor_type.as_str()));
-	let jwt = reqwest::blocking::get(format!("https://jws-producer.polimec.workers.dev/mock/{}/{}", account_id, investor_type.as_str()))
-		.expect("Failed to perform the HTTP GET")
-		.text()
-		.expect("Failed to get the response body (jwt) from the specified endpoint");
-	dbg!(&jwt);
-	let res = jwt_compact::UntrustedToken::new(&jwt).expect("Failed to parse the JWT");
-	println!("{:?}", res.clone());
-	res
-}
-
-
-#[test]
-fn jwt_verify_retail() {
-	let jwt = get_jwt(PolimecAccountId::from(BUYER_1), InvestorType::Retail);
-	Polimec::execute_with(|| {
-		assert_ok!(PolimecFunding::verify(PolimecOrigin::signed(BUYER_1.into()), jwt));
-	});
 }
 
 #[ignore]

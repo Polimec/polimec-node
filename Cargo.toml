@@ -7,7 +7,7 @@ members = [
     "integration-tests/penpal",
     "macros",
     "macros/tests",
-    "polimec-common",
+    "polimec-common/*",
 ]
 default-members = ["nodes/*", "pallets/*"]
 resolver = "2"
@@ -68,7 +68,8 @@ jwt-compact = { git = "https://github.com/lrazovic/jwt-compact", default-feature
 
 # Internal support (with default disabled)
 shared-configuration = { path = "runtimes/shared-configuration", default-features = false }
-polimec-common = { path = "polimec-common", default-features = false }
+polimec-common = { path = "polimec-common/common", default-features = false }
+polimec-common-test-utils = { path = "polimec-common/test-utils", default-features = false }
 
 # External support (with default disabled)
 substrate-fixed = { git = "https://github.com/encointer/substrate-fixed", default-features = false }

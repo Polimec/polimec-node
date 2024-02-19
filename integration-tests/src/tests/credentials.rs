@@ -14,13 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-mod basic_comms;
-mod build_spec;
-mod credentials;
-mod ct_migration;
-mod defaults;
-mod e2e;
-mod governance;
-mod oracle;
-mod reserve_backed_transfers;
-mod vest;
+use frame_support::assert_ok;
+use polimec_common::credentials::InvestorType;
+use polimec_common_test_utils::get_test_jwt;
+use polimec_parachain_runtime::PolimecFunding;
+use tests::defaults::*;
+use crate::*;
+
+#[test]
+fn jwt_verify_retail() {
+	let jwt = get_test_jwt(PolimecAccountId::from(BUYER_1), InvestorType::Retail);
+	Polimec::execute_with(|| {
+		assert_ok!(PolimecFunding::verify(PolimecOrigin::signed(BUYER_1.into()), jwt));
+	});
+}

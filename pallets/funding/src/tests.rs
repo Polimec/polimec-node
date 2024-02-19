@@ -30,9 +30,11 @@ use itertools::Itertools;
 use parachains_common::DAYS;
 use polimec_common::ReleaseSchedule;
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
-use sp_runtime::BuildStorage;
+use sp_runtime::{BuildStorage, DispatchError};
 use sp_std::{cell::RefCell, marker::PhantomData};
 use std::{cmp::min, iter::zip};
+use polimec_common::credentials::InvestorType;
+use polimec_common_test_utils::get_test_jwt;
 
 use super::*;
 use crate::{
@@ -41,7 +43,6 @@ use crate::{
 	traits::{ProvideAssetPrice, VestingDurationCalculation},
 	CurrencyMetadata, Error, ParticipantsSize, ProjectMetadata, TicketSize,
 	UpdateType::{CommunityFundingStart, RemainderFundingStart},
-	types::{InvestorType},
 };
 
 type MockInstantiator = Instantiator<TestRuntime, AllPalletsWithoutSystem, RuntimeEvent>;
@@ -81,18 +82,6 @@ const USDT_UNIT: u128 = 10_000_000_000_u128;
 
 pub const US_DOLLAR: u128 = 1_0_000_000_000;
 
-
-
-/// Fetches a JWT from a dummy Polimec JWT producer that will return a JWT with the specified investor type
-fn get_jwt(account_id: AccountId, investor_type: InvestorType) -> jwt_compact::UntrustedToken {
-	let jwt = reqwest::blocking::get(format!("https://jws-producer.polimec.workers.dev/mock/{}/{}", account_id, investor_type.as_str()))
-		.expect("Failed to perform the HTTP GET")
-		.text()
-		.expect("Failed to get the response body (jwt) from the specified endpoint");
-	dbg!(&jwt);
-	let res = jwt_compact::UntrustedToken::new(&jwt).expect("Failed to parse the JWT");
-	res
-}
 
 pub mod defaults {
 	use super::*;
@@ -286,7 +275,7 @@ mod creation_round_success {
 	#[test]
 	fn jwt_check_retail() {
 		new_test_ext().execute_with(|| {
-			let jwt = get_jwt(ISSUER, InvestorType::Retail);
+			let jwt = get_test_jwt(ISSUER, InvestorType::Retail);
 			assert_ok!(PolimecFunding::verify(RuntimeOrigin::signed(ISSUER), jwt));
 		});
 	}
@@ -294,8 +283,8 @@ mod creation_round_success {
 	#[test]
 	fn jwt_reject_institutional() {
 		new_test_ext().execute_with(|| {
-			let jwt = get_jwt(ISSUER, InvestorType::Institutional);
-			assert_err!(PolimecFunding::verify(RuntimeOrigin::signed(ISSUER), jwt), Error::<TestRuntime>::NotAllowed);
+			let jwt = get_test_jwt(ISSUER, InvestorType::Institutional);
+			assert_err!(PolimecFunding::verify(RuntimeOrigin::signed(ISSUER), jwt), DispatchError::BadOrigin);
 		});
 	}
 

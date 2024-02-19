@@ -14,13 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-mod basic_comms;
-mod build_spec;
-mod credentials;
-mod ct_migration;
-mod defaults;
-mod e2e;
-mod governance;
-mod oracle;
-mod reserve_backed_transfers;
-mod vest;
+use polimec_common::credentials::{UntrustedToken, InvestorType};
+
+/// Fetches a JWT from a dummy Polimec JWT producer that will return a JWT with the specified investor type
+pub fn get_test_jwt<AccountId: sp_std::fmt::Display>(account_id: AccountId, investor_type: InvestorType) -> UntrustedToken {
+    let jwt = reqwest::blocking::get(format!("https://jws-producer.polimec.workers.dev/mock/{}/{}", account_id, investor_type.as_str()))
+        .expect("Failed to perform the HTTP GET")
+        .text()
+        .expect("Failed to get the response body (jwt) from the specified endpoint");
+    let res = UntrustedToken::new(&jwt).expect("Failed to parse the JWT");
+    res
+}

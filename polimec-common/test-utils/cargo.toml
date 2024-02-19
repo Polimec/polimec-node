@@ -1,0 +1,26 @@
+[package]
+name = 'polimec-common-test-utils'
+description = 'Testing helpers for the polimec-common crate'
+authors = ['Polimec Foundation <info@polimec.org>']
+documentation = "https://wiki.polimec.org/"
+edition = "2021"
+homepage = "https://www.polimec.org/"
+license-file = "LICENSE"
+readme = "README.md"
+repository = "https://github.com/Polimec/polimec-node"
+version = "0.1.0"
+rust-version = "1.69.0"
+
+[dependencies]
+jwt-compact = { workspace = true, features = ["ed25519-dalek"] }
+reqwest = { version = "0.11.4", features = ["blocking"] }
+polimec-common.workspace = true
+sp-std.workspace = true
+
+[features]
+default = [ "std" ]
+std = [
+	"jwt-compact/std",
+	"polimec-common/std",
+	"sp-std/std",
+]

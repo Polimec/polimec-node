@@ -180,7 +180,10 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 pub use pallet::*;
-use polimec_common::migration_types::*;
+use polimec_common::{
+	migration_types::*, 
+	credentials::{EnsureOriginWithCredentials, UntrustedToken}
+};
 use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
@@ -993,7 +996,7 @@ pub mod pallet {
 		/// This extrinsic is not supposed to be used in production
 		/// TODO: Other 'protected' extrinsics will have to be updated to receive an extra parameter `jwt: jwt_compact::prelude::UntrustedToken`, as in this example.
 
-		pub fn verify(origin: OriginFor<T>, jwt: jwt_compact::prelude::UntrustedToken) -> DispatchResult {
+		pub fn verify(origin: OriginFor<T>, jwt: UntrustedToken) -> DispatchResult {
 			let _caller = T::RetailOrigin::ensure_origin(origin, jwt, T::VerifierPublicKey::get())?;
 
 			Ok(())
