@@ -43,7 +43,8 @@ Polimec is a blockchain platform built on Substrate, designed for robustness and
 ### Running the Network
 
 1. **Launch the network with Zombienet**:
-   `zombienet spawn scripts/local_parachain.toml -p native`
+   `zombienet spawn scripts/zombienet/native/local-testnet.toml`
+2. A Polimec node is now reachable at https://polkadot.js.org/apps/?rpc=ws://127.0.0.1:8080#/explorer 
 
 ## Additional Resources
 

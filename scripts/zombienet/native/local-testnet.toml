@@ -1,0 +1,32 @@
+[settings]
+timeout = 1000
+provider = "native"
+
+[relaychain]
+default_command = "polkadot"
+chain = "rococo-local"
+
+	[[relaychain.nodes]]
+	name = "eve"
+
+	[[relaychain.nodes]]
+	name = "ferdie"
+
+	[[relaychain.nodes]]
+	name = "charlie"
+
+	[[relaychain.nodes]]
+	name = "dave"
+
+[[parachains]]
+id = 3344
+chain = "polimec-rococo-local"
+
+	[[parachains.collators]]
+	name = "alice"
+	command = "polimec"
+    ws_port = 8080
+
+	[[parachains.collators]]
+	name = "bob"
+	command = "polimec"
