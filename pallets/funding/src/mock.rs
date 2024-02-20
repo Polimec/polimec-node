@@ -37,7 +37,7 @@ use sp_runtime::{
 };
 use sp_std::collections::btree_map::BTreeMap;
 use system::EnsureSigned;
-use polimec_common::credentials::{EnsureInvestor, Retail};
+use polimec_common::credentials::{EnsureInvestor, Institutional, Professional, Retail};
 
 type Block = frame_system::mocking::MockBlock<TestRuntime>;
 
@@ -395,6 +395,8 @@ impl Config for TestRuntime {
 	type Vesting = Vesting;
 	type WeightInfo = weights::SubstrateWeight<TestRuntime>;
 	type RetailOrigin = EnsureInvestor<TestRuntime, (), Retail, TestRuntime>;
+	type ProfessionalOrigin = EnsureInvestor<TestRuntime, (), Professional, TestRuntime>;
+	type InstitutionalOrigin = EnsureInvestor<TestRuntime, (), Institutional, TestRuntime>;
 }
 
 // Configure a mock runtime to test the pallet.
@@ -441,8 +443,21 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 
 	let mut ext = sp_io::TestExternalities::new(t);
 	// In order to emit events the block number must be more than 0
-	ext.execute_with(|| System::set_block_number(1));
+	ext.execute_with(|| {
+		System::set_block_number(1);
+		Timestamp::set_timestamp(get_sys_time_as_moment());
+	});
 	ext
+}
+
+fn get_sys_time_as_moment() -> <TestRuntime as pallet_timestamp::Config>::Moment {
+	use std::time::SystemTime;
+	if let Ok(n) = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
+		if let Ok(timestamp) = <TestRuntime as pallet_timestamp::Config>::Moment::try_from(n.as_secs()) {
+			return timestamp;
+		}
+	}
+	panic!("Could not convert timestamp");
 }
 
 pub fn hashed(data: impl AsRef<[u8]>) -> H256 {

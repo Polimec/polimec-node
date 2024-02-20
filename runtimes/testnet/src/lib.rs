@@ -37,7 +37,7 @@ pub use parachains_common::{
 	NORMAL_DISPATCH_RATIO, SLOT_DURATION,
 };
 use parity_scale_codec::Encode;
-use polimec_common::credentials::{InvestorType, EnsureInvestor};
+use polimec_common::credentials::{InvestorType, EnsureInvestor, Retail, Institutional, Professional};
 
 // Polkadot imports
 use polkadot_runtime_common::{BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate};
@@ -627,7 +627,6 @@ parameter_types! {
 		32, 118, 30, 171, 58, 212, 197, 27, 146, 122, 255, 243, 34, 245, 90, 244, 221, 37, 253,
 		195, 18, 202, 111, 55, 39, 48, 123, 17, 101, 78, 215, 94,
 	];
-	pub const Retail: InvestorType = InvestorType::Retail;
 }
 pub struct ConvertSelf;
 impl Convert<AccountId, [u8; 32]> for ConvertSelf {
@@ -693,6 +692,8 @@ impl pallet_funding::Config for Runtime {
 	type Vesting = LinearRelease;
 	type WeightInfo = pallet_funding::weights::SubstrateWeight<Runtime>;
 	type RetailOrigin = EnsureInvestor<Runtime, (), Retail, Runtime>;
+	type ProfessionalOrigin = EnsureInvestor<TestRuntime, (), Professional, TestRuntime>;
+	type InstitutionalOrigin = EnsureInvestor<TestRuntime, (), Institutional, TestRuntime>;
 }
 
 parameter_types! {

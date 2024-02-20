@@ -353,8 +353,9 @@ mod creation_round_failure {
 
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		inst.mint_plmc_to(default_plmc_balances());
+		let jwt = get_test_jwt(ISSUER, InvestorType::Institutional);
 		let project_err =
-			inst.execute(|| Pallet::<TestRuntime>::create(RuntimeOrigin::signed(ISSUER), wrong_project).unwrap_err());
+			inst.execute(|| Pallet::<TestRuntime>::create(RuntimeOrigin::signed(ISSUER), jwt, wrong_project).unwrap_err());
 		assert_eq!(project_err, Error::<TestRuntime>::PriceTooLow.into());
 	}
 
@@ -370,9 +371,9 @@ mod creation_round_failure {
 
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		inst.mint_plmc_to(default_plmc_balances());
-
+		let jwt = get_test_jwt(ISSUER, InvestorType::Institutional);
 		let project_err =
-			inst.execute(|| Pallet::<TestRuntime>::create(RuntimeOrigin::signed(ISSUER), wrong_project).unwrap_err());
+			inst.execute(|| Pallet::<TestRuntime>::create(RuntimeOrigin::signed(ISSUER), jwt, wrong_project).unwrap_err());
 		assert_eq!(project_err, Error::<TestRuntime>::ParticipantsSizeError.into());
 	}
 
@@ -388,9 +389,9 @@ mod creation_round_failure {
 
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		inst.mint_plmc_to(default_plmc_balances());
-
+		let jwt = get_test_jwt(ISSUER, InvestorType::Institutional);
 		let project_err =
-			inst.execute(|| Pallet::<TestRuntime>::create(RuntimeOrigin::signed(ISSUER), wrong_project).unwrap_err());
+			inst.execute(|| Pallet::<TestRuntime>::create(RuntimeOrigin::signed(ISSUER), jwt, wrong_project).unwrap_err());
 		assert_eq!(project_err, Error::<TestRuntime>::TicketSizeError.into());
 	}
 
@@ -401,9 +402,9 @@ mod creation_round_failure {
 		let ed = MockInstantiator::get_ed();
 
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(ISSUER, ed)]);
-
+		let jwt = get_test_jwt(ISSUER, InvestorType::Institutional);
 		let project_err = inst
-			.execute(|| Pallet::<TestRuntime>::create(RuntimeOrigin::signed(ISSUER), project_metadata).unwrap_err());
+			.execute(|| Pallet::<TestRuntime>::create(RuntimeOrigin::signed(ISSUER), jwt, project_metadata).unwrap_err());
 		assert_eq!(project_err, Error::<TestRuntime>::NotEnoughFundsForEscrowCreation.into());
 	}
 }
