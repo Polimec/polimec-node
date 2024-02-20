@@ -18,12 +18,10 @@ jobs:
     - uses: actions/checkout@v4
     # - name: Install protobuf
       # run: sudo apt-get install protobuf-compiler
-    - name: Install Rustup
-      run: rustup
-    # - name: Install nightly toolchain
-      # run: sudo rustup toolchain install nightly-2023-04-01
-    # - name: fmt check
-      # run: cargo +nightly-2023-12-01 fmt --all --check
+    - name: Install nightly toolchain
+      run: rustup toolchain install nightly-2023-04-01
+    - name: fmt check
+      run: cargo +nightly-2023-12-01 fmt --all --check
 
   # Release-Build:
   #   runs-on: ubuntu-latest
