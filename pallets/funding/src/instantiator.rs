@@ -460,6 +460,10 @@ impl<
 		T::ExistentialDeposit::get()
 	}
 
+	pub fn get_ct_account_deposit() -> BalanceOf<T> {
+		<T as Config>::ContributionTokenCurrency::deposit_required(One::one())
+	}
+
 	pub fn calculate_evaluation_plmc_spent(evaluations: Vec<UserToUSDBalance<T>>) -> Vec<UserToPLMCBalance<T>> {
 		let plmc_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap();
 		let mut output = Vec::new();
@@ -1379,8 +1383,8 @@ impl<
 #[cfg(feature = "std")]
 pub mod async_features {
 	use super::*;
+	use assert_matches2::assert_matches;
 	use futures::FutureExt;
-    use assert_matches2::assert_matches;
 	use std::{
 		collections::HashMap,
 		sync::{

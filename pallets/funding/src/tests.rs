@@ -1111,7 +1111,7 @@ mod auction_round_success {
 	}
 
 	#[test]
-	pub fn cannot_mint_ct_twice_manually() {
+	fn cannot_mint_ct_twice_manually() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -1161,7 +1161,7 @@ mod auction_round_success {
 	}
 
 	#[test]
-	pub fn cannot_mint_ct_manually_after_automatic_mint() {
+	fn cannot_mint_ct_manually_after_automatic_mint() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -1219,7 +1219,7 @@ mod auction_round_success {
 	}
 
 	#[test]
-	pub fn plmc_vesting_schedule_starts_automatically() {
+	fn plmc_vesting_schedule_starts_automatically() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -1267,7 +1267,7 @@ mod auction_round_success {
 	}
 
 	#[test]
-	pub fn plmc_vesting_schedule_starts_manually() {
+	fn plmc_vesting_schedule_starts_manually() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -1317,7 +1317,7 @@ mod auction_round_success {
 	}
 
 	#[test]
-	pub fn plmc_vesting_full_amount() {
+	fn plmc_vesting_full_amount() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -1358,7 +1358,7 @@ mod auction_round_success {
 	}
 
 	#[test]
-	pub fn plmc_vesting_partial_amount() {
+	fn plmc_vesting_partial_amount() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -1403,7 +1403,7 @@ mod auction_round_success {
 	}
 
 	#[test]
-	pub fn unsuccessful_bids_dont_get_vest_schedule() {
+	fn unsuccessful_bids_dont_get_vest_schedule() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -1490,7 +1490,7 @@ mod auction_round_success {
 	}
 
 	#[test]
-	pub fn bid_funding_assets_are_released_automatically_on_funding_fail() {
+	fn bid_funding_assets_are_released_automatically_on_funding_fail() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -1571,7 +1571,7 @@ mod auction_round_success {
 	}
 
 	#[test]
-	pub fn bid_funding_assets_are_released_manually_on_funding_fail() {
+	fn bid_funding_assets_are_released_manually_on_funding_fail() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -1667,7 +1667,7 @@ mod auction_round_success {
 	}
 
 	#[test]
-	pub fn bid_plmc_bonded_is_returned_automatically_on_funding_fail() {
+	fn bid_plmc_bonded_is_returned_automatically_on_funding_fail() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -1733,7 +1733,7 @@ mod auction_round_success {
 	}
 
 	#[test]
-	pub fn bid_plmc_bonded_is_returned_manually_on_funding_fail() {
+	fn bid_plmc_bonded_is_returned_manually_on_funding_fail() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -1809,6 +1809,67 @@ mod auction_round_success {
 
 		assert_eq!(delta_bidders_plmc_balances, plmc_locked_for_bids);
 	}
+
+	#[test]
+	fn bidder_gets_refunded_when_wap_above_bid_price() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let issuer = ISSUER;
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
+		let evaluations = default_evaluations();
+		let mut bids = MockInstantiator::generate_bids_from_total_usd(
+			project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size.0).unwrap(),
+			project_metadata.minimum_price,
+			default_weights(),
+			default_bidders(),
+			default_bidder_multipliers(),
+		);
+
+		const OP_BIDDER: AccountId = 42069;
+		let overpriced_bid =
+			BidParams::new(OP_BIDDER, 1000 * ASSET_UNIT, FixedU128::from_float(1.1), 1u8, AcceptedFundingAsset::USDT);
+		bids.push(overpriced_bid.clone());
+
+		let project_id = inst.create_auctioning_project(project_metadata, issuer, evaluations);
+
+		let auctioning_plmc = MockInstantiator::calculate_auction_plmc_spent(&bids, None);
+		let ed_plmc = auctioning_plmc.accounts().existential_deposits();
+		let ct_plmc = auctioning_plmc.accounts().ct_account_deposits();
+		let plmc_to_mint_sum = MockInstantiator::generic_map_operation(vec![auctioning_plmc, ed_plmc, ct_plmc], MergeOperation::Add);
+		inst.mint_plmc_to(plmc_to_mint_sum);
+
+		let funding_asset = MockInstantiator::calculate_auction_funding_asset_spent(&bids, None);
+		inst.mint_foreign_asset_to(funding_asset);
+
+		inst.bid_for_users(project_id, bids.clone()).unwrap();
+
+		let pre_wap_op_bidder_plmc = inst.get_free_plmc_balances_for(vec![OP_BIDDER])[0].plmc_amount;
+		let pre_wap_op_bidder_funding_asset = inst.get_free_foreign_asset_balances_for(
+			AcceptedFundingAsset::USDT.to_assethub_id(),
+			vec![OP_BIDDER],
+		)[0].asset_amount;
+
+		inst.start_community_funding(project_id).unwrap();
+
+		let post_wap_op_bidder_plmc = inst.get_free_plmc_balances_for(vec![OP_BIDDER])[0].plmc_amount;
+		let post_wap_op_bidder_funding_asset = inst.get_free_foreign_asset_balances_for(
+			AcceptedFundingAsset::USDT.to_assethub_id(),
+			vec![OP_BIDDER],
+		)[0].asset_amount;
+
+		assert!(post_wap_op_bidder_plmc > pre_wap_op_bidder_plmc);
+		assert!(post_wap_op_bidder_funding_asset > pre_wap_op_bidder_funding_asset);
+
+		let op_bid_info = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id, OP_BIDDER)).next().unwrap());
+		let plmc_returned = MockInstantiator::calculate_auction_plmc_spent(&vec![overpriced_bid.clone()], None)[0].plmc_amount - op_bid_info.plmc_bond;
+		let funding_returned = MockInstantiator::calculate_auction_funding_asset_spent(&vec![overpriced_bid], None)[0].asset_amount - op_bid_info.funding_asset_amount_locked;
+		let price_dif = op_bid_info.original_ct_usd_price - op_bid_info.final_ct_usd_price;
+
+		assert!(plmc_returned > BalanceOf::<TestRuntime>::zero());
+		assert!(funding_returned > BalanceOf::<TestRuntime>::zero());
+		assert_eq!(post_wap_op_bidder_plmc, plmc_returned + MockInstantiator::get_ed());
+		assert_eq!(post_wap_op_bidder_funding_asset, funding_returned);
+		assert!(price_dif > FixedU128::zero());
+	}
 }
 
 mod auction_round_failure {
@@ -1845,7 +1906,7 @@ mod auction_round_failure {
 	}
 
 	#[test]
-	pub fn cannot_bid_more_than_project_limit_count() {
+	fn cannot_bid_more_than_project_limit_count() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_metadata = default_project(0, ISSUER);
 		let bids = (0u32..<TestRuntime as Config>::MaxBidsPerProject::get())
@@ -2836,7 +2897,7 @@ mod community_round_success {
 	}
 
 	#[test]
-	pub fn cannot_mint_ct_twice_manually() {
+	fn cannot_mint_ct_twice_manually() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -2887,7 +2948,7 @@ mod community_round_success {
 	}
 
 	#[test]
-	pub fn cannot_mint_ct_manually_after_automatic_mint() {
+	fn cannot_mint_ct_manually_after_automatic_mint() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -2946,7 +3007,7 @@ mod community_round_success {
 	}
 
 	#[test]
-	pub fn plmc_vesting_schedule_starts_automatically() {
+	fn plmc_vesting_schedule_starts_automatically() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -2985,7 +3046,7 @@ mod community_round_success {
 	}
 
 	#[test]
-	pub fn plmc_vesting_schedule_starts_manually() {
+	fn plmc_vesting_schedule_starts_manually() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -3039,7 +3100,7 @@ mod community_round_success {
 	}
 
 	#[test]
-	pub fn plmc_vesting_full_amount() {
+	fn plmc_vesting_full_amount() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -3086,7 +3147,7 @@ mod community_round_success {
 	}
 
 	#[test]
-	pub fn plmc_vesting_partial_amount() {
+	fn plmc_vesting_partial_amount() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -3474,7 +3535,7 @@ mod remainder_round_success {
 	}
 
 	#[test]
-	pub fn plmc_vesting_schedule_starts_automatically() {
+	fn plmc_vesting_schedule_starts_automatically() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -3524,7 +3585,7 @@ mod remainder_round_success {
 	}
 
 	#[test]
-	pub fn plmc_vesting_schedule_starts_manually() {
+	fn plmc_vesting_schedule_starts_manually() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -3591,7 +3652,7 @@ mod remainder_round_success {
 	}
 
 	#[test]
-	pub fn plmc_vesting_full_amount() {
+	fn plmc_vesting_full_amount() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -3643,7 +3704,7 @@ mod remainder_round_success {
 	}
 
 	#[test]
-	pub fn plmc_vesting_partial_amount() {
+	fn plmc_vesting_partial_amount() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -4420,7 +4481,7 @@ mod funding_end {
 	}
 
 	#[test]
-	pub fn cannot_mint_ct_twice_manually() {
+	fn cannot_mint_ct_twice_manually() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -4583,7 +4644,7 @@ mod funding_end {
 	}
 
 	#[test]
-	pub fn cannot_mint_ct_manually_after_automatic_mint() {
+	fn cannot_mint_ct_manually_after_automatic_mint() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -4765,7 +4826,7 @@ mod funding_end {
 	}
 
 	#[test]
-	pub fn funding_assets_are_paid_manually_to_issuer() {
+	fn funding_assets_are_paid_manually_to_issuer() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -4875,7 +4936,7 @@ mod funding_end {
 	}
 
 	#[test]
-	pub fn funding_assets_are_paid_automatically_to_issuer() {
+	fn funding_assets_are_paid_automatically_to_issuer() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -4959,7 +5020,7 @@ mod funding_end {
 	}
 
 	#[test]
-	pub fn funding_assets_are_released_automatically_on_funding_fail() {
+	fn funding_assets_are_released_automatically_on_funding_fail() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -5061,7 +5122,7 @@ mod funding_end {
 	}
 
 	#[test]
-	pub fn funding_assets_are_released_manually_on_funding_fail() {
+	fn funding_assets_are_released_manually_on_funding_fail() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -5195,7 +5256,7 @@ mod funding_end {
 	}
 
 	#[test]
-	pub fn plmc_bonded_is_returned_automatically_on_funding_fail() {
+	fn plmc_bonded_is_returned_automatically_on_funding_fail() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
@@ -5316,7 +5377,7 @@ mod funding_end {
 	}
 
 	#[test]
-	pub fn plmc_bonded_is_returned_manually_on_funding_fail() {
+	fn plmc_bonded_is_returned_manually_on_funding_fail() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project = default_project(inst.get_new_nonce(), issuer);
