@@ -30,8 +30,6 @@ jobs:
       uses: mozilla-actions/sccache-action@v0.0.3
     - name: Install protobuf
       run: sudo apt-get install protobuf-compiler
-    - name: Install nightly toolchain
-      run: sudo rustup toolchain install nightly-2023-04-01
     - uses: actions/checkout@v4
     - name: Build
       run: cargo build --release --verbose
@@ -43,8 +41,7 @@ jobs:
       uses: mozilla-actions/sccache-action@v0.0.3
     - name: Install protobuf
       run: sudo apt-get install protobuf-compiler
-    - name: Install nightly toolchain
-      run: sudo rustup toolchain install nightly-2023-04-01
+
     - uses: actions/checkout@v4
     - name: Run Pallet Tests
       run: cargo test --features runtime-benchmarks --verbose
@@ -56,8 +53,6 @@ jobs:
       uses: mozilla-actions/sccache-action@v0.0.3
     - name: Install protobuf
       run: sudo apt-get install protobuf-compiler
-    - name: Install nightly toolchain
-      run: sudo rustup toolchain install nightly-2023-04-01
     - uses: actions/checkout@v4
     - name: STD Build
       run: cargo build --release --features std,instant-node
