@@ -19,7 +19,7 @@ jobs:
     - name: Install protobuf
       run: sudo apt-get install protobuf-compiler
     - name: Install Rustup
-      run: curl --proto -y '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+      run: curl --proto '=https' --tlsv1.2 -sSfy https://sh.rustup.rs | sh
     - name: Install nightly toolchain
       run: sudo rustup toolchain install nightly-2023-04-01
     - name: fmt check
