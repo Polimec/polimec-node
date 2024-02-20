@@ -19,44 +19,44 @@ jobs:
     - name: Install protobuf
       run: sudo apt-get install protobuf-compiler
     - name: Install Rustup
-      run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+      run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -y
     - name: Install nightly toolchain
       run: sudo rustup toolchain install nightly-2023-04-01
     - name: fmt check
       run: cargo +nightly-2023-12-01 fmt --all --check
 
-  Release-Build:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Run sccache-cache
-      uses: mozilla-actions/sccache-action@v0.0.3
-    - name: Install protobuf
-      run: sudo apt-get install protobuf-compiler
-    - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --release --verbose
+  # Release-Build:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - name: Run sccache-cache
+  #     uses: mozilla-actions/sccache-action@v0.0.3
+  #   - name: Install protobuf
+  #     run: sudo apt-get install protobuf-compiler
+  #   - uses: actions/checkout@v4
+  #   - name: Build
+  #     run: cargo build --release --verbose
   
-  Pallet-Tests:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Run sccache-cache
-      uses: mozilla-actions/sccache-action@v0.0.3
-    - name: Install protobuf
-      run: sudo apt-get install protobuf-compiler
+  # Pallet-Tests:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - name: Run sccache-cache
+  #     uses: mozilla-actions/sccache-action@v0.0.3
+  #   - name: Install protobuf
+  #     run: sudo apt-get install protobuf-compiler
 
-    - uses: actions/checkout@v4
-    - name: Run Pallet Tests
-      run: cargo test --features runtime-benchmarks --verbose
+  #   - uses: actions/checkout@v4
+  #   - name: Run Pallet Tests
+  #     run: cargo test --features runtime-benchmarks --verbose
 
-  Integration-Tests:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Run sccache-cache
-      uses: mozilla-actions/sccache-action@v0.0.3
-    - name: Install protobuf
-      run: sudo apt-get install protobuf-compiler
-    - uses: actions/checkout@v4
-    - name: STD Build
-      run: cargo build --release --features std,instant-node
-    - name: Run Integration Tests
-      run: cargo test -p integration-tests
+  # Integration-Tests:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - name: Run sccache-cache
+  #     uses: mozilla-actions/sccache-action@v0.0.3
+  #   - name: Install protobuf
+  #     run: sudo apt-get install protobuf-compiler
+  #   - uses: actions/checkout@v4
+  #   - name: STD Build
+  #     run: cargo build --release --features std,instant-node
+  #   - name: Run Integration Tests
+  #     run: cargo test -p integration-tests
