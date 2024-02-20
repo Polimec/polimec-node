@@ -15,45 +15,44 @@ jobs:
   Fmt:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Install nightly toolchain
-      run: rustup toolchain install nightly-2023-12-01-x86_64-unknown-linux-gnu && rustup component add rustfmt --toolchain nightly-2023-12-01-x86_64-unknown-linux-gnu
-    - name: fmt check
-      run: cargo +nightly-2023-12-01 fmt --all --check
+      - uses: actions/checkout@v4
+      - name: Install nightly toolchain
+        run: rustup toolchain install nightly-2023-12-01-x86_64-unknown-linux-gnu && rustup component add rustfmt --toolchain nightly-2023-12-01-x86_64-unknown-linux-gnu
+      - name: fmt check
+        run: cargo +nightly-2023-12-01 fmt --all --check
 
+  Release-Build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.3
+      - name: Install protobuf
+        run: sudo apt-get install protobuf-compiler
+      - uses: actions/checkout@v4
+      - name: Build
+        run: cargo build --release --verbose
 
-  # Release-Build:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #   - name: Run sccache-cache
-  #     uses: mozilla-actions/sccache-action@v0.0.3
-  #   - name: Install protobuf
-  #     run: sudo apt-get install protobuf-compiler
-  #   - uses: actions/checkout@v4
-  #   - name: Build
-  #     run: cargo build --release --verbose
-  
-  # Pallet-Tests:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #   - name: Run sccache-cache
-  #     uses: mozilla-actions/sccache-action@v0.0.3
-  #   - name: Install protobuf
-  #     run: sudo apt-get install protobuf-compiler
+  Pallet-Tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.3
+      - name: Install protobuf
+        run: sudo apt-get install protobuf-compiler
 
-  #   - uses: actions/checkout@v4
-  #   - name: Run Pallet Tests
-  #     run: cargo test --features runtime-benchmarks --verbose
+      - uses: actions/checkout@v4
+      - name: Run Pallet Tests
+        run: cargo test --features runtime-benchmarks --verbose
 
-  # Integration-Tests:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #   - name: Run sccache-cache
-  #     uses: mozilla-actions/sccache-action@v0.0.3
-  #   - name: Install protobuf
-  #     run: sudo apt-get install protobuf-compiler
-  #   - uses: actions/checkout@v4
-  #   - name: STD Build
-  #     run: cargo build --release --features std,instant-node
-  #   - name: Run Integration Tests
-  #     run: cargo test -p integration-tests
+  Integration-Tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.3
+      - name: Install protobuf
+        run: sudo apt-get install protobuf-compiler
+      - uses: actions/checkout@v4
+      - name: STD Build
+        run: cargo build --release --features std,instant-mode
+      - name: Run Integration Tests
+        run: cargo test -p integration-tests
