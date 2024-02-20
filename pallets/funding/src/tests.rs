@@ -2007,17 +2007,13 @@ mod auction_round_failure {
 		let project_metadata = inst.get_project_metadata(project_id);
 		let max_cts_for_bids = project_metadata.total_allocation_size.0;
 
-		let glutton_bid_1 =
-			BidParams::new(BIDDER_1, max_cts_for_bids - 5_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
+		let glutton_bid =
+			BidParams::new(BIDDER_1, max_cts_for_bids, 1u8, AcceptedFundingAsset::USDT);
 		let rejected_bid = BidParams::new(BIDDER_2, 5_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
-		let glutton_bid_2 = BidParams::new(BIDDER_1, 5_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
-		let bids = inst.simulate_bids_with_bucket(
-			vec![glutton_bid_1.clone(), rejected_bid.clone(), glutton_bid_2.clone()],
-			project_id,
-		);
-		let plmc_fundings = MockInstantiator::calculate_auction_plmc_spent(&bids, project_metadata.minimum_price);
+		let bids = vec![rejected_bid.clone(), glutton_bid.clone()];
+		let plmc_fundings = MockInstantiator::calculate_auction_plmc_spent_price_derived(&bids, project_metadata.clone());
 		let usdt_fundings =
-			MockInstantiator::calculate_auction_funding_asset_spent(&bids, project_metadata.minimum_price);
+			MockInstantiator::calculate_auction_funding_asset_spent_price_derived(&bids, project_metadata.clone());
 
 		let plmc_existential_amounnts = plmc_fundings.accounts().existential_deposits();
 		let plmc_ct_account_deposits = plmc_fundings.accounts().ct_account_deposits();
@@ -2026,7 +2022,7 @@ mod auction_round_failure {
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 		inst.mint_foreign_asset_to(usdt_fundings.clone());
 
-		inst.bid_for_users(project_id, vec![glutton_bid_1, rejected_bid, glutton_bid_2]).unwrap();
+		inst.bid_for_users(project_id, bids).unwrap();
 
 		inst.do_free_plmc_assertions(vec![
 			UserToPLMCBalance::new(BIDDER_1, MockInstantiator::get_ed()),
@@ -2034,8 +2030,8 @@ mod auction_round_failure {
 		]);
 		inst.do_reserved_plmc_assertions(
 			vec![
-				UserToPLMCBalance::new(BIDDER_1, plmc_fundings[0].plmc_amount + plmc_fundings[2].plmc_amount),
-				UserToPLMCBalance::new(BIDDER_2, plmc_fundings[1].plmc_amount),
+				UserToPLMCBalance::new(BIDDER_1, plmc_fundings[1].plmc_amount),
+				UserToPLMCBalance::new(BIDDER_2, plmc_fundings[0].plmc_amount),
 			],
 			HoldReason::Participation(project_id).into(),
 		);
@@ -2043,12 +2039,12 @@ mod auction_round_failure {
 			vec![
 				UserToForeignAssets::<TestRuntime>::new(
 					BIDDER_1,
-					usdt_fundings[0].asset_amount + usdt_fundings[2].asset_amount,
+					usdt_fundings[1].asset_amount,
 					AcceptedFundingAsset::USDT.to_assethub_id(),
 				),
 				UserToForeignAssets::<TestRuntime>::new(
 					BIDDER_2,
-					usdt_fundings[1].asset_amount,
+					usdt_fundings[0].asset_amount,
 					AcceptedFundingAsset::USDT.to_assethub_id(),
 				),
 			],
@@ -2057,14 +2053,10 @@ mod auction_round_failure {
 
 		inst.start_community_funding(project_id).unwrap();
 
-		let weighted_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
-		let plmc_fundings_after_round = MockInstantiator::calculate_auction_plmc_spent(&bids, weighted_price);
-		let usdt_fundings_after_round = MockInstantiator::calculate_auction_funding_asset_spent(&bids, weighted_price);
-
 		inst.do_free_plmc_assertions(vec![
 			UserToPLMCBalance::new(
 				BIDDER_1,
-				MockInstantiator::get_ed() + (plmc_fundings[2].plmc_amount - plmc_fundings_after_round[2].plmc_amount),
+				MockInstantiator::get_ed(),
 			),
 			UserToPLMCBalance::new(BIDDER_2, plmc_fundings[1].plmc_amount + MockInstantiator::get_ed()),
 		]);
@@ -2073,9 +2065,9 @@ mod auction_round_failure {
 			vec![
 				UserToPLMCBalance::new(
 					BIDDER_1,
-					plmc_fundings_after_round[0].plmc_amount + plmc_fundings_after_round[2].plmc_amount,
+					plmc_fundings[1].plmc_amount,
 				),
-				UserToPLMCBalance::new(BIDDER_2, 0),
+				UserToPLMCBalance::new(BIDDER_2, Zero::zero()),
 			],
 			HoldReason::Participation(project_id).into(),
 		);
@@ -2084,7 +2076,7 @@ mod auction_round_failure {
 			vec![
 				UserToForeignAssets::new(
 					BIDDER_1,
-					usdt_fundings_after_round[0].asset_amount + usdt_fundings_after_round[2].asset_amount,
+					usdt_fundings[1].asset_amount,
 					AcceptedFundingAsset::USDT.to_assethub_id(),
 				),
 				UserToForeignAssets::new(BIDDER_2, 0, AcceptedFundingAsset::USDT.to_assethub_id()),

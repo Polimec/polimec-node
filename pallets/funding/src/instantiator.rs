@@ -478,11 +478,6 @@ impl<
 	/// Calculate the amount of PLMC that would be locked if the given bids were to be accepted.
 	/// This is the amount of PLMC that would be locked if the bids were to be accepted, but not
 	/// considering the evaluation bonds.
-	///
-	/// * `bids` - The bids to calculate the bonded PLMC amount for.
-	/// * `weighted_price` - Used to calculate the new PLMC bond after the weighted price has
-	///   been calculated (if the weighted price is lower than the bid price).
-	///
 	pub fn calculate_auction_plmc_spent(bids: &Vec<BidParams<T>>, ct_price: PriceOf<T>) -> Vec<UserToPLMCBalance<T>> {
 		let plmc_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap();
 		let mut output = Vec::new();
@@ -491,6 +486,30 @@ impl<
 			let usd_bond = bid.multiplier.calculate_bonding_requirement::<T>(usd_ticket_size).unwrap();
 			let plmc_bond = plmc_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
 			output.push(UserToPLMCBalance::new(bid.bidder.clone(), plmc_bond));
+		}
+		output
+	}
+
+	// Make sure you give it all of the bids made for the project. It doesn't require a ct_price, since it will simulate the bucket prices itself
+	pub fn calculate_auction_plmc_spent_price_derived(bids: &Vec<BidParams<T>>, project_metadata: ProjectMetadataOf<T>) -> Vec<UserToPLMCBalance<T>> {
+		let mut bucket = Pallet::<T>::create_bucket_from_metadata(&project_metadata).unwrap();
+
+		let plmc_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap();
+		let mut output = Vec::new();
+		for bid in bids {
+			let mut amount_to_bid = bid.amount;
+			let mut user_to_plmc = UserToPLMCBalance::<T>::new(bid.bidder.clone(), Zero::zero());
+			while !amount_to_bid.is_zero() {
+				let bid_amount = if amount_to_bid <= bucket.amount_left { amount_to_bid } else { bucket.amount_left };
+				let usd_ticket_size = bucket.current_price.saturating_mul_int(bid.amount);
+				let usd_bond = bid.multiplier.calculate_bonding_requirement::<T>(usd_ticket_size).unwrap();
+				let plmc_bond = plmc_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
+				user_to_plmc.plmc_amount = user_to_plmc.plmc_amount.saturating_add(plmc_bond);
+
+				bucket.update(bid_amount);
+				amount_to_bid.saturating_reduce(bid_amount);
+			}
+			output.push(user_to_plmc);
 		}
 		output
 	}
@@ -505,6 +524,30 @@ impl<
 			let usd_ticket_size = ct_price.saturating_mul_int(bid.amount);
 			let funding_asset_spent = asset_price.reciprocal().unwrap().saturating_mul_int(usd_ticket_size);
 			output.push(UserToForeignAssets::new(bid.bidder.clone(), funding_asset_spent, bid.asset.to_assethub_id()));
+		}
+		output
+	}
+
+	// Make sure you give it all of the bids made for the project. It doesn't require a ct_price, since it will simulate the bucket prices itself
+	pub fn calculate_auction_funding_asset_spent_price_derived(bids: &Vec<BidParams<T>>, project_metadata: ProjectMetadataOf<T>) -> Vec<UserToForeignAssets<T>> {
+		let mut bucket = Pallet::<T>::create_bucket_from_metadata(&project_metadata).unwrap();
+
+		let mut output = Vec::new();
+		for bid in bids {
+			let asset_price = T::PriceProvider::get_price(bid.asset.to_assethub_id()).unwrap();
+			let mut amount_to_bid = bid.amount;
+			let mut user_to_foreign_asset = UserToForeignAssets::<T>::new(bid.bidder.clone(), Zero::zero(), bid.asset.to_assethub_id());
+			while !amount_to_bid.is_zero() {
+				let bid_amount = if amount_to_bid <= bucket.amount_left { amount_to_bid } else { bucket.amount_left };
+				let usd_ticket_size = bucket.current_price.saturating_mul_int(bid.amount);
+				let funding_asset_spent = asset_price.reciprocal().unwrap().saturating_mul_int(usd_ticket_size);
+
+				user_to_foreign_asset.asset_amount = user_to_foreign_asset.asset_amount.saturating_add(funding_asset_spent);
+
+				bucket.update(bid_amount);
+				amount_to_bid.saturating_reduce(bid_amount);
+			}
+			output.push(user_to_foreign_asset);
 		}
 		output
 	}
