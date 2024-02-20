@@ -704,7 +704,7 @@ mod evaluation_round_failure {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_metadata = default_project(0, ISSUER);
 		let evaluations = (0u32..<TestRuntime as Config>::MaxEvaluationsPerProject::get())
-			.map(|i| UserToUSDBalance::<TestRuntime>::new(i as u64 + 420u64, (10u128 * ASSET_UNIT).into()))
+			.map(|i| UserToUSDBalance::<TestRuntime>::new(i as u32 + 420u32, (10u128 * ASSET_UNIT).into()))
 			.collect_vec();
 		let failing_evaluation = UserToUSDBalance::new(EVALUATOR_1, 1000 * ASSET_UNIT);
 
@@ -832,12 +832,12 @@ mod auction_round_success {
 		// From the knowledge hub: https://hub.polimec.org/learn/calculation-example#auction-round-calculation-example
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 
-		const ADAM: u64 = 60;
-		const TOM: u64 = 61;
-		const SOFIA: u64 = 62;
-		const FRED: u64 = 63;
-		const ANNA: u64 = 64;
-		const DAMIAN: u64 = 65;
+		const ADAM: u32 = 60;
+		const TOM: u32 = 61;
+		const SOFIA: u32 = 62;
+		const FRED: u32 = 63;
+		const ANNA: u32 = 64;
+		const DAMIAN: u32 = 65;
 
 		let accounts = vec![ADAM, TOM, SOFIA, FRED, ANNA, DAMIAN];
 
@@ -1859,7 +1859,7 @@ mod auction_round_failure {
 		let bids = (0u32..<TestRuntime as Config>::MaxBidsPerProject::get())
 			.map(|i| {
 				BidParams::<TestRuntime>::new(
-					i as u64 + 420u64,
+					i as u32 + 420u32,
 					10 * ASSET_UNIT,
 					1_u128.into(),
 					1u8,
@@ -5648,23 +5648,23 @@ mod test_helper_functions {
 
 	#[test]
 	fn calculate_evaluation_plmc_spent() {
-		const EVALUATOR_1: AccountIdOf<TestRuntime> = 1u64;
+		const EVALUATOR_1: AccountIdOf<TestRuntime> = 1u32;
 		const USD_AMOUNT_1: u128 = 150_000_0_000_000_000_u128;
 		const EXPECTED_PLMC_AMOUNT_1: u128 = 17_857_1_428_571_428_u128;
 
-		const EVALUATOR_2: AccountIdOf<TestRuntime> = 2u64;
+		const EVALUATOR_2: AccountIdOf<TestRuntime> = 2u32;
 		const USD_AMOUNT_2: u128 = 50_000_0_000_000_000_u128;
 		const EXPECTED_PLMC_AMOUNT_2: u128 = 5_952_3_809_523_809_u128;
 
-		const EVALUATOR_3: AccountIdOf<TestRuntime> = 3u64;
+		const EVALUATOR_3: AccountIdOf<TestRuntime> = 3u32;
 		const USD_AMOUNT_3: u128 = 75_000_0_000_000_000_u128;
 		const EXPECTED_PLMC_AMOUNT_3: u128 = 8_928_5_714_285_714_u128;
 
-		const EVALUATOR_4: AccountIdOf<TestRuntime> = 4u64;
+		const EVALUATOR_4: AccountIdOf<TestRuntime> = 4u32;
 		const USD_AMOUNT_4: u128 = 100_0_000_000_000_u128;
 		const EXPECTED_PLMC_AMOUNT_4: u128 = 11_9_047_619_047_u128;
 
-		const EVALUATOR_5: AccountIdOf<TestRuntime> = 5u64;
+		const EVALUATOR_5: AccountIdOf<TestRuntime> = 5u32;
 		const USD_AMOUNT_5: u128 = 123_7_000_000_000_u128;
 		const EXPECTED_PLMC_AMOUNT_5: u128 = 14_7_261_904_761_u128;
 
@@ -5697,35 +5697,35 @@ mod test_helper_functions {
 
 	#[test]
 	fn calculate_auction_plmc_spent() {
-		const BIDDER_1: AccountIdOf<TestRuntime> = 1u64;
+		const BIDDER_1: AccountIdOf<TestRuntime> = 1u32;
 		const TOKEN_AMOUNT_1: u128 = 120_0_000_000_000_u128;
 		const PRICE_PER_TOKEN_1: f64 = 0.3f64;
 		const MULTIPLIER_1: u8 = 1u8;
 		const _TICKET_SIZE_USD_1: u128 = 36_0_000_000_000_u128;
 		const EXPECTED_PLMC_AMOUNT_1: u128 = 4_2_857_142_857_u128;
 
-		const BIDDER_2: AccountIdOf<TestRuntime> = 2u64;
+		const BIDDER_2: AccountIdOf<TestRuntime> = 2u32;
 		const TOKEN_AMOUNT_2: u128 = 5023_0_000_000_000_u128;
 		const PRICE_PER_TOKEN_2: f64 = 13f64;
 		const MULTIPLIER_2: u8 = 2u8;
 		const _TICKET_SIZE_USD_2: u128 = 65_299_0_000_000_000_u128;
 		const EXPECTED_PLMC_AMOUNT_2: u128 = 3_886_8_452_380_952_u128;
 
-		const BIDDER_3: AccountIdOf<TestRuntime> = 3u64;
+		const BIDDER_3: AccountIdOf<TestRuntime> = 3u32;
 		const TOKEN_AMOUNT_3: u128 = 20_000_0_000_000_000_u128;
 		const PRICE_PER_TOKEN_3: f64 = 20f64;
 		const MULTIPLIER_3: u8 = 17u8;
 		const _TICKET_SIZE_USD_3: u128 = 400_000_0_000_000_000_u128;
 		const EXPECTED_PLMC_AMOUNT_3: u128 = 2_801_1_204_481_792_u128;
 
-		const BIDDER_4: AccountIdOf<TestRuntime> = 4u64;
+		const BIDDER_4: AccountIdOf<TestRuntime> = 4u32;
 		const TOKEN_AMOUNT_4: u128 = 1_000_000_0_000_000_000_u128;
 		const PRICE_PER_TOKEN_4: f64 = 5.52f64;
 		const MULTIPLIER_4: u8 = 25u8;
 		const _TICKET_SIZE_USD_4: u128 = 5_520_000_0_000_000_000_u128;
 		const EXPECTED_PLMC_AMOUNT_4: u128 = 26_285_7_142_857_142_u128;
 
-		const BIDDER_5: AccountIdOf<TestRuntime> = 5u64;
+		const BIDDER_5: AccountIdOf<TestRuntime> = 5u32;
 		const TOKEN_AMOUNT_5: u128 = 0_1_233_000_000_u128;
 		const PRICE_PER_TOKEN_5: f64 = 11.34f64;
 		const MULTIPLIER_5: u8 = 10u8;
@@ -5796,31 +5796,31 @@ mod test_helper_functions {
 		const PLMC_PRICE: f64 = 8.4f64;
 		const CT_PRICE: f64 = 16.32f64;
 
-		const CONTRIBUTOR_1: AccountIdOf<TestRuntime> = 1u64;
+		const CONTRIBUTOR_1: AccountIdOf<TestRuntime> = 1u32;
 		const TOKEN_AMOUNT_1: u128 = 120_0_000_000_000_u128;
 		const MULTIPLIER_1: u8 = 1u8;
 		const _TICKET_SIZE_USD_1: u128 = 1_958_4_000_000_000_u128;
 		const EXPECTED_PLMC_AMOUNT_1: u128 = 233_1_428_571_428_u128;
 
-		const CONTRIBUTOR_2: AccountIdOf<TestRuntime> = 2u64;
+		const CONTRIBUTOR_2: AccountIdOf<TestRuntime> = 2u32;
 		const TOKEN_AMOUNT_2: u128 = 5023_0_000_000_000_u128;
 		const MULTIPLIER_2: u8 = 2u8;
 		const _TICKET_SIZE_USD_2: u128 = 81_975_3_600_000_000_u128;
 		const EXPECTED_PLMC_AMOUNT_2: u128 = 4_879_4_857_142_857_u128;
 
-		const CONTRIBUTOR_3: AccountIdOf<TestRuntime> = 3u64;
+		const CONTRIBUTOR_3: AccountIdOf<TestRuntime> = 3u32;
 		const TOKEN_AMOUNT_3: u128 = 20_000_0_000_000_000_u128;
 		const MULTIPLIER_3: u8 = 17u8;
 		const _TICKET_SIZE_USD_3: u128 = 326_400_0_000_000_000_u128;
 		const EXPECTED_PLMC_AMOUNT_3: u128 = 2_285_7_142_857_142_u128;
 
-		const CONTRIBUTOR_4: AccountIdOf<TestRuntime> = 4u64;
+		const CONTRIBUTOR_4: AccountIdOf<TestRuntime> = 4u32;
 		const TOKEN_AMOUNT_4: u128 = 1_000_000_0_000_000_000_u128;
 		const MULTIPLIER_4: u8 = 25u8;
 		const _TICKET_SIZE_4: u128 = 16_320_000_0_000_000_000_u128;
 		const EXPECTED_PLMC_AMOUNT_4: u128 = 77_714_2_857_142_857_u128;
 
-		const CONTRIBUTOR_5: AccountIdOf<TestRuntime> = 5u64;
+		const CONTRIBUTOR_5: AccountIdOf<TestRuntime> = 5u32;
 		const TOKEN_AMOUNT_5: u128 = 0_1_233_000_000_u128;
 		const MULTIPLIER_5: u8 = 10u8;
 		const _TICKET_SIZE_5: u128 = 2_0_122_562_000_u128;

@@ -393,7 +393,6 @@ mod benchmarks {
 		let ed = BenchInstantiator::<T>::get_ed();
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-		println!("Issuer: {:?}", issuer);
 		whitelist_account!(issuer);
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
 
@@ -402,7 +401,6 @@ mod benchmarks {
 			project_metadata.token_information.symbol.as_slice(),
 		);
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), ed * 2u64.into() + metadata_deposit)]);
-		println!("Issuer: {:?}", issuer);
 		let jwt = get_test_jwt(issuer.clone(), InvestorType::Institutional);
 		#[extrinsic_call]
 		create(RawOrigin::Signed(issuer.clone()), jwt, project_metadata.clone());

@@ -41,7 +41,7 @@ use polimec_common::credentials::{EnsureInvestor, Institutional, Professional, R
 
 type Block = frame_system::mocking::MockBlock<TestRuntime>;
 
-pub type AccountId = u64;
+pub type AccountId = u32;
 pub type Balance = u128;
 pub type BlockNumber = u64;
 pub type Identifier = u32;
@@ -73,7 +73,7 @@ use xcm_builder::{EnsureXcmOrigin, FixedWeightBounds, ParentIsPreset, SiblingPar
 
 pub struct SignedToAccountIndex<RuntimeOrigin, AccountId, Network>(PhantomData<(RuntimeOrigin, AccountId, Network)>);
 
-impl<RuntimeOrigin: OriginTrait + Clone, AccountId: Into<u64>, Network: Get<Option<NetworkId>>>
+impl<RuntimeOrigin: OriginTrait + Clone, AccountId: Into<u32>, Network: Get<Option<NetworkId>>>
 	TryConvert<RuntimeOrigin, MultiLocation> for SignedToAccountIndex<RuntimeOrigin, AccountId, Network>
 where
 	RuntimeOrigin::PalletsOrigin:
@@ -82,7 +82,7 @@ where
 	fn try_convert(o: RuntimeOrigin) -> Result<MultiLocation, RuntimeOrigin> {
 		o.try_with_caller(|caller| match caller.try_into() {
 			Ok(SystemRawOrigin::Signed(who)) =>
-				Ok(Junction::AccountIndex64 { network: Network::get(), index: who.into() }.into()),
+				Ok(Junction::AccountIndex64 { network: Network::get(), index: Into::<u32>::into(who).into() }.into()),
 			Ok(other) => Err(other.into()),
 			Err(other) => Err(other),
 		})
@@ -284,7 +284,7 @@ parameter_types! {
 	];
 	pub EarlyEvaluationThreshold: Percent = Percent::from_percent(10);
 	pub EvaluatorSlash: Percent = Percent::from_percent(20);
-	pub TreasuryAccount: AccountId = AccountId::from(69u64);
+	pub TreasuryAccount: AccountId = AccountId::from(69u32);
 
 }
 
@@ -337,8 +337,8 @@ impl sp_runtime::traits::Convert<AccountId, [u8; 32]> for DummyConverter {
 }
 impl ConvertBack<AccountId, [u8; 32]> for DummyConverter {
 	fn convert_back(bytes: [u8; 32]) -> AccountId {
-		let account: [u8; 8] = bytes[0..7].try_into().unwrap();
-		u64::from_le_bytes(account)
+		let account: [u8; 4] = bytes[0..3].try_into().unwrap();
+		u32::from_le_bytes(account)
 	}
 }
 
