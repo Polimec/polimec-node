@@ -45,7 +45,7 @@ polkadot-runtime-parachains.workspace = true
 polkadot-parachain.workspace = true
 polimec-receiver.workspace = true
 assert_matches2 = { workspace = true, optional = true}
-
+polimec-common-test-utils = { workspace = true, optional = true }
 
 [dev-dependencies]
 assert_matches2.workspace = true
@@ -53,7 +53,7 @@ pallet-insecure-randomness-collective-flip.workspace = true
 pallet-timestamp.workspace = true
 pallet-assets.workspace = true
 pallet-linear-release.workspace = true
-polimec-common-test-utils.workspace = true
+
 macros.workspace = true
 xcm-executor.workspace = true
 

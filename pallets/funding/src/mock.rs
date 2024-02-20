@@ -41,7 +41,6 @@ use polimec_common::credentials::{EnsureInvestor, Institutional, Professional, R
 
 type Block = frame_system::mocking::MockBlock<TestRuntime>;
 
-// pub type AccountId = u64;
 pub type AccountId = u64;
 pub type Balance = u128;
 pub type BlockNumber = u64;

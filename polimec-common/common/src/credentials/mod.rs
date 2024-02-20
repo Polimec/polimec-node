@@ -76,10 +76,14 @@ where
 	fn try_origin(origin: T::RuntimeOrigin, token: &jwt_compact::prelude::UntrustedToken, verifying_key: [u8; 32]) -> Result<Self::Success, T::RuntimeOrigin> {
 		if let Ok(claims) = Self::verify_token(token, verifying_key) {
 			if let Some(who) = origin.clone().into_signer() {
+				println!("who: {:?}", who);
+				println!("claims: {:?}", claims);
 					
 				if let Ok(now) = Now::<Timestamp>::get().try_into() {
+					println!("now: {:?}", now);
 					if let Some(date_time) = claims.expiration {
-						if (date_time.timestamp() as u64) < now {
+						println!("timestamp: {:?}", date_time.timestamp() as u64);
+						if (date_time.timestamp() as u64) < now {	
 							return Err(origin);
 						}
 	
