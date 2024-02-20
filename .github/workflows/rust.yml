@@ -8,17 +8,42 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: "sccache"
 
 jobs:
-  build:
-
+  Fmt:
     runs-on: ubuntu-latest
-
     steps:
+    - uses: actions/checkout@v3
+    - name: fmt check
+      run: cargo +nightly fmt --all --check
+
+  Release Build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Run sccache-cache
+      uses: mozilla-actions/sccache-action@v0.0.3
     - uses: actions/checkout@v3
     - name: Build
       run: cargo build --release --verbose
+  
+  Pallet Tests:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Run sccache-cache
+      uses: mozilla-actions/sccache-action@v0.0.3
+    - uses: actions/checkout@v3
     - name: Run Pallet Tests
       run: cargo test --features runtime-benchmarks --verbose
+
+  Integration Tests:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Run sccache-cache
+      uses: mozilla-actions/sccache-action@v0.0.3
+    - uses: actions/checkout@v3
+    - name: STD Build
+      run: cargo build --release --features std,instant-node
     - name: Run Integration Tests
       run: cargo test -p integration-tests
