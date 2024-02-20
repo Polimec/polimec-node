@@ -17,7 +17,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Install protobuf
-      run: apt-get install protobuf-compiler
+      run: sudo apt-get install protobuf-compiler
     - name: fmt check
       run: cargo +nightly-2023-12-01 fmt --all --check
 
@@ -27,7 +27,7 @@ jobs:
     - name: Run sccache-cache
       uses: mozilla-actions/sccache-action@v0.0.3
     - name: Install protobuf
-      run: apt-get install protobuf-compiler
+      run: sudo apt-get install protobuf-compiler
     - uses: actions/checkout@v4
     - name: Build
       run: cargo build --release --verbose
@@ -38,7 +38,7 @@ jobs:
     - name: Run sccache-cache
       uses: mozilla-actions/sccache-action@v0.0.3
     - name: Install protobuf
-      run: apt-get install protobuf-compiler
+      run: sudo apt-get install protobuf-compiler
     - uses: actions/checkout@v3
     - name: Run Pallet Tests
       run: cargo test --features runtime-benchmarks --verbose
@@ -49,7 +49,7 @@ jobs:
     - name: Run sccache-cache
       uses: mozilla-actions/sccache-action@v0.0.3
     - name: Install protobuf
-      run: apt-get install protobuf-compiler
+      run: sudo apt-get install protobuf-compiler
     - uses: actions/checkout@v3
     - name: STD Build
       run: cargo build --release --features std,instant-node
