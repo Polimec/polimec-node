@@ -73,7 +73,7 @@ where
 	type Success = T::AccountId;
 	type Claims = SampleClaims<T::AccountId>;
 
-	fn try_origin(origin: T::RuntimeOrigin, token: jwt_compact::prelude::UntrustedToken, verifying_key: [u8; 32]) -> Result<Self::Success, T::RuntimeOrigin> {
+	fn try_origin(origin: T::RuntimeOrigin, token: &jwt_compact::prelude::UntrustedToken, verifying_key: [u8; 32]) -> Result<Self::Success, T::RuntimeOrigin> {
 		if let Ok(claims) = Self::verify_token(token, verifying_key) {
 			if let Some(who) = origin.clone().into_signer() {
 					
@@ -102,9 +102,9 @@ pub trait EnsureOriginWithCredentials<OuterOrigin> where
 	type Success;
 	type Claims: Clone + Encode + Decode + Eq + PartialEq + Ord + PartialOrd + TypeInfo + DeserializeOwned;
 
-	fn try_origin(origin: OuterOrigin, token: jwt_compact::prelude::UntrustedToken, verifying_key: [u8; 32]) -> Result<Self::Success, OuterOrigin>;
+	fn try_origin(origin: OuterOrigin, token: &jwt_compact::prelude::UntrustedToken, verifying_key: [u8; 32]) -> Result<Self::Success, OuterOrigin>;
 
-	fn ensure_origin(origin: OuterOrigin, token: jwt_compact::prelude::UntrustedToken, verifying_key: [u8; 32]) -> Result<Self::Success, BadOrigin> {
+	fn ensure_origin(origin: OuterOrigin, token: &jwt_compact::prelude::UntrustedToken, verifying_key: [u8; 32]) -> Result<Self::Success, BadOrigin> {
 		Self::try_origin(origin, token, verifying_key).map_err(|_| BadOrigin)
 	}
 
@@ -113,7 +113,7 @@ pub trait EnsureOriginWithCredentials<OuterOrigin> where
 	}
 
 	fn verify_token(
-		token: jwt_compact::prelude::UntrustedToken,
+		token: &jwt_compact::prelude::UntrustedToken,
 		verifying_key: [u8; 32],
 	) -> Result<StandardClaims<Self::Claims>, ()> {
 

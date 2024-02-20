@@ -25,6 +25,6 @@ use crate::*;
 fn jwt_verify_retail() {
 	let jwt = get_test_jwt(PolimecAccountId::from(BUYER_1), InvestorType::Retail);
 	Polimec::execute_with(|| {
-		assert_ok!(PolimecFunding::verify(PolimecOrigin::signed(BUYER_1.into()), jwt));
+		assert_ok!(PolimecFunding::verify(PolimecOrigin::signed(BUYER_1.into()), &jwt));
 	});
 }
