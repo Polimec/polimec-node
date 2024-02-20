@@ -15,33 +15,41 @@ jobs:
   Fmt:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
+    - name: Install protobuf
+      run: apt-get install protobuf-compiler
     - name: fmt check
-      run: cargo +nightly fmt --all --check
+      run: cargo +nightly-2023-12-01 fmt --all --check
 
-  Release Build:
+  Release-Build:
     runs-on: ubuntu-latest
     steps:
     - name: Run sccache-cache
       uses: mozilla-actions/sccache-action@v0.0.3
-    - uses: actions/checkout@v3
+    - name: Install protobuf
+      run: apt-get install protobuf-compiler
+    - uses: actions/checkout@v4
     - name: Build
       run: cargo build --release --verbose
   
-  Pallet Tests:
+  Pallet-Tests:
     runs-on: ubuntu-latest
     steps:
     - name: Run sccache-cache
       uses: mozilla-actions/sccache-action@v0.0.3
+    - name: Install protobuf
+      run: apt-get install protobuf-compiler
     - uses: actions/checkout@v3
     - name: Run Pallet Tests
       run: cargo test --features runtime-benchmarks --verbose
 
-  Integration Tests:
+  Integration-Tests:
     runs-on: ubuntu-latest
     steps:
     - name: Run sccache-cache
       uses: mozilla-actions/sccache-action@v0.0.3
+    - name: Install protobuf
+      run: apt-get install protobuf-compiler
     - uses: actions/checkout@v3
     - name: STD Build
       run: cargo build --release --features std,instant-node
