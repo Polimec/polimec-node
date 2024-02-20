@@ -273,22 +273,6 @@ mod creation_round_success {
 	use super::*;
 
 	#[test]
-	fn jwt_check_retail() {
-		new_test_ext().execute_with(|| {
-			let jwt = get_test_jwt(ISSUER, InvestorType::Retail);
-			assert_ok!(PolimecFunding::verify(RuntimeOrigin::signed(ISSUER), jwt));
-		});
-	}
-
-	#[test]
-	fn jwt_reject_institutional() {
-		new_test_ext().execute_with(|| {
-			let jwt = get_test_jwt(ISSUER, InvestorType::Institutional);
-			assert_err!(PolimecFunding::verify(RuntimeOrigin::signed(ISSUER), jwt), DispatchError::BadOrigin);
-		});
-	}
-
-	#[test]
 	fn basic_plmc_transfer_works() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 

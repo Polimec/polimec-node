@@ -15,16 +15,22 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use frame_support::assert_ok;
-use polimec_common::credentials::InvestorType;
+use polimec_common::credentials::{Institutional, InvestorType};
 use polimec_common_test_utils::get_test_jwt;
 use polimec_parachain_runtime::PolimecFunding;
+use sp_runtime::{DispatchError, AccountId32};
 use tests::defaults::*;
 use crate::*;
 
 #[test]
-fn jwt_verify_retail() {
-	let jwt = get_test_jwt(PolimecAccountId::from(BUYER_1), InvestorType::Retail);
+fn test_jwt_for_create() {
+	let project = default_project(ISSUER.into(), 0);
 	Polimec::execute_with(|| {
-		assert_ok!(PolimecFunding::verify(PolimecOrigin::signed(BUYER_1.into()), &jwt));
+		let issuer = AccountId32::from(ISSUER);
+		assert_ok!(PolimecBalances::force_set_balance(PolimecOrigin::root(), issuer.into(), 1000 * PLMC));
+		let retail_jwt = get_test_jwt(PolimecAccountId::from(ISSUER), InvestorType::Retail);
+		assert_noop!(PolimecFunding::create(PolimecOrigin::signed(ISSUER.into()), retail_jwt, project.clone()), DispatchError::BadOrigin);
+		let inst_jwt = get_test_jwt(PolimecAccountId::from(ISSUER), InvestorType::Institutional);
+		assert_ok!(PolimecFunding::create(PolimecOrigin::signed(ISSUER.into()), inst_jwt, project.clone()));
 	});
 }

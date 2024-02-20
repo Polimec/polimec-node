@@ -692,8 +692,8 @@ impl pallet_funding::Config for Runtime {
 	type Vesting = LinearRelease;
 	type WeightInfo = pallet_funding::weights::SubstrateWeight<Runtime>;
 	type RetailOrigin = EnsureInvestor<Runtime, (), Retail, Runtime>;
-	type ProfessionalOrigin = EnsureInvestor<TestRuntime, (), Professional, TestRuntime>;
-	type InstitutionalOrigin = EnsureInvestor<TestRuntime, (), Institutional, TestRuntime>;
+	type ProfessionalOrigin = EnsureInvestor<Runtime, (), Professional, Runtime>;
+	type InstitutionalOrigin = EnsureInvestor<Runtime, (), Institutional, Runtime>;
 }
 
 parameter_types! {

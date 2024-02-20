@@ -997,18 +997,6 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		#[pallet::call_index(69)]
-		#[pallet::weight(WeightInfoOf::<T>::create())]
-		/// A new dummy extrinsic to test the verification of the JWT - to avoid to break all the tests
-		/// This extrinsic is not supposed to be used in production
-		/// TODO: Other 'protected' extrinsics will have to be updated to receive an extra parameter `jwt: jwt_compact::prelude::UntrustedToken`, as in this example.
-
-		pub fn verify(origin: OriginFor<T>, jwt: UntrustedToken) -> DispatchResult {
-			let _caller = T::RetailOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-
-			Ok(())
-		}
-
 		/// Creates a project and assigns it to the `issuer` account.
 		#[pallet::call_index(0)]
 		#[pallet::weight(WeightInfoOf::<T>::create())]
