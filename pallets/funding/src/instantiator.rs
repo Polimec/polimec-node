@@ -461,7 +461,7 @@ impl<
 	}
 
 	pub fn get_ct_account_deposit() -> BalanceOf<T> {
-		<T as Config>::ContributionTokenCurrency::deposit_required(One::one())
+		<T as crate::Config>::ContributionTokenCurrency::deposit_required(One::one())
 	}
 
 	pub fn calculate_evaluation_plmc_spent(evaluations: Vec<UserToUSDBalance<T>>) -> Vec<UserToPLMCBalance<T>> {
@@ -483,20 +483,11 @@ impl<
 	/// * `weighted_price` - Used to calculate the new PLMC bond after the weighted price has
 	///   been calculated (if the weighted price is lower than the bid price).
 	///
-	pub fn calculate_auction_plmc_spent(
-		bids: &Vec<BidParams<T>>,
-		weighted_price: Option<PriceOf<T>>,
-	) -> Vec<UserToPLMCBalance<T>> {
+	pub fn calculate_auction_plmc_spent(bids: &Vec<BidParams<T>>, ct_price: PriceOf<T>) -> Vec<UserToPLMCBalance<T>> {
 		let plmc_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap();
 		let mut output = Vec::new();
 		for bid in bids {
-			let final_price = match weighted_price {
-				Some(p) if bid.price < p => bid.price,
-				Some(p) => p,
-				None => bid.price,
-			};
-
-			let usd_ticket_size = final_price.saturating_mul_int(bid.amount);
+			let usd_ticket_size = ct_price.saturating_mul_int(bid.amount);
 			let usd_bond = bid.multiplier.calculate_bonding_requirement::<T>(usd_ticket_size).unwrap();
 			let plmc_bond = plmc_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
 			output.push(UserToPLMCBalance::new(bid.bidder.clone(), plmc_bond));
@@ -506,17 +497,12 @@ impl<
 
 	pub fn calculate_auction_funding_asset_spent(
 		bids: &Vec<BidParams<T>>,
-		weighted_price: Option<PriceOf<T>>,
+		ct_price: PriceOf<T>,
 	) -> Vec<UserToForeignAssets<T>> {
 		let mut output = Vec::new();
 		for bid in bids {
-			let final_price = match weighted_price {
-				Some(p) if bid.price < p => bid.price,
-				Some(p) => p,
-				None => bid.price,
-			};
 			let asset_price = T::PriceProvider::get_price(bid.asset.to_assethub_id()).unwrap();
-			let usd_ticket_size = final_price.saturating_mul_int(bid.amount);
+			let usd_ticket_size = ct_price.saturating_mul_int(bid.amount);
 			let funding_asset_spent = asset_price.reciprocal().unwrap().saturating_mul_int(usd_ticket_size);
 			output.push(UserToForeignAssets::new(bid.bidder.clone(), funding_asset_spent, bid.asset.to_assethub_id()));
 		}
@@ -534,7 +520,6 @@ impl<
 				output.push(BidParams {
 					bidder: bid.bidder.clone(),
 					amount: bid_amount,
-					price: bucket.current_price,
 					multiplier: bid.multiplier,
 					asset: bid.asset,
 				});
@@ -549,7 +534,6 @@ impl<
 	pub fn filter_bids_after_auction(bids: Vec<BidParams<T>>, total_cts: BalanceOf<T>) -> Vec<BidParams<T>> {
 		let mut filtered_bids: Vec<BidParams<T>> = Vec::new();
 		let mut sorted_bids = bids;
-		sorted_bids.sort_by(|a, b| b.price.cmp(&a.price));
 		let mut total_cts_left = total_cts;
 		for bid in sorted_bids {
 			if total_cts_left >= bid.amount {
@@ -559,7 +543,6 @@ impl<
 				filtered_bids.push(BidParams {
 					bidder: bid.bidder.clone(),
 					amount: total_cts_left,
-					price: bid.price,
 					multiplier: bid.multiplier,
 					asset: bid.asset,
 				});
@@ -712,27 +695,6 @@ impl<
 		output
 	}
 
-	pub fn calculate_price_from_test_bids(bids: Vec<BidParams<T>>) -> PriceOf<T> {
-		// temp variable to store the total value of the bids (i.e price * amount)
-		let mut bid_usd_value_sum = BalanceOf::<T>::zero();
-
-		for bid in bids.iter() {
-			let ticket_size = bid.price.checked_mul_int(bid.amount).unwrap();
-			bid_usd_value_sum.saturating_accrue(ticket_size);
-		}
-
-		bids.into_iter()
-			.map(|bid| {
-				let bid_weight = <PriceOf<T> as FixedPointNumber>::saturating_from_rational(
-					bid.price.saturating_mul_int(bid.amount),
-					bid_usd_value_sum,
-				);
-				bid.price * bid_weight
-			})
-			.reduce(|a, b| a.saturating_add(b))
-			.unwrap()
-	}
-
 	pub fn panic_if_on_initialize_failed(events: Vec<frame_system::EventRecord<RuntimeEvent, H256>>) {
 		let last_event_record = events.into_iter().last().expect("No events found for this action.");
 		let last_event = last_event_record.event;
@@ -772,7 +734,7 @@ impl<
 				let ticket_size = Percent::from_percent(weight) * usd_amount;
 				let token_amount = min_price.reciprocal().unwrap().saturating_mul_int(ticket_size);
 
-				BidParams::new(bidder, token_amount, min_price, multiplier, AcceptedFundingAsset::USDT)
+				BidParams::new(bidder, token_amount, multiplier, AcceptedFundingAsset::USDT)
 			})
 			.collect()
 	}
@@ -1020,7 +982,8 @@ impl<
 		let prev_plmc_balances = self.get_free_plmc_balances_for(bidders.clone());
 		let prev_funding_asset_balances = self.get_free_foreign_asset_balances_for(asset_id, bidders.clone());
 		let plmc_evaluation_deposits: Vec<UserToPLMCBalance<T>> = Self::calculate_evaluation_plmc_spent(evaluations);
-		let plmc_bid_deposits: Vec<UserToPLMCBalance<T>> = Self::calculate_auction_plmc_spent(&bids, None);
+		let plmc_bid_deposits: Vec<UserToPLMCBalance<T>> =
+			Self::calculate_auction_plmc_spent(&bids, project_metadata.minimum_price);
 		let participation_usable_evaluation_deposits = plmc_evaluation_deposits
 			.into_iter()
 			.map(|mut x| {
@@ -1035,7 +998,7 @@ impl<
 		let total_plmc_participation_locked = plmc_bid_deposits;
 		let plmc_existential_deposits: Vec<UserToPLMCBalance<T>> = bidders.existential_deposits();
 		let plmc_ct_account_deposits: Vec<UserToPLMCBalance<T>> = bidders_non_evaluators.ct_account_deposits();
-		let funding_asset_deposits = Self::calculate_auction_funding_asset_spent(&bids, None);
+		let funding_asset_deposits = Self::calculate_auction_funding_asset_spent(&bids, project_metadata.minimum_price);
 
 		let bidder_balances = Self::sum_balance_mappings(vec![
 			necessary_plmc_mint.clone(),
@@ -1079,7 +1042,6 @@ impl<
 			.map(|bid| BidInfoFilter::<T> {
 				bidder: Some(bid.bidder.clone()),
 				final_ct_amount: Some(bid.amount),
-				final_ct_usd_price: Some(if bid.price < weighted_price { bid.price } else { weighted_price }),
 				..Default::default()
 			})
 			.collect_vec();
@@ -1171,7 +1133,7 @@ impl<
 		let prev_funding_asset_balances = self.get_free_foreign_asset_balances_for(asset_id, contributors.clone());
 
 		let plmc_evaluation_deposits = Self::calculate_evaluation_plmc_spent(evaluations);
-		let plmc_bid_deposits = Self::calculate_auction_plmc_spent(&accepted_bids, Some(ct_price));
+		let plmc_bid_deposits = Self::calculate_auction_plmc_spent(&accepted_bids, ct_price);
 
 		let plmc_contribution_deposits = Self::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 
@@ -1263,7 +1225,7 @@ impl<
 		let prev_funding_asset_balances = self.get_free_foreign_asset_balances_for(asset_id, contributors.clone());
 
 		let plmc_evaluation_deposits = Self::calculate_evaluation_plmc_spent(evaluations);
-		let plmc_bid_deposits = Self::calculate_auction_plmc_spent(&accepted_bids, Some(ct_price));
+		let plmc_bid_deposits = Self::calculate_auction_plmc_spent(&accepted_bids, ct_price);
 		let plmc_community_contribution_deposits =
 			Self::calculate_contributed_plmc_spent(community_contributions.clone(), ct_price);
 		let plmc_remainder_contribution_deposits =
@@ -1611,7 +1573,8 @@ pub mod async_features {
 		evaluations: Vec<UserToUSDBalance<T>>,
 		bids: Vec<BidParams<T>>,
 	) -> ProjectId {
-		let project_id = async_create_evaluating_project(instantiator.clone(), project_metadata, issuer.clone()).await;
+		let project_id =
+			async_create_evaluating_project(instantiator.clone(), project_metadata.clone(), issuer.clone()).await;
 
 		let mut inst = instantiator.lock().await;
 
@@ -1654,13 +1617,16 @@ pub mod async_features {
 		async_start_auction(instantiator.clone(), block_orchestrator, project_id, issuer).await.unwrap();
 
 		inst = instantiator.lock().await;
-		let plmc_for_bids =
-			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_plmc_spent(&bids, None);
+		let plmc_for_bids = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_plmc_spent(
+			&bids,
+			project_metadata.minimum_price,
+		);
 		let plmc_existential_deposits: Vec<UserToPLMCBalance<T>> = bids.accounts().existential_deposits();
 		let plmc_ct_account_deposits: Vec<UserToPLMCBalance<T>> = bids.accounts().ct_account_deposits();
 		let usdt_for_bids =
 			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_funding_asset_spent(
-				&bids, None,
+				&bids,
+				project_metadata.minimum_price,
 			);
 
 		inst.mint_plmc_to(plmc_for_bids.clone());
@@ -1757,7 +1723,10 @@ pub mod async_features {
 		let plmc_evaluation_deposits: Vec<UserToPLMCBalance<T>> =
 			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_evaluation_plmc_spent(evaluations);
 		let plmc_bid_deposits: Vec<UserToPLMCBalance<T>> =
-			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_plmc_spent(&bids, None);
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_plmc_spent(
+				&bids,
+				project_metadata.minimum_price,
+			);
 		let participation_usable_evaluation_deposits = plmc_evaluation_deposits
 			.into_iter()
 			.map(|mut x| {
@@ -1774,7 +1743,8 @@ pub mod async_features {
 		let plmc_ct_account_deposits: Vec<UserToPLMCBalance<T>> = bidders_non_evaluators.ct_account_deposits();
 		let funding_asset_deposits =
 			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_funding_asset_spent(
-				&bids, None,
+				&bids,
+				project_metadata.minimum_price,
 			);
 
 		let bidder_balances = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::sum_balance_mappings(vec![
@@ -1815,7 +1785,7 @@ pub mod async_features {
 		async_start_community_funding(instantiator.clone(), block_orchestrator, project_id).await.unwrap();
 		let mut inst = instantiator.lock().await;
 
-		let weighted_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
+		let _weighted_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 		let accepted_bids = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::filter_bids_after_auction(
 			bids,
 			project_metadata.total_allocation_size.0,
@@ -1825,7 +1795,6 @@ pub mod async_features {
 			.map(|bid| BidInfoFilter::<T> {
 				bidder: Some(bid.bidder.clone()),
 				final_ct_amount: Some(bid.amount),
-				final_ct_usd_price: Some(if bid.price < weighted_price { bid.price } else { weighted_price }),
 				..Default::default()
 			})
 			.collect_vec();
@@ -1920,7 +1889,7 @@ pub mod async_features {
 			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_evaluation_plmc_spent(evaluations);
 		let plmc_bid_deposits = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_plmc_spent(
 			&accepted_bids,
-			Some(ct_price),
+			ct_price,
 		);
 
 		let plmc_contribution_deposits =
@@ -2101,7 +2070,7 @@ pub mod async_features {
 			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_evaluation_plmc_spent(evaluations);
 		let plmc_bid_deposits = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_plmc_spent(
 			&accepted_bids,
-			Some(ct_price),
+			ct_price,
 		);
 		let plmc_community_contribution_deposits =
 			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_contributed_plmc_spent(
@@ -2623,26 +2592,18 @@ impl<T: Config> AccountMerge for Vec<UserToForeignAssets<T>> {
 pub struct BidParams<T: Config> {
 	pub bidder: AccountIdOf<T>,
 	pub amount: BalanceOf<T>,
-	pub price: PriceOf<T>,
 	pub multiplier: MultiplierOf<T>,
 	pub asset: AcceptedFundingAsset,
 }
 impl<T: Config> BidParams<T> {
-	pub fn new(
-		bidder: AccountIdOf<T>,
-		amount: BalanceOf<T>,
-		price: PriceOf<T>,
-		multiplier: u8,
-		asset: AcceptedFundingAsset,
-	) -> Self {
-		Self { bidder, amount, price, multiplier: multiplier.try_into().map_err(|_| ()).unwrap(), asset }
+	pub fn new(bidder: AccountIdOf<T>, amount: BalanceOf<T>, multiplier: u8, asset: AcceptedFundingAsset) -> Self {
+		Self { bidder, amount, multiplier: multiplier.try_into().map_err(|_| ()).unwrap(), asset }
 	}
 
-	pub fn from(bidder: AccountIdOf<T>, amount: BalanceOf<T>, price: PriceOf<T>) -> Self {
+	pub fn from(bidder: AccountIdOf<T>, amount: BalanceOf<T>) -> Self {
 		Self {
 			bidder,
 			amount,
-			price,
 			multiplier: 1u8.try_into().unwrap_or_else(|_| panic!("multiplier could not be created from 1u8")),
 			asset: AcceptedFundingAsset::USDT,
 		}
@@ -2861,27 +2822,32 @@ pub mod testing_macros {
 			})
 		};
 	}
-
-	// #[macro_export]
-	// macro_rules! find_event {
-	// 	($env: expr, $pattern:pat) => {
-	// 		$env.execute(|| {
-	// 			let events = System::events();
-	//
-	// 			events.iter().find_map(|event_record| {
-	// 				if let frame_system::EventRecord {
-	// 					event: RuntimeEvent::PolimecFunding(desired_event @ $pattern),
-	// 					..
-	// 				} = event_record
-	// 				{
-	// 					Some(desired_event.clone())
-	// 				} else {
-	// 					None
-	// 				}
-	// 			})
-	// 		})
-	// 	};
-	// }
+	#[macro_export]
+	macro_rules! find_event {
+    ($runtime:ty, $pattern:pat, $($field_name:ident == $field_value:expr),+) => {
+	    {
+		    let events = frame_system::Pallet::<$runtime>::events();
+	        events.iter().find_map(|event_record| {
+			    let runtime_event = event_record.event.clone();
+			    let runtime_event = <<$runtime as crate::Config>::RuntimeEvent>::from(runtime_event);
+			    if let Ok(funding_event) = TryInto::<crate::Event<$runtime>>::try_into(runtime_event) {
+				     if let $pattern = funding_event {
+	                    let mut is_match = true;
+	                    $(
+	                        is_match &= $field_name == $field_value;
+	                    )+
+	                    if is_match {
+	                        return Some(funding_event.clone());
+	                    }
+	                }
+	                None
+			    } else {
+	                None
+	            }
+            })
+	    }
+    };
+}
 
 	#[macro_export]
 	macro_rules! extract_from_event {

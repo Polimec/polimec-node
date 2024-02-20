@@ -123,14 +123,12 @@ where
 		BidParams::new(
 			account::<AccountIdOf<T>>("bidder_1", 0, 0),
 			(40_000 * ASSET_UNIT).into(),
-			1_u128.into(),
 			1u8,
 			AcceptedFundingAsset::USDT,
 		),
 		BidParams::new(
 			account::<AccountIdOf<T>>("bidder_2", 0, 0),
 			(5_000 * ASSET_UNIT).into(),
-			1_u128.into(),
 			7u8,
 			AcceptedFundingAsset::USDT,
 		),
@@ -773,24 +771,24 @@ mod benchmarks {
 
 		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, default_evaluations::<T>());
 
-		let existing_bid = BidParams::new(
-			bidder.clone(),
-			(100u128 * ASSET_UNIT).into(),
-			1_u128.into(),
-			5u8,
-			AcceptedFundingAsset::USDT,
-		);
+		let existing_bid =
+			BidParams::new(bidder.clone(), (100u128 * ASSET_UNIT).into(), 5u8, AcceptedFundingAsset::USDT);
 
 		let existing_bids = vec![existing_bid; existing_bids_count as usize];
 		let existing_bids_post_bucketing = inst.simulate_bids_with_bucket(existing_bids.clone(), project_id);
-		let plmc_for_existing_bids =
-			BenchInstantiator::<T>::calculate_auction_plmc_spent(&existing_bids_post_bucketing, None);
+		let plmc_for_existing_bids = BenchInstantiator::<T>::calculate_auction_plmc_spent(
+			&existing_bids_post_bucketing,
+			project_metadata.minimum_price,
+		);
 
 		let existential_deposits: Vec<UserToPLMCBalance<T>> = vec![bidder.clone()].existential_deposits();
 		let ct_account_deposits = vec![bidder.clone()].ct_account_deposits();
 
 		let usdt_for_existing_bids: Vec<UserToForeignAssets<T>> =
-			BenchInstantiator::<T>::calculate_auction_funding_asset_spent(&existing_bids_post_bucketing, None);
+			BenchInstantiator::<T>::calculate_auction_funding_asset_spent(
+				&existing_bids_post_bucketing,
+				project_metadata.minimum_price,
+			);
 		let escrow_account = Pallet::<T>::fund_account_id(project_id);
 		let prev_total_escrow_usdt_locked =
 			inst.get_free_foreign_asset_balances_for(usdt_id(), vec![escrow_account.clone()]);
@@ -818,21 +816,18 @@ mod benchmarks {
 			let current_bucket = Buckets::<T>::get(project_id).unwrap();
 			// first lets bring the bucket to almost its limit with another bidder:
 			assert!(new_bidder.clone() != bidder.clone());
-			let bid_params = BidParams::new(
-				new_bidder,
-				current_bucket.amount_left,
-				// not used atm
-				1_u128.into(),
-				1u8,
-				AcceptedFundingAsset::USDT,
-			);
+			let bid_params = BidParams::new(new_bidder, current_bucket.amount_left, 1u8, AcceptedFundingAsset::USDT);
 			maybe_filler_bid = Some(bid_params.clone());
-			let plmc_for_new_bidder =
-				BenchInstantiator::<T>::calculate_auction_plmc_spent(&vec![bid_params.clone()], None);
+			let plmc_for_new_bidder = BenchInstantiator::<T>::calculate_auction_plmc_spent(
+				&vec![bid_params.clone()],
+				project_metadata.minimum_price,
+			);
 			let plmc_ed = plmc_for_new_bidder.accounts().existential_deposits();
 			let plmc_ct_deposit = plmc_for_new_bidder.accounts().ct_account_deposits();
-			let usdt_for_new_bidder =
-				BenchInstantiator::<T>::calculate_auction_funding_asset_spent(&vec![bid_params.clone()], None);
+			let usdt_for_new_bidder = BenchInstantiator::<T>::calculate_auction_funding_asset_spent(
+				&vec![bid_params.clone()],
+				project_metadata.minimum_price,
+			);
 
 			inst.mint_plmc_to(plmc_for_new_bidder);
 			inst.mint_plmc_to(plmc_ed);
@@ -845,15 +840,20 @@ mod benchmarks {
 				(project_metadata.total_allocation_size.0 * (do_perform_bid_calls as u128).into());
 			usdt_for_filler_bidder = usdt_for_new_bidder;
 		}
-		let extrinsic_bid = BidParams::new(bidder.clone(), ct_amount, 1_u128.into(), 1u8, AcceptedFundingAsset::USDT);
+		let extrinsic_bid = BidParams::new(bidder.clone(), ct_amount, 1u8, AcceptedFundingAsset::USDT);
 		let original_extrinsic_bid = extrinsic_bid.clone();
 		// we need to call this after bidding `x` amount of times, to get the latest bucket from storage
 		let extrinsic_bids_post_bucketing = inst.simulate_bids_with_bucket(vec![extrinsic_bid], project_id);
 		assert_eq!(extrinsic_bids_post_bucketing.len(), (do_perform_bid_calls as usize).max(1usize));
-		let plmc_for_extrinsic_bids: Vec<UserToPLMCBalance<T>> =
-			BenchInstantiator::<T>::calculate_auction_plmc_spent(&extrinsic_bids_post_bucketing, None);
+		let plmc_for_extrinsic_bids: Vec<UserToPLMCBalance<T>> = BenchInstantiator::<T>::calculate_auction_plmc_spent(
+			&extrinsic_bids_post_bucketing,
+			project_metadata.minimum_price,
+		);
 		let usdt_for_extrinsic_bids: Vec<UserToForeignAssets<T>> =
-			BenchInstantiator::<T>::calculate_auction_funding_asset_spent(&extrinsic_bids_post_bucketing, None);
+			BenchInstantiator::<T>::calculate_auction_funding_asset_spent(
+				&extrinsic_bids_post_bucketing,
+				project_metadata.minimum_price,
+			);
 		inst.mint_plmc_to(plmc_for_extrinsic_bids.clone());
 		inst.mint_foreign_asset_to(usdt_for_extrinsic_bids.clone());
 
@@ -914,9 +914,9 @@ mod benchmarks {
 				bidder: Some(bidder.clone()),
 				status: Some(BidStatus::YetUnknown),
 				original_ct_amount: Some(bid_params.amount),
-				original_ct_usd_price: Some(bid_params.price),
+				original_ct_usd_price: None,
 				final_ct_amount: Some(bid_params.amount),
-				final_ct_usd_price: Some(bid_params.price),
+				final_ct_usd_price: None,
 				funding_asset: Some(AcceptedFundingAsset::USDT),
 				funding_asset_amount_locked: None,
 				multiplier: Some(bid_params.multiplier),
@@ -974,15 +974,17 @@ mod benchmarks {
 
 		// Events
 		for bid_params in extrinsic_bids_post_bucketing {
-			frame_system::Pallet::<T>::assert_has_event(
-				Event::Bid {
+			let found_event = find_event! {
+				T,
+				Event::<T>::Bid {
 					project_id,
-					amount: bid_params.amount,
-					price: bid_params.price,
-					multiplier: bid_params.multiplier,
-				}
-				.into(),
-			);
+					amount,
+					multiplier, ..
+				},
+				project_id == project_id,
+				amount == bid_params.amount,
+				multiplier == bid_params.multiplier
+			};
 		}
 	}
 
@@ -1850,7 +1852,7 @@ mod benchmarks {
 		);
 		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
 			Percent::from_percent(10) * target_funding_amount,
-			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
+			project_metadata.minimum_price,
 			default_weights(),
 			default_contributors::<T>(),
 			default_community_contributor_multipliers(),
@@ -1971,14 +1973,12 @@ mod benchmarks {
 			BidParams::new(
 				account::<AccountIdOf<T>>("bidder_1", 0, 0),
 				(40_000 * ASSET_UNIT).into(),
-				1_u128.into(),
 				1u8,
 				AcceptedFundingAsset::USDT,
 			),
 			BidParams::new(
 				account::<AccountIdOf<T>>("bidder_1", 0, 0),
 				(5_000 * ASSET_UNIT).into(),
-				1_u128.into(),
 				7u8,
 				AcceptedFundingAsset::USDT,
 			),
@@ -2465,7 +2465,7 @@ mod benchmarks {
 			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size.1);
 		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
 			Percent::from_percent(40) * target_funding_amount,
-			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
+			project_metadata.minimum_price,
 			default_weights(),
 			default_contributors::<T>(),
 			default_community_contributor_multipliers(),
@@ -2522,7 +2522,7 @@ mod benchmarks {
 		whitelist_account!(bidder);
 		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
 			Percent::from_percent(10) * target_funding_amount,
-			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
+			project_metadata.minimum_price,
 			default_weights(),
 			default_contributors::<T>(),
 			default_community_contributor_multipliers(),
@@ -2590,7 +2590,7 @@ mod benchmarks {
 		);
 		let contributions: Vec<ContributionParams<T>> = BenchInstantiator::generate_contributions_from_total_usd(
 			Percent::from_percent(10) * target_funding_amount,
-			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
+			project_metadata.minimum_price,
 			default_weights(),
 			default_contributors::<T>(),
 			default_community_contributor_multipliers(),
@@ -2670,7 +2670,7 @@ mod benchmarks {
 		whitelist_account!(bidder);
 		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
 			Percent::from_percent(10) * target_funding_amount,
-			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
+			project_metadata.minimum_price,
 			default_weights(),
 			default_contributors::<T>(),
 			default_community_contributor_multipliers(),
@@ -2740,7 +2740,7 @@ mod benchmarks {
 		);
 		let contributions: Vec<ContributionParams<T>> = BenchInstantiator::generate_contributions_from_total_usd(
 			Percent::from_percent(10) * target_funding_amount,
-			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
+			project_metadata.minimum_price,
 			default_weights(),
 			default_contributors::<T>(),
 			default_community_contributor_multipliers(),
@@ -3073,18 +3073,20 @@ mod benchmarks {
 				BidParams::<T>::new(
 					account::<AccountIdOf<T>>("bidder", 0, i),
 					(10u128 * ASSET_UNIT).into(),
-					project_metadata.minimum_price,
 					1u8,
 					AcceptedFundingAsset::USDT,
 				)
 			})
 			.collect_vec();
 
-		let plmc_needed_for_bids = BenchInstantiator::<T>::calculate_auction_plmc_spent(&accepted_bids, None);
+		let plmc_needed_for_bids =
+			BenchInstantiator::<T>::calculate_auction_plmc_spent(&accepted_bids, project_metadata.minimum_price);
 		let plmc_ed = accepted_bids.accounts().existential_deposits();
 		let plmc_ct_account_deposit = accepted_bids.accounts().ct_account_deposits();
-		let funding_asset_needed_for_bids =
-			BenchInstantiator::<T>::calculate_auction_funding_asset_spent(&accepted_bids, None);
+		let funding_asset_needed_for_bids = BenchInstantiator::<T>::calculate_auction_funding_asset_spent(
+			&accepted_bids,
+			project_metadata.minimum_price,
+		);
 
 		inst.mint_plmc_to(plmc_needed_for_bids);
 		inst.mint_plmc_to(plmc_ed);
@@ -3107,18 +3109,20 @@ mod benchmarks {
 				BidParams::<T>::new(
 					account::<AccountIdOf<T>>("bidder", 0, i),
 					(10u128 * ASSET_UNIT).into(),
-					project_metadata.minimum_price,
 					1u8,
 					AcceptedFundingAsset::USDT,
 				)
 			})
 			.collect_vec();
 
-		let plmc_needed_for_bids = BenchInstantiator::<T>::calculate_auction_plmc_spent(&rejected_bids, None);
+		let plmc_needed_for_bids =
+			BenchInstantiator::<T>::calculate_auction_plmc_spent(&rejected_bids, project_metadata.minimum_price);
 		let plmc_ed = rejected_bids.accounts().existential_deposits();
 		let plmc_ct_account_deposit = rejected_bids.accounts().ct_account_deposits();
-		let funding_asset_needed_for_bids =
-			BenchInstantiator::<T>::calculate_auction_funding_asset_spent(&rejected_bids, None);
+		let funding_asset_needed_for_bids = BenchInstantiator::<T>::calculate_auction_funding_asset_spent(
+			&rejected_bids,
+			project_metadata.minimum_price,
+		);
 
 		inst.mint_plmc_to(plmc_needed_for_bids);
 		inst.mint_plmc_to(plmc_ed);
@@ -3282,7 +3286,7 @@ mod benchmarks {
 		);
 		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
 			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
-			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
+			project_metadata.minimum_price,
 			default_weights(),
 			default_contributors::<T>(),
 			default_community_contributor_multipliers(),
@@ -3340,7 +3344,7 @@ mod benchmarks {
 		);
 		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
 			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
-			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
+			project_metadata.minimum_price,
 			default_weights(),
 			default_contributors::<T>(),
 			default_community_contributor_multipliers(),
@@ -3399,7 +3403,7 @@ mod benchmarks {
 		);
 		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
 			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
-			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
+			project_metadata.minimum_price,
 			default_weights(),
 			default_contributors::<T>(),
 			default_community_contributor_multipliers(),
@@ -3480,7 +3484,7 @@ mod benchmarks {
 		);
 		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
 			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
-			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
+			project_metadata.minimum_price,
 			default_weights(),
 			default_contributors::<T>(),
 			default_community_contributor_multipliers(),
@@ -3536,7 +3540,7 @@ mod benchmarks {
 		);
 		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
 			(manual_outcome_threshold * target_funding_amount) / 2.into(),
-			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
+			project_metadata.minimum_price,
 			default_weights(),
 			default_contributors::<T>(),
 			default_community_contributor_multipliers(),
@@ -3585,7 +3589,7 @@ mod benchmarks {
 		);
 		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
 			(manual_outcome_threshold * target_funding_amount) / 2.into(),
-			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
+			project_metadata.minimum_price,
 			default_weights(),
 			default_contributors::<T>(),
 			default_community_contributor_multipliers(),
@@ -3664,7 +3668,7 @@ mod benchmarks {
 		);
 		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
 			Percent::from_percent(10) * target_funding_amount,
-			BenchInstantiator::calculate_price_from_test_bids(bids.clone()),
+			project_metadata.minimum_price,
 			default_weights(),
 			default_contributors::<T>(),
 			default_community_contributor_multipliers(),
@@ -3689,28 +3693,6 @@ mod benchmarks {
 		// * validity checks *
 		let project_details = inst.get_project_details(project_id);
 		assert_eq!(project_details.cleanup, Cleaner::Failure(CleanerState::Initialized(PhantomData)));
-	}
-
-	#[macro_export]
-	macro_rules! find_event {
-		($env: expr, $pattern:pat) => {
-			$env.execute(|| {
-				let events: Vec<frame_system::EventRecord<<T as Config>::RuntimeEvent, T::Hash>> =
-					frame_system::Pallet::<T>::events();
-
-				events.iter().find_map(|event_record| {
-					let runtime_event = event_record.event.clone();
-					if let Ok(eve) = runtime_event.try_into() {
-						if let $pattern = &eve {
-							return Some(Rc::new(eve));
-						} else {
-							return None;
-						}
-					}
-					return None;
-				})
-			})
-		};
 	}
 
 	#[cfg(test)]

@@ -166,20 +166,20 @@ pub mod defaults {
 	pub fn default_bids() -> Vec<BidParams<TestRuntime>> {
 		// This should reflect the bidding currency, which currently is USDT
 		vec![
-			BidParams::new(BIDDER_1, 40_000 * ASSET_UNIT, FixedU128::from_float(1.0), 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_2, 5_000 * ASSET_UNIT, FixedU128::from_float(1.0), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_1, 40_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_2, 5_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		]
 	}
 
 	pub fn knowledge_hub_bids() -> Vec<BidParams<TestRuntime>> {
 		// This should reflect the bidding currency, which currently is USDT
 		vec![
-			BidParams::new(BIDDER_1, 10_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_2, 20_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_3, 20_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_4, 10_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_5, 5_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_6, 5_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_1, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_2, 20_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_3, 20_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_4, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_5, 5_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_6, 5_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		]
 	}
 
@@ -285,9 +285,9 @@ mod creation_round_success {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 
-		inst.create_evaluating_project(project, issuer);
+		inst.create_evaluating_project(project_metadata, issuer);
 	}
 
 	#[test]
@@ -295,8 +295,8 @@ mod creation_round_success {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		for _ in 0..512 {
-			let project = default_project(inst.get_new_nonce(), issuer);
-			inst.create_evaluating_project(project, issuer);
+			let project_metadata = default_project(inst.get_new_nonce(), issuer);
+			inst.create_evaluating_project(project_metadata, issuer);
 			inst.advance_time(1u64).unwrap();
 		}
 	}
@@ -396,10 +396,10 @@ mod evaluation_round_success {
 	fn evaluation_round_completed() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 
-		inst.create_auctioning_project(project, issuer, evaluations);
+		inst.create_auctioning_project(project_metadata, issuer, evaluations);
 	}
 
 	#[test]
@@ -503,7 +503,7 @@ mod evaluation_round_success {
 			default_project(inst.get_new_nonce(), ISSUER),
 			ISSUER,
 			evaluations.clone(),
-			vec![BidParams::new(BIDDER_1, 1000 * ASSET_UNIT, 10u128.into(), 1u8, AcceptedFundingAsset::USDT)],
+			vec![BidParams::new(BIDDER_1, 1000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT)],
 			vec![ContributionParams::new(BUYER_1, 1000 * US_DOLLAR, 1u8, AcceptedFundingAsset::USDT)],
 		);
 
@@ -555,7 +555,7 @@ mod evaluation_round_failure {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let now = inst.current_block();
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_failing_evaluations();
 		let plmc_eval_deposits: Vec<UserToPLMCBalance<_>> =
 			MockInstantiator::calculate_evaluation_plmc_spent(evaluations);
@@ -571,7 +571,7 @@ mod evaluation_round_failure {
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
 		inst.mint_plmc_to(ct_account_deposits.clone());
 
-		let project_id = inst.create_evaluating_project(project, issuer);
+		let project_id = inst.create_evaluating_project(project_metadata, issuer);
 
 		let evaluation_end = inst
 			.get_project_details(project_id)
@@ -598,7 +598,7 @@ mod evaluation_round_failure {
 	fn insufficient_balance() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let insufficient_eval_deposits = MockInstantiator::calculate_evaluation_plmc_spent(evaluations.clone())
 			.iter()
@@ -610,7 +610,7 @@ mod evaluation_round_failure {
 		inst.mint_plmc_to(insufficient_eval_deposits);
 		inst.mint_plmc_to(plmc_existential_deposits);
 
-		let project_id = inst.create_evaluating_project(project, issuer);
+		let project_id = inst.create_evaluating_project(project_metadata, issuer);
 
 		let dispatch_error = inst.bond_for_users(project_id, evaluations);
 		assert_err!(dispatch_error, TokenError::FundsUnavailable)
@@ -739,10 +739,10 @@ mod auction_round_success {
 	fn auction_round_completed() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = default_bids();
-		let _project_id = inst.create_community_contributing_project(project, issuer, evaluations, bids);
+		let _project_id = inst.create_community_contributing_project(project_metadata, issuer, evaluations, bids);
 	}
 
 	#[test]
@@ -766,15 +766,14 @@ mod auction_round_success {
 	fn evaluation_bond_counts_towards_bid() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let mut evaluations = default_evaluations();
 		let evaluator_bidder = 69;
 		let evaluation_amount = 420 * US_DOLLAR;
-		let evaluator_bid =
-			BidParams::new(evaluator_bidder, 600 * ASSET_UNIT, 15.into(), 1u8, AcceptedFundingAsset::USDT);
+		let evaluator_bid = BidParams::new(evaluator_bidder, 600 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
 		evaluations.push(UserToUSDBalance::new(evaluator_bidder, evaluation_amount));
 
-		let project_id = inst.create_auctioning_project(project, issuer, evaluations);
+		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
 
 		let already_bonded_plmc = MockInstantiator::calculate_evaluation_plmc_spent(vec![UserToUSDBalance::new(
 			evaluator_bidder,
@@ -783,10 +782,15 @@ mod auction_round_success {
 			.plmc_amount;
 		let usable_evaluation_plmc =
 			already_bonded_plmc - <TestRuntime as Config>::EvaluatorSlash::get() * already_bonded_plmc;
-		let necessary_plmc_for_bid =
-			MockInstantiator::calculate_auction_plmc_spent(&vec![evaluator_bid.clone()], None)[0].plmc_amount;
-		let necessary_usdt_for_bid =
-			MockInstantiator::calculate_auction_funding_asset_spent(&vec![evaluator_bid.clone()], None);
+		let necessary_plmc_for_bid = MockInstantiator::calculate_auction_plmc_spent(
+			&vec![evaluator_bid.clone()],
+			project_metadata.minimum_price,
+		)[0]
+		.plmc_amount;
+		let necessary_usdt_for_bid = MockInstantiator::calculate_auction_funding_asset_spent(
+			&vec![evaluator_bid.clone()],
+			project_metadata.minimum_price,
+		);
 
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
 			evaluator_bidder,
@@ -803,15 +807,10 @@ mod auction_round_success {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_metadata = default_project(inst.get_new_nonce(), ISSUER);
 		let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER, default_evaluations());
-		let bids = vec![BidParams::new(
-			100,
-			project_metadata.total_allocation_size.0,
-			15.into(),
-			1u8,
-			AcceptedFundingAsset::USDT,
-		)];
-		let foreign_funding = MockInstantiator::calculate_auction_funding_asset_spent(&bids, None);
-		let plmc_funding = MockInstantiator::calculate_auction_plmc_spent(&bids, None);
+		let bids = vec![BidParams::new(100, project_metadata.total_allocation_size.0, 1u8, AcceptedFundingAsset::USDT)];
+		let foreign_funding =
+			MockInstantiator::calculate_auction_funding_asset_spent(&bids, project_metadata.minimum_price);
+		let plmc_funding = MockInstantiator::calculate_auction_plmc_spent(&bids, project_metadata.minimum_price);
 		let ed_funding = plmc_funding.accounts().existential_deposits();
 
 		inst.mint_plmc_to(ed_funding);
@@ -877,12 +876,12 @@ mod auction_round_success {
 		let project_id = inst.create_auctioning_project(project_metadata, ISSUER, default_evaluations());
 
 		let bids = vec![
-			BidParams::new(ADAM, 10_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(TOM, 20_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(SOFIA, 20_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(FRED, 10_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(ANNA, 5_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(DAMIAN, 5_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(ADAM, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(TOM, 20_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(SOFIA, 20_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(FRED, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(ANNA, 5_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(DAMIAN, 5_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 
 		inst.bid_for_users(project_id, bids).unwrap();
@@ -900,9 +899,9 @@ mod auction_round_success {
 	fn only_candle_bids_before_random_block_get_included() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
-		let project_id = inst.create_auctioning_project(project, issuer, evaluations);
+		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
 		let english_end_block = inst
 			.get_project_details(project_id)
 			.phase_transition_points
@@ -922,17 +921,15 @@ mod auction_round_success {
 			.end()
 			.expect("Candle auction end point should exist");
 
-		let bid_info = BidParams::new(
-			0,
-			50u128 * ASSET_UNIT,
-			PriceOf::<TestRuntime>::from_float(1.0),
-			1u8,
-			AcceptedFundingAsset::USDT,
-		);
+		let bid_info = BidParams::new(0, 50u128 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
 		let plmc_necessary_funding =
-			MockInstantiator::calculate_auction_plmc_spent(&vec![bid_info.clone()], None)[0].plmc_amount;
-		let foreign_asset_necessary_funding =
-			MockInstantiator::calculate_auction_funding_asset_spent(&vec![bid_info.clone()], None)[0].asset_amount;
+			MockInstantiator::calculate_auction_plmc_spent(&vec![bid_info.clone()], project_metadata.minimum_price)[0]
+				.plmc_amount;
+		let foreign_asset_necessary_funding = MockInstantiator::calculate_auction_funding_asset_spent(
+			&vec![bid_info.clone()],
+			project_metadata.minimum_price,
+		)[0]
+		.asset_amount;
 
 		let mut bids_made: Vec<BidParams<TestRuntime>> = vec![];
 		let starting_bid_block = inst.current_block();
@@ -955,7 +952,6 @@ mod auction_round_success {
 			let bids: Vec<BidParams<_>> = vec![BidParams {
 				bidder: bidding_account,
 				amount: bid_info.amount,
-				price: bid_info.price,
 				multiplier: bid_info.multiplier,
 				asset: bid_info.asset,
 			}];
@@ -987,7 +983,7 @@ mod auction_round_success {
 				project_id: Some(project_id),
 				bidder: Some(bid.bidder),
 				original_ct_amount: Some(bid.amount),
-				original_ct_usd_price: Some(bid.price),
+				original_ct_usd_price: None,
 				status: Some(BidStatus::Accepted),
 				..Default::default()
 			};
@@ -1004,7 +1000,6 @@ mod auction_round_success {
 				project_id: Some(project_id),
 				bidder: Some(bid.bidder),
 				original_ct_amount: Some(bid.amount),
-				original_ct_usd_price: Some(bid.price),
 				status: Some(BidStatus::Rejected(RejectionReason::AfterCandleEnd)),
 				..Default::default()
 			};
@@ -1081,28 +1076,28 @@ mod auction_round_success {
 	fn bidder_was_evaluator() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), ISSUER);
+		let project_metadata = default_project(inst.get_new_nonce(), ISSUER);
 		let evaluations = default_evaluations();
 		let mut bids = default_bids();
 		let evaluator = evaluations[0].account;
-		bids.push(BidParams::new(evaluator, 150 * ASSET_UNIT, 21_u128.into(), 1u8, AcceptedFundingAsset::USDT));
-		let _ = inst.create_community_contributing_project(project, issuer, evaluations, bids);
+		bids.push(BidParams::new(evaluator, 150 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT));
+		let _ = inst.create_community_contributing_project(project_metadata, issuer, evaluations, bids);
 	}
 
 	#[test]
 	fn bids_at_higher_price_than_weighted_average_use_average() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids: Vec<BidParams<_>> = vec![
-			BidParams::new(BIDDER_1, 10_000 * ASSET_UNIT, 0.into(), 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_2, 20_000 * ASSET_UNIT, 0.into(), 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_4, 20_000 * ASSET_UNIT, 0.into(), 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_5, 5_000 * ASSET_UNIT, 0.into(), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_1, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_2, 20_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_4, 20_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_5, 5_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 
-		let (project_id, _) = inst.create_community_contributing_project(project, issuer, evaluations, bids);
+		let (project_id, _) = inst.create_community_contributing_project(project_metadata, issuer, evaluations, bids);
 		let bidder_5_bid =
 			inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id, BIDDER_5)).next().unwrap());
 		let wabgp = inst.get_project_details(project_id).weighted_average_price.unwrap();
@@ -1114,14 +1109,14 @@ mod auction_round_success {
 	fn cannot_mint_ct_twice_manually() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = default_bids();
 		let community_contributions = default_community_buys();
 		let remainder_contributions = vec![];
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations,
 			bids,
@@ -1164,14 +1159,14 @@ mod auction_round_success {
 	fn cannot_mint_ct_manually_after_automatic_mint() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = default_bids();
 		let community_contributions = default_community_buys();
 		let remainder_contributions = vec![];
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations,
 			bids.clone(),
@@ -1222,24 +1217,18 @@ mod auction_round_success {
 	fn plmc_vesting_schedule_starts_automatically() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 
 		let mut bids = default_bids();
-		let new_bids = vec![BidParams::new(
-			BIDDER_4,
-			500 * US_DOLLAR,
-			FixedU128::from_float(1.1),
-			1u8,
-			AcceptedFundingAsset::USDT,
-		)];
+		let new_bids = vec![BidParams::new(BIDDER_4, 500 * US_DOLLAR, 1u8, AcceptedFundingAsset::USDT)];
 		bids.extend(new_bids.clone());
 
 		let community_contributions = default_community_buys();
 		let remainder_contributions = vec![];
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations,
 			bids,
@@ -1252,7 +1241,7 @@ mod auction_round_success {
 		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
 
 		let final_price = details.weighted_average_price.unwrap();
-		let plmc_locked_for_bids = MockInstantiator::calculate_auction_plmc_spent(&new_bids, Some(final_price));
+		let plmc_locked_for_bids = MockInstantiator::calculate_auction_plmc_spent(&new_bids, final_price);
 
 		for UserToPLMCBalance { account, plmc_amount } in plmc_locked_for_bids {
 			let schedule = inst.execute(|| {
@@ -1270,14 +1259,14 @@ mod auction_round_success {
 	fn plmc_vesting_schedule_starts_manually() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = default_bids();
 		let community_contributions = default_community_buys();
 		let remainder_contributions = vec![];
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations,
 			bids,
@@ -1320,14 +1309,14 @@ mod auction_round_success {
 	fn plmc_vesting_full_amount() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = default_bids();
 		let community_contributions = default_community_buys();
 		let remainder_contributions = vec![];
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations,
 			bids,
@@ -1361,17 +1350,17 @@ mod auction_round_success {
 	fn plmc_vesting_partial_amount() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = vec![
-			BidParams::new(BIDDER_1, 49_000 * ASSET_UNIT, FixedU128::from_float(1.0), 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_2, ASSET_UNIT, FixedU128::from_float(1.0), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_1, 49_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_2, ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 		let community_contributions = default_community_buys();
 		let remainder_contributions = vec![];
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations,
 			bids,
@@ -1406,37 +1395,36 @@ mod auction_round_success {
 	fn unsuccessful_bids_dont_get_vest_schedule() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let mut bids = vec![
-			BidParams::new(BIDDER_1, 30000 * ASSET_UNIT, 1_u128.into(), 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_2, 15000 * ASSET_UNIT, 1_u128.into(), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_1, 30000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_2, 15000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 
 		let available_tokens =
-			project.total_allocation_size.0.saturating_sub(bids.iter().fold(0, |acc, bid| acc + bid.amount));
+			project_metadata.total_allocation_size.0.saturating_sub(bids.iter().fold(0, |acc, bid| acc + bid.amount));
 
 		let unused_price = FixedU128::from_float(1.0);
-		let rejected_bid =
-			vec![BidParams::new(BIDDER_5, available_tokens, unused_price, 1u8, AcceptedFundingAsset::USDT)];
+		let rejected_bid = vec![BidParams::new(BIDDER_5, available_tokens, 1u8, AcceptedFundingAsset::USDT)];
 		let unused_price = FixedU128::from_float(1.1);
-		let accepted_bid =
-			vec![BidParams::new(BIDDER_4, available_tokens, unused_price, 1u8, AcceptedFundingAsset::USDT)];
+		let accepted_bid = vec![BidParams::new(BIDDER_4, available_tokens, 1u8, AcceptedFundingAsset::USDT)];
 		bids.extend(rejected_bid.clone());
 		bids.extend(accepted_bid.clone());
 
 		let community_contributions = default_community_buys();
 
-		let project_id = inst.create_auctioning_project(project, issuer, evaluations);
+		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
 
-		let bidders_plmc = MockInstantiator::calculate_auction_plmc_spent(&bids, None);
+		let bidders_plmc = MockInstantiator::calculate_auction_plmc_spent(&bids, project_metadata.minimum_price);
 		let bidders_existential_deposits = bidders_plmc.accounts().existential_deposits();
 		let bidders_ct_account_deposits = bidders_plmc.accounts().ct_account_deposits();
 		inst.mint_plmc_to(bidders_plmc.clone());
 		inst.mint_plmc_to(bidders_existential_deposits);
 		inst.mint_plmc_to(bidders_ct_account_deposits);
 
-		let bidders_funding_assets = MockInstantiator::calculate_auction_funding_asset_spent(&bids, None);
+		let bidders_funding_assets =
+			MockInstantiator::calculate_auction_funding_asset_spent(&bids, project_metadata.minimum_price);
 		inst.mint_foreign_asset_to(bidders_funding_assets);
 
 		inst.bid_for_users(project_id, bids).unwrap();
@@ -1462,10 +1450,8 @@ mod auction_round_success {
 		let details = inst.get_project_details(project_id);
 		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
 
-		let plmc_locked_for_accepted_bid =
-			MockInstantiator::calculate_auction_plmc_spent(&accepted_bid, Some(final_price));
-		let plmc_locked_for_rejected_bid =
-			MockInstantiator::calculate_auction_plmc_spent(&rejected_bid, Some(final_price));
+		let plmc_locked_for_accepted_bid = MockInstantiator::calculate_auction_plmc_spent(&accepted_bid, final_price);
+		let plmc_locked_for_rejected_bid = MockInstantiator::calculate_auction_plmc_spent(&rejected_bid, final_price);
 
 		let UserToPLMCBalance { account: accepted_user, plmc_amount: accepted_plmc_amount } =
 			plmc_locked_for_accepted_bid[0];
@@ -1493,11 +1479,11 @@ mod auction_round_success {
 	fn bid_funding_assets_are_released_automatically_on_funding_fail() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let mut bids = MockInstantiator::generate_bids_from_total_usd(
-			project.total_allocation_size.0,
-			project.minimum_price,
+			project_metadata.total_allocation_size.0,
+			project_metadata.minimum_price,
 			default_weights(),
 			default_bidders(),
 			default_multipliers(),
@@ -1507,7 +1493,7 @@ mod auction_round_success {
 		let remainder_contributions = vec![];
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations,
 			bids,
@@ -1574,11 +1560,11 @@ mod auction_round_success {
 	fn bid_funding_assets_are_released_manually_on_funding_fail() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let mut bids = MockInstantiator::generate_bids_from_total_usd(
-			project.total_allocation_size.0,
-			project.minimum_price,
+			project_metadata.total_allocation_size.0,
+			project_metadata.minimum_price,
 			default_weights(),
 			default_bidders(),
 			default_multipliers(),
@@ -1588,7 +1574,7 @@ mod auction_round_success {
 		let remainder_contributions = vec![];
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations,
 			bids,
@@ -1670,12 +1656,12 @@ mod auction_round_success {
 	fn bid_plmc_bonded_is_returned_automatically_on_funding_fail() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 
 		let mut bids = MockInstantiator::generate_bids_from_total_usd(
-			project.total_allocation_size.0,
-			project.minimum_price,
+			project_metadata.total_allocation_size.0,
+			project_metadata.minimum_price,
 			default_weights(),
 			default_bidders(),
 			default_multipliers(),
@@ -1686,7 +1672,7 @@ mod auction_round_success {
 		let remainder_contributions = vec![];
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations,
 			bids.clone(),
@@ -1721,7 +1707,7 @@ mod auction_round_success {
 		delta_bidders_plmc_balances.sort_by_key(|item| item.account);
 
 		let final_price = details.weighted_average_price.unwrap();
-		let mut plmc_locked_for_bids = MockInstantiator::calculate_auction_plmc_spent(&bids, Some(final_price));
+		let mut plmc_locked_for_bids = MockInstantiator::calculate_auction_plmc_spent(&bids, final_price);
 		plmc_locked_for_bids.sort_by_key(|item| item.account);
 		let ct_deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
 			ProjectId,
@@ -1736,12 +1722,12 @@ mod auction_round_success {
 	fn bid_plmc_bonded_is_returned_manually_on_funding_fail() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 
 		let mut bids = MockInstantiator::generate_bids_from_total_usd(
-			project.total_allocation_size.0,
-			project.minimum_price,
+			project_metadata.total_allocation_size.0,
+			project_metadata.minimum_price,
 			default_weights(),
 			default_bidders(),
 			default_multipliers(),
@@ -1752,7 +1738,7 @@ mod auction_round_success {
 		let remainder_contributions = vec![];
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations,
 			bids.clone(),
@@ -1804,7 +1790,7 @@ mod auction_round_success {
 
 		let details = inst.get_project_details(project_id);
 		let final_price = details.weighted_average_price.unwrap();
-		let mut plmc_locked_for_bids = MockInstantiator::calculate_auction_plmc_spent(&bids, Some(final_price));
+		let mut plmc_locked_for_bids = MockInstantiator::calculate_auction_plmc_spent(&bids, final_price);
 		plmc_locked_for_bids.sort_by_key(|item| item.account);
 
 		assert_eq!(delta_bidders_plmc_balances, plmc_locked_for_bids);
@@ -1825,43 +1811,52 @@ mod auction_round_success {
 		);
 
 		const OP_BIDDER: AccountId = 42069;
-		let overpriced_bid =
-			BidParams::new(OP_BIDDER, 1000 * ASSET_UNIT, FixedU128::from_float(1.1), 1u8, AcceptedFundingAsset::USDT);
+		let overpriced_bid = BidParams::new(OP_BIDDER, 1000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
 		bids.push(overpriced_bid.clone());
 
-		let project_id = inst.create_auctioning_project(project_metadata, issuer, evaluations);
+		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
 
-		let auctioning_plmc = MockInstantiator::calculate_auction_plmc_spent(&bids, None);
+		let auctioning_plmc = MockInstantiator::calculate_auction_plmc_spent(&bids, project_metadata.minimum_price);
 		let ed_plmc = auctioning_plmc.accounts().existential_deposits();
 		let ct_plmc = auctioning_plmc.accounts().ct_account_deposits();
-		let plmc_to_mint_sum = MockInstantiator::generic_map_operation(vec![auctioning_plmc, ed_plmc, ct_plmc], MergeOperation::Add);
+		let plmc_to_mint_sum =
+			MockInstantiator::generic_map_operation(vec![auctioning_plmc, ed_plmc, ct_plmc], MergeOperation::Add);
 		inst.mint_plmc_to(plmc_to_mint_sum);
 
-		let funding_asset = MockInstantiator::calculate_auction_funding_asset_spent(&bids, None);
+		let funding_asset =
+			MockInstantiator::calculate_auction_funding_asset_spent(&bids, project_metadata.minimum_price);
 		inst.mint_foreign_asset_to(funding_asset);
 
 		inst.bid_for_users(project_id, bids.clone()).unwrap();
 
 		let pre_wap_op_bidder_plmc = inst.get_free_plmc_balances_for(vec![OP_BIDDER])[0].plmc_amount;
-		let pre_wap_op_bidder_funding_asset = inst.get_free_foreign_asset_balances_for(
-			AcceptedFundingAsset::USDT.to_assethub_id(),
-			vec![OP_BIDDER],
-		)[0].asset_amount;
+		let pre_wap_op_bidder_funding_asset = inst
+			.get_free_foreign_asset_balances_for(AcceptedFundingAsset::USDT.to_assethub_id(), vec![OP_BIDDER])[0]
+			.asset_amount;
 
 		inst.start_community_funding(project_id).unwrap();
 
 		let post_wap_op_bidder_plmc = inst.get_free_plmc_balances_for(vec![OP_BIDDER])[0].plmc_amount;
-		let post_wap_op_bidder_funding_asset = inst.get_free_foreign_asset_balances_for(
-			AcceptedFundingAsset::USDT.to_assethub_id(),
-			vec![OP_BIDDER],
-		)[0].asset_amount;
+		let post_wap_op_bidder_funding_asset = inst
+			.get_free_foreign_asset_balances_for(AcceptedFundingAsset::USDT.to_assethub_id(), vec![OP_BIDDER])[0]
+			.asset_amount;
 
 		assert!(post_wap_op_bidder_plmc > pre_wap_op_bidder_plmc);
 		assert!(post_wap_op_bidder_funding_asset > pre_wap_op_bidder_funding_asset);
 
-		let op_bid_info = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id, OP_BIDDER)).next().unwrap());
-		let plmc_returned = MockInstantiator::calculate_auction_plmc_spent(&vec![overpriced_bid.clone()], None)[0].plmc_amount - op_bid_info.plmc_bond;
-		let funding_returned = MockInstantiator::calculate_auction_funding_asset_spent(&vec![overpriced_bid], None)[0].asset_amount - op_bid_info.funding_asset_amount_locked;
+		let op_bid_info =
+			inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id, OP_BIDDER)).next().unwrap());
+		let plmc_returned = MockInstantiator::calculate_auction_plmc_spent(
+			&vec![overpriced_bid.clone()],
+			project_metadata.minimum_price,
+		)[0]
+		.plmc_amount - op_bid_info.plmc_bond;
+		let funding_returned = MockInstantiator::calculate_auction_funding_asset_spent(
+			&vec![overpriced_bid],
+			project_metadata.minimum_price,
+		)[0]
+		.asset_amount -
+			op_bid_info.funding_asset_amount_locked;
 		let price_dif = op_bid_info.original_ct_usd_price - op_bid_info.final_ct_usd_price;
 
 		assert!(plmc_returned > BalanceOf::<TestRuntime>::zero());
@@ -1910,25 +1905,18 @@ mod auction_round_failure {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_metadata = default_project(0, ISSUER);
 		let bids = (0u32..<TestRuntime as Config>::MaxBidsPerProject::get())
-			.map(|i| {
-				BidParams::<TestRuntime>::new(
-					i as u64 + 420u64,
-					10 * ASSET_UNIT,
-					1_u128.into(),
-					1u8,
-					AcceptedFundingAsset::USDT,
-				)
-			})
+			.map(|i| BidParams::<TestRuntime>::new(i as u64 + 420u64, 10 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT))
 			.collect_vec();
-		let failing_bid =
-			BidParams::<TestRuntime>::new(BIDDER_1, 10 * ASSET_UNIT, 1_u128.into(), 1u8, AcceptedFundingAsset::USDT);
+		let failing_bid = BidParams::<TestRuntime>::new(BIDDER_1, 10 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
 
 		let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER, default_evaluations());
 
-		let plmc_for_bidding = MockInstantiator::calculate_auction_plmc_spent(&bids.clone(), None);
+		let plmc_for_bidding =
+			MockInstantiator::calculate_auction_plmc_spent(&bids.clone(), project_metadata.minimum_price);
 		let plmc_existential_deposits = bids.accounts().existential_deposits();
 		let plmc_ct_account_deposits = bids.accounts().ct_account_deposits();
-		let usdt_for_bidding = MockInstantiator::calculate_auction_funding_asset_spent(&bids.clone(), None);
+		let usdt_for_bidding =
+			MockInstantiator::calculate_auction_funding_asset_spent(&bids.clone(), project_metadata.minimum_price);
 
 		inst.mint_plmc_to(plmc_for_bidding.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
@@ -1937,11 +1925,14 @@ mod auction_round_failure {
 
 		inst.bid_for_users(project_id, bids.clone()).unwrap();
 
-		let plmc_for_failing_bid = MockInstantiator::calculate_auction_plmc_spent(&vec![failing_bid.clone()], None);
+		let plmc_for_failing_bid =
+			MockInstantiator::calculate_auction_plmc_spent(&vec![failing_bid.clone()], project_metadata.minimum_price);
 		let plmc_existential_deposits = plmc_for_failing_bid.accounts().existential_deposits();
 		let plmc_ct_account_deposits = plmc_for_failing_bid.accounts().ct_account_deposits();
-		let usdt_for_bidding =
-			MockInstantiator::calculate_auction_funding_asset_spent(&vec![failing_bid.clone()], None);
+		let usdt_for_bidding = MockInstantiator::calculate_auction_funding_asset_spent(
+			&vec![failing_bid.clone()],
+			project_metadata.minimum_price,
+		);
 
 		inst.mint_plmc_to(plmc_for_failing_bid.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
@@ -1973,8 +1964,7 @@ mod auction_round_failure {
 	fn bid_with_asset_not_accepted() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_id = inst.create_auctioning_project(default_project(0, ISSUER), ISSUER, default_evaluations());
-		let bids =
-			vec![BidParams::<TestRuntime>::new(BIDDER_1, 10_000, 2_u128.into(), 1u8, AcceptedFundingAsset::USDC)];
+		let bids = vec![BidParams::<TestRuntime>::new(BIDDER_1, 10_000, 1u8, AcceptedFundingAsset::USDC)];
 
 		let outcome = inst.execute(|| {
 			Pallet::<TestRuntime>::do_bid(
@@ -1992,9 +1982,9 @@ mod auction_round_failure {
 	fn no_bids_made() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
-		let project_id = inst.create_auctioning_project(project, issuer, evaluations);
+		let project_id = inst.create_auctioning_project(project_metadata, issuer, evaluations);
 
 		let details = inst.get_project_details(project_id);
 		let english_end = details.phase_transition_points.english_auction.end().unwrap();
@@ -2014,26 +2004,20 @@ mod auction_round_failure {
 	fn after_ct_soldout_bid_gets_refunded() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_id = inst.create_auctioning_project(default_project(0, ISSUER), ISSUER, default_evaluations());
-		let metadata = inst.get_project_metadata(project_id);
-		let max_cts_for_bids = metadata.total_allocation_size.0;
+		let project_metadata = inst.get_project_metadata(project_id);
+		let max_cts_for_bids = project_metadata.total_allocation_size.0;
 
-		let glutton_bid_1 = BidParams::new(
-			BIDDER_1,
-			max_cts_for_bids - 5_000 * ASSET_UNIT,
-			FixedU128::from_float(1.0),
-			1u8,
-			AcceptedFundingAsset::USDT,
-		);
-		let rejected_bid =
-			BidParams::new(BIDDER_2, 5_000 * ASSET_UNIT, FixedU128::from_float(1.0), 1u8, AcceptedFundingAsset::USDT);
-		let glutton_bid_2 =
-			BidParams::new(BIDDER_1, 5_000 * ASSET_UNIT, FixedU128::from_float(1.1), 1u8, AcceptedFundingAsset::USDT);
+		let glutton_bid_1 =
+			BidParams::new(BIDDER_1, max_cts_for_bids - 5_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
+		let rejected_bid = BidParams::new(BIDDER_2, 5_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
+		let glutton_bid_2 = BidParams::new(BIDDER_1, 5_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
 		let bids = inst.simulate_bids_with_bucket(
 			vec![glutton_bid_1.clone(), rejected_bid.clone(), glutton_bid_2.clone()],
 			project_id,
 		);
-		let plmc_fundings = MockInstantiator::calculate_auction_plmc_spent(&bids, None);
-		let usdt_fundings = MockInstantiator::calculate_auction_funding_asset_spent(&bids, None);
+		let plmc_fundings = MockInstantiator::calculate_auction_plmc_spent(&bids, project_metadata.minimum_price);
+		let usdt_fundings =
+			MockInstantiator::calculate_auction_funding_asset_spent(&bids, project_metadata.minimum_price);
 
 		let plmc_existential_amounnts = plmc_fundings.accounts().existential_deposits();
 		let plmc_ct_account_deposits = plmc_fundings.accounts().ct_account_deposits();
@@ -2074,9 +2058,8 @@ mod auction_round_failure {
 		inst.start_community_funding(project_id).unwrap();
 
 		let weighted_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
-		let plmc_fundings_after_round = MockInstantiator::calculate_auction_plmc_spent(&bids, Some(weighted_price));
-		let usdt_fundings_after_round =
-			MockInstantiator::calculate_auction_funding_asset_spent(&bids, Some(weighted_price));
+		let plmc_fundings_after_round = MockInstantiator::calculate_auction_plmc_spent(&bids, weighted_price);
+		let usdt_fundings_after_round = MockInstantiator::calculate_auction_funding_asset_spent(&bids, weighted_price);
 
 		inst.do_free_plmc_assertions(vec![
 			UserToPLMCBalance::new(
@@ -2113,17 +2096,22 @@ mod auction_round_failure {
 	#[test]
 	fn after_random_end_bid_gets_refunded() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let project_id = inst.create_auctioning_project(default_project(0, ISSUER), ISSUER, default_evaluations());
+		let project_metadata = default_project(0, ISSUER);
+		let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER, default_evaluations());
 
 		let (bid_in, bid_out) = (default_bids()[0].clone(), default_bids()[1].clone());
 
-		let plmc_fundings =
-			MockInstantiator::calculate_auction_plmc_spent(&vec![bid_in.clone(), bid_out.clone()], None);
+		let plmc_fundings = MockInstantiator::calculate_auction_plmc_spent(
+			&vec![bid_in.clone(), bid_out.clone()],
+			project_metadata.minimum_price,
+		);
 		let plmc_existential_amounts = plmc_fundings.accounts().existential_deposits();
 		let plmc_ct_account_deposits = plmc_fundings.accounts().ct_account_deposits();
 
-		let usdt_fundings =
-			MockInstantiator::calculate_auction_funding_asset_spent(&vec![bid_in.clone(), bid_out.clone()], None);
+		let usdt_fundings = MockInstantiator::calculate_auction_funding_asset_spent(
+			&vec![bid_in.clone(), bid_out.clone()],
+			project_metadata.minimum_price,
+		);
 
 		inst.mint_plmc_to(plmc_fundings.clone());
 		inst.mint_plmc_to(plmc_existential_amounts.clone());
@@ -2217,7 +2205,7 @@ mod auction_round_failure {
 		inst.do_free_plmc_assertions(zero_balances.clone());
 		inst.do_reserved_plmc_assertions(zero_balances.clone(), HoldReason::FutureDeposit(0).into());
 
-		let required_plmc_bonds = MockInstantiator::calculate_auction_plmc_spent(&bids, None);
+		let required_plmc_bonds = MockInstantiator::calculate_auction_plmc_spent(&bids, project_metadata.minimum_price);
 		let plmc_existential_deposits = required_plmc_bonds.accounts().existential_deposits();
 		let plmc_ct_account_deposits = required_plmc_bonds.accounts().ct_account_deposits();
 
@@ -2356,10 +2344,7 @@ mod community_round_success {
 	#[test]
 	fn community_round_ends_on_all_ct_sold_exact() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let bids = vec![
-			BidParams::from(BIDDER_1, 40_000 * ASSET_UNIT, FixedU128::from_float(1.0)),
-			BidParams::from(BIDDER_2, 10_000 * ASSET_UNIT, FixedU128::from_float(1.0)),
-		];
+		let bids = vec![BidParams::from(BIDDER_1, 40_000 * ASSET_UNIT), BidParams::from(BIDDER_2, 10_000 * ASSET_UNIT)];
 		let (project_id, _) =
 			inst.create_community_contributing_project(default_project(0, ISSUER), ISSUER, default_evaluations(), bids);
 		const BOB: AccountId = 808;
@@ -2407,8 +2392,8 @@ mod community_round_success {
 	fn community_round_ends_on_all_ct_sold_overbuy() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let bids = vec![
-			BidParams::new(BIDDER_1, 40_000 * ASSET_UNIT, FixedU128::from_float(1.0), 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_2, 10_000 * ASSET_UNIT, FixedU128::from_float(1.0), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_1, 40_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_2, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 		let (project_id, _) =
 			inst.create_community_contributing_project(default_project(0, ISSUER), ISSUER, default_evaluations(), bids);
@@ -2709,7 +2694,7 @@ mod community_round_success {
 	fn retail_contributor_was_evaluator() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let mut evaluations = default_evaluations();
 		let evaluator_contributor = 69;
 		let evaluation_amount = 420 * US_DOLLAR;
@@ -2718,7 +2703,7 @@ mod community_round_success {
 		evaluations.push(UserToUSDBalance::new(evaluator_contributor, evaluation_amount));
 		let bids = default_bids();
 
-		let (project_id, _) = inst.create_community_contributing_project(project, issuer, evaluations, bids);
+		let (project_id, _) = inst.create_community_contributing_project(project_metadata, issuer, evaluations, bids);
 		let ct_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 		let already_bonded_plmc = MockInstantiator::calculate_evaluation_plmc_spent(vec![UserToUSDBalance::new(
 			evaluator_contributor,
@@ -2745,7 +2730,7 @@ mod community_round_success {
 	fn retail_contributor_was_evaluator_vec_full() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let mut evaluations = default_evaluations();
 		let bids = default_bids();
 		let evaluator_contributor = 69;
@@ -2762,7 +2747,7 @@ mod community_round_success {
 			));
 		}
 
-		let expected_price = MockInstantiator::calculate_price_from_test_bids(bids.clone());
+		let expected_price = project_metadata.minimum_price;
 		let fill_necessary_plmc =
 			MockInstantiator::calculate_contributed_plmc_spent(fill_contributions.clone(), expected_price);
 		let fill_necessary_usdt =
@@ -2785,7 +2770,7 @@ mod community_round_success {
 			.saturating_mul_int(evaluation_bond);
 		evaluations.push(UserToUSDBalance::new(evaluator_contributor, evaluation_usd_amount));
 
-		let (project_id, _) = inst.create_community_contributing_project(project, issuer, evaluations, bids);
+		let (project_id, _) = inst.create_community_contributing_project(project_metadata, issuer, evaluations, bids);
 
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
 			evaluator_contributor,
@@ -2810,7 +2795,7 @@ mod community_round_success {
 	fn evaluator_cannot_use_slash_reserve_for_contributing_call_fail() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let mut evaluations = default_evaluations();
 		let evaluator_contributor = 69;
 		let evaluation_amount = 420 * US_DOLLAR;
@@ -2819,7 +2804,7 @@ mod community_round_success {
 		evaluations.push(UserToUSDBalance::new(evaluator_contributor, evaluation_amount));
 		let bids = default_bids();
 
-		let (project_id, _) = inst.create_community_contributing_project(project, issuer, evaluations, bids);
+		let (project_id, _) = inst.create_community_contributing_project(project_metadata, issuer, evaluations, bids);
 		let ct_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 		let necessary_plmc_for_contribution =
 			MockInstantiator::calculate_contributed_plmc_spent(vec![contribution.clone()], ct_price)[0].plmc_amount;
@@ -2850,7 +2835,7 @@ mod community_round_success {
 	fn evaluator_cannot_use_slash_reserve_for_contributing_call_success() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let mut evaluations = default_evaluations();
 		let evaluator_contributor = 69;
 		let evaluation_amount = 420 * US_DOLLAR;
@@ -2859,7 +2844,7 @@ mod community_round_success {
 		evaluations.push(UserToUSDBalance::new(evaluator_contributor, evaluation_amount));
 		let bids = default_bids();
 
-		let (project_id, _) = inst.create_community_contributing_project(project, issuer, evaluations, bids);
+		let (project_id, _) = inst.create_community_contributing_project(project_metadata, issuer, evaluations, bids);
 
 		let ct_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 		let necessary_plmc_for_contribution =
@@ -2900,14 +2885,14 @@ mod community_round_success {
 	fn cannot_mint_ct_twice_manually() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = default_bids();
 		let community_contributions = default_community_buys();
 		let remainder_contributions = vec![];
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations,
 			bids,
@@ -2951,14 +2936,14 @@ mod community_round_success {
 	fn cannot_mint_ct_manually_after_automatic_mint() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = default_bids();
 		let community_contributions = default_community_buys();
 		let remainder_contributions = vec![];
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations,
 			bids,
@@ -3010,14 +2995,14 @@ mod community_round_success {
 	fn plmc_vesting_schedule_starts_automatically() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = default_bids();
 		let community_contributions = default_community_buys();
 		let remainder_contributions = vec![];
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations,
 			bids,
@@ -3049,14 +3034,14 @@ mod community_round_success {
 	fn plmc_vesting_schedule_starts_manually() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = default_bids();
 		let community_contributions = default_community_buys();
 		let remainder_contributions = vec![];
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations,
 			bids,
@@ -3103,14 +3088,14 @@ mod community_round_success {
 	fn plmc_vesting_full_amount() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = default_bids();
 		let community_contributions = default_community_buys();
 		let remainder_contributions = vec![];
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations,
 			bids,
@@ -3150,17 +3135,17 @@ mod community_round_success {
 	fn plmc_vesting_partial_amount() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = vec![
-			BidParams::new(BIDDER_1, 49_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_2, ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_1, 49_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_2, ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 		let community_contributions = default_community_buys();
 		let remainder_contributions = vec![];
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations,
 			bids,
@@ -3306,7 +3291,7 @@ mod remainder_round_success {
 	fn remainder_contributor_was_evaluator() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let mut evaluations = default_evaluations();
 		let community_contributions = default_community_buys();
 		let evaluator_contributor = 69;
@@ -3316,8 +3301,13 @@ mod remainder_round_success {
 		evaluations.push(UserToUSDBalance::new(evaluator_contributor, evaluation_amount));
 		let bids = default_bids();
 
-		let (project_id, _) =
-			inst.create_remainder_contributing_project(project, issuer, evaluations, bids, community_contributions);
+		let (project_id, _) = inst.create_remainder_contributing_project(
+			project_metadata,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions,
+		);
 		let ct_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 		let already_bonded_plmc = MockInstantiator::calculate_evaluation_plmc_spent(vec![UserToUSDBalance::new(
 			evaluator_contributor,
@@ -3345,7 +3335,7 @@ mod remainder_round_success {
 	fn remainder_contributor_was_evaluator_vec_full() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let mut evaluations = default_evaluations();
 		let bids = default_bids();
 		let evaluator_contributor = 69;
@@ -3362,7 +3352,7 @@ mod remainder_round_success {
 			));
 		}
 
-		let expected_price = MockInstantiator::calculate_price_from_test_bids(bids.clone());
+		let expected_price = project_metadata.minimum_price;
 		let fill_necessary_plmc =
 			MockInstantiator::calculate_contributed_plmc_spent(fill_contributions.clone(), expected_price);
 		let fill_necessary_usdt_for_bids =
@@ -3385,8 +3375,13 @@ mod remainder_round_success {
 			.saturating_mul_int(evaluation_bond);
 		evaluations.push(UserToUSDBalance::new(evaluator_contributor, evaluation_usd_amount));
 
-		let (project_id, _) =
-			inst.create_remainder_contributing_project(project, issuer, evaluations, bids, default_community_buys());
+		let (project_id, _) = inst.create_remainder_contributing_project(
+			project_metadata,
+			issuer,
+			evaluations,
+			bids,
+			default_community_buys(),
+		);
 
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
 			evaluator_contributor,
@@ -3538,14 +3533,14 @@ mod remainder_round_success {
 	fn plmc_vesting_schedule_starts_automatically() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let mut bids = default_bids();
 		let community_contributions = default_community_buys();
 		let remainder_contributions = default_remainder_buys();
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations,
 			bids.clone(),
@@ -3555,11 +3550,8 @@ mod remainder_round_success {
 
 		let price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect_vec());
-		bids = stored_bids
-			.into_iter()
-			.map(|bid| BidParams::from(bid.bidder, bid.final_ct_amount, bid.final_ct_usd_price))
-			.collect();
-		let auction_locked_plmc = MockInstantiator::calculate_auction_plmc_spent(&bids, Some(price));
+		bids = stored_bids.into_iter().map(|bid| BidParams::from(bid.bidder, bid.final_ct_amount)).collect();
+		let auction_locked_plmc = MockInstantiator::calculate_auction_plmc_spent(&bids, price);
 		let community_locked_plmc = MockInstantiator::calculate_contributed_plmc_spent(community_contributions, price);
 		let remainder_locked_plmc = MockInstantiator::calculate_contributed_plmc_spent(remainder_contributions, price);
 		let all_plmc_locks = MockInstantiator::generic_map_operation(
@@ -3588,14 +3580,14 @@ mod remainder_round_success {
 	fn plmc_vesting_schedule_starts_manually() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = default_bids();
 		let community_contributions = default_community_buys();
 		let remainder_contributions = default_remainder_buys();
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations,
 			bids,
@@ -3655,14 +3647,14 @@ mod remainder_round_success {
 	fn plmc_vesting_full_amount() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = default_bids();
 		let community_contributions = default_community_buys();
 		let remainder_contributions = default_remainder_buys();
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations,
 			bids,
@@ -3707,14 +3699,14 @@ mod remainder_round_success {
 	fn plmc_vesting_partial_amount() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = default_bids();
 		let community_contributions = default_community_buys();
 		let remainder_contributions = default_remainder_buys();
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations,
 			bids,
@@ -3835,7 +3827,7 @@ mod remainder_round_failure {
 		);
 		let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
-		let bidder_plmc_bonds = MockInstantiator::calculate_auction_plmc_spent(&bids, Some(wap));
+		let bidder_plmc_bonds = MockInstantiator::calculate_auction_plmc_spent(&bids, wap);
 		let community_contributor_plmc_bonds =
 			MockInstantiator::calculate_contributed_plmc_spent(community_contributions.clone(), wap);
 		let evaluators_and_contributors_plmc_bonds =
@@ -4260,14 +4252,14 @@ mod funding_end {
 	fn ct_minted_automatically() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = default_bids();
 		let community_contributions = default_community_buys();
 		let remainder_contributions = default_remainder_buys();
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations.clone(),
 			bids.clone(),
@@ -4352,14 +4344,14 @@ mod funding_end {
 	fn ct_minted_manually() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = default_bids();
 		let community_contributions = default_community_buys();
 		let remainder_contributions = default_remainder_buys();
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations.clone(),
 			bids.clone(),
@@ -4484,14 +4476,14 @@ mod funding_end {
 	fn cannot_mint_ct_twice_manually() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = default_bids();
 		let community_contributions = default_community_buys();
 		let remainder_contributions = default_remainder_buys();
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations.clone(),
 			bids.clone(),
@@ -4647,14 +4639,14 @@ mod funding_end {
 	fn cannot_mint_ct_manually_after_automatic_mint() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = default_bids();
 		let community_contributions = default_community_buys();
 		let remainder_contributions = default_remainder_buys();
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations.clone(),
 			bids.clone(),
@@ -4785,18 +4777,18 @@ mod funding_end {
 	fn multiplier_gets_correct_vesting_duration() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = vec![
-			BidParams::new(BIDDER_1, 10_000 * ASSET_UNIT, 1.into(), 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_2, 20_000 * ASSET_UNIT, 1.into(), 2u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_3, 20_000 * ASSET_UNIT, 11.into(), 3u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_1, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_2, 20_000 * ASSET_UNIT, 2u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_3, 20_000 * ASSET_UNIT, 3u8, AcceptedFundingAsset::USDT),
 		];
 		let community_contributions = default_community_buys();
 		let remainder_contributions = vec![];
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations,
 			bids,
@@ -4829,14 +4821,14 @@ mod funding_end {
 	fn funding_assets_are_paid_manually_to_issuer() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = default_bids();
 		let community_contributions = default_community_buys();
 		let remainder_contributions = default_remainder_buys();
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations,
 			bids,
@@ -4939,14 +4931,14 @@ mod funding_end {
 	fn funding_assets_are_paid_automatically_to_issuer() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = default_bids();
 		let community_contributions = default_community_buys();
 		let remainder_contributions = default_remainder_buys();
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations,
 			bids,
@@ -5023,32 +5015,32 @@ mod funding_end {
 	fn funding_assets_are_released_automatically_on_funding_fail() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = MockInstantiator::generate_bids_from_total_usd(
-			Percent::from_percent(50u8) * project.total_allocation_size.0,
-			project.minimum_price,
+			Percent::from_percent(50u8) * project_metadata.total_allocation_size.0,
+			project_metadata.minimum_price,
 			default_weights(),
 			default_bidders(),
 			default_bidder_multipliers(),
 		);
 
 		let community_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			Percent::from_percent(50u8) * project.total_allocation_size.1 / 2,
-			project.minimum_price,
+			Percent::from_percent(50u8) * project_metadata.total_allocation_size.1 / 2,
+			project_metadata.minimum_price,
 			default_weights(),
 			default_community_contributors(),
 			default_community_contributor_multipliers(),
 		);
 		let remainder_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			Percent::from_percent(50u8) * project.total_allocation_size.1 / 2,
-			project.minimum_price,
+			Percent::from_percent(50u8) * project_metadata.total_allocation_size.1 / 2,
+			project_metadata.minimum_price,
 			default_weights(),
 			default_remainder_contributors(),
 			default_remainder_contributor_multipliers(),
 		);
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations,
 			bids,
@@ -5125,33 +5117,33 @@ mod funding_end {
 	fn funding_assets_are_released_manually_on_funding_fail() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = MockInstantiator::generate_bids_from_total_usd(
-			Percent::from_percent(50u8) * project.total_allocation_size.0,
-			project.minimum_price,
+			Percent::from_percent(50u8) * project_metadata.total_allocation_size.0,
+			project_metadata.minimum_price,
 			default_weights(),
 			default_bidders(),
 			default_bidder_multipliers(),
 		);
 
 		let community_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			Percent::from_percent(50u8) * project.total_allocation_size.1 / 2,
-			project.minimum_price,
+			Percent::from_percent(50u8) * project_metadata.total_allocation_size.1 / 2,
+			project_metadata.minimum_price,
 			default_weights(),
 			default_community_contributors(),
 			default_community_contributor_multipliers(),
 		);
 		let remainder_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			Percent::from_percent(50u8) * project.total_allocation_size.1 / 2,
-			project.minimum_price,
+			Percent::from_percent(50u8) * project_metadata.total_allocation_size.1 / 2,
+			project_metadata.minimum_price,
 			default_weights(),
 			default_remainder_contributors(),
 			default_remainder_contributor_multipliers(),
 		);
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations,
 			bids,
@@ -5259,33 +5251,33 @@ mod funding_end {
 	fn plmc_bonded_is_returned_automatically_on_funding_fail() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project = default_project(inst.get_new_nonce(), issuer);
+		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = vec![UserToUSDBalance::new(EVALUATOR_1, 50_000 * US_DOLLAR)];
 		let bids = MockInstantiator::generate_bids_from_total_usd(
-			Percent::from_percent(50u8) * project.total_allocation_size.0,
-			project.minimum_price,
+			Percent::from_percent(50u8) * project_metadata.total_allocation_size.0,
+			project_metadata.minimum_price,
 			default_weights(),
 			default_bidders(),
 			default_bidder_multipliers(),
 		);
 
 		let community_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			Percent::from_percent(50u8) * project.total_allocation_size.1 / 2,
-			project.minimum_price,
+			Percent::from_percent(50u8) * project_metadata.total_allocation_size.1 / 2,
+			project_metadata.minimum_price,
 			default_weights(),
 			default_community_contributors(),
 			default_community_contributor_multipliers(),
 		);
 		let remainder_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			Percent::from_percent(50u8) * project.total_allocation_size.1 / 2,
-			project.minimum_price,
+			Percent::from_percent(50u8) * project_metadata.total_allocation_size.1 / 2,
+			project_metadata.minimum_price,
 			default_weights(),
 			default_remainder_contributors(),
 			default_remainder_contributor_multipliers(),
 		);
 
 		let project_id = inst.create_finished_project(
-			project,
+			project_metadata,
 			issuer,
 			evaluations.clone(),
 			bids.clone(),
@@ -5301,7 +5293,7 @@ mod funding_end {
 				final_price,
 				true,
 			);
-		let expected_bid_payouts = MockInstantiator::calculate_auction_plmc_spent(&bids, Some(final_price));
+		let expected_bid_payouts = MockInstantiator::calculate_auction_plmc_spent(&bids, final_price);
 		let expected_community_contribution_payouts =
 			MockInstantiator::calculate_contributed_plmc_spent(community_contributions.clone(), final_price);
 		let all_expected_payouts = MockInstantiator::generic_map_operation(
@@ -5422,7 +5414,7 @@ mod funding_end {
 				final_price,
 				true,
 			);
-		let expected_bid_payouts = MockInstantiator::calculate_auction_plmc_spent(&bids, Some(final_price));
+		let expected_bid_payouts = MockInstantiator::calculate_auction_plmc_spent(&bids, final_price);
 		let expected_community_contribution_payouts =
 			MockInstantiator::calculate_contributed_plmc_spent(community_contributions.clone(), final_price);
 		let all_expected_payouts = MockInstantiator::generic_map_operation(
@@ -5742,98 +5734,7 @@ mod test_helper_functions {
 
 	#[test]
 	fn calculate_auction_plmc_spent() {
-		const BIDDER_1: AccountIdOf<TestRuntime> = 1u64;
-		const TOKEN_AMOUNT_1: u128 = 120_0_000_000_000_u128;
-		const PRICE_PER_TOKEN_1: f64 = 0.3f64;
-		const MULTIPLIER_1: u8 = 1u8;
-		const _TICKET_SIZE_USD_1: u128 = 36_0_000_000_000_u128;
-		const EXPECTED_PLMC_AMOUNT_1: u128 = 4_2_857_142_857_u128;
-
-		const BIDDER_2: AccountIdOf<TestRuntime> = 2u64;
-		const TOKEN_AMOUNT_2: u128 = 5023_0_000_000_000_u128;
-		const PRICE_PER_TOKEN_2: f64 = 13f64;
-		const MULTIPLIER_2: u8 = 2u8;
-		const _TICKET_SIZE_USD_2: u128 = 65_299_0_000_000_000_u128;
-		const EXPECTED_PLMC_AMOUNT_2: u128 = 3_886_8_452_380_952_u128;
-
-		const BIDDER_3: AccountIdOf<TestRuntime> = 3u64;
-		const TOKEN_AMOUNT_3: u128 = 20_000_0_000_000_000_u128;
-		const PRICE_PER_TOKEN_3: f64 = 20f64;
-		const MULTIPLIER_3: u8 = 17u8;
-		const _TICKET_SIZE_USD_3: u128 = 400_000_0_000_000_000_u128;
-		const EXPECTED_PLMC_AMOUNT_3: u128 = 2_801_1_204_481_792_u128;
-
-		const BIDDER_4: AccountIdOf<TestRuntime> = 4u64;
-		const TOKEN_AMOUNT_4: u128 = 1_000_000_0_000_000_000_u128;
-		const PRICE_PER_TOKEN_4: f64 = 5.52f64;
-		const MULTIPLIER_4: u8 = 25u8;
-		const _TICKET_SIZE_USD_4: u128 = 5_520_000_0_000_000_000_u128;
-		const EXPECTED_PLMC_AMOUNT_4: u128 = 26_285_7_142_857_142_u128;
-
-		const BIDDER_5: AccountIdOf<TestRuntime> = 5u64;
-		const TOKEN_AMOUNT_5: u128 = 0_1_233_000_000_u128;
-		const PRICE_PER_TOKEN_5: f64 = 11.34f64;
-		const MULTIPLIER_5: u8 = 10u8;
-		const _TICKET_SIZE_USD_5: u128 = 1_3_982_220_000_u128;
-		// TODO: Is this due to rounding errors?
-		// Should be in reality 0.0166455, but we get 0.0166454999. i.e error of 0.0000000001 PLMC
-		const EXPECTED_PLMC_AMOUNT_5: u128 = 0_0_166_454_999_u128;
-
-		const PLMC_PRICE: f64 = 8.4f64;
-
-		assert_eq!(
-			<TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap(),
-			PriceOf::<TestRuntime>::from_float(PLMC_PRICE)
-		);
-
-		let bids = vec![
-			BidParams::new(
-				BIDDER_1,
-				TOKEN_AMOUNT_1,
-				PriceOf::<TestRuntime>::from_float(PRICE_PER_TOKEN_1),
-				MULTIPLIER_1,
-				AcceptedFundingAsset::USDT,
-			),
-			BidParams::new(
-				BIDDER_2,
-				TOKEN_AMOUNT_2,
-				PriceOf::<TestRuntime>::from_float(PRICE_PER_TOKEN_2),
-				MULTIPLIER_2,
-				AcceptedFundingAsset::USDT,
-			),
-			BidParams::new(
-				BIDDER_3,
-				TOKEN_AMOUNT_3,
-				PriceOf::<TestRuntime>::from_float(PRICE_PER_TOKEN_3),
-				MULTIPLIER_3,
-				AcceptedFundingAsset::USDT,
-			),
-			BidParams::new(
-				BIDDER_4,
-				TOKEN_AMOUNT_4,
-				PriceOf::<TestRuntime>::from_float(PRICE_PER_TOKEN_4),
-				MULTIPLIER_4,
-				AcceptedFundingAsset::USDT,
-			),
-			BidParams::new(
-				BIDDER_5,
-				TOKEN_AMOUNT_5,
-				PriceOf::<TestRuntime>::from_float(PRICE_PER_TOKEN_5),
-				MULTIPLIER_5,
-				AcceptedFundingAsset::USDT,
-			),
-		];
-
-		let expected_plmc_spent = vec![
-			UserToPLMCBalance::new(BIDDER_1, EXPECTED_PLMC_AMOUNT_1),
-			UserToPLMCBalance::new(BIDDER_2, EXPECTED_PLMC_AMOUNT_2),
-			UserToPLMCBalance::new(BIDDER_3, EXPECTED_PLMC_AMOUNT_3),
-			UserToPLMCBalance::new(BIDDER_4, EXPECTED_PLMC_AMOUNT_4),
-			UserToPLMCBalance::new(BIDDER_5, EXPECTED_PLMC_AMOUNT_5),
-		];
-
-		let result = MockInstantiator::calculate_auction_plmc_spent(&bids, None);
-		assert_eq!(result, expected_plmc_spent);
+		todo!()
 	}
 
 	#[test]
@@ -5897,19 +5798,6 @@ mod test_helper_functions {
 			PriceOf::<TestRuntime>::from_float(CT_PRICE),
 		);
 		assert_eq!(result, expected_plmc_spent);
-	}
-
-	#[test]
-	fn calculate_price_from_test_bids() {
-		let bids = vec![
-			BidParams::new(100, 10_000_0_000_000_000, 15.into(), 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(200, 20_000_0_000_000_000, 20.into(), 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(300, 20_000_0_000_000_000, 10.into(), 1u8, AcceptedFundingAsset::USDT),
-		];
-		let price = MockInstantiator::calculate_price_from_test_bids(bids);
-		let price_in_10_decimals = price.checked_mul_int(1_0_000_000_000_u128).unwrap();
-
-		assert_eq!(price_in_10_decimals, 16_3_333_333_333_u128);
 	}
 }
 
@@ -6207,7 +6095,6 @@ mod async_tests {
 				instantiator::BidParams::<TestRuntime>::new(
 					(i + 69).into(),
 					(10u128 * ASSET_UNIT).into(),
-					project_metadata.minimum_price,
 					1u8,
 					AcceptedFundingAsset::USDT,
 				)
