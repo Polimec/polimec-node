@@ -33,7 +33,7 @@ use polimec_parachain_runtime::{
 use sc_service::ChainType;
 use sp_core::{crypto::UncheckedInto, sr25519};
 use sp_runtime::{
-	traits::{AccountIdConversion, Get},
+	traits::AccountIdConversion,
 	Perbill, Percent,
 };
 
