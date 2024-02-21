@@ -83,7 +83,7 @@ type OptionalExternalities = Option<RefCell<sp_io::TestExternalities>>;
 type OptionalExternalities = Option<()>;
 
 pub struct Instantiator<
-	T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + pallet_timestamp::Config,
+	T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 	AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 	RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 > {
@@ -94,7 +94,7 @@ pub struct Instantiator<
 
 // general chain interactions
 impl<
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + pallet_timestamp::Config,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
@@ -236,24 +236,10 @@ impl<
 		self.execute(|| frame_system::Pallet::<T>::block_number())
 	}
 
-	#[cfg(feature = "std")]
-	fn get_sys_time_as_moment() -> <T as pallet_timestamp::Config>::Moment {
-		use std::time::SystemTime;
-		if let Ok(n) = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
-			if let Ok(timestamp) = <T as pallet_timestamp::Config>::Moment::try_from(n.as_secs()) {
-				return timestamp;
-			}
-		}
-		panic!("Could not convert timestamp");
-	}
-
 	pub fn advance_time(&mut self, amount: BlockNumberFor<T>) -> Result<(), DispatchError> {
 		self.execute(|| {
 			for _block in 0u32..amount.saturated_into() {
 				let mut current_block = frame_system::Pallet::<T>::block_number();
-				if pallet_timestamp::Pallet::<T>::now() == Zero::zero() {
-					pallet_timestamp::Pallet::<T>::set_timestamp(Self::get_sys_time_as_moment());
-				}
 
 				<AllPalletsWithoutSystem as OnFinalize<BlockNumberFor<T>>>::on_finalize(current_block);
 				<frame_system::Pallet<T> as OnFinalize<BlockNumberFor<T>>>::on_finalize(current_block);
@@ -264,7 +250,7 @@ impl<
 				current_block += One::one();
 				frame_system::Pallet::<T>::set_block_number(current_block);
 				let pre_events = frame_system::Pallet::<T>::events();
-				pallet_timestamp::Pallet::<T>::set_timestamp(Self::get_sys_time_as_moment());
+				
 
 				<frame_system::Pallet<T> as OnInitialize<BlockNumberFor<T>>>::on_initialize(current_block);
 				<AllPalletsWithoutSystem as OnInitialize<BlockNumberFor<T>>>::on_initialize(current_block);
@@ -335,7 +321,7 @@ impl<
 
 // assertions
 impl<
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + pallet_timestamp::Config,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
@@ -465,7 +451,7 @@ impl<
 
 // calculations
 impl<
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + pallet_timestamp::Config,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
@@ -831,7 +817,7 @@ impl<
 
 // project chain interactions
 impl<
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + pallet_timestamp::Config,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
@@ -1416,7 +1402,7 @@ pub mod async_features {
 		pub instantiator_phantom: PhantomData<(T, AllPalletsWithoutSystem, RuntimeEvent)>,
 	}
 	pub async fn block_controller<
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + pallet_timestamp::Config,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	>(
@@ -1439,7 +1425,7 @@ pub mod async_features {
 	}
 
 	impl<
-			T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + pallet_timestamp::Config,
+			T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 			AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 			RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 		> Default for BlockOrchestrator<T, AllPalletsWithoutSystem, RuntimeEvent>
@@ -1450,7 +1436,7 @@ pub mod async_features {
 	}
 
 	impl<
-			T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + pallet_timestamp::Config,
+			T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 			AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 			RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 		> BlockOrchestrator<T, AllPalletsWithoutSystem, RuntimeEvent>
@@ -1524,7 +1510,7 @@ pub mod async_features {
 
 	// async instantiations for parallel testing
 	pub async fn async_create_new_project<
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + pallet_timestamp::Config,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	>(
@@ -1556,7 +1542,7 @@ pub mod async_features {
 	}
 
 	pub async fn async_create_evaluating_project<
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + pallet_timestamp::Config,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	>(
@@ -1573,7 +1559,7 @@ pub mod async_features {
 	}
 
 	pub async fn async_start_auction<
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + pallet_timestamp::Config,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	>(
@@ -1610,7 +1596,7 @@ pub mod async_features {
 	}
 
 	pub async fn async_create_auctioning_project<
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + pallet_timestamp::Config,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	>(
@@ -1684,7 +1670,7 @@ pub mod async_features {
 	}
 
 	pub async fn async_start_community_funding<
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + pallet_timestamp::Config,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	>(
@@ -1730,7 +1716,7 @@ pub mod async_features {
 	}
 
 	pub async fn async_create_community_contributing_project<
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + pallet_timestamp::Config,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	>(
@@ -1848,7 +1834,7 @@ pub mod async_features {
 	}
 
 	pub async fn async_start_remainder_or_end_funding<
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + pallet_timestamp::Config,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	>(
@@ -1884,7 +1870,7 @@ pub mod async_features {
 	}
 
 	pub async fn async_create_remainder_contributing_project<
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + pallet_timestamp::Config,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	>(
@@ -1998,7 +1984,7 @@ pub mod async_features {
 	}
 
 	pub async fn async_finish_funding<
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + pallet_timestamp::Config,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	>(
@@ -2041,7 +2027,7 @@ pub mod async_features {
 	}
 
 	pub async fn async_create_finished_project<
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + pallet_timestamp::Config,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	>(
@@ -2205,7 +2191,7 @@ pub mod async_features {
 	}
 
 	pub async fn create_project_at<
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + pallet_timestamp::Config,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	>(
@@ -2269,7 +2255,7 @@ pub mod async_features {
 	}
 
 	pub async fn async_create_project_at<
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + pallet_timestamp::Config,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	>(
@@ -2385,7 +2371,7 @@ pub mod async_features {
 	}
 
 	pub fn create_multiple_projects_at<
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + pallet_timestamp::Config,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>> + 'static + 'static,
 		RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member + IsType<<T as frame_system::Config>::RuntimeEvent>,
 	>(

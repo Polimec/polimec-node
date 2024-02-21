@@ -30,11 +30,9 @@ use itertools::Itertools;
 use parachains_common::DAYS;
 use polimec_common::ReleaseSchedule;
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
-use sp_runtime::{BuildStorage, DispatchError};
+use sp_runtime::BuildStorage;
 use sp_std::{cell::RefCell, marker::PhantomData};
 use std::{cmp::min, iter::zip};
-use polimec_common::credentials::InvestorType;
-use polimec_common_test_utils::get_test_jwt;
 
 use super::*;
 use crate::{
@@ -45,7 +43,7 @@ use crate::{
 	UpdateType::{CommunityFundingStart, RemainderFundingStart},
 };
 
-type MockInstantiator = Instantiator<TestRuntime, AllPalletsWithoutSystem, RuntimeEvent>;
+type MockInstantiator = Instantiator<TestRuntime, <TestRuntime as crate::Config>::AllPalletsWithoutSystem, RuntimeEvent>;
 
 const METADATA: &str = r#"METADATA
             {
@@ -337,9 +335,8 @@ mod creation_round_failure {
 
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		inst.mint_plmc_to(default_plmc_balances());
-		let jwt = get_test_jwt(ISSUER, InvestorType::Institutional);
 		let project_err =
-			inst.execute(|| Pallet::<TestRuntime>::create(RuntimeOrigin::signed(ISSUER), jwt, wrong_project).unwrap_err());
+			inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project).unwrap_err());
 		assert_eq!(project_err, Error::<TestRuntime>::PriceTooLow.into());
 	}
 
@@ -355,9 +352,8 @@ mod creation_round_failure {
 
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		inst.mint_plmc_to(default_plmc_balances());
-		let jwt = get_test_jwt(ISSUER, InvestorType::Institutional);
 		let project_err =
-			inst.execute(|| Pallet::<TestRuntime>::create(RuntimeOrigin::signed(ISSUER), jwt, wrong_project).unwrap_err());
+			inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project).unwrap_err());
 		assert_eq!(project_err, Error::<TestRuntime>::ParticipantsSizeError.into());
 	}
 
@@ -373,9 +369,8 @@ mod creation_round_failure {
 
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		inst.mint_plmc_to(default_plmc_balances());
-		let jwt = get_test_jwt(ISSUER, InvestorType::Institutional);
 		let project_err =
-			inst.execute(|| Pallet::<TestRuntime>::create(RuntimeOrigin::signed(ISSUER), jwt, wrong_project).unwrap_err());
+			inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project).unwrap_err());
 		assert_eq!(project_err, Error::<TestRuntime>::TicketSizeError.into());
 	}
 
@@ -386,9 +381,8 @@ mod creation_round_failure {
 		let ed = MockInstantiator::get_ed();
 
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(ISSUER, ed)]);
-		let jwt = get_test_jwt(ISSUER, InvestorType::Institutional);
 		let project_err = inst
-			.execute(|| Pallet::<TestRuntime>::create(RuntimeOrigin::signed(ISSUER), jwt, project_metadata).unwrap_err());
+			.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, project_metadata).unwrap_err());
 		assert_eq!(project_err, Error::<TestRuntime>::NotEnoughFundsForEscrowCreation.into());
 	}
 }
@@ -1052,8 +1046,7 @@ mod auction_round_success {
 		inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 		inst.advance_time(1).unwrap();
-		let jwt = get_test_jwt(ISSUER, InvestorType::Institutional);
-		inst.execute(|| Pallet::<TestRuntime>::start_auction(RuntimeOrigin::signed(ISSUER), jwt, project_id)).unwrap();
+		inst.execute(|| Pallet::<TestRuntime>::do_english_auction(ISSUER, project_id)).unwrap();
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionRound(AuctionPhase::English));
 	}
 
@@ -1075,8 +1068,7 @@ mod auction_round_success {
 
 		for account in 6000..6010 {
 			inst.execute(|| {
-				let jwt = get_test_jwt(account, InvestorType::Institutional);
-				let response = Pallet::<TestRuntime>::start_auction(RuntimeOrigin::signed(account),jwt, project_id);
+				let response = Pallet::<TestRuntime>::do_english_auction(account, project_id);
 				assert_noop!(response, Error::<TestRuntime>::NotAllowed);
 			});
 		}
@@ -1824,9 +1816,8 @@ mod auction_round_failure {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_id = inst.create_evaluating_project(default_project(0, ISSUER), ISSUER);
 		inst.execute(|| {
-			let jwt = get_test_jwt(ISSUER, InvestorType::Institutional);
 			assert_noop!(
-				PolimecFunding::start_auction(RuntimeOrigin::signed(ISSUER), jwt, project_id),
+				PolimecFunding::do_english_auction(ISSUER, project_id),
 				Error::<TestRuntime>::EvaluationPeriodNotEnded
 			);
 		});
@@ -1837,11 +1828,9 @@ mod auction_round_failure {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let _ = inst.create_evaluating_project(default_project(0, ISSUER), ISSUER);
 		inst.execute(|| {
-			let jwt = get_test_jwt(BIDDER_2, InvestorType::Institutional);
 			assert_noop!(
-				PolimecFunding::bid(
-					RuntimeOrigin::signed(BIDDER_2),
-					jwt,
+				PolimecFunding::do_bid(
+					&BIDDER_2,
 					0,
 					1,
 					1u8.try_into().unwrap(),
@@ -5573,10 +5562,8 @@ mod ct_migration {
 		assert_eq!(project_details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
 
 		inst.execute(|| {
-			let jwt = get_test_jwt(ISSUER, InvestorType::Institutional);
-			assert_ok!(crate::Pallet::<TestRuntime>::set_para_id_for_project(
-				RuntimeOrigin::signed(ISSUER),
-				jwt,
+			assert_ok!(crate::Pallet::<TestRuntime>::do_set_para_id_for_project(
+				&ISSUER,
 				project_id,
 				ParaId::from(2006u32)
 			));
@@ -5601,35 +5588,29 @@ mod ct_migration {
 		assert_eq!(project_details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
 
 		inst.execute(|| {
-			let evaluator_jwt = get_test_jwt(EVALUATOR_1, InvestorType::Institutional);
 			assert_err!(
-				crate::Pallet::<TestRuntime>::set_para_id_for_project(
-					RuntimeOrigin::signed(EVALUATOR_1),
-					evaluator_jwt,
+				crate::Pallet::<TestRuntime>::do_set_para_id_for_project(
+					&EVALUATOR_1,
 					project_id,
 					ParaId::from(2006u32)
 				),
 				Error::<TestRuntime>::NotAllowed
 			);
-			let bidder_jwt = get_test_jwt(BIDDER_1, InvestorType::Institutional);
 			assert_err!(
-				crate::Pallet::<TestRuntime>::set_para_id_for_project(
-					RuntimeOrigin::signed(BIDDER_1),
-					bidder_jwt,
+				crate::Pallet::<TestRuntime>::do_set_para_id_for_project(
+					&BIDDER_1,
 					project_id,
 					ParaId::from(2006u32)
 				),
 				Error::<TestRuntime>::NotAllowed
 			);
-			let buyer_jwt = get_test_jwt(BUYER_1, InvestorType::Retail);
 			assert_err!(
-				crate::Pallet::<TestRuntime>::set_para_id_for_project(
-					RuntimeOrigin::signed(BUYER_1),
-					buyer_jwt,
+				crate::Pallet::<TestRuntime>::do_set_para_id_for_project(
+					&BUYER_1,
 					project_id,
 					ParaId::from(2006u32)
 				),
-				DispatchError::BadOrigin
+				Error::<TestRuntime>::NotAllowed
 			);
 		});
 		let project_details = inst.get_project_details(project_id);

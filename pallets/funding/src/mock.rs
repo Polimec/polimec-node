@@ -344,7 +344,7 @@ impl ConvertBack<AccountId, [u8; 32]> for DummyConverter {
 
 impl Config for TestRuntime {
 	type AccountId32Conversion = DummyConverter;
-	type AllPalletsWithoutSystem = AllPalletsWithoutSystem;
+	type AllPalletsWithoutSystem = (Balances, LocalAssets, ForeignAssets, PolimecFunding, Vesting, RandomnessCollectiveFlip);
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;
 	type BlockNumber = BlockNumber;

@@ -140,7 +140,7 @@ where
 
 pub fn full_bids<T>() -> Vec<BidParams<T>>
 where
-	T: Config + pallet_timestamp::Config,
+	T: Config,
 	<T as Config>::Price: From<u128>,
 	<T as Config>::Balance: From<u128>,
 	T::Hash: From<H256>,
@@ -261,8 +261,7 @@ pub fn populate_with_projects<T>(amount: u32, inst: BenchInstantiator<T>) -> Ben
 where
 	T: Config
 		+ frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent>
-		+ pallet_balances::Config<Balance = BalanceOf<T>>
-		+ pallet_timestamp::Config,
+		+ pallet_balances::Config<Balance = BalanceOf<T>>,
 	<T as Config>::RuntimeEvent: TryInto<Event<T>> + Parameter + Member,
 	<T as Config>::Price: From<u128>,
 	<T as Config>::Balance: From<u128>,
@@ -351,7 +350,7 @@ pub fn make_ct_deposit_for<T: Config>(user: AccountIdOf<T>, project_id: ProjectI
 	}
 }
 
-pub fn run_blocks_to_execute_next_transition<T: Config + pallet_timestamp::Config>(
+pub fn run_blocks_to_execute_next_transition<T: Config>(
 	project_id: ProjectId,
 	maybe_update_type: Option<UpdateType>,
 	inst: &mut BenchInstantiator<T>,
@@ -366,7 +365,7 @@ pub fn run_blocks_to_execute_next_transition<T: Config + pallet_timestamp::Confi
 
 #[benchmarks(
 	where
-	T: Config + frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent> + pallet_balances::Config<Balance = BalanceOf<T>> + pallet_timestamp::Config,
+	T: Config + frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent> + pallet_balances::Config<Balance = BalanceOf<T>>,
 	<T as Config>::RuntimeEvent: TryInto<Event<T>> + Parameter + Member,
 	<T as Config>::Price: From<u128>,
 	<T as Config>::Balance: From<u128>,
@@ -569,7 +568,7 @@ mod benchmarks {
 		x: u32,
 	) -> (BenchInstantiator<T>, ProjectId, UserToUSDBalance<T>, BalanceOf<T>, BalanceOf<T>)
 	where
-		T: Config + pallet_timestamp::Config,
+		T: Config,
 		<T as Config>::Balance: From<u128>,
 		<T as Config>::Price: From<u128>,
 		T::Hash: From<H256>,
@@ -632,7 +631,7 @@ mod benchmarks {
 		extrinsic_plmc_bonded: BalanceOf<T>,
 		total_expected_plmc_bonded: BalanceOf<T>,
 	) where
-		T: Config + pallet_timestamp::Config,
+		T: Config,
 		<T as Config>::Balance: From<u128>,
 		<T as Config>::Price: From<u128>,
 		T::Hash: From<H256>,
@@ -763,7 +762,7 @@ mod benchmarks {
 		BalanceOf<T>,
 	)
 	where
-		T: Config + pallet_timestamp::Config,
+		T: Config,
 		<T as Config>::Balance: From<u128>,
 		<T as Config>::Price: From<u128>,
 		T::Hash: From<H256>,
@@ -908,7 +907,7 @@ mod benchmarks {
 		total_usdt_locked: BalanceOf<T>,
 	) -> ()
 	where
-		T: Config + pallet_timestamp::Config,
+		T: Config,
 		<T as Config>::Balance: From<u128>,
 		<T as Config>::Price: From<u128>,
 		T::Hash: From<H256>,
@@ -1106,7 +1105,7 @@ mod benchmarks {
 		BalanceOf<T>,
 	)
 	where
-		T: Config + pallet_timestamp::Config,
+		T: Config,
 		<T as Config>::Balance: From<u128>,
 		<T as Config>::Price: From<u128>,
 		T::Hash: From<H256>,
@@ -1242,7 +1241,7 @@ mod benchmarks {
 		total_usdt_locked: BalanceOf<T>,
 		total_ct_sold: BalanceOf<T>,
 	) where
-		T: Config + pallet_timestamp::Config,
+		T: Config,
 		<T as Config>::Balance: From<u128>,
 		<T as Config>::Price: From<u128>,
 		T::Hash: From<H256>,
