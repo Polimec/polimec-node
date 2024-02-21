@@ -130,7 +130,7 @@ impl frame_support::traits::OnRuntimeUpgrade for UnlockBalancesMigration {
 		let receivers = [
 			// (transfer_amount, destination_account, old_balance)
 			(
-				22262467500000000u128,
+				22462517500000000u128,
 				"0x7a0cf91995d4d20c9ceb4ba56962d734a0563dded63679c34c7b90d58ed435e5", //5935J2eYNyvi3bJXfuXp5xNgxn5eaXdYmKLwGuLyS83ronDt
 				2111562123706227u128,
 			),
@@ -170,21 +170,6 @@ impl frame_support::traits::OnRuntimeUpgrade for UnlockBalancesMigration {
 				}
 			}
 		});
-
-		let foundation_account_raw = "0xb77d5ebd62eed4c46fbfbc2a8862d3cfc49d81ca79d3998dd0f41f9926e4c203";
-		let foundation = array_bytes::hex_n_into::<_, AccountId, 32>(foundation_account_raw).unwrap();
-
-		// We need to check the balance for the idempotency of the migration
-		// +1 R
-		if Balances::balance(&foundation) == 10690310000000000 {
-			// +2 W
-			let _ = <Balances as fungible::Mutate<_>>::transfer(
-				&escrow_account,
-				&foundation,
-				200050000000000u128,
-				Expendable,
-			);
-		}
 
 		<Runtime as frame_system::Config>::DbWeight::get().reads_writes(18, 60)
 	}
