@@ -106,7 +106,7 @@ impl frame_support::traits::OnRuntimeUpgrade for UnlockBalancesMigration {
 			if let Ok(acct) = array_bytes::hex_n_into::<_, AccountId, 32>(acct) {
 				// +1 R
 				let full_balance = Balances::balance(&acct);
-				// We need to check the balance for the idenpotency of the migration
+				// We need to check the balance for the idempotency of the migration
 				if full_balance.is_zero() {
 					return;
 				}
@@ -160,7 +160,7 @@ impl frame_support::traits::OnRuntimeUpgrade for UnlockBalancesMigration {
 			if let Ok(acct) = array_bytes::hex_n_into::<_, AccountId, 32>(acct) {
 				// +1 R
 				let balance = Balances::balance(&acct);
-				// We need to check the balance for the idenpotency of the migration
+				// We need to check the balance for the idempotency of the migration
 				if balance == *old_amount {
 					// +2 W
 					let res = <Balances as fungible::Mutate<_>>::transfer(&escrow_account, &acct, *amount, Expendable);
@@ -174,7 +174,7 @@ impl frame_support::traits::OnRuntimeUpgrade for UnlockBalancesMigration {
 		let foundation_account_raw = "0xb77d5ebd62eed4c46fbfbc2a8862d3cfc49d81ca79d3998dd0f41f9926e4c203";
 		let foundation = array_bytes::hex_n_into::<_, AccountId, 32>(foundation_account_raw).unwrap();
 
-		// We need to check the balance for the idenpotency of the migration
+		// We need to check the balance for the idempotency of the migration
 		// +1 R
 		if Balances::balance(&foundation) == 10690310000000000 {
 			// +2 W
