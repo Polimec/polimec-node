@@ -782,12 +782,12 @@ mod auction_round_success {
 			.plmc_amount;
 		let usable_evaluation_plmc =
 			already_bonded_plmc - <TestRuntime as Config>::EvaluatorSlash::get() * already_bonded_plmc;
-		let necessary_plmc_for_bid = MockInstantiator::calculate_auction_plmc_spent(
+		let necessary_plmc_for_bid = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
 			&vec![evaluator_bid.clone()],
 			project_metadata.minimum_price,
 		)[0]
 		.plmc_amount;
-		let necessary_usdt_for_bid = MockInstantiator::calculate_auction_funding_asset_spent(
+		let necessary_usdt_for_bid = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
 			&vec![evaluator_bid.clone()],
 			project_metadata.minimum_price,
 		);
@@ -808,9 +808,12 @@ mod auction_round_success {
 		let project_metadata = default_project(inst.get_new_nonce(), ISSUER);
 		let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER, default_evaluations());
 		let bids = vec![BidParams::new(100, project_metadata.total_allocation_size.0, 1u8, AcceptedFundingAsset::USDT)];
-		let foreign_funding =
-			MockInstantiator::calculate_auction_funding_asset_spent(&bids, project_metadata.minimum_price);
-		let plmc_funding = MockInstantiator::calculate_auction_plmc_spent(&bids, project_metadata.minimum_price);
+		let foreign_funding = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
+			&bids,
+			project_metadata.minimum_price,
+		);
+		let plmc_funding =
+			MockInstantiator::calculate_auction_plmc_charged_with_given_price(&bids, project_metadata.minimum_price);
 		let ed_funding = plmc_funding.accounts().existential_deposits();
 
 		inst.mint_plmc_to(ed_funding);
@@ -922,14 +925,17 @@ mod auction_round_success {
 			.expect("Candle auction end point should exist");
 
 		let bid_info = BidParams::new(0, 50u128 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
-		let plmc_necessary_funding =
-			MockInstantiator::calculate_auction_plmc_spent(&vec![bid_info.clone()], project_metadata.minimum_price)[0]
-				.plmc_amount;
-		let foreign_asset_necessary_funding = MockInstantiator::calculate_auction_funding_asset_spent(
+		let plmc_necessary_funding = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
 			&vec![bid_info.clone()],
 			project_metadata.minimum_price,
 		)[0]
-		.asset_amount;
+		.plmc_amount;
+		let foreign_asset_necessary_funding =
+			MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
+				&vec![bid_info.clone()],
+				project_metadata.minimum_price,
+			)[0]
+			.asset_amount;
 
 		let mut bids_made: Vec<BidParams<TestRuntime>> = vec![];
 		let starting_bid_block = inst.current_block();
@@ -1241,7 +1247,8 @@ mod auction_round_success {
 		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
 
 		let final_price = details.weighted_average_price.unwrap();
-		let plmc_locked_for_bids = MockInstantiator::calculate_auction_plmc_spent(&new_bids, final_price);
+		let plmc_locked_for_bids =
+			MockInstantiator::calculate_auction_plmc_charged_with_given_price(&new_bids, final_price);
 
 		for UserToPLMCBalance { account, plmc_amount } in plmc_locked_for_bids {
 			let schedule = inst.execute(|| {
@@ -1416,15 +1423,18 @@ mod auction_round_success {
 
 		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
 
-		let bidders_plmc = MockInstantiator::calculate_auction_plmc_spent(&bids, project_metadata.minimum_price);
+		let bidders_plmc =
+			MockInstantiator::calculate_auction_plmc_charged_with_given_price(&bids, project_metadata.minimum_price);
 		let bidders_existential_deposits = bidders_plmc.accounts().existential_deposits();
 		let bidders_ct_account_deposits = bidders_plmc.accounts().ct_account_deposits();
 		inst.mint_plmc_to(bidders_plmc.clone());
 		inst.mint_plmc_to(bidders_existential_deposits);
 		inst.mint_plmc_to(bidders_ct_account_deposits);
 
-		let bidders_funding_assets =
-			MockInstantiator::calculate_auction_funding_asset_spent(&bids, project_metadata.minimum_price);
+		let bidders_funding_assets = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
+			&bids,
+			project_metadata.minimum_price,
+		);
 		inst.mint_foreign_asset_to(bidders_funding_assets);
 
 		inst.bid_for_users(project_id, bids).unwrap();
@@ -1450,8 +1460,10 @@ mod auction_round_success {
 		let details = inst.get_project_details(project_id);
 		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
 
-		let plmc_locked_for_accepted_bid = MockInstantiator::calculate_auction_plmc_spent(&accepted_bid, final_price);
-		let plmc_locked_for_rejected_bid = MockInstantiator::calculate_auction_plmc_spent(&rejected_bid, final_price);
+		let plmc_locked_for_accepted_bid =
+			MockInstantiator::calculate_auction_plmc_charged_with_given_price(&accepted_bid, final_price);
+		let plmc_locked_for_rejected_bid =
+			MockInstantiator::calculate_auction_plmc_charged_with_given_price(&rejected_bid, final_price);
 
 		let UserToPLMCBalance { account: accepted_user, plmc_amount: accepted_plmc_amount } =
 			plmc_locked_for_accepted_bid[0];
@@ -1707,7 +1719,8 @@ mod auction_round_success {
 		delta_bidders_plmc_balances.sort_by_key(|item| item.account);
 
 		let final_price = details.weighted_average_price.unwrap();
-		let mut plmc_locked_for_bids = MockInstantiator::calculate_auction_plmc_spent(&bids, final_price);
+		let mut plmc_locked_for_bids =
+			MockInstantiator::calculate_auction_plmc_charged_with_given_price(&bids, final_price);
 		plmc_locked_for_bids.sort_by_key(|item| item.account);
 		let ct_deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
 			ProjectId,
@@ -1790,7 +1803,8 @@ mod auction_round_success {
 
 		let details = inst.get_project_details(project_id);
 		let final_price = details.weighted_average_price.unwrap();
-		let mut plmc_locked_for_bids = MockInstantiator::calculate_auction_plmc_spent(&bids, final_price);
+		let mut plmc_locked_for_bids =
+			MockInstantiator::calculate_auction_plmc_charged_with_given_price(&bids, final_price);
 		plmc_locked_for_bids.sort_by_key(|item| item.account);
 
 		assert_eq!(delta_bidders_plmc_balances, plmc_locked_for_bids);
@@ -1816,15 +1830,18 @@ mod auction_round_success {
 
 		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
 
-		let auctioning_plmc = MockInstantiator::calculate_auction_plmc_spent(&bids, project_metadata.minimum_price);
+		let auctioning_plmc =
+			MockInstantiator::calculate_auction_plmc_charged_with_given_price(&bids, project_metadata.minimum_price);
 		let ed_plmc = auctioning_plmc.accounts().existential_deposits();
 		let ct_plmc = auctioning_plmc.accounts().ct_account_deposits();
 		let plmc_to_mint_sum =
 			MockInstantiator::generic_map_operation(vec![auctioning_plmc, ed_plmc, ct_plmc], MergeOperation::Add);
 		inst.mint_plmc_to(plmc_to_mint_sum);
 
-		let funding_asset =
-			MockInstantiator::calculate_auction_funding_asset_spent(&bids, project_metadata.minimum_price);
+		let funding_asset = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
+			&bids,
+			project_metadata.minimum_price,
+		);
 		inst.mint_foreign_asset_to(funding_asset);
 
 		inst.bid_for_users(project_id, bids.clone()).unwrap();
@@ -1846,12 +1863,12 @@ mod auction_round_success {
 
 		let op_bid_info =
 			inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id, OP_BIDDER)).next().unwrap());
-		let plmc_returned = MockInstantiator::calculate_auction_plmc_spent(
+		let plmc_returned = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
 			&vec![overpriced_bid.clone()],
 			project_metadata.minimum_price,
 		)[0]
 		.plmc_amount - op_bid_info.plmc_bond;
-		let funding_returned = MockInstantiator::calculate_auction_funding_asset_spent(
+		let funding_returned = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
 			&vec![overpriced_bid],
 			project_metadata.minimum_price,
 		)[0]
@@ -1911,12 +1928,16 @@ mod auction_round_failure {
 
 		let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER, default_evaluations());
 
-		let plmc_for_bidding =
-			MockInstantiator::calculate_auction_plmc_spent(&bids.clone(), project_metadata.minimum_price);
+		let plmc_for_bidding = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
+			&bids.clone(),
+			project_metadata.minimum_price,
+		);
 		let plmc_existential_deposits = bids.accounts().existential_deposits();
 		let plmc_ct_account_deposits = bids.accounts().ct_account_deposits();
-		let usdt_for_bidding =
-			MockInstantiator::calculate_auction_funding_asset_spent(&bids.clone(), project_metadata.minimum_price);
+		let usdt_for_bidding = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
+			&bids.clone(),
+			project_metadata.minimum_price,
+		);
 
 		inst.mint_plmc_to(plmc_for_bidding.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
@@ -1925,11 +1946,13 @@ mod auction_round_failure {
 
 		inst.bid_for_users(project_id, bids.clone()).unwrap();
 
-		let plmc_for_failing_bid =
-			MockInstantiator::calculate_auction_plmc_spent(&vec![failing_bid.clone()], project_metadata.minimum_price);
+		let plmc_for_failing_bid = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
+			&vec![failing_bid.clone()],
+			project_metadata.minimum_price,
+		);
 		let plmc_existential_deposits = plmc_for_failing_bid.accounts().existential_deposits();
 		let plmc_ct_account_deposits = plmc_for_failing_bid.accounts().ct_account_deposits();
-		let usdt_for_bidding = MockInstantiator::calculate_auction_funding_asset_spent(
+		let usdt_for_bidding = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
 			&vec![failing_bid.clone()],
 			project_metadata.minimum_price,
 		);
@@ -2006,83 +2029,70 @@ mod auction_round_failure {
 		let project_id = inst.create_auctioning_project(default_project(0, ISSUER), ISSUER, default_evaluations());
 		let project_metadata = inst.get_project_metadata(project_id);
 		let max_cts_for_bids = project_metadata.total_allocation_size.0;
-
+		let rejected_ct_amount = 5_000 * ASSET_UNIT;
 		let glutton_bid =
-			BidParams::new(BIDDER_1, max_cts_for_bids, 1u8, AcceptedFundingAsset::USDT);
-		let rejected_bid = BidParams::new(BIDDER_2, 5_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
-		let bids = vec![rejected_bid.clone(), glutton_bid.clone()];
-		let plmc_fundings = MockInstantiator::calculate_auction_plmc_spent_price_derived(&bids, project_metadata.clone());
-		let usdt_fundings =
-			MockInstantiator::calculate_auction_funding_asset_spent_price_derived(&bids, project_metadata.clone());
+			BidParams::new(BIDDER_1, max_cts_for_bids - rejected_ct_amount, 1u8, AcceptedFundingAsset::USDT);
+		let rejected_bid = BidParams::new(BIDDER_2, rejected_ct_amount, 1u8, AcceptedFundingAsset::USDT);
+		let glutton_bid_2 = BidParams::new(BIDDER_1, rejected_ct_amount, 1u8, AcceptedFundingAsset::USDT);
 
-		let plmc_existential_amounnts = plmc_fundings.accounts().existential_deposits();
+		let bids = vec![glutton_bid.clone(), rejected_bid.clone(), glutton_bid_2.clone()];
+		let plmc_fundings =
+			MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made(&bids, project_metadata.clone());
+		let usdt_fundings = MockInstantiator::calculate_auction_funding_asset_charged_from_all_bids_made(
+			&bids,
+			project_metadata.clone(),
+		);
+
+		let plmc_existential_amounts = plmc_fundings.accounts().existential_deposits();
 		let plmc_ct_account_deposits = plmc_fundings.accounts().ct_account_deposits();
+
 		inst.mint_plmc_to(plmc_fundings.clone());
-		inst.mint_plmc_to(plmc_existential_amounnts.clone());
+		inst.mint_plmc_to(plmc_existential_amounts.clone());
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 		inst.mint_foreign_asset_to(usdt_fundings.clone());
 
-		inst.bid_for_users(project_id, bids).unwrap();
+		inst.bid_for_users(project_id, bids.clone()).unwrap();
 
 		inst.do_free_plmc_assertions(vec![
 			UserToPLMCBalance::new(BIDDER_1, MockInstantiator::get_ed()),
 			UserToPLMCBalance::new(BIDDER_2, MockInstantiator::get_ed()),
 		]);
-		inst.do_reserved_plmc_assertions(
-			vec![
-				UserToPLMCBalance::new(BIDDER_1, plmc_fundings[1].plmc_amount),
-				UserToPLMCBalance::new(BIDDER_2, plmc_fundings[0].plmc_amount),
-			],
-			HoldReason::Participation(project_id).into(),
-		);
-		inst.do_bid_transferred_foreign_asset_assertions(
-			vec![
-				UserToForeignAssets::<TestRuntime>::new(
-					BIDDER_1,
-					usdt_fundings[1].asset_amount,
-					AcceptedFundingAsset::USDT.to_assethub_id(),
-				),
-				UserToForeignAssets::<TestRuntime>::new(
-					BIDDER_2,
-					usdt_fundings[0].asset_amount,
-					AcceptedFundingAsset::USDT.to_assethub_id(),
-				),
-			],
-			project_id,
-		);
+		inst.do_reserved_plmc_assertions(plmc_fundings.clone(), HoldReason::Participation(project_id).into());
+		inst.do_bid_transferred_foreign_asset_assertions(usdt_fundings.clone(), project_id);
 
 		inst.start_community_funding(project_id).unwrap();
 
-		inst.do_free_plmc_assertions(vec![
-			UserToPLMCBalance::new(
-				BIDDER_1,
-				MockInstantiator::get_ed(),
-			),
-			UserToPLMCBalance::new(BIDDER_2, plmc_fundings[1].plmc_amount + MockInstantiator::get_ed()),
-		]);
+		let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
+		let returned_auction_plmc =
+			MockInstantiator::calculate_auction_plmc_returned_from_all_bids_made(&bids, project_metadata.clone(), wap);
+		let returned_funding_assets =
+			MockInstantiator::calculate_auction_funding_asset_returned_from_all_bids_made(&bids, project_metadata, wap);
 
-		inst.do_reserved_plmc_assertions(
-			vec![
-				UserToPLMCBalance::new(
-					BIDDER_1,
-					plmc_fundings[1].plmc_amount,
-				),
-				UserToPLMCBalance::new(BIDDER_2, Zero::zero()),
-			],
-			HoldReason::Participation(project_id).into(),
+		let expected_free_plmc = MockInstantiator::generic_map_operation(
+			vec![returned_auction_plmc.clone(), plmc_existential_amounts, vec![plmc_fundings[1].clone()]],
+			MergeOperation::Add,
+		);
+		let expected_free_funding_assets = MockInstantiator::generic_map_operation(
+			vec![returned_funding_assets.clone(), vec![usdt_fundings[1].clone()]],
+			MergeOperation::Add,
+		);
+		dbg!(&expected_free_plmc);
+		let expected_reserved_plmc = MockInstantiator::generic_map_operation(
+			vec![plmc_fundings.clone(), returned_auction_plmc],
+			MergeOperation::Subtract,
+		);
+		let expected_held_funding_assets = MockInstantiator::generic_map_operation(
+			vec![usdt_fundings.clone(), returned_funding_assets],
+			MergeOperation::Subtract,
 		);
 
-		inst.do_bid_transferred_foreign_asset_assertions(
-			vec![
-				UserToForeignAssets::new(
-					BIDDER_1,
-					usdt_fundings[1].asset_amount,
-					AcceptedFundingAsset::USDT.to_assethub_id(),
-				),
-				UserToForeignAssets::new(BIDDER_2, 0, AcceptedFundingAsset::USDT.to_assethub_id()),
-			],
-			project_id,
-		);
+		let bids = inst.execute(|| Bids::<TestRuntime>::iter_values().collect_vec());
+		inst.do_free_plmc_assertions(expected_free_plmc);
+
+		inst.do_reserved_plmc_assertions(expected_reserved_plmc, HoldReason::Participation(project_id).into());
+
+		inst.do_free_foreign_asset_assertions(expected_free_funding_assets);
+		inst.do_bid_transferred_foreign_asset_assertions(expected_held_funding_assets, project_id);
 	}
 
 	#[test]
@@ -2093,14 +2103,14 @@ mod auction_round_failure {
 
 		let (bid_in, bid_out) = (default_bids()[0].clone(), default_bids()[1].clone());
 
-		let plmc_fundings = MockInstantiator::calculate_auction_plmc_spent(
+		let plmc_fundings = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
 			&vec![bid_in.clone(), bid_out.clone()],
 			project_metadata.minimum_price,
 		);
 		let plmc_existential_amounts = plmc_fundings.accounts().existential_deposits();
 		let plmc_ct_account_deposits = plmc_fundings.accounts().ct_account_deposits();
 
-		let usdt_fundings = MockInstantiator::calculate_auction_funding_asset_spent(
+		let usdt_fundings = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
 			&vec![bid_in.clone(), bid_out.clone()],
 			project_metadata.minimum_price,
 		);
@@ -2197,7 +2207,8 @@ mod auction_round_failure {
 		inst.do_free_plmc_assertions(zero_balances.clone());
 		inst.do_reserved_plmc_assertions(zero_balances.clone(), HoldReason::FutureDeposit(0).into());
 
-		let required_plmc_bonds = MockInstantiator::calculate_auction_plmc_spent(&bids, project_metadata.minimum_price);
+		let required_plmc_bonds =
+			MockInstantiator::calculate_auction_plmc_charged_with_given_price(&bids, project_metadata.minimum_price);
 		let plmc_existential_deposits = required_plmc_bonds.accounts().existential_deposits();
 		let plmc_ct_account_deposits = required_plmc_bonds.accounts().ct_account_deposits();
 
@@ -3543,7 +3554,7 @@ mod remainder_round_success {
 		let price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect_vec());
 		bids = stored_bids.into_iter().map(|bid| BidParams::from(bid.bidder, bid.final_ct_amount)).collect();
-		let auction_locked_plmc = MockInstantiator::calculate_auction_plmc_spent(&bids, price);
+		let auction_locked_plmc = MockInstantiator::calculate_auction_plmc_charged_with_given_price(&bids, price);
 		let community_locked_plmc = MockInstantiator::calculate_contributed_plmc_spent(community_contributions, price);
 		let remainder_locked_plmc = MockInstantiator::calculate_contributed_plmc_spent(remainder_contributions, price);
 		let all_plmc_locks = MockInstantiator::generic_map_operation(
@@ -3819,7 +3830,7 @@ mod remainder_round_failure {
 		);
 		let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
-		let bidder_plmc_bonds = MockInstantiator::calculate_auction_plmc_spent(&bids, wap);
+		let bidder_plmc_bonds = MockInstantiator::calculate_auction_plmc_charged_with_given_price(&bids, wap);
 		let community_contributor_plmc_bonds =
 			MockInstantiator::calculate_contributed_plmc_spent(community_contributions.clone(), wap);
 		let evaluators_and_contributors_plmc_bonds =
@@ -5285,7 +5296,8 @@ mod funding_end {
 				final_price,
 				true,
 			);
-		let expected_bid_payouts = MockInstantiator::calculate_auction_plmc_spent(&bids, final_price);
+		let expected_bid_payouts =
+			MockInstantiator::calculate_auction_plmc_charged_with_given_price(&bids, final_price);
 		let expected_community_contribution_payouts =
 			MockInstantiator::calculate_contributed_plmc_spent(community_contributions.clone(), final_price);
 		let all_expected_payouts = MockInstantiator::generic_map_operation(
@@ -5406,7 +5418,8 @@ mod funding_end {
 				final_price,
 				true,
 			);
-		let expected_bid_payouts = MockInstantiator::calculate_auction_plmc_spent(&bids, final_price);
+		let expected_bid_payouts =
+			MockInstantiator::calculate_auction_plmc_charged_with_given_price(&bids, final_price);
 		let expected_community_contribution_payouts =
 			MockInstantiator::calculate_contributed_plmc_spent(community_contributions.clone(), final_price);
 		let all_expected_payouts = MockInstantiator::generic_map_operation(
@@ -5725,8 +5738,26 @@ mod test_helper_functions {
 	}
 
 	#[test]
-	fn calculate_auction_plmc_spent() {
-		todo!()
+	fn calculate_auction_plmc_returned() {
+		const CT_AMOUNT_1: u128 = 5000 * ASSET_UNIT;
+		const CT_AMOUNT_2: u128 = 10_000 * ASSET_UNIT;
+		const CT_AMOUNT_3: u128 = 40_000 * ASSET_UNIT;
+		const CT_AMOUNT_4: u128 = 6000 * ASSET_UNIT;
+
+		let bid_1 = BidParams::new(BIDDER_1, CT_AMOUNT_1, 1u8, AcceptedFundingAsset::USDT);
+		let bid_2 = BidParams::new(BIDDER_2, CT_AMOUNT_1, 1u8, AcceptedFundingAsset::USDT);
+		let bid_3 = BidParams::new(BIDDER_1, CT_AMOUNT_1, 1u8, AcceptedFundingAsset::USDT);
+		let bid_4 = BidParams::new(BIDDER_3, CT_AMOUNT_1, 1u8, AcceptedFundingAsset::USDT);
+
+		let bids = vec![bid_1, bid_2, bid_3, bid_4];
+
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+
+		let (project_id, _) = inst.create_community_contributing_project(default_project(0, ISSUER), ISSUER, default_evaluations(), bids);
+
+		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_values().collect_vec());
+		dbg!(stored_bids);
+
 	}
 
 	#[test]
