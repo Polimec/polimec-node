@@ -43,7 +43,8 @@ use crate::{
 	UpdateType::{CommunityFundingStart, RemainderFundingStart},
 };
 
-type MockInstantiator = Instantiator<TestRuntime, <TestRuntime as crate::Config>::AllPalletsWithoutSystem, RuntimeEvent>;
+type MockInstantiator =
+	Instantiator<TestRuntime, <TestRuntime as crate::Config>::AllPalletsWithoutSystem, RuntimeEvent>;
 
 const METADATA: &str = r#"METADATA
             {
@@ -79,7 +80,6 @@ const USDT_FOREIGN_ID: crate::mock::AssetId = 1984u32;
 const USDT_UNIT: u128 = 10_000_000_000_u128;
 
 pub const US_DOLLAR: u128 = 1_0_000_000_000;
-
 
 pub mod defaults {
 	use super::*;
@@ -335,8 +335,7 @@ mod creation_round_failure {
 
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		inst.mint_plmc_to(default_plmc_balances());
-		let project_err =
-			inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project).unwrap_err());
+		let project_err = inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project).unwrap_err());
 		assert_eq!(project_err, Error::<TestRuntime>::PriceTooLow.into());
 	}
 
@@ -352,8 +351,7 @@ mod creation_round_failure {
 
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		inst.mint_plmc_to(default_plmc_balances());
-		let project_err =
-			inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project).unwrap_err());
+		let project_err = inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project).unwrap_err());
 		assert_eq!(project_err, Error::<TestRuntime>::ParticipantsSizeError.into());
 	}
 
@@ -369,8 +367,7 @@ mod creation_round_failure {
 
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		inst.mint_plmc_to(default_plmc_balances());
-		let project_err =
-			inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project).unwrap_err());
+		let project_err = inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project).unwrap_err());
 		assert_eq!(project_err, Error::<TestRuntime>::TicketSizeError.into());
 	}
 
@@ -381,8 +378,7 @@ mod creation_round_failure {
 		let ed = MockInstantiator::get_ed();
 
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(ISSUER, ed)]);
-		let project_err = inst
-			.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, project_metadata).unwrap_err());
+		let project_err = inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, project_metadata).unwrap_err());
 		assert_eq!(project_err, Error::<TestRuntime>::NotEnoughFundsForEscrowCreation.into());
 	}
 }
@@ -1829,13 +1825,7 @@ mod auction_round_failure {
 		let _ = inst.create_evaluating_project(default_project(0, ISSUER), ISSUER);
 		inst.execute(|| {
 			assert_noop!(
-				PolimecFunding::do_bid(
-					&BIDDER_2,
-					0,
-					1,
-					1u8.try_into().unwrap(),
-					AcceptedFundingAsset::USDT
-				),
+				PolimecFunding::do_bid(&BIDDER_2, 0, 1, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
 				Error::<TestRuntime>::AuctionNotStarted
 			);
 		});
@@ -5597,19 +5587,11 @@ mod ct_migration {
 				Error::<TestRuntime>::NotAllowed
 			);
 			assert_err!(
-				crate::Pallet::<TestRuntime>::do_set_para_id_for_project(
-					&BIDDER_1,
-					project_id,
-					ParaId::from(2006u32)
-				),
+				crate::Pallet::<TestRuntime>::do_set_para_id_for_project(&BIDDER_1, project_id, ParaId::from(2006u32)),
 				Error::<TestRuntime>::NotAllowed
 			);
 			assert_err!(
-				crate::Pallet::<TestRuntime>::do_set_para_id_for_project(
-					&BUYER_1,
-					project_id,
-					ParaId::from(2006u32)
-				),
+				crate::Pallet::<TestRuntime>::do_set_para_id_for_project(&BUYER_1, project_id, ParaId::from(2006u32)),
 				Error::<TestRuntime>::NotAllowed
 			);
 		});

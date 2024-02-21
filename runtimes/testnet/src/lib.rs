@@ -37,7 +37,7 @@ pub use parachains_common::{
 	NORMAL_DISPATCH_RATIO, SLOT_DURATION,
 };
 use parity_scale_codec::Encode;
-use polimec_common::credentials::{EnsureInvestor, Retail, Institutional, Professional};
+use polimec_common::credentials::{EnsureInvestor, Institutional, Professional, Retail};
 
 // Polkadot imports
 use polkadot_runtime_common::{BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate};
@@ -658,6 +658,7 @@ impl pallet_funding::Config for Runtime {
 	type EvaluatorSlash = EvaluatorSlash;
 	type FeeBrackets = FeeBrackets;
 	type FundingCurrency = ForeignAssets;
+	type InstitutionalOrigin = EnsureInvestor<Runtime, (), Institutional, Runtime>;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	type MaxBidsPerProject = ConstU32<1024>;
 	type MaxBidsPerUser = ConstU32<32>;
@@ -675,10 +676,12 @@ impl pallet_funding::Config for Runtime {
 	type PreImageLimit = ConstU32<1024>;
 	type Price = Price;
 	type PriceProvider = OraclePriceProvider<AssetId, FixedU128, Oracle>;
+	type ProfessionalOrigin = EnsureInvestor<Runtime, (), Professional, Runtime>;
 	type Randomness = Random;
 	type RemainderFundingDuration = RemainderFundingDuration;
 	type RequiredMaxCapacity = RequiredMaxCapacity;
 	type RequiredMaxMessageSize = RequiredMaxMessageSize;
+	type RetailOrigin = EnsureInvestor<Runtime, (), Retail, Runtime>;
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeHoldReason = RuntimeHoldReason;
@@ -691,9 +694,6 @@ impl pallet_funding::Config for Runtime {
 	type VerifierPublicKey = VerifierPublicKey;
 	type Vesting = LinearRelease;
 	type WeightInfo = pallet_funding::weights::SubstrateWeight<Runtime>;
-	type RetailOrigin = EnsureInvestor<Runtime, (), Retail, Runtime>;
-	type ProfessionalOrigin = EnsureInvestor<Runtime, (), Professional, Runtime>;
-	type InstitutionalOrigin = EnsureInvestor<Runtime, (), Institutional, Runtime>;
 }
 
 parameter_types! {

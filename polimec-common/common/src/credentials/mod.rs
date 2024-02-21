@@ -14,18 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use parity_scale_codec::{Encode, Decode};
-use scale_info::TypeInfo;
-use frame_support::{
-    traits::OriginTrait,
-    pallet_prelude::*, 
-    Deserialize, RuntimeDebug, parameter_types,
-};
-use sp_runtime::{traits::BadOrigin, DeserializeOwned};
+use frame_support::{pallet_prelude::*, parameter_types, traits::OriginTrait, Deserialize, RuntimeDebug};
 use pallet_timestamp::Now;
+use parity_scale_codec::{Decode, Encode};
+use scale_info::TypeInfo;
+use sp_runtime::{traits::BadOrigin, DeserializeOwned};
 
-pub use jwt_compact::{*, alg::{Ed25519, VerifyingKey}, Claims as StandardClaims };
-
+pub use jwt_compact::{
+	alg::{Ed25519, VerifyingKey},
+	Claims as StandardClaims, *,
+};
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -61,47 +59,58 @@ pub struct SampleClaims<AccountId> {
 }
 
 pub struct EnsureInvestor<T, I, Type, Timestamp>(sp_std::marker::PhantomData<(T, I, Type, Timestamp)>);
-impl<'de, T, I, Type, Timestamp> EnsureOriginWithCredentials<T::RuntimeOrigin> for EnsureInvestor<T, I, Type, Timestamp> 
-where 
+impl<'de, T, I, Type, Timestamp> EnsureOriginWithCredentials<T::RuntimeOrigin> for EnsureInvestor<T, I, Type, Timestamp>
+where
 	T: frame_system::Config,
 	I: 'static,
 	Type: Get<InvestorType>,
 	Timestamp: pallet_timestamp::Config,
 {
-	type Success = T::AccountId;
 	type Claims = SampleClaims<T::AccountId>;
+	type Success = T::AccountId;
 
-	fn try_origin(origin: T::RuntimeOrigin, token: &jwt_compact::prelude::UntrustedToken, verifying_key: [u8; 32]) -> Result<Self::Success, T::RuntimeOrigin> {
+	fn try_origin(
+		origin: T::RuntimeOrigin,
+		token: &jwt_compact::prelude::UntrustedToken,
+		verifying_key: [u8; 32],
+	) -> Result<Self::Success, T::RuntimeOrigin> {
 		if let Ok(claims) = Self::verify_token(token, verifying_key) {
 			if let Some(who) = origin.clone().into_signer() {
 				if let Ok(now) = Now::<Timestamp>::get().try_into() {
 					if let Some(date_time) = claims.expiration {
-						if (date_time.timestamp() as u64) < now {	
+						if (date_time.timestamp() as u64) < now {
 							return Err(origin);
 						}
 
-						if claims.custom.investor_type == Type::get()
-							&& claims.custom.subject == who
-						{
+						if claims.custom.investor_type == Type::get() && claims.custom.subject == who {
 							return Ok(who);
 						}
 					}
 				}
 			}
-		} 
+		}
 		Err(origin)
 	}
 }
 
-pub trait EnsureOriginWithCredentials<OuterOrigin> where
+pub trait EnsureOriginWithCredentials<OuterOrigin>
+where
 	OuterOrigin: OriginTrait,
 {
 	type Success;
 	type Claims: Clone + Encode + Decode + Eq + PartialEq + Ord + PartialOrd + TypeInfo + DeserializeOwned;
 
-	fn try_origin(origin: OuterOrigin, token: &jwt_compact::prelude::UntrustedToken, verifying_key: [u8; 32]) -> Result<Self::Success, OuterOrigin>;
+	fn try_origin(
+		origin: OuterOrigin,
+		token: &jwt_compact::prelude::UntrustedToken,
+		verifying_key: [u8; 32],
+	) -> Result<Self::Success, OuterOrigin>;
 
-	fn ensure_origin(origin: OuterOrigin, token: &jwt_compact::prelude::UntrustedToken, verifying_key: [u8; 32]) -> Result<Self::Success, BadOrigin> {
+	fn ensure_origin(
+		origin: OuterOrigin,
+		token: &jwt_compact::prelude::UntrustedToken,
+		verifying_key: [u8; 32],
+	) -> Result<Self::Success, BadOrigin> {
 		Self::try_origin(origin, token, verifying_key).map_err(|_| BadOrigin)
 	}
 
@@ -113,12 +122,10 @@ pub trait EnsureOriginWithCredentials<OuterOrigin> where
 		token: &jwt_compact::prelude::UntrustedToken,
 		verifying_key: [u8; 32],
 	) -> Result<StandardClaims<Self::Claims>, ()> {
-
 		let signing_key = <<Ed25519 as Algorithm>::VerifyingKey>::from_slice(&verifying_key).unwrap();
-		
-		let token = &
-		Ed25519.validator::<Self::Claims>(&signing_key).validate(&token).unwrap();
-		
+
+		let token = &Ed25519.validator::<Self::Claims>(&signing_key).validate(&token).unwrap();
+
 		// We now know that the token is signed by the Verifier
 		// So we can extract the claims from the token
 		let claims = Self::extract_claims(token)?;

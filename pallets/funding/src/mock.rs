@@ -29,6 +29,7 @@ use frame_support::{
 };
 use frame_system as system;
 use frame_system::EnsureRoot;
+use polimec_common::credentials::{EnsureInvestor, Institutional, Professional, Retail};
 use sp_arithmetic::Percent;
 use sp_core::H256;
 use sp_runtime::{
@@ -37,7 +38,6 @@ use sp_runtime::{
 };
 use sp_std::collections::btree_map::BTreeMap;
 use system::EnsureSigned;
-use polimec_common::credentials::{EnsureInvestor, Institutional, Professional, Retail};
 
 type Block = frame_system::mocking::MockBlock<TestRuntime>;
 
@@ -249,11 +249,10 @@ impl pallet_balances::Config for TestRuntime {
 
 impl pallet_insecure_randomness_collective_flip::Config for TestRuntime {}
 
-
 impl pallet_timestamp::Config for TestRuntime {
+	type MinimumPeriod = ConstU64<5>;
 	type Moment = u64;
 	type OnTimestampSet = ();
-	type MinimumPeriod = ConstU64<5>;
 	type WeightInfo = ();
 }
 
@@ -344,7 +343,8 @@ impl ConvertBack<AccountId, [u8; 32]> for DummyConverter {
 
 impl Config for TestRuntime {
 	type AccountId32Conversion = DummyConverter;
-	type AllPalletsWithoutSystem = (Balances, LocalAssets, ForeignAssets, PolimecFunding, Vesting, RandomnessCollectiveFlip);
+	type AllPalletsWithoutSystem =
+		(Balances, LocalAssets, ForeignAssets, PolimecFunding, Vesting, RandomnessCollectiveFlip);
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;
 	type BlockNumber = BlockNumber;
@@ -360,6 +360,7 @@ impl Config for TestRuntime {
 	type EvaluatorSlash = EvaluatorSlash;
 	type FeeBrackets = FeeBrackets;
 	type FundingCurrency = ForeignAssets;
+	type InstitutionalOrigin = EnsureInvestor<TestRuntime, (), Institutional, TestRuntime>;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	type MaxBidsPerProject = ConstU32<1024>;
 	type MaxBidsPerUser = ConstU32<4>;
@@ -377,10 +378,12 @@ impl Config for TestRuntime {
 	type PreImageLimit = ConstU32<1024>;
 	type Price = FixedU128;
 	type PriceProvider = ConstPriceProvider<AssetId, FixedU128, PriceMap>;
+	type ProfessionalOrigin = EnsureInvestor<TestRuntime, (), Professional, TestRuntime>;
 	type Randomness = RandomnessCollectiveFlip;
 	type RemainderFundingDuration = RemainderFundingDuration;
 	type RequiredMaxCapacity = RequiredMaxCapacity;
 	type RequiredMaxMessageSize = RequiredMaxMessageSize;
+	type RetailOrigin = EnsureInvestor<TestRuntime, (), Retail, TestRuntime>;
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeHoldReason = RuntimeHoldReason;
@@ -393,9 +396,6 @@ impl Config for TestRuntime {
 	type VerifierPublicKey = VerifierPublicKey;
 	type Vesting = Vesting;
 	type WeightInfo = weights::SubstrateWeight<TestRuntime>;
-	type RetailOrigin = EnsureInvestor<TestRuntime, (), Retail, TestRuntime>;
-	type ProfessionalOrigin = EnsureInvestor<TestRuntime, (), Professional, TestRuntime>;
-	type InstitutionalOrigin = EnsureInvestor<TestRuntime, (), Institutional, TestRuntime>;
 }
 
 // Configure a mock runtime to test the pallet.
@@ -447,7 +447,6 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	});
 	ext
 }
-
 
 pub fn hashed(data: impl AsRef<[u8]>) -> H256 {
 	<BlakeTwo256 as sp_runtime::traits::Hash>::hash(data.as_ref())

@@ -32,10 +32,7 @@ use polimec_parachain_runtime::{
 };
 use sc_service::ChainType;
 use sp_core::{crypto::UncheckedInto, sr25519};
-use sp_runtime::{
-	traits::AccountIdConversion,
-	Perbill, Percent,
-};
+use sp_runtime::{traits::AccountIdConversion, Perbill, Percent};
 
 use crate::chain_spec::{get_account_id_from_seed, DEFAULT_PARA_ID};
 

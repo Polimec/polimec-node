@@ -35,7 +35,7 @@ use frame_support::{
 #[allow(unused_imports)]
 use pallet::Pallet as PalletFunding;
 use parity_scale_codec::{Decode, Encode};
-use polimec_common::{ReleaseSchedule, credentials::InvestorType};
+use polimec_common::{credentials::InvestorType, ReleaseSchedule};
 use polimec_common_test_utils::get_test_jwt;
 use scale_info::prelude::format;
 use sp_arithmetic::Percent;
@@ -564,9 +564,7 @@ mod benchmarks {
 	// - is over max evals per user, and needs to unbond the lowest evaluation
 	// 		- this case, we know they paid already for ct account deposit
 
-	fn evaluation_setup<T>(
-		x: u32,
-	) -> (BenchInstantiator<T>, ProjectId, UserToUSDBalance<T>, BalanceOf<T>, BalanceOf<T>)
+	fn evaluation_setup<T>(x: u32) -> (BenchInstantiator<T>, ProjectId, UserToUSDBalance<T>, BalanceOf<T>, BalanceOf<T>)
 	where
 		T: Config,
 		<T as Config>::Balance: From<u128>,
@@ -687,7 +685,12 @@ mod benchmarks {
 
 		let jwt = get_test_jwt(extrinsic_evaluation.account.clone(), InvestorType::Institutional);
 		#[extrinsic_call]
-		evaluate(RawOrigin::Signed(extrinsic_evaluation.account.clone()), jwt, project_id, extrinsic_evaluation.usd_amount);
+		evaluate(
+			RawOrigin::Signed(extrinsic_evaluation.account.clone()),
+			jwt,
+			project_id,
+			extrinsic_evaluation.usd_amount,
+		);
 
 		evaluation_verification::<T>(
 			inst,
@@ -711,7 +714,12 @@ mod benchmarks {
 
 		let jwt = get_test_jwt(extrinsic_evaluation.account.clone(), InvestorType::Institutional);
 		#[extrinsic_call]
-		evaluate(RawOrigin::Signed(extrinsic_evaluation.account.clone()), jwt, project_id, extrinsic_evaluation.usd_amount);
+		evaluate(
+			RawOrigin::Signed(extrinsic_evaluation.account.clone()),
+			jwt,
+			project_id,
+			extrinsic_evaluation.usd_amount,
+		);
 
 		evaluation_verification::<T>(
 			inst,
@@ -734,7 +742,12 @@ mod benchmarks {
 
 		let jwt = get_test_jwt(extrinsic_evaluation.account.clone(), InvestorType::Institutional);
 		#[extrinsic_call]
-		evaluate(RawOrigin::Signed(extrinsic_evaluation.account.clone()), jwt, project_id, extrinsic_evaluation.usd_amount);
+		evaluate(
+			RawOrigin::Signed(extrinsic_evaluation.account.clone()),
+			jwt,
+			project_id,
+			extrinsic_evaluation.usd_amount,
+		);
 
 		evaluation_verification::<T>(
 			inst,
