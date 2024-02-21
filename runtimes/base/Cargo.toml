@@ -17,13 +17,12 @@ substrate-wasm-builder.workspace = true
 parity-scale-codec = { version = "3.6.5", default-features = false, features = [
 	"derive",
 ] }
-hex-literal = { version = "0.3.4", optional = true }
+hex-literal = { version = "0.3.4" }
 log.workspace = true
 scale-info = { version = "2.9.0", default-features = false, features = [
 	"derive",
 ] }
 smallvec = "1.11.0"
-array-bytes.workspace = true
 
 # Local
 pallet-parachain-staking.workspace = true
@@ -164,7 +163,6 @@ runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
 	"frame-system-benchmarking/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
-	"hex-literal",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-membership/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",
