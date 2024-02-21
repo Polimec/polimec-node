@@ -5757,12 +5757,10 @@ mod test_helper_functions {
 		// post wap ~ 1.0557252:
 		// (Accepted, 5k) - (Partially, 32k) - (Rejected, 5k) - (Accepted, 5k) - (Accepted - 5k) - (Accepted - 1k) - (Accepted - 2k)
 
-
 		const ORIGINAL_PLMC_CHARGED_BIDDER_1: u128 = 1845_2_380_952_379;
 		const ORIGINAL_PLMC_CHARGED_BIDDER_2: u128 = 4761_9_047_619_047;
 		const ORIGINAL_PLMC_CHARGED_BIDDER_3: u128 = 869_0_476_190_476;
 		const ORIGINAL_PLMC_CHARGED_BIDDER_4: u128 = 309_5_238_095_238;
-
 
 		const FINAL_PLMC_CHARGED_BIDDER_1: u128 = 1_190_4_761_904_762;
 		const FINAL_PLMC_CHARGED_BIDDER_2: u128 = 3_809_5_238_095_238;
@@ -5773,13 +5771,36 @@ mod test_helper_functions {
 
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_metadata = default_project(0, ISSUER);
-		let plmc_charged = MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made(&bids, project_metadata.clone());
+		let plmc_charged =
+			MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made(&bids, project_metadata.clone());
 		dbg!(plmc_charged);
-		let (project_id, _) = inst.create_community_contributing_project(project_metadata, ISSUER, default_evaluations(), bids);
+		let (project_id, _) =
+			inst.create_community_contributing_project(project_metadata.clone(), ISSUER, default_evaluations(), bids.clone());
 
-		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_values().into_iter().sorted_by(|b1, b2|b1.id.cmp(&b2.id)).collect_vec());
+		let stored_bids = inst.execute(|| {
+			Bids::<TestRuntime>::iter_values().into_iter().sorted_by(|b1, b2| b1.id.cmp(&b2.id)).collect_vec()
+		});
 		dbg!(stored_bids);
-		dbg!(inst.get_project_details(project_id).weighted_average_price.unwrap());
+		let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
+		dbg!(wap);
+
+		let expected_returns = vec![
+			ORIGINAL_PLMC_CHARGED_BIDDER_1 - FINAL_PLMC_CHARGED_BIDDER_1,
+			ORIGINAL_PLMC_CHARGED_BIDDER_2 - FINAL_PLMC_CHARGED_BIDDER_2,
+			ORIGINAL_PLMC_CHARGED_BIDDER_3 - FINAL_PLMC_CHARGED_BIDDER_3,
+			ORIGINAL_PLMC_CHARGED_BIDDER_4 - FINAL_PLMC_CHARGED_BIDDER_4,
+		];
+		let mut returned_plmc_mappings =
+			MockInstantiator::calculate_auction_plmc_returned_from_all_bids_made(&bids, project_metadata.clone(), wap);
+		returned_plmc_mappings.sort_by(|b1, b2| b1.account.cmp(&b2.account));
+		let returned_plmc_balances = returned_plmc_mappings.into_iter().map(|map|map.plmc_amount).collect_vec();
+
+
+		for (expected, calculated) in zip(expected_returns, returned_plmc_balances) {
+			assert_eq!(expected, calculated)
+		}
+
+
 
 	}
 

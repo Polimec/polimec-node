@@ -1162,7 +1162,7 @@ impl<
 
 		self.start_community_funding(project_id).unwrap();
 
-		(project_id ,Vec::new())
+		(project_id, Vec::new())
 	}
 
 	pub fn contribute_for_users(
