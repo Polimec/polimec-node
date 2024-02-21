@@ -65,6 +65,8 @@ pub use pallet_parachain_staking;
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 mod custom_migrations;
+mod lock_migrations;
+
 pub mod xcm_config;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
@@ -130,7 +132,7 @@ pub mod migrations {
 	#![allow(unused_imports)]
 	use super::*;
 	/// Unreleased migrations. Add new ones here:
-	pub type Unreleased = (custom_migrations::UnlockBalancesMigration,);
+	pub type Unreleased = (lock_migrations::UnlockBalancesMigration,);
 }
 
 /// Executive: handles dispatch to the various modules.
