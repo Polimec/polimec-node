@@ -23,6 +23,7 @@ scale-info = { version = "2.9.0", default-features = false, features = [
 	"derive",
 ] }
 smallvec = "1.11.0"
+array-bytes.workspace = true
 
 # Local
 pallet-parachain-staking.workspace = true
