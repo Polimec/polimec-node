@@ -26,8 +26,6 @@ use pallet_timestamp::Now;
 
 pub use jwt_compact::{*, alg::{Ed25519, VerifyingKey}, Claims as StandardClaims };
 
-#[cfg(feature = "jwt-test-helper")]
-pub mod test_helpers;
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, Deserialize)]
 #[serde(rename_all = "lowercase")]

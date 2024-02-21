@@ -444,20 +444,10 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	// In order to emit events the block number must be more than 0
 	ext.execute_with(|| {
 		System::set_block_number(1);
-		Timestamp::set_timestamp(get_sys_time_as_moment());
 	});
 	ext
 }
 
-fn get_sys_time_as_moment() -> <TestRuntime as pallet_timestamp::Config>::Moment {
-	use std::time::SystemTime;
-	if let Ok(n) = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
-		if let Ok(timestamp) = <TestRuntime as pallet_timestamp::Config>::Moment::try_from(n.as_secs()) {
-			return timestamp;
-		}
-	}
-	panic!("Could not convert timestamp");
-}
 
 pub fn hashed(data: impl AsRef<[u8]>) -> H256 {
 	<BlakeTwo256 as sp_runtime::traits::Hash>::hash(data.as_ref())

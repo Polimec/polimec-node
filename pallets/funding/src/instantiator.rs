@@ -249,8 +249,8 @@ impl<
 
 				current_block += One::one();
 				frame_system::Pallet::<T>::set_block_number(current_block);
+
 				let pre_events = frame_system::Pallet::<T>::events();
-				
 
 				<frame_system::Pallet<T> as OnInitialize<BlockNumberFor<T>>>::on_initialize(current_block);
 				<AllPalletsWithoutSystem as OnInitialize<BlockNumberFor<T>>>::on_initialize(current_block);

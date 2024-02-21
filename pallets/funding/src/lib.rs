@@ -1558,7 +1558,7 @@ pub mod pallet {
 	#[derive(Clone, PartialEq, Eq, Debug, Encode, Decode)]
 	pub struct GenesisConfig<T: Config>
 	where
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + pallet_timestamp::Config,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		<T as Config>::AllPalletsWithoutSystem:
 			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
@@ -1571,7 +1571,7 @@ pub mod pallet {
 
 	impl<T: Config> Default for GenesisConfig<T>
 	where
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + pallet_timestamp::Config,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		<T as Config>::AllPalletsWithoutSystem:
 			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
@@ -1589,7 +1589,7 @@ pub mod pallet {
 	#[pallet::genesis_build]
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T>
 	where
-		T: Config + pallet_balances::Config<Balance = BalanceOf<T>> + pallet_timestamp::Config,
+		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
 		<T as Config>::AllPalletsWithoutSystem:
 			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
 		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
