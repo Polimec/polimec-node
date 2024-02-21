@@ -5740,23 +5740,46 @@ mod test_helper_functions {
 	#[test]
 	fn calculate_auction_plmc_returned() {
 		const CT_AMOUNT_1: u128 = 5000 * ASSET_UNIT;
-		const CT_AMOUNT_2: u128 = 10_000 * ASSET_UNIT;
-		const CT_AMOUNT_3: u128 = 40_000 * ASSET_UNIT;
+		const CT_AMOUNT_2: u128 = 40_000 * ASSET_UNIT;
+		const CT_AMOUNT_3: u128 = 10_000 * ASSET_UNIT;
 		const CT_AMOUNT_4: u128 = 6000 * ASSET_UNIT;
+		const CT_AMOUNT_5: u128 = 2000 * ASSET_UNIT;
 
 		let bid_1 = BidParams::new(BIDDER_1, CT_AMOUNT_1, 1u8, AcceptedFundingAsset::USDT);
-		let bid_2 = BidParams::new(BIDDER_2, CT_AMOUNT_1, 1u8, AcceptedFundingAsset::USDT);
-		let bid_3 = BidParams::new(BIDDER_1, CT_AMOUNT_1, 1u8, AcceptedFundingAsset::USDT);
-		let bid_4 = BidParams::new(BIDDER_3, CT_AMOUNT_1, 1u8, AcceptedFundingAsset::USDT);
+		let bid_2 = BidParams::new(BIDDER_2, CT_AMOUNT_2, 1u8, AcceptedFundingAsset::USDT);
+		let bid_3 = BidParams::new(BIDDER_1, CT_AMOUNT_3, 1u8, AcceptedFundingAsset::USDT);
+		let bid_4 = BidParams::new(BIDDER_3, CT_AMOUNT_4, 1u8, AcceptedFundingAsset::USDT);
+		let bid_5 = BidParams::new(BIDDER_4, CT_AMOUNT_5, 1u8, AcceptedFundingAsset::USDT);
 
-		let bids = vec![bid_1, bid_2, bid_3, bid_4];
+		// post bucketing, the bids look like this:
+		// (BIDDER_1, 5k) - (BIDDER_2, 40k) - (BIDDER_1, 5k) - (BIDDER_1, 5k) - (BIDDER_3 - 5k) - (BIDDER_3 - 1k) - (BIDDER_4 - 2k)
+		// | -------------------- 1USD ----------------------|---- 1.1 USD ---|---- 1.2 USD ----|----------- 1.3 USD -------------|
+		// post wap ~ 1.0557252:
+		// (Accepted, 5k) - (Partially, 32k) - (Rejected, 5k) - (Accepted, 5k) - (Accepted - 5k) - (Accepted - 1k) - (Accepted - 2k)
+
+
+		const ORIGINAL_PLMC_CHARGED_BIDDER_1: u128 = 1845_2_380_952_379;
+		const ORIGINAL_PLMC_CHARGED_BIDDER_2: u128 = 4761_9_047_619_047;
+		const ORIGINAL_PLMC_CHARGED_BIDDER_3: u128 = 869_0_476_190_476;
+		const ORIGINAL_PLMC_CHARGED_BIDDER_4: u128 = 309_5_238_095_238;
+
+
+		const FINAL_PLMC_CHARGED_BIDDER_1: u128 = 1_190_4_761_904_762;
+		const FINAL_PLMC_CHARGED_BIDDER_2: u128 = 3_809_5_238_095_238;
+		const FINAL_PLMC_CHARGED_BIDDER_3: u128 = 714_2_857_142_857;
+		const FINAL_PLMC_CHARGED_BIDDER_4: u128 = 238_0_952_380_952;
+
+		let bids = vec![bid_1, bid_2, bid_3, bid_4, bid_5];
 
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project(0, ISSUER);
+		let plmc_charged = MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made(&bids, project_metadata.clone());
+		dbg!(plmc_charged);
+		let (project_id, _) = inst.create_community_contributing_project(project_metadata, ISSUER, default_evaluations(), bids);
 
-		let (project_id, _) = inst.create_community_contributing_project(default_project(0, ISSUER), ISSUER, default_evaluations(), bids);
-
-		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_values().collect_vec());
+		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_values().into_iter().sorted_by(|b1, b2|b1.id.cmp(&b2.id)).collect_vec());
 		dbg!(stored_bids);
+		dbg!(inst.get_project_details(project_id).weighted_average_price.unwrap());
 
 	}
 

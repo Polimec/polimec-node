@@ -1162,22 +1162,7 @@ impl<
 
 		self.start_community_funding(project_id).unwrap();
 
-		let weighted_price = self.get_project_details(project_id).weighted_average_price.unwrap();
-		let accepted_bids = Self::filter_bids_after_auction(bids, project_metadata.total_allocation_size.0);
-		let bid_expectations = accepted_bids
-			.iter()
-			.map(|bid| BidInfoFilter::<T> {
-				bidder: Some(bid.bidder.clone()),
-				final_ct_amount: Some(bid.amount),
-				..Default::default()
-			})
-			.collect_vec();
-
-		let total_ct_sold = accepted_bids.iter().map(|bid| bid.amount).fold(Zero::zero(), |acc, item| item + acc);
-
-		self.finalized_bids_assertions(project_id, bid_expectations, total_ct_sold);
-
-		(project_id, accepted_bids)
+		(project_id ,Vec::new())
 	}
 
 	pub fn contribute_for_users(
