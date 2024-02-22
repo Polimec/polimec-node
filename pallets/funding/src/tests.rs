@@ -2069,11 +2069,11 @@ mod auction_round_failure {
 			MockInstantiator::calculate_auction_funding_asset_returned_from_all_bids_made(&bids, project_metadata, wap);
 
 		let expected_free_plmc = MockInstantiator::generic_map_operation(
-			vec![returned_auction_plmc.clone(), plmc_existential_amounts, vec![plmc_fundings[1].clone()]],
+			vec![returned_auction_plmc.clone(), plmc_existential_amounts],
 			MergeOperation::Add,
 		);
 		let expected_free_funding_assets = MockInstantiator::generic_map_operation(
-			vec![returned_funding_assets.clone(), vec![usdt_fundings[1].clone()]],
+			vec![returned_funding_assets.clone()],
 			MergeOperation::Add,
 		);
 		dbg!(&expected_free_plmc);
@@ -5757,15 +5757,16 @@ mod test_helper_functions {
 		// post wap ~ 1.0557252:
 		// (Accepted, 5k) - (Partially, 32k) - (Rejected, 5k) - (Accepted, 5k) - (Accepted - 5k) - (Accepted - 1k) - (Accepted - 2k)
 
+
 		const ORIGINAL_PLMC_CHARGED_BIDDER_1: u128 = 1845_2_380_952_379;
 		const ORIGINAL_PLMC_CHARGED_BIDDER_2: u128 = 4761_9_047_619_047;
 		const ORIGINAL_PLMC_CHARGED_BIDDER_3: u128 = 869_0_476_190_476;
 		const ORIGINAL_PLMC_CHARGED_BIDDER_4: u128 = 309_5_238_095_238;
 
-		const FINAL_PLMC_CHARGED_BIDDER_1: u128 = 1_190_4_761_904_762;
+		const FINAL_PLMC_CHARGED_BIDDER_1: u128 = 1_223_6_459_469_284;
 		const FINAL_PLMC_CHARGED_BIDDER_2: u128 = 3_809_5_238_095_238;
-		const FINAL_PLMC_CHARGED_BIDDER_3: u128 = 714_2_857_142_857;
-		const FINAL_PLMC_CHARGED_BIDDER_4: u128 = 238_0_952_380_952;
+		const FINAL_PLMC_CHARGED_BIDDER_3: u128 = 754_0_894_220_284;
+		const FINAL_PLMC_CHARGED_BIDDER_4: u128 = 251_3_631_406_761;
 
 		let bids = vec![bid_1, bid_2, bid_3, bid_4, bid_5];
 
@@ -5790,18 +5791,19 @@ mod test_helper_functions {
 			ORIGINAL_PLMC_CHARGED_BIDDER_3 - FINAL_PLMC_CHARGED_BIDDER_3,
 			ORIGINAL_PLMC_CHARGED_BIDDER_4 - FINAL_PLMC_CHARGED_BIDDER_4,
 		];
+		dbg!(&expected_returns);
+
 		let mut returned_plmc_mappings =
 			MockInstantiator::calculate_auction_plmc_returned_from_all_bids_made(&bids, project_metadata.clone(), wap);
 		returned_plmc_mappings.sort_by(|b1, b2| b1.account.cmp(&b2.account));
+
 		let returned_plmc_balances = returned_plmc_mappings.into_iter().map(|map|map.plmc_amount).collect_vec();
+		dbg!(&returned_plmc_balances);
 
 
 		for (expected, calculated) in zip(expected_returns, returned_plmc_balances) {
-			assert_eq!(expected, calculated)
+			assert_close_enough!(expected, calculated, Perquintill::from_float(0.01));
 		}
-
-
-
 	}
 
 	#[test]

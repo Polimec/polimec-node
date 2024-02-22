@@ -538,6 +538,7 @@ impl<
 		output.merge_accounts(MergeOperation::Add)
 	}
 
+	// WARNING: Only put bids that you are sure will be done before the random end of the candle auction
 	pub fn calculate_auction_plmc_returned_from_all_bids_made(
 		// bids in the order they were made
 		bids: &Vec<BidParams<T>>,
@@ -623,34 +624,52 @@ impl<
 		output.merge_accounts(MergeOperation::Add)
 	}
 
+	// WARNING: Only put bids that you are sure will be done before the random end of the candle auction
 	pub fn calculate_auction_funding_asset_returned_from_all_bids_made(
+		// bids in the order they were made
 		bids: &Vec<BidParams<T>>,
 		project_metadata: ProjectMetadataOf<T>,
 		weighted_average_price: PriceOf<T>,
 	) -> Vec<UserToForeignAssets<T>> {
 		let mut output = Vec::new();
-		let charged_bids = Self::get_actual_price_charged_for_bids(bids, project_metadata, None);
+		let charged_bids = Self::get_actual_price_charged_for_bids(bids, project_metadata.clone(), None);
+		let grouped_by_price_bids = charged_bids.clone().into_iter().group_by(|&(_, price)| price);
+		let mut grouped_by_price_bids: Vec<(PriceOf<T>, Vec<BidParams<T>>)> = grouped_by_price_bids
+			.into_iter()
+			.map(|(key, group)| (key, group.map(|(bid, price)| bid).collect()))
+			.collect();
+		grouped_by_price_bids.reverse();
 
-		for (bid, price_charged) in charged_bids {
-			let asset_price = T::PriceProvider::get_price(bid.asset.to_assethub_id()).unwrap();
+		let mut remaining_cts = project_metadata.total_allocation_size.0;
 
-			if weighted_average_price < price_charged {
+		for (price_charged, bids) in grouped_by_price_bids {
+			for bid in bids {
+				let funding_asset_price = T::PriceProvider::get_price(bid.asset.to_assethub_id()).unwrap();
+
 				let charged_usd_ticket_size = price_charged.saturating_mul_int(bid.amount);
-				let charged_funding_asset =
-					asset_price.reciprocal().unwrap().saturating_mul_int(charged_usd_ticket_size);
+				let charged_usd_bond =
+					bid.multiplier.calculate_bonding_requirement::<T>(charged_usd_ticket_size).unwrap();
+				let charged_funding_asset = funding_asset_price.reciprocal().unwrap().saturating_mul_int(charged_usd_bond);
 
-				let actual_usd_ticket_size = weighted_average_price.saturating_mul_int(bid.amount);
-				let actual_funding_asset = asset_price.reciprocal().unwrap().saturating_mul_int(actual_usd_ticket_size);
+				if remaining_cts <= Zero::zero() {
+					output.push(UserToForeignAssets::new(bid.bidder, charged_funding_asset, bid.asset.to_assethub_id()));
+					continue
+				}
 
-				let returned_funding_asset = charged_funding_asset - actual_funding_asset;
+				let bought_cts = if remaining_cts < bid.amount { remaining_cts } else { bid.amount };
+				remaining_cts = remaining_cts.saturating_sub(bought_cts);
 
-				output.push(UserToForeignAssets::<T>::new(
-					bid.bidder,
-					returned_funding_asset,
-					bid.asset.to_assethub_id(),
-				));
-			} else {
-				output.push(UserToForeignAssets::<T>::new(bid.bidder, Zero::zero(), bid.asset.to_assethub_id()));
+				let final_price =
+					if weighted_average_price > price_charged { price_charged } else { weighted_average_price };
+
+				let actual_usd_ticket_size = final_price.saturating_mul_int(bought_cts);
+				let actual_usd_bond =
+					bid.multiplier.calculate_bonding_requirement::<T>(actual_usd_ticket_size).unwrap();
+				let actual_funding_asset_spent = funding_asset_price.reciprocal().unwrap().saturating_mul_int(actual_usd_bond);
+
+				let returned_foreign_asset = charged_funding_asset - actual_funding_asset_spent;
+
+				output.push(UserToForeignAssets::<T>::new(bid.bidder, returned_foreign_asset, bid.asset.to_assethub_id()));
 			}
 		}
 
