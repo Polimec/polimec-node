@@ -474,7 +474,7 @@ impl<
 		output
 	}
 
-	pub fn get_actual_price_charged_for_bids(
+	pub fn get_actual_price_charged_for_bucketed_bids(
 		bids: &Vec<BidParams<T>>,
 		project_metadata: ProjectMetadataOf<T>,
 		maybe_bucket: Option<BucketOf<T>>,
@@ -528,7 +528,7 @@ impl<
 		let mut output = Vec::new();
 		let plmc_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap();
 
-		for (bid, price) in Self::get_actual_price_charged_for_bids(bids, project_metadata, None) {
+		for (bid, price) in Self::get_actual_price_charged_for_bucketed_bids(bids, project_metadata, None) {
 			let usd_ticket_size = price.saturating_mul_int(bid.amount);
 			let usd_bond = bid.multiplier.calculate_bonding_requirement::<T>(usd_ticket_size).unwrap();
 			let plmc_bond = plmc_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
@@ -538,12 +538,6 @@ impl<
 		output.merge_accounts(MergeOperation::Add)
 	}
 
-	pub fn calculate_auction_plmc_spent_post_wap(
-		bids: &Vec<BidParams<T>>,
-		project_metadata: ProjectMetadataOf<T>
-	) -> Vec<UserToPLMCBalance<T>> {
-		todo!()
-	}
 
 	// WARNING: Only put bids that you are sure will be done before the random end of the candle auction
 	pub fn calculate_auction_plmc_returned_from_all_bids_made(
@@ -553,7 +547,7 @@ impl<
 		weighted_average_price: PriceOf<T>,
 	) -> Vec<UserToPLMCBalance<T>> {
 		let mut output = Vec::new();
-		let charged_bids = Self::get_actual_price_charged_for_bids(bids, project_metadata.clone(), None);
+		let charged_bids = Self::get_actual_price_charged_for_bucketed_bids(bids, project_metadata.clone(), None);
 		let grouped_by_price_bids = charged_bids.clone().into_iter().group_by(|&(_, price)| price);
 		let mut grouped_by_price_bids: Vec<(PriceOf<T>, Vec<BidParams<T>>)> = grouped_by_price_bids
 			.into_iter()
@@ -596,6 +590,17 @@ impl<
 		output.merge_accounts(MergeOperation::Add)
 	}
 
+	pub fn calculate_auction_plmc_spent_post_wap(
+		bids: &Vec<BidParams<T>>,
+		project_metadata: ProjectMetadataOf<T>,
+		weighted_average_price: PriceOf<T>
+	) -> Vec<UserToPLMCBalance<T>> {
+		let plmc_charged = Self::calculate_auction_plmc_charged_from_all_bids_made(bids, project_metadata.clone());
+		let plmc_returned = Self::calculate_auction_plmc_returned_from_all_bids_made(bids, project_metadata.clone(), weighted_average_price);
+
+		plmc_charged.subtract_accounts(plmc_returned)
+	}
+
 	pub fn calculate_auction_funding_asset_charged_with_given_price(
 		bids: &Vec<BidParams<T>>,
 		ct_price: PriceOf<T>,
@@ -617,7 +622,7 @@ impl<
 	) -> Vec<UserToForeignAssets<T>> {
 		let mut output = Vec::new();
 
-		for (bid, price) in Self::get_actual_price_charged_for_bids(bids, project_metadata, None) {
+		for (bid, price) in Self::get_actual_price_charged_for_bucketed_bids(bids, project_metadata, None) {
 			let asset_price = T::PriceProvider::get_price(bid.asset.to_assethub_id()).unwrap();
 			let usd_ticket_size = price.saturating_mul_int(bid.amount);
 			let funding_asset_spent = asset_price.reciprocal().unwrap().saturating_mul_int(usd_ticket_size);
@@ -639,7 +644,7 @@ impl<
 		weighted_average_price: PriceOf<T>,
 	) -> Vec<UserToForeignAssets<T>> {
 		let mut output = Vec::new();
-		let charged_bids = Self::get_actual_price_charged_for_bids(bids, project_metadata.clone(), None);
+		let charged_bids = Self::get_actual_price_charged_for_bucketed_bids(bids, project_metadata.clone(), None);
 		let grouped_by_price_bids = charged_bids.clone().into_iter().group_by(|&(_, price)| price);
 		let mut grouped_by_price_bids: Vec<(PriceOf<T>, Vec<BidParams<T>>)> = grouped_by_price_bids
 			.into_iter()
@@ -681,6 +686,18 @@ impl<
 		}
 
 		output.merge_accounts(MergeOperation::Add)
+	}
+
+
+	pub fn calculate_auction_funding_asset_spent_post_wap(
+		bids: &Vec<BidParams<T>>,
+		project_metadata: ProjectMetadataOf<T>,
+		weighted_average_price: PriceOf<T>
+	) -> Vec<UserToForeignAssets<T>> {
+		let funding_asset_charged = Self::calculate_auction_funding_asset_charged_from_all_bids_made(bids, project_metadata.clone());
+		let funding_asset_returned = Self::calculate_auction_funding_asset_returned_from_all_bids_made(bids, project_metadata.clone(), weighted_average_price);
+
+		funding_asset_charged.subtract_accounts(funding_asset_returned)
 	}
 
 	/// Filters the bids that would be rejected after the auction ends.
@@ -1121,7 +1138,7 @@ impl<
 		issuer: AccountIdOf<T>,
 		evaluations: Vec<UserToUSDBalance<T>>,
 		bids: Vec<BidParams<T>>,
-	) -> (ProjectId, Vec<BidParams<T>>) {
+	) -> ProjectId{
 		if bids.is_empty() {
 			panic!("Cannot start community funding without bids")
 		}
@@ -1188,7 +1205,7 @@ impl<
 
 		self.start_community_funding(project_id).unwrap();
 
-		(project_id, Vec::new())
+		project_id
 	}
 
 	pub fn contribute_for_users(
@@ -1250,29 +1267,31 @@ impl<
 		evaluations: Vec<UserToUSDBalance<T>>,
 		bids: Vec<BidParams<T>>,
 		contributions: Vec<ContributionParams<T>>,
-	) -> (ProjectId, Vec<BidParams<T>>) {
-		let (project_id, accepted_bids) =
-			self.create_community_contributing_project(project_metadata, issuer, evaluations.clone(), bids);
+	) -> ProjectId {
+		let project_id =
+			self.create_community_contributing_project(project_metadata.clone(), issuer, evaluations.clone(), bids.clone());
 
 		if contributions.is_empty() {
 			self.start_remainder_or_end_funding(project_id).unwrap();
-			return (project_id, accepted_bids);
+			return project_id;
 		}
 
 		let ct_price = self.get_project_details(project_id).weighted_average_price.unwrap();
+
 		let contributors = contributions.accounts();
 		let contributors_non_evaluators = contributors
 			.clone()
 			.into_iter()
 			.filter(|account| evaluations.accounts().contains(account).not())
 			.collect_vec();
+
 		let asset_id = contributions[0].asset.to_assethub_id();
+
 		let prev_plmc_balances = self.get_free_plmc_balances_for(contributors.clone());
 		let prev_funding_asset_balances = self.get_free_foreign_asset_balances_for(asset_id, contributors.clone());
 
 		let plmc_evaluation_deposits = Self::calculate_evaluation_plmc_spent(evaluations);
-		let plmc_bid_deposits = Self::calculate_auction_plmc_charged_with_given_price(&accepted_bids, ct_price);
-
+		let plmc_bid_deposits = Self::calculate_auction_plmc_spent_post_wap(&bids, project_metadata.clone(), ct_price);
 		let plmc_contribution_deposits = Self::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 
 		let necessary_plmc_mint = Self::generic_map_operation(
@@ -1318,7 +1337,8 @@ impl<
 		assert_eq!(self.get_plmc_total_supply(), post_supply);
 
 		self.start_remainder_or_end_funding(project_id).unwrap();
-		(project_id, accepted_bids)
+
+		project_id
 	}
 
 	pub fn create_finished_project(
@@ -1330,7 +1350,7 @@ impl<
 		community_contributions: Vec<ContributionParams<T>>,
 		remainder_contributions: Vec<ContributionParams<T>>,
 	) -> ProjectId {
-		let (project_id, accepted_bids) = self.create_remainder_contributing_project(
+		let project_id = self.create_remainder_contributing_project(
 			project_metadata.clone(),
 			issuer,
 			evaluations.clone(),
@@ -1363,7 +1383,7 @@ impl<
 		let prev_funding_asset_balances = self.get_free_foreign_asset_balances_for(asset_id, contributors.clone());
 
 		let plmc_evaluation_deposits = Self::calculate_evaluation_plmc_spent(evaluations);
-		let plmc_bid_deposits = Self::calculate_auction_plmc_charged_with_given_price(&accepted_bids, ct_price);
+		let plmc_bid_deposits = Self::calculate_auction_plmc_spent_post_wap(&bids, project_metadata.clone(), ct_price);
 		let plmc_community_contribution_deposits =
 			Self::calculate_contributed_plmc_spent(community_contributions.clone(), ct_price);
 		let plmc_remainder_contribution_deposits =
@@ -1422,7 +1442,7 @@ impl<
 			// Check that remaining CTs are updated
 			let project_details = self.get_project_details(project_id);
 			let auction_bought_tokens =
-				accepted_bids.iter().map(|bid| bid.amount).fold(Zero::zero(), |acc, item| item + acc);
+				bids.iter().map(|bid| bid.amount).fold(Zero::zero(), |acc, item| item + acc).min(project_metadata.total_allocation_size.0);
 			let community_bought_tokens =
 				community_contributions.iter().map(|cont| cont.amount).fold(Zero::zero(), |acc, item| item + acc);
 			let remainder_bought_tokens =
@@ -1467,10 +1487,9 @@ impl<
 					evaluations,
 					bids,
 					community_contributions,
-				)
-				.0,
+				),
 			ProjectStatus::CommunityRound =>
-				self.create_community_contributing_project(project_metadata, issuer, evaluations, bids).0,
+				self.create_community_contributing_project(project_metadata, issuer, evaluations, bids),
 			ProjectStatus::AuctionRound(AuctionPhase::English) =>
 				self.create_auctioning_project(project_metadata, issuer, evaluations),
 			ProjectStatus::EvaluationRound => self.create_evaluating_project(project_metadata, issuer),

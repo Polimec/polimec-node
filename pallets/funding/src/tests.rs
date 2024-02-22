@@ -458,7 +458,7 @@ mod evaluation_round_success {
 		let evaluations = default_evaluations();
 		let evaluators = evaluations.accounts();
 
-		let (project_id, _) = inst.create_remainder_contributing_project(
+		let project_id = inst.create_remainder_contributing_project(
 			default_project(inst.get_new_nonce(), ISSUER),
 			ISSUER,
 			evaluations.clone(),
@@ -499,7 +499,7 @@ mod evaluation_round_success {
 		let evaluations = default_evaluations();
 		let evaluators = evaluations.accounts();
 
-		let (project_id, _) = inst.create_remainder_contributing_project(
+		let project_id = inst.create_remainder_contributing_project(
 			default_project(inst.get_new_nonce(), ISSUER),
 			ISSUER,
 			evaluations.clone(),
@@ -1079,7 +1079,7 @@ mod auction_round_success {
 			BidParams::new(BIDDER_5, 5_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 
-		let (project_id, _) = inst.create_community_contributing_project(project_metadata, issuer, evaluations, bids);
+		let project_id  = inst.create_community_contributing_project(project_metadata, issuer, evaluations, bids);
 		let bidder_5_bid =
 			inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id, BIDDER_5)).next().unwrap());
 		let wabgp = inst.get_project_details(project_id).weighted_average_price.unwrap();
@@ -2125,7 +2125,7 @@ mod auction_round_failure {
 		let plmc_existential_deposits = required_plmc_bonds.accounts().existential_deposits();
 		let plmc_ct_account_deposits = required_plmc_bonds.accounts().ct_account_deposits();
 
-		let (project_id, _) =
+		let project_id =
 			inst.create_community_contributing_project(project_metadata, ISSUER, default_evaluations(), bids.clone());
 
 		let ed_balances = required_plmc_bonds
@@ -2218,7 +2218,7 @@ mod community_round_success {
 		let issuer = ISSUER;
 		let evaluations = default_evaluations();
 		let bids = default_bids();
-		let (project_id, _) = inst.create_community_contributing_project(metadata, issuer, evaluations, bids);
+		let project_id = inst.create_community_contributing_project(metadata, issuer, evaluations, bids);
 
 		const BOB: AccountId = 42;
 		let token_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
@@ -2261,7 +2261,7 @@ mod community_round_success {
 	fn community_round_ends_on_all_ct_sold_exact() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let bids = vec![BidParams::from(BIDDER_1, 40_000 * ASSET_UNIT), BidParams::from(BIDDER_2, 10_000 * ASSET_UNIT)];
-		let (project_id, _) =
+		let project_id =
 			inst.create_community_contributing_project(default_project(0, ISSUER), ISSUER, default_evaluations(), bids);
 		const BOB: AccountId = 808;
 
@@ -2311,7 +2311,7 @@ mod community_round_success {
 			BidParams::new(BIDDER_1, 40_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 			BidParams::new(BIDDER_2, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
-		let (project_id, _) =
+		let project_id =
 			inst.create_community_contributing_project(default_project(0, ISSUER), ISSUER, default_evaluations(), bids);
 		const BOB: AccountId = 808;
 
@@ -2377,7 +2377,7 @@ mod community_round_success {
 	#[test]
 	fn contribution_is_returned_on_limit_reached_same_mult_diff_ct() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let (project_id, _) = inst.create_community_contributing_project(
+		let project_id = inst.create_community_contributing_project(
 			default_project(0, ISSUER),
 			ISSUER,
 			default_evaluations(),
@@ -2494,7 +2494,7 @@ mod community_round_success {
 	#[test]
 	fn contribution_is_returned_on_limit_reached_diff_mult_same_ct() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let (project_id, _) = inst.create_community_contributing_project(
+		let project_id = inst.create_community_contributing_project(
 			default_project(0, ISSUER),
 			ISSUER,
 			default_evaluations(),
@@ -2619,7 +2619,7 @@ mod community_round_success {
 		evaluations.push(UserToUSDBalance::new(evaluator_contributor, evaluation_amount));
 		let bids = default_bids();
 
-		let (project_id, _) = inst.create_community_contributing_project(project_metadata, issuer, evaluations, bids);
+		let project_id = inst.create_community_contributing_project(project_metadata, issuer, evaluations, bids);
 		let ct_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 		let already_bonded_plmc = MockInstantiator::calculate_evaluation_plmc_spent(vec![UserToUSDBalance::new(
 			evaluator_contributor,
@@ -2686,7 +2686,7 @@ mod community_round_success {
 			.saturating_mul_int(evaluation_bond);
 		evaluations.push(UserToUSDBalance::new(evaluator_contributor, evaluation_usd_amount));
 
-		let (project_id, _) = inst.create_community_contributing_project(project_metadata, issuer, evaluations, bids);
+		let project_id = inst.create_community_contributing_project(project_metadata, issuer, evaluations, bids);
 
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
 			evaluator_contributor,
@@ -2720,7 +2720,7 @@ mod community_round_success {
 		evaluations.push(UserToUSDBalance::new(evaluator_contributor, evaluation_amount));
 		let bids = default_bids();
 
-		let (project_id, _) = inst.create_community_contributing_project(project_metadata, issuer, evaluations, bids);
+		let project_id = inst.create_community_contributing_project(project_metadata, issuer, evaluations, bids);
 		let ct_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 		let necessary_plmc_for_contribution =
 			MockInstantiator::calculate_contributed_plmc_spent(vec![contribution.clone()], ct_price)[0].plmc_amount;
@@ -2760,7 +2760,7 @@ mod community_round_success {
 		evaluations.push(UserToUSDBalance::new(evaluator_contributor, evaluation_amount));
 		let bids = default_bids();
 
-		let (project_id, _) = inst.create_community_contributing_project(project_metadata, issuer, evaluations, bids);
+		let project_id = inst.create_community_contributing_project(project_metadata, issuer, evaluations, bids);
 
 		let ct_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 		let necessary_plmc_for_contribution =
@@ -3143,7 +3143,7 @@ mod community_round_failure {
 		inst.do_free_plmc_assertions(zero_balances.clone());
 		inst.do_reserved_plmc_assertions(zero_balances.clone(), HoldReason::FutureDeposit(0).into());
 
-		let (project_id, _) = inst.create_remainder_contributing_project(
+		let project_id = inst.create_remainder_contributing_project(
 			project_metadata,
 			ISSUER,
 			default_evaluations(),
@@ -3217,7 +3217,7 @@ mod remainder_round_success {
 		evaluations.push(UserToUSDBalance::new(evaluator_contributor, evaluation_amount));
 		let bids = default_bids();
 
-		let (project_id, _) = inst.create_remainder_contributing_project(
+		let project_id = inst.create_remainder_contributing_project(
 			project_metadata,
 			issuer,
 			evaluations,
@@ -3291,7 +3291,7 @@ mod remainder_round_success {
 			.saturating_mul_int(evaluation_bond);
 		evaluations.push(UserToUSDBalance::new(evaluator_contributor, evaluation_usd_amount));
 
-		let (project_id, _) = inst.create_remainder_contributing_project(
+		let project_id = inst.create_remainder_contributing_project(
 			project_metadata,
 			issuer,
 			evaluations,
@@ -3321,7 +3321,7 @@ mod remainder_round_success {
 	#[test]
 	fn remainder_round_ends_on_all_ct_sold_exact() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let (project_id, _) = inst.create_remainder_contributing_project(
+		let project_id = inst.create_remainder_contributing_project(
 			default_project(0, ISSUER),
 			ISSUER,
 			default_evaluations(),
@@ -3375,7 +3375,7 @@ mod remainder_round_success {
 	#[test]
 	fn remainder_round_ends_on_all_ct_sold_overbuy() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let (project_id, _) = inst.create_remainder_contributing_project(
+		let project_id = inst.create_remainder_contributing_project(
 			default_project(0, ISSUER),
 			ISSUER,
 			default_evaluations(),
@@ -5688,7 +5688,7 @@ mod test_helper_functions {
 		let plmc_charged =
 			MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made(&bids, project_metadata.clone());
 		dbg!(plmc_charged);
-		let (project_id, _) =
+		let project_id =
 			inst.create_community_contributing_project(project_metadata.clone(), ISSUER, default_evaluations(), bids.clone());
 
 		let stored_bids = inst.execute(|| {
