@@ -1079,7 +1079,7 @@ mod auction_round_success {
 			BidParams::new(BIDDER_5, 5_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
 		];
 
-		let project_id  = inst.create_community_contributing_project(project_metadata, issuer, evaluations, bids);
+		let project_id = inst.create_community_contributing_project(project_metadata, issuer, evaluations, bids);
 		let bidder_5_bid =
 			inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id, BIDDER_5)).next().unwrap());
 		let wabgp = inst.get_project_details(project_id).weighted_average_price.unwrap();
@@ -1793,7 +1793,7 @@ mod auction_round_success {
 		let project_metadata = default_project(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 
-		let bid_1 = BidParams::new(BIDDER_1,  5000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
+		let bid_1 = BidParams::new(BIDDER_1, 5000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
 		let bid_2 = BidParams::new(BIDDER_2, 40_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
 		let bid_3 = BidParams::new(BIDDER_1, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
 		let bid_4 = BidParams::new(BIDDER_3, 6000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
@@ -1805,7 +1805,6 @@ mod auction_round_success {
 		// (Accepted, 5k) - (Partially, 32k) - (Rejected, 5k) - (Accepted, 5k) - (Accepted - 5k) - (Accepted - 1k) - (Accepted - 2k)
 
 		let bids = vec![bid_1, bid_2, bid_3, bid_4, bid_5];
-
 
 		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
 
@@ -1845,10 +1844,8 @@ mod auction_round_success {
 			vec![returned_auction_plmc.clone(), plmc_existential_amounts],
 			MergeOperation::Add,
 		);
-		let expected_free_funding_assets = MockInstantiator::generic_map_operation(
-			vec![returned_funding_assets.clone()],
-			MergeOperation::Add,
-		);
+		let expected_free_funding_assets =
+			MockInstantiator::generic_map_operation(vec![returned_funding_assets.clone()], MergeOperation::Add);
 		dbg!(&expected_free_plmc);
 		let expected_reserved_plmc = MockInstantiator::generic_map_operation(
 			vec![plmc_fundings.clone(), returned_auction_plmc],
@@ -1865,7 +1862,6 @@ mod auction_round_success {
 
 		inst.do_free_foreign_asset_assertions(expected_free_funding_assets);
 		inst.do_bid_transferred_foreign_asset_assertions(expected_held_funding_assets, project_id);
-
 	}
 }
 
@@ -5670,7 +5666,6 @@ mod test_helper_functions {
 		// post wap ~ 1.0557252:
 		// (Accepted, 5k) - (Partially, 32k) - (Rejected, 5k) - (Accepted, 5k) - (Accepted - 5k) - (Accepted - 1k) - (Accepted - 2k)
 
-
 		const ORIGINAL_PLMC_CHARGED_BIDDER_1: u128 = 1845_2_380_952_379;
 		const ORIGINAL_PLMC_CHARGED_BIDDER_2: u128 = 4761_9_047_619_047;
 		const ORIGINAL_PLMC_CHARGED_BIDDER_3: u128 = 869_0_476_190_476;
@@ -5688,8 +5683,12 @@ mod test_helper_functions {
 		let plmc_charged =
 			MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made(&bids, project_metadata.clone());
 		dbg!(plmc_charged);
-		let project_id =
-			inst.create_community_contributing_project(project_metadata.clone(), ISSUER, default_evaluations(), bids.clone());
+		let project_id = inst.create_community_contributing_project(
+			project_metadata.clone(),
+			ISSUER,
+			default_evaluations(),
+			bids.clone(),
+		);
 
 		let stored_bids = inst.execute(|| {
 			Bids::<TestRuntime>::iter_values().into_iter().sorted_by(|b1, b2| b1.id.cmp(&b2.id)).collect_vec()
@@ -5710,9 +5709,8 @@ mod test_helper_functions {
 			MockInstantiator::calculate_auction_plmc_returned_from_all_bids_made(&bids, project_metadata.clone(), wap);
 		returned_plmc_mappings.sort_by(|b1, b2| b1.account.cmp(&b2.account));
 
-		let returned_plmc_balances = returned_plmc_mappings.into_iter().map(|map|map.plmc_amount).collect_vec();
+		let returned_plmc_balances = returned_plmc_mappings.into_iter().map(|map| map.plmc_amount).collect_vec();
 		dbg!(&returned_plmc_balances);
-
 
 		for (expected, calculated) in zip(expected_returns, returned_plmc_balances) {
 			assert_close_enough!(expected, calculated, Perquintill::from_float(0.01));

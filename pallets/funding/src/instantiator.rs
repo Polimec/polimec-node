@@ -538,7 +538,6 @@ impl<
 		output.merge_accounts(MergeOperation::Add)
 	}
 
-
 	// WARNING: Only put bids that you are sure will be done before the random end of the candle auction
 	pub fn calculate_auction_plmc_returned_from_all_bids_made(
 		// bids in the order they were made
@@ -593,10 +592,14 @@ impl<
 	pub fn calculate_auction_plmc_spent_post_wap(
 		bids: &Vec<BidParams<T>>,
 		project_metadata: ProjectMetadataOf<T>,
-		weighted_average_price: PriceOf<T>
+		weighted_average_price: PriceOf<T>,
 	) -> Vec<UserToPLMCBalance<T>> {
 		let plmc_charged = Self::calculate_auction_plmc_charged_from_all_bids_made(bids, project_metadata.clone());
-		let plmc_returned = Self::calculate_auction_plmc_returned_from_all_bids_made(bids, project_metadata.clone(), weighted_average_price);
+		let plmc_returned = Self::calculate_auction_plmc_returned_from_all_bids_made(
+			bids,
+			project_metadata.clone(),
+			weighted_average_price,
+		);
 
 		plmc_charged.subtract_accounts(plmc_returned)
 	}
@@ -661,10 +664,15 @@ impl<
 				let charged_usd_ticket_size = price_charged.saturating_mul_int(bid.amount);
 				let charged_usd_bond =
 					bid.multiplier.calculate_bonding_requirement::<T>(charged_usd_ticket_size).unwrap();
-				let charged_funding_asset = funding_asset_price.reciprocal().unwrap().saturating_mul_int(charged_usd_bond);
+				let charged_funding_asset =
+					funding_asset_price.reciprocal().unwrap().saturating_mul_int(charged_usd_bond);
 
 				if remaining_cts <= Zero::zero() {
-					output.push(UserToForeignAssets::new(bid.bidder, charged_funding_asset, bid.asset.to_assethub_id()));
+					output.push(UserToForeignAssets::new(
+						bid.bidder,
+						charged_funding_asset,
+						bid.asset.to_assethub_id(),
+					));
 					continue
 				}
 
@@ -677,25 +685,34 @@ impl<
 				let actual_usd_ticket_size = final_price.saturating_mul_int(bought_cts);
 				let actual_usd_bond =
 					bid.multiplier.calculate_bonding_requirement::<T>(actual_usd_ticket_size).unwrap();
-				let actual_funding_asset_spent = funding_asset_price.reciprocal().unwrap().saturating_mul_int(actual_usd_bond);
+				let actual_funding_asset_spent =
+					funding_asset_price.reciprocal().unwrap().saturating_mul_int(actual_usd_bond);
 
 				let returned_foreign_asset = charged_funding_asset - actual_funding_asset_spent;
 
-				output.push(UserToForeignAssets::<T>::new(bid.bidder, returned_foreign_asset, bid.asset.to_assethub_id()));
+				output.push(UserToForeignAssets::<T>::new(
+					bid.bidder,
+					returned_foreign_asset,
+					bid.asset.to_assethub_id(),
+				));
 			}
 		}
 
 		output.merge_accounts(MergeOperation::Add)
 	}
 
-
 	pub fn calculate_auction_funding_asset_spent_post_wap(
 		bids: &Vec<BidParams<T>>,
 		project_metadata: ProjectMetadataOf<T>,
-		weighted_average_price: PriceOf<T>
+		weighted_average_price: PriceOf<T>,
 	) -> Vec<UserToForeignAssets<T>> {
-		let funding_asset_charged = Self::calculate_auction_funding_asset_charged_from_all_bids_made(bids, project_metadata.clone());
-		let funding_asset_returned = Self::calculate_auction_funding_asset_returned_from_all_bids_made(bids, project_metadata.clone(), weighted_average_price);
+		let funding_asset_charged =
+			Self::calculate_auction_funding_asset_charged_from_all_bids_made(bids, project_metadata.clone());
+		let funding_asset_returned = Self::calculate_auction_funding_asset_returned_from_all_bids_made(
+			bids,
+			project_metadata.clone(),
+			weighted_average_price,
+		);
 
 		funding_asset_charged.subtract_accounts(funding_asset_returned)
 	}
@@ -1138,7 +1155,7 @@ impl<
 		issuer: AccountIdOf<T>,
 		evaluations: Vec<UserToUSDBalance<T>>,
 		bids: Vec<BidParams<T>>,
-	) -> ProjectId{
+	) -> ProjectId {
 		if bids.is_empty() {
 			panic!("Cannot start community funding without bids")
 		}
@@ -1268,8 +1285,12 @@ impl<
 		bids: Vec<BidParams<T>>,
 		contributions: Vec<ContributionParams<T>>,
 	) -> ProjectId {
-		let project_id =
-			self.create_community_contributing_project(project_metadata.clone(), issuer, evaluations.clone(), bids.clone());
+		let project_id = self.create_community_contributing_project(
+			project_metadata.clone(),
+			issuer,
+			evaluations.clone(),
+			bids.clone(),
+		);
 
 		if contributions.is_empty() {
 			self.start_remainder_or_end_funding(project_id).unwrap();
@@ -1441,8 +1462,11 @@ impl<
 		if self.get_project_details(project_id).status == ProjectStatus::FundingSuccessful {
 			// Check that remaining CTs are updated
 			let project_details = self.get_project_details(project_id);
-			let auction_bought_tokens =
-				bids.iter().map(|bid| bid.amount).fold(Zero::zero(), |acc, item| item + acc).min(project_metadata.total_allocation_size.0);
+			let auction_bought_tokens = bids
+				.iter()
+				.map(|bid| bid.amount)
+				.fold(Zero::zero(), |acc, item| item + acc)
+				.min(project_metadata.total_allocation_size.0);
 			let community_bought_tokens =
 				community_contributions.iter().map(|cont| cont.amount).fold(Zero::zero(), |acc, item| item + acc);
 			let remainder_bought_tokens =
@@ -1480,14 +1504,13 @@ impl<
 				community_contributions,
 				remainder_contributions,
 			),
-			ProjectStatus::RemainderRound =>
-				self.create_remainder_contributing_project(
-					project_metadata,
-					issuer,
-					evaluations,
-					bids,
-					community_contributions,
-				),
+			ProjectStatus::RemainderRound => self.create_remainder_contributing_project(
+				project_metadata,
+				issuer,
+				evaluations,
+				bids,
+				community_contributions,
+			),
 			ProjectStatus::CommunityRound =>
 				self.create_community_contributing_project(project_metadata, issuer, evaluations, bids),
 			ProjectStatus::AuctionRound(AuctionPhase::English) =>
