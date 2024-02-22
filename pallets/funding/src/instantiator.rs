@@ -538,6 +538,13 @@ impl<
 		output.merge_accounts(MergeOperation::Add)
 	}
 
+	pub fn calculate_auction_plmc_spent_post_wap(
+		bids: &Vec<BidParams<T>>,
+		project_metadata: ProjectMetadataOf<T>
+	) -> Vec<UserToPLMCBalance<T>> {
+		todo!()
+	}
+
 	// WARNING: Only put bids that you are sure will be done before the random end of the candle auction
 	pub fn calculate_auction_plmc_returned_from_all_bids_made(
 		// bids in the order they were made

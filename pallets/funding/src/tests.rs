@@ -1398,7 +1398,7 @@ mod auction_round_success {
 		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
 
 		let bidders_plmc =
-			MockInstantiator::calculate_auction_plmc_charged_with_given_price(&bids, project_metadata.minimum_price);
+			MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made(&bids, project_metadata.clone());
 		let bidders_existential_deposits = bidders_plmc.accounts().existential_deposits();
 		let bidders_ct_account_deposits = bidders_plmc.accounts().ct_account_deposits();
 		inst.mint_plmc_to(bidders_plmc.clone());
