@@ -74,21 +74,18 @@ where
 		token: &jwt_compact::prelude::UntrustedToken,
 		verifying_key: [u8; 32],
 	) -> Result<Self::Success, T::RuntimeOrigin> {
-		if let Ok(claims) = Self::verify_token(token, verifying_key) {
-			if let Some(who) = origin.clone().into_signer() {
-				if let Ok(now) = Now::<Timestamp>::get().try_into() {
-					if let Some(date_time) = claims.expiration {
-						if (date_time.timestamp() as u64) < now {
-							return Err(origin);
-						}
+		let Ok(claims) = Self::verify_token(token, verifying_key) else { return Err(origin) };
+		let Some(who) = origin.clone().into_signer() else { return Err(origin) };
+		let Ok(now) = Now::<Timestamp>::get().try_into() else { return Err(origin) };
+		let Some(date_time) = claims.expiration else { return Err(origin) };
 
-						if claims.custom.investor_type == Type::get() && claims.custom.subject == who {
-							return Ok(who);
-						}
-					}
-				}
-			}
+		if claims.custom.investor_type == Type::get() &&
+			claims.custom.subject == who &&
+			(date_time.timestamp() as u64) >= now
+		{
+			return Ok(who);
 		}
+
 		Err(origin)
 	}
 }
