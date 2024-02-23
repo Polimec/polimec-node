@@ -521,14 +521,15 @@ impl<
 	}
 
 	// Make sure you give it all the bids made for the project. It doesn't require a ct_price, since it will simulate the bucket prices itself
-	pub fn calculate_auction_plmc_charged_from_all_bids_made(
+	pub fn calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
 		bids: &Vec<BidParams<T>>,
 		project_metadata: ProjectMetadataOf<T>,
+		maybe_bucket: Option<BucketOf<T>>,
 	) -> Vec<UserToPLMCBalance<T>> {
 		let mut output = Vec::new();
 		let plmc_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap();
 
-		for (bid, price) in Self::get_actual_price_charged_for_bucketed_bids(bids, project_metadata, None) {
+		for (bid, price) in Self::get_actual_price_charged_for_bucketed_bids(bids, project_metadata, maybe_bucket) {
 			let usd_ticket_size = price.saturating_mul_int(bid.amount);
 			let usd_bond = bid.multiplier.calculate_bonding_requirement::<T>(usd_ticket_size).unwrap();
 			let plmc_bond = plmc_price.reciprocal().unwrap().saturating_mul_int(usd_bond);
@@ -594,7 +595,7 @@ impl<
 		project_metadata: ProjectMetadataOf<T>,
 		weighted_average_price: PriceOf<T>,
 	) -> Vec<UserToPLMCBalance<T>> {
-		let plmc_charged = Self::calculate_auction_plmc_charged_from_all_bids_made(bids, project_metadata.clone());
+		let plmc_charged = Self::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(bids, project_metadata.clone(), None);
 		let plmc_returned = Self::calculate_auction_plmc_returned_from_all_bids_made(
 			bids,
 			project_metadata.clone(),
@@ -619,13 +620,14 @@ impl<
 	}
 
 	// Make sure you give it all the bids made for the project. It doesn't require a ct_price, since it will simulate the bucket prices itself
-	pub fn calculate_auction_funding_asset_charged_from_all_bids_made(
+	pub fn calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
 		bids: &Vec<BidParams<T>>,
 		project_metadata: ProjectMetadataOf<T>,
+		maybe_bucket: Option<BucketOf<T>>,
 	) -> Vec<UserToForeignAssets<T>> {
 		let mut output = Vec::new();
 
-		for (bid, price) in Self::get_actual_price_charged_for_bucketed_bids(bids, project_metadata, None) {
+		for (bid, price) in Self::get_actual_price_charged_for_bucketed_bids(bids, project_metadata, maybe_bucket) {
 			let asset_price = T::PriceProvider::get_price(bid.asset.to_assethub_id()).unwrap();
 			let usd_ticket_size = price.saturating_mul_int(bid.amount);
 			let funding_asset_spent = asset_price.reciprocal().unwrap().saturating_mul_int(usd_ticket_size);
@@ -707,7 +709,7 @@ impl<
 		weighted_average_price: PriceOf<T>,
 	) -> Vec<UserToForeignAssets<T>> {
 		let funding_asset_charged =
-			Self::calculate_auction_funding_asset_charged_from_all_bids_made(bids, project_metadata.clone());
+			Self::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(bids, project_metadata.clone(), None);
 		let funding_asset_returned = Self::calculate_auction_funding_asset_returned_from_all_bids_made(
 			bids,
 			project_metadata.clone(),
@@ -1169,7 +1171,7 @@ impl<
 		let prev_funding_asset_balances = self.get_free_foreign_asset_balances_for(asset_id, bidders.clone());
 		let plmc_evaluation_deposits: Vec<UserToPLMCBalance<T>> = Self::calculate_evaluation_plmc_spent(evaluations);
 		let plmc_bid_deposits: Vec<UserToPLMCBalance<T>> =
-			Self::calculate_auction_plmc_charged_from_all_bids_made(&bids, project_metadata.clone());
+			Self::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(&bids, project_metadata.clone(), None);
 		let participation_usable_evaluation_deposits = plmc_evaluation_deposits
 			.into_iter()
 			.map(|mut x| {
@@ -1185,7 +1187,7 @@ impl<
 		let plmc_existential_deposits: Vec<UserToPLMCBalance<T>> = bidders.existential_deposits();
 		let plmc_ct_account_deposits: Vec<UserToPLMCBalance<T>> = bidders_non_evaluators.ct_account_deposits();
 		let funding_asset_deposits =
-			Self::calculate_auction_funding_asset_charged_from_all_bids_made(&bids, project_metadata.clone());
+			Self::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(&bids, project_metadata.clone(), None);
 
 		let bidder_balances = Self::sum_balance_mappings(vec![
 			necessary_plmc_mint.clone(),
@@ -1903,9 +1905,10 @@ pub mod async_features {
 		let plmc_evaluation_deposits: Vec<UserToPLMCBalance<T>> =
 			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_evaluation_plmc_spent(evaluations);
 		let plmc_bid_deposits: Vec<UserToPLMCBalance<T>> =
-			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_plmc_charged_from_all_bids_made(
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
 				&bids,
 				project_metadata.clone(),
+				None
 			);
 		let participation_usable_evaluation_deposits = plmc_evaluation_deposits
 			.into_iter()
@@ -1922,9 +1925,10 @@ pub mod async_features {
 		let plmc_existential_deposits: Vec<UserToPLMCBalance<T>> = bidders.existential_deposits();
 		let plmc_ct_account_deposits: Vec<UserToPLMCBalance<T>> = bidders_non_evaluators.ct_account_deposits();
 		let funding_asset_deposits =
-			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_funding_asset_charged_from_all_bids_made(
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
 				&bids,
 				project_metadata.clone(),
+				None
 			);
 
 		let bidder_balances = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::sum_balance_mappings(vec![
@@ -2248,9 +2252,10 @@ pub mod async_features {
 		let plmc_evaluation_deposits =
 			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_evaluation_plmc_spent(evaluations);
 		let plmc_bid_deposits =
-			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_plmc_charged_from_all_bids_made(
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
 				&accepted_bids,
 				project_metadata.clone(),
+				None
 			);
 		let plmc_community_contribution_deposits =
 			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_contributed_plmc_spent(

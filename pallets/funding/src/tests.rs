@@ -1398,16 +1398,17 @@ mod auction_round_success {
 		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
 
 		let bidders_plmc =
-			MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made(&bids, project_metadata.clone());
+			MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(&bids, project_metadata.clone(), None);
 		let bidders_existential_deposits = bidders_plmc.accounts().existential_deposits();
 		let bidders_ct_account_deposits = bidders_plmc.accounts().ct_account_deposits();
 		inst.mint_plmc_to(bidders_plmc.clone());
 		inst.mint_plmc_to(bidders_existential_deposits);
 		inst.mint_plmc_to(bidders_ct_account_deposits);
 
-		let bidders_funding_assets = MockInstantiator::calculate_auction_funding_asset_charged_from_all_bids_made(
+		let bidders_funding_assets = MockInstantiator::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
 			&bids,
 			project_metadata.clone(),
+			None
 		);
 		inst.mint_foreign_asset_to(bidders_funding_assets);
 
@@ -1809,10 +1810,11 @@ mod auction_round_success {
 		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
 
 		let plmc_fundings =
-			MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made(&bids, project_metadata.clone());
-		let usdt_fundings = MockInstantiator::calculate_auction_funding_asset_charged_from_all_bids_made(
+			MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(&bids, project_metadata.clone(), None);
+		let usdt_fundings = MockInstantiator::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
 			&bids,
 			project_metadata.clone(),
+			None
 		);
 
 		let plmc_existential_amounts = plmc_fundings.accounts().existential_deposits();
@@ -5681,7 +5683,7 @@ mod test_helper_functions {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_metadata = default_project(0, ISSUER);
 		let plmc_charged =
-			MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made(&bids, project_metadata.clone());
+			MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(&bids, project_metadata.clone(), None);
 		dbg!(plmc_charged);
 		let project_id = inst.create_community_contributing_project(
 			project_metadata.clone(),
