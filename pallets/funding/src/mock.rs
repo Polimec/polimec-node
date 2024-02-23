@@ -360,7 +360,7 @@ impl Config for TestRuntime {
 	type EvaluatorSlash = EvaluatorSlash;
 	type FeeBrackets = FeeBrackets;
 	type FundingCurrency = ForeignAssets;
-	type InstitutionalOrigin = EnsureInvestor<TestRuntime, (), Institutional, TestRuntime>;
+	type InstitutionalOrigin = EnsureInvestor<TestRuntime, (), Institutional>;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	type MaxBidsPerProject = ConstU32<1024>;
 	type MaxBidsPerUser = ConstU32<4>;
@@ -378,12 +378,12 @@ impl Config for TestRuntime {
 	type PreImageLimit = ConstU32<1024>;
 	type Price = FixedU128;
 	type PriceProvider = ConstPriceProvider<AssetId, FixedU128, PriceMap>;
-	type ProfessionalOrigin = EnsureInvestor<TestRuntime, (), Professional, TestRuntime>;
+	type ProfessionalOrigin = EnsureInvestor<TestRuntime, (), Professional>;
 	type Randomness = RandomnessCollectiveFlip;
 	type RemainderFundingDuration = RemainderFundingDuration;
 	type RequiredMaxCapacity = RequiredMaxCapacity;
 	type RequiredMaxMessageSize = RequiredMaxMessageSize;
-	type RetailOrigin = EnsureInvestor<TestRuntime, (), Retail, TestRuntime>;
+	type RetailOrigin = EnsureInvestor<TestRuntime, (), Retail>;
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeHoldReason = RuntimeHoldReason;

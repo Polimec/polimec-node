@@ -58,25 +58,25 @@ pub struct SampleClaims<AccountId> {
 	pub investor_type: InvestorType,
 }
 
-pub struct EnsureInvestor<T, I, Type, Timestamp>(sp_std::marker::PhantomData<(T, I, Type, Timestamp)>);
-impl<'de, T, I, Type, Timestamp> EnsureOriginWithCredentials<T::RuntimeOrigin> for EnsureInvestor<T, I, Type, Timestamp>
+pub struct EnsureInvestor<T, I, Type>(sp_std::marker::PhantomData<(T, I, Type)>);
+impl<'de, T, I, Type> EnsureOriginWithCredentials<T::RuntimeOrigin> for EnsureInvestor<T, I, Type>
 where
-	T: frame_system::Config,
+	T: frame_system::Config + pallet_timestamp::Config,
 	I: 'static,
 	Type: Get<InvestorType>,
-	Timestamp: pallet_timestamp::Config,
 {
 	type Claims = SampleClaims<T::AccountId>;
 	type Success = T::AccountId;
 
 	fn try_origin(
 		origin: T::RuntimeOrigin,
-		token: &jwt_compact::prelude::UntrustedToken,
+		token: &jwt_compact::UntrustedToken,
 		verifying_key: [u8; 32],
 	) -> Result<Self::Success, T::RuntimeOrigin> {
-		let Ok(claims) = Self::verify_token(token, verifying_key) else { return Err(origin) };
 		let Some(who) = origin.clone().into_signer() else { return Err(origin) };
-		let Ok(now) = Now::<Timestamp>::get().try_into() else { return Err(origin) };
+		let Ok(token) = Self::verify_token(token, verifying_key) else { return Err(origin) };
+		let Ok(claims) = Self::extract_claims(&token) else { return Err(origin) };
+		let Ok(now) = Now::<T>::get().try_into() else { return Err(origin) };
 		let Some(date_time) = claims.expiration else { return Err(origin) };
 
 		if claims.custom.investor_type == Type::get() &&
@@ -99,35 +99,28 @@ where
 
 	fn try_origin(
 		origin: OuterOrigin,
-		token: &jwt_compact::prelude::UntrustedToken,
+		token: &jwt_compact::UntrustedToken,
 		verifying_key: [u8; 32],
 	) -> Result<Self::Success, OuterOrigin>;
 
 	fn ensure_origin(
 		origin: OuterOrigin,
-		token: &jwt_compact::prelude::UntrustedToken,
+		token: &jwt_compact::UntrustedToken,
 		verifying_key: [u8; 32],
 	) -> Result<Self::Success, BadOrigin> {
 		Self::try_origin(origin, token, verifying_key).map_err(|_| BadOrigin)
 	}
 
-	fn extract_claims<'a>(token: &'a jwt_compact::Token<Self::Claims>) -> Result<&'a StandardClaims<Self::Claims>, ()> {
+	fn extract_claims(token: &jwt_compact::Token<Self::Claims>) -> Result<&StandardClaims<Self::Claims>, ()> {
 		Ok(&token.claims())
 	}
 
 	fn verify_token(
-		token: &jwt_compact::prelude::UntrustedToken,
+		token: &jwt_compact::UntrustedToken,
 		verifying_key: [u8; 32],
-	) -> Result<StandardClaims<Self::Claims>, ()> {
-		let signing_key = <<Ed25519 as Algorithm>::VerifyingKey>::from_slice(&verifying_key).unwrap();
-
-		let token = &Ed25519.validator::<Self::Claims>(&signing_key).validate(&token).unwrap();
-
-		// We now know that the token is signed by the Verifier
-		// So we can extract the claims from the token
-		let claims = Self::extract_claims(token)?;
-
-		// At the moment we just return all the claims
-		Ok(claims.clone())
+	) -> Result<jwt_compact::Token<Self::Claims>, ValidationError> {
+		let signing_key =
+			<<Ed25519 as Algorithm>::VerifyingKey>::from_slice(&verifying_key).expect("The Key is always valid");
+		Ed25519.validator::<Self::Claims>(&signing_key).validate(&token)
 	}
 }

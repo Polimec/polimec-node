@@ -17,7 +17,7 @@
 use crate::*;
 use frame_support::assert_ok;
 use polimec_common::credentials::{Institutional, InvestorType};
-use polimec_common_test_utils::get_test_jwt;
+use polimec_common_test_utils::{get_fake_jwt, get_test_jwt};
 use polimec_parachain_runtime::PolimecFunding;
 use sp_runtime::{AccountId32, DispatchError};
 use tests::defaults::*;
@@ -35,5 +35,20 @@ fn test_jwt_for_create() {
 		);
 		let inst_jwt = get_test_jwt(PolimecAccountId::from(ISSUER), InvestorType::Institutional);
 		assert_ok!(PolimecFunding::create(PolimecOrigin::signed(ISSUER.into()), inst_jwt, project.clone()));
+	});
+}
+
+#[test]
+fn test_jwt_verification() {
+	let project = default_project(ISSUER.into(), 0);
+	Polimec::execute_with(|| {
+		let issuer = AccountId32::from(ISSUER);
+		assert_ok!(PolimecBalances::force_set_balance(PolimecOrigin::root(), issuer.into(), 1000 * PLMC));
+		// This JWT tokens is signed with a private key that is not the one set in the Pallet Funding configuration in the real runtime.
+		let inst_jwt = get_fake_jwt(PolimecAccountId::from(ISSUER), InvestorType::Institutional);
+		assert_noop!(
+			PolimecFunding::create(PolimecOrigin::signed(ISSUER.into()), inst_jwt, project.clone()),
+			DispatchError::BadOrigin
+		);
 	});
 }
