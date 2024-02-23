@@ -16,7 +16,7 @@
 
 use crate::*;
 use frame_support::assert_ok;
-use polimec_common::credentials::{Institutional, InvestorType};
+use polimec_common::credentials::InvestorType;
 use polimec_common_test_utils::{get_fake_jwt, get_test_jwt};
 use polimec_parachain_runtime::PolimecFunding;
 use sp_runtime::{AccountId32, DispatchError};

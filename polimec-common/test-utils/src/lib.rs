@@ -35,7 +35,7 @@ pub fn get_test_jwt<AccountId: sp_std::fmt::Display>(
 
 /// Fetches a JWT from a dummy Polimec JWT producer that will return a JWT with the specified
 /// investor type and a random signing key. This is useful for testing the signature
-/// verification logic. 
+/// verification logic.
 pub fn get_fake_jwt<AccountId: sp_std::fmt::Display>(
 	account_id: AccountId,
 	investor_type: InvestorType,
