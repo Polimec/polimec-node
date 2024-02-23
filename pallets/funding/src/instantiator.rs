@@ -2650,6 +2650,12 @@ impl<T: Config> Accounts for Vec<UserToPLMCBalance<T>> {
 		btree.into_iter().collect_vec()
 	}
 }
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>)> for UserToPLMCBalance<T> {
+	fn from((account, plmc_amount): (AccountIdOf<T>, BalanceOf<T>)) -> Self {
+		UserToPLMCBalance::<T>::new(account, plmc_amount)
+	}
+}
+
 impl<T: Config> AccountMerge for Vec<UserToPLMCBalance<T>> {
 	type Inner = UserToPLMCBalance<T>;
 
@@ -2691,6 +2697,11 @@ pub struct UserToUSDBalance<T: Config> {
 impl<T: Config> UserToUSDBalance<T> {
 	pub fn new(account: AccountIdOf<T>, usd_amount: BalanceOf<T>) -> Self {
 		Self { account, usd_amount }
+	}
+}
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>)> for UserToUSDBalance<T> {
+	fn from((account, usd_amount): (AccountIdOf<T>, BalanceOf<T>)) -> Self {
+		UserToUSDBalance::<T>::new(account, usd_amount)
 	}
 }
 impl<T: Config> Accounts for Vec<UserToUSDBalance<T>> {
@@ -2741,6 +2752,11 @@ pub struct UserToForeignAssets<T: Config> {
 impl<T: Config> UserToForeignAssets<T> {
 	pub fn new(account: AccountIdOf<T>, asset_amount: BalanceOf<T>, asset_id: AssetIdOf<T>) -> Self {
 		Self { account, asset_amount, asset_id }
+	}
+}
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, AssetIdOf<T>)> for UserToForeignAssets<T> {
+	fn from((account, asset_amount, asset_id): (AccountIdOf<T>, BalanceOf<T>, AssetIdOf<T>)) -> Self {
+		UserToForeignAssets::<T>::new(account, asset_amount, asset_id)
 	}
 }
 impl<T: Config> Accounts for Vec<UserToForeignAssets<T>> {
@@ -2799,13 +2815,33 @@ impl<T: Config> BidParams<T> {
 		Self { bidder, amount, multiplier: multiplier.try_into().map_err(|_| ()).unwrap(), asset }
 	}
 
-	pub fn from(bidder: AccountIdOf<T>, amount: BalanceOf<T>) -> Self {
+	pub fn new_with_defaults(bidder: AccountIdOf<T>, amount: BalanceOf<T>) -> Self {
 		Self {
 			bidder,
 			amount,
 			multiplier: 1u8.try_into().unwrap_or_else(|_| panic!("multiplier could not be created from 1u8")),
 			asset: AcceptedFundingAsset::USDT,
 		}
+	}
+}
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>)> for BidParams<T> {
+	fn from((bidder, amount): (AccountIdOf<T>, BalanceOf<T>)) -> Self {
+		Self {
+			bidder,
+			amount,
+			multiplier: 1u8.try_into().unwrap_or_else(|_| panic!("multiplier could not be created from 1u8")),
+			asset: AcceptedFundingAsset::USDT,
+		}
+	}
+}
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>)> for BidParams<T> {
+	fn from((bidder, amount, multiplier): (AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>)) -> Self {
+		Self { bidder, amount, multiplier, asset: AcceptedFundingAsset::USDT }
+	}
+}
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>, AcceptedFundingAsset)> for BidParams<T> {
+	fn from((bidder, amount, multiplier, asset): (AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>)) -> Self {
+		Self { bidder, amount, multiplier, asset }
 	}
 }
 
@@ -2838,7 +2874,7 @@ impl<T: Config> ContributionParams<T> {
 		Self { contributor, amount, multiplier: multiplier.try_into().map_err(|_| ()).unwrap(), asset }
 	}
 
-	pub fn from(contributor: AccountIdOf<T>, amount: BalanceOf<T>) -> Self {
+	pub fn new_with_defaults(contributor: AccountIdOf<T>, amount: BalanceOf<T>) -> Self {
 		Self {
 			contributor,
 			amount,
@@ -2847,6 +2883,27 @@ impl<T: Config> ContributionParams<T> {
 		}
 	}
 }
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>)> for ContributionParams<T> {
+	fn from((contributor, amount): (AccountIdOf<T>, BalanceOf<T>)) -> Self {
+		Self {
+			contributor,
+			amount,
+			multiplier: 1u8.try_into().unwrap_or_else(|_| panic!("multiplier could not be created from 1u8")),
+			asset: AcceptedFundingAsset::USDT,
+		}
+	}
+}
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>)> for ContributionParams<T> {
+	fn from((contributor, amount, multiplier): (AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>)) -> Self {
+		Self { contributor, amount, multiplier, asset: AcceptedFundingAsset::USDT }
+	}
+}
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>, AcceptedFundingAsset)> for ContributionParams<T> {
+	fn from((contributor, amount, multiplier, asset): (AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>)) -> Self {
+		Self { contributor, amount, multiplier, asset }
+	}
+}
+
 impl<T: Config> Accounts for Vec<ContributionParams<T>> {
 	type Account = AccountIdOf<T>;
 

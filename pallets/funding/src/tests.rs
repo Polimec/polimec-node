@@ -30,7 +30,7 @@ use itertools::Itertools;
 use parachains_common::DAYS;
 use polimec_common::ReleaseSchedule;
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
-use sp_runtime::BuildStorage;
+use sp_runtime::{BuildStorage, TokenError};
 use sp_std::{cell::RefCell, marker::PhantomData};
 use std::{cmp::min, iter::zip};
 
@@ -266,7 +266,8 @@ pub mod defaults {
 	}
 }
 
-mod creation_round_success {
+// only functionalities that happen in the CREATION period of a project
+mod creation {
 	use super::*;
 
 	#[test]
@@ -291,7 +292,7 @@ mod creation_round_success {
 	}
 
 	#[test]
-	fn multiple_creation_rounds() {
+	fn multiple_creations() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		for _ in 0..512 {
@@ -317,10 +318,6 @@ mod creation_round_success {
 		assert_eq!(created_project_2_id, 1);
 		assert_eq!(created_project_3_id, 2);
 	}
-}
-
-mod creation_round_failure {
-	use super::*;
 
 	#[test]
 	fn price_too_low() {
@@ -389,7 +386,9 @@ mod creation_round_failure {
 	}
 }
 
-mod evaluation_round_success {
+
+// only functionalities that happen in the EVALUATION period of a project
+mod evaluation {
 	use super::*;
 
 	#[test]
@@ -403,7 +402,7 @@ mod evaluation_round_success {
 	}
 
 	#[test]
-	fn multiple_evaluation_projects() {
+	fn multiple_evaluating_projects() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project1 = default_project_metadata(inst.get_new_nonce(), issuer);
@@ -447,7 +446,6 @@ mod evaluation_round_success {
 		];
 
 		for (real, desired) in zip(actual_reward_balances.iter(), expected_ct_rewards.iter()) {
-			// TODO: Check if either knowledge hub needs updating, or we need to update our weighted average price calculation
 			assert_close_enough!(real.1, desired.1, Perquintill::from_float(0.01));
 		}
 	}
@@ -494,64 +492,7 @@ mod evaluation_round_success {
 	}
 
 	#[test]
-	fn plmc_unbonded_after_funding_failure() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let evaluations = default_evaluations();
-		let evaluators = evaluations.accounts();
-
-		let project_id = inst.create_remainder_contributing_project(
-			default_project_metadata(inst.get_new_nonce(), ISSUER),
-			ISSUER,
-			evaluations.clone(),
-			vec![BidParams::new(BIDDER_1, 1000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT)],
-			vec![ContributionParams::new(BUYER_1, 1000 * US_DOLLAR, 1u8, AcceptedFundingAsset::USDT)],
-		);
-
-		let prev_reserved_plmc =
-			inst.get_reserved_plmc_balances_for(evaluators.clone(), HoldReason::Evaluation(project_id).into());
-		let prev_free_plmc = inst.get_free_plmc_balances_for(evaluators.clone());
-
-		inst.finish_funding(project_id).unwrap();
-		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
-		inst.advance_time(10).unwrap();
-
-		let post_unbond_amounts: Vec<UserToPLMCBalance<_>> = prev_reserved_plmc
-			.iter()
-			.map(|UserToPLMCBalance { account, .. }| UserToPLMCBalance::new(*account, Zero::zero()))
-			.collect();
-
-		inst.do_reserved_plmc_assertions(post_unbond_amounts.clone(), HoldReason::Evaluation(project_id).into());
-		inst.do_reserved_plmc_assertions(post_unbond_amounts, HoldReason::Participation(project_id).into());
-
-		let post_free_plmc = inst.get_free_plmc_balances_for(evaluators);
-
-		let increased_amounts =
-			MockInstantiator::generic_map_operation(vec![post_free_plmc, prev_free_plmc], MergeOperation::Subtract);
-
-		let slashed_amounts =
-			MockInstantiator::slash_evaluator_balances(MockInstantiator::calculate_evaluation_plmc_spent(evaluations));
-		let deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
-			ProjectId,
-			AccountIdOf<TestRuntime>,
-		>>::deposit_required(project_id);
-
-		let expected_final_amounts = slashed_amounts
-			.into_iter()
-			.map(|UserToPLMCBalance { account, plmc_amount }| {
-				UserToPLMCBalance::new(account, plmc_amount + deposit_required)
-			})
-			.collect::<Vec<_>>();
-
-		assert_eq!(increased_amounts, expected_final_amounts)
-	}
-}
-
-mod evaluation_round_failure {
-	use super::*;
-	use frame_support::assert_err;
-	use sp_runtime::TokenError;
-	#[test]
-	fn not_enough_bonds() {
+	fn round_fails_after_not_enough_bonds() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let now = inst.current_block();
 		let issuer = ISSUER;
@@ -595,7 +536,7 @@ mod evaluation_round_failure {
 	}
 
 	#[test]
-	fn insufficient_balance() {
+	fn evaluation_fails_on_insufficient_balance() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
@@ -617,7 +558,7 @@ mod evaluation_round_failure {
 	}
 
 	#[test]
-	fn evaluation_ct_account_deposits_are_returned() {
+	fn evaluation_ct_account_deposits_are_returned_on_evaluation_failed() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_metadata = default_project_metadata(0, ISSUER);
 		let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER);
@@ -629,26 +570,22 @@ mod evaluation_round_failure {
 		let evaluation_fail_amount = evaluation_min_success_amount - 100 * ASSET_UNIT;
 		let evaluator_bond = evaluation_fail_amount / 4;
 		let evaluations = vec![
-			UserToUSDBalance::new(EVALUATOR_1, evaluator_bond),
-			UserToUSDBalance::new(EVALUATOR_1, evaluator_bond),
-			UserToUSDBalance::new(EVALUATOR_2, evaluator_bond),
-			UserToUSDBalance::new(EVALUATOR_3, evaluator_bond),
+			(EVALUATOR_1, evaluator_bond).into(),
+			(EVALUATOR_1, evaluator_bond).into(),
+			(EVALUATOR_2, evaluator_bond).into(),
+			(EVALUATOR_3, evaluator_bond).into(),
 		];
 		let deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
 			ProjectId,
 			AccountIdOf<TestRuntime>,
 		>>::deposit_required(project_id);
 		inst.do_free_plmc_assertions(vec![
-			UserToPLMCBalance::new(EVALUATOR_1, 0u128),
-			UserToPLMCBalance::new(EVALUATOR_2, 0u128),
-			UserToPLMCBalance::new(EVALUATOR_3, 0u128),
+			(EVALUATOR_1, 0u128).into(),
+			(EVALUATOR_2, 0u128).into(),
+			(EVALUATOR_3, 0u128).into(),
 		]);
 		inst.do_reserved_plmc_assertions(
-			vec![
-				UserToPLMCBalance::new(EVALUATOR_1, 0u128),
-				UserToPLMCBalance::new(EVALUATOR_2, 0u128),
-				UserToPLMCBalance::new(EVALUATOR_3, 0u128),
-			],
+			vec![(EVALUATOR_1, 0u128).into(), (EVALUATOR_2, 0u128).into(), (EVALUATOR_3, 0u128).into()],
 			HoldReason::FutureDeposit(project_id).into(),
 		);
 
@@ -663,15 +600,15 @@ mod evaluation_round_failure {
 		let _ = inst.bond_for_users(project_id, evaluations);
 
 		inst.do_free_plmc_assertions(vec![
-			UserToPLMCBalance::new(EVALUATOR_1, MockInstantiator::get_ed()),
-			UserToPLMCBalance::new(EVALUATOR_2, MockInstantiator::get_ed()),
-			UserToPLMCBalance::new(EVALUATOR_3, MockInstantiator::get_ed()),
+			(EVALUATOR_1, MockInstantiator::get_ed()).into(),
+			(EVALUATOR_2, MockInstantiator::get_ed()).into(),
+			(EVALUATOR_3, MockInstantiator::get_ed()).into(),
 		]);
 		inst.do_reserved_plmc_assertions(
 			vec![
-				UserToPLMCBalance::new(EVALUATOR_1, deposit_required),
-				UserToPLMCBalance::new(EVALUATOR_2, deposit_required),
-				UserToPLMCBalance::new(EVALUATOR_3, deposit_required),
+				(EVALUATOR_1, deposit_required).into(),
+				(EVALUATOR_2, deposit_required).into(),
+				(EVALUATOR_3, deposit_required).into(),
 			],
 			HoldReason::FutureDeposit(project_id).into(),
 		);
@@ -686,11 +623,69 @@ mod evaluation_round_failure {
 		);
 		inst.do_free_plmc_assertions(final_plmc_amounts);
 		inst.do_reserved_plmc_assertions(
+			vec![(EVALUATOR_1, 0u128).into(), (EVALUATOR_2, 0u128).into(), (EVALUATOR_3, 0u128).into()],
+			HoldReason::FutureDeposit(project_id).into(),
+		);
+	}
+
+	#[test]
+	fn evaluation_ct_account_deposits_are_returned_on_funding_failed() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project_metadata(0, ISSUER);
+		let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER);
+		let ed = MockInstantiator::get_ed();
+
+		let evaluations = default_evaluations();
+		let deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
+			ProjectId,
+			AccountIdOf<TestRuntime>,
+		>>::deposit_required(project_id);
+
+		inst.do_free_plmc_assertions(vec![
+			(EVALUATOR_1, 0u128).into(),
+			(EVALUATOR_2, 0u128).into(),
+			(EVALUATOR_3, 0u128).into(),
+		]);
+		inst.do_reserved_plmc_assertions(
+			vec![(EVALUATOR_1, 0u128).into(), (EVALUATOR_2, 0u128).into(), (EVALUATOR_3, 0u128).into()],
+			HoldReason::FutureDeposit(project_id).into(),
+		);
+
+		let required_plmc_bonds = MockInstantiator::calculate_evaluation_plmc_spent(evaluations.clone());
+		let plmc_existential_deposits = required_plmc_bonds.accounts().existential_deposits();
+		let plmc_ct_account_deposits = required_plmc_bonds.accounts().ct_account_deposits();
+
+		inst.mint_plmc_to(required_plmc_bonds.clone());
+		inst.mint_plmc_to(plmc_existential_deposits.clone());
+		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
+
+		let _ = inst.bond_for_users(project_id, evaluations);
+
+		inst.do_free_plmc_assertions(vec![
+			(EVALUATOR_1, ed).into(),
+			(EVALUATOR_2, ed).into(),
+			(EVALUATOR_3, ed).into(),
+		]);
+		inst.do_reserved_plmc_assertions(
 			vec![
-				UserToPLMCBalance::new(EVALUATOR_1, 0u128),
-				UserToPLMCBalance::new(EVALUATOR_2, 0u128),
-				UserToPLMCBalance::new(EVALUATOR_3, 0u128),
+				(EVALUATOR_1, deposit_required).into(),
+				(EVALUATOR_2, deposit_required).into(),
+				(EVALUATOR_3, deposit_required).into(),
 			],
+			HoldReason::FutureDeposit(project_id).into(),
+		);
+
+		inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
+		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::EvaluationFailed);
+
+		let final_plmc_amounts = MockInstantiator::generic_map_operation(
+			vec![required_plmc_bonds, plmc_existential_deposits, plmc_ct_account_deposits],
+			MergeOperation::Add,
+		);
+		inst.do_free_plmc_assertions(final_plmc_amounts);
+		inst.do_reserved_plmc_assertions(
+			vec![(EVALUATOR_1, 0u128).into(), (EVALUATOR_2, 0u128).into(), (EVALUATOR_3, 0u128).into()],
 			HoldReason::FutureDeposit(project_id).into(),
 		);
 	}
@@ -732,7 +727,8 @@ mod evaluation_round_failure {
 	}
 }
 
-mod auction_round_success {
+// only functionalities that happen in the AUCTION period of a project
+mod auction {
 	use super::*;
 
 	#[test]
@@ -771,22 +767,23 @@ mod auction_round_success {
 		let evaluator_bidder = 69;
 		let evaluation_amount = 420 * US_DOLLAR;
 		let evaluator_bid = BidParams::new(evaluator_bidder, 600 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
-		evaluations.push(UserToUSDBalance::new(evaluator_bidder, evaluation_amount));
+		evaluations.push((evaluator_bidder, evaluation_amount).into());
 
 		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
 
-		let already_bonded_plmc = MockInstantiator::calculate_evaluation_plmc_spent(vec![UserToUSDBalance::new(
-			evaluator_bidder,
-			evaluation_amount,
-		)])[0]
-			.plmc_amount;
+		let already_bonded_plmc =
+			MockInstantiator::calculate_evaluation_plmc_spent(vec![(evaluator_bidder, evaluation_amount).into()])[0]
+				.plmc_amount;
+
 		let usable_evaluation_plmc =
 			already_bonded_plmc - <TestRuntime as Config>::EvaluatorSlash::get() * already_bonded_plmc;
+
 		let necessary_plmc_for_bid = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
 			&vec![evaluator_bid.clone()],
 			project_metadata.minimum_price,
 		)[0]
 		.plmc_amount;
+
 		let necessary_usdt_for_bid = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
 			&vec![evaluator_bid.clone()],
 			project_metadata.minimum_price,
@@ -796,6 +793,7 @@ mod auction_round_success {
 			evaluator_bidder,
 			necessary_plmc_for_bid - usable_evaluation_plmc,
 		)]);
+
 		inst.mint_foreign_asset_to(necessary_usdt_for_bid);
 
 		inst.bid_for_users(project_id, vec![evaluator_bid]).unwrap();
@@ -855,12 +853,12 @@ mod auction_round_success {
 		let project_id = inst.create_auctioning_project(project_metadata, ISSUER, default_evaluations());
 
 		let bids = vec![
-			BidParams::new(ADAM, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(TOM, 20_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(SOFIA, 20_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(FRED, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(ANNA, 5_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(DAMIAN, 5_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			(ADAM, 10_000 * ASSET_UNIT).into(),
+			(TOM, 20_000 * ASSET_UNIT).into(),
+			(SOFIA, 20_000 * ASSET_UNIT).into(),
+			(FRED, 10_000 * ASSET_UNIT).into(),
+			(ANNA, 5_000 * ASSET_UNIT).into(),
+			(DAMIAN, 5_000 * ASSET_UNIT).into(),
 		];
 
 		inst.bid_for_users(project_id, bids).unwrap();
@@ -869,6 +867,7 @@ mod auction_round_success {
 
 		let token_price =
 			inst.get_project_details(project_id).weighted_average_price.unwrap().saturating_mul_int(ASSET_UNIT);
+
 		let desired_price = PriceOf::<TestRuntime>::from_float(11.1818f64).saturating_mul_int(ASSET_UNIT);
 
 		assert_close_enough!(token_price, desired_price, Perquintill::from_float(0.01));
@@ -901,11 +900,13 @@ mod auction_round_success {
 			.expect("Candle auction end point should exist");
 
 		let bid_info = BidParams::new(0, 50u128 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
+
 		let plmc_necessary_funding = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
 			&vec![bid_info.clone()],
 			project_metadata.minimum_price,
 		)[0]
 		.plmc_amount;
+
 		let foreign_asset_necessary_funding =
 			MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
 				&vec![bid_info.clone()],
@@ -1088,293 +1089,6 @@ mod auction_round_success {
 	}
 
 	#[test]
-	fn cannot_mint_ct_twice_manually() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let issuer = ISSUER;
-		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
-		let evaluations = default_evaluations();
-		let bids = default_bids();
-		let community_contributions = default_community_buys();
-		let remainder_contributions = vec![];
-
-		let project_id = inst.create_finished_project(
-			project_metadata,
-			issuer,
-			evaluations,
-			bids,
-			community_contributions,
-			remainder_contributions,
-		);
-		let details = inst.get_project_details(project_id);
-		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
-		assert_eq!(details.cleanup, Cleaner::NotReady);
-		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
-
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
-
-		for bid in stored_bids {
-			inst.execute(|| {
-				Pallet::<TestRuntime>::bid_ct_mint_for(
-					RuntimeOrigin::signed(bid.bidder),
-					project_id,
-					bid.bidder,
-					bid.id,
-				)
-				.unwrap();
-
-				assert_noop!(
-					Pallet::<TestRuntime>::bid_ct_mint_for(
-						RuntimeOrigin::signed(bid.bidder),
-						project_id,
-						bid.bidder,
-						bid.id,
-					),
-					Error::<TestRuntime>::NotAllowed
-				);
-			});
-		}
-	}
-
-	#[test]
-	fn cannot_mint_ct_manually_after_automatic_mint() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let issuer = ISSUER;
-		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
-		let evaluations = default_evaluations();
-		let bids = default_bids();
-		let community_contributions = default_community_buys();
-		let remainder_contributions = vec![];
-
-		let project_id = inst.create_finished_project(
-			project_metadata,
-			issuer,
-			evaluations,
-			bids.clone(),
-			community_contributions,
-			remainder_contributions,
-		);
-		let details = inst.get_project_details(project_id);
-		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
-		assert_eq!(details.cleanup, Cleaner::NotReady);
-
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-		inst.advance_time(10u64).unwrap();
-		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
-
-		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
-		assert_eq!(stored_bids.len(), bids.len());
-		let user_ct_amounts = MockInstantiator::generic_map_merge_reduce(
-			vec![stored_bids.clone()],
-			|bid| bid.bidder,
-			BalanceOf::<TestRuntime>::zero(),
-			|bid, acc| acc + bid.final_ct_amount,
-		);
-		assert_eq!(user_ct_amounts.len(), bids.len());
-
-		for (bidder, amount) in user_ct_amounts {
-			let minted =
-				inst.execute(|| <TestRuntime as Config>::ContributionTokenCurrency::balance(project_id, bidder));
-			assert_eq!(minted, amount);
-		}
-
-		for bid in stored_bids {
-			inst.execute(|| {
-				assert_noop!(
-					Pallet::<TestRuntime>::bid_ct_mint_for(
-						RuntimeOrigin::signed(bid.bidder),
-						project_id,
-						bid.bidder,
-						bid.id,
-					),
-					Error::<TestRuntime>::NotAllowed
-				);
-			})
-		}
-	}
-
-	#[test]
-	fn plmc_vesting_schedule_starts_automatically() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let issuer = ISSUER;
-		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
-		let evaluations = default_evaluations();
-
-		let mut bids = default_bids();
-		let new_bids = vec![BidParams::new(BIDDER_4, 500 * US_DOLLAR, 1u8, AcceptedFundingAsset::USDT)];
-		bids.extend(new_bids.clone());
-
-		let community_contributions = default_community_buys();
-		let remainder_contributions = vec![];
-
-		let project_id = inst.create_finished_project(
-			project_metadata,
-			issuer,
-			evaluations,
-			bids,
-			community_contributions,
-			remainder_contributions,
-		);
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-		inst.advance_time(10u64).unwrap();
-		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
-
-		let final_price = details.weighted_average_price.unwrap();
-		let plmc_locked_for_bids =
-			MockInstantiator::calculate_auction_plmc_charged_with_given_price(&new_bids, final_price);
-
-		for UserToPLMCBalance { account, plmc_amount } in plmc_locked_for_bids {
-			let schedule = inst.execute(|| {
-				<TestRuntime as Config>::Vesting::total_scheduled_amount(
-					&account,
-					HoldReason::Participation(project_id).into(),
-				)
-			});
-
-			assert_close_enough!(schedule.unwrap(), plmc_amount, Perquintill::from_parts(10_000_000_000u64));
-		}
-	}
-
-	#[test]
-	fn plmc_vesting_schedule_starts_manually() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let issuer = ISSUER;
-		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
-		let evaluations = default_evaluations();
-		let bids = default_bids();
-		let community_contributions = default_community_buys();
-		let remainder_contributions = vec![];
-
-		let project_id = inst.create_finished_project(
-			project_metadata,
-			issuer,
-			evaluations,
-			bids,
-			community_contributions,
-			remainder_contributions,
-		);
-
-		let details = inst.get_project_details(project_id);
-		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
-		assert_eq!(details.cleanup, Cleaner::NotReady);
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
-
-		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
-		for bid in stored_bids {
-			call_and_is_ok!(
-				inst,
-				Pallet::<TestRuntime>::start_bid_vesting_schedule_for(
-					RuntimeOrigin::signed(bid.bidder),
-					project_id,
-					bid.bidder,
-					bid.id,
-				)
-			);
-
-			let schedule = inst.execute(|| {
-				<TestRuntime as Config>::Vesting::total_scheduled_amount(
-					&bid.bidder,
-					HoldReason::Participation(project_id).into(),
-				)
-			});
-
-			let bid = inst.execute(|| Bids::<TestRuntime>::get((project_id, bid.bidder, bid.id)).unwrap());
-			assert_eq!(schedule.unwrap(), bid.plmc_vesting_info.unwrap().total_amount);
-		}
-	}
-
-	#[test]
-	fn plmc_vesting_full_amount() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let issuer = ISSUER;
-		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
-		let evaluations = default_evaluations();
-		let bids = default_bids();
-		let community_contributions = default_community_buys();
-		let remainder_contributions = vec![];
-
-		let project_id = inst.create_finished_project(
-			project_metadata,
-			issuer,
-			evaluations,
-			bids,
-			community_contributions,
-			remainder_contributions,
-		);
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-
-		inst.advance_time(10u64).unwrap();
-		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
-
-		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
-
-		inst.advance_time((10 * DAYS).into()).unwrap();
-
-		for bid in stored_bids {
-			let vesting_info = bid.plmc_vesting_info.unwrap();
-			let locked_amount = vesting_info.total_amount;
-
-			let prev_free_balance = inst.execute(|| <TestRuntime as Config>::NativeCurrency::balance(&bid.bidder));
-
-			inst.execute(|| Pallet::<TestRuntime>::do_vest_plmc_for(bid.bidder, project_id, bid.bidder)).unwrap();
-
-			let post_free_balance = inst.execute(|| <TestRuntime as Config>::NativeCurrency::balance(&bid.bidder));
-			assert_eq!(locked_amount, post_free_balance - prev_free_balance);
-		}
-	}
-
-	#[test]
-	fn plmc_vesting_partial_amount() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let issuer = ISSUER;
-		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
-		let evaluations = default_evaluations();
-		let bids = vec![
-			BidParams::new(BIDDER_1, 49_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_2, ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-		];
-		let community_contributions = default_community_buys();
-		let remainder_contributions = vec![];
-
-		let project_id = inst.create_finished_project(
-			project_metadata,
-			issuer,
-			evaluations,
-			bids,
-			community_contributions,
-			remainder_contributions,
-		);
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-		inst.advance_time(15u64).unwrap();
-		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
-		let vest_start_block = details.funding_end_block.unwrap();
-		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
-
-		for bid in stored_bids {
-			let vesting_info = bid.plmc_vesting_info.unwrap();
-
-			let now = inst.current_block();
-
-			let blocks_vested = min(vesting_info.duration, now - vest_start_block);
-			let vested_amount = vesting_info.amount_per_block * blocks_vested as u128;
-
-			let prev_free_balance = inst.execute(|| <TestRuntime as Config>::NativeCurrency::balance(&bid.bidder));
-
-			inst.execute(|| Pallet::<TestRuntime>::do_vest_plmc_for(bid.bidder, project_id, bid.bidder)).unwrap();
-
-			let post_free_balance = inst.execute(|| <TestRuntime as Config>::NativeCurrency::balance(&bid.bidder));
-			assert_eq!(vested_amount, post_free_balance - prev_free_balance);
-		}
-	}
-
-	#[test]
 	fn unsuccessful_bids_dont_get_vest_schedule() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
@@ -1467,329 +1181,6 @@ mod auction_round_success {
 		assert!(!schedule_exists);
 	}
 
-	#[test]
-	fn bid_funding_assets_are_released_automatically_on_funding_fail() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let issuer = ISSUER;
-		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
-		let evaluations = default_evaluations();
-		let mut bids = MockInstantiator::generate_bids_from_total_usd(
-			project_metadata.total_allocation_size.0,
-			project_metadata.minimum_price,
-			default_weights(),
-			default_bidders(),
-			default_multipliers(),
-		);
-		bids.remove(0);
-		let community_contributions = vec![];
-		let remainder_contributions = vec![];
-
-		let project_id = inst.create_finished_project(
-			project_metadata,
-			issuer,
-			evaluations,
-			bids,
-			community_contributions,
-			remainder_contributions,
-		);
-		let final_bid_payouts = inst.execute(|| {
-			Bids::<TestRuntime>::iter_prefix_values((project_id,))
-				.map(|bid| {
-					UserToForeignAssets::<TestRuntime>::new(
-						bid.bidder,
-						bid.funding_asset_amount_locked,
-						bid.funding_asset.to_assethub_id(),
-					)
-				})
-				.sorted_by_key(|item| item.account)
-				.collect::<Vec<UserToForeignAssets<_>>>()
-		});
-		let total_expected_bid_payout =
-			final_bid_payouts.iter().map(|bid| bid.asset_amount).sum::<BalanceOf<TestRuntime>>();
-
-		let prev_issuer_funding_balance =
-			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
-		let prev_bidders_funding_balances =
-			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, final_bid_payouts.accounts());
-		let prev_total_bidder_balance =
-			prev_bidders_funding_balances.iter().map(|item| item.asset_amount).sum::<BalanceOf<TestRuntime>>();
-
-		inst.advance_time(1).unwrap();
-		call_and_is_ok!(
-			inst,
-			Pallet::<TestRuntime>::decide_project_outcome(
-				RuntimeOrigin::signed(issuer),
-				project_id,
-				FundingOutcomeDecision::RejectFunding
-			)
-		);
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-		inst.advance_time(10).unwrap();
-		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Failure(CleanerState::Finished(PhantomData)));
-
-		let post_issuer_funding_balance =
-			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
-		let post_bidders_funding_balances =
-			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, final_bid_payouts.accounts());
-		let post_total_bidder_balance =
-			post_bidders_funding_balances.iter().map(|item| item.asset_amount).sum::<BalanceOf<TestRuntime>>();
-		let post_project_pot_funding_balance = inst.get_free_foreign_asset_balances_for(
-			final_bid_payouts[0].asset_id,
-			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
-		)[0]
-		.asset_amount;
-
-		let issuer_funding_delta = post_issuer_funding_balance - prev_issuer_funding_balance;
-
-		assert_eq!(issuer_funding_delta, 0);
-		assert_eq!(prev_total_bidder_balance, 0u128);
-		assert_eq!(post_total_bidder_balance, total_expected_bid_payout);
-		assert_eq!(post_project_pot_funding_balance, 0u128);
-		assert_eq!(post_bidders_funding_balances, final_bid_payouts);
-	}
-
-	#[test]
-	fn bid_funding_assets_are_released_manually_on_funding_fail() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let issuer = ISSUER;
-		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
-		let evaluations = default_evaluations();
-		let mut bids = MockInstantiator::generate_bids_from_total_usd(
-			project_metadata.total_allocation_size.0,
-			project_metadata.minimum_price,
-			default_weights(),
-			default_bidders(),
-			default_multipliers(),
-		);
-		bids.remove(0);
-		let community_contributions = vec![];
-		let remainder_contributions = vec![];
-
-		let project_id = inst.create_finished_project(
-			project_metadata,
-			issuer,
-			evaluations,
-			bids,
-			community_contributions,
-			remainder_contributions,
-		);
-		let final_winning_bids =
-			inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
-		let final_bid_payouts = inst.execute(|| {
-			Bids::<TestRuntime>::iter_prefix_values((project_id,))
-				.map(|bid| {
-					UserToForeignAssets::<TestRuntime>::new(
-						bid.bidder,
-						bid.funding_asset_amount_locked,
-						bid.funding_asset.to_assethub_id(),
-					)
-				})
-				.sorted_by_key(|item| item.account)
-				.collect::<Vec<UserToForeignAssets<_>>>()
-		});
-		let total_expected_bid_payout =
-			final_bid_payouts.iter().map(|bid| bid.asset_amount).sum::<BalanceOf<TestRuntime>>();
-
-		let prev_issuer_funding_balance =
-			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
-		let prev_bidders_funding_balances =
-			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, final_bid_payouts.accounts());
-		let prev_total_bidder_balance =
-			prev_bidders_funding_balances.iter().map(|item| item.asset_amount).sum::<BalanceOf<TestRuntime>>();
-
-		call_and_is_ok!(
-			inst,
-			Pallet::<TestRuntime>::decide_project_outcome(
-				RuntimeOrigin::signed(issuer),
-				project_id,
-				FundingOutcomeDecision::RejectFunding
-			)
-		);
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
-		assert_eq!(
-			inst.get_project_details(project_id).cleanup,
-			Cleaner::Failure(CleanerState::Initialized(PhantomData))
-		);
-
-		for bid in final_winning_bids {
-			inst.execute(|| {
-				Pallet::<TestRuntime>::release_bid_funds_for(
-					RuntimeOrigin::signed(bid.bidder),
-					project_id,
-					bid.bidder,
-					bid.id,
-				)
-			})
-			.unwrap();
-		}
-
-		let post_issuer_funding_balance =
-			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
-		let post_bidders_funding_balances =
-			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, final_bid_payouts.accounts());
-		let post_total_bidder_balance =
-			post_bidders_funding_balances.iter().map(|item| item.asset_amount).sum::<BalanceOf<TestRuntime>>();
-		let post_project_pot_funding_balance = inst.get_free_foreign_asset_balances_for(
-			final_bid_payouts[0].asset_id,
-			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
-		)[0]
-		.asset_amount;
-
-		let issuer_funding_delta = post_issuer_funding_balance - prev_issuer_funding_balance;
-
-		assert_eq!(issuer_funding_delta, 0);
-		assert_eq!(prev_total_bidder_balance, 0u128);
-		assert_eq!(post_total_bidder_balance, total_expected_bid_payout);
-		assert_eq!(post_project_pot_funding_balance, 0u128);
-		assert_eq!(post_bidders_funding_balances, final_bid_payouts);
-	}
-
-	#[test]
-	fn bid_plmc_bonded_is_returned_automatically_on_funding_fail() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let issuer = ISSUER;
-		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
-		let evaluations = default_evaluations();
-
-		let mut bids = MockInstantiator::generate_bids_from_total_usd(
-			project_metadata.total_allocation_size.0,
-			project_metadata.minimum_price,
-			default_weights(),
-			default_bidders(),
-			default_multipliers(),
-		);
-		bids.remove(0);
-
-		let community_contributions = vec![];
-		let remainder_contributions = vec![];
-
-		let project_id = inst.create_finished_project(
-			project_metadata,
-			issuer,
-			evaluations,
-			bids.clone(),
-			community_contributions,
-			remainder_contributions,
-		);
-
-		let prev_bidders_plmc_balances = inst.get_free_plmc_balances_for(bids.accounts());
-		call_and_is_ok!(
-			inst,
-			Pallet::<TestRuntime>::decide_project_outcome(
-				RuntimeOrigin::signed(issuer),
-				project_id,
-				FundingOutcomeDecision::RejectFunding
-			)
-		);
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
-		assert_eq!(
-			inst.get_project_details(project_id).cleanup,
-			Cleaner::Failure(CleanerState::Initialized(PhantomData))
-		);
-		inst.advance_time(10u64).unwrap();
-		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Failure(CleanerState::Finished(PhantomData)));
-
-		let post_bidders_plmc_balances = inst.get_free_plmc_balances_for(bids.accounts());
-
-		let mut delta_bidders_plmc_balances = MockInstantiator::generic_map_operation(
-			vec![post_bidders_plmc_balances, prev_bidders_plmc_balances],
-			MergeOperation::Subtract,
-		);
-		delta_bidders_plmc_balances.sort_by_key(|item| item.account);
-
-		let final_price = details.weighted_average_price.unwrap();
-		let mut plmc_locked_for_bids =
-			MockInstantiator::calculate_auction_plmc_charged_with_given_price(&bids, final_price);
-		plmc_locked_for_bids.sort_by_key(|item| item.account);
-		let ct_deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
-			ProjectId,
-			AccountIdOf<TestRuntime>,
-		>>::deposit_required(project_id);
-		plmc_locked_for_bids.iter_mut().for_each(|item| item.plmc_amount += ct_deposit_required);
-
-		assert_eq!(delta_bidders_plmc_balances, plmc_locked_for_bids);
-	}
-
-	#[test]
-	fn bid_plmc_bonded_is_returned_manually_on_funding_fail() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let issuer = ISSUER;
-		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
-		let evaluations = default_evaluations();
-
-		let mut bids = MockInstantiator::generate_bids_from_total_usd(
-			project_metadata.total_allocation_size.0,
-			project_metadata.minimum_price,
-			default_weights(),
-			default_bidders(),
-			default_multipliers(),
-		);
-		bids.remove(0);
-
-		let community_contributions = vec![];
-		let remainder_contributions = vec![];
-
-		let project_id = inst.create_finished_project(
-			project_metadata,
-			issuer,
-			evaluations,
-			bids.clone(),
-			community_contributions,
-			remainder_contributions,
-		);
-		let final_winning_bids =
-			inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
-		let prev_bidders_plmc_balances = inst.get_free_plmc_balances_for(bids.accounts());
-		call_and_is_ok!(
-			inst,
-			Pallet::<TestRuntime>::decide_project_outcome(
-				RuntimeOrigin::signed(issuer),
-				project_id,
-				FundingOutcomeDecision::RejectFunding
-			)
-		);
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
-		assert_eq!(
-			inst.get_project_details(project_id).cleanup,
-			Cleaner::Failure(CleanerState::Initialized(PhantomData))
-		);
-
-		for bid in final_winning_bids {
-			call_and_is_ok!(
-				inst,
-				Pallet::<TestRuntime>::release_bid_funds_for(
-					RuntimeOrigin::signed(bid.bidder),
-					project_id,
-					bid.bidder,
-					bid.id,
-				),
-				Pallet::<TestRuntime>::bid_unbond_for(
-					RuntimeOrigin::signed(bid.bidder),
-					project_id,
-					bid.bidder,
-					bid.id,
-				)
-			);
-		}
-
-		let post_bidders_plmc_balances = inst.get_free_plmc_balances_for(bids.accounts());
-
-		let mut delta_bidders_plmc_balances = MockInstantiator::generic_map_operation(
-			vec![post_bidders_plmc_balances, prev_bidders_plmc_balances],
-			MergeOperation::Subtract,
-		);
-		delta_bidders_plmc_balances.sort_by_key(|item| item.account);
-
-		let details = inst.get_project_details(project_id);
-		let final_price = details.weighted_average_price.unwrap();
-		let mut plmc_locked_for_bids =
-			MockInstantiator::calculate_auction_plmc_charged_with_given_price(&bids, final_price);
-		plmc_locked_for_bids.sort_by_key(|item| item.account);
-
-		assert_eq!(delta_bidders_plmc_balances, plmc_locked_for_bids);
-	}
-
 	// We use the already tested instantiator functions to calculate the correct post-wap returns
 	#[test]
 	fn refund_on_partial_acceptance_and_price_above_wap_and_ct_sold_out_bids() {
@@ -1872,10 +1263,6 @@ mod auction_round_success {
 		inst.do_free_foreign_asset_assertions(expected_free_funding_assets);
 		inst.do_bid_transferred_foreign_asset_assertions(expected_held_funding_assets, project_id);
 	}
-}
-
-mod auction_round_failure {
-	use super::*;
 
 	#[test]
 	fn cannot_start_auction_before_evaluation_finishes() {
@@ -2098,73 +1485,10 @@ mod auction_round_failure {
 			project_id,
 		);
 	}
-
-	#[test]
-	fn bid_ct_account_deposits_are_returned() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let project_metadata = default_project_metadata(0, ISSUER);
-		let automatic_fail_funding_percent = Percent::from_percent(30);
-		let (bid_allocation, _contribution_allocation) = project_metadata.total_allocation_size;
-		let deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
-			ProjectId,
-			AccountIdOf<TestRuntime>,
-		>>::deposit_required(0);
-
-		let desired_total_usd_amount_bid =
-			automatic_fail_funding_percent * project_metadata.minimum_price.saturating_mul_int(bid_allocation);
-
-		let bids = MockInstantiator::generate_bids_from_total_usd(
-			desired_total_usd_amount_bid,
-			project_metadata.minimum_price,
-			default_weights(),
-			default_bidders(),
-			default_multipliers(),
-		);
-
-		let zero_balances =
-			bids.clone().accounts().into_iter().map(|acc| UserToPLMCBalance::new(acc, 0u128)).collect_vec();
-		inst.do_free_plmc_assertions(zero_balances.clone());
-		inst.do_reserved_plmc_assertions(zero_balances.clone(), HoldReason::FutureDeposit(0).into());
-
-		let required_plmc_bonds =
-			MockInstantiator::calculate_auction_plmc_charged_with_given_price(&bids, project_metadata.minimum_price);
-		let plmc_existential_deposits = required_plmc_bonds.accounts().existential_deposits();
-		let plmc_ct_account_deposits = required_plmc_bonds.accounts().ct_account_deposits();
-
-		let project_id =
-			inst.create_community_contributing_project(project_metadata, ISSUER, default_evaluations(), bids.clone());
-
-		let ed_balances = required_plmc_bonds
-			.accounts()
-			.into_iter()
-			.map(|acc| UserToPLMCBalance::new(acc, MockInstantiator::get_ed()))
-			.collect_vec();
-		inst.do_free_plmc_assertions(ed_balances);
-		let ct_deposit_balances = required_plmc_bonds
-			.accounts()
-			.into_iter()
-			.map(|acc| UserToPLMCBalance::new(acc, deposit_required))
-			.collect_vec();
-		inst.do_reserved_plmc_assertions(ct_deposit_balances, HoldReason::FutureDeposit(project_id).into());
-
-		inst.advance_time(<TestRuntime as Config>::CommunityFundingDuration::get() + 1).unwrap();
-		inst.advance_time(<TestRuntime as Config>::RemainderFundingDuration::get() + 1).unwrap();
-
-		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
-
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
-		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Failure(CleanerState::Finished(PhantomData)));
-
-		let final_plmc_amounts = MockInstantiator::generic_map_operation(
-			vec![required_plmc_bonds, plmc_existential_deposits, plmc_ct_account_deposits],
-			MergeOperation::Add,
-		);
-		inst.do_free_plmc_assertions(final_plmc_amounts);
-		inst.do_reserved_plmc_assertions(zero_balances, HoldReason::FutureDeposit(project_id).into());
-	}
 }
 
-mod community_round_success {
+// only functionalities that happen in the COMMUNITY FUNDING period of a project
+mod community_contribution {
 	use super::*;
 
 	pub const HOURS: BlockNumber = 300u64;
@@ -2266,7 +1590,10 @@ mod community_round_success {
 	#[test]
 	fn community_round_ends_on_all_ct_sold_exact() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let bids = vec![BidParams::from(BIDDER_1, 40_000 * ASSET_UNIT), BidParams::from(BIDDER_2, 10_000 * ASSET_UNIT)];
+		let bids = vec![
+			BidParams::new_with_defaults(BIDDER_1, 40_000 * ASSET_UNIT),
+			BidParams::new_with_defaults(BIDDER_2, 10_000 * ASSET_UNIT),
+		];
 		let project_id = inst.create_community_contributing_project(
 			default_project_metadata(0, ISSUER),
 			ISSUER,
@@ -2811,397 +2138,11 @@ mod community_round_success {
 		assert_eq!(participation_locked, necessary_plmc_for_contribution);
 	}
 
-	#[test]
-	fn cannot_mint_ct_twice_manually() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let issuer = ISSUER;
-		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
-		let evaluations = default_evaluations();
-		let bids = default_bids();
-		let community_contributions = default_community_buys();
-		let remainder_contributions = vec![];
 
-		let project_id = inst.create_finished_project(
-			project_metadata,
-			issuer,
-			evaluations,
-			bids,
-			community_contributions,
-			remainder_contributions,
-		);
-		let details = inst.get_project_details(project_id);
-		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
-		assert_eq!(details.cleanup, Cleaner::NotReady);
-		let stored_contributions =
-			inst.execute(|| Contributions::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-
-		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
-
-		for contribution in stored_contributions {
-			inst.execute(|| {
-				Pallet::<TestRuntime>::contribution_ct_mint_for(
-					RuntimeOrigin::signed(contribution.contributor),
-					project_id,
-					contribution.contributor,
-					contribution.id,
-				)
-				.unwrap();
-
-				assert_noop!(
-					Pallet::<TestRuntime>::contribution_ct_mint_for(
-						RuntimeOrigin::signed(contribution.contributor),
-						project_id,
-						contribution.contributor,
-						contribution.id,
-					),
-					Error::<TestRuntime>::NotAllowed
-				);
-			});
-		}
-	}
-
-	#[test]
-	fn cannot_mint_ct_manually_after_automatic_mint() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let issuer = ISSUER;
-		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
-		let evaluations = default_evaluations();
-		let bids = default_bids();
-		let community_contributions = default_community_buys();
-		let remainder_contributions = vec![];
-
-		let project_id = inst.create_finished_project(
-			project_metadata,
-			issuer,
-			evaluations,
-			bids,
-			community_contributions.clone(),
-			remainder_contributions,
-		);
-		let details = inst.get_project_details(project_id);
-		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
-		assert_eq!(details.cleanup, Cleaner::NotReady);
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-
-		inst.advance_time(10u64).unwrap();
-		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
-
-		let stored_contributions =
-			inst.execute(|| Contributions::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
-		assert_eq!(stored_contributions.len(), community_contributions.len());
-		let user_ct_amounts = MockInstantiator::generic_map_merge_reduce(
-			vec![stored_contributions.clone()],
-			|contribution| contribution.contributor,
-			BalanceOf::<TestRuntime>::zero(),
-			|contribution, acc| acc + contribution.ct_amount,
-		);
-		assert_eq!(user_ct_amounts.len(), community_contributions.len());
-
-		for (contributor, amount) in user_ct_amounts {
-			let minted =
-				inst.execute(|| <TestRuntime as Config>::ContributionTokenCurrency::balance(project_id, contributor));
-			assert_eq!(minted, amount);
-		}
-
-		for contribution in stored_contributions {
-			inst.execute(|| {
-				assert_noop!(
-					Pallet::<TestRuntime>::contribution_ct_mint_for(
-						RuntimeOrigin::signed(contribution.contributor),
-						project_id,
-						contribution.contributor,
-						contribution.id,
-					),
-					Error::<TestRuntime>::NotAllowed
-				);
-			})
-		}
-	}
-
-	#[test]
-	fn plmc_vesting_schedule_starts_automatically() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let issuer = ISSUER;
-		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
-		let evaluations = default_evaluations();
-		let bids = default_bids();
-		let community_contributions = default_community_buys();
-		let remainder_contributions = vec![];
-
-		let project_id = inst.create_finished_project(
-			project_metadata,
-			issuer,
-			evaluations,
-			bids,
-			community_contributions.clone(),
-			remainder_contributions,
-		);
-
-		let price = inst.get_project_details(project_id).weighted_average_price.unwrap();
-		let contribution_locked_plmc =
-			MockInstantiator::calculate_contributed_plmc_spent(community_contributions, price);
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-		inst.advance_time(10u64).unwrap();
-		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
-
-		for UserToPLMCBalance { account: user, plmc_amount: amount } in contribution_locked_plmc {
-			let schedule = inst.execute(|| {
-				<TestRuntime as Config>::Vesting::total_scheduled_amount(
-					&user,
-					HoldReason::Participation(project_id).into(),
-				)
-			});
-
-			assert_eq!(schedule.unwrap(), amount);
-		}
-	}
-
-	#[test]
-	fn plmc_vesting_schedule_starts_manually() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let issuer = ISSUER;
-		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
-		let evaluations = default_evaluations();
-		let bids = default_bids();
-		let community_contributions = default_community_buys();
-		let remainder_contributions = vec![];
-
-		let project_id = inst.create_finished_project(
-			project_metadata,
-			issuer,
-			evaluations,
-			bids,
-			community_contributions,
-			remainder_contributions,
-		);
-
-		let details = inst.get_project_details(project_id);
-		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
-		assert_eq!(details.cleanup, Cleaner::NotReady);
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-
-		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
-
-		let contributions =
-			inst.execute(|| Contributions::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
-		for contribution in contributions {
-			call_and_is_ok!(
-				inst,
-				Pallet::<TestRuntime>::start_contribution_vesting_schedule_for(
-					RuntimeOrigin::signed(contribution.contributor),
-					project_id,
-					contribution.contributor,
-					contribution.id,
-				)
-			);
-
-			let schedule = inst.execute(|| {
-				<TestRuntime as Config>::Vesting::total_scheduled_amount(
-					&contribution.contributor,
-					HoldReason::Participation(project_id).into(),
-				)
-			});
-
-			let contribution = inst.execute(|| {
-				Contributions::<TestRuntime>::get((project_id, contribution.contributor, contribution.id)).unwrap()
-			});
-			assert_eq!(schedule.unwrap(), contribution.plmc_vesting_info.unwrap().total_amount);
-		}
-	}
-
-	#[test]
-	fn plmc_vesting_full_amount() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let issuer = ISSUER;
-		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
-		let evaluations = default_evaluations();
-		let bids = default_bids();
-		let community_contributions = default_community_buys();
-		let remainder_contributions = vec![];
-
-		let project_id = inst.create_finished_project(
-			project_metadata,
-			issuer,
-			evaluations,
-			bids,
-			community_contributions,
-			remainder_contributions,
-		);
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-
-		inst.advance_time(10u64).unwrap();
-		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
-
-		let stored_contributions =
-			inst.execute(|| Contributions::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
-
-		inst.advance_time((10 * DAYS).into()).unwrap();
-
-		for contribution in stored_contributions {
-			let vesting_info = contribution.plmc_vesting_info.unwrap();
-			let locked_amount = vesting_info.total_amount;
-
-			let prev_free_balance =
-				inst.execute(|| <TestRuntime as Config>::NativeCurrency::balance(&contribution.contributor));
-
-			inst.execute(|| {
-				Pallet::<TestRuntime>::do_vest_plmc_for(contribution.contributor, project_id, contribution.contributor)
-			})
-			.unwrap();
-
-			let post_free_balance =
-				inst.execute(|| <TestRuntime as Config>::NativeCurrency::balance(&contribution.contributor));
-			assert_eq!(locked_amount, post_free_balance - prev_free_balance);
-		}
-	}
-
-	#[test]
-	fn plmc_vesting_partial_amount() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let issuer = ISSUER;
-		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
-		let evaluations = default_evaluations();
-		let bids = vec![
-			BidParams::new(BIDDER_1, 49_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_2, ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-		];
-		let community_contributions = default_community_buys();
-		let remainder_contributions = vec![];
-
-		let project_id = inst.create_finished_project(
-			project_metadata,
-			issuer,
-			evaluations,
-			bids,
-			community_contributions,
-			remainder_contributions,
-		);
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-
-		inst.advance_time(15u64).unwrap();
-		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
-		let vest_start_block = details.funding_end_block.unwrap();
-		let stored_contributions =
-			inst.execute(|| Contributions::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
-
-		for contribution in stored_contributions {
-			let vesting_info = contribution.plmc_vesting_info.unwrap();
-
-			let now = inst.current_block();
-			let blocks_vested = min(vesting_info.duration, now - vest_start_block);
-			let vested_amount = vesting_info.amount_per_block * blocks_vested as u128;
-
-			let prev_free_balance =
-				inst.execute(|| <TestRuntime as Config>::NativeCurrency::balance(&contribution.contributor));
-
-			inst.execute(|| {
-				Pallet::<TestRuntime>::do_vest_plmc_for(contribution.contributor, project_id, contribution.contributor)
-			})
-			.unwrap();
-
-			let post_free_balance =
-				inst.execute(|| <TestRuntime as Config>::NativeCurrency::balance(&contribution.contributor));
-			assert_eq!(vested_amount, post_free_balance - prev_free_balance);
-		}
-	}
 }
 
-mod community_round_failure {
-	use super::*;
-
-	#[test]
-	fn community_contribution_ct_account_deposits_are_returned() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let project_metadata = default_project_metadata(0, ISSUER);
-		let automatic_fail_funding_percent = Percent::from_percent(30);
-		let (bid_allocation, contribution_allocation) = project_metadata.total_allocation_size;
-		let deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
-			ProjectId,
-			AccountIdOf<TestRuntime>,
-		>>::deposit_required(0);
-
-		let desired_total_usd_amount_bid =
-			automatic_fail_funding_percent * project_metadata.minimum_price.saturating_mul_int(bid_allocation);
-		let desired_total_usd_amount_contributed =
-			automatic_fail_funding_percent * project_metadata.minimum_price.saturating_mul_int(contribution_allocation);
-
-		let bids = MockInstantiator::generate_bids_from_total_usd(
-			desired_total_usd_amount_bid,
-			project_metadata.minimum_price,
-			default_weights(),
-			default_bidders(),
-			default_bidder_multipliers(),
-		);
-
-		let community_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			desired_total_usd_amount_contributed,
-			project_metadata.minimum_price,
-			default_weights(),
-			default_community_contributors(),
-			default_community_contributor_multipliers(),
-		);
-
-		let zero_balances = community_contributions
-			.clone()
-			.accounts()
-			.into_iter()
-			.map(|acc| UserToPLMCBalance::new(acc, 0u128))
-			.collect_vec();
-		inst.do_free_plmc_assertions(zero_balances.clone());
-		inst.do_reserved_plmc_assertions(zero_balances.clone(), HoldReason::FutureDeposit(0).into());
-
-		let project_id = inst.create_remainder_contributing_project(
-			project_metadata,
-			ISSUER,
-			default_evaluations(),
-			bids.clone(),
-			community_contributions.clone(),
-		);
-
-		let required_plmc_bonds = MockInstantiator::calculate_contributed_plmc_spent(
-			community_contributions,
-			inst.get_project_details(project_id).weighted_average_price.unwrap(),
-		);
-		let plmc_existential_deposits = required_plmc_bonds.accounts().existential_deposits();
-		let plmc_ct_account_deposits = required_plmc_bonds.accounts().ct_account_deposits();
-
-		let ed_balances = required_plmc_bonds
-			.accounts()
-			.into_iter()
-			.map(|acc| UserToPLMCBalance::new(acc, MockInstantiator::get_ed()))
-			.collect_vec();
-		inst.do_free_plmc_assertions(ed_balances);
-		let ct_deposit_balances = required_plmc_bonds
-			.accounts()
-			.into_iter()
-			.map(|acc| UserToPLMCBalance::new(acc, deposit_required))
-			.collect_vec();
-		inst.do_reserved_plmc_assertions(ct_deposit_balances, HoldReason::FutureDeposit(project_id).into());
-
-		inst.advance_time(<TestRuntime as Config>::RemainderFundingDuration::get() + 1).unwrap();
-
-		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
-
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
-		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Failure(CleanerState::Finished(PhantomData)));
-
-		let final_plmc_amounts = MockInstantiator::generic_map_operation(
-			vec![required_plmc_bonds, plmc_existential_deposits, plmc_ct_account_deposits],
-			MergeOperation::Add,
-		);
-		inst.do_free_plmc_assertions(final_plmc_amounts);
-		inst.do_reserved_plmc_assertions(zero_balances, HoldReason::FutureDeposit(project_id).into());
-	}
-}
-
-mod remainder_round_success {
+// only functionalities that happen in the REMAINDER FUNDING period of a project
+mod remainder_contribution {
 	use super::*;
 
 	#[test]
@@ -3458,346 +2399,9 @@ mod remainder_round_success {
 			project_id,
 		);
 	}
-
-	#[test]
-	fn plmc_vesting_schedule_starts_automatically() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let issuer = ISSUER;
-		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
-		let evaluations = default_evaluations();
-		let mut bids = default_bids();
-		let community_contributions = default_community_buys();
-		let remainder_contributions = default_remainder_buys();
-
-		let project_id = inst.create_finished_project(
-			project_metadata,
-			issuer,
-			evaluations,
-			bids.clone(),
-			community_contributions.clone(),
-			remainder_contributions.clone(),
-		);
-
-		let price = inst.get_project_details(project_id).weighted_average_price.unwrap();
-		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect_vec());
-		bids = stored_bids.into_iter().map(|bid| BidParams::from(bid.bidder, bid.final_ct_amount)).collect();
-		let auction_locked_plmc = MockInstantiator::calculate_auction_plmc_charged_with_given_price(&bids, price);
-		let community_locked_plmc = MockInstantiator::calculate_contributed_plmc_spent(community_contributions, price);
-		let remainder_locked_plmc = MockInstantiator::calculate_contributed_plmc_spent(remainder_contributions, price);
-		let all_plmc_locks = MockInstantiator::generic_map_operation(
-			vec![auction_locked_plmc, community_locked_plmc, remainder_locked_plmc],
-			MergeOperation::Add,
-		);
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-
-		inst.advance_time(10u64).unwrap();
-		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
-
-		for UserToPLMCBalance { account, plmc_amount } in all_plmc_locks {
-			let schedule = inst.execute(|| {
-				<TestRuntime as Config>::Vesting::total_scheduled_amount(
-					&account,
-					HoldReason::Participation(project_id).into(),
-				)
-			});
-
-			assert_eq!(schedule.unwrap(), plmc_amount);
-		}
-	}
-
-	#[test]
-	fn plmc_vesting_schedule_starts_manually() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let issuer = ISSUER;
-		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
-		let evaluations = default_evaluations();
-		let bids = default_bids();
-		let community_contributions = default_community_buys();
-		let remainder_contributions = default_remainder_buys();
-
-		let project_id = inst.create_finished_project(
-			project_metadata,
-			issuer,
-			evaluations,
-			bids,
-			community_contributions,
-			remainder_contributions,
-		);
-
-		let details = inst.get_project_details(project_id);
-		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
-		assert_eq!(details.cleanup, Cleaner::NotReady);
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-
-		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
-
-		let contributions =
-			inst.execute(|| Contributions::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
-		for contribution in contributions {
-			let prev_scheduled = inst
-				.execute(|| {
-					<TestRuntime as Config>::Vesting::total_scheduled_amount(
-						&contribution.contributor,
-						HoldReason::Participation(project_id).into(),
-					)
-				})
-				.unwrap_or(Zero::zero());
-
-			call_and_is_ok!(
-				inst,
-				Pallet::<TestRuntime>::start_contribution_vesting_schedule_for(
-					RuntimeOrigin::signed(contribution.contributor),
-					project_id,
-					contribution.contributor,
-					contribution.id,
-				)
-			);
-
-			let post_scheduled = inst
-				.execute(|| {
-					<TestRuntime as Config>::Vesting::total_scheduled_amount(
-						&contribution.contributor,
-						HoldReason::Participation(project_id).into(),
-					)
-				})
-				.unwrap();
-
-			let new_scheduled = post_scheduled - prev_scheduled;
-
-			let contribution = inst.execute(|| {
-				Contributions::<TestRuntime>::get((project_id, contribution.contributor, contribution.id)).unwrap()
-			});
-			assert_eq!(new_scheduled, contribution.plmc_vesting_info.unwrap().total_amount);
-		}
-	}
-
-	#[test]
-	fn plmc_vesting_full_amount() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let issuer = ISSUER;
-		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
-		let evaluations = default_evaluations();
-		let bids = default_bids();
-		let community_contributions = default_community_buys();
-		let remainder_contributions = default_remainder_buys();
-
-		let project_id = inst.create_finished_project(
-			project_metadata,
-			issuer,
-			evaluations,
-			bids,
-			community_contributions,
-			remainder_contributions,
-		);
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-
-		inst.advance_time(10u64).unwrap();
-		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
-
-		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
-		let stored_contributions =
-			inst.execute(|| Contributions::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
-
-		let bid_plmc_balances =
-			stored_bids.into_iter().map(|b| (b.bidder, b.plmc_vesting_info.unwrap().total_amount)).collect::<Vec<_>>();
-		let contributed_plmc_balances = stored_contributions
-			.into_iter()
-			.map(|c| (c.contributor, c.plmc_vesting_info.unwrap().total_amount))
-			.collect::<Vec<_>>();
-
-		let merged_plmc_balances = MockInstantiator::generic_map_merge_reduce(
-			vec![contributed_plmc_balances, bid_plmc_balances],
-			|(account, _amount)| *account,
-			BalanceOf::<TestRuntime>::zero(),
-			|(_account, amount), total| total + amount,
-		);
-		inst.advance_time((DAYS + 1u32).into()).unwrap();
-
-		for (contributor, plmc_amount) in merged_plmc_balances {
-			let prev_free_balance = inst.execute(|| <TestRuntime as Config>::NativeCurrency::balance(&contributor));
-			inst.execute(|| Pallet::<TestRuntime>::do_vest_plmc_for(contributor, project_id, contributor)).unwrap();
-
-			let post_free_balance = inst.execute(|| <TestRuntime as Config>::NativeCurrency::balance(&contributor));
-			assert_eq!(plmc_amount, post_free_balance - prev_free_balance);
-		}
-	}
-
-	#[test]
-	fn plmc_vesting_partial_amount() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let issuer = ISSUER;
-		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
-		let evaluations = default_evaluations();
-		let bids = default_bids();
-		let community_contributions = default_community_buys();
-		let remainder_contributions = default_remainder_buys();
-
-		let project_id = inst.create_finished_project(
-			project_metadata,
-			issuer,
-			evaluations,
-			bids,
-			community_contributions,
-			remainder_contributions,
-		);
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
-
-		inst.advance_time(15u64).unwrap();
-		let details = inst.get_project_details(project_id);
-		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
-		let vest_start_block = details.funding_end_block.unwrap();
-
-		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
-		let stored_contributions =
-			inst.execute(|| Contributions::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
-
-		let now = inst.current_block();
-
-		let bid_plmc_balances = stored_bids
-			.into_iter()
-			.map(|b| {
-				(b.bidder, {
-					let blocks_vested = min(b.plmc_vesting_info.unwrap().duration, now - vest_start_block);
-					b.plmc_vesting_info.unwrap().amount_per_block * blocks_vested as u128
-				})
-			})
-			.collect::<Vec<_>>();
-		let contributed_plmc_balances = stored_contributions
-			.into_iter()
-			.map(|c| {
-				(c.contributor, {
-					let blocks_vested = min(c.plmc_vesting_info.unwrap().duration, now - vest_start_block);
-					c.plmc_vesting_info.unwrap().amount_per_block * blocks_vested as u128
-				})
-			})
-			.collect::<Vec<_>>();
-
-		let merged_plmc_balances = MockInstantiator::generic_map_merge_reduce(
-			vec![contributed_plmc_balances, bid_plmc_balances],
-			|(account, _amount)| *account,
-			BalanceOf::<TestRuntime>::zero(),
-			|(_account, amount), total| total + amount,
-		);
-
-		for (contributor, amount) in merged_plmc_balances {
-			let prev_free_balance = inst.execute(|| <TestRuntime as Config>::NativeCurrency::balance(&contributor));
-
-			inst.execute(|| Pallet::<TestRuntime>::do_vest_plmc_for(contributor, project_id, contributor)).unwrap();
-
-			let post_free_balance = inst.execute(|| <TestRuntime as Config>::NativeCurrency::balance(&contributor));
-			assert_eq!(amount, post_free_balance - prev_free_balance);
-		}
-	}
 }
 
-mod remainder_round_failure {
-	use super::*;
-
-	#[test]
-	fn remainder_contribution_ct_account_deposits_are_returned() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let project_metadata = default_project_metadata(0, ISSUER);
-		let automatic_fail_funding_percent = Percent::from_percent(30);
-		let (bid_allocation, contribution_allocation) = project_metadata.total_allocation_size;
-		let deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
-			ProjectId,
-			AccountIdOf<TestRuntime>,
-		>>::deposit_required(0);
-
-		let _remainder_contributors = vec![EVALUATOR_1, BIDDER_3, BUYER_4, BUYER_6, BIDDER_6];
-
-		let desired_total_usd_amount_bid =
-			automatic_fail_funding_percent * project_metadata.minimum_price.saturating_mul_int(bid_allocation);
-		let desired_total_usd_amount_contributed =
-			automatic_fail_funding_percent * project_metadata.minimum_price.saturating_mul_int(contribution_allocation);
-
-		let bids = MockInstantiator::generate_bids_from_total_usd(
-			desired_total_usd_amount_bid,
-			project_metadata.minimum_price,
-			default_weights(),
-			default_bidders(),
-			default_bidder_multipliers(),
-		);
-
-		let community_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			desired_total_usd_amount_contributed / 2,
-			project_metadata.minimum_price,
-			default_weights(),
-			default_community_contributors(),
-			default_community_contributor_multipliers(),
-		);
-
-		let remainder_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			desired_total_usd_amount_contributed / 2,
-			project_metadata.minimum_price,
-			default_weights(),
-			default_remainder_contributors(),
-			default_remainder_contributor_multipliers(),
-		);
-
-		let zero_balances = remainder_contributions
-			.clone()
-			.accounts()
-			.into_iter()
-			.map(|acc| UserToPLMCBalance::new(acc, 0u128))
-			.collect_vec();
-		inst.do_free_plmc_assertions(zero_balances.clone());
-		inst.do_reserved_plmc_assertions(zero_balances.clone(), HoldReason::FutureDeposit(0).into());
-
-		let project_id = inst.create_finished_project(
-			project_metadata,
-			ISSUER,
-			default_evaluations(),
-			bids.clone(),
-			community_contributions.clone(),
-			remainder_contributions.clone(),
-		);
-		let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
-
-		let bidder_plmc_bonds = MockInstantiator::calculate_auction_plmc_charged_with_given_price(&bids, wap);
-		let community_contributor_plmc_bonds =
-			MockInstantiator::calculate_contributed_plmc_spent(community_contributions.clone(), wap);
-		let evaluators_and_contributors_plmc_bonds =
-			MockInstantiator::calculate_total_plmc_locked_from_evaluations_and_remainder_contributions(
-				default_evaluations(),
-				remainder_contributions,
-				wap,
-				true,
-			);
-
-		let mut expected_final_plmc_balances = MockInstantiator::generic_map_operation(
-			vec![bidder_plmc_bonds, community_contributor_plmc_bonds, evaluators_and_contributors_plmc_bonds],
-			MergeOperation::Add,
-		);
-		expected_final_plmc_balances.iter_mut().for_each(|UserToPLMCBalance { account: _, plmc_amount }| {
-			*plmc_amount += deposit_required;
-		});
-
-		let prev_balances = inst.get_free_plmc_balances_for(expected_final_plmc_balances.accounts());
-		let ct_deposit_balances = expected_final_plmc_balances
-			.accounts()
-			.into_iter()
-			.map(|acc| UserToPLMCBalance::new(acc, deposit_required))
-			.collect_vec();
-		inst.do_reserved_plmc_assertions(ct_deposit_balances, HoldReason::FutureDeposit(project_id).into());
-
-		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
-		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
-		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Failure(CleanerState::Finished(PhantomData)));
-
-		let post_balances = inst.get_free_plmc_balances_for(expected_final_plmc_balances.accounts());
-
-		let plmc_deltas =
-			MockInstantiator::generic_map_operation(vec![post_balances, prev_balances], MergeOperation::Subtract);
-
-		assert_eq!(plmc_deltas, expected_final_plmc_balances);
-		inst.do_reserved_plmc_assertions(zero_balances, HoldReason::FutureDeposit(project_id).into());
-	}
-}
-
+// only functionalities that happen after the REMAINDER FUNDING period of a project, and before the CT Migration
 mod funding_end {
 	use super::*;
 
@@ -5484,7 +4088,6 @@ mod funding_end {
 	}
 
 	// i.e consumer increase bug fixed with touch on pallet-assets
-	#[ignore]
 	#[test]
 	fn no_limit_on_project_contributions_per_user() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
@@ -5528,8 +4131,1085 @@ mod funding_end {
 			println!("Project number {} took {:?}", i, elapsed);
 		}
 	}
+
+	#[test]
+	fn bid_plmc_vesting_schedule_starts_automatically() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let issuer = ISSUER;
+		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+		let evaluations = default_evaluations();
+
+		let mut bids = default_bids();
+		let new_bids = vec![BidParams::new(BIDDER_4, 500 * US_DOLLAR, 1u8, AcceptedFundingAsset::USDT)];
+		bids.extend(new_bids.clone());
+
+		let community_contributions = default_community_buys();
+		let remainder_contributions = vec![];
+
+		let project_id = inst.create_finished_project(
+			project_metadata,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions,
+			remainder_contributions,
+		);
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+		inst.advance_time(10u64).unwrap();
+		let details = inst.get_project_details(project_id);
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+
+		let final_price = details.weighted_average_price.unwrap();
+		let plmc_locked_for_bids =
+			MockInstantiator::calculate_auction_plmc_charged_with_given_price(&new_bids, final_price);
+
+		for UserToPLMCBalance { account, plmc_amount } in plmc_locked_for_bids {
+			let schedule = inst.execute(|| {
+				<TestRuntime as Config>::Vesting::total_scheduled_amount(
+					&account,
+					HoldReason::Participation(project_id).into(),
+				)
+			});
+
+			assert_close_enough!(schedule.unwrap(), plmc_amount, Perquintill::from_parts(10_000_000_000u64));
+		}
+	}
+
+	#[test]
+	fn bid_plmc_vesting_schedule_starts_manually() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let issuer = ISSUER;
+		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = vec![];
+
+		let project_id = inst.create_finished_project(
+			project_metadata,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions,
+			remainder_contributions,
+		);
+
+		let details = inst.get_project_details(project_id);
+		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
+		assert_eq!(details.cleanup, Cleaner::NotReady);
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+		let details = inst.get_project_details(project_id);
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
+
+		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
+		for bid in stored_bids {
+			call_and_is_ok!(
+				inst,
+				Pallet::<TestRuntime>::start_bid_vesting_schedule_for(
+					RuntimeOrigin::signed(bid.bidder),
+					project_id,
+					bid.bidder,
+					bid.id,
+				)
+			);
+
+			let schedule = inst.execute(|| {
+				<TestRuntime as Config>::Vesting::total_scheduled_amount(
+					&bid.bidder,
+					HoldReason::Participation(project_id).into(),
+				)
+			});
+
+			let bid = inst.execute(|| Bids::<TestRuntime>::get((project_id, bid.bidder, bid.id)).unwrap());
+			assert_eq!(schedule.unwrap(), bid.plmc_vesting_info.unwrap().total_amount);
+		}
+	}
+
+	#[test]
+	fn bid_plmc_vesting_full_amount() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let issuer = ISSUER;
+		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = vec![];
+
+		let project_id = inst.create_finished_project(
+			project_metadata,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions,
+			remainder_contributions,
+		);
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+
+		inst.advance_time(10u64).unwrap();
+		let details = inst.get_project_details(project_id);
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+
+		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
+
+		inst.advance_time((10 * DAYS).into()).unwrap();
+
+		for bid in stored_bids {
+			let vesting_info = bid.plmc_vesting_info.unwrap();
+			let locked_amount = vesting_info.total_amount;
+
+			let prev_free_balance = inst.execute(|| <TestRuntime as Config>::NativeCurrency::balance(&bid.bidder));
+
+			inst.execute(|| Pallet::<TestRuntime>::do_vest_plmc_for(bid.bidder, project_id, bid.bidder)).unwrap();
+
+			let post_free_balance = inst.execute(|| <TestRuntime as Config>::NativeCurrency::balance(&bid.bidder));
+			assert_eq!(locked_amount, post_free_balance - prev_free_balance);
+		}
+	}
+
+	#[test]
+	fn bid_plmc_vesting_partial_amount() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let issuer = ISSUER;
+		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+		let evaluations = default_evaluations();
+		let bids = vec![
+			BidParams::new(BIDDER_1, 49_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_2, ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+		];
+		let community_contributions = default_community_buys();
+		let remainder_contributions = vec![];
+
+		let project_id = inst.create_finished_project(
+			project_metadata,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions,
+			remainder_contributions,
+		);
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+		inst.advance_time(15u64).unwrap();
+		let details = inst.get_project_details(project_id);
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		let vest_start_block = details.funding_end_block.unwrap();
+		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
+
+		for bid in stored_bids {
+			let vesting_info = bid.plmc_vesting_info.unwrap();
+
+			let now = inst.current_block();
+
+			let blocks_vested = min(vesting_info.duration, now - vest_start_block);
+			let vested_amount = vesting_info.amount_per_block * blocks_vested as u128;
+
+			let prev_free_balance = inst.execute(|| <TestRuntime as Config>::NativeCurrency::balance(&bid.bidder));
+
+			inst.execute(|| Pallet::<TestRuntime>::do_vest_plmc_for(bid.bidder, project_id, bid.bidder)).unwrap();
+
+			let post_free_balance = inst.execute(|| <TestRuntime as Config>::NativeCurrency::balance(&bid.bidder));
+			assert_eq!(vested_amount, post_free_balance - prev_free_balance);
+		}
+	}
+
+	#[test]
+	fn bid_funding_assets_are_released_automatically_on_funding_fail() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let issuer = ISSUER;
+		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+		let evaluations = default_evaluations();
+		let mut bids = MockInstantiator::generate_bids_from_total_usd(
+			project_metadata.total_allocation_size.0,
+			project_metadata.minimum_price,
+			default_weights(),
+			default_bidders(),
+			default_multipliers(),
+		);
+		bids.remove(0);
+		let community_contributions = vec![];
+		let remainder_contributions = vec![];
+
+		let project_id = inst.create_finished_project(
+			project_metadata,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions,
+			remainder_contributions,
+		);
+		let final_bid_payouts = inst.execute(|| {
+			Bids::<TestRuntime>::iter_prefix_values((project_id,))
+				.map(|bid| {
+					UserToForeignAssets::<TestRuntime>::new(
+						bid.bidder,
+						bid.funding_asset_amount_locked,
+						bid.funding_asset.to_assethub_id(),
+					)
+				})
+				.sorted_by_key(|item| item.account)
+				.collect::<Vec<UserToForeignAssets<_>>>()
+		});
+		let total_expected_bid_payout =
+			final_bid_payouts.iter().map(|bid| bid.asset_amount).sum::<BalanceOf<TestRuntime>>();
+
+		let prev_issuer_funding_balance =
+			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
+		let prev_bidders_funding_balances =
+			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, final_bid_payouts.accounts());
+		let prev_total_bidder_balance =
+			prev_bidders_funding_balances.iter().map(|item| item.asset_amount).sum::<BalanceOf<TestRuntime>>();
+
+		inst.advance_time(1).unwrap();
+		call_and_is_ok!(
+			inst,
+			Pallet::<TestRuntime>::decide_project_outcome(
+				RuntimeOrigin::signed(issuer),
+				project_id,
+				FundingOutcomeDecision::RejectFunding
+			)
+		);
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+		inst.advance_time(10).unwrap();
+		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Failure(CleanerState::Finished(PhantomData)));
+
+		let post_issuer_funding_balance =
+			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
+		let post_bidders_funding_balances =
+			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, final_bid_payouts.accounts());
+		let post_total_bidder_balance =
+			post_bidders_funding_balances.iter().map(|item| item.asset_amount).sum::<BalanceOf<TestRuntime>>();
+		let post_project_pot_funding_balance = inst.get_free_foreign_asset_balances_for(
+			final_bid_payouts[0].asset_id,
+			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
+		)[0]
+			.asset_amount;
+
+		let issuer_funding_delta = post_issuer_funding_balance - prev_issuer_funding_balance;
+
+		assert_eq!(issuer_funding_delta, 0);
+		assert_eq!(prev_total_bidder_balance, 0u128);
+		assert_eq!(post_total_bidder_balance, total_expected_bid_payout);
+		assert_eq!(post_project_pot_funding_balance, 0u128);
+		assert_eq!(post_bidders_funding_balances, final_bid_payouts);
+	}
+
+	#[test]
+	fn bid_funding_assets_are_released_manually_on_funding_fail() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let issuer = ISSUER;
+		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+		let evaluations = default_evaluations();
+		let mut bids = MockInstantiator::generate_bids_from_total_usd(
+			project_metadata.total_allocation_size.0,
+			project_metadata.minimum_price,
+			default_weights(),
+			default_bidders(),
+			default_multipliers(),
+		);
+		bids.remove(0);
+		let community_contributions = vec![];
+		let remainder_contributions = vec![];
+
+		let project_id = inst.create_finished_project(
+			project_metadata,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions,
+			remainder_contributions,
+		);
+		let final_winning_bids =
+			inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
+		let final_bid_payouts = inst.execute(|| {
+			Bids::<TestRuntime>::iter_prefix_values((project_id,))
+				.map(|bid| {
+					UserToForeignAssets::<TestRuntime>::new(
+						bid.bidder,
+						bid.funding_asset_amount_locked,
+						bid.funding_asset.to_assethub_id(),
+					)
+				})
+				.sorted_by_key(|item| item.account)
+				.collect::<Vec<UserToForeignAssets<_>>>()
+		});
+		let total_expected_bid_payout =
+			final_bid_payouts.iter().map(|bid| bid.asset_amount).sum::<BalanceOf<TestRuntime>>();
+
+		let prev_issuer_funding_balance =
+			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
+		let prev_bidders_funding_balances =
+			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, final_bid_payouts.accounts());
+		let prev_total_bidder_balance =
+			prev_bidders_funding_balances.iter().map(|item| item.asset_amount).sum::<BalanceOf<TestRuntime>>();
+
+		call_and_is_ok!(
+			inst,
+			Pallet::<TestRuntime>::decide_project_outcome(
+				RuntimeOrigin::signed(issuer),
+				project_id,
+				FundingOutcomeDecision::RejectFunding
+			)
+		);
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
+		assert_eq!(
+			inst.get_project_details(project_id).cleanup,
+			Cleaner::Failure(CleanerState::Initialized(PhantomData))
+		);
+
+		for bid in final_winning_bids {
+			inst.execute(|| {
+				Pallet::<TestRuntime>::release_bid_funds_for(
+					RuntimeOrigin::signed(bid.bidder),
+					project_id,
+					bid.bidder,
+					bid.id,
+				)
+			})
+				.unwrap();
+		}
+
+		let post_issuer_funding_balance =
+			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, vec![issuer])[0].asset_amount;
+		let post_bidders_funding_balances =
+			inst.get_free_foreign_asset_balances_for(final_bid_payouts[0].asset_id, final_bid_payouts.accounts());
+		let post_total_bidder_balance =
+			post_bidders_funding_balances.iter().map(|item| item.asset_amount).sum::<BalanceOf<TestRuntime>>();
+		let post_project_pot_funding_balance = inst.get_free_foreign_asset_balances_for(
+			final_bid_payouts[0].asset_id,
+			vec![Pallet::<TestRuntime>::fund_account_id(project_id)],
+		)[0]
+			.asset_amount;
+
+		let issuer_funding_delta = post_issuer_funding_balance - prev_issuer_funding_balance;
+
+		assert_eq!(issuer_funding_delta, 0);
+		assert_eq!(prev_total_bidder_balance, 0u128);
+		assert_eq!(post_total_bidder_balance, total_expected_bid_payout);
+		assert_eq!(post_project_pot_funding_balance, 0u128);
+		assert_eq!(post_bidders_funding_balances, final_bid_payouts);
+	}
+
+	#[test]
+	fn bid_plmc_bonded_is_returned_automatically_on_funding_fail() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let issuer = ISSUER;
+		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+		let evaluations = default_evaluations();
+
+		let mut bids = MockInstantiator::generate_bids_from_total_usd(
+			project_metadata.total_allocation_size.0,
+			project_metadata.minimum_price,
+			default_weights(),
+			default_bidders(),
+			default_multipliers(),
+		);
+		bids.remove(0);
+
+		let community_contributions = vec![];
+		let remainder_contributions = vec![];
+
+		let project_id = inst.create_finished_project(
+			project_metadata,
+			issuer,
+			evaluations,
+			bids.clone(),
+			community_contributions,
+			remainder_contributions,
+		);
+
+		let prev_bidders_plmc_balances = inst.get_free_plmc_balances_for(bids.accounts());
+		call_and_is_ok!(
+			inst,
+			Pallet::<TestRuntime>::decide_project_outcome(
+				RuntimeOrigin::signed(issuer),
+				project_id,
+				FundingOutcomeDecision::RejectFunding
+			)
+		);
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
+		assert_eq!(
+			inst.get_project_details(project_id).cleanup,
+			Cleaner::Failure(CleanerState::Initialized(PhantomData))
+		);
+		inst.advance_time(10u64).unwrap();
+		let details = inst.get_project_details(project_id);
+		assert_eq!(details.cleanup, Cleaner::Failure(CleanerState::Finished(PhantomData)));
+
+		let post_bidders_plmc_balances = inst.get_free_plmc_balances_for(bids.accounts());
+
+		let mut delta_bidders_plmc_balances = MockInstantiator::generic_map_operation(
+			vec![post_bidders_plmc_balances, prev_bidders_plmc_balances],
+			MergeOperation::Subtract,
+		);
+		delta_bidders_plmc_balances.sort_by_key(|item| item.account);
+
+		let final_price = details.weighted_average_price.unwrap();
+		let mut plmc_locked_for_bids =
+			MockInstantiator::calculate_auction_plmc_charged_with_given_price(&bids, final_price);
+		plmc_locked_for_bids.sort_by_key(|item| item.account);
+		let ct_deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
+			ProjectId,
+			AccountIdOf<TestRuntime>,
+		>>::deposit_required(project_id);
+		plmc_locked_for_bids.iter_mut().for_each(|item| item.plmc_amount += ct_deposit_required);
+
+		assert_eq!(delta_bidders_plmc_balances, plmc_locked_for_bids);
+	}
+
+	#[test]
+	fn bid_plmc_bonded_is_returned_manually_on_funding_fail() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let issuer = ISSUER;
+		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+		let evaluations = default_evaluations();
+
+		let mut bids = MockInstantiator::generate_bids_from_total_usd(
+			project_metadata.total_allocation_size.0,
+			project_metadata.minimum_price,
+			default_weights(),
+			default_bidders(),
+			default_multipliers(),
+		);
+		bids.remove(0);
+
+		let community_contributions = vec![];
+		let remainder_contributions = vec![];
+
+		let project_id = inst.create_finished_project(
+			project_metadata,
+			issuer,
+			evaluations,
+			bids.clone(),
+			community_contributions,
+			remainder_contributions,
+		);
+		let final_winning_bids =
+			inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
+		let prev_bidders_plmc_balances = inst.get_free_plmc_balances_for(bids.accounts());
+		call_and_is_ok!(
+			inst,
+			Pallet::<TestRuntime>::decide_project_outcome(
+				RuntimeOrigin::signed(issuer),
+				project_id,
+				FundingOutcomeDecision::RejectFunding
+			)
+		);
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
+		assert_eq!(
+			inst.get_project_details(project_id).cleanup,
+			Cleaner::Failure(CleanerState::Initialized(PhantomData))
+		);
+
+		for bid in final_winning_bids {
+			call_and_is_ok!(
+				inst,
+				Pallet::<TestRuntime>::release_bid_funds_for(
+					RuntimeOrigin::signed(bid.bidder),
+					project_id,
+					bid.bidder,
+					bid.id,
+				),
+				Pallet::<TestRuntime>::bid_unbond_for(
+					RuntimeOrigin::signed(bid.bidder),
+					project_id,
+					bid.bidder,
+					bid.id,
+				)
+			);
+		}
+
+		let post_bidders_plmc_balances = inst.get_free_plmc_balances_for(bids.accounts());
+
+		let mut delta_bidders_plmc_balances = MockInstantiator::generic_map_operation(
+			vec![post_bidders_plmc_balances, prev_bidders_plmc_balances],
+			MergeOperation::Subtract,
+		);
+		delta_bidders_plmc_balances.sort_by_key(|item| item.account);
+
+		let details = inst.get_project_details(project_id);
+		let final_price = details.weighted_average_price.unwrap();
+		let mut plmc_locked_for_bids =
+			MockInstantiator::calculate_auction_plmc_charged_with_given_price(&bids, final_price);
+		plmc_locked_for_bids.sort_by_key(|item| item.account);
+
+		assert_eq!(delta_bidders_plmc_balances, plmc_locked_for_bids);
+	}
+
+
+	#[test]
+	fn bid_ct_account_deposits_are_returned() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project_metadata(0, ISSUER);
+		let automatic_fail_funding_percent = Percent::from_percent(30);
+		let (bid_allocation, _contribution_allocation) = project_metadata.total_allocation_size;
+		let deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
+			ProjectId,
+			AccountIdOf<TestRuntime>,
+		>>::deposit_required(0);
+
+		let desired_total_usd_amount_bid =
+			automatic_fail_funding_percent * project_metadata.minimum_price.saturating_mul_int(bid_allocation);
+
+		let bids = MockInstantiator::generate_bids_from_total_usd(
+			desired_total_usd_amount_bid,
+			project_metadata.minimum_price,
+			default_weights(),
+			default_bidders(),
+			default_multipliers(),
+		);
+
+		let zero_balances =
+			bids.clone().accounts().into_iter().map(|acc| UserToPLMCBalance::new(acc, 0u128)).collect_vec();
+		inst.do_free_plmc_assertions(zero_balances.clone());
+		inst.do_reserved_plmc_assertions(zero_balances.clone(), HoldReason::FutureDeposit(0).into());
+
+		let required_plmc_bonds =
+			MockInstantiator::calculate_auction_plmc_charged_with_given_price(&bids, project_metadata.minimum_price);
+		let plmc_existential_deposits = required_plmc_bonds.accounts().existential_deposits();
+		let plmc_ct_account_deposits = required_plmc_bonds.accounts().ct_account_deposits();
+
+		let project_id =
+			inst.create_community_contributing_project(project_metadata, ISSUER, default_evaluations(), bids.clone());
+
+		let ed_balances = required_plmc_bonds
+			.accounts()
+			.into_iter()
+			.map(|acc| UserToPLMCBalance::new(acc, MockInstantiator::get_ed()))
+			.collect_vec();
+		inst.do_free_plmc_assertions(ed_balances);
+		let ct_deposit_balances = required_plmc_bonds
+			.accounts()
+			.into_iter()
+			.map(|acc| UserToPLMCBalance::new(acc, deposit_required))
+			.collect_vec();
+		inst.do_reserved_plmc_assertions(ct_deposit_balances, HoldReason::FutureDeposit(project_id).into());
+
+		inst.advance_time(<TestRuntime as Config>::CommunityFundingDuration::get() + 1).unwrap();
+		inst.advance_time(<TestRuntime as Config>::RemainderFundingDuration::get() + 1).unwrap();
+
+		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
+
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
+		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Failure(CleanerState::Finished(PhantomData)));
+
+		let final_plmc_amounts = MockInstantiator::generic_map_operation(
+			vec![required_plmc_bonds, plmc_existential_deposits, plmc_ct_account_deposits],
+			MergeOperation::Add,
+		);
+		inst.do_free_plmc_assertions(final_plmc_amounts);
+		inst.do_reserved_plmc_assertions(zero_balances, HoldReason::FutureDeposit(project_id).into());
+	}
+
+	#[test]
+	fn contribution_plmc_vesting_schedule_starts_automatically() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let issuer = ISSUER;
+		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = vec![];
+
+		let project_id = inst.create_finished_project(
+			project_metadata,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions.clone(),
+			remainder_contributions,
+		);
+
+		let price = inst.get_project_details(project_id).weighted_average_price.unwrap();
+		let contribution_locked_plmc =
+			MockInstantiator::calculate_contributed_plmc_spent(community_contributions, price);
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+		inst.advance_time(10u64).unwrap();
+		let details = inst.get_project_details(project_id);
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+
+		for UserToPLMCBalance { account: user, plmc_amount: amount } in contribution_locked_plmc {
+			let schedule = inst.execute(|| {
+				<TestRuntime as Config>::Vesting::total_scheduled_amount(
+					&user,
+					HoldReason::Participation(project_id).into(),
+				)
+			});
+
+			assert_eq!(schedule.unwrap(), amount);
+		}
+	}
+
+	#[test]
+	fn contribution_lmc_vesting_partial_amount() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let issuer = ISSUER;
+		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+		let evaluations = default_evaluations();
+		let bids = vec![
+			BidParams::new(BIDDER_1, 49_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+			BidParams::new(BIDDER_2, ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
+		];
+		let community_contributions = default_community_buys();
+		let remainder_contributions = vec![];
+
+		let project_id = inst.create_finished_project(
+			project_metadata,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions,
+			remainder_contributions,
+		);
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+
+		inst.advance_time(15u64).unwrap();
+		let details = inst.get_project_details(project_id);
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		let vest_start_block = details.funding_end_block.unwrap();
+		let stored_contributions =
+			inst.execute(|| Contributions::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
+
+		for contribution in stored_contributions {
+			let vesting_info = contribution.plmc_vesting_info.unwrap();
+
+			let now = inst.current_block();
+			let blocks_vested = min(vesting_info.duration, now - vest_start_block);
+			let vested_amount = vesting_info.amount_per_block * blocks_vested as u128;
+
+			let prev_free_balance =
+				inst.execute(|| <TestRuntime as Config>::NativeCurrency::balance(&contribution.contributor));
+
+			inst.execute(|| {
+				Pallet::<TestRuntime>::do_vest_plmc_for(contribution.contributor, project_id, contribution.contributor)
+			})
+				.unwrap();
+
+			let post_free_balance =
+				inst.execute(|| <TestRuntime as Config>::NativeCurrency::balance(&contribution.contributor));
+			assert_eq!(vested_amount, post_free_balance - prev_free_balance);
+		}
+	}
+
+	#[test]
+	fn community_contribution_ct_account_deposits_are_returned() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project_metadata(0, ISSUER);
+		let automatic_fail_funding_percent = Percent::from_percent(30);
+		let (bid_allocation, contribution_allocation) = project_metadata.total_allocation_size;
+		let deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
+			ProjectId,
+			AccountIdOf<TestRuntime>,
+		>>::deposit_required(0);
+
+		let desired_total_usd_amount_bid =
+			automatic_fail_funding_percent * project_metadata.minimum_price.saturating_mul_int(bid_allocation);
+		let desired_total_usd_amount_contributed =
+			automatic_fail_funding_percent * project_metadata.minimum_price.saturating_mul_int(contribution_allocation);
+
+		let bids = MockInstantiator::generate_bids_from_total_usd(
+			desired_total_usd_amount_bid,
+			project_metadata.minimum_price,
+			default_weights(),
+			default_bidders(),
+			default_bidder_multipliers(),
+		);
+
+		let community_contributions = MockInstantiator::generate_contributions_from_total_usd(
+			desired_total_usd_amount_contributed,
+			project_metadata.minimum_price,
+			default_weights(),
+			default_community_contributors(),
+			default_community_contributor_multipliers(),
+		);
+
+		let zero_balances = community_contributions
+			.clone()
+			.accounts()
+			.into_iter()
+			.map(|acc| UserToPLMCBalance::new(acc, 0u128))
+			.collect_vec();
+		inst.do_free_plmc_assertions(zero_balances.clone());
+		inst.do_reserved_plmc_assertions(zero_balances.clone(), HoldReason::FutureDeposit(0).into());
+
+		let project_id = inst.create_remainder_contributing_project(
+			project_metadata,
+			ISSUER,
+			default_evaluations(),
+			bids.clone(),
+			community_contributions.clone(),
+		);
+
+		let required_plmc_bonds = MockInstantiator::calculate_contributed_plmc_spent(
+			community_contributions,
+			inst.get_project_details(project_id).weighted_average_price.unwrap(),
+		);
+		let plmc_existential_deposits = required_plmc_bonds.accounts().existential_deposits();
+		let plmc_ct_account_deposits = required_plmc_bonds.accounts().ct_account_deposits();
+
+		let ed_balances = required_plmc_bonds
+			.accounts()
+			.into_iter()
+			.map(|acc| UserToPLMCBalance::new(acc, MockInstantiator::get_ed()))
+			.collect_vec();
+		inst.do_free_plmc_assertions(ed_balances);
+		let ct_deposit_balances = required_plmc_bonds
+			.accounts()
+			.into_iter()
+			.map(|acc| UserToPLMCBalance::new(acc, deposit_required))
+			.collect_vec();
+		inst.do_reserved_plmc_assertions(ct_deposit_balances, HoldReason::FutureDeposit(project_id).into());
+
+		inst.advance_time(<TestRuntime as Config>::RemainderFundingDuration::get() + 1).unwrap();
+
+		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
+
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
+		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Failure(CleanerState::Finished(PhantomData)));
+
+		let final_plmc_amounts = MockInstantiator::generic_map_operation(
+			vec![required_plmc_bonds, plmc_existential_deposits, plmc_ct_account_deposits],
+			MergeOperation::Add,
+		);
+		inst.do_free_plmc_assertions(final_plmc_amounts);
+		inst.do_reserved_plmc_assertions(zero_balances, HoldReason::FutureDeposit(project_id).into());
+	}
+
+	#[test]
+	fn participation_plmc_vesting_schedule_starts_automatically() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let issuer = ISSUER;
+		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+		let evaluations = default_evaluations();
+		let mut bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = default_remainder_buys();
+
+		let project_id = inst.create_finished_project(
+			project_metadata,
+			issuer,
+			evaluations,
+			bids.clone(),
+			community_contributions.clone(),
+			remainder_contributions.clone(),
+		);
+
+		let price = inst.get_project_details(project_id).weighted_average_price.unwrap();
+		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect_vec());
+		bids =
+			stored_bids.into_iter().map(|bid| BidParams::new_with_defaults(bid.bidder, bid.final_ct_amount)).collect();
+		let auction_locked_plmc = MockInstantiator::calculate_auction_plmc_charged_with_given_price(&bids, price);
+		let community_locked_plmc = MockInstantiator::calculate_contributed_plmc_spent(community_contributions, price);
+		let remainder_locked_plmc = MockInstantiator::calculate_contributed_plmc_spent(remainder_contributions, price);
+		let all_plmc_locks = MockInstantiator::generic_map_operation(
+			vec![auction_locked_plmc, community_locked_plmc, remainder_locked_plmc],
+			MergeOperation::Add,
+		);
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+
+		inst.advance_time(10u64).unwrap();
+		let details = inst.get_project_details(project_id);
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+
+		for UserToPLMCBalance { account, plmc_amount } in all_plmc_locks {
+			let schedule = inst.execute(|| {
+				<TestRuntime as Config>::Vesting::total_scheduled_amount(
+					&account,
+					HoldReason::Participation(project_id).into(),
+				)
+			});
+
+			assert_eq!(schedule.unwrap(), plmc_amount);
+		}
+	}
+
+	#[test]
+	fn contribution_plmc_vesting_schedule_starts_manually() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let issuer = ISSUER;
+		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = default_remainder_buys();
+
+		let project_id = inst.create_finished_project(
+			project_metadata,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions,
+			remainder_contributions,
+		);
+
+		let details = inst.get_project_details(project_id);
+		assert_eq!(details.status, ProjectStatus::FundingSuccessful);
+		assert_eq!(details.cleanup, Cleaner::NotReady);
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+
+		let details = inst.get_project_details(project_id);
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Initialized(PhantomData)));
+
+		let contributions =
+			inst.execute(|| Contributions::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
+		for contribution in contributions {
+			let prev_scheduled = inst
+				.execute(|| {
+					<TestRuntime as Config>::Vesting::total_scheduled_amount(
+						&contribution.contributor,
+						HoldReason::Participation(project_id).into(),
+					)
+				})
+				.unwrap_or(Zero::zero());
+
+			call_and_is_ok!(
+				inst,
+				Pallet::<TestRuntime>::start_contribution_vesting_schedule_for(
+					RuntimeOrigin::signed(contribution.contributor),
+					project_id,
+					contribution.contributor,
+					contribution.id,
+				)
+			);
+
+			let post_scheduled = inst
+				.execute(|| {
+					<TestRuntime as Config>::Vesting::total_scheduled_amount(
+						&contribution.contributor,
+						HoldReason::Participation(project_id).into(),
+					)
+				})
+				.unwrap();
+
+			let new_scheduled = post_scheduled - prev_scheduled;
+
+			let contribution = inst.execute(|| {
+				Contributions::<TestRuntime>::get((project_id, contribution.contributor, contribution.id)).unwrap()
+			});
+			assert_eq!(new_scheduled, contribution.plmc_vesting_info.unwrap().total_amount);
+		}
+	}
+
+	#[test]
+	fn contribution_plmc_vesting_full_amount() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let issuer = ISSUER;
+		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = default_remainder_buys();
+
+		let project_id = inst.create_finished_project(
+			project_metadata,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions,
+			remainder_contributions,
+		);
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+
+		inst.advance_time(10u64).unwrap();
+		let details = inst.get_project_details(project_id);
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+
+		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
+		let stored_contributions =
+			inst.execute(|| Contributions::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
+
+		let bid_plmc_balances =
+			stored_bids.into_iter().map(|b| (b.bidder, b.plmc_vesting_info.unwrap().total_amount)).collect::<Vec<_>>();
+		let contributed_plmc_balances = stored_contributions
+			.into_iter()
+			.map(|c| (c.contributor, c.plmc_vesting_info.unwrap().total_amount))
+			.collect::<Vec<_>>();
+
+		let merged_plmc_balances = MockInstantiator::generic_map_merge_reduce(
+			vec![contributed_plmc_balances, bid_plmc_balances],
+			|(account, _amount)| *account,
+			BalanceOf::<TestRuntime>::zero(),
+			|(_account, amount), total| total + amount,
+		);
+		inst.advance_time((DAYS + 1u32).into()).unwrap();
+
+		for (contributor, plmc_amount) in merged_plmc_balances {
+			let prev_free_balance = inst.execute(|| <TestRuntime as Config>::NativeCurrency::balance(&contributor));
+			inst.execute(|| Pallet::<TestRuntime>::do_vest_plmc_for(contributor, project_id, contributor)).unwrap();
+
+			let post_free_balance = inst.execute(|| <TestRuntime as Config>::NativeCurrency::balance(&contributor));
+			assert_eq!(plmc_amount, post_free_balance - prev_free_balance);
+		}
+	}
+
+	#[test]
+	fn contribution_plmc_vesting_partial_amount() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let issuer = ISSUER;
+		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+		let community_contributions = default_community_buys();
+		let remainder_contributions = default_remainder_buys();
+
+		let project_id = inst.create_finished_project(
+			project_metadata,
+			issuer,
+			evaluations,
+			bids,
+			community_contributions,
+			remainder_contributions,
+		);
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get()).unwrap();
+
+		inst.advance_time(15u64).unwrap();
+		let details = inst.get_project_details(project_id);
+		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
+		let vest_start_block = details.funding_end_block.unwrap();
+
+		let stored_bids = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
+		let stored_contributions =
+			inst.execute(|| Contributions::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
+
+		let now = inst.current_block();
+
+		let bid_plmc_balances = stored_bids
+			.into_iter()
+			.map(|b| {
+				(b.bidder, {
+					let blocks_vested = min(b.plmc_vesting_info.unwrap().duration, now - vest_start_block);
+					b.plmc_vesting_info.unwrap().amount_per_block * blocks_vested as u128
+				})
+			})
+			.collect::<Vec<_>>();
+		let contributed_plmc_balances = stored_contributions
+			.into_iter()
+			.map(|c| {
+				(c.contributor, {
+					let blocks_vested = min(c.plmc_vesting_info.unwrap().duration, now - vest_start_block);
+					c.plmc_vesting_info.unwrap().amount_per_block * blocks_vested as u128
+				})
+			})
+			.collect::<Vec<_>>();
+
+		let merged_plmc_balances = MockInstantiator::generic_map_merge_reduce(
+			vec![contributed_plmc_balances, bid_plmc_balances],
+			|(account, _amount)| *account,
+			BalanceOf::<TestRuntime>::zero(),
+			|(_account, amount), total| total + amount,
+		);
+
+		for (contributor, amount) in merged_plmc_balances {
+			let prev_free_balance = inst.execute(|| <TestRuntime as Config>::NativeCurrency::balance(&contributor));
+
+			inst.execute(|| Pallet::<TestRuntime>::do_vest_plmc_for(contributor, project_id, contributor)).unwrap();
+
+			let post_free_balance = inst.execute(|| <TestRuntime as Config>::NativeCurrency::balance(&contributor));
+			assert_eq!(amount, post_free_balance - prev_free_balance);
+		}
+	}
+
+	#[test]
+	fn remainder_contribution_ct_account_deposits_are_returned() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project_metadata(0, ISSUER);
+		let automatic_fail_funding_percent = Percent::from_percent(30);
+		let (bid_allocation, contribution_allocation) = project_metadata.total_allocation_size;
+		let deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
+			ProjectId,
+			AccountIdOf<TestRuntime>,
+		>>::deposit_required(0);
+
+		let _remainder_contributors = vec![EVALUATOR_1, BIDDER_3, BUYER_4, BUYER_6, BIDDER_6];
+
+		let desired_total_usd_amount_bid =
+			automatic_fail_funding_percent * project_metadata.minimum_price.saturating_mul_int(bid_allocation);
+		let desired_total_usd_amount_contributed =
+			automatic_fail_funding_percent * project_metadata.minimum_price.saturating_mul_int(contribution_allocation);
+
+		let bids = MockInstantiator::generate_bids_from_total_usd(
+			desired_total_usd_amount_bid,
+			project_metadata.minimum_price,
+			default_weights(),
+			default_bidders(),
+			default_bidder_multipliers(),
+		);
+
+		let community_contributions = MockInstantiator::generate_contributions_from_total_usd(
+			desired_total_usd_amount_contributed / 2,
+			project_metadata.minimum_price,
+			default_weights(),
+			default_community_contributors(),
+			default_community_contributor_multipliers(),
+		);
+
+		let remainder_contributions = MockInstantiator::generate_contributions_from_total_usd(
+			desired_total_usd_amount_contributed / 2,
+			project_metadata.minimum_price,
+			default_weights(),
+			default_remainder_contributors(),
+			default_remainder_contributor_multipliers(),
+		);
+
+		let zero_balances = remainder_contributions
+			.clone()
+			.accounts()
+			.into_iter()
+			.map(|acc| UserToPLMCBalance::new(acc, 0u128))
+			.collect_vec();
+		inst.do_free_plmc_assertions(zero_balances.clone());
+		inst.do_reserved_plmc_assertions(zero_balances.clone(), HoldReason::FutureDeposit(0).into());
+
+		let project_id = inst.create_finished_project(
+			project_metadata,
+			ISSUER,
+			default_evaluations(),
+			bids.clone(),
+			community_contributions.clone(),
+			remainder_contributions.clone(),
+		);
+		let wap = inst.get_project_details(project_id).weighted_average_price.unwrap();
+
+		let bidder_plmc_bonds = MockInstantiator::calculate_auction_plmc_charged_with_given_price(&bids, wap);
+		let community_contributor_plmc_bonds =
+			MockInstantiator::calculate_contributed_plmc_spent(community_contributions.clone(), wap);
+		let evaluators_and_contributors_plmc_bonds =
+			MockInstantiator::calculate_total_plmc_locked_from_evaluations_and_remainder_contributions(
+				default_evaluations(),
+				remainder_contributions,
+				wap,
+				true,
+			);
+
+		let mut expected_final_plmc_balances = MockInstantiator::generic_map_operation(
+			vec![bidder_plmc_bonds, community_contributor_plmc_bonds, evaluators_and_contributors_plmc_bonds],
+			MergeOperation::Add,
+		);
+		expected_final_plmc_balances.iter_mut().for_each(|UserToPLMCBalance { account: _, plmc_amount }| {
+			*plmc_amount += deposit_required;
+		});
+
+		let prev_balances = inst.get_free_plmc_balances_for(expected_final_plmc_balances.accounts());
+		let ct_deposit_balances = expected_final_plmc_balances
+			.accounts()
+			.into_iter()
+			.map(|acc| UserToPLMCBalance::new(acc, deposit_required))
+			.collect_vec();
+		inst.do_reserved_plmc_assertions(ct_deposit_balances, HoldReason::FutureDeposit(project_id).into());
+
+		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingFailed);
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
+		assert_eq!(inst.get_project_details(project_id).cleanup, Cleaner::Failure(CleanerState::Finished(PhantomData)));
+
+		let post_balances = inst.get_free_plmc_balances_for(expected_final_plmc_balances.accounts());
+
+		let plmc_deltas =
+			MockInstantiator::generic_map_operation(vec![post_balances, prev_balances], MergeOperation::Subtract);
+
+		assert_eq!(plmc_deltas, expected_final_plmc_balances);
+		inst.do_reserved_plmc_assertions(zero_balances, HoldReason::FutureDeposit(project_id).into());
+	}
 }
 
+// only functionalities related to the CT Migration
 mod ct_migration {
 	use super::*;
 	use frame_support::assert_err;
@@ -5612,7 +5292,8 @@ mod ct_migration {
 	}
 }
 
-mod test_helper_functions {
+// check that functions created to facilitate testing return the expected results
+mod helper_functions {
 	use super::*;
 
 	#[test]
@@ -5802,7 +5483,8 @@ mod test_helper_functions {
 	}
 }
 
-mod misc_features {
+// logic of small functions that extrinsics use to process data or interact with storage
+mod inner_functions {
 	use super::*;
 
 	#[test]
@@ -5860,13 +5542,9 @@ mod misc_features {
 		let multiplier_25_duration = multiplier_25.calculate_vesting_duration::<TestRuntime>();
 		assert_eq!(multiplier_25_duration, FixedU128::from_rational(52008, 1000).saturating_mul_int((DAYS * 7) as u64));
 	}
-
-	#[test]
-	fn sandbox() {
-		assert!(true);
-	}
 }
 
+// test the parallel instantiation of projects
 mod async_tests {
 	use super::*;
 	use instantiator::async_features::*;
