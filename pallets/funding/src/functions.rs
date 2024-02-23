@@ -1256,7 +1256,6 @@ impl<T: Config> Pallet<T> {
 		asset: AcceptedFundingAsset,
 	) -> DispatchResultWithPostInfo {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let caller_existing_contributions =
 		Contributions::<T>::iter_prefix_values((project_id, contributor)).collect::<Vec<_>>();
 		
@@ -1319,21 +1318,6 @@ impl<T: Config> Pallet<T> {
 
 		Contributions::<T>::insert((project_id, contributor, contribution_id), &new_contribution);
 		NextContributionId::<T>::set(contribution_id.saturating_add(One::one()));
-
-		// Update remaining contribution tokens
-		if project_details.status == ProjectStatus::CommunityRound {
-			project_details.remaining_contribution_tokens.1.saturating_reduce(new_contribution.ct_amount);
-		} else {
-			let before = project_details.remaining_contribution_tokens.0;
-			let remaining_cts_in_round = before.saturating_sub(new_contribution.ct_amount);
-			project_details.remaining_contribution_tokens.0 = remaining_cts_in_round;
-
-			// If the entire ct_amount could not be subtracted from remaining_contribution_tokens.0, subtract the difference from remaining_contribution_tokens.1
-			if remaining_cts_in_round.is_zero() {
-				let difference = new_contribution.ct_amount.saturating_sub(before);
-				project_details.remaining_contribution_tokens.1.saturating_reduce(difference);
-			}
-		}
 
 		let remaining_cts_after_purchase = project_details
 			.remaining_contribution_tokens
@@ -2953,7 +2937,7 @@ impl<T: Config> Pallet<T> {
 		asset_id: AssetIdOf<T>,
 	) -> DispatchResult {
 		let fund_account = Self::fund_account_id(project_id);
-
+		println!("funding_total {:?}", T::FundingCurrency::balance(asset_id, &who));
 		// Why `Preservation::Expendable`?
 		// the min_balance of funding assets (e.g USDT) are low enough so we don't expect users to care about their balance being dusted.
 		// We do think the UX would be bad if they cannot use all of their available tokens.

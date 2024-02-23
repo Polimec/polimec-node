@@ -132,7 +132,7 @@
 //! 			ensure!(project_contributions >= 500_000_0_000_000_000u64.into(), "Project did not achieve at least 500k USDT funding");
 //!    			let multiplier: MultiplierOf<T> = 1u8.try_into().map_err(|_| Error::<T>::ProjectNotFound)?;
 //!    			// Buy tokens with the default multiplier
-//!    			pallet_funding::Pallet::<T>::do_contribute(&retail_user, project_id, amount, multiplier, AcceptedFundingAsset::USDT)
+//!    			pallet_funding::Pallet::<T>::do_community_contribute(&retail_user, project_id, amount, multiplier, AcceptedFundingAsset::USDT)
 //! 		}
 //! 	}
 //!
