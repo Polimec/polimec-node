@@ -19,16 +19,19 @@ scale-info = { workspace = true, features = [
     "derive",
 ] }
 serde = { workspace = true, features = ["derive"] }
+jwt-compact = { workspace = true, features = ["ed25519-dalek"] }
+
 frame-benchmarking = { workspace = true,  optional = true }
 frame-support.workspace = true
 frame-system.workspace = true
+pallet-timestamp.workspace = true
 sp-std.workspace = true
 sp-runtime.workspace = true
 itertools.workspace = true
 
 [dev-dependencies]
-sp-core.workspace = true
-sp-io.workspace = true
+reqwest = { version = "0.11.4", features = ["blocking"] }
+
 
 [features]
 default = [ "std" ]
@@ -38,11 +41,11 @@ std = [
 	"frame-system/std",
 	"itertools/use_alloc",
 	"itertools/use_std",
+	"jwt-compact/std",
 	"parity-scale-codec/std",
+	"pallet-timestamp/std",
 	"scale-info/std",
 	"serde/std",
-	"sp-core/std",
-	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
 ]
@@ -50,11 +53,13 @@ runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
+	"pallet-timestamp/runtime-benchmarks",
 	"itertools/use_alloc",
 	"sp-runtime/runtime-benchmarks",
 ]
 try-runtime = [
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
+	"pallet-timestamp/try-runtime",
 	"sp-runtime/try-runtime",
 ]

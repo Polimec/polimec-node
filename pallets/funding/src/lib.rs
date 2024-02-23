@@ -180,7 +180,10 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 pub use pallet::*;
-use polimec_common::migration_types::*;
+use polimec_common::{
+	credentials::{EnsureOriginWithCredentials, UntrustedToken},
+	migration_types::*,
+};
 use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
 use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
@@ -469,6 +472,28 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type MaxEvaluationsPerProject: Get<u32>;
+
+		/// The Ed25519 Verifier Public Key
+		#[pallet::constant]
+		type VerifierPublicKey: Get<[u8; 32]>;
+
+		/// Retail Origin, ensures users are of investing type Retail.
+		type RetailOrigin: EnsureOriginWithCredentials<
+			<Self as frame_system::Config>::RuntimeOrigin,
+			Success = AccountIdOf<Self>,
+		>;
+
+		/// Institutional Origin, ensures users are of investing type Institutional.
+		type InstitutionalOrigin: EnsureOriginWithCredentials<
+			<Self as frame_system::Config>::RuntimeOrigin,
+			Success = AccountIdOf<Self>,
+		>;
+
+		/// Professional Origin, ensures users are of investing type Professional.
+		type ProfessionalOrigin: EnsureOriginWithCredentials<
+			<Self as frame_system::Config>::RuntimeOrigin,
+			Success = AccountIdOf<Self>,
+		>;
 	}
 
 	#[pallet::storage]
@@ -984,8 +1009,8 @@ pub mod pallet {
 		/// Creates a project and assigns it to the `issuer` account.
 		#[pallet::call_index(0)]
 		#[pallet::weight(WeightInfoOf::<T>::create())]
-		pub fn create(origin: OriginFor<T>, project: ProjectMetadataOf<T>) -> DispatchResult {
-			let issuer = ensure_signed(origin)?;
+		pub fn create(origin: OriginFor<T>, jwt: UntrustedToken, project: ProjectMetadataOf<T>) -> DispatchResult {
+			let issuer = T::InstitutionalOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			log::trace!(target: "pallet_funding::test", "in create");
 			Self::do_create(&issuer, project)
 		}
@@ -995,18 +1020,23 @@ pub mod pallet {
 		#[pallet::weight(WeightInfoOf::<T>::edit_metadata())]
 		pub fn edit_metadata(
 			origin: OriginFor<T>,
+			jwt: UntrustedToken,
 			project_id: ProjectId,
 			project_metadata_hash: T::Hash,
 		) -> DispatchResult {
-			let issuer = ensure_signed(origin)?;
+			let issuer = T::InstitutionalOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			Self::do_edit_metadata(issuer, project_id, project_metadata_hash)
 		}
 
 		/// Starts the evaluation round of a project. It needs to be called by the project issuer.
 		#[pallet::call_index(2)]
 		#[pallet::weight(WeightInfoOf::<T>::start_evaluation(<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1))]
-		pub fn start_evaluation(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
-			let issuer = ensure_signed(origin)?;
+		pub fn start_evaluation(
+			origin: OriginFor<T>,
+			jwt: UntrustedToken,
+			project_id: ProjectId,
+		) -> DispatchResultWithPostInfo {
+			let issuer = T::InstitutionalOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			Self::do_start_evaluation(issuer, project_id)
 		}
 
@@ -1015,8 +1045,12 @@ pub mod pallet {
 		/// Any bids from this point until the candle_auction starts, will be considered as valid.
 		#[pallet::call_index(3)]
 		#[pallet::weight(WeightInfoOf::<T>::start_auction_manually(<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1, 10_000u32))]
-		pub fn start_auction(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
-			let issuer = ensure_signed(origin)?;
+		pub fn start_auction(
+			origin: OriginFor<T>,
+			jwt: UntrustedToken,
+			project_id: ProjectId,
+		) -> DispatchResultWithPostInfo {
+			let issuer = T::InstitutionalOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			Self::do_english_auction(issuer, project_id)
 		}
 
@@ -1029,10 +1063,13 @@ pub mod pallet {
 		)]
 		pub fn evaluate(
 			origin: OriginFor<T>,
+			jwt: UntrustedToken,
 			project_id: ProjectId,
 			#[pallet::compact] usd_amount: BalanceOf<T>,
 		) -> DispatchResultWithPostInfo {
-			let evaluator = ensure_signed(origin)?;
+			let evaluator = T::InstitutionalOrigin::try_origin(origin, &jwt, T::VerifierPublicKey::get())
+				.or_else(|origin| T::ProfessionalOrigin::try_origin(origin, &jwt, T::VerifierPublicKey::get()))
+				.or_else(|origin| T::RetailOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get()))?;
 			Self::do_evaluate(&evaluator, project_id, usd_amount)
 		}
 
@@ -1049,12 +1086,14 @@ pub mod pallet {
 			.max(WeightInfoOf::<T>::bid_with_ct_deposit(10)))]
 		pub fn bid(
 			origin: OriginFor<T>,
+			jwt: UntrustedToken,
 			project_id: ProjectId,
 			#[pallet::compact] amount: BalanceOf<T>,
 			multiplier: T::Multiplier,
 			asset: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
-			let bidder = ensure_signed(origin)?;
+			let bidder = T::InstitutionalOrigin::try_origin(origin, &jwt, T::VerifierPublicKey::get())
+				.or_else(|origin| T::ProfessionalOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get()))?;
 			Self::do_bid(&bidder, project_id, amount, multiplier, asset)
 		}
 
@@ -1083,6 +1122,8 @@ pub mod pallet {
 			multiplier: MultiplierOf<T>,
 			asset: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
+			// TODO: Add JWT verification after splitting contribute into two extrinsics for
+			// community and remainder round.
 			let contributor = ensure_signed(origin)?;
 			Self::do_contribute(&contributor, project_id, amount, multiplier, asset)
 		}
@@ -1269,16 +1310,25 @@ pub mod pallet {
 
 		#[pallet::call_index(21)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
-		pub fn set_para_id_for_project(origin: OriginFor<T>, project_id: ProjectId, para_id: ParaId) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-			Self::do_set_para_id_for_project(&caller, project_id, para_id)
+		pub fn set_para_id_for_project(
+			origin: OriginFor<T>,
+			jwt: UntrustedToken,
+			project_id: ProjectId,
+			para_id: ParaId,
+		) -> DispatchResult {
+			let issuer = T::InstitutionalOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			Self::do_set_para_id_for_project(&issuer, project_id, para_id)
 		}
 
 		#[pallet::call_index(22)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
-		pub fn start_migration_readiness_check(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-			Self::do_start_migration_readiness_check(&caller, project_id)
+		pub fn start_migration_readiness_check(
+			origin: OriginFor<T>,
+			jwt: UntrustedToken,
+			project_id: ProjectId,
+		) -> DispatchResult {
+			let issuer = T::InstitutionalOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			Self::do_start_migration_readiness_check(&issuer, project_id)
 		}
 
 		/// Called only by other chains through a query response xcm message
@@ -1296,9 +1346,9 @@ pub mod pallet {
 
 		#[pallet::call_index(24)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
-		pub fn start_migration(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-			Self::do_start_migration(&caller, project_id)
+		pub fn start_migration(origin: OriginFor<T>, jwt: UntrustedToken, project_id: ProjectId) -> DispatchResult {
+			let issuer = T::InstitutionalOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			Self::do_start_migration(&issuer, project_id)
 		}
 
 		#[pallet::call_index(25)]
