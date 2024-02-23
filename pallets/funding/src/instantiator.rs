@@ -2840,7 +2840,9 @@ impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>)> for BidPar
 	}
 }
 impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>, AcceptedFundingAsset)> for BidParams<T> {
-	fn from((bidder, amount, multiplier, asset): (AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>)) -> Self {
+	fn from(
+		(bidder, amount, multiplier, asset): (AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>, AcceptedFundingAsset),
+	) -> Self {
 		Self { bidder, amount, multiplier, asset }
 	}
 }
@@ -2899,7 +2901,9 @@ impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>)> for Contri
 	}
 }
 impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>, AcceptedFundingAsset)> for ContributionParams<T> {
-	fn from((contributor, amount, multiplier, asset): (AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>)) -> Self {
+	fn from(
+		(contributor, amount, multiplier, asset): (AccountIdOf<T>, BalanceOf<T>, MultiplierOf<T>, AcceptedFundingAsset),
+	) -> Self {
 		Self { contributor, amount, multiplier, asset }
 	}
 }
