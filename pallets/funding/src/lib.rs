@@ -977,6 +977,8 @@ pub mod pallet {
 		TooManyBidsForProject,
 		/// Reached evaluation limit for this project
 		TooManyEvaluationsForProject,
+		/// Reached contribution limit for this user on this project
+		TooManyContributionsForUser,
 	}
 
 	#[pallet::call]
@@ -1061,12 +1063,8 @@ pub mod pallet {
 		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
 		#[pallet::call_index(6)]
 		#[pallet::weight(
-			WeightInfoOf::<T>::first_contribution_with_ct_deposit()
-			.max(WeightInfoOf::<T>::first_contribution_no_ct_deposit())
-			.max(WeightInfoOf::<T>::first_contribution_ends_round_with_ct_deposit(<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1, 10_000))
-			.max(WeightInfoOf::<T>::first_contribution_ends_round_no_ct_deposit(<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1, 10_000))
-			.max(WeightInfoOf::<T>::second_to_limit_contribution(T::MaxContributionsPerUser::get() - 1))
-			.max(WeightInfoOf::<T>::second_to_limit_contribution_ends_round(
+			WeightInfoOf::<T>::contribution(T::MaxContributionsPerUser::get() - 1)
+			.max(WeightInfoOf::<T>::contribution_ends_round(
 			// Last contribution possible before having to remove an old lower one
 			<T as Config>::MaxContributionsPerUser::get() -1,
 			// Since we didn't remove any previous lower contribution, we can buy all remaining CTs and try to move to the next phase
@@ -1074,9 +1072,8 @@ pub mod pallet {
 			// Assumed upper bound for deletion attempts for the previous scheduled transition
 			10_000u32,
 			))
-			.max(WeightInfoOf::<T>::contribution_over_limit())
 		)]
-		pub fn contribute(
+		pub fn community_contribute(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
 			#[pallet::compact] amount: BalanceOf<T>,
@@ -1084,11 +1081,35 @@ pub mod pallet {
 			asset: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
 			let contributor = ensure_signed(origin)?;
-			Self::do_contribute(&contributor, project_id, amount, multiplier, asset)
+			Self::do_community_contribute(&contributor, project_id, amount, multiplier, asset)
+		}
+
+		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
+		#[pallet::call_index(7)]
+		#[pallet::weight(
+			WeightInfoOf::<T>::contribution(T::MaxContributionsPerUser::get() - 1)
+			.max(WeightInfoOf::<T>::contribution_ends_round(
+			// Last contribution possible before having to remove an old lower one
+			<T as Config>::MaxContributionsPerUser::get() -1,
+			// Since we didn't remove any previous lower contribution, we can buy all remaining CTs and try to move to the next phase
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			// Assumed upper bound for deletion attempts for the previous scheduled transition
+			10_000u32,
+			))
+		)]
+		pub fn remaining_contribute(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+			#[pallet::compact] amount: BalanceOf<T>,
+			multiplier: MultiplierOf<T>,
+			asset: AcceptedFundingAsset,
+		) -> DispatchResultWithPostInfo {
+			let contributor = ensure_signed(origin)?;
+			Self::do_remaining_contribute(&contributor, project_id, amount, multiplier, asset)
 		}
 
 		/// Release evaluation-bonded PLMC when a project finishes its funding round.
-		#[pallet::call_index(7)]
+		#[pallet::call_index(8)]
 		#[pallet::weight(WeightInfoOf::<T>::evaluation_unbond_for())]
 		pub fn evaluation_unbond_for(
 			origin: OriginFor<T>,
@@ -1100,7 +1121,7 @@ pub mod pallet {
 			Self::do_evaluation_unbond_for(&releaser, project_id, &evaluator, bond_id)
 		}
 
-		#[pallet::call_index(8)]
+		#[pallet::call_index(9)]
 		#[pallet::weight(WeightInfoOf::<T>::evaluation_slash_for())]
 		pub fn evaluation_slash_for(
 			origin: OriginFor<T>,
@@ -1112,7 +1133,7 @@ pub mod pallet {
 			Self::do_evaluation_slash_for(&caller, project_id, &evaluator, bond_id)
 		}
 
-		#[pallet::call_index(9)]
+		#[pallet::call_index(10)]
 		#[pallet::weight(
 			WeightInfoOf::<T>::evaluation_reward_payout_for_with_ct_account_creation()
 			.max(WeightInfoOf::<T>::evaluation_reward_payout_for_no_ct_account_creation())
@@ -1127,7 +1148,7 @@ pub mod pallet {
 			Self::do_evaluation_reward_payout_for(&caller, project_id, &evaluator, bond_id)
 		}
 
-		#[pallet::call_index(10)]
+		#[pallet::call_index(11)]
 		#[pallet::weight(
 			WeightInfoOf::<T>::bid_ct_mint_for_with_ct_account_creation()
 			.max(WeightInfoOf::<T>::bid_ct_mint_for_no_ct_account_creation())
@@ -1142,7 +1163,7 @@ pub mod pallet {
 			Self::do_bid_ct_mint_for(&caller, project_id, &bidder, bid_id)
 		}
 
-		#[pallet::call_index(11)]
+		#[pallet::call_index(12)]
 		#[pallet::weight(
 			WeightInfoOf::<T>::contribution_ct_mint_for_with_ct_account_creation()
 			.max(WeightInfoOf::<T>::contribution_ct_mint_for_no_ct_account_creation())
@@ -1157,7 +1178,7 @@ pub mod pallet {
 			Self::do_contribution_ct_mint_for(&caller, project_id, &contributor, contribution_id)
 		}
 
-		#[pallet::call_index(12)]
+		#[pallet::call_index(13)]
 		#[pallet::weight(WeightInfoOf::<T>::start_bid_vesting_schedule_for())]
 		pub fn start_bid_vesting_schedule_for(
 			origin: OriginFor<T>,
@@ -1169,7 +1190,7 @@ pub mod pallet {
 			Self::do_start_bid_vesting_schedule_for(&caller, project_id, &bidder, bid_id)
 		}
 
-		#[pallet::call_index(13)]
+		#[pallet::call_index(14)]
 		#[pallet::weight(WeightInfoOf::<T>::start_contribution_vesting_schedule_for())]
 		pub fn start_contribution_vesting_schedule_for(
 			origin: OriginFor<T>,
@@ -1181,7 +1202,7 @@ pub mod pallet {
 			Self::do_start_contribution_vesting_schedule_for(&caller, project_id, &contributor, contribution_id)
 		}
 
-		#[pallet::call_index(14)]
+		#[pallet::call_index(15)]
 		#[pallet::weight(WeightInfoOf::<T>::payout_bid_funds_for())]
 		pub fn payout_bid_funds_for(
 			origin: OriginFor<T>,
@@ -1193,7 +1214,7 @@ pub mod pallet {
 			Self::do_payout_bid_funds_for(&caller, project_id, &bidder, bid_id)
 		}
 
-		#[pallet::call_index(15)]
+		#[pallet::call_index(16)]
 		#[pallet::weight(WeightInfoOf::<T>::payout_contribution_funds_for())]
 		pub fn payout_contribution_funds_for(
 			origin: OriginFor<T>,
@@ -1205,7 +1226,7 @@ pub mod pallet {
 			Self::do_payout_contribution_funds_for(&caller, project_id, &contributor, contribution_id)
 		}
 
-		#[pallet::call_index(16)]
+		#[pallet::call_index(17)]
 		#[pallet::weight(WeightInfoOf::<T>::decide_project_outcome(
 			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
 			10_000u32
@@ -1219,7 +1240,7 @@ pub mod pallet {
 			Self::do_decide_project_outcome(caller, project_id, outcome)
 		}
 
-		#[pallet::call_index(17)]
+		#[pallet::call_index(18)]
 		#[pallet::weight(WeightInfoOf::<T>::release_bid_funds_for())]
 		pub fn release_bid_funds_for(
 			origin: OriginFor<T>,
@@ -1231,7 +1252,7 @@ pub mod pallet {
 			Self::do_release_bid_funds_for(&caller, project_id, &bidder, bid_id)
 		}
 
-		#[pallet::call_index(18)]
+		#[pallet::call_index(19)]
 		#[pallet::weight(WeightInfoOf::<T>::bid_unbond_for())]
 		pub fn bid_unbond_for(
 			origin: OriginFor<T>,
@@ -1243,7 +1264,7 @@ pub mod pallet {
 			Self::do_bid_unbond_for(&caller, project_id, &bidder, bid_id)
 		}
 
-		#[pallet::call_index(19)]
+		#[pallet::call_index(20)]
 		#[pallet::weight(WeightInfoOf::<T>::release_contribution_funds_for())]
 		pub fn release_contribution_funds_for(
 			origin: OriginFor<T>,
@@ -1255,7 +1276,7 @@ pub mod pallet {
 			Self::do_release_contribution_funds_for(&caller, project_id, &contributor, contribution_id)
 		}
 
-		#[pallet::call_index(20)]
+		#[pallet::call_index(21)]
 		#[pallet::weight(WeightInfoOf::<T>::contribution_unbond_for())]
 		pub fn contribution_unbond_for(
 			origin: OriginFor<T>,
@@ -1267,14 +1288,14 @@ pub mod pallet {
 			Self::do_contribution_unbond_for(&caller, project_id, &contributor, contribution_id)
 		}
 
-		#[pallet::call_index(21)]
+		#[pallet::call_index(22)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
 		pub fn set_para_id_for_project(origin: OriginFor<T>, project_id: ProjectId, para_id: ParaId) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
 			Self::do_set_para_id_for_project(&caller, project_id, para_id)
 		}
 
-		#[pallet::call_index(22)]
+		#[pallet::call_index(23)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
 		pub fn start_migration_readiness_check(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
@@ -1282,7 +1303,7 @@ pub mod pallet {
 		}
 
 		/// Called only by other chains through a query response xcm message
-		#[pallet::call_index(23)]
+		#[pallet::call_index(24)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
 		pub fn migration_check_response(
 			origin: OriginFor<T>,
@@ -1294,14 +1315,14 @@ pub mod pallet {
 			Self::do_migration_check_response(location, query_id, response)
 		}
 
-		#[pallet::call_index(24)]
+		#[pallet::call_index(25)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
 		pub fn start_migration(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
 			Self::do_start_migration(&caller, project_id)
 		}
 
-		#[pallet::call_index(25)]
+		#[pallet::call_index(26)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
 		pub fn migrate_one_participant(
 			origin: OriginFor<T>,
@@ -1312,7 +1333,7 @@ pub mod pallet {
 			Self::do_migrate_one_participant(caller, project_id, participant)
 		}
 
-		#[pallet::call_index(26)]
+		#[pallet::call_index(27)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
 		pub fn confirm_migrations(origin: OriginFor<T>, query_id: QueryId, response: Response) -> DispatchResult {
 			let location = ensure_response(<T as Config>::RuntimeOrigin::from(origin))?;

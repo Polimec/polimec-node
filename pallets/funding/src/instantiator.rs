@@ -1094,7 +1094,7 @@ impl<
 	) -> DispatchResultWithPostInfo {
 		for cont in contributions {
 			self.execute(|| {
-				crate::Pallet::<T>::do_contribute(
+				crate::Pallet::<T>::do_community_contribute(
 					&cont.contributor,
 					project_id,
 					cont.amount,

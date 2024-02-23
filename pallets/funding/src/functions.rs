@@ -40,7 +40,7 @@ use sp_arithmetic::{
 	Percent, Perquintill,
 };
 use sp_runtime::traits::{Convert, ConvertBack};
-use sp_std::{marker::PhantomData, ops::Not};
+use sp_std::marker::PhantomData;
 use xcm::v3::MaxDispatchErrorLen;
 
 use super::*;
@@ -1193,58 +1193,77 @@ impl<T: Config> Pallet<T> {
 	/// # Arguments
 	/// * contributor: The account that is buying the tokens
 	/// * project_id: The identifier of the project
-	/// * token_amount: The amount of contribution tokens to buy
+	/// * token_amount: The amount of contribution tokens the contributor tries to buy. Tokens
+	///   are limited by the total amount of tokens available in the Community Round.
 	/// * multiplier: Decides how much PLMC bonding is required for buying that amount of tokens
-	///
-	/// # Storage access
-	/// * [`ProjectsIssuers`] - Check that the issuer is not a contributor
-	/// * [`ProjectsDetails`] - Check that the project is in the Community Round, and the amount is big
-	/// enough to buy at least 1 token
-	/// * [`Contributions`] - Update storage with the new contribution
-	/// * [`T::NativeCurrency`] - Update the balance of the contributor and the project pot
-	pub fn do_contribute(
+	/// * asset: The asset used for the contribution
+	pub fn do_community_contribute(
 		contributor: &AccountIdOf<T>,
 		project_id: ProjectId,
 		token_amount: BalanceOf<T>,
 		multiplier: MultiplierOf<T>,
 		asset: AcceptedFundingAsset,
 	) -> DispatchResultWithPostInfo {
+		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		ensure!( project_details.status == ProjectStatus::CommunityRound, Error::<T>::AuctionNotStarted);
+		
+		let buyable_tokens = token_amount.min(project_details.remaining_contribution_tokens.1);
+		project_details.remaining_contribution_tokens.1.saturating_reduce(buyable_tokens);
+
+		Self::do_contribute(contributor, project_id, &mut project_details, buyable_tokens, multiplier, asset)
+	}
+
+	/// Buy tokens in the Community Round at the price set in the Bidding Round
+	///
+	/// # Arguments
+	/// * contributor: The account that is buying the tokens
+	/// * project_id: The identifier of the project
+	/// * token_amount: The amount of contribution tokens the contributor tries to buy. Tokens
+	///   are limited by the total amount of tokens available after the Auction and Community rounds.
+	/// * multiplier: Decides how much PLMC bonding is required for buying that amount of tokens
+	/// * asset: The asset used for the contribution
+	pub fn do_remaining_contribute(
+		contributor: &AccountIdOf<T>,
+		project_id: ProjectId,
+		token_amount: BalanceOf<T>,
+		multiplier: MultiplierOf<T>,
+		asset: AcceptedFundingAsset,
+	) -> DispatchResultWithPostInfo {
+		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		ensure!( project_details.status == ProjectStatus::RemainderRound, Error::<T>::AuctionNotStarted );
+		let buyable_tokens = token_amount.min(project_details.remaining_contribution_tokens.0.saturating_add(project_details.remaining_contribution_tokens.1));
+
+		let before = project_details.remaining_contribution_tokens.0;
+		let remaining_cts_in_round = before.saturating_sub(buyable_tokens);
+		project_details.remaining_contribution_tokens.0 = remaining_cts_in_round;
+
+		// If the entire ct_amount could not be subtracted from remaining_contribution_tokens.0, subtract the difference from remaining_contribution_tokens.1
+		if remaining_cts_in_round.is_zero() {
+			let difference = buyable_tokens.saturating_sub(before);
+			project_details.remaining_contribution_tokens.1.saturating_reduce(difference);
+		}
+
+		Self::do_contribute(contributor, project_id, &mut project_details, token_amount, multiplier, asset)
+	}
+
+	
+	fn do_contribute(
+		contributor: &AccountIdOf<T>,
+		project_id: ProjectId,
+		project_details: &mut ProjectDetailsOf<T>,
+		buyable_tokens: BalanceOf<T>,
+		multiplier: MultiplierOf<T>,
+		asset: AcceptedFundingAsset,
+	) -> DispatchResultWithPostInfo {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		let ct_deposit = T::ContributionTokenCurrency::deposit_required(project_id);
 		let caller_existing_contributions =
-			Contributions::<T>::iter_prefix_values((project_id, contributor)).collect::<Vec<_>>();
-
-		// Weight flags
-		enum WeightContributionFlag {
-			First,
-			SecondToLimit,
-			OverLimit,
-		}
-		struct WeightRoundEndFlag {
-			fully_filled_vecs_from_insertion: u32,
-			total_vecs_in_storage: u32,
-		}
-		let weight_contribution_flag: WeightContributionFlag;
-		let mut weight_round_end_flag: Option<WeightRoundEndFlag> = None;
-		let mut weight_ct_account_deposit = false;
-
-		if caller_existing_contributions.is_empty() {
-			weight_contribution_flag = WeightContributionFlag::First;
-		} else if caller_existing_contributions.len() < T::MaxContributionsPerUser::get() as usize {
-			weight_contribution_flag = WeightContributionFlag::SecondToLimit;
-		} else {
-			weight_contribution_flag = WeightContributionFlag::OverLimit;
-		}
-
+		Contributions::<T>::iter_prefix_values((project_id, contributor)).collect::<Vec<_>>();
+		
 		// * Validity checks *
 		ensure!(project_metadata.participation_currencies == asset, Error::<T>::FundingAssetNotAccepted);
 		ensure!(contributor.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
-		ensure!(
-			project_details.status == ProjectStatus::CommunityRound ||
-				project_details.status == ProjectStatus::RemainderRound,
-			Error::<T>::AuctionNotStarted
-		);
+		ensure!(caller_existing_contributions.len() < T::MaxContributionsPerUser::get() as usize, Error::<T>::TooManyContributionsForUser);
 
 		let now = <frame_system::Pallet<T>>::block_number();
 
@@ -1253,12 +1272,7 @@ impl<T: Config> Pallet<T> {
 		let funding_asset_usd_price =
 			T::PriceProvider::get_price(asset.to_assethub_id()).ok_or(Error::<T>::PriceNotFound)?;
 
-		// * Calculate variables *
-		let buyable_tokens = Self::calculate_buyable_amount(
-			&project_details.status,
-			token_amount,
-			project_details.remaining_contribution_tokens,
-		);
+		
 		let ticket_size = ct_usd_price.checked_mul_int(buyable_tokens).ok_or(Error::<T>::BadMath)?;
 		if let Some(minimum_ticket_size) = project_metadata.ticket_size.minimum {
 			// Make sure the bid amount is greater than the minimum specified by the issuer
@@ -1292,50 +1306,16 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// * Update storage *
+		let ct_deposit = T::ContributionTokenCurrency::deposit_required(project_id);
 		// Reserve plmc deposit to create a contribution token account for this project
 		if T::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), &contributor) < ct_deposit
 		{
-			weight_ct_account_deposit = true;
 			T::NativeCurrency::hold(&HoldReason::FutureDeposit(project_id).into(), &contributor, ct_deposit)?;
-		}
-		if T::NativeCurrency::balance_on_hold(&HoldReason::FutureDeposit(project_id).into(), contributor) < ct_deposit {
-			weight_ct_account_deposit = true;
-			T::NativeCurrency::hold(&HoldReason::FutureDeposit(project_id).into(), contributor, ct_deposit)?;
 		}
 
 		// Try adding the new contribution to the system
-		if matches!(weight_contribution_flag, WeightContributionFlag::OverLimit).not() {
-			Self::try_plmc_participation_lock(contributor, project_id, plmc_bond)?;
-			Self::try_funding_asset_hold(contributor, project_id, funding_asset_amount, asset_id)?;
-		} else {
-			let lowest_contribution = caller_existing_contributions
-				.iter()
-				.min_by_key(|contribution| contribution.plmc_bond)
-				.ok_or(Error::<T>::ImpossibleState)?;
-
-			ensure!(new_contribution.plmc_bond > lowest_contribution.plmc_bond, Error::<T>::ContributionTooLow);
-
-			T::NativeCurrency::release(
-				&HoldReason::Participation(project_id).into(),
-				&lowest_contribution.contributor,
-				lowest_contribution.plmc_bond,
-				Precision::Exact,
-			)?;
-			T::FundingCurrency::transfer(
-				asset_id,
-				&Self::fund_account_id(project_id),
-				&lowest_contribution.contributor,
-				lowest_contribution.funding_asset_amount,
-				Preservation::Expendable,
-			)?;
-			Contributions::<T>::remove((project_id, &lowest_contribution.contributor, &lowest_contribution.id));
-
-			Self::try_plmc_participation_lock(contributor, project_id, plmc_bond)?;
-			Self::try_funding_asset_hold(contributor, project_id, funding_asset_amount, asset_id)?;
-
-			project_details.remaining_contribution_tokens.1.saturating_accrue(lowest_contribution.ct_amount);
-			project_details.funding_amount_reached.saturating_reduce(lowest_contribution.usd_contribution_amount);
-		}
+		Self::try_plmc_participation_lock(contributor, project_id, plmc_bond)?;
+		Self::try_funding_asset_hold(contributor, project_id, funding_asset_amount, asset_id)?;
 
 		Contributions::<T>::insert((project_id, contributor, contribution_id), &new_contribution);
 		NextContributionId::<T>::set(contribution_id.saturating_add(One::one()));
@@ -1363,6 +1343,7 @@ impl<T: Config> Pallet<T> {
 		ProjectsDetails::<T>::insert(project_id, project_details);
 		// If no CTs remain, end the funding phase
 
+		let mut weight_round_end_flag: Option<(u32, u32)> = None;
 		if remaining_cts_after_purchase.is_zero() {
 			// remove the remainder transition or the funding failed transition
 			let total_vecs_in_storage = match Self::remove_from_update_store(&project_id) {
@@ -1376,99 +1357,32 @@ impl<T: Config> Pallet<T> {
 				};
 
 			weight_round_end_flag =
-				Some(WeightRoundEndFlag { fully_filled_vecs_from_insertion, total_vecs_in_storage });
+				Some((fully_filled_vecs_from_insertion, total_vecs_in_storage ));
 		}
 
 		// * Emit events *
 		Self::deposit_event(Event::Contribution {
 			project_id,
 			contributor: contributor.clone(),
-			amount: token_amount,
+			amount: buyable_tokens,
 			multiplier,
 		});
 
 		// return correct weight function
-		match (weight_contribution_flag, weight_round_end_flag, weight_ct_account_deposit) {
-			(WeightContributionFlag::First, None, false) => Ok(PostDispatchInfo {
-				actual_weight: Some(WeightInfoOf::<T>::first_contribution_no_ct_deposit()),
-				pays_fee: Pays::Yes,
-			}),
-			(WeightContributionFlag::First, None, true) => Ok(PostDispatchInfo {
-				actual_weight: Some(WeightInfoOf::<T>::first_contribution_with_ct_deposit()),
-				pays_fee: Pays::Yes,
-			}),
-			(
-				WeightContributionFlag::First,
-				Some(WeightRoundEndFlag { fully_filled_vecs_from_insertion, total_vecs_in_storage }),
-				false,
-			) => Ok(PostDispatchInfo {
-				actual_weight: Some(WeightInfoOf::<T>::first_contribution_ends_round_no_ct_deposit(
-					fully_filled_vecs_from_insertion,
-					total_vecs_in_storage,
-				)),
-				pays_fee: Pays::Yes,
-			}),
-			(
-				WeightContributionFlag::First,
-				Some(WeightRoundEndFlag { fully_filled_vecs_from_insertion, total_vecs_in_storage }),
-				true,
-			) => Ok(PostDispatchInfo {
-				actual_weight: Some(WeightInfoOf::<T>::first_contribution_ends_round_with_ct_deposit(
-					fully_filled_vecs_from_insertion,
-					total_vecs_in_storage,
-				)),
-				pays_fee: Pays::Yes,
-			}),
-
-			(WeightContributionFlag::SecondToLimit, None, _) => Ok(PostDispatchInfo {
-				actual_weight: Some(WeightInfoOf::<T>::second_to_limit_contribution(
-					caller_existing_contributions.len() as u32,
-				)),
-				pays_fee: Pays::Yes,
-			}),
-			(
-				WeightContributionFlag::SecondToLimit,
-				Some(WeightRoundEndFlag { fully_filled_vecs_from_insertion, total_vecs_in_storage }),
-				_,
-			) => Ok(PostDispatchInfo {
-				actual_weight: Some(WeightInfoOf::<T>::second_to_limit_contribution_ends_round(
+		let actual_weight = match weight_round_end_flag {
+			None => Some(WeightInfoOf::<T>::contribution(caller_existing_contributions.len() as u32)),
+			Some((fully_filled_vecs_from_insertion, total_vecs_in_storage)) =>
+				Some(WeightInfoOf::<T>::contribution_ends_round(
 					caller_existing_contributions.len() as u32,
 					fully_filled_vecs_from_insertion,
 					total_vecs_in_storage,
 				)),
-				pays_fee: Pays::Yes,
-			}),
+		};
 
-			// a contribution over the limit means removing an existing contribution, therefore you cannot have a round end
-			(WeightContributionFlag::OverLimit, _, _) => Ok(PostDispatchInfo {
-				actual_weight: Some(WeightInfoOf::<T>::contribution_over_limit()),
-				pays_fee: Pays::Yes,
-			}),
-		}
-	}
-
-	fn calculate_buyable_amount(
-		status: &ProjectStatus,
-		amount: BalanceOf<T>,
-		remaining_contribution_tokens: (BalanceOf<T>, BalanceOf<T>),
-	) -> BalanceOf<T> {
-		match status {
-			ProjectStatus::CommunityRound =>
-				if amount <= remaining_contribution_tokens.1 {
-					amount
-				} else {
-					remaining_contribution_tokens.1
-				},
-			ProjectStatus::RemainderRound => {
-				let sum = remaining_contribution_tokens.0.saturating_add(remaining_contribution_tokens.1);
-				if sum >= amount {
-					amount
-				} else {
-					sum
-				}
-			},
-			_ => Zero::zero(),
-		}
+		Ok(PostDispatchInfo {
+			actual_weight: actual_weight,
+			pays_fee: Pays::Yes,
+		})
 	}
 
 	pub fn do_decide_project_outcome(

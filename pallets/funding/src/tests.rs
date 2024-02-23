@@ -1896,7 +1896,7 @@ mod auction_round_failure {
 		let project_id = inst.create_evaluating_project(default_project(0, ISSUER), ISSUER);
 		inst.execute(|| {
 			assert_noop!(
-				PolimecFunding::contribute(
+				PolimecFunding::community_contribute(
 					RuntimeOrigin::signed(BIDDER_1),
 					project_id,
 					100,
