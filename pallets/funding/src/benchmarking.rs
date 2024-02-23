@@ -775,12 +775,17 @@ mod benchmarks {
 			BidParams::new(bidder.clone(), (100u128 * ASSET_UNIT).into(), 5u8, AcceptedFundingAsset::USDT);
 
 		let existing_bids = vec![existing_bid; existing_bids_count as usize];
-		let existing_bids_post_bucketing = BenchInstantiator::<T>::get_actual_price_charged_for_bucketed_bids(&existing_bids, project_metadata.clone(), None);
-		let plmc_for_existing_bids = BenchInstantiator::<T>::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+		let existing_bids_post_bucketing = BenchInstantiator::<T>::get_actual_price_charged_for_bucketed_bids(
 			&existing_bids,
 			project_metadata.clone(),
-			None
+			None,
 		);
+		let plmc_for_existing_bids =
+			BenchInstantiator::<T>::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+				&existing_bids,
+				project_metadata.clone(),
+				None,
+			);
 
 		let existential_deposits: Vec<UserToPLMCBalance<T>> = vec![bidder.clone()].existential_deposits();
 		let ct_account_deposits = vec![bidder.clone()].ct_account_deposits();
@@ -789,7 +794,7 @@ mod benchmarks {
 			BenchInstantiator::<T>::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
 				&existing_bids,
 				project_metadata.clone(),
-				None
+				None,
 			);
 		let escrow_account = Pallet::<T>::fund_account_id(project_id);
 		let prev_total_escrow_usdt_locked =
@@ -822,7 +827,7 @@ mod benchmarks {
 			maybe_filler_bid = Some(bid_params.clone());
 			let plmc_for_new_bidder = BenchInstantiator::<T>::calculate_auction_plmc_charged_with_given_price(
 				&vec![bid_params.clone()],
-				current_bucket.current_price
+				current_bucket.current_price,
 			);
 			let plmc_ed = plmc_for_new_bidder.accounts().existential_deposits();
 			let plmc_ct_deposit = plmc_for_new_bidder.accounts().ct_account_deposits();
@@ -838,26 +843,33 @@ mod benchmarks {
 
 			inst.bid_for_users(project_id, vec![bid_params]).unwrap();
 
-			ct_amount = Percent::from_percent(10) * project_metadata.total_allocation_size.0 * (do_perform_bid_calls as u128).into();
+			ct_amount = Percent::from_percent(10) *
+				project_metadata.total_allocation_size.0 *
+				(do_perform_bid_calls as u128).into();
 			usdt_for_filler_bidder = usdt_for_new_bidder;
 		}
 		let extrinsic_bid = BidParams::new(bidder.clone(), ct_amount, 1u8, AcceptedFundingAsset::USDT);
 		let original_extrinsic_bid = extrinsic_bid.clone();
 		let current_bucket = Buckets::<T>::get(project_id).unwrap();
 		// we need to call this after bidding `x` amount of times, to get the latest bucket from storage
-		let extrinsic_bids_post_bucketing = BenchInstantiator::<T>::get_actual_price_charged_for_bucketed_bids(&vec![extrinsic_bid.clone()], project_metadata.clone(), Some(current_bucket));
-		assert_eq!(extrinsic_bids_post_bucketing.len(), (do_perform_bid_calls as usize).max(1usize));
-
-		let plmc_for_extrinsic_bids: Vec<UserToPLMCBalance<T>> = BenchInstantiator::<T>::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+		let extrinsic_bids_post_bucketing = BenchInstantiator::<T>::get_actual_price_charged_for_bucketed_bids(
 			&vec![extrinsic_bid.clone()],
 			project_metadata.clone(),
-			Some(current_bucket)
+			Some(current_bucket),
 		);
+		assert_eq!(extrinsic_bids_post_bucketing.len(), (do_perform_bid_calls as usize).max(1usize));
+
+		let plmc_for_extrinsic_bids: Vec<UserToPLMCBalance<T>> =
+			BenchInstantiator::<T>::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+				&vec![extrinsic_bid.clone()],
+				project_metadata.clone(),
+				Some(current_bucket),
+			);
 		let usdt_for_extrinsic_bids: Vec<UserToForeignAssets<T>> =
 			BenchInstantiator::<T>::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
 				&vec![extrinsic_bid],
 				project_metadata.clone(),
-				Some(current_bucket)
+				Some(current_bucket),
 			);
 		inst.mint_plmc_to(plmc_for_extrinsic_bids.clone());
 		inst.mint_foreign_asset_to(usdt_for_extrinsic_bids.clone());
@@ -947,13 +959,13 @@ mod benchmarks {
 			bucket_delta_amount,
 		);
 
-		for (bid_params, price) in existing_bids_post_bucketing.clone() {
+		for (bid_params, _price_) in existing_bids_post_bucketing.clone() {
 			starting_bucket.update(bid_params.amount);
 		}
 		if let Some(bid_params) = maybe_filler_bid {
 			starting_bucket.update(bid_params.amount);
 		}
-		for (bid_params, price) in extrinsic_bids_post_bucketing.clone() {
+		for (bid_params, _price_) in extrinsic_bids_post_bucketing.clone() {
 			starting_bucket.update(bid_params.amount);
 		}
 
@@ -978,8 +990,8 @@ mod benchmarks {
 		assert_eq!(free_usdt, total_free_usdt);
 
 		// Events
-		for (bid_params, price) in extrinsic_bids_post_bucketing {
-			let found_event = find_event! {
+		for (bid_params, _price_) in extrinsic_bids_post_bucketing {
+			find_event! {
 				T,
 				Event::<T>::Bid {
 					project_id,
@@ -989,7 +1001,8 @@ mod benchmarks {
 				project_id == project_id,
 				amount == bid_params.amount,
 				multiplier == bid_params.multiplier
-			}.expect("Event has to be emitted");
+			}
+			.expect("Event has to be emitted");
 		}
 	}
 
@@ -3098,14 +3111,19 @@ mod benchmarks {
 		let all_bids = accepted_bids.iter().chain(rejected_bids.iter()).cloned().collect_vec();
 
 		let plmc_needed_for_bids =
-			BenchInstantiator::<T>::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(&all_bids, project_metadata.clone(), None);
+			BenchInstantiator::<T>::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+				&all_bids,
+				project_metadata.clone(),
+				None,
+			);
 		let plmc_ed = all_bids.accounts().existential_deposits();
 		let plmc_ct_account_deposit = all_bids.accounts().ct_account_deposits();
-		let funding_asset_needed_for_bids = BenchInstantiator::<T>::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
-			&all_bids,
-			project_metadata.clone(),
-			None
-		);
+		let funding_asset_needed_for_bids =
+			BenchInstantiator::<T>::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+				&all_bids,
+				project_metadata.clone(),
+				None,
+			);
 
 		inst.mint_plmc_to(plmc_needed_for_bids);
 		inst.mint_plmc_to(plmc_ed);

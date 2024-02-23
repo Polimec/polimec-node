@@ -278,7 +278,7 @@ fn auction_round_completed() {
 
 	Polimec::execute_with(|| {
 		//let filtered_bids = MockInstantiator::filter_bids_after_auction(bids.clone(), project.total_allocation_size.0);
-		let (project_id, _) = inst.create_community_contributing_project(project, issuer, evaluations, bids);
+		let project_id = inst.create_community_contributing_project(project, issuer, evaluations, bids);
 		let wavgp_from_excel = 10.202357561;
 		// Convert the float to a FixedU128
 		let wavgp_to_substrate = FixedU128::from_float(wavgp_from_excel);

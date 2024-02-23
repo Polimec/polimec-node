@@ -551,7 +551,7 @@ impl<
 		let grouped_by_price_bids = charged_bids.clone().into_iter().group_by(|&(_, price)| price);
 		let mut grouped_by_price_bids: Vec<(PriceOf<T>, Vec<BidParams<T>>)> = grouped_by_price_bids
 			.into_iter()
-			.map(|(key, group)| (key, group.map(|(bid, price)| bid).collect()))
+			.map(|(key, group)| (key, group.map(|(bid, _price_)| bid).collect()))
 			.collect();
 		grouped_by_price_bids.reverse();
 
@@ -595,7 +595,11 @@ impl<
 		project_metadata: ProjectMetadataOf<T>,
 		weighted_average_price: PriceOf<T>,
 	) -> Vec<UserToPLMCBalance<T>> {
-		let plmc_charged = Self::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(bids, project_metadata.clone(), None);
+		let plmc_charged = Self::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+			bids,
+			project_metadata.clone(),
+			None,
+		);
 		let plmc_returned = Self::calculate_auction_plmc_returned_from_all_bids_made(
 			bids,
 			project_metadata.clone(),
@@ -653,7 +657,7 @@ impl<
 		let grouped_by_price_bids = charged_bids.clone().into_iter().group_by(|&(_, price)| price);
 		let mut grouped_by_price_bids: Vec<(PriceOf<T>, Vec<BidParams<T>>)> = grouped_by_price_bids
 			.into_iter()
-			.map(|(key, group)| (key, group.map(|(bid, price)| bid).collect()))
+			.map(|(key, group)| (key, group.map(|(bid, _price)| bid).collect()))
 			.collect();
 		grouped_by_price_bids.reverse();
 
@@ -708,8 +712,11 @@ impl<
 		project_metadata: ProjectMetadataOf<T>,
 		weighted_average_price: PriceOf<T>,
 	) -> Vec<UserToForeignAssets<T>> {
-		let funding_asset_charged =
-			Self::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(bids, project_metadata.clone(), None);
+		let funding_asset_charged = Self::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+			bids,
+			project_metadata.clone(),
+			None,
+		);
 		let funding_asset_returned = Self::calculate_auction_funding_asset_returned_from_all_bids_made(
 			bids,
 			project_metadata.clone(),
@@ -722,7 +729,7 @@ impl<
 	/// Filters the bids that would be rejected after the auction ends.
 	pub fn filter_bids_after_auction(bids: Vec<BidParams<T>>, total_cts: BalanceOf<T>) -> Vec<BidParams<T>> {
 		let mut filtered_bids: Vec<BidParams<T>> = Vec::new();
-		let mut sorted_bids = bids;
+		let sorted_bids = bids;
 		let mut total_cts_left = total_cts;
 		for bid in sorted_bids {
 			if total_cts_left >= bid.amount {
@@ -1171,7 +1178,11 @@ impl<
 		let prev_funding_asset_balances = self.get_free_foreign_asset_balances_for(asset_id, bidders.clone());
 		let plmc_evaluation_deposits: Vec<UserToPLMCBalance<T>> = Self::calculate_evaluation_plmc_spent(evaluations);
 		let plmc_bid_deposits: Vec<UserToPLMCBalance<T>> =
-			Self::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(&bids, project_metadata.clone(), None);
+			Self::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
+				&bids,
+				project_metadata.clone(),
+				None,
+			);
 		let participation_usable_evaluation_deposits = plmc_evaluation_deposits
 			.into_iter()
 			.map(|mut x| {
@@ -1186,8 +1197,11 @@ impl<
 		let total_plmc_participation_locked = plmc_bid_deposits;
 		let plmc_existential_deposits: Vec<UserToPLMCBalance<T>> = bidders.existential_deposits();
 		let plmc_ct_account_deposits: Vec<UserToPLMCBalance<T>> = bidders_non_evaluators.ct_account_deposits();
-		let funding_asset_deposits =
-			Self::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(&bids, project_metadata.clone(), None);
+		let funding_asset_deposits = Self::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
+			&bids,
+			project_metadata.clone(),
+			None,
+		);
 
 		let bidder_balances = Self::sum_balance_mappings(vec![
 			necessary_plmc_mint.clone(),
