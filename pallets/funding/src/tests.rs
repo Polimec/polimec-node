@@ -1221,12 +1221,7 @@ mod auction {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_metadata = default_project_metadata(0, ISSUER);
 		let bids = (0u32..<TestRuntime as Config>::MaxBidsPerProject::get())
-			.map(|i| {
-				(
-					i as u32 + 420u32,
-					10 * ASSET_UNIT,
-				).into()
-			})
+			.map(|i| (i as u32 + 420u32, 10 * ASSET_UNIT).into())
 			.collect_vec();
 		let failing_bid = BidParams::<TestRuntime>::new(BIDDER_1, 10 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
 
@@ -4199,7 +4194,7 @@ mod funding_end {
 
 		inst.advance_time((10 * DAYS).into()).unwrap();
 
-		for UserToPLMCBalance{account, plmc_amount} in total_participant_plmc_in_vesting {
+		for UserToPLMCBalance { account, plmc_amount } in total_participant_plmc_in_vesting {
 			let prev_free_balance = inst.execute(|| <TestRuntime as Config>::NativeCurrency::balance(&account));
 
 			inst.execute(|| Pallet::<TestRuntime>::do_vest_plmc_for(account, project_id, account)).unwrap();
@@ -4243,21 +4238,29 @@ mod funding_end {
 		let stored_contributions =
 			inst.execute(|| Contributions::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
 
-		let bidder_vesting = stored_successful_bids.iter().map(|bid| (bid.bidder, bid.plmc_vesting_info.unwrap())).collect_vec();
-		let contributor_vesting = stored_contributions.iter().map(|contribution| (contribution.contributor, contribution.plmc_vesting_info.unwrap())).collect_vec();
+		let bidder_vesting =
+			stored_successful_bids.iter().map(|bid| (bid.bidder, bid.plmc_vesting_info.unwrap())).collect_vec();
+		let contributor_vesting = stored_contributions
+			.iter()
+			.map(|contribution| (contribution.contributor, contribution.plmc_vesting_info.unwrap()))
+			.collect_vec();
 
-
-		let participant_vesting_infos: Vec<(AccountIdOf<TestRuntime>, Vec<VestingInfoOf<TestRuntime>>)> = MockInstantiator::generic_map_merge_reduce(
-			vec![bidder_vesting, contributor_vesting],
-			|map|map.0,
-			Vec::new(),
-			|map, mut vestings|{vestings.push(map.1); vestings}
-		);
+		let participant_vesting_infos: Vec<(AccountIdOf<TestRuntime>, Vec<VestingInfoOf<TestRuntime>>)> =
+			MockInstantiator::generic_map_merge_reduce(
+				vec![bidder_vesting, contributor_vesting],
+				|map| map.0,
+				Vec::new(),
+				|map, mut vestings| {
+					vestings.push(map.1);
+					vestings
+				},
+			);
 
 		let now = inst.current_block();
 		for (participant, vesting_infos) in participant_vesting_infos {
-
-			let vested_amount = vesting_infos.into_iter().fold(0u128, |acc, vesting_info| acc + vesting_info.amount_per_block * min(vesting_info.duration, now - vest_start_block) as u128);
+			let vested_amount = vesting_infos.into_iter().fold(0u128, |acc, vesting_info| {
+				acc + vesting_info.amount_per_block * min(vesting_info.duration, now - vest_start_block) as u128
+			});
 
 			let prev_free_balance = inst.execute(|| <TestRuntime as Config>::NativeCurrency::balance(&participant));
 
