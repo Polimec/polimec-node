@@ -2376,7 +2376,7 @@ mod tests {
 
 			assert_ok!(vote(RuntimeOrigin::signed(4), vec![4], 40));
 			assert_ok!(vote(RuntimeOrigin::signed(5), vec![5], 50));
-			println!("{:?}", Elections::voting(4));
+
 			System::set_block_number(5);
 			Elections::on_initialize(System::block_number());
 

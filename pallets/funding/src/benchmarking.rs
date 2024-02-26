@@ -35,7 +35,8 @@ use frame_support::{
 #[allow(unused_imports)]
 use pallet::Pallet as PalletFunding;
 use parity_scale_codec::{Decode, Encode};
-use polimec_common::ReleaseSchedule;
+use polimec_common::{credentials::InvestorType, ReleaseSchedule};
+use polimec_common_test_utils::get_test_jwt;
 use scale_info::prelude::format;
 use sp_arithmetic::Percent;
 use sp_core::H256;
@@ -135,8 +136,9 @@ where
 	]
 }
 
-pub fn full_bids<T: Config>() -> Vec<BidParams<T>>
+pub fn full_bids<T>() -> Vec<BidParams<T>>
 where
+	T: Config,
 	<T as Config>::Price: From<u128>,
 	<T as Config>::Balance: From<u128>,
 	T::Hash: From<H256>,
@@ -253,7 +255,7 @@ pub fn string_account<AccountId: Decode>(
 }
 
 #[cfg(feature = "std")]
-pub fn populate_with_projects<T: Config>(amount: u32, inst: BenchInstantiator<T>) -> BenchInstantiator<T>
+pub fn populate_with_projects<T>(amount: u32, inst: BenchInstantiator<T>) -> BenchInstantiator<T>
 where
 	T: Config
 		+ frame_system::Config<RuntimeEvent = <T as Config>::RuntimeEvent>
@@ -396,9 +398,9 @@ mod benchmarks {
 			project_metadata.token_information.symbol.as_slice(),
 		);
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), ed * 2u64.into() + metadata_deposit)]);
-
+		let jwt = get_test_jwt(issuer.clone(), InvestorType::Institutional);
 		#[extrinsic_call]
-		create(RawOrigin::Signed(issuer.clone()), project_metadata.clone());
+		create(RawOrigin::Signed(issuer.clone()), jwt, project_metadata.clone());
 
 		// * validity checks *
 		// Storage
@@ -430,9 +432,9 @@ mod benchmarks {
 		let project_id = inst.create_new_project(project_metadata.clone(), issuer.clone());
 		let original_metadata_hash = project_metadata.offchain_information_hash.unwrap();
 		let edited_metadata_hash: H256 = hashed(EDITED_METADATA);
-
+		let jwt = get_test_jwt(issuer.clone(), InvestorType::Institutional);
 		#[extrinsic_call]
-		edit_metadata(RawOrigin::Signed(issuer), project_id, edited_metadata_hash.into());
+		edit_metadata(RawOrigin::Signed(issuer), jwt, project_id, edited_metadata_hash.into());
 
 		// * validity checks *
 		// Storage
@@ -470,9 +472,9 @@ mod benchmarks {
 			}
 			block_number += 1u32.into();
 		}
-
+		let jwt = get_test_jwt(issuer.clone(), InvestorType::Institutional);
 		#[extrinsic_call]
-		start_evaluation(RawOrigin::Signed(issuer), project_id);
+		start_evaluation(RawOrigin::Signed(issuer), jwt, project_id);
 
 		// * validity checks *
 		// Storage
@@ -539,8 +541,9 @@ mod benchmarks {
 
 		fill_projects_to_update::<T>(x, insertion_block_number, Some(y));
 
+		let jwt = get_test_jwt(issuer.clone(), InvestorType::Institutional);
 		#[extrinsic_call]
-		start_auction(RawOrigin::Signed(issuer), project_id);
+		start_auction(RawOrigin::Signed(issuer), jwt, project_id);
 
 		// * validity checks *
 		// Storage
@@ -559,10 +562,9 @@ mod benchmarks {
 	// - is over max evals per user, and needs to unbond the lowest evaluation
 	// 		- this case, we know they paid already for ct account deposit
 
-	fn evaluation_setup<T: Config>(
-		x: u32,
-	) -> (BenchInstantiator<T>, ProjectId, UserToUSDBalance<T>, BalanceOf<T>, BalanceOf<T>)
+	fn evaluation_setup<T>(x: u32) -> (BenchInstantiator<T>, ProjectId, UserToUSDBalance<T>, BalanceOf<T>, BalanceOf<T>)
 	where
+		T: Config,
 		<T as Config>::Balance: From<u128>,
 		<T as Config>::Price: From<u128>,
 		T::Hash: From<H256>,
@@ -618,13 +620,14 @@ mod benchmarks {
 
 		(inst, test_project_id, extrinsic_evaluation, extrinsic_plmc_bonded, total_expected_plmc_bonded)
 	}
-	fn evaluation_verification<T: Config>(
+	fn evaluation_verification<T>(
 		mut inst: BenchInstantiator<T>,
 		project_id: ProjectId,
 		evaluation: UserToUSDBalance<T>,
 		extrinsic_plmc_bonded: BalanceOf<T>,
 		total_expected_plmc_bonded: BalanceOf<T>,
 	) where
+		T: Config,
 		<T as Config>::Balance: From<u128>,
 		<T as Config>::Price: From<u128>,
 		T::Hash: From<H256>,
@@ -678,8 +681,14 @@ mod benchmarks {
 		let (inst, project_id, extrinsic_evaluation, extrinsic_plmc_bonded, total_expected_plmc_bonded) =
 			evaluation_setup::<T>(x);
 
+		let jwt = get_test_jwt(extrinsic_evaluation.account.clone(), InvestorType::Institutional);
 		#[extrinsic_call]
-		evaluate(RawOrigin::Signed(extrinsic_evaluation.account.clone()), project_id, extrinsic_evaluation.usd_amount);
+		evaluate(
+			RawOrigin::Signed(extrinsic_evaluation.account.clone()),
+			jwt,
+			project_id,
+			extrinsic_evaluation.usd_amount,
+		);
 
 		evaluation_verification::<T>(
 			inst,
@@ -701,8 +710,14 @@ mod benchmarks {
 		let (inst, project_id, extrinsic_evaluation, extrinsic_plmc_bonded, total_expected_plmc_bonded) =
 			evaluation_setup::<T>(x);
 
+		let jwt = get_test_jwt(extrinsic_evaluation.account.clone(), InvestorType::Institutional);
 		#[extrinsic_call]
-		evaluate(RawOrigin::Signed(extrinsic_evaluation.account.clone()), project_id, extrinsic_evaluation.usd_amount);
+		evaluate(
+			RawOrigin::Signed(extrinsic_evaluation.account.clone()),
+			jwt,
+			project_id,
+			extrinsic_evaluation.usd_amount,
+		);
 
 		evaluation_verification::<T>(
 			inst,
@@ -723,8 +738,14 @@ mod benchmarks {
 		let (inst, project_id, extrinsic_evaluation, extrinsic_plmc_bonded, total_expected_plmc_bonded) =
 			evaluation_setup::<T>(x);
 
+		let jwt = get_test_jwt(extrinsic_evaluation.account.clone(), InvestorType::Institutional);
 		#[extrinsic_call]
-		evaluate(RawOrigin::Signed(extrinsic_evaluation.account.clone()), project_id, extrinsic_evaluation.usd_amount);
+		evaluate(
+			RawOrigin::Signed(extrinsic_evaluation.account.clone()),
+			jwt,
+			project_id,
+			extrinsic_evaluation.usd_amount,
+		);
 
 		evaluation_verification::<T>(
 			inst,
@@ -735,7 +756,7 @@ mod benchmarks {
 		);
 	}
 
-	fn bid_setup<T: Config>(
+	fn bid_setup<T>(
 		existing_bids_count: u32,
 		do_perform_bid_calls: u32,
 	) -> (
@@ -752,6 +773,7 @@ mod benchmarks {
 		BalanceOf<T>,
 	)
 	where
+		T: Config,
 		<T as Config>::Balance: From<u128>,
 		<T as Config>::Price: From<u128>,
 		T::Hash: From<H256>,
@@ -902,7 +924,7 @@ mod benchmarks {
 		)
 	}
 
-	fn bid_verification<T: Config>(
+	fn bid_verification<T>(
 		mut inst: BenchInstantiator<T>,
 		project_id: ProjectId,
 		project_metadata: ProjectMetadataOf<T>,
@@ -915,6 +937,7 @@ mod benchmarks {
 		total_usdt_locked: BalanceOf<T>,
 	) -> ()
 	where
+		T: Config,
 		<T as Config>::Balance: From<u128>,
 		<T as Config>::Price: From<u128>,
 		T::Hash: From<H256>,
@@ -1029,9 +1052,11 @@ mod benchmarks {
 
 		let _new_plmc_minted = make_ct_deposit_for::<T>(original_extrinsic_bid.bidder.clone(), project_id);
 
+		let jwt = get_test_jwt(original_extrinsic_bid.bidder.clone(), InvestorType::Institutional);
 		#[extrinsic_call]
 		bid(
 			RawOrigin::Signed(original_extrinsic_bid.bidder.clone()),
+			jwt,
 			project_id,
 			original_extrinsic_bid.amount,
 			original_extrinsic_bid.multiplier,
@@ -1073,9 +1098,11 @@ mod benchmarks {
 			total_usdt_locked,
 		) = bid_setup::<T>(x, y);
 
+		let jwt = get_test_jwt(original_extrinsic_bid.bidder.clone(), InvestorType::Institutional);
 		#[extrinsic_call]
 		bid(
 			RawOrigin::Signed(original_extrinsic_bid.bidder.clone()),
+			jwt,
 			project_id,
 			original_extrinsic_bid.amount,
 			original_extrinsic_bid.multiplier,
@@ -1096,7 +1123,7 @@ mod benchmarks {
 		);
 	}
 
-	fn contribution_setup<T: Config>(
+	fn contribution_setup<T>(
 		x: u32,
 		ends_round: Option<(u32, u32)>,
 	) -> (
@@ -1111,6 +1138,7 @@ mod benchmarks {
 		BalanceOf<T>,
 	)
 	where
+		T: Config,
 		<T as Config>::Balance: From<u128>,
 		<T as Config>::Price: From<u128>,
 		T::Hash: From<H256>,
@@ -1235,7 +1263,7 @@ mod benchmarks {
 		)
 	}
 
-	fn contribution_verification<T: Config>(
+	fn contribution_verification<T>(
 		mut inst: BenchInstantiator<T>,
 		project_id: ProjectId,
 		project_metadata: ProjectMetadataOf<T>,
@@ -1246,6 +1274,7 @@ mod benchmarks {
 		total_usdt_locked: BalanceOf<T>,
 		total_ct_sold: BalanceOf<T>,
 	) where
+		T: Config,
 		<T as Config>::Balance: From<u128>,
 		<T as Config>::Price: From<u128>,
 		T::Hash: From<H256>,
@@ -2976,8 +3005,9 @@ mod benchmarks {
 		// weight and not the whole on_initialize call weight
 		frame_system::Pallet::<T>::set_block_number(automatic_transition_block);
 
+		let jwt = get_test_jwt(issuer.clone(), InvestorType::Institutional);
 		#[extrinsic_call]
-		start_auction(RawOrigin::Signed(issuer), project_id);
+		start_auction(RawOrigin::Signed(issuer), jwt, project_id);
 
 		// * validity checks *
 		// Storage

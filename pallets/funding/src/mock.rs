@@ -24,11 +24,12 @@ use frame_support::{
 	construct_runtime,
 	pallet_prelude::Weight,
 	parameter_types,
-	traits::{AsEnsureOriginWithArg, ConstU16, ConstU32, WithdrawReasons},
+	traits::{AsEnsureOriginWithArg, ConstU16, ConstU32, ConstU64, WithdrawReasons},
 	PalletId,
 };
 use frame_system as system;
 use frame_system::EnsureRoot;
+use polimec_common::credentials::{EnsureInvestor, Institutional, Professional, Retail};
 use sp_arithmetic::Percent;
 use sp_core::H256;
 use sp_runtime::{
@@ -40,8 +41,7 @@ use system::EnsureSigned;
 
 type Block = frame_system::mocking::MockBlock<TestRuntime>;
 
-// pub type AccountId = u64;
-pub type AccountId = u64;
+pub type AccountId = u32;
 pub type Balance = u128;
 pub type BlockNumber = u64;
 pub type Identifier = u32;
@@ -73,7 +73,7 @@ use xcm_builder::{EnsureXcmOrigin, FixedWeightBounds, ParentIsPreset, SiblingPar
 
 pub struct SignedToAccountIndex<RuntimeOrigin, AccountId, Network>(PhantomData<(RuntimeOrigin, AccountId, Network)>);
 
-impl<RuntimeOrigin: OriginTrait + Clone, AccountId: Into<u64>, Network: Get<Option<NetworkId>>>
+impl<RuntimeOrigin: OriginTrait + Clone, AccountId: Into<u32>, Network: Get<Option<NetworkId>>>
 	TryConvert<RuntimeOrigin, MultiLocation> for SignedToAccountIndex<RuntimeOrigin, AccountId, Network>
 where
 	RuntimeOrigin::PalletsOrigin:
@@ -82,7 +82,7 @@ where
 	fn try_convert(o: RuntimeOrigin) -> Result<MultiLocation, RuntimeOrigin> {
 		o.try_with_caller(|caller| match caller.try_into() {
 			Ok(SystemRawOrigin::Signed(who)) =>
-				Ok(Junction::AccountIndex64 { network: Network::get(), index: who.into() }.into()),
+				Ok(Junction::AccountIndex64 { network: Network::get(), index: Into::<u32>::into(who).into() }.into()),
 			Ok(other) => Err(other.into()),
 			Err(other) => Err(other),
 		})
@@ -249,6 +249,13 @@ impl pallet_balances::Config for TestRuntime {
 
 impl pallet_insecure_randomness_collective_flip::Config for TestRuntime {}
 
+impl pallet_timestamp::Config for TestRuntime {
+	type MinimumPeriod = ConstU64<5>;
+	type Moment = u64;
+	type OnTimestampSet = ();
+	type WeightInfo = ();
+}
+
 pub const HOURS: BlockNumber = 300u64;
 
 // REMARK: In the production configuration we use DAYS instead of HOURS.
@@ -276,7 +283,7 @@ parameter_types! {
 	];
 	pub EarlyEvaluationThreshold: Percent = Percent::from_percent(10);
 	pub EvaluatorSlash: Percent = Percent::from_percent(20);
-	pub TreasuryAccount: AccountId = AccountId::from(69u64);
+	pub TreasuryAccount: AccountId = AccountId::from(69u32);
 
 }
 
@@ -313,7 +320,10 @@ parameter_types! {
 	pub MaxCapacityThresholds: (u32, u32) = (8, 1000);
 	pub RequiredMaxCapacity: u32 = 8;
 	pub RequiredMaxMessageSize: u32 = 102_400;
-
+	pub VerifierPublicKey: [u8; 32] = [
+		32, 118, 30, 171, 58, 212, 197, 27, 146, 122, 255, 243, 34, 245, 90, 244, 221, 37, 253,
+		195, 18, 202, 111, 55, 39, 48, 123, 17, 101, 78, 215, 94,
+	];
 }
 
 pub struct DummyConverter;
@@ -326,14 +336,15 @@ impl sp_runtime::traits::Convert<AccountId, [u8; 32]> for DummyConverter {
 }
 impl ConvertBack<AccountId, [u8; 32]> for DummyConverter {
 	fn convert_back(bytes: [u8; 32]) -> AccountId {
-		let account: [u8; 8] = bytes[0..7].try_into().unwrap();
-		u64::from_le_bytes(account)
+		let account: [u8; 4] = bytes[0..3].try_into().unwrap();
+		u32::from_le_bytes(account)
 	}
 }
 
 impl Config for TestRuntime {
 	type AccountId32Conversion = DummyConverter;
-	type AllPalletsWithoutSystem = AllPalletsWithoutSystem;
+	type AllPalletsWithoutSystem =
+		(Balances, LocalAssets, ForeignAssets, PolimecFunding, Vesting, RandomnessCollectiveFlip);
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
 	type Balance = Balance;
 	type BlockNumber = BlockNumber;
@@ -349,6 +360,7 @@ impl Config for TestRuntime {
 	type EvaluatorSlash = EvaluatorSlash;
 	type FeeBrackets = FeeBrackets;
 	type FundingCurrency = ForeignAssets;
+	type InstitutionalOrigin = EnsureInvestor<TestRuntime, (), Institutional>;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	type MaxBidsPerProject = ConstU32<1024>;
 	type MaxBidsPerUser = ConstU32<4>;
@@ -366,10 +378,12 @@ impl Config for TestRuntime {
 	type PreImageLimit = ConstU32<1024>;
 	type Price = FixedU128;
 	type PriceProvider = ConstPriceProvider<AssetId, FixedU128, PriceMap>;
+	type ProfessionalOrigin = EnsureInvestor<TestRuntime, (), Professional>;
 	type Randomness = RandomnessCollectiveFlip;
 	type RemainderFundingDuration = RemainderFundingDuration;
 	type RequiredMaxCapacity = RequiredMaxCapacity;
 	type RequiredMaxMessageSize = RequiredMaxMessageSize;
+	type RetailOrigin = EnsureInvestor<TestRuntime, (), Retail>;
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeHoldReason = RuntimeHoldReason;
@@ -379,6 +393,7 @@ impl Config for TestRuntime {
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
 	type TreasuryAccount = TreasuryAccount;
+	type VerifierPublicKey = VerifierPublicKey;
 	type Vesting = Vesting;
 	type WeightInfo = weights::SubstrateWeight<TestRuntime>;
 }
@@ -388,6 +403,7 @@ construct_runtime!(
 	pub enum TestRuntime
 	{
 		System: frame_system,
+		Timestamp: pallet_timestamp,
 		RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip,
 		Balances: pallet_balances,
 		Vesting: pallet_linear_release,
@@ -426,7 +442,9 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 
 	let mut ext = sp_io::TestExternalities::new(t);
 	// In order to emit events the block number must be more than 0
-	ext.execute_with(|| System::set_block_number(1));
+	ext.execute_with(|| {
+		System::set_block_number(1);
+	});
 	ext
 }
 
