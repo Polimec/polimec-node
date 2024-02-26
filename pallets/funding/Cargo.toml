@@ -20,9 +20,7 @@ scale-info = { version = "2.9.0", default-features = false, features = [
 ] }
 tokio = { version = "1", features = ["full"], optional = true }
 futures = { version = "0.3.29", optional = true }
-
 log.workspace = true
-
 itertools.workspace = true
 
 # Substrate dependencies
@@ -47,14 +45,17 @@ polkadot-runtime-parachains.workspace = true
 polkadot-parachain.workspace = true
 polimec-receiver.workspace = true
 assert_matches2 = { workspace = true, optional = true}
-
+polimec-common-test-utils = { workspace = true, optional = true }
 
 [dev-dependencies]
+assert_matches2.workspace = true
 pallet-insecure-randomness-collective-flip.workspace = true
+pallet-timestamp.workspace = true
 pallet-assets.workspace = true
 pallet-linear-release.workspace = true
-xcm-executor.workspace = true
+
 macros.workspace = true
+xcm-executor.workspace = true
 
 [features]
 default = [ "std" ]
@@ -74,6 +75,7 @@ std = [
 	"parachains-common/std",
 	"parity-scale-codec/std",
 	"polimec-common/std",
+	"polimec-common-test-utils/std",
 	"polimec-receiver/std",
 	"polimec-xcm-executor/std",
 	"polkadot-parachain/std",

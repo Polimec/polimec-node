@@ -19,12 +19,14 @@ use frame_support::parameter_types;
 
 /// One PLMC
 pub const PLMC: Balance = 10u128.pow(10);
+
 /// 0.001 PLMC
 pub const MILLI_PLMC: Balance = 10u128.pow(7);
+
 /// 0.000_001 PLMC
 pub const MICRO_PLMC: Balance = 10u128.pow(4);
 
-pub const EXISTENTIAL_DEPOSIT: Balance = MILLI_PLMC;
+pub const EXISTENTIAL_DEPOSIT: Balance = 10 * MILLI_PLMC;
 
 /// Deposit that must be provided for each occupied storage item.
 pub const DEPOSIT_STORAGE_ITEM: Balance = 56 * MILLI_PLMC;

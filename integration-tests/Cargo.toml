@@ -14,6 +14,7 @@ version.workspace = true
 substrate-wasm-builder.workspace = true
 
 [dependencies]
+serde = { workspace = true  }
 parity-scale-codec = { workspace = true, features = ["derive"] }
 scale-info = { workspace = true, features = ["derive"] }
 
@@ -21,6 +22,7 @@ scale-info = { workspace = true, features = ["derive"] }
 polimec-receiver.workspace = true
 macros.workspace = true
 polimec-common.workspace = true
+polimec-common-test-utils.workspace = true
 sp-arithmetic.workspace = true
 frame-system.workspace = true
 frame-support.workspace = true
@@ -110,6 +112,7 @@ std = [
 	"parity-scale-codec/std",
 	"penpal-runtime/std",
 	"polimec-common/std",
+	"polimec-common-test-utils/std",
 	"polimec-parachain-runtime/std",
 	"polimec-receiver/std",
 	"polkadot-core-primitives/std",
@@ -119,6 +122,7 @@ std = [
 	"polkadot-runtime-parachains/std",
 	"polkadot-runtime/std",
 	"scale-info/std",
+	"serde/std",
 	"sp-arithmetic/std",
 	"sp-authority-discovery/std",
 	"sp-consensus-babe/std",
