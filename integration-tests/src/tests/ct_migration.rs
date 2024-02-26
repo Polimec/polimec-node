@@ -403,21 +403,18 @@ fn vesting_over_several_blocks_on_project() {
 	bids.push(BidParams {
 		bidder: BIDDER_1.into(),
 		amount: 15_000 * ASSET_UNIT,
-		price: 12u128.into(),
 		multiplier: MultiplierOf::<PolimecRuntime>::try_from(20u8).unwrap(),
 		asset: AcceptedFundingAsset::USDT,
 	});
 	bids.push(BidParams {
 		bidder: BIDDER_2.into(),
 		amount: 20_000 * ASSET_UNIT,
-		price: 10u128.into(),
 		multiplier: multiplier_for_vesting,
 		asset: AcceptedFundingAsset::USDT,
 	});
 	bids.push(BidParams {
 		bidder: BIDDER_2.into(),
 		amount: 12_000 * ASSET_UNIT,
-		price: 11u128.into(),
 		multiplier: MultiplierOf::<PolimecRuntime>::try_from(7u8).unwrap(),
 		asset: AcceptedFundingAsset::USDT,
 	});
@@ -534,7 +531,7 @@ fn disallow_duplicated_migrations_on_receiver_pallet() {
 	// just any number that lets us execute our xcm's
 	for migrations in grouped_migrations.clone() {
 		for (_, xcm) in PolimecFundingPallet::construct_migration_xcm_messages(migrations) {
-			let call: <PolimecRuntime as pallet_funding::Config>::RuntimeCall =
+			let _call: <PolimecRuntime as pallet_funding::Config>::RuntimeCall =
 				pallet_funding::Call::confirm_migrations { query_id: Default::default(), response: Default::default() }
 					.into();
 

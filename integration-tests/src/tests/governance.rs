@@ -19,8 +19,8 @@ use frame_support::{
 use pallet_democracy::{AccountVote, Conviction, GetElectorate, ReferendumInfo, Vote};
 use pallet_vesting::VestingInfo;
 use polimec_base_runtime::{
-	Balances, Council, Democracy, Elections, ParachainStaking, PayMaster, Preimage, RuntimeOrigin, TechnicalCommittee,
-	Treasury, Vesting,
+	Balances, Council, Democracy, Elections, ParachainStaking, Preimage, RuntimeOrigin, TechnicalCommittee, Treasury,
+	Vesting,
 };
 use tests::defaults::*;
 use xcm_emulator::get_account_id_from_seed;
