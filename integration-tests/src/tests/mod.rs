@@ -18,13 +18,10 @@
 mod basic_comms;
 mod build_spec;
 mod credentials;
-// infinite loop
-// mod ct_migration;
+mod ct_migration;
 mod defaults;
 mod e2e;
 mod governance;
-// infinite loop
-// mod oracle;
-// infinite loop
-// mod reserve_backed_transfers;
+mod oracle;
+mod reserve_backed_transfers;
 mod vest;
