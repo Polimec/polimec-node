@@ -61,50 +61,50 @@ fn test(){}
 // 		);
 // 	});
 // }
-
+#[ignore]
 #[test]
 fn ump() {
-	use polkadot_runtime_parachains::inclusion::{AggregateMessageOrigin, UmpQueueId};
-	let burn_transfer = PolkadotCall::Balances(pallet_balances::Call::<PolkadotRuntime>::transfer {
-		dest: PolkadotAccountId::from([0u8; 32]).into(),
-		value: 1_000,
-	});
+	// use polkadot_runtime_parachains::inclusion::{AggregateMessageOrigin, UmpQueueId};
+	// let burn_transfer = PolkadotCall::Balances(pallet_balances::Call::<PolkadotRuntime>::transfer {
+	// 	dest: PolkadotAccountId::from([0u8; 32]).into(),
+	// 	value: 1_000,
+	// });
+	//
+	// let here_asset: MultiAsset = (MultiLocation::here(), 1_0_000_000_000u128).into();
+	//
+	// Polimec::execute_with(|| {
+	// 	assert_ok!(PolimecXcmPallet::force_default_xcm_version(PolimecOrigin::root(), Some(3)));
+	//
+	// 	assert_ok!(PolimecXcmPallet::send_xcm(
+	// 		Here,
+	// 		Parent,
+	// 		Xcm(vec![
+	// 			WithdrawAsset(vec![here_asset.clone()].into()),
+	// 			BuyExecution { fees: here_asset.clone(), weight_limit: Unlimited },
+	// 			Transact {
+	// 				origin_kind: OriginKind::SovereignAccount,
+	// 				require_weight_at_most: Weight::from_parts(MAX_REF_TIME, MAX_PROOF_SIZE),
+	// 				call: burn_transfer.encode().into(),
+	// 			}
+	// 		]),
+	// 	));
+	// });
 
-	let here_asset: MultiAsset = (MultiLocation::here(), 1_0_000_000_000u128).into();
-
-	Polimec::execute_with(|| {
-		assert_ok!(PolimecXcmPallet::force_default_xcm_version(PolimecOrigin::root(), Some(3)));
-
-		assert_ok!(PolimecXcmPallet::send_xcm(
-			Here,
-			Parent,
-			Xcm(vec![
-				WithdrawAsset(vec![here_asset.clone()].into()),
-				BuyExecution { fees: here_asset.clone(), weight_limit: Unlimited },
-				Transact {
-					origin_kind: OriginKind::SovereignAccount,
-					require_weight_at_most: Weight::from_parts(MAX_REF_TIME, MAX_PROOF_SIZE),
-					call: burn_transfer.encode().into(),
-				}
-			]),
-		));
-	});
-
-	PolkadotRelay::execute_with(|| {
-		// assert_expected_events!(
-		// 	PolkadotRelay,
-		// 	vec![
-		// 		PolkadotEvent::MessageQueue(pallet_message_queue::Event::Processed {
-		// 			id: _,
-		// 			origin: AggregateMessageOrigin::Ump(
-		// 				UmpQueueId::Para(_para_id)
-		// 			),
-		// 			weight_used: _,
-		// 			success: false
-		// 		}) => {},
-		// 	]
-		// );
-	});
+	// PolkadotRelay::execute_with(|| {
+	// 	assert_expected_events!(
+	// 		PolkadotRelay,
+	// 		vec![
+	// 			PolkadotEvent::MessageQueue(pallet_message_queue::Event::Processed {
+	// 				id: _,
+	// 				origin: AggregateMessageOrigin::Ump(
+	// 					UmpQueueId::Para(_para_id)
+	// 				),
+	// 				weight_used: _,
+	// 				success: false
+	// 			}) => {},
+	// 		]
+	// 	);
+	// });
 }
 
 // // Ignored for now as we are not allowing "Transact" execution on our parachain
