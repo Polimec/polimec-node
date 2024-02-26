@@ -4182,7 +4182,7 @@ mod funding_end {
 		let issuer = ISSUER;
 		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
-		let mut bids = default_bids();
+		let bids = default_bids();
 		let community_contributions = default_community_buys();
 		let remainder_contributions = default_remainder_buys();
 
@@ -4212,12 +4212,7 @@ mod funding_end {
 		for bid in stored_successful_bids.clone() {
 			call_and_is_ok!(
 				inst,
-				Pallet::<TestRuntime>::do_start_bid_vesting_schedule_for(
-					&bid.bidder,
-					project_id,
-					&bid.bidder,
-					bid.id,
-				)
+				Pallet::<TestRuntime>::do_start_bid_vesting_schedule_for(&bid.bidder, project_id, &bid.bidder, bid.id,)
 			);
 		}
 		for contribution in stored_contributions {
@@ -4232,8 +4227,7 @@ mod funding_end {
 			);
 		}
 
-		let auction_locked_plmc =
-			MockInstantiator::calculate_auction_plmc_charged_with_given_price(&bids, price);
+		let auction_locked_plmc = MockInstantiator::calculate_auction_plmc_charged_with_given_price(&bids, price);
 		let community_locked_plmc = MockInstantiator::calculate_contributed_plmc_spent(community_contributions, price);
 		let remainder_locked_plmc = MockInstantiator::calculate_contributed_plmc_spent(remainder_contributions, price);
 		let all_plmc_locks = MockInstantiator::generic_map_operation(
@@ -4277,11 +4271,11 @@ mod funding_end {
 		let details = inst.get_project_details(project_id);
 		assert_eq!(details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
 
-		let stored_successful_bids = inst
-			.execute(|| {
-				Bids::<TestRuntime>::iter_prefix_values((project_id,))
-					.filter(|bid| matches!(bid.status, BidStatus::Rejected(_)).not()).collect::<Vec<_>>();
-			});
+		let stored_successful_bids = inst.execute(|| {
+			Bids::<TestRuntime>::iter_prefix_values((project_id,))
+				.filter(|bid| matches!(bid.status, BidStatus::Rejected(_)).not())
+				.collect::<Vec<_>>()
+		});
 
 		let stored_contributions =
 			inst.execute(|| Contributions::<TestRuntime>::iter_prefix_values((project_id,)).collect::<Vec<_>>());
