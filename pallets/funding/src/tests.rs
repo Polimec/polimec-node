@@ -2437,7 +2437,8 @@ mod community_round_success {
 		assert!(inst.contribute_for_users(project_id, contributions).is_ok());
 
 		// Try to contribute again, but it should fail because the limit of contributions for a user-project was reached.
-		let over_limit_contribution = ContributionParams::new(CONTRIBUTOR, token_amount, 1u8, AcceptedFundingAsset::USDT);
+		let over_limit_contribution =
+			ContributionParams::new(CONTRIBUTOR, token_amount, 1u8, AcceptedFundingAsset::USDT);
 		assert!(inst.contribute_for_users(project_id, vec![over_limit_contribution]).is_err());
 
 		// Check that the right amount of PLMC is bonded, and funding currency is transferred
@@ -2531,8 +2532,7 @@ mod community_round_success {
 		let fill_necessary_usdt =
 			MockInstantiator::calculate_contributed_funding_asset_spent(fill_contributions.clone(), expected_price);
 
-		let evaluation_bond =
-			MockInstantiator::sum_balance_mappings(vec![fill_necessary_plmc]);
+		let evaluation_bond = MockInstantiator::sum_balance_mappings(vec![fill_necessary_plmc]);
 
 		let evaluation_usd_amount = <TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID)
 			.unwrap()
@@ -2544,12 +2544,15 @@ mod community_round_success {
 		// The required PLMC bond the contributions + the slashable amount for the evaluator.
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
 			evaluator_contributor,
-			evaluation_bond + <TestRuntime as Config>::EvaluatorSlash::get() * evaluation_bond
+			evaluation_bond + <TestRuntime as Config>::EvaluatorSlash::get() * evaluation_bond,
 		)]);
 		inst.mint_foreign_asset_to(fill_necessary_usdt);
 
 		assert_ok!(inst.contribute_for_users(project_id, fill_contributions));
-		assert_err!(inst.contribute_for_users(project_id, vec![overflow_contribution]), <Error<TestRuntime>>::TooManyContributionsForUser);
+		assert_err!(
+			inst.contribute_for_users(project_id, vec![overflow_contribution]),
+			<Error<TestRuntime>>::TooManyContributionsForUser
+		);
 
 		let evaluation_bonded = inst.execute(|| {
 			<TestRuntime as Config>::NativeCurrency::balance_on_hold(
@@ -3122,8 +3125,7 @@ mod remainder_round_success {
 		let fill_necessary_usdt =
 			MockInstantiator::calculate_contributed_funding_asset_spent(fill_contributions.clone(), expected_price);
 
-		let evaluation_bond =
-			MockInstantiator::sum_balance_mappings(vec![fill_necessary_plmc]);
+		let evaluation_bond = MockInstantiator::sum_balance_mappings(vec![fill_necessary_plmc]);
 
 		let evaluation_usd_amount = <TestRuntime as Config>::PriceProvider::get_price(PLMC_FOREIGN_ID)
 			.unwrap()
@@ -3135,12 +3137,15 @@ mod remainder_round_success {
 
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
 			evaluator_contributor,
-			evaluation_bond + <TestRuntime as Config>::EvaluatorSlash::get() * evaluation_bond
+			evaluation_bond + <TestRuntime as Config>::EvaluatorSlash::get() * evaluation_bond,
 		)]);
 		inst.mint_foreign_asset_to(fill_necessary_usdt);
 
 		assert_ok!(inst.contribute_for_users(project_id, fill_contributions));
-		assert_err!(inst.contribute_for_users(project_id, vec![overflow_contribution]), <Error<TestRuntime>>::TooManyContributionsForUser);
+		assert_err!(
+			inst.contribute_for_users(project_id, vec![overflow_contribution]),
+			<Error<TestRuntime>>::TooManyContributionsForUser
+		);
 
 		let evaluation_bonded = inst.execute(|| {
 			<TestRuntime as Config>::NativeCurrency::balance_on_hold(

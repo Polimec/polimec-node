@@ -1004,6 +1004,8 @@ pub mod pallet {
 		TooManyEvaluationsForProject,
 		/// Reached contribution limit for this user on this project
 		TooManyContributionsForUser,
+		// Participant tried to do a community contribution but it already had a winning bid on the auction round.
+		UserHasWinningBids
 	}
 
 	#[pallet::call]

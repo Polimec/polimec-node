@@ -1205,8 +1205,14 @@ impl<T: Config> Pallet<T> {
 		asset: AcceptedFundingAsset,
 	) -> DispatchResultWithPostInfo {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		ensure!( project_details.status == ProjectStatus::CommunityRound, Error::<T>::AuctionNotStarted);
-		
+		ensure!(project_details.status == ProjectStatus::CommunityRound, Error::<T>::AuctionNotStarted);
+
+		let user_winning_bids = Bids::<T>::iter_prefix_values((project_id, contributor))
+			.filter(|bid| matches!(bid.status, BidStatus::Accepted | BidStatus::PartiallyAccepted(..)))
+			.next();
+
+		ensure!(user_winning_bids.is_none(), Error::<T>::UserHasWinningBids);
+
 		let buyable_tokens = token_amount.min(project_details.remaining_contribution_tokens.1);
 		project_details.remaining_contribution_tokens.1.saturating_reduce(buyable_tokens);
 
@@ -1230,8 +1236,14 @@ impl<T: Config> Pallet<T> {
 		asset: AcceptedFundingAsset,
 	) -> DispatchResultWithPostInfo {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		ensure!( project_details.status == ProjectStatus::RemainderRound, Error::<T>::AuctionNotStarted );
-		let buyable_tokens = token_amount.min(project_details.remaining_contribution_tokens.0.saturating_add(project_details.remaining_contribution_tokens.1));
+
+		ensure!(project_details.status == ProjectStatus::RemainderRound, Error::<T>::AuctionNotStarted);
+		let buyable_tokens = token_amount.min(
+			project_details
+				.remaining_contribution_tokens
+				.0
+				.saturating_add(project_details.remaining_contribution_tokens.1),
+		);
 
 		let before = project_details.remaining_contribution_tokens.0;
 		let remaining_cts_in_round = before.saturating_sub(buyable_tokens);
@@ -1246,7 +1258,6 @@ impl<T: Config> Pallet<T> {
 		Self::do_contribute(contributor, project_id, &mut project_details, token_amount, multiplier, asset)
 	}
 
-	
 	fn do_contribute(
 		contributor: &AccountIdOf<T>,
 		project_id: ProjectId,
@@ -1257,12 +1268,15 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResultWithPostInfo {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let caller_existing_contributions =
-		Contributions::<T>::iter_prefix_values((project_id, contributor)).collect::<Vec<_>>();
-		
+			Contributions::<T>::iter_prefix_values((project_id, contributor)).collect::<Vec<_>>();
+
 		// * Validity checks *
 		ensure!(project_metadata.participation_currencies == asset, Error::<T>::FundingAssetNotAccepted);
 		ensure!(contributor.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
-		ensure!(caller_existing_contributions.len() < T::MaxContributionsPerUser::get() as usize, Error::<T>::TooManyContributionsForUser);
+		ensure!(
+			caller_existing_contributions.len() < T::MaxContributionsPerUser::get() as usize,
+			Error::<T>::TooManyContributionsForUser
+		);
 
 		let now = <frame_system::Pallet<T>>::block_number();
 
@@ -1271,7 +1285,6 @@ impl<T: Config> Pallet<T> {
 		let funding_asset_usd_price =
 			T::PriceProvider::get_price(asset.to_assethub_id()).ok_or(Error::<T>::PriceNotFound)?;
 
-		
 		let ticket_size = ct_usd_price.checked_mul_int(buyable_tokens).ok_or(Error::<T>::BadMath)?;
 		if let Some(minimum_ticket_size) = project_metadata.ticket_size.minimum {
 			// Make sure the bid amount is greater than the minimum specified by the issuer
@@ -1340,8 +1353,7 @@ impl<T: Config> Pallet<T> {
 					Err(_iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
 				};
 
-			weight_round_end_flag =
-				Some((fully_filled_vecs_from_insertion, total_vecs_in_storage ));
+			weight_round_end_flag = Some((fully_filled_vecs_from_insertion, total_vecs_in_storage));
 		}
 
 		// * Emit events *
@@ -1363,10 +1375,7 @@ impl<T: Config> Pallet<T> {
 				)),
 		};
 
-		Ok(PostDispatchInfo {
-			actual_weight: actual_weight,
-			pays_fee: Pays::Yes,
-		})
+		Ok(PostDispatchInfo { actual_weight, pays_fee: Pays::Yes })
 	}
 
 	pub fn do_decide_project_outcome(
@@ -2937,7 +2946,6 @@ impl<T: Config> Pallet<T> {
 		asset_id: AssetIdOf<T>,
 	) -> DispatchResult {
 		let fund_account = Self::fund_account_id(project_id);
-		println!("funding_total {:?}", T::FundingCurrency::balance(asset_id, &who));
 		// Why `Preservation::Expendable`?
 		// the min_balance of funding assets (e.g USDT) are low enough so we don't expect users to care about their balance being dusted.
 		// We do think the UX would be bad if they cannot use all of their available tokens.

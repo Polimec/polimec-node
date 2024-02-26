@@ -1093,7 +1093,7 @@ impl<
 		contributions: Vec<ContributionParams<T>>,
 	) -> DispatchResultWithPostInfo {
 		match self.get_project_details(project_id).status {
-			ProjectStatus::CommunityRound => {
+			ProjectStatus::CommunityRound =>
 				for cont in contributions {
 					self.execute(|| {
 						crate::Pallet::<T>::do_community_contribute(
@@ -1104,9 +1104,8 @@ impl<
 							cont.asset,
 						)
 					})?;
-				}
-			},
-			ProjectStatus::RemainderRound => {
+				},
+			ProjectStatus::RemainderRound =>
 				for cont in contributions {
 					self.execute(|| {
 						crate::Pallet::<T>::do_remaining_contribute(
@@ -1117,11 +1116,10 @@ impl<
 							cont.asset,
 						)
 					})?;
-				}
-			},
+				},
 			_ => panic!("Project should be in Community or Remainder status"),
 		}
-		
+
 		Ok(().into())
 	}
 
