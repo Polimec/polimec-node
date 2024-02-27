@@ -136,20 +136,13 @@ where
 	let default_project_metadata = default_project::<T>(0, account::<AccountIdOf<T>>("issuer", 0, 0));
 	let auction_funding_target = default_project_metadata.minimum_price.saturating_mul_int(default_project_metadata.auction_round_allocation_percentage * default_project_metadata.total_allocation_size);
 
-	vec![
-		BidParams::new(
-			account::<AccountIdOf<T>>("bidder_1", 0, 0),
-			Percent::from_percent(60u8) * auction_funding_target,
-			1u8,
-			AcceptedFundingAsset::USDT,
-		),
-		BidParams::new(
-			account::<AccountIdOf<T>>("bidder_2", 0, 0),
-			Percent::from_percent(35u8) * auction_funding_target,
-			7u8,
-			AcceptedFundingAsset::USDT,
-		),
-	]
+	BenchInstantiator::generate_bids_from_total_usd(
+		Percent::from_percent(95) * auction_funding_target,
+		10u128.into(),
+		default_weights(),
+		default_bidders::<T>(),
+		default_bidder_multipliers(),
+	)
 }
 
 pub fn full_bids<T>() -> Vec<BidParams<T>>
@@ -185,26 +178,13 @@ where
 
 	let contributing_funding_target = funding_target - auction_funding_target;
 
-	vec![
-		ContributionParams::new(
-			account::<AccountIdOf<T>>("contributor_1", 0, 0),
-			Percent::from_percent(60u8) * contributing_funding_target,
-			1u8,
-			AcceptedFundingAsset::USDT,
-		),
-		ContributionParams::new(
-			account::<AccountIdOf<T>>("contributor_2", 0, 0),
-			Percent::from_percent(20u8) * contributing_funding_target,
-			1u8,
-			AcceptedFundingAsset::USDT,
-		),
-		ContributionParams::new(
-			account::<AccountIdOf<T>>("contributor_3", 0, 0),
-			Percent::from_percent(5u8) * contributing_funding_target,
-			1u8,
-			AcceptedFundingAsset::USDT,
-		),
-	]
+	BenchInstantiator::generate_contributions_from_total_usd(
+		Percent::from_percent(85) * contributing_funding_target,
+		10u128.into(),
+		default_weights(),
+		default_community_contributors::<T>(),
+		default_community_contributor_multipliers(),
+	)
 }
 
 pub fn default_remainder_contributions<T: Config>() -> Vec<ContributionParams<T>>
@@ -220,26 +200,13 @@ where
 
 	let contributing_funding_target = funding_target - auction_funding_target;
 
-	vec![
-		ContributionParams::new(
-			account::<AccountIdOf<T>>("contributor_1", 0, 0),
-			Percent::from_percent(10u8) * contributing_funding_target,
-			1u8,
-			AcceptedFundingAsset::USDT,
-		),
-		ContributionParams::new(
-			account::<AccountIdOf<T>>("bidder_1", 0, 0),
-			Percent::from_percent(3u8) * contributing_funding_target,
-			1u8,
-			AcceptedFundingAsset::USDT,
-		),
-		ContributionParams::new(
-			account::<AccountIdOf<T>>("evaluator_1", 0, 0),
-			Percent::from_percent(1u8) * contributing_funding_target,
-			1u8,
-			AcceptedFundingAsset::USDT,
-		),
-	]
+	BenchInstantiator::generate_contributions_from_total_usd(
+		Percent::from_percent(15) * contributing_funding_target,
+		10u128.into(),
+		default_weights(),
+		default_remainder_contributors::<T>(),
+		default_remainder_contributor_multipliers(),
+	)
 }
 
 pub fn default_weights() -> Vec<u8> {
@@ -256,13 +223,22 @@ pub fn default_bidders<T: Config>() -> Vec<AccountIdOf<T>> {
 	]
 }
 
-pub fn default_contributors<T: Config>() -> Vec<AccountIdOf<T>> {
+pub fn default_community_contributors<T: Config>() -> Vec<AccountIdOf<T>> {
 	vec![
 		account::<AccountIdOf<T>>("contributor_1", 0, 0),
 		account::<AccountIdOf<T>>("contributor_2", 0, 0),
 		account::<AccountIdOf<T>>("contributor_3", 0, 0),
 		account::<AccountIdOf<T>>("contributor_4", 0, 0),
 		account::<AccountIdOf<T>>("contributor_5", 0, 0),
+	]
+}
+pub fn default_remainder_contributors<T: Config>() -> Vec<AccountIdOf<T>> {
+	vec![
+		account::<AccountIdOf<T>>("bidder_1", 0, 0),
+		account::<AccountIdOf<T>>("bidder_2", 0, 0),
+		account::<AccountIdOf<T>>("evaluator_1", 0, 0),
+		account::<AccountIdOf<T>>("evaluator_2", 0, 0),
+		account::<AccountIdOf<T>>("contributor_6", 0, 0),
 	]
 }
 
@@ -1720,7 +1696,7 @@ mod benchmarks {
 			Percent::from_percent(10) * target_funding_amount,
 			project_metadata.minimum_price,
 			default_weights(),
-			default_contributors::<T>(),
+			default_community_contributors::<T>(),
 			default_community_contributor_multipliers(),
 		);
 
@@ -1835,7 +1811,7 @@ mod benchmarks {
 		inst.advance_time(1u32.into()).unwrap();
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-		let bids: Vec<BidParams<T>> = default_bids::<T>()
+		let bids: Vec<BidParams<T>> = default_bids::<T>();
 		let bidder = bids[0].bidder.clone();
 		whitelist_account!(bidder);
 
@@ -1857,16 +1833,7 @@ mod benchmarks {
 
 		let mut bids_to_mint_ct = inst.execute(|| Bids::<T>::iter_prefix_values((project_id, bidder.clone())));
 
-		let pre_bid_to_mint_ct = bids_to_mint_ct.next().unwrap();
 		let bench_bid_to_mint_ct = bids_to_mint_ct.next().unwrap();
-
-		Pallet::<T>::bid_ct_mint_for(
-			RawOrigin::Signed(bidder.clone()).into(),
-			project_id,
-			bidder.clone(),
-			pre_bid_to_mint_ct.id,
-		)
-		.unwrap();
 
 		#[extrinsic_call]
 		bid_ct_mint_for(RawOrigin::Signed(bidder.clone()), project_id, bidder.clone(), bench_bid_to_mint_ct.id);
@@ -1878,7 +1845,7 @@ mod benchmarks {
 
 		// Balances
 		let ct_amount = inst.get_ct_asset_balances_for(project_id, vec![bidder.clone()])[0];
-		assert_eq!(ct_amount, pre_bid_to_mint_ct.final_ct_amount + stored_bid.final_ct_amount);
+		assert_eq!(ct_amount, stored_bid.final_ct_amount);
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(
@@ -2319,7 +2286,7 @@ mod benchmarks {
 			Percent::from_percent(40) * target_funding_amount,
 			project_metadata.minimum_price,
 			default_weights(),
-			default_contributors::<T>(),
+			default_community_contributors::<T>(),
 			default_community_contributor_multipliers(),
 		);
 
@@ -2376,7 +2343,7 @@ mod benchmarks {
 			Percent::from_percent(10) * target_funding_amount,
 			project_metadata.minimum_price,
 			default_weights(),
-			default_contributors::<T>(),
+			default_community_contributors::<T>(),
 			default_community_contributor_multipliers(),
 		);
 
@@ -2444,7 +2411,7 @@ mod benchmarks {
 			Percent::from_percent(10) * target_funding_amount,
 			project_metadata.minimum_price,
 			default_weights(),
-			default_contributors::<T>(),
+			default_community_contributors::<T>(),
 			default_community_contributor_multipliers(),
 		);
 		let contributor = contributions[0].contributor.clone();
@@ -2524,7 +2491,7 @@ mod benchmarks {
 			Percent::from_percent(10) * target_funding_amount,
 			project_metadata.minimum_price,
 			default_weights(),
-			default_contributors::<T>(),
+			default_community_contributors::<T>(),
 			default_community_contributor_multipliers(),
 		);
 
@@ -2594,7 +2561,7 @@ mod benchmarks {
 			Percent::from_percent(10) * target_funding_amount,
 			project_metadata.minimum_price,
 			default_weights(),
-			default_contributors::<T>(),
+			default_community_contributors::<T>(),
 			default_community_contributor_multipliers(),
 		);
 		let contributor = contributions[0].contributor.clone();
@@ -3145,7 +3112,7 @@ mod benchmarks {
 			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
 			project_metadata.minimum_price,
 			default_weights(),
-			default_contributors::<T>(),
+			default_community_contributors::<T>(),
 			default_community_contributor_multipliers(),
 		);
 
@@ -3202,7 +3169,7 @@ mod benchmarks {
 			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
 			project_metadata.minimum_price,
 			default_weights(),
-			default_contributors::<T>(),
+			default_community_contributors::<T>(),
 			default_community_contributor_multipliers(),
 		);
 
@@ -3260,7 +3227,7 @@ mod benchmarks {
 			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
 			project_metadata.minimum_price,
 			default_weights(),
-			default_contributors::<T>(),
+			default_community_contributors::<T>(),
 			default_community_contributor_multipliers(),
 		);
 
@@ -3340,7 +3307,7 @@ mod benchmarks {
 			(automatically_rejected_threshold * target_funding_amount) / 2.into(),
 			project_metadata.minimum_price,
 			default_weights(),
-			default_contributors::<T>(),
+			default_community_contributors::<T>(),
 			default_community_contributor_multipliers(),
 		);
 
@@ -3395,7 +3362,7 @@ mod benchmarks {
 			(manual_outcome_threshold * target_funding_amount) / 2.into(),
 			project_metadata.minimum_price,
 			default_weights(),
-			default_contributors::<T>(),
+			default_community_contributors::<T>(),
 			default_community_contributor_multipliers(),
 		);
 
@@ -3443,7 +3410,7 @@ mod benchmarks {
 			(manual_outcome_threshold * target_funding_amount) / 2.into(),
 			project_metadata.minimum_price,
 			default_weights(),
-			default_contributors::<T>(),
+			default_community_contributors::<T>(),
 			default_community_contributor_multipliers(),
 		);
 
@@ -3521,7 +3488,7 @@ mod benchmarks {
 			Percent::from_percent(10) * target_funding_amount,
 			project_metadata.minimum_price,
 			default_weights(),
-			default_contributors::<T>(),
+			default_community_contributors::<T>(),
 			default_community_contributor_multipliers(),
 		);
 
