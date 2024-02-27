@@ -16,17 +16,19 @@
 
 use crate::PolimecRuntime;
 use frame_support::BoundedVec;
-use sp_arithmetic::Percent;
 pub use pallet_funding::instantiator::{BidParams, ContributionParams, UserToPLMCBalance, UserToUSDBalance};
 use pallet_funding::{
-	AcceptedFundingAsset, CurrencyMetadata, ParticipantsSize, ProjectMetadata, ProjectMetadataOf, TicketSize,
+	AcceptedFundingAsset, CurrencyMetadata, ParticipantsSize, ProjectMetadata, ProjectMetadataOf, RoundTicketSizes,
+	TicketSize,
 };
+use sp_arithmetic::Percent;
 use sp_core::H256;
 
 use macros::generate_accounts;
 use polimec_parachain_runtime::AccountId;
 use sp_runtime::{traits::ConstU32, Perquintill};
 use xcm_emulator::TestExt;
+
 // //42555945525f3300000000000000000000000000000000000000000000000000
 pub const METADATA: &str = r#"METADATA
         {
@@ -39,6 +41,8 @@ pub const METADATA: &str = r#"METADATA
 pub const ASSET_DECIMALS: u8 = 10;
 pub const ASSET_UNIT: u128 = 10_u128.pow(10 as u32);
 pub const PLMC: u128 = 10u128.pow(10);
+pub const US_DOLLAR: u128 = 1_0_000_000_000;
+
 pub type IntegrationInstantiator = pallet_funding::instantiator::Instantiator<
 	PolimecRuntime,
 	<PolimecRuntime as pallet_funding::Config>::AllPalletsWithoutSystem,
@@ -83,7 +87,10 @@ pub fn default_project(issuer: AccountId, nonce: u32) -> ProjectMetadataOf<polim
 		total_allocation_size: 100_000 * ASSET_UNIT,
 		auction_round_allocation_percentage: Percent::from_percent(50u8),
 		minimum_price: sp_runtime::FixedU128::from_float(1.0),
-		ticket_size: TicketSize { minimum: Some(1), maximum: None },
+		ticket_size: RoundTicketSizes {
+			bidding: TicketSize { minimum: Some(5000 * US_DOLLAR), maximum: None },
+			contributing: TicketSize { minimum: Some(1), maximum: None },
+		},
 		participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 		funding_thresholds: Default::default(),
 		participation_currencies: AcceptedFundingAsset::USDT,

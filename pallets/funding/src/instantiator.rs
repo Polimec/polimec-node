@@ -556,7 +556,8 @@ impl<
 		grouped_by_price_bids.reverse();
 
 		let plmc_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap();
-		let mut remaining_cts = project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+		let mut remaining_cts =
+			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
 
 		for (price_charged, bids) in grouped_by_price_bids {
 			for bid in bids {
@@ -661,7 +662,8 @@ impl<
 			.collect();
 		grouped_by_price_bids.reverse();
 
-		let mut remaining_cts = project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+		let mut remaining_cts =
+			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
 
 		for (price_charged, bids) in grouped_by_price_bids {
 			for bid in bids {
@@ -1495,17 +1497,19 @@ impl<
 		if self.get_project_details(project_id).status == ProjectStatus::FundingSuccessful {
 			// Check that remaining CTs are updated
 			let project_details = self.get_project_details(project_id);
+			// if our bids were creating an oversubscription, then just take the total allocation size
 			let auction_bought_tokens = bids
 				.iter()
-				.filter_map(|bid| bid.amount)
+				.map(|bid| bid.amount)
 				.fold(Zero::zero(), |acc, item| item + acc)
+				.min(project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size);
 			let community_bought_tokens =
 				community_contributions.iter().map(|cont| cont.amount).fold(Zero::zero(), |acc, item| item + acc);
 			let remainder_bought_tokens =
 				remainder_contributions.iter().map(|cont| cont.amount).fold(Zero::zero(), |acc, item| item + acc);
 
 			assert_eq!(
-				project_details.remaining_contribution_tokens.0 + project_details.remaining_contribution_tokens.1,
+				project_details.remaining_contribution_tokens,
 				project_metadata.total_allocation_size -
 					auction_bought_tokens -
 					community_bought_tokens -
@@ -2366,7 +2370,7 @@ pub mod async_features {
 				remainder_contributions.iter().map(|cont| cont.amount).fold(Zero::zero(), |acc, item| item + acc);
 
 			assert_eq!(
-				project_details.remaining_contribution_tokens.0 + project_details.remaining_contribution_tokens.1,
+				project_details.remaining_contribution_tokens,
 				project_metadata.total_allocation_size -
 					auction_bought_tokens -
 					community_bought_tokens -

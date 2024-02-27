@@ -328,7 +328,10 @@ mod testing_helpers {
 			total_allocation_size: 50_000 * ASSET_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: FixedU128::from_float(1.0),
-			ticket_size: TicketSize { minimum: Some(1), maximum: None },
+			ticket_size: RoundTicketSizes {
+				bidding: TicketSize { minimum: Some(5000 * US_DOLLAR), maximum: None },
+				contributing: TicketSize { minimum: Some(1), maximum: None },
+			},
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 			funding_thresholds: Default::default(),
 			participation_currencies: AcceptedFundingAsset::USDT,
@@ -395,9 +398,7 @@ fn testing_genesis(
 	let twenty_percent_funding_usd = Perquintill::from_percent(funding_percent) *
 		(default_project_metadata
 			.minimum_price
-			.checked_mul_int(
-				default_project_metadata.total_allocation_size
-			)
+			.checked_mul_int(default_project_metadata.total_allocation_size)
 			.unwrap());
 	let evaluations = default_evaluations();
 	let bids = GenesisInstantiator::generate_bids_from_total_usd(

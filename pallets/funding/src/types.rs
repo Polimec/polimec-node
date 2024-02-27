@@ -157,8 +157,10 @@ pub mod config_types {
 }
 
 pub mod storage_types {
-	use sp_arithmetic::Percent;
-	use sp_arithmetic::traits::{One, Saturating, Zero};
+	use sp_arithmetic::{
+		traits::{One, Saturating, Zero},
+		Percent,
+	};
 
 	use super::*;
 
@@ -176,7 +178,7 @@ pub mod storage_types {
 		/// Minimum price per Contribution Tokens
 		pub minimum_price: Price,
 		/// Maximum and minimum ticket sizes. 1st is auction round, second is community/remainder rounds
-		pub ticket_size: (TicketSize<Balance>, TicketSize<Balance>),
+		pub ticket_size: RoundTicketSizes<Balance>,
 		/// Maximum and/or minimum number of participants for the Auction and Community Round
 		pub participants_size: ParticipantsSize,
 		/// Funding round thresholds for Retail, Professional and Institutional participants
@@ -217,7 +219,7 @@ pub mod storage_types {
 		/// Fundraising target amount in USD equivalent
 		pub fundraising_target: Balance,
 		/// The amount of Contribution Tokens that have not yet been sold
-		pub remaining_contribution_tokens: (Balance, Balance),
+		pub remaining_contribution_tokens: Balance,
 		/// Funding reached amount in USD equivalent
 		pub funding_amount_reached: Balance,
 		/// Cleanup operations remaining
@@ -422,6 +424,23 @@ pub mod inner_types {
 		}
 	}
 
+	#[derive(Default, Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	pub struct RoundTicketSizes<Balance: BalanceT + Copy> {
+		// i.e auction round
+		pub bidding: TicketSize<Balance>,
+		// i,e community and remainder round
+		pub contributing: TicketSize<Balance>,
+	}
+	impl<Balance: BalanceT + Copy> RoundTicketSizes<Balance> {
+		pub(crate) fn is_valid(&self) -> Result<(), ValidityError> {
+			if self.bidding.is_valid().is_ok() && self.contributing.is_valid().is_ok() {
+				Ok(())
+			} else {
+				Err(ValidityError::TicketSizeError)
+			}
+		}
+	}
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 	pub struct ParticipantsSize {

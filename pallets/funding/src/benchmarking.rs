@@ -86,12 +86,19 @@ where
 		token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: ASSET_DECIMALS },
 		mainnet_token_max_supply: BalanceOf::<T>::try_from(8_000_000_0_000_000_000u128)
 			.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-		total_allocation_size: BalanceOf::<T>::try_from(50_000_0_000_000_000u128).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+		total_allocation_size: BalanceOf::<T>::try_from(50_000_0_000_000_000u128)
+			.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 		auction_round_allocation_percentage: Percent::from_percent(50u8),
 		minimum_price: 1u128.into(),
-		ticket_size: TicketSize {
-			minimum: Some(1u128.try_into().unwrap_or_else(|_| panic!("Failed to create BalanceOf"))),
-			maximum: None,
+		ticket_size: RoundTicketSizes {
+			bidding: TicketSize {
+				minimum: Some((5000 * US_DOLLAR).try_into().unwrap_or_else(|_| panic!("Failed to create BalanceOf"))),
+				maximum: None,
+			},
+			contributing: TicketSize {
+				minimum: Some(1u128.try_into().unwrap_or_else(|_| panic!("Failed to create BalanceOf"))),
+				maximum: None,
+			},
 		},
 		participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 		funding_thresholds: Default::default(),
@@ -863,7 +870,8 @@ mod benchmarks {
 			inst.bid_for_users(project_id, vec![bid_params]).unwrap();
 
 			ct_amount = Percent::from_percent(10) *
-				project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size *
+				project_metadata.auction_round_allocation_percentage *
+				project_metadata.total_allocation_size *
 				(do_perform_bid_calls as u128).into();
 			usdt_for_filler_bidder = usdt_for_new_bidder;
 		}
@@ -969,7 +977,9 @@ mod benchmarks {
 		}
 
 		// Bucket Storage Check
-		let bucket_delta_amount = Percent::from_percent(10) * project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+		let bucket_delta_amount = Percent::from_percent(10) *
+			project_metadata.auction_round_allocation_percentage *
+			project_metadata.total_allocation_size;
 		let ten_percent_in_price: <T as Config>::Price = PriceOf::<T>::checked_from_rational(1, 10).unwrap();
 
 		let mut starting_bucket = Bucket::new(
@@ -1298,7 +1308,7 @@ mod benchmarks {
 		let stored_project_details = ProjectsDetails::<T>::get(project_id).unwrap();
 
 		assert_eq!(
-			stored_project_details.remaining_contribution_tokens.1,
+			stored_project_details.remaining_contribution_tokens,
 			project_metadata.total_allocation_size.saturating_sub(total_ct_sold)
 		);
 
@@ -1351,7 +1361,7 @@ mod benchmarks {
 		) = contribution_setup::<T>(x, ends_round);
 
 		#[extrinsic_call]
-		contribute(
+		community_contribute(
 			RawOrigin::Signed(extrinsic_contribution.contributor.clone()),
 			project_id,
 			extrinsic_contribution.amount,
@@ -1397,7 +1407,7 @@ mod benchmarks {
 		) = contribution_setup::<T>(x, ends_round);
 
 		#[extrinsic_call]
-		contribute(
+		community_contribute(
 			RawOrigin::Signed(extrinsic_contribution.contributor.clone()),
 			project_id,
 			extrinsic_contribution.amount,
@@ -2865,7 +2875,8 @@ mod benchmarks {
 
 		let auction_allocation_size = BalanceOf::<T>::try_from((10 * (y + z) + 1) as u128 * ASSET_UNIT)
 			.unwrap_or_else(|_| panic!("Failed to create BalanceOf"));
-		let auction_allocation_percentage = Percent::from_rational(auction_allocation_size, 100_000 * ASSET_UNIT);
+		let auction_allocation_percentage =
+			Percent::from_rational(auction_allocation_size, (100_000 * ASSET_UNIT).into());
 
 		let project_metadata = ProjectMetadata {
 			token_information: CurrencyMetadata {
@@ -2875,12 +2886,22 @@ mod benchmarks {
 			},
 			mainnet_token_max_supply: BalanceOf::<T>::try_from(8_000_000_0_000_000_000u128)
 				.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-			total_allocation_size: 100_000 * ASSET_UNIT,
+			total_allocation_size: (100_000 * ASSET_UNIT)
+				.try_into()
+				.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 			auction_round_allocation_percentage: auction_allocation_percentage,
 			minimum_price: 1u128.into(),
-			ticket_size: TicketSize {
-				minimum: Some(1u128.try_into().unwrap_or_else(|_| panic!("Failed to create BalanceOf"))),
-				maximum: None,
+			ticket_size: RoundTicketSizes {
+				bidding: TicketSize {
+					minimum: Some(
+						(5000 * US_DOLLAR).try_into().unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					),
+					maximum: None,
+				},
+				contributing: TicketSize {
+					minimum: Some(1u128.try_into().unwrap_or_else(|_| panic!("Failed to create BalanceOf"))),
+					maximum: None,
+				},
 			},
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 			funding_thresholds: Default::default(),
@@ -3088,9 +3109,8 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
-		let target_funding_amount: BalanceOf<T> = project_metadata
-			.minimum_price
-			.saturating_mul_int(project_metadata.total_allocation_size);
+		let target_funding_amount: BalanceOf<T> =
+			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
 		let automatically_rejected_threshold = Percent::from_percent(33);
 
@@ -3146,9 +3166,8 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
-		let target_funding_amount: BalanceOf<T> = project_metadata
-			.minimum_price
-			.saturating_mul_int(project_metadata.total_allocation_size);
+		let target_funding_amount: BalanceOf<T> =
+			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
 		let automatically_rejected_threshold = Percent::from_percent(75);
 
@@ -3205,9 +3224,8 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
-		let target_funding_amount: BalanceOf<T> = project_metadata
-			.minimum_price
-			.saturating_mul_int(project_metadata.total_allocation_size);
+		let target_funding_amount: BalanceOf<T> =
+			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
 		let automatically_rejected_threshold = Percent::from_percent(89);
 
@@ -3266,9 +3284,8 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
-		let target_funding_amount: BalanceOf<T> = project_metadata
-			.minimum_price
-			.saturating_mul_int(project_metadata.total_allocation_size);
+		let target_funding_amount: BalanceOf<T> =
+			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
 		let automatically_rejected_threshold = Percent::from_percent(91);
 
@@ -3343,9 +3360,8 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
-		let target_funding_amount: BalanceOf<T> = project_metadata
-			.minimum_price
-			.saturating_mul_int(project_metadata.total_allocation_size);
+		let target_funding_amount: BalanceOf<T> =
+			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 		let manual_outcome_threshold = Percent::from_percent(50);
 
 		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
@@ -3392,9 +3408,8 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
-		let target_funding_amount: BalanceOf<T> = project_metadata
-			.minimum_price
-			.saturating_mul_int(project_metadata.total_allocation_size);
+		let target_funding_amount: BalanceOf<T> =
+			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 		let manual_outcome_threshold = Percent::from_percent(50);
 
 		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
@@ -3472,9 +3487,8 @@ mod benchmarks {
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
 
 		let project_metadata = default_project::<T>(inst.get_new_nonce(), issuer.clone());
-		let target_funding_amount: BalanceOf<T> = project_metadata
-			.minimum_price
-			.saturating_mul_int(project_metadata.total_allocation_size);
+		let target_funding_amount: BalanceOf<T> =
+			project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
 		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
 			Percent::from_percent(15) * target_funding_amount,
@@ -3588,51 +3602,16 @@ mod benchmarks {
 		}
 
 		#[test]
-		fn bench_first_contribution_no_ct_deposit() {
+		fn bench_contribution() {
 			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution_no_ct_deposit());
+				assert_ok!(PalletFunding::<TestRuntime>::test_contribution());
 			});
 		}
 
 		#[test]
-		fn bench_first_contribution_with_ct_deposit() {
+		fn bench_contribution_ends_round() {
 			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution_with_ct_deposit());
-			});
-		}
-
-		#[test]
-		fn bench_first_contribution_ends_round_no_ct_deposit() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution_ends_round_no_ct_deposit());
-			});
-		}
-
-		#[test]
-		fn bench_first_contribution_ends_round_with_ct_deposit() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution_ends_round_with_ct_deposit());
-			});
-		}
-
-		#[test]
-		fn bench_second_to_limit_contribution() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_second_to_limit_contribution());
-			});
-		}
-
-		#[test]
-		fn bench_second_to_limit_contribution_ends_round() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_second_to_limit_contribution_ends_round());
-			});
-		}
-
-		#[test]
-		fn bench_contribution_over_limit() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_contribution_over_limit());
+				assert_ok!(PalletFunding::<TestRuntime>::test_contribution_ends_round());
 			});
 		}
 
