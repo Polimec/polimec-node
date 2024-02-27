@@ -20,7 +20,7 @@ use itertools::Itertools;
 use macros::generate_accounts;
 use pallet_funding::*;
 use polimec_parachain_runtime::{PolimecFunding, US_DOLLAR};
-use sp_arithmetic::{FixedPointNumber, Perquintill};
+use sp_arithmetic::{FixedPointNumber, Percent, Perquintill};
 use sp_runtime::{traits::CheckedSub, FixedU128};
 
 type UserToCTBalance = Vec<(AccountId, BalanceOf<PolimecRuntime>, ProjectId)>;
@@ -43,13 +43,14 @@ pub fn excel_project(nonce: u64) -> ProjectMetadataOf<PolimecRuntime> {
 		token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: 10 },
 		mainnet_token_max_supply: 1_000_000_0_000_000_000, // Made up, not in the Sheet.
 		// Total Allocation of Contribution Tokens Available for the Funding Round
-		total_allocation_size: (50_000_0_000_000_000, 50_000_0_000_000_000),
+		total_allocation_size: 50_000_0_000_000_000,
+		auction_round_allocation_percentage: Percent::from_percent(50u8),
+
 		// Minimum Price per Contribution Token (in USDT)
 		minimum_price: PriceOf::<PolimecRuntime>::from(10),
 		ticket_size: TicketSize { minimum: Some(1), maximum: None },
 		participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 		funding_thresholds: Default::default(),
-		conversion_rate: 1,
 		participation_currencies: AcceptedFundingAsset::USDT,
 		funding_destination_account: ISSUER.into(),
 		offchain_information_hash: Some(metadata_hash),

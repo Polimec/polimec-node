@@ -93,12 +93,12 @@ pub mod defaults {
 				decimals: ASSET_DECIMALS,
 			},
 			mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
-			total_allocation_size: (50_000 * ASSET_UNIT, 50_000 * ASSET_UNIT),
+			total_allocation_size: 100_000 * ASSET_UNIT,
+			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: PriceOf::<TestRuntime>::from_float(1.0),
 			ticket_size: TicketSize { minimum: Some(1), maximum: None },
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 			funding_thresholds: Default::default(),
-			conversion_rate: 0,
 			participation_currencies: AcceptedFundingAsset::USDT,
 			funding_destination_account: issuer,
 			offchain_information_hash: Some(metadata_hash),
@@ -116,12 +116,12 @@ pub mod defaults {
 				decimals: ASSET_DECIMALS,
 			},
 			mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
-			total_allocation_size: (50_000 * ASSET_UNIT, 50_000 * ASSET_UNIT),
+			total_allocation_size: 100_000 * ASSET_UNIT,
+			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
 			ticket_size: TicketSize { minimum: Some(1), maximum: None },
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 			funding_thresholds: Default::default(),
-			conversion_rate: 0,
 			participation_currencies: AcceptedFundingAsset::USDT,
 			funding_destination_account: ISSUER,
 			offchain_information_hash: Some(metadata_hash),
@@ -244,7 +244,7 @@ pub mod defaults {
 		let usd_to_reach = Perquintill::from_percent(percent) *
 			(project_metadata
 				.minimum_price
-				.checked_mul_int(project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1)
+				.checked_mul_int(project_metadata.total_allocation_size)
 				.unwrap());
 		let evaluations = default_evaluations();
 		let bids = MockInstantiator::generate_bids_from_total_usd(
@@ -556,7 +556,7 @@ mod evaluation {
 		let evaluation_success_threshold = <TestRuntime as Config>::EvaluationSuccessThreshold::get();
 		let evaluation_min_success_amount = evaluation_success_threshold *
 			project_metadata.minimum_price.saturating_mul_int(
-				project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1,
+				project_metadata.total_allocation_size,
 			);
 		let evaluation_fail_amount = evaluation_min_success_amount - 100 * ASSET_UNIT;
 		let evaluator_bond = evaluation_fail_amount / 4;
@@ -752,12 +752,12 @@ mod auction {
 				decimals: ASSET_DECIMALS,
 			},
 			mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
-			total_allocation_size: (50_000 * ASSET_UNIT, 50_000 * ASSET_UNIT),
+			total_allocation_size: 100_000 * ASSET_UNIT,
+			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
 			ticket_size: TicketSize { minimum: Some(1), maximum: None },
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 			funding_thresholds: Default::default(),
-			conversion_rate: 0,
 			participation_currencies: AcceptedFundingAsset::USDT,
 			funding_destination_account: ISSUER,
 			offchain_information_hash: Some(metadata_hash),
@@ -1028,7 +1028,7 @@ mod auction {
 		];
 
 		let available_tokens =
-			project_metadata.total_allocation_size.0.saturating_sub(bids.iter().fold(0, |acc, bid| acc + bid.amount));
+			project_metadata.total_allocation_size.saturating_sub(bids.iter().fold(0, |acc, bid| acc + bid.amount));
 
 		let rejected_bid = vec![BidParams::new(BIDDER_5, available_tokens, 1u8, AcceptedFundingAsset::USDT)];
 		let accepted_bid = vec![BidParams::new(BIDDER_4, available_tokens, 1u8, AcceptedFundingAsset::USDT)];
@@ -2155,7 +2155,7 @@ mod funding_end {
 			let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER);
 			let min_price = project_metadata.minimum_price;
 			let twenty_percent_funding_usd = Perquintill::from_percent(funding_percent) *
-				(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size.0).unwrap());
+				(project_metadata.minimum_price.checked_mul_int(project_metadata.total_allocation_size).unwrap());
 			let evaluations = default_evaluations();
 			let bids = MockInstantiator::generate_bids_from_total_usd(
 				Percent::from_percent(50u8) * twenty_percent_funding_usd,
@@ -2187,7 +2187,7 @@ mod funding_end {
 				(project_metadata
 					.minimum_price
 					.checked_mul_int(
-						project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1,
+						project_metadata.total_allocation_size,
 					)
 					.unwrap());
 			let evaluations = default_evaluations();
@@ -2221,7 +2221,7 @@ mod funding_end {
 				(project_metadata
 					.minimum_price
 					.checked_mul_int(
-						project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1,
+						project_metadata.total_allocation_size,
 					)
 					.unwrap());
 			let evaluations = default_evaluations();
@@ -2253,7 +2253,7 @@ mod funding_end {
 		let twenty_percent_funding_usd = Perquintill::from_percent(55) *
 			(project_metadata
 				.minimum_price
-				.checked_mul_int(project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1)
+				.checked_mul_int(project_metadata.total_allocation_size)
 				.unwrap());
 		let evaluations = default_evaluations();
 		let bids = MockInstantiator::generate_bids_from_total_usd(
@@ -2302,7 +2302,7 @@ mod funding_end {
 		let twenty_percent_funding_usd = Perquintill::from_percent(55) *
 			(project_metadata
 				.minimum_price
-				.checked_mul_int(project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1)
+				.checked_mul_int(project_metadata.total_allocation_size)
 				.unwrap());
 		let evaluations = default_evaluations();
 		let bids = MockInstantiator::generate_bids_from_total_usd(
@@ -2355,7 +2355,7 @@ mod funding_end {
 		let twenty_percent_funding_usd = Perquintill::from_percent(55) *
 			(project_metadata
 				.minimum_price
-				.checked_mul_int(project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1)
+				.checked_mul_int(project_metadata.total_allocation_size)
 				.unwrap());
 		let evaluations = default_evaluations();
 		let bids = MockInstantiator::generate_bids_from_total_usd(
@@ -3295,7 +3295,7 @@ mod funding_end {
 		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = MockInstantiator::generate_bids_from_total_usd(
-			Percent::from_percent(50u8) * project_metadata.total_allocation_size.0,
+			Percent::from_percent(50u8) * project_metadata.total_allocation_size,
 			project_metadata.minimum_price,
 			default_weights(),
 			default_bidders(),
@@ -3303,14 +3303,14 @@ mod funding_end {
 		);
 
 		let community_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			Percent::from_percent(50u8) * project_metadata.total_allocation_size.1 / 2,
+			Percent::from_percent(50u8) * project_metadata.total_allocation_size / 2,
 			project_metadata.minimum_price,
 			default_weights(),
 			default_community_contributors(),
 			default_community_contributor_multipliers(),
 		);
 		let remainder_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			Percent::from_percent(50u8) * project_metadata.total_allocation_size.1 / 2,
+			Percent::from_percent(50u8) * project_metadata.total_allocation_size / 2,
 			project_metadata.minimum_price,
 			default_weights(),
 			default_remainder_contributors(),
@@ -3397,7 +3397,7 @@ mod funding_end {
 		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
 		let bids = MockInstantiator::generate_bids_from_total_usd(
-			Percent::from_percent(50u8) * project_metadata.total_allocation_size.0,
+			Percent::from_percent(50u8) * project_metadata.total_allocation_size,
 			project_metadata.minimum_price,
 			default_weights(),
 			default_bidders(),
@@ -3405,14 +3405,14 @@ mod funding_end {
 		);
 
 		let community_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			Percent::from_percent(50u8) * project_metadata.total_allocation_size.1 / 2,
+			Percent::from_percent(25u8) * project_metadata.total_allocation_size,
 			project_metadata.minimum_price,
 			default_weights(),
 			default_community_contributors(),
 			default_community_contributor_multipliers(),
 		);
 		let remainder_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			Percent::from_percent(50u8) * project_metadata.total_allocation_size.1 / 2,
+			Percent::from_percent(25u8) * project_metadata.total_allocation_size,
 			project_metadata.minimum_price,
 			default_weights(),
 			default_remainder_contributors(),
@@ -3531,7 +3531,7 @@ mod funding_end {
 		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
 		let evaluations = vec![UserToUSDBalance::new(EVALUATOR_1, 50_000 * US_DOLLAR)];
 		let bids = MockInstantiator::generate_bids_from_total_usd(
-			Percent::from_percent(50u8) * project_metadata.total_allocation_size.0,
+			Percent::from_percent(50u8) * project_metadata.total_allocation_size,
 			project_metadata.minimum_price,
 			default_weights(),
 			default_bidders(),
@@ -3539,14 +3539,14 @@ mod funding_end {
 		);
 
 		let community_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			Percent::from_percent(50u8) * project_metadata.total_allocation_size.1 / 2,
+			Percent::from_percent(25u8) * project_metadata.total_allocation_size,
 			project_metadata.minimum_price,
 			default_weights(),
 			default_community_contributors(),
 			default_community_contributor_multipliers(),
 		);
 		let remainder_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			Percent::from_percent(50u8) * project_metadata.total_allocation_size.1 / 2,
+			Percent::from_percent(25u8) * project_metadata.total_allocation_size,
 			project_metadata.minimum_price,
 			default_weights(),
 			default_remainder_contributors(),
@@ -3653,7 +3653,7 @@ mod funding_end {
 		let project = default_project_metadata(inst.get_new_nonce(), issuer);
 		let evaluations = vec![UserToUSDBalance::new(EVALUATOR_1, 50_000 * US_DOLLAR)];
 		let bids = MockInstantiator::generate_bids_from_total_usd(
-			Percent::from_percent(50u8) * project.total_allocation_size.0,
+			Percent::from_percent(50u8) * project.total_allocation_size,
 			project.minimum_price,
 			default_weights(),
 			default_bidders(),
@@ -3661,14 +3661,14 @@ mod funding_end {
 		);
 
 		let community_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			Percent::from_percent(50u8) * project.total_allocation_size.1 / 2,
+			Percent::from_percent(25u8) * project.total_allocation_size,
 			project.minimum_price,
 			default_weights(),
 			default_community_contributors(),
 			default_community_contributor_multipliers(),
 		);
 		let remainder_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			Percent::from_percent(50u8) * project.total_allocation_size.1 / 2,
+			Percent::from_percent(25u8) * project.total_allocation_size,
 			project.minimum_price,
 			default_weights(),
 			default_remainder_contributors(),
@@ -4099,7 +4099,6 @@ mod funding_end {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_metadata = default_project_metadata(0, ISSUER);
 		let automatic_fail_funding_percent = Percent::from_percent(30);
-		let (bid_allocation, contribution_allocation) = project_metadata.total_allocation_size;
 		let deposit_required = <<TestRuntime as Config>::ContributionTokenCurrency as AccountTouch<
 			ProjectId,
 			AccountIdOf<TestRuntime>,
@@ -4107,13 +4106,10 @@ mod funding_end {
 
 		let _remainder_contributors = vec![EVALUATOR_1, BIDDER_3, BUYER_4, BUYER_6, BIDDER_6];
 
-		let desired_total_usd_amount_bid =
-			automatic_fail_funding_percent * project_metadata.minimum_price.saturating_mul_int(bid_allocation);
-		let desired_total_usd_amount_contributed =
-			automatic_fail_funding_percent * project_metadata.minimum_price.saturating_mul_int(contribution_allocation);
+		let funding_target = project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
 
 		let bids = MockInstantiator::generate_bids_from_total_usd(
-			desired_total_usd_amount_bid,
+			funding_target * automatic_fail_funding_percent / 3,
 			project_metadata.minimum_price,
 			default_weights(),
 			default_bidders(),
@@ -4121,7 +4117,7 @@ mod funding_end {
 		);
 
 		let community_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			desired_total_usd_amount_contributed / 2,
+			funding_target * automatic_fail_funding_percent / 3,
 			project_metadata.minimum_price,
 			default_weights(),
 			default_community_contributors(),
@@ -4129,7 +4125,7 @@ mod funding_end {
 		);
 
 		let remainder_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			desired_total_usd_amount_contributed / 2,
+			funding_target * automatic_fail_funding_percent / 3,
 			project_metadata.minimum_price,
 			default_weights(),
 			default_remainder_contributors(),
@@ -4617,7 +4613,7 @@ mod async_tests {
 		let twenty_percent_funding_usd = Perquintill::from_percent(funding_percent) *
 			(project_metadata
 				.minimum_price
-				.checked_mul_int(project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1)
+				.checked_mul_int(project_metadata.total_allocation_size)
 				.unwrap());
 		let evaluations = default_evaluations();
 		let bids = MockInstantiator::generate_bids_from_total_usd(

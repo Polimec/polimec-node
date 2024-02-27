@@ -372,7 +372,7 @@ impl<
 			},
 			fundraising_target: expected_metadata
 				.minimum_price
-				.checked_mul_int(expected_metadata.total_allocation_size.0 + expected_metadata.total_allocation_size.1)
+				.checked_mul_int(expected_metadata.total_allocation_size)
 				.unwrap(),
 			remaining_contribution_tokens: expected_metadata.total_allocation_size,
 			funding_amount_reached: BalanceOf::<T>::zero(),
@@ -441,8 +441,8 @@ impl<
 
 		// Remaining CTs are updated
 		assert_eq!(
-			project_details.remaining_contribution_tokens.0,
-			project_metadata.total_allocation_size.0 - expected_ct_sold,
+			project_details.remaining_contribution_tokens,
+			project_metadata.total_allocation_size - expected_ct_sold,
 			"Remaining CTs are incorrect"
 		);
 	}
@@ -556,7 +556,7 @@ impl<
 		grouped_by_price_bids.reverse();
 
 		let plmc_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).unwrap();
-		let mut remaining_cts = project_metadata.total_allocation_size.0;
+		let mut remaining_cts = project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
 
 		for (price_charged, bids) in grouped_by_price_bids {
 			for bid in bids {
@@ -661,7 +661,7 @@ impl<
 			.collect();
 		grouped_by_price_bids.reverse();
 
-		let mut remaining_cts = project_metadata.total_allocation_size.0;
+		let mut remaining_cts = project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
 
 		for (price_charged, bids) in grouped_by_price_bids {
 			for bid in bids {
@@ -1497,9 +1497,8 @@ impl<
 			let project_details = self.get_project_details(project_id);
 			let auction_bought_tokens = bids
 				.iter()
-				.map(|bid| bid.amount)
+				.filter_map(|bid| bid.amount)
 				.fold(Zero::zero(), |acc, item| item + acc)
-				.min(project_metadata.total_allocation_size.0);
 			let community_bought_tokens =
 				community_contributions.iter().map(|cont| cont.amount).fold(Zero::zero(), |acc, item| item + acc);
 			let remainder_bought_tokens =
@@ -1507,7 +1506,7 @@ impl<
 
 			assert_eq!(
 				project_details.remaining_contribution_tokens.0 + project_details.remaining_contribution_tokens.1,
-				project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1 -
+				project_metadata.total_allocation_size -
 					auction_bought_tokens -
 					community_bought_tokens -
 					remainder_bought_tokens,
@@ -2003,7 +2002,7 @@ pub mod async_features {
 		let _weighted_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 		let accepted_bids = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::filter_bids_after_auction(
 			bids,
-			project_metadata.total_allocation_size.0,
+			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size,
 		);
 		let bid_expectations = accepted_bids
 			.iter()
@@ -2250,7 +2249,7 @@ pub mod async_features {
 
 		let total_ct_sold =
 			total_ct_sold_in_bids + total_ct_sold_in_community_contributions + total_ct_sold_in_remainder_contributions;
-		let total_ct_available = project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1;
+		let total_ct_available = project_metadata.total_allocation_size;
 		assert!(
 			total_ct_sold <= total_ct_available,
 			"Some CT buys are getting less than expected due to running out of CTs. This is ok in the runtime, but likely unexpected from the parameters of this instantiation"
@@ -2368,7 +2367,7 @@ pub mod async_features {
 
 			assert_eq!(
 				project_details.remaining_contribution_tokens.0 + project_details.remaining_contribution_tokens.1,
-				project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1 -
+				project_metadata.total_allocation_size -
 					auction_bought_tokens -
 					community_bought_tokens -
 					remainder_bought_tokens,

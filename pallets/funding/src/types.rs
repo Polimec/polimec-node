@@ -157,6 +157,7 @@ pub mod config_types {
 }
 
 pub mod storage_types {
+	use sp_arithmetic::Percent;
 	use sp_arithmetic::traits::{One, Saturating, Zero};
 
 	use super::*;
@@ -169,17 +170,17 @@ pub mod storage_types {
 		/// Mainnet Token Max Supply
 		pub mainnet_token_max_supply: Balance,
 		/// Total allocation of Contribution Tokens available for the Funding Round. (Auction, Community)
-		pub total_allocation_size: (Balance, Balance),
-		/// Minimum price per Contribution Token
+		pub total_allocation_size: Balance,
+		/// Percentage of the total allocation of Contribution Tokens available for the Auction Round
+		pub auction_round_allocation_percentage: Percent,
+		/// Minimum price per Contribution Tokens
 		pub minimum_price: Price,
-		/// Maximum and/or minimum ticket size
-		pub ticket_size: TicketSize<Balance>,
+		/// Maximum and minimum ticket sizes. 1st is auction round, second is community/remainder rounds
+		pub ticket_size: (TicketSize<Balance>, TicketSize<Balance>),
 		/// Maximum and/or minimum number of participants for the Auction and Community Round
 		pub participants_size: ParticipantsSize,
 		/// Funding round thresholds for Retail, Professional and Institutional participants
 		pub funding_thresholds: Thresholds,
-		/// Conversion rate of contribution token to mainnet token
-		pub conversion_rate: u32,
 		/// Participation currencies (e.g stablecoin, DOT, KSM)
 		/// e.g. https://github.com/paritytech/substrate/blob/427fd09bcb193c1e79dec85b1e207c718b686c35/frame/uniques/src/types.rs#L110
 		/// For now is easier to handle the case where only just one Currency is accepted

@@ -325,12 +325,12 @@ mod testing_helpers {
 				decimals: ASSET_DECIMALS,
 			},
 			mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
-			total_allocation_size: (50_000 * ASSET_UNIT, 50_000 * ASSET_UNIT),
+			total_allocation_size: 50_000 * ASSET_UNIT,
+			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: FixedU128::from_float(1.0),
 			ticket_size: TicketSize { minimum: Some(1), maximum: None },
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 			funding_thresholds: Default::default(),
-			conversion_rate: 0,
 			participation_currencies: AcceptedFundingAsset::USDT,
 			funding_destination_account: issuer,
 			offchain_information_hash: Some(metadata_hash(nonce)),
@@ -396,7 +396,7 @@ fn testing_genesis(
 		(default_project_metadata
 			.minimum_price
 			.checked_mul_int(
-				default_project_metadata.total_allocation_size.0 + default_project_metadata.total_allocation_size.1,
+				default_project_metadata.total_allocation_size
 			)
 			.unwrap());
 	let evaluations = default_evaluations();

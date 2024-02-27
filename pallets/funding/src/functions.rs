@@ -88,7 +88,7 @@ impl<T: Config> Pallet<T> {
 			};
 		}
 		let total_allocation_size =
-			initial_metadata.total_allocation_size.0.saturating_add(initial_metadata.total_allocation_size.1);
+			initial_metadata.total_allocation_size;
 
 		// * Calculate new variables *
 		let fundraising_target =
@@ -551,7 +551,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Update Storage *
 		let calculation_result =
-			Self::calculate_weighted_average_price(project_id, end_block, project_metadata.total_allocation_size.0);
+			Self::calculate_weighted_average_price(project_id, end_block, project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size);
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		match calculation_result {
 			Err(pallet_error) if pallet_error == Error::<T>::NoBidsFound.into() => {
@@ -718,7 +718,7 @@ impl<T: Config> Pallet<T> {
 		let funding_target = project_metadata
 			.minimum_price
 			.checked_mul_int(
-				project_metadata.total_allocation_size.0.saturating_add(project_metadata.total_allocation_size.1),
+				project_metadata.total_allocation_size,
 			)
 			.ok_or(Error::<T>::BadMath)?;
 		let funding_reached = project_details.funding_amount_reached;
@@ -1061,8 +1061,8 @@ impl<T: Config> Pallet<T> {
 		ensure!(bidder.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
 		ensure!(matches!(project_details.status, ProjectStatus::AuctionRound(_)), Error::<T>::AuctionNotStarted);
 		ensure!(funding_asset == project_metadata.participation_currencies, Error::<T>::FundingAssetNotAccepted);
-		// Note: We limit the CT Amount to the total allocation size, to avoid long running loops.
-		ensure!(ct_amount <= project_metadata.total_allocation_size.0, Error::<T>::NotAllowed);
+		// Note: We limit the CT Amount to the auction allocation size, to avoid long running loops.
+		ensure!(ct_amount <= project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size, Error::<T>::NotAllowed);
 		ensure!(existing_bids.len() < T::MaxBidsPerUser::get() as usize, Error::<T>::TooManyBidsForUser);
 
 		// Reserve plmc deposit to create a contribution token account for this project
@@ -2384,8 +2384,6 @@ impl<T: Config> Pallet<T> {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let contribution_tokens_sold = project_metadata
 			.total_allocation_size
-			.0
-			.saturating_add(project_metadata.total_allocation_size.1)
 			.saturating_sub(project_details.remaining_contribution_tokens.0)
 			.saturating_sub(project_details.remaining_contribution_tokens.1);
 
@@ -2611,13 +2609,14 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn create_bucket_from_metadata(metadata: &ProjectMetadataOf<T>) -> Result<BucketOf<T>, DispatchError> {
-		let bucket_delta_amount = Percent::from_percent(10) * metadata.total_allocation_size.0;
+		let auction_allocation_size =  metadata.auction_round_allocation_percentage * metadata.total_allocation_size;
+		let bucket_delta_amount = Percent::from_percent(10) * auction_allocation_size;
 		let ten_percent_in_price: <T as Config>::Price =
 			PriceOf::<T>::checked_from_rational(1, 10).ok_or(Error::<T>::BadMath)?;
 		let bucket_delta_price: <T as Config>::Price = metadata.minimum_price.saturating_mul(ten_percent_in_price);
 
 		let bucket: BucketOf<T> = Bucket::new(
-			metadata.total_allocation_size.0,
+			auction_allocation_size,
 			metadata.minimum_price,
 			bucket_delta_price,
 			bucket_delta_amount,
@@ -2658,7 +2657,7 @@ impl<T: Config> Pallet<T> {
 	pub fn calculate_weighted_average_price(
 		project_id: ProjectId,
 		end_block: BlockNumberFor<T>,
-		total_allocation_size: BalanceOf<T>,
+		auction_allocation_size: BalanceOf<T>,
 	) -> Result<(u32, u32), DispatchError> {
 		// Get all the bids that were made before the end of the candle
 		let mut bids = Bids::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
@@ -2684,7 +2683,7 @@ impl<T: Config> Pallet<T> {
 					return Self::refund_bid(&mut bid, project_id, &project_account, RejectionReason::AfterCandleEnd)
 						.and(Ok(bid));
 				}
-				let buyable_amount = total_allocation_size.saturating_sub(bid_token_amount_sum);
+				let buyable_amount = auction_allocation_size.saturating_sub(bid_token_amount_sum);
 				if buyable_amount.is_zero() {
 					rejected_bids_count += 1;
 					return Self::refund_bid(&mut bid, project_id, &project_account, RejectionReason::NoTokensLeft)
@@ -3009,7 +3008,7 @@ impl<T: Config> Pallet<T> {
 		let total_issuer_fees = Self::calculate_fees(funding_amount_reached);
 
 		let initial_token_allocation_size =
-			project_metadata.total_allocation_size.0.saturating_add(project_metadata.total_allocation_size.1);
+			project_metadata.total_allocation_size;
 		let final_remaining_contribution_tokens = project_details
 			.remaining_contribution_tokens
 			.0
