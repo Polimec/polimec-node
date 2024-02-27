@@ -86,10 +86,10 @@ where
 		token_information: CurrencyMetadata { name: bounded_name, symbol: bounded_symbol, decimals: ASSET_DECIMALS },
 		mainnet_token_max_supply: BalanceOf::<T>::try_from(8_000_000_0_000_000_000u128)
 			.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-		total_allocation_size: BalanceOf::<T>::try_from(50_000_0_000_000_000u128)
+		total_allocation_size: BalanceOf::<T>::try_from(100_000_000_0_000_000_000u128)
 			.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 		auction_round_allocation_percentage: Percent::from_percent(50u8),
-		minimum_price: 1u128.into(),
+		minimum_price: 10u128.into(),
 		ticket_size: RoundTicketSizes {
 			bidding: TicketSize {
 				minimum: Some((5000 * US_DOLLAR).try_into().unwrap_or_else(|_| panic!("Failed to create BalanceOf"))),
@@ -110,12 +110,20 @@ where
 
 pub fn default_evaluations<T: Config>() -> Vec<UserToUSDBalance<T>>
 where
+	<T as Config>::Price: From<u128>,
 	<T as Config>::Balance: From<u128>,
+	T::Hash: From<H256>,
 {
+	let threshold = <T as Config>::EvaluationSuccessThreshold::get();
+	let default_project_metadata: ProjectMetadataOf<T> = default_project::<T>(0, account::<AccountIdOf<T>>("issuer", 0, 0));
+	let funding_target = default_project_metadata.minimum_price.saturating_mul_int(default_project_metadata.total_allocation_size);
+	let evaluation_target = threshold * funding_target;
+
+
 	vec![
-		UserToUSDBalance::new(account::<AccountIdOf<T>>("evaluator_1", 0, 0), (50_000 * US_DOLLAR).into()),
-		UserToUSDBalance::new(account::<AccountIdOf<T>>("evaluator_2", 0, 0), (25_000 * US_DOLLAR).into()),
-		UserToUSDBalance::new(account::<AccountIdOf<T>>("evaluator_3", 0, 0), (32_000 * US_DOLLAR).into()),
+		UserToUSDBalance::new(account::<AccountIdOf<T>>("evaluator_1", 0, 0), Percent::from_percent(35) * evaluation_target),
+		UserToUSDBalance::new(account::<AccountIdOf<T>>("evaluator_2", 0, 0), Percent::from_percent(35) * evaluation_target),
+		UserToUSDBalance::new(account::<AccountIdOf<T>>("evaluator_3", 0, 0), Percent::from_percent(35) * evaluation_target),
 	]
 }
 
@@ -123,17 +131,21 @@ pub fn default_bids<T: Config>() -> Vec<BidParams<T>>
 where
 	<T as Config>::Price: From<u128>,
 	<T as Config>::Balance: From<u128>,
+	T::Hash: From<H256>,
 {
+	let default_project_metadata = default_project::<T>(0, account::<AccountIdOf<T>>("issuer", 0, 0));
+	let auction_funding_target = default_project_metadata.minimum_price.saturating_mul_int(default_project_metadata.auction_round_allocation_percentage * default_project_metadata.total_allocation_size);
+
 	vec![
 		BidParams::new(
 			account::<AccountIdOf<T>>("bidder_1", 0, 0),
-			(40_000 * ASSET_UNIT).into(),
+			Percent::from_percent(60u8) * auction_funding_target,
 			1u8,
 			AcceptedFundingAsset::USDT,
 		),
 		BidParams::new(
 			account::<AccountIdOf<T>>("bidder_2", 0, 0),
-			(5_000 * ASSET_UNIT).into(),
+			Percent::from_percent(35u8) * auction_funding_target,
 			7u8,
 			AcceptedFundingAsset::USDT,
 		),
@@ -163,23 +175,32 @@ pub fn default_community_contributions<T: Config>() -> Vec<ContributionParams<T>
 where
 	<T as Config>::Price: From<u128>,
 	<T as Config>::Balance: From<u128>,
+	T::Hash: From<H256>,
 {
+
+	let default_project_metadata = default_project::<T>(0, account::<AccountIdOf<T>>("issuer", 0, 0));
+
+	let funding_target = default_project_metadata.minimum_price.saturating_mul_int(default_project_metadata.total_allocation_size);
+	let auction_funding_target = default_project_metadata.minimum_price.saturating_mul_int(default_project_metadata.auction_round_allocation_percentage * default_project_metadata.total_allocation_size);
+
+	let contributing_funding_target = funding_target - auction_funding_target;
+
 	vec![
 		ContributionParams::new(
 			account::<AccountIdOf<T>>("contributor_1", 0, 0),
-			(10_000 * ASSET_UNIT).into(),
+			Percent::from_percent(60u8) * contributing_funding_target,
 			1u8,
 			AcceptedFundingAsset::USDT,
 		),
 		ContributionParams::new(
 			account::<AccountIdOf<T>>("contributor_2", 0, 0),
-			(6_000 * ASSET_UNIT).into(),
+			Percent::from_percent(20u8) * contributing_funding_target,
 			1u8,
 			AcceptedFundingAsset::USDT,
 		),
 		ContributionParams::new(
 			account::<AccountIdOf<T>>("contributor_3", 0, 0),
-			(30_000 * ASSET_UNIT).into(),
+			Percent::from_percent(5u8) * contributing_funding_target,
 			1u8,
 			AcceptedFundingAsset::USDT,
 		),
@@ -190,23 +211,31 @@ pub fn default_remainder_contributions<T: Config>() -> Vec<ContributionParams<T>
 where
 	<T as Config>::Price: From<u128>,
 	<T as Config>::Balance: From<u128>,
+	T::Hash: From<H256>,
 {
+	let default_project_metadata = default_project::<T>(0, account::<AccountIdOf<T>>("issuer", 0, 0));
+
+	let funding_target = default_project_metadata.minimum_price.saturating_mul_int(default_project_metadata.total_allocation_size);
+	let auction_funding_target = default_project_metadata.minimum_price.saturating_mul_int(default_project_metadata.auction_round_allocation_percentage * default_project_metadata.total_allocation_size);
+
+	let contributing_funding_target = funding_target - auction_funding_target;
+
 	vec![
 		ContributionParams::new(
 			account::<AccountIdOf<T>>("contributor_1", 0, 0),
-			(10 * ASSET_UNIT).into(),
+			Percent::from_percent(10u8) * contributing_funding_target,
 			1u8,
 			AcceptedFundingAsset::USDT,
 		),
 		ContributionParams::new(
 			account::<AccountIdOf<T>>("bidder_1", 0, 0),
-			(60 * ASSET_UNIT).into(),
+			Percent::from_percent(3u8) * contributing_funding_target,
 			1u8,
 			AcceptedFundingAsset::USDT,
 		),
 		ContributionParams::new(
 			account::<AccountIdOf<T>>("evaluator_1", 0, 0),
-			(30 * ASSET_UNIT).into(),
+			Percent::from_percent(1u8) * contributing_funding_target,
 			1u8,
 			AcceptedFundingAsset::USDT,
 		),
@@ -1307,9 +1336,13 @@ mod benchmarks {
 
 		let stored_project_details = ProjectsDetails::<T>::get(project_id).unwrap();
 
+		let bid_ct_sold = Bids::<T>::iter_prefix_values((project_id,))
+			.map(|bid| bid.final_ct_amount)
+			.fold(Zero::zero(), |acc, x| acc + x);
+
 		assert_eq!(
 			stored_project_details.remaining_contribution_tokens,
-			project_metadata.total_allocation_size.saturating_sub(total_ct_sold)
+			project_metadata.total_allocation_size.saturating_sub(total_ct_sold).saturating_sub(bid_ct_sold)
 		);
 
 		// Balances
@@ -1802,20 +1835,7 @@ mod benchmarks {
 		inst.advance_time(1u32.into()).unwrap();
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-		let bids: Vec<BidParams<T>> = vec![
-			BidParams::new(
-				account::<AccountIdOf<T>>("bidder_1", 0, 0),
-				(40_000 * ASSET_UNIT).into(),
-				1u8,
-				AcceptedFundingAsset::USDT,
-			),
-			BidParams::new(
-				account::<AccountIdOf<T>>("bidder_1", 0, 0),
-				(5_000 * ASSET_UNIT).into(),
-				7u8,
-				AcceptedFundingAsset::USDT,
-			),
-		];
+		let bids: Vec<BidParams<T>> = default_bids::<T>()
 		let bidder = bids[0].bidder.clone();
 		whitelist_account!(bidder);
 
@@ -2916,7 +2936,7 @@ mod benchmarks {
 			.map(|i| {
 				BidParams::<T>::new(
 					account::<AccountIdOf<T>>("bidder", 0, i),
-					(10u128 * ASSET_UNIT).into(),
+					(500 * ASSET_UNIT).into(),
 					1u8,
 					AcceptedFundingAsset::USDT,
 				)
@@ -2927,7 +2947,7 @@ mod benchmarks {
 			.map(|i| {
 				BidParams::<T>::new(
 					account::<AccountIdOf<T>>("bidder", 0, i),
-					(10u128 * ASSET_UNIT).into(),
+					(500 * ASSET_UNIT).into(),
 					1u8,
 					AcceptedFundingAsset::USDT,
 				)
