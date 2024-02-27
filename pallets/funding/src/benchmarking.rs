@@ -803,7 +803,7 @@ mod benchmarks {
 		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, default_evaluations::<T>());
 
 		let existing_bid =
-			BidParams::new(bidder.clone(), (100u128 * ASSET_UNIT).into(), 5u8, AcceptedFundingAsset::USDT);
+			BidParams::new(bidder.clone(), (500 * ASSET_UNIT).into(), 5u8, AcceptedFundingAsset::USDT);
 
 		let existing_bids = vec![existing_bid; existing_bids_count as usize];
 		let existing_bids_post_bucketing = BenchInstantiator::<T>::get_actual_price_charged_for_bucketed_bids(
@@ -841,7 +841,7 @@ mod benchmarks {
 
 		// to call do_perform_bid several times, we need the bucket to reach its limit. You can only bid over 10 buckets
 		// in a single bid, since the increase delta is 10% of the total allocation, and you cannot bid more than the allocation.
-		let mut ct_amount = (1000u128 * ASSET_UNIT).into();
+		let mut ct_amount = (500 * ASSET_UNIT).into();
 		let mut maybe_filler_bid = None;
 		let new_bidder = account::<AccountIdOf<T>>("new_bidder", 0, 0);
 
@@ -985,7 +985,7 @@ mod benchmarks {
 		let bucket_delta_amount = Percent::from_percent(10) *
 			project_metadata.auction_round_allocation_percentage *
 			project_metadata.total_allocation_size;
-		let ten_percent_in_price: <T as Config>::Price = PriceOf::<T>::checked_from_rational(1, 10).unwrap();
+		let ten_percent_in_price: <T as Config>::Price = PriceOf::<T>::checked_from_rational(1, 10).unwrap() * project_metadata.minimum_price;
 
 		let mut starting_bucket = Bucket::new(
 			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size,
