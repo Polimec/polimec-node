@@ -480,7 +480,6 @@ fn vesting_over_several_blocks_on_project() {
 	migrations_are_vested(grouped_migrations.clone());
 }
 
-
 #[test]
 fn disallow_duplicated_migrations_on_receiver_pallet() {
 	let mut inst = IntegrationInstantiator::new(None);
