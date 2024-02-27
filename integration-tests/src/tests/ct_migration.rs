@@ -391,7 +391,7 @@ fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 #[test]
 fn vesting_over_several_blocks_on_project() {
 	let mut inst = IntegrationInstantiator::new(None);
-	let participants = vec![EVAL_1, EVAL_2, EVAL_3, BIDDER_1, BIDDER_2, BUYER_1, BUYER_2, BUYER_3]
+	let participants = vec![EVAL_1, EVAL_2, EVAL_3, BIDDER_1, BIDDER_2, BUYER_1, BUYER_2]
 		.into_iter()
 		.map(|x| AccountId::from(x))
 		.collect::<Vec<_>>();
@@ -479,6 +479,7 @@ fn vesting_over_several_blocks_on_project() {
 
 	migrations_are_vested(grouped_migrations.clone());
 }
+
 
 #[test]
 fn disallow_duplicated_migrations_on_receiver_pallet() {

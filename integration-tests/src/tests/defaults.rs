@@ -26,7 +26,7 @@ use macros::generate_accounts;
 use polimec_parachain_runtime::AccountId;
 use sp_runtime::{traits::ConstU32, Perquintill};
 use xcm_emulator::TestExt;
-
+// //42555945525f3300000000000000000000000000000000000000000000000000
 pub const METADATA: &str = r#"METADATA
         {
             "whitepaper":"ipfs_url",
