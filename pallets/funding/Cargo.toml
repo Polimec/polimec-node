@@ -95,6 +95,7 @@ std = [
 	"assert_matches2",
 ]
 runtime-benchmarks = [
+	"polimec-common-test-utils",
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
