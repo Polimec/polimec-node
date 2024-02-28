@@ -199,7 +199,7 @@ pub mod storage_types {
 			if self.minimum_price == Price::zero() {
 				return Err(ValidityError::PriceTooLow);
 			}
-			self.ticket_size.is_valid()?;
+			self.ticket_sizes.is_valid()?;
 			self.participants_size.is_valid()?;
 			Ok(())
 		}

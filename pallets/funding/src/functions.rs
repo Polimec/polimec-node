@@ -1058,11 +1058,11 @@ impl<T: Config> Pallet<T> {
 		ensure!(bidder.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
 		ensure!(matches!(project_details.status, ProjectStatus::AuctionRound(_)), Error::<T>::AuctionNotStarted);
 		ensure!(funding_asset == project_metadata.participation_currencies, Error::<T>::FundingAssetNotAccepted);
-		if let Some(minimum_ticket_size) = project_metadata.ticket_size.bidding.minimum {
+		if let Some(minimum_ticket_size) = project_metadata.ticket_sizes.bidding.minimum {
 			// Make sure the bid amount is greater than the minimum specified by the issuer
 			ensure!(minimum_ticket_size >= minimum_ticket_size, Error::<T>::BidTooLow);
 		};
-		if let Some(maximum_ticket_size) = project_metadata.ticket_size.bidding.maximum {
+		if let Some(maximum_ticket_size) = project_metadata.ticket_sizes.bidding.maximum {
 			// Make sure the bid amount is less than the maximum specified by the issuer
 			ensure!(maximum_ticket_size <= maximum_ticket_size, Error::<T>::BidTooLow);
 		};
@@ -1273,11 +1273,11 @@ impl<T: Config> Pallet<T> {
 			T::PriceProvider::get_price(asset.to_assethub_id()).ok_or(Error::<T>::PriceNotFound)?;
 
 		let ticket_size = ct_usd_price.checked_mul_int(buyable_tokens).ok_or(Error::<T>::BadMath)?;
-		if let Some(minimum_ticket_size) = project_metadata.ticket_size.contributing.minimum {
+		if let Some(minimum_ticket_size) = project_metadata.ticket_sizes.contributing.minimum {
 			// Make sure the bid amount is greater than the minimum specified by the issuer
 			ensure!(ticket_size >= minimum_ticket_size, Error::<T>::ContributionTooLow);
 		};
-		if let Some(maximum_ticket_size) = project_metadata.ticket_size.contributing.maximum {
+		if let Some(maximum_ticket_size) = project_metadata.ticket_sizes.contributing.maximum {
 			// Make sure the bid amount is less than the maximum specified by the issuer
 			ensure!(ticket_size <= maximum_ticket_size, Error::<T>::ContributionTooHigh);
 		};

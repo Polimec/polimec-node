@@ -94,9 +94,16 @@ pub mod defaults {
 			total_allocation_size: 100_000 * ASSET_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: PriceOf::<TestRuntime>::from_float(1.0),
-			ticket_size: RoundTicketSizes {
-				bidding: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
-				contributing: TicketSize { minimum_per_participation: Some(1), maximum_per_account: None },
+			ticket_sizes: RoundTicketSizes {
+				bidding: BiddingTicketSizes {
+					professional: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
+					institutional: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
+				},
+				contributing: ContributingTicketSizes {
+					retail: TicketSize {minimum_per_participation: None, maximum_per_account: None },
+					professional: TicketSize {minimum_per_participation: None, maximum_per_account: None },
+					institutional: TicketSize {minimum_per_participation: None, maximum_per_account: None },
+				},
 			},
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 			funding_thresholds: Default::default(),
@@ -120,9 +127,16 @@ pub mod defaults {
 			total_allocation_size: 100_000 * ASSET_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
-			ticket_size: RoundTicketSizes {
-				bidding: TicketSize { minimum_per_participation: Some(5 * US_DOLLAR), maximum_per_account: None },
-				contributing: TicketSize { minimum_per_participation: Some(1), maximum_per_account: None },
+			ticket_sizes: RoundTicketSizes {
+				bidding: BiddingTicketSizes {
+					professional: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
+					institutional: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
+				},
+				contributing: ContributingTicketSizes {
+					retail: TicketSize {minimum_per_participation: None, maximum_per_account: None },
+					professional: TicketSize {minimum_per_participation: None, maximum_per_account: None },
+					institutional: TicketSize {minimum_per_participation: None, maximum_per_account: None },
+				},
 			},
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 			funding_thresholds: Default::default(),
@@ -323,9 +337,16 @@ mod creation {
 	fn price_too_low() {
 		let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
 			minimum_price: 0_u128.into(),
-			ticket_size: RoundTicketSizes {
-				bidding: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
-				contributing: TicketSize { minimum_per_participation: Some(1), maximum_per_account: None },
+			ticket_sizes: RoundTicketSizes {
+				bidding: BiddingTicketSizes {
+					professional: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
+					institutional: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
+				},
+				contributing: ContributingTicketSizes {
+					retail: TicketSize {minimum_per_participation: None, maximum_per_account: None },
+					professional: TicketSize {minimum_per_participation: None, maximum_per_account: None },
+					institutional: TicketSize {minimum_per_participation: None, maximum_per_account: None },
+				},
 			},
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 			offchain_information_hash: Some(hashed(METADATA)),
@@ -342,9 +363,16 @@ mod creation {
 	fn participants_size_error() {
 		let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
 			minimum_price: 1_u128.into(),
-			ticket_size: RoundTicketSizes {
-				bidding: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
-				contributing: TicketSize { minimum_per_participation: Some(1), maximum_per_account: None },
+			ticket_sizes: RoundTicketSizes {
+				bidding: BiddingTicketSizes {
+					professional: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
+					institutional: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
+				},
+				contributing: ContributingTicketSizes {
+					retail: TicketSize {minimum_per_participation: None, maximum_per_account: None },
+					professional: TicketSize {minimum_per_participation: None, maximum_per_account: None },
+					institutional: TicketSize {minimum_per_participation: None, maximum_per_account: None },
+				},
 			},
 			participants_size: ParticipantsSize { minimum: None, maximum: None },
 			offchain_information_hash: Some(hashed(METADATA)),
@@ -357,13 +385,21 @@ mod creation {
 		assert_eq!(project_err, Error::<TestRuntime>::ParticipantsSizeError.into());
 	}
 
+	// TODO: more comprehensive testing
 	#[test]
 	fn ticket_size_error() {
 		let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
 			minimum_price: 1_u128.into(),
-			ticket_size: RoundTicketSizes {
-				bidding: TicketSize { minimum_per_participation: None, maximum_per_account: None },
-				contributing: TicketSize { minimum_per_participation: None, maximum_per_account: None },
+			ticket_sizes: RoundTicketSizes {
+				bidding: BiddingTicketSizes {
+					professional: TicketSize { minimum_per_participation: Some(1000 * US_DOLLAR), maximum_per_account: None },
+					institutional: TicketSize { minimum_per_participation: None, maximum_per_account: None },
+				},
+				contributing: ContributingTicketSizes {
+					retail: TicketSize {minimum_per_participation: None, maximum_per_account: None },
+					professional: TicketSize {minimum_per_participation: None, maximum_per_account: None },
+					institutional: TicketSize {minimum_per_participation: None, maximum_per_account: None },
+				},
 			},
 			participants_size: ParticipantsSize { minimum: Some(1), maximum: None },
 			offchain_information_hash: Some(hashed(METADATA)),
@@ -766,9 +802,16 @@ mod auction {
 			total_allocation_size: 100_000 * ASSET_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
-			ticket_size: RoundTicketSizes {
-				bidding: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
-				contributing: TicketSize { minimum_per_participation: Some(1), maximum_per_account: None },
+			ticket_sizes: RoundTicketSizes {
+				bidding: BiddingTicketSizes {
+					professional: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
+					institutional: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
+				},
+				contributing: ContributingTicketSizes {
+					retail: TicketSize {minimum_per_participation: None, maximum_per_account: None },
+					professional: TicketSize {minimum_per_participation: None, maximum_per_account: None },
+					institutional: TicketSize {minimum_per_participation: None, maximum_per_account: None },
+				},
 			},
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 			funding_thresholds: Default::default(),

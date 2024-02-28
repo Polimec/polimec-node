@@ -90,18 +90,15 @@ where
 			.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 		auction_round_allocation_percentage: Percent::from_percent(50u8),
 		minimum_price: 10u128.into(),
-		ticket_size: RoundTicketSizes {
-			bidding: TicketSize {
-				minimum_per_participation: Some(
-					(5000 * US_DOLLAR).try_into().unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-				),
-				maximum_per_account: None,
+		ticket_sizes: RoundTicketSizes {
+			bidding: BiddingTicketSizes {
+				professional: TicketSize { minimum_per_participation: Some(BalanceOf::<T>::try_from(5000 * US_DOLLAR)), maximum_per_account: None },
+				institutional: TicketSize { minimum_per_participation: Some(BalanceOf::<T>::try_from(5000 * US_DOLLAR)), maximum_per_account: None },
 			},
-			contributing: TicketSize {
-				minimum_per_participation: Some(
-					1u128.try_into().unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-				),
-				maximum_per_account: None,
+			contributing: ContributingTicketSizes {
+				retail: TicketSize {minimum_per_participation: None, maximum_per_account: None },
+				professional: TicketSize {minimum_per_participation: None, maximum_per_account: None },
+				institutional: TicketSize {minimum_per_participation: None, maximum_per_account: None },
 			},
 		},
 		participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
