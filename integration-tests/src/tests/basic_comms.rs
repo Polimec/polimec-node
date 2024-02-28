@@ -19,10 +19,6 @@ use crate::*;
 
 const MAX_REF_TIME: u64 = 300_000_000;
 const MAX_PROOF_SIZE: u64 = 10_000;
-
-#[test]
-fn test() {}
-
 // Ignored for now as we are not allowing "Transact" execution on our parachain
 #[ignore]
 #[test]
@@ -61,6 +57,7 @@ fn dmp() {
 		);
 	});
 }
+
 #[ignore]
 #[test]
 fn ump() {
