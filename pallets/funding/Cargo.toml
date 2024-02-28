@@ -75,7 +75,7 @@ std = [
 	"parachains-common/std",
 	"parity-scale-codec/std",
 	"polimec-common/std",
-	"polimec-common-test-utils/std",
+	"polimec-common-test-utils?/std",
 	"polimec-receiver/std",
 	"polimec-xcm-executor/std",
 	"polkadot-parachain/std",
