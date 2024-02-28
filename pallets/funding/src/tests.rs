@@ -36,7 +36,7 @@ use frame_support::{
 };
 use itertools::Itertools;
 use parachains_common::DAYS;
-use polimec_common::ReleaseSchedule;
+use polimec_common::{ReleaseSchedule, credentials::*};
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::{BuildStorage, TokenError};
 use sp_std::{cell::RefCell, marker::PhantomData};
@@ -80,6 +80,13 @@ const USDT_UNIT: u128 = 1_0_000_000_000_u128;
 pub mod defaults {
 	use super::*;
 
+	pub fn default_token_information() -> CurrencyMetadata<BoundedVec<u8, StringLimitOf<TestRuntime>>> {
+		CurrencyMetadata {
+			name: BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap(),
+			symbol: BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap(),
+			decimals: ASSET_DECIMALS,
+		}
+	}
 	pub fn default_project_metadata(nonce: u64, issuer: AccountId) -> ProjectMetadataOf<TestRuntime> {
 		let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
 		let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
@@ -94,19 +101,19 @@ pub mod defaults {
 			total_allocation_size: 100_000 * ASSET_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: PriceOf::<TestRuntime>::from_float(1.0),
-			ticket_sizes: RoundTicketSizes {
+			round_ticket_sizes: RoundTicketSizes {
 				bidding: BiddingTicketSizes {
-					professional: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
-					institutional: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
+					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
 				},
 				contributing: ContributingTicketSizes {
-					retail: TicketSize {minimum_per_participation: None, maximum_per_account: None },
-					professional: TicketSize {minimum_per_participation: None, maximum_per_account: None },
-					institutional: TicketSize {minimum_per_participation: None, maximum_per_account: None },
+					retail: TicketSize::new(None, None),
+					professional: TicketSize::new(None, None),
+					institutional: TicketSize::new(None, None),
 				},
 			},
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-			funding_thresholds: Default::default(),
+			funding_thresholds: Thresholds { retail: 0, professional: 0, institutional: 0 },
 			participation_currencies: AcceptedFundingAsset::USDT,
 			funding_destination_account: issuer,
 			offchain_information_hash: Some(metadata_hash),
@@ -127,15 +134,15 @@ pub mod defaults {
 			total_allocation_size: 100_000 * ASSET_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
-			ticket_sizes: RoundTicketSizes {
+			round_ticket_sizes: RoundTicketSizes {
 				bidding: BiddingTicketSizes {
-					professional: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
-					institutional: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
+					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
 				},
 				contributing: ContributingTicketSizes {
-					retail: TicketSize {minimum_per_participation: None, maximum_per_account: None },
-					professional: TicketSize {minimum_per_participation: None, maximum_per_account: None },
-					institutional: TicketSize {minimum_per_participation: None, maximum_per_account: None },
+					retail: TicketSize::new(None, None),
+					professional: TicketSize::new(None, None),
+					institutional: TicketSize::new(None, None),
 				},
 			},
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
@@ -282,6 +289,7 @@ pub mod defaults {
 
 // only functionalities that happen in the CREATION period of a project
 mod creation {
+	use polimec_common::credentials::InvestorType;
 	use super::*;
 
 	#[test]
@@ -336,52 +344,68 @@ mod creation {
 	#[test]
 	fn price_too_low() {
 		let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
+			token_information: default_token_information(),
+			mainnet_token_max_supply: 100_000_000 * ASSET_UNIT,
+			total_allocation_size: 100_000 * ASSET_UNIT,
+			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: 0_u128.into(),
-			ticket_sizes: RoundTicketSizes {
+			round_ticket_sizes: RoundTicketSizes {
 				bidding: BiddingTicketSizes {
-					professional: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
-					institutional: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
+					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
 				},
 				contributing: ContributingTicketSizes {
-					retail: TicketSize {minimum_per_participation: None, maximum_per_account: None },
-					professional: TicketSize {minimum_per_participation: None, maximum_per_account: None },
-					institutional: TicketSize {minimum_per_participation: None, maximum_per_account: None },
+					retail: TicketSize::new(None, None),
+					professional: TicketSize::new(None, None),
+					institutional: TicketSize::new(None, None),
 				},
 			},
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
+			funding_thresholds: Thresholds { retail: 0, professional: 0, institutional: 0 },
+			participation_currencies: AcceptedFundingAsset::USDT,
+			funding_destination_account: ISSUER,
 			offchain_information_hash: Some(hashed(METADATA)),
-			..Default::default()
 		};
 
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		inst.mint_plmc_to(default_plmc_balances());
-		let project_err = inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project).unwrap_err());
+		let did = MockInstantiator::generate_did_from_account(ISSUER);
+		let investor_type = InvestorType::Institutional;
+		let project_err = inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project, did, investor_type).unwrap_err());
 		assert_eq!(project_err, Error::<TestRuntime>::PriceTooLow.into());
 	}
 
 	#[test]
 	fn participants_size_error() {
 		let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
+			token_information: default_token_information(),
+			mainnet_token_max_supply: 100_000_000_000 * ASSET_UNIT,
+			total_allocation_size: 100_000 * ASSET_UNIT,
+			auction_round_allocation_percentage: Default::default(),
 			minimum_price: 1_u128.into(),
-			ticket_sizes: RoundTicketSizes {
+			round_ticket_sizes: RoundTicketSizes {
 				bidding: BiddingTicketSizes {
-					professional: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
-					institutional: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
+					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
 				},
 				contributing: ContributingTicketSizes {
-					retail: TicketSize {minimum_per_participation: None, maximum_per_account: None },
-					professional: TicketSize {minimum_per_participation: None, maximum_per_account: None },
-					institutional: TicketSize {minimum_per_participation: None, maximum_per_account: None },
+					retail: TicketSize::new(None, None),
+					professional: TicketSize::new(None, None),
+					institutional: TicketSize::new(None, None),
 				},
 			},
 			participants_size: ParticipantsSize { minimum: None, maximum: None },
+			funding_thresholds: Thresholds { retail: 0, professional: 0, institutional: 0 },
+			participation_currencies: AcceptedFundingAsset::USDT,
+			funding_destination_account: ISSUER,
 			offchain_information_hash: Some(hashed(METADATA)),
-			..Default::default()
 		};
 
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		inst.mint_plmc_to(default_plmc_balances());
-		let project_err = inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project).unwrap_err());
+		let did = MockInstantiator::generate_did_from_account(ISSUER);
+		let investor_type = InvestorType::Institutional;
+		let project_err = inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project, did, investor_type).unwrap_err());
 		assert_eq!(project_err, Error::<TestRuntime>::ParticipantsSizeError.into());
 	}
 
@@ -389,26 +413,33 @@ mod creation {
 	#[test]
 	fn ticket_size_error() {
 		let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
+			token_information: default_token_information(),
+			mainnet_token_max_supply: 100_000_000_000 * ASSET_UNIT,
+			total_allocation_size: 100_000 * ASSET_UNIT,
+			auction_round_allocation_percentage: Default::default(),
 			minimum_price: 1_u128.into(),
-			ticket_sizes: RoundTicketSizes {
+			round_ticket_sizes: RoundTicketSizes {
 				bidding: BiddingTicketSizes {
-					professional: TicketSize { minimum_per_participation: Some(1000 * US_DOLLAR), maximum_per_account: None },
-					institutional: TicketSize { minimum_per_participation: None, maximum_per_account: None },
+					professional: TicketSize::new(Some(1000 * US_DOLLAR), None),
+					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
 				},
 				contributing: ContributingTicketSizes {
-					retail: TicketSize {minimum_per_participation: None, maximum_per_account: None },
-					professional: TicketSize {minimum_per_participation: None, maximum_per_account: None },
-					institutional: TicketSize {minimum_per_participation: None, maximum_per_account: None },
+					retail: TicketSize::new(None, None),
+					professional: TicketSize::new(None, None),
+					institutional: TicketSize::new(None, None),
 				},
 			},
 			participants_size: ParticipantsSize { minimum: Some(1), maximum: None },
+			funding_thresholds: Thresholds { retail: 0, professional: 0, institutional: 0 },
+			participation_currencies: AcceptedFundingAsset::USDT,
+			funding_destination_account: ISSUER,
 			offchain_information_hash: Some(hashed(METADATA)),
-			..Default::default()
 		};
 
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		inst.mint_plmc_to(default_plmc_balances());
-		let project_err = inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project).unwrap_err());
+		let did = MockInstantiator::generate_did_from_account(ISSUER);
+		let investor_type = InvestorType::Institutional;		let project_err = inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project, did, investor_type).unwrap_err());
 		assert_eq!(project_err, Error::<TestRuntime>::TicketSizeError.into());
 	}
 
@@ -419,7 +450,9 @@ mod creation {
 		let ed = MockInstantiator::get_ed();
 
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(ISSUER, ed)]);
-		let project_err = inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, project_metadata).unwrap_err());
+		let did = MockInstantiator::generate_did_from_account(ISSUER);
+		let investor_type = InvestorType::Institutional;
+		let project_err = inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, project_metadata, did, investor_type).unwrap_err());
 		assert_eq!(project_err, Error::<TestRuntime>::NotEnoughFundsForEscrowCreation.into());
 	}
 
@@ -802,15 +835,15 @@ mod auction {
 			total_allocation_size: 100_000 * ASSET_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
-			ticket_sizes: RoundTicketSizes {
+			round_ticket_sizes: RoundTicketSizes {
 				bidding: BiddingTicketSizes {
-					professional: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
-					institutional: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
+					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
 				},
 				contributing: ContributingTicketSizes {
-					retail: TicketSize {minimum_per_participation: None, maximum_per_account: None },
-					professional: TicketSize {minimum_per_participation: None, maximum_per_account: None },
-					institutional: TicketSize {minimum_per_participation: None, maximum_per_account: None },
+					retail: TicketSize::new(None, None),
+					professional: TicketSize::new(None, None),
+					institutional: TicketSize::new(None, None),
 				},
 			},
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
@@ -1012,7 +1045,9 @@ mod auction {
 		inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 		inst.advance_time(1).unwrap();
-		inst.execute(|| Pallet::<TestRuntime>::do_english_auction(ISSUER, project_id)).unwrap();
+		let did = MockInstantiator::generate_did_from_account(ISSUER);
+		let investor_type = InvestorType::Institutional;
+		inst.execute(|| Pallet::<TestRuntime>::do_english_auction(ISSUER, project_id, Some(did), Some(investor_type))).unwrap();
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionRound(AuctionPhase::English));
 	}
 
@@ -1034,7 +1069,9 @@ mod auction {
 
 		for account in 6000..6010 {
 			inst.execute(|| {
-				let response = Pallet::<TestRuntime>::do_english_auction(account, project_id);
+				let did = MockInstantiator::generate_did_from_account(ISSUER);
+				let investor_type = InvestorType::Institutional;
+				let response = Pallet::<TestRuntime>::do_english_auction(account, project_id, Some(did), Some(investor_type));
 				assert_noop!(response, Error::<TestRuntime>::NotAllowed);
 			});
 		}
@@ -1255,9 +1292,11 @@ mod auction {
 	fn cannot_start_auction_before_evaluation_finishes() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_id = inst.create_evaluating_project(default_project_metadata(0, ISSUER), ISSUER);
+		let did = MockInstantiator::generate_did_from_account(ISSUER);
+		let investor_type = InvestorType::Institutional;
 		inst.execute(|| {
 			assert_noop!(
-				PolimecFunding::do_english_auction(ISSUER, project_id),
+				PolimecFunding::do_english_auction(ISSUER, project_id, Some(did), Some(investor_type)),
 				Error::<TestRuntime>::EvaluationPeriodNotEnded
 			);
 		});
@@ -1267,9 +1306,11 @@ mod auction {
 	fn cannot_bid_before_auction_round() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let _ = inst.create_evaluating_project(default_project_metadata(0, ISSUER), ISSUER);
+		let did = MockInstantiator::generate_did_from_account(ISSUER);
+		let investor_type = InvestorType::Institutional;
 		inst.execute(|| {
 			assert_noop!(
-				PolimecFunding::do_bid(&BIDDER_2, 0, 1, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT),
+				PolimecFunding::do_bid(&BIDDER_2, 0, 1, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT, did, investor_type),
 				Error::<TestRuntime>::AuctionNotStarted
 			);
 		});
@@ -1327,14 +1368,18 @@ mod auction {
 	fn contribute_does_not_work() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_id = inst.create_evaluating_project(default_project_metadata(0, ISSUER), ISSUER);
+		let did = MockInstantiator::generate_did_from_account(ISSUER);
+		let investor_type = InvestorType::Retail;
 		inst.execute(|| {
 			assert_noop!(
-				PolimecFunding::community_contribute(
-					RuntimeOrigin::signed(BIDDER_1),
+				PolimecFunding::do_community_contribute(
+					&BIDDER_1,
 					project_id,
 					100,
 					1u8.try_into().unwrap(),
-					AcceptedFundingAsset::USDT
+					AcceptedFundingAsset::USDT,
+					did,
+					investor_type
 				),
 				Error::<TestRuntime>::AuctionNotStarted
 			);
@@ -1348,6 +1393,9 @@ mod auction {
 			inst.create_auctioning_project(default_project_metadata(0, ISSUER), ISSUER, default_evaluations());
 		let bids = vec![BidParams::<TestRuntime>::new(BIDDER_1, 10_000, 1u8, AcceptedFundingAsset::USDC)];
 
+		let did = MockInstantiator::generate_did_from_account(ISSUER);
+		let investor_type = InvestorType::Institutional;
+
 		let outcome = inst.execute(|| {
 			Pallet::<TestRuntime>::do_bid(
 				&bids[0].bidder,
@@ -1355,6 +1403,8 @@ mod auction {
 				bids[0].amount,
 				bids[0].multiplier,
 				bids[0].asset,
+				did,
+				investor_type
 			)
 		});
 		frame_support::assert_err!(outcome, Error::<TestRuntime>::FundingAssetNotAccepted);
@@ -4379,11 +4429,16 @@ mod ct_migration {
 		let project_details = inst.get_project_details(project_id);
 		assert_eq!(project_details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
 
+		let did = MockInstantiator::generate_did_from_account(ISSUER);
+		let investor_type = InvestorType::Institutional;
+
 		inst.execute(|| {
 			assert_ok!(crate::Pallet::<TestRuntime>::do_set_para_id_for_project(
 				&ISSUER,
 				project_id,
-				ParaId::from(2006u32)
+				ParaId::from(2006u32),
+				did,
+				investor_type
 			));
 		});
 		let project_details = inst.get_project_details(project_id);
@@ -4405,21 +4460,30 @@ mod ct_migration {
 		let project_details = inst.get_project_details(project_id);
 		assert_eq!(project_details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
 
+		let did = MockInstantiator::generate_did_from_account(EVALUATOR_1);
+		let investor_type = InvestorType::Institutional;
+
 		inst.execute(|| {
 			assert_err!(
 				crate::Pallet::<TestRuntime>::do_set_para_id_for_project(
 					&EVALUATOR_1,
 					project_id,
-					ParaId::from(2006u32)
+					ParaId::from(2006u32),
+					did,
+					investor_type
 				),
 				Error::<TestRuntime>::NotAllowed
 			);
+			let did = MockInstantiator::generate_did_from_account(BIDDER_1);
+			let investor_type = InvestorType::Institutional;
 			assert_err!(
-				crate::Pallet::<TestRuntime>::do_set_para_id_for_project(&BIDDER_1, project_id, ParaId::from(2006u32)),
+				crate::Pallet::<TestRuntime>::do_set_para_id_for_project(&BIDDER_1, project_id, ParaId::from(2006u32), did, investor_type),
 				Error::<TestRuntime>::NotAllowed
 			);
+			let did = MockInstantiator::generate_did_from_account(BUYER_1);
+			let investor_type = InvestorType::Institutional;
 			assert_err!(
-				crate::Pallet::<TestRuntime>::do_set_para_id_for_project(&BUYER_1, project_id, ParaId::from(2006u32)),
+				crate::Pallet::<TestRuntime>::do_set_para_id_for_project(&BUYER_1, project_id, ParaId::from(2006u32), did, investor_type),
 				Error::<TestRuntime>::NotAllowed
 			);
 		});
@@ -4961,5 +5025,16 @@ mod async_tests {
 		let max_bids_per_project: u32 = <TestRuntime as Config>::MaxBidsPerProject::get();
 		let total_bids_count = inst.execute(|| Bids::<TestRuntime>::iter_values().collect_vec().len());
 		assert_eq!(total_bids_count, max_bids_per_project as usize);
+	}
+}
+
+mod sandbox {
+	use super::*;
+	use frame_support::dispatch::RawOrigin;
+	use polimec_common::credentials::InvestorType;
+	use polimec_common_test_utils::get_test_jwt;
+
+	#[test]
+	fn sandbox() {
 	}
 }

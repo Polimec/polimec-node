@@ -144,6 +144,7 @@ std = [
 	"parachains-common/std",
 	"parity-scale-codec/std",
 	"polimec-common/std",
+	"polimec-xcm-executor/std",
 	"polkadot-parachain/std",
 	"polkadot-runtime-common/std",
 	"scale-info/std",
@@ -160,7 +161,6 @@ std = [
 	"sp-transaction-pool/std",
 	"sp-version/std",
 	"xcm-builder/std",
-	"polimec-xcm-executor/std",
 	"xcm/std",
 ]
 
@@ -172,6 +172,7 @@ runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
 	"frame-system-benchmarking/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
+	"pallet-assets/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-collective/runtime-benchmarks",
 	"pallet-democracy/runtime-benchmarks",
@@ -191,13 +192,12 @@ runtime-benchmarks = [
 	"pallet-vesting/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
 	"polimec-common/runtime-benchmarks",
+	"polimec-xcm-executor/runtime-benchmarks",
 	"polkadot-parachain/runtime-benchmarks",
 	"polkadot-runtime-common/runtime-benchmarks",
 	"shared-configuration/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
-	"polimec-xcm-executor/runtime-benchmarks",
-	"pallet-assets/runtime-benchmarks"
 ]
 
 try-runtime = [

@@ -49,6 +49,7 @@ polimec-common-test-utils = { workspace = true, optional = true }
 
 [dev-dependencies]
 assert_matches2.workspace = true
+polimec-common-test-utils.workspace = true
 pallet-insecure-randomness-collective-flip.workspace = true
 pallet-timestamp.workspace = true
 pallet-assets.workspace = true
@@ -60,6 +61,7 @@ xcm-executor.workspace = true
 [features]
 default = [ "std" ]
 std = [
+	"assert_matches2",
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
@@ -74,8 +76,8 @@ std = [
 	"pallet-xcm/std",
 	"parachains-common/std",
 	"parity-scale-codec/std",
+	"polimec-common-test-utils/std",
 	"polimec-common/std",
-	"polimec-common-test-utils?/std",
 	"polimec-receiver/std",
 	"polimec-xcm-executor/std",
 	"polkadot-parachain/std",
@@ -92,10 +94,9 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
-	"assert_matches2",
 ]
 runtime-benchmarks = [
-	"polimec-common-test-utils",
+	"std",
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",

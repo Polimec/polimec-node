@@ -17,13 +17,15 @@
 use frame_support::{pallet_prelude::*, parameter_types, traits::OriginTrait, Deserialize, RuntimeDebug};
 use pallet_timestamp::Now;
 use parity_scale_codec::{Decode, Encode};
-use scale_info::TypeInfo;
+use scale_info::{prelude::string::String, TypeInfo};
+use serde::de::Error;
 use sp_runtime::{traits::BadOrigin, DeserializeOwned};
 
 pub use jwt_compact::{
 	alg::{Ed25519, VerifyingKey},
 	Claims as StandardClaims, *,
 };
+use serde::{Deserializer, Serializer};
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -54,19 +56,22 @@ pub struct SampleClaims<AccountId> {
 	#[serde(rename = "sub")]
 	pub subject: AccountId,
 	#[serde(rename = "iss")]
-	pub issuer: scale_info::prelude::string::String,
+	pub issuer: String,
 	pub investor_type: InvestorType,
+	#[serde(deserialize_with = "from_bounded_vec")]
+	pub did: DID,
 }
 
-pub struct EnsureInvestor<T, I, Type>(sp_std::marker::PhantomData<(T, I, Type)>);
-impl<'de, T, I, Type> EnsureOriginWithCredentials<T::RuntimeOrigin> for EnsureInvestor<T, I, Type>
+pub type DID = BoundedVec<u8, ConstU32<57>>;
+// pub type DID = String;
+
+pub struct EnsureInvestor<T>(sp_std::marker::PhantomData<T>);
+impl<'de, T> EnsureOriginWithCredentials<T::RuntimeOrigin> for EnsureInvestor<T>
 where
 	T: frame_system::Config + pallet_timestamp::Config,
-	I: 'static,
-	Type: Get<InvestorType>,
 {
+	type Success = (T::AccountId, DID, InvestorType);
 	type Claims = SampleClaims<T::AccountId>;
-	type Success = T::AccountId;
 
 	fn try_origin(
 		origin: T::RuntimeOrigin,
@@ -79,11 +84,10 @@ where
 		let Ok(now) = Now::<T>::get().try_into() else { return Err(origin) };
 		let Some(date_time) = claims.expiration else { return Err(origin) };
 
-		if claims.custom.investor_type == Type::get() &&
-			claims.custom.subject == who &&
+		if claims.custom.subject == who &&
 			(date_time.timestamp() as u64) >= now
 		{
-			return Ok(who);
+			return Ok((who, claims.custom.did.clone(), claims.custom.investor_type.clone()));
 		}
 
 		Err(origin)
@@ -123,4 +127,13 @@ where
 			<<Ed25519 as Algorithm>::VerifyingKey>::from_slice(&verifying_key).expect("The Key is always valid");
 		Ed25519.validator::<Self::Claims>(&signing_key).validate(&token)
 	}
+}
+
+pub fn from_bounded_vec<'de, D>(deserializer: D) -> Result<BoundedVec<u8, ConstU32<57>>, D::Error>
+where
+	D: Deserializer<'de>,
+{
+	String::deserialize(deserializer)
+		.map(|string| string.as_bytes().to_vec())
+		.and_then(|vec| vec.try_into().map_err(|_| Error::custom("failed to deserialize")))
 }

@@ -17,10 +17,7 @@
 use crate::PolimecRuntime;
 use frame_support::BoundedVec;
 pub use pallet_funding::instantiator::{BidParams, ContributionParams, UserToPLMCBalance, UserToUSDBalance};
-use pallet_funding::{
-	AcceptedFundingAsset, CurrencyMetadata, ParticipantsSize, ProjectMetadata, ProjectMetadataOf, RoundTicketSizes,
-	TicketSize,
-};
+use pallet_funding::{AcceptedFundingAsset, BiddingTicketSizes, ContributingTicketSizes, CurrencyMetadata, ParticipantsSize, ProjectMetadata, ProjectMetadataOf, RoundTicketSizes, TicketSize};
 use sp_arithmetic::Percent;
 use sp_core::H256;
 
@@ -87,9 +84,16 @@ pub fn default_project(issuer: AccountId, nonce: u32) -> ProjectMetadataOf<polim
 		total_allocation_size: 100_000 * ASSET_UNIT,
 		auction_round_allocation_percentage: Percent::from_percent(50u8),
 		minimum_price: sp_runtime::FixedU128::from_float(1.0),
-		ticket_size: RoundTicketSizes {
-			bidding: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
-			contributing: TicketSize { minimum_per_participation: Some(1), maximum_per_account: None },
+		round_ticket_sizes: RoundTicketSizes {
+			bidding: BiddingTicketSizes {
+				professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+			},
+			contributing: ContributingTicketSizes {
+				retail: TicketSize::new(None, None),
+				professional: TicketSize::new(None, None),
+				institutional: TicketSize::new(None, None),
+			},
 		},
 		participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 		funding_thresholds: Default::default(),

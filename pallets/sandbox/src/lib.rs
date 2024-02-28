@@ -49,6 +49,8 @@ pub mod pallet {
 			project_id: ProjectId,
 			amount: <T as funding::Config>::Balance,
 			asset_id: AcceptedFundingAsset,
+			did: polimec_common::credentials::DID,
+			investor_type: polimec_common::credentials::InvestorType
 		) -> DispatchResultWithPostInfo {
 			let retail_user = ensure_signed(origin)?;
 			let project_id: ProjectId = project_id;
@@ -73,7 +75,7 @@ pub mod pallet {
 
 			let multiplier: MultiplierOf<T> = 1u8.try_into().map_err(|_| Error::<T>::ProjectNotFound)?;
 			// Buy tokens with the default multiplier
-			<funding::Pallet<T>>::do_community_contribute(&retail_user, project_id, amount, multiplier, asset_id)
+			<funding::Pallet<T>>::do_community_contribute(&retail_user, project_id, amount, multiplier, asset_id, did, investor_type)
 		}
 	}
 

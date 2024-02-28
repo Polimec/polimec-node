@@ -179,6 +179,7 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
+	"sp-debug-derive/std"
 ]
 
 runtime-benchmarks = [
@@ -196,8 +197,8 @@ runtime-benchmarks = [
 	"pallet-collective/runtime-benchmarks",
 	"pallet-democracy/runtime-benchmarks",
 	"pallet-elections-phragmen/runtime-benchmarks",
-	"pallet-identity/runtime-benchmarks",
 	"pallet-funding/runtime-benchmarks",
+	"pallet-identity/runtime-benchmarks",
 	"pallet-linear-release/runtime-benchmarks",
 	"pallet-membership/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",

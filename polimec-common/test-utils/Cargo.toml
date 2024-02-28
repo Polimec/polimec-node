@@ -19,4 +19,4 @@ sp-std.workspace = true
 
 [features]
 default = [ "std" ]
-std = ["jwt-compact/std", "polimec-common/std", "sp-std/std"]
+std = [ "jwt-compact/std", "polimec-common/std", "sp-std/std" ]

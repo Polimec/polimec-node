@@ -174,7 +174,7 @@ pub use crate::weights::WeightInfo;
 use frame_support::{
 	traits::{
 		tokens::{fungible, fungibles, Balance},
-		AccountTouch, ContainsPair, Randomness,
+		AccountTouch, ConstU64, ContainsPair, Randomness,
 	},
 	BoundedVec, PalletId,
 };
@@ -186,7 +186,11 @@ use polimec_common::{
 };
 use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
-use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
+use sp_core::{ConstU128, ConstU32};
+use sp_runtime::{
+	traits::{parameter_types, AccountIdConversion},
+	FixedPointNumber, FixedPointOperand, FixedU128,
+};
 use sp_std::{marker::PhantomData, prelude::*};
 use traits::DoRemainingOperation;
 pub use types::*;
@@ -221,8 +225,25 @@ pub type AssetIdOf<T> =
 pub type RewardInfoOf<T> = RewardInfo<BalanceOf<T>>;
 pub type EvaluatorsOutcomeOf<T> = EvaluatorsOutcome<BalanceOf<T>>;
 
-pub type ProjectMetadataOf<T> =
-	ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, HashOf<T>>;
+pub type ProjectMetadataOf<T> = ProjectMetadata<
+	BoundedVec<u8, StringLimitOf<T>>,
+	BalanceOf<T>,
+	PriceOf<T>,
+	AccountIdOf<T>,
+	HashOf<T>,
+	ParticipantsSize,
+	RoundTicketSizes<
+		BiddingTicketSizes<
+			TicketSize<BalanceOf<T>, LowerBound<BalanceOf<T>, StorageConstU64<{ (5_000 * US_DOLLAR) as u64 }>>>,
+			TicketSize<BalanceOf<T>, LowerBound<BalanceOf<T>, StorageConstU64<{ (5_000 * US_DOLLAR) as u64 }>>>,
+		>,
+		ContributingTicketSizes<
+			TicketSize<BalanceOf<T>, NoBounds>,
+			TicketSize<BalanceOf<T>, NoBounds>,
+			TicketSize<BalanceOf<T>, NoBounds>,
+		>,
+	>,
+>;
 pub type ProjectDetailsOf<T> =
 	ProjectDetails<AccountIdOf<T>, BlockNumberFor<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>;
 pub type EvaluationRoundInfoOf<T> = EvaluationRoundInfo<BalanceOf<T>>;
@@ -478,22 +499,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type VerifierPublicKey: Get<[u8; 32]>;
 
-		/// Retail Origin, ensures users are of investing type Retail.
-		type RetailOrigin: EnsureOriginWithCredentials<
+		/// Credentialized investor Origin, ensures users are of investing type Retail, or Professional, or Institutional.
+		type InvestorOrigin: EnsureOriginWithCredentials<
 			<Self as frame_system::Config>::RuntimeOrigin,
-			Success = AccountIdOf<Self>,
-		>;
-
-		/// Institutional Origin, ensures users are of investing type Institutional.
-		type InstitutionalOrigin: EnsureOriginWithCredentials<
-			<Self as frame_system::Config>::RuntimeOrigin,
-			Success = AccountIdOf<Self>,
-		>;
-
-		/// Professional Origin, ensures users are of investing type Professional.
-		type ProfessionalOrigin: EnsureOriginWithCredentials<
-			<Self as frame_system::Config>::RuntimeOrigin,
-			Success = AccountIdOf<Self>,
+			Success = (AccountIdOf<Self>, DID, InvestorType),
 		>;
 	}
 
@@ -1015,9 +1024,10 @@ pub mod pallet {
 		#[pallet::call_index(0)]
 		#[pallet::weight(WeightInfoOf::<T>::create())]
 		pub fn create(origin: OriginFor<T>, jwt: UntrustedToken, project: ProjectMetadataOf<T>) -> DispatchResult {
-			let issuer = T::InstitutionalOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			let (account, did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			log::trace!(target: "pallet_funding::test", "in create");
-			Self::do_create(&issuer, project)
+			Self::do_create(&account, project, did, investor_type)
 		}
 
 		/// Change the metadata hash of a project
@@ -1029,8 +1039,9 @@ pub mod pallet {
 			project_id: ProjectId,
 			project_metadata_hash: T::Hash,
 		) -> DispatchResult {
-			let issuer = T::InstitutionalOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_edit_metadata(issuer, project_id, project_metadata_hash)
+			let (account, did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			Self::do_edit_metadata(account, project_id, project_metadata_hash, did, investor_type)
 		}
 
 		/// Starts the evaluation round of a project. It needs to be called by the project issuer.
@@ -1041,8 +1052,9 @@ pub mod pallet {
 			jwt: UntrustedToken,
 			project_id: ProjectId,
 		) -> DispatchResultWithPostInfo {
-			let issuer = T::InstitutionalOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_start_evaluation(issuer, project_id)
+			let (account, did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			Self::do_start_evaluation(account, project_id, did, investor_type)
 		}
 
 		/// Starts the auction round for a project. From the next block forward, any professional or
@@ -1055,8 +1067,9 @@ pub mod pallet {
 			jwt: UntrustedToken,
 			project_id: ProjectId,
 		) -> DispatchResultWithPostInfo {
-			let issuer = T::InstitutionalOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_english_auction(issuer, project_id)
+			let (account, did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			Self::do_english_auction(account, project_id, Some(did), Some(investor_type))
 		}
 
 		/// Bond PLMC for a project in the evaluation stage
@@ -1072,10 +1085,9 @@ pub mod pallet {
 			project_id: ProjectId,
 			#[pallet::compact] usd_amount: BalanceOf<T>,
 		) -> DispatchResultWithPostInfo {
-			let evaluator = T::InstitutionalOrigin::try_origin(origin, &jwt, T::VerifierPublicKey::get())
-				.or_else(|origin| T::ProfessionalOrigin::try_origin(origin, &jwt, T::VerifierPublicKey::get()))
-				.or_else(|origin| T::RetailOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get()))?;
-			Self::do_evaluate(&evaluator, project_id, usd_amount)
+			let (account, did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			Self::do_evaluate(&account, project_id, usd_amount, did, investor_type)
 		}
 
 		/// Bid for a project in the Auction round
@@ -1097,9 +1109,9 @@ pub mod pallet {
 			multiplier: T::Multiplier,
 			asset: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
-			let bidder = T::InstitutionalOrigin::try_origin(origin, &jwt, T::VerifierPublicKey::get())
-				.or_else(|origin| T::ProfessionalOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get()))?;
-			Self::do_bid(&bidder, project_id, amount, multiplier, asset)
+			let (account, did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			Self::do_bid(&account, project_id, amount, multiplier, asset, did, investor_type)
 		}
 
 		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
@@ -1117,15 +1129,15 @@ pub mod pallet {
 		)]
 		pub fn community_contribute(
 			origin: OriginFor<T>,
+			jwt: UntrustedToken,
 			project_id: ProjectId,
 			#[pallet::compact] amount: BalanceOf<T>,
 			multiplier: MultiplierOf<T>,
 			asset: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
-			// TODO: Add JWT verification after splitting contribute into two extrinsics for
-			// community and remainder round.
-			let contributor = ensure_signed(origin)?;
-			Self::do_community_contribute(&contributor, project_id, amount, multiplier, asset)
+			let (account, did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			Self::do_community_contribute(&account, project_id, amount, multiplier, asset, did, investor_type)
 		}
 
 		/// Buy tokens in the Community or Remainder round at the price set in the Auction Round
@@ -1143,13 +1155,15 @@ pub mod pallet {
 		)]
 		pub fn remaining_contribute(
 			origin: OriginFor<T>,
+			jwt: UntrustedToken,
 			project_id: ProjectId,
 			#[pallet::compact] amount: BalanceOf<T>,
 			multiplier: MultiplierOf<T>,
 			asset: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
-			let contributor = ensure_signed(origin)?;
-			Self::do_remaining_contribute(&contributor, project_id, amount, multiplier, asset)
+			let (account, did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			Self::do_remaining_contribute(&account, project_id, amount, multiplier, asset, did, investor_type)
 		}
 
 		/// Release evaluation-bonded PLMC when a project finishes its funding round.
@@ -1340,8 +1354,9 @@ pub mod pallet {
 			project_id: ProjectId,
 			para_id: ParaId,
 		) -> DispatchResult {
-			let issuer = T::InstitutionalOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_set_para_id_for_project(&issuer, project_id, para_id)
+			let (account, did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			Self::do_set_para_id_for_project(&account, project_id, para_id, did, investor_type)
 		}
 
 		#[pallet::call_index(23)]
@@ -1351,8 +1366,9 @@ pub mod pallet {
 			jwt: UntrustedToken,
 			project_id: ProjectId,
 		) -> DispatchResult {
-			let issuer = T::InstitutionalOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_start_migration_readiness_check(&issuer, project_id)
+			let (account, did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			Self::do_start_migration_readiness_check(&account, project_id, Some(did), Some(investor_type))
 		}
 
 		/// Called only by other chains through a query response xcm message
@@ -1371,8 +1387,9 @@ pub mod pallet {
 		#[pallet::call_index(25)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
 		pub fn start_migration(origin: OriginFor<T>, jwt: UntrustedToken, project_id: ProjectId) -> DispatchResult {
-			let issuer = T::InstitutionalOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_start_migration(&issuer, project_id)
+			let (account, did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			Self::do_start_migration(&account, project_id, did, investor_type)
 		}
 
 		#[pallet::call_index(26)]
@@ -1422,7 +1439,7 @@ pub mod pallet {
 					UpdateType::EnglishAuctionStart => {
 						used_weight = used_weight.saturating_add(
 							unwrap_result_or_skip!(
-								Self::do_english_auction(T::PalletId::get().into_account_truncating(), project_id),
+								Self::do_english_auction(T::PalletId::get().into_account_truncating(), project_id, None, None),
 								project_id,
 								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
 							)
@@ -1603,6 +1620,7 @@ pub mod pallet {
 		}
 	}
 	use pallet_xcm::ensure_response;
+	use polimec_common::credentials::{DID, InvestorType};
 
 	#[pallet::genesis_config]
 	#[derive(Clone, PartialEq, Eq, Debug, Encode, Decode)]

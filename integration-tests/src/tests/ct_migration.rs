@@ -24,6 +24,7 @@ use polimec_parachain_runtime::PolimecFunding;
 use sp_runtime::{traits::Convert, FixedPointNumber, Perquintill};
 use std::collections::HashMap;
 use tests::defaults::*;
+use polimec_common::credentials::InvestorType;
 fn execute_cleaner(inst: &mut IntegrationInstantiator) {
 	Polimec::execute_with(|| {
 		inst.advance_time(<PolimecRuntime as pallet_funding::Config>::SuccessToSettlementTime::get() + 1u32).unwrap();
@@ -31,7 +32,9 @@ fn execute_cleaner(inst: &mut IntegrationInstantiator) {
 }
 fn mock_hrmp_establishment(project_id: u32) {
 	Polimec::execute_with(|| {
-		assert_ok!(PolimecFunding::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32)));
+		let did = IntegrationInstantiator::generate_did_from_account(ISSUER.into());
+		let investor_type = InvestorType::Institutional;
+		assert_ok!(PolimecFunding::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32), did, investor_type));
 
 		let open_channel_message = xcm::v3::opaque::Instruction::HrmpNewChannelOpenRequest {
 			sender: 6969,

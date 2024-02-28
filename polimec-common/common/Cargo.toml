@@ -42,8 +42,8 @@ std = [
 	"itertools/use_alloc",
 	"itertools/use_std",
 	"jwt-compact/std",
-	"parity-scale-codec/std",
 	"pallet-timestamp/std",
+	"parity-scale-codec/std",
 	"scale-info/std",
 	"serde/std",
 	"sp-runtime/std",
@@ -53,8 +53,8 @@ runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
-	"pallet-timestamp/runtime-benchmarks",
 	"itertools/use_alloc",
+	"pallet-timestamp/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 ]
 try-runtime = [

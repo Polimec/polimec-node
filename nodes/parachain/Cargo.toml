@@ -122,6 +122,7 @@ try-runtime = [
 std = [
 	"cumulus-primitives-core/std",
 	"frame-benchmarking/std",
+	"itertools",
 	"log/std",
 	"pallet-funding/std",
 	"parachains-common/std",
@@ -138,5 +139,4 @@ std = [
 	"sp-session/std",
 	"sp-transaction-pool/std",
 	"xcm/std",
-	"itertools",
 ]
