@@ -1963,6 +1963,7 @@ mod benchmarks {
 		);
 
 		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
+		inst.advance_time(One::one()).unwrap();
 
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
