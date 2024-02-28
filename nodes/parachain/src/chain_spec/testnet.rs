@@ -20,7 +20,6 @@
 
 use cumulus_primitives_core::ParaId;
 use frame_benchmarking::frame_support::bounded_vec;
-use pallet_funding::{instantiator, AuctionPhase, ProjectStatus};
 use polimec_parachain_runtime::{
 	pallet_parachain_staking::{
 		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
@@ -278,11 +277,17 @@ fn testnet_genesis(
 #[cfg(feature = "std")]
 mod testing_helpers {
 	use super::*;
-	use macros::generate_accounts;
-	use pallet_funding::{instantiator::UserToUSDBalance, *};
-	use polimec_parachain_runtime::AccountId;
-	use sp_core::H256;
-	pub use sp_runtime::{traits::ConstU32, BoundedVec, FixedU128};
+	pub use instantiator::TestProjectParams;
+	pub use itertools::Itertools;
+	pub use macros::generate_accounts;
+	pub use pallet_funding::{instantiator, instantiator::UserToUSDBalance, AuctionPhase, ProjectStatus, *};
+	pub use polimec_parachain_runtime::AccountId;
+	pub use sp_core::H256;
+	pub use sp_runtime::{
+		traits::{ConstU32, Get, PhantomData},
+		BoundedVec, FixedPointNumber, FixedU128, Perquintill,
+	};
+
 	pub const METADATA: &str = r#"METADATA
             {
                 "whitepaper":"ipfs_url",
@@ -312,7 +317,7 @@ mod testing_helpers {
 		vec![20u8, 15u8, 10u8, 25u8, 30u8]
 	}
 
-	pub fn default_project(issuer: AccountId, nonce: u32) -> ProjectMetadataOf<polimec_parachain_runtime::Runtime> {
+	pub fn project_metadata(issuer: AccountId, nonce: u32) -> ProjectMetadataOf<polimec_parachain_runtime::Runtime> {
 		ProjectMetadata {
 			token_information: CurrencyMetadata {
 				name: bounded_name(),
@@ -321,7 +326,7 @@ mod testing_helpers {
 			},
 			mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
 			total_allocation_size: (50_000 * ASSET_UNIT, 50_000 * ASSET_UNIT),
-			minimum_price: sp_runtime::FixedU128::from_float(1.0),
+			minimum_price: FixedU128::from_float(1.0),
 			ticket_size: TicketSize { minimum: Some(1), maximum: None },
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 			funding_thresholds: Default::default(),
@@ -381,19 +386,18 @@ fn testing_genesis(
 	sudo_account: AccountId,
 	id: ParaId,
 ) -> RuntimeGenesisConfig {
-	use instantiator::TestProjectParams;
-	use itertools::Itertools;
-	use sp_runtime::{traits::PhantomData, FixedPointNumber, Perquintill};
 	use testing_helpers::*;
 
 	// only used to generate some values, and not for chain interactions
 	let funding_percent = 93u64;
-	let project_metadata = default_project(ISSUER.into(), 0u32);
-	let min_price = project_metadata.minimum_price;
+	let default_project_metadata = project_metadata(ISSUER.into(), 0u32);
+	let min_price = default_project_metadata.minimum_price;
 	let twenty_percent_funding_usd = Perquintill::from_percent(funding_percent) *
-		(project_metadata
+		(default_project_metadata
 			.minimum_price
-			.checked_mul_int(project_metadata.total_allocation_size.0 + project_metadata.total_allocation_size.1)
+			.checked_mul_int(
+				default_project_metadata.total_allocation_size.0 + default_project_metadata.total_allocation_size.1,
+			)
 			.unwrap());
 	let evaluations = default_evaluations();
 	let bids = GenesisInstantiator::generate_bids_from_total_usd(
@@ -422,7 +426,6 @@ fn testing_genesis(
 			instantiator::BidParams::<Runtime>::new(
 				get_account_id_from_seed::<sr25519::Public>(format!("bidder_{}", i).as_str()),
 				(10u128 * ASSET_UNIT).into(),
-				project_metadata.minimum_price,
 				1u8,
 				pallet_funding::AcceptedFundingAsset::USDT,
 			)
@@ -446,7 +449,7 @@ fn testing_genesis(
 			starting_projects: vec![
 				TestProjectParams::<Runtime> {
 					expected_state: ProjectStatus::FundingSuccessful,
-					metadata: default_project(ISSUER.into(), 0u32),
+					metadata: project_metadata(ISSUER.into(), 0u32),
 					issuer: ISSUER.into(),
 					evaluations: evaluations.clone(),
 					bids: bids.clone(),
@@ -455,7 +458,7 @@ fn testing_genesis(
 				},
 				TestProjectParams::<Runtime> {
 					expected_state: ProjectStatus::RemainderRound,
-					metadata: default_project(ISSUER.into(), 1u32),
+					metadata: project_metadata(ISSUER.into(), 1u32),
 					issuer: ISSUER.into(),
 					evaluations: evaluations.clone(),
 					bids: bids.clone(),
@@ -464,7 +467,7 @@ fn testing_genesis(
 				},
 				TestProjectParams::<Runtime> {
 					expected_state: ProjectStatus::CommunityRound,
-					metadata: default_project(ISSUER.into(), 2u32),
+					metadata: project_metadata(ISSUER.into(), 2u32),
 					issuer: ISSUER.into(),
 					evaluations: evaluations.clone(),
 					bids: bids.clone(),
@@ -473,7 +476,7 @@ fn testing_genesis(
 				},
 				TestProjectParams::<Runtime> {
 					expected_state: ProjectStatus::AuctionRound(AuctionPhase::English),
-					metadata: default_project(ISSUER.into(), 3u32),
+					metadata: project_metadata(ISSUER.into(), 3u32),
 					issuer: ISSUER.into(),
 					evaluations: evaluations.clone(),
 					bids: max_bids,
@@ -482,7 +485,7 @@ fn testing_genesis(
 				},
 				TestProjectParams::<Runtime> {
 					expected_state: ProjectStatus::EvaluationRound,
-					metadata: default_project(ISSUER.into(), 4u32),
+					metadata: project_metadata(ISSUER.into(), 4u32),
 					issuer: ISSUER.into(),
 					evaluations: vec![],
 					bids: vec![],
@@ -491,7 +494,7 @@ fn testing_genesis(
 				},
 				TestProjectParams::<Runtime> {
 					expected_state: ProjectStatus::Application,
-					metadata: default_project(ISSUER.into(), 5u32),
+					metadata: project_metadata(ISSUER.into(), 5u32),
 					issuer: ISSUER.into(),
 					evaluations: vec![],
 					bids: vec![],
