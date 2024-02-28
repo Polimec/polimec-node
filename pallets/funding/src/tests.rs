@@ -1945,7 +1945,31 @@ mod community_contribution {
 
 	#[test]
 	fn round_has_total_ct_allocation_minus_auction_sold() {
-		todo!()
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project_metadata(0, ISSUER);
+		let evaluations = default_evaluations();
+		let bids = default_bids();
+
+		let project_id = inst.create_community_contributing_project(project_metadata.clone(), ISSUER, evaluations.clone(), bids.clone());
+		let project_details = inst.get_project_details(project_id);
+		let bid_ct_sold: BalanceOf<TestRuntime> = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).fold(Zero::zero(), |acc, bid| acc + bid.final_ct_amount));
+		assert_eq!(project_details.remaining_contribution_tokens, project_metadata.total_allocation_size - bid_ct_sold);
+
+		let contributions = vec![(BUYER_1, project_details.remaining_contribution_tokens).into()];
+
+		let plmc_contribution_funding = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), project_details.weighted_average_price.unwrap());
+		let plmc_existential_deposits = plmc_contribution_funding.accounts().existential_deposits();
+		let plmc_ct_account_deposits = plmc_contribution_funding.accounts().ct_account_deposits();
+		inst.mint_plmc_to(plmc_contribution_funding.clone());
+		inst.mint_plmc_to(plmc_existential_deposits.clone());
+		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
+
+		let foreign_asset_contribution_funding = MockInstantiator::calculate_contributed_funding_asset_spent(contributions.clone(), project_details.weighted_average_price.unwrap());
+		inst.mint_foreign_asset_to(foreign_asset_contribution_funding.clone());
+
+		inst.contribute_for_users(project_id, contributions).unwrap();
+
+		assert_eq!(inst.get_project_details(project_id).remaining_contribution_tokens, 0);
 	}
 
 	#[test]
