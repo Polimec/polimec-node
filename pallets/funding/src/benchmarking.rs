@@ -1516,11 +1516,7 @@ mod benchmarks {
 		inst.advance_time(1u32.into()).unwrap();
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-		let evaluations: Vec<UserToUSDBalance<T>> = vec![
-			UserToUSDBalance::new(account::<AccountIdOf<T>>("evaluator_bench", 0, 0), (50_000 * US_DOLLAR).into()),
-			UserToUSDBalance::new(account::<AccountIdOf<T>>("evaluator_bench", 0, 0), (25_000 * US_DOLLAR).into()),
-			UserToUSDBalance::new(account::<AccountIdOf<T>>("evaluator_3", 0, 0), (32_000 * US_DOLLAR).into()),
-		];
+		let evaluations: Vec<UserToUSDBalance<T>> = default_evaluations::<T>();
 		let evaluator: AccountIdOf<T> = evaluations[0].account.clone();
 		whitelist_account!(evaluator);
 
@@ -1590,12 +1586,9 @@ mod benchmarks {
 		inst.advance_time(1u32.into()).unwrap();
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-		let evaluations: Vec<UserToUSDBalance<T>> = vec![
-			UserToUSDBalance::new(account::<AccountIdOf<T>>("evaluator_1", 0, 0), (50_000 * US_DOLLAR).into()),
-			UserToUSDBalance::new(account::<AccountIdOf<T>>("evaluator_1", 0, 0), (25_000 * US_DOLLAR).into()),
-			UserToUSDBalance::new(account::<AccountIdOf<T>>("evaluator_3", 0, 0), (32_000 * US_DOLLAR).into()),
-		];
+		let mut evaluations = default_evaluations::<T>();
 		let evaluator: AccountIdOf<T> = evaluations[0].account.clone();
+		evaluations[1].account = evaluator.clone();
 		whitelist_account!(evaluator);
 
 		let project_id = inst.create_finished_project(
@@ -1930,27 +1923,9 @@ mod benchmarks {
 		inst.advance_time(1u32.into()).unwrap();
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
-		let contributions: Vec<ContributionParams<T>> = vec![
-			ContributionParams::new(
-				account::<AccountIdOf<T>>("contributor_1", 0, 0),
-				(10_000 * ASSET_UNIT).into(),
-				1u8,
-				AcceptedFundingAsset::USDT,
-			),
-			ContributionParams::new(
-				account::<AccountIdOf<T>>("contributor_1", 0, 0),
-				(6_000 * ASSET_UNIT).into(),
-				1u8,
-				AcceptedFundingAsset::USDT,
-			),
-			ContributionParams::new(
-				account::<AccountIdOf<T>>("contributor_3", 0, 0),
-				(30_000 * ASSET_UNIT).into(),
-				1u8,
-				AcceptedFundingAsset::USDT,
-			),
-		];
+		let mut contributions: Vec<ContributionParams<T>> = default_community_contributions::<T>();
 		let contributor = contributions[0].contributor.clone();
+		contributions[1].contributor = contributor.clone();
 		whitelist_account!(contributor);
 
 		let project_id = inst.create_finished_project(
@@ -1963,7 +1938,6 @@ mod benchmarks {
 		);
 
 		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
-		inst.advance_time(One::one()).unwrap();
 
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
@@ -2276,8 +2250,8 @@ mod benchmarks {
 
 		let evaluations = default_evaluations::<T>();
 		let bids = BenchInstantiator::generate_bids_from_total_usd(
-			Percent::from_percent(40) * target_funding_amount,
-			1u128.into(),
+			Percent::from_percent(30) * target_funding_amount,
+			project_metadata.minimum_price,
 			default_weights(),
 			default_bidders::<T>(),
 			default_bidder_multipliers(),
@@ -2403,7 +2377,7 @@ mod benchmarks {
 
 		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
 			Percent::from_percent(15) * target_funding_amount,
-			1u128.into(),
+			project_metadata.minimum_price,
 			default_weights(),
 			default_bidders::<T>(),
 			default_bidder_multipliers(),
@@ -2553,7 +2527,7 @@ mod benchmarks {
 
 		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
 			Percent::from_percent(15) * target_funding_amount,
-			1u128.into(),
+			project_metadata.minimum_price,
 			default_weights(),
 			default_bidders::<T>(),
 			default_bidder_multipliers(),
@@ -2874,11 +2848,10 @@ mod benchmarks {
 			},
 			mainnet_token_max_supply: BalanceOf::<T>::try_from(8_000_000_0_000_000_000u128)
 				.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-			total_allocation_size: (100_000 * ASSET_UNIT)
-				.try_into()
+			total_allocation_size: BalanceOf::<T>::try_from(100_000_000_0_000_000_000u128)
 				.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-			auction_round_allocation_percentage: auction_allocation_percentage,
-			minimum_price: 1u128.into(),
+			auction_round_allocation_percentage: Percent::from_percent(50u8),
+			minimum_price: 10u128.into(),
 			ticket_size: RoundTicketSizes {
 				bidding: TicketSize {
 					minimum: Some(
@@ -3480,11 +3453,12 @@ mod benchmarks {
 
 		let bids: Vec<BidParams<T>> = BenchInstantiator::generate_bids_from_total_usd(
 			Percent::from_percent(15) * target_funding_amount,
-			1u128.into(),
+			project_metadata.minimum_price,
 			default_weights(),
 			default_bidders::<T>(),
 			default_bidder_multipliers(),
 		);
+
 		let contributions = BenchInstantiator::generate_contributions_from_total_usd(
 			Percent::from_percent(10) * target_funding_amount,
 			project_metadata.minimum_price,
