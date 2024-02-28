@@ -323,7 +323,7 @@ fn migration_is_sent() {
 					(sp_runtime::FixedU128::from_float(1.0).checked_mul_int(100_000 * ASSET_UNIT).unwrap()),
 				sp_runtime::FixedU128::from_float(1.0),
 				default_weights(),
-				vec![EVAL_1.into(), BUYER_1.into(), BUYER_2.into(), BUYER_3.into(), BUYER_4.into()],
+				vec![EVAL_2.into(), BUYER_1.into(), BUYER_2.into(), BUYER_3.into(), BUYER_4.into()],
 				default_contributor_multipliers(),
 			),
 			vec![],
@@ -368,7 +368,7 @@ fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 					(sp_runtime::FixedU128::from_float(1.0).checked_mul_int(100_000 * ASSET_UNIT).unwrap()),
 				sp_runtime::FixedU128::from_float(1.0),
 				default_weights(),
-				vec![EVAL_1.into(), BUYER_2.into(), BUYER_3.into(), BUYER_4.into(), BUYER_5.into()],
+				vec![EVAL_2.into(), BUYER_2.into(), BUYER_3.into(), BUYER_4.into(), BUYER_5.into()],
 				default_contributor_multipliers(),
 			),
 			vec![],
@@ -391,7 +391,7 @@ fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 #[test]
 fn vesting_over_several_blocks_on_project() {
 	let mut inst = IntegrationInstantiator::new(None);
-	let participants = vec![EVAL_1, EVAL_2, EVAL_3, BIDDER_1, BIDDER_2, BUYER_1, BUYER_2, BUYER_3]
+	let participants = vec![EVAL_1, EVAL_2, EVAL_3, BIDDER_1, BIDDER_2, BUYER_1, BUYER_2]
 		.into_iter()
 		.map(|x| AccountId::from(x))
 		.collect::<Vec<_>>();
@@ -413,7 +413,7 @@ fn vesting_over_several_blocks_on_project() {
 		asset: AcceptedFundingAsset::USDT,
 	});
 	bids.push(BidParams {
-		bidder: BIDDER_2.into(),
+		bidder: EVAL_2.into(),
 		amount: 12_000 * ASSET_UNIT,
 		multiplier: MultiplierOf::<PolimecRuntime>::try_from(7u8).unwrap(),
 		asset: AcceptedFundingAsset::USDT,
@@ -432,7 +432,7 @@ fn vesting_over_several_blocks_on_project() {
 		asset: AcceptedFundingAsset::USDT,
 	});
 	community_contributions.push(ContributionParams {
-		contributor: BUYER_3.into(),
+		contributor: EVAL_1.into(),
 		amount: 30000 * ASSET_UNIT,
 		multiplier: MultiplierOf::<PolimecRuntime>::try_from(3u8).unwrap(),
 		asset: AcceptedFundingAsset::USDT,

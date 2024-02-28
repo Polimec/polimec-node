@@ -58,13 +58,8 @@ pub trait WeightInfo {
 	fn evaluation_over_limit() -> Weight;
 	fn bid_no_ct_deposit(x: u32, y: u32, ) -> Weight;
 	fn bid_with_ct_deposit(y: u32, ) -> Weight;
-	fn first_contribution_with_ct_deposit() -> Weight;
-	fn first_contribution_no_ct_deposit() -> Weight;
-	fn first_contribution_ends_round_with_ct_deposit(y: u32, z: u32, ) -> Weight;
-	fn first_contribution_ends_round_no_ct_deposit(y: u32, z: u32, ) -> Weight;
-	fn second_to_limit_contribution(x: u32, ) -> Weight;
-	fn second_to_limit_contribution_ends_round(x: u32, y: u32, z: u32, ) -> Weight;
-	fn contribution_over_limit() -> Weight;
+	fn contribution(x: u32, ) -> Weight;
+	fn contribution_ends_round(x: u32, y: u32, z: u32, ) -> Weight;
 	fn evaluation_unbond_for() -> Weight;
 	fn evaluation_reward_payout_for_with_ct_account_creation() -> Weight;
 	fn evaluation_reward_payout_for_no_ct_account_creation() -> Weight;
@@ -329,136 +324,6 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
 	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
 	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Contributions` (r:1 w:1)
-	/// Proof: `PolimecFunding::Contributions` (`max_values`: None, `max_size`: Some(364), added: 2839, mode: `MaxEncodedLen`)
-	/// Storage: `Oracle::Values` (r:2 w:0)
-	/// Proof: `Oracle::Values` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::NextContributionId` (r:1 w:1)
-	/// Proof: `PolimecFunding::NextContributionId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Holds` (r:1 w:1)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Evaluations` (r:1 w:0)
-	/// Proof: `PolimecFunding::Evaluations` (`max_values`: None, `max_size`: Some(345), added: 2820, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Asset` (r:1 w:1)
-	/// Proof: `StatemintAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Account` (r:2 w:2)
-	/// Proof: `StatemintAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	fn first_contribution_with_ct_deposit() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `2029`
-		//  Estimated: `6208`
-		// Minimum execution time: 146_000_000 picoseconds.
-		Weight::from_parts(151_000_000, 6208)
-			.saturating_add(T::DbWeight::get().reads(11_u64))
-			.saturating_add(T::DbWeight::get().writes(7_u64))
-	}
-	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Contributions` (r:1 w:1)
-	/// Proof: `PolimecFunding::Contributions` (`max_values`: None, `max_size`: Some(364), added: 2839, mode: `MaxEncodedLen`)
-	/// Storage: `Oracle::Values` (r:2 w:0)
-	/// Proof: `Oracle::Values` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::NextContributionId` (r:1 w:1)
-	/// Proof: `PolimecFunding::NextContributionId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Holds` (r:1 w:1)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Evaluations` (r:1 w:0)
-	/// Proof: `PolimecFunding::Evaluations` (`max_values`: None, `max_size`: Some(345), added: 2820, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Asset` (r:1 w:1)
-	/// Proof: `StatemintAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Account` (r:2 w:2)
-	/// Proof: `StatemintAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	fn first_contribution_no_ct_deposit() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `2106`
-		//  Estimated: `6208`
-		// Minimum execution time: 118_000_000 picoseconds.
-		Weight::from_parts(120_000_000, 6208)
-			.saturating_add(T::DbWeight::get().reads(11_u64))
-			.saturating_add(T::DbWeight::get().writes(7_u64))
-	}
-	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Contributions` (r:1 w:1)
-	/// Proof: `PolimecFunding::Contributions` (`max_values`: None, `max_size`: Some(364), added: 2839, mode: `MaxEncodedLen`)
-	/// Storage: `Oracle::Values` (r:2 w:0)
-	/// Proof: `Oracle::Values` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::NextContributionId` (r:1 w:1)
-	/// Proof: `PolimecFunding::NextContributionId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Holds` (r:1 w:1)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Evaluations` (r:1 w:0)
-	/// Proof: `PolimecFunding::Evaluations` (`max_values`: None, `max_size`: Some(345), added: 2820, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Asset` (r:1 w:1)
-	/// Proof: `StatemintAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Account` (r:2 w:2)
-	/// Proof: `StatemintAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:9833 w:1)
-	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(27), added: 2502, mode: `MaxEncodedLen`)
-	/// The range of component `y` is `[1, 99]`.
-	/// The range of component `z` is `[1, 10000]`.
-	fn first_contribution_ends_round_with_ct_deposit(y: u32, z: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `0 + y * (140 ±0) + z * (20 ±0)`
-		//  Estimated: `66042 + y * (11508 ±3_537) + z * (1108 ±35)`
-		// Minimum execution time: 232_000_000 picoseconds.
-		Weight::from_parts(246_000_000, 66042)
-			// Standard Error: 4_200_086
-			.saturating_add(Weight::from_parts(12_470_526, 0).saturating_mul(y.into()))
-			// Standard Error: 41_632
-			.saturating_add(Weight::from_parts(1_318_329, 0).saturating_mul(z.into()))
-			.saturating_add(T::DbWeight::get().reads(37_u64))
-			.saturating_add(T::DbWeight::get().reads((5_u64).saturating_mul(y.into())))
-			.saturating_add(T::DbWeight::get().writes(8_u64))
-			.saturating_add(Weight::from_parts(0, 11508).saturating_mul(y.into()))
-			.saturating_add(Weight::from_parts(0, 1108).saturating_mul(z.into()))
-	}
-	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Contributions` (r:1 w:1)
-	/// Proof: `PolimecFunding::Contributions` (`max_values`: None, `max_size`: Some(364), added: 2839, mode: `MaxEncodedLen`)
-	/// Storage: `Oracle::Values` (r:2 w:0)
-	/// Proof: `Oracle::Values` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::NextContributionId` (r:1 w:1)
-	/// Proof: `PolimecFunding::NextContributionId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Holds` (r:1 w:1)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Evaluations` (r:1 w:0)
-	/// Proof: `PolimecFunding::Evaluations` (`max_values`: None, `max_size`: Some(345), added: 2820, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Asset` (r:1 w:1)
-	/// Proof: `StatemintAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Account` (r:2 w:2)
-	/// Proof: `StatemintAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:9833 w:1)
-	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(27), added: 2502, mode: `MaxEncodedLen`)
-	/// The range of component `y` is `[1, 99]`.
-	/// The range of component `z` is `[1, 10000]`.
-	fn first_contribution_ends_round_no_ct_deposit(y: u32, z: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `0 + y * (140 ±0) + z * (20 ±0)`
-		//  Estimated: `66042 + y * (11508 ±3_537) + z * (1108 ±35)`
-		// Minimum execution time: 212_000_000 picoseconds.
-		Weight::from_parts(223_000_000, 66042)
-			// Standard Error: 4_200_933
-			.saturating_add(Weight::from_parts(12_638_804, 0).saturating_mul(y.into()))
-			// Standard Error: 41_641
-			.saturating_add(Weight::from_parts(1_313_036, 0).saturating_mul(z.into()))
-			.saturating_add(T::DbWeight::get().reads(37_u64))
-			.saturating_add(T::DbWeight::get().reads((5_u64).saturating_mul(y.into())))
-			.saturating_add(T::DbWeight::get().writes(8_u64))
-			.saturating_add(Weight::from_parts(0, 11508).saturating_mul(y.into()))
-			.saturating_add(Weight::from_parts(0, 1108).saturating_mul(z.into()))
-	}
-	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
 	/// Storage: `PolimecFunding::Contributions` (r:256 w:1)
 	/// Proof: `PolimecFunding::Contributions` (`max_values`: None, `max_size`: Some(364), added: 2839, mode: `MaxEncodedLen`)
 	/// Storage: `Oracle::Values` (r:2 w:0)
@@ -474,7 +339,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Storage: `StatemintAssets::Account` (r:2 w:2)
 	/// Proof: `StatemintAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
 	/// The range of component `x` is `[1, 255]`.
-	fn second_to_limit_contribution(x: u32, ) -> Weight {
+	fn contribution(x: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `2246 + x * (137 ±0)`
 		//  Estimated: `6208 + x * (2839 ±0)`
@@ -510,7 +375,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// The range of component `x` is `[1, 255]`.
 	/// The range of component `y` is `[1, 99]`.
 	/// The range of component `z` is `[1, 10000]`.
-	fn second_to_limit_contribution_ends_round(x: u32, y: u32, z: u32, ) -> Weight {
+	fn contribution_ends_round(x: u32, y: u32, z: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `44564 + x * (137 ±0) + y * (254 ±0) + z * (21 ±0)`
 		//  Estimated: `15401 + x * (2839 ±0) + y * (92965 ±6_111) + z * (1905 ±59)`
@@ -527,33 +392,6 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(Weight::from_parts(0, 2839).saturating_mul(x.into()))
 			.saturating_add(Weight::from_parts(0, 92965).saturating_mul(y.into()))
 			.saturating_add(Weight::from_parts(0, 1905).saturating_mul(z.into()))
-	}
-	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Contributions` (r:257 w:2)
-	/// Proof: `PolimecFunding::Contributions` (`max_values`: None, `max_size`: Some(364), added: 2839, mode: `MaxEncodedLen`)
-	/// Storage: `Oracle::Values` (r:2 w:0)
-	/// Proof: `Oracle::Values` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::NextContributionId` (r:1 w:1)
-	/// Proof: `PolimecFunding::NextContributionId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Holds` (r:1 w:1)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Asset` (r:1 w:1)
-	/// Proof: `StatemintAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Account` (r:2 w:2)
-	/// Proof: `StatemintAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Evaluations` (r:1 w:0)
-	/// Proof: `PolimecFunding::Evaluations` (`max_values`: None, `max_size`: Some(345), added: 2820, mode: `MaxEncodedLen`)
-	fn contribution_over_limit() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `37473`
-		//  Estimated: `730613`
-		// Minimum execution time: 1_082_000_000 picoseconds.
-		Weight::from_parts(1_150_000_000, 730613)
-			.saturating_add(T::DbWeight::get().reads(267_u64))
-			.saturating_add(T::DbWeight::get().writes(8_u64))
 	}
 	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
 	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
@@ -1392,136 +1230,6 @@ impl WeightInfo for () {
 	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
 	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
 	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Contributions` (r:1 w:1)
-	/// Proof: `PolimecFunding::Contributions` (`max_values`: None, `max_size`: Some(364), added: 2839, mode: `MaxEncodedLen`)
-	/// Storage: `Oracle::Values` (r:2 w:0)
-	/// Proof: `Oracle::Values` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::NextContributionId` (r:1 w:1)
-	/// Proof: `PolimecFunding::NextContributionId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Holds` (r:1 w:1)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Evaluations` (r:1 w:0)
-	/// Proof: `PolimecFunding::Evaluations` (`max_values`: None, `max_size`: Some(345), added: 2820, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Asset` (r:1 w:1)
-	/// Proof: `StatemintAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Account` (r:2 w:2)
-	/// Proof: `StatemintAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	fn first_contribution_with_ct_deposit() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `2029`
-		//  Estimated: `6208`
-		// Minimum execution time: 146_000_000 picoseconds.
-		Weight::from_parts(151_000_000, 6208)
-			.saturating_add(RocksDbWeight::get().reads(11_u64))
-			.saturating_add(RocksDbWeight::get().writes(7_u64))
-	}
-	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Contributions` (r:1 w:1)
-	/// Proof: `PolimecFunding::Contributions` (`max_values`: None, `max_size`: Some(364), added: 2839, mode: `MaxEncodedLen`)
-	/// Storage: `Oracle::Values` (r:2 w:0)
-	/// Proof: `Oracle::Values` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::NextContributionId` (r:1 w:1)
-	/// Proof: `PolimecFunding::NextContributionId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Holds` (r:1 w:1)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Evaluations` (r:1 w:0)
-	/// Proof: `PolimecFunding::Evaluations` (`max_values`: None, `max_size`: Some(345), added: 2820, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Asset` (r:1 w:1)
-	/// Proof: `StatemintAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Account` (r:2 w:2)
-	/// Proof: `StatemintAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	fn first_contribution_no_ct_deposit() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `2106`
-		//  Estimated: `6208`
-		// Minimum execution time: 118_000_000 picoseconds.
-		Weight::from_parts(120_000_000, 6208)
-			.saturating_add(RocksDbWeight::get().reads(11_u64))
-			.saturating_add(RocksDbWeight::get().writes(7_u64))
-	}
-	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Contributions` (r:1 w:1)
-	/// Proof: `PolimecFunding::Contributions` (`max_values`: None, `max_size`: Some(364), added: 2839, mode: `MaxEncodedLen`)
-	/// Storage: `Oracle::Values` (r:2 w:0)
-	/// Proof: `Oracle::Values` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::NextContributionId` (r:1 w:1)
-	/// Proof: `PolimecFunding::NextContributionId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Holds` (r:1 w:1)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Evaluations` (r:1 w:0)
-	/// Proof: `PolimecFunding::Evaluations` (`max_values`: None, `max_size`: Some(345), added: 2820, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Asset` (r:1 w:1)
-	/// Proof: `StatemintAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Account` (r:2 w:2)
-	/// Proof: `StatemintAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:9833 w:1)
-	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(27), added: 2502, mode: `MaxEncodedLen`)
-	/// The range of component `y` is `[1, 99]`.
-	/// The range of component `z` is `[1, 10000]`.
-	fn first_contribution_ends_round_with_ct_deposit(y: u32, z: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `0 + y * (140 ±0) + z * (20 ±0)`
-		//  Estimated: `66042 + y * (11508 ±3_537) + z * (1108 ±35)`
-		// Minimum execution time: 232_000_000 picoseconds.
-		Weight::from_parts(246_000_000, 66042)
-			// Standard Error: 4_200_086
-			.saturating_add(Weight::from_parts(12_470_526, 0).saturating_mul(y.into()))
-			// Standard Error: 41_632
-			.saturating_add(Weight::from_parts(1_318_329, 0).saturating_mul(z.into()))
-			.saturating_add(RocksDbWeight::get().reads(37_u64))
-			.saturating_add(RocksDbWeight::get().reads((5_u64).saturating_mul(y.into())))
-			.saturating_add(RocksDbWeight::get().writes(8_u64))
-			.saturating_add(Weight::from_parts(0, 11508).saturating_mul(y.into()))
-			.saturating_add(Weight::from_parts(0, 1108).saturating_mul(z.into()))
-	}
-	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Contributions` (r:1 w:1)
-	/// Proof: `PolimecFunding::Contributions` (`max_values`: None, `max_size`: Some(364), added: 2839, mode: `MaxEncodedLen`)
-	/// Storage: `Oracle::Values` (r:2 w:0)
-	/// Proof: `Oracle::Values` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::NextContributionId` (r:1 w:1)
-	/// Proof: `PolimecFunding::NextContributionId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Holds` (r:1 w:1)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Evaluations` (r:1 w:0)
-	/// Proof: `PolimecFunding::Evaluations` (`max_values`: None, `max_size`: Some(345), added: 2820, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Asset` (r:1 w:1)
-	/// Proof: `StatemintAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Account` (r:2 w:2)
-	/// Proof: `StatemintAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::ProjectsToUpdate` (r:9833 w:1)
-	/// Proof: `PolimecFunding::ProjectsToUpdate` (`max_values`: None, `max_size`: Some(27), added: 2502, mode: `MaxEncodedLen`)
-	/// The range of component `y` is `[1, 99]`.
-	/// The range of component `z` is `[1, 10000]`.
-	fn first_contribution_ends_round_no_ct_deposit(y: u32, z: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `0 + y * (140 ±0) + z * (20 ±0)`
-		//  Estimated: `66042 + y * (11508 ±3_537) + z * (1108 ±35)`
-		// Minimum execution time: 212_000_000 picoseconds.
-		Weight::from_parts(223_000_000, 66042)
-			// Standard Error: 4_200_933
-			.saturating_add(Weight::from_parts(12_638_804, 0).saturating_mul(y.into()))
-			// Standard Error: 41_641
-			.saturating_add(Weight::from_parts(1_313_036, 0).saturating_mul(z.into()))
-			.saturating_add(RocksDbWeight::get().reads(37_u64))
-			.saturating_add(RocksDbWeight::get().reads((5_u64).saturating_mul(y.into())))
-			.saturating_add(RocksDbWeight::get().writes(8_u64))
-			.saturating_add(Weight::from_parts(0, 11508).saturating_mul(y.into()))
-			.saturating_add(Weight::from_parts(0, 1108).saturating_mul(z.into()))
-	}
-	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
 	/// Storage: `PolimecFunding::Contributions` (r:256 w:1)
 	/// Proof: `PolimecFunding::Contributions` (`max_values`: None, `max_size`: Some(364), added: 2839, mode: `MaxEncodedLen`)
 	/// Storage: `Oracle::Values` (r:2 w:0)
@@ -1537,7 +1245,7 @@ impl WeightInfo for () {
 	/// Storage: `StatemintAssets::Account` (r:2 w:2)
 	/// Proof: `StatemintAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
 	/// The range of component `x` is `[1, 255]`.
-	fn second_to_limit_contribution(x: u32, ) -> Weight {
+	fn contribution(x: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `2246 + x * (137 ±0)`
 		//  Estimated: `6208 + x * (2839 ±0)`
@@ -1573,7 +1281,7 @@ impl WeightInfo for () {
 	/// The range of component `x` is `[1, 255]`.
 	/// The range of component `y` is `[1, 99]`.
 	/// The range of component `z` is `[1, 10000]`.
-	fn second_to_limit_contribution_ends_round(x: u32, y: u32, z: u32, ) -> Weight {
+	fn contribution_ends_round(x: u32, y: u32, z: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `44564 + x * (137 ±0) + y * (254 ±0) + z * (21 ±0)`
 		//  Estimated: `15401 + x * (2839 ±0) + y * (92965 ±6_111) + z * (1905 ±59)`
@@ -1590,33 +1298,6 @@ impl WeightInfo for () {
 			.saturating_add(Weight::from_parts(0, 2839).saturating_mul(x.into()))
 			.saturating_add(Weight::from_parts(0, 92965).saturating_mul(y.into()))
 			.saturating_add(Weight::from_parts(0, 1905).saturating_mul(z.into()))
-	}
-	/// Storage: `PolimecFunding::ProjectsMetadata` (r:1 w:0)
-	/// Proof: `PolimecFunding::ProjectsMetadata` (`max_values`: None, `max_size`: Some(334), added: 2809, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
-	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Contributions` (r:257 w:2)
-	/// Proof: `PolimecFunding::Contributions` (`max_values`: None, `max_size`: Some(364), added: 2839, mode: `MaxEncodedLen`)
-	/// Storage: `Oracle::Values` (r:2 w:0)
-	/// Proof: `Oracle::Values` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::NextContributionId` (r:1 w:1)
-	/// Proof: `PolimecFunding::NextContributionId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Holds` (r:1 w:1)
-	/// Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(1149), added: 3624, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Asset` (r:1 w:1)
-	/// Proof: `StatemintAssets::Asset` (`max_values`: None, `max_size`: Some(210), added: 2685, mode: `MaxEncodedLen`)
-	/// Storage: `StatemintAssets::Account` (r:2 w:2)
-	/// Proof: `StatemintAssets::Account` (`max_values`: None, `max_size`: Some(134), added: 2609, mode: `MaxEncodedLen`)
-	/// Storage: `PolimecFunding::Evaluations` (r:1 w:0)
-	/// Proof: `PolimecFunding::Evaluations` (`max_values`: None, `max_size`: Some(345), added: 2820, mode: `MaxEncodedLen`)
-	fn contribution_over_limit() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `37473`
-		//  Estimated: `730613`
-		// Minimum execution time: 1_082_000_000 picoseconds.
-		Weight::from_parts(1_150_000_000, 730613)
-			.saturating_add(RocksDbWeight::get().reads(267_u64))
-			.saturating_add(RocksDbWeight::get().writes(8_u64))
 	}
 	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:0)
 	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
