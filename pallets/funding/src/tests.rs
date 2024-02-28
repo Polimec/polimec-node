@@ -388,6 +388,11 @@ mod creation {
 		let project_err = inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, project_metadata).unwrap_err());
 		assert_eq!(project_err, Error::<TestRuntime>::NotEnoughFundsForEscrowCreation.into());
 	}
+
+	#[test]
+	fn auction_ticket_sizes_cannot_be_set_below_5k_usd() {
+
+	}
 }
 
 // only functionalities that happen in the EVALUATION period of a project
@@ -1422,6 +1427,38 @@ mod auction {
 			project_id,
 		);
 	}
+
+	#[test]
+	fn auction_gets_percentage_of_ct_total_allocation() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project_metadata(0, ISSUER);
+		let evaluations = default_evaluations();
+		let auction_percentage = project_metadata.auction_round_allocation_percentage;
+		let total_allocation = project_metadata.total_allocation_size;
+
+		let auction_allocation = auction_percentage * total_allocation;
+
+		let bids = vec![(BIDDER_1, auction_allocation).into()];
+		let project_id = inst.create_community_contributing_project(project_metadata.clone(), ISSUER, evaluations.clone(), bids);
+		let mut bid_infos = Bids::<TestRuntime>::iter_prefix_values((project_id,));
+		let bid_info = inst.execute(|| bid_infos.next().unwrap());
+		assert!(inst.execute(|| bid_infos.next().is_none()));
+		assert_eq!(bid_info.final_ct_amount, auction_allocation);
+
+		let project_metadata = default_project_metadata(1, ISSUER);
+		let bids = vec![(BIDDER_1, auction_allocation).into(), (BIDDER_1, 100 * ASSET_UNIT).into()];
+		let project_id = inst.create_community_contributing_project(project_metadata.clone(), ISSUER, evaluations.clone(), bids);
+		let mut bid_infos = Bids::<TestRuntime>::iter_prefix_values((project_id,));
+		let bid_info_1 = inst.execute(|| bid_infos.next().unwrap());
+		let bid_info_2 = inst.execute(|| bid_infos.next().unwrap());
+		assert!(inst.execute(|| bid_infos.next().is_none()));
+		assert_eq!(bid_info_1.final_ct_amount + bid_info_2.final_ct_amount, auction_allocation, "Should not be able to buy more than auction allocation");
+	}
+
+	#[test]
+	fn per_credential_type_ticket_sizes() {
+		todo!()
+	}
 }
 
 // only functionalities that happen in the COMMUNITY FUNDING period of a project
@@ -1904,6 +1941,16 @@ mod community_contribution {
 
 		assert_eq!(evaluation_locked, <TestRuntime as Config>::EvaluatorSlash::get() * plmc_evaluation_amount);
 		assert_eq!(participation_locked, necessary_plmc_for_contribution);
+	}
+
+	#[test]
+	fn round_has_total_ct_allocation_minus_auction_sold() {
+		todo!()
+	}
+
+	#[test]
+	fn per_credential_type_ticket_sizes() {
+		todo!()
 	}
 }
 
