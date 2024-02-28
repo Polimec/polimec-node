@@ -178,7 +178,7 @@ pub mod storage_types {
 		/// Minimum price per Contribution Tokens
 		pub minimum_price: Price,
 		/// Maximum and minimum ticket sizes. 1st is auction round, second is community/remainder rounds
-		pub ticket_size: RoundTicketSizes<Balance>,
+		pub ticket_sizes: RoundTicketSizes<Balance>,
 		/// Maximum and/or minimum number of participants for the Auction and Community Round
 		pub participants_size: ParticipantsSize,
 		/// Funding round thresholds for Retail, Professional and Institutional participants
@@ -392,6 +392,7 @@ pub mod storage_types {
 
 pub mod inner_types {
 	use super::*;
+	use crate::US_DOLLAR;
 	use xcm::v3::MaxDispatchErrorLen;
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -408,15 +409,19 @@ pub mod inner_types {
 	#[derive(Default, Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 	pub struct TicketSize<Balance: BalanceT + Copy> {
-		pub minimum: Option<Balance>,
-		pub maximum: Option<Balance>,
+		pub minimum_per_participation: Option<Balance>,
+		pub maximum_per_account: Option<Balance>,
 	}
 	impl<Balance: BalanceT + Copy> TicketSize<Balance> {
 		pub(crate) fn is_valid(&self) -> Result<(), ValidityError> {
-			if self.minimum.is_some() && self.maximum.is_some() {
-				return if self.minimum < self.maximum { Ok(()) } else { Err(ValidityError::TicketSizeError) };
+			if self.minimum_per_participation.is_some() && self.maximum_per_account.is_some() {
+				return if self.minimum_per_participation < self.maximum_per_account {
+					Ok(())
+				} else {
+					Err(ValidityError::TicketSizeError)
+				};
 			}
-			if self.minimum.is_some() || self.maximum.is_some() {
+			if self.minimum_per_participation.is_some() || self.maximum_per_account.is_some() {
 				return Ok(());
 			}
 
@@ -426,11 +431,54 @@ pub mod inner_types {
 
 	#[derive(Default, Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	pub struct BiddingTicketSizes<Balance: BalanceT + Copy> {
+		pub professional: TicketSize<Balance>,
+		pub institutional: TicketSize<Balance>,
+	}
+	impl<Balance: BalanceT + Copy> BiddingTicketSizes<Balance> {
+		pub(crate) fn is_valid(&self) -> Result<(), ValidityError> {
+			let Some(professional_minimum) = self.professional.minimum_per_participation else {
+				return Err(ValidityError::TicketSizeError);
+			};
+			let Some(institutional_minimum) = self.institutional.minimum_per_participation else {
+				return Err(ValidityError::TicketSizeError);
+			};
+			if professional_minimum > 5000 * US_DOLLAR &&
+				institutional_minimum > 5000 * US_DOLLAR &&
+				self.professional.is_valid().is_ok() &&
+				self.institutional.is_valid().is_ok()
+			{
+				Ok(())
+			} else {
+				Err(ValidityError::TicketSizeError)
+			}
+		}
+	}
+
+	#[derive(Default, Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	pub struct ContributingTicketSizes<Balance: BalanceT + Copy> {
+		pub retail: TicketSize<Balance>,
+		pub professional: TicketSize<Balance>,
+		pub institutional: TicketSize<Balance>,
+	}
+	impl<Balance: BalanceT + Copy> ContributingTicketSizes<Balance> {
+		pub(crate) fn is_valid(&self) -> Result<(), ValidityError> {
+			if self.retail.is_valid() && self.professional.is_valid() && self.institutional.is_valid() {
+				return Ok(())
+			} else {
+				return Err(ValidityError::TicketSizeError)
+			}
+		}
+	}
+
+	#[derive(Default, Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 	pub struct RoundTicketSizes<Balance: BalanceT + Copy> {
 		// i.e auction round
-		pub bidding: TicketSize<Balance>,
+		pub bidding: BiddingTicketSizes<Balance>,
 		// i,e community and remainder round
-		pub contributing: TicketSize<Balance>,
+		pub contributing: ContributingTicketSizes<Balance>,
 	}
 	impl<Balance: BalanceT + Copy> RoundTicketSizes<Balance> {
 		pub(crate) fn is_valid(&self) -> Result<(), ValidityError> {

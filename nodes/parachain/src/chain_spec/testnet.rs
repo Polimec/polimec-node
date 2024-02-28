@@ -329,8 +329,8 @@ mod testing_helpers {
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: FixedU128::from_float(1.0),
 			ticket_size: RoundTicketSizes {
-				bidding: TicketSize { minimum: Some(5000 * US_DOLLAR), maximum: None },
-				contributing: TicketSize { minimum: Some(1), maximum: None },
+				bidding: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
+				contributing: TicketSize { minimum_per_participation: Some(1), maximum_per_account: None },
 			},
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 			funding_thresholds: Default::default(),

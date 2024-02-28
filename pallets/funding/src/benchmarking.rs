@@ -92,12 +92,16 @@ where
 		minimum_price: 10u128.into(),
 		ticket_size: RoundTicketSizes {
 			bidding: TicketSize {
-				minimum: Some((5000 * US_DOLLAR).try_into().unwrap_or_else(|_| panic!("Failed to create BalanceOf"))),
-				maximum: None,
+				minimum_per_participation: Some(
+					(5000 * US_DOLLAR).try_into().unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+				),
+				maximum_per_account: None,
 			},
 			contributing: TicketSize {
-				minimum: Some(1u128.try_into().unwrap_or_else(|_| panic!("Failed to create BalanceOf"))),
-				maximum: None,
+				minimum_per_participation: Some(
+					1u128.try_into().unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+				),
+				maximum_per_account: None,
 			},
 		},
 		participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
@@ -115,15 +119,25 @@ where
 	T::Hash: From<H256>,
 {
 	let threshold = <T as Config>::EvaluationSuccessThreshold::get();
-	let default_project_metadata: ProjectMetadataOf<T> = default_project::<T>(0, account::<AccountIdOf<T>>("issuer", 0, 0));
-	let funding_target = default_project_metadata.minimum_price.saturating_mul_int(default_project_metadata.total_allocation_size);
+	let default_project_metadata: ProjectMetadataOf<T> =
+		default_project::<T>(0, account::<AccountIdOf<T>>("issuer", 0, 0));
+	let funding_target =
+		default_project_metadata.minimum_price.saturating_mul_int(default_project_metadata.total_allocation_size);
 	let evaluation_target = threshold * funding_target;
 
-
 	vec![
-		UserToUSDBalance::new(account::<AccountIdOf<T>>("evaluator_1", 0, 0), Percent::from_percent(35) * evaluation_target),
-		UserToUSDBalance::new(account::<AccountIdOf<T>>("evaluator_2", 0, 0), Percent::from_percent(35) * evaluation_target),
-		UserToUSDBalance::new(account::<AccountIdOf<T>>("evaluator_3", 0, 0), Percent::from_percent(35) * evaluation_target),
+		UserToUSDBalance::new(
+			account::<AccountIdOf<T>>("evaluator_1", 0, 0),
+			Percent::from_percent(35) * evaluation_target,
+		),
+		UserToUSDBalance::new(
+			account::<AccountIdOf<T>>("evaluator_2", 0, 0),
+			Percent::from_percent(35) * evaluation_target,
+		),
+		UserToUSDBalance::new(
+			account::<AccountIdOf<T>>("evaluator_3", 0, 0),
+			Percent::from_percent(35) * evaluation_target,
+		),
 	]
 }
 
@@ -134,7 +148,9 @@ where
 	T::Hash: From<H256>,
 {
 	let default_project_metadata = default_project::<T>(0, account::<AccountIdOf<T>>("issuer", 0, 0));
-	let auction_funding_target = default_project_metadata.minimum_price.saturating_mul_int(default_project_metadata.auction_round_allocation_percentage * default_project_metadata.total_allocation_size);
+	let auction_funding_target = default_project_metadata.minimum_price.saturating_mul_int(
+		default_project_metadata.auction_round_allocation_percentage * default_project_metadata.total_allocation_size,
+	);
 
 	BenchInstantiator::generate_bids_from_total_usd(
 		Percent::from_percent(95) * auction_funding_target,
@@ -170,11 +186,13 @@ where
 	<T as Config>::Balance: From<u128>,
 	T::Hash: From<H256>,
 {
-
 	let default_project_metadata = default_project::<T>(0, account::<AccountIdOf<T>>("issuer", 0, 0));
 
-	let funding_target = default_project_metadata.minimum_price.saturating_mul_int(default_project_metadata.total_allocation_size);
-	let auction_funding_target = default_project_metadata.minimum_price.saturating_mul_int(default_project_metadata.auction_round_allocation_percentage * default_project_metadata.total_allocation_size);
+	let funding_target =
+		default_project_metadata.minimum_price.saturating_mul_int(default_project_metadata.total_allocation_size);
+	let auction_funding_target = default_project_metadata.minimum_price.saturating_mul_int(
+		default_project_metadata.auction_round_allocation_percentage * default_project_metadata.total_allocation_size,
+	);
 
 	let contributing_funding_target = funding_target - auction_funding_target;
 
@@ -195,8 +213,11 @@ where
 {
 	let default_project_metadata = default_project::<T>(0, account::<AccountIdOf<T>>("issuer", 0, 0));
 
-	let funding_target = default_project_metadata.minimum_price.saturating_mul_int(default_project_metadata.total_allocation_size);
-	let auction_funding_target = default_project_metadata.minimum_price.saturating_mul_int(default_project_metadata.auction_round_allocation_percentage * default_project_metadata.total_allocation_size);
+	let funding_target =
+		default_project_metadata.minimum_price.saturating_mul_int(default_project_metadata.total_allocation_size);
+	let auction_funding_target = default_project_metadata.minimum_price.saturating_mul_int(
+		default_project_metadata.auction_round_allocation_percentage * default_project_metadata.total_allocation_size,
+	);
 
 	let contributing_funding_target = funding_target - auction_funding_target;
 
@@ -802,8 +823,7 @@ mod benchmarks {
 
 		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, default_evaluations::<T>());
 
-		let existing_bid =
-			BidParams::new(bidder.clone(), (500 * ASSET_UNIT).into(), 5u8, AcceptedFundingAsset::USDT);
+		let existing_bid = BidParams::new(bidder.clone(), (500 * ASSET_UNIT).into(), 5u8, AcceptedFundingAsset::USDT);
 
 		let existing_bids = vec![existing_bid; existing_bids_count as usize];
 		let existing_bids_post_bucketing = BenchInstantiator::<T>::get_actual_price_charged_for_bucketed_bids(
@@ -985,7 +1005,8 @@ mod benchmarks {
 		let bucket_delta_amount = Percent::from_percent(10) *
 			project_metadata.auction_round_allocation_percentage *
 			project_metadata.total_allocation_size;
-		let ten_percent_in_price: <T as Config>::Price = PriceOf::<T>::checked_from_rational(1, 10).unwrap() * project_metadata.minimum_price;
+		let ten_percent_in_price: <T as Config>::Price =
+			PriceOf::<T>::checked_from_rational(1, 10).unwrap() * project_metadata.minimum_price;
 
 		let mut starting_bucket = Bucket::new(
 			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size,
@@ -2854,14 +2875,16 @@ mod benchmarks {
 			minimum_price: 10u128.into(),
 			ticket_size: RoundTicketSizes {
 				bidding: TicketSize {
-					minimum: Some(
+					minimum_per_participation: Some(
 						(5000 * US_DOLLAR).try_into().unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					),
-					maximum: None,
+					maximum_per_account: None,
 				},
 				contributing: TicketSize {
-					minimum: Some(1u128.try_into().unwrap_or_else(|_| panic!("Failed to create BalanceOf"))),
-					maximum: None,
+					minimum_per_participation: Some(
+						1u128.try_into().unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
+					),
+					maximum_per_account: None,
 				},
 			},
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },

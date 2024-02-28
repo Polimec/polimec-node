@@ -240,6 +240,7 @@ pub type BucketOf<T> = Bucket<BalanceOf<T>, PriceOf<T>>;
 pub type WeightInfoOf<T> = <T as Config>::WeightInfo;
 
 pub const PLMC_FOREIGN_ID: u32 = 2069;
+pub const US_DOLLAR: u128 = 1_0_000_000_000;
 
 #[frame_support::pallet]
 pub mod pallet {

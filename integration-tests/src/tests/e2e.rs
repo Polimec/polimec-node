@@ -49,8 +49,8 @@ pub fn excel_project(nonce: u64) -> ProjectMetadataOf<PolimecRuntime> {
 		// Minimum Price per Contribution Token (in USDT)
 		minimum_price: PriceOf::<PolimecRuntime>::from(10),
 		ticket_size: RoundTicketSizes {
-			bidding: TicketSize { minimum: Some(5000 * US_DOLLAR), maximum: None },
-			contributing: TicketSize { minimum: Some(1), maximum: None },
+			bidding: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
+			contributing: TicketSize { minimum_per_participation: Some(1), maximum_per_account: None },
 		},
 		participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 		funding_thresholds: Default::default(),

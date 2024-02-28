@@ -75,9 +75,7 @@ const BUYER_7: AccountId = 46;
 const ASSET_UNIT: u128 = 10_u128.pow(10u32);
 
 const USDT_FOREIGN_ID: crate::mock::AssetId = 1984u32;
-const USDT_UNIT: u128 = 10_000_000_000_u128;
-
-pub const US_DOLLAR: u128 = 1_0_000_000_000;
+const USDT_UNIT: u128 = 1_0_000_000_000_u128;
 
 pub mod defaults {
 	use super::*;
@@ -97,8 +95,8 @@ pub mod defaults {
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: PriceOf::<TestRuntime>::from_float(1.0),
 			ticket_size: RoundTicketSizes {
-				bidding: TicketSize { minimum: Some(5000 * US_DOLLAR), maximum: None },
-				contributing: TicketSize { minimum: Some(1), maximum: None },
+				bidding: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
+				contributing: TicketSize { minimum_per_participation: Some(1), maximum_per_account: None },
 			},
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 			funding_thresholds: Default::default(),
@@ -123,8 +121,8 @@ pub mod defaults {
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
 			ticket_size: RoundTicketSizes {
-				bidding: TicketSize { minimum: Some(5 * US_DOLLAR), maximum: None },
-				contributing: TicketSize { minimum: Some(1), maximum: None },
+				bidding: TicketSize { minimum_per_participation: Some(5 * US_DOLLAR), maximum_per_account: None },
+				contributing: TicketSize { minimum_per_participation: Some(1), maximum_per_account: None },
 			},
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 			funding_thresholds: Default::default(),
@@ -326,8 +324,8 @@ mod creation {
 		let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
 			minimum_price: 0_u128.into(),
 			ticket_size: RoundTicketSizes {
-				bidding: TicketSize { minimum: Some(5000 * US_DOLLAR), maximum: None },
-				contributing: TicketSize { minimum: Some(1), maximum: None },
+				bidding: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
+				contributing: TicketSize { minimum_per_participation: Some(1), maximum_per_account: None },
 			},
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 			offchain_information_hash: Some(hashed(METADATA)),
@@ -345,8 +343,8 @@ mod creation {
 		let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
 			minimum_price: 1_u128.into(),
 			ticket_size: RoundTicketSizes {
-				bidding: TicketSize { minimum: Some(5000 * US_DOLLAR), maximum: None },
-				contributing: TicketSize { minimum: Some(1), maximum: None },
+				bidding: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
+				contributing: TicketSize { minimum_per_participation: Some(1), maximum_per_account: None },
 			},
 			participants_size: ParticipantsSize { minimum: None, maximum: None },
 			offchain_information_hash: Some(hashed(METADATA)),
@@ -364,8 +362,8 @@ mod creation {
 		let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
 			minimum_price: 1_u128.into(),
 			ticket_size: RoundTicketSizes {
-				bidding: TicketSize { minimum: None, maximum: None },
-				contributing: TicketSize { minimum: None, maximum: None },
+				bidding: TicketSize { minimum_per_participation: None, maximum_per_account: None },
+				contributing: TicketSize { minimum_per_participation: None, maximum_per_account: None },
 			},
 			participants_size: ParticipantsSize { minimum: Some(1), maximum: None },
 			offchain_information_hash: Some(hashed(METADATA)),
@@ -390,9 +388,7 @@ mod creation {
 	}
 
 	#[test]
-	fn auction_ticket_sizes_cannot_be_set_below_5k_usd() {
-
-	}
+	fn auction_ticket_sizes_cannot_be_set_below_5k_usd() {}
 }
 
 // only functionalities that happen in the EVALUATION period of a project
@@ -771,8 +767,8 @@ mod auction {
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
 			ticket_size: RoundTicketSizes {
-				bidding: TicketSize { minimum: Some(5000 * US_DOLLAR), maximum: None },
-				contributing: TicketSize { minimum: Some(1), maximum: None },
+				bidding: TicketSize { minimum_per_participation: Some(5000 * US_DOLLAR), maximum_per_account: None },
+				contributing: TicketSize { minimum_per_participation: Some(1), maximum_per_account: None },
 			},
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 			funding_thresholds: Default::default(),
@@ -1439,7 +1435,8 @@ mod auction {
 		let auction_allocation = auction_percentage * total_allocation;
 
 		let bids = vec![(BIDDER_1, auction_allocation).into()];
-		let project_id = inst.create_community_contributing_project(project_metadata.clone(), ISSUER, evaluations.clone(), bids);
+		let project_id =
+			inst.create_community_contributing_project(project_metadata.clone(), ISSUER, evaluations.clone(), bids);
 		let mut bid_infos = Bids::<TestRuntime>::iter_prefix_values((project_id,));
 		let bid_info = inst.execute(|| bid_infos.next().unwrap());
 		assert!(inst.execute(|| bid_infos.next().is_none()));
@@ -1447,12 +1444,17 @@ mod auction {
 
 		let project_metadata = default_project_metadata(1, ISSUER);
 		let bids = vec![(BIDDER_1, auction_allocation).into(), (BIDDER_1, 100 * ASSET_UNIT).into()];
-		let project_id = inst.create_community_contributing_project(project_metadata.clone(), ISSUER, evaluations.clone(), bids);
+		let project_id =
+			inst.create_community_contributing_project(project_metadata.clone(), ISSUER, evaluations.clone(), bids);
 		let mut bid_infos = Bids::<TestRuntime>::iter_prefix_values((project_id,));
 		let bid_info_1 = inst.execute(|| bid_infos.next().unwrap());
 		let bid_info_2 = inst.execute(|| bid_infos.next().unwrap());
 		assert!(inst.execute(|| bid_infos.next().is_none()));
-		assert_eq!(bid_info_1.final_ct_amount + bid_info_2.final_ct_amount, auction_allocation, "Should not be able to buy more than auction allocation");
+		assert_eq!(
+			bid_info_1.final_ct_amount + bid_info_2.final_ct_amount,
+			auction_allocation,
+			"Should not be able to buy more than auction allocation"
+		);
 	}
 
 	#[test]
@@ -1950,21 +1952,35 @@ mod community_contribution {
 		let evaluations = default_evaluations();
 		let bids = default_bids();
 
-		let project_id = inst.create_community_contributing_project(project_metadata.clone(), ISSUER, evaluations.clone(), bids.clone());
+		let project_id = inst.create_community_contributing_project(
+			project_metadata.clone(),
+			ISSUER,
+			evaluations.clone(),
+			bids.clone(),
+		);
 		let project_details = inst.get_project_details(project_id);
-		let bid_ct_sold: BalanceOf<TestRuntime> = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).fold(Zero::zero(), |acc, bid| acc + bid.final_ct_amount));
+		let bid_ct_sold: BalanceOf<TestRuntime> = inst.execute(|| {
+			Bids::<TestRuntime>::iter_prefix_values((project_id,))
+				.fold(Zero::zero(), |acc, bid| acc + bid.final_ct_amount)
+		});
 		assert_eq!(project_details.remaining_contribution_tokens, project_metadata.total_allocation_size - bid_ct_sold);
 
 		let contributions = vec![(BUYER_1, project_details.remaining_contribution_tokens).into()];
 
-		let plmc_contribution_funding = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), project_details.weighted_average_price.unwrap());
+		let plmc_contribution_funding = MockInstantiator::calculate_contributed_plmc_spent(
+			contributions.clone(),
+			project_details.weighted_average_price.unwrap(),
+		);
 		let plmc_existential_deposits = plmc_contribution_funding.accounts().existential_deposits();
 		let plmc_ct_account_deposits = plmc_contribution_funding.accounts().ct_account_deposits();
 		inst.mint_plmc_to(plmc_contribution_funding.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 
-		let foreign_asset_contribution_funding = MockInstantiator::calculate_contributed_funding_asset_spent(contributions.clone(), project_details.weighted_average_price.unwrap());
+		let foreign_asset_contribution_funding = MockInstantiator::calculate_contributed_funding_asset_spent(
+			contributions.clone(),
+			project_details.weighted_average_price.unwrap(),
+		);
 		inst.mint_foreign_asset_to(foreign_asset_contribution_funding.clone());
 
 		inst.contribute_for_users(project_id, contributions).unwrap();
@@ -2232,28 +2248,42 @@ mod remainder_contribution {
 		let evaluations = default_evaluations();
 		let bids = default_bids();
 
-		let project_id = inst.create_remainder_contributing_project(project_metadata.clone(), ISSUER, evaluations.clone(), bids.clone(), vec![]);
+		let project_id = inst.create_remainder_contributing_project(
+			project_metadata.clone(),
+			ISSUER,
+			evaluations.clone(),
+			bids.clone(),
+			vec![],
+		);
 		let project_details = inst.get_project_details(project_id);
-		let bid_ct_sold: BalanceOf<TestRuntime> = inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id,)).fold(Zero::zero(), |acc, bid| acc + bid.final_ct_amount));
+		let bid_ct_sold: BalanceOf<TestRuntime> = inst.execute(|| {
+			Bids::<TestRuntime>::iter_prefix_values((project_id,))
+				.fold(Zero::zero(), |acc, bid| acc + bid.final_ct_amount)
+		});
 		assert_eq!(project_details.remaining_contribution_tokens, project_metadata.total_allocation_size - bid_ct_sold);
 
 		let contributions = vec![(BUYER_1, project_details.remaining_contribution_tokens).into()];
 
-		let plmc_contribution_funding = MockInstantiator::calculate_contributed_plmc_spent(contributions.clone(), project_details.weighted_average_price.unwrap());
+		let plmc_contribution_funding = MockInstantiator::calculate_contributed_plmc_spent(
+			contributions.clone(),
+			project_details.weighted_average_price.unwrap(),
+		);
 		let plmc_existential_deposits = plmc_contribution_funding.accounts().existential_deposits();
 		let plmc_ct_account_deposits = plmc_contribution_funding.accounts().ct_account_deposits();
 		inst.mint_plmc_to(plmc_contribution_funding.clone());
 		inst.mint_plmc_to(plmc_existential_deposits.clone());
 		inst.mint_plmc_to(plmc_ct_account_deposits.clone());
 
-		let foreign_asset_contribution_funding = MockInstantiator::calculate_contributed_funding_asset_spent(contributions.clone(), project_details.weighted_average_price.unwrap());
+		let foreign_asset_contribution_funding = MockInstantiator::calculate_contributed_funding_asset_spent(
+			contributions.clone(),
+			project_details.weighted_average_price.unwrap(),
+		);
 		inst.mint_foreign_asset_to(foreign_asset_contribution_funding.clone());
 
 		inst.contribute_for_users(project_id, contributions).unwrap();
 
 		assert_eq!(inst.get_project_details(project_id).remaining_contribution_tokens, 0);
 	}
-
 }
 
 // only functionalities that happen after the REMAINDER FUNDING period of a project, and before the CT Migration
