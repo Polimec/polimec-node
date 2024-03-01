@@ -12,16 +12,12 @@ version = "0.1.0"
 rust-version = "1.69.0"
 
 [dependencies]
-parity-scale-codec = { workspace = true, features = [
-    "derive",
-] }
-scale-info = { workspace = true, features = [
-    "derive",
-] }
+parity-scale-codec = { workspace = true, features = ["derive"] }
+scale-info = { workspace = true, features = ["derive"] }
 serde = { workspace = true, features = ["derive"] }
 jwt-compact = { workspace = true, features = ["ed25519-dalek"] }
 
-frame-benchmarking = { workspace = true,  optional = true }
+frame-benchmarking = { workspace = true, optional = true }
 frame-support.workspace = true
 frame-system.workspace = true
 pallet-timestamp.workspace = true
@@ -29,12 +25,9 @@ sp-std.workspace = true
 sp-runtime.workspace = true
 itertools.workspace = true
 
-[dev-dependencies]
-reqwest = { version = "0.11.4", features = ["blocking"] }
-
 
 [features]
-default = [ "std" ]
+default = ["std"]
 std = [
 	"frame-benchmarking?/std",
 	"frame-support/std",
@@ -54,7 +47,6 @@ runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
-	"itertools/use_alloc",
 	"sp-runtime/runtime-benchmarks",
 ]
 try-runtime = [

@@ -11,12 +11,12 @@ repository.workspace = true
 version.workspace = true
 
 [dependencies]
-serde = { workspace = true  }
+serde = { workspace = true }
 parity-scale-codec = { version = "3.6.5", features = [
-    "derive",
+	"derive",
 ], default-features = false }
 scale-info = { version = "2.9.0", default-features = false, features = [
-    "derive",
+	"derive",
 ] }
 tokio = { version = "1", features = ["full"], optional = true }
 futures = { version = "0.3.29", optional = true }
@@ -24,7 +24,7 @@ log.workspace = true
 itertools.workspace = true
 
 # Substrate dependencies
-frame-benchmarking = {workspace = true, optional = true}
+frame-benchmarking = { workspace = true, optional = true }
 frame-support.workspace = true
 frame-system.workspace = true
 sp-std.workspace = true
@@ -44,7 +44,7 @@ polkadot-runtime.workspace = true
 polkadot-runtime-parachains.workspace = true
 polkadot-parachain.workspace = true
 polimec-receiver.workspace = true
-assert_matches2 = { workspace = true, optional = true}
+assert_matches2 = { workspace = true, optional = true }
 polimec-common-test-utils = { workspace = true, optional = true }
 
 [dev-dependencies]
@@ -58,7 +58,7 @@ macros.workspace = true
 xcm-executor.workspace = true
 
 [features]
-default = [ "std" ]
+default = ["std"]
 std = [
 	"frame-benchmarking?/std",
 	"frame-support/std",
@@ -75,7 +75,7 @@ std = [
 	"parachains-common/std",
 	"parity-scale-codec/std",
 	"polimec-common/std",
-	"polimec-common-test-utils/std",
+	"polimec-common-test-utils?/std",
 	"polimec-receiver/std",
 	"polimec-xcm-executor/std",
 	"polkadot-parachain/std",
@@ -113,6 +113,7 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
+	"polimec-common-test-utils/runtime-benchmarks",
 ]
 try-runtime = [
 	"frame-support/try-runtime",

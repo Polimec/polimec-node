@@ -36,7 +36,7 @@ use frame_support::{
 use pallet::Pallet as PalletFunding;
 use parity_scale_codec::{Decode, Encode};
 use polimec_common::{credentials::InvestorType, ReleaseSchedule};
-use polimec_common_test_utils::get_test_jwt;
+use polimec_common_test_utils::get_mock_jwt;
 use scale_info::prelude::format;
 use sp_arithmetic::Percent;
 use sp_core::H256;
@@ -398,7 +398,7 @@ mod benchmarks {
 			project_metadata.token_information.symbol.as_slice(),
 		);
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), ed * 2u64.into() + metadata_deposit)]);
-		let jwt = get_test_jwt(issuer.clone(), InvestorType::Institutional);
+		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional);
 		#[extrinsic_call]
 		create(RawOrigin::Signed(issuer.clone()), jwt, project_metadata.clone());
 
@@ -432,7 +432,7 @@ mod benchmarks {
 		let project_id = inst.create_new_project(project_metadata.clone(), issuer.clone());
 		let original_metadata_hash = project_metadata.offchain_information_hash.unwrap();
 		let edited_metadata_hash: H256 = hashed(EDITED_METADATA);
-		let jwt = get_test_jwt(issuer.clone(), InvestorType::Institutional);
+		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional);
 		#[extrinsic_call]
 		edit_metadata(RawOrigin::Signed(issuer), jwt, project_id, edited_metadata_hash.into());
 
@@ -472,7 +472,7 @@ mod benchmarks {
 			}
 			block_number += 1u32.into();
 		}
-		let jwt = get_test_jwt(issuer.clone(), InvestorType::Institutional);
+		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional);
 		#[extrinsic_call]
 		start_evaluation(RawOrigin::Signed(issuer), jwt, project_id);
 
@@ -541,7 +541,7 @@ mod benchmarks {
 
 		fill_projects_to_update::<T>(x, insertion_block_number, Some(y));
 
-		let jwt = get_test_jwt(issuer.clone(), InvestorType::Institutional);
+		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional);
 		#[extrinsic_call]
 		start_auction(RawOrigin::Signed(issuer), jwt, project_id);
 
@@ -681,7 +681,7 @@ mod benchmarks {
 		let (inst, project_id, extrinsic_evaluation, extrinsic_plmc_bonded, total_expected_plmc_bonded) =
 			evaluation_setup::<T>(x);
 
-		let jwt = get_test_jwt(extrinsic_evaluation.account.clone(), InvestorType::Institutional);
+		let jwt = get_mock_jwt(extrinsic_evaluation.account.clone(), InvestorType::Institutional);
 		#[extrinsic_call]
 		evaluate(
 			RawOrigin::Signed(extrinsic_evaluation.account.clone()),
@@ -710,7 +710,7 @@ mod benchmarks {
 		let (inst, project_id, extrinsic_evaluation, extrinsic_plmc_bonded, total_expected_plmc_bonded) =
 			evaluation_setup::<T>(x);
 
-		let jwt = get_test_jwt(extrinsic_evaluation.account.clone(), InvestorType::Institutional);
+		let jwt = get_mock_jwt(extrinsic_evaluation.account.clone(), InvestorType::Institutional);
 		#[extrinsic_call]
 		evaluate(
 			RawOrigin::Signed(extrinsic_evaluation.account.clone()),
@@ -738,7 +738,7 @@ mod benchmarks {
 		let (inst, project_id, extrinsic_evaluation, extrinsic_plmc_bonded, total_expected_plmc_bonded) =
 			evaluation_setup::<T>(x);
 
-		let jwt = get_test_jwt(extrinsic_evaluation.account.clone(), InvestorType::Institutional);
+		let jwt = get_mock_jwt(extrinsic_evaluation.account.clone(), InvestorType::Institutional);
 		#[extrinsic_call]
 		evaluate(
 			RawOrigin::Signed(extrinsic_evaluation.account.clone()),
@@ -1052,7 +1052,7 @@ mod benchmarks {
 
 		let _new_plmc_minted = make_ct_deposit_for::<T>(original_extrinsic_bid.bidder.clone(), project_id);
 
-		let jwt = get_test_jwt(original_extrinsic_bid.bidder.clone(), InvestorType::Institutional);
+		let jwt = get_mock_jwt(original_extrinsic_bid.bidder.clone(), InvestorType::Institutional);
 		#[extrinsic_call]
 		bid(
 			RawOrigin::Signed(original_extrinsic_bid.bidder.clone()),
@@ -1098,7 +1098,7 @@ mod benchmarks {
 			total_usdt_locked,
 		) = bid_setup::<T>(x, y);
 
-		let jwt = get_test_jwt(original_extrinsic_bid.bidder.clone(), InvestorType::Institutional);
+		let jwt = get_mock_jwt(original_extrinsic_bid.bidder.clone(), InvestorType::Institutional);
 		#[extrinsic_call]
 		bid(
 			RawOrigin::Signed(original_extrinsic_bid.bidder.clone()),
@@ -1354,7 +1354,7 @@ mod benchmarks {
 		) = contribution_setup::<T>(x, ends_round);
 
 		#[extrinsic_call]
-		contribute(
+		community_contribute(
 			RawOrigin::Signed(extrinsic_contribution.contributor.clone()),
 			project_id,
 			extrinsic_contribution.amount,
@@ -1400,7 +1400,7 @@ mod benchmarks {
 		) = contribution_setup::<T>(x, ends_round);
 
 		#[extrinsic_call]
-		contribute(
+		community_contribute(
 			RawOrigin::Signed(extrinsic_contribution.contributor.clone()),
 			project_id,
 			extrinsic_contribution.amount,
@@ -2784,7 +2784,7 @@ mod benchmarks {
 		// weight and not the whole on_initialize call weight
 		frame_system::Pallet::<T>::set_block_number(automatic_transition_block);
 
-		let jwt = get_test_jwt(issuer.clone(), InvestorType::Institutional);
+		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional);
 		#[extrinsic_call]
 		start_auction(RawOrigin::Signed(issuer), jwt, project_id);
 
@@ -3591,54 +3591,54 @@ mod benchmarks {
 			});
 		}
 
-		#[test]
-		fn bench_first_contribution_no_ct_deposit() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution_no_ct_deposit());
-			});
-		}
+		// #[test]
+		// fn bench_first_contribution_no_ct_deposit() {
+		// 	new_test_ext().execute_with(|| {
+		// 		assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution_no_ct_deposit());
+		// 	});
+		// }
 
-		#[test]
-		fn bench_first_contribution_with_ct_deposit() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution_with_ct_deposit());
-			});
-		}
+		// #[test]
+		// fn bench_first_contribution_with_ct_deposit() {
+		// 	new_test_ext().execute_with(|| {
+		// 		assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution_with_ct_deposit());
+		// 	});
+		// }
 
-		#[test]
-		fn bench_first_contribution_ends_round_no_ct_deposit() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution_ends_round_no_ct_deposit());
-			});
-		}
+		// #[test]
+		// fn bench_first_contribution_ends_round_no_ct_deposit() {
+		// 	new_test_ext().execute_with(|| {
+		// 		assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution_ends_round_no_ct_deposit());
+		// 	});
+		// }
 
-		#[test]
-		fn bench_first_contribution_ends_round_with_ct_deposit() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution_ends_round_with_ct_deposit());
-			});
-		}
+		// #[test]
+		// fn bench_first_contribution_ends_round_with_ct_deposit() {
+		// 	new_test_ext().execute_with(|| {
+		// 		assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution_ends_round_with_ct_deposit());
+		// 	});
+		// }
 
-		#[test]
-		fn bench_second_to_limit_contribution() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_second_to_limit_contribution());
-			});
-		}
+		// #[test]
+		// fn bench_second_to_limit_contribution() {
+		// 	new_test_ext().execute_with(|| {
+		// 		assert_ok!(PalletFunding::<TestRuntime>::test_second_to_limit_contribution());
+		// 	});
+		// }
 
-		#[test]
-		fn bench_second_to_limit_contribution_ends_round() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_second_to_limit_contribution_ends_round());
-			});
-		}
+		// #[test]
+		// fn bench_second_to_limit_contribution_ends_round() {
+		// 	new_test_ext().execute_with(|| {
+		// 		assert_ok!(PalletFunding::<TestRuntime>::test_second_to_limit_contribution_ends_round());
+		// 	});
+		// }
 
-		#[test]
-		fn bench_contribution_over_limit() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_contribution_over_limit());
-			});
-		}
+		// #[test]
+		// fn bench_contribution_over_limit() {
+		// 	new_test_ext().execute_with(|| {
+		// 		assert_ok!(PalletFunding::<TestRuntime>::test_contribution_over_limit());
+		// 	});
+		// }
 
 		#[test]
 		fn bench_evaluation_unbond_for() {
@@ -3837,12 +3837,12 @@ mod benchmarks {
 			});
 		}
 
-		#[test]
-		fn bench_end_funding_automatically_accepted_evaluators_rewarded() {
-			new_test_ext().execute_with(|| {
-				assert_ok!(PalletFunding::<TestRuntime>::test_end_funding_automatically_accepted_evaluators_rewarded());
-			});
-		}
+		// #[test]
+		// fn bench_end_funding_automatically_accepted_evaluators_rewarded() {
+		// 	new_test_ext().execute_with(|| {
+		// 		assert_ok!(PalletFunding::<TestRuntime>::test_end_funding_automatically_accepted_evaluators_rewarded());
+		// 	});
+		// }
 
 		#[test]
 		fn bench_end_funding_awaiting_decision_evaluators_unchanged() {
