@@ -27,7 +27,7 @@ itertools.workspace = true
 
 
 [features]
-default = ["std"]
+default = [ "std" ]
 std = [
 	"frame-benchmarking?/std",
 	"frame-support/std",
@@ -35,8 +35,8 @@ std = [
 	"itertools/use_alloc",
 	"itertools/use_std",
 	"jwt-compact/std",
-	"parity-scale-codec/std",
 	"pallet-timestamp/std",
+	"parity-scale-codec/std",
 	"scale-info/std",
 	"serde/std",
 	"sp-runtime/std",

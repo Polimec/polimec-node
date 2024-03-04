@@ -24,13 +24,12 @@ frame-support.workspace = true
 chrono = { version = "0.4.19", default-features = false }
 
 [features]
-default = ["std"]
+default = [ "std" ]
 std = [
-    "jwt-compact/std",
-    "polimec-common/std",
-    "reqwest",
-    "frame-support/std",
-    "parity-scale-codec/std",
-    "chrono/std",
+	"chrono/std",
+	"frame-support/std",
+	"jwt-compact/std",
+	"parity-scale-codec/std",
+	"polimec-common/std",
+	"reqwest",
 ]
-runtime-benchmarks = ["frame-support/runtime-benchmarks"]

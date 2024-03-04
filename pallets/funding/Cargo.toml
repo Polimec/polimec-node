@@ -58,8 +58,9 @@ macros.workspace = true
 xcm-executor.workspace = true
 
 [features]
-default = ["std"]
+default = [ "std" ]
 std = [
+	"assert_matches2",
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
@@ -74,8 +75,8 @@ std = [
 	"pallet-xcm/std",
 	"parachains-common/std",
 	"parity-scale-codec/std",
-	"polimec-common/std",
 	"polimec-common-test-utils?/std",
+	"polimec-common/std",
 	"polimec-receiver/std",
 	"polimec-xcm-executor/std",
 	"polkadot-parachain/std",
@@ -92,7 +93,6 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
-	"assert_matches2",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
@@ -104,6 +104,7 @@ runtime-benchmarks = [
 	"pallet-linear-release/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
+	"polimec-common-test-utils",
 	"polimec-common/runtime-benchmarks",
 	"polimec-receiver/runtime-benchmarks",
 	"polimec-xcm-executor/runtime-benchmarks",
@@ -113,7 +114,6 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
 	"xcm-executor/runtime-benchmarks",
-	"polimec-common-test-utils/runtime-benchmarks",
 ]
 try-runtime = [
 	"frame-support/try-runtime",
@@ -131,4 +131,3 @@ try-runtime = [
 	"polkadot-runtime/try-runtime",
 	"sp-runtime/try-runtime",
 ]
-
