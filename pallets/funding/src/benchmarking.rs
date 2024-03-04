@@ -3591,54 +3591,54 @@ mod benchmarks {
 			});
 		}
 
-		// #[test]
-		// fn bench_first_contribution_no_ct_deposit() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution_no_ct_deposit());
-		// 	});
-		// }
+		#[test]
+		fn bench_first_contribution_no_ct_deposit() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution_no_ct_deposit());
+			});
+		}
 
-		// #[test]
-		// fn bench_first_contribution_with_ct_deposit() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution_with_ct_deposit());
-		// 	});
-		// }
+		#[test]
+		fn bench_first_contribution_with_ct_deposit() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution_with_ct_deposit());
+			});
+		}
 
-		// #[test]
-		// fn bench_first_contribution_ends_round_no_ct_deposit() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution_ends_round_no_ct_deposit());
-		// 	});
-		// }
+		#[test]
+		fn bench_first_contribution_ends_round_no_ct_deposit() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution_ends_round_no_ct_deposit());
+			});
+		}
 
-		// #[test]
-		// fn bench_first_contribution_ends_round_with_ct_deposit() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution_ends_round_with_ct_deposit());
-		// 	});
-		// }
+		#[test]
+		fn bench_first_contribution_ends_round_with_ct_deposit() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_first_contribution_ends_round_with_ct_deposit());
+			});
+		}
 
-		// #[test]
-		// fn bench_second_to_limit_contribution() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_second_to_limit_contribution());
-		// 	});
-		// }
+		#[test]
+		fn bench_second_to_limit_contribution() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_second_to_limit_contribution());
+			});
+		}
 
-		// #[test]
-		// fn bench_second_to_limit_contribution_ends_round() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_second_to_limit_contribution_ends_round());
-		// 	});
-		// }
+		#[test]
+		fn bench_second_to_limit_contribution_ends_round() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_second_to_limit_contribution_ends_round());
+			});
+		}
 
-		// #[test]
-		// fn bench_contribution_over_limit() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_contribution_over_limit());
-		// 	});
-		// }
+		#[test]
+		fn bench_contribution_over_limit() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_contribution_over_limit());
+			});
+		}
 
 		#[test]
 		fn bench_evaluation_unbond_for() {
