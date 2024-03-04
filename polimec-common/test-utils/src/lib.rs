@@ -20,7 +20,7 @@ use jwt_compact::{alg::Ed25519, AlgorithmExt, Header};
 use polimec_common::credentials::{InvestorType, SampleClaims, UntrustedToken};
 
 /// Fetches a JWT from a dummy Polimec JWT producer that will return a JWT with the specified investor type
-#[cfg(not(feature = "runtime-benchmarks"))]
+#[cfg(feature = "std")]
 pub fn get_test_jwt<AccountId: core::fmt::Display>(
 	account_id: AccountId,
 	investor_type: InvestorType,
@@ -80,7 +80,7 @@ pub fn get_mock_jwt<AccountId: frame_support::Serialize>(
 /// Fetches a JWT from a dummy Polimec JWT producer that will return a JWT with the specified
 /// investor type and a random signing key. This is useful for testing the signature
 /// verification logic.
-#[cfg(not(feature = "runtime-benchmarks"))]
+#[cfg(feature = "std")]
 pub fn get_fake_jwt<AccountId: core::fmt::Display>(
 	account_id: AccountId,
 	investor_type: InvestorType,
