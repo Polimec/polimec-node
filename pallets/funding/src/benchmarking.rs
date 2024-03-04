@@ -1401,9 +1401,12 @@ mod benchmarks {
 			total_ct_sold,
 		) = contribution_setup::<T>(x, ends_round);
 
+		let jwt = get_mock_jwt(extrinsic_contribution.contributor.clone(), InvestorType::Retail);
+
 		#[extrinsic_call]
 		community_contribute(
 			RawOrigin::Signed(extrinsic_contribution.contributor.clone()),
+			jwt,
 			project_id,
 			extrinsic_contribution.amount,
 			extrinsic_contribution.multiplier,
@@ -1447,9 +1450,12 @@ mod benchmarks {
 			total_ct_sold,
 		) = contribution_setup::<T>(x, ends_round);
 
+		let jwt = get_mock_jwt(extrinsic_contribution.contributor.clone(), InvestorType::Retail);
+
 		#[extrinsic_call]
 		community_contribute(
 			RawOrigin::Signed(extrinsic_contribution.contributor.clone()),
+			jwt,
 			project_id,
 			extrinsic_contribution.amount,
 			extrinsic_contribution.multiplier,

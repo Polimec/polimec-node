@@ -61,9 +61,11 @@ pub fn get_mock_jwt<AccountId: frame_support::Serialize>(
 	// We don't need any custom fields in the header, so we use the empty.
 	let header: Header = Header::empty();
 
+	
+
 	// Create the custom part of the `Claims` struct.
 	let custom_claims: SampleClaims<AccountId> =
-		SampleClaims { subject: account_id, investor_type, issuer: "verifier".to_string() };
+		SampleClaims { subject: account_id, investor_type, issuer: "verifier".to_string(), did: Default::default() };
 	// Wrap the `SampleClaims` struct in the `Claims` struct.
 	let mut claims = Claims::new(custom_claims);
 	// Set the expiration date to 2030-01-01.
