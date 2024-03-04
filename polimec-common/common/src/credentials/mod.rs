@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use frame_support::{pallet_prelude::*, parameter_types, traits::OriginTrait, Deserialize, RuntimeDebug};
+use frame_support::{pallet_prelude::*, parameter_types, traits::OriginTrait, Deserialize, RuntimeDebug, Serialize};
 use pallet_timestamp::Now;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
@@ -25,7 +25,7 @@ pub use jwt_compact::{
 	Claims as StandardClaims, *,
 };
 
-#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, Deserialize)]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum InvestorType {
 	Retail,
@@ -49,7 +49,7 @@ parameter_types! {
 	pub const Institutional: InvestorType = InvestorType::Institutional;
 }
 
-#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, Deserialize)]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, Deserialize, Serialize)]
 pub struct SampleClaims<AccountId> {
 	#[serde(rename = "sub")]
 	pub subject: AccountId,
