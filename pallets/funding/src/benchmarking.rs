@@ -3837,12 +3837,12 @@ mod benchmarks {
 			});
 		}
 
-		// #[test]
-		// fn bench_end_funding_automatically_accepted_evaluators_rewarded() {
-		// 	new_test_ext().execute_with(|| {
-		// 		assert_ok!(PalletFunding::<TestRuntime>::test_end_funding_automatically_accepted_evaluators_rewarded());
-		// 	});
-		// }
+		#[test]
+		fn bench_end_funding_automatically_accepted_evaluators_rewarded() {
+			new_test_ext().execute_with(|| {
+				assert_ok!(PalletFunding::<TestRuntime>::test_end_funding_automatically_accepted_evaluators_rewarded());
+			});
+		}
 
 		#[test]
 		fn bench_end_funding_awaiting_decision_evaluators_unchanged() {
