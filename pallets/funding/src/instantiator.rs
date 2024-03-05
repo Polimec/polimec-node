@@ -2834,6 +2834,11 @@ impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>, AssetIdOf<T>)> for UserToFor
 		UserToForeignAssets::<T>::new(account, asset_amount, asset_id)
 	}
 }
+impl<T: Config> From<(AccountIdOf<T>, BalanceOf<T>)> for UserToForeignAssets<T> {
+	fn from((account, asset_amount): (AccountIdOf<T>, BalanceOf<T>)) -> Self {
+		UserToForeignAssets::<T>::new(account, asset_amount, AcceptedFundingAsset::USDT.to_assethub_id())
+	}
+}
 impl<T: Config> Accounts for Vec<UserToForeignAssets<T>> {
 	type Account = AccountIdOf<T>;
 

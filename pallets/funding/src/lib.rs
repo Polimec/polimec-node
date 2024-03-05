@@ -231,16 +231,17 @@ pub type ProjectMetadataOf<T> = ProjectMetadata<
 	PriceOf<T>,
 	AccountIdOf<T>,
 	HashOf<T>,
-	ParticipantsSize,
 	RoundTicketSizes<
 		PriceOf<T>,
 		BiddingTicketSizes<
 			PriceOf<T>,
+			BalanceOf<T>,
 			TicketSize<BalanceOf<T>, LowerBound<BalanceOf<T>, StorageConstU64<{ (5_000 * US_DOLLAR) as u64 }>>>,
 			TicketSize<BalanceOf<T>, LowerBound<BalanceOf<T>, StorageConstU64<{ (5_000 * US_DOLLAR) as u64 }>>>,
 		>,
 		ContributingTicketSizes<
 			PriceOf<T>,
+			BalanceOf<T>,
 			TicketSize<BalanceOf<T>, NoBounds>,
 			TicketSize<BalanceOf<T>, NoBounds>,
 			TicketSize<BalanceOf<T>, NoBounds>,

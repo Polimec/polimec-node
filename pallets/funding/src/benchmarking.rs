@@ -106,15 +106,16 @@ where
 					),
 					None,
 				),
+				phantom: Default::default(),
 			},
 			contributing: ContributingTicketSizes {
 				retail: TicketSize::new(None, None),
 				professional: TicketSize::new(None, None),
 				institutional: TicketSize::new(None, None),
+				phantom: Default::default(),
 			},
+			phantom: Default::default(),
 		},
-		participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-		funding_thresholds: Default::default(),
 		participation_currencies: AcceptedFundingAsset::USDT,
 		funding_destination_account: issuer,
 		offchain_information_hash: Some(metadata_hash.into()),
@@ -2906,15 +2907,16 @@ mod benchmarks {
 						),
 						None,
 					),
+					phantom: Default::default()
 				},
 				contributing: ContributingTicketSizes {
 					retail: TicketSize::new(None, None),
 					professional: TicketSize::new(None, None),
 					institutional: TicketSize::new(None, None),
+					phantom: Default::default()
 				},
+				phantom: Default::default()
 			},
-			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-			funding_thresholds: Default::default(),
 			participation_currencies: AcceptedFundingAsset::USDT,
 			funding_destination_account: issuer.clone(),
 			offchain_information_hash: Some(metadata_hash.into()),

@@ -115,8 +115,6 @@ pub mod defaults {
 				},
 				phantom: Default::default(),
 			},
-			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-			funding_thresholds: Thresholds { retail: 0, professional: 0, institutional: 0 },
 			participation_currencies: AcceptedFundingAsset::USDT,
 			funding_destination_account: issuer,
 			offchain_information_hash: Some(metadata_hash),
@@ -151,8 +149,6 @@ pub mod defaults {
 				},
 				phantom: Default::default(),
 			},
-			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-			funding_thresholds: Default::default(),
 			participation_currencies: AcceptedFundingAsset::USDT,
 			funding_destination_account: ISSUER,
 			offchain_information_hash: Some(metadata_hash),
@@ -297,6 +293,7 @@ pub mod defaults {
 mod creation {
 	use super::*;
 	use polimec_common::credentials::InvestorType;
+	use sp_core::H256;
 
 	#[test]
 	fn basic_plmc_transfer_works() {
@@ -369,8 +366,6 @@ mod creation {
 				},
 				phantom: Default::default(),
 			},
-			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-			funding_thresholds: Thresholds { retail: 0, professional: 0, institutional: 0 },
 			participation_currencies: AcceptedFundingAsset::USDT,
 			funding_destination_account: ISSUER,
 			offchain_information_hash: Some(hashed(METADATA)),
@@ -386,17 +381,17 @@ mod creation {
 	}
 
 	#[test]
-	fn participants_size_error() {
-		let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
+	fn ticket_sizes_validity_check() {
+		let mut correct_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
 			token_information: default_token_information(),
 			mainnet_token_max_supply: 100_000_000_000 * ASSET_UNIT,
 			total_allocation_size: 100_000 * ASSET_UNIT,
 			auction_round_allocation_percentage: Default::default(),
-			minimum_price: 1_u128.into(),
+			minimum_price: 10_u128.into(),
 			round_ticket_sizes: RoundTicketSizes {
 				bidding: BiddingTicketSizes {
-					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+					professional: TicketSize::new(Some(500 * ASSET_UNIT), None),
+					institutional: TicketSize::new(Some(500 * ASSET_UNIT), None),
 					phantom: Default::default(),
 				},
 				contributing: ContributingTicketSizes {
@@ -407,59 +402,59 @@ mod creation {
 				},
 				phantom: Default::default(),
 			},
-			participants_size: ParticipantsSize { minimum: None, maximum: None },
-			funding_thresholds: Thresholds { retail: 0, professional: 0, institutional: 0 },
 			participation_currencies: AcceptedFundingAsset::USDT,
 			funding_destination_account: ISSUER,
 			offchain_information_hash: Some(hashed(METADATA)),
 		};
 
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		inst.mint_plmc_to(default_plmc_balances());
-		let did = MockInstantiator::generate_did_from_account(ISSUER);
-		let investor_type = InvestorType::Institutional;
-		let project_err =
-			inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project, did, investor_type).unwrap_err());
-		assert_eq!(project_err, Error::<TestRuntime>::ParticipantsSizeError.into());
-	}
-
-	// TODO: more comprehensive testing
-	#[test]
-	fn ticket_size_error() {
-		let wrong_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
-			token_information: default_token_information(),
-			mainnet_token_max_supply: 100_000_000_000 * ASSET_UNIT,
-			total_allocation_size: 100_000 * ASSET_UNIT,
-			auction_round_allocation_percentage: Default::default(),
-			minimum_price: 1_u128.into(),
-			round_ticket_sizes: RoundTicketSizes {
-				bidding: BiddingTicketSizes {
-					professional: TicketSize::new(Some(1000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					phantom: Default::default(),
-				},
-				contributing: ContributingTicketSizes {
-					retail: TicketSize::new(None, None),
-					professional: TicketSize::new(None, None),
-					institutional: TicketSize::new(None, None),
-					phantom: Default::default(),
-				},
-				phantom: Default::default(),
-			},
-			participants_size: ParticipantsSize { minimum: Some(1), maximum: None },
-			funding_thresholds: Thresholds { retail: 0, professional: 0, institutional: 0 },
-			participation_currencies: AcceptedFundingAsset::USDT,
-			funding_destination_account: ISSUER,
-			offchain_information_hash: Some(hashed(METADATA)),
+		let mut counter: u8 = 0u8;
+		let mut with_different_metadata = |mut project: ProjectMetadataOf<TestRuntime>| {
+			let mut binding = project.offchain_information_hash.unwrap();
+            let h256_bytes = binding.as_fixed_bytes_mut();
+			h256_bytes[0] = counter;
+			counter += 1u8;
+			project
 		};
 
+		// min in bidding below 5k
+		let mut wrong_project_1 = correct_project.clone();
+		wrong_project_1.round_ticket_sizes.bidding.professional = TicketSize::new(Some(499 * ASSET_UNIT), None);
+
+		let mut wrong_project_2 = correct_project.clone();
+		wrong_project_2.round_ticket_sizes.bidding.institutional = TicketSize::new(Some(499 * ASSET_UNIT), None);
+
+		let mut wrong_project_3 = correct_project.clone();
+		wrong_project_3.round_ticket_sizes.bidding.professional = TicketSize::new(Some(300 * ASSET_UNIT), None);
+		wrong_project_3.round_ticket_sizes.bidding.institutional = TicketSize::new(Some(0 * ASSET_UNIT), None);
+
+		let mut wrong_project_4 = correct_project.clone();
+		wrong_project_4.round_ticket_sizes.bidding.professional = TicketSize::new(None, None);
+		wrong_project_4.round_ticket_sizes.bidding.institutional = TicketSize::new(None, None);
+
+		// min higher than max
+		let mut wrong_project_5 = correct_project.clone();
+		wrong_project_5.round_ticket_sizes.bidding.professional =
+			TicketSize::new(Some(500 * ASSET_UNIT), Some(499 * ASSET_UNIT));
+
+		let mut wrong_project_6 = correct_project.clone();
+		wrong_project_6.round_ticket_sizes.bidding.institutional =
+			TicketSize::new(Some(600 * ASSET_UNIT), Some(550 * ASSET_UNIT));
+
+		let wrong_projects =
+			vec![wrong_project_1, wrong_project_2, wrong_project_3, wrong_project_4, wrong_project_5, wrong_project_6];
+
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		inst.mint_plmc_to(default_plmc_balances());
 		let did = MockInstantiator::generate_did_from_account(ISSUER);
 		let investor_type = InvestorType::Institutional;
-		let project_err =
-			inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project, did, investor_type).unwrap_err());
-		assert_eq!(project_err, Error::<TestRuntime>::TicketSizeError.into());
+
+		for project in wrong_projects {
+			let project_err = inst.execute(|| {
+				Pallet::<TestRuntime>::do_create(&ISSUER, with_different_metadata(project), did.clone(), investor_type.clone())
+					.unwrap_err()
+			});
+			assert_eq!(project_err, Error::<TestRuntime>::TicketSizeError.into());
+		}
 	}
 
 	#[test]
@@ -869,8 +864,6 @@ mod auction {
 				},
 				phantom: Default::default(),
 			},
-			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
-			funding_thresholds: Default::default(),
 			participation_currencies: AcceptedFundingAsset::USDT,
 			funding_destination_account: ISSUER,
 			offchain_information_hash: Some(metadata_hash),
@@ -1584,8 +1577,76 @@ mod auction {
 	}
 
 	#[test]
-	fn per_credential_type_ticket_sizes() {
-		todo!()
+	fn per_credential_type_ticket_size_minimums() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = ProjectMetadata {
+			token_information: default_token_information(),
+			mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
+			total_allocation_size: 100_000 * ASSET_UNIT,
+			auction_round_allocation_percentage: Percent::from_percent(50u8),
+			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
+			round_ticket_sizes: RoundTicketSizes {
+				bidding: BiddingTicketSizes {
+					professional: TicketSize::new(Some(800 * ASSET_UNIT), None),
+					institutional: TicketSize::new(Some(2000 * ASSET_UNIT), None),
+					phantom: Default::default(),
+				},
+				contributing: ContributingTicketSizes {
+					retail: TicketSize::new(None, None),
+					professional: TicketSize::new(None, None),
+					institutional: TicketSize::new(None, None),
+					phantom: Default::default(),
+				},
+				phantom: Default::default(),
+			},
+			participation_currencies: AcceptedFundingAsset::USDT,
+			funding_destination_account: ISSUER,
+			offchain_information_hash: Some(hashed(METADATA)),
+		};
+		let evaluations = default_evaluations();
+
+		let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER, evaluations.clone());
+
+		inst.mint_plmc_to(vec![
+			(BIDDER_1, 50_000 * ASSET_UNIT).into(),
+			(BIDDER_2, 50_000 * ASSET_UNIT).into(),
+		]);
+
+		inst.mint_foreign_asset_to(vec![
+			(BIDDER_1, 50_000 * US_DOLLAR).into(),
+			(BIDDER_2, 50_000 * US_DOLLAR).into(),
+		]);
+
+		// bid below 800 CT (8k USD) should fail for professionals
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::do_bid(
+					&BIDDER_1,
+					project_id,
+					799 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					MockInstantiator::generate_did_from_account(BIDDER_1),
+					InvestorType::Professional
+				),
+				Error::<TestRuntime>::BidTooLow
+			);
+		});
+		// bid below 2000 CT (20k USD) should fail for institutionals
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::do_bid(
+					&BIDDER_2,
+					project_id,
+					1999 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					MockInstantiator::generate_did_from_account(BIDDER_1),
+					InvestorType::Institutional
+				),
+				Error::<TestRuntime>::BidTooLow
+			);
+		});
 	}
 }
 
@@ -2115,8 +2176,93 @@ mod community_contribution {
 	}
 
 	#[test]
-	fn per_credential_type_ticket_sizes() {
-		todo!()
+	fn per_credential_type_ticket_size_minimums() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = ProjectMetadata {
+			token_information: default_token_information(),
+			mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
+			total_allocation_size: 100_000 * ASSET_UNIT,
+			auction_round_allocation_percentage: Percent::from_percent(50u8),
+			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
+			round_ticket_sizes: RoundTicketSizes {
+				bidding: BiddingTicketSizes {
+					professional: TicketSize::new(Some(800 * ASSET_UNIT), None),
+					institutional: TicketSize::new(Some(2000 * ASSET_UNIT), None),
+					phantom: Default::default(),
+				},
+				contributing: ContributingTicketSizes {
+					retail: TicketSize::new(Some(1 * ASSET_UNIT), None),
+					professional: TicketSize::new(Some(10_000 * ASSET_UNIT), None),
+					institutional: TicketSize::new(Some(20_000 * ASSET_UNIT), None),
+					phantom: Default::default(),
+				},
+				phantom: Default::default(),
+			},
+			participation_currencies: AcceptedFundingAsset::USDT,
+			funding_destination_account: ISSUER,
+			offchain_information_hash: Some(hashed(METADATA)),
+		};
+
+		let project_id = inst.create_community_contributing_project(project_metadata.clone(), ISSUER, default_evaluations(), default_bids());
+
+		inst.mint_plmc_to(vec![
+			(BUYER_1, 50_000 * ASSET_UNIT).into(),
+			(BUYER_2, 50_000 * ASSET_UNIT).into(),
+			(BUYER_3, 50_000 * ASSET_UNIT).into(),
+		]);
+
+		inst.mint_foreign_asset_to(vec![
+			(BUYER_1, 50_000 * US_DOLLAR).into(),
+			(BUYER_2, 50_000 * US_DOLLAR).into(),
+			(BUYER_3, 50_000 * US_DOLLAR).into(),
+		]);
+
+		// contribution below 1 CT (10 USD) should fail for retail
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::do_community_contribute(
+					&BUYER_1,
+					project_id,
+					ASSET_UNIT / 2,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					MockInstantiator::generate_did_from_account(BUYER_1),
+					InvestorType::Retail
+				),
+				Error::<TestRuntime>::ContributionTooLow
+			);
+		});
+		// contribution below 10_000 CT (100k USD) should fail for professionals
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::do_community_contribute(
+					&BUYER_2,
+					project_id,
+					9_999,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					MockInstantiator::generate_did_from_account(BUYER_2),
+					InvestorType::Professional
+				),
+				Error::<TestRuntime>::ContributionTooLow
+			);
+		});
+
+		// contribution below 20_000 CT (200k USD) should fail for professionals
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::do_community_contribute(
+					&BUYER_2,
+					project_id,
+					19_999,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					MockInstantiator::generate_did_from_account(BUYER_2),
+					InvestorType::Institutional
+				),
+				Error::<TestRuntime>::ContributionTooLow
+			);
+		});
 	}
 }
 
@@ -2409,6 +2555,96 @@ mod remainder_contribution {
 		inst.contribute_for_users(project_id, contributions).unwrap();
 
 		assert_eq!(inst.get_project_details(project_id).remaining_contribution_tokens, 0);
+	}
+
+	#[test]
+	fn per_credential_type_ticket_size_minimums() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = ProjectMetadata {
+			token_information: default_token_information(),
+			mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
+			total_allocation_size: 100_000 * ASSET_UNIT,
+			auction_round_allocation_percentage: Percent::from_percent(50u8),
+			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
+			round_ticket_sizes: RoundTicketSizes {
+				bidding: BiddingTicketSizes {
+					professional: TicketSize::new(Some(800 * ASSET_UNIT), None),
+					institutional: TicketSize::new(Some(2000 * ASSET_UNIT), None),
+					phantom: Default::default(),
+				},
+				contributing: ContributingTicketSizes {
+					retail: TicketSize::new(Some(1 * ASSET_UNIT), None),
+					professional: TicketSize::new(Some(10_000 * ASSET_UNIT), None),
+					institutional: TicketSize::new(Some(20_000 * ASSET_UNIT), None),
+					phantom: Default::default(),
+				},
+				phantom: Default::default(),
+			},
+			participation_currencies: AcceptedFundingAsset::USDT,
+			funding_destination_account: ISSUER,
+			offchain_information_hash: Some(hashed(METADATA)),
+		};
+
+		let project_id = inst.create_remainder_contributing_project(project_metadata.clone(), ISSUER, default_evaluations(), default_bids(), default_community_buys());
+
+		inst.mint_plmc_to(vec![
+			(BUYER_4, 50_000 * ASSET_UNIT).into(),
+			(BUYER_5, 50_000 * ASSET_UNIT).into(),
+			(BUYER_6, 50_000 * ASSET_UNIT).into(),
+		]);
+
+		inst.mint_foreign_asset_to(vec![
+			(BUYER_4, 50_000 * US_DOLLAR).into(),
+			(BUYER_5, 50_000 * US_DOLLAR).into(),
+			(BUYER_6, 50_000 * US_DOLLAR).into(),
+		]);
+
+		// contribution below 1 CT (10 USD) should fail for retail
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::do_remaining_contribute(
+					&BUYER_4,
+					project_id,
+					ASSET_UNIT / 2,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					MockInstantiator::generate_did_from_account(BUYER_4),
+					InvestorType::Retail
+				),
+				Error::<TestRuntime>::ContributionTooLow
+			);
+		});
+		// contribution below 10_000 CT (100k USD) should fail for professionals
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::do_remaining_contribute(
+					&BUYER_5,
+					project_id,
+					9_999,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					MockInstantiator::generate_did_from_account(BUYER_5),
+					InvestorType::Professional
+				),
+				Error::<TestRuntime>::ContributionTooLow
+			);
+		});
+
+		// contribution below 20_000 CT (200k USD) should fail for professionals
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::do_remaining_contribute(
+					&BUYER_6,
+					project_id,
+					19_999,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					MockInstantiator::generate_did_from_account(BUYER_6),
+					InvestorType::Institutional
+				),
+				Error::<TestRuntime>::ContributionTooLow
+			);
+		});
 	}
 }
 

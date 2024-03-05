@@ -131,10 +131,8 @@ pub fn from_bounded_vec<'de, D>(deserializer: D) -> Result<BoundedVec<u8, ConstU
 where
 	D: Deserializer<'de>,
 {
-	let x = 10;
 	String::deserialize(deserializer).map(|string| string.as_bytes().to_vec()).and_then(|vec| {
 		let res = vec.try_into().map_err(|_| Error::custom("failed to deserialize"));
-		let x = 10;
 		res
 	})
 }

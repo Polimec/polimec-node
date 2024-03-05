@@ -1090,21 +1090,23 @@ impl<T: Config> Pallet<T> {
 			matches!(investor_type, InvestorType::Institutional | InvestorType::Professional),
 			DispatchError::from("Retail investors are not allowed to bid")
 		);
+
 		ensure!(ct_amount > Zero::zero(), Error::<T>::BidTooLow);
 		ensure!(bid_count < T::MaxBidsPerProject::get(), Error::<T>::TooManyBidsForProject);
 		ensure!(bidder.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
 		ensure!(matches!(project_details.status, ProjectStatus::AuctionRound(_)), Error::<T>::AuctionNotStarted);
 		ensure!(funding_asset == project_metadata.participation_currencies, Error::<T>::FundingAssetNotAccepted);
 
-		// TODO: new ticket size check
-		// if let Some(minimum_ticket_size) = project_metadata.ticket_sizes.bidding.minimum {
-		// 	// Make sure the bid amount is greater than the minimum specified by the issuer
-		// 	ensure!(minimum_ticket_size >= minimum_ticket_size, Error::<T>::BidTooLow);
-		// };
-		// if let Some(maximum_ticket_size) = project_metadata.ticket_sizes.bidding.maximum {
-		// 	// Make sure the bid amount is less than the maximum specified by the issuer
-		// 	ensure!(maximum_ticket_size <= maximum_ticket_size, Error::<T>::BidTooLow);
-		// };
+		match investor_type {
+			InvestorType::Institutional => {
+				ensure!(project_metadata.round_ticket_sizes.bidding.institutional.ct_above_minimum_per_participation(ct_amount), Error::<T>::BidTooLow);
+			}
+			InvestorType::Professional => {
+				ensure!(project_metadata.round_ticket_sizes.bidding.professional.ct_above_minimum_per_participation(ct_amount), Error::<T>::BidTooLow);
+			},
+			_ => ()
+		};
+
 		// Note: We limit the CT Amount to the auction allocation size, to avoid long running loops.
 		ensure!(
 			ct_amount <= project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size,
@@ -1255,7 +1257,7 @@ impl<T: Config> Pallet<T> {
 		let buyable_tokens = token_amount.min(project_details.remaining_contribution_tokens);
 		project_details.remaining_contribution_tokens.saturating_reduce(buyable_tokens);
 
-		Self::do_contribute(contributor, project_id, &mut project_details, buyable_tokens, multiplier, asset)
+		Self::do_contribute(contributor, project_id, &mut project_details, buyable_tokens, multiplier, asset, investor_type, did)
 	}
 
 	/// Buy tokens in the Community Round at the price set in the Bidding Round
@@ -1285,7 +1287,7 @@ impl<T: Config> Pallet<T> {
 		let remaining_cts_in_round = before.saturating_sub(buyable_tokens);
 		project_details.remaining_contribution_tokens = remaining_cts_in_round;
 
-		Self::do_contribute(contributor, project_id, &mut project_details, token_amount, multiplier, asset)
+		Self::do_contribute(contributor, project_id, &mut project_details, token_amount, multiplier, asset, investor_type, did)
 	}
 
 	fn do_contribute(
@@ -1295,6 +1297,8 @@ impl<T: Config> Pallet<T> {
 		buyable_tokens: BalanceOf<T>,
 		multiplier: MultiplierOf<T>,
 		asset: AcceptedFundingAsset,
+		investor_type: InvestorType,
+		did: DID
 	) -> DispatchResultWithPostInfo {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let caller_existing_contributions =
@@ -1317,15 +1321,17 @@ impl<T: Config> Pallet<T> {
 
 		let ticket_size = ct_usd_price.checked_mul_int(buyable_tokens).ok_or(Error::<T>::BadMath)?;
 
-		// TODO: new ticket size check
-		// if let Some(minimum_ticket_size) = project_metadata.ticket_sizes.contributing.minimum {
-		// 	// Make sure the bid amount is greater than the minimum specified by the issuer
-		// 	ensure!(ticket_size >= minimum_ticket_size, Error::<T>::ContributionTooLow);
-		// };
-		// if let Some(maximum_ticket_size) = project_metadata.ticket_sizes.contributing.maximum {
-		// 	// Make sure the bid amount is less than the maximum specified by the issuer
-		// 	ensure!(ticket_size <= maximum_ticket_size, Error::<T>::ContributionTooHigh);
-		// };
+		match investor_type {
+			InvestorType::Institutional => {
+				ensure!(project_metadata.round_ticket_sizes.contributing.institutional.ct_above_minimum_per_participation(buyable_tokens), Error::<T>::ContributionTooLow);
+			}
+			InvestorType::Professional => {
+				ensure!(project_metadata.round_ticket_sizes.contributing.professional.ct_above_minimum_per_participation(buyable_tokens), Error::<T>::ContributionTooLow);
+			},
+			InvestorType::Retail => {
+				ensure!(project_metadata.round_ticket_sizes.contributing.retail.ct_above_minimum_per_participation(buyable_tokens), Error::<T>::ContributionTooLow);
+			},
+		};
 
 		let plmc_bond = Self::calculate_plmc_bond(ticket_size, multiplier, plmc_usd_price)?;
 		let funding_asset_amount =
