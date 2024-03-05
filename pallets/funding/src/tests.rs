@@ -102,7 +102,7 @@ pub mod defaults {
 				decimals: ASSET_DECIMALS,
 			},
 			mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
-			total_allocation_size: 100_000 * ASSET_UNIT,
+			total_allocation_size: 1_000_000 * ASSET_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
 			round_ticket_sizes: RoundTicketSizes {
@@ -175,9 +175,9 @@ pub mod defaults {
 
 	pub fn default_evaluations() -> Vec<UserToUSDBalance<TestRuntime>> {
 		vec![
-			UserToUSDBalance::new(EVALUATOR_1, 50_000 * PLMC),
-			UserToUSDBalance::new(EVALUATOR_2, 25_000 * PLMC),
-			UserToUSDBalance::new(EVALUATOR_3, 32_000 * PLMC),
+			UserToUSDBalance::new(EVALUATOR_1, 500_000 * PLMC),
+			UserToUSDBalance::new(EVALUATOR_2, 250_000 * PLMC),
+			UserToUSDBalance::new(EVALUATOR_3, 320_000 * PLMC),
 		]
 	}
 
@@ -1120,16 +1120,20 @@ mod auction {
 		let issuer = ISSUER;
 		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
 		let evaluations = default_evaluations();
-		let bids: Vec<BidParams<_>> = vec![
-			BidParams::new(BIDDER_1, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_2, 20_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_4, 20_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-			BidParams::new(BIDDER_5, 5_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT),
-		];
+		let mut bids: Vec<BidParams<_>> = MockInstantiator::generate_bids_from_total_usd(
+			project_metadata.minimum_price.saturating_mul_int(project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size),
+			project_metadata.minimum_price,
+			default_weights(),
+			default_bidders(),
+			default_bidder_multipliers()
+		);
+
+		let second_bucket_bid = (BIDDER_6, 500 * ASSET_UNIT).into();
+		bids.push(second_bucket_bid);
 
 		let project_id = inst.create_community_contributing_project(project_metadata, issuer, evaluations, bids);
 		let bidder_5_bid =
-			inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id, BIDDER_5)).next().unwrap());
+			inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id, BIDDER_6)).next().unwrap());
 		let wabgp = inst.get_project_details(project_id).weighted_average_price.unwrap();
 		assert_eq!(bidder_5_bid.original_ct_usd_price.to_float(), 11.0);
 		assert_eq!(bidder_5_bid.final_ct_usd_price, wabgp);
