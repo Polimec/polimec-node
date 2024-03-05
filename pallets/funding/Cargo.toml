@@ -22,6 +22,7 @@ tokio = { version = "1", features = ["full"], optional = true }
 futures = { version = "0.3.29", optional = true }
 log.workspace = true
 itertools.workspace = true
+variant_count = "1.1.0"
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true, optional = true }

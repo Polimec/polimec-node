@@ -157,6 +157,8 @@ pub mod config_types {
 }
 
 pub mod storage_types {
+	use itertools::Itertools;
+	use sp_std::collections::btree_set::BTreeSet;
 	use sp_arithmetic::{
 		traits::{One, Saturating, Zero},
 		Percent,
@@ -189,7 +191,7 @@ pub mod storage_types {
 		/// Participation currencies (e.g stablecoin, DOT, KSM)
 		/// e.g. https://github.com/paritytech/substrate/blob/427fd09bcb193c1e79dec85b1e207c718b686c35/frame/uniques/src/types.rs#L110
 		/// For now is easier to handle the case where only just one Currency is accepted
-		pub participation_currencies: AcceptedFundingAsset,
+		pub participation_currencies: BoundedVec<AcceptedFundingAsset, ConstU32<{AcceptedFundingAsset::VARIANT_COUNT as u32}>>,
 		pub funding_destination_account: AccountId,
 		/// Additional metadata
 		pub offchain_information_hash: Option<Hash>,
@@ -218,6 +220,13 @@ pub mod storage_types {
 				return Err(ValidityError::PriceTooLow);
 			}
 			self.round_ticket_sizes.is_valid(self.minimum_price)?;
+
+			let mut deduped = self.participation_currencies.clone().to_vec();
+			deduped.sort();
+			deduped.dedup();
+			if deduped.len() != self.participation_currencies.len() {
+				return Err(ValidityError::ParticipationCurrenciesError);
+			}
 			Ok(())
 		}
 	}
@@ -408,6 +417,7 @@ pub mod storage_types {
 }
 
 pub mod inner_types {
+	use variant_count::VariantCount;
 	use super::*;
 	use crate::US_DOLLAR;
 	use xcm::v3::MaxDispatchErrorLen;
@@ -651,50 +661,16 @@ pub mod inner_types {
 		}
 	}
 
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-	pub struct ParticipantsSize {
-		pub minimum: Option<u32>,
-		pub maximum: Option<u32>,
-	}
-	impl ParticipantsSize {
-		fn is_valid(&self) -> Result<(), ValidityError> {
-			match (self.minimum, self.maximum) {
-				(Some(min), Some(max)) =>
-					if min < max && min > 0 && max > 0 {
-						Ok(())
-					} else {
-						Err(ValidityError::ParticipantsSizeError)
-					},
-				(Some(elem), None) | (None, Some(elem)) =>
-					if elem > 0 {
-						Ok(())
-					} else {
-						Err(ValidityError::ParticipantsSizeError)
-					},
-				(None, None) => Err(ValidityError::ParticipantsSizeError),
-			}
-		}
-	}
-
-	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-	pub struct Thresholds {
-		#[codec(compact)]
-		pub retail: u8,
-		#[codec(compact)]
-		pub professional: u8,
-		#[codec(compact)]
-		pub institutional: u8,
-	}
-
 	// TODO: PLMC-157. Use SCALE fixed indexes
-	#[derive(Default, Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	#[derive(VariantCount, Default, Clone, Copy, Encode, Decode, Eq, PartialEq, PartialOrd, Ord, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 	pub enum AcceptedFundingAsset {
 		#[default]
+		#[codec(index = 0)]
 		USDT,
+		#[codec(index = 1)]
 		USDC,
+		#[codec(index = 2)]
 		DOT,
 	}
 	impl AcceptedFundingAsset {
@@ -706,6 +682,8 @@ pub mod inner_types {
 			}
 		}
 	}
+	// Change this if we add more assets
+	pub const FUNDING_ASSETS_COUNT: u32 = 3;
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
@@ -798,7 +776,7 @@ pub mod inner_types {
 	pub enum ValidityError {
 		PriceTooLow,
 		TicketSizeError,
-		ParticipantsSizeError,
+		ParticipationCurrenciesError,
 	}
 
 	#[derive(Default, Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]

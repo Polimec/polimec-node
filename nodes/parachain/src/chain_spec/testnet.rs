@@ -334,7 +334,7 @@ mod testing_helpers {
 			},
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 			funding_thresholds: Default::default(),
-			participation_currencies: AcceptedFundingAsset::USDT,
+			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 			funding_destination_account: issuer,
 			offchain_information_hash: Some(metadata_hash(nonce)),
 		}

@@ -22,7 +22,7 @@ use crate::{
 	instantiator::*,
 	mock::*,
 	traits::{ProvideAssetPrice, VestingDurationCalculation},
-	CurrencyMetadata, Error, ParticipantsSize, ProjectMetadata, TicketSize,
+	CurrencyMetadata, Error, ProjectMetadata, TicketSize,
 	UpdateType::{CommunityFundingStart, RemainderFundingStart},
 };
 use assert_matches2::assert_matches;
@@ -58,6 +58,8 @@ const ISSUER: AccountId = 10;
 const EVALUATOR_1: AccountId = 20;
 const EVALUATOR_2: AccountId = 21;
 const EVALUATOR_3: AccountId = 22;
+const EVALUATOR_4: AccountId = 23;
+const EVALUATOR_5: AccountId = 24;
 const BIDDER_1: AccountId = 30;
 const BIDDER_2: AccountId = 31;
 const BIDDER_3: AccountId = 32;
@@ -102,11 +104,11 @@ pub mod defaults {
 			mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
 			total_allocation_size: 100_000 * ASSET_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
-			minimum_price: PriceOf::<TestRuntime>::from_float(1.0),
+			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
 			round_ticket_sizes: RoundTicketSizes {
 				bidding: BiddingTicketSizes {
-					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+					professional: TicketSize::new(Some(500 * ASSET_UNIT), None),
+					institutional: TicketSize::new(Some(500 * ASSET_UNIT), None),
 					phantom: Default::default(),
 				},
 				contributing: ContributingTicketSizes {
@@ -117,7 +119,7 @@ pub mod defaults {
 				},
 				phantom: Default::default(),
 			},
-			participation_currencies: AcceptedFundingAsset::USDT,
+			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 			funding_destination_account: issuer,
 			offchain_information_hash: Some(metadata_hash),
 		}
@@ -151,7 +153,7 @@ pub mod defaults {
 				},
 				phantom: Default::default(),
 			},
-			participation_currencies: AcceptedFundingAsset::USDT,
+			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 			funding_destination_account: ISSUER,
 			offchain_information_hash: Some(metadata_hash),
 		};
@@ -243,6 +245,7 @@ pub mod defaults {
 		vec![20u8, 15u8, 10u8, 25u8, 30u8]
 	}
 
+	pub fn default_evaluators() -> Vec<AccountId> {vec![EVALUATOR_1, EVALUATOR_2, EVALUATOR_3, EVALUATOR_4, EVALUATOR_5]}
 	pub fn default_bidders() -> Vec<AccountId> {
 		vec![BIDDER_1, BIDDER_2, BIDDER_3, BIDDER_4, BIDDER_5]
 	}
@@ -368,7 +371,7 @@ mod creation {
 				},
 				phantom: Default::default(),
 			},
-			participation_currencies: AcceptedFundingAsset::USDT,
+			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 			funding_destination_account: ISSUER,
 			offchain_information_hash: Some(hashed(METADATA)),
 		};
@@ -404,7 +407,7 @@ mod creation {
 				},
 				phantom: Default::default(),
 			},
-			participation_currencies: AcceptedFundingAsset::USDT,
+			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 			funding_destination_account: ISSUER,
 			offchain_information_hash: Some(hashed(METADATA)),
 		};
@@ -866,7 +869,7 @@ mod auction {
 				},
 				phantom: Default::default(),
 			},
-			participation_currencies: AcceptedFundingAsset::USDT,
+			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 			funding_destination_account: ISSUER,
 			offchain_information_hash: Some(metadata_hash),
 		};
@@ -914,8 +917,9 @@ mod auction {
 	fn only_candle_bids_before_random_block_get_included() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
-		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
-		let evaluations = default_evaluations();
+		let mut project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
+		project_metadata.total_allocation_size = 1_000_000 * ASSET_UNIT;
+		let evaluations = MockInstantiator::generate_successful_evaluations(project_metadata.clone(), default_evaluators(), default_weights());
 		let project_id = inst.create_auctioning_project(project_metadata.clone(), issuer, evaluations);
 		let english_end_block = inst
 			.get_project_details(project_id)
@@ -936,7 +940,7 @@ mod auction {
 			.end()
 			.expect("Candle auction end point should exist");
 
-		let bid_info = BidParams::new(0, 50u128 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
+		let bid_info = BidParams::new(0, 500u128 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
 
 		let plmc_necessary_funding = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
 			&vec![bid_info.clone()],
@@ -957,16 +961,17 @@ mod auction {
 
 		let mut bidding_account = 1000;
 
+		dbg!(blocks_to_bid.clone());
 		// Do one candle bid for each block until the end of candle auction with a new user
 		for _block in blocks_to_bid {
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionRound(AuctionPhase::Candle));
-			inst.mint_plmc_to(vec![UserToPLMCBalance::new(bidding_account, plmc_necessary_funding)]);
+			inst.mint_plmc_to(vec![UserToPLMCBalance::new(bidding_account, plmc_necessary_funding * 10)]);
 			inst.mint_plmc_to(vec![bidding_account].existential_deposits());
 			inst.mint_plmc_to(vec![bidding_account].ct_account_deposits());
 
 			inst.mint_foreign_asset_to(vec![UserToForeignAssets::new(
 				bidding_account,
-				foreign_asset_necessary_funding,
+				foreign_asset_necessary_funding * 10,
 				bid_info.asset.to_assethub_id(),
 			)]);
 			let bids: Vec<BidParams<_>> = vec![BidParams {
@@ -1105,7 +1110,7 @@ mod auction {
 		let evaluations = default_evaluations();
 		let mut bids = default_bids();
 		let evaluator = evaluations[0].account;
-		bids.push(BidParams::new(evaluator, 150 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT));
+		bids.push(BidParams::new(evaluator, 500 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT));
 		let _ = inst.create_community_contributing_project(project_metadata, issuer, evaluations, bids);
 	}
 
@@ -1126,7 +1131,7 @@ mod auction {
 		let bidder_5_bid =
 			inst.execute(|| Bids::<TestRuntime>::iter_prefix_values((project_id, BIDDER_5)).next().unwrap());
 		let wabgp = inst.get_project_details(project_id).weighted_average_price.unwrap();
-		assert_eq!(bidder_5_bid.original_ct_usd_price.to_float(), 1.1);
+		assert_eq!(bidder_5_bid.original_ct_usd_price.to_float(), 11.0);
 		assert_eq!(bidder_5_bid.final_ct_usd_price, wabgp);
 	}
 
@@ -1347,13 +1352,37 @@ mod auction {
 	#[test]
 	fn cannot_bid_more_than_project_limit_count() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let project_metadata = default_project_metadata(0, ISSUER);
+		let mut project_metadata = 		ProjectMetadata {
+			token_information: default_token_information(),
+			mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
+			total_allocation_size: 1_000_000 * ASSET_UNIT,
+			auction_round_allocation_percentage: Percent::from_percent(50u8),
+			minimum_price: PriceOf::<TestRuntime>::from_float(100.0),
+			round_ticket_sizes: RoundTicketSizes {
+				bidding: BiddingTicketSizes {
+					professional: TicketSize::new(Some(50 * ASSET_UNIT), None),
+					institutional: TicketSize::new(Some(50 * ASSET_UNIT), None),
+					phantom: Default::default(),
+				},
+				contributing: ContributingTicketSizes {
+					retail: TicketSize::new(None, None),
+					professional: TicketSize::new(None, None),
+					institutional: TicketSize::new(None, None),
+					phantom: Default::default(),
+				},
+				phantom: Default::default(),
+			},
+			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
+			funding_destination_account: ISSUER,
+			offchain_information_hash: Some(hashed(METADATA)),
+		};
+		let evaluations = MockInstantiator::generate_successful_evaluations(project_metadata.clone(), vec![EVALUATOR_1], vec![100u8]);
 		let bids = (0u32..<TestRuntime as Config>::MaxBidsPerProject::get())
-			.map(|i| (i as u32 + 420u32, 10 * ASSET_UNIT).into())
+			.map(|i| (i as u32 + 420u32, 50 * ASSET_UNIT).into())
 			.collect_vec();
-		let failing_bid = BidParams::<TestRuntime>::new(BIDDER_1, 10 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
+		let failing_bid = BidParams::<TestRuntime>::new(BIDDER_1, 50 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
 
-		let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER, default_evaluations());
+		let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER, evaluations);
 
 		let plmc_for_bidding = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
 			&bids.clone(),
@@ -1564,7 +1593,7 @@ mod auction {
 		assert_eq!(bid_info.final_ct_amount, auction_allocation);
 
 		let project_metadata = default_project_metadata(1, ISSUER);
-		let bids = vec![(BIDDER_1, auction_allocation).into(), (BIDDER_1, 100 * ASSET_UNIT).into()];
+		let bids = vec![(BIDDER_1, auction_allocation).into(), (BIDDER_1, 1000 * ASSET_UNIT).into()];
 		let project_id =
 			inst.create_community_contributing_project(project_metadata.clone(), ISSUER, evaluations.clone(), bids);
 		let mut bid_infos = Bids::<TestRuntime>::iter_prefix_values((project_id,));
@@ -1601,7 +1630,7 @@ mod auction {
 				},
 				phantom: Default::default(),
 			},
-			participation_currencies: AcceptedFundingAsset::USDT,
+			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 			funding_destination_account: ISSUER,
 			offchain_information_hash: Some(hashed(METADATA)),
 		};
@@ -1674,7 +1703,7 @@ mod auction {
 				},
 				phantom: Default::default(),
 			},
-			participation_currencies: AcceptedFundingAsset::USDT,
+			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 			funding_destination_account: ISSUER,
 			offchain_information_hash: Some(hashed(METADATA)),
 		};
@@ -2338,7 +2367,7 @@ mod community_contribution {
 				},
 				phantom: Default::default(),
 			},
-			participation_currencies: AcceptedFundingAsset::USDT,
+			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 			funding_destination_account: ISSUER,
 			offchain_information_hash: Some(hashed(METADATA)),
 		};
@@ -2428,7 +2457,7 @@ mod community_contribution {
 				},
 				phantom: Default::default(),
 			},
-			participation_currencies: AcceptedFundingAsset::USDT,
+			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 			funding_destination_account: ISSUER,
 			offchain_information_hash: Some(hashed(METADATA)),
 		};
@@ -2906,7 +2935,7 @@ mod remainder_contribution {
 				},
 				phantom: Default::default(),
 			},
-			participation_currencies: AcceptedFundingAsset::USDT,
+			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 			funding_destination_account: ISSUER,
 			offchain_information_hash: Some(hashed(METADATA)),
 		};
@@ -2996,7 +3025,7 @@ mod remainder_contribution {
 				},
 				phantom: Default::default(),
 			},
-			participation_currencies: AcceptedFundingAsset::USDT,
+			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 			funding_destination_account: ISSUER,
 			offchain_information_hash: Some(hashed(METADATA)),
 		};
@@ -3176,9 +3205,9 @@ mod funding_end {
 			let bids = MockInstantiator::generate_bids_from_total_usd(
 				Percent::from_percent(50u8) * twenty_percent_funding_usd,
 				min_price,
-				default_weights(),
-				default_bidders(),
-				default_multipliers(),
+				vec![100u8],
+				vec![BIDDER_1],
+				vec![10u8],
 			);
 			let contributions = MockInstantiator::generate_contributions_from_total_usd(
 				Percent::from_percent(50u8) * twenty_percent_funding_usd,
@@ -5763,13 +5792,13 @@ mod async_tests {
 		let mut t = frame_system::GenesisConfig::<TestRuntime>::default().build_storage().unwrap();
 
 		// only used to generate some values, and not for chain interactions
-		let _project_metadata = default_project_metadata(0u64, ISSUER.into());
+		let project_metadata = default_project_metadata(0u64, ISSUER.into());
 		let evaluations = default_evaluations();
 		let max_bids = (0..<TestRuntime as Config>::MaxBidsPerProject::get())
 			.map(|i| {
 				instantiator::BidParams::<TestRuntime>::new(
 					(i + 69).into(),
-					(10u128 * ASSET_UNIT).into(),
+					project_metadata.round_ticket_sizes.bidding.institutional.ct_minimum_per_participation.unwrap(),
 					1u8,
 					AcceptedFundingAsset::USDT,
 				)

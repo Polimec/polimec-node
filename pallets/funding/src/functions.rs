@@ -93,8 +93,8 @@ impl<T: Config> Pallet<T> {
 		if let Err(error) = initial_metadata.is_valid() {
 			return match error {
 				ValidityError::PriceTooLow => Err(Error::<T>::PriceTooLow.into()),
-				ValidityError::ParticipantsSizeError => Err(Error::<T>::ParticipantsSizeError.into()),
 				ValidityError::TicketSizeError => Err(Error::<T>::TicketSizeError.into()),
+				ValidityError::ParticipationCurrenciesError => Err(Error::<T>::ParticipationCurrenciesError.into()),
 			};
 		}
 		let total_allocation_size = initial_metadata.total_allocation_size;
@@ -1096,7 +1096,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(bid_count < T::MaxBidsPerProject::get(), Error::<T>::TooManyBidsForProject);
 		ensure!(bidder.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
 		ensure!(matches!(project_details.status, ProjectStatus::AuctionRound(_)), Error::<T>::AuctionNotStarted);
-		ensure!(funding_asset == project_metadata.participation_currencies, Error::<T>::FundingAssetNotAccepted);
+		ensure!(project_metadata.participation_currencies.contains(&funding_asset), Error::<T>::FundingAssetNotAccepted);
 
 		match investor_type {
 			InvestorType::Institutional => {
@@ -1303,7 +1303,7 @@ impl<T: Config> Pallet<T> {
 		project_details: &mut ProjectDetailsOf<T>,
 		buyable_tokens: BalanceOf<T>,
 		multiplier: MultiplierOf<T>,
-		asset: AcceptedFundingAsset,
+		funding_asset: AcceptedFundingAsset,
 		investor_type: InvestorType,
 		did: DID
 	) -> DispatchResultWithPostInfo {
@@ -1313,7 +1313,7 @@ impl<T: Config> Pallet<T> {
 		let total_ct_bought_by_did = ContributionBoughtCT::<T>::get((project_id, did.clone()));
 
 		// * Validity checks *
-		ensure!(project_metadata.participation_currencies == asset, Error::<T>::FundingAssetNotAccepted);
+		ensure!(project_metadata.participation_currencies.contains(&funding_asset), Error::<T>::FundingAssetNotAccepted);
 		ensure!(contributor.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
 		ensure!(
 			caller_existing_contributions.len() < T::MaxContributionsPerUser::get() as usize,
@@ -1325,7 +1325,7 @@ impl<T: Config> Pallet<T> {
 		let ct_usd_price = project_details.weighted_average_price.ok_or(Error::<T>::AuctionNotStarted)?;
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PriceNotFound)?;
 		let funding_asset_usd_price =
-			T::PriceProvider::get_price(asset.to_assethub_id()).ok_or(Error::<T>::PriceNotFound)?;
+			T::PriceProvider::get_price(funding_asset.to_assethub_id()).ok_or(Error::<T>::PriceNotFound)?;
 
 		let ticket_size = ct_usd_price.checked_mul_int(buyable_tokens).ok_or(Error::<T>::BadMath)?;
 
@@ -1348,7 +1348,7 @@ impl<T: Config> Pallet<T> {
 		let plmc_bond = Self::calculate_plmc_bond(ticket_size, multiplier, plmc_usd_price)?;
 		let funding_asset_amount =
 			funding_asset_usd_price.reciprocal().ok_or(Error::<T>::BadMath)?.saturating_mul_int(ticket_size);
-		let asset_id = asset.to_assethub_id();
+		let asset_id = funding_asset.to_assethub_id();
 
 		let contribution_id = NextContributionId::<T>::get();
 		let new_contribution = ContributionInfoOf::<T> {
@@ -1358,7 +1358,7 @@ impl<T: Config> Pallet<T> {
 			ct_amount: buyable_tokens,
 			usd_contribution_amount: ticket_size,
 			multiplier,
-			funding_asset: asset,
+			funding_asset,
 			funding_asset_amount,
 			plmc_bond,
 			plmc_vesting_info: None,

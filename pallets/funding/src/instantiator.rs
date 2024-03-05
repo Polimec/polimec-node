@@ -933,6 +933,20 @@ impl<
 		Ok(())
 	}
 
+	pub fn generate_successful_evaluations(project_metadata: ProjectMetadataOf<T>, evaluators: Vec<AccountIdOf<T>>, weights: Vec<u8>) -> Vec<UserToUSDBalance<T>>{
+		let funding_target = project_metadata.minimum_price.saturating_mul_int(project_metadata.total_allocation_size);
+		let evaluation_success_threshold = <T as Config>::EvaluationSuccessThreshold::get(); // if we use just the threshold, then for big usd targets we lose the evaluation due to PLMC conversion errors in `evaluation_end`
+		let usd_threshold = evaluation_success_threshold * funding_target * 2u32.into();
+
+		zip(evaluators, weights)
+			.map(|(evaluator, weight)| {
+				let ticket_size = Percent::from_percent(weight) * usd_threshold;
+				(evaluator, ticket_size).into()
+			}).collect()
+
+
+	}
+
 	pub fn generate_bids_from_total_usd(
 		usd_amount: BalanceOf<T>,
 		min_price: PriceOf<T>,

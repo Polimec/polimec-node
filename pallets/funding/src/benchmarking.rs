@@ -116,7 +116,7 @@ where
 			},
 			phantom: Default::default(),
 		},
-		participation_currencies: AcceptedFundingAsset::USDT,
+		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 		funding_destination_account: issuer,
 		offchain_information_hash: Some(metadata_hash.into()),
 	}
@@ -2917,7 +2917,7 @@ mod benchmarks {
 				},
 				phantom: Default::default()
 			},
-			participation_currencies: AcceptedFundingAsset::USDT,
+			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 			funding_destination_account: issuer.clone(),
 			offchain_information_hash: Some(metadata_hash.into()),
 		};

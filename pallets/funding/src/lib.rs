@@ -913,6 +913,8 @@ pub mod pallet {
 		ParticipantsSizeError,
 		/// The ticket size provided in the `create` call is too low
 		TicketSizeError,
+		/// The participation currencies specified are invalid
+		ParticipationCurrenciesError,
 		/// The specified project does not exist
 		ProjectNotFound,
 		/// The Evaluation Round of the project has not started yet
