@@ -1160,7 +1160,7 @@ impl<
 					bid.multiplier,
 					bid.asset,
 					did,
-					InvestorType::Professional,
+					InvestorType::Institutional,
 				)
 			})?;
 		}

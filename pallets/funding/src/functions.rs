@@ -1080,6 +1080,7 @@ impl<T: Config> Pallet<T> {
 		let ct_deposit = T::ContributionTokenCurrency::deposit_required(project_id);
 		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder)).collect::<Vec<_>>();
 		let bid_count = BidCounts::<T>::get(project_id);
+		let total_ct_bid_by_did = AuctionBoughtCT::<T>::get((project_id, did.clone()));
 		// weight return variables
 		let mut perform_bid_calls = 0;
 		let mut ct_deposit_required = false;
@@ -1100,9 +1101,12 @@ impl<T: Config> Pallet<T> {
 		match investor_type {
 			InvestorType::Institutional => {
 				ensure!(project_metadata.round_ticket_sizes.bidding.institutional.ct_above_minimum_per_participation(ct_amount), Error::<T>::BidTooLow);
+				ensure!(project_metadata.round_ticket_sizes.bidding.institutional.ct_below_maximum_per_did(total_ct_bid_by_did + ct_amount), Error::<T>::BidTooHigh)
 			}
 			InvestorType::Professional => {
 				ensure!(project_metadata.round_ticket_sizes.bidding.professional.ct_above_minimum_per_participation(ct_amount), Error::<T>::BidTooLow);
+				ensure!(project_metadata.round_ticket_sizes.bidding.professional.ct_below_maximum_per_did(total_ct_bid_by_did + ct_amount), Error::<T>::BidTooHigh)
+
 			},
 			_ => ()
 		};
@@ -1146,6 +1150,7 @@ impl<T: Config> Pallet<T> {
 				bid_id,
 				now,
 				plmc_usd_price,
+				did.clone()
 			)?;
 
 			perform_bid_calls += 1;
@@ -1182,6 +1187,7 @@ impl<T: Config> Pallet<T> {
 		bid_id: u32,
 		now: BlockNumberFor<T>,
 		plmc_usd_price: T::Price,
+		did: DID
 	) -> Result<BidInfoOf<T>, DispatchError> {
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
 		let funding_asset_usd_price =
@@ -1221,6 +1227,7 @@ impl<T: Config> Pallet<T> {
 		Bids::<T>::insert((project_id, bidder, bid_id), &new_bid);
 		NextBidId::<T>::set(bid_id.saturating_add(One::one()));
 		BidCounts::<T>::mutate(project_id, |c| *c += 1);
+		AuctionBoughtCT::<T>::mutate((project_id, did), |amount| *amount += ct_amount);
 
 		Self::deposit_event(Event::Bid { project_id, amount: ct_amount, price: ct_usd_price, multiplier });
 
@@ -1303,6 +1310,7 @@ impl<T: Config> Pallet<T> {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let caller_existing_contributions =
 			Contributions::<T>::iter_prefix_values((project_id, contributor)).collect::<Vec<_>>();
+		let total_ct_bought_by_did = ContributionBoughtCT::<T>::get((project_id, did.clone()));
 
 		// * Validity checks *
 		ensure!(project_metadata.participation_currencies == asset, Error::<T>::FundingAssetNotAccepted);
@@ -1324,12 +1332,16 @@ impl<T: Config> Pallet<T> {
 		match investor_type {
 			InvestorType::Institutional => {
 				ensure!(project_metadata.round_ticket_sizes.contributing.institutional.ct_above_minimum_per_participation(buyable_tokens), Error::<T>::ContributionTooLow);
+				ensure!(project_metadata.round_ticket_sizes.contributing.institutional.ct_below_maximum_per_did(total_ct_bought_by_did + buyable_tokens), Error::<T>::ContributionTooHigh);
 			}
 			InvestorType::Professional => {
 				ensure!(project_metadata.round_ticket_sizes.contributing.professional.ct_above_minimum_per_participation(buyable_tokens), Error::<T>::ContributionTooLow);
+				ensure!(project_metadata.round_ticket_sizes.contributing.professional.ct_below_maximum_per_did(total_ct_bought_by_did + buyable_tokens), Error::<T>::ContributionTooHigh);
+
 			},
 			InvestorType::Retail => {
 				ensure!(project_metadata.round_ticket_sizes.contributing.retail.ct_above_minimum_per_participation(buyable_tokens), Error::<T>::ContributionTooLow);
+				ensure!(project_metadata.round_ticket_sizes.contributing.retail.ct_below_maximum_per_did(total_ct_bought_by_did + buyable_tokens), Error::<T>::ContributionTooHigh);
 			},
 		};
 
@@ -1369,6 +1381,7 @@ impl<T: Config> Pallet<T> {
 
 		Contributions::<T>::insert((project_id, contributor, contribution_id), &new_contribution);
 		NextContributionId::<T>::set(contribution_id.saturating_add(One::one()));
+		ContributionBoughtCT::<T>::mutate((project_id, did), |amount| *amount += buyable_tokens);
 
 		let remaining_cts_after_purchase = project_details.remaining_contribution_tokens;
 		project_details.funding_amount_reached.saturating_accrue(new_contribution.usd_contribution_amount);

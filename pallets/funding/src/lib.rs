@@ -600,11 +600,11 @@ pub mod pallet {
 
 	#[pallet::storage]
 	pub type AuctionBoughtCT<T: Config> =
-		StorageNMap<_, (NMapKey<Blake2_128Concat, ProjectId>, NMapKey<Blake2_128Concat, DID>), BalanceOf<T>>;
+		StorageNMap<_, (NMapKey<Blake2_128Concat, ProjectId>, NMapKey<Blake2_128Concat, DID>), BalanceOf<T>, ValueQuery>;
 
 	#[pallet::storage]
 	pub type ContributionBoughtCT<T: Config> =
-		StorageNMap<_, (NMapKey<Blake2_128Concat, ProjectId>, NMapKey<Blake2_128Concat, DID>), BalanceOf<T>>;
+		StorageNMap<_, (NMapKey<Blake2_128Concat, ProjectId>, NMapKey<Blake2_128Concat, DID>), BalanceOf<T>, ValueQuery>;
 
 	#[pallet::storage]
 	/// Migrations sent and awaiting for confirmation
@@ -931,6 +931,8 @@ pub mod pallet {
 		Frozen,
 		/// The bid is too low
 		BidTooLow,
+		/// Bid above the ticket size limit
+		BidTooHigh,
 		/// The Funding Round of the project has not ended yet
 		CannotClaimYet,
 		/// No bids were made for the project at the time of the auction close

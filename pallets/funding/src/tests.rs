@@ -71,6 +71,8 @@ const BUYER_4: AccountId = 43;
 const BUYER_5: AccountId = 44;
 const BUYER_6: AccountId = 45;
 const BUYER_7: AccountId = 46;
+const BUYER_8: AccountId = 47;
+const BUYER_9: AccountId = 48;
 
 const ASSET_UNIT: u128 = 10_u128.pow(10u32);
 
@@ -1648,6 +1650,144 @@ mod auction {
 			);
 		});
 	}
+
+	#[test]
+	fn per_credential_type_ticket_size_maximums() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = ProjectMetadata {
+			token_information: default_token_information(),
+			mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
+			total_allocation_size: 100_000 * ASSET_UNIT,
+			auction_round_allocation_percentage: Percent::from_percent(50u8),
+			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
+			round_ticket_sizes: RoundTicketSizes {
+				bidding: BiddingTicketSizes {
+					professional: TicketSize::new(Some(800 * ASSET_UNIT), Some(10_000 * ASSET_UNIT)),
+					institutional: TicketSize::new(Some(2000 * ASSET_UNIT), Some(50_000 * ASSET_UNIT)),
+					phantom: Default::default(),
+				},
+				contributing: ContributingTicketSizes {
+					retail: TicketSize::new(None, Some(10_000 * ASSET_UNIT)),
+					professional: TicketSize::new(None, Some(2_000 * ASSET_UNIT)),
+					institutional: TicketSize::new(None, Some(5_000 * ASSET_UNIT)),
+					phantom: Default::default(),
+				},
+				phantom: Default::default(),
+			},
+			participation_currencies: AcceptedFundingAsset::USDT,
+			funding_destination_account: ISSUER,
+			offchain_information_hash: Some(hashed(METADATA)),
+		};
+		let evaluations = default_evaluations();
+
+		let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER, evaluations.clone());
+
+		inst.mint_plmc_to(vec![
+			(BIDDER_1, 500_000 * ASSET_UNIT).into(),
+			(BIDDER_2, 500_000 * ASSET_UNIT).into(),
+			(BIDDER_3, 500_000 * ASSET_UNIT).into(),
+			(BIDDER_4, 500_000 * ASSET_UNIT).into(),
+		]);
+
+		inst.mint_foreign_asset_to(vec![
+			(BIDDER_1, 500_000 * US_DOLLAR).into(),
+			(BIDDER_2, 500_000 * US_DOLLAR).into(),
+			(BIDDER_3, 500_000 * US_DOLLAR).into(),
+			(BIDDER_4, 500_000 * US_DOLLAR).into(),
+		]);
+
+		// total bids with same DID above 10k CT (100k USD) should fail for professionals
+		inst.execute(|| {
+			assert_ok!(
+				Pallet::<TestRuntime>::do_bid(
+					&BIDDER_1,
+					project_id,
+					8000 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					MockInstantiator::generate_did_from_account(BIDDER_1),
+					InvestorType::Professional
+				)
+			);
+		});
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::do_bid(
+					&BIDDER_2,
+					project_id,
+					3000 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					// note we use the same did as bidder 1, on a different account
+					MockInstantiator::generate_did_from_account(BIDDER_1),
+					InvestorType::Professional
+				),
+				Error::<TestRuntime>::BidTooHigh
+			);
+		});
+		// bidding 10k total works
+		inst.execute(|| {
+			assert_ok!(
+				Pallet::<TestRuntime>::do_bid(
+					&BIDDER_2,
+					project_id,
+					2000 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					// note we use the same did as bidder 1, on a different account
+					MockInstantiator::generate_did_from_account(BIDDER_1),
+					InvestorType::Professional
+				)
+			);
+		});
+
+
+		// total bids with same DID above 50k CT (500k USD) should fail for institutionals
+		inst.execute(|| {
+			assert_ok!(
+				Pallet::<TestRuntime>::do_bid(
+					&BIDDER_3,
+					project_id,
+					40_000 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					MockInstantiator::generate_did_from_account(BIDDER_3),
+					InvestorType::Institutional
+				)
+			);
+		});
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::do_bid(
+					&BIDDER_4,
+					project_id,
+					11_000 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					// note we use the same did as bidder 3, on a different account
+					MockInstantiator::generate_did_from_account(BIDDER_3),
+					InvestorType::Institutional
+				),
+				Error::<TestRuntime>::BidTooHigh
+			);
+		});
+		// bidding 50k total works
+		inst.execute(|| {
+			assert_ok!(
+				Pallet::<TestRuntime>::do_bid(
+					&BIDDER_4,
+					project_id,
+					10_000 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					// note we use the same did as bidder 3, on a different account
+					MockInstantiator::generate_did_from_account(BIDDER_3),
+					InvestorType::Institutional
+				)
+			);
+		});
+	}
+
 }
 
 // only functionalities that happen in the COMMUNITY FUNDING period of a project
@@ -2264,6 +2404,192 @@ mod community_contribution {
 			);
 		});
 	}
+
+	#[test]
+	fn per_credential_type_ticket_size_maximums() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = ProjectMetadata {
+			token_information: default_token_information(),
+			mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
+			total_allocation_size: 100_000 * ASSET_UNIT,
+			auction_round_allocation_percentage: Percent::from_percent(50u8),
+			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
+			round_ticket_sizes: RoundTicketSizes {
+				bidding: BiddingTicketSizes {
+					professional: TicketSize::new(Some(800 * ASSET_UNIT), Some(10_000 * ASSET_UNIT)),
+					institutional: TicketSize::new(Some(2000 * ASSET_UNIT), Some(50_000 * ASSET_UNIT)),
+					phantom: Default::default(),
+				},
+				contributing: ContributingTicketSizes {
+					retail: TicketSize::new(None, Some(10_000 * ASSET_UNIT)),
+					professional: TicketSize::new(None, Some(2_000 * ASSET_UNIT)),
+					institutional: TicketSize::new(None, Some(5_000 * ASSET_UNIT)),
+					phantom: Default::default(),
+				},
+				phantom: Default::default(),
+			},
+			participation_currencies: AcceptedFundingAsset::USDT,
+			funding_destination_account: ISSUER,
+			offchain_information_hash: Some(hashed(METADATA)),
+		};
+
+		let project_id = inst.create_community_contributing_project(project_metadata.clone(), ISSUER, default_evaluations(), default_bids());
+
+		inst.mint_plmc_to(vec![
+			(BUYER_1, 500_000 * ASSET_UNIT).into(),
+			(BUYER_2, 500_000 * ASSET_UNIT).into(),
+			(BUYER_3, 500_000 * ASSET_UNIT).into(),
+			(BUYER_4, 500_000 * ASSET_UNIT).into(),
+			(BUYER_5, 500_000 * ASSET_UNIT).into(),
+			(BUYER_6, 500_000 * ASSET_UNIT).into(),
+		]);
+
+		inst.mint_foreign_asset_to(vec![
+			(BUYER_1, 500_000 * US_DOLLAR).into(),
+			(BUYER_2, 500_000 * US_DOLLAR).into(),
+			(BUYER_3, 500_000 * US_DOLLAR).into(),
+			(BUYER_4, 500_000 * US_DOLLAR).into(),
+			(BUYER_5, 500_000 * US_DOLLAR).into(),
+			(BUYER_6, 500_000 * US_DOLLAR).into(),
+		]);
+
+
+		// total contributions with same DID above 10k CT (100k USD) should fail for retail
+		inst.execute(|| {
+			assert_ok!(
+				Pallet::<TestRuntime>::do_community_contribute(
+					&BUYER_1,
+					project_id,
+					9000 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					MockInstantiator::generate_did_from_account(BUYER_1),
+					InvestorType::Retail
+				)
+			);
+		});
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::do_community_contribute(
+					&BUYER_2,
+					project_id,
+					1001 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					// note we use the same did as bidder 1, on a different account
+					MockInstantiator::generate_did_from_account(BUYER_1),
+					InvestorType::Retail
+				),
+				Error::<TestRuntime>::ContributionTooHigh
+			);
+		});
+		// bidding 2k total works
+		inst.execute(|| {
+			assert_ok!(
+				Pallet::<TestRuntime>::do_community_contribute(
+					&BUYER_2,
+					project_id,
+					1000 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					// note we use the same did as bidder 1, on a different account
+					MockInstantiator::generate_did_from_account(BUYER_1),
+					InvestorType::Retail
+				)
+			);
+		});
+
+		// total contributions with same DID above 2k CT (20k USD) should fail for professionals
+		inst.execute(|| {
+			assert_ok!(
+				Pallet::<TestRuntime>::do_community_contribute(
+					&BUYER_3,
+					project_id,
+					1800 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					MockInstantiator::generate_did_from_account(BUYER_3),
+					InvestorType::Professional
+				)
+			);
+		});
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::do_community_contribute(
+					&BUYER_4,
+					project_id,
+					201 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					// note we use the same did as bidder 1, on a different account
+					MockInstantiator::generate_did_from_account(BUYER_3),
+					InvestorType::Professional
+				),
+				Error::<TestRuntime>::ContributionTooHigh
+			);
+		});
+		// bidding 2k total works
+		inst.execute(|| {
+			assert_ok!(
+				Pallet::<TestRuntime>::do_community_contribute(
+					&BUYER_4,
+					project_id,
+					200 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					// note we use the same did as bidder 1, on a different account
+					MockInstantiator::generate_did_from_account(BUYER_3),
+					InvestorType::Professional
+				)
+			);
+		});
+
+
+		// total contributions with same DID above 5k CT (50 USD) should fail for institutionals
+		inst.execute(|| {
+			assert_ok!(
+				Pallet::<TestRuntime>::do_community_contribute(
+					&BUYER_5,
+					project_id,
+					4690 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					MockInstantiator::generate_did_from_account(BUYER_5),
+					InvestorType::Institutional
+				)
+			);
+		});
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::do_community_contribute(
+					&BUYER_6,
+					project_id,
+					311 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					// note we use the same did as bidder 3, on a different account
+					MockInstantiator::generate_did_from_account(BUYER_5),
+					InvestorType::Institutional
+				),
+				Error::<TestRuntime>::ContributionTooHigh
+			);
+		});
+		// bidding 5k total works
+		inst.execute(|| {
+			assert_ok!(
+				Pallet::<TestRuntime>::do_community_contribute(
+					&BUYER_6,
+					project_id,
+					310 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					// note we use the same did as bidder 3, on a different account
+					MockInstantiator::generate_did_from_account(BUYER_5),
+					InvestorType::Institutional
+				)
+			);
+		});
+	}
 }
 
 // only functionalities that happen in the REMAINDER FUNDING period of a project
@@ -2643,6 +2969,192 @@ mod remainder_contribution {
 					InvestorType::Institutional
 				),
 				Error::<TestRuntime>::ContributionTooLow
+			);
+		});
+	}
+
+	#[test]
+	fn per_credential_type_ticket_size_maximums() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = ProjectMetadata {
+			token_information: default_token_information(),
+			mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
+			total_allocation_size: 100_000 * ASSET_UNIT,
+			auction_round_allocation_percentage: Percent::from_percent(50u8),
+			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
+			round_ticket_sizes: RoundTicketSizes {
+				bidding: BiddingTicketSizes {
+					professional: TicketSize::new(Some(800 * ASSET_UNIT), Some(10_000 * ASSET_UNIT)),
+					institutional: TicketSize::new(Some(2000 * ASSET_UNIT), Some(50_000 * ASSET_UNIT)),
+					phantom: Default::default(),
+				},
+				contributing: ContributingTicketSizes {
+					retail: TicketSize::new(None, Some(30_000 * ASSET_UNIT)),
+					professional: TicketSize::new(None, Some(2_000 * ASSET_UNIT)),
+					institutional: TicketSize::new(None, Some(5_000 * ASSET_UNIT)),
+					phantom: Default::default(),
+				},
+				phantom: Default::default(),
+			},
+			participation_currencies: AcceptedFundingAsset::USDT,
+			funding_destination_account: ISSUER,
+			offchain_information_hash: Some(hashed(METADATA)),
+		};
+
+		let project_id = inst.create_remainder_contributing_project(project_metadata.clone(), ISSUER, default_evaluations(), default_bids(), default_community_buys());
+
+		inst.mint_plmc_to(vec![
+			(BUYER_4, 500_000 * ASSET_UNIT).into(),
+			(BUYER_5, 500_000 * ASSET_UNIT).into(),
+			(BUYER_6, 500_000 * ASSET_UNIT).into(),
+			(BUYER_7, 500_000 * ASSET_UNIT).into(),
+			(BUYER_8, 500_000 * ASSET_UNIT).into(),
+			(BUYER_9, 500_000 * ASSET_UNIT).into(),
+		]);
+
+		inst.mint_foreign_asset_to(vec![
+			(BUYER_4, 500_000 * US_DOLLAR).into(),
+			(BUYER_5, 500_000 * US_DOLLAR).into(),
+			(BUYER_6, 500_000 * US_DOLLAR).into(),
+			(BUYER_7, 500_000 * US_DOLLAR).into(),
+			(BUYER_8, 500_000 * US_DOLLAR).into(),
+			(BUYER_9, 500_000 * US_DOLLAR).into(),
+		]);
+
+
+		// total contributions with same DID above 30k CT (300k USD) should fail for retail
+		inst.execute(|| {
+			assert_ok!(
+				Pallet::<TestRuntime>::do_remaining_contribute(
+					&BUYER_4,
+					project_id,
+					28_000 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					MockInstantiator::generate_did_from_account(BUYER_4),
+					InvestorType::Retail
+				)
+			);
+		});
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::do_remaining_contribute(
+					&BUYER_5,
+					project_id,
+					2001 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					// note we use the same did as bidder 1, on a different account
+					MockInstantiator::generate_did_from_account(BUYER_4),
+					InvestorType::Retail
+				),
+				Error::<TestRuntime>::ContributionTooHigh
+			);
+		});
+		// bidding 2k total works
+		inst.execute(|| {
+			assert_ok!(
+				Pallet::<TestRuntime>::do_remaining_contribute(
+					&BUYER_5,
+					project_id,
+					2000 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					// note we use the same did as bidder 1, on a different account
+					MockInstantiator::generate_did_from_account(BUYER_4),
+					InvestorType::Retail
+				)
+			);
+		});
+
+		// total contributions with same DID above 2k CT (20k USD) should fail for professionals
+		inst.execute(|| {
+			assert_ok!(
+				Pallet::<TestRuntime>::do_remaining_contribute(
+					&BUYER_6,
+					project_id,
+					1800 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					MockInstantiator::generate_did_from_account(BUYER_6),
+					InvestorType::Professional
+				)
+			);
+		});
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::do_remaining_contribute(
+					&BUYER_7,
+					project_id,
+					201 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					// note we use the same did as bidder 1, on a different account
+					MockInstantiator::generate_did_from_account(BUYER_6),
+					InvestorType::Professional
+				),
+				Error::<TestRuntime>::ContributionTooHigh
+			);
+		});
+		// bidding 2k total works
+		inst.execute(|| {
+			assert_ok!(
+				Pallet::<TestRuntime>::do_remaining_contribute(
+					&BUYER_7,
+					project_id,
+					200 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					// note we use the same did as bidder 1, on a different account
+					MockInstantiator::generate_did_from_account(BUYER_6),
+					InvestorType::Professional
+				)
+			);
+		});
+
+
+		// total contributions with same DID above 5k CT (50 USD) should fail for institutionals
+		inst.execute(|| {
+			assert_ok!(
+				Pallet::<TestRuntime>::do_remaining_contribute(
+					&BUYER_8,
+					project_id,
+					4690 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					MockInstantiator::generate_did_from_account(BUYER_8),
+					InvestorType::Institutional
+				)
+			);
+		});
+		inst.execute(|| {
+			assert_noop!(
+				Pallet::<TestRuntime>::do_remaining_contribute(
+					&BUYER_9,
+					project_id,
+					311 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					// note we use the same did as bidder 3, on a different account
+					MockInstantiator::generate_did_from_account(BUYER_8),
+					InvestorType::Institutional
+				),
+				Error::<TestRuntime>::ContributionTooHigh
+			);
+		});
+		// bidding 5k total works
+		inst.execute(|| {
+			assert_ok!(
+				Pallet::<TestRuntime>::do_remaining_contribute(
+					&BUYER_9,
+					project_id,
+					310 * ASSET_UNIT,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					// note we use the same did as bidder 3, on a different account
+					MockInstantiator::generate_did_from_account(BUYER_8),
+					InvestorType::Institutional
+				)
 			);
 		});
 	}
@@ -4755,7 +5267,7 @@ mod ct_migration {
 				),
 				Error::<TestRuntime>::NotAllowed
 			);
-			let did = MockInstantiator::generate_did_from_account(BUYER_1);
+			let did = MockInstantiator::generate_did_from_account(BUYER_4);
 			let investor_type = InvestorType::Institutional;
 			assert_err!(
 				crate::Pallet::<TestRuntime>::do_set_para_id_for_project(
