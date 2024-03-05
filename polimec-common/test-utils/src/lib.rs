@@ -16,6 +16,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use frame_support::BoundedVec;
 use jwt_compact::{alg::Ed25519, AlgorithmExt, Header};
 use polimec_common::credentials::{InvestorType, SampleClaims, UntrustedToken};
 
@@ -61,13 +62,14 @@ pub fn get_mock_jwt<AccountId: frame_support::Serialize>(
 	// We don't need any custom fields in the header, so we use the empty.
 	let header: Header = Header::empty();
 
-	// let mut did = Vec::new();
-	// for
+	// DID, from `String` to `BoundedVec`.
+	let did = BoundedVec::try_from("did:kilt:asd".as_bytes().to_vec()).unwrap();
 
 	// Create the custom part of the `Claims` struct.
 	let custom_claims: SampleClaims<AccountId> =
-		SampleClaims { subject: account_id, investor_type, issuer: "verifier".to_string(), did: Default::default() };
-	// Wrap the `SampleClaims` struct in the `Claims` struct.
+		SampleClaims { subject: account_id, investor_type, issuer: "verifier".to_string(), did };
+
+	// Wrap the SampleClaims` struct in the `Claims` struct.
 	let mut claims = Claims::new(custom_claims);
 	// Set the expiration date to 2030-01-01.
 	// We need to unwrap the `Utc::with_ymd_and_hms` because it returns a `LocalResult<DateTime<Utc>>` but we ned a `DateTime<Utc>.
@@ -98,4 +100,29 @@ pub fn get_fake_jwt<AccountId: core::fmt::Display>(
 	.expect("Failed to get the response body (jwt) from the specified endpoint");
 	let res = UntrustedToken::new(&jwt).expect("Failed to parse the JWT");
 	res
+}
+
+#[cfg(test)]
+mod tests {
+	use crate::get_mock_jwt;
+	use jwt_compact::{
+		alg::{Ed25519, VerifyingKey},
+		AlgorithmExt,
+	};
+	use polimec_common::credentials::{InvestorType, SampleClaims};
+
+	#[test]
+	fn test_get_test_jwt() {
+		let verifying_key = VerifyingKey::from_slice(
+			[
+				32, 118, 30, 171, 58, 212, 197, 27, 146, 122, 255, 243, 34, 245, 90, 244, 221, 37, 253, 195, 18, 202,
+				111, 55, 39, 48, 123, 17, 101, 78, 215, 94,
+			]
+			.as_ref(),
+		)
+		.unwrap();
+		let token = get_mock_jwt("0x1234", InvestorType::Institutional);
+		let res = Ed25519.validator::<SampleClaims<String>>(&verifying_key).validate(&token);
+		assert!(res.is_ok());
+	}
 }

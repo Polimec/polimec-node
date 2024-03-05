@@ -18,14 +18,14 @@ use frame_support::{pallet_prelude::*, parameter_types, traits::OriginTrait, Des
 use pallet_timestamp::Now;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::{prelude::string::String, TypeInfo};
-use serde::de::Error;
+use serde::{de::Error, ser::SerializeStruct, Serializer};
 use sp_runtime::{traits::BadOrigin, DeserializeOwned};
 
 pub use jwt_compact::{
 	alg::{Ed25519, VerifyingKey},
 	Claims as StandardClaims, *,
 };
-use serde::{Deserializer, Serializer};
+use serde::Deserializer;
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -51,7 +51,7 @@ parameter_types! {
 	pub const Institutional: InvestorType = InvestorType::Institutional;
 }
 
-#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, Deserialize, Serialize)]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, Deserialize)]
 pub struct SampleClaims<AccountId> {
 	#[serde(rename = "sub")]
 	pub subject: AccountId,
@@ -137,4 +137,32 @@ where
 		let x = 10;
 		res
 	})
+}
+
+impl<AccountId> Serialize for SampleClaims<AccountId>
+where
+	AccountId: Serialize, // Ensure AccountId can be serialized
+{
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: Serializer,
+	{
+		// Define how many fields we are serializing.
+		let mut state = serializer.serialize_struct("SampleClaims", 4)?;
+
+		// Serialize each field.
+		// Fields like `subject`, `issuer`, and `investor_type` can be serialized directly.
+		state.serialize_field("sub", &self.subject)?;
+		state.serialize_field("iss", &self.issuer)?;
+		state.serialize_field("investor_type", &self.investor_type)?;
+
+		// For the `did` field, you'd use your custom logic to convert it to a string or another format suitable for serialization.
+		// Assuming `did` is a `BoundedVec<u8, ConstU32<57>>` and you're encoding it as a UTF-8 string.
+		let did_bytes: scale_info::prelude::vec::Vec<u8> = self.did.clone().into(); // Convert BoundedVec to Vec<u8>
+		let did_string = String::from_utf8_lossy(&did_bytes); // Convert Vec<u8> to String
+		state.serialize_field("did", &did_string)?;
+
+		// End the serialization
+		state.end()
+	}
 }
