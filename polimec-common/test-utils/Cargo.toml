@@ -12,11 +12,24 @@ version = "0.1.0"
 rust-version = "1.69.0"
 
 [dependencies]
-jwt-compact = { workspace = true, features = ["ed25519-dalek"] }
-reqwest = { version = "0.11.4", features = ["blocking"] }
-polimec-common.workspace = true
-sp-std.workspace = true
+parity-scale-codec = { workspace = true, features = ["derive"] }
+jwt-compact = { workspace = true, features = [
+    "ed25519-dalek",
+], default-features = false }
+polimec-common = { workspace = true, default-features = false }
+reqwest = { version = "0.11.4", features = [
+    "blocking",
+], default-features = false, optional = true }
+frame-support.workspace = true
+chrono = { version = "0.4.19", default-features = false }
 
 [features]
 default = [ "std" ]
-std = ["jwt-compact/std", "polimec-common/std", "sp-std/std"]
+std = [
+	"chrono/std",
+	"frame-support/std",
+	"jwt-compact/std",
+	"parity-scale-codec/std",
+	"polimec-common/std",
+	"reqwest",
+]
