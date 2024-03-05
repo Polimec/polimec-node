@@ -967,8 +967,6 @@ pub mod pallet {
 		ContributionTooLow,
 		/// Contribution is higher than the limit set by the issuer
 		ContributionTooHigh,
-		/// Tried to delete a project from the update store but it is not there to begin with.
-		ProjectNotInUpdateStore,
 		/// The provided asset is not accepted by the project issuer
 		FundingAssetNotAccepted,
 		/// Could not get the price in USD for PLMC
@@ -1006,6 +1004,8 @@ pub mod pallet {
 		TooManyContributionsForUser,
 		// Participant tried to do a community contribution but it already had a winning bid on the auction round.
 		UserHasWinningBids,
+		// Round transition already happened.
+		RoundTransitionAlreadyHappened,
 	}
 
 	#[pallet::call]
@@ -1110,8 +1110,6 @@ pub mod pallet {
 			<T as Config>::MaxContributionsPerUser::get() -1,
 			// Since we didn't remove any previous lower contribution, we can buy all remaining CTs and try to move to the next phase
 			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-			// Assumed upper bound for deletion attempts for the previous scheduled transition
-			10_000u32,
 			))
 		)]
 		pub fn community_contribute(
@@ -1135,9 +1133,7 @@ pub mod pallet {
 			// Last contribution possible before having to remove an old lower one
 			<T as Config>::MaxContributionsPerUser::get() -1,
 			// Since we didn't remove any previous lower contribution, we can buy all remaining CTs and try to move to the next phase
-			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-			// Assumed upper bound for deletion attempts for the previous scheduled transition
-			10_000u32,
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1
 			))
 		)]
 		pub fn remaining_contribute(
@@ -1271,8 +1267,7 @@ pub mod pallet {
 
 		#[pallet::call_index(17)]
 		#[pallet::weight(WeightInfoOf::<T>::decide_project_outcome(
-			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-			10_000u32
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1
 		))]
 		pub fn decide_project_outcome(
 			origin: OriginFor<T>,

@@ -305,7 +305,6 @@ where
 pub fn fill_projects_to_update<T: Config>(
 	fully_filled_vecs_from_insertion: u32,
 	mut expected_insertion_block: BlockNumberFor<T>,
-	maybe_total_vecs_in_storage: Option<u32>,
 ) {
 	// fill the `ProjectsToUpdate` vectors from @ expected_insertion_block to @ expected_insertion_block+x, to benchmark all the failed insertion attempts
 	for _ in 0..fully_filled_vecs_from_insertion {
@@ -313,29 +312,6 @@ pub fn fill_projects_to_update<T: Config>(
 			continue;
 		}
 		expected_insertion_block += 1u32.into();
-	}
-
-	// sometimes we don't expect to remove anything from storage
-	if let Some(total_vecs_in_storage) = maybe_total_vecs_in_storage {
-		// fill `ProjectsToUpdate` with `y` different BlockNumber->Vec items to benchmark deletion of our project from the map
-		// We keep in mind that we already filled `x` amount of vecs to max capacity
-		let remaining_vecs = total_vecs_in_storage.saturating_sub(fully_filled_vecs_from_insertion);
-		if remaining_vecs > 0 {
-			let items_per_vec = T::MaxProjectsToUpdatePerBlock::get();
-			let mut block_number: BlockNumberFor<T> = Zero::zero();
-			for _ in 0..remaining_vecs {
-				// To iterate over all expected items when looking to remove, we need to insert everything _before_ our already stored project's block_number
-				let mut vec: Vec<(ProjectId, UpdateType)> = ProjectsToUpdate::<T>::get(block_number).to_vec();
-				let items_to_fill = items_per_vec - vec.len() as u32;
-				for _ in 0..items_to_fill {
-					vec.push((69u32, UpdateType::EvaluationEnd));
-				}
-				let bounded_vec: BoundedVec<(ProjectId, UpdateType), T::MaxProjectsToUpdatePerBlock> =
-					vec.try_into().unwrap();
-				ProjectsToUpdate::<T>::insert(block_number, bounded_vec);
-				block_number += 1u32.into();
-			}
-		}
 	}
 }
 
@@ -500,16 +476,12 @@ mod benchmarks {
 	fn start_auction_manually(
 		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the extrinsic pass
 		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
-		// Total amount of storage items iterated through in `ProjectsToUpdate` when trying to remove our project in `remove_from_update_store`.
-		// Upper bound is assumed to be enough
-		y: Linear<1, 10_000>,
 	) {
 		// * setup *
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// We need to leave enough block numbers to fill `ProjectsToUpdate` before our project insertion
-		let u32_remaining_vecs: u32 = y.saturating_sub(x).into();
-		let time_advance: u32 = 1 + u32_remaining_vecs + 1;
+		let time_advance: u32 = x + 2;
 		frame_system::Pallet::<T>::set_block_number(time_advance.into());
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
@@ -539,7 +511,7 @@ mod benchmarks {
 		// `do_english_auction` fn will try to add an automatic transition 1 block after the last english round block
 		let insertion_block_number: BlockNumberFor<T> = current_block + T::EnglishAuctionDuration::get() + One::one();
 
-		fill_projects_to_update::<T>(x, insertion_block_number, Some(y));
+		fill_projects_to_update::<T>(x, insertion_block_number);
 
 		let jwt = get_test_jwt(issuer.clone(), InvestorType::Institutional);
 		#[extrinsic_call]
@@ -1125,7 +1097,7 @@ mod benchmarks {
 
 	fn contribution_setup<T>(
 		x: u32,
-		ends_round: Option<(u32, u32)>,
+		ends_round: Option<u32>,
 	) -> (
 		BenchInstantiator<T>,
 		ProjectId,
@@ -1149,9 +1121,8 @@ mod benchmarks {
 
 		// We need to leave enough block numbers to fill `ProjectsToUpdate` before our project insertion
 		let mut time_advance: u32 = 1;
-		if let Some((y, z)) = ends_round {
-			let u32_remaining_vecs: u32 = z.saturating_sub(y).into();
-			time_advance += u32_remaining_vecs + 1;
+		if let Some(y) = ends_round {
+			time_advance += y + 1;
 		}
 		frame_system::Pallet::<T>::set_block_number(time_advance.into());
 
@@ -1240,13 +1211,12 @@ mod benchmarks {
 			total_free_usdt += usdt_returned;
 		}
 
-		if let Some((fully_filled_vecs_from_insertion, total_vecs_in_storage)) = ends_round {
+		if let Some(fully_filled_vecs_from_insertion) = ends_round {
 			// if all CTs are sold, next round is scheduled for next block (either remainder or success)
 			let expected_insertion_block = inst.current_block() + One::one();
 			fill_projects_to_update::<T>(
 				fully_filled_vecs_from_insertion,
 				expected_insertion_block,
-				Some(total_vecs_in_storage),
 			);
 		}
 
@@ -1381,11 +1351,8 @@ mod benchmarks {
 		x: Linear<0, { T::MaxContributionsPerUser::get() - 1 }>,
 		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the extrinsic pass
 		y: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
-		// Total amount of storage items iterated through in `ProjectsToUpdate` when trying to remove our project in `remove_from_update_store`.
-		// Upper bound is assumed to be enough
-		z: Linear<1, 10_000>,
 	) {
-		let ends_round = Some((y, z));
+		let ends_round = Some(y);
 
 		let (
 			inst,
@@ -2260,16 +2227,13 @@ mod benchmarks {
 	fn decide_project_outcome(
 		// Insertion attempts in add_to_update_store. Total amount of storage items iterated through in `ProjectsToUpdate`. Leave one free to make the extrinsic pass
 		x: Linear<1, { <T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1 }>,
-		// Total amount of storage items iterated through in `ProjectsToUpdate` when trying to remove our project in `remove_from_update_store`.
-		// Upper bound is assumed to be enough
-		y: Linear<1, 10_000>,
 	) {
 		// setup
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// We need to leave enough block numbers to fill `ProjectsToUpdate` before our project insertion
-		let u32_remaining_vecs: u32 = y.saturating_sub(x).into();
-		let time_advance: u32 = 1 + u32_remaining_vecs + 1;
+		
+		let time_advance: u32 = x + 2;
 		frame_system::Pallet::<T>::set_block_number(time_advance.into());
 
 		let issuer = account::<AccountIdOf<T>>("issuer", 0, 0);
@@ -2305,7 +2269,7 @@ mod benchmarks {
 		let current_block = inst.current_block();
 		let insertion_block_number: BlockNumberFor<T> = current_block + One::one();
 
-		fill_projects_to_update::<T>(x, insertion_block_number, Some(y));
+		fill_projects_to_update::<T>(x, insertion_block_number);
 
 		#[extrinsic_call]
 		decide_project_outcome(RawOrigin::Signed(issuer), project_id, FundingOutcomeDecision::AcceptFunding);
@@ -2666,7 +2630,7 @@ mod benchmarks {
 
 		let insertion_block_number =
 			inst.current_block() + One::one() + <T as Config>::AuctionInitializePeriodDuration::get();
-		fill_projects_to_update::<T>(x, insertion_block_number, None);
+		fill_projects_to_update::<T>(x, insertion_block_number);
 
 		// Instead of advancing in time for the automatic `do_evaluation_end` call in on_initialize, we call it directly to benchmark it
 		#[block]
@@ -2778,7 +2742,7 @@ mod benchmarks {
 			automatic_transition_block + T::EnglishAuctionDuration::get() + One::one();
 		let block_number = insertion_block_number;
 
-		fill_projects_to_update::<T>(x, block_number, None);
+		fill_projects_to_update::<T>(x, block_number);
 
 		// we don't use advance time to avoid triggering on_initialize. This benchmark should only measure the extrinsic
 		// weight and not the whole on_initialize call weight
@@ -2826,7 +2790,7 @@ mod benchmarks {
 
 		let insertion_block_number = inst.current_block() + T::CandleAuctionDuration::get() + One::one();
 
-		fill_projects_to_update::<T>(x, insertion_block_number, None);
+		fill_projects_to_update::<T>(x, insertion_block_number);
 
 		#[block]
 		{
@@ -2962,7 +2926,7 @@ mod benchmarks {
 		let community_end_block = now + T::CommunityFundingDuration::get();
 
 		let insertion_block_number = community_end_block + One::one();
-		fill_projects_to_update::<T>(x, insertion_block_number, None);
+		fill_projects_to_update::<T>(x, insertion_block_number);
 
 		#[block]
 		{
@@ -3015,7 +2979,7 @@ mod benchmarks {
 		let community_end_block = now + T::CommunityFundingDuration::get();
 
 		let insertion_block_number = community_end_block + One::one();
-		fill_projects_to_update::<T>(x, insertion_block_number, None);
+		fill_projects_to_update::<T>(x, insertion_block_number);
 
 		#[block]
 		{
@@ -3064,7 +3028,7 @@ mod benchmarks {
 		let remainder_end_block = now + T::RemainderFundingDuration::get();
 		let insertion_block_number = remainder_end_block + 1u32.into();
 
-		fill_projects_to_update::<T>(x, insertion_block_number, None);
+		fill_projects_to_update::<T>(x, insertion_block_number);
 
 		#[block]
 		{
@@ -3128,7 +3092,7 @@ mod benchmarks {
 		frame_system::Pallet::<T>::set_block_number(last_funding_block + 1u32.into());
 
 		let insertion_block_number = inst.current_block() + 1u32.into();
-		fill_projects_to_update::<T>(x, insertion_block_number, None);
+		fill_projects_to_update::<T>(x, insertion_block_number);
 
 		#[block]
 		{
@@ -3186,7 +3150,7 @@ mod benchmarks {
 		frame_system::Pallet::<T>::set_block_number(last_funding_block + 1u32.into());
 
 		let insertion_block_number = inst.current_block() + T::ManualAcceptanceDuration::get().into() + 1u32.into();
-		fill_projects_to_update::<T>(x, insertion_block_number, None);
+		fill_projects_to_update::<T>(x, insertion_block_number);
 
 		#[block]
 		{
@@ -3245,7 +3209,7 @@ mod benchmarks {
 		frame_system::Pallet::<T>::set_block_number(last_funding_block + 1u32.into());
 
 		let insertion_block_number = inst.current_block() + T::ManualAcceptanceDuration::get().into() + 1u32.into();
-		fill_projects_to_update::<T>(x, insertion_block_number, None);
+		fill_projects_to_update::<T>(x, insertion_block_number);
 
 		#[block]
 		{
@@ -3326,7 +3290,7 @@ mod benchmarks {
 		frame_system::Pallet::<T>::set_block_number(last_funding_block + 1u32.into());
 
 		let insertion_block_number = inst.current_block() + T::SuccessToSettlementTime::get().into();
-		fill_projects_to_update::<T>(x, insertion_block_number, None);
+		fill_projects_to_update::<T>(x, insertion_block_number);
 
 		#[block]
 		{
