@@ -61,7 +61,8 @@ pub fn get_mock_jwt<AccountId: frame_support::Serialize>(
 	// We don't need any custom fields in the header, so we use the empty.
 	let header: Header = Header::empty();
 
-	
+	// let mut did = Vec::new();
+	// for
 
 	// Create the custom part of the `Claims` struct.
 	let custom_claims: SampleClaims<AccountId> =

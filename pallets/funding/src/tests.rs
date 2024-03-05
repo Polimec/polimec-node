@@ -36,7 +36,7 @@ use frame_support::{
 };
 use itertools::Itertools;
 use parachains_common::DAYS;
-use polimec_common::{ReleaseSchedule, credentials::*};
+use polimec_common::{credentials::*, ReleaseSchedule};
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::{BuildStorage, TokenError};
 use sp_std::{cell::RefCell, marker::PhantomData};
@@ -105,12 +105,15 @@ pub mod defaults {
 				bidding: BiddingTicketSizes {
 					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
 					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+					phantom: Default::default(),
 				},
 				contributing: ContributingTicketSizes {
 					retail: TicketSize::new(None, None),
 					professional: TicketSize::new(None, None),
 					institutional: TicketSize::new(None, None),
+					phantom: Default::default(),
 				},
+				phantom: Default::default(),
 			},
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 			funding_thresholds: Thresholds { retail: 0, professional: 0, institutional: 0 },
@@ -138,12 +141,15 @@ pub mod defaults {
 				bidding: BiddingTicketSizes {
 					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
 					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+					phantom: Default::default(),
 				},
 				contributing: ContributingTicketSizes {
 					retail: TicketSize::new(None, None),
 					professional: TicketSize::new(None, None),
 					institutional: TicketSize::new(None, None),
+					phantom: Default::default(),
 				},
+				phantom: Default::default(),
 			},
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 			funding_thresholds: Default::default(),
@@ -289,8 +295,8 @@ pub mod defaults {
 
 // only functionalities that happen in the CREATION period of a project
 mod creation {
-	use polimec_common::credentials::InvestorType;
 	use super::*;
+	use polimec_common::credentials::InvestorType;
 
 	#[test]
 	fn basic_plmc_transfer_works() {
@@ -353,12 +359,15 @@ mod creation {
 				bidding: BiddingTicketSizes {
 					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
 					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+					phantom: Default::default(),
 				},
 				contributing: ContributingTicketSizes {
 					retail: TicketSize::new(None, None),
 					professional: TicketSize::new(None, None),
 					institutional: TicketSize::new(None, None),
+					phantom: Default::default(),
 				},
+				phantom: Default::default(),
 			},
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 			funding_thresholds: Thresholds { retail: 0, professional: 0, institutional: 0 },
@@ -371,7 +380,8 @@ mod creation {
 		inst.mint_plmc_to(default_plmc_balances());
 		let did = MockInstantiator::generate_did_from_account(ISSUER);
 		let investor_type = InvestorType::Institutional;
-		let project_err = inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project, did, investor_type).unwrap_err());
+		let project_err =
+			inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project, did, investor_type).unwrap_err());
 		assert_eq!(project_err, Error::<TestRuntime>::PriceTooLow.into());
 	}
 
@@ -387,12 +397,15 @@ mod creation {
 				bidding: BiddingTicketSizes {
 					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
 					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+					phantom: Default::default(),
 				},
 				contributing: ContributingTicketSizes {
 					retail: TicketSize::new(None, None),
 					professional: TicketSize::new(None, None),
 					institutional: TicketSize::new(None, None),
+					phantom: Default::default(),
 				},
+				phantom: Default::default(),
 			},
 			participants_size: ParticipantsSize { minimum: None, maximum: None },
 			funding_thresholds: Thresholds { retail: 0, professional: 0, institutional: 0 },
@@ -405,7 +418,8 @@ mod creation {
 		inst.mint_plmc_to(default_plmc_balances());
 		let did = MockInstantiator::generate_did_from_account(ISSUER);
 		let investor_type = InvestorType::Institutional;
-		let project_err = inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project, did, investor_type).unwrap_err());
+		let project_err =
+			inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project, did, investor_type).unwrap_err());
 		assert_eq!(project_err, Error::<TestRuntime>::ParticipantsSizeError.into());
 	}
 
@@ -422,12 +436,15 @@ mod creation {
 				bidding: BiddingTicketSizes {
 					professional: TicketSize::new(Some(1000 * US_DOLLAR), None),
 					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+					phantom: Default::default(),
 				},
 				contributing: ContributingTicketSizes {
 					retail: TicketSize::new(None, None),
 					professional: TicketSize::new(None, None),
 					institutional: TicketSize::new(None, None),
+					phantom: Default::default(),
 				},
+				phantom: Default::default(),
 			},
 			participants_size: ParticipantsSize { minimum: Some(1), maximum: None },
 			funding_thresholds: Thresholds { retail: 0, professional: 0, institutional: 0 },
@@ -439,7 +456,9 @@ mod creation {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		inst.mint_plmc_to(default_plmc_balances());
 		let did = MockInstantiator::generate_did_from_account(ISSUER);
-		let investor_type = InvestorType::Institutional;		let project_err = inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project, did, investor_type).unwrap_err());
+		let investor_type = InvestorType::Institutional;
+		let project_err =
+			inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project, did, investor_type).unwrap_err());
 		assert_eq!(project_err, Error::<TestRuntime>::TicketSizeError.into());
 	}
 
@@ -452,7 +471,8 @@ mod creation {
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(ISSUER, ed)]);
 		let did = MockInstantiator::generate_did_from_account(ISSUER);
 		let investor_type = InvestorType::Institutional;
-		let project_err = inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, project_metadata, did, investor_type).unwrap_err());
+		let project_err = inst
+			.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, project_metadata, did, investor_type).unwrap_err());
 		assert_eq!(project_err, Error::<TestRuntime>::NotEnoughFundsForEscrowCreation.into());
 	}
 
@@ -839,12 +859,15 @@ mod auction {
 				bidding: BiddingTicketSizes {
 					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
 					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+					phantom: Default::default(),
 				},
 				contributing: ContributingTicketSizes {
 					retail: TicketSize::new(None, None),
 					professional: TicketSize::new(None, None),
 					institutional: TicketSize::new(None, None),
+					phantom: Default::default(),
 				},
+				phantom: Default::default(),
 			},
 			participants_size: ParticipantsSize { minimum: Some(2), maximum: None },
 			funding_thresholds: Default::default(),
@@ -1047,7 +1070,8 @@ mod auction {
 		inst.advance_time(1).unwrap();
 		let did = MockInstantiator::generate_did_from_account(ISSUER);
 		let investor_type = InvestorType::Institutional;
-		inst.execute(|| Pallet::<TestRuntime>::do_english_auction(ISSUER, project_id, Some(did), Some(investor_type))).unwrap();
+		inst.execute(|| Pallet::<TestRuntime>::do_english_auction(ISSUER, project_id, Some(did), Some(investor_type)))
+			.unwrap();
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionRound(AuctionPhase::English));
 	}
 
@@ -1071,7 +1095,8 @@ mod auction {
 			inst.execute(|| {
 				let did = MockInstantiator::generate_did_from_account(ISSUER);
 				let investor_type = InvestorType::Institutional;
-				let response = Pallet::<TestRuntime>::do_english_auction(account, project_id, Some(did), Some(investor_type));
+				let response =
+					Pallet::<TestRuntime>::do_english_auction(account, project_id, Some(did), Some(investor_type));
 				assert_noop!(response, Error::<TestRuntime>::NotAllowed);
 			});
 		}
@@ -1310,7 +1335,15 @@ mod auction {
 		let investor_type = InvestorType::Institutional;
 		inst.execute(|| {
 			assert_noop!(
-				PolimecFunding::do_bid(&BIDDER_2, 0, 1, 1u8.try_into().unwrap(), AcceptedFundingAsset::USDT, did, investor_type),
+				PolimecFunding::do_bid(
+					&BIDDER_2,
+					0,
+					1,
+					1u8.try_into().unwrap(),
+					AcceptedFundingAsset::USDT,
+					did,
+					investor_type
+				),
 				Error::<TestRuntime>::AuctionNotStarted
 			);
 		});
@@ -1404,7 +1437,7 @@ mod auction {
 				bids[0].multiplier,
 				bids[0].asset,
 				did,
-				investor_type
+				investor_type,
 			)
 		});
 		frame_support::assert_err!(outcome, Error::<TestRuntime>::FundingAssetNotAccepted);
@@ -4477,13 +4510,25 @@ mod ct_migration {
 			let did = MockInstantiator::generate_did_from_account(BIDDER_1);
 			let investor_type = InvestorType::Institutional;
 			assert_err!(
-				crate::Pallet::<TestRuntime>::do_set_para_id_for_project(&BIDDER_1, project_id, ParaId::from(2006u32), did, investor_type),
+				crate::Pallet::<TestRuntime>::do_set_para_id_for_project(
+					&BIDDER_1,
+					project_id,
+					ParaId::from(2006u32),
+					did,
+					investor_type
+				),
 				Error::<TestRuntime>::NotAllowed
 			);
 			let did = MockInstantiator::generate_did_from_account(BUYER_1);
 			let investor_type = InvestorType::Institutional;
 			assert_err!(
-				crate::Pallet::<TestRuntime>::do_set_para_id_for_project(&BUYER_1, project_id, ParaId::from(2006u32), did, investor_type),
+				crate::Pallet::<TestRuntime>::do_set_para_id_for_project(
+					&BUYER_1,
+					project_id,
+					ParaId::from(2006u32),
+					did,
+					investor_type
+				),
 				Error::<TestRuntime>::NotAllowed
 			);
 		});
@@ -5032,6 +5077,5 @@ mod sandbox {
 	use super::*;
 
 	#[test]
-	fn sandbox() {
-	}
+	fn sandbox() {}
 }

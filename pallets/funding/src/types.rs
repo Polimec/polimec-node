@@ -172,8 +172,8 @@ pub mod storage_types {
 		Price: FixedPointNumber,
 		AccountId,
 		Hash,
-		ParticipantsSize: ValidityCheck,
-		RoundTicketSizes: ValidityCheck,
+		ParticipantsSize,
+		RoundTicketSizes: TicketSizeValidityCheck<Price>,
 	> {
 		/// Token Metadata
 		pub token_information: CurrencyMetadata<BoundedString>,
@@ -200,8 +200,8 @@ pub mod storage_types {
 		pub offchain_information_hash: Option<Hash>,
 	}
 
-	pub trait ValidityCheck {
-		fn is_valid(&self) -> Result<(), ValidityError>;
+	pub trait TicketSizeValidityCheck<Price: FixedPointNumber> {
+		fn is_valid(&self, min_price: Price) -> Result<(), ValidityError>;
 	}
 
 	impl<
@@ -210,18 +210,16 @@ pub mod storage_types {
 			Price: FixedPointNumber,
 			Hash,
 			AccountId,
-			ParticipantsSize: ValidityCheck,
-			RoundTicketSizes: ValidityCheck,
-		> ValidityCheck
-		for ProjectMetadata<BoundedString, Balance, Price, Hash, AccountId, ParticipantsSize, RoundTicketSizes>
+			ParticipantsSize,
+			RoundTicketSizes: TicketSizeValidityCheck<Price>,
+		> ProjectMetadata<BoundedString, Balance, Price, Hash, AccountId, ParticipantsSize, RoundTicketSizes>
 	{
-		// TODO: PLMC-162. Perform a REAL validity check
-		fn is_valid(&self) -> Result<(), ValidityError> {
+		// TODO: Do all checks
+		pub fn is_valid(&self) -> Result<(), ValidityError> {
 			if self.minimum_price == Price::zero() {
 				return Err(ValidityError::PriceTooLow);
 			}
-			self.round_ticket_sizes.is_valid()?;
-			self.participants_size.is_valid()?;
+			self.round_ticket_sizes.is_valid(self.minimum_price)?;
 			Ok(())
 		}
 	}
@@ -486,45 +484,54 @@ pub mod inner_types {
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 	pub struct TicketSize<Balance: BalanceT + Copy, BoundCheckImpl: BoundCheck<Balance>> {
-		minimum_per_participation: Option<Balance>,
-		maximum_per_did: Option<Balance>,
+		ct_minimum_per_participation: Option<Balance>,
+		ct_maximum_per_did: Option<Balance>,
 		phantom: PhantomData<BoundCheckImpl>,
 	}
 
 	impl<Balance: BalanceT + Copy, BoundCheckImpl: BoundCheck<Balance>> TicketSize<Balance, BoundCheckImpl> {
 		pub fn new(minimum_per_participation: Option<Balance>, maximum_per_account: Option<Balance>) -> Self {
-			Self { minimum_per_participation, maximum_per_did: maximum_per_account, phantom: Default::default() }
+			Self {
+				ct_minimum_per_participation: minimum_per_participation,
+				ct_maximum_per_did: maximum_per_account,
+				phantom: Default::default(),
+			}
 		}
 	}
 
-	impl<Balance: BalanceT + Copy, BoundCheckImpl: BoundCheck<Balance>> ValidityCheck
-		for TicketSize<Balance, BoundCheckImpl>
+	impl<
+			Price: FixedPointNumber,
+			Balance: BalanceT + Copy + FixedPointOperand,
+			USDBoundCheckImpl: BoundCheck<Balance>,
+		> TicketSizeValidityCheck<Price> for TicketSize<Balance, USDBoundCheckImpl>
 	{
-		fn is_valid(&self) -> Result<(), ValidityError> {
+		fn is_valid(&self, ct_min_price: Price) -> Result<(), ValidityError> {
 			// Retrieve bounds
-			let lower_bound = BoundCheckImpl::lower_bound();
-			let upper_bound = BoundCheckImpl::upper_bound();
+			let usd_lower_bound = USDBoundCheckImpl::lower_bound();
+			let usd_upper_bound = USDBoundCheckImpl::upper_bound();
 
 			// If lower bound is specified, ensure minimum_per_participation is also specified and above or equal to it
-			if let Some(lb) = lower_bound {
-				match self.minimum_per_participation {
-					Some(min) if min < lb => return Err(ValidityError::TicketSizeError),
+			if let Some(lb) = usd_lower_bound {
+				match self.ct_minimum_per_participation {
+					Some(min) if ct_min_price.saturating_mul_int(min) < lb =>
+						return Err(ValidityError::TicketSizeError),
 					None => return Err(ValidityError::TicketSizeError), // Minimum is not set while a lower bound is specified
 					_ => (),                                            // Valid case
 				}
 			}
 
 			// If upper bound is specified, ensure maximum_per_account is also specified and below or equal to it
-			if let Some(ub) = upper_bound {
-				match self.maximum_per_did {
-					Some(max) if max > ub => return Err(ValidityError::TicketSizeError),
+			if let Some(ub) = usd_upper_bound {
+				match self.ct_maximum_per_did {
+					Some(max) if ct_min_price.saturating_mul_int(max) > ub =>
+						return Err(ValidityError::TicketSizeError),
 					None => return Err(ValidityError::TicketSizeError), // Maximum is not set while an upper bound is specified
 					_ => (),                                            // Valid case
 				}
 			}
 
 			// Ensure minimum is less than or equal to maximum if both are specified
-			if let (Some(min), Some(max)) = (self.minimum_per_participation, self.maximum_per_did) {
+			if let (Some(min), Some(max)) = (self.ct_minimum_per_participation, self.ct_maximum_per_did) {
 				if min > max {
 					return Err(ValidityError::TicketSizeError); // Minimum is greater than maximum
 				}
@@ -536,15 +543,23 @@ pub mod inner_types {
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-	pub struct BiddingTicketSizes<ProfessionalTicketSize: ValidityCheck, InstitutionalTicketSize: ValidityCheck> {
+	pub struct BiddingTicketSizes<
+		Price: FixedPointNumber,
+		ProfessionalTicketSize: TicketSizeValidityCheck<Price>,
+		InstitutionalTicketSize: TicketSizeValidityCheck<Price>,
+	> {
 		pub professional: ProfessionalTicketSize,
 		pub institutional: InstitutionalTicketSize,
+		pub phantom: PhantomData<Price>,
 	}
-	impl<ProfessionalTicketSize: ValidityCheck, InstitutionalTicketSize: ValidityCheck> ValidityCheck
-		for BiddingTicketSizes<ProfessionalTicketSize, InstitutionalTicketSize>
+	impl<
+			Price: FixedPointNumber,
+			ProfessionalTicketSize: TicketSizeValidityCheck<Price>,
+			InstitutionalTicketSize: TicketSizeValidityCheck<Price>,
+		> TicketSizeValidityCheck<Price> for BiddingTicketSizes<Price, ProfessionalTicketSize, InstitutionalTicketSize>
 	{
-		fn is_valid(&self) -> Result<(), ValidityError> {
-			if self.professional.is_valid().is_ok() && self.institutional.is_valid().is_ok() {
+		fn is_valid(&self, ct_min_price: Price) -> Result<(), ValidityError> {
+			if self.professional.is_valid(ct_min_price).is_ok() && self.institutional.is_valid(ct_min_price).is_ok() {
 				Ok(())
 			} else {
 				Err(ValidityError::TicketSizeError)
@@ -555,24 +570,28 @@ pub mod inner_types {
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 	pub struct ContributingTicketSizes<
-		RetailTicketSize: ValidityCheck,
-		ProfessionalTicketSize: ValidityCheck,
-		InstitutionalTicketSize: ValidityCheck,
+		Price: FixedPointNumber,
+		RetailTicketSize: TicketSizeValidityCheck<Price>,
+		ProfessionalTicketSize: TicketSizeValidityCheck<Price>,
+		InstitutionalTicketSize: TicketSizeValidityCheck<Price>,
 	> {
 		pub retail: RetailTicketSize,
 		pub professional: ProfessionalTicketSize,
 		pub institutional: InstitutionalTicketSize,
+		pub phantom: PhantomData<Price>,
 	}
 	impl<
-			RetailTicketSize: ValidityCheck,
-			ProfessionalTicketSize: ValidityCheck,
-			InstitutionalTicketSize: ValidityCheck,
-		> ValidityCheck for ContributingTicketSizes<RetailTicketSize, ProfessionalTicketSize, InstitutionalTicketSize>
+			Price: FixedPointNumber,
+			RetailTicketSize: TicketSizeValidityCheck<Price>,
+			ProfessionalTicketSize: TicketSizeValidityCheck<Price>,
+			InstitutionalTicketSize: TicketSizeValidityCheck<Price>,
+		> TicketSizeValidityCheck<Price>
+		for ContributingTicketSizes<Price, RetailTicketSize, ProfessionalTicketSize, InstitutionalTicketSize>
 	{
-		fn is_valid(&self) -> Result<(), ValidityError> {
-			if self.retail.is_valid().is_ok() &&
-				self.professional.is_valid().is_ok() &&
-				self.institutional.is_valid().is_ok()
+		fn is_valid(&self, ct_min_price: Price) -> Result<(), ValidityError> {
+			if self.retail.is_valid(ct_min_price).is_ok() &&
+				self.professional.is_valid(ct_min_price).is_ok() &&
+				self.institutional.is_valid(ct_min_price).is_ok()
 			{
 				Ok(())
 			} else {
@@ -583,17 +602,25 @@ pub mod inner_types {
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-	pub struct RoundTicketSizes<BiddingTicketSizes: ValidityCheck, ContributingTicketSizes: ValidityCheck> {
-		// i.e auction round
+	pub struct RoundTicketSizes<
+		Price: FixedPointNumber,
+		BiddingTicketSizes: TicketSizeValidityCheck<Price>,
+		ContributingTicketSizes: TicketSizeValidityCheck<Price>,
+	> {
+		// i.e. auction round
 		pub bidding: BiddingTicketSizes,
-		// i,e community and remainder round
+		// i.e. community and remainder round
 		pub contributing: ContributingTicketSizes,
+		pub phantom: PhantomData<Price>,
 	}
-	impl<BiddingTicketSizes: ValidityCheck, ContributingTicketSizes: ValidityCheck> ValidityCheck
-		for RoundTicketSizes<BiddingTicketSizes, ContributingTicketSizes>
+	impl<
+			Price: FixedPointNumber,
+			BiddingTicketSizes: TicketSizeValidityCheck<Price>,
+			ContributingTicketSizes: TicketSizeValidityCheck<Price>,
+		> TicketSizeValidityCheck<Price> for RoundTicketSizes<Price, BiddingTicketSizes, ContributingTicketSizes>
 	{
-		fn is_valid(&self) -> Result<(), ValidityError> {
-			if self.bidding.is_valid().is_ok() && self.contributing.is_valid().is_ok() {
+		fn is_valid(&self, ct_min_price: Price) -> Result<(), ValidityError> {
+			if self.bidding.is_valid(ct_min_price).is_ok() && self.contributing.is_valid(ct_min_price).is_ok() {
 				Ok(())
 			} else {
 				Err(ValidityError::TicketSizeError)
@@ -606,7 +633,7 @@ pub mod inner_types {
 		pub minimum: Option<u32>,
 		pub maximum: Option<u32>,
 	}
-	impl ValidityCheck for ParticipantsSize {
+	impl ParticipantsSize {
 		fn is_valid(&self) -> Result<(), ValidityError> {
 			match (self.minimum, self.maximum) {
 				(Some(min), Some(max)) =>

@@ -17,7 +17,10 @@
 use crate::PolimecRuntime;
 use frame_support::BoundedVec;
 pub use pallet_funding::instantiator::{BidParams, ContributionParams, UserToPLMCBalance, UserToUSDBalance};
-use pallet_funding::{AcceptedFundingAsset, BiddingTicketSizes, ContributingTicketSizes, CurrencyMetadata, ParticipantsSize, ProjectMetadata, ProjectMetadataOf, RoundTicketSizes, TicketSize};
+use pallet_funding::{
+	AcceptedFundingAsset, BiddingTicketSizes, ContributingTicketSizes, CurrencyMetadata, ParticipantsSize,
+	ProjectMetadata, ProjectMetadataOf, RoundTicketSizes, TicketSize,
+};
 use sp_arithmetic::Percent;
 use sp_core::H256;
 

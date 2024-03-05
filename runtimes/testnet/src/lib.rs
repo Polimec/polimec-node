@@ -658,6 +658,7 @@ impl pallet_funding::Config for Runtime {
 	type EvaluatorSlash = EvaluatorSlash;
 	type FeeBrackets = FeeBrackets;
 	type FundingCurrency = ForeignAssets;
+	type InvestorOrigin = EnsureInvestor<Runtime>;
 	type ManualAcceptanceDuration = ManualAcceptanceDuration;
 	type MaxBidsPerProject = ConstU32<1024>;
 	type MaxBidsPerUser = ConstU32<32>;
@@ -691,8 +692,6 @@ impl pallet_funding::Config for Runtime {
 	type VerifierPublicKey = VerifierPublicKey;
 	type Vesting = LinearRelease;
 	type WeightInfo = pallet_funding::weights::SubstrateWeight<Runtime>;
-	type InvestorOrigin = EnsureInvestor<Runtime>;
-
 }
 
 parameter_types! {

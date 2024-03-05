@@ -233,11 +233,14 @@ pub type ProjectMetadataOf<T> = ProjectMetadata<
 	HashOf<T>,
 	ParticipantsSize,
 	RoundTicketSizes<
+		PriceOf<T>,
 		BiddingTicketSizes<
+			PriceOf<T>,
 			TicketSize<BalanceOf<T>, LowerBound<BalanceOf<T>, StorageConstU64<{ (5_000 * US_DOLLAR) as u64 }>>>,
 			TicketSize<BalanceOf<T>, LowerBound<BalanceOf<T>, StorageConstU64<{ (5_000 * US_DOLLAR) as u64 }>>>,
 		>,
 		ContributingTicketSizes<
+			PriceOf<T>,
 			TicketSize<BalanceOf<T>, NoBounds>,
 			TicketSize<BalanceOf<T>, NoBounds>,
 			TicketSize<BalanceOf<T>, NoBounds>,
@@ -507,21 +510,17 @@ pub mod pallet {
 	}
 
 	#[pallet::storage]
-	#[pallet::getter(fn next_project_id)]
 	/// A global counter for indexing the projects
 	/// OnEmpty in this case is GetDefault, so 0.
 	pub type NextProjectId<T: Config> = StorageValue<_, ProjectId, ValueQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn next_evaluation_id)]
 	pub type NextEvaluationId<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn next_bid_id)]
 	pub type NextBidId<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn next_contribution_id)]
 	pub type NextContributionId<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	#[pallet::storage]
@@ -531,19 +530,16 @@ pub mod pallet {
 	pub type EvaluationCounts<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, u32, ValueQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn nonce)]
 	/// A global counter used in the randomness generation
 	// TODO: PLMC-155. Remove it after using the Randomness from BABE's VRF: https://github.com/PureStake/moonbeam/issues/1391
 	// 	Or use the randomness from Moonbeam.
 	pub type Nonce<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn images)]
 	/// A StorageMap containing all the hashes of the project metadata uploaded by the users.
 	pub type Images<T: Config> = StorageMap<_, Blake2_128Concat, T::Hash, AccountIdOf<T>>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn projects_metadata)]
 	/// A StorageMap containing the primary project information of projects
 	pub type ProjectsMetadata<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, ProjectMetadataOf<T>>;
 
@@ -552,12 +548,10 @@ pub mod pallet {
 	pub type Buckets<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, BucketOf<T>>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn project_details)]
 	/// StorageMap containing additional information for the projects, relevant for correctness of the protocol
 	pub type ProjectsDetails<T: Config> = StorageMap<_, Blake2_128Concat, ProjectId, ProjectDetailsOf<T>>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn projects_to_update)]
 	/// A map to know in which block to update which active projects using on_initialize.
 	pub type ProjectsToUpdate<T: Config> = StorageMap<
 		_,
@@ -568,7 +562,6 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn evaluations)]
 	/// Keep track of the PLMC bonds made to each project by each evaluator
 	pub type Evaluations<T: Config> = StorageNMap<
 		_,
@@ -581,7 +574,6 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn bids)]
 	/// StorageMap containing the bids for each project and user
 	pub type Bids<T: Config> = StorageNMap<
 		_,
@@ -594,7 +586,6 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn contributions)]
 	/// Contributions made during the Community and Remainder round. i.e token buys
 	pub type Contributions<T: Config> = StorageNMap<
 		_,
@@ -605,6 +596,14 @@ pub mod pallet {
 		),
 		ContributionInfoOf<T>,
 	>;
+
+	#[pallet::storage]
+	pub type AuctionBoughtCT<T: Config> =
+		StorageNMap<_, (NMapKey<Blake2_128Concat, ProjectId>, NMapKey<Blake2_128Concat, DID>), BalanceOf<T>>;
+
+	#[pallet::storage]
+	pub type ContributionBoughtCT<T: Config> =
+		StorageNMap<_, (NMapKey<Blake2_128Concat, ProjectId>, NMapKey<Blake2_128Concat, DID>), BalanceOf<T>>;
 
 	#[pallet::storage]
 	/// Migrations sent and awaiting for confirmation
@@ -1439,7 +1438,12 @@ pub mod pallet {
 					UpdateType::EnglishAuctionStart => {
 						used_weight = used_weight.saturating_add(
 							unwrap_result_or_skip!(
-								Self::do_english_auction(T::PalletId::get().into_account_truncating(), project_id, None, None),
+								Self::do_english_auction(
+									T::PalletId::get().into_account_truncating(),
+									project_id,
+									None,
+									None
+								),
 								project_id,
 								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
 							)
@@ -1620,7 +1624,7 @@ pub mod pallet {
 		}
 	}
 	use pallet_xcm::ensure_response;
-	use polimec_common::credentials::{DID, InvestorType};
+	use polimec_common::credentials::{InvestorType, DID};
 
 	#[pallet::genesis_config]
 	#[derive(Clone, PartialEq, Eq, Debug, Encode, Decode)]

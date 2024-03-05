@@ -35,6 +35,7 @@ use frame_support::{
 use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
 use parity_scale_codec::Decode;
+use polimec_common::credentials::{InvestorType, DID};
 use serde::Serialize;
 use sp_arithmetic::{
 	traits::{SaturatedConversion, Saturating, Zero},
@@ -52,7 +53,6 @@ use sp_std::{
 	marker::PhantomData,
 	ops::Not,
 };
-use polimec_common::credentials::{DID, InvestorType};
 
 pub type RuntimeOriginOf<T> = <T as frame_system::Config>::RuntimeOrigin;
 pub struct BoxToFunction(pub Box<dyn FnOnce()>);
@@ -852,7 +852,6 @@ impl<
 		did.to_vec().try_into().unwrap()
 	}
 
-
 	/// Merge the given mappings into one mapping, where the values are merged using the given
 	/// merge operation.
 	///
@@ -1054,7 +1053,9 @@ impl<
 	pub fn start_evaluation(&mut self, project_id: ProjectId, caller: AccountIdOf<T>) -> Result<(), DispatchError> {
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::Application);
 		let did = Self::generate_did_from_account(caller.clone());
-		self.execute(|| crate::Pallet::<T>::do_start_evaluation(caller, project_id, did, InvestorType::Institutional).unwrap());
+		self.execute(|| {
+			crate::Pallet::<T>::do_start_evaluation(caller, project_id, did, InvestorType::Institutional).unwrap()
+		});
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::EvaluationRound);
 
 		Ok(())
@@ -1077,7 +1078,9 @@ impl<
 	) -> DispatchResultWithPostInfo {
 		for UserToUSDBalance { account, usd_amount } in bonds {
 			let did = Self::generate_did_from_account(account.clone());
-			self.execute(|| crate::Pallet::<T>::do_evaluate(&account, project_id, usd_amount, did, InvestorType::Retail))?;
+			self.execute(|| {
+				crate::Pallet::<T>::do_evaluate(&account, project_id, usd_amount, did, InvestorType::Retail)
+			})?;
 		}
 		Ok(().into())
 	}
@@ -1095,7 +1098,10 @@ impl<
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 
 		let did = Self::generate_did_from_account(caller.clone());
-		self.execute(|| crate::Pallet::<T>::do_english_auction(caller, project_id, Some(did), Some(InvestorType::Institutional)).unwrap());
+		self.execute(|| {
+			crate::Pallet::<T>::do_english_auction(caller, project_id, Some(did), Some(InvestorType::Institutional))
+				.unwrap()
+		});
 
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionRound(AuctionPhase::English));
 
@@ -1147,7 +1153,15 @@ impl<
 		for bid in bids {
 			self.execute(|| {
 				let did = Self::generate_did_from_account(bid.bidder.clone());
-				crate::Pallet::<T>::do_bid(&bid.bidder, project_id, bid.amount, bid.multiplier, bid.asset, did, InvestorType::Professional)
+				crate::Pallet::<T>::do_bid(
+					&bid.bidder,
+					project_id,
+					bid.amount,
+					bid.multiplier,
+					bid.asset,
+					did,
+					InvestorType::Professional,
+				)
 			})?;
 		}
 		Ok(().into())
@@ -1282,7 +1296,7 @@ impl<
 							cont.multiplier,
 							cont.asset,
 							did,
-							investor_type
+							investor_type,
 						)
 					})?;
 				},
@@ -1298,7 +1312,7 @@ impl<
 							cont.multiplier,
 							cont.asset,
 							did,
-							investor_type
+							investor_type,
 						)
 					})?;
 				},
@@ -1592,6 +1606,7 @@ pub mod async_features {
 	use super::*;
 	use assert_matches2::assert_matches;
 	use futures::FutureExt;
+	use polimec_common::credentials::InvestorType;
 	use std::{
 		collections::HashMap,
 		sync::{
@@ -1604,7 +1619,6 @@ pub mod async_features {
 		sync::{Mutex, Notify},
 		time::sleep,
 	};
-	use polimec_common::credentials::InvestorType;
 
 	pub struct BlockOrchestrator<T: Config, AllPalletsWithoutSystem, RuntimeEvent> {
 		pub current_block: Arc<AtomicU32>,
@@ -1803,7 +1817,15 @@ pub mod async_features {
 
 		let did = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::generate_did_from_account(caller.clone());
 
-		inst.execute(|| crate::Pallet::<T>::do_english_auction(caller.clone(), project_id, Some(did), Some(InvestorType::Institutional)).unwrap());
+		inst.execute(|| {
+			crate::Pallet::<T>::do_english_auction(
+				caller.clone(),
+				project_id,
+				Some(did),
+				Some(InvestorType::Institutional),
+			)
+			.unwrap()
+		});
 
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionRound(AuctionPhase::English));
 

@@ -63,15 +63,14 @@ pub struct SampleClaims<AccountId> {
 }
 
 pub type DID = BoundedVec<u8, ConstU32<57>>;
-// pub type DID = String;
 
 pub struct EnsureInvestor<T>(sp_std::marker::PhantomData<T>);
 impl<'de, T> EnsureOriginWithCredentials<T::RuntimeOrigin> for EnsureInvestor<T>
 where
 	T: frame_system::Config + pallet_timestamp::Config,
 {
-	type Success = (T::AccountId, DID, InvestorType);
 	type Claims = SampleClaims<T::AccountId>;
+	type Success = (T::AccountId, DID, InvestorType);
 
 	fn try_origin(
 		origin: T::RuntimeOrigin,
@@ -84,9 +83,7 @@ where
 		let Ok(now) = Now::<T>::get().try_into() else { return Err(origin) };
 		let Some(date_time) = claims.expiration else { return Err(origin) };
 
-		if claims.custom.subject == who &&
-			(date_time.timestamp() as u64) >= now
-		{
+		if claims.custom.subject == who && (date_time.timestamp() as u64) >= now {
 			return Ok((who, claims.custom.did.clone(), claims.custom.investor_type.clone()));
 		}
 
@@ -125,7 +122,8 @@ where
 	) -> Result<jwt_compact::Token<Self::Claims>, ValidationError> {
 		let signing_key =
 			<<Ed25519 as Algorithm>::VerifyingKey>::from_slice(&verifying_key).expect("The Key is always valid");
-		Ed25519.validator::<Self::Claims>(&signing_key).validate(&token)
+		let result = Ed25519.validator::<Self::Claims>(&signing_key).validate(&token);
+		result
 	}
 }
 
@@ -133,7 +131,10 @@ pub fn from_bounded_vec<'de, D>(deserializer: D) -> Result<BoundedVec<u8, ConstU
 where
 	D: Deserializer<'de>,
 {
-	String::deserialize(deserializer)
-		.map(|string| string.as_bytes().to_vec())
-		.and_then(|vec| vec.try_into().map_err(|_| Error::custom("failed to deserialize")))
+	let x = 10;
+	String::deserialize(deserializer).map(|string| string.as_bytes().to_vec()).and_then(|vec| {
+		let res = vec.try_into().map_err(|_| Error::custom("failed to deserialize"));
+		let x = 10;
+		res
+	})
 }
