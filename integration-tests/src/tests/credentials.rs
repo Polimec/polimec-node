@@ -24,7 +24,7 @@ use tests::defaults::*;
 
 #[test]
 fn test_jwt_for_create() {
-	let project = default_project(ISSUER.into(), 0);
+	let project = default_project_metadata(0, ISSUER.into());
 	Polimec::execute_with(|| {
 		let issuer = AccountId32::from(ISSUER);
 		assert_ok!(PolimecBalances::force_set_balance(PolimecOrigin::root(), issuer.into(), 1000 * PLMC));
@@ -40,7 +40,7 @@ fn test_jwt_for_create() {
 
 #[test]
 fn test_jwt_verification() {
-	let project = default_project(ISSUER.into(), 0);
+	let project = default_project_metadata(0, ISSUER.into());
 	Polimec::execute_with(|| {
 		let issuer = AccountId32::from(ISSUER);
 		assert_ok!(PolimecBalances::force_set_balance(PolimecOrigin::root(), issuer.into(), 1000 * PLMC));

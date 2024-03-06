@@ -173,7 +173,7 @@ pub mod defaults {
 		]
 	}
 
-	pub fn default_evaluations() -> Vec<UserToUSDBalance<TestRuntime>> {
+	pub fn default_evaludefault_evaluationsations() -> Vec<UserToUSDBalance<TestRuntime>> {
 		vec![
 			UserToUSDBalance::new(EVALUATOR_1, 500_000 * PLMC),
 			UserToUSDBalance::new(EVALUATOR_2, 250_000 * PLMC),
@@ -2129,7 +2129,9 @@ mod community_contribution {
 
 		let evaluator_contributor = 69;
 		let evaluation_usd_amount = 400 * US_DOLLAR;
-		let contribution_ct_amount = project_metadata.minimum_price.reciprocal().unwrap().saturating_mul_int(evaluation_usd_amount) - 1 * ASSET_UNIT;
+		let contribution_ct_amount =
+			project_metadata.minimum_price.reciprocal().unwrap().saturating_mul_int(evaluation_usd_amount) -
+				1 * ASSET_UNIT;
 
 		let evaluation: UserToUSDBalance<TestRuntime> = (evaluator_contributor, evaluation_usd_amount).into();
 		let contribution: ContributionParams<TestRuntime> = (evaluator_contributor, contribution_ct_amount).into();
@@ -2140,7 +2142,8 @@ mod community_contribution {
 
 		let ct_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 
-		let plmc_evaluation_amount = MockInstantiator::calculate_evaluation_plmc_spent(vec![evaluation.clone()])[0].plmc_amount;
+		let plmc_evaluation_amount =
+			MockInstantiator::calculate_evaluation_plmc_spent(vec![evaluation.clone()])[0].plmc_amount;
 		let plmc_contribution_amount =
 			MockInstantiator::calculate_contributed_plmc_spent(vec![contribution.clone()], ct_price)[0].plmc_amount;
 
@@ -2148,10 +2151,14 @@ mod community_contribution {
 			plmc_evaluation_amount - <TestRuntime as Config>::EvaluatorSlash::get() * plmc_evaluation_amount;
 
 		assert!(
-			plmc_contribution_amount > evaluation_plmc_available_for_participating, "contribution should want to use slash reserve"
+			plmc_contribution_amount > evaluation_plmc_available_for_participating,
+			"contribution should want to use slash reserve"
 		);
 
-		assert!(plmc_contribution_amount < plmc_evaluation_amount, "contribution should want to succeed by just using the slash reserve");
+		assert!(
+			plmc_contribution_amount < plmc_evaluation_amount,
+			"contribution should want to succeed by just using the slash reserve"
+		);
 
 		let necessary_usdt_for_contribution =
 			MockInstantiator::calculate_contributed_funding_asset_spent(vec![contribution.clone()], ct_price);
@@ -2172,7 +2179,9 @@ mod community_contribution {
 		let evaluation_usd_amount = 400 * US_DOLLAR;
 
 		// We want to contribute in PLMC, less than what we used for evaluating, but more than what we have due to slash reserve
-		let contribution_ct_amount = project_metadata.minimum_price.reciprocal().unwrap().saturating_mul_int(evaluation_usd_amount) - 1 * ASSET_UNIT;
+		let contribution_ct_amount =
+			project_metadata.minimum_price.reciprocal().unwrap().saturating_mul_int(evaluation_usd_amount) -
+				1 * ASSET_UNIT;
 
 		let evaluation: UserToUSDBalance<TestRuntime> = (evaluator_contributor, evaluation_usd_amount).into();
 		let contribution: ContributionParams<TestRuntime> = (evaluator_contributor, contribution_ct_amount).into();
@@ -2190,12 +2199,15 @@ mod community_contribution {
 		let evaluation_plmc_available_for_participating =
 			plmc_evaluation_amount - <TestRuntime as Config>::EvaluatorSlash::get() * plmc_evaluation_amount;
 
-
 		assert!(
-			plmc_contribution_amount > evaluation_plmc_available_for_participating, "contribution should want to use slash reserve"
+			plmc_contribution_amount > evaluation_plmc_available_for_participating,
+			"contribution should want to use slash reserve"
 		);
 
-		assert!(plmc_contribution_amount < plmc_evaluation_amount, "contribution should want to succeed by just using the slash reserve");
+		assert!(
+			plmc_contribution_amount < plmc_evaluation_amount,
+			"contribution should want to succeed by just using the slash reserve"
+		);
 
 		let necessary_usdt_for_contribution =
 			MockInstantiator::calculate_contributed_funding_asset_spent(vec![contribution.clone()], ct_price);
@@ -4169,7 +4181,8 @@ mod funding_end {
 		let issuer = ISSUER;
 		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
 
-		let auction_allocation = project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+		let auction_allocation =
+			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
 		let evaluations = default_evaluations();
 		let bids = MockInstantiator::generate_bids_from_total_usd(
 			project_metadata.minimum_price.saturating_mul_int(auction_allocation),
@@ -4179,14 +4192,18 @@ mod funding_end {
 			default_bidder_multipliers(),
 		);
 		let community_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			project_metadata.minimum_price.saturating_mul_int(Percent::from_percent(50u8) * (project_metadata.total_allocation_size - auction_allocation) / 2),
+			project_metadata.minimum_price.saturating_mul_int(
+				Percent::from_percent(50u8) * (project_metadata.total_allocation_size - auction_allocation) / 2,
+			),
 			project_metadata.minimum_price,
 			default_weights(),
 			default_community_contributors(),
 			default_community_contributor_multipliers(),
 		);
 		let remainder_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			project_metadata.minimum_price.saturating_mul_int(Percent::from_percent(50u8) * (project_metadata.total_allocation_size - auction_allocation) / 2),
+			project_metadata.minimum_price.saturating_mul_int(
+				Percent::from_percent(50u8) * (project_metadata.total_allocation_size - auction_allocation) / 2,
+			),
 			project_metadata.minimum_price,
 			default_weights(),
 			default_remainder_contributors(),
@@ -4276,7 +4293,8 @@ mod funding_end {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
-		let auction_allocation = project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+		let auction_allocation =
+			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
 		let evaluations = default_evaluations();
 		let bids = MockInstantiator::generate_bids_from_total_usd(
 			project_metadata.minimum_price.saturating_mul_int(auction_allocation),
@@ -4286,14 +4304,18 @@ mod funding_end {
 			default_bidder_multipliers(),
 		);
 		let community_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			project_metadata.minimum_price.saturating_mul_int(Percent::from_percent(50u8) * (project_metadata.total_allocation_size - auction_allocation) / 2),
+			project_metadata.minimum_price.saturating_mul_int(
+				Percent::from_percent(50u8) * (project_metadata.total_allocation_size - auction_allocation) / 2,
+			),
 			project_metadata.minimum_price,
 			default_weights(),
 			default_community_contributors(),
 			default_community_contributor_multipliers(),
 		);
 		let remainder_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			project_metadata.minimum_price.saturating_mul_int(Percent::from_percent(50u8) * (project_metadata.total_allocation_size - auction_allocation) / 2),
+			project_metadata.minimum_price.saturating_mul_int(
+				Percent::from_percent(50u8) * (project_metadata.total_allocation_size - auction_allocation) / 2,
+			),
 			project_metadata.minimum_price,
 			default_weights(),
 			default_remainder_contributors(),
@@ -4410,7 +4432,8 @@ mod funding_end {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
-		let auction_allocation = project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+		let auction_allocation =
+			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
 		let evaluations = default_evaluations();
 		let bids = MockInstantiator::generate_bids_from_total_usd(
 			project_metadata.minimum_price.saturating_mul_int(auction_allocation),
@@ -4420,14 +4443,18 @@ mod funding_end {
 			default_bidder_multipliers(),
 		);
 		let community_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			project_metadata.minimum_price.saturating_mul_int(Percent::from_percent(50u8) * (project_metadata.total_allocation_size - auction_allocation) / 2),
+			project_metadata.minimum_price.saturating_mul_int(
+				Percent::from_percent(50u8) * (project_metadata.total_allocation_size - auction_allocation) / 2,
+			),
 			project_metadata.minimum_price,
 			default_weights(),
 			default_community_contributors(),
 			default_community_contributor_multipliers(),
 		);
 		let remainder_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			project_metadata.minimum_price.saturating_mul_int(Percent::from_percent(50u8) * (project_metadata.total_allocation_size - auction_allocation) / 2),
+			project_metadata.minimum_price.saturating_mul_int(
+				Percent::from_percent(50u8) * (project_metadata.total_allocation_size - auction_allocation) / 2,
+			),
 			project_metadata.minimum_price,
 			default_weights(),
 			default_remainder_contributors(),
@@ -4532,7 +4559,8 @@ mod funding_end {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let issuer = ISSUER;
 		let project_metadata = default_project_metadata(inst.get_new_nonce(), issuer);
-		let auction_allocation = project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
+		let auction_allocation =
+			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size;
 		let evaluations = default_evaluations();
 		let bids = MockInstantiator::generate_bids_from_total_usd(
 			project_metadata.minimum_price.saturating_mul_int(auction_allocation),
@@ -4542,14 +4570,18 @@ mod funding_end {
 			default_bidder_multipliers(),
 		);
 		let community_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			project_metadata.minimum_price.saturating_mul_int(Percent::from_percent(50u8) * (project_metadata.total_allocation_size - auction_allocation) / 2),
+			project_metadata.minimum_price.saturating_mul_int(
+				Percent::from_percent(50u8) * (project_metadata.total_allocation_size - auction_allocation) / 2,
+			),
 			project_metadata.minimum_price,
 			default_weights(),
 			default_community_contributors(),
 			default_community_contributor_multipliers(),
 		);
 		let remainder_contributions = MockInstantiator::generate_contributions_from_total_usd(
-			project_metadata.minimum_price.saturating_mul_int(Percent::from_percent(50u8) * (project_metadata.total_allocation_size - auction_allocation) / 2),
+			project_metadata.minimum_price.saturating_mul_int(
+				Percent::from_percent(50u8) * (project_metadata.total_allocation_size - auction_allocation) / 2,
+			),
 			project_metadata.minimum_price,
 			default_weights(),
 			default_remainder_contributors(),
@@ -5158,7 +5190,7 @@ mod ct_migration {
 			default_evaluations(),
 			default_bids(),
 			default_community_buys(),
-			default_remainder_buys()
+			default_remainder_buys(),
 		);
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 20u64).unwrap();
 		let project_details = inst.get_project_details(project_id);
@@ -5330,12 +5362,7 @@ mod helper_functions {
 			None,
 		);
 		dbg!(plmc_charged);
-		let project_id = inst.create_community_contributing_project(
-			project_metadata.clone(),
-			ISSUER,
-			default_evaluations(),
-			bids.clone(),
-		);
+		let project_id = inst.create_community_contributing_project(project_metadata.clone(), ISSUER, (), bids.clone());
 
 		let stored_bids = inst.execute(|| {
 			Bids::<TestRuntime>::iter_values().into_iter().sorted_by(|b1, b2| b1.id.cmp(&b2.id)).collect_vec()
