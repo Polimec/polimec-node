@@ -77,7 +77,7 @@ impl<T: Config> Pallet<T> {
 	pub fn do_create(
 		issuer: &AccountIdOf<T>,
 		initial_metadata: ProjectMetadataOf<T>,
-		did: DID,
+		_did: DID,
 		investor_type: InvestorType,
 	) -> DispatchResult {
 		// * Get variables *

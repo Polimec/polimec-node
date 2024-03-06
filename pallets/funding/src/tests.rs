@@ -173,7 +173,7 @@ pub mod defaults {
 		]
 	}
 
-	pub fn default_evaludefault_evaluationsations() -> Vec<UserToUSDBalance<TestRuntime>> {
+	pub fn default_evaluations() -> Vec<UserToUSDBalance<TestRuntime>> {
 		vec![
 			UserToUSDBalance::new(EVALUATOR_1, 500_000 * PLMC),
 			UserToUSDBalance::new(EVALUATOR_2, 250_000 * PLMC),
@@ -421,6 +421,7 @@ mod creation {
 			let h256_bytes = binding.as_fixed_bytes_mut();
 			h256_bytes[0] = counter;
 			counter += 1u8;
+			project.offchain_information_hash = Some(binding);
 			project
 		};
 
@@ -449,12 +450,16 @@ mod creation {
 			TicketSize::new(Some(600 * ASSET_UNIT), Some(550 * ASSET_UNIT));
 
 		let wrong_projects =
-			vec![wrong_project_1, wrong_project_2, wrong_project_3, wrong_project_4, wrong_project_5, wrong_project_6];
+			vec![wrong_project_1.clone(), wrong_project_2, wrong_project_3.clone(), wrong_project_4, wrong_project_5, wrong_project_6];
 
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		inst.mint_plmc_to(default_plmc_balances());
 		let did = MockInstantiator::generate_did_from_account(ISSUER);
 		let investor_type = InvestorType::Institutional;
+
+		let test_1 = with_different_metadata(wrong_project_1);
+		let test_2 = with_different_metadata(wrong_project_3);
+		assert!(test_1.offchain_information_hash != test_2.offchain_information_hash);
 
 		for project in wrong_projects {
 			let project_err = inst.execute(|| {
@@ -485,7 +490,95 @@ mod creation {
 	}
 
 	#[test]
-	fn auction_ticket_sizes_cannot_be_set_below_5k_usd() {}
+	fn multiple_funding_currencies() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let mut counter: u8 = 1u8;
+		let mut with_different_metadata = |mut project: ProjectMetadataOf<TestRuntime>| {
+			let mut binding = project.offchain_information_hash.unwrap();
+			let h256_bytes = binding.as_fixed_bytes_mut();
+			h256_bytes[0] = counter;
+			counter += 1u8;
+			project.offchain_information_hash = Some(binding);
+			project
+		};
+		let default_project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER);
+
+		let mut one_currency_1 = default_project_metadata.clone();
+		one_currency_1.participation_currencies = vec![AcceptedFundingAsset::USDT].try_into().unwrap();
+
+		let mut one_currency_2 = default_project_metadata.clone();
+		one_currency_2.participation_currencies = vec![AcceptedFundingAsset::USDC].try_into().unwrap();
+
+		let mut one_currency_3 = default_project_metadata.clone();
+		one_currency_3.participation_currencies = vec![AcceptedFundingAsset::DOT].try_into().unwrap();
+
+		let mut two_currencies_1 = default_project_metadata.clone();
+		two_currencies_1.participation_currencies =
+			vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC].try_into().unwrap();
+
+		let mut two_currencies_2 = default_project_metadata.clone();
+		two_currencies_2.participation_currencies =
+			vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::DOT].try_into().unwrap();
+
+		let mut two_currencies_3 = default_project_metadata.clone();
+		two_currencies_3.participation_currencies =
+			vec![AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT].try_into().unwrap();
+
+		let mut three_currencies = default_project_metadata.clone();
+		three_currencies.participation_currencies =
+			vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT].try_into().unwrap();
+
+		let projects = vec![
+			one_currency_1.clone(),
+			one_currency_2.clone(),
+			one_currency_3,
+			two_currencies_1,
+			two_currencies_2,
+			two_currencies_3,
+			three_currencies,
+		];
+
+		inst.mint_plmc_to(default_plmc_balances());
+		let did = MockInstantiator::generate_did_from_account(ISSUER);
+		let investor_type = InvestorType::Institutional;
+
+		let test_1 = with_different_metadata(one_currency_1);
+		let test_2 = with_different_metadata(one_currency_2);
+		assert!(test_1.offchain_information_hash != test_2.offchain_information_hash);
+
+		for project in projects {
+			let project_metadata_new = with_different_metadata(project);
+			assert_ok!(inst.execute(|| {
+				Pallet::<TestRuntime>::do_create(&ISSUER, project_metadata_new, did.clone(), investor_type.clone())
+			}));
+		}
+
+		let mut wrong_project_1 = default_project_metadata.clone();
+		wrong_project_1.participation_currencies = vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT].try_into().unwrap();
+
+		let mut wrong_project_2 = default_project_metadata.clone();
+		wrong_project_2.participation_currencies = vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT].try_into().unwrap();
+
+		let mut wrong_project_3 = default_project_metadata.clone();
+		wrong_project_3.participation_currencies = vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::USDT].try_into().unwrap();
+
+		let mut wrong_project_4 = default_project_metadata.clone();
+		wrong_project_4.participation_currencies = vec![AcceptedFundingAsset::DOT, AcceptedFundingAsset::DOT, AcceptedFundingAsset::USDC].try_into().unwrap();
+
+		let wrong_projects = vec![wrong_project_1, wrong_project_2, wrong_project_3, wrong_project_4];
+		for project in wrong_projects {
+			let project_err = inst.execute(|| {
+				Pallet::<TestRuntime>::do_create(
+					&ISSUER,
+					with_different_metadata(project),
+					did.clone(),
+					investor_type.clone(),
+				)
+				.unwrap_err()
+			});
+			assert_eq!(project_err, Error::<TestRuntime>::ParticipationCurrenciesError.into());
+		}
+	}
 }
 
 // only functionalities that happen in the EVALUATION period of a project
@@ -5362,7 +5455,12 @@ mod helper_functions {
 			None,
 		);
 		dbg!(plmc_charged);
-		let project_id = inst.create_community_contributing_project(project_metadata.clone(), ISSUER, (), bids.clone());
+		let project_id = inst.create_community_contributing_project(
+			project_metadata.clone(),
+			ISSUER,
+			default_evaluations(),
+			bids.clone(),
+		);
 
 		let stored_bids = inst.execute(|| {
 			Bids::<TestRuntime>::iter_values().into_iter().sorted_by(|b1, b2| b1.id.cmp(&b2.id)).collect_vec()

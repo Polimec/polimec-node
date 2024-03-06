@@ -339,7 +339,6 @@ fn community_round_completed() {
 				contributions.clone().into_iter().fold(0, |acc, bid| acc + bid.funding_asset_amount);
 			let total_contribution_as_fixed = FixedU128::from_rational(total_contribution, PLMC);
 			dbg!(total_contribution_as_fixed);
-
 		})
 	});
 }
