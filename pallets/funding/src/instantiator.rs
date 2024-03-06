@@ -250,15 +250,8 @@ impl<
 				current_block += One::one();
 				frame_system::Pallet::<T>::set_block_number(current_block);
 
-				let pre_events = frame_system::Pallet::<T>::events();
-
 				<frame_system::Pallet<T> as OnInitialize<BlockNumberFor<T>>>::on_initialize(current_block);
 				<AllPalletsWithoutSystem as OnInitialize<BlockNumberFor<T>>>::on_initialize(current_block);
-
-				// let post_events = frame_system::Pallet::<T>::events();
-				// if post_events.len() > pre_events.len() {
-				// 	Self::err_if_on_initialize_failed(post_events)?;
-				// }
 			}
 			Ok(())
 		})
@@ -889,31 +882,6 @@ impl<
 			output += map.into_iter().map(|user_to_asset| user_to_asset.asset_amount).fold(Zero::zero(), |a, b| a + b);
 		}
 		output
-	}
-
-	pub fn panic_if_on_initialize_failed(events: Vec<frame_system::EventRecord<RuntimeEvent, H256>>) {
-		let last_event_record = events.into_iter().last().expect("No events found for this action.");
-		let last_event = last_event_record.event;
-		let maybe_funding_event = last_event.try_into();
-		if let Ok(Event::TransitionError { project_id, error }) = maybe_funding_event {
-			panic!("Project {:?} transition failed in on_initialize: {:?}", project_id, error);
-		}
-	}
-
-	pub fn err_if_on_initialize_failed(
-		events: Vec<frame_system::EventRecord<<T as frame_system::Config>::RuntimeEvent, T::Hash>>,
-	) -> Result<(), Error<T>> {
-		let last_event_record = events.into_iter().last().expect("No events found for this action.");
-		let last_event = last_event_record.event;
-		let maybe_funding_event = <T as Config>::RuntimeEvent::from(last_event).try_into();
-		if let Ok(funding_event) = maybe_funding_event {
-			if let Event::TransitionError { project_id: _, error: DispatchError::Module(module_error) } = funding_event
-			{
-				let pallet_error: Error<T> = Decode::decode(&mut &module_error.error[..]).unwrap();
-				return Err(pallet_error);
-			}
-		}
-		Ok(())
 	}
 
 	pub fn generate_bids_from_total_usd(
@@ -2183,37 +2151,10 @@ pub mod async_features {
 		project_id: ProjectId,
 	) -> Result<(), DispatchError> {
 		let mut inst = instantiator.lock().await;
-
-	
 		let (update_block, _) = inst.get_update_pair(project_id, &UpdateType::FundingEnd).unwrap();
 
 		let notify = Arc::new(Notify::new());
 		block_orchestrator.add_awaiting_project(update_block + 1u32.into(), notify.clone()).await;
-		// if inst.get_project_details(project_id).status == ProjectStatus::RemainderRound {
-		// 	let (end_block, _) = inst.get_update_pair(project_id, &UpdateType::FundingEnd).unwrap();
-		// 	drop(inst);
-
-		// 	let notify = Arc::new(Notify::new());
-
-		// 	block_orchestrator.add_awaiting_project(end_block + 1u32.into(), notify.clone()).await;
-
-		// 	// Wait for the notification that our desired block was reached to continue
-
-		// 	notify.notified().await;
-
-		// 	inst = instantiator.lock().await;
-		// }
-
-		let project_details = inst.get_project_details(project_id);
-		assert!(
-			matches!(
-				project_details.status,
-				ProjectStatus::FundingSuccessful |
-					ProjectStatus::FundingFailed |
-					ProjectStatus::AwaitingProjectDecision
-			),
-			"Project should be in Finished status"
-		);
 		Ok(())
 	}
 

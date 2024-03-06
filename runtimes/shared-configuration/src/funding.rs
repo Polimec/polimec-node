@@ -36,7 +36,7 @@ pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 7;
 pub const AUCTION_INITIALIZE_PERIOD_DURATION: BlockNumber = 7 * crate::DAYS;
 
 #[cfg(feature = "instant-mode")]
-pub const ENGLISH_AUCTION_DURATION: BlockNumber = 1;
+pub const ENGLISH_AUCTION_DURATION: BlockNumber = 2;
 #[cfg(feature = "fast-mode")]
 pub const ENGLISH_AUCTION_DURATION: BlockNumber = 10;
 #[cfg(not(any(feature = "fast-mode", feature = "instant-mode")))]
