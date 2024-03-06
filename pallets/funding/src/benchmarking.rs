@@ -326,13 +326,12 @@ pub fn make_ct_deposit_for<T: Config>(user: AccountIdOf<T>, project_id: ProjectI
 
 pub fn run_blocks_to_execute_next_transition<T: Config>(
 	project_id: ProjectId,
-	maybe_update_type: Option<UpdateType>,
+	update_type: UpdateType,
 	inst: &mut BenchInstantiator<T>,
 ) {
-	let (update_block, stored_update_type) = inst.get_update_pair(project_id);
-	if let Some(expected_update_type) = maybe_update_type {
-		assert_eq!(stored_update_type, expected_update_type);
-	}
+	let pair = inst.get_update_pair(project_id, &update_type);
+	assert!(pair.is_some());
+	let (update_block, _) = pair.unwrap();
 	frame_system::Pallet::<T>::set_block_number(update_block - 1u32.into());
 	inst.advance_time(One::one()).unwrap();
 }
@@ -502,7 +501,7 @@ mod benchmarks {
 		inst.advance_time(One::one()).unwrap();
 		inst.bond_for_users(project_id, evaluations).expect("All evaluations are accepted");
 
-		run_blocks_to_execute_next_transition(project_id, Some(UpdateType::EvaluationEnd), &mut inst);
+		run_blocks_to_execute_next_transition(project_id, UpdateType::EvaluationEnd, &mut inst);
 		inst.advance_time(1u32.into()).unwrap();
 
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
@@ -1410,7 +1409,7 @@ mod benchmarks {
 			vec![],
 		);
 
-		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
+		run_blocks_to_execute_next_transition(project_id, UpdateType::StartSettlement, &mut inst);
 
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::FundingSuccessful);
 		assert_eq!(
@@ -1484,7 +1483,7 @@ mod benchmarks {
 			vec![],
 		);
 
-		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
+		run_blocks_to_execute_next_transition(project_id, UpdateType::StartSettlement, &mut inst);
 
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
@@ -1558,7 +1557,7 @@ mod benchmarks {
 			vec![],
 		);
 
-		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
+		run_blocks_to_execute_next_transition(project_id, UpdateType::StartSettlement, &mut inst);
 
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
@@ -1724,7 +1723,7 @@ mod benchmarks {
 			vec![],
 		);
 
-		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
+		run_blocks_to_execute_next_transition(project_id, UpdateType::StartSettlement, &mut inst);
 
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
@@ -1788,7 +1787,7 @@ mod benchmarks {
 			vec![],
 		);
 
-		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
+		run_blocks_to_execute_next_transition(project_id, UpdateType::StartSettlement, &mut inst);
 
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
@@ -1854,7 +1853,7 @@ mod benchmarks {
 			vec![],
 		);
 
-		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
+		run_blocks_to_execute_next_transition(project_id, UpdateType::StartSettlement, &mut inst);
 
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
@@ -1935,7 +1934,7 @@ mod benchmarks {
 			vec![],
 		);
 
-		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
+		run_blocks_to_execute_next_transition(project_id, UpdateType::StartSettlement, &mut inst);
 
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
@@ -2008,7 +2007,7 @@ mod benchmarks {
 			vec![],
 		);
 
-		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
+		run_blocks_to_execute_next_transition(project_id, UpdateType::StartSettlement, &mut inst);
 
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
@@ -2064,7 +2063,7 @@ mod benchmarks {
 			vec![],
 		);
 
-		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
+		run_blocks_to_execute_next_transition(project_id, UpdateType::StartSettlement, &mut inst);
 
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
@@ -2127,7 +2126,7 @@ mod benchmarks {
 			vec![],
 		);
 
-		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
+		run_blocks_to_execute_next_transition(project_id, UpdateType::StartSettlement, &mut inst);
 
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
@@ -2180,7 +2179,7 @@ mod benchmarks {
 			vec![],
 		);
 
-		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
+		run_blocks_to_execute_next_transition(project_id, UpdateType::StartSettlement, &mut inst);
 
 		assert_eq!(
 			inst.get_project_details(project_id).cleanup,
@@ -2276,9 +2275,8 @@ mod benchmarks {
 
 		// * validity checks *
 		// Storage
-		let project_status = inst.get_update_pair(project_id).1;
-
-		assert_eq!(project_status, UpdateType::ProjectDecision(FundingOutcomeDecision::AcceptFunding));
+		let maybe_transition = inst.get_update_pair(project_id, &UpdateType::ProjectDecision(FundingOutcomeDecision::AcceptFunding));
+		assert!(maybe_transition.is_some());
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(
@@ -2733,7 +2731,7 @@ mod benchmarks {
 		inst.advance_time(One::one()).unwrap();
 		inst.bond_for_users(project_id, evaluations).expect("All evaluations are accepted");
 
-		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
+		run_blocks_to_execute_next_transition(project_id, UpdateType::EvaluationEnd, &mut inst);
 
 		let current_block = inst.current_block();
 		let automatic_transition_block =
@@ -2967,7 +2965,7 @@ mod benchmarks {
 		let project_id = inst.create_auctioning_project(project_metadata, issuer.clone(), default_evaluations());
 
 		// no bids are made, so the project fails
-		run_blocks_to_execute_next_transition(project_id, None, &mut inst);
+		run_blocks_to_execute_next_transition(project_id, UpdateType::CandleAuctionStart, &mut inst);
 
 		let auction_candle_end_block =
 			inst.get_project_details(project_id).phase_transition_points.candle_auction.end().unwrap();
