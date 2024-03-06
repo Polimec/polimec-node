@@ -1048,7 +1048,7 @@ pub mod pallet {
 		/// institutional user can set bids for a token_amount/token_price pair.
 		/// Any bids from this point until the candle_auction starts, will be considered as valid.
 		#[pallet::call_index(3)]
-		#[pallet::weight(WeightInfoOf::<T>::start_auction_manually(<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1, 10_000u32))]
+		#[pallet::weight(WeightInfoOf::<T>::start_auction_manually(<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1))]
 		pub fn start_auction(
 			origin: OriginFor<T>,
 			jwt: UntrustedToken,
@@ -1423,7 +1423,6 @@ pub mod pallet {
 							.actual_weight
 							.unwrap_or(WeightInfoOf::<T>::start_auction_manually(
 								<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
-								10_000,
 							)),
 						);
 					},

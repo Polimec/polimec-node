@@ -394,7 +394,7 @@ impl<T: Config> Pallet<T> {
 			Err(insertion_attempts) =>
 				return Err(DispatchErrorWithPostInfo {
 					post_info: PostDispatchInfo {
-						actual_weight: Some(WeightInfoOf::<T>::start_auction_automatically(insertion_attempts)),
+						actual_weight: Some(WeightInfoOf::<T>::start_auction_manually(insertion_attempts)),
 						pays_fee: Pays::Yes,
 					},
 					error: Error::<T>::TooManyInsertionAttempts.into(),
@@ -405,7 +405,7 @@ impl<T: Config> Pallet<T> {
 		Self::deposit_event(Event::EnglishAuctionStarted { project_id, when: now });
 
 		Ok(PostDispatchInfo {
-			actual_weight: Some(WeightInfoOf::<T>::start_auction_automatically(insertion_attempts)),
+			actual_weight: Some(WeightInfoOf::<T>::start_auction_manually(insertion_attempts)),
 			pays_fee: Pays::Yes,
 		})
 	}
