@@ -1906,16 +1906,18 @@ pub mod async_features {
 
 		inst = instantiator.lock().await;
 		let plmc_for_bids =
-			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_plmc_charged_with_given_price(
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
 				&bids,
-				project_metadata.minimum_price,
+				project_metadata.clone(),
+				None
 			);
 		let plmc_existential_deposits: Vec<UserToPLMCBalance<T>> = bids.accounts().existential_deposits();
 		let plmc_ct_account_deposits: Vec<UserToPLMCBalance<T>> = bids.accounts().ct_account_deposits();
 		let usdt_for_bids =
-			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_funding_asset_charged_with_given_price(
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::calculate_auction_funding_asset_charged_from_all_bids_made_or_with_bucket(
 				&bids,
-				project_metadata.minimum_price,
+				project_metadata,
+				None
 			);
 
 		inst.mint_plmc_to(plmc_for_bids.clone());
@@ -1924,6 +1926,7 @@ pub mod async_features {
 		inst.mint_foreign_asset_to(usdt_for_bids.clone());
 
 		inst.bid_for_users(project_id, bids).unwrap();
+		drop(inst);
 
 		project_id
 	}
@@ -2334,7 +2337,8 @@ pub mod async_features {
 		match inst.get_project_details(project_id).status {
 			ProjectStatus::FundingSuccessful => return project_id,
 			ProjectStatus::RemainderRound if remainder_contributions.is_empty() => {
-				inst.finish_funding(project_id).unwrap();
+				drop(inst);
+				async_finish_funding(instantiator.clone(), block_orchestrator.clone(), project_id).await.unwrap();
 				return project_id;
 			},
 			_ => {},

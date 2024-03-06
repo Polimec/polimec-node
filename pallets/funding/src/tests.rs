@@ -5287,20 +5287,43 @@ mod helper_functions {
 		// post wap ~ 1.0557252:
 		// (Accepted, 5k) - (Partially, 32k) - (Rejected, 5k) - (Accepted, 5k) - (Accepted - 5k) - (Accepted - 1k) - (Accepted - 2k)
 
-		const ORIGINAL_PLMC_CHARGED_BIDDER_1: u128 = 1845_2_380_952_379;
-		const ORIGINAL_PLMC_CHARGED_BIDDER_2: u128 = 4761_9_047_619_047;
-		const ORIGINAL_PLMC_CHARGED_BIDDER_3: u128 = 869_0_476_190_476;
-		const ORIGINAL_PLMC_CHARGED_BIDDER_4: u128 = 309_5_238_095_238;
+		const ORIGINAL_PLMC_CHARGED_BIDDER_1: u128 = 18_452_3_809_523_790;
+		const ORIGINAL_PLMC_CHARGED_BIDDER_2: u128 = 47_619_0_476_190_470;
+		const ORIGINAL_PLMC_CHARGED_BIDDER_3: u128 = 86_90_4_761_904_760;
+		const ORIGINAL_PLMC_CHARGED_BIDDER_4: u128 = 30_95_2_380_952_380;
 
-		const FINAL_PLMC_CHARGED_BIDDER_1: u128 = 1_223_6_459_469_284;
-		const FINAL_PLMC_CHARGED_BIDDER_2: u128 = 3_809_5_238_095_238;
-		const FINAL_PLMC_CHARGED_BIDDER_3: u128 = 754_0_894_220_284;
-		const FINAL_PLMC_CHARGED_BIDDER_4: u128 = 251_3_631_406_761;
+		const FINAL_PLMC_CHARGED_BIDDER_1: u128 = 12_236_4_594_692_840;
+		const FINAL_PLMC_CHARGED_BIDDER_2: u128 = 38_095_2_380_952_380;
+		const FINAL_PLMC_CHARGED_BIDDER_3: u128 = 75_40_8_942_202_840;
+		const FINAL_PLMC_CHARGED_BIDDER_4: u128 = 2_513_6_314_067_610;
 
 		let bids = vec![bid_1, bid_2, bid_3, bid_4, bid_5];
 
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let project_metadata = default_project_metadata(0, ISSUER);
+		let project_metadata = ProjectMetadata {
+			token_information: default_token_information(),
+			mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
+			total_allocation_size: 100_000 * ASSET_UNIT,
+			auction_round_allocation_percentage: Percent::from_percent(50u8),
+			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
+			round_ticket_sizes: RoundTicketSizes {
+				bidding: BiddingTicketSizes {
+					professional: TicketSize::new(Some(500 * ASSET_UNIT), None),
+					institutional: TicketSize::new(Some(500 * ASSET_UNIT), None),
+					phantom: Default::default(),
+				},
+				contributing: ContributingTicketSizes {
+					retail: TicketSize::new(None, None),
+					professional: TicketSize::new(None, None),
+					institutional: TicketSize::new(None, None),
+					phantom: Default::default(),
+				},
+				phantom: Default::default(),
+			},
+			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
+			funding_destination_account: ISSUER,
+			offchain_information_hash: Some(hashed(METADATA)),
+		};
 		let plmc_charged = MockInstantiator::calculate_auction_plmc_charged_from_all_bids_made_or_with_bucket(
 			&bids,
 			project_metadata.clone(),
@@ -5686,9 +5709,16 @@ mod async_tests {
 		let mut t = frame_system::GenesisConfig::<TestRuntime>::default().build_storage().unwrap();
 
 		// only used to generate some values, and not for chain interactions
-		let project_metadata = default_project_metadata(0u64, ISSUER.into());
+		let mut project_metadata = default_project_metadata(0u64, ISSUER.into());
 		let evaluations = default_evaluations();
-		let max_bids = (0..<TestRuntime as Config>::MaxBidsPerProject::get())
+		let max_bids_per_project: u32 = <TestRuntime as Config>::MaxBidsPerProject::get();
+		let min_bid = project_metadata.round_ticket_sizes.bidding.institutional.ct_minimum_per_participation.unwrap();
+		let auction_allocation_percentage = project_metadata.auction_round_allocation_percentage;
+		let auction_ct_required = min_bid.saturating_mul(max_bids_per_project as u128);
+		let total_allocation_required = auction_allocation_percentage.saturating_reciprocal_mul(auction_ct_required);
+		project_metadata.total_allocation_size = total_allocation_required;
+
+		let max_bids = (0u32..max_bids_per_project)
 			.map(|i| {
 				instantiator::BidParams::<TestRuntime>::new(
 					(i + 69).into(),
