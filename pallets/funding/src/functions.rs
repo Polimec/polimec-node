@@ -610,7 +610,11 @@ impl<T: Config> Pallet<T> {
 		// Transition to remainder round was initiated by `do_community_funding`, but the ct
 		// tokens where already sold in the community round. This transition is obsolite.
 		ensure!(
-			project_details.remaining_contribution_tokens.0.saturating_add(project_details.remaining_contribution_tokens.1) > 0u32.into(),
+			project_details
+				.remaining_contribution_tokens
+				.0
+				.saturating_add(project_details.remaining_contribution_tokens.1) >
+				0u32.into(),
 			Error::<T>::RoundTransitionAlreadyHappened
 		);
 
@@ -691,7 +695,12 @@ impl<T: Config> Pallet<T> {
 		// do_end_funding was already executed, but automatic transition was included in the
 		// do_remainder_funding function. We gracefully skip the this transition.
 		ensure!(
-			!matches!(project_details.status, ProjectStatus::FundingSuccessful | ProjectStatus::FundingFailed | ProjectStatus::AwaitingProjectDecision),
+			!matches!(
+				project_details.status,
+				ProjectStatus::FundingSuccessful |
+					ProjectStatus::FundingFailed |
+					ProjectStatus::AwaitingProjectDecision
+			),
 			Error::<T>::RoundTransitionAlreadyHappened
 		);
 
@@ -776,7 +785,10 @@ impl<T: Config> Pallet<T> {
 	pub fn do_project_decision(project_id: ProjectId, decision: FundingOutcomeDecision) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
-		ensure!(project_details.status == ProjectStatus::AwaitingProjectDecision, Error::<T>::RoundTransitionAlreadyHappened);
+		ensure!(
+			project_details.status == ProjectStatus::AwaitingProjectDecision,
+			Error::<T>::RoundTransitionAlreadyHappened
+		);
 
 		// * Update storage *
 		match decision {
@@ -1344,11 +1356,10 @@ impl<T: Config> Pallet<T> {
 		// return correct weight function
 		let actual_weight = match weight_round_end_flag {
 			None => Some(WeightInfoOf::<T>::contribution(caller_existing_contributions.len() as u32)),
-			Some(fully_filled_vecs_from_insertion) =>
-				Some(WeightInfoOf::<T>::contribution_ends_round(
-					caller_existing_contributions.len() as u32,
-					fully_filled_vecs_from_insertion,
-				)),
+			Some(fully_filled_vecs_from_insertion) => Some(WeightInfoOf::<T>::contribution_ends_round(
+				caller_existing_contributions.len() as u32,
+				fully_filled_vecs_from_insertion,
+			)),
 		};
 
 		Ok(PostDispatchInfo { actual_weight, pays_fee: Pays::Yes })
@@ -2552,7 +2563,6 @@ impl<T: Config> Pallet<T> {
 		}
 		return Err(T::MaxProjectsToUpdateInsertionAttempts::get());
 	}
-
 
 	pub fn create_bucket_from_metadata(metadata: &ProjectMetadataOf<T>) -> Result<BucketOf<T>, DispatchError> {
 		let bucket_delta_amount = Percent::from_percent(10) * metadata.total_allocation_size.0;

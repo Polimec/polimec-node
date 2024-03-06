@@ -1213,10 +1213,7 @@ mod benchmarks {
 		if let Some(fully_filled_vecs_from_insertion) = ends_round {
 			// if all CTs are sold, next round is scheduled for next block (either remainder or success)
 			let expected_insertion_block = inst.current_block() + One::one();
-			fill_projects_to_update::<T>(
-				fully_filled_vecs_from_insertion,
-				expected_insertion_block,
-			);
+			fill_projects_to_update::<T>(fully_filled_vecs_from_insertion, expected_insertion_block);
 		}
 
 		(
@@ -2231,7 +2228,7 @@ mod benchmarks {
 		let mut inst = BenchInstantiator::<T>::new(None);
 
 		// We need to leave enough block numbers to fill `ProjectsToUpdate` before our project insertion
-		
+
 		let time_advance: u32 = x + 2;
 		frame_system::Pallet::<T>::set_block_number(time_advance.into());
 
@@ -2275,7 +2272,8 @@ mod benchmarks {
 
 		// * validity checks *
 		// Storage
-		let maybe_transition = inst.get_update_pair(project_id, &UpdateType::ProjectDecision(FundingOutcomeDecision::AcceptFunding));
+		let maybe_transition =
+			inst.get_update_pair(project_id, &UpdateType::ProjectDecision(FundingOutcomeDecision::AcceptFunding));
 		assert!(maybe_transition.is_some());
 
 		// Events

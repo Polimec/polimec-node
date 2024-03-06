@@ -964,15 +964,18 @@ impl<
 		self.execute(|| ProjectsDetails::<T>::get(project_id).expect("Project details exists"))
 	}
 
-	pub fn get_update_pair(&mut self, project_id: ProjectId, update_type: &UpdateType) -> Option<(BlockNumberFor<T>, UpdateType)> {
+	pub fn get_update_pair(
+		&mut self,
+		project_id: ProjectId,
+		update_type: &UpdateType,
+	) -> Option<(BlockNumberFor<T>, UpdateType)> {
 		self.execute(|| {
-			ProjectsToUpdate::<T>::iter()
-				.find_map(|(block, update_vec)| {
-					update_vec
-						.iter()
-						.find(|(pid, update)| *pid == project_id && update == update_type)
-						.map(|(_pid, update)| (block, update.clone()))
-				})
+			ProjectsToUpdate::<T>::iter().find_map(|(block, update_vec)| {
+				update_vec
+					.iter()
+					.find(|(pid, update)| *pid == project_id && update == update_type)
+					.map(|(_pid, update)| (block, update.clone()))
+			})
 		})
 	}
 
@@ -1247,13 +1250,10 @@ impl<
 	pub fn start_remainder_or_end_funding(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
 		let details = self.get_project_details(project_id);
 		assert_eq!(details.status, ProjectStatus::CommunityRound);
-		let remaining_tokens = details.remaining_contribution_tokens.0
-			.saturating_add(details.remaining_contribution_tokens.1);
-		let update_type = if remaining_tokens > Zero::zero() {
-			UpdateType::RemainderFundingStart
-		} else {
-			UpdateType::FundingEnd
-		};
+		let remaining_tokens =
+			details.remaining_contribution_tokens.0.saturating_add(details.remaining_contribution_tokens.1);
+		let update_type =
+			if remaining_tokens > Zero::zero() { UpdateType::RemainderFundingStart } else { UpdateType::FundingEnd };
 		if let Some((transition_block, _)) = self.get_update_pair(project_id, &update_type) {
 			self.execute(|| frame_system::Pallet::<T>::set_block_number(transition_block - One::one()));
 			self.advance_time(1u32.into()).unwrap();
@@ -1264,7 +1264,6 @@ impl<
 		} else {
 			panic!("Bad state")
 		}
-		
 	}
 
 	pub fn finish_funding(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
