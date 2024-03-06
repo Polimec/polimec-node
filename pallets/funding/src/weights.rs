@@ -167,12 +167,10 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			// Standard Error: 3_856_088
 			.saturating_add(Weight::from_parts(10_425_661, 0).saturating_mul(x.into()))
 			// Standard Error: 38_223
-			.saturating_add(Weight::from_parts(1_158_523, 0).saturating_mul(y.into()))
 			.saturating_add(T::DbWeight::get().reads(87_u64))
 			.saturating_add(T::DbWeight::get().reads((3_u64).saturating_mul(x.into())))
 			.saturating_add(T::DbWeight::get().writes(3_u64))
 			.saturating_add(Weight::from_parts(0, 8051).saturating_mul(x.into()))
-			.saturating_add(Weight::from_parts(0, 979).saturating_mul(y.into()))
 	}
 	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
 	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
@@ -1050,12 +1048,10 @@ impl WeightInfo for () {
 			// Standard Error: 3_856_088
 			.saturating_add(Weight::from_parts(10_425_661, 0).saturating_mul(x.into()))
 			// Standard Error: 38_223
-			.saturating_add(Weight::from_parts(1_158_523, 0).saturating_mul(y.into()))
 			.saturating_add(RocksDbWeight::get().reads(87_u64))
 			.saturating_add(RocksDbWeight::get().reads((3_u64).saturating_mul(x.into())))
 			.saturating_add(RocksDbWeight::get().writes(3_u64))
 			.saturating_add(Weight::from_parts(0, 8051).saturating_mul(x.into()))
-			.saturating_add(Weight::from_parts(0, 979).saturating_mul(y.into()))
 	}
 	/// Storage: `PolimecFunding::ProjectsDetails` (r:1 w:1)
 	/// Proof: `PolimecFunding::ProjectsDetails` (`max_values`: None, `max_size`: Some(349), added: 2824, mode: `MaxEncodedLen`)
