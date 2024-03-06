@@ -599,12 +599,20 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
-	pub type AuctionBoughtCT<T: Config> =
-		StorageNMap<_, (NMapKey<Blake2_128Concat, ProjectId>, NMapKey<Blake2_128Concat, DID>), BalanceOf<T>, ValueQuery>;
+	pub type AuctionBoughtCT<T: Config> = StorageNMap<
+		_,
+		(NMapKey<Blake2_128Concat, ProjectId>, NMapKey<Blake2_128Concat, DID>),
+		BalanceOf<T>,
+		ValueQuery,
+	>;
 
 	#[pallet::storage]
-	pub type ContributionBoughtCT<T: Config> =
-		StorageNMap<_, (NMapKey<Blake2_128Concat, ProjectId>, NMapKey<Blake2_128Concat, DID>), BalanceOf<T>, ValueQuery>;
+	pub type ContributionBoughtCT<T: Config> = StorageNMap<
+		_,
+		(NMapKey<Blake2_128Concat, ProjectId>, NMapKey<Blake2_128Concat, DID>),
+		BalanceOf<T>,
+		ValueQuery,
+	>;
 
 	#[pallet::storage]
 	/// Migrations sent and awaiting for confirmation

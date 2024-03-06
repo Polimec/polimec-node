@@ -2907,15 +2907,15 @@ mod benchmarks {
 						),
 						None,
 					),
-					phantom: Default::default()
+					phantom: Default::default(),
 				},
 				contributing: ContributingTicketSizes {
 					retail: TicketSize::new(None, None),
 					professional: TicketSize::new(None, None),
 					institutional: TicketSize::new(None, None),
-					phantom: Default::default()
+					phantom: Default::default(),
 				},
-				phantom: Default::default()
+				phantom: Default::default(),
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
 			funding_destination_account: issuer.clone(),
