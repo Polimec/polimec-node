@@ -818,6 +818,7 @@ mod evaluation {
 
 // only functionalities that happen in the AUCTION period of a project
 mod auction {
+	use crate::instantiator::async_features::create_multiple_projects_at;
 	use super::*;
 
 	#[test]
@@ -1875,6 +1876,111 @@ mod auction {
 				InvestorType::Institutional
 			));
 		});
+	}
+
+	#[test]
+	fn bid_with_multiple_currencies() {
+		let inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let mut project_metadata_usdt = default_project_metadata(0, ISSUER);
+		project_metadata_usdt.participation_currencies = vec![AcceptedFundingAsset::USDT].try_into().unwrap();
+
+		let mut project_metadata_all = default_project_metadata(1, ISSUER);
+		project_metadata_all.participation_currencies = vec![
+			AcceptedFundingAsset::USDT,
+			AcceptedFundingAsset::USDC,
+			AcceptedFundingAsset::DOT,
+		].try_into().unwrap();
+
+		let mut project_metadata_usdc = default_project_metadata(2, ISSUER);
+		project_metadata_usdc.participation_currencies = vec![AcceptedFundingAsset::USDC].try_into().unwrap();
+
+		let mut project_metadata_dot = default_project_metadata(3, ISSUER);
+		project_metadata_dot.participation_currencies = vec![AcceptedFundingAsset::DOT].try_into().unwrap();
+
+		let evaluations = default_evaluations();
+
+		let projects = vec![
+			TestProjectParams {
+				expected_state: ProjectStatus::AuctionRound(AuctionPhase::English),
+				metadata: project_metadata_all.clone(),
+				issuer: ISSUER,
+				evaluations: evaluations.clone(),
+				bids: vec![],
+				community_contributions: vec![],
+				remainder_contributions: vec![],
+			},
+			TestProjectParams {
+				expected_state: ProjectStatus::AuctionRound(AuctionPhase::English),
+				metadata: project_metadata_usdt,
+				issuer: ISSUER,
+				evaluations: evaluations.clone(),
+				bids: vec![],
+				community_contributions: vec![],
+				remainder_contributions: vec![],
+			},
+			TestProjectParams {
+				expected_state: ProjectStatus::AuctionRound(AuctionPhase::English),
+				metadata: project_metadata_usdc,
+				issuer: ISSUER,
+				evaluations: evaluations.clone(),
+				bids: vec![],
+				community_contributions: vec![],
+				remainder_contributions: vec![],
+			},
+			TestProjectParams {
+				expected_state: ProjectStatus::AuctionRound(AuctionPhase::English),
+				metadata: project_metadata_dot,
+				issuer: ISSUER,
+				evaluations: evaluations.clone(),
+				bids: vec![],
+				community_contributions: vec![],
+				remainder_contributions: vec![],
+			},
+		];
+		let (project_ids, mut inst) = create_multiple_projects_at(inst, projects);
+
+		let project_id_all = project_ids[0];
+		let project_id_usdt = project_ids[1];
+		let project_id_usdc = project_ids[2];
+		let project_id_dot = project_ids[3];
+
+		let usdt_bid = BidParams::new(BIDDER_1, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDT);
+		let usdc_bid = BidParams::new(BIDDER_1, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::USDC);
+		let dot_bid = BidParams::new(BIDDER_1, 10_000 * ASSET_UNIT, 1u8, AcceptedFundingAsset::DOT);
+
+		let plmc_fundings = MockInstantiator::calculate_auction_plmc_charged_with_given_price(
+			&vec![usdt_bid.clone(), usdc_bid.clone(), dot_bid.clone()],
+			project_metadata_all.minimum_price,
+		);
+		let plmc_existential_deposits = plmc_fundings.accounts().existential_deposits();
+		let plmc_ct_account_deposits = plmc_fundings.accounts().ct_account_deposits();
+
+		let plmc_all_mints = MockInstantiator::generic_map_operation(vec![plmc_fundings, plmc_existential_deposits, plmc_ct_account_deposits], MergeOperation::Add);
+		inst.mint_plmc_to(plmc_all_mints.clone());
+		inst.mint_plmc_to(plmc_all_mints.clone());
+		inst.mint_plmc_to(plmc_all_mints.clone());
+
+		let usdt_fundings = MockInstantiator::calculate_auction_funding_asset_charged_with_given_price(
+			&vec![usdt_bid.clone(), usdc_bid.clone(), dot_bid.clone()],
+			project_metadata_all.minimum_price,
+		);
+		inst.mint_foreign_asset_to(usdt_fundings.clone());
+		inst.mint_foreign_asset_to(usdt_fundings.clone());
+		inst.mint_foreign_asset_to(usdt_fundings.clone());
+
+		assert_ok!(inst.bid_for_users(project_id_all, vec![usdt_bid.clone(), usdc_bid.clone(), dot_bid.clone()]));
+
+		assert_ok!(inst.bid_for_users(project_id_usdt, vec![usdt_bid.clone()]));
+		assert_err!(inst.bid_for_users(project_id_usdt, vec![usdc_bid.clone()]), Error::<TestRuntime>::FundingAssetNotAccepted);
+		assert_err!(inst.bid_for_users(project_id_usdt, vec![dot_bid.clone()]), Error::<TestRuntime>::FundingAssetNotAccepted);
+
+		assert_err!(inst.bid_for_users(project_id_usdc, vec![usdt_bid.clone()]), Error::<TestRuntime>::FundingAssetNotAccepted);
+		assert_ok!(inst.bid_for_users(project_id_usdc, vec![usdc_bid.clone()]));
+		assert_err!(inst.bid_for_users(project_id_usdc, vec![dot_bid.clone()]), Error::<TestRuntime>::FundingAssetNotAccepted);
+
+		assert_err!(inst.bid_for_users(project_id_dot, vec![usdt_bid.clone()]), Error::<TestRuntime>::FundingAssetNotAccepted);
+		assert_err!(inst.bid_for_users(project_id_dot, vec![usdc_bid.clone()]), Error::<TestRuntime>::FundingAssetNotAccepted);
+		assert_ok!(inst.bid_for_users(project_id_dot, vec![dot_bid.clone()]));
 	}
 }
 

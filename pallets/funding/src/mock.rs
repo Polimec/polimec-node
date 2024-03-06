@@ -423,12 +423,27 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 			)],
 		},
 		foreign_assets: ForeignAssetsConfig {
-			assets: vec![(
-				AcceptedFundingAsset::USDT.to_assethub_id(),
-				<TestRuntime as Config>::PalletId::get().into_account_truncating(),
-				false,
-				10,
-			)],
+			assets: vec![
+				(
+					AcceptedFundingAsset::USDT.to_assethub_id(),
+					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
+					false,
+					10,
+				),
+				(
+					AcceptedFundingAsset::USDC.to_assethub_id(),
+					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
+					false,
+					10,
+				),
+				(
+					AcceptedFundingAsset::DOT.to_assethub_id(),
+					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
+					false,
+					10,
+				),
+
+			],
 			metadata: vec![],
 			accounts: vec![],
 		},
