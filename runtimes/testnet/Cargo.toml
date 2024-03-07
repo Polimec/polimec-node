@@ -49,6 +49,7 @@ pallet-democracy.workspace = true
 pallet-elections-phragmen.workspace = true
 pallet-identity.workspace = true
 pallet-membership.workspace = true
+pallet-message-queue.workspace = true
 pallet-scheduler.workspace = true
 pallet-session.workspace = true
 pallet-sudo.workspace = true
@@ -139,6 +140,7 @@ std = [
 	"pallet-insecure-randomness-collective-flip/std",
 	"pallet-linear-release/std",
 	"pallet-membership/std",
+	"pallet-message-queue/std",
 	"pallet-multisig/std",
 	"pallet-oracle-ocw/std",
 	"pallet-parachain-staking/std",
@@ -200,6 +202,7 @@ runtime-benchmarks = [
 	"pallet-funding/runtime-benchmarks",
 	"pallet-linear-release/runtime-benchmarks",
 	"pallet-membership/runtime-benchmarks",
+	"pallet-message-queue/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",
 	"pallet-oracle-ocw/runtime-benchmarks",
 	"pallet-parachain-staking/runtime-benchmarks",
@@ -247,6 +250,7 @@ try-runtime = [
 	"pallet-insecure-randomness-collective-flip/try-runtime",
 	"pallet-linear-release/try-runtime",
 	"pallet-membership/try-runtime",
+	"pallet-message-queue/try-runtime",
 	"pallet-multisig/try-runtime",
 	"pallet-oracle-ocw/try-runtime",
 	"pallet-parachain-staking/try-runtime",

@@ -34,7 +34,7 @@ use polimec_xcm_executor::{
 	polimec_traits::{JustTry, Properties, ShouldExecute},
 	XcmExecutor,
 };
-use polkadot_parachain::primitives::Sibling;
+use polkadot_parachain_primitives::primitives::Sibling;
 use polkadot_runtime_common::impls::ToAuthor;
 use sp_runtime::traits::MaybeEquivalence;
 use xcm::latest::prelude::*;
@@ -257,6 +257,7 @@ pub type AssetTransactors = (CurrencyTransactor, ForeignAssetsAdapter);
 
 pub struct XcmConfig;
 impl polimec_xcm_executor::Config for XcmConfig {
+	type Aliasers = ();
 	type AssetClaims = PolkadotXcm;
 	type AssetExchanger = ();
 	type AssetLocker = ();

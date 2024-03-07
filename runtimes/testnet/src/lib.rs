@@ -22,25 +22,27 @@
 #[macro_use]
 extern crate frame_benchmarking;
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
+use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
 	construct_runtime, ord_parameter_types, parameter_types,
 	traits::{
-		fungible::{Credit, Inspect},
-		tokens, AsEnsureOriginWithArg, ConstU32, Currency, EitherOfDiverse, Everything, PrivilegeCmp, WithdrawReasons,
+		fungible::{Credit, HoldConsideration, Inspect},
+		tokens::{self, PayFromAccount, UnityAssetBalanceConversion}, AsEnsureOriginWithArg, Currency, ConstU32, Contains, Everything, EitherOfDiverse, InstanceFilter, LinearStoragePrice, PrivilegeCmp, TransformOrigin, WithdrawReasons
 	},
 	weights::{ConstantMultiplier, Weight},
 };
-use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSigned};
+use frame_system::{EnsureNever, EnsureRoot, EnsureRootWithSuccess, EnsureSigned};
 pub use parachains_common::{
 	impls::DealWithFees, opaque, AccountId, AssetIdForTrustBackedAssets as AssetId, AuraId, Balance, BlockNumber, Hash,
 	Header, Nonce, Signature, AVERAGE_ON_INITIALIZE_RATIO, DAYS, HOURS, MAXIMUM_BLOCK_WEIGHT, MINUTES,
 	NORMAL_DISPATCH_RATIO, SLOT_DURATION,
+	message_queue::{NarrowOriginToSibling, ParaIdToSibling}
 };
 use parity_scale_codec::Encode;
 use polimec_common::credentials::{EnsureInvestor, Institutional, Professional, Retail};
 
 // Polkadot imports
-use polkadot_runtime_common::{BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate};
+use polkadot_runtime_common::{BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate, xcm_sender::NoPriceForMessageDelivery};
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 #[cfg(any(feature = "std", test))]
@@ -49,10 +51,10 @@ use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
 		AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, Convert, ConvertBack, ConvertInto,
-		OpaqueKeys, Verify,
+		OpaqueKeys, IdentityLookup, Verify,
 	},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, FixedU128, MultiAddress, SaturatedConversion,
+	ApplyExtrinsicResult, FixedU128, MultiAddress, Perbill, SaturatedConversion,
 };
 
 use pallet_democracy::GetElectorate;
@@ -266,9 +268,10 @@ impl pallet_balances::Config for Runtime {
 	type MaxHolds = MaxLocks;
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
-	type ReserveIdentifier = RuntimeHoldReason;
+	type ReserveIdentifier = [u8; 8];
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeHoldReason = RuntimeHoldReason;
+	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type WeightInfo = ();
 }
 
@@ -296,9 +299,13 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = ();
 }
 
+parameter_types! {
+	pub const RelayOrigin: AggregateMessageOrigin = AggregateMessageOrigin::Parent;
+}
+
 impl cumulus_pallet_parachain_system::Config for Runtime {
 	type CheckAssociatedRelayNumber = RelayNumberStrictlyIncreases;
-	type DmpMessageHandler = DmpQueue;
+	type DmpQueue = frame_support::traits::EnqueueWithOrigin<MessageQueue, RelayOrigin>;
 	type OnSystemEvent = ();
 	type OutboundXcmpMessageSource = XcmpQueue;
 	type ReservedDmpWeight = ReservedDmpWeight;
@@ -306,6 +313,7 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type SelfParaId = ParachainInfo;
 	type XcmpMessageHandler = XcmpQueue;
+	type WeightInfo = cumulus_pallet_parachain_system::weights::SubstrateWeight<Runtime>;
 }
 
 impl parachain_info::Config for Runtime {}
@@ -316,18 +324,39 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type ChannelInfo = ParachainSystem;
 	type ControllerOrigin = EnsureRoot<AccountId>;
 	type ControllerOriginConverter = xcm_config::XcmOriginToTransactDispatchOrigin;
-	type ExecuteOverweightOrigin = EnsureRoot<AccountId>;
-	type PriceForSiblingDelivery = ();
+	type PriceForSiblingDelivery = NoPriceForMessageDelivery<ParaId>;
 	type RuntimeEvent = RuntimeEvent;
 	type VersionWrapper = PolkadotXcm;
-	type WeightInfo = ();
-	type XcmExecutor = XcmExecutor<XcmConfig>;
+	type XcmpQueue = TransformOrigin<MessageQueue, AggregateMessageOrigin, ParaId, ParaIdToSibling>;
+	type MaxInboundSuspended = sp_core::ConstU32<1_000>;
+	type WeightInfo = cumulus_pallet_xcmp_queue::weights::SubstrateWeight<Self>;
 }
 
 impl cumulus_pallet_dmp_queue::Config for Runtime {
-	type ExecuteOverweightOrigin = EnsureRoot<AccountId>;
 	type RuntimeEvent = RuntimeEvent;
-	type XcmExecutor = XcmExecutor<XcmConfig>;
+	type WeightInfo = cumulus_pallet_dmp_queue::weights::SubstrateWeight<Self>;
+	type DmpSink = frame_support::traits::EnqueueWithOrigin<MessageQueue, RelayOrigin>;
+}
+
+parameter_types! {
+	pub MessageQueueServiceWeight: Weight = Perbill::from_percent(35) * RuntimeBlockWeights::get().max_block;
+}
+
+impl pallet_message_queue::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = pallet_message_queue::weights::SubstrateWeight<Self>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type MessageProcessor = pallet_message_queue::mock_helpers::NoopMessageProcessor<AggregateMessageOrigin>;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type MessageProcessor =
+		xcm_builder::ProcessXcmMessage<AggregateMessageOrigin, polimec_xcm_executor::XcmExecutor<XcmConfig>, RuntimeCall>;
+	type Size = u32;
+	// The XCMP queue pallet is only ever able to handle the `Sibling(ParaId)` origin:
+	type QueueChangeHandler = NarrowOriginToSibling<XcmpQueue>;
+	type QueuePausedQuery = NarrowOriginToSibling<XcmpQueue>;
+	type HeapSize = sp_core::ConstU32<{ 64 * 1024 }>;
+	type MaxStale = sp_core::ConstU32<8>;
+	type ServiceWeight = MessageQueueServiceWeight;
 }
 
 impl pallet_session::Config for Runtime {
@@ -361,6 +390,10 @@ impl tokens::imbalance::OnUnbalanced<CreditOf<Runtime>> for ToTreasury {
 }
 
 impl pallet_treasury::Config for Runtime {
+	type AssetKind = ();
+	type Beneficiary = AccountId;
+	type BeneficiaryLookup = IdentityLookup<Self::Beneficiary>;
+	type BalanceConverter = UnityAssetBalanceConversion;
 	type ApproveOrigin = EitherOfDiverse<
 		EnsureRoot<AccountId>,
 		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 1>,
@@ -371,10 +404,15 @@ impl pallet_treasury::Config for Runtime {
 	type MaxApprovals = MaxApprovals;
 	type OnSlash = Treasury;
 	type PalletId = TreasuryId;
+	type Paymaster = PayFromAccount<Balances, TreasuryAccount> ;
+	type PayoutPeriod = PayoutPeriod;
 	type ProposalBond = ProposalBond;
 	type ProposalBondMaximum = ();
 	type ProposalBondMinimum = ProposalBondMinimum;
-	type RejectOrigin = EnsureRoot<AccountId>;
+	type RejectOrigin = EitherOfDiverse<
+		EnsureRoot<AccountId>,
+		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 2>,
+	>;
 	type RuntimeEvent = RuntimeEvent;
 	type SpendFunds = ();
 	type SpendOrigin = frame_support::traits::NeverEnsureOrigin<Balance>;
@@ -525,13 +563,21 @@ impl pallet_scheduler::Config for Runtime {
 	type WeightInfo = ();
 }
 
+parameter_types! {
+	pub const PreimageHoldReason: RuntimeHoldReason =
+		RuntimeHoldReason::Preimage(pallet_preimage::HoldReason::Preimage);
+}
+
 impl pallet_preimage::Config for Runtime {
-	// TODO: Check this base deposit value.
-	type BaseDeposit = PreimageBaseDeposit;
-	type ByteDeposit = ();
 	type Currency = Balances;
 	type ManagerOrigin = EnsureRoot<AccountId>;
 	type RuntimeEvent = RuntimeEvent;
+	type Consideration = HoldConsideration<
+		AccountId,
+		Balances,
+		PreimageHoldReason,
+		LinearStoragePrice<PreimageBaseDeposit, PreimageByteDeposit, Balance>,
+	>;
 	type WeightInfo = ();
 }
 
@@ -554,16 +600,22 @@ impl pallet_multisig::Config for Runtime {
 
 impl pallet_identity::Config for Runtime {
 	type BasicDeposit = BasicDeposit;
+	type ByteDeposit = ByteDeposit;
 	type Currency = Balances;
-	type FieldDeposit = FieldDeposit;
 	type ForceOrigin = EnsureRoot<AccountId>;
-	type MaxAdditionalFields = MaxAdditionalFields;
+	type OffchainSignature = Signature;
+	type PendingUsernameExpiration = PendingUsernameExpiration;
+	type IdentityInformation = pallet_identity::legacy::IdentityInfo<MaxAdditionalFields>;
 	type MaxRegistrars = MaxRegistrars;
 	type MaxSubAccounts = MaxSubAccounts;
+	type MaxSuffixLength = MaxSuffixLength;
+	type MaxUsernameLength = MaxUsernameLength;
 	type RegistrarOrigin = EnsureRoot<AccountId>;
 	type RuntimeEvent = RuntimeEvent;
+	type SigningPublicKey = <Signature as Verify>::Signer;
 	type Slashed = Treasury;
 	type SubAccountDeposit = SubAccountDeposit;
+	type UsernameAuthorityOrigin = EnsureNever<AccountId>;
 	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
 }
 
@@ -872,8 +924,10 @@ where
 		Some((call, (address, signature, extra)))
 	}
 }
+
 impl pallet_vesting::Config for Runtime {
 	type BlockNumberToBalance = ConvertInto;
+	type BlockNumberProvider = System;
 	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;
 	type RuntimeEvent = RuntimeEvent;
@@ -921,7 +975,7 @@ construct_runtime!(
 		Council: pallet_collective::<Instance1> = 42,
 		TechnicalCommittee: pallet_collective::<Instance2> = 43,
 		Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>, HoldReason, FreezeReason} = 44,
-		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 45,
+		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>, HoldReason} = 45,
 		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 46,
 
 		// Polimec Core
@@ -945,6 +999,7 @@ construct_runtime!(
 		CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 84,
 		// Queue and pass DMP messages on to be executed.
 		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 85,
+		MessageQueue: pallet_message_queue = 86,
 	}
 );
 

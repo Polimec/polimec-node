@@ -744,7 +744,7 @@ parameter_types! {
 	pub const MaxFeedValues: u32 = 4; // max 4 values allowd to feed in one call (USDT, USDC, DOT, PLMC).
 }
 
-impl orml_oracle::Config<()> for Runtime {
+impl orml_oracle::Config for Runtime {
 	type CombineData = orml_oracle::DefaultCombineData<Runtime, MinimumCount, ExpiresIn, ()>;
 	type MaxFeedValues = MaxFeedValues;
 	type MaxHasDispatchedSize = MaxHasDispatchedSize;

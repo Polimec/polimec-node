@@ -10895,6 +10895,7 @@ dependencies = [
  "pallet-insecure-randomness-collective-flip",
  "pallet-linear-release",
  "pallet-membership 28.0.0",
+ "pallet-message-queue 31.0.0",
  "pallet-multisig 28.0.0",
  "pallet-oracle-ocw",
  "pallet-parachain-staking",
