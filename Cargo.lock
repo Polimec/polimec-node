@@ -3918,7 +3918,7 @@ dependencies = [
 
 [[package]]
 name = "integration-tests"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "asset-hub-polkadot-runtime",
  "cumulus-pallet-xcm",
@@ -3932,8 +3932,8 @@ dependencies = [
  "pallet-assets",
  "pallet-balances",
  "pallet-collective",
- "pallet-democracy 0.5.0",
- "pallet-elections-phragmen 0.5.0",
+ "pallet-democracy 0.5.1",
+ "pallet-elections-phragmen 0.5.1",
  "pallet-funding",
  "pallet-im-online",
  "pallet-linear-release",
@@ -6037,7 +6037,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-democracy"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6111,7 +6111,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-elections-phragmen"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6170,7 +6170,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-funding"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "assert_matches2",
  "frame-benchmarking",
@@ -6318,7 +6318,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-linear-release"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6541,7 +6541,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-oracle-ocw"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -6565,7 +6565,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-parachain-staking"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7468,7 +7468,7 @@ dependencies = [
 
 [[package]]
 name = "polimec-base-runtime"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -7493,8 +7493,8 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-collective",
- "pallet-democracy 0.5.0",
- "pallet-elections-phragmen 0.5.0",
+ "pallet-democracy 0.5.1",
+ "pallet-elections-phragmen 0.5.1",
  "pallet-identity",
  "pallet-membership",
  "pallet-multisig",
@@ -7568,7 +7568,7 @@ dependencies = [
 
 [[package]]
 name = "polimec-parachain-node"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "clap",
  "color-print",
@@ -7639,7 +7639,7 @@ dependencies = [
 
 [[package]]
 name = "polimec-parachain-runtime"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -7666,8 +7666,8 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-collective",
- "pallet-democracy 0.5.0",
- "pallet-elections-phragmen 0.5.0",
+ "pallet-democracy 0.5.1",
+ "pallet-elections-phragmen 0.5.1",
  "pallet-funding",
  "pallet-identity",
  "pallet-insecure-randomness-collective-flip",
@@ -7739,7 +7739,7 @@ dependencies = [
 
 [[package]]
 name = "polimec-xcm-executor"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "environmental",
  "frame-benchmarking",
@@ -11473,7 +11473,7 @@ dependencies = [
 
 [[package]]
 name = "shared-configuration"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "frame-support",
  "frame-system",
