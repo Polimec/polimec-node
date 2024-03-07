@@ -1246,6 +1246,7 @@ mod tests {
 		type RuntimeCall = RuntimeCall;
 		type RuntimeEvent = RuntimeEvent;
 		type RuntimeOrigin = RuntimeOrigin;
+		type RuntimeTask = RuntimeTask;
 		type SS58Prefix = ();
 		type SystemWeightInfo = ();
 		type Version = ();
@@ -1264,6 +1265,7 @@ mod tests {
 		type ReserveIdentifier = [u8; 8];
 		type RuntimeEvent = RuntimeEvent;
 		type RuntimeHoldReason = RuntimeHoldReason;
+		type RuntimeFreezeReason = RuntimeFreezeReason;
 		type WeightInfo = ();
 	}
 

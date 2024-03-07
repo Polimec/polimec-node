@@ -41,6 +41,7 @@ use sp_runtime::{
 use sp_std::cell::RefCell;
 use std::sync::Arc;
 
+type Block = frame_system::mocking::MockBlock<Test>;
 pub type Extrinsic = TestXt<RuntimeCall, ()>;
 pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
 pub type AccountPublic = <Signature as Verify>::Signer;
@@ -48,29 +49,30 @@ type OracleKey = u64;
 type OracleValue = FixedU128;
 
 impl frame_system::Config for Test {
-	type AccountData = ();
-	type AccountId = sp_core::sr25519::Public;
-	type BaseCallFilter = Everything;
-	type Block = Block;
-	type BlockHashCount = ConstU64<250>;
-	type BlockLength = ();
+	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = ();
+	type BlockLength = ();
 	type DbWeight = ();
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
+	type Nonce = u64;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
+	type AccountId = sp_core::sr25519::Public;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type MaxConsumers = ConstU32<16>;
-	type Nonce = u64;
-	type OnKilledAccount = ();
-	type OnNewAccount = ();
-	type OnSetCode = ();
-	type PalletInfo = PalletInfo;
-	type RuntimeCall = RuntimeCall;
+	type Block = Block;
 	type RuntimeEvent = RuntimeEvent;
-	type RuntimeOrigin = RuntimeOrigin;
-	type SS58Prefix = ();
-	type SystemWeightInfo = ();
+	type BlockHashCount = ConstU64<250>;
 	type Version = ();
+	type PalletInfo = PalletInfo;
+	type AccountData = ();
+	type OnNewAccount = ();
+	type OnKilledAccount = ();
+	type SystemWeightInfo = ();
+	type SS58Prefix = ();
+	type OnSetCode = ();
+	type MaxConsumers = ConstU32<16>;
+	type RuntimeTask = RuntimeTask;
 }
 
 thread_local! {
@@ -97,20 +99,20 @@ parameter_types! {
 	pub const MaxFeedValues: u32 = 4; // max 4 values allowd to feed in one call (USDT, USDC, DOT, PLMC).
 }
 
-impl orml_oracle::Config for Test {
-	type CombineData = orml_oracle::DefaultCombineData<Test, ConstU32<3>, ConstU32<10>, ()>;
-	type MaxFeedValues = MaxFeedValues;
-	type MaxHasDispatchedSize = ConstU32<20>;
-	type Members = IsInVec<Members>;
-	type OnNewData = ();
-	type OracleKey = OracleKey;
-	type OracleValue = OracleValue;
-	type RootOperatorAccountId = RootOperatorAccountId;
-	type RuntimeEvent = RuntimeEvent;
-	type Time = Timestamp;
-	// TODO Add weight info
-	type WeightInfo = ();
-}
+// impl orml_oracle::Config for Test {
+// 	type CombineData = orml_oracle::DefaultCombineData<Test, ConstU32<3>, ConstU32<10>, ()>;
+// 	type MaxFeedValues = MaxFeedValues;
+// 	type MaxHasDispatchedSize = ConstU32<20>;
+// 	type Members = IsInVec<Members>;
+// 	type OnNewData = ();
+// 	type OracleKey = OracleKey;
+// 	type OracleValue = OracleValue;
+// 	type RootOperatorAccountId = RootOperatorAccountId;
+// 	type RuntimeEvent = RuntimeEvent;
+// 	type Time = Timestamp;
+// 	// TODO Add weight info
+// 	type WeightInfo = ();
+// }
 
 pub struct AssetPriceConverter;
 impl Convert<(AssetName, FixedU128), (OracleKey, OracleValue)> for AssetPriceConverter {
@@ -131,50 +133,48 @@ parameter_types! {
 		get_account_id_from_seed::<crate::crypto::AuthorityId>("Charlie"),
 	];
 }
-impl Config for Test {
-	type AppCrypto = crate::crypto::PolimecCrypto;
-	type ConvertAssetPricePair = AssetPriceConverter;
-	type FetchInterval = ConstU64<5u64>;
-	type FetchWindow = ConstU64<1u64>;
-	type Members = IsInVec<Members>;
-	type RuntimeEvent = RuntimeEvent;
-}
+// impl Config for Test {
+// 	type AppCrypto = crate::crypto::PolimecCrypto;
+// 	type ConvertAssetPricePair = AssetPriceConverter;
+// 	type FetchInterval = ConstU64<5u64>;
+// 	type FetchWindow = ConstU64<1u64>;
+// 	type Members = IsInVec<Members>;
+// 	type RuntimeEvent = RuntimeEvent;
+// }
 
-impl frame_system::offchain::SigningTypes for Test {
-	type Public = <Signature as Verify>::Signer;
-	type Signature = Signature;
-}
+// impl frame_system::offchain::SigningTypes for Test {
+// 	type Public = <Signature as Verify>::Signer;
+// 	type Signature = Signature;
+// }
 
-impl<LocalCall> frame_system::offchain::SendTransactionTypes<LocalCall> for Test
-where
-	RuntimeCall: From<LocalCall>,
-{
-	type Extrinsic = Extrinsic;
-	type OverarchingCall = RuntimeCall;
-}
+// impl<LocalCall> frame_system::offchain::SendTransactionTypes<LocalCall> for Test
+// where
+// 	RuntimeCall: From<LocalCall>,
+// {
+// 	type Extrinsic = Extrinsic;
+// 	type OverarchingCall = RuntimeCall;
+// }
 
-impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Test
-where
-	RuntimeCall: From<LocalCall>,
-{
-	fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
-		call: RuntimeCall,
-		_public: <Signature as Verify>::Signer,
-		_account: AccountId,
-		nonce: u64,
-	) -> Option<(RuntimeCall, <Extrinsic as ExtrinsicT>::SignaturePayload)> {
-		Some((call, (nonce, ())))
-	}
-}
-
-type Block = frame_system::mocking::MockBlock<Test>;
+// impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Test
+// where
+// 	RuntimeCall: From<LocalCall>,
+// {
+// 	fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
+// 		call: RuntimeCall,
+// 		_public: <Signature as Verify>::Signer,
+// 		_account: AccountId,
+// 		nonce: u64,
+// 	) -> Option<(RuntimeCall, <Extrinsic as ExtrinsicT>::SignaturePayload)> {
+// 		Some((call, (nonce, ())))
+// 	}
+// }
 
 construct_runtime!(
 	pub enum Test
 	{
 		System: frame_system::{Pallet, Call, Storage, Config<T>, Event<T>},
-		Oracle: orml_oracle::{Pallet, Storage, Call, Event<T>},
-		OracleOcw: pallet_oracle_ocw::{Pallet, Event<T>},
+		// Oracle: orml_oracle::{Pallet, Storage, Call, Config<T>, Event<T>},
+		// OracleOcw: pallet_oracle_ocw::{Pallet, Event<T>},
 
 	}
 );

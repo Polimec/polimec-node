@@ -41,7 +41,7 @@ pallet-xcm.workspace = true
 pallet-assets.workspace = true
 polkadot-core-primitives.workspace = true
 polkadot-runtime-parachains.workspace = true
-polkadot-parachain.workspace = true
+polkadot-parachain-primitives.workspace = true
 pallet-collective.workspace = true
 pallet-elections-phragmen.workspace = true
 
@@ -116,7 +116,7 @@ std = [
 	"polimec-parachain-runtime/std",
 	"polimec-receiver/std",
 	"polkadot-core-primitives/std",
-	"polkadot-parachain/std",
+	"polkadot-parachain-primitives/std",
 	"polkadot-primitives/std",
 	"polkadot-runtime-constants/std",
 	"polkadot-runtime-parachains/std",

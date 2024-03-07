@@ -80,7 +80,7 @@ pub mod pallet {
 		/// The cryptographic interface for the offchain worker to sign transactions.
 		type AppCrypto: AppCrypto<Self::Public, Self::Signature>;
 		/// List of members that are allowed to send transactions.
-		type Members: frame_support::traits::Contains<Self::AccountId>;
+		type Members: frame_support::traits::Contains<AccountIdOf<Self>>;
 		/// Interval between price fetches in block numbers.
 		/// The interval is started at block `n % FetchInterval == 0`
 		type FetchInterval: Get<BlockNumberFor<Self>>;

@@ -1458,7 +1458,7 @@ impl<T: Config> Pallet<T> {
 				T::ContributionTokenCurrency::deposit_required(project_id),
 				Precision::Exact,
 			)?;
-			T::ContributionTokenCurrency::touch(project_id, bid.bidder.clone(), bid.bidder.clone())?;
+			T::ContributionTokenCurrency::touch(project_id, &bid.bidder, &bid.bidder)?;
 		}
 		T::ContributionTokenCurrency::mint_into(project_id, &bid.bidder, ct_amount)?;
 		Bids::<T>::insert((project_id, bidder, bid_id), &bid);
@@ -1515,8 +1515,8 @@ impl<T: Config> Pallet<T> {
 			)?;
 			T::ContributionTokenCurrency::touch(
 				project_id,
-				contribution.contributor.clone(),
-				contribution.contributor.clone(),
+				&contribution.contributor,
+				&contribution.contributor,
 			)?;
 		}
 		T::ContributionTokenCurrency::mint_into(project_id, &contribution.contributor, ct_amount)?;
@@ -1637,8 +1637,8 @@ impl<T: Config> Pallet<T> {
 			)?;
 			T::ContributionTokenCurrency::touch(
 				project_id,
-				evaluation.evaluator.clone(),
-				evaluation.evaluator.clone(),
+				&evaluation.evaluator,
+				&evaluation.evaluator,
 			)?;
 		}
 		T::ContributionTokenCurrency::mint_into(project_id, &evaluation.evaluator, total_reward_amount)?;
@@ -2166,24 +2166,19 @@ impl<T: Config> Pallet<T> {
 						details.parachain_id == Some(ParaId::from(sender)) && details.status == FundingSuccessful
 					})
 					.ok_or(XcmError::BadOrigin)?;
+				
 
-				let accept_channel_relay_call =
-					polkadot_runtime::RuntimeCall::Hrmp(polkadot_runtime_parachains::hrmp::Call::<
-						polkadot_runtime::Runtime,
-					>::hrmp_accept_open_channel {
-						sender: ParaId::from(sender),
-					})
-					.encode();
-
-				let request_channel_relay_call =
-					polkadot_runtime::RuntimeCall::Hrmp(polkadot_runtime_parachains::hrmp::Call::<
-						polkadot_runtime::Runtime,
-					>::hrmp_init_open_channel {
-						recipient: ParaId::from(sender),
-						proposed_max_capacity: T::RequiredMaxCapacity::get(),
-						proposed_max_message_size: T::RequiredMaxMessageSize::get(),
-					})
-					.encode();
+				let mut accept_channel_relay_call = vec![60u8, 1];
+				let sender_id = ParaId::from(sender).encode();
+				accept_channel_relay_call.extend_from_slice(&sender_id);
+			
+				let mut request_channel_relay_call = vec![60u8, 0];
+				let recipient = ParaId::from(sender).encode();
+				request_channel_relay_call.extend_from_slice(&recipient);
+				let proposed_max_capacity = T::RequiredMaxCapacity::get().encode();
+				request_channel_relay_call.extend_from_slice(&proposed_max_capacity);
+				let proposed_max_message_size = T::RequiredMaxMessageSize::get().encode();
+				request_channel_relay_call.extend_from_slice(&proposed_max_message_size);
 
 				let xcm: Xcm<()> = Xcm(vec![
 					WithdrawAsset(vec![EXECUTION_DOT.clone()].into()),
@@ -2301,18 +2296,18 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// * Update storage *
-		let call: <T as Config>::RuntimeCall =
-			Call::migration_check_response { query_id: Default::default(), response: Default::default() }.into();
+		let call =
+			Call::<T>::migration_check_response { query_id: Default::default(), response: Default::default() };
 
 		let query_id_holdings = pallet_xcm::Pallet::<T>::new_notify_query(
 			project_multilocation.clone(),
-			call.clone().into(),
+			<T as Config>::RuntimeCall::from(call.clone()),
 			now + QUERY_RESPONSE_TIME_WINDOW_BLOCKS.into(),
 			Here,
 		);
 		let query_id_pallet = pallet_xcm::Pallet::<T>::new_notify_query(
 			project_multilocation.clone(),
-			call.into(),
+			<T as Config>::RuntimeCall::from(call),
 			now + QUERY_RESPONSE_TIME_WINDOW_BLOCKS.into(),
 			Here,
 		);

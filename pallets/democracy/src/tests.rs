@@ -91,6 +91,7 @@ impl frame_system::Config for Test {
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeTask = RuntimeTask;
 	type SS58Prefix = ();
 	type SystemWeightInfo = ();
 	type Version = ();
@@ -100,11 +101,10 @@ parameter_types! {
 }
 
 impl pallet_preimage::Config for Test {
-	type BaseDeposit = ();
-	type ByteDeposit = ();
 	type Currency = Balances;
 	type ManagerOrigin = EnsureRoot<u64>;
 	type RuntimeEvent = RuntimeEvent;
+	type Consideration = ();
 	type WeightInfo = ();
 }
 
@@ -134,6 +134,7 @@ impl pallet_balances::Config for Test {
 	type ReserveIdentifier = [u8; 8];
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeHoldReason = RuntimeHoldReason;
+	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type WeightInfo = ();
 }
 parameter_types! {
@@ -286,7 +287,7 @@ fn tally(r: ReferendumIndex) -> Tally<u64> {
 }
 
 /// note a new preimage without registering.
-fn note_preimage(who: u64) -> PreimageHash {
+fn note_preimage(who: u64) -> <Test as frame_system::Config>::Hash {
 	use std::sync::atomic::{AtomicU8, Ordering};
 	// note a new preimage on every function invoke.
 	static COUNTER: AtomicU8 = AtomicU8::new(0);

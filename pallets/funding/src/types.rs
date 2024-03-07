@@ -25,7 +25,7 @@ use crate::{
 use frame_support::{pallet_prelude::*, traits::tokens::Balance as BalanceT};
 use frame_system::pallet_prelude::BlockNumberFor;
 use polimec_common::migration_types::{Migration, MigrationInfo, MigrationOrigin, ParticipationType};
-use polkadot_parachain::primitives::Id as ParaId;
+use polkadot_parachain_primitives::primitives::Id as ParaId;
 use serde::{Deserialize, Serialize};
 use sp_arithmetic::{FixedPointNumber, FixedPointOperand};
 use sp_runtime::traits::{CheckedDiv, Convert, Zero};
@@ -163,7 +163,7 @@ pub mod storage_types {
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-	pub struct ProjectMetadata<BoundedString, Balance: BalanceT, Price: FixedPointNumber, AccountId, Hash> {
+	pub struct ProjectMetadata<BoundedString, Balance: Copy, Price: FixedPointNumber, AccountId, Hash> {
 		/// Token Metadata
 		pub token_information: CurrencyMetadata<BoundedString>,
 		/// Mainnet Token Max Supply
@@ -404,7 +404,7 @@ pub mod inner_types {
 
 	#[derive(Default, Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-	pub struct TicketSize<Balance: BalanceT + Copy> {
+	pub struct TicketSize<Balance: Copy> {
 		pub minimum: Option<Balance>,
 		pub maximum: Option<Balance>,
 	}

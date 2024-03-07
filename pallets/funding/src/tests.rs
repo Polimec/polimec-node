@@ -30,7 +30,7 @@ use defaults::*;
 use frame_support::{
 	assert_err, assert_noop, assert_ok,
 	traits::{
-		fungible::{Inspect as FungibleInspect, InspectHold as FungibleInspectHold},
+		fungible::{Inspect as FungibleInspect, InspectHold as FungibleInspectHold, Mutate},
 		Get,
 	},
 };
@@ -276,7 +276,7 @@ mod creation {
 		inst.mint_plmc_to(default_plmc_balances());
 
 		inst.execute(|| {
-			assert_ok!(Balances::transfer(RuntimeOrigin::signed(EVALUATOR_1), EVALUATOR_2, PLMC));
+			assert_ok!(Balances::transfer(&EVALUATOR_1, &EVALUATOR_2, PLMC, frame_support::traits::tokens::Preservation::Preserve));
 		});
 	}
 

@@ -17,12 +17,11 @@
 use super::*;
 use crate::{self as pallet_vesting};
 use frame_support::{
-	parameter_types,
-	traits::{ConstU32, ConstU64, WithdrawReasons},
+	parameter_types, derive_impl,
+	traits::{VariantCount, WithdrawReasons},
 };
-use sp_core::H256;
 use sp_runtime::{
-	traits::{BlakeTwo256, Identity, IdentityLookup},
+	traits::{Identity, IdentityLookup},
 	BuildStorage, Deserialize, Serialize,
 };
 
@@ -37,30 +36,12 @@ frame_support::construct_runtime!(
 	}
 );
 
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
 impl frame_system::Config for Test {
-	type AccountData = pallet_balances::AccountData<u64>;
 	type AccountId = u64;
-	type BaseCallFilter = frame_support::traits::Everything;
-	type Block = Block;
-	type BlockHashCount = ConstU64<250>;
-	type BlockLength = ();
-	type BlockWeights = ();
-	type DbWeight = ();
-	type Hash = H256;
-	type Hashing = BlakeTwo256;
+	type AccountData = pallet_balances::AccountData<u64>;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type MaxConsumers = frame_support::traits::ConstU32<16>;
-	type Nonce = u64;
-	type OnKilledAccount = ();
-	type OnNewAccount = ();
-	type OnSetCode = ();
-	type PalletInfo = PalletInfo;
-	type RuntimeCall = RuntimeCall;
-	type RuntimeEvent = RuntimeEvent;
-	type RuntimeOrigin = RuntimeOrigin;
-	type SS58Prefix = ();
-	type SystemWeightInfo = ();
-	type Version = ();
+	type Block = Block;
 }
 
 parameter_types! {
@@ -70,20 +51,12 @@ parameter_types! {
 	pub static ExistentialDeposit: u64 = 10u64.pow(7);
 }
 
+#[derive_impl(pallet_balances::config_preludes::TestDefaultConfig as pallet_balances::DefaultConfig)]
 impl pallet_balances::Config for Test {
 	type AccountStore = System;
-	type Balance = u64;
-	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type FreezeIdentifier = RuntimeHoldReason;
-	type MaxFreezes = ConstU32<10>;
-	type MaxHolds = ConstU32<10>;
-	type MaxLocks = ConstU32<10>;
-	type MaxReserves = ConstU32<10>;
-	type ReserveIdentifier = RuntimeHoldReason;
-	type RuntimeEvent = RuntimeEvent;
 	type RuntimeHoldReason = MockRuntimeHoldReason;
-	type WeightInfo = ();
 }
 
 parameter_types! {
@@ -123,6 +96,9 @@ impl Config for Test {
 pub enum MockRuntimeHoldReason {
 	Reason,
 	Reason2,
+}
+impl VariantCount for MockRuntimeHoldReason {
+	const VARIANT_COUNT: u32 = 2;
 }
 
 #[derive(Default)]

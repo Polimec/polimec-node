@@ -48,7 +48,7 @@ fn add_proposal<T: Config + pallet_balances::Config>(n: u32) -> Result<H256, &'s
 }
 
 // add a referendum with a metadata.
-fn add_referendum<T: Config>(n: u32) -> (ReferendumIndex, H256, PreimageHash) {
+fn add_referendum<T: Config>(n: u32) -> (ReferendumIndex, H256, <T as Config>::Hash ) {
 	let vote_threshold = VoteThreshold::SimpleMajority;
 	let proposal = make_proposal::<T>(n);
 	let hash = proposal.hash();
@@ -73,7 +73,7 @@ fn assert_has_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 }
 
 // note a new preimage.
-fn note_preimage<T: Config>() -> PreimageHash {
+fn note_preimage<T: Config>() -> <T as Config>::Hash {
 	use core::sync::atomic::{AtomicU8, Ordering};
 	use sp_std::borrow::Cow;
 	// note a new preimage on every function invoke.

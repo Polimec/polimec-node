@@ -71,7 +71,7 @@ sp-version.workspace = true
 
 # Polkadot
 pallet-xcm.workspace = true
-polkadot-parachain.workspace = true
+polkadot-parachain-primitives.workspace = true
 polkadot-runtime-common.workspace = true
 xcm.workspace = true
 xcm-builder.workspace = true
@@ -144,7 +144,7 @@ std = [
 	"parachains-common/std",
 	"parity-scale-codec/std",
 	"polimec-common/std",
-	"polkadot-parachain/std",
+	"polkadot-parachain-primitives/std",
 	"polkadot-runtime-common/std",
 	"scale-info/std",
 	"shared-configuration/std",
@@ -191,7 +191,7 @@ runtime-benchmarks = [
 	"pallet-vesting/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
 	"polimec-common/runtime-benchmarks",
-	"polkadot-parachain/runtime-benchmarks",
+	"polkadot-parachain-primitives/runtime-benchmarks",
 	"polkadot-runtime-common/runtime-benchmarks",
 	"shared-configuration/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
