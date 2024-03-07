@@ -442,7 +442,6 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 					false,
 					10,
 				),
-
 			],
 			metadata: vec![],
 			accounts: vec![],

@@ -449,8 +449,14 @@ mod creation {
 		wrong_project_6.round_ticket_sizes.bidding.institutional =
 			TicketSize::new(Some(600 * ASSET_UNIT), Some(550 * ASSET_UNIT));
 
-		let wrong_projects =
-			vec![wrong_project_1.clone(), wrong_project_2, wrong_project_3.clone(), wrong_project_4, wrong_project_5, wrong_project_6];
+		let wrong_projects = vec![
+			wrong_project_1.clone(),
+			wrong_project_2,
+			wrong_project_3.clone(),
+			wrong_project_4,
+			wrong_project_5,
+			wrong_project_6,
+		];
 
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		inst.mint_plmc_to(default_plmc_balances());
@@ -554,16 +560,24 @@ mod creation {
 		}
 
 		let mut wrong_project_1 = default_project_metadata.clone();
-		wrong_project_1.participation_currencies = vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT].try_into().unwrap();
+		wrong_project_1.participation_currencies =
+			vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT].try_into().unwrap();
 
 		let mut wrong_project_2 = default_project_metadata.clone();
-		wrong_project_2.participation_currencies = vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT].try_into().unwrap();
+		wrong_project_2.participation_currencies =
+			vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDT]
+				.try_into()
+				.unwrap();
 
 		let mut wrong_project_3 = default_project_metadata.clone();
-		wrong_project_3.participation_currencies = vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::USDT].try_into().unwrap();
+		wrong_project_3.participation_currencies =
+			vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::USDT]
+				.try_into()
+				.unwrap();
 
 		let mut wrong_project_4 = default_project_metadata.clone();
-		wrong_project_4.participation_currencies = vec![AcceptedFundingAsset::DOT, AcceptedFundingAsset::DOT, AcceptedFundingAsset::USDC].try_into().unwrap();
+		wrong_project_4.participation_currencies =
+			vec![AcceptedFundingAsset::DOT, AcceptedFundingAsset::DOT, AcceptedFundingAsset::USDC].try_into().unwrap();
 
 		let wrong_projects = vec![wrong_project_1, wrong_project_2, wrong_project_3, wrong_project_4];
 		for project in wrong_projects {
@@ -818,8 +832,8 @@ mod evaluation {
 
 // only functionalities that happen in the AUCTION period of a project
 mod auction {
-	use crate::instantiator::async_features::create_multiple_projects_at;
 	use super::*;
+	use crate::instantiator::async_features::create_multiple_projects_at;
 
 	#[test]
 	fn auction_round_completed() {
@@ -1886,11 +1900,8 @@ mod auction {
 		project_metadata_usdt.participation_currencies = vec![AcceptedFundingAsset::USDT].try_into().unwrap();
 
 		let mut project_metadata_all = default_project_metadata(1, ISSUER);
-		project_metadata_all.participation_currencies = vec![
-			AcceptedFundingAsset::USDT,
-			AcceptedFundingAsset::USDC,
-			AcceptedFundingAsset::DOT,
-		].try_into().unwrap();
+		project_metadata_all.participation_currencies =
+			vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT].try_into().unwrap();
 
 		let mut project_metadata_usdc = default_project_metadata(2, ISSUER);
 		project_metadata_usdc.participation_currencies = vec![AcceptedFundingAsset::USDC].try_into().unwrap();
@@ -1956,7 +1967,10 @@ mod auction {
 		let plmc_existential_deposits = plmc_fundings.accounts().existential_deposits();
 		let plmc_ct_account_deposits = plmc_fundings.accounts().ct_account_deposits();
 
-		let plmc_all_mints = MockInstantiator::generic_map_operation(vec![plmc_fundings, plmc_existential_deposits, plmc_ct_account_deposits], MergeOperation::Add);
+		let plmc_all_mints = MockInstantiator::generic_map_operation(
+			vec![plmc_fundings, plmc_existential_deposits, plmc_ct_account_deposits],
+			MergeOperation::Add,
+		);
 		inst.mint_plmc_to(plmc_all_mints.clone());
 		inst.mint_plmc_to(plmc_all_mints.clone());
 		inst.mint_plmc_to(plmc_all_mints.clone());
@@ -1972,23 +1986,41 @@ mod auction {
 		assert_ok!(inst.bid_for_users(project_id_all, vec![usdt_bid.clone(), usdc_bid.clone(), dot_bid.clone()]));
 
 		assert_ok!(inst.bid_for_users(project_id_usdt, vec![usdt_bid.clone()]));
-		assert_err!(inst.bid_for_users(project_id_usdt, vec![usdc_bid.clone()]), Error::<TestRuntime>::FundingAssetNotAccepted);
-		assert_err!(inst.bid_for_users(project_id_usdt, vec![dot_bid.clone()]), Error::<TestRuntime>::FundingAssetNotAccepted);
+		assert_err!(
+			inst.bid_for_users(project_id_usdt, vec![usdc_bid.clone()]),
+			Error::<TestRuntime>::FundingAssetNotAccepted
+		);
+		assert_err!(
+			inst.bid_for_users(project_id_usdt, vec![dot_bid.clone()]),
+			Error::<TestRuntime>::FundingAssetNotAccepted
+		);
 
-		assert_err!(inst.bid_for_users(project_id_usdc, vec![usdt_bid.clone()]), Error::<TestRuntime>::FundingAssetNotAccepted);
+		assert_err!(
+			inst.bid_for_users(project_id_usdc, vec![usdt_bid.clone()]),
+			Error::<TestRuntime>::FundingAssetNotAccepted
+		);
 		assert_ok!(inst.bid_for_users(project_id_usdc, vec![usdc_bid.clone()]));
-		assert_err!(inst.bid_for_users(project_id_usdc, vec![dot_bid.clone()]), Error::<TestRuntime>::FundingAssetNotAccepted);
+		assert_err!(
+			inst.bid_for_users(project_id_usdc, vec![dot_bid.clone()]),
+			Error::<TestRuntime>::FundingAssetNotAccepted
+		);
 
-		assert_err!(inst.bid_for_users(project_id_dot, vec![usdt_bid.clone()]), Error::<TestRuntime>::FundingAssetNotAccepted);
-		assert_err!(inst.bid_for_users(project_id_dot, vec![usdc_bid.clone()]), Error::<TestRuntime>::FundingAssetNotAccepted);
+		assert_err!(
+			inst.bid_for_users(project_id_dot, vec![usdt_bid.clone()]),
+			Error::<TestRuntime>::FundingAssetNotAccepted
+		);
+		assert_err!(
+			inst.bid_for_users(project_id_dot, vec![usdc_bid.clone()]),
+			Error::<TestRuntime>::FundingAssetNotAccepted
+		);
 		assert_ok!(inst.bid_for_users(project_id_dot, vec![dot_bid.clone()]));
 	}
 }
 
 // only functionalities that happen in the COMMUNITY FUNDING period of a project
 mod community_contribution {
-	use crate::instantiator::async_features::create_multiple_projects_at;
 	use super::*;
+	use crate::instantiator::async_features::create_multiple_projects_at;
 
 	pub const HOURS: BlockNumber = 300u64;
 
@@ -2754,11 +2786,8 @@ mod community_contribution {
 		project_metadata_usdt.participation_currencies = vec![AcceptedFundingAsset::USDT].try_into().unwrap();
 
 		let mut project_metadata_all = default_project_metadata(1, ISSUER);
-		project_metadata_all.participation_currencies = vec![
-			AcceptedFundingAsset::USDT,
-			AcceptedFundingAsset::USDC,
-			AcceptedFundingAsset::DOT,
-		].try_into().unwrap();
+		project_metadata_all.participation_currencies =
+			vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT].try_into().unwrap();
 
 		let mut project_metadata_usdc = default_project_metadata(2, ISSUER);
 		project_metadata_usdc.participation_currencies = vec![AcceptedFundingAsset::USDC].try_into().unwrap();
@@ -2768,21 +2797,29 @@ mod community_contribution {
 
 		let evaluations = default_evaluations();
 
-		let usdt_bids = default_bids().into_iter().map(|mut b| {
-			b.asset = AcceptedFundingAsset::USDT;
-			b
-		}).collect::<Vec<_>>();
+		let usdt_bids = default_bids()
+			.into_iter()
+			.map(|mut b| {
+				b.asset = AcceptedFundingAsset::USDT;
+				b
+			})
+			.collect::<Vec<_>>();
 
-		let usdc_bids = default_bids().into_iter().map(|mut b| {
-			b.asset = AcceptedFundingAsset::USDC;
-			b
-		}).collect::<Vec<_>>();
+		let usdc_bids = default_bids()
+			.into_iter()
+			.map(|mut b| {
+				b.asset = AcceptedFundingAsset::USDC;
+				b
+			})
+			.collect::<Vec<_>>();
 
-		let dot_bids = default_bids().into_iter().map(|mut b| {
-			b.asset = AcceptedFundingAsset::DOT;
-			b
-		}).collect::<Vec<_>>();
-
+		let dot_bids = default_bids()
+			.into_iter()
+			.map(|mut b| {
+				b.asset = AcceptedFundingAsset::DOT;
+				b
+			})
+			.collect::<Vec<_>>();
 
 		let projects = vec![
 			TestProjectParams {
@@ -2842,7 +2879,10 @@ mod community_contribution {
 		let plmc_existential_deposits = plmc_fundings.accounts().existential_deposits();
 		let plmc_ct_account_deposits = plmc_fundings.accounts().ct_account_deposits();
 
-		let plmc_all_mints = MockInstantiator::generic_map_operation(vec![plmc_fundings, plmc_existential_deposits, plmc_ct_account_deposits], MergeOperation::Add);
+		let plmc_all_mints = MockInstantiator::generic_map_operation(
+			vec![plmc_fundings, plmc_existential_deposits, plmc_ct_account_deposits],
+			MergeOperation::Add,
+		);
 		inst.mint_plmc_to(plmc_all_mints.clone());
 		inst.mint_plmc_to(plmc_all_mints.clone());
 		inst.mint_plmc_to(plmc_all_mints.clone());
@@ -2855,26 +2895,47 @@ mod community_contribution {
 		inst.mint_foreign_asset_to(usdt_fundings.clone());
 		inst.mint_foreign_asset_to(usdt_fundings.clone());
 
-		assert_ok!(inst.contribute_for_users(project_id_all, vec![usdt_contribution.clone(), usdc_contribution.clone(), dot_contribution.clone()]));
+		assert_ok!(inst.contribute_for_users(
+			project_id_all,
+			vec![usdt_contribution.clone(), usdc_contribution.clone(), dot_contribution.clone()]
+		));
 
 		assert_ok!(inst.contribute_for_users(project_id_usdt, vec![usdt_contribution.clone()]));
-		assert_err!(inst.contribute_for_users(project_id_usdt, vec![usdc_contribution.clone()]), Error::<TestRuntime>::FundingAssetNotAccepted);
-		assert_err!(inst.contribute_for_users(project_id_usdt, vec![dot_contribution.clone()]), Error::<TestRuntime>::FundingAssetNotAccepted);
+		assert_err!(
+			inst.contribute_for_users(project_id_usdt, vec![usdc_contribution.clone()]),
+			Error::<TestRuntime>::FundingAssetNotAccepted
+		);
+		assert_err!(
+			inst.contribute_for_users(project_id_usdt, vec![dot_contribution.clone()]),
+			Error::<TestRuntime>::FundingAssetNotAccepted
+		);
 
-		assert_err!(inst.contribute_for_users(project_id_usdc, vec![usdt_contribution.clone()]), Error::<TestRuntime>::FundingAssetNotAccepted);
+		assert_err!(
+			inst.contribute_for_users(project_id_usdc, vec![usdt_contribution.clone()]),
+			Error::<TestRuntime>::FundingAssetNotAccepted
+		);
 		assert_ok!(inst.contribute_for_users(project_id_usdc, vec![usdc_contribution.clone()]));
-		assert_err!(inst.contribute_for_users(project_id_usdc, vec![dot_contribution.clone()]), Error::<TestRuntime>::FundingAssetNotAccepted);
+		assert_err!(
+			inst.contribute_for_users(project_id_usdc, vec![dot_contribution.clone()]),
+			Error::<TestRuntime>::FundingAssetNotAccepted
+		);
 
-		assert_err!(inst.contribute_for_users(project_id_dot, vec![usdt_contribution.clone()]), Error::<TestRuntime>::FundingAssetNotAccepted);
-		assert_err!(inst.contribute_for_users(project_id_dot, vec![usdc_contribution.clone()]), Error::<TestRuntime>::FundingAssetNotAccepted);
+		assert_err!(
+			inst.contribute_for_users(project_id_dot, vec![usdt_contribution.clone()]),
+			Error::<TestRuntime>::FundingAssetNotAccepted
+		);
+		assert_err!(
+			inst.contribute_for_users(project_id_dot, vec![usdc_contribution.clone()]),
+			Error::<TestRuntime>::FundingAssetNotAccepted
+		);
 		assert_ok!(inst.contribute_for_users(project_id_dot, vec![dot_contribution.clone()]));
 	}
 }
 
 // only functionalities that happen in the REMAINDER FUNDING period of a project
 mod remainder_contribution {
-	use crate::instantiator::async_features::create_multiple_projects_at;
 	use super::*;
+	use crate::instantiator::async_features::create_multiple_projects_at;
 
 	#[test]
 	fn remainder_round_works() {
@@ -3381,11 +3442,8 @@ mod remainder_contribution {
 		project_metadata_usdt.participation_currencies = vec![AcceptedFundingAsset::USDT].try_into().unwrap();
 
 		let mut project_metadata_all = default_project_metadata(1, ISSUER);
-		project_metadata_all.participation_currencies = vec![
-			AcceptedFundingAsset::USDT,
-			AcceptedFundingAsset::USDC,
-			AcceptedFundingAsset::DOT,
-		].try_into().unwrap();
+		project_metadata_all.participation_currencies =
+			vec![AcceptedFundingAsset::USDT, AcceptedFundingAsset::USDC, AcceptedFundingAsset::DOT].try_into().unwrap();
 
 		let mut project_metadata_usdc = default_project_metadata(2, ISSUER);
 		project_metadata_usdc.participation_currencies = vec![AcceptedFundingAsset::USDC].try_into().unwrap();
@@ -3395,21 +3453,29 @@ mod remainder_contribution {
 
 		let evaluations = default_evaluations();
 
-		let usdt_bids = default_bids().into_iter().map(|mut b| {
-			b.asset = AcceptedFundingAsset::USDT;
-			b
-		}).collect::<Vec<_>>();
+		let usdt_bids = default_bids()
+			.into_iter()
+			.map(|mut b| {
+				b.asset = AcceptedFundingAsset::USDT;
+				b
+			})
+			.collect::<Vec<_>>();
 
-		let usdc_bids = default_bids().into_iter().map(|mut b| {
-			b.asset = AcceptedFundingAsset::USDC;
-			b
-		}).collect::<Vec<_>>();
+		let usdc_bids = default_bids()
+			.into_iter()
+			.map(|mut b| {
+				b.asset = AcceptedFundingAsset::USDC;
+				b
+			})
+			.collect::<Vec<_>>();
 
-		let dot_bids = default_bids().into_iter().map(|mut b| {
-			b.asset = AcceptedFundingAsset::DOT;
-			b
-		}).collect::<Vec<_>>();
-
+		let dot_bids = default_bids()
+			.into_iter()
+			.map(|mut b| {
+				b.asset = AcceptedFundingAsset::DOT;
+				b
+			})
+			.collect::<Vec<_>>();
 
 		let projects = vec![
 			TestProjectParams {
@@ -3469,7 +3535,10 @@ mod remainder_contribution {
 		let plmc_existential_deposits = plmc_fundings.accounts().existential_deposits();
 		let plmc_ct_account_deposits = plmc_fundings.accounts().ct_account_deposits();
 
-		let plmc_all_mints = MockInstantiator::generic_map_operation(vec![plmc_fundings, plmc_existential_deposits, plmc_ct_account_deposits], MergeOperation::Add);
+		let plmc_all_mints = MockInstantiator::generic_map_operation(
+			vec![plmc_fundings, plmc_existential_deposits, plmc_ct_account_deposits],
+			MergeOperation::Add,
+		);
 		inst.mint_plmc_to(plmc_all_mints.clone());
 		inst.mint_plmc_to(plmc_all_mints.clone());
 		inst.mint_plmc_to(plmc_all_mints.clone());
@@ -3482,18 +3551,39 @@ mod remainder_contribution {
 		inst.mint_foreign_asset_to(usdt_fundings.clone());
 		inst.mint_foreign_asset_to(usdt_fundings.clone());
 
-		assert_ok!(inst.contribute_for_users(project_id_all, vec![usdt_contribution.clone(), usdc_contribution.clone(), dot_contribution.clone()]));
+		assert_ok!(inst.contribute_for_users(
+			project_id_all,
+			vec![usdt_contribution.clone(), usdc_contribution.clone(), dot_contribution.clone()]
+		));
 
 		assert_ok!(inst.contribute_for_users(project_id_usdt, vec![usdt_contribution.clone()]));
-		assert_err!(inst.contribute_for_users(project_id_usdt, vec![usdc_contribution.clone()]), Error::<TestRuntime>::FundingAssetNotAccepted);
-		assert_err!(inst.contribute_for_users(project_id_usdt, vec![dot_contribution.clone()]), Error::<TestRuntime>::FundingAssetNotAccepted);
+		assert_err!(
+			inst.contribute_for_users(project_id_usdt, vec![usdc_contribution.clone()]),
+			Error::<TestRuntime>::FundingAssetNotAccepted
+		);
+		assert_err!(
+			inst.contribute_for_users(project_id_usdt, vec![dot_contribution.clone()]),
+			Error::<TestRuntime>::FundingAssetNotAccepted
+		);
 
-		assert_err!(inst.contribute_for_users(project_id_usdc, vec![usdt_contribution.clone()]), Error::<TestRuntime>::FundingAssetNotAccepted);
+		assert_err!(
+			inst.contribute_for_users(project_id_usdc, vec![usdt_contribution.clone()]),
+			Error::<TestRuntime>::FundingAssetNotAccepted
+		);
 		assert_ok!(inst.contribute_for_users(project_id_usdc, vec![usdc_contribution.clone()]));
-		assert_err!(inst.contribute_for_users(project_id_usdc, vec![dot_contribution.clone()]), Error::<TestRuntime>::FundingAssetNotAccepted);
+		assert_err!(
+			inst.contribute_for_users(project_id_usdc, vec![dot_contribution.clone()]),
+			Error::<TestRuntime>::FundingAssetNotAccepted
+		);
 
-		assert_err!(inst.contribute_for_users(project_id_dot, vec![usdt_contribution.clone()]), Error::<TestRuntime>::FundingAssetNotAccepted);
-		assert_err!(inst.contribute_for_users(project_id_dot, vec![usdc_contribution.clone()]), Error::<TestRuntime>::FundingAssetNotAccepted);
+		assert_err!(
+			inst.contribute_for_users(project_id_dot, vec![usdt_contribution.clone()]),
+			Error::<TestRuntime>::FundingAssetNotAccepted
+		);
+		assert_err!(
+			inst.contribute_for_users(project_id_dot, vec![usdc_contribution.clone()]),
+			Error::<TestRuntime>::FundingAssetNotAccepted
+		);
 		assert_ok!(inst.contribute_for_users(project_id_dot, vec![dot_contribution.clone()]));
 	}
 }

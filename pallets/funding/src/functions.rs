@@ -639,11 +639,7 @@ impl<T: Config> Pallet<T> {
 		// Transition to remainder round was initiated by `do_community_funding`, but the ct
 		// tokens where already sold in the community round. This transition is obsolite.
 		ensure!(
-			project_details
-				.remaining_contribution_tokens
-				.0
-				.saturating_add(project_details.remaining_contribution_tokens.1) >
-				0u32.into(),
+			project_details.remaining_contribution_tokens > 0u32.into(),
 			Error::<T>::RoundTransitionAlreadyHappened
 		);
 
