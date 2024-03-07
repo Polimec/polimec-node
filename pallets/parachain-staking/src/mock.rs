@@ -101,6 +101,7 @@ impl pallet_balances::Config for Test {
 	type ReserveIdentifier = [u8; 4];
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeHoldReason = RuntimeHoldReason;
+	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type WeightInfo = ();
 }
 parameter_types! {

@@ -27,6 +27,7 @@ frame-support.workspace = true
 sp-arithmetic.workspace = true
 parachains-common.workspace = true
 sp-std.workspace = true
+sp-runtime.workspace = true
 pallet-funding.workspace = true
 orml-traits.workspace = true
 pallet-transaction-payment.workspace = true
@@ -52,6 +53,7 @@ std = [
 	"parity-scale-codec/std",
 	"scale-info/std",
 	"sp-arithmetic/std",
+	"sp-runtime/std",
 	"sp-std/std",
 ]
 runtime-benchmarks = [

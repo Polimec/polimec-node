@@ -17,14 +17,15 @@
 #[allow(unused_imports)]
 use crate::*;
 
+use log;
 // Substrate
 #[allow(unused_imports)]
 use frame_support::{
-	dispatch::DispatchError,
-	log, migration,
+	migration,
 	storage::unhashed,
 	traits::{GetStorageVersion, PalletInfoAccess, StorageVersion},
 };
+use sp_runtime::DispatchError;
 
 pub struct InitializePallet<Pallet: GetStorageVersion<CurrentStorageVersion = StorageVersion> + PalletInfoAccess>(
 	sp_std::marker::PhantomData<Pallet>,

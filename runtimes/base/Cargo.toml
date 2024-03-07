@@ -45,6 +45,7 @@ pallet-democracy.workspace = true
 pallet-elections-phragmen.workspace = true
 pallet-identity.workspace = true
 pallet-membership.workspace = true
+pallet-message-queue.workspace = true
 pallet-multisig.workspace = true
 pallet-preimage.workspace = true
 pallet-proxy.workspace = true
@@ -125,6 +126,7 @@ std = [
 	"pallet-elections-phragmen/std",
 	"pallet-identity/std",
 	"pallet-membership/std",
+	"pallet-message-queue/std",
 	"pallet-multisig/std",
 	"pallet-oracle-ocw/std",
 	"pallet-parachain-staking/std",
@@ -178,6 +180,7 @@ runtime-benchmarks = [
 	"pallet-elections-phragmen/runtime-benchmarks",
 	"pallet-identity/runtime-benchmarks",
 	"pallet-membership/runtime-benchmarks",
+	"pallet-message-queue/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",
 	"pallet-oracle-ocw/runtime-benchmarks",
 	"pallet-parachain-staking/runtime-benchmarks",
@@ -220,6 +223,7 @@ try-runtime = [
 	"pallet-elections-phragmen/try-runtime",
 	"pallet-identity/try-runtime",
 	"pallet-membership/try-runtime",
+	"pallet-message-queue/try-runtime",
 	"pallet-multisig/try-runtime",
 	"pallet-oracle-ocw/try-runtime",
 	"pallet-parachain-staking/try-runtime",

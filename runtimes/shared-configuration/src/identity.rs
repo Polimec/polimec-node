@@ -14,14 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{Balance, MILLI_PLMC, PLMC};
+use crate::{deposit, Balance, PLMC};
 use frame_support::parameter_types;
 
 parameter_types! {
 	/// The basic deposit to create an identity.
 	pub const BasicDeposit: Balance = 20 * PLMC;
 	/// Deposit for each additional field.
-	pub const FieldDeposit: Balance = 200 * MILLI_PLMC;
+	pub const ByteDeposit: Balance = deposit(0, 1);
+
+	pub const PendingUsernameExpiration: u32 = 0;
 	/// The deposit needed to create a sub-account.
 	/// We do not allow sub-accounts so can be 0.
 	/// Should be set to a non-zero value if sub-accounts are allowed.
@@ -33,4 +35,8 @@ parameter_types! {
 	pub const MaxAdditionalFields: u32 = 100;
 	/// Max number of registrars that can be set.
 	pub const MaxRegistrars: u32 = 3;
+	/// Max length of username suffix.
+	pub const MaxSuffixLength: u32 = 0;
+	/// Max length of username.
+	pub const MaxUsernameLength: u32 = 0;
 }
