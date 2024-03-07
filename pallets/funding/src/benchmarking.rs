@@ -94,14 +94,14 @@ where
 			bidding: BiddingTicketSizes {
 				professional: TicketSize::new(
 					Some(
-						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
+						BalanceOf::<T>::try_from(500 * ASSET_UNIT)
 							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					),
 					None,
 				),
 				institutional: TicketSize::new(
 					Some(
-						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
+						BalanceOf::<T>::try_from(500 * ASSET_UNIT)
 							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					),
 					None,
@@ -2793,14 +2793,14 @@ mod benchmarks {
 				bidding: BiddingTicketSizes {
 					professional: TicketSize::new(
 						Some(
-							BalanceOf::<T>::try_from(5000 * US_DOLLAR)
+							BalanceOf::<T>::try_from(500 * ASSET_UNIT)
 								.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 						),
 						None,
 					),
 					institutional: TicketSize::new(
 						Some(
-							BalanceOf::<T>::try_from(5000 * US_DOLLAR)
+							BalanceOf::<T>::try_from(500 * ASSET_UNIT)
 								.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 						),
 						None,
