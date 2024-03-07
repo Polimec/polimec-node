@@ -52,7 +52,6 @@ use sp_std::{cmp::Ordering, prelude::*};
 use sp_version::RuntimeVersion;
 
 // XCM Imports
-use polimec_xcm_executor::XcmExecutor;
 use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
 
 pub use pallet_parachain_staking;
