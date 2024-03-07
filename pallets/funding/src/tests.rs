@@ -1272,6 +1272,7 @@ mod auction {
 		inst.mint_foreign_asset_to(contributors_funding_assets);
 
 		inst.contribute_for_users(project_id, community_contributions).unwrap();
+		inst.start_remainder_or_end_funding(project_id).unwrap();
 		inst.finish_funding(project_id).unwrap();
 
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
@@ -5910,27 +5911,6 @@ mod helper_functions {
 // logic of small functions that extrinsics use to process data or interact with storage
 mod inner_functions {
 	use super::*;
-
-	#[test]
-	fn remove_from_update_store_works() {
-		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
-		let now = inst.current_block();
-		inst.execute(|| {
-			assert_ok!(PolimecFunding::add_to_update_store(now + 10u64, (&42u32, CommunityFundingStart)));
-			assert_ok!(PolimecFunding::add_to_update_store(now + 20u64, (&69u32, RemainderFundingStart)));
-			assert_ok!(PolimecFunding::add_to_update_store(now + 5u64, (&404u32, RemainderFundingStart)));
-		});
-		inst.advance_time(2u64).unwrap();
-		inst.execute(|| {
-			let stored = ProjectsToUpdate::<TestRuntime>::iter_values().collect::<Vec<_>>();
-			assert_eq!(stored.len(), 3, "There should be 3 blocks scheduled for updating");
-
-			PolimecFunding::remove_from_update_store(&69u32).unwrap();
-
-			let stored = ProjectsToUpdate::<TestRuntime>::iter_values().collect::<Vec<_>>();
-			assert_eq!(stored[2], vec![], "Vector should be empty for that block after deletion");
-		});
-	}
 
 	#[test]
 	fn calculate_vesting_duration() {

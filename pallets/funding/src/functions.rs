@@ -309,7 +309,6 @@ impl<T: Config> Pallet<T> {
 				.update(Some(auction_initialize_period_start_block), Some(auction_initialize_period_end_block));
 			project_details.status = ProjectStatus::AuctionInitializePeriod;
 			ProjectsDetails::<T>::insert(project_id, project_details);
-			// TODO: return real weights
 			let insertion_attempts = match Self::add_to_update_store(
 				auction_initialize_period_end_block + 1u32.into(),
 				(&project_id, UpdateType::EnglishAuctionStart),
@@ -382,11 +381,6 @@ impl<T: Config> Pallet<T> {
 			.auction_initialize_period
 			.start()
 			.ok_or(Error::<T>::EvaluationPeriodNotEnded)?;
-		let auction_initialize_period_end_block = project_details
-			.phase_transition_points
-			.auction_initialize_period
-			.end()
-			.ok_or(Error::<T>::EvaluationPeriodNotEnded)?;
 
 		// * Validity checks *
 		ensure!(
@@ -396,6 +390,9 @@ impl<T: Config> Pallet<T> {
 		);
 
 		ensure!(now >= auction_initialize_period_start_block, Error::<T>::TooEarlyForEnglishAuctionStart);
+		// If the auction is first manually started, the automatic transition fails here. This
+		// behaviour is intended, as it gracefully skips the automatic transition if the
+		// auction was started manually.
 		ensure!(
 			project_details.status == ProjectStatus::AuctionInitializePeriod,
 			Error::<T>::ProjectNotInAuctionInitializePeriodRound
@@ -413,28 +410,7 @@ impl<T: Config> Pallet<T> {
 		project_details.status = ProjectStatus::AuctionRound(AuctionPhase::English);
 		ProjectsDetails::<T>::insert(project_id, project_details);
 
-		// If this function was called inside the period, then it was called by the extrinsic and we need to
-		// remove the scheduled automatic transition
-		let mut remove_attempts: u32 = 0u32;
-		let mut insertion_attempts: u32 = 0u32;
-		if now <= auction_initialize_period_end_block {
-			match Self::remove_from_update_store(&project_id) {
-				Ok(iterations) => {
-					remove_attempts = iterations;
-				},
-				Err(iterations) =>
-					return Err(DispatchErrorWithPostInfo {
-						post_info: PostDispatchInfo {
-							actual_weight: Some(WeightInfoOf::<T>::start_auction_manually(
-								insertion_attempts,
-								iterations,
-							)),
-							pays_fee: Pays::Yes,
-						},
-						error: Error::<T>::ProjectNotInUpdateStore.into(),
-					}),
-			}
-		}
+		let insertion_attempts;
 		// Schedule for automatic transition to candle auction round
 		match Self::add_to_update_store(english_end_block + 1u32.into(), (&project_id, UpdateType::CandleAuctionStart))
 		{
@@ -444,11 +420,7 @@ impl<T: Config> Pallet<T> {
 			Err(insertion_attempts) =>
 				return Err(DispatchErrorWithPostInfo {
 					post_info: PostDispatchInfo {
-						actual_weight: if remove_attempts == 0u32 {
-							Some(WeightInfoOf::<T>::start_auction_automatically(insertion_attempts))
-						} else {
-							Some(WeightInfoOf::<T>::start_auction_manually(insertion_attempts, remove_attempts))
-						},
+						actual_weight: Some(WeightInfoOf::<T>::start_auction_manually(insertion_attempts)),
 						pays_fee: Pays::Yes,
 					},
 					error: Error::<T>::TooManyInsertionAttempts.into(),
@@ -459,11 +431,7 @@ impl<T: Config> Pallet<T> {
 		Self::deposit_event(Event::EnglishAuctionStarted { project_id, when: now });
 
 		Ok(PostDispatchInfo {
-			actual_weight: if remove_attempts == 0u32 {
-				Some(WeightInfoOf::<T>::start_auction_automatically(insertion_attempts))
-			} else {
-				Some(WeightInfoOf::<T>::start_auction_manually(insertion_attempts, remove_attempts))
-			},
+			actual_weight: Some(WeightInfoOf::<T>::start_auction_manually(insertion_attempts)),
 			pays_fee: Pays::Yes,
 		})
 	}
@@ -668,6 +636,17 @@ impl<T: Config> Pallet<T> {
 		ensure!(now > community_end_block, Error::<T>::TooEarlyForRemainderRoundStart);
 		ensure!(project_details.status == ProjectStatus::CommunityRound, Error::<T>::ProjectNotInCommunityRound);
 
+		// Transition to remainder round was initiated by `do_community_funding`, but the ct
+		// tokens where already sold in the community round. This transition is obsolite.
+		ensure!(
+			project_details
+				.remaining_contribution_tokens
+				.0
+				.saturating_add(project_details.remaining_contribution_tokens.1) >
+				0u32.into(),
+			Error::<T>::RoundTransitionAlreadyHappened
+		);
+
 		// * Calculate new variables *
 		let remainder_start_block = now + 1u32.into();
 		let remainder_end_block = now + T::RemainderFundingDuration::get();
@@ -738,6 +717,17 @@ impl<T: Config> Pallet<T> {
 				project_details.status == ProjectStatus::FundingFailed ||
 				matches!(remainder_end_block, Some(end_block) if now > end_block),
 			Error::<T>::TooEarlyForFundingEnd
+		);
+		// do_end_funding was already executed, but automatic transition was included in the
+		// do_remainder_funding function. We gracefully skip the this transition.
+		ensure!(
+			!matches!(
+				project_details.status,
+				ProjectStatus::FundingSuccessful |
+					ProjectStatus::FundingFailed |
+					ProjectStatus::AwaitingProjectDecision
+			),
+			Error::<T>::RoundTransitionAlreadyHappened
 		);
 
 		// * Calculate new variables *
@@ -819,6 +809,10 @@ impl<T: Config> Pallet<T> {
 	pub fn do_project_decision(project_id: ProjectId, decision: FundingOutcomeDecision) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
+		ensure!(
+			project_details.status == ProjectStatus::AwaitingProjectDecision,
+			Error::<T>::RoundTransitionAlreadyHappened
+		);
 
 		// * Update storage *
 		match decision {
@@ -1480,20 +1474,15 @@ impl<T: Config> Pallet<T> {
 		ProjectsDetails::<T>::insert(project_id, project_details);
 		// If no CTs remain, end the funding phase
 
-		let mut weight_round_end_flag: Option<(u32, u32)> = None;
+		let mut weight_round_end_flag: Option<u32> = None;
 		if remaining_cts_after_purchase.is_zero() {
-			// remove the remainder transition or the funding failed transition
-			let total_vecs_in_storage = match Self::remove_from_update_store(&project_id) {
-				Ok(iterations) => iterations,
-				Err(_iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
-			};
 			let fully_filled_vecs_from_insertion =
 				match Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::FundingEnd)) {
 					Ok(iterations) => iterations,
 					Err(_iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
 				};
 
-			weight_round_end_flag = Some((fully_filled_vecs_from_insertion, total_vecs_in_storage));
+			weight_round_end_flag = Some(fully_filled_vecs_from_insertion);
 		}
 
 		// * Emit events *
@@ -1507,12 +1496,10 @@ impl<T: Config> Pallet<T> {
 		// return correct weight function
 		let actual_weight = match weight_round_end_flag {
 			None => Some(WeightInfoOf::<T>::contribution(caller_existing_contributions.len() as u32)),
-			Some((fully_filled_vecs_from_insertion, total_vecs_in_storage)) =>
-				Some(WeightInfoOf::<T>::contribution_ends_round(
-					caller_existing_contributions.len() as u32,
-					fully_filled_vecs_from_insertion,
-					total_vecs_in_storage,
-				)),
+			Some(fully_filled_vecs_from_insertion) => Some(WeightInfoOf::<T>::contribution_ends_round(
+				caller_existing_contributions.len() as u32,
+				fully_filled_vecs_from_insertion,
+			)),
 		};
 
 		Ok(PostDispatchInfo { actual_weight, pays_fee: Pays::Yes })
@@ -1532,26 +1519,13 @@ impl<T: Config> Pallet<T> {
 		ensure!(project_details.status == ProjectStatus::AwaitingProjectDecision, Error::<T>::NotAllowed);
 
 		// * Update storage *
-		let remove_attempts: u32;
-		let mut insertion_attempts: u32 = 0u32;
-
-		match Self::remove_from_update_store(&project_id) {
-			Ok(iterations) => remove_attempts = iterations,
-			Err(iterations) =>
-				return Err(DispatchErrorWithPostInfo {
-					post_info: PostDispatchInfo {
-						actual_weight: Some(WeightInfoOf::<T>::decide_project_outcome(insertion_attempts, iterations)),
-						pays_fee: Pays::Yes,
-					},
-					error: Error::<T>::TooManyInsertionAttempts.into(),
-				}),
-		};
+		let insertion_attempts: u32;
 		match Self::add_to_update_store(now + 1u32.into(), (&project_id, UpdateType::ProjectDecision(decision))) {
 			Ok(iterations) => insertion_attempts = iterations,
 			Err(iterations) =>
 				return Err(DispatchErrorWithPostInfo {
 					post_info: PostDispatchInfo {
-						actual_weight: Some(WeightInfoOf::<T>::decide_project_outcome(iterations, remove_attempts)),
+						actual_weight: Some(WeightInfoOf::<T>::decide_project_outcome(iterations)),
 						pays_fee: Pays::Yes,
 					},
 					error: Error::<T>::TooManyInsertionAttempts.into(),
@@ -1561,7 +1535,7 @@ impl<T: Config> Pallet<T> {
 		Self::deposit_event(Event::ProjectOutcomeDecided { project_id, decision });
 
 		Ok(PostDispatchInfo {
-			actual_weight: Some(WeightInfoOf::<T>::decide_project_outcome(insertion_attempts, remove_attempts)),
+			actual_weight: Some(WeightInfoOf::<T>::decide_project_outcome(insertion_attempts)),
 			pays_fee: Pays::Yes,
 		})
 	}
@@ -2750,26 +2724,6 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 		return Err(T::MaxProjectsToUpdateInsertionAttempts::get());
-	}
-
-	// returns the actual iterations for weight calculation either as an Err type or Ok type so the caller can add that
-	// to the corresponding weight function.
-	pub fn remove_from_update_store(project_id: &ProjectId) -> Result<u32, u32> {
-		// used for extrinsic weight calculation
-		let mut total_iterations = 0u32;
-		let (block_position, project_index) = ProjectsToUpdate::<T>::iter()
-			.find_map(|(block, project_vec)| {
-				total_iterations += 1;
-				let project_index = project_vec.iter().position(|(id, _update_type)| id == project_id)?;
-				Some((block, project_index))
-			})
-			.ok_or(total_iterations)?;
-
-		ProjectsToUpdate::<T>::mutate(block_position, |project_vec| {
-			project_vec.remove(project_index);
-		});
-
-		Ok(total_iterations)
 	}
 
 	pub fn create_bucket_from_metadata(metadata: &ProjectMetadataOf<T>) -> Result<BucketOf<T>, DispatchError> {
