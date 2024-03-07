@@ -138,7 +138,7 @@ parameter_types! {
 	pub VotingLockPeriod: BlockNumber = ELECTION_VOTING_LOCK_DURATION;
 	pub const DesiredMembers: u32 = 9;
 	pub const DesiredRunnersUp: u32 = 20;
-	pub const MaxCandidates: u32 = 1000;
-	pub const MaxVoters: u32 = 10000;
+	pub const MaxCandidates: u32 = 40;
+	pub const MaxVoters: u32 = 600;
 	pub const MaxVotesPerVoter: u32 = 8;
 }
