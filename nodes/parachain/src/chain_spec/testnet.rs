@@ -19,7 +19,6 @@
 //! Polimec Testnet chain specification
 
 use cumulus_primitives_core::ParaId;
-use frame_benchmarking::frame_support::bounded_vec;
 use polimec_parachain_runtime::{
 	pallet_parachain_staking::{
 		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
@@ -27,11 +26,11 @@ use polimec_parachain_runtime::{
 	},
 	AccountId, AuraId as AuthorityId, Balance, BalancesConfig, CouncilConfig, ForeignAssetsConfig, MinCandidateStk,
 	OracleProvidersMembershipConfig, ParachainInfoConfig, ParachainStakingConfig, PolkadotXcmConfig, Runtime,
-	RuntimeGenesisConfig, SessionConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, EXISTENTIAL_DEPOSIT, PLMC,
+	RuntimeGenesisConfig, SessionConfig, SudoConfig, TechnicalCommitteeConfig, EXISTENTIAL_DEPOSIT, PLMC,
 };
 use sc_service::ChainType;
 use sp_core::{crypto::UncheckedInto, sr25519};
-use sp_runtime::{traits::AccountIdConversion, Perbill, Percent};
+use sp_runtime::{traits::AccountIdConversion, bounded_vec, Perbill, Percent};
 
 use crate::chain_spec::{get_account_id_from_seed, DEFAULT_PARA_ID};
 
@@ -123,7 +122,6 @@ pub fn get_chain_spec_dev() -> Result<ChainSpec, String> {
 		ChainType::Local,
 		move || {
 			testnet_genesis(
-				wasm,
 				vec![
 					(get_account_id_from_seed::<sr25519::Public>("Alice"), None, 2 * MinCandidateStk::get()),
 					(get_account_id_from_seed::<sr25519::Public>("Bob"), None, 2 * MinCandidateStk::get()),
@@ -151,6 +149,7 @@ pub fn get_chain_spec_dev() -> Result<ChainSpec, String> {
 		None,
 		Some(properties),
 		Extensions { relay_chain: "rococo-local".into(), para_id: DEFAULT_PARA_ID.into() },
+		&wasm
 	))
 }
 
@@ -174,7 +173,6 @@ pub fn get_prod_chain_spec() -> Result<ChainSpec, String> {
 		ChainType::Live,
 		move || {
 			testnet_genesis(
-				wasm,
 				vec![
 					(PLMC_COL_ACC_1.into(), None, 2 * MinCandidateStk::get()),
 					(PLMC_COL_ACC_2.into(), None, 2 * MinCandidateStk::get()),
@@ -195,12 +193,12 @@ pub fn get_prod_chain_spec() -> Result<ChainSpec, String> {
 		None,
 		Some(properties),
 		Extensions { relay_chain: "polkadot".into(), para_id: id },
+		&wasm
 	))
 }
 
 #[allow(clippy::too_many_arguments)]
 fn testnet_genesis(
-	wasm_binary: &[u8],
 	stakers: Vec<(AccountId, Option<AccountId>, Balance)>,
 	inflation_config: InflationInfo<Balance>,
 	initial_authorities: Vec<AccountId>,
@@ -212,7 +210,7 @@ fn testnet_genesis(
 	endowed_accounts
 		.push((<Runtime as pallet_funding::Config>::PalletId::get().into_account_truncating(), EXISTENTIAL_DEPOSIT));
 	RuntimeGenesisConfig {
-		system: SystemConfig { code: wasm_binary.to_vec(), ..Default::default() },
+		system: Default::default(),
 		balances: BalancesConfig { balances: endowed_accounts.clone() },
 		foreign_assets: ForeignAssetsConfig {
 			assets: vec![(
