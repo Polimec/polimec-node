@@ -26,14 +26,14 @@ use pallet_vesting::VestingInfo;
 use polimec_base_runtime::{Balances, ParachainStaking, RuntimeOrigin, Vesting};
 use sp_runtime::Perquintill;
 use tests::defaults::*;
-use xcm_emulator::get_account_id_from_seed;
+use  xcm_emulator::helpers::get_account_id_from_seed;
 
 generate_accounts!(PEPE, CARLOS,);
 
 #[test]
 fn base_vested_can_stake() {
-	PolimecBase::execute_with(|| {
-		let alice = PolimecBase::account_id_of(ALICE);
+	BaseNet::execute_with(|| {
+		let alice = BaseNet::account_id_of(ALICE);
 		let coll_1 = get_account_id_from_seed::<sr25519::Public>("COLL_1");
 		let new_account = get_account_id_from_seed::<sr25519::Public>("NEW_ACCOUNT");
 
@@ -82,7 +82,7 @@ fn base_vested_can_stake() {
 // total balance, so if the user had 20 free, 2000 frozen, 2000 held, then the user could only withdraw any amount over 2000.
 #[test]
 fn base_can_withdraw_when_free_is_below_frozen_with_hold() {
-	PolimecBase::execute_with(|| {
+	BaseNet::execute_with(|| {
 		let coll_1 = get_account_id_from_seed::<sr25519::Public>("COLL_1");
 		Balances::set_balance(&PEPE.into(), 2_020 * PLMC + ED * 2);
 		Balances::set_balance(&CARLOS.into(), 0);
@@ -93,7 +93,7 @@ fn base_can_withdraw_when_free_is_below_frozen_with_hold() {
 		assert_eq!(Balances::free_balance(&CARLOS.into()), 0);
 		// We need some free balance at the time of the vested transfer
 		// Otherwise the user will never have free balance to pay for the "vest" extrinsic
-		PolimecSystem::set_block_number(1u32);
+		BaseSystem::set_block_number(1u32);
 
 		// The actual vested transfer
 		assert_ok!(Vesting::vested_transfer(
@@ -105,7 +105,7 @@ fn base_can_withdraw_when_free_is_below_frozen_with_hold() {
 		// Vested transfer didnt start with the full amount locked, since start date was befire execution
 		assert_eq!(Balances::usable_balance(&CARLOS.into()), 10 * PLMC);
 
-		let carlos_acc: PolimecAccountId = CARLOS.into();
+		let carlos_acc: AccountId = CARLOS.into();
 
 		// PEPE stakes his 20k PLMC, even if most of it is locked (frozen)
 		assert_ok!(ParachainStaking::delegate(RuntimeOrigin::signed(CARLOS.into()), coll_1, 2_000 * PLMC, 0, 0));

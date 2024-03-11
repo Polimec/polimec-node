@@ -90,7 +90,7 @@ log = { version = "0.4.17", default-features = false }
 itertools = { version = "0.11.0", default-features = false, features = ["use_alloc"] }
 
 # Emulations
-xcm-emulator = {version = '0.7.0', default-features = false}
+xcm-emulator = {version = '0.5.0', default-features = false}
 
 # Substrate (with default disabled)
 frame-benchmarking = {version = '28.0.0', default-features = false}
@@ -111,6 +111,7 @@ sp-core = {version = '28.0.0', default-features = false}
 sp-io = {version = '30.0.0', default-features = false}
 sp-blockchain = {version = '28.0.0', default-features = false}
 sp-consensus-aura = {version = '0.32.0', default-features = false}
+sp-consensus-beefy = {version = '13.0.0', default-features = false}
 sp-block-builder = {version = '26.0.0', default-features = false}
 sp-inherents = {version = '26.0.0', default-features = false}
 sp-offchain = {version = '26.0.0', default-features = false}
@@ -164,15 +165,16 @@ xcm-builder = {package = 'staging-xcm-builder', version = '7.0.0', default-featu
 xcm-executor = {package = 'staging-xcm-executor', version = '7.0.0', default-features = false}
 xcm-simulator = {version = '7.0.0'}
 polkadot-runtime-common = {version = '7.0.0', default-features = false}
-polkadot-runtime = {git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, tag = 'v1.1.2'}
+polkadot-runtime = {git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, rev = '59172d5fb8feea2646490618bead3b2b4fb06220'}
 polkadot-primitives = {version = '7.0.0', default-features = false}
-polkadot-runtime-constants = {git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, tag = 'v1.1.2'}
+polkadot-runtime-constants = {git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, rev = '59172d5fb8feea2646490618bead3b2b4fb06220'}
+system-parachains-constants =  {git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, rev = '59172d5fb8feea2646490618bead3b2b4fb06220'}
 
 # Cumulus (with default disabled)
 cumulus-pallet-aura-ext = {version = '0.7.0', default-features = false}
 cumulus-pallet-dmp-queue = {version = '0.7.0', default-features = false}
 cumulus-pallet-solo-to-para = {version = '0.7.0', default-features = false}
-cumulus-pallet-parachain-system = {version = '0.7.0', default-features = false}
+cumulus-pallet-parachain-system = {version = '0.7.0', features = ["parameterized-consensus-hook"], default-features = false}
 cumulus-pallet-xcm = {version = '0.7.0', default-features = false}
 cumulus-pallet-xcmp-queue = {version = '0.7.0', default-features = false}
 cumulus-primitives-core = {version = '0.7.0', default-features = false}
@@ -181,7 +183,7 @@ cumulus-primitives-utility = {version = '0.7.0', default-features = false}
 pallet-collator-selection = {version = '9.0.0', default-features = false}
 parachain-info = {package = 'staging-parachain-info', version = '0.7.0', default-features = false}
 parachains-common = {version = '7.0.0', default-features = false}
-asset-hub-polkadot-runtime = {git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, tag = 'v1.1.2'}
+asset-hub-polkadot-runtime = {git = 'https://github.com/polkadot-fellows/runtimes', default-features = false, rev = '59172d5fb8feea2646490618bead3b2b4fb06220'}
 
 # Client-only (with default enabled)
 cumulus-client-cli = {version = '0.7.0'}

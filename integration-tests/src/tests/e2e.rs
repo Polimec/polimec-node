@@ -262,7 +262,7 @@ fn evaluation_round_completed() {
 	let project = excel_project(inst.get_new_nonce());
 	let evaluations = excel_evaluators();
 
-	Polimec::execute_with(|| {
+	PoliNet::execute_with(|| {
 		inst.create_auctioning_project(project, issuer, evaluations);
 	});
 }
@@ -276,7 +276,7 @@ fn auction_round_completed() {
 	let evaluations = excel_evaluators();
 	let bids = excel_bidders();
 
-	Polimec::execute_with(|| {
+	PoliNet::execute_with(|| {
 		//let filtered_bids = MockInstantiator::filter_bids_after_auction(bids.clone(), project.total_allocation_size.0);
 		let project_id = inst.create_community_contributing_project(project, issuer, evaluations, bids);
 		let wavgp_from_excel = 10.202357561;
@@ -307,7 +307,7 @@ fn auction_round_completed() {
 fn community_round_completed() {
 	let mut inst = IntegrationInstantiator::new(None);
 
-	Polimec::execute_with(|| {
+	PoliNet::execute_with(|| {
 		let _ = inst.create_remainder_contributing_project(
 			excel_project(0),
 			ISSUER.into(),
@@ -341,7 +341,7 @@ fn community_round_completed() {
 fn remainder_round_completed() {
 	let mut inst = IntegrationInstantiator::new(None);
 
-	Polimec::execute_with(|| {
+	PoliNet::execute_with(|| {
 		let project_id = inst.create_finished_project(
 			excel_project(0),
 			ISSUER.into(),
@@ -386,7 +386,7 @@ fn remainder_round_completed() {
 fn funds_raised() {
 	let mut inst = IntegrationInstantiator::new(None);
 
-	Polimec::execute_with(|| {
+	PoliNet::execute_with(|| {
 		let project_id = inst.create_finished_project(
 			excel_project(0),
 			ISSUER.into(),
@@ -414,7 +414,7 @@ fn funds_raised() {
 fn ct_minted() {
 	let mut inst = IntegrationInstantiator::new(None);
 
-	Polimec::execute_with(|| {
+	PoliNet::execute_with(|| {
 		let _ = inst.create_finished_project(
 			excel_project(0),
 			ISSUER.into(),
@@ -439,7 +439,7 @@ fn ct_minted() {
 fn ct_migrated() {
 	let mut inst = IntegrationInstantiator::new(None);
 
-	let project_id = Polimec::execute_with(|| {
+	let project_id = PoliNet::execute_with(|| {
 		let project_id = inst.create_finished_project(
 			excel_project(0),
 			ISSUER.into(),
@@ -461,11 +461,11 @@ fn ct_migrated() {
 		project_id
 	});
 
-	let project_details = Polimec::execute_with(|| inst.get_project_details(project_id));
+	let project_details = PoliNet::execute_with(|| inst.get_project_details(project_id));
 	assert!(matches!(project_details.evaluation_round_info.evaluators_outcome, EvaluatorsOutcome::Rewarded(_)));
 
 	// Mock HRMP establishment
-	Polimec::execute_with(|| {
+	PoliNet::execute_with(|| {
 		assert_ok!(PolimecFunding::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32)));
 
 		let open_channel_message = xcm::v3::opaque::Instruction::HrmpNewChannelOpenRequest {
@@ -480,13 +480,13 @@ fn ct_migrated() {
 	});
 
 	// Migration is ready
-	Polimec::execute_with(|| {
+	PoliNet::execute_with(|| {
 		let project_details = pallet_funding::ProjectsDetails::<PolimecRuntime>::get(project_id).unwrap();
 		assert!(project_details.migration_readiness_check.unwrap().is_ready())
 	});
 
 	excel_ct_amounts().iter().unique().for_each(|item| {
-		let data = Penpal::account_data_of(item.0.clone());
+		let data = PenNet::account_data_of(item.0.clone());
 		assert_eq!(data.free, 0u128, "Participant balances should be 0 before ct migration");
 	});
 
@@ -494,14 +494,14 @@ fn ct_migrated() {
 	let accounts = excel_ct_amounts().iter().map(|item| item.0.clone()).unique().collect::<Vec<_>>();
 	let total_ct_sold = excel_ct_amounts().iter().fold(0, |acc, item| acc + item.1);
 	dbg!(total_ct_sold);
-	let polimec_sov_acc = Penpal::sovereign_account_id_of((Parent, Parachain(polimec::PARA_ID)).into());
-	let polimec_fund_balance = Penpal::account_data_of(polimec_sov_acc);
+	let polimec_sov_acc = PenNet::sovereign_account_id_of((Parent, Parachain(polimec::PARA_ID)).into());
+	let polimec_fund_balance = PenNet::account_data_of(polimec_sov_acc);
 	dbg!(polimec_fund_balance);
 
 	let names = names();
 
 	for account in accounts {
-		Polimec::execute_with(|| {
+		PoliNet::execute_with(|| {
 			assert_ok!(PolimecFunding::migrate_one_participant(
 				PolimecOrigin::signed(account.clone()),
 				project_id,
@@ -513,13 +513,13 @@ fn ct_migrated() {
 		});
 	}
 
-	Penpal::execute_with(|| {
-		dbg!(Penpal::events());
+	PenNet::execute_with(|| {
+		dbg!(PenNet::events());
 	});
 
 	// Check balances after migration, before vesting
 	excel_ct_amounts().iter().unique().for_each(|item| {
-		let data = Penpal::account_data_of(item.0.clone());
+		let data = PenNet::account_data_of(item.0.clone());
 		let key: [u8; 32] = item.0.clone().into();
 		println!("Participant {} has {} CTs. Expected {}", names[&key], data.free.clone(), item.1);
 		dbg!(data.clone());

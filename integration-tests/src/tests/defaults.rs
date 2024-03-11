@@ -13,7 +13,6 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
 use crate::PolimecRuntime;
 use frame_support::BoundedVec;
 pub use pallet_funding::instantiator::{BidParams, ContributionParams, UserToPLMCBalance, UserToUSDBalance};
@@ -71,7 +70,7 @@ pub fn default_contributor_multipliers() -> Vec<u8> {
 	vec![1u8, 2u8, 1u8, 4u8, 1u8]
 }
 
-pub fn default_project(issuer: AccountId, nonce: u32) -> ProjectMetadataOf<polimec_parachain_runtime::Runtime> {
+pub fn default_project(issuer: AccountId, nonce: u32) -> ProjectMetadataOf<PolimecRuntime> {
 	ProjectMetadata {
 		token_information: CurrencyMetadata {
 			name: bounded_name(),
@@ -90,7 +89,7 @@ pub fn default_project(issuer: AccountId, nonce: u32) -> ProjectMetadataOf<polim
 		offchain_information_hash: Some(metadata_hash(nonce)),
 	}
 }
-pub fn default_evaluations() -> Vec<UserToUSDBalance<polimec_parachain_runtime::Runtime>> {
+pub fn default_evaluations() -> Vec<UserToUSDBalance<PolimecRuntime>> {
 	vec![
 		UserToUSDBalance::new(EVAL_1.into(), 50_000 * PLMC),
 		UserToUSDBalance::new(EVAL_2.into(), 25_000 * PLMC),

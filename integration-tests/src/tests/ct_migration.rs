@@ -25,12 +25,12 @@ use sp_runtime::{traits::Convert, FixedPointNumber, Perquintill};
 use std::collections::HashMap;
 use tests::defaults::*;
 fn execute_cleaner(inst: &mut IntegrationInstantiator) {
-	Polimec::execute_with(|| {
+	PoliNet::execute_with(|| {
 		inst.advance_time(<PolimecRuntime as pallet_funding::Config>::SuccessToSettlementTime::get() + 1u32).unwrap();
 	});
 }
 fn mock_hrmp_establishment(project_id: u32) {
-	Polimec::execute_with(|| {
+	PoliNet::execute_with(|| {
 		assert_ok!(PolimecFunding::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32)));
 
 		let open_channel_message = xcm::v3::opaque::Instruction::HrmpNewChannelOpenRequest {
@@ -44,14 +44,14 @@ fn mock_hrmp_establishment(project_id: u32) {
 		assert_ok!(PolimecFunding::do_handle_channel_accepted(channel_accepted_message));
 	});
 
-	Penpal::execute_with(|| {
+	PenNet::execute_with(|| {
 		println!("penpal events:");
-		dbg!(Penpal::events());
+		dbg!(PenNet::events());
 	});
 }
 
 fn assert_migration_is_ready(project_id: u32) {
-	Polimec::execute_with(|| {
+	PoliNet::execute_with(|| {
 		let project_details = pallet_funding::ProjectsDetails::<PolimecRuntime>::get(project_id).unwrap();
 		assert!(project_details.migration_readiness_check.unwrap().is_ready())
 	});
@@ -60,7 +60,7 @@ fn assert_migration_is_ready(project_id: u32) {
 fn send_migrations(project_id: ProjectId, accounts: Vec<AccountId>) -> HashMap<AccountId, Migrations> {
 	let mut output = HashMap::new();
 	for account in accounts {
-		let migrations = Polimec::execute_with(|| {
+		let migrations = PoliNet::execute_with(|| {
 			assert_ok!(PolimecFunding::migrate_one_participant(
 				PolimecOrigin::signed(account.clone()),
 				project_id,
@@ -145,9 +145,9 @@ fn send_migrations(project_id: ProjectId, accounts: Vec<AccountId>) -> HashMap<A
 fn migrations_are_executed(grouped_migrations: Vec<Migrations>) {
 	let all_migrations =
 		grouped_migrations.iter().flat_map(|migrations| migrations.clone().inner()).collect::<Vec<_>>();
-	Penpal::execute_with(|| {
+	PenNet::execute_with(|| {
 		assert_expected_events!(
-			Penpal,
+			PenNet,
 			vec![
 				PenpalEvent::PolimecReceiver(polimec_receiver::Event::MigrationExecuted{migration}) => {
 					migration: all_migrations.contains(&migration),
@@ -161,7 +161,7 @@ fn migrations_are_executed(grouped_migrations: Vec<Migrations>) {
 		let user = migration_group.clone().inner()[0].origin.user;
 		assert!(migration_group.origins().iter().all(|origin| origin.user == user));
 
-		let user_info = Penpal::account_data_of(user.into());
+		let user_info = PenNet::account_data_of(user.into());
 		assert_close_enough!(
 			user_info.free,
 			migration_group.total_ct_amount(),
@@ -193,9 +193,9 @@ fn migrations_are_confirmed(project_id: u32, grouped_migrations: Vec<Migrations>
 			origins
 		})
 		.collect::<Vec<_>>();
-	Polimec::execute_with(|| {
+	PoliNet::execute_with(|| {
 		assert_expected_events!(
-			Polimec,
+			PoliNet,
 			vec![
 				PolimecEvent::PolimecFunding(pallet_funding::Event::MigrationsConfirmed{project_id, migration_origins}) => {
 					project_id: project_id == project_id,
@@ -245,7 +245,7 @@ fn migrations_are_confirmed(project_id: u32, grouped_migrations: Vec<Migrations>
 
 fn vest_migrations(grouped_migrations: Vec<Migrations>) {
 	let biggest_time = grouped_migrations.iter().map(|migrations| migrations.biggest_vesting_time()).max().unwrap();
-	Penpal::execute_with(|| {
+	PenNet::execute_with(|| {
 		PenpalSystem::set_block_number(biggest_time as u32 + 1u32);
 	});
 	for migration_group in grouped_migrations {
@@ -254,7 +254,7 @@ fn vest_migrations(grouped_migrations: Vec<Migrations>) {
 		// check if any vesting_time is bigger than 1, which means the balance was actually frozen
 		let has_frozen_balance = migration_group.inner().iter().any(|migration| migration.info.vesting_time > 1);
 		if has_frozen_balance {
-			Penpal::execute_with(|| {
+			PenNet::execute_with(|| {
 				assert_ok!(pallet_vesting::Pallet::<PenpalRuntime>::vest(PenpalOrigin::signed(user.into())));
 			});
 		}
@@ -265,7 +265,7 @@ fn migrations_are_vested(grouped_migrations: Vec<Migrations>) {
 	for migration_group in grouped_migrations {
 		let user = migration_group.clone().inner()[0].origin.user;
 		assert!(migration_group.origins().iter().all(|origin| origin.user == user));
-		let user_info = Penpal::account_data_of(user.into());
+		let user_info = PenNet::account_data_of(user.into());
 		assert_eq!(user_info.frozen, 0);
 		assert_eq!(user_info.free, migration_group.total_ct_amount());
 	}
@@ -274,7 +274,7 @@ fn migrations_are_vested(grouped_migrations: Vec<Migrations>) {
 #[test]
 fn migration_check() {
 	let mut inst = IntegrationInstantiator::new(None);
-	let project_id = Polimec::execute_with(|| {
+	let project_id = PoliNet::execute_with(|| {
 		let project_id = inst.create_finished_project(
 			default_project(ISSUER.into(), 0),
 			ISSUER.into(),
@@ -301,7 +301,7 @@ fn migration_is_sent() {
 			.into_iter()
 			.map(|x| AccountId::from(x))
 			.collect::<Vec<_>>();
-	let project_id = Polimec::execute_with(|| {
+	let project_id = PoliNet::execute_with(|| {
 		inst.create_finished_project(
 			default_project(ISSUER.into(), 0),
 			ISSUER.into(),
@@ -346,7 +346,7 @@ fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 			.into_iter()
 			.map(|x| AccountId::from(x))
 			.collect::<Vec<_>>();
-	let project_id = Polimec::execute_with(|| {
+	let project_id = PoliNet::execute_with(|| {
 		inst.create_finished_project(
 			default_project(ISSUER.into(), 0),
 			ISSUER.into(),
@@ -451,7 +451,7 @@ fn vesting_over_several_blocks_on_project() {
 		asset: AcceptedFundingAsset::USDT,
 	});
 
-	let project_id = Polimec::execute_with(|| {
+	let project_id = PoliNet::execute_with(|| {
 		inst.create_finished_project(
 			default_project(ISSUER.into(), 0),
 			ISSUER.into(),
@@ -484,7 +484,7 @@ fn vesting_over_several_blocks_on_project() {
 fn disallow_duplicated_migrations_on_receiver_pallet() {
 	let mut inst = IntegrationInstantiator::new(None);
 
-	let project_id = Polimec::execute_with(|| {
+	let project_id = PoliNet::execute_with(|| {
 		inst.create_finished_project(
 			default_project(ISSUER.into(), 0),
 			ISSUER.into(),
@@ -495,7 +495,7 @@ fn disallow_duplicated_migrations_on_receiver_pallet() {
 		)
 	});
 
-	let project_details = Polimec::execute_with(|| inst.get_project_details(project_id));
+	let project_details = PoliNet::execute_with(|| inst.get_project_details(project_id));
 	if let EvaluatorsOutcome::Rewarded(info) = project_details.evaluation_round_info.evaluators_outcome {
 		println!("rewarded: {:?}", info);
 	} else {
@@ -538,14 +538,14 @@ fn disallow_duplicated_migrations_on_receiver_pallet() {
 			let max_weight = Weight::from_parts(700_000_000, 10_000);
 			let mut instructions = xcm.into_inner();
 			instructions.push(ReportTransactStatus(QueryResponseInfo {
-				destination: ParentThen(X1(Parachain(Polimec::para_id().into()))).into(),
+				destination: ParentThen(X1(Parachain(PoliNet::para_id().into()))).into(),
 				query_id: 69,
 				max_weight,
 			}));
 			let xcm = Xcm(instructions);
-			let project_multilocation = MultiLocation { parents: 1, interior: X1(Parachain(Penpal::para_id().into())) };
+			let project_multilocation = MultiLocation { parents: 1, interior: X1(Parachain(PenNet::para_id().into())) };
 
-			Polimec::execute_with(|| {
+			PoliNet::execute_with(|| {
 				PolimecXcmPallet::send_xcm(Here, project_multilocation, xcm).unwrap();
 			});
 		}
@@ -554,9 +554,9 @@ fn disallow_duplicated_migrations_on_receiver_pallet() {
 	// each duplicated migration was skipped (in this case we duplicated all of them)
 	let all_migrations =
 		grouped_migrations.iter().flat_map(|migrations| migrations.clone().inner()).collect::<Vec<_>>();
-	Penpal::execute_with(|| {
+	PenNet::execute_with(|| {
 		assert_expected_events!(
-			Penpal,
+			PenNet,
 			vec![
 				PenpalEvent::PolimecReceiver(polimec_receiver::Event::DuplicatedMigrationSkipped{migration}) => {
 					migration: all_migrations.contains(&migration),

@@ -40,7 +40,7 @@ use frame_support::{
 use frame_system::EnsureRoot;
 use pallet_asset_tx_payment::HandleCredit;
 use pallet_xcm::XcmPassthrough;
-use polkadot_parachain::primitives::Sibling;
+use polkadot_parachain_primitives::primitives::Sibling;
 use polkadot_runtime_common::impls::ToAuthor;
 use sp_runtime::traits::Zero;
 use xcm::latest::prelude::*;
@@ -297,6 +297,7 @@ impl xcm_executor::Config for XcmConfig {
 	type UniversalAliases = Nothing;
 	type UniversalLocation = UniversalLocation;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
+	type TransactionalProcessor = ();
 	type XcmSender = XcmRouter;
 }
 

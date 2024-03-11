@@ -14,28 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#![cfg_attr(not(feature = "std"), no_std)]
-
-pub mod assets;
-pub mod currency;
-pub mod fee;
-pub mod funding;
-pub mod governance;
-pub mod identity;
-pub mod proxy;
-pub mod staking;
-pub mod time;
-pub mod weights;
-
-/// Common types
-pub use parachains_common::{Balance, BlockNumber, DAYS};
-
-pub use assets::*;
-pub use currency::*;
-pub use fee::*;
-pub use funding::*;
-pub use governance::*;
-pub use identity::*;
-pub use staking::*;
-pub use time::*;
-pub use weights::*;
+/// Maximum number of blocks simultaneously accepted by the Runtime, not yet included
+/// into the relay chain.
+pub const UNINCLUDED_SEGMENT_CAPACITY: u32 = 1;
+/// How many parachain blocks are processed by the relay chain per parent. Limits the
+/// number of blocks authored per slot.
+pub const BLOCK_PROCESSING_VELOCITY: u32 = 1;
+/// Relay chain slot duration, in milliseconds.
+pub const RELAY_CHAIN_SLOT_DURATION_MILLIS: u32 = 6000;

@@ -35,7 +35,7 @@ use frame_support::{
 use frame_system::{EnsureNever, EnsureRoot, EnsureRootWithSuccess, EnsureSigned};
 use pallet_democracy::GetElectorate;
 use pallet_oracle_ocw::types::AssetName;
-use parachains_common::{AssetIdForTrustBackedAssets as AssetId, message_queue::{NarrowOriginToSibling, ParaIdToSibling}};
+use parachains_common::{AssetIdForTrustBackedAssets as AssetId, message_queue::{NarrowOriginToSibling, ParaIdToSibling}, };
 use parity_scale_codec::Encode;
 use polkadot_runtime_common::{BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate, xcm_sender::NoPriceForMessageDelivery};
 use sp_api::impl_runtime_apis;
@@ -57,7 +57,7 @@ use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
 pub use pallet_parachain_staking;
 // Polimec Shared Imports
 pub use shared_configuration::{
-	assets::*, currency::*, fee::*, funding::*, governance::*, identity::*, proxy::*, staking::*, weights::*,
+	assets::*, currency::*, fee::*, funding::*, governance::*, identity::*, proxy::*, staking::*, time::*, weights::*,
 };
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
@@ -416,6 +416,12 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type SelfParaId = parachain_info::Pallet<Runtime>;
 	type XcmpMessageHandler = XcmpQueue;
 	type WeightInfo = cumulus_pallet_parachain_system::weights::SubstrateWeight<Runtime>;
+	type ConsensusHook = cumulus_pallet_aura_ext::FixedVelocityConsensusHook<
+		Runtime,
+		RELAY_CHAIN_SLOT_DURATION_MILLIS,
+		BLOCK_PROCESSING_VELOCITY,
+		UNINCLUDED_SEGMENT_CAPACITY,
+	>;
 }
 
 impl parachain_info::Config for Runtime {}

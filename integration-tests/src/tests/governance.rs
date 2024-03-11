@@ -2,10 +2,9 @@ use crate::{polimec_base::ED, *};
 /// Tests for the oracle pallet integration.
 /// Alice, Bob, Charlie are members of the OracleProvidersMembers.
 /// Only members should be able to feed data into the oracle.
-use frame_support::traits::fungible::Inspect;
 use frame_support::traits::{
-	fungible::{BalancedHold, MutateFreeze, MutateHold, Unbalanced},
-	OnInitialize, WithdrawReasons,
+	fungible::{BalancedHold, Inspect, MutateFreeze, MutateHold, Unbalanced},
+	WithdrawReasons, Hooks,
 };
 use macros::generate_accounts;
 use sp_runtime::{traits::Hash, Digest};
@@ -23,15 +22,15 @@ use polimec_base_runtime::{
 	Vesting,
 };
 use tests::defaults::*;
-use xcm_emulator::get_account_id_from_seed;
+use  xcm_emulator::helpers::get_account_id_from_seed;
 generate_accounts!(PEPE, CARLOS,);
 
 /// Test that an account with vested tokens (a lock) can use those tokens for a hold.
 /// The hold can also be released or slashed while the lock is still in place.
 #[test]
 fn vested_tokens_and_holds_work_together() {
-	PolimecBase::execute_with(|| {
-		let alice = PolimecBase::account_id_of(ALICE);
+	BaseNet::execute_with(|| {
+		let alice = BaseNet::account_id_of(ALICE);
 		let new_account = create_vested_account();
 
 		assert_eq!(Balances::balance(&alice), 220 * PLMC - ED);
@@ -79,8 +78,8 @@ fn vested_tokens_and_holds_work_together() {
 /// Test that an account with vested tokens (a lock) cannot use those tokens for a reserve.
 #[test]
 fn vested_tokens_and_reserves_dont_work_together() {
-	PolimecBase::execute_with(|| {
-		let alice = PolimecBase::account_id_of(ALICE);
+	BaseNet::execute_with(|| {
+		let alice = BaseNet::account_id_of(ALICE);
 		let new_account = create_vested_account();
 
 		assert_eq!(Balances::balance(&alice), 220 * PLMC - ED);
@@ -96,8 +95,8 @@ fn vested_tokens_and_reserves_dont_work_together() {
 /// Test that locks and freezes can be placed on balance that is already reserved.
 #[test]
 fn lock_and_freeze_after_reserve_does_work() {
-	PolimecBase::execute_with(|| {
-		let alice = PolimecBase::account_id_of(ALICE);
+	BaseNet::execute_with(|| {
+		let alice = BaseNet::account_id_of(ALICE);
 
 		assert_ok!(Balances::reserve(&alice, 400 * PLMC));
 		assert_ok!(Balances::set_freeze(
@@ -112,13 +111,13 @@ fn lock_and_freeze_after_reserve_does_work() {
 /// Test that correct members are set with the default genesis config.
 #[test]
 fn council_and_technical_committee_members_set_correctly() {
-	let alice = PolimecBase::account_id_of(ALICE);
-	let bob = PolimecBase::account_id_of(BOB);
-	let charlie = PolimecBase::account_id_of(CHARLIE);
-	let dave = PolimecBase::account_id_of(DAVE);
-	let eve = PolimecBase::account_id_of(EVE);
+	let alice = BaseNet::account_id_of(ALICE);
+	let bob = BaseNet::account_id_of(BOB);
+	let charlie = BaseNet::account_id_of(CHARLIE);
+	let dave = BaseNet::account_id_of(DAVE);
+	let eve = BaseNet::account_id_of(EVE);
 	let accounts = vec![alice, bob, charlie, dave, eve];
-	Polimec::execute_with(|| {
+	PoliNet::execute_with(|| {
 		assert_same_members(Council::members(), &accounts);
 		assert_same_members(TechnicalCommittee::members(), &accounts);
 	});
@@ -131,11 +130,11 @@ fn council_and_technical_committee_members_set_correctly() {
 /// 4. Proposal is enacted.
 #[test]
 fn democracy_works() {
-	let alice = PolimecBase::account_id_of(ALICE);
+	let alice = BaseNet::account_id_of(ALICE);
 	// 1. Create a proposal to set the the balance of `account` to 1000 PLMC
-	PolimecBase::execute_with(|| {
+	BaseNet::execute_with(|| {
 		let account = create_vested_account();
-		let bounded_call = Preimage::bound(<PolimecBase as xcm_emulator::Parachain>::RuntimeCall::Balances(
+		let bounded_call = Preimage::bound(BaseCall::Balances(
 			pallet_balances::Call::force_set_balance { who: account.clone().into(), new_free: 1000u128 * PLMC },
 		))
 		.unwrap();
@@ -145,7 +144,7 @@ fn democracy_works() {
 	run_gov_n_blocks(1);
 	// 2. Proposal is turned into a referendum
 	// Alice votes on the proposal with 100 PLMC
-	PolimecBase::execute_with(|| {
+	BaseNet::execute_with(|| {
 		assert!(Democracy::referendum_count() == 1);
 		assert_eq!(
 			Balances::balance_frozen(
@@ -166,14 +165,14 @@ fn democracy_works() {
 
 	run_gov_n_blocks(2);
 	// 3. Referendum is approved
-	PolimecBase::execute_with(|| {
+	BaseNet::execute_with(|| {
 		assert_eq!(Democracy::referendum_info(0).unwrap(), ReferendumInfo::Finished { approved: true, end: 4u32 });
 		assert!(pallet_scheduler::Agenda::<polimec_base_runtime::Runtime>::get(6u32).len() == 1);
 	});
 
 	// 4. Referendum is enacted
 	run_gov_n_blocks(2);
-	PolimecBase::execute_with(|| {
+	BaseNet::execute_with(|| {
 		assert_eq!(Balances::balance(&get_account_id_from_seed::<sr25519::Public>("NEW_ACCOUNT")), 1000u128 * PLMC);
 	});
 }
@@ -182,7 +181,7 @@ fn democracy_works() {
 // Electorate is the total issuance minus the sum of the Growth + Operational treasury.
 #[test]
 fn electorate_calculates_correctly() {
-	PolimecBase::execute_with(|| {
+	BaseNet::execute_with(|| {
 		let total_issuance = Balances::total_issuance();
 		assert_ok!(Balances::write_balance(&Treasury::account_id(), 1000 * PLMC));
 		assert_ok!(Balances::write_balance(
@@ -201,9 +200,9 @@ fn electorate_calculates_correctly() {
 fn user_can_vote_with_staked_balance() {
 	// 1. Create a proposal to set the the balance of `account` to 1000 PLMC
 	// 2. Account stakes 100 PLMC.
-	PolimecBase::execute_with(|| {
+	BaseNet::execute_with(|| {
 		let account = create_vested_account();
-		let bounded_call = Preimage::bound(<PolimecBase as xcm_emulator::Parachain>::RuntimeCall::Balances(
+		let bounded_call = Preimage::bound(BaseCall::Balances(
 			pallet_balances::Call::force_set_balance { who: account.clone().into(), new_free: 1000u128 * PLMC },
 		))
 		.unwrap();
@@ -223,7 +222,7 @@ fn user_can_vote_with_staked_balance() {
 
 	run_gov_n_blocks(1);
 	// 3. User votes on the proposal with 200 PLMC
-	PolimecBase::execute_with(|| {
+	BaseNet::execute_with(|| {
 		let account = get_account_id_from_seed::<sr25519::Public>("NEW_ACCOUNT");
 		assert_eq!(
 			Balances::balance_frozen(
@@ -246,13 +245,13 @@ fn user_can_vote_with_staked_balance() {
 /// Test that treasury proposals can be directly accepted by the council without going through governance.
 #[test]
 fn treasury_proposal_accepted_by_council() {
-	let alice = PolimecBase::account_id_of(ALICE);
-	let bob = PolimecBase::account_id_of(BOB);
-	let charlie = PolimecBase::account_id_of(CHARLIE);
-	let dave = PolimecBase::account_id_of(DAVE);
-	let eve = PolimecBase::account_id_of(EVE);
+	let alice = BaseNet::account_id_of(ALICE);
+	let bob = BaseNet::account_id_of(BOB);
+	let charlie = BaseNet::account_id_of(CHARLIE);
+	let dave = BaseNet::account_id_of(DAVE);
+	let eve = BaseNet::account_id_of(EVE);
 	let accounts = vec![(alice.clone(), true), (bob, true), (charlie, true), (dave, true), (eve, true)];
-	PolimecBase::execute_with(|| {
+	BaseNet::execute_with(|| {
 		// 0. Set the treasury balance to 1000 PLMC
 		assert_ok!(Balances::write_balance(&Treasury::account_id(), 1000 * PLMC));
 
@@ -285,7 +284,7 @@ fn treasury_proposal_accepted_by_council() {
 
 	run_gov_n_blocks(3);
 
-	PolimecBase::execute_with(|| {
+	BaseNet::execute_with(|| {
 		// 5. Beneficiary receives the funds
 		assert_eq!(Balances::balance(&get_account_id_from_seed::<sr25519::Public>("Beneficiary")), 100 * PLMC);
 	});
@@ -295,8 +294,8 @@ fn treasury_proposal_accepted_by_council() {
 /// The treasury proposal deposit is slashed and sent to the treasury.
 #[test]
 fn slashed_treasury_proposal_funds_send_to_treasury() {
-	let alice = PolimecBase::account_id_of(ALICE);
-	PolimecBase::execute_with(|| {
+	let alice = BaseNet::account_id_of(ALICE);
+	BaseNet::execute_with(|| {
 		// 0. Set the treasury balance to 1000 PLMC
 		assert_ok!(Balances::write_balance(&Treasury::account_id(), 1000 * PLMC));
 		let alice_balance = Balances::balance(&alice);
@@ -322,8 +321,8 @@ fn slashed_treasury_proposal_funds_send_to_treasury() {
 /// Test that users can vote in the election-phragmen pallet with their staked balance.
 #[test]
 fn user_can_vote_in_election_with_staked_balance() {
-	let alice = PolimecBase::account_id_of(ALICE);
-	PolimecBase::execute_with(|| {
+	let alice = BaseNet::account_id_of(ALICE);
+	BaseNet::execute_with(|| {
 		let account = create_vested_account();
 
 		assert_ok!(ParachainStaking::delegate(
@@ -355,7 +354,7 @@ fn user_can_vote_in_election_with_staked_balance() {
 
 	run_gov_n_blocks(5);
 
-	PolimecBase::execute_with(|| {
+	BaseNet::execute_with(|| {
 		let account = get_account_id_from_seed::<sr25519::Public>("NEW_ACCOUNT");
 
 		assert_ok!(Elections::remove_voter(RuntimeOrigin::signed(account.clone())));
@@ -383,7 +382,7 @@ fn election_phragmen_works() {
 		.map(|i| get_account_id_from_seed::<sr25519::Public>(format!("CANDIDATE_{}", i).as_str()))
 		.collect::<Vec<AccountId>>();
 	// 1. Register candidates for the election.
-	PolimecBase::execute_with(|| {
+	BaseNet::execute_with(|| {
 		assert_eq!(Elections::candidates().len(), 0);
 		// Alice .. Eve already selected members
 		assert_eq!(Elections::members().len(), 5);
@@ -397,7 +396,7 @@ fn election_phragmen_works() {
 		assert_eq!(Elections::candidates().len(), 32);
 
 		for (i, voter) in vec![ALICE, BOB, CHARLIE, DAVE, EVE, FERDIE, ALICE_STASH, BOB_STASH].into_iter().enumerate() {
-			let voter = PolimecBase::account_id_of(voter);
+			let voter = BaseNet::account_id_of(voter);
 			assert_ok!(Elections::vote(
 				RuntimeOrigin::signed(voter.clone()),
 				candidates[i..(i + 8)].to_vec(),
@@ -408,7 +407,7 @@ fn election_phragmen_works() {
 
 	run_gov_n_blocks(5);
 
-	PolimecBase::execute_with(|| {
+	BaseNet::execute_with(|| {
 		assert_eq!(Elections::candidates().len(), 0);
 		assert_eq!(Elections::members().len(), 9);
 		assert_eq!(Elections::runners_up().len(), 6);
@@ -433,7 +432,7 @@ fn assert_same_members(expected: Vec<AccountId>, actual: &Vec<AccountId>) {
 }
 
 fn create_vested_account() -> AccountId {
-	let alice = PolimecBase::account_id_of(ALICE);
+	let alice = BaseNet::account_id_of(ALICE);
 	let new_account = get_account_id_from_seed::<sr25519::Public>("NEW_ACCOUNT");
 
 	// Initially the NEW_ACCOUNT has no PLMC
@@ -456,7 +455,7 @@ fn create_vested_account() -> AccountId {
 
 fn run_gov_n_blocks(n: usize) {
 	for _ in 0..n {
-		PolimecBase::execute_with(|| {
+		BaseNet::execute_with(|| {
 			let block_number = polimec_base_runtime::System::block_number();
 
 			let header = polimec_base_runtime::System::finalize();
