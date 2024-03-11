@@ -1028,8 +1028,6 @@ pub mod pallet {
 			Self::do_start_evaluation(account, project_id, did, investor_type)
 		}
 
-
-
 		/// Starts the auction round for a project. From the next block forward, any professional or
 		/// institutional user can set bids for a token_amount/token_price pair.
 		/// Any bids from this point until the candle_auction starts, will be considered as valid.
@@ -1380,71 +1378,88 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(28)]
-		#[pallet::weight(Zero::zero())]
-		pub fn root_do_evaluation_end(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-		) -> DispatchResultWithPostInfo {
+		#[pallet::weight(WeightInfoOf::<T>::end_evaluation_success(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+		))]
+		pub fn root_do_evaluation_end(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 			Self::do_evaluation_end(project_id)
 		}
 
 		#[pallet::call_index(29)]
-		#[pallet::weight(Weight::zero())]
-		pub fn root_do_candle_auction(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-		) -> DispatchResultWithPostInfo {
+		#[pallet::weight(WeightInfoOf::<T>::start_candle_phase(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+		))]
+		pub fn root_do_candle_auction(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 			Self::do_candle_auction(project_id)
 		}
 
 		#[pallet::call_index(30)]
-		#[pallet::weight(Weight::zero())]
-		pub fn root_do_community_funding(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-		) -> DispatchResultWithPostInfo {
+		#[pallet::weight(WeightInfoOf::<T>::start_community_funding_success(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			<T as Config>::MaxBidsPerProject::get() / 2,
+			<T as Config>::MaxBidsPerProject::get() / 2,
+		)
+		.max(WeightInfoOf::<T>::start_community_funding_success(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			<T as Config>::MaxBidsPerProject::get(),
+			0u32,
+		))
+		.max(WeightInfoOf::<T>::start_community_funding_success(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			0u32,
+			<T as Config>::MaxBidsPerProject::get(),
+		)))]
+		pub fn root_do_community_funding(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 			Self::do_community_funding(project_id)
 		}
 
 		#[pallet::call_index(31)]
-		#[pallet::weight(Weight::zero())]
-		pub fn root_do_remainder_funding(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-		) -> DispatchResultWithPostInfo {
+		#[pallet::weight(WeightInfoOf::<T>::start_remainder_funding(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+		))]
+		pub fn root_do_remainder_funding(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 			Self::do_remainder_funding(project_id)
 		}
 
 		#[pallet::call_index(32)]
-		#[pallet::weight(Weight::zero())]
-		pub fn root_do_end_funding(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-		) -> DispatchResultWithPostInfo {
+		#[pallet::weight(WeightInfoOf::<T>::end_funding_automatically_rejected_evaluators_slashed(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			)
+		.max(WeightInfoOf::<T>::end_funding_awaiting_decision_evaluators_slashed(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			))
+		.max(WeightInfoOf::<T>::end_funding_awaiting_decision_evaluators_unchanged(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			))
+		.max(WeightInfoOf::<T>::end_funding_automatically_accepted_evaluators_rewarded(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			<T as Config>::MaxEvaluationsPerProject::get(),
+		)))]
+		pub fn root_do_end_funding(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 			Self::do_end_funding(project_id)
 		}
 
 		#[pallet::call_index(33)]
-		#[pallet::weight(Weight::zero())]
+		#[pallet::weight(WeightInfoOf::<T>::project_decision_accept_funding()
+		.max(WeightInfoOf::<T>::project_decision_reject_funding()))]
 		pub fn root_do_project_decision(
 			origin: OriginFor<T>,
 			project_id: ProjectId,
+			decision: FundingOutcomeDecision,
 		) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
-			Self::do_project_decision(project_id)
+			Self::do_project_decision(project_id, decision)
 		}
 
 		#[pallet::call_index(34)]
-		#[pallet::weight(Weight::zero())]
-		pub fn root_do_start_settlement(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-		) -> DispatchResultWithPostInfo {
+		#[pallet::weight(WeightInfoOf::<T>::start_settlement_funding_success()
+		.max(WeightInfoOf::<T>::start_settlement_funding_failure()))]
+		pub fn root_do_start_settlement(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 			Self::do_start_settlement(project_id)
 		}
