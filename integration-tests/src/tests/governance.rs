@@ -139,12 +139,9 @@ fn democracy_works() {
 		))
 		.unwrap();
 		assert_ok!(Democracy::propose(RuntimeOrigin::signed(account.clone()), bounded_call, 100 * PLMC,));
-	});
 
-	run_gov_n_blocks(1);
-	// 2. Proposal is turned into a referendum
-	// Alice votes on the proposal with 100 PLMC
-	BaseNet::execute_with(|| {
+		run_gov_n_blocks(1);
+
 		assert!(Democracy::referendum_count() == 1);
 		assert_eq!(
 			Balances::balance_frozen(
@@ -161,18 +158,14 @@ fn democracy_works() {
 			),
 			100 * PLMC
 		);
-	});
 
-	run_gov_n_blocks(2);
-	// 3. Referendum is approved
-	BaseNet::execute_with(|| {
-		assert_eq!(Democracy::referendum_info(0).unwrap(), ReferendumInfo::Finished { approved: true, end: 4u32 });
-		assert!(pallet_scheduler::Agenda::<polimec_base_runtime::Runtime>::get(6u32).len() == 1);
-	});
+		run_gov_n_blocks(2);
 
-	// 4. Referendum is enacted
-	run_gov_n_blocks(2);
-	BaseNet::execute_with(|| {
+		assert_eq!(Democracy::referendum_info(0).unwrap(), ReferendumInfo::Finished { approved: true, end: 6u32 });
+		assert!(pallet_scheduler::Agenda::<polimec_base_runtime::Runtime>::get(8u32).len() == 1);
+
+		run_gov_n_blocks(2);
+
 		assert_eq!(Balances::balance(&get_account_id_from_seed::<sr25519::Public>("NEW_ACCOUNT")), 1000u128 * PLMC);
 	});
 }
@@ -217,12 +210,10 @@ fn user_can_vote_with_staked_balance() {
 		));
 
 		// Total PLMC reserved for staking (100) + creating proposal (100) = 200
-		assert_eq!(Balances::reserved_balance(&account), 200 * PLMC)
-	});
+		assert_eq!(Balances::reserved_balance(&account), 200 * PLMC);
 
-	run_gov_n_blocks(1);
-	// 3. User votes on the proposal with 200 PLMC
-	BaseNet::execute_with(|| {
+		run_gov_n_blocks(1);
+
 		let account = get_account_id_from_seed::<sr25519::Public>("NEW_ACCOUNT");
 		assert_eq!(
 			Balances::balance_frozen(
@@ -239,7 +230,7 @@ fn user_can_vote_with_staked_balance() {
 			),
 			200 * PLMC
 		);
-	})
+	});
 }
 
 /// Test that treasury proposals can be directly accepted by the council without going through governance.
@@ -280,13 +271,11 @@ fn treasury_proposal_accepted_by_council() {
 			proposal.get_dispatch_info().weight,
 			100,
 		));
-	});
 
-	run_gov_n_blocks(3);
+		run_gov_n_blocks(3);
 
-	BaseNet::execute_with(|| {
-		// 5. Beneficiary receives the funds
-		assert_eq!(Balances::balance(&get_account_id_from_seed::<sr25519::Public>("Beneficiary")), 100 * PLMC);
+			// 5. Beneficiary receives the funds
+			assert_eq!(Balances::balance(&get_account_id_from_seed::<sr25519::Public>("Beneficiary")), 100 * PLMC);
 	});
 }
 
@@ -350,11 +339,9 @@ fn user_can_vote_in_election_with_staked_balance() {
 			Elections::remove_voter(RuntimeOrigin::signed(account.clone())),
 			pallet_elections_phragmen::Error::<polimec_base_runtime::Runtime>::VotingPeriodNotEnded
 		);
-	});
 
-	run_gov_n_blocks(5);
+		run_gov_n_blocks(5);
 
-	BaseNet::execute_with(|| {
 		let account = get_account_id_from_seed::<sr25519::Public>("NEW_ACCOUNT");
 
 		assert_ok!(Elections::remove_voter(RuntimeOrigin::signed(account.clone())));
@@ -403,11 +390,9 @@ fn election_phragmen_works() {
 				200 * PLMC,
 			));
 		}
-	});
 
-	run_gov_n_blocks(5);
+		run_gov_n_blocks(5);
 
-	BaseNet::execute_with(|| {
 		assert_eq!(Elections::candidates().len(), 0);
 		assert_eq!(Elections::members().len(), 9);
 		assert_eq!(Elections::runners_up().len(), 6);
@@ -455,9 +440,7 @@ fn create_vested_account() -> AccountId {
 
 fn run_gov_n_blocks(n: usize) {
 	for _ in 0..n {
-		BaseNet::execute_with(|| {
 			let block_number = polimec_base_runtime::System::block_number();
-
 			let header = polimec_base_runtime::System::finalize();
 
 			let pre_digest = Digest { logs: vec![] };
@@ -473,7 +456,6 @@ fn run_gov_n_blocks(n: usize) {
 			polimec_base_runtime::Preimage::on_initialize(next_block_number);
 			polimec_base_runtime::Scheduler::on_initialize(next_block_number);
 			polimec_base_runtime::System::initialize(&next_block_number, &header.hash(), &pre_digest);
-		});
 	}
 }
 

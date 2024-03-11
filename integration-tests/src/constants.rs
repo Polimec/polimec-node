@@ -26,7 +26,6 @@ use polimec_parachain_runtime::{
 };
 use polkadot_primitives::{AssignmentId, ValidatorId};
 pub use polkadot_runtime_parachains::configuration::HostConfiguration;
-use polkadot_service::chain_spec::get_authority_keys_from_seed;
 use sc_consensus_grandpa::AuthorityId as GrandpaId;
 use sp_arithmetic::Percent;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
@@ -35,7 +34,7 @@ use sp_core::{sr25519, storage::Storage, Pair, Public};
 use sp_runtime::{bounded_vec, BuildStorage, Perbill};
 
 pub use xcm;
-use xcm_emulator::{Chain, Parachain, RelayChain, helpers::get_account_id_from_seed};
+use xcm_emulator::{Chain, Parachain, helpers::get_account_id_from_seed};
 
 pub const XCM_V2: u32 = 3;
 pub const XCM_V3: u32 = 2;

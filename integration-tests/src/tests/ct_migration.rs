@@ -59,8 +59,8 @@ fn assert_migration_is_ready(project_id: u32) {
 
 fn send_migrations(project_id: ProjectId, accounts: Vec<AccountId>) -> HashMap<AccountId, Migrations> {
 	let mut output = HashMap::new();
-	for account in accounts {
-		let migrations = PoliNet::execute_with(|| {
+	PoliNet::execute_with(|| {
+		for account in accounts {
 			assert_ok!(PolimecFunding::migrate_one_participant(
 				PolimecOrigin::signed(account.clone()),
 				project_id,
@@ -132,13 +132,14 @@ fn send_migrations(project_id: ProjectId, accounts: Vec<AccountId>) -> HashMap<A
 				}
 			});
 
-			evaluation_migrations.chain(bid_migrations).chain(contribution_migrations).collect::<Migrations>()
-		});
-		if migrations.clone().inner().is_empty() {
-			panic!("no migrations for account: {:?}", account)
+			let migrations = evaluation_migrations.chain(bid_migrations).chain(contribution_migrations).collect::<Migrations>();
+		
+			if migrations.clone().inner().is_empty() {
+				panic!("no migrations for account: {:?}", account)
+			}
+			output.insert(account.clone(), migrations);
 		}
-		output.insert(account.clone(), migrations);
-	}
+	});
 	output
 }
 
