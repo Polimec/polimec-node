@@ -6,6 +6,9 @@ default:
 build-base-srtool:
     srtool build --root -p polimec-base-runtime --runtime-dir runtimes/base --build-opts="--features=on-chain-release-build"
 
+build-rolimec-srtool:
+    srtool build --root -p polimec-base-runtime --runtime-dir runtimes/base --build-opts="--features=on-chain-release-build,fast-mode"
+
 # Build the "Testnet" Runtime using srtool
 
 # Test the runtimes features

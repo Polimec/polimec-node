@@ -154,50 +154,6 @@ pub fn get_chain_spec_dev() -> Result<ChainSpec, String> {
 	))
 }
 
-pub fn get_prod_chain_spec() -> Result<ChainSpec, String> {
-	let properties = get_properties("PLMC", 10, 41);
-	let wasm = polimec_parachain_runtime::WASM_BINARY.ok_or("No WASM")?;
-
-	// TODO: Update this after reserving a ParaId
-	let id: u32 = 4261;
-
-	const PLMC_SUDO_ACC: [u8; 32] =
-		hex_literal::hex!["d4192a54c9caa4a38eeb3199232ed0d8568b22956cafb76c7d5a1afbf4e2dc38"];
-	const PLMC_COL_ACC_1: [u8; 32] =
-		hex_literal::hex!["6603f63a4091ba074b4384e64c6bba1dd96f6af49331ebda686b0a0f27dd961c"];
-	const PLMC_COL_ACC_2: [u8; 32] =
-		hex_literal::hex!["ba48ab77461ef53f9ebfdc94a12c780b57354f986e31eb2504b9e3ed580fab51"];
-
-	Ok(ChainSpec::from_genesis(
-		"Polimec Kusama Testnet",
-		"polimec",
-		ChainType::Live,
-		move || {
-			testnet_genesis(
-				wasm,
-				vec![
-					(PLMC_COL_ACC_1.into(), None, 2 * MinCandidateStk::get()),
-					(PLMC_COL_ACC_2.into(), None, 2 * MinCandidateStk::get()),
-				],
-				polimec_inflation_config(),
-				vec![(PLMC_COL_ACC_1.into()), (PLMC_COL_ACC_2.into())],
-				vec![
-					(PLMC_COL_ACC_1.into(), 3 * MinCandidateStk::get()),
-					(PLMC_COL_ACC_2.into(), 3 * MinCandidateStk::get()),
-				],
-				PLMC_SUDO_ACC.into(),
-				id.into(),
-			)
-		},
-		vec![],
-		None,
-		Some("polimec"),
-		None,
-		Some(properties),
-		Extensions { relay_chain: "polkadot".into(), para_id: id },
-	))
-}
-
 #[allow(clippy::too_many_arguments)]
 fn testnet_genesis(
 	wasm_binary: &[u8],
