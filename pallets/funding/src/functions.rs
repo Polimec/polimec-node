@@ -608,7 +608,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(project_details.status == ProjectStatus::CommunityRound, Error::<T>::ProjectNotInCommunityRound);
 
 		// Transition to remainder round was initiated by `do_community_funding`, but the ct
-		// tokens where already sold in the community round. This transition is obsolite.
+		// tokens where already sold in the community round. This transition is obsolete.
 		ensure!(
 			project_details
 				.remaining_contribution_tokens

@@ -329,9 +329,7 @@ pub fn run_blocks_to_execute_next_transition<T: Config>(
 	update_type: UpdateType,
 	inst: &mut BenchInstantiator<T>,
 ) {
-	let pair = inst.get_update_pair(project_id, &update_type);
-	assert!(pair.is_some());
-	let (update_block, _) = pair.unwrap();
+	let update_block = inst.get_update_block(project_id, &update_type).unwrap();
 	frame_system::Pallet::<T>::set_block_number(update_block - 1u32.into());
 	inst.advance_time(One::one()).unwrap();
 }
@@ -2273,7 +2271,7 @@ mod benchmarks {
 		// * validity checks *
 		// Storage
 		let maybe_transition =
-			inst.get_update_pair(project_id, &UpdateType::ProjectDecision(FundingOutcomeDecision::AcceptFunding));
+			inst.get_update_block(project_id, &UpdateType::ProjectDecision(FundingOutcomeDecision::AcceptFunding));
 		assert!(maybe_transition.is_some());
 
 		// Events

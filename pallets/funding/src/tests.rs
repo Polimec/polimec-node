@@ -1076,7 +1076,6 @@ mod auction {
 		inst.mint_foreign_asset_to(contributors_funding_assets);
 
 		inst.contribute_for_users(project_id, community_contributions).unwrap();
-		inst.start_remainder_or_end_funding(project_id).unwrap();
 		inst.finish_funding(project_id).unwrap();
 
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();

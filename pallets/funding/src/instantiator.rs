@@ -964,17 +964,17 @@ impl<
 		self.execute(|| ProjectsDetails::<T>::get(project_id).expect("Project details exists"))
 	}
 
-	pub fn get_update_pair(
+	pub fn get_update_block(
 		&mut self,
 		project_id: ProjectId,
 		update_type: &UpdateType,
-	) -> Option<(BlockNumberFor<T>, UpdateType)> {
+	) -> Option<(BlockNumberFor<T>)> {
 		self.execute(|| {
 			ProjectsToUpdate::<T>::iter().find_map(|(block, update_vec)| {
 				update_vec
 					.iter()
 					.find(|(pid, update)| *pid == project_id && update == update_type)
-					.map(|(_pid, update)| (block, update.clone()))
+					.map(|(_pid, update)| block)
 			})
 		})
 	}
@@ -1254,7 +1254,7 @@ impl<
 			details.remaining_contribution_tokens.0.saturating_add(details.remaining_contribution_tokens.1);
 		let update_type =
 			if remaining_tokens > Zero::zero() { UpdateType::RemainderFundingStart } else { UpdateType::FundingEnd };
-		if let Some((transition_block, _)) = self.get_update_pair(project_id, &update_type) {
+		if let Some(transition_block) = self.get_update_block(project_id, &update_type) {
 			self.execute(|| frame_system::Pallet::<T>::set_block_number(transition_block - One::one()));
 			self.advance_time(1u32.into()).unwrap();
 			match self.get_project_details(project_id).status {
@@ -1267,7 +1267,11 @@ impl<
 	}
 
 	pub fn finish_funding(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
-		let (update_block, _) = self.get_update_pair(project_id, &UpdateType::FundingEnd).unwrap();
+		if let Some(update_block) = self.get_update_block(project_id, &UpdateType::RemainderFundingStart) {
+			self.execute(|| frame_system::Pallet::<T>::set_block_number(update_block - One::one()));
+			self.advance_time(1u32.into()).unwrap();
+		}
+		let update_block = self.get_update_block(project_id, &UpdateType::FundingEnd).expect("Funding end block should exist");
 		self.execute(|| frame_system::Pallet::<T>::set_block_number(update_block - One::one()));
 		self.advance_time(1u32.into()).unwrap();
 		let project_details = self.get_project_details(project_id);
@@ -1725,7 +1729,7 @@ pub mod async_features {
 		let project_details = inst.get_project_details(project_id);
 
 		if project_details.status == ProjectStatus::EvaluationRound {
-			let (update_block, _) = inst.get_update_pair(project_id, &UpdateType::EvaluationEnd).unwrap();
+			let update_block = inst.get_update_block(project_id, &UpdateType::EvaluationEnd).unwrap();
 			let notify = Arc::new(Notify::new());
 			block_orchestrator.add_awaiting_project(update_block + 1u32.into(), notify.clone()).await;
 
@@ -1836,7 +1840,7 @@ pub mod async_features {
 	) -> Result<(), DispatchError> {
 		let mut inst = instantiator.lock().await;
 
-		let (update_block, _) = inst.get_update_pair(project_id, &UpdateType::CandleAuctionStart).unwrap();
+		let update_block = inst.get_update_block(project_id, &UpdateType::CandleAuctionStart).unwrap();
 		let candle_start = update_block + 1u32.into();
 
 		let notify = Arc::new(Notify::new());
@@ -1850,7 +1854,7 @@ pub mod async_features {
 		notify.notified().await;
 
 		inst = instantiator.lock().await;
-		let (update_block, _) = inst.get_update_pair(project_id, &UpdateType::CommunityFundingStart).unwrap();
+		let update_block = inst.get_update_block(project_id, &UpdateType::CommunityFundingStart).unwrap();
 		let community_start = update_block + 1u32.into();
 
 		let notify = Arc::new(Notify::new());
@@ -2003,7 +2007,7 @@ pub mod async_features {
 
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::CommunityRound);
 
-		let (update_block, _) = inst.get_update_pair(project_id, &UpdateType::RemainderFundingStart).unwrap();
+		let update_block = inst.get_update_block(project_id, &UpdateType::RemainderFundingStart).unwrap();
 		let remainder_start = update_block + 1u32.into();
 
 		let notify = Arc::new(Notify::new());
@@ -2150,7 +2154,7 @@ pub mod async_features {
 		project_id: ProjectId,
 	) -> Result<(), DispatchError> {
 		let mut inst = instantiator.lock().await;
-		let (update_block, _) = inst.get_update_pair(project_id, &UpdateType::FundingEnd).unwrap();
+		let update_block = inst.get_update_block(project_id, &UpdateType::FundingEnd).unwrap();
 
 		let notify = Arc::new(Notify::new());
 		block_orchestrator.add_awaiting_project(update_block + 1u32.into(), notify.clone()).await;
