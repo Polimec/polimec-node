@@ -174,6 +174,16 @@ impl ContainsPair<MultiAsset, MultiLocation> for AssetHubAssetsAsReserve {
 		}
 	}
 }
+impl Contains<(MultiLocation, Vec<MultiAsset>)> for AssetHubAssetsAsReserve {
+	fn contains(item: &(MultiLocation, Vec<MultiAsset>)) -> bool {
+		// We allow all signed origins to send back the AssetHub reserve assets.
+		let (_, assets) = item;
+		assets.iter().all(|asset| match asset.id {
+			Concrete(id) => SupportedAssets::contains(&id),
+			_ => false,
+		})
+	}
+}
 
 /// This is the type we use to convert an (incoming) XCM origin into a local `Origin` instance,
 /// ready for dispatching a transaction with Xcm's `Transact`. There is an `OriginKind` which can
@@ -307,21 +317,6 @@ parameter_types! {
 	pub ReachableDest: Option<MultiLocation> = Some(Parent.into());
 }
 
-pub struct XcmExecuteFilter;
-impl Contains<(MultiLocation, Xcm<RuntimeCall>)> for XcmExecuteFilter {
-	fn contains(item_call_pair: &(MultiLocation, Xcm<RuntimeCall>)) -> bool {
-		let (origin, xcm) = item_call_pair;
-		let allowed_origin = matches!(origin, MultiLocation { parents: 0, interior: X1(AccountId32 { .. }) });
-		let allowed_xcm = match xcm.0[..] {
-			[WithdrawAsset { .. }, BuyExecution { .. }, InitiateReserveWithdraw { reserve, .. }] => {
-				matches!(reserve, MultiLocation { parents: 1, interior: X1(Parachain(1000)) })
-			},
-			_ => false,
-		};
-		allowed_origin && allowed_xcm
-	}
-}
-
 impl pallet_xcm::Config for Runtime {
 	type AdminOrigin = EnsureRoot<AccountId>;
 	// ^ Override for AdvertisedXcmVersion default
@@ -343,12 +338,12 @@ impl pallet_xcm::Config for Runtime {
 	type UniversalLocation = UniversalLocation;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
 	type WeightInfo = pallet_xcm::TestWeightInfo;
-	type XcmExecuteFilter = XcmExecuteFilter;
+	type XcmExecuteFilter = Nothing;
 	// ^ Disable dispatchable execute on the XCM pallet.
 	// Needs to be `Everything` for local testing.
 	type XcmExecutor = XcmExecutor<XcmConfig>;
-	// We do not support Reserve-based transfers with Polimec as Reserve.
-	type XcmReserveTransferFilter = Nothing;
+	// We only allow reserve based transfers of AssetHub reserve assets back to AssetHub.
+	type XcmReserveTransferFilter = AssetHubAssetsAsReserve;
 	type XcmRouter = XcmRouter;
 	// We do not allow teleportation of PLMC or other assets.
 	// TODO: change this once we enable PLMC teleports

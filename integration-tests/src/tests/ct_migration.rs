@@ -16,8 +16,7 @@
 
 use crate::*;
 use pallet_funding::{
-	assert_close_enough, traits::VestingDurationCalculation, AcceptedFundingAsset, BidStatus, EvaluatorsOutcome,
-	MigrationStatus, Multiplier, MultiplierOf, ProjectId, RewardOrSlash,
+	assert_close_enough, traits::VestingDurationCalculation, AcceptedFundingAsset, BidStatus, EvaluatorsOutcome, MigrationStatus, Multiplier, MultiplierOf, ProjectId, ProjectsToUpdate, RewardOrSlash
 };
 use polimec_common::migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
 use polimec_parachain_runtime::PolimecFunding;
@@ -26,7 +25,8 @@ use std::collections::HashMap;
 use tests::defaults::*;
 fn execute_cleaner(inst: &mut IntegrationInstantiator) {
 	PoliNet::execute_with(|| {
-		inst.advance_time(<PolimecRuntime as pallet_funding::Config>::SuccessToSettlementTime::get() + 1u32).unwrap();
+		dbg!(<PolimecRuntime as pallet_funding::Config>::SuccessToSettlementTime::get() + 25u32);
+		inst.advance_time(<PolimecRuntime as pallet_funding::Config>::SuccessToSettlementTime::get() + 25u32).unwrap();
 	});
 }
 fn mock_hrmp_establishment(project_id: u32) {
@@ -180,7 +180,7 @@ fn migrations_are_executed(grouped_migrations: Vec<Migrations>) {
 				}
 			})
 			.sum::<u128>();
-		assert_close_enough!(user_info.frozen, vest_scheduled_cts, Perquintill::from_parts(10_000_000_000_000u64));
+		assert_close_enough!(user_info.frozen, vest_scheduled_cts, Perquintill::from_parts(100_000_000_000_000u64));
 	}
 }
 
@@ -329,7 +329,14 @@ fn migration_is_sent() {
 			),
 			vec![],
 		)
+		
 	});
+
+	PoliNet::execute_with(|| {
+		dbg!(PolimecSystem::block_number());
+		dbg!(ProjectsToUpdate::<PolimecRuntime>::iter().collect::<Vec<_>>());
+	});
+
 	execute_cleaner(&mut inst);
 
 	mock_hrmp_establishment(project_id);

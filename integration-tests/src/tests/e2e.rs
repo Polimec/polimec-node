@@ -479,6 +479,11 @@ fn ct_migrated() {
 		assert_ok!(PolimecFunding::do_handle_channel_accepted(channel_accepted_message));
 	});
 
+	PenNet::execute_with(|| {
+		println!("penpal events:");
+		dbg!(PenNet::events());
+	});
+
 	// Migration is ready
 	PoliNet::execute_with(|| {
 		let project_details = pallet_funding::ProjectsDetails::<PolimecRuntime>::get(project_id).unwrap();

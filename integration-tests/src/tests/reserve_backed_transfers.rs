@@ -24,6 +24,7 @@ use frame_support::{
 	weights::WeightToFee,
 };
 use sp_runtime::DispatchError;
+use xcm_emulator::Parachain;
 
 const RESERVE_TRANSFER_AMOUNT: u128 = 10_0_000_000_000; // 10 DOT
 const MAX_REF_TIME: u64 = 5_000_000_000;
@@ -180,8 +181,12 @@ fn test_reserve_to_polimec(asset_id: u32) {
 		"Polimec Asset issuance should have increased by at least the transfer amount minus the XCM execution fee"
 	);
 
-	assert_eq!(
-		asset_hub_delta_alice_asset_balance, RESERVE_TRANSFER_AMOUNT,
+	// We overapproximate the fee for delivering the assets to polimec. The actual fee is
+	// probably lower. 
+	let fee = system_parachains_constants::polkadot::fee::WeightToFee::weight_to_fee(&max_weight);
+	assert!(
+	    asset_hub_delta_alice_asset_balance <= RESERVE_TRANSFER_AMOUNT + fee &&
+	    asset_hub_delta_alice_asset_balance >= RESERVE_TRANSFER_AMOUNT,
 		"AssetHub alice_account.clone() Asset balance should have decreased by the transfer amount"
 	);
 
@@ -237,35 +242,26 @@ fn test_polimec_to_reserve(asset_id: u32) {
 	let (asset_hub_prev_alice_asset_balance, asset_hub_prev_polimec_asset_balance, asset_hub_prev_asset_issuance) =
 		get_asset_hub_balances(asset_id, alice_account.clone(), polimec_sibling_account.clone());
 
-	let transferable_asset_plus_exec_fee: MultiAsset =
-		(asset_hub_asset_id, RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000).into();
-	let mut asset_hub_exec_fee: MultiAsset = (asset_hub_asset_id, 1_0_000_000_000u128).into();
-	asset_hub_exec_fee.reanchor(&(ParentThen(X1(Parachain(AssetNet::para_id().into()))).into()), Here).unwrap();
-
-	// construct the XCM to transfer from Polimec to AssetHub's reserve
-	let transfer_xcm: Xcm<BaseCall> = Xcm(vec![
-		WithdrawAsset(transferable_asset_plus_exec_fee.clone().into()),
-		BuyExecution { fees: transferable_asset_plus_exec_fee.clone(), weight_limit: Limited(max_weight) },
-		InitiateReserveWithdraw {
-			assets: All.into(),
-			reserve: MultiLocation::new(1, X1(Parachain(AssetNet::para_id().into()))),
-			xcm: Xcm(vec![
-				BuyExecution { fees: asset_hub_exec_fee, weight_limit: Limited(max_weight) },
-				DepositAsset {
-					assets: All.into(),
-					beneficiary: MultiLocation::new(0, AccountId32 { network: None, id: alice_account.clone().into() }),
-				},
-			]),
-		},
-	]);
-
-	// do the transfer
 	BaseNet::execute_with(|| {
-		assert_ok!(BaseXcmPallet::execute(
-			BaseOrigin::signed(alice_account.clone()),
-			Box::new(VersionedXcm::V3(transfer_xcm)),
-			max_weight,
-		));
+		let asset_transfer: MultiAsset = (asset_hub_asset_id, RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000).into();
+		let origin = BaseOrigin::signed(alice_account.clone());
+		let dest: VersionedMultiLocation = ParentThen(X1(Parachain(AssetNet::para_id().into()))).into();
+
+		let beneficiary: VersionedMultiLocation =
+			AccountId32 { network: None, id: alice_account.clone().into() }.into();
+		let assets: VersionedMultiAssets = asset_transfer.into();
+		let fee_asset_item = 0;
+		let weight_limit = Unlimited;
+
+		let call = BaseXcmPallet::limited_reserve_transfer_assets(
+			origin,
+			bx!(dest),
+			bx!(beneficiary),
+			bx!(assets),
+			fee_asset_item,
+			weight_limit,
+		);
+		assert_ok!(call);
 	});
 
 	// check that the xcm was not blocked
