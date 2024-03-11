@@ -650,6 +650,7 @@ impl pallet_funding::Config for Runtime {
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityFundingDuration = CommunityFundingDuration;
 	type ContributionTokenCurrency = LocalAssets;
+	type ContributionTreasury = TreasuryAccount;
 	type DaysToBlocks = DaysToBlocks;
 	type EnglishAuctionDuration = EnglishAuctionDuration;
 	type EvaluationDuration = EvaluationDuration;
@@ -675,6 +676,7 @@ impl pallet_funding::Config for Runtime {
 	type PreImageLimit = ConstU32<1024>;
 	type Price = Price;
 	type PriceProvider = OraclePriceProvider<AssetId, FixedU128, Oracle>;
+	type ProtocolGrowthTreasury = TreasuryAccount;
 	type Randomness = Random;
 	type RemainderFundingDuration = RemainderFundingDuration;
 	type RequiredMaxCapacity = RequiredMaxCapacity;
@@ -687,8 +689,6 @@ impl pallet_funding::Config for Runtime {
 	type SetPrices = SetOraclePrices;
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
-	type ProtocolGrowthTreasury = TreasuryAccount;
-	type ContributionTreasury = TreasuryAccount;
 	type VerifierPublicKey = VerifierPublicKey;
 	type Vesting = LinearRelease;
 	type WeightInfo = pallet_funding::weights::SubstrateWeight<Runtime>;

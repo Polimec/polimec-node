@@ -34,9 +34,7 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
-use parity_scale_codec::Decode;
 use polimec_common::credentials::{InvestorType, DID};
-use serde::Serialize;
 use sp_arithmetic::{
 	traits::{SaturatedConversion, Saturating, Zero},
 	FixedPointNumber, Percent, Perquintill,
@@ -937,6 +935,26 @@ impl<
 			.collect()
 	}
 
+	pub fn generate_bids_from_total_ct_percent(
+		project_metadata: ProjectMetadataOf<T>,
+		percent_funding: u8,
+		weights: Vec<u8>,
+		bidders: Vec<AccountIdOf<T>>,
+		multipliers: Vec<u8>,
+	) -> Vec<BidParams<T>> {
+		let total_allocation_size = project_metadata.total_allocation_size;
+		let total_ct_bid = Percent::from_percent(percent_funding) * total_allocation_size;
+
+		assert_eq!(weights.len(), bidders.len(), "Should have enough weights for all the bidders");
+
+		zip(zip(weights, bidders), multipliers)
+			.map(|((weight, bidder), multiplier)| {
+				let token_amount = Percent::from_percent(weight) * total_ct_bid;
+				BidParams::new(bidder, token_amount, multiplier, AcceptedFundingAsset::USDT)
+			})
+			.collect()
+	}
+
 	pub fn generate_contributions_from_total_usd(
 		usd_amount: BalanceOf<T>,
 		final_price: PriceOf<T>,
@@ -950,6 +968,26 @@ impl<
 				let token_amount = final_price.reciprocal().unwrap().saturating_mul_int(ticket_size);
 
 				ContributionParams::new(bidder, token_amount, multiplier, AcceptedFundingAsset::USDT)
+			})
+			.collect()
+	}
+
+	pub fn generate_contributions_from_total_ct_percent(
+		project_metadata: ProjectMetadataOf<T>,
+		percent_funding: u8,
+		weights: Vec<u8>,
+		contributors: Vec<AccountIdOf<T>>,
+		multipliers: Vec<u8>,
+	) -> Vec<ContributionParams<T>> {
+		let total_allocation_size = project_metadata.total_allocation_size;
+		let total_ct_bought = Percent::from_percent(percent_funding) * total_allocation_size;
+
+		assert_eq!(weights.len(), contributors.len(), "Should have enough weights for all the bidders");
+
+		zip(zip(weights, contributors), multipliers)
+			.map(|((weight, contributor), multiplier)| {
+				let token_amount = Percent::from_percent(weight) * total_ct_bought;
+				ContributionParams::new(contributor, token_amount, multiplier, AcceptedFundingAsset::USDT)
 			})
 			.collect()
 	}

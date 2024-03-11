@@ -301,7 +301,7 @@ pub mod pallet {
 		/// The length (expressed in number of blocks) of the evaluation period.
 		#[pallet::constant]
 		type EvaluationDuration: Get<BlockNumberFor<Self>>;
-		
+
 		/// What percentage of the target funding amount is required to be reached in the evaluation, for it to continue to the funding round.
 		#[pallet::constant]
 		type EvaluationSuccessThreshold: Get<Percent>;
@@ -309,7 +309,7 @@ pub mod pallet {
 		/// How much an evaluation should be slashed if it the project doesn't reach a certain theshold of funding.
 		#[pallet::constant]
 		type EvaluatorSlash: Get<Percent>;
-		
+
 		/// The fee brackets for the project's funding
 		#[pallet::constant]
 		type FeeBrackets: Get<Vec<(Percent, <Self as Config>::Balance)>>;
@@ -325,7 +325,7 @@ pub mod pallet {
 			<Self as frame_system::Config>::RuntimeOrigin,
 			Success = (AccountIdOf<Self>, DID, InvestorType),
 		>;
-		
+
 		/// How long an issuer has to accept or reject the funding of a project if the funding is between two thresholds.
 		#[pallet::constant]
 		type ManualAcceptanceDuration: Get<BlockNumberFor<Self>>;
@@ -352,7 +352,7 @@ pub mod pallet {
 
 		/// How many distinct evaluations per user per project
 		type MaxEvaluationsPerUser: Get<u32>;
-		
+
 		/// Range of max_message_size values for the hrmp config where we accept the incoming channel request
 		#[pallet::constant]
 		type MaxMessageSizeThresholds: Get<(u32, u32)>;
@@ -360,7 +360,7 @@ pub mod pallet {
 		/// max iterations for trying to insert a project on the projects_to_update storage
 		#[pallet::constant]
 		type MaxProjectsToUpdateInsertionAttempts: Get<u32>;
-		
+
 		/// How many projects should we update in on_initialize each block. Likely one to reduce complexity
 		#[pallet::constant]
 		type MaxProjectsToUpdatePerBlock: Get<u32>;
@@ -387,7 +387,7 @@ pub mod pallet {
 		/// System account for the funding pallet. Used to derive project escrow accounts.
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
-		
+
 		/// Pallet info of the polimec receiver pallet. Used for CT migrations
 		#[pallet::constant]
 		type PolimecReceiverInfo: Get<PalletInfo>;
@@ -395,7 +395,7 @@ pub mod pallet {
 		/// The maximum size of a preimage allowed, expressed in bytes.
 		#[pallet::constant]
 		type PreImageLimit: Get<u32>;
-		
+
 		/// Type that represents the value of something in USD
 		type Price: FixedPointNumber + Parameter + Copy + MaxEncodedLen + MaybeSerializeDeserialize;
 
@@ -426,10 +426,10 @@ pub mod pallet {
 			+ IsType<<Self as frame_system::Config>::RuntimeEvent>
 			+ Parameter
 			+ Member;
-		
+
 		/// The hold reason enum constructed by the construct_runtime macro
 		type RuntimeHoldReason: From<HoldReason>;
-		
+
 		/// The origin enum constructed by the construct_runtime macro
 		type RuntimeOrigin: IsType<<Self as frame_system::Config>::RuntimeOrigin>
 			+ Into<Result<pallet_xcm::Origin, <Self as Config>::RuntimeOrigin>>;
@@ -441,7 +441,7 @@ pub mod pallet {
 		/// The maximum length of data stored on-chain.
 		#[pallet::constant]
 		type StringLimit: Get<u32>;
-		
+
 		/// How long a project has to wait after it gets successfully funded, for the settlement to start.
 		#[pallet::constant]
 		type SuccessToSettlementTime: Get<BlockNumberFor<Self>>;

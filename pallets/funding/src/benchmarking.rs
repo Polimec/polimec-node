@@ -1731,7 +1731,8 @@ mod benchmarks {
 			.plmc_amount;
 		assert_eq!(bonded_plmc, stored_evaluation.current_plmc_bond);
 		let free_treasury_plmc = inst.get_free_plmc_balances_for(vec![treasury_account])[0].plmc_amount;
-		assert_eq!(free_treasury_plmc, slashed_amount);
+		let ed = BenchInstantiator::<T>::get_ed();
+		assert_eq!(free_treasury_plmc, slashed_amount + ed);
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(

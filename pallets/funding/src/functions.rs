@@ -786,6 +786,7 @@ impl<T: Config> Pallet<T> {
 		} else {
 			let (reward_info, evaluations_count) = Self::generate_evaluator_rewards_info(project_id)?;
 			project_details.evaluation_round_info.evaluators_outcome = EvaluatorsOutcome::Rewarded(reward_info);
+
 			let insertion_iterations = Self::make_project_funding_successful(
 				project_id,
 				project_details,
@@ -870,6 +871,20 @@ impl<T: Config> Pallet<T> {
 				token_information.name.into(),
 				token_information.symbol.into(),
 				token_information.decimals,
+			)?;
+
+			let long_term_holder_bonus_ct_amount = Self::generate_long_term_holder_reward_amount(project_id)?;
+			let liquidity_pools_ct_amount = Self::generate_liquidity_pools_reward_amount(project_id)?;
+			let contribution_token_treasury = <T as Config>::ContributionTreasury::get();
+			T::ContributionTokenCurrency::mint_into(
+				project_id,
+				&contribution_token_treasury,
+				long_term_holder_bonus_ct_amount,
+			)?;
+			T::ContributionTokenCurrency::mint_into(
+				project_id,
+				&contribution_token_treasury,
+				liquidity_pools_ct_amount,
 			)?;
 
 			Ok(PostDispatchInfo {
@@ -3164,7 +3179,70 @@ impl<T: Config> Pallet<T> {
 		Ok((reward_info, evaluations_count))
 	}
 
-	// pub fn generate_
+	pub fn generate_long_term_holder_reward_amount(project_id: ProjectId) -> Result<BalanceOf<T>, DispatchError> {
+		// Fetching the necessary data for a specific project.
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+
+		// Determine how much funding has been achieved.
+		let funding_amount_reached = project_details.funding_amount_reached;
+		let fundraising_target = project_details.fundraising_target;
+		let total_issuer_fees = Self::calculate_fees(funding_amount_reached);
+
+		let initial_token_allocation_size = project_metadata.total_allocation_size;
+		let final_remaining_contribution_tokens = project_details.remaining_contribution_tokens;
+
+		// Calculate the number of tokens sold for the project.
+		let token_sold = initial_token_allocation_size
+			.checked_sub(&final_remaining_contribution_tokens)
+			// Ensure safety by providing a default in case of unexpected situations.
+			.unwrap_or(initial_token_allocation_size);
+		let total_fee_allocation = total_issuer_fees * token_sold;
+
+		// Calculate the percentage of target funding based on available documentation.
+		// A.K.A variable "Y" in the documentation.
+		let percentage_of_target_funding = Perquintill::from_rational(funding_amount_reached, fundraising_target);
+		let inverse_percentage_of_target_funding = Perquintill::from_percent(100) - percentage_of_target_funding;
+
+		let long_term_holder_percentage = if percentage_of_target_funding < Perquintill::from_percent(90) {
+			Perquintill::from_percent(50)
+		} else {
+			let temp = Perquintill::from_percent(30) * inverse_percentage_of_target_funding;
+			let x = Perquintill::from_percent(20) + temp;
+			x
+		};
+
+		let long_term_holder_reward_pot = long_term_holder_percentage * total_fee_allocation;
+
+		Ok(long_term_holder_reward_pot)
+	}
+
+	pub fn generate_liquidity_pools_reward_amount(project_id: ProjectId) -> Result<BalanceOf<T>, DispatchError> {
+		// Fetching the necessary data for a specific project.
+		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
+
+		// Determine how much funding has been achieved.
+		let funding_amount_reached = project_details.funding_amount_reached;
+		let fundraising_target = project_details.fundraising_target;
+		let total_issuer_fees = Self::calculate_fees(funding_amount_reached);
+
+		let initial_token_allocation_size = project_metadata.total_allocation_size;
+		let final_remaining_contribution_tokens = project_details.remaining_contribution_tokens;
+
+		// Calculate the number of tokens sold for the project.
+		let token_sold = initial_token_allocation_size
+			.checked_sub(&final_remaining_contribution_tokens)
+			// Ensure safety by providing a default in case of unexpected situations.
+			.unwrap_or(initial_token_allocation_size);
+		let total_fee_allocation = total_issuer_fees * token_sold;
+
+		let liquidity_pools_percentage = Perquintill::from_percent(50);
+
+		let liquidity_pools_reward_pot = liquidity_pools_percentage * total_fee_allocation;
+
+		Ok(liquidity_pools_reward_pot)
+	}
 
 	pub fn make_project_funding_successful(
 		project_id: ProjectId,
