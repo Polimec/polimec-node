@@ -1028,6 +1028,16 @@ pub mod pallet {
 			Self::do_start_evaluation(account, project_id, did, investor_type)
 		}
 
+		#[pallet::call_index(60)]
+		#[pallet::weight(Zero::zero())]
+		pub fn root_do_evaluation_end(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+		) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			Self::do_evaluation_end(project_id)
+		}
+
 		/// Starts the auction round for a project. From the next block forward, any professional or
 		/// institutional user can set bids for a token_amount/token_price pair.
 		/// Any bids from this point until the candle_auction starts, will be considered as valid.
@@ -1041,6 +1051,36 @@ pub mod pallet {
 			let (account, did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			Self::do_english_auction(account, project_id, Some(did), Some(investor_type))
+		}
+
+		#[pallet::call_index(61)]
+		#[pallet::weight(Zero::zero())]
+		pub fn root_do_candle_auction(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+		) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			Self::do_candle_auction(project_id)
+		}
+
+		#[pallet::call_index(62)]
+		#[pallet::weight(Zero::zero())]
+		pub fn root_do_community_funding(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+		) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			Self::do_community_funding(project_id)
+		}
+
+		#[pallet::call_index(63)]
+		#[pallet::weight(Zero::zero())]
+		pub fn root_do_remainder_funding(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+		) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			Self::do_remainder_funding(project_id)
 		}
 
 		/// Bond PLMC for a project in the evaluation stage
