@@ -1028,15 +1028,7 @@ pub mod pallet {
 			Self::do_start_evaluation(account, project_id, did, investor_type)
 		}
 
-		#[pallet::call_index(60)]
-		#[pallet::weight(Zero::zero())]
-		pub fn root_do_evaluation_end(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-		) -> DispatchResultWithPostInfo {
-			ensure_root(origin)?;
-			Self::do_evaluation_end(project_id)
-		}
+
 
 		/// Starts the auction round for a project. From the next block forward, any professional or
 		/// institutional user can set bids for a token_amount/token_price pair.
@@ -1051,36 +1043,6 @@ pub mod pallet {
 			let (account, did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			Self::do_english_auction(account, project_id, Some(did), Some(investor_type))
-		}
-
-		#[pallet::call_index(61)]
-		#[pallet::weight(Zero::zero())]
-		pub fn root_do_candle_auction(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-		) -> DispatchResultWithPostInfo {
-			ensure_root(origin)?;
-			Self::do_candle_auction(project_id)
-		}
-
-		#[pallet::call_index(62)]
-		#[pallet::weight(Zero::zero())]
-		pub fn root_do_community_funding(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-		) -> DispatchResultWithPostInfo {
-			ensure_root(origin)?;
-			Self::do_community_funding(project_id)
-		}
-
-		#[pallet::call_index(63)]
-		#[pallet::weight(Zero::zero())]
-		pub fn root_do_remainder_funding(
-			origin: OriginFor<T>,
-			project_id: ProjectId,
-		) -> DispatchResultWithPostInfo {
-			ensure_root(origin)?;
-			Self::do_remainder_funding(project_id)
 		}
 
 		/// Bond PLMC for a project in the evaluation stage
@@ -1415,6 +1377,76 @@ pub mod pallet {
 			let location = ensure_response(<T as Config>::RuntimeOrigin::from(origin))?;
 
 			Self::do_confirm_migrations(location, query_id, response)
+		}
+
+		#[pallet::call_index(28)]
+		#[pallet::weight(Zero::zero())]
+		pub fn root_do_evaluation_end(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+		) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			Self::do_evaluation_end(project_id)
+		}
+
+		#[pallet::call_index(29)]
+		#[pallet::weight(Weight::zero())]
+		pub fn root_do_candle_auction(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+		) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			Self::do_candle_auction(project_id)
+		}
+
+		#[pallet::call_index(30)]
+		#[pallet::weight(Weight::zero())]
+		pub fn root_do_community_funding(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+		) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			Self::do_community_funding(project_id)
+		}
+
+		#[pallet::call_index(31)]
+		#[pallet::weight(Weight::zero())]
+		pub fn root_do_remainder_funding(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+		) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			Self::do_remainder_funding(project_id)
+		}
+
+		#[pallet::call_index(32)]
+		#[pallet::weight(Weight::zero())]
+		pub fn root_do_end_funding(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+		) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			Self::do_end_funding(project_id)
+		}
+
+		#[pallet::call_index(33)]
+		#[pallet::weight(Weight::zero())]
+		pub fn root_do_project_decision(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+		) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			Self::do_project_decision(project_id)
+		}
+
+		#[pallet::call_index(34)]
+		#[pallet::weight(Weight::zero())]
+		pub fn root_do_start_settlement(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+		) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			Self::do_start_settlement(project_id)
 		}
 	}
 
