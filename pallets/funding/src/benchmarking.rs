@@ -1725,7 +1725,7 @@ mod benchmarks {
 		assert_eq!(stored_evaluation.current_plmc_bond, current_plmc_bond);
 
 		// Balance
-		let treasury_account = T::TreasuryAccount::get();
+		let treasury_account = T::ProtocolGrowthTreasury::get();
 		let bonded_plmc = inst
 			.get_reserved_plmc_balances_for(vec![evaluator.clone()], HoldReason::Evaluation(project_id).into())[0]
 			.plmc_amount;

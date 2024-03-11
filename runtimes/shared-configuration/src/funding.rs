@@ -93,7 +93,6 @@ parameter_types! {
 	pub const CandleAuctionDuration: BlockNumber = CANDLE_AUCTION_DURATION;
 	pub const CommunityFundingDuration: BlockNumber = COMMUNITY_FUNDING_DURATION;
 	pub const RemainderFundingDuration: BlockNumber = REMAINDER_FUNDING_DURATION;
-	pub const ContributionVestingDuration: BlockNumber = CONTRIBUTION_VESTING_DURATION;
 	pub const ManualAcceptanceDuration: BlockNumber = MANUAL_ACCEPTANCE_DURATION;
 	pub const SuccessToSettlementTime: BlockNumber = SUCCESS_TO_SETTLEMENT_TIME;
 	pub const FundingPalletId: PalletId = PalletId(*b"py/cfund");

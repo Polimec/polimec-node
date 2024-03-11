@@ -283,7 +283,7 @@ parameter_types! {
 	];
 	pub EarlyEvaluationThreshold: Percent = Percent::from_percent(10);
 	pub EvaluatorSlash: Percent = Percent::from_percent(20);
-	pub TreasuryAccount: AccountId = AccountId::from(69u32);
+	pub ProtocolGrowthTreasuryAccount: AccountId = AccountId::from(69u32);
 }
 
 parameter_types! {
@@ -351,7 +351,6 @@ impl Config for TestRuntime {
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityFundingDuration = CommunityRoundDuration;
 	type ContributionTokenCurrency = LocalAssets;
-	type ContributionVesting = ConstU32<4>;
 	type DaysToBlocks = DaysToBlocks;
 	type EnglishAuctionDuration = EnglishAuctionDuration;
 	type EvaluationDuration = EvaluationDuration;
@@ -389,7 +388,8 @@ impl Config for TestRuntime {
 	type SetPrices = ();
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
-	type TreasuryAccount = TreasuryAccount;
+	type ProtocolGrowthTreasury = ProtocolGrowthTreasuryAccount;
+	type ContributionTreasury = ProtocolGrowthTreasuryAccount;
 	type VerifierPublicKey = VerifierPublicKey;
 	type Vesting = Vesting;
 	type WeightInfo = weights::SubstrateWeight<TestRuntime>;

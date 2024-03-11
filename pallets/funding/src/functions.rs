@@ -1786,7 +1786,7 @@ impl<T: Config> Pallet<T> {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let slash_percentage = T::EvaluatorSlash::get();
-		let treasury_account = T::TreasuryAccount::get();
+		let treasury_account = T::ProtocolGrowthTreasury::get();
 
 		let mut evaluation =
 			Evaluations::<T>::get((project_id, evaluator, evaluation_id)).ok_or(Error::<T>::EvaluationNotFound)?;
@@ -3163,6 +3163,8 @@ impl<T: Config> Pallet<T> {
 
 		Ok((reward_info, evaluations_count))
 	}
+
+	// pub fn generate_
 
 	pub fn make_project_funding_successful(
 		project_id: ProjectId,
