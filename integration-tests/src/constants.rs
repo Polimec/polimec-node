@@ -558,7 +558,6 @@ pub mod polimec_base {
 				safe_xcm_version: Some(SAFE_XCM_VERSION),
 				..Default::default()
 			},
-			sudo: polimec_base_runtime::SudoConfig { key: Some(get_account_id_from_seed::<sr25519::Public>("Alice")) },
 			parachain_staking: polimec_base_runtime::ParachainStakingConfig {
 				candidates: collators::initial_authorities()
 					.iter()
