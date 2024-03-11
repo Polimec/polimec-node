@@ -86,17 +86,16 @@ fn runtime(id: &str) -> Runtime {
 
 fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 	log::info!("Load spec id: {}", id);
+	let generated_chain_spec = include_bytes!("../../../chain-specs/polimec-raw-chain-spec.json").to_vec();
 
 	Ok(match id {
 		// Base runtime
 		"base-rococo-local" => Box::new(chain_spec::base::get_local_base_chain_spec()?),
-		"base-polkadot" => Box::new(chain_spec::base::get_polkadot_base_chain_spec()?),
 		"base-rococo" => Box::new(chain_spec::base::get_rococo_base_chain_spec()?),
-		// Testnet runtime
+		"polimec-polkadot" => Box::new(chain_spec::base::ChainSpec::from_json_bytes(generated_chain_spec)?),
+		"polimec-rococo-local" => Box::new(chain_spec::testnet::get_chain_spec_dev()?),
 		#[cfg(feature = "std")]
 		"polimec-testing" => Box::new(chain_spec::testnet::get_chain_spec_testing()?),
-		"polimec-rococo-local" => Box::new(chain_spec::testnet::get_chain_spec_dev()?),
-		"polimec-polkadot" => Box::new(chain_spec::testnet::get_prod_chain_spec()?),
 		// -- Fallback (generic chainspec)
 		"" => {
 			log::warn!("No ChainSpec.id specified, so using default one, based on polimec-rococo-local");
