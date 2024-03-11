@@ -394,7 +394,10 @@ fn election_phragmen_works() {
 			assert_ok!(Elections::submit_candidacy(RuntimeOrigin::signed((*candidate).clone()), i as u32));
 		}
 
-		assert_eq!(Elections::candidates().len(), <BaseRuntime as pallet_elections_phragmen::Config>::MaxCandidates::get() as usize);
+		assert_eq!(
+			Elections::candidates().len(),
+			<BaseRuntime as pallet_elections_phragmen::Config>::MaxCandidates::get() as usize
+		);
 
 		for (i, voter) in vec![ALICE, BOB, CHARLIE, DAVE, EVE, FERDIE, ALICE_STASH, BOB_STASH].into_iter().enumerate() {
 			let voter = PolimecBase::account_id_of(voter);
@@ -418,10 +421,15 @@ fn election_phragmen_works() {
 		assert_same_members(Elections::runners_up().into_iter().map(|m| m.who).collect(), &expected_runners_up);
 
 		// Check that the candidates that were not elected have their funds slashed
-		for candidate in &candidates[15..<BaseRuntime as pallet_elections_phragmen::Config>::MaxCandidates::get() as usize] {
+		for candidate in
+			&candidates[15..<BaseRuntime as pallet_elections_phragmen::Config>::MaxCandidates::get() as usize]
+		{
 			assert_eq!(Balances::total_balance(candidate), ED);
 		}
-		assert_eq!(Balances::balance(&Treasury::account_id()), (<BaseRuntime as pallet_elections_phragmen::Config>::MaxCandidates::get() as u128 - 15) * 1000 * PLMC + ED)
+		assert_eq!(
+			Balances::balance(&Treasury::account_id()),
+			(<BaseRuntime as pallet_elections_phragmen::Config>::MaxCandidates::get() as u128 - 15) * 1000 * PLMC + ED
+		)
 	});
 }
 
