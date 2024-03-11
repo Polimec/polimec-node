@@ -145,7 +145,7 @@ pub mod migrations {
 
 	use super::*;
 	/// Unreleased migrations. Add new ones here:
-	pub type Unreleased = ();
+	pub type Unreleased = (RemovePallet<Sudo, ParityDbWeight>,);
 }
 
 /// Executive: handles dispatch to the various modules.
@@ -442,12 +442,6 @@ impl pallet_aura::Config for Runtime {
 	type AuthorityId = AuraId;
 	type DisabledValidators = ();
 	type MaxAuthorities = MaxAuthorities;
-}
-
-impl pallet_sudo::Config for Runtime {
-	type RuntimeCall = RuntimeCall;
-	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = ();
 }
 
 pub struct ToTreasury;
@@ -848,7 +842,7 @@ construct_runtime!(
 		ParachainSystem: cumulus_pallet_parachain_system = 1,
 		Timestamp: pallet_timestamp = 2,
 		ParachainInfo: parachain_info = 3,
-		Sudo: pallet_sudo = 4,
+		// Index 4 used to be Sudo
 		Utility: pallet_utility::{Pallet, Call, Event} = 5,
 		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 6,
 		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 7,
