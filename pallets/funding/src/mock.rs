@@ -283,8 +283,8 @@ parameter_types! {
 	];
 	pub EarlyEvaluationThreshold: Percent = Percent::from_percent(10);
 	pub EvaluatorSlash: Percent = Percent::from_percent(20);
-	pub ProtocolGrowthTreasuryAccount: AccountId = AccountId::from(69u32);
-	pub ContributionTreasury: AccountId = AccountId::from(420u32);
+	pub ProtocolGrowthTreasuryAccount: AccountId = AccountId::from(696969u32);
+	pub ContributionTreasury: AccountId = AccountId::from(4204204206u32);
 }
 
 parameter_types! {

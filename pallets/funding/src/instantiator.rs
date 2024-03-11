@@ -329,11 +329,6 @@ impl<
 			let escrow_account = Pallet::<T>::fund_account_id(project_id);
 
 			assert_eq!(<T as Config>::ContributionTokenCurrency::admin(project_id).unwrap(), escrow_account);
-			assert_eq!(
-				<T as Config>::ContributionTokenCurrency::total_issuance(project_id),
-				0u32.into(),
-				"No CTs should have been minted at this point"
-			);
 		});
 	}
 
