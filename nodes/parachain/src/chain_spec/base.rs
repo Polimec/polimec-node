@@ -32,7 +32,7 @@ use base_runtime::{
 		InflationInfo, Range,
 	},
 	AccountId, AuraId as AuthorityId, Balance, BalancesConfig, ElectionsConfig, MinCandidateStk, ParachainInfoConfig,
-	ParachainStakingConfig, PolkadotXcmConfig, RuntimeGenesisConfig, SessionConfig, SudoConfig, SystemConfig, PLMC,
+	ParachainStakingConfig, PolkadotXcmConfig, RuntimeGenesisConfig, SessionConfig, SystemConfig, PLMC,
 };
 
 /// The default XCM version to set in genesis config.
@@ -106,7 +106,6 @@ pub fn get_local_base_chain_spec() -> Result<ChainSpec, String> {
 					(get_account_id_from_seed::<sr25519::Public>("Ferdie"), 5 * MinCandidateStk::get()),
 					(BLOCKCHAIN_OPERATION_TREASURY.into(), 10_000_000 * PLMC),
 				],
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				DEFAULT_PARA_ID,
 			)
 		},
@@ -119,6 +118,10 @@ pub fn get_local_base_chain_spec() -> Result<ChainSpec, String> {
 	))
 }
 
+/// This was used to generate the original genesis config for the Polimec parachain.
+/// Since then, the genesis `RuntimeGenesisConfig` has been updated.
+/// This function is kept for historical purposes.
+#[allow(unused)]
 pub fn get_polkadot_base_chain_spec() -> Result<ChainSpec, String> {
 	let properties = get_properties("PLMC", 10, 41);
 	let wasm = base_runtime::WASM_BINARY.ok_or("No WASM")?;
@@ -150,7 +153,7 @@ pub fn get_polkadot_base_chain_spec() -> Result<ChainSpec, String> {
 					(PLMC_COL_ACC_2.into(), 4 * MinCandidateStk::get()),
 					(PLMC_SUDO_ACC.into(), 4 * MinCandidateStk::get()),
 				],
-				PLMC_SUDO_ACC.into(),
+				// PLMC_SUDO_ACC.into(),
 				id.into(),
 			)
 		},
@@ -169,8 +172,6 @@ pub fn get_rococo_base_chain_spec() -> Result<ChainSpec, String> {
 
 	let id: u32 = 3344;
 
-	const PLMC_SUDO_ACC: [u8; 32] =
-		hex_literal::hex!["d4192a54c9caa4a38eeb3199232ed0d8568b22956cafb76c7d5a1afbf4e2dc38"];
 	const PLMC_COL_ACC_1: [u8; 32] =
 		hex_literal::hex!["6603f63a4091ba074b4384e64c6bba1dd96f6af49331ebda686b0a0f27dd961c"];
 	const PLMC_COL_ACC_2: [u8; 32] =
@@ -192,9 +193,7 @@ pub fn get_rococo_base_chain_spec() -> Result<ChainSpec, String> {
 				vec![
 					(PLMC_COL_ACC_1.into(), 4 * MinCandidateStk::get()),
 					(PLMC_COL_ACC_2.into(), 4 * MinCandidateStk::get()),
-					(PLMC_SUDO_ACC.into(), 4 * MinCandidateStk::get()),
 				],
-				PLMC_SUDO_ACC.into(),
 				id.into(),
 			)
 		},
@@ -213,7 +212,6 @@ fn base_testnet_genesis(
 	inflation_config: InflationInfo<Balance>,
 	initial_authorities: Vec<AccountId>,
 	endowed_accounts: Vec<(AccountId, Balance)>,
-	sudo_account: AccountId,
 	id: ParaId,
 ) -> RuntimeGenesisConfig {
 	const ENDOWMENT: Balance = 10_000_000 * PLMC;
@@ -249,7 +247,6 @@ fn base_testnet_genesis(
 				.collect::<Vec<_>>(),
 		},
 		polkadot_xcm: PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION), ..Default::default() },
-		sudo: SudoConfig { key: Some(sudo_account) },
 		transaction_payment: Default::default(),
 		oracle_providers_membership: polimec_base_runtime::OracleProvidersMembershipConfig {
 			members: BoundedVec::truncate_from(initial_authorities),
