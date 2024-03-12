@@ -41,7 +41,7 @@ use scale_info::prelude::format;
 use sp_arithmetic::Percent;
 use sp_core::H256;
 use sp_io::hashing::blake2_256;
-use sp_runtime::traits::{BlakeTwo256, Get, Member, TrailingZeroInput};
+use sp_runtime::traits::{BlakeTwo256, Get, Member, TrailingZeroInput, Zero};
 
 const METADATA: &str = r#"
 {
@@ -552,7 +552,7 @@ mod benchmarks {
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(
-			Event::<T>::EnglishAuctionStarted { project_id, when: current_block.into() }.into(),
+			Event::<T>::EnglishAuctionStarted { project_id, when: current_block }.into(),
 		);
 	}
 
@@ -2796,7 +2796,7 @@ mod benchmarks {
 		// Events
 		let current_block = inst.current_block();
 		frame_system::Pallet::<T>::assert_last_event(
-			Event::<T>::EnglishAuctionStarted { project_id, when: current_block.into() }.into(),
+			Event::<T>::EnglishAuctionStarted { project_id, when: current_block }.into(),
 		);
 	}
 
@@ -2840,7 +2840,7 @@ mod benchmarks {
 		// Events
 		let current_block = inst.current_block();
 		frame_system::Pallet::<T>::assert_last_event(
-			Event::<T>::CandleAuctionStarted { project_id, when: current_block.into() }.into(),
+			Event::<T>::CandleAuctionStarted { project_id, when: current_block }.into(),
 		);
 	}
 
@@ -3185,7 +3185,7 @@ mod benchmarks {
 
 		frame_system::Pallet::<T>::set_block_number(last_funding_block + 1u32.into());
 
-		let insertion_block_number = inst.current_block() + T::ManualAcceptanceDuration::get().into() + 1u32.into();
+		let insertion_block_number = inst.current_block() + T::ManualAcceptanceDuration::get() + 1u32.into();
 		fill_projects_to_update::<T>(x, insertion_block_number, None);
 
 		#[block]
@@ -3244,7 +3244,7 @@ mod benchmarks {
 
 		frame_system::Pallet::<T>::set_block_number(last_funding_block + 1u32.into());
 
-		let insertion_block_number = inst.current_block() + T::ManualAcceptanceDuration::get().into() + 1u32.into();
+		let insertion_block_number = inst.current_block() + T::ManualAcceptanceDuration::get() + 1u32.into();
 		fill_projects_to_update::<T>(x, insertion_block_number, None);
 
 		#[block]
@@ -3325,7 +3325,7 @@ mod benchmarks {
 
 		frame_system::Pallet::<T>::set_block_number(last_funding_block + 1u32.into());
 
-		let insertion_block_number = inst.current_block() + T::SuccessToSettlementTime::get().into();
+		let insertion_block_number = inst.current_block() + T::SuccessToSettlementTime::get();
 		fill_projects_to_update::<T>(x, insertion_block_number, None);
 
 		#[block]
