@@ -1412,12 +1412,13 @@ impl<
 		let prev_plmc_balances = self.get_free_plmc_balances_for(contributors.clone());
 		let prev_funding_asset_balances = self.get_free_foreign_asset_balances_for(asset_id, contributors.clone());
 
-		let plmc_evaluation_deposits = Self::calculate_evaluation_plmc_spent(evaluations);
+		let plmc_evaluation_deposits = Self::calculate_evaluation_plmc_spent(evaluations.clone());
 		let plmc_bid_deposits = Self::calculate_auction_plmc_spent_post_wap(&bids, project_metadata.clone(), ct_price);
 		let plmc_contribution_deposits = Self::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 
+		let reducible_evaluator_balances = Self::slash_evaluator_balances(plmc_evaluation_deposits.clone());
 		let necessary_plmc_mint = Self::generic_map_operation(
-			vec![plmc_contribution_deposits.clone(), plmc_evaluation_deposits],
+			vec![plmc_contribution_deposits.clone(), reducible_evaluator_balances],
 			MergeOperation::Subtract,
 		);
 		let total_plmc_participation_locked =
