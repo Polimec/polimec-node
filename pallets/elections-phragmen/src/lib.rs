@@ -1216,39 +1216,18 @@ mod tests {
 		traits::{fungible::InspectFreeze, ConstU32, ConstU64, OnInitialize},
 	};
 	use frame_system::ensure_signed;
-	use sp_core::H256;
 	use sp_runtime::{
 		testing::Header,
-		traits::{BlakeTwo256, IdentityLookup},
+		traits::IdentityLookup,
 		BuildStorage,
 	};
 
 	#[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
 	impl frame_system::Config for Test {
-		type AccountData = pallet_balances::AccountData<u64>;
 		type AccountId = u64;
-		type BaseCallFilter = frame_support::traits::Everything;
-		type Block = Block;
-		type BlockHashCount = ConstU64<250>;
-		type BlockLength = ();
-		type BlockWeights = ();
-		type DbWeight = ();
-		type Hash = H256;
-		type Hashing = BlakeTwo256;
+		type AccountData = pallet_balances::AccountData<u64>;
 		type Lookup = IdentityLookup<Self::AccountId>;
-		type MaxConsumers = ConstU32<16>;
-		type Nonce = u64;
-		type OnKilledAccount = ();
-		type OnNewAccount = ();
-		type OnSetCode = ();
-		type PalletInfo = PalletInfo;
-		type RuntimeCall = RuntimeCall;
-		type RuntimeEvent = RuntimeEvent;
-		type RuntimeOrigin = RuntimeOrigin;
-		type RuntimeTask = RuntimeTask;
-		type SS58Prefix = ();
-		type SystemWeightInfo = ();
-		type Version = ();
+		type Block = Block;
 	}
 
 	impl pallet_balances::Config for Test {

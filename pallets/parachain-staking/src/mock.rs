@@ -20,15 +20,14 @@
 use crate as pallet_parachain_staking;
 use crate::{pallet, AwardedPts, Config, Event as ParachainStakingEvent, InflationInfo, Points, Range};
 use frame_support::{
-	construct_runtime, parameter_types,
-	traits::{Everything, OnFinalize, OnInitialize},
+	construct_runtime, parameter_types, derive_impl,
+	traits::{OnFinalize, OnInitialize},
 	weights::{constants::RocksDbWeight, Weight},
 };
 use frame_system::pallet_prelude::BlockNumberFor;
-use sp_core::H256;
 use sp_io;
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
+	traits::IdentityLookup,
 	BuildStorage, Perbill, Percent,
 };
 
@@ -58,32 +57,17 @@ parameter_types! {
 	pub const AvailableBlockRatio: Perbill = Perbill::one();
 	pub const SS58Prefix: u8 = 42;
 }
+
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
 impl frame_system::Config for Test {
-	type AccountData = pallet_balances::AccountData<Balance>;
 	type AccountId = AccountId;
-	type BaseCallFilter = Everything;
+	type AccountData = pallet_balances::AccountData<Balance>;
+	type Lookup = IdentityLookup<Self::AccountId>;
 	type Block = Block;
 	type BlockHashCount = BlockHashCount;
-	type BlockLength = ();
-	type BlockWeights = ();
 	type DbWeight = RocksDbWeight;
-	type Hash = H256;
-	type Hashing = BlakeTwo256;
-	type Lookup = IdentityLookup<Self::AccountId>;
-	type MaxConsumers = frame_support::traits::ConstU32<16>;
-	type Nonce = u64;
-	type OnKilledAccount = ();
-	type OnNewAccount = ();
-	type OnSetCode = ();
-	type PalletInfo = PalletInfo;
-	type RuntimeCall = RuntimeCall;
-	type RuntimeEvent = RuntimeEvent;
-	type RuntimeOrigin = RuntimeOrigin;
-	type RuntimeTask = RuntimeTask;
-	type SS58Prefix = SS58Prefix;
-	type SystemWeightInfo = ();
-	type Version = ();
 }
+
 parameter_types! {
 	pub const ExistentialDeposit: u128 = 1;
 	pub const MaxHolds: u32 = 10;

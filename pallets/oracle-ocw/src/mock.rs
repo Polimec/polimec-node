@@ -20,8 +20,8 @@ use super::*;
 use crate as pallet_oracle_ocw;
 
 use frame_support::{
-	construct_runtime, parameter_types,
-	traits::{ConstU32, ConstU64, Everything, Hooks, IsInVec, Time},
+	construct_runtime, parameter_types, derive_impl,
+	traits::{ConstU32, ConstU64, Hooks, IsInVec, Time},
 };
 use parking_lot::RwLock;
 use sp_core::{
@@ -30,12 +30,12 @@ use sp_core::{
 		OffchainDbExt, OffchainWorkerExt, TransactionPoolExt,
 	},
 	sr25519::Signature,
-	Pair, Public, H256,
+	Pair, Public,
 };
 use sp_keystore::{testing::MemoryKeystore, Keystore, KeystoreExt};
 use sp_runtime::{
 	testing::TestXt,
-	traits::{BlakeTwo256, Extrinsic as ExtrinsicT, IdentifyAccount, IdentityLookup, Verify},
+	traits::{Extrinsic as ExtrinsicT, IdentifyAccount, IdentityLookup, Verify},
 	BuildStorage,
 };
 use sp_std::cell::RefCell;
@@ -48,31 +48,13 @@ pub type AccountPublic = <Signature as Verify>::Signer;
 type OracleKey = u64;
 type OracleValue = FixedU128;
 
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
 impl frame_system::Config for Test {
-	type BaseCallFilter = frame_support::traits::Everything;
-	type BlockWeights = ();
-	type BlockLength = ();
-	type DbWeight = ();
-	type RuntimeOrigin = RuntimeOrigin;
-	type RuntimeCall = RuntimeCall;
-	type Nonce = u64;
-	type Hash = H256;
-	type Hashing = BlakeTwo256;
 	type AccountId = sp_core::sr25519::Public;
+	type AccountData = pallet_balances::AccountData<u64>;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Block = Block;
-	type RuntimeEvent = RuntimeEvent;
-	type BlockHashCount = ConstU64<250>;
-	type Version = ();
-	type PalletInfo = PalletInfo;
-	type AccountData = ();
-	type OnNewAccount = ();
-	type OnKilledAccount = ();
-	type SystemWeightInfo = ();
-	type SS58Prefix = ();
-	type OnSetCode = ();
-	type MaxConsumers = ConstU32<16>;
-	type RuntimeTask = RuntimeTask;
+	type Nonce = u64;
 }
 
 thread_local! {

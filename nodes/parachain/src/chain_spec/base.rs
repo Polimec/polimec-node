@@ -112,6 +112,7 @@ pub fn get_local_base_chain_spec() -> GenericChainSpec {
 /// This was used to generate the original genesis config for the Polimec parachain.
 /// Since then, the genesis `RuntimeGenesisConfig` has been updated.
 /// This function is kept for historical purposes.
+#[allow(unused)]
 pub fn get_polkadot_base_chain_spec() -> GenericChainSpec {
 	let properties = get_properties("PLMC", 10, 41);
 	let id: u32 = 3344;
