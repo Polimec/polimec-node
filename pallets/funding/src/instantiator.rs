@@ -1031,20 +1031,16 @@ impl<
 		self.execute(|| ProjectsDetails::<T>::get(project_id).expect("Project details exists"))
 	}
 
-    pub fn get_update_block(
-        &mut self,
-        project_id: ProjectId,
-        update_type: &UpdateType,
-    ) -> Option<(BlockNumberFor<T>)> {
-        self.execute(|| {
-            ProjectsToUpdate::<T>::iter().find_map(|(block, update_vec)| {
-                update_vec
-                    .iter()
-                    .find(|(pid, update)| *pid == project_id && update == update_type)
-                    .map(|(_pid, update)| block)
-            })
-        })
-    }
+	pub fn get_update_block(&mut self, project_id: ProjectId, update_type: &UpdateType) -> Option<BlockNumberFor<T>> {
+		self.execute(|| {
+			ProjectsToUpdate::<T>::iter().find_map(|(block, update_vec)| {
+				update_vec
+					.iter()
+					.find(|(pid, update)| *pid == project_id && update == update_type)
+					.map(|(_pid, update)| block)
+			})
+		})
+	}
 
 	pub fn create_new_project(&mut self, project_metadata: ProjectMetadataOf<T>, issuer: AccountIdOf<T>) -> ProjectId {
 		let now = self.current_block();
@@ -1345,8 +1341,7 @@ impl<
 	pub fn start_remainder_or_end_funding(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
 		let details = self.get_project_details(project_id);
 		assert_eq!(details.status, ProjectStatus::CommunityRound);
-		let remaining_tokens =
-			details.remaining_contribution_tokens.0.saturating_add(details.remaining_contribution_tokens.1);
+		let remaining_tokens = details.remaining_contribution_tokens;
 		let update_type =
 			if remaining_tokens > Zero::zero() { UpdateType::RemainderFundingStart } else { UpdateType::FundingEnd };
 		if let Some(transition_block) = self.get_update_block(project_id, &update_type) {
@@ -1366,7 +1361,8 @@ impl<
 			self.execute(|| frame_system::Pallet::<T>::set_block_number(update_block - One::one()));
 			self.advance_time(1u32.into()).unwrap();
 		}
-		let update_block = self.get_update_block(project_id, &UpdateType::FundingEnd).expect("Funding end block should exist");
+		let update_block =
+			self.get_update_block(project_id, &UpdateType::FundingEnd).expect("Funding end block should exist");
 		self.execute(|| frame_system::Pallet::<T>::set_block_number(update_block - One::one()));
 		self.advance_time(1u32.into()).unwrap();
 		let project_details = self.get_project_details(project_id);
