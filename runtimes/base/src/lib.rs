@@ -137,10 +137,17 @@ pub type Migrations = migrations::Unreleased;
 pub mod migrations {
 	// Not warn for unused imports in this module.
 	#![allow(unused_imports)]
+	use frame_support::migrations::RemovePallet;
+
+	parameter_types! {
+		pub const Sudo: &'static str = "Sudo";
+	}
+
 	use super::*;
 	/// Unreleased migrations. Add new ones here:
 	pub type Unreleased = (
 		cumulus_pallet_xcmp_queue::migration::v4::MigrationToV4<Runtime>,
+		RemovePallet<Sudo, ParityDbWeight>,
 	);
 }
 
@@ -191,7 +198,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("polimec-mainnet"),
 	impl_name: create_runtime_str!("polimec-mainnet"),
 	authoring_version: 1,
-	spec_version: 0_005_001,
+	spec_version: 0_005_005,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -212,22 +219,7 @@ parameter_types! {
 pub struct BaseCallFilter;
 impl Contains<RuntimeCall> for BaseCallFilter {
 	fn contains(c: &RuntimeCall) -> bool {
-		use pallet_balances::Call::*;
-		use pallet_vesting::Call::*;
-
 		match c {
-			// Transferability lock.
-			RuntimeCall::Balances(inner_call) => match inner_call {
-				transfer_all { .. } => false,
-				transfer_keep_alive { .. } => false,
-				transfer_allow_death { .. } => false,
-				_ => true,
-			},
-			RuntimeCall::Vesting(inner_call) => match inner_call {
-				// Vested transfes are not allowed.
-				vested_transfer { .. } => false,
-				_ => true,
-			},
 			_ => true,
 		}
 	}
@@ -488,12 +480,6 @@ impl pallet_aura::Config for Runtime {
 	type AuthorityId = AuraId;
 	type DisabledValidators = ();
 	type MaxAuthorities = MaxAuthorities;
-}
-
-impl pallet_sudo::Config for Runtime {
-	type RuntimeCall = RuntimeCall;
-	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = ();
 }
 
 pub struct ToTreasury;
@@ -920,7 +906,7 @@ construct_runtime!(
 		ParachainSystem: cumulus_pallet_parachain_system = 1,
 		Timestamp: pallet_timestamp = 2,
 		ParachainInfo: parachain_info = 3,
-		Sudo: pallet_sudo = 4,
+		// Index 4 used to be Sudo
 		Utility: pallet_utility::{Pallet, Call, Event} = 5,
 		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 6,
 		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 7,
@@ -969,7 +955,6 @@ mod benches {
 		// System support stuff.
 		[frame_system, SystemBench::<Runtime>]
 		[pallet_timestamp, Timestamp]
-		[pallet_sudo, Sudo]
 		[pallet_utility, Utility]
 		[pallet_multisig, Multisig]
 		[pallet_proxy, Proxy]

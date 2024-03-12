@@ -364,7 +364,7 @@ fn user_can_vote_in_election_with_staked_balance() {
 /// 6. Check that the remaining candidates have their funds slashed as they did not receive any votes
 #[test]
 fn election_phragmen_works() {
-	let candidates = (1..=32)
+	let candidates = (1..=30)
 		.into_iter()
 		.map(|i| get_account_id_from_seed::<sr25519::Public>(format!("CANDIDATE_{}", i).as_str()))
 		.collect::<Vec<AccountId>>();
@@ -380,7 +380,7 @@ fn election_phragmen_works() {
 			assert_ok!(Elections::submit_candidacy(RuntimeOrigin::signed((*candidate).clone()), i as u32));
 		}
 
-		assert_eq!(Elections::candidates().len(), 32);
+		assert_eq!(Elections::candidates().len(), 30);
 
 		for (i, voter) in vec![ALICE, BOB, CHARLIE, DAVE, EVE, FERDIE, ALICE_STASH, BOB_STASH].into_iter().enumerate() {
 			let voter = BaseNet::account_id_of(voter);
@@ -402,10 +402,10 @@ fn election_phragmen_works() {
 		assert_same_members(Elections::runners_up().into_iter().map(|m| m.who).collect(), &expected_runners_up);
 
 		// Check that the candidates that were not elected have their funds slashed
-		for candidate in &candidates[15..32] {
+		for candidate in &candidates[15..30] {
 			assert_eq!(Balances::total_balance(candidate), ED);
 		}
-		assert_eq!(Balances::balance(&Treasury::account_id()), 17 * 1000 * PLMC + ED)
+		assert_eq!(Balances::balance(&Treasury::account_id()), 15 * 1000 * PLMC + ED)
 	});
 }
 
