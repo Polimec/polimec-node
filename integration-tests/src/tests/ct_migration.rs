@@ -173,11 +173,7 @@ fn migrations_are_executed(grouped_migrations: Vec<Migrations>) {
 		assert!(migration_group.origins().iter().all(|origin| origin.user == user));
 
 		let user_info = Penpal::account_data_of(user.into());
-		assert_close_enough!(
-			user_info.free,
-			migration_group.total_ct_amount(),
-			Perquintill::from_float(0.99)
-		);
+		assert_close_enough!(user_info.free, migration_group.total_ct_amount(), Perquintill::from_float(0.99));
 
 		let vest_scheduled_cts = migration_group
 			.inner()
