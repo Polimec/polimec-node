@@ -68,6 +68,7 @@ parameter_types! {
 		 Parachain(ParachainInfo::parachain_id().into()),
 	).into();
 	pub const HereLocation: MultiLocation = MultiLocation::here();
+	pub AssetHubLocation: MultiLocation = (Parent, Parachain(1000)).into();
 	pub CheckAccount: AccountId = PolkadotXcm::check_account();
 	/// The check account that is allowed to mint assets locally. Used for PLMC teleport
 	/// checking once enabled.
@@ -164,7 +165,7 @@ pub struct AssetHubAssetsAsReserve;
 impl ContainsPair<MultiAsset, MultiLocation> for AssetHubAssetsAsReserve {
 	fn contains(asset: &MultiAsset, origin: &MultiLocation) -> bool {
 		// location must be the AssetHub parachain
-		let asset_hub_loc = MultiLocation::new(1, X1(Parachain(1000)));
+		let asset_hub_loc = AssetHubLocation::get();
 		if &asset_hub_loc != origin {
 			return false
 		}

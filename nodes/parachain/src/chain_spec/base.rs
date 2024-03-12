@@ -176,7 +176,6 @@ pub fn get_rococo_base_chain_spec() -> GenericChainSpec {
 		vec![
 			(PLMC_COL_ACC_1.into(), 4 * MinCandidateStk::get()),
 			(PLMC_COL_ACC_2.into(), 4 * MinCandidateStk::get()),
-			(PLMC_SUDO_ACC.into(), 4 * MinCandidateStk::get()),
 		],
 		id.into(),
 	)).build()

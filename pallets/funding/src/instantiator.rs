@@ -39,7 +39,6 @@ use sp_arithmetic::{
 	traits::{SaturatedConversion, Saturating, Zero},
 	FixedPointNumber, Percent, Perquintill,
 };
-use sp_core::H256;
 use sp_runtime::{
 	traits::{Member, One},
 	DispatchError,
