@@ -16,7 +16,8 @@
 
 use crate::*;
 use pallet_funding::{
-	assert_close_enough, traits::VestingDurationCalculation, AcceptedFundingAsset, BidStatus, EvaluatorsOutcome, MigrationStatus, Multiplier, MultiplierOf, ProjectId, ProjectsToUpdate, RewardOrSlash
+	assert_close_enough, traits::VestingDurationCalculation, AcceptedFundingAsset, BidStatus, EvaluatorsOutcome,
+	MigrationStatus, Multiplier, MultiplierOf, ProjectId, ProjectsToUpdate, RewardOrSlash,
 };
 use polimec_common::migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
 use polimec_parachain_runtime::PolimecFunding;
@@ -132,8 +133,9 @@ fn send_migrations(project_id: ProjectId, accounts: Vec<AccountId>) -> HashMap<A
 				}
 			});
 
-			let migrations = evaluation_migrations.chain(bid_migrations).chain(contribution_migrations).collect::<Migrations>();
-		
+			let migrations =
+				evaluation_migrations.chain(bid_migrations).chain(contribution_migrations).collect::<Migrations>();
+
 			if migrations.clone().inner().is_empty() {
 				panic!("no migrations for account: {:?}", account)
 			}
@@ -329,7 +331,6 @@ fn migration_is_sent() {
 			),
 			vec![],
 		)
-		
 	});
 
 	PoliNet::execute_with(|| {

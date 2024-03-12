@@ -1487,11 +1487,7 @@ impl<T: Config> Pallet<T> {
 				T::ContributionTokenCurrency::deposit_required(project_id),
 				Precision::Exact,
 			)?;
-			T::ContributionTokenCurrency::touch(
-				project_id,
-				&contribution.contributor,
-				&contribution.contributor,
-			)?;
+			T::ContributionTokenCurrency::touch(project_id, &contribution.contributor, &contribution.contributor)?;
 		}
 		T::ContributionTokenCurrency::mint_into(project_id, &contribution.contributor, ct_amount)?;
 		Contributions::<T>::insert((project_id, contributor, contribution_id), contribution);
@@ -1609,11 +1605,7 @@ impl<T: Config> Pallet<T> {
 				T::ContributionTokenCurrency::deposit_required(project_id),
 				Precision::Exact,
 			)?;
-			T::ContributionTokenCurrency::touch(
-				project_id,
-				&evaluation.evaluator,
-				&evaluation.evaluator,
-			)?;
+			T::ContributionTokenCurrency::touch(project_id, &evaluation.evaluator, &evaluation.evaluator)?;
 		}
 		T::ContributionTokenCurrency::mint_into(project_id, &evaluation.evaluator, total_reward_amount)?;
 		evaluation.rewarded_or_slashed = Some(RewardOrSlash::Reward(total_reward_amount));
@@ -2140,12 +2132,11 @@ impl<T: Config> Pallet<T> {
 						details.parachain_id == Some(ParaId::from(sender)) && details.status == FundingSuccessful
 					})
 					.ok_or(XcmError::BadOrigin)?;
-				
 
 				let mut accept_channel_relay_call = vec![60u8, 1];
 				let sender_id = ParaId::from(sender).encode();
 				accept_channel_relay_call.extend_from_slice(&sender_id);
-			
+
 				let mut request_channel_relay_call = vec![60u8, 0];
 				let recipient = ParaId::from(sender).encode();
 				request_channel_relay_call.extend_from_slice(&recipient);
@@ -2270,8 +2261,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// * Update storage *
-		let call =
-			Call::<T>::migration_check_response { query_id: Default::default(), response: Default::default() };
+		let call = Call::<T>::migration_check_response { query_id: Default::default(), response: Default::default() };
 
 		let query_id_holdings = pallet_xcm::Pallet::<T>::new_notify_query(
 			project_multilocation.clone(),

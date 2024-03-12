@@ -294,10 +294,10 @@ impl xcm_executor::Config for XcmConfig {
 	type SafeCallFilter = Everything;
 	type SubscriptionService = PolkadotXcm;
 	type Trader = UsingComponents<WeightToFee, RelayLocation, AccountId, Balances, ToAuthor<Runtime>>;
+	type TransactionalProcessor = ();
 	type UniversalAliases = Nothing;
 	type UniversalLocation = UniversalLocation;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
-	type TransactionalProcessor = ();
 	type XcmSender = XcmRouter;
 }
 

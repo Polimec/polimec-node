@@ -109,7 +109,6 @@ parameter_types! {
 	pub const HereLocation: MultiLocation = MultiLocation::here();
 }
 
-
 pub struct MockPrepared;
 impl PreparedMessage for MockPrepared {
 	fn weight_of(&self) -> Weight {
@@ -130,6 +129,7 @@ impl ExecuteXcm<RuntimeCall> for MockXcmExecutor {
 	fn prepare(_message: Xcm<RuntimeCall>) -> core::result::Result<Self::Prepared, Xcm<RuntimeCall>> {
 		Ok(MockPrepared)
 	}
+
 	fn execute(
 		_origin: impl Into<MultiLocation>,
 		_pre: Self::Prepared,
@@ -138,6 +138,7 @@ impl ExecuteXcm<RuntimeCall> for MockXcmExecutor {
 	) -> Outcome {
 		Outcome::Complete(Weight::zero())
 	}
+
 	fn charge_fees(_location: impl Into<MultiLocation>, _fees: MultiAssets) -> XcmResult {
 		Ok(())
 	}
@@ -275,8 +276,8 @@ impl pallet_balances::Config for TestRuntime {
 	type MaxReserves = frame_support::traits::ConstU32<1024>;
 	type ReserveIdentifier = [u8; 8];
 	type RuntimeEvent = RuntimeEvent;
-	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeFreezeReason = RuntimeFreezeReason;
+	type RuntimeHoldReason = RuntimeHoldReason;
 	type WeightInfo = ();
 }
 

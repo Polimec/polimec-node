@@ -182,11 +182,11 @@ fn test_reserve_to_polimec(asset_id: u32) {
 	);
 
 	// We overapproximate the fee for delivering the assets to polimec. The actual fee is
-	// probably lower. 
+	// probably lower.
 	let fee = system_parachains_constants::polkadot::fee::WeightToFee::weight_to_fee(&max_weight);
 	assert!(
-	    asset_hub_delta_alice_asset_balance <= RESERVE_TRANSFER_AMOUNT + fee &&
-	    asset_hub_delta_alice_asset_balance >= RESERVE_TRANSFER_AMOUNT,
+		asset_hub_delta_alice_asset_balance <= RESERVE_TRANSFER_AMOUNT + fee &&
+			asset_hub_delta_alice_asset_balance >= RESERVE_TRANSFER_AMOUNT,
 		"AssetHub alice_account.clone() Asset balance should have decreased by the transfer amount"
 	);
 

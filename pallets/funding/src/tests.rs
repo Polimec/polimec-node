@@ -276,7 +276,12 @@ mod creation {
 		inst.mint_plmc_to(default_plmc_balances());
 
 		inst.execute(|| {
-			assert_ok!(Balances::transfer(&EVALUATOR_1, &EVALUATOR_2, PLMC, frame_support::traits::tokens::Preservation::Preserve));
+			assert_ok!(Balances::transfer(
+				&EVALUATOR_1,
+				&EVALUATOR_2,
+				PLMC,
+				frame_support::traits::tokens::Preservation::Preserve
+			));
 		});
 	}
 

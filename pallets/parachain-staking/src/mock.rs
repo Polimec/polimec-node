@@ -20,16 +20,13 @@
 use crate as pallet_parachain_staking;
 use crate::{pallet, AwardedPts, Config, Event as ParachainStakingEvent, InflationInfo, Points, Range};
 use frame_support::{
-	construct_runtime, parameter_types, derive_impl,
+	construct_runtime, derive_impl, parameter_types,
 	traits::{OnFinalize, OnInitialize},
 	weights::{constants::RocksDbWeight, Weight},
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 use sp_io;
-use sp_runtime::{
-	traits::IdentityLookup,
-	BuildStorage, Perbill, Percent,
-};
+use sp_runtime::{traits::IdentityLookup, BuildStorage, Perbill, Percent};
 
 pub type AccountId = u64;
 pub type Balance = u128;
@@ -60,12 +57,12 @@ parameter_types! {
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
 impl frame_system::Config for Test {
-	type AccountId = AccountId;
 	type AccountData = pallet_balances::AccountData<Balance>;
-	type Lookup = IdentityLookup<Self::AccountId>;
+	type AccountId = AccountId;
 	type Block = Block;
 	type BlockHashCount = BlockHashCount;
 	type DbWeight = RocksDbWeight;
+	type Lookup = IdentityLookup<Self::AccountId>;
 }
 
 parameter_types! {
@@ -84,8 +81,8 @@ impl pallet_balances::Config for Test {
 	type MaxReserves = ();
 	type ReserveIdentifier = [u8; 4];
 	type RuntimeEvent = RuntimeEvent;
-	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeFreezeReason = RuntimeFreezeReason;
+	type RuntimeHoldReason = RuntimeHoldReason;
 	type WeightInfo = ();
 }
 parameter_types! {

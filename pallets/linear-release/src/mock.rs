@@ -17,7 +17,7 @@
 use super::*;
 use crate::{self as pallet_vesting};
 use frame_support::{
-	parameter_types, derive_impl,
+	derive_impl, parameter_types,
 	traits::{VariantCount, WithdrawReasons},
 };
 use sp_runtime::{
@@ -38,10 +38,10 @@ frame_support::construct_runtime!(
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
 impl frame_system::Config for Test {
-	type AccountId = u64;
 	type AccountData = pallet_balances::AccountData<u64>;
-	type Lookup = IdentityLookup<Self::AccountId>;
+	type AccountId = u64;
 	type Block = Block;
+	type Lookup = IdentityLookup<Self::AccountId>;
 }
 
 parameter_types! {

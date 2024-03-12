@@ -22,16 +22,15 @@ use cumulus_primitives_core::ParaId;
 use polimec_base_runtime as base_runtime;
 use sc_service::ChainType;
 use sp_core::{crypto::UncheckedInto, sr25519};
-use sp_runtime::{BoundedVec, Perbill, Percent, traits::ConstU32};
+use sp_runtime::{traits::ConstU32, BoundedVec, Perbill, Percent};
 
-use crate::chain_spec::{Extensions, GenericChainSpec, get_account_id_from_seed, get_properties, DEFAULT_PARA_ID};
+use crate::chain_spec::{get_account_id_from_seed, get_properties, Extensions, GenericChainSpec, DEFAULT_PARA_ID};
 use base_runtime::{
 	pallet_parachain_staking::{
 		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
 		InflationInfo, Range,
 	},
-	AccountId, AuraId as AuthorityId, Balance, MinCandidateStk, PLMC,
-	RuntimeGenesisConfig,
+	AccountId, AuraId as AuthorityId, Balance, MinCandidateStk, RuntimeGenesisConfig, PLMC,
 };
 
 pub type ChainSpec = sc_service::GenericChainSpec<RuntimeGenesisConfig, Extensions>;
@@ -87,26 +86,24 @@ pub fn get_local_base_chain_spec() -> GenericChainSpec {
 	.with_protocol_id("polimec")
 	.with_properties(properties)
 	.with_genesis_config_patch(base_testnet_genesis(
-			vec![
-				(get_account_id_from_seed::<sr25519::Public>("Alice"), None, MinCandidateStk::get()),
-				(get_account_id_from_seed::<sr25519::Public>("Bob"), None, MinCandidateStk::get()),
-			],
-			polimec_inflation_config(),
-			vec![
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-				get_account_id_from_seed::<sr25519::Public>("Bob"),
-			],
-			vec![
-				(get_account_id_from_seed::<sr25519::Public>("Alice"), 5 * MinCandidateStk::get()),
-				(get_account_id_from_seed::<sr25519::Public>("Bob"), 5 * MinCandidateStk::get()),
-				(get_account_id_from_seed::<sr25519::Public>("Charlie"), 5 * MinCandidateStk::get()),
-				(get_account_id_from_seed::<sr25519::Public>("Dave"), 5 * MinCandidateStk::get()),
-				(get_account_id_from_seed::<sr25519::Public>("Eve"), 5 * MinCandidateStk::get()),
-				(get_account_id_from_seed::<sr25519::Public>("Ferdie"), 5 * MinCandidateStk::get()),
-				(BLOCKCHAIN_OPERATION_TREASURY.into(), 10_000_000 * PLMC),
-			],
-			DEFAULT_PARA_ID,
-	)).build()
+		vec![
+			(get_account_id_from_seed::<sr25519::Public>("Alice"), None, MinCandidateStk::get()),
+			(get_account_id_from_seed::<sr25519::Public>("Bob"), None, MinCandidateStk::get()),
+		],
+		polimec_inflation_config(),
+		vec![get_account_id_from_seed::<sr25519::Public>("Alice"), get_account_id_from_seed::<sr25519::Public>("Bob")],
+		vec![
+			(get_account_id_from_seed::<sr25519::Public>("Alice"), 5 * MinCandidateStk::get()),
+			(get_account_id_from_seed::<sr25519::Public>("Bob"), 5 * MinCandidateStk::get()),
+			(get_account_id_from_seed::<sr25519::Public>("Charlie"), 5 * MinCandidateStk::get()),
+			(get_account_id_from_seed::<sr25519::Public>("Dave"), 5 * MinCandidateStk::get()),
+			(get_account_id_from_seed::<sr25519::Public>("Eve"), 5 * MinCandidateStk::get()),
+			(get_account_id_from_seed::<sr25519::Public>("Ferdie"), 5 * MinCandidateStk::get()),
+			(BLOCKCHAIN_OPERATION_TREASURY.into(), 10_000_000 * PLMC),
+		],
+		DEFAULT_PARA_ID,
+	))
+	.build()
 }
 
 /// This was used to generate the original genesis config for the Polimec parachain.
@@ -146,7 +143,8 @@ pub fn get_polkadot_base_chain_spec() -> GenericChainSpec {
 			(PLMC_SUDO_ACC.into(), 4 * MinCandidateStk::get()),
 		],
 		id.into(),
-	)).build()
+	))
+	.build()
 }
 
 pub fn get_rococo_base_chain_spec() -> GenericChainSpec {
@@ -174,12 +172,10 @@ pub fn get_rococo_base_chain_spec() -> GenericChainSpec {
 		],
 		polimec_inflation_config(),
 		vec![(PLMC_COL_ACC_1.into()), (PLMC_COL_ACC_2.into())],
-		vec![
-			(PLMC_COL_ACC_1.into(), 4 * MinCandidateStk::get()),
-			(PLMC_COL_ACC_2.into(), 4 * MinCandidateStk::get()),
-		],
+		vec![(PLMC_COL_ACC_1.into(), 4 * MinCandidateStk::get()), (PLMC_COL_ACC_2.into(), 4 * MinCandidateStk::get())],
 		id.into(),
-	)).build()
+	))
+	.build()
 }
 
 fn base_testnet_genesis(
@@ -221,7 +217,7 @@ fn base_testnet_genesis(
 			"safe_xcm_version": SAFE_XCM_VERSION
 		},
 		"oracleProvidersMembership": {
-			 
+
 			"members": BoundedVec::<AccountId,ConstU32<50>>::truncate_from(initial_authorities),
 		},
 		"elections": {

@@ -4,7 +4,7 @@ use crate::{polimec_base::ED, *};
 /// Only members should be able to feed data into the oracle.
 use frame_support::traits::{
 	fungible::{BalancedHold, Inspect, MutateFreeze, MutateHold, Unbalanced},
-	WithdrawReasons, Hooks,
+	Hooks, WithdrawReasons,
 };
 use macros::generate_accounts;
 use sp_runtime::{traits::Hash, Digest};
@@ -22,7 +22,7 @@ use polimec_base_runtime::{
 	Vesting,
 };
 use tests::defaults::*;
-use  xcm_emulator::helpers::get_account_id_from_seed;
+use xcm_emulator::helpers::get_account_id_from_seed;
 generate_accounts!(PEPE, CARLOS,);
 
 /// Test that an account with vested tokens (a lock) can use those tokens for a hold.
@@ -134,9 +134,10 @@ fn democracy_works() {
 	// 1. Create a proposal to set the the balance of `account` to 1000 PLMC
 	BaseNet::execute_with(|| {
 		let account = create_vested_account();
-		let bounded_call = Preimage::bound(BaseCall::Balances(
-			pallet_balances::Call::force_set_balance { who: account.clone().into(), new_free: 1000u128 * PLMC },
-		))
+		let bounded_call = Preimage::bound(BaseCall::Balances(pallet_balances::Call::force_set_balance {
+			who: account.clone().into(),
+			new_free: 1000u128 * PLMC,
+		}))
 		.unwrap();
 		assert_ok!(Democracy::propose(RuntimeOrigin::signed(account.clone()), bounded_call, 100 * PLMC,));
 
@@ -195,9 +196,10 @@ fn user_can_vote_with_staked_balance() {
 	// 2. Account stakes 100 PLMC.
 	BaseNet::execute_with(|| {
 		let account = create_vested_account();
-		let bounded_call = Preimage::bound(BaseCall::Balances(
-			pallet_balances::Call::force_set_balance { who: account.clone().into(), new_free: 1000u128 * PLMC },
-		))
+		let bounded_call = Preimage::bound(BaseCall::Balances(pallet_balances::Call::force_set_balance {
+			who: account.clone().into(),
+			new_free: 1000u128 * PLMC,
+		}))
 		.unwrap();
 		assert_ok!(Democracy::propose(RuntimeOrigin::signed(account.clone()), bounded_call, 100 * PLMC));
 
@@ -274,8 +276,8 @@ fn treasury_proposal_accepted_by_council() {
 
 		run_gov_n_blocks(3);
 
-			// 5. Beneficiary receives the funds
-			assert_eq!(Balances::balance(&get_account_id_from_seed::<sr25519::Public>("Beneficiary")), 100 * PLMC);
+		// 5. Beneficiary receives the funds
+		assert_eq!(Balances::balance(&get_account_id_from_seed::<sr25519::Public>("Beneficiary")), 100 * PLMC);
 	});
 }
 
@@ -440,22 +442,22 @@ fn create_vested_account() -> AccountId {
 
 fn run_gov_n_blocks(n: usize) {
 	for _ in 0..n {
-			let block_number = polimec_base_runtime::System::block_number();
-			let header = polimec_base_runtime::System::finalize();
+		let block_number = polimec_base_runtime::System::block_number();
+		let header = polimec_base_runtime::System::finalize();
 
-			let pre_digest = Digest { logs: vec![] };
-			polimec_base_runtime::System::reset_events();
+		let pre_digest = Digest { logs: vec![] };
+		polimec_base_runtime::System::reset_events();
 
-			let next_block_number = block_number + 1u32;
-			polimec_base_runtime::Vesting::on_initialize(next_block_number);
-			polimec_base_runtime::Elections::on_initialize(next_block_number);
-			polimec_base_runtime::Council::on_initialize(next_block_number);
-			polimec_base_runtime::TechnicalCommittee::on_initialize(next_block_number);
-			polimec_base_runtime::Treasury::on_initialize(next_block_number);
-			polimec_base_runtime::Democracy::on_initialize(next_block_number);
-			polimec_base_runtime::Preimage::on_initialize(next_block_number);
-			polimec_base_runtime::Scheduler::on_initialize(next_block_number);
-			polimec_base_runtime::System::initialize(&next_block_number, &header.hash(), &pre_digest);
+		let next_block_number = block_number + 1u32;
+		polimec_base_runtime::Vesting::on_initialize(next_block_number);
+		polimec_base_runtime::Elections::on_initialize(next_block_number);
+		polimec_base_runtime::Council::on_initialize(next_block_number);
+		polimec_base_runtime::TechnicalCommittee::on_initialize(next_block_number);
+		polimec_base_runtime::Treasury::on_initialize(next_block_number);
+		polimec_base_runtime::Democracy::on_initialize(next_block_number);
+		polimec_base_runtime::Preimage::on_initialize(next_block_number);
+		polimec_base_runtime::Scheduler::on_initialize(next_block_number);
+		polimec_base_runtime::System::initialize(&next_block_number, &header.hash(), &pre_digest);
 	}
 }
 

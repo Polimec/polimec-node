@@ -25,9 +25,8 @@ pub use sp_core::{sr25519, storage::Storage, Encode, Get};
 pub use xcm::prelude::*;
 pub use xcm_emulator::{
 	assert_expected_events, bx, decl_test_networks, decl_test_parachains, decl_test_relay_chains,
-	Chain,
 	helpers::{weight_within_threshold, within_threshold},
-	BridgeMessageHandler, Network, ParaId, Parachain, RelayChain, TestExt,
+	BridgeMessageHandler, Chain, Network, ParaId, Parachain, RelayChain, TestExt,
 };
 
 decl_test_relay_chains! {
@@ -63,7 +62,7 @@ decl_test_parachains! {
 			Assets: penpal_runtime::Assets,
 			Balances: penpal_runtime::Balances,
 			ParachainSystem: penpal_runtime::ParachainSystem,
-			ParachainInfo: penpal_runtime::ParachainInfo,		
+			ParachainInfo: penpal_runtime::ParachainInfo,
 		}
 	},
 	pub struct Polimec {
@@ -122,7 +121,6 @@ decl_test_parachains! {
 	}
 }
 
-
 decl_test_networks! {
 	pub struct PolkadotNet {
 		relay_chain = PolkadotRelay,
@@ -139,8 +137,8 @@ decl_test_networks! {
 /// Shortcuts to reduce boilerplate on runtime types
 pub mod shortcuts {
 	use super::{
-		AssetHub, AssetHubParaPallet, Chain, Penpal, PenpalParaPallet, Polimec, PolimecParaPallet, PolimecBase,
-		PolimecBaseParaPallet, PolkadotRelay as Polkadot, PolkadotRelayRelayPallet, PolkadotNet,
+		AssetHub, AssetHubParaPallet, Chain, Penpal, PenpalParaPallet, Polimec, PolimecBase, PolimecBaseParaPallet,
+		PolimecParaPallet, PolkadotNet, PolkadotRelay as Polkadot, PolkadotRelayRelayPallet,
 	};
 
 	pub type PolkaNet = Polkadot<PolkadotNet>;
@@ -148,7 +146,6 @@ pub mod shortcuts {
 	pub type PenNet = Penpal<PolkadotNet>;
 	pub type AssetNet = AssetHub<PolkadotNet>;
 	pub type BaseNet = PolimecBase<PolkadotNet>;
-
 
 	pub type PolimecFundingPallet = <Polimec<PolkadotNet> as PolimecParaPallet>::FundingPallet;
 

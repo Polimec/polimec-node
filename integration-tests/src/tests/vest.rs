@@ -26,7 +26,7 @@ use pallet_vesting::VestingInfo;
 use polimec_base_runtime::{Balances, ParachainStaking, RuntimeOrigin, Vesting};
 use sp_runtime::Perquintill;
 use tests::defaults::*;
-use  xcm_emulator::helpers::get_account_id_from_seed;
+use xcm_emulator::helpers::get_account_id_from_seed;
 
 generate_accounts!(PEPE, CARLOS,);
 

@@ -21,15 +21,18 @@ use std::{sync::Arc, time::Duration};
 
 use cumulus_client_cli::CollatorOptions;
 // Local Runtime Types
-use polimec_base_runtime::{opaque::{Block, Hash}, RuntimeApi};
+use polimec_base_runtime::{
+	opaque::{Block, Hash},
+	RuntimeApi,
+};
 
 // Cumulus Imports
 use cumulus_client_collator::service::CollatorService;
 use cumulus_client_consensus_common::ParachainBlockImport as TParachainBlockImport;
 use cumulus_client_consensus_proposer::Proposer;
 use cumulus_client_service::{
-	build_network, build_relay_chain_interface, prepare_node_config, start_relay_chain_tasks, 
-	BuildNetworkParams, CollatorSybilResistance, DARecoveryProfile, StartRelayChainTasksParams,
+	build_network, build_relay_chain_interface, prepare_node_config, start_relay_chain_tasks, BuildNetworkParams,
+	CollatorSybilResistance, DARecoveryProfile, StartRelayChainTasksParams,
 };
 use cumulus_primitives_core::{relay_chain::CollatorPair, ParaId};
 use cumulus_relay_chain_interface::{OverseerHandle, RelayChainInterface};
@@ -69,7 +72,6 @@ type ParachainClient = TFullClient<Block, RuntimeApi, ParachainExecutor>;
 type ParachainBackend = TFullBackend<Block>;
 
 type ParachainBlockImport = TParachainBlockImport<Block, Arc<ParachainClient>, ParachainBackend>;
-
 
 /// Assembly of PartialComponents (enough to run chain ops subcommands)
 pub type Service = PartialComponents<
@@ -201,7 +203,7 @@ async fn start_node_impl(
 			spawn_handle: task_manager.spawn_handle(),
 			relay_chain_interface: relay_chain_interface.clone(),
 			import_queue: params.import_queue,
-			sybil_resistance_level: CollatorSybilResistance::Resistant // because of Aura
+			sybil_resistance_level: CollatorSybilResistance::Resistant, // because of Aura
 		})
 		.await?;
 
@@ -260,8 +262,8 @@ async fn start_node_impl(
 		match SUBSTRATE_REFERENCE_HARDWARE.check_hardware(&hwbench) {
 			Err(err) if validator => {
 				log::warn!("⚠️  The hardware does not meet the minimal requirements {} for role \'Authority'.", err);
-			}
-			_ => {}
+			},
+			_ => {},
 		}
 
 		if let Some(ref mut telemetry) = telemetry {
@@ -290,11 +292,7 @@ async fn start_node_impl(
 		para_id,
 		relay_chain_interface: relay_chain_interface.clone(),
 		task_manager: &mut task_manager,
-		da_recovery_profile: if validator {
-			DARecoveryProfile::Collator
-		} else {
-			DARecoveryProfile::FullNode
-		},
+		da_recovery_profile: if validator { DARecoveryProfile::Collator } else { DARecoveryProfile::FullNode },
 		import_queue: import_queue_service,
 		relay_chain_slot_duration,
 		recovery_handle: Box::new(overseer_handle.clone()),
@@ -371,9 +369,7 @@ fn start_consensus(
 	overseer_handle: OverseerHandle,
 	announce_block: Arc<dyn Fn(Hash, Option<Vec<u8>>) + Send + Sync>,
 ) -> Result<(), sc_service::Error> {
-	use cumulus_client_consensus_aura::collators::basic::{
-		self as basic_aura, Params as BasicAuraParams,
-	};
+	use cumulus_client_consensus_aura::collators::basic::{self as basic_aura, Params as BasicAuraParams};
 
 	// NOTE: because we use Aura here explicitly, we can use `CollatorSybilResistance::Resistant`
 	// when starting the network.
@@ -390,12 +386,8 @@ fn start_consensus(
 
 	let proposer = Proposer::new(proposer_factory);
 
-	let collator_service = CollatorService::new(
-		client.clone(),
-		Arc::new(task_manager.spawn_handle()),
-		announce_block,
-		client.clone(),
-	);
+	let collator_service =
+		CollatorService::new(client.clone(), Arc::new(task_manager.spawn_handle()), announce_block, client.clone());
 
 	let params = BasicAuraParams {
 		create_inherent_data_providers: move |_, ()| async move { Ok(()) },
@@ -416,10 +408,7 @@ fn start_consensus(
 		collation_request_receiver: None,
 	};
 
-	let fut =
-		basic_aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _>(
-			params,
-		);
+	let fut = basic_aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _>(params);
 	task_manager.spawn_essential_handle().spawn("aura", None, fut);
 
 	Ok(())

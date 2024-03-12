@@ -14,7 +14,7 @@
 use super::*;
 use crate as pallet_democracy;
 use frame_support::{
-	assert_noop, assert_ok, ord_parameter_types, parameter_types, derive_impl,
+	assert_noop, assert_ok, derive_impl, ord_parameter_types, parameter_types,
 	traits::{
 		fungible::InspectFreeze, ConstU32, ConstU64, Contains, EqualPrivilegeOnly, OnInitialize, SortedMembers,
 		StorePreimage,
@@ -72,8 +72,8 @@ parameter_types! {
 }
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
 impl frame_system::Config for Test {
-	type AccountId = u64;
 	type AccountData = pallet_balances::AccountData<u64>;
+	type AccountId = u64;
 	type BaseCallFilter = BaseFilter;
 	type Block = Block;
 	type Lookup = IdentityLookup<Self::AccountId>;
@@ -83,10 +83,10 @@ parameter_types! {
 }
 
 impl pallet_preimage::Config for Test {
+	type Consideration = ();
 	type Currency = Balances;
 	type ManagerOrigin = EnsureRoot<u64>;
 	type RuntimeEvent = RuntimeEvent;
-	type Consideration = ();
 	type WeightInfo = ();
 }
 
@@ -115,8 +115,8 @@ impl pallet_balances::Config for Test {
 	type MaxReserves = ();
 	type ReserveIdentifier = [u8; 8];
 	type RuntimeEvent = RuntimeEvent;
-	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeFreezeReason = RuntimeFreezeReason;
+	type RuntimeHoldReason = RuntimeHoldReason;
 	type WeightInfo = ();
 }
 parameter_types! {

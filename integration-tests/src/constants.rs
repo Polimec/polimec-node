@@ -15,7 +15,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
-use sp_consensus_beefy::ecdsa_crypto::AuthorityId as BeefyId;
 pub use parachains_common::{AccountId, AssetHubPolkadotAuraId, AuraId, Balance, BlockNumber};
 use polimec_parachain_runtime::{
 	pallet_parachain_staking::{
@@ -30,11 +29,12 @@ use sc_consensus_grandpa::AuthorityId as GrandpaId;
 use sp_arithmetic::Percent;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
+use sp_consensus_beefy::ecdsa_crypto::AuthorityId as BeefyId;
 use sp_core::{sr25519, storage::Storage, Pair, Public};
 use sp_runtime::{bounded_vec, BuildStorage, Perbill};
 
 pub use xcm;
-use xcm_emulator::{Chain, Parachain, helpers::get_account_id_from_seed};
+use xcm_emulator::{helpers::get_account_id_from_seed, Chain, Parachain};
 
 pub const XCM_V2: u32 = 3;
 pub const XCM_V3: u32 = 2;
@@ -187,7 +187,15 @@ pub mod polkadot {
 		authority_discovery: AuthorityDiscoveryId,
 		beefy: BeefyId,
 	) -> polkadot_runtime::SessionKeys {
-		polkadot_runtime::SessionKeys { babe, grandpa, im_online, para_validator, para_assignment, authority_discovery, beefy }
+		polkadot_runtime::SessionKeys {
+			babe,
+			grandpa,
+			im_online,
+			para_validator,
+			para_assignment,
+			authority_discovery,
+			beefy,
+		}
 	}
 
 	pub fn genesis() -> Storage {
@@ -210,7 +218,7 @@ pub mod polkadot {
 								x.5.clone(),
 								x.6.clone(),
 								x.7.clone(),
-								x.8.clone()
+								x.8.clone(),
 							),
 						)
 					})
@@ -252,8 +260,18 @@ pub mod asset_hub {
 
 	pub fn genesis() -> Storage {
 		let mut funded_accounts = vec![
-			(<AssetHub<PolkadotNet>>::sovereign_account_id_of((Parent, xcm::prelude::Parachain(penpal::PARA_ID)).into()), INITIAL_DEPOSIT),
-			(<AssetHub<PolkadotNet>>::sovereign_account_id_of((Parent, xcm::prelude::Parachain(polimec::PARA_ID)).into()), INITIAL_DEPOSIT),
+			(
+				<AssetHub<PolkadotNet>>::sovereign_account_id_of(
+					(Parent, xcm::prelude::Parachain(penpal::PARA_ID)).into(),
+				),
+				INITIAL_DEPOSIT,
+			),
+			(
+				<AssetHub<PolkadotNet>>::sovereign_account_id_of(
+					(Parent, xcm::prelude::Parachain(polimec::PARA_ID)).into(),
+				),
+				INITIAL_DEPOSIT,
+			),
 		];
 		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
 
@@ -316,8 +334,18 @@ pub mod polimec {
 		let dot_asset_id = AcceptedFundingAsset::DOT.to_assethub_id();
 		let usdt_asset_id = AcceptedFundingAsset::USDT.to_assethub_id();
 		let mut funded_accounts = vec![
-			(<Polimec<PolkadotNet>>::sovereign_account_id_of((Parent, xcm::prelude::Parachain(penpal::PARA_ID)).into()), INITIAL_DEPOSIT),
-			(<Polimec<PolkadotNet>>::sovereign_account_id_of((Parent, xcm::prelude::Parachain(asset_hub::PARA_ID)).into()), INITIAL_DEPOSIT),
+			(
+				<Polimec<PolkadotNet>>::sovereign_account_id_of(
+					(Parent, xcm::prelude::Parachain(penpal::PARA_ID)).into(),
+				),
+				INITIAL_DEPOSIT,
+			),
+			(
+				<Polimec<PolkadotNet>>::sovereign_account_id_of(
+					(Parent, xcm::prelude::Parachain(asset_hub::PARA_ID)).into(),
+				),
+				INITIAL_DEPOSIT,
+			),
 		];
 		let alice_account = <Polimec<PolkadotNet>>::account_id_of(accounts::ALICE);
 		let bob_account: AccountId = <Polimec<PolkadotNet>>::account_id_of(accounts::BOB);
@@ -426,8 +454,18 @@ pub mod penpal {
 
 	pub fn genesis() -> Storage {
 		let mut funded_accounts = vec![
-			(<Penpal<PolkadotNet>>::sovereign_account_id_of((Parent, xcm::prelude::Parachain(asset_hub::PARA_ID)).into()), INITIAL_DEPOSIT),
-			(<Penpal<PolkadotNet>>::sovereign_account_id_of((Parent, xcm::prelude::Parachain(polimec::PARA_ID)).into()), 2_000_000_0_000_000_000), // i.e the CTs sold on polimec
+			(
+				<Penpal<PolkadotNet>>::sovereign_account_id_of(
+					(Parent, xcm::prelude::Parachain(asset_hub::PARA_ID)).into(),
+				),
+				INITIAL_DEPOSIT,
+			),
+			(
+				<Penpal<PolkadotNet>>::sovereign_account_id_of(
+					(Parent, xcm::prelude::Parachain(polimec::PARA_ID)).into(),
+				),
+				2_000_000_0_000_000_000,
+			), // i.e the CTs sold on polimec
 		];
 		funded_accounts.extend(accounts::init_balances().iter().cloned().map(|k| (k, INITIAL_DEPOSIT)));
 
@@ -490,8 +528,18 @@ pub mod polimec_base {
 		let usdt_asset_id = AcceptedFundingAsset::USDT.to_assethub_id();
 		let usdc_asset_id = AcceptedFundingAsset::USDC.to_assethub_id();
 		let mut funded_accounts = vec![
-			(<PolimecBase<PolkadotNet>>::sovereign_account_id_of((Parent, xcm::prelude::Parachain(penpal::PARA_ID)).into()), INITIAL_DEPOSIT),
-			(<PolimecBase<PolkadotNet>>::sovereign_account_id_of((Parent, xcm::prelude::Parachain(asset_hub::PARA_ID)).into()), INITIAL_DEPOSIT),
+			(
+				<PolimecBase<PolkadotNet>>::sovereign_account_id_of(
+					(Parent, xcm::prelude::Parachain(penpal::PARA_ID)).into(),
+				),
+				INITIAL_DEPOSIT,
+			),
+			(
+				<PolimecBase<PolkadotNet>>::sovereign_account_id_of(
+					(Parent, xcm::prelude::Parachain(asset_hub::PARA_ID)).into(),
+				),
+				INITIAL_DEPOSIT,
+			),
 		];
 		let alice_account = <PolimecBase<PolkadotNet>>::account_id_of(accounts::ALICE);
 		let bob_account: AccountId = <PolimecBase<PolkadotNet>>::account_id_of(accounts::BOB);

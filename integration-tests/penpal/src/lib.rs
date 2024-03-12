@@ -70,13 +70,16 @@ use xcm_config::{AssetsToBlockAuthor, XcmConfig, XcmOriginToTransactDispatchOrig
 pub use sp_runtime::BuildStorage;
 
 // Polkadot imports
-use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate, xcm_sender::NoPriceForMessageDelivery};
+use polkadot_runtime_common::{xcm_sender::NoPriceForMessageDelivery, BlockHashCount, SlowAdjustingFeeUpdate};
 
 use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 
 // XCM Imports
 use frame_support::traits::WithdrawReasons;
-use parachains_common::{AccountId, Signature, message_queue::{NarrowOriginToSibling, ParaIdToSibling}};
+use parachains_common::{
+	message_queue::{NarrowOriginToSibling, ParaIdToSibling},
+	AccountId, Signature,
+};
 use sp_runtime::traits::Convert;
 use xcm::latest::prelude::BodyId;
 use xcm_executor::XcmExecutor;
@@ -399,8 +402,8 @@ impl pallet_balances::Config for Runtime {
 	type ReserveIdentifier = [u8; 8];
 	/// The ubiquitous event type.
 	type RuntimeEvent = RuntimeEvent;
-	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeFreezeReason = RuntimeFreezeReason;
+	type RuntimeHoldReason = RuntimeHoldReason;
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 }
 
@@ -465,6 +468,12 @@ parameter_types! {
 
 impl cumulus_pallet_parachain_system::Config for Runtime {
 	type CheckAssociatedRelayNumber = RelayNumberStrictlyIncreases;
+	type ConsensusHook = cumulus_pallet_aura_ext::FixedVelocityConsensusHook<
+		Runtime,
+		RELAY_CHAIN_SLOT_DURATION_MILLIS,
+		BLOCK_PROCESSING_VELOCITY,
+		UNINCLUDED_SEGMENT_CAPACITY,
+	>;
 	type DmpQueue = frame_support::traits::EnqueueWithOrigin<MessageQueue, RelayOrigin>;
 	type OnSystemEvent = ();
 	type OutboundXcmpMessageSource = XcmpQueue;
@@ -472,14 +481,8 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type ReservedXcmpWeight = ReservedXcmpWeight;
 	type RuntimeEvent = RuntimeEvent;
 	type SelfParaId = parachain_info::Pallet<Runtime>;
-	type XcmpMessageHandler = XcmpQueue;
 	type WeightInfo = ();
-	type ConsensusHook = cumulus_pallet_aura_ext::FixedVelocityConsensusHook<
-		Runtime,
-		RELAY_CHAIN_SLOT_DURATION_MILLIS,
-		BLOCK_PROCESSING_VELOCITY,
-		UNINCLUDED_SEGMENT_CAPACITY,
-	>;
+	type XcmpMessageHandler = XcmpQueue;
 }
 
 impl parachain_info::Config for Runtime {}
@@ -490,12 +493,12 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type ChannelInfo = ParachainSystem;
 	type ControllerOrigin = EnsureRoot<AccountId>;
 	type ControllerOriginConverter = XcmOriginToTransactDispatchOrigin;
+	type MaxInboundSuspended = sp_core::ConstU32<1_000>;
 	type PriceForSiblingDelivery = NoPriceForMessageDelivery<ParaId>;
 	type RuntimeEvent = RuntimeEvent;
 	type VersionWrapper = PolkadotXcm;
-	type XcmpQueue = TransformOrigin<MessageQueue, AggregateMessageOrigin, ParaId, ParaIdToSibling>;
-	type MaxInboundSuspended = sp_core::ConstU32<1_000>;
 	type WeightInfo = ();
+	type XcmpQueue = TransformOrigin<MessageQueue, AggregateMessageOrigin, ParaId, ParaIdToSibling>;
 }
 
 parameter_types! {
@@ -503,20 +506,20 @@ parameter_types! {
 }
 
 impl pallet_message_queue::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = pallet_message_queue::weights::SubstrateWeight<Self>;
+	type HeapSize = sp_core::ConstU32<{ 64 * 1024 }>;
+	type MaxStale = sp_core::ConstU32<8>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type MessageProcessor = pallet_message_queue::mock_helpers::NoopMessageProcessor<AggregateMessageOrigin>;
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type MessageProcessor =
 		xcm_builder::ProcessXcmMessage<AggregateMessageOrigin, xcm_executor::XcmExecutor<XcmConfig>, RuntimeCall>;
-	type Size = u32;
 	// The XCMP queue pallet is only ever able to handle the `Sibling(ParaId)` origin:
 	type QueueChangeHandler = NarrowOriginToSibling<XcmpQueue>;
 	type QueuePausedQuery = NarrowOriginToSibling<XcmpQueue>;
-	type HeapSize = sp_core::ConstU32<{ 64 * 1024 }>;
-	type MaxStale = sp_core::ConstU32<8>;
+	type RuntimeEvent = RuntimeEvent;
 	type ServiceWeight = MessageQueueServiceWeight;
+	type Size = u32;
+	type WeightInfo = pallet_message_queue::weights::SubstrateWeight<Self>;
 }
 
 parameter_types! {
@@ -594,8 +597,8 @@ parameter_types! {
 }
 
 impl pallet_vesting::Config for Runtime {
-	type BlockNumberToBalance = ConvertInto;
 	type BlockNumberProvider = System;
+	type BlockNumberToBalance = ConvertInto;
 	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;
 	type RuntimeEvent = RuntimeEvent;

@@ -16,11 +16,11 @@
 
 use frame_support::{assert_noop, assert_ok, assert_storage_noop};
 use frame_system::RawOrigin;
+use parity_scale_codec::EncodeLike;
 use sp_runtime::{
 	traits::{BadOrigin, Identity},
 	TokenError,
 };
-use parity_scale_codec::EncodeLike;
 
 use super::{Vesting as VestingStorage, *};
 use crate::mock::{Balances, ExtBuilder, MockRuntimeHoldReason, System, Test, Vesting};

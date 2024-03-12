@@ -1216,18 +1216,14 @@ mod tests {
 		traits::{fungible::InspectFreeze, ConstU32, ConstU64, OnInitialize},
 	};
 	use frame_system::ensure_signed;
-	use sp_runtime::{
-		testing::Header,
-		traits::IdentityLookup,
-		BuildStorage,
-	};
+	use sp_runtime::{testing::Header, traits::IdentityLookup, BuildStorage};
 
 	#[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
 	impl frame_system::Config for Test {
-		type AccountId = u64;
 		type AccountData = pallet_balances::AccountData<u64>;
-		type Lookup = IdentityLookup<Self::AccountId>;
+		type AccountId = u64;
 		type Block = Block;
+		type Lookup = IdentityLookup<Self::AccountId>;
 	}
 
 	impl pallet_balances::Config for Test {
@@ -1242,8 +1238,8 @@ mod tests {
 		type MaxReserves = ();
 		type ReserveIdentifier = [u8; 8];
 		type RuntimeEvent = RuntimeEvent;
-		type RuntimeHoldReason = RuntimeHoldReason;
 		type RuntimeFreezeReason = RuntimeFreezeReason;
+		type RuntimeHoldReason = RuntimeHoldReason;
 		type WeightInfo = ();
 	}
 

@@ -30,7 +30,7 @@ use polimec_parachain_runtime::{
 };
 use sc_service::ChainType;
 use sp_core::{crypto::UncheckedInto, sr25519};
-use sp_runtime::{traits::AccountIdConversion, bounded_vec, Perbill, Percent};
+use sp_runtime::{bounded_vec, traits::AccountIdConversion, Perbill, Percent};
 
 use crate::chain_spec::{get_account_id_from_seed, DEFAULT_PARA_ID};
 
@@ -149,7 +149,7 @@ pub fn get_chain_spec_dev() -> Result<ChainSpec, String> {
 		None,
 		Some(properties),
 		Extensions { relay_chain: "rococo-local".into(), para_id: DEFAULT_PARA_ID.into() },
-		&wasm
+		&wasm,
 	))
 }
 

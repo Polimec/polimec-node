@@ -195,7 +195,7 @@ type BalanceOf<T> = <<T as Config>::Fungible as Inspect<<T as frame_system::Conf
 pub type CreditOf<T> = Credit<<T as frame_system::Config>::AccountId, <T as Config>::Fungible>;
 
 pub type CallOf<T> = <T as frame_system::Config>::RuntimeCall;
-pub type BoundedCallOf<T> = Bounded<CallOf<T>,  <T as frame_system::Config>::Hashing>;
+pub type BoundedCallOf<T> = Bounded<CallOf<T>, <T as frame_system::Config>::Hashing>;
 type AccountIdLookupOf<T> = <<T as frame_system::Config>::Lookup as StaticLookup>::Source;
 
 #[frame_support::pallet]

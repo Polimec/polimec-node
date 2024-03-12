@@ -47,7 +47,7 @@ fn add_proposal<T: Config + pallet_balances::Config>(n: u32) -> Result<T::Hash, 
 }
 
 // add a referendum with a metadata.
-fn add_referendum<T: Config>(n: u32) -> (ReferendumIndex, T::Hash, T::Hash ) {
+fn add_referendum<T: Config>(n: u32) -> (ReferendumIndex, T::Hash, T::Hash) {
 	let vote_threshold = VoteThreshold::SimpleMajority;
 	let proposal = make_proposal::<T>(n);
 	let hash = proposal.hash();

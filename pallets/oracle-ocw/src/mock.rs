@@ -20,7 +20,7 @@ use super::*;
 use crate as pallet_oracle_ocw;
 
 use frame_support::{
-	construct_runtime, parameter_types, derive_impl,
+	construct_runtime, derive_impl, parameter_types,
 	traits::{ConstU32, ConstU64, Hooks, IsInVec, Time},
 };
 use parking_lot::RwLock;
@@ -50,10 +50,10 @@ type OracleValue = FixedU128;
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
 impl frame_system::Config for Test {
-	type AccountId = sp_core::sr25519::Public;
 	type AccountData = pallet_balances::AccountData<u64>;
-	type Lookup = IdentityLookup<Self::AccountId>;
+	type AccountId = sp_core::sr25519::Public;
 	type Block = Block;
+	type Lookup = IdentityLookup<Self::AccountId>;
 	type Nonce = u64;
 }
 
