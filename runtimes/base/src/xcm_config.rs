@@ -17,7 +17,7 @@
 use super::{
 	AccountId, AllPalletsWithSystem, AssetId as AssetIdPalletAssets, Balance, Balances, EnsureRoot, ForeignAssets,
 	ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee,
-	XcmpQueue,
+	XcmpQueue, Vec,
 };
 use core::marker::PhantomData;
 use frame_support::{

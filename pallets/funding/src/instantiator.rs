@@ -967,13 +967,13 @@ impl<
 		&mut self,
 		project_id: ProjectId,
 		update_type: &UpdateType,
-	) -> Option<(BlockNumberFor<T>)> {
+	) -> Option<BlockNumberFor<T>> {
 		self.execute(|| {
 			ProjectsToUpdate::<T>::iter().find_map(|(block, update_vec)| {
 				update_vec
 					.iter()
 					.find(|(pid, update)| *pid == project_id && update == update_type)
-					.map(|(_pid, update)| block)
+					.map(|(_pid, _update)| block)
 			})
 		})
 	}
