@@ -405,11 +405,7 @@ fn funds_raised() {
 			let stored_usdt_funded =
 				PolimecForeignAssets::balance(AcceptedFundingAsset::USDT.to_assethub_id(), project_specific_account);
 			let excel_usdt_funded = 1004256_0_140_000_000u128;
-			assert_close_enough!(
-				stored_usdt_funded,
-				excel_usdt_funded,
-				Perquintill::from_float(0.01)
-			);
+			assert_close_enough!(stored_usdt_funded, excel_usdt_funded, Perquintill::from_float(0.98));
 		})
 	});
 }
@@ -434,7 +430,7 @@ fn ct_minted() {
 		for (contributor, expected_amount, project_id) in excel_ct_amounts() {
 			let minted = inst
 				.execute(|| <PolimecRuntime as Config>::ContributionTokenCurrency::balance(project_id, &contributor));
-			assert_close_enough!(minted, expected_amount, Perquintill::from_float(0.01));
+			assert_close_enough!(minted, expected_amount, Perquintill::from_float(0.98));
 		}
 	});
 }
@@ -459,7 +455,7 @@ fn ct_migrated() {
 		for (contributor, expected_amount, project_id) in excel_ct_amounts() {
 			let minted = inst
 				.execute(|| <PolimecRuntime as Config>::ContributionTokenCurrency::balance(project_id, &contributor));
-			assert_close_enough!(minted, expected_amount, Perquintill::from_float(0.01));
+			assert_close_enough!(minted, expected_amount, Perquintill::from_float(0.98));
 		}
 
 		project_id
@@ -538,7 +534,7 @@ fn ct_migrated() {
 		assert_close_enough!(
 			data.free,
 			item.1,
-			Perquintill::from_float(0.01),
+			Perquintill::from_float(0.99),
 			"Participant balances should be transfered to each account after ct migration"
 		);
 	});

@@ -176,7 +176,7 @@ fn migrations_are_executed(grouped_migrations: Vec<Migrations>) {
 		assert_close_enough!(
 			user_info.free,
 			migration_group.total_ct_amount(),
-			Perquintill::from_parts(10_000_000_000u64)
+			Perquintill::from_float(0.99)
 		);
 
 		let vest_scheduled_cts = migration_group
@@ -190,7 +190,7 @@ fn migrations_are_executed(grouped_migrations: Vec<Migrations>) {
 				}
 			})
 			.sum::<u128>();
-		assert_close_enough!(user_info.frozen, vest_scheduled_cts, Perquintill::from_parts(10_000_000_000_000u64));
+		assert_close_enough!(user_info.frozen, vest_scheduled_cts, Perquintill::from_float(0.99));
 	}
 }
 

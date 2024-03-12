@@ -686,7 +686,7 @@ mod evaluation {
 		];
 
 		for (real, desired) in zip(actual_reward_balances.iter(), expected_ct_rewards.iter()) {
-			assert_close_enough!(real.1, desired.1, Perquintill::from_float(0.01));
+			assert_close_enough!(real.1, desired.1, Perquintill::from_float(0.99));
 		}
 	}
 
@@ -1017,7 +1017,7 @@ mod auction {
 
 		let desired_price = PriceOf::<TestRuntime>::from_float(11.1818f64).saturating_mul_int(ASSET_UNIT);
 
-		assert_close_enough!(token_price, desired_price, Perquintill::from_float(0.01));
+		assert_close_enough!(token_price, desired_price, Perquintill::from_float(0.99));
 	}
 
 	#[test]
@@ -1338,7 +1338,7 @@ mod auction {
 				HoldReason::Participation(project_id).into(),
 			)
 		});
-		assert_close_enough!(schedule.unwrap(), accepted_plmc_amount, Perquintill::from_float(0.01));
+		assert_close_enough!(schedule.unwrap(), accepted_plmc_amount, Perquintill::from_float(0.99));
 
 		let UserToPLMCBalance { account: rejected_user, .. } = plmc_locked_for_rejected_bid[0];
 		let schedule_exists = inst
@@ -6094,7 +6094,7 @@ mod helper_functions {
 		dbg!(&returned_plmc_balances);
 
 		for (expected, calculated) in zip(expected_returns, returned_plmc_balances) {
-			assert_close_enough!(expected, calculated, Perquintill::from_float(0.01));
+			assert_close_enough!(expected, calculated, Perquintill::from_float(0.99));
 		}
 	}
 

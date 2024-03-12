@@ -3104,43 +3104,34 @@ pub mod testing_macros {
 	///
 	/// let real = 98u64;
 	/// let desired = 100u64;
-	/// assert_close_enough!(real, desired, Perquintill::from_float(0.02));
+	/// assert_close_enough!(real, desired, Perquintill::from_float(0.98));
 	/// // This would fail
-	/// // assert_close_enough!(real, desired, Perquintill::from_float(0.01));
+	/// // assert_close_enough!(real, desired, Perquintill::from_float(0.99));
 	/// ```
-	///
-	/// - Use this macro when you deal with operations with lots of decimals, and you are ok with the real value being an approximation of the desired one.
-	/// - The max_approximation should be an upper bound such that 1-real/desired <= approximation in the case where the desired is smaller than the real,
-	/// and 1-desired/real <= approximation in the case where the real is bigger than the desired.
-	/// - You probably should define the max_approximation from a float number or a percentage, like in the example.
 	macro_rules! assert_close_enough {
 		// Match when a message is provided
-		($real:expr, $desired:expr, $max_approximation:expr, $msg:expr) => {
-			let real_parts;
+		($real:expr, $desired:expr, $min_percentage:expr, $msg:expr) => {
+			let actual_percentage;
 			if $real <= $desired {
-				real_parts = Perquintill::from_rational($real, $desired);
+				actual_percentage = Perquintill::from_rational($real, $desired);
 			} else {
-				real_parts = Perquintill::from_rational($desired, $real);
+				actual_percentage = Perquintill::from_rational($desired, $real);
 			}
-			let one = Perquintill::from_percent(100u64);
-			let real_approximation = one - real_parts;
-			assert!(real_approximation <= $max_approximation, $msg);
+			assert!(actual_percentage >= $min_percentage, $msg);
 		};
 		// Match when no message is provided
-		($real:expr, $desired:expr, $max_approximation:expr) => {
-			let real_parts;
+		($real:expr, $desired:expr, $min_percentage:expr) => {
+			let actual_percentage;
 			if $real <= $desired {
-				real_parts = Perquintill::from_rational($real, $desired);
+				actual_percentage = Perquintill::from_rational($real, $desired);
 			} else {
-				real_parts = Perquintill::from_rational($desired, $real);
+				actual_percentage = Perquintill::from_rational($desired, $real);
 			}
-			let one = Perquintill::from_percent(100u64);
-			let real_approximation = one - real_parts;
 			assert!(
-				real_approximation <= $max_approximation,
-				"Approximation is too big: {:?} > {:?} for {:?} and {:?}",
-				real_approximation,
-				$max_approximation,
+				actual_percentage >= $min_percentage,
+				"Actual percentage too low for the set minimum: {:?} < {:?} for {:?} and {:?}",
+				actual_percentage,
+				$min_percentage,
 				$real,
 				$desired
 			);

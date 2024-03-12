@@ -131,7 +131,7 @@ fn base_can_withdraw_when_free_is_below_frozen_with_hold() {
 
 		let usable_balance = Balances::usable_balance(&CARLOS.into());
 		// we expect the real value to be at minimum 99% of the expected value, due to fees paid
-		assert_close_enough!(usable_balance, 20 * PLMC, Perquintill::from_percent(1));
+		assert_close_enough!(usable_balance, 20 * PLMC, Perquintill::from_float(0.99));
 
 		// Test transfer of the usable balance out of CARLOS
 		assert_ok!(Balances::transfer_allow_death(
