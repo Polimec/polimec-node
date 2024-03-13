@@ -410,8 +410,13 @@ mod benchmarks {
 			project_metadata.token_information.name.as_slice(),
 			project_metadata.token_information.symbol.as_slice(),
 		);
-		inst.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), ed * 2u64.into() + metadata_deposit)]);
+		let ct_account_deposit = T::ContributionTokenCurrency::deposit_required(0);
+		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
+			issuer.clone(),
+			ed * 2u64.into() + metadata_deposit + ct_account_deposit,
+		)]);
 		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional);
+
 		#[extrinsic_call]
 		create(RawOrigin::Signed(issuer.clone()), jwt, project_metadata.clone());
 
@@ -421,8 +426,7 @@ mod benchmarks {
 		let stored_metadata = &projects_metadata.iter().last().unwrap().1;
 		let project_id = projects_metadata.iter().last().unwrap().0;
 
-		// FIXME
-		// assert_eq!(stored_metadata, &project_metadata);
+		assert_eq!(stored_metadata, &project_metadata);
 
 		let project_details = ProjectsDetails::<T>::iter().sorted_by(|a, b| a.0.cmp(&b.0)).collect::<Vec<_>>();
 		let stored_details = &project_details.iter().last().unwrap().1;
@@ -2769,12 +2773,6 @@ mod benchmarks {
 		let bounded_name = BoundedVec::try_from("Contribution Token TEST".as_bytes().to_vec()).unwrap();
 		let bounded_symbol = BoundedVec::try_from("CTEST".as_bytes().to_vec()).unwrap();
 		let metadata_hash = hashed(format!("{}-{}", METADATA, 69));
-		// default has 50k allocated for bidding, so we cannot test the cap of bidding (100k bids) with it, since the ticket size is 1.
-
-		let auction_allocation_size = BalanceOf::<T>::try_from((10 * (y + z) + 1) as u128 * ASSET_UNIT)
-			.unwrap_or_else(|_| panic!("Failed to create BalanceOf"));
-		let auction_allocation_percentage =
-			Percent::from_rational(auction_allocation_size, (100_000 * ASSET_UNIT).into());
 
 		let project_metadata = ProjectMetadata {
 			token_information: CurrencyMetadata {

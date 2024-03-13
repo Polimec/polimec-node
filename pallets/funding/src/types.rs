@@ -434,7 +434,7 @@ pub mod inner_types {
 		pub decimals: u8,
 	}
 
-	trait BoundCheck<Balance> {
+	pub trait BoundCheck<Balance> {
 		fn lower_bound() -> Option<Balance>;
 		fn upper_bound() -> Option<Balance>;
 	}

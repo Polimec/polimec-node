@@ -19,7 +19,6 @@ use frame_support::BoundedVec;
 use itertools::Itertools;
 use macros::generate_accounts;
 use pallet_funding::*;
-use polimec_common::credentials::InvestorType;
 use polimec_parachain_runtime::{PolimecFunding, US_DOLLAR};
 use sp_arithmetic::{FixedPointNumber, Percent, Perquintill};
 use sp_runtime::{traits::CheckedSub, FixedU128};
@@ -476,15 +475,8 @@ fn ct_migrated() {
 
 	// Mock HRMP establishment
 	Polimec::execute_with(|| {
-		let did = IntegrationInstantiator::generate_did_from_account(ISSUER.into());
-		let investor_type = InvestorType::Institutional;
-		assert_ok!(PolimecFunding::do_set_para_id_for_project(
-			&ISSUER.into(),
-			project_id,
-			ParaId::from(6969u32),
-			did,
-			investor_type
-		));
+		let account_id: PolimecAccountId = ISSUER.into();
+		assert_ok!(PolimecFunding::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32),));
 
 		let open_channel_message = xcm::v3::opaque::Instruction::HrmpNewChannelOpenRequest {
 			sender: 6969,
