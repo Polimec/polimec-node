@@ -862,7 +862,7 @@ mod evaluation {
 		let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER);
 		assert_err!(
 			inst.execute(|| crate::Pallet::<TestRuntime>::do_evaluate(
-				&ISSUER,
+				&(&ISSUER + 1),
 				project_id,
 				500 * US_DOLLAR,
 				generate_did_from_account(ISSUER)
@@ -1454,7 +1454,7 @@ mod auction {
 	fn cannot_bid_before_auction_round() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let _ = inst.create_evaluating_project(default_project_metadata(0, ISSUER), ISSUER);
-		let did = generate_did_from_account(ISSUER);
+		let did = generate_did_from_account(BIDDER_2);
 		let investor_type = InvestorType::Institutional;
 		inst.execute(|| {
 			assert_noop!(
@@ -1574,7 +1574,7 @@ mod auction {
 			inst.create_auctioning_project(default_project_metadata(0, ISSUER), ISSUER, default_evaluations());
 		let bids = vec![BidParams::<TestRuntime>::new(BIDDER_1, 10_000, 1u8, AcceptedFundingAsset::USDC)];
 
-		let did = generate_did_from_account(ISSUER);
+		let did = generate_did_from_account(bids[0].bidder.clone());
 		let investor_type = InvestorType::Institutional;
 
 		let outcome = inst.execute(|| {
@@ -2047,6 +2047,25 @@ mod auction {
 			Error::<TestRuntime>::FundingAssetNotAccepted
 		);
 		assert_ok!(inst.bid_for_users(project_id_dot, vec![dot_bid.clone()]));
+	}
+
+	#[test]
+	fn issuer_cannot_bid_his_project() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project_metadata(0, ISSUER);
+		let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER, default_evaluations());
+		assert_err!(
+			inst.execute(|| crate::Pallet::<TestRuntime>::do_bid(
+				&(&ISSUER + 1),
+				project_id,
+				500 * ASSET_UNIT,
+				1u8.try_into().unwrap(),
+				AcceptedFundingAsset::USDT,
+				generate_did_from_account(ISSUER),
+				InvestorType::Institutional
+			)),
+			Error::<TestRuntime>::ParticipationToThemselves
+		);
 	}
 }
 
@@ -2963,6 +2982,25 @@ mod community_contribution {
 		);
 		assert_ok!(inst.contribute_for_users(project_id_dot, vec![dot_contribution.clone()]));
 	}
+
+	#[test]
+	fn issuer_cannot_contribute_his_project() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project_metadata(0, ISSUER);
+		let project_id = inst.create_community_contributing_project(project_metadata.clone(), ISSUER, default_evaluations(), default_bids());
+		assert_err!(
+			inst.execute(|| crate::Pallet::<TestRuntime>::do_community_contribute(
+				&(&ISSUER + 1),
+				project_id,
+				500 * ASSET_UNIT,
+				1u8.try_into().unwrap(),
+				AcceptedFundingAsset::USDT,
+				generate_did_from_account(ISSUER),
+				InvestorType::Institutional
+			)),
+			Error::<TestRuntime>::ParticipationToThemselves
+		);
+	}
 }
 
 // only functionalities that happen in the REMAINDER FUNDING period of a project
@@ -3618,6 +3656,25 @@ mod remainder_contribution {
 			Error::<TestRuntime>::FundingAssetNotAccepted
 		);
 		assert_ok!(inst.contribute_for_users(project_id_dot, vec![dot_contribution.clone()]));
+	}
+
+	#[test]
+	fn issuer_cannot_contribute_his_project() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project_metadata(0, ISSUER);
+		let project_id = inst.create_remainder_contributing_project(project_metadata.clone(), ISSUER, default_evaluations(), default_bids(), default_community_buys());
+		assert_err!(
+			inst.execute(|| crate::Pallet::<TestRuntime>::do_remaining_contribute(
+				&(&ISSUER + 1),
+				project_id,
+				500 * ASSET_UNIT,
+				1u8.try_into().unwrap(),
+				AcceptedFundingAsset::USDT,
+				generate_did_from_account(ISSUER),
+				InvestorType::Institutional
+			)),
+			Error::<TestRuntime>::ParticipationToThemselves
+		);
 	}
 }
 

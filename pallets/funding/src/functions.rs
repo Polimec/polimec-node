@@ -1101,7 +1101,7 @@ impl<T: Config> Pallet<T> {
 
 		ensure!(ct_amount > Zero::zero(), Error::<T>::BidTooLow);
 		ensure!(bid_count < T::MaxBidsPerProject::get(), Error::<T>::TooManyBidsForProject);
-		ensure!(bidder.clone() != project_details.issuer_account, Error::<T>::ParticipationToThemselves);
+		ensure!(did != project_details.issuer_did, Error::<T>::ParticipationToThemselves);
 		ensure!(matches!(project_details.status, ProjectStatus::AuctionRound(_)), Error::<T>::AuctionNotStarted);
 		ensure!(
 			project_metadata.participation_currencies.contains(&funding_asset),
@@ -1340,7 +1340,7 @@ impl<T: Config> Pallet<T> {
 			project_metadata.participation_currencies.contains(&funding_asset),
 			Error::<T>::FundingAssetNotAccepted
 		);
-		ensure!(contributor.clone() != project_details.issuer_account, Error::<T>::ParticipationToThemselves);
+		ensure!(did.clone() != project_details.issuer_did, Error::<T>::ParticipationToThemselves);
 		ensure!(
 			caller_existing_contributions.len() < T::MaxContributionsPerUser::get() as usize,
 			Error::<T>::TooManyContributionsForUser
