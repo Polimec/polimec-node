@@ -25,9 +25,9 @@ use frame_support::{
 	traits::{GetStorageVersion, PalletInfoAccess, StorageVersion},
 };
 #[cfg(feature = "try-runtime")]
-use sp_runtime::DispatchError;
-#[cfg(feature = "try-runtime")]
 use log;
+#[cfg(feature = "try-runtime")]
+use sp_runtime::DispatchError;
 
 pub struct InitializePallet<Pallet: GetStorageVersion<CurrentStorageVersion = StorageVersion> + PalletInfoAccess>(
 	sp_std::marker::PhantomData<Pallet>,
