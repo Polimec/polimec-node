@@ -36,7 +36,6 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
 use parity_scale_codec::Decode;
 use polimec_common::credentials::{InvestorType, DID};
-use serde::Serialize;
 use sp_arithmetic::{
 	traits::{SaturatedConversion, Saturating, Zero},
 	FixedPointNumber, Percent, Perquintill,
@@ -53,6 +52,8 @@ use sp_std::{
 	marker::PhantomData,
 	ops::Not,
 };
+
+use polimec_common::credentials::generate_did_from_account;
 
 pub type RuntimeOriginOf<T> = <T as frame_system::Config>::RuntimeOrigin;
 pub struct BoxToFunction(pub Box<dyn FnOnce()>);
@@ -385,8 +386,7 @@ impl<
 				polimec_to_project: crate::ChannelStatus::Closed,
 			},
 		};
-		// FIXME
-		// assert_eq!(metadata, expected_metadata);
+		assert_eq!(metadata, expected_metadata);
 		assert_eq!(details, expected_details);
 	}
 
@@ -833,18 +833,6 @@ impl<
 		output.into_iter().collect()
 	}
 
-	pub fn generate_did_from_account(account_id: AccountIdOf<T>) -> DID {
-		let mut did = [0u8; 57];
-		let account_serialized = account_id.encode();
-		let account_len = account_serialized.len();
-		if account_len <= 57 {
-			did[..account_len].copy_from_slice(&account_serialized);
-		} else {
-			did.copy_from_slice(&account_serialized[..57]);
-		}
-		did.to_vec().try_into().unwrap()
-	}
-
 	/// Merge the given mappings into one mapping, where the values are merged using the given
 	/// merge operation.
 	///
@@ -998,20 +986,16 @@ impl<
 		self.execute(|| ProjectsDetails::<T>::get(project_id).expect("Project details exists"))
 	}
 
-    pub fn get_update_block(
-        &mut self,
-        project_id: ProjectId,
-        update_type: &UpdateType,
-    ) -> Option<(BlockNumberFor<T>)> {
-        self.execute(|| {
-            ProjectsToUpdate::<T>::iter().find_map(|(block, update_vec)| {
-                update_vec
-                    .iter()
-                    .find(|(pid, update)| *pid == project_id && update == update_type)
-                    .map(|(_pid, update)| block)
-            })
-        })
-    }
+	pub fn get_update_block(&mut self, project_id: ProjectId, update_type: &UpdateType) -> Option<BlockNumberFor<T>> {
+		self.execute(|| {
+			ProjectsToUpdate::<T>::iter().find_map(|(block, update_vec)| {
+				update_vec
+					.iter()
+					.find(|(pid, update)| *pid == project_id && update == update_type)
+					.map(|(_pid, _update)| block)
+			})
+		})
+	}
 
 	pub fn create_new_project(&mut self, project_metadata: ProjectMetadataOf<T>, issuer: AccountIdOf<T>) -> ProjectId {
 		let now = self.current_block();
@@ -1025,9 +1009,8 @@ impl<
 			Self::get_ed() * 2u64.into() + metadata_deposit,
 		)]);
 
-		let did = Self::generate_did_from_account(issuer.clone());
 		self.execute(|| {
-			crate::Pallet::<T>::do_create(&issuer, project_metadata.clone(), did, InvestorType::Institutional).unwrap();
+			crate::Pallet::<T>::do_create(&issuer, project_metadata.clone()).unwrap();
 			let last_project_metadata = ProjectsMetadata::<T>::iter().last().unwrap();
 			log::trace!("Last project metadata: {:?}", last_project_metadata);
 		});
@@ -1039,10 +1022,7 @@ impl<
 
 	pub fn start_evaluation(&mut self, project_id: ProjectId, caller: AccountIdOf<T>) -> Result<(), DispatchError> {
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::Application);
-		let did = Self::generate_did_from_account(caller.clone());
-		self.execute(|| {
-			crate::Pallet::<T>::do_start_evaluation(caller, project_id, did, InvestorType::Institutional).unwrap()
-		});
+		self.execute(|| crate::Pallet::<T>::do_start_evaluation(caller, project_id).unwrap());
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::EvaluationRound);
 
 		Ok(())
@@ -1064,10 +1044,7 @@ impl<
 		bonds: Vec<UserToUSDBalance<T>>,
 	) -> DispatchResultWithPostInfo {
 		for UserToUSDBalance { account, usd_amount } in bonds {
-			let did = Self::generate_did_from_account(account.clone());
-			self.execute(|| {
-				crate::Pallet::<T>::do_evaluate(&account, project_id, usd_amount, did, InvestorType::Retail)
-			})?;
+			self.execute(|| crate::Pallet::<T>::do_evaluate(&account, project_id, usd_amount))?;
 		}
 		Ok(().into())
 	}
@@ -1084,11 +1061,7 @@ impl<
 
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 
-		let did = Self::generate_did_from_account(caller.clone());
-		self.execute(|| {
-			crate::Pallet::<T>::do_english_auction(caller, project_id, Some(did), Some(InvestorType::Institutional))
-				.unwrap()
-		});
+		self.execute(|| crate::Pallet::<T>::do_english_auction(caller, project_id).unwrap());
 
 		assert_eq!(self.get_project_details(project_id).status, ProjectStatus::AuctionRound(AuctionPhase::English));
 
@@ -1139,7 +1112,7 @@ impl<
 	pub fn bid_for_users(&mut self, project_id: ProjectId, bids: Vec<BidParams<T>>) -> DispatchResultWithPostInfo {
 		for bid in bids {
 			self.execute(|| {
-				let did = Self::generate_did_from_account(bid.bidder.clone());
+				let did = generate_did_from_account(bid.bidder.clone());
 				crate::Pallet::<T>::do_bid(
 					&bid.bidder,
 					project_id,
@@ -1273,7 +1246,7 @@ impl<
 		match self.get_project_details(project_id).status {
 			ProjectStatus::CommunityRound =>
 				for cont in contributions {
-					let did = Self::generate_did_from_account(cont.contributor.clone());
+					let did = generate_did_from_account(cont.contributor.clone());
 					let investor_type = InvestorType::Retail;
 					self.execute(|| {
 						crate::Pallet::<T>::do_community_contribute(
@@ -1289,7 +1262,7 @@ impl<
 				},
 			ProjectStatus::RemainderRound =>
 				for cont in contributions {
-					let did = Self::generate_did_from_account(cont.contributor.clone());
+					let did = generate_did_from_account(cont.contributor.clone());
 					let investor_type = InvestorType::Professional;
 					self.execute(|| {
 						crate::Pallet::<T>::do_remaining_contribute(
@@ -1312,8 +1285,7 @@ impl<
 	pub fn start_remainder_or_end_funding(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
 		let details = self.get_project_details(project_id);
 		assert_eq!(details.status, ProjectStatus::CommunityRound);
-		let remaining_tokens =
-			details.remaining_contribution_tokens.0.saturating_add(details.remaining_contribution_tokens.1);
+		let remaining_tokens = details.remaining_contribution_tokens;
 		let update_type =
 			if remaining_tokens > Zero::zero() { UpdateType::RemainderFundingStart } else { UpdateType::FundingEnd };
 		if let Some(transition_block) = self.get_update_block(project_id, &update_type) {
@@ -1333,7 +1305,8 @@ impl<
 			self.execute(|| frame_system::Pallet::<T>::set_block_number(update_block - One::one()));
 			self.advance_time(1u32.into()).unwrap();
 		}
-		let update_block = self.get_update_block(project_id, &UpdateType::FundingEnd).expect("Funding end block should exist");
+		let update_block =
+			self.get_update_block(project_id, &UpdateType::FundingEnd).expect("Funding end block should exist");
 		self.execute(|| frame_system::Pallet::<T>::set_block_number(update_block - One::one()));
 		self.advance_time(1u32.into()).unwrap();
 		let project_details = self.get_project_details(project_id);
@@ -1750,9 +1723,8 @@ pub mod async_features {
 			issuer.clone(),
 			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ed() * 2u64.into() + metadata_deposit,
 		)]);
-		let did = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::generate_did_from_account(issuer.clone());
 		inst.execute(|| {
-			crate::Pallet::<T>::do_create(&issuer, project_metadata.clone(), did, InvestorType::Institutional).unwrap();
+			crate::Pallet::<T>::do_create(&issuer, project_metadata.clone()).unwrap();
 			let last_project_metadata = ProjectsMetadata::<T>::iter().last().unwrap();
 			log::trace!("Last project metadata: {:?}", last_project_metadata);
 		});
@@ -1808,17 +1780,7 @@ pub mod async_features {
 
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 
-		let did = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::generate_did_from_account(caller.clone());
-
-		inst.execute(|| {
-			crate::Pallet::<T>::do_english_auction(
-				caller.clone(),
-				project_id,
-				Some(did),
-				Some(InvestorType::Institutional),
-			)
-			.unwrap()
-		});
+		inst.execute(|| crate::Pallet::<T>::do_english_auction(caller.clone(), project_id).unwrap());
 
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionRound(AuctionPhase::English));
 
