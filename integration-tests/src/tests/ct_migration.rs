@@ -20,7 +20,7 @@ use pallet_funding::{
 	MigrationStatus, Multiplier, MultiplierOf, ProjectId, RewardOrSlash,
 };
 use polimec_common::{
-	credentials::InvestorType,
+	credentials::{generate_did_from_account, InvestorType},
 	migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType},
 };
 use polimec_parachain_runtime::PolimecFunding;
@@ -34,15 +34,7 @@ fn execute_cleaner(inst: &mut IntegrationInstantiator) {
 }
 fn mock_hrmp_establishment(project_id: u32) {
 	Polimec::execute_with(|| {
-		let did = IntegrationInstantiator::generate_did_from_account(ISSUER.into());
-		let investor_type = InvestorType::Institutional;
-		assert_ok!(PolimecFunding::do_set_para_id_for_project(
-			&ISSUER.into(),
-			project_id,
-			ParaId::from(6969u32),
-			did,
-			investor_type
-		));
+		assert_ok!(PolimecFunding::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32),));
 
 		let open_channel_message = xcm::v3::opaque::Instruction::HrmpNewChannelOpenRequest {
 			sender: 6969,

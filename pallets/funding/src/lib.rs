@@ -251,8 +251,8 @@ pub mod pallet {
 		/// A way to convert from and to the account type used in CT migrations
 		type AccountId32Conversion: ConvertBack<Self::AccountId, [u8; 32]>;
 
-		// TODO: maybe flag it behind test & benchmark features
 		/// Type used for testing and benchmarks
+		#[cfg(any(test, feature = "runtime-benchmarks", feature = "std"))]
 		type AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<Self>>
 			+ OnIdle<BlockNumberFor<Self>>
 			+ OnInitialize<BlockNumberFor<Self>>;
@@ -973,6 +973,8 @@ pub mod pallet {
 		NotEnoughFundsForEscrowCreation,
 		/// The issuer doesn't have enough funds to pay for the metadata of their contribution token
 		NotEnoughFundsForCTMetadata,
+		/// The issuer doesn't have enough funds to pay for the deposit of their contribution token
+		NotEnoughFundsForCTDeposit,
 		/// Too many attempts to insert project in to ProjectsToUpdate storage
 		TooManyInsertionAttempts,
 		/// Reached bid limit for this user on this project
@@ -995,10 +997,11 @@ pub mod pallet {
 		#[pallet::call_index(0)]
 		#[pallet::weight(WeightInfoOf::<T>::create())]
 		pub fn create(origin: OriginFor<T>, jwt: UntrustedToken, project: ProjectMetadataOf<T>) -> DispatchResult {
-			let (account, did, investor_type) =
+			let (account, _did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			log::trace!(target: "pallet_funding::test", "in create");
-			Self::do_create(&account, project, did, investor_type)
+			ensure!(investor_type == InvestorType::Institutional, DispatchError::BadOrigin);
+			Self::do_create(&account, project)
 		}
 
 		/// Change the metadata hash of a project
@@ -1010,9 +1013,10 @@ pub mod pallet {
 			project_id: ProjectId,
 			project_metadata_hash: T::Hash,
 		) -> DispatchResult {
-			let (account, did, investor_type) =
+			let (account, _did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_edit_metadata(account, project_id, project_metadata_hash, did, investor_type)
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
+			Self::do_edit_metadata(account, project_id, project_metadata_hash)
 		}
 
 		/// Starts the evaluation round of a project. It needs to be called by the project issuer.
@@ -1023,9 +1027,10 @@ pub mod pallet {
 			jwt: UntrustedToken,
 			project_id: ProjectId,
 		) -> DispatchResultWithPostInfo {
-			let (account, did, investor_type) =
+			let (account, _did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_start_evaluation(account, project_id, did, investor_type)
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
+			Self::do_start_evaluation(account, project_id)
 		}
 
 		/// Starts the auction round for a project. From the next block forward, any professional or
@@ -1038,9 +1043,10 @@ pub mod pallet {
 			jwt: UntrustedToken,
 			project_id: ProjectId,
 		) -> DispatchResultWithPostInfo {
-			let (account, did, investor_type) =
+			let (account, _did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_english_auction(account, project_id, Some(did), Some(investor_type))
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
+			Self::do_english_auction(account, project_id)
 		}
 
 		/// Bond PLMC for a project in the evaluation stage
@@ -1056,9 +1062,9 @@ pub mod pallet {
 			project_id: ProjectId,
 			#[pallet::compact] usd_amount: BalanceOf<T>,
 		) -> DispatchResultWithPostInfo {
-			let (account, did, investor_type) =
+			let (account, _did, _investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_evaluate(&account, project_id, usd_amount, did, investor_type)
+			Self::do_evaluate(&account, project_id, usd_amount)
 		}
 
 		/// Bid for a project in the Auction round
@@ -1320,9 +1326,10 @@ pub mod pallet {
 			project_id: ProjectId,
 			para_id: ParaId,
 		) -> DispatchResult {
-			let (account, did, investor_type) =
+			let (account, _did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_set_para_id_for_project(&account, project_id, para_id, did, investor_type)
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
+			Self::do_set_para_id_for_project(&account, project_id, para_id)
 		}
 
 		#[pallet::call_index(23)]
@@ -1332,9 +1339,10 @@ pub mod pallet {
 			jwt: UntrustedToken,
 			project_id: ProjectId,
 		) -> DispatchResult {
-			let (account, did, investor_type) =
+			let (account, _did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_start_migration_readiness_check(&account, project_id, Some(did), Some(investor_type))
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
+			Self::do_start_migration_readiness_check(&account, project_id)
 		}
 
 		/// Called only by other chains through a query response xcm message
@@ -1353,9 +1361,11 @@ pub mod pallet {
 		#[pallet::call_index(25)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
 		pub fn start_migration(origin: OriginFor<T>, jwt: UntrustedToken, project_id: ProjectId) -> DispatchResult {
-			let (account, did, investor_type) =
+			let (account, _did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_start_migration(&account, project_id, did, investor_type)
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
+
+			Self::do_start_migration(&account, project_id)
 		}
 
 		#[pallet::call_index(26)]
@@ -1492,12 +1502,7 @@ pub mod pallet {
 					UpdateType::EnglishAuctionStart => {
 						used_weight = used_weight.saturating_add(
 							unwrap_result_or_skip!(
-								Self::do_english_auction(
-									T::PalletId::get().into_account_truncating(),
-									project_id,
-									None,
-									None
-								),
+								Self::do_english_auction(T::PalletId::get().into_account_truncating(), project_id,),
 								project_id,
 								|e: DispatchErrorWithPostInfo<PostDispatchInfo>| { e.error }
 							)
@@ -1684,9 +1689,6 @@ pub mod pallet {
 	pub struct GenesisConfig<T: Config>
 	where
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		<T as Config>::AllPalletsWithoutSystem:
-			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
-		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 	{
 		#[cfg(feature = "std")]
@@ -1697,9 +1699,6 @@ pub mod pallet {
 	impl<T: Config> Default for GenesisConfig<T>
 	where
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		<T as Config>::AllPalletsWithoutSystem:
-			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
-		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 	{
 		fn default() -> Self {
@@ -1715,9 +1714,6 @@ pub mod pallet {
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T>
 	where
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		<T as Config>::AllPalletsWithoutSystem:
-			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
-		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 	{
 		fn build(&self) {

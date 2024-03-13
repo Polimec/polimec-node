@@ -122,8 +122,7 @@ where
 	) -> Result<jwt_compact::Token<Self::Claims>, ValidationError> {
 		let signing_key =
 			<<Ed25519 as Algorithm>::VerifyingKey>::from_slice(&verifying_key).expect("The Key is always valid");
-		let result = Ed25519.validator::<Self::Claims>(&signing_key).validate(&token);
-		result
+		Ed25519.validator::<Self::Claims>(&signing_key).validate(&token)
 	}
 }
 
@@ -163,4 +162,16 @@ where
 		// End the serialization
 		state.end()
 	}
+}
+
+pub fn generate_did_from_account(account_id: impl Parameter) -> DID {
+	let mut did = [0u8; 57];
+	let account_serialized = account_id.encode();
+	let account_len = account_serialized.len();
+	if account_len <= 57 {
+		did[..account_len].copy_from_slice(&account_serialized);
+	} else {
+		did.copy_from_slice(&account_serialized[..57]);
+	}
+	did.to_vec().try_into().unwrap()
 }

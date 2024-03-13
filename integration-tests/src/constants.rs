@@ -283,8 +283,9 @@ pub mod asset_hub {
 // Polimec
 pub mod polimec {
 	use super::*;
-	use crate::Polimec;
+	use crate::{Polimec, PolimecRuntime};
 	use pallet_funding::AcceptedFundingAsset;
+	use sp_runtime::traits::AccountIdConversion;
 	use xcm::{prelude::Parachain, v3::Parent};
 
 	pub const PARA_ID: u32 = 3344;
@@ -301,6 +302,8 @@ pub mod polimec {
 		let mut funded_accounts = vec![
 			(Polimec::sovereign_account_id_of((Parent, Parachain(penpal::PARA_ID)).into()), INITIAL_DEPOSIT),
 			(Polimec::sovereign_account_id_of((Parent, Parachain(asset_hub::PARA_ID)).into()), INITIAL_DEPOSIT),
+			(<PolimecRuntime as pallet_funding::Config>::ContributionTreasury::get(), INITIAL_DEPOSIT),
+			(<PolimecRuntime as pallet_funding::Config>::PalletId::get().into_account_truncating(), INITIAL_DEPOSIT),
 		];
 		let alice_account = Polimec::account_id_of(accounts::ALICE);
 		let bob_account: AccountId = Polimec::account_id_of(accounts::BOB);

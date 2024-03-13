@@ -35,7 +35,10 @@ use frame_support::{
 };
 use itertools::Itertools;
 use parachains_common::DAYS;
-use polimec_common::{credentials::*, ReleaseSchedule};
+use polimec_common::{
+	credentials::{generate_did_from_account, *},
+	ReleaseSchedule,
+};
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::{BuildStorage, TokenError};
 use sp_std::{cell::RefCell, marker::PhantomData};
@@ -333,7 +336,6 @@ pub mod defaults {
 mod creation {
 	use super::*;
 	use polimec_common::credentials::InvestorType;
-	use sp_core::H256;
 
 	#[test]
 	fn basic_plmc_transfer_works() {
@@ -413,16 +415,13 @@ mod creation {
 
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		inst.mint_plmc_to(default_plmc_balances());
-		let did = MockInstantiator::generate_did_from_account(ISSUER);
-		let investor_type = InvestorType::Institutional;
-		let project_err =
-			inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project, did, investor_type).unwrap_err());
+		let project_err = inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project).unwrap_err());
 		assert_eq!(project_err, Error::<TestRuntime>::PriceTooLow.into());
 	}
 
 	#[test]
 	fn ticket_sizes_validity_check() {
-		let mut correct_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
+		let correct_project: ProjectMetadataOf<TestRuntime> = ProjectMetadata {
 			token_information: default_token_information(),
 			mainnet_token_max_supply: 100_000_000_000 * ASSET_UNIT,
 			total_allocation_size: 100_000 * ASSET_UNIT,
@@ -492,23 +491,14 @@ mod creation {
 
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		inst.mint_plmc_to(default_plmc_balances());
-		let did = MockInstantiator::generate_did_from_account(ISSUER);
-		let investor_type = InvestorType::Institutional;
 
 		let test_1 = with_different_metadata(wrong_project_1);
 		let test_2 = with_different_metadata(wrong_project_3);
 		assert!(test_1.offchain_information_hash != test_2.offchain_information_hash);
 
 		for project in wrong_projects {
-			let project_err = inst.execute(|| {
-				Pallet::<TestRuntime>::do_create(
-					&ISSUER,
-					with_different_metadata(project),
-					did.clone(),
-					investor_type.clone(),
-				)
-				.unwrap_err()
-			});
+			let project_err = inst
+				.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, with_different_metadata(project)).unwrap_err());
 			assert_eq!(project_err, Error::<TestRuntime>::TicketSizeError.into());
 		}
 	}
@@ -520,10 +510,7 @@ mod creation {
 		let ed = MockInstantiator::get_ed();
 
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(ISSUER, ed)]);
-		let did = MockInstantiator::generate_did_from_account(ISSUER);
-		let investor_type = InvestorType::Institutional;
-		let project_err = inst
-			.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, project_metadata, did, investor_type).unwrap_err());
+		let project_err = inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, project_metadata).unwrap_err());
 		assert_eq!(project_err, Error::<TestRuntime>::NotEnoughFundsForEscrowCreation.into());
 	}
 
@@ -577,8 +564,6 @@ mod creation {
 		];
 
 		inst.mint_plmc_to(default_plmc_balances());
-		let did = MockInstantiator::generate_did_from_account(ISSUER);
-		let investor_type = InvestorType::Institutional;
 
 		let test_1 = with_different_metadata(one_currency_1);
 		let test_2 = with_different_metadata(one_currency_2);
@@ -586,9 +571,7 @@ mod creation {
 
 		for project in projects {
 			let project_metadata_new = with_different_metadata(project);
-			assert_ok!(inst.execute(|| {
-				Pallet::<TestRuntime>::do_create(&ISSUER, project_metadata_new, did.clone(), investor_type.clone())
-			}));
+			assert_ok!(inst.execute(|| { Pallet::<TestRuntime>::do_create(&ISSUER, project_metadata_new) }));
 		}
 
 		let mut wrong_project_1 = default_project_metadata.clone();
@@ -613,15 +596,8 @@ mod creation {
 
 		let wrong_projects = vec![wrong_project_1, wrong_project_2, wrong_project_3, wrong_project_4];
 		for project in wrong_projects {
-			let project_err = inst.execute(|| {
-				Pallet::<TestRuntime>::do_create(
-					&ISSUER,
-					with_different_metadata(project),
-					did.clone(),
-					investor_type.clone(),
-				)
-				.unwrap_err()
-			});
+			let project_err = inst
+				.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, with_different_metadata(project)).unwrap_err());
 			assert_eq!(project_err, Error::<TestRuntime>::ParticipationCurrenciesError.into());
 		}
 	}
@@ -1072,7 +1048,6 @@ mod auction {
 
 		let mut bidding_account = 1000;
 
-		dbg!(blocks_to_bid.clone());
 		// Do one candle bid for each block until the end of candle auction with a new user
 		for _block in blocks_to_bid {
 			assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionRound(AuctionPhase::Candle));
@@ -1179,10 +1154,7 @@ mod auction {
 		inst.advance_time(<TestRuntime as Config>::EvaluationDuration::get() + 1).unwrap();
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionInitializePeriod);
 		inst.advance_time(1).unwrap();
-		let did = MockInstantiator::generate_did_from_account(ISSUER);
-		let investor_type = InvestorType::Institutional;
-		inst.execute(|| Pallet::<TestRuntime>::do_english_auction(ISSUER, project_id, Some(did), Some(investor_type)))
-			.unwrap();
+		inst.execute(|| Pallet::<TestRuntime>::do_english_auction(ISSUER, project_id)).unwrap();
 		assert_eq!(inst.get_project_details(project_id).status, ProjectStatus::AuctionRound(AuctionPhase::English));
 	}
 
@@ -1204,10 +1176,7 @@ mod auction {
 
 		for account in 6000..6010 {
 			inst.execute(|| {
-				let did = MockInstantiator::generate_did_from_account(ISSUER);
-				let investor_type = InvestorType::Institutional;
-				let response =
-					Pallet::<TestRuntime>::do_english_auction(account, project_id, Some(did), Some(investor_type));
+				let response = Pallet::<TestRuntime>::do_english_auction(account, project_id);
 				assert_noop!(response, Error::<TestRuntime>::NotAllowed);
 			});
 		}
@@ -1439,11 +1408,9 @@ mod auction {
 	fn cannot_start_auction_before_evaluation_finishes() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_id = inst.create_evaluating_project(default_project_metadata(0, ISSUER), ISSUER);
-		let did = MockInstantiator::generate_did_from_account(ISSUER);
-		let investor_type = InvestorType::Institutional;
 		inst.execute(|| {
 			assert_noop!(
-				PolimecFunding::do_english_auction(ISSUER, project_id, Some(did), Some(investor_type)),
+				PolimecFunding::do_english_auction(ISSUER, project_id),
 				Error::<TestRuntime>::EvaluationPeriodNotEnded
 			);
 		});
@@ -1453,7 +1420,7 @@ mod auction {
 	fn cannot_bid_before_auction_round() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let _ = inst.create_evaluating_project(default_project_metadata(0, ISSUER), ISSUER);
-		let did = MockInstantiator::generate_did_from_account(ISSUER);
+		let did = generate_did_from_account(ISSUER);
 		let investor_type = InvestorType::Institutional;
 		inst.execute(|| {
 			assert_noop!(
@@ -1548,7 +1515,7 @@ mod auction {
 	fn contribute_does_not_work() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_id = inst.create_evaluating_project(default_project_metadata(0, ISSUER), ISSUER);
-		let did = MockInstantiator::generate_did_from_account(ISSUER);
+		let did = generate_did_from_account(ISSUER);
 		let investor_type = InvestorType::Retail;
 		inst.execute(|| {
 			assert_noop!(
@@ -1573,7 +1540,7 @@ mod auction {
 			inst.create_auctioning_project(default_project_metadata(0, ISSUER), ISSUER, default_evaluations());
 		let bids = vec![BidParams::<TestRuntime>::new(BIDDER_1, 10_000, 1u8, AcceptedFundingAsset::USDC)];
 
-		let did = MockInstantiator::generate_did_from_account(ISSUER);
+		let did = generate_did_from_account(ISSUER);
 		let investor_type = InvestorType::Institutional;
 
 		let outcome = inst.execute(|| {
@@ -1774,7 +1741,7 @@ mod auction {
 					799 * ASSET_UNIT,
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
-					MockInstantiator::generate_did_from_account(BIDDER_1),
+					generate_did_from_account(BIDDER_1),
 					InvestorType::Professional
 				),
 				Error::<TestRuntime>::BidTooLow
@@ -1789,7 +1756,7 @@ mod auction {
 					1999 * ASSET_UNIT,
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
-					MockInstantiator::generate_did_from_account(BIDDER_1),
+					generate_did_from_account(BIDDER_1),
 					InvestorType::Institutional
 				),
 				Error::<TestRuntime>::BidTooLow
@@ -1850,7 +1817,7 @@ mod auction {
 				8000 * ASSET_UNIT,
 				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
-				MockInstantiator::generate_did_from_account(BIDDER_1),
+				generate_did_from_account(BIDDER_1),
 				InvestorType::Professional
 			));
 		});
@@ -1863,7 +1830,7 @@ mod auction {
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 					// note we use the same did as bidder 1, on a different account
-					MockInstantiator::generate_did_from_account(BIDDER_1),
+					generate_did_from_account(BIDDER_1),
 					InvestorType::Professional
 				),
 				Error::<TestRuntime>::BidTooHigh
@@ -1878,7 +1845,7 @@ mod auction {
 				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 				// note we use the same did as bidder 1, on a different account
-				MockInstantiator::generate_did_from_account(BIDDER_1),
+				generate_did_from_account(BIDDER_1),
 				InvestorType::Professional
 			));
 		});
@@ -1891,7 +1858,7 @@ mod auction {
 				40_000 * ASSET_UNIT,
 				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
-				MockInstantiator::generate_did_from_account(BIDDER_3),
+				generate_did_from_account(BIDDER_3),
 				InvestorType::Institutional
 			));
 		});
@@ -1904,7 +1871,7 @@ mod auction {
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 					// note we use the same did as bidder 3, on a different account
-					MockInstantiator::generate_did_from_account(BIDDER_3),
+					generate_did_from_account(BIDDER_3),
 					InvestorType::Institutional
 				),
 				Error::<TestRuntime>::BidTooHigh
@@ -1919,7 +1886,7 @@ mod auction {
 				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 				// note we use the same did as bidder 3, on a different account
-				MockInstantiator::generate_did_from_account(BIDDER_3),
+				generate_did_from_account(BIDDER_3),
 				InvestorType::Institutional
 			));
 		});
@@ -2595,7 +2562,7 @@ mod community_contribution {
 					ASSET_UNIT / 2,
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
-					MockInstantiator::generate_did_from_account(BUYER_1),
+					generate_did_from_account(BUYER_1),
 					InvestorType::Retail
 				),
 				Error::<TestRuntime>::ContributionTooLow
@@ -2610,7 +2577,7 @@ mod community_contribution {
 					9_999,
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
-					MockInstantiator::generate_did_from_account(BUYER_2),
+					generate_did_from_account(BUYER_2),
 					InvestorType::Professional
 				),
 				Error::<TestRuntime>::ContributionTooLow
@@ -2626,7 +2593,7 @@ mod community_contribution {
 					19_999,
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
-					MockInstantiator::generate_did_from_account(BUYER_2),
+					generate_did_from_account(BUYER_2),
 					InvestorType::Institutional
 				),
 				Error::<TestRuntime>::ContributionTooLow
@@ -2695,7 +2662,7 @@ mod community_contribution {
 				9000 * ASSET_UNIT,
 				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
-				MockInstantiator::generate_did_from_account(BUYER_1),
+				generate_did_from_account(BUYER_1),
 				InvestorType::Retail
 			));
 		});
@@ -2708,7 +2675,7 @@ mod community_contribution {
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 					// note we use the same did as bidder 1, on a different account
-					MockInstantiator::generate_did_from_account(BUYER_1),
+					generate_did_from_account(BUYER_1),
 					InvestorType::Retail
 				),
 				Error::<TestRuntime>::ContributionTooHigh
@@ -2723,7 +2690,7 @@ mod community_contribution {
 				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 				// note we use the same did as bidder 1, on a different account
-				MockInstantiator::generate_did_from_account(BUYER_1),
+				generate_did_from_account(BUYER_1),
 				InvestorType::Retail
 			));
 		});
@@ -2736,7 +2703,7 @@ mod community_contribution {
 				1800 * ASSET_UNIT,
 				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
-				MockInstantiator::generate_did_from_account(BUYER_3),
+				generate_did_from_account(BUYER_3),
 				InvestorType::Professional
 			));
 		});
@@ -2749,7 +2716,7 @@ mod community_contribution {
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 					// note we use the same did as bidder 1, on a different account
-					MockInstantiator::generate_did_from_account(BUYER_3),
+					generate_did_from_account(BUYER_3),
 					InvestorType::Professional
 				),
 				Error::<TestRuntime>::ContributionTooHigh
@@ -2764,7 +2731,7 @@ mod community_contribution {
 				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 				// note we use the same did as bidder 1, on a different account
-				MockInstantiator::generate_did_from_account(BUYER_3),
+				generate_did_from_account(BUYER_3),
 				InvestorType::Professional
 			));
 		});
@@ -2777,7 +2744,7 @@ mod community_contribution {
 				4690 * ASSET_UNIT,
 				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
-				MockInstantiator::generate_did_from_account(BUYER_5),
+				generate_did_from_account(BUYER_5),
 				InvestorType::Institutional
 			));
 		});
@@ -2790,7 +2757,7 @@ mod community_contribution {
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 					// note we use the same did as bidder 3, on a different account
-					MockInstantiator::generate_did_from_account(BUYER_5),
+					generate_did_from_account(BUYER_5),
 					InvestorType::Institutional
 				),
 				Error::<TestRuntime>::ContributionTooHigh
@@ -2805,7 +2772,7 @@ mod community_contribution {
 				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 				// note we use the same did as bidder 3, on a different account
-				MockInstantiator::generate_did_from_account(BUYER_5),
+				generate_did_from_account(BUYER_5),
 				InvestorType::Institutional
 			));
 		});
@@ -3250,7 +3217,7 @@ mod remainder_contribution {
 					ASSET_UNIT / 2,
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
-					MockInstantiator::generate_did_from_account(BUYER_4),
+					generate_did_from_account(BUYER_4),
 					InvestorType::Retail
 				),
 				Error::<TestRuntime>::ContributionTooLow
@@ -3265,7 +3232,7 @@ mod remainder_contribution {
 					9_999,
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
-					MockInstantiator::generate_did_from_account(BUYER_5),
+					generate_did_from_account(BUYER_5),
 					InvestorType::Professional
 				),
 				Error::<TestRuntime>::ContributionTooLow
@@ -3281,7 +3248,7 @@ mod remainder_contribution {
 					19_999,
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
-					MockInstantiator::generate_did_from_account(BUYER_6),
+					generate_did_from_account(BUYER_6),
 					InvestorType::Institutional
 				),
 				Error::<TestRuntime>::ContributionTooLow
@@ -3351,7 +3318,7 @@ mod remainder_contribution {
 				28_000 * ASSET_UNIT,
 				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
-				MockInstantiator::generate_did_from_account(BUYER_4),
+				generate_did_from_account(BUYER_4),
 				InvestorType::Retail
 			));
 		});
@@ -3364,7 +3331,7 @@ mod remainder_contribution {
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 					// note we use the same did as bidder 1, on a different account
-					MockInstantiator::generate_did_from_account(BUYER_4),
+					generate_did_from_account(BUYER_4),
 					InvestorType::Retail
 				),
 				Error::<TestRuntime>::ContributionTooHigh
@@ -3379,7 +3346,7 @@ mod remainder_contribution {
 				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 				// note we use the same did as bidder 1, on a different account
-				MockInstantiator::generate_did_from_account(BUYER_4),
+				generate_did_from_account(BUYER_4),
 				InvestorType::Retail
 			));
 		});
@@ -3392,7 +3359,7 @@ mod remainder_contribution {
 				1800 * ASSET_UNIT,
 				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
-				MockInstantiator::generate_did_from_account(BUYER_6),
+				generate_did_from_account(BUYER_6),
 				InvestorType::Professional
 			));
 		});
@@ -3405,7 +3372,7 @@ mod remainder_contribution {
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 					// note we use the same did as bidder 1, on a different account
-					MockInstantiator::generate_did_from_account(BUYER_6),
+					generate_did_from_account(BUYER_6),
 					InvestorType::Professional
 				),
 				Error::<TestRuntime>::ContributionTooHigh
@@ -3420,7 +3387,7 @@ mod remainder_contribution {
 				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 				// note we use the same did as bidder 1, on a different account
-				MockInstantiator::generate_did_from_account(BUYER_6),
+				generate_did_from_account(BUYER_6),
 				InvestorType::Professional
 			));
 		});
@@ -3433,7 +3400,7 @@ mod remainder_contribution {
 				4690 * ASSET_UNIT,
 				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
-				MockInstantiator::generate_did_from_account(BUYER_8),
+				generate_did_from_account(BUYER_8),
 				InvestorType::Institutional
 			));
 		});
@@ -3446,7 +3413,7 @@ mod remainder_contribution {
 					1u8.try_into().unwrap(),
 					AcceptedFundingAsset::USDT,
 					// note we use the same did as bidder 3, on a different account
-					MockInstantiator::generate_did_from_account(BUYER_8),
+					generate_did_from_account(BUYER_8),
 					InvestorType::Institutional
 				),
 				Error::<TestRuntime>::ContributionTooHigh
@@ -3461,7 +3428,7 @@ mod remainder_contribution {
 				1u8.try_into().unwrap(),
 				AcceptedFundingAsset::USDT,
 				// note we use the same did as bidder 3, on a different account
-				MockInstantiator::generate_did_from_account(BUYER_8),
+				generate_did_from_account(BUYER_8),
 				InvestorType::Institutional
 			));
 		});
@@ -4789,9 +4756,6 @@ mod funding_end {
 			remainder_contributions.clone(),
 		);
 
-		let project_details = inst.get_project_details(project_id);
-		dbg!(project_details);
-
 		let final_price = inst.get_project_details(project_id).weighted_average_price.unwrap();
 		let expected_bid_payouts = inst.execute(|| {
 			Bids::<TestRuntime>::iter_prefix_values((project_id,))
@@ -5718,7 +5682,6 @@ mod funding_end {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 
 		let treasury_account = <TestRuntime as Config>::ContributionTreasury::get();
-		inst.mint_plmc_to(vec![(treasury_account, MockInstantiator::get_ed()).into()]);
 
 		let project_metadata = ProjectMetadataOf::<TestRuntime> {
 			token_information: default_token_information(),
@@ -5756,6 +5719,7 @@ mod funding_end {
 
 		let price = project_metadata.minimum_price;
 
+		// Failed project has no mints on the treasury
 		let project_20_percent = inst.create_finished_project(
 			with_different_metadata(project_metadata.clone()),
 			ISSUER,
@@ -5771,7 +5735,7 @@ mod funding_end {
 		});
 		assert_eq!(ct_balance, 0);
 
-		/* ------------------- */
+		// 50% funded project can have mints on the treasury if issuer accepts or enough time passes for automatic acceptance
 		let fee_10_percent = Percent::from_percent(10) * 1_000_000 * US_DOLLAR;
 		let fee_8_percent = Percent::from_percent(8) * 4_000_000 * US_DOLLAR;
 		let fee_6_percent = Percent::from_percent(6) * 0 * US_DOLLAR;
@@ -5795,7 +5759,7 @@ mod funding_end {
 		let expected_long_term_holder_bonus_minted = Percent::from_percent(50) * total_ct_fee;
 		assert_eq!(ct_balance, expected_liquidity_pool_minted + expected_long_term_holder_bonus_minted);
 
-		/* ------------------- */
+		// 80% funded project can have mints on the treasury if issuer accepts or enough time passes for automatic acceptance
 		let fee_10_percent = Percent::from_percent(10) * 1_000_000 * US_DOLLAR;
 		let fee_8_percent = Percent::from_percent(8) * 5_000_000 * US_DOLLAR;
 		let fee_6_percent = Percent::from_percent(6) * 2_000_000 * US_DOLLAR;
@@ -5819,7 +5783,7 @@ mod funding_end {
 		let expected_long_term_holder_bonus_minted = Percent::from_percent(50) * total_ct_fee;
 		assert_eq!(ct_balance, expected_liquidity_pool_minted + expected_long_term_holder_bonus_minted);
 
-		/* ------------------- */
+		// 98% funded project always has mints on the treasury
 		let fee_10_percent = Percent::from_percent(10) * 1_000_000 * US_DOLLAR;
 		let fee_8_percent = Percent::from_percent(8) * 5_000_000 * US_DOLLAR;
 		let fee_6_percent = Percent::from_percent(6) * 3_800_000 * US_DOLLAR;
@@ -5834,7 +5798,6 @@ mod funding_end {
 			default_community_contributions_from_ct_percent(39),
 			default_remainder_contributions_from_ct_percent(10),
 		);
-		inst.advance_time(<TestRuntime as Config>::ManualAcceptanceDuration::get()).unwrap();
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
 		let ct_balance = inst.execute(|| {
 			<TestRuntime as Config>::ContributionTokenCurrency::balance(project_98_percent, treasury_account)
@@ -5843,6 +5806,25 @@ mod funding_end {
 		let lthb_percent = Perquintill::from_percent(20) + Perquintill::from_percent(30) * Perquintill::from_percent(2);
 		let expected_long_term_holder_bonus_minted = lthb_percent * total_ct_fee;
 		assert_eq!(ct_balance, expected_liquidity_pool_minted + expected_long_term_holder_bonus_minted);
+
+		// Test the touch on the treasury ct account by the issuer.
+		// We create more CT accounts that the account can use provider references for,
+		// so if it succeeds, then it means the touch was successful.
+		let consumer_limit: u32 = <TestRuntime as frame_system::Config>::MaxConsumers::get();
+
+		// we want to test ct mints on treasury of 1 over the consumer limit,
+		// and we already minted 3 contribution tokens on previous tests.
+		for i in 0..consumer_limit + 1u32 - 3u32 {
+			let project_98_percent = inst.create_finished_project(
+				with_different_metadata(project_metadata.clone()),
+				ISSUER + i + 1000,
+				default_evaluations(),
+				default_bids_from_ct_percent(49),
+				default_community_contributions_from_ct_percent(39),
+				default_remainder_contributions_from_ct_percent(10),
+			);
+			inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
+		}
 	}
 }
 
@@ -5867,16 +5849,11 @@ mod ct_migration {
 		let project_details = inst.get_project_details(project_id);
 		assert_eq!(project_details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
 
-		let did = MockInstantiator::generate_did_from_account(ISSUER);
-		let investor_type = InvestorType::Institutional;
-
 		inst.execute(|| {
 			assert_ok!(crate::Pallet::<TestRuntime>::do_set_para_id_for_project(
 				&ISSUER,
 				project_id,
 				ParaId::from(2006u32),
-				did,
-				investor_type
 			));
 		});
 		let project_details = inst.get_project_details(project_id);
@@ -5898,42 +5875,21 @@ mod ct_migration {
 		let project_details = inst.get_project_details(project_id);
 		assert_eq!(project_details.cleanup, Cleaner::Success(CleanerState::Finished(PhantomData)));
 
-		let did = MockInstantiator::generate_did_from_account(EVALUATOR_1);
-		let investor_type = InvestorType::Institutional;
-
 		inst.execute(|| {
 			assert_err!(
 				crate::Pallet::<TestRuntime>::do_set_para_id_for_project(
 					&EVALUATOR_1,
 					project_id,
 					ParaId::from(2006u32),
-					did,
-					investor_type
 				),
 				Error::<TestRuntime>::NotAllowed
 			);
-			let did = MockInstantiator::generate_did_from_account(BIDDER_1);
-			let investor_type = InvestorType::Institutional;
 			assert_err!(
-				crate::Pallet::<TestRuntime>::do_set_para_id_for_project(
-					&BIDDER_1,
-					project_id,
-					ParaId::from(2006u32),
-					did,
-					investor_type
-				),
+				crate::Pallet::<TestRuntime>::do_set_para_id_for_project(&BIDDER_1, project_id, ParaId::from(2006u32),),
 				Error::<TestRuntime>::NotAllowed
 			);
-			let did = MockInstantiator::generate_did_from_account(BUYER_4);
-			let investor_type = InvestorType::Institutional;
 			assert_err!(
-				crate::Pallet::<TestRuntime>::do_set_para_id_for_project(
-					&BUYER_1,
-					project_id,
-					ParaId::from(2006u32),
-					did,
-					investor_type
-				),
+				crate::Pallet::<TestRuntime>::do_set_para_id_for_project(&BUYER_1, project_id, ParaId::from(2006u32),),
 				Error::<TestRuntime>::NotAllowed
 			);
 		});
@@ -6317,12 +6273,13 @@ mod async_tests {
 			default_remainder_contributors(),
 			default_remainder_contributor_multipliers(),
 		);
+		let ed = <TestRuntime as pallet_balances::Config>::ExistentialDeposit::get();
 		mock::RuntimeGenesisConfig {
 			balances: BalancesConfig {
-				balances: vec![(
-					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
-					<TestRuntime as pallet_balances::Config>::ExistentialDeposit::get(),
-				)],
+				balances: vec![
+					(<TestRuntime as Config>::PalletId::get().into_account_truncating(), ed),
+					(<TestRuntime as Config>::ContributionTreasury::get(), ed),
+				],
 			},
 			foreign_assets: ForeignAssetsConfig {
 				assets: vec![(
@@ -6441,13 +6398,13 @@ mod async_tests {
 				)
 			})
 			.collect_vec();
-
+		let ed = <TestRuntime as pallet_balances::Config>::ExistentialDeposit::get();
 		mock::RuntimeGenesisConfig {
 			balances: BalancesConfig {
-				balances: vec![(
-					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
-					<TestRuntime as pallet_balances::Config>::ExistentialDeposit::get(),
-				)],
+				balances: vec![
+					(<TestRuntime as Config>::PalletId::get().into_account_truncating(), ed),
+					(<TestRuntime as Config>::ContributionTreasury::get(), ed),
+				],
 			},
 			foreign_assets: ForeignAssetsConfig {
 				assets: vec![(
@@ -6485,11 +6442,4 @@ mod async_tests {
 		let total_bids_count = inst.execute(|| Bids::<TestRuntime>::iter_values().collect_vec().len());
 		assert_eq!(total_bids_count, max_bids_per_project as usize);
 	}
-}
-
-mod sandbox {
-	use super::*;
-
-	#[test]
-	fn sandbox() {}
 }
