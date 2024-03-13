@@ -430,7 +430,7 @@ mod benchmarks {
 
 		let project_details = ProjectsDetails::<T>::iter().sorted_by(|a, b| a.0.cmp(&b.0)).collect::<Vec<_>>();
 		let stored_details = &project_details.iter().last().unwrap().1;
-		assert_eq!(&stored_details.issuer, &issuer);
+		assert_eq!(&stored_details.issuer_account, &issuer);
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(Event::<T>::ProjectCreated { project_id, issuer }.into());
@@ -2155,7 +2155,7 @@ mod benchmarks {
 		// Balances
 		let asset = stored_bid.funding_asset.to_assethub_id();
 		let project_details = ProjectsDetails::<T>::get(project_id).unwrap();
-		let free_assets = inst.get_free_foreign_asset_balances_for(asset, vec![project_details.issuer])[0].asset_amount;
+		let free_assets = inst.get_free_foreign_asset_balances_for(asset, vec![project_details.issuer_account])[0].asset_amount;
 		assert_eq!(free_assets, stored_bid.funding_asset_amount_locked);
 
 		// Events
@@ -2214,7 +2214,7 @@ mod benchmarks {
 		// Balances
 		let asset = stored_contribution.funding_asset.to_assethub_id();
 		let project_details = ProjectsDetails::<T>::get(project_id).unwrap();
-		let free_assets = inst.get_free_foreign_asset_balances_for(asset, vec![project_details.issuer])[0].asset_amount;
+		let free_assets = inst.get_free_foreign_asset_balances_for(asset, vec![project_details.issuer_account])[0].asset_amount;
 		assert_eq!(free_assets, stored_contribution.funding_asset_amount);
 
 		// Events

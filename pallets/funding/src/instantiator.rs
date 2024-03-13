@@ -352,7 +352,7 @@ impl<
 		let metadata = self.get_project_metadata(project_id);
 		let details = self.get_project_details(project_id);
 		let expected_details = ProjectDetailsOf::<T> {
-			issuer: self.get_issuer(project_id),
+			issuer_account: self.get_issuer(project_id),
 			is_frozen: false,
 			weighted_average_price: None,
 			status: ProjectStatus::Application,
@@ -1009,7 +1009,7 @@ impl<
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
 {
 	pub fn get_issuer(&mut self, project_id: ProjectId) -> AccountIdOf<T> {
-		self.execute(|| ProjectsDetails::<T>::get(project_id).unwrap().issuer)
+		self.execute(|| ProjectsDetails::<T>::get(project_id).unwrap().issuer_account)
 	}
 
 	pub fn get_project_metadata(&mut self, project_id: ProjectId) -> ProjectMetadataOf<T> {

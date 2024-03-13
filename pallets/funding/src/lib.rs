@@ -140,6 +140,8 @@ use sp_std::{marker::PhantomData, prelude::*};
 use traits::DoRemainingOperation;
 pub use types::*;
 use xcm::v3::{opaque::Instruction, prelude::*, SendXcm};
+use polimec_common::credentials::DID;
+
 pub mod functions;
 
 #[cfg(test)]
@@ -194,7 +196,7 @@ pub type ProjectMetadataOf<T> = ProjectMetadata<
 	>,
 >;
 pub type ProjectDetailsOf<T> =
-	ProjectDetails<AccountIdOf<T>, BlockNumberFor<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>;
+	ProjectDetails<AccountIdOf<T>, DID, BlockNumberFor<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>;
 pub type EvaluationRoundInfoOf<T> = EvaluationRoundInfo<BalanceOf<T>>;
 pub type VestingInfoOf<T> = VestingInfo<BlockNumberFor<T>, BalanceOf<T>>;
 pub type EvaluationInfoOf<T> = EvaluationInfo<u32, ProjectId, AccountIdOf<T>, BalanceOf<T>, BlockNumberFor<T>>;
@@ -997,11 +999,11 @@ pub mod pallet {
 		#[pallet::call_index(0)]
 		#[pallet::weight(WeightInfoOf::<T>::create())]
 		pub fn create(origin: OriginFor<T>, jwt: UntrustedToken, project: ProjectMetadataOf<T>) -> DispatchResult {
-			let (account, _did, investor_type) =
+			let (account, did, investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			log::trace!(target: "pallet_funding::test", "in create");
 			ensure!(investor_type == InvestorType::Institutional, DispatchError::BadOrigin);
-			Self::do_create(&account, project)
+			Self::do_create(&account, project, did)
 		}
 
 		/// Change the metadata hash of a project
@@ -1062,9 +1064,9 @@ pub mod pallet {
 			project_id: ProjectId,
 			#[pallet::compact] usd_amount: BalanceOf<T>,
 		) -> DispatchResultWithPostInfo {
-			let (account, _did, _investor_type) =
+			let (account, did, _investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_evaluate(&account, project_id, usd_amount)
+			Self::do_evaluate(&account, project_id, usd_amount, did)
 		}
 
 		/// Bid for a project in the Auction round
