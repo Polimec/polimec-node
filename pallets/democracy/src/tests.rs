@@ -22,7 +22,6 @@ use frame_support::{
 	weights::Weight,
 };
 use frame_system::{EnsureRoot, EnsureSigned, EnsureSignedBy};
-use sp_core::H256;
 use sp_runtime::{
 	traits::{BadOrigin, BlakeTwo256, Hash, IdentityLookup},
 	BuildStorage, Perbill,
