@@ -889,8 +889,8 @@ pub mod pallet {
 		EvaluationNotStarted,
 		/// The Evaluation Round of the project has ended without reaching the minimum threshold
 		EvaluationFailed,
-		/// The issuer cannot contribute to their own project during the Funding Round
-		ContributionToThemselves,
+		/// The issuer cannot participate to their own project
+		ParticipationToThemselves,
 		/// Only the issuer can start the Evaluation Round
 		NotAllowed,
 		/// The Metadata Hash of the project was not found

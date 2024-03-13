@@ -415,7 +415,9 @@ mod creation {
 
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		inst.mint_plmc_to(default_plmc_balances());
-		let project_err = inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project).unwrap_err());
+		let project_err = inst.execute(|| {
+			Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project, generate_did_from_account(ISSUER)).unwrap_err()
+		});
 		assert_eq!(project_err, Error::<TestRuntime>::PriceTooLow.into());
 	}
 
@@ -497,8 +499,14 @@ mod creation {
 		assert!(test_1.offchain_information_hash != test_2.offchain_information_hash);
 
 		for project in wrong_projects {
-			let project_err = inst
-				.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, with_different_metadata(project)).unwrap_err());
+			let project_err = inst.execute(|| {
+				Pallet::<TestRuntime>::do_create(
+					&ISSUER,
+					with_different_metadata(project),
+					generate_did_from_account(ISSUER),
+				)
+				.unwrap_err()
+			});
 			assert_eq!(project_err, Error::<TestRuntime>::TicketSizeError.into());
 		}
 	}
@@ -510,7 +518,9 @@ mod creation {
 		let ed = MockInstantiator::get_ed();
 
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(ISSUER, ed)]);
-		let project_err = inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, project_metadata).unwrap_err());
+		let project_err = inst.execute(|| {
+			Pallet::<TestRuntime>::do_create(&ISSUER, project_metadata, generate_did_from_account(ISSUER)).unwrap_err()
+		});
 		assert_eq!(project_err, Error::<TestRuntime>::NotEnoughFundsForEscrowCreation.into());
 	}
 
@@ -571,7 +581,9 @@ mod creation {
 
 		for project in projects {
 			let project_metadata_new = with_different_metadata(project);
-			assert_ok!(inst.execute(|| { Pallet::<TestRuntime>::do_create(&ISSUER, project_metadata_new) }));
+			assert_ok!(inst.execute(|| {
+				Pallet::<TestRuntime>::do_create(&ISSUER, project_metadata_new, generate_did_from_account(ISSUER))
+			}));
 		}
 
 		let mut wrong_project_1 = default_project_metadata.clone();
@@ -596,8 +608,14 @@ mod creation {
 
 		let wrong_projects = vec![wrong_project_1, wrong_project_2, wrong_project_3, wrong_project_4];
 		for project in wrong_projects {
-			let project_err = inst
-				.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, with_different_metadata(project)).unwrap_err());
+			let project_err = inst.execute(|| {
+				Pallet::<TestRuntime>::do_create(
+					&ISSUER,
+					with_different_metadata(project),
+					generate_did_from_account(ISSUER),
+				)
+				.unwrap_err()
+			});
 			assert_eq!(project_err, Error::<TestRuntime>::ParticipationCurrenciesError.into());
 		}
 	}
@@ -834,6 +852,22 @@ mod evaluation {
 		assert_err!(
 			inst.bond_for_users(project_id, vec![failing_evaluation]),
 			Error::<TestRuntime>::TooManyEvaluationsForProject
+		);
+	}
+
+	#[test]
+	fn issuer_cannot_evaluate_his_project() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project_metadata(0, ISSUER);
+		let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER);
+		assert_err!(
+			inst.execute(|| crate::Pallet::<TestRuntime>::do_evaluate(
+				&ISSUER,
+				project_id,
+				500 * US_DOLLAR,
+				generate_did_from_account(ISSUER)
+			)),
+			Error::<TestRuntime>::ParticipationToThemselves
 		);
 	}
 }

@@ -966,7 +966,7 @@ impl<T: Config> Pallet<T> {
 		let evaluations_count = EvaluationCounts::<T>::get(project_id);
 
 		// * Validity Checks *
-		ensure!(project_details.issuer_did != did, Error::<T>::ContributionToThemselves);
+		ensure!(project_details.issuer_did != did, Error::<T>::ParticipationToThemselves);
 		ensure!(project_details.status == ProjectStatus::EvaluationRound, Error::<T>::EvaluationNotStarted);
 		ensure!(evaluations_count < T::MaxEvaluationsPerProject::get(), Error::<T>::TooManyEvaluationsForProject);
 
@@ -1101,7 +1101,7 @@ impl<T: Config> Pallet<T> {
 
 		ensure!(ct_amount > Zero::zero(), Error::<T>::BidTooLow);
 		ensure!(bid_count < T::MaxBidsPerProject::get(), Error::<T>::TooManyBidsForProject);
-		ensure!(bidder.clone() != project_details.issuer_account, Error::<T>::ContributionToThemselves);
+		ensure!(bidder.clone() != project_details.issuer_account, Error::<T>::ParticipationToThemselves);
 		ensure!(matches!(project_details.status, ProjectStatus::AuctionRound(_)), Error::<T>::AuctionNotStarted);
 		ensure!(
 			project_metadata.participation_currencies.contains(&funding_asset),
@@ -1340,7 +1340,7 @@ impl<T: Config> Pallet<T> {
 			project_metadata.participation_currencies.contains(&funding_asset),
 			Error::<T>::FundingAssetNotAccepted
 		);
-		ensure!(contributor.clone() != project_details.issuer_account, Error::<T>::ContributionToThemselves);
+		ensure!(contributor.clone() != project_details.issuer_account, Error::<T>::ParticipationToThemselves);
 		ensure!(
 			caller_existing_contributions.len() < T::MaxContributionsPerUser::get() as usize,
 			Error::<T>::TooManyContributionsForUser
