@@ -74,16 +74,9 @@ impl<T: Config> Pallet<T> {
 	/// # Next step
 	/// The issuer will call an extrinsic to start the evaluation round of the project.
 	/// [`do_start_evaluation`](Self::do_start_evaluation) will be executed.
-	pub fn do_create(
-		issuer: &AccountIdOf<T>,
-		initial_metadata: ProjectMetadataOf<T>,
-		_did: DID,
-		investor_type: InvestorType,
-	) -> DispatchResult {
+	pub fn do_create(issuer: &AccountIdOf<T>, initial_metadata: ProjectMetadataOf<T>) -> DispatchResult {
 		// * Get variables *
 		let project_id = NextProjectId::<T>::get();
-
-		ensure!(investor_type == InvestorType::Institutional, DispatchError::BadOrigin);
 
 		// * Validity checks *
 		if let Some(metadata) = initial_metadata.offchain_information_hash {
@@ -196,24 +189,14 @@ impl<T: Config> Pallet<T> {
 	/// # Next step
 	/// Users will pond PLMC for this project, and when the time comes, the project will be transitioned
 	/// to the next round by `on_initialize` using [`do_evaluation_end`](Self::do_evaluation_end)
-	pub fn do_start_evaluation(
-		caller: AccountIdOf<T>,
-		project_id: ProjectId,
-		did: DID,
-		investor_type: InvestorType,
-	) -> DispatchResultWithPostInfo {
+	pub fn do_start_evaluation(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
 
 		// * Validity checks *
-		// TODO: maybe check the did if we store it in project-details? if so maybe we don't need the check below
 		ensure!(project_details.issuer == caller, Error::<T>::NotAllowed);
-		ensure!(
-			investor_type == InvestorType::Institutional,
-			DispatchError::from("Issuer account must call evaluation start with institutional credential")
-		);
 		ensure!(project_details.status == ProjectStatus::Application, Error::<T>::ProjectNotInApplicationRound);
 		ensure!(!project_details.is_frozen, Error::<T>::ProjectAlreadyFrozen);
 		ensure!(project_metadata.offchain_information_hash.is_some(), Error::<T>::MetadataNotProvided);
@@ -380,12 +363,7 @@ impl<T: Config> Pallet<T> {
 	/// Professional and Institutional users set bids for the project using the [`bid`](Self::bid) extrinsic.
 	/// Later on, `on_initialize` transitions the project into the candle auction round, by calling
 	/// [`do_candle_auction`](Self::do_candle_auction).
-	pub fn do_english_auction(
-		caller: AccountIdOf<T>,
-		project_id: ProjectId,
-		did: Option<DID>,
-		investor_type: Option<InvestorType>,
-	) -> DispatchResultWithPostInfo {
+	pub fn do_english_auction(caller: AccountIdOf<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
@@ -397,8 +375,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			caller == T::PalletId::get().into_account_truncating() ||
-				caller == project_details.issuer && matches!(investor_type, Some(InvestorType::Institutional)),
+			caller == T::PalletId::get().into_account_truncating() || caller == project_details.issuer,
 			Error::<T>::NotAllowed
 		);
 
@@ -945,8 +922,6 @@ impl<T: Config> Pallet<T> {
 		issuer: AccountIdOf<T>,
 		project_id: ProjectId,
 		project_metadata_hash: T::Hash,
-		did: DID,
-		investor_type: InvestorType,
 	) -> DispatchResult {
 		// * Get variables *
 		let mut project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
@@ -974,8 +949,6 @@ impl<T: Config> Pallet<T> {
 		evaluator: &AccountIdOf<T>,
 		project_id: ProjectId,
 		usd_amount: BalanceOf<T>,
-		did: DID,
-		investor_type: InvestorType,
 	) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -1133,45 +1106,13 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::FundingAssetNotAccepted
 		);
 
-		match investor_type {
-			InvestorType::Institutional => {
-				ensure!(
-					project_metadata
-						.round_ticket_sizes
-						.bidding
-						.institutional
-						.ct_above_minimum_per_participation(ct_amount),
-					Error::<T>::BidTooLow
-				);
-				ensure!(
-					project_metadata
-						.round_ticket_sizes
-						.bidding
-						.institutional
-						.ct_below_maximum_per_did(total_ct_bid_by_did + ct_amount),
-					Error::<T>::BidTooHigh
-				)
-			},
-			InvestorType::Professional => {
-				ensure!(
-					project_metadata
-						.round_ticket_sizes
-						.bidding
-						.professional
-						.ct_above_minimum_per_participation(ct_amount),
-					Error::<T>::BidTooLow
-				);
-				ensure!(
-					project_metadata
-						.round_ticket_sizes
-						.bidding
-						.professional
-						.ct_below_maximum_per_did(total_ct_bid_by_did + ct_amount),
-					Error::<T>::BidTooHigh
-				)
-			},
-			_ => (),
+		let bidder_ticket_size = match investor_type {
+			InvestorType::Institutional => project_metadata.round_ticket_sizes.bidding.institutional,
+			InvestorType::Professional => project_metadata.round_ticket_sizes.bidding.professional,
+			_ => return Err(Error::<T>::NotAllowed.into()),
 		};
+		ensure!(bidder_ticket_size.ct_above_minimum_per_participation(ct_amount), Error::<T>::BidTooLow);
+		ensure!(bidder_ticket_size.ct_below_maximum_per_did(total_ct_bid_by_did + ct_amount), Error::<T>::BidTooHigh);
 
 		// Note: We limit the CT Amount to the auction allocation size, to avoid long running loops.
 		ensure!(
@@ -1412,62 +1353,19 @@ impl<T: Config> Pallet<T> {
 
 		let ticket_size = ct_usd_price.checked_mul_int(buyable_tokens).ok_or(Error::<T>::BadMath)?;
 
-		match investor_type {
-			InvestorType::Institutional => {
-				ensure!(
-					project_metadata
-						.round_ticket_sizes
-						.contributing
-						.institutional
-						.ct_above_minimum_per_participation(buyable_tokens),
-					Error::<T>::ContributionTooLow
-				);
-				ensure!(
-					project_metadata
-						.round_ticket_sizes
-						.contributing
-						.institutional
-						.ct_below_maximum_per_did(total_ct_bought_by_did + buyable_tokens),
-					Error::<T>::ContributionTooHigh
-				);
-			},
-			InvestorType::Professional => {
-				ensure!(
-					project_metadata
-						.round_ticket_sizes
-						.contributing
-						.professional
-						.ct_above_minimum_per_participation(buyable_tokens),
-					Error::<T>::ContributionTooLow
-				);
-				ensure!(
-					project_metadata
-						.round_ticket_sizes
-						.contributing
-						.professional
-						.ct_below_maximum_per_did(total_ct_bought_by_did + buyable_tokens),
-					Error::<T>::ContributionTooHigh
-				);
-			},
-			InvestorType::Retail => {
-				ensure!(
-					project_metadata
-						.round_ticket_sizes
-						.contributing
-						.retail
-						.ct_above_minimum_per_participation(buyable_tokens),
-					Error::<T>::ContributionTooLow
-				);
-				ensure!(
-					project_metadata
-						.round_ticket_sizes
-						.contributing
-						.retail
-						.ct_below_maximum_per_did(total_ct_bought_by_did + buyable_tokens),
-					Error::<T>::ContributionTooHigh
-				);
-			},
+		let contributor_ticket_size = match investor_type {
+			InvestorType::Institutional => project_metadata.round_ticket_sizes.contributing.institutional,
+			InvestorType::Professional => project_metadata.round_ticket_sizes.contributing.professional,
+			InvestorType::Retail => project_metadata.round_ticket_sizes.contributing.retail,
 		};
+		ensure!(
+			contributor_ticket_size.ct_above_minimum_per_participation(buyable_tokens),
+			Error::<T>::ContributionTooLow
+		);
+		ensure!(
+			contributor_ticket_size.ct_below_maximum_per_did(total_ct_bought_by_did + buyable_tokens),
+			Error::<T>::ContributionTooHigh
+		);
 
 		let plmc_bond = Self::calculate_plmc_bond(ticket_size, multiplier, plmc_usd_price)?;
 		let funding_asset_amount =
@@ -2274,18 +2172,12 @@ impl<T: Config> Pallet<T> {
 		caller: &AccountIdOf<T>,
 		project_id: ProjectId,
 		para_id: ParaId,
-		did: DID,
-		investor_type: InvestorType,
 	) -> DispatchResult {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
 		// * Validity checks *
 		ensure!(&(project_details.issuer) == caller, Error::<T>::NotAllowed);
-		ensure!(
-			investor_type == InvestorType::Institutional,
-			DispatchError::from("Issuer account must call evaluation start with institutional credential")
-		);
 
 		// * Update storage *
 		project_details.parachain_id = Some(para_id);
@@ -2414,8 +2306,6 @@ impl<T: Config> Pallet<T> {
 				Pallet::<T>::do_start_migration_readiness_check(
 					&(T::PalletId::get().into_account_truncating()),
 					project_id,
-					None,
-					None,
 				)
 				.map_err(|_| XcmError::NoDeal)?;
 				Ok(())
@@ -2427,12 +2317,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	pub fn do_start_migration_readiness_check(
-		caller: &AccountIdOf<T>,
-		project_id: ProjectId,
-		did: Option<DID>,
-		investor_type: Option<InvestorType>,
-	) -> DispatchResult {
+	pub fn do_start_migration_readiness_check(caller: &AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let parachain_id: u32 = project_details.parachain_id.ok_or(Error::<T>::ImpossibleState)?.into();
@@ -2463,10 +2348,6 @@ impl<T: Config> Pallet<T> {
 			})
 		) {
 			ensure!(caller == &project_details.issuer, Error::<T>::NotAllowed);
-			ensure!(
-				investor_type == Some(InvestorType::Institutional),
-				DispatchError::from("Issuer account must call evaluation start with institutional credential")
-			);
 		}
 
 		// * Update storage *
@@ -2605,22 +2486,13 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn do_start_migration(
-		caller: &AccountIdOf<T>,
-		project_id: ProjectId,
-		did: DID,
-		investor_type: InvestorType,
-	) -> DispatchResult {
+	pub fn do_start_migration(caller: &AccountIdOf<T>, project_id: ProjectId) -> DispatchResult {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let migration_readiness_check = project_details.migration_readiness_check.ok_or(Error::<T>::NotAllowed)?;
 
 		// * Validity Checks *
 		ensure!(caller.clone() == project_details.issuer, Error::<T>::NotAllowed);
-		ensure!(
-			investor_type == InvestorType::Institutional,
-			DispatchError::from("Issuer account must call evaluation start with institutional credential")
-		);
 
 		ensure!(migration_readiness_check.is_ready(), Error::<T>::NotAllowed);
 
