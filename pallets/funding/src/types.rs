@@ -233,7 +233,14 @@ pub mod storage_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct ProjectDetails<AccountId, DID, BlockNumber, Price: FixedPointNumber, Balance: BalanceT, EvaluationRoundInfo> {
+	pub struct ProjectDetails<
+		AccountId,
+		DID,
+		BlockNumber,
+		Price: FixedPointNumber,
+		Balance: BalanceT,
+		EvaluationRoundInfo,
+	> {
 		pub issuer_account: AccountId,
 		pub issuer_did: DID,
 		/// Whether the project is frozen, so no `metadata` changes are allowed.

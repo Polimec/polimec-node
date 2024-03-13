@@ -950,7 +950,7 @@ impl<T: Config> Pallet<T> {
 		evaluator: &AccountIdOf<T>,
 		project_id: ProjectId,
 		usd_amount: BalanceOf<T>,
-		did: DID
+		did: DID,
 	) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;

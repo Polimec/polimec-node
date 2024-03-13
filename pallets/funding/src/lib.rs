@@ -126,7 +126,7 @@ use frame_support::{
 use frame_system::pallet_prelude::BlockNumberFor;
 pub use pallet::*;
 use polimec_common::{
-	credentials::{EnsureOriginWithCredentials, UntrustedToken},
+	credentials::{EnsureOriginWithCredentials, UntrustedToken, DID},
 	migration_types::*,
 };
 use polkadot_parachain::primitives::Id as ParaId;
@@ -140,7 +140,6 @@ use sp_std::{marker::PhantomData, prelude::*};
 use traits::DoRemainingOperation;
 pub use types::*;
 use xcm::v3::{opaque::Instruction, prelude::*, SendXcm};
-use polimec_common::credentials::DID;
 
 pub mod functions;
 
