@@ -27,7 +27,7 @@ fn test_jwt_for_create() {
 	let project = default_project_metadata(0, ISSUER.into());
 	Polimec::execute_with(|| {
 		let issuer = AccountId32::from(ISSUER);
-		assert_ok!(PolimecBalances::force_set_balance(PolimecOrigin::root(), issuer.into(), 1000 * PLMC));
+		assert_ok!(PolimecBalances::force_set_balance(PolimecOrigin::root(), issuer.into(), 10_000 * PLMC));
 		let retail_jwt = get_test_jwt(PolimecAccountId::from(ISSUER), InvestorType::Retail);
 		assert_noop!(
 			PolimecFunding::create(PolimecOrigin::signed(ISSUER.into()), retail_jwt, project.clone()),

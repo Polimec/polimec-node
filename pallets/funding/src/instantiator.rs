@@ -1031,20 +1031,16 @@ impl<
 		self.execute(|| ProjectsDetails::<T>::get(project_id).expect("Project details exists"))
 	}
 
-    pub fn get_update_block(
-        &mut self,
-        project_id: ProjectId,
-        update_type: &UpdateType,
-    ) -> Option<(BlockNumberFor<T>)> {
-        self.execute(|| {
-            ProjectsToUpdate::<T>::iter().find_map(|(block, update_vec)| {
-                update_vec
-                    .iter()
-                    .find(|(pid, update)| *pid == project_id && update == update_type)
-                    .map(|(_pid, update)| block)
-            })
-        })
-    }
+	pub fn get_update_block(&mut self, project_id: ProjectId, update_type: &UpdateType) -> Option<(BlockNumberFor<T>)> {
+		self.execute(|| {
+			ProjectsToUpdate::<T>::iter().find_map(|(block, update_vec)| {
+				update_vec
+					.iter()
+					.find(|(pid, update)| *pid == project_id && update == update_type)
+					.map(|(_pid, update)| block)
+			})
+		})
+	}
 
 	pub fn create_new_project(&mut self, project_metadata: ProjectMetadataOf<T>, issuer: AccountIdOf<T>) -> ProjectId {
 		let now = self.current_block();
@@ -1052,10 +1048,11 @@ impl<
 			project_metadata.token_information.name.as_slice(),
 			project_metadata.token_information.symbol.as_slice(),
 		);
+		let ct_deposit = Self::get_ct_account_deposit();
 		// one ED for the issuer, one ED for the escrow account
 		self.mint_plmc_to(vec![UserToPLMCBalance::new(
 			issuer.clone(),
-			Self::get_ed() * 2u64.into() + metadata_deposit,
+			Self::get_ed() * 2u64.into() + metadata_deposit + ct_deposit,
 		)]);
 
 		let did = Self::generate_did_from_account(issuer.clone());
@@ -1345,8 +1342,7 @@ impl<
 	pub fn start_remainder_or_end_funding(&mut self, project_id: ProjectId) -> Result<(), DispatchError> {
 		let details = self.get_project_details(project_id);
 		assert_eq!(details.status, ProjectStatus::CommunityRound);
-		let remaining_tokens =
-			details.remaining_contribution_tokens.0.saturating_add(details.remaining_contribution_tokens.1);
+		let remaining_tokens = details.remaining_contribution_tokens;
 		let update_type =
 			if remaining_tokens > Zero::zero() { UpdateType::RemainderFundingStart } else { UpdateType::FundingEnd };
 		if let Some(transition_block) = self.get_update_block(project_id, &update_type) {
@@ -1366,7 +1362,8 @@ impl<
 			self.execute(|| frame_system::Pallet::<T>::set_block_number(update_block - One::one()));
 			self.advance_time(1u32.into()).unwrap();
 		}
-		let update_block = self.get_update_block(project_id, &UpdateType::FundingEnd).expect("Funding end block should exist");
+		let update_block =
+			self.get_update_block(project_id, &UpdateType::FundingEnd).expect("Funding end block should exist");
 		self.execute(|| frame_system::Pallet::<T>::set_block_number(update_block - One::one()));
 		self.advance_time(1u32.into()).unwrap();
 		let project_details = self.get_project_details(project_id);
@@ -1778,10 +1775,12 @@ pub mod async_features {
 			project_metadata.token_information.name.as_slice(),
 			project_metadata.token_information.symbol.as_slice(),
 		);
+		let ct_deposit = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ct_account_deposit();
 		// One ED for the issuer, one for the escrow account
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
 			issuer.clone(),
-			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ed() * 2u64.into() + metadata_deposit,
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ed() * 2u64.into() +
+				metadata_deposit + ct_deposit,
 		)]);
 		let did = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::generate_did_from_account(issuer.clone());
 		inst.execute(|| {

@@ -5718,7 +5718,6 @@ mod funding_end {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 
 		let treasury_account = <TestRuntime as Config>::ContributionTreasury::get();
-		inst.mint_plmc_to(vec![(treasury_account, MockInstantiator::get_ed()).into()]);
 
 		let project_metadata = ProjectMetadataOf::<TestRuntime> {
 			token_information: default_token_information(),
@@ -5756,6 +5755,7 @@ mod funding_end {
 
 		let price = project_metadata.minimum_price;
 
+		// Failed project has no mints on the treasury
 		let project_20_percent = inst.create_finished_project(
 			with_different_metadata(project_metadata.clone()),
 			ISSUER,
@@ -5771,7 +5771,7 @@ mod funding_end {
 		});
 		assert_eq!(ct_balance, 0);
 
-		/* ------------------- */
+		// 50% funded project can have mints on the treasury if issuer accepts or enough time passes for automatic acceptance
 		let fee_10_percent = Percent::from_percent(10) * 1_000_000 * US_DOLLAR;
 		let fee_8_percent = Percent::from_percent(8) * 4_000_000 * US_DOLLAR;
 		let fee_6_percent = Percent::from_percent(6) * 0 * US_DOLLAR;
@@ -5795,7 +5795,7 @@ mod funding_end {
 		let expected_long_term_holder_bonus_minted = Percent::from_percent(50) * total_ct_fee;
 		assert_eq!(ct_balance, expected_liquidity_pool_minted + expected_long_term_holder_bonus_minted);
 
-		/* ------------------- */
+		// 80% funded project can have mints on the treasury if issuer accepts or enough time passes for automatic acceptance
 		let fee_10_percent = Percent::from_percent(10) * 1_000_000 * US_DOLLAR;
 		let fee_8_percent = Percent::from_percent(8) * 5_000_000 * US_DOLLAR;
 		let fee_6_percent = Percent::from_percent(6) * 2_000_000 * US_DOLLAR;
@@ -5819,7 +5819,7 @@ mod funding_end {
 		let expected_long_term_holder_bonus_minted = Percent::from_percent(50) * total_ct_fee;
 		assert_eq!(ct_balance, expected_liquidity_pool_minted + expected_long_term_holder_bonus_minted);
 
-		/* ------------------- */
+		// 98% funded project always has mints on the treasury
 		let fee_10_percent = Percent::from_percent(10) * 1_000_000 * US_DOLLAR;
 		let fee_8_percent = Percent::from_percent(8) * 5_000_000 * US_DOLLAR;
 		let fee_6_percent = Percent::from_percent(6) * 3_800_000 * US_DOLLAR;
@@ -5834,7 +5834,6 @@ mod funding_end {
 			default_community_contributions_from_ct_percent(39),
 			default_remainder_contributions_from_ct_percent(10),
 		);
-		inst.advance_time(<TestRuntime as Config>::ManualAcceptanceDuration::get()).unwrap();
 		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
 		let ct_balance = inst.execute(|| {
 			<TestRuntime as Config>::ContributionTokenCurrency::balance(project_98_percent, treasury_account)
@@ -5843,6 +5842,25 @@ mod funding_end {
 		let lthb_percent = Perquintill::from_percent(20) + Perquintill::from_percent(30) * Perquintill::from_percent(2);
 		let expected_long_term_holder_bonus_minted = lthb_percent * total_ct_fee;
 		assert_eq!(ct_balance, expected_liquidity_pool_minted + expected_long_term_holder_bonus_minted);
+
+		// Test the touch on the treasury ct account by the issuer.
+		// We create more CT accounts that the account can use provider references for,
+		// so if it succeeds, then it means the touch was successful.
+		let consumer_limit: u32 = <TestRuntime as frame_system::Config>::MaxConsumers::get();
+
+		// we want to test ct mints on treasury of 1 over the consumer limit,
+		// and we already minted 3 contribution tokens on previous tests.
+		for i in 0..consumer_limit + 1u32 - 3u32 {
+			let project_98_percent = inst.create_finished_project(
+				with_different_metadata(project_metadata.clone()),
+				ISSUER + i + 1000,
+				default_evaluations(),
+				default_bids_from_ct_percent(49),
+				default_community_contributions_from_ct_percent(39),
+				default_remainder_contributions_from_ct_percent(10),
+			);
+			inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
+		}
 	}
 }
 
@@ -6317,12 +6335,13 @@ mod async_tests {
 			default_remainder_contributors(),
 			default_remainder_contributor_multipliers(),
 		);
+		let ed = <TestRuntime as pallet_balances::Config>::ExistentialDeposit::get();
 		mock::RuntimeGenesisConfig {
 			balances: BalancesConfig {
-				balances: vec![(
-					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
-					<TestRuntime as pallet_balances::Config>::ExistentialDeposit::get(),
-				)],
+				balances: vec![
+					(<TestRuntime as Config>::PalletId::get().into_account_truncating(), ed),
+					(<TestRuntime as Config>::ContributionTreasury::get(), ed),
+				],
 			},
 			foreign_assets: ForeignAssetsConfig {
 				assets: vec![(
@@ -6441,13 +6460,13 @@ mod async_tests {
 				)
 			})
 			.collect_vec();
-
+		let ed = <TestRuntime as pallet_balances::Config>::ExistentialDeposit::get();
 		mock::RuntimeGenesisConfig {
 			balances: BalancesConfig {
-				balances: vec![(
-					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
-					<TestRuntime as pallet_balances::Config>::ExistentialDeposit::get(),
-				)],
+				balances: vec![
+					(<TestRuntime as Config>::PalletId::get().into_account_truncating(), ed),
+					(<TestRuntime as Config>::ContributionTreasury::get(), ed),
+				],
 			},
 			foreign_assets: ForeignAssetsConfig {
 				assets: vec![(

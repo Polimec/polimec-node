@@ -410,8 +410,13 @@ mod benchmarks {
 			project_metadata.token_information.name.as_slice(),
 			project_metadata.token_information.symbol.as_slice(),
 		);
-		inst.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), ed * 2u64.into() + metadata_deposit)]);
+		let ct_account_deposit = T::ContributionTokenCurrency::deposit_required(0);
+		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
+			issuer.clone(),
+			ed * 2u64.into() + metadata_deposit + ct_account_deposit,
+		)]);
 		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional);
+
 		#[extrinsic_call]
 		create(RawOrigin::Signed(issuer.clone()), jwt, project_metadata.clone());
 

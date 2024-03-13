@@ -251,8 +251,8 @@ pub mod pallet {
 		/// A way to convert from and to the account type used in CT migrations
 		type AccountId32Conversion: ConvertBack<Self::AccountId, [u8; 32]>;
 
-		// TODO: maybe flag it behind test & benchmark features
 		/// Type used for testing and benchmarks
+		#[cfg(any(test, feature = "runtime-benchmarks", feature = "std"))]
 		type AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<Self>>
 			+ OnIdle<BlockNumberFor<Self>>
 			+ OnInitialize<BlockNumberFor<Self>>;
@@ -973,6 +973,8 @@ pub mod pallet {
 		NotEnoughFundsForEscrowCreation,
 		/// The issuer doesn't have enough funds to pay for the metadata of their contribution token
 		NotEnoughFundsForCTMetadata,
+		/// The issuer doesn't have enough funds to pay for the deposit of their contribution token
+		NotEnoughFundsForCTDeposit,
 		/// Too many attempts to insert project in to ProjectsToUpdate storage
 		TooManyInsertionAttempts,
 		/// Reached bid limit for this user on this project
@@ -1597,9 +1599,6 @@ pub mod pallet {
 	pub struct GenesisConfig<T: Config>
 	where
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		<T as Config>::AllPalletsWithoutSystem:
-			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
-		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 	{
 		#[cfg(feature = "std")]
@@ -1610,9 +1609,6 @@ pub mod pallet {
 	impl<T: Config> Default for GenesisConfig<T>
 	where
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		<T as Config>::AllPalletsWithoutSystem:
-			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
-		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 	{
 		fn default() -> Self {
@@ -1628,9 +1624,6 @@ pub mod pallet {
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T>
 	where
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		<T as Config>::AllPalletsWithoutSystem:
-			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
-		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 	{
 		fn build(&self) {

@@ -141,6 +141,19 @@ impl<T: Config> Pallet<T> {
 		)
 		.map_err(|_| Error::<T>::NotEnoughFundsForEscrowCreation)?;
 
+		// Each project's contribution token requires a deposit on the account that stores the tokens.
+		// We make the issuer pay that deposit for the contribution token treasury account.
+		let contribution_token_treasury_account = <T as Config>::ContributionTreasury::get();
+		let deposit = T::ContributionTokenCurrency::deposit_required(project_id);
+		T::NativeCurrency::transfer(issuer, &contribution_token_treasury_account, deposit, Preservation::Preserve)
+			.map_err(|_| Error::<T>::NotEnoughFundsForCTDeposit)?;
+		T::NativeCurrency::hold(
+			&HoldReason::FutureDeposit(project_id).into(),
+			&contribution_token_treasury_account,
+			deposit,
+		)
+		.map_err(|_| Error::<T>::NotEnoughFundsForCTDeposit)?;
+
 		// Each project needs a new token type to be created (i.e contribution token).
 		// This creation is done automatically in the project transition on success, but someone needs to pay for the storage
 		// of the metadata associated with it.
@@ -873,17 +886,31 @@ impl<T: Config> Pallet<T> {
 				token_information.decimals,
 			)?;
 
-			let long_term_holder_bonus_ct_amount = Self::generate_long_term_holder_reward_amount(project_id)?;
-			let liquidity_pools_ct_amount = Self::generate_liquidity_pools_reward_amount(project_id)?;
-			let contribution_token_treasury = <T as Config>::ContributionTreasury::get();
+			let contribution_token_treasury_account = T::ContributionTreasury::get();
+			let deposit = T::ContributionTokenCurrency::deposit_required(project_id);
+			T::NativeCurrency::release(
+				&HoldReason::FutureDeposit(project_id).into(),
+				&contribution_token_treasury_account,
+				deposit,
+				Precision::BestEffort,
+			)?;
+			T::ContributionTokenCurrency::touch(
+				project_id,
+				contribution_token_treasury_account.clone(),
+				contribution_token_treasury_account.clone(),
+			)?;
+
+			let (liquidity_pools_ct_amount, long_term_holder_bonus_ct_amount) =
+				Self::generate_liquidity_pools_and_long_term_holder_rewards(project_id)?;
+
 			T::ContributionTokenCurrency::mint_into(
 				project_id,
-				&contribution_token_treasury,
+				&contribution_token_treasury_account,
 				long_term_holder_bonus_ct_amount,
 			)?;
 			T::ContributionTokenCurrency::mint_into(
 				project_id,
-				&contribution_token_treasury,
+				&contribution_token_treasury_account,
 				liquidity_pools_ct_amount,
 			)?;
 
@@ -3147,9 +3174,6 @@ impl<T: Config> Pallet<T> {
 
 		// Calculate rewards.
 		let evaluator_rewards = percentage_of_target_funding * Perquintill::from_percent(30) * total_fee_allocation;
-		// Placeholder allocations (intended for future use).
-		let _liquidity_pool = Perquintill::from_percent(50) * total_fee_allocation;
-		let _long_term_holder_bonus = _liquidity_pool.saturating_sub(evaluator_rewards);
 
 		// Distribute rewards between early and normal evaluators.
 		let early_evaluator_reward_pot = Perquintill::from_percent(20) * evaluator_rewards;
@@ -3179,7 +3203,9 @@ impl<T: Config> Pallet<T> {
 		Ok((reward_info, evaluations_count))
 	}
 
-	pub fn generate_long_term_holder_reward_amount(project_id: ProjectId) -> Result<BalanceOf<T>, DispatchError> {
+	pub fn generate_liquidity_pools_and_long_term_holder_rewards(
+		project_id: ProjectId,
+	) -> Result<(BalanceOf<T>, BalanceOf<T>), DispatchError> {
 		// Fetching the necessary data for a specific project.
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
@@ -3204,44 +3230,17 @@ impl<T: Config> Pallet<T> {
 		let percentage_of_target_funding = Perquintill::from_rational(funding_amount_reached, fundraising_target);
 		let inverse_percentage_of_target_funding = Perquintill::from_percent(100) - percentage_of_target_funding;
 
+		let liquidity_pools_percentage = Perquintill::from_percent(50);
+		let liquidity_pools_reward_pot = liquidity_pools_percentage * total_fee_allocation;
+
 		let long_term_holder_percentage = if percentage_of_target_funding < Perquintill::from_percent(90) {
 			Perquintill::from_percent(50)
 		} else {
-			let temp = Perquintill::from_percent(30) * inverse_percentage_of_target_funding;
-			let x = Perquintill::from_percent(20) + temp;
-			x
+			Perquintill::from_percent(20) + Perquintill::from_percent(30) * inverse_percentage_of_target_funding
 		};
-
 		let long_term_holder_reward_pot = long_term_holder_percentage * total_fee_allocation;
 
-		Ok(long_term_holder_reward_pot)
-	}
-
-	pub fn generate_liquidity_pools_reward_amount(project_id: ProjectId) -> Result<BalanceOf<T>, DispatchError> {
-		// Fetching the necessary data for a specific project.
-		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-
-		// Determine how much funding has been achieved.
-		let funding_amount_reached = project_details.funding_amount_reached;
-		let fundraising_target = project_details.fundraising_target;
-		let total_issuer_fees = Self::calculate_fees(funding_amount_reached);
-
-		let initial_token_allocation_size = project_metadata.total_allocation_size;
-		let final_remaining_contribution_tokens = project_details.remaining_contribution_tokens;
-
-		// Calculate the number of tokens sold for the project.
-		let token_sold = initial_token_allocation_size
-			.checked_sub(&final_remaining_contribution_tokens)
-			// Ensure safety by providing a default in case of unexpected situations.
-			.unwrap_or(initial_token_allocation_size);
-		let total_fee_allocation = total_issuer_fees * token_sold;
-
-		let liquidity_pools_percentage = Perquintill::from_percent(50);
-
-		let liquidity_pools_reward_pot = liquidity_pools_percentage * total_fee_allocation;
-
-		Ok(liquidity_pools_reward_pot)
+		Ok((liquidity_pools_reward_pot, long_term_holder_reward_pot))
 	}
 
 	pub fn make_project_funding_successful(
