@@ -23,7 +23,6 @@ use crate::{
 	mock::*,
 	traits::{ProvideAssetPrice, VestingDurationCalculation},
 	CurrencyMetadata, Error, ParticipantsSize, ProjectMetadata, TicketSize,
-	UpdateType::{CommunityFundingStart, RemainderFundingStart},
 };
 use assert_matches2::assert_matches;
 use defaults::*;
