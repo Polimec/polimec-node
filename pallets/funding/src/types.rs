@@ -223,35 +223,27 @@ pub mod storage_types {
 	pub trait TicketSizeValidityCheck<Price: FixedPointNumber, Balance: BalanceT + FixedPointOperand> {
 		/// Check that the ticket size specified by an issuer is compliant to Polimec's guidelines, like min and max bounds,
 		/// and the min is less than the max.
-		fn is_valid(&self, min_price: Price, usd_bounds: USDBounds<Balance>) -> Result<(), ValidityError>;
+		fn is_valid(&self, usd_bounds: USDBounds<Balance>) -> Result<(), ValidityError>;
 	}
 
 	pub trait BiddingTicketSizesValidityCheck<Price: FixedPointNumber, Balance: BalanceT> {
 		/// Call the ticket size validations on the inner ticket sizes
-		fn is_valid(
-			&self,
-			min_price: Price,
-			bidding_usd_bounds: BiddingUSDBounds<Balance>,
-		) -> Result<(), ValidityError>;
+		fn is_valid(&self, bidding_usd_bounds: BiddingUSDBounds<Balance>) -> Result<(), ValidityError>;
 	}
 
 	pub trait ContributingTicketSizesValidityCheck<Price: FixedPointNumber, Balance: BalanceT> {
 		/// Call the ticket size validations on the inner ticket sizes
-		fn is_valid(
-			&self,
-			min_price: Price,
-			contributing_usd_bounds: ContributingUSDBounds<Balance>,
-		) -> Result<(), ValidityError>;
+		fn is_valid(&self, contributing_usd_bounds: ContributingUSDBounds<Balance>) -> Result<(), ValidityError>;
 	}
 
 	pub trait RoundTicketSizesValidityCheck<Price: FixedPointNumber, Balance: BalanceT> {
 		/// Call the ticket size validations on the inner ticket sizes
-		fn is_valid(&self, min_price: Price, all_usd_bounds: AllUSDBounds<Balance>) -> Result<(), ValidityError>;
+		fn is_valid(&self, all_usd_bounds: AllUSDBounds<Balance>) -> Result<(), ValidityError>;
 	}
 
 	pub trait TicketSizeParticipationChecks<Balance> {
-		fn ct_above_minimum_per_participation(&self, ct_amount: Balance) -> bool;
-		fn ct_below_maximum_per_did(&self, ct_amount: Balance) -> bool;
+		fn usd_ticket_above_minimum_per_participation(&self, usd_amount: Balance) -> bool;
+		fn usd_ticket_below_maximum_per_did(&self, usd_amount: Balance) -> bool;
 	}
 
 	impl<
@@ -270,7 +262,7 @@ pub mod storage_types {
 				return Err(ValidityError::PriceTooLow);
 			}
 
-			self.round_ticket_sizes.is_valid(self.minimum_price, all_usd_ticket_bounds)?;
+			self.round_ticket_sizes.is_valid(all_usd_ticket_bounds)?;
 
 			let mut deduped = self.participation_currencies.clone().to_vec();
 			deduped.sort();
@@ -476,7 +468,7 @@ pub mod inner_types {
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 	pub struct CurrencyMetadata<BoundedString> {
-		/// The user friendly name of this asset. Limited in length by `StringLimit`.
+		/// The user-friendly name of this asset. Limited in length by `StringLimit`.
 		pub name: BoundedString,
 		/// The ticker symbol for this asset. Limited in length by `StringLimit`.
 		pub symbol: BoundedString,
@@ -487,26 +479,25 @@ pub mod inner_types {
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 	pub struct TicketSize<Balance: BalanceT> {
-		pub ct_minimum_per_participation: Option<Balance>,
-		pub ct_maximum_per_did: Option<Balance>,
+		pub usd_minimum_per_participation: Option<Balance>,
+		pub usd_maximum_per_did: Option<Balance>,
 	}
 	impl<Balance: BalanceT> TicketSize<Balance> {
-		pub fn new(ct_minimum_per_participation: Option<Balance>, ct_maximum_per_did: Option<Balance>) -> Self {
-			Self { ct_minimum_per_participation, ct_maximum_per_did }
+		pub fn new(usd_minimum_per_participation: Option<Balance>, usd_maximum_per_did: Option<Balance>) -> Self {
+			Self { usd_minimum_per_participation, usd_maximum_per_did }
 		}
 	}
 
 	impl<Price: FixedPointNumber, Balance: BalanceT + FixedPointOperand> TicketSizeValidityCheck<Price, Balance>
 		for TicketSize<Balance>
 	{
-		fn is_valid(&self, ct_min_price: Price, usd_bounds: USDBounds<Balance>) -> Result<(), ValidityError> {
+		fn is_valid(&self, usd_bounds: USDBounds<Balance>) -> Result<(), ValidityError> {
 			let USDBounds { maybe_lower_bound_usd, maybe_upper_bound_usd } = usd_bounds;
 
 			// If lower bound is specified, ensure minimum_per_participation is also specified and above or equal to it
 			if let Some(lb) = maybe_lower_bound_usd {
-				match self.ct_minimum_per_participation {
-					Some(min) if ct_min_price.saturating_mul_int(min) < lb =>
-						return Err(ValidityError::TicketSizeError),
+				match self.usd_minimum_per_participation {
+					Some(min) if min < lb => return Err(ValidityError::TicketSizeError),
 					None => return Err(ValidityError::TicketSizeError), // Minimum is not set while a lower bound is specified
 					_ => (),                                            // Valid case
 				}
@@ -514,16 +505,15 @@ pub mod inner_types {
 
 			// If upper bound is specified, ensure maximum_per_account is also specified and below or equal to it
 			if let Some(ub) = maybe_upper_bound_usd {
-				match self.ct_maximum_per_did {
-					Some(max) if ct_min_price.saturating_mul_int(max) > ub =>
-						return Err(ValidityError::TicketSizeError),
+				match self.usd_maximum_per_did {
+					Some(max) if max > ub => return Err(ValidityError::TicketSizeError),
 					None => return Err(ValidityError::TicketSizeError), // Maximum is not set while an upper bound is specified
 					_ => (),                                            // Valid case
 				}
 			}
 
 			// Ensure minimum is less than or equal to maximum if both are specified
-			if let (Some(min), Some(max)) = (self.ct_minimum_per_participation, self.ct_maximum_per_did) {
+			if let (Some(min), Some(max)) = (self.usd_minimum_per_participation, self.usd_maximum_per_did) {
 				if min > max {
 					return Err(ValidityError::TicketSizeError); // Minimum is greater than maximum
 				}
@@ -534,16 +524,16 @@ pub mod inner_types {
 	}
 
 	impl<Balance: BalanceT> TicketSizeParticipationChecks<Balance> for TicketSize<Balance> {
-		fn ct_above_minimum_per_participation(&self, ct_amount: Balance) -> bool {
-			match self.ct_minimum_per_participation {
-				Some(min) => ct_amount >= min,
+		fn usd_ticket_above_minimum_per_participation(&self, usd_amount: Balance) -> bool {
+			match self.usd_minimum_per_participation {
+				Some(min) => usd_amount >= min,
 				None => true,
 			}
 		}
 
-		fn ct_below_maximum_per_did(&self, ct_amount: Balance) -> bool {
-			match self.ct_maximum_per_did {
-				Some(max) => ct_amount <= max,
+		fn usd_ticket_below_maximum_per_did(&self, usd_amount: Balance) -> bool {
+			match self.usd_maximum_per_did {
+				Some(max) => usd_amount <= max,
 				None => true,
 			}
 		}
@@ -569,13 +559,9 @@ pub mod inner_types {
 		> BiddingTicketSizesValidityCheck<Price, Balance>
 		for BiddingTicketSizes<Price, Balance, ProfessionalTicketSize, InstitutionalTicketSize>
 	{
-		fn is_valid(
-			&self,
-			ct_min_price: Price,
-			bidding_usd_bounds: BiddingUSDBounds<Balance>,
-		) -> Result<(), ValidityError> {
-			if self.professional.is_valid(ct_min_price, bidding_usd_bounds.professional).is_ok() &&
-				self.institutional.is_valid(ct_min_price, bidding_usd_bounds.institutional).is_ok()
+		fn is_valid(&self, bidding_usd_bounds: BiddingUSDBounds<Balance>) -> Result<(), ValidityError> {
+			if self.professional.is_valid(bidding_usd_bounds.professional).is_ok() &&
+				self.institutional.is_valid(bidding_usd_bounds.institutional).is_ok()
 			{
 				Ok(())
 			} else {
@@ -607,14 +593,10 @@ pub mod inner_types {
 		> ContributingTicketSizesValidityCheck<Price, Balance>
 		for ContributingTicketSizes<Price, Balance, RetailTicketSize, ProfessionalTicketSize, InstitutionalTicketSize>
 	{
-		fn is_valid(
-			&self,
-			ct_min_price: Price,
-			contributing_usd_bounds: ContributingUSDBounds<Balance>,
-		) -> Result<(), ValidityError> {
-			if self.retail.is_valid(ct_min_price, contributing_usd_bounds.retail).is_ok() &&
-				self.professional.is_valid(ct_min_price, contributing_usd_bounds.professional).is_ok() &&
-				self.institutional.is_valid(ct_min_price, contributing_usd_bounds.institutional).is_ok()
+		fn is_valid(&self, contributing_usd_bounds: ContributingUSDBounds<Balance>) -> Result<(), ValidityError> {
+			if self.retail.is_valid(contributing_usd_bounds.retail).is_ok() &&
+				self.professional.is_valid(contributing_usd_bounds.professional).is_ok() &&
+				self.institutional.is_valid(contributing_usd_bounds.institutional).is_ok()
 			{
 				Ok(())
 			} else {
@@ -645,9 +627,9 @@ pub mod inner_types {
 		> RoundTicketSizesValidityCheck<Price, Balance>
 		for RoundTicketSizes<Price, Balance, BiddingTicketSizes, ContributingTicketSizes>
 	{
-		fn is_valid(&self, ct_min_price: Price, all_usd_bounds: AllUSDBounds<Balance>) -> Result<(), ValidityError> {
-			if self.bidding.is_valid(ct_min_price, all_usd_bounds.bidding).is_ok() &&
-				self.contributing.is_valid(ct_min_price, all_usd_bounds.contributing).is_ok()
+		fn is_valid(&self, all_usd_bounds: AllUSDBounds<Balance>) -> Result<(), ValidityError> {
+			if self.bidding.is_valid(all_usd_bounds.bidding).is_ok() &&
+				self.contributing.is_valid(all_usd_bounds.contributing).is_ok()
 			{
 				Ok(())
 			} else {

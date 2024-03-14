@@ -69,9 +69,9 @@ impl<'de, T> EnsureOriginWithCredentials<T::RuntimeOrigin> for EnsureInvestor<T>
 where
 	T: frame_system::Config + pallet_timestamp::Config,
 {
-	type Success = (T::AccountId, DID, InvestorType);
 	type Claims = SampleClaims<T::AccountId>;
 	type Credential = InvestorType;
+	type Success = (T::AccountId, DID, InvestorType);
 
 	fn try_origin(
 		origin: T::RuntimeOrigin,

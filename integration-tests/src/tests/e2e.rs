@@ -50,8 +50,8 @@ pub fn excel_project(nonce: u64) -> ProjectMetadataOf<PolimecRuntime> {
 		minimum_price: PriceOf::<PolimecRuntime>::from(10),
 		round_ticket_sizes: RoundTicketSizes {
 			bidding: BiddingTicketSizes {
-				professional: TicketSize::new(Some(500 * ASSET_UNIT), None),
-				institutional: TicketSize::new(Some(500 * ASSET_UNIT), None),
+				professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
 				phantom: Default::default(),
 			},
 			contributing: ContributingTicketSizes {

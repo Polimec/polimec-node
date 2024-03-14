@@ -89,8 +89,8 @@ pub fn default_project_metadata(
 		minimum_price: sp_runtime::FixedU128::from_float(10.0),
 		round_ticket_sizes: RoundTicketSizes {
 			bidding: BiddingTicketSizes {
-				professional: TicketSize::new(Some(500 * ASSET_UNIT), None),
-				institutional: TicketSize::new(Some(500 * ASSET_UNIT), None),
+				professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
 				phantom: Default::default(),
 			},
 			contributing: ContributingTicketSizes {
