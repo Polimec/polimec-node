@@ -90,30 +90,25 @@ where
 			.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 		auction_round_allocation_percentage: Percent::from_percent(50u8),
 		minimum_price: 10u128.into(),
-		round_ticket_sizes: RoundTicketSizes {
-			bidding: BiddingTicketSizes {
-				professional: TicketSize::new(
-					Some(
-						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
-							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					),
-					None,
+		bidding_ticket_sizes: BiddingTicketSizes {
+			professional: TicketSize::new(
+				Some(
+					BalanceOf::<T>::try_from(5000 * US_DOLLAR).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 				),
-				institutional: TicketSize::new(
-					Some(
-						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
-							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-					),
-					None,
+				None,
+			),
+			institutional: TicketSize::new(
+				Some(
+					BalanceOf::<T>::try_from(5000 * US_DOLLAR).unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 				),
-				phantom: Default::default(),
-			},
-			contributing: ContributingTicketSizes {
-				retail: TicketSize::new(None, None),
-				professional: TicketSize::new(None, None),
-				institutional: TicketSize::new(None, None),
-				phantom: Default::default(),
-			},
+				None,
+			),
+			phantom: Default::default(),
+		},
+		contributing_ticket_sizes: ContributingTicketSizes {
+			retail: TicketSize::new(None, None),
+			professional: TicketSize::new(None, None),
+			institutional: TicketSize::new(None, None),
 			phantom: Default::default(),
 		},
 		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
@@ -692,7 +687,11 @@ mod benchmarks {
 		let (inst, project_id, extrinsic_evaluation, extrinsic_plmc_bonded, total_expected_plmc_bonded) =
 			evaluation_setup::<T>(x);
 
-		let jwt = get_mock_jwt(extrinsic_evaluation.account.clone(), InvestorType::Institutional, generate_did_from_account(extrinsic_evaluation.account.clone()));
+		let jwt = get_mock_jwt(
+			extrinsic_evaluation.account.clone(),
+			InvestorType::Institutional,
+			generate_did_from_account(extrinsic_evaluation.account.clone()),
+		);
 		#[extrinsic_call]
 		evaluate(
 			RawOrigin::Signed(extrinsic_evaluation.account.clone()),
@@ -721,7 +720,11 @@ mod benchmarks {
 		let (inst, project_id, extrinsic_evaluation, extrinsic_plmc_bonded, total_expected_plmc_bonded) =
 			evaluation_setup::<T>(x);
 
-		let jwt = get_mock_jwt(extrinsic_evaluation.account.clone(), InvestorType::Institutional, generate_did_from_account(extrinsic_evaluation.account.clone()));
+		let jwt = get_mock_jwt(
+			extrinsic_evaluation.account.clone(),
+			InvestorType::Institutional,
+			generate_did_from_account(extrinsic_evaluation.account.clone()),
+		);
 		#[extrinsic_call]
 		evaluate(
 			RawOrigin::Signed(extrinsic_evaluation.account.clone()),
@@ -749,7 +752,11 @@ mod benchmarks {
 		let (inst, project_id, extrinsic_evaluation, extrinsic_plmc_bonded, total_expected_plmc_bonded) =
 			evaluation_setup::<T>(x);
 
-		let jwt = get_mock_jwt(extrinsic_evaluation.account.clone(), InvestorType::Institutional, generate_did_from_account(extrinsic_evaluation.account.clone()));
+		let jwt = get_mock_jwt(
+			extrinsic_evaluation.account.clone(),
+			InvestorType::Institutional,
+			generate_did_from_account(extrinsic_evaluation.account.clone()),
+		);
 		#[extrinsic_call]
 		evaluate(
 			RawOrigin::Signed(extrinsic_evaluation.account.clone()),
@@ -1066,7 +1073,11 @@ mod benchmarks {
 
 		let _new_plmc_minted = make_ct_deposit_for::<T>(original_extrinsic_bid.bidder.clone(), project_id);
 
-		let jwt = get_mock_jwt(original_extrinsic_bid.bidder.clone(), InvestorType::Institutional, generate_did_from_account(original_extrinsic_bid.bidder.clone()));
+		let jwt = get_mock_jwt(
+			original_extrinsic_bid.bidder.clone(),
+			InvestorType::Institutional,
+			generate_did_from_account(original_extrinsic_bid.bidder.clone()),
+		);
 		#[extrinsic_call]
 		bid(
 			RawOrigin::Signed(original_extrinsic_bid.bidder.clone()),
@@ -1112,7 +1123,11 @@ mod benchmarks {
 			total_usdt_locked,
 		) = bid_setup::<T>(x, y);
 
-		let jwt = get_mock_jwt(original_extrinsic_bid.bidder.clone(), InvestorType::Institutional, generate_did_from_account(original_extrinsic_bid.bidder.clone()));
+		let jwt = get_mock_jwt(
+			original_extrinsic_bid.bidder.clone(),
+			InvestorType::Institutional,
+			generate_did_from_account(original_extrinsic_bid.bidder.clone()),
+		);
 		#[extrinsic_call]
 		bid(
 			RawOrigin::Signed(original_extrinsic_bid.bidder.clone()),
@@ -1366,7 +1381,11 @@ mod benchmarks {
 			total_ct_sold,
 		) = contribution_setup::<T>(x, ends_round);
 
-		let jwt = get_mock_jwt(extrinsic_contribution.contributor.clone(), InvestorType::Retail, generate_did_from_account(extrinsic_contribution.contributor.clone()));
+		let jwt = get_mock_jwt(
+			extrinsic_contribution.contributor.clone(),
+			InvestorType::Retail,
+			generate_did_from_account(extrinsic_contribution.contributor.clone()),
+		);
 
 		#[extrinsic_call]
 		community_contribute(
@@ -1412,7 +1431,11 @@ mod benchmarks {
 			total_ct_sold,
 		) = contribution_setup::<T>(x, ends_round);
 
-		let jwt = get_mock_jwt(extrinsic_contribution.contributor.clone(), InvestorType::Retail, generate_did_from_account(extrinsic_contribution.contributor.clone()));
+		let jwt = get_mock_jwt(
+			extrinsic_contribution.contributor.clone(),
+			InvestorType::Retail,
+			generate_did_from_account(extrinsic_contribution.contributor.clone()),
+		);
 
 		#[extrinsic_call]
 		community_contribute(
@@ -2781,30 +2804,27 @@ mod benchmarks {
 				.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: 10u128.into(),
-			round_ticket_sizes: RoundTicketSizes {
-				bidding: BiddingTicketSizes {
-					professional: TicketSize::new(
-						Some(
-							BalanceOf::<T>::try_from(5000 * US_DOLLAR)
-								.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-						),
-						None,
+			bidding_ticket_sizes: BiddingTicketSizes {
+				professional: TicketSize::new(
+					Some(
+						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
+							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					),
-					institutional: TicketSize::new(
-						Some(
-							BalanceOf::<T>::try_from(5000 * US_DOLLAR)
-								.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
-						),
-						None,
+					None,
+				),
+				institutional: TicketSize::new(
+					Some(
+						BalanceOf::<T>::try_from(5000 * US_DOLLAR)
+							.unwrap_or_else(|_| panic!("Failed to create BalanceOf")),
 					),
-					phantom: Default::default(),
-				},
-				contributing: ContributingTicketSizes {
-					retail: TicketSize::new(None, None),
-					professional: TicketSize::new(None, None),
-					institutional: TicketSize::new(None, None),
-					phantom: Default::default(),
-				},
+					None,
+				),
+				phantom: Default::default(),
+			},
+			contributing_ticket_sizes: ContributingTicketSizes {
+				retail: TicketSize::new(None, None),
+				professional: TicketSize::new(None, None),
+				institutional: TicketSize::new(None, None),
 				phantom: Default::default(),
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),

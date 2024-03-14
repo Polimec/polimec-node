@@ -84,18 +84,13 @@ impl<T: Config> Pallet<T> {
 		}
 
 		let min_bidder_bound_usd: BalanceOf<T> = (5000 * (US_DOLLAR as u64)).into();
-		let usd_bounds = AllUSDBounds {
-			bidding: BiddingUSDBounds {
-				professional: (Some(min_bidder_bound_usd), None).into(),
-				institutional: (Some(min_bidder_bound_usd), None).into(),
-			},
-			contributing: ContributingUSDBounds {
-				retail: (None, None).into(),
-				professional: (None, None).into(),
-				institutional: (None, None).into(),
-			},
-		};
-		if let Err(error) = initial_metadata.is_valid(usd_bounds) {
+		let auction_bounds = vec![
+			InvestorTypeUSDBounds::Professional((Some(min_bidder_bound_usd), None).into()),
+			InvestorTypeUSDBounds::Institutional((Some(min_bidder_bound_usd), None).into()),
+		];
+		let contribution_bounds = vec![];
+
+		if let Err(error) = initial_metadata.is_valid(auction_bounds, contribution_bounds) {
 			return match error {
 				ValidityError::PriceTooLow => Err(Error::<T>::PriceTooLow.into()),
 				ValidityError::TicketSizeError => Err(Error::<T>::TicketSizeError.into()),
@@ -1063,8 +1058,8 @@ impl<T: Config> Pallet<T> {
 		let mut ct_deposit_required = false;
 		let existing_bids_amount = existing_bids.len() as u32;
 		let metadata_bidder_ticket_size_bounds = match investor_type {
-			InvestorType::Institutional => project_metadata.round_ticket_sizes.bidding.institutional,
-			InvestorType::Professional => project_metadata.round_ticket_sizes.bidding.professional,
+			InvestorType::Institutional => project_metadata.bidding_ticket_sizes.institutional,
+			InvestorType::Professional => project_metadata.bidding_ticket_sizes.professional,
 			_ => return Err(Error::<T>::NotAllowed.into()),
 		};
 
@@ -1082,6 +1077,7 @@ impl<T: Config> Pallet<T> {
 			project_metadata.participation_currencies.contains(&funding_asset),
 			Error::<T>::FundingAssetNotAccepted
 		);
+
 		ensure!(
 			metadata_bidder_ticket_size_bounds.usd_ticket_above_minimum_per_participation(min_total_ticket_size),
 			Error::<T>::BidTooLow
@@ -1323,9 +1319,9 @@ impl<T: Config> Pallet<T> {
 
 		let ticket_size = ct_usd_price.checked_mul_int(buyable_tokens).ok_or(Error::<T>::BadMath)?;
 		let contributor_ticket_size = match investor_type {
-			InvestorType::Institutional => project_metadata.round_ticket_sizes.contributing.institutional,
-			InvestorType::Professional => project_metadata.round_ticket_sizes.contributing.professional,
-			InvestorType::Retail => project_metadata.round_ticket_sizes.contributing.retail,
+			InvestorType::Institutional => project_metadata.contributing_ticket_sizes.institutional,
+			InvestorType::Professional => project_metadata.contributing_ticket_sizes.professional,
+			InvestorType::Retail => project_metadata.contributing_ticket_sizes.retail,
 		};
 
 		// * Validity checks *

@@ -107,18 +107,15 @@ pub mod defaults {
 			total_allocation_size: 1_000_000 * ASSET_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
-			round_ticket_sizes: RoundTicketSizes {
-				bidding: BiddingTicketSizes {
-					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					phantom: Default::default(),
-				},
-				contributing: ContributingTicketSizes {
-					retail: TicketSize::new(None, None),
-					professional: TicketSize::new(None, None),
-					institutional: TicketSize::new(None, None),
-					phantom: Default::default(),
-				},
+			bidding_ticket_sizes: BiddingTicketSizes {
+				professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				phantom: Default::default(),
+			},
+			contributing_ticket_sizes: ContributingTicketSizes {
+				retail: TicketSize::new(None, None),
+				professional: TicketSize::new(None, None),
+				institutional: TicketSize::new(None, None),
 				phantom: Default::default(),
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
@@ -141,18 +138,15 @@ pub mod defaults {
 			total_allocation_size: 100_000 * ASSET_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
-			round_ticket_sizes: RoundTicketSizes {
-				bidding: BiddingTicketSizes {
-					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					phantom: Default::default(),
-				},
-				contributing: ContributingTicketSizes {
-					retail: TicketSize::new(None, None),
-					professional: TicketSize::new(None, None),
-					institutional: TicketSize::new(None, None),
-					phantom: Default::default(),
-				},
+			bidding_ticket_sizes: BiddingTicketSizes {
+				professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				phantom: Default::default(),
+			},
+			contributing_ticket_sizes: ContributingTicketSizes {
+				retail: TicketSize::new(None, None),
+				professional: TicketSize::new(None, None),
+				institutional: TicketSize::new(None, None),
 				phantom: Default::default(),
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
@@ -361,18 +355,15 @@ mod creation {
 			total_allocation_size: 100_000 * ASSET_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: 0_u128.into(),
-			round_ticket_sizes: RoundTicketSizes {
-				bidding: BiddingTicketSizes {
-					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					phantom: Default::default(),
-				},
-				contributing: ContributingTicketSizes {
-					retail: TicketSize::new(None, None),
-					professional: TicketSize::new(None, None),
-					institutional: TicketSize::new(None, None),
-					phantom: Default::default(),
-				},
+			bidding_ticket_sizes: BiddingTicketSizes {
+				professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				phantom: Default::default(),
+			},
+			contributing_ticket_sizes: ContributingTicketSizes {
+				retail: TicketSize::new(None, None),
+				professional: TicketSize::new(None, None),
+				institutional: TicketSize::new(None, None),
 				phantom: Default::default(),
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
@@ -394,18 +385,15 @@ mod creation {
 			total_allocation_size: 100_000 * ASSET_UNIT,
 			auction_round_allocation_percentage: Default::default(),
 			minimum_price: 10_u128.into(),
-			round_ticket_sizes: RoundTicketSizes {
-				bidding: BiddingTicketSizes {
-					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					phantom: Default::default(),
-				},
-				contributing: ContributingTicketSizes {
-					retail: TicketSize::new(None, None),
-					professional: TicketSize::new(None, None),
-					institutional: TicketSize::new(None, None),
-					phantom: Default::default(),
-				},
+			bidding_ticket_sizes: BiddingTicketSizes {
+				professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				phantom: Default::default(),
+			},
+			contributing_ticket_sizes: ContributingTicketSizes {
+				retail: TicketSize::new(None, None),
+				professional: TicketSize::new(None, None),
+				institutional: TicketSize::new(None, None),
 				phantom: Default::default(),
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
@@ -425,27 +413,27 @@ mod creation {
 
 		// min in bidding below 5k
 		let mut wrong_project_1 = correct_project.clone();
-		wrong_project_1.round_ticket_sizes.bidding.professional = TicketSize::new(Some(499 * ASSET_UNIT), None);
+		wrong_project_1.bidding_ticket_sizes.professional = TicketSize::new(Some(4999 * US_DOLLAR), None);
 
 		let mut wrong_project_2 = correct_project.clone();
-		wrong_project_2.round_ticket_sizes.bidding.institutional = TicketSize::new(Some(499 * ASSET_UNIT), None);
+		wrong_project_2.bidding_ticket_sizes.institutional = TicketSize::new(Some(4999 * US_DOLLAR), None);
 
 		let mut wrong_project_3 = correct_project.clone();
-		wrong_project_3.round_ticket_sizes.bidding.professional = TicketSize::new(Some(300 * ASSET_UNIT), None);
-		wrong_project_3.round_ticket_sizes.bidding.institutional = TicketSize::new(Some(0 * ASSET_UNIT), None);
+		wrong_project_3.bidding_ticket_sizes.professional = TicketSize::new(Some(3000 * US_DOLLAR), None);
+		wrong_project_3.bidding_ticket_sizes.institutional = TicketSize::new(Some(0 * US_DOLLAR), None);
 
 		let mut wrong_project_4 = correct_project.clone();
-		wrong_project_4.round_ticket_sizes.bidding.professional = TicketSize::new(None, None);
-		wrong_project_4.round_ticket_sizes.bidding.institutional = TicketSize::new(None, None);
+		wrong_project_4.bidding_ticket_sizes.professional = TicketSize::new(None, None);
+		wrong_project_4.bidding_ticket_sizes.institutional = TicketSize::new(None, None);
 
 		// min higher than max
 		let mut wrong_project_5 = correct_project.clone();
-		wrong_project_5.round_ticket_sizes.bidding.professional =
-			TicketSize::new(Some(500 * ASSET_UNIT), Some(499 * ASSET_UNIT));
+		wrong_project_5.bidding_ticket_sizes.professional =
+			TicketSize::new(Some(5000 * US_DOLLAR), Some(4990 * US_DOLLAR));
 
 		let mut wrong_project_6 = correct_project.clone();
-		wrong_project_6.round_ticket_sizes.bidding.institutional =
-			TicketSize::new(Some(600 * ASSET_UNIT), Some(550 * ASSET_UNIT));
+		wrong_project_6.bidding_ticket_sizes.institutional =
+			TicketSize::new(Some(6000 * US_DOLLAR), Some(5500 * US_DOLLAR));
 
 		let wrong_projects = vec![
 			wrong_project_1.clone(),
@@ -906,18 +894,15 @@ mod auction {
 			total_allocation_size: 100_000 * ASSET_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
-			round_ticket_sizes: RoundTicketSizes {
-				bidding: BiddingTicketSizes {
-					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					phantom: Default::default(),
-				},
-				contributing: ContributingTicketSizes {
-					retail: TicketSize::new(None, None),
-					professional: TicketSize::new(None, None),
-					institutional: TicketSize::new(None, None),
-					phantom: Default::default(),
-				},
+			bidding_ticket_sizes: BiddingTicketSizes {
+				professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				phantom: Default::default(),
+			},
+			contributing_ticket_sizes: ContributingTicketSizes {
+				retail: TicketSize::new(None, None),
+				professional: TicketSize::new(None, None),
+				institutional: TicketSize::new(None, None),
 				phantom: Default::default(),
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
@@ -1415,18 +1400,15 @@ mod auction {
 			total_allocation_size: 1_000_000 * ASSET_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: PriceOf::<TestRuntime>::from_float(100.0),
-			round_ticket_sizes: RoundTicketSizes {
-				bidding: BiddingTicketSizes {
-					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					phantom: Default::default(),
-				},
-				contributing: ContributingTicketSizes {
-					retail: TicketSize::new(None, None),
-					professional: TicketSize::new(None, None),
-					institutional: TicketSize::new(None, None),
-					phantom: Default::default(),
-				},
+			bidding_ticket_sizes: BiddingTicketSizes {
+				professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				phantom: Default::default(),
+			},
+			contributing_ticket_sizes: ContributingTicketSizes {
+				retail: TicketSize::new(None, None),
+				professional: TicketSize::new(None, None),
+				institutional: TicketSize::new(None, None),
 				phantom: Default::default(),
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
@@ -1674,18 +1656,15 @@ mod auction {
 			total_allocation_size: 100_000 * ASSET_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
-			round_ticket_sizes: RoundTicketSizes {
-				bidding: BiddingTicketSizes {
-					professional: TicketSize::new(Some(8_000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(20_000 * US_DOLLAR), None),
-					phantom: Default::default(),
-				},
-				contributing: ContributingTicketSizes {
-					retail: TicketSize::new(None, None),
-					professional: TicketSize::new(None, None),
-					institutional: TicketSize::new(None, None),
-					phantom: Default::default(),
-				},
+			bidding_ticket_sizes: BiddingTicketSizes {
+				professional: TicketSize::new(Some(8_000 * US_DOLLAR), None),
+				institutional: TicketSize::new(Some(20_000 * US_DOLLAR), None),
+				phantom: Default::default(),
+			},
+			contributing_ticket_sizes: ContributingTicketSizes {
+				retail: TicketSize::new(None, None),
+				professional: TicketSize::new(None, None),
+				institutional: TicketSize::new(None, None),
 				phantom: Default::default(),
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
@@ -1741,18 +1720,15 @@ mod auction {
 			total_allocation_size: 100_000 * ASSET_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(80u8),
 			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
-			round_ticket_sizes: RoundTicketSizes {
-				bidding: BiddingTicketSizes {
-					professional: TicketSize::new(Some(8_000 * US_DOLLAR), Some(100_000 * US_DOLLAR)),
-					institutional: TicketSize::new(Some(20_000 * US_DOLLAR), Some(500_000 * US_DOLLAR)),
-					phantom: Default::default(),
-				},
-				contributing: ContributingTicketSizes {
-					retail: TicketSize::new(None, Some(100_000 * US_DOLLAR)),
-					professional: TicketSize::new(None, Some(20_000 * US_DOLLAR)),
-					institutional: TicketSize::new(None, Some(50_000 * US_DOLLAR)),
-					phantom: Default::default(),
-				},
+			bidding_ticket_sizes: BiddingTicketSizes {
+				professional: TicketSize::new(Some(8_000 * US_DOLLAR), Some(100_000 * US_DOLLAR)),
+				institutional: TicketSize::new(Some(20_000 * US_DOLLAR), Some(500_000 * US_DOLLAR)),
+				phantom: Default::default(),
+			},
+			contributing_ticket_sizes: ContributingTicketSizes {
+				retail: TicketSize::new(None, Some(100_000 * US_DOLLAR)),
+				professional: TicketSize::new(None, Some(20_000 * US_DOLLAR)),
+				institutional: TicketSize::new(None, Some(50_000 * US_DOLLAR)),
 				phantom: Default::default(),
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
@@ -1982,9 +1958,9 @@ mod auction {
 
 // only functionalities that happen in the COMMUNITY FUNDING period of a project
 mod community_contribution {
-	use polimec_common_test_utils::get_mock_jwt;
 	use super::*;
 	use crate::instantiator::async_features::create_multiple_projects_at;
+	use polimec_common_test_utils::get_mock_jwt;
 
 	pub const HOURS: BlockNumber = 300u64;
 
@@ -2480,18 +2456,15 @@ mod community_contribution {
 			total_allocation_size: 1_000_000 * ASSET_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
-			round_ticket_sizes: RoundTicketSizes {
-				bidding: BiddingTicketSizes {
-					professional: TicketSize::new(Some(8_000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(20_000 * US_DOLLAR), None),
-					phantom: Default::default(),
-				},
-				contributing: ContributingTicketSizes {
-					retail: TicketSize::new(Some(10 * US_DOLLAR), None),
-					professional: TicketSize::new(Some(100_000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(200_000 * US_DOLLAR), None),
-					phantom: Default::default(),
-				},
+			bidding_ticket_sizes: BiddingTicketSizes {
+				professional: TicketSize::new(Some(8_000 * US_DOLLAR), None),
+				institutional: TicketSize::new(Some(20_000 * US_DOLLAR), None),
+				phantom: Default::default(),
+			},
+			contributing_ticket_sizes: ContributingTicketSizes {
+				retail: TicketSize::new(Some(10 * US_DOLLAR), None),
+				professional: TicketSize::new(Some(100_000 * US_DOLLAR), None),
+				institutional: TicketSize::new(Some(200_000 * US_DOLLAR), None),
 				phantom: Default::default(),
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
@@ -2575,18 +2548,15 @@ mod community_contribution {
 			total_allocation_size: 1_000_000 * ASSET_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
-			round_ticket_sizes: RoundTicketSizes {
-				bidding: BiddingTicketSizes {
-					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					phantom: Default::default(),
-				},
-				contributing: ContributingTicketSizes {
-					retail: TicketSize::new(None, Some(100_000 * US_DOLLAR)),
-					professional: TicketSize::new(None, Some(20_000 * US_DOLLAR)),
-					institutional: TicketSize::new(None, Some(50_000 * US_DOLLAR)),
-					phantom: Default::default(),
-				},
+			bidding_ticket_sizes: BiddingTicketSizes {
+				professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				phantom: Default::default(),
+			},
+			contributing_ticket_sizes: ContributingTicketSizes {
+				retail: TicketSize::new(None, Some(100_000 * US_DOLLAR)),
+				professional: TicketSize::new(None, Some(20_000 * US_DOLLAR)),
+				institutional: TicketSize::new(None, Some(50_000 * US_DOLLAR)),
 				phantom: Default::default(),
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
@@ -2658,7 +2628,8 @@ mod community_contribution {
 		});
 
 		let buyer_3_jwt = get_mock_jwt(BUYER_3, InvestorType::Professional, generate_did_from_account(BUYER_3));
-		let buyer_4_jwt_same_did = get_mock_jwt(BUYER_4, InvestorType::Professional, generate_did_from_account(BUYER_3));
+		let buyer_4_jwt_same_did =
+			get_mock_jwt(BUYER_4, InvestorType::Professional, generate_did_from_account(BUYER_3));
 		// total contributions with same DID above 2k CT (20k USD) should fail for professionals
 		inst.execute(|| {
 			assert_ok!(Pallet::<TestRuntime>::community_contribute(
@@ -2696,7 +2667,8 @@ mod community_contribution {
 		});
 
 		let buyer_5_jwt = get_mock_jwt(BUYER_5, InvestorType::Institutional, generate_did_from_account(BUYER_5));
-		let buyer_6_jwt_same_did = get_mock_jwt(BUYER_6, InvestorType::Institutional, generate_did_from_account(BUYER_5));
+		let buyer_6_jwt_same_did =
+			get_mock_jwt(BUYER_6, InvestorType::Institutional, generate_did_from_account(BUYER_5));
 		// total contributions with same DID above 5k CT (50 USD) should fail for institutionals
 		inst.execute(|| {
 			assert_ok!(Pallet::<TestRuntime>::community_contribute(
@@ -3125,18 +3097,15 @@ mod remainder_contribution {
 			total_allocation_size: 1_000_000 * ASSET_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
-			round_ticket_sizes: RoundTicketSizes {
-				bidding: BiddingTicketSizes {
-					professional: TicketSize::new(Some(8000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(20_000 * US_DOLLAR), None),
-					phantom: Default::default(),
-				},
-				contributing: ContributingTicketSizes {
-					retail: TicketSize::new(Some(10 * US_DOLLAR), None),
-					professional: TicketSize::new(Some(100_000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(200_000 * US_DOLLAR), None),
-					phantom: Default::default(),
-				},
+			bidding_ticket_sizes: BiddingTicketSizes {
+				professional: TicketSize::new(Some(8000 * US_DOLLAR), None),
+				institutional: TicketSize::new(Some(20_000 * US_DOLLAR), None),
+				phantom: Default::default(),
+			},
+			contributing_ticket_sizes: ContributingTicketSizes {
+				retail: TicketSize::new(Some(10 * US_DOLLAR), None),
+				professional: TicketSize::new(Some(100_000 * US_DOLLAR), None),
+				institutional: TicketSize::new(Some(200_000 * US_DOLLAR), None),
 				phantom: Default::default(),
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
@@ -3221,18 +3190,15 @@ mod remainder_contribution {
 			total_allocation_size: 1_000_000 * ASSET_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
-			round_ticket_sizes: RoundTicketSizes {
-				bidding: BiddingTicketSizes {
-					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					phantom: Default::default(),
-				},
-				contributing: ContributingTicketSizes {
-					retail: TicketSize::new(None, Some(300_000 * US_DOLLAR)),
-					professional: TicketSize::new(None, Some(20_000 * US_DOLLAR)),
-					institutional: TicketSize::new(None, Some(50_000 * US_DOLLAR)),
-					phantom: Default::default(),
-				},
+			bidding_ticket_sizes: BiddingTicketSizes {
+				professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				phantom: Default::default(),
+			},
+			contributing_ticket_sizes: ContributingTicketSizes {
+				retail: TicketSize::new(None, Some(300_000 * US_DOLLAR)),
+				professional: TicketSize::new(None, Some(20_000 * US_DOLLAR)),
+				institutional: TicketSize::new(None, Some(50_000 * US_DOLLAR)),
 				phantom: Default::default(),
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
@@ -5802,18 +5768,15 @@ mod helper_functions {
 			total_allocation_size: 100_000 * ASSET_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
 			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
-			round_ticket_sizes: RoundTicketSizes {
-				bidding: BiddingTicketSizes {
-					professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
-					phantom: Default::default(),
-				},
-				contributing: ContributingTicketSizes {
-					retail: TicketSize::new(None, None),
-					professional: TicketSize::new(None, None),
-					institutional: TicketSize::new(None, None),
-					phantom: Default::default(),
-				},
+			bidding_ticket_sizes: BiddingTicketSizes {
+				professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				phantom: Default::default(),
+			},
+			contributing_ticket_sizes: ContributingTicketSizes {
+				retail: TicketSize::new(None, None),
+				professional: TicketSize::new(None, None),
+				institutional: TicketSize::new(None, None),
 				phantom: Default::default(),
 			},
 			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
@@ -6187,7 +6150,7 @@ mod async_tests {
 		let mut project_metadata = default_project_metadata(0u64, ISSUER.into());
 		let evaluations = default_evaluations();
 		let max_bids_per_project: u32 = <TestRuntime as Config>::MaxBidsPerProject::get();
-		let min_bid = project_metadata.round_ticket_sizes.bidding.institutional.usd_minimum_per_participation.unwrap();
+		let min_bid = project_metadata.bidding_ticket_sizes.institutional.usd_minimum_per_participation.unwrap();
 		let auction_allocation_percentage = project_metadata.auction_round_allocation_percentage;
 		let auction_ct_required = min_bid.saturating_mul(max_bids_per_project as u128);
 		let total_allocation_required = auction_allocation_percentage.saturating_reciprocal_mul(auction_ct_required);
@@ -6197,7 +6160,7 @@ mod async_tests {
 			.map(|i| {
 				instantiator::BidParams::<TestRuntime>::new(
 					(i + 69).into(),
-					project_metadata.round_ticket_sizes.bidding.institutional.usd_minimum_per_participation.unwrap(),
+					project_metadata.bidding_ticket_sizes.institutional.usd_minimum_per_participation.unwrap(),
 					1u8,
 					AcceptedFundingAsset::USDT,
 				)
