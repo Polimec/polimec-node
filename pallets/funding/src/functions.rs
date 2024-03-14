@@ -83,7 +83,19 @@ impl<T: Config> Pallet<T> {
 			ensure!(!Images::<T>::contains_key(metadata), Error::<T>::MetadataAlreadyExists);
 		}
 
-		if let Err(error) = initial_metadata.is_valid() {
+		let min_bidder_bound_usd: BalanceOf<T> = (5000 * (US_DOLLAR as u64)).into();
+		let usd_bounds = AllUSDBounds {
+			bidding: BiddingUSDBounds {
+				professional: (Some(min_bidder_bound_usd), None).into(),
+				institutional: (Some(min_bidder_bound_usd), None).into(),
+			},
+			contributing: ContributingUSDBounds {
+				retail: (None, None).into(),
+				professional: (None, None).into(),
+				institutional: (None, None).into(),
+			},
+		};
+		if let Err(error) = initial_metadata.is_valid(usd_bounds) {
 			return match error {
 				ValidityError::PriceTooLow => Err(Error::<T>::PriceTooLow.into()),
 				ValidityError::TicketSizeError => Err(Error::<T>::TicketSizeError.into()),

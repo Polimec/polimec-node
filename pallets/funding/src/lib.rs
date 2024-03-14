@@ -170,28 +170,20 @@ pub type AssetIdOf<T> =
 pub type RewardInfoOf<T> = RewardInfo<BalanceOf<T>>;
 pub type EvaluatorsOutcomeOf<T> = EvaluatorsOutcome<BalanceOf<T>>;
 
+pub type TicketSizeOf<T> = TicketSize<BalanceOf<T>>;
+pub type RoundTicketSizesOf<T> = RoundTicketSizes<
+	PriceOf<T>,
+	BalanceOf<T>,
+	BiddingTicketSizes<PriceOf<T>, BalanceOf<T>, TicketSizeOf<T>, TicketSizeOf<T>>,
+	ContributingTicketSizes<PriceOf<T>, BalanceOf<T>, TicketSizeOf<T>, TicketSizeOf<T>, TicketSizeOf<T>>,
+>;
 pub type ProjectMetadataOf<T> = ProjectMetadata<
 	BoundedVec<u8, StringLimitOf<T>>,
 	BalanceOf<T>,
 	PriceOf<T>,
 	AccountIdOf<T>,
 	HashOf<T>,
-	RoundTicketSizes<
-		PriceOf<T>,
-		BiddingTicketSizes<
-			PriceOf<T>,
-			BalanceOf<T>,
-			TicketSize<BalanceOf<T>, LowerBound<BalanceOf<T>, StorageConstU64<{ (5_000 * US_DOLLAR) as u64 }>>>,
-			TicketSize<BalanceOf<T>, LowerBound<BalanceOf<T>, StorageConstU64<{ (5_000 * US_DOLLAR) as u64 }>>>,
-		>,
-		ContributingTicketSizes<
-			PriceOf<T>,
-			BalanceOf<T>,
-			TicketSize<BalanceOf<T>, NoBounds>,
-			TicketSize<BalanceOf<T>, NoBounds>,
-			TicketSize<BalanceOf<T>, NoBounds>,
-		>,
-	>,
+	RoundTicketSizesOf<T>,
 >;
 pub type ProjectDetailsOf<T> =
 	ProjectDetails<AccountIdOf<T>, BlockNumberFor<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>;
