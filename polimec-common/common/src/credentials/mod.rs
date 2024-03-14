@@ -69,19 +69,27 @@ impl<'de, T> EnsureOriginWithCredentials<T::RuntimeOrigin> for EnsureInvestor<T>
 where
 	T: frame_system::Config + pallet_timestamp::Config,
 {
-	type Claims = SampleClaims<T::AccountId>;
 	type Success = (T::AccountId, DID, InvestorType);
+	type Claims = SampleClaims<T::AccountId>;
+	type Credential = InvestorType;
 
 	fn try_origin(
 		origin: T::RuntimeOrigin,
 		token: &jwt_compact::UntrustedToken,
 		verifying_key: [u8; 32],
+		maybe_assert_credential: Option<Self::Credential>,
 	) -> Result<Self::Success, T::RuntimeOrigin> {
 		let Some(who) = origin.clone().into_signer() else { return Err(origin) };
 		let Ok(token) = Self::verify_token(token, verifying_key) else { return Err(origin) };
 		let Ok(claims) = Self::extract_claims(&token) else { return Err(origin) };
 		let Ok(now) = Now::<T>::get().try_into() else { return Err(origin) };
 		let Some(date_time) = claims.expiration else { return Err(origin) };
+
+		if let Some(credential_assert) = maybe_assert_credential {
+			if claims.custom.investor_type != credential_assert {
+				return Err(origin);
+			}
+		}
 
 		if claims.custom.subject == who && (date_time.timestamp() as u64) >= now {
 			return Ok((who, claims.custom.did.clone(), claims.custom.investor_type.clone()));
@@ -97,19 +105,22 @@ where
 {
 	type Success;
 	type Claims: Clone + Encode + Decode + Eq + PartialEq + Ord + PartialOrd + TypeInfo + DeserializeOwned;
+	type Credential;
 
 	fn try_origin(
 		origin: OuterOrigin,
 		token: &jwt_compact::UntrustedToken,
 		verifying_key: [u8; 32],
+		maybe_assert_credential: Option<Self::Credential>,
 	) -> Result<Self::Success, OuterOrigin>;
 
 	fn ensure_origin(
 		origin: OuterOrigin,
 		token: &jwt_compact::UntrustedToken,
 		verifying_key: [u8; 32],
+		maybe_assert_credential: Option<Self::Credential>,
 	) -> Result<Self::Success, BadOrigin> {
-		Self::try_origin(origin, token, verifying_key).map_err(|_| BadOrigin)
+		Self::try_origin(origin, token, verifying_key, maybe_assert_credential).map_err(|_| BadOrigin)
 	}
 
 	fn extract_claims(token: &jwt_compact::Token<Self::Claims>) -> Result<&StandardClaims<Self::Claims>, ()> {

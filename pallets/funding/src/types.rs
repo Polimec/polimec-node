@@ -180,7 +180,7 @@ pub mod storage_types {
 		pub token_information: CurrencyMetadata<BoundedString>,
 		/// Mainnet Token Max Supply
 		pub mainnet_token_max_supply: Balance,
-		/// Total allocation of Contribution Tokens available for the Funding Round. (Auction, Community)
+		/// Total allocation of Contribution Tokens available for the Funding Round.
 		pub total_allocation_size: Balance,
 		/// Percentage of the total allocation of Contribution Tokens available for the Auction Round
 		pub auction_round_allocation_percentage: Percent,
@@ -221,10 +221,13 @@ pub mod storage_types {
 		pub contributing: ContributingUSDBounds<Balance>,
 	}
 	pub trait TicketSizeValidityCheck<Price: FixedPointNumber, Balance: BalanceT + FixedPointOperand> {
+		/// Check that the ticket size specified by an issuer is compliant to Polimec's guidelines, like min and max bounds,
+		/// and the min is less than the max.
 		fn is_valid(&self, min_price: Price, usd_bounds: USDBounds<Balance>) -> Result<(), ValidityError>;
 	}
 
 	pub trait BiddingTicketSizesValidityCheck<Price: FixedPointNumber, Balance: BalanceT> {
+		/// Call the ticket size validations on the inner ticket sizes
 		fn is_valid(
 			&self,
 			min_price: Price,
@@ -233,6 +236,7 @@ pub mod storage_types {
 	}
 
 	pub trait ContributingTicketSizesValidityCheck<Price: FixedPointNumber, Balance: BalanceT> {
+		/// Call the ticket size validations on the inner ticket sizes
 		fn is_valid(
 			&self,
 			min_price: Price,
@@ -241,6 +245,7 @@ pub mod storage_types {
 	}
 
 	pub trait RoundTicketSizesValidityCheck<Price: FixedPointNumber, Balance: BalanceT> {
+		/// Call the ticket size validations on the inner ticket sizes
 		fn is_valid(&self, min_price: Price, all_usd_bounds: AllUSDBounds<Balance>) -> Result<(), ValidityError>;
 	}
 
@@ -258,6 +263,8 @@ pub mod storage_types {
 			RoundTicketSizes: RoundTicketSizesValidityCheck<Price, Balance>,
 		> ProjectMetadata<BoundedString, Balance, Price, Hash, AccountId, RoundTicketSizes>
 	{
+		/// Check the metadata is compliant to Polimec's guidelines, like min and max bounds on ticket sizes, and that
+		/// some parameters make logical sense which cannot be enforced at runtime, like duplicated funding assets
 		pub fn is_valid(&self, all_usd_ticket_bounds: AllUSDBounds<Balance>) -> Result<(), ValidityError> {
 			if self.minimum_price == Price::zero() {
 				return Err(ValidityError::PriceTooLow);
@@ -683,8 +690,6 @@ pub mod inner_types {
 			}
 		}
 	}
-	// Change this if we add more assets
-	pub const FUNDING_ASSETS_COUNT: u32 = 3;
 
 	#[derive(Default, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
@@ -971,42 +976,6 @@ pub mod inner_types {
 	impl<T: crate::Config> Get<u32> for MaxMigrationsPerXcm<T> {
 		fn get() -> u32 {
 			crate::Pallet::<T>::migrations_per_xcm_message_allowed()
-		}
-	}
-
-	///   Const getter for a basic type.
-	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, MaxEncodedLen, TypeInfo)]
-	pub struct StorageConstU64<const T: u64>;
-	#[cfg(feature = "std")]
-	impl<const T: u64> core::fmt::Debug for StorageConstU64<T> {
-		fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
-			fmt.write_str(&{
-				let res = format!("{}", format_args!("{}<{}>", stringify!(StorageConstU64), T));
-				res
-			})
-		}
-	}
-	#[cfg(not(feature = "std"))]
-	impl<const T: u64> core::fmt::Debug for StorageConstU64<T> {
-		fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
-			fmt.write_str("<wasm:stripped>")
-		}
-	}
-	impl<const T: u64> Get<u64> for StorageConstU64<T> {
-		fn get() -> u64 {
-			T
-		}
-	}
-	impl<const T: u64> Get<Option<u64>> for StorageConstU64<T> {
-		fn get() -> Option<u64> {
-			Some(T)
-		}
-	}
-	impl<const T: u64> TypedGet for StorageConstU64<T> {
-		type Type = u64;
-
-		fn get() -> u64 {
-			T
 		}
 	}
 }
