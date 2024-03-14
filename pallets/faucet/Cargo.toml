@@ -1,0 +1,64 @@
+[package]
+name = "polimec-faucet"
+description = "Polimec Faucet logic"
+authors.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+readme.workspace = true
+repository.workspace = true
+version.workspace = true
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+parity-scale-codec = { version = "3.6.5", features = [
+	"derive",
+], default-features = false }
+scale-info = { version = "2.9.0", default-features = false, features = [
+	"derive",
+] }
+
+# Substrate
+frame-benchmarking = { workspace = true, optional = true}
+frame-support.workspace = true
+frame-system.workspace = true
+polimec-common.workspace = true
+sp-std.workspace = true
+sp-runtime.workspace = true
+
+[dev-dependencies]
+sp-core.workspace = true
+sp-io.workspace = true
+sp-runtime.workspace = true
+
+[features]
+default = [ "std" ]
+std = [
+	"parity-scale-codec/std",
+	"frame-benchmarking/std",
+	"frame-support/std",
+	"frame-system/std",
+	"polimec-common/std",
+	"scale-info/std",
+	"sp-core/std",
+	"sp-io/std",
+	"sp-runtime/std",
+	"sp-std/std",
+]
+runtime-benchmarks = [
+	"frame-benchmarking/runtime-benchmarks",
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+	"polimec-common/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+]
+
+try-runtime = [
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"polimec-common/try-runtime",
+	"sp-runtime/try-runtime",
+]
