@@ -125,8 +125,9 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 pub use pallet::*;
+use pallet_xcm::ensure_response;
 use polimec_common::{
-	credentials::{EnsureOriginWithCredentials, UntrustedToken, Did},
+	credentials::{EnsureOriginWithCredentials, UntrustedToken, Did, InvestorType},
 	migration_types::*,
 };
 use polkadot_parachain::primitives::Id as ParaId;
@@ -305,7 +306,6 @@ pub mod pallet {
 		type InvestorOrigin: EnsureOriginWithCredentials<
 			<Self as frame_system::Config>::RuntimeOrigin,
 			Success = (AccountIdOf<Self>, Did, InvestorType),
-			Credential = InvestorType,
 		>;
 
 		/// How long an issuer has to accept or reject the funding of a project if the funding is between two thresholds.
@@ -979,12 +979,9 @@ pub mod pallet {
 		#[pallet::call_index(0)]
 		#[pallet::weight(WeightInfoOf::<T>::create())]
 		pub fn create(origin: OriginFor<T>, jwt: UntrustedToken, project: ProjectMetadataOf<T>) -> DispatchResult {
-			let (account, did, _investor_type) = T::InvestorOrigin::ensure_origin(
-				origin,
-				&jwt,
-				T::VerifierPublicKey::get(),
-				Some(InvestorType::Institutional),
-			)?;
+			let (account, _did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
 			log::trace!(target: "pallet_funding::test", "in create");
 			Self::do_create(&account, project, did)
 		}
@@ -998,12 +995,9 @@ pub mod pallet {
 			project_id: ProjectId,
 			project_metadata_hash: T::Hash,
 		) -> DispatchResult {
-			let (account, _did, _investor_type) = T::InvestorOrigin::ensure_origin(
-				origin,
-				&jwt,
-				T::VerifierPublicKey::get(),
-				Some(InvestorType::Institutional),
-			)?;
+			let (account, _did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
 			Self::do_edit_metadata(account, project_id, project_metadata_hash)
 		}
 
@@ -1015,12 +1009,9 @@ pub mod pallet {
 			jwt: UntrustedToken,
 			project_id: ProjectId,
 		) -> DispatchResultWithPostInfo {
-			let (account, _did, _investor_type) = T::InvestorOrigin::ensure_origin(
-				origin,
-				&jwt,
-				T::VerifierPublicKey::get(),
-				Some(InvestorType::Institutional),
-			)?;
+			let (account, _did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
 			Self::do_start_evaluation(account, project_id)
 		}
 
@@ -1034,12 +1025,9 @@ pub mod pallet {
 			jwt: UntrustedToken,
 			project_id: ProjectId,
 		) -> DispatchResultWithPostInfo {
-			let (account, _did, _investor_type) = T::InvestorOrigin::ensure_origin(
-				origin,
-				&jwt,
-				T::VerifierPublicKey::get(),
-				Some(InvestorType::Institutional),
-			)?;
+			let (account, _did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
 			Self::do_english_auction(account, project_id)
 		}
 
@@ -1056,8 +1044,8 @@ pub mod pallet {
 			project_id: ProjectId,
 			#[pallet::compact] usd_amount: BalanceOf<T>,
 		) -> DispatchResultWithPostInfo {
-			let (account, did, _investor_type) =
-				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get(), None)?;
+			let (account, _did, _investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			Self::do_evaluate(&account, project_id, usd_amount, did)
 		}
 
@@ -1081,7 +1069,7 @@ pub mod pallet {
 			asset: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
 			let (account, did, investor_type) =
-				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get(), None)?;
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			Self::do_bid(&account, project_id, amount, multiplier, asset, did, investor_type)
 		}
 
@@ -1105,7 +1093,7 @@ pub mod pallet {
 			asset: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
 			let (account, did, investor_type) =
-				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get(), None)?;
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			Self::do_community_contribute(&account, project_id, amount, multiplier, asset, did, investor_type)
 		}
 
@@ -1129,7 +1117,7 @@ pub mod pallet {
 			asset: AcceptedFundingAsset,
 		) -> DispatchResultWithPostInfo {
 			let (account, did, investor_type) =
-				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get(), None)?;
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			Self::do_remaining_contribute(&account, project_id, amount, multiplier, asset, did, investor_type)
 		}
 
@@ -1320,12 +1308,10 @@ pub mod pallet {
 			project_id: ProjectId,
 			para_id: ParaId,
 		) -> DispatchResult {
-			let (account, _did, _investor_type) = T::InvestorOrigin::ensure_origin(
-				origin,
-				&jwt,
-				T::VerifierPublicKey::get(),
-				Some(InvestorType::Institutional),
-			)?;
+			let (account, _did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
+
 			Self::do_set_para_id_for_project(&account, project_id, para_id)
 		}
 
@@ -1336,12 +1322,8 @@ pub mod pallet {
 			jwt: UntrustedToken,
 			project_id: ProjectId,
 		) -> DispatchResult {
-			let (account, _did, investor_type) = T::InvestorOrigin::ensure_origin(
-				origin,
-				&jwt,
-				T::VerifierPublicKey::get(),
-				Some(InvestorType::Institutional),
-			)?;
+			let (account, _did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
 			Self::do_start_migration_readiness_check(&account, project_id)
 		}
@@ -1362,13 +1344,9 @@ pub mod pallet {
 		#[pallet::call_index(25)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
 		pub fn start_migration(origin: OriginFor<T>, jwt: UntrustedToken, project_id: ProjectId) -> DispatchResult {
-			let (account, _did, _investor_type) = T::InvestorOrigin::ensure_origin(
-				origin,
-				&jwt,
-				T::VerifierPublicKey::get(),
-				Some(InvestorType::Institutional),
-			)?;
-
+			let (account, _did, investor_type) =
+				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
+			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
 			Self::do_start_migration(&account, project_id)
 		}
 
@@ -1685,8 +1663,6 @@ pub mod pallet {
 			max_weight.saturating_sub(remaining_weight)
 		}
 	}
-	use pallet_xcm::ensure_response;
-	use polimec_common::credentials::{Did, InvestorType};
 
 	#[pallet::genesis_config]
 	#[derive(Clone, PartialEq, Eq, Debug, Encode, Decode)]

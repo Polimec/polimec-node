@@ -19,7 +19,7 @@
 //! Tests for Funding pallet.
 use super::*;
 use crate::{
-	instantiator::*,
+	instantiator::{async_features::create_multiple_projects_at, *},
 	mock::*,
 	traits::{ProvideAssetPrice, VestingDurationCalculation},
 	CurrencyMetadata, Error, ProjectMetadata, TicketSize,
@@ -35,10 +35,8 @@ use frame_support::{
 };
 use itertools::Itertools;
 use parachains_common::DAYS;
-use polimec_common::{
-	credentials::{generate_did_from_account, *},
-	ReleaseSchedule,
-};
+use polimec_common::{credentials::*, ReleaseSchedule};
+use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt};
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::{BuildStorage, TokenError};
 use sp_std::{cell::RefCell, marker::PhantomData};
@@ -330,7 +328,7 @@ pub mod defaults {
 mod creation {
 	use super::*;
 	use polimec_common::credentials::InvestorType;
-	use polimec_common_test_utils::get_mock_jwt;
+	use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt};
 
 	#[test]
 	fn create_extrinsic() {
@@ -878,7 +876,7 @@ mod evaluation {
 mod auction {
 	use super::*;
 	use crate::instantiator::async_features::create_multiple_projects_at;
-	use polimec_common_test_utils::get_mock_jwt;
+	use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt};
 
 	#[test]
 	fn auction_round_completed() {
@@ -2059,9 +2057,6 @@ mod auction {
 // only functionalities that happen in the COMMUNITY FUNDING period of a project
 mod community_contribution {
 	use super::*;
-	use crate::instantiator::async_features::create_multiple_projects_at;
-	use polimec_common_test_utils::get_mock_jwt;
-
 	pub const HOURS: BlockNumber = 300u64;
 
 	#[test]

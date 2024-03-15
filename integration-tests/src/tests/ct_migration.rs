@@ -20,7 +20,7 @@ use pallet_funding::{
 	MigrationStatus, Multiplier, MultiplierOf, ProjectId, RewardOrSlash,
 };
 use polimec_common::{
-	credentials::{generate_did_from_account, InvestorType},
+	credentials::{InvestorType},
 	migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType},
 };
 use polimec_parachain_runtime::PolimecFunding;

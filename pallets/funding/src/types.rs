@@ -239,15 +239,6 @@ pub mod storage_types {
 		Institutional(Bound<Balance>),
 	}
 
-	pub trait TicketSizeValidityCheck<Price: FixedPointNumber, Balance: BalanceT> {
-		fn is_valid(&self, usd_bounds: Vec<InvestorTypeUSDBounds<Balance>>) -> Result<(), ValidityError>;
-	}
-
-	pub trait TicketSizeParticipationChecks<Balance> {
-		fn usd_ticket_above_minimum_per_participation(&self, ct_amount: Balance) -> bool;
-		fn usd_ticket_below_maximum_per_did(&self, ct_amount: Balance) -> bool;
-	}
-
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 	pub struct ProjectDetails<
 		AccountId,
