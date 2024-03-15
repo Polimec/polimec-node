@@ -36,6 +36,8 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
 use parity_scale_codec::Decode;
 use polimec_common::credentials::{Did, InvestorType};
+#[cfg(any(test, feature = "std", feature = "runtime-benchmarks"))]
+use polimec_common_test_utils::generate_did_from_account;
 use sp_arithmetic::{
 	traits::{SaturatedConversion, Saturating, Zero},
 	FixedPointNumber, Percent, Perquintill,
@@ -52,8 +54,6 @@ use sp_std::{
 	marker::PhantomData,
 	ops::Not,
 };
-
-use polimec_common::credentials::generate_did_from_account;
 
 pub type RuntimeOriginOf<T> = <T as frame_system::Config>::RuntimeOrigin;
 pub struct BoxToFunction(pub Box<dyn FnOnce()>);
