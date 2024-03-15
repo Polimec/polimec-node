@@ -16,9 +16,9 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::{traits::ConstU32, BoundedVec};
+use frame_support::{sp_runtime::app_crypto::sp_core::bytes::to_hex, traits::ConstU32, BoundedVec, Parameter};
 use jwt_compact::{alg::Ed25519, AlgorithmExt, Header};
-use polimec_common::credentials::{InvestorType, SampleClaims, UntrustedToken};
+use polimec_common::credentials::{Did, InvestorType, SampleClaims, UntrustedToken};
 
 /// Fetches a JWT from a dummy Polimec JWT producer that will return a JWT with the specified investor type
 #[cfg(feature = "std")]
@@ -100,14 +100,24 @@ pub fn get_fake_jwt<AccountId: core::fmt::Display>(
 	res
 }
 
+pub fn generate_did_from_account(account_id: impl Parameter) -> Did {
+	let mut hex_account = to_hex(&account_id.encode(), true);
+	if hex_account.len() > 57 {
+		#[allow(unused_imports)]
+		use parity_scale_codec::alloc::string::ToString;
+		hex_account = hex_account[0..57].to_string();
+	}
+	hex_account.into_bytes().try_into().unwrap()
+}
+
 #[cfg(test)]
 mod tests {
-	use crate::get_mock_jwt;
+	use crate::{generate_did_from_account, get_mock_jwt};
 	use jwt_compact::{
 		alg::{Ed25519, VerifyingKey},
 		AlgorithmExt,
 	};
-	use polimec_common::credentials::{generate_did_from_account, InvestorType, SampleClaims};
+	use polimec_common::credentials::{InvestorType, SampleClaims};
 
 	#[test]
 	fn test_get_test_jwt() {

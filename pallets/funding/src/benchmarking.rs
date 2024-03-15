@@ -382,7 +382,7 @@ pub fn run_blocks_to_execute_next_transition<T: Config>(
 mod benchmarks {
 	use super::*;
 	use itertools::Itertools;
-	use polimec_common::credentials::generate_did_from_account;
+	use polimec_common_test_utils::generate_did_from_account;
 
 	impl_benchmark_test_suite!(PalletFunding, crate::mock::new_test_ext(), crate::mock::TestRuntime);
 
