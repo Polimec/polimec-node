@@ -35,7 +35,7 @@ use frame_support::{
 use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
 use polimec_common::{
-	credentials::{InvestorType, DID},
+	credentials::{InvestorType, Did},
 	ReleaseSchedule,
 };
 use sp_arithmetic::{
@@ -1040,7 +1040,7 @@ impl<T: Config> Pallet<T> {
 		ct_amount: BalanceOf<T>,
 		multiplier: MultiplierOf<T>,
 		funding_asset: AcceptedFundingAsset,
-		did: DID,
+		did: Did,
 		investor_type: InvestorType,
 	) -> DispatchResultWithPostInfo {
 		// * Get variables *
@@ -1160,7 +1160,7 @@ impl<T: Config> Pallet<T> {
 		bid_id: u32,
 		now: BlockNumberFor<T>,
 		plmc_usd_price: T::Price,
-		did: DID,
+		did: Did,
 		metadata_ticket_size_bounds: TicketSizeOf<T>,
 	) -> Result<BidInfoOf<T>, DispatchError> {
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
@@ -1231,7 +1231,7 @@ impl<T: Config> Pallet<T> {
 		token_amount: BalanceOf<T>,
 		multiplier: MultiplierOf<T>,
 		asset: AcceptedFundingAsset,
-		did: DID,
+		did: Did,
 		investor_type: InvestorType,
 	) -> DispatchResultWithPostInfo {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -1273,7 +1273,7 @@ impl<T: Config> Pallet<T> {
 		token_amount: BalanceOf<T>,
 		multiplier: MultiplierOf<T>,
 		asset: AcceptedFundingAsset,
-		did: DID,
+		did: Did,
 		investor_type: InvestorType,
 	) -> DispatchResultWithPostInfo {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -1305,7 +1305,7 @@ impl<T: Config> Pallet<T> {
 		multiplier: MultiplierOf<T>,
 		funding_asset: AcceptedFundingAsset,
 		investor_type: InvestorType,
-		did: DID,
+		did: Did,
 	) -> DispatchResultWithPostInfo {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let caller_existing_contributions =

@@ -59,10 +59,10 @@ pub struct SampleClaims<AccountId> {
 	pub issuer: String,
 	pub investor_type: InvestorType,
 	#[serde(deserialize_with = "from_bounded_vec")]
-	pub did: DID,
+	pub did: Did,
 }
 
-pub type DID = BoundedVec<u8, ConstU32<57>>;
+pub type Did = BoundedVec<u8, ConstU32<57>>;
 
 pub struct EnsureInvestor<T>(sp_std::marker::PhantomData<T>);
 impl<'de, T> EnsureOriginWithCredentials<T::RuntimeOrigin> for EnsureInvestor<T>
@@ -71,7 +71,7 @@ where
 {
 	type Claims = SampleClaims<T::AccountId>;
 	type Credential = InvestorType;
-	type Success = (T::AccountId, DID, InvestorType);
+	type Success = (T::AccountId, Did, InvestorType);
 
 	fn try_origin(
 		origin: T::RuntimeOrigin,
@@ -175,7 +175,7 @@ where
 	}
 }
 
-pub fn generate_did_from_account(account_id: impl Parameter) -> DID {
+pub fn generate_did_from_account(account_id: impl Parameter) -> Did {
 	let mut did = [0u8; 57];
 	let account_serialized = account_id.encode();
 	let account_len = account_serialized.len();

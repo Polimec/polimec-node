@@ -431,7 +431,7 @@ pub mod pallet {
 		/// Credentialized investor Origin, ensures users are of investing type Retail, or Professional, or Institutional.
 		type InvestorOrigin: EnsureOriginWithCredentials<
 			<Self as frame_system::Config>::RuntimeOrigin,
-			Success = (AccountIdOf<Self>, DID, InvestorType),
+			Success = (AccountIdOf<Self>, Did, InvestorType),
 			Credential = InvestorType,
 		>;
 	}
@@ -527,7 +527,7 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type AuctionBoughtUSD<T: Config> = StorageNMap<
 		_,
-		(NMapKey<Blake2_128Concat, ProjectId>, NMapKey<Blake2_128Concat, DID>),
+		(NMapKey<Blake2_128Concat, ProjectId>, NMapKey<Blake2_128Concat, Did>),
 		BalanceOf<T>,
 		ValueQuery,
 	>;
@@ -535,7 +535,7 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type ContributionBoughtUSD<T: Config> = StorageNMap<
 		_,
-		(NMapKey<Blake2_128Concat, ProjectId>, NMapKey<Blake2_128Concat, DID>),
+		(NMapKey<Blake2_128Concat, ProjectId>, NMapKey<Blake2_128Concat, Did>),
 		BalanceOf<T>,
 		ValueQuery,
 	>;
@@ -1582,7 +1582,7 @@ pub mod pallet {
 		}
 	}
 	use pallet_xcm::ensure_response;
-	use polimec_common::credentials::{InvestorType, DID};
+	use polimec_common::credentials::{InvestorType, Did};
 
 	#[pallet::genesis_config]
 	#[derive(Clone, PartialEq, Eq, Debug, Encode, Decode)]
