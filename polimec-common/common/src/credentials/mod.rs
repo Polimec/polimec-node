@@ -26,6 +26,7 @@ pub use jwt_compact::{
 	Claims as StandardClaims, *,
 };
 use serde::Deserializer;
+use sp_runtime::app_crypto::sp_core::bytes::to_hex;
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -176,13 +177,16 @@ where
 }
 
 pub fn generate_did_from_account(account_id: impl Parameter) -> Did {
-	let mut did = [0u8; 57];
-	let account_serialized = account_id.encode();
-	let account_len = account_serialized.len();
-	if account_len <= 57 {
-		did[..account_len].copy_from_slice(&account_serialized);
-	} else {
-		did.copy_from_slice(&account_serialized[..57]);
-	}
-	did.to_vec().try_into().unwrap()
+	// let mut did = String::new();
+	// let account_serialized = account_id.encode();
+	let hex_account = to_hex(&account_id.encode(), true);
+	// let account_iter = account_serialized.into_iter().cycle();
+	// for _ in 0..57 {
+	// 	did.push(account_iter.next().unwrap())
+	// }
+	// let x: char = 'x';
+	// let did_vec = did.into_bytes();
+	// let string = String::from_utf8_lossy(&did_vec);
+	// assert_eq!(string.len(), 57);
+	hex_account.into_bytes().try_into().unwrap()
 }

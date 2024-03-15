@@ -297,6 +297,20 @@ pub mod defaults {
 mod creation {
 	use super::*;
 	use polimec_common::credentials::InvestorType;
+	use polimec_common_test_utils::get_mock_jwt;
+
+	#[test]
+	fn create_extrinsic() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project_metadata(inst.get_new_nonce(), ISSUER);
+		inst.mint_plmc_to(default_plmc_balances());
+		let jwt = get_mock_jwt(ISSUER, InvestorType::Institutional, generate_did_from_account(ISSUER));
+		assert_ok!(inst.execute(|| crate::Pallet::<TestRuntime>::create(
+			RuntimeOrigin::signed(ISSUER),
+			jwt,
+			project_metadata
+		)));
+	}
 
 	#[test]
 	fn basic_plmc_transfer_works() {
