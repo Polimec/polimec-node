@@ -26,6 +26,7 @@ pub use jwt_compact::{
 	Claims as StandardClaims, *,
 };
 use serde::Deserializer;
+use sp_runtime::app_crypto::sp_core::bytes::to_hex;
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -59,29 +60,37 @@ pub struct SampleClaims<AccountId> {
 	pub issuer: String,
 	pub investor_type: InvestorType,
 	#[serde(deserialize_with = "from_bounded_vec")]
-	pub did: DID,
+	pub did: Did,
 }
 
-pub type DID = BoundedVec<u8, ConstU32<57>>;
+pub type Did = BoundedVec<u8, ConstU32<57>>;
 
 pub struct EnsureInvestor<T>(sp_std::marker::PhantomData<T>);
-impl<'de, T> EnsureOriginWithCredentials<T::RuntimeOrigin> for EnsureInvestor<T>
+impl<T> EnsureOriginWithCredentials<T::RuntimeOrigin> for EnsureInvestor<T>
 where
 	T: frame_system::Config + pallet_timestamp::Config,
 {
 	type Claims = SampleClaims<T::AccountId>;
-	type Success = (T::AccountId, DID, InvestorType);
+	type Credential = InvestorType;
+	type Success = (T::AccountId, Did, InvestorType);
 
 	fn try_origin(
 		origin: T::RuntimeOrigin,
 		token: &jwt_compact::UntrustedToken,
 		verifying_key: [u8; 32],
+		maybe_assert_credential: Option<Self::Credential>,
 	) -> Result<Self::Success, T::RuntimeOrigin> {
 		let Some(who) = origin.clone().into_signer() else { return Err(origin) };
 		let Ok(token) = Self::verify_token(token, verifying_key) else { return Err(origin) };
 		let Ok(claims) = Self::extract_claims(&token) else { return Err(origin) };
 		let Ok(now) = Now::<T>::get().try_into() else { return Err(origin) };
 		let Some(date_time) = claims.expiration else { return Err(origin) };
+
+		if let Some(credential_assert) = maybe_assert_credential {
+			if claims.custom.investor_type != credential_assert {
+				return Err(origin);
+			}
+		}
 
 		if claims.custom.subject == who && (date_time.timestamp() as u64) >= now {
 			return Ok((who, claims.custom.did.clone(), claims.custom.investor_type.clone()));
@@ -97,23 +106,26 @@ where
 {
 	type Success;
 	type Claims: Clone + Encode + Decode + Eq + PartialEq + Ord + PartialOrd + TypeInfo + DeserializeOwned;
+	type Credential;
 
 	fn try_origin(
 		origin: OuterOrigin,
 		token: &jwt_compact::UntrustedToken,
 		verifying_key: [u8; 32],
+		maybe_assert_credential: Option<Self::Credential>,
 	) -> Result<Self::Success, OuterOrigin>;
 
 	fn ensure_origin(
 		origin: OuterOrigin,
 		token: &jwt_compact::UntrustedToken,
 		verifying_key: [u8; 32],
+		maybe_assert_credential: Option<Self::Credential>,
 	) -> Result<Self::Success, BadOrigin> {
-		Self::try_origin(origin, token, verifying_key).map_err(|_| BadOrigin)
+		Self::try_origin(origin, token, verifying_key, maybe_assert_credential).map_err(|_| BadOrigin)
 	}
 
 	fn extract_claims(token: &jwt_compact::Token<Self::Claims>) -> Result<&StandardClaims<Self::Claims>, ()> {
-		Ok(&token.claims())
+		Ok(token.claims())
 	}
 
 	fn verify_token(
@@ -122,7 +134,7 @@ where
 	) -> Result<jwt_compact::Token<Self::Claims>, ValidationError> {
 		let signing_key =
 			<<Ed25519 as Algorithm>::VerifyingKey>::from_slice(&verifying_key).expect("The Key is always valid");
-		Ed25519.validator::<Self::Claims>(&signing_key).validate(&token)
+		Ed25519.validator::<Self::Claims>(&signing_key).validate(token)
 	}
 }
 
@@ -130,10 +142,9 @@ pub fn from_bounded_vec<'de, D>(deserializer: D) -> Result<BoundedVec<u8, ConstU
 where
 	D: Deserializer<'de>,
 {
-	String::deserialize(deserializer).map(|string| string.as_bytes().to_vec()).and_then(|vec| {
-		let res = vec.try_into().map_err(|_| Error::custom("failed to deserialize"));
-		res
-	})
+	String::deserialize(deserializer)
+		.map(|string| string.as_bytes().to_vec())
+		.and_then(|vec| vec.try_into().map_err(|_| Error::custom("failed to deserialize")))
 }
 
 impl<AccountId> Serialize for SampleClaims<AccountId>
@@ -164,14 +175,12 @@ where
 	}
 }
 
-pub fn generate_did_from_account(account_id: impl Parameter) -> DID {
-	let mut did = [0u8; 57];
-	let account_serialized = account_id.encode();
-	let account_len = account_serialized.len();
-	if account_len <= 57 {
-		did[..account_len].copy_from_slice(&account_serialized);
-	} else {
-		did.copy_from_slice(&account_serialized[..57]);
+pub fn generate_did_from_account(account_id: impl Parameter) -> Did {
+	let mut hex_account = to_hex(&account_id.encode(), true);
+	if hex_account.len() > 57 {
+		#[allow(unused_imports)]
+		use parity_scale_codec::alloc::string::ToString;
+		hex_account = hex_account[0..57].to_string();
 	}
-	did.to_vec().try_into().unwrap()
+	hex_account.into_bytes().try_into().unwrap()
 }

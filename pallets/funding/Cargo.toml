@@ -54,7 +54,7 @@ pallet-insecure-randomness-collective-flip.workspace = true
 pallet-timestamp.workspace = true
 pallet-assets.workspace = true
 pallet-linear-release.workspace = true
-
+polimec-common-test-utils.workspace = true
 macros.workspace = true
 xcm-executor.workspace = true
 
