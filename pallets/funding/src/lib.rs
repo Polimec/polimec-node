@@ -300,12 +300,12 @@ pub mod pallet {
 			+ fungibles::metadata::Mutate<AccountIdOf<Self>, AssetId = u32>
 			+ fungibles::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
 
-        /// Credentialized investor Origin, ensures users are of investing type Retail, or Professional, or Institutional.
-        type InvestorOrigin: EnsureOriginWithCredentials<
-            <Self as frame_system::Config>::RuntimeOrigin,
-            Success = (AccountIdOf<Self>, Did, InvestorType),
-            Credential = InvestorType,
-        >;
+		/// Credentialized investor Origin, ensures users are of investing type Retail, or Professional, or Institutional.
+		type InvestorOrigin: EnsureOriginWithCredentials<
+			<Self as frame_system::Config>::RuntimeOrigin,
+			Success = (AccountIdOf<Self>, Did, InvestorType),
+			Credential = InvestorType,
+		>;
 
 		/// How long an issuer has to accept or reject the funding of a project if the funding is between two thresholds.
 		#[pallet::constant]
