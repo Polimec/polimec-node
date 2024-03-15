@@ -1582,7 +1582,7 @@ pub mod pallet {
 		}
 	}
 	use pallet_xcm::ensure_response;
-	use polimec_common::credentials::{InvestorType, Did};
+	use polimec_common::credentials::{Did, InvestorType};
 
 	#[pallet::genesis_config]
 	#[derive(Clone, PartialEq, Eq, Debug, Encode, Decode)]

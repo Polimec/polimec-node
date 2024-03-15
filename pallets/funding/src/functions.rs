@@ -35,7 +35,7 @@ use frame_support::{
 use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
 use polimec_common::{
-	credentials::{InvestorType, Did},
+	credentials::{Did, InvestorType},
 	ReleaseSchedule,
 };
 use sp_arithmetic::{

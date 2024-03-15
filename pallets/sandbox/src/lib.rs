@@ -45,12 +45,12 @@ pub mod pallet {
 		/// Buy tokens for a project in the community round if it achieved at least 500k USDT funding
 		#[pallet::weight(0)]
 		pub fn buy_if_popular(
-            origin: OriginFor<T>,
-            project_id: ProjectId,
-            amount: <T as funding::Config>::Balance,
-            asset_id: AcceptedFundingAsset,
-            did: polimec_common::credentials::Did,
-            investor_type: polimec_common::credentials::InvestorType,
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+			amount: <T as funding::Config>::Balance,
+			asset_id: AcceptedFundingAsset,
+			did: polimec_common::credentials::Did,
+			investor_type: polimec_common::credentials::InvestorType,
 		) -> DispatchResultWithPostInfo {
 			let retail_user = ensure_signed(origin)?;
 			let project_id: ProjectId = project_id;
