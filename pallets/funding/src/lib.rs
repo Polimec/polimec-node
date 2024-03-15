@@ -1017,7 +1017,7 @@ pub mod pallet {
 			jwt: UntrustedToken,
 			project_id: ProjectId,
 		) -> DispatchResultWithPostInfo {
-			let (account, _did, investor_type) = T::InvestorOrigin::ensure_origin(
+			let (account, _did, _investor_type) = T::InvestorOrigin::ensure_origin(
 				origin,
 				&jwt,
 				T::VerifierPublicKey::get(),
@@ -1303,7 +1303,7 @@ pub mod pallet {
 			project_id: ProjectId,
 			para_id: ParaId,
 		) -> DispatchResult {
-			let (account, _did, investor_type) = T::InvestorOrigin::ensure_origin(
+			let (account, _did, _investor_type) = T::InvestorOrigin::ensure_origin(
 				origin,
 				&jwt,
 				T::VerifierPublicKey::get(),
@@ -1345,7 +1345,7 @@ pub mod pallet {
 		#[pallet::call_index(25)]
 		#[pallet::weight(Weight::from_parts(1000, 0))]
 		pub fn start_migration(origin: OriginFor<T>, jwt: UntrustedToken, project_id: ProjectId) -> DispatchResult {
-			let (account, _did, investor_type) = T::InvestorOrigin::ensure_origin(
+			let (account, _did, _investor_type) = T::InvestorOrigin::ensure_origin(
 				origin,
 				&jwt,
 				T::VerifierPublicKey::get(),

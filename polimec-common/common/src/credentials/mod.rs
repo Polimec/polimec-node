@@ -66,7 +66,7 @@ pub struct SampleClaims<AccountId> {
 pub type Did = BoundedVec<u8, ConstU32<57>>;
 
 pub struct EnsureInvestor<T>(sp_std::marker::PhantomData<T>);
-impl<'de, T> EnsureOriginWithCredentials<T::RuntimeOrigin> for EnsureInvestor<T>
+impl<T> EnsureOriginWithCredentials<T::RuntimeOrigin> for EnsureInvestor<T>
 where
 	T: frame_system::Config + pallet_timestamp::Config,
 {
@@ -125,7 +125,7 @@ where
 	}
 
 	fn extract_claims(token: &jwt_compact::Token<Self::Claims>) -> Result<&StandardClaims<Self::Claims>, ()> {
-		Ok(&token.claims())
+		Ok(token.claims())
 	}
 
 	fn verify_token(
@@ -134,7 +134,7 @@ where
 	) -> Result<jwt_compact::Token<Self::Claims>, ValidationError> {
 		let signing_key =
 			<<Ed25519 as Algorithm>::VerifyingKey>::from_slice(&verifying_key).expect("The Key is always valid");
-		Ed25519.validator::<Self::Claims>(&signing_key).validate(&token)
+		Ed25519.validator::<Self::Claims>(&signing_key).validate(token)
 	}
 }
 
@@ -142,10 +142,9 @@ pub fn from_bounded_vec<'de, D>(deserializer: D) -> Result<BoundedVec<u8, ConstU
 where
 	D: Deserializer<'de>,
 {
-	String::deserialize(deserializer).map(|string| string.as_bytes().to_vec()).and_then(|vec| {
-		let res = vec.try_into().map_err(|_| Error::custom("failed to deserialize"));
-		res
-	})
+	String::deserialize(deserializer)
+		.map(|string| string.as_bytes().to_vec())
+		.and_then(|vec| vec.try_into().map_err(|_| Error::custom("failed to deserialize")))
 }
 
 impl<AccountId> Serialize for SampleClaims<AccountId>
@@ -179,6 +178,7 @@ where
 pub fn generate_did_from_account(account_id: impl Parameter) -> Did {
 	let mut hex_account = to_hex(&account_id.encode(), true);
 	if hex_account.len() > 57 {
+		#[allow(unused_imports)]
 		use parity_scale_codec::alloc::string::ToString;
 		hex_account = hex_account[0..57].to_string();
 	}
