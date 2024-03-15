@@ -193,16 +193,16 @@ fn base_testnet_genesis(
 			"balances": endowed_accounts.clone()
 		},
 		"parachainInfo": {
-			"parachain_id": id
+			"parachainId": id
 		},
 		"parachainStaking": {
 			"candidates": stakers.iter().map(|(accunt, _, balance)| (accunt.clone(), *balance)).collect::<Vec<_>>(),
-			"inflation_config": inflation_config,
+			"inflationConfig": inflation_config,
 			"delegations": [],
-			"collator_commission": COLLATOR_COMMISSION,
-			"parachain_bond_reserve_percent": PARACHAIN_BOND_RESERVE_PERCENT,
-			"blocks_per_round": BLOCKS_PER_ROUND,
-			"num_selected_candidates": NUM_SELECTED_CANDIDATES
+			"collatorCommission": COLLATOR_COMMISSION,
+			"parachainBondReservePercent": PARACHAIN_BOND_RESERVE_PERCENT,
+			"blocksPerRound": BLOCKS_PER_ROUND,
+			"numSelectedCandidates": NUM_SELECTED_CANDIDATES
 		},
 		"session": {
 			"keys": initial_authorities.iter().map(|acc| {
@@ -214,10 +214,9 @@ fn base_testnet_genesis(
 			}).collect::<Vec<_>>()
 		},
 		"polkadotXcm": {
-			"safe_xcm_version": SAFE_XCM_VERSION
+			"safeXcmVersion": SAFE_XCM_VERSION
 		},
 		"oracleProvidersMembership": {
-
 			"members": BoundedVec::<AccountId,ConstU32<50>>::truncate_from(initial_authorities),
 		},
 		"elections": {
