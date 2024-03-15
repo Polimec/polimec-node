@@ -48,18 +48,15 @@ pub fn excel_project(nonce: u64) -> ProjectMetadataOf<PolimecRuntime> {
 
 		// Minimum Price per Contribution Token (in USDT)
 		minimum_price: PriceOf::<PolimecRuntime>::from(10),
-		round_ticket_sizes: RoundTicketSizes {
-			bidding: BiddingTicketSizes {
-				professional: TicketSize::new(Some(500 * ASSET_UNIT), None),
-				institutional: TicketSize::new(Some(500 * ASSET_UNIT), None),
-				phantom: Default::default(),
-			},
-			contributing: ContributingTicketSizes {
-				retail: TicketSize::new(None, None),
-				professional: TicketSize::new(None, None),
-				institutional: TicketSize::new(None, None),
-				phantom: Default::default(),
-			},
+		bidding_ticket_sizes: BiddingTicketSizes {
+			professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+			institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+			phantom: Default::default(),
+		},
+		contributing_ticket_sizes: ContributingTicketSizes {
+			retail: TicketSize::new(None, None),
+			professional: TicketSize::new(None, None),
+			institutional: TicketSize::new(None, None),
 			phantom: Default::default(),
 		},
 		participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),

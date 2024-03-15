@@ -35,7 +35,7 @@ use frame_support::{
 use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
 use polimec_common::{
-	credentials::{InvestorType, DID},
+	credentials::{Did, InvestorType},
 	ReleaseSchedule,
 };
 use sp_arithmetic::{
@@ -1075,7 +1075,7 @@ impl<T: Config> Pallet<T> {
 		ct_amount: BalanceOf<T>,
 		multiplier: MultiplierOf<T>,
 		funding_asset: AcceptedFundingAsset,
-		did: DID,
+		did: Did,
 		investor_type: InvestorType,
 	) -> DispatchResultWithPostInfo {
 		// * Get variables *
@@ -1085,11 +1085,18 @@ impl<T: Config> Pallet<T> {
 		let ct_deposit = T::ContributionTokenCurrency::deposit_required(project_id);
 		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder)).collect::<Vec<_>>();
 		let bid_count = BidCounts::<T>::get(project_id);
-		let total_ct_bid_by_did = AuctionBoughtCT::<T>::get((project_id, did.clone()));
+		// User will spend at least this amount of USD for his bid(s). More if the bid gets split into different buckets
+		let min_total_ticket_size =
+			project_metadata.minimum_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
 		// weight return variables
 		let mut perform_bid_calls = 0;
 		let mut ct_deposit_required = false;
 		let existing_bids_amount = existing_bids.len() as u32;
+		let metadata_bidder_ticket_size_bounds = match investor_type {
+			InvestorType::Institutional => project_metadata.bidding_ticket_sizes.institutional,
+			InvestorType::Professional => project_metadata.bidding_ticket_sizes.professional,
+			_ => return Err(Error::<T>::NotAllowed.into()),
+		};
 
 		// * Validity checks *
 		ensure!(
@@ -1106,13 +1113,10 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::FundingAssetNotAccepted
 		);
 
-		let bidder_ticket_size = match investor_type {
-			InvestorType::Institutional => project_metadata.round_ticket_sizes.bidding.institutional,
-			InvestorType::Professional => project_metadata.round_ticket_sizes.bidding.professional,
-			_ => return Err(Error::<T>::NotAllowed.into()),
-		};
-		ensure!(bidder_ticket_size.ct_above_minimum_per_participation(ct_amount), Error::<T>::BidTooLow);
-		ensure!(bidder_ticket_size.ct_below_maximum_per_did(total_ct_bid_by_did + ct_amount), Error::<T>::BidTooHigh);
+		ensure!(
+			metadata_bidder_ticket_size_bounds.usd_ticket_above_minimum_per_participation(min_total_ticket_size),
+			Error::<T>::BidTooLow
+		);
 
 		// Note: We limit the CT Amount to the auction allocation size, to avoid long running loops.
 		ensure!(
@@ -1154,11 +1158,12 @@ impl<T: Config> Pallet<T> {
 				now,
 				plmc_usd_price,
 				did.clone(),
+				metadata_bidder_ticket_size_bounds,
 			)?;
 
 			perform_bid_calls += 1;
 
-			// Update current bucket, and reduce the amount to bid by the amount we just bid
+			// Update the current bucket and reduce the amount to bid by the amount we just bid
 			current_bucket.update(bid_amount);
 			amount_to_bid.saturating_reduce(bid_amount);
 		}
@@ -1190,9 +1195,18 @@ impl<T: Config> Pallet<T> {
 		bid_id: u32,
 		now: BlockNumberFor<T>,
 		plmc_usd_price: T::Price,
-		did: DID,
+		did: Did,
+		metadata_ticket_size_bounds: TicketSizeOf<T>,
 	) -> Result<BidInfoOf<T>, DispatchError> {
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
+
+		let total_usd_bid_by_did = AuctionBoughtUSD::<T>::get((project_id, did.clone()));
+		ensure!(
+			metadata_ticket_size_bounds
+				.usd_ticket_below_maximum_per_did(total_usd_bid_by_did.saturating_add(ticket_size)),
+			Error::<T>::BidTooHigh
+		);
+
 		let funding_asset_usd_price =
 			T::PriceProvider::get_price(funding_asset.to_assethub_id()).ok_or(Error::<T>::PriceNotFound)?;
 
@@ -1230,7 +1244,7 @@ impl<T: Config> Pallet<T> {
 		Bids::<T>::insert((project_id, bidder, bid_id), &new_bid);
 		NextBidId::<T>::set(bid_id.saturating_add(One::one()));
 		BidCounts::<T>::mutate(project_id, |c| *c += 1);
-		AuctionBoughtCT::<T>::mutate((project_id, did), |amount| *amount += ct_amount);
+		AuctionBoughtUSD::<T>::mutate((project_id, did), |amount| *amount += ticket_size);
 
 		Self::deposit_event(Event::Bid { project_id, amount: ct_amount, price: ct_usd_price, multiplier });
 
@@ -1252,7 +1266,7 @@ impl<T: Config> Pallet<T> {
 		token_amount: BalanceOf<T>,
 		multiplier: MultiplierOf<T>,
 		asset: AcceptedFundingAsset,
-		did: DID,
+		did: Did,
 		investor_type: InvestorType,
 	) -> DispatchResultWithPostInfo {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -1294,7 +1308,7 @@ impl<T: Config> Pallet<T> {
 		token_amount: BalanceOf<T>,
 		multiplier: MultiplierOf<T>,
 		asset: AcceptedFundingAsset,
-		did: DID,
+		did: Did,
 		investor_type: InvestorType,
 	) -> DispatchResultWithPostInfo {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -1326,12 +1340,24 @@ impl<T: Config> Pallet<T> {
 		multiplier: MultiplierOf<T>,
 		funding_asset: AcceptedFundingAsset,
 		investor_type: InvestorType,
-		did: DID,
+		did: Did,
 	) -> DispatchResultWithPostInfo {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let caller_existing_contributions =
 			Contributions::<T>::iter_prefix_values((project_id, contributor)).collect::<Vec<_>>();
-		let total_ct_bought_by_did = ContributionBoughtCT::<T>::get((project_id, did.clone()));
+		let total_usd_bought_by_did = ContributionBoughtUSD::<T>::get((project_id, did.clone()));
+		let now = <frame_system::Pallet<T>>::block_number();
+		let ct_usd_price = project_details.weighted_average_price.ok_or(Error::<T>::AuctionNotStarted)?;
+		let plmc_usd_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PriceNotFound)?;
+		let funding_asset_usd_price =
+			T::PriceProvider::get_price(funding_asset.to_assethub_id()).ok_or(Error::<T>::PriceNotFound)?;
+
+		let ticket_size = ct_usd_price.checked_mul_int(buyable_tokens).ok_or(Error::<T>::BadMath)?;
+		let contributor_ticket_size = match investor_type {
+			InvestorType::Institutional => project_metadata.contributing_ticket_sizes.institutional,
+			InvestorType::Professional => project_metadata.contributing_ticket_sizes.professional,
+			InvestorType::Retail => project_metadata.contributing_ticket_sizes.retail,
+		};
 
 		// * Validity checks *
 		ensure!(
@@ -1343,27 +1369,12 @@ impl<T: Config> Pallet<T> {
 			caller_existing_contributions.len() < T::MaxContributionsPerUser::get() as usize,
 			Error::<T>::TooManyContributionsForUser
 		);
-
-		let now = <frame_system::Pallet<T>>::block_number();
-
-		let ct_usd_price = project_details.weighted_average_price.ok_or(Error::<T>::AuctionNotStarted)?;
-		let plmc_usd_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PriceNotFound)?;
-		let funding_asset_usd_price =
-			T::PriceProvider::get_price(funding_asset.to_assethub_id()).ok_or(Error::<T>::PriceNotFound)?;
-
-		let ticket_size = ct_usd_price.checked_mul_int(buyable_tokens).ok_or(Error::<T>::BadMath)?;
-
-		let contributor_ticket_size = match investor_type {
-			InvestorType::Institutional => project_metadata.round_ticket_sizes.contributing.institutional,
-			InvestorType::Professional => project_metadata.round_ticket_sizes.contributing.professional,
-			InvestorType::Retail => project_metadata.round_ticket_sizes.contributing.retail,
-		};
 		ensure!(
-			contributor_ticket_size.ct_above_minimum_per_participation(buyable_tokens),
+			contributor_ticket_size.usd_ticket_above_minimum_per_participation(ticket_size),
 			Error::<T>::ContributionTooLow
 		);
 		ensure!(
-			contributor_ticket_size.ct_below_maximum_per_did(total_ct_bought_by_did + buyable_tokens),
+			contributor_ticket_size.usd_ticket_below_maximum_per_did(total_usd_bought_by_did + ticket_size),
 			Error::<T>::ContributionTooHigh
 		);
 
@@ -1403,7 +1414,7 @@ impl<T: Config> Pallet<T> {
 
 		Contributions::<T>::insert((project_id, contributor, contribution_id), &new_contribution);
 		NextContributionId::<T>::set(contribution_id.saturating_add(One::one()));
-		ContributionBoughtCT::<T>::mutate((project_id, did), |amount| *amount += buyable_tokens);
+		ContributionBoughtUSD::<T>::mutate((project_id, did), |amount| *amount += ticket_size);
 
 		let remaining_cts_after_purchase = project_details.remaining_contribution_tokens;
 		project_details.funding_amount_reached.saturating_accrue(new_contribution.usd_contribution_amount);
