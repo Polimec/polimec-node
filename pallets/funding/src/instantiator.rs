@@ -34,7 +34,8 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
-use polimec_common::credentials::{InvestorType, DID};
+use parity_scale_codec::Decode;
+use polimec_common::credentials::{Did, InvestorType};
 use sp_arithmetic::{
 	traits::{SaturatedConversion, Saturating, Zero},
 	FixedPointNumber, Percent, Perquintill,

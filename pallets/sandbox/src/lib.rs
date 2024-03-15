@@ -49,7 +49,7 @@ pub mod pallet {
 			project_id: ProjectId,
 			amount: <T as funding::Config>::Balance,
 			asset_id: AcceptedFundingAsset,
-			did: polimec_common::credentials::DID,
+			did: polimec_common::credentials::Did,
 			investor_type: polimec_common::credentials::InvestorType,
 		) -> DispatchResultWithPostInfo {
 			let retail_user = ensure_signed(origin)?;

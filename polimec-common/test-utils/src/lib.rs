@@ -16,7 +16,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::BoundedVec;
+use frame_support::{traits::ConstU32, BoundedVec};
 use jwt_compact::{alg::Ed25519, AlgorithmExt, Header};
 use polimec_common::credentials::{InvestorType, SampleClaims, UntrustedToken};
 
@@ -42,6 +42,7 @@ pub fn get_test_jwt<AccountId: core::fmt::Display>(
 pub fn get_mock_jwt<AccountId: frame_support::Serialize>(
 	account_id: AccountId,
 	investor_type: InvestorType,
+	did: BoundedVec<u8, ConstU32<57>>,
 ) -> UntrustedToken {
 	use chrono::{TimeZone, Utc};
 	use jwt_compact::{alg::SigningKey, Claims};
@@ -61,9 +62,6 @@ pub fn get_mock_jwt<AccountId: frame_support::Serialize>(
 	.unwrap();
 	// We don't need any custom fields in the header, so we use the empty.
 	let header: Header = Header::empty();
-
-	// DID, from `String` to `BoundedVec`.
-	let did = BoundedVec::try_from("did:kilt:asd".as_bytes().to_vec()).unwrap();
 
 	// Create the custom part of the `Claims` struct.
 	let custom_claims: SampleClaims<AccountId> =
@@ -109,7 +107,7 @@ mod tests {
 		alg::{Ed25519, VerifyingKey},
 		AlgorithmExt,
 	};
-	use polimec_common::credentials::{InvestorType, SampleClaims};
+	use polimec_common::credentials::{generate_did_from_account, InvestorType, SampleClaims};
 
 	#[test]
 	fn test_get_test_jwt() {
@@ -121,7 +119,7 @@ mod tests {
 			.as_ref(),
 		)
 		.unwrap();
-		let token = get_mock_jwt("0x1234", InvestorType::Institutional);
+		let token = get_mock_jwt("0x1234", InvestorType::Institutional, generate_did_from_account(40u64));
 		let res = Ed25519.validator::<SampleClaims<String>>(&verifying_key).validate(&token);
 		assert!(res.is_ok());
 	}
