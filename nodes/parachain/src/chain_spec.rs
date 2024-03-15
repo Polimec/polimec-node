@@ -17,7 +17,7 @@
 // If you feel like getting in touch with us, you can do so at info@polimec.org
 
 use cumulus_primitives_core::ParaId;
-use polimec_parachain_runtime::{AccountId, Signature};
+use polimec_base_runtime::{AccountId, Signature};
 use polkadot_primitives::v6::LOWEST_PUBLIC_ID;
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::Properties;

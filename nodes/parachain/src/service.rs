@@ -57,11 +57,11 @@ impl sc_executor::NativeExecutionDispatch for ParachainNativeExecutor {
 	type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
 
 	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
-		polimec_parachain_runtime::api::dispatch(method, data)
+		polimec_base_runtime::api::dispatch(method, data)
 	}
 
 	fn native_version() -> sc_executor::NativeVersion {
-		polimec_parachain_runtime::native_version()
+		polimec_base_runtime::native_version()
 	}
 }
 
