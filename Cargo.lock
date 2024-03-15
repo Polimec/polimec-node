@@ -6935,8 +6935,6 @@ dependencies = [
  "polimec-receiver",
  "polimec-xcm-executor",
  "polkadot-parachain-primitives",
- "polkadot-runtime",
- "polkadot-runtime-parachains",
  "scale-info",
  "serde",
  "sp-arithmetic",
