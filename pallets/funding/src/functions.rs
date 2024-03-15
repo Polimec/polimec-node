@@ -34,7 +34,10 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
-use polimec_common::ReleaseSchedule;
+use polimec_common::{
+	credentials::{Did, InvestorType},
+	ReleaseSchedule,
+};
 use sp_arithmetic::{
 	traits::{CheckedDiv, CheckedSub, Zero},
 	Percent, Perquintill,
@@ -73,22 +76,21 @@ impl<T: Config> Pallet<T> {
 	/// [`do_start_evaluation`](Self::do_start_evaluation) will be executed.
 	pub fn do_create(issuer: &AccountIdOf<T>, initial_metadata: ProjectMetadataOf<T>) -> DispatchResult {
 		// * Get variables *
-		let project_id = Self::next_project_id();
+		let project_id = NextProjectId::<T>::get();
 
 		// * Validity checks *
 		if let Some(metadata) = initial_metadata.offchain_information_hash {
 			ensure!(!Images::<T>::contains_key(metadata), Error::<T>::MetadataAlreadyExists);
 		}
 
-		if let Err(error) = initial_metadata.validity_check() {
+		if let Err(error) = initial_metadata.is_valid() {
 			return match error {
 				ValidityError::PriceTooLow => Err(Error::<T>::PriceTooLow.into()),
-				ValidityError::ParticipantsSizeError => Err(Error::<T>::ParticipantsSizeError.into()),
 				ValidityError::TicketSizeError => Err(Error::<T>::TicketSizeError.into()),
+				ValidityError::ParticipationCurrenciesError => Err(Error::<T>::ParticipationCurrenciesError.into()),
 			};
 		}
-		let total_allocation_size =
-			initial_metadata.total_allocation_size.0.saturating_add(initial_metadata.total_allocation_size.1);
+		let total_allocation_size = initial_metadata.total_allocation_size;
 
 		// * Calculate new variables *
 		let fundraising_target =
@@ -360,9 +362,10 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity checks *
 		ensure!(
-			caller == project_details.issuer || caller == T::PalletId::get().into_account_truncating(),
+			caller == T::PalletId::get().into_account_truncating() || caller == project_details.issuer,
 			Error::<T>::NotAllowed
 		);
+
 		ensure!(now >= auction_initialize_period_start_block, Error::<T>::TooEarlyForEnglishAuctionStart);
 		// If the auction is first manually started, the automatic transition fails here. This
 		// behaviour is intended, as it gracefully skips the automatic transition if the
@@ -518,8 +521,11 @@ impl<T: Config> Pallet<T> {
 		let community_end_block = now + T::CommunityFundingDuration::get();
 
 		// * Update Storage *
-		let calculation_result =
-			Self::calculate_weighted_average_price(project_id, end_block, project_metadata.total_allocation_size.0);
+		let calculation_result = Self::calculate_weighted_average_price(
+			project_id,
+			end_block,
+			project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size,
+		);
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		match calculation_result {
 			Err(pallet_error) if pallet_error == Error::<T>::NoBidsFound.into() => {
@@ -610,11 +616,7 @@ impl<T: Config> Pallet<T> {
 		// Transition to remainder round was initiated by `do_community_funding`, but the ct
 		// tokens where already sold in the community round. This transition is obsolete.
 		ensure!(
-			project_details
-				.remaining_contribution_tokens
-				.0
-				.saturating_add(project_details.remaining_contribution_tokens.1) >
-				0u32.into(),
+			project_details.remaining_contribution_tokens > 0u32.into(),
 			Error::<T>::RoundTransitionAlreadyHappened
 		);
 
@@ -678,10 +680,7 @@ impl<T: Config> Pallet<T> {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let remaining_cts = project_details
-			.remaining_contribution_tokens
-			.0
-			.saturating_add(project_details.remaining_contribution_tokens.1);
+		let remaining_cts = project_details.remaining_contribution_tokens;
 		let remainder_end_block = project_details.phase_transition_points.remainder.end();
 		let now = <frame_system::Pallet<T>>::block_number();
 
@@ -707,9 +706,7 @@ impl<T: Config> Pallet<T> {
 		// * Calculate new variables *
 		let funding_target = project_metadata
 			.minimum_price
-			.checked_mul_int(
-				project_metadata.total_allocation_size.0.saturating_add(project_metadata.total_allocation_size.1),
-			)
+			.checked_mul_int(project_metadata.total_allocation_size)
 			.ok_or(Error::<T>::BadMath)?;
 		let funding_reached = project_details.funding_amount_reached;
 		let funding_ratio = Perquintill::from_rational(funding_reached, funding_target);
@@ -914,7 +911,7 @@ impl<T: Config> Pallet<T> {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let now = <frame_system::Pallet<T>>::block_number();
-		let evaluation_id = Self::next_evaluation_id();
+		let evaluation_id = NextEvaluationId::<T>::get();
 		let caller_existing_evaluations: Vec<(u32, EvaluationInfoOf<T>)> =
 			Evaluations::<T>::iter_prefix((project_id, evaluator)).collect();
 		let plmc_usd_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PLMCPriceNotAvailable)?;
@@ -1036,6 +1033,8 @@ impl<T: Config> Pallet<T> {
 		ct_amount: BalanceOf<T>,
 		multiplier: MultiplierOf<T>,
 		funding_asset: AcceptedFundingAsset,
+		did: Did,
+		investor_type: InvestorType,
 	) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
@@ -1044,19 +1043,44 @@ impl<T: Config> Pallet<T> {
 		let ct_deposit = T::ContributionTokenCurrency::deposit_required(project_id);
 		let existing_bids = Bids::<T>::iter_prefix_values((project_id, bidder)).collect::<Vec<_>>();
 		let bid_count = BidCounts::<T>::get(project_id);
+		// User will spend at least this amount of USD for his bid(s). More if the bid gets split into different buckets
+		let min_total_ticket_size =
+			project_metadata.minimum_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
 		// weight return variables
 		let mut perform_bid_calls = 0;
 		let mut ct_deposit_required = false;
 		let existing_bids_amount = existing_bids.len() as u32;
+		let metadata_bidder_ticket_size_bounds = match investor_type {
+			InvestorType::Institutional => project_metadata.bidding_ticket_sizes.institutional,
+			InvestorType::Professional => project_metadata.bidding_ticket_sizes.professional,
+			_ => return Err(Error::<T>::NotAllowed.into()),
+		};
 
 		// * Validity checks *
+		ensure!(
+			matches!(investor_type, InvestorType::Institutional | InvestorType::Professional),
+			DispatchError::from("Retail investors are not allowed to bid")
+		);
+
 		ensure!(ct_amount > Zero::zero(), Error::<T>::BidTooLow);
 		ensure!(bid_count < T::MaxBidsPerProject::get(), Error::<T>::TooManyBidsForProject);
 		ensure!(bidder.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
 		ensure!(matches!(project_details.status, ProjectStatus::AuctionRound(_)), Error::<T>::AuctionNotStarted);
-		ensure!(funding_asset == project_metadata.participation_currencies, Error::<T>::FundingAssetNotAccepted);
-		// Note: We limit the CT Amount to the total allocation size, to avoid long running loops.
-		ensure!(ct_amount <= project_metadata.total_allocation_size.0, Error::<T>::NotAllowed);
+		ensure!(
+			project_metadata.participation_currencies.contains(&funding_asset),
+			Error::<T>::FundingAssetNotAccepted
+		);
+
+		ensure!(
+			metadata_bidder_ticket_size_bounds.usd_ticket_above_minimum_per_participation(min_total_ticket_size),
+			Error::<T>::BidTooLow
+		);
+
+		// Note: We limit the CT Amount to the auction allocation size, to avoid long running loops.
+		ensure!(
+			ct_amount <= project_metadata.auction_round_allocation_percentage * project_metadata.total_allocation_size,
+			Error::<T>::NotAllowed
+		);
 		ensure!(existing_bids.len() < T::MaxBidsPerUser::get() as usize, Error::<T>::TooManyBidsForUser);
 
 		// Reserve plmc deposit to create a contribution token account for this project
@@ -1079,7 +1103,7 @@ impl<T: Config> Pallet<T> {
 				// The bucket doesn't have enough to cover the bid, so we bid the remaining amount of the current bucket
 				current_bucket.amount_left
 			};
-			let bid_id = Self::next_bid_id();
+			let bid_id = NextBidId::<T>::get();
 
 			Self::perform_do_bid(
 				bidder,
@@ -1088,15 +1112,16 @@ impl<T: Config> Pallet<T> {
 				current_bucket.current_price,
 				multiplier,
 				funding_asset,
-				project_metadata.ticket_size,
 				bid_id,
 				now,
 				plmc_usd_price,
+				did.clone(),
+				metadata_bidder_ticket_size_bounds,
 			)?;
 
 			perform_bid_calls += 1;
 
-			// Update current bucket, and reduce the amount to bid by the amount we just bid
+			// Update the current bucket and reduce the amount to bid by the amount we just bid
 			current_bucket.update(bid_amount);
 			amount_to_bid.saturating_reduce(bid_amount);
 		}
@@ -1125,23 +1150,24 @@ impl<T: Config> Pallet<T> {
 		ct_usd_price: T::Price,
 		multiplier: MultiplierOf<T>,
 		funding_asset: AcceptedFundingAsset,
-		project_ticket_size: TicketSize<BalanceOf<T>>,
 		bid_id: u32,
 		now: BlockNumberFor<T>,
 		plmc_usd_price: T::Price,
+		did: Did,
+		metadata_ticket_size_bounds: TicketSizeOf<T>,
 	) -> Result<BidInfoOf<T>, DispatchError> {
 		let ticket_size = ct_usd_price.checked_mul_int(ct_amount).ok_or(Error::<T>::BadMath)?;
+
+		let total_usd_bid_by_did = AuctionBoughtUSD::<T>::get((project_id, did.clone()));
+		ensure!(
+			metadata_ticket_size_bounds
+				.usd_ticket_below_maximum_per_did(total_usd_bid_by_did.saturating_add(ticket_size)),
+			Error::<T>::BidTooHigh
+		);
+
 		let funding_asset_usd_price =
 			T::PriceProvider::get_price(funding_asset.to_assethub_id()).ok_or(Error::<T>::PriceNotFound)?;
 
-		if let Some(minimum_ticket_size) = project_ticket_size.minimum {
-			// Make sure the bid amount is greater than the minimum specified by the issuer
-			ensure!(ticket_size >= minimum_ticket_size, Error::<T>::BidTooLow);
-		};
-		if let Some(maximum_ticket_size) = project_ticket_size.maximum {
-			// Make sure the bid amount is less than the maximum specified by the issuer
-			ensure!(ticket_size <= maximum_ticket_size, Error::<T>::BidTooLow);
-		};
 		// * Calculate new variables *
 		let plmc_bond =
 			Self::calculate_plmc_bond(ticket_size, multiplier, plmc_usd_price).map_err(|_| Error::<T>::BadMath)?;
@@ -1176,6 +1202,7 @@ impl<T: Config> Pallet<T> {
 		Bids::<T>::insert((project_id, bidder, bid_id), &new_bid);
 		NextBidId::<T>::set(bid_id.saturating_add(One::one()));
 		BidCounts::<T>::mutate(project_id, |c| *c += 1);
+		AuctionBoughtUSD::<T>::mutate((project_id, did), |amount| *amount += ticket_size);
 
 		Self::deposit_event(Event::Bid { project_id, amount: ct_amount, price: ct_usd_price, multiplier });
 
@@ -1197,6 +1224,8 @@ impl<T: Config> Pallet<T> {
 		token_amount: BalanceOf<T>,
 		multiplier: MultiplierOf<T>,
 		asset: AcceptedFundingAsset,
+		did: Did,
+		investor_type: InvestorType,
 	) -> DispatchResultWithPostInfo {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		ensure!(project_details.status == ProjectStatus::CommunityRound, Error::<T>::AuctionNotStarted);
@@ -1207,10 +1236,19 @@ impl<T: Config> Pallet<T> {
 
 		ensure!(user_winning_bids.is_none(), Error::<T>::UserHasWinningBids);
 
-		let buyable_tokens = token_amount.min(project_details.remaining_contribution_tokens.1);
-		project_details.remaining_contribution_tokens.1.saturating_reduce(buyable_tokens);
+		let buyable_tokens = token_amount.min(project_details.remaining_contribution_tokens);
+		project_details.remaining_contribution_tokens.saturating_reduce(buyable_tokens);
 
-		Self::do_contribute(contributor, project_id, &mut project_details, buyable_tokens, multiplier, asset)
+		Self::do_contribute(
+			contributor,
+			project_id,
+			&mut project_details,
+			buyable_tokens,
+			multiplier,
+			asset,
+			investor_type,
+			did,
+		)
 	}
 
 	/// Buy tokens in the Community Round at the price set in the Bidding Round
@@ -1228,28 +1266,28 @@ impl<T: Config> Pallet<T> {
 		token_amount: BalanceOf<T>,
 		multiplier: MultiplierOf<T>,
 		asset: AcceptedFundingAsset,
+		did: Did,
+		investor_type: InvestorType,
 	) -> DispatchResultWithPostInfo {
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 
 		ensure!(project_details.status == ProjectStatus::RemainderRound, Error::<T>::AuctionNotStarted);
-		let buyable_tokens = token_amount.min(
-			project_details
-				.remaining_contribution_tokens
-				.0
-				.saturating_add(project_details.remaining_contribution_tokens.1),
-		);
+		let buyable_tokens = token_amount.min(project_details.remaining_contribution_tokens);
 
-		let before = project_details.remaining_contribution_tokens.0;
+		let before = project_details.remaining_contribution_tokens;
 		let remaining_cts_in_round = before.saturating_sub(buyable_tokens);
-		project_details.remaining_contribution_tokens.0 = remaining_cts_in_round;
+		project_details.remaining_contribution_tokens = remaining_cts_in_round;
 
-		// If the entire ct_amount could not be subtracted from remaining_contribution_tokens.0, subtract the difference from remaining_contribution_tokens.1
-		if remaining_cts_in_round.is_zero() {
-			let difference = buyable_tokens.saturating_sub(before);
-			project_details.remaining_contribution_tokens.1.saturating_reduce(difference);
-		}
-
-		Self::do_contribute(contributor, project_id, &mut project_details, token_amount, multiplier, asset)
+		Self::do_contribute(
+			contributor,
+			project_id,
+			&mut project_details,
+			token_amount,
+			multiplier,
+			asset,
+			investor_type,
+			did,
+		)
 	}
 
 	fn do_contribute(
@@ -1258,43 +1296,52 @@ impl<T: Config> Pallet<T> {
 		project_details: &mut ProjectDetailsOf<T>,
 		buyable_tokens: BalanceOf<T>,
 		multiplier: MultiplierOf<T>,
-		asset: AcceptedFundingAsset,
+		funding_asset: AcceptedFundingAsset,
+		investor_type: InvestorType,
+		did: Did,
 	) -> DispatchResultWithPostInfo {
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let caller_existing_contributions =
 			Contributions::<T>::iter_prefix_values((project_id, contributor)).collect::<Vec<_>>();
+		let total_usd_bought_by_did = ContributionBoughtUSD::<T>::get((project_id, did.clone()));
+		let now = <frame_system::Pallet<T>>::block_number();
+		let ct_usd_price = project_details.weighted_average_price.ok_or(Error::<T>::AuctionNotStarted)?;
+		let plmc_usd_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PriceNotFound)?;
+		let funding_asset_usd_price =
+			T::PriceProvider::get_price(funding_asset.to_assethub_id()).ok_or(Error::<T>::PriceNotFound)?;
+
+		let ticket_size = ct_usd_price.checked_mul_int(buyable_tokens).ok_or(Error::<T>::BadMath)?;
+		let contributor_ticket_size = match investor_type {
+			InvestorType::Institutional => project_metadata.contributing_ticket_sizes.institutional,
+			InvestorType::Professional => project_metadata.contributing_ticket_sizes.professional,
+			InvestorType::Retail => project_metadata.contributing_ticket_sizes.retail,
+		};
 
 		// * Validity checks *
-		ensure!(project_metadata.participation_currencies == asset, Error::<T>::FundingAssetNotAccepted);
+		ensure!(
+			project_metadata.participation_currencies.contains(&funding_asset),
+			Error::<T>::FundingAssetNotAccepted
+		);
 		ensure!(contributor.clone() != project_details.issuer, Error::<T>::ContributionToThemselves);
 		ensure!(
 			caller_existing_contributions.len() < T::MaxContributionsPerUser::get() as usize,
 			Error::<T>::TooManyContributionsForUser
 		);
-
-		let now = <frame_system::Pallet<T>>::block_number();
-
-		let ct_usd_price = project_details.weighted_average_price.ok_or(Error::<T>::AuctionNotStarted)?;
-		let plmc_usd_price = T::PriceProvider::get_price(PLMC_FOREIGN_ID).ok_or(Error::<T>::PriceNotFound)?;
-		let funding_asset_usd_price =
-			T::PriceProvider::get_price(asset.to_assethub_id()).ok_or(Error::<T>::PriceNotFound)?;
-
-		let ticket_size = ct_usd_price.checked_mul_int(buyable_tokens).ok_or(Error::<T>::BadMath)?;
-		if let Some(minimum_ticket_size) = project_metadata.ticket_size.minimum {
-			// Make sure the bid amount is greater than the minimum specified by the issuer
-			ensure!(ticket_size >= minimum_ticket_size, Error::<T>::ContributionTooLow);
-		};
-		if let Some(maximum_ticket_size) = project_metadata.ticket_size.maximum {
-			// Make sure the bid amount is less than the maximum specified by the issuer
-			ensure!(ticket_size <= maximum_ticket_size, Error::<T>::ContributionTooHigh);
-		};
+		ensure!(
+			contributor_ticket_size.usd_ticket_above_minimum_per_participation(ticket_size),
+			Error::<T>::ContributionTooLow
+		);
+		ensure!(
+			contributor_ticket_size.usd_ticket_below_maximum_per_did(total_usd_bought_by_did + ticket_size),
+			Error::<T>::ContributionTooHigh
+		);
 
 		let plmc_bond = Self::calculate_plmc_bond(ticket_size, multiplier, plmc_usd_price)?;
 		let funding_asset_amount =
 			funding_asset_usd_price.reciprocal().ok_or(Error::<T>::BadMath)?.saturating_mul_int(ticket_size);
-		let asset_id = asset.to_assethub_id();
+		let asset_id = funding_asset.to_assethub_id();
 
-		let contribution_id = Self::next_contribution_id();
+		let contribution_id = NextContributionId::<T>::get();
 		let new_contribution = ContributionInfoOf::<T> {
 			id: contribution_id,
 			project_id,
@@ -1302,7 +1349,7 @@ impl<T: Config> Pallet<T> {
 			ct_amount: buyable_tokens,
 			usd_contribution_amount: ticket_size,
 			multiplier,
-			funding_asset: asset,
+			funding_asset,
 			funding_asset_amount,
 			plmc_bond,
 			plmc_vesting_info: None,
@@ -1325,11 +1372,9 @@ impl<T: Config> Pallet<T> {
 
 		Contributions::<T>::insert((project_id, contributor, contribution_id), &new_contribution);
 		NextContributionId::<T>::set(contribution_id.saturating_add(One::one()));
+		ContributionBoughtUSD::<T>::mutate((project_id, did), |amount| *amount += ticket_size);
 
-		let remaining_cts_after_purchase = project_details
-			.remaining_contribution_tokens
-			.0
-			.saturating_add(project_details.remaining_contribution_tokens.1);
+		let remaining_cts_after_purchase = project_details.remaining_contribution_tokens;
 		project_details.funding_amount_reached.saturating_accrue(new_contribution.usd_contribution_amount);
 		ProjectsDetails::<T>::insert(project_id, project_details);
 		// If no CTs remain, end the funding phase
@@ -2356,13 +2401,8 @@ impl<T: Config> Pallet<T> {
 		};
 
 		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
-		let contribution_tokens_sold = project_metadata
-			.total_allocation_size
-			.0
-			.saturating_add(project_metadata.total_allocation_size.1)
-			.saturating_sub(project_details.remaining_contribution_tokens.0)
-			.saturating_sub(project_details.remaining_contribution_tokens.1);
-
+		let contribution_tokens_sold =
+			project_metadata.total_allocation_size.saturating_sub(project_details.remaining_contribution_tokens);
 		ensure!(project_details.parachain_id == Some(para_id), Error::<T>::NotAllowed);
 
 		match (response.clone(), migration_check) {
@@ -2422,6 +2462,7 @@ impl<T: Config> Pallet<T> {
 
 		// * Validity Checks *
 		ensure!(caller.clone() == project_details.issuer, Error::<T>::NotAllowed);
+
 		ensure!(migration_readiness_check.is_ready(), Error::<T>::NotAllowed);
 
 		// Start automated migration process
@@ -2565,17 +2606,14 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn create_bucket_from_metadata(metadata: &ProjectMetadataOf<T>) -> Result<BucketOf<T>, DispatchError> {
-		let bucket_delta_amount = Percent::from_percent(10) * metadata.total_allocation_size.0;
+		let auction_allocation_size = metadata.auction_round_allocation_percentage * metadata.total_allocation_size;
+		let bucket_delta_amount = Percent::from_percent(10) * auction_allocation_size;
 		let ten_percent_in_price: <T as Config>::Price =
 			PriceOf::<T>::checked_from_rational(1, 10).ok_or(Error::<T>::BadMath)?;
 		let bucket_delta_price: <T as Config>::Price = metadata.minimum_price.saturating_mul(ten_percent_in_price);
 
-		let bucket: BucketOf<T> = Bucket::new(
-			metadata.total_allocation_size.0,
-			metadata.minimum_price,
-			bucket_delta_price,
-			bucket_delta_amount,
-		);
+		let bucket: BucketOf<T> =
+			Bucket::new(auction_allocation_size, metadata.minimum_price, bucket_delta_price, bucket_delta_amount);
 
 		Ok(bucket)
 	}
@@ -2612,7 +2650,7 @@ impl<T: Config> Pallet<T> {
 	pub fn calculate_weighted_average_price(
 		project_id: ProjectId,
 		end_block: BlockNumberFor<T>,
-		total_allocation_size: BalanceOf<T>,
+		auction_allocation_size: BalanceOf<T>,
 	) -> Result<(u32, u32), DispatchError> {
 		// Get all the bids that were made before the end of the candle
 		let mut bids = Bids::<T>::iter_prefix_values((project_id,)).collect::<Vec<_>>();
@@ -2638,7 +2676,7 @@ impl<T: Config> Pallet<T> {
 					return Self::refund_bid(&mut bid, project_id, &project_account, RejectionReason::AfterCandleEnd)
 						.and(Ok(bid));
 				}
-				let buyable_amount = total_allocation_size.saturating_sub(bid_token_amount_sum);
+				let buyable_amount = auction_allocation_size.saturating_sub(bid_token_amount_sum);
 				if buyable_amount.is_zero() {
 					rejected_bids_count += 1;
 					return Self::refund_bid(&mut bid, project_id, &project_account, RejectionReason::NoTokensLeft)
@@ -2792,7 +2830,7 @@ impl<T: Config> Pallet<T> {
 		ProjectsDetails::<T>::mutate(project_id, |maybe_info| -> DispatchResult {
 			if let Some(info) = maybe_info {
 				info.weighted_average_price = Some(weighted_token_price);
-				info.remaining_contribution_tokens.0.saturating_reduce(bid_token_amount_sum);
+				info.remaining_contribution_tokens.saturating_reduce(bid_token_amount_sum);
 				info.funding_amount_reached.saturating_accrue(final_total_funding_reached_by_bids);
 				Ok(())
 			} else {
@@ -2962,12 +3000,8 @@ impl<T: Config> Pallet<T> {
 		let fundraising_target = project_details.fundraising_target;
 		let total_issuer_fees = Self::calculate_fees(funding_amount_reached);
 
-		let initial_token_allocation_size =
-			project_metadata.total_allocation_size.0.saturating_add(project_metadata.total_allocation_size.1);
-		let final_remaining_contribution_tokens = project_details
-			.remaining_contribution_tokens
-			.0
-			.saturating_add(project_details.remaining_contribution_tokens.1);
+		let initial_token_allocation_size = project_metadata.total_allocation_size;
+		let final_remaining_contribution_tokens = project_details.remaining_contribution_tokens;
 
 		// Calculate the number of tokens sold for the project.
 		let token_sold = initial_token_allocation_size

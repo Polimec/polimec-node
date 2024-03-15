@@ -6203,6 +6203,7 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "tokio",
+ "variant_count",
  "xcm",
  "xcm-builder",
  "xcm-executor",
@@ -6687,6 +6688,7 @@ dependencies = [
  "pallet-insecure-randomness-collective-flip",
  "parachains-common",
  "parity-scale-codec",
+ "polimec-common",
  "scale-info",
  "serde",
  "sp-arithmetic",
@@ -13490,6 +13492,16 @@ name = "valuable"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "830b7e5d4d90034032940e4ace0d9a9a057e7a45cd94e6c007832e39edb82f6d"
+
+[[package]]
+name = "variant_count"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aae2faf80ac463422992abf4de234731279c058aaf33171ca70277c98406b124"
+dependencies = [
+ "quote",
+ "syn 1.0.109",
+]
 
 [[package]]
 name = "vcpkg"

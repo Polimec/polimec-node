@@ -22,6 +22,7 @@ tokio = { version = "1", features = ["full"], optional = true }
 futures = { version = "0.3.29", optional = true }
 log.workspace = true
 itertools.workspace = true
+variant_count = "1.1.0"
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true, optional = true }
@@ -53,7 +54,7 @@ pallet-insecure-randomness-collective-flip.workspace = true
 pallet-timestamp.workspace = true
 pallet-assets.workspace = true
 pallet-linear-release.workspace = true
-
+polimec-common-test-utils.workspace = true
 macros.workspace = true
 xcm-executor.workspace = true
 
@@ -75,7 +76,8 @@ std = [
 	"pallet-xcm/std",
 	"parachains-common/std",
 	"parity-scale-codec/std",
-	"polimec-common-test-utils?/std",
+	"polimec-common-test-utils",
+	"polimec-common-test-utils/std",
 	"polimec-common/std",
 	"polimec-receiver/std",
 	"polimec-xcm-executor/std",

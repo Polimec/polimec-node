@@ -19,7 +19,10 @@ use pallet_funding::{
 	assert_close_enough, traits::VestingDurationCalculation, AcceptedFundingAsset, BidStatus, EvaluatorsOutcome,
 	MigrationStatus, Multiplier, MultiplierOf, ProjectId, RewardOrSlash,
 };
-use polimec_common::migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType};
+use polimec_common::{
+	credentials::{InvestorType},
+	migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType},
+};
 use polimec_parachain_runtime::PolimecFunding;
 use sp_runtime::{traits::Convert, FixedPointNumber, Perquintill};
 use std::collections::HashMap;
@@ -31,7 +34,7 @@ fn execute_cleaner(inst: &mut IntegrationInstantiator) {
 }
 fn mock_hrmp_establishment(project_id: u32) {
 	Polimec::execute_with(|| {
-		assert_ok!(PolimecFunding::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32)));
+		assert_ok!(PolimecFunding::do_set_para_id_for_project(&ISSUER.into(), project_id, ParaId::from(6969u32),));
 
 		let open_channel_message = xcm::v3::opaque::Instruction::HrmpNewChannelOpenRequest {
 			sender: 6969,
@@ -276,7 +279,7 @@ fn migration_check() {
 	let mut inst = IntegrationInstantiator::new(None);
 	let project_id = Polimec::execute_with(|| {
 		let project_id = inst.create_finished_project(
-			default_project(ISSUER.into(), 0),
+			default_project_metadata(0, ISSUER.into()),
 			ISSUER.into(),
 			default_evaluations(),
 			default_bids(),
@@ -303,30 +306,12 @@ fn migration_is_sent() {
 			.collect::<Vec<_>>();
 	let project_id = Polimec::execute_with(|| {
 		inst.create_finished_project(
-			default_project(ISSUER.into(), 0),
+			default_project_metadata(0, ISSUER.into()),
 			ISSUER.into(),
-			vec![
-				UserToUSDBalance::new(EVAL_1.into(), 50_000 * PLMC),
-				UserToUSDBalance::new(EVAL_2.into(), 25_000 * PLMC),
-				UserToUSDBalance::new(EVAL_3.into(), 32_000 * PLMC),
-			],
-			IntegrationInstantiator::generate_bids_from_total_usd(
-				Perquintill::from_percent(40) *
-					(sp_runtime::FixedU128::from_float(1.0).checked_mul_int(100_000 * ASSET_UNIT).unwrap()),
-				sp_runtime::FixedU128::from_float(1.0),
-				default_weights(),
-				vec![EVAL_1.into(), BIDDER_1.into(), BIDDER_2.into(), BIDDER_3.into(), BIDDER_4.into()],
-				default_bidder_multipliers(),
-			),
-			IntegrationInstantiator::generate_contributions_from_total_usd(
-				Perquintill::from_percent(50) *
-					(sp_runtime::FixedU128::from_float(1.0).checked_mul_int(100_000 * ASSET_UNIT).unwrap()),
-				sp_runtime::FixedU128::from_float(1.0),
-				default_weights(),
-				vec![EVAL_2.into(), BUYER_1.into(), BUYER_2.into(), BUYER_3.into(), BUYER_4.into()],
-				default_contributor_multipliers(),
-			),
-			vec![],
+			default_evaluations(),
+			default_bids(),
+			default_community_contributions(),
+			default_remainder_contributions(),
 		)
 	});
 	execute_cleaner(&mut inst);
@@ -348,30 +333,12 @@ fn migration_is_executed_on_project_and_confirmed_on_polimec() {
 			.collect::<Vec<_>>();
 	let project_id = Polimec::execute_with(|| {
 		inst.create_finished_project(
-			default_project(ISSUER.into(), 0),
+			default_project_metadata(0, ISSUER.into()),
 			ISSUER.into(),
-			vec![
-				UserToUSDBalance::new(EVAL_1.into(), 50_000 * PLMC),
-				UserToUSDBalance::new(EVAL_2.into(), 25_000 * PLMC),
-				UserToUSDBalance::new(EVAL_3.into(), 32_000 * PLMC),
-			],
-			IntegrationInstantiator::generate_bids_from_total_usd(
-				Perquintill::from_percent(40) *
-					(sp_runtime::FixedU128::from_float(1.0).checked_mul_int(100_000 * ASSET_UNIT).unwrap()),
-				sp_runtime::FixedU128::from_float(1.0),
-				default_weights(),
-				vec![EVAL_1.into(), BIDDER_2.into(), BIDDER_3.into(), BIDDER_4.into(), BIDDER_5.into()],
-				default_bidder_multipliers(),
-			),
-			IntegrationInstantiator::generate_contributions_from_total_usd(
-				Perquintill::from_percent(50) *
-					(sp_runtime::FixedU128::from_float(1.0).checked_mul_int(100_000 * ASSET_UNIT).unwrap()),
-				sp_runtime::FixedU128::from_float(1.0),
-				default_weights(),
-				vec![EVAL_2.into(), BUYER_2.into(), BUYER_3.into(), BUYER_4.into(), BUYER_5.into()],
-				default_contributor_multipliers(),
-			),
-			vec![],
+			default_evaluations(),
+			default_bids(),
+			default_community_contributions(),
+			default_remainder_contributions(),
 		)
 	});
 	execute_cleaner(&mut inst);
@@ -395,65 +362,14 @@ fn vesting_over_several_blocks_on_project() {
 		.into_iter()
 		.map(|x| AccountId::from(x))
 		.collect::<Vec<_>>();
-	let mut bids = Vec::new();
-	let mut community_contributions = Vec::new();
-	let mut remainder_contributions = Vec::new();
-	let multiplier_for_vesting = MultiplierOf::<PolimecRuntime>::try_from(10u8).unwrap();
 
-	bids.push(BidParams {
-		bidder: BIDDER_1.into(),
-		amount: 15_000 * ASSET_UNIT,
-		multiplier: MultiplierOf::<PolimecRuntime>::try_from(20u8).unwrap(),
-		asset: AcceptedFundingAsset::USDT,
-	});
-	bids.push(BidParams {
-		bidder: BIDDER_2.into(),
-		amount: 20_000 * ASSET_UNIT,
-		multiplier: multiplier_for_vesting,
-		asset: AcceptedFundingAsset::USDT,
-	});
-	bids.push(BidParams {
-		bidder: EVAL_2.into(),
-		amount: 12_000 * ASSET_UNIT,
-		multiplier: MultiplierOf::<PolimecRuntime>::try_from(7u8).unwrap(),
-		asset: AcceptedFundingAsset::USDT,
-	});
-
-	community_contributions.push(ContributionParams {
-		contributor: BUYER_1.into(),
-		amount: 10_250 * ASSET_UNIT,
-		multiplier: MultiplierOf::<PolimecRuntime>::try_from(1u8).unwrap(),
-		asset: AcceptedFundingAsset::USDT,
-	});
-	community_contributions.push(ContributionParams {
-		contributor: BUYER_2.into(),
-		amount: 5000 * ASSET_UNIT,
-		multiplier: MultiplierOf::<PolimecRuntime>::try_from(2u8).unwrap(),
-		asset: AcceptedFundingAsset::USDT,
-	});
-	community_contributions.push(ContributionParams {
-		contributor: EVAL_1.into(),
-		amount: 30000 * ASSET_UNIT,
-		multiplier: MultiplierOf::<PolimecRuntime>::try_from(3u8).unwrap(),
-		asset: AcceptedFundingAsset::USDT,
-	});
-
-	remainder_contributions.push(ContributionParams {
-		contributor: BIDDER_1.into(),
-		amount: 5000 * ASSET_UNIT,
-		multiplier: MultiplierOf::<PolimecRuntime>::try_from(2u8).unwrap(),
-		asset: AcceptedFundingAsset::USDT,
-	});
-	remainder_contributions.push(ContributionParams {
-		contributor: EVAL_2.into(),
-		amount: 250 * ASSET_UNIT,
-		multiplier: MultiplierOf::<PolimecRuntime>::try_from(3u8).unwrap(),
-		asset: AcceptedFundingAsset::USDT,
-	});
+	let bids = default_bids();
+	let community_contributions = default_community_contributions();
+	let remainder_contributions = default_remainder_contributions();
 
 	let project_id = Polimec::execute_with(|| {
 		inst.create_finished_project(
-			default_project(ISSUER.into(), 0),
+			default_project_metadata(0, ISSUER.into()),
 			ISSUER.into(),
 			default_evaluations(),
 			bids,
@@ -486,7 +402,7 @@ fn disallow_duplicated_migrations_on_receiver_pallet() {
 
 	let project_id = Polimec::execute_with(|| {
 		inst.create_finished_project(
-			default_project(ISSUER.into(), 0),
+			default_project_metadata(0, ISSUER.into()),
 			ISSUER.into(),
 			default_evaluations(),
 			default_bids(),
