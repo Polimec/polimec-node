@@ -60,6 +60,3 @@ create-chainspec-base:
 # Use zombienet to spawn rococo + polimec testnet
 zombienet path_to_file="scripts/zombienet/native/base-rococo-local.toml":
     zombienet spawn {{ path_to_file }}
-
-fix-16:
-    try-runtime --runtime ./target/release/wbuild/polimec-base-runtime/polimec_base_runtime.compact.compressed.wasm execute-block live --uri wss://rpc.polimec.org:443 --at 0x9055e4091631b30f35b6bff6efeeadb3452f7fed83a07d3b5e17f85a877262bf
