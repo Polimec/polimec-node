@@ -177,16 +177,6 @@ where
 }
 
 pub fn generate_did_from_account(account_id: impl Parameter) -> Did {
-	// let mut did = String::new();
-	// let account_serialized = account_id.encode();
 	let hex_account = to_hex(&account_id.encode(), true);
-	// let account_iter = account_serialized.into_iter().cycle();
-	// for _ in 0..57 {
-	// 	did.push(account_iter.next().unwrap())
-	// }
-	// let x: char = 'x';
-	// let did_vec = did.into_bytes();
-	// let string = String::from_utf8_lossy(&did_vec);
-	// assert_eq!(string.len(), 57);
 	hex_account.into_bytes().try_into().unwrap()
 }
