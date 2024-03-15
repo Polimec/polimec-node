@@ -177,6 +177,10 @@ where
 }
 
 pub fn generate_did_from_account(account_id: impl Parameter) -> Did {
-	let hex_account = to_hex(&account_id.encode(), true);
+	let mut hex_account = to_hex(&account_id.encode(), true);
+	if hex_account.len() > 57 {
+		use parity_scale_codec::alloc::string::ToString;
+		hex_account = hex_account[0..57].to_string();
+	}
 	hex_account.into_bytes().try_into().unwrap()
 }
