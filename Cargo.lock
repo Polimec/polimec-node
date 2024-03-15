@@ -6911,6 +6911,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-faucet"
+version = "0.5.1"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-timestamp",
+ "pallet-vesting",
+ "parity-scale-codec",
+ "polimec-common",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-funding"
 version = "0.5.1"
 dependencies = [
@@ -8393,22 +8412,6 @@ dependencies = [
  "parity-scale-codec",
  "polimec-common",
  "reqwest",
-]
-
-[[package]]
-name = "polimec-faucet"
-version = "0.5.1"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "polimec-common",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
 ]
 
 [[package]]

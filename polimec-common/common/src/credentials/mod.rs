@@ -27,6 +27,8 @@ pub use jwt_compact::{
 };
 use serde::Deserializer;
 
+pub type Did = BoundedVec<u8, ConstU32<57>>;
+
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum InvestorType {
