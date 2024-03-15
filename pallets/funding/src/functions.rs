@@ -74,7 +74,7 @@ impl<T: Config> Pallet<T> {
 	/// # Next step
 	/// The issuer will call an extrinsic to start the evaluation round of the project.
 	/// [`do_start_evaluation`](Self::do_start_evaluation) will be executed.
-	pub fn do_create(issuer: &AccountIdOf<T>, initial_metadata: ProjectMetadataOf<T>, did: DID) -> DispatchResult {
+	pub fn do_create(issuer: &AccountIdOf<T>, initial_metadata: ProjectMetadataOf<T>, did: Did) -> DispatchResult {
 		// * Get variables *
 		let project_id = NextProjectId::<T>::get();
 
@@ -950,7 +950,7 @@ impl<T: Config> Pallet<T> {
 		evaluator: &AccountIdOf<T>,
 		project_id: ProjectId,
 		usd_amount: BalanceOf<T>,
-		did: DID,
+		did: Did,
 	) -> DispatchResultWithPostInfo {
 		// * Get variables *
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
