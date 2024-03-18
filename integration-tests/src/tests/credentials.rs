@@ -31,7 +31,7 @@ fn test_jwt_for_create() {
 		let retail_jwt = get_test_jwt(PolimecAccountId::from(ISSUER), InvestorType::Retail);
 		assert_noop!(
 			PolimecFunding::create(PolimecOrigin::signed(ISSUER.into()), retail_jwt, project.clone()),
-			DispatchError::BadOrigin
+			pallet_funding::Error::<PolimecRuntime>::NotAllowed
 		);
 		let inst_jwt = get_test_jwt(PolimecAccountId::from(ISSUER), InvestorType::Institutional);
 		assert_ok!(PolimecFunding::create(PolimecOrigin::signed(ISSUER.into()), inst_jwt, project.clone()));
