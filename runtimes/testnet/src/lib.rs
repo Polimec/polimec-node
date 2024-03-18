@@ -641,6 +641,7 @@ impl ConvertBack<AccountId, [u8; 32]> for ConvertSelf {
 }
 impl pallet_funding::Config for Runtime {
 	type AccountId32Conversion = ConvertSelf;
+	#[cfg(any(test, feature = "runtime-benchmarks", feature = "std"))]
 	type AllPalletsWithoutSystem =
 		(Balances, LocalAssets, ForeignAssets, Oracle, PolimecFunding, LinearRelease, Random);
 	type AuctionInitializePeriodDuration = AuctionInitializePeriodDuration;
@@ -650,7 +651,7 @@ impl pallet_funding::Config for Runtime {
 	type CandleAuctionDuration = CandleAuctionDuration;
 	type CommunityFundingDuration = CommunityFundingDuration;
 	type ContributionTokenCurrency = LocalAssets;
-	type ContributionVesting = ContributionVestingDuration;
+	type ContributionTreasury = TreasuryAccount;
 	type DaysToBlocks = DaysToBlocks;
 	type EnglishAuctionDuration = EnglishAuctionDuration;
 	type EvaluationDuration = EvaluationDuration;
@@ -676,6 +677,7 @@ impl pallet_funding::Config for Runtime {
 	type PreImageLimit = ConstU32<1024>;
 	type Price = Price;
 	type PriceProvider = OraclePriceProvider<AssetId, FixedU128, Oracle>;
+	type ProtocolGrowthTreasury = TreasuryAccount;
 	type Randomness = Random;
 	type RemainderFundingDuration = RemainderFundingDuration;
 	type RequiredMaxCapacity = RequiredMaxCapacity;
@@ -688,7 +690,6 @@ impl pallet_funding::Config for Runtime {
 	type SetPrices = SetOraclePrices;
 	type StringLimit = ConstU32<64>;
 	type SuccessToSettlementTime = SuccessToSettlementTime;
-	type TreasuryAccount = TreasuryAccount;
 	type VerifierPublicKey = VerifierPublicKey;
 	type Vesting = LinearRelease;
 	type WeightInfo = pallet_funding::weights::SubstrateWeight<Runtime>;

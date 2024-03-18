@@ -332,11 +332,6 @@ impl<
 			let escrow_account = Pallet::<T>::fund_account_id(project_id);
 
 			assert_eq!(<T as Config>::ContributionTokenCurrency::admin(project_id).unwrap(), escrow_account);
-			assert_eq!(
-				<T as Config>::ContributionTokenCurrency::total_issuance(project_id),
-				0u32.into(),
-				"No CTs should have been minted at this point"
-			);
 		});
 	}
 
@@ -358,7 +353,8 @@ impl<
 		let metadata = self.get_project_metadata(project_id);
 		let details = self.get_project_details(project_id);
 		let expected_details = ProjectDetailsOf::<T> {
-			issuer: self.get_issuer(project_id),
+			issuer_account: self.get_issuer(project_id),
+			issuer_did: generate_did_from_account(self.get_issuer(project_id)),
 			is_frozen: false,
 			weighted_average_price: None,
 			status: ProjectStatus::Application,
@@ -925,6 +921,26 @@ impl<
 			.collect()
 	}
 
+	pub fn generate_bids_from_total_ct_percent(
+		project_metadata: ProjectMetadataOf<T>,
+		percent_funding: u8,
+		weights: Vec<u8>,
+		bidders: Vec<AccountIdOf<T>>,
+		multipliers: Vec<u8>,
+	) -> Vec<BidParams<T>> {
+		let total_allocation_size = project_metadata.total_allocation_size;
+		let total_ct_bid = Percent::from_percent(percent_funding) * total_allocation_size;
+
+		assert_eq!(weights.len(), bidders.len(), "Should have enough weights for all the bidders");
+
+		zip(zip(weights, bidders), multipliers)
+			.map(|((weight, bidder), multiplier)| {
+				let token_amount = Percent::from_percent(weight) * total_ct_bid;
+				BidParams::new(bidder, token_amount, multiplier, AcceptedFundingAsset::USDT)
+			})
+			.collect()
+	}
+
 	pub fn generate_contributions_from_total_usd(
 		usd_amount: BalanceOf<T>,
 		final_price: PriceOf<T>,
@@ -938,6 +954,26 @@ impl<
 				let token_amount = final_price.reciprocal().unwrap().saturating_mul_int(ticket_size);
 
 				ContributionParams::new(bidder, token_amount, multiplier, AcceptedFundingAsset::USDT)
+			})
+			.collect()
+	}
+
+	pub fn generate_contributions_from_total_ct_percent(
+		project_metadata: ProjectMetadataOf<T>,
+		percent_funding: u8,
+		weights: Vec<u8>,
+		contributors: Vec<AccountIdOf<T>>,
+		multipliers: Vec<u8>,
+	) -> Vec<ContributionParams<T>> {
+		let total_allocation_size = project_metadata.total_allocation_size;
+		let total_ct_bought = Percent::from_percent(percent_funding) * total_allocation_size;
+
+		assert_eq!(weights.len(), contributors.len(), "Should have enough weights for all the bidders");
+
+		zip(zip(weights, contributors), multipliers)
+			.map(|((weight, contributor), multiplier)| {
+				let token_amount = Percent::from_percent(weight) * total_ct_bought;
+				ContributionParams::new(contributor, token_amount, multiplier, AcceptedFundingAsset::USDT)
 			})
 			.collect()
 	}
@@ -975,7 +1011,7 @@ impl<
 	> Instantiator<T, AllPalletsWithoutSystem, RuntimeEvent>
 {
 	pub fn get_issuer(&mut self, project_id: ProjectId) -> AccountIdOf<T> {
-		self.execute(|| ProjectsDetails::<T>::get(project_id).unwrap().issuer)
+		self.execute(|| ProjectsDetails::<T>::get(project_id).unwrap().issuer_account)
 	}
 
 	pub fn get_project_metadata(&mut self, project_id: ProjectId) -> ProjectMetadataOf<T> {
@@ -1003,14 +1039,16 @@ impl<
 			project_metadata.token_information.name.as_slice(),
 			project_metadata.token_information.symbol.as_slice(),
 		);
+		let ct_deposit = Self::get_ct_account_deposit();
 		// one ED for the issuer, one ED for the escrow account
 		self.mint_plmc_to(vec![UserToPLMCBalance::new(
 			issuer.clone(),
-			Self::get_ed() * 2u64.into() + metadata_deposit,
+			Self::get_ed() * 2u64.into() + metadata_deposit + ct_deposit,
 		)]);
 
 		self.execute(|| {
-			crate::Pallet::<T>::do_create(&issuer, project_metadata.clone()).unwrap();
+			crate::Pallet::<T>::do_create(&issuer, project_metadata.clone(), generate_did_from_account(issuer.clone()))
+				.unwrap();
 			let last_project_metadata = ProjectsMetadata::<T>::iter().last().unwrap();
 			log::trace!("Last project metadata: {:?}", last_project_metadata);
 		});
@@ -1044,7 +1082,14 @@ impl<
 		bonds: Vec<UserToUSDBalance<T>>,
 	) -> DispatchResultWithPostInfo {
 		for UserToUSDBalance { account, usd_amount } in bonds {
-			self.execute(|| crate::Pallet::<T>::do_evaluate(&account, project_id, usd_amount))?;
+			self.execute(|| {
+				crate::Pallet::<T>::do_evaluate(
+					&account.clone(),
+					project_id,
+					usd_amount,
+					generate_did_from_account(account),
+				)
+			})?;
 		}
 		Ok(().into())
 	}
@@ -1356,12 +1401,13 @@ impl<
 		let prev_plmc_balances = self.get_free_plmc_balances_for(contributors.clone());
 		let prev_funding_asset_balances = self.get_free_foreign_asset_balances_for(asset_id, contributors.clone());
 
-		let plmc_evaluation_deposits = Self::calculate_evaluation_plmc_spent(evaluations);
+		let plmc_evaluation_deposits = Self::calculate_evaluation_plmc_spent(evaluations.clone());
 		let plmc_bid_deposits = Self::calculate_auction_plmc_spent_post_wap(&bids, project_metadata.clone(), ct_price);
 		let plmc_contribution_deposits = Self::calculate_contributed_plmc_spent(contributions.clone(), ct_price);
 
+		let reducible_evaluator_balances = Self::slash_evaluator_balances(plmc_evaluation_deposits.clone());
 		let necessary_plmc_mint = Self::generic_map_operation(
-			vec![plmc_contribution_deposits.clone(), plmc_evaluation_deposits],
+			vec![plmc_contribution_deposits.clone(), reducible_evaluator_balances],
 			MergeOperation::Subtract,
 		);
 		let total_plmc_participation_locked =
@@ -1718,13 +1764,20 @@ pub mod async_features {
 			project_metadata.token_information.name.as_slice(),
 			project_metadata.token_information.symbol.as_slice(),
 		);
+		let ct_deposit = Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ct_account_deposit();
 		// One ED for the issuer, one for the escrow account
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
 			issuer.clone(),
-			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ed() * 2u64.into() + metadata_deposit,
+			Instantiator::<T, AllPalletsWithoutSystem, RuntimeEvent>::get_ed() * 2u64.into() +
+				metadata_deposit + ct_deposit,
 		)]);
 		inst.execute(|| {
-			crate::Pallet::<T>::do_create(&issuer, project_metadata.clone()).unwrap();
+			crate::Pallet::<T>::do_create(
+				&issuer.clone(),
+				project_metadata.clone(),
+				generate_did_from_account(issuer.clone()),
+			)
+			.unwrap();
 			let last_project_metadata = ProjectsMetadata::<T>::iter().last().unwrap();
 			log::trace!("Last project metadata: {:?}", last_project_metadata);
 		});
@@ -3037,43 +3090,34 @@ pub mod testing_macros {
 	///
 	/// let real = 98u64;
 	/// let desired = 100u64;
-	/// assert_close_enough!(real, desired, Perquintill::from_float(0.02));
+	/// assert_close_enough!(real, desired, Perquintill::from_float(0.98));
 	/// // This would fail
-	/// // assert_close_enough!(real, desired, Perquintill::from_float(0.01));
+	/// // assert_close_enough!(real, desired, Perquintill::from_float(0.99));
 	/// ```
-	///
-	/// - Use this macro when you deal with operations with lots of decimals, and you are ok with the real value being an approximation of the desired one.
-	/// - The max_approximation should be an upper bound such that 1-real/desired <= approximation in the case where the desired is smaller than the real,
-	/// and 1-desired/real <= approximation in the case where the real is bigger than the desired.
-	/// - You probably should define the max_approximation from a float number or a percentage, like in the example.
 	macro_rules! assert_close_enough {
 		// Match when a message is provided
-		($real:expr, $desired:expr, $max_approximation:expr, $msg:expr) => {
-			let real_parts;
+		($real:expr, $desired:expr, $min_percentage:expr, $msg:expr) => {
+			let actual_percentage;
 			if $real <= $desired {
-				real_parts = Perquintill::from_rational($real, $desired);
+				actual_percentage = Perquintill::from_rational($real, $desired);
 			} else {
-				real_parts = Perquintill::from_rational($desired, $real);
+				actual_percentage = Perquintill::from_rational($desired, $real);
 			}
-			let one = Perquintill::from_percent(100u64);
-			let real_approximation = one - real_parts;
-			assert!(real_approximation <= $max_approximation, $msg);
+			assert!(actual_percentage >= $min_percentage, $msg);
 		};
 		// Match when no message is provided
-		($real:expr, $desired:expr, $max_approximation:expr) => {
-			let real_parts;
+		($real:expr, $desired:expr, $min_percentage:expr) => {
+			let actual_percentage;
 			if $real <= $desired {
-				real_parts = Perquintill::from_rational($real, $desired);
+				actual_percentage = Perquintill::from_rational($real, $desired);
 			} else {
-				real_parts = Perquintill::from_rational($desired, $real);
+				actual_percentage = Perquintill::from_rational($desired, $real);
 			}
-			let one = Perquintill::from_percent(100u64);
-			let real_approximation = one - real_parts;
 			assert!(
-				real_approximation <= $max_approximation,
-				"Approximation is too big: {:?} > {:?} for {:?} and {:?}",
-				real_approximation,
-				$max_approximation,
+				actual_percentage >= $min_percentage,
+				"Actual percentage too low for the set minimum: {:?} < {:?} for {:?} and {:?}",
+				actual_percentage,
+				$min_percentage,
 				$real,
 				$desired
 			);

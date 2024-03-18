@@ -289,6 +289,39 @@ pub mod defaults {
 		);
 		instantiator.create_finished_project(project_metadata, ISSUER, evaluations, bids, contributions, vec![])
 	}
+
+	pub fn default_bids_from_ct_percent(percent: u8) -> Vec<BidParams<TestRuntime>> {
+		let project_metadata = default_project_metadata(0, ISSUER);
+		MockInstantiator::generate_bids_from_total_ct_percent(
+			project_metadata,
+			percent,
+			default_weights(),
+			default_bidders(),
+			default_bidder_multipliers(),
+		)
+	}
+
+	pub fn default_community_contributions_from_ct_percent(percent: u8) -> Vec<ContributionParams<TestRuntime>> {
+		let project_metadata = default_project_metadata(0, ISSUER);
+		MockInstantiator::generate_contributions_from_total_ct_percent(
+			project_metadata,
+			percent,
+			default_weights(),
+			default_community_contributors(),
+			default_community_contributor_multipliers(),
+		)
+	}
+
+	pub fn default_remainder_contributions_from_ct_percent(percent: u8) -> Vec<ContributionParams<TestRuntime>> {
+		let project_metadata = default_project_metadata(0, ISSUER);
+		MockInstantiator::generate_contributions_from_total_ct_percent(
+			project_metadata,
+			percent,
+			default_weights(),
+			default_remainder_contributors(),
+			default_remainder_contributor_multipliers(),
+		)
+	}
 }
 
 // only functionalities that happen in the CREATION period of a project
@@ -385,7 +418,9 @@ mod creation {
 
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		inst.mint_plmc_to(default_plmc_balances());
-		let project_err = inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project).unwrap_err());
+		let project_err = inst.execute(|| {
+			Pallet::<TestRuntime>::do_create(&ISSUER, wrong_project, generate_did_from_account(ISSUER)).unwrap_err()
+		});
 		assert_eq!(project_err, Error::<TestRuntime>::PriceTooLow.into());
 	}
 
@@ -464,8 +499,14 @@ mod creation {
 		assert!(test_1.offchain_information_hash != test_2.offchain_information_hash);
 
 		for project in wrong_projects {
-			let project_err = inst
-				.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, with_different_metadata(project)).unwrap_err());
+			let project_err = inst.execute(|| {
+				Pallet::<TestRuntime>::do_create(
+					&ISSUER,
+					with_different_metadata(project),
+					generate_did_from_account(ISSUER),
+				)
+				.unwrap_err()
+			});
 			assert_eq!(project_err, Error::<TestRuntime>::TicketSizeError.into());
 		}
 	}
@@ -477,7 +518,9 @@ mod creation {
 		let ed = MockInstantiator::get_ed();
 
 		inst.mint_plmc_to(vec![UserToPLMCBalance::new(ISSUER, ed)]);
-		let project_err = inst.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, project_metadata).unwrap_err());
+		let project_err = inst.execute(|| {
+			Pallet::<TestRuntime>::do_create(&ISSUER, project_metadata, generate_did_from_account(ISSUER)).unwrap_err()
+		});
 		assert_eq!(project_err, Error::<TestRuntime>::NotEnoughFundsForEscrowCreation.into());
 	}
 
@@ -538,7 +581,9 @@ mod creation {
 
 		for project in projects {
 			let project_metadata_new = with_different_metadata(project);
-			assert_ok!(inst.execute(|| { Pallet::<TestRuntime>::do_create(&ISSUER, project_metadata_new) }));
+			assert_ok!(inst.execute(|| {
+				Pallet::<TestRuntime>::do_create(&ISSUER, project_metadata_new, generate_did_from_account(ISSUER))
+			}));
 		}
 
 		let mut wrong_project_1 = default_project_metadata.clone();
@@ -563,8 +608,14 @@ mod creation {
 
 		let wrong_projects = vec![wrong_project_1, wrong_project_2, wrong_project_3, wrong_project_4];
 		for project in wrong_projects {
-			let project_err = inst
-				.execute(|| Pallet::<TestRuntime>::do_create(&ISSUER, with_different_metadata(project)).unwrap_err());
+			let project_err = inst.execute(|| {
+				Pallet::<TestRuntime>::do_create(
+					&ISSUER,
+					with_different_metadata(project),
+					generate_did_from_account(ISSUER),
+				)
+				.unwrap_err()
+			});
 			assert_eq!(project_err, Error::<TestRuntime>::ParticipationCurrenciesError.into());
 		}
 	}
@@ -629,7 +680,7 @@ mod evaluation {
 		];
 
 		for (real, desired) in zip(actual_reward_balances.iter(), expected_ct_rewards.iter()) {
-			assert_close_enough!(real.1, desired.1, Perquintill::from_float(0.01));
+			assert_close_enough!(real.1, desired.1, Perquintill::from_float(0.99));
 		}
 	}
 
@@ -803,6 +854,22 @@ mod evaluation {
 			Error::<TestRuntime>::TooManyEvaluationsForProject
 		);
 	}
+
+	#[test]
+	fn issuer_cannot_evaluate_his_project() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project_metadata(0, ISSUER);
+		let project_id = inst.create_evaluating_project(project_metadata.clone(), ISSUER);
+		assert_err!(
+			inst.execute(|| crate::Pallet::<TestRuntime>::do_evaluate(
+				&(&ISSUER + 1),
+				project_id,
+				500 * US_DOLLAR,
+				generate_did_from_account(ISSUER)
+			)),
+			Error::<TestRuntime>::ParticipationToThemselves
+		);
+	}
 }
 
 // only functionalities that happen in the AUCTION period of a project
@@ -958,7 +1025,7 @@ mod auction {
 
 		let desired_price = PriceOf::<TestRuntime>::from_float(11.1818f64).saturating_mul_int(ASSET_UNIT);
 
-		assert_close_enough!(token_price, desired_price, Perquintill::from_float(0.01));
+		assert_close_enough!(token_price, desired_price, Perquintill::from_float(0.99));
 	}
 
 	#[test]
@@ -1272,7 +1339,7 @@ mod auction {
 				HoldReason::Participation(project_id).into(),
 			)
 		});
-		assert_close_enough!(schedule.unwrap(), accepted_plmc_amount, Perquintill::from_float(0.01));
+		assert_close_enough!(schedule.unwrap(), accepted_plmc_amount, Perquintill::from_float(0.99));
 
 		let UserToPLMCBalance { account: rejected_user, .. } = plmc_locked_for_rejected_bid[0];
 		let schedule_exists = inst
@@ -1385,7 +1452,7 @@ mod auction {
 	fn cannot_bid_before_auction_round() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let _ = inst.create_evaluating_project(default_project_metadata(0, ISSUER), ISSUER);
-		let did = generate_did_from_account(ISSUER);
+		let did = generate_did_from_account(BIDDER_2);
 		let investor_type = InvestorType::Institutional;
 		inst.execute(|| {
 			assert_noop!(
@@ -1502,7 +1569,7 @@ mod auction {
 			inst.create_auctioning_project(default_project_metadata(0, ISSUER), ISSUER, default_evaluations());
 		let bids = vec![BidParams::<TestRuntime>::new(BIDDER_1, 10_000, 1u8, AcceptedFundingAsset::USDC)];
 
-		let did = generate_did_from_account(ISSUER);
+		let did = generate_did_from_account(bids[0].bidder.clone());
 		let investor_type = InvestorType::Institutional;
 
 		let outcome = inst.execute(|| {
@@ -1965,6 +2032,25 @@ mod auction {
 			Error::<TestRuntime>::FundingAssetNotAccepted
 		);
 		assert_ok!(inst.bid_for_users(project_id_dot, vec![dot_bid.clone()]));
+	}
+
+	#[test]
+	fn issuer_cannot_bid_his_project() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project_metadata(0, ISSUER);
+		let project_id = inst.create_auctioning_project(project_metadata.clone(), ISSUER, default_evaluations());
+		assert_err!(
+			inst.execute(|| crate::Pallet::<TestRuntime>::do_bid(
+				&(&ISSUER + 1),
+				project_id,
+				500 * ASSET_UNIT,
+				1u8.try_into().unwrap(),
+				AcceptedFundingAsset::USDT,
+				generate_did_from_account(ISSUER),
+				InvestorType::Institutional
+			)),
+			Error::<TestRuntime>::ParticipationToThemselves
+		);
 	}
 }
 
@@ -2866,6 +2952,30 @@ mod community_contribution {
 		);
 		assert_ok!(inst.contribute_for_users(project_id_dot, vec![dot_contribution.clone()]));
 	}
+
+	#[test]
+	fn issuer_cannot_contribute_his_project() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project_metadata(0, ISSUER);
+		let project_id = inst.create_community_contributing_project(
+			project_metadata.clone(),
+			ISSUER,
+			default_evaluations(),
+			default_bids(),
+		);
+		assert_err!(
+			inst.execute(|| crate::Pallet::<TestRuntime>::do_community_contribute(
+				&(&ISSUER + 1),
+				project_id,
+				500 * ASSET_UNIT,
+				1u8.try_into().unwrap(),
+				AcceptedFundingAsset::USDT,
+				generate_did_from_account(ISSUER),
+				InvestorType::Institutional
+			)),
+			Error::<TestRuntime>::ParticipationToThemselves
+		);
+	}
 }
 
 // only functionalities that happen in the REMAINDER FUNDING period of a project
@@ -3515,6 +3625,31 @@ mod remainder_contribution {
 			Error::<TestRuntime>::FundingAssetNotAccepted
 		);
 		assert_ok!(inst.contribute_for_users(project_id_dot, vec![dot_contribution.clone()]));
+	}
+
+	#[test]
+	fn issuer_cannot_contribute_his_project() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let project_metadata = default_project_metadata(0, ISSUER);
+		let project_id = inst.create_remainder_contributing_project(
+			project_metadata.clone(),
+			ISSUER,
+			default_evaluations(),
+			default_bids(),
+			default_community_buys(),
+		);
+		assert_err!(
+			inst.execute(|| crate::Pallet::<TestRuntime>::do_remaining_contribute(
+				&(&ISSUER + 1),
+				project_id,
+				500 * ASSET_UNIT,
+				1u8.try_into().unwrap(),
+				AcceptedFundingAsset::USDT,
+				generate_did_from_account(ISSUER),
+				InvestorType::Institutional
+			)),
+			Error::<TestRuntime>::ParticipationToThemselves
+		);
 	}
 }
 
@@ -5607,6 +5742,153 @@ mod funding_end {
 		assert_eq!(plmc_deltas, expected_final_plmc_balances);
 		inst.do_reserved_plmc_assertions(zero_balances, HoldReason::FutureDeposit(project_id).into());
 	}
+
+	#[test]
+	fn ct_treasury_mints() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+
+		let treasury_account = <TestRuntime as Config>::ContributionTreasury::get();
+
+		let project_metadata = ProjectMetadataOf::<TestRuntime> {
+			token_information: default_token_information(),
+			mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
+			total_allocation_size: 1_000_000 * ASSET_UNIT,
+			auction_round_allocation_percentage: Percent::from_percent(50u8),
+			minimum_price: PriceOf::<TestRuntime>::from_float(10.0),
+			bidding_ticket_sizes: BiddingTicketSizes {
+				professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
+				phantom: Default::default(),
+			},
+			contributing_ticket_sizes: ContributingTicketSizes {
+				retail: TicketSize::new(None, None),
+				professional: TicketSize::new(None, None),
+				institutional: TicketSize::new(None, None),
+				phantom: Default::default(),
+			},
+			participation_currencies: vec![AcceptedFundingAsset::USDT].try_into().unwrap(),
+			funding_destination_account: ISSUER,
+			offchain_information_hash: Some(hashed(METADATA)),
+		};
+		let mut counter: u8 = 0u8;
+		let mut with_different_metadata = |mut project: ProjectMetadataOf<TestRuntime>| {
+			let mut binding = project.offchain_information_hash.unwrap();
+			let h256_bytes = binding.as_fixed_bytes_mut();
+			h256_bytes[0] = counter;
+			counter += 1u8;
+			project.offchain_information_hash = Some(binding);
+			project
+		};
+
+		let price = project_metadata.minimum_price;
+
+		// Failed project has no mints on the treasury
+		let project_20_percent = inst.create_finished_project(
+			with_different_metadata(project_metadata.clone()),
+			ISSUER,
+			default_evaluations(),
+			default_bids_from_ct_percent(10),
+			default_community_contributions_from_ct_percent(10),
+			vec![],
+		);
+		inst.advance_time(<TestRuntime as Config>::ManualAcceptanceDuration::get()).unwrap();
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
+		let ct_balance = inst.execute(|| {
+			<TestRuntime as Config>::ContributionTokenCurrency::balance(project_20_percent, treasury_account)
+		});
+		assert_eq!(ct_balance, 0);
+
+		// 50% funded project can have mints on the treasury if issuer accepts or enough time passes for automatic acceptance
+		let fee_10_percent = Percent::from_percent(10) * 1_000_000 * US_DOLLAR;
+		let fee_8_percent = Percent::from_percent(8) * 4_000_000 * US_DOLLAR;
+		let fee_6_percent = Percent::from_percent(6) * 0 * US_DOLLAR;
+		let total_usd_fee = fee_10_percent + fee_8_percent + fee_6_percent;
+		let total_ct_fee = price.reciprocal().unwrap().saturating_mul_int(total_usd_fee);
+
+		let project_50_percent = inst.create_finished_project(
+			with_different_metadata(project_metadata.clone()),
+			ISSUER,
+			default_evaluations(),
+			default_bids_from_ct_percent(25),
+			default_community_contributions_from_ct_percent(20),
+			default_remainder_contributions_from_ct_percent(5),
+		);
+		inst.advance_time(<TestRuntime as Config>::ManualAcceptanceDuration::get()).unwrap();
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
+		let ct_balance = inst.execute(|| {
+			<TestRuntime as Config>::ContributionTokenCurrency::balance(project_50_percent, treasury_account)
+		});
+		let expected_liquidity_pool_minted = Percent::from_percent(50) * total_ct_fee;
+		let expected_long_term_holder_bonus_minted = Percent::from_percent(50) * total_ct_fee;
+		assert_eq!(ct_balance, expected_liquidity_pool_minted + expected_long_term_holder_bonus_minted);
+
+		// 80% funded project can have mints on the treasury if issuer accepts or enough time passes for automatic acceptance
+		let fee_10_percent = Percent::from_percent(10) * 1_000_000 * US_DOLLAR;
+		let fee_8_percent = Percent::from_percent(8) * 5_000_000 * US_DOLLAR;
+		let fee_6_percent = Percent::from_percent(6) * 2_000_000 * US_DOLLAR;
+		let total_usd_fee = fee_10_percent + fee_8_percent + fee_6_percent;
+		let total_ct_fee = price.reciprocal().unwrap().saturating_mul_int(total_usd_fee);
+
+		let project_80_percent = inst.create_finished_project(
+			with_different_metadata(project_metadata.clone()),
+			ISSUER,
+			default_evaluations(),
+			default_bids_from_ct_percent(40),
+			default_community_contributions_from_ct_percent(30),
+			default_remainder_contributions_from_ct_percent(10),
+		);
+		inst.advance_time(<TestRuntime as Config>::ManualAcceptanceDuration::get()).unwrap();
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
+		let ct_balance = inst.execute(|| {
+			<TestRuntime as Config>::ContributionTokenCurrency::balance(project_80_percent, treasury_account)
+		});
+		let expected_liquidity_pool_minted = Percent::from_percent(50) * total_ct_fee;
+		let expected_long_term_holder_bonus_minted = Percent::from_percent(50) * total_ct_fee;
+		assert_eq!(ct_balance, expected_liquidity_pool_minted + expected_long_term_holder_bonus_minted);
+
+		// 98% funded project always has mints on the treasury
+		let fee_10_percent = Percent::from_percent(10) * 1_000_000 * US_DOLLAR;
+		let fee_8_percent = Percent::from_percent(8) * 5_000_000 * US_DOLLAR;
+		let fee_6_percent = Percent::from_percent(6) * 3_800_000 * US_DOLLAR;
+		let total_usd_fee = fee_10_percent + fee_8_percent + fee_6_percent;
+		let total_ct_fee = price.reciprocal().unwrap().saturating_mul_int(total_usd_fee);
+
+		let project_98_percent = inst.create_finished_project(
+			with_different_metadata(project_metadata.clone()),
+			ISSUER,
+			default_evaluations(),
+			default_bids_from_ct_percent(49),
+			default_community_contributions_from_ct_percent(39),
+			default_remainder_contributions_from_ct_percent(10),
+		);
+		inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
+		let ct_balance = inst.execute(|| {
+			<TestRuntime as Config>::ContributionTokenCurrency::balance(project_98_percent, treasury_account)
+		});
+		let expected_liquidity_pool_minted = Percent::from_percent(50) * total_ct_fee;
+		let lthb_percent = Perquintill::from_percent(20) + Perquintill::from_percent(30) * Perquintill::from_percent(2);
+		let expected_long_term_holder_bonus_minted = lthb_percent * total_ct_fee;
+		assert_eq!(ct_balance, expected_liquidity_pool_minted + expected_long_term_holder_bonus_minted);
+
+		// Test the touch on the treasury ct account by the issuer.
+		// We create more CT accounts that the account can use provider references for,
+		// so if it succeeds, then it means the touch was successful.
+		let consumer_limit: u32 = <TestRuntime as frame_system::Config>::MaxConsumers::get();
+
+		// we want to test ct mints on treasury of 1 over the consumer limit,
+		// and we already minted 3 contribution tokens on previous tests.
+		for i in 0..consumer_limit + 1u32 - 3u32 {
+			let project_98_percent = inst.create_finished_project(
+				with_different_metadata(project_metadata.clone()),
+				ISSUER + i + 1000,
+				default_evaluations(),
+				default_bids_from_ct_percent(49),
+				default_community_contributions_from_ct_percent(39),
+				default_remainder_contributions_from_ct_percent(10),
+			);
+			inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
+		}
+	}
 }
 
 // only functionalities related to the CT Migration
@@ -5828,7 +6110,7 @@ mod helper_functions {
 		dbg!(&returned_plmc_balances);
 
 		for (expected, calculated) in zip(expected_returns, returned_plmc_balances) {
-			assert_close_enough!(expected, calculated, Perquintill::from_float(0.01));
+			assert_close_enough!(expected, calculated, Perquintill::from_float(0.99));
 		}
 	}
 
@@ -6051,12 +6333,13 @@ mod async_tests {
 			default_remainder_contributors(),
 			default_remainder_contributor_multipliers(),
 		);
+		let ed = <TestRuntime as pallet_balances::Config>::ExistentialDeposit::get();
 		mock::RuntimeGenesisConfig {
 			balances: BalancesConfig {
-				balances: vec![(
-					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
-					<TestRuntime as pallet_balances::Config>::ExistentialDeposit::get(),
-				)],
+				balances: vec![
+					(<TestRuntime as Config>::PalletId::get().into_account_truncating(), ed),
+					(<TestRuntime as Config>::ContributionTreasury::get(), ed),
+				],
 			},
 			foreign_assets: ForeignAssetsConfig {
 				assets: vec![(
@@ -6175,13 +6458,13 @@ mod async_tests {
 				)
 			})
 			.collect_vec();
-
+		let ed = <TestRuntime as pallet_balances::Config>::ExistentialDeposit::get();
 		mock::RuntimeGenesisConfig {
 			balances: BalancesConfig {
-				balances: vec![(
-					<TestRuntime as Config>::PalletId::get().into_account_truncating(),
-					<TestRuntime as pallet_balances::Config>::ExistentialDeposit::get(),
-				)],
+				balances: vec![
+					(<TestRuntime as Config>::PalletId::get().into_account_truncating(), ed),
+					(<TestRuntime as Config>::ContributionTreasury::get(), ed),
+				],
 			},
 			foreign_assets: ForeignAssetsConfig {
 				assets: vec![(

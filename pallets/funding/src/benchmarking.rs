@@ -406,9 +406,13 @@ mod benchmarks {
 			project_metadata.token_information.name.as_slice(),
 			project_metadata.token_information.symbol.as_slice(),
 		);
-		inst.mint_plmc_to(vec![UserToPLMCBalance::new(issuer.clone(), ed * 2u64.into() + metadata_deposit)]);
+		let ct_account_deposit = T::ContributionTokenCurrency::deposit_required(0);
+		inst.mint_plmc_to(vec![UserToPLMCBalance::new(
+			issuer.clone(),
+			ed * 2u64.into() + metadata_deposit + ct_account_deposit,
+		)]);
 		let jwt = get_mock_jwt(issuer.clone(), InvestorType::Institutional, generate_did_from_account(issuer.clone()));
-		// let x = jwt.verify_token();
+
 		#[extrinsic_call]
 		create(RawOrigin::Signed(issuer.clone()), jwt, project_metadata.clone());
 
@@ -422,7 +426,7 @@ mod benchmarks {
 
 		let project_details = ProjectsDetails::<T>::iter().sorted_by(|a, b| a.0.cmp(&b.0)).collect::<Vec<_>>();
 		let stored_details = &project_details.iter().last().unwrap().1;
-		assert_eq!(&stored_details.issuer, &issuer);
+		assert_eq!(&stored_details.issuer_account, &issuer);
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(Event::<T>::ProjectCreated { project_id, issuer }.into());
@@ -1747,13 +1751,14 @@ mod benchmarks {
 		assert_eq!(stored_evaluation.current_plmc_bond, current_plmc_bond);
 
 		// Balance
-		let treasury_account = T::TreasuryAccount::get();
+		let treasury_account = T::ProtocolGrowthTreasury::get();
 		let bonded_plmc = inst
 			.get_reserved_plmc_balances_for(vec![evaluator.clone()], HoldReason::Evaluation(project_id).into())[0]
 			.plmc_amount;
 		assert_eq!(bonded_plmc, stored_evaluation.current_plmc_bond);
 		let free_treasury_plmc = inst.get_free_plmc_balances_for(vec![treasury_account])[0].plmc_amount;
-		assert_eq!(free_treasury_plmc, slashed_amount);
+		let ed = BenchInstantiator::<T>::get_ed();
+		assert_eq!(free_treasury_plmc, slashed_amount + ed);
 
 		// Events
 		frame_system::Pallet::<T>::assert_last_event(
@@ -2174,7 +2179,8 @@ mod benchmarks {
 		// Balances
 		let asset = stored_bid.funding_asset.to_assethub_id();
 		let project_details = ProjectsDetails::<T>::get(project_id).unwrap();
-		let free_assets = inst.get_free_foreign_asset_balances_for(asset, vec![project_details.issuer])[0].asset_amount;
+		let free_assets =
+			inst.get_free_foreign_asset_balances_for(asset, vec![project_details.issuer_account])[0].asset_amount;
 		assert_eq!(free_assets, stored_bid.funding_asset_amount_locked);
 
 		// Events
@@ -2233,7 +2239,8 @@ mod benchmarks {
 		// Balances
 		let asset = stored_contribution.funding_asset.to_assethub_id();
 		let project_details = ProjectsDetails::<T>::get(project_id).unwrap();
-		let free_assets = inst.get_free_foreign_asset_balances_for(asset, vec![project_details.issuer])[0].asset_amount;
+		let free_assets =
+			inst.get_free_foreign_asset_balances_for(asset, vec![project_details.issuer_account])[0].asset_amount;
 		assert_eq!(free_assets, stored_contribution.funding_asset_amount);
 
 		// Events

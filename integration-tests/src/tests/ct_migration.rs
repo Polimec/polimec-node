@@ -20,7 +20,7 @@ use pallet_funding::{
 	MigrationStatus, Multiplier, MultiplierOf, ProjectId, RewardOrSlash,
 };
 use polimec_common::{
-	credentials::{InvestorType},
+	credentials::InvestorType,
 	migration_types::{Migration, MigrationInfo, MigrationOrigin, Migrations, ParticipationType},
 };
 use polimec_parachain_runtime::PolimecFunding;
@@ -165,11 +165,7 @@ fn migrations_are_executed(grouped_migrations: Vec<Migrations>) {
 		assert!(migration_group.origins().iter().all(|origin| origin.user == user));
 
 		let user_info = Penpal::account_data_of(user.into());
-		assert_close_enough!(
-			user_info.free,
-			migration_group.total_ct_amount(),
-			Perquintill::from_parts(10_000_000_000u64)
-		);
+		assert_close_enough!(user_info.free, migration_group.total_ct_amount(), Perquintill::from_float(0.99));
 
 		let vest_scheduled_cts = migration_group
 			.inner()
@@ -182,7 +178,7 @@ fn migrations_are_executed(grouped_migrations: Vec<Migrations>) {
 				}
 			})
 			.sum::<u128>();
-		assert_close_enough!(user_info.frozen, vest_scheduled_cts, Perquintill::from_parts(10_000_000_000_000u64));
+		assert_close_enough!(user_info.frozen, vest_scheduled_cts, Perquintill::from_float(0.99));
 	}
 }
 

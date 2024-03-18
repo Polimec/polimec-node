@@ -141,6 +141,7 @@ use sp_std::{marker::PhantomData, prelude::*};
 use traits::DoRemainingOperation;
 pub use types::*;
 use xcm::v3::{opaque::Instruction, prelude::*, SendXcm};
+
 pub mod functions;
 
 #[cfg(test)]
@@ -175,7 +176,7 @@ pub type TicketSizeOf<T> = TicketSize<BalanceOf<T>>;
 pub type ProjectMetadataOf<T> =
 	ProjectMetadata<BoundedVec<u8, StringLimitOf<T>>, BalanceOf<T>, PriceOf<T>, AccountIdOf<T>, HashOf<T>>;
 pub type ProjectDetailsOf<T> =
-	ProjectDetails<AccountIdOf<T>, BlockNumberFor<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>;
+	ProjectDetails<AccountIdOf<T>, Did, BlockNumberFor<T>, PriceOf<T>, BalanceOf<T>, EvaluationRoundInfoOf<T>>;
 pub type EvaluationRoundInfoOf<T> = EvaluationRoundInfo<BalanceOf<T>>;
 pub type VestingInfoOf<T> = VestingInfo<BlockNumberFor<T>, BalanceOf<T>>;
 pub type EvaluationInfoOf<T> = EvaluationInfo<u32, ProjectId, AccountIdOf<T>, BalanceOf<T>, BlockNumberFor<T>>;
@@ -229,62 +230,36 @@ pub mod pallet {
 	pub trait Config:
 		frame_system::Config + pallet_balances::Config<Balance = BalanceOf<Self>> + pallet_xcm::Config
 	{
-		#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
-		type SetPrices: SetPrices;
+		/// A way to convert from and to the account type used in CT migrations
+		type AccountId32Conversion: ConvertBack<Self::AccountId, [u8; 32]>;
 
+		/// Type used for testing and benchmarks
+		#[cfg(any(test, feature = "runtime-benchmarks", feature = "std"))]
 		type AllPalletsWithoutSystem: OnFinalize<BlockNumberFor<Self>>
 			+ OnIdle<BlockNumberFor<Self>>
 			+ OnInitialize<BlockNumberFor<Self>>;
 
-		type RuntimeEvent: From<Event<Self>>
-			+ TryInto<Event<Self>>
-			+ IsType<<Self as frame_system::Config>::RuntimeEvent>
-			+ Parameter
-			+ Member;
-
-		// TODO: our local BlockNumber should be removed once we move onto using Moment for time tracking
-		type BlockNumber: IsType<BlockNumberFor<Self>> + Into<u64>;
-
-		type AccountId32Conversion: ConvertBack<Self::AccountId, [u8; 32]>;
-
-		type RuntimeOrigin: IsType<<Self as frame_system::Config>::RuntimeOrigin>
-			+ Into<Result<pallet_xcm::Origin, <Self as Config>::RuntimeOrigin>>;
-
-		type RuntimeCall: Parameter + IsType<<Self as frame_system::Config>::RuntimeCall> + From<Call<Self>>;
-
-		/// Multiplier that decides how much PLMC needs to be bonded for a token buy/bid
-		type Multiplier: Parameter
-			+ BondingRequirementCalculation
-			+ VestingDurationCalculation
-			+ Default
-			+ Copy
-			+ TryFrom<u8>
-			+ MaxEncodedLen
-			+ MaybeSerializeDeserialize;
+		/// The time window (expressed in number of blocks) that an issuer has to start the auction round.
+		#[pallet::constant]
+		type AuctionInitializePeriodDuration: Get<BlockNumberFor<Self>>;
 
 		/// The inner balance type we will use for all of our outer currency types. (e.g native, funding, CTs)
 		type Balance: Balance + From<u64> + FixedPointOperand + MaybeSerializeDeserialize + Into<u128>;
 
-		/// Represents the value of something in USD
-		type Price: FixedPointNumber + Parameter + Copy + MaxEncodedLen + MaybeSerializeDeserialize;
+		// TODO: our local BlockNumber should be removed once we move onto using Moment for time tracking
+		/// BlockNumber used for PLMC vesting durations on this chain, and CT vesting durations on funded chains.
+		type BlockNumber: IsType<BlockNumberFor<Self>> + Into<u64>;
 
-		type RuntimeHoldReason: From<HoldReason>;
+		/// The length (expressed in number of blocks) of the Auction Round, Candle period.
+		type BlockNumberToBalance: Convert<BlockNumberFor<Self>, BalanceOf<Self>>;
 
-		/// The chains native currency
-		type NativeCurrency: fungible::InspectHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
-			+ fungible::MutateHold<
-				AccountIdOf<Self>,
-				Balance = BalanceOf<Self>,
-				Reason = <Self as Config>::RuntimeHoldReason,
-			> + fungible::BalancedHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
-			+ fungible::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
+		/// The length (expressed in number of blocks) of the Auction Round, Candle period.
+		#[pallet::constant]
+		type CandleAuctionDuration: Get<BlockNumberFor<Self>>;
 
-		/// The currency used for funding projects in bids and contributions
-		// type FundingCurrency: ReservableCurrency<AccountIdOf<Self, Balance = BalanceOf<Self>>;
-		type FundingCurrency: fungibles::InspectEnumerable<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = u32>
-			+ fungibles::metadata::Inspect<AccountIdOf<Self>, AssetId = u32>
-			+ fungibles::metadata::Mutate<AccountIdOf<Self>, AssetId = u32>
-			+ fungibles::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
+		/// The length (expressed in number of blocks) of the Community Round.
+		#[pallet::constant]
+		type CommunityFundingDuration: Get<BlockNumberFor<Self>>;
 
 		/// The currency used for minting contribution tokens as fungible assets (i.e pallet-assets)
 		type ContributionTokenCurrency: fungibles::Create<AccountIdOf<Self>, AssetId = ProjectId, Balance = BalanceOf<Self>>
@@ -298,113 +273,123 @@ pub mod pallet {
 			+ AccountTouch<ProjectId, AccountIdOf<Self>, Balance = BalanceOf<Self>>
 			+ ContainsPair<ProjectId, AccountIdOf<Self>>;
 
-		type PriceProvider: ProvideAssetPrice<AssetId = u32, Price = Self::Price>;
-
-		/// Something that provides randomness in the runtime.
-		type Randomness: Randomness<Self::Hash, BlockNumberFor<Self>>;
-
-		/// The maximum length of data stored on-chain.
-		#[pallet::constant]
-		type StringLimit: Get<u32>;
-
-		/// The maximum size of a preimage allowed, expressed in bytes.
-		#[pallet::constant]
-		type PreImageLimit: Get<u32>;
-
-		/// The length (expressed in number of blocks) of the evaluation period.
-		#[pallet::constant]
-		type EvaluationDuration: Get<BlockNumberFor<Self>>;
-
-		/// The time window (expressed in number of blocks) that an issuer has to start the auction round.
-		#[pallet::constant]
-		type AuctionInitializePeriodDuration: Get<BlockNumberFor<Self>>;
+		/// Convert 24 hours as FixedU128, to the corresponding amount of blocks in the same type as frame_system
+		type DaysToBlocks: Convert<FixedU128, BlockNumberFor<Self>>;
 
 		/// The length (expressed in number of blocks) of the Auction Round, English period.
 		#[pallet::constant]
 		type EnglishAuctionDuration: Get<BlockNumberFor<Self>>;
 
-		/// The length (expressed in number of blocks) of the Auction Round, Candle period.
+		/// The length (expressed in number of blocks) of the evaluation period.
 		#[pallet::constant]
-		type CandleAuctionDuration: Get<BlockNumberFor<Self>>;
+		type EvaluationDuration: Get<BlockNumberFor<Self>>;
 
-		/// The length (expressed in number of blocks) of the Community Round.
-		#[pallet::constant]
-		type CommunityFundingDuration: Get<BlockNumberFor<Self>>;
-
-		/// The length (expressed in number of blocks) of the Remainder Round.
-		#[pallet::constant]
-		type RemainderFundingDuration: Get<BlockNumberFor<Self>>;
-
-		/// `PalletId` for the funding pallet. An appropriate value could be
-		/// `PalletId(*b"py/cfund")`
-		#[pallet::constant]
-		type PalletId: Get<PalletId>;
-
-		/// How many projects should we update in on_initialize each block
-		#[pallet::constant]
-		type MaxProjectsToUpdatePerBlock: Get<u32>;
-
-		/// How many distinct evaluations per user per project
-		#[pallet::constant]
-		type MaxEvaluationsPerUser: Get<u32>;
-
-		/// The maximum number of bids per user per project
-		#[pallet::constant]
-		type MaxBidsPerUser: Get<u32>;
-
-		/// The maximum number of bids per user per project
-		#[pallet::constant]
-		type MaxContributionsPerUser: Get<u32>;
-
-		/// The maximum number of bids per user
-		#[pallet::constant]
-		type ContributionVesting: Get<u32>;
-
-		/// Weight information for extrinsics in this pallet.
-		type WeightInfo: weights::WeightInfo;
-
-		#[pallet::constant]
-		type FeeBrackets: Get<Vec<(Percent, <Self as Config>::Balance)>>;
-
+		/// What percentage of the target funding amount is required to be reached in the evaluation, for it to continue to the funding round.
 		#[pallet::constant]
 		type EvaluationSuccessThreshold: Get<Percent>;
 
-		type Vesting: polimec_common::ReleaseSchedule<
-			AccountIdOf<Self>,
-			<Self as Config>::RuntimeHoldReason,
-			Currency = Self::NativeCurrency,
-			Moment = BlockNumberFor<Self>,
-		>;
-
-		/// For now we expect 3 days until the project is automatically accepted. Timeline decided by MiCA regulations.
-		#[pallet::constant]
-		type ManualAcceptanceDuration: Get<BlockNumberFor<Self>>;
-
-		/// For now we expect 4 days from acceptance to settlement due to MiCA regulations.
-		#[pallet::constant]
-		type SuccessToSettlementTime: Get<BlockNumberFor<Self>>;
-
+		/// How much an evaluation should be slashed if it the project doesn't reach a certain theshold of funding.
 		#[pallet::constant]
 		type EvaluatorSlash: Get<Percent>;
 
+		/// The fee brackets for the project's funding
 		#[pallet::constant]
-		type TreasuryAccount: Get<AccountIdOf<Self>>;
+		type FeeBrackets: Get<Vec<(Percent, <Self as Config>::Balance)>>;
 
-		/// Convert 24 hours as FixedU128, to the corresponding amount of blocks in the same type as frame_system
-		type DaysToBlocks: Convert<FixedU128, BlockNumberFor<Self>>;
+		/// The currency used for funding projects in bids and contributions
+		type FundingCurrency: fungibles::InspectEnumerable<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = u32>
+			+ fungibles::metadata::Inspect<AccountIdOf<Self>, AssetId = u32>
+			+ fungibles::metadata::Mutate<AccountIdOf<Self>, AssetId = u32>
+			+ fungibles::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
 
-		type BlockNumberToBalance: Convert<BlockNumberFor<Self>, BalanceOf<Self>>;
+		/// Credentialized investor Origin, ensures users are of investing type Retail, or Professional, or Institutional.
+		type InvestorOrigin: EnsureOriginWithCredentials<
+			<Self as frame_system::Config>::RuntimeOrigin,
+			Success = (AccountIdOf<Self>, Did, InvestorType),
+		>;
 
+		/// How long an issuer has to accept or reject the funding of a project if the funding is between two thresholds.
 		#[pallet::constant]
-		type PolimecReceiverInfo: Get<PalletInfo>;
+		type ManualAcceptanceDuration: Get<BlockNumberFor<Self>>;
+
+		/// Max individual bids per project. Used to estimate worst case weight for price calculation
+		#[pallet::constant]
+		type MaxBidsPerProject: Get<u32>;
+
+		/// Max individual bids per project. Used to estimate worst case weight for price calculation
+		#[pallet::constant]
+		type MaxBidsPerUser: Get<u32>;
+
+		/// Range of max_capacity_thresholds values for the hrmp config where we accept the incoming channel request
+		#[pallet::constant]
+		type MaxCapacityThresholds: Get<(u32, u32)>;
+
+		/// Max individual contributions per project per user. Used to estimate worst case weight for price calculation
+		#[pallet::constant]
+		type MaxContributionsPerUser: Get<u32>;
+
+		/// Max individual evaluations per project. Used to estimate worst case weight for price calculation
+		#[pallet::constant]
+		type MaxEvaluationsPerProject: Get<u32>;
+
+		/// How many distinct evaluations per user per project
+		type MaxEvaluationsPerUser: Get<u32>;
 
 		/// Range of max_message_size values for the hrmp config where we accept the incoming channel request
 		#[pallet::constant]
 		type MaxMessageSizeThresholds: Get<(u32, u32)>;
 
-		/// Range of max_capacity_thresholds values for the hrmp config where we accept the incoming channel request
+		/// max iterations for trying to insert a project on the projects_to_update storage
 		#[pallet::constant]
-		type MaxCapacityThresholds: Get<(u32, u32)>;
+		type MaxProjectsToUpdateInsertionAttempts: Get<u32>;
+
+		/// How many projects should we update in on_initialize each block. Likely one to reduce complexity
+		#[pallet::constant]
+		type MaxProjectsToUpdatePerBlock: Get<u32>;
+
+		/// Multiplier type that decides how much PLMC needs to be bonded for a token buy/bid
+		type Multiplier: Parameter
+			+ BondingRequirementCalculation
+			+ VestingDurationCalculation
+			+ Default
+			+ Copy
+			+ TryFrom<u8>
+			+ MaxEncodedLen
+			+ MaybeSerializeDeserialize;
+
+		/// The chains native currency
+		type NativeCurrency: fungible::InspectHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
+			+ fungible::MutateHold<
+				AccountIdOf<Self>,
+				Balance = BalanceOf<Self>,
+				Reason = <Self as Config>::RuntimeHoldReason,
+			> + fungible::BalancedHold<AccountIdOf<Self>, Balance = BalanceOf<Self>>
+			+ fungible::Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
+
+		/// System account for the funding pallet. Used to derive project escrow accounts.
+		#[pallet::constant]
+		type PalletId: Get<PalletId>;
+
+		/// Pallet info of the polimec receiver pallet. Used for CT migrations
+		#[pallet::constant]
+		type PolimecReceiverInfo: Get<PalletInfo>;
+
+		/// The maximum size of a preimage allowed, expressed in bytes.
+		#[pallet::constant]
+		type PreImageLimit: Get<u32>;
+
+		/// Type that represents the value of something in USD
+		type Price: FixedPointNumber + Parameter + Copy + MaxEncodedLen + MaybeSerializeDeserialize;
+
+		/// Method to get the price of an asset like USDT or PLMC. Likely to come from an oracle
+		type PriceProvider: ProvideAssetPrice<AssetId = u32, Price = Self::Price>;
+
+		/// Something that provides randomness in the runtime.
+		type Randomness: Randomness<Self::Hash, BlockNumberFor<Self>>;
+
+		/// The length (expressed in number of blocks) of the Remainder Round.
+		#[pallet::constant]
+		type RemainderFundingDuration: Get<BlockNumberFor<Self>>;
 
 		/// max_capacity config required for the channel from polimec to the project
 		#[pallet::constant]
@@ -414,26 +399,56 @@ pub mod pallet {
 		#[pallet::constant]
 		type RequiredMaxMessageSize: Get<u32>;
 
-		/// max iterations for trying to insert a project on the projects_to_update storage
-		#[pallet::constant]
-		type MaxProjectsToUpdateInsertionAttempts: Get<u32>;
+		/// The runtime enum constructed by the construct_runtime macro
+		type RuntimeCall: Parameter + IsType<<Self as frame_system::Config>::RuntimeCall> + From<Call<Self>>;
 
-		/// max individual bids per project. Used to estimate worst case weight for price calculation
-		#[pallet::constant]
-		type MaxBidsPerProject: Get<u32>;
+		/// The event enum constructed by the construct_runtime macro
+		type RuntimeEvent: From<Event<Self>>
+			+ TryInto<Event<Self>>
+			+ IsType<<Self as frame_system::Config>::RuntimeEvent>
+			+ Parameter
+			+ Member;
 
-		#[pallet::constant]
-		type MaxEvaluationsPerProject: Get<u32>;
+		/// The hold reason enum constructed by the construct_runtime macro
+		type RuntimeHoldReason: From<HoldReason>;
 
-		/// The Ed25519 Verifier Public Key
+		/// The origin enum constructed by the construct_runtime macro
+		type RuntimeOrigin: IsType<<Self as frame_system::Config>::RuntimeOrigin>
+			+ Into<Result<pallet_xcm::Origin, <Self as Config>::RuntimeOrigin>>;
+
+		/// test and benchmarking helper to set the prices of assets
+		#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
+		type SetPrices: SetPrices;
+
+		/// The maximum length of data stored on-chain.
 		#[pallet::constant]
+		type StringLimit: Get<u32>;
+
+		/// How long a project has to wait after it gets successfully funded, for the settlement to start.
+		#[pallet::constant]
+		type SuccessToSettlementTime: Get<BlockNumberFor<Self>>;
+
+		/// Treasury account holding PLMC at TGE.
+		#[pallet::constant]
+		type ProtocolGrowthTreasury: Get<AccountIdOf<Self>>;
+
+		/// Treasury account holding the CT fees charged to issuers.
+		#[pallet::constant]
+		type ContributionTreasury: Get<AccountIdOf<Self>>;
+
+		/// The Ed25519 Verifier Public Key of credential JWTs
 		type VerifierPublicKey: Get<[u8; 32]>;
 
-		/// Credentialized investor Origin, ensures users are of investing type Retail, or Professional, or Institutional.
-		type InvestorOrigin: EnsureOriginWithCredentials<
-			<Self as frame_system::Config>::RuntimeOrigin,
-			Success = (AccountIdOf<Self>, Did, InvestorType),
+		/// The type used for vesting
+		type Vesting: polimec_common::ReleaseSchedule<
+			AccountIdOf<Self>,
+			<Self as Config>::RuntimeHoldReason,
+			Currency = Self::NativeCurrency,
+			Moment = BlockNumberFor<Self>,
 		>;
+
+		/// Struct holding information about extrinsic weights
+		type WeightInfo: weights::WeightInfo;
 	}
 
 	#[pallet::storage]
@@ -855,8 +870,8 @@ pub mod pallet {
 		EvaluationNotStarted,
 		/// The Evaluation Round of the project has ended without reaching the minimum threshold
 		EvaluationFailed,
-		/// The issuer cannot contribute to their own project during the Funding Round
-		ContributionToThemselves,
+		/// The issuer cannot participate to their own project
+		ParticipationToThemselves,
 		/// Only the issuer can start the Evaluation Round
 		NotAllowed,
 		/// The Metadata Hash of the project was not found
@@ -940,6 +955,8 @@ pub mod pallet {
 		NotEnoughFundsForEscrowCreation,
 		/// The issuer doesn't have enough funds to pay for the metadata of their contribution token
 		NotEnoughFundsForCTMetadata,
+		/// The issuer doesn't have enough funds to pay for the deposit of their contribution token
+		NotEnoughFundsForCTDeposit,
 		/// Too many attempts to insert project in to ProjectsToUpdate storage
 		TooManyInsertionAttempts,
 		/// Reached bid limit for this user on this project
@@ -966,7 +983,7 @@ pub mod pallet {
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
 			ensure!(investor_type == InvestorType::Institutional, Error::<T>::NotAllowed);
 			log::trace!(target: "pallet_funding::test", "in create");
-			Self::do_create(&account, project)
+			Self::do_create(&account, project, did)
 		}
 
 		/// Change the metadata hash of a project
@@ -1029,7 +1046,7 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let (account, _did, _investor_type) =
 				T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
-			Self::do_evaluate(&account, project_id, usd_amount)
+			Self::do_evaluate(&account, project_id, usd_amount, did)
 		}
 
 		/// Bid for a project in the Auction round
@@ -1351,6 +1368,93 @@ pub mod pallet {
 
 			Self::do_confirm_migrations(location, query_id, response)
 		}
+
+		#[pallet::call_index(28)]
+		#[pallet::weight(WeightInfoOf::<T>::end_evaluation_success(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+		))]
+		pub fn root_do_evaluation_end(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			Self::do_evaluation_end(project_id)
+		}
+
+		#[pallet::call_index(29)]
+		#[pallet::weight(WeightInfoOf::<T>::start_candle_phase(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+		))]
+		pub fn root_do_candle_auction(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			Self::do_candle_auction(project_id)
+		}
+
+		#[pallet::call_index(30)]
+		#[pallet::weight(WeightInfoOf::<T>::start_community_funding_success(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			<T as Config>::MaxBidsPerProject::get() / 2,
+			<T as Config>::MaxBidsPerProject::get() / 2,
+		)
+		.max(WeightInfoOf::<T>::start_community_funding_success(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			<T as Config>::MaxBidsPerProject::get(),
+			0u32,
+		))
+		.max(WeightInfoOf::<T>::start_community_funding_success(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			0u32,
+			<T as Config>::MaxBidsPerProject::get(),
+		)))]
+		pub fn root_do_community_funding(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			Self::do_community_funding(project_id)
+		}
+
+		#[pallet::call_index(31)]
+		#[pallet::weight(WeightInfoOf::<T>::start_remainder_funding(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+		))]
+		pub fn root_do_remainder_funding(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			Self::do_remainder_funding(project_id)
+		}
+
+		#[pallet::call_index(32)]
+		#[pallet::weight(WeightInfoOf::<T>::end_funding_automatically_rejected_evaluators_slashed(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			)
+		.max(WeightInfoOf::<T>::end_funding_awaiting_decision_evaluators_slashed(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			))
+		.max(WeightInfoOf::<T>::end_funding_awaiting_decision_evaluators_unchanged(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			))
+		.max(WeightInfoOf::<T>::end_funding_automatically_accepted_evaluators_rewarded(
+			<T as Config>::MaxProjectsToUpdateInsertionAttempts::get() - 1,
+			<T as Config>::MaxEvaluationsPerProject::get(),
+		)))]
+		pub fn root_do_end_funding(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			Self::do_end_funding(project_id)
+		}
+
+		#[pallet::call_index(33)]
+		#[pallet::weight(WeightInfoOf::<T>::project_decision_accept_funding()
+		.max(WeightInfoOf::<T>::project_decision_reject_funding()))]
+		pub fn root_do_project_decision(
+			origin: OriginFor<T>,
+			project_id: ProjectId,
+			decision: FundingOutcomeDecision,
+		) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			Self::do_project_decision(project_id, decision)
+		}
+
+		#[pallet::call_index(34)]
+		#[pallet::weight(WeightInfoOf::<T>::start_settlement_funding_success()
+		.max(WeightInfoOf::<T>::start_settlement_funding_failure()))]
+		pub fn root_do_start_settlement(origin: OriginFor<T>, project_id: ProjectId) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			Self::do_start_settlement(project_id)
+		}
 	}
 
 	#[pallet::hooks]
@@ -1565,9 +1669,6 @@ pub mod pallet {
 	pub struct GenesisConfig<T: Config>
 	where
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		<T as Config>::AllPalletsWithoutSystem:
-			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
-		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 	{
 		#[cfg(feature = "std")]
@@ -1578,9 +1679,6 @@ pub mod pallet {
 	impl<T: Config> Default for GenesisConfig<T>
 	where
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		<T as Config>::AllPalletsWithoutSystem:
-			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
-		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 	{
 		fn default() -> Self {
@@ -1596,9 +1694,6 @@ pub mod pallet {
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T>
 	where
 		T: Config + pallet_balances::Config<Balance = BalanceOf<T>>,
-		<T as Config>::AllPalletsWithoutSystem:
-			OnFinalize<BlockNumberFor<T>> + OnIdle<BlockNumberFor<T>> + OnInitialize<BlockNumberFor<T>>,
-		<T as Config>::RuntimeEvent: From<Event<T>> + TryInto<Event<T>> + Parameter + Member,
 		<T as pallet_balances::Config>::Balance: Into<BalanceOf<T>>,
 	{
 		fn build(&self) {

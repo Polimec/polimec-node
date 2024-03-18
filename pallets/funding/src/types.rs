@@ -240,8 +240,16 @@ pub mod storage_types {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	pub struct ProjectDetails<AccountId, BlockNumber, Price: FixedPointNumber, Balance: BalanceT, EvaluationRoundInfo> {
-		pub issuer: AccountId,
+	pub struct ProjectDetails<
+		AccountId,
+		DID,
+		BlockNumber,
+		Price: FixedPointNumber,
+		Balance: BalanceT,
+		EvaluationRoundInfo,
+	> {
+		pub issuer_account: AccountId,
+		pub issuer_did: DID,
 		/// Whether the project is frozen, so no `metadata` changes are allowed.
 		pub is_frozen: bool,
 		/// The price in USD per token decided after the Auction Round
