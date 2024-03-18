@@ -72,15 +72,15 @@ pallet-treasury.workspace = true
 # Runtimes
 polkadot-runtime.workspace = true
 asset-hub-polkadot-runtime.workspace = true
-polimec-parachain-runtime.workspace = true
-polimec-base-runtime.workspace = true
+polimec-runtime.workspace = true
+politest-runtime.workspace = true
 penpal-runtime = { path = "./penpal", default-features = false }
 
 [features]
 default = [ "instant-mode", "std" ]
 instant-mode = [
-	"polimec-base-runtime/instant-mode",
-	"polimec-parachain-runtime/instant-mode",
+	"polimec-runtime/instant-mode",
+	"politest-runtime/instant-mode",
 ]
 std = [
 	"asset-hub-polkadot-runtime/std",
@@ -113,7 +113,7 @@ std = [
 	"penpal-runtime/std",
 	"polimec-common/std",
 	"polimec-common-test-utils/std",
-	"polimec-parachain-runtime/std",
+	"politest-runtime/std",
 	"polimec-receiver/std",
 	"polkadot-core-primitives/std",
 	"polkadot-parachain/std",

@@ -4,16 +4,16 @@ default:
 
 # Build the "Base" Runtime using srtool
 build-base-srtool:
-    srtool build --root -p polimec-base-runtime --runtime-dir runtimes/base --build-opts="--features=on-chain-release-build"
+    srtool build --root -p polimec-runtime --runtime-dir runtimes/base --build-opts="--features=on-chain-release-build"
 
 build-rolimec-srtool:
-    srtool build --root -p polimec-base-runtime --runtime-dir runtimes/base --build-opts="--features=on-chain-release-build,fast-mode"
+    srtool build --root -p polimec-runtime --runtime-dir runtimes/base --build-opts="--features=on-chain-release-build,fast-mode"
 
 # Build the "Testnet" Runtime using srtool
 
 # Test the runtimes features
 test-runtime-features:
-    cargo test --features runtime-benchmarks -p polimec-parachain-runtime
+    cargo test --features runtime-benchmarks -p politest-runtime
 
 # Run the integration tests
 test-integration:
@@ -55,7 +55,7 @@ docker-build tag="latest" package="polimec-parachain-node":
 
 # Create the "Base" Runtime Chainspec
 create-chainspec-base:
-    ./scripts/create_base_chain_spec.sh ./runtimes/base/target/srtool/release/wbuild/polimec-base-runtime/polimec_base_runtime.compact.compressed.wasm 2105
+    ./scripts/create_base_chain_spec.sh ./runtimes/base/target/srtool/release/wbuild/polimec-runtime/polimec_runtime.compact.compressed.wasm 2105
 
 # Use zombienet to spawn rococo + polimec testnet
 zombienet path_to_file="scripts/zombienet/native/base-rococo-local.toml":

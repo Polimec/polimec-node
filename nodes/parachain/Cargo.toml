@@ -22,8 +22,8 @@ futures.workspace = true
 itertools = { workspace = true, optional = true}
 
 # Local
-polimec-parachain-runtime.workspace = true
-polimec-base-runtime.workspace = true
+politest-runtime.workspace = true
+polimec-runtime.workspace = true
 pallet-funding.workspace = true
 macros = { workspace = true }
 
@@ -90,19 +90,19 @@ substrate-build-script-utils.workspace = true
 [features]
 default = []
 fast-mode = [
-	"polimec-base-runtime/fast-mode",
-	"polimec-parachain-runtime/fast-mode",
+	"polimec-runtime/fast-mode",
+	"politest-runtime/fast-mode",
 ]
 instant-mode = [
-	"polimec-base-runtime/instant-mode",
-	"polimec-parachain-runtime/instant-mode",
+	"polimec-runtime/instant-mode",
+	"politest-runtime/instant-mode",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking-cli/runtime-benchmarks",
 	"frame-benchmarking/runtime-benchmarks",
 	"pallet-funding/runtime-benchmarks",
-	"polimec-base-runtime/runtime-benchmarks",
-	"polimec-parachain-runtime/runtime-benchmarks",
+	"polimec-runtime/runtime-benchmarks",
+	"politest-runtime/runtime-benchmarks",
 	"polkadot-cli/runtime-benchmarks",
 	"polkadot-primitives/runtime-benchmarks",
 	"polkadot-service/runtime-benchmarks",
@@ -111,8 +111,8 @@ runtime-benchmarks = [
 ]
 try-runtime = [
 	"pallet-funding/try-runtime",
-	"polimec-base-runtime/try-runtime",
-	"polimec-parachain-runtime/try-runtime",
+	"polimec-runtime/try-runtime",
+	"politest-runtime/try-runtime",
 	"polkadot-cli/try-runtime",
 	"polkadot-service/try-runtime",
 	"sp-runtime/try-runtime",

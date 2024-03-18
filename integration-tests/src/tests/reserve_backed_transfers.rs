@@ -60,12 +60,12 @@ fn mint_asset_on_asset_hub_to(asset_id: u32, recipient: &AssetHubAccountId, amou
 }
 
 fn get_polimec_balances(asset_id: u32, user_account: AccountId) -> (u128, u128, u128, u128) {
-	PolimecBase::execute_with(|| {
+	Polimec::execute_with(|| {
 		(
-			BaseForeignAssets::balance(asset_id, user_account.clone()),
-			BaseBalances::balance(&user_account.clone()),
-			BaseForeignAssets::total_issuance(asset_id),
-			BaseBalances::total_issuance(),
+			PolimecForeignAssets::balance(asset_id, user_account.clone()),
+			PolimecBalances::balance(&user_account.clone()),
+			PolimecForeignAssets::total_issuance(asset_id),
+			PolimecBalances::total_issuance(),
 		)
 	})
 }
@@ -97,9 +97,9 @@ fn test_reserve_to_polimec(asset_id: u32) {
 		_ => (PalletInstance(AssetHubAssets::index() as u8), GeneralIndex(asset_id as u128)).into(),
 	};
 
-	let alice_account = PolimecBase::account_id_of(ALICE);
+	let alice_account = Polimec::account_id_of(ALICE);
 	let polimec_sibling_account =
-		AssetHub::sovereign_account_id_of((Parent, Parachain(PolimecBase::para_id().into())).into());
+		AssetHub::sovereign_account_id_of((Parent, Parachain(Polimec::para_id().into())).into());
 	let max_weight = Weight::from_parts(MAX_REF_TIME, MAX_PROOF_SIZE);
 
 	mint_asset_on_asset_hub_to(asset_id, &alice_account, 100_0_000_000_000);
@@ -118,7 +118,7 @@ fn test_reserve_to_polimec(asset_id: u32) {
 	AssetHub::execute_with(|| {
 		let asset_transfer: MultiAsset = (asset_hub_asset_id, RESERVE_TRANSFER_AMOUNT).into();
 		let origin = AssetHubOrigin::signed(alice_account.clone());
-		let dest: VersionedMultiLocation = ParentThen(X1(Parachain(PolimecBase::para_id().into()))).into();
+		let dest: VersionedMultiLocation = ParentThen(X1(Parachain(Polimec::para_id().into()))).into();
 
 		let beneficiary: VersionedMultiLocation =
 			AccountId32 { network: None, id: alice_account.clone().into() }.into();
@@ -138,11 +138,11 @@ fn test_reserve_to_polimec(asset_id: u32) {
 	});
 
 	// check the transfer was not blocked by our our xcm configured
-	PolimecBase::execute_with(|| {
+	Polimec::execute_with(|| {
 		assert_expected_events!(
-			PolimecBase,
+			Polimec,
 			vec![
-				BaseEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Success { .. }) => {},
+				PolimecEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Success { .. }) => {},
 			]
 		);
 	});
@@ -168,14 +168,14 @@ fn test_reserve_to_polimec(asset_id: u32) {
 	let asset_hub_delta_asset_issuance = asset_hub_post_asset_issuance.abs_diff(asset_hub_prev_asset_issuance);
 
 	assert!(
-	    polimec_delta_alice_asset_balance >= RESERVE_TRANSFER_AMOUNT - polimec_parachain_runtime::WeightToFee::weight_to_fee(&max_weight) &&
+	    polimec_delta_alice_asset_balance >= RESERVE_TRANSFER_AMOUNT - politest_runtime::WeightToFee::weight_to_fee(&max_weight) &&
 	    polimec_delta_alice_asset_balance <= RESERVE_TRANSFER_AMOUNT,
 	    "Polimec alice_account.clone() Asset balance should have increased by at least the transfer amount minus the XCM execution fee"
 	);
 
 	assert!(
 		polimec_delta_asset_issuance >=
-			RESERVE_TRANSFER_AMOUNT - polimec_parachain_runtime::WeightToFee::weight_to_fee(&max_weight) &&
+			RESERVE_TRANSFER_AMOUNT - politest_runtime::WeightToFee::weight_to_fee(&max_weight) &&
 			polimec_delta_asset_issuance <= RESERVE_TRANSFER_AMOUNT,
 		"Polimec Asset issuance should have increased by at least the transfer amount minus the XCM execution fee"
 	);
@@ -215,15 +215,19 @@ fn test_polimec_to_reserve(asset_id: u32) {
 		.into(),
 	};
 
-	let alice_account = PolimecBase::account_id_of(ALICE);
+	let alice_account = Polimec::account_id_of(ALICE);
 	let polimec_sibling_account =
-		AssetHub::sovereign_account_id_of((Parent, Parachain(PolimecBase::para_id().into())).into());
+		AssetHub::sovereign_account_id_of((Parent, Parachain(Polimec::para_id().into())).into());
 	let max_weight = Weight::from_parts(MAX_REF_TIME, MAX_PROOF_SIZE);
 
 	mint_asset_on_asset_hub_to(asset_id, &polimec_sibling_account, RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000);
 
-	PolimecBase::execute_with(|| {
-		assert_ok!(BaseForeignAssets::mint_into(asset_id, &alice_account, RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000));
+	Polimec::execute_with(|| {
+		assert_ok!(PolimecForeignAssets::mint_into(
+			asset_id,
+			&alice_account,
+			RESERVE_TRANSFER_AMOUNT + 1_0_000_000_000
+		));
 	});
 
 	let (
@@ -243,7 +247,7 @@ fn test_polimec_to_reserve(asset_id: u32) {
 	asset_hub_exec_fee.reanchor(&(ParentThen(X1(Parachain(AssetHub::para_id().into()))).into()), Here).unwrap();
 
 	// construct the XCM to transfer from Polimec to AssetHub's reserve
-	let transfer_xcm: Xcm<BaseCall> = Xcm(vec![
+	let transfer_xcm: Xcm<PolimecCall> = Xcm(vec![
 		WithdrawAsset(transferable_asset_plus_exec_fee.clone().into()),
 		BuyExecution { fees: transferable_asset_plus_exec_fee.clone(), weight_limit: Limited(max_weight) },
 		InitiateReserveWithdraw {
@@ -260,9 +264,9 @@ fn test_polimec_to_reserve(asset_id: u32) {
 	]);
 
 	// do the transfer
-	PolimecBase::execute_with(|| {
-		assert_ok!(BaseXcmPallet::execute(
-			BaseOrigin::signed(alice_account.clone()),
+	Polimec::execute_with(|| {
+		assert_ok!(PolimecXcmPallet::execute(
+			PolimecOrigin::signed(alice_account.clone()),
 			Box::new(VersionedXcm::V3(transfer_xcm)),
 			max_weight,
 		));
@@ -384,11 +388,11 @@ fn polimec_dot_to_reserve() {
 
 #[test]
 fn test_user_cannot_create_foreign_asset_on_polimec() {
-	PolimecBase::execute_with(|| {
+	Polimec::execute_with(|| {
 		let admin = AssetHub::account_id_of(ALICE);
 		assert_noop!(
-			BaseForeignAssets::create(
-				BaseOrigin::signed(admin.clone()),
+			PolimecForeignAssets::create(
+				PolimecOrigin::signed(admin.clone()),
 				69.into(),
 				sp_runtime::MultiAddress::Id(admin),
 				0_0_010_000_000u128,

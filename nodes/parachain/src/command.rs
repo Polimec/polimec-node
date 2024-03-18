@@ -19,7 +19,7 @@ use std::{net::SocketAddr, path::PathBuf};
 use cumulus_primitives_core::ParaId;
 use frame_benchmarking_cli::{BenchmarkCmd, SUBSTRATE_REFERENCE_HARDWARE};
 use log::{info, warn};
-use polimec_parachain_runtime::Block;
+use politest_runtime::Block;
 use sc_cli::{
 	ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams, NetworkParams, Result,
 	SharedParams, SubstrateCli,

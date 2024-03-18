@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{polimec_base::ED, *};
+use crate::{polimec::ED, *};
 /// Tests for the oracle pallet integration.
 /// Alice, Bob, Charlie are members of the OracleProvidersMembers.
 /// Only members should be able to feed data into the oracle.
@@ -23,7 +23,7 @@ use frame_support::traits::fungible::Mutate;
 use macros::generate_accounts;
 use pallet_funding::assert_close_enough;
 use pallet_vesting::VestingInfo;
-use polimec_base_runtime::{Balances, ParachainStaking, RuntimeOrigin, Vesting};
+use polimec_runtime::{Balances, ParachainStaking, RuntimeOrigin, Vesting};
 use sp_runtime::Perquintill;
 use tests::defaults::*;
 use xcm_emulator::get_account_id_from_seed;
@@ -32,8 +32,8 @@ generate_accounts!(PEPE, CARLOS,);
 
 #[test]
 fn base_vested_can_stake() {
-	PolimecBase::execute_with(|| {
-		let alice = PolimecBase::account_id_of(ALICE);
+	Polimec::execute_with(|| {
+		let alice = Polimec::account_id_of(ALICE);
 		let coll_1 = get_account_id_from_seed::<sr25519::Public>("COLL_1");
 		let new_account = get_account_id_from_seed::<sr25519::Public>("NEW_ACCOUNT");
 
@@ -43,7 +43,7 @@ fn base_vested_can_stake() {
 		// Stake 60 PLMC from "new_account" to "COLL_1", it should fail since the account has no PLMC
 		assert_noop!(
 			ParachainStaking::delegate(RuntimeOrigin::signed(new_account.clone()), coll_1.clone(), 60 * PLMC, 0, 0),
-			pallet_parachain_staking::Error::<polimec_parachain_runtime::Runtime>::InsufficientBalance
+			pallet_parachain_staking::Error::<politest_runtime::Runtime>::InsufficientBalance
 		);
 
 		// Create a vesting schedule for 60 PLMC + ED over 60 blocks (~1 PLMC per block) to NEW_ACCOUNT
@@ -82,7 +82,7 @@ fn base_vested_can_stake() {
 // total balance, so if the user had 20 free, 2000 frozen, 2000 held, then the user could only withdraw any amount over 2000.
 #[test]
 fn base_can_withdraw_when_free_is_below_frozen_with_hold() {
-	PolimecBase::execute_with(|| {
+	Polimec::execute_with(|| {
 		let coll_1 = get_account_id_from_seed::<sr25519::Public>("COLL_1");
 		Balances::set_balance(&PEPE.into(), 2_020 * PLMC + ED * 2);
 		Balances::set_balance(&CARLOS.into(), 0);

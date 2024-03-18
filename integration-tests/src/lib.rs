@@ -18,7 +18,7 @@ pub mod constants;
 
 mod tests;
 
-pub use constants::{accounts::*, asset_hub, penpal, polimec, polimec_base, polkadot};
+pub use constants::{accounts::*, asset_hub, penpal, polimec, politest, polkadot};
 pub use frame_support::{assert_noop, assert_ok, pallet_prelude::Weight, parameter_types, sp_io, sp_tracing};
 pub use parachains_common::{AccountId, AssetHubPolkadotAuraId, AuraId, Balance, BlockNumber};
 pub use sp_core::{sr25519, storage::Storage, Encode, Get};
@@ -74,27 +74,27 @@ decl_test_parachains! {
 			Assets: penpal_runtime::Assets,
 		}
 	},
-	pub struct Polimec {
-		genesis = polimec::genesis(),
+	pub struct Politest {
+		genesis = politest::genesis(),
 		on_init = (),
 		runtime = {
-			Runtime: polimec_parachain_runtime::Runtime,
-			RuntimeOrigin: polimec_parachain_runtime::RuntimeOrigin,
-			RuntimeCall: polimec_parachain_runtime::RuntimeCall,
-			RuntimeEvent: polimec_parachain_runtime::RuntimeEvent,
-			XcmpMessageHandler: polimec_parachain_runtime::XcmpQueue,
-			DmpMessageHandler: polimec_parachain_runtime::DmpQueue,
-			LocationToAccountId: polimec_parachain_runtime::xcm_config::LocationToAccountId,
-			System: polimec_parachain_runtime::System,
-			Balances: polimec_parachain_runtime::Balances,
-			ParachainSystem: polimec_parachain_runtime::ParachainSystem,
-			ParachainInfo: polimec_parachain_runtime::ParachainInfo,
+			Runtime: politest_runtime::Runtime,
+			RuntimeOrigin: politest_runtime::RuntimeOrigin,
+			RuntimeCall: politest_runtime::RuntimeCall,
+			RuntimeEvent: politest_runtime::RuntimeEvent,
+			XcmpMessageHandler: politest_runtime::XcmpQueue,
+			DmpMessageHandler: politest_runtime::DmpQueue,
+			LocationToAccountId: politest_runtime::xcm_config::LocationToAccountId,
+			System: politest_runtime::System,
+			Balances: politest_runtime::Balances,
+			ParachainSystem: politest_runtime::ParachainSystem,
+			ParachainInfo: politest_runtime::ParachainInfo,
 		},
 		pallets_extra = {
-			PolkadotXcm: polimec_parachain_runtime::PolkadotXcm,
-			LocalAssets: polimec_parachain_runtime::LocalAssets,
-			ForeignAssets: polimec_parachain_runtime::ForeignAssets,
-			FundingPallet: polimec_parachain_runtime::PolimecFunding,
+			PolkadotXcm: politest_runtime::PolkadotXcm,
+			LocalAssets: politest_runtime::LocalAssets,
+			ForeignAssets: politest_runtime::ForeignAssets,
+			FundingPallet: politest_runtime::PolimecFunding,
 		}
 	},
 	pub struct AssetHub {
@@ -118,25 +118,25 @@ decl_test_parachains! {
 			LocalAssets: asset_hub_polkadot_runtime::Assets,
 		}
 	},
-	pub struct PolimecBase {
-		genesis = polimec_base::genesis(),
+	pub struct Polimec {
+		genesis = polimec::genesis(),
 		on_init = (),
 		runtime = {
-			Runtime: polimec_base_runtime::Runtime,
-			RuntimeOrigin: polimec_base_runtime::RuntimeOrigin,
-			RuntimeCall: polimec_base_runtime::RuntimeCall,
-			RuntimeEvent: polimec_base_runtime::RuntimeEvent,
-			XcmpMessageHandler: polimec_base_runtime::XcmpQueue,
-			DmpMessageHandler: polimec_base_runtime::DmpQueue,
-			LocationToAccountId: polimec_base_runtime::xcm_config::LocationToAccountId,
-			System: polimec_base_runtime::System,
-			Balances: polimec_base_runtime::Balances,
-			ParachainSystem: polimec_base_runtime::ParachainSystem,
-			ParachainInfo: polimec_base_runtime::ParachainInfo,
+			Runtime: polimec_runtime::Runtime,
+			RuntimeOrigin: polimec_runtime::RuntimeOrigin,
+			RuntimeCall: polimec_runtime::RuntimeCall,
+			RuntimeEvent: polimec_runtime::RuntimeEvent,
+			XcmpMessageHandler: polimec_runtime::XcmpQueue,
+			DmpMessageHandler: polimec_runtime::DmpQueue,
+			LocationToAccountId: polimec_runtime::xcm_config::LocationToAccountId,
+			System: polimec_runtime::System,
+			Balances: polimec_runtime::Balances,
+			ParachainSystem: polimec_runtime::ParachainSystem,
+			ParachainInfo: polimec_runtime::ParachainInfo,
 		},
 		pallets_extra = {
-			PolkadotXcm: polimec_base_runtime::PolkadotXcm,
-			ForeignAssets: polimec_base_runtime::ForeignAssets,
+			PolkadotXcm: polimec_runtime::PolkadotXcm,
+			ForeignAssets: polimec_runtime::ForeignAssets,
 		}
 	}
 }
@@ -145,10 +145,10 @@ decl_test_networks! {
 	pub struct PolkadotNet {
 		relay_chain = PolkadotRelay,
 		parachains = vec![
-			Polimec,
+			Politest,
 			Penpal,
 			AssetHub,
-			PolimecBase,
+			Polimec,
 		],
 		bridge = ()
 	}
@@ -157,65 +157,65 @@ decl_test_networks! {
 /// Shortcuts to reduce boilerplate on runtime types
 pub mod shortcuts {
 	use super::{
-		AssetHub, AssetHubPallet, Parachain, Penpal, Polimec, PolimecBase, PolimecBasePallet, PolimecPallet,
+		AssetHub, AssetHubPallet, Parachain, Penpal, Polimec, PolimecPallet, Politest, PolitestPallet,
 		PolkadotRelay as Polkadot, PolkadotRelayPallet as PolkadotPallet, RelayChain,
 	};
 	use crate::PenpalPallet;
 
-	pub type PolimecFundingPallet = <Polimec as PolimecPallet>::FundingPallet;
+	pub type PolitestFundingPallet = <Politest as PolitestPallet>::FundingPallet;
 
 	pub type PolkadotRuntime = <Polkadot as RelayChain>::Runtime;
-	pub type PolimecRuntime = <Polimec as Parachain>::Runtime;
+	pub type PolitestRuntime = <Politest as Parachain>::Runtime;
 	pub type PenpalRuntime = <Penpal as Parachain>::Runtime;
 	pub type AssetHubRuntime = <AssetHub as Parachain>::Runtime;
-	pub type BaseRuntime = <PolimecBase as Parachain>::Runtime;
+	pub type PolimecRuntime = <Polimec as Parachain>::Runtime;
 
 	pub type PolkadotXcmPallet = <Polkadot as PolkadotPallet>::XcmPallet;
-	pub type PolimecXcmPallet = <Polimec as PolimecPallet>::PolkadotXcm;
+	pub type PolitestXcmPallet = <Politest as PolitestPallet>::PolkadotXcm;
 	pub type PenpalXcmPallet = <Penpal as PenpalPallet>::PolkadotXcm;
 	pub type AssetHubXcmPallet = <AssetHub as AssetHubPallet>::PolkadotXcm;
-	pub type BaseXcmPallet = <PolimecBase as PolimecBasePallet>::PolkadotXcm;
+	pub type PolimecXcmPallet = <Polimec as PolimecPallet>::PolkadotXcm;
 
 	pub type PolkadotBalances = <Polkadot as RelayChain>::Balances;
-	pub type PolimecBalances = <Polimec as Parachain>::Balances;
+	pub type PolitestBalances = <Politest as Parachain>::Balances;
 	pub type PenpalBalances = <Penpal as Parachain>::Balances;
 	pub type AssetHubBalances = <AssetHub as Parachain>::Balances;
-	pub type BaseBalances = <PolimecBase as Parachain>::Balances;
+	pub type PolimecBalances = <Polimec as Parachain>::Balances;
 
-	pub type PolimecLocalAssets = <Polimec as PolimecPallet>::LocalAssets;
-	pub type PolimecForeignAssets = <Polimec as PolimecPallet>::ForeignAssets;
+	pub type PolitestLocalAssets = <Politest as PolitestPallet>::LocalAssets;
+	pub type PolitestForeignAssets = <Politest as PolitestPallet>::ForeignAssets;
 	pub type PenpalAssets = <Penpal as PenpalPallet>::Assets;
 	pub type AssetHubAssets = <AssetHub as AssetHubPallet>::LocalAssets;
-	pub type BaseForeignAssets = <PolimecBase as PolimecBasePallet>::ForeignAssets;
+	pub type PolimecForeignAssets = <Polimec as PolimecPallet>::ForeignAssets;
 
 	pub type PolkadotOrigin = <Polkadot as RelayChain>::RuntimeOrigin;
-	pub type PolimecOrigin = <Polimec as Parachain>::RuntimeOrigin;
+	pub type PolitestOrigin = <Politest as Parachain>::RuntimeOrigin;
 	pub type PenpalOrigin = <Penpal as Parachain>::RuntimeOrigin;
 	pub type AssetHubOrigin = <AssetHub as Parachain>::RuntimeOrigin;
-	pub type BaseOrigin = <PolimecBase as Parachain>::RuntimeOrigin;
+	pub type PolimecOrigin = <Polimec as Parachain>::RuntimeOrigin;
 
 	pub type PolkadotCall = <Polkadot as RelayChain>::RuntimeCall;
-	pub type PolimecCall = <Polimec as Parachain>::RuntimeCall;
+	pub type PolitestCall = <Politest as Parachain>::RuntimeCall;
 	pub type PenpalCall = <Penpal as Parachain>::RuntimeCall;
 	pub type AssetHubCall = <AssetHub as Parachain>::RuntimeCall;
-	pub type BaseCall = <PolimecBase as Parachain>::RuntimeCall;
+	pub type PolimecCall = <Polimec as Parachain>::RuntimeCall;
 
 	pub type PolkadotAccountId = <PolkadotRuntime as frame_system::Config>::AccountId;
-	pub type PolimecAccountId = <PolimecRuntime as frame_system::Config>::AccountId;
+	pub type PolitestAccountId = <PolitestRuntime as frame_system::Config>::AccountId;
 	pub type PenpalAccountId = <PenpalRuntime as frame_system::Config>::AccountId;
 	pub type AssetHubAccountId = <AssetHubRuntime as frame_system::Config>::AccountId;
-	pub type BaseAccountId = <PolimecBase as frame_system::Config>::AccountId;
+	pub type PolimecAccountId = <PolimecRuntime as frame_system::Config>::AccountId;
 
 	pub type PolkadotEvent = <Polkadot as RelayChain>::RuntimeEvent;
-	pub type PolimecEvent = <Polimec as Parachain>::RuntimeEvent;
+	pub type PolitestEvent = <Politest as Parachain>::RuntimeEvent;
 	pub type PenpalEvent = <Penpal as Parachain>::RuntimeEvent;
 	pub type AssetHubEvent = <AssetHub as Parachain>::RuntimeEvent;
-	pub type BaseEvent = <PolimecBase as Parachain>::RuntimeEvent;
+	pub type PolimecEvent = <Polimec as Parachain>::RuntimeEvent;
 
 	pub type PolkadotSystem = <Polkadot as RelayChain>::System;
-	pub type PolimecSystem = <Polimec as Parachain>::System;
+	pub type PolitestSystem = <Politest as Parachain>::System;
 	pub type PenpalSystem = <Penpal as Parachain>::System;
 	pub type AssetHubSystem = <AssetHub as Parachain>::System;
-	pub type BaseSystem = <PolimecBase as Parachain>::System;
+	pub type PolimecSystem = <Polimec as Parachain>::System;
 }
 pub use shortcuts::*;

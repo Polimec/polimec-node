@@ -20,7 +20,7 @@
 
 use crate::chain_spec::Extensions;
 use cumulus_primitives_core::ParaId;
-use polimec_base_runtime as base_runtime;
+use polimec_runtime as base_runtime;
 use sc_service::ChainType;
 use sp_core::{crypto::UncheckedInto, sr25519};
 use sp_runtime::{BoundedVec, Perbill, Percent};
@@ -248,7 +248,7 @@ fn base_testnet_genesis(
 		},
 		polkadot_xcm: PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION), ..Default::default() },
 		transaction_payment: Default::default(),
-		oracle_providers_membership: polimec_base_runtime::OracleProvidersMembershipConfig {
+		oracle_providers_membership: polimec_runtime::OracleProvidersMembershipConfig {
 			members: BoundedVec::truncate_from(initial_authorities),
 			..Default::default()
 		},

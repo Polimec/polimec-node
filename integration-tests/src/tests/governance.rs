@@ -1,4 +1,4 @@
-use crate::{polimec_base::ED, *};
+use crate::{polimec::ED, *};
 /// Tests for the oracle pallet integration.
 /// Alice, Bob, Charlie are members of the OracleProvidersMembers.
 /// Only members should be able to feed data into the oracle.
@@ -18,7 +18,7 @@ use frame_support::{
 };
 use pallet_democracy::{AccountVote, Conviction, GetElectorate, ReferendumInfo, Vote};
 use pallet_vesting::VestingInfo;
-use polimec_base_runtime::{
+use polimec_runtime::{
 	Balances, Council, Democracy, Elections, ParachainStaking, Preimage, RuntimeOrigin, TechnicalCommittee, Treasury,
 	Vesting,
 };
@@ -30,15 +30,15 @@ generate_accounts!(PEPE, CARLOS,);
 /// The hold can also be released or slashed while the lock is still in place.
 #[test]
 fn vested_tokens_and_holds_work_together() {
-	PolimecBase::execute_with(|| {
-		let alice = PolimecBase::account_id_of(ALICE);
+	Polimec::execute_with(|| {
+		let alice = Polimec::account_id_of(ALICE);
 		let new_account = create_vested_account();
 
 		assert_eq!(Balances::balance(&alice), 220 * PLMC - ED);
 		assert_eq!(Balances::balance(&new_account), 200 * PLMC + ED);
 
 		assert_ok!(Balances::hold(
-			&polimec_base_runtime::RuntimeHoldReason::ParachainStaking(
+			&polimec_runtime::RuntimeHoldReason::ParachainStaking(
 				pallet_parachain_staking::HoldReason::StakingCollator
 			),
 			&new_account,
@@ -46,7 +46,7 @@ fn vested_tokens_and_holds_work_together() {
 		));
 		Balances::set_lock(*b"plmc/gov", &new_account, 200 * PLMC + ED, WithdrawReasons::all());
 		assert_ok!(Balances::release(
-			&polimec_base_runtime::RuntimeHoldReason::ParachainStaking(
+			&polimec_runtime::RuntimeHoldReason::ParachainStaking(
 				pallet_parachain_staking::HoldReason::StakingCollator
 			),
 			&new_account,
@@ -57,14 +57,14 @@ fn vested_tokens_and_holds_work_together() {
 		assert_eq!(Balances::reserved_balance(&new_account), 0);
 
 		assert_ok!(Balances::hold(
-			&polimec_base_runtime::RuntimeHoldReason::ParachainStaking(
+			&polimec_runtime::RuntimeHoldReason::ParachainStaking(
 				pallet_parachain_staking::HoldReason::StakingCollator
 			),
 			&new_account,
 			200 * PLMC
 		));
 		let slashed = Balances::slash(
-			&polimec_base_runtime::RuntimeHoldReason::ParachainStaking(
+			&polimec_runtime::RuntimeHoldReason::ParachainStaking(
 				pallet_parachain_staking::HoldReason::StakingCollator,
 			),
 			&new_account,
@@ -79,8 +79,8 @@ fn vested_tokens_and_holds_work_together() {
 /// Test that an account with vested tokens (a lock) cannot use those tokens for a reserve.
 #[test]
 fn vested_tokens_and_reserves_dont_work_together() {
-	PolimecBase::execute_with(|| {
-		let alice = PolimecBase::account_id_of(ALICE);
+	Polimec::execute_with(|| {
+		let alice = Polimec::account_id_of(ALICE);
 		let new_account = create_vested_account();
 
 		assert_eq!(Balances::balance(&alice), 220 * PLMC - ED);
@@ -88,7 +88,7 @@ fn vested_tokens_and_reserves_dont_work_together() {
 
 		assert_noop!(
 			Balances::reserve(&new_account, 200 * PLMC),
-			pallet_balances::Error::<polimec_base_runtime::Runtime>::LiquidityRestrictions
+			pallet_balances::Error::<polimec_runtime::Runtime>::LiquidityRestrictions
 		);
 	});
 }
@@ -96,12 +96,12 @@ fn vested_tokens_and_reserves_dont_work_together() {
 /// Test that locks and freezes can be placed on balance that is already reserved.
 #[test]
 fn lock_and_freeze_after_reserve_does_work() {
-	PolimecBase::execute_with(|| {
-		let alice = PolimecBase::account_id_of(ALICE);
+	Polimec::execute_with(|| {
+		let alice = Polimec::account_id_of(ALICE);
 
 		assert_ok!(Balances::reserve(&alice, 400 * PLMC));
 		assert_ok!(Balances::set_freeze(
-			&polimec_base_runtime::RuntimeFreezeReason::Democracy(pallet_democracy::FreezeReason::Vote),
+			&polimec_runtime::RuntimeFreezeReason::Democracy(pallet_democracy::FreezeReason::Vote),
 			&alice,
 			400 * PLMC
 		));
@@ -112,13 +112,13 @@ fn lock_and_freeze_after_reserve_does_work() {
 /// Test that correct members are set with the default genesis config.
 #[test]
 fn council_and_technical_committee_members_set_correctly() {
-	let alice = PolimecBase::account_id_of(ALICE);
-	let bob = PolimecBase::account_id_of(BOB);
-	let charlie = PolimecBase::account_id_of(CHARLIE);
-	let dave = PolimecBase::account_id_of(DAVE);
-	let eve = PolimecBase::account_id_of(EVE);
+	let alice = Polimec::account_id_of(ALICE);
+	let bob = Polimec::account_id_of(BOB);
+	let charlie = Polimec::account_id_of(CHARLIE);
+	let dave = Polimec::account_id_of(DAVE);
+	let eve = Polimec::account_id_of(EVE);
 	let accounts = vec![alice, bob, charlie, dave, eve];
-	Polimec::execute_with(|| {
+	Politest::execute_with(|| {
 		assert_same_members(Council::members(), &accounts);
 		assert_same_members(TechnicalCommittee::members(), &accounts);
 	});
@@ -131,11 +131,11 @@ fn council_and_technical_committee_members_set_correctly() {
 /// 4. Proposal is enacted.
 #[test]
 fn democracy_works() {
-	let alice = PolimecBase::account_id_of(ALICE);
+	let alice = Polimec::account_id_of(ALICE);
 	// 1. Create a proposal to set the the balance of `account` to 1000 PLMC
-	PolimecBase::execute_with(|| {
+	Polimec::execute_with(|| {
 		let account = create_vested_account();
-		let bounded_call = Preimage::bound(<PolimecBase as xcm_emulator::Parachain>::RuntimeCall::Balances(
+		let bounded_call = Preimage::bound(<Polimec as xcm_emulator::Parachain>::RuntimeCall::Balances(
 			pallet_balances::Call::force_set_balance { who: account.clone().into(), new_free: 1000u128 * PLMC },
 		))
 		.unwrap();
@@ -145,11 +145,11 @@ fn democracy_works() {
 	run_gov_n_blocks(1);
 	// 2. Proposal is turned into a referendum
 	// Alice votes on the proposal with 100 PLMC
-	PolimecBase::execute_with(|| {
+	Polimec::execute_with(|| {
 		assert!(Democracy::referendum_count() == 1);
 		assert_eq!(
 			Balances::balance_frozen(
-				&polimec_base_runtime::RuntimeFreezeReason::Democracy(pallet_democracy::FreezeReason::Vote),
+				&polimec_runtime::RuntimeFreezeReason::Democracy(pallet_democracy::FreezeReason::Vote),
 				&alice
 			),
 			0
@@ -157,7 +157,7 @@ fn democracy_works() {
 		do_vote(alice.clone(), 0, true, 100 * PLMC);
 		assert_eq!(
 			Balances::balance_frozen(
-				&polimec_base_runtime::RuntimeFreezeReason::Democracy(pallet_democracy::FreezeReason::Vote),
+				&polimec_runtime::RuntimeFreezeReason::Democracy(pallet_democracy::FreezeReason::Vote),
 				&alice
 			),
 			100 * PLMC
@@ -166,14 +166,14 @@ fn democracy_works() {
 
 	run_gov_n_blocks(2);
 	// 3. Referendum is approved
-	PolimecBase::execute_with(|| {
+	Polimec::execute_with(|| {
 		assert_eq!(Democracy::referendum_info(0).unwrap(), ReferendumInfo::Finished { approved: true, end: 4u32 });
-		assert!(pallet_scheduler::Agenda::<polimec_base_runtime::Runtime>::get(6u32).len() == 1);
+		assert!(pallet_scheduler::Agenda::<polimec_runtime::Runtime>::get(6u32).len() == 1);
 	});
 
 	// 4. Referendum is enacted
 	run_gov_n_blocks(2);
-	PolimecBase::execute_with(|| {
+	Polimec::execute_with(|| {
 		assert_eq!(Balances::balance(&get_account_id_from_seed::<sr25519::Public>("NEW_ACCOUNT")), 1000u128 * PLMC);
 	});
 }
@@ -182,15 +182,15 @@ fn democracy_works() {
 // Electorate is the total issuance minus the sum of the Growth + Operational treasury.
 #[test]
 fn electorate_calculates_correctly() {
-	PolimecBase::execute_with(|| {
+	Polimec::execute_with(|| {
 		let total_issuance = Balances::total_issuance();
 		assert_ok!(Balances::write_balance(&Treasury::account_id(), 1000 * PLMC));
 		assert_ok!(Balances::write_balance(
-			&<polimec_base_runtime::Runtime as pallet_parachain_staking::Config>::PayMaster::get(),
+			&<polimec_runtime::Runtime as pallet_parachain_staking::Config>::PayMaster::get(),
 			1000 * PLMC
 		));
 		assert_eq!(
-			<polimec_base_runtime::Runtime as pallet_democracy::Config>::Electorate::get_electorate(),
+			<polimec_runtime::Runtime as pallet_democracy::Config>::Electorate::get_electorate(),
 			total_issuance - 2000 * PLMC
 		);
 	})
@@ -201,9 +201,9 @@ fn electorate_calculates_correctly() {
 fn user_can_vote_with_staked_balance() {
 	// 1. Create a proposal to set the the balance of `account` to 1000 PLMC
 	// 2. Account stakes 100 PLMC.
-	PolimecBase::execute_with(|| {
+	Polimec::execute_with(|| {
 		let account = create_vested_account();
-		let bounded_call = Preimage::bound(<PolimecBase as xcm_emulator::Parachain>::RuntimeCall::Balances(
+		let bounded_call = Preimage::bound(<Polimec as xcm_emulator::Parachain>::RuntimeCall::Balances(
 			pallet_balances::Call::force_set_balance { who: account.clone().into(), new_free: 1000u128 * PLMC },
 		))
 		.unwrap();
@@ -223,11 +223,11 @@ fn user_can_vote_with_staked_balance() {
 
 	run_gov_n_blocks(1);
 	// 3. User votes on the proposal with 200 PLMC
-	PolimecBase::execute_with(|| {
+	Polimec::execute_with(|| {
 		let account = get_account_id_from_seed::<sr25519::Public>("NEW_ACCOUNT");
 		assert_eq!(
 			Balances::balance_frozen(
-				&polimec_base_runtime::RuntimeFreezeReason::Democracy(pallet_democracy::FreezeReason::Vote),
+				&polimec_runtime::RuntimeFreezeReason::Democracy(pallet_democracy::FreezeReason::Vote),
 				&account
 			),
 			0
@@ -235,7 +235,7 @@ fn user_can_vote_with_staked_balance() {
 		do_vote(account.clone(), 0, true, 200 * PLMC);
 		assert_eq!(
 			Balances::balance_frozen(
-				&polimec_base_runtime::RuntimeFreezeReason::Democracy(pallet_democracy::FreezeReason::Vote),
+				&polimec_runtime::RuntimeFreezeReason::Democracy(pallet_democracy::FreezeReason::Vote),
 				&account
 			),
 			200 * PLMC
@@ -246,13 +246,13 @@ fn user_can_vote_with_staked_balance() {
 /// Test that treasury proposals can be directly accepted by the council without going through governance.
 #[test]
 fn treasury_proposal_accepted_by_council() {
-	let alice = PolimecBase::account_id_of(ALICE);
-	let bob = PolimecBase::account_id_of(BOB);
-	let charlie = PolimecBase::account_id_of(CHARLIE);
-	let dave = PolimecBase::account_id_of(DAVE);
-	let eve = PolimecBase::account_id_of(EVE);
+	let alice = Polimec::account_id_of(ALICE);
+	let bob = Polimec::account_id_of(BOB);
+	let charlie = Polimec::account_id_of(CHARLIE);
+	let dave = Polimec::account_id_of(DAVE);
+	let eve = Polimec::account_id_of(EVE);
 	let accounts = vec![(alice.clone(), true), (bob, true), (charlie, true), (dave, true), (eve, true)];
-	PolimecBase::execute_with(|| {
+	Polimec::execute_with(|| {
 		// 0. Set the treasury balance to 1000 PLMC
 		assert_ok!(Balances::write_balance(&Treasury::account_id(), 1000 * PLMC));
 
@@ -266,11 +266,11 @@ fn treasury_proposal_accepted_by_council() {
 
 		// 2. Council will vote on the proposal
 		let proposal =
-			polimec_base_runtime::RuntimeCall::Treasury(pallet_treasury::Call::approve_proposal { proposal_id: 0 });
+			polimec_runtime::RuntimeCall::Treasury(pallet_treasury::Call::approve_proposal { proposal_id: 0 });
 		assert_ok!(Council::propose(RuntimeOrigin::signed(alice.clone()), 5, Box::new(proposal.clone()), 100,));
 
 		// 3. Council votes on the proposal
-		let proposal_hash = <polimec_base_runtime::Runtime as frame_system::Config>::Hashing::hash_of(&proposal);
+		let proposal_hash = <polimec_runtime::Runtime as frame_system::Config>::Hashing::hash_of(&proposal);
 		do_council_vote_for(accounts.clone(), 0, proposal_hash);
 
 		// 4. Proposal is approved
@@ -285,7 +285,7 @@ fn treasury_proposal_accepted_by_council() {
 
 	run_gov_n_blocks(3);
 
-	PolimecBase::execute_with(|| {
+	Polimec::execute_with(|| {
 		// 5. Beneficiary receives the funds
 		assert_eq!(Balances::balance(&get_account_id_from_seed::<sr25519::Public>("Beneficiary")), 100 * PLMC);
 	});
@@ -295,8 +295,8 @@ fn treasury_proposal_accepted_by_council() {
 /// The treasury proposal deposit is slashed and sent to the treasury.
 #[test]
 fn slashed_treasury_proposal_funds_send_to_treasury() {
-	let alice = PolimecBase::account_id_of(ALICE);
-	PolimecBase::execute_with(|| {
+	let alice = Polimec::account_id_of(ALICE);
+	Polimec::execute_with(|| {
 		// 0. Set the treasury balance to 1000 PLMC
 		assert_ok!(Balances::write_balance(&Treasury::account_id(), 1000 * PLMC));
 		let alice_balance = Balances::balance(&alice);
@@ -322,8 +322,8 @@ fn slashed_treasury_proposal_funds_send_to_treasury() {
 /// Test that users can vote in the election-phragmen pallet with their staked balance.
 #[test]
 fn user_can_vote_in_election_with_staked_balance() {
-	let alice = PolimecBase::account_id_of(ALICE);
-	PolimecBase::execute_with(|| {
+	let alice = Polimec::account_id_of(ALICE);
+	Polimec::execute_with(|| {
 		let account = create_vested_account();
 
 		assert_ok!(ParachainStaking::delegate(
@@ -341,7 +341,7 @@ fn user_can_vote_in_election_with_staked_balance() {
 
 		assert_eq!(
 			Balances::balance_frozen(
-				&polimec_base_runtime::RuntimeFreezeReason::Elections(pallet_elections_phragmen::FreezeReason::Voting),
+				&polimec_runtime::RuntimeFreezeReason::Elections(pallet_elections_phragmen::FreezeReason::Voting),
 				&account
 			),
 			200 * PLMC
@@ -349,19 +349,19 @@ fn user_can_vote_in_election_with_staked_balance() {
 
 		assert_noop!(
 			Elections::remove_voter(RuntimeOrigin::signed(account.clone())),
-			pallet_elections_phragmen::Error::<polimec_base_runtime::Runtime>::VotingPeriodNotEnded
+			pallet_elections_phragmen::Error::<polimec_runtime::Runtime>::VotingPeriodNotEnded
 		);
 	});
 
 	run_gov_n_blocks(5);
 
-	PolimecBase::execute_with(|| {
+	Polimec::execute_with(|| {
 		let account = get_account_id_from_seed::<sr25519::Public>("NEW_ACCOUNT");
 
 		assert_ok!(Elections::remove_voter(RuntimeOrigin::signed(account.clone())));
 		assert_eq!(
 			Balances::balance_frozen(
-				&polimec_base_runtime::RuntimeFreezeReason::Elections(pallet_elections_phragmen::FreezeReason::Voting),
+				&polimec_runtime::RuntimeFreezeReason::Elections(pallet_elections_phragmen::FreezeReason::Voting),
 				&account
 			),
 			0
@@ -378,12 +378,12 @@ fn user_can_vote_in_election_with_staked_balance() {
 /// 6. Check that the remaining candidates have their funds slashed as they did not receive any votes
 #[test]
 fn election_phragmen_works() {
-	let candidates = (1..=<BaseRuntime as pallet_elections_phragmen::Config>::MaxCandidates::get())
+	let candidates = (1..=<PolimecRuntime as pallet_elections_phragmen::Config>::MaxCandidates::get())
 		.into_iter()
 		.map(|i| get_account_id_from_seed::<sr25519::Public>(format!("CANDIDATE_{}", i).as_str()))
 		.collect::<Vec<AccountId>>();
 	// 1. Register candidates for the election.
-	PolimecBase::execute_with(|| {
+	Polimec::execute_with(|| {
 		assert_eq!(Elections::candidates().len(), 0);
 		// Alice .. Eve already selected members
 		assert_eq!(Elections::members().len(), 5);
@@ -396,11 +396,11 @@ fn election_phragmen_works() {
 
 		assert_eq!(
 			Elections::candidates().len(),
-			<BaseRuntime as pallet_elections_phragmen::Config>::MaxCandidates::get() as usize
+			<PolimecRuntime as pallet_elections_phragmen::Config>::MaxCandidates::get() as usize
 		);
 
 		for (i, voter) in vec![ALICE, BOB, CHARLIE, DAVE, EVE, FERDIE, ALICE_STASH, BOB_STASH].into_iter().enumerate() {
-			let voter = PolimecBase::account_id_of(voter);
+			let voter = Polimec::account_id_of(voter);
 			assert_ok!(Elections::vote(
 				RuntimeOrigin::signed(voter.clone()),
 				candidates[i..(i + 8)].to_vec(),
@@ -411,7 +411,7 @@ fn election_phragmen_works() {
 
 	run_gov_n_blocks(5);
 
-	PolimecBase::execute_with(|| {
+	Polimec::execute_with(|| {
 		assert_eq!(Elections::candidates().len(), 0);
 		assert_eq!(Elections::members().len(), 9);
 		assert_eq!(Elections::runners_up().len(), 6);
@@ -422,13 +422,14 @@ fn election_phragmen_works() {
 
 		// Check that the candidates that were not elected have their funds slashed
 		for candidate in
-			&candidates[15..<BaseRuntime as pallet_elections_phragmen::Config>::MaxCandidates::get() as usize]
+			&candidates[15..<PolimecRuntime as pallet_elections_phragmen::Config>::MaxCandidates::get() as usize]
 		{
 			assert_eq!(Balances::total_balance(candidate), ED);
 		}
 		assert_eq!(
 			Balances::balance(&Treasury::account_id()),
-			(<BaseRuntime as pallet_elections_phragmen::Config>::MaxCandidates::get() as u128 - 15) * 1000 * PLMC + ED
+			(<PolimecRuntime as pallet_elections_phragmen::Config>::MaxCandidates::get() as u128 - 15) * 1000 * PLMC +
+				ED
 		)
 	});
 }
@@ -441,7 +442,7 @@ fn assert_same_members(expected: Vec<AccountId>, actual: &Vec<AccountId>) {
 }
 
 fn create_vested_account() -> AccountId {
-	let alice = PolimecBase::account_id_of(ALICE);
+	let alice = Polimec::account_id_of(ALICE);
 	let new_account = get_account_id_from_seed::<sr25519::Public>("NEW_ACCOUNT");
 
 	// Initially the NEW_ACCOUNT has no PLMC
@@ -464,24 +465,24 @@ fn create_vested_account() -> AccountId {
 
 fn run_gov_n_blocks(n: usize) {
 	for _ in 0..n {
-		PolimecBase::execute_with(|| {
-			let block_number = polimec_base_runtime::System::block_number();
+		Polimec::execute_with(|| {
+			let block_number = polimec_runtime::System::block_number();
 
-			let header = polimec_base_runtime::System::finalize();
+			let header = polimec_runtime::System::finalize();
 
 			let pre_digest = Digest { logs: vec![] };
-			polimec_base_runtime::System::reset_events();
+			polimec_runtime::System::reset_events();
 
 			let next_block_number = block_number + 1u32;
-			polimec_base_runtime::Vesting::on_initialize(next_block_number);
-			polimec_base_runtime::Elections::on_initialize(next_block_number);
-			polimec_base_runtime::Council::on_initialize(next_block_number);
-			polimec_base_runtime::TechnicalCommittee::on_initialize(next_block_number);
-			polimec_base_runtime::Treasury::on_initialize(next_block_number);
-			polimec_base_runtime::Democracy::on_initialize(next_block_number);
-			polimec_base_runtime::Preimage::on_initialize(next_block_number);
-			polimec_base_runtime::Scheduler::on_initialize(next_block_number);
-			polimec_base_runtime::System::initialize(&next_block_number, &header.hash(), &pre_digest);
+			polimec_runtime::Vesting::on_initialize(next_block_number);
+			polimec_runtime::Elections::on_initialize(next_block_number);
+			polimec_runtime::Council::on_initialize(next_block_number);
+			polimec_runtime::TechnicalCommittee::on_initialize(next_block_number);
+			polimec_runtime::Treasury::on_initialize(next_block_number);
+			polimec_runtime::Democracy::on_initialize(next_block_number);
+			polimec_runtime::Preimage::on_initialize(next_block_number);
+			polimec_runtime::Scheduler::on_initialize(next_block_number);
+			polimec_runtime::System::initialize(&next_block_number, &header.hash(), &pre_digest);
 		});
 	}
 }
@@ -494,7 +495,7 @@ fn do_vote(account: AccountId, index: u32, approve: bool, amount: u128) {
 	));
 }
 
-fn do_council_vote_for(accounts: Vec<(AccountId, bool)>, index: u32, hash: polimec_base_runtime::Hash) {
+fn do_council_vote_for(accounts: Vec<(AccountId, bool)>, index: u32, hash: polimec_runtime::Hash) {
 	for (account, approve) in accounts {
 		assert_ok!(Council::vote(RuntimeOrigin::signed(account.clone()), hash, index, approve,));
 	}

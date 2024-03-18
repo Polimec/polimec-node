@@ -3949,11 +3949,11 @@ dependencies = [
  "parachains-common",
  "parity-scale-codec",
  "penpal-runtime",
- "polimec-base-runtime",
  "polimec-common",
  "polimec-common-test-utils",
- "polimec-parachain-runtime",
  "polimec-receiver",
+ "polimec-runtime",
+ "politest-runtime",
  "polkadot-core-primitives",
  "polkadot-parachain",
  "polkadot-primitives",
@@ -7469,7 +7469,126 @@ dependencies = [
 ]
 
 [[package]]
-name = "polimec-base-runtime"
+name = "polimec-common"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "itertools 0.11.0",
+ "jwt-compact",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "polimec-common-test-utils"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "frame-support",
+ "jwt-compact",
+ "parity-scale-codec",
+ "polimec-common",
+ "reqwest",
+]
+
+[[package]]
+name = "polimec-parachain-node"
+version = "0.5.1"
+dependencies = [
+ "clap",
+ "color-print",
+ "cumulus-client-cli",
+ "cumulus-client-consensus-aura",
+ "cumulus-client-consensus-common",
+ "cumulus-client-network",
+ "cumulus-client-service",
+ "cumulus-primitives-core",
+ "cumulus-primitives-parachain-inherent",
+ "cumulus-relay-chain-inprocess-interface",
+ "cumulus-relay-chain-interface",
+ "cumulus-relay-chain-minimal-node",
+ "frame-benchmarking",
+ "frame-benchmarking-cli",
+ "futures",
+ "hex-literal 0.3.4",
+ "itertools 0.11.0",
+ "jsonrpsee",
+ "log",
+ "macros",
+ "pallet-funding",
+ "pallet-transaction-payment-rpc",
+ "parachains-common",
+ "parity-scale-codec",
+ "polimec-runtime",
+ "politest-runtime",
+ "polkadot-cli",
+ "polkadot-primitives",
+ "polkadot-service",
+ "sc-basic-authorship",
+ "sc-chain-spec",
+ "sc-cli",
+ "sc-client-api",
+ "sc-consensus",
+ "sc-executor",
+ "sc-network",
+ "sc-network-common",
+ "sc-network-sync",
+ "sc-offchain",
+ "sc-rpc",
+ "sc-rpc-api",
+ "sc-service",
+ "sc-sysinfo",
+ "sc-telemetry",
+ "sc-tracing",
+ "sc-transaction-pool",
+ "sc-transaction-pool-api",
+ "serde",
+ "sp-api",
+ "sp-block-builder",
+ "sp-blockchain",
+ "sp-consensus-aura",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-offchain",
+ "sp-runtime",
+ "sp-session",
+ "sp-timestamp",
+ "sp-transaction-pool",
+ "substrate-build-script-utils",
+ "substrate-frame-rpc-system",
+ "substrate-prometheus-endpoint",
+ "try-runtime-cli",
+ "xcm",
+]
+
+[[package]]
+name = "polimec-receiver"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "polimec-common",
+ "polkadot-parachain",
+ "polkadot-runtime-parachains",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "polimec-runtime"
 version = "0.5.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
@@ -7540,107 +7659,27 @@ dependencies = [
 ]
 
 [[package]]
-name = "polimec-common"
-version = "0.1.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "itertools 0.11.0",
- "jwt-compact",
- "pallet-timestamp",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "polimec-common-test-utils"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "frame-support",
- "jwt-compact",
- "parity-scale-codec",
- "polimec-common",
- "reqwest",
-]
-
-[[package]]
-name = "polimec-parachain-node"
+name = "polimec-xcm-executor"
 version = "0.5.1"
 dependencies = [
- "clap",
- "color-print",
- "cumulus-client-cli",
- "cumulus-client-consensus-aura",
- "cumulus-client-consensus-common",
- "cumulus-client-network",
- "cumulus-client-service",
- "cumulus-primitives-core",
- "cumulus-primitives-parachain-inherent",
- "cumulus-relay-chain-inprocess-interface",
- "cumulus-relay-chain-interface",
- "cumulus-relay-chain-minimal-node",
+ "environmental",
  "frame-benchmarking",
- "frame-benchmarking-cli",
- "futures",
- "hex-literal 0.3.4",
- "itertools 0.11.0",
- "jsonrpsee",
+ "frame-support",
+ "impl-trait-for-tuples",
  "log",
- "macros",
- "pallet-funding",
- "pallet-transaction-payment-rpc",
- "parachains-common",
  "parity-scale-codec",
- "polimec-base-runtime",
- "polimec-parachain-runtime",
- "polkadot-cli",
- "polkadot-primitives",
- "polkadot-service",
- "sc-basic-authorship",
- "sc-chain-spec",
- "sc-cli",
- "sc-client-api",
- "sc-consensus",
- "sc-executor",
- "sc-network",
- "sc-network-common",
- "sc-network-sync",
- "sc-offchain",
- "sc-rpc",
- "sc-rpc-api",
- "sc-service",
- "sc-sysinfo",
- "sc-telemetry",
- "sc-tracing",
- "sc-transaction-pool",
- "sc-transaction-pool-api",
- "serde",
- "sp-api",
- "sp-block-builder",
- "sp-blockchain",
- "sp-consensus-aura",
+ "sp-arithmetic",
  "sp-core",
  "sp-io",
- "sp-keystore",
- "sp-offchain",
  "sp-runtime",
- "sp-session",
- "sp-timestamp",
- "sp-transaction-pool",
- "substrate-build-script-utils",
- "substrate-frame-rpc-system",
- "substrate-prometheus-endpoint",
- "try-runtime-cli",
+ "sp-std",
+ "sp-weights",
  "xcm",
+ "xcm-executor",
 ]
 
 [[package]]
-name = "polimec-parachain-runtime"
+name = "politest-runtime"
 version = "0.5.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
@@ -7717,45 +7756,6 @@ dependencies = [
  "substrate-wasm-builder",
  "xcm",
  "xcm-builder",
- "xcm-executor",
-]
-
-[[package]]
-name = "polimec-receiver"
-version = "0.1.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "polimec-common",
- "polkadot-parachain",
- "polkadot-runtime-parachains",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "polimec-xcm-executor"
-version = "0.5.1"
-dependencies = [
- "environmental",
- "frame-benchmarking",
- "frame-support",
- "impl-trait-for-tuples",
- "log",
- "parity-scale-codec",
- "sp-arithmetic",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "sp-weights",
- "xcm",
  "xcm-executor",
 ]
 

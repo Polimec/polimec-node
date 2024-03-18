@@ -20,7 +20,7 @@
 
 use cumulus_primitives_core::ParaId;
 use frame_benchmarking::frame_support::bounded_vec;
-use polimec_parachain_runtime::{
+use politest_runtime::{
 	pallet_parachain_staking::{
 		inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR},
 		InflationInfo, Range,
@@ -67,14 +67,14 @@ pub fn polimec_inflation_config() -> InflationInfo<Balance> {
 	}
 }
 
-pub fn get_testnet_session_keys(keys: AuthorityId) -> polimec_parachain_runtime::SessionKeys {
-	polimec_parachain_runtime::SessionKeys { aura: keys }
+pub fn get_testnet_session_keys(keys: AuthorityId) -> politest_runtime::SessionKeys {
+	politest_runtime::SessionKeys { aura: keys }
 }
 
 #[cfg(feature = "std")]
 pub fn get_chain_spec_testing() -> Result<ChainSpec, String> {
 	let properties = get_properties("PLMC", 10, 41);
-	let wasm = polimec_parachain_runtime::WASM_BINARY.ok_or("No WASM")?;
+	let wasm = politest_runtime::WASM_BINARY.ok_or("No WASM")?;
 
 	Ok(ChainSpec::from_genesis(
 		"Polimec Develop",
@@ -115,7 +115,7 @@ pub fn get_chain_spec_testing() -> Result<ChainSpec, String> {
 
 pub fn get_chain_spec_dev() -> Result<ChainSpec, String> {
 	let properties = get_properties("RLMC", 10, 41);
-	let wasm = polimec_parachain_runtime::WASM_BINARY.ok_or("No WASM")?;
+	let wasm = politest_runtime::WASM_BINARY.ok_or("No WASM")?;
 
 	Ok(ChainSpec::from_genesis(
 		"Rolimec Develop",
@@ -237,7 +237,7 @@ mod testing_helpers {
 	pub use itertools::Itertools;
 	pub use macros::generate_accounts;
 	pub use pallet_funding::{instantiator, instantiator::UserToUSDBalance, AuctionPhase, ProjectStatus, *};
-	pub use polimec_parachain_runtime::AccountId;
+	pub use politest_runtime::AccountId;
 	pub use sp_core::H256;
 	pub use sp_runtime::{
 		traits::{ConstU32, Get, PhantomData},
@@ -273,7 +273,7 @@ mod testing_helpers {
 		vec![20u8, 15u8, 10u8, 25u8, 30u8]
 	}
 
-	pub fn project_metadata(issuer: AccountId, nonce: u32) -> ProjectMetadataOf<polimec_parachain_runtime::Runtime> {
+	pub fn project_metadata(issuer: AccountId, nonce: u32) -> ProjectMetadataOf<politest_runtime::Runtime> {
 		ProjectMetadata {
 			token_information: CurrencyMetadata {
 				name: bounded_name(),
@@ -283,7 +283,7 @@ mod testing_helpers {
 			mainnet_token_max_supply: 8_000_000 * ASSET_UNIT,
 			total_allocation_size: 1_000_000 * ASSET_UNIT,
 			auction_round_allocation_percentage: Percent::from_percent(50u8),
-			minimum_price: PriceOf::<polimec_parachain_runtime::Runtime>::from_float(10.0),
+			minimum_price: PriceOf::<politest_runtime::Runtime>::from_float(10.0),
 			bidding_ticket_sizes: BiddingTicketSizes {
 				professional: TicketSize::new(Some(5000 * US_DOLLAR), None),
 				institutional: TicketSize::new(Some(5000 * US_DOLLAR), None),
@@ -300,7 +300,7 @@ mod testing_helpers {
 			offchain_information_hash: Some(metadata_hash(nonce)),
 		}
 	}
-	pub fn default_evaluations() -> Vec<UserToUSDBalance<polimec_parachain_runtime::Runtime>> {
+	pub fn default_evaluations() -> Vec<UserToUSDBalance<politest_runtime::Runtime>> {
 		vec![
 			UserToUSDBalance::new(EVAL_1.into(), 500_000 * PLMC),
 			UserToUSDBalance::new(EVAL_2.into(), 250_000 * PLMC),
@@ -331,7 +331,7 @@ mod testing_helpers {
 		<sp_runtime::traits::BlakeTwo256 as sp_runtime::traits::Hash>::hash(data.as_ref())
 	}
 
-	use polimec_parachain_runtime::Runtime as T;
+	use politest_runtime::Runtime as T;
 	pub type GenesisInstantiator = pallet_funding::instantiator::Instantiator<
 		T,
 		<T as pallet_funding::Config>::AllPalletsWithoutSystem,
@@ -394,7 +394,7 @@ fn testing_genesis(
 			],
 			phantom: Default::default(),
 		},
-		polimec_funding: polimec_parachain_runtime::PolimecFundingConfig {
+		polimec_funding: politest_runtime::PolimecFundingConfig {
 			starting_projects: vec![
 				TestProjectParams::<Runtime> {
 					expected_state: ProjectStatus::FundingSuccessful,
