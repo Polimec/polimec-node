@@ -181,7 +181,7 @@ fn migrations_are_executed(grouped_migrations: Vec<Migrations>) {
 				}
 			})
 			.sum::<u128>();
-		
+
 		assert_close_enough!(user_info.frozen, vest_scheduled_cts, Perquintill::from_float(0.99));
 	}
 }

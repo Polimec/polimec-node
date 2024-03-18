@@ -35,7 +35,7 @@ use frame_support::{
 };
 use itertools::Itertools;
 use parachains_common::DAYS;
-use polimec_common::{ReleaseSchedule};
+use polimec_common::ReleaseSchedule;
 use polimec_common_test_utils::{generate_did_from_account, get_mock_jwt};
 use sp_arithmetic::{traits::Zero, Percent, Perquintill};
 use sp_runtime::{BuildStorage, TokenError};

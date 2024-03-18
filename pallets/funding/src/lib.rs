@@ -132,10 +132,7 @@ use polimec_common::{
 };
 use polkadot_parachain_primitives::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
-use sp_runtime::{
-	traits::{AccountIdConversion},
-	FixedPointNumber, FixedPointOperand, FixedU128,
-};
+use sp_runtime::{traits::AccountIdConversion, FixedPointNumber, FixedPointOperand, FixedU128};
 use sp_std::{marker::PhantomData, prelude::*};
 use traits::DoRemainingOperation;
 pub use types::*;

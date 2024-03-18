@@ -42,7 +42,7 @@ pub use parachains_common::{
 	SLOT_DURATION,
 };
 use parity_scale_codec::Encode;
-use polimec_common::credentials::{EnsureInvestor};
+use polimec_common::credentials::EnsureInvestor;
 
 // Polkadot imports
 use polkadot_runtime_common::{

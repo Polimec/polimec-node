@@ -286,7 +286,6 @@ fn auction_round_completed() {
 	let bids = excel_bidders();
 
 	PoliNet::execute_with(|| {
-
 		let project_id = inst.create_community_contributing_project(project, issuer, evaluations, bids);
 		let wavgp_from_excel = 10.202357561;
 		// Convert the float to a FixedU128

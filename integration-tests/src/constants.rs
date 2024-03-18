@@ -318,7 +318,7 @@ pub mod asset_hub {
 // Polimec
 pub mod polimec {
 	use super::*;
-	use crate::{Polimec, PolkadotNet, PolimecRuntime};
+	use crate::{Polimec, PolimecRuntime, PolkadotNet};
 	use pallet_funding::AcceptedFundingAsset;
 	use sp_runtime::traits::AccountIdConversion;
 	use xcm::v3::Parent;

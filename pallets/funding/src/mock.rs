@@ -29,7 +29,7 @@ use frame_support::{
 };
 use frame_system as system;
 use frame_system::EnsureRoot;
-use polimec_common::credentials::{EnsureInvestor};
+use polimec_common::credentials::EnsureInvestor;
 use sp_arithmetic::Percent;
 use sp_core::H256;
 use sp_runtime::{
