@@ -6922,6 +6922,7 @@ dependencies = [
  "pallet-vesting",
  "parity-scale-codec",
  "polimec-common",
+ "polimec-common-test-utils",
  "scale-info",
  "sp-core",
  "sp-io",

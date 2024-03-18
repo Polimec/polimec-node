@@ -101,7 +101,7 @@ pub mod pallet {
 		
 		#[pallet::call_index(0)]
 		#[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
-		pub fn claim_as_institutional(origin: OriginFor<T>, jwt: UntrustedToken) -> DispatchResultWithPostInfo {
+		pub fn claim(origin: OriginFor<T>, jwt: UntrustedToken) -> DispatchResultWithPostInfo {
 			
 			let who = T::InvestorOrigin::ensure_origin(origin, &jwt, T::VerifierPublicKey::get())?;
             // TODO: get from jwt once #177 is merged

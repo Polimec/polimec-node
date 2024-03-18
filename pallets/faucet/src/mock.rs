@@ -89,7 +89,38 @@ impl crate::Config for Test {
 	type WeightInfo = ();
 }
 
-// Build genesis storage according to the mock runtime.
-pub fn new_test_ext() -> sp_io::TestExternalities {
-	system::GenesisConfig::<Test>::default().build_storage().unwrap().into()
+pub(crate) struct ExtBuilder {
+	// amount of account that can claim tokens
+	claiming_accounts: u64,
+	
+}
+
+impl Default for ExtBuilder {
+	fn default() -> ExtBuilder {
+		ExtBuilder {
+			claiming_accounts: 1,
+		}
+	}
+}
+
+impl ExtBuilder {
+	pub(crate) fn claiming_account(mut self, amount: u64) -> Self {
+		self.claiming_accounts = amount;
+		self
+	}
+
+	pub(crate) fn build(self) -> sp_io::TestExternalities {
+		let mut t = system::GenesisConfig::<Test>::default()
+			.build_storage()
+			.expect("Frame system builds valid default genesis config");
+		let faucet_filled = vec![(Faucet::claiming_account(), self.claiming_accounts * <Test as crate::Config>::InitialClaimAmount::get())];
+		pallet_balances::GenesisConfig::<Test> { balances: faucet_filled }
+			.assimilate_storage(&mut t)
+			.expect("Pallet balances storage can be assimilated");
+		
+
+		let mut ext = sp_io::TestExternalities::new(t);
+		ext.execute_with(|| System::set_block_number(1));
+		ext
+	}
 }

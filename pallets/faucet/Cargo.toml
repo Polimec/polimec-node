@@ -37,6 +37,7 @@ sp-runtime.workspace = true
 pallet-balances.workspace = true
 pallet-timestamp.workspace = true
 pallet-vesting.workspace = true
+polimec-common-test-utils.workspace = true
 
 [features]
 default = [ "std" ]
@@ -49,6 +50,7 @@ std = [
     "pallet-timestamp/std",
     "pallet-vesting/std",
 	"polimec-common/std",
+    "polimec-common-test-utils/std",
 	"scale-info/std",
 	"sp-core/std",
 	"sp-io/std",
