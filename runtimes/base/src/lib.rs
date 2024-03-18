@@ -340,10 +340,19 @@ impl pallet_authorship::Config for Runtime {
 	type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
 }
 
+pub struct DustRemovalAdapter;
+
+impl tokens::imbalance::OnUnbalanced<CreditOf<Runtime>> for DustRemovalAdapter {
+	fn on_nonzero_unbalanced(amount: CreditOf<Runtime>) {
+		let treasury_account = PayMaster::get();
+		let _ = <Balances as tokens::fungible::Balanced<AccountId>>::resolve(&treasury_account, amount);
+	}
+}
+
 impl pallet_balances::Config for Runtime {
 	type AccountStore = System;
 	type Balance = Balance;
-	type DustRemoval = ();
+	type DustRemoval = DustRemovalAdapter;
 	type ExistentialDeposit = ExistentialDeposit;
 	type FreezeIdentifier = RuntimeFreezeReason;
 	type MaxFreezes = MaxReserves;
