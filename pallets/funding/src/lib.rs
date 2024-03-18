@@ -127,7 +127,7 @@ use frame_system::pallet_prelude::BlockNumberFor;
 pub use pallet::*;
 use pallet_xcm::ensure_response;
 use polimec_common::{
-	credentials::{EnsureOriginWithCredentials, UntrustedToken, Did, InvestorType},
+	credentials::{Did, EnsureOriginWithCredentials, InvestorType, UntrustedToken},
 	migration_types::*,
 };
 use polkadot_parachain::primitives::Id as ParaId;

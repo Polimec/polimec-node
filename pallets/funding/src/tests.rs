@@ -2957,7 +2957,12 @@ mod community_contribution {
 	fn issuer_cannot_contribute_his_project() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_metadata = default_project_metadata(0, ISSUER);
-		let project_id = inst.create_community_contributing_project(project_metadata.clone(), ISSUER, default_evaluations(), default_bids());
+		let project_id = inst.create_community_contributing_project(
+			project_metadata.clone(),
+			ISSUER,
+			default_evaluations(),
+			default_bids(),
+		);
 		assert_err!(
 			inst.execute(|| crate::Pallet::<TestRuntime>::do_community_contribute(
 				&(&ISSUER + 1),
@@ -3626,7 +3631,13 @@ mod remainder_contribution {
 	fn issuer_cannot_contribute_his_project() {
 		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
 		let project_metadata = default_project_metadata(0, ISSUER);
-		let project_id = inst.create_remainder_contributing_project(project_metadata.clone(), ISSUER, default_evaluations(), default_bids(), default_community_buys());
+		let project_id = inst.create_remainder_contributing_project(
+			project_metadata.clone(),
+			ISSUER,
+			default_evaluations(),
+			default_bids(),
+			default_community_buys(),
+		);
 		assert_err!(
 			inst.execute(|| crate::Pallet::<TestRuntime>::do_remaining_contribute(
 				&(&ISSUER + 1),
