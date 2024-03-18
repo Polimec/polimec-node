@@ -36,9 +36,9 @@ Polimec is a blockchain platform built on Substrate, designed for robustness and
 1. **Clone the Polimec Repository**: 
    `git clone <Polimec Repository URL>`
 2. **Compile the source**: 
-   `cargo build --release --package polimec-parachain-node`
+   `cargo build --release --package polimec-node`
 3. **Add the Polimec node binary to your PATH**: 
-   `cp target/release/polimec-parachain-node ~/.local/bin/polimec`
+   `cp target/release/polimec-node ~/.local/bin/polimec`
 
 ### Running the Network
 
@@ -87,7 +87,7 @@ Available recipes:
   build-parachain-srtool    # Build the "Testnet" Runtime using srtool
   create-chainspec-base     # Create the "Base" Runtime Chainspec
   default                   # Help information
-  docker-build tag="latest" package="polimec-parachain-node" # Build the Node Docker Image
+  docker-build tag="latest" package="polimec-node" # Build the Node Docker Image
   run-node                  # Run the "Standalone" node in --dev mode
   test-runtime-features     # Test the runtimes features
   zombienet path_to_file="scripts/zombienet/native/base-rococo-local.toml" # Use zombienet to spawn rococo + polimec testnet

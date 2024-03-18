@@ -1,5 +1,5 @@
 [package]
-name = "polimec-parachain-node"
+name = "polimec-node"
 description = "A new Cumulus FRAME-based Substrate Node, ready for hacking together a parachain."
 authors.workspace = true
 documentation.workspace = true

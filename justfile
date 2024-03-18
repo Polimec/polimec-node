@@ -22,7 +22,7 @@ test-integration:
 # src: https://github.com/polkadot-fellows/runtimes/blob/48ccfae6141d2924f579d81e8b1877efd208693f/system-parachains/asset-hubs/asset-hub-polkadot/src/weights/cumulus_pallet_xcmp_queue.rs
 # Benchmark a specific pallet on the "Base" Runtime
 benchmark-runtime pallet="pallet-elections-phragmen" features="runtime-benchmarks":
-    cargo run --features {{ features }} --release -p polimec-parachain-node benchmark pallet \
+    cargo run --features {{ features }} --release -p polimec-node benchmark pallet \
       --chain=base-polkadot \
       --steps=50 \
       --repeat=20 \
@@ -35,7 +35,7 @@ benchmark-runtime pallet="pallet-elections-phragmen" features="runtime-benchmark
 # src: https://github.com/paritytech/polkadot-sdk/blob/bc2e5e1fe26e2c2c8ee766ff9fe7be7e212a0c62/substrate/frame/nfts/src/weights.rs
 # Run the Runtime benchmarks for a specific pallet
 benchmark-pallet pallet="pallet-elections-phragmen" features="runtime-benchmarks":
-    cargo run --features {{ features }} --release -p polimec-parachain-node benchmark pallet \
+    cargo run --features {{ features }} --release -p polimec-node benchmark pallet \
       --chain=base-polkadot \
       --steps=50 \
       --repeat=20 \
@@ -50,7 +50,7 @@ benchmark-pallet pallet="pallet-elections-phragmen" features="runtime-benchmarks
       --template=./.maintain/frame-weight-template.hbs
 
 # Build the Node Docker Image
-docker-build tag="latest" package="polimec-parachain-node":
+docker-build tag="latest" package="polimec-node":
     ./scripts/build_image.sh {{ tag }} ./Dockerfile {{ package }}
 
 # Create the "Base" Runtime Chainspec

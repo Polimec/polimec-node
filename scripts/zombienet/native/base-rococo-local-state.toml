@@ -25,8 +25,8 @@ genesis_wasm_path = "./scripts/zombienet/native/genesis/para-2000-wasm"
 
 	[[parachains.collators]]
 	name = "polimec-collator-1"
-	command = "polimec-parachain-node"
+	command = "polimec-node"
 
 	[[parachains.collators]]
 	name = "polimec-collator-2"
-	command = "polimec-parachain-node"
+	command = "polimec-node"
