@@ -49,6 +49,7 @@ substrate-wasm-builder = { git = "https://github.com/paritytech/polkadot-sdk", b
 pallet-funding = { path = "pallets/funding", default-features = false }
 pallet-democracy = { path = "pallets/democracy", default-features = false }
 pallet-elections-phragmen = { path = "pallets/elections-phragmen", default-features = false }
+pallet-faucet = { path = "pallets/faucet", default-features = false }
 pallet-oracle-ocw = { path = "pallets/oracle-ocw", default-features = false }
 pallet-sandbox = { path = "pallets/sandbox", default-features = false }
 pallet-parachain-staking = { path = "pallets/parachain-staking", default-features = false }
@@ -155,6 +156,7 @@ pallet-vesting = {version = '28.0.0', default-features = false}
 pallet-staking = {version = '28.0.0', default-features = false}
 pallet-proxy = {version = '28.0.0', default-features = false}
 pallet-identity = {version = '28.0.0', default-features = false}
+pallet-skip-feeless-payment = {version = '3.0.0', default-features = false}
 
 # Polkadot (with default disabled)
 pallet-xcm = {version = '7.0.0', default-features = false}

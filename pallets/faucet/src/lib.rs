@@ -98,7 +98,7 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		
+		#[pallet::feeless_if( | _origin: &OriginFor<T>, _jwt: &UntrustedToken | -> bool { true })]
 		#[pallet::call_index(0)]
 		#[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
 		pub fn claim(origin: OriginFor<T>, jwt: UntrustedToken) -> DispatchResultWithPostInfo {
