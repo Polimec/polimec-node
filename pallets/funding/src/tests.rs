@@ -5919,14 +5919,12 @@ mod funding_end {
 		);
 
 		let issuer_balance = inst.get_free_plmc_balances_for(vec![ISSUER])[0].plmc_amount;
-		dbg!(&issuer_balance);
 		assert_eq!(issuer_balance, ed);
 
 		inst.finish_funding(project_id).unwrap();
 		inst.advance_time(1).unwrap();
 
 		let issuer_balance = inst.get_free_plmc_balances_for(vec![ISSUER])[0].plmc_amount;
-		dbg!(&issuer_balance);
 
 		let treasury_ct_account_deposit =
 			<TestRuntime as pallet::Config>::ContributionTokenCurrency::deposit_required(project_id);
