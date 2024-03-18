@@ -833,6 +833,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn do_start_settlement(project_id: ProjectId) -> DispatchResultWithPostInfo {
 		// * Get variables *
+		let project_metadata = ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?;
 		let mut project_details = ProjectsDetails::<T>::get(project_id).ok_or(Error::<T>::ProjectDetailsNotFound)?;
 		let token_information =
 			ProjectsMetadata::<T>::get(project_id).ok_or(Error::<T>::ProjectNotFound)?.token_information;
@@ -897,6 +898,38 @@ impl<T: Config> Pallet<T> {
 				pays_fee: Pays::Yes,
 			})
 		} else {
+			// return plmc deposits charged to the issuer on project creation
+			let ct_treasury_account = T::ContributionTreasury::get();
+			let treasury_ct_account_deposit = T::ContributionTokenCurrency::deposit_required(project_id);
+
+			let escrow_account = Self::fund_account_id(project_id);
+			let escrow_metadata_deposit = T::ContributionTokenCurrency::calc_metadata_deposit(
+				project_metadata.token_information.name.as_slice(),
+				project_metadata.token_information.symbol.as_slice(),
+			);
+
+			let issuer_account = project_details.issuer_account;
+
+			T::NativeCurrency::release(
+				&HoldReason::FutureDeposit(project_id).into(),
+				&ct_treasury_account,
+				treasury_ct_account_deposit,
+				Precision::BestEffort,
+			)?;
+			T::NativeCurrency::transfer(
+				&ct_treasury_account,
+				&issuer_account,
+				treasury_ct_account_deposit,
+				Preservation::Protect,
+			)?;
+
+			T::NativeCurrency::transfer(
+				&escrow_account,
+				&issuer_account,
+				escrow_metadata_deposit,
+				Preservation::Protect,
+			)?;
+
 			Ok(PostDispatchInfo {
 				actual_weight: Some(WeightInfoOf::<T>::start_settlement_funding_failure()),
 				pays_fee: Pays::Yes,
@@ -3164,6 +3197,7 @@ impl<T: Config> Pallet<T> {
 				Ok(iterations) => iterations,
 				Err(_iterations) => return Err(Error::<T>::TooManyInsertionAttempts.into()),
 			};
+
 		Self::deposit_event(Event::FundingEnded { project_id, outcome: FundingOutcome::Failure(reason) });
 		Ok(insertion_iterations)
 	}

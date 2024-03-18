@@ -3653,7 +3653,7 @@ mod remainder_contribution {
 	}
 }
 
-// only functionalities that happen after the REMAINDER FUNDING period of a project, and before the CT Migration
+// only functionalities that happen after the REMAINDER FUNDING period of a project and before the CT Migration
 mod funding_end {
 	use super::*;
 
@@ -5888,6 +5888,57 @@ mod funding_end {
 			);
 			inst.advance_time(<TestRuntime as Config>::SuccessToSettlementTime::get() + 1).unwrap();
 		}
+	}
+
+	#[test]
+	fn creation_deposits_returned_on_funding_fail() {
+		let mut inst = MockInstantiator::new(Some(RefCell::new(new_test_ext())));
+		let ed = MockInstantiator::get_ed();
+		let project_metadata = default_project_metadata(0, ISSUER);
+		let evaluations = default_evaluations();
+		let bids = MockInstantiator::generate_bids_from_total_ct_percent(
+			project_metadata.clone(),
+			20,
+			default_weights(),
+			default_bidders(),
+			default_bidder_multipliers(),
+		);
+		let community_contributions = MockInstantiator::generate_contributions_from_total_ct_percent(
+			project_metadata.clone(),
+			10,
+			default_weights(),
+			default_community_contributors(),
+			default_community_contributor_multipliers(),
+		);
+		let project_id = inst.create_remainder_contributing_project(
+			project_metadata.clone(),
+			ISSUER,
+			evaluations.clone(),
+			bids.clone(),
+			community_contributions.clone(),
+		);
+
+		let issuer_balance = inst.get_free_plmc_balances_for(vec![ISSUER])[0].plmc_amount;
+		dbg!(&issuer_balance);
+		assert_eq!(issuer_balance, ed);
+
+		inst.finish_funding(project_id).unwrap();
+		inst.advance_time(1).unwrap();
+
+		let issuer_balance = inst.get_free_plmc_balances_for(vec![ISSUER])[0].plmc_amount;
+		dbg!(&issuer_balance);
+
+		let treasury_ct_account_deposit =
+			<TestRuntime as pallet::Config>::ContributionTokenCurrency::deposit_required(project_id);
+		let metadata_deposit =
+			<<TestRuntime as pallet::Config>::ContributionTokenCurrency as fungibles::metadata::MetadataDeposit<
+				BalanceOf<TestRuntime>,
+			>>::calc_metadata_deposit(
+				project_metadata.token_information.name.as_slice(),
+				project_metadata.token_information.symbol.as_slice(),
+			);
+
+		assert_eq!(issuer_balance, ed + treasury_ct_account_deposit + metadata_deposit);
 	}
 }
 
