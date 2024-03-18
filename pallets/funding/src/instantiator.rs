@@ -35,14 +35,13 @@ use frame_support::{
 use frame_system::pallet_prelude::BlockNumberFor;
 use itertools::Itertools;
 use parity_scale_codec::Decode;
-use polimec_common::credentials::{Did, InvestorType};
+use polimec_common::credentials::{InvestorType};
 #[cfg(any(test, feature = "std", feature = "runtime-benchmarks"))]
 use polimec_common_test_utils::generate_did_from_account;
 use sp_arithmetic::{
 	traits::{SaturatedConversion, Saturating, Zero},
 	FixedPointNumber, Percent, Perquintill,
 };
-use sp_core::H256;
 use sp_runtime::{
 	traits::{Member, One},
 	DispatchError,
@@ -1619,7 +1618,6 @@ pub mod async_features {
 	use super::*;
 	use assert_matches2::assert_matches;
 	use futures::FutureExt;
-	use polimec_common::credentials::InvestorType;
 	use std::{
 		collections::HashMap,
 		sync::{
