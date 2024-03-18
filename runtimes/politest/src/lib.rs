@@ -37,7 +37,7 @@ pub use parachains_common::{
 	NORMAL_DISPATCH_RATIO, SLOT_DURATION,
 };
 use parity_scale_codec::Encode;
-use polimec_common::credentials::{EnsureInvestor, Institutional, Professional, Retail};
+use polimec_common::credentials::{EnsureInvestor};
 
 // Polkadot imports
 use polkadot_runtime_common::{BlockHashCount, CurrencyToVote, SlowAdjustingFeeUpdate};

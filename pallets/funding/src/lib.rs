@@ -119,7 +119,7 @@ pub use crate::weights::WeightInfo;
 use frame_support::{
 	traits::{
 		tokens::{fungible, fungibles, Balance},
-		AccountTouch, ConstU64, ContainsPair, Randomness,
+		AccountTouch, ContainsPair, Randomness,
 	},
 	BoundedVec, PalletId,
 };
@@ -132,9 +132,8 @@ use polimec_common::{
 };
 use polkadot_parachain::primitives::Id as ParaId;
 use sp_arithmetic::traits::{One, Saturating};
-use sp_core::{ConstU128, ConstU32};
 use sp_runtime::{
-	traits::{parameter_types, AccountIdConversion},
+	traits::{AccountIdConversion},
 	FixedPointNumber, FixedPointOperand, FixedU128,
 };
 use sp_std::{marker::PhantomData, prelude::*};

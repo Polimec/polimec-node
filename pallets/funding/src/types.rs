@@ -158,13 +158,10 @@ pub mod config_types {
 
 pub mod storage_types {
 	use crate::US_DOLLAR;
-	use itertools::Itertools;
 	use sp_arithmetic::{
 		traits::{One, Saturating, Zero},
 		Percent,
 	};
-	use sp_std::collections::btree_set::BTreeSet;
-
 	use super::*;
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
